@@ -784,6 +784,11 @@ unsigned long __fdget_pos(unsigned int fd)
 	return v;
 }
 
+void __f_unlock_pos(struct file *f)
+{
+	mutex_unlock(&f->f_pos_lock);
+}
+
 /*
  * We only lock f_pos if we have threads or if the file might be
  * shared with another process. In both cases we'll have an elevated

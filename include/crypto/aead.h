@@ -405,8 +405,7 @@ static inline void aead_request_set_tfm(struct aead_request *req,
  * encrypt and decrypt API calls. During the allocation, the provided aead
  * handle is registered in the request data structure.
  *
- * Return: allocated request handle in case of success; IS_ERR() is true in case
- *	   of an error, PTR_ERR() returns the error code.
+ * Return: allocated request handle in case of success, or NULL if out of memory
  */
 static inline struct aead_request *aead_request_alloc(struct crypto_aead *tfm,
 						      gfp_t gfp)

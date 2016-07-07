@@ -11,9 +11,10 @@
  * Note that this file only supports the 770D CPU
  */
 
+/include/ "skeleton.dtsi"
+
 / {
 	compatible = "snps,arc";
-	clock-frequency = <750000000>;	/* 750 MHZ */
 	#address-cells = <1>;
 	#size-cells = <1>;
 
@@ -24,7 +25,13 @@
 
 		ranges = <0x00000000 0xf0000000 0x10000000>;
 
-		cpu_intc: arc700-intc@cpu {
+		core_clk: core_clk {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <750000000>;
+		};
+
+		core_intc: arc700-intc@cpu {
 			compatible = "snps,arc700-intc";
 			interrupt-controller;
 			#interrupt-cells = <1>;
@@ -48,7 +55,7 @@
 				reg = <0>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
-				interrupt-parent = <&cpu_intc>;
+				interrupt-parent = <&core_intc>;
 				interrupts = <15>;
 			};
 		};
@@ -86,15 +93,33 @@
 		compatible = "snps,dw-apb-ictl";
 		reg = < 0xe0012000 0x200 >;
 		interrupt-controller;
-		interrupt-parent = <&cpu_intc>;
+		interrupt-parent = <&core_intc>;
 		interrupts = < 7 >;
 	};
 
 	memory {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		ranges = <0x00000000 0x80000000 0x40000000>;
+		ranges = <0x00000000 0x80000000 0x20000000>;
 		device_type = "memory";
-		reg = <0x80000000 0x20000000>;	/* 512MiB */
+		reg = <0x80000000 0x1b000000>;	/* (512 - 32) MiB */
+	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+		/*
+		 * We just move frame buffer area to the very end of
+		 * available DDR. And even though in case of ARC770 there's
+		 * no strict requirement for a frame-buffer to be in any
+		 * particular location it allows us to use the same
+		 * base board's DT node for ARC PGU as for ARc HS38.
+		 */
+		frame_buffer: frame_buffer@9e000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x9e000000 0x2000000>;
+			no-map;
+		};
 	};
 };

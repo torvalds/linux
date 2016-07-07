@@ -85,7 +85,6 @@ struct ptldebug_header {
 #define PH_FLAG_FIRST_RECORD 1
 
 /* Debugging subsystems (32 bits, non-overlapping) */
-/* keep these in sync with lnet/utils/debug.c and lnet/libcfs/debug.c */
 #define S_UNDEFINED	0x00000001
 #define S_MDC		0x00000002
 #define S_MDS		0x00000004
@@ -118,10 +117,14 @@ struct ptldebug_header {
 #define S_MGS		0x20000000
 #define S_FID		0x40000000 /* b_new_cmd */
 #define S_FLD		0x80000000 /* b_new_cmd */
-/* keep these in sync with lnet/utils/debug.c and lnet/libcfs/debug.c */
+
+#define LIBCFS_DEBUG_SUBSYS_NAMES {					\
+	"undefined", "mdc", "mds", "osc", "ost", "class", "log",	\
+	"llite", "rpc", "mgmt", "lnet", "lnd", "pinger", "filter", "",	\
+	"echo", "ldlm", "lov", "lquota", "osd", "lfsck", "", "", "lmv",	\
+	"", "sec", "gss", "", "mgc", "mgs", "fid", "fld", NULL }
 
 /* Debugging masks (32 bits, non-overlapping) */
-/* keep these in sync with lnet/utils/debug.c and lnet/libcfs/debug.c */
 #define D_TRACE		0x00000001 /* ENTRY/EXIT markers */
 #define D_INODE		0x00000002
 #define D_SUPER		0x00000004
@@ -151,9 +154,14 @@ struct ptldebug_header {
 #define D_QUOTA		0x04000000
 #define D_SEC		0x08000000
 #define D_LFSCK		0x10000000 /* For both OI scrub and LFSCK */
-/* keep these in sync with lnet/{utils,libcfs}/debug.c */
+#define D_HSM		0x20000000
 
-#define D_HSM	 D_TRACE
+#define LIBCFS_DEBUG_MASKS_NAMES {					\
+	"trace", "inode", "super", "ext2", "malloc", "cache", "info",	\
+	"ioctl", "neterror", "net", "warning", "buffs", "other",	\
+	"dentry", "nettrace", "page", "dlmtrace", "error", "emerg",	\
+	"ha", "rpctrace", "vfstrace", "reada", "mmap", "config",	\
+	"console", "quota", "sec", "lfsck", "hsm", NULL }
 
 #define D_CANTMASK   (D_ERROR | D_EMERG | D_WARNING | D_CONSOLE)
 

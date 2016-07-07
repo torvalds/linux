@@ -173,7 +173,7 @@ int ath9k_cmn_process_rate(struct ath_common *common,
 			   struct ieee80211_rx_status *rxs)
 {
 	struct ieee80211_supported_band *sband;
-	enum ieee80211_band band;
+	enum nl80211_band band;
 	unsigned int i = 0;
 	struct ath_hw *ah = common->ah;
 
@@ -305,7 +305,7 @@ static void ath9k_cmn_update_ichannel(struct ath9k_channel *ichan,
 	ichan->channel = chan->center_freq;
 	ichan->chan = chan;
 
-	if (chan->band == IEEE80211_BAND_5GHZ)
+	if (chan->band == NL80211_BAND_5GHZ)
 		flags |= CHANNEL_5GHZ;
 
 	switch (chandef->width) {

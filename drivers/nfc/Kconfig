@@ -5,16 +5,6 @@
 menu "Near Field Communication (NFC) devices"
 	depends on NFC
 
-config NFC_PN533
-	tristate "NXP PN533 USB driver"
-	depends on USB
-	help
-	  NXP PN533 USB driver.
-	  This driver provides support for NFC NXP PN533 devices.
-
-	  Say Y here to compile support for PN533 devices into the
-	  kernel or say M to compile it as module (pn533).
-
 config NFC_WILINK
 	tristate "Texas Instruments NFC WiLink driver"
 	depends on TI_ST && NFC_NCI
@@ -70,6 +60,7 @@ config NFC_PORT100
 
 source "drivers/nfc/fdp/Kconfig"
 source "drivers/nfc/pn544/Kconfig"
+source "drivers/nfc/pn533/Kconfig"
 source "drivers/nfc/microread/Kconfig"
 source "drivers/nfc/nfcmrvl/Kconfig"
 source "drivers/nfc/st21nfca/Kconfig"

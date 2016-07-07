@@ -101,7 +101,7 @@ static int add_hist_entries(struct hists *hists, struct machine *machine)
 		if (machine__resolve(machine, &al, &sample) < 0)
 			goto out;
 
-		if (hist_entry_iter__add(&iter, &al, PERF_MAX_STACK_DEPTH,
+		if (hist_entry_iter__add(&iter, &al, sysctl_perf_event_max_stack,
 					 NULL) < 0) {
 			addr_location__put(&al);
 			goto out;
@@ -126,7 +126,7 @@ static void del_hist_entries(struct hists *hists)
 	struct rb_root *root_out;
 	struct rb_node *node;
 
-	if (sort__need_collapse)
+	if (hists__has(hists, need_collapse))
 		root_in = &hists->entries_collapsed;
 	else
 		root_in = hists->entries_in;

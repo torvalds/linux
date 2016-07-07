@@ -23,7 +23,6 @@ obj-$(CONFIG_FB_XGI)		+= xgifb/
 obj-$(CONFIG_USB_EMXX)		+= emxx_udc/
 obj-$(CONFIG_SPEAKUP)		+= speakup/
 obj-$(CONFIG_MFD_NVEC)		+= nvec/
-obj-$(CONFIG_STAGING_RDMA)	+= rdma/
 obj-$(CONFIG_ANDROID)		+= android/
 obj-$(CONFIG_STAGING_BOARD)	+= board/
 obj-$(CONFIG_LTE_GDM724X)	+= gdm724x/

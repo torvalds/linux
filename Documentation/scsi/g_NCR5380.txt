@@ -23,11 +23,10 @@ supported by the driver.
 
 If the default configuration does not work for you, you can use the kernel
 command lines (eg using the lilo append command):
-	ncr5380=port,irq,dma
-	ncr53c400=port,irq
-or
-	ncr5380=base,irq,dma
-	ncr53c400=base,irq
+	ncr5380=addr,irq
+	ncr53c400=addr,irq
+	ncr53c400a=addr,irq
+	dtc3181e=addr,irq
 
 The driver does not probe for any addresses or ports other than those in
 the OVERRIDE or given to the kernel as above.
@@ -36,19 +35,17 @@ This driver provides some information on what it has detected in
 /proc/scsi/g_NCR5380/x where x is the scsi card number as detected at boot
 time. More info to come in the future.
 
-When NCR53c400 support is compiled in, BIOS parameters will be returned by
-the driver (the raw 5380 driver does not and I don't plan to fiddle with
-it!).
-
 This driver works as a module.
 When included as a module, parameters can be passed on the insmod/modprobe
 command line:
   ncr_irq=xx   the interrupt
   ncr_addr=xx  the port or base address (for port or memory
                mapped, resp.)
-  ncr_dma=xx   the DMA
   ncr_5380=1   to set up for a NCR5380 board
   ncr_53c400=1 to set up for a NCR53C400 board
+  ncr_53c400a=1 to set up for a NCR53C400A board
+  dtc_3181e=1  to set up for a Domex Technology Corp 3181E board
+  hp_c2502=1   to set up for a Hewlett Packard C2502 board
 e.g.
 modprobe g_NCR5380 ncr_irq=5 ncr_addr=0x350 ncr_5380=1
   for a port mapped NCR5380 board or

@@ -58,8 +58,8 @@ quiet_cmd_mkdir = MKDIR    $(dir $@)
 quiet_cmd_cc_o_c = CC       $@
       cmd_cc_o_c = $(CC) $(c_flags) -c -o $@ $<
 
-quiet_cmd_cc_i_c = CPP      $@
-      cmd_cc_i_c = $(CC) $(c_flags) -E -o $@ $<
+quiet_cmd_cpp_i_c = CPP      $@
+      cmd_cpp_i_c = $(CC) $(c_flags) -E -o $@ $<
 
 quiet_cmd_cc_s_c = AS       $@
       cmd_cc_s_c = $(CC) $(c_flags) -S -o $@ $<
@@ -83,11 +83,11 @@ $(OUTPUT)%.o: %.S FORCE
 
 $(OUTPUT)%.i: %.c FORCE
 	$(call rule_mkdir)
-	$(call if_changed_dep,cc_i_c)
+	$(call if_changed_dep,cpp_i_c)
 
 $(OUTPUT)%.s: %.S FORCE
 	$(call rule_mkdir)
-	$(call if_changed_dep,cc_i_c)
+	$(call if_changed_dep,cpp_i_c)
 
 $(OUTPUT)%.s: %.c FORCE
 	$(call rule_mkdir)

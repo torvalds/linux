@@ -50,3 +50,8 @@
 		reg = <0x80000000 0x10000000>;
 	};
 };
+
+&nfc {
+	assigned-clocks = <&clks VF610_CLK_NFC>;
+	assigned-clock-rates = <50000000>;
+};

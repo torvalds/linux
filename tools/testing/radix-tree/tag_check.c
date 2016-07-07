@@ -12,6 +12,7 @@
 static void
 __simple_checks(struct radix_tree_root *tree, unsigned long index, int tag)
 {
+	unsigned long first = 0;
 	int ret;
 
 	item_check_absent(tree, index);
@@ -21,6 +22,10 @@ __simple_checks(struct radix_tree_root *tree, unsigned long index, int tag)
 	assert(item_tag_get(tree, index, tag) == 0);
 	item_tag_set(tree, index, tag);
 	ret = item_tag_get(tree, index, tag);
+	assert(ret != 0);
+	ret = radix_tree_range_tag_if_tagged(tree, &first, ~0UL, 10, tag, !tag);
+	assert(ret == 1);
+	ret = item_tag_get(tree, index, !tag);
 	assert(ret != 0);
 	ret = item_delete(tree, index);
 	assert(ret != 0);
@@ -304,6 +309,7 @@ static void single_check(void)
 	struct item *items[BATCH];
 	RADIX_TREE(tree, GFP_KERNEL);
 	int ret;
+	unsigned long first = 0;
 
 	item_insert(&tree, 0);
 	item_tag_set(&tree, 0, 0);
@@ -313,6 +319,10 @@ static void single_check(void)
 	assert(ret == 0);
 	verify_tag_consistency(&tree, 0);
 	verify_tag_consistency(&tree, 1);
+	ret = radix_tree_range_tag_if_tagged(&tree, &first, 10, 10, 0, 1);
+	assert(ret == 1);
+	ret = radix_tree_gang_lookup_tag(&tree, (void **)items, 0, BATCH, 1);
+	assert(ret == 1);
 	item_kill_tree(&tree);
 }
 

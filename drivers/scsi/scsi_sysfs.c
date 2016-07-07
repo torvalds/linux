@@ -145,7 +145,8 @@ static int scsi_scan(struct Scsi_Host *shost, const char *str)
 	if (shost->transportt->user_scan)
 		res = shost->transportt->user_scan(shost, channel, id, lun);
 	else
-		res = scsi_scan_host_selected(shost, channel, id, lun, 1);
+		res = scsi_scan_host_selected(shost, channel, id, lun,
+					      SCSI_SCAN_MANUAL);
 	return res;
 }
 
@@ -1366,18 +1367,18 @@ static void __scsi_remove_target(struct scsi_target *starget)
 void scsi_remove_target(struct device *dev)
 {
 	struct Scsi_Host *shost = dev_to_shost(dev->parent);
-	struct scsi_target *starget, *last_target = NULL;
+	struct scsi_target *starget;
 	unsigned long flags;
 
 restart:
 	spin_lock_irqsave(shost->host_lock, flags);
 	list_for_each_entry(starget, &shost->__targets, siblings) {
 		if (starget->state == STARGET_DEL ||
-		    starget == last_target)
+		    starget->state == STARGET_REMOVE)
 			continue;
 		if (starget->dev.parent == dev || &starget->dev == dev) {
 			kref_get(&starget->reap_ref);
-			last_target = starget;
+			starget->state = STARGET_REMOVE;
 			spin_unlock_irqrestore(shost->host_lock, flags);
 			__scsi_remove_target(starget);
 			scsi_target_reap(starget);

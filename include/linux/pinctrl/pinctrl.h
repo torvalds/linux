@@ -144,6 +144,12 @@ struct pinctrl_desc {
 extern struct pinctrl_dev *pinctrl_register(struct pinctrl_desc *pctldesc,
 				struct device *dev, void *driver_data);
 extern void pinctrl_unregister(struct pinctrl_dev *pctldev);
+extern struct pinctrl_dev *devm_pinctrl_register(struct device *dev,
+				struct pinctrl_desc *pctldesc,
+				void *driver_data);
+extern void devm_pinctrl_unregister(struct device *dev,
+				struct pinctrl_dev *pctldev);
+
 extern bool pin_is_valid(struct pinctrl_dev *pctldev, int pin);
 extern void pinctrl_add_gpio_range(struct pinctrl_dev *pctldev,
 				struct pinctrl_gpio_range *range);

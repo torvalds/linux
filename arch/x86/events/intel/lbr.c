@@ -14,7 +14,8 @@ enum {
 	LBR_FORMAT_EIP_FLAGS	= 0x03,
 	LBR_FORMAT_EIP_FLAGS2	= 0x04,
 	LBR_FORMAT_INFO		= 0x05,
-	LBR_FORMAT_MAX_KNOWN    = LBR_FORMAT_INFO,
+	LBR_FORMAT_TIME		= 0x06,
+	LBR_FORMAT_MAX_KNOWN    = LBR_FORMAT_TIME,
 };
 
 static enum {
@@ -464,6 +465,16 @@ static void intel_pmu_lbr_read_64(struct cpu_hw_events *cpuc)
 			abort = !!(info & LBR_INFO_ABORT);
 			cycles = (info & LBR_INFO_CYCLES);
 		}
+
+		if (lbr_format == LBR_FORMAT_TIME) {
+			mis = !!(from & LBR_FROM_FLAG_MISPRED);
+			pred = !mis;
+			skip = 1;
+			cycles = ((to >> 48) & LBR_INFO_CYCLES);
+
+			to = (u64)((((s64)to) << 16) >> 16);
+		}
+
 		if (lbr_flags & LBR_EIP_FLAGS) {
 			mis = !!(from & LBR_FROM_FLAG_MISPRED);
 			pred = !mis;
@@ -1041,6 +1052,24 @@ void __init intel_pmu_lbr_init_atom(void)
 	x86_pmu.lbr_tos    = MSR_LBR_TOS;
 	x86_pmu.lbr_from   = MSR_LBR_CORE_FROM;
 	x86_pmu.lbr_to     = MSR_LBR_CORE_TO;
+
+	/*
+	 * SW branch filter usage:
+	 * - compensate for lack of HW filter
+	 */
+	pr_cont("8-deep LBR, ");
+}
+
+/* slm */
+void __init intel_pmu_lbr_init_slm(void)
+{
+	x86_pmu.lbr_nr	   = 8;
+	x86_pmu.lbr_tos    = MSR_LBR_TOS;
+	x86_pmu.lbr_from   = MSR_LBR_CORE_FROM;
+	x86_pmu.lbr_to     = MSR_LBR_CORE_TO;
+
+	x86_pmu.lbr_sel_mask = LBR_SEL_MASK;
+	x86_pmu.lbr_sel_map  = nhm_lbr_sel_map;
 
 	/*
 	 * SW branch filter usage:

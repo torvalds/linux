@@ -38,6 +38,9 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/regmap.h>
+#include <linux/thermal.h>
+#include <linux/irq.h>
+#include <linux/interrupt.h>
 
 /* Register definitions */
 #define MAX8973_VOUT					0x0
@@ -74,6 +77,7 @@
 #define MAX8973_WDTMR_ENABLE				BIT(6)
 #define MAX8973_DISCH_ENBABLE				BIT(5)
 #define MAX8973_FT_ENABLE				BIT(4)
+#define MAX77621_T_JUNCTION_120				BIT(7)
 
 #define MAX8973_CKKADV_TRIP_MASK			0xC
 #define MAX8973_CKKADV_TRIP_DISABLE			0xC
@@ -92,6 +96,12 @@
 #define MAX8973_MAX_VOLATGE				1400000
 #define MAX8973_VOLATGE_STEP				6250
 #define MAX8973_BUCK_N_VOLTAGE				0x80
+
+#define MAX77621_CHIPID_TJINT_S				BIT(0)
+
+#define MAX77621_NORMAL_OPERATING_TEMP			100000
+#define MAX77621_TJINT_WARNING_TEMP_120			120000
+#define MAX77621_TJINT_WARNING_TEMP_140			140000
 
 enum device_id {
 	MAX8973,
@@ -112,6 +122,9 @@ struct max8973_chip {
 	int curr_gpio_val;
 	struct regulator_ops ops;
 	enum device_id id;
+	int junction_temp_warning;
+	int irq;
+	struct thermal_zone_device *tz_device;
 };
 
 /*
@@ -391,6 +404,10 @@ static int max8973_init_dcdc(struct max8973_chip *max,
 	if (pdata->control_flags & MAX8973_CONTROL_FREQ_SHIFT_9PER_ENABLE)
 		control1 |= MAX8973_FREQSHIFT_9PER;
 
+	if ((pdata->junction_temp_warning == MAX77621_TJINT_WARNING_TEMP_120) &&
+	    (max->id == MAX77621))
+		control2 |= MAX77621_T_JUNCTION_120;
+
 	if (!(pdata->control_flags & MAX8973_CONTROL_PULL_DOWN_ENABLE))
 		control2 |= MAX8973_DISCH_ENBABLE;
 
@@ -457,6 +474,79 @@ static int max8973_init_dcdc(struct max8973_chip *max,
 	return ret;
 }
 
+static int max8973_thermal_read_temp(void *data, int *temp)
+{
+	struct max8973_chip *mchip = data;
+	unsigned int val;
+	int ret;
+
+	ret = regmap_read(mchip->regmap, MAX8973_CHIPID1, &val);
+	if (ret < 0) {
+		dev_err(mchip->dev, "Failed to read register CHIPID1, %d", ret);
+		return ret;
+	}
+
+	/* +1 degC to trigger cool devive */
+	if (val & MAX77621_CHIPID_TJINT_S)
+		*temp = mchip->junction_temp_warning + 1000;
+	else
+		*temp = MAX77621_NORMAL_OPERATING_TEMP;
+
+	return 0;
+}
+
+static irqreturn_t max8973_thermal_irq(int irq, void *data)
+{
+	struct max8973_chip *mchip = data;
+
+	thermal_zone_device_update(mchip->tz_device);
+
+	return IRQ_HANDLED;
+}
+
+static const struct thermal_zone_of_device_ops max77621_tz_ops = {
+	.get_temp = max8973_thermal_read_temp,
+};
+
+static int max8973_thermal_init(struct max8973_chip *mchip)
+{
+	struct thermal_zone_device *tzd;
+	struct irq_data *irq_data;
+	unsigned long irq_flags = 0;
+	int ret;
+
+	if (mchip->id != MAX77621)
+		return 0;
+
+	tzd = devm_thermal_zone_of_sensor_register(mchip->dev, 0, mchip,
+						   &max77621_tz_ops);
+	if (IS_ERR(tzd)) {
+		ret = PTR_ERR(tzd);
+		dev_err(mchip->dev, "Failed to register thermal sensor: %d\n",
+			ret);
+		return ret;
+	}
+
+	if (mchip->irq <= 0)
+		return 0;
+
+	irq_data = irq_get_irq_data(mchip->irq);
+	if (irq_data)
+		irq_flags = irqd_get_trigger_type(irq_data);
+
+	ret = devm_request_threaded_irq(mchip->dev, mchip->irq, NULL,
+					max8973_thermal_irq,
+					IRQF_ONESHOT | IRQF_SHARED | irq_flags,
+					dev_name(mchip->dev), mchip);
+	if (ret < 0) {
+		dev_err(mchip->dev, "Failed to request irq %d, %d\n",
+			mchip->irq, ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 static const struct regmap_config max8973_regmap_config = {
 	.reg_bits		= 8,
 	.val_bits		= 8,
@@ -520,6 +610,11 @@ static struct max8973_regulator_platform_data *max8973_parse_dt(
 	} else {
 		pdata->control_flags |= MAX8973_CONTROL_CLKADV_TRIP_DISABLED;
 	}
+
+	pdata->junction_temp_warning = MAX77621_TJINT_WARNING_TEMP_140;
+	ret = of_property_read_u32(np, "junction-warn-millicelsius", &pval);
+	if (!ret && (pval <= MAX77621_TJINT_WARNING_TEMP_120))
+		pdata->junction_temp_warning = MAX77621_TJINT_WARNING_TEMP_120;
 
 	return pdata;
 }
@@ -608,6 +703,7 @@ static int max8973_probe(struct i2c_client *client,
 	max->enable_external_control = pdata->enable_ext_control;
 	max->curr_gpio_val = pdata->dvs_def_state;
 	max->curr_vout_reg = MAX8973_VOUT + pdata->dvs_def_state;
+	max->junction_temp_warning = pdata->junction_temp_warning;
 
 	if (gpio_is_valid(max->enable_gpio))
 		max->enable_external_control = true;
@@ -718,6 +814,7 @@ static int max8973_probe(struct i2c_client *client,
 		return ret;
 	}
 
+	max8973_thermal_init(max);
 	return 0;
 }
 

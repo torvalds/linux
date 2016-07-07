@@ -57,6 +57,14 @@ void __trace_note_message(struct blk_trace *, const char *fmt, ...);
 	} while (0)
 #define BLK_TN_MAX_MSG		128
 
+static inline bool blk_trace_note_message_enabled(struct request_queue *q)
+{
+	struct blk_trace *bt = q->blk_trace;
+	if (likely(!bt))
+		return false;
+	return bt->act_mask & BLK_TC_NOTIFY;
+}
+
 extern void blk_add_driver_data(struct request_queue *q, struct request *rq,
 				void *data, size_t len);
 extern int blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
@@ -79,6 +87,7 @@ extern struct attribute_group blk_trace_attr_group;
 # define blk_trace_remove(q)				(-ENOTTY)
 # define blk_add_trace_msg(q, fmt, ...)			do { } while (0)
 # define blk_trace_remove_sysfs(dev)			do { } while (0)
+# define blk_trace_note_message_enabled(q)		(false)
 static inline int blk_trace_init_sysfs(struct device *dev)
 {
 	return 0;

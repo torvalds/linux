@@ -289,8 +289,6 @@ struct kernel_param;
 int nf_conntrack_set_hashsize(const char *val, struct kernel_param *kp);
 extern unsigned int nf_conntrack_htable_size;
 extern unsigned int nf_conntrack_max;
-extern unsigned int nf_conntrack_hash_rnd;
-void init_nf_conntrack_hash_rnd(void);
 
 struct nf_conn *nf_ct_tmpl_alloc(struct net *net,
 				 const struct nf_conntrack_zone *zone,

@@ -20,7 +20,7 @@
 #define ATH10K_QUIET_PERIOD_MIN         25
 #define ATH10K_QUIET_START_OFFSET       10
 #define ATH10K_HWMON_NAME_LEN           15
-#define ATH10K_THERMAL_SYNC_TIMEOUT_HZ (5*HZ)
+#define ATH10K_THERMAL_SYNC_TIMEOUT_HZ (5 * HZ)
 #define ATH10K_THERMAL_THROTTLE_MAX     100
 
 struct ath10k_thermal {

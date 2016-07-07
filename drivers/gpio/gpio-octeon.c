@@ -83,6 +83,7 @@ static int octeon_gpio_probe(struct platform_device *pdev)
 	struct octeon_gpio *gpio;
 	struct gpio_chip *chip;
 	struct resource *res_mem;
+	void __iomem *reg_base;
 	int err = 0;
 
 	gpio = devm_kzalloc(&pdev->dev, sizeof(*gpio), GFP_KERNEL);
@@ -91,21 +92,11 @@ static int octeon_gpio_probe(struct platform_device *pdev)
 	chip = &gpio->chip;
 
 	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res_mem == NULL) {
-		dev_err(&pdev->dev, "found no memory resource\n");
-		err = -ENXIO;
-		goto out;
-	}
-	if (!devm_request_mem_region(&pdev->dev, res_mem->start,
-					resource_size(res_mem),
-				     res_mem->name)) {
-		dev_err(&pdev->dev, "request_mem_region failed\n");
-		err = -ENXIO;
-		goto out;
-	}
-	gpio->register_base = (u64)devm_ioremap(&pdev->dev, res_mem->start,
-						resource_size(res_mem));
+	reg_base = devm_ioremap_resource(&pdev->dev, res_mem);
+	if (IS_ERR(reg_base))
+		return PTR_ERR(reg_base);
 
+	gpio->register_base = (u64)reg_base;
 	pdev->dev.platform_data = chip;
 	chip->label = "octeon-gpio";
 	chip->parent = &pdev->dev;
@@ -119,14 +110,13 @@ static int octeon_gpio_probe(struct platform_device *pdev)
 	chip->set = octeon_gpio_set;
 	err = devm_gpiochip_add_data(&pdev->dev, chip, gpio);
 	if (err)
-		goto out;
+		return err;
 
 	dev_info(&pdev->dev, "OCTEON GPIO driver probed.\n");
-out:
-	return err;
+	return 0;
 }
 
-static struct of_device_id octeon_gpio_match[] = {
+static const struct of_device_id octeon_gpio_match[] = {
 	{
 		.compatible = "cavium,octeon-3860-gpio",
 	},

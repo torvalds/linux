@@ -202,6 +202,5 @@ static inline int default_mpp_ctrl_set(void __iomem *base, unsigned int pid,
 }
 
 int mvebu_pinctrl_probe(struct platform_device *pdev);
-int mvebu_pinctrl_remove(struct platform_device *pdev);
 
 #endif

@@ -192,7 +192,7 @@ static int pwm_omap_dmtimer_config(struct pwm_chip *chip,
 		load_value, load_value,	match_value, match_value);
 
 	omap->pdata->set_pwm(omap->dm_timer,
-			      pwm->polarity == PWM_POLARITY_INVERSED,
+			      pwm_get_polarity(pwm) == PWM_POLARITY_INVERSED,
 			      true,
 			      PWM_OMAP_DMTIMER_TRIGGER_OVERFLOW_AND_COMPARE);
 

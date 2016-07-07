@@ -512,7 +512,7 @@ static inline int lance_reset(struct net_device *dev)
 	load_csrs(lp);
 
 	lance_init_ring(dev);
-	dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(dev); /* prevent tx timeout */
 	netif_start_queue(dev);
 
 	status = init_restart_lance(lp);
@@ -547,10 +547,8 @@ static netdev_tx_t lance_start_xmit(struct sk_buff *skb,
 
 	local_irq_save(flags);
 
-	if (!lance_tx_buffs_avail(lp)) {
-		local_irq_restore(flags);
-		return NETDEV_TX_LOCKED;
-	}
+	if (!lance_tx_buffs_avail(lp))
+		goto out_free;
 
 #ifdef DEBUG
 	/* dump the packet */
@@ -573,6 +571,7 @@ static netdev_tx_t lance_start_xmit(struct sk_buff *skb,
 
 	/* Kick the lance: transmit now */
 	ll->rdp = LE_C0_INEA | LE_C0_TDMD;
+ out_free:
 	dev_kfree_skb(skb);
 
 	local_irq_restore(flags);

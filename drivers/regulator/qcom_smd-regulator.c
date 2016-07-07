@@ -140,6 +140,19 @@ static const struct regulator_ops rpm_smps_ldo_ops = {
 	.enable = rpm_reg_enable,
 	.disable = rpm_reg_disable,
 	.is_enabled = rpm_reg_is_enabled,
+	.list_voltage = regulator_list_voltage_linear_range,
+
+	.get_voltage = rpm_reg_get_voltage,
+	.set_voltage = rpm_reg_set_voltage,
+
+	.set_load = rpm_reg_set_load,
+};
+
+static const struct regulator_ops rpm_smps_ldo_ops_fixed = {
+	.enable = rpm_reg_enable,
+	.disable = rpm_reg_disable,
+	.is_enabled = rpm_reg_is_enabled,
+	.list_voltage = regulator_list_voltage_linear_range,
 
 	.get_voltage = rpm_reg_get_voltage,
 	.set_voltage = rpm_reg_set_voltage,
@@ -247,7 +260,7 @@ static const struct regulator_desc pm8941_nldo = {
 static const struct regulator_desc pm8941_lnldo = {
 	.fixed_uV = 1740000,
 	.n_voltages = 1,
-	.ops = &rpm_smps_ldo_ops,
+	.ops = &rpm_smps_ldo_ops_fixed,
 };
 
 static const struct regulator_desc pm8941_switch = {

@@ -290,14 +290,33 @@ static void do_inject(void)
 	wrmsr_on_cpu(cpu, MSR_IA32_MCG_STATUS,
 		     (u32)mcg_status, (u32)(mcg_status >> 32));
 
-	wrmsr_on_cpu(cpu, MSR_IA32_MCx_STATUS(b),
-		     (u32)i_mce.status, (u32)(i_mce.status >> 32));
+	if (boot_cpu_has(X86_FEATURE_SMCA)) {
+		if (inj_type == DFR_INT_INJ) {
+			wrmsr_on_cpu(cpu, MSR_AMD64_SMCA_MCx_DESTAT(b),
+				     (u32)i_mce.status, (u32)(i_mce.status >> 32));
 
-	wrmsr_on_cpu(cpu, MSR_IA32_MCx_ADDR(b),
-		     (u32)i_mce.addr, (u32)(i_mce.addr >> 32));
+			wrmsr_on_cpu(cpu, MSR_AMD64_SMCA_MCx_DEADDR(b),
+				     (u32)i_mce.addr, (u32)(i_mce.addr >> 32));
+		} else {
+			wrmsr_on_cpu(cpu, MSR_AMD64_SMCA_MCx_STATUS(b),
+				     (u32)i_mce.status, (u32)(i_mce.status >> 32));
 
-	wrmsr_on_cpu(cpu, MSR_IA32_MCx_MISC(b),
-		     (u32)i_mce.misc, (u32)(i_mce.misc >> 32));
+			wrmsr_on_cpu(cpu, MSR_AMD64_SMCA_MCx_ADDR(b),
+				     (u32)i_mce.addr, (u32)(i_mce.addr >> 32));
+		}
+
+		wrmsr_on_cpu(cpu, MSR_AMD64_SMCA_MCx_MISC(b),
+			     (u32)i_mce.misc, (u32)(i_mce.misc >> 32));
+	} else {
+		wrmsr_on_cpu(cpu, MSR_IA32_MCx_STATUS(b),
+			     (u32)i_mce.status, (u32)(i_mce.status >> 32));
+
+		wrmsr_on_cpu(cpu, MSR_IA32_MCx_ADDR(b),
+			     (u32)i_mce.addr, (u32)(i_mce.addr >> 32));
+
+		wrmsr_on_cpu(cpu, MSR_IA32_MCx_MISC(b),
+			     (u32)i_mce.misc, (u32)(i_mce.misc >> 32));
+	}
 
 	toggle_hw_mce_inject(cpu, false);
 

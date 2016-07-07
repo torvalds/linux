@@ -672,6 +672,7 @@ The letters are:
 	d	create a debug log
 	g	synthesize a call chain (use with i or x)
 	l	synthesize last branch entries (use with i or x)
+	s	skip initial number of events
 
 "Instructions" events look like they were recorded by "perf record -e
 instructions".
@@ -730,6 +731,12 @@ from one sample to the next.
 
 To disable trace decoding entirely, use the option --no-itrace.
 
+It is also possible to skip events generated (instructions, branches, transactions)
+at the beginning. This is useful to ignore initialization code.
+
+	--itrace=i0nss1000000
+
+skips the first million instructions.
 
 dump option
 -----------

@@ -1478,6 +1478,9 @@ static const struct of_device_id ucc_uart_match[] = {
 		.type = "serial",
 		.compatible = "ucc_uart",
 	},
+	{
+		.compatible = "fsl,t1040-ucc-uart",
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, ucc_uart_match);

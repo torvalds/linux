@@ -17,7 +17,7 @@
 	model = "Buffalo WZR-600DHP2 (BCM47081)";
 
 	chosen {
-		bootargs = "console=ttyS0,115200";
+		bootargs = "console=ttyS0,115200 earlycon";
 	};
 
 	memory {

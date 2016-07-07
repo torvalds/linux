@@ -292,7 +292,7 @@ void vmalloc_sync_all(void)
 		return;
 
 	for (address = VMALLOC_START & PMD_MASK;
-	     address >= TASK_SIZE && address < FIXADDR_TOP;
+	     address >= TASK_SIZE_MAX && address < FIXADDR_TOP;
 	     address += PMD_SIZE) {
 		struct page *page;
 
@@ -854,8 +854,13 @@ __bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
 				return;
 		}
 #endif
-		/* Kernel addresses are always protection faults: */
-		if (address >= TASK_SIZE)
+
+		/*
+		 * To avoid leaking information about the kernel page table
+		 * layout, pretend that user-mode accesses to kernel addresses
+		 * are always protection faults.
+		 */
+		if (address >= TASK_SIZE_MAX)
 			error_code |= PF_PROT;
 
 		if (likely(show_unhandled_signals))

@@ -73,6 +73,7 @@
 # define DP_ENHANCED_FRAME_CAP		    (1 << 7)
 
 #define DP_MAX_DOWNSPREAD                   0x003
+# define DP_MAX_DOWNSPREAD_0_5		    (1 << 0)
 # define DP_NO_AUX_HANDSHAKE_LINK_TRAINING  (1 << 6)
 
 #define DP_NORP                             0x004

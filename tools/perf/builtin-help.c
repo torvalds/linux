@@ -61,6 +61,7 @@ static int check_emacsclient_version(void)
 	struct child_process ec_process;
 	const char *argv_ec[] = { "emacsclient", "--version", NULL };
 	int version;
+	int ret = -1;
 
 	/* emacsclient prints its version number on stderr */
 	memset(&ec_process, 0, sizeof(ec_process));
@@ -71,7 +72,10 @@ static int check_emacsclient_version(void)
 		fprintf(stderr, "Failed to start emacsclient.\n");
 		return -1;
 	}
-	strbuf_read(&buffer, ec_process.err, 20);
+	if (strbuf_read(&buffer, ec_process.err, 20) < 0) {
+		fprintf(stderr, "Failed to read emacsclient version\n");
+		goto out;
+	}
 	close(ec_process.err);
 
 	/*
@@ -82,8 +86,7 @@ static int check_emacsclient_version(void)
 
 	if (prefixcmp(buffer.buf, "emacsclient")) {
 		fprintf(stderr, "Failed to parse emacsclient version.\n");
-		strbuf_release(&buffer);
-		return -1;
+		goto out;
 	}
 
 	version = atoi(buffer.buf + strlen("emacsclient"));
@@ -92,12 +95,11 @@ static int check_emacsclient_version(void)
 		fprintf(stderr,
 			"emacsclient version '%d' too old (< 22).\n",
 			version);
-		strbuf_release(&buffer);
-		return -1;
-	}
-
+	} else
+		ret = 0;
+out:
 	strbuf_release(&buffer);
-	return 0;
+	return ret;
 }
 
 static void exec_woman_emacs(const char *path, const char *page)

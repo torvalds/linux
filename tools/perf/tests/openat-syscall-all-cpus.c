@@ -73,7 +73,7 @@ int test__openat_syscall_event_on_all_cpus(int subtest __maybe_unused)
 	}
 
 	/*
-	 * Here we need to explicitely preallocate the counts, as if
+	 * Here we need to explicitly preallocate the counts, as if
 	 * we use the auto allocation it will allocate just for 1 cpu,
 	 * as we start by cpu 0.
 	 */

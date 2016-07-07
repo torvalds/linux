@@ -40,7 +40,6 @@ struct nvkm_falcon_func {
 		u32 *data;
 		u32  size;
 	} data;
-	u32 pmc_enable;
 	void (*init)(struct nvkm_falcon *);
 	void (*intr)(struct nvkm_falcon *, struct nvkm_fifo_chan *);
 	struct nvkm_sclass sclass[];

@@ -505,7 +505,8 @@ static int kvm_trap_emul_vcpu_setup(struct kvm_vcpu *vcpu)
 	kvm_write_c0_guest_intctl(cop0, 0xFC000000);
 
 	/* Put in vcpu id as CPUNum into Ebase Reg to handle SMP Guests */
-	kvm_write_c0_guest_ebase(cop0, KVM_GUEST_KSEG0 | (vcpu_id & 0xFF));
+	kvm_write_c0_guest_ebase(cop0, KVM_GUEST_KSEG0 |
+				       (vcpu_id & MIPS_EBASE_CPUNUM));
 
 	return 0;
 }
@@ -546,7 +547,7 @@ static int kvm_trap_emul_set_one_reg(struct kvm_vcpu *vcpu,
 		kvm_mips_write_count(vcpu, v);
 		break;
 	case KVM_REG_MIPS_CP0_COMPARE:
-		kvm_mips_write_compare(vcpu, v);
+		kvm_mips_write_compare(vcpu, v, false);
 		break;
 	case KVM_REG_MIPS_CP0_CAUSE:
 		/*

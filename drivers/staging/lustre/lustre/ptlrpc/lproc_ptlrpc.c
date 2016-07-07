@@ -131,6 +131,7 @@ static struct ll_rpc_opcode {
 	{ SEC_CTX_INIT_CONT, "sec_ctx_init_cont" },
 	{ SEC_CTX_FINI,     "sec_ctx_fini" },
 	{ FLD_QUERY,	"fld_query" },
+	{ FLD_READ,	"fld_read" },
 };
 
 static struct ll_eopcode {
@@ -679,11 +680,11 @@ static ssize_t ptlrpc_lprocfs_nrs_seq_write(struct file *file,
 	/**
 	 * The second token is either NULL, or an optional [reg|hp] string
 	 */
-	if (strcmp(cmd, "reg") == 0)
+	if (strcmp(cmd, "reg") == 0) {
 		queue = PTLRPC_NRS_QUEUE_REG;
-	else if (strcmp(cmd, "hp") == 0)
+	} else if (strcmp(cmd, "hp") == 0) {
 		queue = PTLRPC_NRS_QUEUE_HP;
-	else {
+	} else {
 		rc = -EINVAL;
 		goto out;
 	}
@@ -693,8 +694,9 @@ default_queue:
 	if (queue == PTLRPC_NRS_QUEUE_HP && !nrs_svc_has_hp(svc)) {
 		rc = -ENODEV;
 		goto out;
-	} else if (queue == PTLRPC_NRS_QUEUE_BOTH && !nrs_svc_has_hp(svc))
+	} else if (queue == PTLRPC_NRS_QUEUE_BOTH && !nrs_svc_has_hp(svc)) {
 		queue = PTLRPC_NRS_QUEUE_REG;
+	}
 
 	/**
 	 * Serialize NRS core lprocfs operations with policy registration/
@@ -1320,6 +1322,5 @@ int lprocfs_wr_pinger_recov(struct file *file, const char __user *buffer,
 	up_read(&obd->u.cli.cl_sem);
 
 	return count;
-
 }
 EXPORT_SYMBOL(lprocfs_wr_pinger_recov);

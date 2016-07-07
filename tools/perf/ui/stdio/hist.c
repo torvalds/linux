@@ -569,9 +569,8 @@ static int print_hierarchy_header(struct hists *hists, struct perf_hpp *hpp,
 			first_col = false;
 
 			fmt->header(fmt, hpp, hists_to_evsel(hists));
-			rtrim(hpp->buf);
 
-			header_width += fprintf(fp, "%s", ltrim(hpp->buf));
+			header_width += fprintf(fp, "%s", trim(hpp->buf));
 		}
 	}
 

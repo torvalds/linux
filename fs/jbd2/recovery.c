@@ -303,7 +303,7 @@ int jbd2_journal_recover(journal_t *journal)
  * Locate any valid recovery information from the journal and set up the
  * journal structures in memory to ignore it (presumably because the
  * caller has evidence that it is out of date).
- * This function does'nt appear to be exorted..
+ * This function doesn't appear to be exported..
  *
  * We perform one pass over the journal to allow us to tell the user how
  * much recovery information is being erased, and to let us initialise

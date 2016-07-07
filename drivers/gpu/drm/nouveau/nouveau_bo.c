@@ -30,7 +30,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/swiotlb.h>
 
-#include "nouveau_drm.h"
+#include "nouveau_drv.h"
 #include "nouveau_dma.h"
 #include "nouveau_fence.h"
 
@@ -312,7 +312,7 @@ nouveau_bo_pin(struct nouveau_bo *nvbo, uint32_t memtype, bool contig)
 	bool force = false, evict = false;
 	int ret;
 
-	ret = ttm_bo_reserve(bo, false, false, false, NULL);
+	ret = ttm_bo_reserve(bo, false, false, NULL);
 	if (ret)
 		return ret;
 
@@ -385,7 +385,7 @@ nouveau_bo_unpin(struct nouveau_bo *nvbo)
 	struct ttm_buffer_object *bo = &nvbo->bo;
 	int ret, ref;
 
-	ret = ttm_bo_reserve(bo, false, false, false, NULL);
+	ret = ttm_bo_reserve(bo, false, false, NULL);
 	if (ret)
 		return ret;
 
@@ -420,7 +420,7 @@ nouveau_bo_map(struct nouveau_bo *nvbo)
 {
 	int ret;
 
-	ret = ttm_bo_reserve(&nvbo->bo, false, false, false, NULL);
+	ret = ttm_bo_reserve(&nvbo->bo, false, false, NULL);
 	if (ret)
 		return ret;
 
@@ -1322,7 +1322,7 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict, bool intr,
 	}
 
 	/* Fallback to software copy. */
-	ret = ttm_bo_wait(bo, true, intr, no_wait_gpu);
+	ret = ttm_bo_wait(bo, intr, no_wait_gpu);
 	if (ret == 0)
 		ret = ttm_bo_move_memcpy(bo, evict, no_wait_gpu, new_mem);
 
@@ -1611,6 +1611,8 @@ struct ttm_bo_driver nouveau_bo_driver = {
 	.fault_reserve_notify = &nouveau_ttm_fault_reserve_notify,
 	.io_mem_reserve = &nouveau_ttm_io_mem_reserve,
 	.io_mem_free = &nouveau_ttm_io_mem_free,
+	.lru_tail = &ttm_bo_default_lru_tail,
+	.swap_lru_tail = &ttm_bo_default_swap_lru_tail,
 };
 
 struct nvkm_vma *

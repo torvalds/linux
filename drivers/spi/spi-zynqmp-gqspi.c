@@ -360,7 +360,7 @@ static int zynqmp_prepare_transfer_hardware(struct spi_master *master)
 
 	ret = clk_enable(xqspi->refclk);
 	if (ret)
-		goto clk_err;
+		return ret;
 
 	ret = clk_enable(xqspi->pclk);
 	if (ret)
@@ -369,6 +369,7 @@ static int zynqmp_prepare_transfer_hardware(struct spi_master *master)
 	zynqmp_gqspi_write(xqspi, GQSPI_EN_OFST, GQSPI_EN_MASK);
 	return 0;
 clk_err:
+	clk_disable(xqspi->refclk);
 	return ret;
 }
 

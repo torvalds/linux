@@ -4248,20 +4248,12 @@ static int ocfs2_reflink(struct dentry *old_dentry, struct inode *dir,
 	struct inode *inode = d_inode(old_dentry);
 	struct buffer_head *old_bh = NULL;
 	struct inode *new_orphan_inode = NULL;
-	struct posix_acl *default_acl, *acl;
-	umode_t mode;
 
 	if (!ocfs2_refcount_tree(OCFS2_SB(inode->i_sb)))
 		return -EOPNOTSUPP;
 
-	mode = inode->i_mode;
-	error = posix_acl_create(dir, &mode, &default_acl, &acl);
-	if (error) {
-		mlog_errno(error);
-		return error;
-	}
 
-	error = ocfs2_create_inode_in_orphan(dir, mode,
+	error = ocfs2_create_inode_in_orphan(dir, inode->i_mode,
 					     &new_orphan_inode);
 	if (error) {
 		mlog_errno(error);
@@ -4300,16 +4292,11 @@ static int ocfs2_reflink(struct dentry *old_dentry, struct inode *dir,
 	/* If the security isn't preserved, we need to re-initialize them. */
 	if (!preserve) {
 		error = ocfs2_init_security_and_acl(dir, new_orphan_inode,
-						    &new_dentry->d_name,
-						    default_acl, acl);
+						    &new_dentry->d_name);
 		if (error)
 			mlog_errno(error);
 	}
 out:
-	if (default_acl)
-		posix_acl_release(default_acl);
-	if (acl)
-		posix_acl_release(acl);
 	if (!error) {
 		error = ocfs2_mv_orphaned_inode_to_new(dir, new_orphan_inode,
 						       new_dentry);

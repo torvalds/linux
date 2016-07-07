@@ -413,10 +413,11 @@ config LEDS_INTEL_SS4200
 	tristate "LED driver for Intel NAS SS4200 series"
 	depends on LEDS_CLASS
 	depends on PCI && DMI
+	depends on X86
 	help
 	  This option enables support for the Intel SS4200 series of
-	  Network Attached Storage servers.  You may control the hard
-	  drive or power LEDs on the front panel.  Using this driver
+	  Network Attached Storage servers. You may control the hard
+	  drive or power LEDs on the front panel. Using this driver
 	  can stop the front LED from blinking after startup.
 
 config LEDS_LT3593

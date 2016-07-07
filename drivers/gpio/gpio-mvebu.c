@@ -34,7 +34,7 @@
  */
 
 #include <linux/err.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/gpio.h>
 #include <linux/irq.h>
 #include <linux/slab.h>
@@ -557,7 +557,6 @@ static const struct of_device_id mvebu_gpio_of_match[] = {
 		/* sentinel */
 	},
 };
-MODULE_DEVICE_TABLE(of, mvebu_gpio_of_match);
 
 static int mvebu_gpio_suspend(struct platform_device *pdev, pm_message_t state)
 {
@@ -838,4 +837,4 @@ static struct platform_driver mvebu_gpio_driver = {
 	.suspend        = mvebu_gpio_suspend,
 	.resume         = mvebu_gpio_resume,
 };
-module_platform_driver(mvebu_gpio_driver);
+builtin_platform_driver(mvebu_gpio_driver);

@@ -1061,6 +1061,8 @@ static int pcimio_dio_change(struct comedi_device *dev,
 static void m_series_init_eeprom_buffer(struct comedi_device *dev)
 {
 	struct ni_private *devpriv = dev->private;
+	struct mite *mite = devpriv->mite;
+	resource_size_t daq_phys_addr;
 	static const int Start_Cal_EEPROM = 0x400;
 	static const unsigned window_size = 10;
 	static const int serial_number_eeprom_offset = 0x4;
@@ -1070,15 +1072,17 @@ static void m_series_init_eeprom_buffer(struct comedi_device *dev)
 	unsigned old_iodwcr1_bits;
 	int i;
 
-	old_iodwbsr_bits = readl(devpriv->mite->mite_io_addr + MITE_IODWBSR);
-	old_iodwbsr1_bits = readl(devpriv->mite->mite_io_addr + MITE_IODWBSR_1);
-	old_iodwcr1_bits = readl(devpriv->mite->mite_io_addr + MITE_IODWCR_1);
-	writel(0x0, devpriv->mite->mite_io_addr + MITE_IODWBSR);
-	writel(((0x80 | window_size) | devpriv->mite->daq_phys_addr),
-	       devpriv->mite->mite_io_addr + MITE_IODWBSR_1);
-	writel(0x1 | old_iodwcr1_bits,
-	       devpriv->mite->mite_io_addr + MITE_IODWCR_1);
-	writel(0xf, devpriv->mite->mite_io_addr + 0x30);
+	/* IO Window 1 needs to be temporarily mapped to read the eeprom */
+	daq_phys_addr = pci_resource_start(mite->pcidev, 1);
+
+	old_iodwbsr_bits = readl(mite->mmio + MITE_IODWBSR);
+	old_iodwbsr1_bits = readl(mite->mmio + MITE_IODWBSR_1);
+	old_iodwcr1_bits = readl(mite->mmio + MITE_IODWCR_1);
+	writel(0x0, mite->mmio + MITE_IODWBSR);
+	writel(((0x80 | window_size) | daq_phys_addr),
+	       mite->mmio + MITE_IODWBSR_1);
+	writel(0x1 | old_iodwcr1_bits, mite->mmio + MITE_IODWCR_1);
+	writel(0xf, mite->mmio + 0x30);
 
 	BUG_ON(serial_number_eeprom_length > sizeof(devpriv->serial_number));
 	for (i = 0; i < serial_number_eeprom_length; ++i) {
@@ -1090,10 +1094,10 @@ static void m_series_init_eeprom_buffer(struct comedi_device *dev)
 	for (i = 0; i < M_SERIES_EEPROM_SIZE; ++i)
 		devpriv->eeprom_buffer[i] = ni_readb(dev, Start_Cal_EEPROM + i);
 
-	writel(old_iodwbsr1_bits, devpriv->mite->mite_io_addr + MITE_IODWBSR_1);
-	writel(old_iodwbsr_bits, devpriv->mite->mite_io_addr + MITE_IODWBSR);
-	writel(old_iodwcr1_bits, devpriv->mite->mite_io_addr + MITE_IODWCR_1);
-	writel(0x0, devpriv->mite->mite_io_addr + 0x30);
+	writel(old_iodwbsr1_bits, mite->mmio + MITE_IODWBSR_1);
+	writel(old_iodwbsr_bits, mite->mmio + MITE_IODWBSR);
+	writel(old_iodwcr1_bits, mite->mmio + MITE_IODWCR_1);
+	writel(0x0, mite->mmio + 0x30);
 }
 
 static void init_6143(struct comedi_device *dev)
@@ -1168,7 +1172,7 @@ static int pcimio_auto_attach(struct comedi_device *dev,
 		return ret;
 	devpriv = dev->private;
 
-	devpriv->mite = mite_alloc(pcidev);
+	devpriv->mite = mite_attach(dev, false);	/* use win0 */
 	if (!devpriv->mite)
 		return -ENOMEM;
 
@@ -1192,10 +1196,6 @@ static int pcimio_auto_attach(struct comedi_device *dev,
 		devpriv->is_6711 = 1;
 	if (board->reg_type == ni_reg_6713)
 		devpriv->is_6713 = 1;
-
-	ret = mite_setup(dev, devpriv->mite);
-	if (ret < 0)
-		return ret;
 
 	devpriv->ai_mite_ring = mite_alloc_ring(devpriv->mite);
 	if (!devpriv->ai_mite_ring)

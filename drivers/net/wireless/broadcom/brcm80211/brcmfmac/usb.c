@@ -514,7 +514,7 @@ static void brcmf_usb_rx_complete(struct urb *urb)
 
 	if (devinfo->bus_pub.state == BRCMFMAC_USB_STATE_UP) {
 		skb_put(skb, urb->actual_length);
-		brcmf_rx_frame(devinfo->dev, skb);
+		brcmf_rx_frame(devinfo->dev, skb, true);
 		brcmf_usb_rx_refill(devinfo, req);
 	} else {
 		brcmu_pkt_buf_free_skb(skb);
@@ -1368,7 +1368,9 @@ brcmf_usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	devinfo->ifnum = desc->bInterfaceNumber;
 
-	if (usb->speed == USB_SPEED_SUPER)
+	if (usb->speed == USB_SPEED_SUPER_PLUS)
+		brcmf_dbg(USB, "Broadcom super speed plus USB WLAN interface detected\n");
+	else if (usb->speed == USB_SPEED_SUPER)
 		brcmf_dbg(USB, "Broadcom super speed USB WLAN interface detected\n");
 	else if (usb->speed == USB_SPEED_HIGH)
 		brcmf_dbg(USB, "Broadcom high speed USB WLAN interface detected\n");

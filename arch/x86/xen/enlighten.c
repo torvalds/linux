@@ -75,7 +75,6 @@
 #include <asm/mach_traps.h>
 #include <asm/mwait.h>
 #include <asm/pci_x86.h>
-#include <asm/pat.h>
 #include <asm/cpu.h>
 
 #ifdef CONFIG_ACPI
@@ -1093,6 +1092,26 @@ static int xen_write_msr_safe(unsigned int msr, unsigned low, unsigned high)
 	return ret;
 }
 
+static u64 xen_read_msr(unsigned int msr)
+{
+	/*
+	 * This will silently swallow a #GP from RDMSR.  It may be worth
+	 * changing that.
+	 */
+	int err;
+
+	return xen_read_msr_safe(msr, &err);
+}
+
+static void xen_write_msr(unsigned int msr, unsigned low, unsigned high)
+{
+	/*
+	 * This will silently swallow a #GP from WRMSR.  It may be worth
+	 * changing that.
+	 */
+	xen_write_msr_safe(msr, low, high);
+}
+
 void xen_setup_shared_info(void)
 {
 	if (!xen_feature(XENFEAT_auto_translated_physmap)) {
@@ -1187,13 +1206,11 @@ static unsigned xen_patch(u8 type, u16 clobbers, void *insnbuf,
 }
 
 static const struct pv_info xen_info __initconst = {
-	.paravirt_enabled = 1,
 	.shared_kernel_pmd = 0,
 
 #ifdef CONFIG_X86_64
 	.extra_user_64bit_cs = FLAT_USER_CS64,
 #endif
-	.features = 0,
 	.name = "Xen",
 };
 
@@ -1223,8 +1240,11 @@ static const struct pv_cpu_ops xen_cpu_ops __initconst = {
 
 	.wbinvd = native_wbinvd,
 
-	.read_msr = xen_read_msr_safe,
-	.write_msr = xen_write_msr_safe,
+	.read_msr = xen_read_msr,
+	.write_msr = xen_write_msr,
+
+	.read_msr_safe = xen_read_msr_safe,
+	.write_msr_safe = xen_write_msr_safe,
 
 	.read_pmc = xen_read_pmc,
 
@@ -1469,10 +1489,10 @@ static void xen_pvh_set_cr_flags(int cpu)
 	 * For BSP, PSE PGE are set in probe_page_size_mask(), for APs
 	 * set them here. For all, OSFXSR OSXMMEXCPT are set in fpu__init_cpu().
 	*/
-	if (cpu_has_pse)
+	if (boot_cpu_has(X86_FEATURE_PSE))
 		cr4_set_bits_and_update_boot(X86_CR4_PSE);
 
-	if (cpu_has_pge)
+	if (boot_cpu_has(X86_FEATURE_PGE))
 		cr4_set_bits_and_update_boot(X86_CR4_PGE);
 }
 
@@ -1506,12 +1526,16 @@ static void __init xen_pvh_early_guest_init(void)
 }
 #endif    /* CONFIG_XEN_PVH */
 
+static void __init xen_dom0_set_legacy_features(void)
+{
+	x86_platform.legacy.rtc = 1;
+}
+
 /* First C function to be called on Xen boot */
 asmlinkage __visible void __init xen_start_kernel(void)
 {
 	struct physdev_set_iopl set_iopl;
 	unsigned long initrd_start = 0;
-	u64 pat;
 	int rc;
 
 	if (!xen_start_info)
@@ -1527,8 +1551,6 @@ asmlinkage __visible void __init xen_start_kernel(void)
 
 	/* Install Xen paravirt ops */
 	pv_info = xen_info;
-	if (xen_initial_domain())
-		pv_info.features |= PV_SUPPORTED_RTC;
 	pv_init_ops = xen_init_ops;
 	if (!xen_pvh_domain()) {
 		pv_cpu_ops = xen_cpu_ops;
@@ -1618,13 +1640,6 @@ asmlinkage __visible void __init xen_start_kernel(void)
 				   xen_start_info->nr_pages);
 	xen_reserve_special_pages();
 
-	/*
-	 * Modify the cache mode translation tables to match Xen's PAT
-	 * configuration.
-	 */
-	rdmsrl(MSR_IA32_CR_PAT, pat);
-	pat_init_cache_modes(pat);
-
 	/* keep using Xen gdt for now; no urgent need to change it */
 
 #ifdef CONFIG_X86_32
@@ -1670,6 +1685,7 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	boot_params.hdr.ramdisk_image = initrd_start;
 	boot_params.hdr.ramdisk_size = xen_start_info->mod_len;
 	boot_params.hdr.cmd_line_ptr = __pa(xen_start_info->cmd_line);
+	boot_params.hdr.hardware_subarch = X86_SUBARCH_XEN;
 
 	if (!xen_initial_domain()) {
 		add_preferred_console("xenboot", 0, NULL);
@@ -1687,6 +1703,8 @@ asmlinkage __visible void __init xen_start_kernel(void)
 			.u.firmware_info.type = XEN_FW_KBD_SHIFT_FLAGS,
 		};
 
+		x86_platform.set_legacy_features =
+				xen_dom0_set_legacy_features;
 		xen_init_vga(info, xen_start_info->console.dom0.info_size);
 		xen_start_info->console.domU.mfn = 0;
 		xen_start_info->console.domU.evtchn = 0;

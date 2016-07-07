@@ -66,6 +66,60 @@ cifs_crypto_shash_md5_allocate(struct TCP_Server_Info *server)
 	return 0;
 }
 
+int __cifs_calc_signature(struct smb_rqst *rqst,
+			struct TCP_Server_Info *server, char *signature,
+			struct shash_desc *shash)
+{
+	int i;
+	int rc;
+	struct kvec *iov = rqst->rq_iov;
+	int n_vec = rqst->rq_nvec;
+
+	for (i = 0; i < n_vec; i++) {
+		if (iov[i].iov_len == 0)
+			continue;
+		if (iov[i].iov_base == NULL) {
+			cifs_dbg(VFS, "null iovec entry\n");
+			return -EIO;
+		}
+		/* The first entry includes a length field (which does not get
+		   signed that occupies the first 4 bytes before the header */
+		if (i == 0) {
+			if (iov[0].iov_len <= 8) /* cmd field at offset 9 */
+				break; /* nothing to sign or corrupt header */
+			rc = crypto_shash_update(shash,
+				iov[i].iov_base + 4, iov[i].iov_len - 4);
+		} else {
+			rc = crypto_shash_update(shash,
+				iov[i].iov_base, iov[i].iov_len);
+		}
+		if (rc) {
+			cifs_dbg(VFS, "%s: Could not update with payload\n",
+				 __func__);
+			return rc;
+		}
+	}
+
+	/* now hash over the rq_pages array */
+	for (i = 0; i < rqst->rq_npages; i++) {
+		void *kaddr = kmap(rqst->rq_pages[i]);
+		size_t len = rqst->rq_pagesz;
+
+		if (i == rqst->rq_npages - 1)
+			len = rqst->rq_tailsz;
+
+		crypto_shash_update(shash, kaddr, len);
+
+		kunmap(rqst->rq_pages[i]);
+	}
+
+	rc = crypto_shash_final(shash, signature);
+	if (rc)
+		cifs_dbg(VFS, "%s: Could not generate hash\n", __func__);
+
+	return rc;
+}
+
 /*
  * Calculate and return the CIFS signature based on the mac key and SMB PDU.
  * The 16 byte signature must be allocated by the caller. Note we only use the
@@ -76,12 +130,9 @@ cifs_crypto_shash_md5_allocate(struct TCP_Server_Info *server)
 static int cifs_calc_signature(struct smb_rqst *rqst,
 			struct TCP_Server_Info *server, char *signature)
 {
-	int i;
 	int rc;
-	struct kvec *iov = rqst->rq_iov;
-	int n_vec = rqst->rq_nvec;
 
-	if (iov == NULL || signature == NULL || server == NULL)
+	if (!rqst->rq_iov || !signature || !server)
 		return -EINVAL;
 
 	if (!server->secmech.sdescmd5) {
@@ -105,48 +156,8 @@ static int cifs_calc_signature(struct smb_rqst *rqst,
 		return rc;
 	}
 
-	for (i = 0; i < n_vec; i++) {
-		if (iov[i].iov_len == 0)
-			continue;
-		if (iov[i].iov_base == NULL) {
-			cifs_dbg(VFS, "null iovec entry\n");
-			return -EIO;
-		}
-		/* The first entry includes a length field (which does not get
-		   signed that occupies the first 4 bytes before the header */
-		if (i == 0) {
-			if (iov[0].iov_len <= 8) /* cmd field at offset 9 */
-				break; /* nothing to sign or corrupt header */
-			rc =
-			crypto_shash_update(&server->secmech.sdescmd5->shash,
-				iov[i].iov_base + 4, iov[i].iov_len - 4);
-		} else {
-			rc =
-			crypto_shash_update(&server->secmech.sdescmd5->shash,
-				iov[i].iov_base, iov[i].iov_len);
-		}
-		if (rc) {
-			cifs_dbg(VFS, "%s: Could not update with payload\n",
-				 __func__);
-			return rc;
-		}
-	}
-
-	/* now hash over the rq_pages array */
-	for (i = 0; i < rqst->rq_npages; i++) {
-		struct kvec p_iov;
-
-		cifs_rqst_page_to_kvec(rqst, i, &p_iov);
-		crypto_shash_update(&server->secmech.sdescmd5->shash,
-					p_iov.iov_base, p_iov.iov_len);
-		kunmap(rqst->rq_pages[i]);
-	}
-
-	rc = crypto_shash_final(&server->secmech.sdescmd5->shash, signature);
-	if (rc)
-		cifs_dbg(VFS, "%s: Could not generate md5 hash\n", __func__);
-
-	return rc;
+	return __cifs_calc_signature(rqst, server, signature,
+				     &server->secmech.sdescmd5->shash);
 }
 
 /* must be called with server->srv_mutex held */

@@ -359,6 +359,19 @@ Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description:	(R) Print the content of the Peripheral ID3 Register
 		(0xFEC).  The value is taken directly from the HW.
 
+What:		/sys/bus/coresight/devices/<memory_map>.etm/mgmt/trcconfig
+Date:		February 2016
+KernelVersion:	4.07
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(R) Print the content of the trace configuration register
+		(0x010) as currently set by SW.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/mgmt/trctraceid
+Date:		February 2016
+KernelVersion:	4.07
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(R) Print the content of the trace ID register (0x040).
+
 What:		/sys/bus/coresight/devices/<memory_map>.etm/trcidr/trcidr0
 Date:		April 2015
 KernelVersion:	4.01

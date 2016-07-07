@@ -26,6 +26,43 @@ efi_status_t check_platform_features(efi_system_table_t *sys_table_arg)
 	return EFI_SUCCESS;
 }
 
+static efi_guid_t screen_info_guid = LINUX_EFI_ARM_SCREEN_INFO_TABLE_GUID;
+
+struct screen_info *alloc_screen_info(efi_system_table_t *sys_table_arg)
+{
+	struct screen_info *si;
+	efi_status_t status;
+
+	/*
+	 * Unlike on arm64, where we can directly fill out the screen_info
+	 * structure from the stub, we need to allocate a buffer to hold
+	 * its contents while we hand over to the kernel proper from the
+	 * decompressor.
+	 */
+	status = efi_call_early(allocate_pool, EFI_RUNTIME_SERVICES_DATA,
+				sizeof(*si), (void **)&si);
+
+	if (status != EFI_SUCCESS)
+		return NULL;
+
+	status = efi_call_early(install_configuration_table,
+				&screen_info_guid, si);
+	if (status == EFI_SUCCESS)
+		return si;
+
+	efi_call_early(free_pool, si);
+	return NULL;
+}
+
+void free_screen_info(efi_system_table_t *sys_table_arg, struct screen_info *si)
+{
+	if (!si)
+		return;
+
+	efi_call_early(install_configuration_table, &screen_info_guid, NULL);
+	efi_call_early(free_pool, si);
+}
+
 efi_status_t handle_kernel_image(efi_system_table_t *sys_table,
 				 unsigned long *image_addr,
 				 unsigned long *image_size,

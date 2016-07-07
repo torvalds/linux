@@ -37,7 +37,7 @@ struct nvdimm_bus {
 struct nvdimm {
 	unsigned long flags;
 	void *provider_data;
-	unsigned long *dsm_mask;
+	unsigned long cmd_mask;
 	struct device dev;
 	atomic_t busy;
 	int id;
@@ -49,11 +49,14 @@ bool is_nd_blk(struct device *dev);
 struct nvdimm_bus *walk_to_nvdimm_bus(struct device *nd_dev);
 int __init nvdimm_bus_init(void);
 void nvdimm_bus_exit(void);
+void nvdimm_devs_exit(void);
+void nd_region_devs_exit(void);
 void nd_region_probe_success(struct nvdimm_bus *nvdimm_bus, struct device *dev);
 struct nd_region;
 void nd_region_create_blk_seed(struct nd_region *nd_region);
 void nd_region_create_btt_seed(struct nd_region *nd_region);
 void nd_region_create_pfn_seed(struct nd_region *nd_region);
+void nd_region_create_dax_seed(struct nd_region *nd_region);
 void nd_region_disable(struct nvdimm_bus *nvdimm_bus, struct device *dev);
 int nvdimm_bus_create_ndctl(struct nvdimm_bus *nvdimm_bus);
 void nvdimm_bus_destroy_ndctl(struct nvdimm_bus *nvdimm_bus);
@@ -91,4 +94,5 @@ bool __nd_attach_ndns(struct device *dev, struct nd_namespace_common *attach,
 ssize_t nd_namespace_store(struct device *dev,
 		struct nd_namespace_common **_ndns, const char *buf,
 		size_t len);
+struct nd_pfn *to_nd_pfn_safe(struct device *dev);
 #endif /* __ND_CORE_H__ */

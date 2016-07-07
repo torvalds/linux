@@ -81,7 +81,6 @@ struct echo_object_conf {
 struct echo_page {
 	struct cl_page_slice   ep_cl;
 	struct mutex		ep_lock;
-	struct page	    *ep_vmpage;
 };
 
 struct echo_lock {
@@ -164,15 +163,13 @@ static int cl_echo_object_put(struct echo_object *eco);
 static int cl_echo_object_brw(struct echo_object *eco, int rw, u64 offset,
 			      struct page **pages, int npages, int async);
 
-static struct echo_thread_info *echo_env_info(const struct lu_env *env);
-
 struct echo_thread_info {
 	struct echo_object_conf eti_conf;
 	struct lustre_md	eti_md;
 
 	struct cl_2queue	eti_queue;
 	struct cl_io	    eti_io;
-	struct cl_lock_descr    eti_descr;
+	struct cl_lock          eti_lock;
 	struct lu_fid	   eti_fid;
 	struct lu_fid		eti_fid2;
 };
@@ -219,12 +216,6 @@ static struct lu_kmem_descr echo_caches[] = {
  *
  * @{
  */
-static struct page *echo_page_vmpage(const struct lu_env *env,
-				     const struct cl_page_slice *slice)
-{
-	return cl2echo_page(slice)->ep_vmpage;
-}
-
 static int echo_page_own(const struct lu_env *env,
 			 const struct cl_page_slice *slice,
 			 struct cl_io *io, int nonblock)
@@ -273,12 +264,10 @@ static void echo_page_completion(const struct lu_env *env,
 static void echo_page_fini(const struct lu_env *env,
 			   struct cl_page_slice *slice)
 {
-	struct echo_page *ep    = cl2echo_page(slice);
 	struct echo_object *eco = cl2echo_obj(slice->cpl_obj);
-	struct page *vmpage      = ep->ep_vmpage;
 
 	atomic_dec(&eco->eo_npages);
-	put_page(vmpage);
+	put_page(slice->cpl_page->cp_vmpage);
 }
 
 static int echo_page_prep(const struct lu_env *env,
@@ -295,7 +284,8 @@ static int echo_page_print(const struct lu_env *env,
 	struct echo_page *ep = cl2echo_page(slice);
 
 	(*printer)(env, cookie, LUSTRE_ECHO_CLIENT_NAME"-page@%p %d vm@%p\n",
-		   ep, mutex_is_locked(&ep->ep_lock), ep->ep_vmpage);
+		   ep, mutex_is_locked(&ep->ep_lock),
+		   slice->cpl_page->cp_vmpage);
 	return 0;
 }
 
@@ -303,7 +293,6 @@ static const struct cl_page_operations echo_page_ops = {
 	.cpo_own	   = echo_page_own,
 	.cpo_disown	= echo_page_disown,
 	.cpo_discard       = echo_page_discard,
-	.cpo_vmpage	= echo_page_vmpage,
 	.cpo_fini	  = echo_page_fini,
 	.cpo_print	 = echo_page_print,
 	.cpo_is_vmlocked   = echo_page_is_vmlocked,
@@ -336,26 +325,8 @@ static void echo_lock_fini(const struct lu_env *env,
 	kmem_cache_free(echo_lock_kmem, ecl);
 }
 
-static void echo_lock_delete(const struct lu_env *env,
-			     const struct cl_lock_slice *slice)
-{
-	struct echo_lock *ecl      = cl2echo_lock(slice);
-
-	LASSERT(list_empty(&ecl->el_chain));
-}
-
-static int echo_lock_fits_into(const struct lu_env *env,
-			       const struct cl_lock_slice *slice,
-			       const struct cl_lock_descr *need,
-			       const struct cl_io *unused)
-{
-	return 1;
-}
-
 static struct cl_lock_operations echo_lock_ops = {
 	.clo_fini      = echo_lock_fini,
-	.clo_delete    = echo_lock_delete,
-	.clo_fits_into = echo_lock_fits_into
 };
 
 /** @} echo_lock */
@@ -367,15 +338,14 @@ static struct cl_lock_operations echo_lock_ops = {
  * @{
  */
 static int echo_page_init(const struct lu_env *env, struct cl_object *obj,
-			  struct cl_page *page, struct page *vmpage)
+			  struct cl_page *page, pgoff_t index)
 {
 	struct echo_page *ep = cl_object_page_slice(obj, page);
 	struct echo_object *eco = cl2echo_obj(obj);
 
-	ep->ep_vmpage = vmpage;
-	get_page(vmpage);
+	get_page(page->cp_vmpage);
 	mutex_init(&ep->ep_lock);
-	cl_page_slice_add(page, &ep->ep_cl, obj, &echo_page_ops);
+	cl_page_slice_add(page, &ep->ep_cl, obj, index, &echo_page_ops);
 	atomic_inc(&eco->eo_npages);
 	return 0;
 }
@@ -568,6 +538,8 @@ static struct lu_object *echo_object_alloc(const struct lu_env *env,
 
 		obj = &echo_obj2cl(eco)->co_lu;
 		cl_object_header_init(hdr);
+		hdr->coh_page_bufsize = cfs_size_round(sizeof(struct cl_page));
+
 		lu_object_init(obj, &hdr->coh_lu, dev);
 		lu_object_add_top(&hdr->coh_lu, obj);
 
@@ -694,8 +666,7 @@ static struct lu_device *echo_device_alloc(const struct lu_env *env,
 	struct obd_device  *obd = NULL; /* to keep compiler happy */
 	struct obd_device  *tgt;
 	const char *tgt_type_name;
-	int rc;
-	int cleanup = 0;
+	int rc, err;
 
 	ed = kzalloc(sizeof(*ed), GFP_NOFS);
 	if (!ed) {
@@ -703,16 +674,14 @@ static struct lu_device *echo_device_alloc(const struct lu_env *env,
 		goto out;
 	}
 
-	cleanup = 1;
 	cd = &ed->ed_cl;
 	rc = cl_device_init(cd, t);
 	if (rc)
-		goto out;
+		goto out_free;
 
 	cd->cd_lu_dev.ld_ops = &echo_device_lu_ops;
 	cd->cd_ops = &echo_device_cl_ops;
 
-	cleanup = 2;
 	obd = class_name2obd(lustre_cfg_string(cfg, 0));
 	LASSERT(obd);
 	LASSERT(env);
@@ -722,28 +691,25 @@ static struct lu_device *echo_device_alloc(const struct lu_env *env,
 		CERROR("Can not find tgt device %s\n",
 		       lustre_cfg_string(cfg, 1));
 		rc = -ENODEV;
-		goto out;
+		goto out_device_fini;
 	}
 
 	next = tgt->obd_lu_dev;
 	if (!strcmp(tgt->obd_type->typ_name, LUSTRE_MDT_NAME)) {
 		CERROR("echo MDT client must be run on server\n");
 		rc = -EOPNOTSUPP;
-		goto out;
+		goto out_device_fini;
 	}
 
 	rc = echo_site_init(env, ed);
 	if (rc)
-		goto out;
-
-	cleanup = 3;
+		goto out_device_fini;
 
 	rc = echo_client_setup(env, obd, cfg);
 	if (rc)
-		goto out;
+		goto out_site_fini;
 
 	ed->ed_ec = &obd->u.echo_client;
-	cleanup = 4;
 
 	/* if echo client is to be stacked upon ost device, the next is
 	 * NULL since ost is not a clio device so far
@@ -755,7 +721,7 @@ static struct lu_device *echo_device_alloc(const struct lu_env *env,
 	if (next) {
 		if (next->ld_site) {
 			rc = -EBUSY;
-			goto out;
+			goto out_cleanup;
 		}
 
 		next->ld_site = &ed->ed_site->cs_lu;
@@ -763,7 +729,7 @@ static struct lu_device *echo_device_alloc(const struct lu_env *env,
 						next->ld_type->ldt_name,
 							      NULL);
 		if (rc)
-			goto out;
+			goto out_cleanup;
 
 	} else {
 		LASSERT(strcmp(tgt_type_name, LUSTRE_OST_NAME) == 0);
@@ -771,27 +737,19 @@ static struct lu_device *echo_device_alloc(const struct lu_env *env,
 
 	ed->ed_next = next;
 	return &cd->cd_lu_dev;
+
+out_cleanup:
+	err = echo_client_cleanup(obd);
+	if (err)
+		CERROR("Cleanup obd device %s error(%d)\n",
+		       obd->obd_name, err);
+out_site_fini:
+	echo_site_fini(env, ed);
+out_device_fini:
+	cl_device_fini(&ed->ed_cl);
+out_free:
+	kfree(ed);
 out:
-	switch (cleanup) {
-	case 4: {
-		int rc2;
-
-		rc2 = echo_client_cleanup(obd);
-		if (rc2)
-			CERROR("Cleanup obd device %s error(%d)\n",
-			       obd->obd_name, rc2);
-	}
-
-	case 3:
-		echo_site_fini(env, ed);
-	case 2:
-		cl_device_fini(&ed->ed_cl);
-	case 1:
-		kfree(ed);
-	case 0:
-	default:
-		break;
-	}
 	return ERR_PTR(rc);
 }
 
@@ -819,16 +777,7 @@ static void echo_lock_release(const struct lu_env *env,
 {
 	struct cl_lock *clk = echo_lock2cl(ecl);
 
-	cl_lock_get(clk);
-	cl_unuse(env, clk);
-	cl_lock_release(env, clk, "ec enqueue", ecl->el_object);
-	if (!still_used) {
-		cl_lock_mutex_get(env, clk);
-		cl_lock_cancel(env, clk);
-		cl_lock_delete(env, clk);
-		cl_lock_mutex_put(env, clk);
-	}
-	cl_lock_put(env, clk);
+	cl_lock_release(env, clk);
 }
 
 static struct lu_device *echo_device_free(const struct lu_env *env,
@@ -1022,9 +971,11 @@ static int cl_echo_enqueue0(struct lu_env *env, struct echo_object *eco,
 
 	info = echo_env_info(env);
 	io = &info->eti_io;
-	descr = &info->eti_descr;
+	lck = &info->eti_lock;
 	obj = echo_obj2cl(eco);
 
+	memset(lck, 0, sizeof(*lck));
+	descr = &lck->cll_descr;
 	descr->cld_obj   = obj;
 	descr->cld_start = cl_index(obj, start);
 	descr->cld_end   = cl_index(obj, end);
@@ -1032,25 +983,20 @@ static int cl_echo_enqueue0(struct lu_env *env, struct echo_object *eco,
 	descr->cld_enq_flags = enqflags;
 	io->ci_obj = obj;
 
-	lck = cl_lock_request(env, io, descr, "ec enqueue", eco);
-	if (lck) {
+	rc = cl_lock_request(env, io, lck);
+	if (rc == 0) {
 		struct echo_client_obd *ec = eco->eo_dev->ed_ec;
 		struct echo_lock *el;
 
-		rc = cl_wait(env, lck);
-		if (rc == 0) {
-			el = cl2echo_lock(cl_lock_at(lck, &echo_device_type));
-			spin_lock(&ec->ec_lock);
-			if (list_empty(&el->el_chain)) {
-				list_add(&el->el_chain, &ec->ec_locks);
-				el->el_cookie = ++ec->ec_unique;
-			}
-			atomic_inc(&el->el_refcount);
-			*cookie = el->el_cookie;
-			spin_unlock(&ec->ec_lock);
-		} else {
-			cl_lock_release(env, lck, "ec enqueue", current);
+		el = cl2echo_lock(cl_lock_at(lck, &echo_device_type));
+		spin_lock(&ec->ec_lock);
+		if (list_empty(&el->el_chain)) {
+			list_add(&el->el_chain, &ec->ec_locks);
+			el->el_cookie = ++ec->ec_unique;
 		}
+		atomic_inc(&el->el_refcount);
+		*cookie = el->el_cookie;
+		spin_unlock(&ec->ec_lock);
 	}
 	return rc;
 }
@@ -1085,22 +1031,17 @@ static int cl_echo_cancel0(struct lu_env *env, struct echo_device *ed,
 	return 0;
 }
 
-static int cl_echo_async_brw(const struct lu_env *env, struct cl_io *io,
-			     enum cl_req_type unused, struct cl_2queue *queue)
+static void echo_commit_callback(const struct lu_env *env, struct cl_io *io,
+				 struct cl_page *page)
 {
-	struct cl_page *clp;
-	struct cl_page *temp;
-	int result = 0;
+	struct echo_thread_info *info;
+	struct cl_2queue *queue;
 
-	cl_page_list_for_each_safe(clp, temp, &queue->c2_qin) {
-		int rc;
+	info = echo_env_info(env);
+	LASSERT(io == &info->eti_io);
 
-		rc = cl_page_cache_add(env, io, clp, CRT_WRITE);
-		if (rc == 0)
-			continue;
-		result = result ?: rc;
-	}
-	return result;
+	queue = &info->eti_queue;
+	cl_page_list_add(&queue->c2_qout, page);
 }
 
 static int cl_echo_object_brw(struct echo_object *eco, int rw, u64 offset,
@@ -1119,7 +1060,7 @@ static int cl_echo_object_brw(struct echo_object *eco, int rw, u64 offset,
 	int rc;
 	int i;
 
-	LASSERT((offset & ~CFS_PAGE_MASK) == 0);
+	LASSERT((offset & ~PAGE_MASK) == 0);
 	LASSERT(ed->ed_next);
 	env = cl_env_get(&refcheck);
 	if (IS_ERR(env))
@@ -1179,7 +1120,9 @@ static int cl_echo_object_brw(struct echo_object *eco, int rw, u64 offset,
 
 		async = async && (typ == CRT_WRITE);
 		if (async)
-			rc = cl_echo_async_brw(env, io, typ, queue);
+			rc = cl_io_commit_async(env, io, &queue->c2_qin,
+						0, PAGE_SIZE,
+						echo_commit_callback);
 		else
 			rc = cl_io_submit_sync(env, io, typ, queue, 0);
 		CDEBUG(D_INFO, "echo_client %s write returns %d\n",
@@ -1387,7 +1330,7 @@ static int echo_client_kbrw(struct echo_device *ed, int rw, struct obdo *oa,
 	LASSERT(rw == OBD_BRW_WRITE || rw == OBD_BRW_READ);
 
 	if (count <= 0 ||
-	    (count & (~CFS_PAGE_MASK)) != 0)
+	    (count & (~PAGE_MASK)) != 0)
 		return -EINVAL;
 
 	/* XXX think again with misaligned I/O */
@@ -1409,7 +1352,6 @@ static int echo_client_kbrw(struct echo_device *ed, int rw, struct obdo *oa,
 	for (i = 0, pgp = pga, off = offset;
 	     i < npages;
 	     i++, pgp++, off += PAGE_SIZE) {
-
 		LASSERT(!pgp->pg);      /* for cleanup */
 
 		rc = -ENOMEM;
@@ -1470,7 +1412,7 @@ static int echo_client_prep_commit(const struct lu_env *env,
 	u64 npages, tot_pages;
 	int i, ret = 0, brw_flags = 0;
 
-	if (count <= 0 || (count & (~CFS_PAGE_MASK)) != 0)
+	if (count <= 0 || (count & (~PAGE_MASK)) != 0)
 		return -EINVAL;
 
 	npages = batch >> PAGE_SHIFT;
@@ -1886,7 +1828,6 @@ static int __init obdecho_init(void)
 static void /*__exit*/ obdecho_exit(void)
 {
 	echo_client_exit();
-
 }
 
 MODULE_AUTHOR("OpenSFS, Inc. <http://www.lustre.org/>");

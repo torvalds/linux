@@ -531,8 +531,6 @@ efi_init (void)
 	       efi.systab->hdr.revision >> 16,
 	       efi.systab->hdr.revision & 0xffff, vendor);
 
-	set_bit(EFI_SYSTEM_TABLES, &efi.flags);
-
 	palo_phys      = EFI_INVALID_TABLE_ADDR;
 
 	if (efi_config_init(arch_tables) != 0)
@@ -966,7 +964,7 @@ efi_uart_console_only(void)
 /*
  * Look for the first granule aligned memory descriptor memory
  * that is big enough to hold EFI memory map. Make sure this
- * descriptor is atleast granule sized so it does not get trimmed
+ * descriptor is at least granule sized so it does not get trimmed
  */
 struct kern_memdesc *
 find_memmap_space (void)

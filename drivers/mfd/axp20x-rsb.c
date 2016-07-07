@@ -61,6 +61,7 @@ static int axp20x_rsb_remove(struct sunxi_rsb_device *rdev)
 
 static const struct of_device_id axp20x_rsb_of_match[] = {
 	{ .compatible = "x-powers,axp223", .data = (void *)AXP223_ID },
+	{ .compatible = "x-powers,axp809", .data = (void *)AXP809_ID },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, axp20x_rsb_of_match);

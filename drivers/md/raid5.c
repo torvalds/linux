@@ -2514,8 +2514,8 @@ static void raid5_error(struct mddev *mddev, struct md_rdev *rdev)
 
 	set_bit(Blocked, &rdev->flags);
 	set_bit(Faulty, &rdev->flags);
-	set_bit(MD_CHANGE_DEVS, &mddev->flags);
-	set_bit(MD_CHANGE_PENDING, &mddev->flags);
+	set_mask_bits(&mddev->flags, 0,
+		      BIT(MD_CHANGE_DEVS) | BIT(MD_CHANGE_PENDING));
 	printk(KERN_ALERT
 	       "md/raid:%s: Disk failure on %s, disabling device.\n"
 	       "md/raid:%s: Operation continuing on %d devices.\n",
@@ -3502,8 +3502,6 @@ returnbi:
 				dev = &sh->dev[i];
 			} else if (test_bit(R5_Discard, &dev->flags))
 				discard_pending = 1;
-			WARN_ON(test_bit(R5_SkipCopy, &dev->flags));
-			WARN_ON(dev->page != dev->orig_page);
 		}
 
 	r5l_stripe_write_finished(sh);
@@ -7574,8 +7572,10 @@ static void raid5_finish_reshape(struct mddev *mddev)
 
 		if (mddev->delta_disks > 0) {
 			md_set_array_sectors(mddev, raid5_size(mddev, 0, 0));
-			set_capacity(mddev->gendisk, mddev->array_sectors);
-			revalidate_disk(mddev->gendisk);
+			if (mddev->queue) {
+				set_capacity(mddev->gendisk, mddev->array_sectors);
+				revalidate_disk(mddev->gendisk);
+			}
 		} else {
 			int d;
 			spin_lock_irq(&conf->device_lock);

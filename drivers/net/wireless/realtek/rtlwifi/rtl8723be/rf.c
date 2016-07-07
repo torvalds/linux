@@ -303,8 +303,8 @@ static void _rtl8723be_get_txpower_writeval_by_regulatory(
 					   [chnlgroup][index + (rf ? 8 : 0)] &
 					      (0x7f << (i * 8))) >> (i * 8));
 
-					if (pwr_diff_limit[i] > pwr_diff)
-						pwr_diff_limit[i] = pwr_diff;
+				if (pwr_diff_limit[i] > pwr_diff)
+					pwr_diff_limit[i] = pwr_diff;
 			}
 
 			customer_limit = (pwr_diff_limit[3] << 24) |

@@ -1,8 +1,10 @@
 * Freescale MXS Application UART (AUART)
 
-Required properties:
-- compatible : Should be "fsl,<soc>-auart". The supported SoCs include
-  imx23 and imx28.
+Required properties for all SoCs:
+- compatible : Should be one of fallowing variants:
+	"fsl,imx23-auart" - Freescale i.MX23
+	"fsl,imx28-auart" - Freescale i.MX28
+	"alphascale,asm9260-auart" - Alphascale ASM9260
 - reg : Address and length of the register set for the device
 - interrupts : Should contain the auart interrupt numbers
 - dmas: DMA specifier, consisting of a phandle to DMA controller node
@@ -10,8 +12,14 @@ Required properties:
   Refer to dma.txt and fsl-mxs-dma.txt for details.
 - dma-names: "rx" for RX channel, "tx" for TX channel.
 
+Required properties for "alphascale,asm9260-auart":
+- clocks : the clocks feeding the watchdog timer. See clock-bindings.txt
+- clock-names : should be set to
+	"mod" - source for tick counter.
+	"ahb" - ahb gate.
+
 Optional properties:
-- fsl,uart-has-rtscts : Indicate the UART has RTS and CTS lines
+- uart-has-rtscts : Indicate the UART has RTS and CTS lines
   for hardware flow control,
 	it also means you enable the DMA support for this UART.
 - {rts,cts,dtr,dsr,rng,dcd}-gpios: specify a GPIO for RTS/CTS/DTR/DSR/RI/DCD

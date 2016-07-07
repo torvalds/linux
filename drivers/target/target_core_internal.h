@@ -155,4 +155,10 @@ void	target_stat_setup_mappedlun_default_groups(struct se_lun_acl *);
 /* target_core_xcopy.c */
 extern struct se_portal_group xcopy_pt_tpg;
 
+/* target_core_configfs.c */
+#define DB_ROOT_LEN		4096
+#define	DB_ROOT_DEFAULT		"/var/target"
+
+extern char db_root[];
+
 #endif /* TARGET_CORE_INTERNAL_H */

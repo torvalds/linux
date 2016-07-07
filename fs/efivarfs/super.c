@@ -216,8 +216,7 @@ static int efivarfs_fill_super(struct super_block *sb, void *data, int silent)
 
 	INIT_LIST_HEAD(&efivarfs_list);
 
-	err = efivar_init(efivarfs_callback, (void *)sb, false,
-			  true, &efivarfs_list);
+	err = efivar_init(efivarfs_callback, (void *)sb, true, &efivarfs_list);
 	if (err)
 		__efivar_entry_iter(efivarfs_destroy, &efivarfs_list, NULL, NULL);
 

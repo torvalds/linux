@@ -344,7 +344,7 @@ tracesys_next:
 #endif
 
 	cmpib,COND(=),n -1,%r20,tracesys_exit /* seccomp may have returned -1 */
-	comiclr,>>=	__NR_Linux_syscalls, %r20, %r0
+	comiclr,>>	__NR_Linux_syscalls, %r20, %r0
 	b,n	.Ltracesys_nosys
 
 	LDREGX  %r20(%r19), %r19
@@ -912,6 +912,7 @@ END(lws_table)
 
 	.align 8
 ENTRY(sys_call_table)
+	.export sys_call_table,data
 #include "syscall_table.S"
 END(sys_call_table)
 

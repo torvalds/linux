@@ -16,10 +16,48 @@
 #define PIN_PULL_DOWN		1
 #define PIN_PULL_UP		3
 
+#define PIN_DRV_LV1		0
+#define PIN_DRV_LV2		2
+#define PIN_DRV_LV3		1
+#define PIN_DRV_LV4		3
+
 #define PIN_PDN_OUT0		0
 #define PIN_PDN_OUT1		1
 #define PIN_PDN_INPUT		2
 #define PIN_PDN_PREV		3
+
+#define PIN_IN(_pin, _pull, _drv)			\
+	_pin {						\
+		samsung,pins = #_pin;			\
+		samsung,pin-function = <0>;		\
+		samsung,pin-pud = <PIN_PULL_ ##_pull>;	\
+		samsung,pin-drv = <PIN_DRV_ ##_drv>;	\
+	}
+
+#define PIN_OUT(_pin, _drv)				\
+	_pin {						\
+		samsung,pins = #_pin;			\
+		samsung,pin-function = <1>;		\
+		samsung,pin-pud = <0>;			\
+		samsung,pin-drv = <PIN_DRV_ ##_drv>;	\
+	}
+
+#define PIN_OUT_SET(_pin, _val, _drv)			\
+	_pin {						\
+		samsung,pins = #_pin;			\
+		samsung,pin-function = <1>;		\
+		samsung,pin-pud = <0>;			\
+		samsung,pin-drv = <PIN_DRV_ ##_drv>;	\
+		samsung,pin-val = <_val>;		\
+	}
+
+#define PIN_CFG(_pin, _sel, _pull, _drv)		\
+	_pin {						\
+		samsung,pins = #_pin;			\
+		samsung,pin-function = <_sel>;		\
+		samsung,pin-pud = <PIN_PULL_ ##_pull>;	\
+		samsung,pin-drv = <PIN_DRV_ ##_drv>;	\
+	}
 
 #define PIN_SLP(_pin, _mode, _pull)				\
 	_pin {							\
@@ -117,6 +155,13 @@
 		samsung,pins = "gpa0-6", "gpa0-7";
 		samsung,pin-function = <3>;
 		samsung,pin-pud = <3>;
+		samsung,pin-drv = <0>;
+	};
+
+	uart2_data: uart2-data {
+		samsung,pins = "gpa1-0", "gpa1-1";
+		samsung,pin-function = <2>;
+		samsung,pin-pud = <0>;
 		samsung,pin-drv = <0>;
 	};
 
@@ -440,6 +485,41 @@
 
 	sd1_bus4: sd1-bus-width4 {
 		samsung,pins = "gpk1-4", "gpk1-5", "gpk1-6";
+		samsung,pin-function = <2>;
+		samsung,pin-pud = <3>;
+		samsung,pin-drv = <3>;
+	};
+
+	sd2_clk: sd2-clk {
+		samsung,pins = "gpk2-0";
+		samsung,pin-function = <2>;
+		samsung,pin-pud = <0>;
+		samsung,pin-drv = <3>;
+	};
+
+	sd2_cmd: sd2-cmd {
+		samsung,pins = "gpk2-1";
+		samsung,pin-function = <2>;
+		samsung,pin-pud = <0>;
+		samsung,pin-drv = <3>;
+	};
+
+	sd2_cd: sd2-cd {
+		samsung,pins = "gpk2-2";
+		samsung,pin-function = <2>;
+		samsung,pin-pud = <3>;
+		samsung,pin-drv = <3>;
+	};
+
+	sd2_bus1: sd2-bus-width1 {
+		samsung,pins = "gpk2-3";
+		samsung,pin-function = <2>;
+		samsung,pin-pud = <3>;
+		samsung,pin-drv = <3>;
+	};
+
+	sd2_bus4: sd2-bus-width4 {
+		samsung,pins = "gpk2-4", "gpk2-5", "gpk2-6";
 		samsung,pin-function = <2>;
 		samsung,pin-pud = <3>;
 		samsung,pin-drv = <3>;

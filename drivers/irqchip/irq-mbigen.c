@@ -263,8 +263,8 @@ static int mbigen_device_probe(struct platform_device *pdev)
 
 		parent = platform_bus_type.dev_root;
 		child = of_platform_device_create(np, NULL, parent);
-		if (IS_ERR(child))
-			return PTR_ERR(child);
+		if (!child)
+			return -ENOMEM;
 
 		if (of_property_read_u32(child->dev.of_node, "num-pins",
 					 &num_pins) < 0) {

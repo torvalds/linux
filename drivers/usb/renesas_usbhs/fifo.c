@@ -799,8 +799,10 @@ static int __usbhsf_dma_map_ctrl(struct usbhs_pkt *pkt, int map)
 	struct usbhs_pipe *pipe = pkt->pipe;
 	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
 	struct usbhs_pipe_info *info = usbhs_priv_to_pipeinfo(priv);
+	struct usbhs_fifo *fifo = usbhs_pipe_to_fifo(pipe);
+	struct dma_chan *chan = usbhsf_dma_chan_get(fifo, pkt);
 
-	return info->dma_map_ctrl(pkt, map);
+	return info->dma_map_ctrl(chan->device->dev, pkt, map);
 }
 
 static void usbhsf_dma_complete(void *arg);
@@ -881,12 +883,12 @@ static int usbhsf_dma_prepare_push(struct usbhs_pkt *pkt, int *is_done)
 	if (!fifo)
 		goto usbhsf_pio_prepare_push;
 
-	if (usbhsf_dma_map(pkt) < 0)
-		goto usbhsf_pio_prepare_push;
-
 	ret = usbhsf_fifo_select(pipe, fifo, 0);
 	if (ret < 0)
-		goto usbhsf_pio_prepare_push_unmap;
+		goto usbhsf_pio_prepare_push;
+
+	if (usbhsf_dma_map(pkt) < 0)
+		goto usbhsf_pio_prepare_push_unselect;
 
 	pkt->trans = len;
 
@@ -896,8 +898,8 @@ static int usbhsf_dma_prepare_push(struct usbhs_pkt *pkt, int *is_done)
 
 	return 0;
 
-usbhsf_pio_prepare_push_unmap:
-	usbhsf_dma_unmap(pkt);
+usbhsf_pio_prepare_push_unselect:
+	usbhsf_fifo_unselect(pipe, fifo);
 usbhsf_pio_prepare_push:
 	/*
 	 * change handler to PIO

@@ -1551,6 +1551,8 @@ static int tc358743_g_edid(struct v4l2_subdev *sd,
 {
 	struct tc358743_state *state = to_state(sd);
 
+	memset(edid->reserved, 0, sizeof(edid->reserved));
+
 	if (edid->pad != 0)
 		return -EINVAL;
 
@@ -1584,6 +1586,8 @@ static int tc358743_s_edid(struct v4l2_subdev *sd,
 
 	v4l2_dbg(2, debug, sd, "%s, pad %d, start block %d, blocks %d\n",
 		 __func__, edid->pad, edid->start_block, edid->blocks);
+
+	memset(edid->reserved, 0, sizeof(edid->reserved));
 
 	if (edid->pad != 0)
 		return -EINVAL;
@@ -1859,7 +1863,6 @@ static int tc358743_probe(struct i2c_client *client,
 	/* control handlers */
 	v4l2_ctrl_handler_init(&state->hdl, 3);
 
-	/* private controls */
 	state->detect_tx_5v_ctrl = v4l2_ctrl_new_std(&state->hdl, NULL,
 			V4L2_CID_DV_RX_POWER_PRESENT, 0, 1, 0, 0);
 

@@ -202,7 +202,7 @@ static int dsos__create(int cnt, int size)
 {
 	int i;
 
-	dsos = malloc(sizeof(dsos) * cnt);
+	dsos = malloc(sizeof(*dsos) * cnt);
 	TEST_ASSERT_VAL("failed to alloc dsos array", dsos);
 
 	for (i = 0; i < cnt; i++) {

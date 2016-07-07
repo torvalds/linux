@@ -101,12 +101,6 @@ struct fld_cache {
 	unsigned int		 fci_no_shrink:1;
 };
 
-enum fld_op {
-	FLD_CREATE = 0,
-	FLD_DELETE = 1,
-	FLD_LOOKUP = 2
-};
-
 enum {
 	/* 4M of FLD cache will not hurt client a lot. */
 	FLD_SERVER_CACHE_SIZE      = (4 * 0x100000),
@@ -126,7 +120,8 @@ enum {
 extern struct lu_fld_hash fld_hash[];
 
 int fld_client_rpc(struct obd_export *exp,
-		   struct lu_seq_range *range, __u32 fld_op);
+		   struct lu_seq_range *range, __u32 fld_op,
+		   struct ptlrpc_request **reqp);
 
 extern struct lprocfs_vars fld_client_debugfs_list[];
 

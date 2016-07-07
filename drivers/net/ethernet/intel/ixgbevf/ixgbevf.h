@@ -166,10 +166,10 @@ struct ixgbevf_ring {
 
 #define MAXIMUM_ETHERNET_VLAN_SIZE (VLAN_ETH_FRAME_LEN + ETH_FCS_LEN)
 
-#define IXGBE_TX_FLAGS_CSUM		(u32)(1)
-#define IXGBE_TX_FLAGS_VLAN		(u32)(1 << 1)
-#define IXGBE_TX_FLAGS_TSO		(u32)(1 << 2)
-#define IXGBE_TX_FLAGS_IPV4		(u32)(1 << 3)
+#define IXGBE_TX_FLAGS_CSUM		BIT(0)
+#define IXGBE_TX_FLAGS_VLAN		BIT(1)
+#define IXGBE_TX_FLAGS_TSO		BIT(2)
+#define IXGBE_TX_FLAGS_IPV4		BIT(3)
 #define IXGBE_TX_FLAGS_VLAN_MASK	0xffff0000
 #define IXGBE_TX_FLAGS_VLAN_PRIO_MASK	0x0000e000
 #define IXGBE_TX_FLAGS_VLAN_SHIFT	16
@@ -403,13 +403,6 @@ struct ixgbevf_adapter {
 	u32 alloc_rx_page_failed;
 	u32 alloc_rx_buff_failed;
 
-	/* Some features need tri-state capability,
-	 * thus the additional *_CAPABLE flags.
-	 */
-	u32 flags;
-#define IXGBEVF_FLAG_RESET_REQUESTED		(u32)(1)
-#define IXGBEVF_FLAG_QUEUE_RESET_REQUESTED	(u32)(1 << 2)
-
 	struct msix_entry *msix_entries;
 
 	/* OS defined structs */
@@ -428,16 +421,6 @@ struct ixgbevf_adapter {
 	u64 tx_busy;
 	unsigned int tx_ring_count;
 	unsigned int rx_ring_count;
-
-#ifdef BP_EXTENDED_STATS
-	u64 bp_rx_yields;
-	u64 bp_rx_cleaned;
-	u64 bp_rx_missed;
-
-	u64 bp_tx_yields;
-	u64 bp_tx_cleaned;
-	u64 bp_tx_missed;
-#endif
 
 	u8 __iomem *io_addr; /* Mainly for iounmap use */
 	u32 link_speed;
@@ -461,13 +444,19 @@ enum ixbgevf_state_t {
 	__IXGBEVF_REMOVING,
 	__IXGBEVF_SERVICE_SCHED,
 	__IXGBEVF_SERVICE_INITED,
+	__IXGBEVF_RESET_REQUESTED,
+	__IXGBEVF_QUEUE_RESET_REQUESTED,
 };
 
 enum ixgbevf_boards {
 	board_82599_vf,
+	board_82599_vf_hv,
 	board_X540_vf,
+	board_X540_vf_hv,
 	board_X550_vf,
+	board_X550_vf_hv,
 	board_X550EM_x_vf,
+	board_X550EM_x_vf_hv,
 };
 
 enum ixgbevf_xcast_modes {
@@ -481,6 +470,12 @@ extern const struct ixgbevf_info ixgbevf_X540_vf_info;
 extern const struct ixgbevf_info ixgbevf_X550_vf_info;
 extern const struct ixgbevf_info ixgbevf_X550EM_x_vf_info;
 extern const struct ixgbe_mbx_operations ixgbevf_mbx_ops;
+
+extern const struct ixgbevf_info ixgbevf_82599_vf_hv_info;
+extern const struct ixgbevf_info ixgbevf_X540_vf_hv_info;
+extern const struct ixgbevf_info ixgbevf_X550_vf_hv_info;
+extern const struct ixgbevf_info ixgbevf_X550EM_x_vf_hv_info;
+extern const struct ixgbe_mbx_operations ixgbevf_hv_mbx_ops;
 
 /* needed by ethtool.c */
 extern const char ixgbevf_driver_name[];

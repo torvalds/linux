@@ -61,5 +61,6 @@ struct nvme_passthru_cmd {
 #define NVME_IOCTL_IO_CMD	_IOWR('N', 0x43, struct nvme_passthru_cmd)
 #define NVME_IOCTL_RESET	_IO('N', 0x44)
 #define NVME_IOCTL_SUBSYS_RESET	_IO('N', 0x45)
+#define NVME_IOCTL_RESCAN	_IO('N', 0x46)
 
 #endif /* _UAPI_LINUX_NVME_IOCTL_H */

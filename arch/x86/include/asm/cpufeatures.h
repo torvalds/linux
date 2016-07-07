@@ -12,7 +12,7 @@
 /*
  * Defines x86 CPU feature bits
  */
-#define NCAPINTS	17	/* N 32-bit words worth of info */
+#define NCAPINTS	18	/* N 32-bit words worth of info */
 #define NBUGINTS	1	/* N 32-bit bug flags */
 
 /*
@@ -177,6 +177,7 @@
 #define X86_FEATURE_PERFCTR_CORE ( 6*32+23) /* core performance counter extensions */
 #define X86_FEATURE_PERFCTR_NB  ( 6*32+24) /* NB performance counter extensions */
 #define X86_FEATURE_BPEXT	(6*32+26) /* data breakpoint extension */
+#define X86_FEATURE_PTSC	( 6*32+27) /* performance time-stamp counter */
 #define X86_FEATURE_PERFCTR_L2	( 6*32+28) /* L2 performance counter extensions */
 #define X86_FEATURE_MWAITX	( 6*32+29) /* MWAIT extension (MONITORX/MWAITX) */
 
@@ -250,6 +251,7 @@
 
 /* AMD-defined CPU features, CPUID level 0x80000008 (ebx), word 13 */
 #define X86_FEATURE_CLZERO	(13*32+0) /* CLZERO instruction */
+#define X86_FEATURE_IRPERF	(13*32+1) /* Instructions Retired Count */
 
 /* Thermal and Power Management Leaf, CPUID level 0x00000006 (eax), word 14 */
 #define X86_FEATURE_DTHERM	(14*32+ 0) /* Digital Thermal Sensor */
@@ -280,6 +282,11 @@
 #define X86_FEATURE_PKU		(16*32+ 3) /* Protection Keys for Userspace */
 #define X86_FEATURE_OSPKE	(16*32+ 4) /* OS Protection Keys Enable */
 
+/* AMD-defined CPU features, CPUID level 0x80000007 (ebx), word 17 */
+#define X86_FEATURE_OVERFLOW_RECOV (17*32+0) /* MCA overflow recovery support */
+#define X86_FEATURE_SUCCOR	(17*32+1) /* Uncorrectable error containment and recovery */
+#define X86_FEATURE_SMCA	(17*32+3) /* Scalable MCA */
+
 /*
  * BUG word(s)
  */
@@ -294,6 +301,9 @@
 #define X86_BUG_FXSAVE_LEAK	X86_BUG(6) /* FXSAVE leaks FOP/FIP/FOP */
 #define X86_BUG_CLFLUSH_MONITOR	X86_BUG(7) /* AAI65, CLFLUSH required before MONITOR */
 #define X86_BUG_SYSRET_SS_ATTRS	X86_BUG(8) /* SYSRET doesn't fix up SS attrs */
+#define X86_BUG_NULL_SEG	X86_BUG(9) /* Nulling a selector preserves the base */
+#define X86_BUG_SWAPGS_FENCE	X86_BUG(10) /* SWAPGS without input dep on GS */
+
 
 #ifdef CONFIG_X86_32
 /*

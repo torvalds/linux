@@ -1,4 +1,7 @@
 /*
+ * Broadcom Kona GPIO Driver
+ *
+ * Author: Broadcom Corporation <bcm-kernel-feedback-list@broadcom.com>
  * Copyright (C) 2012-2014 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or
@@ -17,7 +20,7 @@
 #include <linux/gpio.h>
 #include <linux/of_device.h>
 #include <linux/of_irq.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/irqdomain.h>
 #include <linux/irqchip/chained_irq.h>
 
@@ -502,8 +505,6 @@ static struct of_device_id const bcm_kona_gpio_of_match[] = {
 	{}
 };
 
-MODULE_DEVICE_TABLE(of, bcm_kona_gpio_of_match);
-
 /*
  * This lock class tells lockdep that GPIO irqs are in a different
  * category than their parents, so it won't report false recursion.
@@ -546,11 +547,11 @@ static void bcm_kona_gpio_reset(struct bcm_kona_gpio *kona_gpio)
 	/* disable interrupts and clear status */
 	for (i = 0; i < kona_gpio->num_bank; i++) {
 		/* Unlock the entire bank first */
-		bcm_kona_gpio_write_lock_regs(kona_gpio, i, UNLOCK_CODE);
+		bcm_kona_gpio_write_lock_regs(reg_base, i, UNLOCK_CODE);
 		writel(0xffffffff, reg_base + GPIO_INT_MASK(i));
 		writel(0xffffffff, reg_base + GPIO_INT_STATUS(i));
 		/* Now re-lock the bank */
-		bcm_kona_gpio_write_lock_regs(kona_gpio, i, LOCK_CODE);
+		bcm_kona_gpio_write_lock_regs(reg_base, i, LOCK_CODE);
 	}
 }
 
@@ -659,9 +660,4 @@ static struct platform_driver bcm_kona_gpio_driver = {
 	},
 	.probe = bcm_kona_gpio_probe,
 };
-
-module_platform_driver(bcm_kona_gpio_driver);
-
-MODULE_AUTHOR("Broadcom Corporation <bcm-kernel-feedback-list@broadcom.com>");
-MODULE_DESCRIPTION("Broadcom Kona GPIO Driver");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver(bcm_kona_gpio_driver);

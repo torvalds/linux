@@ -363,7 +363,7 @@ static const struct pinctrl_ops nsp_pctrl_ops = {
 	.get_groups_count = nsp_get_groups_count,
 	.get_group_name = nsp_get_group_name,
 	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
-	.dt_free_map = pinctrl_utils_dt_free_map,
+	.dt_free_map = pinctrl_utils_free_map,
 };
 
 static int nsp_gpio_set_slew(struct nsp_gpio *chip, unsigned gpio, u16 slew)
@@ -609,7 +609,7 @@ static int nsp_gpio_register_pinconf(struct nsp_gpio *chip)
 	pctldesc->npins = gc->ngpio;
 	pctldesc->confops = &nsp_pconf_ops;
 
-	chip->pctl = pinctrl_register(pctldesc, chip->dev, chip);
+	chip->pctl = devm_pinctrl_register(chip->dev, pctldesc, chip);
 	if (IS_ERR(chip->pctl)) {
 		dev_err(chip->dev, "unable to register pinctrl device\n");
 		return PTR_ERR(chip->pctl);

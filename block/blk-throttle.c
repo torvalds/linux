@@ -211,15 +211,14 @@ static struct throtl_data *sq_to_td(struct throtl_service_queue *sq)
  *
  * The messages are prefixed with "throtl BLKG_NAME" if @sq belongs to a
  * throtl_grp; otherwise, just "throtl".
- *
- * TODO: this should be made a function and name formatting should happen
- * after testing whether blktrace is enabled.
  */
 #define throtl_log(sq, fmt, args...)	do {				\
 	struct throtl_grp *__tg = sq_to_tg((sq));			\
 	struct throtl_data *__td = sq_to_td((sq));			\
 									\
 	(void)__td;							\
+	if (likely(!blk_trace_note_message_enabled(__td->queue)))	\
+		break;							\
 	if ((__tg)) {							\
 		char __pbuf[128];					\
 									\

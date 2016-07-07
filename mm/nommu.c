@@ -1682,7 +1682,7 @@ void exit_mmap(struct mm_struct *mm)
 	}
 }
 
-unsigned long vm_brk(unsigned long addr, unsigned long len)
+int vm_brk(unsigned long addr, unsigned long len)
 {
 	return -ENOMEM;
 }

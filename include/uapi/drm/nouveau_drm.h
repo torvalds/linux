@@ -27,7 +27,11 @@
 
 #define DRM_NOUVEAU_EVENT_NVIF                                       0x80000000
 
-#include <drm/drm.h>
+#include "drm.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #define NOUVEAU_GEM_DOMAIN_CPU       (1 << 0)
 #define NOUVEAU_GEM_DOMAIN_VRAM      (1 << 1)
@@ -140,5 +144,9 @@ struct drm_nouveau_gem_cpu_fini {
 #define DRM_IOCTL_NOUVEAU_GEM_CPU_PREP       DRM_IOW (DRM_COMMAND_BASE + DRM_NOUVEAU_GEM_CPU_PREP, struct drm_nouveau_gem_cpu_prep)
 #define DRM_IOCTL_NOUVEAU_GEM_CPU_FINI       DRM_IOW (DRM_COMMAND_BASE + DRM_NOUVEAU_GEM_CPU_FINI, struct drm_nouveau_gem_cpu_fini)
 #define DRM_IOCTL_NOUVEAU_GEM_INFO           DRM_IOWR(DRM_COMMAND_BASE + DRM_NOUVEAU_GEM_INFO, struct drm_nouveau_gem_info)
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif /* __NOUVEAU_DRM_H__ */

@@ -41,7 +41,7 @@
  */
 
 /dts-v1/;
-
+#include <dt-bindings/input/input.h>
 #include "rk3288.dtsi"
 
 / {
@@ -62,16 +62,14 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 		autorepeat;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&pwrbtn>;
 
-		button@0 {
+		power {
 			gpios = <&gpio0 5 GPIO_ACTIVE_LOW>;
-			linux,code = <116>;
+			linux,code = <KEY_POWER>;
 			label = "GPIO Key Power";
 			linux,input-type = <1>;
 			wakeup-source;
@@ -162,7 +160,6 @@
 };
 
 &emmc {
-	broken-cd;
 	bus-width = <8>;
 	cap-mmc-highspeed;
 	disable-wp;

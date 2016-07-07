@@ -6,7 +6,7 @@
  *         Title:  MPI SCSI initiator mode messages and structures
  * Creation Date:  June 23, 2006
  *
- * mpi2_init.h Version:  02.00.17
+ * mpi2_init.h Version:  02.00.20
  *
  * NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
  *       prefix are for use only on MPI v2.5 products, and must not be used
@@ -51,6 +51,9 @@
  *                     Added MPI26_SCSIIO_IOFLAGS_ESCAPE_PASSTHROUGH.
  *                     Added MPI2_SEP_REQ_SLOTSTATUS_DEV_OFF and
  *                     MPI2_SEP_REPLY_SLOTSTATUS_DEV_OFF.
+ * 08-26-15  02.00.18  Added SCSITASKMGMT_MSGFLAGS for Target Reset.
+ * 12-18-15  02.00.19  Added EEDPObservedValue added to SCSI IO Reply message.
+ * 01-04-16  02.00.20  Modified EEDP reported values in SCSI IO Reply message.
  * --------------------------------------------------------------------------
  */
 
@@ -359,8 +362,14 @@ typedef struct _MPI2_SCSI_IO_REPLY {
 	U16 TaskTag;		/*0x20 */
 	U16 SCSIStatusQualifier; /* 0x22 */
 	U32 BidirectionalTransferCount;	/*0x24 */
-	U32 EEDPErrorOffset;	/*0x28 *//*MPI 2.5 only; Reserved in MPI 2.0*/
-	U32 Reserved6;		/*0x2C */
+ /* MPI 2.5+ only; Reserved in MPI 2.0 */
+	U32 EEDPErrorOffset;	/* 0x28 */
+ /* MPI 2.5+ only; Reserved in MPI 2.0 */
+	U16 EEDPObservedAppTag;	/* 0x2C */
+ /* MPI 2.5+ only; Reserved in MPI 2.0 */
+	U16 EEDPObservedGuard;	/* 0x2E */
+ /* MPI 2.5+ only; Reserved in MPI 2.0 */
+	U32 EEDPObservedRefTag;	/* 0x30 */
 } MPI2_SCSI_IO_REPLY, *PTR_MPI2_SCSI_IO_REPLY,
 	Mpi2SCSIIOReply_t, *pMpi2SCSIIOReply_t;
 

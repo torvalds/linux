@@ -37,17 +37,11 @@
 /** l_flags bits marked as "gone" bits */
 #define LDLM_FL_GONE_MASK               0x0006004000000000ULL
 
-/** l_flags bits marked as "hide_lock" bits */
-#define LDLM_FL_HIDE_LOCK_MASK          0x0000206400000000ULL
-
 /** l_flags bits marked as "inherit" bits */
 #define LDLM_FL_INHERIT_MASK            0x0000000000800000ULL
 
-/** l_flags bits marked as "local_only" bits */
-#define LDLM_FL_LOCAL_ONLY_MASK         0x00FFFFFF00000000ULL
-
-/** l_flags bits marked as "on_wire" bits */
-#define LDLM_FL_ON_WIRE_MASK            0x00000000C08F932FULL
+/** l_flags bits marked as "off_wire" bits */
+#define LDLM_FL_OFF_WIRE_MASK           0x00FFFFFF00000000ULL
 
 /** extent, mode, or resource changed */
 #define LDLM_FL_LOCK_CHANGED            0x0000000000000001ULL /* bit 0 */
@@ -204,7 +198,7 @@
 #define ldlm_set_cancel(_l)             LDLM_SET_FLAG((_l), 1ULL << 36)
 #define ldlm_clear_cancel(_l)           LDLM_CLEAR_FLAG((_l), 1ULL << 36)
 
-/** whatever it might mean */
+/** whatever it might mean -- never transmitted? */
 #define LDLM_FL_LOCAL_ONLY              0x0000002000000000ULL /* bit 37 */
 #define ldlm_is_local_only(_l)          LDLM_TEST_FLAG((_l), 1ULL << 37)
 #define ldlm_set_local_only(_l)         LDLM_SET_FLAG((_l), 1ULL << 37)
@@ -287,18 +281,18 @@
  * has canceled this lock and is waiting for rpc_lock which is taken by
  * the first operation. LDLM_FL_BL_AST is set by ldlm_callback_handler() in
  * the lock to prevent the Early Lock Cancel (ELC) code from cancelling it.
- *
- * LDLM_FL_BL_DONE is to be set by ldlm_cancel_callback() when lock cache is
- * dropped to let ldlm_callback_handler() return EINVAL to the server. It
- * is used when ELC RPC is already prepared and is waiting for rpc_lock,
- * too late to send a separate CANCEL RPC.
  */
 #define LDLM_FL_BL_AST                  0x0000400000000000ULL /* bit 46 */
 #define ldlm_is_bl_ast(_l)              LDLM_TEST_FLAG((_l), 1ULL << 46)
 #define ldlm_set_bl_ast(_l)             LDLM_SET_FLAG((_l), 1ULL << 46)
 #define ldlm_clear_bl_ast(_l)           LDLM_CLEAR_FLAG((_l), 1ULL << 46)
 
-/** whatever it might mean */
+/**
+ * Set by ldlm_cancel_callback() when lock cache is dropped to let
+ * ldlm_callback_handler() return EINVAL to the server. It is used when
+ * ELC RPC is already prepared and is waiting for rpc_lock, too late to
+ * send a separate CANCEL RPC.
+ */
 #define LDLM_FL_BL_DONE                 0x0000800000000000ULL /* bit 47 */
 #define ldlm_is_bl_done(_l)             LDLM_TEST_FLAG((_l), 1ULL << 47)
 #define ldlm_set_bl_done(_l)            LDLM_SET_FLAG((_l), 1ULL << 47)
@@ -381,104 +375,16 @@
 /** test for ldlm_lock flag bit set */
 #define LDLM_TEST_FLAG(_l, _b)        (((_l)->l_flags & (_b)) != 0)
 
+/** multi-bit test: are any of mask bits set? */
+#define LDLM_HAVE_MASK(_l, _m)		((_l)->l_flags & LDLM_FL_##_m##_MASK)
+
 /** set a ldlm_lock flag bit */
 #define LDLM_SET_FLAG(_l, _b)         ((_l)->l_flags |= (_b))
 
 /** clear a ldlm_lock flag bit */
 #define LDLM_CLEAR_FLAG(_l, _b)       ((_l)->l_flags &= ~(_b))
 
-/** Mask of flags inherited from parent lock when doing intents. */
-#define LDLM_INHERIT_FLAGS            LDLM_FL_INHERIT_MASK
-
-/** Mask of Flags sent in AST lock_flags to map into the receiving lock. */
-#define LDLM_AST_FLAGS                LDLM_FL_AST_MASK
-
 /** @} subgroup */
 /** @} group */
-#ifdef WIRESHARK_COMPILE
-static int hf_lustre_ldlm_fl_lock_changed        = -1;
-static int hf_lustre_ldlm_fl_block_granted       = -1;
-static int hf_lustre_ldlm_fl_block_conv          = -1;
-static int hf_lustre_ldlm_fl_block_wait          = -1;
-static int hf_lustre_ldlm_fl_ast_sent            = -1;
-static int hf_lustre_ldlm_fl_replay              = -1;
-static int hf_lustre_ldlm_fl_intent_only         = -1;
-static int hf_lustre_ldlm_fl_has_intent          = -1;
-static int hf_lustre_ldlm_fl_flock_deadlock      = -1;
-static int hf_lustre_ldlm_fl_discard_data        = -1;
-static int hf_lustre_ldlm_fl_no_timeout          = -1;
-static int hf_lustre_ldlm_fl_block_nowait        = -1;
-static int hf_lustre_ldlm_fl_test_lock           = -1;
-static int hf_lustre_ldlm_fl_cancel_on_block     = -1;
-static int hf_lustre_ldlm_fl_deny_on_contention  = -1;
-static int hf_lustre_ldlm_fl_ast_discard_data    = -1;
-static int hf_lustre_ldlm_fl_fail_loc            = -1;
-static int hf_lustre_ldlm_fl_skipped             = -1;
-static int hf_lustre_ldlm_fl_cbpending           = -1;
-static int hf_lustre_ldlm_fl_wait_noreproc       = -1;
-static int hf_lustre_ldlm_fl_cancel              = -1;
-static int hf_lustre_ldlm_fl_local_only          = -1;
-static int hf_lustre_ldlm_fl_failed              = -1;
-static int hf_lustre_ldlm_fl_canceling           = -1;
-static int hf_lustre_ldlm_fl_local               = -1;
-static int hf_lustre_ldlm_fl_lvb_ready           = -1;
-static int hf_lustre_ldlm_fl_kms_ignore          = -1;
-static int hf_lustre_ldlm_fl_cp_reqd             = -1;
-static int hf_lustre_ldlm_fl_cleaned             = -1;
-static int hf_lustre_ldlm_fl_atomic_cb           = -1;
-static int hf_lustre_ldlm_fl_bl_ast              = -1;
-static int hf_lustre_ldlm_fl_bl_done             = -1;
-static int hf_lustre_ldlm_fl_no_lru              = -1;
-static int hf_lustre_ldlm_fl_fail_notified       = -1;
-static int hf_lustre_ldlm_fl_destroyed           = -1;
-static int hf_lustre_ldlm_fl_server_lock         = -1;
-static int hf_lustre_ldlm_fl_res_locked          = -1;
-static int hf_lustre_ldlm_fl_waited              = -1;
-static int hf_lustre_ldlm_fl_ns_srv              = -1;
-static int hf_lustre_ldlm_fl_excl                = -1;
 
-const value_string lustre_ldlm_flags_vals[] = {
-	{LDLM_FL_LOCK_CHANGED,        "LDLM_FL_LOCK_CHANGED"},
-	{LDLM_FL_BLOCK_GRANTED,       "LDLM_FL_BLOCK_GRANTED"},
-	{LDLM_FL_BLOCK_CONV,          "LDLM_FL_BLOCK_CONV"},
-	{LDLM_FL_BLOCK_WAIT,          "LDLM_FL_BLOCK_WAIT"},
-	{LDLM_FL_AST_SENT,            "LDLM_FL_AST_SENT"},
-	{LDLM_FL_REPLAY,              "LDLM_FL_REPLAY"},
-	{LDLM_FL_INTENT_ONLY,         "LDLM_FL_INTENT_ONLY"},
-	{LDLM_FL_HAS_INTENT,          "LDLM_FL_HAS_INTENT"},
-	{LDLM_FL_FLOCK_DEADLOCK,      "LDLM_FL_FLOCK_DEADLOCK"},
-	{LDLM_FL_DISCARD_DATA,        "LDLM_FL_DISCARD_DATA"},
-	{LDLM_FL_NO_TIMEOUT,          "LDLM_FL_NO_TIMEOUT"},
-	{LDLM_FL_BLOCK_NOWAIT,        "LDLM_FL_BLOCK_NOWAIT"},
-	{LDLM_FL_TEST_LOCK,           "LDLM_FL_TEST_LOCK"},
-	{LDLM_FL_CANCEL_ON_BLOCK,     "LDLM_FL_CANCEL_ON_BLOCK"},
-	{LDLM_FL_DENY_ON_CONTENTION,  "LDLM_FL_DENY_ON_CONTENTION"},
-	{LDLM_FL_AST_DISCARD_DATA,    "LDLM_FL_AST_DISCARD_DATA"},
-	{LDLM_FL_FAIL_LOC,            "LDLM_FL_FAIL_LOC"},
-	{LDLM_FL_SKIPPED,             "LDLM_FL_SKIPPED"},
-	{LDLM_FL_CBPENDING,           "LDLM_FL_CBPENDING"},
-	{LDLM_FL_WAIT_NOREPROC,       "LDLM_FL_WAIT_NOREPROC"},
-	{LDLM_FL_CANCEL,              "LDLM_FL_CANCEL"},
-	{LDLM_FL_LOCAL_ONLY,          "LDLM_FL_LOCAL_ONLY"},
-	{LDLM_FL_FAILED,              "LDLM_FL_FAILED"},
-	{LDLM_FL_CANCELING,           "LDLM_FL_CANCELING"},
-	{LDLM_FL_LOCAL,               "LDLM_FL_LOCAL"},
-	{LDLM_FL_LVB_READY,           "LDLM_FL_LVB_READY"},
-	{LDLM_FL_KMS_IGNORE,          "LDLM_FL_KMS_IGNORE"},
-	{LDLM_FL_CP_REQD,             "LDLM_FL_CP_REQD"},
-	{LDLM_FL_CLEANED,             "LDLM_FL_CLEANED"},
-	{LDLM_FL_ATOMIC_CB,           "LDLM_FL_ATOMIC_CB"},
-	{LDLM_FL_BL_AST,              "LDLM_FL_BL_AST"},
-	{LDLM_FL_BL_DONE,             "LDLM_FL_BL_DONE"},
-	{LDLM_FL_NO_LRU,              "LDLM_FL_NO_LRU"},
-	{LDLM_FL_FAIL_NOTIFIED,       "LDLM_FL_FAIL_NOTIFIED"},
-	{LDLM_FL_DESTROYED,           "LDLM_FL_DESTROYED"},
-	{LDLM_FL_SERVER_LOCK,         "LDLM_FL_SERVER_LOCK"},
-	{LDLM_FL_RES_LOCKED,          "LDLM_FL_RES_LOCKED"},
-	{LDLM_FL_WAITED,              "LDLM_FL_WAITED"},
-	{LDLM_FL_NS_SRV,              "LDLM_FL_NS_SRV"},
-	{LDLM_FL_EXCL,                "LDLM_FL_EXCL"},
-	{ 0, NULL }
-};
-#endif /*  WIRESHARK_COMPILE */
 #endif /* LDLM_ALL_FLAGS_MASK */

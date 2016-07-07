@@ -14,8 +14,8 @@
 	compatible = "ti,da850-evm", "ti,da850";
 	model = "DA850/AM1808/OMAP-L138 EVM";
 
-	soc {
-		pmx_core: pinmux@1c14120 {
+	soc@1c00000 {
+		pmx_core: pinmux@14120 {
 			status = "okay";
 
 			mcasp0_pins: pinmux_mcasp0_pins {
@@ -30,19 +30,19 @@
 				>;
 			};
 		};
-		serial0: serial@1c42000 {
+		serial0: serial@42000 {
 			status = "okay";
 		};
-		serial1: serial@1d0c000 {
+		serial1: serial@10c000 {
 			status = "okay";
 		};
-		serial2: serial@1d0d000 {
+		serial2: serial@10d000 {
 			status = "okay";
 		};
-		rtc0: rtc@1c23000 {
+		rtc0: rtc@23000 {
 			status = "okay";
 		};
-		i2c0: i2c@1c22000 {
+		i2c0: i2c@22000 {
 			status = "okay";
 			clock-frequency = <100000>;
 			pinctrl-names = "default";
@@ -66,17 +66,17 @@
 			};
 
 		};
-		wdt: wdt@1c21000 {
+		wdt: wdt@21000 {
 			status = "okay";
 		};
-		mmc0: mmc@1c40000 {
+		mmc0: mmc@40000 {
 			max-frequency = <50000000>;
 			bus-width = <4>;
 			status = "okay";
 			pinctrl-names = "default";
 			pinctrl-0 = <&mmc0_pins>;
 		};
-		spi1: spi@1f0e000 {
+		spi1: spi@30e000 {
 			status = "okay";
 			pinctrl-names = "default";
 			pinctrl-0 = <&spi1_pins &spi1_cs0_pin>;
@@ -116,18 +116,18 @@
 				};
 			};
 		};
-		mdio: mdio@1e24000 {
+		mdio: mdio@224000 {
 			status = "okay";
 			pinctrl-names = "default";
 			pinctrl-0 = <&mdio_pins>;
 			bus_freq = <2200000>;
 		};
-		eth0: ethernet@1e20000 {
+		eth0: ethernet@220000 {
 			status = "okay";
 			pinctrl-names = "default";
 			pinctrl-0 = <&mii_pins>;
 		};
-		gpio: gpio@1e26000 {
+		gpio: gpio@226000 {
 			status = "okay";
 		};
 	};

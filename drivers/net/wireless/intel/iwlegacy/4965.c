@@ -1267,7 +1267,7 @@ il4965_send_tx_power(struct il_priv *il)
 	     "TX Power requested while scanning!\n"))
 		return -EAGAIN;
 
-	band = il->band == IEEE80211_BAND_2GHZ;
+	band = il->band == NL80211_BAND_2GHZ;
 
 	is_ht40 = iw4965_is_ht40_channel(il->active.flags);
 
@@ -1480,7 +1480,7 @@ il4965_hw_channel_switch(struct il_priv *il,
 	u8 switch_count;
 	u16 beacon_interval = le16_to_cpu(il->timing.beacon_interval);
 	struct ieee80211_vif *vif = il->vif;
-	band = (il->band == IEEE80211_BAND_2GHZ);
+	band = (il->band == NL80211_BAND_2GHZ);
 
 	if (WARN_ON_ONCE(vif == NULL))
 		return -EIO;
@@ -1918,7 +1918,7 @@ struct il_cfg il4965_cfg = {
 	 * Force use of chains B and C for scan RX on 5 GHz band
 	 * because the device has off-channel reception on chain A.
 	 */
-	.scan_rx_antennas[IEEE80211_BAND_5GHZ] = ANT_BC,
+	.scan_rx_antennas[NL80211_BAND_5GHZ] = ANT_BC,
 
 	.eeprom_size = IL4965_EEPROM_IMG_SIZE,
 	.num_of_queues = IL49_NUM_QUEUES,

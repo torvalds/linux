@@ -162,15 +162,57 @@ static const struct nf_chain_type filter_bridge = {
 			  (1 << NF_BR_POST_ROUTING),
 };
 
+static void nf_br_saveroute(const struct sk_buff *skb,
+			    struct nf_queue_entry *entry)
+{
+}
+
+static int nf_br_reroute(struct net *net, struct sk_buff *skb,
+			 const struct nf_queue_entry *entry)
+{
+	return 0;
+}
+
+static __sum16 nf_br_checksum(struct sk_buff *skb, unsigned int hook,
+			      unsigned int dataoff, u_int8_t protocol)
+{
+	return 0;
+}
+
+static __sum16 nf_br_checksum_partial(struct sk_buff *skb, unsigned int hook,
+				      unsigned int dataoff, unsigned int len,
+				      u_int8_t protocol)
+{
+	return 0;
+}
+
+static int nf_br_route(struct net *net, struct dst_entry **dst,
+		       struct flowi *fl, bool strict __always_unused)
+{
+	return 0;
+}
+
+static const struct nf_afinfo nf_br_afinfo = {
+	.family                 = AF_BRIDGE,
+	.checksum               = nf_br_checksum,
+	.checksum_partial       = nf_br_checksum_partial,
+	.route                  = nf_br_route,
+	.saveroute              = nf_br_saveroute,
+	.reroute                = nf_br_reroute,
+	.route_key_size         = 0,
+};
+
 static int __init nf_tables_bridge_init(void)
 {
 	int ret;
 
+	nf_register_afinfo(&nf_br_afinfo);
 	nft_register_chain_type(&filter_bridge);
 	ret = register_pernet_subsys(&nf_tables_bridge_net_ops);
-	if (ret < 0)
+	if (ret < 0) {
 		nft_unregister_chain_type(&filter_bridge);
-
+		nf_unregister_afinfo(&nf_br_afinfo);
+	}
 	return ret;
 }
 
@@ -178,6 +220,7 @@ static void __exit nf_tables_bridge_exit(void)
 {
 	unregister_pernet_subsys(&nf_tables_bridge_net_ops);
 	nft_unregister_chain_type(&filter_bridge);
+	nf_unregister_afinfo(&nf_br_afinfo);
 }
 
 module_init(nf_tables_bridge_init);

@@ -3141,7 +3141,6 @@ static int adv76xx_probe(struct i2c_client *client,
 	if (ctrl)
 		ctrl->flags |= V4L2_CTRL_FLAG_VOLATILE;
 
-	/* private controls */
 	state->detect_tx_5v_ctrl = v4l2_ctrl_new_std(hdl, NULL,
 			V4L2_CID_DV_RX_POWER_PRESENT, 0,
 			(1 << state->info->num_dv_ports) - 1, 0, 0);
@@ -3164,13 +3163,6 @@ static int adv76xx_probe(struct i2c_client *client,
 		err = hdl->error;
 		goto err_hdl;
 	}
-	state->detect_tx_5v_ctrl->is_private = true;
-	state->rgb_quantization_range_ctrl->is_private = true;
-	if (adv76xx_has_afe(state))
-		state->analog_sampling_phase_ctrl->is_private = true;
-	state->free_run_color_manual_ctrl->is_private = true;
-	state->free_run_color_ctrl->is_private = true;
-
 	if (adv76xx_s_detect_tx_5v_ctrl(sd)) {
 		err = -ENODEV;
 		goto err_hdl;

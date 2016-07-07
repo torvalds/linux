@@ -7,6 +7,10 @@
 
 #define KVM_APIC_INIT		0
 #define KVM_APIC_SIPI		1
+#define KVM_APIC_LVT_NUM	6
+
+#define KVM_APIC_SHORT_MASK	0xc0000
+#define KVM_APIC_DEST_MASK	0x800
 
 struct kvm_timer {
 	struct hrtimer timer;
@@ -59,6 +63,11 @@ void kvm_lapic_set_eoi(struct kvm_vcpu *vcpu);
 void kvm_lapic_set_base(struct kvm_vcpu *vcpu, u64 value);
 u64 kvm_lapic_get_base(struct kvm_vcpu *vcpu);
 void kvm_apic_set_version(struct kvm_vcpu *vcpu);
+int kvm_lapic_reg_write(struct kvm_lapic *apic, u32 reg, u32 val);
+int kvm_lapic_reg_read(struct kvm_lapic *apic, u32 offset, int len,
+		       void *data);
+bool kvm_apic_match_dest(struct kvm_vcpu *vcpu, struct kvm_lapic *source,
+			   int short_hand, unsigned int dest, int dest_mode);
 
 void __kvm_apic_update_irr(u32 *pir, void *regs);
 void kvm_apic_update_irr(struct kvm_vcpu *vcpu, u32 *pir);
@@ -99,9 +108,32 @@ static inline bool kvm_hv_vapic_assist_page_enabled(struct kvm_vcpu *vcpu)
 int kvm_lapic_enable_pv_eoi(struct kvm_vcpu *vcpu, u64 data);
 void kvm_lapic_init(void);
 
-static inline u32 kvm_apic_get_reg(struct kvm_lapic *apic, int reg_off)
+#define VEC_POS(v) ((v) & (32 - 1))
+#define REG_POS(v) (((v) >> 5) << 4)
+
+static inline void kvm_lapic_set_vector(int vec, void *bitmap)
 {
-	        return *((u32 *) (apic->regs + reg_off));
+	set_bit(VEC_POS(vec), (bitmap) + REG_POS(vec));
+}
+
+static inline void kvm_lapic_set_irr(int vec, struct kvm_lapic *apic)
+{
+	kvm_lapic_set_vector(vec, apic->regs + APIC_IRR);
+	/*
+	 * irr_pending must be true if any interrupt is pending; set it after
+	 * APIC_IRR to avoid race with apic_clear_irr
+	 */
+	apic->irr_pending = true;
+}
+
+static inline u32 kvm_lapic_get_reg(struct kvm_lapic *apic, int reg_off)
+{
+	return *((u32 *) (apic->regs + reg_off));
+}
+
+static inline void kvm_lapic_set_reg(struct kvm_lapic *apic, int reg_off, u32 val)
+{
+	*((u32 *) (apic->regs + reg_off)) = val;
 }
 
 extern struct static_key kvm_no_apic_vcpu;
@@ -169,7 +201,7 @@ static inline int kvm_lapic_latched_init(struct kvm_vcpu *vcpu)
 
 static inline int kvm_apic_id(struct kvm_lapic *apic)
 {
-	return (kvm_apic_get_reg(apic, APIC_ID) >> 24) & 0xff;
+	return (kvm_lapic_get_reg(apic, APIC_ID) >> 24) & 0xff;
 }
 
 bool kvm_apic_pending_eoi(struct kvm_vcpu *vcpu, int vector);

@@ -72,18 +72,11 @@ xfs_zero_extent(
 	struct xfs_mount *mp = ip->i_mount;
 	xfs_daddr_t	sector = xfs_fsb_to_db(ip, start_fsb);
 	sector_t	block = XFS_BB_TO_FSBT(mp, sector);
-	ssize_t		size = XFS_FSB_TO_B(mp, count_fsb);
 
-	if (IS_DAX(VFS_I(ip)))
-		return dax_clear_sectors(xfs_find_bdev_for_inode(VFS_I(ip)),
-				sector, size);
-
-	/*
-	 * let the block layer decide on the fastest method of
-	 * implementing the zeroing.
-	 */
-	return sb_issue_zeroout(mp->m_super, block, count_fsb, GFP_NOFS);
-
+	return blkdev_issue_zeroout(xfs_find_bdev_for_inode(VFS_I(ip)),
+		block << (mp->m_super->s_blocksize_bits - 9),
+		count_fsb << (mp->m_super->s_blocksize_bits - 9),
+		GFP_NOFS, true);
 }
 
 /*
@@ -900,19 +893,15 @@ xfs_free_eofblocks(
 		 * Free them up now by truncating the file to
 		 * its current size.
 		 */
-		tp = xfs_trans_alloc(mp, XFS_TRANS_INACTIVE);
-
 		if (need_iolock) {
-			if (!xfs_ilock_nowait(ip, XFS_IOLOCK_EXCL)) {
-				xfs_trans_cancel(tp);
+			if (!xfs_ilock_nowait(ip, XFS_IOLOCK_EXCL))
 				return -EAGAIN;
-			}
 		}
 
-		error = xfs_trans_reserve(tp, &M_RES(mp)->tr_itruncate, 0, 0);
+		error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate, 0, 0, 0,
+				&tp);
 		if (error) {
 			ASSERT(XFS_FORCED_SHUTDOWN(mp));
-			xfs_trans_cancel(tp);
 			if (need_iolock)
 				xfs_iunlock(ip, XFS_IOLOCK_EXCL);
 			return error;
@@ -1037,9 +1026,9 @@ xfs_alloc_file_space(
 		/*
 		 * Allocate and setup the transaction.
 		 */
-		tp = xfs_trans_alloc(mp, XFS_TRANS_DIOSTRAT);
-		error = xfs_trans_reserve(tp, &M_RES(mp)->tr_write,
-					  resblks, resrtextents);
+		error = xfs_trans_alloc(mp, &M_RES(mp)->tr_write, resblks,
+				resrtextents, 0, &tp);
+
 		/*
 		 * Check for running out of space
 		 */
@@ -1048,7 +1037,6 @@ xfs_alloc_file_space(
 			 * Free the transaction structure.
 			 */
 			ASSERT(error == -ENOSPC || XFS_FORCED_SHUTDOWN(mp));
-			xfs_trans_cancel(tp);
 			break;
 		}
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
@@ -1311,18 +1299,10 @@ xfs_free_file_space(
 		 * transaction to dip into the reserve blocks to ensure
 		 * the freeing of the space succeeds at ENOSPC.
 		 */
-		tp = xfs_trans_alloc(mp, XFS_TRANS_DIOSTRAT);
-		error = xfs_trans_reserve(tp, &M_RES(mp)->tr_write, resblks, 0);
-
-		/*
-		 * check for running out of space
-		 */
+		error = xfs_trans_alloc(mp, &M_RES(mp)->tr_write, resblks, 0, 0,
+				&tp);
 		if (error) {
-			/*
-			 * Free the transaction structure.
-			 */
 			ASSERT(error == -ENOSPC || XFS_FORCED_SHUTDOWN(mp));
-			xfs_trans_cancel(tp);
 			break;
 		}
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
@@ -1482,19 +1462,16 @@ xfs_shift_file_space(
 	}
 
 	while (!error && !done) {
-		tp = xfs_trans_alloc(mp, XFS_TRANS_DIOSTRAT);
 		/*
 		 * We would need to reserve permanent block for transaction.
 		 * This will come into picture when after shifting extent into
 		 * hole we found that adjacent extents can be merged which
 		 * may lead to freeing of a block during record update.
 		 */
-		error = xfs_trans_reserve(tp, &M_RES(mp)->tr_write,
-				XFS_DIOSTRAT_SPACE_RES(mp, 0), 0);
-		if (error) {
-			xfs_trans_cancel(tp);
+		error = xfs_trans_alloc(mp, &M_RES(mp)->tr_write,
+				XFS_DIOSTRAT_SPACE_RES(mp, 0), 0, 0, &tp);
+		if (error)
 			break;
-		}
 
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
 		error = xfs_trans_reserve_quota(tp, mp, ip->i_udquot,
@@ -1747,12 +1724,9 @@ xfs_swap_extents(
 	if (error)
 		goto out_unlock;
 
-	tp = xfs_trans_alloc(mp, XFS_TRANS_SWAPEXT);
-	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_ichange, 0, 0);
-	if (error) {
-		xfs_trans_cancel(tp);
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_ichange, 0, 0, 0, &tp);
+	if (error)
 		goto out_unlock;
-	}
 
 	/*
 	 * Lock and join the inodes to the tansaction so that transaction commit

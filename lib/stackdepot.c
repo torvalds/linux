@@ -42,12 +42,14 @@
 
 #define DEPOT_STACK_BITS (sizeof(depot_stack_handle_t) * 8)
 
+#define STACK_ALLOC_NULL_PROTECTION_BITS 1
 #define STACK_ALLOC_ORDER 2 /* 'Slab' size order for stack depot, 4 pages */
 #define STACK_ALLOC_SIZE (1LL << (PAGE_SHIFT + STACK_ALLOC_ORDER))
 #define STACK_ALLOC_ALIGN 4
 #define STACK_ALLOC_OFFSET_BITS (STACK_ALLOC_ORDER + PAGE_SHIFT - \
 					STACK_ALLOC_ALIGN)
-#define STACK_ALLOC_INDEX_BITS (DEPOT_STACK_BITS - STACK_ALLOC_OFFSET_BITS)
+#define STACK_ALLOC_INDEX_BITS (DEPOT_STACK_BITS - \
+		STACK_ALLOC_NULL_PROTECTION_BITS - STACK_ALLOC_OFFSET_BITS)
 #define STACK_ALLOC_SLABS_CAP 1024
 #define STACK_ALLOC_MAX_SLABS \
 	(((1LL << (STACK_ALLOC_INDEX_BITS)) < STACK_ALLOC_SLABS_CAP) ? \
@@ -59,6 +61,7 @@ union handle_parts {
 	struct {
 		u32 slabindex : STACK_ALLOC_INDEX_BITS;
 		u32 offset : STACK_ALLOC_OFFSET_BITS;
+		u32 valid : STACK_ALLOC_NULL_PROTECTION_BITS;
 	};
 };
 
@@ -136,6 +139,7 @@ static struct stack_record *depot_alloc_stack(unsigned long *entries, int size,
 	stack->size = size;
 	stack->handle.slabindex = depot_index;
 	stack->handle.offset = depot_offset >> STACK_ALLOC_ALIGN;
+	stack->handle.valid = 1;
 	memcpy(stack->entries, entries, size * sizeof(unsigned long));
 	depot_offset += required_size;
 

@@ -93,6 +93,9 @@ struct regulator_linear_range {
  * @get_current_limit: Get the configured limit for a current-limited regulator.
  * @set_input_current_limit: Configure an input limit.
  *
+ * @set_over_current_protection: Support capability of automatically shutting
+ *                               down when detecting an over current event.
+ *
  * @set_active_discharge: Set active discharge enable/disable of regulators.
  *
  * @set_mode: Set the configured operating mode for the regulator.
@@ -255,6 +258,8 @@ enum regulator_type {
  *
  * @vsel_reg: Register for selector when using regulator_regmap_X_voltage_
  * @vsel_mask: Mask for register bitfield used for selector
+ * @csel_reg: Register for TPS65218 LS3 current regulator
+ * @csel_mask: Mask for TPS65218 LS3 current regulator
  * @apply_reg: Register for initiate voltage change on the output when
  *                using regulator_set_voltage_sel_regmap
  * @apply_bit: Register bitfield used for initiate voltage change on the
@@ -292,7 +297,7 @@ struct regulator_desc {
 			    const struct regulator_desc *,
 			    struct regulator_config *);
 	int id;
-	bool continuous_voltage_range;
+	unsigned int continuous_voltage_range:1;
 	unsigned n_voltages;
 	const struct regulator_ops *ops;
 	int irq;

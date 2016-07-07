@@ -88,7 +88,7 @@ enum marb_bits {
 	/* direct slave LLOCKo# enable */
 	MARB_DS_LLOCK_ENABLE = 0x00400000,
 	MARB_PCI_REQUEST_MODE = 0x00800000,
-	MARB_PCIv21_MODE = 0x01000000,	/* pci specification v2.1 mode */
+	MARB_PCIV21_MODE = 0x01000000,	/* pci specification v2.1 mode */
 	MARB_PCI_READ_NO_WRITE_MODE = 0x02000000,
 	MARB_PCI_READ_WITH_WRITE_FLUSH_MODE = 0x04000000,
 	/* gate local bus latency timer with BREQ */

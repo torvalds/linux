@@ -377,6 +377,27 @@ void batadv_v_elp_iface_disable(struct batadv_hard_iface *hard_iface)
 }
 
 /**
+ * batadv_v_elp_iface_activate - update the ELP buffer belonging to the given
+ *  hard-interface
+ * @primary_iface: the new primary interface
+ * @hard_iface: interface holding the to-be-updated buffer
+ */
+void batadv_v_elp_iface_activate(struct batadv_hard_iface *primary_iface,
+				 struct batadv_hard_iface *hard_iface)
+{
+	struct batadv_elp_packet *elp_packet;
+	struct sk_buff *skb;
+
+	if (!hard_iface->bat_v.elp_skb)
+		return;
+
+	skb = hard_iface->bat_v.elp_skb;
+	elp_packet = (struct batadv_elp_packet *)skb->data;
+	ether_addr_copy(elp_packet->orig,
+			primary_iface->net_dev->dev_addr);
+}
+
+/**
  * batadv_v_elp_primary_iface_set - change internal data to reflect the new
  *  primary interface
  * @primary_iface: the new primary interface
@@ -384,8 +405,6 @@ void batadv_v_elp_iface_disable(struct batadv_hard_iface *hard_iface)
 void batadv_v_elp_primary_iface_set(struct batadv_hard_iface *primary_iface)
 {
 	struct batadv_hard_iface *hard_iface;
-	struct batadv_elp_packet *elp_packet;
-	struct sk_buff *skb;
 
 	/* update orig field of every elp iface belonging to this mesh */
 	rcu_read_lock();
@@ -393,13 +412,7 @@ void batadv_v_elp_primary_iface_set(struct batadv_hard_iface *primary_iface)
 		if (primary_iface->soft_iface != hard_iface->soft_iface)
 			continue;
 
-		if (!hard_iface->bat_v.elp_skb)
-			continue;
-
-		skb = hard_iface->bat_v.elp_skb;
-		elp_packet = (struct batadv_elp_packet *)skb->data;
-		ether_addr_copy(elp_packet->orig,
-				primary_iface->net_dev->dev_addr);
+		batadv_v_elp_iface_activate(primary_iface, hard_iface);
 	}
 	rcu_read_unlock();
 }

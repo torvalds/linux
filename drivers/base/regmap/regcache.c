@@ -529,7 +529,7 @@ EXPORT_SYMBOL_GPL(regcache_mark_dirty);
  * regcache_cache_bypass: Put a register map into cache bypass mode
  *
  * @map: map to configure
- * @cache_bypass: flag if changes should not be written to the hardware
+ * @cache_bypass: flag if changes should not be written to the cache
  *
  * When a register map is marked with the cache bypass option, writes
  * to the register map API will only update the hardware and not the

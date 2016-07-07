@@ -307,6 +307,7 @@ int perf_stat_process_counter(struct perf_stat_config *config,
 	struct perf_counts_values *aggr = &counter->counts->aggr;
 	struct perf_stat_evsel *ps = counter->priv;
 	u64 *count = counter->counts->aggr.values;
+	u64 val;
 	int i, ret;
 
 	aggr->val = aggr->ena = aggr->run = 0;
@@ -346,7 +347,8 @@ int perf_stat_process_counter(struct perf_stat_config *config,
 	/*
 	 * Save the full runtime - to allow normalization during printout:
 	 */
-	perf_stat__update_shadow_stats(counter, count, 0);
+	val = counter->scale * *count;
+	perf_stat__update_shadow_stats(counter, &val, 0);
 
 	return 0;
 }

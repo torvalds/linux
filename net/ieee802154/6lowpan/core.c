@@ -148,7 +148,7 @@ static int lowpan_newlink(struct net *src_net, struct net_device *ldev,
 		return -EBUSY;
 	}
 
-	lowpan_dev_info(ldev)->wdev = wdev;
+	lowpan_802154_dev(ldev)->wdev = wdev;
 	/* Set the lowpan hardware address to the wpan hardware address. */
 	memcpy(ldev->dev_addr, wdev->dev_addr, IEEE802154_ADDR_LEN);
 	/* We need headroom for possible wpan_dev_hard_header call and tailroom
@@ -173,7 +173,7 @@ static int lowpan_newlink(struct net *src_net, struct net_device *ldev,
 
 static void lowpan_dellink(struct net_device *ldev, struct list_head *head)
 {
-	struct net_device *wdev = lowpan_dev_info(ldev)->wdev;
+	struct net_device *wdev = lowpan_802154_dev(ldev)->wdev;
 
 	ASSERT_RTNL();
 
@@ -184,7 +184,7 @@ static void lowpan_dellink(struct net_device *ldev, struct list_head *head)
 
 static struct rtnl_link_ops lowpan_link_ops __read_mostly = {
 	.kind		= "lowpan",
-	.priv_size	= LOWPAN_PRIV_SIZE(sizeof(struct lowpan_dev_info)),
+	.priv_size	= LOWPAN_PRIV_SIZE(sizeof(struct lowpan_802154_dev)),
 	.setup		= lowpan_setup,
 	.newlink	= lowpan_newlink,
 	.dellink	= lowpan_dellink,

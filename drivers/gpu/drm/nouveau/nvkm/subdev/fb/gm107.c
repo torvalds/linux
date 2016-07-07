@@ -27,6 +27,7 @@
 static const struct nvkm_fb_func
 gm107_fb = {
 	.dtor = gf100_fb_dtor,
+	.oneinit = gf100_fb_oneinit,
 	.init = gf100_fb_init,
 	.intr = gf100_fb_intr,
 	.ram_new = gm107_ram_new,

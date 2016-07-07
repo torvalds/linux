@@ -29,7 +29,6 @@
 #include <linux/amba/kmi.h>
 #include <linux/io.h>
 #include <linux/irqchip.h>
-#include <linux/mtd/physmap.h>
 #include <linux/platform_data/clk-integrator.h>
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
@@ -147,65 +146,6 @@ static int __init irq_syscore_init(void)
 device_initcall(irq_syscore_init);
 
 /*
- * Flash handling.
- */
-static int ap_flash_init(struct platform_device *dev)
-{
-	u32 tmp;
-
-	writel(INTEGRATOR_SC_CTRL_nFLVPPEN | INTEGRATOR_SC_CTRL_nFLWP,
-	       ap_syscon_base + INTEGRATOR_SC_CTRLC_OFFSET);
-
-	tmp = readl(ebi_base + INTEGRATOR_EBI_CSR1_OFFSET) |
-		INTEGRATOR_EBI_WRITE_ENABLE;
-	writel(tmp, ebi_base + INTEGRATOR_EBI_CSR1_OFFSET);
-
-	if (!(readl(ebi_base + INTEGRATOR_EBI_CSR1_OFFSET)
-	      & INTEGRATOR_EBI_WRITE_ENABLE)) {
-		writel(0xa05f, ebi_base + INTEGRATOR_EBI_LOCK_OFFSET);
-		writel(tmp, ebi_base + INTEGRATOR_EBI_CSR1_OFFSET);
-		writel(0, ebi_base + INTEGRATOR_EBI_LOCK_OFFSET);
-	}
-	return 0;
-}
-
-static void ap_flash_exit(struct platform_device *dev)
-{
-	u32 tmp;
-
-	writel(INTEGRATOR_SC_CTRL_nFLVPPEN | INTEGRATOR_SC_CTRL_nFLWP,
-	       ap_syscon_base + INTEGRATOR_SC_CTRLC_OFFSET);
-
-	tmp = readl(ebi_base + INTEGRATOR_EBI_CSR1_OFFSET) &
-		~INTEGRATOR_EBI_WRITE_ENABLE;
-	writel(tmp, ebi_base + INTEGRATOR_EBI_CSR1_OFFSET);
-
-	if (readl(ebi_base + INTEGRATOR_EBI_CSR1_OFFSET) &
-	    INTEGRATOR_EBI_WRITE_ENABLE) {
-		writel(0xa05f, ebi_base + INTEGRATOR_EBI_LOCK_OFFSET);
-		writel(tmp, ebi_base + INTEGRATOR_EBI_CSR1_OFFSET);
-		writel(0, ebi_base + INTEGRATOR_EBI_LOCK_OFFSET);
-	}
-}
-
-static void ap_flash_set_vpp(struct platform_device *pdev, int on)
-{
-	if (on)
-		writel(INTEGRATOR_SC_CTRL_nFLVPPEN,
-		       ap_syscon_base + INTEGRATOR_SC_CTRLS_OFFSET);
-	else
-		writel(INTEGRATOR_SC_CTRL_nFLVPPEN,
-		       ap_syscon_base + INTEGRATOR_SC_CTRLC_OFFSET);
-}
-
-static struct physmap_flash_data ap_flash_data = {
-	.width		= 4,
-	.init		= ap_flash_init,
-	.exit		= ap_flash_exit,
-	.set_vpp	= ap_flash_set_vpp,
-};
-
-/*
  * For the PL010 found in the Integrator/AP some of the UART control is
  * implemented in the system controller and accessed using a callback
  * from the driver.
@@ -266,8 +206,6 @@ static struct of_dev_auxdata ap_auxdata_lookup[] __initdata = {
 		"kmi0", NULL),
 	OF_DEV_AUXDATA("arm,primecell", KMI1_BASE,
 		"kmi1", NULL),
-	OF_DEV_AUXDATA("cfi-flash", INTEGRATOR_FLASH_BASE,
-		"physmap-flash", &ap_flash_data),
 	{ /* sentinel */ },
 };
 

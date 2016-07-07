@@ -28,7 +28,7 @@
 #include <linux/mutex.h>
 #include <linux/mfd/ucb1x00.h>
 #include <linux/pm.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 
 static DEFINE_MUTEX(ucb1x00_mutex);
 static LIST_HEAD(ucb1x00_drivers);
@@ -109,7 +109,7 @@ unsigned int ucb1x00_io_read(struct ucb1x00 *ucb)
 
 static void ucb1x00_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct ucb1x00 *ucb = container_of(chip, struct ucb1x00, gpio);
+	struct ucb1x00 *ucb = gpiochip_get_data(chip);
 	unsigned long flags;
 
 	spin_lock_irqsave(&ucb->io_lock, flags);
@@ -126,7 +126,7 @@ static void ucb1x00_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 
 static int ucb1x00_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct ucb1x00 *ucb = container_of(chip, struct ucb1x00, gpio);
+	struct ucb1x00 *ucb = gpiochip_get_data(chip);
 	unsigned val;
 
 	ucb1x00_enable(ucb);
@@ -138,7 +138,7 @@ static int ucb1x00_gpio_get(struct gpio_chip *chip, unsigned offset)
 
 static int ucb1x00_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 {
-	struct ucb1x00 *ucb = container_of(chip, struct ucb1x00, gpio);
+	struct ucb1x00 *ucb = gpiochip_get_data(chip);
 	unsigned long flags;
 
 	spin_lock_irqsave(&ucb->io_lock, flags);
@@ -154,7 +154,7 @@ static int ucb1x00_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 static int ucb1x00_gpio_direction_output(struct gpio_chip *chip, unsigned offset
 		, int value)
 {
-	struct ucb1x00 *ucb = container_of(chip, struct ucb1x00, gpio);
+	struct ucb1x00 *ucb = gpiochip_get_data(chip);
 	unsigned long flags;
 	unsigned old, mask = 1 << offset;
 
@@ -181,7 +181,7 @@ static int ucb1x00_gpio_direction_output(struct gpio_chip *chip, unsigned offset
 
 static int ucb1x00_to_irq(struct gpio_chip *chip, unsigned offset)
 {
-	struct ucb1x00 *ucb = container_of(chip, struct ucb1x00, gpio);
+	struct ucb1x00 *ucb = gpiochip_get_data(chip);
 
 	return ucb->irq_base > 0 ? ucb->irq_base + offset : -ENXIO;
 }
@@ -579,7 +579,7 @@ static int ucb1x00_probe(struct mcp *mcp)
 		ucb->gpio.direction_input = ucb1x00_gpio_direction_input;
 		ucb->gpio.direction_output = ucb1x00_gpio_direction_output;
 		ucb->gpio.to_irq = ucb1x00_to_irq;
-		ret = gpiochip_add(&ucb->gpio);
+		ret = gpiochip_add_data(&ucb->gpio, ucb);
 		if (ret)
 			goto err_gpio_add;
 	} else

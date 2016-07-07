@@ -624,7 +624,7 @@ static int qxl_reap_surf(struct qxl_device *qdev, struct qxl_bo *surf, bool stal
 	if (stall)
 		mutex_unlock(&qdev->surf_evict_mutex);
 
-	ret = ttm_bo_wait(&surf->tbo, true, true, !stall);
+	ret = ttm_bo_wait(&surf->tbo, true, !stall);
 
 	if (stall)
 		mutex_lock(&qdev->surf_evict_mutex);

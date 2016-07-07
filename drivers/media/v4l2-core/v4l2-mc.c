@@ -1,7 +1,7 @@
 /*
  * Media Controller ancillary functions
  *
- * Copyright (c) 2016 Mauro Carvalho Chehab <mchehab@osg.samsung.com>
+ * Copyright (c) 2016 Mauro Carvalho Chehab <mchehab@kernel.org>
  * Copyright (C) 2016 Shuah Khan <shuahkh@osg.samsung.com>
  * Copyright (C) 2006-2010 Nokia Corporation
  * Copyright (c) 2016 Intel Corporation.
@@ -263,7 +263,7 @@ static int pipeline_pm_use_count(struct media_entity *entity,
 	media_entity_graph_walk_start(graph, entity);
 
 	while ((entity = media_entity_graph_walk_next(graph))) {
-		if (is_media_entity_v4l2_io(entity))
+		if (is_media_entity_v4l2_video_device(entity))
 			use += entity->use_count;
 	}
 

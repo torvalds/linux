@@ -37,7 +37,7 @@ static DEFINE_PER_CPU(int, mce_queue_count);
 static DEFINE_PER_CPU(struct machine_check_event[MAX_MC_EVT], mce_event_queue);
 
 static void machine_check_process_queued_event(struct irq_work *work);
-struct irq_work mce_event_process_work = {
+static struct irq_work mce_event_process_work = {
         .func = machine_check_process_queued_event,
 };
 
@@ -284,7 +284,7 @@ void machine_check_print_event_info(struct machine_check_event *evt)
 			printk("%s    Effective address: %016llx\n",
 			       level, evt->u.ue_error.effective_address);
 		if (evt->u.ue_error.physical_address_provided)
-			printk("%s      Physial address: %016llx\n",
+			printk("%s      Physical address: %016llx\n",
 			       level, evt->u.ue_error.physical_address);
 		break;
 	case MCE_ERROR_TYPE_SLB:

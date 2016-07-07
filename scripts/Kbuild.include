@@ -7,6 +7,7 @@ quote   := "
 squote  := '
 empty   :=
 space   := $(empty) $(empty)
+space_escape := _-_SPACE_-_
 
 ###
 # Name of target with a '.' as filename prefix. foo/bar.o => foo/.bar.o
@@ -226,10 +227,10 @@ objectify = $(foreach o,$(1),$(if $(filter /%,$(o)),$(o),$(obj)/$(o)))
 # See Documentation/kbuild/makefiles.txt for more info
 
 ifneq ($(KBUILD_NOCMDDEP),1)
-# Check if both arguments has same arguments. Result is empty string if equal.
-# User may override this check using make KBUILD_NOCMDDEP=1
-arg-check = $(strip $(filter-out $(cmd_$(1)), $(cmd_$@)) \
-                    $(filter-out $(cmd_$@),   $(cmd_$(1))) )
+# Check if both arguments are the same including their order. Result is empty
+# string if equal. User may override this check using make KBUILD_NOCMDDEP=1
+arg-check = $(filter-out $(subst $(space),$(space_escape),$(strip $(cmd_$@))), \
+                         $(subst $(space),$(space_escape),$(strip $(cmd_$1))))
 else
 arg-check = $(if $(strip $(cmd_$@)),,1)
 endif
@@ -256,10 +257,42 @@ if_changed = $(if $(strip $(any-prereq) $(arg-check)),                       \
 # Execute the command and also postprocess generated .d dependencies file.
 if_changed_dep = $(if $(strip $(any-prereq) $(arg-check) ),                  \
 	@set -e;                                                             \
+	$(cmd_and_fixdep), @:)
+
+ifndef CONFIG_TRIM_UNUSED_KSYMS
+
+cmd_and_fixdep =                                                             \
 	$(echo-cmd) $(cmd_$(1));                                             \
 	scripts/basic/fixdep $(depfile) $@ '$(make-cmd)' > $(dot-target).tmp;\
 	rm -f $(depfile);                                                    \
-	mv -f $(dot-target).tmp $(dot-target).cmd, @:)
+	mv -f $(dot-target).tmp $(dot-target).cmd;
+
+else
+
+# Filter out exported kernel symbol names from the preprocessor output.
+# See also __KSYM_DEPS__ in include/linux/export.h.
+# We disable the depfile generation here, so as not to overwrite the existing
+# depfile while fixdep is parsing it.
+flags_nodeps = $(filter-out -Wp$(comma)-M%, $($(1)))
+ksym_dep_filter =                                                            \
+	case "$(1)" in                                                       \
+	  cc_*_c|cpp_i_c)                                                    \
+	    $(CPP) $(call flags_nodeps,c_flags) -D__KSYM_DEPS__ $< ;;        \
+	  as_*_S|cpp_s_S)                                                    \
+	    $(CPP) $(call flags_nodeps,a_flags) -D__KSYM_DEPS__ $< ;;        \
+	  boot*|build*|*cpp_lds_S|dtc|host*|vdso*) : ;;                      \
+	  *) echo "Don't know how to preprocess $(1)" >&2; false ;;          \
+	esac | tr ";" "\n" | sed -rn 's/^.*=== __KSYM_(.*) ===.*$$/KSYM_\1/p'
+
+cmd_and_fixdep =                                                             \
+	$(echo-cmd) $(cmd_$(1));                                             \
+	$(ksym_dep_filter) |                                                 \
+		scripts/basic/fixdep -e $(depfile) $@ '$(make-cmd)'          \
+			> $(dot-target).tmp;	                             \
+	rm -f $(depfile);                                                    \
+	mv -f $(dot-target).tmp $(dot-target).cmd;
+
+endif
 
 # Usage: $(call if_changed_rule,foo)
 # Will check if $(cmd_foo) or any of the prerequisites changed,
@@ -340,8 +373,6 @@ endif
 # and double quotes, backslashes and spaces in the filenames.
 #
 ###############################################################################
-#
-space_escape := %%%SPACE%%%
 #
 define config_filename
 ifneq ($$(CONFIG_$(1)),"")

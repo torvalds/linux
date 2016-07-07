@@ -539,6 +539,7 @@ static int set_ftlb_enable(struct cpuinfo_mips *c, int enable)
 	switch (c->cputype) {
 	case CPU_PROAPTIV:
 	case CPU_P5600:
+	case CPU_P6600:
 		/* proAptiv & related cores use Config6 to enable the FTLB */
 		config = read_c0_config6();
 		/* Clear the old probability value */
@@ -560,6 +561,19 @@ static int set_ftlb_enable(struct cpuinfo_mips *c, int enable)
 		config &= ~(3 << MIPS_CONF7_FTLBP_SHIFT);
 		write_c0_config7(config | (calculate_ftlb_probability(c)
 					   << MIPS_CONF7_FTLBP_SHIFT));
+		break;
+	case CPU_LOONGSON3:
+		/* Flush ITLB, DTLB, VTLB and FTLB */
+		write_c0_diag(LOONGSON_DIAG_ITLB | LOONGSON_DIAG_DTLB |
+			      LOONGSON_DIAG_VTLB | LOONGSON_DIAG_FTLB);
+		/* Loongson-3 cores use Config6 to enable the FTLB */
+		config = read_c0_config6();
+		if (enable)
+			/* Enable FTLB */
+			write_c0_config6(config & ~MIPS_CONF6_FTLBDIS);
+		else
+			/* Disable FTLB */
+			write_c0_config6(config | MIPS_CONF6_FTLBDIS);
 		break;
 	default:
 		return 1;
@@ -634,6 +648,8 @@ static inline unsigned int decode_config1(struct cpuinfo_mips *c)
 
 	if (config1 & MIPS_CONF1_MD)
 		c->ases |= MIPS_ASE_MDMX;
+	if (config1 & MIPS_CONF1_PC)
+		c->options |= MIPS_CPU_PERF;
 	if (config1 & MIPS_CONF1_WR)
 		c->options |= MIPS_CPU_WATCH;
 	if (config1 & MIPS_CONF1_CA)
@@ -673,18 +689,25 @@ static inline unsigned int decode_config3(struct cpuinfo_mips *c)
 
 	if (config3 & MIPS_CONF3_SM) {
 		c->ases |= MIPS_ASE_SMARTMIPS;
-		c->options |= MIPS_CPU_RIXI;
+		c->options |= MIPS_CPU_RIXI | MIPS_CPU_CTXTC;
 	}
 	if (config3 & MIPS_CONF3_RXI)
 		c->options |= MIPS_CPU_RIXI;
+	if (config3 & MIPS_CONF3_CTXTC)
+		c->options |= MIPS_CPU_CTXTC;
 	if (config3 & MIPS_CONF3_DSP)
 		c->ases |= MIPS_ASE_DSP;
-	if (config3 & MIPS_CONF3_DSP2P)
+	if (config3 & MIPS_CONF3_DSP2P) {
 		c->ases |= MIPS_ASE_DSP2P;
+		if (cpu_has_mips_r6)
+			c->ases |= MIPS_ASE_DSP3;
+	}
 	if (config3 & MIPS_CONF3_VINT)
 		c->options |= MIPS_CPU_VINT;
 	if (config3 & MIPS_CONF3_VEIC)
 		c->options |= MIPS_CPU_VEIC;
+	if (config3 & MIPS_CONF3_LPA)
+		c->options |= MIPS_CPU_LPA;
 	if (config3 & MIPS_CONF3_MT)
 		c->ases |= MIPS_ASE_MIPSMT;
 	if (config3 & MIPS_CONF3_ULRI)
@@ -695,6 +718,10 @@ static inline unsigned int decode_config3(struct cpuinfo_mips *c)
 		c->ases |= MIPS_ASE_VZ;
 	if (config3 & MIPS_CONF3_SC)
 		c->options |= MIPS_CPU_SEGMENTS;
+	if (config3 & MIPS_CONF3_BI)
+		c->options |= MIPS_CPU_BADINSTR;
+	if (config3 & MIPS_CONF3_BP)
+		c->options |= MIPS_CPU_BADINSTRP;
 	if (config3 & MIPS_CONF3_MSA)
 		c->ases |= MIPS_ASE_MSA;
 	if (config3 & MIPS_CONF3_PW) {
@@ -715,6 +742,7 @@ static inline unsigned int decode_config4(struct cpuinfo_mips *c)
 	unsigned int newcf4;
 	unsigned int mmuextdef;
 	unsigned int ftlb_page = MIPS_CONF4_FTLBPAGESIZE;
+	unsigned long asid_mask;
 
 	config4 = read_c0_config4();
 
@@ -773,7 +801,20 @@ static inline unsigned int decode_config4(struct cpuinfo_mips *c)
 		}
 	}
 
-	c->kscratch_mask = (config4 >> 16) & 0xff;
+	c->kscratch_mask = (config4 & MIPS_CONF4_KSCREXIST)
+				>> MIPS_CONF4_KSCREXIST_SHIFT;
+
+	asid_mask = MIPS_ENTRYHI_ASID;
+	if (config4 & MIPS_CONF4_AE)
+		asid_mask |= MIPS_ENTRYHI_ASIDX;
+	set_cpu_asid_mask(c, asid_mask);
+
+	/*
+	 * Warn if the computed ASID mask doesn't match the mask the kernel
+	 * is built for. This may indicate either a serious problem or an
+	 * easy optimisation opportunity, but either way should be addressed.
+	 */
+	WARN_ON(asid_mask != cpu_asid_mask(c));
 
 	return config4 & MIPS_CONF_M;
 }
@@ -792,10 +833,10 @@ static inline unsigned int decode_config5(struct cpuinfo_mips *c)
 		c->options |= MIPS_CPU_MAAR;
 	if (config5 & MIPS_CONF5_LLB)
 		c->options |= MIPS_CPU_RW_LLB;
-#ifdef CONFIG_XPA
 	if (config5 & MIPS_CONF5_MVH)
-		c->options |= MIPS_CPU_XPA;
-#endif
+		c->options |= MIPS_CPU_MVH;
+	if (cpu_has_mips_r6 && (config5 & MIPS_CONF5_VP))
+		c->options |= MIPS_CPU_VP;
 
 	return config5 & MIPS_CONF_M;
 }
@@ -826,16 +867,42 @@ static void decode_configs(struct cpuinfo_mips *c)
 	if (ok)
 		ok = decode_config5(c);
 
-	mips_probe_watch_registers(c);
+	/* Probe the EBase.WG bit */
+	if (cpu_has_mips_r2_r6) {
+		u64 ebase;
+		unsigned int status;
 
-	if (cpu_has_rixi) {
-		/* Enable the RIXI exceptions */
-		set_c0_pagegrain(PG_IEC);
-		back_to_back_c0_hazard();
-		/* Verify the IEC bit is set */
-		if (read_c0_pagegrain() & PG_IEC)
-			c->options |= MIPS_CPU_RIXIEX;
+		/* {read,write}_c0_ebase_64() may be UNDEFINED prior to r6 */
+		ebase = cpu_has_mips64r6 ? read_c0_ebase_64()
+					 : (s32)read_c0_ebase();
+		if (ebase & MIPS_EBASE_WG) {
+			/* WG bit already set, we can avoid the clumsy probe */
+			c->options |= MIPS_CPU_EBASE_WG;
+		} else {
+			/* Its UNDEFINED to change EBase while BEV=0 */
+			status = read_c0_status();
+			write_c0_status(status | ST0_BEV);
+			irq_enable_hazard();
+			/*
+			 * On pre-r6 cores, this may well clobber the upper bits
+			 * of EBase. This is hard to avoid without potentially
+			 * hitting UNDEFINED dm*c0 behaviour if EBase is 32-bit.
+			 */
+			if (cpu_has_mips64r6)
+				write_c0_ebase_64(ebase | MIPS_EBASE_WG);
+			else
+				write_c0_ebase(ebase | MIPS_EBASE_WG);
+			back_to_back_c0_hazard();
+			/* Restore BEV */
+			write_c0_status(status);
+			if (read_c0_ebase() & MIPS_EBASE_WG) {
+				c->options |= MIPS_CPU_EBASE_WG;
+				write_c0_ebase(ebase);
+			}
+		}
 	}
+
+	mips_probe_watch_registers(c);
 
 #ifndef CONFIG_MIPS_CPS
 	if (cpu_has_mips_r2_r6) {
@@ -844,6 +911,235 @@ static void decode_configs(struct cpuinfo_mips *c)
 			c->core >>= fls(core_nvpes()) - 1;
 	}
 #endif
+}
+
+/*
+ * Probe for certain guest capabilities by writing config bits and reading back.
+ * Finally write back the original value.
+ */
+#define probe_gc0_config(name, maxconf, bits)				\
+do {									\
+	unsigned int tmp;						\
+	tmp = read_gc0_##name();					\
+	write_gc0_##name(tmp | (bits));					\
+	back_to_back_c0_hazard();					\
+	maxconf = read_gc0_##name();					\
+	write_gc0_##name(tmp);						\
+} while (0)
+
+/*
+ * Probe for dynamic guest capabilities by changing certain config bits and
+ * reading back to see if they change. Finally write back the original value.
+ */
+#define probe_gc0_config_dyn(name, maxconf, dynconf, bits)		\
+do {									\
+	maxconf = read_gc0_##name();					\
+	write_gc0_##name(maxconf ^ (bits));				\
+	back_to_back_c0_hazard();					\
+	dynconf = maxconf ^ read_gc0_##name();				\
+	write_gc0_##name(maxconf);					\
+	maxconf |= dynconf;						\
+} while (0)
+
+static inline unsigned int decode_guest_config0(struct cpuinfo_mips *c)
+{
+	unsigned int config0;
+
+	probe_gc0_config(config, config0, MIPS_CONF_M);
+
+	if (config0 & MIPS_CONF_M)
+		c->guest.conf |= BIT(1);
+	return config0 & MIPS_CONF_M;
+}
+
+static inline unsigned int decode_guest_config1(struct cpuinfo_mips *c)
+{
+	unsigned int config1, config1_dyn;
+
+	probe_gc0_config_dyn(config1, config1, config1_dyn,
+			     MIPS_CONF_M | MIPS_CONF1_PC | MIPS_CONF1_WR |
+			     MIPS_CONF1_FP);
+
+	if (config1 & MIPS_CONF1_FP)
+		c->guest.options |= MIPS_CPU_FPU;
+	if (config1_dyn & MIPS_CONF1_FP)
+		c->guest.options_dyn |= MIPS_CPU_FPU;
+
+	if (config1 & MIPS_CONF1_WR)
+		c->guest.options |= MIPS_CPU_WATCH;
+	if (config1_dyn & MIPS_CONF1_WR)
+		c->guest.options_dyn |= MIPS_CPU_WATCH;
+
+	if (config1 & MIPS_CONF1_PC)
+		c->guest.options |= MIPS_CPU_PERF;
+	if (config1_dyn & MIPS_CONF1_PC)
+		c->guest.options_dyn |= MIPS_CPU_PERF;
+
+	if (config1 & MIPS_CONF_M)
+		c->guest.conf |= BIT(2);
+	return config1 & MIPS_CONF_M;
+}
+
+static inline unsigned int decode_guest_config2(struct cpuinfo_mips *c)
+{
+	unsigned int config2;
+
+	probe_gc0_config(config2, config2, MIPS_CONF_M);
+
+	if (config2 & MIPS_CONF_M)
+		c->guest.conf |= BIT(3);
+	return config2 & MIPS_CONF_M;
+}
+
+static inline unsigned int decode_guest_config3(struct cpuinfo_mips *c)
+{
+	unsigned int config3, config3_dyn;
+
+	probe_gc0_config_dyn(config3, config3, config3_dyn,
+			     MIPS_CONF_M | MIPS_CONF3_MSA | MIPS_CONF3_CTXTC);
+
+	if (config3 & MIPS_CONF3_CTXTC)
+		c->guest.options |= MIPS_CPU_CTXTC;
+	if (config3_dyn & MIPS_CONF3_CTXTC)
+		c->guest.options_dyn |= MIPS_CPU_CTXTC;
+
+	if (config3 & MIPS_CONF3_PW)
+		c->guest.options |= MIPS_CPU_HTW;
+
+	if (config3 & MIPS_CONF3_SC)
+		c->guest.options |= MIPS_CPU_SEGMENTS;
+
+	if (config3 & MIPS_CONF3_BI)
+		c->guest.options |= MIPS_CPU_BADINSTR;
+	if (config3 & MIPS_CONF3_BP)
+		c->guest.options |= MIPS_CPU_BADINSTRP;
+
+	if (config3 & MIPS_CONF3_MSA)
+		c->guest.ases |= MIPS_ASE_MSA;
+	if (config3_dyn & MIPS_CONF3_MSA)
+		c->guest.ases_dyn |= MIPS_ASE_MSA;
+
+	if (config3 & MIPS_CONF_M)
+		c->guest.conf |= BIT(4);
+	return config3 & MIPS_CONF_M;
+}
+
+static inline unsigned int decode_guest_config4(struct cpuinfo_mips *c)
+{
+	unsigned int config4;
+
+	probe_gc0_config(config4, config4,
+			 MIPS_CONF_M | MIPS_CONF4_KSCREXIST);
+
+	c->guest.kscratch_mask = (config4 & MIPS_CONF4_KSCREXIST)
+				>> MIPS_CONF4_KSCREXIST_SHIFT;
+
+	if (config4 & MIPS_CONF_M)
+		c->guest.conf |= BIT(5);
+	return config4 & MIPS_CONF_M;
+}
+
+static inline unsigned int decode_guest_config5(struct cpuinfo_mips *c)
+{
+	unsigned int config5, config5_dyn;
+
+	probe_gc0_config_dyn(config5, config5, config5_dyn,
+			 MIPS_CONF_M | MIPS_CONF5_MRP);
+
+	if (config5 & MIPS_CONF5_MRP)
+		c->guest.options |= MIPS_CPU_MAAR;
+	if (config5_dyn & MIPS_CONF5_MRP)
+		c->guest.options_dyn |= MIPS_CPU_MAAR;
+
+	if (config5 & MIPS_CONF5_LLB)
+		c->guest.options |= MIPS_CPU_RW_LLB;
+
+	if (config5 & MIPS_CONF_M)
+		c->guest.conf |= BIT(6);
+	return config5 & MIPS_CONF_M;
+}
+
+static inline void decode_guest_configs(struct cpuinfo_mips *c)
+{
+	unsigned int ok;
+
+	ok = decode_guest_config0(c);
+	if (ok)
+		ok = decode_guest_config1(c);
+	if (ok)
+		ok = decode_guest_config2(c);
+	if (ok)
+		ok = decode_guest_config3(c);
+	if (ok)
+		ok = decode_guest_config4(c);
+	if (ok)
+		decode_guest_config5(c);
+}
+
+static inline void cpu_probe_guestctl0(struct cpuinfo_mips *c)
+{
+	unsigned int guestctl0, temp;
+
+	guestctl0 = read_c0_guestctl0();
+
+	if (guestctl0 & MIPS_GCTL0_G0E)
+		c->options |= MIPS_CPU_GUESTCTL0EXT;
+	if (guestctl0 & MIPS_GCTL0_G1)
+		c->options |= MIPS_CPU_GUESTCTL1;
+	if (guestctl0 & MIPS_GCTL0_G2)
+		c->options |= MIPS_CPU_GUESTCTL2;
+	if (!(guestctl0 & MIPS_GCTL0_RAD)) {
+		c->options |= MIPS_CPU_GUESTID;
+
+		/*
+		 * Probe for Direct Root to Guest (DRG). Set GuestCtl1.RID = 0
+		 * first, otherwise all data accesses will be fully virtualised
+		 * as if they were performed by guest mode.
+		 */
+		write_c0_guestctl1(0);
+		tlbw_use_hazard();
+
+		write_c0_guestctl0(guestctl0 | MIPS_GCTL0_DRG);
+		back_to_back_c0_hazard();
+		temp = read_c0_guestctl0();
+
+		if (temp & MIPS_GCTL0_DRG) {
+			write_c0_guestctl0(guestctl0);
+			c->options |= MIPS_CPU_DRG;
+		}
+	}
+}
+
+static inline void cpu_probe_guestctl1(struct cpuinfo_mips *c)
+{
+	if (cpu_has_guestid) {
+		/* determine the number of bits of GuestID available */
+		write_c0_guestctl1(MIPS_GCTL1_ID);
+		back_to_back_c0_hazard();
+		c->guestid_mask = (read_c0_guestctl1() & MIPS_GCTL1_ID)
+						>> MIPS_GCTL1_ID_SHIFT;
+		write_c0_guestctl1(0);
+	}
+}
+
+static inline void cpu_probe_gtoffset(struct cpuinfo_mips *c)
+{
+	/* determine the number of bits of GTOffset available */
+	write_c0_gtoffset(0xffffffff);
+	back_to_back_c0_hazard();
+	c->gtoffset_mask = read_c0_gtoffset();
+	write_c0_gtoffset(0);
+}
+
+static inline void cpu_probe_vz(struct cpuinfo_mips *c)
+{
+	cpu_probe_guestctl0(c);
+	if (cpu_has_guestctl1)
+		cpu_probe_guestctl1(c);
+
+	cpu_probe_gtoffset(c);
+
+	decode_guest_configs(c);
 }
 
 #define R4K_OPTS (MIPS_CPU_TLB | MIPS_CPU_4KEX | MIPS_CPU_4K_CACHE \
@@ -1172,7 +1468,7 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 			set_isa(c, MIPS_CPU_ISA_III);
 			c->fpu_msk31 |= FPU_CSR_CONDX;
 			break;
-		case PRID_REV_LOONGSON3A:
+		case PRID_REV_LOONGSON3A_R1:
 			c->cputype = CPU_LOONGSON3;
 			__cpu_name[cpu] = "ICT Loongson-3";
 			set_elf_platform(cpu, "loongson3a");
@@ -1314,6 +1610,10 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 		c->cputype = CPU_P5600;
 		__cpu_name[cpu] = "MIPS P5600";
 		break;
+	case PRID_IMP_P6600:
+		c->cputype = CPU_P6600;
+		__cpu_name[cpu] = "MIPS P6600";
+		break;
 	case PRID_IMP_I6400:
 		c->cputype = CPU_I6400;
 		__cpu_name[cpu] = "MIPS I6400";
@@ -1321,6 +1621,10 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 	case PRID_IMP_M5150:
 		c->cputype = CPU_M5150;
 		__cpu_name[cpu] = "MIPS M5150";
+		break;
+	case PRID_IMP_M6250:
+		c->cputype = CPU_M6250;
+		__cpu_name[cpu] = "MIPS M6250";
 		break;
 	}
 
@@ -1435,6 +1739,7 @@ static inline void cpu_probe_broadcom(struct cpuinfo_mips *c, unsigned int cpu)
 			c->cputype = CPU_BMIPS4380;
 			__cpu_name[cpu] = "Broadcom BMIPS4380";
 			set_elf_platform(cpu, "bmips4380");
+			c->options |= MIPS_CPU_RIXI;
 		} else {
 			c->cputype = CPU_BMIPS4350;
 			__cpu_name[cpu] = "Broadcom BMIPS4350";
@@ -1445,9 +1750,12 @@ static inline void cpu_probe_broadcom(struct cpuinfo_mips *c, unsigned int cpu)
 	case PRID_IMP_BMIPS5000:
 	case PRID_IMP_BMIPS5200:
 		c->cputype = CPU_BMIPS5000;
-		__cpu_name[cpu] = "Broadcom BMIPS5000";
+		if ((c->processor_id & PRID_IMP_MASK) == PRID_IMP_BMIPS5200)
+			__cpu_name[cpu] = "Broadcom BMIPS5200";
+		else
+			__cpu_name[cpu] = "Broadcom BMIPS5000";
 		set_elf_platform(cpu, "bmips5000");
-		c->options |= MIPS_CPU_ULRI;
+		c->options |= MIPS_CPU_ULRI | MIPS_CPU_RIXI;
 		break;
 	}
 }
@@ -1481,6 +1789,8 @@ platform:
 		set_elf_platform(cpu, "octeon2");
 		break;
 	case PRID_IMP_CAVIUM_CN70XX:
+	case PRID_IMP_CAVIUM_CN73XX:
+	case PRID_IMP_CAVIUM_CNF75XX:
 	case PRID_IMP_CAVIUM_CN78XX:
 		c->cputype = CPU_CAVIUM_OCTEON3;
 		__cpu_name[cpu] = "Cavium Octeon III";
@@ -1489,6 +1799,29 @@ platform:
 	default:
 		printk(KERN_INFO "Unknown Octeon chip!\n");
 		c->cputype = CPU_UNKNOWN;
+		break;
+	}
+}
+
+static inline void cpu_probe_loongson(struct cpuinfo_mips *c, unsigned int cpu)
+{
+	switch (c->processor_id & PRID_IMP_MASK) {
+	case PRID_IMP_LOONGSON_64:  /* Loongson-2/3 */
+		switch (c->processor_id & PRID_REV_MASK) {
+		case PRID_REV_LOONGSON3A_R2:
+			c->cputype = CPU_LOONGSON3;
+			__cpu_name[cpu] = "ICT Loongson-3";
+			set_elf_platform(cpu, "loongson3a");
+			set_isa(c, MIPS_CPU_ISA_M64R2);
+			break;
+		}
+
+		decode_configs(c);
+		c->options |= MIPS_CPU_TLBINV | MIPS_CPU_LDPTE;
+		c->writecombine = _CACHE_UNCACHED_ACCELERATED;
+		break;
+	default:
+		panic("Unknown Loongson Processor ID!");
 		break;
 	}
 }
@@ -1640,6 +1973,9 @@ void cpu_probe(void)
 	case PRID_COMP_CAVIUM:
 		cpu_probe_cavium(c, cpu);
 		break;
+	case PRID_COMP_LOONGSON:
+		cpu_probe_loongson(c, cpu);
+		break;
 	case PRID_COMP_INGENIC_D0:
 	case PRID_COMP_INGENIC_D1:
 	case PRID_COMP_INGENIC_E1:
@@ -1659,6 +1995,15 @@ void cpu_probe(void)
 	 * manually setup otherwise it could trigger some nasty bugs.
 	 */
 	BUG_ON(current_cpu_type() != c->cputype);
+
+	if (cpu_has_rixi) {
+		/* Enable the RIXI exceptions */
+		set_c0_pagegrain(PG_IEC);
+		back_to_back_c0_hazard();
+		/* Verify the IEC bit is set */
+		if (read_c0_pagegrain() & PG_IEC)
+			c->options |= MIPS_CPU_RIXIEX;
+	}
 
 	if (mips_fpu_disabled)
 		c->options &= ~MIPS_CPU_FPU;
@@ -1698,6 +2043,9 @@ void cpu_probe(void)
 		     "Vector register partitioning unimplemented!");
 		elf_hwcap |= HWCAP_MIPS_MSA;
 	}
+
+	if (cpu_has_vz)
+		cpu_probe_vz(c);
 
 	cpu_probe_vmbits(c);
 

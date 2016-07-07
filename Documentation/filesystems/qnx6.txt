@@ -16,7 +16,7 @@ qnx6fs shares many properties with traditional Unix filesystems. It has the
 concepts of blocks, inodes and directories.
 On QNX it is possible to create little endian and big endian qnx6 filesystems.
 This feature makes it possible to create and use a different endianness fs
-for the target (QNX is used on quite a range of embedded systems) plattform
+for the target (QNX is used on quite a range of embedded systems) platform
 running on a different endianness.
 The Linux driver handles endianness transparently. (LE and BE)
 

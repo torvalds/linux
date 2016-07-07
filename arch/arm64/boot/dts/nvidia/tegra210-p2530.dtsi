@@ -5,8 +5,12 @@
 	compatible = "nvidia,p2530", "nvidia,tegra210";
 
 	aliases {
-		rtc1 = "/rtc@0,7000e000";
+		rtc1 = "/rtc@7000e000";
 		serial0 = &uarta;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
 	};
 
 	memory {
@@ -15,21 +19,21 @@
 	};
 
 	/* debug port */
-	serial@0,70006000 {
+	serial@70006000 {
 		status = "okay";
 	};
 
-	i2c@0,7000d000 {
+	i2c@7000d000 {
 		status = "okay";
 		clock-frequency = <400000>;
 	};
 
-	pmc@0,7000e400 {
+	pmc@7000e400 {
 		nvidia,invert-interrupt;
 	};
 
 	/* eMMC */
-	sdhci@0,700b0600 {
+	sdhci@700b0600 {
 		status = "okay";
 		bus-width = <8>;
 		non-removable;

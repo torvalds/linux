@@ -69,14 +69,8 @@ struct pv_info {
 	u16 extra_user_64bit_cs;  /* __USER_CS if none */
 #endif
 
-	int paravirt_enabled;
-	unsigned int features;	  /* valid only if paravirt_enabled is set */
 	const char *name;
 };
-
-#define paravirt_has(x) paravirt_has_feature(PV_SUPPORTED_##x)
-/* Supported features */
-#define PV_SUPPORTED_RTC        (1<<0)
 
 struct pv_init_ops {
 	/*
@@ -155,10 +149,16 @@ struct pv_cpu_ops {
 	void (*cpuid)(unsigned int *eax, unsigned int *ebx,
 		      unsigned int *ecx, unsigned int *edx);
 
-	/* MSR, PMC and TSR operations.
-	   err = 0/-EFAULT.  wrmsr returns 0/-EFAULT. */
-	u64 (*read_msr)(unsigned int msr, int *err);
-	int (*write_msr)(unsigned int msr, unsigned low, unsigned high);
+	/* Unsafe MSR operations.  These will warn or panic on failure. */
+	u64 (*read_msr)(unsigned int msr);
+	void (*write_msr)(unsigned int msr, unsigned low, unsigned high);
+
+	/*
+	 * Safe MSR operations.
+	 * read sets err to 0 or -EIO.  write returns 0 or -EIO.
+	 */
+	u64 (*read_msr_safe)(unsigned int msr, int *err);
+	int (*write_msr_safe)(unsigned int msr, unsigned low, unsigned high);
 
 	u64 (*read_pmc)(int counter);
 

@@ -85,8 +85,7 @@ static void svc_reclassify_socket(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
 
-	WARN_ON_ONCE(sock_owned_by_user(sk));
-	if (sock_owned_by_user(sk))
+	if (WARN_ON_ONCE(!sock_allow_reclassification(sk)))
 		return;
 
 	switch (sk->sk_family) {
@@ -617,7 +616,7 @@ static int svc_udp_recvfrom(struct svc_rqst *rqstp)
 	svsk->sk_sk->sk_stamp = skb->tstamp;
 	set_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags); /* there may be more data... */
 
-	len  = skb->len - sizeof(struct udphdr);
+	len  = skb->len;
 	rqstp->rq_arg.len = len;
 
 	rqstp->rq_prot = IPPROTO_UDP;
@@ -641,8 +640,7 @@ static int svc_udp_recvfrom(struct svc_rqst *rqstp)
 		skb_free_datagram_locked(svsk->sk_sk, skb);
 	} else {
 		/* we can use it in-place */
-		rqstp->rq_arg.head[0].iov_base = skb->data +
-			sizeof(struct udphdr);
+		rqstp->rq_arg.head[0].iov_base = skb->data;
 		rqstp->rq_arg.head[0].iov_len = len;
 		if (skb_checksum_complete(skb))
 			goto out_free;

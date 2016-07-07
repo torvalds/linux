@@ -438,7 +438,7 @@ Fw Mode/SubMode Mask
 	((HOST_INTEREST->hi_pwr_save_flags & HI_PWR_SAVE_LPL_ENABLED))
 #define HI_DEV_LPL_TYPE_GET(_devix) \
 	(HOST_INTEREST->hi_pwr_save_flags & ((HI_PWR_SAVE_LPL_DEV_MASK) << \
-	 (HI_PWR_SAVE_LPL_DEV0_LSB + (_devix)*2)))
+	 (HI_PWR_SAVE_LPL_DEV0_LSB + (_devix) * 2)))
 
 #define HOST_INTEREST_SMPS_IS_ALLOWED() \
 	((HOST_INTEREST->hi_smps_options & HI_SMPS_ALLOW_MASK))

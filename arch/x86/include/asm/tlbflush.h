@@ -181,7 +181,7 @@ static inline void __native_flush_tlb_single(unsigned long addr)
 
 static inline void __flush_tlb_all(void)
 {
-	if (cpu_has_pge)
+	if (static_cpu_has(X86_FEATURE_PGE))
 		__flush_tlb_global();
 	else
 		__flush_tlb();

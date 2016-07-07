@@ -18,6 +18,10 @@
 / {
 	interrupt-parent = <&gic>;
 
+	chosen {
+		stdout-path = &uart0;
+	};
+
 	chipcommonA {
 		compatible = "simple-bus";
 		ranges = <0x00000000 0x18000000 0x00001000>;
@@ -206,6 +210,34 @@
 
 			gpio-controller;
 			#gpio-cells = <2>;
+		};
+
+		usb2: usb2@21000 {
+			reg = <0x00021000 0x1000>;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+		};
+
+		usb3: usb3@23000 {
+			reg = <0x00023000 0x1000>;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+		};
+
+		spi@29000 {
+			reg = <0x00029000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			spi_nor: spi-nor@0 {
+				compatible = "jedec,spi-nor";
+				reg = <0>;
+				spi-max-frequency = <20000000>;
+				linux,part-probe = "ofpart", "bcm47xxpart";
+				status = "disabled";
+			};
 		};
 	};
 

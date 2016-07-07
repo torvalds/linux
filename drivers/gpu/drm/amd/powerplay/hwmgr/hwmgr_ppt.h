@@ -39,6 +39,7 @@ struct phm_ppt_v1_clock_voltage_dependency_record {
 	uint8_t phases;
 	uint8_t cks_enable;
 	uint8_t cks_voffset;
+	uint32_t sclk_offset;
 };
 
 typedef struct phm_ppt_v1_clock_voltage_dependency_record phm_ppt_v1_clock_voltage_dependency_record;
@@ -92,6 +93,8 @@ typedef struct phm_ppt_v1_voltage_lookup_table phm_ppt_v1_voltage_lookup_table;
 struct phm_ppt_v1_pcie_record {
 	uint8_t gen_speed;
 	uint8_t lane_width;
+	uint16_t usreserved;
+	uint32_t pcie_sclk;
 };
 typedef struct phm_ppt_v1_pcie_record phm_ppt_v1_pcie_record;
 

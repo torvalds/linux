@@ -236,9 +236,9 @@ EXPORT_SYMBOL_GPL(adf_dev_start);
  * is shuting down.
  * To be used by QAT device specific drivers.
  *
- * Return: 0 on success, error code otherwise.
+ * Return: void
  */
-int adf_dev_stop(struct adf_accel_dev *accel_dev)
+void adf_dev_stop(struct adf_accel_dev *accel_dev)
 {
 	struct service_hndl *service;
 	struct list_head *list_itr;
@@ -246,9 +246,9 @@ int adf_dev_stop(struct adf_accel_dev *accel_dev)
 	int ret;
 
 	if (!adf_dev_started(accel_dev) &&
-	    !test_bit(ADF_STATUS_STARTING, &accel_dev->status)) {
-		return 0;
-	}
+	    !test_bit(ADF_STATUS_STARTING, &accel_dev->status))
+		return;
+
 	clear_bit(ADF_STATUS_STARTING, &accel_dev->status);
 	clear_bit(ADF_STATUS_STARTED, &accel_dev->status);
 
@@ -279,8 +279,6 @@ int adf_dev_stop(struct adf_accel_dev *accel_dev)
 		else
 			clear_bit(ADF_STATUS_AE_STARTED, &accel_dev->status);
 	}
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(adf_dev_stop);
 
@@ -329,6 +327,8 @@ void adf_dev_shutdown(struct adf_accel_dev *accel_dev)
 			clear_bit(accel_dev->accel_id, &service->init_status);
 	}
 
+	hw_data->disable_iov(accel_dev);
+
 	if (test_bit(ADF_STATUS_IRQ_ALLOCATED, &accel_dev->status)) {
 		hw_data->free_irq(accel_dev);
 		clear_bit(ADF_STATUS_IRQ_ALLOCATED, &accel_dev->status);
@@ -344,7 +344,6 @@ void adf_dev_shutdown(struct adf_accel_dev *accel_dev)
 	if (hw_data->exit_admin_comms)
 		hw_data->exit_admin_comms(accel_dev);
 
-	hw_data->disable_iov(accel_dev);
 	adf_cleanup_etr_data(accel_dev);
 	adf_dev_restore(accel_dev);
 }

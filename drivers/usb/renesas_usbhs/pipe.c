@@ -391,9 +391,8 @@ void usbhs_pipe_set_trans_count_if_bulk(struct usbhs_pipe *pipe, int len)
 /*
  *		pipe setup
  */
-static u16 usbhsp_setup_pipecfg(struct usbhs_pipe *pipe,
-				int is_host,
-				int dir_in)
+static int usbhsp_setup_pipecfg(struct usbhs_pipe *pipe, int is_host,
+				int dir_in, u16 *pipecfg)
 {
 	u16 type = 0;
 	u16 bfre = 0;
@@ -451,14 +450,14 @@ static u16 usbhsp_setup_pipecfg(struct usbhs_pipe *pipe,
 
 	/* EPNUM */
 	epnum = 0; /* see usbhs_pipe_config_update() */
-
-	return	type	|
-		bfre	|
-		dblb	|
-		cntmd	|
-		dir	|
-		shtnak	|
-		epnum;
+	*pipecfg = type		|
+		   bfre		|
+		   dblb		|
+		   cntmd	|
+		   dir		|
+		   shtnak	|
+		   epnum;
+	return 0;
 }
 
 static u16 usbhsp_setup_pipebuff(struct usbhs_pipe *pipe)
@@ -655,7 +654,8 @@ static void usbhsp_put_pipe(struct usbhs_pipe *pipe)
 }
 
 void usbhs_pipe_init(struct usbhs_priv *priv,
-		     int (*dma_map_ctrl)(struct usbhs_pkt *pkt, int map))
+		     int (*dma_map_ctrl)(struct device *dma_dev,
+					 struct usbhs_pkt *pkt, int map))
 {
 	struct usbhs_pipe_info *info = usbhs_priv_to_pipeinfo(priv);
 	struct usbhs_pipe *pipe;
@@ -702,7 +702,11 @@ struct usbhs_pipe *usbhs_pipe_malloc(struct usbhs_priv *priv,
 		return NULL;
 	}
 
-	pipecfg  = usbhsp_setup_pipecfg(pipe, is_host, dir_in);
+	if (usbhsp_setup_pipecfg(pipe, is_host, dir_in, &pipecfg)) {
+		dev_err(dev, "can't setup pipe\n");
+		return NULL;
+	}
+
 	pipebuf  = usbhsp_setup_pipebuff(pipe);
 
 	usbhsp_pipe_select(pipe);

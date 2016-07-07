@@ -48,6 +48,9 @@
 #include <linux/kmod.h>
 #include <linux/delay.h>
 #include <linux/mlx5/mlx5_ifc.h>
+#ifdef CONFIG_RFS_ACCEL
+#include <linux/cpu_rmap.h>
+#endif
 #include "mlx5_core.h"
 #include "fs_core.h"
 #ifdef CONFIG_MLX5_CORE_EN
@@ -660,11 +663,34 @@ int mlx5_vector2eqn(struct mlx5_core_dev *dev, int vector, int *eqn,
 }
 EXPORT_SYMBOL(mlx5_vector2eqn);
 
+struct mlx5_eq *mlx5_eqn2eq(struct mlx5_core_dev *dev, int eqn)
+{
+	struct mlx5_eq_table *table = &dev->priv.eq_table;
+	struct mlx5_eq *eq;
+
+	spin_lock(&table->lock);
+	list_for_each_entry(eq, &table->comp_eqs_list, list)
+		if (eq->eqn == eqn) {
+			spin_unlock(&table->lock);
+			return eq;
+		}
+
+	spin_unlock(&table->lock);
+
+	return ERR_PTR(-ENOENT);
+}
+
 static void free_comp_eqs(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eq_table *table = &dev->priv.eq_table;
 	struct mlx5_eq *eq, *n;
 
+#ifdef CONFIG_RFS_ACCEL
+	if (dev->rmap) {
+		free_irq_cpu_rmap(dev->rmap);
+		dev->rmap = NULL;
+	}
+#endif
 	spin_lock(&table->lock);
 	list_for_each_entry_safe(eq, n, &table->comp_eqs_list, list) {
 		list_del(&eq->list);
@@ -691,6 +717,11 @@ static int alloc_comp_eqs(struct mlx5_core_dev *dev)
 	INIT_LIST_HEAD(&table->comp_eqs_list);
 	ncomp_vec = table->num_comp_vectors;
 	nent = MLX5_COMP_EQ_SIZE;
+#ifdef CONFIG_RFS_ACCEL
+	dev->rmap = alloc_irq_cpu_rmap(ncomp_vec);
+	if (!dev->rmap)
+		return -ENOMEM;
+#endif
 	for (i = 0; i < ncomp_vec; i++) {
 		eq = kzalloc(sizeof(*eq), GFP_KERNEL);
 		if (!eq) {
@@ -698,6 +729,10 @@ static int alloc_comp_eqs(struct mlx5_core_dev *dev)
 			goto clean;
 		}
 
+#ifdef CONFIG_RFS_ACCEL
+		irq_cpu_rmap_add(dev->rmap,
+				 dev->priv.msix_arr[i + MLX5_EQ_VEC_COMP_BASE].vector);
+#endif
 		snprintf(name, MLX5_MAX_IRQ_NAME, "mlx5_comp%d", i);
 		err = mlx5_create_map_eq(dev, eq,
 					 i + MLX5_EQ_VEC_COMP_BASE, nent, 0,
@@ -1473,8 +1508,9 @@ static const struct pci_device_id mlx5_core_pci_table[] = {
 	{ PCI_VDEVICE(MELLANOX, 0x1014), MLX5_PCI_DEV_IS_VF},	/* ConnectX-4 VF */
 	{ PCI_VDEVICE(MELLANOX, 0x1015) },			/* ConnectX-4LX */
 	{ PCI_VDEVICE(MELLANOX, 0x1016), MLX5_PCI_DEV_IS_VF},	/* ConnectX-4LX VF */
-	{ PCI_VDEVICE(MELLANOX, 0x1017) },			/* ConnectX-5 */
+	{ PCI_VDEVICE(MELLANOX, 0x1017) },			/* ConnectX-5, PCIe 3.0 */
 	{ PCI_VDEVICE(MELLANOX, 0x1018), MLX5_PCI_DEV_IS_VF},	/* ConnectX-5 VF */
+	{ PCI_VDEVICE(MELLANOX, 0x1019) },			/* ConnectX-5, PCIe 4.0 */
 	{ 0, }
 };
 

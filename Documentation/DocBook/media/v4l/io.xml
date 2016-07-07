@@ -475,12 +475,6 @@ rest should be evident.</para>
   <section id="dmabuf">
     <title>Streaming I/O (DMA buffer importing)</title>
 
-    <note>
-      <title>Experimental</title>
-      <para>This is an <link linkend="experimental">experimental</link>
-      interface and may change in the future.</para>
-    </note>
-
 <para>The DMABUF framework provides a generic method for sharing buffers
 between multiple devices. Device drivers that support DMABUF can export a DMA
 buffer to userspace as a file descriptor (known as the exporter role), import a

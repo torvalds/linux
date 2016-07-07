@@ -78,6 +78,16 @@ static int cpufreq_governor(struct cpufreq_policy *policy, unsigned int event);
 static unsigned int __cpufreq_get(struct cpufreq_policy *policy);
 static int cpufreq_start_governor(struct cpufreq_policy *policy);
 
+static inline void cpufreq_exit_governor(struct cpufreq_policy *policy)
+{
+	(void)cpufreq_governor(policy, CPUFREQ_GOV_POLICY_EXIT);
+}
+
+static inline void cpufreq_stop_governor(struct cpufreq_policy *policy)
+{
+	(void)cpufreq_governor(policy, CPUFREQ_GOV_STOP);
+}
+
 /**
  * Two notifier lists: the "policy" list is involved in the
  * validation process for a new CPU frequency policy; the
@@ -429,6 +439,73 @@ void cpufreq_freq_transition_end(struct cpufreq_policy *policy,
 }
 EXPORT_SYMBOL_GPL(cpufreq_freq_transition_end);
 
+/*
+ * Fast frequency switching status count.  Positive means "enabled", negative
+ * means "disabled" and 0 means "not decided yet".
+ */
+static int cpufreq_fast_switch_count;
+static DEFINE_MUTEX(cpufreq_fast_switch_lock);
+
+static void cpufreq_list_transition_notifiers(void)
+{
+	struct notifier_block *nb;
+
+	pr_info("Registered transition notifiers:\n");
+
+	mutex_lock(&cpufreq_transition_notifier_list.mutex);
+
+	for (nb = cpufreq_transition_notifier_list.head; nb; nb = nb->next)
+		pr_info("%pF\n", nb->notifier_call);
+
+	mutex_unlock(&cpufreq_transition_notifier_list.mutex);
+}
+
+/**
+ * cpufreq_enable_fast_switch - Enable fast frequency switching for policy.
+ * @policy: cpufreq policy to enable fast frequency switching for.
+ *
+ * Try to enable fast frequency switching for @policy.
+ *
+ * The attempt will fail if there is at least one transition notifier registered
+ * at this point, as fast frequency switching is quite fundamentally at odds
+ * with transition notifiers.  Thus if successful, it will make registration of
+ * transition notifiers fail going forward.
+ */
+void cpufreq_enable_fast_switch(struct cpufreq_policy *policy)
+{
+	lockdep_assert_held(&policy->rwsem);
+
+	if (!policy->fast_switch_possible)
+		return;
+
+	mutex_lock(&cpufreq_fast_switch_lock);
+	if (cpufreq_fast_switch_count >= 0) {
+		cpufreq_fast_switch_count++;
+		policy->fast_switch_enabled = true;
+	} else {
+		pr_warn("CPU%u: Fast frequency switching not enabled\n",
+			policy->cpu);
+		cpufreq_list_transition_notifiers();
+	}
+	mutex_unlock(&cpufreq_fast_switch_lock);
+}
+EXPORT_SYMBOL_GPL(cpufreq_enable_fast_switch);
+
+/**
+ * cpufreq_disable_fast_switch - Disable fast frequency switching for policy.
+ * @policy: cpufreq policy to disable fast frequency switching for.
+ */
+void cpufreq_disable_fast_switch(struct cpufreq_policy *policy)
+{
+	mutex_lock(&cpufreq_fast_switch_lock);
+	if (policy->fast_switch_enabled) {
+		policy->fast_switch_enabled = false;
+		if (!WARN_ON(cpufreq_fast_switch_count <= 0))
+			cpufreq_fast_switch_count--;
+	}
+	mutex_unlock(&cpufreq_fast_switch_lock);
+}
+EXPORT_SYMBOL_GPL(cpufreq_disable_fast_switch);
 
 /*********************************************************************
  *                          SYSFS INTERFACE                          *
@@ -954,13 +1031,8 @@ static int cpufreq_add_policy_cpu(struct cpufreq_policy *policy, unsigned int cp
 		return 0;
 
 	down_write(&policy->rwsem);
-	if (has_target()) {
-		ret = cpufreq_governor(policy, CPUFREQ_GOV_STOP);
-		if (ret) {
-			pr_err("%s: Failed to stop governor\n", __func__);
-			goto unlock;
-		}
-	}
+	if (has_target())
+		cpufreq_stop_governor(policy);
 
 	cpumask_set_cpu(cpu, policy->cpus);
 
@@ -969,8 +1041,6 @@ static int cpufreq_add_policy_cpu(struct cpufreq_policy *policy, unsigned int cp
 		if (ret)
 			pr_err("%s: Failed to start governor\n", __func__);
 	}
-
-unlock:
 	up_write(&policy->rwsem);
 	return ret;
 }
@@ -1248,26 +1318,24 @@ out_free_policy:
  */
 static int cpufreq_add_dev(struct device *dev, struct subsys_interface *sif)
 {
+	struct cpufreq_policy *policy;
 	unsigned cpu = dev->id;
-	int ret;
 
 	dev_dbg(dev, "%s: adding CPU%u\n", __func__, cpu);
 
-	if (cpu_online(cpu)) {
-		ret = cpufreq_online(cpu);
-	} else {
-		/*
-		 * A hotplug notifier will follow and we will handle it as CPU
-		 * online then.  For now, just create the sysfs link, unless
-		 * there is no policy or the link is already present.
-		 */
-		struct cpufreq_policy *policy = per_cpu(cpufreq_cpu_data, cpu);
+	if (cpu_online(cpu))
+		return cpufreq_online(cpu);
 
-		ret = policy && !cpumask_test_and_set_cpu(cpu, policy->real_cpus)
-			? add_cpu_dev_symlink(policy, cpu) : 0;
-	}
+	/*
+	 * A hotplug notifier will follow and we will handle it as CPU online
+	 * then.  For now, just create the sysfs link, unless there is no policy
+	 * or the link is already present.
+	 */
+	policy = per_cpu(cpufreq_cpu_data, cpu);
+	if (!policy || cpumask_test_and_set_cpu(cpu, policy->real_cpus))
+		return 0;
 
-	return ret;
+	return add_cpu_dev_symlink(policy, cpu);
 }
 
 static void cpufreq_offline(unsigned int cpu)
@@ -1284,11 +1352,8 @@ static void cpufreq_offline(unsigned int cpu)
 	}
 
 	down_write(&policy->rwsem);
-	if (has_target()) {
-		ret = cpufreq_governor(policy, CPUFREQ_GOV_STOP);
-		if (ret)
-			pr_err("%s: Failed to stop governor\n", __func__);
-	}
+	if (has_target())
+		cpufreq_stop_governor(policy);
 
 	cpumask_clear_cpu(cpu, policy->cpus);
 
@@ -1317,12 +1382,8 @@ static void cpufreq_offline(unsigned int cpu)
 	if (cpufreq_driver->stop_cpu)
 		cpufreq_driver->stop_cpu(policy);
 
-	/* If cpu is last user of policy, free policy */
-	if (has_target()) {
-		ret = cpufreq_governor(policy, CPUFREQ_GOV_POLICY_EXIT);
-		if (ret)
-			pr_err("%s: Failed to exit governor\n", __func__);
-	}
+	if (has_target())
+		cpufreq_exit_governor(policy);
 
 	/*
 	 * Perform the ->exit() even during light-weight tear-down,
@@ -1447,8 +1508,12 @@ static unsigned int __cpufreq_get(struct cpufreq_policy *policy)
 
 	ret_freq = cpufreq_driver->get(policy->cpu);
 
-	/* Updating inactive policies is invalid, so avoid doing that. */
-	if (unlikely(policy_is_inactive(policy)))
+	/*
+	 * Updating inactive policies is invalid, so avoid doing that.  Also
+	 * if fast frequency switching is used with the given policy, the check
+	 * against policy->cur is pointless, so skip it in that case too.
+	 */
+	if (unlikely(policy_is_inactive(policy)) || policy->fast_switch_enabled)
 		return ret_freq;
 
 	if (ret_freq && policy->cur &&
@@ -1552,26 +1617,23 @@ EXPORT_SYMBOL(cpufreq_generic_suspend);
 void cpufreq_suspend(void)
 {
 	struct cpufreq_policy *policy;
-	int ret;
 
 	if (!cpufreq_driver)
 		return;
 
-	if (!has_target())
+	if (!has_target() && !cpufreq_driver->suspend)
 		goto suspend;
 
 	pr_debug("%s: Suspending Governors\n", __func__);
 
 	for_each_active_policy(policy) {
-		down_write(&policy->rwsem);
-		ret = cpufreq_governor(policy, CPUFREQ_GOV_STOP);
-		up_write(&policy->rwsem);
+		if (has_target()) {
+			down_write(&policy->rwsem);
+			cpufreq_stop_governor(policy);
+			up_write(&policy->rwsem);
+		}
 
-		if (ret)
-			pr_err("%s: Failed to stop governor for policy: %p\n",
-				__func__, policy);
-		else if (cpufreq_driver->suspend
-		    && cpufreq_driver->suspend(policy))
+		if (cpufreq_driver->suspend && cpufreq_driver->suspend(policy))
 			pr_err("%s: Failed to suspend driver: %p\n", __func__,
 				policy);
 	}
@@ -1596,7 +1658,7 @@ void cpufreq_resume(void)
 
 	cpufreq_suspended = false;
 
-	if (!has_target())
+	if (!has_target() && !cpufreq_driver->resume)
 		return;
 
 	pr_debug("%s: Resuming Governors\n", __func__);
@@ -1605,7 +1667,7 @@ void cpufreq_resume(void)
 		if (cpufreq_driver->resume && cpufreq_driver->resume(policy)) {
 			pr_err("%s: Failed to resume driver: %p\n", __func__,
 				policy);
-		} else {
+		} else if (has_target()) {
 			down_write(&policy->rwsem);
 			ret = cpufreq_start_governor(policy);
 			up_write(&policy->rwsem);
@@ -1675,8 +1737,18 @@ int cpufreq_register_notifier(struct notifier_block *nb, unsigned int list)
 
 	switch (list) {
 	case CPUFREQ_TRANSITION_NOTIFIER:
+		mutex_lock(&cpufreq_fast_switch_lock);
+
+		if (cpufreq_fast_switch_count > 0) {
+			mutex_unlock(&cpufreq_fast_switch_lock);
+			return -EBUSY;
+		}
 		ret = srcu_notifier_chain_register(
 				&cpufreq_transition_notifier_list, nb);
+		if (!ret)
+			cpufreq_fast_switch_count--;
+
+		mutex_unlock(&cpufreq_fast_switch_lock);
 		break;
 	case CPUFREQ_POLICY_NOTIFIER:
 		ret = blocking_notifier_chain_register(
@@ -1709,8 +1781,14 @@ int cpufreq_unregister_notifier(struct notifier_block *nb, unsigned int list)
 
 	switch (list) {
 	case CPUFREQ_TRANSITION_NOTIFIER:
+		mutex_lock(&cpufreq_fast_switch_lock);
+
 		ret = srcu_notifier_chain_unregister(
 				&cpufreq_transition_notifier_list, nb);
+		if (!ret && !WARN_ON(cpufreq_fast_switch_count >= 0))
+			cpufreq_fast_switch_count++;
+
+		mutex_unlock(&cpufreq_fast_switch_lock);
 		break;
 	case CPUFREQ_POLICY_NOTIFIER:
 		ret = blocking_notifier_chain_unregister(
@@ -1728,6 +1806,37 @@ EXPORT_SYMBOL(cpufreq_unregister_notifier);
 /*********************************************************************
  *                              GOVERNORS                            *
  *********************************************************************/
+
+/**
+ * cpufreq_driver_fast_switch - Carry out a fast CPU frequency switch.
+ * @policy: cpufreq policy to switch the frequency for.
+ * @target_freq: New frequency to set (may be approximate).
+ *
+ * Carry out a fast frequency switch without sleeping.
+ *
+ * The driver's ->fast_switch() callback invoked by this function must be
+ * suitable for being called from within RCU-sched read-side critical sections
+ * and it is expected to select the minimum available frequency greater than or
+ * equal to @target_freq (CPUFREQ_RELATION_L).
+ *
+ * This function must not be called if policy->fast_switch_enabled is unset.
+ *
+ * Governors calling this function must guarantee that it will never be invoked
+ * twice in parallel for the same policy and that it will never be called in
+ * parallel with either ->target() or ->target_index() for the same policy.
+ *
+ * If CPUFREQ_ENTRY_INVALID is returned by the driver's ->fast_switch()
+ * callback to indicate an error condition, the hardware configuration must be
+ * preserved.
+ */
+unsigned int cpufreq_driver_fast_switch(struct cpufreq_policy *policy,
+					unsigned int target_freq)
+{
+	target_freq = clamp_val(target_freq, policy->min, policy->max);
+
+	return cpufreq_driver->fast_switch(policy, target_freq);
+}
+EXPORT_SYMBOL_GPL(cpufreq_driver_fast_switch);
 
 /* Must set freqs->new to intermediate frequency */
 static int __target_intermediate(struct cpufreq_policy *policy,
@@ -1924,16 +2033,15 @@ static int cpufreq_governor(struct cpufreq_policy *policy, unsigned int event)
 
 	ret = policy->governor->governor(policy, event);
 
-	if (!ret) {
-		if (event == CPUFREQ_GOV_POLICY_INIT)
+	if (event == CPUFREQ_GOV_POLICY_INIT) {
+		if (ret)
+			module_put(policy->governor->owner);
+		else
 			policy->governor->initialized++;
-		else if (event == CPUFREQ_GOV_POLICY_EXIT)
-			policy->governor->initialized--;
-	}
-
-	if (((event == CPUFREQ_GOV_POLICY_INIT) && ret) ||
-			((event == CPUFREQ_GOV_POLICY_EXIT) && !ret))
+	} else if (event == CPUFREQ_GOV_POLICY_EXIT) {
+		policy->governor->initialized--;
 		module_put(policy->governor->owner);
+	}
 
 	return ret;
 }
@@ -2096,20 +2204,8 @@ static int cpufreq_set_policy(struct cpufreq_policy *policy,
 	old_gov = policy->governor;
 	/* end old governor */
 	if (old_gov) {
-		ret = cpufreq_governor(policy, CPUFREQ_GOV_STOP);
-		if (ret) {
-			/* This can happen due to race with other operations */
-			pr_debug("%s: Failed to Stop Governor: %s (%d)\n",
-				 __func__, old_gov->name, ret);
-			return ret;
-		}
-
-		ret = cpufreq_governor(policy, CPUFREQ_GOV_POLICY_EXIT);
-		if (ret) {
-			pr_err("%s: Failed to Exit Governor: %s (%d)\n",
-			       __func__, old_gov->name, ret);
-			return ret;
-		}
+		cpufreq_stop_governor(policy);
+		cpufreq_exit_governor(policy);
 	}
 
 	/* start new governor */
@@ -2121,7 +2217,7 @@ static int cpufreq_set_policy(struct cpufreq_policy *policy,
 			pr_debug("cpufreq: governor change\n");
 			return 0;
 		}
-		cpufreq_governor(policy, CPUFREQ_GOV_POLICY_EXIT);
+		cpufreq_exit_governor(policy);
 	}
 
 	/* new governor failed, so re-start old one */
@@ -2165,6 +2261,10 @@ int cpufreq_update_policy(unsigned int cpu)
 	 * -> ask driver for current freq and notify governors about a change
 	 */
 	if (cpufreq_driver->get && !cpufreq_driver->setpolicy) {
+		if (cpufreq_suspended) {
+			ret = -EAGAIN;
+			goto unlock;
+		}
 		new_policy.cur = cpufreq_update_current_freq(policy);
 		if (WARN_ON(!new_policy.cur)) {
 			ret = -EIO;
@@ -2189,15 +2289,12 @@ static int cpufreq_cpu_callback(struct notifier_block *nfb,
 
 	switch (action & ~CPU_TASKS_FROZEN) {
 	case CPU_ONLINE:
+	case CPU_DOWN_FAILED:
 		cpufreq_online(cpu);
 		break;
 
 	case CPU_DOWN_PREPARE:
 		cpufreq_offline(cpu);
-		break;
-
-	case CPU_DOWN_FAILED:
-		cpufreq_online(cpu);
 		break;
 	}
 	return NOTIFY_OK;
@@ -2373,10 +2470,7 @@ int cpufreq_register_driver(struct cpufreq_driver *driver_data)
 
 	register_hotcpu_notifier(&cpufreq_cpu_notifier);
 	pr_debug("driver %s up and running\n", driver_data->name);
-
-out:
-	put_online_cpus();
-	return ret;
+	goto out;
 
 err_if_unreg:
 	subsys_interface_unregister(&cpufreq_interface);
@@ -2386,7 +2480,9 @@ err_null_driver:
 	write_lock_irqsave(&cpufreq_driver_lock, flags);
 	cpufreq_driver = NULL;
 	write_unlock_irqrestore(&cpufreq_driver_lock, flags);
-	goto out;
+out:
+	put_online_cpus();
+	return ret;
 }
 EXPORT_SYMBOL_GPL(cpufreq_register_driver);
 

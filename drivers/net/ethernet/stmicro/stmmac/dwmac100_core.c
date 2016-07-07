@@ -173,7 +173,7 @@ static const struct stmmac_ops dwmac100_ops = {
 	.get_umac_addr = dwmac100_get_umac_addr,
 };
 
-struct mac_device_info *dwmac100_setup(void __iomem *ioaddr)
+struct mac_device_info *dwmac100_setup(void __iomem *ioaddr, int *synopsys_id)
 {
 	struct mac_device_info *mac;
 
@@ -192,7 +192,8 @@ struct mac_device_info *dwmac100_setup(void __iomem *ioaddr)
 	mac->link.speed = 0;
 	mac->mii.addr = MAC_MII_ADDR;
 	mac->mii.data = MAC_MII_DATA;
-	mac->synopsys_uid = 0;
+	/* Synopsys Id is not available on old chips */
+	*synopsys_id = 0;
 
 	return mac;
 }

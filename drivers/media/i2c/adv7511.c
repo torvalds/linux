@@ -1502,12 +1502,6 @@ static int adv7511_probe(struct i2c_client *client, const struct i2c_device_id *
 		err = hdl->error;
 		goto err_hdl;
 	}
-	state->hdmi_mode_ctrl->is_private = true;
-	state->hotplug_ctrl->is_private = true;
-	state->rx_sense_ctrl->is_private = true;
-	state->have_edid0_ctrl->is_private = true;
-	state->rgb_quantization_range_ctrl->is_private = true;
-
 	state->pad.flags = MEDIA_PAD_FL_SINK;
 	err = media_entity_pads_init(&sd->entity, 1, &state->pad);
 	if (err)

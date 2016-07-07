@@ -152,6 +152,8 @@ struct kernfs_syscall_ops {
 	int (*rmdir)(struct kernfs_node *kn);
 	int (*rename)(struct kernfs_node *kn, struct kernfs_node *new_parent,
 		      const char *new_name);
+	int (*show_path)(struct seq_file *sf, struct kernfs_node *kn,
+			 struct kernfs_root *root);
 };
 
 struct kernfs_root {
@@ -177,6 +179,7 @@ struct kernfs_open_file {
 
 	/* private fields, do not use outside kernfs proper */
 	struct mutex		mutex;
+	struct mutex		prealloc_mutex;
 	int			event;
 	struct list_head	list;
 	char			*prealloc_buf;

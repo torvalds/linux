@@ -33,12 +33,10 @@ static int pxa2xx_spi_map_dma_buffer(struct driver_data *drv_data,
 		dmadev = drv_data->tx_chan->device->dev;
 		sgt = &drv_data->tx_sgt;
 		buf = drv_data->tx;
-		drv_data->tx_map_len = len;
 	} else {
 		dmadev = drv_data->rx_chan->device->dev;
 		sgt = &drv_data->rx_sgt;
 		buf = drv_data->rx;
-		drv_data->rx_map_len = len;
 	}
 
 	nents = DIV_ROUND_UP(len, SZ_2K);
@@ -55,11 +53,7 @@ static int pxa2xx_spi_map_dma_buffer(struct driver_data *drv_data,
 	for_each_sg(sgt->sgl, sg, sgt->nents, i) {
 		size_t bytes = min_t(size_t, len, SZ_2K);
 
-		if (buf)
-			sg_set_buf(sg, pbuf, bytes);
-		else
-			sg_set_buf(sg, drv_data->dummy, bytes);
-
+		sg_set_buf(sg, pbuf, bytes);
 		pbuf += bytes;
 		len -= bytes;
 	}
@@ -132,9 +126,6 @@ static void pxa2xx_spi_dma_transfer_complete(struct driver_data *drv_data,
 
 		if (!error) {
 			pxa2xx_spi_unmap_dma_buffers(drv_data);
-
-			drv_data->tx += drv_data->tx_map_len;
-			drv_data->rx += drv_data->rx_map_len;
 
 			msg->actual_length += drv_data->len;
 			msg->state = pxa2xx_spi_next_transfer(drv_data);
@@ -267,19 +258,22 @@ irqreturn_t pxa2xx_spi_dma_transfer(struct driver_data *drv_data)
 int pxa2xx_spi_dma_prepare(struct driver_data *drv_data, u32 dma_burst)
 {
 	struct dma_async_tx_descriptor *tx_desc, *rx_desc;
+	int err = 0;
 
 	tx_desc = pxa2xx_spi_dma_prepare_one(drv_data, DMA_MEM_TO_DEV);
 	if (!tx_desc) {
 		dev_err(&drv_data->pdev->dev,
 			"failed to get DMA TX descriptor\n");
-		return -EBUSY;
+		err = -EBUSY;
+		goto err_tx;
 	}
 
 	rx_desc = pxa2xx_spi_dma_prepare_one(drv_data, DMA_DEV_TO_MEM);
 	if (!rx_desc) {
 		dev_err(&drv_data->pdev->dev,
 			"failed to get DMA RX descriptor\n");
-		return -EBUSY;
+		err = -EBUSY;
+		goto err_rx;
 	}
 
 	/* We are ready when RX completes */
@@ -289,6 +283,12 @@ int pxa2xx_spi_dma_prepare(struct driver_data *drv_data, u32 dma_burst)
 	dmaengine_submit(rx_desc);
 	dmaengine_submit(tx_desc);
 	return 0;
+
+err_rx:
+	dmaengine_terminate_async(drv_data->tx_chan);
+err_tx:
+	pxa2xx_spi_unmap_dma_buffers(drv_data);
+	return err;
 }
 
 void pxa2xx_spi_dma_start(struct driver_data *drv_data)
@@ -307,10 +307,6 @@ int pxa2xx_spi_dma_setup(struct driver_data *drv_data)
 
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
-
-	drv_data->dummy = devm_kzalloc(dev, SZ_2K, GFP_KERNEL);
-	if (!drv_data->dummy)
-		return -ENOMEM;
 
 	drv_data->tx_chan = dma_request_slave_channel_compat(mask,
 				pdata->dma_filter, pdata->tx_param, dev, "tx");

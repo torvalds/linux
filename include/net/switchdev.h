@@ -97,7 +97,7 @@ struct switchdev_obj_ipv4_fib {
 	struct switchdev_obj obj;
 	u32 dst;
 	int dst_len;
-	struct fib_info fi;
+	struct fib_info *fi;
 	u8 tos;
 	u8 type;
 	u32 nlflags;

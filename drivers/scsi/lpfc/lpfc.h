@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2015 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -694,6 +694,7 @@ struct lpfc_hba {
 	uint8_t  wwnn[8];
 	uint8_t  wwpn[8];
 	uint32_t RandomData[7];
+	uint32_t fcp_embed_io;
 
 	/* HBA Config Parameters */
 	uint32_t cfg_ack0;
@@ -757,7 +758,6 @@ struct lpfc_hba {
 	uint32_t cfg_fdmi_on;
 #define LPFC_FDMI_NO_SUPPORT	0	/* FDMI not supported */
 #define LPFC_FDMI_SUPPORT	1	/* FDMI supported? */
-#define LPFC_FDMI_SMART_SAN	2	/* SmartSAN supported */
 	uint32_t cfg_enable_SmartSAN;
 	lpfc_vpd_t vpd;		/* vital product data */
 

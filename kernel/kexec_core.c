@@ -893,6 +893,7 @@ void crash_kexec(struct pt_regs *regs)
 	old_cpu = atomic_cmpxchg(&panic_cpu, PANIC_CPU_INVALID, this_cpu);
 	if (old_cpu == PANIC_CPU_INVALID) {
 		/* This is the 1st CPU which comes here, so go ahead. */
+		printk_nmi_flush_on_panic();
 		__crash_kexec(regs);
 
 		/*
@@ -953,7 +954,6 @@ int crash_shrink_memory(unsigned long new_size)
 	start = roundup(start, KEXEC_CRASH_MEM_ALIGN);
 	end = roundup(start + new_size, KEXEC_CRASH_MEM_ALIGN);
 
-	crash_map_reserved_pages();
 	crash_free_reserved_phys_range(end, crashk_res.end);
 
 	if ((start == end) && (crashk_res.parent != NULL))
@@ -967,7 +967,6 @@ int crash_shrink_memory(unsigned long new_size)
 	crashk_res.end = end - 1;
 
 	insert_resource(&iomem_resource, ram_res);
-	crash_unmap_reserved_pages();
 
 unlock:
 	mutex_unlock(&kexec_mutex);
@@ -1410,7 +1409,7 @@ static int __init crash_save_vmcoreinfo_init(void)
 	VMCOREINFO_STRUCT_SIZE(list_head);
 	VMCOREINFO_SIZE(nodemask_t);
 	VMCOREINFO_OFFSET(page, flags);
-	VMCOREINFO_OFFSET(page, _count);
+	VMCOREINFO_OFFSET(page, _refcount);
 	VMCOREINFO_OFFSET(page, mapping);
 	VMCOREINFO_OFFSET(page, lru);
 	VMCOREINFO_OFFSET(page, _mapcount);
@@ -1552,13 +1551,14 @@ int kernel_kexec(void)
 }
 
 /*
- * Add and remove page tables for crashkernel memory
+ * Protection mechanism for crashkernel reserved memory after
+ * the kdump kernel is loaded.
  *
  * Provide an empty default implementation here -- architecture
  * code may override this
  */
-void __weak crash_map_reserved_pages(void)
+void __weak arch_kexec_protect_crashkres(void)
 {}
 
-void __weak crash_unmap_reserved_pages(void)
+void __weak arch_kexec_unprotect_crashkres(void)
 {}

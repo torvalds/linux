@@ -176,11 +176,11 @@ static const char *hsynd_str(u8 synd)
 	case MLX5_HEALTH_SYNDR_EQ_ERR:
 		return "EQ error";
 	case MLX5_HEALTH_SYNDR_EQ_INV:
-		return "Invalid EQ refrenced";
+		return "Invalid EQ referenced";
 	case MLX5_HEALTH_SYNDR_FFSER_ERR:
 		return "FFSER error";
 	case MLX5_HEALTH_SYNDR_HIGH_TEMP:
-		return "High temprature";
+		return "High temperature";
 	default:
 		return "unrecognized error";
 	}

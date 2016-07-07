@@ -156,7 +156,7 @@
 };
 
 &pllss_clocks {
-	timer1_fck: timer1_fck {
+	timer1_fck: timer1_fck@2e0 {
 		#clock-cells = <0>;
 		compatible = "ti,mux-clock";
 		clocks = <&sysclk18_ck &aud_clkin0_ck &aud_clkin1_ck
@@ -165,7 +165,7 @@
 		reg = <0x2e0>;
 	};
 
-	timer2_fck: timer2_fck {
+	timer2_fck: timer2_fck@2e0 {
 		#clock-cells = <0>;
 		compatible = "ti,mux-clock";
 		clocks = <&sysclk18_ck &aud_clkin0_ck &aud_clkin1_ck
@@ -192,7 +192,7 @@
 		clock-frequency = <125000000>;
 	};
 
-	sysclk18_ck: sysclk18_ck {
+	sysclk18_ck: sysclk18_ck@2f0 {
 		#clock-cells = <0>;
 		compatible = "ti,mux-clock";
 		clocks = <&rtcosc_ck>, <&rtcdivider_ck>;
@@ -202,7 +202,7 @@
 };
 
 &scm_clocks {
-	devosc_ck: devosc_ck {
+	devosc_ck: devosc_ck@40 {
 		#clock-cells = <0>;
 		compatible = "ti,mux-clock";
 		clocks = <&virt_20000000_ck>, <&virt_19200000_ck>;
@@ -259,7 +259,7 @@
 		clock-div = <1>;
 	};
 
-	mpu_clksrc_ck: mpu_clksrc_ck {
+	mpu_clksrc_ck: mpu_clksrc_ck@40 {
 		#clock-cells = <0>;
 		compatible = "ti,mux-clock";
 		clocks = <&devosc_ck>, <&rtcdivider_ck>;

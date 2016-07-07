@@ -288,7 +288,7 @@ config SENSORS_K10TEMP
 
 config SENSORS_FAM15H_POWER
 	tristate "AMD Family 15h processor power"
-	depends on X86 && PCI
+	depends on X86 && PCI && CPU_SUP_AMD
 	help
 	  If you say yes here you get support for processor power
 	  information of your AMD family 15h CPU.
@@ -621,7 +621,8 @@ config SENSORS_IT87
 	  If you say yes here you get support for ITE IT8705F, IT8712F, IT8716F,
 	  IT8718F, IT8720F, IT8721F, IT8726F, IT8728F, IT8732F, IT8758E,
 	  IT8771E, IT8772E, IT8781F, IT8782F, IT8783E/F, IT8786E, IT8790E,
-	  IT8603E, IT8620E, and IT8623E sensor chips, and the SiS950 clone.
+	  IT8603E, IT8620E, IT8623E, and IT8628E sensor chips, and the SiS950
+	  clone.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called it87.
@@ -820,6 +821,16 @@ config SENSORS_MAX197
 
 	  This driver can also be built as a module. If so, the module
 	  will be called max197.
+
+config SENSORS_MAX31722
+tristate "MAX31722 temperature sensor"
+	depends on SPI
+	help
+	  Support for the Maxim Integrated MAX31722/MAX31723 digital
+	  thermometers/thermostats operating over an SPI interface.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called max31722.
 
 config SENSORS_MAX6639
 	tristate "Maxim MAX6639 sensor chip"

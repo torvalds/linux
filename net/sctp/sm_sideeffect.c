@@ -1218,6 +1218,8 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 				sctp_cmd_seq_t *commands,
 				gfp_t gfp)
 {
+	struct sock *sk = ep->base.sk;
+	struct sctp_sock *sp = sctp_sk(sk);
 	int error = 0;
 	int force;
 	sctp_cmd_t *cmd;
@@ -1738,6 +1740,10 @@ out:
 			error = sctp_outq_uncork(&asoc->outqueue, gfp);
 	} else if (local_cork)
 		error = sctp_outq_uncork(&asoc->outqueue, gfp);
+
+	if (sp->data_ready_signalled)
+		sp->data_ready_signalled = 0;
+
 	return error;
 nomem:
 	error = -ENOMEM;

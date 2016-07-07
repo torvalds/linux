@@ -11,13 +11,11 @@
 
 struct ila_xlat_params {
 	struct ila_params ip;
-	__be64 identifier;
 	int ifindex;
-	unsigned int dir;
 };
 
 struct ila_map {
-	struct ila_xlat_params p;
+	struct ila_xlat_params xp;
 	struct rhash_head node;
 	struct ila_map __rcu *next;
 	struct rcu_head rcu;
@@ -66,31 +64,29 @@ static __always_inline void __ila_hash_secret_init(void)
 	net_get_random_once(&hashrnd, sizeof(hashrnd));
 }
 
-static inline u32 ila_identifier_hash(__be64 identifier)
+static inline u32 ila_locator_hash(struct ila_locator loc)
 {
-	u32 *v = (u32 *)&identifier;
+	u32 *v = (u32 *)loc.v32;
 
 	return jhash_2words(v[0], v[1], hashrnd);
 }
 
-static inline spinlock_t *ila_get_lock(struct ila_net *ilan, __be64 identifier)
+static inline spinlock_t *ila_get_lock(struct ila_net *ilan,
+				       struct ila_locator loc)
 {
-	return &ilan->locks[ila_identifier_hash(identifier) & ilan->locks_mask];
+	return &ilan->locks[ila_locator_hash(loc) & ilan->locks_mask];
 }
 
-static inline int ila_cmp_wildcards(struct ila_map *ila, __be64 loc,
-				    int ifindex, unsigned int dir)
+static inline int ila_cmp_wildcards(struct ila_map *ila,
+				    struct ila_addr *iaddr, int ifindex)
 {
-	return (ila->p.ip.locator_match && ila->p.ip.locator_match != loc) ||
-	       (ila->p.ifindex && ila->p.ifindex != ifindex) ||
-	       !(ila->p.dir & dir);
+	return (ila->xp.ifindex && ila->xp.ifindex != ifindex);
 }
 
-static inline int ila_cmp_params(struct ila_map *ila, struct ila_xlat_params *p)
+static inline int ila_cmp_params(struct ila_map *ila,
+				 struct ila_xlat_params *xp)
 {
-	return (ila->p.ip.locator_match != p->ip.locator_match) ||
-	       (ila->p.ifindex != p->ifindex) ||
-	       (ila->p.dir != p->dir);
+	return (ila->xp.ifindex != xp->ifindex);
 }
 
 static int ila_cmpfn(struct rhashtable_compare_arg *arg,
@@ -98,17 +94,14 @@ static int ila_cmpfn(struct rhashtable_compare_arg *arg,
 {
 	const struct ila_map *ila = obj;
 
-	return (ila->p.identifier != *(__be64 *)arg->key);
+	return (ila->xp.ip.locator_match.v64 != *(__be64 *)arg->key);
 }
 
 static inline int ila_order(struct ila_map *ila)
 {
 	int score = 0;
 
-	if (ila->p.ip.locator_match)
-		score += 1 << 0;
-
-	if (ila->p.ifindex)
+	if (ila->xp.ifindex)
 		score += 1 << 1;
 
 	return score;
@@ -117,7 +110,7 @@ static inline int ila_order(struct ila_map *ila)
 static const struct rhashtable_params rht_params = {
 	.nelem_hint = 1024,
 	.head_offset = offsetof(struct ila_map, node),
-	.key_offset = offsetof(struct ila_map, p.identifier),
+	.key_offset = offsetof(struct ila_map, xp.ip.locator_match),
 	.key_len = sizeof(u64), /* identifier */
 	.max_size = 1048576,
 	.min_size = 256,
@@ -136,50 +129,45 @@ static struct genl_family ila_nl_family = {
 };
 
 static struct nla_policy ila_nl_policy[ILA_ATTR_MAX + 1] = {
-	[ILA_ATTR_IDENTIFIER] = { .type = NLA_U64, },
 	[ILA_ATTR_LOCATOR] = { .type = NLA_U64, },
 	[ILA_ATTR_LOCATOR_MATCH] = { .type = NLA_U64, },
 	[ILA_ATTR_IFINDEX] = { .type = NLA_U32, },
-	[ILA_ATTR_DIR] = { .type = NLA_U32, },
+	[ILA_ATTR_CSUM_MODE] = { .type = NLA_U8, },
 };
 
 static int parse_nl_config(struct genl_info *info,
-			   struct ila_xlat_params *p)
+			   struct ila_xlat_params *xp)
 {
-	memset(p, 0, sizeof(*p));
-
-	if (info->attrs[ILA_ATTR_IDENTIFIER])
-		p->identifier = (__force __be64)nla_get_u64(
-			info->attrs[ILA_ATTR_IDENTIFIER]);
+	memset(xp, 0, sizeof(*xp));
 
 	if (info->attrs[ILA_ATTR_LOCATOR])
-		p->ip.locator = (__force __be64)nla_get_u64(
+		xp->ip.locator.v64 = (__force __be64)nla_get_u64(
 			info->attrs[ILA_ATTR_LOCATOR]);
 
 	if (info->attrs[ILA_ATTR_LOCATOR_MATCH])
-		p->ip.locator_match = (__force __be64)nla_get_u64(
+		xp->ip.locator_match.v64 = (__force __be64)nla_get_u64(
 			info->attrs[ILA_ATTR_LOCATOR_MATCH]);
 
-	if (info->attrs[ILA_ATTR_IFINDEX])
-		p->ifindex = nla_get_s32(info->attrs[ILA_ATTR_IFINDEX]);
+	if (info->attrs[ILA_ATTR_CSUM_MODE])
+		xp->ip.csum_mode = nla_get_u8(info->attrs[ILA_ATTR_CSUM_MODE]);
 
-	if (info->attrs[ILA_ATTR_DIR])
-		p->dir = nla_get_u32(info->attrs[ILA_ATTR_DIR]);
+	if (info->attrs[ILA_ATTR_IFINDEX])
+		xp->ifindex = nla_get_s32(info->attrs[ILA_ATTR_IFINDEX]);
 
 	return 0;
 }
 
 /* Must be called with rcu readlock */
-static inline struct ila_map *ila_lookup_wildcards(__be64 id, __be64 loc,
+static inline struct ila_map *ila_lookup_wildcards(struct ila_addr *iaddr,
 						   int ifindex,
-						   unsigned int dir,
 						   struct ila_net *ilan)
 {
 	struct ila_map *ila;
 
-	ila = rhashtable_lookup_fast(&ilan->rhash_table, &id, rht_params);
+	ila = rhashtable_lookup_fast(&ilan->rhash_table, &iaddr->loc,
+				     rht_params);
 	while (ila) {
-		if (!ila_cmp_wildcards(ila, loc, ifindex, dir))
+		if (!ila_cmp_wildcards(ila, iaddr, ifindex))
 			return ila;
 		ila = rcu_access_pointer(ila->next);
 	}
@@ -188,15 +176,16 @@ static inline struct ila_map *ila_lookup_wildcards(__be64 id, __be64 loc,
 }
 
 /* Must be called with rcu readlock */
-static inline struct ila_map *ila_lookup_by_params(struct ila_xlat_params *p,
+static inline struct ila_map *ila_lookup_by_params(struct ila_xlat_params *xp,
 						   struct ila_net *ilan)
 {
 	struct ila_map *ila;
 
-	ila = rhashtable_lookup_fast(&ilan->rhash_table, &p->identifier,
+	ila = rhashtable_lookup_fast(&ilan->rhash_table,
+				     &xp->ip.locator_match,
 				     rht_params);
 	while (ila) {
-		if (!ila_cmp_params(ila, p))
+		if (!ila_cmp_params(ila, xp))
 			return ila;
 		ila = rcu_access_pointer(ila->next);
 	}
@@ -221,14 +210,14 @@ static void ila_free_cb(void *ptr, void *arg)
 	}
 }
 
-static int ila_xlat_addr(struct sk_buff *skb, int dir);
+static int ila_xlat_addr(struct sk_buff *skb);
 
 static unsigned int
 ila_nf_input(void *priv,
 	     struct sk_buff *skb,
 	     const struct nf_hook_state *state)
 {
-	ila_xlat_addr(skb, ILA_DIR_IN);
+	ila_xlat_addr(skb);
 	return NF_ACCEPT;
 }
 
@@ -241,11 +230,11 @@ static struct nf_hook_ops ila_nf_hook_ops[] __read_mostly = {
 	},
 };
 
-static int ila_add_mapping(struct net *net, struct ila_xlat_params *p)
+static int ila_add_mapping(struct net *net, struct ila_xlat_params *xp)
 {
 	struct ila_net *ilan = net_generic(net, ila_net_id);
 	struct ila_map *ila, *head;
-	spinlock_t *lock = ila_get_lock(ilan, p->identifier);
+	spinlock_t *lock = ila_get_lock(ilan, xp->ip.locator_match);
 	int err = 0, order;
 
 	if (!ilan->hooks_registered) {
@@ -264,22 +253,16 @@ static int ila_add_mapping(struct net *net, struct ila_xlat_params *p)
 	if (!ila)
 		return -ENOMEM;
 
-	ila->p = *p;
+	ila_init_saved_csum(&xp->ip);
 
-	if (p->ip.locator_match) {
-		/* Precompute checksum difference for translation since we
-		 * know both the old identifier and the new one.
-		 */
-		ila->p.ip.csum_diff = compute_csum_diff8(
-			(__be32 *)&p->ip.locator_match,
-			(__be32 *)&p->ip.locator);
-	}
+	ila->xp = *xp;
 
 	order = ila_order(ila);
 
 	spin_lock(lock);
 
-	head = rhashtable_lookup_fast(&ilan->rhash_table, &p->identifier,
+	head = rhashtable_lookup_fast(&ilan->rhash_table,
+				      &xp->ip.locator_match,
 				      rht_params);
 	if (!head) {
 		/* New entry for the rhash_table */
@@ -289,7 +272,7 @@ static int ila_add_mapping(struct net *net, struct ila_xlat_params *p)
 		struct ila_map *tila = head, *prev = NULL;
 
 		do {
-			if (!ila_cmp_params(tila, p)) {
+			if (!ila_cmp_params(tila, xp)) {
 				err = -EEXIST;
 				goto out;
 			}
@@ -326,23 +309,23 @@ out:
 	return err;
 }
 
-static int ila_del_mapping(struct net *net, struct ila_xlat_params *p)
+static int ila_del_mapping(struct net *net, struct ila_xlat_params *xp)
 {
 	struct ila_net *ilan = net_generic(net, ila_net_id);
 	struct ila_map *ila, *head, *prev;
-	spinlock_t *lock = ila_get_lock(ilan, p->identifier);
+	spinlock_t *lock = ila_get_lock(ilan, xp->ip.locator_match);
 	int err = -ENOENT;
 
 	spin_lock(lock);
 
 	head = rhashtable_lookup_fast(&ilan->rhash_table,
-				      &p->identifier, rht_params);
+				      &xp->ip.locator_match, rht_params);
 	ila = head;
 
 	prev = NULL;
 
 	while (ila) {
-		if (ila_cmp_params(ila, p)) {
+		if (ila_cmp_params(ila, xp)) {
 			prev = ila;
 			ila = rcu_dereference_protected(ila->next,
 							lockdep_is_held(lock));
@@ -404,28 +387,28 @@ static int ila_nl_cmd_add_mapping(struct sk_buff *skb, struct genl_info *info)
 static int ila_nl_cmd_del_mapping(struct sk_buff *skb, struct genl_info *info)
 {
 	struct net *net = genl_info_net(info);
-	struct ila_xlat_params p;
+	struct ila_xlat_params xp;
 	int err;
 
-	err = parse_nl_config(info, &p);
+	err = parse_nl_config(info, &xp);
 	if (err)
 		return err;
 
-	ila_del_mapping(net, &p);
+	ila_del_mapping(net, &xp);
 
 	return 0;
 }
 
 static int ila_fill_info(struct ila_map *ila, struct sk_buff *msg)
 {
-	if (nla_put_u64(msg, ILA_ATTR_IDENTIFIER,
-			(__force u64)ila->p.identifier) ||
-	    nla_put_u64(msg, ILA_ATTR_LOCATOR,
-			(__force u64)ila->p.ip.locator) ||
-	    nla_put_u64(msg, ILA_ATTR_LOCATOR_MATCH,
-			(__force u64)ila->p.ip.locator_match) ||
-	    nla_put_s32(msg, ILA_ATTR_IFINDEX, ila->p.ifindex) ||
-	    nla_put_u32(msg, ILA_ATTR_DIR, ila->p.dir))
+	if (nla_put_u64_64bit(msg, ILA_ATTR_LOCATOR,
+			      (__force u64)ila->xp.ip.locator.v64,
+			      ILA_ATTR_PAD) ||
+	    nla_put_u64_64bit(msg, ILA_ATTR_LOCATOR_MATCH,
+			      (__force u64)ila->xp.ip.locator_match.v64,
+			      ILA_ATTR_PAD) ||
+	    nla_put_s32(msg, ILA_ATTR_IFINDEX, ila->xp.ifindex) ||
+	    nla_put_u32(msg, ILA_ATTR_CSUM_MODE, ila->xp.ip.csum_mode))
 		return -1;
 
 	return 0;
@@ -457,11 +440,11 @@ static int ila_nl_cmd_get_mapping(struct sk_buff *skb, struct genl_info *info)
 	struct net *net = genl_info_net(info);
 	struct ila_net *ilan = net_generic(net, ila_net_id);
 	struct sk_buff *msg;
-	struct ila_xlat_params p;
+	struct ila_xlat_params xp;
 	struct ila_map *ila;
 	int ret;
 
-	ret = parse_nl_config(info, &p);
+	ret = parse_nl_config(info, &xp);
 	if (ret)
 		return ret;
 
@@ -471,7 +454,7 @@ static int ila_nl_cmd_get_mapping(struct sk_buff *skb, struct genl_info *info)
 
 	rcu_read_lock();
 
-	ila = ila_lookup_by_params(&p, ilan);
+	ila = ila_lookup_by_params(&xp, ilan);
 	if (ila) {
 		ret = ila_dump_info(ila,
 				    info->snd_portid,
@@ -501,7 +484,8 @@ static int ila_nl_dump_start(struct netlink_callback *cb)
 	struct ila_net *ilan = net_generic(net, ila_net_id);
 	struct ila_dump_iter *iter = (struct ila_dump_iter *)cb->args;
 
-	return rhashtable_walk_init(&ilan->rhash_table, &iter->rhiter);
+	return rhashtable_walk_init(&ilan->rhash_table, &iter->rhiter,
+				    GFP_KERNEL);
 }
 
 static int ila_nl_dump_done(struct netlink_callback *cb)
@@ -613,44 +597,31 @@ static struct pernet_operations ila_net_ops = {
 	.size = sizeof(struct ila_net),
 };
 
-static int ila_xlat_addr(struct sk_buff *skb, int dir)
+static int ila_xlat_addr(struct sk_buff *skb)
 {
 	struct ila_map *ila;
 	struct ipv6hdr *ip6h = ipv6_hdr(skb);
 	struct net *net = dev_net(skb->dev);
 	struct ila_net *ilan = net_generic(net, ila_net_id);
-	__be64 identifier, locator_match;
-	size_t nhoff;
+	struct ila_addr *iaddr = ila_a2i(&ip6h->daddr);
 
 	/* Assumes skb contains a valid IPv6 header that is pulled */
 
-	identifier = *(__be64 *)&ip6h->daddr.in6_u.u6_addr8[8];
-	locator_match = *(__be64 *)&ip6h->daddr.in6_u.u6_addr8[0];
-	nhoff = sizeof(struct ipv6hdr);
+	if (!ila_addr_is_ila(iaddr)) {
+		/* Type indicates this is not an ILA address */
+		return 0;
+	}
 
 	rcu_read_lock();
 
-	ila = ila_lookup_wildcards(identifier, locator_match,
-				   skb->dev->ifindex, dir, ilan);
+	ila = ila_lookup_wildcards(iaddr, skb->dev->ifindex, ilan);
 	if (ila)
-		update_ipv6_locator(skb, &ila->p.ip);
+		ila_update_ipv6_locator(skb, &ila->xp.ip);
 
 	rcu_read_unlock();
 
 	return 0;
 }
-
-int ila_xlat_incoming(struct sk_buff *skb)
-{
-	return ila_xlat_addr(skb, ILA_DIR_IN);
-}
-EXPORT_SYMBOL(ila_xlat_incoming);
-
-int ila_xlat_outgoing(struct sk_buff *skb)
-{
-	return ila_xlat_addr(skb, ILA_DIR_OUT);
-}
-EXPORT_SYMBOL(ila_xlat_outgoing);
 
 int ila_xlat_init(void)
 {

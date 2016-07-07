@@ -46,8 +46,6 @@
 #include <linux/module.h>
 #include <linux/sysfs.h>
 
-#define DRV_VERSION "0.6"
-
 /* REGISTERS */
 #define PCF2123_REG_CTRL1	(0x00)	/* Control Register 1 */
 #define PCF2123_REG_CTRL2	(0x01)	/* Control Register 2 */
@@ -395,7 +393,6 @@ static int pcf2123_probe(struct spi_device *spi)
 		}
 	}
 
-	dev_info(&spi->dev, "chip found, driver version " DRV_VERSION "\n");
 	dev_info(&spi->dev, "spiclk %u KHz.\n",
 			(spi->max_speed_hz + 500) / 1000);
 
@@ -474,4 +471,3 @@ module_spi_driver(pcf2123_driver);
 MODULE_AUTHOR("Chris Verges <chrisv@cyberswitching.com>");
 MODULE_DESCRIPTION("NXP PCF2123 RTC driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);

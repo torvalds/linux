@@ -1991,7 +1991,7 @@ static short rtllib_sta_ps_sleep(struct rtllib_device *ieee, u64 *time)
 		return 2;
 
 	if (!time_after(jiffies,
-			ieee->dev->trans_start + msecs_to_jiffies(timeout)))
+			dev_trans_start(ieee->dev) + msecs_to_jiffies(timeout)))
 		return 0;
 	if (!time_after(jiffies,
 			ieee->last_rx_ps_time + msecs_to_jiffies(timeout)))

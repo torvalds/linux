@@ -405,9 +405,8 @@ static void sock_disable_timestamp(struct sock *sk, unsigned long flags)
 }
 
 
-int sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
+int __sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 {
-	int err;
 	unsigned long flags;
 	struct sk_buff_head *list = &sk->sk_receive_queue;
 
@@ -416,10 +415,6 @@ int sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 		trace_sock_rcvqueue_full(sk, skb);
 		return -ENOMEM;
 	}
-
-	err = sk_filter(sk, skb);
-	if (err)
-		return err;
 
 	if (!sk_rmem_schedule(sk, skb, skb->truesize)) {
 		atomic_inc(&sk->sk_drops);
@@ -442,6 +437,18 @@ int sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	if (!sock_flag(sk, SOCK_DEAD))
 		sk->sk_data_ready(sk);
 	return 0;
+}
+EXPORT_SYMBOL(__sock_queue_rcv_skb);
+
+int sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
+{
+	int err;
+
+	err = sk_filter(sk, skb);
+	if (err)
+		return err;
+
+	return __sock_queue_rcv_skb(sk, skb);
 }
 EXPORT_SYMBOL(sock_queue_rcv_skb);
 
@@ -835,7 +842,8 @@ set_rcvbuf:
 		    !(sk->sk_tsflags & SOF_TIMESTAMPING_OPT_ID)) {
 			if (sk->sk_protocol == IPPROTO_TCP &&
 			    sk->sk_type == SOCK_STREAM) {
-				if (sk->sk_state != TCP_ESTABLISHED) {
+				if ((1 << sk->sk_state) &
+				    (TCPF_CLOSE | TCPF_LISTEN)) {
 					ret = -EINVAL;
 					break;
 				}
@@ -1421,8 +1429,12 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
 }
 EXPORT_SYMBOL(sk_alloc);
 
-void sk_destruct(struct sock *sk)
+/* Sockets having SOCK_RCU_FREE will call this function after one RCU
+ * grace period. This is the case for UDP sockets and TCP listeners.
+ */
+static void __sk_destruct(struct rcu_head *head)
 {
+	struct sock *sk = container_of(head, struct sock, sk_rcu);
 	struct sk_filter *filter;
 
 	if (sk->sk_destruct)
@@ -1449,6 +1461,14 @@ void sk_destruct(struct sock *sk)
 	if (likely(sk->sk_net_refcnt))
 		put_net(sock_net(sk));
 	sk_prot_free(sk->sk_prot_creator, sk);
+}
+
+void sk_destruct(struct sock *sk)
+{
+	if (sock_flag(sk, SOCK_RCU_FREE))
+		call_rcu(&sk->sk_rcu, __sk_destruct);
+	else
+		__sk_destruct(&sk->sk_rcu);
 }
 
 static void __sk_free(struct sock *sk)
@@ -1515,6 +1535,7 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 		newsk->sk_dst_cache	= NULL;
 		newsk->sk_wmem_queued	= 0;
 		newsk->sk_forward_alloc = 0;
+		atomic_set(&newsk->sk_drops, 0);
 		newsk->sk_send_head	= NULL;
 		newsk->sk_userlocks	= sk->sk_userlocks & ~SOCK_BINDPORT_LOCK;
 
@@ -1634,6 +1655,17 @@ void sock_wfree(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(sock_wfree);
 
+/* This variant of sock_wfree() is used by TCP,
+ * since it sets SOCK_USE_WRITE_QUEUE.
+ */
+void __sock_wfree(struct sk_buff *skb)
+{
+	struct sock *sk = skb->sk;
+
+	if (atomic_sub_and_test(skb->truesize, &sk->sk_wmem_alloc))
+		__sk_free(sk);
+}
+
 void skb_set_owner_w(struct sk_buff *skb, struct sock *sk)
 {
 	skb_orphan(skb);
@@ -1656,8 +1688,21 @@ void skb_set_owner_w(struct sk_buff *skb, struct sock *sk)
 }
 EXPORT_SYMBOL(skb_set_owner_w);
 
+/* This helper is used by netem, as it can hold packets in its
+ * delay queue. We want to allow the owner socket to send more
+ * packets, as if they were already TX completed by a typical driver.
+ * But we also want to keep skb->sk set because some packet schedulers
+ * rely on it (sch_fq for example). So we set skb->truesize to a small
+ * amount (1) and decrease sk_wmem_alloc accordingly.
+ */
 void skb_orphan_partial(struct sk_buff *skb)
 {
+	/* If this skb is a TCP pure ACK or already went here,
+	 * we have nothing to do. 2 is already a very small truesize.
+	 */
+	if (skb->truesize <= 2)
+		return;
+
 	/* TCP stack sets skb->ooo_okay based on sk_wmem_alloc,
 	 * so we do not completely orphan skb, but transfert all
 	 * accounted bytes but one, to avoid unexpected reorders.
@@ -1869,27 +1914,51 @@ struct sk_buff *sock_alloc_send_skb(struct sock *sk, unsigned long size,
 }
 EXPORT_SYMBOL(sock_alloc_send_skb);
 
+int __sock_cmsg_send(struct sock *sk, struct msghdr *msg, struct cmsghdr *cmsg,
+		     struct sockcm_cookie *sockc)
+{
+	u32 tsflags;
+
+	switch (cmsg->cmsg_type) {
+	case SO_MARK:
+		if (!ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN))
+			return -EPERM;
+		if (cmsg->cmsg_len != CMSG_LEN(sizeof(u32)))
+			return -EINVAL;
+		sockc->mark = *(u32 *)CMSG_DATA(cmsg);
+		break;
+	case SO_TIMESTAMPING:
+		if (cmsg->cmsg_len != CMSG_LEN(sizeof(u32)))
+			return -EINVAL;
+
+		tsflags = *(u32 *)CMSG_DATA(cmsg);
+		if (tsflags & ~SOF_TIMESTAMPING_TX_RECORD_MASK)
+			return -EINVAL;
+
+		sockc->tsflags &= ~SOF_TIMESTAMPING_TX_RECORD_MASK;
+		sockc->tsflags |= tsflags;
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+EXPORT_SYMBOL(__sock_cmsg_send);
+
 int sock_cmsg_send(struct sock *sk, struct msghdr *msg,
 		   struct sockcm_cookie *sockc)
 {
 	struct cmsghdr *cmsg;
+	int ret;
 
 	for_each_cmsghdr(cmsg, msg) {
 		if (!CMSG_OK(msg, cmsg))
 			return -EINVAL;
 		if (cmsg->cmsg_level != SOL_SOCKET)
 			continue;
-		switch (cmsg->cmsg_type) {
-		case SO_MARK:
-			if (!ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN))
-				return -EPERM;
-			if (cmsg->cmsg_len != CMSG_LEN(sizeof(u32)))
-				return -EINVAL;
-			sockc->mark = *(u32 *)CMSG_DATA(cmsg);
-			break;
-		default:
-			return -EINVAL;
-		}
+		ret = __sock_cmsg_send(sk, msg, cmsg, sockc);
+		if (ret)
+			return ret;
 	}
 	return 0;
 }
@@ -1974,39 +2043,40 @@ static void __release_sock(struct sock *sk)
 	__releases(&sk->sk_lock.slock)
 	__acquires(&sk->sk_lock.slock)
 {
-	struct sk_buff *skb = sk->sk_backlog.head;
+	struct sk_buff *skb, *next;
 
-	do {
+	while ((skb = sk->sk_backlog.head) != NULL) {
 		sk->sk_backlog.head = sk->sk_backlog.tail = NULL;
-		bh_unlock_sock(sk);
+
+		spin_unlock_bh(&sk->sk_lock.slock);
 
 		do {
-			struct sk_buff *next = skb->next;
-
+			next = skb->next;
 			prefetch(next);
 			WARN_ON_ONCE(skb_dst_is_noref(skb));
 			skb->next = NULL;
 			sk_backlog_rcv(sk, skb);
 
-			/*
-			 * We are in process context here with softirqs
-			 * disabled, use cond_resched_softirq() to preempt.
-			 * This is safe to do because we've taken the backlog
-			 * queue private:
-			 */
-			cond_resched_softirq();
+			cond_resched();
 
 			skb = next;
 		} while (skb != NULL);
 
-		bh_lock_sock(sk);
-	} while ((skb = sk->sk_backlog.head) != NULL);
+		spin_lock_bh(&sk->sk_lock.slock);
+	}
 
 	/*
 	 * Doing the zeroing here guarantee we can not loop forever
 	 * while a wild producer attempts to flood us.
 	 */
 	sk->sk_backlog.len = 0;
+}
+
+void __sk_flush_backlog(struct sock *sk)
+{
+	spin_lock_bh(&sk->sk_lock.slock);
+	__release_sock(sk);
+	spin_unlock_bh(&sk->sk_lock.slock);
 }
 
 /**
@@ -2145,6 +2215,15 @@ void __sk_mem_reclaim(struct sock *sk, int amount)
 }
 EXPORT_SYMBOL(__sk_mem_reclaim);
 
+int sk_set_peek_off(struct sock *sk, int val)
+{
+	if (val < 0)
+		return -EINVAL;
+
+	sk->sk_peek_off = val;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(sk_set_peek_off);
 
 /*
  * Set of default routines for initialising struct proto_ops when
@@ -2432,11 +2511,6 @@ EXPORT_SYMBOL(lock_sock_nested);
 
 void release_sock(struct sock *sk)
 {
-	/*
-	 * The sk_lock has mutex_unlock() semantics:
-	 */
-	mutex_release(&sk->sk_lock.dep_map, 1, _RET_IP_);
-
 	spin_lock_bh(&sk->sk_lock.slock);
 	if (sk->sk_backlog.tail)
 		__release_sock(sk);

@@ -20,7 +20,8 @@
 
 #define PREFIX "ACPI: "
 
-void acpi_initrd_initialize_tables(void);
+int early_acpi_osi_init(void);
+int acpi_osi_init(void);
 acpi_status acpi_os_initialize1(void);
 void init_acpi_device_notify(void);
 int acpi_scan_init(void);
@@ -180,7 +181,7 @@ typedef int (*acpi_ec_query_func) (void *data);
 
 int acpi_ec_init(void);
 int acpi_ec_ecdt_probe(void);
-int acpi_boot_ec_enable(void);
+int acpi_ec_dsdt_probe(void);
 void acpi_ec_block_transactions(void);
 void acpi_ec_unblock_transactions(void);
 void acpi_ec_unblock_transactions_early(void);

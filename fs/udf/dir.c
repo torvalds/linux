@@ -202,7 +202,7 @@ out:
 const struct file_operations udf_dir_operations = {
 	.llseek			= generic_file_llseek,
 	.read			= generic_read_dir,
-	.iterate		= udf_readdir,
+	.iterate_shared		= udf_readdir,
 	.unlocked_ioctl		= udf_ioctl,
 	.fsync			= generic_file_fsync,
 };

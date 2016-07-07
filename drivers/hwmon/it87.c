@@ -13,6 +13,7 @@
  *  Supports: IT8603E  Super I/O chip w/LPC interface
  *            IT8620E  Super I/O chip w/LPC interface
  *            IT8623E  Super I/O chip w/LPC interface
+ *            IT8628E  Super I/O chip w/LPC interface
  *            IT8705F  Super I/O chip w/LPC interface
  *            IT8712F  Super I/O chip w/LPC interface
  *            IT8716F  Super I/O chip w/LPC interface
@@ -44,14 +45,11 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/bitops.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -72,17 +70,18 @@
 
 enum chips { it87, it8712, it8716, it8718, it8720, it8721, it8728, it8732,
 	     it8771, it8772, it8781, it8782, it8783, it8786, it8790, it8603,
-	     it8620 };
+	     it8620, it8628 };
 
 static unsigned short force_id;
 module_param(force_id, ushort, 0);
 MODULE_PARM_DESC(force_id, "Override the detected device ID");
 
-static struct platform_device *pdev;
+static struct platform_device *it87_pdev[2];
 
-#define	REG	0x2e	/* The register to read/write */
+#define	REG_2E	0x2e	/* The register to read/write */
+#define	REG_4E	0x4e	/* Secondary register to read/write */
+
 #define	DEV	0x07	/* Register: Logical device select */
-#define	VAL	0x2f	/* The value to read/write */
 #define PME	0x04	/* The device with the fan registers in it */
 
 /* The device with the IT8718F/IT8720F VID value in it */
@@ -91,54 +90,55 @@ static struct platform_device *pdev;
 #define	DEVID	0x20	/* Register: Device ID */
 #define	DEVREV	0x22	/* Register: Device Revision */
 
-static inline int superio_inb(int reg)
+static inline int superio_inb(int ioreg, int reg)
 {
-	outb(reg, REG);
-	return inb(VAL);
+	outb(reg, ioreg);
+	return inb(ioreg + 1);
 }
 
-static inline void superio_outb(int reg, int val)
+static inline void superio_outb(int ioreg, int reg, int val)
 {
-	outb(reg, REG);
-	outb(val, VAL);
+	outb(reg, ioreg);
+	outb(val, ioreg + 1);
 }
 
-static int superio_inw(int reg)
+static int superio_inw(int ioreg, int reg)
 {
 	int val;
-	outb(reg++, REG);
-	val = inb(VAL) << 8;
-	outb(reg, REG);
-	val |= inb(VAL);
+
+	outb(reg++, ioreg);
+	val = inb(ioreg + 1) << 8;
+	outb(reg, ioreg);
+	val |= inb(ioreg + 1);
 	return val;
 }
 
-static inline void superio_select(int ldn)
+static inline void superio_select(int ioreg, int ldn)
 {
-	outb(DEV, REG);
-	outb(ldn, VAL);
+	outb(DEV, ioreg);
+	outb(ldn, ioreg + 1);
 }
 
-static inline int superio_enter(void)
+static inline int superio_enter(int ioreg)
 {
 	/*
-	 * Try to reserve REG and REG + 1 for exclusive access.
+	 * Try to reserve ioreg and ioreg + 1 for exclusive access.
 	 */
-	if (!request_muxed_region(REG, 2, DRVNAME))
+	if (!request_muxed_region(ioreg, 2, DRVNAME))
 		return -EBUSY;
 
-	outb(0x87, REG);
-	outb(0x01, REG);
-	outb(0x55, REG);
-	outb(0x55, REG);
+	outb(0x87, ioreg);
+	outb(0x01, ioreg);
+	outb(0x55, ioreg);
+	outb(ioreg == REG_4E ? 0xaa : 0x55, ioreg);
 	return 0;
 }
 
-static inline void superio_exit(void)
+static inline void superio_exit(int ioreg)
 {
-	outb(0x02, REG);
-	outb(0x02, VAL);
-	release_region(REG, 2);
+	outb(0x02, ioreg);
+	outb(0x02, ioreg + 1);
+	release_region(ioreg, 2);
 }
 
 /* Logical device 4 registers */
@@ -161,6 +161,7 @@ static inline void superio_exit(void)
 #define IT8603E_DEVID 0x8603
 #define IT8620E_DEVID 0x8620
 #define IT8623E_DEVID 0x8623
+#define IT8628E_DEVID 0x8628
 #define IT87_ACT_REG  0x30
 #define IT87_BASE_REG 0x60
 
@@ -168,6 +169,7 @@ static inline void superio_exit(void)
 #define IT87_SIO_GPIO1_REG	0x25
 #define IT87_SIO_GPIO2_REG	0x26
 #define IT87_SIO_GPIO3_REG	0x27
+#define IT87_SIO_GPIO4_REG	0x28
 #define IT87_SIO_GPIO5_REG	0x29
 #define IT87_SIO_PINX1_REG	0x2a	/* Pin selection */
 #define IT87_SIO_PINX2_REG	0x2c	/* Pin selection */
@@ -217,7 +219,12 @@ static bool fix_pwm_polarity;
 #define IT87_REG_FAN_DIV       0x0b
 #define IT87_REG_FAN_16BIT     0x0c
 
-/* Monitors: 9 voltage (0 to 7, battery), 3 temp (1 to 3), 3 fan (1 to 3) */
+/*
+ * Monitors:
+ * - up to 13 voltage (0 to 7, battery, avcc, 10 to 12)
+ * - up to 6 temp (1 to 6)
+ * - up to 6 fan (1 to 6)
+ */
 
 static const u8 IT87_REG_FAN[]         = { 0x0d, 0x0e, 0x0f, 0x80, 0x82, 0x4c };
 static const u8 IT87_REG_FAN_MIN[]     = { 0x10, 0x11, 0x12, 0x84, 0x86, 0x4e };
@@ -227,10 +234,12 @@ static const u8 IT87_REG_TEMP_OFFSET[] = { 0x56, 0x57, 0x59 };
 
 #define IT87_REG_FAN_MAIN_CTRL 0x13
 #define IT87_REG_FAN_CTL       0x14
-#define IT87_REG_PWM(nr)       (0x15 + (nr))
-#define IT87_REG_PWM_DUTY(nr)  (0x63 + (nr) * 8)
+static const u8 IT87_REG_PWM[]         = { 0x15, 0x16, 0x17, 0x7f, 0xa7, 0xaf };
+static const u8 IT87_REG_PWM_DUTY[]    = { 0x63, 0x6b, 0x73, 0x7b, 0xa3, 0xab };
 
-#define IT87_REG_VIN(nr)       (0x20 + (nr))
+static const u8 IT87_REG_VIN[]	= { 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26,
+				    0x27, 0x28, 0x2f, 0x2c, 0x2d, 0x2e };
+
 #define IT87_REG_TEMP(nr)      (0x29 + (nr))
 
 #define IT87_REG_VIN_MAX(nr)   (0x30 + (nr) * 2)
@@ -245,30 +254,48 @@ static const u8 IT87_REG_TEMP_OFFSET[] = { 0x56, 0x57, 0x59 };
 
 #define IT87_REG_CHIPID        0x58
 
-#define IT87_REG_AUTO_TEMP(nr, i) (0x60 + (nr) * 8 + (i))
-#define IT87_REG_AUTO_PWM(nr, i)  (0x65 + (nr) * 8 + (i))
+static const u8 IT87_REG_AUTO_BASE[] = { 0x60, 0x68, 0x70, 0x78, 0xa0, 0xa8 };
+
+#define IT87_REG_AUTO_TEMP(nr, i) (IT87_REG_AUTO_BASE[nr] + (i))
+#define IT87_REG_AUTO_PWM(nr, i)  (IT87_REG_AUTO_BASE[nr] + 5 + (i))
+
+#define IT87_REG_TEMP456_ENABLE	0x77
+
+#define NUM_VIN			ARRAY_SIZE(IT87_REG_VIN)
+#define NUM_VIN_LIMIT		8
+#define NUM_TEMP		6
+#define NUM_TEMP_OFFSET		ARRAY_SIZE(IT87_REG_TEMP_OFFSET)
+#define NUM_TEMP_LIMIT		3
+#define NUM_FAN			ARRAY_SIZE(IT87_REG_FAN)
+#define NUM_FAN_DIV		3
+#define NUM_PWM			ARRAY_SIZE(IT87_REG_PWM)
+#define NUM_AUTO_PWM		ARRAY_SIZE(IT87_REG_PWM)
 
 struct it87_devices {
 	const char *name;
 	const char * const suffix;
-	u16 features;
+	u32 features;
 	u8 peci_mask;
 	u8 old_peci_mask;
 };
 
-#define FEAT_12MV_ADC		(1 << 0)
-#define FEAT_NEWER_AUTOPWM	(1 << 1)
-#define FEAT_OLD_AUTOPWM	(1 << 2)
-#define FEAT_16BIT_FANS		(1 << 3)
-#define FEAT_TEMP_OFFSET	(1 << 4)
-#define FEAT_TEMP_PECI		(1 << 5)
-#define FEAT_TEMP_OLD_PECI	(1 << 6)
-#define FEAT_FAN16_CONFIG	(1 << 7)	/* Need to enable 16-bit fans */
-#define FEAT_FIVE_FANS		(1 << 8)	/* Supports five fans */
-#define FEAT_VID		(1 << 9)	/* Set if chip supports VID */
-#define FEAT_IN7_INTERNAL	(1 << 10)	/* Set if in7 is internal */
-#define FEAT_SIX_FANS		(1 << 11)	/* Supports six fans */
-#define FEAT_10_9MV_ADC		(1 << 12)
+#define FEAT_12MV_ADC		BIT(0)
+#define FEAT_NEWER_AUTOPWM	BIT(1)
+#define FEAT_OLD_AUTOPWM	BIT(2)
+#define FEAT_16BIT_FANS		BIT(3)
+#define FEAT_TEMP_OFFSET	BIT(4)
+#define FEAT_TEMP_PECI		BIT(5)
+#define FEAT_TEMP_OLD_PECI	BIT(6)
+#define FEAT_FAN16_CONFIG	BIT(7)	/* Need to enable 16-bit fans */
+#define FEAT_FIVE_FANS		BIT(8)	/* Supports five fans */
+#define FEAT_VID		BIT(9)	/* Set if chip supports VID */
+#define FEAT_IN7_INTERNAL	BIT(10)	/* Set if in7 is internal */
+#define FEAT_SIX_FANS		BIT(11)	/* Supports six fans */
+#define FEAT_10_9MV_ADC		BIT(12)
+#define FEAT_AVCC3		BIT(13)	/* Chip supports in9/AVCC3 */
+#define FEAT_SIX_PWM		BIT(14)	/* Chip supports 6 pwm chn */
+#define FEAT_PWM_FREQ2		BIT(15)	/* Separate pwm freq 2 */
+#define FEAT_SIX_TEMP		BIT(16)	/* Up to 6 temp sensors */
 
 static const struct it87_devices it87_devices[] = {
 	[it87] = {
@@ -286,20 +313,22 @@ static const struct it87_devices it87_devices[] = {
 		.name = "it8716",
 		.suffix = "F",
 		.features = FEAT_16BIT_FANS | FEAT_TEMP_OFFSET | FEAT_VID
-		  | FEAT_FAN16_CONFIG | FEAT_FIVE_FANS,
+		  | FEAT_FAN16_CONFIG | FEAT_FIVE_FANS | FEAT_PWM_FREQ2,
 	},
 	[it8718] = {
 		.name = "it8718",
 		.suffix = "F",
 		.features = FEAT_16BIT_FANS | FEAT_TEMP_OFFSET | FEAT_VID
-		  | FEAT_TEMP_OLD_PECI | FEAT_FAN16_CONFIG | FEAT_FIVE_FANS,
+		  | FEAT_TEMP_OLD_PECI | FEAT_FAN16_CONFIG | FEAT_FIVE_FANS
+		  | FEAT_PWM_FREQ2,
 		.old_peci_mask = 0x4,
 	},
 	[it8720] = {
 		.name = "it8720",
 		.suffix = "F",
 		.features = FEAT_16BIT_FANS | FEAT_TEMP_OFFSET | FEAT_VID
-		  | FEAT_TEMP_OLD_PECI | FEAT_FAN16_CONFIG | FEAT_FIVE_FANS,
+		  | FEAT_TEMP_OLD_PECI | FEAT_FAN16_CONFIG | FEAT_FIVE_FANS
+		  | FEAT_PWM_FREQ2,
 		.old_peci_mask = 0x4,
 	},
 	[it8721] = {
@@ -307,7 +336,8 @@ static const struct it87_devices it87_devices[] = {
 		.suffix = "F",
 		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
 		  | FEAT_TEMP_OFFSET | FEAT_TEMP_OLD_PECI | FEAT_TEMP_PECI
-		  | FEAT_FAN16_CONFIG | FEAT_FIVE_FANS | FEAT_IN7_INTERNAL,
+		  | FEAT_FAN16_CONFIG | FEAT_FIVE_FANS | FEAT_IN7_INTERNAL
+		  | FEAT_PWM_FREQ2,
 		.peci_mask = 0x05,
 		.old_peci_mask = 0x02,	/* Actually reports PCH */
 	},
@@ -316,7 +346,7 @@ static const struct it87_devices it87_devices[] = {
 		.suffix = "F",
 		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
 		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI | FEAT_FIVE_FANS
-		  | FEAT_IN7_INTERNAL,
+		  | FEAT_IN7_INTERNAL | FEAT_PWM_FREQ2,
 		.peci_mask = 0x07,
 	},
 	[it8732] = {
@@ -332,7 +362,8 @@ static const struct it87_devices it87_devices[] = {
 		.name = "it8771",
 		.suffix = "E",
 		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
-		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI | FEAT_IN7_INTERNAL,
+		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI | FEAT_IN7_INTERNAL
+		  | FEAT_PWM_FREQ2,
 				/* PECI: guesswork */
 				/* 12mV ADC (OHM) */
 				/* 16 bit fans (OHM) */
@@ -343,7 +374,8 @@ static const struct it87_devices it87_devices[] = {
 		.name = "it8772",
 		.suffix = "E",
 		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
-		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI | FEAT_IN7_INTERNAL,
+		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI | FEAT_IN7_INTERNAL
+		  | FEAT_PWM_FREQ2,
 				/* PECI (coreboot) */
 				/* 12mV ADC (HWSensors4, OHM) */
 				/* 16 bit fans (HWSensors4, OHM) */
@@ -354,42 +386,45 @@ static const struct it87_devices it87_devices[] = {
 		.name = "it8781",
 		.suffix = "F",
 		.features = FEAT_16BIT_FANS | FEAT_TEMP_OFFSET
-		  | FEAT_TEMP_OLD_PECI | FEAT_FAN16_CONFIG,
+		  | FEAT_TEMP_OLD_PECI | FEAT_FAN16_CONFIG | FEAT_PWM_FREQ2,
 		.old_peci_mask = 0x4,
 	},
 	[it8782] = {
 		.name = "it8782",
 		.suffix = "F",
 		.features = FEAT_16BIT_FANS | FEAT_TEMP_OFFSET
-		  | FEAT_TEMP_OLD_PECI | FEAT_FAN16_CONFIG,
+		  | FEAT_TEMP_OLD_PECI | FEAT_FAN16_CONFIG | FEAT_PWM_FREQ2,
 		.old_peci_mask = 0x4,
 	},
 	[it8783] = {
 		.name = "it8783",
 		.suffix = "E/F",
 		.features = FEAT_16BIT_FANS | FEAT_TEMP_OFFSET
-		  | FEAT_TEMP_OLD_PECI | FEAT_FAN16_CONFIG,
+		  | FEAT_TEMP_OLD_PECI | FEAT_FAN16_CONFIG | FEAT_PWM_FREQ2,
 		.old_peci_mask = 0x4,
 	},
 	[it8786] = {
 		.name = "it8786",
 		.suffix = "E",
 		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
-		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI | FEAT_IN7_INTERNAL,
+		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI | FEAT_IN7_INTERNAL
+		  | FEAT_PWM_FREQ2,
 		.peci_mask = 0x07,
 	},
 	[it8790] = {
 		.name = "it8790",
 		.suffix = "E",
 		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
-		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI | FEAT_IN7_INTERNAL,
+		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI | FEAT_IN7_INTERNAL
+		  | FEAT_PWM_FREQ2,
 		.peci_mask = 0x07,
 	},
 	[it8603] = {
 		.name = "it8603",
 		.suffix = "E",
 		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
-		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI | FEAT_IN7_INTERNAL,
+		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI | FEAT_IN7_INTERNAL
+		  | FEAT_AVCC3 | FEAT_PWM_FREQ2,
 		.peci_mask = 0x07,
 	},
 	[it8620] = {
@@ -397,7 +432,17 @@ static const struct it87_devices it87_devices[] = {
 		.suffix = "E",
 		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
 		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI | FEAT_SIX_FANS
-		  | FEAT_IN7_INTERNAL,
+		  | FEAT_IN7_INTERNAL | FEAT_SIX_PWM | FEAT_PWM_FREQ2
+		  | FEAT_SIX_TEMP,
+		.peci_mask = 0x07,
+	},
+	[it8628] = {
+		.name = "it8628",
+		.suffix = "E",
+		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
+		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI | FEAT_SIX_FANS
+		  | FEAT_IN7_INTERNAL | FEAT_SIX_PWM | FEAT_PWM_FREQ2
+		  | FEAT_SIX_TEMP,
 		.peci_mask = 0x07,
 	},
 };
@@ -409,16 +454,20 @@ static const struct it87_devices it87_devices[] = {
 #define has_old_autopwm(data)	((data)->features & FEAT_OLD_AUTOPWM)
 #define has_temp_offset(data)	((data)->features & FEAT_TEMP_OFFSET)
 #define has_temp_peci(data, nr)	(((data)->features & FEAT_TEMP_PECI) && \
-				 ((data)->peci_mask & (1 << nr)))
+				 ((data)->peci_mask & BIT(nr)))
 #define has_temp_old_peci(data, nr) \
 				(((data)->features & FEAT_TEMP_OLD_PECI) && \
-				 ((data)->old_peci_mask & (1 << nr)))
+				 ((data)->old_peci_mask & BIT(nr)))
 #define has_fan16_config(data)	((data)->features & FEAT_FAN16_CONFIG)
 #define has_five_fans(data)	((data)->features & (FEAT_FIVE_FANS | \
 						     FEAT_SIX_FANS))
 #define has_vid(data)		((data)->features & FEAT_VID)
 #define has_in7_internal(data)	((data)->features & FEAT_IN7_INTERNAL)
 #define has_six_fans(data)	((data)->features & FEAT_SIX_FANS)
+#define has_avcc3(data)		((data)->features & FEAT_AVCC3)
+#define has_six_pwm(data)	((data)->features & FEAT_SIX_PWM)
+#define has_pwm_freq2(data)	((data)->features & FEAT_PWM_FREQ2)
+#define has_six_temp(data)	((data)->features & FEAT_SIX_TEMP)
 
 struct it87_sio_data {
 	enum chips type;
@@ -440,7 +489,7 @@ struct it87_sio_data {
  * The structure is dynamically allocated.
  */
 struct it87_data {
-	struct device *hwmon_dev;
+	const struct attribute_group *groups[7];
 	enum chips type;
 	u16 features;
 	u8 peci_mask;
@@ -453,17 +502,21 @@ struct it87_data {
 	unsigned long last_updated;	/* In jiffies */
 
 	u16 in_scaled;		/* Internal voltage sensors are scaled */
-	u8 in[10][3];		/* [nr][0]=in, [1]=min, [2]=max */
+	u16 in_internal;	/* Bitfield, internal sensors (for labels) */
+	u16 has_in;		/* Bitfield, voltage sensors enabled */
+	u8 in[NUM_VIN][3];		/* [nr][0]=in, [1]=min, [2]=max */
 	u8 has_fan;		/* Bitfield, fans enabled */
-	u16 fan[6][2];		/* Register values, [nr][0]=fan, [1]=min */
+	u16 fan[NUM_FAN][2];	/* Register values, [nr][0]=fan, [1]=min */
 	u8 has_temp;		/* Bitfield, temp sensors enabled */
-	s8 temp[3][4];		/* [nr][0]=temp, [1]=min, [2]=max, [3]=offset */
+	s8 temp[NUM_TEMP][4];	/* [nr][0]=temp, [1]=min, [2]=max, [3]=offset */
 	u8 sensor;		/* Register value (IT87_REG_TEMP_ENABLE) */
 	u8 extra;		/* Register value (IT87_REG_TEMP_EXTRA) */
-	u8 fan_div[3];		/* Register encoding, shifted right */
+	u8 fan_div[NUM_FAN_DIV];/* Register encoding, shifted right */
+	bool has_vid;		/* True if VID supported */
 	u8 vid;			/* Register encoding, combined */
 	u8 vrm;
 	u32 alarms;		/* Register encoding, combined */
+	bool has_beep;		/* true if beep supported */
 	u8 beeps;		/* Register encoding */
 	u8 fan_main_ctrl;	/* Register value */
 	u8 fan_ctl;		/* Register value */
@@ -478,13 +531,14 @@ struct it87_data {
 	 * is no longer needed, but it is still done to keep the driver
 	 * simple.
 	 */
-	u8 pwm_ctrl[3];		/* Register value */
-	u8 pwm_duty[3];		/* Manual PWM value set by user */
-	u8 pwm_temp_map[3];	/* PWM to temp. chan. mapping (bits 1-0) */
+	u8 has_pwm;		/* Bitfield, pwm control enabled */
+	u8 pwm_ctrl[NUM_PWM];	/* Register value */
+	u8 pwm_duty[NUM_PWM];	/* Manual PWM value set by user */
+	u8 pwm_temp_map[NUM_PWM];/* PWM to temp. chan. mapping (bits 1-0) */
 
 	/* Automatic fan speed control registers */
-	u8 auto_pwm[3][4];	/* [nr][3] is hard-coded */
-	s8 auto_temp[3][5];	/* [nr][0] is point1_temp_hyst */
+	u8 auto_pwm[NUM_AUTO_PWM][4];	/* [nr][3] is hard-coded */
+	s8 auto_temp[NUM_AUTO_PWM][5];	/* [nr][0] is point1_temp_hyst */
 };
 
 static int adc_lsb(const struct it87_data *data, int nr)
@@ -497,7 +551,7 @@ static int adc_lsb(const struct it87_data *data, int nr)
 		lsb = 109;
 	else
 		lsb = 160;
-	if (data->in_scaled & (1 << nr))
+	if (data->in_scaled & BIT(nr))
 		lsb <<= 1;
 	return lsb;
 }
@@ -554,15 +608,16 @@ static int pwm_from_reg(const struct it87_data *data, u8 reg)
 		return (reg & 0x7f) << 1;
 }
 
-
 static int DIV_TO_REG(int val)
 {
 	int answer = 0;
+
 	while (answer < 7 && (val >>= 1))
 		answer++;
 	return answer;
 }
-#define DIV_FROM_REG(val) (1 << (val))
+
+#define DIV_FROM_REG(val) BIT(val)
 
 /*
  * PWM base frequencies. The frequency has to be divided by either 128 or 256,
@@ -585,32 +640,204 @@ static const unsigned int pwm_freq[8] = {
 	750000,
 };
 
-static int it87_probe(struct platform_device *pdev);
-static int it87_remove(struct platform_device *pdev);
+/*
+ * Must be called with data->update_lock held, except during initialization.
+ * We ignore the IT87 BUSY flag at this moment - it could lead to deadlocks,
+ * would slow down the IT87 access and should not be necessary.
+ */
+static int it87_read_value(struct it87_data *data, u8 reg)
+{
+	outb_p(reg, data->addr + IT87_ADDR_REG_OFFSET);
+	return inb_p(data->addr + IT87_DATA_REG_OFFSET);
+}
 
-static int it87_read_value(struct it87_data *data, u8 reg);
-static void it87_write_value(struct it87_data *data, u8 reg, u8 value);
-static struct it87_data *it87_update_device(struct device *dev);
-static int it87_check_pwm(struct device *dev);
-static void it87_init_device(struct platform_device *pdev);
+/*
+ * Must be called with data->update_lock held, except during initialization.
+ * We ignore the IT87 BUSY flag at this moment - it could lead to deadlocks,
+ * would slow down the IT87 access and should not be necessary.
+ */
+static void it87_write_value(struct it87_data *data, u8 reg, u8 value)
+{
+	outb_p(reg, data->addr + IT87_ADDR_REG_OFFSET);
+	outb_p(value, data->addr + IT87_DATA_REG_OFFSET);
+}
 
+static void it87_update_pwm_ctrl(struct it87_data *data, int nr)
+{
+	data->pwm_ctrl[nr] = it87_read_value(data, IT87_REG_PWM[nr]);
+	if (has_newer_autopwm(data)) {
+		data->pwm_temp_map[nr] = data->pwm_ctrl[nr] & 0x03;
+		data->pwm_duty[nr] = it87_read_value(data,
+						     IT87_REG_PWM_DUTY[nr]);
+	} else {
+		if (data->pwm_ctrl[nr] & 0x80)	/* Automatic mode */
+			data->pwm_temp_map[nr] = data->pwm_ctrl[nr] & 0x03;
+		else				/* Manual mode */
+			data->pwm_duty[nr] = data->pwm_ctrl[nr] & 0x7f;
+	}
 
-static struct platform_driver it87_driver = {
-	.driver = {
-		.name	= DRVNAME,
-	},
-	.probe	= it87_probe,
-	.remove	= it87_remove,
-};
+	if (has_old_autopwm(data)) {
+		int i;
+
+		for (i = 0; i < 5 ; i++)
+			data->auto_temp[nr][i] = it87_read_value(data,
+						IT87_REG_AUTO_TEMP(nr, i));
+		for (i = 0; i < 3 ; i++)
+			data->auto_pwm[nr][i] = it87_read_value(data,
+						IT87_REG_AUTO_PWM(nr, i));
+	} else if (has_newer_autopwm(data)) {
+		int i;
+
+		/*
+		 * 0: temperature hysteresis (base + 5)
+		 * 1: fan off temperature (base + 0)
+		 * 2: fan start temperature (base + 1)
+		 * 3: fan max temperature (base + 2)
+		 */
+		data->auto_temp[nr][0] =
+			it87_read_value(data, IT87_REG_AUTO_TEMP(nr, 5));
+
+		for (i = 0; i < 3 ; i++)
+			data->auto_temp[nr][i + 1] =
+				it87_read_value(data,
+						IT87_REG_AUTO_TEMP(nr, i));
+		/*
+		 * 0: start pwm value (base + 3)
+		 * 1: pwm slope (base + 4, 1/8th pwm)
+		 */
+		data->auto_pwm[nr][0] =
+			it87_read_value(data, IT87_REG_AUTO_TEMP(nr, 3));
+		data->auto_pwm[nr][1] =
+			it87_read_value(data, IT87_REG_AUTO_TEMP(nr, 4));
+	}
+}
+
+static struct it87_data *it87_update_device(struct device *dev)
+{
+	struct it87_data *data = dev_get_drvdata(dev);
+	int i;
+
+	mutex_lock(&data->update_lock);
+
+	if (time_after(jiffies, data->last_updated + HZ + HZ / 2) ||
+	    !data->valid) {
+		if (update_vbat) {
+			/*
+			 * Cleared after each update, so reenable.  Value
+			 * returned by this read will be previous value
+			 */
+			it87_write_value(data, IT87_REG_CONFIG,
+				it87_read_value(data, IT87_REG_CONFIG) | 0x40);
+		}
+		for (i = 0; i < NUM_VIN; i++) {
+			if (!(data->has_in & BIT(i)))
+				continue;
+
+			data->in[i][0] =
+				it87_read_value(data, IT87_REG_VIN[i]);
+
+			/* VBAT and AVCC don't have limit registers */
+			if (i >= NUM_VIN_LIMIT)
+				continue;
+
+			data->in[i][1] =
+				it87_read_value(data, IT87_REG_VIN_MIN(i));
+			data->in[i][2] =
+				it87_read_value(data, IT87_REG_VIN_MAX(i));
+		}
+
+		for (i = 0; i < NUM_FAN; i++) {
+			/* Skip disabled fans */
+			if (!(data->has_fan & BIT(i)))
+				continue;
+
+			data->fan[i][1] =
+				it87_read_value(data, IT87_REG_FAN_MIN[i]);
+			data->fan[i][0] = it87_read_value(data,
+				       IT87_REG_FAN[i]);
+			/* Add high byte if in 16-bit mode */
+			if (has_16bit_fans(data)) {
+				data->fan[i][0] |= it87_read_value(data,
+						IT87_REG_FANX[i]) << 8;
+				data->fan[i][1] |= it87_read_value(data,
+						IT87_REG_FANX_MIN[i]) << 8;
+			}
+		}
+		for (i = 0; i < NUM_TEMP; i++) {
+			if (!(data->has_temp & BIT(i)))
+				continue;
+			data->temp[i][0] =
+				it87_read_value(data, IT87_REG_TEMP(i));
+
+			if (has_temp_offset(data) && i < NUM_TEMP_OFFSET)
+				data->temp[i][3] =
+				  it87_read_value(data,
+						  IT87_REG_TEMP_OFFSET[i]);
+
+			if (i >= NUM_TEMP_LIMIT)
+				continue;
+
+			data->temp[i][1] =
+				it87_read_value(data, IT87_REG_TEMP_LOW(i));
+			data->temp[i][2] =
+				it87_read_value(data, IT87_REG_TEMP_HIGH(i));
+		}
+
+		/* Newer chips don't have clock dividers */
+		if ((data->has_fan & 0x07) && !has_16bit_fans(data)) {
+			i = it87_read_value(data, IT87_REG_FAN_DIV);
+			data->fan_div[0] = i & 0x07;
+			data->fan_div[1] = (i >> 3) & 0x07;
+			data->fan_div[2] = (i & 0x40) ? 3 : 1;
+		}
+
+		data->alarms =
+			it87_read_value(data, IT87_REG_ALARM1) |
+			(it87_read_value(data, IT87_REG_ALARM2) << 8) |
+			(it87_read_value(data, IT87_REG_ALARM3) << 16);
+		data->beeps = it87_read_value(data, IT87_REG_BEEP_ENABLE);
+
+		data->fan_main_ctrl = it87_read_value(data,
+				IT87_REG_FAN_MAIN_CTRL);
+		data->fan_ctl = it87_read_value(data, IT87_REG_FAN_CTL);
+		for (i = 0; i < NUM_PWM; i++) {
+			if (!(data->has_pwm & BIT(i)))
+				continue;
+			it87_update_pwm_ctrl(data, i);
+		}
+
+		data->sensor = it87_read_value(data, IT87_REG_TEMP_ENABLE);
+		data->extra = it87_read_value(data, IT87_REG_TEMP_EXTRA);
+		/*
+		 * The IT8705F does not have VID capability.
+		 * The IT8718F and later don't use IT87_REG_VID for the
+		 * same purpose.
+		 */
+		if (data->type == it8712 || data->type == it8716) {
+			data->vid = it87_read_value(data, IT87_REG_VID);
+			/*
+			 * The older IT8712F revisions had only 5 VID pins,
+			 * but we assume it is always safe to read 6 bits.
+			 */
+			data->vid &= 0x3f;
+		}
+		data->last_updated = jiffies;
+		data->valid = 1;
+	}
+
+	mutex_unlock(&data->update_lock);
+
+	return data;
+}
 
 static ssize_t show_in(struct device *dev, struct device_attribute *attr,
 		       char *buf)
 {
 	struct sensor_device_attribute_2 *sattr = to_sensor_dev_attr_2(attr);
-	int nr = sattr->nr;
-	int index = sattr->index;
-
 	struct it87_data *data = it87_update_device(dev);
+	int index = sattr->index;
+	int nr = sattr->nr;
+
 	return sprintf(buf, "%d\n", in_from_reg(data, nr, data->in[nr][index]));
 }
 
@@ -618,10 +845,9 @@ static ssize_t set_in(struct device *dev, struct device_attribute *attr,
 		      const char *buf, size_t count)
 {
 	struct sensor_device_attribute_2 *sattr = to_sensor_dev_attr_2(attr);
-	int nr = sattr->nr;
-	int index = sattr->index;
-
 	struct it87_data *data = dev_get_drvdata(dev);
+	int index = sattr->index;
+	int nr = sattr->nr;
 	unsigned long val;
 
 	if (kstrtoul(buf, 10, &val) < 0)
@@ -687,8 +913,11 @@ static SENSOR_DEVICE_ATTR_2(in7_max, S_IRUGO | S_IWUSR, show_in, set_in,
 
 static SENSOR_DEVICE_ATTR_2(in8_input, S_IRUGO, show_in, NULL, 8, 0);
 static SENSOR_DEVICE_ATTR_2(in9_input, S_IRUGO, show_in, NULL, 9, 0);
+static SENSOR_DEVICE_ATTR_2(in10_input, S_IRUGO, show_in, NULL, 10, 0);
+static SENSOR_DEVICE_ATTR_2(in11_input, S_IRUGO, show_in, NULL, 11, 0);
+static SENSOR_DEVICE_ATTR_2(in12_input, S_IRUGO, show_in, NULL, 12, 0);
 
-/* 3 temperatures */
+/* Up to 6 temperatures */
 static ssize_t show_temp(struct device *dev, struct device_attribute *attr,
 			 char *buf)
 {
@@ -761,6 +990,9 @@ static SENSOR_DEVICE_ATTR_2(temp3_max, S_IRUGO | S_IWUSR, show_temp, set_temp,
 			    2, 2);
 static SENSOR_DEVICE_ATTR_2(temp3_offset, S_IRUGO | S_IWUSR, show_temp,
 			    set_temp, 2, 3);
+static SENSOR_DEVICE_ATTR_2(temp4_input, S_IRUGO, show_temp, NULL, 3, 0);
+static SENSOR_DEVICE_ATTR_2(temp5_input, S_IRUGO, show_temp, NULL, 4, 0);
+static SENSOR_DEVICE_ATTR_2(temp6_input, S_IRUGO, show_temp, NULL, 5, 0);
 
 static ssize_t show_temp_type(struct device *dev, struct device_attribute *attr,
 			      char *buf)
@@ -771,8 +1003,8 @@ static ssize_t show_temp_type(struct device *dev, struct device_attribute *attr,
 	u8 reg = data->sensor;	    /* In case value is updated while used */
 	u8 extra = data->extra;
 
-	if ((has_temp_peci(data, nr) && (reg >> 6 == nr + 1))
-	    || (has_temp_old_peci(data, nr) && (extra & 0x80)))
+	if ((has_temp_peci(data, nr) && (reg >> 6 == nr + 1)) ||
+	    (has_temp_old_peci(data, nr) && (extra & 0x80)))
 		return sprintf(buf, "6\n");  /* Intel PECI */
 	if (reg & (1 << nr))
 		return sprintf(buf, "3\n");  /* thermal diode */
@@ -837,18 +1069,19 @@ static SENSOR_DEVICE_ATTR(temp2_type, S_IRUGO | S_IWUSR, show_temp_type,
 static SENSOR_DEVICE_ATTR(temp3_type, S_IRUGO | S_IWUSR, show_temp_type,
 			  set_temp_type, 2);
 
-/* 3 Fans */
+/* 6 Fans */
 
 static int pwm_mode(const struct it87_data *data, int nr)
 {
-	int ctrl = data->fan_main_ctrl & (1 << nr);
+	if (data->type != it8603 && nr < 3 && !(data->fan_main_ctrl & BIT(nr)))
+		return 0;				/* Full speed */
+	if (data->pwm_ctrl[nr] & 0x80)
+		return 2;				/* Automatic mode */
+	if ((data->type == it8603 || nr >= 3) &&
+	    data->pwm_duty[nr] == pwm_to_reg(data, 0xff))
+		return 0;			/* Full speed */
 
-	if (ctrl == 0 && data->type != it8603)		/* Full speed */
-		return 0;
-	if (data->pwm_ctrl[nr] & 0x80)			/* Automatic mode */
-		return 2;
-	else						/* Manual mode */
-		return 1;
+	return 1;				/* Manual mode */
 }
 
 static ssize_t show_fan(struct device *dev, struct device_attribute *attr,
@@ -868,39 +1101,49 @@ static ssize_t show_fan(struct device *dev, struct device_attribute *attr,
 }
 
 static ssize_t show_fan_div(struct device *dev, struct device_attribute *attr,
-		char *buf)
+			    char *buf)
 {
 	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	struct it87_data *data = it87_update_device(dev);
 	int nr = sensor_attr->index;
 
-	struct it87_data *data = it87_update_device(dev);
-	return sprintf(buf, "%d\n", DIV_FROM_REG(data->fan_div[nr]));
+	return sprintf(buf, "%lu\n", DIV_FROM_REG(data->fan_div[nr]));
 }
+
 static ssize_t show_pwm_enable(struct device *dev,
-		struct device_attribute *attr, char *buf)
+			       struct device_attribute *attr, char *buf)
 {
 	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	struct it87_data *data = it87_update_device(dev);
 	int nr = sensor_attr->index;
 
-	struct it87_data *data = it87_update_device(dev);
 	return sprintf(buf, "%d\n", pwm_mode(data, nr));
 }
+
 static ssize_t show_pwm(struct device *dev, struct device_attribute *attr,
-		char *buf)
+			char *buf)
 {
 	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	struct it87_data *data = it87_update_device(dev);
 	int nr = sensor_attr->index;
 
-	struct it87_data *data = it87_update_device(dev);
 	return sprintf(buf, "%d\n",
 		       pwm_from_reg(data, data->pwm_duty[nr]));
 }
+
 static ssize_t show_pwm_freq(struct device *dev, struct device_attribute *attr,
-		char *buf)
+			     char *buf)
 {
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
 	struct it87_data *data = it87_update_device(dev);
-	int index = (data->fan_ctl >> 4) & 0x07;
+	int nr = sensor_attr->index;
 	unsigned int freq;
+	int index;
+
+	if (has_pwm_freq2(data) && nr == 1)
+		index = (data->extra >> 4) & 0x07;
+	else
+		index = (data->fan_ctl >> 4) & 0x07;
 
 	freq = pwm_freq[index] / (has_newer_autopwm(data) ? 256 : 128);
 
@@ -953,12 +1196,11 @@ static ssize_t set_fan(struct device *dev, struct device_attribute *attr,
 }
 
 static ssize_t set_fan_div(struct device *dev, struct device_attribute *attr,
-		const char *buf, size_t count)
+			   const char *buf, size_t count)
 {
 	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
-	int nr = sensor_attr->index;
-
 	struct it87_data *data = dev_get_drvdata(dev);
+	int nr = sensor_attr->index;
 	unsigned long val;
 	int min;
 	u8 old;
@@ -1013,6 +1255,11 @@ static int check_trip_points(struct device *dev, int nr)
 			if (data->auto_pwm[nr][i] > data->auto_pwm[nr][i + 1])
 				err = -EINVAL;
 		}
+	} else if (has_newer_autopwm(data)) {
+		for (i = 1; i < 3; i++) {
+			if (data->auto_temp[nr][i] > data->auto_temp[nr][i + 1])
+				err = -EINVAL;
+		}
 	}
 
 	if (err) {
@@ -1023,13 +1270,12 @@ static int check_trip_points(struct device *dev, int nr)
 	return err;
 }
 
-static ssize_t set_pwm_enable(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t set_pwm_enable(struct device *dev, struct device_attribute *attr,
+			      const char *buf, size_t count)
 {
 	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
-	int nr = sensor_attr->index;
-
 	struct it87_data *data = dev_get_drvdata(dev);
+	int nr = sensor_attr->index;
 	long val;
 
 	if (kstrtol(buf, 10, &val) < 0 || val < 0 || val > 2)
@@ -1041,21 +1287,30 @@ static ssize_t set_pwm_enable(struct device *dev,
 			return -EINVAL;
 	}
 
-	/* IT8603E does not have on/off mode */
-	if (val == 0 && data->type == it8603)
-		return -EINVAL;
-
 	mutex_lock(&data->update_lock);
 
 	if (val == 0) {
-		int tmp;
-		/* make sure the fan is on when in on/off mode */
-		tmp = it87_read_value(data, IT87_REG_FAN_CTL);
-		it87_write_value(data, IT87_REG_FAN_CTL, tmp | (1 << nr));
-		/* set on/off mode */
-		data->fan_main_ctrl &= ~(1 << nr);
-		it87_write_value(data, IT87_REG_FAN_MAIN_CTRL,
-				 data->fan_main_ctrl);
+		if (nr < 3 && data->type != it8603) {
+			int tmp;
+			/* make sure the fan is on when in on/off mode */
+			tmp = it87_read_value(data, IT87_REG_FAN_CTL);
+			it87_write_value(data, IT87_REG_FAN_CTL, tmp | BIT(nr));
+			/* set on/off mode */
+			data->fan_main_ctrl &= ~BIT(nr);
+			it87_write_value(data, IT87_REG_FAN_MAIN_CTRL,
+					 data->fan_main_ctrl);
+		} else {
+			/* No on/off mode, set maximum pwm value */
+			data->pwm_duty[nr] = pwm_to_reg(data, 0xff);
+			it87_write_value(data, IT87_REG_PWM_DUTY[nr],
+					 data->pwm_duty[nr]);
+			/* and set manual mode */
+			data->pwm_ctrl[nr] = has_newer_autopwm(data) ?
+					     data->pwm_temp_map[nr] :
+					     data->pwm_duty[nr];
+			it87_write_value(data, IT87_REG_PWM[nr],
+					 data->pwm_ctrl[nr]);
+		}
 	} else {
 		if (val == 1)				/* Manual mode */
 			data->pwm_ctrl[nr] = has_newer_autopwm(data) ?
@@ -1063,11 +1318,11 @@ static ssize_t set_pwm_enable(struct device *dev,
 					     data->pwm_duty[nr];
 		else					/* Automatic mode */
 			data->pwm_ctrl[nr] = 0x80 | data->pwm_temp_map[nr];
-		it87_write_value(data, IT87_REG_PWM(nr), data->pwm_ctrl[nr]);
+		it87_write_value(data, IT87_REG_PWM[nr], data->pwm_ctrl[nr]);
 
-		if (data->type != it8603) {
+		if (data->type != it8603 && nr < 3) {
 			/* set SmartGuardian mode */
-			data->fan_main_ctrl |= (1 << nr);
+			data->fan_main_ctrl |= BIT(nr);
 			it87_write_value(data, IT87_REG_FAN_MAIN_CTRL,
 					 data->fan_main_ctrl);
 		}
@@ -1076,13 +1331,13 @@ static ssize_t set_pwm_enable(struct device *dev,
 	mutex_unlock(&data->update_lock);
 	return count;
 }
+
 static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
-		const char *buf, size_t count)
+		       const char *buf, size_t count)
 {
 	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
-	int nr = sensor_attr->index;
-
 	struct it87_data *data = dev_get_drvdata(dev);
+	int nr = sensor_attr->index;
 	long val;
 
 	if (kstrtol(buf, 10, &val) < 0 || val < 0 || val > 255)
@@ -1099,7 +1354,7 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 			return -EBUSY;
 		}
 		data->pwm_duty[nr] = pwm_to_reg(data, val);
-		it87_write_value(data, IT87_REG_PWM_DUTY(nr),
+		it87_write_value(data, IT87_REG_PWM_DUTY[nr],
 				 data->pwm_duty[nr]);
 	} else {
 		data->pwm_duty[nr] = pwm_to_reg(data, val);
@@ -1109,17 +1364,20 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 		 */
 		if (!(data->pwm_ctrl[nr] & 0x80)) {
 			data->pwm_ctrl[nr] = data->pwm_duty[nr];
-			it87_write_value(data, IT87_REG_PWM(nr),
+			it87_write_value(data, IT87_REG_PWM[nr],
 					 data->pwm_ctrl[nr]);
 		}
 	}
 	mutex_unlock(&data->update_lock);
 	return count;
 }
-static ssize_t set_pwm_freq(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
+
+static ssize_t set_pwm_freq(struct device *dev, struct device_attribute *attr,
+			    const char *buf, size_t count)
 {
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
 	struct it87_data *data = dev_get_drvdata(dev);
+	int nr = sensor_attr->index;
 	unsigned long val;
 	int i;
 
@@ -1131,63 +1389,66 @@ static ssize_t set_pwm_freq(struct device *dev,
 
 	/* Search for the nearest available frequency */
 	for (i = 0; i < 7; i++) {
-		if (val > (pwm_freq[i] + pwm_freq[i+1]) / 2)
+		if (val > (pwm_freq[i] + pwm_freq[i + 1]) / 2)
 			break;
 	}
 
 	mutex_lock(&data->update_lock);
-	data->fan_ctl = it87_read_value(data, IT87_REG_FAN_CTL) & 0x8f;
-	data->fan_ctl |= i << 4;
-	it87_write_value(data, IT87_REG_FAN_CTL, data->fan_ctl);
+	if (nr == 0) {
+		data->fan_ctl = it87_read_value(data, IT87_REG_FAN_CTL) & 0x8f;
+		data->fan_ctl |= i << 4;
+		it87_write_value(data, IT87_REG_FAN_CTL, data->fan_ctl);
+	} else {
+		data->extra = it87_read_value(data, IT87_REG_TEMP_EXTRA) & 0x8f;
+		data->extra |= i << 4;
+		it87_write_value(data, IT87_REG_TEMP_EXTRA, data->extra);
+	}
 	mutex_unlock(&data->update_lock);
 
 	return count;
 }
+
 static ssize_t show_pwm_temp_map(struct device *dev,
-		struct device_attribute *attr, char *buf)
+				 struct device_attribute *attr, char *buf)
 {
 	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
-	int nr = sensor_attr->index;
-
 	struct it87_data *data = it87_update_device(dev);
+	int nr = sensor_attr->index;
 	int map;
 
-	if (data->pwm_temp_map[nr] < 3)
-		map = 1 << data->pwm_temp_map[nr];
-	else
-		map = 0;			/* Should never happen */
-	return sprintf(buf, "%d\n", map);
+	map = data->pwm_temp_map[nr];
+	if (map >= 3)
+		map = 0;	/* Should never happen */
+	if (nr >= 3)		/* pwm channels 3..6 map to temp4..6 */
+		map += 3;
+
+	return sprintf(buf, "%d\n", (int)BIT(map));
 }
+
 static ssize_t set_pwm_temp_map(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
+				struct device_attribute *attr, const char *buf,
+				size_t count)
 {
 	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
-	int nr = sensor_attr->index;
-
 	struct it87_data *data = dev_get_drvdata(dev);
+	int nr = sensor_attr->index;
 	long val;
 	u8 reg;
-
-	/*
-	 * This check can go away if we ever support automatic fan speed
-	 * control on newer chips.
-	 */
-	if (!has_old_autopwm(data)) {
-		dev_notice(dev, "Mapping change disabled for safety reasons\n");
-		return -EINVAL;
-	}
 
 	if (kstrtol(buf, 10, &val) < 0)
 		return -EINVAL;
 
+	if (nr >= 3)
+		val -= 3;
+
 	switch (val) {
-	case (1 << 0):
+	case BIT(0):
 		reg = 0x00;
 		break;
-	case (1 << 1):
+	case BIT(1):
 		reg = 0x01;
 		break;
-	case (1 << 2):
+	case BIT(2):
 		reg = 0x02;
 		break;
 	default:
@@ -1202,14 +1463,14 @@ static ssize_t set_pwm_temp_map(struct device *dev,
 	 */
 	if (data->pwm_ctrl[nr] & 0x80) {
 		data->pwm_ctrl[nr] = 0x80 | data->pwm_temp_map[nr];
-		it87_write_value(data, IT87_REG_PWM(nr), data->pwm_ctrl[nr]);
+		it87_write_value(data, IT87_REG_PWM[nr], data->pwm_ctrl[nr]);
 	}
 	mutex_unlock(&data->update_lock);
 	return count;
 }
 
-static ssize_t show_auto_pwm(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t show_auto_pwm(struct device *dev, struct device_attribute *attr,
+			     char *buf)
 {
 	struct it87_data *data = it87_update_device(dev);
 	struct sensor_device_attribute_2 *sensor_attr =
@@ -1221,14 +1482,15 @@ static ssize_t show_auto_pwm(struct device *dev,
 		       pwm_from_reg(data, data->auto_pwm[nr][point]));
 }
 
-static ssize_t set_auto_pwm(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t set_auto_pwm(struct device *dev, struct device_attribute *attr,
+			    const char *buf, size_t count)
 {
 	struct it87_data *data = dev_get_drvdata(dev);
 	struct sensor_device_attribute_2 *sensor_attr =
 			to_sensor_dev_attr_2(attr);
 	int nr = sensor_attr->nr;
 	int point = sensor_attr->index;
+	int regaddr;
 	long val;
 
 	if (kstrtol(buf, 10, &val) < 0 || val < 0 || val > 255)
@@ -1236,26 +1498,65 @@ static ssize_t set_auto_pwm(struct device *dev,
 
 	mutex_lock(&data->update_lock);
 	data->auto_pwm[nr][point] = pwm_to_reg(data, val);
-	it87_write_value(data, IT87_REG_AUTO_PWM(nr, point),
-			 data->auto_pwm[nr][point]);
+	if (has_newer_autopwm(data))
+		regaddr = IT87_REG_AUTO_TEMP(nr, 3);
+	else
+		regaddr = IT87_REG_AUTO_PWM(nr, point);
+	it87_write_value(data, regaddr, data->auto_pwm[nr][point]);
 	mutex_unlock(&data->update_lock);
 	return count;
 }
 
-static ssize_t show_auto_temp(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t show_auto_pwm_slope(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct it87_data *data = it87_update_device(dev);
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int nr = sensor_attr->index;
+
+	return sprintf(buf, "%d\n", data->auto_pwm[nr][1] & 0x7f);
+}
+
+static ssize_t set_auto_pwm_slope(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf, size_t count)
+{
+	struct it87_data *data = dev_get_drvdata(dev);
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int nr = sensor_attr->index;
+	unsigned long val;
+
+	if (kstrtoul(buf, 10, &val) < 0 || val > 127)
+		return -EINVAL;
+
+	mutex_lock(&data->update_lock);
+	data->auto_pwm[nr][1] = (data->auto_pwm[nr][1] & 0x80) | val;
+	it87_write_value(data, IT87_REG_AUTO_TEMP(nr, 4),
+			 data->auto_pwm[nr][1]);
+	mutex_unlock(&data->update_lock);
+	return count;
+}
+
+static ssize_t show_auto_temp(struct device *dev, struct device_attribute *attr,
+			      char *buf)
 {
 	struct it87_data *data = it87_update_device(dev);
 	struct sensor_device_attribute_2 *sensor_attr =
 			to_sensor_dev_attr_2(attr);
 	int nr = sensor_attr->nr;
 	int point = sensor_attr->index;
+	int reg;
 
-	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->auto_temp[nr][point]));
+	if (has_old_autopwm(data) || point)
+		reg = data->auto_temp[nr][point];
+	else
+		reg = data->auto_temp[nr][1] - (data->auto_temp[nr][0] & 0x1f);
+
+	return sprintf(buf, "%d\n", TEMP_FROM_REG(reg));
 }
 
-static ssize_t set_auto_temp(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t set_auto_temp(struct device *dev, struct device_attribute *attr,
+			     const char *buf, size_t count)
 {
 	struct it87_data *data = dev_get_drvdata(dev);
 	struct sensor_device_attribute_2 *sensor_attr =
@@ -1263,14 +1564,24 @@ static ssize_t set_auto_temp(struct device *dev,
 	int nr = sensor_attr->nr;
 	int point = sensor_attr->index;
 	long val;
+	int reg;
 
 	if (kstrtol(buf, 10, &val) < 0 || val < -128000 || val > 127000)
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
-	data->auto_temp[nr][point] = TEMP_TO_REG(val);
-	it87_write_value(data, IT87_REG_AUTO_TEMP(nr, point),
-			 data->auto_temp[nr][point]);
+	if (has_newer_autopwm(data) && !point) {
+		reg = data->auto_temp[nr][1] - TEMP_TO_REG(val);
+		reg = clamp_val(reg, 0, 0x1f) | (data->auto_temp[nr][0] & 0xe0);
+		data->auto_temp[nr][0] = reg;
+		it87_write_value(data, IT87_REG_AUTO_TEMP(nr, 5), reg);
+	} else {
+		reg = TEMP_TO_REG(val);
+		data->auto_temp[nr][point] = reg;
+		if (has_newer_autopwm(data))
+			point--;
+		it87_write_value(data, IT87_REG_AUTO_TEMP(nr, point), reg);
+	}
 	mutex_unlock(&data->update_lock);
 	return count;
 }
@@ -1308,8 +1619,9 @@ static SENSOR_DEVICE_ATTR_2(fan6_min, S_IRUGO | S_IWUSR, show_fan, set_fan,
 static SENSOR_DEVICE_ATTR(pwm1_enable, S_IRUGO | S_IWUSR,
 			  show_pwm_enable, set_pwm_enable, 0);
 static SENSOR_DEVICE_ATTR(pwm1, S_IRUGO | S_IWUSR, show_pwm, set_pwm, 0);
-static DEVICE_ATTR(pwm1_freq, S_IRUGO | S_IWUSR, show_pwm_freq, set_pwm_freq);
-static SENSOR_DEVICE_ATTR(pwm1_auto_channels_temp, S_IRUGO | S_IWUSR,
+static SENSOR_DEVICE_ATTR(pwm1_freq, S_IRUGO | S_IWUSR, show_pwm_freq,
+			  set_pwm_freq, 0);
+static SENSOR_DEVICE_ATTR(pwm1_auto_channels_temp, S_IRUGO,
 			  show_pwm_temp_map, set_pwm_temp_map, 0);
 static SENSOR_DEVICE_ATTR_2(pwm1_auto_point1_pwm, S_IRUGO | S_IWUSR,
 			    show_auto_pwm, set_auto_pwm, 0, 0);
@@ -1329,12 +1641,16 @@ static SENSOR_DEVICE_ATTR_2(pwm1_auto_point3_temp, S_IRUGO | S_IWUSR,
 			    show_auto_temp, set_auto_temp, 0, 3);
 static SENSOR_DEVICE_ATTR_2(pwm1_auto_point4_temp, S_IRUGO | S_IWUSR,
 			    show_auto_temp, set_auto_temp, 0, 4);
+static SENSOR_DEVICE_ATTR_2(pwm1_auto_start, S_IRUGO | S_IWUSR,
+			    show_auto_pwm, set_auto_pwm, 0, 0);
+static SENSOR_DEVICE_ATTR(pwm1_auto_slope, S_IRUGO | S_IWUSR,
+			  show_auto_pwm_slope, set_auto_pwm_slope, 0);
 
 static SENSOR_DEVICE_ATTR(pwm2_enable, S_IRUGO | S_IWUSR,
 			  show_pwm_enable, set_pwm_enable, 1);
 static SENSOR_DEVICE_ATTR(pwm2, S_IRUGO | S_IWUSR, show_pwm, set_pwm, 1);
-static DEVICE_ATTR(pwm2_freq, S_IRUGO, show_pwm_freq, NULL);
-static SENSOR_DEVICE_ATTR(pwm2_auto_channels_temp, S_IRUGO | S_IWUSR,
+static SENSOR_DEVICE_ATTR(pwm2_freq, S_IRUGO, show_pwm_freq, set_pwm_freq, 1);
+static SENSOR_DEVICE_ATTR(pwm2_auto_channels_temp, S_IRUGO,
 			  show_pwm_temp_map, set_pwm_temp_map, 1);
 static SENSOR_DEVICE_ATTR_2(pwm2_auto_point1_pwm, S_IRUGO | S_IWUSR,
 			    show_auto_pwm, set_auto_pwm, 1, 0);
@@ -1354,12 +1670,16 @@ static SENSOR_DEVICE_ATTR_2(pwm2_auto_point3_temp, S_IRUGO | S_IWUSR,
 			    show_auto_temp, set_auto_temp, 1, 3);
 static SENSOR_DEVICE_ATTR_2(pwm2_auto_point4_temp, S_IRUGO | S_IWUSR,
 			    show_auto_temp, set_auto_temp, 1, 4);
+static SENSOR_DEVICE_ATTR_2(pwm2_auto_start, S_IRUGO | S_IWUSR,
+			    show_auto_pwm, set_auto_pwm, 1, 0);
+static SENSOR_DEVICE_ATTR(pwm2_auto_slope, S_IRUGO | S_IWUSR,
+			  show_auto_pwm_slope, set_auto_pwm_slope, 1);
 
 static SENSOR_DEVICE_ATTR(pwm3_enable, S_IRUGO | S_IWUSR,
 			  show_pwm_enable, set_pwm_enable, 2);
 static SENSOR_DEVICE_ATTR(pwm3, S_IRUGO | S_IWUSR, show_pwm, set_pwm, 2);
-static DEVICE_ATTR(pwm3_freq, S_IRUGO, show_pwm_freq, NULL);
-static SENSOR_DEVICE_ATTR(pwm3_auto_channels_temp, S_IRUGO | S_IWUSR,
+static SENSOR_DEVICE_ATTR(pwm3_freq, S_IRUGO, show_pwm_freq, NULL, 2);
+static SENSOR_DEVICE_ATTR(pwm3_auto_channels_temp, S_IRUGO,
 			  show_pwm_temp_map, set_pwm_temp_map, 2);
 static SENSOR_DEVICE_ATTR_2(pwm3_auto_point1_pwm, S_IRUGO | S_IWUSR,
 			    show_auto_pwm, set_auto_pwm, 2, 0);
@@ -1379,30 +1699,94 @@ static SENSOR_DEVICE_ATTR_2(pwm3_auto_point3_temp, S_IRUGO | S_IWUSR,
 			    show_auto_temp, set_auto_temp, 2, 3);
 static SENSOR_DEVICE_ATTR_2(pwm3_auto_point4_temp, S_IRUGO | S_IWUSR,
 			    show_auto_temp, set_auto_temp, 2, 4);
+static SENSOR_DEVICE_ATTR_2(pwm3_auto_start, S_IRUGO | S_IWUSR,
+			    show_auto_pwm, set_auto_pwm, 2, 0);
+static SENSOR_DEVICE_ATTR(pwm3_auto_slope, S_IRUGO | S_IWUSR,
+			  show_auto_pwm_slope, set_auto_pwm_slope, 2);
+
+static SENSOR_DEVICE_ATTR(pwm4_enable, S_IRUGO | S_IWUSR,
+			  show_pwm_enable, set_pwm_enable, 3);
+static SENSOR_DEVICE_ATTR(pwm4, S_IRUGO | S_IWUSR, show_pwm, set_pwm, 3);
+static SENSOR_DEVICE_ATTR(pwm4_freq, S_IRUGO, show_pwm_freq, NULL, 3);
+static SENSOR_DEVICE_ATTR(pwm4_auto_channels_temp, S_IRUGO,
+			  show_pwm_temp_map, set_pwm_temp_map, 3);
+static SENSOR_DEVICE_ATTR_2(pwm4_auto_point1_temp, S_IRUGO | S_IWUSR,
+			    show_auto_temp, set_auto_temp, 2, 1);
+static SENSOR_DEVICE_ATTR_2(pwm4_auto_point1_temp_hyst, S_IRUGO | S_IWUSR,
+			    show_auto_temp, set_auto_temp, 2, 0);
+static SENSOR_DEVICE_ATTR_2(pwm4_auto_point2_temp, S_IRUGO | S_IWUSR,
+			    show_auto_temp, set_auto_temp, 2, 2);
+static SENSOR_DEVICE_ATTR_2(pwm4_auto_point3_temp, S_IRUGO | S_IWUSR,
+			    show_auto_temp, set_auto_temp, 2, 3);
+static SENSOR_DEVICE_ATTR_2(pwm4_auto_start, S_IRUGO | S_IWUSR,
+			    show_auto_pwm, set_auto_pwm, 3, 0);
+static SENSOR_DEVICE_ATTR(pwm4_auto_slope, S_IRUGO | S_IWUSR,
+			  show_auto_pwm_slope, set_auto_pwm_slope, 3);
+
+static SENSOR_DEVICE_ATTR(pwm5_enable, S_IRUGO | S_IWUSR,
+			  show_pwm_enable, set_pwm_enable, 4);
+static SENSOR_DEVICE_ATTR(pwm5, S_IRUGO | S_IWUSR, show_pwm, set_pwm, 4);
+static SENSOR_DEVICE_ATTR(pwm5_freq, S_IRUGO, show_pwm_freq, NULL, 4);
+static SENSOR_DEVICE_ATTR(pwm5_auto_channels_temp, S_IRUGO,
+			  show_pwm_temp_map, set_pwm_temp_map, 4);
+static SENSOR_DEVICE_ATTR_2(pwm5_auto_point1_temp, S_IRUGO | S_IWUSR,
+			    show_auto_temp, set_auto_temp, 2, 1);
+static SENSOR_DEVICE_ATTR_2(pwm5_auto_point1_temp_hyst, S_IRUGO | S_IWUSR,
+			    show_auto_temp, set_auto_temp, 2, 0);
+static SENSOR_DEVICE_ATTR_2(pwm5_auto_point2_temp, S_IRUGO | S_IWUSR,
+			    show_auto_temp, set_auto_temp, 2, 2);
+static SENSOR_DEVICE_ATTR_2(pwm5_auto_point3_temp, S_IRUGO | S_IWUSR,
+			    show_auto_temp, set_auto_temp, 2, 3);
+static SENSOR_DEVICE_ATTR_2(pwm5_auto_start, S_IRUGO | S_IWUSR,
+			    show_auto_pwm, set_auto_pwm, 4, 0);
+static SENSOR_DEVICE_ATTR(pwm5_auto_slope, S_IRUGO | S_IWUSR,
+			  show_auto_pwm_slope, set_auto_pwm_slope, 4);
+
+static SENSOR_DEVICE_ATTR(pwm6_enable, S_IRUGO | S_IWUSR,
+			  show_pwm_enable, set_pwm_enable, 5);
+static SENSOR_DEVICE_ATTR(pwm6, S_IRUGO | S_IWUSR, show_pwm, set_pwm, 5);
+static SENSOR_DEVICE_ATTR(pwm6_freq, S_IRUGO, show_pwm_freq, NULL, 5);
+static SENSOR_DEVICE_ATTR(pwm6_auto_channels_temp, S_IRUGO,
+			  show_pwm_temp_map, set_pwm_temp_map, 5);
+static SENSOR_DEVICE_ATTR_2(pwm6_auto_point1_temp, S_IRUGO | S_IWUSR,
+			    show_auto_temp, set_auto_temp, 2, 1);
+static SENSOR_DEVICE_ATTR_2(pwm6_auto_point1_temp_hyst, S_IRUGO | S_IWUSR,
+			    show_auto_temp, set_auto_temp, 2, 0);
+static SENSOR_DEVICE_ATTR_2(pwm6_auto_point2_temp, S_IRUGO | S_IWUSR,
+			    show_auto_temp, set_auto_temp, 2, 2);
+static SENSOR_DEVICE_ATTR_2(pwm6_auto_point3_temp, S_IRUGO | S_IWUSR,
+			    show_auto_temp, set_auto_temp, 2, 3);
+static SENSOR_DEVICE_ATTR_2(pwm6_auto_start, S_IRUGO | S_IWUSR,
+			    show_auto_pwm, set_auto_pwm, 5, 0);
+static SENSOR_DEVICE_ATTR(pwm6_auto_slope, S_IRUGO | S_IWUSR,
+			  show_auto_pwm_slope, set_auto_pwm_slope, 5);
 
 /* Alarms */
 static ssize_t show_alarms(struct device *dev, struct device_attribute *attr,
-		char *buf)
+			   char *buf)
 {
 	struct it87_data *data = it87_update_device(dev);
+
 	return sprintf(buf, "%u\n", data->alarms);
 }
 static DEVICE_ATTR(alarms, S_IRUGO, show_alarms, NULL);
 
 static ssize_t show_alarm(struct device *dev, struct device_attribute *attr,
-		char *buf)
+			  char *buf)
 {
-	int bitnr = to_sensor_dev_attr(attr)->index;
 	struct it87_data *data = it87_update_device(dev);
+	int bitnr = to_sensor_dev_attr(attr)->index;
+
 	return sprintf(buf, "%u\n", (data->alarms >> bitnr) & 1);
 }
 
-static ssize_t clear_intrusion(struct device *dev, struct device_attribute
-		*attr, const char *buf, size_t count)
+static ssize_t clear_intrusion(struct device *dev,
+			       struct device_attribute *attr, const char *buf,
+			       size_t count)
 {
 	struct it87_data *data = dev_get_drvdata(dev);
-	long val;
 	int config;
+	long val;
 
 	if (kstrtol(buf, 10, &val) < 0 || val != 0)
 		return -EINVAL;
@@ -1412,7 +1796,7 @@ static ssize_t clear_intrusion(struct device *dev, struct device_attribute
 	if (config < 0) {
 		count = config;
 	} else {
-		config |= 1 << 5;
+		config |= BIT(5);
 		it87_write_value(data, IT87_REG_CONFIG, config);
 		/* Invalidate cache to force re-read */
 		data->valid = 0;
@@ -1443,29 +1827,30 @@ static SENSOR_DEVICE_ATTR(intrusion0_alarm, S_IRUGO | S_IWUSR,
 			  show_alarm, clear_intrusion, 4);
 
 static ssize_t show_beep(struct device *dev, struct device_attribute *attr,
-		char *buf)
+			 char *buf)
 {
-	int bitnr = to_sensor_dev_attr(attr)->index;
 	struct it87_data *data = it87_update_device(dev);
+	int bitnr = to_sensor_dev_attr(attr)->index;
+
 	return sprintf(buf, "%u\n", (data->beeps >> bitnr) & 1);
 }
+
 static ssize_t set_beep(struct device *dev, struct device_attribute *attr,
-		const char *buf, size_t count)
+			const char *buf, size_t count)
 {
 	int bitnr = to_sensor_dev_attr(attr)->index;
 	struct it87_data *data = dev_get_drvdata(dev);
 	long val;
 
-	if (kstrtol(buf, 10, &val) < 0
-	 || (val != 0 && val != 1))
+	if (kstrtol(buf, 10, &val) < 0 || (val != 0 && val != 1))
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
 	data->beeps = it87_read_value(data, IT87_REG_BEEP_ENABLE);
 	if (val)
-		data->beeps |= (1 << bitnr);
+		data->beeps |= BIT(bitnr);
 	else
-		data->beeps &= ~(1 << bitnr);
+		data->beeps &= ~BIT(bitnr);
 	it87_write_value(data, IT87_REG_BEEP_ENABLE, data->beeps);
 	mutex_unlock(&data->update_lock);
 	return count;
@@ -1493,13 +1878,15 @@ static SENSOR_DEVICE_ATTR(temp2_beep, S_IRUGO, show_beep, NULL, 2);
 static SENSOR_DEVICE_ATTR(temp3_beep, S_IRUGO, show_beep, NULL, 2);
 
 static ssize_t show_vrm_reg(struct device *dev, struct device_attribute *attr,
-		char *buf)
+			    char *buf)
 {
 	struct it87_data *data = dev_get_drvdata(dev);
+
 	return sprintf(buf, "%u\n", data->vrm);
 }
+
 static ssize_t store_vrm_reg(struct device *dev, struct device_attribute *attr,
-		const char *buf, size_t count)
+			     const char *buf, size_t count)
 {
 	struct it87_data *data = dev_get_drvdata(dev);
 	unsigned long val;
@@ -1514,15 +1901,16 @@ static ssize_t store_vrm_reg(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR(vrm, S_IRUGO | S_IWUSR, show_vrm_reg, store_vrm_reg);
 
 static ssize_t show_vid_reg(struct device *dev, struct device_attribute *attr,
-		char *buf)
+			    char *buf)
 {
 	struct it87_data *data = it87_update_device(dev);
-	return sprintf(buf, "%ld\n", (long) vid_from_reg(data->vid, data->vrm));
+
+	return sprintf(buf, "%ld\n", (long)vid_from_reg(data->vid, data->vrm));
 }
 static DEVICE_ATTR(cpu0_vid, S_IRUGO, show_vid_reg, NULL);
 
 static ssize_t show_label(struct device *dev, struct device_attribute *attr,
-		char *buf)
+			  char *buf)
 {
 	static const char * const labels[] = {
 		"+5V",
@@ -1548,227 +1936,348 @@ static ssize_t show_label(struct device *dev, struct device_attribute *attr,
 static SENSOR_DEVICE_ATTR(in3_label, S_IRUGO, show_label, NULL, 0);
 static SENSOR_DEVICE_ATTR(in7_label, S_IRUGO, show_label, NULL, 1);
 static SENSOR_DEVICE_ATTR(in8_label, S_IRUGO, show_label, NULL, 2);
-/* special AVCC3 IT8603E in9 */
+/* AVCC3 */
 static SENSOR_DEVICE_ATTR(in9_label, S_IRUGO, show_label, NULL, 0);
 
-static ssize_t show_name(struct device *dev, struct device_attribute
-			 *devattr, char *buf)
+static umode_t it87_in_is_visible(struct kobject *kobj,
+				  struct attribute *attr, int index)
 {
+	struct device *dev = container_of(kobj, struct device, kobj);
 	struct it87_data *data = dev_get_drvdata(dev);
-	return sprintf(buf, "%s\n", data->name);
-}
-static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
+	int i = index / 5;	/* voltage index */
+	int a = index % 5;	/* attribute index */
 
-static struct attribute *it87_attributes_in[10][5] = {
-{
+	if (index >= 40) {	/* in8 and higher only have input attributes */
+		i = index - 40 + 8;
+		a = 0;
+	}
+
+	if (!(data->has_in & BIT(i)))
+		return 0;
+
+	if (a == 4 && !data->has_beep)
+		return 0;
+
+	return attr->mode;
+}
+
+static struct attribute *it87_attributes_in[] = {
 	&sensor_dev_attr_in0_input.dev_attr.attr,
 	&sensor_dev_attr_in0_min.dev_attr.attr,
 	&sensor_dev_attr_in0_max.dev_attr.attr,
 	&sensor_dev_attr_in0_alarm.dev_attr.attr,
-	NULL
-}, {
+	&sensor_dev_attr_in0_beep.dev_attr.attr,	/* 4 */
+
 	&sensor_dev_attr_in1_input.dev_attr.attr,
 	&sensor_dev_attr_in1_min.dev_attr.attr,
 	&sensor_dev_attr_in1_max.dev_attr.attr,
 	&sensor_dev_attr_in1_alarm.dev_attr.attr,
-	NULL
-}, {
+	&sensor_dev_attr_in1_beep.dev_attr.attr,	/* 9 */
+
 	&sensor_dev_attr_in2_input.dev_attr.attr,
 	&sensor_dev_attr_in2_min.dev_attr.attr,
 	&sensor_dev_attr_in2_max.dev_attr.attr,
 	&sensor_dev_attr_in2_alarm.dev_attr.attr,
-	NULL
-}, {
+	&sensor_dev_attr_in2_beep.dev_attr.attr,	/* 14 */
+
 	&sensor_dev_attr_in3_input.dev_attr.attr,
 	&sensor_dev_attr_in3_min.dev_attr.attr,
 	&sensor_dev_attr_in3_max.dev_attr.attr,
 	&sensor_dev_attr_in3_alarm.dev_attr.attr,
-	NULL
-}, {
+	&sensor_dev_attr_in3_beep.dev_attr.attr,	/* 19 */
+
 	&sensor_dev_attr_in4_input.dev_attr.attr,
 	&sensor_dev_attr_in4_min.dev_attr.attr,
 	&sensor_dev_attr_in4_max.dev_attr.attr,
 	&sensor_dev_attr_in4_alarm.dev_attr.attr,
-	NULL
-}, {
+	&sensor_dev_attr_in4_beep.dev_attr.attr,	/* 24 */
+
 	&sensor_dev_attr_in5_input.dev_attr.attr,
 	&sensor_dev_attr_in5_min.dev_attr.attr,
 	&sensor_dev_attr_in5_max.dev_attr.attr,
 	&sensor_dev_attr_in5_alarm.dev_attr.attr,
-	NULL
-}, {
+	&sensor_dev_attr_in5_beep.dev_attr.attr,	/* 29 */
+
 	&sensor_dev_attr_in6_input.dev_attr.attr,
 	&sensor_dev_attr_in6_min.dev_attr.attr,
 	&sensor_dev_attr_in6_max.dev_attr.attr,
 	&sensor_dev_attr_in6_alarm.dev_attr.attr,
-	NULL
-}, {
+	&sensor_dev_attr_in6_beep.dev_attr.attr,	/* 34 */
+
 	&sensor_dev_attr_in7_input.dev_attr.attr,
 	&sensor_dev_attr_in7_min.dev_attr.attr,
 	&sensor_dev_attr_in7_max.dev_attr.attr,
 	&sensor_dev_attr_in7_alarm.dev_attr.attr,
-	NULL
-}, {
-	&sensor_dev_attr_in8_input.dev_attr.attr,
-	NULL
-}, {
-	&sensor_dev_attr_in9_input.dev_attr.attr,
-	NULL
-} };
+	&sensor_dev_attr_in7_beep.dev_attr.attr,	/* 39 */
 
-static const struct attribute_group it87_group_in[10] = {
-	{ .attrs = it87_attributes_in[0] },
-	{ .attrs = it87_attributes_in[1] },
-	{ .attrs = it87_attributes_in[2] },
-	{ .attrs = it87_attributes_in[3] },
-	{ .attrs = it87_attributes_in[4] },
-	{ .attrs = it87_attributes_in[5] },
-	{ .attrs = it87_attributes_in[6] },
-	{ .attrs = it87_attributes_in[7] },
-	{ .attrs = it87_attributes_in[8] },
-	{ .attrs = it87_attributes_in[9] },
+	&sensor_dev_attr_in8_input.dev_attr.attr,	/* 40 */
+	&sensor_dev_attr_in9_input.dev_attr.attr,	/* 41 */
+	&sensor_dev_attr_in10_input.dev_attr.attr,	/* 41 */
+	&sensor_dev_attr_in11_input.dev_attr.attr,	/* 41 */
+	&sensor_dev_attr_in12_input.dev_attr.attr,	/* 41 */
 };
 
-static struct attribute *it87_attributes_temp[3][6] = {
+static const struct attribute_group it87_group_in = {
+	.attrs = it87_attributes_in,
+	.is_visible = it87_in_is_visible,
+};
+
+static umode_t it87_temp_is_visible(struct kobject *kobj,
+				    struct attribute *attr, int index)
 {
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct it87_data *data = dev_get_drvdata(dev);
+	int i = index / 7;	/* temperature index */
+	int a = index % 7;	/* attribute index */
+
+	if (index >= 21) {
+		i = index - 21 + 3;
+		a = 0;
+	}
+
+	if (!(data->has_temp & BIT(i)))
+		return 0;
+
+	if (a == 5 && !has_temp_offset(data))
+		return 0;
+
+	if (a == 6 && !data->has_beep)
+		return 0;
+
+	return attr->mode;
+}
+
+static struct attribute *it87_attributes_temp[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
 	&sensor_dev_attr_temp1_max.dev_attr.attr,
 	&sensor_dev_attr_temp1_min.dev_attr.attr,
 	&sensor_dev_attr_temp1_type.dev_attr.attr,
 	&sensor_dev_attr_temp1_alarm.dev_attr.attr,
-	NULL
-} , {
-	&sensor_dev_attr_temp2_input.dev_attr.attr,
+	&sensor_dev_attr_temp1_offset.dev_attr.attr,	/* 5 */
+	&sensor_dev_attr_temp1_beep.dev_attr.attr,	/* 6 */
+
+	&sensor_dev_attr_temp2_input.dev_attr.attr,	/* 7 */
 	&sensor_dev_attr_temp2_max.dev_attr.attr,
 	&sensor_dev_attr_temp2_min.dev_attr.attr,
 	&sensor_dev_attr_temp2_type.dev_attr.attr,
 	&sensor_dev_attr_temp2_alarm.dev_attr.attr,
-	NULL
-} , {
-	&sensor_dev_attr_temp3_input.dev_attr.attr,
+	&sensor_dev_attr_temp2_offset.dev_attr.attr,
+	&sensor_dev_attr_temp2_beep.dev_attr.attr,
+
+	&sensor_dev_attr_temp3_input.dev_attr.attr,	/* 14 */
 	&sensor_dev_attr_temp3_max.dev_attr.attr,
 	&sensor_dev_attr_temp3_min.dev_attr.attr,
 	&sensor_dev_attr_temp3_type.dev_attr.attr,
 	&sensor_dev_attr_temp3_alarm.dev_attr.attr,
-	NULL
-} };
-
-static const struct attribute_group it87_group_temp[3] = {
-	{ .attrs = it87_attributes_temp[0] },
-	{ .attrs = it87_attributes_temp[1] },
-	{ .attrs = it87_attributes_temp[2] },
-};
-
-static struct attribute *it87_attributes_temp_offset[] = {
-	&sensor_dev_attr_temp1_offset.dev_attr.attr,
-	&sensor_dev_attr_temp2_offset.dev_attr.attr,
 	&sensor_dev_attr_temp3_offset.dev_attr.attr,
+	&sensor_dev_attr_temp3_beep.dev_attr.attr,
+
+	&sensor_dev_attr_temp4_input.dev_attr.attr,	/* 21 */
+	&sensor_dev_attr_temp5_input.dev_attr.attr,
+	&sensor_dev_attr_temp6_input.dev_attr.attr,
+	NULL
 };
+
+static const struct attribute_group it87_group_temp = {
+	.attrs = it87_attributes_temp,
+	.is_visible = it87_temp_is_visible,
+};
+
+static umode_t it87_is_visible(struct kobject *kobj,
+			       struct attribute *attr, int index)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct it87_data *data = dev_get_drvdata(dev);
+
+	if ((index == 2 || index == 3) && !data->has_vid)
+		return 0;
+
+	if (index > 3 && !(data->in_internal & BIT(index - 4)))
+		return 0;
+
+	return attr->mode;
+}
 
 static struct attribute *it87_attributes[] = {
 	&dev_attr_alarms.attr,
 	&sensor_dev_attr_intrusion0_alarm.dev_attr.attr,
-	&dev_attr_name.attr,
+	&dev_attr_vrm.attr,				/* 2 */
+	&dev_attr_cpu0_vid.attr,			/* 3 */
+	&sensor_dev_attr_in3_label.dev_attr.attr,	/* 4 .. 7 */
+	&sensor_dev_attr_in7_label.dev_attr.attr,
+	&sensor_dev_attr_in8_label.dev_attr.attr,
+	&sensor_dev_attr_in9_label.dev_attr.attr,
 	NULL
 };
 
 static const struct attribute_group it87_group = {
 	.attrs = it87_attributes,
+	.is_visible = it87_is_visible,
 };
 
-static struct attribute *it87_attributes_in_beep[] = {
-	&sensor_dev_attr_in0_beep.dev_attr.attr,
-	&sensor_dev_attr_in1_beep.dev_attr.attr,
-	&sensor_dev_attr_in2_beep.dev_attr.attr,
-	&sensor_dev_attr_in3_beep.dev_attr.attr,
-	&sensor_dev_attr_in4_beep.dev_attr.attr,
-	&sensor_dev_attr_in5_beep.dev_attr.attr,
-	&sensor_dev_attr_in6_beep.dev_attr.attr,
-	&sensor_dev_attr_in7_beep.dev_attr.attr,
-	NULL,
-	NULL,
-};
+static umode_t it87_fan_is_visible(struct kobject *kobj,
+				   struct attribute *attr, int index)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct it87_data *data = dev_get_drvdata(dev);
+	int i = index / 5;	/* fan index */
+	int a = index % 5;	/* attribute index */
 
-static struct attribute *it87_attributes_temp_beep[] = {
-	&sensor_dev_attr_temp1_beep.dev_attr.attr,
-	&sensor_dev_attr_temp2_beep.dev_attr.attr,
-	&sensor_dev_attr_temp3_beep.dev_attr.attr,
-};
+	if (index >= 15) {	/* fan 4..6 don't have divisor attributes */
+		i = (index - 15) / 4 + 3;
+		a = (index - 15) % 4;
+	}
 
-static struct attribute *it87_attributes_fan[6][3+1] = { {
+	if (!(data->has_fan & BIT(i)))
+		return 0;
+
+	if (a == 3) {				/* beep */
+		if (!data->has_beep)
+			return 0;
+		/* first fan beep attribute is writable */
+		if (i == __ffs(data->has_fan))
+			return attr->mode | S_IWUSR;
+	}
+
+	if (a == 4 && has_16bit_fans(data))	/* divisor */
+		return 0;
+
+	return attr->mode;
+}
+
+static struct attribute *it87_attributes_fan[] = {
 	&sensor_dev_attr_fan1_input.dev_attr.attr,
 	&sensor_dev_attr_fan1_min.dev_attr.attr,
 	&sensor_dev_attr_fan1_alarm.dev_attr.attr,
-	NULL
-}, {
+	&sensor_dev_attr_fan1_beep.dev_attr.attr,	/* 3 */
+	&sensor_dev_attr_fan1_div.dev_attr.attr,	/* 4 */
+
 	&sensor_dev_attr_fan2_input.dev_attr.attr,
 	&sensor_dev_attr_fan2_min.dev_attr.attr,
 	&sensor_dev_attr_fan2_alarm.dev_attr.attr,
-	NULL
-}, {
+	&sensor_dev_attr_fan2_beep.dev_attr.attr,
+	&sensor_dev_attr_fan2_div.dev_attr.attr,	/* 9 */
+
 	&sensor_dev_attr_fan3_input.dev_attr.attr,
 	&sensor_dev_attr_fan3_min.dev_attr.attr,
 	&sensor_dev_attr_fan3_alarm.dev_attr.attr,
-	NULL
-}, {
-	&sensor_dev_attr_fan4_input.dev_attr.attr,
+	&sensor_dev_attr_fan3_beep.dev_attr.attr,
+	&sensor_dev_attr_fan3_div.dev_attr.attr,	/* 14 */
+
+	&sensor_dev_attr_fan4_input.dev_attr.attr,	/* 15 */
 	&sensor_dev_attr_fan4_min.dev_attr.attr,
 	&sensor_dev_attr_fan4_alarm.dev_attr.attr,
-	NULL
-}, {
-	&sensor_dev_attr_fan5_input.dev_attr.attr,
+	&sensor_dev_attr_fan4_beep.dev_attr.attr,
+
+	&sensor_dev_attr_fan5_input.dev_attr.attr,	/* 19 */
 	&sensor_dev_attr_fan5_min.dev_attr.attr,
 	&sensor_dev_attr_fan5_alarm.dev_attr.attr,
-	NULL
-}, {
-	&sensor_dev_attr_fan6_input.dev_attr.attr,
+	&sensor_dev_attr_fan5_beep.dev_attr.attr,
+
+	&sensor_dev_attr_fan6_input.dev_attr.attr,	/* 23 */
 	&sensor_dev_attr_fan6_min.dev_attr.attr,
 	&sensor_dev_attr_fan6_alarm.dev_attr.attr,
+	&sensor_dev_attr_fan6_beep.dev_attr.attr,
 	NULL
-} };
-
-static const struct attribute_group it87_group_fan[6] = {
-	{ .attrs = it87_attributes_fan[0] },
-	{ .attrs = it87_attributes_fan[1] },
-	{ .attrs = it87_attributes_fan[2] },
-	{ .attrs = it87_attributes_fan[3] },
-	{ .attrs = it87_attributes_fan[4] },
-	{ .attrs = it87_attributes_fan[5] },
 };
 
-static const struct attribute *it87_attributes_fan_div[] = {
-	&sensor_dev_attr_fan1_div.dev_attr.attr,
-	&sensor_dev_attr_fan2_div.dev_attr.attr,
-	&sensor_dev_attr_fan3_div.dev_attr.attr,
+static const struct attribute_group it87_group_fan = {
+	.attrs = it87_attributes_fan,
+	.is_visible = it87_fan_is_visible,
 };
 
-static struct attribute *it87_attributes_pwm[3][4+1] = { {
+static umode_t it87_pwm_is_visible(struct kobject *kobj,
+				   struct attribute *attr, int index)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct it87_data *data = dev_get_drvdata(dev);
+	int i = index / 4;	/* pwm index */
+	int a = index % 4;	/* attribute index */
+
+	if (!(data->has_pwm & BIT(i)))
+		return 0;
+
+	/* pwmX_auto_channels_temp is only writable if auto pwm is supported */
+	if (a == 3 && (has_old_autopwm(data) || has_newer_autopwm(data)))
+		return attr->mode | S_IWUSR;
+
+	/* pwm2_freq is writable if there are two pwm frequency selects */
+	if (has_pwm_freq2(data) && i == 1 && a == 2)
+		return attr->mode | S_IWUSR;
+
+	return attr->mode;
+}
+
+static struct attribute *it87_attributes_pwm[] = {
 	&sensor_dev_attr_pwm1_enable.dev_attr.attr,
 	&sensor_dev_attr_pwm1.dev_attr.attr,
-	&dev_attr_pwm1_freq.attr,
+	&sensor_dev_attr_pwm1_freq.dev_attr.attr,
 	&sensor_dev_attr_pwm1_auto_channels_temp.dev_attr.attr,
-	NULL
-}, {
+
 	&sensor_dev_attr_pwm2_enable.dev_attr.attr,
 	&sensor_dev_attr_pwm2.dev_attr.attr,
-	&dev_attr_pwm2_freq.attr,
+	&sensor_dev_attr_pwm2_freq.dev_attr.attr,
 	&sensor_dev_attr_pwm2_auto_channels_temp.dev_attr.attr,
-	NULL
-}, {
+
 	&sensor_dev_attr_pwm3_enable.dev_attr.attr,
 	&sensor_dev_attr_pwm3.dev_attr.attr,
-	&dev_attr_pwm3_freq.attr,
+	&sensor_dev_attr_pwm3_freq.dev_attr.attr,
 	&sensor_dev_attr_pwm3_auto_channels_temp.dev_attr.attr,
-	NULL
-} };
 
-static const struct attribute_group it87_group_pwm[3] = {
-	{ .attrs = it87_attributes_pwm[0] },
-	{ .attrs = it87_attributes_pwm[1] },
-	{ .attrs = it87_attributes_pwm[2] },
+	&sensor_dev_attr_pwm4_enable.dev_attr.attr,
+	&sensor_dev_attr_pwm4.dev_attr.attr,
+	&sensor_dev_attr_pwm4_freq.dev_attr.attr,
+	&sensor_dev_attr_pwm4_auto_channels_temp.dev_attr.attr,
+
+	&sensor_dev_attr_pwm5_enable.dev_attr.attr,
+	&sensor_dev_attr_pwm5.dev_attr.attr,
+	&sensor_dev_attr_pwm5_freq.dev_attr.attr,
+	&sensor_dev_attr_pwm5_auto_channels_temp.dev_attr.attr,
+
+	&sensor_dev_attr_pwm6_enable.dev_attr.attr,
+	&sensor_dev_attr_pwm6.dev_attr.attr,
+	&sensor_dev_attr_pwm6_freq.dev_attr.attr,
+	&sensor_dev_attr_pwm6_auto_channels_temp.dev_attr.attr,
+
+	NULL
 };
 
-static struct attribute *it87_attributes_autopwm[3][9+1] = { {
+static const struct attribute_group it87_group_pwm = {
+	.attrs = it87_attributes_pwm,
+	.is_visible = it87_pwm_is_visible,
+};
+
+static umode_t it87_auto_pwm_is_visible(struct kobject *kobj,
+					struct attribute *attr, int index)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct it87_data *data = dev_get_drvdata(dev);
+	int i = index / 11;	/* pwm index */
+	int a = index % 11;	/* attribute index */
+
+	if (index >= 33) {	/* pwm 4..6 */
+		i = (index - 33) / 6 + 3;
+		a = (index - 33) % 6 + 4;
+	}
+
+	if (!(data->has_pwm & BIT(i)))
+		return 0;
+
+	if (has_newer_autopwm(data)) {
+		if (a < 4)	/* no auto point pwm */
+			return 0;
+		if (a == 8)	/* no auto_point4 */
+			return 0;
+	}
+	if (has_old_autopwm(data)) {
+		if (a >= 9)	/* no pwm_auto_start, pwm_auto_slope */
+			return 0;
+	}
+
+	return attr->mode;
+}
+
+static struct attribute *it87_attributes_auto_pwm[] = {
 	&sensor_dev_attr_pwm1_auto_point1_pwm.dev_attr.attr,
 	&sensor_dev_attr_pwm1_auto_point2_pwm.dev_attr.attr,
 	&sensor_dev_attr_pwm1_auto_point3_pwm.dev_attr.attr,
@@ -1778,9 +2287,10 @@ static struct attribute *it87_attributes_autopwm[3][9+1] = { {
 	&sensor_dev_attr_pwm1_auto_point2_temp.dev_attr.attr,
 	&sensor_dev_attr_pwm1_auto_point3_temp.dev_attr.attr,
 	&sensor_dev_attr_pwm1_auto_point4_temp.dev_attr.attr,
-	NULL
-}, {
-	&sensor_dev_attr_pwm2_auto_point1_pwm.dev_attr.attr,
+	&sensor_dev_attr_pwm1_auto_start.dev_attr.attr,
+	&sensor_dev_attr_pwm1_auto_slope.dev_attr.attr,
+
+	&sensor_dev_attr_pwm2_auto_point1_pwm.dev_attr.attr,	/* 11 */
 	&sensor_dev_attr_pwm2_auto_point2_pwm.dev_attr.attr,
 	&sensor_dev_attr_pwm2_auto_point3_pwm.dev_attr.attr,
 	&sensor_dev_attr_pwm2_auto_point4_pwm.dev_attr.attr,
@@ -1789,9 +2299,10 @@ static struct attribute *it87_attributes_autopwm[3][9+1] = { {
 	&sensor_dev_attr_pwm2_auto_point2_temp.dev_attr.attr,
 	&sensor_dev_attr_pwm2_auto_point3_temp.dev_attr.attr,
 	&sensor_dev_attr_pwm2_auto_point4_temp.dev_attr.attr,
-	NULL
-}, {
-	&sensor_dev_attr_pwm3_auto_point1_pwm.dev_attr.attr,
+	&sensor_dev_attr_pwm2_auto_start.dev_attr.attr,
+	&sensor_dev_attr_pwm2_auto_slope.dev_attr.attr,
+
+	&sensor_dev_attr_pwm3_auto_point1_pwm.dev_attr.attr,	/* 22 */
 	&sensor_dev_attr_pwm3_auto_point2_pwm.dev_attr.attr,
 	&sensor_dev_attr_pwm3_auto_point3_pwm.dev_attr.attr,
 	&sensor_dev_attr_pwm3_auto_point4_pwm.dev_attr.attr,
@@ -1800,61 +2311,53 @@ static struct attribute *it87_attributes_autopwm[3][9+1] = { {
 	&sensor_dev_attr_pwm3_auto_point2_temp.dev_attr.attr,
 	&sensor_dev_attr_pwm3_auto_point3_temp.dev_attr.attr,
 	&sensor_dev_attr_pwm3_auto_point4_temp.dev_attr.attr,
-	NULL
-} };
+	&sensor_dev_attr_pwm3_auto_start.dev_attr.attr,
+	&sensor_dev_attr_pwm3_auto_slope.dev_attr.attr,
 
-static const struct attribute_group it87_group_autopwm[3] = {
-	{ .attrs = it87_attributes_autopwm[0] },
-	{ .attrs = it87_attributes_autopwm[1] },
-	{ .attrs = it87_attributes_autopwm[2] },
+	&sensor_dev_attr_pwm4_auto_point1_temp.dev_attr.attr,	/* 33 */
+	&sensor_dev_attr_pwm4_auto_point1_temp_hyst.dev_attr.attr,
+	&sensor_dev_attr_pwm4_auto_point2_temp.dev_attr.attr,
+	&sensor_dev_attr_pwm4_auto_point3_temp.dev_attr.attr,
+	&sensor_dev_attr_pwm4_auto_start.dev_attr.attr,
+	&sensor_dev_attr_pwm4_auto_slope.dev_attr.attr,
+
+	&sensor_dev_attr_pwm5_auto_point1_temp.dev_attr.attr,
+	&sensor_dev_attr_pwm5_auto_point1_temp_hyst.dev_attr.attr,
+	&sensor_dev_attr_pwm5_auto_point2_temp.dev_attr.attr,
+	&sensor_dev_attr_pwm5_auto_point3_temp.dev_attr.attr,
+	&sensor_dev_attr_pwm5_auto_start.dev_attr.attr,
+	&sensor_dev_attr_pwm5_auto_slope.dev_attr.attr,
+
+	&sensor_dev_attr_pwm6_auto_point1_temp.dev_attr.attr,
+	&sensor_dev_attr_pwm6_auto_point1_temp_hyst.dev_attr.attr,
+	&sensor_dev_attr_pwm6_auto_point2_temp.dev_attr.attr,
+	&sensor_dev_attr_pwm6_auto_point3_temp.dev_attr.attr,
+	&sensor_dev_attr_pwm6_auto_start.dev_attr.attr,
+	&sensor_dev_attr_pwm6_auto_slope.dev_attr.attr,
+
+	NULL,
 };
 
-static struct attribute *it87_attributes_fan_beep[] = {
-	&sensor_dev_attr_fan1_beep.dev_attr.attr,
-	&sensor_dev_attr_fan2_beep.dev_attr.attr,
-	&sensor_dev_attr_fan3_beep.dev_attr.attr,
-	&sensor_dev_attr_fan4_beep.dev_attr.attr,
-	&sensor_dev_attr_fan5_beep.dev_attr.attr,
-	&sensor_dev_attr_fan6_beep.dev_attr.attr,
-};
-
-static struct attribute *it87_attributes_vid[] = {
-	&dev_attr_vrm.attr,
-	&dev_attr_cpu0_vid.attr,
-	NULL
-};
-
-static const struct attribute_group it87_group_vid = {
-	.attrs = it87_attributes_vid,
-};
-
-static struct attribute *it87_attributes_label[] = {
-	&sensor_dev_attr_in3_label.dev_attr.attr,
-	&sensor_dev_attr_in7_label.dev_attr.attr,
-	&sensor_dev_attr_in8_label.dev_attr.attr,
-	&sensor_dev_attr_in9_label.dev_attr.attr,
-	NULL
-};
-
-static const struct attribute_group it87_group_label = {
-	.attrs = it87_attributes_label,
+static const struct attribute_group it87_group_auto_pwm = {
+	.attrs = it87_attributes_auto_pwm,
+	.is_visible = it87_auto_pwm_is_visible,
 };
 
 /* SuperIO detection - will change isa_address if a chip is found */
-static int __init it87_find(unsigned short *address,
-	struct it87_sio_data *sio_data)
+static int __init it87_find(int sioaddr, unsigned short *address,
+			    struct it87_sio_data *sio_data)
 {
 	int err;
 	u16 chip_type;
 	const char *board_vendor, *board_name;
 	const struct it87_devices *config;
 
-	err = superio_enter();
+	err = superio_enter(sioaddr);
 	if (err)
 		return err;
 
 	err = -ENODEV;
-	chip_type = force_id ? force_id : superio_inw(DEVID);
+	chip_type = force_id ? force_id : superio_inw(sioaddr, DEVID);
 
 	switch (chip_type) {
 	case IT8705F_DEVID:
@@ -1910,6 +2413,9 @@ static int __init it87_find(unsigned short *address,
 	case IT8620E_DEVID:
 		sio_data->type = it8620;
 		break;
+	case IT8628E_DEVID:
+		sio_data->type = it8628;
+		break;
 	case 0xffff:	/* No device at all */
 		goto exit;
 	default:
@@ -1917,20 +2423,20 @@ static int __init it87_find(unsigned short *address,
 		goto exit;
 	}
 
-	superio_select(PME);
-	if (!(superio_inb(IT87_ACT_REG) & 0x01)) {
+	superio_select(sioaddr, PME);
+	if (!(superio_inb(sioaddr, IT87_ACT_REG) & 0x01)) {
 		pr_info("Device not activated, skipping\n");
 		goto exit;
 	}
 
-	*address = superio_inw(IT87_BASE_REG) & ~(IT87_EXTENT - 1);
+	*address = superio_inw(sioaddr, IT87_BASE_REG) & ~(IT87_EXTENT - 1);
 	if (*address == 0) {
 		pr_info("Base address not set, skipping\n");
 		goto exit;
 	}
 
 	err = 0;
-	sio_data->revision = superio_inb(DEVREV) & 0x0f;
+	sio_data->revision = superio_inb(sioaddr, DEVREV) & 0x0f;
 	pr_info("Found IT%04x%s chip at 0x%x, revision %d\n", chip_type,
 		it87_devices[sio_data->type].suffix,
 		*address, sio_data->revision);
@@ -1939,14 +2445,19 @@ static int __init it87_find(unsigned short *address,
 
 	/* in7 (VSB or VCCH5V) is always internal on some chips */
 	if (has_in7_internal(config))
-		sio_data->internal |= (1 << 1);
+		sio_data->internal |= BIT(1);
 
 	/* in8 (Vbat) is always internal */
-	sio_data->internal |= (1 << 2);
+	sio_data->internal |= BIT(2);
 
-	/* Only the IT8603E has in9 */
-	if (sio_data->type != it8603)
-		sio_data->skip_in |= (1 << 9);
+	/* in9 (AVCC3), always internal if supported */
+	if (has_avcc3(config))
+		sio_data->internal |= BIT(3); /* in9 is AVCC */
+	else
+		sio_data->skip_in |= BIT(9);
+
+	if (!has_six_pwm(config))
+		sio_data->skip_pwm |= BIT(3) | BIT(4) | BIT(5);
 
 	if (!has_vid(config))
 		sio_data->skip_vid = 1;
@@ -1954,45 +2465,46 @@ static int __init it87_find(unsigned short *address,
 	/* Read GPIO config and VID value from LDN 7 (GPIO) */
 	if (sio_data->type == it87) {
 		/* The IT8705F has a different LD number for GPIO */
-		superio_select(5);
-		sio_data->beep_pin = superio_inb(IT87_SIO_BEEP_PIN_REG) & 0x3f;
+		superio_select(sioaddr, 5);
+		sio_data->beep_pin = superio_inb(sioaddr,
+						 IT87_SIO_BEEP_PIN_REG) & 0x3f;
 	} else if (sio_data->type == it8783) {
 		int reg25, reg27, reg2a, reg2c, regef;
 
-		superio_select(GPIO);
+		superio_select(sioaddr, GPIO);
 
-		reg25 = superio_inb(IT87_SIO_GPIO1_REG);
-		reg27 = superio_inb(IT87_SIO_GPIO3_REG);
-		reg2a = superio_inb(IT87_SIO_PINX1_REG);
-		reg2c = superio_inb(IT87_SIO_PINX2_REG);
-		regef = superio_inb(IT87_SIO_SPI_REG);
+		reg25 = superio_inb(sioaddr, IT87_SIO_GPIO1_REG);
+		reg27 = superio_inb(sioaddr, IT87_SIO_GPIO3_REG);
+		reg2a = superio_inb(sioaddr, IT87_SIO_PINX1_REG);
+		reg2c = superio_inb(sioaddr, IT87_SIO_PINX2_REG);
+		regef = superio_inb(sioaddr, IT87_SIO_SPI_REG);
 
 		/* Check if fan3 is there or not */
-		if ((reg27 & (1 << 0)) || !(reg2c & (1 << 2)))
-			sio_data->skip_fan |= (1 << 2);
-		if ((reg25 & (1 << 4))
-		    || (!(reg2a & (1 << 1)) && (regef & (1 << 0))))
-			sio_data->skip_pwm |= (1 << 2);
+		if ((reg27 & BIT(0)) || !(reg2c & BIT(2)))
+			sio_data->skip_fan |= BIT(2);
+		if ((reg25 & BIT(4)) ||
+		    (!(reg2a & BIT(1)) && (regef & BIT(0))))
+			sio_data->skip_pwm |= BIT(2);
 
 		/* Check if fan2 is there or not */
-		if (reg27 & (1 << 7))
-			sio_data->skip_fan |= (1 << 1);
-		if (reg27 & (1 << 3))
-			sio_data->skip_pwm |= (1 << 1);
+		if (reg27 & BIT(7))
+			sio_data->skip_fan |= BIT(1);
+		if (reg27 & BIT(3))
+			sio_data->skip_pwm |= BIT(1);
 
 		/* VIN5 */
-		if ((reg27 & (1 << 0)) || (reg2c & (1 << 2)))
-			sio_data->skip_in |= (1 << 5); /* No VIN5 */
+		if ((reg27 & BIT(0)) || (reg2c & BIT(2)))
+			sio_data->skip_in |= BIT(5); /* No VIN5 */
 
 		/* VIN6 */
-		if (reg27 & (1 << 1))
-			sio_data->skip_in |= (1 << 6); /* No VIN6 */
+		if (reg27 & BIT(1))
+			sio_data->skip_in |= BIT(6); /* No VIN6 */
 
 		/*
 		 * VIN7
 		 * Does not depend on bit 2 of Reg2C, contrary to datasheet.
 		 */
-		if (reg27 & (1 << 2)) {
+		if (reg27 & BIT(2)) {
 			/*
 			 * The data sheet is a bit unclear regarding the
 			 * internal voltage divider for VCCH5V. It says
@@ -2006,81 +2518,121 @@ static int __init it87_find(unsigned short *address,
 			 * not the case, and ask the user to report if the
 			 * resulting voltage is sane.
 			 */
-			if (!(reg2c & (1 << 1))) {
-				reg2c |= (1 << 1);
-				superio_outb(IT87_SIO_PINX2_REG, reg2c);
+			if (!(reg2c & BIT(1))) {
+				reg2c |= BIT(1);
+				superio_outb(sioaddr, IT87_SIO_PINX2_REG,
+					     reg2c);
 				pr_notice("Routing internal VCCH5V to in7.\n");
 			}
 			pr_notice("in7 routed to internal voltage divider, with external pin disabled.\n");
 			pr_notice("Please report if it displays a reasonable voltage.\n");
 		}
 
-		if (reg2c & (1 << 0))
-			sio_data->internal |= (1 << 0);
-		if (reg2c & (1 << 1))
-			sio_data->internal |= (1 << 1);
+		if (reg2c & BIT(0))
+			sio_data->internal |= BIT(0);
+		if (reg2c & BIT(1))
+			sio_data->internal |= BIT(1);
 
-		sio_data->beep_pin = superio_inb(IT87_SIO_BEEP_PIN_REG) & 0x3f;
+		sio_data->beep_pin = superio_inb(sioaddr,
+						 IT87_SIO_BEEP_PIN_REG) & 0x3f;
 	} else if (sio_data->type == it8603) {
 		int reg27, reg29;
 
-		superio_select(GPIO);
+		superio_select(sioaddr, GPIO);
 
-		reg27 = superio_inb(IT87_SIO_GPIO3_REG);
+		reg27 = superio_inb(sioaddr, IT87_SIO_GPIO3_REG);
 
 		/* Check if fan3 is there or not */
-		if (reg27 & (1 << 6))
-			sio_data->skip_pwm |= (1 << 2);
-		if (reg27 & (1 << 7))
-			sio_data->skip_fan |= (1 << 2);
+		if (reg27 & BIT(6))
+			sio_data->skip_pwm |= BIT(2);
+		if (reg27 & BIT(7))
+			sio_data->skip_fan |= BIT(2);
 
 		/* Check if fan2 is there or not */
-		reg29 = superio_inb(IT87_SIO_GPIO5_REG);
-		if (reg29 & (1 << 1))
-			sio_data->skip_pwm |= (1 << 1);
-		if (reg29 & (1 << 2))
-			sio_data->skip_fan |= (1 << 1);
+		reg29 = superio_inb(sioaddr, IT87_SIO_GPIO5_REG);
+		if (reg29 & BIT(1))
+			sio_data->skip_pwm |= BIT(1);
+		if (reg29 & BIT(2))
+			sio_data->skip_fan |= BIT(1);
 
-		sio_data->skip_in |= (1 << 5); /* No VIN5 */
-		sio_data->skip_in |= (1 << 6); /* No VIN6 */
+		sio_data->skip_in |= BIT(5); /* No VIN5 */
+		sio_data->skip_in |= BIT(6); /* No VIN6 */
 
-		sio_data->internal |= (1 << 3); /* in9 is AVCC */
-
-		sio_data->beep_pin = superio_inb(IT87_SIO_BEEP_PIN_REG) & 0x3f;
-	} else if (sio_data->type == it8620) {
+		sio_data->beep_pin = superio_inb(sioaddr,
+						 IT87_SIO_BEEP_PIN_REG) & 0x3f;
+	} else if (sio_data->type == it8620 || sio_data->type == it8628) {
 		int reg;
 
-		superio_select(GPIO);
+		superio_select(sioaddr, GPIO);
+
+		/* Check for pwm5 */
+		reg = superio_inb(sioaddr, IT87_SIO_GPIO1_REG);
+		if (reg & BIT(6))
+			sio_data->skip_pwm |= BIT(4);
 
 		/* Check for fan4, fan5 */
-		reg = superio_inb(IT87_SIO_GPIO2_REG);
-		if (!(reg & (1 << 5)))
-			sio_data->skip_fan |= (1 << 3);
-		if (!(reg & (1 << 4)))
-			sio_data->skip_fan |= (1 << 4);
+		reg = superio_inb(sioaddr, IT87_SIO_GPIO2_REG);
+		if (!(reg & BIT(5)))
+			sio_data->skip_fan |= BIT(3);
+		if (!(reg & BIT(4)))
+			sio_data->skip_fan |= BIT(4);
 
 		/* Check for pwm3, fan3 */
-		reg = superio_inb(IT87_SIO_GPIO3_REG);
-		if (reg & (1 << 6))
-			sio_data->skip_pwm |= (1 << 2);
-		if (reg & (1 << 7))
-			sio_data->skip_fan |= (1 << 2);
+		reg = superio_inb(sioaddr, IT87_SIO_GPIO3_REG);
+		if (reg & BIT(6))
+			sio_data->skip_pwm |= BIT(2);
+		if (reg & BIT(7))
+			sio_data->skip_fan |= BIT(2);
+
+		/* Check for pwm4 */
+		reg = superio_inb(sioaddr, IT87_SIO_GPIO4_REG);
+		if (!(reg & BIT(2)))
+			sio_data->skip_pwm |= BIT(3);
 
 		/* Check for pwm2, fan2 */
-		reg = superio_inb(IT87_SIO_GPIO5_REG);
-		if (reg & (1 << 1))
-			sio_data->skip_pwm |= (1 << 1);
-		if (reg & (1 << 2))
-			sio_data->skip_fan |= (1 << 1);
+		reg = superio_inb(sioaddr, IT87_SIO_GPIO5_REG);
+		if (reg & BIT(1))
+			sio_data->skip_pwm |= BIT(1);
+		if (reg & BIT(2))
+			sio_data->skip_fan |= BIT(1);
+		/* Check for pwm6, fan6 */
+		if (!(reg & BIT(7))) {
+			sio_data->skip_pwm |= BIT(5);
+			sio_data->skip_fan |= BIT(5);
+		}
 
-		sio_data->beep_pin = superio_inb(IT87_SIO_BEEP_PIN_REG) & 0x3f;
+		sio_data->beep_pin = superio_inb(sioaddr,
+						 IT87_SIO_BEEP_PIN_REG) & 0x3f;
 	} else {
 		int reg;
 		bool uart6;
 
-		superio_select(GPIO);
+		superio_select(sioaddr, GPIO);
 
-		reg = superio_inb(IT87_SIO_GPIO3_REG);
+		/* Check for fan4, fan5 */
+		if (has_five_fans(config)) {
+			reg = superio_inb(sioaddr, IT87_SIO_GPIO2_REG);
+			switch (sio_data->type) {
+			case it8718:
+				if (reg & BIT(5))
+					sio_data->skip_fan |= BIT(3);
+				if (reg & BIT(4))
+					sio_data->skip_fan |= BIT(4);
+				break;
+			case it8720:
+			case it8721:
+			case it8728:
+				if (!(reg & BIT(5)))
+					sio_data->skip_fan |= BIT(3);
+				if (!(reg & BIT(4)))
+					sio_data->skip_fan |= BIT(4);
+				break;
+			default:
+				break;
+			}
+		}
+
+		reg = superio_inb(sioaddr, IT87_SIO_GPIO3_REG);
 		if (!sio_data->skip_vid) {
 			/* We need at least 4 VID pins */
 			if (reg & 0x0f) {
@@ -2090,25 +2642,26 @@ static int __init it87_find(unsigned short *address,
 		}
 
 		/* Check if fan3 is there or not */
-		if (reg & (1 << 6))
-			sio_data->skip_pwm |= (1 << 2);
-		if (reg & (1 << 7))
-			sio_data->skip_fan |= (1 << 2);
+		if (reg & BIT(6))
+			sio_data->skip_pwm |= BIT(2);
+		if (reg & BIT(7))
+			sio_data->skip_fan |= BIT(2);
 
 		/* Check if fan2 is there or not */
-		reg = superio_inb(IT87_SIO_GPIO5_REG);
-		if (reg & (1 << 1))
-			sio_data->skip_pwm |= (1 << 1);
-		if (reg & (1 << 2))
-			sio_data->skip_fan |= (1 << 1);
+		reg = superio_inb(sioaddr, IT87_SIO_GPIO5_REG);
+		if (reg & BIT(1))
+			sio_data->skip_pwm |= BIT(1);
+		if (reg & BIT(2))
+			sio_data->skip_fan |= BIT(1);
 
-		if ((sio_data->type == it8718 || sio_data->type == it8720)
-		 && !(sio_data->skip_vid))
-			sio_data->vid_value = superio_inb(IT87_SIO_VID_REG);
+		if ((sio_data->type == it8718 || sio_data->type == it8720) &&
+		    !(sio_data->skip_vid))
+			sio_data->vid_value = superio_inb(sioaddr,
+							  IT87_SIO_VID_REG);
 
-		reg = superio_inb(IT87_SIO_PINX2_REG);
+		reg = superio_inb(sioaddr, IT87_SIO_PINX2_REG);
 
-		uart6 = sio_data->type == it8782 && (reg & (1 << 2));
+		uart6 = sio_data->type == it8782 && (reg & BIT(2));
 
 		/*
 		 * The IT8720F has no VIN7 pin, so VCCH should always be
@@ -2124,15 +2677,15 @@ static int __init it87_find(unsigned short *address,
 		 * If UART6 is enabled, re-route VIN7 to the internal divider
 		 * if that is not already the case.
 		 */
-		if ((sio_data->type == it8720 || uart6) && !(reg & (1 << 1))) {
-			reg |= (1 << 1);
-			superio_outb(IT87_SIO_PINX2_REG, reg);
+		if ((sio_data->type == it8720 || uart6) && !(reg & BIT(1))) {
+			reg |= BIT(1);
+			superio_outb(sioaddr, IT87_SIO_PINX2_REG, reg);
 			pr_notice("Routing internal VCCH to in7\n");
 		}
-		if (reg & (1 << 0))
-			sio_data->internal |= (1 << 0);
-		if (reg & (1 << 1))
-			sio_data->internal |= (1 << 1);
+		if (reg & BIT(0))
+			sio_data->internal |= BIT(0);
+		if (reg & BIT(1))
+			sio_data->internal |= BIT(1);
 
 		/*
 		 * On IT8782F, UART6 pins overlap with VIN5, VIN6, and VIN7.
@@ -2144,11 +2697,12 @@ static int __init it87_find(unsigned short *address,
 		 * temperature source here, skip_temp is preliminary.
 		 */
 		if (uart6) {
-			sio_data->skip_in |= (1 << 5) | (1 << 6);
-			sio_data->skip_temp |= (1 << 2);
+			sio_data->skip_in |= BIT(5) | BIT(6);
+			sio_data->skip_temp |= BIT(2);
 		}
 
-		sio_data->beep_pin = superio_inb(IT87_SIO_BEEP_PIN_REG) & 0x3f;
+		sio_data->beep_pin = superio_inb(sioaddr,
+						 IT87_SIO_BEEP_PIN_REG) & 0x3f;
 	}
 	if (sio_data->beep_pin)
 		pr_info("Beeping is supported\n");
@@ -2157,8 +2711,8 @@ static int __init it87_find(unsigned short *address,
 	board_vendor = dmi_get_system_info(DMI_BOARD_VENDOR);
 	board_name = dmi_get_system_info(DMI_BOARD_NAME);
 	if (board_vendor && board_name) {
-		if (strcmp(board_vendor, "nVIDIA") == 0
-		 && strcmp(board_name, "FN68PT") == 0) {
+		if (strcmp(board_vendor, "nVIDIA") == 0 &&
+		    strcmp(board_name, "FN68PT") == 0) {
 			/*
 			 * On the Shuttle SN68PT, FAN_CTL2 is apparently not
 			 * connected to a fan, but to something else. One user
@@ -2168,371 +2722,13 @@ static int __init it87_find(unsigned short *address,
 			 * the same board is ever used in other systems.
 			 */
 			pr_info("Disabling pwm2 due to hardware constraints\n");
-			sio_data->skip_pwm = (1 << 1);
+			sio_data->skip_pwm = BIT(1);
 		}
 	}
 
 exit:
-	superio_exit();
+	superio_exit(sioaddr);
 	return err;
-}
-
-static void it87_remove_files(struct device *dev)
-{
-	struct it87_data *data = platform_get_drvdata(pdev);
-	struct it87_sio_data *sio_data = dev_get_platdata(dev);
-	int i;
-
-	sysfs_remove_group(&dev->kobj, &it87_group);
-	for (i = 0; i < 10; i++) {
-		if (sio_data->skip_in & (1 << i))
-			continue;
-		sysfs_remove_group(&dev->kobj, &it87_group_in[i]);
-		if (it87_attributes_in_beep[i])
-			sysfs_remove_file(&dev->kobj,
-					  it87_attributes_in_beep[i]);
-	}
-	for (i = 0; i < 3; i++) {
-		if (!(data->has_temp & (1 << i)))
-			continue;
-		sysfs_remove_group(&dev->kobj, &it87_group_temp[i]);
-		if (has_temp_offset(data))
-			sysfs_remove_file(&dev->kobj,
-					  it87_attributes_temp_offset[i]);
-		if (sio_data->beep_pin)
-			sysfs_remove_file(&dev->kobj,
-					  it87_attributes_temp_beep[i]);
-	}
-	for (i = 0; i < 6; i++) {
-		if (!(data->has_fan & (1 << i)))
-			continue;
-		sysfs_remove_group(&dev->kobj, &it87_group_fan[i]);
-		if (sio_data->beep_pin)
-			sysfs_remove_file(&dev->kobj,
-					  it87_attributes_fan_beep[i]);
-		if (i < 3 && !has_16bit_fans(data))
-			sysfs_remove_file(&dev->kobj,
-					  it87_attributes_fan_div[i]);
-	}
-	for (i = 0; i < 3; i++) {
-		if (sio_data->skip_pwm & (1 << i))
-			continue;
-		sysfs_remove_group(&dev->kobj, &it87_group_pwm[i]);
-		if (has_old_autopwm(data))
-			sysfs_remove_group(&dev->kobj,
-					   &it87_group_autopwm[i]);
-	}
-	if (!sio_data->skip_vid)
-		sysfs_remove_group(&dev->kobj, &it87_group_vid);
-	sysfs_remove_group(&dev->kobj, &it87_group_label);
-}
-
-static int it87_probe(struct platform_device *pdev)
-{
-	struct it87_data *data;
-	struct resource *res;
-	struct device *dev = &pdev->dev;
-	struct it87_sio_data *sio_data = dev_get_platdata(dev);
-	int err = 0, i;
-	int enable_pwm_interface;
-	int fan_beep_need_rw;
-
-	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
-	if (!devm_request_region(&pdev->dev, res->start, IT87_EC_EXTENT,
-				 DRVNAME)) {
-		dev_err(dev, "Failed to request region 0x%lx-0x%lx\n",
-			(unsigned long)res->start,
-			(unsigned long)(res->start + IT87_EC_EXTENT - 1));
-		return -EBUSY;
-	}
-
-	data = devm_kzalloc(&pdev->dev, sizeof(struct it87_data), GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
-
-	data->addr = res->start;
-	data->type = sio_data->type;
-	data->features = it87_devices[sio_data->type].features;
-	data->peci_mask = it87_devices[sio_data->type].peci_mask;
-	data->old_peci_mask = it87_devices[sio_data->type].old_peci_mask;
-	data->name = it87_devices[sio_data->type].name;
-	/*
-	 * IT8705F Datasheet 0.4.1, 3h == Version G.
-	 * IT8712F Datasheet 0.9.1, section 8.3.5 indicates 8h == Version J.
-	 * These are the first revisions with 16-bit tachometer support.
-	 */
-	switch (data->type) {
-	case it87:
-		if (sio_data->revision >= 0x03) {
-			data->features &= ~FEAT_OLD_AUTOPWM;
-			data->features |= FEAT_FAN16_CONFIG | FEAT_16BIT_FANS;
-		}
-		break;
-	case it8712:
-		if (sio_data->revision >= 0x08) {
-			data->features &= ~FEAT_OLD_AUTOPWM;
-			data->features |= FEAT_FAN16_CONFIG | FEAT_16BIT_FANS |
-					  FEAT_FIVE_FANS;
-		}
-		break;
-	default:
-		break;
-	}
-
-	/* Now, we do the remaining detection. */
-	if ((it87_read_value(data, IT87_REG_CONFIG) & 0x80)
-	 || it87_read_value(data, IT87_REG_CHIPID) != 0x90)
-		return -ENODEV;
-
-	platform_set_drvdata(pdev, data);
-
-	mutex_init(&data->update_lock);
-
-	/* Check PWM configuration */
-	enable_pwm_interface = it87_check_pwm(dev);
-
-	/* Starting with IT8721F, we handle scaling of internal voltages */
-	if (has_12mv_adc(data)) {
-		if (sio_data->internal & (1 << 0))
-			data->in_scaled |= (1 << 3);	/* in3 is AVCC */
-		if (sio_data->internal & (1 << 1))
-			data->in_scaled |= (1 << 7);	/* in7 is VSB */
-		if (sio_data->internal & (1 << 2))
-			data->in_scaled |= (1 << 8);	/* in8 is Vbat */
-		if (sio_data->internal & (1 << 3))
-			data->in_scaled |= (1 << 9);	/* in9 is AVCC */
-	} else if (sio_data->type == it8781 || sio_data->type == it8782 ||
-		   sio_data->type == it8783) {
-		if (sio_data->internal & (1 << 0))
-			data->in_scaled |= (1 << 3);	/* in3 is VCC5V */
-		if (sio_data->internal & (1 << 1))
-			data->in_scaled |= (1 << 7);	/* in7 is VCCH5V */
-	}
-
-	data->has_temp = 0x07;
-	if (sio_data->skip_temp & (1 << 2)) {
-		if (sio_data->type == it8782
-		    && !(it87_read_value(data, IT87_REG_TEMP_EXTRA) & 0x80))
-			data->has_temp &= ~(1 << 2);
-	}
-
-	/* Initialize the IT87 chip */
-	it87_init_device(pdev);
-
-	/* Register sysfs hooks */
-	err = sysfs_create_group(&dev->kobj, &it87_group);
-	if (err)
-		return err;
-
-	for (i = 0; i < 10; i++) {
-		if (sio_data->skip_in & (1 << i))
-			continue;
-		err = sysfs_create_group(&dev->kobj, &it87_group_in[i]);
-		if (err)
-			goto error;
-		if (sio_data->beep_pin && it87_attributes_in_beep[i]) {
-			err = sysfs_create_file(&dev->kobj,
-						it87_attributes_in_beep[i]);
-			if (err)
-				goto error;
-		}
-	}
-
-	for (i = 0; i < 3; i++) {
-		if (!(data->has_temp & (1 << i)))
-			continue;
-		err = sysfs_create_group(&dev->kobj, &it87_group_temp[i]);
-		if (err)
-			goto error;
-		if (has_temp_offset(data)) {
-			err = sysfs_create_file(&dev->kobj,
-						it87_attributes_temp_offset[i]);
-			if (err)
-				goto error;
-		}
-		if (sio_data->beep_pin) {
-			err = sysfs_create_file(&dev->kobj,
-						it87_attributes_temp_beep[i]);
-			if (err)
-				goto error;
-		}
-	}
-
-	/* Do not create fan files for disabled fans */
-	fan_beep_need_rw = 1;
-	for (i = 0; i < 6; i++) {
-		if (!(data->has_fan & (1 << i)))
-			continue;
-		err = sysfs_create_group(&dev->kobj, &it87_group_fan[i]);
-		if (err)
-			goto error;
-
-		if (i < 3 && !has_16bit_fans(data)) {
-			err = sysfs_create_file(&dev->kobj,
-						it87_attributes_fan_div[i]);
-			if (err)
-				goto error;
-		}
-
-		if (sio_data->beep_pin) {
-			err = sysfs_create_file(&dev->kobj,
-						it87_attributes_fan_beep[i]);
-			if (err)
-				goto error;
-			if (!fan_beep_need_rw)
-				continue;
-
-			/*
-			 * As we have a single beep enable bit for all fans,
-			 * only the first enabled fan has a writable attribute
-			 * for it.
-			 */
-			if (sysfs_chmod_file(&dev->kobj,
-					     it87_attributes_fan_beep[i],
-					     S_IRUGO | S_IWUSR))
-				dev_dbg(dev, "chmod +w fan%d_beep failed\n",
-					i + 1);
-			fan_beep_need_rw = 0;
-		}
-	}
-
-	if (enable_pwm_interface) {
-		for (i = 0; i < 3; i++) {
-			if (sio_data->skip_pwm & (1 << i))
-				continue;
-			err = sysfs_create_group(&dev->kobj,
-						 &it87_group_pwm[i]);
-			if (err)
-				goto error;
-
-			if (!has_old_autopwm(data))
-				continue;
-			err = sysfs_create_group(&dev->kobj,
-						 &it87_group_autopwm[i]);
-			if (err)
-				goto error;
-		}
-	}
-
-	if (!sio_data->skip_vid) {
-		data->vrm = vid_which_vrm();
-		/* VID reading from Super-I/O config space if available */
-		data->vid = sio_data->vid_value;
-		err = sysfs_create_group(&dev->kobj, &it87_group_vid);
-		if (err)
-			goto error;
-	}
-
-	/* Export labels for internal sensors */
-	for (i = 0; i < 4; i++) {
-		if (!(sio_data->internal & (1 << i)))
-			continue;
-		err = sysfs_create_file(&dev->kobj,
-					it87_attributes_label[i]);
-		if (err)
-			goto error;
-	}
-
-	data->hwmon_dev = hwmon_device_register(dev);
-	if (IS_ERR(data->hwmon_dev)) {
-		err = PTR_ERR(data->hwmon_dev);
-		goto error;
-	}
-
-	return 0;
-
-error:
-	it87_remove_files(dev);
-	return err;
-}
-
-static int it87_remove(struct platform_device *pdev)
-{
-	struct it87_data *data = platform_get_drvdata(pdev);
-
-	hwmon_device_unregister(data->hwmon_dev);
-	it87_remove_files(&pdev->dev);
-
-	return 0;
-}
-
-/*
- * Must be called with data->update_lock held, except during initialization.
- * We ignore the IT87 BUSY flag at this moment - it could lead to deadlocks,
- * would slow down the IT87 access and should not be necessary.
- */
-static int it87_read_value(struct it87_data *data, u8 reg)
-{
-	outb_p(reg, data->addr + IT87_ADDR_REG_OFFSET);
-	return inb_p(data->addr + IT87_DATA_REG_OFFSET);
-}
-
-/*
- * Must be called with data->update_lock held, except during initialization.
- * We ignore the IT87 BUSY flag at this moment - it could lead to deadlocks,
- * would slow down the IT87 access and should not be necessary.
- */
-static void it87_write_value(struct it87_data *data, u8 reg, u8 value)
-{
-	outb_p(reg, data->addr + IT87_ADDR_REG_OFFSET);
-	outb_p(value, data->addr + IT87_DATA_REG_OFFSET);
-}
-
-/* Return 1 if and only if the PWM interface is safe to use */
-static int it87_check_pwm(struct device *dev)
-{
-	struct it87_data *data = dev_get_drvdata(dev);
-	/*
-	 * Some BIOSes fail to correctly configure the IT87 fans. All fans off
-	 * and polarity set to active low is sign that this is the case so we
-	 * disable pwm control to protect the user.
-	 */
-	int tmp = it87_read_value(data, IT87_REG_FAN_CTL);
-	if ((tmp & 0x87) == 0) {
-		if (fix_pwm_polarity) {
-			/*
-			 * The user asks us to attempt a chip reconfiguration.
-			 * This means switching to active high polarity and
-			 * inverting all fan speed values.
-			 */
-			int i;
-			u8 pwm[3];
-
-			for (i = 0; i < 3; i++)
-				pwm[i] = it87_read_value(data,
-							 IT87_REG_PWM(i));
-
-			/*
-			 * If any fan is in automatic pwm mode, the polarity
-			 * might be correct, as suspicious as it seems, so we
-			 * better don't change anything (but still disable the
-			 * PWM interface).
-			 */
-			if (!((pwm[0] | pwm[1] | pwm[2]) & 0x80)) {
-				dev_info(dev,
-					 "Reconfiguring PWM to active high polarity\n");
-				it87_write_value(data, IT87_REG_FAN_CTL,
-						 tmp | 0x87);
-				for (i = 0; i < 3; i++)
-					it87_write_value(data,
-							 IT87_REG_PWM(i),
-							 0x7f & ~pwm[i]);
-				return 1;
-			}
-
-			dev_info(dev,
-				 "PWM configuration is too broken to be fixed\n");
-		}
-
-		dev_info(dev,
-			 "Detected broken BIOS defaults, disabling PWM interface\n");
-		return 0;
-	} else if (fix_pwm_polarity) {
-		dev_info(dev,
-			 "PWM configuration looks sane, won't touch\n");
-	}
-
-	return 1;
 }
 
 /* Called when we have found a new IT87. */
@@ -2556,7 +2752,7 @@ static void it87_init_device(struct platform_device *pdev)
 	 * these have separate registers for the temperature mapping and the
 	 * manual duty cycle.
 	 */
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < NUM_AUTO_PWM; i++) {
 		data->pwm_temp_map[i] = i;
 		data->pwm_duty[i] = 0x7f;	/* Full speed */
 		data->auto_pwm[i][3] = 0x7f;	/* Full speed, hard-coded */
@@ -2569,12 +2765,12 @@ static void it87_init_device(struct platform_device *pdev)
 	 * means -1 degree C, which surprisingly doesn't trigger an alarm,
 	 * but is still confusing, so change to 127 degrees C.
 	 */
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < NUM_VIN_LIMIT; i++) {
 		tmp = it87_read_value(data, IT87_REG_VIN_MIN(i));
 		if (tmp == 0xff)
 			it87_write_value(data, IT87_REG_VIN_MIN(i), 0);
 	}
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < NUM_TEMP_LIMIT; i++) {
 		tmp = it87_read_value(data, IT87_REG_TEMP_HIGH(i));
 		if (tmp == 0xff)
 			it87_write_value(data, IT87_REG_TEMP_HIGH(i), 127);
@@ -2619,16 +2815,26 @@ static void it87_init_device(struct platform_device *pdev)
 
 	/* Check for additional fans */
 	if (has_five_fans(data)) {
-		if (tmp & (1 << 4))
-			data->has_fan |= (1 << 3); /* fan4 enabled */
-		if (tmp & (1 << 5))
-			data->has_fan |= (1 << 4); /* fan5 enabled */
-		if (has_six_fans(data) && (tmp & (1 << 2)))
-			data->has_fan |= (1 << 5); /* fan6 enabled */
+		if (tmp & BIT(4))
+			data->has_fan |= BIT(3); /* fan4 enabled */
+		if (tmp & BIT(5))
+			data->has_fan |= BIT(4); /* fan5 enabled */
+		if (has_six_fans(data) && (tmp & BIT(2)))
+			data->has_fan |= BIT(5); /* fan6 enabled */
 	}
 
 	/* Fan input pins may be used for alternative functions */
 	data->has_fan &= ~sio_data->skip_fan;
+
+	/* Check if pwm5, pwm6 are enabled */
+	if (has_six_pwm(data)) {
+		/* The following code may be IT8620E specific */
+		tmp = it87_read_value(data, IT87_REG_FAN_DIV);
+		if ((tmp & 0xc0) == 0xc0)
+			sio_data->skip_pwm |= BIT(4);
+		if (!(tmp & BIT(3)))
+			sio_data->skip_pwm |= BIT(5);
+	}
 
 	/* Start monitoring */
 	it87_write_value(data, IT87_REG_CONFIG,
@@ -2636,141 +2842,218 @@ static void it87_init_device(struct platform_device *pdev)
 			 | (update_vbat ? 0x41 : 0x01));
 }
 
-static void it87_update_pwm_ctrl(struct it87_data *data, int nr)
-{
-	data->pwm_ctrl[nr] = it87_read_value(data, IT87_REG_PWM(nr));
-	if (has_newer_autopwm(data)) {
-		data->pwm_temp_map[nr] = data->pwm_ctrl[nr] & 0x03;
-		data->pwm_duty[nr] = it87_read_value(data,
-						     IT87_REG_PWM_DUTY(nr));
-	} else {
-		if (data->pwm_ctrl[nr] & 0x80)	/* Automatic mode */
-			data->pwm_temp_map[nr] = data->pwm_ctrl[nr] & 0x03;
-		else				/* Manual mode */
-			data->pwm_duty[nr] = data->pwm_ctrl[nr] & 0x7f;
-	}
-
-	if (has_old_autopwm(data)) {
-		int i;
-
-		for (i = 0; i < 5 ; i++)
-			data->auto_temp[nr][i] = it87_read_value(data,
-						IT87_REG_AUTO_TEMP(nr, i));
-		for (i = 0; i < 3 ; i++)
-			data->auto_pwm[nr][i] = it87_read_value(data,
-						IT87_REG_AUTO_PWM(nr, i));
-	}
-}
-
-static struct it87_data *it87_update_device(struct device *dev)
+/* Return 1 if and only if the PWM interface is safe to use */
+static int it87_check_pwm(struct device *dev)
 {
 	struct it87_data *data = dev_get_drvdata(dev);
-	int i;
+	/*
+	 * Some BIOSes fail to correctly configure the IT87 fans. All fans off
+	 * and polarity set to active low is sign that this is the case so we
+	 * disable pwm control to protect the user.
+	 */
+	int tmp = it87_read_value(data, IT87_REG_FAN_CTL);
 
-	mutex_lock(&data->update_lock);
-
-	if (time_after(jiffies, data->last_updated + HZ + HZ / 2)
-	    || !data->valid) {
-		if (update_vbat) {
+	if ((tmp & 0x87) == 0) {
+		if (fix_pwm_polarity) {
 			/*
-			 * Cleared after each update, so reenable.  Value
-			 * returned by this read will be previous value
+			 * The user asks us to attempt a chip reconfiguration.
+			 * This means switching to active high polarity and
+			 * inverting all fan speed values.
 			 */
-			it87_write_value(data, IT87_REG_CONFIG,
-				it87_read_value(data, IT87_REG_CONFIG) | 0x40);
-		}
-		for (i = 0; i <= 7; i++) {
-			data->in[i][0] =
-				it87_read_value(data, IT87_REG_VIN(i));
-			data->in[i][1] =
-				it87_read_value(data, IT87_REG_VIN_MIN(i));
-			data->in[i][2] =
-				it87_read_value(data, IT87_REG_VIN_MAX(i));
-		}
-		/* in8 (battery) has no limit registers */
-		data->in[8][0] = it87_read_value(data, IT87_REG_VIN(8));
-		if (data->type == it8603)
-			data->in[9][0] = it87_read_value(data, 0x2f);
+			int i;
+			u8 pwm[3];
 
-		for (i = 0; i < 6; i++) {
-			/* Skip disabled fans */
-			if (!(data->has_fan & (1 << i)))
-				continue;
+			for (i = 0; i < ARRAY_SIZE(pwm); i++)
+				pwm[i] = it87_read_value(data,
+							 IT87_REG_PWM[i]);
 
-			data->fan[i][1] =
-				it87_read_value(data, IT87_REG_FAN_MIN[i]);
-			data->fan[i][0] = it87_read_value(data,
-				       IT87_REG_FAN[i]);
-			/* Add high byte if in 16-bit mode */
-			if (has_16bit_fans(data)) {
-				data->fan[i][0] |= it87_read_value(data,
-						IT87_REG_FANX[i]) << 8;
-				data->fan[i][1] |= it87_read_value(data,
-						IT87_REG_FANX_MIN[i]) << 8;
+			/*
+			 * If any fan is in automatic pwm mode, the polarity
+			 * might be correct, as suspicious as it seems, so we
+			 * better don't change anything (but still disable the
+			 * PWM interface).
+			 */
+			if (!((pwm[0] | pwm[1] | pwm[2]) & 0x80)) {
+				dev_info(dev,
+					 "Reconfiguring PWM to active high polarity\n");
+				it87_write_value(data, IT87_REG_FAN_CTL,
+						 tmp | 0x87);
+				for (i = 0; i < 3; i++)
+					it87_write_value(data,
+							 IT87_REG_PWM[i],
+							 0x7f & ~pwm[i]);
+				return 1;
 			}
-		}
-		for (i = 0; i < 3; i++) {
-			if (!(data->has_temp & (1 << i)))
-				continue;
-			data->temp[i][0] =
-				it87_read_value(data, IT87_REG_TEMP(i));
-			data->temp[i][1] =
-				it87_read_value(data, IT87_REG_TEMP_LOW(i));
-			data->temp[i][2] =
-				it87_read_value(data, IT87_REG_TEMP_HIGH(i));
-			if (has_temp_offset(data))
-				data->temp[i][3] =
-				  it87_read_value(data,
-						  IT87_REG_TEMP_OFFSET[i]);
+
+			dev_info(dev,
+				 "PWM configuration is too broken to be fixed\n");
 		}
 
-		/* Newer chips don't have clock dividers */
-		if ((data->has_fan & 0x07) && !has_16bit_fans(data)) {
-			i = it87_read_value(data, IT87_REG_FAN_DIV);
-			data->fan_div[0] = i & 0x07;
-			data->fan_div[1] = (i >> 3) & 0x07;
-			data->fan_div[2] = (i & 0x40) ? 3 : 1;
-		}
-
-		data->alarms =
-			it87_read_value(data, IT87_REG_ALARM1) |
-			(it87_read_value(data, IT87_REG_ALARM2) << 8) |
-			(it87_read_value(data, IT87_REG_ALARM3) << 16);
-		data->beeps = it87_read_value(data, IT87_REG_BEEP_ENABLE);
-
-		data->fan_main_ctrl = it87_read_value(data,
-				IT87_REG_FAN_MAIN_CTRL);
-		data->fan_ctl = it87_read_value(data, IT87_REG_FAN_CTL);
-		for (i = 0; i < 3; i++)
-			it87_update_pwm_ctrl(data, i);
-
-		data->sensor = it87_read_value(data, IT87_REG_TEMP_ENABLE);
-		data->extra = it87_read_value(data, IT87_REG_TEMP_EXTRA);
-		/*
-		 * The IT8705F does not have VID capability.
-		 * The IT8718F and later don't use IT87_REG_VID for the
-		 * same purpose.
-		 */
-		if (data->type == it8712 || data->type == it8716) {
-			data->vid = it87_read_value(data, IT87_REG_VID);
-			/*
-			 * The older IT8712F revisions had only 5 VID pins,
-			 * but we assume it is always safe to read 6 bits.
-			 */
-			data->vid &= 0x3f;
-		}
-		data->last_updated = jiffies;
-		data->valid = 1;
+		dev_info(dev,
+			 "Detected broken BIOS defaults, disabling PWM interface\n");
+		return 0;
+	} else if (fix_pwm_polarity) {
+		dev_info(dev,
+			 "PWM configuration looks sane, won't touch\n");
 	}
 
-	mutex_unlock(&data->update_lock);
-
-	return data;
+	return 1;
 }
 
-static int __init it87_device_add(unsigned short address,
+static int it87_probe(struct platform_device *pdev)
+{
+	struct it87_data *data;
+	struct resource *res;
+	struct device *dev = &pdev->dev;
+	struct it87_sio_data *sio_data = dev_get_platdata(dev);
+	int enable_pwm_interface;
+	struct device *hwmon_dev;
+
+	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
+	if (!devm_request_region(&pdev->dev, res->start, IT87_EC_EXTENT,
+				 DRVNAME)) {
+		dev_err(dev, "Failed to request region 0x%lx-0x%lx\n",
+			(unsigned long)res->start,
+			(unsigned long)(res->start + IT87_EC_EXTENT - 1));
+		return -EBUSY;
+	}
+
+	data = devm_kzalloc(&pdev->dev, sizeof(struct it87_data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	data->addr = res->start;
+	data->type = sio_data->type;
+	data->features = it87_devices[sio_data->type].features;
+	data->peci_mask = it87_devices[sio_data->type].peci_mask;
+	data->old_peci_mask = it87_devices[sio_data->type].old_peci_mask;
+	/*
+	 * IT8705F Datasheet 0.4.1, 3h == Version G.
+	 * IT8712F Datasheet 0.9.1, section 8.3.5 indicates 8h == Version J.
+	 * These are the first revisions with 16-bit tachometer support.
+	 */
+	switch (data->type) {
+	case it87:
+		if (sio_data->revision >= 0x03) {
+			data->features &= ~FEAT_OLD_AUTOPWM;
+			data->features |= FEAT_FAN16_CONFIG | FEAT_16BIT_FANS;
+		}
+		break;
+	case it8712:
+		if (sio_data->revision >= 0x08) {
+			data->features &= ~FEAT_OLD_AUTOPWM;
+			data->features |= FEAT_FAN16_CONFIG | FEAT_16BIT_FANS |
+					  FEAT_FIVE_FANS;
+		}
+		break;
+	default:
+		break;
+	}
+
+	/* Now, we do the remaining detection. */
+	if ((it87_read_value(data, IT87_REG_CONFIG) & 0x80) ||
+	    it87_read_value(data, IT87_REG_CHIPID) != 0x90)
+		return -ENODEV;
+
+	platform_set_drvdata(pdev, data);
+
+	mutex_init(&data->update_lock);
+
+	/* Check PWM configuration */
+	enable_pwm_interface = it87_check_pwm(dev);
+
+	/* Starting with IT8721F, we handle scaling of internal voltages */
+	if (has_12mv_adc(data)) {
+		if (sio_data->internal & BIT(0))
+			data->in_scaled |= BIT(3);	/* in3 is AVCC */
+		if (sio_data->internal & BIT(1))
+			data->in_scaled |= BIT(7);	/* in7 is VSB */
+		if (sio_data->internal & BIT(2))
+			data->in_scaled |= BIT(8);	/* in8 is Vbat */
+		if (sio_data->internal & BIT(3))
+			data->in_scaled |= BIT(9);	/* in9 is AVCC */
+	} else if (sio_data->type == it8781 || sio_data->type == it8782 ||
+		   sio_data->type == it8783) {
+		if (sio_data->internal & BIT(0))
+			data->in_scaled |= BIT(3);	/* in3 is VCC5V */
+		if (sio_data->internal & BIT(1))
+			data->in_scaled |= BIT(7);	/* in7 is VCCH5V */
+	}
+
+	data->has_temp = 0x07;
+	if (sio_data->skip_temp & BIT(2)) {
+		if (sio_data->type == it8782 &&
+		    !(it87_read_value(data, IT87_REG_TEMP_EXTRA) & 0x80))
+			data->has_temp &= ~BIT(2);
+	}
+
+	data->in_internal = sio_data->internal;
+	data->has_in = 0x3ff & ~sio_data->skip_in;
+
+	if (has_six_temp(data)) {
+		u8 reg = it87_read_value(data, IT87_REG_TEMP456_ENABLE);
+
+		/* Check for additional temperature sensors */
+		if ((reg & 0x03) >= 0x02)
+			data->has_temp |= BIT(3);
+		if (((reg >> 2) & 0x03) >= 0x02)
+			data->has_temp |= BIT(4);
+		if (((reg >> 4) & 0x03) >= 0x02)
+			data->has_temp |= BIT(5);
+
+		/* Check for additional voltage sensors */
+		if ((reg & 0x03) == 0x01)
+			data->has_in |= BIT(10);
+		if (((reg >> 2) & 0x03) == 0x01)
+			data->has_in |= BIT(11);
+		if (((reg >> 4) & 0x03) == 0x01)
+			data->has_in |= BIT(12);
+	}
+
+	data->has_beep = !!sio_data->beep_pin;
+
+	/* Initialize the IT87 chip */
+	it87_init_device(pdev);
+
+	if (!sio_data->skip_vid) {
+		data->has_vid = true;
+		data->vrm = vid_which_vrm();
+		/* VID reading from Super-I/O config space if available */
+		data->vid = sio_data->vid_value;
+	}
+
+	/* Prepare for sysfs hooks */
+	data->groups[0] = &it87_group;
+	data->groups[1] = &it87_group_in;
+	data->groups[2] = &it87_group_temp;
+	data->groups[3] = &it87_group_fan;
+
+	if (enable_pwm_interface) {
+		data->has_pwm = BIT(ARRAY_SIZE(IT87_REG_PWM)) - 1;
+		data->has_pwm &= ~sio_data->skip_pwm;
+
+		data->groups[4] = &it87_group_pwm;
+		if (has_old_autopwm(data) || has_newer_autopwm(data))
+			data->groups[5] = &it87_group_auto_pwm;
+	}
+
+	hwmon_dev = devm_hwmon_device_register_with_groups(dev,
+					it87_devices[sio_data->type].name,
+					data, data->groups);
+	return PTR_ERR_OR_ZERO(hwmon_dev);
+}
+
+static struct platform_driver it87_driver = {
+	.driver = {
+		.name	= DRVNAME,
+	},
+	.probe	= it87_probe,
+};
+
+static int __init it87_device_add(int index, unsigned short address,
 				  const struct it87_sio_data *sio_data)
 {
+	struct platform_device *pdev;
 	struct resource res = {
 		.start	= address + IT87_EC_OFFSET,
 		.end	= address + IT87_EC_OFFSET + IT87_EC_EXTENT - 1,
@@ -2781,14 +3064,11 @@ static int __init it87_device_add(unsigned short address,
 
 	err = acpi_check_resource_conflict(&res);
 	if (err)
-		goto exit;
+		return err;
 
 	pdev = platform_device_alloc(DRVNAME, address);
-	if (!pdev) {
-		err = -ENOMEM;
-		pr_err("Device allocation failed\n");
-		goto exit;
-	}
+	if (!pdev)
+		return -ENOMEM;
 
 	err = platform_device_add_resources(pdev, &res, 1);
 	if (err) {
@@ -2809,43 +3089,60 @@ static int __init it87_device_add(unsigned short address,
 		goto exit_device_put;
 	}
 
+	it87_pdev[index] = pdev;
 	return 0;
 
 exit_device_put:
 	platform_device_put(pdev);
-exit:
 	return err;
 }
 
 static int __init sm_it87_init(void)
 {
-	int err;
-	unsigned short isa_address = 0;
+	int sioaddr[2] = { REG_2E, REG_4E };
 	struct it87_sio_data sio_data;
+	unsigned short isa_address;
+	bool found = false;
+	int i, err;
 
-	memset(&sio_data, 0, sizeof(struct it87_sio_data));
-	err = it87_find(&isa_address, &sio_data);
-	if (err)
-		return err;
 	err = platform_driver_register(&it87_driver);
 	if (err)
 		return err;
 
-	err = it87_device_add(isa_address, &sio_data);
-	if (err) {
-		platform_driver_unregister(&it87_driver);
-		return err;
+	for (i = 0; i < ARRAY_SIZE(sioaddr); i++) {
+		memset(&sio_data, 0, sizeof(struct it87_sio_data));
+		isa_address = 0;
+		err = it87_find(sioaddr[i], &isa_address, &sio_data);
+		if (err || isa_address == 0)
+			continue;
+
+		err = it87_device_add(i, isa_address, &sio_data);
+		if (err)
+			goto exit_dev_unregister;
+		found = true;
 	}
 
+	if (!found) {
+		err = -ENODEV;
+		goto exit_unregister;
+	}
 	return 0;
+
+exit_dev_unregister:
+	/* NULL check handled by platform_device_unregister */
+	platform_device_unregister(it87_pdev[0]);
+exit_unregister:
+	platform_driver_unregister(&it87_driver);
+	return err;
 }
 
 static void __exit sm_it87_exit(void)
 {
-	platform_device_unregister(pdev);
+	/* NULL check handled by platform_device_unregister */
+	platform_device_unregister(it87_pdev[1]);
+	platform_device_unregister(it87_pdev[0]);
 	platform_driver_unregister(&it87_driver);
 }
-
 
 MODULE_AUTHOR("Chris Gauthron, Jean Delvare <jdelvare@suse.de>");
 MODULE_DESCRIPTION("IT8705F/IT871xF/IT872xF hardware monitoring driver");

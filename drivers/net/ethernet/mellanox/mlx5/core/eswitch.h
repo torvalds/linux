@@ -88,18 +88,40 @@ struct l2addr_node {
 	kfree(ptr);                                         \
 })
 
+struct vport_ingress {
+	struct mlx5_flow_table *acl;
+	struct mlx5_flow_group *allow_untagged_spoofchk_grp;
+	struct mlx5_flow_group *allow_spoofchk_only_grp;
+	struct mlx5_flow_group *allow_untagged_only_grp;
+	struct mlx5_flow_group *drop_grp;
+	struct mlx5_flow_rule  *allow_rule;
+	struct mlx5_flow_rule  *drop_rule;
+};
+
+struct vport_egress {
+	struct mlx5_flow_table *acl;
+	struct mlx5_flow_group *allowed_vlans_grp;
+	struct mlx5_flow_group *drop_grp;
+	struct mlx5_flow_rule  *allowed_vlan;
+	struct mlx5_flow_rule  *drop_rule;
+};
+
 struct mlx5_vport {
 	struct mlx5_core_dev    *dev;
 	int                     vport;
 	struct hlist_head       uc_list[MLX5_L2_ADDR_HASH_SIZE];
 	struct hlist_head       mc_list[MLX5_L2_ADDR_HASH_SIZE];
+	struct mlx5_flow_rule   *promisc_rule;
+	struct mlx5_flow_rule   *allmulti_rule;
 	struct work_struct      vport_change_handler;
 
-	/* This spinlock protects access to vport data, between
-	 * "esw_vport_disable" and ongoing interrupt "mlx5_eswitch_vport_event"
-	 * once vport marked as disabled new interrupts are discarded.
-	 */
-	spinlock_t              lock; /* vport events sync */
+	struct vport_ingress    ingress;
+	struct vport_egress     egress;
+
+	u16                     vlan;
+	u8                      qos;
+	bool                    spoofchk;
+	bool                    trusted;
 	bool                    enabled;
 	u16                     enabled_events;
 };
@@ -113,6 +135,8 @@ struct mlx5_l2_table {
 struct mlx5_eswitch_fdb {
 	void *fdb;
 	struct mlx5_flow_group *addr_grp;
+	struct mlx5_flow_group *allmulti_grp;
+	struct mlx5_flow_group *promisc_grp;
 };
 
 struct mlx5_eswitch {
@@ -124,6 +148,11 @@ struct mlx5_eswitch {
 	struct mlx5_vport       *vports;
 	int                     total_vports;
 	int                     enabled_vports;
+	/* Synchronize between vport change events
+	 * and async SRIOV admin state changes
+	 */
+	struct mutex            state_lock;
+	struct esw_mc_addr      *mc_promisc;
 };
 
 /* E-Switch API */
@@ -138,6 +167,10 @@ int mlx5_eswitch_set_vport_state(struct mlx5_eswitch *esw,
 				 int vport, int link_state);
 int mlx5_eswitch_set_vport_vlan(struct mlx5_eswitch *esw,
 				int vport, u16 vlan, u8 qos);
+int mlx5_eswitch_set_vport_spoofchk(struct mlx5_eswitch *esw,
+				    int vport, bool spoofchk);
+int mlx5_eswitch_set_vport_trust(struct mlx5_eswitch *esw,
+				 int vport_num, bool setting);
 int mlx5_eswitch_get_vport_config(struct mlx5_eswitch *esw,
 				  int vport, struct ifla_vf_info *ivi);
 int mlx5_eswitch_get_vport_stats(struct mlx5_eswitch *esw,

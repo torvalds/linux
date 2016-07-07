@@ -50,12 +50,6 @@
   <refsect1>
     <title>Description</title>
 
-    <note>
-      <title>Experimental</title>
-      <para>This is an <link linkend="experimental">experimental</link>
-      interface and may change in the future.</para>
-    </note>
-
     <para>These ioctls are used to negotiate the frame format at specific
     subdev pads in the image pipeline.</para>
 

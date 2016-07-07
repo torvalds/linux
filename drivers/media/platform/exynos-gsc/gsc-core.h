@@ -340,7 +340,6 @@ struct gsc_dev {
 	void __iomem			*regs;
 	wait_queue_head_t		irq_queue;
 	struct gsc_m2m_device		m2m;
-	struct exynos_platform_gscaler	*pdata;
 	unsigned long			state;
 	struct vb2_alloc_ctx		*alloc_ctx;
 	struct video_device		vdev;

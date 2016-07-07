@@ -15,8 +15,6 @@
  *       parsing code.
  */
 
-#include <linux/module.h>
-
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
@@ -1231,12 +1229,4 @@ static int __init nvram_init(void)
   	
   	return rc;
 }
-
-static void __exit nvram_cleanup(void)
-{
-        misc_deregister( &nvram_dev );
-}
-
-module_init(nvram_init);
-module_exit(nvram_cleanup);
-MODULE_LICENSE("GPL");
+device_initcall(nvram_init);

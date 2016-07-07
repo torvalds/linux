@@ -139,6 +139,27 @@ Examples of using the Linux-provided gdb helpers
       start_comm = "swapper/2\000\000\000\000\000\000"
     }
 
+ o Dig into a radix tree data structure, such as the IRQ descriptors:
+    (gdb) print (struct irq_desc)$lx_radix_tree_lookup(irq_desc_tree, 18)
+    $6 = {
+      irq_common_data = {
+        state_use_accessors = 67584,
+        handler_data = 0x0 <__vectors_start>,
+        msi_desc = 0x0 <__vectors_start>,
+        affinity = {{
+            bits = {65535}
+          }}
+      },
+      irq_data = {
+        mask = 0,
+        irq = 18,
+        hwirq = 27,
+        common = 0xee803d80,
+        chip = 0xc0eb0854 <gic_data>,
+        domain = 0xee808000,
+        parent_data = 0x0 <__vectors_start>,
+        chip_data = 0xc0eb0854 <gic_data>
+      } <... trimmed ...>
 
 List of commands and functions
 ------------------------------

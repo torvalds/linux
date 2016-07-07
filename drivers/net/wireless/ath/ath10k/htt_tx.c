@@ -22,53 +22,183 @@
 #include "txrx.h"
 #include "debug.h"
 
-void __ath10k_htt_tx_dec_pending(struct ath10k_htt *htt, bool limit_mgmt_desc)
+static u8 ath10k_htt_tx_txq_calc_size(size_t count)
 {
-	if (limit_mgmt_desc)
-		htt->num_pending_mgmt_tx--;
+	int exp;
+	int factor;
+
+	exp = 0;
+	factor = count >> 7;
+
+	while (factor >= 64 && exp < 4) {
+		factor >>= 3;
+		exp++;
+	}
+
+	if (exp == 4)
+		return 0xff;
+
+	if (count > 0)
+		factor = max(1, factor);
+
+	return SM(exp, HTT_TX_Q_STATE_ENTRY_EXP) |
+	       SM(factor, HTT_TX_Q_STATE_ENTRY_FACTOR);
+}
+
+static void __ath10k_htt_tx_txq_recalc(struct ieee80211_hw *hw,
+				       struct ieee80211_txq *txq)
+{
+	struct ath10k *ar = hw->priv;
+	struct ath10k_sta *arsta = (void *)txq->sta->drv_priv;
+	struct ath10k_vif *arvif = (void *)txq->vif->drv_priv;
+	unsigned long frame_cnt;
+	unsigned long byte_cnt;
+	int idx;
+	u32 bit;
+	u16 peer_id;
+	u8 tid;
+	u8 count;
+
+	lockdep_assert_held(&ar->htt.tx_lock);
+
+	if (!ar->htt.tx_q_state.enabled)
+		return;
+
+	if (ar->htt.tx_q_state.mode != HTT_TX_MODE_SWITCH_PUSH_PULL)
+		return;
+
+	if (txq->sta)
+		peer_id = arsta->peer_id;
+	else
+		peer_id = arvif->peer_id;
+
+	tid = txq->tid;
+	bit = BIT(peer_id % 32);
+	idx = peer_id / 32;
+
+	ieee80211_txq_get_depth(txq, &frame_cnt, &byte_cnt);
+	count = ath10k_htt_tx_txq_calc_size(byte_cnt);
+
+	if (unlikely(peer_id >= ar->htt.tx_q_state.num_peers) ||
+	    unlikely(tid >= ar->htt.tx_q_state.num_tids)) {
+		ath10k_warn(ar, "refusing to update txq for peer_id %hu tid %hhu due to out of bounds\n",
+			    peer_id, tid);
+		return;
+	}
+
+	ar->htt.tx_q_state.vaddr->count[tid][peer_id] = count;
+	ar->htt.tx_q_state.vaddr->map[tid][idx] &= ~bit;
+	ar->htt.tx_q_state.vaddr->map[tid][idx] |= count ? bit : 0;
+
+	ath10k_dbg(ar, ATH10K_DBG_HTT, "htt tx txq state update peer_id %hu tid %hhu count %hhu\n",
+		   peer_id, tid, count);
+}
+
+static void __ath10k_htt_tx_txq_sync(struct ath10k *ar)
+{
+	u32 seq;
+	size_t size;
+
+	lockdep_assert_held(&ar->htt.tx_lock);
+
+	if (!ar->htt.tx_q_state.enabled)
+		return;
+
+	if (ar->htt.tx_q_state.mode != HTT_TX_MODE_SWITCH_PUSH_PULL)
+		return;
+
+	seq = le32_to_cpu(ar->htt.tx_q_state.vaddr->seq);
+	seq++;
+	ar->htt.tx_q_state.vaddr->seq = cpu_to_le32(seq);
+
+	ath10k_dbg(ar, ATH10K_DBG_HTT, "htt tx txq state update commit seq %u\n",
+		   seq);
+
+	size = sizeof(*ar->htt.tx_q_state.vaddr);
+	dma_sync_single_for_device(ar->dev,
+				   ar->htt.tx_q_state.paddr,
+				   size,
+				   DMA_TO_DEVICE);
+}
+
+void ath10k_htt_tx_txq_recalc(struct ieee80211_hw *hw,
+			      struct ieee80211_txq *txq)
+{
+	struct ath10k *ar = hw->priv;
+
+	spin_lock_bh(&ar->htt.tx_lock);
+	__ath10k_htt_tx_txq_recalc(hw, txq);
+	spin_unlock_bh(&ar->htt.tx_lock);
+}
+
+void ath10k_htt_tx_txq_sync(struct ath10k *ar)
+{
+	spin_lock_bh(&ar->htt.tx_lock);
+	__ath10k_htt_tx_txq_sync(ar);
+	spin_unlock_bh(&ar->htt.tx_lock);
+}
+
+void ath10k_htt_tx_txq_update(struct ieee80211_hw *hw,
+			      struct ieee80211_txq *txq)
+{
+	struct ath10k *ar = hw->priv;
+
+	spin_lock_bh(&ar->htt.tx_lock);
+	__ath10k_htt_tx_txq_recalc(hw, txq);
+	__ath10k_htt_tx_txq_sync(ar);
+	spin_unlock_bh(&ar->htt.tx_lock);
+}
+
+void ath10k_htt_tx_dec_pending(struct ath10k_htt *htt)
+{
+	lockdep_assert_held(&htt->tx_lock);
 
 	htt->num_pending_tx--;
 	if (htt->num_pending_tx == htt->max_num_pending_tx - 1)
 		ath10k_mac_tx_unlock(htt->ar, ATH10K_TX_PAUSE_Q_FULL);
 }
 
-static void ath10k_htt_tx_dec_pending(struct ath10k_htt *htt,
-				      bool limit_mgmt_desc)
+int ath10k_htt_tx_inc_pending(struct ath10k_htt *htt)
 {
-	spin_lock_bh(&htt->tx_lock);
-	__ath10k_htt_tx_dec_pending(htt, limit_mgmt_desc);
-	spin_unlock_bh(&htt->tx_lock);
-}
+	lockdep_assert_held(&htt->tx_lock);
 
-static int ath10k_htt_tx_inc_pending(struct ath10k_htt *htt,
-				     bool limit_mgmt_desc, bool is_probe_resp)
-{
-	struct ath10k *ar = htt->ar;
-	int ret = 0;
-
-	spin_lock_bh(&htt->tx_lock);
-
-	if (htt->num_pending_tx >= htt->max_num_pending_tx) {
-		ret = -EBUSY;
-		goto exit;
-	}
-
-	if (limit_mgmt_desc) {
-		if (is_probe_resp && (htt->num_pending_mgmt_tx >
-		    ar->hw_params.max_probe_resp_desc_thres)) {
-			ret = -EBUSY;
-			goto exit;
-		}
-		htt->num_pending_mgmt_tx++;
-	}
+	if (htt->num_pending_tx >= htt->max_num_pending_tx)
+		return -EBUSY;
 
 	htt->num_pending_tx++;
 	if (htt->num_pending_tx == htt->max_num_pending_tx)
 		ath10k_mac_tx_lock(htt->ar, ATH10K_TX_PAUSE_Q_FULL);
 
-exit:
-	spin_unlock_bh(&htt->tx_lock);
-	return ret;
+	return 0;
+}
+
+int ath10k_htt_tx_mgmt_inc_pending(struct ath10k_htt *htt, bool is_mgmt,
+				   bool is_presp)
+{
+	struct ath10k *ar = htt->ar;
+
+	lockdep_assert_held(&htt->tx_lock);
+
+	if (!is_mgmt || !ar->hw_params.max_probe_resp_desc_thres)
+		return 0;
+
+	if (is_presp &&
+	    ar->hw_params.max_probe_resp_desc_thres < htt->num_pending_mgmt_tx)
+		return -EBUSY;
+
+	htt->num_pending_mgmt_tx++;
+
+	return 0;
+}
+
+void ath10k_htt_tx_mgmt_dec_pending(struct ath10k_htt *htt)
+{
+	lockdep_assert_held(&htt->tx_lock);
+
+	if (!htt->ar->hw_params.max_probe_resp_desc_thres)
+		return;
+
+	htt->num_pending_mgmt_tx--;
 }
 
 int ath10k_htt_tx_alloc_msdu_id(struct ath10k_htt *htt, struct sk_buff *skb)
@@ -137,7 +267,8 @@ static void ath10k_htt_tx_free_txq(struct ath10k_htt *htt)
 	struct ath10k *ar = htt->ar;
 	size_t size;
 
-	if (!test_bit(ATH10K_FW_FEATURE_PEER_FLOW_CONTROL, ar->fw_features))
+	if (!test_bit(ATH10K_FW_FEATURE_PEER_FLOW_CONTROL,
+		      ar->running_fw->fw_file.fw_features))
 		return;
 
 	size = sizeof(*htt->tx_q_state.vaddr);
@@ -152,7 +283,8 @@ static int ath10k_htt_tx_alloc_txq(struct ath10k_htt *htt)
 	size_t size;
 	int ret;
 
-	if (!test_bit(ATH10K_FW_FEATURE_PEER_FLOW_CONTROL, ar->fw_features))
+	if (!test_bit(ATH10K_FW_FEATURE_PEER_FLOW_CONTROL,
+		      ar->running_fw->fw_file.fw_features))
 		return 0;
 
 	htt->tx_q_state.num_peers = HTT_TX_Q_STATE_NUM_PEERS;
@@ -209,7 +341,17 @@ int ath10k_htt_tx_alloc(struct ath10k_htt *htt)
 		goto free_frag_desc;
 	}
 
+	size = roundup_pow_of_two(htt->max_num_pending_tx);
+	ret = kfifo_alloc(&htt->txdone_fifo, size, GFP_KERNEL);
+	if (ret) {
+		ath10k_err(ar, "failed to alloc txdone fifo: %d\n", ret);
+		goto free_txq;
+	}
+
 	return 0;
+
+free_txq:
+	ath10k_htt_tx_free_txq(htt);
 
 free_frag_desc:
 	ath10k_htt_tx_free_cont_frag_desc(htt);
@@ -234,8 +376,8 @@ static int ath10k_htt_tx_clean_up_pending(int msdu_id, void *skb, void *ctx)
 
 	ath10k_dbg(ar, ATH10K_DBG_HTT, "force cleanup msdu_id %hu\n", msdu_id);
 
-	tx_done.discard = 1;
 	tx_done.msdu_id = msdu_id;
+	tx_done.status = HTT_TX_COMPL_STATE_DISCARD;
 
 	ath10k_txrx_tx_unref(htt, &tx_done);
 
@@ -258,6 +400,8 @@ void ath10k_htt_tx_free(struct ath10k_htt *htt)
 
 	ath10k_htt_tx_free_txq(htt);
 	ath10k_htt_tx_free_cont_frag_desc(htt);
+	WARN_ON(!kfifo_is_empty(&htt->txdone_fifo));
+	kfifo_free(&htt->txdone_fifo);
 }
 
 void ath10k_htt_htc_tx_complete(struct ath10k *ar, struct sk_buff *skb)
@@ -371,7 +515,8 @@ int ath10k_htt_send_frag_desc_bank_cfg(struct ath10k_htt *htt)
 	info |= SM(htt->tx_q_state.type,
 		   HTT_FRAG_DESC_BANK_CFG_INFO_Q_STATE_DEPTH_TYPE);
 
-	if (test_bit(ATH10K_FW_FEATURE_PEER_FLOW_CONTROL, ar->fw_features))
+	if (test_bit(ATH10K_FW_FEATURE_PEER_FLOW_CONTROL,
+		     ar->running_fw->fw_file.fw_features))
 		info |= HTT_FRAG_DESC_BANK_CFG_INFO_Q_STATE_VALID;
 
 	cfg = &cmd->frag_desc_bank_cfg;
@@ -535,6 +680,55 @@ int ath10k_htt_h2t_aggr_cfg_msg(struct ath10k_htt *htt,
 	return 0;
 }
 
+int ath10k_htt_tx_fetch_resp(struct ath10k *ar,
+			     __le32 token,
+			     __le16 fetch_seq_num,
+			     struct htt_tx_fetch_record *records,
+			     size_t num_records)
+{
+	struct sk_buff *skb;
+	struct htt_cmd *cmd;
+	const u16 resp_id = 0;
+	int len = 0;
+	int ret;
+
+	/* Response IDs are echo-ed back only for host driver convienence
+	 * purposes. They aren't used for anything in the driver yet so use 0.
+	 */
+
+	len += sizeof(cmd->hdr);
+	len += sizeof(cmd->tx_fetch_resp);
+	len += sizeof(cmd->tx_fetch_resp.records[0]) * num_records;
+
+	skb = ath10k_htc_alloc_skb(ar, len);
+	if (!skb)
+		return -ENOMEM;
+
+	skb_put(skb, len);
+	cmd = (struct htt_cmd *)skb->data;
+	cmd->hdr.msg_type = HTT_H2T_MSG_TYPE_TX_FETCH_RESP;
+	cmd->tx_fetch_resp.resp_id = cpu_to_le16(resp_id);
+	cmd->tx_fetch_resp.fetch_seq_num = fetch_seq_num;
+	cmd->tx_fetch_resp.num_records = cpu_to_le16(num_records);
+	cmd->tx_fetch_resp.token = token;
+
+	memcpy(cmd->tx_fetch_resp.records, records,
+	       sizeof(records[0]) * num_records);
+
+	ret = ath10k_htc_send(&ar->htc, ar->htt.eid, skb);
+	if (ret) {
+		ath10k_warn(ar, "failed to submit htc command: %d\n", ret);
+		goto err_free_skb;
+	}
+
+	return 0;
+
+err_free_skb:
+	dev_kfree_skb_any(skb);
+
+	return ret;
+}
+
 static u8 ath10k_htt_tx_get_vdev_id(struct ath10k *ar, struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -576,20 +770,6 @@ int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	int msdu_id = -1;
 	int res;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)msdu->data;
-	bool limit_mgmt_desc = false;
-	bool is_probe_resp = false;
-
-	if (ar->hw_params.max_probe_resp_desc_thres) {
-		limit_mgmt_desc = true;
-
-		if (ieee80211_is_probe_resp(hdr->frame_control))
-			is_probe_resp = true;
-	}
-
-	res = ath10k_htt_tx_inc_pending(htt, limit_mgmt_desc, is_probe_resp);
-
-	if (res)
-		goto err;
 
 	len += sizeof(cmd->hdr);
 	len += sizeof(cmd->mgmt_tx);
@@ -598,7 +778,7 @@ int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	res = ath10k_htt_tx_alloc_msdu_id(htt, msdu);
 	spin_unlock_bh(&htt->tx_lock);
 	if (res < 0)
-		goto err_tx_dec;
+		goto err;
 
 	msdu_id = res;
 
@@ -649,8 +829,6 @@ err_free_msdu_id:
 	spin_lock_bh(&htt->tx_lock);
 	ath10k_htt_tx_free_msdu_id(htt, msdu_id);
 	spin_unlock_bh(&htt->tx_lock);
-err_tx_dec:
-	ath10k_htt_tx_dec_pending(htt, limit_mgmt_desc);
 err:
 	return res;
 }
@@ -677,26 +855,12 @@ int ath10k_htt_tx(struct ath10k_htt *htt, enum ath10k_hw_txrx_mode txmode,
 	u32 frags_paddr = 0;
 	u32 txbuf_paddr;
 	struct htt_msdu_ext_desc *ext_desc = NULL;
-	bool limit_mgmt_desc = false;
-	bool is_probe_resp = false;
-
-	if (unlikely(ieee80211_is_mgmt(hdr->frame_control)) &&
-	    ar->hw_params.max_probe_resp_desc_thres) {
-		limit_mgmt_desc = true;
-
-		if (ieee80211_is_probe_resp(hdr->frame_control))
-			is_probe_resp = true;
-	}
-
-	res = ath10k_htt_tx_inc_pending(htt, limit_mgmt_desc, is_probe_resp);
-	if (res)
-		goto err;
 
 	spin_lock_bh(&htt->tx_lock);
 	res = ath10k_htt_tx_alloc_msdu_id(htt, msdu);
 	spin_unlock_bh(&htt->tx_lock);
 	if (res < 0)
-		goto err_tx_dec;
+		goto err;
 
 	msdu_id = res;
 
@@ -862,11 +1026,7 @@ int ath10k_htt_tx(struct ath10k_htt *htt, enum ath10k_hw_txrx_mode txmode,
 err_unmap_msdu:
 	dma_unmap_single(dev, skb_cb->paddr, msdu->len, DMA_TO_DEVICE);
 err_free_msdu_id:
-	spin_lock_bh(&htt->tx_lock);
 	ath10k_htt_tx_free_msdu_id(htt, msdu_id);
-	spin_unlock_bh(&htt->tx_lock);
-err_tx_dec:
-	ath10k_htt_tx_dec_pending(htt, limit_mgmt_desc);
 err:
 	return res;
 }

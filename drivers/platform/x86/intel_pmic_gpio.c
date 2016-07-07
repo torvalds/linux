@@ -30,7 +30,7 @@
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <asm/intel_scu_ipc.h>
 #include <linux/device.h>
 #include <linux/intel_pmic_gpio.h>
@@ -174,7 +174,7 @@ static int pmic_irq_type(struct irq_data *data, unsigned type)
 
 static int pmic_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 {
-	struct pmic_gpio *pg = container_of(chip, struct pmic_gpio, chip);
+	struct pmic_gpio *pg = gpiochip_get_data(chip);
 
 	return pg->irq_base + offset;
 }
@@ -279,7 +279,7 @@ static int platform_pmic_gpio_probe(struct platform_device *pdev)
 	mutex_init(&pg->buslock);
 
 	pg->chip.parent = dev;
-	retval = gpiochip_add(&pg->chip);
+	retval = gpiochip_add_data(&pg->chip, pg);
 	if (retval) {
 		pr_err("Can not add pmic gpio chip\n");
 		goto err;

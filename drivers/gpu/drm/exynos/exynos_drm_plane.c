@@ -166,7 +166,7 @@ static void exynos_drm_plane_destroy_state(struct drm_plane *plane,
 {
 	struct exynos_drm_plane_state *old_exynos_state =
 					to_exynos_plane_state(old_state);
-	__drm_atomic_helper_plane_destroy_state(plane, old_state);
+	__drm_atomic_helper_plane_destroy_state(old_state);
 	kfree(old_exynos_state);
 }
 
@@ -242,7 +242,7 @@ exynos_drm_plane_check_size(const struct exynos_drm_plane_config *config,
 	    state->v_ratio == (1 << 15))
 		height_ok = true;
 
-	if (width_ok & height_ok)
+	if (width_ok && height_ok)
 		return 0;
 
 	DRM_DEBUG_KMS("scaling mode is not supported");

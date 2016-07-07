@@ -71,26 +71,6 @@
 #define ETB_FRAME_SIZE_WORDS	4
 
 /**
- * struct cs_buffer - keep track of a recording session' specifics
- * @cur:	index of the current buffer
- * @nr_pages:	max number of pages granted to us
- * @offset:	offset within the current buffer
- * @data_size:	how much we collected in this run
- * @lost:	other than zero if we had a HW buffer wrap around
- * @snapshot:	is this run in snapshot mode
- * @data_pages:	a handle the ring buffer
- */
-struct cs_buffers {
-	unsigned int		cur;
-	unsigned int		nr_pages;
-	unsigned long		offset;
-	local_t			data_size;
-	local_t			lost;
-	bool			snapshot;
-	void			**data_pages;
-};
-
-/**
  * struct etb_drvdata - specifics associated to an ETB component
  * @base:	memory mapped base address for this component.
  * @dev:	the device entity associated to this component.
@@ -440,7 +420,7 @@ static void etb_update_buffer(struct coresight_device *csdev,
 		u32 mask = ~(ETB_FRAME_SIZE_WORDS - 1);
 
 		/* The new read pointer must be frame size aligned */
-		to_read -= handle->size & mask;
+		to_read = handle->size & mask;
 		/*
 		 * Move the RAM read pointer up, keeping in mind that
 		 * everything is in frame size units.
@@ -448,7 +428,8 @@ static void etb_update_buffer(struct coresight_device *csdev,
 		read_ptr = (write_ptr + drvdata->buffer_depth) -
 					to_read / ETB_FRAME_SIZE_WORDS;
 		/* Wrap around if need be*/
-		read_ptr &= ~(drvdata->buffer_depth - 1);
+		if (read_ptr > (drvdata->buffer_depth - 1))
+			read_ptr -= drvdata->buffer_depth;
 		/* let the decoder know we've skipped ahead */
 		local_inc(&buf->lost);
 	}
@@ -579,47 +560,29 @@ static const struct file_operations etb_fops = {
 	.llseek		= no_llseek,
 };
 
-static ssize_t status_show(struct device *dev,
-			   struct device_attribute *attr, char *buf)
-{
-	unsigned long flags;
-	u32 etb_rdr, etb_sr, etb_rrp, etb_rwp;
-	u32 etb_trg, etb_cr, etb_ffsr, etb_ffcr;
-	struct etb_drvdata *drvdata = dev_get_drvdata(dev->parent);
+#define coresight_etb10_simple_func(name, offset)                       \
+	coresight_simple_func(struct etb_drvdata, name, offset)
 
-	pm_runtime_get_sync(drvdata->dev);
-	spin_lock_irqsave(&drvdata->spinlock, flags);
-	CS_UNLOCK(drvdata->base);
+coresight_etb10_simple_func(rdp, ETB_RAM_DEPTH_REG);
+coresight_etb10_simple_func(sts, ETB_STATUS_REG);
+coresight_etb10_simple_func(rrp, ETB_RAM_READ_POINTER);
+coresight_etb10_simple_func(rwp, ETB_RAM_WRITE_POINTER);
+coresight_etb10_simple_func(trg, ETB_TRG);
+coresight_etb10_simple_func(ctl, ETB_CTL_REG);
+coresight_etb10_simple_func(ffsr, ETB_FFSR);
+coresight_etb10_simple_func(ffcr, ETB_FFCR);
 
-	etb_rdr = readl_relaxed(drvdata->base + ETB_RAM_DEPTH_REG);
-	etb_sr = readl_relaxed(drvdata->base + ETB_STATUS_REG);
-	etb_rrp = readl_relaxed(drvdata->base + ETB_RAM_READ_POINTER);
-	etb_rwp = readl_relaxed(drvdata->base + ETB_RAM_WRITE_POINTER);
-	etb_trg = readl_relaxed(drvdata->base + ETB_TRG);
-	etb_cr = readl_relaxed(drvdata->base + ETB_CTL_REG);
-	etb_ffsr = readl_relaxed(drvdata->base + ETB_FFSR);
-	etb_ffcr = readl_relaxed(drvdata->base + ETB_FFCR);
-
-	CS_LOCK(drvdata->base);
-	spin_unlock_irqrestore(&drvdata->spinlock, flags);
-
-	pm_runtime_put(drvdata->dev);
-
-	return sprintf(buf,
-		       "Depth:\t\t0x%x\n"
-		       "Status:\t\t0x%x\n"
-		       "RAM read ptr:\t0x%x\n"
-		       "RAM wrt ptr:\t0x%x\n"
-		       "Trigger cnt:\t0x%x\n"
-		       "Control:\t0x%x\n"
-		       "Flush status:\t0x%x\n"
-		       "Flush ctrl:\t0x%x\n",
-		       etb_rdr, etb_sr, etb_rrp, etb_rwp,
-		       etb_trg, etb_cr, etb_ffsr, etb_ffcr);
-
-	return -EINVAL;
-}
-static DEVICE_ATTR_RO(status);
+static struct attribute *coresight_etb_mgmt_attrs[] = {
+	&dev_attr_rdp.attr,
+	&dev_attr_sts.attr,
+	&dev_attr_rrp.attr,
+	&dev_attr_rwp.attr,
+	&dev_attr_trg.attr,
+	&dev_attr_ctl.attr,
+	&dev_attr_ffsr.attr,
+	&dev_attr_ffcr.attr,
+	NULL,
+};
 
 static ssize_t trigger_cntr_show(struct device *dev,
 			    struct device_attribute *attr, char *buf)
@@ -649,10 +612,23 @@ static DEVICE_ATTR_RW(trigger_cntr);
 
 static struct attribute *coresight_etb_attrs[] = {
 	&dev_attr_trigger_cntr.attr,
-	&dev_attr_status.attr,
 	NULL,
 };
-ATTRIBUTE_GROUPS(coresight_etb);
+
+static const struct attribute_group coresight_etb_group = {
+	.attrs = coresight_etb_attrs,
+};
+
+static const struct attribute_group coresight_etb_mgmt_group = {
+	.attrs = coresight_etb_mgmt_attrs,
+	.name = "mgmt",
+};
+
+const struct attribute_group *coresight_etb_groups[] = {
+	&coresight_etb_group,
+	&coresight_etb_mgmt_group,
+	NULL,
+};
 
 static int etb_probe(struct amba_device *adev, const struct amba_id *id)
 {
@@ -729,7 +705,6 @@ static int etb_probe(struct amba_device *adev, const struct amba_id *id)
 	if (ret)
 		goto err_misc_register;
 
-	dev_info(dev, "ETB initialized\n");
 	return 0;
 
 err_misc_register:

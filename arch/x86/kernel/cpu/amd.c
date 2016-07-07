@@ -565,14 +565,17 @@ static void early_init_amd(struct cpuinfo_x86 *c)
 	 * can safely set X86_FEATURE_EXTD_APICID unconditionally for families
 	 * after 16h.
 	 */
-	if (cpu_has_apic && c->x86 > 0x16) {
-		set_cpu_cap(c, X86_FEATURE_EXTD_APICID);
-	} else if (cpu_has_apic && c->x86 >= 0xf) {
-		/* check CPU config space for extended APIC ID */
-		unsigned int val;
-		val = read_pci_config(0, 24, 0, 0x68);
-		if ((val & ((1 << 17) | (1 << 18))) == ((1 << 17) | (1 << 18)))
+	if (boot_cpu_has(X86_FEATURE_APIC)) {
+		if (c->x86 > 0x16)
 			set_cpu_cap(c, X86_FEATURE_EXTD_APICID);
+		else if (c->x86 >= 0xf) {
+			/* check CPU config space for extended APIC ID */
+			unsigned int val;
+
+			val = read_pci_config(0, 24, 0, 0x68);
+			if ((val >> 17 & 0x3) == 0x3)
+				set_cpu_cap(c, X86_FEATURE_EXTD_APICID);
+		}
 	}
 #endif
 
@@ -628,6 +631,7 @@ static void init_amd_k8(struct cpuinfo_x86 *c)
 	 */
 	msr_set_bit(MSR_K7_HWCR, 6);
 #endif
+	set_cpu_bug(c, X86_BUG_SWAPGS_FENCE);
 }
 
 static void init_amd_gh(struct cpuinfo_x86 *c)
@@ -670,14 +674,14 @@ static void init_amd_bd(struct cpuinfo_x86 *c)
 	u64 value;
 
 	/* re-enable TopologyExtensions if switched off by BIOS */
-	if ((c->x86_model >= 0x10) && (c->x86_model <= 0x1f) &&
+	if ((c->x86_model >= 0x10) && (c->x86_model <= 0x6f) &&
 	    !cpu_has(c, X86_FEATURE_TOPOEXT)) {
 
 		if (msr_set_bit(0xc0011005, 54) > 0) {
 			rdmsrl(0xc0011005, value);
 			if (value & BIT_64(54)) {
 				set_cpu_cap(c, X86_FEATURE_TOPOEXT);
-				pr_info(FW_INFO "CPU: Re-enabling disabled Topology Extensions Support.\n");
+				pr_info_once(FW_INFO "CPU: Re-enabling disabled Topology Extensions Support.\n");
 			}
 		}
 	}
@@ -746,7 +750,7 @@ static void init_amd(struct cpuinfo_x86 *c)
 	if (c->x86 >= 0xf)
 		set_cpu_cap(c, X86_FEATURE_K8);
 
-	if (cpu_has_xmm2) {
+	if (cpu_has(c, X86_FEATURE_XMM2)) {
 		/* MFENCE stops RDTSC speculation */
 		set_cpu_cap(c, X86_FEATURE_MFENCE_RDTSC);
 	}

@@ -1477,7 +1477,7 @@ static int __init aesni_init(void)
 	}
 	aesni_ctr_enc_tfm = aesni_ctr_enc;
 #ifdef CONFIG_AS_AVX
-	if (cpu_has_avx) {
+	if (boot_cpu_has(X86_FEATURE_AVX)) {
 		/* optimize performance of ctr mode encryption transform */
 		aesni_ctr_enc_tfm = aesni_ctr_enc_avx_tfm;
 		pr_info("AES CTR mode by8 optimization enabled\n");

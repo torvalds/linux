@@ -558,6 +558,8 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
 	if (!ops->set_key)
 		wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
 
+	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_RRM);
+
 	wiphy->bss_priv_size = sizeof(struct ieee80211_bss);
 
 	local = wiphy_priv(wiphy);
@@ -799,7 +801,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	int result, i;
-	enum ieee80211_band band;
+	enum nl80211_band band;
 	int channels, max_bitrates;
 	bool supp_ht, supp_vht;
 	netdev_features_t feature_whitelist;
@@ -854,7 +856,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	/* Only HW csum features are currently compatible with mac80211 */
 	feature_whitelist = NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 			    NETIF_F_HW_CSUM | NETIF_F_SG | NETIF_F_HIGHDMA |
-			    NETIF_F_GSO_SOFTWARE;
+			    NETIF_F_GSO_SOFTWARE | NETIF_F_RXCSUM;
 	if (WARN_ON(hw->netdev_features & ~feature_whitelist))
 		return -EINVAL;
 
@@ -872,7 +874,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	max_bitrates = 0;
 	supp_ht = false;
 	supp_vht = false;
-	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
+	for (band = 0; band < NUM_NL80211_BANDS; band++) {
 		struct ieee80211_supported_band *sband;
 
 		sband = local->hw.wiphy->bands[band];
@@ -934,7 +936,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	if (!local->int_scan_req)
 		return -ENOMEM;
 
-	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
+	for (band = 0; band < NUM_NL80211_BANDS; band++) {
 		if (!local->hw.wiphy->bands[band])
 			continue;
 		local->int_scan_req->rates[band] = (u32) -1;

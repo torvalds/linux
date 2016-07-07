@@ -1275,7 +1275,7 @@ void hns_nic_net_reinit(struct net_device *netdev)
 {
 	struct hns_nic_priv *priv = netdev_priv(netdev);
 
-	priv->netdev->trans_start = jiffies;
+	netif_trans_update(priv->netdev);
 	while (test_and_set_bit(NIC_STATE_REINITING, &priv->state))
 		usleep_range(1000, 2000);
 
@@ -1376,7 +1376,7 @@ static netdev_tx_t hns_nic_net_xmit(struct sk_buff *skb,
 	ret = hns_nic_net_xmit_hw(ndev, skb,
 				  &tx_ring_data(priv, skb->queue_mapping));
 	if (ret == NETDEV_TX_OK) {
-		ndev->trans_start = jiffies;
+		netif_trans_update(ndev);
 		ndev->stats.tx_bytes += skb->len;
 		ndev->stats.tx_packets++;
 	}
@@ -1648,7 +1648,7 @@ static void hns_nic_reset_subtask(struct hns_nic_priv *priv)
 
 	rtnl_lock();
 	/* put off any impending NetWatchDogTimeout */
-	priv->netdev->trans_start = jiffies;
+	netif_trans_update(priv->netdev);
 
 	if (type == HNAE_PORT_DEBUG) {
 		hns_nic_net_reinit(priv->netdev);
@@ -1873,6 +1873,7 @@ static int hns_nic_dev_probe(struct platform_device *pdev)
 	struct net_device *ndev;
 	struct hns_nic_priv *priv;
 	struct device_node *node = dev->of_node;
+	u32 port_id;
 	int ret;
 
 	ndev = alloc_etherdev_mq(sizeof(struct hns_nic_priv), NIC_MAX_Q_PER_VF);
@@ -1896,10 +1897,18 @@ static int hns_nic_dev_probe(struct platform_device *pdev)
 		dev_err(dev, "not find ae-handle\n");
 		goto out_read_prop_fail;
 	}
-
-	ret = of_property_read_u32(node, "port-id", &priv->port_id);
-	if (ret)
-		goto out_read_prop_fail;
+	/* try to find port-idx-in-ae first */
+	ret = of_property_read_u32(node, "port-idx-in-ae", &port_id);
+	if (ret) {
+		/* only for old code compatible */
+		ret = of_property_read_u32(node, "port-id", &port_id);
+		if (ret)
+			goto out_read_prop_fail;
+		/* for old dts, we need to caculate the port offset */
+		port_id = port_id < HNS_SRV_OFFSET ? port_id + HNS_DEBUG_OFFSET
+			: port_id - HNS_SRV_OFFSET;
+	}
+	priv->port_id = port_id;
 
 	hns_init_mac_addr(ndev);
 

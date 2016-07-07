@@ -474,6 +474,7 @@ static __init int _init_perf_amd_iommu(
 
 static struct perf_amd_iommu __perf_iommu = {
 	.pmu = {
+		.task_ctx_nr    = perf_invalid_context,
 		.event_init	= perf_iommu_event_init,
 		.add		= perf_iommu_add,
 		.del		= perf_iommu_del,

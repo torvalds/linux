@@ -321,7 +321,7 @@ static struct platform_driver exynos_ehci_driver = {
 		.of_match_table = of_match_ptr(exynos_ehci_match),
 	}
 };
-static const struct ehci_driver_overrides exynos_overrides __initdata = {
+static const struct ehci_driver_overrides exynos_overrides __initconst = {
 	.extra_priv_size = sizeof(struct exynos_ehci_hcd),
 };
 

@@ -11,7 +11,7 @@
 #include <linux/version.h>
 #include <linux/sched.h>
 
-#define _(P) ({typeof(P) val = 0; bpf_probe_read(&val, sizeof(val), &P); val;})
+#define _(P) ({typeof(P) val; bpf_probe_read(&val, sizeof(val), &P); val;})
 
 #define MINBLOCK_US	1
 
@@ -61,7 +61,7 @@ SEC("kprobe/try_to_wake_up")
 int waker(struct pt_regs *ctx)
 {
 	struct task_struct *p = (void *) PT_REGS_PARM1(ctx);
-	struct wokeby_t woke = {};
+	struct wokeby_t woke;
 	u32 pid;
 
 	pid = _(p->pid);
@@ -73,19 +73,21 @@ int waker(struct pt_regs *ctx)
 	return 0;
 }
 
-static inline int update_counts(struct pt_regs *ctx, u32 pid, u64 delta)
+static inline int update_counts(void *ctx, u32 pid, u64 delta)
 {
-	struct key_t key = {};
 	struct wokeby_t *woke;
 	u64 zero = 0, *val;
+	struct key_t key;
 
+	__builtin_memset(&key.waker, 0, sizeof(key.waker));
 	bpf_get_current_comm(&key.target, sizeof(key.target));
 	key.tret = bpf_get_stackid(ctx, &stackmap, STACKID_FLAGS);
+	key.wret = 0;
 
 	woke = bpf_map_lookup_elem(&wokeby, &pid);
 	if (woke) {
 		key.wret = woke->ret;
-		__builtin_memcpy(&key.waker, woke->name, TASK_COMM_LEN);
+		__builtin_memcpy(&key.waker, woke->name, sizeof(key.waker));
 		bpf_map_delete_elem(&wokeby, &pid);
 	}
 
@@ -100,15 +102,33 @@ static inline int update_counts(struct pt_regs *ctx, u32 pid, u64 delta)
 	return 0;
 }
 
+#if 1
+/* taken from /sys/kernel/debug/tracing/events/sched/sched_switch/format */
+struct sched_switch_args {
+	unsigned long long pad;
+	char prev_comm[16];
+	int prev_pid;
+	int prev_prio;
+	long long prev_state;
+	char next_comm[16];
+	int next_pid;
+	int next_prio;
+};
+SEC("tracepoint/sched/sched_switch")
+int oncpu(struct sched_switch_args *ctx)
+{
+	/* record previous thread sleep time */
+	u32 pid = ctx->prev_pid;
+#else
 SEC("kprobe/finish_task_switch")
 int oncpu(struct pt_regs *ctx)
 {
 	struct task_struct *p = (void *) PT_REGS_PARM1(ctx);
-	u64 delta, ts, *tsp;
-	u32 pid;
-
 	/* record previous thread sleep time */
-	pid = _(p->pid);
+	u32 pid = _(p->pid);
+#endif
+	u64 delta, ts, *tsp;
+
 	ts = bpf_ktime_get_ns();
 	bpf_map_update_elem(&start, &pid, &ts, BPF_ANY);
 

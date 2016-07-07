@@ -439,7 +439,7 @@ static int handle_lpswe(struct kvm_vcpu *vcpu)
 
 static int handle_stidp(struct kvm_vcpu *vcpu)
 {
-	u64 stidp_data = vcpu->arch.stidp_data;
+	u64 stidp_data = vcpu->kvm->arch.model.cpuid;
 	u64 operand2;
 	int rc;
 	ar_t ar;
@@ -670,8 +670,9 @@ static int handle_pfmf(struct kvm_vcpu *vcpu)
 	if (vcpu->run->s.regs.gprs[reg1] & PFMF_RESERVED)
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
-	/* Only provide non-quiescing support if the host supports it */
-	if (vcpu->run->s.regs.gprs[reg1] & PFMF_NQ && !test_facility(14))
+	/* Only provide non-quiescing support if enabled for the guest */
+	if (vcpu->run->s.regs.gprs[reg1] & PFMF_NQ &&
+	    !test_kvm_facility(vcpu->kvm, 14))
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
 	/* No support for conditional-SSKE */
@@ -744,7 +745,7 @@ static int handle_essa(struct kvm_vcpu *vcpu)
 {
 	/* entries expected to be 1FF */
 	int entries = (vcpu->arch.sie_block->cbrlo & ~PAGE_MASK) >> 3;
-	unsigned long *cbrlo, cbrle;
+	unsigned long *cbrlo;
 	struct gmap *gmap;
 	int i;
 
@@ -765,17 +766,9 @@ static int handle_essa(struct kvm_vcpu *vcpu)
 	vcpu->arch.sie_block->cbrlo &= PAGE_MASK;	/* reset nceo */
 	cbrlo = phys_to_virt(vcpu->arch.sie_block->cbrlo);
 	down_read(&gmap->mm->mmap_sem);
-	for (i = 0; i < entries; ++i) {
-		cbrle = cbrlo[i];
-		if (unlikely(cbrle & ~PAGE_MASK || cbrle < 2 * PAGE_SIZE))
-			/* invalid entry */
-			break;
-		/* try to free backing */
-		__gmap_zap(gmap, cbrle);
-	}
+	for (i = 0; i < entries; ++i)
+		__gmap_zap(gmap, cbrlo[i]);
 	up_read(&gmap->mm->mmap_sem);
-	if (i < entries)
-		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 	return 0;
 }
 

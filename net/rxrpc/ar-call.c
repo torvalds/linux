@@ -411,18 +411,17 @@ found_extant_second:
  */
 struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *rx,
 				       struct rxrpc_connection *conn,
-				       struct rxrpc_host_header *hdr,
-				       gfp_t gfp)
+				       struct rxrpc_host_header *hdr)
 {
 	struct rxrpc_call *call, *candidate;
 	struct rb_node **p, *parent;
 	u32 call_id;
 
-	_enter(",%d,,%x", conn->debug_id, gfp);
+	_enter(",%d", conn->debug_id);
 
 	ASSERT(rx != NULL);
 
-	candidate = rxrpc_alloc_call(gfp);
+	candidate = rxrpc_alloc_call(GFP_NOIO);
 	if (!candidate)
 		return ERR_PTR(-EBUSY);
 
@@ -682,7 +681,7 @@ void rxrpc_release_call(struct rxrpc_call *call)
 	    call->state != RXRPC_CALL_CLIENT_FINAL_ACK) {
 		_debug("+++ ABORTING STATE %d +++\n", call->state);
 		call->state = RXRPC_CALL_LOCALLY_ABORTED;
-		call->abort_code = RX_CALL_DEAD;
+		call->local_abort = RX_CALL_DEAD;
 		set_bit(RXRPC_CALL_EV_ABORT, &call->events);
 		rxrpc_queue_call(call);
 	}
@@ -758,7 +757,7 @@ static void rxrpc_mark_call_released(struct rxrpc_call *call)
 		if (call->state < RXRPC_CALL_COMPLETE) {
 			_debug("abort call %p", call);
 			call->state = RXRPC_CALL_LOCALLY_ABORTED;
-			call->abort_code = RX_CALL_DEAD;
+			call->local_abort = RX_CALL_DEAD;
 			if (!test_and_set_bit(RXRPC_CALL_EV_ABORT, &call->events))
 				sched = true;
 		}

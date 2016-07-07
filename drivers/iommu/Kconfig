@@ -76,8 +76,7 @@ config IOMMU_DMA
 
 config FSL_PAMU
 	bool "Freescale IOMMU support"
-	depends on PPC32
-	depends on PPC_E500MC || COMPILE_TEST
+	depends on PPC_E500MC || (COMPILE_TEST && PPC)
 	select IOMMU_API
 	select GENERIC_ALLOCATOR
 	help
@@ -123,16 +122,6 @@ config AMD_IOMMU
 	  You can find out if your system has an AMD IOMMU if you look into
 	  your BIOS for an option to enable it or if you have an IVRS ACPI
 	  table.
-
-config AMD_IOMMU_STATS
-	bool "Export AMD IOMMU statistics to debugfs"
-	depends on AMD_IOMMU
-	select DEBUG_FS
-	---help---
-	  This option enables code in the AMD IOMMU driver to collect various
-	  statistics about whats happening in the driver and exports that
-	  information to userspace via debugfs.
-	  If unsure, say N.
 
 config AMD_IOMMU_V2
 	tristate "AMD IOMMU Version 2 driver"

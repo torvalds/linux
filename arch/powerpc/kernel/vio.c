@@ -87,7 +87,7 @@ struct vio_cmo_dev_entry {
  * @curr: bytes currently allocated
  * @high: high water mark for IO data usage
  */
-struct vio_cmo {
+static struct vio_cmo {
 	spinlock_t lock;
 	struct delayed_work balance_q;
 	struct list_head device_list;
@@ -615,7 +615,7 @@ static u64 vio_dma_get_required_mask(struct device *dev)
         return dma_iommu_ops.get_required_mask(dev);
 }
 
-struct dma_map_ops vio_dma_mapping_ops = {
+static struct dma_map_ops vio_dma_mapping_ops = {
 	.alloc             = vio_dma_iommu_alloc_coherent,
 	.free              = vio_dma_iommu_free_coherent,
 	.mmap		   = dma_direct_mmap_coherent,

@@ -311,17 +311,6 @@ static void bio_chain_endio(struct bio *bio)
 	bio_endio(__bio_chain_endio(bio));
 }
 
-/*
- * Increment chain count for the bio. Make sure the CHAIN flag update
- * is visible before the raised count.
- */
-static inline void bio_inc_remaining(struct bio *bio)
-{
-	bio_set_flag(bio, BIO_CHAIN);
-	smp_mb__before_atomic();
-	atomic_inc(&bio->__bi_remaining);
-}
-
 /**
  * bio_chain - chain bio completions
  * @bio: the target bio

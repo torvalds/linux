@@ -787,7 +787,7 @@ static enum ap_wait ap_sm_setirq_wait(struct ap_device *ap_dev)
 /*
  * AP state machine jump table
  */
-ap_func_t *ap_jumptable[NR_AP_STATES][NR_AP_EVENTS] = {
+static ap_func_t *ap_jumptable[NR_AP_STATES][NR_AP_EVENTS] = {
 	[AP_STATE_RESET_START] = {
 		[AP_EVENT_POLL] = ap_sm_reset,
 		[AP_EVENT_TIMEOUT] = ap_sm_nop,

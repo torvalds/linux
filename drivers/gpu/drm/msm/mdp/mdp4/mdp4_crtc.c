@@ -121,7 +121,7 @@ static void complete_flip(struct drm_crtc *crtc, struct drm_file *file)
 		if (!file || (event->base.file_priv == file)) {
 			mdp4_crtc->event = NULL;
 			DBG("%s: send event: %p", mdp4_crtc->name, event);
-			drm_send_vblank_event(dev, mdp4_crtc->id, event);
+			drm_crtc_send_vblank_event(crtc, event);
 		}
 	}
 	spin_unlock_irqrestore(&dev->event_lock, flags);
@@ -427,7 +427,7 @@ static int mdp4_crtc_cursor_set(struct drm_crtc *crtc,
 	}
 
 	if (handle) {
-		cursor_bo = drm_gem_object_lookup(dev, file_priv, handle);
+		cursor_bo = drm_gem_object_lookup(file_priv, handle);
 		if (!cursor_bo)
 			return -ENOENT;
 	} else {

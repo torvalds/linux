@@ -21,16 +21,16 @@
 const befs_inode_addr BAD_IADDR = { 0, 0, 0 };
 
 static int befs_find_brun_direct(struct super_block *sb,
-				 befs_data_stream * data,
+				 const befs_data_stream *data,
 				 befs_blocknr_t blockno, befs_block_run * run);
 
 static int befs_find_brun_indirect(struct super_block *sb,
-				   befs_data_stream * data,
+				   const befs_data_stream *data,
 				   befs_blocknr_t blockno,
 				   befs_block_run * run);
 
 static int befs_find_brun_dblindirect(struct super_block *sb,
-				      befs_data_stream * data,
+				      const befs_data_stream *data,
 				      befs_blocknr_t blockno,
 				      befs_block_run * run);
 
@@ -45,10 +45,10 @@ static int befs_find_brun_dblindirect(struct super_block *sb,
  * if you don't need to know offset just set @off = NULL.
  */
 struct buffer_head *
-befs_read_datastream(struct super_block *sb, befs_data_stream * ds,
+befs_read_datastream(struct super_block *sb, const befs_data_stream *ds,
 		     befs_off_t pos, uint * off)
 {
-	struct buffer_head *bh = NULL;
+	struct buffer_head *bh;
 	befs_block_run run;
 	befs_blocknr_t block;	/* block coresponding to pos */
 
@@ -87,7 +87,7 @@ befs_read_datastream(struct super_block *sb, befs_data_stream * ds,
  * 2001-11-15 Will Dyson
  */
 int
-befs_fblock2brun(struct super_block *sb, befs_data_stream * data,
+befs_fblock2brun(struct super_block *sb, const befs_data_stream *data,
 		 befs_blocknr_t fblock, befs_block_run * run)
 {
 	int err;
@@ -122,12 +122,12 @@ befs_fblock2brun(struct super_block *sb, befs_data_stream * data,
  * Returns the number of bytes read
  */
 size_t
-befs_read_lsymlink(struct super_block * sb, befs_data_stream * ds, void *buff,
-		   befs_off_t len)
+befs_read_lsymlink(struct super_block *sb, const befs_data_stream *ds,
+		   void *buff, befs_off_t len)
 {
 	befs_off_t bytes_read = 0;	/* bytes readed */
 	u16 plen;
-	struct buffer_head *bh = NULL;
+	struct buffer_head *bh;
 	befs_debug(sb, "---> %s length: %llu", __func__, len);
 
 	while (bytes_read < len) {
@@ -163,7 +163,7 @@ befs_read_lsymlink(struct super_block * sb, befs_data_stream * ds, void *buff,
 */
 
 befs_blocknr_t
-befs_count_blocks(struct super_block * sb, befs_data_stream * ds)
+befs_count_blocks(struct super_block *sb, const befs_data_stream *ds)
 {
 	befs_blocknr_t blocks;
 	befs_blocknr_t datablocks;	/* File data blocks */
@@ -243,11 +243,11 @@ befs_count_blocks(struct super_block * sb, befs_data_stream * ds)
 	2001-11-15 Will Dyson
 */
 static int
-befs_find_brun_direct(struct super_block *sb, befs_data_stream * data,
+befs_find_brun_direct(struct super_block *sb, const befs_data_stream *data,
 		      befs_blocknr_t blockno, befs_block_run * run)
 {
 	int i;
-	befs_block_run *array = data->direct;
+	const befs_block_run *array = data->direct;
 	befs_blocknr_t sum;
 	befs_blocknr_t max_block =
 	    data->max_direct_range >> BEFS_SB(sb)->block_shift;
@@ -304,7 +304,8 @@ befs_find_brun_direct(struct super_block *sb, befs_data_stream * data,
 */
 static int
 befs_find_brun_indirect(struct super_block *sb,
-			befs_data_stream * data, befs_blocknr_t blockno,
+			const befs_data_stream *data,
+			befs_blocknr_t blockno,
 			befs_block_run * run)
 {
 	int i, j;
@@ -412,7 +413,8 @@ befs_find_brun_indirect(struct super_block *sb,
 */
 static int
 befs_find_brun_dblindirect(struct super_block *sb,
-			   befs_data_stream * data, befs_blocknr_t blockno,
+			   const befs_data_stream *data,
+			   befs_blocknr_t blockno,
 			   befs_block_run * run)
 {
 	int dblindir_indx;
@@ -427,7 +429,7 @@ befs_find_brun_dblindirect(struct super_block *sb,
 	struct buffer_head *dbl_indir_block;
 	struct buffer_head *indir_block;
 	befs_block_run indir_run;
-	befs_disk_inode_addr *iaddr_array = NULL;
+	befs_disk_inode_addr *iaddr_array;
 	struct befs_sb_info *befs_sb = BEFS_SB(sb);
 
 	befs_blocknr_t indir_start_blk =
@@ -486,7 +488,6 @@ befs_find_brun_dblindirect(struct super_block *sb,
 	iaddr_array = (befs_disk_inode_addr *) dbl_indir_block->b_data;
 	indir_run = fsrun_to_cpu(sb, iaddr_array[dbl_block_indx]);
 	brelse(dbl_indir_block);
-	iaddr_array = NULL;
 
 	/* Read indirect block */
 	which_block = indir_indx / befs_iaddrs_per_block(sb);
@@ -511,7 +512,6 @@ befs_find_brun_dblindirect(struct super_block *sb,
 	iaddr_array = (befs_disk_inode_addr *) indir_block->b_data;
 	*run = fsrun_to_cpu(sb, iaddr_array[block_indx]);
 	brelse(indir_block);
-	iaddr_array = NULL;
 
 	blockno_at_run_start = indir_start_blk;
 	blockno_at_run_start += diblklen * dblindir_indx;

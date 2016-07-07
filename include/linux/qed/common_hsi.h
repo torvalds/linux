@@ -285,6 +285,63 @@
 #define PXP_ILT_PAGE_SIZE_NUM_BITS_MIN	12
 #define PXP_ILT_BLOCK_FACTOR_MULTIPLIER	1024
 
+#define PXP_VF_BAR0_START_IGU                   0
+#define PXP_VF_BAR0_IGU_LENGTH                  0x3000
+#define PXP_VF_BAR0_END_IGU                     (PXP_VF_BAR0_START_IGU + \
+						 PXP_VF_BAR0_IGU_LENGTH - 1)
+
+#define PXP_VF_BAR0_START_DQ                    0x3000
+#define PXP_VF_BAR0_DQ_LENGTH                   0x200
+#define PXP_VF_BAR0_DQ_OPAQUE_OFFSET            0
+#define PXP_VF_BAR0_ME_OPAQUE_ADDRESS           (PXP_VF_BAR0_START_DQ +	\
+						 PXP_VF_BAR0_DQ_OPAQUE_OFFSET)
+#define PXP_VF_BAR0_ME_CONCRETE_ADDRESS         (PXP_VF_BAR0_ME_OPAQUE_ADDRESS \
+						 + 4)
+#define PXP_VF_BAR0_END_DQ                      (PXP_VF_BAR0_START_DQ +	\
+						 PXP_VF_BAR0_DQ_LENGTH - 1)
+
+#define PXP_VF_BAR0_START_TSDM_ZONE_B           0x3200
+#define PXP_VF_BAR0_SDM_LENGTH_ZONE_B           0x200
+#define PXP_VF_BAR0_END_TSDM_ZONE_B             (PXP_VF_BAR0_START_TSDM_ZONE_B \
+						 +			       \
+						 PXP_VF_BAR0_SDM_LENGTH_ZONE_B \
+						 - 1)
+
+#define PXP_VF_BAR0_START_MSDM_ZONE_B           0x3400
+#define PXP_VF_BAR0_END_MSDM_ZONE_B             (PXP_VF_BAR0_START_MSDM_ZONE_B \
+						 +			       \
+						 PXP_VF_BAR0_SDM_LENGTH_ZONE_B \
+						 - 1)
+
+#define PXP_VF_BAR0_START_USDM_ZONE_B           0x3600
+#define PXP_VF_BAR0_END_USDM_ZONE_B             (PXP_VF_BAR0_START_USDM_ZONE_B \
+						 +			       \
+						 PXP_VF_BAR0_SDM_LENGTH_ZONE_B \
+						 - 1)
+
+#define PXP_VF_BAR0_START_XSDM_ZONE_B           0x3800
+#define PXP_VF_BAR0_END_XSDM_ZONE_B             (PXP_VF_BAR0_START_XSDM_ZONE_B \
+						 +			       \
+						 PXP_VF_BAR0_SDM_LENGTH_ZONE_B \
+						 - 1)
+
+#define PXP_VF_BAR0_START_YSDM_ZONE_B           0x3a00
+#define PXP_VF_BAR0_END_YSDM_ZONE_B             (PXP_VF_BAR0_START_YSDM_ZONE_B \
+						 +			       \
+						 PXP_VF_BAR0_SDM_LENGTH_ZONE_B \
+						 - 1)
+
+#define PXP_VF_BAR0_START_PSDM_ZONE_B           0x3c00
+#define PXP_VF_BAR0_END_PSDM_ZONE_B             (PXP_VF_BAR0_START_PSDM_ZONE_B \
+						 +			       \
+						 PXP_VF_BAR0_SDM_LENGTH_ZONE_B \
+						 - 1)
+
+#define PXP_VF_BAR0_START_SDM_ZONE_A            0x4000
+#define PXP_VF_BAR0_END_SDM_ZONE_A              0x10000
+
+#define PXP_VF_BAR0_GRC_WINDOW_LENGTH           32
+
 /* ILT Records */
 #define PXP_NUM_ILT_RECORDS_BB 7600
 #define PXP_NUM_ILT_RECORDS_K2 11000
@@ -327,9 +384,14 @@ struct regpair {
 	__le32	hi;
 };
 
+struct vf_pf_channel_eqe_data {
+	struct regpair msg_addr;
+};
+
 /* Event Data Union */
 union event_ring_data {
 	u8				bytes[8];
+	struct vf_pf_channel_eqe_data	vf_pf_channel;
 	struct async_data		async_info;
 };
 

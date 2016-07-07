@@ -814,6 +814,17 @@ void arc_mmu_init(void)
 
 	printk(arc_mmu_mumbojumbo(0, str, sizeof(str)));
 
+	/*
+	 * Can't be done in processor.h due to header include depenedencies
+	 */
+	BUILD_BUG_ON(!IS_ALIGNED((CONFIG_ARC_KVADDR_SIZE << 20), PMD_SIZE));
+
+	/*
+	 * stack top size sanity check,
+	 * Can't be done in processor.h due to header include depenedencies
+	 */
+	BUILD_BUG_ON(!IS_ALIGNED(STACK_TOP, PMD_SIZE));
+
 	/* For efficiency sake, kernel is compile time built for a MMU ver
 	 * This must match the hardware it is running on.
 	 * Linux built for MMU V2, if run on MMU V1 will break down because V1

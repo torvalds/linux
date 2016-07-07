@@ -61,8 +61,6 @@ static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 extern void update_mmu_cache_pmd(struct vm_area_struct *vma, unsigned long addr,
 				 pmd_t *pmd);
 
-#define has_transparent_hugepage() 1
-
 /* Generic variants assume pgtable_t is struct page *, hence need for these */
 #define __HAVE_ARCH_PGTABLE_DEPOSIT
 extern void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,

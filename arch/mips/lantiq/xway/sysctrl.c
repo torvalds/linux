@@ -3,7 +3,7 @@
  *  under the terms of the GNU General Public License version 2 as published
  *  by the Free Software Foundation.
  *
- *  Copyright (C) 2011-2012 John Crispin <blogic@openwrt.org>
+ *  Copyright (C) 2011-2012 John Crispin <john@phrozen.org>
  *  Copyright (C) 2013-2015 Lantiq Beteiligungs-GmbH & Co.KG
  */
 

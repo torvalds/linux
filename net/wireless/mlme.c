@@ -726,7 +726,7 @@ void cfg80211_dfs_channels_update_work(struct work_struct *work)
 	wiphy = &rdev->wiphy;
 
 	rtnl_lock();
-	for (bandid = 0; bandid < IEEE80211_NUM_BANDS; bandid++) {
+	for (bandid = 0; bandid < NUM_NL80211_BANDS; bandid++) {
 		sband = wiphy->bands[bandid];
 		if (!sband)
 			continue;

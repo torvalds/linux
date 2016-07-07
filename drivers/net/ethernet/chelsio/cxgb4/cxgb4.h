@@ -324,7 +324,9 @@ struct adapter_params {
 	unsigned int sf_fw_start;         /* start of FW image in flash */
 
 	unsigned int fw_vers;
+	unsigned int bs_vers;		/* bootstrap version */
 	unsigned int tp_vers;
+	unsigned int er_vers;		/* expansion ROM version */
 	u8 api_vers[7];
 
 	unsigned short mtus[NMTUS];
@@ -356,6 +358,34 @@ struct sge_idma_monitor_state {
 	unsigned int idma_qid[2];	/* IDMA Hung Ingress Queue ID */
 	unsigned int idma_warn[2];	/* time to warning in HZ */
 };
+
+/* Firmware Mailbox Command/Reply log.  All values are in Host-Endian format.
+ * The access and execute times are signed in order to accommodate negative
+ * error returns.
+ */
+struct mbox_cmd {
+	u64 cmd[MBOX_LEN / 8];		/* a Firmware Mailbox Command/Reply */
+	u64 timestamp;			/* OS-dependent timestamp */
+	u32 seqno;			/* sequence number */
+	s16 access;			/* time (ms) to access mailbox */
+	s16 execute;			/* time (ms) to execute */
+};
+
+struct mbox_cmd_log {
+	unsigned int size;		/* number of entries in the log */
+	unsigned int cursor;		/* next position in the log to write */
+	u32 seqno;			/* next sequence number */
+	/* variable length mailbox command log starts here */
+};
+
+/* Given a pointer to a Firmware Mailbox Command Log and a log entry index,
+ * return a pointer to the specified entry.
+ */
+static inline struct mbox_cmd *mbox_cmd_log_entry(struct mbox_cmd_log *log,
+						  unsigned int entry_idx)
+{
+	return &((struct mbox_cmd *)&(log)[1])[entry_idx];
+}
 
 #include "t4fw_api.h"
 
@@ -394,6 +424,7 @@ struct link_config {
 	unsigned char  fc;               /* actual link flow control */
 	unsigned char  autoneg;          /* autonegotiating? */
 	unsigned char  link_ok;          /* link up? */
+	unsigned char  link_down_rc;     /* link down reason */
 };
 
 #define FW_LEN16(fw_struct) FW_CMD_LEN16_V(sizeof(fw_struct) / 16)
@@ -731,6 +762,7 @@ struct adapter {
 	u32 t4_bar0;
 	struct pci_dev *pdev;
 	struct device *pdev_dev;
+	const char *name;
 	unsigned int mbox;
 	unsigned int pf;
 	unsigned int flags;
@@ -775,6 +807,10 @@ struct adapter {
 	struct work_struct db_full_task;
 	struct work_struct db_drop_task;
 	bool tid_release_task_busy;
+
+	/* support for mailbox command/reply logging */
+#define T4_OS_LOG_MBOX_CMDS 256
+	struct mbox_cmd_log *mbox_log;
 
 	struct dentry *debugfs_root;
 	bool use_bd;     /* Use SGE Back Door intfc for reading SGE Contexts */
@@ -1306,6 +1342,7 @@ int t4_fl_pkt_align(struct adapter *adap);
 unsigned int t4_flash_cfg_addr(struct adapter *adapter);
 int t4_check_fw_version(struct adapter *adap);
 int t4_get_fw_version(struct adapter *adapter, u32 *vers);
+int t4_get_bs_version(struct adapter *adapter, u32 *vers);
 int t4_get_tp_version(struct adapter *adapter, u32 *vers);
 int t4_get_exprom_version(struct adapter *adapter, u32 *vers);
 int t4_prep_fw(struct adapter *adap, struct fw_info *fw_info,
@@ -1329,6 +1366,8 @@ int t4_init_sge_params(struct adapter *adapter);
 int t4_init_tp_params(struct adapter *adap);
 int t4_filter_field_shift(const struct adapter *adap, int filter_sel);
 int t4_init_rss_mode(struct adapter *adap, int mbox);
+int t4_init_portinfo(struct port_info *pi, int mbox,
+		     int port, int pf, int vf, u8 mac[]);
 int t4_port_init(struct adapter *adap, int mbox, int pf, int vf);
 void t4_fatal_err(struct adapter *adapter);
 int t4_config_rss_range(struct adapter *adapter, int mbox, unsigned int viid,
@@ -1464,6 +1503,7 @@ int t4_ctrl_eq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
 int t4_ofld_eq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		    unsigned int vf, unsigned int eqid);
 int t4_sge_ctxt_flush(struct adapter *adap, unsigned int mbox);
+void t4_handle_get_port_info(struct port_info *pi, const __be64 *rpl);
 int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl);
 void t4_db_full(struct adapter *adapter);
 void t4_db_dropped(struct adapter *adapter);

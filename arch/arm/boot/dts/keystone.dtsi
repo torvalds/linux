@@ -20,6 +20,9 @@
 
 	aliases {
 		serial0	= &uart0;
+		spi0 = &spi0;
+		spi1 = &spi1;
+		spi2 = &spi2;
 	};
 
 	memory {
@@ -57,6 +60,14 @@
 			     <GIC_SPI 21 IRQ_TYPE_EDGE_RISING>,
 			     <GIC_SPI 22 IRQ_TYPE_EDGE_RISING>,
 			     <GIC_SPI 23 IRQ_TYPE_EDGE_RISING>;
+	};
+
+	psci {
+		compatible	= "arm,psci";
+		method		= "smc";
+		cpu_suspend	= <0x84000001>;
+		cpu_off		= <0x84000002>;
+		cpu_on		= <0x84000003>;
 	};
 
 	soc {

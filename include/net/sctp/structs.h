@@ -210,14 +210,15 @@ struct sctp_sock {
 	int user_frag;
 
 	__u32 autoclose;
-	__u8 nodelay;
-	__u8 disable_fragments;
-	__u8 v4mapped;
-	__u8 frag_interleave;
 	__u32 adaptation_ind;
 	__u32 pd_point;
-	__u8 recvrcvinfo;
-	__u8 recvnxtinfo;
+	__u16	nodelay:1,
+		disable_fragments:1,
+		v4mapped:1,
+		frag_interleave:1,
+		recvrcvinfo:1,
+		recvnxtinfo:1,
+		data_ready_signalled:1;
 
 	atomic_t pd_mode;
 	/* Receive to here while partial delivery is in effect. */

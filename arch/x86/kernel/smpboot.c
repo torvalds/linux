@@ -332,6 +332,11 @@ static void __init smp_init_package_map(void)
 	 * primary cores.
 	 */
 	ncpus = boot_cpu_data.x86_max_cores;
+	if (!ncpus) {
+		pr_warn("x86_max_cores == zero !?!?");
+		ncpus = 1;
+	}
+
 	__max_logical_packages = DIV_ROUND_UP(total_cpus, ncpus);
 
 	/*
@@ -1231,7 +1236,7 @@ static int __init smp_sanity_check(unsigned max_cpus)
 	 * If we couldn't find a local APIC, then get out of here now!
 	 */
 	if (APIC_INTEGRATED(apic_version[boot_cpu_physical_apicid]) &&
-	    !cpu_has_apic) {
+	    !boot_cpu_has(X86_FEATURE_APIC)) {
 		if (!disable_apic) {
 			pr_err("BIOS bug, local APIC #%d not detected!...\n",
 				boot_cpu_physical_apicid);

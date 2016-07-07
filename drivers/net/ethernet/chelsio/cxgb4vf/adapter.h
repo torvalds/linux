@@ -387,6 +387,10 @@ struct adapter {
 	/* various locks */
 	spinlock_t stats_lock;
 
+	/* support for mailbox command/reply logging */
+#define T4VF_OS_LOG_MBOX_CMDS 256
+	struct mbox_cmd_log *mbox_log;
+
 	/* list of MAC addresses in MPS Hash */
 	struct list_head mac_hlist;
 };

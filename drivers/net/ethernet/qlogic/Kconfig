@@ -98,9 +98,40 @@ config QED
 	---help---
 	  This enables the support for ...
 
+config QED_SRIOV
+	bool "QLogic QED 25/40/100Gb SR-IOV support"
+	depends on QED && PCI_IOV
+	default y
+	---help---
+	  This configuration parameter enables Single Root Input Output
+	  Virtualization support for QED devices.
+	  This allows for virtual function acceleration in virtualized
+	  environments.
+
 config QEDE
 	tristate "QLogic QED 25/40/100Gb Ethernet NIC"
 	depends on QED
 	---help---
 	  This enables the support for ...
+
+config QEDE_VXLAN
+	bool "Virtual eXtensible Local Area Network support"
+	default n
+	depends on QEDE && VXLAN && !(QEDE=y && VXLAN=m)
+	---help---
+	  This enables hardware offload support for VXLAN protocol over
+	  qede module. Say Y here if you want to enable hardware offload
+	  support for Virtual eXtensible Local Area Network (VXLAN)
+	  in the driver.
+
+config QEDE_GENEVE
+	bool "Generic Network Virtualization Encapsulation (GENEVE) support"
+	depends on QEDE && GENEVE && !(QEDE=y && GENEVE=m)
+	---help---
+	  This allows one to create GENEVE virtual interfaces that provide
+	  Layer 2 Networks over Layer 3 Networks. GENEVE is often used
+	  to tunnel virtual network infrastructure in virtualized environments.
+	  Say Y here if you want to enable hardware offload support for
+	  Generic Network Virtualization Encapsulation (GENEVE) in the driver.
+
 endif # NET_VENDOR_QLOGIC

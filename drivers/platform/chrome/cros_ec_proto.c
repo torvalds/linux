@@ -298,8 +298,8 @@ int cros_ec_query_all(struct cros_ec_device *ec_dev)
 			ec_dev->max_response = EC_PROTO2_MAX_PARAM_SIZE;
 			ec_dev->max_passthru = 0;
 			ec_dev->pkt_xfer = NULL;
-			ec_dev->din_size = EC_MSG_BYTES;
-			ec_dev->dout_size = EC_MSG_BYTES;
+			ec_dev->din_size = EC_PROTO2_MSG_BYTES;
+			ec_dev->dout_size = EC_PROTO2_MSG_BYTES;
 		} else {
 			/*
 			 * It's possible for a test to occur too early when

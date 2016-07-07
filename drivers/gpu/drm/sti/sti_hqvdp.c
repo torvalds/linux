@@ -7,6 +7,7 @@
 #include <linux/component.h>
 #include <linux/firmware.h>
 #include <linux/reset.h>
+#include <linux/seq_file.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_fb_cma_helper.h>

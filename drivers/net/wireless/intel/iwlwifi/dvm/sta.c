@@ -579,7 +579,7 @@ static void iwl_sta_fill_lq(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 
 	/* Set up the rate scaling to start at selected rate, fall back
 	 * all the way down to 1M in IEEE order, and then spin on 1M */
-	if (priv->band == IEEE80211_BAND_5GHZ)
+	if (priv->band == NL80211_BAND_5GHZ)
 		r = IWL_RATE_6M_INDEX;
 	else if (ctx && ctx->vif && ctx->vif->p2p)
 		r = IWL_RATE_6M_INDEX;

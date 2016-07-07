@@ -27,7 +27,7 @@ static int regcache_flat_init(struct regmap *map)
 	int i;
 	unsigned int *cache;
 
-	if (!map || map->reg_stride_order < 0)
+	if (!map || map->reg_stride_order < 0 || !map->max_register)
 		return -EINVAL;
 
 	map->cache = kcalloc(regcache_flat_get_index(map, map->max_register)

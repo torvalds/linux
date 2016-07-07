@@ -1012,6 +1012,10 @@ void mesh_path_start_discovery(struct ieee80211_sub_if_data *sdata)
 		goto enddiscovery;
 
 	spin_lock_bh(&mpath->state_lock);
+	if (mpath->flags & MESH_PATH_DELETED) {
+		spin_unlock_bh(&mpath->state_lock);
+		goto enddiscovery;
+	}
 	mpath->flags &= ~MESH_PATH_REQ_QUEUED;
 	if (preq_node->flags & PREQ_Q_F_START) {
 		if (mpath->flags & MESH_PATH_RESOLVING) {

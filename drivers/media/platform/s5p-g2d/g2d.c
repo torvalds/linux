@@ -719,16 +719,12 @@ static int g2d_probe(struct platform_device *pdev)
 
 	def_frame.stride = (def_frame.width * def_frame.fmt->depth) >> 3;
 
-	if (!pdev->dev.of_node) {
-		dev->variant = g2d_get_drv_data(pdev);
-	} else {
-		of_id = of_match_node(exynos_g2d_match, pdev->dev.of_node);
-		if (!of_id) {
-			ret = -ENODEV;
-			goto unreg_video_dev;
-		}
-		dev->variant = (struct g2d_variant *)of_id->data;
+	of_id = of_match_node(exynos_g2d_match, pdev->dev.of_node);
+	if (!of_id) {
+		ret = -ENODEV;
+		goto unreg_video_dev;
 	}
+	dev->variant = (struct g2d_variant *)of_id->data;
 
 	return 0;
 
@@ -788,22 +784,9 @@ static const struct of_device_id exynos_g2d_match[] = {
 };
 MODULE_DEVICE_TABLE(of, exynos_g2d_match);
 
-static const struct platform_device_id g2d_driver_ids[] = {
-	{
-		.name = "s5p-g2d",
-		.driver_data = (unsigned long)&g2d_drvdata_v3x,
-	}, {
-		.name = "s5p-g2d-v4x",
-		.driver_data = (unsigned long)&g2d_drvdata_v4x,
-	},
-	{},
-};
-MODULE_DEVICE_TABLE(platform, g2d_driver_ids);
-
 static struct platform_driver g2d_pdrv = {
 	.probe		= g2d_probe,
 	.remove		= g2d_remove,
-	.id_table	= g2d_driver_ids,
 	.driver		= {
 		.name = G2D_NAME,
 		.of_match_table = exynos_g2d_match,

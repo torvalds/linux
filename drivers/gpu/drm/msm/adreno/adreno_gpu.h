@@ -238,7 +238,7 @@ int adreno_get_param(struct msm_gpu *gpu, uint32_t param, uint64_t *value);
 int adreno_hw_init(struct msm_gpu *gpu);
 uint32_t adreno_last_fence(struct msm_gpu *gpu);
 void adreno_recover(struct msm_gpu *gpu);
-int adreno_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
+void adreno_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 		struct msm_file_private *ctx);
 void adreno_flush(struct msm_gpu *gpu);
 void adreno_idle(struct msm_gpu *gpu);

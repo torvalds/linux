@@ -24,6 +24,8 @@
 #include "gf100.h"
 #include "ctxgf100.h"
 
+#include <subdev/fb.h>
+
 #include <nvif/class.h>
 
 /*******************************************************************************
@@ -177,10 +179,35 @@ gk104_gr_pack_mmio[] = {
  * PGRAPH engine/subdev functions
  ******************************************************************************/
 
+void
+gk104_gr_init_rop_active_fbps(struct gf100_gr *gr)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	const u32 fbp_count = nvkm_rd32(device, 0x120074);
+	nvkm_mask(device, 0x408850, 0x0000000f, fbp_count); /* zrop */
+	nvkm_mask(device, 0x408958, 0x0000000f, fbp_count); /* crop */
+}
+
+void
+gk104_gr_init_ppc_exceptions(struct gf100_gr *gr)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	int gpc, ppc;
+
+	for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
+		for (ppc = 0; ppc < gr->ppc_nr[gpc]; ppc++) {
+			if (!(gr->ppc_mask[gpc] & (1 << ppc)))
+				continue;
+			nvkm_wr32(device, PPC_UNIT(gpc, ppc, 0x038), 0xc0000000);
+		}
+	}
+}
+
 int
 gk104_gr_init(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
+	struct nvkm_fb *fb = device->fb;
 	const u32 magicgpc918 = DIV_ROUND_UP(0x00800000, gr->tpc_total);
 	u32 data[TPC_MAX / 8] = {};
 	u8  tpcnr[GPC_MAX];
@@ -193,8 +220,8 @@ gk104_gr_init(struct gf100_gr *gr)
 	nvkm_wr32(device, GPC_BCAST(0x088c), 0x00000000);
 	nvkm_wr32(device, GPC_BCAST(0x0890), 0x00000000);
 	nvkm_wr32(device, GPC_BCAST(0x0894), 0x00000000);
-	nvkm_wr32(device, GPC_BCAST(0x08b4), nvkm_memory_addr(gr->unk4188b4) >> 8);
-	nvkm_wr32(device, GPC_BCAST(0x08b8), nvkm_memory_addr(gr->unk4188b8) >> 8);
+	nvkm_wr32(device, GPC_BCAST(0x08b4), nvkm_memory_addr(fb->mmu_wr) >> 8);
+	nvkm_wr32(device, GPC_BCAST(0x08b8), nvkm_memory_addr(fb->mmu_rd) >> 8);
 
 	gf100_gr_mmio(gr, gr->func->mmio);
 
@@ -218,14 +245,16 @@ gk104_gr_init(struct gf100_gr *gr)
 
 	for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
 		nvkm_wr32(device, GPC_UNIT(gpc, 0x0914),
-			gr->magic_not_rop_nr << 8 | gr->tpc_nr[gpc]);
+			  gr->screen_tile_row_offset << 8 | gr->tpc_nr[gpc]);
 		nvkm_wr32(device, GPC_UNIT(gpc, 0x0910), 0x00040000 |
-			gr->tpc_total);
+							 gr->tpc_total);
 		nvkm_wr32(device, GPC_UNIT(gpc, 0x0918), magicgpc918);
 	}
 
 	nvkm_wr32(device, GPC_BCAST(0x3fd4), magicgpc918);
 	nvkm_wr32(device, GPC_BCAST(0x08ac), nvkm_rd32(device, 0x100800));
+
+	gr->func->init_rop_active_fbps(gr);
 
 	nvkm_wr32(device, 0x400500, 0x00010001);
 
@@ -246,8 +275,9 @@ gk104_gr_init(struct gf100_gr *gr)
 	nvkm_mask(device, 0x419cc0, 0x00000008, 0x00000008);
 	nvkm_mask(device, 0x419eb4, 0x00001000, 0x00001000);
 
+	gr->func->init_ppc_exceptions(gr);
+
 	for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
-		nvkm_wr32(device, GPC_UNIT(gpc, 0x3038), 0xc0000000);
 		nvkm_wr32(device, GPC_UNIT(gpc, 0x0420), 0xc0000000);
 		nvkm_wr32(device, GPC_UNIT(gpc, 0x0900), 0xc0000000);
 		nvkm_wr32(device, GPC_UNIT(gpc, 0x1028), 0xc0000000);
@@ -309,9 +339,12 @@ gk104_gr_gpccs_ucode = {
 static const struct gf100_gr_func
 gk104_gr = {
 	.init = gk104_gr_init,
+	.init_rop_active_fbps = gk104_gr_init_rop_active_fbps,
+	.init_ppc_exceptions = gk104_gr_init_ppc_exceptions,
 	.mmio = gk104_gr_pack_mmio,
 	.fecs.ucode = &gk104_gr_fecs_ucode,
 	.gpccs.ucode = &gk104_gr_gpccs_ucode,
+	.rops = gf100_gr_rops,
 	.ppc_nr = 1,
 	.grctx = &gk104_grctx,
 	.sclass = {

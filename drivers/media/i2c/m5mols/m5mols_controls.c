@@ -405,7 +405,7 @@ static int m5mols_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 	struct v4l2_subdev *sd = to_sd(ctrl);
 	struct m5mols_info *info = to_m5mols(sd);
 	int ret = 0;
-	u8 status;
+	u8 status = REG_ISO_AUTO;
 
 	v4l2_dbg(1, m5mols_debug, sd, "%s: ctrl: %s (%d)\n",
 		 __func__, ctrl->name, info->isp_ready);

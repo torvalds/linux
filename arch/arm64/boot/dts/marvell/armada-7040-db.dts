@@ -51,42 +51,98 @@
 	compatible = "marvell,armada7040-db", "marvell,armada7040",
 		     "marvell,armada-ap806-quad", "marvell,armada-ap806";
 
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
 	memory@00000000 {
 		device_type = "memory";
 		reg = <0x0 0x0 0x0 0x80000000>;
 	};
+};
 
-	ap806 {
-		config-space {
-			spi@510600 {
-				status = "okay";
+&i2c0 {
+	status = "okay";
+	clock-frequency = <100000>;
+};
 
-				spi-flash@0 {
-					#address-cells = <1>;
-					#size-cells = <1>;
-					compatible = "n25q128a13";
-					reg = <0>; /* Chip select 0 */
-					spi-max-frequency = <10000000>;
+&spi0 {
+	status = "okay";
 
-					partition@0 {
-						label = "U-Boot";
-						reg = <0 0x200000>;
-					};
-					partition@400000 {
-						label = "Filesystem";
-						reg = <0x200000 0xce0000>;
-					};
-				};
+	spi-flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <10000000>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "U-Boot";
+				reg = <0 0x200000>;
 			};
-
-			i2c@511000 {
-				status = "okay";
-				clock-frequency = <100000>;
-			};
-
-			serial@512000 {
-				status = "okay";
+			partition@400000 {
+				label = "Filesystem";
+				reg = <0x200000 0xce0000>;
 			};
 		};
 	};
+};
+
+&uart0 {
+	status = "okay";
+};
+
+
+&cpm_pcie2 {
+	status = "okay";
+};
+
+&cpm_i2c0 {
+	status = "okay";
+	clock-frequency = <100000>;
+};
+
+&cpm_spi1 {
+	status = "okay";
+
+	spi-flash@0 {
+		#address-cells = <0x1>;
+		#size-cells = <0x1>;
+		compatible = "jedec,spi-nor";
+		reg = <0x0>;
+		spi-max-frequency = <20000000>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "U-Boot";
+				reg = <0x0 0x200000>;
+			};
+
+			partition@400000 {
+				label = "Filesystem";
+				reg = <0x200000 0xe00000>;
+			};
+		};
+	};
+};
+
+&cpm_sata0 {
+	status = "okay";
+};
+
+&cpm_usb3_0 {
+	status = "okay";
+};
+
+&cpm_usb3_1 {
+	status = "okay";
 };

@@ -149,15 +149,15 @@ struct rvt_driver_params {
 	int qpn_res_end;
 	int nports;
 	int npkeys;
-	u8 qos_shift;
 	char cq_name[RVT_CQN_MAX];
 	int node;
-	int max_rdma_atomic;
 	int psn_mask;
 	int psn_shift;
 	int psn_modify_mask;
 	u32 core_cap_flags;
 	u32 max_mad_size;
+	u8 qos_shift;
+	u8 max_rdma_atomic;
 };
 
 /* Protection domain */
@@ -203,7 +203,9 @@ struct rvt_driver_provided {
 
 	/*
 	 * Allocate a private queue pair data structure for driver specific
-	 * information which is opaque to rdmavt.
+	 * information which is opaque to rdmavt.  Errors are returned via
+	 * ERR_PTR(err).  The driver is free to return NULL or a valid
+	 * pointer.
 	 */
 	void * (*qp_priv_alloc)(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 				gfp_t gfp);
@@ -426,6 +428,15 @@ static inline unsigned rvt_get_npkeys(struct rvt_dev_info *rdi)
 }
 
 /*
+ * Return the max atomic suitable for determining
+ * the size of the ack ring buffer in a QP.
+ */
+static inline unsigned int rvt_max_atomic(struct rvt_dev_info *rdi)
+{
+	return rdi->dparms.max_rdma_atomic + 1;
+}
+
+/*
  * Return the indexed PKEY from the port PKEY table.
  */
 static inline u16 rvt_get_pkey(struct rvt_dev_info *rdi,
@@ -467,6 +478,7 @@ static inline struct rvt_qp *rvt_lookup_qpn(struct rvt_dev_info *rdi,
 }
 
 struct rvt_dev_info *rvt_alloc_device(size_t size, int nports);
+void rvt_dealloc_device(struct rvt_dev_info *rdi);
 int rvt_register_device(struct rvt_dev_info *rvd);
 void rvt_unregister_device(struct rvt_dev_info *rvd);
 int rvt_check_ah(struct ib_device *ibdev, struct ib_ah_attr *ah_attr);

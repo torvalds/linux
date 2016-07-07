@@ -174,8 +174,14 @@ static int mlx5e_dcbnl_ieee_getpfc(struct net_device *dev,
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	struct mlx5_core_dev *mdev = priv->mdev;
+	struct mlx5e_pport_stats *pstats = &priv->stats.pport;
+	int i;
 
 	pfc->pfc_cap = mlx5_max_tc(mdev) + 1;
+	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
+		pfc->requests[i]    = PPORT_PER_PRIO_GET(pstats, i, tx_pause);
+		pfc->indications[i] = PPORT_PER_PRIO_GET(pstats, i, rx_pause);
+	}
 
 	return mlx5_query_port_pfc(mdev, &pfc->pfc_en, NULL);
 }

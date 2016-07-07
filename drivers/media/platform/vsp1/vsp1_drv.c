@@ -30,6 +30,7 @@
 #include "vsp1_hsit.h"
 #include "vsp1_lif.h"
 #include "vsp1_lut.h"
+#include "vsp1_pipe.h"
 #include "vsp1_rwpf.h"
 #include "vsp1_sru.h"
 #include "vsp1_uds.h"
@@ -49,17 +50,15 @@ static irqreturn_t vsp1_irq_handler(int irq, void *data)
 
 	for (i = 0; i < vsp1->info->wpf_count; ++i) {
 		struct vsp1_rwpf *wpf = vsp1->wpf[i];
-		struct vsp1_pipeline *pipe;
 
 		if (wpf == NULL)
 			continue;
 
-		pipe = to_vsp1_pipeline(&wpf->entity.subdev.entity);
 		status = vsp1_read(vsp1, VI6_WPF_IRQ_STA(i));
 		vsp1_write(vsp1, VI6_WPF_IRQ_STA(i), ~status & mask);
 
 		if (status & VI6_WFP_IRQ_STA_FRE) {
-			vsp1_pipeline_frame_end(pipe);
+			vsp1_pipeline_frame_end(wpf->pipe);
 			ret = IRQ_HANDLED;
 		}
 	}
@@ -68,14 +67,7 @@ static irqreturn_t vsp1_irq_handler(int irq, void *data)
 	vsp1_write(vsp1, VI6_DISP_IRQ_STA, ~status & VI6_DISP_IRQ_STA_DST);
 
 	if (status & VI6_DISP_IRQ_STA_DST) {
-		struct vsp1_rwpf *wpf = vsp1->wpf[0];
-		struct vsp1_pipeline *pipe;
-
-		if (wpf) {
-			pipe = to_vsp1_pipeline(&wpf->entity.subdev.entity);
-			vsp1_pipeline_display_start(pipe);
-		}
-
+		vsp1_drm_display_start(vsp1);
 		ret = IRQ_HANDLED;
 	}
 
@@ -387,13 +379,10 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 	/* Register subdev nodes if the userspace API is enabled or initialize
 	 * the DRM pipeline otherwise.
 	 */
-	if (vsp1->info->uapi) {
-		vsp1->use_dl = false;
+	if (vsp1->info->uapi)
 		ret = v4l2_device_register_subdev_nodes(&vsp1->v4l2_dev);
-	} else {
-		vsp1->use_dl = true;
+	else
 		ret = vsp1_drm_init(vsp1);
-	}
 	if (ret < 0)
 		goto done;
 
@@ -465,8 +454,7 @@ static int vsp1_device_init(struct vsp1_device *vsp1)
 	vsp1_write(vsp1, VI6_DPR_HGT_SMPPT, (7 << VI6_DPR_SMPPT_TGW_SHIFT) |
 		   (VI6_DPR_NODE_UNUSED << VI6_DPR_SMPPT_PT_SHIFT));
 
-	if (vsp1->use_dl)
-		vsp1_dl_setup(vsp1);
+	vsp1_dlm_setup(vsp1);
 
 	return 0;
 }
@@ -570,6 +558,7 @@ static const struct dev_pm_ops vsp1_pm_ops = {
 static const struct vsp1_device_info vsp1_device_infos[] = {
 	{
 		.version = VI6_IP_VERSION_MODEL_VSPS_H2,
+		.gen = 2,
 		.features = VSP1_HAS_BRU | VSP1_HAS_LUT | VSP1_HAS_SRU,
 		.rpf_count = 5,
 		.uds_count = 3,
@@ -578,6 +567,7 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.uapi = true,
 	}, {
 		.version = VI6_IP_VERSION_MODEL_VSPR_H2,
+		.gen = 2,
 		.features = VSP1_HAS_BRU | VSP1_HAS_SRU,
 		.rpf_count = 5,
 		.uds_count = 1,
@@ -586,6 +576,7 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.uapi = true,
 	}, {
 		.version = VI6_IP_VERSION_MODEL_VSPD_GEN2,
+		.gen = 2,
 		.features = VSP1_HAS_BRU | VSP1_HAS_LIF | VSP1_HAS_LUT,
 		.rpf_count = 4,
 		.uds_count = 1,
@@ -594,6 +585,7 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.uapi = true,
 	}, {
 		.version = VI6_IP_VERSION_MODEL_VSPS_M2,
+		.gen = 2,
 		.features = VSP1_HAS_BRU | VSP1_HAS_LUT | VSP1_HAS_SRU,
 		.rpf_count = 5,
 		.uds_count = 3,
@@ -602,6 +594,7 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.uapi = true,
 	}, {
 		.version = VI6_IP_VERSION_MODEL_VSPI_GEN3,
+		.gen = 3,
 		.features = VSP1_HAS_LUT | VSP1_HAS_SRU,
 		.rpf_count = 1,
 		.uds_count = 1,
@@ -609,6 +602,7 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.uapi = true,
 	}, {
 		.version = VI6_IP_VERSION_MODEL_VSPBD_GEN3,
+		.gen = 3,
 		.features = VSP1_HAS_BRU,
 		.rpf_count = 5,
 		.wpf_count = 1,
@@ -616,6 +610,7 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.uapi = true,
 	}, {
 		.version = VI6_IP_VERSION_MODEL_VSPBC_GEN3,
+		.gen = 3,
 		.features = VSP1_HAS_BRU | VSP1_HAS_LUT,
 		.rpf_count = 5,
 		.wpf_count = 1,
@@ -623,7 +618,8 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.uapi = true,
 	}, {
 		.version = VI6_IP_VERSION_MODEL_VSPD_GEN3,
-		.features = VSP1_HAS_BRU | VSP1_HAS_LIF | VSP1_HAS_LUT,
+		.gen = 3,
+		.features = VSP1_HAS_BRU | VSP1_HAS_LIF,
 		.rpf_count = 5,
 		.wpf_count = 2,
 		.num_bru_inputs = 5,

@@ -109,8 +109,8 @@ struct digi_info {
 
 struct digi_getbuffer /* Struct for holding buffer use counts */
 {
-	unsigned long tIn;
-	unsigned long tOut;
+	unsigned long tx_in;
+	unsigned long tx_out;
 	unsigned long rxbuf;
 	unsigned long txbuf;
 	unsigned long txdone;

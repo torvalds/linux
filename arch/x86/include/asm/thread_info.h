@@ -255,7 +255,7 @@ static inline bool test_and_clear_restore_sigmask(void)
 	return true;
 }
 
-static inline bool is_ia32_task(void)
+static inline bool in_ia32_syscall(void)
 {
 #ifdef CONFIG_X86_32
 	return true;

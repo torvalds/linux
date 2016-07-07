@@ -346,20 +346,20 @@ struct mwl8k_sta {
 #define MWL8K_STA(_sta) ((struct mwl8k_sta *)&((_sta)->drv_priv))
 
 static const struct ieee80211_channel mwl8k_channels_24[] = {
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2412, .hw_value = 1, },
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2417, .hw_value = 2, },
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2422, .hw_value = 3, },
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2427, .hw_value = 4, },
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2432, .hw_value = 5, },
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2437, .hw_value = 6, },
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2442, .hw_value = 7, },
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2447, .hw_value = 8, },
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2452, .hw_value = 9, },
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2457, .hw_value = 10, },
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2462, .hw_value = 11, },
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2467, .hw_value = 12, },
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2472, .hw_value = 13, },
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2484, .hw_value = 14, },
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2412, .hw_value = 1, },
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2417, .hw_value = 2, },
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2422, .hw_value = 3, },
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2427, .hw_value = 4, },
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2432, .hw_value = 5, },
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2437, .hw_value = 6, },
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2442, .hw_value = 7, },
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2447, .hw_value = 8, },
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2452, .hw_value = 9, },
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2457, .hw_value = 10, },
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2462, .hw_value = 11, },
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2467, .hw_value = 12, },
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2472, .hw_value = 13, },
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2484, .hw_value = 14, },
 };
 
 static const struct ieee80211_rate mwl8k_rates_24[] = {
@@ -379,10 +379,10 @@ static const struct ieee80211_rate mwl8k_rates_24[] = {
 };
 
 static const struct ieee80211_channel mwl8k_channels_50[] = {
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5180, .hw_value = 36, },
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5200, .hw_value = 40, },
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5220, .hw_value = 44, },
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5240, .hw_value = 48, },
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5180, .hw_value = 36, },
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5200, .hw_value = 40, },
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5220, .hw_value = 44, },
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5240, .hw_value = 48, },
 };
 
 static const struct ieee80211_rate mwl8k_rates_50[] = {
@@ -1010,11 +1010,11 @@ mwl8k_rxd_ap_process(void *_rxd, struct ieee80211_rx_status *status,
 	}
 
 	if (rxd->channel > 14) {
-		status->band = IEEE80211_BAND_5GHZ;
+		status->band = NL80211_BAND_5GHZ;
 		if (!(status->flag & RX_FLAG_HT))
 			status->rate_idx -= 5;
 	} else {
-		status->band = IEEE80211_BAND_2GHZ;
+		status->band = NL80211_BAND_2GHZ;
 	}
 	status->freq = ieee80211_channel_to_frequency(rxd->channel,
 						      status->band);
@@ -1118,11 +1118,11 @@ mwl8k_rxd_sta_process(void *_rxd, struct ieee80211_rx_status *status,
 		status->flag |= RX_FLAG_HT;
 
 	if (rxd->channel > 14) {
-		status->band = IEEE80211_BAND_5GHZ;
+		status->band = NL80211_BAND_5GHZ;
 		if (!(status->flag & RX_FLAG_HT))
 			status->rate_idx -= 5;
 	} else {
-		status->band = IEEE80211_BAND_2GHZ;
+		status->band = NL80211_BAND_2GHZ;
 	}
 	status->freq = ieee80211_channel_to_frequency(rxd->channel,
 						      status->band);
@@ -2300,13 +2300,13 @@ static void mwl8k_setup_2ghz_band(struct ieee80211_hw *hw)
 	BUILD_BUG_ON(sizeof(priv->rates_24) != sizeof(mwl8k_rates_24));
 	memcpy(priv->rates_24, mwl8k_rates_24, sizeof(mwl8k_rates_24));
 
-	priv->band_24.band = IEEE80211_BAND_2GHZ;
+	priv->band_24.band = NL80211_BAND_2GHZ;
 	priv->band_24.channels = priv->channels_24;
 	priv->band_24.n_channels = ARRAY_SIZE(mwl8k_channels_24);
 	priv->band_24.bitrates = priv->rates_24;
 	priv->band_24.n_bitrates = ARRAY_SIZE(mwl8k_rates_24);
 
-	hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &priv->band_24;
+	hw->wiphy->bands[NL80211_BAND_2GHZ] = &priv->band_24;
 }
 
 static void mwl8k_setup_5ghz_band(struct ieee80211_hw *hw)
@@ -2319,13 +2319,13 @@ static void mwl8k_setup_5ghz_band(struct ieee80211_hw *hw)
 	BUILD_BUG_ON(sizeof(priv->rates_50) != sizeof(mwl8k_rates_50));
 	memcpy(priv->rates_50, mwl8k_rates_50, sizeof(mwl8k_rates_50));
 
-	priv->band_50.band = IEEE80211_BAND_5GHZ;
+	priv->band_50.band = NL80211_BAND_5GHZ;
 	priv->band_50.channels = priv->channels_50;
 	priv->band_50.n_channels = ARRAY_SIZE(mwl8k_channels_50);
 	priv->band_50.bitrates = priv->rates_50;
 	priv->band_50.n_bitrates = ARRAY_SIZE(mwl8k_rates_50);
 
-	hw->wiphy->bands[IEEE80211_BAND_5GHZ] = &priv->band_50;
+	hw->wiphy->bands[NL80211_BAND_5GHZ] = &priv->band_50;
 }
 
 /*
@@ -2876,9 +2876,9 @@ static int mwl8k_cmd_tx_power(struct ieee80211_hw *hw,
 	cmd->header.length = cpu_to_le16(sizeof(*cmd));
 	cmd->action = cpu_to_le16(MWL8K_CMD_SET_LIST);
 
-	if (channel->band == IEEE80211_BAND_2GHZ)
+	if (channel->band == NL80211_BAND_2GHZ)
 		cmd->band = cpu_to_le16(0x1);
-	else if (channel->band == IEEE80211_BAND_5GHZ)
+	else if (channel->band == NL80211_BAND_5GHZ)
 		cmd->band = cpu_to_le16(0x4);
 
 	cmd->channel = cpu_to_le16(channel->hw_value);
@@ -3067,7 +3067,7 @@ static int freq_to_idx(struct mwl8k_priv *priv, int freq)
 	struct ieee80211_supported_band *sband;
 	int band, ch, idx = 0;
 
-	for (band = IEEE80211_BAND_2GHZ; band < IEEE80211_NUM_BANDS; band++) {
+	for (band = NL80211_BAND_2GHZ; band < NUM_NL80211_BANDS; band++) {
 		sband = priv->hw->wiphy->bands[band];
 		if (!sband)
 			continue;
@@ -3149,9 +3149,9 @@ static int mwl8k_cmd_set_rf_channel(struct ieee80211_hw *hw,
 	cmd->action = cpu_to_le16(MWL8K_CMD_SET);
 	cmd->current_channel = channel->hw_value;
 
-	if (channel->band == IEEE80211_BAND_2GHZ)
+	if (channel->band == NL80211_BAND_2GHZ)
 		cmd->channel_flags |= cpu_to_le32(0x00000001);
-	else if (channel->band == IEEE80211_BAND_5GHZ)
+	else if (channel->band == NL80211_BAND_5GHZ)
 		cmd->channel_flags |= cpu_to_le32(0x00000004);
 
 	if (!priv->sw_scan_start) {
@@ -4094,10 +4094,10 @@ static int mwl8k_cmd_set_new_stn_add(struct ieee80211_hw *hw,
 	memcpy(cmd->mac_addr, sta->addr, ETH_ALEN);
 	cmd->stn_id = cpu_to_le16(sta->aid);
 	cmd->action = cpu_to_le16(MWL8K_STA_ACTION_ADD);
-	if (hw->conf.chandef.chan->band == IEEE80211_BAND_2GHZ)
-		rates = sta->supp_rates[IEEE80211_BAND_2GHZ];
+	if (hw->conf.chandef.chan->band == NL80211_BAND_2GHZ)
+		rates = sta->supp_rates[NL80211_BAND_2GHZ];
 	else
-		rates = sta->supp_rates[IEEE80211_BAND_5GHZ] << 5;
+		rates = sta->supp_rates[NL80211_BAND_5GHZ] << 5;
 	cmd->legacy_rates = cpu_to_le32(rates);
 	if (sta->ht_cap.ht_supported) {
 		cmd->ht_rates[0] = sta->ht_cap.mcs.rx_mask[0];
@@ -4529,10 +4529,10 @@ static int mwl8k_cmd_update_stadb_add(struct ieee80211_hw *hw,
 	p->ht_caps = cpu_to_le16(sta->ht_cap.cap);
 	p->extended_ht_caps = (sta->ht_cap.ampdu_factor & 3) |
 		((sta->ht_cap.ampdu_density & 7) << 2);
-	if (hw->conf.chandef.chan->band == IEEE80211_BAND_2GHZ)
-		rates = sta->supp_rates[IEEE80211_BAND_2GHZ];
+	if (hw->conf.chandef.chan->band == NL80211_BAND_2GHZ)
+		rates = sta->supp_rates[NL80211_BAND_2GHZ];
 	else
-		rates = sta->supp_rates[IEEE80211_BAND_5GHZ] << 5;
+		rates = sta->supp_rates[NL80211_BAND_5GHZ] << 5;
 	legacy_rate_mask_to_array(p->legacy_rates, rates);
 	memcpy(p->ht_rates, sta->ht_cap.mcs.rx_mask, 16);
 	p->interop = 1;
@@ -5010,11 +5010,11 @@ mwl8k_bss_info_changed_sta(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			goto out;
 		}
 
-		if (hw->conf.chandef.chan->band == IEEE80211_BAND_2GHZ) {
-			ap_legacy_rates = ap->supp_rates[IEEE80211_BAND_2GHZ];
+		if (hw->conf.chandef.chan->band == NL80211_BAND_2GHZ) {
+			ap_legacy_rates = ap->supp_rates[NL80211_BAND_2GHZ];
 		} else {
 			ap_legacy_rates =
-				ap->supp_rates[IEEE80211_BAND_5GHZ] << 5;
+				ap->supp_rates[NL80211_BAND_5GHZ] << 5;
 		}
 		memcpy(ap_mcs_rates, ap->ht_cap.mcs.rx_mask, 16);
 
@@ -5042,7 +5042,7 @@ mwl8k_bss_info_changed_sta(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 					idx--;
 
 				if (hw->conf.chandef.chan->band ==
-				    IEEE80211_BAND_2GHZ)
+				    NL80211_BAND_2GHZ)
 					rate = mwl8k_rates_24[idx].hw_value;
 				else
 					rate = mwl8k_rates_50[idx].hw_value;
@@ -5116,7 +5116,7 @@ mwl8k_bss_info_changed_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		if (idx)
 			idx--;
 
-		if (hw->conf.chandef.chan->band == IEEE80211_BAND_2GHZ)
+		if (hw->conf.chandef.chan->band == NL80211_BAND_2GHZ)
 			rate = mwl8k_rates_24[idx].hw_value;
 		else
 			rate = mwl8k_rates_50[idx].hw_value;
@@ -5388,7 +5388,7 @@ static int mwl8k_get_survey(struct ieee80211_hw *hw, int idx,
 	struct ieee80211_supported_band *sband;
 
 	if (priv->ap_fw) {
-		sband = hw->wiphy->bands[IEEE80211_BAND_2GHZ];
+		sband = hw->wiphy->bands[NL80211_BAND_2GHZ];
 
 		if (sband && idx >= sband->n_channels) {
 			idx -= sband->n_channels;
@@ -5396,7 +5396,7 @@ static int mwl8k_get_survey(struct ieee80211_hw *hw, int idx,
 		}
 
 		if (!sband)
-			sband = hw->wiphy->bands[IEEE80211_BAND_5GHZ];
+			sband = hw->wiphy->bands[NL80211_BAND_5GHZ];
 
 		if (!sband || idx >= sband->n_channels)
 			return -ENOENT;

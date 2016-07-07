@@ -47,7 +47,7 @@ static inline void ceph_decode_copy(void **p, void *pv, size_t n)
 /*
  * bounds check input.
  */
-static inline int ceph_has_room(void **p, void *end, size_t n)
+static inline bool ceph_has_room(void **p, void *end, size_t n)
 {
 	return end >= *p && n <= end - *p;
 }

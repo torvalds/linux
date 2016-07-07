@@ -38,11 +38,11 @@ static void batadv_bitmap_shift_left(unsigned long *seq_bits, s32 n)
  *  the last sequence number
  * @set_mark: whether this packet should be marked in seq_bits
  *
- * Return: 1 if the window was moved (either new or very old),
- *  0 if the window was not moved/shifted.
+ * Return: true if the window was moved (either new or very old),
+ *  false if the window was not moved/shifted.
  */
-int batadv_bit_get_packet(void *priv, unsigned long *seq_bits, s32 seq_num_diff,
-			  int set_mark)
+bool batadv_bit_get_packet(void *priv, unsigned long *seq_bits,
+			   s32 seq_num_diff, int set_mark)
 {
 	struct batadv_priv *bat_priv = priv;
 
@@ -52,7 +52,7 @@ int batadv_bit_get_packet(void *priv, unsigned long *seq_bits, s32 seq_num_diff,
 	if (seq_num_diff <= 0 && seq_num_diff > -BATADV_TQ_LOCAL_WINDOW_SIZE) {
 		if (set_mark)
 			batadv_set_bit(seq_bits, -seq_num_diff);
-		return 0;
+		return false;
 	}
 
 	/* sequence number is slightly newer, so we shift the window and
@@ -63,7 +63,7 @@ int batadv_bit_get_packet(void *priv, unsigned long *seq_bits, s32 seq_num_diff,
 
 		if (set_mark)
 			batadv_set_bit(seq_bits, 0);
-		return 1;
+		return true;
 	}
 
 	/* sequence number is much newer, probably missed a lot of packets */
@@ -75,7 +75,7 @@ int batadv_bit_get_packet(void *priv, unsigned long *seq_bits, s32 seq_num_diff,
 		bitmap_zero(seq_bits, BATADV_TQ_LOCAL_WINDOW_SIZE);
 		if (set_mark)
 			batadv_set_bit(seq_bits, 0);
-		return 1;
+		return true;
 	}
 
 	/* received a much older packet. The other host either restarted
@@ -94,5 +94,5 @@ int batadv_bit_get_packet(void *priv, unsigned long *seq_bits, s32 seq_num_diff,
 	if (set_mark)
 		batadv_set_bit(seq_bits, 0);
 
-	return 1;
+	return true;
 }

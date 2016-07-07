@@ -17,22 +17,51 @@
 
 #include <asm/efi.h>
 
+/*
+ * Only regions of type EFI_RUNTIME_SERVICES_CODE need to be
+ * executable, everything else can be mapped with the XN bits
+ * set. Also take the new (optional) RO/XP bits into account.
+ */
+static __init pteval_t create_mapping_protection(efi_memory_desc_t *md)
+{
+	u64 attr = md->attribute;
+	u32 type = md->type;
+
+	if (type == EFI_MEMORY_MAPPED_IO)
+		return PROT_DEVICE_nGnRE;
+
+	if (WARN_ONCE(!PAGE_ALIGNED(md->phys_addr),
+		      "UEFI Runtime regions are not aligned to 64 KB -- buggy firmware?"))
+		/*
+		 * If the region is not aligned to the page size of the OS, we
+		 * can not use strict permissions, since that would also affect
+		 * the mapping attributes of the adjacent regions.
+		 */
+		return pgprot_val(PAGE_KERNEL_EXEC);
+
+	/* R-- */
+	if ((attr & (EFI_MEMORY_XP | EFI_MEMORY_RO)) ==
+	    (EFI_MEMORY_XP | EFI_MEMORY_RO))
+		return pgprot_val(PAGE_KERNEL_RO);
+
+	/* R-X */
+	if (attr & EFI_MEMORY_RO)
+		return pgprot_val(PAGE_KERNEL_ROX);
+
+	/* RW- */
+	if (attr & EFI_MEMORY_XP || type != EFI_RUNTIME_SERVICES_CODE)
+		return pgprot_val(PAGE_KERNEL);
+
+	/* RWX */
+	return pgprot_val(PAGE_KERNEL_EXEC);
+}
+
+/* we will fill this structure from the stub, so don't put it in .bss */
+struct screen_info screen_info __section(.data);
+
 int __init efi_create_mapping(struct mm_struct *mm, efi_memory_desc_t *md)
 {
-	pteval_t prot_val;
-
-	/*
-	 * Only regions of type EFI_RUNTIME_SERVICES_CODE need to be
-	 * executable, everything else can be mapped with the XN bits
-	 * set.
-	 */
-	if ((md->attribute & EFI_MEMORY_WB) == 0)
-		prot_val = PROT_DEVICE_nGnRE;
-	else if (md->type == EFI_RUNTIME_SERVICES_CODE ||
-		 !PAGE_ALIGNED(md->phys_addr))
-		prot_val = pgprot_val(PAGE_KERNEL_EXEC);
-	else
-		prot_val = pgprot_val(PAGE_KERNEL);
+	pteval_t prot_val = create_mapping_protection(md);
 
 	create_pgd_mapping(mm, md->phys_addr, md->virt_addr,
 			   md->num_pages << EFI_PAGE_SHIFT,

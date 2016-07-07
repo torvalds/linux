@@ -3000,14 +3000,14 @@ restart_eh:
 					"Completion workers still active!");
 
 			spin_lock(dd->queue->queue_lock);
-			blk_mq_all_tag_busy_iter(*dd->tags.tags,
+			blk_mq_tagset_busy_iter(&dd->tags,
 							mtip_queue_cmd, dd);
 			spin_unlock(dd->queue->queue_lock);
 
 			set_bit(MTIP_PF_ISSUE_CMDS_BIT, &dd->port->flags);
 
 			if (mtip_device_reset(dd))
-				blk_mq_all_tag_busy_iter(*dd->tags.tags,
+				blk_mq_tagset_busy_iter(&dd->tags,
 							mtip_abort_cmd, dd);
 
 			clear_bit(MTIP_PF_TO_ACTIVE_BIT, &dd->port->flags);
@@ -4023,12 +4023,6 @@ skip_create_disk:
 	blk_queue_io_min(dd->queue, 4096);
 	blk_queue_bounce_limit(dd->queue, dd->pdev->dma_mask);
 
-	/*
-	 * write back cache is not supported in the device. FUA depends on
-	 * write back cache support, hence setting flush support to zero.
-	 */
-	blk_queue_flush(dd->queue, 0);
-
 	/* Signal trim support */
 	if (dd->trim_supp == true) {
 		set_bit(QUEUE_FLAG_DISCARD, &dd->queue->queue_flags);
@@ -4174,7 +4168,7 @@ static int mtip_block_remove(struct driver_data *dd)
 
 	blk_mq_freeze_queue_start(dd->queue);
 	blk_mq_stop_hw_queues(dd->queue);
-	blk_mq_all_tag_busy_iter(dd->tags.tags[0], mtip_no_dev_cleanup, dd);
+	blk_mq_tagset_busy_iter(&dd->tags, mtip_no_dev_cleanup, dd);
 
 	/*
 	 * Delete our gendisk structure. This also removes the device

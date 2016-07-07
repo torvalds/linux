@@ -31,6 +31,7 @@
 #include "uvd/uvd_5_0_sh_mask.h"
 #include "oss/oss_2_0_d.h"
 #include "oss/oss_2_0_sh_mask.h"
+#include "vi.h"
 
 static void uvd_v5_0_set_ring_funcs(struct amdgpu_device *adev);
 static void uvd_v5_0_set_irq_funcs(struct amdgpu_device *adev);
@@ -110,7 +111,7 @@ static int uvd_v5_0_sw_init(void *handle)
 
 	ring = &adev->uvd.ring;
 	sprintf(ring->name, "uvd");
-	r = amdgpu_ring_init(adev, ring, 4096, CP_PACKET2, 0xf,
+	r = amdgpu_ring_init(adev, ring, 512, CP_PACKET2, 0xf,
 			     &adev->uvd.irq, 0, AMDGPU_RING_TYPE_UVD);
 
 	return r;
@@ -271,12 +272,13 @@ static void uvd_v5_0_mc_resume(struct amdgpu_device *adev)
 	WREG32(mmUVD_VCPU_CACHE_SIZE0, size);
 
 	offset += size;
-	size = AMDGPU_UVD_STACK_SIZE;
+	size = AMDGPU_UVD_HEAP_SIZE;
 	WREG32(mmUVD_VCPU_CACHE_OFFSET1, offset >> 3);
 	WREG32(mmUVD_VCPU_CACHE_SIZE1, size);
 
 	offset += size;
-	size = AMDGPU_UVD_HEAP_SIZE;
+	size = AMDGPU_UVD_STACK_SIZE +
+	       (AMDGPU_UVD_SESSION_SIZE * adev->uvd.max_handles);
 	WREG32(mmUVD_VCPU_CACHE_OFFSET2, offset >> 3);
 	WREG32(mmUVD_VCPU_CACHE_SIZE2, size);
 
@@ -537,7 +539,8 @@ static int uvd_v5_0_ring_test_ring(struct amdgpu_ring *ring)
  * Write ring commands to execute the indirect buffer
  */
 static void uvd_v5_0_ring_emit_ib(struct amdgpu_ring *ring,
-				  struct amdgpu_ib *ib)
+				  struct amdgpu_ib *ib,
+				  unsigned vm_id, bool ctx_switch)
 {
 	amdgpu_ring_write(ring, PACKET0(mmUVD_LMI_RBC_IB_64BIT_BAR_LOW, 0));
 	amdgpu_ring_write(ring, lower_32_bits(ib->gpu_addr));
@@ -622,120 +625,6 @@ static int uvd_v5_0_soft_reset(void *handle)
 	return uvd_v5_0_start(adev);
 }
 
-static void uvd_v5_0_print_status(void *handle)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	dev_info(adev->dev, "UVD 5.0 registers\n");
-	dev_info(adev->dev, "  UVD_SEMA_ADDR_LOW=0x%08X\n",
-		 RREG32(mmUVD_SEMA_ADDR_LOW));
-	dev_info(adev->dev, "  UVD_SEMA_ADDR_HIGH=0x%08X\n",
-		 RREG32(mmUVD_SEMA_ADDR_HIGH));
-	dev_info(adev->dev, "  UVD_SEMA_CMD=0x%08X\n",
-		 RREG32(mmUVD_SEMA_CMD));
-	dev_info(adev->dev, "  UVD_GPCOM_VCPU_CMD=0x%08X\n",
-		 RREG32(mmUVD_GPCOM_VCPU_CMD));
-	dev_info(adev->dev, "  UVD_GPCOM_VCPU_DATA0=0x%08X\n",
-		 RREG32(mmUVD_GPCOM_VCPU_DATA0));
-	dev_info(adev->dev, "  UVD_GPCOM_VCPU_DATA1=0x%08X\n",
-		 RREG32(mmUVD_GPCOM_VCPU_DATA1));
-	dev_info(adev->dev, "  UVD_ENGINE_CNTL=0x%08X\n",
-		 RREG32(mmUVD_ENGINE_CNTL));
-	dev_info(adev->dev, "  UVD_UDEC_ADDR_CONFIG=0x%08X\n",
-		 RREG32(mmUVD_UDEC_ADDR_CONFIG));
-	dev_info(adev->dev, "  UVD_UDEC_DB_ADDR_CONFIG=0x%08X\n",
-		 RREG32(mmUVD_UDEC_DB_ADDR_CONFIG));
-	dev_info(adev->dev, "  UVD_UDEC_DBW_ADDR_CONFIG=0x%08X\n",
-		 RREG32(mmUVD_UDEC_DBW_ADDR_CONFIG));
-	dev_info(adev->dev, "  UVD_SEMA_CNTL=0x%08X\n",
-		 RREG32(mmUVD_SEMA_CNTL));
-	dev_info(adev->dev, "  UVD_LMI_EXT40_ADDR=0x%08X\n",
-		 RREG32(mmUVD_LMI_EXT40_ADDR));
-	dev_info(adev->dev, "  UVD_CTX_INDEX=0x%08X\n",
-		 RREG32(mmUVD_CTX_INDEX));
-	dev_info(adev->dev, "  UVD_CTX_DATA=0x%08X\n",
-		 RREG32(mmUVD_CTX_DATA));
-	dev_info(adev->dev, "  UVD_CGC_GATE=0x%08X\n",
-		 RREG32(mmUVD_CGC_GATE));
-	dev_info(adev->dev, "  UVD_CGC_CTRL=0x%08X\n",
-		 RREG32(mmUVD_CGC_CTRL));
-	dev_info(adev->dev, "  UVD_LMI_CTRL2=0x%08X\n",
-		 RREG32(mmUVD_LMI_CTRL2));
-	dev_info(adev->dev, "  UVD_MASTINT_EN=0x%08X\n",
-		 RREG32(mmUVD_MASTINT_EN));
-	dev_info(adev->dev, "  UVD_LMI_ADDR_EXT=0x%08X\n",
-		 RREG32(mmUVD_LMI_ADDR_EXT));
-	dev_info(adev->dev, "  UVD_LMI_CTRL=0x%08X\n",
-		 RREG32(mmUVD_LMI_CTRL));
-	dev_info(adev->dev, "  UVD_LMI_SWAP_CNTL=0x%08X\n",
-		 RREG32(mmUVD_LMI_SWAP_CNTL));
-	dev_info(adev->dev, "  UVD_MP_SWAP_CNTL=0x%08X\n",
-		 RREG32(mmUVD_MP_SWAP_CNTL));
-	dev_info(adev->dev, "  UVD_MPC_SET_MUXA0=0x%08X\n",
-		 RREG32(mmUVD_MPC_SET_MUXA0));
-	dev_info(adev->dev, "  UVD_MPC_SET_MUXA1=0x%08X\n",
-		 RREG32(mmUVD_MPC_SET_MUXA1));
-	dev_info(adev->dev, "  UVD_MPC_SET_MUXB0=0x%08X\n",
-		 RREG32(mmUVD_MPC_SET_MUXB0));
-	dev_info(adev->dev, "  UVD_MPC_SET_MUXB1=0x%08X\n",
-		 RREG32(mmUVD_MPC_SET_MUXB1));
-	dev_info(adev->dev, "  UVD_MPC_SET_MUX=0x%08X\n",
-		 RREG32(mmUVD_MPC_SET_MUX));
-	dev_info(adev->dev, "  UVD_MPC_SET_ALU=0x%08X\n",
-		 RREG32(mmUVD_MPC_SET_ALU));
-	dev_info(adev->dev, "  UVD_VCPU_CACHE_OFFSET0=0x%08X\n",
-		 RREG32(mmUVD_VCPU_CACHE_OFFSET0));
-	dev_info(adev->dev, "  UVD_VCPU_CACHE_SIZE0=0x%08X\n",
-		 RREG32(mmUVD_VCPU_CACHE_SIZE0));
-	dev_info(adev->dev, "  UVD_VCPU_CACHE_OFFSET1=0x%08X\n",
-		 RREG32(mmUVD_VCPU_CACHE_OFFSET1));
-	dev_info(adev->dev, "  UVD_VCPU_CACHE_SIZE1=0x%08X\n",
-		 RREG32(mmUVD_VCPU_CACHE_SIZE1));
-	dev_info(adev->dev, "  UVD_VCPU_CACHE_OFFSET2=0x%08X\n",
-		 RREG32(mmUVD_VCPU_CACHE_OFFSET2));
-	dev_info(adev->dev, "  UVD_VCPU_CACHE_SIZE2=0x%08X\n",
-		 RREG32(mmUVD_VCPU_CACHE_SIZE2));
-	dev_info(adev->dev, "  UVD_VCPU_CNTL=0x%08X\n",
-		 RREG32(mmUVD_VCPU_CNTL));
-	dev_info(adev->dev, "  UVD_SOFT_RESET=0x%08X\n",
-		 RREG32(mmUVD_SOFT_RESET));
-	dev_info(adev->dev, "  UVD_LMI_RBC_IB_64BIT_BAR_LOW=0x%08X\n",
-		 RREG32(mmUVD_LMI_RBC_IB_64BIT_BAR_LOW));
-	dev_info(adev->dev, "  UVD_LMI_RBC_IB_64BIT_BAR_HIGH=0x%08X\n",
-		 RREG32(mmUVD_LMI_RBC_IB_64BIT_BAR_HIGH));
-	dev_info(adev->dev, "  UVD_RBC_IB_SIZE=0x%08X\n",
-		 RREG32(mmUVD_RBC_IB_SIZE));
-	dev_info(adev->dev, "  UVD_LMI_RBC_RB_64BIT_BAR_LOW=0x%08X\n",
-		 RREG32(mmUVD_LMI_RBC_RB_64BIT_BAR_LOW));
-	dev_info(adev->dev, "  UVD_LMI_RBC_RB_64BIT_BAR_HIGH=0x%08X\n",
-		 RREG32(mmUVD_LMI_RBC_RB_64BIT_BAR_HIGH));
-	dev_info(adev->dev, "  UVD_RBC_RB_RPTR=0x%08X\n",
-		 RREG32(mmUVD_RBC_RB_RPTR));
-	dev_info(adev->dev, "  UVD_RBC_RB_WPTR=0x%08X\n",
-		 RREG32(mmUVD_RBC_RB_WPTR));
-	dev_info(adev->dev, "  UVD_RBC_RB_WPTR_CNTL=0x%08X\n",
-		 RREG32(mmUVD_RBC_RB_WPTR_CNTL));
-	dev_info(adev->dev, "  UVD_RBC_RB_CNTL=0x%08X\n",
-		 RREG32(mmUVD_RBC_RB_CNTL));
-	dev_info(adev->dev, "  UVD_STATUS=0x%08X\n",
-		 RREG32(mmUVD_STATUS));
-	dev_info(adev->dev, "  UVD_SEMA_TIMEOUT_STATUS=0x%08X\n",
-		 RREG32(mmUVD_SEMA_TIMEOUT_STATUS));
-	dev_info(adev->dev, "  UVD_SEMA_WAIT_INCOMPLETE_TIMEOUT_CNTL=0x%08X\n",
-		 RREG32(mmUVD_SEMA_WAIT_INCOMPLETE_TIMEOUT_CNTL));
-	dev_info(adev->dev, "  UVD_SEMA_WAIT_FAULT_TIMEOUT_CNTL=0x%08X\n",
-		 RREG32(mmUVD_SEMA_WAIT_FAULT_TIMEOUT_CNTL));
-	dev_info(adev->dev, "  UVD_SEMA_SIGNAL_INCOMPLETE_TIMEOUT_CNTL=0x%08X\n",
-		 RREG32(mmUVD_SEMA_SIGNAL_INCOMPLETE_TIMEOUT_CNTL));
-	dev_info(adev->dev, "  UVD_CONTEXT_ID=0x%08X\n",
-		 RREG32(mmUVD_CONTEXT_ID));
-	dev_info(adev->dev, "  UVD_UDEC_ADDR_CONFIG=0x%08X\n",
-		 RREG32(mmUVD_UDEC_ADDR_CONFIG));
-	dev_info(adev->dev, "  UVD_UDEC_DB_ADDR_CONFIG=0x%08X\n",
-		 RREG32(mmUVD_UDEC_DB_ADDR_CONFIG));
-	dev_info(adev->dev, "  UVD_UDEC_DBW_ADDR_CONFIG=0x%08X\n",
-		 RREG32(mmUVD_UDEC_DBW_ADDR_CONFIG));
-}
-
 static int uvd_v5_0_set_interrupt_state(struct amdgpu_device *adev,
 					struct amdgpu_irq_src *source,
 					unsigned type,
@@ -754,13 +643,127 @@ static int uvd_v5_0_process_interrupt(struct amdgpu_device *adev,
 	return 0;
 }
 
+static void uvd_v5_0_set_sw_clock_gating(struct amdgpu_device *adev)
+{
+	uint32_t data, data1, data2, suvd_flags;
+
+	data = RREG32(mmUVD_CGC_CTRL);
+	data1 = RREG32(mmUVD_SUVD_CGC_GATE);
+	data2 = RREG32(mmUVD_SUVD_CGC_CTRL);
+
+	data &= ~(UVD_CGC_CTRL__CLK_OFF_DELAY_MASK |
+		  UVD_CGC_CTRL__CLK_GATE_DLY_TIMER_MASK);
+
+	suvd_flags = UVD_SUVD_CGC_GATE__SRE_MASK |
+		     UVD_SUVD_CGC_GATE__SIT_MASK |
+		     UVD_SUVD_CGC_GATE__SMP_MASK |
+		     UVD_SUVD_CGC_GATE__SCM_MASK |
+		     UVD_SUVD_CGC_GATE__SDB_MASK;
+
+	data |= UVD_CGC_CTRL__DYN_CLOCK_MODE_MASK |
+		(1 << REG_FIELD_SHIFT(UVD_CGC_CTRL, CLK_GATE_DLY_TIMER)) |
+		(4 << REG_FIELD_SHIFT(UVD_CGC_CTRL, CLK_OFF_DELAY));
+
+	data &= ~(UVD_CGC_CTRL__UDEC_RE_MODE_MASK |
+			UVD_CGC_CTRL__UDEC_CM_MODE_MASK |
+			UVD_CGC_CTRL__UDEC_IT_MODE_MASK |
+			UVD_CGC_CTRL__UDEC_DB_MODE_MASK |
+			UVD_CGC_CTRL__UDEC_MP_MODE_MASK |
+			UVD_CGC_CTRL__SYS_MODE_MASK |
+			UVD_CGC_CTRL__UDEC_MODE_MASK |
+			UVD_CGC_CTRL__MPEG2_MODE_MASK |
+			UVD_CGC_CTRL__REGS_MODE_MASK |
+			UVD_CGC_CTRL__RBC_MODE_MASK |
+			UVD_CGC_CTRL__LMI_MC_MODE_MASK |
+			UVD_CGC_CTRL__LMI_UMC_MODE_MASK |
+			UVD_CGC_CTRL__IDCT_MODE_MASK |
+			UVD_CGC_CTRL__MPRD_MODE_MASK |
+			UVD_CGC_CTRL__MPC_MODE_MASK |
+			UVD_CGC_CTRL__LBSI_MODE_MASK |
+			UVD_CGC_CTRL__LRBBM_MODE_MASK |
+			UVD_CGC_CTRL__WCB_MODE_MASK |
+			UVD_CGC_CTRL__VCPU_MODE_MASK |
+			UVD_CGC_CTRL__JPEG_MODE_MASK |
+			UVD_CGC_CTRL__SCPU_MODE_MASK);
+	data2 &= ~(UVD_SUVD_CGC_CTRL__SRE_MODE_MASK |
+			UVD_SUVD_CGC_CTRL__SIT_MODE_MASK |
+			UVD_SUVD_CGC_CTRL__SMP_MODE_MASK |
+			UVD_SUVD_CGC_CTRL__SCM_MODE_MASK |
+			UVD_SUVD_CGC_CTRL__SDB_MODE_MASK);
+	data1 |= suvd_flags;
+
+	WREG32(mmUVD_CGC_CTRL, data);
+	WREG32(mmUVD_CGC_GATE, 0);
+	WREG32(mmUVD_SUVD_CGC_GATE, data1);
+	WREG32(mmUVD_SUVD_CGC_CTRL, data2);
+}
+
+#if 0
+static void uvd_v5_0_set_hw_clock_gating(struct amdgpu_device *adev)
+{
+	uint32_t data, data1, cgc_flags, suvd_flags;
+
+	data = RREG32(mmUVD_CGC_GATE);
+	data1 = RREG32(mmUVD_SUVD_CGC_GATE);
+
+	cgc_flags = UVD_CGC_GATE__SYS_MASK |
+				UVD_CGC_GATE__UDEC_MASK |
+				UVD_CGC_GATE__MPEG2_MASK |
+				UVD_CGC_GATE__RBC_MASK |
+				UVD_CGC_GATE__LMI_MC_MASK |
+				UVD_CGC_GATE__IDCT_MASK |
+				UVD_CGC_GATE__MPRD_MASK |
+				UVD_CGC_GATE__MPC_MASK |
+				UVD_CGC_GATE__LBSI_MASK |
+				UVD_CGC_GATE__LRBBM_MASK |
+				UVD_CGC_GATE__UDEC_RE_MASK |
+				UVD_CGC_GATE__UDEC_CM_MASK |
+				UVD_CGC_GATE__UDEC_IT_MASK |
+				UVD_CGC_GATE__UDEC_DB_MASK |
+				UVD_CGC_GATE__UDEC_MP_MASK |
+				UVD_CGC_GATE__WCB_MASK |
+				UVD_CGC_GATE__VCPU_MASK |
+				UVD_CGC_GATE__SCPU_MASK;
+
+	suvd_flags = UVD_SUVD_CGC_GATE__SRE_MASK |
+				UVD_SUVD_CGC_GATE__SIT_MASK |
+				UVD_SUVD_CGC_GATE__SMP_MASK |
+				UVD_SUVD_CGC_GATE__SCM_MASK |
+				UVD_SUVD_CGC_GATE__SDB_MASK;
+
+	data |= cgc_flags;
+	data1 |= suvd_flags;
+
+	WREG32(mmUVD_CGC_GATE, data);
+	WREG32(mmUVD_SUVD_CGC_GATE, data1);
+}
+#endif
+
 static int uvd_v5_0_set_clockgating_state(void *handle,
 					  enum amd_clockgating_state state)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	bool enable = (state == AMD_CG_STATE_GATE) ? true : false;
+	static int curstate = -1;
 
 	if (!(adev->cg_flags & AMD_CG_SUPPORT_UVD_MGCG))
 		return 0;
+
+	if (curstate == state)
+		return 0;
+
+	curstate = state;
+	if (enable) {
+		/* disable HW gating and enable Sw gating */
+		uvd_v5_0_set_sw_clock_gating(adev);
+	} else {
+		/* wait for STATUS to clear */
+		if (uvd_v5_0_wait_for_idle(handle))
+			return -EBUSY;
+
+		/* enable HW gates because UVD is idle */
+/*		uvd_v5_0_set_hw_clock_gating(adev); */
+	}
 
 	return 0;
 }
@@ -789,6 +792,7 @@ static int uvd_v5_0_set_powergating_state(void *handle,
 }
 
 const struct amd_ip_funcs uvd_v5_0_ip_funcs = {
+	.name = "uvd_v5_0",
 	.early_init = uvd_v5_0_early_init,
 	.late_init = NULL,
 	.sw_init = uvd_v5_0_sw_init,
@@ -800,7 +804,6 @@ const struct amd_ip_funcs uvd_v5_0_ip_funcs = {
 	.is_idle = uvd_v5_0_is_idle,
 	.wait_for_idle = uvd_v5_0_wait_for_idle,
 	.soft_reset = uvd_v5_0_soft_reset,
-	.print_status = uvd_v5_0_print_status,
 	.set_clockgating_state = uvd_v5_0_set_clockgating_state,
 	.set_powergating_state = uvd_v5_0_set_powergating_state,
 };

@@ -35,6 +35,20 @@
 		};
 	};
 
+	/* TIMER0 with interrupt for clockevent */
+	timer0 {
+		compatible = "snps,arc-timer";
+		interrupts = <3>;
+		interrupt-parent = <&intc>;
+		clocks = <&cpu_clk>;
+	};
+
+	/* TIMER1 for free running clocksource */
+	timer1 {
+		compatible = "snps,arc-timer";
+		clocks = <&cpu_clk>;
+	};
+
 	soc100 {
 		#address-cells	= <1>;
 		#size-cells	= <1>;
@@ -112,7 +126,7 @@
 			chan_allocation_order = <0>;
 			chan_priority = <1>;
 			block_size = <0x7ff>;
-			data_width = <2>;
+			data-width = <4>;
 			clocks = <&ahb_clk>;
 			clock-names = "hclk";
 		};

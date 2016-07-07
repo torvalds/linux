@@ -29,6 +29,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -186,8 +188,7 @@ static int pxa_cpufreq_change_voltage(const struct pxa_freqs *pxa_freq)
 
 	ret = regulator_set_voltage(vcc_core, vmin, vmax);
 	if (ret)
-		pr_err("cpufreq: Failed to set vcc_core in [%dmV..%dmV]\n",
-		       vmin, vmax);
+		pr_err("Failed to set vcc_core in [%dmV..%dmV]\n", vmin, vmax);
 	return ret;
 }
 
@@ -195,10 +196,10 @@ static void __init pxa_cpufreq_init_voltages(void)
 {
 	vcc_core = regulator_get(NULL, "vcc_core");
 	if (IS_ERR(vcc_core)) {
-		pr_info("cpufreq: Didn't find vcc_core regulator\n");
+		pr_info("Didn't find vcc_core regulator\n");
 		vcc_core = NULL;
 	} else {
-		pr_info("cpufreq: Found vcc_core regulator\n");
+		pr_info("Found vcc_core regulator\n");
 	}
 }
 #else
@@ -233,9 +234,8 @@ static void pxa27x_guess_max_freq(void)
 {
 	if (!pxa27x_maxfreq) {
 		pxa27x_maxfreq = 416000;
-		printk(KERN_INFO "PXA CPU 27x max frequency not defined "
-		       "(pxa27x_maxfreq), assuming pxa271 with %dkHz maxfreq\n",
-		       pxa27x_maxfreq);
+		pr_info("PXA CPU 27x max frequency not defined (pxa27x_maxfreq), assuming pxa271 with %dkHz maxfreq\n",
+			pxa27x_maxfreq);
 	} else {
 		pxa27x_maxfreq *= 1000;
 	}
@@ -408,7 +408,7 @@ static int pxa_cpufreq_init(struct cpufreq_policy *policy)
 	 */
 	if (cpu_is_pxa25x()) {
 		find_freq_tables(&pxa255_freq_table, &pxa255_freqs);
-		pr_info("PXA255 cpufreq using %s frequency table\n",
+		pr_info("using %s frequency table\n",
 			pxa255_turbo_table ? "turbo" : "run");
 
 		cpufreq_table_validate_and_show(policy, pxa255_freq_table);
@@ -417,7 +417,7 @@ static int pxa_cpufreq_init(struct cpufreq_policy *policy)
 		cpufreq_table_validate_and_show(policy, pxa27x_freq_table);
 	}
 
-	printk(KERN_INFO "PXA CPU frequency change support initialized\n");
+	pr_info("frequency change support initialized\n");
 
 	return 0;
 }

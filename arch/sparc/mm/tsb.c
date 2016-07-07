@@ -76,14 +76,15 @@ void flush_tsb_user(struct tlb_batch *tb)
 
 	spin_lock_irqsave(&mm->context.lock, flags);
 
-	base = (unsigned long) mm->context.tsb_block[MM_TSB_BASE].tsb;
-	nentries = mm->context.tsb_block[MM_TSB_BASE].tsb_nentries;
-	if (tlb_type == cheetah_plus || tlb_type == hypervisor)
-		base = __pa(base);
-	__flush_tsb_one(tb, PAGE_SHIFT, base, nentries);
-
+	if (!tb->huge) {
+		base = (unsigned long) mm->context.tsb_block[MM_TSB_BASE].tsb;
+		nentries = mm->context.tsb_block[MM_TSB_BASE].tsb_nentries;
+		if (tlb_type == cheetah_plus || tlb_type == hypervisor)
+			base = __pa(base);
+		__flush_tsb_one(tb, PAGE_SHIFT, base, nentries);
+	}
 #if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
-	if (mm->context.tsb_block[MM_TSB_HUGE].tsb) {
+	if (tb->huge && mm->context.tsb_block[MM_TSB_HUGE].tsb) {
 		base = (unsigned long) mm->context.tsb_block[MM_TSB_HUGE].tsb;
 		nentries = mm->context.tsb_block[MM_TSB_HUGE].tsb_nentries;
 		if (tlb_type == cheetah_plus || tlb_type == hypervisor)
@@ -94,20 +95,21 @@ void flush_tsb_user(struct tlb_batch *tb)
 	spin_unlock_irqrestore(&mm->context.lock, flags);
 }
 
-void flush_tsb_user_page(struct mm_struct *mm, unsigned long vaddr)
+void flush_tsb_user_page(struct mm_struct *mm, unsigned long vaddr, bool huge)
 {
 	unsigned long nentries, base, flags;
 
 	spin_lock_irqsave(&mm->context.lock, flags);
 
-	base = (unsigned long) mm->context.tsb_block[MM_TSB_BASE].tsb;
-	nentries = mm->context.tsb_block[MM_TSB_BASE].tsb_nentries;
-	if (tlb_type == cheetah_plus || tlb_type == hypervisor)
-		base = __pa(base);
-	__flush_tsb_one_entry(base, vaddr, PAGE_SHIFT, nentries);
-
+	if (!huge) {
+		base = (unsigned long) mm->context.tsb_block[MM_TSB_BASE].tsb;
+		nentries = mm->context.tsb_block[MM_TSB_BASE].tsb_nentries;
+		if (tlb_type == cheetah_plus || tlb_type == hypervisor)
+			base = __pa(base);
+		__flush_tsb_one_entry(base, vaddr, PAGE_SHIFT, nentries);
+	}
 #if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
-	if (mm->context.tsb_block[MM_TSB_HUGE].tsb) {
+	if (huge && mm->context.tsb_block[MM_TSB_HUGE].tsb) {
 		base = (unsigned long) mm->context.tsb_block[MM_TSB_HUGE].tsb;
 		nentries = mm->context.tsb_block[MM_TSB_HUGE].tsb_nentries;
 		if (tlb_type == cheetah_plus || tlb_type == hypervisor)

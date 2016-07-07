@@ -688,7 +688,7 @@
 				status = "disabled";
 			};
 
-			ehrpwm0: ehrpwm@48300200 {
+			ehrpwm0: pwm@48300200 {
 				compatible = "ti,am33xx-ehrpwm";
 				#pwm-cells = <3>;
 				reg = <0x48300200 0x80>;
@@ -718,7 +718,7 @@
 				status = "disabled";
 			};
 
-			ehrpwm1: ehrpwm@48302200 {
+			ehrpwm1: pwm@48302200 {
 				compatible = "ti,am33xx-ehrpwm";
 				#pwm-cells = <3>;
 				reg = <0x48302200 0x80>;
@@ -748,7 +748,7 @@
 				status = "disabled";
 			};
 
-			ehrpwm2: ehrpwm@48304200 {
+			ehrpwm2: pwm@48304200 {
 				compatible = "ti,am33xx-ehrpwm";
 				#pwm-cells = <3>;
 				reg = <0x48304200 0x80>;
@@ -868,6 +868,8 @@
 			#size-cells = <1>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
+			gpio-controller;
+			#gpio-cells = <2>;
 			status = "disabled";
 		};
 

@@ -766,7 +766,7 @@ void ipoib_cm_send(struct net_device *dev, struct sk_buff *skb, struct ipoib_cm_
 		ipoib_dma_unmap_tx(priv, tx_req);
 		dev_kfree_skb_any(skb);
 	} else {
-		dev->trans_start = jiffies;
+		netif_trans_update(dev);
 		++tx->tx_head;
 
 		if (++priv->tx_outstanding == ipoib_sendq_size) {
@@ -1486,6 +1486,10 @@ static ssize_t set_mode(struct device *d, struct device_attribute *attr,
 {
 	struct net_device *dev = to_net_dev(d);
 	int ret;
+	struct ipoib_dev_priv *priv = netdev_priv(dev);
+
+	if (test_bit(IPOIB_FLAG_GOING_DOWN, &priv->flags))
+		return -EPERM;
 
 	if (!rtnl_trylock())
 		return restart_syscall();

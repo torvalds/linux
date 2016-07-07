@@ -269,7 +269,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_sgtl5000>;
 		reg = <0x0a>;
-		clocks = <&clks 201>;
+		clocks = <&clks IMX6QDL_CLK_CKO>;
 		VDDA-supply = <&reg_2p5v>;
 		VDDIO-supply = <&reg_3p3v>;
 	};

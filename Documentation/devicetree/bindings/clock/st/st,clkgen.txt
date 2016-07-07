@@ -40,7 +40,7 @@ address is common of all subnode.
 	};
 
 This binding uses the common clock binding[1].
-Each subnode should use the binding discribe in [2]..[7]
+Each subnode should use the binding described in [2]..[7]
 
 [1] Documentation/devicetree/bindings/clock/clock-bindings.txt
 [2] Documentation/devicetree/bindings/clock/st,clkgen-divmux.txt

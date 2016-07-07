@@ -97,7 +97,7 @@ static int vnt_int_report_rate(struct vnt_private *priv, u8 pkt_no, u8 tsr)
 		else if (context->fb_option == AUTO_FB_1)
 			tx_rate = fallback_rate1[tx_rate][retry];
 
-		if (info->band == IEEE80211_BAND_5GHZ)
+		if (info->band == NL80211_BAND_5GHZ)
 			idx = tx_rate - RATE_6M;
 		else
 			idx = tx_rate;

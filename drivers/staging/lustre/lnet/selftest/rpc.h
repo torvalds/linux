@@ -44,7 +44,7 @@
  *
  * XXX: *REPLY == *REQST + 1
  */
-typedef enum {
+enum srpc_msg_type {
 	SRPC_MSG_MKSN_REQST	= 0,
 	SRPC_MSG_MKSN_REPLY	= 1,
 	SRPC_MSG_RMSN_REQST	= 2,
@@ -63,7 +63,7 @@ typedef enum {
 	SRPC_MSG_PING_REPLY	= 15,
 	SRPC_MSG_JOIN_REQST	= 16,
 	SRPC_MSG_JOIN_REPLY	= 17,
-} srpc_msg_type_t;
+};
 
 /* CAVEAT EMPTOR:
  * All srpc_*_reqst_t's 1st field must be matchbits of reply buffer,
@@ -72,122 +72,122 @@ typedef enum {
  * All srpc_*_reply_t's 1st field must be a __u32 status, and 2nd field
  * session id if needed.
  */
-typedef struct {
+struct srpc_generic_reqst {
 	__u64			rpyid;		/* reply buffer matchbits */
 	__u64			bulkid;		/* bulk buffer matchbits */
-} WIRE_ATTR srpc_generic_reqst_t;
+} WIRE_ATTR;
 
-typedef struct {
+struct srpc_generic_reply {
 	__u32			status;
 	lst_sid_t		sid;
-} WIRE_ATTR srpc_generic_reply_t;
+} WIRE_ATTR;
 
 /* FRAMEWORK RPCs */
-typedef struct {
+struct srpc_mksn_reqst {
 	__u64			mksn_rpyid;	/* reply buffer matchbits */
 	lst_sid_t		mksn_sid;	/* session id */
 	__u32			mksn_force;	/* use brute force */
 	char			mksn_name[LST_NAME_SIZE];
-} WIRE_ATTR srpc_mksn_reqst_t; /* make session request */
+} WIRE_ATTR; /* make session request */
 
-typedef struct {
+struct srpc_mksn_reply {
 	__u32			mksn_status;	/* session status */
 	lst_sid_t		mksn_sid;	/* session id */
 	__u32			mksn_timeout;	/* session timeout */
 	char			mksn_name[LST_NAME_SIZE];
-} WIRE_ATTR srpc_mksn_reply_t; /* make session reply */
+} WIRE_ATTR; /* make session reply */
 
-typedef struct {
+struct srpc_rmsn_reqst {
 	__u64			rmsn_rpyid;	/* reply buffer matchbits */
 	lst_sid_t		rmsn_sid;	/* session id */
-} WIRE_ATTR srpc_rmsn_reqst_t; /* remove session request */
+} WIRE_ATTR; /* remove session request */
 
-typedef struct {
+struct srpc_rmsn_reply {
 	__u32			rmsn_status;
 	lst_sid_t		rmsn_sid;	/* session id */
-} WIRE_ATTR srpc_rmsn_reply_t; /* remove session reply */
+} WIRE_ATTR; /* remove session reply */
 
-typedef struct {
+struct srpc_join_reqst {
 	__u64			join_rpyid;	/* reply buffer matchbits */
 	lst_sid_t		join_sid;	/* session id to join */
 	char			join_group[LST_NAME_SIZE]; /* group name */
-} WIRE_ATTR srpc_join_reqst_t;
+} WIRE_ATTR;
 
-typedef struct {
+struct srpc_join_reply {
 	__u32			join_status;	/* returned status */
 	lst_sid_t		join_sid;	/* session id */
 	__u32			join_timeout;	/* # seconds' inactivity to
 						 * expire */
 	char			join_session[LST_NAME_SIZE]; /* session name */
-} WIRE_ATTR srpc_join_reply_t;
+} WIRE_ATTR;
 
-typedef struct {
+struct srpc_debug_reqst {
 	__u64			dbg_rpyid;	/* reply buffer matchbits */
 	lst_sid_t		dbg_sid;	/* session id */
 	__u32			dbg_flags;	/* bitmap of debug */
-} WIRE_ATTR srpc_debug_reqst_t;
+} WIRE_ATTR;
 
-typedef struct {
+struct srpc_debug_reply {
 	__u32			dbg_status;	/* returned code */
 	lst_sid_t		dbg_sid;	/* session id */
 	__u32			dbg_timeout;	/* session timeout */
 	__u32			dbg_nbatch;	/* # of batches in the node */
 	char			dbg_name[LST_NAME_SIZE]; /* session name */
-} WIRE_ATTR srpc_debug_reply_t;
+} WIRE_ATTR;
 
 #define SRPC_BATCH_OPC_RUN	1
 #define SRPC_BATCH_OPC_STOP	2
 #define SRPC_BATCH_OPC_QUERY	3
 
-typedef struct {
+struct srpc_batch_reqst {
 	__u64		   bar_rpyid;	   /* reply buffer matchbits */
 	lst_sid_t	   bar_sid;	   /* session id */
 	lst_bid_t	   bar_bid;	   /* batch id */
 	__u32		   bar_opc;	   /* create/start/stop batch */
 	__u32		   bar_testidx;    /* index of test */
 	__u32		   bar_arg;	   /* parameters */
-} WIRE_ATTR srpc_batch_reqst_t;
+} WIRE_ATTR;
 
-typedef struct {
+struct srpc_batch_reply {
 	__u32		   bar_status;	   /* status of request */
 	lst_sid_t	   bar_sid;	   /* session id */
 	__u32		   bar_active;	   /* # of active tests in batch/test */
 	__u32		   bar_time;	   /* remained time */
-} WIRE_ATTR srpc_batch_reply_t;
+} WIRE_ATTR;
 
-typedef struct {
+struct srpc_stat_reqst {
 	__u64		   str_rpyid;	   /* reply buffer matchbits */
 	lst_sid_t	   str_sid;	   /* session id */
 	__u32		   str_type;	   /* type of stat */
-} WIRE_ATTR srpc_stat_reqst_t;
+} WIRE_ATTR;
 
-typedef struct {
+struct srpc_stat_reply {
 	__u32		   str_status;
 	lst_sid_t	   str_sid;
 	sfw_counters_t	   str_fw;
 	srpc_counters_t    str_rpc;
 	lnet_counters_t    str_lnet;
-} WIRE_ATTR srpc_stat_reply_t;
+} WIRE_ATTR;
 
-typedef struct {
+struct test_bulk_req {
 	__u32		   blk_opc;	   /* bulk operation code */
 	__u32		   blk_npg;	   /* # of pages */
 	__u32		   blk_flags;	   /* reserved flags */
-} WIRE_ATTR test_bulk_req_t;
+} WIRE_ATTR;
 
-typedef struct {
+struct test_bulk_req_v1 {
 	__u16		   blk_opc;	   /* bulk operation code */
 	__u16		   blk_flags;	   /* data check flags */
 	__u32		   blk_len;	   /* data length */
 	__u32		   blk_offset;	   /* reserved: offset */
-} WIRE_ATTR test_bulk_req_v1_t;
+} WIRE_ATTR;
 
-typedef struct {
+struct test_ping_req {
 	__u32		   png_size;	   /* size of ping message */
 	__u32		   png_flags;	   /* reserved flags */
-} WIRE_ATTR test_ping_req_t;
+} WIRE_ATTR;
 
-typedef struct {
+struct srpc_test_reqst {
 	__u64			tsr_rpyid;	/* reply buffer matchbits */
 	__u64			tsr_bulkid;	/* bulk buffer matchbits */
 	lst_sid_t		tsr_sid;	/* session id */
@@ -201,82 +201,82 @@ typedef struct {
 	__u32			tsr_ndest;	/* # of dest nodes */
 
 	union {
-		test_ping_req_t		ping;
-		test_bulk_req_t		bulk_v0;
-		test_bulk_req_v1_t	bulk_v1;
-	}		tsr_u;
-} WIRE_ATTR srpc_test_reqst_t;
+		struct test_ping_req	ping;
+		struct test_bulk_req	bulk_v0;
+		struct test_bulk_req_v1	bulk_v1;
+	} tsr_u;
+} WIRE_ATTR;
 
-typedef struct {
+struct srpc_test_reply {
 	__u32			tsr_status;	/* returned code */
 	lst_sid_t		tsr_sid;
-} WIRE_ATTR srpc_test_reply_t;
+} WIRE_ATTR;
 
 /* TEST RPCs */
-typedef struct {
+struct srpc_ping_reqst {
 	__u64		   pnr_rpyid;
 	__u32		   pnr_magic;
 	__u32		   pnr_seq;
 	__u64		   pnr_time_sec;
 	__u64		   pnr_time_usec;
-} WIRE_ATTR srpc_ping_reqst_t;
+} WIRE_ATTR;
 
-typedef struct {
+struct srpc_ping_reply {
 	__u32		   pnr_status;
 	__u32		   pnr_magic;
 	__u32		   pnr_seq;
-} WIRE_ATTR srpc_ping_reply_t;
+} WIRE_ATTR;
 
-typedef struct {
+struct srpc_brw_reqst {
 	__u64		   brw_rpyid;	   /* reply buffer matchbits */
 	__u64		   brw_bulkid;	   /* bulk buffer matchbits */
 	__u32		   brw_rw;	   /* read or write */
 	__u32		   brw_len;	   /* bulk data len */
 	__u32		   brw_flags;	   /* bulk data patterns */
-} WIRE_ATTR srpc_brw_reqst_t; /* bulk r/w request */
+} WIRE_ATTR; /* bulk r/w request */
 
-typedef struct {
+struct srpc_brw_reply {
 	__u32		   brw_status;
-} WIRE_ATTR srpc_brw_reply_t; /* bulk r/w reply */
+} WIRE_ATTR; /* bulk r/w reply */
 
 #define SRPC_MSG_MAGIC		0xeeb0f00d
 #define SRPC_MSG_VERSION	1
 
-typedef struct srpc_msg {
+struct srpc_msg {
 	__u32	msg_magic;     /* magic number */
 	__u32	msg_version;   /* message version number */
-	__u32	msg_type;      /* type of message body: srpc_msg_type_t */
+	__u32	msg_type;      /* type of message body: srpc_msg_type */
 	__u32	msg_reserved0;
 	__u32	msg_reserved1;
 	__u32	msg_ses_feats; /* test session features */
 	union {
-		srpc_generic_reqst_t reqst;
-		srpc_generic_reply_t reply;
+		struct srpc_generic_reqst	reqst;
+		struct srpc_generic_reply	reply;
 
-		srpc_mksn_reqst_t    mksn_reqst;
-		srpc_mksn_reply_t    mksn_reply;
-		srpc_rmsn_reqst_t    rmsn_reqst;
-		srpc_rmsn_reply_t    rmsn_reply;
-		srpc_debug_reqst_t   dbg_reqst;
-		srpc_debug_reply_t   dbg_reply;
-		srpc_batch_reqst_t   bat_reqst;
-		srpc_batch_reply_t   bat_reply;
-		srpc_stat_reqst_t    stat_reqst;
-		srpc_stat_reply_t    stat_reply;
-		srpc_test_reqst_t    tes_reqst;
-		srpc_test_reply_t    tes_reply;
-		srpc_join_reqst_t    join_reqst;
-		srpc_join_reply_t    join_reply;
+		struct srpc_mksn_reqst		mksn_reqst;
+		struct srpc_mksn_reply		mksn_reply;
+		struct srpc_rmsn_reqst		rmsn_reqst;
+		struct srpc_rmsn_reply		rmsn_reply;
+		struct srpc_debug_reqst		dbg_reqst;
+		struct srpc_debug_reply		dbg_reply;
+		struct srpc_batch_reqst		bat_reqst;
+		struct srpc_batch_reply		bat_reply;
+		struct srpc_stat_reqst		stat_reqst;
+		struct srpc_stat_reply		stat_reply;
+		struct srpc_test_reqst		tes_reqst;
+		struct srpc_test_reply		tes_reply;
+		struct srpc_join_reqst		join_reqst;
+		struct srpc_join_reply		join_reply;
 
-		srpc_ping_reqst_t    ping_reqst;
-		srpc_ping_reply_t    ping_reply;
-		srpc_brw_reqst_t     brw_reqst;
-		srpc_brw_reply_t     brw_reply;
+		struct srpc_ping_reqst		ping_reqst;
+		struct srpc_ping_reply		ping_reply;
+		struct srpc_brw_reqst		brw_reqst;
+		struct srpc_brw_reply		brw_reply;
 	}     msg_body;
-} WIRE_ATTR srpc_msg_t;
+} WIRE_ATTR;
 
 static inline void
-srpc_unpack_msg_hdr(srpc_msg_t *msg)
+srpc_unpack_msg_hdr(struct srpc_msg *msg)
 {
 	if (msg->msg_magic == SRPC_MSG_MAGIC)
 		return; /* no flipping needed */

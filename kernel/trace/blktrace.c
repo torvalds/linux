@@ -1349,6 +1349,7 @@ static enum print_line_t print_one_line(struct trace_iterator *iter,
 	if (t->action == BLK_TN_MESSAGE) {
 		log_action(iter, long_act ? "message" : "m");
 		blk_log_msg(s, iter->ent);
+		return trace_handle_return(s);
 	}
 
 	if (unlikely(what == 0 || what >= ARRAY_SIZE(what2act)))
@@ -1551,6 +1552,7 @@ static const struct {
 	{ BLK_TC_COMPLETE,	"complete"	},
 	{ BLK_TC_FS,		"fs"		},
 	{ BLK_TC_PC,		"pc"		},
+	{ BLK_TC_NOTIFY,	"notify"	},
 	{ BLK_TC_AHEAD,		"ahead"		},
 	{ BLK_TC_META,		"meta"		},
 	{ BLK_TC_DISCARD,	"discard"	},

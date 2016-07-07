@@ -183,6 +183,11 @@ endif
 include config/Makefile
 endif
 
+ifeq ($(config),0)
+include $(srctree)/tools/scripts/Makefile.arch
+-include arch/$(ARCH)/Makefile
+endif
+
 # The FEATURE_DUMP_EXPORT holds location of the actual
 # FEATURE_DUMP file to be used to bypass feature detection
 # (for bpf or any other subproject)
@@ -297,8 +302,6 @@ endif
 # because maintaining the nesting to match is a pain.  If
 # we had "elif" things would have been much nicer...
 
--include arch/$(ARCH)/Makefile
-
 ifneq ($(OUTPUT),)
   CFLAGS += -I$(OUTPUT)
 endif
@@ -390,7 +393,7 @@ endif
 __build-dir = $(subst $(OUTPUT),,$(dir $@))
 build-dir   = $(if $(__build-dir),$(__build-dir),.)
 
-prepare: $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h fixdep
+prepare: $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h fixdep archheaders
 
 $(OUTPUT)%.o: %.c prepare FORCE
 	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
@@ -430,7 +433,7 @@ $(patsubst perf-%,%.o,$(PROGRAMS)): $(wildcard */*.h)
 
 LIBPERF_IN := $(OUTPUT)libperf-in.o
 
-$(LIBPERF_IN): fixdep FORCE
+$(LIBPERF_IN): prepare fixdep FORCE
 	$(Q)$(MAKE) $(build)=libperf
 
 $(LIB_FILE): $(LIBPERF_IN)
@@ -625,7 +628,7 @@ config-clean:
 	$(call QUIET_CLEAN, config)
 	$(Q)$(MAKE) -C $(srctree)/tools/build/feature/ $(if $(OUTPUT),OUTPUT=$(OUTPUT)feature/,) clean >/dev/null
 
-clean: $(LIBTRACEEVENT)-clean $(LIBAPI)-clean $(LIBBPF)-clean $(LIBSUBCMD)-clean config-clean
+clean:: $(LIBTRACEEVENT)-clean $(LIBAPI)-clean $(LIBBPF)-clean $(LIBSUBCMD)-clean config-clean
 	$(call QUIET_CLEAN, core-objs)  $(RM) $(LIB_FILE) $(OUTPUT)perf-archive $(OUTPUT)perf-with-kcore $(LANG_BINDINGS)
 	$(Q)find $(if $(OUTPUT),$(OUTPUT),.) -name '*.o' -delete -o -name '\.*.cmd' -delete -o -name '\.*.d' -delete
 	$(Q)$(RM) $(OUTPUT).config-detected
@@ -662,5 +665,5 @@ FORCE:
 .PHONY: all install clean config-clean strip install-gtk
 .PHONY: shell_compatibility_test please_set_SHELL_PATH_to_a_more_modern_shell
 .PHONY: $(GIT-HEAD-PHONY) TAGS tags cscope FORCE prepare
-.PHONY: libtraceevent_plugins
+.PHONY: libtraceevent_plugins archheaders
 

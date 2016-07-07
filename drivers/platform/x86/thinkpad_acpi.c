@@ -2043,6 +2043,7 @@ static int hotkey_autosleep_ack;
 
 static u32 hotkey_orig_mask;		/* events the BIOS had enabled */
 static u32 hotkey_all_mask;		/* all events supported in fw */
+static u32 hotkey_adaptive_all_mask;	/* all adaptive events supported in fw */
 static u32 hotkey_reserved_mask;	/* events better left disabled */
 static u32 hotkey_driver_mask;		/* events needed by the driver */
 static u32 hotkey_user_mask;		/* events visible to userspace */
@@ -2742,6 +2743,17 @@ static ssize_t hotkey_all_mask_show(struct device *dev,
 
 static DEVICE_ATTR_RO(hotkey_all_mask);
 
+/* sysfs hotkey all_mask ----------------------------------------------- */
+static ssize_t hotkey_adaptive_all_mask_show(struct device *dev,
+			   struct device_attribute *attr,
+			   char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "0x%08x\n",
+			hotkey_adaptive_all_mask | hotkey_source_mask);
+}
+
+static DEVICE_ATTR_RO(hotkey_adaptive_all_mask);
+
 /* sysfs hotkey recommended_mask --------------------------------------- */
 static ssize_t hotkey_recommended_mask_show(struct device *dev,
 					    struct device_attribute *attr,
@@ -2985,6 +2997,7 @@ static struct attribute *hotkey_attributes[] __initdata = {
 	&dev_attr_wakeup_hotunplug_complete.attr,
 	&dev_attr_hotkey_mask.attr,
 	&dev_attr_hotkey_all_mask.attr,
+	&dev_attr_hotkey_adaptive_all_mask.attr,
 	&dev_attr_hotkey_recommended_mask.attr,
 #ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
 	&dev_attr_hotkey_source_mask.attr,
@@ -3321,20 +3334,6 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 	if (!tp_features.hotkey)
 		return 1;
 
-	/*
-	 * Check if we have an adaptive keyboard, like on the
-	 * Lenovo Carbon X1 2014 (2nd Gen).
-	 */
-	if (acpi_evalf(hkey_handle, &hkeyv, "MHKV", "qd")) {
-		if ((hkeyv >> 8) == 2) {
-			tp_features.has_adaptive_kbd = true;
-			res = sysfs_create_group(&tpacpi_pdev->dev.kobj,
-					&adaptive_kbd_attr_group);
-			if (res)
-				goto err_exit;
-		}
-	}
-
 	quirks = tpacpi_check_quirks(tpacpi_hotkey_qtable,
 				     ARRAY_SIZE(tpacpi_hotkey_qtable));
 
@@ -3357,30 +3356,70 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 	   A30, R30, R31, T20-22, X20-21, X22-24.  Detected by checking
 	   for HKEY interface version 0x100 */
 	if (acpi_evalf(hkey_handle, &hkeyv, "MHKV", "qd")) {
-		if ((hkeyv >> 8) != 1) {
-			pr_err("unknown version of the HKEY interface: 0x%x\n",
-			       hkeyv);
-			pr_err("please report this to %s\n", TPACPI_MAIL);
-		} else {
+		vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_HKEY,
+			    "firmware HKEY interface version: 0x%x\n",
+			    hkeyv);
+
+		switch (hkeyv >> 8) {
+		case 1:
 			/*
 			 * MHKV 0x100 in A31, R40, R40e,
 			 * T4x, X31, and later
 			 */
-			vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_HKEY,
-				"firmware HKEY interface version: 0x%x\n",
-				hkeyv);
 
 			/* Paranoia check AND init hotkey_all_mask */
 			if (!acpi_evalf(hkey_handle, &hotkey_all_mask,
 					"MHKA", "qd")) {
-				pr_err("missing MHKA handler, "
-				       "please report this to %s\n",
+				pr_err("missing MHKA handler, please report this to %s\n",
 				       TPACPI_MAIL);
 				/* Fallback: pre-init for FN+F3,F4,F12 */
 				hotkey_all_mask = 0x080cU;
 			} else {
 				tp_features.hotkey_mask = 1;
 			}
+			break;
+
+		case 2:
+			/*
+			 * MHKV 0x200 in X1, T460s, X260, T560, X1 Tablet (2016)
+			 */
+
+			/* Paranoia check AND init hotkey_all_mask */
+			if (!acpi_evalf(hkey_handle, &hotkey_all_mask,
+					"MHKA", "dd", 1)) {
+				pr_err("missing MHKA handler, please report this to %s\n",
+				       TPACPI_MAIL);
+				/* Fallback: pre-init for FN+F3,F4,F12 */
+				hotkey_all_mask = 0x080cU;
+			} else {
+				tp_features.hotkey_mask = 1;
+			}
+
+			/*
+			 * Check if we have an adaptive keyboard, like on the
+			 * Lenovo Carbon X1 2014 (2nd Gen).
+			 */
+			if (acpi_evalf(hkey_handle, &hotkey_adaptive_all_mask,
+				       "MHKA", "dd", 2)) {
+				if (hotkey_adaptive_all_mask != 0) {
+					tp_features.has_adaptive_kbd = true;
+					res = sysfs_create_group(
+						&tpacpi_pdev->dev.kobj,
+						&adaptive_kbd_attr_group);
+					if (res)
+						goto err_exit;
+				}
+			} else {
+				tp_features.has_adaptive_kbd = false;
+				hotkey_adaptive_all_mask = 0x0U;
+			}
+			break;
+
+		default:
+			pr_err("unknown version of the HKEY interface: 0x%x\n",
+			       hkeyv);
+			pr_err("please report this to %s\n", TPACPI_MAIL);
+			break;
 		}
 	}
 
@@ -5001,6 +5040,8 @@ static int kbdlight_set_level(int level)
 	return 0;
 }
 
+static int kbdlight_set_level_and_update(int level);
+
 static int kbdlight_get_level(void)
 {
 	int status = 0;
@@ -5068,7 +5109,7 @@ static void kbdlight_set_worker(struct work_struct *work)
 			container_of(work, struct tpacpi_led_classdev, work);
 
 	if (likely(tpacpi_lifecycle == TPACPI_LIFE_RUNNING))
-		kbdlight_set_level(data->new_state);
+		kbdlight_set_level_and_update(data->new_state);
 }
 
 static void kbdlight_sysfs_set(struct led_classdev *led_cdev,
@@ -5099,7 +5140,6 @@ static struct tpacpi_led_classdev tpacpi_led_kbdlight = {
 		.max_brightness	= 2,
 		.brightness_set	= &kbdlight_sysfs_set,
 		.brightness_get	= &kbdlight_sysfs_get,
-		.flags		= LED_CORE_SUSPENDRESUME,
 	}
 };
 
@@ -5135,6 +5175,20 @@ static void kbdlight_exit(void)
 	if (tp_features.kbdlight)
 		led_classdev_unregister(&tpacpi_led_kbdlight.led_classdev);
 	flush_workqueue(tpacpi_wq);
+}
+
+static int kbdlight_set_level_and_update(int level)
+{
+	int ret;
+	struct led_classdev *led_cdev;
+
+	ret = kbdlight_set_level(level);
+	led_cdev = &tpacpi_led_kbdlight.led_classdev;
+
+	if (ret == 0 && !(led_cdev->flags & LED_SUSPENDED))
+		led_cdev->brightness = level;
+
+	return ret;
 }
 
 static int kbdlight_read(struct seq_file *m)
@@ -5177,13 +5231,35 @@ static int kbdlight_write(char *buf)
 	if (level == -1)
 		return -EINVAL;
 
-	return kbdlight_set_level(level);
+	return kbdlight_set_level_and_update(level);
+}
+
+static void kbdlight_suspend(void)
+{
+	struct led_classdev *led_cdev;
+
+	if (!tp_features.kbdlight)
+		return;
+
+	led_cdev = &tpacpi_led_kbdlight.led_classdev;
+	led_update_brightness(led_cdev);
+	led_classdev_suspend(led_cdev);
+}
+
+static void kbdlight_resume(void)
+{
+	if (!tp_features.kbdlight)
+		return;
+
+	led_classdev_resume(&tpacpi_led_kbdlight.led_classdev);
 }
 
 static struct ibm_struct kbdlight_driver_data = {
 	.name = "kbdlight",
 	.read = kbdlight_read,
 	.write = kbdlight_write,
+	.suspend = kbdlight_suspend,
+	.resume = kbdlight_resume,
 	.exit = kbdlight_exit,
 };
 

@@ -23,6 +23,11 @@
 #include <linux/list.h>
 #include <linux/hashtable.h>
 
+#ifdef LIBELF_USE_DEPRECATED
+# define elf_getshdrnum    elf_getshnum
+# define elf_getshdrstrndx elf_getshstrndx
+#endif
+
 struct section {
 	struct list_head list;
 	GElf_Shdr sh;

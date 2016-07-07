@@ -38,7 +38,7 @@ Implementation details
 ======================
 
 The driver is located in drivers/net/dsa/bcm_sf2.c and is implemented as a DSA
-driver; see Documentation/networking/dsa/dsa.txt for details on the subsytem
+driver; see Documentation/networking/dsa/dsa.txt for details on the subsystem
 and what it provides.
 
 The SF2 switch is configured to enable a Broadcom specific 4-bytes switch tag

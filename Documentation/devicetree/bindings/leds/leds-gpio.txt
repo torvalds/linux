@@ -23,6 +23,8 @@ LED sub-node properties:
   property is not present.
 - retain-state-suspended: (optional) The suspend state can be retained.Such
   as charge-led gpio.
+- panic-indicator : (optional)
+  see Documentation/devicetree/bindings/leds/common.txt
 
 Examples:
 

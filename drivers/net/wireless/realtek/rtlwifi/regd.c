@@ -154,13 +154,13 @@ static bool _rtl_is_radar_freq(u16 center_freq)
 static void _rtl_reg_apply_beaconing_flags(struct wiphy *wiphy,
 					   enum nl80211_reg_initiator initiator)
 {
-	enum ieee80211_band band;
+	enum nl80211_band band;
 	struct ieee80211_supported_band *sband;
 	const struct ieee80211_reg_rule *reg_rule;
 	struct ieee80211_channel *ch;
 	unsigned int i;
 
-	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
+	for (band = 0; band < NUM_NL80211_BANDS; band++) {
 
 		if (!wiphy->bands[band])
 			continue;
@@ -210,9 +210,9 @@ static void _rtl_reg_apply_active_scan_flags(struct wiphy *wiphy,
 	struct ieee80211_channel *ch;
 	const struct ieee80211_reg_rule *reg_rule;
 
-	if (!wiphy->bands[IEEE80211_BAND_2GHZ])
+	if (!wiphy->bands[NL80211_BAND_2GHZ])
 		return;
-	sband = wiphy->bands[IEEE80211_BAND_2GHZ];
+	sband = wiphy->bands[NL80211_BAND_2GHZ];
 
 	/*
 	 *If no country IE has been received always enable active scan
@@ -262,10 +262,10 @@ static void _rtl_reg_apply_radar_flags(struct wiphy *wiphy)
 	struct ieee80211_channel *ch;
 	unsigned int i;
 
-	if (!wiphy->bands[IEEE80211_BAND_5GHZ])
+	if (!wiphy->bands[NL80211_BAND_5GHZ])
 		return;
 
-	sband = wiphy->bands[IEEE80211_BAND_5GHZ];
+	sband = wiphy->bands[NL80211_BAND_5GHZ];
 
 	for (i = 0; i < sband->n_channels; i++) {
 		ch = &sband->channels[i];
@@ -301,12 +301,12 @@ static void _rtl_reg_apply_world_flags(struct wiphy *wiphy,
 
 static void _rtl_dump_channel_map(struct wiphy *wiphy)
 {
-	enum ieee80211_band band;
+	enum nl80211_band band;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_channel *ch;
 	unsigned int i;
 
-	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
+	for (band = 0; band < NUM_NL80211_BANDS; band++) {
 		if (!wiphy->bands[band])
 			continue;
 		sband = wiphy->bands[band];

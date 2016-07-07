@@ -198,14 +198,10 @@ xfs_growfs_data_private(
 			return error;
 	}
 
-	tp = xfs_trans_alloc(mp, XFS_TRANS_GROWFS);
-	tp->t_flags |= XFS_TRANS_RESERVE;
-	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_growdata,
-				  XFS_GROWFS_SPACE_RES(mp), 0);
-	if (error) {
-		xfs_trans_cancel(tp);
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_growdata,
+			XFS_GROWFS_SPACE_RES(mp), 0, XFS_TRANS_RESERVE, &tp);
+	if (error)
 		return error;
-	}
 
 	/*
 	 * Write new AG headers to disk. Non-transactional, but written
@@ -243,8 +239,8 @@ xfs_growfs_data_private(
 		agf->agf_roots[XFS_BTNUM_CNTi] = cpu_to_be32(XFS_CNT_BLOCK(mp));
 		agf->agf_levels[XFS_BTNUM_BNOi] = cpu_to_be32(1);
 		agf->agf_levels[XFS_BTNUM_CNTi] = cpu_to_be32(1);
-		agf->agf_flfirst = 0;
-		agf->agf_fllast = cpu_to_be32(XFS_AGFL_SIZE(mp) - 1);
+		agf->agf_flfirst = cpu_to_be32(1);
+		agf->agf_fllast = 0;
 		agf->agf_flcount = 0;
 		tmpsize = agsize - XFS_PREALLOC_BLOCKS(mp);
 		agf->agf_freeblks = cpu_to_be32(tmpsize);

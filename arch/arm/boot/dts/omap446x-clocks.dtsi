@@ -8,7 +8,7 @@
  * published by the Free Software Foundation.
  */
 &prm_clocks {
-	div_ts_ck: div_ts_ck {
+	div_ts_ck: div_ts_ck@1888 {
 		#clock-cells = <0>;
 		compatible = "ti,divider-clock";
 		clocks = <&l4_wkup_clk_mux_ck>;
@@ -17,7 +17,7 @@
 		ti,dividers = <8>, <16>, <32>;
 	};
 
-	bandgap_ts_fclk: bandgap_ts_fclk {
+	bandgap_ts_fclk: bandgap_ts_fclk@1888 {
 		#clock-cells = <0>;
 		compatible = "ti,gate-clock";
 		clocks = <&div_ts_ck>;

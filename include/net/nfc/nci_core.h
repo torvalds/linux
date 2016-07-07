@@ -109,7 +109,13 @@ struct nci_ops {
 
 struct nci_conn_info {
 	struct list_head list;
-	__u8	id; /* can be an RF Discovery ID or an NFCEE ID */
+	/* NCI specification 4.4.2 Connection Creation
+	 * The combination of destination type and destination specific
+	 * parameters shall uniquely identify a single destination for the
+	 * Logical Connection
+	 */
+	struct dest_spec_params *dest_params;
+	__u8	dest_type;
 	__u8	conn_id;
 	__u8	max_pkt_payload_len;
 
@@ -260,7 +266,9 @@ struct nci_dev {
 	__u32			manufact_specific_info;
 
 	/* Save RF Discovery ID or NFCEE ID under conn_create */
-	__u8			cur_id;
+	struct dest_spec_params cur_params;
+	/* Save destination type under conn_create */
+	__u8			cur_dest_type;
 
 	/* stored during nci_data_exchange */
 	struct sk_buff		*rx_data_reassembly;
@@ -298,6 +306,8 @@ int nci_core_conn_create(struct nci_dev *ndev, u8 destination_type,
 			 size_t params_len,
 			 struct core_conn_create_dest_spec_params *params);
 int nci_core_conn_close(struct nci_dev *ndev, u8 conn_id);
+int nci_nfcc_loopback(struct nci_dev *ndev, void *data, size_t data_len,
+		      struct sk_buff **resp);
 
 struct nci_hci_dev *nci_hci_allocate(struct nci_dev *ndev);
 int nci_hci_send_event(struct nci_dev *ndev, u8 gate, u8 event,
@@ -378,7 +388,8 @@ void nci_clear_target_list(struct nci_dev *ndev);
 void nci_req_complete(struct nci_dev *ndev, int result);
 struct nci_conn_info *nci_get_conn_info_by_conn_id(struct nci_dev *ndev,
 						   int conn_id);
-int nci_get_conn_info_by_id(struct nci_dev *ndev, u8 id);
+int nci_get_conn_info_by_dest_type_params(struct nci_dev *ndev, u8 dest_type,
+					  struct dest_spec_params *params);
 
 /* ----- NCI status code ----- */
 int nci_to_errno(__u8 code);

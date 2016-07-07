@@ -273,10 +273,11 @@ xfs_dir2_leaf_readbuf(
 	size_t			bufsize,
 	struct xfs_dir2_leaf_map_info *mip,
 	xfs_dir2_off_t		*curoff,
-	struct xfs_buf		**bpp)
+	struct xfs_buf		**bpp,
+	bool			trim_map)
 {
 	struct xfs_inode	*dp = args->dp;
-	struct xfs_buf		*bp = *bpp;
+	struct xfs_buf		*bp = NULL;
 	struct xfs_bmbt_irec	*map = mip->map;
 	struct blk_plug		plug;
 	int			error = 0;
@@ -286,13 +287,10 @@ xfs_dir2_leaf_readbuf(
 	struct xfs_da_geometry	*geo = args->geo;
 
 	/*
-	 * If we have a buffer, we need to release it and
-	 * take it out of the mapping.
+	 * If the caller just finished processing a buffer, it will tell us
+	 * we need to trim that block out of the mapping now it is done.
 	 */
-
-	if (bp) {
-		xfs_trans_brelse(NULL, bp);
-		bp = NULL;
+	if (trim_map) {
 		mip->map_blocks -= geo->fsbcount;
 		/*
 		 * Loop to get rid of the extents for the
@@ -533,10 +531,17 @@ xfs_dir2_leaf_getdents(
 		 */
 		if (!bp || ptr >= (char *)bp->b_addr + geo->blksize) {
 			int	lock_mode;
+			bool	trim_map = false;
+
+			if (bp) {
+				xfs_trans_brelse(NULL, bp);
+				bp = NULL;
+				trim_map = true;
+			}
 
 			lock_mode = xfs_ilock_data_map_shared(dp);
 			error = xfs_dir2_leaf_readbuf(args, bufsize, map_info,
-						      &curoff, &bp);
+						      &curoff, &bp, trim_map);
 			xfs_iunlock(dp, lock_mode);
 			if (error || !map_info->map_valid)
 				break;

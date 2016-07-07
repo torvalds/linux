@@ -45,7 +45,6 @@ struct key_preparsed_payload {
 	size_t		datalen;	/* Raw datalen */
 	size_t		quotalen;	/* Quota length for proposed payload */
 	time_t		expiry;		/* Expiry time of key */
-	bool		trusted;	/* True if key is trusted */
 };
 
 typedef int (*request_key_actor_t)(struct key_construction *key,

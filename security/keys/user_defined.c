@@ -96,45 +96,25 @@ EXPORT_SYMBOL_GPL(user_free_preparse);
  */
 int user_update(struct key *key, struct key_preparsed_payload *prep)
 {
-	struct user_key_payload *upayload, *zap;
-	size_t datalen = prep->datalen;
+	struct user_key_payload *zap = NULL;
 	int ret;
 
-	ret = -EINVAL;
-	if (datalen <= 0 || datalen > 32767 || !prep->data)
-		goto error;
-
-	/* construct a replacement payload */
-	ret = -ENOMEM;
-	upayload = kmalloc(sizeof(*upayload) + datalen, GFP_KERNEL);
-	if (!upayload)
-		goto error;
-
-	upayload->datalen = datalen;
-	memcpy(upayload->data, prep->data, datalen);
-
 	/* check the quota and attach the new data */
-	zap = upayload;
+	ret = key_payload_reserve(key, prep->datalen);
+	if (ret < 0)
+		return ret;
 
-	ret = key_payload_reserve(key, datalen);
-
-	if (ret == 0) {
-		/* attach the new data, displacing the old */
-		if (!test_bit(KEY_FLAG_NEGATIVE, &key->flags))
-			zap = key->payload.data[0];
-		else
-			zap = NULL;
-		rcu_assign_keypointer(key, upayload);
-		key->expiry = 0;
-	}
+	/* attach the new data, displacing the old */
+	key->expiry = prep->expiry;
+	if (!test_bit(KEY_FLAG_NEGATIVE, &key->flags))
+		zap = rcu_dereference_key(key);
+	rcu_assign_keypointer(key, prep->payload.data[0]);
+	prep->payload.data[0] = NULL;
 
 	if (zap)
 		kfree_rcu(zap, rcu);
-
-error:
 	return ret;
 }
-
 EXPORT_SYMBOL_GPL(user_update);
 
 /*

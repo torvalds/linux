@@ -12,6 +12,18 @@
 #define COMMON_IPC_PERMS "create", "destroy", "getattr", "setattr", "read", \
 	    "write", "associate", "unix_read", "unix_write"
 
+#define COMMON_CAP_PERMS  "chown", "dac_override", "dac_read_search", \
+	    "fowner", "fsetid", "kill", "setgid", "setuid", "setpcap", \
+	    "linux_immutable", "net_bind_service", "net_broadcast", \
+	    "net_admin", "net_raw", "ipc_lock", "ipc_owner", "sys_module", \
+	    "sys_rawio", "sys_chroot", "sys_ptrace", "sys_pacct", "sys_admin", \
+	    "sys_boot", "sys_nice", "sys_resource", "sys_time", \
+	    "sys_tty_config", "mknod", "lease", "audit_write", \
+	    "audit_control", "setfcap"
+
+#define COMMON_CAP2_PERMS  "mac_override", "mac_admin", "syslog", \
+		"wake_alarm", "block_suspend", "audit_read"
+
 /*
  * Note: The name for any socket class should be suffixed by "socket",
  *	 and doesn't contain more than one substr of "socket".
@@ -32,16 +44,9 @@ struct security_class_mapping secclass_map[] = {
 	    "setsockcreate", NULL } },
 	{ "system",
 	  { "ipc_info", "syslog_read", "syslog_mod",
-	    "syslog_console", "module_request", NULL } },
+	    "syslog_console", "module_request", "module_load", NULL } },
 	{ "capability",
-	  { "chown", "dac_override", "dac_read_search",
-	    "fowner", "fsetid", "kill", "setgid", "setuid", "setpcap",
-	    "linux_immutable", "net_bind_service", "net_broadcast",
-	    "net_admin", "net_raw", "ipc_lock", "ipc_owner", "sys_module",
-	    "sys_rawio", "sys_chroot", "sys_ptrace", "sys_pacct", "sys_admin",
-	    "sys_boot", "sys_nice", "sys_resource", "sys_time",
-	    "sys_tty_config", "mknod", "lease", "audit_write",
-	    "audit_control", "setfcap", NULL } },
+	  { COMMON_CAP_PERMS, NULL } },
 	{ "filesystem",
 	  { "mount", "remount", "unmount", "getattr",
 	    "relabelfrom", "relabelto", "associate", "quotamod",
@@ -150,12 +155,15 @@ struct security_class_mapping secclass_map[] = {
 	{ "memprotect", { "mmap_zero", NULL } },
 	{ "peer", { "recv", NULL } },
 	{ "capability2",
-	  { "mac_override", "mac_admin", "syslog", "wake_alarm", "block_suspend",
-	    "audit_read", NULL } },
+	  { COMMON_CAP2_PERMS, NULL } },
 	{ "kernel_service", { "use_as_override", "create_files_as", NULL } },
 	{ "tun_socket",
 	  { COMMON_SOCK_PERMS, "attach_queue", NULL } },
 	{ "binder", { "impersonate", "call", "set_context_mgr", "transfer",
 		      NULL } },
+	{ "cap_userns",
+	  { COMMON_CAP_PERMS, NULL } },
+	{ "cap2_userns",
+	  { COMMON_CAP2_PERMS, NULL } },
 	{ NULL }
   };

@@ -398,8 +398,7 @@ static void sh_mobile_i2c_get_data(struct sh_mobile_i2c_data *pd,
 {
 	switch (pd->pos) {
 	case -1:
-		*buf = (pd->msg->addr & 0x7f) << 1;
-		*buf |= (pd->msg->flags & I2C_M_RD) ? 1 : 0;
+		*buf = i2c_8bit_addr_from_msg(pd->msg);
 		break;
 	default:
 		*buf = pd->msg->buf[pd->pos];

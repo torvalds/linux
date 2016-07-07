@@ -327,6 +327,11 @@ static int irq_cpu_hotplug_notify(struct notifier_block *self,
 {
 	unsigned int cpu = (unsigned int)hcpu;
 
+	/*
+	 * Corresponding FROZEN transitions do not have to be handled,
+	 * they are handled by at a higher level
+	 * (drivers/cpuidle/coupled.c).
+	 */
 	switch (action) {
 	case CPU_ONLINE:
 		wakeupgen_irqmask_all(cpu, 0);

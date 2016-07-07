@@ -1241,59 +1241,45 @@ static int rt5677_dmic_use_asrc(struct snd_soc_dapm_widget *source,
 		regmap_read(rt5677->regmap, RT5677_ASRC_5, &asrc_setting);
 		asrc_setting = (asrc_setting & RT5677_AD_STO1_CLK_SEL_MASK) >>
 				RT5677_AD_STO1_CLK_SEL_SFT;
-		if (asrc_setting >= RT5677_CLK_SEL_I2S1_ASRC &&
-			asrc_setting <= RT5677_CLK_SEL_I2S6_ASRC)
-			return 1;
 		break;
 
 	case 10:
 		regmap_read(rt5677->regmap, RT5677_ASRC_5, &asrc_setting);
 		asrc_setting = (asrc_setting & RT5677_AD_STO2_CLK_SEL_MASK) >>
 				RT5677_AD_STO2_CLK_SEL_SFT;
-		if (asrc_setting >= RT5677_CLK_SEL_I2S1_ASRC &&
-			asrc_setting <= RT5677_CLK_SEL_I2S6_ASRC)
-			return 1;
 		break;
 
 	case 9:
 		regmap_read(rt5677->regmap, RT5677_ASRC_5, &asrc_setting);
 		asrc_setting = (asrc_setting & RT5677_AD_STO3_CLK_SEL_MASK) >>
 				RT5677_AD_STO3_CLK_SEL_SFT;
-		if (asrc_setting >= RT5677_CLK_SEL_I2S1_ASRC &&
-			asrc_setting <= RT5677_CLK_SEL_I2S6_ASRC)
-			return 1;
 		break;
 
 	case 8:
 		regmap_read(rt5677->regmap, RT5677_ASRC_5, &asrc_setting);
 		asrc_setting = (asrc_setting & RT5677_AD_STO4_CLK_SEL_MASK) >>
 			RT5677_AD_STO4_CLK_SEL_SFT;
-		if (asrc_setting >= RT5677_CLK_SEL_I2S1_ASRC &&
-			asrc_setting <= RT5677_CLK_SEL_I2S6_ASRC)
-			return 1;
 		break;
 
 	case 7:
 		regmap_read(rt5677->regmap, RT5677_ASRC_6, &asrc_setting);
 		asrc_setting = (asrc_setting & RT5677_AD_MONOL_CLK_SEL_MASK) >>
 			RT5677_AD_MONOL_CLK_SEL_SFT;
-		if (asrc_setting >= RT5677_CLK_SEL_I2S1_ASRC &&
-			asrc_setting <= RT5677_CLK_SEL_I2S6_ASRC)
-			return 1;
 		break;
 
 	case 6:
 		regmap_read(rt5677->regmap, RT5677_ASRC_6, &asrc_setting);
 		asrc_setting = (asrc_setting & RT5677_AD_MONOR_CLK_SEL_MASK) >>
 			RT5677_AD_MONOR_CLK_SEL_SFT;
-		if (asrc_setting >= RT5677_CLK_SEL_I2S1_ASRC &&
-			asrc_setting <= RT5677_CLK_SEL_I2S6_ASRC)
-			return 1;
 		break;
 
 	default:
-		break;
+		return 0;
 	}
+
+	if (asrc_setting >= RT5677_CLK_SEL_I2S1_ASRC &&
+	    asrc_setting <= RT5677_CLK_SEL_I2S6_ASRC)
+		return 1;
 
 	return 0;
 }
@@ -4520,14 +4506,9 @@ static int rt5677_set_bias_level(struct snd_soc_codec *codec,
 }
 
 #ifdef CONFIG_GPIOLIB
-static inline struct rt5677_priv *gpio_to_rt5677(struct gpio_chip *chip)
-{
-	return container_of(chip, struct rt5677_priv, gpio_chip);
-}
-
 static void rt5677_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct rt5677_priv *rt5677 = gpio_to_rt5677(chip);
+	struct rt5677_priv *rt5677 = gpiochip_get_data(chip);
 
 	switch (offset) {
 	case RT5677_GPIO1 ... RT5677_GPIO5:
@@ -4548,7 +4529,7 @@ static void rt5677_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 static int rt5677_gpio_direction_out(struct gpio_chip *chip,
 				     unsigned offset, int value)
 {
-	struct rt5677_priv *rt5677 = gpio_to_rt5677(chip);
+	struct rt5677_priv *rt5677 = gpiochip_get_data(chip);
 
 	switch (offset) {
 	case RT5677_GPIO1 ... RT5677_GPIO5:
@@ -4572,7 +4553,7 @@ static int rt5677_gpio_direction_out(struct gpio_chip *chip,
 
 static int rt5677_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct rt5677_priv *rt5677 = gpio_to_rt5677(chip);
+	struct rt5677_priv *rt5677 = gpiochip_get_data(chip);
 	int value, ret;
 
 	ret = regmap_read(rt5677->regmap, RT5677_GPIO_ST, &value);
@@ -4584,7 +4565,7 @@ static int rt5677_gpio_get(struct gpio_chip *chip, unsigned offset)
 
 static int rt5677_gpio_direction_in(struct gpio_chip *chip, unsigned offset)
 {
-	struct rt5677_priv *rt5677 = gpio_to_rt5677(chip);
+	struct rt5677_priv *rt5677 = gpiochip_get_data(chip);
 
 	switch (offset) {
 	case RT5677_GPIO1 ... RT5677_GPIO5:
@@ -4638,7 +4619,7 @@ static void rt5677_gpio_config(struct rt5677_priv *rt5677, unsigned offset,
 
 static int rt5677_to_irq(struct gpio_chip *chip, unsigned offset)
 {
-	struct rt5677_priv *rt5677 = gpio_to_rt5677(chip);
+	struct rt5677_priv *rt5677 = gpiochip_get_data(chip);
 	struct regmap_irq_chip_data *data = rt5677->irq_data;
 	int irq;
 
@@ -4697,7 +4678,7 @@ static void rt5677_init_gpio(struct i2c_client *i2c)
 	rt5677->gpio_chip.parent = &i2c->dev;
 	rt5677->gpio_chip.base = -1;
 
-	ret = gpiochip_add(&rt5677->gpio_chip);
+	ret = gpiochip_add_data(&rt5677->gpio_chip, rt5677);
 	if (ret != 0)
 		dev_err(&i2c->dev, "Failed to add GPIOs: %d\n", ret);
 }

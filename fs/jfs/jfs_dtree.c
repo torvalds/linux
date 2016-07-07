@@ -3072,8 +3072,7 @@ int jfs_readdir(struct file *file, struct dir_context *ctx)
 			}
 			if (dirtab_slot.flag == DIR_INDEX_FREE) {
 				if (loop_count++ > JFS_IP(ip)->next_index) {
-					jfs_err("jfs_readdir detected "
-						   "infinite loop!");
+					jfs_err("jfs_readdir detected infinite loop!");
 					ctx->pos = DIREND;
 					return 0;
 				}
@@ -3151,8 +3150,7 @@ int jfs_readdir(struct file *file, struct dir_context *ctx)
 				if (!dir_emit(ctx, "..", 2, PARENT(ip), DT_DIR))
 					return 0;
 			} else {
-				jfs_err("jfs_readdir called with "
-					"invalid offset!");
+				jfs_err("jfs_readdir called with invalid offset!");
 			}
 			dtoffset->pn = 1;
 			dtoffset->index = 0;
@@ -3165,8 +3163,8 @@ int jfs_readdir(struct file *file, struct dir_context *ctx)
 		}
 
 		if ((rc = dtReadNext(ip, &ctx->pos, &btstack))) {
-			jfs_err("jfs_readdir: unexpected rc = %d "
-				"from dtReadNext", rc);
+			jfs_err("jfs_readdir: unexpected rc = %d from dtReadNext",
+				rc);
 			ctx->pos = DIREND;
 			return 0;
 		}

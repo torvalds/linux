@@ -928,17 +928,10 @@ ok:
 		}
 	}
 	qdisc_qstats_overlimit(sch);
-	if (likely(next_event > q->now)) {
-		if (!test_bit(__QDISC_STATE_DEACTIVATED,
-			      &qdisc_root_sleeping(q->watchdog.qdisc)->state)) {
-			ktime_t time = ns_to_ktime(next_event);
-			qdisc_throttled(q->watchdog.qdisc);
-			hrtimer_start(&q->watchdog.timer, time,
-				      HRTIMER_MODE_ABS_PINNED);
-		}
-	} else {
+	if (likely(next_event > q->now))
+		qdisc_watchdog_schedule_ns(&q->watchdog, next_event, true);
+	else
 		schedule_work(&q->work);
-	}
 fin:
 	return skb;
 }
@@ -1014,7 +1007,9 @@ static void htb_work_func(struct work_struct *work)
 	struct htb_sched *q = container_of(work, struct htb_sched, work);
 	struct Qdisc *sch = q->watchdog.qdisc;
 
+	rcu_read_lock();
 	__netif_schedule(qdisc_root(sch));
+	rcu_read_unlock();
 }
 
 static int htb_init(struct Qdisc *sch, struct nlattr *opt)
@@ -1122,10 +1117,12 @@ static int htb_dump_class(struct Qdisc *sch, unsigned long arg,
 	if (nla_put(skb, TCA_HTB_PARMS, sizeof(opt), &opt))
 		goto nla_put_failure;
 	if ((cl->rate.rate_bytes_ps >= (1ULL << 32)) &&
-	    nla_put_u64(skb, TCA_HTB_RATE64, cl->rate.rate_bytes_ps))
+	    nla_put_u64_64bit(skb, TCA_HTB_RATE64, cl->rate.rate_bytes_ps,
+			      TCA_HTB_PAD))
 		goto nla_put_failure;
 	if ((cl->ceil.rate_bytes_ps >= (1ULL << 32)) &&
-	    nla_put_u64(skb, TCA_HTB_CEIL64, cl->ceil.rate_bytes_ps))
+	    nla_put_u64_64bit(skb, TCA_HTB_CEIL64, cl->ceil.rate_bytes_ps,
+			      TCA_HTB_PAD))
 		goto nla_put_failure;
 
 	return nla_nest_end(skb, nest);

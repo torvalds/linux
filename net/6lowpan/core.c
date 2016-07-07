@@ -27,11 +27,11 @@ int lowpan_register_netdevice(struct net_device *dev,
 	dev->mtu = IPV6_MIN_MTU;
 	dev->priv_flags |= IFF_NO_QUEUE;
 
-	lowpan_priv(dev)->lltype = lltype;
+	lowpan_dev(dev)->lltype = lltype;
 
-	spin_lock_init(&lowpan_priv(dev)->ctx.lock);
+	spin_lock_init(&lowpan_dev(dev)->ctx.lock);
 	for (i = 0; i < LOWPAN_IPHC_CTX_TABLE_SIZE; i++)
-		lowpan_priv(dev)->ctx.table[i].id = i;
+		lowpan_dev(dev)->ctx.table[i].id = i;
 
 	ret = register_netdevice(dev);
 	if (ret < 0)
@@ -85,7 +85,7 @@ static int lowpan_event(struct notifier_block *unused,
 	case NETDEV_DOWN:
 		for (i = 0; i < LOWPAN_IPHC_CTX_TABLE_SIZE; i++)
 			clear_bit(LOWPAN_IPHC_CTX_FLAG_ACTIVE,
-				  &lowpan_priv(dev)->ctx.table[i].flags);
+				  &lowpan_dev(dev)->ctx.table[i].flags);
 		break;
 	default:
 		return NOTIFY_DONE;

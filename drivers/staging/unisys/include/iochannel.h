@@ -253,48 +253,6 @@ struct uiscmdrsp_scsi {
 /* SCSI device version for no disk inquiry result */
 #define SCSI_SPC2_VER 4		/* indicates SCSI SPC2 (SPC3 is 5) */
 
-/* Windows and Linux want different things for a non-existent lun. So, we'll let
- * caller pass in the peripheral qualifier and type.
- * NOTE:[4] SCSI returns (n-4); so we return length-1-4 or length-5.
- */
-
-#define SET_NO_DISK_INQUIRY_RESULT(buf, len, lun, lun0notpresent, notpresent) \
-	do {								\
-		memset(buf, 0,						\
-		       MINNUM(len,					\
-			      (unsigned int)NO_DISK_INQUIRY_RESULT_LEN)); \
-		buf[2] = (u8)SCSI_SPC2_VER;				\
-		if (lun == 0) {						\
-			buf[0] = (u8)lun0notpresent;			\
-			buf[3] = (u8)DEV_HISUPPORT;			\
-		} else							\
-			buf[0] = (u8)notpresent;			\
-		buf[4] = (u8)(						\
-			MINNUM(len,					\
-			       (unsigned int)NO_DISK_INQUIRY_RESULT_LEN) - 5);\
-		if (len >= NO_DISK_INQUIRY_RESULT_LEN) {		\
-			buf[8] = 'D';					\
-			buf[9] = 'E';					\
-			buf[10] = 'L';					\
-			buf[11] = 'L';					\
-			buf[16] = 'P';					\
-			buf[17] = 'S';					\
-			buf[18] = 'E';					\
-			buf[19] = 'U';					\
-			buf[20] = 'D';					\
-			buf[21] = 'O';					\
-			buf[22] = ' ';					\
-			buf[23] = 'D';					\
-			buf[24] = 'E';					\
-			buf[25] = 'V';					\
-			buf[26] = 'I';					\
-			buf[27] = 'C';					\
-			buf[28] = 'E';					\
-			buf[30] = ' ';					\
-			buf[31] = '.';					\
-		}							\
-	} while (0)
-
 /* Struct & Defines to support sense information. */
 
 /* The following struct is returned in sensebuf field in uiscmdrsp_scsi.  It is

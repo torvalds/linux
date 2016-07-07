@@ -226,7 +226,7 @@ static void gem_put_cell(struct gem *gp)
 
 static inline void gem_netif_stop(struct gem *gp)
 {
-	gp->dev->trans_start = jiffies;	/* prevent tx timeout */
+	netif_trans_update(gp->dev);	/* prevent tx timeout */
 	napi_disable(&gp->napi);
 	netif_tx_disable(gp->dev);
 }

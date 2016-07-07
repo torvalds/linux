@@ -179,6 +179,7 @@ enum {
 	TCA_TBF_PRATE64,
 	TCA_TBF_BURST,
 	TCA_TBF_PBURST,
+	TCA_TBF_PAD,
 	__TCA_TBF_MAX,
 };
 
@@ -368,6 +369,7 @@ enum {
 	TCA_HTB_DIRECT_QLEN,
 	TCA_HTB_RATE64,
 	TCA_HTB_CEIL64,
+	TCA_HTB_PAD,
 	__TCA_HTB_MAX,
 };
 
@@ -531,6 +533,7 @@ enum {
 	TCA_NETEM_RATE,
 	TCA_NETEM_ECN,
 	TCA_NETEM_RATE64,
+	TCA_NETEM_PAD,
 	__TCA_NETEM_MAX,
 };
 
@@ -715,6 +718,8 @@ enum {
 	TCA_FQ_CODEL_FLOWS,
 	TCA_FQ_CODEL_QUANTUM,
 	TCA_FQ_CODEL_CE_THRESHOLD,
+	TCA_FQ_CODEL_DROP_BATCH_SIZE,
+	TCA_FQ_CODEL_MEMORY_LIMIT,
 	__TCA_FQ_CODEL_MAX
 };
 
@@ -739,6 +744,8 @@ struct tc_fq_codel_qd_stats {
 	__u32	new_flows_len;	/* count of flows in new list */
 	__u32	old_flows_len;	/* count of flows in old list */
 	__u32	ce_mark;	/* packets above ce_threshold */
+	__u32	memory_usage;	/* in bytes */
+	__u32	drop_overmemory;
 };
 
 struct tc_fq_codel_cl_stats {

@@ -268,19 +268,6 @@ config HW_RANDOM_NOMADIK
 
 	  If unsure, say Y.
 
-config HW_RANDOM_PPC4XX
-	tristate "PowerPC 4xx generic true random number generator support"
-	depends on PPC && 4xx
-	default HW_RANDOM
-	---help---
-	 This driver provides the kernel-side support for the TRNG hardware
-	 found in the security function of some PowerPC 4xx SoCs.
-
-	 To compile this driver as a module, choose M here: the
-	 module will be called ppc4xx-rng.
-
-	 If unsure, say N.
-
 config HW_RANDOM_PSERIES
 	tristate "pSeries HW Random Number Generator support"
 	depends on PPC64 && IBMVIO
@@ -309,7 +296,8 @@ config HW_RANDOM_POWERNV
 
 config HW_RANDOM_EXYNOS
 	tristate "EXYNOS HW random number generator support"
-	depends on ARCH_EXYNOS
+	depends on ARCH_EXYNOS || COMPILE_TEST
+	depends on HAS_IOMEM
 	default HW_RANDOM
 	---help---
 	  This driver provides kernel-side support for the Random Number
@@ -330,6 +318,19 @@ config HW_RANDOM_TPM
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called tpm-rng.
+
+	  If unsure, say Y.
+
+config HW_RANDOM_HISI
+	tristate "Hisilicon Random Number Generator support"
+	depends on HW_RANDOM && ARCH_HISI
+	default HW_RANDOM
+	---help---
+	  This driver provides kernel-side support for the Random Number
+	  Generator hardware found on Hisilicon Hip04 and Hip05 SoC.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called hisi-rng.
 
 	  If unsure, say Y.
 

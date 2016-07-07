@@ -521,10 +521,11 @@ static int __init pnpbios_init(void)
 	int ret;
 
 	if (pnpbios_disabled || dmi_check_system(pnpbios_dmi_table) ||
-	    paravirt_enabled()) {
+	    arch_pnpbios_disabled()) {
 		printk(KERN_INFO "PnPBIOS: Disabled\n");
 		return -ENODEV;
 	}
+
 #ifdef CONFIG_PNPACPI
 	if (!acpi_disabled && !pnpacpi_disabled) {
 		pnpbios_disabled = 1;

@@ -106,6 +106,12 @@
 	};
 
 	clocks {
+		refclk: ref {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <25000000>;
+		};
+
 		uart_clk: uart_clk {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";

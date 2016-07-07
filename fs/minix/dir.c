@@ -21,7 +21,7 @@ static int minix_readdir(struct file *, struct dir_context *);
 const struct file_operations minix_dir_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
-	.iterate	= minix_readdir,
+	.iterate_shared	= minix_readdir,
 	.fsync		= generic_file_fsync,
 };
 

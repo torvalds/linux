@@ -5,6 +5,7 @@
  *          for STMicroelectronics.
  * License terms:  GNU General Public License (GPL), version 2
  */
+#include <linux/seq_file.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_fb_cma_helper.h>

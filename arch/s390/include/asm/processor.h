@@ -105,7 +105,6 @@ typedef struct {
  * Thread structure
  */
 struct thread_struct {
-	struct fpu fpu;			/* FP and VX register save area */
 	unsigned int  acrs[NUM_ACRS];
         unsigned long ksp;              /* kernel stack pointer             */
 	mm_segment_t mm_segment;
@@ -120,6 +119,11 @@ struct thread_struct {
 	/* cpu runtime instrumentation */
 	struct runtime_instr_cb *ri_cb;
 	unsigned char trap_tdb[256];	/* Transaction abort diagnose block */
+	/*
+	 * Warning: 'fpu' is dynamically-sized. It *MUST* be at
+	 * the end.
+	 */
+	struct fpu fpu;			/* FP and VX register save area */
 };
 
 /* Flag to disable transactions. */
@@ -155,10 +159,9 @@ struct stack_frame {
 
 #define ARCH_MIN_TASKALIGN	8
 
-extern __vector128 init_task_fpu_regs[__NUM_VXRS];
 #define INIT_THREAD {							\
 	.ksp = sizeof(init_stack) + (unsigned long) &init_stack,	\
-	.fpu.regs = (void *)&init_task_fpu_regs,			\
+	.fpu.regs = (void *) init_task.thread.fpu.fprs,			\
 }
 
 /*

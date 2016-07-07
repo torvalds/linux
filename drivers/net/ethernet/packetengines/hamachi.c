@@ -1144,7 +1144,7 @@ static void hamachi_tx_timeout(struct net_device *dev)
 	hmp->rx_ring[RX_RING_SIZE-1].status_n_length |= cpu_to_le32(DescEndRing);
 
 	/* Trigger an immediate transmit demand. */
-	dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(dev); /* prevent tx timeout */
 	dev->stats.tx_errors++;
 
 	/* Restart the chip's Tx/Rx processes . */

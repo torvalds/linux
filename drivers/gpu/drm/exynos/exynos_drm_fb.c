@@ -97,20 +97,9 @@ static int exynos_drm_fb_create_handle(struct drm_framebuffer *fb,
 				     &exynos_fb->exynos_gem[0]->base, handle);
 }
 
-static int exynos_drm_fb_dirty(struct drm_framebuffer *fb,
-				struct drm_file *file_priv, unsigned flags,
-				unsigned color, struct drm_clip_rect *clips,
-				unsigned num_clips)
-{
-	/* TODO */
-
-	return 0;
-}
-
 static const struct drm_framebuffer_funcs exynos_drm_fb_funcs = {
 	.destroy	= exynos_drm_fb_destroy,
 	.create_handle	= exynos_drm_fb_create_handle,
-	.dirty		= exynos_drm_fb_dirty,
 };
 
 struct drm_framebuffer *
@@ -163,8 +152,7 @@ exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 	int ret;
 
 	for (i = 0; i < drm_format_num_planes(mode_cmd->pixel_format); i++) {
-		obj = drm_gem_object_lookup(dev, file_priv,
-					    mode_cmd->handles[i]);
+		obj = drm_gem_object_lookup(file_priv, mode_cmd->handles[i]);
 		if (!obj) {
 			DRM_ERROR("failed to lookup gem object\n");
 			ret = -ENOENT;

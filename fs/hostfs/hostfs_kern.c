@@ -398,7 +398,7 @@ static const struct file_operations hostfs_file_fops = {
 
 static const struct file_operations hostfs_dir_fops = {
 	.llseek		= generic_file_llseek,
-	.iterate	= hostfs_readdir,
+	.iterate_shared	= hostfs_readdir,
 	.read		= generic_read_dir,
 	.open		= hostfs_open,
 	.fsync		= hostfs_fsync,

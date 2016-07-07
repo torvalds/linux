@@ -31,13 +31,6 @@ extern const char *parent_pattern;
 extern const char default_sort_order[];
 extern regex_t ignore_callees_regex;
 extern int have_ignore_callees;
-extern int sort__need_collapse;
-extern int sort__has_dso;
-extern int sort__has_parent;
-extern int sort__has_sym;
-extern int sort__has_socket;
-extern int sort__has_thread;
-extern int sort__has_comm;
 extern enum sort_mode sort__mode;
 extern struct sort_entry sort_comm;
 extern struct sort_entry sort_dso;
@@ -222,6 +215,8 @@ enum sort_type {
 	SORT_ABORT,
 	SORT_IN_TX,
 	SORT_CYCLES,
+	SORT_SRCLINE_FROM,
+	SORT_SRCLINE_TO,
 
 	/* memory mode specific sort keys */
 	__SORT_MEMORY_MODE,

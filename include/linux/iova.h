@@ -19,8 +19,21 @@
 /* iova structure */
 struct iova {
 	struct rb_node	node;
-	unsigned long	pfn_hi; /* IOMMU dish out addr hi */
-	unsigned long	pfn_lo; /* IOMMU dish out addr lo */
+	unsigned long	pfn_hi; /* Highest allocated pfn */
+	unsigned long	pfn_lo; /* Lowest allocated pfn */
+};
+
+struct iova_magazine;
+struct iova_cpu_rcache;
+
+#define IOVA_RANGE_CACHE_MAX_SIZE 6	/* log of max cached IOVA range size (in pages) */
+#define MAX_GLOBAL_MAGS 32	/* magazines per bin */
+
+struct iova_rcache {
+	spinlock_t lock;
+	unsigned long depot_size;
+	struct iova_magazine *depot[MAX_GLOBAL_MAGS];
+	struct iova_cpu_rcache __percpu *cpu_rcaches;
 };
 
 /* holds all the iova translations for a domain */
@@ -31,6 +44,7 @@ struct iova_domain {
 	unsigned long	granule;	/* pfn granularity for this domain */
 	unsigned long	start_pfn;	/* Lower limit for this domain */
 	unsigned long	dma_32bit_pfn;
+	struct iova_rcache rcaches[IOVA_RANGE_CACHE_MAX_SIZE];	/* IOVA range caches */
 };
 
 static inline unsigned long iova_size(struct iova *iova)
@@ -78,6 +92,10 @@ void __free_iova(struct iova_domain *iovad, struct iova *iova);
 struct iova *alloc_iova(struct iova_domain *iovad, unsigned long size,
 	unsigned long limit_pfn,
 	bool size_aligned);
+void free_iova_fast(struct iova_domain *iovad, unsigned long pfn,
+		    unsigned long size);
+unsigned long alloc_iova_fast(struct iova_domain *iovad, unsigned long size,
+			      unsigned long limit_pfn);
 struct iova *reserve_iova(struct iova_domain *iovad, unsigned long pfn_lo,
 	unsigned long pfn_hi);
 void copy_reserved_iova(struct iova_domain *from, struct iova_domain *to);
@@ -87,5 +105,6 @@ struct iova *find_iova(struct iova_domain *iovad, unsigned long pfn);
 void put_iova_domain(struct iova_domain *iovad);
 struct iova *split_and_remove_iova(struct iova_domain *iovad,
 	struct iova *iova, unsigned long pfn_lo, unsigned long pfn_hi);
+void free_cpu_cached_iovas(unsigned int cpu, struct iova_domain *iovad);
 
 #endif

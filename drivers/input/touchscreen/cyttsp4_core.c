@@ -1499,7 +1499,7 @@ static int cyttsp4_core_sleep_(struct cyttsp4 *cd)
 
 	if (IS_BOOTLOADER(mode[0], mode[1])) {
 		mutex_unlock(&cd->system_lock);
-		dev_err(cd->dev, "%s: Device in BOOTLADER mode.\n", __func__);
+		dev_err(cd->dev, "%s: Device in BOOTLOADER mode.\n", __func__);
 		rc = -EINVAL;
 		goto error;
 	}

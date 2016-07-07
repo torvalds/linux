@@ -649,6 +649,8 @@ static int cpumf_pmu_commit_txn(struct pmu *pmu)
 
 /* Performance monitoring unit for s390x */
 static struct pmu cpumf_pmu = {
+	.task_ctx_nr  = perf_sw_context,
+	.capabilities = PERF_PMU_CAP_NO_INTERRUPT,
 	.pmu_enable   = cpumf_pmu_enable,
 	.pmu_disable  = cpumf_pmu_disable,
 	.event_init   = cpumf_pmu_event_init,
@@ -665,18 +667,21 @@ static struct pmu cpumf_pmu = {
 static int cpumf_pmu_notifier(struct notifier_block *self, unsigned long action,
 			      void *hcpu)
 {
-	unsigned int cpu = (long) hcpu;
 	int flags;
 
 	switch (action & ~CPU_TASKS_FROZEN) {
 	case CPU_ONLINE:
 	case CPU_DOWN_FAILED:
 		flags = PMC_INIT;
-		smp_call_function_single(cpu, setup_pmc_cpu, &flags, 1);
+		local_irq_disable();
+		setup_pmc_cpu(&flags);
+		local_irq_enable();
 		break;
 	case CPU_DOWN_PREPARE:
 		flags = PMC_RELEASE;
-		smp_call_function_single(cpu, setup_pmc_cpu, &flags, 1);
+		local_irq_disable();
+		setup_pmc_cpu(&flags);
+		local_irq_enable();
 		break;
 	default:
 		break;
@@ -704,12 +709,6 @@ static int __init cpumf_pmu_init(void)
 		       "failed with rc=%i\n", rc);
 		goto out;
 	}
-
-	/* The CPU measurement counter facility does not have overflow
-	 * interrupts to do sampling.  Sampling must be provided by
-	 * external means, for example, by timers.
-	 */
-	cpumf_pmu.capabilities |= PERF_PMU_CAP_NO_INTERRUPT;
 
 	cpumf_pmu.attr_groups = cpumf_cf_event_group();
 	rc = perf_pmu_register(&cpumf_pmu, "cpum_cf", PERF_TYPE_RAW);

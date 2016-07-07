@@ -270,30 +270,28 @@ static ssize_t amdgpu_set_pp_force_state(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = ddev->dev_private;
 	enum amd_pm_state_type state = 0;
-	long idx;
+	unsigned long idx;
 	int ret;
 
 	if (strlen(buf) == 1)
 		adev->pp_force_state_enabled = false;
-	else {
-		ret = kstrtol(buf, 0, &idx);
+	else if (adev->pp_enabled) {
+		struct pp_states_info data;
 
-		if (ret) {
+		ret = kstrtoul(buf, 0, &idx);
+		if (ret || idx >= ARRAY_SIZE(data.states)) {
 			count = -EINVAL;
 			goto fail;
 		}
 
-		if (adev->pp_enabled) {
-			struct pp_states_info data;
-			amdgpu_dpm_get_pp_num_states(adev, &data);
-			state = data.states[idx];
-			/* only set user selected power states */
-			if (state != POWER_STATE_TYPE_INTERNAL_BOOT &&
-				state != POWER_STATE_TYPE_DEFAULT) {
-				amdgpu_dpm_dispatch_task(adev,
-						AMD_PP_EVENT_ENABLE_USER_STATE, &state, NULL);
-				adev->pp_force_state_enabled = true;
-			}
+		amdgpu_dpm_get_pp_num_states(adev, &data);
+		state = data.states[idx];
+		/* only set user selected power states */
+		if (state != POWER_STATE_TYPE_INTERNAL_BOOT &&
+		    state != POWER_STATE_TYPE_DEFAULT) {
+			amdgpu_dpm_dispatch_task(adev,
+					AMD_PP_EVENT_ENABLE_USER_STATE, &state, NULL);
+			adev->pp_force_state_enabled = true;
 		}
 	}
 fail:
@@ -362,16 +360,23 @@ static ssize_t amdgpu_set_pp_dpm_sclk(struct device *dev,
 	struct amdgpu_device *adev = ddev->dev_private;
 	int ret;
 	long level;
+	uint32_t i, mask = 0;
+	char sub_str[2];
 
-	ret = kstrtol(buf, 0, &level);
+	for (i = 0; i < strlen(buf) - 1; i++) {
+		sub_str[0] = *(buf + i);
+		sub_str[1] = '\0';
+		ret = kstrtol(sub_str, 0, &level);
 
-	if (ret) {
-		count = -EINVAL;
-		goto fail;
+		if (ret) {
+			count = -EINVAL;
+			goto fail;
+		}
+		mask |= 1 << level;
 	}
 
 	if (adev->pp_enabled)
-		amdgpu_dpm_force_clock_level(adev, PP_SCLK, level);
+		amdgpu_dpm_force_clock_level(adev, PP_SCLK, mask);
 fail:
 	return count;
 }
@@ -399,16 +404,23 @@ static ssize_t amdgpu_set_pp_dpm_mclk(struct device *dev,
 	struct amdgpu_device *adev = ddev->dev_private;
 	int ret;
 	long level;
+	uint32_t i, mask = 0;
+	char sub_str[2];
 
-	ret = kstrtol(buf, 0, &level);
+	for (i = 0; i < strlen(buf) - 1; i++) {
+		sub_str[0] = *(buf + i);
+		sub_str[1] = '\0';
+		ret = kstrtol(sub_str, 0, &level);
 
-	if (ret) {
-		count = -EINVAL;
-		goto fail;
+		if (ret) {
+			count = -EINVAL;
+			goto fail;
+		}
+		mask |= 1 << level;
 	}
 
 	if (adev->pp_enabled)
-		amdgpu_dpm_force_clock_level(adev, PP_MCLK, level);
+		amdgpu_dpm_force_clock_level(adev, PP_MCLK, mask);
 fail:
 	return count;
 }
@@ -436,16 +448,23 @@ static ssize_t amdgpu_set_pp_dpm_pcie(struct device *dev,
 	struct amdgpu_device *adev = ddev->dev_private;
 	int ret;
 	long level;
+	uint32_t i, mask = 0;
+	char sub_str[2];
 
-	ret = kstrtol(buf, 0, &level);
+	for (i = 0; i < strlen(buf) - 1; i++) {
+		sub_str[0] = *(buf + i);
+		sub_str[1] = '\0';
+		ret = kstrtol(sub_str, 0, &level);
 
-	if (ret) {
-		count = -EINVAL;
-		goto fail;
+		if (ret) {
+			count = -EINVAL;
+			goto fail;
+		}
+		mask |= 1 << level;
 	}
 
 	if (adev->pp_enabled)
-		amdgpu_dpm_force_clock_level(adev, PP_PCIE, level);
+		amdgpu_dpm_force_clock_level(adev, PP_PCIE, mask);
 fail:
 	return count;
 }
@@ -1212,7 +1231,7 @@ static int amdgpu_debugfs_pm_info(struct seq_file *m, void *data)
 	return 0;
 }
 
-static struct drm_info_list amdgpu_pm_info_list[] = {
+static const struct drm_info_list amdgpu_pm_info_list[] = {
 	{"amdgpu_pm_info", amdgpu_debugfs_pm_info, 0, NULL},
 };
 #endif

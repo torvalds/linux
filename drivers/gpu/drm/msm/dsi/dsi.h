@@ -41,8 +41,6 @@ enum msm_dsi_phy_type {
 /* Regulators for DSI devices */
 struct dsi_reg_entry {
 	char name[32];
-	int min_voltage;
-	int max_voltage;
 	int enable_load;
 	int disable_load;
 };

@@ -2668,9 +2668,9 @@ static int myri10ge_close(struct net_device *dev)
 
 	del_timer_sync(&mgp->watchdog_timer);
 	mgp->running = MYRI10GE_ETH_STOPPING;
-	local_bh_disable(); /* myri10ge_ss_lock_napi needs bh disabled */
 	for (i = 0; i < mgp->num_slices; i++) {
 		napi_disable(&mgp->ss[i].napi);
+		local_bh_disable(); /* myri10ge_ss_lock_napi needs this */
 		/* Lock the slice to prevent the busy_poll handler from
 		 * accessing it.  Later when we bring the NIC up, myri10ge_open
 		 * resets the slice including this lock.
@@ -2679,8 +2679,8 @@ static int myri10ge_close(struct net_device *dev)
 			pr_info("Slice %d locked\n", i);
 			mdelay(1);
 		}
+		local_bh_enable();
 	}
-	local_bh_enable();
 	netif_carrier_off(dev);
 
 	netif_tx_stop_all_queues(dev);

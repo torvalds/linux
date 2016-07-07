@@ -22,7 +22,7 @@ struct bpf_map_def SEC("maps") progs = {
 SEC("kprobe/seccomp_phase1")
 int bpf_prog1(struct pt_regs *ctx)
 {
-	struct seccomp_data sd = {};
+	struct seccomp_data sd;
 
 	bpf_probe_read(&sd, sizeof(sd), (void *)PT_REGS_PARM1(ctx));
 
@@ -40,7 +40,7 @@ int bpf_prog1(struct pt_regs *ctx)
 /* we jump here when syscall number == __NR_write */
 PROG(__NR_write)(struct pt_regs *ctx)
 {
-	struct seccomp_data sd = {};
+	struct seccomp_data sd;
 
 	bpf_probe_read(&sd, sizeof(sd), (void *)PT_REGS_PARM1(ctx));
 	if (sd.args[2] == 512) {
@@ -53,7 +53,7 @@ PROG(__NR_write)(struct pt_regs *ctx)
 
 PROG(__NR_read)(struct pt_regs *ctx)
 {
-	struct seccomp_data sd = {};
+	struct seccomp_data sd;
 
 	bpf_probe_read(&sd, sizeof(sd), (void *)PT_REGS_PARM1(ctx));
 	if (sd.args[2] > 128 && sd.args[2] <= 1024) {

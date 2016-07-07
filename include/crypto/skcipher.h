@@ -425,8 +425,7 @@ static inline struct skcipher_request *skcipher_request_cast(
  * encrypt and decrypt API calls. During the allocation, the provided skcipher
  * handle is registered in the request data structure.
  *
- * Return: allocated request handle in case of success; IS_ERR() is true in case
- *	   of an error, PTR_ERR() returns the error code.
+ * Return: allocated request handle in case of success, or NULL if out of memory
  */
 static inline struct skcipher_request *skcipher_request_alloc(
 	struct crypto_skcipher *tfm, gfp_t gfp)

@@ -35,6 +35,24 @@
 
 #include <linux/mlx5/driver.h>
 
+enum mlx5_beacon_duration {
+	MLX5_BEACON_DURATION_OFF = 0x0,
+	MLX5_BEACON_DURATION_INF = 0xffff,
+};
+
+enum mlx5_module_id {
+	MLX5_MODULE_ID_SFP              = 0x3,
+	MLX5_MODULE_ID_QSFP             = 0xC,
+	MLX5_MODULE_ID_QSFP_PLUS        = 0xD,
+	MLX5_MODULE_ID_QSFP28           = 0x11,
+};
+
+#define MLX5_EEPROM_MAX_BYTES			32
+#define MLX5_EEPROM_IDENTIFIER_BYTE_MASK	0x000000ff
+#define MLX5_I2C_ADDR_LOW		0x50
+#define MLX5_I2C_ADDR_HIGH		0x51
+#define MLX5_EEPROM_PAGE_LENGTH		256
+
 int mlx5_set_port_caps(struct mlx5_core_dev *dev, u8 port_num, u32 caps);
 int mlx5_query_port_ptys(struct mlx5_core_dev *dev, u32 *ptys,
 			 int ptys_size, int proto_mask, u8 local_port);
@@ -53,6 +71,7 @@ int mlx5_set_port_admin_status(struct mlx5_core_dev *dev,
 			       enum mlx5_port_status status);
 int mlx5_query_port_admin_status(struct mlx5_core_dev *dev,
 				 enum mlx5_port_status *status);
+int mlx5_set_port_beacon(struct mlx5_core_dev *dev, u16 beacon_duration);
 
 int mlx5_set_port_mtu(struct mlx5_core_dev *dev, u16 mtu, u8 port);
 void mlx5_query_port_max_mtu(struct mlx5_core_dev *dev, u16 *max_mtu, u8 port);
@@ -83,5 +102,11 @@ int mlx5_query_port_ets_rate_limit(struct mlx5_core_dev *mdev,
 				   u8 *max_bw_unit);
 int mlx5_set_port_wol(struct mlx5_core_dev *mdev, u8 wol_mode);
 int mlx5_query_port_wol(struct mlx5_core_dev *mdev, u8 *wol_mode);
+
+int mlx5_set_port_fcs(struct mlx5_core_dev *mdev, u8 enable);
+void mlx5_query_port_fcs(struct mlx5_core_dev *mdev, bool *supported,
+			 bool *enabled);
+int mlx5_query_module_eeprom(struct mlx5_core_dev *dev,
+			     u16 offset, u16 size, u8 *data);
 
 #endif /* __MLX5_PORT_H__ */

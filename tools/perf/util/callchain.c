@@ -109,6 +109,7 @@ __parse_callchain_report_opt(const char *arg, bool allow_record_opt)
 	bool record_opt_set = false;
 	bool try_stack_size = false;
 
+	callchain_param.enabled = true;
 	symbol_conf.use_callchain = true;
 
 	if (!arg)
@@ -117,6 +118,7 @@ __parse_callchain_report_opt(const char *arg, bool allow_record_opt)
 	while ((tok = strtok((char *)arg, ",")) != NULL) {
 		if (!strncmp(tok, "none", strlen(tok))) {
 			callchain_param.mode = CHAIN_NONE;
+			callchain_param.enabled = false;
 			symbol_conf.use_callchain = false;
 			return 0;
 		}
@@ -788,7 +790,8 @@ int callchain_cursor_append(struct callchain_cursor *cursor,
 	return 0;
 }
 
-int sample__resolve_callchain(struct perf_sample *sample, struct symbol **parent,
+int sample__resolve_callchain(struct perf_sample *sample,
+			      struct callchain_cursor *cursor, struct symbol **parent,
 			      struct perf_evsel *evsel, struct addr_location *al,
 			      int max_stack)
 {
@@ -796,8 +799,8 @@ int sample__resolve_callchain(struct perf_sample *sample, struct symbol **parent
 		return 0;
 
 	if (symbol_conf.use_callchain || symbol_conf.cumulate_callchain ||
-	    sort__has_parent) {
-		return thread__resolve_callchain(al->thread, evsel, sample,
+	    perf_hpp_list.parent) {
+		return thread__resolve_callchain(al->thread, cursor, evsel, sample,
 						 parent, al, max_stack);
 	}
 	return 0;

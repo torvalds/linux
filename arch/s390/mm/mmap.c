@@ -22,6 +22,7 @@
  * Started by Ingo Molnar <mingo@elte.hu>
  */
 
+#include <linux/elf-randomize.h>
 #include <linux/personality.h>
 #include <linux/mm.h>
 #include <linux/mman.h>

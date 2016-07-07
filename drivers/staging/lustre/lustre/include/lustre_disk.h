@@ -130,7 +130,6 @@ struct lustre_sb_info {
 	struct lustre_mount_data *lsi_lmd;     /* mount command info */
 	struct ll_sb_info	*lsi_llsbi;   /* add'l client sbi info */
 	struct dt_device	 *lsi_dt_dev;  /* dt device to access disk fs*/
-	struct vfsmount	  *lsi_srv_mnt; /* the one server mount */
 	atomic_t	      lsi_mounts;  /* references to the srv_mnt */
 	char			  lsi_svname[MTI_NAME_MAXLEN];
 	char			  lsi_osd_obdname[64];
@@ -158,7 +157,6 @@ struct lustre_sb_info {
 struct lustre_mount_info {
 	char		 *lmi_name;
 	struct super_block   *lmi_sb;
-	struct vfsmount      *lmi_mnt;
 	struct list_head	    lmi_list_chain;
 };
 

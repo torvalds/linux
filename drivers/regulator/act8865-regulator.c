@@ -139,6 +139,74 @@ struct act8865 {
 	int off_mask;
 };
 
+static const struct regmap_range act8600_reg_ranges[] = {
+	regmap_reg_range(0x00, 0x01),
+	regmap_reg_range(0x10, 0x10),
+	regmap_reg_range(0x12, 0x12),
+	regmap_reg_range(0x20, 0x20),
+	regmap_reg_range(0x22, 0x22),
+	regmap_reg_range(0x30, 0x30),
+	regmap_reg_range(0x32, 0x32),
+	regmap_reg_range(0x40, 0x41),
+	regmap_reg_range(0x50, 0x51),
+	regmap_reg_range(0x60, 0x61),
+	regmap_reg_range(0x70, 0x71),
+	regmap_reg_range(0x80, 0x81),
+	regmap_reg_range(0x91, 0x91),
+	regmap_reg_range(0xA1, 0xA1),
+	regmap_reg_range(0xA8, 0xAA),
+	regmap_reg_range(0xB0, 0xB0),
+	regmap_reg_range(0xB2, 0xB2),
+	regmap_reg_range(0xC1, 0xC1),
+};
+
+static const struct regmap_range act8600_reg_ro_ranges[] = {
+	regmap_reg_range(0xAA, 0xAA),
+	regmap_reg_range(0xC1, 0xC1),
+};
+
+static const struct regmap_range act8600_reg_volatile_ranges[] = {
+	regmap_reg_range(0x00, 0x01),
+	regmap_reg_range(0x12, 0x12),
+	regmap_reg_range(0x22, 0x22),
+	regmap_reg_range(0x32, 0x32),
+	regmap_reg_range(0x41, 0x41),
+	regmap_reg_range(0x51, 0x51),
+	regmap_reg_range(0x61, 0x61),
+	regmap_reg_range(0x71, 0x71),
+	regmap_reg_range(0x81, 0x81),
+	regmap_reg_range(0xA8, 0xA8),
+	regmap_reg_range(0xAA, 0xAA),
+	regmap_reg_range(0xB0, 0xB0),
+	regmap_reg_range(0xC1, 0xC1),
+};
+
+static const struct regmap_access_table act8600_write_ranges_table = {
+	.yes_ranges	= act8600_reg_ranges,
+	.n_yes_ranges	= ARRAY_SIZE(act8600_reg_ranges),
+	.no_ranges	= act8600_reg_ro_ranges,
+	.n_no_ranges	= ARRAY_SIZE(act8600_reg_ro_ranges),
+};
+
+static const struct regmap_access_table act8600_read_ranges_table = {
+	.yes_ranges	= act8600_reg_ranges,
+	.n_yes_ranges	= ARRAY_SIZE(act8600_reg_ranges),
+};
+
+static const struct regmap_access_table act8600_volatile_ranges_table = {
+	.yes_ranges	= act8600_reg_volatile_ranges,
+	.n_yes_ranges	= ARRAY_SIZE(act8600_reg_volatile_ranges),
+};
+
+static const struct regmap_config act8600_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.max_register = 0xFF,
+	.wr_table = &act8600_write_ranges_table,
+	.rd_table = &act8600_read_ranges_table,
+	.volatile_table = &act8600_volatile_ranges_table,
+};
+
 static const struct regmap_config act8865_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
@@ -319,7 +387,6 @@ static struct of_regulator_match act8600_matches[] = {
 };
 
 static int act8865_pdata_from_dt(struct device *dev,
-				 struct device_node **of_node,
 				 struct act8865_platform_data *pdata,
 				 unsigned long type)
 {
@@ -370,7 +437,7 @@ static int act8865_pdata_from_dt(struct device *dev,
 		regulator->id = i;
 		regulator->name = matches[i].name;
 		regulator->init_data = matches[i].init_data;
-		of_node[i] = matches[i].of_node;
+		regulator->of_node = matches[i].of_node;
 		regulator++;
 	}
 
@@ -378,7 +445,6 @@ static int act8865_pdata_from_dt(struct device *dev,
 }
 #else
 static inline int act8865_pdata_from_dt(struct device *dev,
-					struct device_node **of_node,
 					struct act8865_platform_data *pdata,
 					unsigned long type)
 {
@@ -386,8 +452,8 @@ static inline int act8865_pdata_from_dt(struct device *dev,
 }
 #endif
 
-static struct regulator_init_data
-*act8865_get_init_data(int id, struct act8865_platform_data *pdata)
+static struct act8865_regulator_data *act8865_get_regulator_data(
+		int id, struct act8865_platform_data *pdata)
 {
 	int i;
 
@@ -396,7 +462,7 @@ static struct regulator_init_data
 
 	for (i = 0; i < pdata->num_regulators; i++) {
 		if (pdata->regulators[i].id == id)
-			return pdata->regulators[i].init_data;
+			return &pdata->regulators[i];
 	}
 
 	return NULL;
@@ -418,9 +484,9 @@ static int act8865_pmic_probe(struct i2c_client *client,
 	const struct regulator_desc *regulators;
 	struct act8865_platform_data pdata_of, *pdata;
 	struct device *dev = &client->dev;
-	struct device_node **of_node;
 	int i, ret, num_regulators;
 	struct act8865 *act8865;
+	const struct regmap_config *regmap_config;
 	unsigned long type;
 	int off_reg, off_mask;
 	int voltage_select = 0;
@@ -447,12 +513,14 @@ static int act8865_pmic_probe(struct i2c_client *client,
 	case ACT8600:
 		regulators = act8600_regulators;
 		num_regulators = ARRAY_SIZE(act8600_regulators);
+		regmap_config = &act8600_regmap_config;
 		off_reg = -1;
 		off_mask = -1;
 		break;
 	case ACT8846:
 		regulators = act8846_regulators;
 		num_regulators = ARRAY_SIZE(act8846_regulators);
+		regmap_config = &act8865_regmap_config;
 		off_reg = ACT8846_GLB_OFF_CTRL;
 		off_mask = ACT8846_OFF_SYSMASK;
 		break;
@@ -464,6 +532,7 @@ static int act8865_pmic_probe(struct i2c_client *client,
 			regulators = act8865_regulators;
 			num_regulators = ARRAY_SIZE(act8865_regulators);
 		}
+		regmap_config = &act8865_regmap_config;
 		off_reg = ACT8865_SYS_CTRL;
 		off_mask = ACT8865_MSTROFF;
 		break;
@@ -472,34 +541,22 @@ static int act8865_pmic_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	of_node = devm_kzalloc(dev, sizeof(struct device_node *) *
-			       num_regulators, GFP_KERNEL);
-	if (!of_node)
-		return -ENOMEM;
-
 	if (dev->of_node && !pdata) {
-		ret = act8865_pdata_from_dt(dev, of_node, &pdata_of, type);
+		ret = act8865_pdata_from_dt(dev, &pdata_of, type);
 		if (ret < 0)
 			return ret;
 
 		pdata = &pdata_of;
 	}
 
-	if (pdata->num_regulators > num_regulators) {
-		dev_err(dev, "too many regulators: %d\n",
-			pdata->num_regulators);
-		return -EINVAL;
-	}
-
 	act8865 = devm_kzalloc(dev, sizeof(struct act8865), GFP_KERNEL);
 	if (!act8865)
 		return -ENOMEM;
 
-	act8865->regmap = devm_regmap_init_i2c(client, &act8865_regmap_config);
+	act8865->regmap = devm_regmap_init_i2c(client, regmap_config);
 	if (IS_ERR(act8865->regmap)) {
 		ret = PTR_ERR(act8865->regmap);
-		dev_err(&client->dev, "Failed to allocate register map: %d\n",
-			ret);
+		dev_err(dev, "Failed to allocate register map: %d\n", ret);
 		return ret;
 	}
 
@@ -518,15 +575,20 @@ static int act8865_pmic_probe(struct i2c_client *client,
 	for (i = 0; i < num_regulators; i++) {
 		const struct regulator_desc *desc = &regulators[i];
 		struct regulator_config config = { };
+		struct act8865_regulator_data *rdata;
 		struct regulator_dev *rdev;
 
 		config.dev = dev;
-		config.init_data = act8865_get_init_data(desc->id, pdata);
-		config.of_node = of_node[i];
 		config.driver_data = act8865;
 		config.regmap = act8865->regmap;
 
-		rdev = devm_regulator_register(&client->dev, desc, &config);
+		rdata = act8865_get_regulator_data(desc->id, pdata);
+		if (rdata) {
+			config.init_data = rdata->init_data;
+			config.of_node = rdata->of_node;
+		}
+
+		rdev = devm_regulator_register(dev, desc, &config);
 		if (IS_ERR(rdev)) {
 			dev_err(dev, "failed to register %s\n", desc->name);
 			return PTR_ERR(rdev);
@@ -534,7 +596,6 @@ static int act8865_pmic_probe(struct i2c_client *client,
 	}
 
 	i2c_set_clientdata(client, act8865);
-	devm_kfree(dev, of_node);
 
 	return 0;
 }

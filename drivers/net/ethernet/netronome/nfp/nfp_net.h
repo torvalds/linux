@@ -59,8 +59,8 @@
 			netdev_warn((nn)->netdev, fmt, ## args);	\
 	} while (0)
 
-/* Max time to wait for NFP to respond on updates (in ms) */
-#define NFP_NET_POLL_TIMEOUT	5000
+/* Max time to wait for NFP to respond on updates (in seconds) */
+#define NFP_NET_POLL_TIMEOUT	5
 
 /* Bar allocation */
 #define NFP_NET_CRTL_BAR	0
@@ -298,6 +298,8 @@ struct nfp_net_rx_buf {
  * @rxds:       Virtual address of FL/RX ring in host memory
  * @dma:        DMA address of the FL/RX ring
  * @size:       Size, in bytes, of the FL/RX ring (needed to free)
+ * @bufsz:	Buffer allocation size for convenience of management routines
+ *		(NOTE: this is in second cache line, do not use on fast path!)
  */
 struct nfp_net_rx_ring {
 	struct nfp_net_r_vector *r_vec;
@@ -319,6 +321,7 @@ struct nfp_net_rx_ring {
 
 	dma_addr_t dma;
 	unsigned int size;
+	unsigned int bufsz;
 } ____cacheline_aligned;
 
 /**
@@ -444,6 +447,10 @@ static inline bool nfp_net_fw_ver_eq(struct nfp_net_fw_version *fw_ver,
  * @shared_name:        Name for shared interrupt
  * @me_freq_mhz:        ME clock_freq (MHz)
  * @reconfig_lock:	Protects HW reconfiguration request regs/machinery
+ * @reconfig_posted:	Pending reconfig bits coming from async sources
+ * @reconfig_timer_active:  Timer for reading reconfiguration results is pending
+ * @reconfig_sync_present:  Some thread is performing synchronous reconfig
+ * @reconfig_timer:	Timer for async reading of reconfig results
  * @link_up:            Is the link up?
  * @link_status_lock:	Protects @link_up and ensures atomicity with BAR reading
  * @rx_coalesce_usecs:      RX interrupt moderation usecs delay parameter
@@ -471,6 +478,9 @@ struct nfp_net {
 	u32 fl_bufsz;
 
 	u32 rx_offset;
+
+	struct nfp_net_tx_ring *tx_rings;
+	struct nfp_net_rx_ring *rx_rings;
 
 #ifdef CONFIG_PCI_IOV
 	unsigned int num_vfs;
@@ -504,9 +514,6 @@ struct nfp_net {
 	int txd_cnt;
 	int rxd_cnt;
 
-	struct nfp_net_tx_ring tx_rings[NFP_NET_MAX_TX_RINGS];
-	struct nfp_net_rx_ring rx_rings[NFP_NET_MAX_RX_RINGS];
-
 	u8 num_irqs;
 	u8 num_r_vecs;
 	struct nfp_net_r_vector r_vecs[NFP_NET_MAX_TX_RINGS];
@@ -528,6 +535,10 @@ struct nfp_net {
 	spinlock_t link_status_lock;
 
 	spinlock_t reconfig_lock;
+	u32 reconfig_posted;
+	bool reconfig_timer_active;
+	bool reconfig_sync_present;
+	struct timer_list reconfig_timer;
 
 	u32 rx_coalesce_usecs;
 	u32 rx_coalesce_max_frames;
@@ -721,6 +732,7 @@ void nfp_net_rss_write_key(struct nfp_net *nn);
 void nfp_net_coalesce_write_cfg(struct nfp_net *nn);
 int nfp_net_irqs_alloc(struct nfp_net *nn);
 void nfp_net_irqs_disable(struct nfp_net *nn);
+int nfp_net_set_ring_size(struct nfp_net *nn, u32 rxd_cnt, u32 txd_cnt);
 
 #ifdef CONFIG_NFP_NET_DEBUG
 void nfp_net_debugfs_create(void);

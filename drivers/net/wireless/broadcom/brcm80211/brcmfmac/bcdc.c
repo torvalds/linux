@@ -321,7 +321,8 @@ brcmf_proto_bcdc_hdrpull(struct brcmf_pub *drvr, bool do_fws,
 	if (pktbuf->len == 0)
 		return -ENODATA;
 
-	*ifp = tmp_if;
+	if (ifp != NULL)
+		*ifp = tmp_if;
 	return 0;
 }
 
@@ -351,6 +352,12 @@ brcmf_proto_bcdc_add_tdls_peer(struct brcmf_pub *drvr, int ifidx,
 {
 }
 
+static void brcmf_proto_bcdc_rxreorder(struct brcmf_if *ifp,
+				       struct sk_buff *skb)
+{
+	brcmf_fws_rxreorder(ifp, skb);
+}
+
 int brcmf_proto_bcdc_attach(struct brcmf_pub *drvr)
 {
 	struct brcmf_bcdc *bcdc;
@@ -372,6 +379,7 @@ int brcmf_proto_bcdc_attach(struct brcmf_pub *drvr)
 	drvr->proto->configure_addr_mode = brcmf_proto_bcdc_configure_addr_mode;
 	drvr->proto->delete_peer = brcmf_proto_bcdc_delete_peer;
 	drvr->proto->add_tdls_peer = brcmf_proto_bcdc_add_tdls_peer;
+	drvr->proto->rxreorder = brcmf_proto_bcdc_rxreorder;
 	drvr->proto->pd = bcdc;
 
 	drvr->hdrlen += BCDC_HEADER_LEN + BRCMF_PROT_FW_SIGNAL_MAX_TXBYTES;

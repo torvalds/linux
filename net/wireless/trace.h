@@ -110,7 +110,7 @@
 				conf->dot11MeshHWMPconfirmationInterval;      \
 	} while (0)
 
-#define CHAN_ENTRY __field(enum ieee80211_band, band) \
+#define CHAN_ENTRY __field(enum nl80211_band, band) \
 		   __field(u16, center_freq)
 #define CHAN_ASSIGN(chan)					  \
 	do {							  \
@@ -125,7 +125,7 @@
 #define CHAN_PR_FMT "band: %d, freq: %u"
 #define CHAN_PR_ARG __entry->band, __entry->center_freq
 
-#define CHAN_DEF_ENTRY __field(enum ieee80211_band, band)		\
+#define CHAN_DEF_ENTRY __field(enum nl80211_band, band)		\
 		       __field(u32, control_freq)			\
 		       __field(u32, width)				\
 		       __field(u32, center_freq1)			\
@@ -1259,6 +1259,7 @@ TRACE_EVENT(rdev_connect,
 		__field(bool, privacy)
 		__field(u32, wpa_versions)
 		__field(u32, flags)
+		MAC_ENTRY(prev_bssid)
 	),
 	TP_fast_assign(
 		WIPHY_ASSIGN;
@@ -1270,13 +1271,14 @@ TRACE_EVENT(rdev_connect,
 		__entry->privacy = sme->privacy;
 		__entry->wpa_versions = sme->crypto.wpa_versions;
 		__entry->flags = sme->flags;
+		MAC_ASSIGN(prev_bssid, sme->prev_bssid);
 	),
 	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", bssid: " MAC_PR_FMT
 		  ", ssid: %s, auth type: %d, privacy: %s, wpa versions: %u, "
-		  "flags: %u",
+		  "flags: %u, previous bssid: " MAC_PR_FMT,
 		  WIPHY_PR_ARG, NETDEV_PR_ARG, MAC_PR_ARG(bssid), __entry->ssid,
 		  __entry->auth_type, BOOL_TO_STR(__entry->privacy),
-		  __entry->wpa_versions, __entry->flags)
+		  __entry->wpa_versions, __entry->flags, MAC_PR_ARG(prev_bssid))
 );
 
 TRACE_EVENT(rdev_set_cqm_rssi_config,
@@ -2645,7 +2647,7 @@ TRACE_EVENT(cfg80211_scan_done,
 	TP_STRUCT__entry(
 		__field(u32, n_channels)
 		__dynamic_array(u8, ie, request ? request->ie_len : 0)
-		__array(u32, rates, IEEE80211_NUM_BANDS)
+		__array(u32, rates, NUM_NL80211_BANDS)
 		__field(u32, wdev_id)
 		MAC_ENTRY(wiphy_mac)
 		__field(bool, no_cck)
@@ -2656,7 +2658,7 @@ TRACE_EVENT(cfg80211_scan_done,
 			memcpy(__get_dynamic_array(ie), request->ie,
 			       request->ie_len);
 			memcpy(__entry->rates, request->rates,
-			       IEEE80211_NUM_BANDS);
+			       NUM_NL80211_BANDS);
 			__entry->wdev_id = request->wdev ?
 					request->wdev->identifier : 0;
 			if (request->wiphy)
@@ -2881,25 +2883,25 @@ TRACE_EVENT(rdev_start_radar_detection,
 
 TRACE_EVENT(rdev_set_mcast_rate,
 	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
-		 int mcast_rate[IEEE80211_NUM_BANDS]),
+		 int mcast_rate[NUM_NL80211_BANDS]),
 	TP_ARGS(wiphy, netdev, mcast_rate),
 	TP_STRUCT__entry(
 		WIPHY_ENTRY
 		NETDEV_ENTRY
-		__array(int, mcast_rate, IEEE80211_NUM_BANDS)
+		__array(int, mcast_rate, NUM_NL80211_BANDS)
 	),
 	TP_fast_assign(
 		WIPHY_ASSIGN;
 		NETDEV_ASSIGN;
 		memcpy(__entry->mcast_rate, mcast_rate,
-		       sizeof(int) * IEEE80211_NUM_BANDS);
+		       sizeof(int) * NUM_NL80211_BANDS);
 	),
 	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", "
 		  "mcast_rates [2.4GHz=0x%x, 5.2GHz=0x%x, 60GHz=0x%x]",
 		  WIPHY_PR_ARG, NETDEV_PR_ARG,
-		  __entry->mcast_rate[IEEE80211_BAND_2GHZ],
-		  __entry->mcast_rate[IEEE80211_BAND_5GHZ],
-		  __entry->mcast_rate[IEEE80211_BAND_60GHZ])
+		  __entry->mcast_rate[NL80211_BAND_2GHZ],
+		  __entry->mcast_rate[NL80211_BAND_5GHZ],
+		  __entry->mcast_rate[NL80211_BAND_60GHZ])
 );
 
 TRACE_EVENT(rdev_set_coalesce,

@@ -221,6 +221,8 @@ int arizona_init_spk(struct snd_soc_codec *codec)
 
 	switch (arizona->type) {
 	case WM8997:
+	case CS47L24:
+	case WM1831:
 		break;
 	default:
 		ret = snd_soc_dapm_new_controls(dapm, &arizona_spkr, 1);
@@ -1134,7 +1136,6 @@ int arizona_anc_ev(struct snd_soc_dapm_widget *w,
 		   int event)
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	unsigned int mask = 0x3 << w->shift;
 	unsigned int val;
 
 	switch (event) {
@@ -1148,7 +1149,7 @@ int arizona_anc_ev(struct snd_soc_dapm_widget *w,
 		return 0;
 	}
 
-	snd_soc_update_bits(codec, ARIZONA_CLOCK_CONTROL, mask, val);
+	snd_soc_write(codec, ARIZONA_CLOCK_CONTROL, val);
 
 	return 0;
 }
@@ -2047,7 +2048,21 @@ static int arizona_calc_fratio(struct arizona_fll *fll,
 			init_ratio, Fref, refdiv);
 
 	while (div <= ARIZONA_FLL_MAX_REFDIV) {
-		for (ratio = init_ratio; ratio <= ARIZONA_FLL_MAX_FRATIO;
+		/* start from init_ratio because this may already give a
+		 * fractional N.K
+		 */
+		for (ratio = init_ratio; ratio > 0; ratio--) {
+			if (target % (ratio * Fref)) {
+				cfg->refdiv = refdiv;
+				cfg->fratio = ratio - 1;
+				arizona_fll_dbg(fll,
+					"pseudo: found fref=%u refdiv=%d(%d) ratio=%d\n",
+					Fref, refdiv, div, ratio);
+				return ratio;
+			}
+		}
+
+		for (ratio = init_ratio + 1; ratio <= ARIZONA_FLL_MAX_FRATIO;
 		     ratio++) {
 			if ((ARIZONA_FLL_VCO_CORNER / 2) /
 			    (fll->vco_mult * ratio) < Fref) {
@@ -2063,17 +2078,6 @@ static int arizona_calc_fratio(struct arizona_fll *fll,
 				break;
 			}
 
-			if (target % (ratio * Fref)) {
-				cfg->refdiv = refdiv;
-				cfg->fratio = ratio - 1;
-				arizona_fll_dbg(fll,
-					"pseudo: found fref=%u refdiv=%d(%d) ratio=%d\n",
-					Fref, refdiv, div, ratio);
-				return ratio;
-			}
-		}
-
-		for (ratio = init_ratio - 1; ratio > 0; ratio--) {
 			if (target % (ratio * Fref)) {
 				cfg->refdiv = refdiv;
 				cfg->fratio = ratio - 1;

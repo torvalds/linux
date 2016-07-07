@@ -143,14 +143,18 @@ static struct dentry *reconnect_one(struct vfsmount *mnt,
 	if (err)
 		goto out_err;
 	dprintk("%s: found name: %s\n", __func__, nbuf);
-	inode_lock(parent->d_inode);
-	tmp = lookup_one_len(nbuf, parent, strlen(nbuf));
-	inode_unlock(parent->d_inode);
+	tmp = lookup_one_len_unlocked(nbuf, parent, strlen(nbuf));
 	if (IS_ERR(tmp)) {
 		dprintk("%s: lookup failed: %d\n", __func__, PTR_ERR(tmp));
 		goto out_err;
 	}
 	if (tmp != dentry) {
+		/*
+		 * Somebody has renamed it since exportfs_get_name();
+		 * great, since it could've only been renamed if it
+		 * got looked up and thus connected, and it would
+		 * remain connected afterwards.  We are done.
+		 */
 		dput(tmp);
 		goto out_reconnected;
 	}
@@ -308,7 +312,7 @@ static int get_name(const struct path *path, char *name, struct dentry *child)
 		goto out;
 
 	error = -EINVAL;
-	if (!file->f_op->iterate)
+	if (!file->f_op->iterate && !file->f_op->iterate_shared)
 		goto out_close;
 
 	buffer.sequence = 0;

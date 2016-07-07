@@ -860,9 +860,9 @@ prepare_to_send( struct sk_buff  *skb,  struct net_device  *dev )
 
 	outb( inb( dev->base_addr + CSR0 ) | TR_REQ,  dev->base_addr + CSR0 );
 #ifdef CONFIG_SBNI_MULTILINE
-	nl->master->trans_start = jiffies;
+	netif_trans_update(nl->master);
 #else
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 #endif
 }
 
@@ -889,10 +889,10 @@ drop_xmit_queue( struct net_device  *dev )
 	nl->state &= ~(FL_WAIT_ACK | FL_NEED_RESEND);
 #ifdef CONFIG_SBNI_MULTILINE
 	netif_start_queue( nl->master );
-	nl->master->trans_start = jiffies;
+	netif_trans_update(nl->master);
 #else
 	netif_start_queue( dev );
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 #endif
 }
 

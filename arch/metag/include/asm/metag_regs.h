@@ -1165,7 +1165,7 @@
 #define TXSTATUS_IPTOGGLE_BIT           0x80000000 /* Prev PToggle of TXPRIVEXT */
 #define TXSTATUS_ISTATE_BIT             0x40000000 /* IState bit */
 #define TXSTATUS_IWAIT_BIT              0x20000000 /* wait indefinitely in decision step*/
-#define TXSTATUS_IEXCEPT_BIT            0x10000000 /* Indicate an exception occured */
+#define TXSTATUS_IEXCEPT_BIT            0x10000000 /* Indicate an exception occurred */
 #define TXSTATUS_IRPCOUNT_BITS          0x0E000000 /* Number of 'dirty' date entries*/
 #define TXSTATUS_IRPCOUNT_S             25
 #define TXSTATUS_IRQSTAT_BITS           0x0000F000 /* IRQEnc bits, trigger or interrupts */

@@ -38,22 +38,25 @@ TRACE_EVENT(kvm_userspace_exit,
 );
 
 TRACE_EVENT(kvm_vcpu_wakeup,
-	    TP_PROTO(__u64 ns, bool waited),
-	    TP_ARGS(ns, waited),
+	    TP_PROTO(__u64 ns, bool waited, bool valid),
+	    TP_ARGS(ns, waited, valid),
 
 	TP_STRUCT__entry(
 		__field(	__u64,		ns		)
 		__field(	bool,		waited		)
+		__field(	bool,		valid		)
 	),
 
 	TP_fast_assign(
 		__entry->ns		= ns;
 		__entry->waited		= waited;
+		__entry->valid		= valid;
 	),
 
-	TP_printk("%s time %lld ns",
+	TP_printk("%s time %lld ns, polling %s",
 		  __entry->waited ? "wait" : "poll",
-		  __entry->ns)
+		  __entry->ns,
+		  __entry->valid ? "valid" : "invalid")
 );
 
 #if defined(CONFIG_HAVE_KVM_IRQFD)
@@ -105,7 +108,7 @@ TRACE_EVENT(kvm_ioapic_set_irq,
 		__entry->coalesced	= coalesced;
 	),
 
-	TP_printk("pin %u dst %x vec=%u (%s|%s|%s%s)%s",
+	TP_printk("pin %u dst %x vec %u (%s|%s|%s%s)%s",
 		  __entry->pin, (u8)(__entry->e >> 56), (u8)__entry->e,
 		  __print_symbolic((__entry->e >> 8 & 0x7), kvm_deliver_mode),
 		  (__entry->e & (1<<11)) ? "logical" : "physical",
@@ -126,7 +129,7 @@ TRACE_EVENT(kvm_ioapic_delayed_eoi_inj,
 		__entry->e		= e;
 	),
 
-	TP_printk("dst %x vec=%u (%s|%s|%s%s)",
+	TP_printk("dst %x vec %u (%s|%s|%s%s)",
 		  (u8)(__entry->e >> 56), (u8)__entry->e,
 		  __print_symbolic((__entry->e >> 8 & 0x7), kvm_deliver_mode),
 		  (__entry->e & (1<<11)) ? "logical" : "physical",
@@ -148,7 +151,7 @@ TRACE_EVENT(kvm_msi_set_irq,
 		__entry->data		= data;
 	),
 
-	TP_printk("dst %u vec %x (%s|%s|%s%s)",
+	TP_printk("dst %u vec %u (%s|%s|%s%s)",
 		  (u8)(__entry->address >> 12), (u8)__entry->data,
 		  __print_symbolic((__entry->data >> 8 & 0x7), kvm_deliver_mode),
 		  (__entry->address & (1<<2)) ? "logical" : "physical",

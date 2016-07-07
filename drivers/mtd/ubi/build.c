@@ -149,6 +149,8 @@ static struct device_attribute dev_bgt_enabled =
 	__ATTR(bgt_enabled, S_IRUGO, dev_attribute_show, NULL);
 static struct device_attribute dev_mtd_num =
 	__ATTR(mtd_num, S_IRUGO, dev_attribute_show, NULL);
+static struct device_attribute dev_ro_mode =
+	__ATTR(ro_mode, S_IRUGO, dev_attribute_show, NULL);
 
 /**
  * ubi_volume_notify - send a volume change notification.
@@ -385,6 +387,8 @@ static ssize_t dev_attribute_show(struct device *dev,
 		ret = sprintf(buf, "%d\n", ubi->thread_enabled);
 	else if (attr == &dev_mtd_num)
 		ret = sprintf(buf, "%d\n", ubi->mtd->index);
+	else if (attr == &dev_ro_mode)
+		ret = sprintf(buf, "%d\n", ubi->ro_mode);
 	else
 		ret = -EINVAL;
 
@@ -404,6 +408,7 @@ static struct attribute *ubi_dev_attrs[] = {
 	&dev_min_io_size.attr,
 	&dev_bgt_enabled.attr,
 	&dev_mtd_num.attr,
+	&dev_ro_mode.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(ubi_dev);
@@ -1142,21 +1147,25 @@ int ubi_detach_mtd_dev(int ubi_num, int anyway)
  */
 static struct mtd_info * __init open_mtd_by_chdev(const char *mtd_dev)
 {
-	int err, major, minor, mode;
+	int err, minor;
 	struct path path;
+	struct kstat stat;
 
 	/* Probably this is an MTD character device node path */
 	err = kern_path(mtd_dev, LOOKUP_FOLLOW, &path);
 	if (err)
 		return ERR_PTR(err);
 
-	/* MTD device number is defined by the major / minor numbers */
-	major = imajor(d_backing_inode(path.dentry));
-	minor = iminor(d_backing_inode(path.dentry));
-	mode = d_backing_inode(path.dentry)->i_mode;
+	err = vfs_getattr(&path, &stat);
 	path_put(&path);
-	if (major != MTD_CHAR_MAJOR || !S_ISCHR(mode))
+	if (err)
+		return ERR_PTR(err);
+
+	/* MTD device number is defined by the major / minor numbers */
+	if (MAJOR(stat.rdev) != MTD_CHAR_MAJOR || !S_ISCHR(stat.mode))
 		return ERR_PTR(-EINVAL);
+
+	minor = MINOR(stat.rdev);
 
 	if (minor & 1)
 		/*

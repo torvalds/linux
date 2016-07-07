@@ -76,9 +76,9 @@ enum channel_clientstate {
 };
 
 static inline const u8 *
-ULTRA_CHANNELCLI_STRING(u32 v)
+ULTRA_CHANNELCLI_STRING(u32 state)
 {
-	switch (v) {
+	switch (state) {
 	case CHANNELCLI_DETACHED:
 		return (const u8 *)("DETACHED");
 	case CHANNELCLI_DISABLED:
@@ -411,7 +411,7 @@ spar_channel_client_acquire_os(void __iomem *ch, u8 *id)
 		mb(); /* required for channel synch */
 	}
 	if (readl(&hdr->cli_state_os) == CHANNELCLI_OWNED) {
-		if (readb(&hdr->cli_error_os) != 0) {
+		if (readb(&hdr->cli_error_os)) {
 			/* we are in an error msg throttling state;
 			 * come out of it
 			 */
@@ -459,7 +459,7 @@ spar_channel_client_acquire_os(void __iomem *ch, u8 *id)
 		mb(); /* required for channel synch */
 		return 0;
 	}
-	if (readb(&hdr->cli_error_os) != 0) {
+	if (readb(&hdr->cli_error_os)) {
 		/* we are in an error msg throttling state; come out of it */
 		pr_info("%s Channel OS client acquire now successful\n", id);
 		writeb(0, &hdr->cli_error_os);
@@ -472,7 +472,7 @@ spar_channel_client_release_os(void __iomem *ch, u8 *id)
 {
 	struct channel_header __iomem *hdr = ch;
 
-	if (readb(&hdr->cli_error_os) != 0) {
+	if (readb(&hdr->cli_error_os)) {
 		/* we are in an error msg throttling state; come out of it */
 		pr_info("%s Channel OS client error state cleared\n", id);
 		writeb(0, &hdr->cli_error_os);

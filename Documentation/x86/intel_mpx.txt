@@ -136,7 +136,7 @@ A: MPX-enabled application will possibly create a lot of bounds tables in
    If we were to preallocate them for the 128TB of user virtual address
    space, we would need to reserve 512TB+2GB, which is larger than the
    entire virtual address space today. This means they can not be reserved
-   ahead of time. Also, a single process's pre-popualated bounds directory
+   ahead of time. Also, a single process's pre-populated bounds directory
    consumes 2GB of virtual *AND* physical memory. IOW, it's completely
    infeasible to prepopulate bounds directories.
 
@@ -151,7 +151,7 @@ A: This would work if we could hook the site of each and every memory
    these calls.
 
 Q: Could a bounds fault be handed to userspace and the tables allocated
-   there in a signal handler intead of in the kernel?
+   there in a signal handler instead of in the kernel?
 A: mmap() is not on the list of safe async handler functions and even
    if mmap() would work it still requires locking or nasty tricks to
    keep track of the allocation state there.

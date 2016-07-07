@@ -440,7 +440,7 @@ static void adm8211_interrupt_rci(struct ieee80211_hw *dev)
 			rx_status.rate_idx = rate;
 
 			rx_status.freq = adm8211_channels[priv->channel - 1].center_freq;
-			rx_status.band = IEEE80211_BAND_2GHZ;
+			rx_status.band = NL80211_BAND_2GHZ;
 
 			memcpy(IEEE80211_SKB_RXCB(skb), &rx_status, sizeof(rx_status));
 			ieee80211_rx_irqsafe(dev, skb);
@@ -1894,7 +1894,7 @@ static int adm8211_probe(struct pci_dev *pdev,
 
 	priv->channel = 1;
 
-	dev->wiphy->bands[IEEE80211_BAND_2GHZ] = &priv->band;
+	dev->wiphy->bands[NL80211_BAND_2GHZ] = &priv->band;
 
 	err = ieee80211_register_hw(dev);
 	if (err) {

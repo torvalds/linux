@@ -587,3 +587,15 @@ int cpu__setup_cpunode_map(void)
 	closedir(dir1);
 	return 0;
 }
+
+bool cpu_map__has(struct cpu_map *cpus, int cpu)
+{
+	int i;
+
+	for (i = 0; i < cpus->nr; ++i) {
+		if (cpus->map[i] == cpu)
+			return true;
+	}
+
+	return false;
+}

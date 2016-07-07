@@ -63,7 +63,7 @@
  * Finalizes cl-data before exiting typical address_space operation. Dual to
  * ll_cl_init().
  */
-static void ll_cl_fini(struct ll_cl_context *lcc)
+void ll_cl_fini(struct ll_cl_context *lcc)
 {
 	struct lu_env  *env  = lcc->lcc_env;
 	struct cl_io   *io   = lcc->lcc_io;
@@ -84,198 +84,57 @@ static void ll_cl_fini(struct ll_cl_context *lcc)
  * Initializes common cl-data at the typical address_space operation entry
  * point.
  */
-static struct ll_cl_context *ll_cl_init(struct file *file,
-					struct page *vmpage, int create)
+struct ll_cl_context *ll_cl_init(struct file *file, struct page *vmpage)
 {
 	struct ll_cl_context *lcc;
 	struct lu_env    *env;
 	struct cl_io     *io;
 	struct cl_object *clob;
-	struct ccc_io    *cio;
+	struct vvp_io    *vio;
 
 	int refcheck;
 	int result = 0;
 
-	clob = ll_i2info(vmpage->mapping->host)->lli_clob;
+	clob = ll_i2info(file_inode(file))->lli_clob;
 	LASSERT(clob);
 
 	env = cl_env_get(&refcheck);
 	if (IS_ERR(env))
 		return ERR_CAST(env);
 
-	lcc = &vvp_env_info(env)->vti_io_ctx;
+	lcc = &ll_env_info(env)->lti_io_ctx;
 	memset(lcc, 0, sizeof(*lcc));
 	lcc->lcc_env = env;
 	lcc->lcc_refcheck = refcheck;
 	lcc->lcc_cookie = current;
 
-	cio = ccc_env_io(env);
-	io = cio->cui_cl.cis_io;
-	if (!io && create) {
-		struct inode *inode = vmpage->mapping->host;
-		loff_t pos;
-
-		if (inode_trylock(inode)) {
-			inode_unlock((inode));
-
-			/* this is too bad. Someone is trying to write the
-			 * page w/o holding inode mutex. This means we can
-			 * add dirty pages into cache during truncate
-			 */
-			CERROR("Proc %s is dirtying page w/o inode lock, this will break truncate\n",
-			       current->comm);
-			dump_stack();
-			LBUG();
-			return ERR_PTR(-EIO);
-		}
-
-		/*
-		 * Loop-back driver calls ->prepare_write().
-		 * methods directly, bypassing file system ->write() operation,
-		 * so cl_io has to be created here.
-		 */
-		io = ccc_env_thread_io(env);
-		ll_io_init(io, file, 1);
-
-		/* No lock at all for this kind of IO - we can't do it because
-		 * we have held page lock, it would cause deadlock.
-		 * XXX: This causes poor performance to loop device - One page
-		 *      per RPC.
-		 *      In order to get better performance, users should use
-		 *      lloop driver instead.
-		 */
-		io->ci_lockreq = CILR_NEVER;
-
-		pos = vmpage->index << PAGE_SHIFT;
-
-		/* Create a temp IO to serve write. */
-		result = cl_io_rw_init(env, io, CIT_WRITE, pos, PAGE_SIZE);
-		if (result == 0) {
-			cio->cui_fd = LUSTRE_FPRIVATE(file);
-			cio->cui_iter = NULL;
-			result = cl_io_iter_init(env, io);
-			if (result == 0) {
-				result = cl_io_lock(env, io);
-				if (result == 0)
-					result = cl_io_start(env, io);
-			}
-		} else
-			result = io->ci_result;
-	}
-
+	vio = vvp_env_io(env);
+	io = vio->vui_cl.cis_io;
 	lcc->lcc_io = io;
 	if (!io)
 		result = -EIO;
-	if (result == 0) {
+
+	if (result == 0 && vmpage) {
 		struct cl_page   *page;
 
 		LASSERT(io->ci_state == CIS_IO_GOING);
-		LASSERT(cio->cui_fd == LUSTRE_FPRIVATE(file));
+		LASSERT(vio->vui_fd == LUSTRE_FPRIVATE(file));
 		page = cl_page_find(env, clob, vmpage->index, vmpage,
 				    CPT_CACHEABLE);
 		if (!IS_ERR(page)) {
 			lcc->lcc_page = page;
 			lu_ref_add(&page->cp_reference, "cl_io", io);
 			result = 0;
-		} else
+		} else {
 			result = PTR_ERR(page);
+		}
 	}
 	if (result) {
 		ll_cl_fini(lcc);
 		lcc = ERR_PTR(result);
 	}
 
-	CDEBUG(D_VFSTRACE, "%lu@"DFID" -> %d %p %p\n",
-	       vmpage->index, PFID(lu_object_fid(&clob->co_lu)), result,
-	       env, io);
 	return lcc;
-}
-
-static struct ll_cl_context *ll_cl_get(void)
-{
-	struct ll_cl_context *lcc;
-	struct lu_env *env;
-	int refcheck;
-
-	env = cl_env_get(&refcheck);
-	LASSERT(!IS_ERR(env));
-	lcc = &vvp_env_info(env)->vti_io_ctx;
-	LASSERT(env == lcc->lcc_env);
-	LASSERT(current == lcc->lcc_cookie);
-	cl_env_put(env, &refcheck);
-
-	/* env has got in ll_cl_init, so it is still usable. */
-	return lcc;
-}
-
-/**
- * ->prepare_write() address space operation called by generic_file_write()
- * for every page during write.
- */
-int ll_prepare_write(struct file *file, struct page *vmpage, unsigned from,
-		     unsigned to)
-{
-	struct ll_cl_context *lcc;
-	int result;
-
-	lcc = ll_cl_init(file, vmpage, 1);
-	if (!IS_ERR(lcc)) {
-		struct lu_env  *env = lcc->lcc_env;
-		struct cl_io   *io  = lcc->lcc_io;
-		struct cl_page *page = lcc->lcc_page;
-
-		cl_page_assume(env, io, page);
-
-		result = cl_io_prepare_write(env, io, page, from, to);
-		if (result == 0) {
-			/*
-			 * Add a reference, so that page is not evicted from
-			 * the cache until ->commit_write() is called.
-			 */
-			cl_page_get(page);
-			lu_ref_add(&page->cp_reference, "prepare_write",
-				   current);
-		} else {
-			cl_page_unassume(env, io, page);
-			ll_cl_fini(lcc);
-		}
-		/* returning 0 in prepare assumes commit must be called
-		 * afterwards
-		 */
-	} else {
-		result = PTR_ERR(lcc);
-	}
-	return result;
-}
-
-int ll_commit_write(struct file *file, struct page *vmpage, unsigned from,
-		    unsigned to)
-{
-	struct ll_cl_context *lcc;
-	struct lu_env    *env;
-	struct cl_io     *io;
-	struct cl_page   *page;
-	int result = 0;
-
-	lcc  = ll_cl_get();
-	env  = lcc->lcc_env;
-	page = lcc->lcc_page;
-	io   = lcc->lcc_io;
-
-	LASSERT(cl_page_is_owned(page, io));
-	LASSERT(from <= to);
-	if (from != to) /* handle short write case. */
-		result = cl_io_commit_write(env, io, page, from, to);
-	if (cl_page_is_owned(page, io))
-		cl_page_unassume(env, io, page);
-
-	/*
-	 * Release reference acquired by ll_prepare_write().
-	 */
-	lu_ref_del(&page->cp_reference, "prepare_write", current);
-	cl_page_put(env, page);
-	ll_cl_fini(lcc);
-	return result;
 }
 
 static void ll_ra_stats_inc_sbi(struct ll_sb_info *sbi, enum ra_stat which);
@@ -301,7 +160,7 @@ static void ll_ra_stats_inc_sbi(struct ll_sb_info *sbi, enum ra_stat which);
  */
 static unsigned long ll_ra_count_get(struct ll_sb_info *sbi,
 				     struct ra_io_arg *ria,
-				     unsigned long pages)
+				     unsigned long pages, unsigned long min)
 {
 	struct ll_ra_info *ra = &sbi->ll_ra_info;
 	long ret;
@@ -341,6 +200,11 @@ static unsigned long ll_ra_count_get(struct ll_sb_info *sbi,
 	}
 
 out:
+	if (ret < min) {
+		/* override ra limit for maximum performance */
+		atomic_add(min - ret, &ra->ra_cur_pages);
+		ret = min;
+	}
 	return ret;
 }
 
@@ -357,9 +221,9 @@ static void ll_ra_stats_inc_sbi(struct ll_sb_info *sbi, enum ra_stat which)
 	lprocfs_counter_incr(sbi->ll_ra_stats, which);
 }
 
-void ll_ra_stats_inc(struct address_space *mapping, enum ra_stat which)
+void ll_ra_stats_inc(struct inode *inode, enum ra_stat which)
 {
-	struct ll_sb_info *sbi = ll_i2sbi(mapping->host);
+	struct ll_sb_info *sbi = ll_i2sbi(inode);
 
 	ll_ra_stats_inc_sbi(sbi, which);
 }
@@ -388,61 +252,42 @@ static int index_in_window(unsigned long index, unsigned long point,
 	return start <= index && index <= end;
 }
 
-static struct ll_readahead_state *ll_ras_get(struct file *f)
+void ll_ras_enter(struct file *f)
 {
-	struct ll_file_data       *fd;
-
-	fd = LUSTRE_FPRIVATE(f);
-	return &fd->fd_ras;
-}
-
-void ll_ra_read_in(struct file *f, struct ll_ra_read *rar)
-{
-	struct ll_readahead_state *ras;
-
-	ras = ll_ras_get(f);
+	struct ll_file_data *fd = LUSTRE_FPRIVATE(f);
+	struct ll_readahead_state *ras = &fd->fd_ras;
 
 	spin_lock(&ras->ras_lock);
 	ras->ras_requests++;
 	ras->ras_request_index = 0;
 	ras->ras_consecutive_requests++;
-	rar->lrr_reader = current;
-
-	list_add(&rar->lrr_linkage, &ras->ras_read_beads);
-	spin_unlock(&ras->ras_lock);
-}
-
-void ll_ra_read_ex(struct file *f, struct ll_ra_read *rar)
-{
-	struct ll_readahead_state *ras;
-
-	ras = ll_ras_get(f);
-
-	spin_lock(&ras->ras_lock);
-	list_del_init(&rar->lrr_linkage);
 	spin_unlock(&ras->ras_lock);
 }
 
 static int cl_read_ahead_page(const struct lu_env *env, struct cl_io *io,
 			      struct cl_page_list *queue, struct cl_page *page,
-			      struct page *vmpage)
+			      struct cl_object *clob, pgoff_t *max_index)
 {
-	struct ccc_page *cp;
+	struct page *vmpage = page->cp_vmpage;
+	struct vvp_page *vpg;
 	int	      rc;
 
 	rc = 0;
 	cl_page_assume(env, io, page);
 	lu_ref_add(&page->cp_reference, "ra", current);
-	cp = cl2ccc_page(cl_page_at(page, &vvp_device_type));
-	if (!cp->cpg_defer_uptodate && !PageUptodate(vmpage)) {
-		rc = cl_page_is_under_lock(env, io, page);
-		if (rc == -EBUSY) {
-			cp->cpg_defer_uptodate = 1;
-			cp->cpg_ra_used = 0;
+	vpg = cl2vvp_page(cl_object_page_slice(clob, page));
+	if (!vpg->vpg_defer_uptodate && !PageUptodate(vmpage)) {
+		CDEBUG(D_READA, "page index %lu, max_index: %lu\n",
+		       vvp_index(vpg), *max_index);
+		if (*max_index == 0 || vvp_index(vpg) > *max_index)
+			rc = cl_page_is_under_lock(env, io, page, max_index);
+		if (rc == 0) {
+			vpg->vpg_defer_uptodate = 1;
+			vpg->vpg_ra_used = 0;
 			cl_page_list_add(queue, page);
 			rc = 1;
 		} else {
-			cl_page_delete(env, page);
+			cl_page_discard(env, io, page);
 			rc = -ENOLCK;
 		}
 	} else {
@@ -466,24 +311,25 @@ static int cl_read_ahead_page(const struct lu_env *env, struct cl_io *io,
  */
 static int ll_read_ahead_page(const struct lu_env *env, struct cl_io *io,
 			      struct cl_page_list *queue,
-			      pgoff_t index, struct address_space *mapping)
+			      pgoff_t index, pgoff_t *max_index)
 {
+	struct cl_object *clob  = io->ci_obj;
+	struct inode     *inode = vvp_object_inode(clob);
 	struct page      *vmpage;
-	struct cl_object *clob  = ll_i2info(mapping->host)->lli_clob;
 	struct cl_page   *page;
 	enum ra_stat      which = _NR_RA_STAT; /* keep gcc happy */
 	int	       rc    = 0;
 	const char       *msg   = NULL;
 
-	vmpage = grab_cache_page_nowait(mapping, index);
+	vmpage = grab_cache_page_nowait(inode->i_mapping, index);
 	if (vmpage) {
 		/* Check if vmpage was truncated or reclaimed */
-		if (vmpage->mapping == mapping) {
+		if (vmpage->mapping == inode->i_mapping) {
 			page = cl_page_find(env, clob, vmpage->index,
 					    vmpage, CPT_CACHEABLE);
 			if (!IS_ERR(page)) {
 				rc = cl_read_ahead_page(env, io, queue,
-							page, vmpage);
+							page, clob, max_index);
 				if (rc == -ENOLCK) {
 					which = RA_STAT_FAILED_MATCH;
 					msg   = "lock match failed";
@@ -504,7 +350,7 @@ static int ll_read_ahead_page(const struct lu_env *env, struct cl_io *io,
 		msg   = "g_c_p_n failed";
 	}
 	if (msg) {
-		ll_ra_stats_inc(mapping, which);
+		ll_ra_stats_inc(inode, which);
 		CDEBUG(D_READA, "%s\n", msg);
 	}
 	return rc;
@@ -616,11 +462,12 @@ static int ll_read_ahead_pages(const struct lu_env *env,
 			       struct cl_io *io, struct cl_page_list *queue,
 			       struct ra_io_arg *ria,
 			       unsigned long *reserved_pages,
-			       struct address_space *mapping,
 			       unsigned long *ra_end)
 {
-	int rc, count = 0, stride_ria;
-	unsigned long page_idx;
+	int rc, count = 0;
+	bool stride_ria;
+	pgoff_t page_idx;
+	pgoff_t max_index = 0;
 
 	LASSERT(ria);
 	RIA_DEBUG(ria);
@@ -631,12 +478,13 @@ static int ll_read_ahead_pages(const struct lu_env *env,
 		if (ras_inside_ra_window(page_idx, ria)) {
 			/* If the page is inside the read-ahead window*/
 			rc = ll_read_ahead_page(env, io, queue,
-						page_idx, mapping);
+						page_idx, &max_index);
 			if (rc == 1) {
 				(*reserved_pages)--;
 				count++;
-			} else if (rc == -ENOLCK)
+			} else if (rc == -ENOLCK) {
 				break;
+			}
 		} else if (stride_ria) {
 			/* If it is not in the read-ahead window, and it is
 			 * read-ahead mode, then check whether it should skip
@@ -666,25 +514,22 @@ static int ll_read_ahead_pages(const struct lu_env *env,
 }
 
 int ll_readahead(const struct lu_env *env, struct cl_io *io,
-		 struct ll_readahead_state *ras, struct address_space *mapping,
-		 struct cl_page_list *queue, int flags)
+		 struct cl_page_list *queue, struct ll_readahead_state *ras,
+		 bool hit)
 {
 	struct vvp_io *vio = vvp_env_io(env);
-	struct vvp_thread_info *vti = vvp_env_info(env);
-	struct cl_attr *attr = ccc_env_thread_attr(env);
+	struct ll_thread_info *lti = ll_env_info(env);
+	struct cl_attr *attr = vvp_env_thread_attr(env);
 	unsigned long start = 0, end = 0, reserved;
-	unsigned long ra_end, len;
+	unsigned long ra_end, len, mlen = 0;
 	struct inode *inode;
-	struct ll_ra_read *bead;
-	struct ra_io_arg *ria = &vti->vti_ria;
-	struct ll_inode_info *lli;
+	struct ra_io_arg *ria = &lti->lti_ria;
 	struct cl_object *clob;
 	int ret = 0;
 	__u64 kms;
 
-	inode = mapping->host;
-	lli = ll_i2info(inode);
-	clob = lli->lli_clob;
+	clob = io->ci_obj;
+	inode = vvp_object_inode(clob);
 
 	memset(ria, 0, sizeof(*ria));
 
@@ -696,22 +541,20 @@ int ll_readahead(const struct lu_env *env, struct cl_io *io,
 		return ret;
 	kms = attr->cat_kms;
 	if (kms == 0) {
-		ll_ra_stats_inc(mapping, RA_STAT_ZERO_LEN);
+		ll_ra_stats_inc(inode, RA_STAT_ZERO_LEN);
 		return 0;
 	}
 
 	spin_lock(&ras->ras_lock);
-	if (vio->cui_ra_window_set)
-		bead = &vio->cui_bead;
-	else
-		bead = NULL;
 
 	/* Enlarge the RA window to encompass the full read */
-	if (bead && ras->ras_window_start + ras->ras_window_len <
-	    bead->lrr_start + bead->lrr_count) {
-		ras->ras_window_len = bead->lrr_start + bead->lrr_count -
+	if (vio->vui_ra_valid &&
+	    ras->ras_window_start + ras->ras_window_len <
+	    vio->vui_ra_start + vio->vui_ra_count) {
+		ras->ras_window_len = vio->vui_ra_start + vio->vui_ra_count -
 				      ras->ras_window_start;
 	}
+
 	/* Reserve a part of the read-ahead window that we'll be issuing */
 	if (ras->ras_window_len) {
 		start = ras->ras_next_readahead;
@@ -755,29 +598,48 @@ int ll_readahead(const struct lu_env *env, struct cl_io *io,
 	spin_unlock(&ras->ras_lock);
 
 	if (end == 0) {
-		ll_ra_stats_inc(mapping, RA_STAT_ZERO_WINDOW);
+		ll_ra_stats_inc(inode, RA_STAT_ZERO_WINDOW);
 		return 0;
 	}
 	len = ria_page_count(ria);
-	if (len == 0)
+	if (len == 0) {
+		ll_ra_stats_inc(inode, RA_STAT_ZERO_WINDOW);
 		return 0;
+	}
 
-	reserved = ll_ra_count_get(ll_i2sbi(inode), ria, len);
+	CDEBUG(D_READA, DFID ": ria: %lu/%lu, bead: %lu/%lu, hit: %d\n",
+	       PFID(lu_object_fid(&clob->co_lu)),
+	       ria->ria_start, ria->ria_end,
+	       vio->vui_ra_valid ? vio->vui_ra_start : 0,
+	       vio->vui_ra_valid ? vio->vui_ra_count : 0,
+	       hit);
+
+	/* at least to extend the readahead window to cover current read */
+	if (!hit && vio->vui_ra_valid &&
+	    vio->vui_ra_start + vio->vui_ra_count > ria->ria_start) {
+		/* to the end of current read window. */
+		mlen = vio->vui_ra_start + vio->vui_ra_count - ria->ria_start;
+		/* trim to RPC boundary */
+		start = ria->ria_start & (PTLRPC_MAX_BRW_PAGES - 1);
+		mlen = min(mlen, PTLRPC_MAX_BRW_PAGES - start);
+	}
+
+	reserved = ll_ra_count_get(ll_i2sbi(inode), ria, len, mlen);
 	if (reserved < len)
-		ll_ra_stats_inc(mapping, RA_STAT_MAX_IN_FLIGHT);
+		ll_ra_stats_inc(inode, RA_STAT_MAX_IN_FLIGHT);
 
-	CDEBUG(D_READA, "reserved page %lu ra_cur %d ra_max %lu\n", reserved,
+	CDEBUG(D_READA, "reserved pages %lu/%lu/%lu, ra_cur %d, ra_max %lu\n",
+	       reserved, len, mlen,
 	       atomic_read(&ll_i2sbi(inode)->ll_ra_info.ra_cur_pages),
 	       ll_i2sbi(inode)->ll_ra_info.ra_max_pages);
 
-	ret = ll_read_ahead_pages(env, io, queue,
-				  ria, &reserved, mapping, &ra_end);
+	ret = ll_read_ahead_pages(env, io, queue, ria, &reserved, &ra_end);
 
 	if (reserved != 0)
 		ll_ra_count_put(ll_i2sbi(inode), reserved);
 
 	if (ra_end == end + 1 && ra_end == (kms >> PAGE_SHIFT))
-		ll_ra_stats_inc(mapping, RA_STAT_EOF);
+		ll_ra_stats_inc(inode, RA_STAT_EOF);
 
 	/* if we didn't get to the end of the region we reserved from
 	 * the ras we need to go back and update the ras so that the
@@ -789,6 +651,7 @@ int ll_readahead(const struct lu_env *env, struct cl_io *io,
 	       ra_end, end, ria->ria_end);
 
 	if (ra_end != end + 1) {
+		ll_ra_stats_inc(inode, RA_STAT_FAILED_REACH_END);
 		spin_lock(&ras->ras_lock);
 		if (ra_end < ras->ras_next_readahead &&
 		    index_in_window(ra_end, ras->ras_window_start, 0,
@@ -836,7 +699,6 @@ void ll_readahead_init(struct inode *inode, struct ll_readahead_state *ras)
 	spin_lock_init(&ras->ras_lock);
 	ras_reset(inode, ras, 0);
 	ras->ras_requests = 0;
-	INIT_LIST_HEAD(&ras->ras_read_beads);
 }
 
 /*
@@ -1059,15 +921,18 @@ void ras_update(struct ll_sb_info *sbi, struct inode *inode,
 	ras->ras_last_readpage = index;
 	ras_set_start(inode, ras, index);
 
-	if (stride_io_mode(ras))
+	if (stride_io_mode(ras)) {
 		/* Since stride readahead is sensitive to the offset
 		 * of read-ahead, so we use original offset here,
 		 * instead of ras_window_start, which is RPC aligned
 		 */
 		ras->ras_next_readahead = max(index, ras->ras_next_readahead);
-	else
-		ras->ras_next_readahead = max(ras->ras_window_start,
-					      ras->ras_next_readahead);
+	} else {
+		if (ras->ras_next_readahead < ras->ras_window_start)
+			ras->ras_next_readahead = ras->ras_window_start;
+		if (!hit)
+			ras->ras_next_readahead = index + 1;
+	}
 	RAS_CDEBUG(ras);
 
 	/* Trigger RA in the mmap case where ras_consecutive_requests
@@ -1129,7 +994,7 @@ int ll_writepage(struct page *vmpage, struct writeback_control *wbc)
 	clob  = ll_i2info(inode)->lli_clob;
 	LASSERT(clob);
 
-	io = ccc_env_thread_io(env);
+	io = vvp_env_thread_io(env);
 	io->ci_obj = clob;
 	io->ci_ignore_layout = 1;
 	result = cl_io_init(env, io, CIT_MISC, clob);
@@ -1240,8 +1105,9 @@ int ll_writepages(struct address_space *mapping, struct writeback_control *wbc)
 
 	if (wbc->range_cyclic || (range_whole && wbc->nr_to_write > 0)) {
 		if (end == OBD_OBJECT_EOF)
-			end = i_size_read(inode);
-		mapping->writeback_index = (end >> PAGE_SHIFT) + 1;
+			mapping->writeback_index = 0;
+		else
+			mapping->writeback_index = (end >> PAGE_SHIFT) + 1;
 	}
 	return result;
 }
@@ -1251,7 +1117,7 @@ int ll_readpage(struct file *file, struct page *vmpage)
 	struct ll_cl_context *lcc;
 	int result;
 
-	lcc = ll_cl_init(file, vmpage, 0);
+	lcc = ll_cl_init(file, vmpage);
 	if (!IS_ERR(lcc)) {
 		struct lu_env  *env  = lcc->lcc_env;
 		struct cl_io   *io   = lcc->lcc_io;
@@ -1271,5 +1137,30 @@ int ll_readpage(struct file *file, struct page *vmpage)
 		unlock_page(vmpage);
 		result = PTR_ERR(lcc);
 	}
+	return result;
+}
+
+int ll_page_sync_io(const struct lu_env *env, struct cl_io *io,
+		    struct cl_page *page, enum cl_req_type crt)
+{
+	struct cl_2queue  *queue;
+	int result;
+
+	LASSERT(io->ci_type == CIT_READ || io->ci_type == CIT_WRITE);
+
+	queue = &io->ci_queue;
+	cl_2queue_init_page(queue, page);
+
+	result = cl_io_submit_sync(env, io, crt, queue, 0);
+	LASSERT(cl_page_is_owned(page, io));
+
+	if (crt == CRT_READ)
+		/*
+		 * in CRT_WRITE case page is left locked even in case of
+		 * error.
+		 */
+		cl_page_list_disown(env, io, &queue->c2_qin);
+	cl_2queue_fini(env, queue);
+
 	return result;
 }

@@ -138,7 +138,7 @@ static int do_test(struct bpf_object *obj, int (*func)(void),
 	perf_evlist__splice_list_tail(evlist, &parse_evlist.list);
 	evlist->nr_groups = parse_evlist.nr_groups;
 
-	perf_evlist__config(evlist, &opts);
+	perf_evlist__config(evlist, &opts, NULL);
 
 	err = perf_evlist__open(evlist);
 	if (err < 0) {

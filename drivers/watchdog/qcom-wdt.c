@@ -21,6 +21,7 @@
 
 #define WDT_RST		0x38
 #define WDT_EN		0x40
+#define WDT_STS		0x44
 #define WDT_BITE_TIME	0x5C
 
 struct qcom_wdt {
@@ -108,7 +109,8 @@ static const struct watchdog_ops qcom_wdt_ops = {
 static const struct watchdog_info qcom_wdt_info = {
 	.options	= WDIOF_KEEPALIVEPING
 			| WDIOF_MAGICCLOSE
-			| WDIOF_SETTIMEOUT,
+			| WDIOF_SETTIMEOUT
+			| WDIOF_CARDRESET,
 	.identity	= KBUILD_MODNAME,
 };
 
@@ -170,6 +172,9 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 	wdt->wdd.min_timeout = 1;
 	wdt->wdd.max_timeout = 0x10000000U / wdt->rate;
 	wdt->wdd.parent = &pdev->dev;
+
+	if (readl(wdt->base + WDT_STS) & 1)
+		wdt->wdd.bootstatus = WDIOF_CARDRESET;
 
 	/*
 	 * If 'timeout-sec' unspecified in devicetree, assume a 30 second

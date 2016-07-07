@@ -1,0 +1,828 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Creator: fig2dev Version 3.2 Patchlevel 5e -->
+
+<!-- CreationDate: Wed Dec  9 17:41:29 2015 -->
+
+<!-- Magnification: 3.000 -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="17.7in"
+   height="10.4in"
+   viewBox="-66 -66 21237 12507"
+   id="svg2"
+   version="1.1"
+   inkscape:version="0.48.4 r9939"
+   sodipodi:docname="TreeLevel.fig">
+  <metadata
+     id="metadata216">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <defs
+     id="defs214">
+    <marker
+       inkscape:stockid="Arrow1Mend"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="Arrow1Mend"
+       style="overflow:visible;">
+      <path
+         id="path3974"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1.0pt;"
+         transform="scale(0.4) rotate(180) translate(10,0)" />
+    </marker>
+  </defs>
+  <sodipodi:namedview
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1"
+     objecttolerance="10"
+     gridtolerance="10"
+     guidetolerance="10"
+     inkscape:pageopacity="0"
+     inkscape:pageshadow="2"
+     inkscape:window-width="1023"
+     inkscape:window-height="1148"
+     id="namedview212"
+     showgrid="false"
+     inkscape:zoom="0.55869424"
+     inkscape:cx="796.50006"
+     inkscape:cy="467.99997"
+     inkscape:window-x="897"
+     inkscape:window-y="24"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="g4" />
+  <g
+     style="stroke-width:.025in; fill:none"
+     id="g4">
+    <!-- Line: box -->
+    <rect
+       x="0"
+       y="0"
+       width="20655"
+       height="8325"
+       rx="0"
+       style="stroke:#000000;stroke-width:45; stroke-linejoin:miter; stroke-linecap:butt; fill:#ffff00; "
+       id="rect6" />
+    <!-- Line: box -->
+    <rect
+       x="14130"
+       y="3600"
+       width="2700"
+       height="1350"
+       rx="0"
+       style="stroke:#000000;stroke-width:45; stroke-linejoin:miter; stroke-linecap:butt; fill:#ffbfbf; "
+       id="rect8" />
+    <!-- Line: box -->
+    <rect
+       x="7380"
+       y="3600"
+       width="2700"
+       height="1350"
+       rx="0"
+       style="stroke:#000000;stroke-width:45; stroke-linejoin:miter; stroke-linecap:butt; fill:#ffbfbf; "
+       id="rect10" />
+    <!-- Line: box -->
+    <rect
+       x="8505"
+       y="6300"
+       width="2700"
+       height="1350"
+       rx="0"
+       style="stroke:#000000;stroke-width:45; stroke-linejoin:miter; stroke-linecap:butt; fill:#ffbfbf; "
+       id="rect12" />
+    <!-- Line: box -->
+    <rect
+       x="13005"
+       y="6300"
+       width="2700"
+       height="1350"
+       rx="0"
+       style="stroke:#000000;stroke-width:45; stroke-linejoin:miter; stroke-linecap:butt; fill:#ffbfbf; "
+       id="rect14" />
+    <!-- Line: box -->
+    <rect
+       x="17505"
+       y="6300"
+       width="2700"
+       height="1350"
+       rx="0"
+       style="stroke:#000000;stroke-width:45; stroke-linejoin:miter; stroke-linecap:butt; fill:#ffbfbf; "
+       id="rect16" />
+    <!-- Line: box -->
+    <rect
+       x="4005"
+       y="6300"
+       width="2700"
+       height="1350"
+       rx="0"
+       style="stroke:#000000;stroke-width:45; stroke-linejoin:miter; stroke-linecap:butt; fill:#ffbfbf; "
+       id="rect18" />
+    <!-- Line: box -->
+    <rect
+       x="10755"
+       y="900"
+       width="2700"
+       height="1350"
+       rx="0"
+       style="stroke:#000000;stroke-width:45; stroke-linejoin:miter; stroke-linecap:butt; fill:#ffbfbf; "
+       id="rect20" />
+    <!-- Line -->
+    <polyline
+       points="6255,9225 6255,7746 "
+       style="stroke:#00d1d1;stroke-width:45.00382345;stroke-linejoin:miter;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:none;marker-end:url(#Arrow1Mend)"
+       id="polyline22" />
+    <!-- Arrowhead on XXXpoint 6255 9225 - 6255 7560-->
+    <!-- Circle -->
+    <circle
+       cx="11655"
+       cy="4275"
+       r="114"
+       style="fill:#000000;stroke:#000000;stroke-width:21;"
+       id="circle26" />
+    <!-- Circle -->
+    <circle
+       cx="12105"
+       cy="4275"
+       r="114"
+       style="fill:#000000;stroke:#000000;stroke-width:21;"
+       id="circle28" />
+    <!-- Circle -->
+    <circle
+       cx="12555"
+       cy="4275"
+       r="114"
+       style="fill:#000000;stroke:#000000;stroke-width:21;"
+       id="circle30" />
+    <!-- Line -->
+    <polyline
+       points="9855,6300 11355,5010 "
+       style="stroke:#00d1d1;stroke-width:45.00382345;stroke-linejoin:miter;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:none;marker-end:url(#Arrow1Mend)"
+       id="polyline32" />
+    <!-- Arrowhead on XXXpoint 9855 6300 - 11496 4890-->
+    <!-- Line -->
+    <polyline
+       points="14355,6300 12852,5010 "
+       style="stroke:#00d1d1;stroke-width:45.00382345;stroke-linejoin:miter;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:none;marker-end:url(#Arrow1Mend)"
+       id="polyline36" />
+    <!-- Arrowhead on XXXpoint 14355 6300 - 12711 4890-->
+    <!-- Circle -->
+    <circle
+       cx="17055"
+       cy="6975"
+       r="114"
+       style="fill:#000000;stroke:#000000;stroke-width:21;"
+       id="circle40" />
+    <!-- Circle -->
+    <circle
+       cx="16605"
+       cy="6975"
+       r="114"
+       style="fill:#000000;stroke:#000000;stroke-width:21;"
+       id="circle42" />
+    <!-- Circle -->
+    <circle
+       cx="16155"
+       cy="6975"
+       r="114"
+       style="fill:#000000;stroke:#000000;stroke-width:21;"
+       id="circle44" />
+    <!-- Circle -->
+    <circle
+       cx="12555"
+       cy="6975"
+       r="114"
+       style="fill:#000000;stroke:#000000;stroke-width:21;"
+       id="circle46" />
+    <!-- Circle -->
+    <circle
+       cx="12105"
+       cy="6975"
+       r="114"
+       style="fill:#000000;stroke:#000000;stroke-width:21;"
+       id="circle48" />
+    <!-- Circle -->
+    <circle
+       cx="11655"
+       cy="6975"
+       r="114"
+       style="fill:#000000;stroke:#000000;stroke-width:21;"
+       id="circle50" />
+    <!-- Circle -->
+    <circle
+       cx="8055"
+       cy="6975"
+       r="114"
+       style="fill:#000000;stroke:#000000;stroke-width:21;"
+       id="circle52" />
+    <!-- Circle -->
+    <circle
+       cx="7605"
+       cy="6975"
+       r="114"
+       style="fill:#000000;stroke:#000000;stroke-width:21;"
+       id="circle54" />
+    <!-- Circle -->
+    <circle
+       cx="7155"
+       cy="6975"
+       r="114"
+       style="fill:#000000;stroke:#000000;stroke-width:21;"
+       id="circle56" />
+    <!-- Circle -->
+    <circle
+       cx="4905"
+       cy="8775"
+       r="114"
+       style="fill:#000000;stroke:#000000;stroke-width:21;"
+       id="circle58" />
+    <!-- Circle -->
+    <circle
+       cx="5355"
+       cy="8775"
+       r="114"
+       style="fill:#000000;stroke:#000000;stroke-width:21;"
+       id="circle60" />
+    <!-- Circle -->
+    <circle
+       cx="5805"
+       cy="8775"
+       r="114"
+       style="fill:#000000;stroke:#000000;stroke-width:21;"
+       id="circle62" />
+    <!-- Circle -->
+    <circle
+       cx="18405"
+       cy="8775"
+       r="114"
+       style="fill:#000000;stroke:#000000;stroke-width:21;"
+       id="circle64" />
+    <!-- Circle -->
+    <circle
+       cx="18855"
+       cy="8775"
+       r="114"
+       style="fill:#000000;stroke:#000000;stroke-width:21;"
+       id="circle66" />
+    <!-- Circle -->
+    <circle
+       cx="19305"
+       cy="8775"
+       r="114"
+       style="fill:#000000;stroke:#000000;stroke-width:21;"
+       id="circle68" />
+    <!-- Circle -->
+    <circle
+       cx="13905"
+       cy="8775"
+       r="114"
+       style="fill:#000000;stroke:#000000;stroke-width:21;"
+       id="circle70" />
+    <!-- Circle -->
+    <circle
+       cx="14355"
+       cy="8775"
+       r="114"
+       style="fill:#000000;stroke:#000000;stroke-width:21;"
+       id="circle72" />
+    <!-- Circle -->
+    <circle
+       cx="14805"
+       cy="8775"
+       r="114"
+       style="fill:#000000;stroke:#000000;stroke-width:21;"
+       id="circle74" />
+    <!-- Circle -->
+    <circle
+       cx="9405"
+       cy="8775"
+       r="114"
+       style="fill:#000000;stroke:#000000;stroke-width:21;"
+       id="circle76" />
+    <!-- Circle -->
+    <circle
+       cx="9855"
+       cy="8775"
+       r="114"
+       style="fill:#000000;stroke:#000000;stroke-width:21;"
+       id="circle78" />
+    <!-- Circle -->
+    <circle
+       cx="10305"
+       cy="8775"
+       r="114"
+       style="fill:#000000;stroke:#000000;stroke-width:21;"
+       id="circle80" />
+    <!-- Line: box -->
+    <rect
+       x="225"
+       y="1125"
+       width="3150"
+       height="1125"
+       rx="0"
+       style="stroke:#000000;stroke-width:21; stroke-linejoin:miter; stroke-linecap:butt; fill:#ffffff; "
+       id="rect82" />
+    <!-- Line: box -->
+    <rect
+       x="225"
+       y="2250"
+       width="3150"
+       height="1125"
+       rx="0"
+       style="stroke:#000000;stroke-width:21; stroke-linejoin:miter; stroke-linecap:butt; fill:#ffffff; "
+       id="rect84" />
+    <!-- Line: box -->
+    <rect
+       x="225"
+       y="3375"
+       width="3150"
+       height="1125"
+       rx="0"
+       style="stroke:#000000;stroke-width:21; stroke-linejoin:miter; stroke-linecap:butt; fill:#ffffff; "
+       id="rect86" />
+    <!-- Line -->
+    <polyline
+       points="14805,3600 13302,2310 "
+       style="stroke:#00d1d1;stroke-width:45.00382345;stroke-linejoin:miter;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:none;marker-end:url(#Arrow1Mend)"
+       id="polyline88" />
+    <!-- Arrowhead on XXXpoint 14805 3600 - 13161 2190-->
+    <!-- Line -->
+    <polyline
+       points="9405,3600 10905,2310 "
+       style="stroke:#00d1d1;stroke-width:45.00382345;stroke-linejoin:miter;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:none;marker-end:url(#Arrow1Mend)"
+       id="polyline92" />
+    <!-- Arrowhead on XXXpoint 9405 3600 - 11046 2190-->
+    <!-- Line -->
+    <polyline
+       points="6255,6300 7755,5010 "
+       style="stroke:#00d1d1;stroke-width:45.00382345;stroke-linejoin:miter;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:none;marker-end:url(#Arrow1Mend)"
+       id="polyline96" />
+    <!-- Arrowhead on XXXpoint 6255 6300 - 7896 4890-->
+    <!-- Line -->
+    <polyline
+       points="17955,6300 16452,5010 "
+       style="stroke:#00d1d1;stroke-width:45.00382345;stroke-linejoin:miter;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:none;marker-end:url(#Arrow1Mend)"
+       id="polyline100" />
+    <!-- Arrowhead on XXXpoint 17955 6300 - 16311 4890-->
+    <!-- Line -->
+    <polyline
+       points="4455,11025 4455,7746 "
+       style="stroke:#00d1d1;stroke-width:45.00382345;stroke-linejoin:miter;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:none;marker-end:url(#Arrow1Mend)"
+       id="polyline104" />
+    <!-- Arrowhead on XXXpoint 4455 11025 - 4455 7560-->
+    <!-- Line -->
+    <polyline
+       points="19755,9225 19755,7746 "
+       style="stroke:#00d1d1;stroke-width:45.00382345;stroke-linejoin:miter;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:none;marker-end:url(#Arrow1Mend)"
+       id="polyline108" />
+    <!-- Arrowhead on XXXpoint 19755 9225 - 19755 7560-->
+    <!-- Line -->
+    <polyline
+       points="17955,11025 17955,7746 "
+       style="stroke:#00d1d1;stroke-width:45.00382345;stroke-linejoin:miter;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:none;marker-end:url(#Arrow1Mend)"
+       id="polyline112" />
+    <!-- Arrowhead on XXXpoint 17955 11025 - 17955 7560-->
+    <!-- Line -->
+    <polyline
+       points="15255,9225 15255,7746 "
+       style="stroke:#00d1d1;stroke-width:45.00382345;stroke-linejoin:miter;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:none;marker-end:url(#Arrow1Mend)"
+       id="polyline116" />
+    <!-- Arrowhead on XXXpoint 15255 9225 - 15255 7560-->
+    <!-- Line -->
+    <polyline
+       points="13455,11025 13455,7746 "
+       style="stroke:#00d1d1;stroke-width:45.00382345;stroke-linejoin:miter;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:none;marker-end:url(#Arrow1Mend)"
+       id="polyline120" />
+    <!-- Arrowhead on XXXpoint 13455 11025 - 13455 7560-->
+    <!-- Line -->
+    <polyline
+       points="10755,9225 10755,7746 "
+       style="stroke:#00d1d1;stroke-width:45.00382345;stroke-linejoin:miter;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:none;marker-end:url(#Arrow1Mend)"
+       id="polyline124" />
+    <!-- Arrowhead on XXXpoint 10755 9225 - 10755 7560-->
+    <!-- Line -->
+    <polyline
+       points="8955,11025 8955,7746 "
+       style="stroke:#00d1d1;stroke-width:45.00382345;stroke-linejoin:miter;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:none;marker-end:url(#Arrow1Mend)"
+       id="polyline128" />
+    <!-- Arrowhead on XXXpoint 8955 11025 - 8955 7560-->
+    <!-- Line: box -->
+    <rect
+       x="12105"
+       y="11025"
+       width="2700"
+       height="1350"
+       rx="0"
+       style="stroke:#000000;stroke-width:45; stroke-linejoin:miter; stroke-linecap:butt; "
+       id="rect132" />
+    <!-- Line: box -->
+    <rect
+       x="13905"
+       y="9225"
+       width="2700"
+       height="1350"
+       rx="0"
+       style="stroke:#000000;stroke-width:45; stroke-linejoin:miter; stroke-linecap:butt; "
+       id="rect134" />
+    <!-- Line: box -->
+    <rect
+       x="16605"
+       y="11025"
+       width="2700"
+       height="1350"
+       rx="0"
+       style="stroke:#000000;stroke-width:45; stroke-linejoin:miter; stroke-linecap:butt; "
+       id="rect136" />
+    <!-- Line: box -->
+    <rect
+       x="18405"
+       y="9225"
+       width="2700"
+       height="1350"
+       rx="0"
+       style="stroke:#000000;stroke-width:45; stroke-linejoin:miter; stroke-linecap:butt; "
+       id="rect138" />
+    <!-- Line: box -->
+    <rect
+       x="9405"
+       y="9225"
+       width="2700"
+       height="1350"
+       rx="0"
+       style="stroke:#000000;stroke-width:45; stroke-linejoin:miter; stroke-linecap:butt; "
+       id="rect140" />
+    <!-- Line: box -->
+    <rect
+       x="7605"
+       y="11025"
+       width="2700"
+       height="1350"
+       rx="0"
+       style="stroke:#000000;stroke-width:45; stroke-linejoin:miter; stroke-linecap:butt; "
+       id="rect142" />
+    <!-- Line: box -->
+    <rect
+       x="4905"
+       y="9225"
+       width="2700"
+       height="1350"
+       rx="0"
+       style="stroke:#000000;stroke-width:45; stroke-linejoin:miter; stroke-linecap:butt; "
+       id="rect144" />
+    <!-- Line: box -->
+    <rect
+       x="3105"
+       y="11025"
+       width="2700"
+       height="1350"
+       rx="0"
+       style="stroke:#000000;stroke-width:45; stroke-linejoin:miter; stroke-linecap:butt; "
+       id="rect146" />
+    <!-- Line -->
+    <polyline
+       points="3375,1575 10701,1575 "
+       style="stroke:#000000;stroke-width:45.00382345;stroke-linejoin:miter;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:none;marker-end:url(#Arrow1Mend)"
+       id="polyline148" />
+    <!-- Arrowhead on XXXpoint 3375 1575 - 10890 1575-->
+    <!-- Line -->
+    <polyline
+       points="3375,3825 4050,3825 4050,5400 2700,5400 2700,6975 3951,6975 "
+       style="stroke:#000000;stroke-width:45.00382345;stroke-linejoin:miter;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:none;marker-end:url(#Arrow1Mend)"
+       id="polyline152" />
+    <!-- Arrowhead on XXXpoint 2700 6975 - 4140 6975-->
+    <!-- Line -->
+    <polyline
+       points="3375,2700 5175,2700 5175,4275 7326,4275 "
+       style="stroke:#000000;stroke-width:45.00382345;stroke-linejoin:miter;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:none;marker-end:url(#Arrow1Mend)"
+       id="polyline156" />
+    <!-- Arrowhead on XXXpoint 5175 4275 - 7515 4275-->
+    <!-- Text -->
+    <text
+       xml:space="preserve"
+       x="15480"
+       y="4500"
+       fill="#000000"
+       font-family="Courier"
+       font-style="normal"
+       font-weight="bold"
+       font-size="288"
+       text-anchor="middle"
+       id="text160">rcu_node</text>
+    <!-- Text -->
+    <text
+       xml:space="preserve"
+       x="15480"
+       y="4050"
+       fill="#000000"
+       font-family="Courier"
+       font-style="normal"
+       font-weight="bold"
+       font-size="288"
+       text-anchor="middle"
+       id="text162">struct</text>
+    <!-- Text -->
+    <text
+       xml:space="preserve"
+       x="8730"
+       y="4050"
+       fill="#000000"
+       font-family="Courier"
+       font-style="normal"
+       font-weight="bold"
+       font-size="288"
+       text-anchor="middle"
+       id="text164">struct</text>
+    <!-- Text -->
+    <text
+       xml:space="preserve"
+       x="8730"
+       y="4500"
+       fill="#000000"
+       font-family="Courier"
+       font-style="normal"
+       font-weight="bold"
+       font-size="288"
+       text-anchor="middle"
+       id="text166">rcu_node</text>
+    <!-- Text -->
+    <text
+       xml:space="preserve"
+       x="9855"
+       y="6750"
+       fill="#000000"
+       font-family="Courier"
+       font-style="normal"
+       font-weight="bold"
+       font-size="288"
+       text-anchor="middle"
+       id="text168">struct</text>
+    <!-- Text -->
+    <text
+       xml:space="preserve"
+       x="9855"
+       y="7200"
+       fill="#000000"
+       font-family="Courier"
+       font-style="normal"
+       font-weight="bold"
+       font-size="288"
+       text-anchor="middle"
+       id="text170">rcu_node</text>
+    <!-- Text -->
+    <text
+       xml:space="preserve"
+       x="14355"
+       y="7200"
+       fill="#000000"
+       font-family="Courier"
+       font-style="normal"
+       font-weight="bold"
+       font-size="288"
+       text-anchor="middle"
+       id="text172">rcu_node</text>
+    <!-- Text -->
+    <text
+       xml:space="preserve"
+       x="14355"
+       y="6750"
+       fill="#000000"
+       font-family="Courier"
+       font-style="normal"
+       font-weight="bold"
+       font-size="288"
+       text-anchor="middle"
+       id="text174">struct</text>
+    <!-- Text -->
+    <text
+       xml:space="preserve"
+       x="18855"
+       y="7200"
+       fill="#000000"
+       font-family="Courier"
+       font-style="normal"
+       font-weight="bold"
+       font-size="288"
+       text-anchor="middle"
+       id="text176">rcu_node</text>
+    <!-- Text -->
+    <text
+       xml:space="preserve"
+       x="18855"
+       y="6750"
+       fill="#000000"
+       font-family="Courier"
+       font-style="normal"
+       font-weight="bold"
+       font-size="288"
+       text-anchor="middle"
+       id="text178">struct</text>
+    <!-- Text -->
+    <text
+       xml:space="preserve"
+       x="5355"
+       y="6750"
+       fill="#000000"
+       font-family="Courier"
+       font-style="normal"
+       font-weight="bold"
+       font-size="288"
+       text-anchor="middle"
+       id="text180">struct</text>
+    <!-- Text -->
+    <text
+       xml:space="preserve"
+       x="5355"
+       y="7200"
+       fill="#000000"
+       font-family="Courier"
+       font-style="normal"
+       font-weight="bold"
+       font-size="288"
+       text-anchor="middle"
+       id="text182">rcu_node</text>
+    <!-- Text -->
+    <text
+       xml:space="preserve"
+       x="450"
+       y="1800"
+       fill="#000000"
+       font-family="Courier"
+       font-style="normal"
+       font-weight="bold"
+       font-size="324"
+       text-anchor="start"
+       id="text184">-&gt;level[0]</text>
+    <!-- Text -->
+    <text
+       xml:space="preserve"
+       x="450"
+       y="2925"
+       fill="#000000"
+       font-family="Courier"
+       font-style="normal"
+       font-weight="bold"
+       font-size="324"
+       text-anchor="start"
+       id="text186">-&gt;level[1]</text>
+    <!-- Text -->
+    <text
+       xml:space="preserve"
+       x="450"
+       y="4050"
+       fill="#000000"
+       font-family="Courier"
+       font-style="normal"
+       font-weight="bold"
+       font-size="324"
+       text-anchor="start"
+       id="text188">-&gt;level[2]</text>
+    <!-- Text -->
+    <text
+       xml:space="preserve"
+       x="12105"
+       y="1350"
+       fill="#000000"
+       font-family="Courier"
+       font-style="normal"
+       font-weight="bold"
+       font-size="288"
+       text-anchor="middle"
+       id="text190">struct</text>
+    <!-- Text -->
+    <text
+       xml:space="preserve"
+       x="12105"
+       y="1800"
+       fill="#000000"
+       font-family="Courier"
+       font-style="normal"
+       font-weight="bold"
+       font-size="288"
+       text-anchor="middle"
+       id="text192">rcu_node</text>
+    <!-- Text -->
+    <text
+       xml:space="preserve"
+       x="6255"
+       y="10125"
+       fill="#000000"
+       font-family="Helvetica"
+       font-style="normal"
+       font-weight="normal"
+       font-size="324"
+       text-anchor="middle"
+       id="text194">CPU 15</text>
+    <!-- Text -->
+    <text
+       xml:space="preserve"
+       x="4455"
+       y="11925"
+       fill="#000000"
+       font-family="Helvetica"
+       font-style="normal"
+       font-weight="normal"
+       font-size="324"
+       text-anchor="middle"
+       id="text196">CPU 0</text>
+    <!-- Text -->
+    <text
+       xml:space="preserve"
+       x="19755"
+       y="10125"
+       fill="#000000"
+       font-family="Helvetica"
+       font-style="normal"
+       font-weight="normal"
+       font-size="324"
+       text-anchor="middle"
+       id="text198">CPU 65535</text>
+    <!-- Text -->
+    <text
+       xml:space="preserve"
+       x="17955"
+       y="11925"
+       fill="#000000"
+       font-family="Helvetica"
+       font-style="normal"
+       font-weight="normal"
+       font-size="324"
+       text-anchor="middle"
+       id="text200">CPU 65519</text>
+    <!-- Text -->
+    <text
+       xml:space="preserve"
+       x="15255"
+       y="10125"
+       fill="#000000"
+       font-family="Helvetica"
+       font-style="normal"
+       font-weight="normal"
+       font-size="324"
+       text-anchor="middle"
+       id="text202">CPU 43695</text>
+    <!-- Text -->
+    <text
+       xml:space="preserve"
+       x="13455"
+       y="11925"
+       fill="#000000"
+       font-family="Helvetica"
+       font-style="normal"
+       font-weight="normal"
+       font-size="324"
+       text-anchor="middle"
+       id="text204">CPU 43679</text>
+    <!-- Text -->
+    <text
+       xml:space="preserve"
+       x="10755"
+       y="10125"
+       fill="#000000"
+       font-family="Helvetica"
+       font-style="normal"
+       font-weight="normal"
+       font-size="324"
+       text-anchor="middle"
+       id="text206">CPU 21839</text>
+    <!-- Text -->
+    <text
+       xml:space="preserve"
+       x="8955"
+       y="11925"
+       fill="#000000"
+       font-family="Helvetica"
+       font-style="normal"
+       font-weight="normal"
+       font-size="324"
+       text-anchor="middle"
+       id="text208">CPU 21823</text>
+    <!-- Text -->
+    <text
+       xml:space="preserve"
+       x="225"
+       y="450"
+       fill="#000000"
+       font-family="Courier"
+       font-style="normal"
+       font-weight="bold"
+       font-size="288"
+       text-anchor="start"
+       id="text210">struct rcu_state</text>
+  </g>
+</svg>

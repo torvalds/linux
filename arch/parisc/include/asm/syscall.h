@@ -8,6 +8,8 @@
 #include <linux/err.h>
 #include <asm/ptrace.h>
 
+#define NR_syscalls (__NR_Linux_syscalls)
+
 static inline long syscall_get_nr(struct task_struct *tsk,
 				  struct pt_regs *regs)
 {
@@ -33,10 +35,17 @@ static inline void syscall_get_arguments(struct task_struct *tsk,
 		args[1] = regs->gr[25];
 	case 1:
 		args[0] = regs->gr[26];
+	case 0:
 		break;
 	default:
 		BUG();
 	}
+}
+
+static inline long syscall_get_return_value(struct task_struct *task,
+						struct pt_regs *regs)
+{
+	return regs->gr[28];
 }
 
 static inline void syscall_set_return_value(struct task_struct *task,

@@ -82,7 +82,7 @@ static inline unsigned long create_zero_mask(unsigned long bits)
 	    "andc	%1,%1,%2\n\t"
 	    "popcntd	%0,%1"
 		: "=r" (leading_zero_bits), "=&r" (trailing_zero_bit_mask)
-		: "r" (bits));
+		: "b" (bits));
 
 	return leading_zero_bits;
 }

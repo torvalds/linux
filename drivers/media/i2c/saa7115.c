@@ -1798,6 +1798,21 @@ static int saa711x_detect_chip(struct i2c_client *client,
 		return GM7113C;
 	}
 
+	/* Check if it is a CJC7113 */
+	if (!memcmp(name, "1111111111111111", CHIP_VER_SIZE)) {
+		strlcpy(name, "cjc7113", CHIP_VER_SIZE);
+
+		if (!autodetect && strcmp(name, id->name))
+			return -EINVAL;
+
+		v4l_dbg(1, debug, client,
+			"It seems to be a %s chip (%*ph) @ 0x%x.\n",
+			name, 16, chip_ver, client->addr << 1);
+
+		/* CJC7113 seems to be SAA7113-compatible */
+		return SAA7113;
+	}
+
 	/* Chip was not discovered. Return its ID and don't bind */
 	v4l_dbg(1, debug, client, "chip %*ph @ 0x%x is unknown.\n",
 		16, chip_ver, client->addr << 1);

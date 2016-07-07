@@ -743,12 +743,10 @@ set_cpu_present(unsigned int cpu, bool present)
 static inline void
 set_cpu_online(unsigned int cpu, bool online)
 {
-	if (online) {
+	if (online)
 		cpumask_set_cpu(cpu, &__cpu_online_mask);
-		cpumask_set_cpu(cpu, &__cpu_active_mask);
-	} else {
+	else
 		cpumask_clear_cpu(cpu, &__cpu_online_mask);
-	}
 }
 
 static inline void

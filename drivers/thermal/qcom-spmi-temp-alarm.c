@@ -260,7 +260,7 @@ static int qpnp_tm_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto fail;
 
-	chip->tz_dev = thermal_zone_of_sensor_register(&pdev->dev, 0, chip,
+	chip->tz_dev = devm_thermal_zone_of_sensor_register(&pdev->dev, 0, chip,
 							&qpnp_tm_sensor_ops);
 	if (IS_ERR(chip->tz_dev)) {
 		dev_err(&pdev->dev, "failed to register sensor\n");
@@ -281,7 +281,6 @@ static int qpnp_tm_remove(struct platform_device *pdev)
 {
 	struct qpnp_tm_chip *chip = dev_get_drvdata(&pdev->dev);
 
-	thermal_zone_of_sensor_unregister(&pdev->dev, chip->tz_dev);
 	if (!IS_ERR(chip->adc))
 		iio_channel_release(chip->adc);
 

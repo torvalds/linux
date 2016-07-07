@@ -7,6 +7,7 @@
  *
  * All enquiries to support@picochip.com
  */
+#include <linux/acpi.h>
 #include <linux/gpio/driver.h>
 /* FIXME: for gpio_get_value(), replace this with direct register read */
 #include <linux/gpio.h>
@@ -22,9 +23,12 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/spinlock.h>
 #include <linux/platform_data/gpio-dwapb.h>
 #include <linux/slab.h>
+
+#include "gpiolib.h"
 
 #define GPIO_SWPORTA_DR		0x00
 #define GPIO_SWPORTA_DDR	0x04
@@ -290,14 +294,14 @@ static void dwapb_configure_irqs(struct dwapb_gpio *gpio,
 				 struct dwapb_port_property *pp)
 {
 	struct gpio_chip *gc = &port->gc;
-	struct device_node *node = pp->node;
+	struct fwnode_handle  *fwnode = pp->fwnode;
 	struct irq_chip_generic	*irq_gc = NULL;
 	unsigned int hwirq, ngpio = gc->ngpio;
 	struct irq_chip_type *ct;
 	int err, i;
 
-	gpio->domain = irq_domain_add_linear(node, ngpio,
-					     &irq_generic_chip_ops, gpio);
+	gpio->domain = irq_domain_create_linear(fwnode, ngpio,
+						 &irq_generic_chip_ops, gpio);
 	if (!gpio->domain)
 		return;
 
@@ -409,13 +413,13 @@ static int dwapb_gpio_add_port(struct dwapb_gpio *gpio,
 	err = bgpio_init(&port->gc, gpio->dev, 4, dat, set, NULL, dirout,
 			 NULL, false);
 	if (err) {
-		dev_err(gpio->dev, "failed to init gpio chip for %s\n",
-			pp->name);
+		dev_err(gpio->dev, "failed to init gpio chip for port%d\n",
+			port->idx);
 		return err;
 	}
 
 #ifdef CONFIG_OF_GPIO
-	port->gc.of_node = pp->node;
+	port->gc.of_node = to_of_node(pp->fwnode);
 #endif
 	port->gc.ngpio = pp->ngpio;
 	port->gc.base = pp->gpio_base;
@@ -429,10 +433,14 @@ static int dwapb_gpio_add_port(struct dwapb_gpio *gpio,
 
 	err = gpiochip_add_data(&port->gc, port);
 	if (err)
-		dev_err(gpio->dev, "failed to register gpiochip for %s\n",
-			pp->name);
+		dev_err(gpio->dev, "failed to register gpiochip for port%d\n",
+			port->idx);
 	else
 		port->is_registered = true;
+
+	/* Add GPIO-signaled ACPI event support */
+	if (pp->irq)
+		acpi_gpiochip_request_interrupts(&port->gc);
 
 	return err;
 }
@@ -447,19 +455,15 @@ static void dwapb_gpio_unregister(struct dwapb_gpio *gpio)
 }
 
 static struct dwapb_platform_data *
-dwapb_gpio_get_pdata_of(struct device *dev)
+dwapb_gpio_get_pdata(struct device *dev)
 {
-	struct device_node *node, *port_np;
+	struct fwnode_handle *fwnode;
 	struct dwapb_platform_data *pdata;
 	struct dwapb_port_property *pp;
 	int nports;
 	int i;
 
-	node = dev->of_node;
-	if (!IS_ENABLED(CONFIG_OF_GPIO) || !node)
-		return ERR_PTR(-ENODEV);
-
-	nports = of_get_child_count(node);
+	nports = device_get_child_node_count(dev);
 	if (nports == 0)
 		return ERR_PTR(-ENODEV);
 
@@ -474,21 +478,22 @@ dwapb_gpio_get_pdata_of(struct device *dev)
 	pdata->nports = nports;
 
 	i = 0;
-	for_each_child_of_node(node, port_np) {
+	device_for_each_child_node(dev, fwnode)  {
 		pp = &pdata->properties[i++];
-		pp->node = port_np;
+		pp->fwnode = fwnode;
 
-		if (of_property_read_u32(port_np, "reg", &pp->idx) ||
+		if (fwnode_property_read_u32(fwnode, "reg", &pp->idx) ||
 		    pp->idx >= DWAPB_MAX_PORTS) {
-			dev_err(dev, "missing/invalid port index for %s\n",
-				port_np->full_name);
+			dev_err(dev,
+				"missing/invalid port index for port%d\n", i);
 			return ERR_PTR(-EINVAL);
 		}
 
-		if (of_property_read_u32(port_np, "snps,nr-gpios",
+		if (fwnode_property_read_u32(fwnode, "snps,nr-gpios",
 					 &pp->ngpio)) {
-			dev_info(dev, "failed to get number of gpios for %s\n",
-				 port_np->full_name);
+			dev_info(dev,
+				 "failed to get number of gpios for port%d\n",
+				 i);
 			pp->ngpio = 32;
 		}
 
@@ -496,18 +501,19 @@ dwapb_gpio_get_pdata_of(struct device *dev)
 		 * Only port A can provide interrupts in all configurations of
 		 * the IP.
 		 */
-		if (pp->idx == 0 &&
-		    of_property_read_bool(port_np, "interrupt-controller")) {
-			pp->irq = irq_of_parse_and_map(port_np, 0);
-			if (!pp->irq) {
-				dev_warn(dev, "no irq for bank %s\n",
-					 port_np->full_name);
-			}
+		if (dev->of_node && pp->idx == 0 &&
+			fwnode_property_read_bool(fwnode,
+						  "interrupt-controller")) {
+			pp->irq = irq_of_parse_and_map(to_of_node(fwnode), 0);
+			if (!pp->irq)
+				dev_warn(dev, "no irq for port%d\n", pp->idx);
 		}
+
+		if (has_acpi_companion(dev) && pp->idx == 0)
+			pp->irq = platform_get_irq(to_platform_device(dev), 0);
 
 		pp->irq_shared	= false;
 		pp->gpio_base	= -1;
-		pp->name	= port_np->full_name;
 	}
 
 	return pdata;
@@ -523,7 +529,7 @@ static int dwapb_gpio_probe(struct platform_device *pdev)
 	struct dwapb_platform_data *pdata = dev_get_platdata(dev);
 
 	if (!pdata) {
-		pdata = dwapb_gpio_get_pdata_of(dev);
+		pdata = dwapb_gpio_get_pdata(dev);
 		if (IS_ERR(pdata))
 			return PTR_ERR(pdata);
 	}
@@ -579,6 +585,13 @@ static const struct of_device_id dwapb_of_match[] = {
 	{ /* Sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, dwapb_of_match);
+
+static const struct acpi_device_id dwapb_acpi_match[] = {
+	{"HISI0181", 0},
+	{"APMC0D07", 0},
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, dwapb_acpi_match);
 
 #ifdef CONFIG_PM_SLEEP
 static int dwapb_gpio_suspend(struct device *dev)
@@ -674,6 +687,7 @@ static struct platform_driver dwapb_gpio_driver = {
 		.name	= "gpio-dwapb",
 		.pm	= &dwapb_gpio_pm_ops,
 		.of_match_table = of_match_ptr(dwapb_of_match),
+		.acpi_match_table = ACPI_PTR(dwapb_acpi_match),
 	},
 	.probe		= dwapb_gpio_probe,
 	.remove		= dwapb_gpio_remove,

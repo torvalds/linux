@@ -39,41 +39,44 @@ use strict;
 # 25/07/2012 - Added support for HTML5
 # -- Dan Luedtke <mail@danrl.de>
 
-#
-# This will read a 'c' file and scan for embedded comments in the
-# style of gnome comments (+minor extensions - see below).
-#
+sub usage {
+    my $message = <<"EOF";
+Usage: $0 [OPTION ...] FILE ...
 
-# Note: This only supports 'c'.
+Read C language source or header FILEs, extract embedded documentation comments,
+and print formatted documentation to standard output.
 
-# usage:
-# kernel-doc [ -docbook | -html | -html5 | -text | -man | -list ]
-#            [ -no-doc-sections ]
-#            [ -function funcname [ -function funcname ...] ]
-#            c file(s)s > outputfile
-# or
-#            [ -nofunction funcname [ -function funcname ...] ]
-#            c file(s)s > outputfile
-#
-#  Set output format using one of -docbook -html -html5 -text or -man.
-#  Default is man.
-#  The -list format is for internal use by docproc.
-#
-#  -no-doc-sections
-#	Do not output DOC: sections
-#
-#  -function funcname
-#	If set, then only generate documentation for the given function(s) or
-#	DOC: section titles.  All other functions and DOC: sections are ignored.
-#
-#  -nofunction funcname
-#	If set, then only generate documentation for the other function(s)/DOC:
-#	sections. Cannot be used together with -function (yes, that's a bug --
-#	perl hackers can fix it 8))
-#
-#  c files - list of 'c' files to process
-#
-#  All output goes to stdout, with errors to stderr.
+The documentation comments are identified by "/**" opening comment mark. See
+Documentation/kernel-doc-nano-HOWTO.txt for the documentation comment syntax.
+
+Output format selection (mutually exclusive):
+  -docbook		Output DocBook format.
+  -html			Output HTML format.
+  -html5		Output HTML5 format.
+  -list			Output symbol list format. This is for use by docproc.
+  -man			Output troff manual page format. This is the default.
+  -rst			Output reStructuredText format.
+  -text			Output plain text format.
+
+Output selection (mutually exclusive):
+  -function NAME	Only output documentation for the given function(s)
+			or DOC: section title(s). All other functions and DOC:
+			sections are ignored. May be specified multiple times.
+  -nofunction NAME	Do NOT output documentation for the given function(s);
+			only output documentation for the other functions and
+			DOC: sections. May be specified multiple times.
+
+Output selection modifiers:
+  -no-doc-sections	Do not output DOC: sections.
+
+Other parameters:
+  -v			Verbose output, more warnings and other information.
+  -h			Print this help.
+
+EOF
+    print $message;
+    exit 1;
+}
 
 #
 # format of comments.
@@ -201,6 +204,8 @@ my $type_param = '\@(\w+)';
 my $type_struct = '\&((struct\s*)*[_\w]+)';
 my $type_struct_xml = '\\&amp;((struct\s*)*[_\w]+)';
 my $type_env = '(\$\w+)';
+my $type_enum_full = '\&(enum)\s*([_\w]+)';
+my $type_struct_full = '\&(struct)\s*([_\w]+)';
 
 # Output conversion substitutions.
 #  One for each output format
@@ -265,6 +270,17 @@ my @highlights_text = (
                        [$type_param, "\$1"]
 		      );
 my $blankline_text = "";
+
+# rst-mode
+my @highlights_rst = (
+                       [$type_constant, "``\$1``"],
+                       [$type_func, "\\:c\\:func\\:`\$1`"],
+                       [$type_struct_full, "\\:c\\:type\\:`\$1 \$2 <\$2>`"],
+                       [$type_enum_full, "\\:c\\:type\\:`\$1 \$2 <\$2>`"],
+                       [$type_struct, "\\:c\\:type\\:`struct \$1 <\$1>`"],
+                       [$type_param, "**\$1**"]
+		      );
+my $blankline_rst = "\n";
 
 # list mode
 my @highlights_list = (
@@ -402,6 +418,10 @@ while ($ARGV[0] =~ m/^-(.*)/) {
 	$output_mode = "text";
 	@highlights = @highlights_text;
 	$blankline = $blankline_text;
+    } elsif ($cmd eq "-rst") {
+	$output_mode = "rst";
+	@highlights = @highlights_rst;
+	$blankline = $blankline_rst;
     } elsif ($cmd eq "-docbook") {
 	$output_mode = "xml";
 	@highlights = @highlights_xml;
@@ -436,17 +456,6 @@ while ($ARGV[0] =~ m/^-(.*)/) {
 }
 
 # continue execution near EOF;
-
-sub usage {
-    print "Usage: $0 [ -docbook | -html | -html5 | -text | -man | -list ]\n";
-    print "         [ -no-doc-sections ]\n";
-    print "         [ -function funcname [ -function funcname ...] ]\n";
-    print "         [ -nofunction funcname [ -nofunction funcname ...] ]\n";
-    print "         [ -v ]\n";
-    print "         c source file(s) > outputfile\n";
-    print "         -v : verbose output, more warnings & other info listed\n";
-    exit 1;
-}
 
 # get kernel version from env
 sub get_kernel_version() {
@@ -1713,6 +1722,208 @@ sub output_blockhead_text(%) {
     }
 }
 
+##
+# output in restructured text
+#
+
+#
+# This could use some work; it's used to output the DOC: sections, and
+# starts by putting out the name of the doc section itself, but that tends
+# to duplicate a header already in the template file.
+#
+sub output_blockhead_rst(%) {
+    my %args = %{$_[0]};
+    my ($parameter, $section);
+
+    foreach $section (@{$args{'sectionlist'}}) {
+	print "**$section**\n\n";
+	output_highlight_rst($args{'sections'}{$section});
+	print "\n";
+    }
+}
+
+sub output_highlight_rst {
+    my $contents = join "\n",@_;
+    my $line;
+
+    # undo the evil effects of xml_escape() earlier
+    $contents = xml_unescape($contents);
+
+    eval $dohighlight;
+    die $@ if $@;
+
+    foreach $line (split "\n", $contents) {
+	if ($line eq "") {
+	    print $lineprefix, $blankline;
+	} else {
+	    $line =~ s/\\\\\\/\&/g;
+	    print $lineprefix, $line;
+	}
+	print "\n";
+    }
+}
+
+sub output_function_rst(%) {
+    my %args = %{$_[0]};
+    my ($parameter, $section);
+    my $start;
+
+    print ".. c:function:: ";
+    if ($args{'functiontype'} ne "") {
+	$start = $args{'functiontype'} . " " . $args{'function'} . " (";
+    } else {
+	$start = $args{'function'} . " (";
+    }
+    print $start;
+
+    my $count = 0;
+    foreach my $parameter (@{$args{'parameterlist'}}) {
+	if ($count ne 0) {
+	    print ", ";
+	}
+	$count++;
+	$type = $args{'parametertypes'}{$parameter};
+	if ($type =~ m/([^\(]*\(\*)\s*\)\s*\(([^\)]*)\)/) {
+	    # pointer-to-function
+	    print $1 . $parameter . ") (" . $2;
+	} else {
+	    print $type . " " . $parameter;
+	}
+    }
+    print ")\n\n    " . $args{'purpose'} . "\n\n";
+
+    print ":Parameters:\n\n";
+    foreach $parameter (@{$args{'parameterlist'}}) {
+	my $parameter_name = $parameter;
+	#$parameter_name =~ s/\[.*//;
+	$type = $args{'parametertypes'}{$parameter};
+
+	if ($type ne "") {
+	    print "      ``$type $parameter``\n";
+	} else {
+	    print "      ``$parameter``\n";
+	}
+	if ($args{'parameterdescs'}{$parameter_name} ne $undescribed) {
+	    my $oldprefix = $lineprefix;
+	    $lineprefix = "        ";
+	    output_highlight_rst($args{'parameterdescs'}{$parameter_name});
+	    $lineprefix = $oldprefix;
+	} else {
+	    print "\n        _undescribed_\n";
+	}
+	print "\n";
+    }
+    output_section_rst(@_);
+}
+
+sub output_section_rst(%) {
+    my %args = %{$_[0]};
+    my $section;
+    my $oldprefix = $lineprefix;
+    $lineprefix = "        ";
+
+    foreach $section (@{$args{'sectionlist'}}) {
+	print ":$section:\n\n";
+	output_highlight_rst($args{'sections'}{$section});
+	print "\n";
+    }
+    print "\n";
+    $lineprefix = $oldprefix;
+}
+
+sub output_enum_rst(%) {
+    my %args = %{$_[0]};
+    my ($parameter);
+    my $count;
+    my $name = "enum " . $args{'enum'};
+
+    print "\n\n.. c:type:: " . $name . "\n\n";
+    print "    " . $args{'purpose'} . "\n\n";
+
+    print "..\n\n:Constants:\n\n";
+    my $oldprefix = $lineprefix;
+    $lineprefix = "    ";
+    foreach $parameter (@{$args{'parameterlist'}}) {
+	print "  `$parameter`\n";
+	if ($args{'parameterdescs'}{$parameter} ne $undescribed) {
+	    output_highlight_rst($args{'parameterdescs'}{$parameter});
+	} else {
+	    print "    undescribed\n";
+	}
+	print "\n";
+    }
+    $lineprefix = $oldprefix;
+    output_section_rst(@_);
+}
+
+sub output_typedef_rst(%) {
+    my %args = %{$_[0]};
+    my ($parameter);
+    my $count;
+    my $name = "typedef " . $args{'typedef'};
+
+    ### FIXME: should the name below contain "typedef" or not?
+    print "\n\n.. c:type:: " . $name . "\n\n";
+    print "    " . $args{'purpose'} . "\n\n";
+
+    output_section_rst(@_);
+}
+
+sub output_struct_rst(%) {
+    my %args = %{$_[0]};
+    my ($parameter);
+    my $name = $args{'type'} . " " . $args{'struct'};
+
+    print "\n\n.. c:type:: " . $name . "\n\n";
+    print "    " . $args{'purpose'} . "\n\n";
+
+    print ":Definition:\n\n";
+    print " ::\n\n";
+    print "  " . $args{'type'} . " " . $args{'struct'} . " {\n";
+    foreach $parameter (@{$args{'parameterlist'}}) {
+	if ($parameter =~ /^#/) {
+	    print "    " . "$parameter\n";
+	    next;
+	}
+
+	my $parameter_name = $parameter;
+	$parameter_name =~ s/\[.*//;
+
+	($args{'parameterdescs'}{$parameter_name} ne $undescribed) || next;
+	$type = $args{'parametertypes'}{$parameter};
+	if ($type =~ m/([^\(]*\(\*)\s*\)\s*\(([^\)]*)\)/) {
+	    # pointer-to-function
+	    print "    $1 $parameter) ($2);\n";
+	} elsif ($type =~ m/^(.*?)\s*(:.*)/) {
+	    # bitfield
+	    print "    $1 $parameter$2;\n";
+	} else {
+	    print "    " . $type . " " . $parameter . ";\n";
+	}
+    }
+    print "  };\n\n";
+
+    print ":Members:\n\n";
+    foreach $parameter (@{$args{'parameterlist'}}) {
+	($parameter =~ /^#/) && next;
+
+	my $parameter_name = $parameter;
+	$parameter_name =~ s/\[.*//;
+
+	($args{'parameterdescs'}{$parameter_name} ne $undescribed) || next;
+	$type = $args{'parametertypes'}{$parameter};
+	print "      `$type $parameter`" . "\n";
+	my $oldprefix = $lineprefix;
+	$lineprefix = "        ";
+	output_highlight_rst($args{'parameterdescs'}{$parameter_name});
+	$lineprefix = $oldprefix;
+	print "\n";
+    }
+    print "\n";
+    output_section_rst(@_);
+}
+
+
 ## list mode output functions
 
 sub output_function_list(%) {
@@ -2411,6 +2622,18 @@ sub xml_escape($) {
 	$text =~ s/\&/\\\\\\amp;/g;
 	$text =~ s/\</\\\\\\lt;/g;
 	$text =~ s/\>/\\\\\\gt;/g;
+	return $text;
+}
+
+# xml_unescape: reverse the effects of xml_escape
+sub xml_unescape($) {
+	my $text = shift;
+	if (($output_mode eq "text") || ($output_mode eq "man")) {
+		return $text;
+	}
+	$text =~ s/\\\\\\amp;/\&/g;
+	$text =~ s/\\\\\\lt;/</g;
+	$text =~ s/\\\\\\gt;/>/g;
 	return $text;
 }
 

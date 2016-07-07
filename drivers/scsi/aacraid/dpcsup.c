@@ -392,9 +392,10 @@ unsigned int aac_intr_normal(struct aac_dev *dev, u32 index,
 			if (likely(fib->callback && fib->callback_data)) {
 				fib->flags &= FIB_CONTEXT_FLAG_FASTRESP;
 				fib->callback(fib->callback_data, fib);
-			} else {
-				aac_fib_complete(fib);
-			}
+			} else
+				dev_info(&dev->pdev->dev,
+				"Invalid callback_fib[%d] (*%p)(%p)\n",
+				index, fib->callback, fib->callback_data);
 		} else {
 			unsigned long flagv;
 	  		dprintk((KERN_INFO "event_wait up\n"));

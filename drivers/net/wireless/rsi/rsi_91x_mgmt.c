@@ -210,7 +210,7 @@ static u16 mcs[] = {13, 26, 39, 52, 78, 104, 117, 130};
  */
 static void rsi_set_default_parameters(struct rsi_common *common)
 {
-	common->band = IEEE80211_BAND_2GHZ;
+	common->band = NL80211_BAND_2GHZ;
 	common->channel_width = BW_20MHZ;
 	common->rts_threshold = IEEE80211_MAX_RTS_THRESHOLD;
 	common->channel = 1;
@@ -655,7 +655,7 @@ int rsi_set_vap_capabilities(struct rsi_common *common, enum opmode mode)
 	vap_caps->rts_threshold = cpu_to_le16(common->rts_threshold);
 	vap_caps->default_mgmt_rate = cpu_to_le32(RSI_RATE_6);
 
-	if (common->band == IEEE80211_BAND_5GHZ) {
+	if (common->band == NL80211_BAND_5GHZ) {
 		vap_caps->default_ctrl_rate = cpu_to_le32(RSI_RATE_6);
 		if (conf_is_ht40(&common->priv->hw->conf)) {
 			vap_caps->default_ctrl_rate |=
@@ -872,7 +872,7 @@ int rsi_band_check(struct rsi_common *common)
 	else
 		common->channel_width = BW_40MHZ;
 
-	if (common->band == IEEE80211_BAND_2GHZ) {
+	if (common->band == NL80211_BAND_2GHZ) {
 		if (common->channel_width)
 			common->endpoint = EP_2GHZ_40MHZ;
 		else
@@ -1046,7 +1046,7 @@ static int rsi_send_auto_rate_request(struct rsi_common *common)
 	if (common->channel_width == BW_40MHZ)
 		auto_rate->desc_word[7] |= cpu_to_le16(1);
 
-	if (band == IEEE80211_BAND_2GHZ) {
+	if (band == NL80211_BAND_2GHZ) {
 		min_rate = RSI_RATE_1;
 		rate_table_offset = 0;
 	} else {

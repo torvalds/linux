@@ -63,11 +63,6 @@
 		spi = &spi;
 	};
 
-	memory {
-		device_type = "memory";
-		reg = <0x60000000 0x40000000>;
-	};
-
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -119,6 +114,11 @@
 		interrupt-affinity = <&cpu0>, <&cpu1>;
 	};
 
+	display-subsystem {
+		compatible = "rockchip,display-subsystem";
+		ports = <&vop_out>;
+	};
+
 	timer {
 		compatible = "arm,armv7-timer";
 		arm,cpu-registers-not-fw-configured;
@@ -147,6 +147,36 @@
 			compatible = "rockchip,rk3066-smp-sram";
 			reg = <0x00 0x10>;
 		};
+	};
+
+	vop: vop@10118000 {
+		compatible = "rockchip,rk3036-vop";
+		reg = <0x10118000 0x19c>;
+		interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_LCDC>, <&cru SCLK_LCDC>, <&cru HCLK_LCDC>;
+		clock-names = "aclk_vop", "dclk_vop", "hclk_vop";
+		resets = <&cru SRST_LCDC1_A>, <&cru SRST_LCDC1_H>, <&cru SRST_LCDC1_D>;
+		reset-names = "axi", "ahb", "dclk";
+		iommus = <&vop_mmu>;
+		status = "disabled";
+
+		vop_out: port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			vop_out_hdmi: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&hdmi_in_vop>;
+			};
+		};
+	};
+
+	vop_mmu: iommu@10118300 {
+		compatible = "rockchip,iommu";
+		reg = <0x10118300 0x100>;
+		interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "vop_mmu";
+		#iommu-cells = <0>;
+		status = "disabled";
 	};
 
 	gic: interrupt-controller@10139000 {
@@ -237,7 +267,6 @@
 		compatible = "rockchip,rk3036-dw-mshc", "rockchip,rk3288-dw-mshc";
 		reg = <0x1021c000 0x4000>;
 		interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
-		broken-cd;
 		bus-width = <8>;
 		cap-mmc-highspeed;
 		clock-frequency = <37500000>;
@@ -295,6 +324,27 @@
 		clock-names = "acodec_pclk";
 		clocks = <&cru PCLK_ACODEC>;
 		status = "disabled";
+	};
+
+	hdmi: hdmi@20034000 {
+		compatible = "rockchip,rk3036-inno-hdmi";
+		reg = <0x20034000 0x4000>;
+		interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru  PCLK_HDMI>;
+		clock-names = "pclk";
+		rockchip,grf = <&grf>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&hdmi_ctl>;
+		status = "disabled";
+
+		hdmi_in: port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			hdmi_in_vop: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&vop_out_hdmi>;
+			};
+		};
 	};
 
 	timer: timer@20044000 {
@@ -641,6 +691,15 @@
 						<1 3 RK_FUNC_1 &pcfg_pull_default>,
 						<1 4 RK_FUNC_1 &pcfg_pull_default>,
 						<1 5 RK_FUNC_1 &pcfg_pull_default>;
+			};
+		};
+
+		hdmi {
+			hdmi_ctl: hdmi-ctl {
+				rockchip,pins = <1 8  RK_FUNC_1 &pcfg_pull_none>,
+						<1 9  RK_FUNC_1 &pcfg_pull_none>,
+						<1 10 RK_FUNC_1 &pcfg_pull_none>,
+						<1 11 RK_FUNC_1 &pcfg_pull_none>;
 			};
 		};
 

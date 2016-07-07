@@ -28,11 +28,12 @@
 #include <linux/skbuff.h>
 #include <linux/delay.h>
 #include <linux/spi/spi.h>
+#include <linux/of_net.h>
 
 #include "enc28j60_hw.h"
 
 #define DRV_NAME	"enc28j60"
-#define DRV_VERSION	"1.01"
+#define DRV_VERSION	"1.02"
 
 #define SPI_OPLEN	1
 
@@ -89,22 +90,26 @@ spi_read_buf(struct enc28j60_net *priv, int len, u8 *data)
 {
 	u8 *rx_buf = priv->spi_transfer_buf + 4;
 	u8 *tx_buf = priv->spi_transfer_buf;
-	struct spi_transfer t = {
+	struct spi_transfer tx = {
 		.tx_buf = tx_buf,
+		.len = SPI_OPLEN,
+	};
+	struct spi_transfer rx = {
 		.rx_buf = rx_buf,
-		.len = SPI_OPLEN + len,
+		.len = len,
 	};
 	struct spi_message msg;
 	int ret;
 
 	tx_buf[0] = ENC28J60_READ_BUF_MEM;
-	tx_buf[1] = tx_buf[2] = tx_buf[3] = 0;	/* don't care */
 
 	spi_message_init(&msg);
-	spi_message_add_tail(&t, &msg);
+	spi_message_add_tail(&tx, &msg);
+	spi_message_add_tail(&rx, &msg);
+
 	ret = spi_sync(priv->spi, &msg);
 	if (ret == 0) {
-		memcpy(data, &rx_buf[SPI_OPLEN], len);
+		memcpy(data, rx_buf, len);
 		ret = msg.status;
 	}
 	if (ret && netif_msg_drv(priv))
@@ -1544,6 +1549,7 @@ static int enc28j60_probe(struct spi_device *spi)
 {
 	struct net_device *dev;
 	struct enc28j60_net *priv;
+	const void *macaddr;
 	int ret = 0;
 
 	if (netif_msg_drv(&debug))
@@ -1575,7 +1581,12 @@ static int enc28j60_probe(struct spi_device *spi)
 		ret = -EIO;
 		goto error_irq;
 	}
-	eth_hw_addr_random(dev);
+
+	macaddr = of_get_mac_address(spi->dev.of_node);
+	if (macaddr)
+		ether_addr_copy(dev->dev_addr, macaddr);
+	else
+		eth_hw_addr_random(dev);
 	enc28j60_set_hw_macaddr(dev);
 
 	/* Board setup must set the relevant edge trigger type;
@@ -1630,9 +1641,16 @@ static int enc28j60_remove(struct spi_device *spi)
 	return 0;
 }
 
+static const struct of_device_id enc28j60_dt_ids[] = {
+	{ .compatible = "microchip,enc28j60" },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, enc28j60_dt_ids);
+
 static struct spi_driver enc28j60_driver = {
 	.driver = {
-		   .name = DRV_NAME,
+		.name = DRV_NAME,
+		.of_match_table = enc28j60_dt_ids,
 	 },
 	.probe = enc28j60_probe,
 	.remove = enc28j60_remove,

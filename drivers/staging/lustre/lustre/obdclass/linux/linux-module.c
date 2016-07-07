@@ -158,9 +158,7 @@ int obd_ioctl_popdata(void __user *arg, void *data, int len)
 {
 	int err;
 
-	err = copy_to_user(arg, data, len);
-	if (err)
-		err = -EFAULT;
+	err = copy_to_user(arg, data, len) ? -EFAULT : 0;
 	return err;
 }
 EXPORT_SYMBOL(obd_ioctl_popdata);

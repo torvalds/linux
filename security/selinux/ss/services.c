@@ -2696,7 +2696,7 @@ out:
 	return rc;
 }
 
-int security_get_bool_value(int bool)
+int security_get_bool_value(int index)
 {
 	int rc;
 	int len;
@@ -2705,10 +2705,10 @@ int security_get_bool_value(int bool)
 
 	rc = -EFAULT;
 	len = policydb.p_bools.nprim;
-	if (bool >= len)
+	if (index >= len)
 		goto out;
 
-	rc = policydb.bool_val_to_struct[bool]->state;
+	rc = policydb.bool_val_to_struct[index]->state;
 out:
 	read_unlock(&policy_rwlock);
 	return rc;

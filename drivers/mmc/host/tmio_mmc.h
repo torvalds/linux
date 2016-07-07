@@ -1,6 +1,8 @@
 /*
  * linux/drivers/mmc/host/tmio_mmc.h
  *
+ * Copyright (C) 2016 Sang Engineering, Wolfram Sang
+ * Copyright (C) 2015-16 Renesas Electronics Corporation
  * Copyright (C) 2007 Ian Molton
  * Copyright (C) 2004 Ian Molton
  *
@@ -18,11 +20,66 @@
 
 #include <linux/dmaengine.h>
 #include <linux/highmem.h>
-#include <linux/mmc/tmio.h>
 #include <linux/mutex.h>
 #include <linux/pagemap.h>
 #include <linux/scatterlist.h>
 #include <linux/spinlock.h>
+
+#define CTL_SD_CMD 0x00
+#define CTL_ARG_REG 0x04
+#define CTL_STOP_INTERNAL_ACTION 0x08
+#define CTL_XFER_BLK_COUNT 0xa
+#define CTL_RESPONSE 0x0c
+/* driver merges STATUS and following STATUS2 */
+#define CTL_STATUS 0x1c
+/* driver merges IRQ_MASK and following IRQ_MASK2 */
+#define CTL_IRQ_MASK 0x20
+#define CTL_SD_CARD_CLK_CTL 0x24
+#define CTL_SD_XFER_LEN 0x26
+#define CTL_SD_MEM_CARD_OPT 0x28
+#define CTL_SD_ERROR_DETAIL_STATUS 0x2c
+#define CTL_SD_DATA_PORT 0x30
+#define CTL_TRANSACTION_CTL 0x34
+#define CTL_SDIO_STATUS 0x36
+#define CTL_SDIO_IRQ_MASK 0x38
+#define CTL_DMA_ENABLE 0xd8
+#define CTL_RESET_SD 0xe0
+#define CTL_VERSION 0xe2
+#define CTL_SDIO_REGS 0x100
+#define CTL_CLK_AND_WAIT_CTL 0x138
+#define CTL_RESET_SDIO 0x1e0
+
+/* Definitions for values the CTRL_STATUS register can take. */
+#define TMIO_STAT_CMDRESPEND    BIT(0)
+#define TMIO_STAT_DATAEND       BIT(2)
+#define TMIO_STAT_CARD_REMOVE   BIT(3)
+#define TMIO_STAT_CARD_INSERT   BIT(4)
+#define TMIO_STAT_SIGSTATE      BIT(5)
+#define TMIO_STAT_WRPROTECT     BIT(7)
+#define TMIO_STAT_CARD_REMOVE_A BIT(8)
+#define TMIO_STAT_CARD_INSERT_A BIT(9)
+#define TMIO_STAT_SIGSTATE_A    BIT(10)
+
+/* These belong technically to CTRL_STATUS2, but the driver merges them */
+#define TMIO_STAT_CMD_IDX_ERR   BIT(16)
+#define TMIO_STAT_CRCFAIL       BIT(17)
+#define TMIO_STAT_STOPBIT_ERR   BIT(18)
+#define TMIO_STAT_DATATIMEOUT   BIT(19)
+#define TMIO_STAT_RXOVERFLOW    BIT(20)
+#define TMIO_STAT_TXUNDERRUN    BIT(21)
+#define TMIO_STAT_CMDTIMEOUT    BIT(22)
+#define TMIO_STAT_DAT0		BIT(23)	/* only known on R-Car so far */
+#define TMIO_STAT_RXRDY         BIT(24)
+#define TMIO_STAT_TXRQ          BIT(25)
+#define TMIO_STAT_ILL_FUNC      BIT(29) /* only when !TMIO_MMC_HAS_IDLE_WAIT */
+#define TMIO_STAT_SCLKDIVEN     BIT(29) /* only when TMIO_MMC_HAS_IDLE_WAIT */
+#define TMIO_STAT_CMD_BUSY      BIT(30)
+#define TMIO_STAT_ILL_ACCESS    BIT(31)
+
+#define	CLK_CTL_DIV_MASK	0xff
+#define	CLK_CTL_SCLKEN		BIT(8)
+
+#define TMIO_BBS		512		/* Boot block size */
 
 /* Definitions for values the CTRL_SDIO_STATUS register can take. */
 #define TMIO_SDIO_STAT_IOIRQ	0x0001
@@ -95,10 +152,14 @@ struct tmio_mmc_host {
 	bool			sdio_irq_enabled;
 
 	int (*write16_hook)(struct tmio_mmc_host *host, int addr);
-	int (*clk_enable)(struct platform_device *pdev, unsigned int *f);
-	void (*clk_disable)(struct platform_device *pdev);
+	int (*clk_enable)(struct tmio_mmc_host *host);
+	unsigned int (*clk_update)(struct tmio_mmc_host *host,
+				   unsigned int new_clock);
+	void (*clk_disable)(struct tmio_mmc_host *host);
 	int (*multi_io_quirk)(struct mmc_card *card,
 			      unsigned int direction, int blk_size);
+	int (*start_signal_voltage_switch)(struct mmc_host *mmc,
+					   struct mmc_ios *ios);
 };
 
 struct tmio_mmc_host *tmio_mmc_host_alloc(struct platform_device *pdev);
@@ -111,9 +172,6 @@ void tmio_mmc_do_data_irq(struct tmio_mmc_host *host);
 void tmio_mmc_enable_mmc_irqs(struct tmio_mmc_host *host, u32 i);
 void tmio_mmc_disable_mmc_irqs(struct tmio_mmc_host *host, u32 i);
 irqreturn_t tmio_mmc_irq(int irq, void *devid);
-irqreturn_t tmio_mmc_sdcard_irq(int irq, void *devid);
-irqreturn_t tmio_mmc_card_detect_irq(int irq, void *devid);
-irqreturn_t tmio_mmc_sdio_irq(int irq, void *devid);
 
 static inline char *tmio_mmc_kmap_atomic(struct scatterlist *sg,
 					 unsigned long *flags)
@@ -177,7 +235,7 @@ static inline void sd_ctrl_read16_rep(struct tmio_mmc_host *host, int addr,
 	readsw(host->ctl + (addr << host->bus_shift), buf, count);
 }
 
-static inline u32 sd_ctrl_read32(struct tmio_mmc_host *host, int addr)
+static inline u32 sd_ctrl_read16_and_16_as_32(struct tmio_mmc_host *host, int addr)
 {
 	return readw(host->ctl + (addr << host->bus_shift)) |
 	       readw(host->ctl + ((addr + 2) << host->bus_shift)) << 16;
@@ -199,11 +257,10 @@ static inline void sd_ctrl_write16_rep(struct tmio_mmc_host *host, int addr,
 	writesw(host->ctl + (addr << host->bus_shift), buf, count);
 }
 
-static inline void sd_ctrl_write32(struct tmio_mmc_host *host, int addr, u32 val)
+static inline void sd_ctrl_write32_as_16_and_16(struct tmio_mmc_host *host, int addr, u32 val)
 {
 	writew(val, host->ctl + (addr << host->bus_shift));
 	writew(val >> 16, host->ctl + ((addr + 2) << host->bus_shift));
 }
-
 
 #endif

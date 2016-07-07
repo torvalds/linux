@@ -2,6 +2,10 @@
  * BYD TouchPad PS/2 mouse driver
  *
  * Copyright (C) 2015 Chris Diamand <chris@diamand.org>
+ * Copyright (C) 2015 Richard Pospesel
+ * Copyright (C) 2015 Tai Chi Minh Ralph Eastwood
+ * Copyright (C) 2015 Martin Wimpress
+ * Copyright (C) 2015 Jay Kuri
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published by
@@ -474,7 +478,6 @@ int byd_init(struct psmouse *psmouse)
 	if (!priv)
 		return -ENOMEM;
 
-	memset(priv, 0, sizeof(*priv));
 	setup_timer(&priv->timer, byd_clear_touch, (unsigned long) psmouse);
 
 	psmouse->private = priv;

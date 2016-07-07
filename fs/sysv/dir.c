@@ -23,7 +23,7 @@ static int sysv_readdir(struct file *, struct dir_context *);
 const struct file_operations sysv_dir_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
-	.iterate	= sysv_readdir,
+	.iterate_shared	= sysv_readdir,
 	.fsync		= generic_file_fsync,
 };
 

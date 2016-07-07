@@ -2,6 +2,7 @@ menu "ACP (Audio CoProcessor) Configuration"
 
 config DRM_AMD_ACP
        bool "Enable AMD Audio CoProcessor IP support"
+       depends on DRM_AMDGPU
        select MFD_CORE
        select PM_GENERIC_DOMAINS if PM
        help

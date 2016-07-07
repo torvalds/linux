@@ -21,6 +21,7 @@
 #include <asm/kvm_arm.h>
 #include <asm/kvm_mmu.h>
 #include <asm/pgtable-hwdef.h>
+#include <asm/sysreg.h>
 
 	.text
 	.pushsection	.hyp.idmap.text, "ax"
@@ -103,8 +104,8 @@ __do_hyp_init:
 	dsb	sy
 
 	mrs	x4, sctlr_el2
-	and	x4, x4, #SCTLR_EL2_EE	// preserve endianness of EL2
-	ldr	x5, =SCTLR_EL2_FLAGS
+	and	x4, x4, #SCTLR_ELx_EE	// preserve endianness of EL2
+	ldr	x5, =SCTLR_ELx_FLAGS
 	orr	x4, x4, x5
 	msr	sctlr_el2, x4
 	isb
@@ -137,6 +138,49 @@ merged:
 	/* Hello, World! */
 	eret
 ENDPROC(__kvm_hyp_init)
+
+	/*
+	 * Reset kvm back to the hyp stub. This is the trampoline dance in
+	 * reverse. If kvm used an extended idmap, __extended_idmap_trampoline
+	 * calls this code directly in the idmap. In this case switching to the
+	 * boot tables is a no-op.
+	 *
+	 * x0: HYP boot pgd
+	 * x1: HYP phys_idmap_start
+	 */
+ENTRY(__kvm_hyp_reset)
+	/* We're in trampoline code in VA, switch back to boot page tables */
+	msr	ttbr0_el2, x0
+	isb
+
+	/* Ensure the PA branch doesn't find a stale tlb entry or stale code. */
+	ic	iallu
+	tlbi	alle2
+	dsb	sy
+	isb
+
+	/* Branch into PA space */
+	adr	x0, 1f
+	bfi	x1, x0, #0, #PAGE_SHIFT
+	br	x1
+
+	/* We're now in idmap, disable MMU */
+1:	mrs	x0, sctlr_el2
+	ldr	x1, =SCTLR_ELx_FLAGS
+	bic	x0, x0, x1		// Clear SCTL_M and etc
+	msr	sctlr_el2, x0
+	isb
+
+	/* Invalidate the old TLBs */
+	tlbi	alle2
+	dsb	sy
+
+	/* Install stub vectors */
+	adr_l	x0, __hyp_stub_vectors
+	msr	vbar_el2, x0
+
+	eret
+ENDPROC(__kvm_hyp_reset)
 
 	.ltorg
 

@@ -913,7 +913,7 @@ static const struct pinctrl_ops pistachio_pinctrl_ops = {
 	.get_group_name = pistachio_pinctrl_get_group_name,
 	.get_group_pins = pistachio_pinctrl_get_group_pins,
 	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
-	.dt_free_map = pinctrl_utils_dt_free_map,
+	.dt_free_map = pinctrl_utils_free_map,
 };
 
 static int pistachio_pinmux_get_functions_count(struct pinctrl_dev *pctldev)
@@ -1457,8 +1457,8 @@ static int pistachio_pinctrl_probe(struct platform_device *pdev)
 	pistachio_pinctrl_desc.pins = pctl->pins;
 	pistachio_pinctrl_desc.npins = pctl->npins;
 
-	pctl->pctldev = pinctrl_register(&pistachio_pinctrl_desc, &pdev->dev,
-					 pctl);
+	pctl->pctldev = devm_pinctrl_register(&pdev->dev, &pistachio_pinctrl_desc,
+					      pctl);
 	if (IS_ERR(pctl->pctldev)) {
 		dev_err(&pdev->dev, "Failed to register pinctrl device\n");
 		return PTR_ERR(pctl->pctldev);

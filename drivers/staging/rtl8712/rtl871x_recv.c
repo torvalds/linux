@@ -142,7 +142,7 @@ void r8712_free_recvframe_queue(struct  __queue *pframequeue,
 	phead = &pframequeue->queue;
 	plist = phead->next;
 	while (!end_of_queue_search(phead, plist)) {
-		precvframe = LIST_CONTAINOR(plist, union recv_frame, u);
+		precvframe = container_of(plist, union recv_frame, u.list);
 		plist = plist->next;
 		r8712_free_recvframe(precvframe, pfree_recv_queue);
 	}

@@ -52,6 +52,7 @@ config DRM_KMS_FB_HELPER
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
+	select FB_DEFERRED_IO
 	help
 	  FBDEV helpers for KMS drivers.
 
@@ -252,6 +253,8 @@ source "drivers/gpu/drm/rcar-du/Kconfig"
 
 source "drivers/gpu/drm/shmobile/Kconfig"
 
+source "drivers/gpu/drm/sun4i/Kconfig"
+
 source "drivers/gpu/drm/omapdrm/Kconfig"
 
 source "drivers/gpu/drm/tilcdc/Kconfig"
@@ -281,3 +284,9 @@ source "drivers/gpu/drm/imx/Kconfig"
 source "drivers/gpu/drm/vc4/Kconfig"
 
 source "drivers/gpu/drm/etnaviv/Kconfig"
+
+source "drivers/gpu/drm/arc/Kconfig"
+
+source "drivers/gpu/drm/hisilicon/Kconfig"
+
+source "drivers/gpu/drm/mediatek/Kconfig"

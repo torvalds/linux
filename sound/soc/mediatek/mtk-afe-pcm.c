@@ -123,6 +123,7 @@
 #define AFE_TDM_CON1_WLEN_32BIT		(0x2 << 8)
 #define AFE_TDM_CON1_MSB_ALIGNED	(0x1 << 4)
 #define AFE_TDM_CON1_1_BCK_DELAY	(0x1 << 3)
+#define AFE_TDM_CON1_LRCK_INV		(0x1 << 2)
 #define AFE_TDM_CON1_BCK_INV		(0x1 << 1)
 #define AFE_TDM_CON1_EN			(0x1 << 0)
 
@@ -449,6 +450,7 @@ static int mtk_afe_hdmi_prepare(struct snd_pcm_substream *substream,
 			      runtime->rate * runtime->channels * 32);
 
 	val = AFE_TDM_CON1_BCK_INV |
+	      AFE_TDM_CON1_LRCK_INV |
 	      AFE_TDM_CON1_1_BCK_DELAY |
 	      AFE_TDM_CON1_MSB_ALIGNED | /* I2S mode */
 	      AFE_TDM_CON1_WLEN_32BIT |

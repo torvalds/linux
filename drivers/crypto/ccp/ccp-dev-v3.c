@@ -406,12 +406,20 @@ static int ccp_init(struct ccp_device *ccp)
 		goto e_kthread;
 	}
 
+	/* Register the DMA engine support */
+	ret = ccp_dmaengine_register(ccp);
+	if (ret)
+		goto e_hwrng;
+
 	ccp_add_device(ccp);
 
 	/* Enable interrupts */
 	iowrite32(qim, ccp->io_regs + IRQ_MASK_REG);
 
 	return 0;
+
+e_hwrng:
+	hwrng_unregister(&ccp->hwrng);
 
 e_kthread:
 	for (i = 0; i < ccp->cmd_q_count; i++)
@@ -435,6 +443,9 @@ static void ccp_destroy(struct ccp_device *ccp)
 
 	/* Remove this device from the list of available units first */
 	ccp_del_device(ccp);
+
+	/* Unregister the DMA engine */
+	ccp_dmaengine_unregister(ccp);
 
 	/* Unregister the RNG */
 	hwrng_unregister(&ccp->hwrng);
@@ -515,7 +526,7 @@ static irqreturn_t ccp_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static struct ccp_actions ccp3_actions = {
+static const struct ccp_actions ccp3_actions = {
 	.perform_aes = ccp_perform_aes,
 	.perform_xts_aes = ccp_perform_xts_aes,
 	.perform_sha = ccp_perform_sha,

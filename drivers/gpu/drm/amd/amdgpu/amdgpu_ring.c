@@ -46,7 +46,8 @@
  * wptr.  The GPU then starts fetching commands and executes
  * them until the pointers are equal again.
  */
-static int amdgpu_debugfs_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring);
+static int amdgpu_debugfs_ring_init(struct amdgpu_device *adev,
+				    struct amdgpu_ring *ring);
 
 /**
  * amdgpu_ring_alloc - allocate space on the ring buffer
@@ -215,18 +216,17 @@ int amdgpu_ring_restore(struct amdgpu_ring *ring,
  *
  * @adev: amdgpu_device pointer
  * @ring: amdgpu_ring structure holding ring information
- * @ring_size: size of the ring
+ * @max_ndw: maximum number of dw for ring alloc
  * @nop: nop packet for this ring
  *
  * Initialize the driver information for the selected ring (all asics).
  * Returns 0 on success, error on failure.
  */
 int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
-		     unsigned ring_size, u32 nop, u32 align_mask,
+		     unsigned max_dw, u32 nop, u32 align_mask,
 		     struct amdgpu_irq_src *irq_src, unsigned irq_type,
 		     enum amdgpu_ring_type ring_type)
 {
-	u32 rb_bufsz;
 	int r;
 
 	if (ring->adev == NULL) {
@@ -265,8 +265,17 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		dev_err(adev->dev, "(%d) ring next_rptr wb alloc failed\n", r);
 		return r;
 	}
-	ring->next_rptr_gpu_addr = adev->wb.gpu_addr + (ring->next_rptr_offs * 4);
+	ring->next_rptr_gpu_addr = adev->wb.gpu_addr + ring->next_rptr_offs * 4;
 	ring->next_rptr_cpu_addr = &adev->wb.wb[ring->next_rptr_offs];
+
+	r = amdgpu_wb_get(adev, &ring->cond_exe_offs);
+	if (r) {
+		dev_err(adev->dev, "(%d) ring cond_exec_polling wb alloc failed\n", r);
+		return r;
+	}
+	ring->cond_exe_gpu_addr = adev->wb.gpu_addr + (ring->cond_exe_offs * 4);
+	ring->cond_exe_cpu_addr = &adev->wb.wb[ring->cond_exe_offs];
+
 	spin_lock_init(&ring->fence_lock);
 	r = amdgpu_fence_driver_start_ring(ring, irq_src, irq_type);
 	if (r) {
@@ -274,10 +283,8 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		return r;
 	}
 
-	/* Align ring size */
-	rb_bufsz = order_base_2(ring_size / 8);
-	ring_size = (1 << (rb_bufsz + 1)) * 4;
-	ring->ring_size = ring_size;
+	ring->ring_size = roundup_pow_of_two(max_dw * 4 *
+					     amdgpu_sched_hw_submission);
 	ring->align_mask = align_mask;
 	ring->nop = nop;
 	ring->type = ring_type;
@@ -310,8 +317,7 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		}
 	}
 	ring->ptr_mask = (ring->ring_size / 4) - 1;
-	ring->max_dw = DIV_ROUND_UP(ring->ring_size / 4,
-				    amdgpu_sched_hw_submission);
+	ring->max_dw = max_dw;
 
 	if (amdgpu_debugfs_ring_init(adev, ring)) {
 		DRM_ERROR("Failed to register debugfs file for rings !\n");
@@ -337,6 +343,7 @@ void amdgpu_ring_fini(struct amdgpu_ring *ring)
 	ring->ring = NULL;
 	ring->ring_obj = NULL;
 
+	amdgpu_wb_free(ring->adev, ring->cond_exe_offs);
 	amdgpu_wb_free(ring->adev, ring->fence_offs);
 	amdgpu_wb_free(ring->adev, ring->rptr_offs);
 	amdgpu_wb_free(ring->adev, ring->wptr_offs);
@@ -363,9 +370,8 @@ static int amdgpu_debugfs_ring_info(struct seq_file *m, void *data)
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct amdgpu_device *adev = dev->dev_private;
-	int roffset = *(int*)node->info_ent->data;
+	int roffset = (unsigned long)node->info_ent->data;
 	struct amdgpu_ring *ring = (void *)(((uint8_t*)adev) + roffset);
-
 	uint32_t rptr, wptr, rptr_next;
 	unsigned i;
 
@@ -408,46 +414,37 @@ static int amdgpu_debugfs_ring_info(struct seq_file *m, void *data)
 	return 0;
 }
 
-/* TODO: clean this up !*/
-static int amdgpu_gfx_index = offsetof(struct amdgpu_device, gfx.gfx_ring[0]);
-static int cayman_cp1_index = offsetof(struct amdgpu_device, gfx.compute_ring[0]);
-static int cayman_cp2_index = offsetof(struct amdgpu_device, gfx.compute_ring[1]);
-static int amdgpu_dma1_index = offsetof(struct amdgpu_device, sdma.instance[0].ring);
-static int amdgpu_dma2_index = offsetof(struct amdgpu_device, sdma.instance[1].ring);
-static int r600_uvd_index = offsetof(struct amdgpu_device, uvd.ring);
-static int si_vce1_index = offsetof(struct amdgpu_device, vce.ring[0]);
-static int si_vce2_index = offsetof(struct amdgpu_device, vce.ring[1]);
-
-static struct drm_info_list amdgpu_debugfs_ring_info_list[] = {
-	{"amdgpu_ring_gfx", amdgpu_debugfs_ring_info, 0, &amdgpu_gfx_index},
-	{"amdgpu_ring_cp1", amdgpu_debugfs_ring_info, 0, &cayman_cp1_index},
-	{"amdgpu_ring_cp2", amdgpu_debugfs_ring_info, 0, &cayman_cp2_index},
-	{"amdgpu_ring_dma1", amdgpu_debugfs_ring_info, 0, &amdgpu_dma1_index},
-	{"amdgpu_ring_dma2", amdgpu_debugfs_ring_info, 0, &amdgpu_dma2_index},
-	{"amdgpu_ring_uvd", amdgpu_debugfs_ring_info, 0, &r600_uvd_index},
-	{"amdgpu_ring_vce1", amdgpu_debugfs_ring_info, 0, &si_vce1_index},
-	{"amdgpu_ring_vce2", amdgpu_debugfs_ring_info, 0, &si_vce2_index},
-};
+static struct drm_info_list amdgpu_debugfs_ring_info_list[AMDGPU_MAX_RINGS];
+static char amdgpu_debugfs_ring_names[AMDGPU_MAX_RINGS][32];
 
 #endif
 
-static int amdgpu_debugfs_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring)
+static int amdgpu_debugfs_ring_init(struct amdgpu_device *adev,
+				    struct amdgpu_ring *ring)
 {
 #if defined(CONFIG_DEBUG_FS)
+	unsigned offset = (uint8_t*)ring - (uint8_t*)adev;
 	unsigned i;
+	struct drm_info_list *info;
+	char *name;
+
 	for (i = 0; i < ARRAY_SIZE(amdgpu_debugfs_ring_info_list); ++i) {
-		struct drm_info_list *info = &amdgpu_debugfs_ring_info_list[i];
-		int roffset = *(int*)amdgpu_debugfs_ring_info_list[i].data;
-		struct amdgpu_ring *other = (void *)(((uint8_t*)adev) + roffset);
-		unsigned r;
-
-		if (other != ring)
-			continue;
-
-		r = amdgpu_debugfs_add_files(adev, info, 1);
-		if (r)
-			return r;
+		info = &amdgpu_debugfs_ring_info_list[i];
+		if (!info->data)
+			break;
 	}
+
+	if (i == ARRAY_SIZE(amdgpu_debugfs_ring_info_list))
+		return -ENOSPC;
+
+	name = &amdgpu_debugfs_ring_names[i][0];
+	sprintf(name, "amdgpu_ring_%s", ring->name);
+	info->name = name;
+	info->show = amdgpu_debugfs_ring_info;
+	info->driver_features = 0;
+	info->data = (void*)(uintptr_t)offset;
+
+	return amdgpu_debugfs_add_files(adev, info, 1);
 #endif
 	return 0;
 }

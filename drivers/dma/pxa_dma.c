@@ -117,6 +117,7 @@ struct pxad_chan {
 	/* protected by vc->lock */
 	struct pxad_phy		*phy;
 	struct dma_pool		*desc_pool;	/* Descriptors pool */
+	dma_cookie_t		bus_error;
 };
 
 struct pxad_device {
@@ -563,6 +564,7 @@ static void pxad_launch_chan(struct pxad_chan *chan,
 			return;
 		}
 	}
+	chan->bus_error = 0;
 
 	/*
 	 * Program the descriptor's address into the DMA controller,
@@ -666,6 +668,7 @@ static irqreturn_t pxad_chan_handler(int irq, void *dev_id)
 	struct virt_dma_desc *vd, *tmp;
 	unsigned int dcsr;
 	unsigned long flags;
+	dma_cookie_t last_started = 0;
 
 	BUG_ON(!chan);
 
@@ -678,6 +681,7 @@ static irqreturn_t pxad_chan_handler(int irq, void *dev_id)
 		dev_dbg(&chan->vc.chan.dev->device,
 			"%s(): checking txd %p[%x]: completed=%d\n",
 			__func__, vd, vd->tx.cookie, is_desc_completed(vd));
+		last_started = vd->tx.cookie;
 		if (to_pxad_sw_desc(vd)->cyclic) {
 			vchan_cyclic_callback(vd);
 			break;
@@ -690,7 +694,12 @@ static irqreturn_t pxad_chan_handler(int irq, void *dev_id)
 		}
 	}
 
-	if (dcsr & PXA_DCSR_STOPSTATE) {
+	if (dcsr & PXA_DCSR_BUSERR) {
+		chan->bus_error = last_started;
+		phy_disable(phy);
+	}
+
+	if (!chan->bus_error && dcsr & PXA_DCSR_STOPSTATE) {
 		dev_dbg(&chan->vc.chan.dev->device,
 		"%s(): channel stopped, submitted_empty=%d issued_empty=%d",
 			__func__,
@@ -1249,6 +1258,9 @@ static enum dma_status pxad_tx_status(struct dma_chan *dchan,
 	struct pxad_chan *chan = to_pxad_chan(dchan);
 	enum dma_status ret;
 
+	if (cookie == chan->bus_error)
+		return DMA_ERROR;
+
 	ret = dma_cookie_status(dchan, cookie, txstate);
 	if (likely(txstate && (ret != DMA_ERROR)))
 		dma_set_residue(txstate, pxad_residue(chan, cookie));
@@ -1321,7 +1333,7 @@ static int pxad_init_phys(struct platform_device *op,
 	return 0;
 }
 
-static const struct of_device_id const pxad_dt_ids[] = {
+static const struct of_device_id pxad_dt_ids[] = {
 	{ .compatible = "marvell,pdma-1.0", },
 	{}
 };

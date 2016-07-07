@@ -334,7 +334,7 @@ static void *hrtimer_debug_hint(void *addr)
  * fixup_init is called when:
  * - an active object is initialized
  */
-static int hrtimer_fixup_init(void *addr, enum debug_obj_state state)
+static bool hrtimer_fixup_init(void *addr, enum debug_obj_state state)
 {
 	struct hrtimer *timer = addr;
 
@@ -342,30 +342,25 @@ static int hrtimer_fixup_init(void *addr, enum debug_obj_state state)
 	case ODEBUG_STATE_ACTIVE:
 		hrtimer_cancel(timer);
 		debug_object_init(timer, &hrtimer_debug_descr);
-		return 1;
+		return true;
 	default:
-		return 0;
+		return false;
 	}
 }
 
 /*
  * fixup_activate is called when:
  * - an active object is activated
- * - an unknown object is activated (might be a statically initialized object)
+ * - an unknown non-static object is activated
  */
-static int hrtimer_fixup_activate(void *addr, enum debug_obj_state state)
+static bool hrtimer_fixup_activate(void *addr, enum debug_obj_state state)
 {
 	switch (state) {
-
-	case ODEBUG_STATE_NOTAVAILABLE:
-		WARN_ON_ONCE(1);
-		return 0;
-
 	case ODEBUG_STATE_ACTIVE:
 		WARN_ON(1);
 
 	default:
-		return 0;
+		return false;
 	}
 }
 
@@ -373,7 +368,7 @@ static int hrtimer_fixup_activate(void *addr, enum debug_obj_state state)
  * fixup_free is called when:
  * - an active object is freed
  */
-static int hrtimer_fixup_free(void *addr, enum debug_obj_state state)
+static bool hrtimer_fixup_free(void *addr, enum debug_obj_state state)
 {
 	struct hrtimer *timer = addr;
 
@@ -381,9 +376,9 @@ static int hrtimer_fixup_free(void *addr, enum debug_obj_state state)
 	case ODEBUG_STATE_ACTIVE:
 		hrtimer_cancel(timer);
 		debug_object_free(timer, &hrtimer_debug_descr);
-		return 1;
+		return true;
 	default:
-		return 0;
+		return false;
 	}
 }
 
@@ -430,6 +425,7 @@ void destroy_hrtimer_on_stack(struct hrtimer *timer)
 {
 	debug_object_free(timer, &hrtimer_debug_descr);
 }
+EXPORT_SYMBOL_GPL(destroy_hrtimer_on_stack);
 
 #else
 static inline void debug_hrtimer_init(struct hrtimer *timer) { }

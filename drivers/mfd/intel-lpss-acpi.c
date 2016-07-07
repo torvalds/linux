@@ -31,13 +31,9 @@ static struct property_entry spt_i2c_properties[] = {
 	{ },
 };
 
-static struct property_set spt_i2c_pset = {
-	.properties = spt_i2c_properties,
-};
-
 static const struct intel_lpss_platform_info spt_i2c_info = {
 	.clk_rate = 120000000,
-	.pset = &spt_i2c_pset,
+	.properties = spt_i2c_properties,
 };
 
 static const struct intel_lpss_platform_info bxt_info = {
@@ -51,13 +47,9 @@ static struct property_entry bxt_i2c_properties[] = {
 	{ },
 };
 
-static struct property_set bxt_i2c_pset = {
-	.properties = bxt_i2c_properties,
-};
-
 static const struct intel_lpss_platform_info bxt_i2c_info = {
 	.clk_rate = 133000000,
-	.pset = &bxt_i2c_pset,
+	.properties = bxt_i2c_properties,
 };
 
 static const struct acpi_device_id intel_lpss_acpi_ids[] = {

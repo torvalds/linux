@@ -337,7 +337,7 @@ calc_reloc(unsigned long r, struct lib_info *p, int curid, int internalp)
 					"(%d != %d)", (unsigned) r, curid, id);
 			goto failed;
 		} else if ( ! p->lib_list[id].loaded &&
-				IS_ERR_VALUE(load_flat_shared_library(id, p))) {
+				load_flat_shared_library(id, p) < 0) {
 			printk("BINFMT_FLAT: failed to load library %d", id);
 			goto failed;
 		}
@@ -837,7 +837,7 @@ static int load_flat_shared_library(int id, struct lib_info *libs)
 
 	res = prepare_binprm(&bprm);
 
-	if (!IS_ERR_VALUE(res))
+	if (!res)
 		res = load_flat_file(&bprm, libs, id, NULL);
 
 	abort_creds(bprm.cred);
@@ -883,7 +883,7 @@ static int load_flat_binary(struct linux_binprm * bprm)
 	stack_len += FLAT_STACK_ALIGN - 1;  /* reserve for upcoming alignment */
 	
 	res = load_flat_file(bprm, &libinfo, 0, &stack_len);
-	if (IS_ERR_VALUE(res))
+	if (res < 0)
 		return res;
 	
 	/* Update data segment pointers for all libraries */

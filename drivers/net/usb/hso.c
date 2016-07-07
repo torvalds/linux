@@ -2029,7 +2029,7 @@ static int put_rxbuf_data(struct urb *urb, struct hso_serial *serial)
 
 	tty = tty_port_tty_get(&serial->port);
 
-	if (tty && test_bit(TTY_THROTTLED, &tty->flags)) {
+	if (tty && tty_throttled(tty)) {
 		tty_kref_put(tty);
 		return -1;
 	}

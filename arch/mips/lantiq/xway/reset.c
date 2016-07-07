@@ -3,7 +3,7 @@
  *  under the terms of the GNU General Public License version 2 as published
  *  by the Free Software Foundation.
  *
- *  Copyright (C) 2010 John Crispin <blogic@openwrt.org>
+ *  Copyright (C) 2010 John Crispin <john@phrozen.org>
  *  Copyright (C) 2013-2015 Lantiq Beteiligungs-GmbH & Co.KG
  */
 
@@ -258,7 +258,7 @@ static int ltq_reset_device(struct reset_controller_dev *rcdev,
 	return ltq_deassert_device(rcdev, id);
 }
 
-static struct reset_control_ops reset_ops = {
+static const struct reset_control_ops reset_ops = {
 	.reset = ltq_reset_device,
 	.assert = ltq_assert_device,
 	.deassert = ltq_deassert_device,

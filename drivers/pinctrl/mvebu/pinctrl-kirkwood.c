@@ -481,18 +481,12 @@ static int kirkwood_pinctrl_probe(struct platform_device *pdev)
 	return mvebu_pinctrl_probe(pdev);
 }
 
-static int kirkwood_pinctrl_remove(struct platform_device *pdev)
-{
-	return mvebu_pinctrl_remove(pdev);
-}
-
 static struct platform_driver kirkwood_pinctrl_driver = {
 	.driver = {
 		.name = "kirkwood-pinctrl",
 		.of_match_table = kirkwood_pinctrl_of_match,
 	},
 	.probe = kirkwood_pinctrl_probe,
-	.remove = kirkwood_pinctrl_remove,
 };
 
 module_platform_driver(kirkwood_pinctrl_driver);

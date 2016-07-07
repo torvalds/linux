@@ -809,6 +809,22 @@ static void __init setup_randomness(void)
 }
 
 /*
+ * Find the correct size for the task_struct. This depends on
+ * the size of the struct fpu at the end of the thread_struct
+ * which is embedded in the task_struct.
+ */
+static void __init setup_task_size(void)
+{
+	int task_size = sizeof(struct task_struct);
+
+	if (!MACHINE_HAS_VX) {
+		task_size -= sizeof(__vector128) * __NUM_VXRS;
+		task_size += sizeof(freg_t) * __NUM_FPRS;
+	}
+	arch_task_struct_size = task_size;
+}
+
+/*
  * Setup function called from init/main.c just after the banner
  * was printed.
  */
@@ -846,6 +862,7 @@ void __init setup_arch(char **cmdline_p)
 
 	os_info_init();
 	setup_ipl();
+	setup_task_size();
 
 	/* Do some memory reservations *before* memory is added to memblock */
 	reserve_memory_end();

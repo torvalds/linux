@@ -105,14 +105,28 @@
 				status = "disabled";
 			};
 
-			usb3@58000 {
-				compatible = "generic-xhci";
+			usb3: usb@58000 {
+				compatible = "marvell,armada3700-xhci",
+				"generic-xhci";
 				reg = <0x58000 0x4000>;
 				interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
 			};
 
-			sata@e0000 {
+			xor@60900 {
+				compatible = "marvell,armada-3700-xor";
+				reg = <0x60900 0x100
+				       0x60b00 0x100>;
+
+				xor10 {
+					interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
+				};
+				xor11 {
+					interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
+				};
+			};
+
+			sata: sata@e0000 {
 				compatible = "marvell,armada-3700-ahci";
 				reg = <0xe0000 0x2000>;
 				interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;

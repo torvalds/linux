@@ -395,7 +395,6 @@ static struct platform_driver imx7d_pinctrl_driver = {
 		.of_match_table = of_match_ptr(imx7d_pinctrl_of_match),
 	},
 	.probe = imx7d_pinctrl_probe,
-	.remove = imx_pinctrl_remove,
 };
 
 static int __init imx7d_pinctrl_init(void)

@@ -48,13 +48,13 @@
 
 /* registers for base address */
 #define G2D_SRC_BASE_ADDR		0x0304
-#define G2D_SRC_STRIDE_REG		0x0308
+#define G2D_SRC_STRIDE			0x0308
 #define G2D_SRC_COLOR_MODE		0x030C
 #define G2D_SRC_LEFT_TOP		0x0310
 #define G2D_SRC_RIGHT_BOTTOM		0x0314
 #define G2D_SRC_PLANE2_BASE_ADDR	0x0318
 #define G2D_DST_BASE_ADDR		0x0404
-#define G2D_DST_STRIDE_REG		0x0408
+#define G2D_DST_STRIDE			0x0408
 #define G2D_DST_COLOR_MODE		0x040C
 #define G2D_DST_LEFT_TOP		0x0410
 #define G2D_DST_RIGHT_BOTTOM		0x0414
@@ -383,8 +383,8 @@ static void g2d_userptr_put_dma_addr(struct drm_device *drm_dev,
 		return;
 
 out:
-	exynos_gem_unmap_sgt_from_dma(drm_dev, g2d_userptr->sgt,
-					DMA_BIDIRECTIONAL);
+	dma_unmap_sg(to_dma_dev(drm_dev), g2d_userptr->sgt->sgl,
+			g2d_userptr->sgt->nents, DMA_BIDIRECTIONAL);
 
 	pages = frame_vector_pages(g2d_userptr->vec);
 	if (!IS_ERR(pages)) {
@@ -501,10 +501,10 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
 
 	g2d_userptr->sgt = sgt;
 
-	ret = exynos_gem_map_sgt_with_dma(drm_dev, g2d_userptr->sgt,
-						DMA_BIDIRECTIONAL);
-	if (ret < 0) {
+	if (!dma_map_sg(to_dma_dev(drm_dev), sgt->sgl, sgt->nents,
+				DMA_BIDIRECTIONAL)) {
 		DRM_ERROR("failed to map sgt with dma region.\n");
+		ret = -ENOMEM;
 		goto err_sg_free_table;
 	}
 
@@ -563,7 +563,7 @@ static enum g2d_reg_type g2d_get_reg_type(int reg_offset)
 
 	switch (reg_offset) {
 	case G2D_SRC_BASE_ADDR:
-	case G2D_SRC_STRIDE_REG:
+	case G2D_SRC_STRIDE:
 	case G2D_SRC_COLOR_MODE:
 	case G2D_SRC_LEFT_TOP:
 	case G2D_SRC_RIGHT_BOTTOM:
@@ -573,7 +573,7 @@ static enum g2d_reg_type g2d_get_reg_type(int reg_offset)
 		reg_type = REG_TYPE_SRC_PLANE2;
 		break;
 	case G2D_DST_BASE_ADDR:
-	case G2D_DST_STRIDE_REG:
+	case G2D_DST_STRIDE:
 	case G2D_DST_COLOR_MODE:
 	case G2D_DST_LEFT_TOP:
 	case G2D_DST_RIGHT_BOTTOM:
@@ -968,8 +968,8 @@ static int g2d_check_reg_offset(struct device *dev,
 			} else
 				buf_info->types[reg_type] = BUF_TYPE_GEM;
 			break;
-		case G2D_SRC_STRIDE_REG:
-		case G2D_DST_STRIDE_REG:
+		case G2D_SRC_STRIDE:
+		case G2D_DST_STRIDE:
 			if (for_addr)
 				goto err;
 

@@ -294,7 +294,7 @@ static int icside_dma_init(struct pata_icside_info *info)
 
 static struct scsi_host_template pata_icside_sht = {
 	ATA_BASE_SHT(DRV_NAME),
-	.sg_tablesize		= SCSI_MAX_SG_CHAIN_SEGMENTS,
+	.sg_tablesize		= SG_MAX_SEGMENTS,
 	.dma_boundary		= IOMD_DMA_BOUNDARY,
 };
 

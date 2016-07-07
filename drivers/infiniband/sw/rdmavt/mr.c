@@ -124,11 +124,13 @@ static int rvt_init_mregion(struct rvt_mregion *mr, struct ib_pd *pd,
 			    int count)
 {
 	int m, i = 0;
+	struct rvt_dev_info *dev = ib_to_rvt(pd->device);
 
 	mr->mapsz = 0;
 	m = (count + RVT_SEGSZ - 1) / RVT_SEGSZ;
 	for (; i < m; i++) {
-		mr->map[i] = kzalloc(sizeof(*mr->map[0]), GFP_KERNEL);
+		mr->map[i] = kzalloc_node(sizeof(*mr->map[0]), GFP_KERNEL,
+					  dev->dparms.node);
 		if (!mr->map[i]) {
 			rvt_deinit_mregion(mr);
 			return -ENOMEM;

@@ -321,6 +321,15 @@ config REGULATOR_LP872X
 	help
 	  This driver supports LP8720/LP8725 PMIC
 
+config REGULATOR_LP873X
+	tristate "TI LP873X Power regulators"
+	depends on MFD_LP873X && OF
+	help
+	  This driver supports LP873X voltage regulator chips. LP873X
+	  provides two step-down converters and two general-purpose LDO
+	  voltage regulators. It supports software based voltage control
+	  for different voltage domains
+
 config REGULATOR_LP8755
 	tristate "TI LP8755 High Performance PMU driver"
 	depends on I2C
@@ -409,6 +418,7 @@ config REGULATOR_MAX8952
 config REGULATOR_MAX8973
 	tristate "Maxim MAX8973 voltage regulator "
 	depends on I2C
+	depends on THERMAL && THERMAL_OF
 	select REGMAP_I2C
 	help
 	  The MAXIM MAX8973 high-efficiency. three phase, DC-DC step-down
@@ -547,6 +557,13 @@ config REGULATOR_PV88060
 	help
 	  Say y here to support the voltage regulators and convertors
 	  PV88060
+
+config REGULATOR_PV88080
+	tristate "Powerventure Semiconductor PV88080 regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say y here to support the buck convertors on PV88080
 
 config REGULATOR_PV88090
 	tristate "Powerventure Semiconductor PV88090 regulator"

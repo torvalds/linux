@@ -40,7 +40,6 @@ struct visorchannel {
 	bool requested;
 	struct channel_header chan_hdr;
 	uuid_le guid;
-	ulong size;
 	bool needs_lock;	/* channel creator knows if more than one */
 				/* thread will be inserting or removing */
 	spinlock_t insert_lock; /* protect head writes in chan_hdr */
@@ -134,8 +133,6 @@ visorchannel_create_guts(u64 physaddr, unsigned long channel_bytes,
 	}
 
 	channel->nbytes = channel_bytes;
-
-	channel->size = channel_bytes;
 	channel->guid = guid;
 	return channel;
 
@@ -186,7 +183,7 @@ EXPORT_SYMBOL_GPL(visorchannel_get_physaddr);
 ulong
 visorchannel_get_nbytes(struct visorchannel *channel)
 {
-	return channel->size;
+	return channel->nbytes;
 }
 EXPORT_SYMBOL_GPL(visorchannel_get_nbytes);
 

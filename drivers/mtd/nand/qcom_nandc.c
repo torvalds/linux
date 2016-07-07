@@ -21,7 +21,6 @@
 #include <linux/mtd/partitions.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/of_mtd.h>
 #include <linux/delay.h>
 
 /* NANDc reg offsets */
@@ -1437,7 +1436,6 @@ static int qcom_nandc_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
 	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
 	struct nand_ecc_ctrl *ecc = &chip->ecc;
 	u8 *oob = chip->oob_poi;
-	int free_boff;
 	int data_size, oob_size;
 	int ret, status = 0;
 
@@ -1451,12 +1449,11 @@ static int qcom_nandc_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
 
 	/* calculate the data and oob size for the last codeword/step */
 	data_size = ecc->size - ((ecc->steps - 1) << 2);
-	oob_size = ecc->steps << 2;
-
-	free_boff = ecc->layout->oobfree[0].offset;
+	oob_size = mtd->oobavail;
 
 	/* override new oob content to last codeword */
-	memcpy(nandc->data_buffer + data_size, oob + free_boff, oob_size);
+	mtd_ooblayout_get_databytes(mtd, nandc->data_buffer + data_size, oob,
+				    0, mtd->oobavail);
 
 	set_address(host, host->cw_size * (ecc->steps - 1), page);
 	update_rw_regs(host, 1, false);
@@ -1710,60 +1707,51 @@ static void qcom_nandc_select_chip(struct mtd_info *mtd, int chipnr)
  * This layout is read as is when ECC is disabled. When ECC is enabled, the
  * inaccessible Bad Block byte(s) are ignored when we write to a page/oob,
  * and assumed as 0xffs when we read a page/oob. The ECC, unused and
- * dummy/real bad block bytes are grouped as ecc bytes in nand_ecclayout (i.e,
- * ecc->bytes is the sum of the three).
+ * dummy/real bad block bytes are grouped as ecc bytes (i.e, ecc->bytes is
+ * the sum of the three).
  */
-
-static struct nand_ecclayout *
-qcom_nand_create_layout(struct qcom_nand_host *host)
+static int qcom_nand_ooblayout_ecc(struct mtd_info *mtd, int section,
+				   struct mtd_oob_region *oobregion)
 {
-	struct nand_chip *chip = &host->chip;
-	struct mtd_info *mtd = nand_to_mtd(chip);
-	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct qcom_nand_host *host = to_qcom_nand_host(chip);
 	struct nand_ecc_ctrl *ecc = &chip->ecc;
-	struct nand_ecclayout *layout;
-	int i, j, steps, pos = 0, shift = 0;
 
-	layout = devm_kzalloc(nandc->dev, sizeof(*layout), GFP_KERNEL);
-	if (!layout)
-		return NULL;
+	if (section > 1)
+		return -ERANGE;
 
-	steps = mtd->writesize / ecc->size;
-	layout->eccbytes = steps * ecc->bytes;
-
-	layout->oobfree[0].offset = (steps - 1) * ecc->bytes + host->bbm_size;
-	layout->oobfree[0].length = steps << 2;
-
-	/*
-	 * the oob bytes in the first n - 1 codewords are all grouped together
-	 * in the format:
-	 * DUMMY_BBM + UNUSED + ECC
-	 */
-	for (i = 0; i < steps - 1; i++) {
-		for (j = 0; j < ecc->bytes; j++)
-			layout->eccpos[pos++] = i * ecc->bytes + j;
+	if (!section) {
+		oobregion->length = (ecc->bytes * (ecc->steps - 1)) +
+				    host->bbm_size;
+		oobregion->offset = 0;
+	} else {
+		oobregion->length = host->ecc_bytes_hw + host->spare_bytes;
+		oobregion->offset = mtd->oobsize - oobregion->length;
 	}
 
-	/*
-	 * the oob bytes in the last codeword are grouped in the format:
-	 * BBM + FREE OOB + UNUSED + ECC
-	 */
-
-	/* fill up the bbm positions */
-	for (j = 0; j < host->bbm_size; j++)
-		layout->eccpos[pos++] = i * ecc->bytes + j;
-
-	/*
-	 * fill up the ecc and reserved positions, their indices are offseted
-	 * by the free oob region
-	 */
-	shift = layout->oobfree[0].length + host->bbm_size;
-
-	for (j = 0; j < (host->ecc_bytes_hw + host->spare_bytes); j++)
-		layout->eccpos[pos++] = i * ecc->bytes + shift + j;
-
-	return layout;
+	return 0;
 }
+
+static int qcom_nand_ooblayout_free(struct mtd_info *mtd, int section,
+				     struct mtd_oob_region *oobregion)
+{
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct qcom_nand_host *host = to_qcom_nand_host(chip);
+	struct nand_ecc_ctrl *ecc = &chip->ecc;
+
+	if (section)
+		return -ERANGE;
+
+	oobregion->length = ecc->steps * 4;
+	oobregion->offset = ((ecc->steps - 1) * ecc->bytes) + host->bbm_size;
+
+	return 0;
+}
+
+static const struct mtd_ooblayout_ops qcom_nand_ooblayout_ops = {
+	.ecc = qcom_nand_ooblayout_ecc,
+	.free = qcom_nand_ooblayout_free,
+};
 
 static int qcom_nand_host_setup(struct qcom_nand_host *host)
 {
@@ -1851,9 +1839,7 @@ static int qcom_nand_host_setup(struct qcom_nand_host *host)
 
 	ecc->mode = NAND_ECC_HW;
 
-	ecc->layout = qcom_nand_create_layout(host);
-	if (!ecc->layout)
-		return -ENOMEM;
+	mtd_set_ooblayout(mtd, &qcom_nand_ooblayout_ops);
 
 	cwperpage = mtd->writesize / ecc->size;
 

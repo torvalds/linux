@@ -1190,7 +1190,7 @@ struct dst_entry *ip6_route_output_flags(struct net *net, const struct sock *sk,
 	struct dst_entry *dst;
 	bool any_src;
 
-	dst = l3mdev_rt6_dst_by_oif(net, fl6);
+	dst = l3mdev_get_rt6_dst(net, fl6);
 	if (dst)
 		return dst;
 
@@ -1750,6 +1750,8 @@ static int ip6_convert_metrics(struct mx6_config *mxc,
 		} else {
 			val = nla_get_u32(nla);
 		}
+		if (type == RTAX_HOPLIMIT && val > 255)
+			val = 255;
 		if (type == RTAX_FEATURES && (val & ~RTAX_FEATURE_MASK))
 			goto err;
 
@@ -1767,6 +1769,37 @@ static int ip6_convert_metrics(struct mx6_config *mxc,
  err:
 	kfree(mp);
 	return -EINVAL;
+}
+
+static struct rt6_info *ip6_nh_lookup_table(struct net *net,
+					    struct fib6_config *cfg,
+					    const struct in6_addr *gw_addr)
+{
+	struct flowi6 fl6 = {
+		.flowi6_oif = cfg->fc_ifindex,
+		.daddr = *gw_addr,
+		.saddr = cfg->fc_prefsrc,
+	};
+	struct fib6_table *table;
+	struct rt6_info *rt;
+	int flags = RT6_LOOKUP_F_IFACE;
+
+	table = fib6_get_table(net, cfg->fc_table);
+	if (!table)
+		return NULL;
+
+	if (!ipv6_addr_any(&cfg->fc_prefsrc))
+		flags |= RT6_LOOKUP_F_HAS_SADDR;
+
+	rt = ip6_pol_route(net, table, cfg->fc_ifindex, &fl6, flags);
+
+	/* if table lookup failed, fall back to full lookup */
+	if (rt == net->ipv6.ip6_null_entry) {
+		ip6_rt_put(rt);
+		rt = NULL;
+	}
+
+	return rt;
 }
 
 static struct rt6_info *ip6_route_info_create(struct fib6_config *cfg)
@@ -1940,7 +1973,7 @@ static struct rt6_info *ip6_route_info_create(struct fib6_config *cfg)
 		rt->rt6i_gateway = *gw_addr;
 
 		if (gwa_type != (IPV6_ADDR_LINKLOCAL|IPV6_ADDR_UNICAST)) {
-			struct rt6_info *grt;
+			struct rt6_info *grt = NULL;
 
 			/* IPv6 strictly inhibits using not link-local
 			   addresses as nexthop address.
@@ -1952,7 +1985,12 @@ static struct rt6_info *ip6_route_info_create(struct fib6_config *cfg)
 			if (!(gwa_type & IPV6_ADDR_UNICAST))
 				goto out;
 
-			grt = rt6_lookup(net, gw_addr, NULL, cfg->fc_ifindex, 1);
+			if (cfg->fc_table)
+				grt = ip6_nh_lookup_table(net, cfg, gw_addr);
+
+			if (!grt)
+				grt = rt6_lookup(net, gw_addr, NULL,
+						 cfg->fc_ifindex, 1);
 
 			err = -EHOSTUNREACH;
 			if (!grt)

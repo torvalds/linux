@@ -72,7 +72,8 @@
  * Return Value: data read
  *
  */
-unsigned char SROMbyReadEmbedded(void __iomem *dwIoBase, unsigned char byContntOffset)
+unsigned char SROMbyReadEmbedded(void __iomem *dwIoBase,
+				 unsigned char byContntOffset)
 {
 	unsigned short wDelay, wNoACK;
 	unsigned char byWait;
@@ -124,7 +125,8 @@ void SROMvReadAllContents(void __iomem *dwIoBase, unsigned char *pbyEepromRegs)
 
 	/* ii = Rom Address */
 	for (ii = 0; ii < EEP_MAX_CONTEXT_SIZE; ii++) {
-		*pbyEepromRegs = SROMbyReadEmbedded(dwIoBase, (unsigned char)ii);
+		*pbyEepromRegs = SROMbyReadEmbedded(dwIoBase,
+						    (unsigned char)ii);
 		pbyEepromRegs++;
 	}
 }
@@ -141,7 +143,8 @@ void SROMvReadAllContents(void __iomem *dwIoBase, unsigned char *pbyEepromRegs)
  * Return Value: none
  *
  */
-void SROMvReadEtherAddress(void __iomem *dwIoBase, unsigned char *pbyEtherAddress)
+void SROMvReadEtherAddress(void __iomem *dwIoBase,
+			   unsigned char *pbyEtherAddress)
 {
 	unsigned char ii;
 

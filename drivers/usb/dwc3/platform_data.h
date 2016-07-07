@@ -23,7 +23,6 @@
 struct dwc3_platform_data {
 	enum usb_device_speed maximum_speed;
 	enum usb_dr_mode dr_mode;
-	bool tx_fifo_resize;
 	bool usb3_lpm_capable;
 
 	unsigned is_utmi_l1_suspend:1;
@@ -43,6 +42,7 @@ struct dwc3_platform_data {
 	unsigned dis_u3_susphy_quirk:1;
 	unsigned dis_u2_susphy_quirk:1;
 	unsigned dis_enblslpm_quirk:1;
+	unsigned dis_rxdet_inp3_quirk:1;
 
 	unsigned tx_de_emphasis_quirk:1;
 	unsigned tx_de_emphasis:2;

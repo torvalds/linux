@@ -37,6 +37,17 @@
 #include <linux/idr.h>
 #include <linux/inetdevice.h>
 #include <linux/devcoredump.h>
+#include <linux/err.h>
+#include <linux/gpio.h>
+#include <linux/gfp.h>
+#include <linux/interrupt.h>
+#include <linux/io.h>
+#include <linux/of_gpio.h>
+#include <linux/of_platform.h>
+#include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
+#include <linux/slab.h>
+#include <linux/of_irq.h>
 
 #include "decl.h"
 #include "ioctl.h"
@@ -100,8 +111,8 @@ enum {
 #define SCAN_BEACON_ENTRY_PAD			6
 
 #define MWIFIEX_PASSIVE_SCAN_CHAN_TIME	110
-#define MWIFIEX_ACTIVE_SCAN_CHAN_TIME	30
-#define MWIFIEX_SPECIFIC_SCAN_CHAN_TIME	30
+#define MWIFIEX_ACTIVE_SCAN_CHAN_TIME	40
+#define MWIFIEX_SPECIFIC_SCAN_CHAN_TIME	40
 #define MWIFIEX_DEF_SCAN_CHAN_GAP_TIME  50
 
 #define SCAN_RSSI(RSSI)					(0x100 - ((u8)(RSSI)))
@@ -1019,6 +1030,8 @@ int mwifiex_shutdown_fw_complete(struct mwifiex_adapter *adapter);
 int mwifiex_dnld_fw(struct mwifiex_adapter *, struct mwifiex_fw_image *);
 
 int mwifiex_recv_packet(struct mwifiex_private *priv, struct sk_buff *skb);
+int mwifiex_uap_recv_packet(struct mwifiex_private *priv,
+			    struct sk_buff *skb);
 
 int mwifiex_process_mgmt_packet(struct mwifiex_private *priv,
 				struct sk_buff *skb);
@@ -1040,9 +1053,8 @@ int mwifiex_alloc_cmd_buffer(struct mwifiex_adapter *adapter);
 int mwifiex_free_cmd_buffer(struct mwifiex_adapter *adapter);
 void mwifiex_cancel_all_pending_cmd(struct mwifiex_adapter *adapter);
 void mwifiex_cancel_pending_ioctl(struct mwifiex_adapter *adapter);
+void mwifiex_cancel_pending_scan_cmd(struct mwifiex_adapter *adapter);
 
-void mwifiex_insert_cmd_to_free_q(struct mwifiex_adapter *adapter,
-				  struct cmd_ctrl_node *cmd_node);
 void mwifiex_recycle_cmd_node(struct mwifiex_adapter *adapter,
 			      struct cmd_ctrl_node *cmd_node);
 

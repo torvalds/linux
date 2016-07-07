@@ -185,7 +185,7 @@ static s32 e1000_init_nvm_params_82571(struct e1000_hw *hw)
 		/* EEPROM access above 16k is unsupported */
 		if (size > 14)
 			size = 14;
-		nvm->word_size = 1 << size;
+		nvm->word_size = BIT(size);
 		break;
 	}
 
@@ -1163,12 +1163,12 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 
 	/* Transmit Descriptor Control 0 */
 	reg = er32(TXDCTL(0));
-	reg |= (1 << 22);
+	reg |= BIT(22);
 	ew32(TXDCTL(0), reg);
 
 	/* Transmit Descriptor Control 1 */
 	reg = er32(TXDCTL(1));
-	reg |= (1 << 22);
+	reg |= BIT(22);
 	ew32(TXDCTL(1), reg);
 
 	/* Transmit Arbitration Control 0 */
@@ -1177,11 +1177,11 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 	switch (hw->mac.type) {
 	case e1000_82571:
 	case e1000_82572:
-		reg |= (1 << 23) | (1 << 24) | (1 << 25) | (1 << 26);
+		reg |= BIT(23) | BIT(24) | BIT(25) | BIT(26);
 		break;
 	case e1000_82574:
 	case e1000_82583:
-		reg |= (1 << 26);
+		reg |= BIT(26);
 		break;
 	default:
 		break;
@@ -1193,12 +1193,12 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 	switch (hw->mac.type) {
 	case e1000_82571:
 	case e1000_82572:
-		reg &= ~((1 << 29) | (1 << 30));
-		reg |= (1 << 22) | (1 << 24) | (1 << 25) | (1 << 26);
+		reg &= ~(BIT(29) | BIT(30));
+		reg |= BIT(22) | BIT(24) | BIT(25) | BIT(26);
 		if (er32(TCTL) & E1000_TCTL_MULR)
-			reg &= ~(1 << 28);
+			reg &= ~BIT(28);
 		else
-			reg |= (1 << 28);
+			reg |= BIT(28);
 		ew32(TARC(1), reg);
 		break;
 	default:
@@ -1211,7 +1211,7 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 	case e1000_82574:
 	case e1000_82583:
 		reg = er32(CTRL);
-		reg &= ~(1 << 29);
+		reg &= ~BIT(29);
 		ew32(CTRL, reg);
 		break;
 	default:
@@ -1224,8 +1224,8 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 	case e1000_82574:
 	case e1000_82583:
 		reg = er32(CTRL_EXT);
-		reg &= ~(1 << 23);
-		reg |= (1 << 22);
+		reg &= ~BIT(23);
+		reg |= BIT(22);
 		ew32(CTRL_EXT, reg);
 		break;
 	default:
@@ -1261,7 +1261,7 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 	case e1000_82574:
 	case e1000_82583:
 		reg = er32(GCR);
-		reg |= (1 << 22);
+		reg |= BIT(22);
 		ew32(GCR, reg);
 
 		/* Workaround for hardware errata.
@@ -1308,8 +1308,8 @@ static void e1000_clear_vfta_82571(struct e1000_hw *hw)
 				       E1000_VFTA_ENTRY_SHIFT) &
 			    E1000_VFTA_ENTRY_MASK;
 			vfta_bit_in_reg =
-			    1 << (hw->mng_cookie.vlan_id &
-				  E1000_VFTA_ENTRY_BIT_SHIFT_MASK);
+			    BIT(hw->mng_cookie.vlan_id &
+				E1000_VFTA_ENTRY_BIT_SHIFT_MASK);
 		}
 		break;
 	default:

@@ -161,7 +161,7 @@ void print_hists_in(struct hists *hists)
 	struct rb_root *root;
 	struct rb_node *node;
 
-	if (sort__need_collapse)
+	if (hists__has(hists, need_collapse))
 		root = &hists->entries_collapsed;
 	else
 		root = hists->entries_in;

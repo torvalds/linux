@@ -105,7 +105,7 @@ void ufs_set_link(struct inode *dir, struct ufs_dir_entry *de,
 }
 
 
-static void ufs_check_page(struct page *page)
+static bool ufs_check_page(struct page *page)
 {
 	struct inode *dir = page->mapping->host;
 	struct super_block *sb = dir->i_sb;
@@ -143,7 +143,7 @@ static void ufs_check_page(struct page *page)
 		goto Eend;
 out:
 	SetPageChecked(page);
-	return;
+	return true;
 
 	/* Too bad, we had an error */
 
@@ -180,8 +180,8 @@ Eend:
 		   "offset=%lu",
 		   dir->i_ino, (page->index<<PAGE_SHIFT)+offs);
 fail:
-	SetPageChecked(page);
 	SetPageError(page);
+	return false;
 }
 
 static struct page *ufs_get_page(struct inode *dir, unsigned long n)
@@ -190,10 +190,10 @@ static struct page *ufs_get_page(struct inode *dir, unsigned long n)
 	struct page *page = read_mapping_page(mapping, n, NULL);
 	if (!IS_ERR(page)) {
 		kmap(page);
-		if (!PageChecked(page))
-			ufs_check_page(page);
-		if (PageError(page))
-			goto fail;
+		if (unlikely(!PageChecked(page))) {
+			if (PageError(page) || !ufs_check_page(page))
+				goto fail;
+		}
 	}
 	return page;
 
@@ -653,7 +653,7 @@ not_empty:
 
 const struct file_operations ufs_dir_operations = {
 	.read		= generic_read_dir,
-	.iterate	= ufs_readdir,
+	.iterate_shared	= ufs_readdir,
 	.fsync		= generic_file_fsync,
 	.llseek		= generic_file_llseek,
 };

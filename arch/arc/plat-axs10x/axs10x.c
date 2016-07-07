@@ -14,10 +14,11 @@
  *
  */
 
+#include <linux/of_fdt.h>
 #include <linux/of_platform.h>
+#include <linux/libfdt.h>
 
 #include <asm/asm-offsets.h>
-#include <asm/clk.h>
 #include <asm/io.h>
 #include <asm/mach_desc.h>
 #include <asm/mcip.h>
@@ -389,6 +390,13 @@ axs103_set_freq(unsigned int id, unsigned int fd, unsigned int od)
 
 static void __init axs103_early_init(void)
 {
+	int offset = fdt_path_offset(initial_boot_params, "/cpu_card/core_clk");
+	const struct fdt_property *prop = fdt_get_property(initial_boot_params,
+							   offset,
+							   "clock-frequency",
+							   NULL);
+	u32 freq = be32_to_cpu(*(u32*)(prop->data)) / 1000000, orig = freq;
+
 	/*
 	 * AXS103 configurations for SMP/QUAD configurations share device tree
 	 * which defaults to 90 MHz. However recent failures of Quad config
@@ -401,12 +409,10 @@ static void __init axs103_early_init(void)
 #ifdef CONFIG_ARC_MCIP
 	unsigned int num_cores = (read_aux_reg(ARC_REG_MCIP_BCR) >> 16) & 0x3F;
 	if (num_cores > 2)
-		arc_set_core_freq(50 * 1000000);
-	else if (num_cores == 2)
-		arc_set_core_freq(75 * 1000000);
+		freq = 50;
 #endif
 
-	switch (arc_get_core_freq()/1000000) {
+	switch (freq) {
 	case 33:
 		axs103_set_freq(1, 1, 1);
 		break;
@@ -431,11 +437,18 @@ static void __init axs103_early_init(void)
 		 * DT "clock-frequency" might not match with board value.
 		 * Hence update it to match the board value.
 		 */
-		arc_set_core_freq(axs103_get_freq() * 1000000);
+		freq = axs103_get_freq();
 		break;
 	}
 
-	pr_info("Freq is %dMHz\n", axs103_get_freq());
+	pr_info("Freq is %dMHz\n", freq);
+
+	/* Patching .dtb in-place with new core clock value */
+	if (freq != orig ) {
+		freq = cpu_to_be32(freq * 1000000);
+		fdt_setprop_inplace(initial_boot_params, offset,
+				    "clock-frequency", &freq, sizeof(freq));
+	}
 
 	/* Memory maps already config in pre-bootloader */
 

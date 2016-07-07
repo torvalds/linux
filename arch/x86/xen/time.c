@@ -290,11 +290,11 @@ static int xen_vcpuop_set_next_event(unsigned long delta,
 	WARN_ON(!clockevent_state_oneshot(evt));
 
 	single.timeout_abs_ns = get_abs_timeout(delta);
-	single.flags = VCPU_SSHOTTMR_future;
+	/* Get an event anyway, even if the timeout is already expired */
+	single.flags = 0;
 
 	ret = HYPERVISOR_vcpu_op(VCPUOP_set_singleshot_timer, cpu, &single);
-
-	BUG_ON(ret != 0 && ret != -ETIME);
+	BUG_ON(ret != 0);
 
 	return ret;
 }

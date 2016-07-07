@@ -48,7 +48,7 @@ config ARM_CCI5xx_PMU
 	  If unsure, say Y
 
 config ARM_CCN
-	bool "ARM CCN driver support"
+	tristate "ARM CCN driver support"
 	depends on ARM || ARM64
 	depends on PERF_EVENTS
 	help
@@ -58,6 +58,7 @@ config ARM_CCN
 config BRCMSTB_GISB_ARB
 	bool "Broadcom STB GISB bus arbiter"
 	depends on ARM || MIPS
+	default ARCH_BRCMSTB || BMIPS_GENERIC
 	help
 	  Driver for the Broadcom Set Top Box System-on-a-chip internal bus
 	  arbiter. This driver provides timeout and target abort error handling
@@ -110,7 +111,7 @@ config OMAP_OCP2SCP
 config SIMPLE_PM_BUS
 	bool "Simple Power-Managed Bus Driver"
 	depends on OF && PM
-	depends on ARCH_SHMOBILE || COMPILE_TEST
+	depends on ARCH_RENESAS || COMPILE_TEST
 	help
 	  Driver for transparent busses that don't need a real driver, but
 	  where the bus controller is part of a PM domain, or under the control

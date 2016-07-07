@@ -113,7 +113,6 @@ static int armada_drm_load(struct drm_device *dev, unsigned long flags)
 		goto err_comp;
 
 	dev->irq_enabled = true;
-	dev->vblank_disable_allowed = 1;
 
 	ret = armada_fbdev_init(dev);
 	if (ret)

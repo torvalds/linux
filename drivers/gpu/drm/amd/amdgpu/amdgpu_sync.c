@@ -109,6 +109,29 @@ static void amdgpu_sync_keep_later(struct fence **keep, struct fence *fence)
 }
 
 /**
+ * amdgpu_sync_add_later - add the fence to the hash
+ *
+ * @sync: sync object to add the fence to
+ * @f: fence to add
+ *
+ * Tries to add the fence to an existing hash entry. Returns true when an entry
+ * was found, false otherwise.
+ */
+static bool amdgpu_sync_add_later(struct amdgpu_sync *sync, struct fence *f)
+{
+	struct amdgpu_sync_entry *e;
+
+	hash_for_each_possible(sync->fences, e, node, f->context) {
+		if (unlikely(e->fence->context != f->context))
+			continue;
+
+		amdgpu_sync_keep_later(&e->fence, f);
+		return true;
+	}
+	return false;
+}
+
+/**
  * amdgpu_sync_fence - remember to sync to this fence
  *
  * @sync: sync object to add fence to
@@ -127,13 +150,8 @@ int amdgpu_sync_fence(struct amdgpu_device *adev, struct amdgpu_sync *sync,
 	    amdgpu_sync_get_owner(f) == AMDGPU_FENCE_OWNER_VM)
 		amdgpu_sync_keep_later(&sync->last_vm_update, f);
 
-	hash_for_each_possible(sync->fences, e, node, f->context) {
-		if (unlikely(e->fence->context != f->context))
-			continue;
-
-		amdgpu_sync_keep_later(&e->fence, f);
+	if (amdgpu_sync_add_later(sync, f))
 		return 0;
-	}
 
 	e = kmem_cache_alloc(amdgpu_sync_slab, GFP_KERNEL);
 	if (!e)
@@ -202,6 +220,81 @@ int amdgpu_sync_resv(struct amdgpu_device *adev,
 			break;
 	}
 	return r;
+}
+
+/**
+ * amdgpu_sync_is_idle - test if all fences are signaled
+ *
+ * @sync: the sync object
+ *
+ * Returns true if all fences in the sync object are signaled.
+ */
+bool amdgpu_sync_is_idle(struct amdgpu_sync *sync)
+{
+	struct amdgpu_sync_entry *e;
+	struct hlist_node *tmp;
+	int i;
+
+	hash_for_each_safe(sync->fences, i, tmp, e, node) {
+		struct fence *f = e->fence;
+
+		if (fence_is_signaled(f)) {
+			hash_del(&e->node);
+			fence_put(f);
+			kmem_cache_free(amdgpu_sync_slab, e);
+			continue;
+		}
+
+		return false;
+	}
+
+	return true;
+}
+
+/**
+ * amdgpu_sync_cycle_fences - move fences from one sync object into another
+ *
+ * @dst: the destination sync object
+ * @src: the source sync object
+ * @fence: fence to add to source
+ *
+ * Remove all fences from source and put them into destination and add
+ * fence as new one into source.
+ */
+int amdgpu_sync_cycle_fences(struct amdgpu_sync *dst, struct amdgpu_sync *src,
+			     struct fence *fence)
+{
+	struct amdgpu_sync_entry *e, *newone;
+	struct hlist_node *tmp;
+	int i;
+
+	/* Allocate the new entry before moving the old ones */
+	newone = kmem_cache_alloc(amdgpu_sync_slab, GFP_KERNEL);
+	if (!newone)
+		return -ENOMEM;
+
+	hash_for_each_safe(src->fences, i, tmp, e, node) {
+		struct fence *f = e->fence;
+
+		hash_del(&e->node);
+		if (fence_is_signaled(f)) {
+			fence_put(f);
+			kmem_cache_free(amdgpu_sync_slab, e);
+			continue;
+		}
+
+		if (amdgpu_sync_add_later(dst, f)) {
+			kmem_cache_free(amdgpu_sync_slab, e);
+			continue;
+		}
+
+		hash_add(dst->fences, &e->node, f->context);
+	}
+
+	hash_add(src->fences, &newone->node, fence->context);
+	newone->fence = fence_get(fence);
+
+	return 0;
 }
 
 struct fence *amdgpu_sync_get_fence(struct amdgpu_sync *sync)

@@ -61,6 +61,14 @@
  * function will also cleanup rejected sockets, those that reach the connected
  * state but leave it before they have been accepted.
  *
+ * - Lock ordering for pending or accept queue sockets is:
+ *
+ *     lock_sock(listener);
+ *     lock_sock_nested(pending, SINGLE_DEPTH_NESTING);
+ *
+ * Using explicit nested locking keeps lockdep happy since normally only one
+ * lock of a given class may be taken at a time.
+ *
  * - Sockets created by user action will be cleaned up when the user process
  * calls close(2), causing our release implementation to be called. Our release
  * implementation will perform some cleanup then drop the last reference so our
@@ -443,7 +451,7 @@ void vsock_pending_work(struct work_struct *work)
 	cleanup = true;
 
 	lock_sock(listener);
-	lock_sock(sk);
+	lock_sock_nested(sk, SINGLE_DEPTH_NESTING);
 
 	if (vsock_is_pending(sk)) {
 		vsock_remove_pending(listener, sk);
@@ -1292,7 +1300,7 @@ static int vsock_accept(struct socket *sock, struct socket *newsock, int flags)
 	if (connected) {
 		listener->sk_ack_backlog--;
 
-		lock_sock(connected);
+		lock_sock_nested(connected, SINGLE_DEPTH_NESTING);
 		vconnected = vsock_sk(connected);
 
 		/* If the listener socket has received an error, then we should
@@ -1808,27 +1816,8 @@ vsock_stream_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 	else if (sk->sk_shutdown & RCV_SHUTDOWN)
 		err = 0;
 
-	if (copied > 0) {
-		/* We only do these additional bookkeeping/notification steps
-		 * if we actually copied something out of the queue pair
-		 * instead of just peeking ahead.
-		 */
-
-		if (!(flags & MSG_PEEK)) {
-			/* If the other side has shutdown for sending and there
-			 * is nothing more to read, then modify the socket
-			 * state.
-			 */
-			if (vsk->peer_shutdown & SEND_SHUTDOWN) {
-				if (vsock_stream_has_data(vsk) <= 0) {
-					sk->sk_state = SS_UNCONNECTED;
-					sock_set_flag(sk, SOCK_DONE);
-					sk->sk_state_change(sk);
-				}
-			}
-		}
+	if (copied > 0)
 		err = copied;
-	}
 
 out:
 	release_sock(sk);

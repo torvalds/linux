@@ -105,7 +105,7 @@ nvkm_bios_new(struct nvkm_device *device, int index, struct nvkm_bios **pbios)
 
 	if (!(bios = *pbios = kzalloc(sizeof(*bios), GFP_KERNEL)))
 		return -ENOMEM;
-	nvkm_subdev_ctor(&nvkm_bios, device, index, 0, &bios->subdev);
+	nvkm_subdev_ctor(&nvkm_bios, device, index, &bios->subdev);
 
 	ret = nvbios_shadow(bios);
 	if (ret)

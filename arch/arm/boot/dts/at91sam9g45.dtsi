@@ -978,7 +978,7 @@
 
 			trng@fffcc000 {
 				compatible = "atmel,at91sam9g45-trng";
-				reg = <0xfffcc000 0x4000>;
+				reg = <0xfffcc000 0x100>;
 				interrupts = <6 IRQ_TYPE_LEVEL_HIGH 0>;
 				clocks = <&trng_clk>;
 			};

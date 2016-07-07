@@ -80,6 +80,6 @@ enum i40iw_status_code i40iw_manage_vf_pble_bp(struct i40iw_sc_cqp *cqp,
 	return 0;
 }
 
-struct i40iw_vf_cqp_ops iw_vf_cqp_ops = {
+const struct i40iw_vf_cqp_ops iw_vf_cqp_ops = {
 	i40iw_manage_vf_pble_bp
 };

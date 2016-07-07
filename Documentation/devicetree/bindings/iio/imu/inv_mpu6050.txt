@@ -8,10 +8,23 @@ Required properties:
  - interrupt-parent : should be the phandle for the interrupt controller
  - interrupts : interrupt mapping for GPIO IRQ
 
+Optional properties:
+ - mount-matrix: an optional 3x3 mounting rotation matrix
+
+
 Example:
 	mpu6050@68 {
 		compatible = "invensense,mpu6050";
 		reg = <0x68>;
 		interrupt-parent = <&gpio1>;
 		interrupts = <18 1>;
+		mount-matrix = "-0.984807753012208",  /* x0 */
+		               "0",                   /* y0 */
+		               "-0.173648177666930",  /* z0 */
+		               "0",                   /* x1 */
+		               "-1",                  /* y1 */
+		               "0",                   /* z1 */
+		               "-0.173648177666930",  /* x2 */
+		               "0",                   /* y2 */
+		               "0.984807753012208";   /* z2 */
 	};

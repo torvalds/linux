@@ -61,11 +61,9 @@ static int udc_bind_to_driver(struct usb_udc *udc,
 
 #ifdef	CONFIG_HAS_DMA
 
-int usb_gadget_map_request(struct usb_gadget *gadget,
+int usb_gadget_map_request_by_dev(struct device *dev,
 		struct usb_request *req, int is_in)
 {
-	struct device *dev = gadget->dev.parent;
-
 	if (req->length == 0)
 		return 0;
 
@@ -75,7 +73,7 @@ int usb_gadget_map_request(struct usb_gadget *gadget,
 		mapped = dma_map_sg(dev, req->sg, req->num_sgs,
 				is_in ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
 		if (mapped == 0) {
-			dev_err(&gadget->dev, "failed to map SGs\n");
+			dev_err(dev, "failed to map SGs\n");
 			return -EFAULT;
 		}
 
@@ -92,23 +90,37 @@ int usb_gadget_map_request(struct usb_gadget *gadget,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(usb_gadget_map_request_by_dev);
+
+int usb_gadget_map_request(struct usb_gadget *gadget,
+		struct usb_request *req, int is_in)
+{
+	return usb_gadget_map_request_by_dev(gadget->dev.parent, req, is_in);
+}
 EXPORT_SYMBOL_GPL(usb_gadget_map_request);
 
-void usb_gadget_unmap_request(struct usb_gadget *gadget,
+void usb_gadget_unmap_request_by_dev(struct device *dev,
 		struct usb_request *req, int is_in)
 {
 	if (req->length == 0)
 		return;
 
 	if (req->num_mapped_sgs) {
-		dma_unmap_sg(gadget->dev.parent, req->sg, req->num_mapped_sgs,
+		dma_unmap_sg(dev, req->sg, req->num_mapped_sgs,
 				is_in ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
 
 		req->num_mapped_sgs = 0;
 	} else {
-		dma_unmap_single(gadget->dev.parent, req->dma, req->length,
+		dma_unmap_single(dev, req->dma, req->length,
 				is_in ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
 	}
+}
+EXPORT_SYMBOL_GPL(usb_gadget_unmap_request_by_dev);
+
+void usb_gadget_unmap_request(struct usb_gadget *gadget,
+		struct usb_request *req, int is_in)
+{
+	usb_gadget_unmap_request_by_dev(gadget->dev.parent, req, is_in);
 }
 EXPORT_SYMBOL_GPL(usb_gadget_unmap_request);
 
@@ -591,11 +603,15 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver)
 		}
 	}
 
-	list_add_tail(&driver->pending, &gadget_driver_pending_list);
-	pr_info("udc-core: couldn't find an available UDC - added [%s] to list of pending drivers\n",
-		driver->function);
+	if (!driver->match_existing_only) {
+		list_add_tail(&driver->pending, &gadget_driver_pending_list);
+		pr_info("udc-core: couldn't find an available UDC - added [%s] to list of pending drivers\n",
+			driver->function);
+		ret = 0;
+	}
+
 	mutex_unlock(&udc_lock);
-	return 0;
+	return ret;
 found:
 	ret = udc_bind_to_driver(udc, driver);
 	mutex_unlock(&udc_lock);

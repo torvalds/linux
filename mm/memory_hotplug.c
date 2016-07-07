@@ -78,8 +78,23 @@ static struct {
 #define memhp_lock_acquire()      lock_map_acquire(&mem_hotplug.dep_map)
 #define memhp_lock_release()      lock_map_release(&mem_hotplug.dep_map)
 
+#ifndef CONFIG_MEMORY_HOTPLUG_DEFAULT_ONLINE
 bool memhp_auto_online;
+#else
+bool memhp_auto_online = true;
+#endif
 EXPORT_SYMBOL_GPL(memhp_auto_online);
+
+static int __init setup_memhp_default_state(char *str)
+{
+	if (!strcmp(str, "online"))
+		memhp_auto_online = true;
+	else if (!strcmp(str, "offline"))
+		memhp_auto_online = false;
+
+	return 1;
+}
+__setup("memhp_default_state=", setup_memhp_default_state);
 
 void get_online_mems(void)
 {
@@ -248,7 +263,7 @@ static void register_page_bootmem_info_section(unsigned long start_pfn)
 }
 #endif /* !CONFIG_SPARSEMEM_VMEMMAP */
 
-void register_page_bootmem_info_node(struct pglist_data *pgdat)
+void __init register_page_bootmem_info_node(struct pglist_data *pgdat)
 {
 	unsigned long i, pfn, end_pfn, nr_pages;
 	int node = pgdat->node_id;
@@ -285,7 +300,7 @@ void register_page_bootmem_info_node(struct pglist_data *pgdat)
 		 * multiple nodes we check that this pfn does not already
 		 * reside in some other nodes.
 		 */
-		if (pfn_valid(pfn) && (pfn_to_nid(pfn) == node))
+		if (pfn_valid(pfn) && (early_pfn_to_nid(pfn) == node))
 			register_page_bootmem_info_section(pfn);
 	}
 }
@@ -1410,7 +1425,7 @@ static struct page *next_active_pageblock(struct page *page)
 }
 
 /* Checks if this range of memory is likely to be hot-removable. */
-int is_mem_section_removable(unsigned long start_pfn, unsigned long nr_pages)
+bool is_mem_section_removable(unsigned long start_pfn, unsigned long nr_pages)
 {
 	struct page *page = pfn_to_page(start_pfn);
 	struct page *end_page = page + nr_pages;
@@ -1418,12 +1433,12 @@ int is_mem_section_removable(unsigned long start_pfn, unsigned long nr_pages)
 	/* Check the starting page of each pageblock within the range */
 	for (; page < end_page; page = next_active_pageblock(page)) {
 		if (!is_pageblock_removable_nolock(page))
-			return 0;
+			return false;
 		cond_resched();
 	}
 
 	/* All pageblocks in the memory block are likely to be hot-removable */
-	return 1;
+	return true;
 }
 
 /*

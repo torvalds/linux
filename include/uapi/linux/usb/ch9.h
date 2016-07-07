@@ -105,6 +105,13 @@
 #define USB_REQ_LOOPBACK_DATA_READ	0x16
 #define USB_REQ_SET_INTERFACE_DS	0x17
 
+/* specific requests for USB Power Delivery */
+#define USB_REQ_GET_PARTNER_PDO		20
+#define USB_REQ_GET_BATTERY_STATUS	21
+#define USB_REQ_SET_PDO			22
+#define USB_REQ_GET_VDM			23
+#define USB_REQ_SEND_VDM		24
+
 /* The Link Power Management (LPM) ECN defines USB_REQ_TEST_AND_SET command,
  * used by hubs to put ports into a new L1 suspend state, except that it
  * forgot to define its number ...
@@ -164,6 +171,22 @@
 #define USB_DEV_STAT_U1_ENABLED		2	/* transition into U1 state */
 #define USB_DEV_STAT_U2_ENABLED		3	/* transition into U2 state */
 #define USB_DEV_STAT_LTM_ENABLED	4	/* Latency tolerance messages */
+
+/*
+ * Feature selectors from Table 9-8 USB Power Delivery spec
+ */
+#define USB_DEVICE_BATTERY_WAKE_MASK	40
+#define USB_DEVICE_OS_IS_PD_AWARE	41
+#define USB_DEVICE_POLICY_MODE		42
+#define USB_PORT_PR_SWAP		43
+#define USB_PORT_GOTO_MIN		44
+#define USB_PORT_RETURN_POWER		45
+#define USB_PORT_ACCEPT_PD_REQUEST	46
+#define USB_PORT_REJECT_PD_REQUEST	47
+#define USB_PORT_PORT_PD_RESET		48
+#define USB_PORT_C_PORT_PD_CHANGE	49
+#define USB_PORT_CABLE_PD_RESET		50
+#define USB_DEVICE_CHARGING_POLICY	54
 
 /**
  * struct usb_ctrlrequest - SETUP data for a USB device control request
@@ -911,6 +934,104 @@ struct usb_ssp_cap_descriptor {
 #define USB_SSP_SUBLINK_SPEED_RSVD	(0x3f << 8)	/* Reserved */
 #define USB_SSP_SUBLINK_SPEED_LP	(0x3 << 14)	/* Link protocol */
 #define USB_SSP_SUBLINK_SPEED_LSM	(0xff << 16)	/* Lanespeed mantissa */
+} __attribute__((packed));
+
+/*
+ * USB Power Delivery Capability Descriptor:
+ * Defines capabilities for PD
+ */
+/* Defines the various PD Capabilities of this device */
+#define USB_PD_POWER_DELIVERY_CAPABILITY	0x06
+/* Provides information on each battery supported by the device */
+#define USB_PD_BATTERY_INFO_CAPABILITY		0x07
+/* The Consumer characteristics of a Port on the device */
+#define USB_PD_PD_CONSUMER_PORT_CAPABILITY	0x08
+/* The provider characteristics of a Port on the device */
+#define USB_PD_PD_PROVIDER_PORT_CAPABILITY	0x09
+
+struct usb_pd_cap_descriptor {
+	__u8  bLength;
+	__u8  bDescriptorType;
+	__u8  bDevCapabilityType; /* set to USB_PD_POWER_DELIVERY_CAPABILITY */
+	__u8  bReserved;
+	__le32 bmAttributes;
+#define USB_PD_CAP_BATTERY_CHARGING	(1 << 1) /* supports Battery Charging specification */
+#define USB_PD_CAP_USB_PD		(1 << 2) /* supports USB Power Delivery specification */
+#define USB_PD_CAP_PROVIDER		(1 << 3) /* can provide power */
+#define USB_PD_CAP_CONSUMER		(1 << 4) /* can consume power */
+#define USB_PD_CAP_CHARGING_POLICY	(1 << 5) /* supports CHARGING_POLICY feature */
+#define USB_PD_CAP_TYPE_C_CURRENT	(1 << 6) /* supports power capabilities defined in the USB Type-C Specification */
+
+#define USB_PD_CAP_PWR_AC		(1 << 8)
+#define USB_PD_CAP_PWR_BAT		(1 << 9)
+#define USB_PD_CAP_PWR_USE_V_BUS	(1 << 14)
+
+	__le16 bmProviderPorts; /* Bit zero refers to the UFP of the device */
+	__le16 bmConsumerPorts;
+	__le16 bcdBCVersion;
+	__le16 bcdPDVersion;
+	__le16 bcdUSBTypeCVersion;
+} __attribute__((packed));
+
+struct usb_pd_cap_battery_info_descriptor {
+	__u8 bLength;
+	__u8 bDescriptorType;
+	__u8 bDevCapabilityType;
+	/* Index of string descriptor shall contain the user friendly name for this battery */
+	__u8 iBattery;
+	/* Index of string descriptor shall contain the Serial Number String for this battery */
+	__u8 iSerial;
+	__u8 iManufacturer;
+	__u8 bBatteryId; /* uniquely identifies this battery in status Messages */
+	__u8 bReserved;
+	/*
+	 * Shall contain the Battery Charge value above which this
+	 * battery is considered to be fully charged but not necessarily
+	 * “topped off.”
+	 */
+	__le32 dwChargedThreshold; /* in mWh */
+	/*
+	 * Shall contain the minimum charge level of this battery such
+	 * that above this threshold, a device can be assured of being
+	 * able to power up successfully (see Battery Charging 1.2).
+	 */
+	__le32 dwWeakThreshold; /* in mWh */
+	__le32 dwBatteryDesignCapacity; /* in mWh */
+	__le32 dwBatteryLastFullchargeCapacity; /* in mWh */
+} __attribute__((packed));
+
+struct usb_pd_cap_consumer_port_descriptor {
+	__u8 bLength;
+	__u8 bDescriptorType;
+	__u8 bDevCapabilityType;
+	__u8 bReserved;
+	__u8 bmCapabilities;
+/* port will oerate under: */
+#define USB_PD_CAP_CONSUMER_BC		(1 << 0) /* BC */
+#define USB_PD_CAP_CONSUMER_PD		(1 << 1) /* PD */
+#define USB_PD_CAP_CONSUMER_TYPE_C	(1 << 2) /* USB Type-C Current */
+	__le16 wMinVoltage; /* in 50mV units */
+	__le16 wMaxVoltage; /* in 50mV units */
+	__u16 wReserved;
+	__le32 dwMaxOperatingPower; /* in 10 mW - operating at steady state */
+	__le32 dwMaxPeakPower; /* in 10mW units - operating at peak power */
+	__le32 dwMaxPeakPowerTime; /* in 100ms units - duration of peak */
+#define USB_PD_CAP_CONSUMER_UNKNOWN_PEAK_POWER_TIME 0xffff
+} __attribute__((packed));
+
+struct usb_pd_cap_provider_port_descriptor {
+	__u8 bLength;
+	__u8 bDescriptorType;
+	__u8 bDevCapabilityType;
+	__u8 bReserved1;
+	__u8 bmCapabilities;
+/* port will oerate under: */
+#define USB_PD_CAP_PROVIDER_BC		(1 << 0) /* BC */
+#define USB_PD_CAP_PROVIDER_PD		(1 << 1) /* PD */
+#define USB_PD_CAP_PROVIDER_TYPE_C	(1 << 2) /* USB Type-C Current */
+	__u8 bNumOfPDObjects;
+	__u8 bReserved2;
+	__le32 wPowerDataObject[];
 } __attribute__((packed));
 
 /*

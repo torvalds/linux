@@ -372,6 +372,7 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  * @unprepare_message: undo any work done by prepare_message().
  * @spi_flash_read: to support spi-controller hardwares that provide
  *                  accelerated interface to read from flash devices.
+ * @flash_read_supported: spi device supports flash read
  * @cs_gpios: Array of GPIOs to use as chip select lines; one per CS
  *	number. Any individual value may be -ENOENT for CS lines that
  *	are not GPIOs (driven by the SPI controller itself).
@@ -529,6 +530,7 @@ struct spi_master {
 				 struct spi_message *message);
 	int (*spi_flash_read)(struct  spi_device *spi,
 			      struct spi_flash_read_message *msg);
+	bool (*flash_read_supported)(struct spi_device *spi);
 
 	/*
 	 * These hooks are for drivers that use a generic implementation
@@ -1158,7 +1160,9 @@ struct spi_flash_read_message {
 /* SPI core interface for flash read support */
 static inline bool spi_flash_read_supported(struct spi_device *spi)
 {
-	return spi->master->spi_flash_read ? true : false;
+	return spi->master->spi_flash_read &&
+	       (!spi->master->flash_read_supported ||
+	       spi->master->flash_read_supported(spi));
 }
 
 int spi_flash_read(struct spi_device *spi,

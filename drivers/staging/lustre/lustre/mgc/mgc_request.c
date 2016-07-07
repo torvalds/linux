@@ -502,8 +502,12 @@ static void do_requeue(struct config_llog_data *cld)
 	 */
 	down_read(&cld->cld_mgcexp->exp_obd->u.cli.cl_sem);
 	if (cld->cld_mgcexp->exp_obd->u.cli.cl_conn_count != 0) {
+		int rc;
+
 		CDEBUG(D_MGC, "updating log %s\n", cld->cld_logname);
-		mgc_process_log(cld->cld_mgcexp->exp_obd, cld);
+		rc = mgc_process_log(cld->cld_mgcexp->exp_obd, cld);
+		if (rc && rc != -ENOENT)
+			CERROR("failed processing log: %d\n", rc);
 	} else {
 		CDEBUG(D_MGC, "disconnecting, won't update log %s\n",
 		       cld->cld_logname);
@@ -734,7 +738,9 @@ static int mgc_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 	struct task_struct *task;
 	int rc;
 
-	ptlrpcd_addref();
+	rc = ptlrpcd_addref();
+	if (rc < 0)
+		goto err_noref;
 
 	rc = client_obd_setup(obd, lcfg);
 	if (rc)
@@ -773,6 +779,7 @@ err_cleanup:
 	client_obd_cleanup(obd);
 err_decref:
 	ptlrpcd_decref();
+err_noref:
 	return rc;
 }
 
@@ -1720,7 +1727,6 @@ static int mgc_process_config(struct obd_device *obd, u32 len, void *buf)
 		CERROR("Unknown command: %d\n", lcfg->lcfg_command);
 		rc = -EINVAL;
 		goto out;
-
 	}
 	}
 out:
