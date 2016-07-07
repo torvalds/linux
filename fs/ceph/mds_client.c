@@ -1212,6 +1212,8 @@ static void remove_session_caps(struct ceph_mds_session *session)
 	dout("remove_session_caps on %p\n", session);
 	iterate_session_caps(session, remove_session_caps_cb, fsc);
 
+	wake_up_all(&fsc->mdsc->cap_flushing_wq);
+
 	spin_lock(&session->s_cap_lock);
 	if (session->s_nr_caps > 0) {
 		struct inode *inode;
@@ -3536,6 +3538,12 @@ void ceph_mdsc_sync(struct ceph_mds_client *mdsc)
 	ceph_flush_dirty_caps(mdsc);
 	spin_lock(&mdsc->cap_dirty_lock);
 	want_flush = mdsc->last_cap_flush_tid;
+	if (!list_empty(&mdsc->cap_flush_list)) {
+		struct ceph_cap_flush *cf =
+			list_last_entry(&mdsc->cap_flush_list,
+					struct ceph_cap_flush, g_list);
+		cf->wake = true;
+	}
 	spin_unlock(&mdsc->cap_dirty_lock);
 
 	dout("sync want tid %lld flush_seq %lld\n",
