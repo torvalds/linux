@@ -532,6 +532,8 @@ extern int nvm_register(struct request_queue *, char *,
 						struct nvm_dev_ops *);
 extern void nvm_unregister(char *);
 
+void nvm_mark_blk(struct nvm_dev *dev, struct ppa_addr ppa, int type);
+
 extern int nvm_submit_io(struct nvm_dev *, struct nvm_rq *);
 extern void nvm_generic_to_addr_mode(struct nvm_dev *, struct nvm_rq *);
 extern void nvm_addr_to_generic_mode(struct nvm_dev *, struct nvm_rq *);

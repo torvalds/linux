@@ -210,6 +210,12 @@ void nvm_put_blk(struct nvm_dev *dev, struct nvm_block *blk)
 }
 EXPORT_SYMBOL(nvm_put_blk);
 
+void nvm_mark_blk(struct nvm_dev *dev, struct ppa_addr ppa, int type)
+{
+	return dev->mt->mark_blk(dev, ppa, type);
+}
+EXPORT_SYMBOL(nvm_mark_blk);
+
 int nvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)
 {
 	return dev->mt->submit_io(dev, rqd);
