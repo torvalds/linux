@@ -571,32 +571,12 @@ static void qat_rsa_cb(struct icp_qat_fw_pke_resp *resp)
 
 	areq->dst_len = req->ctx.rsa->key_sz;
 	if (req->dst_align) {
-		char *ptr = req->dst_align;
-
-		while (!(*ptr) && areq->dst_len) {
-			areq->dst_len--;
-			ptr++;
-		}
-
-		if (areq->dst_len != req->ctx.rsa->key_sz)
-			memmove(req->dst_align, ptr, areq->dst_len);
-
 		scatterwalk_map_and_copy(req->dst_align, areq->dst, 0,
 					 areq->dst_len, 1);
 
 		dma_free_coherent(dev, req->ctx.rsa->key_sz, req->dst_align,
 				  req->out.rsa.enc.c);
 	} else {
-		char *ptr = sg_virt(areq->dst);
-
-		while (!(*ptr) && areq->dst_len) {
-			areq->dst_len--;
-			ptr++;
-		}
-
-		if (sg_virt(areq->dst) != ptr && areq->dst_len)
-			memmove(sg_virt(areq->dst), ptr, areq->dst_len);
-
 		dma_unmap_single(dev, req->out.rsa.enc.c, req->ctx.rsa->key_sz,
 				 DMA_FROM_DEVICE);
 	}
