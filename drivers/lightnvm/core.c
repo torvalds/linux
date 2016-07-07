@@ -237,9 +237,10 @@ void nvm_generic_to_addr_mode(struct nvm_dev *dev, struct nvm_rq *rqd)
 EXPORT_SYMBOL(nvm_generic_to_addr_mode);
 
 int nvm_set_rqd_ppalist(struct nvm_dev *dev, struct nvm_rq *rqd,
-				struct ppa_addr *ppas, int nr_ppas, int vblk)
+			const struct ppa_addr *ppas, int nr_ppas, int vblk)
 {
 	int i, plane_cnt, pl_idx;
+	struct ppa_addr ppa;
 
 	if ((!vblk || dev->plane_mode == NVM_PLANE_SINGLE) && nr_ppas == 1) {
 		rqd->nr_ppas = nr_ppas;
@@ -264,8 +265,9 @@ int nvm_set_rqd_ppalist(struct nvm_dev *dev, struct nvm_rq *rqd,
 
 		for (i = 0; i < nr_ppas; i++) {
 			for (pl_idx = 0; pl_idx < plane_cnt; pl_idx++) {
-				ppas[i].g.pl = pl_idx;
-				rqd->ppa_list[(pl_idx * nr_ppas) + i] = ppas[i];
+				ppa = ppas[i];
+				ppa.g.pl = pl_idx;
+				rqd->ppa_list[(pl_idx * nr_ppas) + i] = ppa;
 			}
 		}
 	}
