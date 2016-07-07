@@ -184,9 +184,6 @@ static void dump_tlb_book3e(void);
 
 static int xmon_no_auto_backtrace;
 
-extern void xmon_enter(void);
-extern void xmon_leave(void);
-
 #ifdef CONFIG_PPC64
 #define REG		"%.16lx"
 #else
@@ -1686,8 +1683,6 @@ write_spr(int n, unsigned long val)
 }
 
 static unsigned long regno;
-extern char exc_prolog;
-extern char dec_exc;
 
 static void dump_one_spr(int spr, bool show_unimplemented)
 {
