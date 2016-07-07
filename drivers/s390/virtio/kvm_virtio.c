@@ -458,6 +458,8 @@ static int __init kvm_devices_init(void)
 	if (test_devices_support(total_memory_size) < 0)
 		return -ENODEV;
 
+	pr_warn("The s390-virtio transport is deprecated. Please switch to a modern host providing virtio-ccw.\n");
+
 	rc = vmem_add_mapping(total_memory_size, PAGE_SIZE);
 	if (rc)
 		return rc;
