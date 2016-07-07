@@ -374,8 +374,10 @@ static const struct vop_data rk3399_vop_big = {
 static const struct vop_win_data rk3399_vop_lit_win_data[] = {
 	{ .base = 0x00, .phy = &rk3288_win01_data,
 	  .type = DRM_PLANE_TYPE_PRIMARY },
+	{ .phy = NULL },
 	{ .base = 0x00, .phy = &rk3288_win23_data,
 	  .type = DRM_PLANE_TYPE_CURSOR},
+	{ .phy = NULL },
 };
 
 

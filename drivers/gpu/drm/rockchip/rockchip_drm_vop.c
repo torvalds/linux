@@ -1095,39 +1095,47 @@ static int vop_zpos_cmp(const void *a, const void *b)
 	struct vop_zpos *pa = (struct vop_zpos *)a;
 	struct vop_zpos *pb = (struct vop_zpos *)b;
 
-	return pb->zpos - pa->zpos;
+	return pa->zpos - pb->zpos;
 }
 
 static int vop_crtc_atomic_check(struct drm_crtc *crtc,
-				 struct drm_crtc_state *state)
+				 struct drm_crtc_state *crtc_state)
 {
-	struct drm_device *dev = crtc->dev;
-	struct rockchip_crtc_state *s = to_rockchip_crtc_state(state);
+	struct drm_atomic_state *state = crtc_state->state;
+	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
 	struct vop *vop = to_vop(crtc);
 	const struct vop_data *vop_data = vop->data;
 	struct drm_plane *plane;
+	struct drm_plane_state *pstate;
+	struct vop_plane_state *plane_state;
 	struct vop_zpos *pzpos;
 	int dsp_layer_sel = 0;
-	int i, cnt = 0, ret = 0;
+	int i, j, cnt = 0, ret = 0;
 
-	pzpos = kmalloc_array(vop->num_wins, sizeof(*pzpos), GFP_KERNEL);
+	pzpos = kmalloc_array(vop_data->win_size, sizeof(*pzpos), GFP_KERNEL);
 	if (!pzpos)
 		return -ENOMEM;
 
-	drm_atomic_crtc_state_for_each_plane(plane, state) {
-		struct drm_plane_state *pstate;
-		struct vop_plane_state *plane_state;
-		struct vop_win *win = to_vop_win(plane);
+	for (i = 0; i < vop_data->win_size; i++) {
+		const struct vop_win_data *win_data = &vop_data->win[i];
+		struct vop_win *win;
 
-		if (plane->parent)
+		if (!win_data->phy)
 			continue;
-		if (cnt >= vop->num_wins) {
-			dev_err(dev->dev, "too many planes!\n");
+
+		for (j = 0; j < vop->num_wins; j++) {
+			win = &vop->win[j];
+
+			if (win->win_id == i && !win->area_id)
+				break;
+		}
+		if (WARN_ON(j >= vop->num_wins)) {
 			ret = -EINVAL;
 			goto err_free_pzpos;
 		}
-		pstate = state->state->plane_states[drm_plane_index(plane)];
 
+		plane = &win->base;
+		pstate = state->plane_states[drm_plane_index(plane)];
 		/*
 		 * plane might not have changed, in which case take
 		 * current state:
@@ -1136,27 +1144,22 @@ static int vop_crtc_atomic_check(struct drm_crtc *crtc,
 			pstate = plane->state;
 		plane_state = to_vop_plane_state(pstate);
 		pzpos[cnt].zpos = plane_state->zpos;
-		pzpos[cnt].win_id = win->win_id;
-
-		cnt++;
+		pzpos[cnt++].win_id = win->win_id;
 	}
 
 	sort(pzpos, cnt, sizeof(pzpos[0]), vop_zpos_cmp, NULL);
 
-	WARN_ON(vop_data->win_size < cnt);
-	for (i = 0; i < (vop_data->win_size - cnt); i++) {
-		dsp_layer_sel <<= 2;
-		/*
-		 * after sort, pzpos[0] is the top zpos layer.
-		 */
-		dsp_layer_sel |= pzpos[0].win_id;
-	}
+	for (i = 0, cnt = 0; i < vop_data->win_size; i++) {
+		const struct vop_win_data *win_data = &vop_data->win[i];
+		int shift = i * 2;
 
-	for (i = 0; i < cnt; i++) {
-		struct vop_zpos *zpos = &pzpos[i];
+		if (win_data->phy) {
+			struct vop_zpos *zpos = &pzpos[cnt++];
 
-		dsp_layer_sel <<= 2;
-		dsp_layer_sel |= zpos->win_id;
+			dsp_layer_sel |= zpos->win_id << shift;
+		} else {
+			dsp_layer_sel |= i << shift;
+		}
 	}
 
 	s->dsp_layer_sel = dsp_layer_sel;
@@ -1567,6 +1570,9 @@ static int vop_win_init(struct vop *vop)
 		struct vop_win *vop_win = &vop->win[num_wins];
 		const struct vop_win_data *win_data = &vop_data->win[i];
 
+		if (!win_data->phy)
+			continue;
+
 		vop_win->phy = win_data->phy;
 		vop_win->offset = win_data->base;
 		vop_win->type = win_data->type;
@@ -1593,6 +1599,9 @@ static int vop_win_init(struct vop *vop)
 			num_wins++;
 		}
 	}
+
+	vop->num_wins = num_wins;
+
 	prop = drm_property_create_range(vop->drm_dev, DRM_MODE_PROP_ATOMIC,
 					 "ZPOS", 0, vop->data->win_size);
 	if (!prop) {
