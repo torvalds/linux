@@ -105,6 +105,41 @@
 				status = "disabled";
 			};
 
+			nb_perih_clk: nb-periph-clk@13000{
+				compatible = "marvell,armada-3700-periph-clock-nb";
+				reg = <0x13000 0x100>;
+				clocks = <&tbg 0>, <&tbg 1>, <&tbg 2>,
+				<&tbg 3>, <&xtalclk>;
+				#clock-cells = <1>;
+			};
+
+			sb_perih_clk: sb-periph-clk@18000{
+				compatible = "marvell,armada-3700-periph-clock-sb";
+				reg = <0x18000 0x100>;
+				clocks = <&tbg 0>, <&tbg 1>, <&tbg 2>,
+				<&tbg 3>, <&xtalclk>;
+				#clock-cells = <1>;
+			};
+
+			tbg: tbg@13200 {
+				compatible = "marvell,armada-3700-tbg-clock";
+				reg = <0x13200 0x100>;
+				clocks = <&xtalclk>;
+				#clock-cells = <1>;
+			};
+
+			gpio1: gpio@13800 {
+				compatible = "marvell,mvebu-gpio-3700",
+				"syscon", "simple-mfd";
+				reg = <0x13800 0x500>;
+
+				xtalclk: xtal-clk {
+					compatible = "marvell,armada-3700-xtal-clock";
+					clock-output-names = "xtal";
+					#clock-cells = <0>;
+				};
+			};
+
 			usb3: usb@58000 {
 				compatible = "marvell,armada3700-xhci",
 				"generic-xhci";
