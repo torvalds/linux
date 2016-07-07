@@ -64,7 +64,7 @@
 
 static void __iomem *sar_base;
 
-#ifdef CONFIG_SMP
+#if defined(CONFIG_PM) && defined(CONFIG_SMP)
 
 struct omap4_cpu_pm_info {
 	struct powerdomain *pwrdm;
