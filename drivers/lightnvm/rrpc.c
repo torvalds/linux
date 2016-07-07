@@ -96,10 +96,13 @@ static void rrpc_discard(struct rrpc *rrpc, struct bio *bio)
 	sector_t len = bio->bi_iter.bi_size / RRPC_EXPOSED_PAGE_SIZE;
 	struct nvm_rq *rqd;
 
-	do {
+	while (1) {
 		rqd = rrpc_inflight_laddr_acquire(rrpc, slba, len);
+		if (rqd)
+			break;
+
 		schedule();
-	} while (!rqd);
+	}
 
 	if (IS_ERR(rqd)) {
 		pr_err("rrpc: unable to acquire inflight IO\n");
