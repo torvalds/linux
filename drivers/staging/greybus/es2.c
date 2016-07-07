@@ -11,6 +11,7 @@
 #include <linux/usb.h>
 #include <linux/kfifo.h>
 #include <linux/debugfs.h>
+#include <linux/list.h>
 #include <asm/unaligned.h>
 
 #include "greybus.h"
@@ -26,6 +27,7 @@
 #define ES2_GBUF_MSG_SIZE_MAX	2048
 
 /* Memory sizes for the ARPC buffers */
+#define ARPC_OUT_SIZE_MAX	U16_MAX
 #define ARPC_IN_SIZE_MAX	128
 
 static const struct usb_device_id id_table[] = {
@@ -102,6 +104,9 @@ struct es2_cport_out {
  * @arpc_urb: array of urbs for the ARPC in messages
  * @arpc_buffer: array of buffers for the @arpc_urb urbs
  * @arpc_endpoint_in: bulk in endpoint for APBridgeA RPC
+ * @arpc_id_cycle: gives an unique id to ARPC
+ * @arpc_lock: locks ARPC list
+ * @arpcs: list of in progress ARPCs
  */
 struct es2_ap_dev {
 	struct usb_device *usb_dev;
@@ -127,6 +132,10 @@ struct es2_ap_dev {
 	__u8 arpc_endpoint_in;
 	struct urb *arpc_urb[NUM_ARPC_IN_URB];
 	u8 *arpc_buffer[NUM_ARPC_IN_URB];
+
+	int arpc_id_cycle;
+	spinlock_t arpc_lock;
+	struct list_head arpcs;
 };
 
 /**
@@ -164,6 +173,14 @@ struct timesync_authoritative_request {
 	__le64	frame_time[GB_TIMESYNC_MAX_STROBES];
 } __packed;
 
+struct arpc {
+	struct list_head list;
+	struct arpc_request_message *req;
+	struct arpc_response_message *resp;
+	struct completion response_received;
+	bool active;
+};
+
 static inline struct es2_ap_dev *hd_to_es2(struct gb_host_device *hd)
 {
 	return (struct es2_ap_dev *)&hd->hd_priv;
@@ -172,6 +189,8 @@ static inline struct es2_ap_dev *hd_to_es2(struct gb_host_device *hd)
 static void cport_out_callback(struct urb *urb);
 static void usb_log_enable(struct es2_ap_dev *es2);
 static void usb_log_disable(struct es2_ap_dev *es2);
+static int arpc_sync(struct es2_ap_dev *es2, u8 type, void *payload,
+		     size_t size, int *result, unsigned int timeout);
 
 /* Get the endpoints pair mapped to the cport */
 static int cport_to_ep_pair(struct es2_ap_dev *es2, u16 cport_id)
@@ -590,7 +609,9 @@ static int cport_reset(struct gb_host_device *hd, u16 cport_id)
 {
 	struct es2_ap_dev *es2 = hd_to_es2(hd);
 	struct usb_device *udev = es2->usb_dev;
+	struct arpc_cport_reset req;
 	int retval;
+	int result;
 
 	switch (cport_id) {
 	case GB_SVC_CPORT_ID:
@@ -599,18 +620,15 @@ static int cport_reset(struct gb_host_device *hd, u16 cport_id)
 		return 0;
 	}
 
-	retval = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
-				 GB_APB_REQUEST_RESET_CPORT,
-				 USB_DIR_OUT | USB_TYPE_VENDOR |
-				 USB_RECIP_INTERFACE, cport_id, 0,
-				 NULL, 0, ES2_TIMEOUT);
-	if (retval < 0) {
+	req.cport_id = cpu_to_le16(cport_id);
+	retval = arpc_sync(es2, ARPC_CPORT_RESET, &req, sizeof(req),
+			   &result, ES2_TIMEOUT);
+	if (retval == -EREMOTEIO) {
 		dev_err(&udev->dev, "failed to reset cport %u: %d\n", cport_id,
-			retval);
-		return retval;
+			result);
 	}
 
-	return 0;
+	return retval;
 }
 
 static int es2_cport_allocate(struct gb_host_device *hd, int cport_id,
@@ -1061,10 +1079,154 @@ static void cport_out_callback(struct urb *urb)
 	free_urb(es2, urb);
 }
 
+static struct arpc *arpc_alloc(void *payload, u16 size, u8 type)
+{
+	struct arpc *rpc;
+
+	if (size + sizeof(*rpc->req) > ARPC_OUT_SIZE_MAX)
+		return NULL;
+
+	rpc = kzalloc(sizeof(*rpc), GFP_KERNEL);
+	if (!rpc)
+		return NULL;
+
+	INIT_LIST_HEAD(&rpc->list);
+	rpc->req = kzalloc(sizeof(*rpc->req) + size, GFP_KERNEL);
+	if (!rpc->req)
+		goto err_free_rpc;
+
+	rpc->resp = kzalloc(sizeof(*rpc->resp), GFP_KERNEL);
+	if (!rpc->req)
+		goto err_free_req;
+
+	rpc->req->type = type;
+	rpc->req->size = cpu_to_le16(sizeof(rpc->req) + size);
+	memcpy(rpc->req->data, payload, size);
+
+	init_completion(&rpc->response_received);
+
+	return rpc;
+
+err_free_req:
+	kfree(rpc->req);
+err_free_rpc:
+	kfree(rpc);
+
+	return NULL;
+}
+
+static void arpc_free(struct arpc *rpc)
+{
+	kfree(rpc->req);
+	kfree(rpc->resp);
+	kfree(rpc);
+}
+
+static struct arpc *arpc_find(struct es2_ap_dev *es2, u8 id)
+{
+	struct arpc *rpc;
+
+	list_for_each_entry(rpc, &es2->arpcs, list) {
+		if (rpc->req->id == id)
+			return rpc;
+	}
+
+	return NULL;
+}
+
+static void arpc_add(struct es2_ap_dev *es2, struct arpc *rpc)
+{
+	rpc->active = true;
+	rpc->req->id = (u16)(es2->arpc_id_cycle++);
+	list_add_tail(&es2->arpcs, &rpc->list);
+}
+
+static void arpc_del(struct es2_ap_dev *es2, struct arpc *rpc)
+{
+	if (rpc->active) {
+		rpc->active = false;
+		list_del(&rpc->list);
+	}
+}
+
+static int arpc_send(struct es2_ap_dev *es2, struct arpc *rpc, int timeout)
+{
+	struct usb_device *udev = es2->usb_dev;
+	int retval;
+
+	retval = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
+				 APBA_REQUEST_ARPC_RUN,
+				 USB_DIR_OUT | USB_TYPE_VENDOR |
+				 USB_RECIP_INTERFACE,
+				 0, 0,
+				 rpc->req, rpc->req->size,
+				 ES2_TIMEOUT);
+	if (retval != rpc->req->size) {
+		dev_err(&udev->dev,
+			"failed to send ARPC request %d: %d\n",
+			rpc->req->type, retval);
+		if (retval > 0)
+			retval = -EIO;
+		return retval;
+	}
+
+	return 0;
+}
+
+static int arpc_sync(struct es2_ap_dev *es2, u8 type, void *payload,
+		     size_t size, int *result, unsigned int timeout)
+{
+	struct arpc *rpc;
+	unsigned long flags;
+	int retval;
+
+	rpc = arpc_alloc(payload, size, type);
+	if (!rpc)
+		return -ENOMEM;
+
+	spin_lock_irqsave(&es2->arpc_lock, flags);
+	arpc_add(es2, rpc);
+	spin_unlock_irqrestore(&es2->arpc_lock, flags);
+
+	retval = arpc_send(es2, rpc, timeout);
+	if (retval)
+		goto out_arpc_del;
+
+	retval = wait_for_completion_interruptible_timeout(
+						&rpc->response_received,
+						msecs_to_jiffies(timeout));
+	if (retval <= 0) {
+		if (!retval)
+			retval = -ETIMEDOUT;
+		goto out_arpc_del;
+	}
+
+	*result = rpc->resp->result;
+	if (*result)
+		retval = -EREMOTEIO;
+
+out_arpc_del:
+	spin_lock_irqsave(&es2->arpc_lock, flags);
+	arpc_del(es2, rpc);
+	spin_unlock_irqrestore(&es2->arpc_lock, flags);
+	arpc_free(rpc);
+
+	if (retval < 0 && retval != -EREMOTEIO) {
+		dev_err(&es2->usb_dev->dev,
+			"failed to execute ARPC: %d\n", retval);
+	}
+
+	return retval;
+}
+
 static void arpc_in_callback(struct urb *urb)
 {
+	struct es2_ap_dev *es2 = urb->context;
 	struct device *dev = &urb->dev->dev;
 	int status = check_urb_status(urb);
+	struct arpc *rpc;
+	struct arpc_response_message *resp;
+	unsigned long flags;
 	int retval;
 
 	if (status) {
@@ -1078,6 +1240,26 @@ static void arpc_in_callback(struct urb *urb)
 		dev_err(dev, "arpc in-urb error %d (dropped)\n", status);
 		return;
 	}
+
+	if (urb->actual_length < sizeof(*resp)) {
+		dev_err(dev, "short aprc response received\n");
+		goto exit;
+	}
+
+	resp = urb->transfer_buffer;
+	spin_lock_irqsave(&es2->arpc_lock, flags);
+	rpc = arpc_find(es2, resp->id);
+	if (!rpc) {
+		dev_err(dev, "invalid arpc response id received: %d\n",
+			resp->id);
+		spin_unlock_irqrestore(&es2->arpc_lock, flags);
+		goto exit;
+	}
+
+	arpc_del(es2, rpc);
+	memcpy(rpc->resp, resp, sizeof(*resp));
+	complete(&rpc->response_received);
+	spin_unlock_irqrestore(&es2->arpc_lock, flags);
 
 exit:
 	/* put our urb back in the request pool */
@@ -1416,6 +1598,9 @@ static int ap_probe(struct usb_interface *interface,
 							(S_IWUSR | S_IRUGO),
 							gb_debugfs_get(), es2,
 							&apb_log_enable_fops);
+
+	INIT_LIST_HEAD(&es2->arpcs);
+	spin_lock_init(&es2->arpc_lock);
 
 	if (es2_arpc_in_enable(es2))
 		goto error;

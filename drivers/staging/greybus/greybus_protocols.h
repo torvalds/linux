@@ -268,12 +268,44 @@ struct gb_control_intf_pm_response {
 /* requests to set Greybus CPort flags */
 #define GB_APB_REQUEST_CPORT_FLAGS		0x11
 
+/* ARPC command */
+#define APBA_REQUEST_ARPC_RUN			0x12
+
 struct gb_apb_request_cport_flags {
 	u32	flags;
 #define GB_APB_CPORT_FLAG_CONTROL		0x01
 #define GB_APB_CPORT_FLAG_HIGH_PRIO		0x02
 } __packed;
 
+/* APBridgeA RPC (ARPC) */
+
+enum arpc_result {
+	ARPC_SUCCESS		= 0x00,
+	ARPC_NO_MEMORY		= 0x01,
+	ARPC_INVALID		= 0x02,
+	ARPC_TIMEOUT		= 0x03,
+	ARPC_UNKNOWN_ERROR	= 0xff,
+};
+
+/* ARPC request */
+struct arpc_request_message {
+	__le16	id;		/* RPC unique id */
+	__le16	size;		/* Size in bytes of header + payload */
+	__u8	type;		/* RPC type */
+	__u8	data[0];	/* ARPC data */
+} __packed;
+
+/* ARPC response */
+struct arpc_response_message {
+	__le16	id;		/* RPC unique id */
+	__u8	result;		/* Result of RPC */
+} __packed;
+
+#define ARPC_CPORT_RESET			0x00
+
+struct arpc_cport_reset {
+	__le16 cport_id;
+} __packed;
 
 /* Firmware Download Protocol */
 
