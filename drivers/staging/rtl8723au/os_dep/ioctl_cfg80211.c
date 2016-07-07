@@ -1256,10 +1256,15 @@ void rtw_cfg80211_indicate_scan_done(struct rtw_wdev_priv *pwdev_priv,
 		DBG_8723A("%s with scan req\n", __func__);
 
 		if (pwdev_priv->scan_request->wiphy !=
-		    pwdev_priv->rtw_wdev->wiphy)
+		    pwdev_priv->rtw_wdev->wiphy) {
 			DBG_8723A("error wiphy compare\n");
-		else
-			cfg80211_scan_done(pwdev_priv->scan_request, aborted);
+		} else {
+			struct cfg80211_scan_info info = {
+				.aborted = aborted,
+			};
+
+			cfg80211_scan_done(pwdev_priv->scan_request, &info);
+		}
 
 		pwdev_priv->scan_request = NULL;
 	} else {

@@ -4697,9 +4697,10 @@ void ieee80211_wake_queues(struct ieee80211_hw *hw);
  * any context, including hardirq context.
  *
  * @hw: the hardware that finished the scan
- * @aborted: set to true if scan was aborted
+ * @info: information about the completed scan
  */
-void ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted);
+void ieee80211_scan_completed(struct ieee80211_hw *hw,
+			      struct cfg80211_scan_info *info);
 
 /**
  * ieee80211_sched_scan_results - got results from scheduled scan

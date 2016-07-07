@@ -1250,6 +1250,7 @@ struct ieee80211_local {
 	int scan_channel_idx;
 	int scan_ies_len;
 	int hw_scan_ies_bufsize;
+	struct cfg80211_scan_info scan_info;
 
 	struct work_struct sched_scan_stopped_work;
 	struct ieee80211_sub_if_data __rcu *sched_scan_sdata;

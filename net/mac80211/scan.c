@@ -7,6 +7,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2013-2015  Intel Mobile Communications GmbH
+ * Copyright 2016  Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -70,6 +71,7 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 		.boottime_ns = rx_status->boottime_ns,
 	};
 	bool signal_valid;
+	struct ieee80211_sub_if_data *scan_sdata;
 
 	if (ieee80211_hw_check(&local->hw, SIGNAL_DBM))
 		bss_meta.signal = rx_status->signal * 100;
@@ -83,6 +85,20 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 		bss_meta.scan_width = NL80211_BSS_CHAN_WIDTH_10;
 
 	bss_meta.chan = channel;
+
+	rcu_read_lock();
+	scan_sdata = rcu_dereference(local->scan_sdata);
+	if (scan_sdata && scan_sdata->vif.type == NL80211_IFTYPE_STATION &&
+	    scan_sdata->vif.bss_conf.assoc &&
+	    ieee80211_have_rx_timestamp(rx_status)) {
+		bss_meta.parent_tsf =
+			ieee80211_calculate_rx_timestamp(local, rx_status,
+							 len + FCS_LEN, 24);
+		ether_addr_copy(bss_meta.parent_bssid,
+				scan_sdata->vif.bss_conf.bssid);
+	}
+	rcu_read_unlock();
+
 	cbss = cfg80211_inform_bss_frame_data(local->hw.wiphy, &bss_meta,
 					      mgmt, len, GFP_ATOMIC);
 	if (!cbss)
@@ -345,6 +361,12 @@ static void __ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 
 		if (rc == 0)
 			return;
+
+		/* HW scan failed and is going to be reported as aborted,
+		 * so clear old scan info.
+		 */
+		memset(&local->scan_info, 0, sizeof(local->scan_info));
+		aborted = true;
 	}
 
 	kfree(local->hw_scan_req);
@@ -353,8 +375,10 @@ static void __ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 	scan_req = rcu_dereference_protected(local->scan_req,
 					     lockdep_is_held(&local->mtx));
 
-	if (scan_req != local->int_scan_req)
-		cfg80211_scan_done(scan_req, aborted);
+	if (scan_req != local->int_scan_req) {
+		local->scan_info.aborted = aborted;
+		cfg80211_scan_done(scan_req, &local->scan_info);
+	}
 	RCU_INIT_POINTER(local->scan_req, NULL);
 
 	scan_sdata = rcu_dereference_protected(local->scan_sdata,
@@ -391,15 +415,19 @@ static void __ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 		ieee80211_start_next_roc(local);
 }
 
-void ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
+void ieee80211_scan_completed(struct ieee80211_hw *hw,
+			      struct cfg80211_scan_info *info)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 
-	trace_api_scan_completed(local, aborted);
+	trace_api_scan_completed(local, info);
 
 	set_bit(SCAN_COMPLETED, &local->scanning);
-	if (aborted)
+	if (info->aborted)
 		set_bit(SCAN_ABORTED, &local->scanning);
+
+	memcpy(&local->scan_info, info, sizeof(*info));
+
 	ieee80211_queue_delayed_work(&local->hw, &local->scan_work, 0);
 }
 EXPORT_SYMBOL(ieee80211_scan_completed);
@@ -566,6 +594,9 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 		local->hw_scan_req->req.ie = ies;
 		local->hw_scan_req->req.flags = req->flags;
 		eth_broadcast_addr(local->hw_scan_req->req.bssid);
+		local->hw_scan_req->req.duration = req->duration;
+		local->hw_scan_req->req.duration_mandatory =
+			req->duration_mandatory;
 
 		local->hw_scan_band = 0;
 
@@ -1073,6 +1104,7 @@ void ieee80211_scan_cancel(struct ieee80211_local *local)
 	 */
 	cancel_delayed_work(&local->scan_work);
 	/* and clean up */
+	memset(&local->scan_info, 0, sizeof(local->scan_info));
 	__ieee80211_scan_completed(&local->hw, true);
 out:
 	mutex_unlock(&local->mtx);

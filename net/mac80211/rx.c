@@ -1624,8 +1624,13 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 		if (mmie_keyidx < NUM_DEFAULT_KEYS ||
 		    mmie_keyidx >= NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS)
 			return RX_DROP_MONITOR; /* unexpected BIP keyidx */
-		if (rx->sta)
+		if (rx->sta) {
+			if (ieee80211_is_group_privacy_action(skb) &&
+			    test_sta_flag(rx->sta, WLAN_STA_MFP))
+				return RX_DROP_MONITOR;
+
 			rx->key = rcu_dereference(rx->sta->gtk[mmie_keyidx]);
+		}
 		if (!rx->key)
 			rx->key = rcu_dereference(rx->sdata->keys[mmie_keyidx]);
 	} else if (!ieee80211_has_protected(fc)) {
