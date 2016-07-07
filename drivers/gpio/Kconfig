@@ -1034,11 +1034,11 @@ config GPIO_BT8XX
 	  If unsure, say N.
 
 config GPIO_INTEL_MID
-	bool "Intel Mid GPIO support"
-	depends on X86
+	bool "Intel MID GPIO support"
+	depends on X86_INTEL_MID
 	select GPIOLIB_IRQCHIP
 	help
-	  Say Y here to support Intel Mid GPIO.
+	  Say Y here to support Intel MID GPIO.
 
 config GPIO_ML_IOH
 	tristate "OKI SEMICONDUCTOR ML7213 IOH GPIO support"
