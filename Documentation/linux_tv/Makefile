@@ -3,10 +3,13 @@
 PARSER = ../sphinx/parse-headers.pl
 UAPI = ../../include/uapi/linux
 
-htmldocs: audio.h.rst dmx.h.rst frontend.h.rst
+htmldocs: audio.h.rst ca.h.rst dmx.h.rst frontend.h.rst
 
 audio.h.rst: ${PARSER} ${UAPI}/dvb/audio.h  audio.h.rst.exceptions
 	${PARSER} ${UAPI}/dvb/audio.h $@ audio.h.rst.exceptions
+
+ca.h.rst: ${PARSER} ${UAPI}/dvb/ca.h  ca.h.rst.exceptions
+	${PARSER} ${UAPI}/dvb/ca.h $@ ca.h.rst.exceptions
 
 dmx.h.rst: ${PARSER} ${UAPI}/dvb/dmx.h  dmx.h.rst.exceptions
 	${PARSER} ${UAPI}/dvb/dmx.h $@ dmx.h.rst.exceptions
