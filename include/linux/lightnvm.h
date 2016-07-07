@@ -1,7 +1,9 @@
 #ifndef NVM_H
 #define NVM_H
 
+#include <linux/blkdev.h>
 #include <linux/types.h>
+#include <uapi/linux/lightnvm.h>
 
 enum {
 	NVM_IO_OK = 0,
@@ -447,6 +449,8 @@ struct nvm_tgt_type {
 	struct list_head list;
 };
 
+extern struct nvm_tgt_type *nvm_find_target_type(const char *, int);
+
 extern int nvm_register_tgt_type(struct nvm_tgt_type *);
 extern void nvm_unregister_tgt_type(struct nvm_tgt_type *);
 
@@ -455,6 +459,9 @@ extern void nvm_dev_dma_free(struct nvm_dev *, void *, dma_addr_t);
 
 typedef int (nvmm_register_fn)(struct nvm_dev *);
 typedef void (nvmm_unregister_fn)(struct nvm_dev *);
+
+typedef int (nvmm_create_tgt_fn)(struct nvm_dev *, struct nvm_ioctl_create *);
+typedef int (nvmm_remove_tgt_fn)(struct nvm_dev *, struct nvm_ioctl_remove *);
 typedef struct nvm_block *(nvmm_get_blk_fn)(struct nvm_dev *,
 					      struct nvm_lun *, unsigned long);
 typedef void (nvmm_put_blk_fn)(struct nvm_dev *, struct nvm_block *);
@@ -479,6 +486,9 @@ struct nvmm_type {
 
 	nvmm_register_fn *register_mgr;
 	nvmm_unregister_fn *unregister_mgr;
+
+	nvmm_create_tgt_fn *create_tgt;
+	nvmm_remove_tgt_fn *remove_tgt;
 
 	/* Block administration callbacks */
 	nvmm_get_blk_fn *get_blk_unlocked;

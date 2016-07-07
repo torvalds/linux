@@ -20,6 +20,144 @@
 
 #include "gennvm.h"
 
+static struct nvm_target *gen_find_target(struct gen_dev *gn, const char *name)
+{
+	struct nvm_target *tgt;
+
+	list_for_each_entry(tgt, &gn->targets, list)
+		if (!strcmp(name, tgt->disk->disk_name))
+			return tgt;
+
+	return NULL;
+}
+
+static const struct block_device_operations gen_fops = {
+	.owner		= THIS_MODULE,
+};
+
+static int gen_create_tgt(struct nvm_dev *dev, struct nvm_ioctl_create *create)
+{
+	struct gen_dev *gn = dev->mp;
+	struct nvm_ioctl_create_simple *s = &create->conf.s;
+	struct request_queue *tqueue;
+	struct gendisk *tdisk;
+	struct nvm_tgt_type *tt;
+	struct nvm_target *t;
+	void *targetdata;
+
+	tt = nvm_find_target_type(create->tgttype, 1);
+	if (!tt) {
+		pr_err("nvm: target type %s not found\n", create->tgttype);
+		return -EINVAL;
+	}
+
+	mutex_lock(&gn->lock);
+	t = gen_find_target(gn, create->tgtname);
+	if (t) {
+		pr_err("nvm: target name already exists.\n");
+		mutex_unlock(&gn->lock);
+		return -EINVAL;
+	}
+	mutex_unlock(&gn->lock);
+
+	t = kmalloc(sizeof(struct nvm_target), GFP_KERNEL);
+	if (!t)
+		return -ENOMEM;
+
+	tqueue = blk_alloc_queue_node(GFP_KERNEL, dev->q->node);
+	if (!tqueue)
+		goto err_t;
+	blk_queue_make_request(tqueue, tt->make_rq);
+
+	tdisk = alloc_disk(0);
+	if (!tdisk)
+		goto err_queue;
+
+	sprintf(tdisk->disk_name, "%s", create->tgtname);
+	tdisk->flags = GENHD_FL_EXT_DEVT;
+	tdisk->major = 0;
+	tdisk->first_minor = 0;
+	tdisk->fops = &gen_fops;
+	tdisk->queue = tqueue;
+
+	targetdata = tt->init(dev, tdisk, s->lun_begin, s->lun_end);
+	if (IS_ERR(targetdata))
+		goto err_init;
+
+	tdisk->private_data = targetdata;
+	tqueue->queuedata = targetdata;
+
+	blk_queue_max_hw_sectors(tqueue, 8 * dev->ops->max_phys_sect);
+
+	set_capacity(tdisk, tt->capacity(targetdata));
+	add_disk(tdisk);
+
+	t->type = tt;
+	t->disk = tdisk;
+	t->dev = dev;
+
+	mutex_lock(&gn->lock);
+	list_add_tail(&t->list, &gn->targets);
+	mutex_unlock(&gn->lock);
+
+	return 0;
+err_init:
+	put_disk(tdisk);
+err_queue:
+	blk_cleanup_queue(tqueue);
+err_t:
+	kfree(t);
+	return -ENOMEM;
+}
+
+static void __gen_remove_target(struct nvm_target *t)
+{
+	struct nvm_tgt_type *tt = t->type;
+	struct gendisk *tdisk = t->disk;
+	struct request_queue *q = tdisk->queue;
+
+	del_gendisk(tdisk);
+	blk_cleanup_queue(q);
+
+	if (tt->exit)
+		tt->exit(tdisk->private_data);
+
+	put_disk(tdisk);
+
+	list_del(&t->list);
+	kfree(t);
+}
+
+/**
+ * gen_remove_tgt - Removes a target from the media manager
+ * @dev:	device
+ * @remove:	ioctl structure with target name to remove.
+ *
+ * Returns:
+ * 0: on success
+ * 1: on not found
+ * <0: on error
+ */
+static int gen_remove_tgt(struct nvm_dev *dev, struct nvm_ioctl_remove *remove)
+{
+	struct gen_dev *gn = dev->mp;
+	struct nvm_target *t;
+
+	if (!gn)
+		return 1;
+
+	mutex_lock(&gn->lock);
+	t = gen_find_target(gn, remove->tgtname);
+	if (!t) {
+		mutex_unlock(&gn->lock);
+		return 1;
+	}
+	__gen_remove_target(t);
+	mutex_unlock(&gn->lock);
+
+	return 0;
+}
+
 static int gen_get_area(struct nvm_dev *dev, sector_t *lba, sector_t len)
 {
 	struct gen_dev *gn = dev->mp;
@@ -295,6 +433,8 @@ static int gen_register(struct nvm_dev *dev)
 	gn->dev = dev;
 	gn->nr_luns = dev->nr_luns;
 	INIT_LIST_HEAD(&gn->area_list);
+	mutex_init(&gn->lock);
+	INIT_LIST_HEAD(&gn->targets);
 	dev->mp = gn;
 
 	ret = gen_luns_init(dev, gn);
@@ -318,6 +458,17 @@ err:
 
 static void gen_unregister(struct nvm_dev *dev)
 {
+	struct gen_dev *gn = dev->mp;
+	struct nvm_target *t, *tmp;
+
+	mutex_lock(&gn->lock);
+	list_for_each_entry_safe(t, tmp, &gn->targets, list) {
+		if (t->dev != dev)
+			continue;
+		__gen_remove_target(t);
+	}
+	mutex_unlock(&gn->lock);
+
 	gen_free(dev);
 	module_put(THIS_MODULE);
 }
@@ -514,6 +665,9 @@ static struct nvmm_type gen = {
 
 	.register_mgr		= gen_register,
 	.unregister_mgr		= gen_unregister,
+
+	.create_tgt		= gen_create_tgt,
+	.remove_tgt		= gen_remove_tgt,
 
 	.get_blk_unlocked	= gen_get_blk_unlocked,
 	.put_blk_unlocked	= gen_put_blk_unlocked,

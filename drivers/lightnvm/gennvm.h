@@ -40,6 +40,9 @@ struct gen_dev {
 	int nr_luns;
 	struct gen_lun *luns;
 	struct list_head area_list;
+
+	struct mutex lock;
+	struct list_head targets;
 };
 
 struct gen_area {
