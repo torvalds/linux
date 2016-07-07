@@ -1,7 +1,7 @@
 /*
  *  BSD LICENSE
  *
- *  Copyright (c) 2016 Broadcom.  All rights reserved.
+ *  Copyright(c) 2016 Broadcom. All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
  *  modification, are permitted provided that the following conditions
@@ -32,11 +32,12 @@
 
 /dts-v1/;
 
-#include "bcm-nsp.dtsi"
+#include "bcm4708.dtsi"
+#include "bcm5301x-nand-cs0-bch8.dtsi"
 
 / {
-	model = "NorthStar Plus SVK (BCM958625HR)";
-	compatible = "brcm,bcm58625", "brcm,nsp";
+	model = "NorthStar Enterprise Router (BCM953012ER)";
+	compatible = "brcm,bcm953012er", "brcm,brcm53012", "brcm,bcm4708";
 
 	aliases {
 		serial0 = &uart0;
@@ -47,44 +48,24 @@
 	};
 
 	memory {
-		reg = <0x60000000 0x20000000>;
+		reg = <0x00000000 0x8000000>;
 	};
-};
 
-&nand {
-	nandcs@0 {
-		compatible = "brcm,nandcs";
-		reg = <0>;
-		nand-on-flash-bbt;
-
+	gpio-keys {
+		compatible = "gpio-keys";
 		#address-cells = <1>;
-		#size-cells = <1>;
+		#size-cells = <0>;
 
-		nand-ecc-strength = <24>;
-		nand-ecc-step-size = <1024>;
+		wps {
+			label = "WPS";
+			linux,code = <KEY_WPS_BUTTON>;
+			gpios = <&chipcommon 6 GPIO_ACTIVE_LOW>;
+		};
 
-		brcm,nand-oob-sector-size = <27>;
-
-		partition@0 {
-			label = "nboot";
-			reg = <0x00000000 0x00200000>;
-			read-only;
-		};
-		partition@200000 {
-			label = "nenv";
-			reg = <0x00200000 0x00400000>;
-		};
-		partition@600000 {
-			label = "nsystem";
-			reg = <0x00600000 0x00a00000>;
-		};
-		partition@1000000 {
-			label = "nrootfs";
-			reg = <0x01000000 0x03000000>;
-		};
-		partition@4000000 {
-			label = "ncustfs";
-			reg = <0x04000000 0x3c000000>;
+		restart {
+			label = "Reset";
+			linux,code = <KEY_RESTART>;
+			gpios = <&chipcommon 15 GPIO_ACTIVE_LOW>;
 		};
 	};
 };
@@ -93,19 +74,31 @@
 	status = "okay";
 };
 
-&pcie0 {
+&spi_nor {
 	status = "okay";
 };
 
-&pcie1 {
+&srab {
 	status = "okay";
-};
 
-&pinctrl {
-	pinctrl-names = "default";
-	pinctrl-0 = <&nand_sel>;
-	nand_sel: nand_sel {
-		function = "nand";
-		groups = "nand_grp";
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			label = "port0";
+		};
+
+		port@1 {
+			reg = <1>;
+			label = "port1";
+		};
+
+		port@5 {
+			reg = <5>;
+			label = "cpu";
+			ethernet = <&gmac0>;
+		};
 	};
 };

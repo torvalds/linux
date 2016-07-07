@@ -302,6 +302,11 @@
 		/* ports are defined in board DTS */
 	};
 
+	rng: rng@18004000 {
+		compatible = "brcm,bcm5301x-rng";
+		reg = <0x18004000 0x14>;
+	};
+
 	nand: nand@18028000 {
 		compatible = "brcm,nand-iproc", "brcm,brcmnand-v6.1", "brcm,brcmnand";
 		reg = <0x18028000 0x600>, <0x1811a408 0x600>, <0x18028f00 0x20>;

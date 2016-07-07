@@ -87,6 +87,7 @@ dtb-$(CONFIG_ARCH_BCM_5301X) += \
 	bcm47094-dlink-dir-885l.dtb \
 	bcm94708.dtb \
 	bcm94709.dtb \
+	bcm953012er.dtb \
 	bcm953012k.dtb
 dtb-$(CONFIG_ARCH_BCM_63XX) += \
 	bcm963138dvt.dtb
