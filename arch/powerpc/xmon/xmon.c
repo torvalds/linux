@@ -1711,6 +1711,49 @@ static void dump_206_sprs(void)
 #endif
 }
 
+static void dump_207_sprs(void)
+{
+#ifdef CONFIG_PPC64
+	unsigned long msr;
+
+	if (!cpu_has_feature(CPU_FTR_ARCH_207S))
+		return;
+
+	printf("dpdes  = %.16x  tir   = %.16x cir    = %.8x\n",
+		mfspr(SPRN_DPDES), mfspr(SPRN_TIR), mfspr(SPRN_CIR));
+
+	printf("fscr   = %.16x  tar   = %.16x pspb   = %.8x\n",
+		mfspr(SPRN_FSCR), mfspr(SPRN_TAR), mfspr(SPRN_PSPB));
+
+	msr = mfmsr();
+	if (msr & MSR_TM) {
+		/* Only if TM has been enabled in the kernel */
+		printf("tfhar  = %.16x  tfiar = %.16x texasr = %.16x\n",
+			mfspr(SPRN_TFHAR), mfspr(SPRN_TFIAR),
+			mfspr(SPRN_TEXASR));
+	}
+
+	printf("mmcr0  = %.16x  mmcr1 = %.16x mmcr2  = %.16x\n",
+		mfspr(SPRN_MMCR0), mfspr(SPRN_MMCR1), mfspr(SPRN_MMCR2));
+	printf("pmc1   = %.8x pmc2 = %.8x  pmc3 = %.8x  pmc4   = %.8x\n",
+		mfspr(SPRN_PMC1), mfspr(SPRN_PMC2),
+		mfspr(SPRN_PMC3), mfspr(SPRN_PMC4));
+	printf("mmcra  = %.16x   siar = %.16x pmc5   = %.8x\n",
+		mfspr(SPRN_MMCRA), mfspr(SPRN_SIAR), mfspr(SPRN_PMC5));
+	printf("sdar   = %.16x   sier = %.16x pmc6   = %.8x\n",
+		mfspr(SPRN_SDAR), mfspr(SPRN_SIER), mfspr(SPRN_PMC6));
+	printf("ebbhr  = %.16x  ebbrr = %.16x bescr  = %.16x\n",
+		mfspr(SPRN_EBBHR), mfspr(SPRN_EBBRR), mfspr(SPRN_BESCR));
+
+	if (!(msr & MSR_HV))
+		return;
+
+	printf("hfscr  = %.16x  dhdes = %.16x rpr    = %.16x\n",
+		mfspr(SPRN_HFSCR), mfspr(SPRN_DHDES), mfspr(SPRN_RPR));
+	printf("dawr   = %.16x  dawrx = %.16x ciabr  = %.16x\n",
+		mfspr(SPRN_DAWR), mfspr(SPRN_DAWRX), mfspr(SPRN_CIABR));
+#endif
+}
 
 static void dump_one_spr(int spr, bool show_unimplemented)
 {
@@ -1764,6 +1807,7 @@ static void super_regs(void)
 		printf("toc    = "REG"  dar   = "REG"\n", toc, mfspr(SPRN_DAR));
 
 		dump_206_sprs();
+		dump_207_sprs();
 
 		return;
 	}
