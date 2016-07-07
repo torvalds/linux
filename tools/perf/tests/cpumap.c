@@ -1,5 +1,12 @@
 #include "tests.h"
+#include <stdio.h>
 #include "cpumap.h"
+#include "event.h"
+#include <string.h>
+#include <linux/bitops.h>
+#include "debug.h"
+
+struct machine;
 
 static int process_event_mask(struct perf_tool *tool __maybe_unused,
 			 union perf_event *event,
