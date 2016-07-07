@@ -325,7 +325,7 @@ static void nvm_end_io_sync(struct nvm_rq *rqd)
 	complete(waiting);
 }
 
-int __nvm_submit_ppa(struct nvm_dev *dev, struct nvm_rq *rqd, int opcode,
+static int __nvm_submit_ppa(struct nvm_dev *dev, struct nvm_rq *rqd, int opcode,
 						int flags, void *buf, int len)
 {
 	DECLARE_COMPLETION_ONSTACK(wait);
