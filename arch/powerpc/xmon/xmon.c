@@ -1725,14 +1725,15 @@ static void super_regs(void)
 		asm("mr %0,1" : "=r" (sp) :);
 		asm("mr %0,2" : "=r" (toc) :);
 
-		printf("msr  = "REG"  sprg0= "REG"\n",
+		printf("msr    = "REG"  sprg0 = "REG"\n",
 		       mfmsr(), mfspr(SPRN_SPRG0));
-		printf("pvr  = "REG"  sprg1= "REG"\n",
+		printf("pvr    = "REG"  sprg1 = "REG"\n",
 		       mfspr(SPRN_PVR), mfspr(SPRN_SPRG1));
-		printf("dec  = "REG"  sprg2= "REG"\n",
+		printf("dec    = "REG"  sprg2 = "REG"\n",
 		       mfspr(SPRN_DEC), mfspr(SPRN_SPRG2));
-		printf("sp   = "REG"  sprg3= "REG"\n", sp, mfspr(SPRN_SPRG3));
-		printf("toc  = "REG"  dar  = "REG"\n", toc, mfspr(SPRN_DAR));
+		printf("sp     = "REG"  sprg3 = "REG"\n", sp, mfspr(SPRN_SPRG3));
+		printf("toc    = "REG"  dar   = "REG"\n", toc, mfspr(SPRN_DAR));
+
 		return;
 	}
 	case 'w': {
