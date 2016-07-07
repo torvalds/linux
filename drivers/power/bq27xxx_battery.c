@@ -735,11 +735,8 @@ static void bq27xxx_battery_poll(struct work_struct *work)
 
 	bq27xxx_battery_update(di);
 
-	if (poll_interval > 0) {
-		/* The timer does not have to be accurate. */
-		set_timer_slack(&di->work.timer, poll_interval * HZ / 4);
+	if (poll_interval > 0)
 		schedule_delayed_work(&di->work, poll_interval * HZ);
-	}
 }
 
 /*

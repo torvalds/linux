@@ -2835,6 +2835,7 @@ int btrfs_should_throttle_delayed_refs(struct btrfs_trans_handle *trans,
 
 struct async_delayed_refs {
 	struct btrfs_root *root;
+	u64 transid;
 	int count;
 	int error;
 	int sync;
@@ -2850,6 +2851,10 @@ static void delayed_ref_async_start(struct btrfs_work *work)
 
 	async = container_of(work, struct async_delayed_refs, work);
 
+	/* if the commit is already started, we don't need to wait here */
+	if (btrfs_transaction_blocked(async->root->fs_info))
+		goto done;
+
 	trans = btrfs_join_transaction(async->root);
 	if (IS_ERR(trans)) {
 		async->error = PTR_ERR(trans);
@@ -2861,10 +2866,15 @@ static void delayed_ref_async_start(struct btrfs_work *work)
 	 * wait on delayed refs
 	 */
 	trans->sync = true;
+
+	/* Don't bother flushing if we got into a different transaction */
+	if (trans->transid > async->transid)
+		goto end;
+
 	ret = btrfs_run_delayed_refs(trans, async->root, async->count);
 	if (ret)
 		async->error = ret;
-
+end:
 	ret = btrfs_end_transaction(trans, async->root);
 	if (ret && !async->error)
 		async->error = ret;
@@ -2876,7 +2886,7 @@ done:
 }
 
 int btrfs_async_run_delayed_refs(struct btrfs_root *root,
-				 unsigned long count, int wait)
+				 unsigned long count, u64 transid, int wait)
 {
 	struct async_delayed_refs *async;
 	int ret;
@@ -2888,6 +2898,7 @@ int btrfs_async_run_delayed_refs(struct btrfs_root *root,
 	async->root = root->fs_info->tree_root;
 	async->count = count;
 	async->error = 0;
+	async->transid = transid;
 	if (wait)
 		async->sync = 1;
 	else
@@ -8016,8 +8027,9 @@ btrfs_init_new_buffer(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	struct extent_buffer *buf;
 
 	buf = btrfs_find_create_tree_block(root, bytenr);
-	if (!buf)
-		return ERR_PTR(-ENOMEM);
+	if (IS_ERR(buf))
+		return buf;
+
 	btrfs_set_header_generation(buf, trans->transid);
 	btrfs_set_buffer_lockdep_class(root->root_key.objectid, buf, level);
 	btrfs_tree_lock(buf);
@@ -8044,7 +8056,7 @@ btrfs_init_new_buffer(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		set_extent_dirty(&trans->transaction->dirty_pages, buf->start,
 			 buf->start + buf->len - 1, GFP_NOFS);
 	}
-	trans->blocks_used++;
+	trans->dirty = true;
 	/* this returns a buffer locked for blocking */
 	return buf;
 }
@@ -8659,8 +8671,9 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 	next = btrfs_find_tree_block(root->fs_info, bytenr);
 	if (!next) {
 		next = btrfs_find_create_tree_block(root, bytenr);
-		if (!next)
-			return -ENOMEM;
+		if (IS_ERR(next))
+			return PTR_ERR(next);
+
 		btrfs_set_buffer_lockdep_class(root->root_key.objectid, next,
 					       level - 1);
 		reada = 1;

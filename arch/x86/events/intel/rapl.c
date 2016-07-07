@@ -714,7 +714,7 @@ static void cleanup_rapl_pmus(void)
 	int i;
 
 	for (i = 0; i < rapl_pmus->maxpkg; i++)
-		kfree(rapl_pmus->pmus + i);
+		kfree(rapl_pmus->pmus[i]);
 	kfree(rapl_pmus);
 }
 

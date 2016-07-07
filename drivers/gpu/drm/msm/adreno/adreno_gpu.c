@@ -408,7 +408,7 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	}
 
 	adreno_gpu->memptrs = msm_gem_vaddr(adreno_gpu->memptrs_bo);
-	if (!adreno_gpu->memptrs) {
+	if (IS_ERR(adreno_gpu->memptrs)) {
 		dev_err(drm->dev, "could not vmap memptrs\n");
 		return -ENOMEM;
 	}

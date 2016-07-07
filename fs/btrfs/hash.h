@@ -22,6 +22,7 @@
 int __init btrfs_hash_init(void);
 
 void btrfs_hash_exit(void);
+const char* btrfs_crc32c_impl(void);
 
 u32 btrfs_crc32c(u32 crc, const void *address, unsigned int length);
 

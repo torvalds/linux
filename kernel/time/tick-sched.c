@@ -700,6 +700,12 @@ static ktime_t tick_nohz_stop_sched_tick(struct tick_sched *ts,
 	delta = next_tick - basemono;
 	if (delta <= (u64)TICK_NSEC) {
 		tick.tv64 = 0;
+
+		/*
+		 * Tell the timer code that the base is not idle, i.e. undo
+		 * the effect of get_next_timer_interrupt():
+		 */
+		timer_clear_idle();
 		/*
 		 * We've not stopped the tick yet, and there's a timer in the
 		 * next period, so no point in stopping it either, bail.
@@ -808,6 +814,12 @@ static void tick_nohz_restart_sched_tick(struct tick_sched *ts, ktime_t now)
 	/* Update jiffies first */
 	tick_do_update_jiffies64(now);
 	cpu_load_update_nohz_stop();
+
+	/*
+	 * Clear the timer idle flag, so we avoid IPIs on remote queueing and
+	 * the clock forward checks in the enqueue path:
+	 */
+	timer_clear_idle();
 
 	calc_load_exit_idle();
 	touch_softlockup_watchdog_sched();
@@ -1092,35 +1104,6 @@ static void tick_nohz_switch_to_nohz(void)
 	tick_nohz_activate(ts, NOHZ_MODE_LOWRES);
 }
 
-/*
- * When NOHZ is enabled and the tick is stopped, we need to kick the
- * tick timer from irq_enter() so that the jiffies update is kept
- * alive during long running softirqs. That's ugly as hell, but
- * correctness is key even if we need to fix the offending softirq in
- * the first place.
- *
- * Note, this is different to tick_nohz_restart. We just kick the
- * timer and do not touch the other magic bits which need to be done
- * when idle is left.
- */
-static void tick_nohz_kick_tick(struct tick_sched *ts, ktime_t now)
-{
-#if 0
-	/* Switch back to 2.6.27 behaviour */
-	ktime_t delta;
-
-	/*
-	 * Do not touch the tick device, when the next expiry is either
-	 * already reached or less/equal than the tick period.
-	 */
-	delta =	ktime_sub(hrtimer_get_expires(&ts->sched_timer), now);
-	if (delta.tv64 <= tick_period.tv64)
-		return;
-
-	tick_nohz_restart(ts, now);
-#endif
-}
-
 static inline void tick_nohz_irq_enter(void)
 {
 	struct tick_sched *ts = this_cpu_ptr(&tick_cpu_sched);
@@ -1131,10 +1114,8 @@ static inline void tick_nohz_irq_enter(void)
 	now = ktime_get();
 	if (ts->idle_active)
 		tick_nohz_stop_idle(ts, now);
-	if (ts->tick_stopped) {
+	if (ts->tick_stopped)
 		tick_nohz_update_jiffies(now);
-		tick_nohz_kick_tick(ts, now);
-	}
 }
 
 #else

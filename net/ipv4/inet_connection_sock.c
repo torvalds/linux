@@ -603,7 +603,7 @@ static void reqsk_timer_handler(unsigned long data)
 		if (req->num_timeout++ == 0)
 			atomic_dec(&queue->young);
 		timeo = min(TCP_TIMEOUT_INIT << req->num_timeout, TCP_RTO_MAX);
-		mod_timer_pinned(&req->rsk_timer, jiffies + timeo);
+		mod_timer(&req->rsk_timer, jiffies + timeo);
 		return;
 	}
 drop:
@@ -617,8 +617,9 @@ static void reqsk_queue_hash_req(struct request_sock *req,
 	req->num_timeout = 0;
 	req->sk = NULL;
 
-	setup_timer(&req->rsk_timer, reqsk_timer_handler, (unsigned long)req);
-	mod_timer_pinned(&req->rsk_timer, jiffies + timeout);
+	setup_pinned_timer(&req->rsk_timer, reqsk_timer_handler,
+			    (unsigned long)req);
+	mod_timer(&req->rsk_timer, jiffies + timeout);
 
 	inet_ehash_insert(req_to_sk(req), NULL);
 	/* before letting lookups find us, make sure all req fields

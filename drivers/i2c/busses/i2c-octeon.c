@@ -934,8 +934,15 @@ static int octeon_i2c_read(struct octeon_i2c *i2c, int target,
 		return result;
 
 	for (i = 0; i < length; i++) {
-		/* for the last byte TWSI_CTL_AAK must not be set */
-		if (i + 1 == length)
+		/*
+		 * For the last byte to receive TWSI_CTL_AAK must not be set.
+		 *
+		 * A special case is I2C_M_RECV_LEN where we don't know the
+		 * additional length yet. If recv_len is set we assume we're
+		 * not reading the final byte and therefore need to set
+		 * TWSI_CTL_AAK.
+		 */
+		if ((i + 1 == length) && !(recv_len && i == 0))
 			final_read = true;
 
 		/* clear iflg to allow next event */
@@ -950,12 +957,8 @@ static int octeon_i2c_read(struct octeon_i2c *i2c, int target,
 
 		data[i] = octeon_i2c_data_read(i2c);
 		if (recv_len && i == 0) {
-			if (data[i] > I2C_SMBUS_BLOCK_MAX + 1) {
-				dev_err(i2c->dev,
-					"%s: read len > I2C_SMBUS_BLOCK_MAX %d\n",
-					__func__, data[i]);
+			if (data[i] > I2C_SMBUS_BLOCK_MAX + 1)
 				return -EPROTO;
-			}
 			length += data[i];
 		}
 
