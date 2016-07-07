@@ -1,12 +1,16 @@
+#include <errno.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <signal.h>
 #include <sys/mman.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <linux/types.h>
 #include "perf.h"
 #include "debug.h"
 #include "tests/tests.h"
 #include "cloexec.h"
+#include "util.h"
 #include "arch-tests.h"
 
 static u64 rdpmc(unsigned int counter)
