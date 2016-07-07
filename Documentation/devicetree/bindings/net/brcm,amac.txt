@@ -1,0 +1,24 @@
+Broadcom AMAC Ethernet Controller Device Tree Bindings
+-------------------------------------------------------------
+
+Required properties:
+ - compatible:	"brcm,amac" or "brcm,nsp-amac"
+ - reg:		Address and length of the GMAC registers,
+		Address and length of the GMAC IDM registers
+ - reg-names:	Names of the registers.  Must have both "amac_base" and
+		"idm_base"
+ - interrupts:	Interrupt number
+
+Optional properties:
+- mac-address:	See ethernet.txt file in the same directory
+
+Examples:
+
+amac0: ethernet@18022000 {
+	compatible = "brcm,nsp-amac";
+	reg = <0x18022000 0x1000>,
+	      <0x18110000 0x1000>;
+	reg-names = "amac_base", "idm_base";
+	interrupts = <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>;
+	status = "disabled";
+};
