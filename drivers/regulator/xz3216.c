@@ -366,6 +366,7 @@ static int xz3216_i2c_remove(struct i2c_client *i2c)
 
 static const struct i2c_device_id xz3216_i2c_id[] = {
 	{ "xz3216", 0 },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(i2c, xz3216_i2c_id);
