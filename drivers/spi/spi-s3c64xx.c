@@ -596,9 +596,7 @@ static void s3c64xx_spi_config(struct s3c64xx_spi_driver_data *sdd)
 	u32 val;
 
 	/* Disable Clock */
-	if (sdd->port_conf->clk_from_cmu) {
-		clk_disable_unprepare(sdd->src_clk);
-	} else {
+	if (!sdd->port_conf->clk_from_cmu) {
 		val = readl(regs + S3C64XX_SPI_CLK_CFG);
 		val &= ~S3C64XX_SPI_ENCLK_ENABLE;
 		writel(val, regs + S3C64XX_SPI_CLK_CFG);
@@ -641,11 +639,7 @@ static void s3c64xx_spi_config(struct s3c64xx_spi_driver_data *sdd)
 	writel(val, regs + S3C64XX_SPI_MODE_CFG);
 
 	if (sdd->port_conf->clk_from_cmu) {
-		/* Configure Clock */
-		/* There is half-multiplier before the SPI */
 		clk_set_rate(sdd->src_clk, sdd->cur_speed * 2);
-		/* Enable Clock */
-		clk_prepare_enable(sdd->src_clk);
 	} else {
 		/* Configure Clock */
 		val = readl(regs + S3C64XX_SPI_CLK_CFG);
