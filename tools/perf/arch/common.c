@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <sys/utsname.h>
 #include "common.h"
+#include "../util/util.h"
 #include "../util/debug.h"
 
 const char *const arm_triplets[] = {

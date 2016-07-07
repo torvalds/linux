@@ -3,12 +3,14 @@
  * Copyright (C) 2015, Huawei Inc.
  */
 
+#include <errno.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "debug.h"
 #include "llvm-utils.h"
 #include "config.h"
+#include "util.h"
 
 #define CLANG_BPF_CMD_DEFAULT_TEMPLATE				\
 		"$CLANG_EXEC -D__KERNEL__ -D__NR_CPUS__=$NR_CPUS "\

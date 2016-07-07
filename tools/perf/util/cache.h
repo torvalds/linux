@@ -1,11 +1,8 @@
 #ifndef __PERF_CACHE_H
 #define __PERF_CACHE_H
 
-#include <stdbool.h>
-#include "util.h"
 #include "strbuf.h"
 #include <subcmd/pager.h>
-#include "../perf.h"
 #include "../ui/ui.h"
 
 #include <linux/string.h>
