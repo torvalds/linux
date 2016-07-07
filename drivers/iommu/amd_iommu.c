@@ -2154,11 +2154,9 @@ static void __queue_flush(struct flush_queue *queue)
 	queue->next = 0;
 }
 
-void queue_flush_timeout(unsigned long unsused)
+static void queue_flush_all(void)
 {
 	int cpu;
-
-	atomic_set(&queue_timer_on, 0);
 
 	for_each_possible_cpu(cpu) {
 		struct flush_queue *queue;
@@ -2170,6 +2168,12 @@ void queue_flush_timeout(unsigned long unsused)
 			__queue_flush(queue);
 		spin_unlock_irqrestore(&queue->lock, flags);
 	}
+}
+
+static void queue_flush_timeout(unsigned long unsused)
+{
+	atomic_set(&queue_timer_on, 0);
+	queue_flush_all();
 }
 
 static void queue_add(struct dma_ops_domain *dma_dom,
@@ -2877,6 +2881,13 @@ static void amd_iommu_domain_free(struct iommu_domain *dom)
 
 	switch (dom->type) {
 	case IOMMU_DOMAIN_DMA:
+		/*
+		 * First make sure the domain is no longer referenced from the
+		 * flush queue
+		 */
+		queue_flush_all();
+
+		/* Now release the domain */
 		dma_dom = domain->priv;
 		dma_ops_domain_free(dma_dom);
 		break;
