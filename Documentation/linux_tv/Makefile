@@ -1,32 +1,47 @@
 # Generate the *.h.rst files from uAPI headers
 
-PARSER = ../sphinx/parse-headers.pl
-UAPI = ../../include/uapi/linux
-TARGETS = audio.h.rst ca.h.rst dmx.h.rst frontend.h.rst net.h.rst video.h.rst \
+PARSER = $(srctree)/Documentation/sphinx/parse-headers.pl
+UAPI = $(srctree)/include/uapi/linux
+SRC_DIR=$(srctree)/Documentation/linux_tv
+
+FILES = audio.h.rst ca.h.rst dmx.h.rst frontend.h.rst net.h.rst video.h.rst \
 	  videodev2.h.rst
+
+TARGETS := $(addprefix $(BUILDDIR)/, $(FILES))
 
 htmldocs: ${TARGETS}
 
-audio.h.rst: ${PARSER} ${UAPI}/dvb/audio.h  audio.h.rst.exceptions
-	${PARSER} ${UAPI}/dvb/audio.h $@ audio.h.rst.exceptions
+# Rule to convert a .h file to inline RST documentation
 
-ca.h.rst: ${PARSER} ${UAPI}/dvb/ca.h  ca.h.rst.exceptions
-	${PARSER} ${UAPI}/dvb/ca.h $@ ca.h.rst.exceptions
+gen_rst = \
+	echo ${PARSER} $< $@ $(SRC_DIR)/$(notdir $@).exceptions; \
+	${PARSER} $< $@ $(SRC_DIR)/$(notdir $@).exceptions
 
-dmx.h.rst: ${PARSER} ${UAPI}/dvb/dmx.h  dmx.h.rst.exceptions
-	${PARSER} ${UAPI}/dvb/dmx.h $@ dmx.h.rst.exceptions
+quiet_gen_rst = echo '  PARSE   $(patsubst $(srctree)/%,%,$<)'; \
+	${PARSER} $< $@ $(SRC_DIR)/$(notdir $@).exceptions
 
-frontend.h.rst: ${PARSER} ${UAPI}/dvb/frontend.h  frontend.h.rst.exceptions
-	${PARSER} ${UAPI}/dvb/frontend.h $@ frontend.h.rst.exceptions
+silent_gen_rst = ${gen_rst}
 
-net.h.rst: ${PARSER} ${UAPI}/dvb/net.h  net.h.rst.exceptions
-	${PARSER} ${UAPI}/dvb/net.h $@ net.h.rst.exceptions
+$(BUILDDIR)/audio.h.rst: ${UAPI}/dvb/audio.h ${PARSER} $(SRC_DIR)/audio.h.rst.exceptions
+	@$($(quiet)gen_rst)
 
-video.h.rst: ${PARSER} ${UAPI}/dvb/video.h  video.h.rst.exceptions
-	${PARSER} ${UAPI}/dvb/video.h $@ video.h.rst.exceptions
+$(BUILDDIR)/ca.h.rst: ${UAPI}/dvb/ca.h ${PARSER} $(SRC_DIR)/ca.h.rst.exceptions
+	@$($(quiet)gen_rst)
 
-videodev2.h.rst: ${UAPI}/videodev2.h ${PARSER} videodev2.h.rst.exceptions
-	${PARSER} ${UAPI}/videodev2.h $@ videodev2.h.rst.exceptions
+$(BUILDDIR)/dmx.h.rst: ${UAPI}/dvb/dmx.h ${PARSER} $(SRC_DIR)/dmx.h.rst.exceptions
+	@$($(quiet)gen_rst)
+
+$(BUILDDIR)/frontend.h.rst: ${UAPI}/dvb/frontend.h ${PARSER} $(SRC_DIR)/frontend.h.rst.exceptions
+	@$($(quiet)gen_rst)
+
+$(BUILDDIR)/net.h.rst: ${UAPI}/dvb/net.h ${PARSER} $(SRC_DIR)/net.h.rst.exceptions
+	@$($(quiet)gen_rst)
+
+$(BUILDDIR)/video.h.rst: ${UAPI}/dvb/video.h ${PARSER} $(SRC_DIR)/video.h.rst.exceptions
+	@$($(quiet)gen_rst)
+
+videodev2.h.rst: ${UAPI}/videodev2.h ${PARSER} $(SRC_DIR)/videodev2.h.rst.exceptions
+	@$($(quiet)gen_rst)
 
 cleandocs:
 	-rm ${TARGETS}

@@ -35,7 +35,7 @@ quiet_cmd_sphinx = SPHINX  $@
       cmd_sphinx = $(SPHINXBUILD) -b $2 $(ALLSPHINXOPTS) $(BUILDDIR)/$2
 
 htmldocs:
-	$(MAKE) -C $(srctree)/Documentation/linux_tv $@
+	$(MAKE) BUILDDIR=$(objtree)/$(BUILDDIR) -f $(srctree)/Documentation/linux_tv/Makefile $@
 	$(call cmd,sphinx,html)
 
 pdfdocs:
