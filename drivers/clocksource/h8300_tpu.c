@@ -119,15 +119,16 @@ static struct tpu_priv tpu_priv = {
 #define CH_L 0
 #define CH_H 1
 
-static void __init h8300_tpu_init(struct device_node *node)
+static int __init h8300_tpu_init(struct device_node *node)
 {
 	void __iomem *base[2];
 	struct clk *clk;
+	int ret = -ENXIO;
 
 	clk = of_clk_get(node, 0);
 	if (IS_ERR(clk)) {
 		pr_err("failed to get clock for clocksource\n");
-		return;
+		return PTR_ERR(clk);
 	}
 
 	base[CH_L] = of_iomap(node, CH_L);
@@ -144,14 +145,13 @@ static void __init h8300_tpu_init(struct device_node *node)
 	tpu_priv.mapbase1 = base[CH_L];
 	tpu_priv.mapbase2 = base[CH_H];
 
-	clocksource_register_hz(&tpu_priv.cs, clk_get_rate(clk) / 64);
-
-	return;
+	return clocksource_register_hz(&tpu_priv.cs, clk_get_rate(clk) / 64);
 
 unmap_L:
 	iounmap(base[CH_H]);
 free_clk:
 	clk_put(clk);
+	return ret;
 }
 
 CLOCKSOURCE_OF_DECLARE(h8300_tpu, "renesas,tpu", h8300_tpu_init);

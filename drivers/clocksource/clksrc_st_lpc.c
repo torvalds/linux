@@ -92,7 +92,7 @@ static int __init st_clksrc_setup_clk(struct device_node *np)
 	return 0;
 }
 
-static void __init st_clksrc_of_register(struct device_node *np)
+static int __init st_clksrc_of_register(struct device_node *np)
 {
 	int ret;
 	uint32_t mode;
@@ -100,32 +100,36 @@ static void __init st_clksrc_of_register(struct device_node *np)
 	ret = of_property_read_u32(np, "st,lpc-mode", &mode);
 	if (ret) {
 		pr_err("clksrc-st-lpc: An LPC mode must be provided\n");
-		return;
+		return ret;
 	}
 
 	/* LPC can either run as a Clocksource or in RTC or WDT mode */
 	if (mode != ST_LPC_MODE_CLKSRC)
-		return;
+		return 0;
 
 	ddata.base = of_iomap(np, 0);
 	if (!ddata.base) {
 		pr_err("clksrc-st-lpc: Unable to map iomem\n");
-		return;
+		return -ENXIO;
 	}
 
-	if (st_clksrc_setup_clk(np)) {
+	ret = st_clksrc_setup_clk(np);
+	if (ret) {
 		iounmap(ddata.base);
-		return;
+		return ret;
 	}
 
-	if (st_clksrc_init()) {
+	ret = st_clksrc_init();
+	if (ret) {
 		clk_disable_unprepare(ddata.clk);
 		clk_put(ddata.clk);
 		iounmap(ddata.base);
-		return;
+		return ret;
 	}
 
 	pr_info("clksrc-st-lpc: clocksource initialised - running @ %luHz\n",
 		clk_get_rate(ddata.clk));
+
+	return ret;
 }
 CLOCKSOURCE_OF_DECLARE(ddata, "st,stih407-lpc", st_clksrc_of_register);

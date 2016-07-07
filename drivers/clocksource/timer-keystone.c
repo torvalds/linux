@@ -144,7 +144,7 @@ static int keystone_set_periodic(struct clock_event_device *evt)
 	return 0;
 }
 
-static void __init keystone_timer_init(struct device_node *np)
+static int __init keystone_timer_init(struct device_node *np)
 {
 	struct clock_event_device *event_dev = &timer.event_dev;
 	unsigned long rate;
@@ -154,20 +154,20 @@ static void __init keystone_timer_init(struct device_node *np)
 	irq  = irq_of_parse_and_map(np, 0);
 	if (!irq) {
 		pr_err("%s: failed to map interrupts\n", __func__);
-		return;
+		return -EINVAL;
 	}
 
 	timer.base = of_iomap(np, 0);
 	if (!timer.base) {
 		pr_err("%s: failed to map registers\n", __func__);
-		return;
+		return -ENXIO;
 	}
 
 	clk = of_clk_get(np, 0);
 	if (IS_ERR(clk)) {
 		pr_err("%s: failed to get clock\n", __func__);
 		iounmap(timer.base);
-		return;
+		return PTR_ERR(clk);
 	}
 
 	error = clk_prepare_enable(clk);
@@ -219,11 +219,12 @@ static void __init keystone_timer_init(struct device_node *np)
 	clockevents_config_and_register(event_dev, rate, 1, ULONG_MAX);
 
 	pr_info("keystone timer clock @%lu Hz\n", rate);
-	return;
+	return 0;
 err:
 	clk_put(clk);
 	iounmap(timer.base);
+	return error;
 }
 
 CLOCKSOURCE_OF_DECLARE(keystone_timer, "ti,keystone-timer",
-					keystone_timer_init);
+			   keystone_timer_init);

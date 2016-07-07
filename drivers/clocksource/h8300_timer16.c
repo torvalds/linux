@@ -126,7 +126,7 @@ static struct timer16_priv timer16_priv = {
 #define REG_CH   0
 #define REG_COMM 1
 
-static void __init h8300_16timer_init(struct device_node *node)
+static int __init h8300_16timer_init(struct device_node *node)
 {
 	void __iomem *base[2];
 	int ret, irq;
@@ -136,9 +136,10 @@ static void __init h8300_16timer_init(struct device_node *node)
 	clk = of_clk_get(node, 0);
 	if (IS_ERR(clk)) {
 		pr_err("failed to get clock for clocksource\n");
-		return;
+		return PTR_ERR(clk);
 	}
 
+	ret = -ENXIO;
 	base[REG_CH] = of_iomap(node, 0);
 	if (!base[REG_CH]) {
 		pr_err("failed to map registers for clocksource\n");
@@ -151,6 +152,7 @@ static void __init h8300_16timer_init(struct device_node *node)
 		goto unmap_ch;
 	}
 
+	ret = -EINVAL;
 	irq = irq_of_parse_and_map(node, 0);
 	if (!irq) {
 		pr_err("failed to get irq for clockevent\n");
@@ -174,7 +176,7 @@ static void __init h8300_16timer_init(struct device_node *node)
 
 	clocksource_register_hz(&timer16_priv.cs,
 				clk_get_rate(clk) / 8);
-	return;
+	return 0;
 
 unmap_comm:
 	iounmap(base[REG_COMM]);
@@ -182,6 +184,8 @@ unmap_ch:
 	iounmap(base[REG_CH]);
 free_clk:
 	clk_put(clk);
+	return ret;
 }
 
-CLOCKSOURCE_OF_DECLARE(h8300_16bit, "renesas,16bit-timer", h8300_16timer_init);
+CLOCKSOURCE_OF_DECLARE(h8300_16bit, "renesas,16bit-timer",
+			   h8300_16timer_init);

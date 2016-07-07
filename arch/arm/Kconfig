@@ -358,10 +358,10 @@ config ARCH_CLPS711X
 	bool "Cirrus Logic CLPS711x/EP721x/EP731x-based"
 	select ARCH_REQUIRE_GPIOLIB
 	select AUTO_ZRELADDR
-	select CLKSRC_MMIO
 	select COMMON_CLK
 	select CPU_ARM720T
 	select GENERIC_CLOCKEVENTS
+	select CLPS711X_TIMER
 	select MFD_SYSCON
 	select SOC_BUS
 	help

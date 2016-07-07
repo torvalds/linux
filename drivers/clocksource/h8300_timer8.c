@@ -164,24 +164,26 @@ static struct timer8_priv timer8_priv = {
 	},
 };
 
-static void __init h8300_8timer_init(struct device_node *node)
+static int __init h8300_8timer_init(struct device_node *node)
 {
 	void __iomem *base;
-	int irq;
+	int irq, ret;
 	struct clk *clk;
 
 	clk = of_clk_get(node, 0);
 	if (IS_ERR(clk)) {
 		pr_err("failed to get clock for clockevent\n");
-		return;
+		return PTR_ERR(clk);
 	}
 
+	ret = ENXIO;
 	base = of_iomap(node, 0);
 	if (!base) {
 		pr_err("failed to map registers for clockevent\n");
 		goto free_clk;
 	}
 
+	ret = -EINVAL;
 	irq = irq_of_parse_and_map(node, 0);
 	if (!irq) {
 		pr_err("failed to get irq for clockevent\n");
@@ -205,11 +207,12 @@ static void __init h8300_8timer_init(struct device_node *node)
 	clockevents_config_and_register(&timer8_priv.ced,
 					timer8_priv.rate, 1, 0x0000ffff);
 
-	return;
+	return 0;
 unmap_reg:
 	iounmap(base);
 free_clk:
 	clk_put(clk);
+	return ret;
 }
 
 CLOCKSOURCE_OF_DECLARE(h8300_8bit, "renesas,8bit-timer", h8300_8timer_init);
