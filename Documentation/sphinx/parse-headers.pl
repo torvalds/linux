@@ -163,6 +163,10 @@ if ($file_exceptions) {
 			delete $structs{$1} if (exists($structs{$1}));
 			next;
 		}
+		if (m/^ignore\s+symbol\s+(\S+)/) {
+			delete $enum_symbols{$1} if (exists($enum_symbols{$1}));
+			next;
+		}
 
 		# Parsers to replace a symbol
 
