@@ -269,24 +269,15 @@ struct nvm_lun {
 	int lun_id;
 	int chnl_id;
 
-	/* It is up to the target to mark blocks as closed. If the target does
-	 * not do it, all blocks are marked as open, and nr_open_blocks
-	 * represents the number of blocks in use
-	 */
-	unsigned int nr_open_blocks;	/* Number of used, writable blocks */
-	unsigned int nr_closed_blocks;	/* Number of used, read-only blocks */
-	unsigned int nr_free_blocks;	/* Number of unused blocks */
-	unsigned int nr_bad_blocks;	/* Number of bad blocks */
-
 	spinlock_t lock;
 
+	unsigned int nr_free_blocks;	/* Number of unused blocks */
 	struct nvm_block *blocks;
 };
 
 enum {
 	NVM_BLK_ST_FREE =	0x1,	/* Free block */
-	NVM_BLK_ST_OPEN =	0x2,	/* Open block - read-write */
-	NVM_BLK_ST_CLOSED =	0x4,	/* Closed block - read-only */
+	NVM_BLK_ST_TGT =	0x2,	/* Block in use by target */
 	NVM_BLK_ST_BAD =	0x8,	/* Bad block */
 };
 

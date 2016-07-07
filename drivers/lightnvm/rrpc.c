@@ -512,17 +512,12 @@ static void rrpc_gc_queue(struct work_struct *work)
 	struct rrpc_block *rblk = gcb->rblk;
 	struct rrpc_lun *rlun = rblk->rlun;
 	struct nvm_lun *lun = rblk->parent->lun;
-	struct nvm_block *blk = rblk->parent;
 
 	spin_lock(&rlun->lock);
 	list_add_tail(&rblk->prio, &rlun->prio_list);
 	spin_unlock(&rlun->lock);
 
 	spin_lock(&lun->lock);
-	lun->nr_open_blocks--;
-	lun->nr_closed_blocks++;
-	blk->state &= ~NVM_BLK_ST_OPEN;
-	blk->state |= NVM_BLK_ST_CLOSED;
 	list_move_tail(&rblk->list, &rlun->closed_list);
 	spin_unlock(&lun->lock);
 

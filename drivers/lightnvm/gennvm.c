@@ -122,9 +122,6 @@ static int gennvm_luns_init(struct nvm_dev *dev, struct gen_nvm *gn)
 		lun->vlun.lun_id = i % dev->luns_per_chnl;
 		lun->vlun.chnl_id = i / dev->luns_per_chnl;
 		lun->vlun.nr_free_blocks = dev->blks_per_lun;
-		lun->vlun.nr_open_blocks = 0;
-		lun->vlun.nr_closed_blocks = 0;
-		lun->vlun.nr_bad_blocks = 0;
 	}
 	return 0;
 }
@@ -149,7 +146,6 @@ static int gennvm_block_bb(struct gen_nvm *gn, struct ppa_addr ppa,
 
 		blk = &lun->vlun.blocks[i];
 		list_move_tail(&blk->list, &lun->bb_list);
-		lun->vlun.nr_bad_blocks++;
 		lun->vlun.nr_free_blocks--;
 	}
 
@@ -200,9 +196,8 @@ static int gennvm_block_map(u64 slba, u32 nlb, __le64 *entries, void *private)
 			 * block state. The block is assumed to be open.
 			 */
 			list_move_tail(&blk->list, &lun->used_list);
-			blk->state = NVM_BLK_ST_OPEN;
+			blk->state = NVM_BLK_ST_TGT;
 			lun->vlun.nr_free_blocks--;
-			lun->vlun.nr_open_blocks++;
 		}
 	}
 
@@ -346,11 +341,10 @@ static struct nvm_block *gennvm_get_blk_unlocked(struct nvm_dev *dev,
 		goto out;
 
 	blk = list_first_entry(&lun->free_list, struct nvm_block, list);
-	list_move_tail(&blk->list, &lun->used_list);
-	blk->state = NVM_BLK_ST_OPEN;
 
+	list_move_tail(&blk->list, &lun->used_list);
+	blk->state = NVM_BLK_ST_TGT;
 	lun->vlun.nr_free_blocks--;
-	lun->vlun.nr_open_blocks++;
 
 out:
 	return blk;
@@ -374,27 +368,18 @@ static void gennvm_put_blk_unlocked(struct nvm_dev *dev, struct nvm_block *blk)
 
 	assert_spin_locked(&vlun->lock);
 
-	if (blk->state & NVM_BLK_ST_OPEN) {
+	if (blk->state & NVM_BLK_ST_TGT) {
 		list_move_tail(&blk->list, &lun->free_list);
-		lun->vlun.nr_open_blocks--;
-		lun->vlun.nr_free_blocks++;
-		blk->state = NVM_BLK_ST_FREE;
-	} else if (blk->state & NVM_BLK_ST_CLOSED) {
-		list_move_tail(&blk->list, &lun->free_list);
-		lun->vlun.nr_closed_blocks--;
 		lun->vlun.nr_free_blocks++;
 		blk->state = NVM_BLK_ST_FREE;
 	} else if (blk->state & NVM_BLK_ST_BAD) {
 		list_move_tail(&blk->list, &lun->bb_list);
-		lun->vlun.nr_bad_blocks++;
 		blk->state = NVM_BLK_ST_BAD;
 	} else {
 		WARN_ON_ONCE(1);
 		pr_err("gennvm: erroneous block type (%lu -> %u)\n",
 							blk->id, blk->state);
 		list_move_tail(&blk->list, &lun->bb_list);
-		lun->vlun.nr_bad_blocks++;
-		blk->state = NVM_BLK_ST_BAD;
 	}
 }
 
@@ -516,12 +501,8 @@ static void gennvm_lun_info_print(struct nvm_dev *dev)
 	gennvm_for_each_lun(gn, lun, i) {
 		spin_lock(&lun->vlun.lock);
 
-		pr_info("%s: lun%8u\t%u\t%u\t%u\t%u\n",
-				dev->name, i,
-				lun->vlun.nr_free_blocks,
-				lun->vlun.nr_open_blocks,
-				lun->vlun.nr_closed_blocks,
-				lun->vlun.nr_bad_blocks);
+		pr_info("%s: lun%8u\t%u\n", dev->name, i,
+						lun->vlun.nr_free_blocks);
 
 		spin_unlock(&lun->vlun.lock);
 	}
