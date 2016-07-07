@@ -109,10 +109,11 @@ close IN;
 # Handle multi-line typedefs
 #
 
-my @matches = $data =~ m/typedef\s+struct\s+\S+\s*\{[^\}]+\}\s*(\S+)\s*\;/g;
+my @matches = ($data =~ m/typedef\s+struct\s+\S+?\s*\{[^\}]+\}\s*(\S+)\s*\;/g,
+	       $data =~ m/typedef\s+enum\s+\S+?\s*\{[^\}]+\}\s*(\S+)\s*\;/g,);
 foreach my $m (@matches) {
-		my $s = $1;
-		my $n = $1;
+		my $s = $m;
+		my $n = $m;
 		$n =~ tr/A-Z/a-z/;
 		$n =~ tr/_/-/;
 
