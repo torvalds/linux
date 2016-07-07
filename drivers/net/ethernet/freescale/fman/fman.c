@@ -2331,8 +2331,7 @@ int fman_set_mac_max_frame(struct fman *fman, u8 mac_id, u16 mfl)
 	 * or equal to the port's max
 	 */
 	if ((!fman->state->port_mfl[mac_id]) ||
-	    (fman->state->port_mfl[mac_id] &&
-	    (mfl <= fman->state->port_mfl[mac_id]))) {
+	    (mfl <= fman->state->port_mfl[mac_id])) {
 		fman->state->mac_mfl[mac_id] = mfl;
 	} else {
 		dev_warn(fman->dev, "%s: MAC max_frame_length is larger than Port max_frame_length\n",
