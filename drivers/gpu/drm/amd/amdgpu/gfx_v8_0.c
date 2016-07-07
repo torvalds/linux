@@ -5147,7 +5147,7 @@ static int gfx_v8_0_soft_reset(void *handle)
  * Fetches a GPU clock counter snapshot.
  * Returns the 64 bit clock counter snapshot.
  */
-uint64_t gfx_v8_0_get_gpu_clock_counter(struct amdgpu_device *adev)
+static uint64_t gfx_v8_0_get_gpu_clock_counter(struct amdgpu_device *adev)
 {
 	uint64_t clock;
 
@@ -5207,12 +5207,17 @@ static void gfx_v8_0_ring_emit_gds_switch(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, (1 << (oa_size + oa_base)) - (1 << oa_base));
 }
 
+static const struct amdgpu_gfx_funcs gfx_v8_0_gfx_funcs = {
+	.get_gpu_clock_counter = &gfx_v8_0_get_gpu_clock_counter,
+};
+
 static int gfx_v8_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	adev->gfx.num_gfx_rings = GFX8_NUM_GFX_RINGS;
 	adev->gfx.num_compute_rings = GFX8_NUM_COMPUTE_RINGS;
+	adev->gfx.funcs = &gfx_v8_0_gfx_funcs;
 	gfx_v8_0_set_ring_funcs(adev);
 	gfx_v8_0_set_irq_funcs(adev);
 	gfx_v8_0_set_gds_init(adev);
