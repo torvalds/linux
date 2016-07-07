@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Hans de Goede <hdegoede@redhat.com>
+ * Copyright (C) 2016 Chen-Yu Tsai <wens@csie.org>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -41,17 +41,20 @@
  */
 
 /dts-v1/;
-#include "sun5i-a10s.dtsi"
+#include "sun8i-h3.dtsi"
 #include "sunxi-common-regulators.dtsi"
+
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 #include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
-	model = "Auxtek t004 A10s hdmi tv-stick";
-	compatible = "allwinner,auxtek-t004", "allwinner,sun5i-a10s";
+	model = "Sinovoip BPI-M2+";
+	compatible = "sinovoip,bpi-m2+", "allwinner,sun8i-h3";
 
 	aliases {
 		serial0 = &uart0;
+		serial1 = &uart1;
 	};
 
 	chosen {
@@ -61,51 +64,55 @@
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
-		pinctrl-0 = <&led_pins_t004>;
+		pinctrl-0 = <&pwr_led_bpi_m2p>;
 
-		red {
-			label = "t004-tv-dongle:red:usr";
-			gpios = <&pio 1 2 GPIO_ACTIVE_HIGH>; /* PB2 */
+		pwr_led {
+			label = "bpi-m2+:red:pwr";
+			gpios = <&r_pio 0 10 GPIO_ACTIVE_HIGH>; /* PL10 */
 			default-state = "on";
 		};
 	};
 
-	reg_vmmc1: vmmc1 {
-		compatible = "regulator-fixed";
+	gpio_keys {
+		compatible = "gpio-keys";
 		pinctrl-names = "default";
-		pinctrl-0 = <&mmc1_vcc_en_pin_t004>;
-		regulator-name = "vmmc1";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		enable-active-high;
-		gpio = <&pio 1 18 GPIO_ACTIVE_HIGH>; /* PB18 */
+		pinctrl-0 = <&sw_r_bpi_m2p>;
+
+		sw4 {
+			label = "power";
+			linux,code = <BTN_0>;
+			gpios = <&r_pio 0 3 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	wifi_pwrseq: wifi_pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_en_bpi_m2p>;
+		reset-gpios = <&r_pio 0 7 GPIO_ACTIVE_LOW>; /* PL7 */
 	};
 };
 
-&ehci0 {
+&ehci1 {
 	status = "okay";
 };
 
-&i2c0 {
+&ehci2 {
+	status = "okay";
+};
+
+&ir {
 	pinctrl-names = "default";
-	pinctrl-0 = <&i2c0_pins_a>;
+	pinctrl-0 = <&ir_pins_a>;
 	status = "okay";
-
-	axp152: pmic@30 {
-		compatible = "x-powers,axp152";
-		reg = <0x30>;
-		interrupts = <0>;
-		interrupt-controller;
-		#interrupt-cells = <1>;
-	};
 };
 
 &mmc0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_t004>;
+	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
-	cd-gpios = <&pio 6 1 GPIO_ACTIVE_HIGH>; /* PG1 */
+	cd-gpios = <&pio 5 6 GPIO_ACTIVE_HIGH>; /* PF6 */
 	cd-inverted;
 	status = "okay";
 };
@@ -113,54 +120,61 @@
 &mmc1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc1_pins_a>;
-	vmmc-supply = <&reg_vmmc1>;
+	vmmc-supply = <&reg_vcc3v3>;
+	vqmmc-supply = <&reg_vcc3v3>;
+	mmc-pwrseq = <&wifi_pwrseq>;
 	bus-width = <4>;
 	non-removable;
-	cap-sdio-irq;
 	status = "okay";
-};
 
-&ohci0 {
-	status = "okay";
-};
-
-&otg_sram {
-	status = "okay";
-};
-
-&pio {
-	usb0_id_detect_pin: usb0_id_detect_pin@0 {
-		allwinner,pins = "PG12";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+	brcmf: bcrmf@1 {
+		reg = <1>;
+		compatible = "brcm,bcm4329-fmac";
+		interrupt-parent = <&pio>;
+		interrupts = <6 10 IRQ_TYPE_LEVEL_LOW>; /* PG10 / EINT10 */
+		interrupt-names = "host-wake";
 	};
+};
 
-	mmc0_cd_pin_t004: mmc0_cd_pin@0 {
-		allwinner,pins = "PG1";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
-	};
+&mmc2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc2_8bit_pins>;
+	vmmc-supply = <&reg_vcc3v3>;
+	vqmmc-supply = <&reg_vcc3v3>;
+	bus-width = <8>;
+	non-removable;
+	status = "okay";
+};
 
-	mmc1_vcc_en_pin_t004: mmc1_vcc_en_pin@0 {
-		allwinner,pins = "PB18";
+&ohci1 {
+	status = "okay";
+};
+
+&ohci2 {
+	status = "okay";
+};
+
+&r_pio {
+	pwr_led_bpi_m2p: led_pins@0 {
+		allwinner,pins = "PL10";
 		allwinner,function = "gpio_out";
 		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 
-	led_pins_t004: led_pins@0 {
-		allwinner,pins = "PB2";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_20_MA>;
+	sw_r_bpi_m2p: key_pins@0 {
+		allwinner,pins = "PL3";
+		allwinner,function = "gpio_in";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
-};
 
-&reg_usb1_vbus {
-	gpio = <&pio 6 13 GPIO_ACTIVE_HIGH>; /* PG13 */
-	status = "okay";
+	wifi_en_bpi_m2p: wifi_en_pin {
+		allwinner,pins = "PL7";
+		allwinner,function = "gpio_out";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+	};
 };
 
 &uart0 {
@@ -169,19 +183,13 @@
 	status = "okay";
 };
 
-&usb_otg {
-	dr_mode = "otg";
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_pins_a>;
 	status = "okay";
 };
 
-&usb1_vbus_pin_a {
-	allwinner,pins = "PG13";
-};
-
 &usbphy {
-	pinctrl-names = "default";
-	pinctrl-0 = <&usb0_id_detect_pin>;
-	usb0_id_det-gpio = <&pio 6 12 GPIO_ACTIVE_HIGH>; /* PG12 */
-	usb1_vbus-supply = <&reg_usb1_vbus>;
+	/* USB VBUS is on as long as VCC-IO is on */
 	status = "okay";
 };

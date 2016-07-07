@@ -43,113 +43,11 @@
  */
 
 /*
- * AXP221/221s/223 Integrated Power Management Chip
- * http://www.x-powers.com/product/AXP22X.php
- * http://dl.linux-sunxi.org/AXP/AXP221%20Datasheet%20V1.2%2020130326%20.pdf
+ * AXP809 Integrated Power Management Chip
  */
 
-&axp22x {
+&axp809 {
+	compatible = "x-powers,axp809";
 	interrupt-controller;
 	#interrupt-cells = <1>;
-
-	regulators {
-		/* Default work frequency for buck regulators */
-		x-powers,dcdc-freq = <3000>;
-
-		reg_dcdc1: dcdc1 {
-			regulator-name = "dcdc1";
-		};
-
-		reg_dcdc2: dcdc2 {
-			regulator-name = "dcdc2";
-		};
-
-		reg_dcdc3: dcdc3 {
-			regulator-name = "dcdc3";
-		};
-
-		reg_dcdc4: dcdc4 {
-			regulator-name = "dcdc4";
-		};
-
-		reg_dcdc5: dcdc5 {
-			regulator-name = "dcdc5";
-		};
-
-		reg_dc1sw: dc1sw {
-			regulator-name = "dc1sw";
-		};
-
-		reg_dc5ldo: dc5ldo {
-			regulator-name = "dc5ldo";
-		};
-
-		reg_aldo1: aldo1 {
-			regulator-name = "aldo1";
-		};
-
-		reg_aldo2: aldo2 {
-			regulator-name = "aldo2";
-		};
-
-		reg_aldo3: aldo3 {
-			regulator-name = "aldo3";
-		};
-
-		reg_dldo1: dldo1 {
-			regulator-name = "dldo1";
-		};
-
-		reg_dldo2: dldo2 {
-			regulator-name = "dldo2";
-		};
-
-		reg_dldo3: dldo3 {
-			regulator-name = "dldo3";
-		};
-
-		reg_dldo4: dldo4 {
-			regulator-name = "dldo4";
-		};
-
-		reg_eldo1: eldo1 {
-			regulator-name = "eldo1";
-		};
-
-		reg_eldo2: eldo2 {
-			regulator-name = "eldo2";
-		};
-
-		reg_eldo3: eldo3 {
-			regulator-name = "eldo3";
-		};
-
-		reg_ldo_io0: ldo_io0 {
-			regulator-name = "ldo_io0";
-			status = "disabled";
-		};
-
-		reg_ldo_io1: ldo_io1 {
-			regulator-name = "ldo_io1";
-			status = "disabled";
-		};
-
-		reg_rtc_ldo: rtc_ldo {
-			/* RTC_LDO is a fixed, always-on regulator */
-			regulator-always-on;
-			regulator-min-microvolt = <3000000>;
-			regulator-max-microvolt = <3000000>;
-			regulator-name = "rtc_ldo";
-		};
-
-		reg_drivevbus: drivevbus {
-			regulator-name = "drivevbus";
-			status = "disabled";
-		};
-	};
-
-	usb_power_supply: usb_power_supply {
-		compatible = "x-powers,axp221-usb-power-supply";
-		status = "disabled";
-	};
 };

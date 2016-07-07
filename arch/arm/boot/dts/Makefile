@@ -745,6 +745,7 @@ dtb-$(CONFIG_MACH_SUN6I) += \
 	sun6i-a31s-yones-toptech-bs1078-v2.dtb
 dtb-$(CONFIG_MACH_SUN7I) += \
 	sun7i-a20-bananapi.dtb \
+	sun7i-a20-bananapi-m1-plus.dtb \
 	sun7i-a20-bananapro.dtb \
 	sun7i-a20-cubieboard2.dtb \
 	sun7i-a20-cubietruck.dtb \
@@ -782,7 +783,9 @@ dtb-$(CONFIG_MACH_SUN8I) += \
 	sun8i-h3-orangepi-2.dtb \
 	sun8i-h3-orangepi-one.dtb \
 	sun8i-h3-orangepi-pc.dtb \
-	sun8i-h3-orangepi-plus.dtb
+	sun8i-h3-orangepi-plus.dtb \
+	sun8i-h3-sinovoip-bpi-m2-plus.dtb \
+	sun8i-r16-parrot.dtb
 dtb-$(CONFIG_MACH_SUN9I) += \
 	sun9i-a80-optimus.dtb \
 	sun9i-a80-cubieboard4.dtb

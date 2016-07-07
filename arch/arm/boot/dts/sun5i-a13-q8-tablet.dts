@@ -48,13 +48,3 @@
 	model = "Q8 A13 Tablet";
 	compatible = "allwinner,q8-a13", "allwinner,sun5i-a13";
 };
-
-&reg_ldo3 {
-	regulator-min-microvolt = <3300000>;
-	regulator-max-microvolt = <3300000>;
-	regulator-name = "vcc-wifi";
-};
-
-&usbphy {
-	usb1_vbus-supply = <&reg_ldo3>;
-};
