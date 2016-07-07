@@ -1110,16 +1110,6 @@ config NEED_DMA_MAP_STATE
 config SYS_HAS_EARLY_PRINTK
 	bool
 
-config HOTPLUG_CPU
-	bool "Support for hot-pluggable CPUs"
-	depends on SMP && SYS_SUPPORTS_HOTPLUG_CPU
-	help
-	  Say Y here to allow turning CPUs off and on. CPUs can be
-	  controlled through /sys/devices/system/cpu.
-	  (Note: power management support will enable this option
-	    automatically on SMP systems. )
-	  Say N if you want to disable CPU hotplug.
-
 config SYS_SUPPORTS_HOTPLUG_CPU
 	bool
 
@@ -2632,6 +2622,16 @@ config SMP
 	  <http://www.tldp.org/docs.html#howto>.
 
 	  If you don't know what to do here, say N.
+
+config HOTPLUG_CPU
+	bool "Support for hot-pluggable CPUs"
+	depends on SMP && SYS_SUPPORTS_HOTPLUG_CPU
+	help
+	  Say Y here to allow turning CPUs off and on. CPUs can be
+	  controlled through /sys/devices/system/cpu.
+	  (Note: power management support will enable this option
+	    automatically on SMP systems. )
+	  Say N if you want to disable CPU hotplug.
 
 config SMP_UP
 	bool
