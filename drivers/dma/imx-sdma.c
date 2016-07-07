@@ -18,6 +18,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/bitops.h>
@@ -571,28 +572,20 @@ static void sdma_enable_channel(struct sdma_engine *sdma, int channel)
 static int sdma_run_channel0(struct sdma_engine *sdma)
 {
 	int ret;
-	unsigned long timeout = 500;
+	u32 reg;
 
 	sdma_enable_channel(sdma, 0);
 
-	while (!(ret = readl_relaxed(sdma->regs + SDMA_H_INTR) & 1)) {
-		if (timeout-- <= 0)
-			break;
-		udelay(1);
-	}
-
-	if (ret) {
-		/* Clear the interrupt status */
-		writel_relaxed(ret, sdma->regs + SDMA_H_INTR);
-	} else {
+	ret = readl_relaxed_poll_timeout_atomic(sdma->regs + SDMA_H_STATSTOP,
+						reg, !(reg & 1), 1, 500);
+	if (ret)
 		dev_err(sdma->dev, "Timeout waiting for CH0 ready\n");
-	}
 
 	/* Set bits of CONFIG register with dynamic context switching */
 	if (readl(sdma->regs + SDMA_H_CONFIG) == 0)
 		writel_relaxed(SDMA_H_CONFIG_CSM, sdma->regs + SDMA_H_CONFIG);
 
-	return ret ? 0 : -ETIMEDOUT;
+	return ret;
 }
 
 static int sdma_load_script(struct sdma_engine *sdma, void *buf, int size,
@@ -727,9 +720,9 @@ static irqreturn_t sdma_int_handler(int irq, void *dev_id)
 	unsigned long stat;
 
 	stat = readl_relaxed(sdma->regs + SDMA_H_INTR);
-	/* not interested in channel 0 interrupts */
-	stat &= ~1;
 	writel_relaxed(stat, sdma->regs + SDMA_H_INTR);
+	/* channel 0 is special and not handled here, see run_channel0() */
+	stat &= ~1;
 
 	while (stat) {
 		int channel = fls(stat) - 1;
