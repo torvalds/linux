@@ -196,6 +196,8 @@ $data =~ s/\n\s+\n/\n\n/g;
 #
 $data =~ s,([\_\`\*\<\>\&\\\\:\/]),\\$1,g;
 
+$data =~ s,DEPRECATED,**DEPRECATED**,g;
+
 #
 # Add references
 #
