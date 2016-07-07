@@ -1899,7 +1899,7 @@ static void iwl_trans_pcie_freeze_txq_timer(struct iwl_trans *trans,
 
 		txq->frozen = freeze;
 
-		if (txq->q.read_ptr == txq->q.write_ptr)
+		if (txq->read_ptr == txq->write_ptr)
 			goto next_queue;
 
 		if (freeze) {
@@ -1947,7 +1947,7 @@ static void iwl_trans_pcie_block_txq_ptrs(struct iwl_trans *trans, bool block)
 			txq->block--;
 			if (!txq->block) {
 				iwl_write32(trans, HBUS_TARG_WRPTR,
-					    txq->q.write_ptr | (i << 8));
+					    txq->write_ptr | (i << 8));
 			}
 		} else if (block) {
 			txq->block++;
@@ -1967,14 +1967,14 @@ void iwl_trans_pcie_log_scd_error(struct iwl_trans *trans, struct iwl_txq *txq)
 	int cnt;
 
 	IWL_ERR(trans, "Current SW read_ptr %d write_ptr %d\n",
-		txq->q.read_ptr, txq->q.write_ptr);
+		txq->read_ptr, txq->write_ptr);
 
 	if (trans->cfg->use_tfh)
 		/* TODO: access new SCD registers and dump them */
 		return;
 
 	scd_sram_addr = trans_pcie->scd_base_addr +
-			SCD_TX_STTS_QUEUE_OFFSET(txq->q.id);
+			SCD_TX_STTS_QUEUE_OFFSET(txq->id);
 	iwl_trans_read_mem_bytes(trans, scd_sram_addr, buf, sizeof(buf));
 
 	iwl_print_hex_error(trans, buf, sizeof(buf));
@@ -2009,7 +2009,6 @@ static int iwl_trans_pcie_wait_txq_empty(struct iwl_trans *trans, u32 txq_bm)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_txq *txq;
-	struct iwl_queue *q;
 	int cnt;
 	unsigned long now = jiffies;
 	int ret = 0;
@@ -2027,13 +2026,12 @@ static int iwl_trans_pcie_wait_txq_empty(struct iwl_trans *trans, u32 txq_bm)
 
 		IWL_DEBUG_TX_QUEUES(trans, "Emptying queue %d...\n", cnt);
 		txq = &trans_pcie->txq[cnt];
-		q = &txq->q;
-		wr_ptr = ACCESS_ONCE(q->write_ptr);
+		wr_ptr = ACCESS_ONCE(txq->write_ptr);
 
-		while (q->read_ptr != ACCESS_ONCE(q->write_ptr) &&
+		while (txq->read_ptr != ACCESS_ONCE(txq->write_ptr) &&
 		       !time_after(jiffies,
 				   now + msecs_to_jiffies(IWL_FLUSH_WAIT_MS))) {
-			u8 write_ptr = ACCESS_ONCE(q->write_ptr);
+			u8 write_ptr = ACCESS_ONCE(txq->write_ptr);
 
 			if (WARN_ONCE(wr_ptr != write_ptr,
 				      "WR pointer moved while flushing %d -> %d\n",
@@ -2042,7 +2040,7 @@ static int iwl_trans_pcie_wait_txq_empty(struct iwl_trans *trans, u32 txq_bm)
 			usleep_range(1000, 2000);
 		}
 
-		if (q->read_ptr != q->write_ptr) {
+		if (txq->read_ptr != txq->write_ptr) {
 			IWL_ERR(trans,
 				"fail to flush all tx fifo queues Q %d\n", cnt);
 			ret = -ETIMEDOUT;
@@ -2210,7 +2208,6 @@ static ssize_t iwl_dbgfs_tx_queue_read(struct file *file,
 	struct iwl_trans *trans = file->private_data;
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_txq *txq;
-	struct iwl_queue *q;
 	char *buf;
 	int pos = 0;
 	int cnt;
@@ -2228,10 +2225,9 @@ static ssize_t iwl_dbgfs_tx_queue_read(struct file *file,
 
 	for (cnt = 0; cnt < trans->cfg->base_params->num_of_queues; cnt++) {
 		txq = &trans_pcie->txq[cnt];
-		q = &txq->q;
 		pos += scnprintf(buf + pos, bufsz - pos,
 				"hwq %.2d: read=%u write=%u use=%d stop=%d need_update=%d frozen=%d%s\n",
-				cnt, q->read_ptr, q->write_ptr,
+				cnt, txq->read_ptr, txq->write_ptr,
 				!!test_bit(cnt, trans_pcie->queue_used),
 				 !!test_bit(cnt, trans_pcie->queue_stopped),
 				 txq->need_update, txq->frozen,
@@ -2659,7 +2655,7 @@ static struct iwl_trans_dump_data
 
 	/* host commands */
 	len += sizeof(*data) +
-		cmdq->q.n_window * (sizeof(*txcmd) + TFD_MAX_PAYLOAD_SIZE);
+		cmdq->n_window * (sizeof(*txcmd) + TFD_MAX_PAYLOAD_SIZE);
 
 	/* FW monitor */
 	if (trans_pcie->fw_mon_page) {
@@ -2727,9 +2723,9 @@ static struct iwl_trans_dump_data
 	data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_TXCMD);
 	txcmd = (void *)data->data;
 	spin_lock_bh(&cmdq->lock);
-	ptr = cmdq->q.write_ptr;
-	for (i = 0; i < cmdq->q.n_window; i++) {
-		u8 idx = get_cmd_index(&cmdq->q, ptr);
+	ptr = cmdq->write_ptr;
+	for (i = 0; i < cmdq->n_window; i++) {
+		u8 idx = get_cmd_index(cmdq, ptr);
 		u32 caplen, cmdlen;
 
 		cmdlen = iwl_trans_pcie_get_cmdlen(trans, cmdq->tfds +
