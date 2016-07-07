@@ -33,6 +33,7 @@
 
 #include <asm/processor.h>
 #include <asm/cpu_device_id.h>
+#include <asm/intel-family.h>
 
 /* Local defines */
 #define MSR_PLATFORM_POWER_LIMIT	0x0000065C
@@ -1096,27 +1097,34 @@ static const struct rapl_defaults rapl_defaults_cht = {
 		}
 
 static const struct x86_cpu_id rapl_ids[] __initconst = {
-	RAPL_CPU(0x2a, rapl_defaults_core),/* Sandy Bridge */
-	RAPL_CPU(0x2d, rapl_defaults_core),/* Sandy Bridge EP */
-	RAPL_CPU(0x37, rapl_defaults_byt),/* Valleyview */
-	RAPL_CPU(0x3a, rapl_defaults_core),/* Ivy Bridge */
-	RAPL_CPU(0x3c, rapl_defaults_core),/* Haswell */
-	RAPL_CPU(0x3d, rapl_defaults_core),/* Broadwell */
-	RAPL_CPU(0x3f, rapl_defaults_hsw_server),/* Haswell servers */
-	RAPL_CPU(0x4f, rapl_defaults_hsw_server),/* Broadwell servers */
-	RAPL_CPU(0x45, rapl_defaults_core),/* Haswell ULT */
-	RAPL_CPU(0x46, rapl_defaults_core),/* Haswell */
-	RAPL_CPU(0x47, rapl_defaults_core),/* Broadwell-H */
-	RAPL_CPU(0x4E, rapl_defaults_core),/* Skylake */
-	RAPL_CPU(0x4C, rapl_defaults_cht),/* Braswell/Cherryview */
-	RAPL_CPU(0x4A, rapl_defaults_tng),/* Tangier */
-	RAPL_CPU(0x56, rapl_defaults_core),/* Future Xeon */
-	RAPL_CPU(0x5A, rapl_defaults_ann),/* Annidale */
-	RAPL_CPU(0X5C, rapl_defaults_core),/* Broxton */
-	RAPL_CPU(0x5E, rapl_defaults_core),/* Skylake-H/S */
-	RAPL_CPU(0x57, rapl_defaults_hsw_server),/* Knights Landing */
-	RAPL_CPU(0x8E, rapl_defaults_core),/* Kabylake */
-	RAPL_CPU(0x9E, rapl_defaults_core),/* Kabylake */
+	RAPL_CPU(INTEL_FAM6_SANDYBRIDGE,	rapl_defaults_core),
+	RAPL_CPU(INTEL_FAM6_SANDYBRIDGE_X,	rapl_defaults_core),
+
+	RAPL_CPU(INTEL_FAM6_IVYBRIDGE,		rapl_defaults_core),
+
+	RAPL_CPU(INTEL_FAM6_HASWELL_CORE,	rapl_defaults_core),
+	RAPL_CPU(INTEL_FAM6_HASWELL_ULT,	rapl_defaults_core),
+	RAPL_CPU(INTEL_FAM6_HASWELL_GT3E,	rapl_defaults_core),
+	RAPL_CPU(INTEL_FAM6_HASWELL_X,		rapl_defaults_hsw_server),
+
+	RAPL_CPU(INTEL_FAM6_BROADWELL_CORE,	rapl_defaults_core),
+	RAPL_CPU(INTEL_FAM6_BROADWELL_GT3E,	rapl_defaults_core),
+	RAPL_CPU(INTEL_FAM6_BROADWELL_XEON_D,	rapl_defaults_core),
+	RAPL_CPU(INTEL_FAM6_BROADWELL_X,	rapl_defaults_hsw_server),
+
+	RAPL_CPU(INTEL_FAM6_SKYLAKE_DESKTOP,	rapl_defaults_core),
+	RAPL_CPU(INTEL_FAM6_SKYLAKE_MOBILE,	rapl_defaults_core),
+	RAPL_CPU(INTEL_FAM6_SKYLAKE_X,		rapl_defaults_hsw_server),
+	RAPL_CPU(INTEL_FAM6_KABYLAKE_MOBILE,	rapl_defaults_core),
+	RAPL_CPU(INTEL_FAM6_KABYLAKE_DESKTOP,	rapl_defaults_core),
+
+	RAPL_CPU(INTEL_FAM6_ATOM_SILVERMONT1,	rapl_defaults_byt),
+	RAPL_CPU(INTEL_FAM6_ATOM_AIRMONT,	rapl_defaults_cht),
+	RAPL_CPU(INTEL_FAM6_ATOM_MERRIFIELD1,	rapl_defaults_tng),
+	RAPL_CPU(INTEL_FAM6_ATOM_MERRIFIELD2,	rapl_defaults_ann),
+	RAPL_CPU(INTEL_FAM6_ATOM_GOLDMONT,	rapl_defaults_core),
+
+	RAPL_CPU(INTEL_FAM6_XEON_PHI_KNL,	rapl_defaults_hsw_server),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, rapl_ids);

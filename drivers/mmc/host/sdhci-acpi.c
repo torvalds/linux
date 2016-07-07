@@ -43,6 +43,7 @@
 
 #ifdef CONFIG_X86
 #include <asm/cpu_device_id.h>
+#include <asm/intel-family.h>
 #include <asm/iosf_mbi.h>
 #endif
 
@@ -126,7 +127,7 @@ static const struct sdhci_acpi_chip sdhci_acpi_chip_int = {
 static bool sdhci_acpi_byt(void)
 {
 	static const struct x86_cpu_id byt[] = {
-		{ X86_VENDOR_INTEL, 6, 0x37 },
+		{ X86_VENDOR_INTEL, 6, INTEL_FAM6_ATOM_SILVERMONT1 },
 		{}
 	};
 
