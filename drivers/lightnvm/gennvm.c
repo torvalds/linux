@@ -542,7 +542,7 @@ static void gen_mark_blk(struct nvm_dev *dev, struct ppa_addr ppa, int type)
 		return;
 	}
 
-	lun = &gn->luns[ppa.g.lun * ppa.g.ch];
+	lun = &gn->luns[(dev->luns_per_chnl * ppa.g.ch) + ppa.g.lun];
 	blk = &lun->vlun.blocks[ppa.g.blk];
 
 	/* will be moved to bb list on put_blk from target */
