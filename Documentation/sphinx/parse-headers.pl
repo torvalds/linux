@@ -200,78 +200,79 @@ $data =~ s,([\_\`\*\<\>\&\\\\:\/]),\\$1,g;
 # Add references
 #
 
-my $separators = "[\n \t\,\)\=\:\{\}\;]";
+my $start_delim = "[ \n\t\(\=\*\@]";
+my $end_delim = "(\\s|,|\\\\=|\\\\:|\\;|\\\)|\\}|\\{)";
 
 foreach my $r (keys %ioctls) {
 	my $n = $ioctls{$r};
 
-	my $s = ":ref:`$r <$n>`";
+	my $s = "\\ :ref:`$r <$n>`\\ ";
 
 	$r =~ s,([\_\`\*\<\>\&\\\\:\/]),\\\\$1,g;
 
 	print "$r -> $s\n" if ($debug);
 
-	$data =~ s/([\s])($r)($separators)/$1$s$3/g;
+	$data =~ s/($start_delim)($r)$end_delim/$1$s$3/g;
 }
 
 foreach my $r (keys %defines) {
 	my $n = $defines{$r};
 
-	my $s = ":ref:`$r <$n>`";
+	my $s = "\\ :ref:`$r <$n>`\\ ";
 
 	$r =~ s,([\_\`\*\<\>\&\\\\:\/]),\\\\$1,g;
 
 	print "$r -> $s\n" if ($debug);
 
-	$data =~ s/([\s])($r)($separators)/$1$s$3/g;
+	$data =~ s/($start_delim)($r)$end_delim/$1$s$3/g;
 }
 
 foreach my $r (keys %enum_symbols) {
 	my $n = $enum_symbols{$r};
 
-	my $s = ":ref:`$r <$n>`";
+	my $s = "\\ :ref:`$r <$n>`\\ ";
 
 	$r =~ s,([\_\`\*\<\>\&\\\\:\/]),\\\\$1,g;
 
 	print "$r -> $s\n" if ($debug);
 
-	$data =~ s/([\s])($r)($separators)/$1$s$3/g;
+	$data =~ s/($start_delim)($r)$end_delim/$1$s$3/g;
 }
 
 foreach my $r (keys %enums) {
 	my $n = $enums{$r};
 
-	my $s = ":ref:`enum $r <$n>`";
+	my $s = "\\ :ref:`enum $r <$n>`\\ ";
 
 	$r =~ s,([\_\`\*\<\>\&\\\\:\/]),\\\\$1,g;
 
 	print "$r -> $s\n" if ($debug);
 
-	$data =~ s/enum\s+($r)($separators)/$s$2/g;
+	$data =~ s/enum\s+($r)$end_delim/$s$2/g;
 }
 
 foreach my $r (keys %structs) {
 	my $n = $structs{$r};
 
-	my $s = ":ref:`struct $r <$n>`";
+	my $s = "\\ :ref:`struct $r <$n>`\\ ";
 
 	$r =~ s,([\_\`\*\<\>\&\\\\:\/]),\\\\$1,g;
 
 	print "$r -> $s\n" if ($debug);
 
-	$data =~ s/struct\s+($r)($separators)/$s$2/g;
+	$data =~ s/struct\s+($r)$end_delim/$s$2/g;
 }
 
 foreach my $r (keys %typedefs) {
 	my $n = $typedefs{$r};
 
-	my $s = ":ref:`$r <$n>`";
+	my $s = "\\ :ref:`$r <$n>`\\ ";
 
 	$r =~ s,([\_\`\*\<\>\&\\\\:\/]),\\\\$1,g;
 
 	print "$r -> $s\n" if ($debug);
 
-	$data =~ s/([\s\(\,\=])($r)($separators)/$1$s$3/g;
+	$data =~ s/($start_delim)($r)$end_delim/$1$s$3/g;
 }
 
 #
