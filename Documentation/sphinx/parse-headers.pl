@@ -27,12 +27,23 @@ my %structs;
 #
 
 my $is_enum = 0;
+my $is_comment = 0;
 open IN, $file_in or die "Can't open $file_in";
 while (<IN>) {
-	my $ln = $_;
-	$ln =~ s,/\*.*\*/,,;
-
 	$data .= $_;
+
+	my $ln = $_;
+	if (!$is_comment) {
+		$ln =~ s,/\*.*(\*/),,g;
+
+		$is_comment = 1 if ($ln =~ s,/\*.*,,);
+	} else {
+		if ($ln =~ s,^(.*\*/),,) {
+			$is_comment = 0;
+		} else {
+			next;
+		}
+	}
 
 	if ($is_enum && $ln =~ m/^\s*([_\w][\w\d_]+)\s*[\,=]?/) {
 		my $s = $1;
