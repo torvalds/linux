@@ -265,6 +265,8 @@ static int cpufreq_sched_policy_init(struct cpufreq_policy *policy)
 	pr_debug("%s: throttle threshold = %u [ns]\n",
 		  __func__, gd->throttle_nsec);
 
+	policy->governor_data = gd;
+
 	if (cpufreq_driver_is_slow()) {
 		cpufreq_driver_slow = true;
 		gd->task = kthread_create(cpufreq_sched_thread, policy,
@@ -281,7 +283,6 @@ static int cpufreq_sched_policy_init(struct cpufreq_policy *policy)
 		init_irq_work(&gd->irq_work, cpufreq_sched_irq_work);
 	}
 
-	policy->governor_data = gd;
 	set_sched_freq();
 
 	return 0;
