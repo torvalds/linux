@@ -1,6 +1,9 @@
 .. -*- coding: utf-8; mode: rst -*-
 
 .. _V4L2-PIX-FMT-SRGGB10P:
+.. _v4l2-pix-fmt-sbggr10p:
+.. _v4l2-pix-fmt-sgbrg10p:
+.. _v4l2-pix-fmt-sgrbg10p:
 
 *******************************************************************************************************************************
 V4L2_PIX_FMT_SRGGB10P ('pRAA'), V4L2_PIX_FMT_SGRBG10P ('pgAA'), V4L2_PIX_FMT_SGBRG10P ('pGAA'), V4L2_PIX_FMT_SBGGR10P ('pBAA'),

@@ -1,6 +1,8 @@
 .. -*- coding: utf-8; mode: rst -*-
 
 .. _V4L2-PIX-FMT-NV12M:
+.. _v4l2-pix-fmt-nv12mt-16x16:
+.. _V4L2-PIX-FMT-NV21M:
 
 ***********************************************************************************
 V4L2_PIX_FMT_NV12M ('NM12'), V4L2_PIX_FMT_NV21M ('NM21'), V4L2_PIX_FMT_NV12MT_16X16

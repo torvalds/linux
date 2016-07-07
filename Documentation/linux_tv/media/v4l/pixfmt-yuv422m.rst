@@ -1,6 +1,7 @@
 .. -*- coding: utf-8; mode: rst -*-
 
 .. _V4L2-PIX-FMT-YUV422M:
+.. _v4l2-pix-fmt-yvu422m:
 
 ************************************************************
 V4L2_PIX_FMT_YUV422M ('YM16'), V4L2_PIX_FMT_YVU422M ('YM61')

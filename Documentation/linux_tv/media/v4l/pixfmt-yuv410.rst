@@ -1,6 +1,7 @@
 .. -*- coding: utf-8; mode: rst -*-
 
 .. _V4L2-PIX-FMT-YVU410:
+.. _v4l2-pix-fmt-yuv410:
 
 **********************************************************
 V4L2_PIX_FMT_YVU410 ('YVU9'), V4L2_PIX_FMT_YUV410 ('YUV9')

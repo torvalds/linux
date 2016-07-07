@@ -1,6 +1,7 @@
 .. -*- coding: utf-8; mode: rst -*-
 
 .. _V4L2-PIX-FMT-NV16M:
+.. _v4l2-pix-fmt-nv61m:
 
 ********************************************************
 V4L2_PIX_FMT_NV16M ('NM16'), V4L2_PIX_FMT_NV61M ('NM61')

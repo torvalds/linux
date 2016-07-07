@@ -1,6 +1,10 @@
 .. -*- coding: utf-8; mode: rst -*-
 
 .. _V4L2-PIX-FMT-SRGGB12:
+.. _v4l2-pix-fmt-sbggr12:
+.. _v4l2-pix-fmt-sgbrg12:
+.. _v4l2-pix-fmt-sgrbg12:
+
 
 ***************************************************************************************************************************
 V4L2_PIX_FMT_SRGGB12 ('RG12'), V4L2_PIX_FMT_SGRBG12 ('BA12'), V4L2_PIX_FMT_SGBRG12 ('GB12'), V4L2_PIX_FMT_SBGGR12 ('BG12'),

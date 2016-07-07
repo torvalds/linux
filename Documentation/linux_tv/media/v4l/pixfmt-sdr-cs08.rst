@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _V4L2-SDR-FMT-CS08:
+.. _v4l2-sdr-fmt-cs8:
 
 *************************
 V4L2_SDR_FMT_CS8 ('CS08')
