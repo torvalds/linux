@@ -130,17 +130,14 @@ __setup("condev=", condev_setup);
 
 static void __init set_preferred_console(void)
 {
-	if (MACHINE_IS_KVM) {
-		if (sclp.has_vt220)
-			add_preferred_console("ttyS", 1, NULL);
-		else if (sclp.has_linemode)
-			add_preferred_console("ttyS", 0, NULL);
-		else
-			add_preferred_console("hvc", 0, NULL);
-	} else if (CONSOLE_IS_3215 || CONSOLE_IS_SCLP)
+	if (CONSOLE_IS_3215 || CONSOLE_IS_SCLP)
 		add_preferred_console("ttyS", 0, NULL);
 	else if (CONSOLE_IS_3270)
 		add_preferred_console("tty3270", 0, NULL);
+	else if (CONSOLE_IS_VT220)
+		add_preferred_console("ttyS", 1, NULL);
+	else if (CONSOLE_IS_HVC)
+		add_preferred_console("hvc", 0, NULL);
 }
 
 static int __init conmode_setup(char *str)
@@ -206,6 +203,15 @@ static void __init conmode_default(void)
 			SET_CONSOLE_SCLP;
 #endif
 		}
+	} else if (MACHINE_IS_KVM) {
+		if (sclp.has_vt220 &&
+		    config_enabled(CONFIG_SCLP_VT220_CONSOLE))
+			SET_CONSOLE_VT220;
+		else if (sclp.has_linemode &&
+			 config_enabled(CONFIG_SCLP_CONSOLE))
+			SET_CONSOLE_SCLP;
+		else
+			SET_CONSOLE_HVC;
 	} else {
 #if defined(CONFIG_SCLP_CONSOLE) || defined(CONFIG_SCLP_VT220_CONSOLE)
 		SET_CONSOLE_SCLP;
