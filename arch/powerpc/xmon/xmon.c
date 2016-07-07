@@ -1682,7 +1682,6 @@ write_spr(int n, unsigned long val)
 	catch_spr_faults = 0;
 }
 
-static unsigned long regno;
 
 static void dump_one_spr(int spr, bool show_unimplemented)
 {
@@ -1714,6 +1713,7 @@ static void dump_one_spr(int spr, bool show_unimplemented)
 
 static void super_regs(void)
 {
+	static unsigned long regno;
 	int cmd;
 	int spr;
 
