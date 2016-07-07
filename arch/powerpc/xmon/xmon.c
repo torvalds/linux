@@ -1682,6 +1682,35 @@ write_spr(int n, unsigned long val)
 	catch_spr_faults = 0;
 }
 
+static void dump_206_sprs(void)
+{
+#ifdef CONFIG_PPC64
+	if (!cpu_has_feature(CPU_FTR_ARCH_206))
+		return;
+
+	/* Actually some of these pre-date 2.06, but whatevs */
+
+	printf("srr0   = %.16x  srr1  = %.16x dsisr  = %.8x\n",
+		mfspr(SPRN_SRR0), mfspr(SPRN_SRR1), mfspr(SPRN_DSISR));
+	printf("dscr   = %.16x  ppr   = %.16x pir    = %.8x\n",
+		mfspr(SPRN_DSCR), mfspr(SPRN_PPR), mfspr(SPRN_PIR));
+
+	if (!(mfmsr() & MSR_HV))
+		return;
+
+	printf("sdr1   = %.16x  hdar  = %.16x hdsisr = %.8x\n",
+		mfspr(SPRN_SDR1), mfspr(SPRN_HDAR), mfspr(SPRN_HDSISR));
+	printf("hsrr0  = %.16x hsrr1  = %.16x hdec = %.8x\n",
+		mfspr(SPRN_HSRR0), mfspr(SPRN_HSRR1), mfspr(SPRN_HDEC));
+	printf("lpcr   = %.16x  pcr   = %.16x lpidr = %.8x\n",
+		mfspr(SPRN_LPCR), mfspr(SPRN_PCR), mfspr(SPRN_LPID));
+	printf("hsprg0 = %.16x hsprg1 = %.16x\n",
+		mfspr(SPRN_HSPRG0), mfspr(SPRN_HSPRG1));
+	printf("dabr   = %.16x dabrx  = %.16x\n",
+		mfspr(SPRN_DABR), mfspr(SPRN_DABRX));
+#endif
+}
+
 
 static void dump_one_spr(int spr, bool show_unimplemented)
 {
@@ -1733,6 +1762,8 @@ static void super_regs(void)
 		       mfspr(SPRN_DEC), mfspr(SPRN_SPRG2));
 		printf("sp     = "REG"  sprg3 = "REG"\n", sp, mfspr(SPRN_SPRG3));
 		printf("toc    = "REG"  dar   = "REG"\n", toc, mfspr(SPRN_DAR));
+
+		dump_206_sprs();
 
 		return;
 	}
