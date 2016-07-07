@@ -28,6 +28,7 @@
 #include <linux/sched/sysctl.h>
 
 static LIST_HEAD(nvm_tgt_types);
+static DECLARE_RWSEM(nvm_tgtt_lock);
 static LIST_HEAD(nvm_mgrs);
 static LIST_HEAD(nvm_devices);
 static DECLARE_RWSEM(nvm_lock);
@@ -37,7 +38,7 @@ struct nvm_tgt_type *nvm_find_target_type(const char *name, int lock)
 	struct nvm_tgt_type *tmp, *tt = NULL;
 
 	if (lock)
-		down_write(&nvm_lock);
+		down_write(&nvm_tgtt_lock);
 
 	list_for_each_entry(tmp, &nvm_tgt_types, list)
 		if (!strcmp(name, tmp->name)) {
@@ -46,7 +47,7 @@ struct nvm_tgt_type *nvm_find_target_type(const char *name, int lock)
 		}
 
 	if (lock)
-		up_write(&nvm_lock);
+		up_write(&nvm_tgtt_lock);
 	return tt;
 }
 EXPORT_SYMBOL(nvm_find_target_type);
@@ -55,12 +56,12 @@ int nvm_register_tgt_type(struct nvm_tgt_type *tt)
 {
 	int ret = 0;
 
-	down_write(&nvm_lock);
+	down_write(&nvm_tgtt_lock);
 	if (nvm_find_target_type(tt->name, 0))
 		ret = -EEXIST;
 	else
 		list_add(&tt->list, &nvm_tgt_types);
-	up_write(&nvm_lock);
+	up_write(&nvm_tgtt_lock);
 
 	return ret;
 }
