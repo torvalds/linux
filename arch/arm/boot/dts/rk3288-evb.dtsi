@@ -216,6 +216,7 @@
 };
 
 &sdmmc {
+	supports-sd;
 	bus-width = <4>;
 	cap-mmc-highspeed;
 	cap-sd-highspeed;
