@@ -284,6 +284,7 @@ static const u32 golden_settings_polaris11_a11[] =
 	mmTCP_ADDR_CONFIG, 0x000003ff, 0x000000f3,
 	mmTCP_CHAN_STEER_HI, 0xffffffff, 0x00000000,
 	mmTCP_CHAN_STEER_LO, 0xffffffff, 0x00003210,
+	mmVGT_RESET_DEBUG, 0x00000004, 0x00000004,
 };
 
 static const u32 polaris11_golden_common_all[] =
@@ -314,6 +315,7 @@ static const u32 golden_settings_polaris10_a11[] =
 	mmTCC_CTRL, 0x00100000, 0xf31fff7f,
 	mmTCP_ADDR_CONFIG, 0x000003ff, 0x000000f7,
 	mmTCP_CHAN_STEER_HI, 0xffffffff, 0x00000000,
+	mmVGT_RESET_DEBUG, 0x00000004, 0x00000004,
 };
 
 static const u32 polaris10_golden_common_all[] =
