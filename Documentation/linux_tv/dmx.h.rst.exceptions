@@ -1,0 +1,63 @@
+# Ignore header name
+ignore define _UAPI_DVBDMX_H_
+
+# Ignore limit constants
+ignore define DMX_FILTER_SIZE
+
+# dmx-pes-type-t enum symbols
+replace enum dmx_ts_pes dmx-pes-type-t
+replace symbol DMX_PES_AUDIO0 dmx-pes-type-t
+replace symbol DMX_PES_VIDEO0 dmx-pes-type-t
+replace symbol DMX_PES_TELETEXT0 dmx-pes-type-t
+replace symbol DMX_PES_SUBTITLE0 dmx-pes-type-t
+replace symbol DMX_PES_PCR0 dmx-pes-type-t
+replace symbol DMX_PES_AUDIO1 dmx-pes-type-t
+replace symbol DMX_PES_VIDEO1 dmx-pes-type-t
+replace symbol DMX_PES_TELETEXT1 dmx-pes-type-t
+replace symbol DMX_PES_SUBTITLE1 dmx-pes-type-t
+replace symbol DMX_PES_PCR1 dmx-pes-type-t
+replace symbol DMX_PES_AUDIO2 dmx-pes-type-t
+replace symbol DMX_PES_VIDEO2 dmx-pes-type-t
+replace symbol DMX_PES_TELETEXT2 dmx-pes-type-t
+replace symbol DMX_PES_SUBTITLE2 dmx-pes-type-t
+replace symbol DMX_PES_PCR2 dmx-pes-type-t
+replace symbol DMX_PES_AUDIO3 dmx-pes-type-t
+replace symbol DMX_PES_VIDEO3 dmx-pes-type-t
+replace symbol DMX_PES_TELETEXT3 dmx-pes-type-t
+replace symbol DMX_PES_SUBTITLE3 dmx-pes-type-t
+replace symbol DMX_PES_PCR3 dmx-pes-type-t
+replace symbol DMX_PES_OTHER dmx-pes-type-t
+
+# Ignore obsolete symbols
+ignore define DMX_PES_AUDIO
+ignore define DMX_PES_VIDEO
+ignore define DMX_PES_TELETEXT
+ignore define DMX_PES_SUBTITLE
+ignore define DMX_PES_PCR
+
+# dmx_input_t symbols
+replace enum dmx_input dmx-input-t
+replace symbol DMX_IN_FRONTEND dmx-input-t
+replace symbol DMX_IN_DVR dmx-input-t
+
+# dmx_source_t symbols
+replace enum dmx_source dmx-source-t
+replace symbol DMX_SOURCE_FRONT0 dmx-source-t
+replace symbol DMX_SOURCE_FRONT1 dmx-source-t
+replace symbol DMX_SOURCE_FRONT2 dmx-source-t
+replace symbol DMX_SOURCE_FRONT3 dmx-source-t
+replace symbol DMX_SOURCE_DVR0 dmx-source-t
+replace symbol DMX_SOURCE_DVR1 dmx-source-t
+replace symbol DMX_SOURCE_DVR2 dmx-source-t
+replace symbol DMX_SOURCE_DVR3 dmx-source-t
+
+
+# Flags for struct dmx_sct_filter_params
+replace define DMX_CHECK_CRC dmx-sct-filter-params
+replace define DMX_ONESHOT dmx-sct-filter-params
+replace define DMX_IMMEDIATE_START dmx-sct-filter-params
+replace define DMX_KERNEL_CLIENT dmx-sct-filter-params
+
+# some typedefs should point to struct/enums
+replace typedef dmx_caps_t dmx-caps
+replace typedef dmx_filter_t dmx-filter
