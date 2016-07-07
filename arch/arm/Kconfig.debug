@@ -156,8 +156,8 @@ choice
 		select DEBUG_UART_PL01X
 
 	config DEBUG_BCM_5301X
-		bool "Kernel low-level debugging on BCM5301X UART1"
-		depends on ARCH_BCM_5301X
+		bool "Kernel low-level debugging on BCM5301X/NSP UART1"
+		depends on ARCH_BCM_5301X || ARCH_BCM_NSP
 		select DEBUG_UART_8250
 
 	config DEBUG_BCM_KONA_UART
