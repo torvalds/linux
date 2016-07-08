@@ -253,7 +253,8 @@ static struct sha512_hash_ctx
 					  int flags)
 {
 	if (flags & (~HASH_ENTIRE)) {
-		/* User should not pass anything other than FIRST, UPDATE, or
+		/*
+		 * User should not pass anything other than FIRST, UPDATE, or
 		 * LAST
 		 */
 		ctx->error = HASH_CTX_ERROR_INVALID_FLAGS;
@@ -284,7 +285,8 @@ static struct sha512_hash_ctx
 		ctx->partial_block_buffer_length = 0;
 	}
 
-	/* If we made it here, there were no errors during this call to
+	/*
+	 * If we made it here, there were no errors during this call to
 	 * submit
 	 */
 	ctx->error = HASH_CTX_ERROR_NONE;
@@ -293,7 +295,8 @@ static struct sha512_hash_ctx
 	ctx->incoming_buffer = buffer;
 	ctx->incoming_buffer_length = len;
 
-	/* Store the user's request flags and mark this ctx as currently being
+	/*
+	 * Store the user's request flags and mark this ctx as currently being
 	 * processed.
 	 */
 	ctx->status = (flags & HASH_LAST) ?
@@ -309,7 +312,7 @@ static struct sha512_hash_ctx
 	 * Or if the user's buffer contains less than a whole block,
 	 * append as much as possible to the extra block.
 	 */
-	if ((ctx->partial_block_buffer_length) | (len < SHA512_BLOCK_SIZE)) {
+	if (ctx->partial_block_buffer_length || len < SHA512_BLOCK_SIZE) {
 		/* Compute how many bytes to copy from user buffer into extra
 		 * block
 		 */

@@ -283,7 +283,8 @@ static struct sha256_hash_ctx *sha256_ctx_mgr_submit(struct sha256_ctx_mgr *mgr,
 	ctx->incoming_buffer = buffer;
 	ctx->incoming_buffer_length = len;
 
-	/* Store the user's request flags and mark this ctx as currently
+	/*
+	 * Store the user's request flags and mark this ctx as currently
 	 * being processed.
 	 */
 	ctx->status = (flags & HASH_LAST) ?
@@ -299,8 +300,9 @@ static struct sha256_hash_ctx *sha256_ctx_mgr_submit(struct sha256_ctx_mgr *mgr,
 	 * Or if the user's buffer contains less than a whole block,
 	 * append as much as possible to the extra block.
 	 */
-	if ((ctx->partial_block_buffer_length) | (len < SHA256_BLOCK_SIZE)) {
-		/* Compute how many bytes to copy from user buffer into
+	if (ctx->partial_block_buffer_length || len < SHA256_BLOCK_SIZE) {
+		/*
+		 * Compute how many bytes to copy from user buffer into
 		 * extra block
 		 */
 		uint32_t copy_len = SHA256_BLOCK_SIZE -
@@ -323,7 +325,8 @@ static struct sha256_hash_ctx *sha256_ctx_mgr_submit(struct sha256_ctx_mgr *mgr,
 		/* The extra block should never contain more than 1 block */
 		assert(ctx->partial_block_buffer_length <= SHA256_BLOCK_SIZE);
 
-		/* If the extra block buffer contains exactly 1 block,
+		/*
+		 * If the extra block buffer contains exactly 1 block,
 		 * it can be hashed.
 		 */
 		if (ctx->partial_block_buffer_length >= SHA256_BLOCK_SIZE) {
