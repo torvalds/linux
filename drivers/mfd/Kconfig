@@ -112,6 +112,16 @@ config MFD_BCM590XX
 	help
 	  Support for the BCM590xx PMUs from Broadcom
 
+config MFD_AC100
+	tristate "X-Powers AC100"
+	select MFD_CORE
+	depends on SUNXI_RSB
+	help
+	  If you say Y here you get support for the X-Powers AC100 audio codec
+	  IC.
+	  This driver include only the core APIs. You have to select individual
+	  components like codecs or RTC under the corresponding menus.
+
 config MFD_AXP20X
 	tristate
 	select MFD_CORE
