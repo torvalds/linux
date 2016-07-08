@@ -233,6 +233,71 @@ int gb_control_timesync_authoritative(struct gb_control *control,
 				 NULL, 0);
 }
 
+static int gb_control_bundle_pm_status_map(u8 status)
+{
+	switch (status) {
+	case GB_CONTROL_BUNDLE_PM_INVAL:
+		return -EINVAL;
+	case GB_CONTROL_BUNDLE_PM_BUSY:
+		return -EBUSY;
+	case GB_CONTROL_BUNDLE_PM_NA:
+		return -ENOMSG;
+	case GB_CONTROL_BUNDLE_PM_FAIL:
+	default:
+		return -EREMOTEIO;
+	}
+}
+
+int gb_control_bundle_suspend(struct gb_control *control, u8 bundle_id)
+{
+	struct gb_control_bundle_pm_request request;
+	struct gb_control_bundle_pm_response response;
+	int ret;
+
+	request.bundle_id = bundle_id;
+	ret = gb_operation_sync(control->connection,
+				GB_CONTROL_TYPE_BUNDLE_SUSPEND, &request,
+				sizeof(request), &response, sizeof(response));
+	if (ret) {
+		dev_err(&control->dev,
+			"failed to send bundle suspend: %d\n", ret);
+		return ret;
+	}
+
+	if (response.status != GB_CONTROL_BUNDLE_PM_OK) {
+		dev_err(&control->dev,
+			"bundle error while suspending: %d\n", response.status);
+		return gb_control_bundle_pm_status_map(response.status);
+	}
+
+	return 0;
+}
+
+int gb_control_bundle_resume(struct gb_control *control, u8 bundle_id)
+{
+	struct gb_control_bundle_pm_request request;
+	struct gb_control_bundle_pm_response response;
+	int ret;
+
+	request.bundle_id = bundle_id;
+	ret = gb_operation_sync(control->connection,
+				GB_CONTROL_TYPE_BUNDLE_RESUME, &request,
+				sizeof(request), &response, sizeof(response));
+	if (ret) {
+		dev_err(&control->dev,
+			"failed to send bundle resume: %d\n", ret);
+		return ret;
+	}
+
+	if (response.status != GB_CONTROL_BUNDLE_PM_OK) {
+		dev_err(&control->dev,
+			"bundle error while resuming: %d\n", response.status);
+		return gb_control_bundle_pm_status_map(response.status);
+	}
+
+	return 0;
+}
+
 static ssize_t vendor_string_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {

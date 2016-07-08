@@ -126,6 +126,8 @@ struct gb_protocol_version_response {
 #define GB_CONTROL_TYPE_DISCONNECTING		0x0c
 #define GB_CONTROL_TYPE_TIMESYNC_GET_LAST_EVENT	0x0d
 #define GB_CONTROL_TYPE_MODE_SWITCH		0x0e
+#define GB_CONTROL_TYPE_BUNDLE_SUSPEND		0x0f
+#define GB_CONTROL_TYPE_BUNDLE_RESUME		0x10
 
 struct gb_control_version_request {
 	__u8	major;
@@ -189,6 +191,25 @@ struct gb_control_timesync_authoritative_request {
 /* timesync get_last_event_request has no payload */
 struct gb_control_timesync_get_last_event_response {
 	__le64	frame_time;
+} __packed;
+
+/*
+ * All Bundle power management operations use the same request and response
+ * layout and status codes.
+ */
+
+#define GB_CONTROL_BUNDLE_PM_OK		0x00
+#define GB_CONTROL_BUNDLE_PM_INVAL	0x01
+#define GB_CONTROL_BUNDLE_PM_BUSY	0x02
+#define GB_CONTROL_BUNDLE_PM_FAIL	0x03
+#define GB_CONTROL_BUNDLE_PM_NA		0x04
+
+struct gb_control_bundle_pm_request {
+	__u8	bundle_id;
+} __packed;
+
+struct gb_control_bundle_pm_response {
+	__u8	status;
 } __packed;
 
 /* APBridge protocol */

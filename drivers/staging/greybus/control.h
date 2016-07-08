@@ -52,5 +52,6 @@ int gb_control_timesync_get_last_event(struct gb_control *control,
 				       u64 *frame_time);
 int gb_control_timesync_authoritative(struct gb_control *control,
 				      u64 *frame_time);
-
+int gb_control_bundle_suspend(struct gb_control *control, u8 bundle_id);
+int gb_control_bundle_resume(struct gb_control *control, u8 bundle_id);
 #endif /* __CONTROL_H */
