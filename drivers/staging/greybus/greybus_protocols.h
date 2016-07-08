@@ -131,6 +131,7 @@ struct gb_protocol_version_response {
 #define GB_CONTROL_TYPE_BUNDLE_DEACTIVATE	0x11
 #define GB_CONTROL_TYPE_BUNDLE_ACTIVATE		0x12
 #define GB_CONTROL_TYPE_INTF_SUSPEND_PREPARE		0x13
+#define GB_CONTROL_TYPE_INTF_DEACTIVATE_PREPARE	0x14
 
 struct gb_control_version_request {
 	__u8	major;
