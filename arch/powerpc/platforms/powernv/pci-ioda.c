@@ -1721,7 +1721,7 @@ static void pnv_ioda_setup_bus_dma(struct pnv_ioda_pe *pe,
 	}
 }
 
-static void pnv_pci_ioda1_tce_invalidate(struct iommu_table *tbl,
+static void pnv_pci_p7ioc_tce_invalidate(struct iommu_table *tbl,
 		unsigned long index, unsigned long npages, bool rm)
 {
 	struct iommu_table_group_link *tgl = list_first_entry_or_null(
@@ -1782,7 +1782,7 @@ static int pnv_ioda1_tce_build(struct iommu_table *tbl, long index,
 			attrs);
 
 	if (!ret && (tbl->it_type & TCE_PCI_SWINV_CREATE))
-		pnv_pci_ioda1_tce_invalidate(tbl, index, npages, false);
+		pnv_pci_p7ioc_tce_invalidate(tbl, index, npages, false);
 
 	return ret;
 }
@@ -1795,7 +1795,7 @@ static int pnv_ioda1_tce_xchg(struct iommu_table *tbl, long index,
 
 	if (!ret && (tbl->it_type &
 			(TCE_PCI_SWINV_CREATE | TCE_PCI_SWINV_FREE)))
-		pnv_pci_ioda1_tce_invalidate(tbl, index, 1, false);
+		pnv_pci_p7ioc_tce_invalidate(tbl, index, 1, false);
 
 	return ret;
 }
@@ -1807,7 +1807,7 @@ static void pnv_ioda1_tce_free(struct iommu_table *tbl, long index,
 	pnv_tce_free(tbl, index, npages);
 
 	if (tbl->it_type & TCE_PCI_SWINV_FREE)
-		pnv_pci_ioda1_tce_invalidate(tbl, index, npages, false);
+		pnv_pci_p7ioc_tce_invalidate(tbl, index, npages, false);
 }
 
 static struct iommu_table_ops pnv_ioda1_iommu_ops = {
@@ -1819,13 +1819,13 @@ static struct iommu_table_ops pnv_ioda1_iommu_ops = {
 	.get = pnv_tce_get,
 };
 
-#define TCE_KILL_INVAL_ALL  PPC_BIT(0)
-#define TCE_KILL_INVAL_PE   PPC_BIT(1)
-#define TCE_KILL_INVAL_TCE  PPC_BIT(2)
+#define PHB3_TCE_KILL_INVAL_ALL		PPC_BIT(0)
+#define PHB3_TCE_KILL_INVAL_PE		PPC_BIT(1)
+#define PHB3_TCE_KILL_INVAL_ONE		PPC_BIT(2)
 
-void pnv_pci_ioda2_tce_invalidate_entire(struct pnv_phb *phb, bool rm)
+void pnv_pci_phb3_tce_invalidate_entire(struct pnv_phb *phb, bool rm)
 {
-	const unsigned long val = TCE_KILL_INVAL_ALL;
+	const unsigned long val = PHB3_TCE_KILL_INVAL_ALL;
 
 	mb(); /* Ensure previous TCE table stores are visible */
 	if (rm)
@@ -1836,10 +1836,10 @@ void pnv_pci_ioda2_tce_invalidate_entire(struct pnv_phb *phb, bool rm)
 		__raw_writeq(cpu_to_be64(val), phb->ioda.tce_inval_reg);
 }
 
-static inline void pnv_pci_ioda2_tce_invalidate_pe(struct pnv_ioda_pe *pe)
+static inline void pnv_pci_phb3_tce_invalidate_pe(struct pnv_ioda_pe *pe)
 {
 	/* 01xb - invalidate TCEs that match the specified PE# */
-	unsigned long val = TCE_KILL_INVAL_PE | (pe->pe_number & 0xFF);
+	unsigned long val = PHB3_TCE_KILL_INVAL_PE | (pe->pe_number & 0xFF);
 	struct pnv_phb *phb = pe->phb;
 
 	if (!phb->ioda.tce_inval_reg)
@@ -1849,14 +1849,14 @@ static inline void pnv_pci_ioda2_tce_invalidate_pe(struct pnv_ioda_pe *pe)
 	__raw_writeq(cpu_to_be64(val), phb->ioda.tce_inval_reg);
 }
 
-static void pnv_pci_ioda2_do_tce_invalidate(unsigned pe_number, bool rm,
+static void pnv_pci_phb3_tce_invalidate(unsigned pe_number, bool rm,
 		__be64 __iomem *invalidate, unsigned shift,
 		unsigned long index, unsigned long npages)
 {
 	unsigned long start, end, inc;
 
 	/* We'll invalidate DMA address in PE scope */
-	start = TCE_KILL_INVAL_TCE;
+	start = PHB3_TCE_KILL_INVAL_ONE;
 	start |= (pe_number & 0xFF);
 	end = start;
 
@@ -1893,10 +1893,10 @@ static void pnv_pci_ioda2_tce_invalidate(struct iommu_table *tbl,
 			 * per TCE entry so we have to invalidate
 			 * the entire cache for it.
 			 */
-			pnv_pci_ioda2_tce_invalidate_entire(pe->phb, rm);
+			pnv_pci_phb3_tce_invalidate_entire(pe->phb, rm);
 			continue;
 		}
-		pnv_pci_ioda2_do_tce_invalidate(pe->pe_number, rm,
+		pnv_pci_phb3_tce_invalidate(pe->pe_number, rm,
 			invalidate, tbl->it_page_shift,
 			index, npages);
 	}
@@ -2172,7 +2172,7 @@ static long pnv_pci_ioda2_set_window(struct iommu_table_group *table_group,
 
 	pnv_pci_link_table_and_group(phb->hose->node, num,
 			tbl, &pe->table_group);
-	pnv_pci_ioda2_tce_invalidate_pe(pe);
+	pnv_pci_phb3_tce_invalidate_pe(pe);
 
 	return 0;
 }
@@ -2316,7 +2316,7 @@ static long pnv_pci_ioda2_unset_window(struct iommu_table_group *table_group,
 	if (ret)
 		pe_warn(pe, "Unmapping failed, ret = %ld\n", ret);
 	else
-		pnv_pci_ioda2_tce_invalidate_pe(pe);
+		pnv_pci_phb3_tce_invalidate_pe(pe);
 
 	pnv_pci_unlink_table_and_group(table_group->tables[num], table_group);
 
@@ -3286,7 +3286,7 @@ static void pnv_pci_ioda1_release_pe_dma(struct pnv_ioda_pe *pe)
 	if (rc != OPAL_SUCCESS)
 		return;
 
-	pnv_pci_ioda1_tce_invalidate(tbl, tbl->it_offset, tbl->it_size, false);
+	pnv_pci_p7ioc_tce_invalidate(tbl, tbl->it_offset, tbl->it_size, false);
 	if (pe->table_group.group) {
 		iommu_group_put(pe->table_group.group);
 		WARN_ON(pe->table_group.group);
