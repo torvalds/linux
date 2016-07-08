@@ -61,6 +61,12 @@
 
 #define CALLFRAME_SIZ   32
 
+#ifdef CONFIG_64BIT
+#define ST0_KX_IF_64	ST0_KX
+#else
+#define ST0_KX_IF_64	0
+#endif
+
 static unsigned int scratch_vcpu[2] = { C0_DDATA_LO };
 static unsigned int scratch_tmp[2] = { C0_ERROREPC };
 
@@ -204,7 +210,7 @@ void *kvm_mips_build_vcpu_run(void *addr)
 	 * Setup status register for running the guest in UM, interrupts
 	 * are disabled
 	 */
-	UASM_i_LA(&p, K0, ST0_EXL | KSU_USER | ST0_BEV);
+	UASM_i_LA(&p, K0, ST0_EXL | KSU_USER | ST0_BEV | ST0_KX_IF_64);
 	uasm_i_mtc0(&p, K0, C0_STATUS);
 	uasm_i_ehb(&p);
 
@@ -217,7 +223,7 @@ void *kvm_mips_build_vcpu_run(void *addr)
 	 * interrupt mask as it was but make sure that timer interrupts
 	 * are enabled
 	 */
-	uasm_i_addiu(&p, K0, ZERO, ST0_EXL | KSU_USER | ST0_IE);
+	uasm_i_addiu(&p, K0, ZERO, ST0_EXL | KSU_USER | ST0_IE | ST0_KX_IF_64);
 	uasm_i_andi(&p, V0, V0, ST0_IM);
 	uasm_i_or(&p, K0, K0, V0);
 	uasm_i_mtc0(&p, K0, C0_STATUS);
