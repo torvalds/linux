@@ -331,6 +331,12 @@ hv_doorbell_trampoline:
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	h_doorbell_hv
 
+	. = 0xea0
+hv_virt_irq_trampoline:
+	SET_SCRATCH0(r13)
+	EXCEPTION_PROLOG_0(PACA_EXGEN)
+	b	h_virt_irq_hv
+
 	/* We need to deal with the Altivec unavailable exception
 	 * here which is at 0xf20, thus in the middle of the
 	 * prolog code of the PerformanceMonitor one. A little
@@ -581,6 +587,9 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
 	MASKABLE_EXCEPTION_HV_OOL(0xe82, h_doorbell)
 	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xe82)
 
+	MASKABLE_EXCEPTION_HV_OOL(0xea2, h_virt_irq)
+	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xea2)
+
 	/* moved from 0xf00 */
 	STD_EXCEPTION_PSERIES_OOL(0xf00, performance_monitor)
 	KVM_HANDLER(PACA_EXGEN, EXC_STD, 0xf00)
@@ -660,6 +669,8 @@ _GLOBAL(__replay_interrupt)
 BEGIN_FTR_SECTION
 	cmpwi	r3,0xe80
 	beq	h_doorbell_common
+	cmpwi	r3,0xea0
+	beq	h_virt_irq_common
 FTR_SECTION_ELSE
 	cmpwi	r3,0xa00
 	beq	doorbell_super_common
@@ -734,6 +745,7 @@ kvmppc_skip_Hinterrupt:
 #else
 	STD_EXCEPTION_COMMON_ASYNC(0xe80, h_doorbell, unknown_exception)
 #endif
+	STD_EXCEPTION_COMMON_ASYNC(0xea0, h_virt_irq, do_IRQ)
 	STD_EXCEPTION_COMMON_ASYNC(0xf00, performance_monitor, performance_monitor_exception)
 	STD_EXCEPTION_COMMON(0x1300, instruction_breakpoint, instruction_breakpoint_exception)
 	STD_EXCEPTION_COMMON(0x1502, denorm, unknown_exception)
@@ -851,6 +863,12 @@ h_doorbell_relon_trampoline:
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	h_doorbell_relon_hv
+
+	. = 0x4ea0
+h_virt_irq_relon_trampoline:
+	SET_SCRATCH0(r13)
+	EXCEPTION_PROLOG_0(PACA_EXGEN)
+	b	h_virt_irq_relon_hv
 
 	. = 0x4f00
 performance_monitor_relon_pseries_trampoline:
@@ -1109,6 +1127,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 	/* Equivalents to the above handlers for relocation-on interrupt vectors */
 	STD_RELON_EXCEPTION_HV_OOL(0xe40, emulation_assist)
 	MASKABLE_RELON_EXCEPTION_HV_OOL(0xe80, h_doorbell)
+	MASKABLE_RELON_EXCEPTION_HV_OOL(0xea0, h_virt_irq)
 
 	STD_RELON_EXCEPTION_PSERIES_OOL(0xf00, performance_monitor)
 	STD_RELON_EXCEPTION_PSERIES_OOL(0xf20, altivec_unavailable)

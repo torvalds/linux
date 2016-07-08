@@ -99,6 +99,7 @@ _GLOBAL(__setup_cpu_power9)
 	mtspr	SPRN_LPID,r0
 	mfspr	r3,SPRN_LPCR
 	ori	r3, r3, LPCR_PECEDH
+	ori	r3, r3, LPCR_HVICE
 	bl	__init_LPCR
 	bl	__init_HFSCR
 	bl	__init_tlb_power9
@@ -118,6 +119,7 @@ _GLOBAL(__restore_cpu_power9)
 	mtspr	SPRN_LPID,r0
 	mfspr   r3,SPRN_LPCR
 	ori	r3, r3, LPCR_PECEDH
+	ori	r3, r3, LPCR_HVICE
 	bl	__init_LPCR
 	bl	__init_HFSCR
 	bl	__init_tlb_power9

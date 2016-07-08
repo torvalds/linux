@@ -363,6 +363,7 @@
 #define   LPCR_LPES1   0x00000004      /* LPAR Env selector 1 */
 #define   LPCR_LPES_SH	2
 #define   LPCR_RMI     0x00000002      /* real mode is cache inhibit */
+#define   LPCR_HVICE   0x00000002      /* P9: HV interrupt enable */
 #define   LPCR_HDICE   0x00000001      /* Hyp Decr enable (HV,PR,EE) */
 #define   LPCR_UPRT    0x00400000      /* Use Process Table (ISA 3) */
 #ifndef SPRN_LPID
