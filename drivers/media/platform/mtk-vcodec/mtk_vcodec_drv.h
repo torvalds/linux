@@ -265,8 +265,6 @@ struct mtk_vcodec_ctx {
  * @m2m_dev_enc: m2m device for encoder.
  * @plat_dev: platform device
  * @vpu_plat_dev: mtk vpu platform device
- * @alloc_ctx: VB2 allocator context
- *	       (for allocations without kernel mapping).
  * @ctx_list: list of struct mtk_vcodec_ctx
  * @irqlock: protect data access by irq handler and work thread
  * @curr_ctx: The context that is waiting for codec hardware
@@ -299,7 +297,6 @@ struct mtk_vcodec_dev {
 	struct v4l2_m2m_dev *m2m_dev_enc;
 	struct platform_device *plat_dev;
 	struct platform_device *vpu_plat_dev;
-	struct vb2_alloc_ctx *alloc_ctx;
 	struct list_head ctx_list;
 	spinlock_t irqlock;
 	struct mtk_vcodec_ctx *curr_ctx;
