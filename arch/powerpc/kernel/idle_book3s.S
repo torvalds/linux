@@ -245,8 +245,7 @@ fastsleep_workaround_at_entry:
 	/* Fast sleep workaround */
 	li	r3,1
 	li	r4,1
-	li	r0,OPAL_CONFIG_CPU_IDLE_STATE
-	bl	opal_call_realmode
+	bl	opal_rm_config_cpu_idle_state
 
 	/* Clear Lock bit */
 	li	r0,0
@@ -337,8 +336,7 @@ ALT_FTR_SECTION_END_NESTED_IFSET(CPU_FTR_ARCH_207S, 66);		\
 	ld	r2,PACATOC(r13);					\
 	ld	r1,PACAR1(r13);						\
 	std	r3,ORIG_GPR3(r1);	/* Save original r3 */		\
-	li	r0,OPAL_HANDLE_HMI;	/* Pass opal token argument*/	\
-	bl	opal_call_realmode;					\
+	bl	opal_rm_handle_hmi;					\
 	ld	r3,ORIG_GPR3(r1);	/* Restore original r3 */	\
 20:	nop;
 
@@ -430,7 +428,7 @@ _GLOBAL(pnv_wakeup_tb_loss)
 	 * until they are restored, they are free to be used.
 	 *
 	 * Save SRR1 and LR in NVGPRs as they might be clobbered in
-	 * opal_call_realmode (called in CHECK_HMI_INTERRUPT). SRR1 is required
+	 * opal_call() (called in CHECK_HMI_INTERRUPT). SRR1 is required
 	 * to determine the wakeup reason if we branch to kvm_start_guest. LR
 	 * is required to return back to reset vector after hypervisor state
 	 * restore is complete.
@@ -530,10 +528,7 @@ timebase_resync:
 	 */
 	ble	cr3,clear_lock
 	/* Time base re-sync */
-	li	r0,OPAL_RESYNC_TIMEBASE
-	bl	opal_call_realmode;
-	/* TODO: Check r3 for failure */
-
+	bl	opal_rm_resync_timebase;
 	/*
 	 * If waking up from sleep, per core state is not lost, skip to
 	 * clear_lock.
@@ -622,8 +617,7 @@ hypervisor_state_restored:
 fastsleep_workaround_at_exit:
 	li	r3,1
 	li	r4,0
-	li	r0,OPAL_CONFIG_CPU_IDLE_STATE
-	bl	opal_call_realmode
+	bl	opal_rm_config_cpu_idle_state
 	b	timebase_resync
 
 /*
