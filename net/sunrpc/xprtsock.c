@@ -3153,8 +3153,12 @@ static int param_set_uint_minmax(const char *val,
 
 static int param_set_portnr(const char *val, const struct kernel_param *kp)
 {
-	return param_set_uint_minmax(val, kp,
+	if (kp->arg == &xprt_min_resvport)
+		return param_set_uint_minmax(val, kp,
 			RPC_MIN_RESVPORT,
+			xprt_max_resvport);
+	return param_set_uint_minmax(val, kp,
+			xprt_min_resvport,
 			RPC_MAX_RESVPORT);
 }
 
