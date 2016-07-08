@@ -2252,6 +2252,17 @@ static void update_domain(struct protection_domain *domain)
 	domain->updated = false;
 }
 
+static int dir2prot(enum dma_data_direction direction)
+{
+	if (direction == DMA_TO_DEVICE)
+		return IOMMU_PROT_IR;
+	else if (direction == DMA_FROM_DEVICE)
+		return IOMMU_PROT_IW;
+	else if (direction == DMA_BIDIRECTIONAL)
+		return IOMMU_PROT_IW | IOMMU_PROT_IR;
+	else
+		return 0;
+}
 /*
  * This function contains common code for mapping of a physically
  * contiguous memory region into DMA address space. It is used by all
@@ -2262,7 +2273,7 @@ static dma_addr_t __map_single(struct device *dev,
 			       struct dma_ops_domain *dma_dom,
 			       phys_addr_t paddr,
 			       size_t size,
-			       int direction,
+			       enum dma_data_direction direction,
 			       u64 dma_mask)
 {
 	dma_addr_t offset = paddr & ~PAGE_MASK;
@@ -2278,12 +2289,7 @@ static dma_addr_t __map_single(struct device *dev,
 	if (address == DMA_ERROR_CODE)
 		goto out;
 
-	if (direction == DMA_TO_DEVICE)
-		prot = IOMMU_PROT_IR;
-	else if (direction == DMA_FROM_DEVICE)
-		prot = IOMMU_PROT_IW;
-	else if (direction == DMA_BIDIRECTIONAL)
-		prot = IOMMU_PROT_IW | IOMMU_PROT_IR;
+	prot = dir2prot(direction);
 
 	start = address;
 	for (i = 0; i < pages; ++i) {
