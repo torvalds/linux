@@ -782,6 +782,12 @@ static void digital_in_recv_dep_res(struct nfc_digital_dev *ddev, void *arg,
 		break;
 
 	case DIGITAL_NFC_DEP_PFB_ACK_NACK_PDU:
+		if (DIGITAL_NFC_DEP_NACK_BIT_SET(pfb)) {
+			PROTOCOL_ERR("14.12.4.5");
+			rc = -EIO;
+			goto exit;
+		}
+
 		if (DIGITAL_NFC_DEP_PFB_PNI(pfb) != ddev->curr_nfc_dep_pni) {
 			PROTOCOL_ERR("14.12.3.3");
 			rc = -EIO;
@@ -791,22 +797,25 @@ static void digital_in_recv_dep_res(struct nfc_digital_dev *ddev, void *arg,
 		ddev->curr_nfc_dep_pni =
 			DIGITAL_NFC_DEP_PFB_PNI(ddev->curr_nfc_dep_pni + 1);
 
-		if (ddev->chaining_skb && !DIGITAL_NFC_DEP_NACK_BIT_SET(pfb)) {
-			kfree_skb(ddev->saved_skb);
-			ddev->saved_skb = NULL;
-
-			rc = digital_in_send_dep_req(ddev, NULL,
-						     ddev->chaining_skb,
-						     ddev->data_exch);
-			if (rc)
-				goto error;
-
-			return;
+		if (!ddev->chaining_skb) {
+			PROTOCOL_ERR("14.12.4.3");
+			rc = -EIO;
+			goto exit;
 		}
 
-		pr_err("Received a ACK/NACK PDU\n");
-		rc = -EINVAL;
-		goto exit;
+		/* The initiator has received a valid ACK. Free the last sent
+		 * PDU and keep on sending chained skb.
+		 */
+		kfree_skb(ddev->saved_skb);
+		ddev->saved_skb = NULL;
+
+		rc = digital_in_send_dep_req(ddev, NULL,
+					     ddev->chaining_skb,
+					     ddev->data_exch);
+		if (rc)
+			goto error;
+
+		goto free_resp;
 
 	case DIGITAL_NFC_DEP_PFB_SUPERVISOR_PDU:
 		if (!DIGITAL_NFC_DEP_PFB_IS_TIMEOUT(pfb)) { /* ATN */
@@ -839,6 +848,11 @@ error:
 
 	if (rc)
 		kfree_skb(resp);
+
+	return;
+
+free_resp:
+	dev_kfree_skb(resp);
 }
 
 int digital_in_send_dep_req(struct nfc_digital_dev *ddev,
