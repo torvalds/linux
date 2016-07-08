@@ -45,6 +45,9 @@ void jprobe_return_break(void);
 DEFINE_PER_CPU(struct kprobe *, current_kprobe) = NULL;
 DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
 
+static void __kprobes
+post_kprobe_handler(struct kprobe_ctlblk *, struct pt_regs *);
+
 static void __kprobes arch_prepare_ss_slot(struct kprobe *p)
 {
 	/* prepare insn slot */
@@ -59,6 +62,23 @@ static void __kprobes arch_prepare_ss_slot(struct kprobe *p)
 	 */
 	p->ainsn.restore = (unsigned long) p->addr +
 	  sizeof(kprobe_opcode_t);
+}
+
+static void __kprobes arch_prepare_simulate(struct kprobe *p)
+{
+	/* This instructions is not executed xol. No need to adjust the PC */
+	p->ainsn.restore = 0;
+}
+
+static void __kprobes arch_simulate_insn(struct kprobe *p, struct pt_regs *regs)
+{
+	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
+
+	if (p->ainsn.handler)
+		p->ainsn.handler((u32)p->opcode, (long)p->addr, regs);
+
+	/* single step simulated, now go for post processing */
+	post_kprobe_handler(kcb, regs);
 }
 
 int __kprobes arch_prepare_kprobe(struct kprobe *p)
@@ -84,6 +104,10 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 	case INSN_REJECTED:	/* insn not supported */
 		return -EINVAL;
 
+	case INSN_GOOD_NO_SLOT:	/* insn need simulation */
+		p->ainsn.insn = NULL;
+		break;
+
 	case INSN_GOOD:	/* instruction uses slot */
 		p->ainsn.insn = get_insn_slot();
 		if (!p->ainsn.insn)
@@ -92,7 +116,10 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 	};
 
 	/* prepare the instruction */
-	arch_prepare_ss_slot(p);
+	if (p->ainsn.insn)
+		arch_prepare_ss_slot(p);
+	else
+		arch_prepare_simulate(p);
 
 	return 0;
 }
@@ -218,20 +245,24 @@ static void __kprobes setup_singlestep(struct kprobe *p,
 		kcb->kprobe_status = KPROBE_HIT_SS;
 	}
 
-	BUG_ON(!p->ainsn.insn);
 
-	/* prepare for single stepping */
-	slot = (unsigned long)p->ainsn.insn;
+	if (p->ainsn.insn) {
+		/* prepare for single stepping */
+		slot = (unsigned long)p->ainsn.insn;
 
-	set_ss_context(kcb, slot);	/* mark pending ss */
+		set_ss_context(kcb, slot);	/* mark pending ss */
 
-	if (kcb->kprobe_status == KPROBE_REENTER)
-		spsr_set_debug_flag(regs, 0);
+		if (kcb->kprobe_status == KPROBE_REENTER)
+			spsr_set_debug_flag(regs, 0);
 
-	/* IRQs and single stepping do not mix well. */
-	kprobes_save_local_irqflag(kcb, regs);
-	kernel_enable_single_step(regs);
-	instruction_pointer_set(regs, slot);
+		/* IRQs and single stepping do not mix well. */
+		kprobes_save_local_irqflag(kcb, regs);
+		kernel_enable_single_step(regs);
+		instruction_pointer_set(regs, slot);
+	} else {
+		/* insn simulation */
+		arch_simulate_insn(p, regs);
+	}
 }
 
 static int __kprobes reenter_kprobe(struct kprobe *p,
