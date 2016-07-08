@@ -124,7 +124,7 @@ static struct ctl_table xs_tunables_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &xprt_min_resvport_limit,
-		.extra2		= &xprt_max_resvport_limit
+		.extra2		= &xprt_max_resvport
 	},
 	{
 		.procname	= "max_resvport",
@@ -132,7 +132,7 @@ static struct ctl_table xs_tunables_table[] = {
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &xprt_min_resvport_limit,
+		.extra1		= &xprt_min_resvport,
 		.extra2		= &xprt_max_resvport_limit
 	},
 	{
