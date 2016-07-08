@@ -50,30 +50,6 @@ static int mdp4_hw_init(struct msm_kms *kms)
 
 	mdp4_kms->rev = minor;
 
-	if (mdp4_kms->dsi_pll_vdda) {
-		if ((mdp4_kms->rev == 2) || (mdp4_kms->rev == 4)) {
-			ret = regulator_set_voltage(mdp4_kms->dsi_pll_vdda,
-					1200000, 1200000);
-			if (ret) {
-				dev_err(dev->dev,
-					"failed to set dsi_pll_vdda voltage: %d\n", ret);
-				goto out;
-			}
-		}
-	}
-
-	if (mdp4_kms->dsi_pll_vddio) {
-		if (mdp4_kms->rev == 2) {
-			ret = regulator_set_voltage(mdp4_kms->dsi_pll_vddio,
-					1800000, 1800000);
-			if (ret) {
-				dev_err(dev->dev,
-					"failed to set dsi_pll_vddio voltage: %d\n", ret);
-				goto out;
-			}
-		}
-	}
-
 	if (mdp4_kms->rev > 1) {
 		mdp4_write(mdp4_kms, REG_MDP4_CS_CONTROLLER0, 0x0707ffff);
 		mdp4_write(mdp4_kms, REG_MDP4_CS_CONTROLLER1, 0x03073f3f);
@@ -484,16 +460,6 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 		ret = PTR_ERR(mdp4_kms->mmio);
 		goto fail;
 	}
-
-	mdp4_kms->dsi_pll_vdda =
-			devm_regulator_get_optional(&pdev->dev, "dsi_pll_vdda");
-	if (IS_ERR(mdp4_kms->dsi_pll_vdda))
-		mdp4_kms->dsi_pll_vdda = NULL;
-
-	mdp4_kms->dsi_pll_vddio =
-			devm_regulator_get_optional(&pdev->dev, "dsi_pll_vddio");
-	if (IS_ERR(mdp4_kms->dsi_pll_vddio))
-		mdp4_kms->dsi_pll_vddio = NULL;
 
 	/* NOTE: driver for this regulator still missing upstream.. use
 	 * _get_exclusive() and ignore the error if it does not exist

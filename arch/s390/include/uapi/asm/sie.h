@@ -16,14 +16,19 @@
 	{ 0x01, "SIGP sense" },					\
 	{ 0x02, "SIGP external call" },				\
 	{ 0x03, "SIGP emergency signal" },			\
+	{ 0x04, "SIGP start" },					\
 	{ 0x05, "SIGP stop" },					\
 	{ 0x06, "SIGP restart" },				\
 	{ 0x09, "SIGP stop and store status" },			\
 	{ 0x0b, "SIGP initial cpu reset" },			\
+	{ 0x0c, "SIGP cpu reset" },				\
 	{ 0x0d, "SIGP set prefix" },				\
 	{ 0x0e, "SIGP store status at address" },		\
 	{ 0x12, "SIGP set architecture" },			\
-	{ 0x15, "SIGP sense running" }
+	{ 0x13, "SIGP conditional emergency signal" },		\
+	{ 0x15, "SIGP sense running" },				\
+	{ 0x16, "SIGP set multithreading"},			\
+	{ 0x17, "SIGP store additional status ait address"}
 
 #define icpt_prog_codes						\
 	{ 0x0001, "Prog Operation" },				\

@@ -3,3 +3,6 @@ tm-syscall
 tm-signal-msr-resv
 tm-signal-stack
 tm-vmxcopy
+tm-fork
+tm-tar
+tm-tmspr

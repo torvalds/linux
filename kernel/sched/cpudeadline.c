@@ -103,10 +103,10 @@ int cpudl_find(struct cpudl *cp, struct task_struct *p,
 	const struct sched_dl_entity *dl_se = &p->dl;
 
 	if (later_mask &&
-	    cpumask_and(later_mask, cp->free_cpus, &p->cpus_allowed)) {
+	    cpumask_and(later_mask, cp->free_cpus, tsk_cpus_allowed(p))) {
 		best_cpu = cpumask_any(later_mask);
 		goto out;
-	} else if (cpumask_test_cpu(cpudl_maximum(cp), &p->cpus_allowed) &&
+	} else if (cpumask_test_cpu(cpudl_maximum(cp), tsk_cpus_allowed(p)) &&
 			dl_time_before(dl_se->deadline, cp->elements[0].dl)) {
 		best_cpu = cpudl_maximum(cp);
 		if (later_mask)

@@ -78,7 +78,7 @@ static char *acpi_ns_copy_device_id(struct acpi_pnp_device_id *dest,
 
 acpi_status
 acpi_get_handle(acpi_handle parent,
-		acpi_string pathname, acpi_handle * ret_handle)
+		acpi_string pathname, acpi_handle *ret_handle)
 {
 	acpi_status status;
 	struct acpi_namespace_node *node = NULL;
@@ -155,7 +155,7 @@ ACPI_EXPORT_SYMBOL(acpi_get_handle)
  *
  ******************************************************************************/
 acpi_status
-acpi_get_name(acpi_handle handle, u32 name_type, struct acpi_buffer * buffer)
+acpi_get_name(acpi_handle handle, u32 name_type, struct acpi_buffer *buffer)
 {
 	acpi_status status;
 	struct acpi_namespace_node *node;
@@ -448,7 +448,7 @@ acpi_get_object_info(acpi_handle handle,
 		/* Point past the CID PNP_DEVICE_ID array */
 
 		next_id_string +=
-		    ((acpi_size) cid_list->count *
+		    ((acpi_size)cid_list->count *
 		     sizeof(struct acpi_pnp_device_id));
 	}
 

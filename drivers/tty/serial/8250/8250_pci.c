@@ -1377,6 +1377,9 @@ byt_set_termios(struct uart_port *p, struct ktermios *termios,
 	unsigned long m, n;
 	u32 reg;
 
+	/* Gracefully handle the B0 case: fall back to B9600 */
+	fuart = fuart ? fuart : 9600 * 16;
+
 	/* Get Fuart closer to Fref */
 	fuart *= rounddown_pow_of_two(fref / fuart);
 
@@ -1411,6 +1414,17 @@ static bool byt_dma_filter(struct dma_chan *chan, void *param)
 
 	chan->private = dws;
 	return true;
+}
+
+static unsigned int
+byt_get_mctrl(struct uart_port *port)
+{
+	unsigned int ret = serial8250_do_get_mctrl(port);
+
+	/* Force DCD and DSR signals to permanently be reported as active. */
+	ret |= TIOCM_CAR | TIOCM_DSR;
+
+	return ret;
 }
 
 static int
@@ -1454,13 +1468,13 @@ byt_serial_setup(struct serial_private *priv,
 		return -EINVAL;
 	}
 
-	rx_param->src_master = 1;
-	rx_param->dst_master = 0;
+	rx_param->m_master = 0;
+	rx_param->p_master = 1;
 
 	dma->rxconf.src_maxburst = 16;
 
-	tx_param->src_master = 1;
-	tx_param->dst_master = 0;
+	tx_param->m_master = 0;
+	tx_param->p_master = 1;
 
 	dma->txconf.dst_maxburst = 16;
 
@@ -1477,6 +1491,7 @@ byt_serial_setup(struct serial_private *priv,
 	port->port.type = PORT_16550A;
 	port->port.flags = (port->port.flags | UPF_FIXED_PORT | UPF_FIXED_TYPE);
 	port->port.set_termios = byt_set_termios;
+	port->port.get_mctrl = byt_get_mctrl;
 	port->port.fifosize = 64;
 	port->tx_loadsz = 64;
 	port->dma = dma;

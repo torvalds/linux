@@ -75,13 +75,6 @@
 	s2mps11_pmic@66 {
 		compatible = "samsung,s2mps11-pmic";
 		reg = <0x66>;
-		s2mps11,buck2-ramp-delay = <12>;
-		s2mps11,buck34-ramp-delay = <12>;
-		s2mps11,buck16-ramp-delay = <12>;
-		s2mps11,buck6-ramp-enable = <1>;
-		s2mps11,buck2-ramp-enable = <1>;
-		s2mps11,buck3-ramp-enable = <1>;
-		s2mps11,buck4-ramp-enable = <1>;
 
 		interrupt-parent = <&gpx3>;
 		interrupts = <2 IRQ_TYPE_EDGE_FALLING>;

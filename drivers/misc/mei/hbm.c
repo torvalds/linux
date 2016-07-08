@@ -113,8 +113,6 @@ void mei_hbm_idle(struct mei_device *dev)
  */
 void mei_hbm_reset(struct mei_device *dev)
 {
-	dev->me_client_index = 0;
-
 	mei_me_cl_rm_all(dev);
 
 	mei_hbm_idle(dev);
@@ -530,24 +528,22 @@ static void mei_hbm_cl_notify(struct mei_device *dev,
  * mei_hbm_prop_req - request property for a single client
  *
  * @dev: the device structure
+ * @start_idx: client index to start search
  *
  * Return: 0 on success and < 0 on failure
  */
-
-static int mei_hbm_prop_req(struct mei_device *dev)
+static int mei_hbm_prop_req(struct mei_device *dev, unsigned long start_idx)
 {
-
 	struct mei_msg_hdr *mei_hdr = &dev->wr_msg.hdr;
 	struct hbm_props_request *prop_req;
 	const size_t len = sizeof(struct hbm_props_request);
-	unsigned long next_client_index;
+	unsigned long addr;
 	int ret;
 
-	next_client_index = find_next_bit(dev->me_clients_map, MEI_CLIENTS_MAX,
-					  dev->me_client_index);
+	addr = find_next_bit(dev->me_clients_map, MEI_CLIENTS_MAX, start_idx);
 
 	/* We got all client properties */
-	if (next_client_index == MEI_CLIENTS_MAX) {
+	if (addr == MEI_CLIENTS_MAX) {
 		dev->hbm_state = MEI_HBM_STARTED;
 		mei_host_client_init(dev);
 
@@ -560,7 +556,7 @@ static int mei_hbm_prop_req(struct mei_device *dev)
 	memset(prop_req, 0, sizeof(struct hbm_props_request));
 
 	prop_req->hbm_cmd = HOST_CLIENT_PROPERTIES_REQ_CMD;
-	prop_req->me_addr = next_client_index;
+	prop_req->me_addr = addr;
 
 	ret = mei_write_message(dev, mei_hdr, dev->wr_msg.data);
 	if (ret) {
@@ -570,7 +566,6 @@ static int mei_hbm_prop_req(struct mei_device *dev)
 	}
 
 	dev->init_clients_timer = MEI_CLIENTS_INIT_TIMEOUT;
-	dev->me_client_index = next_client_index;
 
 	return 0;
 }
@@ -882,8 +877,7 @@ static int mei_hbm_fw_disconnect_req(struct mei_device *dev,
 		cb = mei_io_cb_init(cl, MEI_FOP_DISCONNECT_RSP, NULL);
 		if (!cb)
 			return -ENOMEM;
-		cl_dbg(dev, cl, "add disconnect response as first\n");
-		list_add(&cb->list, &dev->ctrl_wr_list.list);
+		list_add_tail(&cb->list, &dev->ctrl_wr_list.list);
 	}
 	return 0;
 }
@@ -1152,10 +1146,8 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 
 		mei_hbm_me_cl_add(dev, props_res);
 
-		dev->me_client_index++;
-
 		/* request property for the next client */
-		if (mei_hbm_prop_req(dev))
+		if (mei_hbm_prop_req(dev, props_res->me_addr + 1))
 			return -EIO;
 
 		break;
@@ -1181,7 +1173,7 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 		dev->hbm_state = MEI_HBM_CLIENT_PROPERTIES;
 
 		/* first property request */
-		if (mei_hbm_prop_req(dev))
+		if (mei_hbm_prop_req(dev, 0))
 			return -EIO;
 
 		break;

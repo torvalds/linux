@@ -221,7 +221,7 @@ static bool soc_has_mclk_mux0_canin(void)
 /* convenience wrappers around the common clk API */
 static inline struct clk *mpc512x_clk_fixed(const char *name, int rate)
 {
-	return clk_register_fixed_rate(NULL, name, NULL, CLK_IS_ROOT, rate);
+	return clk_register_fixed_rate(NULL, name, NULL, 0, rate);
 }
 
 static inline struct clk *mpc512x_clk_factor(

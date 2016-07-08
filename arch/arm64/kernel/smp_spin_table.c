@@ -52,6 +52,7 @@ static void write_pen_release(u64 val)
 static int smp_spin_table_cpu_init(unsigned int cpu)
 {
 	struct device_node *dn;
+	int ret;
 
 	dn = of_get_cpu_node(cpu, NULL);
 	if (!dn)
@@ -60,15 +61,15 @@ static int smp_spin_table_cpu_init(unsigned int cpu)
 	/*
 	 * Determine the address from which the CPU is polling.
 	 */
-	if (of_property_read_u64(dn, "cpu-release-addr",
-				 &cpu_release_addr[cpu])) {
+	ret = of_property_read_u64(dn, "cpu-release-addr",
+				   &cpu_release_addr[cpu]);
+	if (ret)
 		pr_err("CPU %d: missing or invalid cpu-release-addr property\n",
 		       cpu);
 
-		return -1;
-	}
+	of_node_put(dn);
 
-	return 0;
+	return ret;
 }
 
 static int smp_spin_table_cpu_prepare(unsigned int cpu)

@@ -475,18 +475,18 @@ static int mv_cesa_probe(struct platform_device *pdev)
 		engine->regs = cesa->regs + CESA_ENGINE_OFF(i);
 
 		if (dram && cesa->caps->has_tdma)
-			mv_cesa_conf_mbus_windows(&cesa->engines[i], dram);
+			mv_cesa_conf_mbus_windows(engine, dram);
 
-		writel(0, cesa->engines[i].regs + CESA_SA_INT_STATUS);
+		writel(0, engine->regs + CESA_SA_INT_STATUS);
 		writel(CESA_SA_CFG_STOP_DIG_ERR,
-		       cesa->engines[i].regs + CESA_SA_CFG);
+		       engine->regs + CESA_SA_CFG);
 		writel(engine->sram_dma & CESA_SA_SRAM_MSK,
-		       cesa->engines[i].regs + CESA_SA_DESC_P0);
+		       engine->regs + CESA_SA_DESC_P0);
 
 		ret = devm_request_threaded_irq(dev, irq, NULL, mv_cesa_int,
 						IRQF_ONESHOT,
 						dev_name(&pdev->dev),
-						&cesa->engines[i]);
+						engine);
 		if (ret)
 			goto err_cleanup;
 	}

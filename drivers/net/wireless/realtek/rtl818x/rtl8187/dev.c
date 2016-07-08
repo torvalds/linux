@@ -1470,12 +1470,12 @@ static int rtl8187_probe(struct usb_interface *intf,
 	memcpy(priv->rates, rtl818x_rates, sizeof(rtl818x_rates));
 	priv->map = (struct rtl818x_csr *)0xFF00;
 
-	priv->band.band = IEEE80211_BAND_2GHZ;
+	priv->band.band = NL80211_BAND_2GHZ;
 	priv->band.channels = priv->channels;
 	priv->band.n_channels = ARRAY_SIZE(rtl818x_channels);
 	priv->band.bitrates = priv->rates;
 	priv->band.n_bitrates = ARRAY_SIZE(rtl818x_rates);
-	dev->wiphy->bands[IEEE80211_BAND_2GHZ] = &priv->band;
+	dev->wiphy->bands[NL80211_BAND_2GHZ] = &priv->band;
 
 
 	ieee80211_hw_set(dev, RX_INCLUDES_FCS);

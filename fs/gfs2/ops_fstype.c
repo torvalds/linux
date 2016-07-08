@@ -824,7 +824,7 @@ static int init_inodes(struct gfs2_sbd *sdp, int undo)
 	 * i_mutex on quota files is special. Since this inode is hidden system
 	 * file, we are safe to define locking ourselves.
 	 */
-	lockdep_set_class(&sdp->sd_quota_inode->i_mutex,
+	lockdep_set_class(&sdp->sd_quota_inode->i_rwsem,
 			  &gfs2_quota_imutex_key);
 
 	error = gfs2_rindex_update(sdp);
@@ -1360,7 +1360,7 @@ static struct dentry *gfs2_mount_meta(struct file_system_type *fs_type,
 		return ERR_PTR(error);
 	}
 	s = sget(&gfs2_fs_type, test_gfs2_super, set_meta_super, flags,
-		 d_inode(path.dentry)->i_sb->s_bdev);
+		 path.dentry->d_sb->s_bdev);
 	path_put(&path);
 	if (IS_ERR(s)) {
 		pr_warn("gfs2 mount does not exist\n");

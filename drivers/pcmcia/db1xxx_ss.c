@@ -56,6 +56,7 @@ struct db1x_pcmcia_sock {
 	int	stschg_irq;	/* card-status-change irq */
 	int	card_irq;	/* card irq */
 	int	eject_irq;	/* db1200/pb1200 have these */
+	int	insert_gpio;	/* db1000 carddetect gpio */
 
 #define BOARD_TYPE_DEFAULT	0	/* most boards */
 #define BOARD_TYPE_DB1200	1	/* IRQs aren't gpios */
@@ -83,7 +84,7 @@ static int db1200_card_inserted(struct db1x_pcmcia_sock *sock)
 /* carddetect gpio: low-active */
 static int db1000_card_inserted(struct db1x_pcmcia_sock *sock)
 {
-	return !gpio_get_value(irq_to_gpio(sock->insert_irq));
+	return !gpio_get_value(sock->insert_gpio);
 }
 
 static int db1x_card_inserted(struct db1x_pcmcia_sock *sock)
@@ -457,9 +458,15 @@ static int db1x_pcmcia_socket_probe(struct platform_device *pdev)
 	r = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "card");
 	sock->card_irq = r ? r->start : 0;
 
-	/* insert: irq which triggers on card insertion/ejection */
+	/* insert: irq which triggers on card insertion/ejection
+	 * BIG FAT NOTE: on DB1000/1100/1500/1550 we pass a GPIO here!
+	 */
 	r = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "insert");
 	sock->insert_irq = r ? r->start : -1;
+	if (sock->board_type == BOARD_TYPE_DEFAULT) {
+		sock->insert_gpio = r ? r->start : -1;
+		sock->insert_irq = r ? gpio_to_irq(r->start) : -1;
+	}
 
 	/* stschg: irq which trigger on card status change (optional) */
 	r = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "stschg");

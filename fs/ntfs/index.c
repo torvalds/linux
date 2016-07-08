@@ -272,11 +272,11 @@ done:
 descend_into_child_node:
 	/*
 	 * Convert vcn to index into the index allocation attribute in units
-	 * of PAGE_CACHE_SIZE and map the page cache page, reading it from
+	 * of PAGE_SIZE and map the page cache page, reading it from
 	 * disk if necessary.
 	 */
 	page = ntfs_map_page(ia_mapping, vcn <<
-			idx_ni->itype.index.vcn_size_bits >> PAGE_CACHE_SHIFT);
+			idx_ni->itype.index.vcn_size_bits >> PAGE_SHIFT);
 	if (IS_ERR(page)) {
 		ntfs_error(sb, "Failed to map index page, error %ld.",
 				-PTR_ERR(page));
@@ -288,9 +288,9 @@ descend_into_child_node:
 fast_descend_into_child_node:
 	/* Get to the index allocation block. */
 	ia = (INDEX_ALLOCATION*)(kaddr + ((vcn <<
-			idx_ni->itype.index.vcn_size_bits) & ~PAGE_CACHE_MASK));
+			idx_ni->itype.index.vcn_size_bits) & ~PAGE_MASK));
 	/* Bounds checks. */
-	if ((u8*)ia < kaddr || (u8*)ia > kaddr + PAGE_CACHE_SIZE) {
+	if ((u8*)ia < kaddr || (u8*)ia > kaddr + PAGE_SIZE) {
 		ntfs_error(sb, "Out of bounds check failed.  Corrupt inode "
 				"0x%lx or driver bug.", idx_ni->mft_no);
 		goto unm_err_out;
@@ -323,7 +323,7 @@ fast_descend_into_child_node:
 		goto unm_err_out;
 	}
 	index_end = (u8*)ia + idx_ni->itype.index.block_size;
-	if (index_end > kaddr + PAGE_CACHE_SIZE) {
+	if (index_end > kaddr + PAGE_SIZE) {
 		ntfs_error(sb, "Index buffer (VCN 0x%llx) of inode 0x%lx "
 				"crosses page boundary.  Impossible!  Cannot "
 				"access!  This is probably a bug in the "
@@ -427,9 +427,9 @@ ia_done:
 		 * the mapped page.
 		 */
 		if (old_vcn << vol->cluster_size_bits >>
-				PAGE_CACHE_SHIFT == vcn <<
+				PAGE_SHIFT == vcn <<
 				vol->cluster_size_bits >>
-				PAGE_CACHE_SHIFT)
+				PAGE_SHIFT)
 			goto fast_descend_into_child_node;
 		unlock_page(page);
 		ntfs_unmap_page(page);

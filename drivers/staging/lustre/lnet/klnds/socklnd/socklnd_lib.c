@@ -291,7 +291,7 @@ ksocknal_lib_kiov_vmap(lnet_kiov_t *kiov, int niov,
 
 	for (nob = i = 0; i < niov; i++) {
 		if ((kiov[i].kiov_offset && i > 0) ||
-		    (kiov[i].kiov_offset + kiov[i].kiov_len != PAGE_CACHE_SIZE && i < niov - 1))
+		    (kiov[i].kiov_offset + kiov[i].kiov_len != PAGE_SIZE && i < niov - 1))
 			return NULL;
 
 		pages[i] = kiov[i].kiov_page;
@@ -675,7 +675,6 @@ ksocknal_lib_set_callback(struct socket *sock,  ksock_conn_t *conn)
 	sock->sk->sk_user_data = conn;
 	sock->sk->sk_data_ready = ksocknal_data_ready;
 	sock->sk->sk_write_space = ksocknal_write_space;
-	return;
 }
 
 void
@@ -695,8 +694,6 @@ ksocknal_lib_reset_callback(struct socket *sock, ksock_conn_t *conn)
 	 * sk_user_data is NULL.
 	 */
 	sock->sk->sk_user_data = NULL;
-
-	return ;
 }
 
 int

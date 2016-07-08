@@ -173,7 +173,7 @@ int copy_oldmem_kernel(void *dst, void *src, size_t count)
 /*
  * Copy memory of the old, dumped system to a user space virtual address
  */
-int copy_oldmem_user(void __user *dst, void *src, size_t count)
+static int copy_oldmem_user(void __user *dst, void *src, size_t count)
 {
 	unsigned long from, len;
 	int rc;

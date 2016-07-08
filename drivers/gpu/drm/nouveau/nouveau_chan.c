@@ -34,7 +34,7 @@
 /*XXX*/
 #include <core/client.h>
 
-#include "nouveau_drm.h"
+#include "nouveau_drv.h"
 #include "nouveau_dma.h"
 #include "nouveau_bo.h"
 #include "nouveau_chan.h"

@@ -97,7 +97,7 @@ between any two lock-classes:
    <hardirq-safe>   ->  <hardirq-unsafe>
    <softirq-safe>   ->  <softirq-unsafe>
 
-The first rule comes from the fact the a hardirq-safe lock could be
+The first rule comes from the fact that a hardirq-safe lock could be
 taken by a hardirq context, interrupting a hardirq-unsafe lock - and
 thus could result in a lock inversion deadlock. Likewise, a softirq-safe
 lock could be taken by an softirq context, interrupting a softirq-unsafe
@@ -220,7 +220,7 @@ calculated, which hash is unique for every lock chain. The hash value,
 when the chain is validated for the first time, is then put into a hash
 table, which hash-table can be checked in a lockfree manner. If the
 locking chain occurs again later on, the hash table tells us that we
-dont have to validate the chain again.
+don't have to validate the chain again.
 
 Troubleshooting:
 ----------------

@@ -5,7 +5,7 @@
 	compatible = "nvidia,p2180", "nvidia,tegra210";
 
 	aliases {
-		rtc1 = "/rtc@0,7000e000";
+		rtc1 = "/rtc@7000e000";
 		serial0 = &uarta;
 	};
 
@@ -15,16 +15,16 @@
 	};
 
 	/* debug port */
-	serial@0,70006000 {
+	serial@70006000 {
 		status = "okay";
 	};
 
-	pmc@0,7000e400 {
+	pmc@7000e400 {
 		nvidia,invert-interrupt;
 	};
 
 	/* eMMC */
-	sdhci@0,700b0600 {
+	sdhci@700b0600 {
 		status = "okay";
 		bus-width = <8>;
 		non-removable;

@@ -13,18 +13,7 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 
-#include "pci-host-common.h"
-
-/* Mapping is standard ECAM */
-static void __iomem *thunder_ecam_map_bus(struct pci_bus *bus,
-					  unsigned int devfn,
-					  int where)
-{
-	struct gen_pci *pci = bus->sysdata;
-	resource_size_t idx = bus->number - pci->cfg.bus_range->start;
-
-	return pci->cfg.win[idx] + ((devfn << 12) | where);
-}
+#include "../ecam.h"
 
 static void set_val(u32 v, int where, int size, u32 *val)
 {
@@ -99,7 +88,7 @@ static int handle_ea_bar(u32 e0, int bar, struct pci_bus *bus,
 static int thunder_ecam_p2_config_read(struct pci_bus *bus, unsigned int devfn,
 				       int where, int size, u32 *val)
 {
-	struct gen_pci *pci = bus->sysdata;
+	struct pci_config_window *cfg = bus->sysdata;
 	int where_a = where & ~3;
 	void __iomem *addr;
 	u32 node_bits;
@@ -129,7 +118,7 @@ static int thunder_ecam_p2_config_read(struct pci_bus *bus, unsigned int devfn,
 	 * the config space access window.  Since we are working with
 	 * the high-order 32 bits, shift everything down by 32 bits.
 	 */
-	node_bits = (pci->cfg.res.start >> 32) & (1 << 12);
+	node_bits = (cfg->res.start >> 32) & (1 << 12);
 
 	v |= node_bits;
 	set_val(v, where, size, val);
@@ -358,36 +347,24 @@ static int thunder_ecam_config_write(struct pci_bus *bus, unsigned int devfn,
 	return pci_generic_config_write(bus, devfn, where, size, val);
 }
 
-static struct gen_pci_cfg_bus_ops thunder_ecam_bus_ops = {
+static struct pci_ecam_ops pci_thunder_ecam_ops = {
 	.bus_shift	= 20,
-	.ops		= {
-		.map_bus        = thunder_ecam_map_bus,
+	.pci_ops	= {
+		.map_bus        = pci_ecam_map_bus,
 		.read           = thunder_ecam_config_read,
 		.write          = thunder_ecam_config_write,
 	}
 };
 
 static const struct of_device_id thunder_ecam_of_match[] = {
-	{ .compatible = "cavium,pci-host-thunder-ecam",
-	  .data = &thunder_ecam_bus_ops },
-
+	{ .compatible = "cavium,pci-host-thunder-ecam" },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, thunder_ecam_of_match);
 
 static int thunder_ecam_probe(struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
-	const struct of_device_id *of_id;
-	struct gen_pci *pci = devm_kzalloc(dev, sizeof(*pci), GFP_KERNEL);
-
-	if (!pci)
-		return -ENOMEM;
-
-	of_id = of_match_node(thunder_ecam_of_match, dev->of_node);
-	pci->cfg.ops = (struct gen_pci_cfg_bus_ops *)of_id->data;
-
-	return pci_host_common_probe(pdev, pci);
+	return pci_host_common_probe(pdev, &pci_thunder_ecam_ops);
 }
 
 static struct platform_driver thunder_ecam_driver = {

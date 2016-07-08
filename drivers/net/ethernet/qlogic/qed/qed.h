@@ -26,11 +26,13 @@
 #include "qed_hsi.h"
 
 extern const struct qed_common_ops qed_common_ops_pass;
-#define DRV_MODULE_VERSION "8.7.0.0"
+#define DRV_MODULE_VERSION "8.7.1.20"
 
 #define MAX_HWFNS_PER_DEVICE    (4)
 #define NAME_SIZE 16
 #define VER_SIZE 16
+
+#define QED_WFQ_UNIT	100
 
 /* cau states */
 enum qed_coalescing_mode {
@@ -74,6 +76,51 @@ struct qed_rt_data {
 	bool	*b_valid;
 };
 
+enum qed_tunn_mode {
+	QED_MODE_L2GENEVE_TUNN,
+	QED_MODE_IPGENEVE_TUNN,
+	QED_MODE_L2GRE_TUNN,
+	QED_MODE_IPGRE_TUNN,
+	QED_MODE_VXLAN_TUNN,
+};
+
+enum qed_tunn_clss {
+	QED_TUNN_CLSS_MAC_VLAN,
+	QED_TUNN_CLSS_MAC_VNI,
+	QED_TUNN_CLSS_INNER_MAC_VLAN,
+	QED_TUNN_CLSS_INNER_MAC_VNI,
+	MAX_QED_TUNN_CLSS,
+};
+
+struct qed_tunn_start_params {
+	unsigned long	tunn_mode;
+	u16		vxlan_udp_port;
+	u16		geneve_udp_port;
+	u8		update_vxlan_udp_port;
+	u8		update_geneve_udp_port;
+	u8		tunn_clss_vxlan;
+	u8		tunn_clss_l2geneve;
+	u8		tunn_clss_ipgeneve;
+	u8		tunn_clss_l2gre;
+	u8		tunn_clss_ipgre;
+};
+
+struct qed_tunn_update_params {
+	unsigned long	tunn_mode_update_mask;
+	unsigned long	tunn_mode;
+	u16		vxlan_udp_port;
+	u16		geneve_udp_port;
+	u8		update_rx_pf_clss;
+	u8		update_tx_pf_clss;
+	u8		update_vxlan_udp_port;
+	u8		update_geneve_udp_port;
+	u8		tunn_clss_vxlan;
+	u8		tunn_clss_l2geneve;
+	u8		tunn_clss_ipgeneve;
+	u8		tunn_clss_l2gre;
+	u8		tunn_clss_ipgre;
+};
+
 /* The PCI personality is not quite synonymous to protocol ID:
  * 1. All personalities need CORE connections
  * 2. The Ethernet personality may support also the RoCE protocol
@@ -105,6 +152,7 @@ enum QED_RESOURCES {
 
 enum QED_FEATURE {
 	QED_PF_L2_QUE,
+	QED_VF,
 	QED_MAX_FEATURES,
 };
 
@@ -192,6 +240,12 @@ struct qed_dmae_info {
 	struct dmae_cmd *p_dmae_cmd;
 };
 
+struct qed_wfq_data {
+	/* when feature is configured for at least 1 vport */
+	u32	min_speed;
+	bool	configured;
+};
+
 struct qed_qm_info {
 	struct init_qm_pq_params	*qm_pq_params;
 	struct init_qm_vport_params	*qm_vport_params;
@@ -212,6 +266,7 @@ struct qed_qm_info {
 	bool				vport_wfq_en;
 	u8				pf_wfq;
 	u32				pf_rl;
+	struct qed_wfq_data		*wfq_data;
 };
 
 struct storm_stats {
@@ -255,6 +310,8 @@ struct qed_hwfn {
 
 	bool				first_on_engine;
 	bool				hw_init_done;
+
+	u8				num_funcs_on_engine;
 
 	/* BAR access */
 	void __iomem			*regview;
@@ -306,7 +363,11 @@ struct qed_hwfn {
 	/* True if the driver requests for the link */
 	bool				b_drv_link_init;
 
+	struct qed_vf_iov		*vf_iov_info;
+	struct qed_pf_iov		*pf_iov_info;
 	struct qed_mcp_info		*mcp_info;
+
+	struct qed_dcbx_info		*p_dcbx_info;
 
 	struct qed_hw_cid_data		*p_tx_cids;
 	struct qed_hw_cid_data		*p_rx_cids;
@@ -321,6 +382,12 @@ struct qed_hwfn {
 	void				*unzip_buf;
 
 	struct qed_simd_fp_handler	simd_proto_handler[64];
+
+#ifdef CONFIG_QED_SRIOV
+	struct workqueue_struct *iov_wq;
+	struct delayed_work iov_task;
+	unsigned long iov_task_flags;
+#endif
 
 	struct z_stream_s		*stream;
 };
@@ -430,6 +497,13 @@ struct qed_dev {
 	u8				num_hwfns;
 	struct qed_hwfn			hwfns[MAX_HWFNS_PER_DEVICE];
 
+	/* SRIOV */
+	struct qed_hw_sriov_info *p_iov_info;
+#define IS_QED_SRIOV(cdev)              (!!(cdev)->p_iov_info)
+
+	unsigned long			tunn_mode;
+
+	bool				b_is_vf;
 	u32				drv_type;
 
 	struct qed_eth_stats		*reset_stats;
@@ -459,6 +533,8 @@ struct qed_dev {
 	const struct firmware		*firmware;
 };
 
+#define NUM_OF_VFS(dev)         MAX_NUM_VFS_BB
+#define NUM_OF_L2_QUEUES(dev)	MAX_NUM_L2_QUEUES_BB
 #define NUM_OF_SBS(dev)         MAX_SB_PER_PATH_BB
 #define NUM_OF_ENG_PFS(dev)     MAX_NUM_PFS_BB
 
@@ -480,6 +556,10 @@ static inline u8 qed_concrete_to_sw_fid(struct qed_dev *cdev,
 
 #define PURE_LB_TC 8
 
+int qed_configure_vport_wfq(struct qed_dev *cdev, u16 vp_id, u32 rate);
+void qed_configure_vp_wfq_on_link_change(struct qed_dev *cdev, u32 min_pf_rate);
+
+void qed_clean_wfq_db(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 #define QED_LEADING_HWFN(dev)   (&dev->hwfns[0])
 
 /* Other Linux specific common definitions */
@@ -506,7 +586,5 @@ u32 qed_unzip_data(struct qed_hwfn *p_hwfn,
 		   u32 max_size, u8 *unzip_buf);
 
 int qed_slowpath_irq_req(struct qed_hwfn *hwfn);
-
-#define QED_ETH_INTERFACE_VERSION       300
 
 #endif /* _QED_H */

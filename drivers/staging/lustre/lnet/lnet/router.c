@@ -27,8 +27,8 @@
 #define LNET_NRB_SMALL_PAGES	1
 #define LNET_NRB_LARGE_MIN	256	/* min value for each CPT */
 #define LNET_NRB_LARGE		(LNET_NRB_LARGE_MIN * 4)
-#define LNET_NRB_LARGE_PAGES   ((LNET_MTU + PAGE_CACHE_SIZE - 1) >> \
-				 PAGE_CACHE_SHIFT)
+#define LNET_NRB_LARGE_PAGES   ((LNET_MTU + PAGE_SIZE - 1) >> \
+				 PAGE_SHIFT)
 
 static char *forwarding = "";
 module_param(forwarding, charp, 0444);
@@ -1338,7 +1338,7 @@ lnet_new_rtrbuf(lnet_rtrbufpool_t *rbp, int cpt)
 			return NULL;
 		}
 
-		rb->rb_kiov[i].kiov_len = PAGE_CACHE_SIZE;
+		rb->rb_kiov[i].kiov_len = PAGE_SIZE;
 		rb->rb_kiov[i].kiov_offset = 0;
 		rb->rb_kiov[i].kiov_page = page;
 	}

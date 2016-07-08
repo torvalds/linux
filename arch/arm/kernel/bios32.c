@@ -550,9 +550,6 @@ char * __init pcibios_setup(char *str)
 	if (!strcmp(str, "debug")) {
 		debug_pci = 1;
 		return NULL;
-	} else if (!strcmp(str, "firmware")) {
-		pci_add_flags(PCI_PROBE_ONLY);
-		return NULL;
 	}
 	return str;
 }

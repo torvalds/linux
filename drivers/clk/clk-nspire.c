@@ -125,8 +125,7 @@ static void __init nspire_clk_setup(struct device_node *node,
 
 	of_property_read_string(node, "clock-output-names", &clk_name);
 
-	clk = clk_register_fixed_rate(NULL, clk_name, NULL, CLK_IS_ROOT,
-			info.base_clock);
+	clk = clk_register_fixed_rate(NULL, clk_name, NULL, 0, info.base_clock);
 	if (!IS_ERR(clk))
 		of_clk_add_provider(node, of_clk_src_simple_get, clk);
 	else

@@ -72,6 +72,105 @@ static void skl_dsp_enable_notification(struct skl_sst *ctx, bool enable)
 	skl_ipc_set_large_config(&ctx->ipc, &msg, (u32 *)&mask);
 }
 
+static int skl_dsp_setup_spib(struct device *dev, unsigned int size,
+				int stream_tag, int enable)
+{
+	struct hdac_ext_bus *ebus = dev_get_drvdata(dev);
+	struct hdac_bus *bus = ebus_to_hbus(ebus);
+	struct hdac_stream *stream = snd_hdac_get_stream(bus,
+			SNDRV_PCM_STREAM_PLAYBACK, stream_tag);
+	struct hdac_ext_stream *estream;
+
+	if (!stream)
+		return -EINVAL;
+
+	estream = stream_to_hdac_ext_stream(stream);
+	/* enable/disable SPIB for this hdac stream */
+	snd_hdac_ext_stream_spbcap_enable(ebus, enable, stream->index);
+
+	/* set the spib value */
+	snd_hdac_ext_stream_set_spib(ebus, estream, size);
+
+	return 0;
+}
+
+static int skl_dsp_prepare(struct device *dev, unsigned int format,
+			unsigned int size, struct snd_dma_buffer *dmab)
+{
+	struct hdac_ext_bus *ebus = dev_get_drvdata(dev);
+	struct hdac_bus *bus = ebus_to_hbus(ebus);
+	struct hdac_ext_stream *estream;
+	struct hdac_stream *stream;
+	struct snd_pcm_substream substream;
+	int ret;
+
+	if (!bus)
+		return -ENODEV;
+
+	memset(&substream, 0, sizeof(substream));
+	substream.stream = SNDRV_PCM_STREAM_PLAYBACK;
+
+	estream = snd_hdac_ext_stream_assign(ebus, &substream,
+					HDAC_EXT_STREAM_TYPE_HOST);
+	if (!estream)
+		return -ENODEV;
+
+	stream = hdac_stream(estream);
+
+	/* assign decouple host dma channel */
+	ret = snd_hdac_dsp_prepare(stream, format, size, dmab);
+	if (ret < 0)
+		return ret;
+
+	skl_dsp_setup_spib(dev, size, stream->stream_tag, true);
+
+	return stream->stream_tag;
+}
+
+static int skl_dsp_trigger(struct device *dev, bool start, int stream_tag)
+{
+	struct hdac_ext_bus *ebus = dev_get_drvdata(dev);
+	struct hdac_stream *stream;
+	struct hdac_bus *bus = ebus_to_hbus(ebus);
+
+	if (!bus)
+		return -ENODEV;
+
+	stream = snd_hdac_get_stream(bus,
+		SNDRV_PCM_STREAM_PLAYBACK, stream_tag);
+	if (!stream)
+		return -EINVAL;
+
+	snd_hdac_dsp_trigger(stream, start);
+
+	return 0;
+}
+
+static int skl_dsp_cleanup(struct device *dev,
+		struct snd_dma_buffer *dmab, int stream_tag)
+{
+	struct hdac_ext_bus *ebus = dev_get_drvdata(dev);
+	struct hdac_stream *stream;
+	struct hdac_ext_stream *estream;
+	struct hdac_bus *bus = ebus_to_hbus(ebus);
+
+	if (!bus)
+		return -ENODEV;
+
+	stream = snd_hdac_get_stream(bus,
+		SNDRV_PCM_STREAM_PLAYBACK, stream_tag);
+	if (!stream)
+		return -EINVAL;
+
+	estream = stream_to_hdac_ext_stream(stream);
+	skl_dsp_setup_spib(dev, 0, stream_tag, false);
+	snd_hdac_ext_stream_release(estream, HDAC_EXT_STREAM_TYPE_HOST);
+
+	snd_hdac_dsp_cleanup(stream, dmab);
+
+	return 0;
+}
+
 static struct skl_dsp_loader_ops skl_get_loader_ops(void)
 {
 	struct skl_dsp_loader_ops loader_ops;
@@ -84,12 +183,33 @@ static struct skl_dsp_loader_ops skl_get_loader_ops(void)
 	return loader_ops;
 };
 
+static struct skl_dsp_loader_ops bxt_get_loader_ops(void)
+{
+	struct skl_dsp_loader_ops loader_ops;
+
+	memset(&loader_ops, 0, sizeof(loader_ops));
+
+	loader_ops.alloc_dma_buf = skl_alloc_dma_buf;
+	loader_ops.free_dma_buf = skl_free_dma_buf;
+	loader_ops.prepare = skl_dsp_prepare;
+	loader_ops.trigger = skl_dsp_trigger;
+	loader_ops.cleanup = skl_dsp_cleanup;
+
+	return loader_ops;
+};
+
 static const struct skl_dsp_ops dsp_ops[] = {
 	{
 		.id = 0x9d70,
 		.loader_ops = skl_get_loader_ops,
 		.init = skl_sst_dsp_init,
 		.cleanup = skl_sst_dsp_cleanup
+	},
+	{
+		.id = 0x5a98,
+		.loader_ops = bxt_get_loader_ops,
+		.init = bxt_sst_dsp_init,
+		.cleanup = bxt_sst_dsp_cleanup
 	},
 };
 
@@ -744,7 +864,7 @@ int skl_init_module(struct skl_sst *ctx,
 		return ret;
 	}
 	mconfig->m_state = SKL_MODULE_INIT_DONE;
-
+	kfree(param_data);
 	return ret;
 }
 

@@ -43,6 +43,7 @@ struct efi __read_mostly efi = {
 	.config_table		= EFI_INVALID_TABLE_ADDR,
 	.esrt			= EFI_INVALID_TABLE_ADDR,
 	.properties_table	= EFI_INVALID_TABLE_ADDR,
+	.mem_attr_table		= EFI_INVALID_TABLE_ADDR,
 };
 EXPORT_SYMBOL(efi);
 
@@ -256,7 +257,7 @@ subsys_initcall(efisubsys_init);
  */
 int __init efi_mem_desc_lookup(u64 phys_addr, efi_memory_desc_t *out_md)
 {
-	struct efi_memory_map *map = efi.memmap;
+	struct efi_memory_map *map = &efi.memmap;
 	phys_addr_t p, e;
 
 	if (!efi_enabled(EFI_MEMMAP)) {
@@ -338,6 +339,7 @@ static __initdata efi_config_table_type_t common_tables[] = {
 	{UGA_IO_PROTOCOL_GUID, "UGA", &efi.uga},
 	{EFI_SYSTEM_RESOURCE_TABLE_GUID, "ESRT", &efi.esrt},
 	{EFI_PROPERTIES_TABLE_GUID, "PROP", &efi.properties_table},
+	{EFI_MEMORY_ATTRIBUTES_TABLE_GUID, "MEMATTR", &efi.mem_attr_table},
 	{NULL_GUID, NULL, NULL},
 };
 
@@ -351,8 +353,9 @@ static __init int match_config_table(efi_guid_t *guid,
 		for (i = 0; efi_guidcmp(table_types[i].guid, NULL_GUID); i++) {
 			if (!efi_guidcmp(*guid, table_types[i].guid)) {
 				*(table_types[i].ptr) = table;
-				pr_cont(" %s=0x%lx ",
-					table_types[i].name, table);
+				if (table_types[i].name)
+					pr_cont(" %s=0x%lx ",
+						table_types[i].name, table);
 				return 1;
 			}
 		}
@@ -620,20 +623,49 @@ char * __init efi_md_typeattr_format(char *buf, size_t size,
  */
 u64 __weak efi_mem_attributes(unsigned long phys_addr)
 {
-	struct efi_memory_map *map;
 	efi_memory_desc_t *md;
-	void *p;
 
 	if (!efi_enabled(EFI_MEMMAP))
 		return 0;
 
-	map = efi.memmap;
-	for (p = map->map; p < map->map_end; p += map->desc_size) {
-		md = p;
+	for_each_efi_memory_desc(md) {
 		if ((md->phys_addr <= phys_addr) &&
 		    (phys_addr < (md->phys_addr +
 		    (md->num_pages << EFI_PAGE_SHIFT))))
 			return md->attribute;
 	}
 	return 0;
+}
+
+int efi_status_to_err(efi_status_t status)
+{
+	int err;
+
+	switch (status) {
+	case EFI_SUCCESS:
+		err = 0;
+		break;
+	case EFI_INVALID_PARAMETER:
+		err = -EINVAL;
+		break;
+	case EFI_OUT_OF_RESOURCES:
+		err = -ENOSPC;
+		break;
+	case EFI_DEVICE_ERROR:
+		err = -EIO;
+		break;
+	case EFI_WRITE_PROTECTED:
+		err = -EROFS;
+		break;
+	case EFI_SECURITY_VIOLATION:
+		err = -EACCES;
+		break;
+	case EFI_NOT_FOUND:
+		err = -ENOENT;
+		break;
+	default:
+		err = -EINVAL;
+	}
+
+	return err;
 }

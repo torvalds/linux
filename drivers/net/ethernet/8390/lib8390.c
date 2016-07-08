@@ -596,7 +596,7 @@ static void ei_tx_intr(struct net_device *dev)
 		if (ei_local->tx2 > 0) {
 			ei_local->txing = 1;
 			NS8390_trigger_send(dev, ei_local->tx2, ei_local->tx_start_page + 6);
-			dev->trans_start = jiffies;
+			netif_trans_update(dev);
 			ei_local->tx2 = -1,
 			ei_local->lasttx = 2;
 		} else
@@ -609,7 +609,7 @@ static void ei_tx_intr(struct net_device *dev)
 		if (ei_local->tx1 > 0) {
 			ei_local->txing = 1;
 			NS8390_trigger_send(dev, ei_local->tx1, ei_local->tx_start_page);
-			dev->trans_start = jiffies;
+			netif_trans_update(dev);
 			ei_local->tx1 = -1;
 			ei_local->lasttx = 1;
 		} else

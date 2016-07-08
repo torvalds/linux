@@ -254,7 +254,7 @@ static void pcbit_fsm_timer(unsigned long data)
 
 	dev = chan2dev(chan);
 
-	if (dev == NULL) {
+	if (!dev) {
 		printk(KERN_WARNING "pcbit: timer for unknown device\n");
 		return;
 	}

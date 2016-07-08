@@ -3351,11 +3351,17 @@ int main(int argc, char *argv[])
 	/* Boot protocol version: 2.07 supports the fields for lguest. */
 	boot->hdr.version = 0x207;
 
-	/* The hardware_subarch value of "1" tells the Guest it's an lguest. */
-	boot->hdr.hardware_subarch = 1;
+	/* X86_SUBARCH_LGUEST tells the Guest it's an lguest. */
+	boot->hdr.hardware_subarch = X86_SUBARCH_LGUEST;
 
 	/* Tell the entry path not to try to reload segment registers. */
 	boot->hdr.loadflags |= KEEP_SEGMENTS;
+
+	/* We don't support tboot: */
+	boot->tboot_addr = 0;
+
+	/* Ensure this is 0 to prevent APM from loading: */
+	boot->apm_bios_info.version = 0;
 
 	/* We tell the kernel to initialize the Guest. */
 	tell_kernel(start);

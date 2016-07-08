@@ -321,7 +321,6 @@
 /* Lbtd 802.3 type */
 #define MVPP2_IP_LBDT_TYPE		0xfffa
 
-#define MVPP2_CPU_D_CACHE_LINE_SIZE	32
 #define MVPP2_TX_CSUM_MAX_SIZE		9800
 
 /* Timeout constants */
@@ -377,7 +376,7 @@
 
 #define MVPP2_RX_PKT_SIZE(mtu) \
 	ALIGN((mtu) + MVPP2_MH_SIZE + MVPP2_VLAN_TAG_LEN + \
-	      ETH_HLEN + ETH_FCS_LEN, MVPP2_CPU_D_CACHE_LINE_SIZE)
+	      ETH_HLEN + ETH_FCS_LEN, cache_line_size())
 
 #define MVPP2_RX_BUF_SIZE(pkt_size)	((pkt_size) + NET_SKB_PAD)
 #define MVPP2_RX_TOTAL_SIZE(buf_size)	((buf_size) + MVPP2_SKB_SHINFO_SIZE)
@@ -4493,10 +4492,6 @@ static int mvpp2_aggr_txq_init(struct platform_device *pdev,
 	if (!aggr_txq->descs)
 		return -ENOMEM;
 
-	/* Make sure descriptor address is cache line size aligned  */
-	BUG_ON(aggr_txq->descs !=
-	       PTR_ALIGN(aggr_txq->descs, MVPP2_CPU_D_CACHE_LINE_SIZE));
-
 	aggr_txq->last_desc = aggr_txq->size - 1;
 
 	/* Aggr TXQ no reset WA */
@@ -4525,9 +4520,6 @@ static int mvpp2_rxq_init(struct mvpp2_port *port,
 					&rxq->descs_phys, GFP_KERNEL);
 	if (!rxq->descs)
 		return -ENOMEM;
-
-	BUG_ON(rxq->descs !=
-	       PTR_ALIGN(rxq->descs, MVPP2_CPU_D_CACHE_LINE_SIZE));
 
 	rxq->last_desc = rxq->size - 1;
 
@@ -4615,10 +4607,6 @@ static int mvpp2_txq_init(struct mvpp2_port *port,
 				&txq->descs_phys, GFP_KERNEL);
 	if (!txq->descs)
 		return -ENOMEM;
-
-	/* Make sure descriptor address is cache line size aligned  */
-	BUG_ON(txq->descs !=
-	       PTR_ALIGN(txq->descs, MVPP2_CPU_D_CACHE_LINE_SIZE));
 
 	txq->last_desc = txq->size - 1;
 
@@ -6059,8 +6047,10 @@ static int mvpp2_port_init(struct mvpp2_port *port)
 
 		/* Map physical Rx queue to port's logical Rx queue */
 		rxq = devm_kzalloc(dev, sizeof(*rxq), GFP_KERNEL);
-		if (!rxq)
+		if (!rxq) {
+			err = -ENOMEM;
 			goto err_free_percpu;
+		}
 		/* Map this Rx queue to a physical queue */
 		rxq->id = port->first_rxq + queue;
 		rxq->port = port->id;

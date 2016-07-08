@@ -199,9 +199,9 @@
 #define  BGMAC_CMDCFG_TAI			0x00000200
 #define  BGMAC_CMDCFG_HD			0x00000400	/* Set if in half duplex mode */
 #define  BGMAC_CMDCFG_HD_SHIFT			10
-#define  BGMAC_CMDCFG_SR_REV0			0x00000800	/* Set to reset mode, for other revs */
-#define  BGMAC_CMDCFG_SR_REV4			0x00002000	/* Set to reset mode, only for core rev 4 */
-#define  BGMAC_CMDCFG_SR(rev)  ((rev == 4) ? BGMAC_CMDCFG_SR_REV4 : BGMAC_CMDCFG_SR_REV0)
+#define  BGMAC_CMDCFG_SR_REV0			0x00000800	/* Set to reset mode, for core rev 0-3 */
+#define  BGMAC_CMDCFG_SR_REV4			0x00002000	/* Set to reset mode, for core rev >= 4 */
+#define  BGMAC_CMDCFG_SR(rev)  ((rev >= 4) ? BGMAC_CMDCFG_SR_REV4 : BGMAC_CMDCFG_SR_REV0)
 #define  BGMAC_CMDCFG_ML			0x00008000	/* Set to activate mac loopback mode */
 #define  BGMAC_CMDCFG_AE			0x00400000
 #define  BGMAC_CMDCFG_CFE			0x00800000

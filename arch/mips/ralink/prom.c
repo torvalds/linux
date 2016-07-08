@@ -5,7 +5,7 @@
  *
  *  Copyright (C) 2009 Gabor Juhos <juhosg@openwrt.org>
  *  Copyright (C) 2010 Joonas Lahtinen <joonas.lahtinen@gmail.com>
- *  Copyright (C) 2013 John Crispin <blogic@openwrt.org>
+ *  Copyright (C) 2013 John Crispin <john@phrozen.org>
  */
 
 #include <linux/string.h>

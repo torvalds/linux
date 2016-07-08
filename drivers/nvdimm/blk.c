@@ -21,19 +21,19 @@
 #include <linux/sizes.h>
 #include "nd.h"
 
-struct nd_blk_device {
-	struct request_queue *queue;
-	struct gendisk *disk;
-	struct nd_namespace_blk *nsblk;
-	struct nd_blk_region *ndbr;
-	size_t disk_size;
-	u32 sector_size;
-	u32 internal_lbasize;
-};
-
-static u32 nd_blk_meta_size(struct nd_blk_device *blk_dev)
+static u32 nsblk_meta_size(struct nd_namespace_blk *nsblk)
 {
-	return blk_dev->nsblk->lbasize - blk_dev->sector_size;
+	return nsblk->lbasize - ((nsblk->lbasize >= 4096) ? 4096 : 512);
+}
+
+static u32 nsblk_internal_lbasize(struct nd_namespace_blk *nsblk)
+{
+	return roundup(nsblk->lbasize, INT_LBASIZE_ALIGNMENT);
+}
+
+static u32 nsblk_sector_size(struct nd_namespace_blk *nsblk)
+{
+	return nsblk->lbasize - nsblk_meta_size(nsblk);
 }
 
 static resource_size_t to_dev_offset(struct nd_namespace_blk *nsblk,
@@ -57,20 +57,29 @@ static resource_size_t to_dev_offset(struct nd_namespace_blk *nsblk,
 	return SIZE_MAX;
 }
 
-#ifdef CONFIG_BLK_DEV_INTEGRITY
-static int nd_blk_rw_integrity(struct nd_blk_device *blk_dev,
-				struct bio_integrity_payload *bip, u64 lba,
-				int rw)
+static struct nd_blk_region *to_ndbr(struct nd_namespace_blk *nsblk)
 {
-	unsigned int len = nd_blk_meta_size(blk_dev);
+	struct nd_region *nd_region;
+	struct device *parent;
+
+	parent = nsblk->common.dev.parent;
+	nd_region = container_of(parent, struct nd_region, dev);
+	return container_of(nd_region, struct nd_blk_region, nd_region);
+}
+
+#ifdef CONFIG_BLK_DEV_INTEGRITY
+static int nd_blk_rw_integrity(struct nd_namespace_blk *nsblk,
+		struct bio_integrity_payload *bip, u64 lba, int rw)
+{
+	struct nd_blk_region *ndbr = to_ndbr(nsblk);
+	unsigned int len = nsblk_meta_size(nsblk);
 	resource_size_t	dev_offset, ns_offset;
-	struct nd_namespace_blk *nsblk;
-	struct nd_blk_region *ndbr;
+	u32 internal_lbasize, sector_size;
 	int err = 0;
 
-	nsblk = blk_dev->nsblk;
-	ndbr = blk_dev->ndbr;
-	ns_offset = lba * blk_dev->internal_lbasize + blk_dev->sector_size;
+	internal_lbasize = nsblk_internal_lbasize(nsblk);
+	sector_size = nsblk_sector_size(nsblk);
+	ns_offset = lba * internal_lbasize + sector_size;
 	dev_offset = to_dev_offset(nsblk, ns_offset, len);
 	if (dev_offset == SIZE_MAX)
 		return -EIO;
@@ -104,25 +113,26 @@ static int nd_blk_rw_integrity(struct nd_blk_device *blk_dev,
 }
 
 #else /* CONFIG_BLK_DEV_INTEGRITY */
-static int nd_blk_rw_integrity(struct nd_blk_device *blk_dev,
-				struct bio_integrity_payload *bip, u64 lba,
-				int rw)
+static int nd_blk_rw_integrity(struct nd_namespace_blk *nsblk,
+		struct bio_integrity_payload *bip, u64 lba, int rw)
 {
 	return 0;
 }
 #endif
 
-static int nd_blk_do_bvec(struct nd_blk_device *blk_dev,
-			struct bio_integrity_payload *bip, struct page *page,
-			unsigned int len, unsigned int off, int rw,
-			sector_t sector)
+static int nsblk_do_bvec(struct nd_namespace_blk *nsblk,
+		struct bio_integrity_payload *bip, struct page *page,
+		unsigned int len, unsigned int off, int rw, sector_t sector)
 {
-	struct nd_blk_region *ndbr = blk_dev->ndbr;
+	struct nd_blk_region *ndbr = to_ndbr(nsblk);
 	resource_size_t	dev_offset, ns_offset;
+	u32 internal_lbasize, sector_size;
 	int err = 0;
 	void *iobuf;
 	u64 lba;
 
+	internal_lbasize = nsblk_internal_lbasize(nsblk);
+	sector_size = nsblk_sector_size(nsblk);
 	while (len) {
 		unsigned int cur_len;
 
@@ -132,11 +142,11 @@ static int nd_blk_do_bvec(struct nd_blk_device *blk_dev,
 		 * Block Window setup/move steps. the do_io routine is capable
 		 * of handling len <= PAGE_SIZE.
 		 */
-		cur_len = bip ? min(len, blk_dev->sector_size) : len;
+		cur_len = bip ? min(len, sector_size) : len;
 
-		lba = div_u64(sector << SECTOR_SHIFT, blk_dev->sector_size);
-		ns_offset = lba * blk_dev->internal_lbasize;
-		dev_offset = to_dev_offset(blk_dev->nsblk, ns_offset, cur_len);
+		lba = div_u64(sector << SECTOR_SHIFT, sector_size);
+		ns_offset = lba * internal_lbasize;
+		dev_offset = to_dev_offset(nsblk, ns_offset, cur_len);
 		if (dev_offset == SIZE_MAX)
 			return -EIO;
 
@@ -147,13 +157,13 @@ static int nd_blk_do_bvec(struct nd_blk_device *blk_dev,
 			return err;
 
 		if (bip) {
-			err = nd_blk_rw_integrity(blk_dev, bip, lba, rw);
+			err = nd_blk_rw_integrity(nsblk, bip, lba, rw);
 			if (err)
 				return err;
 		}
 		len -= cur_len;
 		off += cur_len;
-		sector += blk_dev->sector_size >> SECTOR_SHIFT;
+		sector += sector_size >> SECTOR_SHIFT;
 	}
 
 	return err;
@@ -161,10 +171,8 @@ static int nd_blk_do_bvec(struct nd_blk_device *blk_dev,
 
 static blk_qc_t nd_blk_make_request(struct request_queue *q, struct bio *bio)
 {
-	struct block_device *bdev = bio->bi_bdev;
-	struct gendisk *disk = bdev->bd_disk;
 	struct bio_integrity_payload *bip;
-	struct nd_blk_device *blk_dev;
+	struct nd_namespace_blk *nsblk;
 	struct bvec_iter iter;
 	unsigned long start;
 	struct bio_vec bvec;
@@ -183,17 +191,17 @@ static blk_qc_t nd_blk_make_request(struct request_queue *q, struct bio *bio)
 	}
 
 	bip = bio_integrity(bio);
-	blk_dev = disk->private_data;
+	nsblk = q->queuedata;
 	rw = bio_data_dir(bio);
 	do_acct = nd_iostat_start(bio, &start);
 	bio_for_each_segment(bvec, bio, iter) {
 		unsigned int len = bvec.bv_len;
 
 		BUG_ON(len > PAGE_SIZE);
-		err = nd_blk_do_bvec(blk_dev, bip, bvec.bv_page, len,
-					bvec.bv_offset, rw, iter.bi_sector);
+		err = nsblk_do_bvec(nsblk, bip, bvec.bv_page, len,
+				bvec.bv_offset, rw, iter.bi_sector);
 		if (err) {
-			dev_info(&blk_dev->nsblk->common.dev,
+			dev_dbg(&nsblk->common.dev,
 					"io error in %s sector %lld, len %d,\n",
 					(rw == READ) ? "READ" : "WRITE",
 					(unsigned long long) iter.bi_sector, len);
@@ -209,17 +217,16 @@ static blk_qc_t nd_blk_make_request(struct request_queue *q, struct bio *bio)
 	return BLK_QC_T_NONE;
 }
 
-static int nd_blk_rw_bytes(struct nd_namespace_common *ndns,
+static int nsblk_rw_bytes(struct nd_namespace_common *ndns,
 		resource_size_t offset, void *iobuf, size_t n, int rw)
 {
-	struct nd_blk_device *blk_dev = dev_get_drvdata(ndns->claim);
-	struct nd_namespace_blk *nsblk = blk_dev->nsblk;
-	struct nd_blk_region *ndbr = blk_dev->ndbr;
+	struct nd_namespace_blk *nsblk = to_nd_namespace_blk(&ndns->dev);
+	struct nd_blk_region *ndbr = to_ndbr(nsblk);
 	resource_size_t	dev_offset;
 
 	dev_offset = to_dev_offset(nsblk, offset, n);
 
-	if (unlikely(offset + n > blk_dev->disk_size)) {
+	if (unlikely(offset + n > nsblk->size)) {
 		dev_WARN_ONCE(&ndns->dev, 1, "request out of range\n");
 		return -EFAULT;
 	}
@@ -235,51 +242,65 @@ static const struct block_device_operations nd_blk_fops = {
 	.revalidate_disk = nvdimm_revalidate_disk,
 };
 
-static int nd_blk_attach_disk(struct nd_namespace_common *ndns,
-		struct nd_blk_device *blk_dev)
+static void nd_blk_release_queue(void *q)
 {
+	blk_cleanup_queue(q);
+}
+
+static void nd_blk_release_disk(void *disk)
+{
+	del_gendisk(disk);
+	put_disk(disk);
+}
+
+static int nsblk_attach_disk(struct nd_namespace_blk *nsblk)
+{
+	struct device *dev = &nsblk->common.dev;
 	resource_size_t available_disk_size;
+	struct request_queue *q;
 	struct gendisk *disk;
 	u64 internal_nlba;
 
-	internal_nlba = div_u64(blk_dev->disk_size, blk_dev->internal_lbasize);
-	available_disk_size = internal_nlba * blk_dev->sector_size;
+	internal_nlba = div_u64(nsblk->size, nsblk_internal_lbasize(nsblk));
+	available_disk_size = internal_nlba * nsblk_sector_size(nsblk);
 
-	blk_dev->queue = blk_alloc_queue(GFP_KERNEL);
-	if (!blk_dev->queue)
+	q = blk_alloc_queue(GFP_KERNEL);
+	if (!q)
 		return -ENOMEM;
-
-	blk_queue_make_request(blk_dev->queue, nd_blk_make_request);
-	blk_queue_max_hw_sectors(blk_dev->queue, UINT_MAX);
-	blk_queue_bounce_limit(blk_dev->queue, BLK_BOUNCE_ANY);
-	blk_queue_logical_block_size(blk_dev->queue, blk_dev->sector_size);
-	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, blk_dev->queue);
-
-	disk = blk_dev->disk = alloc_disk(0);
-	if (!disk) {
-		blk_cleanup_queue(blk_dev->queue);
+	if (devm_add_action(dev, nd_blk_release_queue, q)) {
+		blk_cleanup_queue(q);
 		return -ENOMEM;
 	}
 
-	disk->driverfs_dev	= &ndns->dev;
+	blk_queue_make_request(q, nd_blk_make_request);
+	blk_queue_max_hw_sectors(q, UINT_MAX);
+	blk_queue_bounce_limit(q, BLK_BOUNCE_ANY);
+	blk_queue_logical_block_size(q, nsblk_sector_size(nsblk));
+	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, q);
+	q->queuedata = nsblk;
+
+	disk = alloc_disk(0);
+	if (!disk)
+		return -ENOMEM;
+	if (devm_add_action(dev, nd_blk_release_disk, disk)) {
+		put_disk(disk);
+		return -ENOMEM;
+	}
+
+	disk->driverfs_dev	= dev;
 	disk->first_minor	= 0;
 	disk->fops		= &nd_blk_fops;
-	disk->private_data	= blk_dev;
-	disk->queue		= blk_dev->queue;
+	disk->queue		= q;
 	disk->flags		= GENHD_FL_EXT_DEVT;
-	nvdimm_namespace_disk_name(ndns, disk->disk_name);
+	nvdimm_namespace_disk_name(&nsblk->common, disk->disk_name);
 	set_capacity(disk, 0);
 	add_disk(disk);
 
-	if (nd_blk_meta_size(blk_dev)) {
-		int rc = nd_integrity_init(disk, nd_blk_meta_size(blk_dev));
+	if (nsblk_meta_size(nsblk)) {
+		int rc = nd_integrity_init(disk, nsblk_meta_size(nsblk));
 
-		if (rc) {
-			del_gendisk(disk);
-			put_disk(disk);
-			blk_cleanup_queue(blk_dev->queue);
+		if (rc)
 			return rc;
-		}
 	}
 
 	set_capacity(disk, available_disk_size >> SECTOR_SHIFT);
@@ -291,56 +312,29 @@ static int nd_blk_probe(struct device *dev)
 {
 	struct nd_namespace_common *ndns;
 	struct nd_namespace_blk *nsblk;
-	struct nd_blk_device *blk_dev;
-	int rc;
 
 	ndns = nvdimm_namespace_common_probe(dev);
 	if (IS_ERR(ndns))
 		return PTR_ERR(ndns);
 
-	blk_dev = kzalloc(sizeof(*blk_dev), GFP_KERNEL);
-	if (!blk_dev)
-		return -ENOMEM;
-
 	nsblk = to_nd_namespace_blk(&ndns->dev);
-	blk_dev->disk_size = nvdimm_namespace_capacity(ndns);
-	blk_dev->ndbr = to_nd_blk_region(dev->parent);
-	blk_dev->nsblk = to_nd_namespace_blk(&ndns->dev);
-	blk_dev->internal_lbasize = roundup(nsblk->lbasize,
-						INT_LBASIZE_ALIGNMENT);
-	blk_dev->sector_size = ((nsblk->lbasize >= 4096) ? 4096 : 512);
-	dev_set_drvdata(dev, blk_dev);
+	nsblk->size = nvdimm_namespace_capacity(ndns);
+	dev_set_drvdata(dev, nsblk);
 
-	ndns->rw_bytes = nd_blk_rw_bytes;
+	ndns->rw_bytes = nsblk_rw_bytes;
 	if (is_nd_btt(dev))
-		rc = nvdimm_namespace_attach_btt(ndns);
-	else if (nd_btt_probe(ndns, blk_dev) == 0) {
+		return nvdimm_namespace_attach_btt(ndns);
+	else if (nd_btt_probe(dev, ndns) == 0) {
 		/* we'll come back as btt-blk */
-		rc = -ENXIO;
+		return -ENXIO;
 	} else
-		rc = nd_blk_attach_disk(ndns, blk_dev);
-	if (rc)
-		kfree(blk_dev);
-	return rc;
-}
-
-static void nd_blk_detach_disk(struct nd_blk_device *blk_dev)
-{
-	del_gendisk(blk_dev->disk);
-	put_disk(blk_dev->disk);
-	blk_cleanup_queue(blk_dev->queue);
+		return nsblk_attach_disk(nsblk);
 }
 
 static int nd_blk_remove(struct device *dev)
 {
-	struct nd_blk_device *blk_dev = dev_get_drvdata(dev);
-
 	if (is_nd_btt(dev))
-		nvdimm_namespace_detach_btt(to_nd_btt(dev)->ndns);
-	else
-		nd_blk_detach_disk(blk_dev);
-	kfree(blk_dev);
-
+		nvdimm_namespace_detach_btt(to_nd_btt(dev));
 	return 0;
 }
 

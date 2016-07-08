@@ -17,7 +17,6 @@
 #include <linux/io.h>
 #include <linux/init.h>
 #include <linux/clk.h>
-#include <linux/module.h>
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
@@ -185,8 +184,6 @@ static int mb86s70_gpio_probe(struct platform_device *pdev)
 	gchip->gc.parent = &pdev->dev;
 	gchip->gc.base = -1;
 
-	platform_set_drvdata(pdev, gchip);
-
 	ret = gpiochip_add_data(&gchip->gc, gchip);
 	if (ret) {
 		dev_err(&pdev->dev, "couldn't register gpio driver\n");
@@ -210,7 +207,6 @@ static const struct of_device_id mb86s70_gpio_dt_ids[] = {
 	{ .compatible = "fujitsu,mb86s70-gpio" },
 	{ /* sentinel */ }
 };
-MODULE_DEVICE_TABLE(of, mb86s70_gpio_dt_ids);
 
 static struct platform_driver mb86s70_gpio_driver = {
 	.driver = {
@@ -225,8 +221,4 @@ static int __init mb86s70_gpio_init(void)
 {
 	return platform_driver_register(&mb86s70_gpio_driver);
 }
-module_init(mb86s70_gpio_init);
-
-MODULE_DESCRIPTION("MB86S7x GPIO Driver");
-MODULE_ALIAS("platform:mb86s70-gpio");
-MODULE_LICENSE("GPL");
+device_initcall(mb86s70_gpio_init);

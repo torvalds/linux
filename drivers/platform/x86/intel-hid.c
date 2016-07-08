@@ -91,6 +91,8 @@ static int intel_hid_pl_resume_handler(struct device *device)
 }
 
 static const struct dev_pm_ops intel_hid_pl_pm_ops = {
+	.freeze  = intel_hid_pl_suspend_handler,
+	.restore  = intel_hid_pl_resume_handler,
 	.suspend  = intel_hid_pl_suspend_handler,
 	.resume  = intel_hid_pl_resume_handler,
 };

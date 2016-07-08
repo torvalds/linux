@@ -11,9 +11,10 @@
 
 #include <drm/drmP.h>
 
-#include <drm/exynos_drm.h>
-#include <drm/drm_plane_helper.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_plane_helper.h>
+#include <drm/exynos_drm.h>
 #include "exynos_drm_drv.h"
 #include "exynos_drm_crtc.h"
 #include "exynos_drm_fb.h"
@@ -57,11 +58,12 @@ static int exynos_plane_get_size(int start, unsigned length, unsigned last)
 }
 
 static void exynos_plane_mode_set(struct exynos_drm_plane_state *exynos_state)
-
 {
 	struct drm_plane_state *state = &exynos_state->base;
-	struct drm_crtc *crtc = exynos_state->base.crtc;
-	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
+	struct drm_crtc *crtc = state->crtc;
+	struct drm_crtc_state *crtc_state =
+			drm_atomic_get_existing_crtc_state(state->state, crtc);
+	struct drm_display_mode *mode = &crtc_state->adjusted_mode;
 	int crtc_x, crtc_y;
 	unsigned int crtc_w, crtc_h;
 	unsigned int src_x, src_y;
@@ -164,7 +166,7 @@ static void exynos_drm_plane_destroy_state(struct drm_plane *plane,
 {
 	struct exynos_drm_plane_state *old_exynos_state =
 					to_exynos_plane_state(old_state);
-	__drm_atomic_helper_plane_destroy_state(plane, old_state);
+	__drm_atomic_helper_plane_destroy_state(old_state);
 	kfree(old_exynos_state);
 }
 
@@ -240,7 +242,7 @@ exynos_drm_plane_check_size(const struct exynos_drm_plane_config *config,
 	    state->v_ratio == (1 << 15))
 		height_ok = true;
 
-	if (width_ok & height_ok)
+	if (width_ok && height_ok)
 		return 0;
 
 	DRM_DEBUG_KMS("scaling mode is not supported");

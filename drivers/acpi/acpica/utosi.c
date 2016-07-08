@@ -150,7 +150,7 @@ acpi_status acpi_ut_initialize_interfaces(void)
 	     i < (ACPI_ARRAY_LENGTH(acpi_default_supported_interfaces) - 1);
 	     i++) {
 		acpi_default_supported_interfaces[i].next =
-		    &acpi_default_supported_interfaces[(acpi_size) i + 1];
+		    &acpi_default_supported_interfaces[(acpi_size)i + 1];
 	}
 
 	acpi_os_release_mutex(acpi_gbl_osi_mutex);
@@ -397,7 +397,7 @@ struct acpi_interface_info *acpi_ut_get_interface(acpi_string interface_name)
  *
  ******************************************************************************/
 
-acpi_status acpi_ut_osi_implementation(struct acpi_walk_state * walk_state)
+acpi_status acpi_ut_osi_implementation(struct acpi_walk_state *walk_state)
 {
 	union acpi_operand_object *string_desc;
 	union acpi_operand_object *return_desc;

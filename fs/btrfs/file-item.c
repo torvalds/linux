@@ -32,7 +32,7 @@
 				  size) - 1))
 
 #define MAX_CSUM_ITEMS(r, size) (min_t(u32, __MAX_CSUM_ITEMS(r, size), \
-				       PAGE_CACHE_SIZE))
+				       PAGE_SIZE))
 
 #define MAX_ORDERED_SUM_BYTES(r) ((PAGE_SIZE - \
 				   sizeof(struct btrfs_ordered_sum)) / \
@@ -203,7 +203,7 @@ static int __btrfs_lookup_bio_sums(struct btrfs_root *root,
 		csum = (u8 *)dst;
 	}
 
-	if (bio->bi_iter.bi_size > PAGE_CACHE_SIZE * 8)
+	if (bio->bi_iter.bi_size > PAGE_SIZE * 8)
 		path->reada = READA_FORWARD;
 
 	WARN_ON(bio->bi_vcnt <= 0);
@@ -248,7 +248,7 @@ static int __btrfs_lookup_bio_sums(struct btrfs_root *root,
 				    BTRFS_DATA_RELOC_TREE_OBJECTID) {
 					set_extent_bits(io_tree, offset,
 						offset + root->sectorsize - 1,
-						EXTENT_NODATASUM, GFP_NOFS);
+						EXTENT_NODATASUM);
 				} else {
 					btrfs_info(BTRFS_I(inode)->root->fs_info,
 						   "no csum found for inode %llu start %llu",

@@ -210,6 +210,11 @@ of ftrace. Here is a list of some of the key files:
 	Note, sched_switch and sched_wake_up will also trace events
 	listed in this file.
 
+	To have the PIDs of children of tasks with their PID in this file
+	added on fork, enable the "event-fork" option. That option will also
+	cause the PIDs of tasks to be removed from this file when the task
+	exits.
+
   set_graph_function:
 
 	Set a "trigger" function where tracing should start
@@ -725,16 +730,14 @@ noraw
 nohex
 nobin
 noblock
-nostacktrace
 trace_printk
-noftrace_preempt
 nobranch
 annotate
 nouserstacktrace
 nosym-userobj
 noprintk-msg-only
 context-info
-latency-format
+nolatency-format
 sleep-time
 graph-time
 record-cmd
@@ -742,7 +745,10 @@ overwrite
 nodisable_on_free
 irq-info
 markers
+noevent-fork
 function-trace
+nodisplay-graph
+nostacktrace
 
 To disable one of the options, echo in the option prepended with
 "no".
@@ -795,11 +801,6 @@ Here are the available options:
   bin - This will print out the formats in raw binary.
 
   block - When set, reading trace_pipe will not block when polled.
-
-  stacktrace - This is one of the options that changes the trace
-	       itself. When a trace is recorded, so is the stack
-	       of functions. This allows for back traces of
-	       trace sites.
 
   trace_printk - Can disable trace_printk() from writing into the buffer.
 
@@ -897,6 +898,10 @@ x494] <- /root/a.out[+0x4a8] <- /lib/libc-2.7.so[+0x1e1a6]
   	    When disabled, the trace_marker will error with EINVAL
 	    on write.
 
+  event-fork - When set, tasks with PIDs listed in set_event_pid will have
+	       the PIDs of their children added to set_event_pid when those
+	       tasks fork. Also, when tasks with PIDs in set_event_pid exit,
+	       their PIDs will be removed from the file.
 
   function-trace - The latency tracers will enable function tracing
   	    if this option is enabled (default it is). When
@@ -904,8 +909,17 @@ x494] <- /root/a.out[+0x4a8] <- /lib/libc-2.7.so[+0x1e1a6]
 	    functions. This keeps the overhead of the tracer down
 	    when performing latency tests.
 
- Note: Some tracers have their own options. They only appear
-       when the tracer is active.
+  display-graph - When set, the latency tracers (irqsoff, wakeup, etc) will
+	          use function graph tracing instead of function tracing.
+
+  stacktrace - This is one of the options that changes the trace
+	       itself. When a trace is recorded, so is the stack
+	       of functions. This allows for back traces of
+	       trace sites.
+
+ Note: Some tracers have their own options. They only appear in this
+       file when the tracer is active. They always appear in the
+       options directory.
 
 
 
@@ -1562,12 +1576,12 @@ Doing the same with chrt -r 5 and function-trace set.
   <idle>-0       3dN.1   12us : menu_hrtimer_cancel <-tick_nohz_idle_exit
   <idle>-0       3dN.1   12us : ktime_get <-tick_nohz_idle_exit
   <idle>-0       3dN.1   12us : tick_do_update_jiffies64 <-tick_nohz_idle_exit
-  <idle>-0       3dN.1   13us : update_cpu_load_nohz <-tick_nohz_idle_exit
-  <idle>-0       3dN.1   13us : _raw_spin_lock <-update_cpu_load_nohz
+  <idle>-0       3dN.1   13us : cpu_load_update_nohz <-tick_nohz_idle_exit
+  <idle>-0       3dN.1   13us : _raw_spin_lock <-cpu_load_update_nohz
   <idle>-0       3dN.1   13us : add_preempt_count <-_raw_spin_lock
-  <idle>-0       3dN.2   13us : __update_cpu_load <-update_cpu_load_nohz
-  <idle>-0       3dN.2   14us : sched_avg_update <-__update_cpu_load
-  <idle>-0       3dN.2   14us : _raw_spin_unlock <-update_cpu_load_nohz
+  <idle>-0       3dN.2   13us : __cpu_load_update <-cpu_load_update_nohz
+  <idle>-0       3dN.2   14us : sched_avg_update <-__cpu_load_update
+  <idle>-0       3dN.2   14us : _raw_spin_unlock <-cpu_load_update_nohz
   <idle>-0       3dN.2   14us : sub_preempt_count <-_raw_spin_unlock
   <idle>-0       3dN.1   15us : calc_load_exit_idle <-tick_nohz_idle_exit
   <idle>-0       3dN.1   15us : touch_softlockup_watchdog <-tick_nohz_idle_exit

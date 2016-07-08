@@ -59,7 +59,7 @@ static void cifs_set_ops(struct inode *inode)
 
 		/* check if server can support readpages */
 		if (cifs_sb_master_tcon(cifs_sb)->ses->server->maxBuf <
-				PAGE_CACHE_SIZE + MAX_CIFS_HDR_SIZE)
+				PAGE_SIZE + MAX_CIFS_HDR_SIZE)
 			inode->i_data.a_ops = &cifs_addr_ops_smallbuf;
 		else
 			inode->i_data.a_ops = &cifs_addr_ops;
@@ -2019,8 +2019,8 @@ int cifs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 
 static int cifs_truncate_page(struct address_space *mapping, loff_t from)
 {
-	pgoff_t index = from >> PAGE_CACHE_SHIFT;
-	unsigned offset = from & (PAGE_CACHE_SIZE - 1);
+	pgoff_t index = from >> PAGE_SHIFT;
+	unsigned offset = from & (PAGE_SIZE - 1);
 	struct page *page;
 	int rc = 0;
 
@@ -2028,9 +2028,9 @@ static int cifs_truncate_page(struct address_space *mapping, loff_t from)
 	if (!page)
 		return -ENOMEM;
 
-	zero_user_segment(page, offset, PAGE_CACHE_SIZE);
+	zero_user_segment(page, offset, PAGE_SIZE);
 	unlock_page(page);
-	page_cache_release(page);
+	put_page(page);
 	return rc;
 }
 
@@ -2418,8 +2418,7 @@ cifs_setattr_exit:
 int
 cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 {
-	struct inode *inode = d_inode(direntry);
-	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(direntry->d_sb);
 	struct cifs_tcon *pTcon = cifs_sb_master_tcon(cifs_sb);
 
 	if (pTcon->unix_ext)

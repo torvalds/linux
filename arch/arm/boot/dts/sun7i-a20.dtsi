@@ -85,8 +85,9 @@
 			compatible = "allwinner,simple-framebuffer",
 				     "simple-framebuffer";
 			allwinner,pipeline = "de_be0-lcd0-tve0";
-			clocks = <&pll5 1>, <&ahb_gates 34>, <&ahb_gates 36>,
-				 <&ahb_gates 44>, <&dram_gates 26>;
+			clocks = <&pll5 1>,
+				 <&ahb_gates 34>, <&ahb_gates 36>, <&ahb_gates 44>,
+				 <&dram_gates 5>, <&dram_gates 26>;
 			status = "disabled";
 		};
 	};
@@ -186,6 +187,15 @@
 			clock-output-names = "osc24M";
 		};
 
+		osc3M: osc3M_clk {
+			#clock-cells = <0>;
+			compatible = "fixed-factor-clock";
+			clock-div = <8>;
+			clock-mult = <1>;
+			clocks = <&osc24M>;
+			clock-output-names = "osc3M";
+		};
+
 		osc32k: clk@0 {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
@@ -208,6 +218,22 @@
 			clocks = <&osc24M>;
 			clock-output-names = "pll2-1x", "pll2-2x",
 					     "pll2-4x", "pll2-8x";
+		};
+
+		pll3: clk@01c20010 {
+			#clock-cells = <0>;
+			compatible = "allwinner,sun4i-a10-pll3-clk";
+			reg = <0x01c20010 0x4>;
+			clocks = <&osc3M>;
+			clock-output-names = "pll3";
+		};
+
+		pll3x2: pll3x2_clk {
+			#clock-cells = <0>;
+			compatible = "fixed-factor-clock";
+			clock-div = <1>;
+			clock-mult = <2>;
+			clock-output-names = "pll3-2x";
 		};
 
 		pll4: clk@01c20018 {
@@ -233,6 +259,22 @@
 			clocks = <&osc24M>;
 			clock-output-names = "pll6_sata", "pll6_other", "pll6",
 					     "pll6_div_4";
+		};
+
+		pll7: clk@01c20030 {
+			#clock-cells = <0>;
+			compatible = "allwinner,sun4i-a10-pll3-clk";
+			reg = <0x01c20030 0x4>;
+			clocks = <&osc3M>;
+			clock-output-names = "pll7";
+		};
+
+		pll7x2: pll7x2_clk {
+			#clock-cells = <0>;
+			compatible = "fixed-factor-clock";
+			clock-div = <1>;
+			clock-mult = <2>;
+			clock-output-names = "pll7-2x";
 		};
 
 		pll8: clk@01c20040 {
@@ -474,6 +516,17 @@
 			reg = <0x01c200b4 0x4>;
 			clocks = <&osc24M>, <&pll6 1>, <&pll5 1>;
 			clock-output-names = "ir1";
+		};
+
+		spdif_clk: clk@01c200c0 {
+			#clock-cells = <0>;
+			compatible = "allwinner,sun4i-a10-mod1-clk";
+			reg = <0x01c200c0 0x4>;
+			clocks = <&pll2 SUN4I_A10_PLL2_8X>,
+				 <&pll2 SUN4I_A10_PLL2_4X>,
+				 <&pll2 SUN4I_A10_PLL2_2X>,
+				 <&pll2 SUN4I_A10_PLL2_1X>;
+			clock-output-names = "spdif";
 		};
 
 		keypad_clk: clk@01c200c4 {
@@ -1193,6 +1246,13 @@
 				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
+
+			spdif_tx_pins_a: spdif@0 {
+				allwinner,pins = "PB13";
+				allwinner,function = "spdif";
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+			};
 		};
 
 		timer@01c20c00 {
@@ -1223,6 +1283,19 @@
 			reg = <0x01c20e00 0xc>;
 			clocks = <&osc24M>;
 			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		spdif: spdif@01c21000 {
+			#sound-dai-cells = <0>;
+			compatible = "allwinner,sun4i-a10-spdif";
+			reg = <0x01c21000 0x400>;
+			interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&apb0_gates 1>, <&spdif_clk>;
+			clock-names = "apb", "spdif";
+			dmas = <&dma SUN4I_DMA_NORMAL 2>,
+			       <&dma SUN4I_DMA_NORMAL 2>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 

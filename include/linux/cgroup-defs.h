@@ -444,6 +444,7 @@ struct cgroup_subsys {
 	int (*can_attach)(struct cgroup_taskset *tset);
 	void (*cancel_attach)(struct cgroup_taskset *tset);
 	void (*attach)(struct cgroup_taskset *tset);
+	void (*post_attach)(void);
 	int (*can_fork)(struct task_struct *task);
 	void (*cancel_fork)(struct task_struct *task);
 	void (*fork)(struct task_struct *task);

@@ -39,6 +39,53 @@
 #include <linux/mlx5/cq.h>
 #include "mlx5_core.h"
 
+#define TASKLET_MAX_TIME 2
+#define TASKLET_MAX_TIME_JIFFIES msecs_to_jiffies(TASKLET_MAX_TIME)
+
+void mlx5_cq_tasklet_cb(unsigned long data)
+{
+	unsigned long flags;
+	unsigned long end = jiffies + TASKLET_MAX_TIME_JIFFIES;
+	struct mlx5_eq_tasklet *ctx = (struct mlx5_eq_tasklet *)data;
+	struct mlx5_core_cq *mcq;
+	struct mlx5_core_cq *temp;
+
+	spin_lock_irqsave(&ctx->lock, flags);
+	list_splice_tail_init(&ctx->list, &ctx->process_list);
+	spin_unlock_irqrestore(&ctx->lock, flags);
+
+	list_for_each_entry_safe(mcq, temp, &ctx->process_list,
+				 tasklet_ctx.list) {
+		list_del_init(&mcq->tasklet_ctx.list);
+		mcq->tasklet_ctx.comp(mcq);
+		if (atomic_dec_and_test(&mcq->refcount))
+			complete(&mcq->free);
+		if (time_after(jiffies, end))
+			break;
+	}
+
+	if (!list_empty(&ctx->process_list))
+		tasklet_schedule(&ctx->task);
+}
+
+static void mlx5_add_cq_to_tasklet(struct mlx5_core_cq *cq)
+{
+	unsigned long flags;
+	struct mlx5_eq_tasklet *tasklet_ctx = cq->tasklet_ctx.priv;
+
+	spin_lock_irqsave(&tasklet_ctx->lock, flags);
+	/* When migrating CQs between EQs will be implemented, please note
+	 * that you need to sync this point. It is possible that
+	 * while migrating a CQ, completions on the old EQs could
+	 * still arrive.
+	 */
+	if (list_empty_careful(&cq->tasklet_ctx.list)) {
+		atomic_inc(&cq->refcount);
+		list_add_tail(&cq->tasklet_ctx.list, &tasklet_ctx->list);
+	}
+	spin_unlock_irqrestore(&tasklet_ctx->lock, flags);
+}
+
 void mlx5_cq_completion(struct mlx5_core_dev *dev, u32 cqn)
 {
 	struct mlx5_core_cq *cq;
@@ -96,6 +143,13 @@ int mlx5_core_create_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
 	struct mlx5_create_cq_mbox_out out;
 	struct mlx5_destroy_cq_mbox_in din;
 	struct mlx5_destroy_cq_mbox_out dout;
+	int eqn = MLX5_GET(cqc, MLX5_ADDR_OF(create_cq_in, in, cq_context),
+			   c_eqn);
+	struct mlx5_eq *eq;
+
+	eq = mlx5_eqn2eq(dev, eqn);
+	if (IS_ERR(eq))
+		return PTR_ERR(eq);
 
 	in->hdr.opcode = cpu_to_be16(MLX5_CMD_OP_CREATE_CQ);
 	memset(&out, 0, sizeof(out));
@@ -111,6 +165,11 @@ int mlx5_core_create_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
 	cq->arm_sn     = 0;
 	atomic_set(&cq->refcount, 1);
 	init_completion(&cq->free);
+	if (!cq->comp)
+		cq->comp = mlx5_add_cq_to_tasklet;
+	/* assuming CQ will be deleted before the EQ */
+	cq->tasklet_ctx.priv = &eq->tasklet_ctx;
+	INIT_LIST_HEAD(&cq->tasklet_ctx.list);
 
 	spin_lock_irq(&table->lock);
 	err = radix_tree_insert(&table->tree, cq->cqn, cq);

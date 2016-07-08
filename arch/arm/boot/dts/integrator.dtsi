@@ -52,8 +52,9 @@
 	};
 
 	flash@24000000 {
-		compatible = "cfi-flash";
+		compatible = "arm,versatile-flash", "cfi-flash";
 		reg = <0x24000000 0x02000000>;
+		bank-width = <4>;
 	};
 
 	fpga {

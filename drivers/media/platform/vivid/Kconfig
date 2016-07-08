@@ -7,6 +7,7 @@ config VIDEO_VIVID
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	select VIDEOBUF2_VMALLOC
+	select VIDEO_V4L2_TPG
 	default n
 	---help---
 	  Enables a virtual video driver. This driver emulates a webcam,

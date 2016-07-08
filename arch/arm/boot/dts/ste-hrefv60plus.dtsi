@@ -20,12 +20,12 @@
 	soc {
 		// External Micro SD slot
 		sdi0_per1@80126000 {
-			cd-gpios  = <&gpio2 31 0x4>; // 95
+			cd-gpios  = <&gpio2 31 GPIO_ACTIVE_HIGH>; // 95
 		};
 
 		vmmci: regulator-gpio {
-			gpios = <&gpio0 5 0x4>;
-			enable-gpio = <&gpio5 9 0x4>;
+			gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;
+			enable-gpio = <&gpio5 9 GPIO_ACTIVE_HIGH>;
 		};
 
 		pinctrl {

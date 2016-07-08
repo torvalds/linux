@@ -211,31 +211,6 @@ u32 rtw_free_uc_swdec_pending_queue23a(struct rtw_adapter *adapter)
 	return cnt;
 }
 
-int rtw_enqueue_recvbuf23a_to_head(struct recv_buf *precvbuf, struct rtw_queue *queue)
-{
-	spin_lock_bh(&queue->lock);
-
-	list_del_init(&precvbuf->list);
-	list_add(&precvbuf->list, get_list_head(queue));
-
-	spin_unlock_bh(&queue->lock);
-
-	return _SUCCESS;
-}
-
-int rtw_enqueue_recvbuf23a(struct recv_buf *precvbuf, struct rtw_queue *queue)
-{
-	unsigned long irqL;
-
-	spin_lock_irqsave(&queue->lock, irqL);
-
-	list_del_init(&precvbuf->list);
-
-	list_add_tail(&precvbuf->list, get_list_head(queue));
-	spin_unlock_irqrestore(&queue->lock, irqL);
-	return _SUCCESS;
-}
-
 struct recv_buf *rtw_dequeue_recvbuf23a (struct rtw_queue *queue)
 {
 	unsigned long irqL;

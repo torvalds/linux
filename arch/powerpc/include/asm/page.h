@@ -288,7 +288,11 @@ extern long long virt_phys_offset;
 
 #ifndef __ASSEMBLY__
 
+#ifdef CONFIG_PPC_BOOK3S_64
+#include <asm/pgtable-be-types.h>
+#else
 #include <asm/pgtable-types.h>
+#endif
 
 typedef struct { signed long pd; } hugepd_t;
 
@@ -312,11 +316,19 @@ void arch_free_page(struct page *page, int order);
 #endif
 
 struct vm_area_struct;
-
+#ifdef CONFIG_PPC_BOOK3S_64
+/*
+ * For BOOK3s 64 with 4k and 64K linux page size
+ * we want to use pointers, because the page table
+ * actually store pfn
+ */
+typedef pte_t *pgtable_t;
+#else
 #if defined(CONFIG_PPC_64K_PAGES) && defined(CONFIG_PPC64)
 typedef pte_t *pgtable_t;
 #else
 typedef struct page *pgtable_t;
+#endif
 #endif
 
 #include <asm-generic/memory_model.h>

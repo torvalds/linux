@@ -209,7 +209,7 @@ acpi_ds_detect_named_opcodes(struct acpi_walk_state *walk_state,
  ******************************************************************************/
 
 acpi_status
-acpi_ds_method_error(acpi_status status, struct acpi_walk_state * walk_state)
+acpi_ds_method_error(acpi_status status, struct acpi_walk_state *walk_state)
 {
 	u32 aml_offset;
 
@@ -428,6 +428,9 @@ acpi_ds_begin_method_execution(struct acpi_namespace_node *method_node,
 				obj_desc->method.mutex->mutex.
 				    original_sync_level =
 				    obj_desc->method.mutex->mutex.sync_level;
+
+				obj_desc->method.mutex->mutex.thread_id =
+				    acpi_os_get_thread_id();
 			}
 		}
 

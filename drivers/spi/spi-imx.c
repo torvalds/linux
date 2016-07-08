@@ -211,11 +211,15 @@ static bool spi_imx_can_dma(struct spi_master *master, struct spi_device *spi,
 			 struct spi_transfer *transfer)
 {
 	struct spi_imx_data *spi_imx = spi_master_get_devdata(master);
-	unsigned int bpw = transfer->bits_per_word;
+	unsigned int bpw;
 
 	if (!master->dma_rx)
 		return false;
 
+	if (!transfer)
+		return false;
+
+	bpw = transfer->bits_per_word;
 	if (!bpw)
 		bpw = spi->bits_per_word;
 
@@ -333,8 +337,9 @@ static void __maybe_unused mx51_ecspi_trigger(struct spi_imx_data *spi_imx)
 static int __maybe_unused mx51_ecspi_config(struct spi_imx_data *spi_imx,
 		struct spi_imx_config *config)
 {
-	u32 ctrl = MX51_ECSPI_CTRL_ENABLE, cfg = 0;
+	u32 ctrl = MX51_ECSPI_CTRL_ENABLE;
 	u32 clk = config->speed_hz, delay, reg;
+	u32 cfg = readl(spi_imx->base + MX51_ECSPI_CONFIG);
 
 	/*
 	 * The hardware seems to have a race condition when changing modes. The
@@ -358,13 +363,20 @@ static int __maybe_unused mx51_ecspi_config(struct spi_imx_data *spi_imx,
 
 	if (config->mode & SPI_CPHA)
 		cfg |= MX51_ECSPI_CONFIG_SCLKPHA(config->cs);
+	else
+		cfg &= ~MX51_ECSPI_CONFIG_SCLKPHA(config->cs);
 
 	if (config->mode & SPI_CPOL) {
 		cfg |= MX51_ECSPI_CONFIG_SCLKPOL(config->cs);
 		cfg |= MX51_ECSPI_CONFIG_SCLKCTL(config->cs);
+	} else {
+		cfg &= ~MX51_ECSPI_CONFIG_SCLKPOL(config->cs);
+		cfg &= ~MX51_ECSPI_CONFIG_SCLKCTL(config->cs);
 	}
 	if (config->mode & SPI_CS_HIGH)
 		cfg |= MX51_ECSPI_CONFIG_SSBPOL(config->cs);
+	else
+		cfg &= ~MX51_ECSPI_CONFIG_SSBPOL(config->cs);
 
 	if (spi_imx->usedma)
 		ctrl |= MX51_ECSPI_CTRL_SMC;

@@ -316,6 +316,7 @@ extern void lru_cache_add_active_or_unevictable(struct page *page,
 						struct vm_area_struct *vma);
 
 /* linux/mm/vmscan.c */
+extern unsigned long zone_reclaimable_pages(struct zone *zone);
 extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
 					gfp_t gfp_mask, nodemask_t *mask);
 extern int __isolate_lru_page(struct page *page, isolate_mode_t mode);
@@ -418,7 +419,7 @@ extern sector_t swapdev_block(int, pgoff_t);
 extern int page_swapcount(struct page *);
 extern int swp_swapcount(swp_entry_t entry);
 extern struct swap_info_struct *page_swap_info(struct page *);
-extern int reuse_swap_page(struct page *);
+extern bool reuse_swap_page(struct page *, int *);
 extern int try_to_free_swap(struct page *);
 struct backing_dev_info;
 
@@ -433,9 +434,9 @@ struct backing_dev_info;
 #define si_swapinfo(val) \
 	do { (val)->freeswap = (val)->totalswap = 0; } while (0)
 /* only sparc can not include linux/pagemap.h in this file
- * so leave page_cache_release and release_pages undeclared... */
+ * so leave put_page and release_pages undeclared... */
 #define free_page_and_swap_cache(page) \
-	page_cache_release(page)
+	put_page(page)
 #define free_pages_and_swap_cache(pages, nr) \
 	release_pages((pages), (nr), false);
 
@@ -513,8 +514,8 @@ static inline int swp_swapcount(swp_entry_t entry)
 	return 0;
 }
 
-#define reuse_swap_page(page) \
-	(!PageTransCompound(page) && page_mapcount(page) == 1)
+#define reuse_swap_page(page, total_mapcount) \
+	(page_trans_huge_mapcount(page, total_mapcount) == 1)
 
 static inline int try_to_free_swap(struct page *page)
 {
@@ -533,6 +534,10 @@ static inline swp_entry_t get_swap_page(void)
 #ifdef CONFIG_MEMCG
 static inline int mem_cgroup_swappiness(struct mem_cgroup *memcg)
 {
+	/* Cgroup2 doesn't have per-cgroup swappiness */
+	if (cgroup_subsys_on_dfl(memory_cgrp_subsys))
+		return vm_swappiness;
+
 	/* root ? */
 	if (mem_cgroup_disabled() || !memcg->css.parent)
 		return vm_swappiness;

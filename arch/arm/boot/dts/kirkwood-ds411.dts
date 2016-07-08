@@ -48,6 +48,10 @@
 	status = "okay";
 };
 
-&pcie2 {
+&pciec {
+        status = "okay";
+};
+
+&pcie1 {
 	status = "okay";
 };

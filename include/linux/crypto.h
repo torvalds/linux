@@ -948,8 +948,7 @@ static inline struct ablkcipher_request *ablkcipher_request_cast(
  * encrypt and decrypt API calls. During the allocation, the provided ablkcipher
  * handle is registered in the request data structure.
  *
- * Return: allocated request handle in case of success; IS_ERR() is true in case
- *	   of an error, PTR_ERR() returns the error code.
+ * Return: allocated request handle in case of success, or NULL if out of memory
  */
 static inline struct ablkcipher_request *ablkcipher_request_alloc(
 	struct crypto_ablkcipher *tfm, gfp_t gfp)

@@ -311,17 +311,6 @@ static void bio_chain_endio(struct bio *bio)
 	bio_endio(__bio_chain_endio(bio));
 }
 
-/*
- * Increment chain count for the bio. Make sure the CHAIN flag update
- * is visible before the raised count.
- */
-static inline void bio_inc_remaining(struct bio *bio)
-{
-	bio_set_flag(bio, BIO_CHAIN);
-	smp_mb__before_atomic();
-	atomic_inc(&bio->__bi_remaining);
-}
-
 /**
  * bio_chain - chain bio completions
  * @bio: the target bio
@@ -1339,7 +1328,7 @@ struct bio *bio_map_user_iov(struct request_queue *q,
 		 * release the pages we didn't map into the bio, if any
 		 */
 		while (j < page_limit)
-			page_cache_release(pages[j++]);
+			put_page(pages[j++]);
 	}
 
 	kfree(pages);
@@ -1365,7 +1354,7 @@ struct bio *bio_map_user_iov(struct request_queue *q,
 	for (j = 0; j < nr_pages; j++) {
 		if (!pages[j])
 			break;
-		page_cache_release(pages[j]);
+		put_page(pages[j]);
 	}
  out:
 	kfree(pages);
@@ -1385,7 +1374,7 @@ static void __bio_unmap_user(struct bio *bio)
 		if (bio_data_dir(bio) == READ)
 			set_page_dirty_lock(bvec->bv_page);
 
-		page_cache_release(bvec->bv_page);
+		put_page(bvec->bv_page);
 	}
 
 	bio_put(bio);
@@ -1615,8 +1604,8 @@ static void bio_release_pages(struct bio *bio)
  * the BIO and the offending pages and re-dirty the pages in process context.
  *
  * It is expected that bio_check_pages_dirty() will wholly own the BIO from
- * here on.  It will run one page_cache_release() against each page and will
- * run one bio_put() against the BIO.
+ * here on.  It will run one put_page() against each page and will run one
+ * bio_put() against the BIO.
  */
 
 static void bio_dirty_fn(struct work_struct *work);
@@ -1658,7 +1647,7 @@ void bio_check_pages_dirty(struct bio *bio)
 		struct page *page = bvec->bv_page;
 
 		if (PageDirty(page) || PageCompound(page)) {
-			page_cache_release(page);
+			put_page(page);
 			bvec->bv_page = NULL;
 		} else {
 			nr_clean_pages++;

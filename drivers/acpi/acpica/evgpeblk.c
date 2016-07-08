@@ -211,7 +211,7 @@ acpi_ev_create_gpe_info_blocks(struct acpi_gpe_block_info *gpe_block)
 
 	/* Allocate the GPE register information block */
 
-	gpe_register_info = ACPI_ALLOCATE_ZEROED((acpi_size) gpe_block->
+	gpe_register_info = ACPI_ALLOCATE_ZEROED((acpi_size)gpe_block->
 						 register_count *
 						 sizeof(struct
 							acpi_gpe_register_info));
@@ -225,7 +225,7 @@ acpi_ev_create_gpe_info_blocks(struct acpi_gpe_block_info *gpe_block)
 	 * Allocate the GPE event_info block. There are eight distinct GPEs
 	 * per register. Initialization to zeros is sufficient.
 	 */
-	gpe_event_info = ACPI_ALLOCATE_ZEROED((acpi_size) gpe_block->gpe_count *
+	gpe_event_info = ACPI_ALLOCATE_ZEROED((acpi_size)gpe_block->gpe_count *
 					      sizeof(struct
 						     acpi_gpe_event_info));
 	if (!gpe_event_info) {

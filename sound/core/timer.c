@@ -37,8 +37,6 @@
 
 #if IS_ENABLED(CONFIG_SND_HRTIMER)
 #define DEFAULT_TIMER_LIMIT 4
-#elif IS_ENABLED(CONFIG_SND_RTCTIMER)
-#define DEFAULT_TIMER_LIMIT 2
 #else
 #define DEFAULT_TIMER_LIMIT 1
 #endif
@@ -1019,8 +1017,8 @@ static int snd_timer_s_start(struct snd_timer * timer)
 		njiff += timer->sticks - priv->correction;
 		priv->correction = 0;
 	}
-	priv->last_expires = priv->tlist.expires = njiff;
-	add_timer(&priv->tlist);
+	priv->last_expires = njiff;
+	mod_timer(&priv->tlist, njiff);
 	return 0;
 }
 
@@ -1225,6 +1223,7 @@ static void snd_timer_user_ccallback(struct snd_timer_instance *timeri,
 		tu->tstamp = *tstamp;
 	if ((tu->filter & (1 << event)) == 0 || !tu->tread)
 		return;
+	memset(&r1, 0, sizeof(r1));
 	r1.event = event;
 	r1.tstamp = *tstamp;
 	r1.val = resolution;
@@ -1267,6 +1266,7 @@ static void snd_timer_user_tinterrupt(struct snd_timer_instance *timeri,
 	}
 	if ((tu->filter & (1 << SNDRV_TIMER_EVENT_RESOLUTION)) &&
 	    tu->last_resolution != resolution) {
+		memset(&r1, 0, sizeof(r1));
 		r1.event = SNDRV_TIMER_EVENT_RESOLUTION;
 		r1.tstamp = tstamp;
 		r1.val = resolution;
@@ -1502,17 +1502,13 @@ static int snd_timer_user_ginfo(struct file *file,
 	return err;
 }
 
-static int snd_timer_user_gparams(struct file *file,
-				  struct snd_timer_gparams __user *_gparams)
+static int timer_set_gparams(struct snd_timer_gparams *gparams)
 {
-	struct snd_timer_gparams gparams;
 	struct snd_timer *t;
 	int err;
 
-	if (copy_from_user(&gparams, _gparams, sizeof(gparams)))
-		return -EFAULT;
 	mutex_lock(&register_mutex);
-	t = snd_timer_find(&gparams.tid);
+	t = snd_timer_find(&gparams->tid);
 	if (!t) {
 		err = -ENODEV;
 		goto _error;
@@ -1525,10 +1521,20 @@ static int snd_timer_user_gparams(struct file *file,
 		err = -ENOSYS;
 		goto _error;
 	}
-	err = t->hw.set_period(t, gparams.period_num, gparams.period_den);
+	err = t->hw.set_period(t, gparams->period_num, gparams->period_den);
 _error:
 	mutex_unlock(&register_mutex);
 	return err;
+}
+
+static int snd_timer_user_gparams(struct file *file,
+				  struct snd_timer_gparams __user *_gparams)
+{
+	struct snd_timer_gparams gparams;
+
+	if (copy_from_user(&gparams, _gparams, sizeof(gparams)))
+		return -EFAULT;
+	return timer_set_gparams(&gparams);
 }
 
 static int snd_timer_user_gstatus(struct file *file,
@@ -1733,6 +1739,7 @@ static int snd_timer_user_params(struct file *file,
 	if (tu->timeri->flags & SNDRV_TIMER_IFLG_EARLY_EVENT) {
 		if (tu->tread) {
 			struct snd_timer_tread tread;
+			memset(&tread, 0, sizeof(tread));
 			tread.event = SNDRV_TIMER_EVENT_EARLY;
 			tread.tstamp.tv_sec = 0;
 			tread.tstamp.tv_nsec = 0;

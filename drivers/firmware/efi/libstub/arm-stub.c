@@ -20,27 +20,49 @@
 
 bool __nokaslr;
 
-static int efi_secureboot_enabled(efi_system_table_t *sys_table_arg)
+static int efi_get_secureboot(efi_system_table_t *sys_table_arg)
 {
-	static efi_guid_t const var_guid = EFI_GLOBAL_VARIABLE_GUID;
-	static efi_char16_t const var_name[] = {
+	static efi_char16_t const sb_var_name[] = {
 		'S', 'e', 'c', 'u', 'r', 'e', 'B', 'o', 'o', 't', 0 };
+	static efi_char16_t const sm_var_name[] = {
+		'S', 'e', 't', 'u', 'p', 'M', 'o', 'd', 'e', 0 };
 
+	efi_guid_t var_guid = EFI_GLOBAL_VARIABLE_GUID;
 	efi_get_variable_t *f_getvar = sys_table_arg->runtime->get_variable;
-	unsigned long size = sizeof(u8);
-	efi_status_t status;
 	u8 val;
+	unsigned long size = sizeof(val);
+	efi_status_t status;
 
-	status = f_getvar((efi_char16_t *)var_name, (efi_guid_t *)&var_guid,
+	status = f_getvar((efi_char16_t *)sb_var_name, (efi_guid_t *)&var_guid,
 			  NULL, &size, &val);
 
+	if (status != EFI_SUCCESS)
+		goto out_efi_err;
+
+	if (val == 0)
+		return 0;
+
+	status = f_getvar((efi_char16_t *)sm_var_name, (efi_guid_t *)&var_guid,
+			  NULL, &size, &val);
+
+	if (status != EFI_SUCCESS)
+		goto out_efi_err;
+
+	if (val == 1)
+		return 0;
+
+	return 1;
+
+out_efi_err:
 	switch (status) {
-	case EFI_SUCCESS:
-		return val;
 	case EFI_NOT_FOUND:
 		return 0;
+	case EFI_DEVICE_ERROR:
+		return -EIO;
+	case EFI_SECURITY_VIOLATION:
+		return -EACCES;
 	default:
-		return 1;
+		return -EINVAL;
 	}
 }
 
@@ -147,6 +169,25 @@ void efi_char16_printk(efi_system_table_t *sys_table_arg,
 	out->output_string(out, str);
 }
 
+static struct screen_info *setup_graphics(efi_system_table_t *sys_table_arg)
+{
+	efi_guid_t gop_proto = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
+	efi_status_t status;
+	unsigned long size;
+	void **gop_handle = NULL;
+	struct screen_info *si = NULL;
+
+	size = 0;
+	status = efi_call_early(locate_handle, EFI_LOCATE_BY_PROTOCOL,
+				&gop_proto, NULL, &size, gop_handle);
+	if (status == EFI_BUFFER_TOO_SMALL) {
+		si = alloc_screen_info(sys_table_arg);
+		if (!si)
+			return NULL;
+		efi_setup_gop(sys_table_arg, si, &gop_proto, size);
+	}
+	return si;
+}
 
 /*
  * This function handles the architcture specific differences between arm and
@@ -185,6 +226,8 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table,
 	efi_guid_t loaded_image_proto = LOADED_IMAGE_PROTOCOL_GUID;
 	unsigned long reserve_addr = 0;
 	unsigned long reserve_size = 0;
+	int secure_boot = 0;
+	struct screen_info *si;
 
 	/* Check if we were booted by the EFI firmware */
 	if (sys_table->hdr.signature != EFI_SYSTEM_TABLE_SIGNATURE)
@@ -237,6 +280,8 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table,
 			__nokaslr = true;
 	}
 
+	si = setup_graphics(sys_table);
+
 	status = handle_kernel_image(sys_table, image_addr, &image_size,
 				     &reserve_addr,
 				     &reserve_size,
@@ -250,12 +295,21 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table,
 	if (status != EFI_SUCCESS)
 		pr_efi_err(sys_table, "Failed to parse EFI cmdline options\n");
 
+	secure_boot = efi_get_secureboot(sys_table);
+	if (secure_boot > 0)
+		pr_efi(sys_table, "UEFI Secure Boot is enabled.\n");
+
+	if (secure_boot < 0) {
+		pr_efi_err(sys_table,
+			"could not determine UEFI Secure Boot status.\n");
+	}
+
 	/*
 	 * Unauthenticated device tree data is a security hazard, so
 	 * ignore 'dtb=' unless UEFI Secure Boot is disabled.
 	 */
-	if (efi_secureboot_enabled(sys_table)) {
-		pr_efi(sys_table, "UEFI Secure Boot is enabled.\n");
+	if (secure_boot != 0 && strstr(cmdline_ptr, "dtb=")) {
+		pr_efi(sys_table, "Ignoring DTB from command line.\n");
 	} else {
 		status = handle_cmdline_files(sys_table, image, cmdline_ptr,
 					      "dtb=",
@@ -309,6 +363,7 @@ fail_free_image:
 	efi_free(sys_table, image_size, *image_addr);
 	efi_free(sys_table, reserve_size, reserve_addr);
 fail_free_cmdline:
+	free_screen_info(sys_table, si);
 	efi_free(sys_table, cmdline_size, (unsigned long)cmdline_ptr);
 fail:
 	return EFI_ERROR;

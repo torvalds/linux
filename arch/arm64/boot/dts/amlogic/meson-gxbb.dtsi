@@ -50,11 +50,6 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 
-	aliases {
-		serial0 = &uart_AO;
-		serial1 = &uart_A;
-	};
-
 	cpus {
 		#address-cells = <0x2>;
 		#size-cells = <0x0>;

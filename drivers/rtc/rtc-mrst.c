@@ -266,7 +266,7 @@ static int mrst_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 }
 
 
-#if defined(CONFIG_RTC_INTF_PROC) || defined(CONFIG_RTC_INTF_PROC_MODULE)
+#if IS_ENABLED(CONFIG_RTC_INTF_PROC)
 
 static int mrst_procfs(struct device *dev, struct seq_file *seq)
 {

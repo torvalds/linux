@@ -254,7 +254,7 @@ int kvm_iommu_map_guest(struct kvm *kvm)
 	    !iommu_capable(&pci_bus_type, IOMMU_CAP_INTR_REMAP)) {
 		printk(KERN_WARNING "%s: No interrupt remapping support,"
 		       " disallowing device assignment."
-		       " Re-enble with \"allow_unsafe_assigned_interrupts=1\""
+		       " Re-enable with \"allow_unsafe_assigned_interrupts=1\""
 		       " module option.\n", __func__);
 		iommu_domain_free(kvm->arch.iommu_domain);
 		kvm->arch.iommu_domain = NULL;

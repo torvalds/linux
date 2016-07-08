@@ -409,7 +409,7 @@ void unlink_anon_vmas(struct vm_area_struct *vma)
 	list_for_each_entry_safe(avc, next, &vma->anon_vma_chain, same_vma) {
 		struct anon_vma *anon_vma = avc->anon_vma;
 
-		BUG_ON(anon_vma->degree);
+		VM_WARN_ON(anon_vma->degree);
 		put_anon_vma(anon_vma);
 
 		list_del(&avc->same_vma);
@@ -569,19 +569,6 @@ void page_unlock_anon_vma_read(struct anon_vma *anon_vma)
 }
 
 #ifdef CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH
-static void percpu_flush_tlb_batch_pages(void *data)
-{
-	/*
-	 * All TLB entries are flushed on the assumption that it is
-	 * cheaper to flush all TLBs and let them be refilled than
-	 * flushing individual PFNs. Note that we do not track mm's
-	 * to flush as that might simply be multiple full TLB flushes
-	 * for no gain.
-	 */
-	count_vm_tlb_event(NR_TLB_REMOTE_FLUSH_RECEIVED);
-	flush_tlb_local();
-}
-
 /*
  * Flush TLB entries for recently unmapped pages from remote CPUs. It is
  * important if a PTE was dirty when it was unmapped that it's flushed
@@ -598,15 +585,14 @@ void try_to_unmap_flush(void)
 
 	cpu = get_cpu();
 
-	trace_tlb_flush(TLB_REMOTE_SHOOTDOWN, -1UL);
-
-	if (cpumask_test_cpu(cpu, &tlb_ubc->cpumask))
-		percpu_flush_tlb_batch_pages(&tlb_ubc->cpumask);
-
-	if (cpumask_any_but(&tlb_ubc->cpumask, cpu) < nr_cpu_ids) {
-		smp_call_function_many(&tlb_ubc->cpumask,
-			percpu_flush_tlb_batch_pages, (void *)tlb_ubc, true);
+	if (cpumask_test_cpu(cpu, &tlb_ubc->cpumask)) {
+		count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
+		local_flush_tlb();
+		trace_tlb_flush(TLB_LOCAL_SHOOTDOWN, TLB_FLUSH_ALL);
 	}
+
+	if (cpumask_any_but(&tlb_ubc->cpumask, cpu) < nr_cpu_ids)
+		flush_tlb_others(&tlb_ubc->cpumask, NULL, 0, TLB_FLUSH_ALL);
 	cpumask_clear(&tlb_ubc->cpumask);
 	tlb_ubc->flush_required = false;
 	tlb_ubc->writable = false;
@@ -1112,6 +1098,8 @@ void page_move_anon_rmap(struct page *page,
 
 	VM_BUG_ON_PAGE(!PageLocked(page), page);
 	VM_BUG_ON_VMA(!anon_vma, vma);
+	if (IS_ENABLED(CONFIG_DEBUG_VM) && PageTransHuge(page))
+		address &= HPAGE_PMD_MASK;
 	VM_BUG_ON_PAGE(page->index != linear_page_index(vma, address), page);
 
 	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
@@ -1263,7 +1251,7 @@ void page_add_new_anon_rmap(struct page *page,
 	int nr = compound ? hpage_nr_pages(page) : 1;
 
 	VM_BUG_ON_VMA(address < vma->vm_start || address >= vma->vm_end, vma);
-	SetPageSwapBacked(page);
+	__SetPageSwapBacked(page);
 	if (compound) {
 		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
 		/* increment count (starts at -1) */
@@ -1555,7 +1543,7 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 
 discard:
 	page_remove_rmap(page, PageHuge(page));
-	page_cache_release(page);
+	put_page(page);
 
 out_unmap:
 	pte_unmap_unlock(pte, ptl);

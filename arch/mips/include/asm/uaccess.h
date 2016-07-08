@@ -95,7 +95,7 @@ static inline bool eva_kernel_access(void)
 }
 
 /*
- * Is a address valid? This does a straighforward calculation rather
+ * Is a address valid? This does a straightforward calculation rather
  * than tests.
  *
  * Address valid if:

@@ -87,7 +87,7 @@ void libcfs_unregister_panic_notifier(void);
 extern int  libcfs_panic_in_progress;
 int cfs_trace_max_debug_mb(void);
 
-#define TCD_MAX_PAGES (5 << (20 - PAGE_CACHE_SHIFT))
+#define TCD_MAX_PAGES (5 << (20 - PAGE_SHIFT))
 #define TCD_STOCK_PAGES (TCD_MAX_PAGES)
 #define CFS_TRACEFILE_SIZE (500 << 20)
 
@@ -96,7 +96,7 @@ int cfs_trace_max_debug_mb(void);
 /*
  * Private declare for tracefile
  */
-#define TCD_MAX_PAGES (5 << (20 - PAGE_CACHE_SHIFT))
+#define TCD_MAX_PAGES (5 << (20 - PAGE_SHIFT))
 #define TCD_STOCK_PAGES (TCD_MAX_PAGES)
 
 #define CFS_TRACEFILE_SIZE (500 << 20)
@@ -257,7 +257,7 @@ do {								    \
 do {								    \
 	__LASSERT(tage);					\
 	__LASSERT(tage->page);				  \
-	__LASSERT(tage->used <= PAGE_CACHE_SIZE);			 \
+	__LASSERT(tage->used <= PAGE_SIZE);			 \
 	__LASSERT(page_count(tage->page) > 0);		      \
 } while (0)
 

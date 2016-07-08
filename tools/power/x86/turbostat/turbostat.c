@@ -66,6 +66,8 @@ unsigned int do_slm_cstates;
 unsigned int use_c1_residency_msr;
 unsigned int has_aperf;
 unsigned int has_epb;
+unsigned int do_irtl_snb;
+unsigned int do_irtl_hsw;
 unsigned int units = 1000000;	/* MHz etc */
 unsigned int genuine_intel;
 unsigned int has_invariant_tsc;
@@ -187,7 +189,7 @@ struct pkg_data {
 	unsigned long long pkg_any_core_c0;
 	unsigned long long pkg_any_gfxe_c0;
 	unsigned long long pkg_both_core_gfxe_c0;
-	unsigned long long gfx_rc6_ms;
+	long long gfx_rc6_ms;
 	unsigned int gfx_mhz;
 	unsigned int package_id;
 	unsigned int energy_pkg;	/* MSR_PKG_ENERGY_STATUS */
@@ -621,8 +623,14 @@ int format_counters(struct thread_data *t, struct core_data *c,
 		outp += sprintf(outp, "%8d", p->pkg_temp_c);
 
 	/* GFXrc6 */
-	if (do_gfx_rc6_ms)
-		outp += sprintf(outp, "%8.2f", 100.0 * p->gfx_rc6_ms / 1000.0 / interval_float);
+	if (do_gfx_rc6_ms) {
+		if (p->gfx_rc6_ms == -1) {	/* detect counter reset */
+			outp += sprintf(outp, "  ***.**");
+		} else {
+			outp += sprintf(outp, "%8.2f",
+				p->gfx_rc6_ms / 10.0 / interval_float);
+		}
+	}
 
 	/* GFXMHz */
 	if (do_gfx_mhz)
@@ -766,7 +774,12 @@ delta_package(struct pkg_data *new, struct pkg_data *old)
 	old->pc10 = new->pc10 - old->pc10;
 	old->pkg_temp_c = new->pkg_temp_c;
 
-	old->gfx_rc6_ms = new->gfx_rc6_ms - old->gfx_rc6_ms;
+	/* flag an error when rc6 counter resets/wraps */
+	if (old->gfx_rc6_ms >  new->gfx_rc6_ms)
+		old->gfx_rc6_ms = -1;
+	else
+		old->gfx_rc6_ms = new->gfx_rc6_ms - old->gfx_rc6_ms;
+
 	old->gfx_mhz = new->gfx_mhz;
 
 	DELTA_WRAP32(new->energy_pkg, old->energy_pkg);
@@ -1296,6 +1309,7 @@ int hsw_pkg_cstate_limits[16] = {PCL__0, PCL__2, PCL__3, PCL__6, PCL__7, PCL_7S,
 int slv_pkg_cstate_limits[16] = {PCL__0, PCL__1, PCLRSV, PCLRSV, PCL__4, PCLRSV, PCL__6, PCL__7, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV};
 int amt_pkg_cstate_limits[16] = {PCL__0, PCL__1, PCL__2, PCLRSV, PCLRSV, PCLRSV, PCL__6, PCL__7, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV};
 int phi_pkg_cstate_limits[16] = {PCL__0, PCL__2, PCL_6N, PCL_6R, PCLRSV, PCLRSV, PCLRSV, PCLUNL, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV};
+int bxt_pkg_cstate_limits[16] = {PCL__0, PCL__2, PCLUNL, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV};
 
 
 static void
@@ -1578,6 +1592,47 @@ dump_config_tdp(void)
 	fprintf(outf, "MAX_NON_TURBO_RATIO=%d", (unsigned int)(msr) & 0xFF);
 	fprintf(outf, " lock=%d", (unsigned int)(msr >> 31) & 1);
 	fprintf(outf, ")\n");
+}
+
+unsigned int irtl_time_units[] = {1, 32, 1024, 32768, 1048576, 33554432, 0, 0 };
+
+void print_irtl(void)
+{
+	unsigned long long msr;
+
+	get_msr(base_cpu, MSR_PKGC3_IRTL, &msr);
+	fprintf(outf, "cpu%d: MSR_PKGC3_IRTL: 0x%08llx (", base_cpu, msr);
+	fprintf(outf, "%svalid, %lld ns)\n", msr & (1 << 15) ? "" : "NOT",
+		(msr & 0x3FF) * irtl_time_units[(msr >> 10) & 0x3]);
+
+	get_msr(base_cpu, MSR_PKGC6_IRTL, &msr);
+	fprintf(outf, "cpu%d: MSR_PKGC6_IRTL: 0x%08llx (", base_cpu, msr);
+	fprintf(outf, "%svalid, %lld ns)\n", msr & (1 << 15) ? "" : "NOT",
+		(msr & 0x3FF) * irtl_time_units[(msr >> 10) & 0x3]);
+
+	get_msr(base_cpu, MSR_PKGC7_IRTL, &msr);
+	fprintf(outf, "cpu%d: MSR_PKGC7_IRTL: 0x%08llx (", base_cpu, msr);
+	fprintf(outf, "%svalid, %lld ns)\n", msr & (1 << 15) ? "" : "NOT",
+		(msr & 0x3FF) * irtl_time_units[(msr >> 10) & 0x3]);
+
+	if (!do_irtl_hsw)
+		return;
+
+	get_msr(base_cpu, MSR_PKGC8_IRTL, &msr);
+	fprintf(outf, "cpu%d: MSR_PKGC8_IRTL: 0x%08llx (", base_cpu, msr);
+	fprintf(outf, "%svalid, %lld ns)\n", msr & (1 << 15) ? "" : "NOT",
+		(msr & 0x3FF) * irtl_time_units[(msr >> 10) & 0x3]);
+
+	get_msr(base_cpu, MSR_PKGC9_IRTL, &msr);
+	fprintf(outf, "cpu%d: MSR_PKGC9_IRTL: 0x%08llx (", base_cpu, msr);
+	fprintf(outf, "%svalid, %lld ns)\n", msr & (1 << 15) ? "" : "NOT",
+		(msr & 0x3FF) * irtl_time_units[(msr >> 10) & 0x3]);
+
+	get_msr(base_cpu, MSR_PKGC10_IRTL, &msr);
+	fprintf(outf, "cpu%d: MSR_PKGC10_IRTL: 0x%08llx (", base_cpu, msr);
+	fprintf(outf, "%svalid, %lld ns)\n", msr & (1 << 15) ? "" : "NOT",
+		(msr & 0x3FF) * irtl_time_units[(msr >> 10) & 0x3]);
+
 }
 void free_fd_percpu(void)
 {
@@ -2144,6 +2199,9 @@ int probe_nhm_msrs(unsigned int family, unsigned int model)
 	case 0x56:	/* BDX-DE */
 	case 0x4E:	/* SKL */
 	case 0x5E:	/* SKL */
+	case 0x8E:	/* KBL */
+	case 0x9E:	/* KBL */
+	case 0x55:	/* SKX */
 		pkg_cstate_limits = hsw_pkg_cstate_limits;
 		break;
 	case 0x37:	/* BYT */
@@ -2155,6 +2213,9 @@ int probe_nhm_msrs(unsigned int family, unsigned int model)
 		break;
 	case 0x57:	/* PHI */
 		pkg_cstate_limits = phi_pkg_cstate_limits;
+		break;
+	case 0x5C:	/* BXT */
+		pkg_cstate_limits = bxt_pkg_cstate_limits;
 		break;
 	default:
 		return 0;
@@ -2248,6 +2309,9 @@ int has_config_tdp(unsigned int family, unsigned int model)
 	case 0x56:	/* BDX-DE */
 	case 0x4E:	/* SKL */
 	case 0x5E:	/* SKL */
+	case 0x8E:	/* KBL */
+	case 0x9E:	/* KBL */
+	case 0x55:	/* SKX */
 
 	case 0x57:	/* Knights Landing */
 		return 1;
@@ -2585,13 +2649,19 @@ void rapl_probe(unsigned int family, unsigned int model)
 	case 0x47:	/* BDW */
 		do_rapl = RAPL_PKG | RAPL_CORES | RAPL_CORE_POLICY | RAPL_GFX | RAPL_PKG_POWER_INFO;
 		break;
+	case 0x5C:	/* BXT */
+		do_rapl = RAPL_PKG | RAPL_PKG_POWER_INFO;
+		break;
 	case 0x4E:	/* SKL */
 	case 0x5E:	/* SKL */
+	case 0x8E:	/* KBL */
+	case 0x9E:	/* KBL */
 		do_rapl = RAPL_PKG | RAPL_DRAM | RAPL_DRAM_PERF_STATUS | RAPL_PKG_PERF_STATUS | RAPL_PKG_POWER_INFO;
 		break;
 	case 0x3F:	/* HSX */
 	case 0x4F:	/* BDX */
 	case 0x56:	/* BDX-DE */
+	case 0x55:	/* SKX */
 	case 0x57:	/* KNL */
 		do_rapl = RAPL_PKG | RAPL_DRAM | RAPL_DRAM_POWER_INFO | RAPL_DRAM_PERF_STATUS | RAPL_PKG_PERF_STATUS | RAPL_PKG_POWER_INFO;
 		break;
@@ -2871,6 +2941,10 @@ int has_snb_msrs(unsigned int family, unsigned int model)
 	case 0x56:	/* BDX-DE */
 	case 0x4E:	/* SKL */
 	case 0x5E:	/* SKL */
+	case 0x8E:	/* KBL */
+	case 0x9E:	/* KBL */
+	case 0x55:	/* SKX */
+	case 0x5C:	/* BXT */
 		return 1;
 	}
 	return 0;
@@ -2879,9 +2953,14 @@ int has_snb_msrs(unsigned int family, unsigned int model)
 /*
  * HSW adds support for additional MSRs:
  *
- * MSR_PKG_C8_RESIDENCY            0x00000630
- * MSR_PKG_C9_RESIDENCY            0x00000631
- * MSR_PKG_C10_RESIDENCY           0x00000632
+ * MSR_PKG_C8_RESIDENCY		0x00000630
+ * MSR_PKG_C9_RESIDENCY		0x00000631
+ * MSR_PKG_C10_RESIDENCY	0x00000632
+ *
+ * MSR_PKGC8_IRTL		0x00000633
+ * MSR_PKGC9_IRTL		0x00000634
+ * MSR_PKGC10_IRTL		0x00000635
+ *
  */
 int has_hsw_msrs(unsigned int family, unsigned int model)
 {
@@ -2893,6 +2972,9 @@ int has_hsw_msrs(unsigned int family, unsigned int model)
 	case 0x3D:	/* BDW */
 	case 0x4E:	/* SKL */
 	case 0x5E:	/* SKL */
+	case 0x8E:	/* KBL */
+	case 0x9E:	/* KBL */
+	case 0x5C:	/* BXT */
 		return 1;
 	}
 	return 0;
@@ -2914,6 +2996,8 @@ int has_skl_msrs(unsigned int family, unsigned int model)
 	switch (model) {
 	case 0x4E:	/* SKL */
 	case 0x5E:	/* SKL */
+	case 0x8E:	/* KBL */
+	case 0x9E:	/* KBL */
 		return 1;
 	}
 	return 0;
@@ -3187,7 +3271,7 @@ void process_cpuid()
 	if (debug)
 		decode_misc_enable_msr();
 
-	if (max_level >= 0x7) {
+	if (max_level >= 0x7 && debug) {
 		int has_sgx;
 
 		ecx = 0;
@@ -3221,7 +3305,15 @@ void process_cpuid()
 				switch(model) {
 				case 0x4E:	/* SKL */
 				case 0x5E:	/* SKL */
-					crystal_hz = 24000000;	/* 24 MHz */
+				case 0x8E:	/* KBL */
+				case 0x9E:	/* KBL */
+					crystal_hz = 24000000;	/* 24.0 MHz */
+					break;
+				case 0x55:	/* SKX */
+					crystal_hz = 25000000;	/* 25.0 MHz */
+					break;
+				case 0x5C:	/* BXT */
+					crystal_hz = 19200000;	/* 19.2 MHz */
 					break;
 				default:
 					crystal_hz = 0;
@@ -3254,11 +3346,13 @@ void process_cpuid()
 
 	do_nhm_platform_info = do_nhm_cstates = do_smi = probe_nhm_msrs(family, model);
 	do_snb_cstates = has_snb_msrs(family, model);
+	do_irtl_snb = has_snb_msrs(family, model);
 	do_pc2 = do_snb_cstates && (pkg_cstate_limit >= PCL__2);
 	do_pc3 = (pkg_cstate_limit >= PCL__3);
 	do_pc6 = (pkg_cstate_limit >= PCL__6);
 	do_pc7 = do_snb_cstates && (pkg_cstate_limit >= PCL__7);
 	do_c8_c9_c10 = has_hsw_msrs(family, model);
+	do_irtl_hsw = has_hsw_msrs(family, model);
 	do_skl_residency = has_skl_msrs(family, model);
 	do_slm_cstates = is_slm(family, model);
 	do_knl_cstates  = is_knl(family, model);
@@ -3564,6 +3658,9 @@ void turbostat_init()
 
 	if (debug)
 		for_all_cpus(print_thermal, ODD_COUNTERS);
+
+	if (debug && do_irtl_snb)
+		print_irtl();
 }
 
 int fork_it(char **argv)
@@ -3629,7 +3726,7 @@ int get_and_dump_counters(void)
 }
 
 void print_version() {
-	fprintf(outf, "turbostat version 4.11 27 Feb 2016"
+	fprintf(outf, "turbostat version 4.12 5 Apr 2016"
 		" - Len Brown <lenb@kernel.org>\n");
 }
 

@@ -433,11 +433,18 @@ static void *work_debug_hint(void *addr)
 	return ((struct work_struct *) addr)->func;
 }
 
+static bool work_is_static_object(void *addr)
+{
+	struct work_struct *work = addr;
+
+	return test_bit(WORK_STRUCT_STATIC_BIT, work_data_bits(work));
+}
+
 /*
  * fixup_init is called when:
  * - an active object is initialized
  */
-static int work_fixup_init(void *addr, enum debug_obj_state state)
+static bool work_fixup_init(void *addr, enum debug_obj_state state)
 {
 	struct work_struct *work = addr;
 
@@ -445,42 +452,9 @@ static int work_fixup_init(void *addr, enum debug_obj_state state)
 	case ODEBUG_STATE_ACTIVE:
 		cancel_work_sync(work);
 		debug_object_init(work, &work_debug_descr);
-		return 1;
+		return true;
 	default:
-		return 0;
-	}
-}
-
-/*
- * fixup_activate is called when:
- * - an active object is activated
- * - an unknown object is activated (might be a statically initialized object)
- */
-static int work_fixup_activate(void *addr, enum debug_obj_state state)
-{
-	struct work_struct *work = addr;
-
-	switch (state) {
-
-	case ODEBUG_STATE_NOTAVAILABLE:
-		/*
-		 * This is not really a fixup. The work struct was
-		 * statically initialized. We just make sure that it
-		 * is tracked in the object tracker.
-		 */
-		if (test_bit(WORK_STRUCT_STATIC_BIT, work_data_bits(work))) {
-			debug_object_init(work, &work_debug_descr);
-			debug_object_activate(work, &work_debug_descr);
-			return 0;
-		}
-		WARN_ON_ONCE(1);
-		return 0;
-
-	case ODEBUG_STATE_ACTIVE:
-		WARN_ON(1);
-
-	default:
-		return 0;
+		return false;
 	}
 }
 
@@ -488,7 +462,7 @@ static int work_fixup_activate(void *addr, enum debug_obj_state state)
  * fixup_free is called when:
  * - an active object is freed
  */
-static int work_fixup_free(void *addr, enum debug_obj_state state)
+static bool work_fixup_free(void *addr, enum debug_obj_state state)
 {
 	struct work_struct *work = addr;
 
@@ -496,17 +470,17 @@ static int work_fixup_free(void *addr, enum debug_obj_state state)
 	case ODEBUG_STATE_ACTIVE:
 		cancel_work_sync(work);
 		debug_object_free(work, &work_debug_descr);
-		return 1;
+		return true;
 	default:
-		return 0;
+		return false;
 	}
 }
 
 static struct debug_obj_descr work_debug_descr = {
 	.name		= "work_struct",
 	.debug_hint	= work_debug_hint,
+	.is_static_object = work_is_static_object,
 	.fixup_init	= work_fixup_init,
-	.fixup_activate	= work_fixup_activate,
 	.fixup_free	= work_fixup_free,
 };
 
@@ -666,6 +640,35 @@ static void set_work_pool_and_clear_pending(struct work_struct *work,
 	 */
 	smp_wmb();
 	set_work_data(work, (unsigned long)pool_id << WORK_OFFQ_POOL_SHIFT, 0);
+	/*
+	 * The following mb guarantees that previous clear of a PENDING bit
+	 * will not be reordered with any speculative LOADS or STORES from
+	 * work->current_func, which is executed afterwards.  This possible
+	 * reordering can lead to a missed execution on attempt to qeueue
+	 * the same @work.  E.g. consider this case:
+	 *
+	 *   CPU#0                         CPU#1
+	 *   ----------------------------  --------------------------------
+	 *
+	 * 1  STORE event_indicated
+	 * 2  queue_work_on() {
+	 * 3    test_and_set_bit(PENDING)
+	 * 4 }                             set_..._and_clear_pending() {
+	 * 5                                 set_work_data() # clear bit
+	 * 6                                 smp_mb()
+	 * 7                               work->current_func() {
+	 * 8				      LOAD event_indicated
+	 *				   }
+	 *
+	 * Without an explicit full barrier speculative LOAD on line 8 can
+	 * be executed before CPU#0 does STORE on line 1.  If that happens,
+	 * CPU#0 observes the PENDING bit is still set and new execution of
+	 * a @work is not queued in a hope, that CPU#1 will eventually
+	 * finish the queued @work.  Meanwhile CPU#1 does not see
+	 * event_indicated is set, because speculative LOAD was executed
+	 * before actual STORE.
+	 */
+	smp_mb();
 }
 
 static void clear_work_data(struct work_struct *work)
@@ -4525,6 +4528,17 @@ static void rebind_workers(struct worker_pool *pool)
 						  pool->attrs->cpumask) < 0);
 
 	spin_lock_irq(&pool->lock);
+
+	/*
+	 * XXX: CPU hotplug notifiers are weird and can call DOWN_FAILED
+	 * w/o preceding DOWN_PREPARE.  Work around it.  CPU hotplug is
+	 * being reworked and this can go away in time.
+	 */
+	if (!(pool->flags & POOL_DISASSOCIATED)) {
+		spin_unlock_irq(&pool->lock);
+		return;
+	}
+
 	pool->flags &= ~POOL_DISASSOCIATED;
 
 	for_each_pool_worker(worker, pool) {

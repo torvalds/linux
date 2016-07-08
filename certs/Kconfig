@@ -17,6 +17,7 @@ config MODULE_SIG_KEY
 config SYSTEM_TRUSTED_KEYRING
 	bool "Provide system-wide ring of trusted keys"
 	depends on KEYS
+	depends on ASYMMETRIC_KEY_TYPE
 	help
 	  Provide a system keyring to which trusted keys can be added.  Keys in
 	  the keyring are considered to be trusted.  Keys may be added at will
@@ -54,5 +55,13 @@ config SYSTEM_EXTRA_CERTIFICATE_SIZE
 	help
 	  This is the number of bytes reserved in the kernel image for a
 	  certificate to be inserted.
+
+config SECONDARY_TRUSTED_KEYRING
+	bool "Provide a keyring to which extra trustable keys may be added"
+	depends on SYSTEM_TRUSTED_KEYRING
+	help
+	  If set, provide a keyring to which extra keys may be added, provided
+	  those keys are not blacklisted and are vouched for by a key built
+	  into the kernel or already in the secondary trusted keyring.
 
 endmenu

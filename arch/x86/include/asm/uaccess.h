@@ -5,6 +5,7 @@
  */
 #include <linux/errno.h>
 #include <linux/compiler.h>
+#include <linux/kasan-checks.h>
 #include <linux/thread_info.h>
 #include <linux/string.h>
 #include <asm/asm.h>
@@ -118,7 +119,7 @@ struct exception_table_entry {
 
 extern int fixup_exception(struct pt_regs *regs, int trapnr);
 extern bool ex_has_fault_handler(unsigned long ip);
-extern int early_fixup_exception(unsigned long *ip);
+extern void early_fixup_exception(struct pt_regs *regs, int trapnr);
 
 /*
  * These are the main single-value transfer routines.  They automatically
@@ -740,6 +741,8 @@ copy_from_user(void *to, const void __user *from, unsigned long n)
 
 	might_fault();
 
+	kasan_check_write(to, n);
+
 	/*
 	 * While we would like to have the compiler do the checking for us
 	 * even in the non-constant size case, any false positives there are
@@ -772,6 +775,8 @@ static inline unsigned long __must_check
 copy_to_user(void __user *to, const void *from, unsigned long n)
 {
 	int sz = __compiletime_object_size(from);
+
+	kasan_check_read(from, n);
 
 	might_fault();
 

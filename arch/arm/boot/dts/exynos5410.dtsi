@@ -102,8 +102,8 @@
 			reg = <0x10000000 0x100>;
 		};
 
-		sromc: sromc@12250000 {
-			compatible = "samsung,exynos-srom";
+		sromc: memory-controller@12250000 {
+			compatible = "samsung,exynos4210-srom";
 			reg = <0x12250000 0x14>;
 			#address-cells = <2>;
 			#size-cells = <1>;

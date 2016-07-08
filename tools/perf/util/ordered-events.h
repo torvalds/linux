@@ -49,6 +49,7 @@ void ordered_events__delete(struct ordered_events *oe, struct ordered_event *eve
 int ordered_events__flush(struct ordered_events *oe, enum oe_flush how);
 void ordered_events__init(struct ordered_events *oe, ordered_events__deliver_t deliver);
 void ordered_events__free(struct ordered_events *oe);
+void ordered_events__reinit(struct ordered_events *oe);
 
 static inline
 void ordered_events__set_alloc_size(struct ordered_events *oe, u64 size)

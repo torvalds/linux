@@ -27,7 +27,6 @@
 #include <linux/thermal.h>
 #include <linux/reset.h>
 #include <linux/types.h>
-#include <linux/nvmem-consumer.h>
 
 /* AUXADC Registers */
 #define AUXADC_CON0_V		0x000
@@ -145,7 +144,6 @@ struct mtk_thermal {
 	s32 o_slope;
 	s32 vts[MT8173_NUM_SENSORS];
 
-	struct thermal_zone_device *tzd;
 };
 
 struct mtk_thermal_bank_cfg {
@@ -573,15 +571,10 @@ static int mtk_thermal_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, mt);
 
-	mt->tzd = thermal_zone_of_sensor_register(&pdev->dev, 0, mt,
-				&mtk_thermal_ops);
-	if (IS_ERR(mt->tzd))
-		goto err_register;
+	devm_thermal_zone_of_sensor_register(&pdev->dev, 0, mt,
+					     &mtk_thermal_ops);
 
 	return 0;
-
-err_register:
-	clk_disable_unprepare(mt->clk_peri_therm);
 
 err_disable_clk_auxadc:
 	clk_disable_unprepare(mt->clk_auxadc);
@@ -592,8 +585,6 @@ err_disable_clk_auxadc:
 static int mtk_thermal_remove(struct platform_device *pdev)
 {
 	struct mtk_thermal *mt = platform_get_drvdata(pdev);
-
-	thermal_zone_of_sensor_unregister(&pdev->dev, mt->tzd);
 
 	clk_disable_unprepare(mt->clk_peri_therm);
 	clk_disable_unprepare(mt->clk_auxadc);
@@ -619,7 +610,7 @@ static struct platform_driver mtk_thermal_driver = {
 
 module_platform_driver(mtk_thermal_driver);
 
-MODULE_AUTHOR("Sascha Hauer <s.hauer@pengutronix.de");
+MODULE_AUTHOR("Sascha Hauer <s.hauer@pengutronix.de>");
 MODULE_AUTHOR("Hanyi Wu <hanyi.wu@mediatek.com>");
 MODULE_DESCRIPTION("Mediatek thermal driver");
 MODULE_LICENSE("GPL v2");

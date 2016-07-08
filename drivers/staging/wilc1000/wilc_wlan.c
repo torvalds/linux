@@ -150,11 +150,6 @@ static u32 pending_base;
 static u32 tcp_session;
 static u32 pending_acks;
 
-static inline int init_tcp_tracking(void)
-{
-	return 0;
-}
-
 static inline int add_tcp_session(u32 src_prt, u32 dst_prt, u32 seq)
 {
 	if (tcp_session < 2 * MAX_TCP_SESSION) {
@@ -330,8 +325,11 @@ static int wilc_wlan_txq_add_cfg_pkt(struct wilc_vif *vif, u8 *buffer,
 	tqe->priv = NULL;
 	tqe->tcp_pending_ack_idx = NOT_TCP_ACK;
 
-	if (wilc_wlan_txq_add_to_head(vif, tqe))
+	if (wilc_wlan_txq_add_to_head(vif, tqe)) {
+		kfree(tqe);
 		return 0;
+	}
+
 	return 1;
 }
 
@@ -626,13 +624,12 @@ int wilc_wlan_handle_txq(struct net_device *dev, u32 *txq_count)
 
 			if ((reg & 0x1) == 0) {
 				break;
-			} else {
-				counter++;
-				if (counter > 200) {
-					counter = 0;
-					ret = wilc->hif_func->hif_write_reg(wilc, WILC_HOST_TX_CTRL, 0);
-					break;
-				}
+			}
+			counter++;
+			if (counter > 200) {
+				counter = 0;
+				ret = wilc->hif_func->hif_write_reg(wilc, WILC_HOST_TX_CTRL, 0);
+				break;
 			}
 		} while (!wilc->quit);
 
@@ -658,9 +655,8 @@ int wilc_wlan_handle_txq(struct net_device *dev, u32 *txq_count)
 				if ((reg >> 2) & 0x1) {
 					entries = ((reg >> 3) & 0x3f);
 					break;
-				} else {
-					release_bus(wilc, RELEASE_ALLOW_SLEEP);
 				}
+				release_bus(wilc, RELEASE_ALLOW_SLEEP);
 			} while (--timeout);
 			if (timeout <= 0) {
 				ret = wilc->hif_func->hif_write_reg(wilc, WILC_HOST_VMM_CTL, 0x0);
@@ -679,9 +675,8 @@ int wilc_wlan_handle_txq(struct net_device *dev, u32 *txq_count)
 				if (!ret)
 					break;
 				break;
-			} else {
-				break;
 			}
+			break;
 		} while (1);
 
 		if (!ret)
@@ -900,8 +895,6 @@ static void wilc_wlan_handle_isr_ext(struct wilc *wilc, u32 int_status)
 					      DATA_INT_CLR | ENABLE_RX_VMM);
 		ret = wilc->hif_func->hif_block_rx_ext(wilc, 0, buffer, size);
 
-		if (!ret)
-			goto _end_;
 _end_:
 		if (ret) {
 			offset += size;
@@ -951,10 +944,8 @@ int wilc_wlan_firmware_download(struct wilc *wilc, const u8 *buffer,
 	blksz = BIT(12);
 
 	dma_buffer = kmalloc(blksz, GFP_KERNEL);
-	if (!dma_buffer) {
-		ret = -EIO;
-		goto _fail_1;
-	}
+	if (!dma_buffer)
+		return -EIO;
 
 	offset = 0;
 	do {
@@ -991,8 +982,6 @@ int wilc_wlan_firmware_download(struct wilc *wilc, const u8 *buffer,
 _fail_:
 
 	kfree(dma_buffer);
-
-_fail_1:
 
 	return (ret < 0) ? ret : 0;
 }
@@ -1211,7 +1200,7 @@ static int wilc_wlan_cfg_commit(struct wilc_vif *vif, int type,
 	return 0;
 }
 
-int wilc_wlan_cfg_set(struct wilc_vif *vif, int start, u32 wid, u8 *buffer,
+int wilc_wlan_cfg_set(struct wilc_vif *vif, int start, u16 wid, u8 *buffer,
 		      u32 buffer_size, int commit, u32 drv_handler)
 {
 	u32 offset;
@@ -1226,7 +1215,7 @@ int wilc_wlan_cfg_set(struct wilc_vif *vif, int start, u32 wid, u8 *buffer,
 
 	offset = wilc->cfg_frame_offset;
 	ret_size = wilc_wlan_cfg_set_wid(wilc->cfg_frame.frame, offset,
-					 (u16)wid, buffer, buffer_size);
+					 wid, buffer, buffer_size);
 	offset += ret_size;
 	wilc->cfg_frame_offset = offset;
 
@@ -1253,7 +1242,7 @@ int wilc_wlan_cfg_set(struct wilc_vif *vif, int start, u32 wid, u8 *buffer,
 	return ret_size;
 }
 
-int wilc_wlan_cfg_get(struct wilc_vif *vif, int start, u32 wid, int commit,
+int wilc_wlan_cfg_get(struct wilc_vif *vif, int start, u16 wid, int commit,
 		      u32 drv_handler)
 {
 	u32 offset;
@@ -1267,8 +1256,7 @@ int wilc_wlan_cfg_get(struct wilc_vif *vif, int start, u32 wid, int commit,
 		wilc->cfg_frame_offset = 0;
 
 	offset = wilc->cfg_frame_offset;
-	ret_size = wilc_wlan_cfg_get_wid(wilc->cfg_frame.frame, offset,
-					 (u16)wid);
+	ret_size = wilc_wlan_cfg_get_wid(wilc->cfg_frame.frame, offset, wid);
 	offset += ret_size;
 	wilc->cfg_frame_offset = offset;
 
@@ -1291,9 +1279,9 @@ int wilc_wlan_cfg_get(struct wilc_vif *vif, int start, u32 wid, int commit,
 	return ret_size;
 }
 
-int wilc_wlan_cfg_get_val(u32 wid, u8 *buffer, u32 buffer_size)
+int wilc_wlan_cfg_get_val(u16 wid, u8 *buffer, u32 buffer_size)
 {
-	return wilc_wlan_cfg_get_wid_value((u16)wid, buffer, buffer_size);
+	return wilc_wlan_cfg_get_wid_value(wid, buffer, buffer_size);
 }
 
 int wilc_send_config_pkt(struct wilc_vif *vif, u8 mode, struct wid *wids,
@@ -1440,7 +1428,6 @@ int wilc_wlan_init(struct net_device *dev)
 		ret = -EIO;
 		goto _fail_;
 	}
-	init_tcp_tracking();
 
 	return 1;
 

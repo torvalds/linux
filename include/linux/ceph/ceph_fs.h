@@ -153,8 +153,9 @@ struct ceph_dir_layout {
 
 /* watch-notify operations */
 enum {
-  WATCH_NOTIFY				= 1, /* notifying watcher */
-  WATCH_NOTIFY_COMPLETE			= 2, /* notifier notified when done */
+	CEPH_WATCH_EVENT_NOTIFY		  = 1, /* notifying watcher */
+	CEPH_WATCH_EVENT_NOTIFY_COMPLETE  = 2, /* notifier notified when done */
+	CEPH_WATCH_EVENT_DISCONNECT       = 3, /* we were disconnected */
 };
 
 
@@ -206,6 +207,8 @@ struct ceph_mon_subscribe_ack {
 	__le32 duration;         /* seconds */
 	struct ceph_fsid fsid;
 } __attribute__ ((packed));
+
+#define CEPH_FS_CLUSTER_ID_NONE  -1
 
 /*
  * mdsmap flags
@@ -344,6 +347,18 @@ extern const char *ceph_mds_op_name(int op);
 #define CEPH_XATTR_REPLACE (1 << 1)
 #define CEPH_XATTR_REMOVE  (1 << 31)
 
+/*
+ * readdir request flags;
+ */
+#define CEPH_READDIR_REPLY_BITFLAGS	(1<<0)
+
+/*
+ * readdir reply flags.
+ */
+#define CEPH_READDIR_FRAG_END		(1<<0)
+#define CEPH_READDIR_FRAG_COMPLETE	(1<<8)
+#define CEPH_READDIR_HASH_ORDER		(1<<9)
+
 union ceph_mds_request_args {
 	struct {
 		__le32 mask;                 /* CEPH_CAP_* */
@@ -361,6 +376,7 @@ union ceph_mds_request_args {
 		__le32 frag;                 /* which dir fragment */
 		__le32 max_entries;          /* how many dentries to grab */
 		__le32 max_bytes;
+		__le16 flags;
 	} __attribute__ ((packed)) readdir;
 	struct {
 		__le32 mode;

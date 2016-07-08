@@ -1316,7 +1316,7 @@ static int __init acpi_battery_init(void)
 
 static void __exit acpi_battery_exit(void)
 {
-	async_synchronize_cookie(async_cookie);
+	async_synchronize_cookie(async_cookie + 1);
 	acpi_bus_unregister_driver(&acpi_battery_driver);
 #ifdef CONFIG_ACPI_PROCFS_POWER
 	acpi_unlock_battery_dir(acpi_battery_dir);

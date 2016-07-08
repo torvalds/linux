@@ -86,7 +86,7 @@ enum xgene_enet_rm {
 #define RINGADDRL_POS		5
 #define RINGADDRL_LEN		27
 #define RINGADDRH_POS		0
-#define RINGADDRH_LEN		6
+#define RINGADDRH_LEN		7
 #define RINGSIZE_POS		23
 #define RINGSIZE_LEN		3
 #define RINGTYPE_POS		19
@@ -94,9 +94,9 @@ enum xgene_enet_rm {
 #define RINGMODE_POS		20
 #define RINGMODE_LEN		3
 #define RECOMTIMEOUTL_POS	28
-#define RECOMTIMEOUTL_LEN	3
+#define RECOMTIMEOUTL_LEN	4
 #define RECOMTIMEOUTH_POS	0
-#define RECOMTIMEOUTH_LEN	2
+#define RECOMTIMEOUTH_LEN	3
 #define NUMMSGSINQ_POS		1
 #define NUMMSGSINQ_LEN		16
 #define ACCEPTLERR		BIT(19)
@@ -201,6 +201,8 @@ enum xgene_enet_rm {
 #define USERINFO_LEN			32
 #define FPQNUM_POS			32
 #define FPQNUM_LEN			12
+#define ELERR_POS                       46
+#define ELERR_LEN                       2
 #define NV_POS				50
 #define NV_LEN				1
 #define LL_POS				51

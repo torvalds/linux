@@ -156,7 +156,8 @@ static int nf_trace_fill_rule_info(struct sk_buff *nlskb,
 		return 0;
 
 	return nla_put_be64(nlskb, NFTA_TRACE_RULE_HANDLE,
-			    cpu_to_be64(info->rule->handle));
+			    cpu_to_be64(info->rule->handle),
+			    NFTA_TRACE_PAD);
 }
 
 void nft_trace_notify(struct nft_traceinfo *info)
@@ -174,7 +175,7 @@ void nft_trace_notify(struct nft_traceinfo *info)
 	size = nlmsg_total_size(sizeof(struct nfgenmsg)) +
 		nla_total_size(NFT_TABLE_MAXNAMELEN) +
 		nla_total_size(NFT_CHAIN_MAXNAMELEN) +
-		nla_total_size(sizeof(__be64)) +	/* rule handle */
+		nla_total_size_64bit(sizeof(__be64)) +	/* rule handle */
 		nla_total_size(sizeof(__be32)) +	/* trace type */
 		nla_total_size(0) +			/* VERDICT, nested */
 			nla_total_size(sizeof(u32)) +	/* verdict code */

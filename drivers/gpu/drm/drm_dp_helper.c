@@ -178,14 +178,16 @@ static int drm_dp_dpcd_access(struct drm_dp_aux *aux, u8 request,
 			      unsigned int offset, void *buffer, size_t size)
 {
 	struct drm_dp_aux_msg msg;
-	unsigned int retry;
-	int err;
+	unsigned int retry, native_reply;
+	int err = 0, ret = 0;
 
 	memset(&msg, 0, sizeof(msg));
 	msg.address = offset;
 	msg.request = request;
 	msg.buffer = buffer;
 	msg.size = size;
+
+	mutex_lock(&aux->hw_mutex);
 
 	/*
 	 * The specification doesn't give any recommendation on how often to
@@ -194,35 +196,39 @@ static int drm_dp_dpcd_access(struct drm_dp_aux *aux, u8 request,
 	 * sufficient, bump to 32 which makes Dell 4k monitors happier.
 	 */
 	for (retry = 0; retry < 32; retry++) {
-
-		mutex_lock(&aux->hw_mutex);
-		err = aux->transfer(aux, &msg);
-		mutex_unlock(&aux->hw_mutex);
-		if (err < 0) {
-			if (err == -EBUSY)
-				continue;
-
-			return err;
+		if (ret != 0 && ret != -ETIMEDOUT) {
+			usleep_range(AUX_RETRY_INTERVAL,
+				     AUX_RETRY_INTERVAL + 100);
 		}
 
+		ret = aux->transfer(aux, &msg);
 
-		switch (msg.reply & DP_AUX_NATIVE_REPLY_MASK) {
-		case DP_AUX_NATIVE_REPLY_ACK:
-			if (err < size)
-				return -EPROTO;
-			return err;
+		if (ret > 0) {
+			native_reply = msg.reply & DP_AUX_NATIVE_REPLY_MASK;
+			if (native_reply == DP_AUX_NATIVE_REPLY_ACK) {
+				if (ret == size)
+					goto unlock;
 
-		case DP_AUX_NATIVE_REPLY_NACK:
-			return -EIO;
-
-		case DP_AUX_NATIVE_REPLY_DEFER:
-			usleep_range(AUX_RETRY_INTERVAL, AUX_RETRY_INTERVAL + 100);
-			break;
+				ret = -EPROTO;
+			} else
+				ret = -EIO;
 		}
+
+		/*
+		 * We want the error we return to be the error we received on
+		 * the first transaction, since we may get a different error the
+		 * next time we retry
+		 */
+		if (!err)
+			err = ret;
 	}
 
 	DRM_DEBUG_KMS("too many retries, giving up\n");
-	return -EIO;
+	ret = err;
+
+unlock:
+	mutex_unlock(&aux->hw_mutex);
+	return ret;
 }
 
 /**
@@ -242,6 +248,25 @@ static int drm_dp_dpcd_access(struct drm_dp_aux *aux, u8 request,
 ssize_t drm_dp_dpcd_read(struct drm_dp_aux *aux, unsigned int offset,
 			 void *buffer, size_t size)
 {
+	int ret;
+
+	/*
+	 * HP ZR24w corrupts the first DPCD access after entering power save
+	 * mode. Eg. on a read, the entire buffer will be filled with the same
+	 * byte. Do a throw away read to avoid corrupting anything we care
+	 * about. Afterwards things will work correctly until the monitor
+	 * gets woken up and subsequently re-enters power save mode.
+	 *
+	 * The user pressing any button on the monitor is enough to wake it
+	 * up, so there is no particularly good place to do the workaround.
+	 * We just have to do it before any DPCD access and hope that the
+	 * monitor doesn't power down exactly after the throw away read.
+	 */
+	ret = drm_dp_dpcd_access(aux, DP_AUX_NATIVE_READ, DP_DPCD_REV, buffer,
+				 1);
+	if (ret != 1)
+		return ret;
+
 	return drm_dp_dpcd_access(aux, DP_AUX_NATIVE_READ, offset, buffer,
 				  size);
 }
@@ -544,9 +569,7 @@ static int drm_dp_i2c_do_msg(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 	int max_retries = max(7, drm_dp_i2c_retry_count(msg, dp_aux_i2c_speed_khz));
 
 	for (retry = 0, defer_i2c = 0; retry < (max_retries + defer_i2c); retry++) {
-		mutex_lock(&aux->hw_mutex);
 		ret = aux->transfer(aux, msg);
-		mutex_unlock(&aux->hw_mutex);
 		if (ret < 0) {
 			if (ret == -EBUSY)
 				continue;
@@ -685,6 +708,8 @@ static int drm_dp_i2c_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs,
 
 	memset(&msg, 0, sizeof(msg));
 
+	mutex_lock(&aux->hw_mutex);
+
 	for (i = 0; i < num; i++) {
 		msg.address = msgs[i].addr;
 		drm_dp_i2c_msg_set_request(&msg, &msgs[i]);
@@ -738,6 +763,8 @@ static int drm_dp_i2c_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs,
 	msg.buffer = NULL;
 	msg.size = 0;
 	(void)drm_dp_i2c_do_msg(aux, &msg);
+
+	mutex_unlock(&aux->hw_mutex);
 
 	return err;
 }

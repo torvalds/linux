@@ -964,7 +964,7 @@ static void igbvf_assign_vector(struct igbvf_adapter *adapter, int rx_queue,
 			ivar = ivar & 0xFFFFFF00;
 			ivar |= msix_vector | E1000_IVAR_VALID;
 		}
-		adapter->rx_ring[rx_queue].eims_value = 1 << msix_vector;
+		adapter->rx_ring[rx_queue].eims_value = BIT(msix_vector);
 		array_ew32(IVAR0, index, ivar);
 	}
 	if (tx_queue > IGBVF_NO_QUEUE) {
@@ -979,7 +979,7 @@ static void igbvf_assign_vector(struct igbvf_adapter *adapter, int rx_queue,
 			ivar = ivar & 0xFFFF00FF;
 			ivar |= (msix_vector | E1000_IVAR_VALID) << 8;
 		}
-		adapter->tx_ring[tx_queue].eims_value = 1 << msix_vector;
+		adapter->tx_ring[tx_queue].eims_value = BIT(msix_vector);
 		array_ew32(IVAR0, index, ivar);
 	}
 }
@@ -1014,8 +1014,8 @@ static void igbvf_configure_msix(struct igbvf_adapter *adapter)
 
 	ew32(IVAR_MISC, tmp);
 
-	adapter->eims_enable_mask = (1 << (vector)) - 1;
-	adapter->eims_other = 1 << (vector - 1);
+	adapter->eims_enable_mask = GENMASK(vector - 1, 0);
+	adapter->eims_other = BIT(vector - 1);
 	e1e_flush();
 }
 
@@ -1367,15 +1367,13 @@ static void igbvf_configure_rx(struct igbvf_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	struct igbvf_ring *rx_ring = adapter->rx_ring;
 	u64 rdba;
-	u32 rdlen, rxdctl;
+	u32 rxdctl;
 
 	/* disable receives */
 	rxdctl = er32(RXDCTL(0));
 	ew32(RXDCTL(0), rxdctl & ~E1000_RXDCTL_QUEUE_ENABLE);
 	e1e_flush();
 	msleep(10);
-
-	rdlen = rx_ring->count * sizeof(union e1000_adv_rx_desc);
 
 	/* Setup the HW Rx Head and Tail Descriptor Pointers and
 	 * the Base and Length of the Rx Descriptor Ring
@@ -1933,83 +1931,74 @@ static void igbvf_tx_ctxtdesc(struct igbvf_ring *tx_ring, u32 vlan_macip_lens,
 	buffer_info->dma = 0;
 }
 
-static int igbvf_tso(struct igbvf_adapter *adapter,
-		     struct igbvf_ring *tx_ring,
-		     struct sk_buff *skb, u32 tx_flags, u8 *hdr_len,
-		     __be16 protocol)
+static int igbvf_tso(struct igbvf_ring *tx_ring,
+		     struct sk_buff *skb, u32 tx_flags, u8 *hdr_len)
 {
-	struct e1000_adv_tx_context_desc *context_desc;
-	struct igbvf_buffer *buffer_info;
-	u32 info = 0, tu_cmd = 0;
-	u32 mss_l4len_idx, l4len;
-	unsigned int i;
+	u32 vlan_macip_lens, type_tucmd, mss_l4len_idx;
+	union {
+		struct iphdr *v4;
+		struct ipv6hdr *v6;
+		unsigned char *hdr;
+	} ip;
+	union {
+		struct tcphdr *tcp;
+		unsigned char *hdr;
+	} l4;
+	u32 paylen, l4_offset;
 	int err;
 
-	*hdr_len = 0;
+	if (skb->ip_summed != CHECKSUM_PARTIAL)
+		return 0;
+
+	if (!skb_is_gso(skb))
+		return 0;
 
 	err = skb_cow_head(skb, 0);
-	if (err < 0) {
-		dev_err(&adapter->pdev->dev, "igbvf_tso returning an error\n");
+	if (err < 0)
 		return err;
-	}
 
-	l4len = tcp_hdrlen(skb);
-	*hdr_len += l4len;
-
-	if (protocol == htons(ETH_P_IP)) {
-		struct iphdr *iph = ip_hdr(skb);
-
-		iph->tot_len = 0;
-		iph->check = 0;
-		tcp_hdr(skb)->check = ~csum_tcpudp_magic(iph->saddr,
-							 iph->daddr, 0,
-							 IPPROTO_TCP,
-							 0);
-	} else if (skb_is_gso_v6(skb)) {
-		ipv6_hdr(skb)->payload_len = 0;
-		tcp_hdr(skb)->check = ~csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
-						       &ipv6_hdr(skb)->daddr,
-						       0, IPPROTO_TCP, 0);
-	}
-
-	i = tx_ring->next_to_use;
-
-	buffer_info = &tx_ring->buffer_info[i];
-	context_desc = IGBVF_TX_CTXTDESC_ADV(*tx_ring, i);
-	/* VLAN MACLEN IPLEN */
-	if (tx_flags & IGBVF_TX_FLAGS_VLAN)
-		info |= (tx_flags & IGBVF_TX_FLAGS_VLAN_MASK);
-	info |= (skb_network_offset(skb) << E1000_ADVTXD_MACLEN_SHIFT);
-	*hdr_len += skb_network_offset(skb);
-	info |= (skb_transport_header(skb) - skb_network_header(skb));
-	*hdr_len += (skb_transport_header(skb) - skb_network_header(skb));
-	context_desc->vlan_macip_lens = cpu_to_le32(info);
+	ip.hdr = skb_network_header(skb);
+	l4.hdr = skb_checksum_start(skb);
 
 	/* ADV DTYP TUCMD MKRLOC/ISCSIHEDLEN */
-	tu_cmd |= (E1000_TXD_CMD_DEXT | E1000_ADVTXD_DTYP_CTXT);
+	type_tucmd = E1000_ADVTXD_TUCMD_L4T_TCP;
 
-	if (protocol == htons(ETH_P_IP))
-		tu_cmd |= E1000_ADVTXD_TUCMD_IPV4;
-	tu_cmd |= E1000_ADVTXD_TUCMD_L4T_TCP;
+	/* initialize outer IP header fields */
+	if (ip.v4->version == 4) {
+		/* IP header will have to cancel out any data that
+		 * is not a part of the outer IP header
+		 */
+		ip.v4->check = csum_fold(csum_add(lco_csum(skb),
+						  csum_unfold(l4.tcp->check)));
+		type_tucmd |= E1000_ADVTXD_TUCMD_IPV4;
 
-	context_desc->type_tucmd_mlhl = cpu_to_le32(tu_cmd);
+		ip.v4->tot_len = 0;
+	} else {
+		ip.v6->payload_len = 0;
+	}
+
+	/* determine offset of inner transport header */
+	l4_offset = l4.hdr - skb->data;
+
+	/* compute length of segmentation header */
+	*hdr_len = (l4.tcp->doff * 4) + l4_offset;
+
+	/* remove payload length from inner checksum */
+	paylen = skb->len - l4_offset;
+	csum_replace_by_diff(&l4.tcp->check, htonl(paylen));
 
 	/* MSS L4LEN IDX */
-	mss_l4len_idx = (skb_shinfo(skb)->gso_size << E1000_ADVTXD_MSS_SHIFT);
-	mss_l4len_idx |= (l4len << E1000_ADVTXD_L4LEN_SHIFT);
+	mss_l4len_idx = (*hdr_len - l4_offset) << E1000_ADVTXD_L4LEN_SHIFT;
+	mss_l4len_idx |= skb_shinfo(skb)->gso_size << E1000_ADVTXD_MSS_SHIFT;
 
-	context_desc->mss_l4len_idx = cpu_to_le32(mss_l4len_idx);
-	context_desc->seqnum_seed = 0;
+	/* VLAN MACLEN IPLEN */
+	vlan_macip_lens = l4.hdr - ip.hdr;
+	vlan_macip_lens |= (ip.hdr - skb->data) << E1000_ADVTXD_MACLEN_SHIFT;
+	vlan_macip_lens |= tx_flags & IGBVF_TX_FLAGS_VLAN_MASK;
 
-	buffer_info->time_stamp = jiffies;
-	buffer_info->dma = 0;
-	i++;
-	if (i == tx_ring->count)
-		i = 0;
+	igbvf_tx_ctxtdesc(tx_ring, vlan_macip_lens, type_tucmd, mss_l4len_idx);
 
-	tx_ring->next_to_use = i;
-
-	return true;
+	return 1;
 }
 
 static inline bool igbvf_ipv6_csum_is_sctp(struct sk_buff *skb)
@@ -2091,7 +2080,7 @@ static int igbvf_maybe_stop_tx(struct net_device *netdev, int size)
 }
 
 #define IGBVF_MAX_TXD_PWR	16
-#define IGBVF_MAX_DATA_PER_TXD	(1 << IGBVF_MAX_TXD_PWR)
+#define IGBVF_MAX_DATA_PER_TXD	(1u << IGBVF_MAX_TXD_PWR)
 
 static inline int igbvf_tx_map_adv(struct igbvf_adapter *adapter,
 				   struct igbvf_ring *tx_ring,
@@ -2271,8 +2260,7 @@ static netdev_tx_t igbvf_xmit_frame_ring_adv(struct sk_buff *skb,
 
 	first = tx_ring->next_to_use;
 
-	tso = skb_is_gso(skb) ?
-		igbvf_tso(adapter, tx_ring, skb, tx_flags, &hdr_len, protocol) : 0;
+	tso = igbvf_tso(tx_ring, skb, tx_flags, &hdr_len);
 	if (unlikely(tso < 0)) {
 		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
@@ -2615,6 +2603,40 @@ static int igbvf_set_features(struct net_device *netdev,
 	return 0;
 }
 
+#define IGBVF_MAX_MAC_HDR_LEN		127
+#define IGBVF_MAX_NETWORK_HDR_LEN	511
+
+static netdev_features_t
+igbvf_features_check(struct sk_buff *skb, struct net_device *dev,
+		     netdev_features_t features)
+{
+	unsigned int network_hdr_len, mac_hdr_len;
+
+	/* Make certain the headers can be described by a context descriptor */
+	mac_hdr_len = skb_network_header(skb) - skb->data;
+	if (unlikely(mac_hdr_len > IGBVF_MAX_MAC_HDR_LEN))
+		return features & ~(NETIF_F_HW_CSUM |
+				    NETIF_F_SCTP_CRC |
+				    NETIF_F_HW_VLAN_CTAG_TX |
+				    NETIF_F_TSO |
+				    NETIF_F_TSO6);
+
+	network_hdr_len = skb_checksum_start(skb) - skb_network_header(skb);
+	if (unlikely(network_hdr_len >  IGBVF_MAX_NETWORK_HDR_LEN))
+		return features & ~(NETIF_F_HW_CSUM |
+				    NETIF_F_SCTP_CRC |
+				    NETIF_F_TSO |
+				    NETIF_F_TSO6);
+
+	/* We can only support IPV4 TSO in tunnels if we can mangle the
+	 * inner IP ID field, so strip TSO if MANGLEID is not supported.
+	 */
+	if (skb->encapsulation && !(features & NETIF_F_TSO_MANGLEID))
+		features &= ~NETIF_F_TSO;
+
+	return features;
+}
+
 static const struct net_device_ops igbvf_netdev_ops = {
 	.ndo_open		= igbvf_open,
 	.ndo_stop		= igbvf_close,
@@ -2631,7 +2653,7 @@ static const struct net_device_ops igbvf_netdev_ops = {
 	.ndo_poll_controller	= igbvf_netpoll,
 #endif
 	.ndo_set_features	= igbvf_set_features,
-	.ndo_features_check	= passthru_features_check,
+	.ndo_features_check	= igbvf_features_check,
 };
 
 /**
@@ -2739,22 +2761,30 @@ static int igbvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			      NETIF_F_HW_CSUM |
 			      NETIF_F_SCTP_CRC;
 
-	netdev->features = netdev->hw_features |
-			   NETIF_F_HW_VLAN_CTAG_TX |
-			   NETIF_F_HW_VLAN_CTAG_RX |
-			   NETIF_F_HW_VLAN_CTAG_FILTER;
+#define IGBVF_GSO_PARTIAL_FEATURES (NETIF_F_GSO_GRE | \
+				    NETIF_F_GSO_GRE_CSUM | \
+				    NETIF_F_GSO_IPXIP4 | \
+				    NETIF_F_GSO_IPXIP6 | \
+				    NETIF_F_GSO_UDP_TUNNEL | \
+				    NETIF_F_GSO_UDP_TUNNEL_CSUM)
+
+	netdev->gso_partial_features = IGBVF_GSO_PARTIAL_FEATURES;
+	netdev->hw_features |= NETIF_F_GSO_PARTIAL |
+			       IGBVF_GSO_PARTIAL_FEATURES;
+
+	netdev->features = netdev->hw_features;
 
 	if (pci_using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
 
-	netdev->vlan_features |= NETIF_F_SG |
-				 NETIF_F_TSO |
-				 NETIF_F_TSO6 |
-				 NETIF_F_HW_CSUM |
-				 NETIF_F_SCTP_CRC;
-
+	netdev->vlan_features |= netdev->features | NETIF_F_TSO_MANGLEID;
 	netdev->mpls_features |= NETIF_F_HW_CSUM;
-	netdev->hw_enc_features |= NETIF_F_HW_CSUM;
+	netdev->hw_enc_features |= netdev->vlan_features;
+
+	/* set this bit last since it cannot be part of vlan_features */
+	netdev->features |= NETIF_F_HW_VLAN_CTAG_FILTER |
+			    NETIF_F_HW_VLAN_CTAG_RX |
+			    NETIF_F_HW_VLAN_CTAG_TX;
 
 	/*reset the controller to put the device in a known good state */
 	err = hw->mac.ops.reset_hw(hw);

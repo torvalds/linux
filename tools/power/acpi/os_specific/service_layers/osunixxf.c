@@ -246,8 +246,8 @@ acpi_physical_address acpi_os_get_root_pointer(void)
  *****************************************************************************/
 
 acpi_status
-acpi_os_predefined_override(const struct acpi_predefined_names * init_val,
-			    acpi_string * new_val)
+acpi_os_predefined_override(const struct acpi_predefined_names *init_val,
+			    acpi_string *new_val)
 {
 
 	if (!init_val || !new_val) {
@@ -274,8 +274,8 @@ acpi_os_predefined_override(const struct acpi_predefined_names * init_val,
  *****************************************************************************/
 
 acpi_status
-acpi_os_table_override(struct acpi_table_header * existing_table,
-		       struct acpi_table_header ** new_table)
+acpi_os_table_override(struct acpi_table_header *existing_table,
+		       struct acpi_table_header **new_table)
 {
 
 	if (!existing_table || !new_table) {
@@ -311,8 +311,8 @@ acpi_os_table_override(struct acpi_table_header * existing_table,
  *****************************************************************************/
 
 acpi_status
-acpi_os_physical_table_override(struct acpi_table_header * existing_table,
-				acpi_physical_address * new_address,
+acpi_os_physical_table_override(struct acpi_table_header *existing_table,
+				acpi_physical_address *new_address,
 				u32 *new_table_length)
 {
 
@@ -506,7 +506,7 @@ acpi_status acpi_os_get_line(char *buffer, u32 buffer_length, u32 *bytes_read)
 void *acpi_os_map_memory(acpi_physical_address where, acpi_size length)
 {
 
-	return (ACPI_TO_POINTER((acpi_size) where));
+	return (ACPI_TO_POINTER((acpi_size)where));
 }
 
 /******************************************************************************
@@ -603,9 +603,9 @@ void acpi_os_free(void *mem)
 
 acpi_status
 acpi_os_create_semaphore(u32 max_units,
-			 u32 initial_units, acpi_handle * out_handle)
+			 u32 initial_units, acpi_handle *out_handle)
 {
-	*out_handle = (acpi_handle) 1;
+	*out_handle = (acpi_handle)1;
 	return (AE_OK);
 }
 
@@ -640,7 +640,7 @@ acpi_status acpi_os_signal_semaphore(acpi_handle handle, u32 units)
 
 acpi_status
 acpi_os_create_semaphore(u32 max_units,
-			 u32 initial_units, acpi_handle * out_handle)
+			 u32 initial_units, acpi_handle *out_handle)
 {
 	sem_t *sem;
 
@@ -672,7 +672,7 @@ acpi_os_create_semaphore(u32 max_units,
 	}
 #endif
 
-	*out_handle = (acpi_handle) sem;
+	*out_handle = (acpi_handle)sem;
 	return (AE_OK);
 }
 
@@ -1035,7 +1035,7 @@ acpi_os_read_pci_configuration(struct acpi_pci_id *pci_id,
  *****************************************************************************/
 
 acpi_status
-acpi_os_write_pci_configuration(struct acpi_pci_id * pci_id,
+acpi_os_write_pci_configuration(struct acpi_pci_id *pci_id,
 				u32 pci_register, u64 value, u32 width)
 {
 

@@ -62,7 +62,7 @@ ENTRY(entry)
 	 */
 	mov	x20, x0		// DTB address
 	ldr	x0, [sp, #16]	// relocated _text address
-	movz	x21, #:abs_g0:stext_offset
+	ldr	w21, =stext_offset
 	add	x21, x0, x21
 
 	/*

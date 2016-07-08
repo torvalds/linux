@@ -166,7 +166,7 @@ static struct shash_alg sha1_avx_alg = {
 static bool avx_usable(void)
 {
 	if (!cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM, NULL)) {
-		if (cpu_has_avx)
+		if (boot_cpu_has(X86_FEATURE_AVX))
 			pr_info("AVX detected but unusable.\n");
 		return false;
 	}

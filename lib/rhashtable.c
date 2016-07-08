@@ -487,6 +487,7 @@ EXPORT_SYMBOL_GPL(rhashtable_insert_slow);
  * rhashtable_walk_init - Initialise an iterator
  * @ht:		Table to walk over
  * @iter:	Hash table Iterator
+ * @gfp:	GFP flags for allocations
  *
  * This function prepares a hash table walk.
  *
@@ -504,14 +505,15 @@ EXPORT_SYMBOL_GPL(rhashtable_insert_slow);
  * You must call rhashtable_walk_exit if this function returns
  * successfully.
  */
-int rhashtable_walk_init(struct rhashtable *ht, struct rhashtable_iter *iter)
+int rhashtable_walk_init(struct rhashtable *ht, struct rhashtable_iter *iter,
+			 gfp_t gfp)
 {
 	iter->ht = ht;
 	iter->p = NULL;
 	iter->slot = 0;
 	iter->skip = 0;
 
-	iter->walker = kmalloc(sizeof(*iter->walker), GFP_KERNEL);
+	iter->walker = kmalloc(sizeof(*iter->walker), gfp);
 	if (!iter->walker)
 		return -ENOMEM;
 

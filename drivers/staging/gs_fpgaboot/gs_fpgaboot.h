@@ -51,6 +51,6 @@ struct fpgaimage {
 	char	part[MAX_STR];
 	char	date[MAX_STR];
 	char	time[MAX_STR];
-	int32_t	lendata;
+	int	lendata;
 	char	*fpgadata;
 };

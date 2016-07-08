@@ -117,7 +117,7 @@ struct iwl_drv {
 	const struct iwl_cfg *cfg;
 
 	int fw_index;                   /* firmware we're trying to load */
-	char firmware_name[32];         /* name of firmware file to load */
+	char firmware_name[64];         /* name of firmware file to load */
 
 	struct completion request_firmware_complete;
 
@@ -179,6 +179,8 @@ static void iwl_dealloc_ucode(struct iwl_drv *drv)
 		kfree(drv->fw.dbg_conf_tlv[i]);
 	for (i = 0; i < ARRAY_SIZE(drv->fw.dbg_trigger_tlv); i++)
 		kfree(drv->fw.dbg_trigger_tlv[i]);
+	for (i = 0; i < ARRAY_SIZE(drv->fw.dbg_mem_tlv); i++)
+		kfree(drv->fw.dbg_mem_tlv[i]);
 
 	for (i = 0; i < IWL_UCODE_TYPE_MAX; i++)
 		iwl_free_fw_img(drv, drv->fw.img + i);
@@ -209,20 +211,12 @@ static int iwl_alloc_fw_desc(struct iwl_drv *drv, struct fw_desc *desc,
 static void iwl_req_fw_callback(const struct firmware *ucode_raw,
 				void *context);
 
-#define UCODE_EXPERIMENTAL_INDEX	100
-#define UCODE_EXPERIMENTAL_TAG		"exp"
-
 static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 {
 	const char *name_pre = drv->cfg->fw_name_pre;
 	char tag[8];
 
 	if (first) {
-#ifdef CONFIG_IWLWIFI_DEBUG_EXPERIMENTAL_UCODE
-		drv->fw_index = UCODE_EXPERIMENTAL_INDEX;
-		strcpy(tag, UCODE_EXPERIMENTAL_TAG);
-	} else if (drv->fw_index == UCODE_EXPERIMENTAL_INDEX) {
-#endif
 		drv->fw_index = drv->cfg->ucode_api_max;
 		sprintf(tag, "%d", drv->fw_index);
 	} else {
@@ -238,22 +232,7 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 	snprintf(drv->firmware_name, sizeof(drv->firmware_name), "%s%s.ucode",
 		 name_pre, tag);
 
-	/*
-	 * Starting 8000B - FW name format has changed. This overwrites the
-	 * previous name and uses the new format.
-	 */
-	if (drv->trans->cfg->device_family == IWL_DEVICE_FAMILY_8000) {
-		char rev_step = 'A' + CSR_HW_REV_STEP(drv->trans->hw_rev);
-
-		if (rev_step != 'A')
-			snprintf(drv->firmware_name,
-				 sizeof(drv->firmware_name), "%s%c-%s.ucode",
-				 name_pre, rev_step, tag);
-	}
-
-	IWL_DEBUG_INFO(drv, "attempting to load firmware %s'%s'\n",
-		       (drv->fw_index == UCODE_EXPERIMENTAL_INDEX)
-				? "EXPERIMENTAL " : "",
+	IWL_DEBUG_INFO(drv, "attempting to load firmware '%s'\n",
 		       drv->firmware_name);
 
 	return request_firmware_nowait(THIS_MODULE, 1, drv->firmware_name,
@@ -297,6 +276,7 @@ struct iwl_firmware_pieces {
 	size_t dbg_conf_tlv_len[FW_DBG_CONF_MAX];
 	struct iwl_fw_dbg_trigger_tlv *dbg_trigger_tlv[FW_DBG_TRIGGER_MAX];
 	size_t dbg_trigger_tlv_len[FW_DBG_TRIGGER_MAX];
+	struct iwl_fw_dbg_mem_seg_tlv *dbg_mem_tlv[FW_DBG_MEM_MAX];
 };
 
 /*
@@ -551,9 +531,7 @@ static int iwl_parse_v1_v2_firmware(struct iwl_drv *drv,
 	}
 
 	if (build)
-		sprintf(buildstr, " build %u%s", build,
-		       (drv->fw_index == UCODE_EXPERIMENTAL_INDEX)
-				? " (EXP)" : "");
+		sprintf(buildstr, " build %u", build);
 	else
 		buildstr[0] = '\0';
 
@@ -637,9 +615,7 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 	build = le32_to_cpu(ucode->build);
 
 	if (build)
-		sprintf(buildstr, " build %u%s", build,
-		       (drv->fw_index == UCODE_EXPERIMENTAL_INDEX)
-				? " (EXP)" : "");
+		sprintf(buildstr, " build %u", build);
 	else
 		buildstr[0] = '\0';
 
@@ -1041,6 +1017,37 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			iwl_store_gscan_capa(&drv->fw, tlv_data, tlv_len);
 			gscan_capa = true;
 			break;
+		case IWL_UCODE_TLV_FW_MEM_SEG: {
+			struct iwl_fw_dbg_mem_seg_tlv *dbg_mem =
+				(void *)tlv_data;
+			u32 type;
+
+			if (tlv_len != (sizeof(*dbg_mem)))
+				goto invalid_tlv_len;
+
+			type = le32_to_cpu(dbg_mem->data_type);
+			drv->fw.dbg_dynamic_mem = true;
+
+			if (type >= ARRAY_SIZE(drv->fw.dbg_mem_tlv)) {
+				IWL_ERR(drv,
+					"Skip unknown dbg mem segment: %u\n",
+					dbg_mem->data_type);
+				break;
+			}
+
+			if (pieces->dbg_mem_tlv[type]) {
+				IWL_ERR(drv,
+					"Ignore duplicate mem segment: %u\n",
+					dbg_mem->data_type);
+				break;
+			}
+
+			IWL_DEBUG_INFO(drv, "Found debug memory segment: %u\n",
+				       dbg_mem->data_type);
+
+			pieces->dbg_mem_tlv[type] = dbg_mem;
+			break;
+			}
 		default:
 			IWL_DEBUG_INFO(drv, "unknown TLV: %d\n", tlv_type);
 			break;
@@ -1060,11 +1067,18 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 		return -EINVAL;
 	}
 
-	if (WARN(fw_has_capa(capa, IWL_UCODE_TLV_CAPA_GSCAN_SUPPORT) &&
-		 !gscan_capa,
-		 "GSCAN is supported but capabilities TLV is unavailable\n"))
+	/*
+	 * If ucode advertises that it supports GSCAN but GSCAN
+	 * capabilities TLV is not present, or if it has an old format,
+	 * warn and continue without GSCAN.
+	 */
+	if (fw_has_capa(capa, IWL_UCODE_TLV_CAPA_GSCAN_SUPPORT) &&
+	    !gscan_capa) {
+		IWL_DEBUG_INFO(drv,
+			       "GSCAN is supported but capabilities TLV is unavailable\n");
 		__clear_bit((__force long)IWL_UCODE_TLV_CAPA_GSCAN_SUPPORT,
 			    capa->_capa);
+	}
 
 	return 0;
 
@@ -1199,7 +1213,6 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	int err;
 	struct iwl_firmware_pieces *pieces;
 	const unsigned int api_max = drv->cfg->ucode_api_max;
-	unsigned int api_ok = drv->cfg->ucode_api_ok;
 	const unsigned int api_min = drv->cfg->ucode_api_min;
 	size_t trigger_tlv_sz[FW_DBG_TRIGGER_MAX];
 	u32 api_ver;
@@ -1212,20 +1225,12 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 			IWL_DEFAULT_STANDARD_PHY_CALIBRATE_TBL_SIZE;
 	fw->ucode_capa.n_scan_channels = IWL_DEFAULT_SCAN_CHANNELS;
 
-	if (!api_ok)
-		api_ok = api_max;
-
 	pieces = kzalloc(sizeof(*pieces), GFP_KERNEL);
 	if (!pieces)
 		return;
 
-	if (!ucode_raw) {
-		if (drv->fw_index <= api_ok)
-			IWL_ERR(drv,
-				"request for firmware file '%s' failed.\n",
-				drv->firmware_name);
+	if (!ucode_raw)
 		goto try_again;
-	}
 
 	IWL_DEBUG_INFO(drv, "Loaded firmware file '%s' (%zd bytes).\n",
 		       drv->firmware_name, ucode_raw->size);
@@ -1258,28 +1263,12 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	 * firmware filename ... but we don't check for that and only rely
 	 * on the API version read from firmware header from here on forward
 	 */
-	/* no api version check required for experimental uCode */
-	if (drv->fw_index != UCODE_EXPERIMENTAL_INDEX) {
-		if (api_ver < api_min || api_ver > api_max) {
-			IWL_ERR(drv,
-				"Driver unable to support your firmware API. "
-				"Driver supports v%u, firmware is v%u.\n",
-				api_max, api_ver);
-			goto try_again;
-		}
-
-		if (api_ver < api_ok) {
-			if (api_ok != api_max)
-				IWL_ERR(drv, "Firmware has old API version, "
-					"expected v%u through v%u, got v%u.\n",
-					api_ok, api_max, api_ver);
-			else
-				IWL_ERR(drv, "Firmware has old API version, "
-					"expected v%u, got v%u.\n",
-					api_max, api_ver);
-			IWL_ERR(drv, "New firmware can be obtained from "
-				      "http://www.intellinuxwireless.org/.\n");
-		}
+	if (api_ver < api_min || api_ver > api_max) {
+		IWL_ERR(drv,
+			"Driver unable to support your firmware API. "
+			"Driver supports v%u, firmware is v%u.\n",
+			api_max, api_ver);
+		goto try_again;
 	}
 
 	/*
@@ -1364,6 +1353,17 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 					drv->fw.dbg_trigger_tlv_len[i],
 					GFP_KERNEL);
 			if (!drv->fw.dbg_trigger_tlv[i])
+				goto out_free_fw;
+		}
+	}
+
+	for (i = 0; i < ARRAY_SIZE(drv->fw.dbg_mem_tlv); i++) {
+		if (pieces->dbg_mem_tlv[i]) {
+			drv->fw.dbg_mem_tlv[i] =
+				kmemdup(pieces->dbg_mem_tlv[i],
+					sizeof(*drv->fw.dbg_mem_tlv[i]),
+					GFP_KERNEL);
+			if (!drv->fw.dbg_mem_tlv[i])
 				goto out_free_fw;
 		}
 	}
@@ -1560,9 +1560,7 @@ struct iwl_mod_params iwlwifi_mod_params = {
 	.power_level = IWL_POWER_INDEX_1,
 	.d0i3_disable = true,
 	.d0i3_entry_delay = 1000,
-#ifndef CONFIG_IWLWIFI_UAPSD
-	.uapsd_disable = true,
-#endif /* CONFIG_IWLWIFI_UAPSD */
+	.uapsd_disable = IWL_DISABLE_UAPSD_BSS | IWL_DISABLE_UAPSD_P2P_CLIENT,
 	/* the rest are 0 by default */
 };
 IWL_EXPORT_SYMBOL(iwlwifi_mod_params);
@@ -1681,12 +1679,9 @@ module_param_named(lar_disable, iwlwifi_mod_params.lar_disable,
 MODULE_PARM_DESC(lar_disable, "disable LAR functionality (default: N)");
 
 module_param_named(uapsd_disable, iwlwifi_mod_params.uapsd_disable,
-		   bool, S_IRUGO | S_IWUSR);
-#ifdef CONFIG_IWLWIFI_UAPSD
-MODULE_PARM_DESC(uapsd_disable, "disable U-APSD functionality (default: N)");
-#else
-MODULE_PARM_DESC(uapsd_disable, "disable U-APSD functionality (default: Y)");
-#endif
+		   uint, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(uapsd_disable,
+		 "disable U-APSD functionality bitmap 1: BSS 2: P2P Client (default: 3)");
 
 /*
  * set bt_coex_active to true, uCode will do kill/defer
@@ -1732,4 +1727,4 @@ MODULE_PARM_DESC(d0i3_timeout, "Timeout to D0i3 entry when idle (ms)");
 
 module_param_named(disable_11ac, iwlwifi_mod_params.disable_11ac, bool,
 		   S_IRUGO);
-MODULE_PARM_DESC(disable_11ac, "Disable VHT capabilities");
+MODULE_PARM_DESC(disable_11ac, "Disable VHT capabilities (default: false)");

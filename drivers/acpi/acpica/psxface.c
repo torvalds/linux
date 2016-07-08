@@ -115,7 +115,7 @@ acpi_debug_trace(const char *name, u32 debug_level, u32 debug_layer, u32 flags)
  *
  ******************************************************************************/
 
-acpi_status acpi_ps_execute_method(struct acpi_evaluate_info * info)
+acpi_status acpi_ps_execute_method(struct acpi_evaluate_info *info)
 {
 	acpi_status status;
 	union acpi_parse_object *op;

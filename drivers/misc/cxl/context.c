@@ -223,6 +223,13 @@ int __detach_context(struct cxl_context *ctx)
 		cxl_ops->link_ok(ctx->afu->adapter, ctx->afu));
 	flush_work(&ctx->fault_work); /* Only needed for dedicated process */
 
+	/*
+	 * Wait until no further interrupts are presented by the PSL
+	 * for this context.
+	 */
+	if (cxl_ops->irq_wait)
+		cxl_ops->irq_wait(ctx);
+
 	/* release the reference to the group leader and mm handling pid */
 	put_pid(ctx->pid);
 	put_pid(ctx->glpid);
@@ -290,8 +297,7 @@ static void reclaim_ctx(struct rcu_head *rcu)
 	if (ctx->kernelapi)
 		kfree(ctx->mapping);
 
-	if (ctx->irq_bitmap)
-		kfree(ctx->irq_bitmap);
+	kfree(ctx->irq_bitmap);
 
 	/* Drop ref to the afu device taken during cxl_context_init */
 	cxl_afu_put(ctx->afu);

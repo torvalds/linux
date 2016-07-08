@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2015 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -2322,7 +2322,7 @@ lpfc_fdmi_smart_attr_version(struct lpfc_vport *vport,
 	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
 	memset(ae, 0, 256);
 
-	strncpy(ae->un.AttrString, "Smart SAN Version 1.0",
+	strncpy(ae->un.AttrString, "Smart SAN Version 2.0",
 		sizeof(ae->un.AttrString));
 	len = strnlen(ae->un.AttrString,
 			  sizeof(ae->un.AttrString));
@@ -2397,7 +2397,7 @@ lpfc_fdmi_smart_attr_security(struct lpfc_vport *vport,
 	uint32_t size;
 
 	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
-	ae->un.AttrInt =  cpu_to_be32(0);
+	ae->un.AttrInt =  cpu_to_be32(1);
 	size = FOURBYTES + sizeof(uint32_t);
 	ad->AttrLen = cpu_to_be16(size);
 	ad->AttrType = cpu_to_be16(RPRT_SMART_SECURITY);

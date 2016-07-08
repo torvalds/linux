@@ -123,6 +123,14 @@ synchronize with other events.</para>
 	  </para>
 	</listitem>
       </varlistentry>
+      <varlistentry>
+	<term><errorcode>ENOLINK</errorcode></term>
+	<listitem>
+	  <para>The driver implements Media Controller interface and
+	  the pipeline link configuration is invalid.
+	  </para>
+	</listitem>
+      </varlistentry>
     </variablelist>
   </refsect1>
 </refentry>

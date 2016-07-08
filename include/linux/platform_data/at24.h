@@ -26,7 +26,7 @@
  *
  * An example in pseudo code for a setup() callback:
  *
- * void get_mac_addr(struct mvmem_device *nvmem, void *context)
+ * void get_mac_addr(struct nvmem_device *nvmem, void *context)
  * {
  *	u8 *mac_addr = ethernet_pdata->mac_addr;
  *	off_t offset = context;

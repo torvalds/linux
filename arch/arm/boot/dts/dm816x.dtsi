@@ -185,6 +185,8 @@
 			gpmc,num-waitpins = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
+			gpio-controller;
+			#gpio-cells = <2>;
 		};
 
 		i2c1: i2c@48028000 {

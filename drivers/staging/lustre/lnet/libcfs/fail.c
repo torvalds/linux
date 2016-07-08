@@ -41,6 +41,9 @@ EXPORT_SYMBOL(cfs_fail_loc);
 unsigned int cfs_fail_val;
 EXPORT_SYMBOL(cfs_fail_val);
 
+int cfs_fail_err;
+EXPORT_SYMBOL(cfs_fail_err);
+
 DECLARE_WAIT_QUEUE_HEAD(cfs_race_waitq);
 EXPORT_SYMBOL(cfs_race_waitq);
 

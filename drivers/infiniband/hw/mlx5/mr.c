@@ -1751,25 +1751,32 @@ done:
 static int
 mlx5_ib_sg_to_klms(struct mlx5_ib_mr *mr,
 		   struct scatterlist *sgl,
-		   unsigned short sg_nents)
+		   unsigned short sg_nents,
+		   unsigned int *sg_offset_p)
 {
 	struct scatterlist *sg = sgl;
 	struct mlx5_klm *klms = mr->descs;
+	unsigned int sg_offset = sg_offset_p ? *sg_offset_p : 0;
 	u32 lkey = mr->ibmr.pd->local_dma_lkey;
 	int i;
 
-	mr->ibmr.iova = sg_dma_address(sg);
+	mr->ibmr.iova = sg_dma_address(sg) + sg_offset;
 	mr->ibmr.length = 0;
 	mr->ndescs = sg_nents;
 
 	for_each_sg(sgl, sg, sg_nents, i) {
 		if (unlikely(i > mr->max_descs))
 			break;
-		klms[i].va = cpu_to_be64(sg_dma_address(sg));
-		klms[i].bcount = cpu_to_be32(sg_dma_len(sg));
+		klms[i].va = cpu_to_be64(sg_dma_address(sg) + sg_offset);
+		klms[i].bcount = cpu_to_be32(sg_dma_len(sg) - sg_offset);
 		klms[i].key = cpu_to_be32(lkey);
 		mr->ibmr.length += sg_dma_len(sg);
+
+		sg_offset = 0;
 	}
+
+	if (sg_offset_p)
+		*sg_offset_p = sg_offset;
 
 	return i;
 }
@@ -1788,9 +1795,8 @@ static int mlx5_set_page(struct ib_mr *ibmr, u64 addr)
 	return 0;
 }
 
-int mlx5_ib_map_mr_sg(struct ib_mr *ibmr,
-		      struct scatterlist *sg,
-		      int sg_nents)
+int mlx5_ib_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
+		      unsigned int *sg_offset)
 {
 	struct mlx5_ib_mr *mr = to_mmr(ibmr);
 	int n;
@@ -1802,9 +1808,10 @@ int mlx5_ib_map_mr_sg(struct ib_mr *ibmr,
 				   DMA_TO_DEVICE);
 
 	if (mr->access_mode == MLX5_ACCESS_MODE_KLM)
-		n = mlx5_ib_sg_to_klms(mr, sg, sg_nents);
+		n = mlx5_ib_sg_to_klms(mr, sg, sg_nents, sg_offset);
 	else
-		n = ib_sg_to_pages(ibmr, sg, sg_nents, mlx5_set_page);
+		n = ib_sg_to_pages(ibmr, sg, sg_nents, sg_offset,
+				mlx5_set_page);
 
 	ib_dma_sync_single_for_device(ibmr->device, mr->desc_map,
 				      mr->desc_size * mr->max_descs,

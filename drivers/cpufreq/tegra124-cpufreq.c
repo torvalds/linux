@@ -14,7 +14,6 @@
 #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
 
 #include <linux/clk.h>
-#include <linux/cpufreq-dt.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -68,10 +67,6 @@ static void tegra124_cpu_switch_to_pllx(struct tegra124_cpufreq_priv *priv)
 	regulator_sync_voltage(priv->vdd_cpu_reg);
 	clk_set_parent(priv->cpu_clk, priv->pllx_clk);
 }
-
-static struct cpufreq_dt_platform_data cpufreq_dt_pd = {
-	.independent_clocks = false,
-};
 
 static int tegra124_cpufreq_probe(struct platform_device *pdev)
 {
@@ -129,8 +124,6 @@ static int tegra124_cpufreq_probe(struct platform_device *pdev)
 
 	cpufreq_dt_devinfo.name = "cpufreq-dt";
 	cpufreq_dt_devinfo.parent = &pdev->dev;
-	cpufreq_dt_devinfo.data = &cpufreq_dt_pd;
-	cpufreq_dt_devinfo.size_data = sizeof(cpufreq_dt_pd);
 
 	priv->cpufreq_dt_pdev =
 		platform_device_register_full(&cpufreq_dt_devinfo);

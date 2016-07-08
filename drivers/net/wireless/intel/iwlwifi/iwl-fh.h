@@ -321,6 +321,9 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(unsigned int chnl)
 /* Write index table */
 #define RFH_Q0_FRBDCB_WIDX 0xA08080
 #define RFH_Q_FRBDCB_WIDX(q) (RFH_Q0_FRBDCB_WIDX + (q) * 4)
+/* Write index table - shadow registers */
+#define RFH_Q0_FRBDCB_WIDX_TRG 0x1C80
+#define RFH_Q_FRBDCB_WIDX_TRG(q) (RFH_Q0_FRBDCB_WIDX_TRG + (q) * 4)
 /* Read index table */
 #define RFH_Q0_FRBDCB_RIDX 0xA080C0
 #define RFH_Q_FRBDCB_RIDX(q) (RFH_Q0_FRBDCB_RIDX + (q) * 4)

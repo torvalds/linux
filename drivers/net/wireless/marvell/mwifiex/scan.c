@@ -76,6 +76,39 @@ static u8 mwifiex_rsn_oui[CIPHER_SUITE_MAX][4] = {
 	{ 0x00, 0x0f, 0xac, 0x04 },	/* AES  */
 };
 
+static void
+_dbg_security_flags(int log_level, const char *func, const char *desc,
+		    struct mwifiex_private *priv,
+		    struct mwifiex_bssdescriptor *bss_desc)
+{
+	_mwifiex_dbg(priv->adapter, log_level,
+		     "info: %s: %s:\twpa_ie=%#x wpa2_ie=%#x WEP=%s WPA=%s WPA2=%s\tEncMode=%#x privacy=%#x\n",
+		     func, desc,
+		     bss_desc->bcn_wpa_ie ?
+		     bss_desc->bcn_wpa_ie->vend_hdr.element_id : 0,
+		     bss_desc->bcn_rsn_ie ?
+		     bss_desc->bcn_rsn_ie->ieee_hdr.element_id : 0,
+		     priv->sec_info.wep_enabled ? "e" : "d",
+		     priv->sec_info.wpa_enabled ? "e" : "d",
+		     priv->sec_info.wpa2_enabled ? "e" : "d",
+		     priv->sec_info.encryption_mode,
+		     bss_desc->privacy);
+}
+#define dbg_security_flags(mask, desc, priv, bss_desc) \
+	_dbg_security_flags(MWIFIEX_DBG_##mask, desc, __func__, priv, bss_desc)
+
+static bool
+has_ieee_hdr(struct ieee_types_generic *ie, u8 key)
+{
+	return (ie && ie->ieee_hdr.element_id == key);
+}
+
+static bool
+has_vendor_hdr(struct ieee_types_vendor_specific *ie, u8 key)
+{
+	return (ie && ie->vend_hdr.element_id == key);
+}
+
 /*
  * This function parses a given IE for a given OUI.
  *
@@ -121,8 +154,7 @@ mwifiex_is_rsn_oui_present(struct mwifiex_bssdescriptor *bss_desc, u32 cipher)
 	struct ie_body *iebody;
 	u8 ret = MWIFIEX_OUI_NOT_PRESENT;
 
-	if (((bss_desc->bcn_rsn_ie) && ((*(bss_desc->bcn_rsn_ie)).
-					ieee_hdr.element_id == WLAN_EID_RSN))) {
+	if (has_ieee_hdr(bss_desc->bcn_rsn_ie, WLAN_EID_RSN)) {
 		iebody = (struct ie_body *)
 			 (((u8 *) bss_desc->bcn_rsn_ie->data) +
 			  RSN_GTK_OUI_OFFSET);
@@ -148,9 +180,7 @@ mwifiex_is_wpa_oui_present(struct mwifiex_bssdescriptor *bss_desc, u32 cipher)
 	struct ie_body *iebody;
 	u8 ret = MWIFIEX_OUI_NOT_PRESENT;
 
-	if (((bss_desc->bcn_wpa_ie) &&
-	     ((*(bss_desc->bcn_wpa_ie)).vend_hdr.element_id ==
-	      WLAN_EID_VENDOR_SPECIFIC))) {
+	if (has_vendor_hdr(bss_desc->bcn_wpa_ie, WLAN_EID_VENDOR_SPECIFIC)) {
 		iebody = (struct ie_body *) bss_desc->bcn_wpa_ie->data;
 		oui = &mwifiex_wpa_oui[cipher][0];
 		ret = mwifiex_search_oui_in_ie(iebody, oui);
@@ -180,11 +210,8 @@ mwifiex_is_bss_wapi(struct mwifiex_private *priv,
 		    struct mwifiex_bssdescriptor *bss_desc)
 {
 	if (priv->sec_info.wapi_enabled &&
-	    (bss_desc->bcn_wapi_ie &&
-	     ((*(bss_desc->bcn_wapi_ie)).ieee_hdr.element_id ==
-			WLAN_EID_BSS_AC_ACCESS_DELAY))) {
+	    has_ieee_hdr(bss_desc->bcn_wapi_ie, WLAN_EID_BSS_AC_ACCESS_DELAY))
 		return true;
-	}
 	return false;
 }
 
@@ -197,12 +224,9 @@ mwifiex_is_bss_no_sec(struct mwifiex_private *priv,
 		      struct mwifiex_bssdescriptor *bss_desc)
 {
 	if (!priv->sec_info.wep_enabled && !priv->sec_info.wpa_enabled &&
-	    !priv->sec_info.wpa2_enabled && ((!bss_desc->bcn_wpa_ie) ||
-		((*(bss_desc->bcn_wpa_ie)).vend_hdr.element_id !=
-		 WLAN_EID_VENDOR_SPECIFIC)) &&
-	    ((!bss_desc->bcn_rsn_ie) ||
-		((*(bss_desc->bcn_rsn_ie)).ieee_hdr.element_id !=
-		 WLAN_EID_RSN)) &&
+	    !priv->sec_info.wpa2_enabled &&
+	    !has_vendor_hdr(bss_desc->bcn_wpa_ie, WLAN_EID_VENDOR_SPECIFIC) &&
+	    !has_ieee_hdr(bss_desc->bcn_rsn_ie, WLAN_EID_RSN) &&
 	    !priv->sec_info.encryption_mode && !bss_desc->privacy) {
 		return true;
 	}
@@ -233,29 +257,14 @@ mwifiex_is_bss_wpa(struct mwifiex_private *priv,
 		   struct mwifiex_bssdescriptor *bss_desc)
 {
 	if (!priv->sec_info.wep_enabled && priv->sec_info.wpa_enabled &&
-	    !priv->sec_info.wpa2_enabled && ((bss_desc->bcn_wpa_ie) &&
-	    ((*(bss_desc->bcn_wpa_ie)).
-	     vend_hdr.element_id == WLAN_EID_VENDOR_SPECIFIC))
+	    !priv->sec_info.wpa2_enabled &&
+	    has_vendor_hdr(bss_desc->bcn_wpa_ie, WLAN_EID_VENDOR_SPECIFIC)
 	   /*
 	    * Privacy bit may NOT be set in some APs like
 	    * LinkSys WRT54G && bss_desc->privacy
 	    */
 	 ) {
-		mwifiex_dbg(priv->adapter, INFO,
-			    "info: %s: WPA:\t"
-			    "wpa_ie=%#x wpa2_ie=%#x WEP=%s WPA=%s WPA2=%s\t"
-			    "EncMode=%#x privacy=%#x\n", __func__,
-			    (bss_desc->bcn_wpa_ie) ?
-			    (*bss_desc->bcn_wpa_ie).
-			    vend_hdr.element_id : 0,
-			    (bss_desc->bcn_rsn_ie) ?
-			    (*bss_desc->bcn_rsn_ie).
-			    ieee_hdr.element_id : 0,
-			    (priv->sec_info.wep_enabled) ? "e" : "d",
-			    (priv->sec_info.wpa_enabled) ? "e" : "d",
-			    (priv->sec_info.wpa2_enabled) ? "e" : "d",
-			    priv->sec_info.encryption_mode,
-			    bss_desc->privacy);
+		dbg_security_flags(INFO, "WPA", priv, bss_desc);
 		return true;
 	}
 	return false;
@@ -269,30 +278,14 @@ static bool
 mwifiex_is_bss_wpa2(struct mwifiex_private *priv,
 		    struct mwifiex_bssdescriptor *bss_desc)
 {
-	if (!priv->sec_info.wep_enabled &&
-	    !priv->sec_info.wpa_enabled &&
+	if (!priv->sec_info.wep_enabled && !priv->sec_info.wpa_enabled &&
 	    priv->sec_info.wpa2_enabled &&
-	    ((bss_desc->bcn_rsn_ie) &&
-	     ((*(bss_desc->bcn_rsn_ie)).ieee_hdr.element_id == WLAN_EID_RSN))) {
+	    has_ieee_hdr(bss_desc->bcn_rsn_ie, WLAN_EID_RSN)) {
 		/*
 		 * Privacy bit may NOT be set in some APs like
 		 * LinkSys WRT54G && bss_desc->privacy
 		 */
-		mwifiex_dbg(priv->adapter, INFO,
-			    "info: %s: WPA2:\t"
-			    "wpa_ie=%#x wpa2_ie=%#x WEP=%s WPA=%s WPA2=%s\t"
-			    "EncMode=%#x privacy=%#x\n", __func__,
-			    (bss_desc->bcn_wpa_ie) ?
-			    (*bss_desc->bcn_wpa_ie).
-			    vend_hdr.element_id : 0,
-			    (bss_desc->bcn_rsn_ie) ?
-			    (*bss_desc->bcn_rsn_ie).
-			    ieee_hdr.element_id : 0,
-			    (priv->sec_info.wep_enabled) ? "e" : "d",
-			    (priv->sec_info.wpa_enabled) ? "e" : "d",
-			    (priv->sec_info.wpa2_enabled) ? "e" : "d",
-			    priv->sec_info.encryption_mode,
-			    bss_desc->privacy);
+		dbg_security_flags(INFO, "WAP2", priv, bss_desc);
 		return true;
 	}
 	return false;
@@ -308,11 +301,8 @@ mwifiex_is_bss_adhoc_aes(struct mwifiex_private *priv,
 {
 	if (!priv->sec_info.wep_enabled && !priv->sec_info.wpa_enabled &&
 	    !priv->sec_info.wpa2_enabled &&
-	    ((!bss_desc->bcn_wpa_ie) ||
-	     ((*(bss_desc->bcn_wpa_ie)).
-	      vend_hdr.element_id != WLAN_EID_VENDOR_SPECIFIC)) &&
-	    ((!bss_desc->bcn_rsn_ie) ||
-	     ((*(bss_desc->bcn_rsn_ie)).ieee_hdr.element_id != WLAN_EID_RSN)) &&
+	    !has_vendor_hdr(bss_desc->bcn_wpa_ie, WLAN_EID_VENDOR_SPECIFIC) &&
+	    !has_ieee_hdr(bss_desc->bcn_rsn_ie, WLAN_EID_RSN) &&
 	    !priv->sec_info.encryption_mode && bss_desc->privacy) {
 		return true;
 	}
@@ -329,25 +319,10 @@ mwifiex_is_bss_dynamic_wep(struct mwifiex_private *priv,
 {
 	if (!priv->sec_info.wep_enabled && !priv->sec_info.wpa_enabled &&
 	    !priv->sec_info.wpa2_enabled &&
-	    ((!bss_desc->bcn_wpa_ie) ||
-	     ((*(bss_desc->bcn_wpa_ie)).
-	      vend_hdr.element_id != WLAN_EID_VENDOR_SPECIFIC)) &&
-	    ((!bss_desc->bcn_rsn_ie) ||
-	     ((*(bss_desc->bcn_rsn_ie)).ieee_hdr.element_id != WLAN_EID_RSN)) &&
+	    !has_vendor_hdr(bss_desc->bcn_wpa_ie, WLAN_EID_VENDOR_SPECIFIC) &&
+	    !has_ieee_hdr(bss_desc->bcn_rsn_ie, WLAN_EID_RSN) &&
 	    priv->sec_info.encryption_mode && bss_desc->privacy) {
-		mwifiex_dbg(priv->adapter, INFO,
-			    "info: %s: dynamic\t"
-			    "WEP: wpa_ie=%#x wpa2_ie=%#x\t"
-			    "EncMode=%#x privacy=%#x\n",
-			    __func__,
-			    (bss_desc->bcn_wpa_ie) ?
-			    (*bss_desc->bcn_wpa_ie).
-			    vend_hdr.element_id : 0,
-			    (bss_desc->bcn_rsn_ie) ?
-			    (*bss_desc->bcn_rsn_ie).
-			    ieee_hdr.element_id : 0,
-			    priv->sec_info.encryption_mode,
-			    bss_desc->privacy);
+		dbg_security_flags(INFO, "dynamic", priv, bss_desc);
 		return true;
 	}
 	return false;
@@ -460,18 +435,7 @@ mwifiex_is_network_compatible(struct mwifiex_private *priv,
 		}
 
 		/* Security doesn't match */
-		mwifiex_dbg(adapter, ERROR,
-			    "info: %s: failed: wpa_ie=%#x wpa2_ie=%#x WEP=%s\t"
-			    "WPA=%s WPA2=%s EncMode=%#x privacy=%#x\n",
-			    __func__,
-			    (bss_desc->bcn_wpa_ie) ?
-			    (*bss_desc->bcn_wpa_ie).vend_hdr.element_id : 0,
-			    (bss_desc->bcn_rsn_ie) ?
-			    (*bss_desc->bcn_rsn_ie).ieee_hdr.element_id : 0,
-			    (priv->sec_info.wep_enabled) ? "e" : "d",
-			    (priv->sec_info.wpa_enabled) ? "e" : "d",
-			    (priv->sec_info.wpa2_enabled) ? "e" : "d",
-			    priv->sec_info.encryption_mode, bss_desc->privacy);
+		dbg_security_flags(ERROR, "failed", priv, bss_desc);
 		return -1;
 	}
 
@@ -494,13 +458,13 @@ mwifiex_scan_create_channel_list(struct mwifiex_private *priv,
 							*scan_chan_list,
 				 u8 filtered_scan)
 {
-	enum ieee80211_band band;
+	enum nl80211_band band;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_channel *ch;
 	struct mwifiex_adapter *adapter = priv->adapter;
 	int chan_idx = 0, i;
 
-	for (band = 0; (band < IEEE80211_NUM_BANDS) ; band++) {
+	for (band = 0; (band < NUM_NL80211_BANDS) ; band++) {
 
 		if (!priv->wdev.wiphy->bands[band])
 			continue;
@@ -534,11 +498,13 @@ mwifiex_scan_create_channel_list(struct mwifiex_private *priv,
 					&= ~MWIFIEX_PASSIVE_SCAN;
 			scan_chan_list[chan_idx].chan_number =
 							(u32) ch->hw_value;
+
+			scan_chan_list[chan_idx].chan_scan_mode_bitmap
+					|= MWIFIEX_DISABLE_CHAN_FILT;
+
 			if (filtered_scan) {
 				scan_chan_list[chan_idx].max_scan_time =
 				cpu_to_le16(adapter->specific_scan_time);
-				scan_chan_list[chan_idx].chan_scan_mode_bitmap
-					|= MWIFIEX_DISABLE_CHAN_FILT;
 			}
 			chan_idx++;
 		}
@@ -557,13 +523,13 @@ mwifiex_bgscan_create_channel_list(struct mwifiex_private *priv,
 				   struct mwifiex_chan_scan_param_set
 						*scan_chan_list)
 {
-	enum ieee80211_band band;
+	enum nl80211_band band;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_channel *ch;
 	struct mwifiex_adapter *adapter = priv->adapter;
 	int chan_idx = 0, i;
 
-	for (band = 0; (band < IEEE80211_NUM_BANDS); band++) {
+	for (band = 0; (band < NUM_NL80211_BANDS); band++) {
 		if (!priv->wdev.wiphy->bands[band])
 			continue;
 
@@ -655,8 +621,6 @@ mwifiex_scan_channel_list(struct mwifiex_private *priv,
 	int ret = 0;
 	struct mwifiex_chan_scan_param_set *tmp_chan_list;
 	struct mwifiex_chan_scan_param_set *start_chan;
-	struct cmd_ctrl_node *cmd_node, *tmp_node;
-	unsigned long flags;
 	u32 tlv_idx, rates_size, cmd_no;
 	u32 total_scan_time;
 	u32 done_early;
@@ -813,16 +777,7 @@ mwifiex_scan_channel_list(struct mwifiex_private *priv,
 			    sizeof(struct mwifiex_ie_types_header) + rates_size;
 
 		if (ret) {
-			spin_lock_irqsave(&adapter->scan_pending_q_lock, flags);
-			list_for_each_entry_safe(cmd_node, tmp_node,
-						 &adapter->scan_pending_q,
-						 list) {
-				list_del(&cmd_node->list);
-				cmd_node->wait_q_enabled = false;
-				mwifiex_insert_cmd_to_free_q(adapter, cmd_node);
-			}
-			spin_unlock_irqrestore(&adapter->scan_pending_q_lock,
-					       flags);
+			mwifiex_cancel_pending_scan_cmd(adapter);
 			break;
 		}
 	}
@@ -912,14 +867,11 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 		/* Set the BSS type scan filter, use Adapter setting if
 		   unset */
 		scan_cfg_out->bss_mode =
-			(user_scan_in->bss_mode ? (u8) user_scan_in->
-			 bss_mode : (u8) adapter->scan_mode);
+			(u8)(user_scan_in->bss_mode ?: adapter->scan_mode);
 
 		/* Set the number of probes to send, use Adapter setting
 		   if unset */
-		num_probes =
-			(user_scan_in->num_probes ? user_scan_in->
-			 num_probes : adapter->scan_probes);
+		num_probes = user_scan_in->num_probes ?: adapter->scan_probes;
 
 		/*
 		 * Set the BSSID filter to the incoming configuration,
@@ -1094,28 +1046,24 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 		     chan_idx++) {
 
 			channel = user_scan_in->chan_list[chan_idx].chan_number;
-			(scan_chan_list + chan_idx)->chan_number = channel;
+			scan_chan_list[chan_idx].chan_number = channel;
 
 			radio_type =
 				user_scan_in->chan_list[chan_idx].radio_type;
-			(scan_chan_list + chan_idx)->radio_type = radio_type;
+			scan_chan_list[chan_idx].radio_type = radio_type;
 
 			scan_type = user_scan_in->chan_list[chan_idx].scan_type;
 
 			if (scan_type == MWIFIEX_SCAN_TYPE_PASSIVE)
-				(scan_chan_list +
-				 chan_idx)->chan_scan_mode_bitmap
+				scan_chan_list[chan_idx].chan_scan_mode_bitmap
 					|= (MWIFIEX_PASSIVE_SCAN |
 					    MWIFIEX_HIDDEN_SSID_REPORT);
 			else
-				(scan_chan_list +
-				 chan_idx)->chan_scan_mode_bitmap
+				scan_chan_list[chan_idx].chan_scan_mode_bitmap
 					&= ~MWIFIEX_PASSIVE_SCAN;
 
-			if (*filtered_scan)
-				(scan_chan_list +
-				 chan_idx)->chan_scan_mode_bitmap
-					|= MWIFIEX_DISABLE_CHAN_FILT;
+			scan_chan_list[chan_idx].chan_scan_mode_bitmap
+				|= MWIFIEX_DISABLE_CHAN_FILT;
 
 			if (user_scan_in->chan_list[chan_idx].scan_time) {
 				scan_dur = (u16) user_scan_in->
@@ -1129,9 +1077,9 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 					scan_dur = adapter->active_scan_time;
 			}
 
-			(scan_chan_list + chan_idx)->min_scan_time =
+			scan_chan_list[chan_idx].min_scan_time =
 				cpu_to_le16(scan_dur);
-			(scan_chan_list + chan_idx)->max_scan_time =
+			scan_chan_list[chan_idx].max_scan_time =
 				cpu_to_le16(scan_dur);
 		}
 
@@ -1991,12 +1939,13 @@ mwifiex_active_scan_req_for_passive_chan(struct mwifiex_private *priv)
 static void mwifiex_check_next_scan_command(struct mwifiex_private *priv)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
-	struct cmd_ctrl_node *cmd_node, *tmp_node;
+	struct cmd_ctrl_node *cmd_node;
 	unsigned long flags;
 
 	spin_lock_irqsave(&adapter->scan_pending_q_lock, flags);
 	if (list_empty(&adapter->scan_pending_q)) {
 		spin_unlock_irqrestore(&adapter->scan_pending_q_lock, flags);
+
 		spin_lock_irqsave(&adapter->mwifiex_cmd_lock, flags);
 		adapter->scan_processing = false;
 		spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, flags);
@@ -2018,12 +1967,9 @@ static void mwifiex_check_next_scan_command(struct mwifiex_private *priv)
 		}
 	} else if ((priv->scan_aborting && !priv->scan_request) ||
 		   priv->scan_block) {
-		list_for_each_entry_safe(cmd_node, tmp_node,
-					 &adapter->scan_pending_q, list) {
-			list_del(&cmd_node->list);
-			mwifiex_insert_cmd_to_free_q(adapter, cmd_node);
-		}
 		spin_unlock_irqrestore(&adapter->scan_pending_q_lock, flags);
+
+		mwifiex_cancel_pending_scan_cmd(adapter);
 
 		spin_lock_irqsave(&adapter->mwifiex_cmd_lock, flags);
 		adapter->scan_processing = false;

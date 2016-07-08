@@ -207,6 +207,7 @@ static void mem_cgroup_oom_notify(struct mem_cgroup *memcg);
 /* "mc" and its members are protected by cgroup_mutex */
 static struct move_charge_struct {
 	spinlock_t	  lock; /* for from, to */
+	struct mm_struct  *mm;
 	struct mem_cgroup *from;
 	struct mem_cgroup *to;
 	unsigned long flags;
@@ -1022,22 +1023,40 @@ out:
  * @lru: index of lru list the page is sitting on
  * @nr_pages: positive when adding or negative when removing
  *
- * This function must be called when a page is added to or removed from an
- * lru list.
+ * This function must be called under lru_lock, just before a page is added
+ * to or just after a page is removed from an lru list (that ordering being
+ * so as to allow it to check that lru_size 0 is consistent with list_empty).
  */
 void mem_cgroup_update_lru_size(struct lruvec *lruvec, enum lru_list lru,
 				int nr_pages)
 {
 	struct mem_cgroup_per_zone *mz;
 	unsigned long *lru_size;
+	long size;
+	bool empty;
+
+	__update_lru_size(lruvec, lru, nr_pages);
 
 	if (mem_cgroup_disabled())
 		return;
 
 	mz = container_of(lruvec, struct mem_cgroup_per_zone, lruvec);
 	lru_size = mz->lru_size + lru;
-	*lru_size += nr_pages;
-	VM_BUG_ON((long)(*lru_size) < 0);
+	empty = list_empty(lruvec->lists + lru);
+
+	if (nr_pages < 0)
+		*lru_size += nr_pages;
+
+	size = *lru_size;
+	if (WARN_ONCE(size < 0 || empty != !size,
+		"%s(%p, %d, %d): lru_size %ld but %sempty\n",
+		__func__, lruvec, lru, nr_pages, size, empty ? "" : "not ")) {
+		VM_BUG_ON(1);
+		*lru_size = 0;
+	}
+
+	if (nr_pages > 0)
+		*lru_size += nr_pages;
 }
 
 bool task_in_mem_cgroup(struct task_struct *task, struct mem_cgroup *memcg)
@@ -1089,6 +1108,8 @@ static unsigned long mem_cgroup_margin(struct mem_cgroup *memcg)
 		limit = READ_ONCE(memcg->memsw.limit);
 		if (count <= limit)
 			margin = min(margin, limit - count);
+		else
+			margin = 0;
 	}
 
 	return margin;
@@ -1256,6 +1277,7 @@ static bool mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
 	 */
 	if (fatal_signal_pending(current) || task_will_free_mem(current)) {
 		mark_oom_victim(current);
+		try_oom_reaper(current);
 		goto unlock;
 	}
 
@@ -1282,6 +1304,8 @@ static bool mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
 				mem_cgroup_iter_break(memcg, iter);
 				if (chosen)
 					put_task_struct(chosen);
+				/* Set a dummy value to return "true". */
+				chosen = (void *) 1;
 				goto unlock;
 			case OOM_SCAN_OK:
 				break;
@@ -1388,14 +1412,11 @@ int mem_cgroup_select_victim_node(struct mem_cgroup *memcg)
 	mem_cgroup_may_update_nodemask(memcg);
 	node = memcg->last_scanned_node;
 
-	node = next_node(node, memcg->scan_nodes);
-	if (node == MAX_NUMNODES)
-		node = first_node(memcg->scan_nodes);
+	node = next_node_in(node, memcg->scan_nodes);
 	/*
-	 * We call this when we hit limit, not when pages are added to LRU.
-	 * No LRU may hold pages because all pages are UNEVICTABLE or
-	 * memcg is too small and all pages are not on LRU. In that case,
-	 * we use curret node.
+	 * mem_cgroup_may_update_nodemask might have seen no reclaimmable pages
+	 * last time it really checked all the LRUs due to rate limiting.
+	 * Fallback to the current node in that case for simplicity.
 	 */
 	if (unlikely(node == MAX_NUMNODES))
 		node = numa_node_id();
@@ -2635,8 +2656,7 @@ static inline bool memcg_has_children(struct mem_cgroup *memcg)
 }
 
 /*
- * Reclaims as many pages from the given memcg as possible and moves
- * the rest to the parent.
+ * Reclaims as many pages from the given memcg as possible.
  *
  * Caller is responsible for holding css reference for memcg.
  */
@@ -2876,6 +2896,7 @@ static void memcg_offline_kmem(struct mem_cgroup *memcg)
 	 * ordering is imposed by list_lru_node->lock taken by
 	 * memcg_drain_all_list_lrus().
 	 */
+	rcu_read_lock(); /* can be called from css_free w/o cgroup_mutex */
 	css_for_each_descendant_pre(css, &memcg->css) {
 		child = mem_cgroup_from_css(css);
 		BUG_ON(child->kmemcg_id != kmemcg_id);
@@ -2883,6 +2904,8 @@ static void memcg_offline_kmem(struct mem_cgroup *memcg)
 		if (!memcg->use_hierarchy)
 			break;
 	}
+	rcu_read_unlock();
+
 	memcg_drain_all_list_lrus(kmemcg_id, parent->kmemcg_id);
 
 	memcg_free_cache_id(kmemcg_id);
@@ -4180,7 +4203,7 @@ mem_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
 	return &memcg->css;
 fail:
 	mem_cgroup_free(memcg);
-	return NULL;
+	return ERR_PTR(-ENOMEM);
 }
 
 static int
@@ -4289,24 +4312,6 @@ static int mem_cgroup_do_precharge(unsigned long count)
 	return 0;
 }
 
-/**
- * get_mctgt_type - get target type of moving charge
- * @vma: the vma the pte to be checked belongs
- * @addr: the address corresponding to the pte to be checked
- * @ptent: the pte to be checked
- * @target: the pointer the target page or swap ent will be stored(can be NULL)
- *
- * Returns
- *   0(MC_TARGET_NONE): if the pte is not a target for move charge.
- *   1(MC_TARGET_PAGE): if the page corresponding to this pte is a target for
- *     move charge. if @target is not NULL, the page is stored in target->page
- *     with extra refcnt got(Callers should handle it).
- *   2(MC_TARGET_SWAP): if the swap entry corresponding to this pte is a
- *     target for charge migration. if @target is not NULL, the entry is stored
- *     in target->ent.
- *
- * Called with pte lock held.
- */
 union mc_target {
 	struct page	*page;
 	swp_entry_t	ent;
@@ -4495,6 +4500,25 @@ out:
 	return ret;
 }
 
+/**
+ * get_mctgt_type - get target type of moving charge
+ * @vma: the vma the pte to be checked belongs
+ * @addr: the address corresponding to the pte to be checked
+ * @ptent: the pte to be checked
+ * @target: the pointer the target page or swap ent will be stored(can be NULL)
+ *
+ * Returns
+ *   0(MC_TARGET_NONE): if the pte is not a target for move charge.
+ *   1(MC_TARGET_PAGE): if the page corresponding to this pte is a target for
+ *     move charge. if @target is not NULL, the page is stored in target->page
+ *     with extra refcnt got(Callers should handle it).
+ *   2(MC_TARGET_SWAP): if the swap entry corresponding to this pte is a
+ *     target for charge migration. if @target is not NULL, the entry is stored
+ *     in target->ent.
+ *
+ * Called with pte lock held.
+ */
+
 static enum mc_target_type get_mctgt_type(struct vm_area_struct *vma,
 		unsigned long addr, pte_t ptent, union mc_target *target)
 {
@@ -4667,6 +4691,8 @@ static void __mem_cgroup_clear_mc(void)
 
 static void mem_cgroup_clear_mc(void)
 {
+	struct mm_struct *mm = mc.mm;
+
 	/*
 	 * we must clear moving_task before waking up waiters at the end of
 	 * task migration.
@@ -4676,7 +4702,10 @@ static void mem_cgroup_clear_mc(void)
 	spin_lock(&mc.lock);
 	mc.from = NULL;
 	mc.to = NULL;
+	mc.mm = NULL;
 	spin_unlock(&mc.lock);
+
+	mmput(mm);
 }
 
 static int mem_cgroup_can_attach(struct cgroup_taskset *tset)
@@ -4733,6 +4762,7 @@ static int mem_cgroup_can_attach(struct cgroup_taskset *tset)
 		VM_BUG_ON(mc.moved_swap);
 
 		spin_lock(&mc.lock);
+		mc.mm = mm;
 		mc.from = from;
 		mc.to = memcg;
 		mc.flags = move_flags;
@@ -4742,8 +4772,9 @@ static int mem_cgroup_can_attach(struct cgroup_taskset *tset)
 		ret = mem_cgroup_precharge_mc(mm);
 		if (ret)
 			mem_cgroup_clear_mc();
+	} else {
+		mmput(mm);
 	}
-	mmput(mm);
 	return ret;
 }
 
@@ -4852,11 +4883,11 @@ put:			/* get_mctgt_type() gets the page */
 	return ret;
 }
 
-static void mem_cgroup_move_charge(struct mm_struct *mm)
+static void mem_cgroup_move_charge(void)
 {
 	struct mm_walk mem_cgroup_move_charge_walk = {
 		.pmd_entry = mem_cgroup_move_charge_pte_range,
-		.mm = mm,
+		.mm = mc.mm,
 	};
 
 	lru_add_drain_all();
@@ -4868,7 +4899,7 @@ static void mem_cgroup_move_charge(struct mm_struct *mm)
 	atomic_inc(&mc.from->moving_account);
 	synchronize_rcu();
 retry:
-	if (unlikely(!down_read_trylock(&mm->mmap_sem))) {
+	if (unlikely(!down_read_trylock(&mc.mm->mmap_sem))) {
 		/*
 		 * Someone who are holding the mmap_sem might be waiting in
 		 * waitq. So we cancel all extra charges, wake up all waiters,
@@ -4885,23 +4916,16 @@ retry:
 	 * additional charge, the page walk just aborts.
 	 */
 	walk_page_range(0, ~0UL, &mem_cgroup_move_charge_walk);
-	up_read(&mm->mmap_sem);
+	up_read(&mc.mm->mmap_sem);
 	atomic_dec(&mc.from->moving_account);
 }
 
-static void mem_cgroup_move_task(struct cgroup_taskset *tset)
+static void mem_cgroup_move_task(void)
 {
-	struct cgroup_subsys_state *css;
-	struct task_struct *p = cgroup_taskset_first(tset, &css);
-	struct mm_struct *mm = get_task_mm(p);
-
-	if (mm) {
-		if (mc.to)
-			mem_cgroup_move_charge(mm);
-		mmput(mm);
-	}
-	if (mc.to)
+	if (mc.to) {
+		mem_cgroup_move_charge();
 		mem_cgroup_clear_mc();
+	}
 }
 #else	/* !CONFIG_MMU */
 static int mem_cgroup_can_attach(struct cgroup_taskset *tset)
@@ -4911,7 +4935,7 @@ static int mem_cgroup_can_attach(struct cgroup_taskset *tset)
 static void mem_cgroup_cancel_attach(struct cgroup_taskset *tset)
 {
 }
-static void mem_cgroup_move_task(struct cgroup_taskset *tset)
+static void mem_cgroup_move_task(void)
 {
 }
 #endif
@@ -5195,7 +5219,7 @@ struct cgroup_subsys memory_cgrp_subsys = {
 	.css_reset = mem_cgroup_css_reset,
 	.can_attach = mem_cgroup_can_attach,
 	.cancel_attach = mem_cgroup_cancel_attach,
-	.attach = mem_cgroup_move_task,
+	.post_attach = mem_cgroup_move_task,
 	.bind = mem_cgroup_bind,
 	.dfl_cftypes = memory_files,
 	.legacy_cftypes = mem_cgroup_legacy_files,
@@ -5520,6 +5544,7 @@ void mem_cgroup_migrate(struct page *oldpage, struct page *newpage)
 	struct mem_cgroup *memcg;
 	unsigned int nr_pages;
 	bool compound;
+	unsigned long flags;
 
 	VM_BUG_ON_PAGE(!PageLocked(oldpage), oldpage);
 	VM_BUG_ON_PAGE(!PageLocked(newpage), newpage);
@@ -5550,10 +5575,10 @@ void mem_cgroup_migrate(struct page *oldpage, struct page *newpage)
 
 	commit_charge(newpage, memcg, false);
 
-	local_irq_disable();
+	local_irq_save(flags);
 	mem_cgroup_charge_statistics(memcg, newpage, compound, nr_pages);
 	memcg_check_events(memcg, newpage);
-	local_irq_enable();
+	local_irq_restore(flags);
 }
 
 DEFINE_STATIC_KEY_FALSE(memcg_sockets_enabled_key);

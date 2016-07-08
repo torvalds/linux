@@ -121,6 +121,7 @@ static struct vendor_data vendor_arm = {
 
 static struct vendor_data vendor_sbsa = {
 	.reg_offset		= pl011_std_offsets,
+	.access_32b		= true,
 	.oversampling		= false,
 	.dma_threshold		= false,
 	.cts_event_workaround	= false,
@@ -2359,7 +2360,7 @@ static int pl011_probe_dt_alias(int index, struct device *dev)
 		return ret;
 
 	ret = of_alias_get_id(np, "serial");
-	if (IS_ERR_VALUE(ret)) {
+	if (ret < 0) {
 		seen_dev_without_alias = true;
 		ret = index;
 	} else {

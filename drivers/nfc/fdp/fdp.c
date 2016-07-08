@@ -102,7 +102,8 @@ static int fdp_nci_create_conn(struct nci_dev *ndev)
 	if (r)
 		return r;
 
-	return nci_get_conn_info_by_id(ndev, 0);
+	return nci_get_conn_info_by_dest_type_params(ndev,
+						     FDP_PATCH_CONN_DEST, NULL);
 }
 
 static inline int fdp_nci_get_versions(struct nci_dev *ndev)

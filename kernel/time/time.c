@@ -160,15 +160,15 @@ static inline void warp_clock(void)
  * various programs will get confused when the clock gets warped.
  */
 
-int do_sys_settimeofday(const struct timespec *tv, const struct timezone *tz)
+int do_sys_settimeofday64(const struct timespec64 *tv, const struct timezone *tz)
 {
 	static int firsttime = 1;
 	int error = 0;
 
-	if (tv && !timespec_valid(tv))
+	if (tv && !timespec64_valid(tv))
 		return -EINVAL;
 
-	error = security_settime(tv, tz);
+	error = security_settime64(tv, tz);
 	if (error)
 		return error;
 
@@ -186,7 +186,7 @@ int do_sys_settimeofday(const struct timespec *tv, const struct timezone *tz)
 		}
 	}
 	if (tv)
-		return do_settimeofday(tv);
+		return do_settimeofday64(tv);
 	return 0;
 }
 
@@ -766,6 +766,27 @@ struct timespec timespec_add_safe(const struct timespec lhs,
 
 	if (res.tv_sec < lhs.tv_sec || res.tv_sec < rhs.tv_sec)
 		res.tv_sec = TIME_T_MAX;
+
+	return res;
+}
+
+/*
+ * Add two timespec64 values and do a safety check for overflow.
+ * It's assumed that both values are valid (>= 0).
+ * And, each timespec64 is in normalized form.
+ */
+struct timespec64 timespec64_add_safe(const struct timespec64 lhs,
+				const struct timespec64 rhs)
+{
+	struct timespec64 res;
+
+	set_normalized_timespec64(&res, lhs.tv_sec + rhs.tv_sec,
+			lhs.tv_nsec + rhs.tv_nsec);
+
+	if (unlikely(res.tv_sec < lhs.tv_sec || res.tv_sec < rhs.tv_sec)) {
+		res.tv_sec = TIME64_MAX;
+		res.tv_nsec = 0;
+	}
 
 	return res;
 }

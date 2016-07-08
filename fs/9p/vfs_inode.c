@@ -1071,7 +1071,7 @@ v9fs_vfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	if (IS_ERR(st))
 		return PTR_ERR(st);
 
-	v9fs_stat2inode(st, d_inode(dentry), d_inode(dentry)->i_sb);
+	v9fs_stat2inode(st, d_inode(dentry), dentry->d_sb);
 	generic_fillattr(d_inode(dentry), stat);
 
 	p9stat_free(st);

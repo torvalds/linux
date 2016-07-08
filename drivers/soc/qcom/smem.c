@@ -684,8 +684,7 @@ static int qcom_smem_map_memory(struct qcom_smem *smem, struct device *dev,
 
 	smem->regions[i].aux_base = (u32)r.start;
 	smem->regions[i].size = resource_size(&r);
-	smem->regions[i].virt_base = devm_ioremap_nocache(dev, r.start,
-							  resource_size(&r));
+	smem->regions[i].virt_base = devm_ioremap_wc(dev, r.start, resource_size(&r));
 	if (!smem->regions[i].virt_base)
 		return -ENOMEM;
 

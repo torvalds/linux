@@ -21,8 +21,6 @@ struct mbox_client;
 struct mbox_chan *omap_mbox_request_channel(struct mbox_client *cl,
 					    const char *chan_name);
 
-void omap_mbox_save_ctx(struct mbox_chan *chan);
-void omap_mbox_restore_ctx(struct mbox_chan *chan);
 void omap_mbox_enable_irq(struct mbox_chan *chan, omap_mbox_irq_t irq);
 void omap_mbox_disable_irq(struct mbox_chan *chan, omap_mbox_irq_t irq);
 

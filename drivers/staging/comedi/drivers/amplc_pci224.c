@@ -132,48 +132,53 @@
  * DACCON values.
  */
 /* (r/w) Scan trigger. */
-#define PCI224_DACCON_TRIG_MASK		(7 << 0)
-#define PCI224_DACCON_TRIG_NONE		(0 << 0)	/* none */
-#define PCI224_DACCON_TRIG_SW		(1 << 0)	/* software trig */
-#define PCI224_DACCON_TRIG_EXTP		(2 << 0)	/* ext +ve edge */
-#define PCI224_DACCON_TRIG_EXTN		(3 << 0)	/* ext -ve edge */
-#define PCI224_DACCON_TRIG_Z2CT0	(4 << 0)	/* Z2 CT0 out */
-#define PCI224_DACCON_TRIG_Z2CT1	(5 << 0)	/* Z2 CT1 out */
-#define PCI224_DACCON_TRIG_Z2CT2	(6 << 0)	/* Z2 CT2 out */
+#define PCI224_DACCON_TRIG(x)		(((x) & 0x7) << 0)
+#define PCI224_DACCON_TRIG_MASK		PCI224_DACCON_TRIG(7)
+#define PCI224_DACCON_TRIG_NONE		PCI224_DACCON_TRIG(0)	/* none */
+#define PCI224_DACCON_TRIG_SW		PCI224_DACCON_TRIG(1)	/* soft trig */
+#define PCI224_DACCON_TRIG_EXTP		PCI224_DACCON_TRIG(2)	/* ext + edge */
+#define PCI224_DACCON_TRIG_EXTN		PCI224_DACCON_TRIG(3)	/* ext - edge */
+#define PCI224_DACCON_TRIG_Z2CT0	PCI224_DACCON_TRIG(4)	/* Z2 CT0 out */
+#define PCI224_DACCON_TRIG_Z2CT1	PCI224_DACCON_TRIG(5)	/* Z2 CT1 out */
+#define PCI224_DACCON_TRIG_Z2CT2	PCI224_DACCON_TRIG(6)	/* Z2 CT2 out */
 /* (r/w) Polarity (PCI224 only, PCI234 always bipolar!). */
-#define PCI224_DACCON_POLAR_MASK	(1 << 3)
-#define PCI224_DACCON_POLAR_UNI		(0 << 3)	/* range [0,Vref] */
-#define PCI224_DACCON_POLAR_BI		(1 << 3)	/* range [-Vref,Vref] */
+#define PCI224_DACCON_POLAR(x)		(((x) & 0x1) << 3)
+#define PCI224_DACCON_POLAR_MASK	PCI224_DACCON_POLAR(1)
+#define PCI224_DACCON_POLAR_UNI		PCI224_DACCON_POLAR(0)	/* [0,+V] */
+#define PCI224_DACCON_POLAR_BI		PCI224_DACCON_POLAR(1)	/* [-V,+V] */
 /* (r/w) Internal Vref (PCI224 only, when LK1 in position 1-2). */
-#define PCI224_DACCON_VREF_MASK		(3 << 4)
-#define PCI224_DACCON_VREF_1_25		(0 << 4)	/* Vref = 1.25V */
-#define PCI224_DACCON_VREF_2_5		(1 << 4)	/* Vref = 2.5V */
-#define PCI224_DACCON_VREF_5		(2 << 4)	/* Vref = 5V */
-#define PCI224_DACCON_VREF_10		(3 << 4)	/* Vref = 10V */
+#define PCI224_DACCON_VREF(x)		(((x) & 0x3) << 4)
+#define PCI224_DACCON_VREF_MASK		PCI224_DACCON_VREF(3)
+#define PCI224_DACCON_VREF_1_25		PCI224_DACCON_VREF(0)	/* 1.25V */
+#define PCI224_DACCON_VREF_2_5		PCI224_DACCON_VREF(1)	/* 2.5V */
+#define PCI224_DACCON_VREF_5		PCI224_DACCON_VREF(2)	/* 5V */
+#define PCI224_DACCON_VREF_10		PCI224_DACCON_VREF(3)	/* 10V */
 /* (r/w) Wraparound mode enable (to play back stored waveform). */
-#define PCI224_DACCON_FIFOWRAP		(1 << 7)
+#define PCI224_DACCON_FIFOWRAP		BIT(7)
 /* (r/w) FIFO enable.  It MUST be set! */
-#define PCI224_DACCON_FIFOENAB		(1 << 8)
+#define PCI224_DACCON_FIFOENAB		BIT(8)
 /* (r/w) FIFO interrupt trigger level (most values are not very useful). */
-#define PCI224_DACCON_FIFOINTR_MASK	(7 << 9)
-#define PCI224_DACCON_FIFOINTR_EMPTY	(0 << 9)	/* when empty */
-#define PCI224_DACCON_FIFOINTR_NEMPTY	(1 << 9)	/* when not empty */
-#define PCI224_DACCON_FIFOINTR_NHALF	(2 << 9)	/* when not half full */
-#define PCI224_DACCON_FIFOINTR_HALF	(3 << 9)	/* when half full */
-#define PCI224_DACCON_FIFOINTR_NFULL	(4 << 9)	/* when not full */
-#define PCI224_DACCON_FIFOINTR_FULL	(5 << 9)	/* when full */
+#define PCI224_DACCON_FIFOINTR(x)	(((x) & 0x7) << 9)
+#define PCI224_DACCON_FIFOINTR_MASK	PCI224_DACCON_FIFOINTR(7)
+#define PCI224_DACCON_FIFOINTR_EMPTY	PCI224_DACCON_FIFOINTR(0) /* empty */
+#define PCI224_DACCON_FIFOINTR_NEMPTY	PCI224_DACCON_FIFOINTR(1) /* !empty */
+#define PCI224_DACCON_FIFOINTR_NHALF	PCI224_DACCON_FIFOINTR(2) /* !half */
+#define PCI224_DACCON_FIFOINTR_HALF	PCI224_DACCON_FIFOINTR(3) /* half */
+#define PCI224_DACCON_FIFOINTR_NFULL	PCI224_DACCON_FIFOINTR(4) /* !full */
+#define PCI224_DACCON_FIFOINTR_FULL	PCI224_DACCON_FIFOINTR(5) /* full */
 /* (r-o) FIFO fill level. */
-#define PCI224_DACCON_FIFOFL_MASK	(7 << 12)
-#define PCI224_DACCON_FIFOFL_EMPTY	(1 << 12)	/* 0 */
-#define PCI224_DACCON_FIFOFL_ONETOHALF	(0 << 12)	/* [1,2048] */
-#define PCI224_DACCON_FIFOFL_HALFTOFULL	(4 << 12)	/* [2049,4095] */
-#define PCI224_DACCON_FIFOFL_FULL	(6 << 12)	/* 4096 */
+#define PCI224_DACCON_FIFOFL(x)		(((x) & 0x7) << 12)
+#define PCI224_DACCON_FIFOFL_MASK	PCI224_DACCON_FIFOFL(7)
+#define PCI224_DACCON_FIFOFL_EMPTY	PCI224_DACCON_FIFOFL(1)	/* 0 */
+#define PCI224_DACCON_FIFOFL_ONETOHALF	PCI224_DACCON_FIFOFL(0)	/* 1-2048 */
+#define PCI224_DACCON_FIFOFL_HALFTOFULL	PCI224_DACCON_FIFOFL(4)	/* 2049-4095 */
+#define PCI224_DACCON_FIFOFL_FULL	PCI224_DACCON_FIFOFL(6)	/* 4096 */
 /* (r-o) DAC busy flag. */
-#define PCI224_DACCON_BUSY		(1 << 15)
+#define PCI224_DACCON_BUSY		BIT(15)
 /* (w-o) FIFO reset. */
-#define PCI224_DACCON_FIFORESET		(1 << 12)
+#define PCI224_DACCON_FIFORESET		BIT(12)
 /* (w-o) Global reset (not sure what it does). */
-#define PCI224_DACCON_GLOBALRESET	(1 << 13)
+#define PCI224_DACCON_GLOBALRESET	BIT(13)
 
 /*
  * DAC FIFO size.

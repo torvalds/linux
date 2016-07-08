@@ -165,7 +165,7 @@ static __init int uv_rtc_allocate_timers(void)
 	for_each_present_cpu(cpu) {
 		int nid = cpu_to_node(cpu);
 		int bid = uv_cpu_to_blade_id(cpu);
-		int bcpu = uv_cpu_hub_info(cpu)->blade_processor_id;
+		int bcpu = uv_cpu_blade_processor_id(cpu);
 		struct uv_rtc_timer_head *head = blade_info[bid];
 
 		if (!head) {
@@ -226,7 +226,7 @@ static int uv_rtc_set_timer(int cpu, u64 expires)
 	int pnode = uv_cpu_to_pnode(cpu);
 	int bid = uv_cpu_to_blade_id(cpu);
 	struct uv_rtc_timer_head *head = blade_info[bid];
-	int bcpu = uv_cpu_hub_info(cpu)->blade_processor_id;
+	int bcpu = uv_cpu_blade_processor_id(cpu);
 	u64 *t = &head->cpu[bcpu].expires;
 	unsigned long flags;
 	int next_cpu;
@@ -262,7 +262,7 @@ static int uv_rtc_unset_timer(int cpu, int force)
 	int pnode = uv_cpu_to_pnode(cpu);
 	int bid = uv_cpu_to_blade_id(cpu);
 	struct uv_rtc_timer_head *head = blade_info[bid];
-	int bcpu = uv_cpu_hub_info(cpu)->blade_processor_id;
+	int bcpu = uv_cpu_blade_processor_id(cpu);
 	u64 *t = &head->cpu[bcpu].expires;
 	unsigned long flags;
 	int rc = 0;

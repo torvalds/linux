@@ -1314,7 +1314,8 @@ static int tsi108_open(struct net_device *dev)
 	data->txring = dma_zalloc_coherent(NULL, txring_size, &data->txdma,
 					   GFP_KERNEL);
 	if (!data->txring) {
-		pci_free_consistent(0, rxring_size, data->rxring, data->rxdma);
+		pci_free_consistent(NULL, rxring_size, data->rxring,
+				    data->rxdma);
 		return -ENOMEM;
 	}
 

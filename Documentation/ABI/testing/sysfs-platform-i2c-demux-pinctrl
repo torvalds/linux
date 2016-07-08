@@ -1,23 +1,18 @@
-What:		/sys/devices/platform/<i2c-demux-name>/cur_master
+What:		/sys/devices/platform/<i2c-demux-name>/available_masters
 Date:		January 2016
 KernelVersion:	4.6
 Contact:	Wolfram Sang <wsa@the-dreams.de>
 Description:
+		Reading the file will give you a list of masters which can be
+		selected for a demultiplexed bus. The format is
+		"<index>:<name>". Example from a Renesas Lager board:
 
-This file selects the active I2C master for a demultiplexed bus.
+		0:/i2c@e6500000 1:/i2c@e6508000
 
-Write 0 there for the first master, 1 for the second etc. Reading the file will
-give you a list with the active master marked. Example from a Renesas Lager
-board:
-
-root@Lager:~# cat /sys/devices/platform/i2c@8/cur_master
-* 0 - /i2c@9
-  1 - /i2c@e6520000
-  2 - /i2c@e6530000
-
-root@Lager:~# echo 2 > /sys/devices/platform/i2c@8/cur_master
-
-root@Lager:~# cat /sys/devices/platform/i2c@8/cur_master
-  0 - /i2c@9
-  1 - /i2c@e6520000
-* 2 - /i2c@e6530000
+What:		/sys/devices/platform/<i2c-demux-name>/current_master
+Date:		January 2016
+KernelVersion:	4.6
+Contact:	Wolfram Sang <wsa@the-dreams.de>
+Description:
+		This file selects/shows the active I2C master for a demultiplexed
+		bus. It uses the <index> value from the file 'available_masters'.

@@ -375,6 +375,9 @@ struct vb2_ops {
 /**
  * struct vb2_ops - driver-specific callbacks
  *
+ * @verify_planes_array: Verify that a given user space structure contains
+ *			enough planes for the buffer. This is called
+ *			for each dequeued buffer.
  * @fill_user_buffer:	given a vb2_buffer fill in the userspace structure.
  *			For V4L2 this is a struct v4l2_buffer.
  * @fill_vb2_buffer:	given a userspace structure, fill in the vb2_buffer.
@@ -384,6 +387,7 @@ struct vb2_ops {
  *			the vb2_buffer struct.
  */
 struct vb2_buf_ops {
+	int (*verify_planes_array)(struct vb2_buffer *vb, const void *pb);
 	void (*fill_user_buffer)(struct vb2_buffer *vb, void *pb);
 	int (*fill_vb2_buffer)(struct vb2_buffer *vb, const void *pb,
 				struct vb2_plane *planes);
@@ -400,6 +404,9 @@ struct vb2_buf_ops {
  * @fileio_read_once:		report EOF after reading the first buffer
  * @fileio_write_immediately:	queue buffer after each write() call
  * @allow_zero_bytesused:	allow bytesused == 0 to be passed to the driver
+ * @quirk_poll_must_check_waiting_for_buffers: Return POLLERR at poll when QBUF
+ *              has not been called. This is a vb1 idiom that has been adopted
+ *              also by vb2.
  * @lock:	pointer to a mutex that protects the vb2_queue struct. The
  *		driver can set this to a mutex to let the v4l2 core serialize
  *		the queuing ioctls. If the driver wants to handle locking
@@ -463,6 +470,7 @@ struct vb2_queue {
 	unsigned			fileio_read_once:1;
 	unsigned			fileio_write_immediately:1;
 	unsigned			allow_zero_bytesused:1;
+	unsigned		   quirk_poll_must_check_waiting_for_buffers:1;
 
 	struct mutex			*lock;
 	void				*owner;

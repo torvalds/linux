@@ -205,7 +205,10 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	task->task_done = sas_ata_task_done;
 
 	if (qc->tf.command == ATA_CMD_FPDMA_WRITE ||
-	    qc->tf.command == ATA_CMD_FPDMA_READ) {
+	    qc->tf.command == ATA_CMD_FPDMA_READ ||
+	    qc->tf.command == ATA_CMD_FPDMA_RECV ||
+	    qc->tf.command == ATA_CMD_FPDMA_SEND ||
+	    qc->tf.command == ATA_CMD_NCQ_NON_DATA) {
 		/* Need to zero out the tag libata assigned us */
 		qc->tf.nsect = 0;
 	}
@@ -548,7 +551,7 @@ static struct ata_port_operations sas_sata_ops = {
 
 static struct ata_port_info sata_port_info = {
 	.flags = ATA_FLAG_SATA | ATA_FLAG_PIO_DMA | ATA_FLAG_NCQ |
-		 ATA_FLAG_SAS_HOST,
+		 ATA_FLAG_SAS_HOST | ATA_FLAG_FPDMA_AUX,
 	.pio_mask = ATA_PIO4,
 	.mwdma_mask = ATA_MWDMA2,
 	.udma_mask = ATA_UDMA6,

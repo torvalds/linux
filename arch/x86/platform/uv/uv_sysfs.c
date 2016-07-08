@@ -34,7 +34,7 @@ static ssize_t partition_id_show(struct kobject *kobj,
 static ssize_t coherence_id_show(struct kobject *kobj,
 			struct kobj_attribute *attr, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%ld\n", partition_coherence_id());
+	return snprintf(buf, PAGE_SIZE, "%ld\n", uv_partition_coherence_id());
 }
 
 static struct kobj_attribute partition_id_attr =

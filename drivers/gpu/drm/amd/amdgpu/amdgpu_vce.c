@@ -41,15 +41,17 @@
 /* Firmware Names */
 #ifdef CONFIG_DRM_AMDGPU_CIK
 #define FIRMWARE_BONAIRE	"radeon/bonaire_vce.bin"
-#define FIRMWARE_KABINI 	"radeon/kabini_vce.bin"
-#define FIRMWARE_KAVERI 	"radeon/kaveri_vce.bin"
-#define FIRMWARE_HAWAII 	"radeon/hawaii_vce.bin"
+#define FIRMWARE_KABINI	"radeon/kabini_vce.bin"
+#define FIRMWARE_KAVERI	"radeon/kaveri_vce.bin"
+#define FIRMWARE_HAWAII	"radeon/hawaii_vce.bin"
 #define FIRMWARE_MULLINS	"radeon/mullins_vce.bin"
 #endif
 #define FIRMWARE_TONGA		"amdgpu/tonga_vce.bin"
 #define FIRMWARE_CARRIZO	"amdgpu/carrizo_vce.bin"
 #define FIRMWARE_FIJI		"amdgpu/fiji_vce.bin"
 #define FIRMWARE_STONEY		"amdgpu/stoney_vce.bin"
+#define FIRMWARE_POLARIS10	"amdgpu/polaris10_vce.bin"
+#define FIRMWARE_POLARIS11         "amdgpu/polaris11_vce.bin"
 
 #ifdef CONFIG_DRM_AMDGPU_CIK
 MODULE_FIRMWARE(FIRMWARE_BONAIRE);
@@ -62,6 +64,8 @@ MODULE_FIRMWARE(FIRMWARE_TONGA);
 MODULE_FIRMWARE(FIRMWARE_CARRIZO);
 MODULE_FIRMWARE(FIRMWARE_FIJI);
 MODULE_FIRMWARE(FIRMWARE_STONEY);
+MODULE_FIRMWARE(FIRMWARE_POLARIS10);
+MODULE_FIRMWARE(FIRMWARE_POLARIS11);
 
 static void amdgpu_vce_idle_work_handler(struct work_struct *work);
 
@@ -112,6 +116,12 @@ int amdgpu_vce_sw_init(struct amdgpu_device *adev, unsigned long size)
 		break;
 	case CHIP_STONEY:
 		fw_name = FIRMWARE_STONEY;
+		break;
+	case CHIP_POLARIS10:
+		fw_name = FIRMWARE_POLARIS10;
+		break;
+	case CHIP_POLARIS11:
+		fw_name = FIRMWARE_POLARIS11;
 		break;
 
 	default:
@@ -234,6 +244,7 @@ int amdgpu_vce_suspend(struct amdgpu_device *adev)
 	if (i == AMDGPU_MAX_VCE_HANDLES)
 		return 0;
 
+	cancel_delayed_work_sync(&adev->vce.idle_work);
 	/* TODO: suspending running encoding sessions isn't supported */
 	return -EINVAL;
 }
@@ -425,7 +436,7 @@ int amdgpu_vce_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
 	for (i = ib->length_dw; i < ib_size_dw; ++i)
 		ib->ptr[i] = 0x0;
 
-	r = amdgpu_ib_schedule(ring, 1, ib, NULL, &f);
+	r = amdgpu_ib_schedule(ring, 1, ib, NULL, NULL, &f);
 	job->fence = f;
 	if (r)
 		goto err;
@@ -487,7 +498,7 @@ int amdgpu_vce_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
 		ib->ptr[i] = 0x0;
 
 	if (direct) {
-		r = amdgpu_ib_schedule(ring, 1, ib, NULL, &f);
+		r = amdgpu_ib_schedule(ring, 1, ib, NULL, NULL, &f);
 		job->fence = f;
 		if (r)
 			goto err;
@@ -751,7 +762,8 @@ out:
  * @ib: the IB to execute
  *
  */
-void amdgpu_vce_ring_emit_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib)
+void amdgpu_vce_ring_emit_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib,
+			     unsigned vm_id, bool ctx_switch)
 {
 	amdgpu_ring_write(ring, VCE_CMD_IB);
 	amdgpu_ring_write(ring, lower_32_bits(ib->gpu_addr));

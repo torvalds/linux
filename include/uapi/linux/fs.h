@@ -222,7 +222,6 @@ struct fsxattr {
 #define BLKSECDISCARD _IO(0x12,125)
 #define BLKROTATIONAL _IO(0x12,126)
 #define BLKZEROOUT _IO(0x12,127)
-#define BLKDAXGET _IO(0x12,129)
 
 #define BMAP_IOCTL 1		/* obsolete - kept for compatibility */
 #define FIBMAP	   _IO(0x00,1)	/* bmap access */
@@ -324,5 +323,7 @@ struct fscrypt_policy {
 
 /* flags for preadv2/pwritev2: */
 #define RWF_HIPRI			0x00000001 /* high priority request, poll if possible */
+#define RWF_DSYNC			0x00000002 /* per-IO O_DSYNC */
+#define RWF_SYNC			0x00000004 /* per-IO O_SYNC */
 
 #endif /* _UAPI_LINUX_FS_H */

@@ -20,6 +20,7 @@
 
 #include <linux/errno.h>
 #include <linux/err.h>
+#include <linux/magic.h>
 #include <asm/unistd.h>
 #include <asm/processor.h>
 #include <asm/page.h>
@@ -36,6 +37,7 @@
 #include <asm/hw_irq.h>
 #include <asm/context_tracking.h>
 #include <asm/tm.h>
+#include <asm/ppc-opcode.h>
 
 /*
  * System calls.
@@ -508,6 +510,14 @@ BEGIN_FTR_SECTION
 	ldarx	r6,0,r1
 END_FTR_SECTION_IFSET(CPU_FTR_STCX_CHECKS_ADDRESS)
 
+BEGIN_FTR_SECTION
+/*
+ * A cp_abort (copy paste abort) here ensures that when context switching, a
+ * copy from one process can't leak into the paste of another.
+ */
+	PPC_CP_ABORT
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
+
 #ifdef CONFIG_PPC_BOOK3S
 /* Cancel all explict user streams as they will have no use after context
  * switch and will stop the HW from creating streams itself
@@ -519,7 +529,10 @@ END_FTR_SECTION_IFSET(CPU_FTR_STCX_CHECKS_ADDRESS)
 	std	r6,PACACURRENT(r13)	/* Set new 'current' */
 
 	ld	r8,KSP(r4)	/* new stack pointer */
-#ifdef CONFIG_PPC_BOOK3S
+#ifdef CONFIG_PPC_STD_MMU_64
+BEGIN_MMU_FTR_SECTION
+	b	2f
+END_MMU_FTR_SECTION_IFSET(MMU_FTR_RADIX)
 BEGIN_FTR_SECTION
 	clrrdi	r6,r8,28	/* get its ESID */
 	clrrdi	r9,r1,28	/* get current sp ESID */
@@ -565,7 +578,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
 	slbmte	r7,r0
 	isync
 2:
-#endif /* !CONFIG_PPC_BOOK3S */
+#endif /* CONFIG_PPC_STD_MMU_64 */
 
 	CURRENT_THREAD_INFO(r7, r8)  /* base of new stack */
 	/* Note: this uses SWITCH_FRAME_SIZE rather than INT_FRAME_SIZE
@@ -1248,6 +1261,9 @@ _GLOBAL(ftrace_caller)
 	addi	r3,r3,function_trace_op@toc@l
 	ld	r5,0(r3)
 
+#ifdef CONFIG_LIVEPATCH
+	mr	r14,r7		/* remember old NIP */
+#endif
 	/* Calculate ip from nip-4 into r3 for call below */
 	subi    r3, r7, MCOUNT_INSN_SIZE
 
@@ -1272,6 +1288,9 @@ ftrace_call:
 	/* Load ctr with the possibly modified NIP */
 	ld	r3, _NIP(r1)
 	mtctr	r3
+#ifdef CONFIG_LIVEPATCH
+	cmpd	r14,r3		/* has NIP been altered? */
+#endif
 
 	/* Restore gprs */
 	REST_8GPRS(0,r1)
@@ -1289,6 +1308,11 @@ ftrace_call:
 	ld	r0, LRSAVE(r1)
 	mtlr	r0
 
+#ifdef CONFIG_LIVEPATCH
+        /* Based on the cmpd above, if the NIP was altered handle livepatch */
+	bne-	livepatch_handler
+#endif
+
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	stdu	r1, -112(r1)
 .globl ftrace_graph_call
@@ -1305,6 +1329,91 @@ _GLOBAL(ftrace_graph_stub)
 
 _GLOBAL(ftrace_stub)
 	blr
+
+#ifdef CONFIG_LIVEPATCH
+	/*
+	 * This function runs in the mcount context, between two functions. As
+	 * such it can only clobber registers which are volatile and used in
+	 * function linkage.
+	 *
+	 * We get here when a function A, calls another function B, but B has
+	 * been live patched with a new function C.
+	 *
+	 * On entry:
+	 *  - we have no stack frame and can not allocate one
+	 *  - LR points back to the original caller (in A)
+	 *  - CTR holds the new NIP in C
+	 *  - r0 & r12 are free
+	 *
+	 * r0 can't be used as the base register for a DS-form load or store, so
+	 * we temporarily shuffle r1 (stack pointer) into r0 and then put it back.
+	 */
+livepatch_handler:
+	CURRENT_THREAD_INFO(r12, r1)
+
+	/* Save stack pointer into r0 */
+	mr	r0, r1
+
+	/* Allocate 3 x 8 bytes */
+	ld	r1, TI_livepatch_sp(r12)
+	addi	r1, r1, 24
+	std	r1, TI_livepatch_sp(r12)
+
+	/* Save toc & real LR on livepatch stack */
+	std	r2,  -24(r1)
+	mflr	r12
+	std	r12, -16(r1)
+
+	/* Store stack end marker */
+	lis     r12, STACK_END_MAGIC@h
+	ori     r12, r12, STACK_END_MAGIC@l
+	std	r12, -8(r1)
+
+	/* Restore real stack pointer */
+	mr	r1, r0
+
+	/* Put ctr in r12 for global entry and branch there */
+	mfctr	r12
+	bctrl
+
+	/*
+	 * Now we are returning from the patched function to the original
+	 * caller A. We are free to use r0 and r12, and we can use r2 until we
+	 * restore it.
+	 */
+
+	CURRENT_THREAD_INFO(r12, r1)
+
+	/* Save stack pointer into r0 */
+	mr	r0, r1
+
+	ld	r1, TI_livepatch_sp(r12)
+
+	/* Check stack marker hasn't been trashed */
+	lis     r2,  STACK_END_MAGIC@h
+	ori     r2,  r2, STACK_END_MAGIC@l
+	ld	r12, -8(r1)
+1:	tdne	r12, r2
+	EMIT_BUG_ENTRY 1b, __FILE__, __LINE__ - 1, 0
+
+	/* Restore LR & toc from livepatch stack */
+	ld	r12, -16(r1)
+	mtlr	r12
+	ld	r2,  -24(r1)
+
+	/* Pop livepatch stack frame */
+	CURRENT_THREAD_INFO(r12, r0)
+	subi	r1, r1, 24
+	std	r1, TI_livepatch_sp(r12)
+
+	/* Restore real stack pointer */
+	mr	r1, r0
+
+	/* Return to original caller of live patched function */
+	blr
+#endif
+
+
 #else
 _GLOBAL_TOC(_mcount)
 	/* Taken from output of objdump from lib64/glibc */

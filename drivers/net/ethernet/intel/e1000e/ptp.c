@@ -79,6 +79,8 @@ static int e1000e_phc_adjfreq(struct ptp_clock_info *ptp, s32 delta)
 
 	ew32(TIMINCA, timinca);
 
+	adapter->ptp_delta = delta;
+
 	spin_unlock_irqrestore(&adapter->systim_lock, flags);
 
 	return 0;

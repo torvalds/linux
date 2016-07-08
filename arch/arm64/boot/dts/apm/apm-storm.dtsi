@@ -993,6 +993,7 @@
 				     <0x0 0x65 0x4>,
 				     <0x0 0x66 0x4>,
 				     <0x0 0x67 0x4>;
+			channel = <0>;
 			dma-coherent;
 			clocks = <&xge0clk 0>;
 			/* mac address will be overwritten by the bootloader */

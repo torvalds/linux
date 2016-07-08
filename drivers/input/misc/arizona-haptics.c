@@ -178,7 +178,6 @@ static int arizona_haptics_probe(struct platform_device *pdev)
 	input_set_drvdata(haptics->input_dev, haptics);
 
 	haptics->input_dev->name = "arizona:haptics";
-	haptics->input_dev->dev.parent = pdev->dev.parent;
 	haptics->input_dev->close = arizona_haptics_close;
 	__set_bit(FF_RUMBLE, haptics->input_dev->ffbit);
 

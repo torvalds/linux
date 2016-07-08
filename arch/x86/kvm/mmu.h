@@ -173,10 +173,9 @@ static inline u8 permission_fault(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 	int index = (pfec >> 1) +
 		    (smap >> (X86_EFLAGS_AC_BIT - PFERR_RSVD_BIT + 1));
 	bool fault = (mmu->permissions[index] >> pte_access) & 1;
+	u32 errcode = PFERR_PRESENT_MASK;
 
 	WARN_ON(pfec & (PFERR_PK_MASK | PFERR_RSVD_MASK));
-	pfec |= PFERR_PRESENT_MASK;
-
 	if (unlikely(mmu->pkru_mask)) {
 		u32 pkru_bits, offset;
 
@@ -189,15 +188,15 @@ static inline u8 permission_fault(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 		pkru_bits = (kvm_read_pkru(vcpu) >> (pte_pkey * 2)) & 3;
 
 		/* clear present bit, replace PFEC.RSVD with ACC_USER_MASK. */
-		offset = pfec - 1 +
+		offset = (pfec & ~1) +
 			((pte_access & PT_USER_MASK) << (PFERR_RSVD_BIT - PT_USER_SHIFT));
 
 		pkru_bits &= mmu->pkru_mask >> offset;
-		pfec |= -pkru_bits & PFERR_PK_MASK;
+		errcode |= -pkru_bits & PFERR_PK_MASK;
 		fault |= (pkru_bits != 0);
 	}
 
-	return -(uint32_t)fault & pfec;
+	return -(u32)fault & errcode;
 }
 
 void kvm_mmu_invalidate_zap_all_pages(struct kvm *kvm);

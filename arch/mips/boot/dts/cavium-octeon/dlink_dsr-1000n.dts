@@ -1,0 +1,78 @@
+/*
+ * Device tree source for D-Link DSR-1000N.
+ *
+ * Written by: Aaro Koskinen <aaro.koskinen@iki.fi>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/include/ "octeon_3xxx.dtsi"
+
+/ {
+	model = "dlink,dsr-1000n";
+
+	soc@0 {
+		smi0: mdio@1180000001800 {
+			phy8: ethernet-phy@8 {
+				reg = <8>;
+				compatible = "ethernet-phy-ieee802.3-c22";
+			};
+		};
+
+		pip: pip@11800a0000000 {
+			interface@0 {
+				ethernet@0 {
+					fixed-link {
+						speed = <1000>;
+						full-duplex;
+					};
+				};
+				ethernet@1 {
+					fixed-link {
+						speed = <1000>;
+						full-duplex;
+					};
+				};
+				ethernet@2 {
+					phy-handle = <&phy8>;
+				};
+			};
+		};
+
+		twsi0: i2c@1180000001000 {
+			rtc@68 {
+				compatible = "dallas,ds1337";
+				reg = <0x68>;
+			};
+		};
+
+		uart0: serial@1180000000800 {
+			clock-frequency = <500000000>;
+		};
+
+		usbn: usbn@1180068000000 {
+			refclk-frequency = <12000000>;
+			refclk-type = "crystal";
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		usb1 {
+			label = "usb1";
+			gpios = <&gpio 9 1>; /* Active low */
+		};
+
+		usb2 {
+			label = "usb2";
+			gpios = <&gpio 10 1>; /* Active low */
+		};
+	};
+
+	aliases {
+		pip = &pip;
+	};
+};

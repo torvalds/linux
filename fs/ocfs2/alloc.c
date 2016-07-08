@@ -5351,7 +5351,7 @@ static int ocfs2_truncate_rec(handle_t *handle,
 {
 	int ret;
 	u32 left_cpos, rec_range, trunc_range;
-	int wants_rotate = 0, is_rightmost_tree_rec = 0;
+	int is_rightmost_tree_rec = 0;
 	struct super_block *sb = ocfs2_metadata_cache_get_super(et->et_ci);
 	struct ocfs2_path *left_path = NULL;
 	struct ocfs2_extent_list *el = path_leaf_el(path);
@@ -5457,7 +5457,6 @@ static int ocfs2_truncate_rec(handle_t *handle,
 
 		memset(rec, 0, sizeof(*rec));
 		ocfs2_cleanup_merge(el, index);
-		wants_rotate = 1;
 
 		next_free = le16_to_cpu(el->l_next_free_rec);
 		if (is_rightmost_tree_rec && next_free > 1) {
@@ -6671,7 +6670,7 @@ static void ocfs2_zero_cluster_pages(struct inode *inode, loff_t start,
 {
 	int i;
 	struct page *page;
-	unsigned int from, to = PAGE_CACHE_SIZE;
+	unsigned int from, to = PAGE_SIZE;
 	struct super_block *sb = inode->i_sb;
 
 	BUG_ON(!ocfs2_sparse_alloc(OCFS2_SB(sb)));
@@ -6679,21 +6678,21 @@ static void ocfs2_zero_cluster_pages(struct inode *inode, loff_t start,
 	if (numpages == 0)
 		goto out;
 
-	to = PAGE_CACHE_SIZE;
+	to = PAGE_SIZE;
 	for(i = 0; i < numpages; i++) {
 		page = pages[i];
 
-		from = start & (PAGE_CACHE_SIZE - 1);
-		if ((end >> PAGE_CACHE_SHIFT) == page->index)
-			to = end & (PAGE_CACHE_SIZE - 1);
+		from = start & (PAGE_SIZE - 1);
+		if ((end >> PAGE_SHIFT) == page->index)
+			to = end & (PAGE_SIZE - 1);
 
-		BUG_ON(from > PAGE_CACHE_SIZE);
-		BUG_ON(to > PAGE_CACHE_SIZE);
+		BUG_ON(from > PAGE_SIZE);
+		BUG_ON(to > PAGE_SIZE);
 
 		ocfs2_map_and_dirty_page(inode, handle, from, to, page, 1,
 					 &phys);
 
-		start = (page->index + 1) << PAGE_CACHE_SHIFT;
+		start = (page->index + 1) << PAGE_SHIFT;
 	}
 out:
 	if (pages)
@@ -6712,7 +6711,7 @@ int ocfs2_grab_pages(struct inode *inode, loff_t start, loff_t end,
 
 	numpages = 0;
 	last_page_bytes = PAGE_ALIGN(end);
-	index = start >> PAGE_CACHE_SHIFT;
+	index = start >> PAGE_SHIFT;
 	do {
 		pages[numpages] = find_or_create_page(mapping, index, GFP_NOFS);
 		if (!pages[numpages]) {
@@ -6723,7 +6722,7 @@ int ocfs2_grab_pages(struct inode *inode, loff_t start, loff_t end,
 
 		numpages++;
 		index++;
-	} while (index < (last_page_bytes >> PAGE_CACHE_SHIFT));
+	} while (index < (last_page_bytes >> PAGE_SHIFT));
 
 out:
 	if (ret != 0) {
@@ -6950,8 +6949,8 @@ int ocfs2_convert_inline_data_to_extents(struct inode *inode,
 		 * to do that now.
 		 */
 		if (!ocfs2_sparse_alloc(osb) &&
-		    PAGE_CACHE_SIZE < osb->s_clustersize)
-			end = PAGE_CACHE_SIZE;
+		    PAGE_SIZE < osb->s_clustersize)
+			end = PAGE_SIZE;
 
 		ret = ocfs2_grab_eof_pages(inode, 0, end, pages, &num_pages);
 		if (ret) {
@@ -6971,8 +6970,8 @@ int ocfs2_convert_inline_data_to_extents(struct inode *inode,
 			goto out_unlock;
 		}
 
-		page_end = PAGE_CACHE_SIZE;
-		if (PAGE_CACHE_SIZE > osb->s_clustersize)
+		page_end = PAGE_SIZE;
+		if (PAGE_SIZE > osb->s_clustersize)
 			page_end = osb->s_clustersize;
 
 		for (i = 0; i < num_pages; i++)

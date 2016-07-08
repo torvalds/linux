@@ -279,12 +279,12 @@ static int mmap_vmcore_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	if (!page)
 		return VM_FAULT_OOM;
 	if (!PageUptodate(page)) {
-		offset = (loff_t) index << PAGE_CACHE_SHIFT;
+		offset = (loff_t) index << PAGE_SHIFT;
 		buf = __va((page_to_pfn(page) << PAGE_SHIFT));
 		rc = __read_vmcore(buf, PAGE_SIZE, &offset, 0);
 		if (rc < 0) {
 			unlock_page(page);
-			page_cache_release(page);
+			put_page(page);
 			return (rc == -ENOMEM) ? VM_FAULT_OOM : VM_FAULT_SIGBUS;
 		}
 		SetPageUptodate(page);
@@ -1071,7 +1071,7 @@ static int __init parse_crash_elf32_headers(void)
 	/* Do some basic Verification. */
 	if (memcmp(ehdr.e_ident, ELFMAG, SELFMAG) != 0 ||
 		(ehdr.e_type != ET_CORE) ||
-		!elf_check_arch(&ehdr) ||
+		!vmcore_elf32_check_arch(&ehdr) ||
 		ehdr.e_ident[EI_CLASS] != ELFCLASS32||
 		ehdr.e_ident[EI_VERSION] != EV_CURRENT ||
 		ehdr.e_version != EV_CURRENT ||

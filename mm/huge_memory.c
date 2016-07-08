@@ -89,6 +89,7 @@ static unsigned int khugepaged_full_scans;
 static unsigned int khugepaged_scan_sleep_millisecs __read_mostly = 10000;
 /* during fragmentation poll the hugepage allocator once every minute */
 static unsigned int khugepaged_alloc_sleep_millisecs __read_mostly = 60000;
+static unsigned long khugepaged_sleep_expire;
 static struct task_struct *khugepaged_thread __read_mostly;
 static DEFINE_MUTEX(khugepaged_mutex);
 static DEFINE_SPINLOCK(khugepaged_mm_lock);
@@ -232,7 +233,7 @@ retry:
 	return READ_ONCE(huge_zero_page);
 }
 
-static void put_huge_zero_page(void)
+void put_huge_zero_page(void)
 {
 	/*
 	 * Counter should never go to zero here. Only shrinker can put
@@ -467,6 +468,7 @@ static ssize_t scan_sleep_millisecs_store(struct kobject *kobj,
 		return -EINVAL;
 
 	khugepaged_scan_sleep_millisecs = msecs;
+	khugepaged_sleep_expire = 0;
 	wake_up_interruptible(&khugepaged_wait);
 
 	return count;
@@ -494,6 +496,7 @@ static ssize_t alloc_sleep_millisecs_store(struct kobject *kobj,
 		return -EINVAL;
 
 	khugepaged_alloc_sleep_millisecs = msecs;
+	khugepaged_sleep_expire = 0;
 	wake_up_interruptible(&khugepaged_wait);
 
 	return count;
@@ -764,10 +767,7 @@ pmd_t maybe_pmd_mkwrite(pmd_t pmd, struct vm_area_struct *vma)
 
 static inline pmd_t mk_huge_pmd(struct page *page, pgprot_t prot)
 {
-	pmd_t entry;
-	entry = mk_pmd(page, prot);
-	entry = pmd_mkhuge(entry);
-	return entry;
+	return pmd_mkhuge(mk_pmd(page, prot));
 }
 
 static inline struct list_head *page_deferred_list(struct page *page)
@@ -1013,6 +1013,7 @@ int vmf_insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
 	insert_pfn_pmd(vma, addr, pmd, pfn, pgprot, write);
 	return VM_FAULT_NOPAGE;
 }
+EXPORT_SYMBOL_GPL(vmf_insert_pfn_pmd);
 
 static void touch_pmd(struct vm_area_struct *vma, unsigned long addr,
 		pmd_t *pmd)
@@ -1298,15 +1299,9 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	VM_BUG_ON_PAGE(!PageCompound(page) || !PageHead(page), page);
 	/*
 	 * We can only reuse the page if nobody else maps the huge page or it's
-	 * part. We can do it by checking page_mapcount() on each sub-page, but
-	 * it's expensive.
-	 * The cheaper way is to check page_count() to be equal 1: every
-	 * mapcount takes page reference reference, so this way we can
-	 * guarantee, that the PMD is the only mapping.
-	 * This can give false negative if somebody pinned the page, but that's
-	 * fine.
+	 * part.
 	 */
-	if (page_mapcount(page) == 1 && page_count(page) == 1) {
+	if (page_trans_huge_mapcount(page, NULL) == 1) {
 		pmd_t entry;
 		entry = pmd_mkyoung(orig_pmd);
 		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
@@ -1684,12 +1679,12 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
 	if (vma_is_dax(vma)) {
 		spin_unlock(ptl);
 		if (is_huge_zero_pmd(orig_pmd))
-			put_huge_zero_page();
+			tlb_remove_page(tlb, pmd_page(orig_pmd));
 	} else if (is_huge_zero_pmd(orig_pmd)) {
 		pte_free(tlb->mm, pgtable_trans_huge_withdraw(tlb->mm, pmd));
 		atomic_long_dec(&tlb->mm->nr_ptes);
 		spin_unlock(ptl);
-		put_huge_zero_page();
+		tlb_remove_page(tlb, pmd_page(orig_pmd));
 	} else {
 		struct page *page = pmd_page(orig_pmd);
 		page_remove_rmap(page, true);
@@ -1704,20 +1699,17 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
 	return 1;
 }
 
-bool move_huge_pmd(struct vm_area_struct *vma, struct vm_area_struct *new_vma,
-		  unsigned long old_addr,
+bool move_huge_pmd(struct vm_area_struct *vma, unsigned long old_addr,
 		  unsigned long new_addr, unsigned long old_end,
 		  pmd_t *old_pmd, pmd_t *new_pmd)
 {
 	spinlock_t *old_ptl, *new_ptl;
 	pmd_t pmd;
-
 	struct mm_struct *mm = vma->vm_mm;
 
 	if ((old_addr & ~HPAGE_PMD_MASK) ||
 	    (new_addr & ~HPAGE_PMD_MASK) ||
-	    old_end - old_addr < HPAGE_PMD_SIZE ||
-	    (new_vma->vm_flags & VM_NOHUGEPAGE))
+	    old_end - old_addr < HPAGE_PMD_SIZE)
 		return false;
 
 	/*
@@ -1960,10 +1952,9 @@ int khugepaged_enter_vma_merge(struct vm_area_struct *vma,
 		 * page fault if needed.
 		 */
 		return 0;
-	if (vma->vm_ops)
+	if (vma->vm_ops || (vm_flags & VM_NO_THP))
 		/* khugepaged not yet working on file or special mappings */
 		return 0;
-	VM_BUG_ON_VMA(vm_flags & VM_NO_THP, vma);
 	hstart = (vma->vm_start + ~HPAGE_PMD_MASK) & HPAGE_PMD_MASK;
 	hend = vma->vm_end & HPAGE_PMD_MASK;
 	if (hstart < hend)
@@ -2080,7 +2071,8 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
 		if (pte_write(pteval)) {
 			writable = true;
 		} else {
-			if (PageSwapCache(page) && !reuse_swap_page(page)) {
+			if (PageSwapCache(page) &&
+			    !reuse_swap_page(page, NULL)) {
 				unlock_page(page);
 				result = SCAN_SWAP_CACHE_PAGE;
 				goto out;
@@ -2352,8 +2344,7 @@ static bool hugepage_vma_check(struct vm_area_struct *vma)
 		return false;
 	if (is_vma_temporary_stack(vma))
 		return false;
-	VM_BUG_ON_VMA(vma->vm_flags & VM_NO_THP, vma);
-	return true;
+	return !(vma->vm_flags & VM_NO_THP);
 }
 
 static void collapse_huge_page(struct mm_struct *mm,
@@ -2804,15 +2795,25 @@ static void khugepaged_do_scan(void)
 		put_page(hpage);
 }
 
+static bool khugepaged_should_wakeup(void)
+{
+	return kthread_should_stop() ||
+	       time_after_eq(jiffies, khugepaged_sleep_expire);
+}
+
 static void khugepaged_wait_work(void)
 {
 	if (khugepaged_has_work()) {
-		if (!khugepaged_scan_sleep_millisecs)
+		const unsigned long scan_sleep_jiffies =
+			msecs_to_jiffies(khugepaged_scan_sleep_millisecs);
+
+		if (!scan_sleep_jiffies)
 			return;
 
+		khugepaged_sleep_expire = jiffies + scan_sleep_jiffies;
 		wait_event_freezable_timeout(khugepaged_wait,
-					     kthread_should_stop(),
-			msecs_to_jiffies(khugepaged_scan_sleep_millisecs));
+					     khugepaged_should_wakeup(),
+					     scan_sleep_jiffies);
 		return;
 	}
 
@@ -3036,8 +3037,10 @@ void split_huge_pmd_address(struct vm_area_struct *vma, unsigned long address,
 		return;
 
 	/*
-	 * Caller holds the mmap_sem write mode, so a huge pmd cannot
-	 * materialize from under us.
+	 * Caller holds the mmap_sem write mode or the anon_vma lock,
+	 * so a huge pmd cannot materialize from under us (khugepaged
+	 * holds both the mmap_sem write mode and the anon_vma lock
+	 * write mode).
 	 */
 	__split_huge_pmd(vma, pmd, address, freeze);
 }
@@ -3120,7 +3123,7 @@ static void __split_huge_page_tail(struct page *head, int tail,
 	VM_BUG_ON_PAGE(page_ref_count(page_tail) != 0, page_tail);
 
 	/*
-	 * tail_page->_count is zero and not changing from under us. But
+	 * tail_page->_refcount is zero and not changing from under us. But
 	 * get_page_unless_zero() may be running from under us on the
 	 * tail_page. If we used atomic_set() below instead of atomic_inc(), we
 	 * would then run atomic_set() concurrently with
@@ -3225,6 +3228,64 @@ int total_mapcount(struct page *page)
 }
 
 /*
+ * This calculates accurately how many mappings a transparent hugepage
+ * has (unlike page_mapcount() which isn't fully accurate). This full
+ * accuracy is primarily needed to know if copy-on-write faults can
+ * reuse the page and change the mapping to read-write instead of
+ * copying them. At the same time this returns the total_mapcount too.
+ *
+ * The function returns the highest mapcount any one of the subpages
+ * has. If the return value is one, even if different processes are
+ * mapping different subpages of the transparent hugepage, they can
+ * all reuse it, because each process is reusing a different subpage.
+ *
+ * The total_mapcount is instead counting all virtual mappings of the
+ * subpages. If the total_mapcount is equal to "one", it tells the
+ * caller all mappings belong to the same "mm" and in turn the
+ * anon_vma of the transparent hugepage can become the vma->anon_vma
+ * local one as no other process may be mapping any of the subpages.
+ *
+ * It would be more accurate to replace page_mapcount() with
+ * page_trans_huge_mapcount(), however we only use
+ * page_trans_huge_mapcount() in the copy-on-write faults where we
+ * need full accuracy to avoid breaking page pinning, because
+ * page_trans_huge_mapcount() is slower than page_mapcount().
+ */
+int page_trans_huge_mapcount(struct page *page, int *total_mapcount)
+{
+	int i, ret, _total_mapcount, mapcount;
+
+	/* hugetlbfs shouldn't call it */
+	VM_BUG_ON_PAGE(PageHuge(page), page);
+
+	if (likely(!PageTransCompound(page))) {
+		mapcount = atomic_read(&page->_mapcount) + 1;
+		if (total_mapcount)
+			*total_mapcount = mapcount;
+		return mapcount;
+	}
+
+	page = compound_head(page);
+
+	_total_mapcount = ret = 0;
+	for (i = 0; i < HPAGE_PMD_NR; i++) {
+		mapcount = atomic_read(&page[i]._mapcount) + 1;
+		ret = max(ret, mapcount);
+		_total_mapcount += mapcount;
+	}
+	if (PageDoubleMap(page)) {
+		ret -= 1;
+		_total_mapcount -= HPAGE_PMD_NR;
+	}
+	mapcount = compound_mapcount(page);
+	ret += mapcount;
+	_total_mapcount += mapcount;
+	if (total_mapcount)
+		*total_mapcount = _total_mapcount;
+	return ret;
+}
+
+/*
  * This function splits huge page into normal pages. @page can point to any
  * subpage of huge page to split. Split doesn't change the position of @page.
  *
@@ -3289,7 +3350,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
 	if (mlocked)
 		lru_add_drain();
 
-	/* Prevent deferred_split_scan() touching ->_count */
+	/* Prevent deferred_split_scan() touching ->_refcount */
 	spin_lock_irqsave(&pgdata->split_queue_lock, flags);
 	count = page_count(head);
 	mapcount = total_mapcount(head);
@@ -3454,7 +3515,7 @@ next:
 		}
 	}
 
-	pr_info("%lu of %lu THP split", split, total);
+	pr_info("%lu of %lu THP split\n", split, total);
 
 	return 0;
 }
@@ -3465,7 +3526,7 @@ static int __init split_huge_pages_debugfs(void)
 {
 	void *ret;
 
-	ret = debugfs_create_file("split_huge_pages", 0644, NULL, NULL,
+	ret = debugfs_create_file("split_huge_pages", 0200, NULL, NULL,
 			&split_huge_pages_fops);
 	if (!ret)
 		pr_warn("Failed to create split_huge_pages in debugfs");

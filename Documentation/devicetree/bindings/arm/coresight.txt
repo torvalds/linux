@@ -19,6 +19,7 @@ its hardware characteristcs.
 		- "arm,coresight-etm3x", "arm,primecell";
 		- "arm,coresight-etm4x", "arm,primecell";
 		- "qcom,coresight-replicator1x", "arm,primecell";
+		- "arm,coresight-stm", "arm,primecell"; [1]
 
 	* reg: physical base address and length of the register
 	  set(s) of the component.
@@ -35,6 +36,14 @@ its hardware characteristcs.
 	* port or ports: The representation of the component's port
 	  layout using the generic DT graph presentation found in
 	  "bindings/graph.txt".
+
+* Additional required properties for System Trace Macrocells (STM):
+	* reg: along with the physical base address and length of the register
+	  set as described above, another entry is required to describe the
+	  mapping of the extended stimulus port area.
+
+	* reg-names: the only acceptable values are "stm-base" and
+	  "stm-stimulus-base", each corresponding to the areas defined in "reg".
 
 * Required properties for devices that don't show up on the AMBA bus, such as
   non-configurable replicators:
@@ -202,3 +211,22 @@ Example:
 			};
 		};
 	};
+
+4. STM
+	stm@20100000 {
+		compatible = "arm,coresight-stm", "arm,primecell";
+		reg = <0 0x20100000 0 0x1000>,
+		      <0 0x28000000 0 0x180000>;
+		reg-names = "stm-base", "stm-stimulus-base";
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		port {
+			stm_out_port: endpoint {
+				remote-endpoint = <&main_funnel_in_port2>;
+			};
+		};
+	};
+
+[1]. There is currently two version of STM: STM32 and STM500.  Both
+have the same HW interface and as such don't need an explicit binding name.

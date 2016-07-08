@@ -251,7 +251,7 @@ static inline void rrpc_unlock_laddr(struct rrpc *rrpc,
 static inline void rrpc_unlock_rq(struct rrpc *rrpc, struct nvm_rq *rqd)
 {
 	struct rrpc_inflight_rq *r = rrpc_get_inflight_rq(rqd);
-	uint8_t pages = rqd->nr_pages;
+	uint8_t pages = rqd->nr_ppas;
 
 	BUG_ON((r->l_start + pages) > rrpc->nr_sects);
 

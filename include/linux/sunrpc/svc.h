@@ -129,7 +129,7 @@ static inline void svc_get(struct svc_serv *serv)
  *
  * These happen to all be powers of 2, which is not strictly
  * necessary but helps enforce the real limitation, which is
- * that they should be multiples of PAGE_CACHE_SIZE.
+ * that they should be multiples of PAGE_SIZE.
  *
  * For UDP transports, a block plus NFS,RPC, and UDP headers
  * has to fit into the IP datagram limit of 64K.  The largest

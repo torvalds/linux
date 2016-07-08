@@ -108,11 +108,15 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 	u32 val;
 
 	preempt_disable();
-	if (unlikely(get_user(val, uaddr) != 0))
+	if (unlikely(get_user(val, uaddr) != 0)) {
+		preempt_enable();
 		return -EFAULT;
+	}
 
-	if (val == oldval && unlikely(put_user(newval, uaddr) != 0))
+	if (val == oldval && unlikely(put_user(newval, uaddr) != 0)) {
+		preempt_enable();
 		return -EFAULT;
+	}
 
 	*uval = val;
 	preempt_enable();

@@ -48,6 +48,9 @@
 #include <linux/kmod.h>
 #include <linux/delay.h>
 #include <linux/mlx5/mlx5_ifc.h>
+#ifdef CONFIG_RFS_ACCEL
+#include <linux/cpu_rmap.h>
+#endif
 #include "mlx5_core.h"
 #include "fs_core.h"
 #ifdef CONFIG_MLX5_CORE_EN
@@ -660,11 +663,34 @@ int mlx5_vector2eqn(struct mlx5_core_dev *dev, int vector, int *eqn,
 }
 EXPORT_SYMBOL(mlx5_vector2eqn);
 
+struct mlx5_eq *mlx5_eqn2eq(struct mlx5_core_dev *dev, int eqn)
+{
+	struct mlx5_eq_table *table = &dev->priv.eq_table;
+	struct mlx5_eq *eq;
+
+	spin_lock(&table->lock);
+	list_for_each_entry(eq, &table->comp_eqs_list, list)
+		if (eq->eqn == eqn) {
+			spin_unlock(&table->lock);
+			return eq;
+		}
+
+	spin_unlock(&table->lock);
+
+	return ERR_PTR(-ENOENT);
+}
+
 static void free_comp_eqs(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eq_table *table = &dev->priv.eq_table;
 	struct mlx5_eq *eq, *n;
 
+#ifdef CONFIG_RFS_ACCEL
+	if (dev->rmap) {
+		free_irq_cpu_rmap(dev->rmap);
+		dev->rmap = NULL;
+	}
+#endif
 	spin_lock(&table->lock);
 	list_for_each_entry_safe(eq, n, &table->comp_eqs_list, list) {
 		list_del(&eq->list);
@@ -691,6 +717,11 @@ static int alloc_comp_eqs(struct mlx5_core_dev *dev)
 	INIT_LIST_HEAD(&table->comp_eqs_list);
 	ncomp_vec = table->num_comp_vectors;
 	nent = MLX5_COMP_EQ_SIZE;
+#ifdef CONFIG_RFS_ACCEL
+	dev->rmap = alloc_irq_cpu_rmap(ncomp_vec);
+	if (!dev->rmap)
+		return -ENOMEM;
+#endif
 	for (i = 0; i < ncomp_vec; i++) {
 		eq = kzalloc(sizeof(*eq), GFP_KERNEL);
 		if (!eq) {
@@ -698,6 +729,10 @@ static int alloc_comp_eqs(struct mlx5_core_dev *dev)
 			goto clean;
 		}
 
+#ifdef CONFIG_RFS_ACCEL
+		irq_cpu_rmap_add(dev->rmap,
+				 dev->priv.msix_arr[i + MLX5_EQ_VEC_COMP_BASE].vector);
+#endif
 		snprintf(name, MLX5_MAX_IRQ_NAME, "mlx5_comp%d", i);
 		err = mlx5_create_map_eq(dev, eq,
 					 i + MLX5_EQ_VEC_COMP_BASE, nent, 0,
@@ -966,7 +1001,7 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 	int err;
 
 	mutex_lock(&dev->intf_state_mutex);
-	if (dev->interface_state == MLX5_INTERFACE_STATE_UP) {
+	if (test_bit(MLX5_INTERFACE_STATE_UP, &dev->intf_state)) {
 		dev_warn(&dev->pdev->dev, "%s: interface is up, NOP\n",
 			 __func__);
 		goto out;
@@ -1133,7 +1168,8 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 	if (err)
 		pr_info("failed request module on %s\n", MLX5_IB_MOD);
 
-	dev->interface_state = MLX5_INTERFACE_STATE_UP;
+	clear_bit(MLX5_INTERFACE_STATE_DOWN, &dev->intf_state);
+	set_bit(MLX5_INTERFACE_STATE_UP, &dev->intf_state);
 out:
 	mutex_unlock(&dev->intf_state_mutex);
 
@@ -1207,7 +1243,7 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 	}
 
 	mutex_lock(&dev->intf_state_mutex);
-	if (dev->interface_state == MLX5_INTERFACE_STATE_DOWN) {
+	if (test_bit(MLX5_INTERFACE_STATE_DOWN, &dev->intf_state)) {
 		dev_warn(&dev->pdev->dev, "%s: interface is down, NOP\n",
 			 __func__);
 		goto out;
@@ -1241,7 +1277,8 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 	mlx5_cmd_cleanup(dev);
 
 out:
-	dev->interface_state = MLX5_INTERFACE_STATE_DOWN;
+	clear_bit(MLX5_INTERFACE_STATE_UP, &dev->intf_state);
+	set_bit(MLX5_INTERFACE_STATE_DOWN, &dev->intf_state);
 	mutex_unlock(&dev->intf_state_mutex);
 	return err;
 }
@@ -1452,6 +1489,18 @@ static const struct pci_error_handlers mlx5_err_handler = {
 	.resume		= mlx5_pci_resume
 };
 
+static void shutdown(struct pci_dev *pdev)
+{
+	struct mlx5_core_dev *dev  = pci_get_drvdata(pdev);
+	struct mlx5_priv *priv = &dev->priv;
+
+	dev_info(&pdev->dev, "Shutdown was called\n");
+	/* Notify mlx5 clients that the kernel is being shut down */
+	set_bit(MLX5_INTERFACE_STATE_SHUTDOWN, &dev->intf_state);
+	mlx5_unload_one(dev, priv);
+	mlx5_pci_disable_device(dev);
+}
+
 static const struct pci_device_id mlx5_core_pci_table[] = {
 	{ PCI_VDEVICE(MELLANOX, 0x1011) },			/* Connect-IB */
 	{ PCI_VDEVICE(MELLANOX, 0x1012), MLX5_PCI_DEV_IS_VF},	/* Connect-IB VF */
@@ -1459,6 +1508,9 @@ static const struct pci_device_id mlx5_core_pci_table[] = {
 	{ PCI_VDEVICE(MELLANOX, 0x1014), MLX5_PCI_DEV_IS_VF},	/* ConnectX-4 VF */
 	{ PCI_VDEVICE(MELLANOX, 0x1015) },			/* ConnectX-4LX */
 	{ PCI_VDEVICE(MELLANOX, 0x1016), MLX5_PCI_DEV_IS_VF},	/* ConnectX-4LX VF */
+	{ PCI_VDEVICE(MELLANOX, 0x1017) },			/* ConnectX-5, PCIe 3.0 */
+	{ PCI_VDEVICE(MELLANOX, 0x1018), MLX5_PCI_DEV_IS_VF},	/* ConnectX-5 VF */
+	{ PCI_VDEVICE(MELLANOX, 0x1019) },			/* ConnectX-5, PCIe 4.0 */
 	{ 0, }
 };
 
@@ -1469,6 +1521,7 @@ static struct pci_driver mlx5_core_driver = {
 	.id_table       = mlx5_core_pci_table,
 	.probe          = init_one,
 	.remove         = remove_one,
+	.shutdown	= shutdown,
 	.err_handler	= &mlx5_err_handler,
 	.sriov_configure   = mlx5_core_sriov_configure,
 };

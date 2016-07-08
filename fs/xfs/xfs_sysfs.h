@@ -58,4 +58,7 @@ xfs_sysfs_del(
 	wait_for_completion(&kobj->complete);
 }
 
+int	xfs_error_sysfs_init(struct xfs_mount *mp);
+void	xfs_error_sysfs_del(struct xfs_mount *mp);
+
 #endif	/* __XFS_SYSFS_H__ */

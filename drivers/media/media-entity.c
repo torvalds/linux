@@ -219,7 +219,7 @@ int media_entity_pads_init(struct media_entity *entity, u16 num_pads,
 	entity->pads = pads;
 
 	if (mdev)
-		spin_lock(&mdev->lock);
+		mutex_lock(&mdev->graph_mutex);
 
 	for (i = 0; i < num_pads; i++) {
 		pads[i].entity = entity;
@@ -230,7 +230,7 @@ int media_entity_pads_init(struct media_entity *entity, u16 num_pads,
 	}
 
 	if (mdev)
-		spin_unlock(&mdev->lock);
+		mutex_unlock(&mdev->graph_mutex);
 
 	return 0;
 }
@@ -445,7 +445,7 @@ __must_check int __media_entity_pipeline_start(struct media_entity *entity,
 		bitmap_or(active, active, has_no_links, entity->num_pads);
 
 		if (!bitmap_full(active, entity->num_pads)) {
-			ret = -EPIPE;
+			ret = -ENOLINK;
 			dev_dbg(entity->graph_obj.mdev->dev,
 				"\"%s\":%u must be connected by an enabled link\n",
 				entity->name,
@@ -747,9 +747,9 @@ void media_entity_remove_links(struct media_entity *entity)
 	if (mdev == NULL)
 		return;
 
-	spin_lock(&mdev->lock);
+	mutex_lock(&mdev->graph_mutex);
 	__media_entity_remove_links(entity);
-	spin_unlock(&mdev->lock);
+	mutex_unlock(&mdev->graph_mutex);
 }
 EXPORT_SYMBOL_GPL(media_entity_remove_links);
 
@@ -951,9 +951,9 @@ void media_remove_intf_link(struct media_link *link)
 	if (mdev == NULL)
 		return;
 
-	spin_lock(&mdev->lock);
+	mutex_lock(&mdev->graph_mutex);
 	__media_remove_intf_link(link);
-	spin_unlock(&mdev->lock);
+	mutex_unlock(&mdev->graph_mutex);
 }
 EXPORT_SYMBOL_GPL(media_remove_intf_link);
 
@@ -975,8 +975,8 @@ void media_remove_intf_links(struct media_interface *intf)
 	if (mdev == NULL)
 		return;
 
-	spin_lock(&mdev->lock);
+	mutex_lock(&mdev->graph_mutex);
 	__media_remove_intf_links(intf);
-	spin_unlock(&mdev->lock);
+	mutex_unlock(&mdev->graph_mutex);
 }
 EXPORT_SYMBOL_GPL(media_remove_intf_links);

@@ -76,4 +76,13 @@ config SAMPLE_CONFIGFS
 	help
 	  Builds a sample configfs interface.
 
+config SAMPLE_CONNECTOR
+	tristate "Build connector sample -- loadable modules only"
+	depends on CONNECTOR && m
+	help
+	  When enabled, this builds both a sample kernel module for
+	  the connector interface and a user space tool to communicate
+	  with it.
+	  See also Documentation/connector/connector.txt
+
 endif # SAMPLES

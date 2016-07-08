@@ -199,11 +199,6 @@ static void ndesc_prepare_tx_desc(struct dma_desc *p, int is_fs, int len,
 {
 	unsigned int tdes1 = p->des1;
 
-	if (mode == STMMAC_CHAIN_MODE)
-		norm_set_tx_desc_len_on_chain(p, len);
-	else
-		norm_set_tx_desc_len_on_ring(p, len);
-
 	if (is_fs)
 		tdes1 |= TDES1_FIRST_SEGMENT;
 	else
@@ -217,10 +212,15 @@ static void ndesc_prepare_tx_desc(struct dma_desc *p, int is_fs, int len,
 	if (ls)
 		tdes1 |= TDES1_LAST_SEGMENT;
 
-	if (tx_own)
-		tdes1 |= TDES0_OWN;
-
 	p->des1 = tdes1;
+
+	if (mode == STMMAC_CHAIN_MODE)
+		norm_set_tx_desc_len_on_chain(p, len);
+	else
+		norm_set_tx_desc_len_on_ring(p, len);
+
+	if (tx_own)
+		p->des0 |= TDES0_OWN;
 }
 
 static void ndesc_set_tx_ic(struct dma_desc *p)
@@ -279,6 +279,26 @@ static int ndesc_get_rx_timestamp_status(void *desc, u32 ats)
 		return 1;
 }
 
+static void ndesc_display_ring(void *head, unsigned int size, bool rx)
+{
+	struct dma_desc *p = (struct dma_desc *)head;
+	int i;
+
+	pr_info("%s descriptor ring:\n", rx ? "RX" : "TX");
+
+	for (i = 0; i < size; i++) {
+		u64 x;
+
+		x = *(u64 *)p;
+		pr_info("%d [0x%x]: 0x%x 0x%x 0x%x 0x%x",
+			i, (unsigned int)virt_to_phys(p),
+			(unsigned int)x, (unsigned int)(x >> 32),
+			p->des2, p->des3);
+		p++;
+	}
+	pr_info("\n");
+}
+
 const struct stmmac_desc_ops ndesc_ops = {
 	.tx_status = ndesc_get_tx_status,
 	.rx_status = ndesc_get_rx_status,
@@ -297,4 +317,5 @@ const struct stmmac_desc_ops ndesc_ops = {
 	.get_tx_timestamp_status = ndesc_get_tx_timestamp_status,
 	.get_timestamp = ndesc_get_timestamp,
 	.get_rx_timestamp_status = ndesc_get_rx_timestamp_status,
+	.display_ring = ndesc_display_ring,
 };

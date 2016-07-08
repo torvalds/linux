@@ -45,6 +45,7 @@
 #include <linux/bitops.h>
 #include <linux/gfp.h>
 #include <linux/kmemcheck.h>
+#include <linux/random.h>
 
 #include <asm/sections.h>
 
@@ -708,7 +709,7 @@ look_up_lock_class(struct lockdep_map *lock, unsigned int subclass)
  * yet. Otherwise we look it up. We cache the result in the lock object
  * itself, so actual lookup of the hash should be once per lock object.
  */
-static inline struct lock_class *
+static struct lock_class *
 register_lock_class(struct lockdep_map *lock, unsigned int subclass, int force)
 {
 	struct lockdep_subclass_key *key;
@@ -1999,6 +2000,79 @@ static inline int get_first_held_lock(struct task_struct *curr,
 	return ++i;
 }
 
+#ifdef CONFIG_DEBUG_LOCKDEP
+/*
+ * Returns the next chain_key iteration
+ */
+static u64 print_chain_key_iteration(int class_idx, u64 chain_key)
+{
+	u64 new_chain_key = iterate_chain_key(chain_key, class_idx);
+
+	printk(" class_idx:%d -> chain_key:%016Lx",
+		class_idx,
+		(unsigned long long)new_chain_key);
+	return new_chain_key;
+}
+
+static void
+print_chain_keys_held_locks(struct task_struct *curr, struct held_lock *hlock_next)
+{
+	struct held_lock *hlock;
+	u64 chain_key = 0;
+	int depth = curr->lockdep_depth;
+	int i;
+
+	printk("depth: %u\n", depth + 1);
+	for (i = get_first_held_lock(curr, hlock_next); i < depth; i++) {
+		hlock = curr->held_locks + i;
+		chain_key = print_chain_key_iteration(hlock->class_idx, chain_key);
+
+		print_lock(hlock);
+	}
+
+	print_chain_key_iteration(hlock_next->class_idx, chain_key);
+	print_lock(hlock_next);
+}
+
+static void print_chain_keys_chain(struct lock_chain *chain)
+{
+	int i;
+	u64 chain_key = 0;
+	int class_id;
+
+	printk("depth: %u\n", chain->depth);
+	for (i = 0; i < chain->depth; i++) {
+		class_id = chain_hlocks[chain->base + i];
+		chain_key = print_chain_key_iteration(class_id + 1, chain_key);
+
+		print_lock_name(lock_classes + class_id);
+		printk("\n");
+	}
+}
+
+static void print_collision(struct task_struct *curr,
+			struct held_lock *hlock_next,
+			struct lock_chain *chain)
+{
+	printk("\n");
+	printk("======================\n");
+	printk("[chain_key collision ]\n");
+	print_kernel_ident();
+	printk("----------------------\n");
+	printk("%s/%d: ", current->comm, task_pid_nr(current));
+	printk("Hash chain already cached but the contents don't match!\n");
+
+	printk("Held locks:");
+	print_chain_keys_held_locks(curr, hlock_next);
+
+	printk("Locks in cached chain:");
+	print_chain_keys_chain(chain);
+
+	printk("\nstack backtrace:\n");
+	dump_stack();
+}
+#endif
+
 /*
  * Checks whether the chain and the current held locks are consistent
  * in depth and also in content. If they are not it most likely means
@@ -2014,14 +2088,18 @@ static int check_no_collision(struct task_struct *curr,
 
 	i = get_first_held_lock(curr, hlock);
 
-	if (DEBUG_LOCKS_WARN_ON(chain->depth != curr->lockdep_depth - (i - 1)))
+	if (DEBUG_LOCKS_WARN_ON(chain->depth != curr->lockdep_depth - (i - 1))) {
+		print_collision(curr, hlock, chain);
 		return 0;
+	}
 
 	for (j = 0; j < chain->depth - 1; j++, i++) {
 		id = curr->held_locks[i].class_idx - 1;
 
-		if (DEBUG_LOCKS_WARN_ON(chain_hlocks[chain->base + j] != id))
+		if (DEBUG_LOCKS_WARN_ON(chain_hlocks[chain->base + j] != id)) {
+			print_collision(curr, hlock, chain);
 			return 0;
+		}
 	}
 #endif
 	return 1;
@@ -2099,15 +2177,37 @@ cache_hit:
 	chain->irq_context = hlock->irq_context;
 	i = get_first_held_lock(curr, hlock);
 	chain->depth = curr->lockdep_depth + 1 - i;
+
+	BUILD_BUG_ON((1UL << 24) <= ARRAY_SIZE(chain_hlocks));
+	BUILD_BUG_ON((1UL << 6)  <= ARRAY_SIZE(curr->held_locks));
+	BUILD_BUG_ON((1UL << 8*sizeof(chain_hlocks[0])) <= ARRAY_SIZE(lock_classes));
+
 	if (likely(nr_chain_hlocks + chain->depth <= MAX_LOCKDEP_CHAIN_HLOCKS)) {
 		chain->base = nr_chain_hlocks;
-		nr_chain_hlocks += chain->depth;
 		for (j = 0; j < chain->depth - 1; j++, i++) {
 			int lock_id = curr->held_locks[i].class_idx - 1;
 			chain_hlocks[chain->base + j] = lock_id;
 		}
 		chain_hlocks[chain->base + j] = class - lock_classes;
 	}
+
+	if (nr_chain_hlocks < MAX_LOCKDEP_CHAIN_HLOCKS)
+		nr_chain_hlocks += chain->depth;
+
+#ifdef CONFIG_DEBUG_LOCKDEP
+	/*
+	 * Important for check_no_collision().
+	 */
+	if (unlikely(nr_chain_hlocks > MAX_LOCKDEP_CHAIN_HLOCKS)) {
+		if (debug_locks_off_graph_unlock())
+			return 0;
+
+		print_lockdep_off("BUG: MAX_LOCKDEP_CHAIN_HLOCKS too low!");
+		dump_stack();
+		return 0;
+	}
+#endif
+
 	hlist_add_head_rcu(&chain->entry, hash_head);
 	debug_atomic_inc(chain_lookup_misses);
 	inc_chains();
@@ -2855,6 +2955,11 @@ static int mark_irqflags(struct task_struct *curr, struct held_lock *hlock)
 	return 1;
 }
 
+static inline unsigned int task_irq_context(struct task_struct *task)
+{
+	return 2 * !!task->hardirq_context + !!task->softirq_context;
+}
+
 static int separate_irq_context(struct task_struct *curr,
 		struct held_lock *hlock)
 {
@@ -2863,8 +2968,6 @@ static int separate_irq_context(struct task_struct *curr,
 	/*
 	 * Keep track of points where we cross into an interrupt context:
 	 */
-	hlock->irq_context = 2*(curr->hardirq_context ? 1 : 0) +
-				curr->softirq_context;
 	if (depth) {
 		struct held_lock *prev_hlock;
 
@@ -2894,6 +2997,11 @@ static inline int mark_irqflags(struct task_struct *curr,
 		struct held_lock *hlock)
 {
 	return 1;
+}
+
+static inline unsigned int task_irq_context(struct task_struct *task)
+{
+	return 0;
 }
 
 static inline int separate_irq_context(struct task_struct *curr,
@@ -3164,6 +3272,7 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	hlock->acquire_ip = ip;
 	hlock->instance = lock;
 	hlock->nest_lock = nest_lock;
+	hlock->irq_context = task_irq_context(curr);
 	hlock->trylock = trylock;
 	hlock->read = read;
 	hlock->check = check;
@@ -3477,7 +3586,35 @@ static int __lock_is_held(struct lockdep_map *lock)
 	return 0;
 }
 
-static void __lock_pin_lock(struct lockdep_map *lock)
+static struct pin_cookie __lock_pin_lock(struct lockdep_map *lock)
+{
+	struct pin_cookie cookie = NIL_COOKIE;
+	struct task_struct *curr = current;
+	int i;
+
+	if (unlikely(!debug_locks))
+		return cookie;
+
+	for (i = 0; i < curr->lockdep_depth; i++) {
+		struct held_lock *hlock = curr->held_locks + i;
+
+		if (match_held_lock(hlock, lock)) {
+			/*
+			 * Grab 16bits of randomness; this is sufficient to not
+			 * be guessable and still allows some pin nesting in
+			 * our u32 pin_count.
+			 */
+			cookie.val = 1 + (prandom_u32() >> 16);
+			hlock->pin_count += cookie.val;
+			return cookie;
+		}
+	}
+
+	WARN(1, "pinning an unheld lock\n");
+	return cookie;
+}
+
+static void __lock_repin_lock(struct lockdep_map *lock, struct pin_cookie cookie)
 {
 	struct task_struct *curr = current;
 	int i;
@@ -3489,7 +3626,7 @@ static void __lock_pin_lock(struct lockdep_map *lock)
 		struct held_lock *hlock = curr->held_locks + i;
 
 		if (match_held_lock(hlock, lock)) {
-			hlock->pin_count++;
+			hlock->pin_count += cookie.val;
 			return;
 		}
 	}
@@ -3497,7 +3634,7 @@ static void __lock_pin_lock(struct lockdep_map *lock)
 	WARN(1, "pinning an unheld lock\n");
 }
 
-static void __lock_unpin_lock(struct lockdep_map *lock)
+static void __lock_unpin_lock(struct lockdep_map *lock, struct pin_cookie cookie)
 {
 	struct task_struct *curr = current;
 	int i;
@@ -3512,7 +3649,11 @@ static void __lock_unpin_lock(struct lockdep_map *lock)
 			if (WARN(!hlock->pin_count, "unpinning an unpinned lock\n"))
 				return;
 
-			hlock->pin_count--;
+			hlock->pin_count -= cookie.val;
+
+			if (WARN((int)hlock->pin_count < 0, "pin count corrupted\n"))
+				hlock->pin_count = 0;
+
 			return;
 		}
 	}
@@ -3643,24 +3784,27 @@ int lock_is_held(struct lockdep_map *lock)
 }
 EXPORT_SYMBOL_GPL(lock_is_held);
 
-void lock_pin_lock(struct lockdep_map *lock)
+struct pin_cookie lock_pin_lock(struct lockdep_map *lock)
 {
+	struct pin_cookie cookie = NIL_COOKIE;
 	unsigned long flags;
 
 	if (unlikely(current->lockdep_recursion))
-		return;
+		return cookie;
 
 	raw_local_irq_save(flags);
 	check_flags(flags);
 
 	current->lockdep_recursion = 1;
-	__lock_pin_lock(lock);
+	cookie = __lock_pin_lock(lock);
 	current->lockdep_recursion = 0;
 	raw_local_irq_restore(flags);
+
+	return cookie;
 }
 EXPORT_SYMBOL_GPL(lock_pin_lock);
 
-void lock_unpin_lock(struct lockdep_map *lock)
+void lock_repin_lock(struct lockdep_map *lock, struct pin_cookie cookie)
 {
 	unsigned long flags;
 
@@ -3671,7 +3815,24 @@ void lock_unpin_lock(struct lockdep_map *lock)
 	check_flags(flags);
 
 	current->lockdep_recursion = 1;
-	__lock_unpin_lock(lock);
+	__lock_repin_lock(lock, cookie);
+	current->lockdep_recursion = 0;
+	raw_local_irq_restore(flags);
+}
+EXPORT_SYMBOL_GPL(lock_repin_lock);
+
+void lock_unpin_lock(struct lockdep_map *lock, struct pin_cookie cookie)
+{
+	unsigned long flags;
+
+	if (unlikely(current->lockdep_recursion))
+		return;
+
+	raw_local_irq_save(flags);
+	check_flags(flags);
+
+	current->lockdep_recursion = 1;
+	__lock_unpin_lock(lock, cookie);
 	current->lockdep_recursion = 0;
 	raw_local_irq_restore(flags);
 }

@@ -2298,6 +2298,8 @@ static int wm5110_codec_remove(struct snd_soc_codec *codec)
 
 	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, priv);
 
+	arizona_free_spk(codec);
+
 	return 0;
 }
 
@@ -2435,9 +2437,15 @@ static int wm5110_probe(struct platform_device *pdev)
 
 static int wm5110_remove(struct platform_device *pdev)
 {
+	struct wm5110_priv *wm5110 = platform_get_drvdata(pdev);
+	int i;
+
 	snd_soc_unregister_platform(&pdev->dev);
 	snd_soc_unregister_codec(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
+
+	for (i = 0; i < WM5110_NUM_ADSP; i++)
+		wm_adsp2_remove(&wm5110->core.adsp[i]);
 
 	return 0;
 }

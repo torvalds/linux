@@ -182,7 +182,7 @@ cfs_trace_get_tage_try(struct cfs_trace_cpu_data *tcd, unsigned long len)
 	if (tcd->tcd_cur_pages > 0) {
 		__LASSERT(!list_empty(&tcd->tcd_pages));
 		tage = cfs_tage_from_list(tcd->tcd_pages.prev);
-		if (tage->used + len <= PAGE_CACHE_SIZE)
+		if (tage->used + len <= PAGE_SIZE)
 			return tage;
 	}
 
@@ -260,7 +260,7 @@ static struct cfs_trace_page *cfs_trace_get_tage(struct cfs_trace_cpu_data *tcd,
 	 * from here: this will lead to infinite recursion.
 	 */
 
-	if (len > PAGE_CACHE_SIZE) {
+	if (len > PAGE_SIZE) {
 		pr_err("cowardly refusing to write %lu bytes in a page\n", len);
 		return NULL;
 	}
@@ -349,7 +349,7 @@ int libcfs_debug_vmsg2(struct libcfs_debug_msg_data *msgdata,
 	for (i = 0; i < 2; i++) {
 		tage = cfs_trace_get_tage(tcd, needed + known_size + 1);
 		if (!tage) {
-			if (needed + known_size > PAGE_CACHE_SIZE)
+			if (needed + known_size > PAGE_SIZE)
 				mask |= D_ERROR;
 
 			cfs_trace_put_tcd(tcd);
@@ -360,7 +360,7 @@ int libcfs_debug_vmsg2(struct libcfs_debug_msg_data *msgdata,
 		string_buf = (char *)page_address(tage->page) +
 					tage->used + known_size;
 
-		max_nob = PAGE_CACHE_SIZE - tage->used - known_size;
+		max_nob = PAGE_SIZE - tage->used - known_size;
 		if (max_nob <= 0) {
 			printk(KERN_EMERG "negative max_nob: %d\n",
 			       max_nob);
@@ -424,7 +424,7 @@ int libcfs_debug_vmsg2(struct libcfs_debug_msg_data *msgdata,
 	__LASSERT(debug_buf == string_buf);
 
 	tage->used += needed;
-	__LASSERT(tage->used <= PAGE_CACHE_SIZE);
+	__LASSERT(tage->used <= PAGE_SIZE);
 
 console:
 	if ((mask & libcfs_printk) == 0) {
@@ -707,9 +707,8 @@ int cfs_tracefile_dump_all_pages(char *filename)
 	struct cfs_trace_page	*tage;
 	struct cfs_trace_page	*tmp;
 	char			*buf;
+	mm_segment_t __oldfs;
 	int rc;
-
-	DECL_MMSPACE;
 
 	cfs_tracefile_write_lock();
 
@@ -729,11 +728,12 @@ int cfs_tracefile_dump_all_pages(char *filename)
 		rc = 0;
 		goto close;
 	}
+	__oldfs = get_fs();
+	set_fs(get_ds());
 
 	/* ok, for now, just write the pages.  in the future we'll be building
 	 * iobufs with the pages and calling generic_direct_IO
 	 */
-	MMSPACE_OPEN;
 	list_for_each_entry_safe(tage, tmp, &pc.pc_pages, linkage) {
 		__LASSERT_TAGE_INVARIANT(tage);
 
@@ -752,7 +752,7 @@ int cfs_tracefile_dump_all_pages(char *filename)
 		list_del(&tage->linkage);
 		cfs_tage_free(tage);
 	}
-	MMSPACE_CLOSE;
+	set_fs(__oldfs);
 	rc = vfs_fsync(filp, 1);
 	if (rc)
 		pr_err("sync returns %d\n", rc);
@@ -835,7 +835,7 @@ EXPORT_SYMBOL(cfs_trace_copyout_string);
 
 int cfs_trace_allocate_string_buffer(char **str, int nob)
 {
-	if (nob > 2 * PAGE_CACHE_SIZE)	    /* string must be "sensible" */
+	if (nob > 2 * PAGE_SIZE)	    /* string must be "sensible" */
 		return -EINVAL;
 
 	*str = kmalloc(nob, GFP_KERNEL | __GFP_ZERO);
@@ -951,7 +951,7 @@ int cfs_trace_set_debug_mb(int mb)
 	}
 
 	mb /= num_possible_cpus();
-	pages = mb << (20 - PAGE_CACHE_SHIFT);
+	pages = mb << (20 - PAGE_SHIFT);
 
 	cfs_tracefile_write_lock();
 
@@ -977,7 +977,7 @@ int cfs_trace_get_debug_mb(void)
 
 	cfs_tracefile_read_unlock();
 
-	return (total_pages >> (20 - PAGE_CACHE_SHIFT)) + 1;
+	return (total_pages >> (20 - PAGE_SHIFT)) + 1;
 }
 
 static int tracefiled(void *arg)
@@ -986,12 +986,11 @@ static int tracefiled(void *arg)
 	struct tracefiled_ctl *tctl = arg;
 	struct cfs_trace_page *tage;
 	struct cfs_trace_page *tmp;
+	mm_segment_t __oldfs;
 	struct file *filp;
 	char *buf;
 	int last_loop = 0;
 	int rc;
-
-	DECL_MMSPACE;
 
 	/* we're started late enough that we pick up init's fs context */
 	/* this is so broken in uml?  what on earth is going on? */
@@ -1025,8 +1024,8 @@ static int tracefiled(void *arg)
 			__LASSERT(list_empty(&pc.pc_pages));
 			goto end_loop;
 		}
-
-		MMSPACE_OPEN;
+		__oldfs = get_fs();
+		set_fs(get_ds());
 
 		list_for_each_entry_safe(tage, tmp, &pc.pc_pages, linkage) {
 			static loff_t f_pos;
@@ -1051,7 +1050,7 @@ static int tracefiled(void *arg)
 				break;
 			}
 		}
-		MMSPACE_CLOSE;
+		set_fs(__oldfs);
 
 		filp_close(filp, NULL);
 		put_pages_on_daemon_list(&pc);

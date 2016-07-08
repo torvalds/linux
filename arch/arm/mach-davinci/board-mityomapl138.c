@@ -121,6 +121,11 @@ static void read_factory_config(struct nvmem_device *nvmem, void *context)
 	const char *partnum = NULL;
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
 
+	if (!IS_BUILTIN(CONFIG_NVMEM)) {
+		pr_warn("Factory Config not available without CONFIG_NVMEM\n");
+		goto bad_config;
+	}
+
 	ret = nvmem_device_read(nvmem, 0, sizeof(factory_config),
 				&factory_config);
 	if (ret != sizeof(struct factory_config)) {

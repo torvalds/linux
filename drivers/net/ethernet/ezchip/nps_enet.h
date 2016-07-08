@@ -165,14 +165,12 @@
  * struct nps_enet_priv - Storage of ENET's private information.
  * @regs_base:      Base address of ENET memory-mapped control registers.
  * @irq:            For RX/TX IRQ number.
- * @tx_packet_sent: SW indication if frame is being sent.
  * @tx_skb:         socket buffer of sent frame.
  * @napi:           Structure for NAPI.
  */
 struct nps_enet_priv {
 	void __iomem *regs_base;
 	s32 irq;
-	bool tx_packet_sent;
 	struct sk_buff *tx_skb;
 	struct napi_struct napi;
 	u32 ge_mac_cfg_2_value;

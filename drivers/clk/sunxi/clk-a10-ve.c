@@ -85,7 +85,7 @@ static int sunxi_ve_of_xlate(struct reset_controller_dev *rcdev,
 	return 0;
 }
 
-static struct reset_control_ops sunxi_ve_reset_ops = {
+static const struct reset_control_ops sunxi_ve_reset_ops = {
 	.assert		= sunxi_ve_reset_assert,
 	.deassert	= sunxi_ve_reset_deassert,
 };

@@ -51,6 +51,7 @@
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
+#include <linux/workqueue.h>
 #include "adf_accel_devices.h"
 #include "adf_common_drv.h"
 #include "adf_cfg.h"
@@ -63,6 +64,13 @@
 #define ADF_VINTSOU_OFFSET	0x204
 #define ADF_VINTSOU_BUN		BIT(0)
 #define ADF_VINTSOU_PF2VF	BIT(1)
+
+static struct workqueue_struct *adf_vf_stop_wq;
+
+struct adf_vf_stop_data {
+	struct adf_accel_dev *accel_dev;
+	struct work_struct work;
+};
 
 static int adf_enable_msi(struct adf_accel_dev *accel_dev)
 {
@@ -90,6 +98,20 @@ static void adf_disable_msi(struct adf_accel_dev *accel_dev)
 	pci_disable_msi(pdev);
 }
 
+static void adf_dev_stop_async(struct work_struct *work)
+{
+	struct adf_vf_stop_data *stop_data =
+		container_of(work, struct adf_vf_stop_data, work);
+	struct adf_accel_dev *accel_dev = stop_data->accel_dev;
+
+	adf_dev_stop(accel_dev);
+	adf_dev_shutdown(accel_dev);
+
+	/* Re-enable PF2VF interrupts */
+	adf_enable_pf2vf_interrupts(accel_dev);
+	kfree(stop_data);
+}
+
 static void adf_pf2vf_bh_handler(void *data)
 {
 	struct adf_accel_dev *accel_dev = data;
@@ -107,11 +129,29 @@ static void adf_pf2vf_bh_handler(void *data)
 		goto err;
 
 	switch ((msg & ADF_PF2VF_MSGTYPE_MASK) >> ADF_PF2VF_MSGTYPE_SHIFT) {
-	case ADF_PF2VF_MSGTYPE_RESTARTING:
+	case ADF_PF2VF_MSGTYPE_RESTARTING: {
+		struct adf_vf_stop_data *stop_data;
+
 		dev_dbg(&GET_DEV(accel_dev),
 			"Restarting msg received from PF 0x%x\n", msg);
-		adf_dev_stop(accel_dev);
-		break;
+
+		clear_bit(ADF_STATUS_PF_RUNNING, &accel_dev->status);
+
+		stop_data = kzalloc(sizeof(*stop_data), GFP_ATOMIC);
+		if (!stop_data) {
+			dev_err(&GET_DEV(accel_dev),
+				"Couldn't schedule stop for vf_%d\n",
+				accel_dev->accel_id);
+			return;
+		}
+		stop_data->accel_dev = accel_dev;
+		INIT_WORK(&stop_data->work, adf_dev_stop_async);
+		queue_work(adf_vf_stop_wq, &stop_data->work);
+		/* To ack, clear the PF2VFINT bit */
+		msg &= ~BIT(0);
+		ADF_CSR_WR(pmisc_bar_addr, hw_data->get_pf2vf_offset(0), msg);
+		return;
+	}
 	case ADF_PF2VF_MSGTYPE_VERSION_RESP:
 		dev_dbg(&GET_DEV(accel_dev),
 			"Version resp received from PF 0x%x\n", msg);
@@ -278,3 +318,18 @@ err_out:
 	return -EFAULT;
 }
 EXPORT_SYMBOL_GPL(adf_vf_isr_resource_alloc);
+
+int __init adf_init_vf_wq(void)
+{
+	adf_vf_stop_wq = create_workqueue("adf_vf_stop_wq");
+
+	return !adf_vf_stop_wq ? -EFAULT : 0;
+}
+
+void adf_exit_vf_wq(void)
+{
+	if (adf_vf_stop_wq)
+		destroy_workqueue(adf_vf_stop_wq);
+
+	adf_vf_stop_wq = NULL;
+}

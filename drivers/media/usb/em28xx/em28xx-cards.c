@@ -492,6 +492,44 @@ static struct em28xx_reg_seq terratec_t2_stick_hd[] = {
 	{-1,                             -1,   -1,     -1},
 };
 
+static struct em28xx_reg_seq plex_px_bcud[] = {
+	{EM2874_R80_GPIO_P0_CTRL,	0xff,	0xff,	0},
+	{0x0d,				0xff,	0xff,	0},
+	{EM2874_R50_IR_CONFIG,		0x01,	0xff,	0},
+	{EM28XX_R06_I2C_CLK,		0x40,	0xff,	0},
+	{EM2874_R80_GPIO_P0_CTRL,	0xfd,	0xff,	100},
+	{EM28XX_R12_VINENABLE,		0x20,	0x20,	0},
+	{0x0d,				0x42,	0xff,	1000},
+	{EM2874_R80_GPIO_P0_CTRL,	0xfc,	0xff,	10},
+	{EM2874_R80_GPIO_P0_CTRL,	0xfd,	0xff,	10},
+	{0x73,				0xfd,	0xff,	100},
+	{-1,				-1,	-1,	-1},
+};
+
+/*
+ * 2040:0265 Hauppauge WinTV-dualHD DVB
+ * reg 0x80/0x84:
+ * GPIO_0: Yellow LED tuner 1, 0=on, 1=off
+ * GPIO_1: Green LED tuner 1, 0=on, 1=off
+ * GPIO_2: Yellow LED tuner 2, 0=on, 1=off
+ * GPIO_3: Green LED tuner 2, 0=on, 1=off
+ * GPIO_5: Reset #2, 0=active
+ * GPIO_6: Reset #1, 0=active
+ */
+static struct em28xx_reg_seq hauppauge_dualhd_dvb[] = {
+	{EM2874_R80_GPIO_P0_CTRL,      0xff, 0xff,      0},
+	{0x0d,                         0xff, 0xff,    200},
+	{0x50,                         0x04, 0xff,    300},
+	{EM2874_R80_GPIO_P0_CTRL,      0xbf, 0xff,    100}, /* demod 1 reset */
+	{EM2874_R80_GPIO_P0_CTRL,      0xff, 0xff,    100},
+	{EM2874_R80_GPIO_P0_CTRL,      0xdf, 0xff,    100}, /* demod 2 reset */
+	{EM2874_R80_GPIO_P0_CTRL,      0xff, 0xff,    100},
+	{EM2874_R5F_TS_ENABLE,         0x44, 0xff,     50},
+	{EM2874_R5D_TS1_PKT_SIZE,      0x05, 0xff,     50},
+	{EM2874_R5E_TS2_PKT_SIZE,      0x05, 0xff,     50},
+	{-1,                             -1,   -1,     -1},
+};
+
 /*
  *  Button definitions
  */
@@ -565,6 +603,22 @@ static struct em28xx_led terratec_grabby_leds[] = {
 	{
 		.role      = EM28XX_LED_ANALOG_CAPTURING,
 		.gpio_reg  = EM2820_R08_GPIO_CTRL,
+		.gpio_mask = EM_GPIO_3,
+		.inverted  = 1,
+	},
+	{-1, 0, 0, 0},
+};
+
+static struct em28xx_led hauppauge_dualhd_leds[] = {
+	{
+		.role      = EM28XX_LED_DIGITAL_CAPTURING,
+		.gpio_reg  = EM2874_R80_GPIO_P0_CTRL,
+		.gpio_mask = EM_GPIO_1,
+		.inverted  = 1,
+	},
+	{
+		.role      = EM28XX_LED_DIGITAL_CAPTURING_TS2,
+		.gpio_reg  = EM2874_R80_GPIO_P0_CTRL,
 		.gpio_mask = EM_GPIO_3,
 		.inverted  = 1,
 	},
@@ -2306,6 +2360,35 @@ struct em28xx_board em28xx_boards[] = {
 		.has_dvb       = 1,
 		.ir_codes      = RC_MAP_TERRATEC_SLIM_2,
 	},
+
+	/*
+	 * 3275:0085 PLEX PX-BCUD.
+	 * Empia EM28178, TOSHIBA TC90532XBG, Sharp QM1D1C0042
+	 */
+	[EM28178_BOARD_PLEX_PX_BCUD] = {
+		.name          = "PLEX PX-BCUD",
+		.xclk          = EM28XX_XCLK_FREQUENCY_4_3MHZ,
+		.def_i2c_bus   = 1,
+		.i2c_speed     = EM28XX_I2C_CLK_WAIT_ENABLE,
+		.tuner_type    = TUNER_ABSENT,
+		.tuner_gpio    = plex_px_bcud,
+		.has_dvb       = 1,
+	},
+	/*
+	 * 2040:0265 Hauppauge WinTV-dualHD (DVB version).
+	 * Empia EM28274, 2x Silicon Labs Si2168, 2x Silicon Labs Si2157
+	 */
+	[EM28174_BOARD_HAUPPAUGE_WINTV_DUALHD_DVB] = {
+		.name          = "Hauppauge WinTV-dualHD DVB",
+		.def_i2c_bus   = 1,
+		.i2c_speed     = EM28XX_I2C_CLK_WAIT_ENABLE |
+				 EM28XX_I2C_FREQ_400_KHZ,
+		.tuner_type    = TUNER_ABSENT,
+		.tuner_gpio    = hauppauge_dualhd_dvb,
+		.has_dvb       = 1,
+		.ir_codes      = RC_MAP_HAUPPAUGE,
+		.leds          = hauppauge_dualhd_leds,
+	},
 };
 EXPORT_SYMBOL_GPL(em28xx_boards);
 
@@ -2429,6 +2512,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2883_BOARD_HAUPPAUGE_WINTV_HVR_950 },
 	{ USB_DEVICE(0x2040, 0x651f),
 			.driver_info = EM2883_BOARD_HAUPPAUGE_WINTV_HVR_850 },
+	{ USB_DEVICE(0x2040, 0x0265),
+			.driver_info = EM28174_BOARD_HAUPPAUGE_WINTV_DUALHD_DVB },
 	{ USB_DEVICE(0x0438, 0xb002),
 			.driver_info = EM2880_BOARD_AMD_ATI_TV_WONDER_HD_600 },
 	{ USB_DEVICE(0x2001, 0xf112),
@@ -2495,6 +2580,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2861_BOARD_LEADTEK_VC100 },
 	{ USB_DEVICE(0xeb1a, 0x8179),
 			.driver_info = EM28178_BOARD_TERRATEC_T2_STICK_HD },
+	{ USB_DEVICE(0x3275, 0x0085),
+			.driver_info = EM28178_BOARD_PLEX_PX_BCUD },
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, em28xx_id_table);
@@ -2861,6 +2948,7 @@ static void em28xx_card_setup(struct em28xx *dev)
 	case EM2883_BOARD_HAUPPAUGE_WINTV_HVR_850:
 	case EM2883_BOARD_HAUPPAUGE_WINTV_HVR_950:
 	case EM2884_BOARD_HAUPPAUGE_WINTV_HVR_930C:
+	case EM28174_BOARD_HAUPPAUGE_WINTV_DUALHD_DVB:
 	{
 		struct tveeprom tv;
 

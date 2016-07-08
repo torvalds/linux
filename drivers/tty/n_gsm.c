@@ -2045,7 +2045,9 @@ static void gsm_cleanup_mux(struct gsm_mux *gsm)
 		}
 	}
 	spin_unlock(&gsm_mux_lock);
-	WARN_ON(i == MAX_MUX);
+	/* open failed before registering => nothing to do */
+	if (i == MAX_MUX)
+		return;
 
 	/* In theory disconnecting DLCI 0 is sufficient but for some
 	   modems this is apparently not the case. */
@@ -2662,7 +2664,7 @@ static int gsm_mux_net_start_xmit(struct sk_buff *skb,
 	STATS(net).tx_bytes += skb->len;
 	gsm_dlci_data_kick(dlci);
 	/* And tell the kernel when the last transmit started. */
-	net->trans_start = jiffies;
+	netif_trans_update(net);
 	muxnet_put(mux_net);
 	return NETDEV_TX_OK;
 }
@@ -2947,7 +2949,7 @@ static int gsmtty_open(struct tty_struct *tty, struct file *filp)
 	dlci->modem_rx = 0;
 	/* We could in theory open and close before we wait - eg if we get
 	   a DM straight back. This is ok as that will have caused a hangup */
-	set_bit(ASYNCB_INITIALIZED, &port->flags);
+	tty_port_set_initialized(port, 1);
 	/* Start sending off SABM messages */
 	gsm_dlci_begin_open(dlci);
 	/* And wait for virtual carrier */
@@ -2970,10 +2972,8 @@ static void gsmtty_close(struct tty_struct *tty, struct file *filp)
 	if (tty_port_close_start(&dlci->port, tty, filp) == 0)
 		return;
 	gsm_dlci_begin_close(dlci);
-	if (test_bit(ASYNCB_INITIALIZED, &dlci->port.flags)) {
-		if (C_HUPCL(tty))
-			tty_port_lower_dtr_rts(&dlci->port);
-	}
+	if (tty_port_initialized(&dlci->port) && C_HUPCL(tty))
+		tty_port_lower_dtr_rts(&dlci->port);
 	tty_port_close_end(&dlci->port, tty);
 	tty_port_tty_set(&dlci->port, NULL);
 	return;

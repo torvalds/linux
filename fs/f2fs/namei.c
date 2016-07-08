@@ -202,7 +202,7 @@ struct dentry *f2fs_get_parent(struct dentry *child)
 	unsigned long ino = f2fs_inode_by_name(d_inode(child), &dotdot);
 	if (!ino)
 		return ERR_PTR(-ENOENT);
-	return d_obtain_alias(f2fs_iget(d_inode(child)->i_sb, ino));
+	return d_obtain_alias(f2fs_iget(child->d_sb, ino));
 }
 
 static int __recover_dot_dentries(struct inode *dir, nid_t pino)
@@ -1027,12 +1027,6 @@ static const char *f2fs_encrypted_get_link(struct dentry *dentry,
 		goto errout;
 	}
 
-	/* this is broken symlink case */
-	if (unlikely(cstr.name[0] == 0)) {
-		res = -ENOENT;
-		goto errout;
-	}
-
 	if ((cstr.len + sizeof(struct fscrypt_symlink_data) - 1) > max_size) {
 		/* Symlink data on the disk is corrupted */
 		res = -EIO;
@@ -1046,17 +1040,23 @@ static const char *f2fs_encrypted_get_link(struct dentry *dentry,
 	if (res < 0)
 		goto errout;
 
+	/* this is broken symlink case */
+	if (unlikely(pstr.name[0] == 0)) {
+		res = -ENOENT;
+		goto errout;
+	}
+
 	paddr = pstr.name;
 
 	/* Null-terminate the name */
 	paddr[res] = '\0';
 
-	page_cache_release(cpage);
+	put_page(cpage);
 	set_delayed_call(done, kfree_link, paddr);
 	return paddr;
 errout:
 	fscrypt_fname_free_buffer(&pstr);
-	page_cache_release(cpage);
+	put_page(cpage);
 	return ERR_PTR(res);
 }
 

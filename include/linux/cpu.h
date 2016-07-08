@@ -59,25 +59,7 @@ struct notifier_block;
  * CPU notifier priorities.
  */
 enum {
-	/*
-	 * SCHED_ACTIVE marks a cpu which is coming up active during
-	 * CPU_ONLINE and CPU_DOWN_FAILED and must be the first
-	 * notifier.  CPUSET_ACTIVE adjusts cpuset according to
-	 * cpu_active mask right after SCHED_ACTIVE.  During
-	 * CPU_DOWN_PREPARE, SCHED_INACTIVE and CPUSET_INACTIVE are
-	 * ordered in the similar way.
-	 *
-	 * This ordering guarantees consistent cpu_active mask and
-	 * migration behavior to all cpu notifiers.
-	 */
-	CPU_PRI_SCHED_ACTIVE	= INT_MAX,
-	CPU_PRI_CPUSET_ACTIVE	= INT_MAX - 1,
-	CPU_PRI_SCHED_INACTIVE	= INT_MIN + 1,
-	CPU_PRI_CPUSET_INACTIVE	= INT_MIN,
-
-	/* migration should happen before other stuff but after perf */
 	CPU_PRI_PERF		= 20,
-	CPU_PRI_MIGRATION	= 10,
 
 	/* bring up workqueues before normal notifiers and down after */
 	CPU_PRI_WORKQUEUE_UP	= 5,

@@ -1310,6 +1310,9 @@ static struct tegra_function tegra210_functions[] = {
 		.lock_bit = 7,						\
 		.ioreset_bit = -1,					\
 		.rcv_sel_bit = PINGROUP_BIT_##e_io_hv(10),		\
+		.parked_reg = PINGROUP_REG(r),				\
+		.parked_bank = 1,					\
+		.parked_bit = 5,					\
 		.hsm_bit = PINGROUP_BIT_##hsm(9),			\
 		.schmitt_bit = 12,					\
 		.drvtype_bit = PINGROUP_BIT_##drvtype(13),		\
@@ -1342,6 +1345,7 @@ static struct tegra_function tegra210_functions[] = {
 		.rcv_sel_bit = -1,					\
 		.drv_reg = DRV_PINGROUP_REG(r),				\
 		.drv_bank = 0,						\
+		.parked_reg = -1,					\
 		.hsm_bit = -1,						\
 		.schmitt_bit = -1,					\
 		.lpmd_bit = -1,						\
@@ -1579,7 +1583,6 @@ static struct platform_driver tegra210_pinctrl_driver = {
 		.of_match_table = tegra210_pinctrl_of_match,
 	},
 	.probe = tegra210_pinctrl_probe,
-	.remove = tegra_pinctrl_remove,
 };
 module_platform_driver(tegra210_pinctrl_driver);
 

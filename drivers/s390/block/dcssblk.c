@@ -31,7 +31,7 @@ static void dcssblk_release(struct gendisk *disk, fmode_t mode);
 static blk_qc_t dcssblk_make_request(struct request_queue *q,
 						struct bio *bio);
 static long dcssblk_direct_access(struct block_device *bdev, sector_t secnum,
-			 void __pmem **kaddr, pfn_t *pfn);
+			 void __pmem **kaddr, pfn_t *pfn, long size);
 
 static char dcssblk_segments[DCSSBLK_PARM_LEN] = "\0";
 
@@ -756,14 +756,15 @@ dcssblk_remove_store(struct device *dev, struct device_attribute *attr, const ch
 	blk_cleanup_queue(dev_info->dcssblk_queue);
 	dev_info->gd->queue = NULL;
 	put_disk(dev_info->gd);
-	device_unregister(&dev_info->dev);
 
 	/* unload all related segments */
 	list_for_each_entry(entry, &dev_info->seg_list, lh)
 		segment_unload(entry->segment_name);
 
-	put_device(&dev_info->dev);
 	up_write(&dcssblk_devices_sem);
+
+	device_unregister(&dev_info->dev);
+	put_device(&dev_info->dev);
 
 	rc = count;
 out_buf:
@@ -883,7 +884,7 @@ fail:
 
 static long
 dcssblk_direct_access (struct block_device *bdev, sector_t secnum,
-			void __pmem **kaddr, pfn_t *pfn)
+			void __pmem **kaddr, pfn_t *pfn, long size)
 {
 	struct dcssblk_dev_info *dev_info;
 	unsigned long offset, dev_sz;

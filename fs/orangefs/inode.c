@@ -18,8 +18,8 @@ static int read_one_page(struct page *page)
 	int max_block;
 	ssize_t bytes_read = 0;
 	struct inode *inode = page->mapping->host;
-	const __u32 blocksize = PAGE_CACHE_SIZE;	/* inode->i_blksize */
-	const __u32 blockbits = PAGE_CACHE_SHIFT;	/* inode->i_blkbits */
+	const __u32 blocksize = PAGE_SIZE;	/* inode->i_blksize */
+	const __u32 blockbits = PAGE_SHIFT;	/* inode->i_blkbits */
 	struct iov_iter to;
 	struct bio_vec bv = {.bv_page = page, .bv_len = PAGE_SIZE};
 
@@ -86,7 +86,7 @@ static int orangefs_readpages(struct file *file,
 				"failure adding page to cache, read_one_page returned: %d\n",
 				ret);
 	      } else {
-			page_cache_release(page);
+			put_page(page);
 	      }
 	}
 	BUG_ON(!list_empty(pages));
@@ -204,22 +204,8 @@ static int orangefs_setattr_size(struct inode *inode, struct iattr *iattr)
 	if (ret != 0)
 		return ret;
 
-	/*
-	 * Only change the c/mtime if we are changing the size or we are
-	 * explicitly asked to change it.  This handles the semantic difference
-	 * between truncate() and ftruncate() as implemented in the VFS.
-	 *
-	 * The regular truncate() case without ATTR_CTIME and ATTR_MTIME is a
-	 * special case where we need to update the times despite not having
-	 * these flags set.  For all other operations the VFS set these flags
-	 * explicitly if it wants a timestamp update.
-	 */
-	if (orig_size != i_size_read(inode) &&
-	    !(iattr->ia_valid & (ATTR_CTIME | ATTR_MTIME))) {
-		iattr->ia_ctime = iattr->ia_mtime =
-			current_fs_time(inode->i_sb);
+	if (orig_size != i_size_read(inode))
 		iattr->ia_valid |= ATTR_CTIME | ATTR_MTIME;
-	}
 
 	return ret;
 }
@@ -328,7 +314,7 @@ static int orangefs_init_iops(struct inode *inode)
 	case S_IFREG:
 		inode->i_op = &orangefs_file_inode_operations;
 		inode->i_fop = &orangefs_file_operations;
-		inode->i_blkbits = PAGE_CACHE_SHIFT;
+		inode->i_blkbits = PAGE_SHIFT;
 		break;
 	case S_IFLNK:
 		inode->i_op = &orangefs_symlink_inode_operations;
@@ -456,7 +442,7 @@ struct inode *orangefs_new_inode(struct super_block *sb, struct inode *dir,
 	inode->i_uid = current_fsuid();
 	inode->i_gid = current_fsgid();
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
-	inode->i_size = PAGE_CACHE_SIZE;
+	inode->i_size = PAGE_SIZE;
 	inode->i_rdev = dev;
 
 	error = insert_inode_locked4(inode, hash, orangefs_test_inode, ref);

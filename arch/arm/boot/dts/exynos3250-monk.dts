@@ -14,6 +14,7 @@
 
 /dts-v1/;
 #include "exynos3250.dtsi"
+#include "exynos4412-ppmu-common.dtsi"
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/clock/samsung,s2mps11.h>
@@ -154,6 +155,12 @@
 		pulldown-ohm = <100000>;
 		io-channels = <&adc 1>;
 	};
+};
+
+&bus_dmc {
+	devfreq-events = <&ppmu_dmc0_3>, <&ppmu_dmc1_3>;
+	vdd-supply = <&buck1_reg>;
+	status = "okay";
 };
 
 &cpu0 {
@@ -458,46 +465,6 @@
 	status = "okay";
 };
 
-&ppmu_dmc0 {
-	status = "okay";
-
-	events {
-		ppmu_dmc0_3: ppmu-event3-dmc0 {
-			event-name = "ppmu-event3-dmc0";
-		};
-	};
-};
-
-&ppmu_dmc1 {
-	status = "okay";
-
-	events {
-		ppmu_dmc1_3: ppmu-event3-dmc1 {
-			event-name = "ppmu-event3-dmc1";
-		};
-	};
-};
-
-&ppmu_leftbus {
-	status = "okay";
-
-	events {
-		ppmu_leftbus_3: ppmu-event3-leftbus {
-			event-name = "ppmu-event3-leftbus";
-		};
-	};
-};
-
-&ppmu_rightbus {
-	status = "okay";
-
-	events {
-		ppmu_rightbus_3: ppmu-event3-rightbus {
-			event-name = "ppmu-event3-rightbus";
-		};
-	};
-};
-
 &xusbxti {
 	clock-frequency = <24000000>;
 };
@@ -558,7 +525,17 @@
 
 &pinctrl_1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&sleep1>;
+	pinctrl-0 = <&initial1 &sleep1>;
+
+	initial1: initial-state {
+		PIN_IN(gpk2-0, DOWN, LV1);
+		PIN_IN(gpk2-1, DOWN, LV1);
+		PIN_IN(gpk2-2, DOWN, LV1);
+		PIN_IN(gpk2-3, DOWN, LV1);
+		PIN_IN(gpk2-4, DOWN, LV1);
+		PIN_IN(gpk2-5, DOWN, LV1);
+		PIN_IN(gpk2-6, DOWN, LV1);
+	};
 
 	sleep1: sleep-state {
 		PIN_SLP(gpe0-0, PREV, NONE);

@@ -194,7 +194,7 @@ acpi_db_convert_to_buffer(char *string, union acpi_object *object)
  *
  ******************************************************************************/
 
-acpi_status acpi_db_convert_to_package(char *string, union acpi_object * object)
+acpi_status acpi_db_convert_to_package(char *string, union acpi_object *object)
 {
 	char *this;
 	char *next;
@@ -252,7 +252,7 @@ acpi_status acpi_db_convert_to_package(char *string, union acpi_object * object)
 
 acpi_status
 acpi_db_convert_to_object(acpi_object_type type,
-			  char *string, union acpi_object * object)
+			  char *string, union acpi_object *object)
 {
 	acpi_status status = AE_OK;
 
@@ -277,7 +277,9 @@ acpi_db_convert_to_object(acpi_object_type type,
 	default:
 
 		object->type = ACPI_TYPE_INTEGER;
-		status = acpi_ut_strtoul64(string, 16, &object->integer.value);
+		status =
+		    acpi_ut_strtoul64(string, 16, acpi_gbl_integer_byte_width,
+				      &object->integer.value);
 		break;
 	}
 

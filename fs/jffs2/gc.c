@@ -552,7 +552,7 @@ static int jffs2_garbage_collect_live(struct jffs2_sb_info *c,  struct jffs2_era
 				goto upnout;
 		}
 		/* We found a datanode. Do the GC */
-		if((start >> PAGE_CACHE_SHIFT) < ((end-1) >> PAGE_CACHE_SHIFT)) {
+		if((start >> PAGE_SHIFT) < ((end-1) >> PAGE_SHIFT)) {
 			/* It crosses a page boundary. Therefore, it must be a hole. */
 			ret = jffs2_garbage_collect_hole(c, jeb, f, fn, start, end);
 		} else {
@@ -1192,8 +1192,8 @@ static int jffs2_garbage_collect_dnode(struct jffs2_sb_info *c, struct jffs2_era
 		struct jffs2_node_frag *frag;
 		uint32_t min, max;
 
-		min = start & ~(PAGE_CACHE_SIZE-1);
-		max = min + PAGE_CACHE_SIZE;
+		min = start & ~(PAGE_SIZE-1);
+		max = min + PAGE_SIZE;
 
 		frag = jffs2_lookup_node_frag(&f->fragtree, start);
 
@@ -1351,7 +1351,7 @@ static int jffs2_garbage_collect_dnode(struct jffs2_sb_info *c, struct jffs2_era
 		cdatalen = min_t(uint32_t, alloclen - sizeof(ri), end - offset);
 		datalen = end - offset;
 
-		writebuf = pg_ptr + (offset & (PAGE_CACHE_SIZE -1));
+		writebuf = pg_ptr + (offset & (PAGE_SIZE -1));
 
 		comprtype = jffs2_compress(c, f, writebuf, &comprbuf, &datalen, &cdatalen);
 

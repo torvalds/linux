@@ -13,12 +13,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
- * Written by Koji Sato <koji@osrg.net>
- *            Ryusuke Konishi <ryusuke@osrg.net>
+ * Written by Koji Sato and Ryusuke Konishi.
  */
 
 #ifndef _NILFS_H
@@ -69,8 +64,10 @@ struct nilfs_inode_info {
 	 */
 	struct rw_semaphore xattr_sem;
 #endif
-	struct buffer_head *i_bh;	/* i_bh contains a new or dirty
-					   disk inode */
+	struct buffer_head *i_bh;	/*
+					 * i_bh contains a new or dirty
+					 * disk inode.
+					 */
 	struct nilfs_root *i_root;
 	struct inode vfs_inode;
 };
@@ -100,8 +97,10 @@ enum {
 	NILFS_I_NEW = 0,		/* Inode is newly created */
 	NILFS_I_DIRTY,			/* The file is dirty */
 	NILFS_I_QUEUED,			/* inode is in dirty_files list */
-	NILFS_I_BUSY,			/* inode is grabbed by a segment
-					   constructor */
+	NILFS_I_BUSY,			/*
+					 * Inode is grabbed by a segment
+					 * constructor
+					 */
 	NILFS_I_COLLECTED,		/* All dirty blocks are collected */
 	NILFS_I_UPDATED,		/* The file has been written back */
 	NILFS_I_INODE_SYNC,		/* dsync is not allowed for inode */
@@ -145,8 +144,10 @@ enum {
 struct nilfs_transaction_info {
 	u32			ti_magic;
 	void		       *ti_save;
-				/* This should never used. If this happens,
-				   one of other filesystems has a bug. */
+				/*
+				 * This should never be used.  If it happens,
+				 * one of other filesystems has a bug.
+				 */
 	unsigned short		ti_flags;
 	unsigned short		ti_count;
 };
@@ -156,8 +157,10 @@ struct nilfs_transaction_info {
 
 /* ti_flags */
 #define NILFS_TI_DYNAMIC_ALLOC	0x0001  /* Allocated from slab */
-#define NILFS_TI_SYNC		0x0002	/* Force to construct segment at the
-					   end of transaction. */
+#define NILFS_TI_SYNC		0x0002	/*
+					 * Force to construct segment at the
+					 * end of transaction.
+					 */
 #define NILFS_TI_GC		0x0004	/* GC context */
 #define NILFS_TI_COMMIT		0x0008	/* Change happened or not */
 #define NILFS_TI_WRITER		0x0010	/* Constructor context */
@@ -279,7 +282,7 @@ extern void nilfs_write_failed(struct address_space *mapping, loff_t to);
 int nilfs_permission(struct inode *inode, int mask);
 int nilfs_load_inode_block(struct inode *inode, struct buffer_head **pbh);
 extern int nilfs_inode_dirty(struct inode *);
-int nilfs_set_file_dirty(struct inode *inode, unsigned nr_dirty);
+int nilfs_set_file_dirty(struct inode *inode, unsigned int nr_dirty);
 extern int __nilfs_mark_inode_dirty(struct inode *, int);
 extern void nilfs_dirty_inode(struct inode *, int flags);
 int nilfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,

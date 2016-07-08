@@ -615,8 +615,6 @@ struct TCP_Server_Info {
 	bool	sec_mskerberos;		/* supports legacy MS Kerberos */
 	bool	large_buf;		/* is current buffer large? */
 	struct delayed_work	echo; /* echo ping workqueue job */
-	struct kvec *iov;	/* reusable kvec array for receives */
-	unsigned int nr_iov;	/* number of kvecs in array */
 	char	*smallbuf;	/* pointer to current "small" buffer */
 	char	*bigbuf;	/* pointer to current "big" buffer */
 	unsigned int total_read; /* total amount of data read in this pass */
@@ -714,7 +712,7 @@ compare_mid(__u16 mid, const struct smb_hdr *smb)
  *
  * Note that this might make for "interesting" allocation problems during
  * writeback however as we have to allocate an array of pointers for the
- * pages. A 16M write means ~32kb page array with PAGE_CACHE_SIZE == 4096.
+ * pages. A 16M write means ~32kb page array with PAGE_SIZE == 4096.
  *
  * For reads, there is a similar problem as we need to allocate an array
  * of kvecs to handle the receive, though that should only need to be done
@@ -733,7 +731,7 @@ compare_mid(__u16 mid, const struct smb_hdr *smb)
 
 /*
  * The default wsize is 1M. find_get_pages seems to return a maximum of 256
- * pages in a single call. With PAGE_CACHE_SIZE == 4k, this means we can fill
+ * pages in a single call. With PAGE_SIZE == 4k, this means we can fill
  * a single wsize request with a single call.
  */
 #define CIFS_DEFAULT_IOSIZE (1024 * 1024)
@@ -1621,6 +1619,7 @@ void cifs_oplock_break(struct work_struct *work);
 
 extern const struct slow_work_ops cifs_oplock_break_ops;
 extern struct workqueue_struct *cifsiod_wq;
+extern __u32 cifs_lock_secret;
 
 extern mempool_t *cifs_mid_poolp;
 

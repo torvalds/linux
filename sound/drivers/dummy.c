@@ -420,6 +420,7 @@ static int dummy_hrtimer_stop(struct snd_pcm_substream *substream)
 
 static inline void dummy_hrtimer_sync(struct dummy_hrtimer_pcm *dpcm)
 {
+	hrtimer_cancel(&dpcm->timer);
 	tasklet_kill(&dpcm->tasklet);
 }
 

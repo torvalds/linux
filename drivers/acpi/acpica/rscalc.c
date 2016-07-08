@@ -112,7 +112,7 @@ acpi_rs_struct_option_length(struct acpi_resource_source *resource_source)
 	 * resource_source_index (1).
 	 */
 	if (resource_source->string_ptr) {
-		return ((acpi_rs_length) (resource_source->string_length + 1));
+		return ((acpi_rs_length)(resource_source->string_length + 1));
 	}
 
 	return (0);
@@ -188,7 +188,7 @@ acpi_rs_stream_option_length(u32 resource_length,
 
 acpi_status
 acpi_rs_get_aml_length(struct acpi_resource *resource,
-		       acpi_size resource_list_size, acpi_size * size_needed)
+		       acpi_size resource_list_size, acpi_size *size_needed)
 {
 	acpi_size aml_size_needed = 0;
 	struct acpi_resource *resource_end;
@@ -278,11 +278,11 @@ acpi_rs_get_aml_length(struct acpi_resource *resource,
 			 * 16-Bit Address Resource:
 			 * Add the size of the optional resource_source info
 			 */
-			total_size = (acpi_rs_length) (total_size +
-						       acpi_rs_struct_option_length
-						       (&resource->data.
-							address16.
-							resource_source));
+			total_size = (acpi_rs_length)(total_size +
+						      acpi_rs_struct_option_length
+						      (&resource->data.
+						       address16.
+						       resource_source));
 			break;
 
 		case ACPI_RESOURCE_TYPE_ADDRESS32:
@@ -290,11 +290,11 @@ acpi_rs_get_aml_length(struct acpi_resource *resource,
 			 * 32-Bit Address Resource:
 			 * Add the size of the optional resource_source info
 			 */
-			total_size = (acpi_rs_length) (total_size +
-						       acpi_rs_struct_option_length
-						       (&resource->data.
-							address32.
-							resource_source));
+			total_size = (acpi_rs_length)(total_size +
+						      acpi_rs_struct_option_length
+						      (&resource->data.
+						       address32.
+						       resource_source));
 			break;
 
 		case ACPI_RESOURCE_TYPE_ADDRESS64:
@@ -302,11 +302,11 @@ acpi_rs_get_aml_length(struct acpi_resource *resource,
 			 * 64-Bit Address Resource:
 			 * Add the size of the optional resource_source info
 			 */
-			total_size = (acpi_rs_length) (total_size +
-						       acpi_rs_struct_option_length
-						       (&resource->data.
-							address64.
-							resource_source));
+			total_size = (acpi_rs_length)(total_size +
+						      acpi_rs_struct_option_length
+						      (&resource->data.
+						       address64.
+						       resource_source));
 			break;
 
 		case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
@@ -315,28 +315,28 @@ acpi_rs_get_aml_length(struct acpi_resource *resource,
 			 * Add the size of each additional optional interrupt beyond the
 			 * required 1 (4 bytes for each u32 interrupt number)
 			 */
-			total_size = (acpi_rs_length) (total_size +
-						       ((resource->data.
-							 extended_irq.
-							 interrupt_count -
-							 1) * 4) +
-						       /* Add the size of the optional resource_source info */
-						       acpi_rs_struct_option_length
-						       (&resource->data.
+			total_size = (acpi_rs_length)(total_size +
+						      ((resource->data.
 							extended_irq.
-							resource_source));
+							interrupt_count -
+							1) * 4) +
+						      /* Add the size of the optional resource_source info */
+						      acpi_rs_struct_option_length
+						      (&resource->data.
+						       extended_irq.
+						       resource_source));
 			break;
 
 		case ACPI_RESOURCE_TYPE_GPIO:
 
-			total_size = (acpi_rs_length) (total_size +
-						       (resource->data.gpio.
-							pin_table_length * 2) +
-						       resource->data.gpio.
-						       resource_source.
-						       string_length +
-						       resource->data.gpio.
-						       vendor_length);
+			total_size = (acpi_rs_length)(total_size +
+						      (resource->data.gpio.
+						       pin_table_length * 2) +
+						      resource->data.gpio.
+						      resource_source.
+						      string_length +
+						      resource->data.gpio.
+						      vendor_length);
 
 			break;
 
@@ -348,14 +348,14 @@ acpi_rs_get_aml_length(struct acpi_resource *resource,
 								   common_serial_bus.
 								   type];
 
-			total_size = (acpi_rs_length) (total_size +
-						       resource->data.
-						       i2c_serial_bus.
-						       resource_source.
-						       string_length +
-						       resource->data.
-						       i2c_serial_bus.
-						       vendor_length);
+			total_size = (acpi_rs_length)(total_size +
+						      resource->data.
+						      i2c_serial_bus.
+						      resource_source.
+						      string_length +
+						      resource->data.
+						      i2c_serial_bus.
+						      vendor_length);
 
 			break;
 
@@ -397,8 +397,8 @@ acpi_rs_get_aml_length(struct acpi_resource *resource,
  ******************************************************************************/
 
 acpi_status
-acpi_rs_get_list_length(u8 * aml_buffer,
-			u32 aml_buffer_length, acpi_size * size_needed)
+acpi_rs_get_list_length(u8 *aml_buffer,
+			u32 aml_buffer_length, acpi_size *size_needed)
 {
 	acpi_status status;
 	u8 *end_aml;
@@ -610,7 +610,7 @@ acpi_rs_get_list_length(u8 * aml_buffer,
 
 acpi_status
 acpi_rs_get_pci_routing_table_length(union acpi_operand_object *package_object,
-				     acpi_size * buffer_size_needed)
+				     acpi_size *buffer_size_needed)
 {
 	u32 number_of_elements;
 	acpi_size temp_size_needed = 0;

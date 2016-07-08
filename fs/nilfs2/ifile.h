@@ -13,12 +13,8 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
- * Written by Amagai Yoshiji <amagai@osrg.net>
- * Revised by Ryusuke Konishi <ryusuke@osrg.net>
+ * Written by Amagai Yoshiji.
+ * Revised by Ryusuke Konishi.
  *
  */
 
@@ -36,6 +32,7 @@ static inline struct nilfs_inode *
 nilfs_ifile_map_inode(struct inode *ifile, ino_t ino, struct buffer_head *ibh)
 {
 	void *kaddr = kmap(ibh->b_page);
+
 	return nilfs_palloc_block_get_entry(ifile, ino, ibh, kaddr);
 }
 

@@ -83,10 +83,12 @@ struct iio_buffer_access_funcs {
  * @access:		[DRIVER] buffer access functions associated with the
  *			implementation.
  * @scan_el_dev_attr_list:[INTERN] list of scan element related attributes.
+ * @buffer_group:	[INTERN] attributes of the buffer group
  * @scan_el_group:	[DRIVER] attribute group for those attributes not
  *			created from the iio_chan_info array.
  * @pollq:		[INTERN] wait queue to allow for polling on the buffer.
  * @stufftoread:	[INTERN] flag to indicate new data.
+ * @attrs:		[INTERN] standard attributes of the buffer
  * @demux_list:		[INTERN] list of operations required to demux the scan.
  * @demux_bounce:	[INTERN] buffer for doing gather from incoming scan.
  * @buffer_list:	[INTERN] entry in the devices list of current buffers.

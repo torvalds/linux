@@ -1252,7 +1252,8 @@ static int at91_pinctrl_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, info);
-	info->pctl = pinctrl_register(&at91_pinctrl_desc, &pdev->dev, info);
+	info->pctl = devm_pinctrl_register(&pdev->dev, &at91_pinctrl_desc,
+					   info);
 
 	if (IS_ERR(info->pctl)) {
 		dev_err(&pdev->dev, "could not register AT91 pinctrl driver\n");
@@ -1265,15 +1266,6 @@ static int at91_pinctrl_probe(struct platform_device *pdev)
 			pinctrl_add_gpio_range(info->pctl, &gpio_chips[i]->range);
 
 	dev_info(&pdev->dev, "initialized AT91 pinctrl driver\n");
-
-	return 0;
-}
-
-static int at91_pinctrl_remove(struct platform_device *pdev)
-{
-	struct at91_pinctrl *info = platform_get_drvdata(pdev);
-
-	pinctrl_unregister(info->pctl);
 
 	return 0;
 }
@@ -1660,7 +1652,7 @@ static int at91_gpio_of_irq_setup(struct platform_device *pdev,
 }
 
 /* This structure is replicated for each GPIO block allocated at probe time */
-static struct gpio_chip at91_gpio_template = {
+static const struct gpio_chip at91_gpio_template = {
 	.request		= gpiochip_generic_request,
 	.free			= gpiochip_generic_free,
 	.get_direction		= at91_gpio_get_direction,
@@ -1730,14 +1722,9 @@ static int at91_gpio_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	ret = clk_prepare(at91_chip->clock);
-	if (ret)
-		goto clk_prepare_err;
-
-	/* enable PIO controller's clock */
-	ret = clk_enable(at91_chip->clock);
+	ret = clk_prepare_enable(at91_chip->clock);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to enable clock, ignoring.\n");
+		dev_err(&pdev->dev, "failed to prepare and enable clock, ignoring.\n");
 		goto clk_enable_err;
 	}
 
@@ -1797,10 +1784,8 @@ static int at91_gpio_probe(struct platform_device *pdev)
 irq_setup_err:
 	gpiochip_remove(chip);
 gpiochip_add_err:
-	clk_disable(at91_chip->clock);
 clk_enable_err:
-	clk_unprepare(at91_chip->clock);
-clk_prepare_err:
+	clk_disable_unprepare(at91_chip->clock);
 err:
 	dev_err(&pdev->dev, "Failure %i for GPIO %i\n", ret, alias_idx);
 
@@ -1821,7 +1806,6 @@ static struct platform_driver at91_pinctrl_driver = {
 		.of_match_table = at91_pinctrl_of_match,
 	},
 	.probe = at91_pinctrl_probe,
-	.remove = at91_pinctrl_remove,
 };
 
 static struct platform_driver * const drivers[] = {

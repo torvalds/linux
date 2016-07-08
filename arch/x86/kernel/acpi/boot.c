@@ -136,7 +136,7 @@ static int __init acpi_parse_madt(struct acpi_table_header *table)
 {
 	struct acpi_table_madt *madt = NULL;
 
-	if (!cpu_has_apic)
+	if (!boot_cpu_has(X86_FEATURE_APIC))
 		return -EINVAL;
 
 	madt = (struct acpi_table_madt *)table;
@@ -445,7 +445,6 @@ static void __init acpi_sci_ioapic_setup(u8 bus_irq, u16 polarity, u16 trigger, 
 		polarity = acpi_sci_flags & ACPI_MADT_POLARITY_MASK;
 
 	mp_override_legacy_irq(bus_irq, polarity, trigger, gsi);
-	acpi_penalize_sci_irq(bus_irq, trigger, polarity);
 
 	/*
 	 * stash over-ride to indicate we've been here
@@ -913,6 +912,15 @@ late_initcall(hpet_insert_resource);
 
 static int __init acpi_parse_fadt(struct acpi_table_header *table)
 {
+	if (!(acpi_gbl_FADT.boot_flags & ACPI_FADT_LEGACY_DEVICES)) {
+		pr_debug("ACPI: no legacy devices present\n");
+		x86_platform.legacy.devices.pnpbios = 0;
+	}
+
+	if (acpi_gbl_FADT.boot_flags & ACPI_FADT_NO_CMOS_RTC) {
+		pr_debug("ACPI: not registering RTC platform device\n");
+		x86_platform.legacy.rtc = 0;
+	}
 
 #ifdef CONFIG_X86_PM_TIMER
 	/* detect the location of the ACPI PM Timer */
@@ -951,7 +959,7 @@ static int __init early_acpi_parse_madt_lapic_addr_ovr(void)
 {
 	int count;
 
-	if (!cpu_has_apic)
+	if (!boot_cpu_has(X86_FEATURE_APIC))
 		return -ENODEV;
 
 	/*
@@ -979,7 +987,7 @@ static int __init acpi_parse_madt_lapic_entries(void)
 	int ret;
 	struct acpi_subtable_proc madt_proc[2];
 
-	if (!cpu_has_apic)
+	if (!boot_cpu_has(X86_FEATURE_APIC))
 		return -ENODEV;
 
 	/*
@@ -1125,7 +1133,7 @@ static int __init acpi_parse_madt_ioapic_entries(void)
 	if (acpi_disabled || acpi_noirq)
 		return -ENODEV;
 
-	if (!cpu_has_apic)
+	if (!boot_cpu_has(X86_FEATURE_APIC))
 		return -ENODEV;
 
 	/*

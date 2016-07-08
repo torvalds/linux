@@ -141,12 +141,27 @@
 
 &cpu0 {
 	cpu0-supply = <&vdd_cpu>;
+	operating-points = <
+		/* KHz    uV */
+		1800000 1400000
+		1704000 1350000
+		1608000 1300000
+		1512000 1250000
+		1416000 1200000
+		1200000 1100000
+		1008000 1050000
+		 816000 1000000
+		 696000  950000
+		 600000  900000
+		 408000  900000
+		 216000  900000
+		 126000  900000
+	>;
 };
 
 &emmc {
 	status = "okay";
 
-	broken-cd;
 	bus-width = <8>;
 	cap-mmc-highspeed;
 	rockchip,default-sample-phase = <158>;
@@ -347,7 +362,6 @@
 &sdio0 {
 	status = "okay";
 
-	broken-cd;
 	bus-width = <4>;
 	cap-sd-highspeed;
 	cap-sdio-irq;

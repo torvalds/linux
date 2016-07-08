@@ -64,9 +64,27 @@ struct obd_export;
 struct ptlrpc_request;
 struct obd_device;
 
+/**
+ * Serializes in-flight MDT-modifying RPC requests to preserve idempotency.
+ *
+ * This mutex is used to implement execute-once semantics on the MDT.
+ * The MDT stores the last transaction ID and result for every client in
+ * its last_rcvd file. If the client doesn't get a reply, it can safely
+ * resend the request and the MDT will reconstruct the reply being aware
+ * that the request has already been executed. Without this lock,
+ * execution status of concurrent in-flight requests would be
+ * overwritten.
+ *
+ * This design limits the extent to which we can keep a full pipeline of
+ * in-flight requests from a single client.  This limitation could be
+ * overcome by allowing multiple slots per client in the last_rcvd file.
+ */
 struct mdc_rpc_lock {
+	/** Lock protecting in-flight RPC concurrency. */
 	struct mutex		rpcl_mutex;
+	/** Intent associated with currently executing request. */
 	struct lookup_intent	*rpcl_it;
+	/** Used for MDS/RPC load testing purposes. */
 	int			rpcl_fakes;
 };
 
@@ -155,12 +173,12 @@ static inline void mdc_update_max_ea_from_body(struct obd_export *exp,
 		if (cli->cl_max_mds_easize < body->max_mdsize) {
 			cli->cl_max_mds_easize = body->max_mdsize;
 			cli->cl_default_mds_easize =
-			    min_t(__u32, body->max_mdsize, PAGE_CACHE_SIZE);
+			    min_t(__u32, body->max_mdsize, PAGE_SIZE);
 		}
 		if (cli->cl_max_mds_cookiesize < body->max_cookiesize) {
 			cli->cl_max_mds_cookiesize = body->max_cookiesize;
 			cli->cl_default_mds_cookiesize =
-			    min_t(__u32, body->max_cookiesize, PAGE_CACHE_SIZE);
+			    min_t(__u32, body->max_cookiesize, PAGE_SIZE);
 		}
 	}
 }

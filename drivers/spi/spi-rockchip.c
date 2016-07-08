@@ -534,7 +534,7 @@ static void rockchip_spi_config(struct rockchip_spi *rs)
 	if (WARN_ON(rs->speed > MAX_SCLK_OUT))
 		rs->speed = MAX_SCLK_OUT;
 
-	/* the minimum divsor is 2 */
+	/* the minimum divisor is 2 */
 	if (rs->max_freq < 2 * rs->speed) {
 		clk_set_rate(rs->spiclk, 2 * rs->speed);
 		rs->max_freq = clk_get_rate(rs->spiclk);
@@ -578,7 +578,7 @@ static int rockchip_spi_transfer_one(
 		struct spi_device *spi,
 		struct spi_transfer *xfer)
 {
-	int ret = 1;
+	int ret = 0;
 	struct rockchip_spi *rs = spi_master_get_devdata(master);
 
 	WARN_ON(readl_relaxed(rs->regs + ROCKCHIP_SPI_SSIENR) &&
@@ -627,6 +627,8 @@ static int rockchip_spi_transfer_one(
 			spi_enable_chip(rs, 1);
 			ret = rockchip_spi_prepare_dma(rs);
 		}
+		/* successful DMA prepare means the transfer is in progress */
+		ret = ret ? ret : 1;
 	} else {
 		spi_enable_chip(rs, 1);
 		ret = rockchip_spi_pio_transfer(rs);
@@ -730,23 +732,25 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 	master->transfer_one = rockchip_spi_transfer_one;
 	master->handle_err = rockchip_spi_handle_err;
 
-	rs->dma_tx.ch = dma_request_slave_channel(rs->dev, "tx");
-	if (IS_ERR_OR_NULL(rs->dma_tx.ch)) {
+	rs->dma_tx.ch = dma_request_chan(rs->dev, "tx");
+	if (IS_ERR(rs->dma_tx.ch)) {
 		/* Check tx to see if we need defer probing driver */
 		if (PTR_ERR(rs->dma_tx.ch) == -EPROBE_DEFER) {
 			ret = -EPROBE_DEFER;
 			goto err_get_fifo_len;
 		}
 		dev_warn(rs->dev, "Failed to request TX DMA channel\n");
+		rs->dma_tx.ch = NULL;
 	}
 
-	rs->dma_rx.ch = dma_request_slave_channel(rs->dev, "rx");
-	if (!rs->dma_rx.ch) {
-		if (rs->dma_tx.ch) {
-			dma_release_channel(rs->dma_tx.ch);
-			rs->dma_tx.ch = NULL;
+	rs->dma_rx.ch = dma_request_chan(rs->dev, "rx");
+	if (IS_ERR(rs->dma_rx.ch)) {
+		if (PTR_ERR(rs->dma_rx.ch) == -EPROBE_DEFER) {
+			ret = -EPROBE_DEFER;
+			goto err_free_dma_tx;
 		}
 		dev_warn(rs->dev, "Failed to request RX DMA channel\n");
+		rs->dma_rx.ch = NULL;
 	}
 
 	if (rs->dma_tx.ch && rs->dma_rx.ch) {
@@ -771,10 +775,11 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 
 err_register_master:
 	pm_runtime_disable(&pdev->dev);
-	if (rs->dma_tx.ch)
-		dma_release_channel(rs->dma_tx.ch);
 	if (rs->dma_rx.ch)
 		dma_release_channel(rs->dma_rx.ch);
+err_free_dma_tx:
+	if (rs->dma_tx.ch)
+		dma_release_channel(rs->dma_tx.ch);
 err_get_fifo_len:
 	clk_disable_unprepare(rs->spiclk);
 err_spiclk_enable:

@@ -18,8 +18,8 @@
 #include <linux/module.h>
 #include <linux/cpufeature.h>
 #include <crypto/sha.h>
+#include <asm/cpacf.h>
 
-#include "crypt_s390.h"
 #include "sha.h"
 
 static int sha256_init(struct shash_desc *desc)
@@ -35,7 +35,7 @@ static int sha256_init(struct shash_desc *desc)
 	sctx->state[6] = SHA256_H6;
 	sctx->state[7] = SHA256_H7;
 	sctx->count = 0;
-	sctx->func = KIMD_SHA_256;
+	sctx->func = CPACF_KIMD_SHA_256;
 
 	return 0;
 }
@@ -59,7 +59,7 @@ static int sha256_import(struct shash_desc *desc, const void *in)
 	sctx->count = ictx->count;
 	memcpy(sctx->state, ictx->state, sizeof(ictx->state));
 	memcpy(sctx->buf, ictx->buf, sizeof(ictx->buf));
-	sctx->func = KIMD_SHA_256;
+	sctx->func = CPACF_KIMD_SHA_256;
 	return 0;
 }
 
@@ -75,7 +75,7 @@ static struct shash_alg sha256_alg = {
 	.base		=	{
 		.cra_name	=	"sha256",
 		.cra_driver_name=	"sha256-s390",
-		.cra_priority	=	CRYPT_S390_PRIORITY,
+		.cra_priority	=	300,
 		.cra_flags	=	CRYPTO_ALG_TYPE_SHASH,
 		.cra_blocksize	=	SHA256_BLOCK_SIZE,
 		.cra_module	=	THIS_MODULE,
@@ -95,7 +95,7 @@ static int sha224_init(struct shash_desc *desc)
 	sctx->state[6] = SHA224_H6;
 	sctx->state[7] = SHA224_H7;
 	sctx->count = 0;
-	sctx->func = KIMD_SHA_256;
+	sctx->func = CPACF_KIMD_SHA_256;
 
 	return 0;
 }
@@ -112,7 +112,7 @@ static struct shash_alg sha224_alg = {
 	.base		=	{
 		.cra_name	=	"sha224",
 		.cra_driver_name=	"sha224-s390",
-		.cra_priority	=	CRYPT_S390_PRIORITY,
+		.cra_priority	=	300,
 		.cra_flags	=	CRYPTO_ALG_TYPE_SHASH,
 		.cra_blocksize	=	SHA224_BLOCK_SIZE,
 		.cra_module	=	THIS_MODULE,
@@ -123,7 +123,7 @@ static int __init sha256_s390_init(void)
 {
 	int ret;
 
-	if (!crypt_s390_func_available(KIMD_SHA_256, CRYPT_S390_MSA))
+	if (!cpacf_query(CPACF_KIMD, CPACF_KIMD_SHA_256))
 		return -EOPNOTSUPP;
 	ret = crypto_register_shash(&sha256_alg);
 	if (ret < 0)

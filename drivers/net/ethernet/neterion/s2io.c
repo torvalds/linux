@@ -4021,7 +4021,6 @@ static netdev_tx_t s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned long flags = 0;
 	u16 vlan_tag = 0;
 	struct fifo_info *fifo = NULL;
-	int do_spin_lock = 1;
 	int offload_type;
 	int enable_per_list_interrupt = 0;
 	struct config_param *config = &sp->config;
@@ -4074,7 +4073,6 @@ static netdev_tx_t s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 					queue += sp->udp_fifo_idx;
 					if (skb->len > 1024)
 						enable_per_list_interrupt = 1;
-					do_spin_lock = 0;
 				}
 			}
 		}
@@ -4084,12 +4082,7 @@ static netdev_tx_t s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 			[skb->priority & (MAX_TX_FIFOS - 1)];
 	fifo = &mac_control->fifos[queue];
 
-	if (do_spin_lock)
-		spin_lock_irqsave(&fifo->tx_lock, flags);
-	else {
-		if (unlikely(!spin_trylock_irqsave(&fifo->tx_lock, flags)))
-			return NETDEV_TX_LOCKED;
-	}
+	spin_lock_irqsave(&fifo->tx_lock, flags);
 
 	if (sp->config.multiq) {
 		if (__netif_subqueue_stopped(dev, fifo->fifo_no)) {

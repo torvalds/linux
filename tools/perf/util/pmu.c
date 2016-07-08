@@ -602,14 +602,13 @@ static void pmu_format_value(unsigned long *format, __u64 value, __u64 *v,
 
 static __u64 pmu_format_max_value(const unsigned long *format)
 {
-	int w;
+	__u64 w = 0;
+	int fbit;
 
-	w = bitmap_weight(format, PERF_PMU_FORMAT_BITS);
-	if (!w)
-		return 0;
-	if (w < 64)
-		return (1ULL << w) - 1;
-	return -1;
+	for_each_set_bit(fbit, format, PERF_PMU_FORMAT_BITS)
+		w |= (1ULL << fbit);
+
+	return w;
 }
 
 /*
@@ -644,20 +643,20 @@ static int pmu_resolve_param_term(struct parse_events_term *term,
 static char *pmu_formats_string(struct list_head *formats)
 {
 	struct perf_pmu_format *format;
-	char *str;
-	struct strbuf buf;
+	char *str = NULL;
+	struct strbuf buf = STRBUF_INIT;
 	unsigned i = 0;
 
 	if (!formats)
 		return NULL;
 
-	strbuf_init(&buf, 0);
 	/* sysfs exported terms */
 	list_for_each_entry(format, formats, list)
-		strbuf_addf(&buf, i++ ? ",%s" : "%s",
-			    format->name);
+		if (strbuf_addf(&buf, i++ ? ",%s" : "%s", format->name) < 0)
+			goto error;
 
 	str = strbuf_detach(&buf, NULL);
+error:
 	strbuf_release(&buf);
 
 	return str;

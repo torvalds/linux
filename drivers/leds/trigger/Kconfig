@@ -41,6 +41,14 @@ config LEDS_TRIGGER_IDE_DISK
 	  This allows LEDs to be controlled by IDE disk activity.
 	  If unsure, say Y.
 
+config LEDS_TRIGGER_MTD
+	bool "LED MTD (NAND/NOR) Trigger"
+	depends on MTD
+	depends on LEDS_TRIGGERS
+	help
+	  This allows LEDs to be controlled by MTD activity.
+	  If unsure, say N.
+
 config LEDS_TRIGGER_HEARTBEAT
 	tristate "LED Heartbeat Trigger"
 	depends on LEDS_TRIGGERS
@@ -106,6 +114,16 @@ config LEDS_TRIGGER_CAMERA
 	help
 	  This allows LEDs to be controlled as a camera flash/torch device.
 	  This enables direct flash/torch on/off by the driver, kernel space.
+	  If unsure, say Y.
+
+config LEDS_TRIGGER_PANIC
+	bool "LED Panic Trigger"
+	depends on LEDS_TRIGGERS
+	help
+	  This allows LEDs to be configured to blink on a kernel panic.
+	  Enabling this option will allow to mark certain LEDs as panic indicators,
+	  allowing to blink them on a kernel panic, even if they are set to
+	  a different trigger.
 	  If unsure, say Y.
 
 endif # LEDS_TRIGGERS

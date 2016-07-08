@@ -35,6 +35,11 @@ nvkm_device_tegra_power_up(struct nvkm_device_tegra *tdev)
 	ret = clk_prepare_enable(tdev->clk);
 	if (ret)
 		goto err_clk;
+	if (tdev->clk_ref) {
+		ret = clk_prepare_enable(tdev->clk_ref);
+		if (ret)
+			goto err_clk_ref;
+	}
 	ret = clk_prepare_enable(tdev->clk_pwr);
 	if (ret)
 		goto err_clk_pwr;
@@ -57,6 +62,9 @@ nvkm_device_tegra_power_up(struct nvkm_device_tegra *tdev)
 err_clamp:
 	clk_disable_unprepare(tdev->clk_pwr);
 err_clk_pwr:
+	if (tdev->clk_ref)
+		clk_disable_unprepare(tdev->clk_ref);
+err_clk_ref:
 	clk_disable_unprepare(tdev->clk);
 err_clk:
 	regulator_disable(tdev->vdd);
@@ -71,6 +79,8 @@ nvkm_device_tegra_power_down(struct nvkm_device_tegra *tdev)
 	udelay(10);
 
 	clk_disable_unprepare(tdev->clk_pwr);
+	if (tdev->clk_ref)
+		clk_disable_unprepare(tdev->clk_ref);
 	clk_disable_unprepare(tdev->clk);
 	udelay(10);
 
@@ -271,6 +281,13 @@ nvkm_device_tegra_new(const struct nvkm_device_tegra_func *func,
 	tdev->clk = devm_clk_get(&pdev->dev, "gpu");
 	if (IS_ERR(tdev->clk)) {
 		ret = PTR_ERR(tdev->clk);
+		goto free;
+	}
+
+	if (func->require_ref_clk)
+		tdev->clk_ref = devm_clk_get(&pdev->dev, "ref");
+	if (IS_ERR(tdev->clk_ref)) {
+		ret = PTR_ERR(tdev->clk_ref);
 		goto free;
 	}
 

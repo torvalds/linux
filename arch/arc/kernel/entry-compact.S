@@ -91,27 +91,13 @@ VECTOR   mem_service             ; 0x8, Mem exception   (0x1)
 VECTOR   instr_service           ; 0x10, Instrn Error   (0x2)
 
 ; ******************** Device ISRs **********************
-#ifdef CONFIG_ARC_IRQ3_LV2
+#ifdef CONFIG_ARC_COMPACT_IRQ_LEVELS
 VECTOR   handle_interrupt_level2
 #else
 VECTOR   handle_interrupt_level1
 #endif
 
-VECTOR   handle_interrupt_level1
-
-#ifdef CONFIG_ARC_IRQ5_LV2
-VECTOR   handle_interrupt_level2
-#else
-VECTOR   handle_interrupt_level1
-#endif
-
-#ifdef CONFIG_ARC_IRQ6_LV2
-VECTOR   handle_interrupt_level2
-#else
-VECTOR   handle_interrupt_level1
-#endif
-
-.rept   25
+.rept   28
 VECTOR   handle_interrupt_level1 ; Other devices
 .endr
 
@@ -341,6 +327,9 @@ END(call_do_page_fault)
 
 .Lrestore_regs:
 
+	# Interrpts are actually disabled from this point on, but will get
+	# reenabled after we return from interrupt/exception.
+	# But irq tracer needs to be told now...
 	TRACE_ASM_IRQ_ENABLE
 
 	lr	r10, [status32]

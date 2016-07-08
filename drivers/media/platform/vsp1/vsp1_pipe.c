@@ -43,7 +43,7 @@ static const struct vsp1_format_info vsp1_video_formats[] = {
 	{ V4L2_PIX_FMT_XRGB444, MEDIA_BUS_FMT_ARGB8888_1X32,
 	  VI6_FMT_XRGB_4444, VI6_RPF_DSWAP_P_LLS | VI6_RPF_DSWAP_P_LWS |
 	  VI6_RPF_DSWAP_P_WDS,
-	  1, { 16, 0, 0 }, false, false, 1, 1, true },
+	  1, { 16, 0, 0 }, false, false, 1, 1, false },
 	{ V4L2_PIX_FMT_ARGB555, MEDIA_BUS_FMT_ARGB8888_1X32,
 	  VI6_FMT_ARGB_1555, VI6_RPF_DSWAP_P_LLS | VI6_RPF_DSWAP_P_LWS |
 	  VI6_RPF_DSWAP_P_WDS,
@@ -172,14 +172,18 @@ void vsp1_pipeline_reset(struct vsp1_pipeline *pipe)
 			bru->inputs[i].rpf = NULL;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(pipe->inputs); ++i)
+	for (i = 0; i < pipe->num_inputs; ++i) {
+		pipe->inputs[i]->pipe = NULL;
 		pipe->inputs[i] = NULL;
+	}
+
+	pipe->output->pipe = NULL;
+	pipe->output = NULL;
 
 	INIT_LIST_HEAD(&pipe->entities);
 	pipe->state = VSP1_PIPELINE_STOPPED;
 	pipe->buffers_ready = 0;
 	pipe->num_inputs = 0;
-	pipe->output = NULL;
 	pipe->bru = NULL;
 	pipe->lif = NULL;
 	pipe->uds = NULL;
@@ -190,11 +194,13 @@ void vsp1_pipeline_init(struct vsp1_pipeline *pipe)
 	mutex_init(&pipe->lock);
 	spin_lock_init(&pipe->irqlock);
 	init_waitqueue_head(&pipe->wq);
+	kref_init(&pipe->kref);
 
 	INIT_LIST_HEAD(&pipe->entities);
 	pipe->state = VSP1_PIPELINE_STOPPED;
 }
 
+/* Must be called with the pipe irqlock held. */
 void vsp1_pipeline_run(struct vsp1_pipeline *pipe)
 {
 	struct vsp1_device *vsp1 = pipe->output->entity.vsp1;
@@ -226,7 +232,7 @@ int vsp1_pipeline_stop(struct vsp1_pipeline *pipe)
 	unsigned long flags;
 	int ret;
 
-	if (pipe->dl) {
+	if (pipe->lif) {
 		/* When using display lists in continuous frame mode the only
 		 * way to stop the pipeline is to reset the hardware.
 		 */
@@ -253,9 +259,9 @@ int vsp1_pipeline_stop(struct vsp1_pipeline *pipe)
 		if (entity->route && entity->route->reg)
 			vsp1_write(entity->vsp1, entity->route->reg,
 				   VI6_DPR_NODE_UNUSED);
-
-		v4l2_subdev_call(&entity->subdev, video, s_stream, 0);
 	}
+
+	v4l2_subdev_call(&pipe->output->entity.subdev, video, s_stream, 0);
 
 	return ret;
 }
@@ -271,50 +277,15 @@ bool vsp1_pipeline_ready(struct vsp1_pipeline *pipe)
 	return pipe->buffers_ready == mask;
 }
 
-void vsp1_pipeline_display_start(struct vsp1_pipeline *pipe)
-{
-	if (pipe->dl)
-		vsp1_dl_irq_display_start(pipe->dl);
-}
-
 void vsp1_pipeline_frame_end(struct vsp1_pipeline *pipe)
 {
-	enum vsp1_pipeline_state state;
-	unsigned long flags;
-
 	if (pipe == NULL)
 		return;
 
-	if (pipe->dl)
-		vsp1_dl_irq_frame_end(pipe->dl);
+	vsp1_dlm_irq_frame_end(pipe->output->dlm);
 
-	/* Signal frame end to the pipeline handler. */
-	pipe->frame_end(pipe);
-
-	spin_lock_irqsave(&pipe->irqlock, flags);
-
-	state = pipe->state;
-
-	/* When using display lists in continuous frame mode the pipeline is
-	 * automatically restarted by the hardware.
-	 */
-	if (!pipe->dl)
-		pipe->state = VSP1_PIPELINE_STOPPED;
-
-	/* If a stop has been requested, mark the pipeline as stopped and
-	 * return.
-	 */
-	if (state == VSP1_PIPELINE_STOPPING) {
-		wake_up(&pipe->wq);
-		goto done;
-	}
-
-	/* Restart the pipeline if ready. */
-	if (vsp1_pipeline_ready(pipe))
-		vsp1_pipeline_run(pipe);
-
-done:
-	spin_unlock_irqrestore(&pipe->irqlock, flags);
+	if (pipe->frame_end)
+		pipe->frame_end(pipe);
 }
 
 /*
@@ -324,9 +295,13 @@ done:
  * to be scaled, we disable alpha scaling when the UDS input has a fixed alpha
  * value. The UDS then outputs a fixed alpha value which needs to be programmed
  * from the input RPF alpha.
+ *
+ * This function can only be called from a subdev s_stream handler as it
+ * requires a valid display list context.
  */
 void vsp1_pipeline_propagate_alpha(struct vsp1_pipeline *pipe,
 				   struct vsp1_entity *input,
+				   struct vsp1_dl_list *dl,
 				   unsigned int alpha)
 {
 	struct vsp1_entity *entity;
@@ -349,7 +324,7 @@ void vsp1_pipeline_propagate_alpha(struct vsp1_pipeline *pipe,
 		if (entity->type == VSP1_ENTITY_UDS) {
 			struct vsp1_uds *uds = to_uds(&entity->subdev);
 
-			vsp1_uds_set_alpha(uds, alpha);
+			vsp1_uds_set_alpha(uds, dl, alpha);
 			break;
 		}
 
@@ -375,7 +350,7 @@ void vsp1_pipelines_suspend(struct vsp1_device *vsp1)
 		if (wpf == NULL)
 			continue;
 
-		pipe = to_vsp1_pipeline(&wpf->entity.subdev.entity);
+		pipe = wpf->pipe;
 		if (pipe == NULL)
 			continue;
 
@@ -392,7 +367,7 @@ void vsp1_pipelines_suspend(struct vsp1_device *vsp1)
 		if (wpf == NULL)
 			continue;
 
-		pipe = to_vsp1_pipeline(&wpf->entity.subdev.entity);
+		pipe = wpf->pipe;
 		if (pipe == NULL)
 			continue;
 
@@ -416,7 +391,7 @@ void vsp1_pipelines_resume(struct vsp1_device *vsp1)
 		if (wpf == NULL)
 			continue;
 
-		pipe = to_vsp1_pipeline(&wpf->entity.subdev.entity);
+		pipe = wpf->pipe;
 		if (pipe == NULL)
 			continue;
 

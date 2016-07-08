@@ -104,7 +104,7 @@ static void watchdog_check_min_max_timeout(struct watchdog_device *wdd)
  * timeout module parameter (if it is valid value) or the timeout-sec property
  * (only if it is a valid value and the timeout_parm is out of bounds).
  * If none of them are valid then we keep the old value (which should normally
- * be the default timeout value.
+ * be the default timeout value).
  *
  * A zero is returned on success and -EINVAL for failure.
  */
@@ -262,7 +262,7 @@ static int __watchdog_register_device(struct watchdog_device *wdd)
 
 		ret = register_restart_handler(&wdd->restart_nb);
 		if (ret)
-			pr_warn("watchog%d: Cannot register restart handler (%d)\n",
+			pr_warn("watchdog%d: Cannot register restart handler (%d)\n",
 				wdd->id, ret);
 	}
 

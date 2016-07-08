@@ -488,7 +488,7 @@ struct atl1c_tpd_ring {
 	dma_addr_t dma;		/* descriptor ring physical address */
 	u16 size;		/* descriptor ring length in bytes */
 	u16 count;		/* number of descriptors in the ring */
-	u16 next_to_use; 	/* this is protectd by adapter->tx_lock */
+	u16 next_to_use;
 	atomic_t next_to_clean;
 	struct atl1c_buffer *buffer_info;
 };
@@ -542,7 +542,6 @@ struct atl1c_adapter {
 	u16 link_duplex;
 
 	spinlock_t mdio_lock;
-	spinlock_t tx_lock;
 	atomic_t irq_sem;
 
 	struct work_struct common_task;

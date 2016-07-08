@@ -200,20 +200,16 @@ static struct omap_dss_driver sharp_ls_ops = {
 static int sharp_ls_get_gpio(struct device *dev, int gpio, unsigned long flags,
 		  char *desc, struct gpio_desc **gpiod)
 {
-	struct gpio_desc *gd;
 	int r;
 
-	*gpiod = NULL;
-
 	r = devm_gpio_request_one(dev, gpio, flags, desc);
-	if (r)
+	if (r) {
+		*gpiod = NULL;
 		return r == -ENOENT ? 0 : r;
+	}
 
-	gd = gpio_to_desc(gpio);
-	if (IS_ERR(gd))
-		return PTR_ERR(gd) == -ENOENT ? 0 : PTR_ERR(gd);
+	*gpiod = gpio_to_desc(gpio);
 
-	*gpiod = gd;
 	return 0;
 }
 

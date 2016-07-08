@@ -1664,8 +1664,7 @@ static int t1_sge_tx(struct sk_buff *skb, struct adapter *adapter,
 	struct cmdQ *q = &sge->cmdQ[qid];
 	unsigned int credits, pidx, genbit, count, use_sched_skb = 0;
 
-	if (!spin_trylock(&q->lock))
-		return NETDEV_TX_LOCKED;
+	spin_lock(&q->lock);
 
 	reclaim_completed_tx(sge, q);
 

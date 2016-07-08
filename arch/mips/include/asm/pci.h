@@ -43,8 +43,6 @@ struct pci_controller {
 	   and XFree86. Eventually will be removed. */
 	unsigned int need_domain_info;
 
-	int iommu;
-
 	/* Optional access methods for reading/writing the bus number
 	   of the PCI controller */
 	int (*get_busno)(void);
@@ -106,11 +104,11 @@ static inline void pci_resource_to_user(const struct pci_dev *dev, int bar,
 struct pci_dev;
 
 /*
- * The PCI address space does equal the physical memory address space.	The
- * networking and block device layers use this boolean for bounce buffer
- * decisions.  This is set if any hose does not have an IOMMU.
+ * The PCI address space does equal the physical memory address space.
+ * The networking and block device layers use this boolean for bounce
+ * buffer decisions.
  */
-extern unsigned int PCI_DMA_BUS_IS_PHYS;
+#define PCI_DMA_BUS_IS_PHYS     (1)
 
 #ifdef CONFIG_PCI_DOMAINS
 #define pci_domain_nr(bus) ((struct pci_controller *)(bus)->sysdata)->index

@@ -12,6 +12,7 @@
 #include <linux/clk.h>
 #include <linux/platform_device.h>
 #include <linux/hw_random.h>
+#include <linux/of.h>
 
 #define RNG_CTRL			0x00
 #define RNG_EN				(1 << 0)

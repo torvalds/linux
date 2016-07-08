@@ -22,7 +22,6 @@ struct pkcs7_signed_info {
 	struct pkcs7_signed_info *next;
 	struct x509_certificate *signer; /* Signing certificate (in msg->certs) */
 	unsigned	index;
-	bool		trusted;
 	bool		unsupported_crypto;	/* T if not usable due to missing crypto */
 
 	/* Message digest - the digest of the Content Data (or NULL) */
@@ -41,19 +40,17 @@ struct pkcs7_signed_info {
 #define	sinfo_has_ms_statement_type	5
 	time64_t	signing_time;
 
-	/* Issuing cert serial number and issuer's name [PKCS#7 or CMS ver 1]
-	 * or issuing cert's SKID [CMS ver 3].
-	 */
-	struct asymmetric_key_id *signing_cert_id;
-
 	/* Message signature.
 	 *
 	 * This contains the generated digest of _either_ the Content Data or
 	 * the Authenticated Attributes [RFC2315 9.3].  If the latter, one of
 	 * the attributes contains the digest of the the Content Data within
 	 * it.
+	 *
+	 * THis also contains the issuing cert serial number and issuer's name
+	 * [PKCS#7 or CMS ver 1] or issuing cert's SKID [CMS ver 3].
 	 */
-	struct public_key_signature sig;
+	struct public_key_signature *sig;
 };
 
 struct pkcs7_message {

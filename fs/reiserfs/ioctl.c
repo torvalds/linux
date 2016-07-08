@@ -187,7 +187,11 @@ int reiserfs_unpack(struct inode *inode, struct file *filp)
 	}
 
 	/* we need to make sure nobody is changing the file size beneath us */
-	reiserfs_mutex_lock_safe(&inode->i_mutex, inode->i_sb);
+{
+	int depth = reiserfs_write_unlock_nested(inode->i_sb);
+	inode_lock(inode);
+	reiserfs_write_lock_nested(inode->i_sb, depth);
+}
 
 	reiserfs_write_lock(inode->i_sb);
 
@@ -203,7 +207,7 @@ int reiserfs_unpack(struct inode *inode, struct file *filp)
 	 * __reiserfs_write_begin on that page.  This will force a
 	 * reiserfs_get_block to unpack the tail for us.
 	 */
-	index = inode->i_size >> PAGE_CACHE_SHIFT;
+	index = inode->i_size >> PAGE_SHIFT;
 	mapping = inode->i_mapping;
 	page = grab_cache_page(mapping, index);
 	retval = -ENOMEM;
@@ -221,7 +225,7 @@ int reiserfs_unpack(struct inode *inode, struct file *filp)
 
 out_unlock:
 	unlock_page(page);
-	page_cache_release(page);
+	put_page(page);
 
 out:
 	inode_unlock(inode);

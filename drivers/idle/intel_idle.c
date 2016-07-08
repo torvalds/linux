@@ -660,6 +660,35 @@ static struct cpuidle_state skl_cstates[] = {
 		.enter = NULL }
 };
 
+static struct cpuidle_state skx_cstates[] = {
+	{
+		.name = "C1-SKX",
+		.desc = "MWAIT 0x00",
+		.flags = MWAIT2flg(0x00),
+		.exit_latency = 2,
+		.target_residency = 2,
+		.enter = &intel_idle,
+		.enter_freeze = intel_idle_freeze, },
+	{
+		.name = "C1E-SKX",
+		.desc = "MWAIT 0x01",
+		.flags = MWAIT2flg(0x01),
+		.exit_latency = 10,
+		.target_residency = 20,
+		.enter = &intel_idle,
+		.enter_freeze = intel_idle_freeze, },
+	{
+		.name = "C6-SKX",
+		.desc = "MWAIT 0x20",
+		.flags = MWAIT2flg(0x20) | CPUIDLE_FLAG_TLB_FLUSHED,
+		.exit_latency = 133,
+		.target_residency = 600,
+		.enter = &intel_idle,
+		.enter_freeze = intel_idle_freeze, },
+	{
+		.enter = NULL }
+};
+
 static struct cpuidle_state atom_cstates[] = {
 	{
 		.name = "C1E-ATM",
@@ -733,6 +762,67 @@ static struct cpuidle_state knl_cstates[] = {
 		.target_residency = 500,
 		.enter = &intel_idle,
 		.enter_freeze = intel_idle_freeze },
+	{
+		.enter = NULL }
+};
+
+static struct cpuidle_state bxt_cstates[] = {
+	{
+		.name = "C1-BXT",
+		.desc = "MWAIT 0x00",
+		.flags = MWAIT2flg(0x00),
+		.exit_latency = 2,
+		.target_residency = 2,
+		.enter = &intel_idle,
+		.enter_freeze = intel_idle_freeze, },
+	{
+		.name = "C1E-BXT",
+		.desc = "MWAIT 0x01",
+		.flags = MWAIT2flg(0x01),
+		.exit_latency = 10,
+		.target_residency = 20,
+		.enter = &intel_idle,
+		.enter_freeze = intel_idle_freeze, },
+	{
+		.name = "C6-BXT",
+		.desc = "MWAIT 0x20",
+		.flags = MWAIT2flg(0x20) | CPUIDLE_FLAG_TLB_FLUSHED,
+		.exit_latency = 133,
+		.target_residency = 133,
+		.enter = &intel_idle,
+		.enter_freeze = intel_idle_freeze, },
+	{
+		.name = "C7s-BXT",
+		.desc = "MWAIT 0x31",
+		.flags = MWAIT2flg(0x31) | CPUIDLE_FLAG_TLB_FLUSHED,
+		.exit_latency = 155,
+		.target_residency = 155,
+		.enter = &intel_idle,
+		.enter_freeze = intel_idle_freeze, },
+	{
+		.name = "C8-BXT",
+		.desc = "MWAIT 0x40",
+		.flags = MWAIT2flg(0x40) | CPUIDLE_FLAG_TLB_FLUSHED,
+		.exit_latency = 1000,
+		.target_residency = 1000,
+		.enter = &intel_idle,
+		.enter_freeze = intel_idle_freeze, },
+	{
+		.name = "C9-BXT",
+		.desc = "MWAIT 0x50",
+		.flags = MWAIT2flg(0x50) | CPUIDLE_FLAG_TLB_FLUSHED,
+		.exit_latency = 2000,
+		.target_residency = 2000,
+		.enter = &intel_idle,
+		.enter_freeze = intel_idle_freeze, },
+	{
+		.name = "C10-BXT",
+		.desc = "MWAIT 0x60",
+		.flags = MWAIT2flg(0x60) | CPUIDLE_FLAG_TLB_FLUSHED,
+		.exit_latency = 10000,
+		.target_residency = 10000,
+		.enter = &intel_idle,
+		.enter_freeze = intel_idle_freeze, },
 	{
 		.enter = NULL }
 };
@@ -818,8 +908,11 @@ static int cpu_hotplug_notify(struct notifier_block *n,
 		 * driver in this case
 		 */
 		dev = per_cpu_ptr(intel_idle_cpuidle_devices, hotcpu);
-		if (!dev->registered)
-			intel_idle_cpu_init(hotcpu);
+		if (dev->registered)
+			break;
+
+		if (intel_idle_cpu_init(hotcpu))
+			return NOTIFY_BAD;
 
 		break;
 	}
@@ -904,6 +997,10 @@ static const struct idle_cpu idle_cpu_skl = {
 	.disable_promotion_to_c1e = true,
 };
 
+static const struct idle_cpu idle_cpu_skx = {
+	.state_table = skx_cstates,
+	.disable_promotion_to_c1e = true,
+};
 
 static const struct idle_cpu idle_cpu_avn = {
 	.state_table = avn_cstates,
@@ -912,6 +1009,11 @@ static const struct idle_cpu idle_cpu_avn = {
 
 static const struct idle_cpu idle_cpu_knl = {
 	.state_table = knl_cstates,
+};
+
+static const struct idle_cpu idle_cpu_bxt = {
+	.state_table = bxt_cstates,
+	.disable_promotion_to_c1e = true,
 };
 
 #define ICPU(model, cpu) \
@@ -945,7 +1047,11 @@ static const struct x86_cpu_id intel_idle_ids[] __initconst = {
 	ICPU(0x56, idle_cpu_bdw),
 	ICPU(0x4e, idle_cpu_skl),
 	ICPU(0x5e, idle_cpu_skl),
+	ICPU(0x8e, idle_cpu_skl),
+	ICPU(0x9e, idle_cpu_skl),
+	ICPU(0x55, idle_cpu_skx),
 	ICPU(0x57, idle_cpu_knl),
+	ICPU(0x5c, idle_cpu_bxt),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, intel_idle_ids);
@@ -987,22 +1093,15 @@ static int __init intel_idle_probe(void)
 	icpu = (const struct idle_cpu *)id->driver_data;
 	cpuidle_state_table = icpu->state_table;
 
-	if (boot_cpu_has(X86_FEATURE_ARAT))	/* Always Reliable APIC Timer */
-		lapic_timer_reliable_states = LAPIC_TIMER_ALWAYS_RELIABLE;
-	else
-		on_each_cpu(__setup_broadcast_timer, (void *)true, 1);
-
 	pr_debug(PREFIX "v" INTEL_IDLE_VERSION
 		" model 0x%X\n", boot_cpu_data.x86_model);
 
-	pr_debug(PREFIX "lapic_timer_reliable_states 0x%x\n",
-		lapic_timer_reliable_states);
 	return 0;
 }
 
 /*
  * intel_idle_cpuidle_devices_uninit()
- * unregister, free cpuidle_devices
+ * Unregisters the cpuidle devices.
  */
 static void intel_idle_cpuidle_devices_uninit(void)
 {
@@ -1013,9 +1112,6 @@ static void intel_idle_cpuidle_devices_uninit(void)
 		dev = per_cpu_ptr(intel_idle_cpuidle_devices, i);
 		cpuidle_unregister_device(dev);
 	}
-
-	free_percpu(intel_idle_cpuidle_devices);
-	return;
 }
 
 /*
@@ -1045,6 +1141,73 @@ static void ivt_idle_state_table_update(void)
 		cpuidle_state_table = ivt_cstates_4s;
 
 	/* else, 1 and 2 socket systems use default ivt_cstates */
+}
+
+/*
+ * Translate IRTL (Interrupt Response Time Limit) MSR to usec
+ */
+
+static unsigned int irtl_ns_units[] = {
+	1, 32, 1024, 32768, 1048576, 33554432, 0, 0 };
+
+static unsigned long long irtl_2_usec(unsigned long long irtl)
+{
+	unsigned long long ns;
+
+	ns = irtl_ns_units[(irtl >> 10) & 0x3];
+
+	return div64_u64((irtl & 0x3FF) * ns, 1000);
+}
+/*
+ * bxt_idle_state_table_update(void)
+ *
+ * On BXT, we trust the IRTL to show the definitive maximum latency
+ * We use the same value for target_residency.
+ */
+static void bxt_idle_state_table_update(void)
+{
+	unsigned long long msr;
+
+	rdmsrl(MSR_PKGC6_IRTL, msr);
+	if (msr) {
+		unsigned int usec = irtl_2_usec(msr);
+
+		bxt_cstates[2].exit_latency = usec;
+		bxt_cstates[2].target_residency = usec;
+	}
+
+	rdmsrl(MSR_PKGC7_IRTL, msr);
+	if (msr) {
+		unsigned int usec = irtl_2_usec(msr);
+
+		bxt_cstates[3].exit_latency = usec;
+		bxt_cstates[3].target_residency = usec;
+	}
+
+	rdmsrl(MSR_PKGC8_IRTL, msr);
+	if (msr) {
+		unsigned int usec = irtl_2_usec(msr);
+
+		bxt_cstates[4].exit_latency = usec;
+		bxt_cstates[4].target_residency = usec;
+	}
+
+	rdmsrl(MSR_PKGC9_IRTL, msr);
+	if (msr) {
+		unsigned int usec = irtl_2_usec(msr);
+
+		bxt_cstates[5].exit_latency = usec;
+		bxt_cstates[5].target_residency = usec;
+	}
+
+	rdmsrl(MSR_PKGC10_IRTL, msr);
+	if (msr) {
+		unsigned int usec = irtl_2_usec(msr);
+
+		bxt_cstates[6].exit_latency = usec;
+		bxt_cstates[6].target_residency = usec;
+	}
+
 }
 /*
  * sklh_idle_state_table_update(void)
@@ -1101,6 +1264,9 @@ static void intel_idle_state_table_update(void)
 	case 0x3e: /* IVT */
 		ivt_idle_state_table_update();
 		break;
+	case 0x5c: /* BXT */
+		bxt_idle_state_table_update();
+		break;
 	case 0x5e: /* SKL-H */
 		sklh_idle_state_table_update();
 		break;
@@ -1111,7 +1277,7 @@ static void intel_idle_state_table_update(void)
  * intel_idle_cpuidle_driver_init()
  * allocate, initialize cpuidle_states
  */
-static int __init intel_idle_cpuidle_driver_init(void)
+static void __init intel_idle_cpuidle_driver_init(void)
 {
 	int cstate;
 	struct cpuidle_driver *drv = &intel_idle_driver;
@@ -1163,18 +1329,10 @@ static int __init intel_idle_cpuidle_driver_init(void)
 		drv->state_count += 1;
 	}
 
-	if (icpu->auto_demotion_disable_flags)
-		on_each_cpu(auto_demotion_disable, NULL, 1);
-
 	if (icpu->byt_auto_demotion_disable_flag) {
 		wrmsrl(MSR_CC6_DEMOTION_POLICY_CONFIG, 0);
 		wrmsrl(MSR_MC6_DEMOTION_POLICY_CONFIG, 0);
 	}
-
-	if (icpu->disable_promotion_to_c1e)	/* each-cpu is redundant */
-		on_each_cpu(c1e_promotion_disable, NULL, 1);
-
-	return 0;
 }
 
 
@@ -1193,7 +1351,6 @@ static int intel_idle_cpu_init(int cpu)
 
 	if (cpuidle_register_device(dev)) {
 		pr_debug(PREFIX "cpuidle_register_device %d failed!\n", cpu);
-		intel_idle_cpuidle_devices_uninit();
 		return -EIO;
 	}
 
@@ -1218,40 +1375,51 @@ static int __init intel_idle_init(void)
 	if (retval)
 		return retval;
 
+	intel_idle_cpuidle_devices = alloc_percpu(struct cpuidle_device);
+	if (intel_idle_cpuidle_devices == NULL)
+		return -ENOMEM;
+
 	intel_idle_cpuidle_driver_init();
 	retval = cpuidle_register_driver(&intel_idle_driver);
 	if (retval) {
 		struct cpuidle_driver *drv = cpuidle_get_driver();
 		printk(KERN_DEBUG PREFIX "intel_idle yielding to %s",
 			drv ? drv->name : "none");
+		free_percpu(intel_idle_cpuidle_devices);
 		return retval;
 	}
-
-	intel_idle_cpuidle_devices = alloc_percpu(struct cpuidle_device);
-	if (intel_idle_cpuidle_devices == NULL)
-		return -ENOMEM;
 
 	cpu_notifier_register_begin();
 
 	for_each_online_cpu(i) {
 		retval = intel_idle_cpu_init(i);
 		if (retval) {
+			intel_idle_cpuidle_devices_uninit();
 			cpu_notifier_register_done();
 			cpuidle_unregister_driver(&intel_idle_driver);
+			free_percpu(intel_idle_cpuidle_devices);
 			return retval;
 		}
 	}
 	__register_cpu_notifier(&cpu_hotplug_notifier);
 
+	if (boot_cpu_has(X86_FEATURE_ARAT))	/* Always Reliable APIC Timer */
+		lapic_timer_reliable_states = LAPIC_TIMER_ALWAYS_RELIABLE;
+	else
+		on_each_cpu(__setup_broadcast_timer, (void *)true, 1);
+
 	cpu_notifier_register_done();
+
+	pr_debug(PREFIX "lapic_timer_reliable_states 0x%x\n",
+		lapic_timer_reliable_states);
 
 	return 0;
 }
 
 static void __exit intel_idle_exit(void)
 {
-	intel_idle_cpuidle_devices_uninit();
-	cpuidle_unregister_driver(&intel_idle_driver);
+	struct cpuidle_device *dev;
+	int i;
 
 	cpu_notifier_register_begin();
 
@@ -1259,9 +1427,15 @@ static void __exit intel_idle_exit(void)
 		on_each_cpu(__setup_broadcast_timer, (void *)false, 1);
 	__unregister_cpu_notifier(&cpu_hotplug_notifier);
 
+	for_each_possible_cpu(i) {
+		dev = per_cpu_ptr(intel_idle_cpuidle_devices, i);
+		cpuidle_unregister_device(dev);
+	}
+
 	cpu_notifier_register_done();
 
-	return;
+	cpuidle_unregister_driver(&intel_idle_driver);
+	free_percpu(intel_idle_cpuidle_devices);
 }
 
 module_init(intel_idle_init);

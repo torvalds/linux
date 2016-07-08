@@ -554,7 +554,9 @@ static int __init camellia_aesni_init(void)
 {
 	const char *feature_name;
 
-	if (!cpu_has_avx || !cpu_has_aes || !cpu_has_osxsave) {
+	if (!boot_cpu_has(X86_FEATURE_AVX) ||
+	    !boot_cpu_has(X86_FEATURE_AES) ||
+	    !boot_cpu_has(X86_FEATURE_OSXSAVE)) {
 		pr_info("AVX or AES-NI instructions are not detected.\n");
 		return -ENODEV;
 	}

@@ -317,7 +317,7 @@ void mwifiex_set_trans_start(struct net_device *dev)
 	for (i = 0; i < dev->num_tx_queues; i++)
 		netdev_get_tx_queue(dev, i)->trans_start = jiffies;
 
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 }
 
 /*

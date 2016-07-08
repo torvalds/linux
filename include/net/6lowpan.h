@@ -58,6 +58,9 @@
 #include <net/ipv6.h>
 #include <net/net_namespace.h>
 
+/* special link-layer handling */
+#include <net/mac802154.h>
+
 #define EUI64_ADDR_LEN		8
 
 #define LOWPAN_NHC_MAX_ID_LEN	1
@@ -93,7 +96,7 @@ static inline bool lowpan_is_iphc(u8 dispatch)
 }
 
 #define LOWPAN_PRIV_SIZE(llpriv_size)	\
-	(sizeof(struct lowpan_priv) + llpriv_size)
+	(sizeof(struct lowpan_dev) + llpriv_size)
 
 enum lowpan_lltypes {
 	LOWPAN_LLTYPE_BTLE,
@@ -129,7 +132,7 @@ lowpan_iphc_ctx_is_compression(const struct lowpan_iphc_ctx *ctx)
 	return test_bit(LOWPAN_IPHC_CTX_FLAG_COMPRESSION, &ctx->flags);
 }
 
-struct lowpan_priv {
+struct lowpan_dev {
 	enum lowpan_lltypes lltype;
 	struct dentry *iface_debugfs;
 	struct lowpan_iphc_ctx_table ctx;
@@ -139,9 +142,21 @@ struct lowpan_priv {
 };
 
 static inline
-struct lowpan_priv *lowpan_priv(const struct net_device *dev)
+struct lowpan_dev *lowpan_dev(const struct net_device *dev)
 {
 	return netdev_priv(dev);
+}
+
+/* private device info */
+struct lowpan_802154_dev {
+	struct net_device	*wdev; /* wpan device ptr */
+	u16			fragment_tag;
+};
+
+static inline struct
+lowpan_802154_dev *lowpan_802154_dev(const struct net_device *dev)
+{
+	return (struct lowpan_802154_dev *)lowpan_dev(dev)->priv;
 }
 
 struct lowpan_802154_cb {
@@ -155,6 +170,22 @@ struct lowpan_802154_cb *lowpan_802154_cb(const struct sk_buff *skb)
 {
 	BUILD_BUG_ON(sizeof(struct lowpan_802154_cb) > sizeof(skb->cb));
 	return (struct lowpan_802154_cb *)skb->cb;
+}
+
+static inline void lowpan_iphc_uncompress_eui64_lladdr(struct in6_addr *ipaddr,
+						       const void *lladdr)
+{
+	/* fe:80::XXXX:XXXX:XXXX:XXXX
+	 *        \_________________/
+	 *              hwaddr
+	 */
+	ipaddr->s6_addr[0] = 0xFE;
+	ipaddr->s6_addr[1] = 0x80;
+	memcpy(&ipaddr->s6_addr[8], lladdr, EUI64_ADDR_LEN);
+	/* second bit-flip (Universe/Local)
+	 * is done according RFC2464
+	 */
+	ipaddr->s6_addr[8] ^= 0x02;
 }
 
 #ifdef DEBUG

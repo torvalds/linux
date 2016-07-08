@@ -4,7 +4,7 @@
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2014, Intel Corporation
  * Copyright 2014  Intel Mobile Communications GmbH
- * Copyright 2015  Intel Deutschland GmbH
+ * Copyright 2015 - 2016 Intel Deutschland GmbH
  *
  * This file is GPLv2 as found in COPYING.
  */
@@ -15,6 +15,7 @@
 #include <linux/rtnetlink.h>
 #include "ieee80211_i.h"
 #include "driver-ops.h"
+#include "rate.h"
 
 /* give usermode some time for retries in setting up the TDLS session */
 #define TDLS_PEER_SETUP_TIMEOUT	(15 * HZ)
@@ -46,7 +47,7 @@ static void ieee80211_tdls_add_ext_capab(struct ieee80211_sub_if_data *sdata,
 			   NL80211_FEATURE_TDLS_CHANNEL_SWITCH;
 	bool wider_band = ieee80211_hw_check(&local->hw, TDLS_WIDER_BW) &&
 			  !ifmgd->tdls_wider_bw_prohibited;
-	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
+	enum nl80211_band band = ieee80211_get_sdata_band(sdata);
 	struct ieee80211_supported_band *sband = local->hw.wiphy->bands[band];
 	bool vht = sband && sband->vht_cap.vht_supported;
 	u8 *pos = (void *)skb_put(skb, 10);
@@ -183,7 +184,7 @@ static u16 ieee80211_get_tdls_sta_capab(struct ieee80211_sub_if_data *sdata,
 	if (status_code != 0)
 		return 0;
 
-	if (ieee80211_get_sdata_band(sdata) == IEEE80211_BAND_2GHZ) {
+	if (ieee80211_get_sdata_band(sdata) == NL80211_BAND_2GHZ) {
 		return WLAN_CAPABILITY_SHORT_SLOT_TIME |
 		       WLAN_CAPABILITY_SHORT_PREAMBLE;
 	}
@@ -302,7 +303,7 @@ ieee80211_tdls_chandef_vht_upgrade(struct ieee80211_sub_if_data *sdata,
 	/* IEEE802.11ac-2013 Table E-4 */
 	u16 centers_80mhz[] = { 5210, 5290, 5530, 5610, 5690, 5775 };
 	struct cfg80211_chan_def uc = sta->tdls_chandef;
-	enum nl80211_chan_width max_width = ieee80211_get_sta_bw(&sta->sta);
+	enum nl80211_chan_width max_width = ieee80211_sta_cap_chan_bw(sta);
 	int i;
 
 	/* only support upgrading non-narrow channels up to 80Mhz */
@@ -313,7 +314,7 @@ ieee80211_tdls_chandef_vht_upgrade(struct ieee80211_sub_if_data *sdata,
 	if (max_width > NL80211_CHAN_WIDTH_80)
 		max_width = NL80211_CHAN_WIDTH_80;
 
-	if (uc.width == max_width)
+	if (uc.width >= max_width)
 		return;
 	/*
 	 * Channel usage constrains in the IEEE802.11ac-2013 specification only
@@ -324,6 +325,7 @@ ieee80211_tdls_chandef_vht_upgrade(struct ieee80211_sub_if_data *sdata,
 	for (i = 0; i < ARRAY_SIZE(centers_80mhz); i++)
 		if (abs(uc.chan->center_freq - centers_80mhz[i]) <= 30) {
 			uc.center_freq1 = centers_80mhz[i];
+			uc.center_freq2 = 0;
 			uc.width = NL80211_CHAN_WIDTH_80;
 			break;
 		}
@@ -332,7 +334,7 @@ ieee80211_tdls_chandef_vht_upgrade(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	/* proceed to downgrade the chandef until usable or the same */
-	while (uc.width > max_width &&
+	while (uc.width > max_width ||
 	       !cfg80211_reg_can_beacon_relax(sdata->local->hw.wiphy, &uc,
 					      sdata->wdev.iftype))
 		ieee80211_chandef_downgrade(&uc);
@@ -355,7 +357,7 @@ ieee80211_tdls_add_setup_start_ies(struct ieee80211_sub_if_data *sdata,
 				   u8 action_code, bool initiator,
 				   const u8 *extra_ies, size_t extra_ies_len)
 {
-	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
+	enum nl80211_band band = ieee80211_get_sdata_band(sdata);
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_sta_ht_cap ht_cap;
@@ -542,7 +544,7 @@ ieee80211_tdls_add_setup_cfm_ies(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	size_t offset = 0, noffset;
 	struct sta_info *sta, *ap_sta;
-	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
+	enum nl80211_band band = ieee80211_get_sdata_band(sdata);
 	u8 *pos;
 
 	mutex_lock(&local->sta_mtx);
@@ -609,7 +611,7 @@ ieee80211_tdls_add_setup_cfm_ies(struct ieee80211_sub_if_data *sdata,
 	ieee80211_tdls_add_link_ie(sdata, skb, peer, initiator);
 
 	/* only include VHT-operation if not on the 2.4GHz band */
-	if (band != IEEE80211_BAND_2GHZ && sta->sta.vht_cap.vht_supported) {
+	if (band != NL80211_BAND_2GHZ && sta->sta.vht_cap.vht_supported) {
 		/*
 		 * if both peers support WIDER_BW, we can expand the chandef to
 		 * a wider compatible one, up to 80MHz
@@ -1242,18 +1244,44 @@ int ieee80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *dev,
 	return ret;
 }
 
-static void iee80211_tdls_recalc_chanctx(struct ieee80211_sub_if_data *sdata)
+static void iee80211_tdls_recalc_chanctx(struct ieee80211_sub_if_data *sdata,
+					 struct sta_info *sta)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_chanctx_conf *conf;
 	struct ieee80211_chanctx *ctx;
+	enum nl80211_chan_width width;
+	struct ieee80211_supported_band *sband;
 
 	mutex_lock(&local->chanctx_mtx);
 	conf = rcu_dereference_protected(sdata->vif.chanctx_conf,
 					 lockdep_is_held(&local->chanctx_mtx));
 	if (conf) {
+		width = conf->def.width;
+		sband = local->hw.wiphy->bands[conf->def.chan->band];
 		ctx = container_of(conf, struct ieee80211_chanctx, conf);
 		ieee80211_recalc_chanctx_chantype(local, ctx);
+
+		/* if width changed and a peer is given, update its BW */
+		if (width != conf->def.width && sta &&
+		    test_sta_flag(sta, WLAN_STA_TDLS_WIDER_BW)) {
+			enum ieee80211_sta_rx_bandwidth bw;
+
+			bw = ieee80211_chan_width_to_rx_bw(conf->def.width);
+			bw = min(bw, ieee80211_sta_cap_rx_bw(sta));
+			if (bw != sta->sta.bandwidth) {
+				sta->sta.bandwidth = bw;
+				rate_control_rate_update(local, sband, sta,
+							 IEEE80211_RC_BW_CHANGED);
+				/*
+				 * if a TDLS peer BW was updated, we need to
+				 * recalc the chandef width again, to get the
+				 * correct chanctx min_def
+				 */
+				ieee80211_recalc_chanctx_chantype(local, ctx);
+			}
+		}
+
 	}
 	mutex_unlock(&local->chanctx_mtx);
 }
@@ -1350,8 +1378,6 @@ int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 			break;
 		}
 
-		iee80211_tdls_recalc_chanctx(sdata);
-
 		mutex_lock(&local->sta_mtx);
 		sta = sta_info_get(sdata, peer);
 		if (!sta) {
@@ -1360,6 +1386,7 @@ int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 			break;
 		}
 
+		iee80211_tdls_recalc_chanctx(sdata, sta);
 		iee80211_tdls_recalc_ht_protection(sdata, sta);
 
 		set_sta_flag(sta, WLAN_STA_TDLS_PEER_AUTH);
@@ -1390,7 +1417,7 @@ int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 		iee80211_tdls_recalc_ht_protection(sdata, NULL);
 		mutex_unlock(&local->sta_mtx);
 
-		iee80211_tdls_recalc_chanctx(sdata);
+		iee80211_tdls_recalc_chanctx(sdata, NULL);
 		break;
 	default:
 		ret = -ENOTSUPP;
@@ -1746,7 +1773,7 @@ ieee80211_process_tdls_channel_switch_req(struct ieee80211_sub_if_data *sdata,
 	u8 target_channel, oper_class;
 	bool local_initiator;
 	struct sta_info *sta;
-	enum ieee80211_band band;
+	enum nl80211_band band;
 	struct ieee80211_tdls_data *tf = (void *)skb->data;
 	struct ieee80211_rx_status *rx_status = IEEE80211_SKB_RXCB(skb);
 	int baselen = offsetof(typeof(*tf), u.chan_switch_req.variable);
@@ -1778,10 +1805,10 @@ ieee80211_process_tdls_channel_switch_req(struct ieee80211_sub_if_data *sdata,
 	if ((oper_class == 112 || oper_class == 2 || oper_class == 3 ||
 	     oper_class == 4 || oper_class == 5 || oper_class == 6) &&
 	     target_channel < 14)
-		band = IEEE80211_BAND_5GHZ;
+		band = NL80211_BAND_5GHZ;
 	else
-		band = target_channel < 14 ? IEEE80211_BAND_2GHZ :
-					     IEEE80211_BAND_5GHZ;
+		band = target_channel < 14 ? NL80211_BAND_2GHZ :
+					     NL80211_BAND_5GHZ;
 
 	freq = ieee80211_channel_to_frequency(target_channel, band);
 	if (freq == 0) {

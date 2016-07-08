@@ -340,8 +340,6 @@ static int bxt_get_cd(struct mmc_host *mmc)
 	if (!gpio_cd)
 		return 0;
 
-	pm_runtime_get_sync(mmc->parent);
-
 	spin_lock_irqsave(&host->lock, flags);
 
 	if (host->flags & SDHCI_DEVICE_DEAD)
@@ -351,9 +349,6 @@ static int bxt_get_cd(struct mmc_host *mmc)
 out:
 	spin_unlock_irqrestore(&host->lock, flags);
 
-	pm_runtime_mark_last_busy(mmc->parent);
-	pm_runtime_put_autosuspend(mmc->parent);
-
 	return ret;
 }
 
@@ -361,7 +356,6 @@ static int byt_emmc_probe_slot(struct sdhci_pci_slot *slot)
 {
 	slot->host->mmc->caps |= MMC_CAP_8_BIT_DATA | MMC_CAP_NONREMOVABLE |
 				 MMC_CAP_HW_RESET | MMC_CAP_1_8V_DDR |
-				 MMC_CAP_BUS_WIDTH_TEST |
 				 MMC_CAP_WAIT_WHILE_BUSY;
 	slot->host->mmc->caps2 |= MMC_CAP2_HC_ERASE_SZ;
 	slot->hw_reset = sdhci_pci_int_hw_reset;
@@ -377,21 +371,22 @@ static int byt_emmc_probe_slot(struct sdhci_pci_slot *slot)
 static int byt_sdio_probe_slot(struct sdhci_pci_slot *slot)
 {
 	slot->host->mmc->caps |= MMC_CAP_POWER_OFF_CARD | MMC_CAP_NONREMOVABLE |
-				 MMC_CAP_BUS_WIDTH_TEST |
 				 MMC_CAP_WAIT_WHILE_BUSY;
 	return 0;
 }
 
 static int byt_sd_probe_slot(struct sdhci_pci_slot *slot)
 {
-	slot->host->mmc->caps |= MMC_CAP_BUS_WIDTH_TEST |
-				 MMC_CAP_WAIT_WHILE_BUSY;
+	slot->host->mmc->caps |= MMC_CAP_WAIT_WHILE_BUSY;
 	slot->cd_con_id = NULL;
 	slot->cd_idx = 0;
 	slot->cd_override_level = true;
 	if (slot->chip->pdev->device == PCI_DEVICE_ID_INTEL_BXT_SD ||
-	    slot->chip->pdev->device == PCI_DEVICE_ID_INTEL_APL_SD)
+	    slot->chip->pdev->device == PCI_DEVICE_ID_INTEL_BXTM_SD ||
+	    slot->chip->pdev->device == PCI_DEVICE_ID_INTEL_APL_SD) {
 		slot->host->mmc_host_ops.get_cd = bxt_get_cd;
+		slot->host->mmc->caps |= MMC_CAP_AGGRESSIVE_PM;
+	}
 
 	return 0;
 }
@@ -1166,6 +1161,30 @@ static const struct pci_device_id pci_ids[] = {
 	{
 		.vendor		= PCI_VENDOR_ID_INTEL,
 		.device		= PCI_DEVICE_ID_INTEL_BXT_SD,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_intel_byt_sd,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_BXTM_EMMC,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_intel_byt_emmc,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_BXTM_SDIO,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_intel_byt_sdio,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_BXTM_SD,
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
 		.driver_data	= (kernel_ulong_t)&sdhci_intel_byt_sd,

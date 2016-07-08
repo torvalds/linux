@@ -962,9 +962,7 @@ static void __init setup_numa_mapping(void)
 		cpumask_set_cpu(best_cpu, &node_2_cpu_mask[node]);
 		cpu_2_node[best_cpu] = node;
 		cpumask_clear_cpu(best_cpu, &unbound_cpus);
-		node = next_node(node, default_nodes);
-		if (node == MAX_NUMNODES)
-			node = first_node(default_nodes);
+		node = next_node_in(node, default_nodes);
 	}
 
 	/* Print out node assignments and set defaults for disabled cpus */

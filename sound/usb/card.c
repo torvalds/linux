@@ -66,7 +66,6 @@
 #include "format.h"
 #include "power.h"
 #include "stream.h"
-#include "media.h"
 
 MODULE_AUTHOR("Takashi Iwai <tiwai@suse.de>");
 MODULE_DESCRIPTION("USB Audio");
@@ -351,6 +350,7 @@ static int snd_usb_audio_create(struct usb_interface *intf,
 	case USB_SPEED_HIGH:
 	case USB_SPEED_WIRELESS:
 	case USB_SPEED_SUPER:
+	case USB_SPEED_SUPER_PLUS:
 		break;
 	default:
 		dev_err(&dev->dev, "unknown device speed %d\n", snd_usb_get_speed(dev));
@@ -450,6 +450,9 @@ static int snd_usb_audio_create(struct usb_interface *intf,
 		break;
 	case USB_SPEED_SUPER:
 		strlcat(card->longname, ", super speed", sizeof(card->longname));
+		break;
+	case USB_SPEED_SUPER_PLUS:
+		strlcat(card->longname, ", super speed plus", sizeof(card->longname));
 		break;
 	default:
 		break;
@@ -612,11 +615,6 @@ static int usb_audio_probe(struct usb_interface *intf,
 	if (err < 0)
 		goto __error;
 
-	if (quirk->media_device) {
-		/* don't want to fail when media_snd_device_create() fails */
-		media_snd_device_create(chip, intf);
-	}
-
 	usb_chip[chip->index] = chip;
 	chip->num_interfaces++;
 	usb_set_intfdata(intf, chip);
@@ -673,14 +671,6 @@ static void usb_audio_disconnect(struct usb_interface *intf)
 		list_for_each(p, &chip->midi_list) {
 			snd_usbmidi_disconnect(p);
 		}
-		/*
-		 * Nice to check quirk && quirk->media_device
-		 * need some special handlings. Doesn't look like
-		 * we have access to quirk here
-		 * Acceses mixer_list
-		*/
-		media_snd_device_delete(chip);
-
 		/* release mixer resources */
 		list_for_each_entry(mixer, &chip->mixer_list, list) {
 			snd_usb_mixer_disconnect(mixer);

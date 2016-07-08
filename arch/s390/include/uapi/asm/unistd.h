@@ -311,7 +311,9 @@
 #define __NR_shutdown		373
 #define __NR_mlock2		374
 #define __NR_copy_file_range	375
-#define NR_syscalls 376
+#define __NR_preadv2		376
+#define __NR_pwritev2		377
+#define NR_syscalls 378
 
 /* 
  * There are some system calls that are not present on 64 bit, some

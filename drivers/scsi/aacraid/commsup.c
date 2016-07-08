@@ -637,10 +637,10 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 					}
 					return -EFAULT;
 				}
-				/* We used to udelay() here but that absorbed
-				 * a CPU when a timeout occured. Not very
-				 * useful. */
-				cpu_relax();
+				/*
+				 * Allow other processes / CPUS to use core
+				 */
+				schedule();
 			}
 		} else if (down_interruptible(&fibptr->event_wait)) {
 			/* Do nothing ... satisfy
@@ -901,6 +901,31 @@ void aac_printf(struct aac_dev *dev, u32 val)
 	memset(cp, 0, 256);
 }
 
+static inline int aac_aif_data(struct aac_aifcmd *aifcmd, uint32_t index)
+{
+	return le32_to_cpu(((__le32 *)aifcmd->data)[index]);
+}
+
+
+static void aac_handle_aif_bu(struct aac_dev *dev, struct aac_aifcmd *aifcmd)
+{
+	switch (aac_aif_data(aifcmd, 1)) {
+	case AifBuCacheDataLoss:
+		if (aac_aif_data(aifcmd, 2))
+			dev_info(&dev->pdev->dev, "Backup unit had cache data loss - [%d]\n",
+			aac_aif_data(aifcmd, 2));
+		else
+			dev_info(&dev->pdev->dev, "Backup Unit had cache data loss\n");
+		break;
+	case AifBuCacheDataRecover:
+		if (aac_aif_data(aifcmd, 2))
+			dev_info(&dev->pdev->dev, "DDR cache data recovered successfully - [%d]\n",
+			aac_aif_data(aifcmd, 2));
+		else
+			dev_info(&dev->pdev->dev, "DDR cache data recovered successfully\n");
+		break;
+	}
+}
 
 /**
  *	aac_handle_aif		-	Handle a message from the firmware
@@ -1154,6 +1179,8 @@ static void aac_handle_aif(struct aac_dev * dev, struct fib * fibptr)
 				  ADD : DELETE;
 				break;
 			}
+			case AifBuManagerEvent:
+				aac_handle_aif_bu(dev, aifcmd);
 			break;
 		}
 
@@ -1996,6 +2023,10 @@ int aac_command_thread(void *data)
 		if (difference <= 0)
 			difference = 1;
 		set_current_state(TASK_INTERRUPTIBLE);
+
+		if (kthread_should_stop())
+			break;
+
 		schedule_timeout(difference);
 
 		if (kthread_should_stop())

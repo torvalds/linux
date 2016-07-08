@@ -53,7 +53,7 @@ struct amdgpu_hpd;
 
 #define AMDGPU_MAX_HPD_PINS 6
 #define AMDGPU_MAX_CRTCS 6
-#define AMDGPU_MAX_AFMT_BLOCKS 7
+#define AMDGPU_MAX_AFMT_BLOCKS 9
 
 enum amdgpu_rmx_type {
 	RMX_OFF,
@@ -283,7 +283,7 @@ struct amdgpu_display_funcs {
 	u32 (*hpd_get_gpio_reg)(struct amdgpu_device *adev);
 	/* pageflipping */
 	void (*page_flip)(struct amdgpu_device *adev,
-			 int crtc_id, u64 crtc_base);
+			  int crtc_id, u64 crtc_base, bool async);
 	int (*page_flip_get_scanoutpos)(struct amdgpu_device *adev, int crtc,
 					u32 *vbl, u32 *position);
 	/* display topology setup */
@@ -309,8 +309,8 @@ struct amdgpu_mode_info {
 	struct atom_context *atom_context;
 	struct card_info *atom_card_info;
 	bool mode_config_initialized;
-	struct amdgpu_crtc *crtcs[6];
-	struct amdgpu_afmt *afmt[7];
+	struct amdgpu_crtc *crtcs[AMDGPU_MAX_CRTCS];
+	struct amdgpu_afmt *afmt[AMDGPU_MAX_AFMT_BLOCKS];
 	/* DVI-I properties */
 	struct drm_property *coherent_mode_property;
 	/* DAC enable load detect */
@@ -530,7 +530,7 @@ struct amdgpu_framebuffer {
 				((em) == ATOM_ENCODER_MODE_DP_MST))
 
 /* Driver internal use only flags of amdgpu_get_crtc_scanoutpos() */
-#define USE_REAL_VBLANKSTART 		(1 << 30)
+#define USE_REAL_VBLANKSTART		(1 << 30)
 #define GET_DISTANCE_TO_VBLANKSTART	(1 << 31)
 
 void amdgpu_link_encoder_connector(struct drm_device *dev);

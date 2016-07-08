@@ -260,14 +260,31 @@
 
 #define ACPI_IS_MISALIGNED(value)           (((acpi_size) value) & (sizeof(acpi_size)-1))
 
+/* Generic (power-of-two) rounding */
+
+#define ACPI_IS_ALIGNED(a, s)               (((a) & ((s) - 1)) == 0)
+#define ACPI_IS_POWER_OF_TWO(a)             ACPI_IS_ALIGNED(a, a)
+
 /*
  * Bitmask creation
  * Bit positions start at zero.
  * MASK_BITS_ABOVE creates a mask starting AT the position and above
  * MASK_BITS_BELOW creates a mask starting one bit BELOW the position
+ * MASK_BITS_ABOVE/BELOW accpets a bit offset to create a mask
+ * MASK_BITS_ABOVE/BELOW_32/64 accpets a bit width to create a mask
+ * Note: The ACPI_INTEGER_BIT_SIZE check is used to bypass compiler
+ * differences with the shift operator
  */
 #define ACPI_MASK_BITS_ABOVE(position)      (~((ACPI_UINT64_MAX) << ((u32) (position))))
 #define ACPI_MASK_BITS_BELOW(position)      ((ACPI_UINT64_MAX) << ((u32) (position)))
+#define ACPI_MASK_BITS_ABOVE_32(width)      ((u32) ACPI_MASK_BITS_ABOVE(width))
+#define ACPI_MASK_BITS_BELOW_32(width)      ((u32) ACPI_MASK_BITS_BELOW(width))
+#define ACPI_MASK_BITS_ABOVE_64(width)      ((width) == ACPI_INTEGER_BIT_SIZE ? \
+												ACPI_UINT64_MAX : \
+												ACPI_MASK_BITS_ABOVE(width))
+#define ACPI_MASK_BITS_BELOW_64(width)      ((width) == ACPI_INTEGER_BIT_SIZE ? \
+												(u64) 0 : \
+												ACPI_MASK_BITS_BELOW(width))
 
 /* Bitfields within ACPI registers */
 
@@ -283,10 +300,10 @@
 /* Generic bitfield macros and masks */
 
 #define ACPI_GET_BITS(source_ptr, position, mask) \
-	((*source_ptr >> position) & mask)
+	((*(source_ptr) >> (position)) & (mask))
 
 #define ACPI_SET_BITS(target_ptr, position, mask, value) \
-	(*target_ptr |= ((value & mask) << position))
+	(*(target_ptr) |= (((value) & (mask)) << (position)))
 
 #define ACPI_1BIT_MASK      0x00000001
 #define ACPI_2BIT_MASK      0x00000003

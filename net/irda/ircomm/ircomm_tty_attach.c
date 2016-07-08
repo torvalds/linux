@@ -968,7 +968,7 @@ static int ircomm_tty_state_ready(struct ircomm_tty_cb *self,
 		ircomm_tty_next_state(self, IRCOMM_TTY_SEARCH);
 		ircomm_tty_start_watchdog_timer(self, 3*HZ);
 
-		if (self->port.flags & ASYNC_CHECK_CD) {
+		if (tty_port_check_carrier(&self->port)) {
 			/* Drop carrier */
 			self->settings.dce = IRCOMM_DELTA_CD;
 			ircomm_tty_check_modem_status(self);

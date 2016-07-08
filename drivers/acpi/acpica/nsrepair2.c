@@ -54,9 +54,9 @@ ACPI_MODULE_NAME("nsrepair2")
  * be repaired on a per-name basis.
  */
 typedef
-acpi_status(*acpi_repair_function) (struct acpi_evaluate_info * info,
-				    union acpi_operand_object
-				    **return_object_ptr);
+acpi_status (*acpi_repair_function) (struct acpi_evaluate_info * info,
+				     union acpi_operand_object **
+				     return_object_ptr);
 
 typedef struct acpi_repair_info {
 	char name[ACPI_NAME_SIZE];

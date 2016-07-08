@@ -240,9 +240,6 @@ static irqreturn_t mxc_rtc_interrupt(int irq, void *dev_id)
 		mxc_rtc_irq_enable(&pdev->dev, RTC_ALM_BIT, 0);
 	}
 
-	if (status & RTC_1HZ_BIT)
-		events |= (RTC_UF | RTC_IRQF);
-
 	if (status & PIT_ALL_ON)
 		events |= (RTC_PF | RTC_IRQF);
 

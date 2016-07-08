@@ -69,6 +69,7 @@ static int __net_init tipc_init_net(struct net *net)
 	if (err)
 		goto out_nametbl;
 
+	INIT_LIST_HEAD(&tn->dist_queue);
 	err = tipc_topsrv_start(net);
 	if (err)
 		goto out_subscr;
@@ -111,11 +112,9 @@ static int __init tipc_init(void)
 
 	pr_info("Activated (version " TIPC_MOD_VER ")\n");
 
-	sysctl_tipc_rmem[0] = TIPC_CONN_OVERLOAD_LIMIT >> 4 <<
-			      TIPC_LOW_IMPORTANCE;
-	sysctl_tipc_rmem[1] = TIPC_CONN_OVERLOAD_LIMIT >> 4 <<
-			      TIPC_CRITICAL_IMPORTANCE;
-	sysctl_tipc_rmem[2] = TIPC_CONN_OVERLOAD_LIMIT;
+	sysctl_tipc_rmem[0] = RCVBUF_MIN;
+	sysctl_tipc_rmem[1] = RCVBUF_DEF;
+	sysctl_tipc_rmem[2] = RCVBUF_MAX;
 
 	err = tipc_netlink_start();
 	if (err)

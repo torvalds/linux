@@ -2,7 +2,7 @@
  * max77693.c - mfd core driver for the MAX 77693
  *
  * Copyright (C) 2012 Samsung Electronics
- * SangYoung Son <hello.son@smasung.com>
+ * SangYoung Son <hello.son@samsung.com>
  *
  * This program is not provided / owned by Maxim Integrated Products.
  *
@@ -368,6 +368,7 @@ static const struct of_device_id max77693_dt_match[] = {
 	{ .compatible = "maxim,max77693" },
 	{},
 };
+MODULE_DEVICE_TABLE(of, max77693_dt_match);
 #endif
 
 static struct i2c_driver max77693_i2c_driver = {
@@ -381,18 +382,7 @@ static struct i2c_driver max77693_i2c_driver = {
 	.id_table = max77693_i2c_id,
 };
 
-static int __init max77693_i2c_init(void)
-{
-	return i2c_add_driver(&max77693_i2c_driver);
-}
-/* init early so consumer devices can complete system boot */
-subsys_initcall(max77693_i2c_init);
-
-static void __exit max77693_i2c_exit(void)
-{
-	i2c_del_driver(&max77693_i2c_driver);
-}
-module_exit(max77693_i2c_exit);
+module_i2c_driver(max77693_i2c_driver);
 
 MODULE_DESCRIPTION("MAXIM 77693 multi-function core driver");
 MODULE_AUTHOR("SangYoung, Son <hello.son@samsung.com>");

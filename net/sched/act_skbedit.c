@@ -69,7 +69,7 @@ static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
 	struct tcf_skbedit *d;
 	u32 flags = 0, *priority = NULL, *mark = NULL;
 	u16 *queue_mapping = NULL;
-	int ret = 0, err;
+	int ret = 0, err, exists = 0;
 
 	if (nla == NULL)
 		return -EINVAL;
@@ -96,12 +96,18 @@ static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
 		mark = nla_data(tb[TCA_SKBEDIT_MARK]);
 	}
 
-	if (!flags)
-		return -EINVAL;
-
 	parm = nla_data(tb[TCA_SKBEDIT_PARMS]);
 
-	if (!tcf_hash_check(tn, parm->index, a, bind)) {
+	exists = tcf_hash_check(tn, parm->index, a, bind);
+	if (exists && bind)
+		return 0;
+
+	if (!flags) {
+		tcf_hash_release(a, bind);
+		return -EINVAL;
+	}
+
+	if (!exists) {
 		ret = tcf_hash_create(tn, parm->index, est, a,
 				      sizeof(*d), bind, false);
 		if (ret)
@@ -111,8 +117,6 @@ static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
 		ret = ACT_P_CREATED;
 	} else {
 		d = to_skbedit(a);
-		if (bind)
-			return 0;
 		tcf_hash_release(a, bind);
 		if (!ovr)
 			return -EEXIST;
@@ -167,7 +171,7 @@ static int tcf_skbedit_dump(struct sk_buff *skb, struct tc_action *a,
 	t.install = jiffies_to_clock_t(jiffies - d->tcf_tm.install);
 	t.lastuse = jiffies_to_clock_t(jiffies - d->tcf_tm.lastuse);
 	t.expires = jiffies_to_clock_t(d->tcf_tm.expires);
-	if (nla_put(skb, TCA_SKBEDIT_TM, sizeof(t), &t))
+	if (nla_put_64bit(skb, TCA_SKBEDIT_TM, sizeof(t), &t, TCA_SKBEDIT_PAD))
 		goto nla_put_failure;
 	return skb->len;
 

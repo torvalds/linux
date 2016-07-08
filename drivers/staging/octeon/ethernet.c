@@ -635,7 +635,7 @@ static struct device_node *cvm_oct_of_get_child(
 }
 
 static struct device_node *cvm_oct_node_for_port(struct device_node *pip,
-							int interface, int port)
+						 int interface, int port)
 {
 	struct device_node *ni, *np;
 
@@ -815,7 +815,7 @@ static int cvm_oct_probe(struct platform_device *pdev)
 				free_netdev(dev);
 			} else if (register_netdev(dev) < 0) {
 				pr_err("Failed to register ethernet device for interface %d, port %d\n",
-					 interface, priv->port);
+				       interface, priv->port);
 				free_netdev(dev);
 			} else {
 				cvm_oct_device[priv->port] = dev;

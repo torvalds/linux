@@ -37,46 +37,41 @@
 		#size-cells = <1>;
 
 		/* External clocks */
-		extal_clk: extal_clk {
+		extal_clk: extal {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
 			/* If clk present, value must be set by board */
 			clock-frequency = <0>;
-			clock-output-names = "extal";
 		};
 
-		usb_x1_clk: usb_x1_clk {
+		usb_x1_clk: usb_x1 {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
 			/* If clk present, value must be set by board */
 			clock-frequency = <0>;
-			clock-output-names = "usb_x1";
 		};
 
 		/* Fixed factor clocks */
-		b_clk: b_clk {
+		b_clk: b {
 			#clock-cells = <0>;
 			compatible = "fixed-factor-clock";
 			clocks = <&cpg_clocks R7S72100_CLK_PLL>;
 			clock-mult = <1>;
 			clock-div = <3>;
-			clock-output-names = "b";
 		};
-		p1_clk: p1_clk {
+		p1_clk: p1 {
 			#clock-cells = <0>;
 			compatible = "fixed-factor-clock";
 			clocks = <&cpg_clocks R7S72100_CLK_PLL>;
 			clock-mult = <1>;
 			clock-div = <6>;
-			clock-output-names = "p1";
 		};
-		p0_clk: p0_clk {
+		p0_clk: p0 {
 			#clock-cells = <0>;
 			compatible = "fixed-factor-clock";
 			clocks = <&cpg_clocks R7S72100_CLK_PLL>;
 			clock-mult = <1>;
 			clock-div = <12>;
-			clock-output-names = "p0";
 		};
 
 		/* Special CPG clocks */

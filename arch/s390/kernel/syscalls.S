@@ -384,3 +384,5 @@ SYSCALL(sys_recvmsg,compat_sys_recvmsg)
 SYSCALL(sys_shutdown,sys_shutdown)
 SYSCALL(sys_mlock2,compat_sys_mlock2)
 SYSCALL(sys_copy_file_range,compat_sys_copy_file_range) /* 375 */
+SYSCALL(sys_preadv2,compat_sys_preadv2)
+SYSCALL(sys_pwritev2,compat_sys_pwritev2)

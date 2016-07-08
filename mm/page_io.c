@@ -252,7 +252,7 @@ out:
 
 static sector_t swap_page_sector(struct page *page)
 {
-	return (sector_t)__page_file_index(page) << (PAGE_CACHE_SHIFT - 9);
+	return (sector_t)__page_file_index(page) << (PAGE_SHIFT - 9);
 }
 
 int __swap_writepage(struct page *page, struct writeback_control *wbc,
@@ -279,7 +279,7 @@ int __swap_writepage(struct page *page, struct writeback_control *wbc,
 
 		set_page_writeback(page);
 		unlock_page(page);
-		ret = mapping->a_ops->direct_IO(&kiocb, &from, kiocb.ki_pos);
+		ret = mapping->a_ops->direct_IO(&kiocb, &from);
 		if (ret == PAGE_SIZE) {
 			count_vm_event(PSWPOUT);
 			ret = 0;
@@ -353,7 +353,11 @@ int swap_readpage(struct page *page)
 
 	ret = bdev_read_page(sis->bdev, swap_page_sector(page), page);
 	if (!ret) {
-		swap_slot_free_notify(page);
+		if (trylock_page(page)) {
+			swap_slot_free_notify(page);
+			unlock_page(page);
+		}
+
 		count_vm_event(PSWPIN);
 		return 0;
 	}

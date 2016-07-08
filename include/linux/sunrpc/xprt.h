@@ -142,6 +142,7 @@ struct rpc_xprt_ops {
 	int		(*bc_setup)(struct rpc_xprt *xprt,
 				    unsigned int min_reqs);
 	int		(*bc_up)(struct svc_serv *serv, struct net *net);
+	size_t		(*bc_maxpayload)(struct rpc_xprt *xprt);
 	void		(*bc_free_rqst)(struct rpc_rqst *rqst);
 	void		(*bc_destroy)(struct rpc_xprt *xprt,
 				      unsigned int max_reqs);
@@ -296,6 +297,7 @@ struct xprt_create {
 	size_t			addrlen;
 	const char		*servername;
 	struct svc_xprt		*bc_xprt;	/* NFSv4.1 backchannel */
+	struct rpc_xprt_switch	*bc_xps;
 	unsigned int		flags;
 };
 

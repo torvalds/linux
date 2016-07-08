@@ -292,10 +292,6 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 	if (pdata.flags & CI_HDRC_SUPPORTS_RUNTIME_PM)
 		data->supports_runtime_pm = true;
 
-	ret = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
-	if (ret)
-		goto err_clk;
-
 	ret = imx_usbmisc_init(data->usbmisc_data);
 	if (ret) {
 		dev_err(&pdev->dev, "usbmisc init failed, ret=%d\n", ret);

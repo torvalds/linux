@@ -351,18 +351,14 @@ static int xvip_graph_parse_one(struct xvip_composite_device *xdev,
 	struct xvip_graph_entity *entity;
 	struct device_node *remote;
 	struct device_node *ep = NULL;
-	struct device_node *next;
 	int ret = 0;
 
 	dev_dbg(xdev->dev, "parsing node %s\n", node->full_name);
 
 	while (1) {
-		next = of_graph_get_next_endpoint(node, ep);
-		if (next == NULL)
+		ep = of_graph_get_next_endpoint(node, ep);
+		if (ep == NULL)
 			break;
-
-		of_node_put(ep);
-		ep = next;
 
 		dev_dbg(xdev->dev, "handling endpoint %s\n", ep->full_name);
 

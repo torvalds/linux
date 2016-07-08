@@ -745,7 +745,7 @@ static void prepare_set(void) __acquires(set_atomicity_lock)
 	wbinvd();
 
 	/* Save value of CR4 and clear Page Global Enable (bit 7) */
-	if (cpu_has_pge) {
+	if (boot_cpu_has(X86_FEATURE_PGE)) {
 		cr4 = __read_cr4();
 		__write_cr4(cr4 & ~X86_CR4_PGE);
 	}
@@ -775,7 +775,7 @@ static void post_set(void) __releases(set_atomicity_lock)
 	write_cr0(read_cr0() & ~X86_CR0_CD);
 
 	/* Restore value of CR4 */
-	if (cpu_has_pge)
+	if (boot_cpu_has(X86_FEATURE_PGE))
 		__write_cr4(cr4);
 	raw_spin_unlock(&set_atomicity_lock);
 }

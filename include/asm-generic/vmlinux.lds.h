@@ -245,7 +245,9 @@
 
 #define INIT_TASK_DATA(align)						\
 	. = ALIGN(align);						\
-	*(.data..init_task)
+	VMLINUX_SYMBOL(__start_init_task) = .;				\
+	*(.data..init_task)						\
+	VMLINUX_SYMBOL(__end_init_task) = .;
 
 /*
  * Read only Data

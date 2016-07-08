@@ -744,11 +744,15 @@ static void acm_tty_flush_chars(struct tty_struct *tty)
 	int err;
 	unsigned long flags;
 
+	if (!cur) /* nothing to do */
+		return;
+
 	acm->putbuffer = NULL;
 	err = usb_autopm_get_interface_async(acm->control);
 	spin_lock_irqsave(&acm->write_lock, flags);
 	if (err < 0) {
 		cur->use = 0;
+		acm->putbuffer = cur;
 		goto out;
 	}
 
@@ -1676,7 +1680,7 @@ static int acm_resume(struct usb_interface *intf)
 	if (--acm->susp_count)
 		goto out;
 
-	if (test_bit(ASYNCB_INITIALIZED, &acm->port.flags)) {
+	if (tty_port_initialized(&acm->port)) {
 		rv = usb_submit_urb(acm->ctrlurb, GFP_ATOMIC);
 
 		for (;;) {
@@ -1706,7 +1710,7 @@ static int acm_reset_resume(struct usb_interface *intf)
 {
 	struct acm *acm = usb_get_intfdata(intf);
 
-	if (test_bit(ASYNCB_INITIALIZED, &acm->port.flags))
+	if (tty_port_initialized(&acm->port))
 		tty_port_tty_hangup(&acm->port, false);
 
 	return acm_resume(intf);

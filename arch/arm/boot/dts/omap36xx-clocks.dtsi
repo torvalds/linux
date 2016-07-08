@@ -8,14 +8,14 @@
  * published by the Free Software Foundation.
  */
 &cm_clocks {
-	dpll4_ck: dpll4_ck {
+	dpll4_ck: dpll4_ck@d00 {
 		#clock-cells = <0>;
 		compatible = "ti,omap3-dpll-per-j-type-clock";
 		clocks = <&sys_ck>, <&sys_ck>;
 		reg = <0x0d00>, <0x0d20>, <0x0d44>, <0x0d30>;
 	};
 
-	dpll4_m5x2_ck: dpll4_m5x2_ck {
+	dpll4_m5x2_ck: dpll4_m5x2_ck@d00 {
 		#clock-cells = <0>;
 		compatible = "ti,hsdiv-gate-clock";
 		clocks = <&dpll4_m5x2_mul_ck>;
@@ -25,7 +25,7 @@
 		ti,set-bit-to-disable;
 	};
 
-	dpll4_m2x2_ck: dpll4_m2x2_ck {
+	dpll4_m2x2_ck: dpll4_m2x2_ck@d00 {
 		#clock-cells = <0>;
 		compatible = "ti,hsdiv-gate-clock";
 		clocks = <&dpll4_m2x2_mul_ck>;
@@ -34,7 +34,7 @@
 		ti,set-bit-to-disable;
 	};
 
-	dpll3_m3x2_ck: dpll3_m3x2_ck {
+	dpll3_m3x2_ck: dpll3_m3x2_ck@d00 {
 		#clock-cells = <0>;
 		compatible = "ti,hsdiv-gate-clock";
 		clocks = <&dpll3_m3x2_mul_ck>;
@@ -43,7 +43,7 @@
 		ti,set-bit-to-disable;
 	};
 
-	dpll4_m3x2_ck: dpll4_m3x2_ck {
+	dpll4_m3x2_ck: dpll4_m3x2_ck@d00 {
 		#clock-cells = <0>;
 		compatible = "ti,hsdiv-gate-clock";
 		clocks = <&dpll4_m3x2_mul_ck>;
@@ -52,7 +52,7 @@
 		ti,set-bit-to-disable;
 	};
 
-	dpll4_m6x2_ck: dpll4_m6x2_ck {
+	dpll4_m6x2_ck: dpll4_m6x2_ck@d00 {
 		#clock-cells = <0>;
 		compatible = "ti,hsdiv-gate-clock";
 		clocks = <&dpll4_m6x2_mul_ck>;
@@ -61,7 +61,7 @@
 		ti,set-bit-to-disable;
 	};
 
-	uart4_fck: uart4_fck {
+	uart4_fck: uart4_fck@1000 {
 		#clock-cells = <0>;
 		compatible = "ti,wait-gate-clock";
 		clocks = <&per_48m_fck>;

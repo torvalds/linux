@@ -64,6 +64,7 @@ struct pnfs_layout_segment {
 	struct list_head pls_lc_list;
 	struct pnfs_layout_range pls_range;
 	atomic_t pls_refcount;
+	u32 pls_seq;
 	unsigned long pls_flags;
 	struct pnfs_layout_hdr *pls_layout;
 	struct work_struct pls_work;
@@ -194,6 +195,7 @@ struct pnfs_layout_hdr {
 	unsigned long		plh_flags;
 	nfs4_stateid		plh_stateid;
 	u32			plh_barrier; /* ignore lower seqids */
+	u32			plh_return_seq;
 	enum pnfs_iomode	plh_return_iomode;
 	loff_t			plh_lwb; /* last write byte for layoutcommit */
 	struct rpc_cred		*plh_lc_cred; /* layoutcommit cred */
@@ -226,7 +228,7 @@ extern void pnfs_unregister_layoutdriver(struct pnfs_layoutdriver_type *);
 extern int nfs4_proc_getdeviceinfo(struct nfs_server *server,
 				   struct pnfs_device *dev,
 				   struct rpc_cred *cred);
-extern struct pnfs_layout_segment* nfs4_proc_layoutget(struct nfs4_layoutget *lgp, gfp_t gfp_flags);
+extern struct pnfs_layout_segment* nfs4_proc_layoutget(struct nfs4_layoutget *lgp, long *timeout, gfp_t gfp_flags);
 extern int nfs4_proc_layoutreturn(struct nfs4_layoutreturn *lrp, bool sync);
 
 /* pnfs.c */
@@ -258,16 +260,14 @@ void pnfs_put_layout_hdr(struct pnfs_layout_hdr *lo);
 void pnfs_set_layout_stateid(struct pnfs_layout_hdr *lo,
 			     const nfs4_stateid *new,
 			     bool update_barrier);
-int pnfs_choose_layoutget_stateid(nfs4_stateid *dst,
-				  struct pnfs_layout_hdr *lo,
-				  const struct pnfs_layout_range *range,
-				  struct nfs4_state *open_state);
 int pnfs_mark_matching_lsegs_invalid(struct pnfs_layout_hdr *lo,
 				struct list_head *tmp_list,
-				const struct pnfs_layout_range *recall_range);
+				const struct pnfs_layout_range *recall_range,
+				u32 seq);
 int pnfs_mark_matching_lsegs_return(struct pnfs_layout_hdr *lo,
 				struct list_head *tmp_list,
-				const struct pnfs_layout_range *recall_range);
+				const struct pnfs_layout_range *recall_range,
+				u32 seq);
 bool pnfs_roc(struct inode *ino);
 void pnfs_roc_release(struct inode *ino);
 void pnfs_roc_set_barrier(struct inode *ino, u32 barrier);
@@ -282,12 +282,13 @@ int _pnfs_return_layout(struct inode *);
 int pnfs_commit_and_return_layout(struct inode *);
 void pnfs_ld_write_done(struct nfs_pgio_header *);
 void pnfs_ld_read_done(struct nfs_pgio_header *);
-int pnfs_read_resend_pnfs(struct nfs_pgio_header *);
+void pnfs_read_resend_pnfs(struct nfs_pgio_header *);
 struct pnfs_layout_segment *pnfs_update_layout(struct inode *ino,
 					       struct nfs_open_context *ctx,
 					       loff_t pos,
 					       u64 count,
 					       enum pnfs_iomode iomode,
+					       bool strict_iomode,
 					       gfp_t gfp_flags);
 void pnfs_clear_layoutreturn_waitbit(struct pnfs_layout_hdr *lo);
 

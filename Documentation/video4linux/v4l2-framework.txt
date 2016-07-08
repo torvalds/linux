@@ -35,7 +35,7 @@ need and this same framework should make it much easier to refactor
 common code into utility functions shared by all drivers.
 
 A good example to look at as a reference is the v4l2-pci-skeleton.c
-source that is available in this directory. It is a skeleton driver for
+source that is available in samples/v4l/. It is a skeleton driver for
 a PCI capture card, and demonstrates how to use the V4L2 driver
 framework. It can be used as a template for real PCI video capture driver.
 

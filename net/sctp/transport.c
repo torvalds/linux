@@ -183,7 +183,7 @@ static void sctp_transport_destroy(struct sctp_transport *transport)
 /* Start T3_rtx timer if it is not already running and update the heartbeat
  * timer.  This routine is called every time a DATA chunk is sent.
  */
-void sctp_transport_reset_timers(struct sctp_transport *transport)
+void sctp_transport_reset_t3_rtx(struct sctp_transport *transport)
 {
 	/* RFC 2960 6.3.2 Retransmission Timer Rules
 	 *
@@ -197,11 +197,18 @@ void sctp_transport_reset_timers(struct sctp_transport *transport)
 		if (!mod_timer(&transport->T3_rtx_timer,
 			       jiffies + transport->rto))
 			sctp_transport_hold(transport);
+}
+
+void sctp_transport_reset_hb_timer(struct sctp_transport *transport)
+{
+	unsigned long expires;
 
 	/* When a data chunk is sent, reset the heartbeat interval.  */
-	if (!mod_timer(&transport->hb_timer,
-		       sctp_transport_timeout(transport)))
-	    sctp_transport_hold(transport);
+	expires = jiffies + sctp_transport_timeout(transport);
+	if (time_before(transport->hb_timer.expires, expires) &&
+	    !mod_timer(&transport->hb_timer,
+		       expires + prandom_u32_max(transport->rto)))
+		sctp_transport_hold(transport);
 }
 
 /* This transport has been assigned to an association.
@@ -595,13 +602,13 @@ void sctp_transport_burst_reset(struct sctp_transport *t)
 unsigned long sctp_transport_timeout(struct sctp_transport *trans)
 {
 	/* RTO + timer slack +/- 50% of RTO */
-	unsigned long timeout = (trans->rto >> 1) + prandom_u32_max(trans->rto);
+	unsigned long timeout = trans->rto >> 1;
 
 	if (trans->state != SCTP_UNCONFIRMED &&
 	    trans->state != SCTP_PF)
 		timeout += trans->hbinterval;
 
-	return timeout + jiffies;
+	return timeout;
 }
 
 /* Reset transport variables to their initial values */

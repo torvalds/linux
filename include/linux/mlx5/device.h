@@ -59,6 +59,7 @@
 #define MLX5_FLD_SZ_BYTES(typ, fld) (__mlx5_bit_sz(typ, fld) / 8)
 #define MLX5_ST_SZ_BYTES(typ) (sizeof(struct mlx5_ifc_##typ##_bits) / 8)
 #define MLX5_ST_SZ_DW(typ) (sizeof(struct mlx5_ifc_##typ##_bits) / 32)
+#define MLX5_ST_SZ_QW(typ) (sizeof(struct mlx5_ifc_##typ##_bits) / 64)
 #define MLX5_UN_SZ_BYTES(typ) (sizeof(union mlx5_ifc_##typ##_bits) / 8)
 #define MLX5_UN_SZ_DW(typ) (sizeof(union mlx5_ifc_##typ##_bits) / 32)
 #define MLX5_BYTE_OFF(typ, fld) (__mlx5_bit_off(typ, fld) / 8)
@@ -392,6 +393,17 @@ enum {
 	MLX5_CAP_OFF_CMDIF_CSUM		= 46,
 };
 
+enum {
+	/*
+	 * Max wqe size for rdma read is 512 bytes, so this
+	 * limits our max_sge_rd as the wqe needs to fit:
+	 * - ctrl segment (16 bytes)
+	 * - rdma segment (16 bytes)
+	 * - scatter elements (16 bytes each)
+	 */
+	MLX5_MAX_SGE_RD	= (512 - 16 - 16) / 16
+};
+
 struct mlx5_inbox_hdr {
 	__be16		opcode;
 	u8		rsvd[4];
@@ -644,7 +656,9 @@ struct mlx5_err_cqe {
 };
 
 struct mlx5_cqe64 {
-	u8		rsvd0[4];
+	u8		outer_l3_tunneled;
+	u8		rsvd0;
+	__be16		wqe_id;
 	u8		lro_tcppsh_abort_dupack;
 	u8		lro_min_ttl;
 	__be16		lro_tcp_win;
@@ -657,7 +671,7 @@ struct mlx5_cqe64 {
 	__be16		slid;
 	__be32		flags_rqpn;
 	u8		hds_ip_ext;
-	u8		l4_hdr_type_etc;
+	u8		l4_l3_hdr_type;
 	__be16		vlan_info;
 	__be32		srqn; /* [31:24]: lro_num_seg, [23:0]: srqn */
 	__be32		imm_inval_pkey;
@@ -671,6 +685,40 @@ struct mlx5_cqe64 {
 	u8		op_own;
 };
 
+struct mlx5_mini_cqe8 {
+	union {
+		__be32 rx_hash_result;
+		struct {
+			__be16 checksum;
+			__be16 rsvd;
+		};
+		struct {
+			__be16 wqe_counter;
+			u8  s_wqe_opcode;
+			u8  reserved;
+		} s_wqe_info;
+	};
+	__be32 byte_cnt;
+};
+
+enum {
+	MLX5_NO_INLINE_DATA,
+	MLX5_INLINE_DATA32_SEG,
+	MLX5_INLINE_DATA64_SEG,
+	MLX5_COMPRESSED,
+};
+
+enum {
+	MLX5_CQE_FORMAT_CSUM = 0x1,
+};
+
+#define MLX5_MINI_CQE_ARRAY_SIZE 8
+
+static inline int mlx5_get_cqe_format(struct mlx5_cqe64 *cqe)
+{
+	return (cqe->op_own >> 2) & 0x3;
+}
+
 static inline int get_cqe_lro_tcppsh(struct mlx5_cqe64 *cqe)
 {
 	return (cqe->lro_tcppsh_abort_dupack >> 6) & 1;
@@ -678,12 +726,22 @@ static inline int get_cqe_lro_tcppsh(struct mlx5_cqe64 *cqe)
 
 static inline u8 get_cqe_l4_hdr_type(struct mlx5_cqe64 *cqe)
 {
-	return (cqe->l4_hdr_type_etc >> 4) & 0x7;
+	return (cqe->l4_l3_hdr_type >> 4) & 0x7;
+}
+
+static inline u8 get_cqe_l3_hdr_type(struct mlx5_cqe64 *cqe)
+{
+	return (cqe->l4_l3_hdr_type >> 2) & 0x3;
+}
+
+static inline u8 cqe_is_tunneled(struct mlx5_cqe64 *cqe)
+{
+	return cqe->outer_l3_tunneled & 0x1;
 }
 
 static inline int cqe_has_vlan(struct mlx5_cqe64 *cqe)
 {
-	return !!(cqe->l4_hdr_type_etc & 0x1);
+	return !!(cqe->l4_l3_hdr_type & 0x1);
 }
 
 static inline u64 get_cqe_ts(struct mlx5_cqe64 *cqe)
@@ -694,6 +752,42 @@ static inline u64 get_cqe_ts(struct mlx5_cqe64 *cqe)
 	lo = be32_to_cpu(cqe->timestamp_l);
 
 	return (u64)lo | ((u64)hi << 32);
+}
+
+struct mpwrq_cqe_bc {
+	__be16	filler_consumed_strides;
+	__be16	byte_cnt;
+};
+
+static inline u16 mpwrq_get_cqe_byte_cnt(struct mlx5_cqe64 *cqe)
+{
+	struct mpwrq_cqe_bc *bc = (struct mpwrq_cqe_bc *)&cqe->byte_cnt;
+
+	return be16_to_cpu(bc->byte_cnt);
+}
+
+static inline u16 mpwrq_get_cqe_bc_consumed_strides(struct mpwrq_cqe_bc *bc)
+{
+	return 0x7fff & be16_to_cpu(bc->filler_consumed_strides);
+}
+
+static inline u16 mpwrq_get_cqe_consumed_strides(struct mlx5_cqe64 *cqe)
+{
+	struct mpwrq_cqe_bc *bc = (struct mpwrq_cqe_bc *)&cqe->byte_cnt;
+
+	return mpwrq_get_cqe_bc_consumed_strides(bc);
+}
+
+static inline bool mpwrq_is_filler_cqe(struct mlx5_cqe64 *cqe)
+{
+	struct mpwrq_cqe_bc *bc = (struct mpwrq_cqe_bc *)&cqe->byte_cnt;
+
+	return 0x8000 & be16_to_cpu(bc->filler_consumed_strides);
+}
+
+static inline u16 mpwrq_get_cqe_stride_index(struct mlx5_cqe64 *cqe)
+{
+	return be16_to_cpu(cqe->wqe_counter);
 }
 
 enum {
@@ -1146,8 +1240,6 @@ struct mlx5_destroy_psv_out {
 	u8                      rsvd[8];
 };
 
-#define MLX5_CMD_OP_MAX 0x920
-
 enum {
 	VPORT_STATE_DOWN		= 0x0,
 	VPORT_STATE_UP			= 0x1,
@@ -1275,6 +1367,12 @@ enum mlx5_cap_type {
 #define MLX5_CAP_FLOWTABLE_MAX(mdev, cap) \
 	MLX5_GET(flow_table_nic_cap, mdev->hca_caps_max[MLX5_CAP_FLOW_TABLE], cap)
 
+#define MLX5_CAP_FLOWTABLE_NIC_RX(mdev, cap) \
+	MLX5_CAP_FLOWTABLE(mdev, flow_table_properties_nic_receive.cap)
+
+#define MLX5_CAP_FLOWTABLE_NIC_RX_MAX(mdev, cap) \
+	MLX5_CAP_FLOWTABLE_MAX(mdev, flow_table_properties_nic_receive.cap)
+
 #define MLX5_CAP_ESW_FLOWTABLE(mdev, cap) \
 	MLX5_GET(flow_table_eswitch_cap, \
 		 mdev->hca_caps_cur[MLX5_CAP_ESWITCH_FLOW_TABLE], cap)
@@ -1288,6 +1386,18 @@ enum mlx5_cap_type {
 
 #define MLX5_CAP_ESW_FLOWTABLE_FDB_MAX(mdev, cap) \
 	MLX5_CAP_ESW_FLOWTABLE_MAX(mdev, flow_table_properties_nic_esw_fdb.cap)
+
+#define MLX5_CAP_ESW_EGRESS_ACL(mdev, cap) \
+	MLX5_CAP_ESW_FLOWTABLE(mdev, flow_table_properties_esw_acl_egress.cap)
+
+#define MLX5_CAP_ESW_EGRESS_ACL_MAX(mdev, cap) \
+	MLX5_CAP_ESW_FLOWTABLE_MAX(mdev, flow_table_properties_esw_acl_egress.cap)
+
+#define MLX5_CAP_ESW_INGRESS_ACL(mdev, cap) \
+	MLX5_CAP_ESW_FLOWTABLE(mdev, flow_table_properties_esw_acl_ingress.cap)
+
+#define MLX5_CAP_ESW_INGRESS_ACL_MAX(mdev, cap) \
+	MLX5_CAP_ESW_FLOWTABLE_MAX(mdev, flow_table_properties_esw_acl_ingress.cap)
 
 #define MLX5_CAP_ESW(mdev, cap) \
 	MLX5_GET(e_switch_cap, \
@@ -1331,6 +1441,7 @@ enum {
 	MLX5_ETHERNET_EXTENDED_COUNTERS_GROUP = 0x5,
 	MLX5_PER_PRIORITY_COUNTERS_GROUP      = 0x10,
 	MLX5_PER_TRAFFIC_CLASS_COUNTERS_GROUP = 0x11,
+	MLX5_PHYSICAL_LAYER_COUNTERS_GROUP    = 0x12,
 	MLX5_INFINIBAND_PORT_COUNTERS_GROUP   = 0x20,
 };
 

@@ -46,7 +46,6 @@ static u32 hns_nic_get_link(struct net_device *net_dev)
 	u32 link_stat = priv->link;
 	struct hnae_handle *h;
 
-	assert(priv && priv->ae_handle);
 	h = priv->ae_handle;
 
 	if (priv->phy) {
@@ -646,8 +645,6 @@ static void hns_nic_get_drvinfo(struct net_device *net_dev,
 {
 	struct hns_nic_priv *priv = netdev_priv(net_dev);
 
-	assert(priv);
-
 	strncpy(drvinfo->version, HNAE_DRIVER_VERSION,
 		sizeof(drvinfo->version));
 	drvinfo->version[sizeof(drvinfo->version) - 1] = '\0';
@@ -720,8 +717,6 @@ static int hns_set_pauseparam(struct net_device *net_dev,
 	struct hnae_handle *h;
 	struct hnae_ae_ops *ops;
 
-	assert(priv || priv->ae_handle);
-
 	h = priv->ae_handle;
 	ops = h->dev->ops;
 
@@ -780,8 +775,6 @@ static int hns_set_coalesce(struct net_device *net_dev,
 	struct hnae_ae_ops *ops;
 	int ret;
 
-	assert(priv || priv->ae_handle);
-
 	ops = priv->ae_handle->dev->ops;
 
 	if (ec->tx_coalesce_usecs != ec->rx_coalesce_usecs)
@@ -794,8 +787,10 @@ static int hns_set_coalesce(struct net_device *net_dev,
 	    (!ops->set_coalesce_frames))
 		return -ESRCH;
 
-	ops->set_coalesce_usecs(priv->ae_handle,
-					ec->rx_coalesce_usecs);
+	ret = ops->set_coalesce_usecs(priv->ae_handle,
+				      ec->rx_coalesce_usecs);
+	if (ret)
+		return ret;
 
 	ret = ops->set_coalesce_frames(
 		priv->ae_handle,
@@ -1013,8 +1008,8 @@ int hns_phy_led_set(struct net_device *netdev, int value)
 	struct phy_device *phy_dev = priv->phy;
 
 	retval = phy_write(phy_dev, HNS_PHY_PAGE_REG, HNS_PHY_PAGE_LED);
-	retval = phy_write(phy_dev, HNS_LED_FC_REG, value);
-	retval = phy_write(phy_dev, HNS_PHY_PAGE_REG, HNS_PHY_PAGE_COPPER);
+	retval |= phy_write(phy_dev, HNS_LED_FC_REG, value);
+	retval |= phy_write(phy_dev, HNS_PHY_PAGE_REG, HNS_PHY_PAGE_COPPER);
 	if (retval) {
 		netdev_err(netdev, "mdiobus_write fail !\n");
 		return retval;
@@ -1109,8 +1104,6 @@ void hns_get_regs(struct net_device *net_dev, struct ethtool_regs *cmd,
 	struct hns_nic_priv *priv = netdev_priv(net_dev);
 	struct hnae_ae_ops *ops;
 
-	assert(priv || priv->ae_handle);
-
 	ops = priv->ae_handle->dev->ops;
 
 	cmd->version = HNS_CHIP_VERSION;
@@ -1132,8 +1125,6 @@ static int hns_get_regs_len(struct net_device *net_dev)
 	u32 reg_num;
 	struct hns_nic_priv *priv = netdev_priv(net_dev);
 	struct hnae_ae_ops *ops;
-
-	assert(priv || priv->ae_handle);
 
 	ops = priv->ae_handle->dev->ops;
 	if (!ops->get_regs_len) {

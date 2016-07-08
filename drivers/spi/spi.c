@@ -717,9 +717,11 @@ static int spi_map_buf(struct spi_master *master, struct device *dev,
 	if (vmalloced_buf) {
 		desc_len = min_t(int, max_seg_size, PAGE_SIZE);
 		sgs = DIV_ROUND_UP(len + offset_in_page(buf), desc_len);
-	} else {
+	} else if (virt_addr_valid(buf)) {
 		desc_len = min_t(int, max_seg_size, master->max_dma_len);
 		sgs = DIV_ROUND_UP(len, desc_len);
+	} else {
+		return -EINVAL;
 	}
 
 	ret = sg_alloc_table(sgt, sgs, GFP_KERNEL);
@@ -933,7 +935,7 @@ static int spi_map_msg(struct spi_master *master, struct spi_message *msg)
  * spi_transfer_one_message - Default implementation of transfer_one_message()
  *
  * This is a standard implementation of transfer_one_message() for
- * drivers which impelment a transfer_one() operation.  It provides
+ * drivers which implement a transfer_one() operation.  It provides
  * standard handling of delays and chip select management.
  */
 static int spi_transfer_one_message(struct spi_master *master,
@@ -1209,7 +1211,7 @@ static void spi_pump_messages(struct kthread_work *work)
 	struct spi_master *master =
 		container_of(work, struct spi_master, pump_messages);
 
-	__spi_pump_messages(master, true, false);
+	__spi_pump_messages(master, true, master->bus_lock_flag);
 }
 
 static int spi_init_queue(struct spi_master *master)
@@ -1764,6 +1766,7 @@ struct spi_master *spi_alloc_master(struct device *dev, unsigned size)
 	master->num_chipselect = 1;
 	master->dev.class = &spi_master_class;
 	master->dev.parent = dev;
+	pm_suspend_ignore_children(&master->dev, true);
 	spi_master_set_devdata(master, &master[1]);
 
 	return master;
@@ -2853,7 +2856,7 @@ static int __spi_sync(struct spi_device *spi, struct spi_message *message,
  */
 int spi_sync(struct spi_device *spi, struct spi_message *message)
 {
-	return __spi_sync(spi, message, 0);
+	return __spi_sync(spi, message, spi->master->bus_lock_flag);
 }
 EXPORT_SYMBOL_GPL(spi_sync);
 

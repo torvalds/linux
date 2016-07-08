@@ -337,7 +337,7 @@ static int mlx4_en_get_sset_count(struct net_device *dev, int sset)
 	case ETH_SS_STATS:
 		return bitmap_iterator_count(&it) +
 			(priv->tx_ring_num * 2) +
-			(priv->rx_ring_num * 2);
+			(priv->rx_ring_num * 3);
 	case ETH_SS_TEST:
 		return MLX4_EN_NUM_SELF_TEST - !(priv->mdev->dev->caps.flags
 					& MLX4_DEV_CAP_FLAG_UC_LOOPBACK) * 2;
@@ -362,7 +362,7 @@ static void mlx4_en_get_ethtool_stats(struct net_device *dev,
 
 	for (i = 0; i < NUM_MAIN_STATS; i++, bitmap_iterator_inc(&it))
 		if (bitmap_iterator_test(&it))
-			data[index++] = ((unsigned long *)&priv->stats)[i];
+			data[index++] = ((unsigned long *)&dev->stats)[i];
 
 	for (i = 0; i < NUM_PORT_STATS; i++, bitmap_iterator_inc(&it))
 		if (bitmap_iterator_test(&it))
@@ -404,6 +404,7 @@ static void mlx4_en_get_ethtool_stats(struct net_device *dev,
 	for (i = 0; i < priv->rx_ring_num; i++) {
 		data[index++] = priv->rx_ring[i]->packets;
 		data[index++] = priv->rx_ring[i]->bytes;
+		data[index++] = priv->rx_ring[i]->dropped;
 	}
 	spin_unlock_bh(&priv->stats_lock);
 
@@ -477,6 +478,8 @@ static void mlx4_en_get_strings(struct net_device *dev,
 				"rx%d_packets", i);
 			sprintf(data + (index++) * ETH_GSTRING_LEN,
 				"rx%d_bytes", i);
+			sprintf(data + (index++) * ETH_GSTRING_LEN,
+				"rx%d_dropped", i);
 		}
 		break;
 	case ETH_SS_PRIV_FLAGS:

@@ -173,6 +173,7 @@ static const struct ath6kl_hw hw_list[] = {
 		.reserved_ram_size		= 7168,
 		.board_addr			= 0x436400,
 		.testscript_addr		= 0,
+		.uarttx_pin			= 11,
 		.flags				= 0,
 
 		.fw = {
@@ -649,6 +650,14 @@ int ath6kl_configure_target(struct ath6kl *ar)
 				       ar->hw.uarttx_pin);
 	if (status)
 		return status;
+
+	/* Only set the baud rate if we're actually doing debug */
+	if (ar->conf_flags & ATH6KL_CONF_UART_DEBUG) {
+		status = ath6kl_bmi_write_hi32(ar, hi_desired_baud_rate,
+					       ar->hw.uarttx_rate);
+		if (status)
+			return status;
+	}
 
 	/* Configure target refclk_hz */
 	if (ar->hw.refclk_hz != 0) {

@@ -86,6 +86,10 @@ int main(void)
 	DEFINE(KSP_LIMIT, offsetof(struct thread_struct, ksp_limit));
 #endif /* CONFIG_PPC64 */
 
+#ifdef CONFIG_LIVEPATCH
+	DEFINE(TI_livepatch_sp, offsetof(struct thread_info, livepatch_sp));
+#endif
+
 	DEFINE(KSP, offsetof(struct thread_struct, ksp));
 	DEFINE(PT_REGS, offsetof(struct thread_struct, regs));
 #ifdef CONFIG_BOOKE
@@ -434,7 +438,11 @@ int main(void)
 	DEFINE(BUG_ENTRY_SIZE, sizeof(struct bug_entry));
 #endif
 
+#ifdef MAX_PGD_TABLE_SIZE
+	DEFINE(PGD_TABLE_SIZE, MAX_PGD_TABLE_SIZE);
+#else
 	DEFINE(PGD_TABLE_SIZE, PGD_TABLE_SIZE);
+#endif
 	DEFINE(PTE_SIZE, sizeof(pte_t));
 
 #ifdef CONFIG_KVM

@@ -241,7 +241,7 @@ struct fscache_cache_ops {
 
 	/* check the consistency between the backing cache and the FS-Cache
 	 * cookie */
-	bool (*check_consistency)(struct fscache_operation *op);
+	int (*check_consistency)(struct fscache_operation *op);
 
 	/* store the updated auxiliary data on an object */
 	void (*update_object)(struct fscache_object *object);

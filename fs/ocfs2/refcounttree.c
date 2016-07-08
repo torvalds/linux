@@ -2937,16 +2937,16 @@ int ocfs2_duplicate_clusters_by_page(handle_t *handle,
 		end = i_size_read(inode);
 
 	while (offset < end) {
-		page_index = offset >> PAGE_CACHE_SHIFT;
-		map_end = ((loff_t)page_index + 1) << PAGE_CACHE_SHIFT;
+		page_index = offset >> PAGE_SHIFT;
+		map_end = ((loff_t)page_index + 1) << PAGE_SHIFT;
 		if (map_end > end)
 			map_end = end;
 
 		/* from, to is the offset within the page. */
-		from = offset & (PAGE_CACHE_SIZE - 1);
-		to = PAGE_CACHE_SIZE;
-		if (map_end & (PAGE_CACHE_SIZE - 1))
-			to = map_end & (PAGE_CACHE_SIZE - 1);
+		from = offset & (PAGE_SIZE - 1);
+		to = PAGE_SIZE;
+		if (map_end & (PAGE_SIZE - 1))
+			to = map_end & (PAGE_SIZE - 1);
 
 		page = find_or_create_page(mapping, page_index, GFP_NOFS);
 		if (!page) {
@@ -2956,10 +2956,10 @@ int ocfs2_duplicate_clusters_by_page(handle_t *handle,
 		}
 
 		/*
-		 * In case PAGE_CACHE_SIZE <= CLUSTER_SIZE, This page
+		 * In case PAGE_SIZE <= CLUSTER_SIZE, This page
 		 * can't be dirtied before we CoW it out.
 		 */
-		if (PAGE_CACHE_SIZE <= OCFS2_SB(sb)->s_clustersize)
+		if (PAGE_SIZE <= OCFS2_SB(sb)->s_clustersize)
 			BUG_ON(PageDirty(page));
 
 		if (!PageUptodate(page)) {
@@ -2987,7 +2987,7 @@ int ocfs2_duplicate_clusters_by_page(handle_t *handle,
 		mark_page_accessed(page);
 unlock:
 		unlock_page(page);
-		page_cache_release(page);
+		put_page(page);
 		page = NULL;
 		offset = map_end;
 		if (ret)
@@ -3165,8 +3165,8 @@ int ocfs2_cow_sync_writeback(struct super_block *sb,
 	}
 
 	while (offset < end) {
-		page_index = offset >> PAGE_CACHE_SHIFT;
-		map_end = ((loff_t)page_index + 1) << PAGE_CACHE_SHIFT;
+		page_index = offset >> PAGE_SHIFT;
+		map_end = ((loff_t)page_index + 1) << PAGE_SHIFT;
 		if (map_end > end)
 			map_end = end;
 
@@ -3182,7 +3182,7 @@ int ocfs2_cow_sync_writeback(struct super_block *sb,
 			mark_page_accessed(page);
 
 		unlock_page(page);
-		page_cache_release(page);
+		put_page(page);
 		page = NULL;
 		offset = map_end;
 		if (ret)
@@ -4248,20 +4248,12 @@ static int ocfs2_reflink(struct dentry *old_dentry, struct inode *dir,
 	struct inode *inode = d_inode(old_dentry);
 	struct buffer_head *old_bh = NULL;
 	struct inode *new_orphan_inode = NULL;
-	struct posix_acl *default_acl, *acl;
-	umode_t mode;
 
 	if (!ocfs2_refcount_tree(OCFS2_SB(inode->i_sb)))
 		return -EOPNOTSUPP;
 
-	mode = inode->i_mode;
-	error = posix_acl_create(dir, &mode, &default_acl, &acl);
-	if (error) {
-		mlog_errno(error);
-		return error;
-	}
 
-	error = ocfs2_create_inode_in_orphan(dir, mode,
+	error = ocfs2_create_inode_in_orphan(dir, inode->i_mode,
 					     &new_orphan_inode);
 	if (error) {
 		mlog_errno(error);
@@ -4300,16 +4292,11 @@ static int ocfs2_reflink(struct dentry *old_dentry, struct inode *dir,
 	/* If the security isn't preserved, we need to re-initialize them. */
 	if (!preserve) {
 		error = ocfs2_init_security_and_acl(dir, new_orphan_inode,
-						    &new_dentry->d_name,
-						    default_acl, acl);
+						    &new_dentry->d_name);
 		if (error)
 			mlog_errno(error);
 	}
 out:
-	if (default_acl)
-		posix_acl_release(default_acl);
-	if (acl)
-		posix_acl_release(acl);
 	if (!error) {
 		error = ocfs2_mv_orphaned_inode_to_new(dir, new_orphan_inode,
 						       new_dentry);

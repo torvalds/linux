@@ -532,6 +532,7 @@ static int rtw_drv_init(struct usb_interface *pusb_intf,
 {
 	struct rtw_adapter *if1 = NULL;
 	struct dvobj_priv *dvobj;
+	struct usb_device *udev;
 	int status = _FAIL;
 
 	RT_TRACE(_module_hci_intfs_c_, _drv_err_, "+rtw_drv_init\n");
@@ -543,6 +544,10 @@ static int rtw_drv_init(struct usb_interface *pusb_intf,
 			 "initialize device object priv Failed!\n");
 		goto exit;
 	}
+
+	udev = dvobj->pusbdev;
+	dev_warn(&udev->dev, "WARNING: The rtl8723au driver is deprecated!");
+	dev_warn(&udev->dev, "Please use the rtl8xxxu driver for this device!");
 
 	if1 = rtw_usb_if1_init(dvobj, pusb_intf, pdid);
 	if (!if1) {

@@ -586,6 +586,10 @@ drivers to make their ->remove() callbacks avoid races with runtime PM directly,
 but also it allows of more flexibility in the handling of devices during the
 removal of their drivers.
 
+Drivers in ->remove() callback should undo the runtime PM changes done
+in ->probe(). Usually this means calling pm_runtime_disable(),
+pm_runtime_dont_use_autosuspend() etc.
+
 The user space can effectively disallow the driver of the device to power manage
 it at run time by changing the value of its /sys/devices/.../power/control
 attribute to "on", which causes pm_runtime_forbid() to be called.  In principle,

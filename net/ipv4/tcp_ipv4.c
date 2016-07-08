@@ -157,7 +157,7 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 
 	nexthop = daddr = usin->sin_addr.s_addr;
 	inet_opt = rcu_dereference_protected(inet->inet_opt,
-					     sock_owned_by_user(sk));
+					     lockdep_sock_is_held(sk));
 	if (inet_opt && inet_opt->opt.srr) {
 		if (!daddr)
 			return -EINVAL;
@@ -320,7 +320,7 @@ void tcp_req_err(struct sock *sk, u32 seq, bool abort)
 	 * an established socket here.
 	 */
 	if (seq != tcp_rsk(req)->snt_isn) {
-		NET_INC_STATS_BH(net, LINUX_MIB_OUTOFWINDOWICMPS);
+		__NET_INC_STATS(net, LINUX_MIB_OUTOFWINDOWICMPS);
 	} else if (abort) {
 		/*
 		 * Still in SYN_RECV, just remove it silently.
@@ -329,7 +329,7 @@ void tcp_req_err(struct sock *sk, u32 seq, bool abort)
 		 * errors returned from accept().
 		 */
 		inet_csk_reqsk_queue_drop(req->rsk_listener, req);
-		NET_INC_STATS_BH(net, LINUX_MIB_LISTENDROPS);
+		tcp_listendrop(req->rsk_listener);
 	}
 	reqsk_put(req);
 }
@@ -372,7 +372,7 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 				       th->dest, iph->saddr, ntohs(th->source),
 				       inet_iif(icmp_skb));
 	if (!sk) {
-		ICMP_INC_STATS_BH(net, ICMP_MIB_INERRORS);
+		__ICMP_INC_STATS(net, ICMP_MIB_INERRORS);
 		return;
 	}
 	if (sk->sk_state == TCP_TIME_WAIT) {
@@ -396,13 +396,13 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 	 */
 	if (sock_owned_by_user(sk)) {
 		if (!(type == ICMP_DEST_UNREACH && code == ICMP_FRAG_NEEDED))
-			NET_INC_STATS_BH(net, LINUX_MIB_LOCKDROPPEDICMPS);
+			__NET_INC_STATS(net, LINUX_MIB_LOCKDROPPEDICMPS);
 	}
 	if (sk->sk_state == TCP_CLOSE)
 		goto out;
 
 	if (unlikely(iph->ttl < inet_sk(sk)->min_ttl)) {
-		NET_INC_STATS_BH(net, LINUX_MIB_TCPMINTTLDROP);
+		__NET_INC_STATS(net, LINUX_MIB_TCPMINTTLDROP);
 		goto out;
 	}
 
@@ -413,7 +413,7 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 	snd_una = fastopen ? tcp_rsk(fastopen)->snt_isn : tp->snd_una;
 	if (sk->sk_state != TCP_LISTEN &&
 	    !between(seq, snd_una, tp->snd_nxt)) {
-		NET_INC_STATS_BH(net, LINUX_MIB_OUTOFWINDOWICMPS);
+		__NET_INC_STATS(net, LINUX_MIB_OUTOFWINDOWICMPS);
 		goto out;
 	}
 
@@ -628,6 +628,7 @@ static void tcp_v4_send_reset(const struct sock *sk, struct sk_buff *skb)
 
 	net = sk ? sock_net(sk) : dev_net(skb_dst(skb)->dev);
 #ifdef CONFIG_TCP_MD5SIG
+	rcu_read_lock();
 	hash_location = tcp_parse_md5sig_option(th);
 	if (sk && sk_fullsock(sk)) {
 		key = tcp_md5_do_lookup(sk, (union tcp_md5_addr *)
@@ -646,16 +647,18 @@ static void tcp_v4_send_reset(const struct sock *sk, struct sk_buff *skb)
 					     ntohs(th->source), inet_iif(skb));
 		/* don't send rst if it can't find key */
 		if (!sk1)
-			return;
-		rcu_read_lock();
+			goto out;
+
 		key = tcp_md5_do_lookup(sk1, (union tcp_md5_addr *)
 					&ip_hdr(skb)->saddr, AF_INET);
 		if (!key)
-			goto release_sk1;
+			goto out;
+
 
 		genhash = tcp_v4_md5_hash_skb(newhash, key, NULL, skb);
 		if (genhash || memcmp(hash_location, newhash, 16) != 0)
-			goto release_sk1;
+			goto out;
+
 	}
 
 	if (key) {
@@ -689,20 +692,19 @@ static void tcp_v4_send_reset(const struct sock *sk, struct sk_buff *skb)
 		     offsetof(struct inet_timewait_sock, tw_bound_dev_if));
 
 	arg.tos = ip_hdr(skb)->tos;
+	local_bh_disable();
 	ip_send_unicast_reply(*this_cpu_ptr(net->ipv4.tcp_sk),
 			      skb, &TCP_SKB_CB(skb)->header.h4.opt,
 			      ip_hdr(skb)->saddr, ip_hdr(skb)->daddr,
 			      &arg, arg.iov[0].iov_len);
 
-	TCP_INC_STATS_BH(net, TCP_MIB_OUTSEGS);
-	TCP_INC_STATS_BH(net, TCP_MIB_OUTRSTS);
+	__TCP_INC_STATS(net, TCP_MIB_OUTSEGS);
+	__TCP_INC_STATS(net, TCP_MIB_OUTRSTS);
+	local_bh_enable();
 
 #ifdef CONFIG_TCP_MD5SIG
-release_sk1:
-	if (sk1) {
-		rcu_read_unlock();
-		sock_put(sk1);
-	}
+out:
+	rcu_read_unlock();
 #endif
 }
 
@@ -774,12 +776,14 @@ static void tcp_v4_send_ack(struct net *net,
 	if (oif)
 		arg.bound_dev_if = oif;
 	arg.tos = tos;
+	local_bh_disable();
 	ip_send_unicast_reply(*this_cpu_ptr(net->ipv4.tcp_sk),
 			      skb, &TCP_SKB_CB(skb)->header.h4.opt,
 			      ip_hdr(skb)->saddr, ip_hdr(skb)->daddr,
 			      &arg, arg.iov[0].iov_len);
 
-	TCP_INC_STATS_BH(net, TCP_MIB_OUTSEGS);
+	__TCP_INC_STATS(net, TCP_MIB_OUTSEGS);
+	local_bh_enable();
 }
 
 static void tcp_v4_timewait_ack(struct sock *sk, struct sk_buff *skb)
@@ -830,7 +834,7 @@ static int tcp_v4_send_synack(const struct sock *sk, struct dst_entry *dst,
 			      struct flowi *fl,
 			      struct request_sock *req,
 			      struct tcp_fastopen_cookie *foc,
-				  bool attach_req)
+			      enum tcp_synack_type synack_type)
 {
 	const struct inet_request_sock *ireq = inet_rsk(req);
 	struct flowi4 fl4;
@@ -841,7 +845,7 @@ static int tcp_v4_send_synack(const struct sock *sk, struct dst_entry *dst,
 	if (!dst && (dst = inet_csk_route_req(sk, &fl4, req)) == NULL)
 		return -1;
 
-	skb = tcp_make_synack(sk, dst, req, foc, attach_req);
+	skb = tcp_make_synack(sk, dst, req, foc, synack_type);
 
 	if (skb) {
 		__tcp_v4_send_check(skb, ireq->ir_loc_addr, ireq->ir_rmt_addr);
@@ -882,8 +886,7 @@ struct tcp_md5sig_key *tcp_md5_do_lookup(const struct sock *sk,
 
 	/* caller either holds rcu_read_lock() or socket lock */
 	md5sig = rcu_dereference_check(tp->md5sig_info,
-				       sock_owned_by_user(sk) ||
-				       lockdep_is_held((spinlock_t *)&sk->sk_lock.slock));
+				       lockdep_sock_is_held(sk));
 	if (!md5sig)
 		return NULL;
 #if IS_ENABLED(CONFIG_IPV6)
@@ -928,8 +931,7 @@ int tcp_md5_do_add(struct sock *sk, const union tcp_md5_addr *addr,
 	}
 
 	md5sig = rcu_dereference_protected(tp->md5sig_info,
-					   sock_owned_by_user(sk) ||
-					   lockdep_is_held(&sk->sk_lock.slock));
+					   lockdep_sock_is_held(sk));
 	if (!md5sig) {
 		md5sig = kmalloc(sizeof(*md5sig), gfp);
 		if (!md5sig)
@@ -1153,12 +1155,12 @@ static bool tcp_v4_inbound_md5_hash(const struct sock *sk,
 		return false;
 
 	if (hash_expected && !hash_location) {
-		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPMD5NOTFOUND);
+		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPMD5NOTFOUND);
 		return true;
 	}
 
 	if (!hash_expected && hash_location) {
-		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPMD5UNEXPECTED);
+		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPMD5UNEXPECTED);
 		return true;
 	}
 
@@ -1246,7 +1248,7 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 				&tcp_request_sock_ipv4_ops, sk, skb);
 
 drop:
-	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_LISTENDROPS);
+	tcp_listendrop(sk);
 	return 0;
 }
 EXPORT_SYMBOL(tcp_v4_conn_request);
@@ -1344,11 +1346,11 @@ struct sock *tcp_v4_syn_recv_sock(const struct sock *sk, struct sk_buff *skb,
 	return newsk;
 
 exit_overflow:
-	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_LISTENOVERFLOWS);
+	NET_INC_STATS(sock_net(sk), LINUX_MIB_LISTENOVERFLOWS);
 exit_nonewsk:
 	dst_release(dst);
 exit:
-	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_LISTENDROPS);
+	tcp_listendrop(sk);
 	return NULL;
 put_and_exit:
 	inet_csk_prepare_forced_close(newsk);
@@ -1434,8 +1436,8 @@ discard:
 	return 0;
 
 csum_err:
-	TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_CSUMERRORS);
-	TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_INERRS);
+	TCP_INC_STATS(sock_net(sk), TCP_MIB_CSUMERRORS);
+	TCP_INC_STATS(sock_net(sk), TCP_MIB_INERRS);
 	goto discard;
 }
 EXPORT_SYMBOL(tcp_v4_do_rcv);
@@ -1508,16 +1510,16 @@ bool tcp_prequeue(struct sock *sk, struct sk_buff *skb)
 
 	__skb_queue_tail(&tp->ucopy.prequeue, skb);
 	tp->ucopy.memory += skb->truesize;
-	if (tp->ucopy.memory > sk->sk_rcvbuf) {
+	if (skb_queue_len(&tp->ucopy.prequeue) >= 32 ||
+	    tp->ucopy.memory + atomic_read(&sk->sk_rmem_alloc) > sk->sk_rcvbuf) {
 		struct sk_buff *skb1;
 
 		BUG_ON(sock_owned_by_user(sk));
+		__NET_ADD_STATS(sock_net(sk), LINUX_MIB_TCPPREQUEUEDROPPED,
+				skb_queue_len(&tp->ucopy.prequeue));
 
-		while ((skb1 = __skb_dequeue(&tp->ucopy.prequeue)) != NULL) {
+		while ((skb1 = __skb_dequeue(&tp->ucopy.prequeue)) != NULL)
 			sk_backlog_rcv(sk, skb1);
-			NET_INC_STATS_BH(sock_net(sk),
-					 LINUX_MIB_TCPPREQUEUEDROPPED);
-		}
 
 		tp->ucopy.memory = 0;
 	} else if (skb_queue_len(&tp->ucopy.prequeue) == 1) {
@@ -1538,24 +1540,25 @@ EXPORT_SYMBOL(tcp_prequeue);
 
 int tcp_v4_rcv(struct sk_buff *skb)
 {
+	struct net *net = dev_net(skb->dev);
 	const struct iphdr *iph;
 	const struct tcphdr *th;
+	bool refcounted;
 	struct sock *sk;
 	int ret;
-	struct net *net = dev_net(skb->dev);
 
 	if (skb->pkt_type != PACKET_HOST)
 		goto discard_it;
 
 	/* Count it even if it's bad */
-	TCP_INC_STATS_BH(net, TCP_MIB_INSEGS);
+	__TCP_INC_STATS(net, TCP_MIB_INSEGS);
 
 	if (!pskb_may_pull(skb, sizeof(struct tcphdr)))
 		goto discard_it;
 
-	th = tcp_hdr(skb);
+	th = (const struct tcphdr *)skb->data;
 
-	if (th->doff < sizeof(struct tcphdr) / 4)
+	if (unlikely(th->doff < sizeof(struct tcphdr) / 4))
 		goto bad_packet;
 	if (!pskb_may_pull(skb, th->doff * 4))
 		goto discard_it;
@@ -1568,7 +1571,7 @@ int tcp_v4_rcv(struct sk_buff *skb)
 	if (skb_checksum_init(skb, IPPROTO_TCP, inet_compute_pseudo))
 		goto csum_error;
 
-	th = tcp_hdr(skb);
+	th = (const struct tcphdr *)skb->data;
 	iph = ip_hdr(skb);
 	/* This is tricky : We move IPCB at its correct location into TCP_SKB_CB()
 	 * barrier() makes sure compiler wont play fool^Waliasing games.
@@ -1588,7 +1591,7 @@ int tcp_v4_rcv(struct sk_buff *skb)
 
 lookup:
 	sk = __inet_lookup_skb(&tcp_hashinfo, skb, __tcp_hdrlen(th), th->source,
-			       th->dest);
+			       th->dest, &refcounted);
 	if (!sk)
 		goto no_tcp_socket;
 
@@ -1609,7 +1612,11 @@ process:
 			inet_csk_reqsk_queue_drop_and_put(sk, req);
 			goto lookup;
 		}
+		/* We own a reference on the listener, increase it again
+		 * as we might lose it too soon.
+		 */
 		sock_hold(sk);
+		refcounted = true;
 		nsk = tcp_check_req(sk, skb, req, false);
 		if (!nsk) {
 			reqsk_put(req);
@@ -1626,7 +1633,7 @@ process:
 		}
 	}
 	if (unlikely(iph->ttl < inet_sk(sk)->min_ttl)) {
-		NET_INC_STATS_BH(net, LINUX_MIB_TCPMINTTLDROP);
+		__NET_INC_STATS(net, LINUX_MIB_TCPMINTTLDROP);
 		goto discard_and_relse;
 	}
 
@@ -1659,13 +1666,14 @@ process:
 	} else if (unlikely(sk_add_backlog(sk, skb,
 					   sk->sk_rcvbuf + sk->sk_sndbuf))) {
 		bh_unlock_sock(sk);
-		NET_INC_STATS_BH(net, LINUX_MIB_TCPBACKLOGDROP);
+		__NET_INC_STATS(net, LINUX_MIB_TCPBACKLOGDROP);
 		goto discard_and_relse;
 	}
 	bh_unlock_sock(sk);
 
 put_and_return:
-	sock_put(sk);
+	if (refcounted)
+		sock_put(sk);
 
 	return ret;
 
@@ -1675,9 +1683,9 @@ no_tcp_socket:
 
 	if (tcp_checksum_complete(skb)) {
 csum_error:
-		TCP_INC_STATS_BH(net, TCP_MIB_CSUMERRORS);
+		__TCP_INC_STATS(net, TCP_MIB_CSUMERRORS);
 bad_packet:
-		TCP_INC_STATS_BH(net, TCP_MIB_INERRS);
+		__TCP_INC_STATS(net, TCP_MIB_INERRS);
 	} else {
 		tcp_v4_send_reset(NULL, skb);
 	}
@@ -1688,7 +1696,9 @@ discard_it:
 	return 0;
 
 discard_and_relse:
-	sock_put(sk);
+	sk_drops_add(sk, skb);
+	if (refcounted)
+		sock_put(sk);
 	goto discard_it;
 
 do_time_wait:
@@ -1712,6 +1722,7 @@ do_time_wait:
 		if (sk2) {
 			inet_twsk_deschedule_put(inet_twsk(sk));
 			sk = sk2;
+			refcounted = false;
 			goto process;
 		}
 		/* Fall through to ACK */
@@ -1828,7 +1839,9 @@ void tcp_v4_destroy_sock(struct sock *sk)
 	tcp_free_fastopen_req(tp);
 	tcp_saved_syn_free(tp);
 
+	local_bh_disable();
 	sk_sockets_allocated_dec(sk);
+	local_bh_enable();
 
 	if (mem_cgroup_sockets_enabled && sk->sk_memcg)
 		sock_release_memcg(sk);
@@ -1845,17 +1858,17 @@ EXPORT_SYMBOL(tcp_v4_destroy_sock);
  */
 static void *listening_get_next(struct seq_file *seq, void *cur)
 {
-	struct inet_connection_sock *icsk;
-	struct hlist_nulls_node *node;
-	struct sock *sk = cur;
-	struct inet_listen_hashbucket *ilb;
 	struct tcp_iter_state *st = seq->private;
 	struct net *net = seq_file_net(seq);
+	struct inet_listen_hashbucket *ilb;
+	struct inet_connection_sock *icsk;
+	struct sock *sk = cur;
 
 	if (!sk) {
+get_head:
 		ilb = &tcp_hashinfo.listening_hash[st->bucket];
 		spin_lock_bh(&ilb->lock);
-		sk = sk_nulls_head(&ilb->head);
+		sk = sk_head(&ilb->head);
 		st->offset = 0;
 		goto get_sk;
 	}
@@ -1863,28 +1876,20 @@ static void *listening_get_next(struct seq_file *seq, void *cur)
 	++st->num;
 	++st->offset;
 
-	sk = sk_nulls_next(sk);
+	sk = sk_next(sk);
 get_sk:
-	sk_nulls_for_each_from(sk, node) {
+	sk_for_each_from(sk) {
 		if (!net_eq(sock_net(sk), net))
 			continue;
-		if (sk->sk_family == st->family) {
-			cur = sk;
-			goto out;
-		}
+		if (sk->sk_family == st->family)
+			return sk;
 		icsk = inet_csk(sk);
 	}
 	spin_unlock_bh(&ilb->lock);
 	st->offset = 0;
-	if (++st->bucket < INET_LHTABLE_SIZE) {
-		ilb = &tcp_hashinfo.listening_hash[st->bucket];
-		spin_lock_bh(&ilb->lock);
-		sk = sk_nulls_head(&ilb->head);
-		goto get_sk;
-	}
-	cur = NULL;
-out:
-	return cur;
+	if (++st->bucket < INET_LHTABLE_SIZE)
+		goto get_head;
+	return NULL;
 }
 
 static void *listening_get_idx(struct seq_file *seq, loff_t *pos)
@@ -2383,6 +2388,7 @@ static int __net_init tcp_sk_init(struct net *net)
 					   IPPROTO_TCP, net);
 		if (res)
 			goto fail;
+		sock_set_flag(sk, SOCK_USE_WRITE_QUEUE);
 		*per_cpu_ptr(net->ipv4.tcp_sk, cpu) = sk;
 	}
 

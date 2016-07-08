@@ -22,109 +22,60 @@
 static LIST_HEAD(rxrpc_security_methods);
 static DECLARE_RWSEM(rxrpc_security_sem);
 
-/*
- * get an RxRPC security module
- */
-static struct rxrpc_security *rxrpc_security_get(struct rxrpc_security *sec)
+static const struct rxrpc_security *rxrpc_security_types[] = {
+	[RXRPC_SECURITY_NONE]	= &rxrpc_no_security,
+#ifdef CONFIG_RXKAD
+	[RXRPC_SECURITY_RXKAD]	= &rxkad,
+#endif
+};
+
+int __init rxrpc_init_security(void)
 {
-	return try_module_get(sec->owner) ? sec : NULL;
+	int i, ret;
+
+	for (i = 0; i < ARRAY_SIZE(rxrpc_security_types); i++) {
+		if (rxrpc_security_types[i]) {
+			ret = rxrpc_security_types[i]->init();
+			if (ret < 0)
+				goto failed;
+		}
+	}
+
+	return 0;
+
+failed:
+	for (i--; i >= 0; i--)
+		if (rxrpc_security_types[i])
+			rxrpc_security_types[i]->exit();
+	return ret;
 }
 
-/*
- * release an RxRPC security module
- */
-static void rxrpc_security_put(struct rxrpc_security *sec)
+void rxrpc_exit_security(void)
 {
-	module_put(sec->owner);
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(rxrpc_security_types); i++)
+		if (rxrpc_security_types[i])
+			rxrpc_security_types[i]->exit();
 }
 
 /*
  * look up an rxrpc security module
  */
-static struct rxrpc_security *rxrpc_security_lookup(u8 security_index)
+static const struct rxrpc_security *rxrpc_security_lookup(u8 security_index)
 {
-	struct rxrpc_security *sec = NULL;
-
-	_enter("");
-
-	down_read(&rxrpc_security_sem);
-
-	list_for_each_entry(sec, &rxrpc_security_methods, link) {
-		if (sec->security_index == security_index) {
-			if (unlikely(!rxrpc_security_get(sec)))
-				break;
-			goto out;
-		}
-	}
-
-	sec = NULL;
-out:
-	up_read(&rxrpc_security_sem);
-	_leave(" = %p [%s]", sec, sec ? sec->name : "");
-	return sec;
+	if (security_index >= ARRAY_SIZE(rxrpc_security_types))
+		return NULL;
+	return rxrpc_security_types[security_index];
 }
-
-/**
- * rxrpc_register_security - register an RxRPC security handler
- * @sec: security module
- *
- * register an RxRPC security handler for use by RxRPC
- */
-int rxrpc_register_security(struct rxrpc_security *sec)
-{
-	struct rxrpc_security *psec;
-	int ret;
-
-	_enter("");
-	down_write(&rxrpc_security_sem);
-
-	ret = -EEXIST;
-	list_for_each_entry(psec, &rxrpc_security_methods, link) {
-		if (psec->security_index == sec->security_index)
-			goto out;
-	}
-
-	list_add(&sec->link, &rxrpc_security_methods);
-
-	printk(KERN_NOTICE "RxRPC: Registered security type %d '%s'\n",
-	       sec->security_index, sec->name);
-	ret = 0;
-
-out:
-	up_write(&rxrpc_security_sem);
-	_leave(" = %d", ret);
-	return ret;
-}
-
-EXPORT_SYMBOL_GPL(rxrpc_register_security);
-
-/**
- * rxrpc_unregister_security - unregister an RxRPC security handler
- * @sec: security module
- *
- * unregister an RxRPC security handler
- */
-void rxrpc_unregister_security(struct rxrpc_security *sec)
-{
-
-	_enter("");
-	down_write(&rxrpc_security_sem);
-	list_del_init(&sec->link);
-	up_write(&rxrpc_security_sem);
-
-	printk(KERN_NOTICE "RxRPC: Unregistered security type %d '%s'\n",
-	       sec->security_index, sec->name);
-}
-
-EXPORT_SYMBOL_GPL(rxrpc_unregister_security);
 
 /*
  * initialise the security on a client connection
  */
 int rxrpc_init_client_conn_security(struct rxrpc_connection *conn)
 {
+	const struct rxrpc_security *sec;
 	struct rxrpc_key_token *token;
-	struct rxrpc_security *sec;
 	struct key *key = conn->key;
 	int ret;
 
@@ -148,8 +99,7 @@ int rxrpc_init_client_conn_security(struct rxrpc_connection *conn)
 
 	ret = conn->security->init_connection_security(conn);
 	if (ret < 0) {
-		rxrpc_security_put(conn->security);
-		conn->security = NULL;
+		conn->security = &rxrpc_no_security;
 		return ret;
 	}
 
@@ -162,7 +112,7 @@ int rxrpc_init_client_conn_security(struct rxrpc_connection *conn)
  */
 int rxrpc_init_server_conn_security(struct rxrpc_connection *conn)
 {
-	struct rxrpc_security *sec;
+	const struct rxrpc_security *sec;
 	struct rxrpc_local *local = conn->trans->local;
 	struct rxrpc_sock *rx;
 	struct key *key;
@@ -188,14 +138,12 @@ int rxrpc_init_server_conn_security(struct rxrpc_connection *conn)
 
 	/* the service appears to have died */
 	read_unlock_bh(&local->services_lock);
-	rxrpc_security_put(sec);
 	_leave(" = -ENOENT");
 	return -ENOENT;
 
 found_service:
 	if (!rx->securities) {
 		read_unlock_bh(&local->services_lock);
-		rxrpc_security_put(sec);
 		_leave(" = -ENOKEY");
 		return -ENOKEY;
 	}
@@ -205,7 +153,6 @@ found_service:
 			      &key_type_rxrpc_s, kdesc);
 	if (IS_ERR(kref)) {
 		read_unlock_bh(&local->services_lock);
-		rxrpc_security_put(sec);
 		_leave(" = %ld [search]", PTR_ERR(kref));
 		return PTR_ERR(kref);
 	}
@@ -218,47 +165,4 @@ found_service:
 
 	_leave(" = 0");
 	return 0;
-}
-
-/*
- * secure a packet prior to transmission
- */
-int rxrpc_secure_packet(const struct rxrpc_call *call,
-			struct sk_buff *skb,
-			size_t data_size,
-			void *sechdr)
-{
-	if (call->conn->security)
-		return call->conn->security->secure_packet(
-			call, skb, data_size, sechdr);
-	return 0;
-}
-
-/*
- * secure a packet prior to transmission
- */
-int rxrpc_verify_packet(const struct rxrpc_call *call, struct sk_buff *skb,
-			u32 *_abort_code)
-{
-	if (call->conn->security)
-		return call->conn->security->verify_packet(
-			call, skb, _abort_code);
-	return 0;
-}
-
-/*
- * clear connection security
- */
-void rxrpc_clear_conn_security(struct rxrpc_connection *conn)
-{
-	_enter("{%d}", conn->debug_id);
-
-	if (conn->security) {
-		conn->security->clear(conn);
-		rxrpc_security_put(conn->security);
-		conn->security = NULL;
-	}
-
-	key_put(conn->key);
-	key_put(conn->server_key);
 }

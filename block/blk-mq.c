@@ -1122,8 +1122,7 @@ static void blk_mq_bio_to_request(struct request *rq, struct bio *bio)
 {
 	init_request_from_bio(rq, bio);
 
-	if (blk_do_io_stat(rq))
-		blk_account_io_start(rq, 1);
+	blk_account_io_start(rq, 1);
 }
 
 static inline bool hctx_allow_merges(struct blk_mq_hw_ctx *hctx)
@@ -1263,12 +1262,9 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 
 	blk_queue_split(q, &bio, q->bio_split);
 
-	if (!is_flush_fua && !blk_queue_nomerges(q)) {
-		if (blk_attempt_plug_merge(q, bio, &request_count,
-					   &same_queue_rq))
-			return BLK_QC_T_NONE;
-	} else
-		request_count = blk_plug_queued_count(q);
+	if (!is_flush_fua && !blk_queue_nomerges(q) &&
+	    blk_attempt_plug_merge(q, bio, &request_count, &same_queue_rq))
+		return BLK_QC_T_NONE;
 
 	rq = blk_mq_map_request(q, bio, &data);
 	if (unlikely(!rq))
@@ -1359,9 +1355,11 @@ static blk_qc_t blk_sq_make_request(struct request_queue *q, struct bio *bio)
 
 	blk_queue_split(q, &bio, q->bio_split);
 
-	if (!is_flush_fua && !blk_queue_nomerges(q) &&
-	    blk_attempt_plug_merge(q, bio, &request_count, NULL))
-		return BLK_QC_T_NONE;
+	if (!is_flush_fua && !blk_queue_nomerges(q)) {
+		if (blk_attempt_plug_merge(q, bio, &request_count, NULL))
+			return BLK_QC_T_NONE;
+	} else
+		request_count = blk_plug_queued_count(q);
 
 	rq = blk_mq_map_request(q, bio, &data);
 	if (unlikely(!rq))
@@ -1496,7 +1494,7 @@ static struct blk_mq_tags *blk_mq_init_rq_map(struct blk_mq_tag_set *set,
 		int to_do;
 		void *p;
 
-		while (left < order_to_size(this_order - 1) && this_order)
+		while (this_order && left < order_to_size(this_order - 1))
 			this_order--;
 
 		do {
@@ -2021,7 +2019,7 @@ struct request_queue *blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 
 	q->queue_ctx = alloc_percpu(struct blk_mq_ctx);
 	if (!q->queue_ctx)
-		return ERR_PTR(-ENOMEM);
+		goto err_exit;
 
 	q->queue_hw_ctx = kzalloc_node(nr_cpu_ids * sizeof(*(q->queue_hw_ctx)),
 						GFP_KERNEL, set->numa_node);
@@ -2085,6 +2083,8 @@ err_map:
 	kfree(q->queue_hw_ctx);
 err_percpu:
 	free_percpu(q->queue_ctx);
+err_exit:
+	q->mq_ops = NULL;
 	return ERR_PTR(-ENOMEM);
 }
 EXPORT_SYMBOL(blk_mq_init_allocated_queue);

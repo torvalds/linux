@@ -275,9 +275,13 @@ static s32 ds1307_native_smbus_write_block_data(const struct i2c_client *client,
 {
 	u8 suboffset = 0;
 
-	if (length <= I2C_SMBUS_BLOCK_MAX)
-		return i2c_smbus_write_i2c_block_data(client,
+	if (length <= I2C_SMBUS_BLOCK_MAX) {
+		s32 retval = i2c_smbus_write_i2c_block_data(client,
 					command, length, values);
+		if (retval < 0)
+			return retval;
+		return length;
+	}
 
 	while (suboffset < length) {
 		s32 retval = i2c_smbus_write_i2c_block_data(client,
@@ -538,12 +542,8 @@ static int ds1337_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	buf[5] = 0;
 	buf[6] = 0;
 
-	/* optionally enable ALARM1 */
+	/* disable alarms */
 	buf[7] = control & ~(DS1337_BIT_A1IE | DS1337_BIT_A2IE);
-	if (t->enabled) {
-		dev_dbg(dev, "alarm IRQ armed\n");
-		buf[7] |= DS1337_BIT_A1IE;	/* only ALARM1 is used */
-	}
 	buf[8] = status & ~(DS1337_BIT_A1I | DS1337_BIT_A2I);
 
 	ret = ds1307->write_block_data(client,
@@ -551,6 +551,13 @@ static int ds1337_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	if (ret < 0) {
 		dev_err(dev, "can't set alarm time\n");
 		return ret;
+	}
+
+	/* optionally enable ALARM1 */
+	if (t->enabled) {
+		dev_dbg(dev, "alarm IRQ armed\n");
+		buf[7] |= DS1337_BIT_A1IE;	/* only ALARM1 is used */
+		i2c_smbus_write_byte_data(client, DS1337_REG_CONTROL, buf[7]);
 	}
 
 	return 0;
@@ -863,7 +870,7 @@ out:
  * A user-initiated temperature conversion is not started by this function,
  * so the temperature is updated once every 64 seconds.
  */
-static int ds3231_hwmon_read_temp(struct device *dev, s16 *mC)
+static int ds3231_hwmon_read_temp(struct device *dev, s32 *mC)
 {
 	struct ds1307 *ds1307 = dev_get_drvdata(dev);
 	u8 temp_buf[2];
@@ -892,7 +899,7 @@ static ssize_t ds3231_hwmon_show_temp(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	int ret;
-	s16 temp;
+	s32 temp;
 
 	ret = ds3231_hwmon_read_temp(dev, &temp);
 	if (ret)
@@ -1144,12 +1151,10 @@ static struct clk_init_data ds3231_clks_init[] = {
 	[DS3231_CLK_SQW] = {
 		.name = "ds3231_clk_sqw",
 		.ops = &ds3231_clk_sqw_ops,
-		.flags = CLK_IS_ROOT,
 	},
 	[DS3231_CLK_32KHZ] = {
 		.name = "ds3231_clk_32khz",
 		.ops = &ds3231_clk_32khz_ops,
-		.flags = CLK_IS_ROOT,
 	},
 };
 
@@ -1531,7 +1536,7 @@ read_rtc:
 		return PTR_ERR(ds1307->rtc);
 	}
 
-	if (ds1307_can_wakeup_device) {
+	if (ds1307_can_wakeup_device && ds1307->client->irq <= 0) {
 		/* Disable request for an IRQ */
 		want_irq = false;
 		dev_info(&client->dev, "'wakeup-source' is set, request for an IRQ is disabled!\n");

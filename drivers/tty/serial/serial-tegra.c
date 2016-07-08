@@ -206,10 +206,8 @@ static void set_dtr(struct tegra_uart_port *tup, bool active)
 static void tegra_uart_set_mctrl(struct uart_port *u, unsigned int mctrl)
 {
 	struct tegra_uart_port *tup = to_tegra_uport(u);
-	unsigned long mcr;
 	int dtr_enable;
 
-	mcr = tup->mcr_shadow;
 	tup->rts_active = !!(mctrl & TIOCM_RTS);
 	set_rts(tup, tup->rts_active);
 

@@ -652,9 +652,6 @@ static inline notrace int trace_event_get_offsets_##call(		\
 #undef TP_fast_assign
 #define TP_fast_assign(args...) args
 
-#undef __perf_addr
-#define __perf_addr(a)	(a)
-
 #undef __perf_count
 #define __perf_count(c)	(c)
 

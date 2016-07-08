@@ -748,7 +748,7 @@ static long gntdev_ioctl_notify(struct gntdev_priv *priv, void __user *u)
 	return rc;
 }
 
-#define GNTDEV_COPY_BATCH 24
+#define GNTDEV_COPY_BATCH 16
 
 struct gntdev_copy_batch {
 	struct gnttab_copy ops[GNTDEV_COPY_BATCH];

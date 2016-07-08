@@ -33,7 +33,7 @@
 /*
  * 4MB minimal write chunk size
  */
-#define MIN_WRITEBACK_PAGES	(4096UL >> (PAGE_CACHE_SHIFT - 10))
+#define MIN_WRITEBACK_PAGES	(4096UL >> (PAGE_SHIFT - 10))
 
 struct wb_completion {
 	atomic_t		cnt;
@@ -931,7 +931,8 @@ void wb_start_writeback(struct bdi_writeback *wb, long nr_pages,
 	 * This is WB_SYNC_NONE writeback, so if allocation fails just
 	 * wakeup the thread for old dirty data writeback
 	 */
-	work = kzalloc(sizeof(*work), GFP_ATOMIC);
+	work = kzalloc(sizeof(*work),
+		       GFP_NOWAIT | __GFP_NOMEMALLOC | __GFP_NOWARN);
 	if (!work) {
 		trace_writeback_nowork(wb);
 		wb_wakeup(wb);

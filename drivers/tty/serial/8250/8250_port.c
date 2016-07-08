@@ -1315,6 +1315,13 @@ static void autoconfig(struct uart_8250_port *up)
 
 out_lock:
 	spin_unlock_irqrestore(&port->lock, flags);
+
+	/*
+	 * Check if the device is a Fintek F81216A
+	 */
+	if (port->type == PORT_16550A)
+		fintek_8250_probe(up);
+
 	if (up->capabilities != old_capabilities) {
 		pr_warn("ttyS%d: detected caps %08x should be %08x\n",
 		       serial_index(port), old_capabilities,
@@ -1403,9 +1410,18 @@ static void __do_stop_tx_rs485(struct uart_8250_port *p)
 	/*
 	 * Empty the RX FIFO, we are not interested in anything
 	 * received during the half-duplex transmission.
+	 * Enable previously disabled RX interrupts.
 	 */
-	if (!(p->port.rs485.flags & SER_RS485_RX_DURING_TX))
+	if (!(p->port.rs485.flags & SER_RS485_RX_DURING_TX)) {
 		serial8250_clear_fifos(p);
+
+		serial8250_rpm_get(p);
+
+		p->ier |= UART_IER_RLSI | UART_IER_RDI;
+		serial_port_out(&p->port, UART_IER, p->ier);
+
+		serial8250_rpm_put(p);
+	}
 }
 
 static void serial8250_em485_handle_stop_tx(unsigned long arg)
@@ -1779,6 +1795,18 @@ unsigned int serial8250_modem_status(struct uart_8250_port *up)
 }
 EXPORT_SYMBOL_GPL(serial8250_modem_status);
 
+static bool handle_rx_dma(struct uart_8250_port *up, unsigned int iir)
+{
+	switch (iir & 0x3f) {
+	case UART_IIR_RX_TIMEOUT:
+		serial8250_rx_dma_flush(up);
+		/* fall-through */
+	case UART_IIR_RLSI:
+		return true;
+	}
+	return up->dma->rx_dma(up);
+}
+
 /*
  * This handles the interrupt from one port.
  */
@@ -1787,7 +1815,6 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 	unsigned char status;
 	unsigned long flags;
 	struct uart_8250_port *up = up_to_u8250p(port);
-	int dma_err = 0;
 
 	if (iir & UART_IIR_NO_INT)
 		return 0;
@@ -1799,15 +1826,11 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 	DEBUG_INTR("status = %x...", status);
 
 	if (status & (UART_LSR_DR | UART_LSR_BI)) {
-		if (up->dma)
-			dma_err = up->dma->rx_dma(up, iir);
-
-		if (!up->dma || dma_err)
+		if (!up->dma || handle_rx_dma(up, iir))
 			status = serial8250_rx_chars(up, status);
 	}
 	serial8250_modem_status(up);
-	if ((!up->dma || (up->dma && up->dma->tx_err)) &&
-	    (status & UART_LSR_THRE))
+	if ((!up->dma || up->dma->tx_err) && (status & UART_LSR_THRE))
 		serial8250_tx_chars(up);
 
 	spin_unlock_irqrestore(&port->lock, flags);
@@ -1873,7 +1896,7 @@ static unsigned int serial8250_tx_empty(struct uart_port *port)
 	return (lsr & BOTH_EMPTY) == BOTH_EMPTY ? TIOCSER_TEMT : 0;
 }
 
-static unsigned int serial8250_get_mctrl(struct uart_port *port)
+unsigned int serial8250_do_get_mctrl(struct uart_port *port)
 {
 	struct uart_8250_port *up = up_to_u8250p(port);
 	unsigned int status;
@@ -1893,6 +1916,14 @@ static unsigned int serial8250_get_mctrl(struct uart_port *port)
 	if (status & UART_MSR_CTS)
 		ret |= TIOCM_CTS;
 	return ret;
+}
+EXPORT_SYMBOL_GPL(serial8250_do_get_mctrl);
+
+static unsigned int serial8250_get_mctrl(struct uart_port *port)
+{
+	if (port->get_mctrl)
+		return port->get_mctrl(port);
+	return serial8250_do_get_mctrl(port);
 }
 
 void serial8250_do_set_mctrl(struct uart_port *port, unsigned int mctrl)

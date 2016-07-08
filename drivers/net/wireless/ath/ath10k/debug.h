@@ -57,7 +57,7 @@ enum ath10k_dbg_aggr_mode {
 };
 
 /* FIXME: How to calculate the buffer size sanely? */
-#define ATH10K_FW_STATS_BUF_SIZE (1024*1024)
+#define ATH10K_FW_STATS_BUF_SIZE (1024 * 1024)
 
 extern unsigned int ath10k_debug_mask;
 

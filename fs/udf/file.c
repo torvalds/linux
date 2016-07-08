@@ -46,7 +46,7 @@ static void __udf_adinicb_readpage(struct page *page)
 
 	kaddr = kmap(page);
 	memcpy(kaddr, iinfo->i_ext.i_data + iinfo->i_lenEAttr, inode->i_size);
-	memset(kaddr + inode->i_size, 0, PAGE_CACHE_SIZE - inode->i_size);
+	memset(kaddr + inode->i_size, 0, PAGE_SIZE - inode->i_size);
 	flush_dcache_page(page);
 	SetPageUptodate(page);
 	kunmap(page);
@@ -87,20 +87,19 @@ static int udf_adinicb_write_begin(struct file *file,
 {
 	struct page *page;
 
-	if (WARN_ON_ONCE(pos >= PAGE_CACHE_SIZE))
+	if (WARN_ON_ONCE(pos >= PAGE_SIZE))
 		return -EIO;
 	page = grab_cache_page_write_begin(mapping, 0, flags);
 	if (!page)
 		return -ENOMEM;
 	*pagep = page;
 
-	if (!PageUptodate(page) && len != PAGE_CACHE_SIZE)
+	if (!PageUptodate(page) && len != PAGE_SIZE)
 		__udf_adinicb_readpage(page);
 	return 0;
 }
 
-static ssize_t udf_adinicb_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
-				     loff_t offset)
+static ssize_t udf_adinicb_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 {
 	/* Fallback to buffered I/O. */
 	return 0;
@@ -153,9 +152,7 @@ out:
 
 	if (retval > 0) {
 		mark_inode_dirty(inode);
-		err = generic_write_sync(file, iocb->ki_pos - retval, retval);
-		if (err < 0)
-			retval = err;
+		retval = generic_write_sync(iocb, retval);
 	}
 
 	return retval;

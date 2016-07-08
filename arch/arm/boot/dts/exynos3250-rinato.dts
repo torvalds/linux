@@ -14,6 +14,7 @@
 
 /dts-v1/;
 #include "exynos3250.dtsi"
+#include "exynos4412-ppmu-common.dtsi"
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/clock/samsung,s2mps11.h>
@@ -145,6 +146,53 @@
 		pulldown-ohm = <100000>;
 		io-channels = <&adc 1>;
 	};
+};
+
+&bus_dmc {
+	devfreq-events = <&ppmu_dmc0_3>, <&ppmu_dmc1_3>;
+	vdd-supply = <&buck1_reg>;
+	status = "okay";
+};
+
+&bus_leftbus {
+	devfreq-events = <&ppmu_leftbus_3>, <&ppmu_rightbus_3>;
+	vdd-supply = <&buck3_reg>;
+	status = "okay";
+};
+
+&bus_rightbus {
+	devfreq = <&bus_leftbus>;
+	status = "okay";
+};
+
+&bus_lcd0 {
+	devfreq = <&bus_leftbus>;
+	status = "okay";
+};
+
+&bus_fsys {
+	devfreq = <&bus_leftbus>;
+	status = "okay";
+};
+
+&bus_mcuisp {
+	devfreq = <&bus_leftbus>;
+	status = "okay";
+};
+
+&bus_isp {
+	devfreq = <&bus_leftbus>;
+	status = "okay";
+};
+
+&bus_peril {
+	devfreq = <&bus_leftbus>;
+	status = "okay";
+};
+
+&bus_mfc {
+	devfreq = <&bus_leftbus>;
+	status = "okay";
 };
 
 &cpu0 {
@@ -635,53 +683,27 @@
 	status = "okay";
 };
 
-&ppmu_dmc0 {
-	status = "okay";
-
-	events {
-		ppmu_dmc0_3: ppmu-event3-dmc0 {
-			event-name = "ppmu-event3-dmc0";
-		};
-	};
-};
-
-&ppmu_dmc1 {
-	status = "okay";
-
-	events {
-		ppmu_dmc1_3: ppmu-event3-dmc1 {
-			event-name = "ppmu-event3-dmc1";
-		};
-	};
-};
-
-&ppmu_leftbus {
-	status = "okay";
-
-	events {
-		ppmu_leftbus_3: ppmu-event3-leftbus {
-			event-name = "ppmu-event3-leftbus";
-		};
-	};
-};
-
-&ppmu_rightbus {
-	status = "okay";
-
-	events {
-		ppmu_rightbus_3: ppmu-event3-rightbus {
-			event-name = "ppmu-event3-rightbus";
-		};
-	};
-};
-
 &xusbxti {
 	clock-frequency = <24000000>;
 };
 
 &pinctrl_0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&sleep0>;
+	pinctrl-0 = <&initial0 &sleep0>;
+
+	initial0: initial-state {
+		PIN_IN(gpa1-4, DOWN, LV1);
+		PIN_IN(gpa1-5, DOWN, LV1);
+
+		PIN_IN(gpc0-0, DOWN, LV1);
+		PIN_IN(gpc0-1, DOWN, LV1);
+		PIN_IN(gpc0-2, DOWN, LV1);
+		PIN_IN(gpc0-3, DOWN, LV1);
+		PIN_IN(gpc0-4, DOWN, LV1);
+
+		PIN_IN(gpd0-0, DOWN, LV1);
+		PIN_IN(gpd0-1, DOWN, LV1);
+	};
 
 	sleep0: sleep-state {
 		PIN_SLP(gpa0-0, INPUT, DOWN);
@@ -735,7 +757,60 @@
 
 &pinctrl_1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&sleep1>;
+	pinctrl-0 = <&initial1 &sleep1>;
+
+	initial1: initial-state {
+		PIN_IN(gpe0-6, DOWN, LV1);
+		PIN_IN(gpe0-7, DOWN, LV1);
+
+		PIN_IN(gpe1-0, DOWN, LV1);
+		PIN_IN(gpe1-3, DOWN, LV1);
+		PIN_IN(gpe1-4, DOWN, LV1);
+		PIN_IN(gpe1-5, DOWN, LV1);
+		PIN_IN(gpe1-6, DOWN, LV1);
+
+		PIN_IN(gpk2-0, DOWN, LV1);
+		PIN_IN(gpk2-1, DOWN, LV1);
+		PIN_IN(gpk2-2, DOWN, LV1);
+		PIN_IN(gpk2-3, DOWN, LV1);
+		PIN_IN(gpk2-4, DOWN, LV1);
+		PIN_IN(gpk2-5, DOWN, LV1);
+		PIN_IN(gpk2-6, DOWN, LV1);
+
+		PIN_IN(gpm0-0, DOWN, LV1);
+		PIN_IN(gpm0-1, DOWN, LV1);
+		PIN_IN(gpm0-2, DOWN, LV1);
+		PIN_IN(gpm0-3, DOWN, LV1);
+		PIN_IN(gpm0-4, DOWN, LV1);
+		PIN_IN(gpm0-5, DOWN, LV1);
+		PIN_IN(gpm0-6, DOWN, LV1);
+		PIN_IN(gpm0-7, DOWN, LV1);
+
+		PIN_IN(gpm1-0, DOWN, LV1);
+		PIN_IN(gpm1-1, DOWN, LV1);
+		PIN_IN(gpm1-2, DOWN, LV1);
+		PIN_IN(gpm1-3, DOWN, LV1);
+		PIN_IN(gpm1-4, DOWN, LV1);
+		PIN_IN(gpm1-5, DOWN, LV1);
+		PIN_IN(gpm1-6, DOWN, LV1);
+
+		PIN_IN(gpm2-0, DOWN, LV1);
+		PIN_IN(gpm2-1, DOWN, LV1);
+
+		PIN_IN(gpm3-0, DOWN, LV1);
+		PIN_IN(gpm3-1, DOWN, LV1);
+		PIN_IN(gpm3-2, DOWN, LV1);
+		PIN_IN(gpm3-3, DOWN, LV1);
+		PIN_IN(gpm3-4, DOWN, LV1);
+
+		PIN_IN(gpm4-1, DOWN, LV1);
+		PIN_IN(gpm4-2, DOWN, LV1);
+		PIN_IN(gpm4-3, DOWN, LV1);
+		PIN_IN(gpm4-4, DOWN, LV1);
+		PIN_IN(gpm4-5, DOWN, LV1);
+		PIN_IN(gpm4-6, DOWN, LV1);
+		PIN_IN(gpm4-7, DOWN, LV1);
+	};
 
 	sleep1: sleep-state {
 		PIN_SLP(gpe0-0, PREV, NONE);

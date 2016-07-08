@@ -723,10 +723,9 @@ il_eeprom_init(struct il_priv *il)
 	sz = il->cfg->eeprom_size;
 	D_EEPROM("NVM size = %d\n", sz);
 	il->eeprom = kzalloc(sz, GFP_KERNEL);
-	if (!il->eeprom) {
-		ret = -ENOMEM;
-		goto alloc_err;
-	}
+	if (!il->eeprom)
+		return -ENOMEM;
+
 	e = (__le16 *) il->eeprom;
 
 	il->ops->apm_init(il);
@@ -778,7 +777,6 @@ err:
 		il_eeprom_free(il);
 	/* Reset chip to save power until we load uCode during "up". */
 	il_apm_stop(il);
-alloc_err:
 	return ret;
 }
 EXPORT_SYMBOL(il_eeprom_init);
@@ -862,7 +860,7 @@ il_init_band_reference(const struct il_priv *il, int eep_band,
  * Does not set up a command, or touch hardware.
  */
 static int
-il_mod_ht40_chan_info(struct il_priv *il, enum ieee80211_band band, u16 channel,
+il_mod_ht40_chan_info(struct il_priv *il, enum nl80211_band band, u16 channel,
 		      const struct il_eeprom_channel *eeprom_ch,
 		      u8 clear_ht40_extension_channel)
 {
@@ -947,7 +945,7 @@ il_init_channel_map(struct il_priv *il)
 			ch_info->channel = eeprom_ch_idx[ch];
 			ch_info->band =
 			    (band ==
-			     1) ? IEEE80211_BAND_2GHZ : IEEE80211_BAND_5GHZ;
+			     1) ? NL80211_BAND_2GHZ : NL80211_BAND_5GHZ;
 
 			/* permanently store EEPROM's channel regulatory flags
 			 *   and max power in channel info database. */
@@ -1005,14 +1003,14 @@ il_init_channel_map(struct il_priv *il)
 
 	/* Two additional EEPROM bands for 2.4 and 5 GHz HT40 channels */
 	for (band = 6; band <= 7; band++) {
-		enum ieee80211_band ieeeband;
+		enum nl80211_band ieeeband;
 
 		il_init_band_reference(il, band, &eeprom_ch_count,
 				       &eeprom_ch_info, &eeprom_ch_idx);
 
 		/* EEPROM band 6 is 2.4, band 7 is 5 GHz */
 		ieeeband =
-		    (band == 6) ? IEEE80211_BAND_2GHZ : IEEE80211_BAND_5GHZ;
+		    (band == 6) ? NL80211_BAND_2GHZ : NL80211_BAND_5GHZ;
 
 		/* Loop through each band adding each of the channels */
 		for (ch = 0; ch < eeprom_ch_count; ch++) {
@@ -1050,19 +1048,19 @@ EXPORT_SYMBOL(il_free_channel_map);
  * Based on band and channel number.
  */
 const struct il_channel_info *
-il_get_channel_info(const struct il_priv *il, enum ieee80211_band band,
+il_get_channel_info(const struct il_priv *il, enum nl80211_band band,
 		    u16 channel)
 {
 	int i;
 
 	switch (band) {
-	case IEEE80211_BAND_5GHZ:
+	case NL80211_BAND_5GHZ:
 		for (i = 14; i < il->channel_count; i++) {
 			if (il->channel_info[i].channel == channel)
 				return &il->channel_info[i];
 		}
 		break;
-	case IEEE80211_BAND_2GHZ:
+	case NL80211_BAND_2GHZ:
 		if (channel >= 1 && channel <= 14)
 			return &il->channel_info[channel - 1];
 		break;
@@ -1459,7 +1457,7 @@ il_hdl_scan_complete(struct il_priv *il, struct il_rx_buf *rxb)
 	clear_bit(S_SCAN_HW, &il->status);
 
 	D_SCAN("Scan on %sGHz took %dms\n",
-	       (il->scan_band == IEEE80211_BAND_2GHZ) ? "2.4" : "5.2",
+	       (il->scan_band == NL80211_BAND_2GHZ) ? "2.4" : "5.2",
 	       jiffies_to_msecs(jiffies - il->scan_start));
 
 	queue_work(il->workqueue, &il->scan_completed);
@@ -1477,10 +1475,10 @@ il_setup_rx_scan_handlers(struct il_priv *il)
 EXPORT_SYMBOL(il_setup_rx_scan_handlers);
 
 u16
-il_get_active_dwell_time(struct il_priv *il, enum ieee80211_band band,
+il_get_active_dwell_time(struct il_priv *il, enum nl80211_band band,
 			 u8 n_probes)
 {
-	if (band == IEEE80211_BAND_5GHZ)
+	if (band == NL80211_BAND_5GHZ)
 		return IL_ACTIVE_DWELL_TIME_52 +
 		    IL_ACTIVE_DWELL_FACTOR_52GHZ * (n_probes + 1);
 	else
@@ -1490,14 +1488,14 @@ il_get_active_dwell_time(struct il_priv *il, enum ieee80211_band band,
 EXPORT_SYMBOL(il_get_active_dwell_time);
 
 u16
-il_get_passive_dwell_time(struct il_priv *il, enum ieee80211_band band,
+il_get_passive_dwell_time(struct il_priv *il, enum nl80211_band band,
 			  struct ieee80211_vif *vif)
 {
 	u16 value;
 
 	u16 passive =
 	    (band ==
-	     IEEE80211_BAND_2GHZ) ? IL_PASSIVE_DWELL_BASE +
+	     NL80211_BAND_2GHZ) ? IL_PASSIVE_DWELL_BASE +
 	    IL_PASSIVE_DWELL_TIME_24 : IL_PASSIVE_DWELL_BASE +
 	    IL_PASSIVE_DWELL_TIME_52;
 
@@ -1522,10 +1520,10 @@ void
 il_init_scan_params(struct il_priv *il)
 {
 	u8 ant_idx = fls(il->hw_params.valid_tx_ant) - 1;
-	if (!il->scan_tx_ant[IEEE80211_BAND_5GHZ])
-		il->scan_tx_ant[IEEE80211_BAND_5GHZ] = ant_idx;
-	if (!il->scan_tx_ant[IEEE80211_BAND_2GHZ])
-		il->scan_tx_ant[IEEE80211_BAND_2GHZ] = ant_idx;
+	if (!il->scan_tx_ant[NL80211_BAND_5GHZ])
+		il->scan_tx_ant[NL80211_BAND_5GHZ] = ant_idx;
+	if (!il->scan_tx_ant[NL80211_BAND_2GHZ])
+		il->scan_tx_ant[NL80211_BAND_2GHZ] = ant_idx;
 }
 EXPORT_SYMBOL(il_init_scan_params);
 
@@ -2005,7 +2003,7 @@ il_prep_station(struct il_priv *il, const u8 *addr, bool is_ap,
 	il_set_ht_add_station(il, sta_id, sta);
 
 	/* 3945 only */
-	rate = (il->band == IEEE80211_BAND_5GHZ) ? RATE_6M_PLCP : RATE_1M_PLCP;
+	rate = (il->band == NL80211_BAND_5GHZ) ? RATE_6M_PLCP : RATE_1M_PLCP;
 	/* Turn on both antennas for the station... */
 	station->sta.rate_n_flags = cpu_to_le16(rate | RATE_MCS_ANT_AB_MSK);
 
@@ -2794,8 +2792,10 @@ il_tx_queue_free(struct il_priv *il, int txq_id)
 	il_tx_queue_unmap(il, txq_id);
 
 	/* De-alloc array of command/tx buffers */
-	for (i = 0; i < TFD_TX_CMD_SLOTS; i++)
-		kfree(txq->cmd[i]);
+	if (txq->cmd) {
+		for (i = 0; i < TFD_TX_CMD_SLOTS; i++)
+			kfree(txq->cmd[i]);
+	}
 
 	/* De-alloc circular buffer of TFDs */
 	if (txq->q.n_bd)
@@ -2873,8 +2873,10 @@ il_cmd_queue_free(struct il_priv *il)
 	il_cmd_queue_unmap(il);
 
 	/* De-alloc array of command/tx buffers */
-	for (i = 0; i <= TFD_CMD_SLOTS; i++)
-		kfree(txq->cmd[i]);
+	if (txq->cmd) {
+		for (i = 0; i <= TFD_CMD_SLOTS; i++)
+			kfree(txq->cmd[i]);
+	}
 
 	/* De-alloc circular buffer of TFDs */
 	if (txq->q.n_bd)
@@ -3080,7 +3082,9 @@ err:
 		kfree(txq->cmd[i]);
 out_free_arrays:
 	kfree(txq->meta);
+	txq->meta = NULL;
 	kfree(txq->cmd);
+	txq->cmd = NULL;
 
 	return -ENOMEM;
 }
@@ -3378,7 +3382,7 @@ EXPORT_SYMBOL(il_bcast_addr);
 static void
 il_init_ht_hw_capab(const struct il_priv *il,
 		    struct ieee80211_sta_ht_cap *ht_info,
-		    enum ieee80211_band band)
+		    enum nl80211_band band)
 {
 	u16 max_bit_rate = 0;
 	u8 rx_chains_num = il->hw_params.rx_chains_num;
@@ -3439,8 +3443,8 @@ il_init_geos(struct il_priv *il)
 	int i = 0;
 	s8 max_tx_power = 0;
 
-	if (il->bands[IEEE80211_BAND_2GHZ].n_bitrates ||
-	    il->bands[IEEE80211_BAND_5GHZ].n_bitrates) {
+	if (il->bands[NL80211_BAND_2GHZ].n_bitrates ||
+	    il->bands[NL80211_BAND_5GHZ].n_bitrates) {
 		D_INFO("Geography modes already initialized.\n");
 		set_bit(S_GEO_CONFIGURED, &il->status);
 		return 0;
@@ -3461,23 +3465,23 @@ il_init_geos(struct il_priv *il)
 	}
 
 	/* 5.2GHz channels start after the 2.4GHz channels */
-	sband = &il->bands[IEEE80211_BAND_5GHZ];
+	sband = &il->bands[NL80211_BAND_5GHZ];
 	sband->channels = &channels[ARRAY_SIZE(il_eeprom_band_1)];
 	/* just OFDM */
 	sband->bitrates = &rates[IL_FIRST_OFDM_RATE];
 	sband->n_bitrates = RATE_COUNT_LEGACY - IL_FIRST_OFDM_RATE;
 
 	if (il->cfg->sku & IL_SKU_N)
-		il_init_ht_hw_capab(il, &sband->ht_cap, IEEE80211_BAND_5GHZ);
+		il_init_ht_hw_capab(il, &sband->ht_cap, NL80211_BAND_5GHZ);
 
-	sband = &il->bands[IEEE80211_BAND_2GHZ];
+	sband = &il->bands[NL80211_BAND_2GHZ];
 	sband->channels = channels;
 	/* OFDM & CCK */
 	sband->bitrates = rates;
 	sband->n_bitrates = RATE_COUNT_LEGACY;
 
 	if (il->cfg->sku & IL_SKU_N)
-		il_init_ht_hw_capab(il, &sband->ht_cap, IEEE80211_BAND_2GHZ);
+		il_init_ht_hw_capab(il, &sband->ht_cap, NL80211_BAND_2GHZ);
 
 	il->ieee_channels = channels;
 	il->ieee_rates = rates;
@@ -3528,7 +3532,7 @@ il_init_geos(struct il_priv *il)
 	il->tx_power_user_lmt = max_tx_power;
 	il->tx_power_next = max_tx_power;
 
-	if (il->bands[IEEE80211_BAND_5GHZ].n_channels == 0 &&
+	if (il->bands[NL80211_BAND_5GHZ].n_channels == 0 &&
 	    (il->cfg->sku & IL_SKU_A)) {
 		IL_INFO("Incorrectly detected BG card as ABG. "
 			"Please send your PCI ID 0x%04X:0x%04X to maintainer.\n",
@@ -3537,8 +3541,8 @@ il_init_geos(struct il_priv *il)
 	}
 
 	IL_INFO("Tunable channels: %d 802.11bg, %d 802.11a channels\n",
-		il->bands[IEEE80211_BAND_2GHZ].n_channels,
-		il->bands[IEEE80211_BAND_5GHZ].n_channels);
+		il->bands[NL80211_BAND_2GHZ].n_channels,
+		il->bands[NL80211_BAND_5GHZ].n_channels);
 
 	set_bit(S_GEO_CONFIGURED, &il->status);
 
@@ -3559,7 +3563,7 @@ il_free_geos(struct il_priv *il)
 EXPORT_SYMBOL(il_free_geos);
 
 static bool
-il_is_channel_extension(struct il_priv *il, enum ieee80211_band band,
+il_is_channel_extension(struct il_priv *il, enum nl80211_band band,
 			u16 channel, u8 extension_chan_offset)
 {
 	const struct il_channel_info *ch_info;
@@ -3922,14 +3926,14 @@ EXPORT_SYMBOL(il_set_rxon_ht);
 
 /* Return valid, unused, channel for a passive scan to reset the RF */
 u8
-il_get_single_channel_number(struct il_priv *il, enum ieee80211_band band)
+il_get_single_channel_number(struct il_priv *il, enum nl80211_band band)
 {
 	const struct il_channel_info *ch_info;
 	int i;
 	u8 channel = 0;
 	u8 min, max;
 
-	if (band == IEEE80211_BAND_5GHZ) {
+	if (band == NL80211_BAND_5GHZ) {
 		min = 14;
 		max = il->channel_count;
 	} else {
@@ -3961,14 +3965,14 @@ EXPORT_SYMBOL(il_get_single_channel_number);
 int
 il_set_rxon_channel(struct il_priv *il, struct ieee80211_channel *ch)
 {
-	enum ieee80211_band band = ch->band;
+	enum nl80211_band band = ch->band;
 	u16 channel = ch->hw_value;
 
 	if (le16_to_cpu(il->staging.channel) == channel && il->band == band)
 		return 0;
 
 	il->staging.channel = cpu_to_le16(channel);
-	if (band == IEEE80211_BAND_5GHZ)
+	if (band == NL80211_BAND_5GHZ)
 		il->staging.flags &= ~RXON_FLG_BAND_24G_MSK;
 	else
 		il->staging.flags |= RXON_FLG_BAND_24G_MSK;
@@ -3982,10 +3986,10 @@ il_set_rxon_channel(struct il_priv *il, struct ieee80211_channel *ch)
 EXPORT_SYMBOL(il_set_rxon_channel);
 
 void
-il_set_flags_for_band(struct il_priv *il, enum ieee80211_band band,
+il_set_flags_for_band(struct il_priv *il, enum nl80211_band band,
 		      struct ieee80211_vif *vif)
 {
-	if (band == IEEE80211_BAND_5GHZ) {
+	if (band == NL80211_BAND_5GHZ) {
 		il->staging.flags &=
 		    ~(RXON_FLG_BAND_24G_MSK | RXON_FLG_AUTO_DETECT_MSK |
 		      RXON_FLG_CCK_MSK);
@@ -5411,7 +5415,7 @@ il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	if (changes & BSS_CHANGED_ERP_CTS_PROT) {
 		D_MAC80211("ERP_CTS %d\n", bss_conf->use_cts_prot);
-		if (bss_conf->use_cts_prot && il->band != IEEE80211_BAND_5GHZ)
+		if (bss_conf->use_cts_prot && il->band != NL80211_BAND_5GHZ)
 			il->staging.flags |= RXON_FLG_TGG_PROTECT_MSK;
 		else
 			il->staging.flags &= ~RXON_FLG_TGG_PROTECT_MSK;

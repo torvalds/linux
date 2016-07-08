@@ -22,7 +22,7 @@
 #include "../extent_io.h"
 #include "../disk-io.h"
 
-static int test_btrfs_split_item(void)
+static int test_btrfs_split_item(u32 sectorsize, u32 nodesize)
 {
 	struct btrfs_path *path;
 	struct btrfs_root *root;
@@ -40,7 +40,7 @@ static int test_btrfs_split_item(void)
 
 	test_msg("Running btrfs_split_item tests\n");
 
-	root = btrfs_alloc_dummy_root();
+	root = btrfs_alloc_dummy_root(sectorsize, nodesize);
 	if (IS_ERR(root)) {
 		test_msg("Could not allocate root\n");
 		return PTR_ERR(root);
@@ -53,7 +53,8 @@ static int test_btrfs_split_item(void)
 		return -ENOMEM;
 	}
 
-	path->nodes[0] = eb = alloc_dummy_extent_buffer(NULL, 4096);
+	path->nodes[0] = eb = alloc_dummy_extent_buffer(NULL, nodesize,
+							nodesize);
 	if (!eb) {
 		test_msg("Could not allocate dummy buffer\n");
 		ret = -ENOMEM;
@@ -222,8 +223,8 @@ out:
 	return ret;
 }
 
-int btrfs_test_extent_buffer_operations(void)
+int btrfs_test_extent_buffer_operations(u32 sectorsize, u32 nodesize)
 {
-	test_msg("Running extent buffer operation tests");
-	return test_btrfs_split_item();
+	test_msg("Running extent buffer operation tests\n");
+	return test_btrfs_split_item(sectorsize, nodesize);
 }

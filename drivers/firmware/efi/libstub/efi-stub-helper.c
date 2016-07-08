@@ -125,10 +125,12 @@ unsigned long get_dram_base(efi_system_table_t *sys_table_arg)
 
 	map.map_end = map.map + map_size;
 
-	for_each_efi_memory_desc(&map, md)
-		if (md->attribute & EFI_MEMORY_WB)
+	for_each_efi_memory_desc_in_map(&map, md) {
+		if (md->attribute & EFI_MEMORY_WB) {
 			if (membase > md->phys_addr)
 				membase = md->phys_addr;
+		}
+	}
 
 	efi_call_early(free_pool, map.map);
 

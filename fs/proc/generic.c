@@ -318,7 +318,7 @@ int proc_readdir(struct file *file, struct dir_context *ctx)
 static const struct file_operations proc_dir_operations = {
 	.llseek			= generic_file_llseek,
 	.read			= generic_read_dir,
-	.iterate		= proc_readdir,
+	.iterate_shared		= proc_readdir,
 };
 
 /*

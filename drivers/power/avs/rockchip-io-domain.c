@@ -336,6 +336,7 @@ static int rockchip_iodomain_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	const struct of_device_id *match;
 	struct rockchip_iodomain *iod;
+	struct device *parent;
 	int i, ret = 0;
 
 	if (!np)
@@ -351,7 +352,14 @@ static int rockchip_iodomain_probe(struct platform_device *pdev)
 	match = of_match_node(rockchip_iodomain_match, np);
 	iod->soc_data = (struct rockchip_iodomain_soc_data *)match->data;
 
-	iod->grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
+	parent = pdev->dev.parent;
+	if (parent && parent->of_node) {
+		iod->grf = syscon_node_to_regmap(parent->of_node);
+	} else {
+		dev_dbg(&pdev->dev, "falling back to old binding\n");
+		iod->grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
+	}
+
 	if (IS_ERR(iod->grf)) {
 		dev_err(&pdev->dev, "couldn't find grf regmap\n");
 		return PTR_ERR(iod->grf);

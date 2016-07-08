@@ -32,10 +32,10 @@ struct lock_class_key;
 /* callback to a compare function.  should compare 2 element datas for their
  * keys
  *
- * Return: 0 if same and not 0 if not same
+ * Return: true if same and false if not same
  */
-typedef int (*batadv_hashdata_compare_cb)(const struct hlist_node *,
-					  const void *);
+typedef bool (*batadv_hashdata_compare_cb)(const struct hlist_node *,
+					   const void *);
 
 /* the hashfunction
  *

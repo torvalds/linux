@@ -8,3 +8,4 @@ obj-$(CONFIG_VIDEO_OMAP1)	+= omap1/
 obj-$(CONFIG_VIDEO_OMAP4)	+= omap4iss/
 obj-$(CONFIG_DVB_MN88472)       += mn88472/
 obj-$(CONFIG_VIDEO_TIMBERDALE)  += timb/
+obj-$(CONFIG_VIDEO_TW686X_KH)	+= tw686x-kh/

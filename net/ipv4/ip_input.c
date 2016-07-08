@@ -218,17 +218,17 @@ static int ip_local_deliver_finish(struct net *net, struct sock *sk, struct sk_b
 				protocol = -ret;
 				goto resubmit;
 			}
-			IP_INC_STATS_BH(net, IPSTATS_MIB_INDELIVERS);
+			__IP_INC_STATS(net, IPSTATS_MIB_INDELIVERS);
 		} else {
 			if (!raw) {
 				if (xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb)) {
-					IP_INC_STATS_BH(net, IPSTATS_MIB_INUNKNOWNPROTOS);
+					__IP_INC_STATS(net, IPSTATS_MIB_INUNKNOWNPROTOS);
 					icmp_send(skb, ICMP_DEST_UNREACH,
 						  ICMP_PROT_UNREACH, 0);
 				}
 				kfree_skb(skb);
 			} else {
-				IP_INC_STATS_BH(net, IPSTATS_MIB_INDELIVERS);
+				__IP_INC_STATS(net, IPSTATS_MIB_INDELIVERS);
 				consume_skb(skb);
 			}
 		}
@@ -273,7 +273,7 @@ static inline bool ip_rcv_options(struct sk_buff *skb)
 					      --ANK (980813)
 	*/
 	if (skb_cow(skb, skb_headroom(skb))) {
-		IP_INC_STATS_BH(dev_net(dev), IPSTATS_MIB_INDISCARDS);
+		__IP_INC_STATS(dev_net(dev), IPSTATS_MIB_INDISCARDS);
 		goto drop;
 	}
 
@@ -282,7 +282,7 @@ static inline bool ip_rcv_options(struct sk_buff *skb)
 	opt->optlen = iph->ihl*4 - sizeof(struct iphdr);
 
 	if (ip_options_compile(dev_net(dev), opt, skb)) {
-		IP_INC_STATS_BH(dev_net(dev), IPSTATS_MIB_INHDRERRORS);
+		__IP_INC_STATS(dev_net(dev), IPSTATS_MIB_INHDRERRORS);
 		goto drop;
 	}
 
@@ -313,6 +313,13 @@ static int ip_rcv_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 	const struct iphdr *iph = ip_hdr(skb);
 	struct rtable *rt;
 
+	/* if ingress device is enslaved to an L3 master device pass the
+	 * skb to its handler for processing
+	 */
+	skb = l3mdev_ip_rcv(skb);
+	if (!skb)
+		return NET_RX_SUCCESS;
+
 	if (net->ipv4.sysctl_ip_early_demux &&
 	    !skb_dst(skb) &&
 	    !skb->sk &&
@@ -337,7 +344,7 @@ static int ip_rcv_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 					       iph->tos, skb->dev);
 		if (unlikely(err)) {
 			if (err == -EXDEV)
-				NET_INC_STATS_BH(net, LINUX_MIB_IPRPFILTER);
+				__NET_INC_STATS(net, LINUX_MIB_IPRPFILTER);
 			goto drop;
 		}
 	}
@@ -358,9 +365,9 @@ static int ip_rcv_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 
 	rt = skb_rtable(skb);
 	if (rt->rt_type == RTN_MULTICAST) {
-		IP_UPD_PO_STATS_BH(net, IPSTATS_MIB_INMCAST, skb->len);
+		__IP_UPD_PO_STATS(net, IPSTATS_MIB_INMCAST, skb->len);
 	} else if (rt->rt_type == RTN_BROADCAST) {
-		IP_UPD_PO_STATS_BH(net, IPSTATS_MIB_INBCAST, skb->len);
+		__IP_UPD_PO_STATS(net, IPSTATS_MIB_INBCAST, skb->len);
 	} else if (skb->pkt_type == PACKET_BROADCAST ||
 		   skb->pkt_type == PACKET_MULTICAST) {
 		struct in_device *in_dev = __in_dev_get_rcu(skb->dev);
@@ -409,11 +416,11 @@ int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, 
 
 
 	net = dev_net(dev);
-	IP_UPD_PO_STATS_BH(net, IPSTATS_MIB_IN, skb->len);
+	__IP_UPD_PO_STATS(net, IPSTATS_MIB_IN, skb->len);
 
 	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (!skb) {
-		IP_INC_STATS_BH(net, IPSTATS_MIB_INDISCARDS);
+		__IP_INC_STATS(net, IPSTATS_MIB_INDISCARDS);
 		goto out;
 	}
 
@@ -439,9 +446,9 @@ int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, 
 	BUILD_BUG_ON(IPSTATS_MIB_ECT1PKTS != IPSTATS_MIB_NOECTPKTS + INET_ECN_ECT_1);
 	BUILD_BUG_ON(IPSTATS_MIB_ECT0PKTS != IPSTATS_MIB_NOECTPKTS + INET_ECN_ECT_0);
 	BUILD_BUG_ON(IPSTATS_MIB_CEPKTS != IPSTATS_MIB_NOECTPKTS + INET_ECN_CE);
-	IP_ADD_STATS_BH(net,
-			IPSTATS_MIB_NOECTPKTS + (iph->tos & INET_ECN_MASK),
-			max_t(unsigned short, 1, skb_shinfo(skb)->gso_segs));
+	__IP_ADD_STATS(net,
+		       IPSTATS_MIB_NOECTPKTS + (iph->tos & INET_ECN_MASK),
+		       max_t(unsigned short, 1, skb_shinfo(skb)->gso_segs));
 
 	if (!pskb_may_pull(skb, iph->ihl*4))
 		goto inhdr_error;
@@ -453,7 +460,7 @@ int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, 
 
 	len = ntohs(iph->tot_len);
 	if (skb->len < len) {
-		IP_INC_STATS_BH(net, IPSTATS_MIB_INTRUNCATEDPKTS);
+		__IP_INC_STATS(net, IPSTATS_MIB_INTRUNCATEDPKTS);
 		goto drop;
 	} else if (len < (iph->ihl*4))
 		goto inhdr_error;
@@ -463,7 +470,7 @@ int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, 
 	 * Note this now means skb->len holds ntohs(iph->tot_len).
 	 */
 	if (pskb_trim_rcsum(skb, len)) {
-		IP_INC_STATS_BH(net, IPSTATS_MIB_INDISCARDS);
+		__IP_INC_STATS(net, IPSTATS_MIB_INDISCARDS);
 		goto drop;
 	}
 
@@ -471,6 +478,7 @@ int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, 
 
 	/* Remove any debris in the socket control block */
 	memset(IPCB(skb), 0, sizeof(struct inet_skb_parm));
+	IPCB(skb)->iif = skb->skb_iif;
 
 	/* Must drop socket now because of tproxy. */
 	skb_orphan(skb);
@@ -480,9 +488,9 @@ int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, 
 		       ip_rcv_finish);
 
 csum_error:
-	IP_INC_STATS_BH(net, IPSTATS_MIB_CSUMERRORS);
+	__IP_INC_STATS(net, IPSTATS_MIB_CSUMERRORS);
 inhdr_error:
-	IP_INC_STATS_BH(net, IPSTATS_MIB_INHDRERRORS);
+	__IP_INC_STATS(net, IPSTATS_MIB_INHDRERRORS);
 drop:
 	kfree_skb(skb);
 out:

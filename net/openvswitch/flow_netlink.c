@@ -261,7 +261,7 @@ size_t ovs_tun_key_attr_size(void)
 	/* Whenever adding new OVS_TUNNEL_KEY_ FIELDS, we should consider
 	 * updating this function.
 	 */
-	return    nla_total_size(8)    /* OVS_TUNNEL_KEY_ATTR_ID */
+	return    nla_total_size_64bit(8) /* OVS_TUNNEL_KEY_ATTR_ID */
 		+ nla_total_size(16)   /* OVS_TUNNEL_KEY_ATTR_IPV[46]_SRC */
 		+ nla_total_size(16)   /* OVS_TUNNEL_KEY_ATTR_IPV[46]_DST */
 		+ nla_total_size(1)    /* OVS_TUNNEL_KEY_ATTR_TOS */
@@ -720,7 +720,8 @@ static int __ip_tun_to_nlattr(struct sk_buff *skb,
 			      unsigned short tun_proto)
 {
 	if (output->tun_flags & TUNNEL_KEY &&
-	    nla_put_be64(skb, OVS_TUNNEL_KEY_ATTR_ID, output->tun_id))
+	    nla_put_be64(skb, OVS_TUNNEL_KEY_ATTR_ID, output->tun_id,
+			 OVS_TUNNEL_KEY_ATTR_PAD))
 		return -EMSGSIZE;
 	switch (tun_proto) {
 	case AF_INET:

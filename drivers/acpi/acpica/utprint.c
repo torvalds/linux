@@ -67,11 +67,6 @@ static char *acpi_ut_format_number(char *string,
 
 static char *acpi_ut_put_number(char *string, u64 number, u8 base, u8 upper);
 
-/* Module globals */
-
-static const char acpi_gbl_lower_hex_digits[] = "0123456789abcdef";
-static const char acpi_gbl_upper_hex_digits[] = "0123456789ABCDEF";
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ut_bound_string_length
@@ -269,9 +264,9 @@ static char *acpi_ut_format_number(char *string,
 
 	sign = '\0';
 	if (type & ACPI_FORMAT_SIGN) {
-		if ((s64) number < 0) {
+		if ((s64)number < 0) {
 			sign = '-';
-			number = -(s64) number;
+			number = -(s64)number;
 			width--;
 		} else if (type & ACPI_FORMAT_SIGN_PLUS) {
 			sign = '+';
@@ -409,7 +404,7 @@ acpi_ut_vsnprintf(char *string,
 		width = -1;
 		if (isdigit((int)*format)) {
 			format = acpi_ut_scan_number(format, &number);
-			width = (s32) number;
+			width = (s32)number;
 		} else if (*format == '*') {
 			++format;
 			width = va_arg(args, int);
@@ -426,7 +421,7 @@ acpi_ut_vsnprintf(char *string,
 			++format;
 			if (isdigit((int)*format)) {
 				format = acpi_ut_scan_number(format, &number);
-				precision = (s32) number;
+				precision = (s32)number;
 			} else if (*format == '*') {
 				++format;
 				precision = va_arg(args, int);
@@ -555,17 +550,17 @@ acpi_ut_vsnprintf(char *string,
 		if (qualifier == 'L') {
 			number = va_arg(args, u64);
 			if (type & ACPI_FORMAT_SIGN) {
-				number = (s64) number;
+				number = (s64)number;
 			}
 		} else if (qualifier == 'l') {
 			number = va_arg(args, unsigned long);
 			if (type & ACPI_FORMAT_SIGN) {
-				number = (s32) number;
+				number = (s32)number;
 			}
 		} else if (qualifier == 'h') {
 			number = (u16)va_arg(args, int);
 			if (type & ACPI_FORMAT_SIGN) {
-				number = (s16) number;
+				number = (s16)number;
 			}
 		} else {
 			number = va_arg(args, unsigned int);

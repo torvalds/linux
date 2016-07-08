@@ -20,9 +20,6 @@
 #undef __get_bitmask
 #define __get_bitmask(field) (char *)__get_dynamic_array(field)
 
-#undef __perf_addr
-#define __perf_addr(a)	(__addr = (a))
-
 #undef __perf_count
 #define __perf_count(c)	(__count = (c))
 
@@ -37,8 +34,9 @@ perf_trace_##call(void *__data, proto)					\
 	struct trace_event_call *event_call = __data;			\
 	struct trace_event_data_offsets_##call __maybe_unused __data_offsets;\
 	struct trace_event_raw_##call *entry;				\
+	struct bpf_prog *prog = event_call->prog;			\
 	struct pt_regs *__regs;						\
-	u64 __addr = 0, __count = 1;					\
+	u64 __count = 1;						\
 	struct task_struct *__task = NULL;				\
 	struct hlist_head *head;					\
 	int __entry_size;						\
@@ -48,7 +46,7 @@ perf_trace_##call(void *__data, proto)					\
 	__data_size = trace_event_get_offsets_##call(&__data_offsets, args); \
 									\
 	head = this_cpu_ptr(event_call->perf_events);			\
-	if (__builtin_constant_p(!__task) && !__task &&			\
+	if (!prog && __builtin_constant_p(!__task) && !__task &&	\
 				hlist_empty(head))			\
 		return;							\
 									\
@@ -56,8 +54,7 @@ perf_trace_##call(void *__data, proto)					\
 			     sizeof(u64));				\
 	__entry_size -= sizeof(u32);					\
 									\
-	entry = perf_trace_buf_prepare(__entry_size,			\
-			event_call->event.type, &__regs, &rctx);	\
+	entry = perf_trace_buf_alloc(__entry_size, &__regs, &rctx);	\
 	if (!entry)							\
 		return;							\
 									\
@@ -67,8 +64,9 @@ perf_trace_##call(void *__data, proto)					\
 									\
 	{ assign; }							\
 									\
-	perf_trace_buf_submit(entry, __entry_size, rctx, __addr,	\
-		__count, __regs, head, __task);				\
+	perf_trace_run_bpf_submit(entry, __entry_size, rctx,		\
+				  event_call, __count, __regs,		\
+				  head, __task);			\
 }
 
 /*

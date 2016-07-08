@@ -17,6 +17,8 @@ int snd_hdac_regmap_add_vendor_verb(struct hdac_device *codec,
 				    unsigned int verb);
 int snd_hdac_regmap_read_raw(struct hdac_device *codec, unsigned int reg,
 			     unsigned int *val);
+int snd_hdac_regmap_read_raw_uncached(struct hdac_device *codec,
+				      unsigned int reg, unsigned int *val);
 int snd_hdac_regmap_write_raw(struct hdac_device *codec, unsigned int reg,
 			      unsigned int val);
 int snd_hdac_regmap_update_raw(struct hdac_device *codec, unsigned int reg,

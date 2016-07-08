@@ -12,6 +12,7 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
+#include <linux/seq_file.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>

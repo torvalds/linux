@@ -274,7 +274,9 @@ static int cs35l32_handle_of_data(struct i2c_client *i2c_client,
 	if (of_property_read_u32(np, "cirrus,sdout-share", &val) >= 0)
 		pdata->sdout_share = val;
 
-	of_property_read_u32(np, "cirrus,boost-manager", &val);
+	if (of_property_read_u32(np, "cirrus,boost-manager", &val))
+		val = -1u;
+
 	switch (val) {
 	case CS35L32_BOOST_MGR_AUTO:
 	case CS35L32_BOOST_MGR_AUTO_AUDIO:
@@ -282,13 +284,15 @@ static int cs35l32_handle_of_data(struct i2c_client *i2c_client,
 	case CS35L32_BOOST_MGR_FIXED:
 		pdata->boost_mng = val;
 		break;
+	case -1u:
 	default:
 		dev_err(&i2c_client->dev,
 			"Wrong cirrus,boost-manager DT value %d\n", val);
 		pdata->boost_mng = CS35L32_BOOST_MGR_BYPASS;
 	}
 
-	of_property_read_u32(np, "cirrus,sdout-datacfg", &val);
+	if (of_property_read_u32(np, "cirrus,sdout-datacfg", &val))
+		val = -1u;
 	switch (val) {
 	case CS35L32_DATA_CFG_LR_VP:
 	case CS35L32_DATA_CFG_LR_STAT:
@@ -296,13 +300,15 @@ static int cs35l32_handle_of_data(struct i2c_client *i2c_client,
 	case CS35L32_DATA_CFG_LR_VPSTAT:
 		pdata->sdout_datacfg = val;
 		break;
+	case -1u:
 	default:
 		dev_err(&i2c_client->dev,
 			"Wrong cirrus,sdout-datacfg DT value %d\n", val);
 		pdata->sdout_datacfg = CS35L32_DATA_CFG_LR;
 	}
 
-	of_property_read_u32(np, "cirrus,battery-threshold", &val);
+	if (of_property_read_u32(np, "cirrus,battery-threshold", &val))
+		val = -1u;
 	switch (val) {
 	case CS35L32_BATT_THRESH_3_1V:
 	case CS35L32_BATT_THRESH_3_2V:
@@ -310,13 +316,15 @@ static int cs35l32_handle_of_data(struct i2c_client *i2c_client,
 	case CS35L32_BATT_THRESH_3_4V:
 		pdata->batt_thresh = val;
 		break;
+	case -1u:
 	default:
 		dev_err(&i2c_client->dev,
 			"Wrong cirrus,battery-threshold DT value %d\n", val);
 		pdata->batt_thresh = CS35L32_BATT_THRESH_3_3V;
 	}
 
-	of_property_read_u32(np, "cirrus,battery-recovery", &val);
+	if (of_property_read_u32(np, "cirrus,battery-recovery", &val))
+		val = -1u;
 	switch (val) {
 	case CS35L32_BATT_RECOV_3_1V:
 	case CS35L32_BATT_RECOV_3_2V:
@@ -326,6 +334,7 @@ static int cs35l32_handle_of_data(struct i2c_client *i2c_client,
 	case CS35L32_BATT_RECOV_3_6V:
 		pdata->batt_recov = val;
 		break;
+	case -1u:
 	default:
 		dev_err(&i2c_client->dev,
 			"Wrong cirrus,battery-recovery DT value %d\n", val);

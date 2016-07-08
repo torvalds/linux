@@ -80,7 +80,7 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 		   call->conn->in_clientflag ? "Svc" : "Clt",
 		   atomic_read(&call->usage),
 		   rxrpc_call_states[call->state],
-		   call->abort_code,
+		   call->remote_abort ?: call->local_abort,
 		   call->user_call_ID);
 
 	return 0;

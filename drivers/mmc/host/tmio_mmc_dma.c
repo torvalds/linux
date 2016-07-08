@@ -15,7 +15,6 @@
 #include <linux/dmaengine.h>
 #include <linux/mfd/tmio.h>
 #include <linux/mmc/host.h>
-#include <linux/mmc/tmio.h>
 #include <linux/pagemap.h>
 #include <linux/scatterlist.h>
 
@@ -63,7 +62,7 @@ static void tmio_mmc_start_dma_rx(struct tmio_mmc_host *host)
 		}
 	}
 
-	if ((!aligned && (host->sg_len > 1 || sg->length > PAGE_CACHE_SIZE ||
+	if ((!aligned && (host->sg_len > 1 || sg->length > PAGE_SIZE ||
 			  (align & PAGE_MASK))) || !multiple) {
 		ret = -EINVAL;
 		goto pio;
@@ -133,7 +132,7 @@ static void tmio_mmc_start_dma_tx(struct tmio_mmc_host *host)
 		}
 	}
 
-	if ((!aligned && (host->sg_len > 1 || sg->length > PAGE_CACHE_SIZE ||
+	if ((!aligned && (host->sg_len > 1 || sg->length > PAGE_SIZE ||
 			  (align & PAGE_MASK))) || !multiple) {
 		ret = -EINVAL;
 		goto pio;

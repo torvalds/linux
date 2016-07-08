@@ -31,8 +31,6 @@ A switch child node has the following optional property:
 			  switch. Must be set if the switch can not detect
 			  the presence and/or size of a connected EEPROM,
 			  otherwise optional.
-- reset-gpios		: phandle and specifier to a gpio line connected to
-			  reset pin of the switch chip.
 
 A switch may have multiple "port" children nodes
 

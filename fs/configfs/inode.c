@@ -156,7 +156,7 @@ static void configfs_set_inode_lock_class(struct configfs_dirent *sd,
 
 	if (depth > 0) {
 		if (depth <= ARRAY_SIZE(default_group_class)) {
-			lockdep_set_class(&inode->i_mutex,
+			lockdep_set_class(&inode->i_rwsem,
 					  &default_group_class[depth - 1]);
 		} else {
 			/*

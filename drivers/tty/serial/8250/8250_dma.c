@@ -110,29 +110,10 @@ err:
 	return ret;
 }
 
-int serial8250_rx_dma(struct uart_8250_port *p, unsigned int iir)
+int serial8250_rx_dma(struct uart_8250_port *p)
 {
 	struct uart_8250_dma		*dma = p->dma;
 	struct dma_async_tx_descriptor	*desc;
-
-	switch (iir & 0x3f) {
-	case UART_IIR_RLSI:
-		/* 8250_core handles errors and break interrupts */
-		return -EIO;
-	case UART_IIR_RX_TIMEOUT:
-		/*
-		 * If RCVR FIFO trigger level was not reached, complete the
-		 * transfer and let 8250_core copy the remaining data.
-		 */
-		if (dma->rx_running) {
-			dmaengine_pause(dma->rxchan);
-			__dma_rx_complete(p);
-			dmaengine_terminate_all(dma->rxchan);
-		}
-		return -ETIMEDOUT;
-	default:
-		break;
-	}
 
 	if (dma->rx_running)
 		return 0;
@@ -154,10 +135,23 @@ int serial8250_rx_dma(struct uart_8250_port *p, unsigned int iir)
 	return 0;
 }
 
+void serial8250_rx_dma_flush(struct uart_8250_port *p)
+{
+	struct uart_8250_dma *dma = p->dma;
+
+	if (dma->rx_running) {
+		dmaengine_pause(dma->rxchan);
+		__dma_rx_complete(p);
+		dmaengine_terminate_all(dma->rxchan);
+	}
+}
+
 int serial8250_request_dma(struct uart_8250_port *p)
 {
 	struct uart_8250_dma	*dma = p->dma;
 	dma_cap_mask_t		mask;
+	struct dma_slave_caps	caps;
+	int			ret;
 
 	/* Default slave configuration parameters */
 	dma->rxconf.direction		= DMA_DEV_TO_MEM;
@@ -178,6 +172,16 @@ int serial8250_request_dma(struct uart_8250_port *p)
 	if (!dma->rxchan)
 		return -ENODEV;
 
+	/* 8250 rx dma requires dmaengine driver to support pause/terminate */
+	ret = dma_get_slave_caps(dma->rxchan, &caps);
+	if (ret)
+		goto release_rx;
+	if (!caps.cmd_pause || !caps.cmd_terminate ||
+	    caps.residue_granularity == DMA_RESIDUE_GRANULARITY_DESCRIPTOR) {
+		ret = -EINVAL;
+		goto release_rx;
+	}
+
 	dmaengine_slave_config(dma->rxchan, &dma->rxconf);
 
 	/* Get a channel for TX */
@@ -185,8 +189,17 @@ int serial8250_request_dma(struct uart_8250_port *p)
 						       dma->fn, dma->tx_param,
 						       p->port.dev, "tx");
 	if (!dma->txchan) {
-		dma_release_channel(dma->rxchan);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto release_rx;
+	}
+
+	/* 8250 tx dma requires dmaengine driver to support terminate */
+	ret = dma_get_slave_caps(dma->txchan, &caps);
+	if (ret)
+		goto err;
+	if (!caps.cmd_terminate) {
+		ret = -EINVAL;
+		goto err;
 	}
 
 	dmaengine_slave_config(dma->txchan, &dma->txconf);
@@ -197,8 +210,10 @@ int serial8250_request_dma(struct uart_8250_port *p)
 
 	dma->rx_buf = dma_alloc_coherent(dma->rxchan->device->dev, dma->rx_size,
 					&dma->rx_addr, GFP_KERNEL);
-	if (!dma->rx_buf)
+	if (!dma->rx_buf) {
+		ret = -ENOMEM;
 		goto err;
+	}
 
 	/* TX buffer */
 	dma->tx_addr = dma_map_single(dma->txchan->device->dev,
@@ -208,6 +223,7 @@ int serial8250_request_dma(struct uart_8250_port *p)
 	if (dma_mapping_error(dma->txchan->device->dev, dma->tx_addr)) {
 		dma_free_coherent(dma->rxchan->device->dev, dma->rx_size,
 				  dma->rx_buf, dma->rx_addr);
+		ret = -ENOMEM;
 		goto err;
 	}
 
@@ -215,10 +231,10 @@ int serial8250_request_dma(struct uart_8250_port *p)
 
 	return 0;
 err:
-	dma_release_channel(dma->rxchan);
 	dma_release_channel(dma->txchan);
-
-	return -ENOMEM;
+release_rx:
+	dma_release_channel(dma->rxchan);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(serial8250_request_dma);
 

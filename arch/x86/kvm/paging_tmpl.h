@@ -360,7 +360,7 @@ retry_walk:
 			goto error;
 
 		if (unlikely(is_rsvd_bits_set(mmu, pte, walker->level))) {
-			errcode |= PFERR_RSVD_MASK | PFERR_PRESENT_MASK;
+			errcode = PFERR_RSVD_MASK | PFERR_PRESENT_MASK;
 			goto error;
 		}
 

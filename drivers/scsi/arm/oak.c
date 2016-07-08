@@ -14,9 +14,6 @@
 
 #include <scsi/scsi_host.h>
 
-/*#define PSEUDO_DMA*/
-#define DONT_USE_INTR
-
 #define priv(host)			((struct NCR5380_hostdata *)(host)->hostdata)
 
 #define NCR5380_read(reg) \
@@ -24,7 +21,10 @@
 #define NCR5380_write(reg, value) \
 	writeb(value, priv(instance)->base + ((reg) << 2))
 
-#define NCR5380_dma_xfer_len(instance, cmd, phase)	(cmd->transfersize)
+#define NCR5380_dma_xfer_len(instance, cmd, phase)	(0)
+#define NCR5380_dma_recv_setup		oakscsi_pread
+#define NCR5380_dma_send_setup		oakscsi_pwrite
+#define NCR5380_dma_residual(instance)	(0)
 
 #define NCR5380_queue_command		oakscsi_queue_command
 #define NCR5380_info			oakscsi_info
@@ -40,23 +40,23 @@
 #define STAT	((128 + 16) << 2)
 #define DATA	((128 + 8) << 2)
 
-static inline int NCR5380_pwrite(struct Scsi_Host *instance, unsigned char *addr,
-              int len)
+static inline int oakscsi_pwrite(struct Scsi_Host *instance,
+                                 unsigned char *addr, int len)
 {
   void __iomem *base = priv(instance)->base;
 
 printk("writing %p len %d\n",addr, len);
-  if(!len) return -1;
 
   while(1)
   {
     int status;
     while (((status = readw(base + STAT)) & 0x100)==0);
   }
+  return 0;
 }
 
-static inline int NCR5380_pread(struct Scsi_Host *instance, unsigned char *addr,
-              int len)
+static inline int oakscsi_pread(struct Scsi_Host *instance,
+                                unsigned char *addr, int len)
 {
   void __iomem *base = priv(instance)->base;
 printk("reading %p len %d\n", addr, len);
@@ -73,7 +73,7 @@ printk("reading %p len %d\n", addr, len);
       if(status & 0x200 || !timeout)
       {
         printk("status = %08X\n", status);
-        return 1;
+        return -1;
       }
     }
 
@@ -143,7 +143,7 @@ static int oakscsi_probe(struct expansion_card *ec, const struct ecard_id *id)
 	host->irq = NO_IRQ;
 	host->n_io_port = 255;
 
-	ret = NCR5380_init(host, 0);
+	ret = NCR5380_init(host, FLAG_DMA_FIXUP | FLAG_LATE_DMA_SETUP);
 	if (ret)
 		goto out_unmap;
 

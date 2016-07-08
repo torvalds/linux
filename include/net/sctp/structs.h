@@ -210,14 +210,15 @@ struct sctp_sock {
 	int user_frag;
 
 	__u32 autoclose;
-	__u8 nodelay;
-	__u8 disable_fragments;
-	__u8 v4mapped;
-	__u8 frag_interleave;
 	__u32 adaptation_ind;
 	__u32 pd_point;
-	__u8 recvrcvinfo;
-	__u8 recvnxtinfo;
+	__u16	nodelay:1,
+		disable_fragments:1,
+		v4mapped:1,
+		frag_interleave:1,
+		recvrcvinfo:1,
+		recvnxtinfo:1,
+		data_ready_signalled:1;
 
 	atomic_t pd_mode;
 	/* Receive to here while partial delivery is in effect. */
@@ -847,6 +848,11 @@ struct sctp_transport {
 	 */
 	ktime_t last_time_heard;
 
+	/* When was the last time that we sent a chunk using this
+	 * transport? We use this to check for idle transports
+	 */
+	unsigned long last_time_sent;
+
 	/* Last time(in jiffies) when cwnd is reduced due to the congestion
 	 * indication based on ECNE chunk.
 	 */
@@ -952,7 +958,8 @@ void sctp_transport_route(struct sctp_transport *, union sctp_addr *,
 			  struct sctp_sock *);
 void sctp_transport_pmtu(struct sctp_transport *, struct sock *sk);
 void sctp_transport_free(struct sctp_transport *);
-void sctp_transport_reset_timers(struct sctp_transport *);
+void sctp_transport_reset_t3_rtx(struct sctp_transport *);
+void sctp_transport_reset_hb_timer(struct sctp_transport *);
 int sctp_transport_hold(struct sctp_transport *);
 void sctp_transport_put(struct sctp_transport *);
 void sctp_transport_update_rto(struct sctp_transport *, __u32);

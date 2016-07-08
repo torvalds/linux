@@ -80,6 +80,22 @@ void snd_hdac_bus_init_cmd_io(struct hdac_bus *bus)
 }
 EXPORT_SYMBOL_GPL(snd_hdac_bus_init_cmd_io);
 
+/* wait for cmd dmas till they are stopped */
+static void hdac_wait_for_cmd_dmas(struct hdac_bus *bus)
+{
+	unsigned long timeout;
+
+	timeout = jiffies + msecs_to_jiffies(100);
+	while ((snd_hdac_chip_readb(bus, RIRBCTL) & AZX_RBCTL_DMA_EN)
+		&& time_before(jiffies, timeout))
+		udelay(10);
+
+	timeout = jiffies + msecs_to_jiffies(100);
+	while ((snd_hdac_chip_readb(bus, CORBCTL) & AZX_CORBCTL_RUN)
+		&& time_before(jiffies, timeout))
+		udelay(10);
+}
+
 /**
  * snd_hdac_bus_stop_cmd_io - clean up CORB/RIRB buffers
  * @bus: HD-audio core bus
@@ -90,6 +106,7 @@ void snd_hdac_bus_stop_cmd_io(struct hdac_bus *bus)
 	/* disable ringbuffer DMAs */
 	snd_hdac_chip_writeb(bus, RIRBCTL, 0);
 	snd_hdac_chip_writeb(bus, CORBCTL, 0);
+	hdac_wait_for_cmd_dmas(bus);
 	/* disable unsolicited responses */
 	snd_hdac_chip_updatel(bus, GCTL, AZX_GCTL_UNSOL, 0);
 	spin_unlock_irq(&bus->reg_lock);

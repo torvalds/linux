@@ -238,12 +238,13 @@ static irqreturn_t max30100_interrupt_handler(int irq, void *private)
 
 	mutex_lock(&data->lock);
 
-	while (cnt-- || (cnt = max30100_fifo_count(data) > 0)) {
+	while (cnt || (cnt = max30100_fifo_count(data) > 0)) {
 		ret = max30100_read_measurement(data);
 		if (ret)
 			break;
 
 		iio_push_to_buffers(data->indio_dev, data->buffer);
+		cnt--;
 	}
 
 	mutex_unlock(&data->lock);

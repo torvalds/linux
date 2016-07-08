@@ -217,7 +217,7 @@ _GLOBAL(memcpy)
 	bdnz	40b
 65:	blr
 
-_GLOBAL(generic_memcpy)
+generic_memcpy:
 	srwi.	r7,r5,3
 	addi	r6,r3,-4
 	addi	r4,r4,-4

@@ -99,7 +99,7 @@ acpi_status acpi_allocate_root_table(u32 initial_table_count)
  ******************************************************************************/
 
 acpi_status __init
-acpi_initialize_tables(struct acpi_table_desc * initial_table_array,
+acpi_initialize_tables(struct acpi_table_desc *initial_table_array,
 		       u32 initial_table_count, u8 allow_resize)
 {
 	acpi_physical_address rsdp_address;
@@ -120,7 +120,7 @@ acpi_initialize_tables(struct acpi_table_desc * initial_table_array,
 		/* Root Table Array has been statically allocated by the host */
 
 		memset(initial_table_array, 0,
-		       (acpi_size) initial_table_count *
+		       (acpi_size)initial_table_count *
 		       sizeof(struct acpi_table_desc));
 
 		acpi_gbl_root_table_list.tables = initial_table_array;
@@ -352,7 +352,7 @@ ACPI_EXPORT_SYMBOL(acpi_get_table)
  *
  ******************************************************************************/
 acpi_status
-acpi_get_table_by_index(u32 table_index, struct acpi_table_header ** table)
+acpi_get_table_by_index(u32 table_index, struct acpi_table_header **table)
 {
 	acpi_status status;
 

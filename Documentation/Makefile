@@ -1,4 +1,3 @@
-subdir-y := accounting auxdisplay blackfin connector \
+subdir-y := accounting auxdisplay blackfin \
 	filesystems filesystems ia64 laptops mic misc-devices \
-	networking pcmcia prctl ptp timers vDSO video4linux \
-	watchdog
+	networking pcmcia prctl ptp timers vDSO watchdog

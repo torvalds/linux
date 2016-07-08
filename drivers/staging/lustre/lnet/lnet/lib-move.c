@@ -407,7 +407,7 @@ lnet_copy_kiov2iov(unsigned int niov, struct kvec *iov, unsigned int iovoffset,
 		LASSERT(niov > 0);
 		LASSERT(nkiov > 0);
 		this_nob = min(iov->iov_len - iovoffset,
-			       (__kernel_size_t) kiov->kiov_len - kiovoffset);
+			       (__kernel_size_t)kiov->kiov_len - kiovoffset);
 		this_nob = min(this_nob, nob);
 
 		if (!addr)
@@ -477,7 +477,7 @@ lnet_copy_iov2kiov(unsigned int nkiov, lnet_kiov_t *kiov,
 	do {
 		LASSERT(nkiov > 0);
 		LASSERT(niov > 0);
-		this_nob = min((__kernel_size_t) kiov->kiov_len - kiovoffset,
+		this_nob = min((__kernel_size_t)kiov->kiov_len - kiovoffset,
 			       iov->iov_len - iovoffset);
 		this_nob = min(this_nob, nob);
 
@@ -549,12 +549,12 @@ lnet_extract_kiov(int dst_niov, lnet_kiov_t *dst,
 		if (len <= frag_len) {
 			dst->kiov_len = len;
 			LASSERT(dst->kiov_offset + dst->kiov_len
-					<= PAGE_CACHE_SIZE);
+					<= PAGE_SIZE);
 			return niov;
 		}
 
 		dst->kiov_len = frag_len;
-		LASSERT(dst->kiov_offset + dst->kiov_len <= PAGE_CACHE_SIZE);
+		LASSERT(dst->kiov_offset + dst->kiov_len <= PAGE_SIZE);
 
 		len -= frag_len;
 		dst++;
@@ -887,7 +887,7 @@ lnet_msg2bufpool(lnet_msg_t *msg)
 	rbp = &the_lnet.ln_rtrpools[cpt][0];
 
 	LASSERT(msg->msg_len <= LNET_MTU);
-	while (msg->msg_len > (unsigned int)rbp->rbp_npages * PAGE_CACHE_SIZE) {
+	while (msg->msg_len > (unsigned int)rbp->rbp_npages * PAGE_SIZE) {
 		rbp++;
 		LASSERT(rbp < &the_lnet.ln_rtrpools[cpt][LNET_NRBPOOLS]);
 	}
@@ -996,7 +996,7 @@ lnet_return_tx_credits_locked(lnet_msg_t *msg)
 			LASSERT(msg2->msg_txpeer->lp_ni == ni);
 			LASSERT(msg2->msg_tx_delayed);
 
-			(void) lnet_post_send_locked(msg2, 1);
+			(void)lnet_post_send_locked(msg2, 1);
 		}
 	}
 
@@ -1019,7 +1019,7 @@ lnet_return_tx_credits_locked(lnet_msg_t *msg)
 			LASSERT(msg2->msg_txpeer == txpeer);
 			LASSERT(msg2->msg_tx_delayed);
 
-			(void) lnet_post_send_locked(msg2, 1);
+			(void)lnet_post_send_locked(msg2, 1);
 		}
 	}
 
@@ -1142,7 +1142,7 @@ routing_off:
 					  lnet_msg_t, msg_list);
 			list_del(&msg2->msg_list);
 
-			(void) lnet_post_routed_recv_locked(msg2, 1);
+			(void)lnet_post_routed_recv_locked(msg2, 1);
 		}
 	}
 	if (rxpeer) {

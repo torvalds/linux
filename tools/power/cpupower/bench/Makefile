@@ -22,7 +22,7 @@ $(OUTPUT)%.o : %.c
 
 $(OUTPUT)cpufreq-bench: $(OBJS)
 	$(ECHO) "  CC      " $@
-	$(QUIET) $(CC) -o $@ $(CFLAGS) $(OBJS) $(LIBS)
+	$(QUIET) $(CC) -o $@ $(CFLAGS) $(LDFLAGS) $(OBJS) $(LIBS)
 
 all: $(OUTPUT)cpufreq-bench
 

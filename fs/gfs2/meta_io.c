@@ -124,7 +124,7 @@ struct buffer_head *gfs2_getbuf(struct gfs2_glock *gl, u64 blkno, int create)
 	if (mapping == NULL)
 		mapping = &sdp->sd_aspace;
 
-	shift = PAGE_CACHE_SHIFT - sdp->sd_sb.sb_bsize_shift;
+	shift = PAGE_SHIFT - sdp->sd_sb.sb_bsize_shift;
 	index = blkno >> shift;             /* convert block to page */
 	bufnum = blkno - (index << shift);  /* block buf index within page */
 
@@ -154,7 +154,7 @@ struct buffer_head *gfs2_getbuf(struct gfs2_glock *gl, u64 blkno, int create)
 		map_bh(bh, sdp->sd_vfs, blkno);
 
 	unlock_page(page);
-	page_cache_release(page);
+	put_page(page);
 
 	return bh;
 }
@@ -325,18 +325,19 @@ int gfs2_meta_wait(struct gfs2_sbd *sdp, struct buffer_head *bh)
 	return 0;
 }
 
-void gfs2_remove_from_journal(struct buffer_head *bh, struct gfs2_trans *tr, int meta)
+void gfs2_remove_from_journal(struct buffer_head *bh, int meta)
 {
 	struct address_space *mapping = bh->b_page->mapping;
 	struct gfs2_sbd *sdp = gfs2_mapping2sbd(mapping);
 	struct gfs2_bufdata *bd = bh->b_private;
+	struct gfs2_trans *tr = current->journal_info;
 	int was_pinned = 0;
 
 	if (test_clear_buffer_pinned(bh)) {
 		trace_gfs2_pin(bd, 0);
 		atomic_dec(&sdp->sd_log_pinned);
 		list_del_init(&bd->bd_list);
-		if (meta)
+		if (meta == REMOVE_META)
 			tr->tr_num_buf_rm++;
 		else
 			tr->tr_num_databuf_rm++;
@@ -376,7 +377,7 @@ void gfs2_meta_wipe(struct gfs2_inode *ip, u64 bstart, u32 blen)
 		if (bh) {
 			lock_buffer(bh);
 			gfs2_log_lock(sdp);
-			gfs2_remove_from_journal(bh, current->journal_info, 1);
+			gfs2_remove_from_journal(bh, REMOVE_META);
 			gfs2_log_unlock(sdp);
 			unlock_buffer(bh);
 			brelse(bh);

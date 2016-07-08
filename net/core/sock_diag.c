@@ -67,6 +67,7 @@ int sock_diag_put_meminfo(struct sock *sk, struct sk_buff *skb, int attrtype)
 	mem[SK_MEMINFO_WMEM_QUEUED] = sk->sk_wmem_queued;
 	mem[SK_MEMINFO_OPTMEM] = atomic_read(&sk->sk_omem_alloc);
 	mem[SK_MEMINFO_BACKLOG] = sk->sk_backlog.len;
+	mem[SK_MEMINFO_DROPS] = atomic_read(&sk->sk_drops);
 
 	return nla_put(skb, attrtype, sizeof(mem), &mem);
 }
@@ -119,7 +120,7 @@ static size_t sock_diag_nlmsg_size(void)
 {
 	return NLMSG_ALIGN(sizeof(struct inet_diag_msg)
 	       + nla_total_size(sizeof(u8)) /* INET_DIAG_PROTOCOL */
-	       + nla_total_size(sizeof(struct tcp_info))); /* INET_DIAG_INFO */
+	       + nla_total_size_64bit(sizeof(struct tcp_info))); /* INET_DIAG_INFO */
 }
 
 static void sock_diag_broadcast_destroy_work(struct work_struct *work)

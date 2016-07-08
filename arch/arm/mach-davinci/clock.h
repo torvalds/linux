@@ -106,6 +106,7 @@ struct clk {
 	int (*reset) (struct clk *clk, bool reset);
 	void (*clk_enable) (struct clk *clk);
 	void (*clk_disable) (struct clk *clk);
+	int (*set_parent) (struct clk *clk, struct clk *parent);
 };
 
 /* Clock flags: SoC-specific flags start at BIT(16) */

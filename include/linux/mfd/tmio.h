@@ -66,8 +66,8 @@
  */
 #define TMIO_MMC_SDIO_IRQ		(1 << 2)
 
-/* Some controllers don't need to wait 10ms for clock changes */
-#define TMIO_MMC_FAST_CLK_CHG		(1 << 3)
+/* Some features are only available or tested on RCar Gen2 or later */
+#define TMIO_MMC_MIN_RCAR2		(1 << 3)
 
 /*
  * Some controllers require waiting for the SD bus to become

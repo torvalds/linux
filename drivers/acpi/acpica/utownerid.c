@@ -61,7 +61,7 @@ ACPI_MODULE_NAME("utownerid")
  *              when the method exits or the table is unloaded.
  *
  ******************************************************************************/
-acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id)
+acpi_status acpi_ut_allocate_owner_id(acpi_owner_id *owner_id)
 {
 	u32 i;
 	u32 j;
@@ -122,7 +122,7 @@ acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id)
 				 * permanently allocated (prevents +1 overflow)
 				 */
 				*owner_id =
-				    (acpi_owner_id) ((k + 1) + ACPI_MUL_32(j));
+				    (acpi_owner_id)((k + 1) + ACPI_MUL_32(j));
 
 				ACPI_DEBUG_PRINT((ACPI_DB_VALUES,
 						  "Allocated OwnerId: %2.2X\n",
@@ -167,7 +167,7 @@ exit:
  *
  ******************************************************************************/
 
-void acpi_ut_release_owner_id(acpi_owner_id * owner_id_ptr)
+void acpi_ut_release_owner_id(acpi_owner_id *owner_id_ptr)
 {
 	acpi_owner_id owner_id = *owner_id_ptr;
 	acpi_status status;

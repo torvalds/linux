@@ -312,6 +312,15 @@ int dprc_scan_objects(struct fsl_mc_device *mc_bus_dev,
 				continue;
 			}
 
+			/*
+			 * add a quirk for all versions of dpsec < 4.0...none
+			 * are coherent regardless of what the MC reports.
+			 */
+			if ((strcmp(obj_desc->type, "dpseci") == 0) &&
+			    (obj_desc->ver_major < 4))
+				obj_desc->flags |=
+					DPRC_OBJ_FLAG_NO_MEM_SHAREABILITY;
+
 			irq_count += obj_desc->irq_count;
 			dev_dbg(&mc_bus_dev->dev,
 				"Discovered object: type %s, id %d\n",
@@ -423,6 +432,7 @@ static irqreturn_t dprc_irq0_handler_thread(int irq_num, void *arg)
 	if (WARN_ON(!msi_desc || msi_desc->irq != (u32)irq_num))
 		goto out;
 
+	status = 0;
 	error = dprc_get_irq_status(mc_io, 0, mc_dev->mc_handle, 0,
 				    &status);
 	if (error < 0) {
@@ -692,6 +702,25 @@ static int dprc_probe(struct fsl_mc_device *mc_dev)
 		goto error_cleanup_msi_domain;
 	}
 
+	error = dprc_get_attributes(mc_dev->mc_io, 0, mc_dev->mc_handle,
+				    &mc_bus->dprc_attr);
+	if (error < 0) {
+		dev_err(&mc_dev->dev, "dprc_get_attributes() failed: %d\n",
+			error);
+		goto error_cleanup_open;
+	}
+
+	if (mc_bus->dprc_attr.version.major < DPRC_MIN_VER_MAJOR ||
+	   (mc_bus->dprc_attr.version.major == DPRC_MIN_VER_MAJOR &&
+	    mc_bus->dprc_attr.version.minor < DPRC_MIN_VER_MINOR)) {
+		dev_err(&mc_dev->dev,
+			"ERROR: DPRC version %d.%d not supported\n",
+			mc_bus->dprc_attr.version.major,
+			mc_bus->dprc_attr.version.minor);
+		error = -ENOTSUPP;
+		goto error_cleanup_open;
+	}
+
 	mutex_init(&mc_bus->scan_mutex);
 
 	/*
@@ -779,9 +808,7 @@ static int dprc_remove(struct fsl_mc_device *mc_dev)
 static const struct fsl_mc_device_match_id match_id_table[] = {
 	{
 	 .vendor = FSL_MC_VENDOR_FREESCALE,
-	 .obj_type = "dprc",
-	 .ver_major = DPRC_VER_MAJOR,
-	 .ver_minor = DPRC_VER_MINOR},
+	 .obj_type = "dprc"},
 	{.vendor = 0x0},
 };
 

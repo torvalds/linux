@@ -127,6 +127,8 @@ static int create_gpio_led(const struct gpio_led *template,
 	led_dat->cdev.brightness = state ? LED_FULL : LED_OFF;
 	if (!template->retain_state_suspended)
 		led_dat->cdev.flags |= LED_CORE_SUSPENDRESUME;
+	if (template->panic_indicator)
+		led_dat->cdev.flags |= LED_PANIC_INDICATOR;
 
 	ret = gpiod_direction_output(led_dat->gpiod, state);
 	if (ret < 0)
@@ -200,6 +202,8 @@ static struct gpio_leds_priv *gpio_leds_create(struct platform_device *pdev)
 
 		if (fwnode_property_present(child, "retain-state-suspended"))
 			led.retain_state_suspended = 1;
+		if (fwnode_property_present(child, "panic-indicator"))
+			led.panic_indicator = 1;
 
 		ret = create_gpio_led(&led, &priv->leds[priv->num_leds],
 				      dev, NULL);

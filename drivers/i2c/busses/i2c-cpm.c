@@ -116,8 +116,8 @@ struct cpm_i2c {
 	cbd_t __iomem *rbase;
 	u_char *txbuf[CPM_MAXBD];
 	u_char *rxbuf[CPM_MAXBD];
-	u32 txdma[CPM_MAXBD];
-	u32 rxdma[CPM_MAXBD];
+	dma_addr_t txdma[CPM_MAXBD];
+	dma_addr_t rxdma[CPM_MAXBD];
 };
 
 static irqreturn_t cpm_i2c_interrupt(int irq, void *dev_id)
@@ -197,9 +197,7 @@ static void cpm_i2c_parse_message(struct i2c_adapter *adap,
 	tbdf = cpm->tbase + tx;
 	rbdf = cpm->rbase + rx;
 
-	addr = pmsg->addr << 1;
-	if (pmsg->flags & I2C_M_RD)
-		addr |= 1;
+	addr = i2c_8bit_addr_from_msg(pmsg);
 
 	tb = cpm->txbuf[tx];
 	rb = cpm->rxbuf[rx];

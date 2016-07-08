@@ -58,6 +58,15 @@ The third cell specifies the transfer priority as below.
 	1	Medium
 	2	Low
 
+Optional properties:
+
+- gpr : The phandle to the General Purpose Register (GPR) node.
+- fsl,sdma-event-remap : Register bits of sdma event remap, the format is
+  <reg shift val>.
+    reg is the GPR register offset.
+    shift is the bit position inside the GPR register.
+    val is the value of the bit (0 or 1).
+
 Examples:
 
 sdma@83fb0000 {
@@ -83,3 +92,21 @@ ssi2: ssi@70014000 {
 	dma-names = "rx", "tx";
 	fsl,fifo-depth = <15>;
 };
+
+Using the fsl,sdma-event-remap property:
+
+If we want to use SDMA on the SAI1 port on a MX6SX:
+
+&sdma {
+	gpr = <&gpr>;
+	/* SDMA events remap for SAI1_RX and SAI1_TX */
+	fsl,sdma-event-remap = <0 15 1>, <0 16 1>;
+};
+
+The fsl,sdma-event-remap property in this case has two values:
+- <0 15 1> means that the offset is 0, so GPR0 is the register of the
+SDMA remap. Bit 15 of GPR0 selects between UART4_RX and SAI1_RX.
+Setting bit 15 to 1 selects SAI1_RX.
+- <0 16 1> means that the offset is 0, so GPR0 is the register of the
+SDMA remap. Bit 16 of GPR0 selects between UART4_TX and SAI1_TX.
+Setting bit 16 to 1 selects SAI1_TX.

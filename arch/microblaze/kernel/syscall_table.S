@@ -389,3 +389,6 @@ ENTRY(sys_call_table)
 	.long sys_memfd_create
 	.long sys_bpf
 	.long sys_execveat
+	.long sys_userfaultfd
+	.long sys_membarrier		/* 390 */
+	.long sys_mlock2

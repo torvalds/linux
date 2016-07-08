@@ -48,7 +48,7 @@ snic_wq_cmpl_frame_send(struct vnic_wq *wq,
 	SNIC_TRC(snic->shost->host_no, 0, 0,
 		 ((ulong)(buf->os_buf) - sizeof(struct snic_req_info)), 0, 0,
 		 0);
-	pci_unmap_single(snic->pdev, buf->dma_addr, buf->len, PCI_DMA_TODEVICE);
+
 	buf->os_buf = NULL;
 }
 
@@ -137,13 +137,36 @@ snic_select_wq(struct snic *snic)
 	return 0;
 }
 
+static int
+snic_wqdesc_avail(struct snic *snic, int q_num, int req_type)
+{
+	int nr_wqdesc = snic->config.wq_enet_desc_count;
+
+	if (q_num > 0) {
+		/*
+		 * Multi Queue case, additional care is required.
+		 * Per WQ active requests need to be maintained.
+		 */
+		SNIC_HOST_INFO(snic->shost, "desc_avail: Multi Queue case.\n");
+		SNIC_BUG_ON(q_num > 0);
+
+		return -1;
+	}
+
+	nr_wqdesc -= atomic64_read(&snic->s_stats.fw.actv_reqs);
+
+	return ((req_type == SNIC_REQ_HBA_RESET) ? nr_wqdesc : nr_wqdesc - 1);
+}
+
 int
 snic_queue_wq_desc(struct snic *snic, void *os_buf, u16 len)
 {
 	dma_addr_t pa = 0;
 	unsigned long flags;
 	struct snic_fw_stats *fwstats = &snic->s_stats.fw;
+	struct snic_host_req *req = (struct snic_host_req *) os_buf;
 	long act_reqs;
+	long desc_avail = 0;
 	int q_num = 0;
 
 	snic_print_desc(__func__, os_buf, len);
@@ -156,11 +179,15 @@ snic_queue_wq_desc(struct snic *snic, void *os_buf, u16 len)
 		return -ENOMEM;
 	}
 
+	req->req_pa = (ulong)pa;
+
 	q_num = snic_select_wq(snic);
 
 	spin_lock_irqsave(&snic->wq_lock[q_num], flags);
-	if (!svnic_wq_desc_avail(snic->wq)) {
+	desc_avail = snic_wqdesc_avail(snic, q_num, req->hdr.type);
+	if (desc_avail <= 0) {
 		pci_unmap_single(snic->pdev, pa, len, PCI_DMA_TODEVICE);
+		req->req_pa = 0;
 		spin_unlock_irqrestore(&snic->wq_lock[q_num], flags);
 		atomic64_inc(&snic->s_stats.misc.wq_alloc_fail);
 		SNIC_DBG("host = %d, WQ is Full\n", snic->shost->host_no);
@@ -169,10 +196,13 @@ snic_queue_wq_desc(struct snic *snic, void *os_buf, u16 len)
 	}
 
 	snic_queue_wq_eth_desc(&snic->wq[q_num], os_buf, pa, len, 0, 0, 1);
+	/*
+	 * Update stats
+	 * note: when multi queue enabled, fw actv_reqs should be per queue.
+	 */
+	act_reqs = atomic64_inc_return(&fwstats->actv_reqs);
 	spin_unlock_irqrestore(&snic->wq_lock[q_num], flags);
 
-	/* Update stats */
-	act_reqs = atomic64_inc_return(&fwstats->actv_reqs);
 	if (act_reqs > atomic64_read(&fwstats->max_actv_reqs))
 		atomic64_set(&fwstats->max_actv_reqs, act_reqs);
 
@@ -318,11 +348,31 @@ snic_req_free(struct snic *snic, struct snic_req_info *rqi)
 		      "Req_free:rqi %p:ioreq %p:abt %p:dr %p\n",
 		      rqi, rqi->req, rqi->abort_req, rqi->dr_req);
 
-	if (rqi->abort_req)
-		mempool_free(rqi->abort_req, snic->req_pool[SNIC_REQ_TM_CACHE]);
+	if (rqi->abort_req) {
+		if (rqi->abort_req->req_pa)
+			pci_unmap_single(snic->pdev,
+					 rqi->abort_req->req_pa,
+					 sizeof(struct snic_host_req),
+					 PCI_DMA_TODEVICE);
 
-	if (rqi->dr_req)
+		mempool_free(rqi->abort_req, snic->req_pool[SNIC_REQ_TM_CACHE]);
+	}
+
+	if (rqi->dr_req) {
+		if (rqi->dr_req->req_pa)
+			pci_unmap_single(snic->pdev,
+					 rqi->dr_req->req_pa,
+					 sizeof(struct snic_host_req),
+					 PCI_DMA_TODEVICE);
+
 		mempool_free(rqi->dr_req, snic->req_pool[SNIC_REQ_TM_CACHE]);
+	}
+
+	if (rqi->req->req_pa)
+		pci_unmap_single(snic->pdev,
+				 rqi->req->req_pa,
+				 rqi->req_len,
+				 PCI_DMA_TODEVICE);
 
 	mempool_free(rqi, snic->req_pool[rqi->rq_pool_type]);
 }

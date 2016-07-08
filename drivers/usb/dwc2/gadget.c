@@ -1018,7 +1018,7 @@ static int dwc2_hsotg_process_req_status(struct dwc2_hsotg *hsotg,
 	return 1;
 }
 
-static int dwc2_hsotg_ep_sethalt(struct usb_ep *ep, int value);
+static int dwc2_hsotg_ep_sethalt(struct usb_ep *ep, int value, bool now);
 
 /**
  * get_ep_head - return the first request on the endpoint
@@ -1094,7 +1094,7 @@ static int dwc2_hsotg_process_req_feature(struct dwc2_hsotg *hsotg,
 		case USB_ENDPOINT_HALT:
 			halted = ep->halted;
 
-			dwc2_hsotg_ep_sethalt(&ep->ep, set);
+			dwc2_hsotg_ep_sethalt(&ep->ep, set, true);
 
 			ret = dwc2_hsotg_send_reply(hsotg, ep0, NULL, 0);
 			if (ret) {
@@ -2254,6 +2254,7 @@ void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 {
 	u32 intmsk;
 	u32 val;
+	u32 usbcfg;
 
 	/* Kill any ep0 requests as controller will be reinitialized */
 	kill_all_requests(hsotg, hsotg->eps_out[0], -ECONNRESET);
@@ -2267,10 +2268,16 @@ void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 	 * set configuration.
 	 */
 
+	/* keep other bits untouched (so e.g. forced modes are not lost) */
+	usbcfg = dwc2_readl(hsotg->regs + GUSBCFG);
+	usbcfg &= ~(GUSBCFG_TOUTCAL_MASK | GUSBCFG_PHYIF16 | GUSBCFG_SRPCAP |
+		GUSBCFG_HNPCAP);
+
 	/* set the PLL on, remove the HNP/SRP and set the PHY */
 	val = (hsotg->phyif == GUSBCFG_PHYIF8) ? 9 : 5;
-	dwc2_writel(hsotg->phyif | GUSBCFG_TOUTCAL(7) |
-	       (val << GUSBCFG_USBTRDTIM_SHIFT), hsotg->regs + GUSBCFG);
+	usbcfg |= hsotg->phyif | GUSBCFG_TOUTCAL(7) |
+		(val << GUSBCFG_USBTRDTIM_SHIFT);
+	dwc2_writel(usbcfg, hsotg->regs + GUSBCFG);
 
 	dwc2_hsotg_init_fifo(hsotg);
 
@@ -2417,6 +2424,9 @@ static irqreturn_t dwc2_hsotg_irq(int irq, void *pw)
 	int retry_count = 8;
 	u32 gintsts;
 	u32 gintmsk;
+
+	if (!dwc2_is_device_mode(hsotg))
+		return IRQ_NONE;
 
 	spin_lock(&hsotg->lock);
 irq_retry:
@@ -2624,7 +2634,10 @@ static int dwc2_hsotg_ep_enable(struct usb_ep *ep,
 		desc->wMaxPacketSize, desc->bInterval);
 
 	/* not to be called for EP0 */
-	WARN_ON(index == 0);
+	if (index == 0) {
+		dev_err(hsotg->dev, "%s: called for EP 0\n", __func__);
+		return -EINVAL;
+	}
 
 	dir_in = (desc->bEndpointAddress & USB_ENDPOINT_DIR_MASK) ? 1 : 0;
 	if (dir_in != hs_ep->dir_in) {
@@ -2935,8 +2948,13 @@ static int dwc2_hsotg_ep_dequeue(struct usb_ep *ep, struct usb_request *req)
  * dwc2_hsotg_ep_sethalt - set halt on a given endpoint
  * @ep: The endpoint to set halt.
  * @value: Set or unset the halt.
+ * @now: If true, stall the endpoint now. Otherwise return -EAGAIN if
+ *       the endpoint is busy processing requests.
+ *
+ * We need to stall the endpoint immediately if request comes from set_feature
+ * protocol command handler.
  */
-static int dwc2_hsotg_ep_sethalt(struct usb_ep *ep, int value)
+static int dwc2_hsotg_ep_sethalt(struct usb_ep *ep, int value, bool now)
 {
 	struct dwc2_hsotg_ep *hs_ep = our_ep(ep);
 	struct dwc2_hsotg *hs = hs_ep->parent;
@@ -2954,6 +2972,17 @@ static int dwc2_hsotg_ep_sethalt(struct usb_ep *ep, int value)
 			dev_warn(hs->dev,
 				 "%s: can't clear halt on ep0\n", __func__);
 		return 0;
+	}
+
+	if (hs_ep->isochronous) {
+		dev_err(hs->dev, "%s is Isochronous Endpoint\n", ep->name);
+		return -EINVAL;
+	}
+
+	if (!now && value && !list_empty(&hs_ep->queue)) {
+		dev_dbg(hs->dev, "%s request is pending, cannot halt\n",
+			ep->name);
+		return -EAGAIN;
 	}
 
 	if (hs_ep->dir_in) {
@@ -3007,7 +3036,7 @@ static int dwc2_hsotg_ep_sethalt_lock(struct usb_ep *ep, int value)
 	int ret = 0;
 
 	spin_lock_irqsave(&hs->lock, flags);
-	ret = dwc2_hsotg_ep_sethalt(ep, value);
+	ret = dwc2_hsotg_ep_sethalt(ep, value, false);
 	spin_unlock_irqrestore(&hs->lock, flags);
 
 	return ret;
@@ -3031,6 +3060,7 @@ static struct usb_ep_ops dwc2_hsotg_ep_ops = {
 static void dwc2_hsotg_init(struct dwc2_hsotg *hsotg)
 {
 	u32 trdtim;
+	u32 usbcfg;
 	/* unmask subset of endpoint interrupts */
 
 	dwc2_writel(DIEPMSK_TIMEOUTMSK | DIEPMSK_AHBERRMSK |
@@ -3054,11 +3084,16 @@ static void dwc2_hsotg_init(struct dwc2_hsotg *hsotg)
 
 	dwc2_hsotg_init_fifo(hsotg);
 
+	/* keep other bits untouched (so e.g. forced modes are not lost) */
+	usbcfg = dwc2_readl(hsotg->regs + GUSBCFG);
+	usbcfg &= ~(GUSBCFG_TOUTCAL_MASK | GUSBCFG_PHYIF16 | GUSBCFG_SRPCAP |
+		GUSBCFG_HNPCAP);
+
 	/* set the PLL on, remove the HNP/SRP and set the PHY */
 	trdtim = (hsotg->phyif == GUSBCFG_PHYIF8) ? 9 : 5;
-	dwc2_writel(hsotg->phyif | GUSBCFG_TOUTCAL(7) |
-		(trdtim << GUSBCFG_USBTRDTIM_SHIFT),
-		hsotg->regs + GUSBCFG);
+	usbcfg |= hsotg->phyif | GUSBCFG_TOUTCAL(7) |
+		(trdtim << GUSBCFG_USBTRDTIM_SHIFT);
+	dwc2_writel(usbcfg, hsotg->regs + GUSBCFG);
 
 	if (using_dma(hsotg))
 		__orr32(hsotg->regs + GAHBCFG, GAHBCFG_DMA_EN);

@@ -100,13 +100,13 @@ static void noop_vector_allocation_domain(int cpu, struct cpumask *retmask,
 
 static u32 noop_apic_read(u32 reg)
 {
-	WARN_ON_ONCE((cpu_has_apic && !disable_apic));
+	WARN_ON_ONCE(boot_cpu_has(X86_FEATURE_APIC) && !disable_apic);
 	return 0;
 }
 
 static void noop_apic_write(u32 reg, u32 v)
 {
-	WARN_ON_ONCE(cpu_has_apic && !disable_apic);
+	WARN_ON_ONCE(boot_cpu_has(X86_FEATURE_APIC) && !disable_apic);
 }
 
 struct apic apic_noop = {

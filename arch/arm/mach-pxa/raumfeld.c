@@ -385,10 +385,6 @@ static struct property_entry raumfeld_rotary_properties[] = {
 	{ },
 };
 
-static struct property_set raumfeld_rotary_property_set = {
-	.properties = raumfeld_rotary_properties,
-};
-
 static struct platform_device rotary_encoder_device = {
 	.name		= "rotary-encoder",
 	.id		= 0,
@@ -1063,8 +1059,8 @@ static void __init __maybe_unused raumfeld_controller_init(void)
 	pxa3xx_mfp_config(ARRAY_AND_SIZE(raumfeld_controller_pin_config));
 
 	gpiod_add_lookup_table(&raumfeld_rotary_gpios_table);
-	device_add_property_set(&rotary_encoder_device.dev,
-				&raumfeld_rotary_property_set);
+	device_add_properties(&rotary_encoder_device.dev,
+			      raumfeld_rotary_properties);
 	platform_device_register(&rotary_encoder_device);
 
 	spi_register_board_info(ARRAY_AND_SIZE(controller_spi_devices));
@@ -1103,8 +1099,8 @@ static void __init __maybe_unused raumfeld_speaker_init(void)
 	platform_device_register(&smc91x_device);
 
 	gpiod_add_lookup_table(&raumfeld_rotary_gpios_table);
-	device_add_property_set(&rotary_encoder_device.dev,
-				&raumfeld_rotary_property_set);
+	device_add_properties(&rotary_encoder_device.dev,
+			      raumfeld_rotary_properties);
 	platform_device_register(&rotary_encoder_device);
 
 	raumfeld_audio_init();

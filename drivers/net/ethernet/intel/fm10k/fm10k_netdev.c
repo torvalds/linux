@@ -1,5 +1,5 @@
-/* Intel Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2015 Intel Corporation.
+/* Intel(R) Ethernet Switch Host Interface Driver
+ * Copyright(c) 2013 - 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -243,9 +243,6 @@ void fm10k_clean_all_tx_rings(struct fm10k_intfc *interface)
 
 	for (i = 0; i < interface->num_tx_queues; i++)
 		fm10k_clean_tx_ring(interface->tx_ring[i]);
-
-	/* remove any stale timestamp buffers and free them */
-	skb_queue_purge(&interface->ts_tx_skb_queue);
 }
 
 /**
@@ -440,7 +437,7 @@ static void fm10k_restore_vxlan_port(struct fm10k_intfc *interface)
  * @sa_family: Address family of new port
  * @port: port number used for VXLAN
  *
- * This funciton is called when a new VXLAN interface has added a new port
+ * This function is called when a new VXLAN interface has added a new port
  * number to the range that is currently in use for VXLAN.  The new port
  * number is always added to the tail so that the port number list should
  * match the order in which the ports were allocated.  The head of the list
@@ -484,7 +481,7 @@ insert_tail:
  * @sa_family: Address family of freed port
  * @port: port number used for VXLAN
  *
- * This funciton is called when a new VXLAN interface has freed a port
+ * This function is called when a new VXLAN interface has freed a port
  * number from the range that is currently in use for VXLAN.  The freed
  * port is removed from the list and the new head is used to determine
  * the port number for offloads.
@@ -659,10 +656,6 @@ static netdev_tx_t fm10k_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 			return NETDEV_TX_OK;
 		__skb_put(skb, pad_len);
 	}
-
-	/* prepare packet for hardware time stamping */
-	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP))
-		fm10k_ts_tx_enqueue(interface, skb);
 
 	if (r_idx >= interface->num_tx_queues)
 		r_idx %= interface->num_tx_queues;
@@ -884,7 +877,7 @@ static int __fm10k_uc_sync(struct net_device *dev,
 		return -EADDRNOTAVAIL;
 
 	/* update table with current entries */
-	for (vid = hw->mac.default_vid ? fm10k_find_next_vlan(interface, 0) : 0;
+	for (vid = hw->mac.default_vid ? fm10k_find_next_vlan(interface, 0) : 1;
 	     vid < VLAN_N_VID;
 	     vid = fm10k_find_next_vlan(interface, vid)) {
 		err = hw->mac.ops.update_uc_addr(hw, glort, addr,
@@ -947,7 +940,7 @@ static int __fm10k_mc_sync(struct net_device *dev,
 	u16 vid, glort = interface->glort;
 
 	/* update table with current entries */
-	for (vid = hw->mac.default_vid ? fm10k_find_next_vlan(interface, 0) : 0;
+	for (vid = hw->mac.default_vid ? fm10k_find_next_vlan(interface, 0) : 1;
 	     vid < VLAN_N_VID;
 	     vid = fm10k_find_next_vlan(interface, vid)) {
 		hw->mac.ops.update_mc_addr(hw, glort, addr, vid, sync);
@@ -1002,11 +995,8 @@ static void fm10k_set_rx_mode(struct net_device *dev)
 	}
 
 	/* synchronize all of the addresses */
-	if (xcast_mode != FM10K_XCAST_MODE_PROMISC) {
-		__dev_uc_sync(dev, fm10k_uc_sync, fm10k_uc_unsync);
-		if (xcast_mode != FM10K_XCAST_MODE_ALLMULTI)
-			__dev_mc_sync(dev, fm10k_mc_sync, fm10k_mc_unsync);
-	}
+	__dev_uc_sync(dev, fm10k_uc_sync, fm10k_uc_unsync);
+	__dev_mc_sync(dev, fm10k_mc_sync, fm10k_mc_unsync);
 
 	fm10k_mbx_unlock(interface);
 }
@@ -1044,7 +1034,7 @@ void fm10k_restore_rx_state(struct fm10k_intfc *interface)
 	hw->mac.ops.update_vlan(hw, 0, 0, true);
 
 	/* update table with current entries */
-	for (vid = hw->mac.default_vid ? fm10k_find_next_vlan(interface, 0) : 0;
+	for (vid = hw->mac.default_vid ? fm10k_find_next_vlan(interface, 0) : 1;
 	     vid < VLAN_N_VID;
 	     vid = fm10k_find_next_vlan(interface, vid)) {
 		hw->mac.ops.update_vlan(hw, vid, 0, true);
@@ -1056,11 +1046,8 @@ void fm10k_restore_rx_state(struct fm10k_intfc *interface)
 	hw->mac.ops.update_xcast_mode(hw, glort, xcast_mode);
 
 	/* synchronize all of the addresses */
-	if (xcast_mode != FM10K_XCAST_MODE_PROMISC) {
-		__dev_uc_sync(netdev, fm10k_uc_sync, fm10k_uc_unsync);
-		if (xcast_mode != FM10K_XCAST_MODE_ALLMULTI)
-			__dev_mc_sync(netdev, fm10k_mc_sync, fm10k_mc_unsync);
-	}
+	__dev_uc_sync(netdev, fm10k_uc_sync, fm10k_uc_unsync);
+	__dev_mc_sync(netdev, fm10k_mc_sync, fm10k_mc_unsync);
 
 	fm10k_mbx_unlock(interface);
 
@@ -1211,18 +1198,6 @@ static int __fm10k_setup_tc(struct net_device *dev, u32 handle, __be16 proto,
 		return -EINVAL;
 
 	return fm10k_setup_tc(dev, tc->tc);
-}
-
-static int fm10k_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
-{
-	switch (cmd) {
-	case SIOCGHWTSTAMP:
-		return fm10k_get_ts_config(netdev, ifr);
-	case SIOCSHWTSTAMP:
-		return fm10k_set_ts_config(netdev, ifr);
-	default:
-		return -EOPNOTSUPP;
-	}
 }
 
 static void fm10k_assign_l2_accel(struct fm10k_intfc *interface,
@@ -1402,7 +1377,6 @@ static const struct net_device_ops fm10k_netdev_ops = {
 	.ndo_get_vf_config	= fm10k_ndo_get_vf_config,
 	.ndo_add_vxlan_port	= fm10k_add_vxlan_port,
 	.ndo_del_vxlan_port	= fm10k_del_vxlan_port,
-	.ndo_do_ioctl		= fm10k_ioctl,
 	.ndo_dfwd_add_station	= fm10k_dfwd_add_station,
 	.ndo_dfwd_del_station	= fm10k_dfwd_del_station,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -1429,7 +1403,7 @@ struct net_device *fm10k_alloc_netdev(const struct fm10k_info *info)
 
 	/* configure default debug level */
 	interface = netdev_priv(dev);
-	interface->msg_enable = (1 << DEFAULT_DEBUG_LEVEL_SHIFT) - 1;
+	interface->msg_enable = BIT(DEFAULT_DEBUG_LEVEL_SHIFT) - 1;
 
 	/* configure default features */
 	dev->features |= NETIF_F_IP_CSUM |

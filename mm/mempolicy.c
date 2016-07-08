@@ -97,7 +97,6 @@
 
 #include <asm/tlbflush.h>
 #include <asm/uaccess.h>
-#include <linux/random.h>
 
 #include "internal.h"
 
@@ -347,9 +346,7 @@ static void mpol_rebind_nodemask(struct mempolicy *pol, const nodemask_t *nodes,
 		BUG();
 
 	if (!node_isset(current->il_next, tmp)) {
-		current->il_next = next_node(current->il_next, tmp);
-		if (current->il_next >= MAX_NUMNODES)
-			current->il_next = first_node(tmp);
+		current->il_next = next_node_in(current->il_next, tmp);
 		if (current->il_next >= MAX_NUMNODES)
 			current->il_next = numa_node_id();
 	}
@@ -1709,9 +1706,7 @@ static unsigned interleave_nodes(struct mempolicy *policy)
 	struct task_struct *me = current;
 
 	nid = me->il_next;
-	next = next_node(nid, policy->v.nodes);
-	if (next >= MAX_NUMNODES)
-		next = first_node(policy->v.nodes);
+	next = next_node_in(nid, policy->v.nodes);
 	if (next < MAX_NUMNODES)
 		me->il_next = next;
 	return nid;
@@ -1744,18 +1739,18 @@ unsigned int mempolicy_slab_node(void)
 		return interleave_nodes(policy);
 
 	case MPOL_BIND: {
+		struct zoneref *z;
+
 		/*
 		 * Follow bind policy behavior and start allocation at the
 		 * first node.
 		 */
 		struct zonelist *zonelist;
-		struct zone *zone;
 		enum zone_type highest_zoneidx = gfp_zone(GFP_KERNEL);
 		zonelist = &NODE_DATA(node)->node_zonelists[0];
-		(void)first_zones_zonelist(zonelist, highest_zoneidx,
-							&policy->v.nodes,
-							&zone);
-		return zone ? zone->node : node;
+		z = first_zones_zonelist(zonelist, highest_zoneidx,
+							&policy->v.nodes);
+		return z->zone ? z->zone->node : node;
 	}
 
 	default:
@@ -1763,23 +1758,25 @@ unsigned int mempolicy_slab_node(void)
 	}
 }
 
-/* Do static interleaving for a VMA with known offset. */
+/*
+ * Do static interleaving for a VMA with known offset @n.  Returns the n'th
+ * node in pol->v.nodes (starting from n=0), wrapping around if n exceeds the
+ * number of present nodes.
+ */
 static unsigned offset_il_node(struct mempolicy *pol,
-		struct vm_area_struct *vma, unsigned long off)
+			       struct vm_area_struct *vma, unsigned long n)
 {
 	unsigned nnodes = nodes_weight(pol->v.nodes);
 	unsigned target;
-	int c;
-	int nid = NUMA_NO_NODE;
+	int i;
+	int nid;
 
 	if (!nnodes)
 		return numa_node_id();
-	target = (unsigned int)off % nnodes;
-	c = 0;
-	do {
+	target = (unsigned int)n % nnodes;
+	nid = first_node(pol->v.nodes);
+	for (i = 0; i < target; i++)
 		nid = next_node(nid, pol->v.nodes);
-		c++;
-	} while (c <= target);
 	return nid;
 }
 
@@ -1803,21 +1800,6 @@ static inline unsigned interleave_nid(struct mempolicy *pol,
 		return offset_il_node(pol, vma, off);
 	} else
 		return interleave_nodes(pol);
-}
-
-/*
- * Return the bit number of a random bit set in the nodemask.
- * (returns NUMA_NO_NODE if nodemask is empty)
- */
-int node_random(const nodemask_t *maskp)
-{
-	int w, bit = NUMA_NO_NODE;
-
-	w = nodes_weight(*maskp);
-	if (w)
-		bit = bitmap_ord_to_pos(maskp->bits,
-			get_random_int() % w, MAX_NUMNODES);
-	return bit;
 }
 
 #ifdef CONFIG_HUGETLBFS
@@ -2284,7 +2266,7 @@ static void sp_free(struct sp_node *n)
 int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long addr)
 {
 	struct mempolicy *pol;
-	struct zone *zone;
+	struct zoneref *z;
 	int curnid = page_to_nid(page);
 	unsigned long pgoff;
 	int thiscpu = raw_smp_processor_id();
@@ -2316,6 +2298,7 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long 
 		break;
 
 	case MPOL_BIND:
+
 		/*
 		 * allows binding to multiple nodes.
 		 * use current page if in policy nodemask,
@@ -2324,11 +2307,11 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long 
 		 */
 		if (node_isset(curnid, pol->v.nodes))
 			goto out;
-		(void)first_zones_zonelist(
+		z = first_zones_zonelist(
 				node_zonelist(numa_node_id(), GFP_HIGHUSER),
 				gfp_zone(GFP_HIGHUSER),
-				&pol->v.nodes, &zone);
-		polnid = zone->node;
+				&pol->v.nodes);
+		polnid = z->zone->node;
 		break;
 
 	default:

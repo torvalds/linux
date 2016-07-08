@@ -283,8 +283,8 @@ static int pxa_gpio_direction_output(struct gpio_chip *chip,
 	writel_relaxed(mask, base + (value ? GPSR_OFFSET : GPCR_OFFSET));
 
 	ret = pinctrl_gpio_direction_output(chip->base + offset);
-	if (!ret)
-		return 0;
+	if (ret)
+		return ret;
 
 	spin_lock_irqsave(&gpio_lock, flags);
 

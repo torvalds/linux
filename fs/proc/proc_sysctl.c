@@ -627,18 +627,19 @@ static bool proc_sys_fill_cache(struct file *file,
 
 	child = d_lookup(dir, &qname);
 	if (!child) {
-		child = d_alloc(dir, &qname);
-		if (child) {
+		DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wq);
+		child = d_alloc_parallel(dir, &qname, &wq);
+		if (IS_ERR(child))
+			return false;
+		if (d_in_lookup(child)) {
 			inode = proc_sys_make_inode(dir->d_sb, head, table);
 			if (!inode) {
+				d_lookup_done(child);
 				dput(child);
 				return false;
-			} else {
-				d_set_d_op(child, &proc_sys_dentry_operations);
-				d_add(child, inode);
 			}
-		} else {
-			return false;
+			d_set_d_op(child, &proc_sys_dentry_operations);
+			d_add(child, inode);
 		}
 	}
 	inode = d_inode(child);
@@ -789,7 +790,7 @@ static const struct file_operations proc_sys_file_operations = {
 
 static const struct file_operations proc_sys_dir_file_operations = {
 	.read		= generic_read_dir,
-	.iterate	= proc_sys_readdir,
+	.iterate_shared	= proc_sys_readdir,
 	.llseek		= generic_file_llseek,
 };
 

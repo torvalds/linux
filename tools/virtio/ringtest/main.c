@@ -115,7 +115,7 @@ static void run_guest(void)
 		do {
 			if (started < bufs &&
 			    started - completed < max_outstanding) {
-				r = add_inbuf(0, NULL, "Hello, world!");
+				r = add_inbuf(0, "Buffer\n", "Hello, world!");
 				if (__builtin_expect(r == 0, true)) {
 					++started;
 					if (!--tokick) {

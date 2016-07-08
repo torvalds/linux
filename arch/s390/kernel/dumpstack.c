@@ -89,6 +89,30 @@ void dump_trace(dump_trace_func_t func, void *data, struct task_struct *task,
 }
 EXPORT_SYMBOL_GPL(dump_trace);
 
+struct return_address_data {
+	unsigned long address;
+	int depth;
+};
+
+static int __return_address(void *data, unsigned long address)
+{
+	struct return_address_data *rd = data;
+
+	if (rd->depth--)
+		return 0;
+	rd->address = address;
+	return 1;
+}
+
+unsigned long return_address(int depth)
+{
+	struct return_address_data rd = { .depth = depth + 2 };
+
+	dump_trace(__return_address, &rd, NULL, current_stack_pointer());
+	return rd.address;
+}
+EXPORT_SYMBOL_GPL(return_address);
+
 static int show_address(void *data, unsigned long address)
 {
 	printk("([<%016lx>] %pSR)\n", address, (void *)address);

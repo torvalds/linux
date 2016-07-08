@@ -24,15 +24,35 @@
 #include "gk104.h"
 #include "changk104.h"
 
-static const struct nvkm_fifo_func
+const struct nvkm_enum
+gm107_fifo_fault_engine[] = {
+	{ 0x01, "DISPLAY" },
+	{ 0x02, "CAPTURE" },
+	{ 0x03, "IFB", NULL, NVKM_ENGINE_IFB },
+	{ 0x04, "BAR1", NULL, NVKM_SUBDEV_BAR },
+	{ 0x05, "BAR2", NULL, NVKM_SUBDEV_INSTMEM },
+	{ 0x06, "SCHED" },
+	{ 0x07, "HOST0" },
+	{ 0x08, "HOST1" },
+	{ 0x09, "HOST2" },
+	{ 0x0a, "HOST3" },
+	{ 0x0b, "HOST4" },
+	{ 0x0c, "HOST5" },
+	{ 0x0d, "HOST6" },
+	{ 0x0e, "HOST7" },
+	{ 0x0f, "HOSTSR" },
+	{ 0x13, "PERF" },
+	{ 0x17, "PMU" },
+	{ 0x18, "PTP" },
+	{}
+};
+
+static const struct gk104_fifo_func
 gm107_fifo = {
-	.dtor = gk104_fifo_dtor,
-	.oneinit = gk104_fifo_oneinit,
-	.init = gk104_fifo_init,
-	.fini = gk104_fifo_fini,
-	.intr = gk104_fifo_intr,
-	.uevent_init = gk104_fifo_uevent_init,
-	.uevent_fini = gk104_fifo_uevent_fini,
+	.fault.engine = gm107_fifo_fault_engine,
+	.fault.reason = gk104_fifo_fault_reason,
+	.fault.hubclient = gk104_fifo_fault_hubclient,
+	.fault.gpcclient = gk104_fifo_fault_gpcclient,
 	.chan = {
 		&gk110_fifo_gpfifo_oclass,
 		NULL

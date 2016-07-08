@@ -688,7 +688,7 @@ static int netlink_release(struct socket *sock)
 
 	skb_queue_purge(&sk->sk_write_queue);
 
-	if (nlk->portid) {
+	if (nlk->portid && nlk->bound) {
 		struct netlink_notify n = {
 						.net = sock_net(sk),
 						.protocol = sk->sk_protocol,
@@ -2059,6 +2059,7 @@ static int netlink_dump(struct sock *sk)
 	struct netlink_callback *cb;
 	struct sk_buff *skb = NULL;
 	struct nlmsghdr *nlh;
+	struct module *module;
 	int len, err = -ENOBUFS;
 	int alloc_min_size;
 	int alloc_size;
@@ -2134,9 +2135,11 @@ static int netlink_dump(struct sock *sk)
 		cb->done(cb);
 
 	nlk->cb_running = false;
+	module = cb->module;
+	skb = cb->skb;
 	mutex_unlock(nlk->cb_mutex);
-	module_put(cb->module);
-	consume_skb(cb->skb);
+	module_put(module);
+	consume_skb(skb);
 	return 0;
 
 errout_skb:
@@ -2343,7 +2346,8 @@ static int netlink_walk_start(struct nl_seq_iter *iter)
 {
 	int err;
 
-	err = rhashtable_walk_init(&nl_table[iter->link].hash, &iter->hti);
+	err = rhashtable_walk_init(&nl_table[iter->link].hash, &iter->hti,
+				   GFP_KERNEL);
 	if (err) {
 		iter->link = MAX_LINKS;
 		return err;

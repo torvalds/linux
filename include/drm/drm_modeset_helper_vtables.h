@@ -672,7 +672,7 @@ struct drm_connector_helper_funcs {
 	 * fixed panel can also manually add specific modes using
 	 * drm_mode_probed_add(). Drivers which manually add modes should also
 	 * make sure that the @display_info, @width_mm and @height_mm fields of the
-	 * struct #drm_connector are filled in.
+	 * struct &drm_connector are filled in.
 	 *
 	 * Virtual drivers that just want some standard VESA mode with a given
 	 * resolution can call drm_add_modes_noedid(), and mark the preferred

@@ -223,9 +223,11 @@ static int __revoke_inmem_pages(struct inode *inode,
 			f2fs_put_dnode(&dn);
 		}
 next:
-		ClearPageUptodate(page);
+		/* we don't need to invalidate this in the sccessful status */
+		if (drop || recover)
+			ClearPageUptodate(page);
 		set_page_private(page, 0);
-		ClearPageUptodate(page);
+		ClearPagePrivate(page);
 		f2fs_put_page(page, 1);
 
 		list_del(&cur->list);
@@ -238,6 +240,8 @@ next:
 void drop_inmem_pages(struct inode *inode)
 {
 	struct f2fs_inode_info *fi = F2FS_I(inode);
+
+	clear_inode_flag(F2FS_I(inode), FI_ATOMIC_FILE);
 
 	mutex_lock(&fi->inmem_lock);
 	__revoke_inmem_pages(inode, &fi->inmem_pages, true, false);
@@ -885,12 +889,12 @@ int npages_for_summary_flush(struct f2fs_sb_info *sbi, bool for_ra)
 		}
 	}
 
-	sum_in_page = (PAGE_CACHE_SIZE - 2 * SUM_JOURNAL_SIZE -
+	sum_in_page = (PAGE_SIZE - 2 * SUM_JOURNAL_SIZE -
 			SUM_FOOTER_SIZE) / SUMMARY_SIZE;
 	if (valid_sum_count <= sum_in_page)
 		return 1;
 	else if ((valid_sum_count - sum_in_page) <=
-		(PAGE_CACHE_SIZE - SUM_FOOTER_SIZE) / SUMMARY_SIZE)
+		(PAGE_SIZE - SUM_FOOTER_SIZE) / SUMMARY_SIZE)
 		return 2;
 	return 3;
 }
@@ -909,9 +913,9 @@ void update_meta_page(struct f2fs_sb_info *sbi, void *src, block_t blk_addr)
 	void *dst = page_address(page);
 
 	if (src)
-		memcpy(dst, src, PAGE_CACHE_SIZE);
+		memcpy(dst, src, PAGE_SIZE);
 	else
-		memset(dst, 0, PAGE_CACHE_SIZE);
+		memset(dst, 0, PAGE_SIZE);
 	set_page_dirty(page);
 	f2fs_put_page(page, 1);
 }
@@ -1596,7 +1600,7 @@ static int read_compacted_summaries(struct f2fs_sb_info *sbi)
 			s = (struct f2fs_summary *)(kaddr + offset);
 			seg_i->sum_blk->entries[j] = *s;
 			offset += SUMMARY_SIZE;
-			if (offset + SUMMARY_SIZE <= PAGE_CACHE_SIZE -
+			if (offset + SUMMARY_SIZE <= PAGE_SIZE -
 						SUM_FOOTER_SIZE)
 				continue;
 
@@ -1757,7 +1761,7 @@ static void write_compacted_summaries(struct f2fs_sb_info *sbi, block_t blkaddr)
 			*summary = seg_i->sum_blk->entries[j];
 			written_size += SUMMARY_SIZE;
 
-			if (written_size + SUMMARY_SIZE <= PAGE_CACHE_SIZE -
+			if (written_size + SUMMARY_SIZE <= PAGE_SIZE -
 							SUM_FOOTER_SIZE)
 				continue;
 
@@ -1844,7 +1848,7 @@ static struct page *get_next_sit_page(struct f2fs_sb_info *sbi,
 
 	src_addr = page_address(src_page);
 	dst_addr = page_address(dst_page);
-	memcpy(dst_addr, src_addr, PAGE_CACHE_SIZE);
+	memcpy(dst_addr, src_addr, PAGE_SIZE);
 
 	set_page_dirty(dst_page);
 	f2fs_put_page(src_page, 1);
@@ -2171,7 +2175,7 @@ static int build_curseg(struct f2fs_sb_info *sbi)
 
 	for (i = 0; i < NR_CURSEG_TYPE; i++) {
 		mutex_init(&array[i].curseg_mutex);
-		array[i].sum_blk = kzalloc(PAGE_CACHE_SIZE, GFP_KERNEL);
+		array[i].sum_blk = kzalloc(PAGE_SIZE, GFP_KERNEL);
 		if (!array[i].sum_blk)
 			return -ENOMEM;
 		init_rwsem(&array[i].journal_rwsem);

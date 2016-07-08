@@ -28,7 +28,6 @@
 struct pt_gpio_chip {
 	struct gpio_chip         gc;
 	void __iomem             *reg_base;
-	spinlock_t               lock;
 };
 
 static int pt_gpio_request(struct gpio_chip *gc, unsigned offset)
@@ -39,19 +38,19 @@ static int pt_gpio_request(struct gpio_chip *gc, unsigned offset)
 
 	dev_dbg(gc->parent, "pt_gpio_request offset=%x\n", offset);
 
-	spin_lock_irqsave(&pt_gpio->lock, flags);
+	spin_lock_irqsave(&gc->bgpio_lock, flags);
 
 	using_pins = readl(pt_gpio->reg_base + PT_SYNC_REG);
 	if (using_pins & BIT(offset)) {
 		dev_warn(gc->parent, "PT GPIO pin %x reconfigured\n",
 			 offset);
-		spin_unlock_irqrestore(&pt_gpio->lock, flags);
+		spin_unlock_irqrestore(&gc->bgpio_lock, flags);
 		return -EINVAL;
 	}
 
 	writel(using_pins | BIT(offset), pt_gpio->reg_base + PT_SYNC_REG);
 
-	spin_unlock_irqrestore(&pt_gpio->lock, flags);
+	spin_unlock_irqrestore(&gc->bgpio_lock, flags);
 
 	return 0;
 }
@@ -62,109 +61,15 @@ static void pt_gpio_free(struct gpio_chip *gc, unsigned offset)
 	unsigned long flags;
 	u32 using_pins;
 
-	spin_lock_irqsave(&pt_gpio->lock, flags);
+	spin_lock_irqsave(&gc->bgpio_lock, flags);
 
 	using_pins = readl(pt_gpio->reg_base + PT_SYNC_REG);
 	using_pins &= ~BIT(offset);
 	writel(using_pins, pt_gpio->reg_base + PT_SYNC_REG);
 
-	spin_unlock_irqrestore(&pt_gpio->lock, flags);
+	spin_unlock_irqrestore(&gc->bgpio_lock, flags);
 
 	dev_dbg(gc->parent, "pt_gpio_free offset=%x\n", offset);
-}
-
-static void pt_gpio_set_value(struct gpio_chip *gc, unsigned offset, int value)
-{
-	struct pt_gpio_chip *pt_gpio = gpiochip_get_data(gc);
-	unsigned long flags;
-	u32 data;
-
-	dev_dbg(gc->parent, "pt_gpio_set_value offset=%x, value=%x\n",
-		offset, value);
-
-	spin_lock_irqsave(&pt_gpio->lock, flags);
-
-	data = readl(pt_gpio->reg_base + PT_OUTPUTDATA_REG);
-	data &= ~BIT(offset);
-	if (value)
-		data |= BIT(offset);
-	writel(data, pt_gpio->reg_base + PT_OUTPUTDATA_REG);
-
-	spin_unlock_irqrestore(&pt_gpio->lock, flags);
-}
-
-static int pt_gpio_get_value(struct gpio_chip *gc, unsigned offset)
-{
-	struct pt_gpio_chip *pt_gpio = gpiochip_get_data(gc);
-	unsigned long flags;
-	u32 data;
-
-	spin_lock_irqsave(&pt_gpio->lock, flags);
-
-	data = readl(pt_gpio->reg_base + PT_DIRECTION_REG);
-
-	/* configure as output */
-	if (data & BIT(offset))
-		data = readl(pt_gpio->reg_base + PT_OUTPUTDATA_REG);
-	else	/* configure as input */
-		data = readl(pt_gpio->reg_base + PT_INPUTDATA_REG);
-
-	spin_unlock_irqrestore(&pt_gpio->lock, flags);
-
-	data >>= offset;
-	data &= 1;
-
-	dev_dbg(gc->parent, "pt_gpio_get_value offset=%x, value=%x\n",
-		offset, data);
-
-	return data;
-}
-
-static int pt_gpio_direction_input(struct gpio_chip *gc, unsigned offset)
-{
-	struct pt_gpio_chip *pt_gpio = gpiochip_get_data(gc);
-	unsigned long flags;
-	u32 data;
-
-	dev_dbg(gc->parent, "pt_gpio_dirction_input offset=%x\n", offset);
-
-	spin_lock_irqsave(&pt_gpio->lock, flags);
-
-	data = readl(pt_gpio->reg_base + PT_DIRECTION_REG);
-	data &= ~BIT(offset);
-	writel(data, pt_gpio->reg_base + PT_DIRECTION_REG);
-
-	spin_unlock_irqrestore(&pt_gpio->lock, flags);
-
-	return 0;
-}
-
-static int pt_gpio_direction_output(struct gpio_chip *gc,
-					unsigned offset, int value)
-{
-	struct pt_gpio_chip *pt_gpio = gpiochip_get_data(gc);
-	unsigned long flags;
-	u32 data;
-
-	dev_dbg(gc->parent, "pt_gpio_direction_output offset=%x, value=%x\n",
-		offset, value);
-
-	spin_lock_irqsave(&pt_gpio->lock, flags);
-
-	data = readl(pt_gpio->reg_base + PT_OUTPUTDATA_REG);
-	if (value)
-		data |= BIT(offset);
-	else
-		data &= ~BIT(offset);
-	writel(data, pt_gpio->reg_base + PT_OUTPUTDATA_REG);
-
-	data = readl(pt_gpio->reg_base + PT_DIRECTION_REG);
-	data |= BIT(offset);
-	writel(data, pt_gpio->reg_base + PT_DIRECTION_REG);
-
-	spin_unlock_irqrestore(&pt_gpio->lock, flags);
-
-	return 0;
 }
 
 static int pt_gpio_probe(struct platform_device *pdev)
@@ -196,18 +101,19 @@ static int pt_gpio_probe(struct platform_device *pdev)
 		return PTR_ERR(pt_gpio->reg_base);
 	}
 
-	spin_lock_init(&pt_gpio->lock);
+	ret = bgpio_init(&pt_gpio->gc, dev, 4,
+			 pt_gpio->reg_base + PT_INPUTDATA_REG,
+			 pt_gpio->reg_base + PT_OUTPUTDATA_REG, NULL,
+			 pt_gpio->reg_base + PT_DIRECTION_REG, NULL,
+			 BGPIOF_READ_OUTPUT_REG_SET);
+	if (ret) {
+		dev_err(&pdev->dev, "bgpio_init failed\n");
+		return ret;
+	}
 
-	pt_gpio->gc.label            = pdev->name;
 	pt_gpio->gc.owner            = THIS_MODULE;
-	pt_gpio->gc.parent              = dev;
 	pt_gpio->gc.request          = pt_gpio_request;
 	pt_gpio->gc.free             = pt_gpio_free;
-	pt_gpio->gc.direction_input  = pt_gpio_direction_input;
-	pt_gpio->gc.direction_output = pt_gpio_direction_output;
-	pt_gpio->gc.get              = pt_gpio_get_value;
-	pt_gpio->gc.set              = pt_gpio_set_value;
-	pt_gpio->gc.base             = -1;
 	pt_gpio->gc.ngpio            = PT_TOTAL_GPIO;
 #if defined(CONFIG_OF_GPIO)
 	pt_gpio->gc.of_node          = pdev->dev.of_node;
@@ -239,6 +145,7 @@ static int pt_gpio_remove(struct platform_device *pdev)
 
 static const struct acpi_device_id pt_gpio_acpi_match[] = {
 	{ "AMDF030", 0 },
+	{ "AMDIF030", 0 },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, pt_gpio_acpi_match);

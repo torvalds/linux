@@ -236,6 +236,7 @@ static const struct usb_device_id blacklist_table[] = {
 	{ USB_DEVICE(0x13d3, 0x3432), .driver_info = BTUSB_ATH3012 },
 	{ USB_DEVICE(0x13d3, 0x3472), .driver_info = BTUSB_ATH3012 },
 	{ USB_DEVICE(0x13d3, 0x3474), .driver_info = BTUSB_ATH3012 },
+	{ USB_DEVICE(0x13d3, 0x3487), .driver_info = BTUSB_ATH3012 },
 
 	/* Atheros AR5BBU12 with sflash firmware */
 	{ USB_DEVICE(0x0489, 0xe02c), .driver_info = BTUSB_IGNORE },
@@ -2001,12 +2002,13 @@ static int btusb_setup_intel_new(struct hci_dev *hdev)
 		return -EINVAL;
 	}
 
-	/* At the moment only the hardware variant iBT 3.0 (LnP/SfP) is
-	 * supported by this firmware loading method. This check has been
-	 * put in place to ensure correct forward compatibility options
-	 * when newer hardware variants come along.
+	/* At the moment the iBT 3.0 hardware variants 0x0b (LnP/SfP)
+	 * and 0x0c (WsP) are supported by this firmware loading method.
+	 *
+	 * This check has been put in place to ensure correct forward
+	 * compatibility options when newer hardware variants come along.
 	 */
-	if (ver.hw_variant != 0x0b) {
+	if (ver.hw_variant != 0x0b && ver.hw_variant != 0x0c) {
 		BT_ERR("%s: Unsupported Intel hardware variant (%u)",
 		       hdev->name, ver.hw_variant);
 		return -EINVAL;

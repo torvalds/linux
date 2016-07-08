@@ -172,6 +172,7 @@ struct i40iw_hw;
 u8 __iomem *i40iw_get_hw_addr(void *dev);
 void i40iw_ieq_mpa_crc_ae(struct i40iw_sc_dev *dev, struct i40iw_sc_qp *qp);
 enum i40iw_status_code i40iw_vf_wait_vchnl_resp(struct i40iw_sc_dev *dev);
+bool i40iw_vf_clear_to_send(struct i40iw_sc_dev *dev);
 enum i40iw_status_code i40iw_ieq_check_mpacrc(struct shash_desc *desc, void *addr,
 					      u32 length, u32 value);
 struct i40iw_sc_qp *i40iw_ieq_get_qp(struct i40iw_sc_dev *dev, struct i40iw_puda_buf *buf);

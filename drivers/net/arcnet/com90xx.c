@@ -433,7 +433,7 @@ static void __init com90xx_probe(void)
 	kfree(iomem);
 }
 
-static int check_mirror(unsigned long addr, size_t size)
+static int __init check_mirror(unsigned long addr, size_t size)
 {
 	void __iomem *p;
 	int res = -1;

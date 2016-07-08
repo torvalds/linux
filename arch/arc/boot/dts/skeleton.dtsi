@@ -13,7 +13,6 @@
 
 / {
 	compatible = "snps,arc";
-	clock-frequency = <80000000>;	/* 80 MHZ */
 	#address-cells = <1>;
 	#size-cells = <1>;
 	chosen { };
@@ -28,6 +27,20 @@
 			compatible = "snps,arc770d";
 			reg = <0>;
 		};
+	};
+
+	/* TIMER0 with interrupt for clockevent */
+	timer0 {
+		compatible = "snps,arc-timer";
+		interrupts = <3>;
+		interrupt-parent = <&core_intc>;
+		clocks = <&core_clk>;
+	};
+
+	/* TIMER1 for free running clocksource */
+	timer1 {
+		compatible = "snps,arc-timer";
+		clocks = <&core_clk>;
 	};
 
 	memory {

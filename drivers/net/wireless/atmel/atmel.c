@@ -2275,7 +2275,7 @@ static int atmel_set_freq(struct net_device *dev,
 		fwrq->m = ieee80211_frequency_to_channel(f);
 	}
 	/* Setting by channel number */
-	if ((fwrq->m > 1000) || (fwrq->e > 0))
+	if (fwrq->m < 0 || fwrq->m > 1000 || fwrq->e > 0)
 		rc = -EOPNOTSUPP;
 	else {
 		int channel = fwrq->m;
@@ -2434,7 +2434,7 @@ static int atmel_get_range(struct net_device *dev,
 
 			/* Values in MHz -> * 10^5 * 10 */
 			range->freq[k].m = 100000 *
-			 ieee80211_channel_to_frequency(i, IEEE80211_BAND_2GHZ);
+			 ieee80211_channel_to_frequency(i, NL80211_BAND_2GHZ);
 			range->freq[k++].e = 1;
 		}
 		range->num_frequency = k;

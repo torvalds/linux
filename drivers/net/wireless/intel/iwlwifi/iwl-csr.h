@@ -108,6 +108,17 @@
 #define CSR_HW_REV              (CSR_BASE+0x028)
 
 /*
+ * RF ID revision info
+ * Bit fields:
+ * 31:24: Reserved (set to 0x0)
+ * 23:12: Type
+ * 11:8:  Step (A - 0x0, B - 0x1, etc)
+ * 7:4:   Dash
+ * 3:0:   Flavor
+ */
+#define CSR_HW_RF_ID		(CSR_BASE+0x09c)
+
+/*
  * EEPROM and OTP (one-time-programmable) memory reads
  *
  * NOTE:  Device must be awake, initialized via apm_ops.init(),
@@ -332,6 +343,10 @@ enum {
 #define CSR_HW_REV_TYPE_135		(0x0000120)
 #define CSR_HW_REV_TYPE_7265D		(0x0000210)
 #define CSR_HW_REV_TYPE_NONE		(0x00001F0)
+
+/* RF_ID value */
+#define CSR_HW_RF_ID_TYPE_JF		(0x00105000)
+#define CSR_HW_RF_ID_TYPE_LC		(0x00101000)
 
 /* EEPROM REG */
 #define CSR_EEPROM_REG_READ_VALID_MSK	(0x00000001)

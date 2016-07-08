@@ -97,8 +97,10 @@ static int nft_limit_dump(struct sk_buff *skb, const struct nft_limit *limit,
 	u64 secs = div_u64(limit->nsecs, NSEC_PER_SEC);
 	u64 rate = limit->rate - limit->burst;
 
-	if (nla_put_be64(skb, NFTA_LIMIT_RATE, cpu_to_be64(rate)) ||
-	    nla_put_be64(skb, NFTA_LIMIT_UNIT, cpu_to_be64(secs)) ||
+	if (nla_put_be64(skb, NFTA_LIMIT_RATE, cpu_to_be64(rate),
+			 NFTA_LIMIT_PAD) ||
+	    nla_put_be64(skb, NFTA_LIMIT_UNIT, cpu_to_be64(secs),
+			 NFTA_LIMIT_PAD) ||
 	    nla_put_be32(skb, NFTA_LIMIT_BURST, htonl(limit->burst)) ||
 	    nla_put_be32(skb, NFTA_LIMIT_TYPE, htonl(type)) ||
 	    nla_put_be32(skb, NFTA_LIMIT_FLAGS, htonl(flags)))

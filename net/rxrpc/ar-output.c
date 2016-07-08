@@ -110,7 +110,7 @@ static void rxrpc_send_abort(struct rxrpc_call *call, u32 abort_code)
 
 	if (call->state <= RXRPC_CALL_COMPLETE) {
 		call->state = RXRPC_CALL_LOCALLY_ABORTED;
-		call->abort_code = abort_code;
+		call->local_abort = abort_code;
 		set_bit(RXRPC_CALL_EV_ABORT, &call->events);
 		del_timer_sync(&call->resend_timer);
 		del_timer_sync(&call->ack_timer);
@@ -663,7 +663,7 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 			size_t pad;
 
 			/* pad out if we're using security */
-			if (conn->security) {
+			if (conn->security_ix) {
 				pad = conn->security_size + skb->mark;
 				pad = conn->size_align - pad;
 				pad &= conn->size_align - 1;
@@ -695,7 +695,7 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 			if (more && seq & 1)
 				sp->hdr.flags |= RXRPC_REQUEST_ACK;
 
-			ret = rxrpc_secure_packet(
+			ret = conn->security->secure_packet(
 				call, skb, skb->mark,
 				skb->head + sizeof(struct rxrpc_wire_header));
 			if (ret < 0)

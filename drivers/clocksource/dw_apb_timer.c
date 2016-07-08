@@ -264,6 +264,7 @@ dw_apb_clockevent_init(int cpu, const char *name, unsigned rating,
 	dw_ced->ced.set_state_shutdown = apbt_shutdown;
 	dw_ced->ced.set_state_periodic = apbt_set_periodic;
 	dw_ced->ced.set_state_oneshot = apbt_set_oneshot;
+	dw_ced->ced.set_state_oneshot_stopped = apbt_shutdown;
 	dw_ced->ced.tick_resume = apbt_resume;
 	dw_ced->ced.set_next_event = apbt_next_event;
 	dw_ced->ced.irq = dw_ced->timer.irq;

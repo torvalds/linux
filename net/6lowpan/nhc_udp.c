@@ -91,7 +91,7 @@ static int udp_uncompress(struct sk_buff *skb, size_t needed)
 	 * here, we obtain the hint from the remaining size of the
 	 * frame
 	 */
-	switch (lowpan_priv(skb->dev)->lltype) {
+	switch (lowpan_dev(skb->dev)->lltype) {
 	case LOWPAN_LLTYPE_IEEE802154:
 		if (lowpan_802154_cb(skb)->d_size)
 			uh.len = htons(lowpan_802154_cb(skb)->d_size -

@@ -387,7 +387,8 @@ static int ptlrpcd(void *arg)
 {
 	struct ptlrpcd_ctl *pc = arg;
 	struct ptlrpc_request_set *set;
-	struct lu_env env = { .le_ses = NULL };
+	struct lu_context ses = { 0 };
+	struct lu_env env = { .le_ses = &ses };
 	int rc = 0;
 	int exit = 0;
 
@@ -416,6 +417,13 @@ static int ptlrpcd(void *arg)
 	 */
 	rc = lu_context_init(&env.le_ctx,
 			     LCT_CL_THREAD|LCT_REMEMBER|LCT_NOREF);
+	if (rc == 0) {
+		rc = lu_context_init(env.le_ses,
+				     LCT_SESSION | LCT_REMEMBER | LCT_NOREF);
+		if (rc != 0)
+			lu_context_fini(&env.le_ctx);
+	}
+
 	if (rc != 0)
 		goto failed;
 
@@ -436,9 +444,10 @@ static int ptlrpcd(void *arg)
 				  ptlrpc_expired_set, set);
 
 		lu_context_enter(&env.le_ctx);
-		l_wait_event(set->set_waitq,
-			     ptlrpcd_check(&env, pc), &lwi);
+		lu_context_enter(env.le_ses);
+		l_wait_event(set->set_waitq, ptlrpcd_check(&env, pc), &lwi);
 		lu_context_exit(&env.le_ctx);
+		lu_context_exit(env.le_ses);
 
 		/*
 		 * Abort inflight rpcs for forced stop case.
@@ -461,6 +470,7 @@ static int ptlrpcd(void *arg)
 	if (!list_empty(&set->set_requests))
 		ptlrpc_set_wait(set);
 	lu_context_fini(&env.le_ctx);
+	lu_context_fini(env.le_ses);
 
 	complete(&pc->pc_finishing);
 
@@ -899,8 +909,11 @@ int ptlrpcd_addref(void)
 	int rc = 0;
 
 	mutex_lock(&ptlrpcd_mutex);
-	if (++ptlrpcd_users == 1)
+	if (++ptlrpcd_users == 1) {
 		rc = ptlrpcd_init();
+		if (rc < 0)
+			ptlrpcd_users--;
+	}
 	mutex_unlock(&ptlrpcd_mutex);
 	return rc;
 }

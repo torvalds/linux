@@ -81,9 +81,11 @@ static u16
 pll_limits_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 {
 	struct bit_entry bit_C;
+	u16 data = 0x0000;
 
-	if (!bit_entry(bios, 'C', &bit_C) && bit_C.length >= 10) {
-		u16 data = nvbios_rd16(bios, bit_C.offset + 8);
+	if (!bit_entry(bios, 'C', &bit_C)) {
+		if (bit_C.version == 1 && bit_C.length >= 10)
+			data = nvbios_rd16(bios, bit_C.offset + 8);
 		if (data) {
 			*ver = nvbios_rd08(bios, data + 0);
 			*hdr = nvbios_rd08(bios, data + 1);
@@ -94,7 +96,7 @@ pll_limits_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 	}
 
 	if (bmp_version(bios) >= 0x0524) {
-		u16 data = nvbios_rd16(bios, bios->bmp_offset + 142);
+		data = nvbios_rd16(bios, bios->bmp_offset + 142);
 		if (data) {
 			*ver = nvbios_rd08(bios, data + 0);
 			*hdr = 1;
@@ -105,7 +107,7 @@ pll_limits_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 	}
 
 	*ver = 0x00;
-	return 0x0000;
+	return data;
 }
 
 static struct pll_mapping *
@@ -156,7 +158,7 @@ pll_map_reg(struct nvkm_bios *bios, u32 reg, u32 *type, u8 *ver, u8 *len)
 	}
 
 	map = pll_map(bios);
-	while (map->reg) {
+	while (map && map->reg) {
 		if (map->reg == reg && *ver >= 0x20) {
 			u16 addr = (data += hdr);
 			*type = map->type;
@@ -198,7 +200,7 @@ pll_map_type(struct nvkm_bios *bios, u8 type, u32 *reg, u8 *ver, u8 *len)
 	}
 
 	map = pll_map(bios);
-	while (map->reg) {
+	while (map && map->reg) {
 		if (map->type == type && *ver >= 0x20) {
 			u16 addr = (data += hdr);
 			*reg = map->reg;

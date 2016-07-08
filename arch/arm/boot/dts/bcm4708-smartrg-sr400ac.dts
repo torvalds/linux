@@ -17,7 +17,7 @@
 	model = "SmartRG SR400ac";
 
 	chosen {
-		bootargs = "console=ttyS0,115200";
+		bootargs = "console=ttyS0,115200 earlycon";
 	};
 
 	memory {
@@ -120,5 +120,9 @@
 };
 
 &uart0 {
+	status = "okay";
+};
+
+&spi_nor {
 	status = "okay";
 };

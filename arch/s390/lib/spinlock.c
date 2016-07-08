@@ -105,6 +105,7 @@ void arch_spin_lock_wait_flags(arch_spinlock_t *lp, unsigned long flags)
 			if (_raw_compare_and_swap(&lp->lock, 0, cpu))
 				return;
 			local_irq_restore(flags);
+			continue;
 		}
 		/* Check if the lock owner is running. */
 		if (first_diag && cpu_is_preempted(~owner)) {

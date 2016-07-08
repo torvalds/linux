@@ -5,6 +5,7 @@
 config X86_INTEL_PSTATE
        bool "Intel P state control"
        depends on X86
+       select ACPI_PROCESSOR if ACPI
        help
           This driver provides a P state for Intel core processors.
 	  The driver implements an internal governor and will become

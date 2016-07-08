@@ -168,8 +168,7 @@ static struct clk *tclk;
 
 static void __init clk_init(void)
 {
-	tclk = clk_register_fixed_rate(NULL, "tclk", NULL, CLK_IS_ROOT,
-				       get_tclk());
+	tclk = clk_register_fixed_rate(NULL, "tclk", NULL, 0, get_tclk());
 
 	orion_clkdev_init(tclk);
 }

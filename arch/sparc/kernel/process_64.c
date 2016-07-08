@@ -417,9 +417,9 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
 }
 
 /* Free current thread data structures etc.. */
-void exit_thread(void)
+void exit_thread(struct task_struct *tsk)
 {
-	struct thread_info *t = current_thread_info();
+	struct thread_info *t = task_thread_info(tsk);
 
 	if (t->utraps) {
 		if (t->utraps[0] < 2)

@@ -42,6 +42,8 @@
 #define DRIVER_VERSION "3.0-1"
 #define DRIVER_RELDATE  "January 2015"
 
+#define MLX5_TOTAL_VPORTS(mdev) (1 + pci_sriov_get_totalvfs(mdev->pdev))
+
 extern int mlx5_core_debug_mask;
 
 #define mlx5_core_dbg(__dev, format, ...)				\
@@ -100,6 +102,8 @@ int mlx5_core_disable_hca(struct mlx5_core_dev *dev, u16 func_id);
 int mlx5_wait_for_vf_pages(struct mlx5_core_dev *dev);
 cycle_t mlx5_read_internal_timer(struct mlx5_core_dev *dev);
 u32 mlx5_get_msix_vec(struct mlx5_core_dev *dev, int vecidx);
+struct mlx5_eq *mlx5_eqn2eq(struct mlx5_core_dev *dev, int eqn);
+void mlx5_cq_tasklet_cb(unsigned long data);
 
 void mlx5e_init(void);
 void mlx5e_cleanup(void);

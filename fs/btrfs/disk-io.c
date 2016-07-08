@@ -25,7 +25,6 @@
 #include <linux/buffer_head.h>
 #include <linux/workqueue.h>
 #include <linux/kthread.h>
-#include <linux/freezer.h>
 #include <linux/slab.h>
 #include <linux/migrate.h>
 #include <linux/ratelimit.h>
@@ -303,7 +302,7 @@ static int csum_tree_block(struct btrfs_fs_info *fs_info,
 		err = map_private_extent_buffer(buf, offset, 32,
 					&kaddr, &map_start, &map_len);
 		if (err)
-			return 1;
+			return err;
 		cur_len = min(len, map_len - (offset - map_start));
 		crc = btrfs_csum_data(kaddr + offset - map_start,
 				      crc, cur_len);
@@ -313,7 +312,7 @@ static int csum_tree_block(struct btrfs_fs_info *fs_info,
 	if (csum_size > sizeof(inline_result)) {
 		result = kzalloc(csum_size, GFP_NOFS);
 		if (!result)
-			return 1;
+			return -ENOMEM;
 	} else {
 		result = (char *)&inline_result;
 	}
@@ -334,7 +333,7 @@ static int csum_tree_block(struct btrfs_fs_info *fs_info,
 				val, found, btrfs_header_level(buf));
 			if (result != (char *)&inline_result)
 				kfree(result);
-			return 1;
+			return -EUCLEAN;
 		}
 	} else {
 		write_extent_buffer(buf, result, 0, csum_size);
@@ -385,7 +384,7 @@ static int verify_parent_transid(struct extent_io_tree *io_tree,
 	/*
 	 * Things reading via commit roots that don't have normal protection,
 	 * like send, can have a really old block in cache that may point at a
-	 * block that has been free'd and re-allocated.  So don't clear uptodate
+	 * block that has been freed and re-allocated.  So don't clear uptodate
 	 * if we find an eb that is under IO (dirty/writeback) because we could
 	 * end up reading in the stale data and then writing it back out and
 	 * making everybody very sad.
@@ -419,7 +418,7 @@ static int btrfs_check_super_csum(char *raw_disk_sb)
 		/*
 		 * The super_block structure does not span the whole
 		 * BTRFS_SUPER_INFO_SIZE range, we expect that the unused space
-		 * is filled with zeros and is included in the checkum.
+		 * is filled with zeros and is included in the checksum.
 		 */
 		crc = btrfs_csum_data(raw_disk_sb + BTRFS_CSUM_SIZE,
 				crc, BTRFS_SUPER_INFO_SIZE - BTRFS_CSUM_SIZE);
@@ -513,11 +512,21 @@ static int csum_dirty_buffer(struct btrfs_fs_info *fs_info, struct page *page)
 	eb = (struct extent_buffer *)page->private;
 	if (page != eb->pages[0])
 		return 0;
+
 	found_start = btrfs_header_bytenr(eb);
-	if (WARN_ON(found_start != start || !PageUptodate(page)))
-		return 0;
-	csum_tree_block(fs_info, eb, 0);
-	return 0;
+	/*
+	 * Please do not consolidate these warnings into a single if.
+	 * It is useful to know what went wrong.
+	 */
+	if (WARN_ON(found_start != start))
+		return -EUCLEAN;
+	if (WARN_ON(!PageUptodate(page)))
+		return -EUCLEAN;
+
+	ASSERT(memcmp_extent_buffer(eb, fs_info->fsid,
+			btrfs_header_fsid(), BTRFS_FSID_SIZE) == 0);
+
+	return csum_tree_block(fs_info, eb, 0);
 }
 
 static int check_tree_block_fsid(struct btrfs_fs_info *fs_info,
@@ -591,7 +600,7 @@ static noinline int check_leaf(struct btrfs_root *root,
 
 		/*
 		 * Check to make sure that we don't point outside of the leaf,
-		 * just incase all the items are consistent to eachother, but
+		 * just in case all the items are consistent to each other, but
 		 * all point outside of the leaf.
 		 */
 		if (btrfs_item_end_nr(leaf, slot) >
@@ -661,10 +670,8 @@ static int btree_readpage_end_io_hook(struct btrfs_io_bio *io_bio,
 				       eb, found_level);
 
 	ret = csum_tree_block(fs_info, eb, 1);
-	if (ret) {
-		ret = -EIO;
+	if (ret)
 		goto err;
-	}
 
 	/*
 	 * If this is a leaf block and it is corrupt, set the corrupt bit so
@@ -1055,7 +1062,7 @@ static void btree_invalidatepage(struct page *page, unsigned int offset,
 			   (unsigned long long)page_offset(page));
 		ClearPagePrivate(page);
 		set_page_private(page, 0);
-		page_cache_release(page);
+		put_page(page);
 	}
 }
 
@@ -1091,7 +1098,7 @@ void readahead_tree_block(struct btrfs_root *root, u64 bytenr)
 	struct inode *btree_inode = root->fs_info->btree_inode;
 
 	buf = btrfs_find_create_tree_block(root, bytenr);
-	if (!buf)
+	if (IS_ERR(buf))
 		return;
 	read_extent_buffer_pages(&BTRFS_I(btree_inode)->io_tree,
 				 buf, 0, WAIT_NONE, btree_get_extent, 0);
@@ -1107,7 +1114,7 @@ int reada_tree_block_flagged(struct btrfs_root *root, u64 bytenr,
 	int ret;
 
 	buf = btrfs_find_create_tree_block(root, bytenr);
-	if (!buf)
+	if (IS_ERR(buf))
 		return 0;
 
 	set_bit(EXTENT_BUFFER_READAHEAD, &buf->bflags);
@@ -1140,7 +1147,8 @@ struct extent_buffer *btrfs_find_create_tree_block(struct btrfs_root *root,
 						 u64 bytenr)
 {
 	if (btrfs_test_is_dummy_root(root))
-		return alloc_test_extent_buffer(root->fs_info, bytenr);
+		return alloc_test_extent_buffer(root->fs_info, bytenr,
+				root->nodesize);
 	return alloc_extent_buffer(root->fs_info, bytenr);
 }
 
@@ -1164,8 +1172,8 @@ struct extent_buffer *read_tree_block(struct btrfs_root *root, u64 bytenr,
 	int ret;
 
 	buf = btrfs_find_create_tree_block(root, bytenr);
-	if (!buf)
-		return ERR_PTR(-ENOMEM);
+	if (IS_ERR(buf))
+		return buf;
 
 	ret = btree_read_extent_buffer_pages(root, buf, 0, parent_transid);
 	if (ret) {
@@ -1307,14 +1315,16 @@ static struct btrfs_root *btrfs_alloc_root(struct btrfs_fs_info *fs_info,
 
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 /* Should only be used by the testing infrastructure */
-struct btrfs_root *btrfs_alloc_dummy_root(void)
+struct btrfs_root *btrfs_alloc_dummy_root(u32 sectorsize, u32 nodesize)
 {
 	struct btrfs_root *root;
 
 	root = btrfs_alloc_root(NULL, GFP_KERNEL);
 	if (!root)
 		return ERR_PTR(-ENOMEM);
-	__setup_root(4096, 4096, 4096, root, NULL, 1);
+	/* We don't use the stripesize in selftest, set it as sectorsize */
+	__setup_root(nodesize, sectorsize, sectorsize, root, NULL,
+			BTRFS_ROOT_TREE_OBJECTID);
 	set_bit(BTRFS_ROOT_DUMMY_ROOT, &root->state);
 	root->alloc_bytenr = 0;
 
@@ -1633,7 +1643,7 @@ int btrfs_insert_fs_root(struct btrfs_fs_info *fs_info,
 {
 	int ret;
 
-	ret = radix_tree_preload(GFP_NOFS & ~__GFP_HIGHMEM);
+	ret = radix_tree_preload(GFP_NOFS);
 	if (ret)
 		return ret;
 
@@ -1757,7 +1767,7 @@ static int setup_bdi(struct btrfs_fs_info *info, struct backing_dev_info *bdi)
 	if (err)
 		return err;
 
-	bdi->ra_pages = VM_MAX_READAHEAD * 1024 / PAGE_CACHE_SIZE;
+	bdi->ra_pages = VM_MAX_READAHEAD * 1024 / PAGE_SIZE;
 	bdi->congested_fn	= btrfs_congested_fn;
 	bdi->congested_data	= info;
 	bdi->capabilities |= BDI_CAP_CGROUP_WRITEBACK;
@@ -1796,6 +1806,13 @@ static int cleaner_kthread(void *arg)
 		if (btrfs_need_cleaner_sleep(root))
 			goto sleep;
 
+		/*
+		 * Do not do anything if we might cause open_ctree() to block
+		 * before we have finished mounting the filesystem.
+		 */
+		if (!root->fs_info->open)
+			goto sleep;
+
 		if (!mutex_trylock(&root->fs_info->cleaner_mutex))
 			goto sleep;
 
@@ -1831,7 +1848,7 @@ static int cleaner_kthread(void *arg)
 		 */
 		btrfs_delete_unused_bgs(root->fs_info);
 sleep:
-		if (!try_to_freeze() && !again) {
+		if (!again) {
 			set_current_state(TASK_INTERRUPTIBLE);
 			if (!kthread_should_stop())
 				schedule();
@@ -1921,14 +1938,12 @@ sleep:
 		if (unlikely(test_bit(BTRFS_FS_STATE_ERROR,
 				      &root->fs_info->fs_state)))
 			btrfs_cleanup_transaction(root);
-		if (!try_to_freeze()) {
-			set_current_state(TASK_INTERRUPTIBLE);
-			if (!kthread_should_stop() &&
-			    (!btrfs_transaction_blocked(root->fs_info) ||
-			     cannot_commit))
-				schedule_timeout(delay);
-			__set_current_state(TASK_RUNNING);
-		}
+		set_current_state(TASK_INTERRUPTIBLE);
+		if (!kthread_should_stop() &&
+				(!btrfs_transaction_blocked(root->fs_info) ||
+				 cannot_commit))
+			schedule_timeout(delay);
+		__set_current_state(TASK_RUNNING);
 	} while (!kthread_should_stop());
 	return 0;
 }
@@ -2412,7 +2427,7 @@ static int btrfs_replay_log(struct btrfs_fs_info *fs_info,
 	/* returns with log_tree_root freed on success */
 	ret = btrfs_recover_log_trees(log_tree_root);
 	if (ret) {
-		btrfs_std_error(tree_root->fs_info, ret,
+		btrfs_handle_fs_error(tree_root->fs_info, ret,
 			    "Failed to recover log tree");
 		free_extent_buffer(log_tree_root->node);
 		kfree(log_tree_root);
@@ -2537,7 +2552,7 @@ int open_ctree(struct super_block *sb,
 		err = ret;
 		goto fail_bdi;
 	}
-	fs_info->dirty_metadata_batch = PAGE_CACHE_SIZE *
+	fs_info->dirty_metadata_batch = PAGE_SIZE *
 					(1 + ilog2(nr_cpu_ids));
 
 	ret = percpu_counter_init(&fs_info->delalloc_bytes, 0, GFP_KERNEL);
@@ -2708,7 +2723,7 @@ int open_ctree(struct super_block *sb,
 	 * Pass the whole disk block of size BTRFS_SUPER_INFO_SIZE (4k).
 	 */
 	if (btrfs_check_super_csum(bh->b_data)) {
-		printk(KERN_ERR "BTRFS: superblock checksum mismatch\n");
+		btrfs_err(fs_info, "superblock checksum mismatch");
 		err = -EINVAL;
 		brelse(bh);
 		goto fail_alloc;
@@ -2728,7 +2743,7 @@ int open_ctree(struct super_block *sb,
 
 	ret = btrfs_check_super_valid(fs_info, sb->s_flags & MS_RDONLY);
 	if (ret) {
-		printk(KERN_ERR "BTRFS: superblock contains fatal errors\n");
+		btrfs_err(fs_info, "superblock contains fatal errors");
 		err = -EINVAL;
 		goto fail_alloc;
 	}
@@ -2763,9 +2778,9 @@ int open_ctree(struct super_block *sb,
 	features = btrfs_super_incompat_flags(disk_super) &
 		~BTRFS_FEATURE_INCOMPAT_SUPP;
 	if (features) {
-		printk(KERN_ERR "BTRFS: couldn't mount because of "
-		       "unsupported optional features (%Lx).\n",
-		       features);
+		btrfs_err(fs_info,
+		    "cannot mount because of unsupported optional features (%llx)",
+		    features);
 		err = -EINVAL;
 		goto fail_alloc;
 	}
@@ -2776,21 +2791,22 @@ int open_ctree(struct super_block *sb,
 		features |= BTRFS_FEATURE_INCOMPAT_COMPRESS_LZO;
 
 	if (features & BTRFS_FEATURE_INCOMPAT_SKINNY_METADATA)
-		printk(KERN_INFO "BTRFS: has skinny extents\n");
+		btrfs_info(fs_info, "has skinny extents");
 
 	/*
 	 * flag our filesystem as having big metadata blocks if
 	 * they are bigger than the page size
 	 */
-	if (btrfs_super_nodesize(disk_super) > PAGE_CACHE_SIZE) {
+	if (btrfs_super_nodesize(disk_super) > PAGE_SIZE) {
 		if (!(features & BTRFS_FEATURE_INCOMPAT_BIG_METADATA))
-			printk(KERN_INFO "BTRFS: flagging fs with big metadata feature\n");
+			btrfs_info(fs_info,
+				"flagging fs with big metadata feature");
 		features |= BTRFS_FEATURE_INCOMPAT_BIG_METADATA;
 	}
 
 	nodesize = btrfs_super_nodesize(disk_super);
 	sectorsize = btrfs_super_sectorsize(disk_super);
-	stripesize = btrfs_super_stripesize(disk_super);
+	stripesize = sectorsize;
 	fs_info->dirty_metadata_batch = nodesize * (1 + ilog2(nr_cpu_ids));
 	fs_info->delalloc_batch = sectorsize * 512 * (1 + ilog2(nr_cpu_ids));
 
@@ -2800,9 +2816,9 @@ int open_ctree(struct super_block *sb,
 	 */
 	if ((features & BTRFS_FEATURE_INCOMPAT_MIXED_GROUPS) &&
 	    (sectorsize != nodesize)) {
-		printk(KERN_ERR "BTRFS: unequal leaf/node/sector sizes "
-				"are not allowed for mixed block groups on %s\n",
-				sb->s_id);
+		btrfs_err(fs_info,
+"unequal nodesize/sectorsize (%u != %u) are not allowed for mixed block groups",
+			nodesize, sectorsize);
 		goto fail_alloc;
 	}
 
@@ -2815,8 +2831,8 @@ int open_ctree(struct super_block *sb,
 	features = btrfs_super_compat_ro_flags(disk_super) &
 		~BTRFS_FEATURE_COMPAT_RO_SUPP;
 	if (!(sb->s_flags & MS_RDONLY) && features) {
-		printk(KERN_ERR "BTRFS: couldn't mount RDWR because of "
-		       "unsupported option features (%Lx).\n",
+		btrfs_err(fs_info,
+	"cannot mount read-write because of unsupported optional features (%llx)",
 		       features);
 		err = -EINVAL;
 		goto fail_alloc;
@@ -2832,7 +2848,7 @@ int open_ctree(struct super_block *sb,
 
 	fs_info->bdi.ra_pages *= btrfs_super_num_devices(disk_super);
 	fs_info->bdi.ra_pages = max(fs_info->bdi.ra_pages,
-				    SZ_4M / PAGE_CACHE_SIZE);
+				    SZ_4M / PAGE_SIZE);
 
 	tree_root->nodesize = nodesize;
 	tree_root->sectorsize = sectorsize;
@@ -2845,8 +2861,7 @@ int open_ctree(struct super_block *sb,
 	ret = btrfs_read_sys_array(tree_root);
 	mutex_unlock(&fs_info->chunk_mutex);
 	if (ret) {
-		printk(KERN_ERR "BTRFS: failed to read the system "
-		       "array on %s\n", sb->s_id);
+		btrfs_err(fs_info, "failed to read the system array: %d", ret);
 		goto fail_sb_buffer;
 	}
 
@@ -2860,8 +2875,7 @@ int open_ctree(struct super_block *sb,
 					   generation);
 	if (IS_ERR(chunk_root->node) ||
 	    !extent_buffer_uptodate(chunk_root->node)) {
-		printk(KERN_ERR "BTRFS: failed to read chunk root on %s\n",
-		       sb->s_id);
+		btrfs_err(fs_info, "failed to read chunk root");
 		if (!IS_ERR(chunk_root->node))
 			free_extent_buffer(chunk_root->node);
 		chunk_root->node = NULL;
@@ -2875,8 +2889,7 @@ int open_ctree(struct super_block *sb,
 
 	ret = btrfs_read_chunk_tree(chunk_root);
 	if (ret) {
-		printk(KERN_ERR "BTRFS: failed to read chunk tree on %s\n",
-		       sb->s_id);
+		btrfs_err(fs_info, "failed to read chunk tree: %d", ret);
 		goto fail_tree_roots;
 	}
 
@@ -2887,8 +2900,7 @@ int open_ctree(struct super_block *sb,
 	btrfs_close_extra_devices(fs_devices, 0);
 
 	if (!fs_devices->latest_bdev) {
-		printk(KERN_ERR "BTRFS: failed to read devices on %s\n",
-		       sb->s_id);
+		btrfs_err(fs_info, "failed to read devices");
 		goto fail_tree_roots;
 	}
 
@@ -2900,8 +2912,7 @@ retry_root_backup:
 					  generation);
 	if (IS_ERR(tree_root->node) ||
 	    !extent_buffer_uptodate(tree_root->node)) {
-		printk(KERN_WARNING "BTRFS: failed to read tree root on %s\n",
-		       sb->s_id);
+		btrfs_warn(fs_info, "failed to read tree root");
 		if (!IS_ERR(tree_root->node))
 			free_extent_buffer(tree_root->node);
 		tree_root->node = NULL;
@@ -2933,20 +2944,19 @@ retry_root_backup:
 
 	ret = btrfs_recover_balance(fs_info);
 	if (ret) {
-		printk(KERN_ERR "BTRFS: failed to recover balance\n");
+		btrfs_err(fs_info, "failed to recover balance: %d", ret);
 		goto fail_block_groups;
 	}
 
 	ret = btrfs_init_dev_stats(fs_info);
 	if (ret) {
-		printk(KERN_ERR "BTRFS: failed to init dev_stats: %d\n",
-		       ret);
+		btrfs_err(fs_info, "failed to init dev_stats: %d", ret);
 		goto fail_block_groups;
 	}
 
 	ret = btrfs_init_dev_replace(fs_info);
 	if (ret) {
-		pr_err("BTRFS: failed to init dev_replace: %d\n", ret);
+		btrfs_err(fs_info, "failed to init dev_replace: %d", ret);
 		goto fail_block_groups;
 	}
 
@@ -2954,31 +2964,33 @@ retry_root_backup:
 
 	ret = btrfs_sysfs_add_fsid(fs_devices, NULL);
 	if (ret) {
-		pr_err("BTRFS: failed to init sysfs fsid interface: %d\n", ret);
+		btrfs_err(fs_info, "failed to init sysfs fsid interface: %d",
+				ret);
 		goto fail_block_groups;
 	}
 
 	ret = btrfs_sysfs_add_device(fs_devices);
 	if (ret) {
-		pr_err("BTRFS: failed to init sysfs device interface: %d\n", ret);
+		btrfs_err(fs_info, "failed to init sysfs device interface: %d",
+				ret);
 		goto fail_fsdev_sysfs;
 	}
 
 	ret = btrfs_sysfs_add_mounted(fs_info);
 	if (ret) {
-		pr_err("BTRFS: failed to init sysfs interface: %d\n", ret);
+		btrfs_err(fs_info, "failed to init sysfs interface: %d", ret);
 		goto fail_fsdev_sysfs;
 	}
 
 	ret = btrfs_init_space_info(fs_info);
 	if (ret) {
-		printk(KERN_ERR "BTRFS: Failed to initial space info: %d\n", ret);
+		btrfs_err(fs_info, "failed to initialize space info: %d", ret);
 		goto fail_sysfs;
 	}
 
 	ret = btrfs_read_block_groups(fs_info->extent_root);
 	if (ret) {
-		printk(KERN_ERR "BTRFS: Failed to read block groups: %d\n", ret);
+		btrfs_err(fs_info, "failed to read block groups: %d", ret);
 		goto fail_sysfs;
 	}
 	fs_info->num_tolerated_disk_barrier_failures =
@@ -2986,7 +2998,8 @@ retry_root_backup:
 	if (fs_info->fs_devices->missing_devices >
 	     fs_info->num_tolerated_disk_barrier_failures &&
 	    !(sb->s_flags & MS_RDONLY)) {
-		pr_warn("BTRFS: missing devices(%llu) exceeds the limit(%d), writeable mount is not allowed\n",
+		btrfs_warn(fs_info,
+"missing devices (%llu) exceeds the limit (%d), writeable mount is not allowed",
 			fs_info->fs_devices->missing_devices,
 			fs_info->num_tolerated_disk_barrier_failures);
 		goto fail_sysfs;
@@ -3006,13 +3019,12 @@ retry_root_backup:
 	if (!btrfs_test_opt(tree_root, SSD) &&
 	    !btrfs_test_opt(tree_root, NOSSD) &&
 	    !fs_info->fs_devices->rotating) {
-		printk(KERN_INFO "BTRFS: detected SSD devices, enabling SSD "
-		       "mode\n");
+		btrfs_info(fs_info, "detected SSD devices, enabling SSD mode");
 		btrfs_set_opt(fs_info->mount_opt, SSD);
 	}
 
 	/*
-	 * Mount does not set all options immediatelly, we can do it now and do
+	 * Mount does not set all options immediately, we can do it now and do
 	 * not have to wait for transaction commit
 	 */
 	btrfs_apply_pending_changes(fs_info);
@@ -3025,8 +3037,9 @@ retry_root_backup:
 				    1 : 0,
 				    fs_info->check_integrity_print_mask);
 		if (ret)
-			printk(KERN_WARNING "BTRFS: failed to initialize"
-			       " integrity check module %s\n", sb->s_id);
+			btrfs_warn(fs_info,
+				"failed to initialize integrity check module: %d",
+				ret);
 	}
 #endif
 	ret = btrfs_read_qgroup_config(fs_info);
@@ -3056,8 +3069,8 @@ retry_root_backup:
 		ret = btrfs_recover_relocation(tree_root);
 		mutex_unlock(&fs_info->cleaner_mutex);
 		if (ret < 0) {
-			printk(KERN_WARNING
-			       "BTRFS: failed to recover relocation\n");
+			btrfs_warn(fs_info, "failed to recover relocation: %d",
+					ret);
 			err = -EINVAL;
 			goto fail_qgroup;
 		}
@@ -3078,11 +3091,11 @@ retry_root_backup:
 
 	if (btrfs_test_opt(tree_root, FREE_SPACE_TREE) &&
 	    !btrfs_fs_compat_ro(fs_info, FREE_SPACE_TREE)) {
-		pr_info("BTRFS: creating free space tree\n");
+		btrfs_info(fs_info, "creating free space tree");
 		ret = btrfs_create_free_space_tree(fs_info);
 		if (ret) {
-			pr_warn("BTRFS: failed to create free space tree %d\n",
-				ret);
+			btrfs_warn(fs_info,
+				"failed to create free space tree: %d", ret);
 			close_ctree(tree_root);
 			return ret;
 		}
@@ -3099,14 +3112,14 @@ retry_root_backup:
 
 	ret = btrfs_resume_balance_async(fs_info);
 	if (ret) {
-		printk(KERN_WARNING "BTRFS: failed to resume balance\n");
+		btrfs_warn(fs_info, "failed to resume balance: %d", ret);
 		close_ctree(tree_root);
 		return ret;
 	}
 
 	ret = btrfs_resume_dev_replace_async(fs_info);
 	if (ret) {
-		pr_warn("BTRFS: failed to resume dev_replace\n");
+		btrfs_warn(fs_info, "failed to resume device replace: %d", ret);
 		close_ctree(tree_root);
 		return ret;
 	}
@@ -3115,33 +3128,33 @@ retry_root_backup:
 
 	if (btrfs_test_opt(tree_root, CLEAR_CACHE) &&
 	    btrfs_fs_compat_ro(fs_info, FREE_SPACE_TREE)) {
-		pr_info("BTRFS: clearing free space tree\n");
+		btrfs_info(fs_info, "clearing free space tree");
 		ret = btrfs_clear_free_space_tree(fs_info);
 		if (ret) {
-			pr_warn("BTRFS: failed to clear free space tree %d\n",
-				ret);
+			btrfs_warn(fs_info,
+				"failed to clear free space tree: %d", ret);
 			close_ctree(tree_root);
 			return ret;
 		}
 	}
 
 	if (!fs_info->uuid_root) {
-		pr_info("BTRFS: creating UUID tree\n");
+		btrfs_info(fs_info, "creating UUID tree");
 		ret = btrfs_create_uuid_tree(fs_info);
 		if (ret) {
-			pr_warn("BTRFS: failed to create the UUID tree %d\n",
-				ret);
+			btrfs_warn(fs_info,
+				"failed to create the UUID tree: %d", ret);
 			close_ctree(tree_root);
 			return ret;
 		}
 	} else if (btrfs_test_opt(tree_root, RESCAN_UUID_TREE) ||
 		   fs_info->generation !=
 				btrfs_super_uuid_tree_generation(disk_super)) {
-		pr_info("BTRFS: checking UUID tree\n");
+		btrfs_info(fs_info, "checking UUID tree");
 		ret = btrfs_check_uuid_tree(fs_info);
 		if (ret) {
-			pr_warn("BTRFS: failed to check the UUID tree %d\n",
-				ret);
+			btrfs_warn(fs_info,
+				"failed to check the UUID tree: %d", ret);
 			close_ctree(tree_root);
 			return ret;
 		}
@@ -3240,7 +3253,7 @@ static void btrfs_end_buffer_write_sync(struct buffer_head *bh, int uptodate)
 		btrfs_warn_rl_in_rcu(device->dev_root->fs_info,
 				"lost page write due to IO error on %s",
 					  rcu_str_deref(device->name));
-		/* note, we dont' set_buffer_write_io_error because we have
+		/* note, we don't set_buffer_write_io_error because we have
 		 * our own ways of dealing with the IO errors
 		 */
 		clear_buffer_uptodate(bh);
@@ -3641,7 +3654,7 @@ static int write_all_supers(struct btrfs_root *root, int max_mirrors)
 		if (ret) {
 			mutex_unlock(
 				&root->fs_info->fs_devices->device_list_mutex);
-			btrfs_std_error(root->fs_info, ret,
+			btrfs_handle_fs_error(root->fs_info, ret,
 				    "errors while submitting device barriers.");
 			return ret;
 		}
@@ -3681,7 +3694,7 @@ static int write_all_supers(struct btrfs_root *root, int max_mirrors)
 		mutex_unlock(&root->fs_info->fs_devices->device_list_mutex);
 
 		/* FUA is masked off if unsupported and can't be the reason */
-		btrfs_std_error(root->fs_info, -EIO,
+		btrfs_handle_fs_error(root->fs_info, -EIO,
 			    "%d errors while writing supers", total_errors);
 		return -EIO;
 	}
@@ -3699,7 +3712,7 @@ static int write_all_supers(struct btrfs_root *root, int max_mirrors)
 	}
 	mutex_unlock(&root->fs_info->fs_devices->device_list_mutex);
 	if (total_errors > max_errors) {
-		btrfs_std_error(root->fs_info, -EIO,
+		btrfs_handle_fs_error(root->fs_info, -EIO,
 			    "%d errors while writing supers", total_errors);
 		return -EIO;
 	}
@@ -4071,9 +4084,9 @@ static int btrfs_check_super_valid(struct btrfs_fs_info *fs_info,
 		ret = -EINVAL;
 	}
 	/* Only PAGE SIZE is supported yet */
-	if (sectorsize != PAGE_CACHE_SIZE) {
+	if (sectorsize != PAGE_SIZE) {
 		printk(KERN_ERR "BTRFS: sectorsize %llu not supported yet, only support %lu\n",
-				sectorsize, PAGE_CACHE_SIZE);
+				sectorsize, PAGE_SIZE);
 		ret = -EINVAL;
 	}
 	if (!is_power_of_2(nodesize) || nodesize < sectorsize ||
@@ -4115,6 +4128,16 @@ static int btrfs_check_super_valid(struct btrfs_fs_info *fs_info,
 	 * Hint to catch really bogus numbers, bitflips or so, more exact checks are
 	 * done later
 	 */
+	if (btrfs_super_bytes_used(sb) < 6 * btrfs_super_nodesize(sb)) {
+		btrfs_err(fs_info, "bytes_used is too small %llu",
+		       btrfs_super_bytes_used(sb));
+		ret = -EINVAL;
+	}
+	if (!is_power_of_2(btrfs_super_stripesize(sb))) {
+		btrfs_err(fs_info, "invalid stripesize %u",
+		       btrfs_super_stripesize(sb));
+		ret = -EINVAL;
+	}
 	if (btrfs_super_num_devices(sb) > (1UL << 31))
 		printk(KERN_WARNING "BTRFS: suspicious number of devices: %llu\n",
 				btrfs_super_num_devices(sb));
@@ -4352,7 +4375,7 @@ static int btrfs_destroy_marked_extents(struct btrfs_root *root,
 		if (ret)
 			break;
 
-		clear_extent_bits(dirty_pages, start, end, mark, GFP_NOFS);
+		clear_extent_bits(dirty_pages, start, end, mark);
 		while (start <= end) {
 			eb = btrfs_find_tree_block(root->fs_info, start);
 			start += root->nodesize;
@@ -4387,7 +4410,7 @@ again:
 		if (ret)
 			break;
 
-		clear_extent_dirty(unpin, start, end, GFP_NOFS);
+		clear_extent_dirty(unpin, start, end);
 		btrfs_error_unpin_extent_range(root, start, end);
 		cond_resched();
 	}

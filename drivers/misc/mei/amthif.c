@@ -380,8 +380,10 @@ int mei_amthif_irq_read_msg(struct mei_cl *cl,
 
 	dev = cl->dev;
 
-	if (dev->iamthif_state != MEI_IAMTHIF_READING)
+	if (dev->iamthif_state != MEI_IAMTHIF_READING) {
+		mei_irq_discard_msg(dev, mei_hdr);
 		return 0;
+	}
 
 	ret = mei_cl_irq_read_msg(cl, mei_hdr, cmpl_list);
 	if (ret)

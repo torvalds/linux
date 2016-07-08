@@ -40,6 +40,9 @@
 #define KVM_MAX_VCORES		NR_CPUS
 #define KVM_USER_MEM_SLOTS	512
 
+#include <asm/cputhreads.h>
+#define KVM_MAX_VCPU_ID                (threads_per_subcore * KVM_MAX_VCORES)
+
 #ifdef CONFIG_KVM_MMIO
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 1
 #endif
@@ -113,6 +116,7 @@ struct kvm_vcpu_stat {
 	u32 ext_intr_exits;
 	u32 halt_successful_poll;
 	u32 halt_attempted_poll;
+	u32 halt_poll_invalid;
 	u32 halt_wakeup;
 	u32 dbell_exits;
 	u32 gdbell_exits;
@@ -724,5 +728,6 @@ static inline void kvm_arch_sched_in(struct kvm_vcpu *vcpu, int cpu) {}
 static inline void kvm_arch_exit(void) {}
 static inline void kvm_arch_vcpu_blocking(struct kvm_vcpu *vcpu) {}
 static inline void kvm_arch_vcpu_unblocking(struct kvm_vcpu *vcpu) {}
+static inline void kvm_arch_vcpu_block_finish(struct kvm_vcpu *vcpu) {}
 
 #endif /* __POWERPC_KVM_HOST_H__ */

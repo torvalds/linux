@@ -446,8 +446,10 @@ static int fimc_md_parse_port_node(struct fimc_md *fmd,
 	else
 		pd->fimc_bus_type = pd->sensor_bus_type;
 
-	if (WARN_ON(index >= ARRAY_SIZE(fmd->sensor)))
+	if (WARN_ON(index >= ARRAY_SIZE(fmd->sensor))) {
+		of_node_put(rem);
 		return -EINVAL;
+	}
 
 	fmd->sensor[index].asd.match_type = V4L2_ASYNC_MATCH_OF;
 	fmd->sensor[index].asd.match.of.node = rem;
@@ -1130,7 +1132,7 @@ static int __fimc_md_modify_pipelines(struct media_entity *entity, bool enable,
 	media_entity_graph_walk_start(graph, entity);
 
 	while ((entity = media_entity_graph_walk_next(graph))) {
-		if (!is_media_entity_v4l2_io(entity))
+		if (!is_media_entity_v4l2_video_device(entity))
 			continue;
 
 		ret  = __fimc_md_modify_pipeline(entity, enable);
@@ -1145,7 +1147,7 @@ err:
 	media_entity_graph_walk_start(graph, entity_err);
 
 	while ((entity_err = media_entity_graph_walk_next(graph))) {
-		if (!is_media_entity_v4l2_io(entity_err))
+		if (!is_media_entity_v4l2_video_device(entity_err))
 			continue;
 
 		__fimc_md_modify_pipeline(entity_err, !enable);
@@ -1446,22 +1448,13 @@ static int fimc_md_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, fmd);
 
-	/* Protect the media graph while we're registering entities */
-	mutex_lock(&fmd->media_dev.graph_mutex);
-
 	ret = fimc_md_register_platform_entities(fmd, dev->of_node);
-	if (ret) {
-		mutex_unlock(&fmd->media_dev.graph_mutex);
+	if (ret)
 		goto err_clk;
-	}
 
 	ret = fimc_md_register_sensor_entities(fmd);
-	if (ret) {
-		mutex_unlock(&fmd->media_dev.graph_mutex);
+	if (ret)
 		goto err_m_ent;
-	}
-
-	mutex_unlock(&fmd->media_dev.graph_mutex);
 
 	ret = device_create_file(&pdev->dev, &dev_attr_subdev_conf_mode);
 	if (ret)

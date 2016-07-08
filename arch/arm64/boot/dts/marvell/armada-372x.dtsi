@@ -59,5 +59,4 @@
 			enable-method = "psci";
 		};
 	};
-
 };

@@ -72,7 +72,6 @@ void show_cacheinfo(struct seq_file *m)
 
 	if (!test_facility(34))
 		return;
-	get_online_cpus();
 	this_cpu_ci = get_cpu_cacheinfo(cpumask_any(cpu_online_mask));
 	for (idx = 0; idx < this_cpu_ci->num_leaves; idx++) {
 		cache = this_cpu_ci->info_list + idx;
@@ -86,7 +85,6 @@ void show_cacheinfo(struct seq_file *m)
 		seq_printf(m, "associativity=%d", cache->ways_of_associativity);
 		seq_puts(m, "\n");
 	}
-	put_online_cpus();
 }
 
 static inline enum cache_type get_cache_type(struct cache_info *ci, int level)

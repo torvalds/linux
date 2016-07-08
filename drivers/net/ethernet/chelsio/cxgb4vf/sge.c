@@ -1448,7 +1448,7 @@ int t4vf_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * the new TX descriptors and return success.
 	 */
 	txq_advance(&txq->q, ndesc);
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 	ring_tx_db(adapter, &txq->q, ndesc);
 	return NETDEV_TX_OK;
 

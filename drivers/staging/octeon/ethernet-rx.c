@@ -172,12 +172,13 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 	if (OCTEON_IS_MODEL(OCTEON_CN68XX)) {
 		old_group_mask = cvmx_read_csr(CVMX_SSO_PPX_GRP_MSK(coreid));
 		cvmx_write_csr(CVMX_SSO_PPX_GRP_MSK(coreid),
-				1ull << pow_receive_group);
+			       1ull << pow_receive_group);
 		cvmx_read_csr(CVMX_SSO_PPX_GRP_MSK(coreid)); /* Flush */
 	} else {
 		old_group_mask = cvmx_read_csr(CVMX_POW_PP_GRP_MSKX(coreid));
 		cvmx_write_csr(CVMX_POW_PP_GRP_MSKX(coreid),
-			(old_group_mask & ~0xFFFFull) | 1 << pow_receive_group);
+			       (old_group_mask & ~0xFFFFull) |
+			       1 << pow_receive_group);
 	}
 
 	if (USE_ASYNC_IOBDMA) {
@@ -374,7 +375,7 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 			 * doesn't exist.
 			 */
 			printk_ratelimited("Port %d not controlled by Linux, packet dropped\n",
-				   port);
+					   port);
 			dev_kfree_skb_irq(skb);
 		}
 		/*

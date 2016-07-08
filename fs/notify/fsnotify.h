@@ -56,6 +56,13 @@ static inline void fsnotify_clear_marks_by_mount(struct vfsmount *mnt)
 	fsnotify_destroy_marks(&real_mount(mnt)->mnt_fsnotify_marks,
 			       &mnt->mnt_root->d_lock);
 }
+/* prepare for freeing all marks associated with given group */
+extern void fsnotify_detach_group_marks(struct fsnotify_group *group);
+/*
+ * wait for fsnotify_mark_srcu period to end and free all marks in destroy_list
+ */
+extern void fsnotify_mark_destroy_list(void);
+
 /*
  * update the dentry->d_flags of all of inode's children to indicate if inode cares
  * about events that happen to its children.

@@ -73,7 +73,7 @@ static inline void check_faulted(void *addr, long page, long subpage, int write)
 		want_fault |= (subpage == ((page + 1) % 16));
 
 	if (faulted != want_fault) {
-		printf("Failed at 0x%p (p=%ld,sp=%ld,w=%d), want=%s, got=%s !\n",
+		printf("Failed at %p (p=%ld,sp=%ld,w=%d), want=%s, got=%s !\n",
 		       addr, page, subpage, write,
 		       want_fault ? "fault" : "pass",
 		       faulted ? "fault" : "pass");
@@ -82,7 +82,7 @@ static inline void check_faulted(void *addr, long page, long subpage, int write)
 
 	if (faulted) {
 		if (dar != addr) {
-			printf("Fault expected at 0x%p and happened at 0x%p !\n",
+			printf("Fault expected at %p and happened at %p !\n",
 			       addr, dar);
 		}
 		faulted = 0;
@@ -162,7 +162,7 @@ int test_anon(void)
 
 	mallocblock = (void *)align;
 
-	printf("allocated malloc block of 0x%lx bytes at 0x%p\n",
+	printf("allocated malloc block of 0x%lx bytes at %p\n",
 	       mallocsize, mallocblock);
 
 	printf("testing malloc block...\n");
@@ -197,7 +197,7 @@ int test_file(void)
 		perror("failed to map file");
 		return 1;
 	}
-	printf("allocated %s for 0x%lx bytes at 0x%p\n",
+	printf("allocated %s for 0x%lx bytes at %p\n",
 	       file_name, filesize, fileblock);
 
 	printf("testing file map...\n");
@@ -207,14 +207,16 @@ int test_file(void)
 
 int main(int argc, char *argv[])
 {
-	test_harness(test_anon, "subpage_prot_anon");
+	int rc;
+
+	rc = test_harness(test_anon, "subpage_prot_anon");
+	if (rc)
+		return rc;
 
 	if (argc > 1)
 		file_name = argv[1];
 	else
 		file_name = "tempfile";
 
-	test_harness(test_file, "subpage_prot_file");
-
-	return 0;
+	return test_harness(test_file, "subpage_prot_file");
 }

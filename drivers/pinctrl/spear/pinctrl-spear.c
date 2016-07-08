@@ -395,20 +395,11 @@ int spear_pinctrl_probe(struct platform_device *pdev,
 	spear_pinctrl_desc.pins = machdata->pins;
 	spear_pinctrl_desc.npins = machdata->npins;
 
-	pmx->pctl = pinctrl_register(&spear_pinctrl_desc, &pdev->dev, pmx);
+	pmx->pctl = devm_pinctrl_register(&pdev->dev, &spear_pinctrl_desc, pmx);
 	if (IS_ERR(pmx->pctl)) {
 		dev_err(&pdev->dev, "Couldn't register pinctrl driver\n");
 		return PTR_ERR(pmx->pctl);
 	}
-
-	return 0;
-}
-
-int spear_pinctrl_remove(struct platform_device *pdev)
-{
-	struct spear_pmx *pmx = platform_get_drvdata(pdev);
-
-	pinctrl_unregister(pmx->pctl);
 
 	return 0;
 }

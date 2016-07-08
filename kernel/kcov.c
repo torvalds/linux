@@ -1,5 +1,6 @@
 #define pr_fmt(fmt) "kcov: " fmt
 
+#define DISABLE_BRANCH_PROFILING
 #include <linux/compiler.h>
 #include <linux/types.h>
 #include <linux/file.h>
@@ -43,7 +44,7 @@ struct kcov {
  * Entry point from instrumented code.
  * This is called once per basic-block/edge.
  */
-void __sanitizer_cov_trace_pc(void)
+void notrace __sanitizer_cov_trace_pc(void)
 {
 	struct task_struct *t;
 	enum kcov_mode mode;
@@ -263,7 +264,12 @@ static const struct file_operations kcov_fops = {
 
 static int __init kcov_init(void)
 {
-	if (!debugfs_create_file("kcov", 0600, NULL, NULL, &kcov_fops)) {
+	/*
+	 * The kcov debugfs file won't ever get removed and thus,
+	 * there is no need to protect it against removal races. The
+	 * use of debugfs_create_file_unsafe() is actually safe here.
+	 */
+	if (!debugfs_create_file_unsafe("kcov", 0600, NULL, NULL, &kcov_fops)) {
 		pr_err("failed to create kcov in debugfs\n");
 		return -ENOMEM;
 	}

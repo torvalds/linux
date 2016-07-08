@@ -601,11 +601,17 @@ struct x86_pmu {
 	u64		lbr_sel_mask;		   /* LBR_SELECT valid bits */
 	const int	*lbr_sel_map;		   /* lbr_select mappings */
 	bool		lbr_double_abort;	   /* duplicated lbr aborts */
+	bool		lbr_pt_coexist;		   /* LBR may coexist with PT */
 
 	/*
 	 * Intel PT/LBR/BTS are exclusive
 	 */
 	atomic_t	lbr_exclusive[x86_lbr_exclusive_max];
+
+	/*
+	 * AMD bits
+	 */
+	unsigned int	amd_nb_constraints : 1;
 
 	/*
 	 * Extra registers for events
@@ -795,6 +801,9 @@ ssize_t intel_event_sysfs_show(char *page, u64 config);
 
 struct attribute **merge_attr(struct attribute **a, struct attribute **b);
 
+ssize_t events_sysfs_show(struct device *dev, struct device_attribute *attr,
+			  char *page);
+
 #ifdef CONFIG_CPU_SUP_AMD
 
 int amd_pmu_init(void);
@@ -851,6 +860,8 @@ extern struct event_constraint intel_atom_pebs_event_constraints[];
 
 extern struct event_constraint intel_slm_pebs_event_constraints[];
 
+extern struct event_constraint intel_glm_pebs_event_constraints[];
+
 extern struct event_constraint intel_nehalem_pebs_event_constraints[];
 
 extern struct event_constraint intel_westmere_pebs_event_constraints[];
@@ -899,6 +910,8 @@ void intel_pmu_lbr_init_nhm(void);
 
 void intel_pmu_lbr_init_atom(void);
 
+void intel_pmu_lbr_init_slm(void);
+
 void intel_pmu_lbr_init_snb(void);
 
 void intel_pmu_lbr_init_hsw(void);
@@ -924,9 +937,6 @@ int p4_pmu_init(void);
 int p6_pmu_init(void);
 
 int knc_pmu_init(void);
-
-ssize_t events_sysfs_show(struct device *dev, struct device_attribute *attr,
-			  char *page);
 
 static inline int is_ht_workaround_enabled(void)
 {

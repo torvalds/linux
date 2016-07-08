@@ -1333,10 +1333,7 @@ static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 	case TUNER_RTL2832_R828D:
 		pdata.clk = dev->rtl2832_platform_data.clk;
 		pdata.tuner = dev->tuner;
-		pdata.i2c_client = dev->i2c_client_demod;
-		pdata.bulk_read = dev->rtl2832_platform_data.bulk_read;
-		pdata.bulk_write = dev->rtl2832_platform_data.bulk_write;
-		pdata.update_bits = dev->rtl2832_platform_data.update_bits;
+		pdata.regmap = dev->rtl2832_platform_data.regmap;
 		pdata.dvb_frontend = adap->fe[0];
 		pdata.dvb_usb_device = d;
 		pdata.v4l2_subdev = subdev;

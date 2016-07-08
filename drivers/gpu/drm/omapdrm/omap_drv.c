@@ -138,7 +138,7 @@ static bool omap_atomic_is_pending(struct omap_drm_private *priv,
 }
 
 static int omap_atomic_commit(struct drm_device *dev,
-			      struct drm_atomic_state *state, bool async)
+			      struct drm_atomic_state *state, bool nonblock)
 {
 	struct omap_drm_private *priv = dev->dev_private;
 	struct omap_atomic_state_commit *commit;
@@ -177,7 +177,7 @@ static int omap_atomic_commit(struct drm_device *dev,
 	/* Swap the state, this is the point of no return. */
 	drm_atomic_helper_swap_state(dev, state);
 
-	if (async)
+	if (nonblock)
 		schedule_work(&commit->work);
 	else
 		omap_atomic_complete(commit);
@@ -561,7 +561,7 @@ static int ioctl_gem_cpu_prep(struct drm_device *dev, void *data,
 
 	VERB("%p:%p: handle=%d, op=%x", dev, file_priv, args->handle, args->op);
 
-	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
+	obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!obj)
 		return -ENOENT;
 
@@ -584,7 +584,7 @@ static int ioctl_gem_cpu_fini(struct drm_device *dev, void *data,
 
 	VERB("%p:%p: handle=%d", dev, file_priv, args->handle);
 
-	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
+	obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!obj)
 		return -ENOENT;
 
@@ -608,7 +608,7 @@ static int ioctl_gem_info(struct drm_device *dev, void *data,
 
 	VERB("%p:%p: handle=%d", dev, file_priv, args->handle);
 
-	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
+	obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!obj)
 		return -ENOENT;
 

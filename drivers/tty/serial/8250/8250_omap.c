@@ -115,6 +115,12 @@ struct omap8250_priv {
 	bool rx_dma_broken;
 };
 
+#ifdef CONFIG_SERIAL_8250_DMA
+static void omap_8250_rx_dma_flush(struct uart_8250_port *p);
+#else
+static inline void omap_8250_rx_dma_flush(struct uart_8250_port *p) { }
+#endif
+
 static u32 uart_read(struct uart_8250_port *up, u32 reg)
 {
 	return readl(up->port.membase + (reg << up->port.regshift));
@@ -635,7 +641,7 @@ static int omap_8250_startup(struct uart_port *port)
 	serial_out(up, UART_OMAP_WER, priv->wer);
 
 	if (up->dma)
-		up->dma->rx_dma(up, 0);
+		up->dma->rx_dma(up);
 
 	pm_runtime_mark_last_busy(port->dev);
 	pm_runtime_put_autosuspend(port->dev);
@@ -654,7 +660,7 @@ static void omap_8250_shutdown(struct uart_port *port)
 
 	flush_work(&priv->qos_work);
 	if (up->dma)
-		up->dma->rx_dma(up, UART_IIR_RX_TIMEOUT);
+		omap_8250_rx_dma_flush(up);
 
 	pm_runtime_get_sync(port->dev);
 
@@ -742,9 +748,9 @@ static void omap_8250_unthrottle(struct uart_port *port)
 }
 
 #ifdef CONFIG_SERIAL_8250_DMA
-static int omap_8250_rx_dma(struct uart_8250_port *p, unsigned int iir);
+static int omap_8250_rx_dma(struct uart_8250_port *p);
 
-static void __dma_rx_do_complete(struct uart_8250_port *p, bool error)
+static void __dma_rx_do_complete(struct uart_8250_port *p)
 {
 	struct omap8250_priv	*priv = p->port.private_data;
 	struct uart_8250_dma    *dma = p->dma;
@@ -754,9 +760,6 @@ static void __dma_rx_do_complete(struct uart_8250_port *p, bool error)
 	unsigned long		flags;
 	int			ret;
 
-	dma_sync_single_for_cpu(dma->rxchan->device->dev, dma->rx_addr,
-				dma->rx_size, DMA_FROM_DEVICE);
-
 	spin_lock_irqsave(&priv->rx_dma_lock, flags);
 
 	if (!dma->rx_running)
@@ -764,7 +767,6 @@ static void __dma_rx_do_complete(struct uart_8250_port *p, bool error)
 
 	dma->rx_running = 0;
 	dmaengine_tx_status(dma->rxchan, dma->rx_cookie, &state);
-	dmaengine_terminate_all(dma->rxchan);
 
 	count = dma->rx_size - state.residue;
 
@@ -775,15 +777,13 @@ static void __dma_rx_do_complete(struct uart_8250_port *p, bool error)
 unlock:
 	spin_unlock_irqrestore(&priv->rx_dma_lock, flags);
 
-	if (!error)
-		omap_8250_rx_dma(p, 0);
-
 	tty_flip_buffer_push(tty_port);
 }
 
 static void __dma_rx_complete(void *param)
 {
-	__dma_rx_do_complete(param, false);
+	__dma_rx_do_complete(param);
+	omap_8250_rx_dma(param);
 }
 
 static void omap_8250_rx_dma_flush(struct uart_8250_port *p)
@@ -806,45 +806,17 @@ static void omap_8250_rx_dma_flush(struct uart_8250_port *p)
 
 	spin_unlock_irqrestore(&priv->rx_dma_lock, flags);
 
-	__dma_rx_do_complete(p, true);
+	__dma_rx_do_complete(p);
+	dmaengine_terminate_all(dma->rxchan);
 }
 
-static int omap_8250_rx_dma(struct uart_8250_port *p, unsigned int iir)
+static int omap_8250_rx_dma(struct uart_8250_port *p)
 {
 	struct omap8250_priv		*priv = p->port.private_data;
 	struct uart_8250_dma            *dma = p->dma;
 	int				err = 0;
 	struct dma_async_tx_descriptor  *desc;
 	unsigned long			flags;
-
-	switch (iir & 0x3f) {
-	case UART_IIR_RLSI:
-		/* 8250_core handles errors and break interrupts */
-		omap_8250_rx_dma_flush(p);
-		return -EIO;
-	case UART_IIR_RX_TIMEOUT:
-		/*
-		 * If RCVR FIFO trigger level was not reached, complete the
-		 * transfer and let 8250_core copy the remaining data.
-		 */
-		omap_8250_rx_dma_flush(p);
-		return -ETIMEDOUT;
-	case UART_IIR_RDI:
-		/*
-		 * The OMAP UART is a special BEAST. If we receive RDI we _have_
-		 * a DMA transfer programmed but it didn't work. One reason is
-		 * that we were too slow and there were too many bytes in the
-		 * FIFO, the UART counted wrong and never kicked the DMA engine
-		 * to do anything. That means once we receive RDI on OMAP then
-		 * the DMA won't do anything soon so we have to cancel the DMA
-		 * transfer and purge the FIFO manually.
-		 */
-		omap_8250_rx_dma_flush(p);
-		return -ETIMEDOUT;
-
-	default:
-		break;
-	}
 
 	if (priv->rx_dma_broken)
 		return -EINVAL;
@@ -867,9 +839,6 @@ static int omap_8250_rx_dma(struct uart_8250_port *p, unsigned int iir)
 	desc->callback_param = p;
 
 	dma->rx_cookie = dmaengine_submit(desc);
-
-	dma_sync_single_for_device(dma->rxchan->device->dev, dma->rx_addr,
-				   dma->rx_size, DMA_FROM_DEVICE);
 
 	dma_async_issue_pending(dma->rxchan);
 out:
@@ -1022,6 +991,18 @@ err:
 	return ret;
 }
 
+static bool handle_rx_dma(struct uart_8250_port *up, unsigned int iir)
+{
+	switch (iir & 0x3f) {
+	case UART_IIR_RLSI:
+	case UART_IIR_RX_TIMEOUT:
+	case UART_IIR_RDI:
+		omap_8250_rx_dma_flush(up);
+		return true;
+	}
+	return omap_8250_rx_dma(up);
+}
+
 /*
  * This is mostly serial8250_handle_irq(). We have a slightly different DMA
  * hoook for RX/TX and need different logic for them in the ISR. Therefore we
@@ -1033,7 +1014,6 @@ static int omap_8250_dma_handle_irq(struct uart_port *port)
 	unsigned char status;
 	unsigned long flags;
 	u8 iir;
-	int dma_err = 0;
 
 	serial8250_rpm_get(up);
 
@@ -1048,11 +1028,9 @@ static int omap_8250_dma_handle_irq(struct uart_port *port)
 	status = serial_port_in(port, UART_LSR);
 
 	if (status & (UART_LSR_DR | UART_LSR_BI)) {
-
-		dma_err = omap_8250_rx_dma(up, iir);
-		if (dma_err) {
+		if (handle_rx_dma(up, iir)) {
 			status = serial8250_rx_chars(up, status);
-			omap_8250_rx_dma(up, 0);
+			omap_8250_rx_dma(up);
 		}
 	}
 	serial8250_modem_status(up);
@@ -1066,8 +1044,7 @@ static int omap_8250_dma_handle_irq(struct uart_port *port)
 			 * try again due to an earlier failer which
 			 * might have been resolved by now.
 			 */
-			dma_err = omap_8250_tx_dma(up);
-			if (dma_err)
+			if (omap_8250_tx_dma(up))
 				serial8250_tx_chars(up);
 		}
 	}
@@ -1084,7 +1061,7 @@ static bool the_no_dma_filter_fn(struct dma_chan *chan, void *param)
 
 #else
 
-static inline int omap_8250_rx_dma(struct uart_8250_port *p, unsigned int iir)
+static inline int omap_8250_rx_dma(struct uart_8250_port *p)
 {
 	return -EINVAL;
 }
@@ -1395,7 +1372,7 @@ static int omap8250_runtime_suspend(struct device *dev)
 	}
 
 	if (up->dma && up->dma->rxchan)
-		omap_8250_rx_dma(up, UART_IIR_RX_TIMEOUT);
+		omap_8250_rx_dma_flush(up);
 
 	priv->latency = PM_QOS_CPU_DMA_LAT_DEFAULT_VALUE;
 	schedule_work(&priv->qos_work);
@@ -1407,20 +1384,18 @@ static int omap8250_runtime_resume(struct device *dev)
 {
 	struct omap8250_priv *priv = dev_get_drvdata(dev);
 	struct uart_8250_port *up;
-	int loss_cntx;
 
 	/* In case runtime-pm tries this before we are setup */
 	if (!priv)
 		return 0;
 
 	up = serial8250_get_port(priv->line);
-	loss_cntx = omap8250_lost_context(up);
 
-	if (loss_cntx)
+	if (omap8250_lost_context(up))
 		omap8250_restore_regs(up);
 
 	if (up->dma && up->dma->rxchan)
-		omap_8250_rx_dma(up, 0);
+		omap_8250_rx_dma(up);
 
 	priv->latency = priv->calc_latency;
 	schedule_work(&priv->qos_work);

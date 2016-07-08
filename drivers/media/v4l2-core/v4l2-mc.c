@@ -1,7 +1,7 @@
 /*
  * Media Controller ancillary functions
  *
- * Copyright (c) 2016 Mauro Carvalho Chehab <mchehab@osg.samsung.com>
+ * Copyright (c) 2016 Mauro Carvalho Chehab <mchehab@kernel.org>
  * Copyright (C) 2016 Shuah Khan <shuahkh@osg.samsung.com>
  * Copyright (C) 2006-2010 Nokia Corporation
  * Copyright (c) 2016 Intel Corporation.
@@ -34,7 +34,7 @@ int v4l2_mc_create_media_graph(struct media_device *mdev)
 {
 	struct media_entity *entity;
 	struct media_entity *if_vid = NULL, *if_aud = NULL;
-	struct media_entity *tuner = NULL, *decoder = NULL, *dtv_demod = NULL;
+	struct media_entity *tuner = NULL, *decoder = NULL;
 	struct media_entity *io_v4l = NULL, *io_vbi = NULL, *io_swradio = NULL;
 	bool is_webcam = false;
 	u32 flags;
@@ -263,7 +263,7 @@ static int pipeline_pm_use_count(struct media_entity *entity,
 	media_entity_graph_walk_start(graph, entity);
 
 	while ((entity = media_entity_graph_walk_next(graph))) {
-		if (is_media_entity_v4l2_io(entity))
+		if (is_media_entity_v4l2_video_device(entity))
 			use += entity->use_count;
 	}
 

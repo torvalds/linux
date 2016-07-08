@@ -13,13 +13,8 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
- * This file was originally written by Seiji Kihara <kihara@osrg.net>
- * and fully revised by Ryusuke Konishi <ryusuke@osrg.net> for
- * stabilization and simplification.
+ * Originally written by Seiji Kihara.
+ * Fully revised by Ryusuke Konishi for stabilization and simplification.
  *
  */
 
@@ -62,7 +57,7 @@ nilfs_btnode_create_block(struct address_space *btnc, __u64 blocknr)
 	set_buffer_uptodate(bh);
 
 	unlock_page(bh->b_page);
-	page_cache_release(bh->b_page);
+	put_page(bh->b_page);
 	return bh;
 }
 
@@ -128,7 +123,7 @@ found:
 
 out_locked:
 	unlock_page(page);
-	page_cache_release(page);
+	put_page(page);
 	return err;
 }
 
@@ -146,7 +141,7 @@ void nilfs_btnode_delete(struct buffer_head *bh)
 	pgoff_t index = page_index(page);
 	int still_dirty;
 
-	page_cache_get(page);
+	get_page(page);
 	lock_page(page);
 	wait_on_page_writeback(page);
 
@@ -154,7 +149,7 @@ void nilfs_btnode_delete(struct buffer_head *bh)
 	still_dirty = PageDirty(page);
 	mapping = page->mapping;
 	unlock_page(page);
-	page_cache_release(page);
+	put_page(page);
 
 	if (!still_dirty && mapping)
 		invalidate_inode_pages2_range(mapping, index, index);
@@ -181,7 +176,7 @@ int nilfs_btnode_prepare_change_key(struct address_space *btnc,
 	obh = ctxt->bh;
 	ctxt->newbh = NULL;
 
-	if (inode->i_blkbits == PAGE_CACHE_SHIFT) {
+	if (inode->i_blkbits == PAGE_SHIFT) {
 		lock_page(obh->b_page);
 		/*
 		 * We cannot call radix_tree_preload for the kernels older

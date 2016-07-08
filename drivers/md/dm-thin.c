@@ -322,56 +322,6 @@ struct thin_c {
 
 /*----------------------------------------------------------------*/
 
-/**
- * __blkdev_issue_discard_async - queue a discard with async completion
- * @bdev:	blockdev to issue discard for
- * @sector:	start sector
- * @nr_sects:	number of sectors to discard
- * @gfp_mask:	memory allocation flags (for bio_alloc)
- * @flags:	BLKDEV_IFL_* flags to control behaviour
- * @parent_bio: parent discard bio that all sub discards get chained to
- *
- * Description:
- *    Asynchronously issue a discard request for the sectors in question.
- */
-static int __blkdev_issue_discard_async(struct block_device *bdev, sector_t sector,
-					sector_t nr_sects, gfp_t gfp_mask, unsigned long flags,
-					struct bio *parent_bio)
-{
-	struct request_queue *q = bdev_get_queue(bdev);
-	int type = REQ_WRITE | REQ_DISCARD;
-	struct bio *bio;
-
-	if (!q || !nr_sects)
-		return -ENXIO;
-
-	if (!blk_queue_discard(q))
-		return -EOPNOTSUPP;
-
-	if (flags & BLKDEV_DISCARD_SECURE) {
-		if (!blk_queue_secdiscard(q))
-			return -EOPNOTSUPP;
-		type |= REQ_SECURE;
-	}
-
-	/*
-	 * Required bio_put occurs in bio_endio thanks to bio_chain below
-	 */
-	bio = bio_alloc(gfp_mask, 1);
-	if (!bio)
-		return -ENOMEM;
-
-	bio_chain(bio, parent_bio);
-
-	bio->bi_iter.bi_sector = sector;
-	bio->bi_bdev = bdev;
-	bio->bi_iter.bi_size = nr_sects << 9;
-
-	submit_bio(type, bio);
-
-	return 0;
-}
-
 static bool block_size_is_power_of_two(struct pool *pool)
 {
 	return pool->sectors_per_block_shift >= 0;
@@ -384,14 +334,55 @@ static sector_t block_to_sectors(struct pool *pool, dm_block_t b)
 		(b * pool->sectors_per_block);
 }
 
-static int issue_discard(struct thin_c *tc, dm_block_t data_b, dm_block_t data_e,
-			 struct bio *parent_bio)
+/*----------------------------------------------------------------*/
+
+struct discard_op {
+	struct thin_c *tc;
+	struct blk_plug plug;
+	struct bio *parent_bio;
+	struct bio *bio;
+};
+
+static void begin_discard(struct discard_op *op, struct thin_c *tc, struct bio *parent)
 {
+	BUG_ON(!parent);
+
+	op->tc = tc;
+	blk_start_plug(&op->plug);
+	op->parent_bio = parent;
+	op->bio = NULL;
+}
+
+static int issue_discard(struct discard_op *op, dm_block_t data_b, dm_block_t data_e)
+{
+	struct thin_c *tc = op->tc;
 	sector_t s = block_to_sectors(tc->pool, data_b);
 	sector_t len = block_to_sectors(tc->pool, data_e - data_b);
 
-	return __blkdev_issue_discard_async(tc->pool_dev->bdev, s, len,
-					    GFP_NOWAIT, 0, parent_bio);
+	return __blkdev_issue_discard(tc->pool_dev->bdev, s, len,
+				      GFP_NOWAIT, REQ_WRITE | REQ_DISCARD, &op->bio);
+}
+
+static void end_discard(struct discard_op *op, int r)
+{
+	if (op->bio) {
+		/*
+		 * Even if one of the calls to issue_discard failed, we
+		 * need to wait for the chain to complete.
+		 */
+		bio_chain(op->bio, op->parent_bio);
+		submit_bio(REQ_WRITE | REQ_DISCARD, op->bio);
+	}
+
+	blk_finish_plug(&op->plug);
+
+	/*
+	 * Even if r is set, there could be sub discards in flight that we
+	 * need to wait for.
+	 */
+	if (r && !op->parent_bio->bi_error)
+		op->parent_bio->bi_error = r;
+	bio_endio(op->parent_bio);
 }
 
 /*----------------------------------------------------------------*/
@@ -632,7 +623,7 @@ static void error_retry_list(struct pool *pool)
 {
 	int error = get_pool_io_error_code(pool);
 
-	return error_retry_list_with_code(pool, error);
+	error_retry_list_with_code(pool, error);
 }
 
 /*
@@ -1006,24 +997,28 @@ static void process_prepared_discard_no_passdown(struct dm_thin_new_mapping *m)
 	mempool_free(m, tc->pool->mapping_pool);
 }
 
-static int passdown_double_checking_shared_status(struct dm_thin_new_mapping *m)
+/*----------------------------------------------------------------*/
+
+static void passdown_double_checking_shared_status(struct dm_thin_new_mapping *m)
 {
 	/*
 	 * We've already unmapped this range of blocks, but before we
 	 * passdown we have to check that these blocks are now unused.
 	 */
-	int r;
+	int r = 0;
 	bool used = true;
 	struct thin_c *tc = m->tc;
 	struct pool *pool = tc->pool;
 	dm_block_t b = m->data_block, e, end = m->data_block + m->virt_end - m->virt_begin;
+	struct discard_op op;
 
+	begin_discard(&op, tc, m->bio);
 	while (b != end) {
 		/* find start of unmapped run */
 		for (; b < end; b++) {
 			r = dm_pool_block_is_used(pool->pmd, b, &used);
 			if (r)
-				return r;
+				goto out;
 
 			if (!used)
 				break;
@@ -1036,20 +1031,20 @@ static int passdown_double_checking_shared_status(struct dm_thin_new_mapping *m)
 		for (e = b + 1; e != end; e++) {
 			r = dm_pool_block_is_used(pool->pmd, e, &used);
 			if (r)
-				return r;
+				goto out;
 
 			if (used)
 				break;
 		}
 
-		r = issue_discard(tc, b, e, m->bio);
+		r = issue_discard(&op, b, e);
 		if (r)
-			return r;
+			goto out;
 
 		b = e;
 	}
-
-	return 0;
+out:
+	end_discard(&op, r);
 }
 
 static void process_prepared_discard_passdown(struct dm_thin_new_mapping *m)
@@ -1059,20 +1054,21 @@ static void process_prepared_discard_passdown(struct dm_thin_new_mapping *m)
 	struct pool *pool = tc->pool;
 
 	r = dm_thin_remove_range(tc->td, m->virt_begin, m->virt_end);
-	if (r)
+	if (r) {
 		metadata_operation_failed(pool, "dm_thin_remove_range", r);
+		bio_io_error(m->bio);
 
-	else if (m->maybe_shared)
-		r = passdown_double_checking_shared_status(m);
-	else
-		r = issue_discard(tc, m->data_block, m->data_block + (m->virt_end - m->virt_begin), m->bio);
+	} else if (m->maybe_shared) {
+		passdown_double_checking_shared_status(m);
 
-	/*
-	 * Even if r is set, there could be sub discards in flight that we
-	 * need to wait for.
-	 */
-	m->bio->bi_error = r;
-	bio_endio(m->bio);
+	} else {
+		struct discard_op op;
+		begin_discard(&op, tc, m->bio);
+		r = issue_discard(&op, m->data_block,
+				  m->data_block + (m->virt_end - m->virt_begin));
+		end_discard(&op, r);
+	}
+
 	cell_defer_no_holder(tc, m->cell);
 	mempool_free(m, pool->mapping_pool);
 }
@@ -1494,17 +1490,6 @@ static void process_discard_cell_no_passdown(struct thin_c *tc,
 		pool->process_prepared_discard(m);
 }
 
-/*
- * __bio_inc_remaining() is used to defer parent bios's end_io until
- * we _know_ all chained sub range discard bios have completed.
- */
-static inline void __bio_inc_remaining(struct bio *bio)
-{
-	bio->bi_flags |= (1 << BIO_CHAIN);
-	smp_mb__before_atomic();
-	atomic_inc(&bio->__bi_remaining);
-}
-
 static void break_up_discard_bio(struct thin_c *tc, dm_block_t begin, dm_block_t end,
 				 struct bio *bio)
 {
@@ -1554,13 +1539,13 @@ static void break_up_discard_bio(struct thin_c *tc, dm_block_t begin, dm_block_t
 
 		/*
 		 * The parent bio must not complete before sub discard bios are
-		 * chained to it (see __blkdev_issue_discard_async's bio_chain)!
+		 * chained to it (see end_discard's bio_chain)!
 		 *
 		 * This per-mapping bi_remaining increment is paired with
 		 * the implicit decrement that occurs via bio_endio() in
-		 * process_prepared_discard_{passdown,no_passdown}.
+		 * end_discard().
 		 */
-		__bio_inc_remaining(bio);
+		bio_inc_remaining(bio);
 		if (!dm_deferred_set_add_work(pool->all_io_ds, &m->list))
 			pool->process_prepared_discard(m);
 
@@ -3899,7 +3884,7 @@ static struct target_type pool_target = {
 	.name = "thin-pool",
 	.features = DM_TARGET_SINGLETON | DM_TARGET_ALWAYS_WRITEABLE |
 		    DM_TARGET_IMMUTABLE,
-	.version = {1, 18, 0},
+	.version = {1, 19, 0},
 	.module = THIS_MODULE,
 	.ctr = pool_ctr,
 	.dtr = pool_dtr,
@@ -4273,7 +4258,7 @@ static void thin_io_hints(struct dm_target *ti, struct queue_limits *limits)
 
 static struct target_type thin_target = {
 	.name = "thin",
-	.version = {1, 18, 0},
+	.version = {1, 19, 0},
 	.module	= THIS_MODULE,
 	.ctr = thin_ctr,
 	.dtr = thin_dtr,

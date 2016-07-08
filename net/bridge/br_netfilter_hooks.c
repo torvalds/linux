@@ -217,13 +217,13 @@ static int br_validate_ipv4(struct net *net, struct sk_buff *skb)
 
 	len = ntohs(iph->tot_len);
 	if (skb->len < len) {
-		IP_INC_STATS_BH(net, IPSTATS_MIB_INTRUNCATEDPKTS);
+		__IP_INC_STATS(net, IPSTATS_MIB_INTRUNCATEDPKTS);
 		goto drop;
 	} else if (len < (iph->ihl*4))
 		goto inhdr_error;
 
 	if (pskb_trim_rcsum(skb, len)) {
-		IP_INC_STATS_BH(net, IPSTATS_MIB_INDISCARDS);
+		__IP_INC_STATS(net, IPSTATS_MIB_INDISCARDS);
 		goto drop;
 	}
 
@@ -236,7 +236,7 @@ static int br_validate_ipv4(struct net *net, struct sk_buff *skb)
 	return 0;
 
 inhdr_error:
-	IP_INC_STATS_BH(net, IPSTATS_MIB_INHDRERRORS);
+	__IP_INC_STATS(net, IPSTATS_MIB_INHDRERRORS);
 drop:
 	return -1;
 }

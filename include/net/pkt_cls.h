@@ -392,18 +392,36 @@ struct tc_cls_u32_offload {
 	};
 };
 
-/* tca flags definitions */
-#define TCA_CLS_FLAGS_SKIP_HW 1
-
-static inline bool tc_should_offload(struct net_device *dev, u32 flags)
+static inline bool tc_should_offload(const struct net_device *dev,
+				     const struct tcf_proto *tp, u32 flags)
 {
+	const struct Qdisc *sch = tp->q;
+	const struct Qdisc_class_ops *cops = sch->ops->cl_ops;
+
 	if (!(dev->features & NETIF_F_HW_TC))
 		return false;
-
 	if (flags & TCA_CLS_FLAGS_SKIP_HW)
 		return false;
-
 	if (!dev->netdev_ops->ndo_setup_tc)
+		return false;
+	if (cops && cops->tcf_cl_offload)
+		return cops->tcf_cl_offload(tp->classid);
+
+	return true;
+}
+
+static inline bool tc_skip_sw(u32 flags)
+{
+	return (flags & TCA_CLS_FLAGS_SKIP_SW) ? true : false;
+}
+
+/* SKIP_HW and SKIP_SW are mutually exclusive flags. */
+static inline bool tc_flags_valid(u32 flags)
+{
+	if (flags & ~(TCA_CLS_FLAGS_SKIP_HW | TCA_CLS_FLAGS_SKIP_SW))
+		return false;
+
+	if (!(flags ^ (TCA_CLS_FLAGS_SKIP_HW | TCA_CLS_FLAGS_SKIP_SW)))
 		return false;
 
 	return true;
@@ -412,6 +430,7 @@ static inline bool tc_should_offload(struct net_device *dev, u32 flags)
 enum tc_fl_command {
 	TC_CLSFLOWER_REPLACE,
 	TC_CLSFLOWER_DESTROY,
+	TC_CLSFLOWER_STATS,
 };
 
 struct tc_cls_flower_offload {

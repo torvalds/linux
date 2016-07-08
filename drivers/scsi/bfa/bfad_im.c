@@ -440,13 +440,13 @@ bfad_im_slave_destroy(struct scsi_device *sdev)
  * BFA FCS itnim alloc callback, after successful PRLI
  * Context: Interrupt
  */
-void
+int
 bfa_fcb_itnim_alloc(struct bfad_s *bfad, struct bfa_fcs_itnim_s **itnim,
 		    struct bfad_itnim_s **itnim_drv)
 {
 	*itnim_drv = kzalloc(sizeof(struct bfad_itnim_s), GFP_ATOMIC);
 	if (*itnim_drv == NULL)
-		return;
+		return -ENOMEM;
 
 	(*itnim_drv)->im = bfad->im;
 	*itnim = &(*itnim_drv)->fcs_itnim;
@@ -457,6 +457,7 @@ bfa_fcb_itnim_alloc(struct bfad_s *bfad, struct bfa_fcs_itnim_s **itnim,
 	 */
 	INIT_WORK(&(*itnim_drv)->itnim_work, bfad_im_itnim_work_handler);
 	bfad->bfad_flags |= BFAD_RPORT_ONLINE;
+	return 0;
 }
 
 /*

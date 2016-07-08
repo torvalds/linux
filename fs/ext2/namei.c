@@ -82,7 +82,7 @@ struct dentry *ext2_get_parent(struct dentry *child)
 	unsigned long ino = ext2_inode_by_name(d_inode(child), &dotdot);
 	if (!ino)
 		return ERR_PTR(-ENOENT);
-	return d_obtain_alias(ext2_iget(d_inode(child)->i_sb, ino));
+	return d_obtain_alias(ext2_iget(child->d_sb, ino));
 } 
 
 /*
@@ -398,7 +398,7 @@ static int ext2_rename (struct inode * old_dir, struct dentry * old_dentry,
 			ext2_set_link(old_inode, dir_de, dir_page, new_dir, 0);
 		else {
 			kunmap(dir_page);
-			page_cache_release(dir_page);
+			put_page(dir_page);
 		}
 		inode_dec_link_count(old_dir);
 	}
@@ -408,11 +408,11 @@ static int ext2_rename (struct inode * old_dir, struct dentry * old_dentry,
 out_dir:
 	if (dir_de) {
 		kunmap(dir_page);
-		page_cache_release(dir_page);
+		put_page(dir_page);
 	}
 out_old:
 	kunmap(old_page);
-	page_cache_release(old_page);
+	put_page(old_page);
 out:
 	return err;
 }

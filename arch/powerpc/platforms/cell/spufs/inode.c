@@ -238,7 +238,7 @@ const struct file_operations spufs_context_fops = {
 	.release	= spufs_dir_close,
 	.llseek		= dcache_dir_lseek,
 	.read		= generic_read_dir,
-	.iterate	= dcache_readdir,
+	.iterate_shared	= dcache_readdir,
 	.fsync		= noop_fsync,
 };
 EXPORT_SYMBOL_GPL(spufs_context_fops);
@@ -732,8 +732,8 @@ spufs_fill_super(struct super_block *sb, void *data, int silent)
 		return -ENOMEM;
 
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
-	sb->s_blocksize = PAGE_CACHE_SIZE;
-	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
+	sb->s_blocksize = PAGE_SIZE;
+	sb->s_blocksize_bits = PAGE_SHIFT;
 	sb->s_magic = SPUFS_MAGIC;
 	sb->s_op = &s_ops;
 	sb->s_fs_info = info;

@@ -198,7 +198,7 @@ int rockchip_gem_dumb_map_offset(struct drm_file *file_priv,
 	struct drm_gem_object *obj;
 	int ret;
 
-	obj = drm_gem_object_lookup(dev, file_priv, handle);
+	obj = drm_gem_object_lookup(file_priv, handle);
 	if (!obj) {
 		DRM_ERROR("failed to lookup gem object.\n");
 		return -EINVAL;

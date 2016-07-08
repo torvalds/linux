@@ -545,6 +545,8 @@ static void xen_play_dead(void) /* used only with HOTPLUG_CPU */
 	 * data back is to call:
 	 */
 	tick_nohz_idle_enter();
+
+	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
 }
 
 #else /* !CONFIG_HOTPLUG_CPU */

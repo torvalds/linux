@@ -389,7 +389,7 @@ static int netdev_open(struct net_device *pnetdev)
 		padapter->bup = true;
 		if (rtl871x_hal_init(padapter) != _SUCCESS)
 			goto netdev_open_error;
-		if (r8712_initmac == NULL)
+		if (!r8712_initmac)
 			/* Use the mac address stored in the Efuse */
 			memcpy(pnetdev->dev_addr,
 				padapter->eeprompriv.mac_addr, ETH_ALEN);
@@ -413,7 +413,7 @@ static int netdev_open(struct net_device *pnetdev)
 		}
 		if (start_drv_threads(padapter) != _SUCCESS)
 			goto netdev_open_error;
-		if (padapter->dvobjpriv.inirp_init == NULL)
+		if (!padapter->dvobjpriv.inirp_init)
 			goto netdev_open_error;
 		else
 			padapter->dvobjpriv.inirp_init(padapter);

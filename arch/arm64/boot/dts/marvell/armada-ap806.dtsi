@@ -54,11 +54,15 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
+	};
+
 	psci {
 		compatible = "arm,psci-0.2";
 		method = "smc";
 	};
-
 
 	ap806 {
 		#address-cells = <2>;
@@ -136,7 +140,7 @@
 				marvell,spi-base = <128>, <136>, <144>, <152>;
 			};
 
-			xor0@400000 {
+			xor@400000 {
 				compatible = "marvell,mv-xor-v2";
 				reg = <0x400000 0x1000>,
 				      <0x410000 0x1000>;
@@ -144,7 +148,7 @@
 				dma-coherent;
 			};
 
-			xor1@420000 {
+			xor@420000 {
 				compatible = "marvell,mv-xor-v2";
 				reg = <0x420000 0x1000>,
 				      <0x430000 0x1000>;
@@ -152,7 +156,7 @@
 				dma-coherent;
 			};
 
-			xor2@440000 {
+			xor@440000 {
 				compatible = "marvell,mv-xor-v2";
 				reg = <0x440000 0x1000>,
 				      <0x450000 0x1000>;
@@ -160,7 +164,7 @@
 				dma-coherent;
 			};
 
-			xor3@460000 {
+			xor@460000 {
 				compatible = "marvell,mv-xor-v2";
 				reg = <0x460000 0x1000>,
 				      <0x470000 0x1000>;
@@ -175,63 +179,51 @@
 				#size-cells = <0>;
 				cell-index = <0>;
 				interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&ringclk 2>;
+				clocks = <&ap_syscon 3>;
 				status = "disabled";
 			};
 
 			i2c0: i2c@511000 {
-				compatible = "marvell,mv64xxx-i2c";
+				compatible = "marvell,mv78230-i2c";
 				reg = <0x511000 0x20>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 				interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
 				timeout-ms = <1000>;
-				clocks = <&ringclk 2>;
+				clocks = <&ap_syscon 3>;
 				status = "disabled";
 			};
 
-			serial@512000 {
+			uart0: serial@512000 {
 				compatible = "snps,dw-apb-uart";
 				reg = <0x512000 0x100>;
 				reg-shift = <2>;
 				interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
 				reg-io-width = <1>;
-				clocks = <&ringclk 2>;
+				clocks = <&ap_syscon 3>;
 				status = "disabled";
 			};
 
-			serial@512100 {
+			uart1: serial@512100 {
 				compatible = "snps,dw-apb-uart";
 				reg = <0x512100 0x100>;
 				reg-shift = <2>;
 				interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
 				reg-io-width = <1>;
-				clocks = <&ringclk 2>;
+				clocks = <&ap_syscon 3>;
 				status = "disabled";
 
 			};
 
-			dfx-server@6f8000 {
-				compatible = "simple-mfd", "syscon";
-				reg = <0x6f8000 0x70000>;
-
-				coreclk: clk@204 {
-					compatible = "marvell,armada-ap806-core-clock";
-					#clock-cells = <1>;
-					clock-output-names = "ddr", "ring", "cpu";
-				};
-
-				ringclk: clk@250 {
-					compatible = "marvell,armada-ap806-ring-clock";
-					#clock-cells = <1>;
-					clock-output-names = "ring-0", "ring-2",
-							     "ring-3", "ring-4",
-							     "ring-5";
-					clocks = <&coreclk 1>;
-				};
+			ap_syscon: system-controller@6f4000 {
+				compatible = "marvell,ap806-system-controller",
+					     "syscon";
+				#clock-cells = <1>;
+				clock-output-names = "ap-cpu-cluster-0",
+						     "ap-cpu-cluster-1",
+						     "ap-fixed", "ap-mss";
+				reg = <0x6f4000 0x1000>;
 			};
 		};
 	};
-
 };
-

@@ -212,7 +212,7 @@ static struct mtd_info *probe_cs(struct map_info *map_cs)
 /*
  * Probe each chip select individually for flash chips. If there are chips on
  * both cse0 and cse1, the mtd_info structs will be concatenated to one struct
- * so that MTD partitions can cross chip boundries.
+ * so that MTD partitions can cross chip boundaries.
  *
  * The only known restriction to how you can mount your chips is that each
  * chip select must hold similar flash chips. But you need external hardware

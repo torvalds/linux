@@ -368,16 +368,16 @@ enum OpalLPCAddressType {
 };
 
 enum opal_msg_type {
-	OPAL_MSG_ASYNC_COMP = 0,	/* params[0] = token, params[1] = rc,
+	OPAL_MSG_ASYNC_COMP	= 0,	/* params[0] = token, params[1] = rc,
 					 * additional params function-specific
 					 */
-	OPAL_MSG_MEM_ERR,
-	OPAL_MSG_EPOW,
-	OPAL_MSG_SHUTDOWN,		/* params[0] = 1 reboot, 0 shutdown */
-	OPAL_MSG_HMI_EVT,
-	OPAL_MSG_DPO,
-	OPAL_MSG_PRD,
-	OPAL_MSG_OCC,
+	OPAL_MSG_MEM_ERR	= 1,
+	OPAL_MSG_EPOW		= 2,
+	OPAL_MSG_SHUTDOWN	= 3,	/* params[0] = 1 reboot, 0 shutdown */
+	OPAL_MSG_HMI_EVT	= 4,
+	OPAL_MSG_DPO		= 5,
+	OPAL_MSG_PRD		= 6,
+	OPAL_MSG_OCC		= 7,
 	OPAL_MSG_TYPE_MAX,
 };
 

@@ -188,7 +188,7 @@ acpi_ex_store_string_to_string(union acpi_operand_object *source_desc,
 		 * Clear old string and copy in the new one
 		 */
 		memset(target_desc->string.pointer, 0,
-		       (acpi_size) target_desc->string.length + 1);
+		       (acpi_size)target_desc->string.length + 1);
 		memcpy(target_desc->string.pointer, buffer, length);
 	} else {
 		/*
@@ -204,7 +204,7 @@ acpi_ex_store_string_to_string(union acpi_operand_object *source_desc,
 		}
 
 		target_desc->string.pointer =
-		    ACPI_ALLOCATE_ZEROED((acpi_size) length + 1);
+		    ACPI_ALLOCATE_ZEROED((acpi_size)length + 1);
 
 		if (!target_desc->string.pointer) {
 			return_ACPI_STATUS(AE_NO_MEMORY);

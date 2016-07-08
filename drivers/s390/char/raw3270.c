@@ -90,6 +90,8 @@ module_param(tubxcorrect, bool, 0);
  */
 DECLARE_WAIT_QUEUE_HEAD(raw3270_wait_queue);
 
+static void __raw3270_disconnect(struct raw3270 *rp);
+
 /*
  * Encode array for 12 bit 3270 addresses.
  */
@@ -229,29 +231,6 @@ raw3270_request_set_idal(struct raw3270_request *rq, struct idal_buffer *ib)
 }
 
 /*
- * Stop running ccw.
- */
-static int
-__raw3270_halt_io(struct raw3270 *rp, struct raw3270_request *rq)
-{
-	int retries;
-	int rc;
-
-	if (raw3270_request_final(rq))
-		return 0;
-	/* Check if interrupt has already been processed */
-	for (retries = 0; retries < 5; retries++) {
-		if (retries < 2)
-			rc = ccw_device_halt(rp->cdev, (long) rq);
-		else
-			rc = ccw_device_clear(rp->cdev, (long) rq);
-		if (rc == 0)
-			break;		/* termination successful */
-	}
-	return rc;
-}
-
-/*
  * Add the request to the request queue, try to start it if the
  * 3270 device is idle. Return without waiting for end of i/o.
  */
@@ -342,7 +321,6 @@ raw3270_irq (struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 	struct raw3270 *rp;
 	struct raw3270_view *view;
 	struct raw3270_request *rq;
-	int rc;
 
 	rp = dev_get_drvdata(&cdev->dev);
 	if (!rp)
@@ -350,57 +328,31 @@ raw3270_irq (struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 	rq = (struct raw3270_request *) intparm;
 	view = rq ? rq->view : rp->view;
 
-	if (IS_ERR(irb))
-		rc = RAW3270_IO_RETRY;
-	else if (irb->scsw.cmd.fctl & SCSW_FCTL_HALT_FUNC) {
-		rq->rc = -EIO;
-		rc = RAW3270_IO_DONE;
-	} else if (irb->scsw.cmd.dstat == (DEV_STAT_CHN_END | DEV_STAT_DEV_END |
-					   DEV_STAT_UNIT_EXCEP)) {
+	if (!IS_ERR(irb)) {
 		/* Handle CE-DE-UE and subsequent UDE */
-		set_bit(RAW3270_FLAGS_BUSY, &rp->flags);
-		rc = RAW3270_IO_BUSY;
-	} else if (test_bit(RAW3270_FLAGS_BUSY, &rp->flags)) {
-		/* Wait for UDE if busy flag is set. */
-		if (irb->scsw.cmd.dstat & DEV_STAT_DEV_END) {
+		if (irb->scsw.cmd.dstat & DEV_STAT_DEV_END)
 			clear_bit(RAW3270_FLAGS_BUSY, &rp->flags);
-			/* Got it, now retry. */
-			rc = RAW3270_IO_RETRY;
-		} else
-			rc = RAW3270_IO_BUSY;
-	} else if (view)
-		rc = view->fn->intv(view, rq, irb);
-	else
-		rc = RAW3270_IO_DONE;
-
-	switch (rc) {
-	case RAW3270_IO_DONE:
-		break;
-	case RAW3270_IO_BUSY:
-		/* 
-		 * Intervention required by the operator. We have to wait
-		 * for unsolicited device end.
-		 */
-		return;
-	case RAW3270_IO_RETRY:
-		if (!rq)
-			break;
-		rq->rc = ccw_device_start(rp->cdev, &rq->ccw,
-					  (unsigned long) rq, 0, 0);
-		if (rq->rc == 0)
-			return;	/* Successfully restarted. */
-		break;
-	case RAW3270_IO_STOP:
-		if (!rq)
-			break;
-		__raw3270_halt_io(rp, rq);
-		rq->rc = -EIO;
-		break;
-	default:
-		BUG();
+		if (irb->scsw.cmd.dstat == (DEV_STAT_CHN_END |
+					    DEV_STAT_DEV_END |
+					    DEV_STAT_UNIT_EXCEP))
+			set_bit(RAW3270_FLAGS_BUSY, &rp->flags);
+		/* Handle disconnected devices */
+		if ((irb->scsw.cmd.dstat & DEV_STAT_UNIT_CHECK) &&
+		    (irb->ecw[0] & SNS0_INTERVENTION_REQ)) {
+			set_bit(RAW3270_FLAGS_BUSY, &rp->flags);
+			if (rp->state > RAW3270_STATE_RESET)
+				__raw3270_disconnect(rp);
+		}
+		/* Call interrupt handler of the view */
+		if (view)
+			view->fn->intv(view, rq, irb);
 	}
-	if (rq) {
-		BUG_ON(list_empty(&rq->list));
+
+	if (test_bit(RAW3270_FLAGS_BUSY, &rp->flags))
+		/* Device busy, do not start I/O */
+		return;
+
+	if (rq && !list_empty(&rq->list)) {
 		/* The request completed, remove from queue and do callback. */
 		list_del_init(&rq->list);
 		if (rq->callback)
@@ -408,6 +360,7 @@ raw3270_irq (struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 		/* Do put_device for get_device in raw3270_start. */
 		raw3270_put_view(view);
 	}
+
 	/*
 	 * Try to start each request on request queue until one is
 	 * started successful.
@@ -685,23 +638,34 @@ raw3270_reset(struct raw3270_view *view)
 	return rc;
 }
 
-static int
+static void
+__raw3270_disconnect(struct raw3270 *rp)
+{
+	struct raw3270_request *rq;
+	struct raw3270_view *view;
+
+	rp->state = RAW3270_STATE_INIT;
+	rp->view = &rp->init_view;
+	/* Cancel all queued requests */
+	while (!list_empty(&rp->req_queue)) {
+		rq = list_entry(rp->req_queue.next,struct raw3270_request,list);
+		view = rq->view;
+		rq->rc = -EACCES;
+		list_del_init(&rq->list);
+		if (rq->callback)
+			rq->callback(rq, rq->callback_data);
+		raw3270_put_view(view);
+	}
+	/* Start from scratch */
+	__raw3270_reset_device(rp);
+}
+
+static void
 raw3270_init_irq(struct raw3270_view *view, struct raw3270_request *rq,
 		 struct irb *irb)
 {
 	struct raw3270 *rp;
 
-	/*
-	 * Unit-Check Processing:
-	 * Expect Command Reject or Intervention Required.
-	 */
-	if (irb->scsw.cmd.dstat & DEV_STAT_UNIT_CHECK) {
-		/* Request finished abnormally. */
-		if (irb->ecw[0] & SNS0_INTERVENTION_REQ) {
-			set_bit(RAW3270_FLAGS_BUSY, &view->dev->flags);
-			return RAW3270_IO_BUSY;
-		}
-	}
 	if (rq) {
 		if (irb->scsw.cmd.dstat & DEV_STAT_UNIT_CHECK) {
 			if (irb->ecw[0] & SNS0_CMD_REJECT)
@@ -715,7 +679,6 @@ raw3270_init_irq(struct raw3270_view *view, struct raw3270_request *rq,
 		rp = view->dev;
 		raw3270_read_modified(rp);
 	}
-	return RAW3270_IO_DONE;
 }
 
 static struct raw3270_fn raw3270_init_fn = {

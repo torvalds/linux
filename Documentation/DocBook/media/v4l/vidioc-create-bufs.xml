@@ -49,12 +49,6 @@
   <refsect1>
     <title>Description</title>
 
-    <note>
-      <title>Experimental</title>
-      <para>This is an <link linkend="experimental"> experimental </link>
-      interface and may change in the future.</para>
-    </note>
-
     <para>This ioctl is used to create buffers for <link linkend="mmap">memory
 mapped</link> or <link linkend="userp">user pointer</link> or <link
 linkend="dmabuf">DMA buffer</link> I/O. It can be used as an alternative or in

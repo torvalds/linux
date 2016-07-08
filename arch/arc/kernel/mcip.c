@@ -15,9 +15,6 @@
 #include <asm/mcip.h>
 #include <asm/setup.h>
 
-#define IPI_IRQ		19
-#define SOFTIRQ_IRQ	21
-
 static char smp_cpuinfo_buf[128];
 static int idu_detected;
 
@@ -116,15 +113,13 @@ static void mcip_probe_n_setup(void)
 		IS_AVAIL1(mp.dbg, "DEBUG "),
 		IS_AVAIL1(mp.gfrc, "GFRC"));
 
+	cpuinfo_arc700[0].extn.gfrc = mp.gfrc;
 	idu_detected = mp.idu;
 
 	if (mp.dbg) {
 		__mcip_cmd_data(CMD_DEBUG_SET_SELECT, 0, 0xf);
 		__mcip_cmd_data(CMD_DEBUG_SET_MASK, 0xf, 0xf);
 	}
-
-	if (IS_ENABLED(CONFIG_ARC_HAS_GFRC) && !mp.gfrc)
-		panic("kernel trying to use non-existent GFRC\n");
 }
 
 struct plat_smp_ops plat_smp_ops = {

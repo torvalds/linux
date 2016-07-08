@@ -132,6 +132,69 @@ static struct stmmac_axi *stmmac_axi_setup(struct platform_device *pdev)
 }
 
 /**
+ * stmmac_dt_phy - parse device-tree driver parameters to allocate PHY resources
+ * @plat: driver data platform structure
+ * @np: device tree node
+ * @dev: device pointer
+ * Description:
+ * The mdio bus will be allocated in case of a phy transceiver is on board;
+ * it will be NULL if the fixed-link is configured.
+ * If there is the "snps,dwmac-mdio" sub-node the mdio will be allocated
+ * in any case (for DSA, mdio must be registered even if fixed-link).
+ * The table below sums the supported configurations:
+ *	-------------------------------
+ *	snps,phy-addr	|     Y
+ *	-------------------------------
+ *	phy-handle	|     Y
+ *	-------------------------------
+ *	fixed-link	|     N
+ *	-------------------------------
+ *	snps,dwmac-mdio	|
+ *	  even if	|     Y
+ *	fixed-link	|
+ *	-------------------------------
+ *
+ * It returns 0 in case of success otherwise -ENODEV.
+ */
+static int stmmac_dt_phy(struct plat_stmmacenet_data *plat,
+			 struct device_node *np, struct device *dev)
+{
+	bool mdio = true;
+
+	/* If phy-handle property is passed from DT, use it as the PHY */
+	plat->phy_node = of_parse_phandle(np, "phy-handle", 0);
+	if (plat->phy_node)
+		dev_dbg(dev, "Found phy-handle subnode\n");
+
+	/* If phy-handle is not specified, check if we have a fixed-phy */
+	if (!plat->phy_node && of_phy_is_fixed_link(np)) {
+		if ((of_phy_register_fixed_link(np) < 0))
+			return -ENODEV;
+
+		dev_dbg(dev, "Found fixed-link subnode\n");
+		plat->phy_node = of_node_get(np);
+		mdio = false;
+	}
+
+	/* If snps,dwmac-mdio is passed from DT, always register the MDIO */
+	for_each_child_of_node(np, plat->mdio_node) {
+		if (of_device_is_compatible(plat->mdio_node, "snps,dwmac-mdio"))
+			break;
+	}
+
+	if (plat->mdio_node) {
+		dev_dbg(dev, "Found MDIO subnode\n");
+		mdio = true;
+	}
+
+	if (mdio)
+		plat->mdio_bus_data =
+			devm_kzalloc(dev, sizeof(struct stmmac_mdio_bus_data),
+				     GFP_KERNEL);
+	return 0;
+}
+
+/**
  * stmmac_probe_config_dt - parse device-tree driver parameters
  * @pdev: platform_device structure
  * @plat: driver data platform structure
@@ -146,7 +209,6 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 	struct device_node *np = pdev->dev.of_node;
 	struct plat_stmmacenet_data *plat;
 	struct stmmac_dma_cfg *dma_cfg;
-	struct device_node *child_node = NULL;
 
 	plat = devm_kzalloc(&pdev->dev, sizeof(*plat), GFP_KERNEL);
 	if (!plat)
@@ -166,36 +228,15 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 	/* Default to phy auto-detection */
 	plat->phy_addr = -1;
 
-	/* If we find a phy-handle property, use it as the PHY */
-	plat->phy_node = of_parse_phandle(np, "phy-handle", 0);
-
-	/* If phy-handle is not specified, check if we have a fixed-phy */
-	if (!plat->phy_node && of_phy_is_fixed_link(np)) {
-		if ((of_phy_register_fixed_link(np) < 0))
-			return ERR_PTR(-ENODEV);
-
-		plat->phy_node = of_node_get(np);
-	}
-
-	for_each_child_of_node(np, child_node)
-		if (of_device_is_compatible(child_node,	"snps,dwmac-mdio")) {
-			plat->mdio_node = child_node;
-			break;
-		}
-
 	/* "snps,phy-addr" is not a standard property. Mark it as deprecated
 	 * and warn of its use. Remove this when phy node support is added.
 	 */
 	if (of_property_read_u32(np, "snps,phy-addr", &plat->phy_addr) == 0)
 		dev_warn(&pdev->dev, "snps,phy-addr property is deprecated\n");
 
-	if ((plat->phy_node && !of_phy_is_fixed_link(np)) || !plat->mdio_node)
-		plat->mdio_bus_data = NULL;
-	else
-		plat->mdio_bus_data =
-			devm_kzalloc(&pdev->dev,
-				     sizeof(struct stmmac_mdio_bus_data),
-				     GFP_KERNEL);
+	/* To Configure PHY by using all device-tree supported properties */
+	if (stmmac_dt_phy(plat, np, &pdev->dev))
+		return ERR_PTR(-ENODEV);
 
 	of_property_read_u32(np, "tx-fifo-depth", &plat->tx_fifo_size);
 
@@ -241,6 +282,13 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 					      plat->multicast_filter_bins);
 		plat->has_gmac = 1;
 		plat->pmt = 1;
+	}
+
+	if (of_device_is_compatible(np, "snps,dwmac-4.00") ||
+	    of_device_is_compatible(np, "snps,dwmac-4.10a")) {
+		plat->has_gmac4 = 1;
+		plat->pmt = 1;
+		plat->tso_en = of_property_read_bool(np, "snps,tso");
 	}
 
 	if (of_device_is_compatible(np, "snps,dwmac-3.610") ||
@@ -338,7 +386,7 @@ int stmmac_pltfr_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct stmmac_priv *priv = netdev_priv(ndev);
-	int ret = stmmac_dvr_remove(ndev);
+	int ret = stmmac_dvr_remove(&pdev->dev);
 
 	if (priv->plat->exit)
 		priv->plat->exit(pdev, priv->plat->bsp_priv);
@@ -362,7 +410,7 @@ static int stmmac_pltfr_suspend(struct device *dev)
 	struct stmmac_priv *priv = netdev_priv(ndev);
 	struct platform_device *pdev = to_platform_device(dev);
 
-	ret = stmmac_suspend(ndev);
+	ret = stmmac_suspend(dev);
 	if (priv->plat->exit)
 		priv->plat->exit(pdev, priv->plat->bsp_priv);
 
@@ -385,7 +433,7 @@ static int stmmac_pltfr_resume(struct device *dev)
 	if (priv->plat->init)
 		priv->plat->init(pdev, priv->plat->bsp_priv);
 
-	return stmmac_resume(ndev);
+	return stmmac_resume(dev);
 }
 #endif /* CONFIG_PM_SLEEP */
 

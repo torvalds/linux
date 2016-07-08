@@ -248,18 +248,17 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size,
 	if (config_enabled(CONFIG_X86_64))
 		sp -= 128;
 
-	if (!onsigstack) {
-		/* This is the X/Open sanctioned signal stack switching.  */
-		if (ka->sa.sa_flags & SA_ONSTACK) {
-			if (current->sas_ss_size)
-				sp = current->sas_ss_sp + current->sas_ss_size;
-		} else if (config_enabled(CONFIG_X86_32) &&
-			   (regs->ss & 0xffff) != __USER_DS &&
-			   !(ka->sa.sa_flags & SA_RESTORER) &&
-			   ka->sa.sa_restorer) {
-				/* This is the legacy signal stack switching. */
-				sp = (unsigned long) ka->sa.sa_restorer;
-		}
+	/* This is the X/Open sanctioned signal stack switching.  */
+	if (ka->sa.sa_flags & SA_ONSTACK) {
+		if (sas_ss_flags(sp) == 0)
+			sp = current->sas_ss_sp + current->sas_ss_size;
+	} else if (config_enabled(CONFIG_X86_32) &&
+		   !onsigstack &&
+		   (regs->ss & 0xffff) != __USER_DS &&
+		   !(ka->sa.sa_flags & SA_RESTORER) &&
+		   ka->sa.sa_restorer) {
+		/* This is the legacy signal stack switching. */
+		sp = (unsigned long) ka->sa.sa_restorer;
 	}
 
 	if (fpu->fpstate_active) {
@@ -391,7 +390,7 @@ static int __setup_rt_frame(int sig, struct ksignal *ksig,
 		put_user_ex(&frame->uc, &frame->puc);
 
 		/* Create the ucontext.  */
-		if (cpu_has_xsave)
+		if (boot_cpu_has(X86_FEATURE_XSAVE))
 			put_user_ex(UC_FP_XSTATE, &frame->uc.uc_flags);
 		else
 			put_user_ex(0, &frame->uc.uc_flags);
@@ -442,7 +441,7 @@ static unsigned long frame_uc_flags(struct pt_regs *regs)
 {
 	unsigned long flags;
 
-	if (cpu_has_xsave)
+	if (boot_cpu_has(X86_FEATURE_XSAVE))
 		flags = UC_FP_XSTATE | UC_SIGCONTEXT_SS;
 	else
 		flags = UC_SIGCONTEXT_SS;
@@ -762,7 +761,7 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 static inline unsigned long get_nr_restart_syscall(const struct pt_regs *regs)
 {
 #ifdef CONFIG_X86_64
-	if (is_ia32_task())
+	if (in_ia32_syscall())
 		return __NR_ia32_restart_syscall;
 #endif
 #ifdef CONFIG_X86_X32_ABI

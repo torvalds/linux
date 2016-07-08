@@ -517,7 +517,7 @@ int dib0700_download_firmware(struct usb_device *udev, const struct firmware *fw
 	if (nb_packet_buffer_size < 1)
 		nb_packet_buffer_size = 1;
 
-	/* get the fimware version */
+	/* get the firmware version */
 	usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 				  REQUEST_GET_VERSION,
 				  USB_TYPE_VENDOR | USB_DIR_IN, 0, 0,

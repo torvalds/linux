@@ -35,7 +35,7 @@ _GLOBAL(slb_allocate_realmode)
 	 * check for bad kernel/user address
 	 * (ea & ~REGION_MASK) >= PGTABLE_RANGE
 	 */
-	rldicr. r9,r3,4,(63 - PGTABLE_EADDR_SIZE - 4)
+	rldicr. r9,r3,4,(63 - H_PGTABLE_EADDR_SIZE - 4)
 	bne-	8f
 
 	srdi	r9,r3,60		/* get region */
@@ -91,7 +91,7 @@ slb_miss_kernel_load_vmemmap:
 	 * can be demoted from 64K -> 4K dynamically on some machines
 	 */
 	clrldi	r11,r10,48
-	cmpldi	r11,(VMALLOC_SIZE >> 28) - 1
+	cmpldi	r11,(H_VMALLOC_SIZE >> 28) - 1
 	bgt	5f
 	lhz	r11,PACAVMALLOCSLLP(r13)
 	b	6f
@@ -178,56 +178,6 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
 	li	r9,0			/* BAD_VSID */
 	li	r11,SLB_VSID_USER	/* flags don't much matter */
 	b	slb_finish_load
-
-#ifdef __DISABLED__
-
-/* void slb_allocate_user(unsigned long ea);
- *
- * Create an SLB entry for the given EA (user or kernel).
- * 	r3 = faulting address, r13 = PACA
- *	r9, r10, r11 are clobbered by this function
- * No other registers are examined or changed.
- *
- * It is called with translation enabled in order to be able to walk the
- * page tables. This is not currently used.
- */
-_GLOBAL(slb_allocate_user)
-	/* r3 = faulting address */
-	srdi	r10,r3,28		/* get esid */
-
-	crset	4*cr7+lt		/* set "user" flag for later */
-
-	/* check if we fit in the range covered by the pagetables*/
-	srdi.	r9,r3,PGTABLE_EADDR_SIZE
-	crnot	4*cr0+eq,4*cr0+eq
-	beqlr
-
-	/* now we need to get to the page tables in order to get the page
-	 * size encoding from the PMD. In the future, we'll be able to deal
-	 * with 1T segments too by getting the encoding from the PGD instead
-	 */
-	ld	r9,PACAPGDIR(r13)
-	cmpldi	cr0,r9,0
-	beqlr
-	rlwinm	r11,r10,8,25,28
-	ldx	r9,r9,r11		/* get pgd_t */
-	cmpldi	cr0,r9,0
-	beqlr
-	rlwinm	r11,r10,3,17,28
-	ldx	r9,r9,r11		/* get pmd_t */
-	cmpldi	cr0,r9,0
-	beqlr
-
-	/* build vsid flags */
-	andi.	r11,r9,SLB_VSID_LLP
-	ori	r11,r11,SLB_VSID_USER
-
-	/* get context to calculate proto-VSID */
-	ld	r9,PACACONTEXTID(r13)
-	/* fall through slb_finish_load */
-
-#endif /* __DISABLED__ */
-
 
 /*
  * Finish loading of an SLB entry and return

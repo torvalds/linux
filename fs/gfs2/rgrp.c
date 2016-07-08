@@ -73,8 +73,7 @@ static const char valid_change[16] = {
 };
 
 static int gfs2_rbm_find(struct gfs2_rbm *rbm, u8 state, u32 *minext,
-			 const struct gfs2_inode *ip, bool nowrap,
-			 const struct gfs2_alloc_parms *ap);
+			 const struct gfs2_inode *ip, bool nowrap);
 
 
 /**
@@ -918,9 +917,8 @@ static int read_rindex_entry(struct gfs2_inode *ip)
 		goto fail;
 
 	rgd->rd_gl->gl_object = rgd;
-	rgd->rd_gl->gl_vm.start = (rgd->rd_addr * bsize) & PAGE_CACHE_MASK;
-	rgd->rd_gl->gl_vm.end = PAGE_CACHE_ALIGN((rgd->rd_addr +
-						  rgd->rd_length) * bsize) - 1;
+	rgd->rd_gl->gl_vm.start = (rgd->rd_addr * bsize) & PAGE_MASK;
+	rgd->rd_gl->gl_vm.end = PAGE_ALIGN((rgd->rd_addr + rgd->rd_length) * bsize) - 1;
 	rgd->rd_rgl = (struct gfs2_rgrp_lvb *)rgd->rd_gl->gl_lksb.sb_lvbptr;
 	rgd->rd_flags &= ~(GFS2_RDF_UPTODATE | GFS2_RDF_PREFERRED);
 	if (rgd->rd_data > sdp->sd_max_rg_data)
@@ -1512,7 +1510,7 @@ static void rg_mblk_search(struct gfs2_rgrpd *rgd, struct gfs2_inode *ip,
 	if (WARN_ON(gfs2_rbm_from_block(&rbm, goal)))
 		return;
 
-	ret = gfs2_rbm_find(&rbm, GFS2_BLKST_FREE, &extlen, ip, true, ap);
+	ret = gfs2_rbm_find(&rbm, GFS2_BLKST_FREE, &extlen, ip, true);
 	if (ret == 0) {
 		rs->rs_rbm = rbm;
 		rs->rs_free = extlen;
@@ -1639,7 +1637,6 @@ fail:
  * @ip: If set, check for reservations
  * @nowrap: Stop looking at the end of the rgrp, rather than wrapping
  *          around until we've reached the starting point.
- * @ap: the allocation parameters
  *
  * Side effects:
  * - If looking for free blocks, we set GBF_FULL on each bitmap which
@@ -1651,8 +1648,7 @@ fail:
  */
 
 static int gfs2_rbm_find(struct gfs2_rbm *rbm, u8 state, u32 *minext,
-			 const struct gfs2_inode *ip, bool nowrap,
-			 const struct gfs2_alloc_parms *ap)
+			 const struct gfs2_inode *ip, bool nowrap)
 {
 	struct buffer_head *bh;
 	int initial_bii;
@@ -1773,7 +1769,7 @@ static void try_rgrp_unlink(struct gfs2_rgrpd *rgd, u64 *last_unlinked, u64 skip
 	while (1) {
 		down_write(&sdp->sd_log_flush_lock);
 		error = gfs2_rbm_find(&rbm, GFS2_BLKST_UNLINKED, NULL, NULL,
-				      true, NULL);
+				      true);
 		up_write(&sdp->sd_log_flush_lock);
 		if (error == -ENOSPC)
 			break;
@@ -2330,12 +2326,11 @@ int gfs2_alloc_blocks(struct gfs2_inode *ip, u64 *bn, unsigned int *nblocks,
 	int error;
 
 	gfs2_set_alloc_start(&rbm, ip, dinode);
-	error = gfs2_rbm_find(&rbm, GFS2_BLKST_FREE, NULL, ip, false, NULL);
+	error = gfs2_rbm_find(&rbm, GFS2_BLKST_FREE, NULL, ip, false);
 
 	if (error == -ENOSPC) {
 		gfs2_set_alloc_start(&rbm, ip, dinode);
-		error = gfs2_rbm_find(&rbm, GFS2_BLKST_FREE, NULL, NULL, false,
-				      NULL);
+		error = gfs2_rbm_find(&rbm, GFS2_BLKST_FREE, NULL, NULL, false);
 	}
 
 	/* Since all blocks are reserved in advance, this shouldn't happen */

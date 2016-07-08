@@ -1,6 +1,6 @@
 /* net/tipc/socket.h: Include file for TIPC socket code
  *
- * Copyright (c) 2014-2015, Ericsson AB
+ * Copyright (c) 2014-2016, Ericsson AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,10 +38,17 @@
 #include <net/sock.h>
 #include <net/genetlink.h>
 
-#define TIPC_CONNACK_INTV         256
-#define TIPC_FLOWCTRL_WIN        (TIPC_CONNACK_INTV * 2)
-#define TIPC_CONN_OVERLOAD_LIMIT ((TIPC_FLOWCTRL_WIN * 2 + 1) * \
-				  SKB_TRUESIZE(TIPC_MAX_USER_MSG_SIZE))
+/* Compatibility values for deprecated message based flow control */
+#define FLOWCTL_MSG_WIN 512
+#define FLOWCTL_MSG_LIM ((FLOWCTL_MSG_WIN * 2 + 1) * SKB_TRUESIZE(MAX_MSG_SIZE))
+
+#define FLOWCTL_BLK_SZ 1024
+
+/* Socket receive buffer sizes */
+#define RCVBUF_MIN  (FLOWCTL_BLK_SZ * 512)
+#define RCVBUF_DEF  (FLOWCTL_BLK_SZ * 1024 * 2)
+#define RCVBUF_MAX  (FLOWCTL_BLK_SZ * 1024 * 16)
+
 int tipc_socket_init(void);
 void tipc_socket_stop(void);
 void tipc_sk_rcv(struct net *net, struct sk_buff_head *inputq);

@@ -461,25 +461,25 @@ generate_ndma_promise(struct dma_chan *chan, dma_addr_t src, dma_addr_t dest,
 
 	/* Source burst */
 	ret = convert_burst(sconfig->src_maxburst);
-	if (IS_ERR_VALUE(ret))
+	if (ret < 0)
 		goto fail;
 	promise->cfg |= SUN4I_DMA_CFG_SRC_BURST_LENGTH(ret);
 
 	/* Destination burst */
 	ret = convert_burst(sconfig->dst_maxburst);
-	if (IS_ERR_VALUE(ret))
+	if (ret < 0)
 		goto fail;
 	promise->cfg |= SUN4I_DMA_CFG_DST_BURST_LENGTH(ret);
 
 	/* Source bus width */
 	ret = convert_buswidth(sconfig->src_addr_width);
-	if (IS_ERR_VALUE(ret))
+	if (ret < 0)
 		goto fail;
 	promise->cfg |= SUN4I_DMA_CFG_SRC_DATA_WIDTH(ret);
 
 	/* Destination bus width */
 	ret = convert_buswidth(sconfig->dst_addr_width);
-	if (IS_ERR_VALUE(ret))
+	if (ret < 0)
 		goto fail;
 	promise->cfg |= SUN4I_DMA_CFG_DST_DATA_WIDTH(ret);
 
@@ -518,25 +518,25 @@ generate_ddma_promise(struct dma_chan *chan, dma_addr_t src, dma_addr_t dest,
 
 	/* Source burst */
 	ret = convert_burst(sconfig->src_maxburst);
-	if (IS_ERR_VALUE(ret))
+	if (ret < 0)
 		goto fail;
 	promise->cfg |= SUN4I_DMA_CFG_SRC_BURST_LENGTH(ret);
 
 	/* Destination burst */
 	ret = convert_burst(sconfig->dst_maxburst);
-	if (IS_ERR_VALUE(ret))
+	if (ret < 0)
 		goto fail;
 	promise->cfg |= SUN4I_DMA_CFG_DST_BURST_LENGTH(ret);
 
 	/* Source bus width */
 	ret = convert_buswidth(sconfig->src_addr_width);
-	if (IS_ERR_VALUE(ret))
+	if (ret < 0)
 		goto fail;
 	promise->cfg |= SUN4I_DMA_CFG_SRC_DATA_WIDTH(ret);
 
 	/* Destination bus width */
 	ret = convert_buswidth(sconfig->dst_addr_width);
-	if (IS_ERR_VALUE(ret))
+	if (ret < 0)
 		goto fail;
 	promise->cfg |= SUN4I_DMA_CFG_DST_DATA_WIDTH(ret);
 

@@ -105,19 +105,7 @@ static int ecryptfs_calculate_md5(char *dst,
 	struct crypto_shash *tfm;
 	int rc = 0;
 
-	mutex_lock(&crypt_stat->cs_hash_tfm_mutex);
 	tfm = crypt_stat->hash_tfm;
-	if (!tfm) {
-		tfm = crypto_alloc_shash(ECRYPTFS_DEFAULT_HASH, 0, 0);
-		if (IS_ERR(tfm)) {
-			rc = PTR_ERR(tfm);
-			ecryptfs_printk(KERN_ERR, "Error attempting to "
-					"allocate crypto context; rc = [%d]\n",
-					rc);
-			goto out;
-		}
-		crypt_stat->hash_tfm = tfm;
-	}
 	rc = ecryptfs_hash_digest(tfm, src, len, dst);
 	if (rc) {
 		printk(KERN_ERR
@@ -126,7 +114,6 @@ static int ecryptfs_calculate_md5(char *dst,
 		goto out;
 	}
 out:
-	mutex_unlock(&crypt_stat->cs_hash_tfm_mutex);
 	return rc;
 }
 
@@ -207,16 +194,29 @@ out:
  *
  * Initialize the crypt_stat structure.
  */
-void
-ecryptfs_init_crypt_stat(struct ecryptfs_crypt_stat *crypt_stat)
+int ecryptfs_init_crypt_stat(struct ecryptfs_crypt_stat *crypt_stat)
 {
+	struct crypto_shash *tfm;
+	int rc;
+
+	tfm = crypto_alloc_shash(ECRYPTFS_DEFAULT_HASH, 0, 0);
+	if (IS_ERR(tfm)) {
+		rc = PTR_ERR(tfm);
+		ecryptfs_printk(KERN_ERR, "Error attempting to "
+				"allocate crypto context; rc = [%d]\n",
+				rc);
+		return rc;
+	}
+
 	memset((void *)crypt_stat, 0, sizeof(struct ecryptfs_crypt_stat));
 	INIT_LIST_HEAD(&crypt_stat->keysig_list);
 	mutex_init(&crypt_stat->keysig_list_mutex);
 	mutex_init(&crypt_stat->cs_mutex);
 	mutex_init(&crypt_stat->cs_tfm_mutex);
-	mutex_init(&crypt_stat->cs_hash_tfm_mutex);
+	crypt_stat->hash_tfm = tfm;
 	crypt_stat->flags |= ECRYPTFS_STRUCT_INITIALIZED;
+
+	return 0;
 }
 
 /**
@@ -286,7 +286,7 @@ int virt_to_scatterlist(const void *addr, int size, struct scatterlist *sg,
 		pg = virt_to_page(addr);
 		offset = offset_in_page(addr);
 		sg_set_page(&sg[i], pg, 0, offset);
-		remainder_of_page = PAGE_CACHE_SIZE - offset;
+		remainder_of_page = PAGE_SIZE - offset;
 		if (size >= remainder_of_page) {
 			sg[i].length = remainder_of_page;
 			addr += remainder_of_page;
@@ -400,7 +400,7 @@ static loff_t lower_offset_for_page(struct ecryptfs_crypt_stat *crypt_stat,
 				    struct page *page)
 {
 	return ecryptfs_lower_header_size(crypt_stat) +
-	       ((loff_t)page->index << PAGE_CACHE_SHIFT);
+	       ((loff_t)page->index << PAGE_SHIFT);
 }
 
 /**
@@ -428,7 +428,7 @@ static int crypt_extent(struct ecryptfs_crypt_stat *crypt_stat,
 	size_t extent_size = crypt_stat->extent_size;
 	int rc;
 
-	extent_base = (((loff_t)page_index) * (PAGE_CACHE_SIZE / extent_size));
+	extent_base = (((loff_t)page_index) * (PAGE_SIZE / extent_size));
 	rc = ecryptfs_derive_iv(extent_iv, crypt_stat,
 				(extent_base + extent_offset));
 	if (rc) {
@@ -498,7 +498,7 @@ int ecryptfs_encrypt_page(struct page *page)
 	}
 
 	for (extent_offset = 0;
-	     extent_offset < (PAGE_CACHE_SIZE / crypt_stat->extent_size);
+	     extent_offset < (PAGE_SIZE / crypt_stat->extent_size);
 	     extent_offset++) {
 		rc = crypt_extent(crypt_stat, enc_extent_page, page,
 				  extent_offset, ENCRYPT);
@@ -512,7 +512,7 @@ int ecryptfs_encrypt_page(struct page *page)
 	lower_offset = lower_offset_for_page(crypt_stat, page);
 	enc_extent_virt = kmap(enc_extent_page);
 	rc = ecryptfs_write_lower(ecryptfs_inode, enc_extent_virt, lower_offset,
-				  PAGE_CACHE_SIZE);
+				  PAGE_SIZE);
 	kunmap(enc_extent_page);
 	if (rc < 0) {
 		ecryptfs_printk(KERN_ERR,
@@ -560,7 +560,7 @@ int ecryptfs_decrypt_page(struct page *page)
 
 	lower_offset = lower_offset_for_page(crypt_stat, page);
 	page_virt = kmap(page);
-	rc = ecryptfs_read_lower(page_virt, lower_offset, PAGE_CACHE_SIZE,
+	rc = ecryptfs_read_lower(page_virt, lower_offset, PAGE_SIZE,
 				 ecryptfs_inode);
 	kunmap(page);
 	if (rc < 0) {
@@ -571,7 +571,7 @@ int ecryptfs_decrypt_page(struct page *page)
 	}
 
 	for (extent_offset = 0;
-	     extent_offset < (PAGE_CACHE_SIZE / crypt_stat->extent_size);
+	     extent_offset < (PAGE_SIZE / crypt_stat->extent_size);
 	     extent_offset++) {
 		rc = crypt_extent(crypt_stat, page, page,
 				  extent_offset, DECRYPT);
@@ -659,11 +659,11 @@ void ecryptfs_set_default_sizes(struct ecryptfs_crypt_stat *crypt_stat)
 	if (crypt_stat->flags & ECRYPTFS_METADATA_IN_XATTR)
 		crypt_stat->metadata_size = ECRYPTFS_MINIMUM_HEADER_EXTENT_SIZE;
 	else {
-		if (PAGE_CACHE_SIZE <= ECRYPTFS_MINIMUM_HEADER_EXTENT_SIZE)
+		if (PAGE_SIZE <= ECRYPTFS_MINIMUM_HEADER_EXTENT_SIZE)
 			crypt_stat->metadata_size =
 				ECRYPTFS_MINIMUM_HEADER_EXTENT_SIZE;
 		else
-			crypt_stat->metadata_size = PAGE_CACHE_SIZE;
+			crypt_stat->metadata_size = PAGE_SIZE;
 	}
 }
 
@@ -1141,12 +1141,13 @@ ecryptfs_write_metadata_to_contents(struct inode *ecryptfs_inode,
 
 static int
 ecryptfs_write_metadata_to_xattr(struct dentry *ecryptfs_dentry,
+				 struct inode *ecryptfs_inode,
 				 char *page_virt, size_t size)
 {
 	int rc;
 
-	rc = ecryptfs_setxattr(ecryptfs_dentry, ECRYPTFS_XATTR_NAME, page_virt,
-			       size, 0);
+	rc = ecryptfs_setxattr(ecryptfs_dentry, ecryptfs_inode,
+			       ECRYPTFS_XATTR_NAME, page_virt, size, 0);
 	return rc;
 }
 
@@ -1215,8 +1216,8 @@ int ecryptfs_write_metadata(struct dentry *ecryptfs_dentry,
 		goto out_free;
 	}
 	if (crypt_stat->flags & ECRYPTFS_METADATA_IN_XATTR)
-		rc = ecryptfs_write_metadata_to_xattr(ecryptfs_dentry, virt,
-						      size);
+		rc = ecryptfs_write_metadata_to_xattr(ecryptfs_dentry, ecryptfs_inode,
+						      virt, size);
 	else
 		rc = ecryptfs_write_metadata_to_contents(ecryptfs_inode, virt,
 							 virt_len);
@@ -1369,7 +1370,9 @@ int ecryptfs_read_xattr_region(char *page_virt, struct inode *ecryptfs_inode)
 	ssize_t size;
 	int rc = 0;
 
-	size = ecryptfs_getxattr_lower(lower_dentry, ECRYPTFS_XATTR_NAME,
+	size = ecryptfs_getxattr_lower(lower_dentry,
+				       ecryptfs_inode_to_lower(ecryptfs_inode),
+				       ECRYPTFS_XATTR_NAME,
 				       page_virt, ECRYPTFS_DEFAULT_EXTENT_SIZE);
 	if (size < 0) {
 		if (unlikely(ecryptfs_verbosity > 0))
@@ -1391,6 +1394,7 @@ int ecryptfs_read_and_validate_xattr_region(struct dentry *dentry,
 	int rc;
 
 	rc = ecryptfs_getxattr_lower(ecryptfs_dentry_to_lower(dentry),
+				     ecryptfs_inode_to_lower(inode),
 				     ECRYPTFS_XATTR_NAME, file_size,
 				     ECRYPTFS_SIZE_AND_MARKER_BYTES);
 	if (rc < ECRYPTFS_SIZE_AND_MARKER_BYTES)
@@ -1442,7 +1446,7 @@ int ecryptfs_read_metadata(struct dentry *ecryptfs_dentry)
 						ECRYPTFS_VALIDATE_HEADER_SIZE);
 	if (rc) {
 		/* metadata is not in the file header, so try xattrs */
-		memset(page_virt, 0, PAGE_CACHE_SIZE);
+		memset(page_virt, 0, PAGE_SIZE);
 		rc = ecryptfs_read_xattr_region(page_virt, ecryptfs_inode);
 		if (rc) {
 			printk(KERN_DEBUG "Valid eCryptfs headers not found in "
@@ -1475,7 +1479,7 @@ int ecryptfs_read_metadata(struct dentry *ecryptfs_dentry)
 	}
 out:
 	if (page_virt) {
-		memset(page_virt, 0, PAGE_CACHE_SIZE);
+		memset(page_virt, 0, PAGE_SIZE);
 		kmem_cache_free(ecryptfs_header_cache, page_virt);
 	}
 	return rc;

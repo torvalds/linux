@@ -158,9 +158,10 @@ static int i40e_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
 static int i40e_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 {
 	struct i40e_pf *pf = container_of(ptp, struct i40e_pf, ptp_caps);
-	struct timespec64 now, then = ns_to_timespec64(delta);
+	struct timespec64 now, then;
 	unsigned long flags;
 
+	then = ns_to_timespec64(delta);
 	spin_lock_irqsave(&pf->tmreg_lock, flags);
 
 	i40e_ptp_read(pf, &now);
@@ -288,9 +289,7 @@ void i40e_ptp_rx_hang(struct i40e_vsi *vsi)
 		rd32(hw, I40E_PRTTSYN_RXTIME_H(3));
 		pf->last_rx_ptp_check = jiffies;
 		pf->rx_hwtstamp_cleared++;
-		dev_warn(&vsi->back->pdev->dev,
-			 "%s: clearing Rx timestamp hang\n",
-			 __func__);
+		WARN_ONCE(1, "Detected Rx timestamp register hang\n");
 	}
 }
 

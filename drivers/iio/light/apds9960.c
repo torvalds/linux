@@ -321,8 +321,12 @@ static const struct iio_chan_spec apds9960_channels[] = {
 };
 
 /* integration time in us */
-static const int apds9960_int_time[][2] =
-	{ {28000, 246}, {100000, 219}, {200000, 182}, {700000, 0} };
+static const int apds9960_int_time[][2] = {
+	{ 28000, 246},
+	{100000, 219},
+	{200000, 182},
+	{700000,   0}
+};
 
 /* gain mapping */
 static const int apds9960_pxs_gain_map[] = {1, 2, 4, 8};
@@ -491,9 +495,10 @@ static int apds9960_read_raw(struct iio_dev *indio_dev,
 		case IIO_INTENSITY:
 			ret = regmap_bulk_read(data->regmap, chan->address,
 					       &buf, 2);
-			if (!ret)
+			if (!ret) {
 				ret = IIO_VAL_INT;
-			*val = le16_to_cpu(buf);
+				*val = le16_to_cpu(buf);
+			}
 			break;
 		default:
 			ret = -EINVAL;
@@ -769,7 +774,7 @@ static void apds9960_read_gesture_fifo(struct apds9960_data *data)
 	mutex_lock(&data->lock);
 	data->gesture_mode_running = 1;
 
-	while (cnt-- || (cnt = apds9660_fifo_is_empty(data) > 0)) {
+	while (cnt || (cnt = apds9660_fifo_is_empty(data) > 0)) {
 		ret = regmap_bulk_read(data->regmap, APDS9960_REG_GFIFO_BASE,
 				      &data->buffer, 4);
 
@@ -777,6 +782,7 @@ static void apds9960_read_gesture_fifo(struct apds9960_data *data)
 			goto err_read;
 
 		iio_push_to_buffers(data->indio_dev, data->buffer);
+		cnt--;
 	}
 
 err_read:
@@ -1005,6 +1011,7 @@ static int apds9960_probe(struct i2c_client *client,
 
 	iio_device_attach_buffer(indio_dev, buffer);
 
+	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &apds9960_info;
 	indio_dev->name = APDS9960_DRV_NAME;
 	indio_dev->channels = apds9960_channels;

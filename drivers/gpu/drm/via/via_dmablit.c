@@ -188,7 +188,7 @@ via_free_sg_info(struct pci_dev *pdev, drm_via_sg_info_t *vsg)
 			if (NULL != (page = vsg->pages[i])) {
 				if (!PageReserved(page) && (DMA_FROM_DEVICE == vsg->direction))
 					SetPageDirty(page);
-				page_cache_release(page);
+				put_page(page);
 			}
 		}
 	case dr_via_pages_alloc:

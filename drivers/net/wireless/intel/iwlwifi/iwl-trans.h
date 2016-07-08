@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016        Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -33,6 +34,7 @@
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016        Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -519,7 +521,7 @@ struct iwl_trans;
 
 struct iwl_trans_txq_scd_cfg {
 	u8 fifo;
-	s8 sta_id;
+	u8 sta_id;
 	u8 tid;
 	bool aggregate;
 	int frame_limit;
@@ -751,6 +753,7 @@ enum iwl_plat_pm_mode {
  * @dev - pointer to struct device * that represents the device
  * @max_skb_frags: maximum number of fragments an SKB can have when transmitted.
  *	0 indicates that frag SKBs (NETIF_F_SG) aren't supported.
+ * @hw_rf_id a u32 with the device RF ID
  * @hw_id: a u32 with the ID of the device / sub-device.
  *	Set during transport allocation.
  * @hw_id_str: a string with info about HW ID. Set during transport allocation.
@@ -795,6 +798,7 @@ struct iwl_trans {
 	struct device *dev;
 	u32 max_skb_frags;
 	u32 hw_rev;
+	u32 hw_rf_id;
 	u32 hw_id;
 	char hw_id_str[52];
 

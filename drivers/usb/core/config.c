@@ -75,8 +75,6 @@ static void usb_parse_ss_endpoint_companion(struct device *ddev, int cfgno,
 	 * be the first thing immediately following the endpoint descriptor.
 	 */
 	desc = (struct usb_ss_ep_comp_descriptor *) buffer;
-	buffer += desc->bLength;
-	size -= desc->bLength;
 
 	if (desc->bDescriptorType != USB_DT_SS_ENDPOINT_COMP ||
 			size < USB_DT_SS_EP_COMP_SIZE) {
@@ -100,7 +98,8 @@ static void usb_parse_ss_endpoint_companion(struct device *ddev, int cfgno,
 					ep->desc.wMaxPacketSize;
 		return;
 	}
-
+	buffer += desc->bLength;
+	size -= desc->bLength;
 	memcpy(&ep->ss_ep_comp, desc, USB_DT_SS_EP_COMP_SIZE);
 
 	/* Check the various values */
@@ -146,12 +145,6 @@ static void usb_parse_ss_endpoint_companion(struct device *ddev, int cfgno,
 		ep->ss_ep_comp.bmAttributes = 2;
 	}
 
-	/* Parse a possible SuperSpeedPlus isoc ep companion descriptor */
-	if (usb_endpoint_xfer_isoc(&ep->desc) &&
-	    USB_SS_SSP_ISOC_COMP(desc->bmAttributes))
-		usb_parse_ssp_isoc_endpoint_companion(ddev, cfgno, inum, asnum,
-							ep, buffer, size);
-
 	if (usb_endpoint_xfer_isoc(&ep->desc))
 		max_tx = (desc->bMaxBurst + 1) *
 			(USB_SS_MULT(desc->bmAttributes)) *
@@ -171,6 +164,11 @@ static void usb_parse_ss_endpoint_companion(struct device *ddev, int cfgno,
 				max_tx);
 		ep->ss_ep_comp.wBytesPerInterval = cpu_to_le16(max_tx);
 	}
+	/* Parse a possible SuperSpeedPlus isoc ep companion descriptor */
+	if (usb_endpoint_xfer_isoc(&ep->desc) &&
+	    USB_SS_SSP_ISOC_COMP(desc->bmAttributes))
+		usb_parse_ssp_isoc_endpoint_companion(ddev, cfgno, inum, asnum,
+							ep, buffer, size);
 }
 
 static int usb_parse_endpoint(struct device *ddev, int cfgno, int inum,

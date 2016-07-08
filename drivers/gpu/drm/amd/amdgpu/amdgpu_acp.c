@@ -425,6 +425,10 @@ static int acp_resume(void *handle)
 	struct acp_pm_domain *apd;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	/* return early if no ACP */
+	if (!adev->acp.acp_genpd)
+		return 0;
+
 	/* SMU block will power on ACP irrespective of ACP runtime status.
 	 * Power off explicitly based on genpd ACP runtime status so that ACP
 	 * hw and ACP-genpd status are in sync.
@@ -463,13 +467,6 @@ static int acp_soft_reset(void *handle)
 	return 0;
 }
 
-static void acp_print_status(void *handle)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	dev_info(adev->dev, "ACP STATUS\n");
-}
-
 static int acp_set_clockgating_state(void *handle,
 				     enum amd_clockgating_state state)
 {
@@ -483,6 +480,7 @@ static int acp_set_powergating_state(void *handle,
 }
 
 const struct amd_ip_funcs acp_ip_funcs = {
+	.name = "acp_ip",
 	.early_init = acp_early_init,
 	.late_init = NULL,
 	.sw_init = acp_sw_init,
@@ -494,7 +492,6 @@ const struct amd_ip_funcs acp_ip_funcs = {
 	.is_idle = acp_is_idle,
 	.wait_for_idle = acp_wait_for_idle,
 	.soft_reset = acp_soft_reset,
-	.print_status = acp_print_status,
 	.set_clockgating_state = acp_set_clockgating_state,
 	.set_powergating_state = acp_set_powergating_state,
 };

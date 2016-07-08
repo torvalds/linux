@@ -367,7 +367,6 @@ struct cpsw_priv {
 	spinlock_t			lock;
 	struct platform_device		*pdev;
 	struct net_device		*ndev;
-	struct device_node		*phy_node;
 	struct napi_struct		napi_rx;
 	struct napi_struct		napi_tx;
 	struct device			*dev;
@@ -381,7 +380,6 @@ struct cpsw_priv {
 	u32				coal_intvl;
 	u32				bus_freq_mhz;
 	int				rx_packet_max;
-	int				host_port;
 	struct clk			*clk;
 	u8				mac_addr[ETH_ALEN];
 	struct cpsw_slave		*slaves;
@@ -531,21 +529,18 @@ static const struct cpsw_stats cpsw_gstrings_stats[] = {
 			int slave_port = cpsw_get_slave_port(priv,	\
 						slave->slave_num);	\
 			cpsw_ale_add_mcast(priv->ale, addr,		\
-				1 << slave_port | 1 << priv->host_port,	\
+				1 << slave_port | ALE_PORT_HOST,	\
 				ALE_VLAN, slave->port_vlan, 0);		\
 		} else {						\
 			cpsw_ale_add_mcast(priv->ale, addr,		\
-				ALE_ALL_PORTS << priv->host_port,	\
+				ALE_ALL_PORTS,				\
 				0, 0, 0);				\
 		}							\
 	} while (0)
 
 static inline int cpsw_get_slave_port(struct cpsw_priv *priv, u32 slave_num)
 {
-	if (priv->host_port == 0)
-		return slave_num + 1;
-	else
-		return slave_num;
+	return slave_num + 1;
 }
 
 static void cpsw_set_promiscious(struct net_device *ndev, bool enable)
@@ -602,8 +597,7 @@ static void cpsw_set_promiscious(struct net_device *ndev, bool enable)
 			cpsw_ale_control_set(ale, 0, ALE_AGEOUT, 1);
 
 			/* Clear all mcast from ALE */
-			cpsw_ale_flush_multicast(ale, ALE_ALL_PORTS <<
-						 priv->host_port, -1);
+			cpsw_ale_flush_multicast(ale, ALE_ALL_PORTS, -1);
 
 			/* Flood All Unicast Packets to Host port */
 			cpsw_ale_control_set(ale, 0, ALE_P0_UNI_FLOOD, 1);
@@ -648,8 +642,7 @@ static void cpsw_ndo_set_rx_mode(struct net_device *ndev)
 	cpsw_ale_set_allmulti(priv->ale, priv->ndev->flags & IFF_ALLMULTI);
 
 	/* Clear all mcast from ALE */
-	cpsw_ale_flush_multicast(priv->ale, ALE_ALL_PORTS << priv->host_port,
-				 vid);
+	cpsw_ale_flush_multicast(priv->ale, ALE_ALL_PORTS, vid);
 
 	if (!netdev_mc_empty(ndev)) {
 		struct netdev_hw_addr *ha;
@@ -1092,7 +1085,7 @@ static inline void cpsw_add_dual_emac_def_ale_entries(
 		struct cpsw_priv *priv, struct cpsw_slave *slave,
 		u32 slave_port)
 {
-	u32 port_mask = 1 << slave_port | 1 << priv->host_port;
+	u32 port_mask = 1 << slave_port | ALE_PORT_HOST;
 
 	if (priv->version == CPSW_VERSION_1)
 		slave_write(slave, slave->port_vlan, CPSW1_PORT_VLAN);
@@ -1103,7 +1096,7 @@ static inline void cpsw_add_dual_emac_def_ale_entries(
 	cpsw_ale_add_mcast(priv->ale, priv->ndev->broadcast,
 			   port_mask, ALE_VLAN, slave->port_vlan, 0);
 	cpsw_ale_add_ucast(priv->ale, priv->mac_addr,
-		priv->host_port, ALE_VLAN | ALE_SECURE, slave->port_vlan);
+		HOST_PORT_NUM, ALE_VLAN | ALE_SECURE, slave->port_vlan);
 }
 
 static void soft_reset_slave(struct cpsw_slave *slave)
@@ -1148,31 +1141,39 @@ static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 		cpsw_ale_add_mcast(priv->ale, priv->ndev->broadcast,
 				   1 << slave_port, 0, 0, ALE_MCAST_FWD_2);
 
-	if (priv->phy_node)
-		slave->phy = of_phy_connect(priv->ndev, priv->phy_node,
+	if (slave->data->phy_node) {
+		slave->phy = of_phy_connect(priv->ndev, slave->data->phy_node,
 				 &cpsw_adjust_link, 0, slave->data->phy_if);
-	else
+		if (!slave->phy) {
+			dev_err(priv->dev, "phy \"%s\" not found on slave %d\n",
+				slave->data->phy_node->full_name,
+				slave->slave_num);
+			return;
+		}
+	} else {
 		slave->phy = phy_connect(priv->ndev, slave->data->phy_id,
 				 &cpsw_adjust_link, slave->data->phy_if);
-	if (IS_ERR(slave->phy)) {
-		dev_err(priv->dev, "phy %s not found on slave %d\n",
-			slave->data->phy_id, slave->slave_num);
-		slave->phy = NULL;
-	} else {
-		phy_attached_info(slave->phy);
-
-		phy_start(slave->phy);
-
-		/* Configure GMII_SEL register */
-		cpsw_phy_sel(&priv->pdev->dev, slave->phy->interface,
-			     slave->slave_num);
+		if (IS_ERR(slave->phy)) {
+			dev_err(priv->dev,
+				"phy \"%s\" not found on slave %d, err %ld\n",
+				slave->data->phy_id, slave->slave_num,
+				PTR_ERR(slave->phy));
+			slave->phy = NULL;
+			return;
+		}
 	}
+
+	phy_attached_info(slave->phy);
+
+	phy_start(slave->phy);
+
+	/* Configure GMII_SEL register */
+	cpsw_phy_sel(&priv->pdev->dev, slave->phy->interface, slave->slave_num);
 }
 
 static inline void cpsw_add_default_vlan(struct cpsw_priv *priv)
 {
 	const int vlan = priv->data.default_vlan;
-	const int port = priv->host_port;
 	u32 reg;
 	int i;
 	int unreg_mcast_mask;
@@ -1190,9 +1191,9 @@ static inline void cpsw_add_default_vlan(struct cpsw_priv *priv)
 	else
 		unreg_mcast_mask = ALE_PORT_1 | ALE_PORT_2;
 
-	cpsw_ale_add_vlan(priv->ale, vlan, ALE_ALL_PORTS << port,
-			  ALE_ALL_PORTS << port, ALE_ALL_PORTS << port,
-			  unreg_mcast_mask << port);
+	cpsw_ale_add_vlan(priv->ale, vlan, ALE_ALL_PORTS,
+			  ALE_ALL_PORTS, ALE_ALL_PORTS,
+			  unreg_mcast_mask);
 }
 
 static void cpsw_init_host_port(struct cpsw_priv *priv)
@@ -1205,7 +1206,7 @@ static void cpsw_init_host_port(struct cpsw_priv *priv)
 	cpsw_ale_start(priv->ale);
 
 	/* switch to vlan unaware mode */
-	cpsw_ale_control_set(priv->ale, priv->host_port, ALE_VLAN_AWARE,
+	cpsw_ale_control_set(priv->ale, HOST_PORT_NUM, ALE_VLAN_AWARE,
 			     CPSW_ALE_VLAN_AWARE);
 	control_reg = readl(&priv->regs->control);
 	control_reg |= CPSW_VLAN_AWARE;
@@ -1219,14 +1220,14 @@ static void cpsw_init_host_port(struct cpsw_priv *priv)
 		     &priv->host_port_regs->cpdma_tx_pri_map);
 	__raw_writel(0, &priv->host_port_regs->cpdma_rx_chan_map);
 
-	cpsw_ale_control_set(priv->ale, priv->host_port,
+	cpsw_ale_control_set(priv->ale, HOST_PORT_NUM,
 			     ALE_PORT_STATE, ALE_PORT_STATE_FORWARD);
 
 	if (!priv->data.dual_emac) {
-		cpsw_ale_add_ucast(priv->ale, priv->mac_addr, priv->host_port,
+		cpsw_ale_add_ucast(priv->ale, priv->mac_addr, HOST_PORT_NUM,
 				   0, 0);
 		cpsw_ale_add_mcast(priv->ale, priv->ndev->broadcast,
-				   1 << priv->host_port, 0, 0, ALE_MCAST_FWD_2);
+				   ALE_PORT_HOST, 0, 0, ALE_MCAST_FWD_2);
 	}
 }
 
@@ -1251,11 +1252,11 @@ static int cpsw_ndo_open(struct net_device *ndev)
 	int i, ret;
 	u32 reg;
 
+	pm_runtime_get_sync(&priv->pdev->dev);
+
 	if (!cpsw_common_res_usage_state(priv))
 		cpsw_intr_disable(priv);
 	netif_carrier_off(ndev);
-
-	pm_runtime_get_sync(&priv->pdev->dev);
 
 	reg = priv->version;
 
@@ -1273,8 +1274,7 @@ static int cpsw_ndo_open(struct net_device *ndev)
 		cpsw_add_default_vlan(priv);
 	else
 		cpsw_ale_add_vlan(priv->ale, priv->data.default_vlan,
-				  ALE_ALL_PORTS << priv->host_port,
-				  ALE_ALL_PORTS << priv->host_port, 0, 0);
+				  ALE_ALL_PORTS, ALE_ALL_PORTS, 0, 0);
 
 	if (!cpsw_common_res_usage_state(priv)) {
 		struct cpsw_priv *priv_sl0 = cpsw_get_slave_priv(priv, 0);
@@ -1339,7 +1339,7 @@ static int cpsw_ndo_open(struct net_device *ndev)
 	if (priv->coal_intvl != 0) {
 		struct ethtool_coalesce coal;
 
-		coal.rx_coalesce_usecs = (priv->coal_intvl << 4);
+		coal.rx_coalesce_usecs = priv->coal_intvl;
 		cpsw_set_coalesce(ndev, &coal);
 	}
 
@@ -1389,7 +1389,7 @@ static netdev_tx_t cpsw_ndo_start_xmit(struct sk_buff *skb,
 	struct cpsw_priv *priv = netdev_priv(ndev);
 	int ret;
 
-	ndev->trans_start = jiffies;
+	netif_trans_update(ndev);
 
 	if (skb_padto(skb, CPSW_MIN_PACKET_SIZE)) {
 		cpsw_err(priv, tx_err, "packet pad failed\n");
@@ -1620,9 +1620,9 @@ static int cpsw_ndo_set_mac_address(struct net_device *ndev, void *p)
 		flags = ALE_VLAN;
 	}
 
-	cpsw_ale_del_ucast(priv->ale, priv->mac_addr, priv->host_port,
+	cpsw_ale_del_ucast(priv->ale, priv->mac_addr, HOST_PORT_NUM,
 			   flags, vid);
-	cpsw_ale_add_ucast(priv->ale, addr->sa_data, priv->host_port,
+	cpsw_ale_add_ucast(priv->ale, addr->sa_data, HOST_PORT_NUM,
 			   flags, vid);
 
 	memcpy(priv->mac_addr, addr->sa_data, ETH_ALEN);
@@ -1666,12 +1666,12 @@ static inline int cpsw_add_vlan_ale_entry(struct cpsw_priv *priv,
 	}
 
 	ret = cpsw_ale_add_vlan(priv->ale, vid, port_mask, 0, port_mask,
-				unreg_mcast_mask << priv->host_port);
+				unreg_mcast_mask);
 	if (ret != 0)
 		return ret;
 
 	ret = cpsw_ale_add_ucast(priv->ale, priv->mac_addr,
-				 priv->host_port, ALE_VLAN, vid);
+				 HOST_PORT_NUM, ALE_VLAN, vid);
 	if (ret != 0)
 		goto clean_vid;
 
@@ -1683,7 +1683,7 @@ static inline int cpsw_add_vlan_ale_entry(struct cpsw_priv *priv,
 
 clean_vlan_ucast:
 	cpsw_ale_del_ucast(priv->ale, priv->mac_addr,
-			    priv->host_port, ALE_VLAN, vid);
+			   HOST_PORT_NUM, ALE_VLAN, vid);
 clean_vid:
 	cpsw_ale_del_vlan(priv->ale, vid, 0);
 	return ret;
@@ -1738,7 +1738,7 @@ static int cpsw_ndo_vlan_rx_kill_vid(struct net_device *ndev,
 		return ret;
 
 	ret = cpsw_ale_del_ucast(priv->ale, priv->mac_addr,
-				 priv->host_port, ALE_VLAN, vid);
+				 HOST_PORT_NUM, ALE_VLAN, vid);
 	if (ret != 0)
 		return ret;
 
@@ -1940,12 +1940,11 @@ static void cpsw_slave_init(struct cpsw_slave *slave, struct cpsw_priv *priv,
 	slave->port_vlan = data->dual_emac_res_vlan;
 }
 
-static int cpsw_probe_dt(struct cpsw_priv *priv,
+static int cpsw_probe_dt(struct cpsw_platform_data *data,
 			 struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
 	struct device_node *slave_node;
-	struct cpsw_platform_data *data = &priv->data;
 	int i = 0, ret;
 	u32 prop;
 
@@ -2033,25 +2032,21 @@ static int cpsw_probe_dt(struct cpsw_priv *priv,
 		if (strcmp(slave_node->name, "slave"))
 			continue;
 
-		priv->phy_node = of_parse_phandle(slave_node, "phy-handle", 0);
+		slave_data->phy_node = of_parse_phandle(slave_node,
+							"phy-handle", 0);
 		parp = of_get_property(slave_node, "phy_id", &lenp);
-		if (of_phy_is_fixed_link(slave_node)) {
-			struct device_node *phy_node;
-			struct phy_device *phy_dev;
-
+		if (slave_data->phy_node) {
+			dev_dbg(&pdev->dev,
+				"slave[%d] using phy-handle=\"%s\"\n",
+				i, slave_data->phy_node->full_name);
+		} else if (of_phy_is_fixed_link(slave_node)) {
 			/* In the case of a fixed PHY, the DT node associated
 			 * to the PHY is the Ethernet MAC DT node.
 			 */
 			ret = of_phy_register_fixed_link(slave_node);
 			if (ret)
 				return ret;
-			phy_node = of_node_get(slave_node);
-			phy_dev = of_phy_find_device(phy_node);
-			if (!phy_dev)
-				return -ENODEV;
-			snprintf(slave_data->phy_id, sizeof(slave_data->phy_id),
-				 PHY_ID_FMT, phy_dev->mdio.bus->id,
-				 phy_dev->mdio.addr);
+			slave_data->phy_node = of_node_get(slave_node);
 		} else if (parp) {
 			u32 phyid;
 			struct device_node *mdio_node;
@@ -2072,7 +2067,9 @@ static int cpsw_probe_dt(struct cpsw_priv *priv,
 			snprintf(slave_data->phy_id, sizeof(slave_data->phy_id),
 				 PHY_ID_FMT, mdio->name, phyid);
 		} else {
-			dev_err(&pdev->dev, "No slave[%d] phy_id or fixed-link property\n", i);
+			dev_err(&pdev->dev,
+				"No slave[%d] phy_id, phy-handle, or fixed-link property\n",
+				i);
 			goto no_phy_slave;
 		}
 		slave_data->phy_if = of_get_phy_mode(slave_node);
@@ -2152,7 +2149,6 @@ static int cpsw_probe_dual_emac(struct platform_device *pdev,
 	priv_sl2->bus_freq_mhz = priv->bus_freq_mhz;
 
 	priv_sl2->regs = priv->regs;
-	priv_sl2->host_port = priv->host_port;
 	priv_sl2->host_port_regs = priv->host_port_regs;
 	priv_sl2->wr_regs = priv->wr_regs;
 	priv_sl2->hw_stats = priv->hw_stats;
@@ -2275,7 +2271,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	/* Select default pin state */
 	pinctrl_pm_select_default_state(&pdev->dev);
 
-	if (cpsw_probe_dt(priv, pdev)) {
+	if (cpsw_probe_dt(&priv->data, pdev)) {
 		dev_err(&pdev->dev, "cpsw: platform data missing\n");
 		ret = -ENODEV;
 		goto clean_runtime_disable_ret;
@@ -2321,7 +2317,6 @@ static int cpsw_probe(struct platform_device *pdev)
 		goto clean_runtime_disable_ret;
 	}
 	priv->regs = ss_regs;
-	priv->host_port = HOST_PORT_NUM;
 
 	/* Need to enable clocks with runtime PM api to access module
 	 * registers
@@ -2510,8 +2505,6 @@ static int cpsw_probe(struct platform_device *pdev)
 clean_ale_ret:
 	cpsw_ale_destroy(priv->ale);
 clean_dma_ret:
-	cpdma_chan_destroy(priv->txch);
-	cpdma_chan_destroy(priv->rxch);
 	cpdma_ctlr_destroy(priv->dma);
 clean_runtime_disable_ret:
 	pm_runtime_disable(&pdev->dev);
@@ -2539,8 +2532,6 @@ static int cpsw_remove(struct platform_device *pdev)
 	unregister_netdev(ndev);
 
 	cpsw_ale_destroy(priv->ale);
-	cpdma_chan_destroy(priv->txch);
-	cpdma_chan_destroy(priv->rxch);
 	cpdma_ctlr_destroy(priv->dma);
 	pm_runtime_disable(&pdev->dev);
 	device_for_each_child(&pdev->dev, NULL, cpsw_remove_child_device);

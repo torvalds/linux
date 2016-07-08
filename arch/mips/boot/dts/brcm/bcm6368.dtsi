@@ -20,11 +20,10 @@
 			device_type = "cpu";
 			reg = <1>;
 		};
-
 	};
 
 	clocks {
-		periph_clk: periph_clk {
+		periph_clk: periph-clk {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <50000000>;
@@ -32,11 +31,11 @@
 	};
 
 	aliases {
-		leds0 = &leds0;
-		uart0 = &uart0;
+		serial0 = &uart0;
+		serial1 = &uart1;
 	};
 
-	cpu_intc: cpu_intc {
+	cpu_intc: interrupt-controller {
 		#address-cells = <0>;
 		compatible = "mti,cpu-interrupt-controller";
 
@@ -64,16 +63,16 @@
 			mask = <0x1>;
 		};
 
-		periph_intc: periph_intc@10000020 {
-			compatible = "brcm,bcm3380-l2-intc";
-			reg = <0x10000024 0x4 0x1000002c 0x4>,
-			      <0x10000020 0x4 0x10000028 0x4>;
+		periph_intc: interrupt-controller@10000020 {
+			compatible = "brcm,bcm6345-l1-intc";
+			reg = <0x10000020 0x10>,
+			      <0x10000030 0x10>;
 
 			interrupt-controller;
 			#interrupt-cells = <1>;
 
 			interrupt-parent = <&cpu_intc>;
-			interrupts = <2>;
+			interrupts = <2>, <3>;
 		};
 
 		leds0: led-controller@100000d0 {
@@ -93,7 +92,16 @@
 			status = "disabled";
 		};
 
-		ehci0: usb@10001500 {
+		uart1: serial@10000120 {
+			compatible = "brcm,bcm6345-uart";
+			reg = <0x10000120 0x18>;
+			interrupt-parent = <&periph_intc>;
+			interrupts = <3>;
+			clocks = <&periph_clk>;
+			status = "disabled";
+		};
+
+		ehci: usb@10001500 {
 			compatible = "brcm,bcm6368-ehci", "generic-ehci";
 			reg = <0x10001500 0x100>;
 			big-endian;
@@ -102,7 +110,7 @@
 			status = "disabled";
 		};
 
-		ohci0: usb@10001600 {
+		ohci: usb@10001600 {
 			compatible = "brcm,bcm6368-ohci", "generic-ohci";
 			reg = <0x10001600 0x100>;
 			big-endian;

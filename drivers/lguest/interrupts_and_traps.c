@@ -331,7 +331,7 @@ void set_interrupt(struct lg_cpu *cpu, unsigned int irq)
  * Actually now I think of it, it's possible that Ron *is* half the Plan 9
  * userbase.  Oh well.
  */
-static bool could_be_syscall(unsigned int num)
+bool could_be_syscall(unsigned int num)
 {
 	/* Normal Linux IA32_SYSCALL_VECTOR or reserved vector? */
 	return num == IA32_SYSCALL_VECTOR || num == syscall_vector;
@@ -416,6 +416,10 @@ bool deliver_trap(struct lg_cpu *cpu, unsigned int num)
  *
  * This routine indicates if a particular trap number could be delivered
  * directly.
+ *
+ * Unfortunately, Linux 4.6 started using an interrupt gate instead of a
+ * trap gate for syscalls, so this trick is ineffective.  See Mastery for
+ * how we could do this anyway...
  */
 static bool direct_trap(unsigned int num)
 {

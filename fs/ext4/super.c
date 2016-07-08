@@ -859,6 +859,7 @@ static void ext4_put_super(struct super_block *sb)
 	percpu_counter_destroy(&sbi->s_freeinodes_counter);
 	percpu_counter_destroy(&sbi->s_dirs_counter);
 	percpu_counter_destroy(&sbi->s_dirtyclusters_counter);
+	percpu_free_rwsem(&sbi->s_journal_flag_rwsem);
 	brelse(sbi->s_sbh);
 #ifdef CONFIG_QUOTA
 	for (i = 0; i < EXT4_MAXQUOTAS; i++)
@@ -1113,6 +1114,7 @@ static ssize_t ext4_quota_write(struct super_block *sb, int type,
 static int ext4_quota_enable(struct super_block *sb, int type, int format_id,
 			     unsigned int flags);
 static int ext4_enable_quotas(struct super_block *sb);
+static int ext4_get_next_id(struct super_block *sb, struct kqid *qid);
 
 static struct dquot **ext4_get_dquots(struct inode *inode)
 {
@@ -1129,7 +1131,7 @@ static const struct dquot_operations ext4_quota_operations = {
 	.alloc_dquot	= dquot_alloc,
 	.destroy_dquot	= dquot_destroy,
 	.get_projid	= ext4_get_projid,
-	.get_next_id	= dquot_get_next_id,
+	.get_next_id	= ext4_get_next_id,
 };
 
 static const struct quotactl_ops ext4_qctl_operations = {
@@ -1323,9 +1325,9 @@ static int set_qf_name(struct super_block *sb, int qtype, substring_t *args)
 		return -1;
 	}
 	if (ext4_has_feature_quota(sb)) {
-		ext4_msg(sb, KERN_ERR, "Cannot set journaled quota options "
-			 "when QUOTA feature is enabled");
-		return -1;
+		ext4_msg(sb, KERN_INFO, "Journaled quota options "
+			 "ignored when QUOTA feature is enabled");
+		return 1;
 	}
 	qname = match_strdup(args);
 	if (!qname) {
@@ -1688,10 +1690,10 @@ static int handle_mount_opt(struct super_block *sb, char *opt, int token,
 			return -1;
 		}
 		if (ext4_has_feature_quota(sb)) {
-			ext4_msg(sb, KERN_ERR,
-				 "Cannot set journaled quota options "
+			ext4_msg(sb, KERN_INFO,
+				 "Quota format mount options ignored "
 				 "when QUOTA feature is enabled");
-			return -1;
+			return 1;
 		}
 		sbi->s_jquota_fmt = m->mount_opt;
 #endif
@@ -1756,11 +1758,11 @@ static int parse_options(char *options, struct super_block *sb,
 #ifdef CONFIG_QUOTA
 	if (ext4_has_feature_quota(sb) &&
 	    (test_opt(sb, USRQUOTA) || test_opt(sb, GRPQUOTA))) {
-		ext4_msg(sb, KERN_ERR, "Cannot set quota options when QUOTA "
-			 "feature is enabled");
-		return 0;
-	}
-	if (sbi->s_qf_names[USRQUOTA] || sbi->s_qf_names[GRPQUOTA]) {
+		ext4_msg(sb, KERN_INFO, "Quota feature enabled, usrquota and grpquota "
+			 "mount options ignored.");
+		clear_opt(sb, USRQUOTA);
+		clear_opt(sb, GRPQUOTA);
+	} else if (sbi->s_qf_names[USRQUOTA] || sbi->s_qf_names[GRPQUOTA]) {
 		if (test_opt(sb, USRQUOTA) && sbi->s_qf_names[USRQUOTA])
 			clear_opt(sb, USRQUOTA);
 
@@ -1784,7 +1786,7 @@ static int parse_options(char *options, struct super_block *sb,
 		int blocksize =
 			BLOCK_SIZE << le32_to_cpu(sbi->s_es->s_log_block_size);
 
-		if (blocksize < PAGE_CACHE_SIZE) {
+		if (blocksize < PAGE_SIZE) {
 			ext4_msg(sb, KERN_ERR, "can't mount with "
 				 "dioread_nolock if block size != PAGE_SIZE");
 			return 0;
@@ -3415,16 +3417,9 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	if (sbi->s_mount_opt & EXT4_MOUNT_DAX) {
-		if (blocksize != PAGE_SIZE) {
-			ext4_msg(sb, KERN_ERR,
-					"error: unsupported blocksize for dax");
+		err = bdev_dax_supported(sb, blocksize);
+		if (err)
 			goto failed_mount;
-		}
-		if (!sb->s_bdev->bd_disk->fops->direct_access) {
-			ext4_msg(sb, KERN_ERR,
-					"error: device does not support dax");
-			goto failed_mount;
-		}
 	}
 
 	if (ext4_has_feature_encrypt(sb) && es->s_encryption_level) {
@@ -3808,7 +3803,7 @@ no_journal:
 	}
 
 	if ((DUMMY_ENCRYPTION_ENABLED(sbi) || ext4_has_feature_encrypt(sb)) &&
-	    (blocksize != PAGE_CACHE_SIZE)) {
+	    (blocksize != PAGE_SIZE)) {
 		ext4_msg(sb, KERN_ERR,
 			 "Unsupported blocksize for fs encryption");
 		goto failed_mount_wq;
@@ -3929,6 +3924,9 @@ no_journal:
 	if (!err)
 		err = percpu_counter_init(&sbi->s_dirtyclusters_counter, 0,
 					  GFP_KERNEL);
+	if (!err)
+		err = percpu_init_rwsem(&sbi->s_journal_flag_rwsem);
+
 	if (err) {
 		ext4_msg(sb, KERN_ERR, "insufficient memory");
 		goto failed_mount6;
@@ -5028,6 +5026,20 @@ static int ext4_quota_on_mount(struct super_block *sb, int type)
 					EXT4_SB(sb)->s_jquota_fmt, type);
 }
 
+static void lockdep_set_quota_inode(struct inode *inode, int subclass)
+{
+	struct ext4_inode_info *ei = EXT4_I(inode);
+
+	/* The first argument of lockdep_set_subclass has to be
+	 * *exactly* the same as the argument to init_rwsem() --- in
+	 * this case, in init_once() --- or lockdep gets unhappy
+	 * because the name of the lock is set using the
+	 * stringification of the argument to init_rwsem().
+	 */
+	(void) ei;	/* shut up clang warning if !CONFIG_LOCKDEP */
+	lockdep_set_subclass(&ei->i_data_sem, subclass);
+}
+
 /*
  * Standard function to be called on quota_on
  */
@@ -5067,8 +5079,12 @@ static int ext4_quota_on(struct super_block *sb, int type, int format_id,
 		if (err)
 			return err;
 	}
-
-	return dquot_quota_on(sb, type, format_id, path);
+	lockdep_set_quota_inode(path->dentry->d_inode, I_DATA_SEM_QUOTA);
+	err = dquot_quota_on(sb, type, format_id, path);
+	if (err)
+		lockdep_set_quota_inode(path->dentry->d_inode,
+					     I_DATA_SEM_NORMAL);
+	return err;
 }
 
 static int ext4_quota_enable(struct super_block *sb, int type, int format_id,
@@ -5095,8 +5111,11 @@ static int ext4_quota_enable(struct super_block *sb, int type, int format_id,
 
 	/* Don't account quota for quota files to avoid recursion */
 	qf_inode->i_flags |= S_NOQUOTA;
+	lockdep_set_quota_inode(qf_inode, I_DATA_SEM_QUOTA);
 	err = dquot_enable(qf_inode, type, format_id, flags);
 	iput(qf_inode);
+	if (err)
+		lockdep_set_quota_inode(qf_inode, I_DATA_SEM_NORMAL);
 
 	return err;
 }
@@ -5253,6 +5272,17 @@ out:
 	return len;
 }
 
+static int ext4_get_next_id(struct super_block *sb, struct kqid *qid)
+{
+	const struct quota_format_ops	*ops;
+
+	if (!sb_has_quota_loaded(sb, qid->type))
+		return -ESRCH;
+	ops = sb_dqopt(sb)->ops[qid->type];
+	if (!ops || !ops->get_next_id)
+		return -ENOSYS;
+	return dquot_get_next_id(sb, qid);
+}
 #endif
 
 static struct dentry *ext4_mount(struct file_system_type *fs_type, int flags,

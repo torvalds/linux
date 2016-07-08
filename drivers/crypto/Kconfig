@@ -279,6 +279,14 @@ config CRYPTO_DEV_PPC4XX
 	help
 	  This option allows you to have support for AMCC crypto acceleration.
 
+config HW_RANDOM_PPC4XX
+	bool "PowerPC 4xx generic true random number generator support"
+	depends on CRYPTO_DEV_PPC4XX && HW_RANDOM
+	default y
+	---help---
+	 This option provides the kernel-side support for the TRNG hardware
+	 found in the security function of some PowerPC 4xx SoCs.
+
 config CRYPTO_DEV_OMAP_SHAM
 	tristate "Support for OMAP MD5/SHA1/SHA2 hw accelerator"
 	depends on ARCH_OMAP2PLUS
@@ -302,15 +310,16 @@ config CRYPTO_DEV_OMAP_AES
 	  want to use the OMAP module for AES algorithms.
 
 config CRYPTO_DEV_OMAP_DES
-	tristate "Support for OMAP DES3DES hw engine"
+	tristate "Support for OMAP DES/3DES hw engine"
 	depends on ARCH_OMAP2PLUS
 	select CRYPTO_DES
 	select CRYPTO_BLKCIPHER
+	select CRYPTO_ENGINE
 	help
 	  OMAP processors have DES/3DES module accelerator. Select this if you
 	  want to use the OMAP module for DES and 3DES algorithms. Currently
-	  the ECB and CBC modes of operation supported by the driver. Also
-	  accesses made on unaligned boundaries are also supported.
+	  the ECB and CBC modes of operation are supported by the driver. Also
+	  accesses made on unaligned boundaries are supported.
 
 config CRYPTO_DEV_PICOXCELL
 	tristate "Support for picoXcell IPSEC and Layer2 crypto engines"
@@ -340,9 +349,19 @@ config CRYPTO_DEV_SAHARA
 	  This option enables support for the SAHARA HW crypto accelerator
 	  found in some Freescale i.MX chips.
 
+config CRYPTO_DEV_MXC_SCC
+	tristate "Support for Freescale Security Controller (SCC)"
+	depends on ARCH_MXC && OF
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_DES
+	help
+	  This option enables support for the Security Controller (SCC)
+	  found in Freescale i.MX25 chips.
+
 config CRYPTO_DEV_S5P
 	tristate "Support for Samsung S5PV210/Exynos crypto accelerator"
-	depends on ARCH_S5PV210 || ARCH_EXYNOS
+	depends on ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
+	depends on HAS_IOMEM && HAS_DMA
 	select CRYPTO_AES
 	select CRYPTO_BLKCIPHER
 	help

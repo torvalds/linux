@@ -432,7 +432,10 @@ static snd_pcm_uframes_t snd_vortex_pcm_pointer(struct snd_pcm_substream *substr
 #endif
 	//printk(KERN_INFO "vortex: pointer = 0x%x\n", current_ptr);
 	spin_unlock(&chip->lock);
-	return (bytes_to_frames(substream->runtime, current_ptr));
+	current_ptr = bytes_to_frames(substream->runtime, current_ptr);
+	if (current_ptr >= substream->runtime->buffer_size)
+		current_ptr = 0;
+	return current_ptr;
 }
 
 /* operators */

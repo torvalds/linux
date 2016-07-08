@@ -174,12 +174,12 @@ void __ptlrpc_prep_bulk_page(struct ptlrpc_bulk_desc *desc,
 	LASSERT(page);
 	LASSERT(pageoffset >= 0);
 	LASSERT(len > 0);
-	LASSERT(pageoffset + len <= PAGE_CACHE_SIZE);
+	LASSERT(pageoffset + len <= PAGE_SIZE);
 
 	desc->bd_nob += len;
 
 	if (pin)
-		page_cache_get(page);
+		get_page(page);
 
 	ptlrpc_add_bulk_page(desc, page, pageoffset, len);
 }
@@ -206,7 +206,7 @@ void __ptlrpc_free_bulk(struct ptlrpc_bulk_desc *desc, int unpin)
 
 	if (unpin) {
 		for (i = 0; i < desc->bd_iov_count; i++)
-			page_cache_release(desc->bd_iov[i].kiov_page);
+			put_page(desc->bd_iov[i].kiov_page);
 	}
 
 	kfree(desc);
@@ -595,9 +595,9 @@ static int __ptlrpc_request_bufs_pack(struct ptlrpc_request *request,
 	struct obd_import *imp = request->rq_import;
 	int rc;
 
-	if (unlikely(ctx))
+	if (unlikely(ctx)) {
 		request->rq_cli_ctx = sptlrpc_cli_ctx_get(ctx);
-	else {
+	} else {
 		rc = sptlrpc_req_get_ctx(request);
 		if (rc)
 			goto out_free;
@@ -1082,7 +1082,6 @@ static int ptlrpc_console_allow(struct ptlrpc_request *req)
 	 */
 	if ((lustre_handle_is_used(&req->rq_import->imp_remote_handle)) &&
 	    (opc == OST_CONNECT || opc == MDS_CONNECT || opc == MGS_CONNECT)) {
-
 		/* Suppress timed out reconnect requests */
 		if (req->rq_timedout)
 			return 0;
@@ -2087,7 +2086,7 @@ int ptlrpc_set_wait(struct ptlrpc_request_set *set)
 		CDEBUG(D_RPCTRACE, "set %p going to sleep for %d seconds\n",
 		       set, timeout);
 
-		if (timeout == 0 && !cfs_signal_pending())
+		if (timeout == 0 && !signal_pending(current))
 			/*
 			 * No requests are in-flight (ether timed out
 			 * or delayed), so we can allow interrupts.
@@ -2114,7 +2113,7 @@ int ptlrpc_set_wait(struct ptlrpc_request_set *set)
 		 * it being ignored forever
 		 */
 		if (rc == -ETIMEDOUT && !lwi.lwi_allow_intr &&
-		    cfs_signal_pending()) {
+		    signal_pending(current)) {
 			sigset_t blocked_sigs =
 					   cfs_block_sigsinv(LUSTRE_FATAL_SIGS);
 
@@ -2124,7 +2123,7 @@ int ptlrpc_set_wait(struct ptlrpc_request_set *set)
 			 * important signals since ptlrpc set is not easily
 			 * reentrant from userspace again
 			 */
-			if (cfs_signal_pending())
+			if (signal_pending(current))
 				ptlrpc_interrupted_set(set);
 			cfs_restore_sigs(blocked_sigs);
 		}

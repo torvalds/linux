@@ -2,7 +2,7 @@
  * exynos-rng.c - Random Number Generator driver for the exynos
  *
  * Copyright (C) 2012 Samsung Electronics
- * Jonghwa Lee <jonghwa3.lee@smasung.com>
+ * Jonghwa Lee <jonghwa3.lee@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -77,7 +77,8 @@ static int exynos_init(struct hwrng *rng)
 
 	pm_runtime_get_sync(exynos_rng->dev);
 	ret = exynos_rng_configure(exynos_rng);
-	pm_runtime_put_noidle(exynos_rng->dev);
+	pm_runtime_mark_last_busy(exynos_rng->dev);
+	pm_runtime_put_autosuspend(exynos_rng->dev);
 
 	return ret;
 }
@@ -89,6 +90,7 @@ static int exynos_read(struct hwrng *rng, void *buf,
 						struct exynos_rng, rng);
 	u32 *data = buf;
 	int retry = 100;
+	int ret = 4;
 
 	pm_runtime_get_sync(exynos_rng->dev);
 
@@ -97,23 +99,27 @@ static int exynos_read(struct hwrng *rng, void *buf,
 	while (!(exynos_rng_readl(exynos_rng,
 			EXYNOS_PRNG_STATUS_OFFSET) & PRNG_DONE) && --retry)
 		cpu_relax();
-	if (!retry)
-		return -ETIMEDOUT;
+	if (!retry) {
+		ret = -ETIMEDOUT;
+		goto out;
+	}
 
 	exynos_rng_writel(exynos_rng, PRNG_DONE, EXYNOS_PRNG_STATUS_OFFSET);
 
 	*data = exynos_rng_readl(exynos_rng, EXYNOS_PRNG_OUT1_OFFSET);
 
+out:
 	pm_runtime_mark_last_busy(exynos_rng->dev);
 	pm_runtime_put_sync_autosuspend(exynos_rng->dev);
 
-	return 4;
+	return ret;
 }
 
 static int exynos_rng_probe(struct platform_device *pdev)
 {
 	struct exynos_rng *exynos_rng;
 	struct resource *res;
+	int ret;
 
 	exynos_rng = devm_kzalloc(&pdev->dev, sizeof(struct exynos_rng),
 					GFP_KERNEL);
@@ -141,7 +147,21 @@ static int exynos_rng_probe(struct platform_device *pdev)
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
-	return devm_hwrng_register(&pdev->dev, &exynos_rng->rng);
+	ret = devm_hwrng_register(&pdev->dev, &exynos_rng->rng);
+	if (ret) {
+		pm_runtime_dont_use_autosuspend(&pdev->dev);
+		pm_runtime_disable(&pdev->dev);
+	}
+
+	return ret;
+}
+
+static int exynos_rng_remove(struct platform_device *pdev)
+{
+	pm_runtime_dont_use_autosuspend(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
+
+	return 0;
 }
 
 static int __maybe_unused exynos_rng_runtime_suspend(struct device *dev)
@@ -201,6 +221,7 @@ static struct platform_driver exynos_rng_driver = {
 		.of_match_table = exynos_rng_dt_match,
 	},
 	.probe		= exynos_rng_probe,
+	.remove		= exynos_rng_remove,
 };
 
 module_platform_driver(exynos_rng_driver);

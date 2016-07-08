@@ -205,37 +205,41 @@ acpi_ut_safe_strncat(char *dest,
  *
  * FUNCTION:    acpi_ut_strtoul64
  *
- * PARAMETERS:  string          - Null terminated string
- *              base            - Radix of the string: 16 or ACPI_ANY_BASE;
- *                                ACPI_ANY_BASE means 'in behalf of to_integer'
- *              ret_integer     - Where the converted integer is returned
+ * PARAMETERS:  string                  - Null terminated string
+ *              base                    - Radix of the string: 16 or 10 or
+ *                                        ACPI_ANY_BASE
+ *              max_integer_byte_width  - Maximum allowable integer,in bytes:
+ *                                        4 or 8 (32 or 64 bits)
+ *              ret_integer             - Where the converted integer is
+ *                                        returned
  *
  * RETURN:      Status and Converted value
  *
  * DESCRIPTION: Convert a string into an unsigned value. Performs either a
- *              32-bit or 64-bit conversion, depending on the current mode
- *              of the interpreter.
+ *              32-bit or 64-bit conversion, depending on the input integer
+ *              size (often the current mode of the interpreter).
  *
- * NOTES:       acpi_gbl_integer_byte_width should be set to the proper width.
+ * NOTES:       Negative numbers are not supported, as they are not supported
+ *              by ACPI.
+ *
+ *              acpi_gbl_integer_byte_width should be set to the proper width.
  *              For the core ACPICA code, this width depends on the DSDT
- *              version. For iASL, the default byte width is always 8.
+ *              version. For iASL, the default byte width is always 8 for the
+ *              parser, but error checking is performed later to flag cases
+ *              where a 64-bit constant is defined in a 32-bit DSDT/SSDT.
  *
  *              Does not support Octal strings, not needed at this time.
  *
- *              There is an earlier version of the function after this one,
- *              below. It is slightly different than this one, and the two
- *              may eventually may need to be merged. (01/2016).
- *
  ******************************************************************************/
 
-acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 *ret_integer)
+acpi_status
+acpi_ut_strtoul64(char *string,
+		  u32 base, u32 max_integer_byte_width, u64 *ret_integer)
 {
 	u32 this_digit = 0;
 	u64 return_value = 0;
 	u64 quotient;
 	u64 dividend;
-	u32 to_integer_op = (base == ACPI_ANY_BASE);
-	u32 mode32 = (acpi_gbl_integer_byte_width == 4);
 	u8 valid_digits = 0;
 	u8 sign_of0x = 0;
 	u8 term = 0;
@@ -244,6 +248,7 @@ acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 *ret_integer)
 
 	switch (base) {
 	case ACPI_ANY_BASE:
+	case 10:
 	case 16:
 
 		break;
@@ -265,9 +270,9 @@ acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 *ret_integer)
 		string++;
 	}
 
-	if (to_integer_op) {
+	if (base == ACPI_ANY_BASE) {
 		/*
-		 * Base equal to ACPI_ANY_BASE means 'ToInteger operation case'.
+		 * Base equal to ACPI_ANY_BASE means 'Either decimal or hex'.
 		 * We need to determine if it is decimal or hexadecimal.
 		 */
 		if ((*string == '0') && (tolower((int)*(string + 1)) == 'x')) {
@@ -284,7 +289,7 @@ acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 *ret_integer)
 	/* Any string left? Check that '0x' is not followed by white space. */
 
 	if (!(*string) || isspace((int)*string) || *string == '\t') {
-		if (to_integer_op) {
+		if (base == ACPI_ANY_BASE) {
 			goto error_exit;
 		} else {
 			goto all_done;
@@ -292,10 +297,11 @@ acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 *ret_integer)
 	}
 
 	/*
-	 * Perform a 32-bit or 64-bit conversion, depending upon the current
-	 * execution mode of the interpreter
+	 * Perform a 32-bit or 64-bit conversion, depending upon the input
+	 * byte width
 	 */
-	dividend = (mode32) ? ACPI_UINT32_MAX : ACPI_UINT64_MAX;
+	dividend = (max_integer_byte_width <= ACPI_MAX32_BYTE_WIDTH) ?
+	    ACPI_UINT32_MAX : ACPI_UINT64_MAX;
 
 	/* Main loop: convert the string to a 32- or 64-bit integer */
 
@@ -323,7 +329,7 @@ acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 *ret_integer)
 		}
 
 		if (term) {
-			if (to_integer_op) {
+			if (base == ACPI_ANY_BASE) {
 				goto error_exit;
 			} else {
 				break;
@@ -338,12 +344,13 @@ acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 *ret_integer)
 
 		valid_digits++;
 
-		if (sign_of0x
-		    && ((valid_digits > 16)
-			|| ((valid_digits > 8) && mode32))) {
+		if (sign_of0x && ((valid_digits > 16) ||
+				  ((valid_digits > 8)
+				   && (max_integer_byte_width <=
+				       ACPI_MAX32_BYTE_WIDTH)))) {
 			/*
 			 * This is to_integer operation case.
-			 * No any restrictions for string-to-integer conversion,
+			 * No restrictions for string-to-integer conversion,
 			 * see ACPI spec.
 			 */
 			goto error_exit;
@@ -355,7 +362,7 @@ acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 *ret_integer)
 					   &quotient, NULL);
 
 		if (return_value > quotient) {
-			if (to_integer_op) {
+			if (base == ACPI_ANY_BASE) {
 				goto error_exit;
 			} else {
 				break;
@@ -378,7 +385,8 @@ all_done:
 	return_ACPI_STATUS(AE_OK);
 
 error_exit:
-	/* Base was set/validated above */
+
+	/* Base was set/validated above (10 or 16) */
 
 	if (base == 10) {
 		return_ACPI_STATUS(AE_BAD_DECIMAL_CONSTANT);
@@ -388,8 +396,7 @@ error_exit:
 }
 
 #ifdef _OBSOLETE_FUNCTIONS
-/* TBD: use version in ACPICA main code base? */
-/* DONE: 01/2016 */
+/* Removed: 01/2016 */
 
 /*******************************************************************************
  *

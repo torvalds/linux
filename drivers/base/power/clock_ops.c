@@ -159,7 +159,7 @@ int of_pm_clk_add_clks(struct device *dev)
 
 	count = of_count_phandle_with_args(dev->of_node, "clocks",
 					   "#clock-cells");
-	if (count == 0)
+	if (count <= 0)
 		return -ENODEV;
 
 	clks = kcalloc(count, sizeof(*clks), GFP_KERNEL);

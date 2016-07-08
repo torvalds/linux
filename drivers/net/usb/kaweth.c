@@ -938,7 +938,7 @@ static void kaweth_tx_timeout(struct net_device *net)
 
 	dev_warn(&net->dev, "%s: Tx timed out. Resetting.\n", net->name);
 	kaweth->stats.tx_errors++;
-	net->trans_start = jiffies;
+	netif_trans_update(net);
 
 	usb_unlink_urb(kaweth->tx_urb);
 }

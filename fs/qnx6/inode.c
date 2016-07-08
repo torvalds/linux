@@ -542,8 +542,8 @@ struct inode *qnx6_iget(struct super_block *sb, unsigned ino)
 		iget_failed(inode);
 		return ERR_PTR(-EIO);
 	}
-	n = (ino - 1) >> (PAGE_CACHE_SHIFT - QNX6_INODE_SIZE_BITS);
-	offs = (ino - 1) & (~PAGE_CACHE_MASK >> QNX6_INODE_SIZE_BITS);
+	n = (ino - 1) >> (PAGE_SHIFT - QNX6_INODE_SIZE_BITS);
+	offs = (ino - 1) & (~PAGE_MASK >> QNX6_INODE_SIZE_BITS);
 	mapping = sbi->inodes->i_mapping;
 	page = read_mapping_page(mapping, n, NULL);
 	if (IS_ERR(page)) {

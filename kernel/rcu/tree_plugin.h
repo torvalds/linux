@@ -722,18 +722,22 @@ static void sync_rcu_exp_handler(void *info)
  * synchronize_rcu_expedited - Brute-force RCU grace period
  *
  * Wait for an RCU-preempt grace period, but expedite it.  The basic
- * idea is to invoke synchronize_sched_expedited() to push all the tasks to
- * the ->blkd_tasks lists and wait for this list to drain.  This consumes
- * significant time on all CPUs and is unfriendly to real-time workloads,
- * so is thus not recommended for any sort of common-case code.
- * In fact, if you are using synchronize_rcu_expedited() in a loop,
- * please restructure your code to batch your updates, and then Use a
- * single synchronize_rcu() instead.
+ * idea is to IPI all non-idle non-nohz online CPUs.  The IPI handler
+ * checks whether the CPU is in an RCU-preempt critical section, and
+ * if so, it sets a flag that causes the outermost rcu_read_unlock()
+ * to report the quiescent state.  On the other hand, if the CPU is
+ * not in an RCU read-side critical section, the IPI handler reports
+ * the quiescent state immediately.
+ *
+ * Although this is a greate improvement over previous expedited
+ * implementations, it is still unfriendly to real-time workloads, so is
+ * thus not recommended for any sort of common-case code.  In fact, if
+ * you are using synchronize_rcu_expedited() in a loop, please restructure
+ * your code to batch your updates, and then Use a single synchronize_rcu()
+ * instead.
  */
 void synchronize_rcu_expedited(void)
 {
-	struct rcu_node *rnp;
-	struct rcu_node *rnp_unlock;
 	struct rcu_state *rsp = rcu_state_p;
 	unsigned long s;
 
@@ -744,23 +748,14 @@ void synchronize_rcu_expedited(void)
 	}
 
 	s = rcu_exp_gp_seq_snap(rsp);
-
-	rnp_unlock = exp_funnel_lock(rsp, s);
-	if (rnp_unlock == NULL)
+	if (exp_funnel_lock(rsp, s))
 		return;  /* Someone else did our work for us. */
-
-	rcu_exp_gp_seq_start(rsp);
 
 	/* Initialize the rcu_node tree in preparation for the wait. */
 	sync_rcu_exp_select_cpus(rsp, sync_rcu_exp_handler);
 
-	/* Wait for snapshotted ->blkd_tasks lists to drain. */
-	rnp = rcu_get_root(rsp);
-	synchronize_sched_expedited_wait(rsp);
-
-	/* Clean up and exit. */
-	rcu_exp_gp_seq_end(rsp);
-	mutex_unlock(&rnp_unlock->exp_funnel_mutex);
+	/* Wait for ->blkd_tasks lists to drain, then wake everyone up. */
+	rcu_exp_wait_wake(rsp, s);
 }
 EXPORT_SYMBOL_GPL(synchronize_rcu_expedited);
 

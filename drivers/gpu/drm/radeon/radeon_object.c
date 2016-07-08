@@ -799,6 +799,10 @@ int radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 	if ((offset + size) <= rdev->mc.visible_vram_size)
 		return 0;
 
+	/* Can't move a pinned BO to visible VRAM */
+	if (rbo->pin_count > 0)
+		return -EINVAL;
+
 	/* hurrah the memory is not visible ! */
 	radeon_ttm_placement_from_domain(rbo, RADEON_GEM_DOMAIN_VRAM);
 	lpfn =	rdev->mc.visible_vram_size >> PAGE_SHIFT;
@@ -828,13 +832,13 @@ int radeon_bo_wait(struct radeon_bo *bo, u32 *mem_type, bool no_wait)
 {
 	int r;
 
-	r = ttm_bo_reserve(&bo->tbo, true, no_wait, false, NULL);
+	r = ttm_bo_reserve(&bo->tbo, true, no_wait, NULL);
 	if (unlikely(r != 0))
 		return r;
 	if (mem_type)
 		*mem_type = bo->tbo.mem.mem_type;
 
-	r = ttm_bo_wait(&bo->tbo, true, true, no_wait);
+	r = ttm_bo_wait(&bo->tbo, true, no_wait);
 	ttm_bo_unreserve(&bo->tbo);
 	return r;
 }

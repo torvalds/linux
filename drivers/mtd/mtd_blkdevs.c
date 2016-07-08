@@ -409,7 +409,7 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 		goto error3;
 
 	if (tr->flush)
-		blk_queue_flush(new->rq, REQ_FLUSH);
+		blk_queue_write_cache(new->rq, true, false);
 
 	new->rq->queuedata = new;
 	blk_queue_logical_block_size(new->rq, tr->blksize);

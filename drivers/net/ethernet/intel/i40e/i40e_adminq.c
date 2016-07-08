@@ -33,16 +33,6 @@
 static void i40e_resume_aq(struct i40e_hw *hw);
 
 /**
- * i40e_is_nvm_update_op - return true if this is an NVM update operation
- * @desc: API request descriptor
- **/
-static inline bool i40e_is_nvm_update_op(struct i40e_aq_desc *desc)
-{
-	return (desc->opcode == cpu_to_le16(i40e_aqc_opc_nvm_erase)) ||
-		(desc->opcode == cpu_to_le16(i40e_aqc_opc_nvm_update));
-}
-
-/**
  *  i40e_adminq_init_regs - Initialize AdminQ registers
  *  @hw: pointer to the hardware structure
  *
@@ -624,13 +614,9 @@ i40e_status i40e_init_adminq(struct i40e_hw *hw)
 
 	/* pre-emptive resource lock release */
 	i40e_aq_release_resource(hw, I40E_NVM_RESOURCE_ID, 0, NULL);
-	hw->aq.nvm_release_on_done = false;
+	hw->nvm_release_on_done = false;
 	hw->nvmupd_state = I40E_NVMUPD_STATE_INIT;
 
-	ret_code = i40e_aq_set_hmc_resource_profile(hw,
-						    I40E_HMC_PROFILE_DEFAULT,
-						    0,
-						    NULL);
 	ret_code = 0;
 
 	/* success! */
@@ -1023,26 +1009,7 @@ i40e_status i40e_clean_arq_element(struct i40e_hw *hw,
 	hw->aq.arq.next_to_clean = ntc;
 	hw->aq.arq.next_to_use = ntu;
 
-	if (i40e_is_nvm_update_op(&e->desc)) {
-		if (hw->aq.nvm_release_on_done) {
-			i40e_release_nvm(hw);
-			hw->aq.nvm_release_on_done = false;
-		}
-
-		switch (hw->nvmupd_state) {
-		case I40E_NVMUPD_STATE_INIT_WAIT:
-			hw->nvmupd_state = I40E_NVMUPD_STATE_INIT;
-			break;
-
-		case I40E_NVMUPD_STATE_WRITE_WAIT:
-			hw->nvmupd_state = I40E_NVMUPD_STATE_WRITING;
-			break;
-
-		default:
-			break;
-		}
-	}
-
+	i40e_nvmupd_check_wait_event(hw, le16_to_cpu(e->desc.opcode));
 clean_arq_element_out:
 	/* Set pending if needed, unlock and return */
 	if (pending)

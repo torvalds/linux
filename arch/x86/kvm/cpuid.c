@@ -75,7 +75,7 @@ int kvm_update_cpuid(struct kvm_vcpu *vcpu)
 		return 0;
 
 	/* Update OSXSAVE bit */
-	if (cpu_has_xsave && best->function == 0x1) {
+	if (boot_cpu_has(X86_FEATURE_XSAVE) && best->function == 0x1) {
 		best->ecx &= ~F(OSXSAVE);
 		if (kvm_read_cr4_bits(vcpu, X86_CR4_OSXSAVE))
 			best->ecx |= F(OSXSAVE);
@@ -181,19 +181,22 @@ int kvm_vcpu_ioctl_set_cpuid(struct kvm_vcpu *vcpu,
 			     struct kvm_cpuid_entry __user *entries)
 {
 	int r, i;
-	struct kvm_cpuid_entry *cpuid_entries;
+	struct kvm_cpuid_entry *cpuid_entries = NULL;
 
 	r = -E2BIG;
 	if (cpuid->nent > KVM_MAX_CPUID_ENTRIES)
 		goto out;
 	r = -ENOMEM;
-	cpuid_entries = vmalloc(sizeof(struct kvm_cpuid_entry) * cpuid->nent);
-	if (!cpuid_entries)
-		goto out;
-	r = -EFAULT;
-	if (copy_from_user(cpuid_entries, entries,
-			   cpuid->nent * sizeof(struct kvm_cpuid_entry)))
-		goto out_free;
+	if (cpuid->nent) {
+		cpuid_entries = vmalloc(sizeof(struct kvm_cpuid_entry) *
+					cpuid->nent);
+		if (!cpuid_entries)
+			goto out;
+		r = -EFAULT;
+		if (copy_from_user(cpuid_entries, entries,
+				   cpuid->nent * sizeof(struct kvm_cpuid_entry)))
+			goto out;
+	}
 	for (i = 0; i < cpuid->nent; i++) {
 		vcpu->arch.cpuid_entries[i].function = cpuid_entries[i].function;
 		vcpu->arch.cpuid_entries[i].eax = cpuid_entries[i].eax;
@@ -212,9 +215,8 @@ int kvm_vcpu_ioctl_set_cpuid(struct kvm_vcpu *vcpu,
 	kvm_x86_ops->cpuid_update(vcpu);
 	r = kvm_update_cpuid(vcpu);
 
-out_free:
-	vfree(cpuid_entries);
 out:
+	vfree(cpuid_entries);
 	return r;
 }
 
@@ -534,6 +536,7 @@ static inline int __do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 			do_cpuid_1_ent(&entry[i], function, idx);
 			if (idx == 1) {
 				entry[i].eax &= kvm_cpuid_D_1_eax_x86_features;
+				cpuid_mask(&entry[i].eax, CPUID_D_1_EAX);
 				entry[i].ebx = 0;
 				if (entry[i].eax & (F(XSAVES)|F(XSAVEC)))
 					entry[i].ebx =

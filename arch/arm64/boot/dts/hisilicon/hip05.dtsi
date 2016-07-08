@@ -249,24 +249,28 @@
 		its_peri: interrupt-controller@8c000000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;
+			#msi-cells = <1>;
 			reg = <0x0 0x8c000000 0x0 0x40000>;
 		};
 
 		its_m3: interrupt-controller@a3000000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;
+			#msi-cells = <1>;
 			reg = <0x0 0xa3000000 0x0 0x40000>;
 		};
 
 		its_pcie: interrupt-controller@b7000000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;
+			#msi-cells = <1>;
 			reg = <0x0 0xb7000000 0x0 0x40000>;
 		};
 
 		its_dsa: interrupt-controller@c6000000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;
+			#msi-cells = <1>;
 			reg = <0x0 0xc6000000 0x0 0x40000>;
 		};
 	};
@@ -320,6 +324,12 @@
 			clock-names = "apb_pclk";
 			reg-shift = <2>;
 			reg-io-width = <4>;
+			status = "disabled";
+		};
+
+		lbc: localbus@80380000 {
+			compatible = "hisilicon,hisi-localbus", "simple-bus";
+			reg = <0x0 0x80380000 0x0 0x10000>;
 			status = "disabled";
 		};
 

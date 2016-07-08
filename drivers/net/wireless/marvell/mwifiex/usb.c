@@ -995,7 +995,8 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 {
 	int ret = 0;
 	u8 *firmware = fw->fw_buf, *recv_buff;
-	u32 retries = USB8XXX_FW_MAX_RETRY, dlen;
+	u32 retries = USB8XXX_FW_MAX_RETRY + 1;
+	u32 dlen;
 	u32 fw_seqnum = 0, tlen = 0, dnld_cmd = 0;
 	struct fw_data *fwdata;
 	struct fw_sync_header sync_fw;
@@ -1017,8 +1018,10 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 
 	/* Allocate memory for receive */
 	recv_buff = kzalloc(FW_DNLD_RX_BUF_SIZE, GFP_KERNEL);
-	if (!recv_buff)
+	if (!recv_buff) {
+		ret = -ENOMEM;
 		goto cleanup;
+	}
 
 	do {
 		/* Send pseudo data to check winner status first */
@@ -1041,7 +1044,7 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 		}
 
 		/* If the send/receive fails or CRC occurs then retry */
-		while (retries--) {
+		while (--retries) {
 			u8 *buf = (u8 *)fwdata;
 			u32 len = FW_DATA_XMIT_SIZE;
 
@@ -1101,7 +1104,7 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 				continue;
 			}
 
-			retries = USB8XXX_FW_MAX_RETRY;
+			retries = USB8XXX_FW_MAX_RETRY + 1;
 			break;
 		}
 		fw_seqnum++;

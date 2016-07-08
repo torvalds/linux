@@ -1045,20 +1045,6 @@ static void reset_all_endpoints(struct usba_udc *udc)
 		list_del_init(&req->queue);
 		request_complete(ep, req, -ECONNRESET);
 	}
-
-	/* NOTE:  normally, the next call to the gadget driver is in
-	 * charge of disabling endpoints... usually disconnect().
-	 * The exception would be entering a high speed test mode.
-	 *
-	 * FIXME remove this code ... and retest thoroughly.
-	 */
-	list_for_each_entry(ep, &udc->gadget.ep_list, ep.ep_list) {
-		if (ep->ep.desc) {
-			spin_unlock(&udc->lock);
-			usba_ep_disable(&ep->ep);
-			spin_lock(&udc->lock);
-		}
-	}
 }
 
 static struct usba_ep *get_ep_by_addr(struct usba_udc *udc, u16 wIndex)

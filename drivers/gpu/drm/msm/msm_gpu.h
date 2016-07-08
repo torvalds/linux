@@ -22,6 +22,7 @@
 #include <linux/regulator/consumer.h>
 
 #include "msm_drv.h"
+#include "msm_fence.h"
 #include "msm_ringbuffer.h"
 
 struct msm_gem_submit;
@@ -46,7 +47,7 @@ struct msm_gpu_funcs {
 	int (*hw_init)(struct msm_gpu *gpu);
 	int (*pm_suspend)(struct msm_gpu *gpu);
 	int (*pm_resume)(struct msm_gpu *gpu);
-	int (*submit)(struct msm_gpu *gpu, struct msm_gem_submit *submit,
+	void (*submit)(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 			struct msm_file_private *ctx);
 	void (*flush)(struct msm_gpu *gpu);
 	void (*idle)(struct msm_gpu *gpu);
@@ -77,13 +78,15 @@ struct msm_gpu {
 	const struct msm_gpu_perfcntr *perfcntrs;
 	uint32_t num_perfcntrs;
 
+	/* ringbuffer: */
 	struct msm_ringbuffer *rb;
 	uint32_t rb_iova;
 
 	/* list of GEM active objects: */
 	struct list_head active_list;
 
-	uint32_t submitted_fence;
+	/* fencing: */
+	struct msm_fence_context *fctx;
 
 	/* is gpu powered/active? */
 	int active_cnt;
@@ -125,7 +128,7 @@ struct msm_gpu {
 
 static inline bool msm_gpu_active(struct msm_gpu *gpu)
 {
-	return gpu->submitted_fence > gpu->funcs->last_fence(gpu);
+	return gpu->fctx->last_fence > gpu->funcs->last_fence(gpu);
 }
 
 /* Perf-Counters:

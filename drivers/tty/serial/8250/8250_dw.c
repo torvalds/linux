@@ -104,15 +104,16 @@ static void dw8250_check_lcr(struct uart_port *p, int value)
 		dw8250_force_idle(p);
 
 #ifdef CONFIG_64BIT
-		__raw_writeq(value & 0xff, offset);
-#else
+		if (p->type == PORT_OCTEON)
+			__raw_writeq(value & 0xff, offset);
+		else
+#endif
 		if (p->iotype == UPIO_MEM32)
 			writel(value, offset);
 		else if (p->iotype == UPIO_MEM32BE)
 			iowrite32be(value, offset);
 		else
 			writeb(value, offset);
-#endif
 	}
 	/*
 	 * FIXME: this deadlocks if port->lock is already held
@@ -617,6 +618,7 @@ static const struct acpi_device_id dw8250_acpi_match[] = {
 	{ "8086228A", 0 },
 	{ "APMC0D08", 0},
 	{ "AMD0020", 0 },
+	{ "AMDI0020", 0 },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, dw8250_acpi_match);

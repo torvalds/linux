@@ -1,0 +1,170 @@
+#include "skeleton.dtsi"
+
+/ {
+	model = "Aspeed BMC";
+	compatible = "aspeed,ast2500";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	interrupt-parent = <&vic>;
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			compatible = "arm,arm1176jzf-s";
+			device_type = "cpu";
+			reg = <0>;
+		};
+	};
+
+	ahb {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		vic: interrupt-controller@1e6c0080 {
+			compatible = "aspeed,ast2400-vic";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			valid-sources = <0xfefff7ff 0x0807ffff>;
+			reg = <0x1e6c0080 0x80>;
+		};
+
+		apb {
+			compatible = "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			clk_clkin: clk_clkin@1e6e2070 {
+				#clock-cells = <0>;
+				compatible = "aspeed,g5-clkin-clock";
+				reg = <0x1e6e2070 0x04>;
+			};
+
+			clk_hpll: clk_hpll@1e6e2024 {
+				#clock-cells = <0>;
+				compatible = "aspeed,g5-hpll-clock";
+				reg = <0x1e6e2024 0x4>;
+				clocks = <&clk_clkin>;
+			};
+
+			clk_ahb: clk_ahb@1e6e2070 {
+				#clock-cells = <0>;
+				compatible = "aspeed,g5-ahb-clock";
+				reg = <0x1e6e2070 0x4>;
+				clocks = <&clk_hpll>;
+			};
+
+			clk_apb: clk_apb@1e6e2008 {
+				#clock-cells = <0>;
+				compatible = "aspeed,g5-apb-clock";
+				reg = <0x1e6e2008 0x4>;
+				clocks = <&clk_hpll>;
+			};
+
+			clk_uart: clk_uart@1e6e2008 {
+				#clock-cells = <0>;
+				compatible = "aspeed,uart-clock";
+				reg = <0x1e6e202c 0x4>;
+			};
+
+			sram@1e720000 {
+				compatible = "mmio-sram";
+				reg = <0x1e720000 0x9000>;	// 36K
+			};
+
+			timer: timer@1e782000 {
+				compatible = "aspeed,ast2400-timer";
+				reg = <0x1e782000 0x90>;
+				// The moxart_timer driver registers only one
+				// interrupt and assumes it's for timer 1
+				//interrupts = <16 17 18 35 36 37 38 39>;
+				interrupts = <16>;
+				clocks = <&clk_apb>;
+			};
+
+			wdt1: wdt@1e785000 {
+				compatible = "aspeed,wdt";
+				reg = <0x1e785000 0x1c>;
+				interrupts = <27>;
+			};
+
+			wdt2: wdt@1e785020 {
+				compatible = "aspeed,wdt";
+				reg = <0x1e785020 0x1c>;
+				interrupts = <27>;
+				status = "disabled";
+			};
+
+			wdt3: wdt@1e785040 {
+				compatible = "aspeed,wdt";
+				reg = <0x1e785074 0x1c>;
+				status = "disabled";
+			};
+
+			uart1: serial@1e783000 {
+				compatible = "ns16550a";
+				reg = <0x1e783000 0x1000>;
+				reg-shift = <2>;
+				interrupts = <9>;
+				clocks = <&clk_uart>;
+				no-loopback-test;
+				status = "disabled";
+			};
+
+			uart2: serial@1e78d000 {
+				compatible = "ns16550a";
+				reg = <0x1e78d000 0x1000>;
+				reg-shift = <2>;
+				interrupts = <32>;
+				clocks = <&clk_uart>;
+				no-loopback-test;
+				status = "disabled";
+			};
+
+			uart3: serial@1e78e000 {
+				compatible = "ns16550a";
+				reg = <0x1e78e000 0x1000>;
+				reg-shift = <2>;
+				interrupts = <33>;
+				clocks = <&clk_uart>;
+				no-loopback-test;
+				status = "disabled";
+			};
+
+			uart4: serial@1e78f000 {
+				compatible = "ns16550a";
+				reg = <0x1e78f000 0x1000>;
+				reg-shift = <2>;
+				interrupts = <34>;
+				clocks = <&clk_uart>;
+				no-loopback-test;
+				status = "disabled";
+			};
+
+			uart5: serial@1e784000 {
+				compatible = "ns16550a";
+				reg = <0x1e784000 0x1000>;
+				reg-shift = <2>;
+				interrupts = <10>;
+				clocks = <&clk_uart>;
+				current-speed = <38400>;
+				no-loopback-test;
+				status = "disabled";
+			};
+
+			uart6: serial@1e787000 {
+				compatible = "ns16550a";
+				reg = <0x1e787000 0x1000>;
+				reg-shift = <2>;
+				interrupts = <10>;
+				clocks = <&clk_uart>;
+				no-loopback-test;
+				status = "disabled";
+			};
+		};
+	};
+};

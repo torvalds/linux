@@ -336,6 +336,9 @@ void skl_dsp_free(struct sst_dsp *dsp)
 	skl_ipc_int_disable(dsp);
 
 	free_irq(dsp->irq, dsp);
+	skl_ipc_op_int_disable(dsp);
+	skl_ipc_int_disable(dsp);
+
 	skl_dsp_disable_core(dsp);
 }
 EXPORT_SYMBOL_GPL(skl_dsp_free);

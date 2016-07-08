@@ -370,6 +370,8 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 
 	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
 
+	intel_runtime_pm_get(dev_priv);
+
 	mutex_lock(&dev_priv->rps.hw_lock);
 
 	val = intel_freq_opcode(dev_priv, val);
@@ -378,6 +380,7 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 	    val > dev_priv->rps.max_freq ||
 	    val < dev_priv->rps.min_freq_softlimit) {
 		mutex_unlock(&dev_priv->rps.hw_lock);
+		intel_runtime_pm_put(dev_priv);
 		return -EINVAL;
 	}
 
@@ -397,6 +400,8 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 	intel_set_rps(dev, val);
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
+
+	intel_runtime_pm_put(dev_priv);
 
 	return count;
 }
@@ -433,6 +438,8 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 
 	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
 
+	intel_runtime_pm_get(dev_priv);
+
 	mutex_lock(&dev_priv->rps.hw_lock);
 
 	val = intel_freq_opcode(dev_priv, val);
@@ -441,6 +448,7 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 	    val > dev_priv->rps.max_freq ||
 	    val > dev_priv->rps.max_freq_softlimit) {
 		mutex_unlock(&dev_priv->rps.hw_lock);
+		intel_runtime_pm_put(dev_priv);
 		return -EINVAL;
 	}
 
@@ -456,6 +464,8 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 	intel_set_rps(dev, val);
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
+
+	intel_runtime_pm_put(dev_priv);
 
 	return count;
 

@@ -146,7 +146,7 @@ static __be32 *encode_fsid(__be32 *p, struct svc_fh *fhp)
 	default:
 	case FSIDSOURCE_DEV:
 		p = xdr_encode_hyper(p, (u64)huge_encode_dev
-				     (d_inode(fhp->fh_dentry)->i_sb->s_dev));
+				     (fhp->fh_dentry->d_sb->s_dev));
 		break;
 	case FSIDSOURCE_FSID:
 		p = xdr_encode_hyper(p, (u64) fhp->fh_export->ex_fsid);
@@ -379,7 +379,7 @@ nfs3svc_decode_writeargs(struct svc_rqst *rqstp, __be32 *p,
 	 */
 	hdr = (void*)p - rqstp->rq_arg.head[0].iov_base;
 	dlen = rqstp->rq_arg.head[0].iov_len + rqstp->rq_arg.page_len
-		- hdr;
+		+ rqstp->rq_arg.tail[0].iov_len - hdr;
 	/*
 	 * Round the length of the data which was specified up to
 	 * the next multiple of XDR units and then compare that

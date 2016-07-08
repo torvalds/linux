@@ -174,7 +174,7 @@ int drm_clients_info(struct seq_file *m, void *data)
 	/* dev->filelist is sorted youngest first, but we want to present
 	 * oldest first (i.e. kernel, servers, clients), so walk backwardss.
 	 */
-	mutex_lock(&dev->struct_mutex);
+	mutex_lock(&dev->filelist_mutex);
 	list_for_each_entry_reverse(priv, &dev->filelist, lhead) {
 		struct task_struct *task;
 
@@ -190,7 +190,7 @@ int drm_clients_info(struct seq_file *m, void *data)
 			   priv->magic);
 		rcu_read_unlock();
 	}
-	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&dev->filelist_mutex);
 	return 0;
 }
 

@@ -197,8 +197,8 @@ static int efivarfs_fill_super(struct super_block *sb, void *data, int silent)
 	efivarfs_sb = sb;
 
 	sb->s_maxbytes          = MAX_LFS_FILESIZE;
-	sb->s_blocksize         = PAGE_CACHE_SIZE;
-	sb->s_blocksize_bits    = PAGE_CACHE_SHIFT;
+	sb->s_blocksize         = PAGE_SIZE;
+	sb->s_blocksize_bits    = PAGE_SHIFT;
 	sb->s_magic             = EFIVARFS_MAGIC;
 	sb->s_op                = &efivarfs_ops;
 	sb->s_d_op		= &efivarfs_d_ops;
@@ -216,8 +216,7 @@ static int efivarfs_fill_super(struct super_block *sb, void *data, int silent)
 
 	INIT_LIST_HEAD(&efivarfs_list);
 
-	err = efivar_init(efivarfs_callback, (void *)sb, false,
-			  true, &efivarfs_list);
+	err = efivar_init(efivarfs_callback, (void *)sb, true, &efivarfs_list);
 	if (err)
 		__efivar_entry_iter(efivarfs_destroy, &efivarfs_list, NULL, NULL);
 

@@ -331,6 +331,14 @@ static int of_thermal_set_trip_temp(struct thermal_zone_device *tz, int trip,
 	if (trip >= data->ntrips || trip < 0)
 		return -EDOM;
 
+	if (data->ops->set_trip_temp) {
+		int ret;
+
+		ret = data->ops->set_trip_temp(data->sensor_data, trip, temp);
+		if (ret)
+			return ret;
+	}
+
 	/* thermal framework should take care of data->mask & (1 << trip) */
 	data->trips[trip].temperature = temp;
 
@@ -803,8 +811,8 @@ static int thermal_of_populate_trip(struct device_node *np,
  * otherwise, it returns a corresponding ERR_PTR(). Caller must
  * check the return value with help of IS_ERR() helper.
  */
-static struct __thermal_zone *
-thermal_of_build_thermal_zone(struct device_node *np)
+static struct __thermal_zone
+__init *thermal_of_build_thermal_zone(struct device_node *np)
 {
 	struct device_node *child = NULL, *gchild;
 	struct __thermal_zone *tz;
@@ -906,7 +914,7 @@ finish:
 	return tz;
 
 free_tbps:
-	for (i = 0; i < tz->num_tbps; i++)
+	for (i = i - 1; i >= 0; i--)
 		of_node_put(tz->tbps[i].cooling_device);
 	kfree(tz->tbps);
 free_trips:

@@ -680,6 +680,7 @@ struct iscsi_param *iscsi_find_param_from_key(
 	pr_err("Unable to locate key \"%s\".\n", key);
 	return NULL;
 }
+EXPORT_SYMBOL(iscsi_find_param_from_key);
 
 int iscsi_extract_key_value(char *textbuf, char **key, char **value)
 {

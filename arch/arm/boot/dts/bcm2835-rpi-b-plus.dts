@@ -29,3 +29,7 @@
 		brcm,function = <BCM2835_FSEL_ALT0>;
 	};
 };
+
+&hdmi {
+	hpd-gpios = <&gpio 46 GPIO_ACTIVE_LOW>;
+};

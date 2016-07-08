@@ -92,6 +92,22 @@ error:
 	return ret;
 }
 
+static int use_arch_timestamp;
+
+static inline uint64_t
+get_arch_timestamp(void)
+{
+#if defined(__i386__) || defined(__x86_64__)
+	unsigned int low, high;
+
+	asm volatile("rdtsc" : "=a" (low), "=d" (high));
+
+	return low | ((uint64_t)high) << 32;
+#else
+	return 0;
+#endif
+}
+
 #define NSEC_PER_SEC	1000000000
 static int perf_clk_id = CLOCK_MONOTONIC;
 
@@ -106,6 +122,9 @@ perf_get_timestamp(void)
 {
 	struct timespec ts;
 	int ret;
+
+	if (use_arch_timestamp)
+		return get_arch_timestamp();
 
 	ret = clock_gettime(perf_clk_id, &ts);
 	if (ret)
@@ -203,6 +222,17 @@ perf_close_marker_file(void)
 	munmap(marker_addr, pgsz);
 }
 
+static void
+init_arch_timestamp(void)
+{
+	char *str = getenv("JITDUMP_USE_ARCH_TIMESTAMP");
+
+	if (!str || !*str || !strcmp(str, "0"))
+		return;
+
+	use_arch_timestamp = 1;
+}
+
 void *jvmti_open(void)
 {
 	int pad_cnt;
@@ -211,11 +241,17 @@ void *jvmti_open(void)
 	int fd;
 	FILE *fp;
 
+	init_arch_timestamp();
+
 	/*
 	 * check if clockid is supported
 	 */
-	if (!perf_get_timestamp())
-		warnx("jvmti: kernel does not support %d clock id", perf_clk_id);
+	if (!perf_get_timestamp()) {
+		if (use_arch_timestamp)
+			warnx("jvmti: arch timestamp not supported");
+		else
+			warnx("jvmti: kernel does not support %d clock id", perf_clk_id);
+	}
 
 	memset(&header, 0, sizeof(header));
 
@@ -262,6 +298,9 @@ void *jvmti_open(void)
 	header.total_size += pad_cnt;
 
 	header.timestamp = perf_get_timestamp();
+
+	if (use_arch_timestamp)
+		header.flags |= JITDUMP_FLAGS_ARCH_TIMESTAMP;
 
 	if (!fwrite(&header, sizeof(header), 1, fp)) {
 		warn("jvmti: cannot write dumpfile header");

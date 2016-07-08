@@ -62,7 +62,7 @@ struct extent_map *alloc_extent_map(void)
 
 /**
  * free_extent_map - drop reference count of an extent_map
- * @em:		extent map being releasead
+ * @em:		extent map being released
  *
  * Drops the reference out on @em by one and free the structure
  * if the reference count hits zero.

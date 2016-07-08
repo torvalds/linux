@@ -611,51 +611,12 @@ static inline void omap_set_gpio_irqenable(struct gpio_bank *bank,
 		omap_disable_gpio_irqbank(bank, BIT(offset));
 }
 
-/*
- * Note that ENAWAKEUP needs to be enabled in GPIO_SYSCONFIG register.
- * 1510 does not seem to have a wake-up register. If JTAG is connected
- * to the target, system will wake up always on GPIO events. While
- * system is running all registered GPIO interrupts need to have wake-up
- * enabled. When system is suspended, only selected GPIO interrupts need
- * to have wake-up enabled.
- */
-static int omap_set_gpio_wakeup(struct gpio_bank *bank, unsigned offset,
-				int enable)
-{
-	u32 gpio_bit = BIT(offset);
-	unsigned long flags;
-
-	if (bank->non_wakeup_gpios & gpio_bit) {
-		dev_err(bank->chip.parent,
-			"Unable to modify wakeup on non-wakeup GPIO%d\n",
-			offset);
-		return -EINVAL;
-	}
-
-	raw_spin_lock_irqsave(&bank->lock, flags);
-	if (enable)
-		bank->context.wake_en |= gpio_bit;
-	else
-		bank->context.wake_en &= ~gpio_bit;
-
-	writel_relaxed(bank->context.wake_en, bank->base + bank->regs->wkup_en);
-	raw_spin_unlock_irqrestore(&bank->lock, flags);
-
-	return 0;
-}
-
 /* Use disable_irq_wake() and enable_irq_wake() functions from drivers */
 static int omap_gpio_wake_enable(struct irq_data *d, unsigned int enable)
 {
 	struct gpio_bank *bank = omap_irq_data_get_bank(d);
-	unsigned offset = d->hwirq;
-	int ret;
 
-	ret = omap_set_gpio_wakeup(bank, offset, enable);
-	if (!ret)
-		ret = irq_set_irq_wake(bank->irq, enable);
-
-	return ret;
+	return irq_set_irq_wake(bank->irq, enable);
 }
 
 static int omap_gpio_request(struct gpio_chip *chip, unsigned offset)
@@ -1187,6 +1148,7 @@ static int omap_gpio_probe(struct platform_device *pdev)
 	irqc->irq_bus_lock = omap_gpio_irq_bus_lock,
 	irqc->irq_bus_sync_unlock = gpio_irq_bus_sync_unlock,
 	irqc->name = dev_name(&pdev->dev);
+	irqc->flags = IRQCHIP_MASK_ON_SUSPEND;
 
 	bank->irq = platform_get_irq(pdev, 0);
 	if (bank->irq <= 0) {

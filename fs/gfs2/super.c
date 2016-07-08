@@ -1176,7 +1176,7 @@ static int gfs2_statfs_i(struct gfs2_sbd *sdp, struct gfs2_statfs_change_host *s
 
 static int gfs2_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
-	struct super_block *sb = d_inode(dentry)->i_sb;
+	struct super_block *sb = dentry->d_sb;
 	struct gfs2_sbd *sdp = sb->s_fs_info;
 	struct gfs2_statfs_change_host sc;
 	int error;

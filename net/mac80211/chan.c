@@ -343,8 +343,10 @@ static void ieee80211_change_chanctx(struct ieee80211_local *local,
 				     struct ieee80211_chanctx *ctx,
 				     const struct cfg80211_chan_def *chandef)
 {
-	if (cfg80211_chandef_identical(&ctx->conf.def, chandef))
+	if (cfg80211_chandef_identical(&ctx->conf.def, chandef)) {
+		ieee80211_recalc_chanctx_min_def(local, ctx);
 		return;
+	}
 
 	WARN_ON(!cfg80211_chandef_compatible(&ctx->conf.def, chandef));
 

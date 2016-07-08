@@ -35,6 +35,17 @@
 #include <linux/reservation.h>
 #include <linux/export.h>
 
+/**
+ * DOC: Reservation Object Overview
+ *
+ * The reservation object provides a mechanism to manage shared and
+ * exclusive fences associated with a buffer.  A reservation object
+ * can have attached one exclusive fence (normally associated with
+ * write operations) or N shared fences (read operations).  The RCU
+ * mechanism is used to protect read access to fences from locked
+ * write-side updates.
+ */
+
 DEFINE_WW_CLASS(reservation_ww_class);
 EXPORT_SYMBOL(reservation_ww_class);
 
@@ -43,9 +54,17 @@ EXPORT_SYMBOL(reservation_seqcount_class);
 
 const char reservation_seqcount_string[] = "reservation_seqcount";
 EXPORT_SYMBOL(reservation_seqcount_string);
-/*
- * Reserve space to add a shared fence to a reservation_object,
- * must be called with obj->lock held.
+
+/**
+ * reservation_object_reserve_shared - Reserve space to add a shared
+ * fence to a reservation_object.
+ * @obj: reservation object
+ *
+ * Should be called before reservation_object_add_shared_fence().  Must
+ * be called with obj->lock held.
+ *
+ * RETURNS
+ * Zero for success, or -errno
  */
 int reservation_object_reserve_shared(struct reservation_object *obj)
 {
@@ -180,7 +199,11 @@ done:
 		fence_put(old_fence);
 }
 
-/*
+/**
+ * reservation_object_add_shared_fence - Add a fence to a shared slot
+ * @obj: the reservation object
+ * @fence: the shared fence to add
+ *
  * Add a fence to a shared slot, obj->lock must be held, and
  * reservation_object_reserve_shared_fence has been called.
  */
@@ -200,6 +223,13 @@ void reservation_object_add_shared_fence(struct reservation_object *obj,
 }
 EXPORT_SYMBOL(reservation_object_add_shared_fence);
 
+/**
+ * reservation_object_add_excl_fence - Add an exclusive fence.
+ * @obj: the reservation object
+ * @fence: the shared fence to add
+ *
+ * Add a fence to the exclusive slot.  The obj->lock must be held.
+ */
 void reservation_object_add_excl_fence(struct reservation_object *obj,
 				       struct fence *fence)
 {
@@ -233,6 +263,18 @@ void reservation_object_add_excl_fence(struct reservation_object *obj,
 }
 EXPORT_SYMBOL(reservation_object_add_excl_fence);
 
+/**
+ * reservation_object_get_fences_rcu - Get an object's shared and exclusive
+ * fences without update side lock held
+ * @obj: the reservation object
+ * @pfence_excl: the returned exclusive fence (or NULL)
+ * @pshared_count: the number of shared fences returned
+ * @pshared: the array of shared fence ptrs returned (array is krealloc'd to
+ * the required size, and must be freed by caller)
+ *
+ * RETURNS
+ * Zero or -errno
+ */
 int reservation_object_get_fences_rcu(struct reservation_object *obj,
 				      struct fence **pfence_excl,
 				      unsigned *pshared_count,
@@ -319,6 +361,18 @@ unlock:
 }
 EXPORT_SYMBOL_GPL(reservation_object_get_fences_rcu);
 
+/**
+ * reservation_object_wait_timeout_rcu - Wait on reservation's objects
+ * shared and/or exclusive fences.
+ * @obj: the reservation object
+ * @wait_all: if true, wait on all fences, else wait on just exclusive fence
+ * @intr: if true, do interruptible wait
+ * @timeout: timeout value in jiffies or zero to return immediately
+ *
+ * RETURNS
+ * Returns -ERESTARTSYS if interrupted, 0 if the wait timed out, or
+ * greater than zer on success.
+ */
 long reservation_object_wait_timeout_rcu(struct reservation_object *obj,
 					 bool wait_all, bool intr,
 					 unsigned long timeout)
@@ -416,6 +470,16 @@ reservation_object_test_signaled_single(struct fence *passed_fence)
 	return ret;
 }
 
+/**
+ * reservation_object_test_signaled_rcu - Test if a reservation object's
+ * fences have been signaled.
+ * @obj: the reservation object
+ * @test_all: if true, test all fences, otherwise only test the exclusive
+ * fence
+ *
+ * RETURNS
+ * true if all fences signaled, else false
+ */
 bool reservation_object_test_signaled_rcu(struct reservation_object *obj,
 					  bool test_all)
 {

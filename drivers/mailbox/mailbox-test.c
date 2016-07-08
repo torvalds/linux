@@ -46,7 +46,6 @@ static ssize_t mbox_test_signal_write(struct file *filp,
 				       size_t count, loff_t *ppos)
 {
 	struct mbox_test_device *tdev = filp->private_data;
-	int ret;
 
 	if (!tdev->tx_channel) {
 		dev_err(tdev->dev, "Channel cannot do Tx\n");
@@ -60,17 +59,20 @@ static ssize_t mbox_test_signal_write(struct file *filp,
 		return -EINVAL;
 	}
 
-	tdev->signal = kzalloc(MBOX_MAX_SIG_LEN, GFP_KERNEL);
-	if (!tdev->signal)
-		return -ENOMEM;
+	/* Only allocate memory if we need to */
+	if (!tdev->signal) {
+		tdev->signal = kzalloc(MBOX_MAX_SIG_LEN, GFP_KERNEL);
+		if (!tdev->signal)
+			return -ENOMEM;
+	}
 
-	ret = copy_from_user(tdev->signal, userbuf, count);
-	if (ret) {
+	if (copy_from_user(tdev->signal, userbuf, count)) {
 		kfree(tdev->signal);
+		tdev->signal = NULL;
 		return -EFAULT;
 	}
 
-	return ret < 0 ? ret : count;
+	return count;
 }
 
 static const struct file_operations mbox_test_signal_ops = {

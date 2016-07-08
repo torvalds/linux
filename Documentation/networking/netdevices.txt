@@ -69,10 +69,9 @@ ndo_start_xmit:
 
 	When the driver sets NETIF_F_LLTX in dev->features this will be
 	called without holding netif_tx_lock. In this case the driver
-	has to lock by itself when needed. It is recommended to use a try lock
-	for this and return NETDEV_TX_LOCKED when the spin lock fails.
-	The locking there should also properly protect against 
-	set_rx_mode. Note that the use of NETIF_F_LLTX is deprecated.
+	has to lock by itself when needed.
+	The locking there should also properly protect against
+	set_rx_mode. WARNING: use of NETIF_F_LLTX is deprecated.
 	Don't use it for new drivers.
 
 	Context: Process with BHs disabled or BH (timer),
@@ -83,8 +82,6 @@ ndo_start_xmit:
 	o NETDEV_TX_BUSY Cannot transmit packet, try later 
 	  Usually a bug, means queue start/stop flow control is broken in
 	  the driver. Note: the driver must NOT put the skb in its DMA ring.
-	o NETDEV_TX_LOCKED Locking failed, please retry quickly.
-	  Only valid when NETIF_F_LLTX is set.
 
 ndo_tx_timeout:
 	Synchronization: netif_tx_lock spinlock; all TX queues frozen.

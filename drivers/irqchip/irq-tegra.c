@@ -235,7 +235,7 @@ static int tegra_ictlr_domain_translate(struct irq_domain *d,
 			return -EINVAL;
 
 		*hwirq = fwspec->param[1];
-		*type = fwspec->param[2];
+		*type = fwspec->param[2] & IRQ_TYPE_SENSE_MASK;
 		return 0;
 	}
 

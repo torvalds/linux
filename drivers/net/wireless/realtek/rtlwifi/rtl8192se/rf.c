@@ -208,8 +208,7 @@ static void _rtl92s_get_txpower_writeval_byregulatory(struct ieee80211_hw *hw,
 				 "Realtek regulatory, 40MHz, writeval = 0x%x\n",
 				 writeval);
 		} else {
-			if (rtlphy->pwrgroup_cnt == 1)
-				chnlgroup = 0;
+			chnlgroup = 0;
 
 			if (rtlphy->pwrgroup_cnt >= 3) {
 				if (chnl <= 3)

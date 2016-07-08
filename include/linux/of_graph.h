@@ -15,6 +15,7 @@
 #define __LINUX_OF_GRAPH_H
 
 #include <linux/types.h>
+#include <linux/errno.h>
 
 /**
  * struct of_endpoint - the OF graph endpoint data structure

@@ -1227,7 +1227,7 @@ static void fealnx_tx_timeout(struct net_device *dev)
 
 	spin_unlock_irqrestore(&np->lock, flags);
 
-	dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(dev); /* prevent tx timeout */
 	dev->stats.tx_errors++;
 	netif_wake_queue(dev); /* or .._start_.. ?? */
 }

@@ -349,7 +349,7 @@ int videobuf_dma_free(struct videobuf_dmabuf *dma)
 
 	if (dma->pages) {
 		for (i = 0; i < dma->nr_pages; i++)
-			page_cache_release(dma->pages[i]);
+			put_page(dma->pages[i]);
 		kfree(dma->pages);
 		dma->pages = NULL;
 	}

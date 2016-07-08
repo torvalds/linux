@@ -29,7 +29,13 @@ static void thermal_zone_trip_update(struct thermal_zone_device *tz, int trip)
 	struct thermal_instance *instance;
 
 	tz->ops->get_trip_temp(tz, trip, &trip_temp);
-	tz->ops->get_trip_hyst(tz, trip, &trip_hyst);
+
+	if (!tz->ops->get_trip_hyst) {
+		pr_warn_once("Undefined get_trip_hyst for thermal zone %s - "
+				"running with default hysteresis zero\n", tz->type);
+		trip_hyst = 0;
+	} else
+		tz->ops->get_trip_hyst(tz, trip, &trip_hyst);
 
 	dev_dbg(&tz->device, "Trip%d[temp=%d]:temp=%d:hyst=%d\n",
 				trip, trip_temp, tz->temperature,

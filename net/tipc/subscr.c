@@ -302,7 +302,7 @@ static void tipc_subscrp_subscribe(struct net *net, struct tipc_subscr *s,
 }
 
 /* Handle one termination request for the subscriber */
-static void tipc_subscrb_shutdown_cb(int conid, void *usr_data)
+static void tipc_subscrb_release_cb(int conid, void *usr_data)
 {
 	tipc_subscrb_delete((struct tipc_subscriber *)usr_data);
 }
@@ -326,8 +326,7 @@ static void tipc_subscrb_rcv_cb(struct net *net, int conid,
 		return tipc_subscrp_cancel(s, subscriber);
 	}
 
-	if (s)
-		tipc_subscrp_subscribe(net, s, subscriber, swap);
+	tipc_subscrp_subscribe(net, s, subscriber, swap);
 }
 
 /* Handle one request to establish a new subscriber */
@@ -365,7 +364,7 @@ int tipc_topsrv_start(struct net *net)
 	topsrv->max_rcvbuf_size		= sizeof(struct tipc_subscr);
 	topsrv->tipc_conn_recvmsg	= tipc_subscrb_rcv_cb;
 	topsrv->tipc_conn_new		= tipc_subscrb_connect_cb;
-	topsrv->tipc_conn_shutdown	= tipc_subscrb_shutdown_cb;
+	topsrv->tipc_conn_release	= tipc_subscrb_release_cb;
 
 	strncpy(topsrv->name, name, strlen(name) + 1);
 	tn->topsrv = topsrv;

@@ -168,6 +168,7 @@ struct Qdisc_class_ops {
 
 	/* Filter manipulation */
 	struct tcf_proto __rcu ** (*tcf_chain)(struct Qdisc *, unsigned long);
+	bool			(*tcf_cl_offload)(u32 classid);
 	unsigned long		(*bind_tcf)(struct Qdisc *, unsigned long,
 					u32 classid);
 	void			(*unbind_tcf)(struct Qdisc *, unsigned long);
@@ -527,11 +528,27 @@ static inline bool qdisc_is_percpu_stats(const struct Qdisc *q)
 	return q->flags & TCQ_F_CPUSTATS;
 }
 
+static inline void _bstats_update(struct gnet_stats_basic_packed *bstats,
+				  __u64 bytes, __u32 packets)
+{
+	bstats->bytes += bytes;
+	bstats->packets += packets;
+}
+
 static inline void bstats_update(struct gnet_stats_basic_packed *bstats,
 				 const struct sk_buff *skb)
 {
-	bstats->bytes += qdisc_pkt_len(skb);
-	bstats->packets += skb_is_gso(skb) ? skb_shinfo(skb)->gso_segs : 1;
+	_bstats_update(bstats,
+		       qdisc_pkt_len(skb),
+		       skb_is_gso(skb) ? skb_shinfo(skb)->gso_segs : 1);
+}
+
+static inline void _bstats_cpu_update(struct gnet_stats_basic_cpu *bstats,
+				      __u64 bytes, __u32 packets)
+{
+	u64_stats_update_begin(&bstats->syncp);
+	_bstats_update(&bstats->bstats, bytes, packets);
+	u64_stats_update_end(&bstats->syncp);
 }
 
 static inline void bstats_cpu_update(struct gnet_stats_basic_cpu *bstats,
@@ -675,9 +692,11 @@ static inline struct sk_buff *qdisc_peek_dequeued(struct Qdisc *sch)
 	/* we can reuse ->gso_skb because peek isn't called for root qdiscs */
 	if (!sch->gso_skb) {
 		sch->gso_skb = sch->dequeue(sch);
-		if (sch->gso_skb)
+		if (sch->gso_skb) {
 			/* it's still part of the queue */
+			qdisc_qstats_backlog_inc(sch, sch->gso_skb);
 			sch->q.qlen++;
+		}
 	}
 
 	return sch->gso_skb;
@@ -690,6 +709,7 @@ static inline struct sk_buff *qdisc_dequeue_peeked(struct Qdisc *sch)
 
 	if (skb) {
 		sch->gso_skb = NULL;
+		qdisc_qstats_backlog_dec(sch, skb);
 		sch->q.qlen--;
 	} else {
 		skb = sch->dequeue(sch);

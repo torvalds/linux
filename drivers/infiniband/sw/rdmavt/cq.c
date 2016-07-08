@@ -525,6 +525,7 @@ int rvt_driver_cq_init(struct rvt_dev_info *rdi)
 		return PTR_ERR(task);
 	}
 
+	set_user_nice(task, MIN_NICE);
 	cpu = cpumask_first(cpumask_of_node(rdi->dparms.node));
 	kthread_bind(task, cpu);
 	wake_up_process(task);

@@ -1,7 +1,7 @@
 /*
  *  Ralink SoC register definitions
  *
- *  Copyright (C) 2013 John Crispin <blogic@openwrt.org>
+ *  Copyright (C) 2013 John Crispin <john@phrozen.org>
  *  Copyright (C) 2008-2010 Gabor Juhos <juhosg@openwrt.org>
  *  Copyright (C) 2008 Imre Kaloz <kaloz@openwrt.org>
  *

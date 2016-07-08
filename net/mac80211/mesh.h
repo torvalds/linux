@@ -21,8 +21,6 @@
 /**
  * enum mesh_path_flags - mac80211 mesh path flags
  *
- *
- *
  * @MESH_PATH_ACTIVE: the mesh path can be used for forwarding
  * @MESH_PATH_RESOLVING: the discovery process is running for this mesh path
  * @MESH_PATH_SN_VALID: the mesh path contains a valid destination sequence
@@ -32,6 +30,8 @@
  * @MESH_PATH_RESOLVED: the mesh path can has been resolved
  * @MESH_PATH_REQ_QUEUED: there is an unsent path request for this destination
  *	already queued up, waiting for the discovery process to start.
+ * @MESH_PATH_DELETED: the mesh path has been deleted and should no longer
+ *	be used
  *
  * MESH_PATH_RESOLVED is used by the mesh path timer to
  * decide when to stop or cancel the mesh path discovery.
@@ -43,6 +43,7 @@ enum mesh_path_flags {
 	MESH_PATH_FIXED	=	BIT(3),
 	MESH_PATH_RESOLVED =	BIT(4),
 	MESH_PATH_REQ_QUEUED =	BIT(5),
+	MESH_PATH_DELETED =	BIT(6),
 };
 
 /**
@@ -51,10 +52,6 @@ enum mesh_path_flags {
  *
  *
  * @MESH_WORK_HOUSEKEEPING: run the periodic mesh housekeeping tasks
- * @MESH_WORK_GROW_MPATH_TABLE: the mesh path table is full and needs
- * to grow.
- * @MESH_WORK_GROW_MPP_TABLE: the mesh portals table is full and needs to
- * grow
  * @MESH_WORK_ROOT: the mesh root station needs to send a frame
  * @MESH_WORK_DRIFT_ADJUST: time to compensate for clock drift relative to other
  * mesh nodes
@@ -62,8 +59,6 @@ enum mesh_path_flags {
  */
 enum mesh_deferred_task_flags {
 	MESH_WORK_HOUSEKEEPING,
-	MESH_WORK_GROW_MPATH_TABLE,
-	MESH_WORK_GROW_MPP_TABLE,
 	MESH_WORK_ROOT,
 	MESH_WORK_DRIFT_ADJUST,
 	MESH_WORK_MBSS_CHANGED,
@@ -73,12 +68,16 @@ enum mesh_deferred_task_flags {
  * struct mesh_path - mac80211 mesh path structure
  *
  * @dst: mesh path destination mac address
+ * @mpp: mesh proxy mac address
+ * @rhash: rhashtable list pointer
+ * @gate_list: list pointer for known gates list
  * @sdata: mesh subif
  * @next_hop: mesh neighbor to which frames for this destination will be
  *	forwarded
  * @timer: mesh path discovery timer
  * @frame_queue: pending queue for frames sent to this destination while the
  *	path is unresolved
+ * @rcu: rcu head for freeing mesh path
  * @sn: target sequence number
  * @metric: current metric to this destination
  * @hop_count: hops to destination
@@ -97,14 +96,16 @@ enum mesh_deferred_task_flags {
  * @is_gate: the destination station of this path is a mesh gate
  *
  *
- * The combination of dst and sdata is unique in the mesh path table. Since the
- * next_hop STA is only protected by RCU as well, deleting the STA must also
- * remove/substitute the mesh_path structure and wait until that is no longer
- * reachable before destroying the STA completely.
+ * The dst address is unique in the mesh path table. Since the mesh_path is
+ * protected by RCU, deleting the next_hop STA must remove / substitute the
+ * mesh_path structure and wait until that is no longer reachable before
+ * destroying the STA completely.
  */
 struct mesh_path {
 	u8 dst[ETH_ALEN];
 	u8 mpp[ETH_ALEN];	/* used for MPP or MAP */
+	struct rhash_head rhash;
+	struct hlist_node gate_list;
 	struct ieee80211_sub_if_data *sdata;
 	struct sta_info __rcu *next_hop;
 	struct timer_list timer;
@@ -128,34 +129,17 @@ struct mesh_path {
 /**
  * struct mesh_table
  *
- * @hash_buckets: array of hash buckets of the table
- * @hashwlock: array of locks to protect write operations, one per bucket
- * @hash_mask: 2^size_order - 1, used to compute hash idx
- * @hash_rnd: random value used for hash computations
- * @entries: number of entries in the table
- * @free_node: function to free nodes of the table
- * @copy_node: function to copy nodes of the table
- * @size_order: determines size of the table, there will be 2^size_order hash
- *	buckets
  * @known_gates: list of known mesh gates and their mpaths by the station. The
  * gate's mpath may or may not be resolved and active.
- *
- * rcu_head: RCU head to free the table
+ * @gates_lock: protects updates to known_gates
+ * @rhead: the rhashtable containing struct mesh_paths, keyed by dest addr
+ * @entries: number of entries in the table
  */
 struct mesh_table {
-	/* Number of buckets will be 2^N */
-	struct hlist_head *hash_buckets;
-	spinlock_t *hashwlock;		/* One per bucket, for add/del */
-	unsigned int hash_mask;		/* (2^size_order) - 1 */
-	__u32 hash_rnd;			/* Used for hash generation */
-	atomic_t entries;		/* Up to MAX_MESH_NEIGHBOURS */
-	void (*free_node) (struct hlist_node *p, bool free_leafs);
-	int (*copy_node) (struct hlist_node *p, struct mesh_table *newtbl);
-	int size_order;
-	struct hlist_head *known_gates;
+	struct hlist_head known_gates;
 	spinlock_t gates_lock;
-
-	struct rcu_head rcu_head;
+	struct rhashtable rhead;
+	atomic_t entries;		/* Up to MAX_MESH_NEIGHBOURS */
 };
 
 /* Recent multicast cache */
@@ -170,20 +154,21 @@ struct mesh_table {
  * @seqnum: mesh sequence number of the frame
  * @exp_time: expiration time of the entry, in jiffies
  * @sa: source address of the frame
+ * @list: hashtable list pointer
  *
  * The Recent Multicast Cache keeps track of the latest multicast frames that
  * have been received by a mesh interface and discards received multicast frames
  * that are found in the cache.
  */
 struct rmc_entry {
-	struct list_head list;
-	u32 seqnum;
+	struct hlist_node list;
 	unsigned long exp_time;
+	u32 seqnum;
 	u8 sa[ETH_ALEN];
 };
 
 struct mesh_rmc {
-	struct list_head bucket[RMC_BUCKETS];
+	struct hlist_head bucket[RMC_BUCKETS];
 	u32 idx_mask;
 };
 
@@ -234,6 +219,7 @@ void ieee80211s_init(void);
 void ieee80211s_update_metric(struct ieee80211_local *local,
 			      struct sta_info *sta, struct sk_buff *skb);
 void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata);
+void ieee80211_mesh_teardown_sdata(struct ieee80211_sub_if_data *sdata);
 int ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata);
 void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata);
 void ieee80211_mesh_root_setup(struct ieee80211_if_mesh *ifmsh);
@@ -299,9 +285,6 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata,
 void mesh_sta_cleanup(struct sta_info *sta);
 
 /* Private interfaces */
-/* Mesh tables */
-void mesh_mpath_table_grow(void);
-void mesh_mpp_table_grow(void);
 /* Mesh paths */
 int mesh_path_error_tx(struct ieee80211_sub_if_data *sdata,
 		       u8 ttl, const u8 *target, u32 target_sn,
@@ -309,8 +292,8 @@ int mesh_path_error_tx(struct ieee80211_sub_if_data *sdata,
 void mesh_path_assign_nexthop(struct mesh_path *mpath, struct sta_info *sta);
 void mesh_path_flush_pending(struct mesh_path *mpath);
 void mesh_path_tx_pending(struct mesh_path *mpath);
-int mesh_pathtbl_init(void);
-void mesh_pathtbl_unregister(void);
+int mesh_pathtbl_init(struct ieee80211_sub_if_data *sdata);
+void mesh_pathtbl_unregister(struct ieee80211_sub_if_data *sdata);
 int mesh_path_del(struct ieee80211_sub_if_data *sdata, const u8 *addr);
 void mesh_path_timer(unsigned long data);
 void mesh_path_flush_by_nexthop(struct sta_info *sta);
@@ -319,8 +302,6 @@ void mesh_path_discard_frame(struct ieee80211_sub_if_data *sdata,
 void mesh_path_tx_root_frame(struct ieee80211_sub_if_data *sdata);
 
 bool mesh_action_is_path_sel(struct ieee80211_mgmt *mgmt);
-extern int mesh_paths_generation;
-extern int mpp_paths_generation;
 
 #ifdef CONFIG_MAC80211_MESH
 static inline

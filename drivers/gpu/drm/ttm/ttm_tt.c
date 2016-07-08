@@ -311,7 +311,7 @@ int ttm_tt_swapin(struct ttm_tt *ttm)
 			goto out_err;
 
 		copy_highpage(to_page, from_page);
-		page_cache_release(from_page);
+		put_page(from_page);
 	}
 
 	if (!(ttm->page_flags & TTM_PAGE_FLAG_PERSISTENT_SWAP))
@@ -361,7 +361,7 @@ int ttm_tt_swapout(struct ttm_tt *ttm, struct file *persistent_swap_storage)
 		copy_highpage(to_page, from_page);
 		set_page_dirty(to_page);
 		mark_page_accessed(to_page);
-		page_cache_release(to_page);
+		put_page(to_page);
 	}
 
 	ttm_tt_unpopulate(ttm);

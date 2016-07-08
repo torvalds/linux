@@ -68,7 +68,7 @@ config MVNETA
 
 config MVNETA_BM
 	tristate
-	default y if MVNETA=y && MVNETA_BM_ENABLE
+	default y if MVNETA=y && MVNETA_BM_ENABLE!=n
 	default MVNETA_BM_ENABLE
 	select HWBM
 	help

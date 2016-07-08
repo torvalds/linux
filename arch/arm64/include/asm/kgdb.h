@@ -38,25 +38,54 @@ extern int kgdb_fault_expected;
 #endif /* !__ASSEMBLY__ */
 
 /*
- * gdb is expecting the following registers layout.
+ * gdb remote procotol (well most versions of it) expects the following
+ * register layout.
  *
  * General purpose regs:
  *     r0-r30: 64 bit
  *     sp,pc : 64 bit
- *     pstate  : 64 bit
- *     Total: 34
+ *     pstate  : 32 bit
+ *     Total: 33 + 1
  * FPU regs:
  *     f0-f31: 128 bit
- *     Total: 32
- * Extra regs
  *     fpsr & fpcr: 32 bit
- *     Total: 2
+ *     Total: 32 + 2
  *
+ * To expand a little on the "most versions of it"... when the gdb remote
+ * protocol for AArch64 was developed it depended on a statement in the
+ * Architecture Reference Manual that claimed "SPSR_ELx is a 32-bit register".
+ * and, as a result, allocated only 32-bits for the PSTATE in the remote
+ * protocol. In fact this statement is still present in ARM DDI 0487A.i.
+ *
+ * Unfortunately "is a 32-bit register" has a very special meaning for
+ * system registers. It means that "the upper bits, bits[63:32], are
+ * RES0.". RES0 is heavily used in the ARM architecture documents as a
+ * way to leave space for future architecture changes. So to translate a
+ * little for people who don't spend their spare time reading ARM architecture
+ * manuals, what "is a 32-bit register" actually means in this context is
+ * "is a 64-bit register but one with no meaning allocated to any of the
+ * upper 32-bits... *yet*".
+ *
+ * Perhaps then we should not be surprised that this has led to some
+ * confusion. Specifically a patch, influenced by the above translation,
+ * that extended PSTATE to 64-bit was accepted into gdb-7.7 but the patch
+ * was reverted in gdb-7.8.1 and all later releases, when this was
+ * discovered to be an undocumented protocol change.
+ *
+ * So... it is *not* wrong for us to only allocate 32-bits to PSTATE
+ * here even though the kernel itself allocates 64-bits for the same
+ * state. That is because this bit of code tells the kernel how the gdb
+ * remote protocol (well most versions of it) describes the register state.
+ *
+ * Note that if you are using one of the versions of gdb that supports
+ * the gdb-7.7 version of the protocol you cannot use kgdb directly
+ * without providing a custom register description (gdb can load new
+ * protocol descriptions at runtime).
  */
 
-#define _GP_REGS		34
+#define _GP_REGS		33
 #define _FP_REGS		32
-#define _EXTRA_REGS		2
+#define _EXTRA_REGS		3
 /*
  * general purpose registers size in bytes.
  * pstate is only 4 bytes. subtract 4 bytes

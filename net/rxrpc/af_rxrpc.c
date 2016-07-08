@@ -806,6 +806,12 @@ static int __init af_rxrpc_init(void)
 		goto error_work_queue;
 	}
 
+	ret = rxrpc_init_security();
+	if (ret < 0) {
+		printk(KERN_CRIT "RxRPC: Cannot initialise security\n");
+		goto error_security;
+	}
+
 	ret = proto_register(&rxrpc_proto, 1);
 	if (ret < 0) {
 		printk(KERN_CRIT "RxRPC: Cannot register protocol\n");
@@ -853,6 +859,8 @@ error_sock:
 	proto_unregister(&rxrpc_proto);
 error_proto:
 	destroy_workqueue(rxrpc_workqueue);
+error_security:
+	rxrpc_exit_security();
 error_work_queue:
 	kmem_cache_destroy(rxrpc_call_jar);
 error_call_jar:
@@ -883,6 +891,7 @@ static void __exit af_rxrpc_exit(void)
 	remove_proc_entry("rxrpc_conns", init_net.proc_net);
 	remove_proc_entry("rxrpc_calls", init_net.proc_net);
 	destroy_workqueue(rxrpc_workqueue);
+	rxrpc_exit_security();
 	kmem_cache_destroy(rxrpc_call_jar);
 	_leave("");
 }
