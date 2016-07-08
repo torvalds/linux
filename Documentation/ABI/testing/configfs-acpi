@@ -1,0 +1,7 @@
+What:		/config/acpi
+Date:		July 2016
+KernelVersion:	4.8
+Contact:	linux-acpi@vger.kernel.org
+Description:
+		This represents the ACPI subsystem entry point directory. It
+		contains sub-groups corresponding to ACPI configurable options.
