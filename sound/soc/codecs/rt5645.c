@@ -3543,6 +3543,7 @@ MODULE_DEVICE_TABLE(i2c, rt5645_i2c_id);
 static const struct acpi_device_id rt5645_acpi_match[] = {
 	{ "10EC5645", 0 },
 	{ "10EC5650", 0 },
+	{ "10EC5640", 0 },
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, rt5645_acpi_match);
@@ -3571,6 +3572,12 @@ static const struct dmi_system_id dmi_platform_intel_braswell[] = {
 		.ident = "Google Setzer",
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Setzer"),
+		},
+	},
+	{
+		.ident = "Microsoft Surface 3",
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "Surface 3"),
 		},
 	},
 	{ }
