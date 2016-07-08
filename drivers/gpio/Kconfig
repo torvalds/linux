@@ -1040,6 +1040,13 @@ config GPIO_INTEL_MID
 	help
 	  Say Y here to support Intel MID GPIO.
 
+config GPIO_MERRIFIELD
+	tristate "Intel Merrifield GPIO support"
+	depends on X86_INTEL_MID
+	select GPIOLIB_IRQCHIP
+	help
+	  Say Y here to support Intel Merrifield GPIO.
+
 config GPIO_ML_IOH
 	tristate "OKI SEMICONDUCTOR ML7213 IOH GPIO support"
 	select GENERIC_IRQ_CHIP
