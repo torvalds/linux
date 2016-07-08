@@ -98,7 +98,6 @@
 #define PCIE_BUS_CLK                10000
 #define TCLK                        (PCIE_BUS_CLK / 10)
 
-#define CEILING_UCHAR(double) ((double-(uint8_t)(double)) > 0 ? (uint8_t)(double+1) : (uint8_t)(double))
 
 static const uint16_t polaris10_clock_stretcher_lookup_table[2][4] =
 { {600, 1050, 3, 0}, {600, 1050, 6, 1} };
@@ -733,7 +732,7 @@ static int polaris10_populate_smc_mvdd_table(struct pp_hwmgr *hwmgr,
 			table->Smio[level] |=
 				data->mvdd_voltage_table.entries[level].smio_low;
 		}
-		table->SmioMask2 = data->vddci_voltage_table.mask_low;
+		table->SmioMask2 = data->mvdd_voltage_table.mask_low;
 
 		table->MvddLevelCount = (uint32_t) PP_HOST_TO_SMC_UL(count);
 	}
@@ -1807,27 +1806,25 @@ static int polaris10_populate_clock_stretcher_data_table(struct pp_hwmgr *hwmgr)
 
 	ro = efuse * (max -min)/255 + min;
 
-	/* Populate Sclk_CKS_masterEn0_7 and Sclk_voltageOffset
-	 * there is a little difference in calculating
-	 * volt_with_cks with windows */
+	/* Populate Sclk_CKS_masterEn0_7 and Sclk_voltageOffset */
 	for (i = 0; i < sclk_table->count; i++) {
 		data->smc_state_table.Sclk_CKS_masterEn0_7 |=
 				sclk_table->entries[i].cks_enable << i;
 		if (hwmgr->chip_id == CHIP_POLARIS10) {
-			volt_without_cks = (uint32_t)((2753594000 + (sclk_table->entries[i].clk/100) * 136418 -(ro - 70) * 1000000) / \
+			volt_without_cks = (uint32_t)((2753594000U + (sclk_table->entries[i].clk/100) * 136418 -(ro - 70) * 1000000) / \
 						(2424180 - (sclk_table->entries[i].clk/100) * 1132925/1000));
-			volt_with_cks = (uint32_t)((279720200 + sclk_table->entries[i].clk * 3232 - (ro - 65) * 100000000) / \
-					(252248000 - sclk_table->entries[i].clk/100 * 115764));
+			volt_with_cks = (uint32_t)((2797202000U + sclk_table->entries[i].clk/100 * 3232 - (ro - 65) * 1000000) / \
+					(2522480 - sclk_table->entries[i].clk/100 * 115764/100));
 		} else {
-			volt_without_cks = (uint32_t)((2416794800 + (sclk_table->entries[i].clk/100) * 1476925/10 -(ro - 50) * 1000000) / \
-						(2625416 - (sclk_table->entries[i].clk/100) * 12586807/10000));
-			volt_with_cks = (uint32_t)((2999656000 + sclk_table->entries[i].clk * 392803/100 - (ro - 44) * 1000000) / \
-					(3422454 - sclk_table->entries[i].clk/100 * 18886376/10000));
+			volt_without_cks = (uint32_t)((2416794800U + (sclk_table->entries[i].clk/100) * 1476925/10 -(ro - 50) * 1000000) / \
+						(2625416 - (sclk_table->entries[i].clk/100) * (12586807/10000)));
+			volt_with_cks = (uint32_t)((2999656000U - sclk_table->entries[i].clk/100 * 392803 - (ro - 44) * 1000000) / \
+					(3422454 - sclk_table->entries[i].clk/100 * (18886376/10000)));
 		}
 
 		if (volt_without_cks >= volt_with_cks)
-			volt_offset = (uint8_t)CEILING_UCHAR((volt_without_cks - volt_with_cks +
-					sclk_table->entries[i].cks_voffset) * 100 / 625);
+			volt_offset = (uint8_t)(((volt_without_cks - volt_with_cks +
+					sclk_table->entries[i].cks_voffset) * 100 + 624) / 625);
 
 		data->smc_state_table.Sclk_voltageOffset[i] = volt_offset;
 	}
@@ -2685,7 +2682,7 @@ static int polaris10_get_evv_voltages(struct pp_hwmgr *hwmgr)
 {
 	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	uint16_t vv_id;
-	uint16_t vddc = 0;
+	uint32_t vddc = 0;
 	uint16_t i, j;
 	uint32_t sclk = 0;
 	struct phm_ppt_v1_information *table_info =
@@ -2716,8 +2713,9 @@ static int polaris10_get_evv_voltages(struct pp_hwmgr *hwmgr)
 						continue);
 
 
-			/* need to make sure vddc is less than 2v or else, it could burn the ASIC. */
-			PP_ASSERT_WITH_CODE((vddc < 2000 && vddc != 0),
+			/* need to make sure vddc is less than 2v or else, it could burn the ASIC.
+			 * real voltage level in unit of 0.01mv */
+			PP_ASSERT_WITH_CODE((vddc < 200000 && vddc != 0),
 					"Invalid VDDC value", result = -EINVAL;);
 
 			/* the voltage should not be zero nor equal to leakage ID */
