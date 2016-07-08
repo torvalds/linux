@@ -30,6 +30,7 @@
 #include <asm/insn.h>
 #include <asm/uaccess.h>
 #include <asm/irq.h>
+#include <asm-generic/sections.h>
 
 #include "decode-insn.h"
 
@@ -517,6 +518,31 @@ int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 	       MIN_STACK_SIZE(stack_addr));
 	preempt_enable_no_resched();
 	return 1;
+}
+
+bool arch_within_kprobe_blacklist(unsigned long addr)
+{
+	extern char __idmap_text_start[], __idmap_text_end[];
+	extern char __hyp_idmap_text_start[], __hyp_idmap_text_end[];
+
+	if ((addr >= (unsigned long)__kprobes_text_start &&
+	    addr < (unsigned long)__kprobes_text_end) ||
+	    (addr >= (unsigned long)__entry_text_start &&
+	    addr < (unsigned long)__entry_text_end) ||
+	    (addr >= (unsigned long)__idmap_text_start &&
+	    addr < (unsigned long)__idmap_text_end) ||
+	    !!search_exception_tables(addr))
+		return true;
+
+	if (!is_kernel_in_hyp_mode()) {
+		if ((addr >= (unsigned long)__hyp_text_start &&
+		    addr < (unsigned long)__hyp_text_end) ||
+		    (addr >= (unsigned long)__hyp_idmap_text_start &&
+		    addr < (unsigned long)__hyp_idmap_text_end))
+			return true;
+	}
+
+	return false;
 }
 
 int __init arch_init_kprobes(void)
