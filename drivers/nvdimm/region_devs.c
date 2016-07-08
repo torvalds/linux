@@ -14,11 +14,18 @@
 #include <linux/highmem.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/pmem.h>
 #include <linux/sort.h>
 #include <linux/io.h>
 #include <linux/nd.h>
 #include "nd-core.h"
 #include "nd.h"
+
+/*
+ * For readq() and writeq() on 32-bit builds, the hi-lo, lo-hi order is
+ * irrelevant.
+ */
+#include <linux/io-64-nonatomic-hi-lo.h>
 
 static DEFINE_IDA(region_ida);
 
@@ -863,6 +870,60 @@ struct nd_region *nvdimm_volatile_region_create(struct nvdimm_bus *nvdimm_bus,
 			__func__);
 }
 EXPORT_SYMBOL_GPL(nvdimm_volatile_region_create);
+
+/**
+ * nvdimm_flush - flush any posted write queues between the cpu and pmem media
+ * @nd_region: blk or interleaved pmem region
+ */
+void nvdimm_flush(struct nd_region *nd_region)
+{
+	struct nd_region_data *ndrd = dev_get_drvdata(&nd_region->dev);
+	int i;
+
+	/*
+	 * The first wmb() is needed to 'sfence' all previous writes
+	 * such that they are architecturally visible for the platform
+	 * buffer flush.  Note that we've already arranged for pmem
+	 * writes to avoid the cache via arch_memcpy_to_pmem().  The
+	 * final wmb() ensures ordering for the NVDIMM flush write.
+	 */
+	wmb();
+	for (i = 0; i < nd_region->ndr_mappings; i++)
+		if (ndrd->flush_wpq[i][0])
+			writeq(1, ndrd->flush_wpq[i][0]);
+	wmb();
+}
+EXPORT_SYMBOL_GPL(nvdimm_flush);
+
+/**
+ * nvdimm_has_flush - determine write flushing requirements
+ * @nd_region: blk or interleaved pmem region
+ *
+ * Returns 1 if writes require flushing
+ * Returns 0 if writes do not require flushing
+ * Returns -ENXIO if flushing capability can not be determined
+ */
+int nvdimm_has_flush(struct nd_region *nd_region)
+{
+	struct nd_region_data *ndrd = dev_get_drvdata(&nd_region->dev);
+	int i;
+
+	/* no nvdimm == flushing capability unknown */
+	if (nd_region->ndr_mappings == 0)
+		return -ENXIO;
+
+	for (i = 0; i < nd_region->ndr_mappings; i++)
+		/* flush hints present, flushing required */
+		if (ndrd->flush_wpq[i][0])
+			return 1;
+
+	/*
+	 * The platform defines dimm devices without hints, assume
+	 * platform persistence mechanism like ADR
+	 */
+	return 0;
+}
+EXPORT_SYMBOL_GPL(nvdimm_has_flush);
 
 void __exit nd_region_devs_exit(void)
 {

@@ -1393,24 +1393,6 @@ static u64 to_interleave_offset(u64 offset, struct nfit_blk_mmio *mmio)
 	return mmio->base_offset + line_offset + table_offset + sub_line_offset;
 }
 
-static void wmb_blk(struct nfit_blk *nfit_blk)
-{
-
-	if (nfit_blk->nvdimm_flush) {
-		/*
-		 * The first wmb() is needed to 'sfence' all previous writes
-		 * such that they are architecturally visible for the platform
-		 * buffer flush.  Note that we've already arranged for pmem
-		 * writes to avoid the cache via arch_memcpy_to_pmem().  The
-		 * final wmb() ensures ordering for the NVDIMM flush write.
-		 */
-		wmb();
-		writeq(1, nfit_blk->nvdimm_flush);
-		wmb();
-	} else
-		wmb_pmem();
-}
-
 static u32 read_blk_stat(struct nfit_blk *nfit_blk, unsigned int bw)
 {
 	struct nfit_blk_mmio *mmio = &nfit_blk->mmio[DCR];
@@ -1445,7 +1427,7 @@ static void write_blk_ctl(struct nfit_blk *nfit_blk, unsigned int bw,
 		offset = to_interleave_offset(offset, mmio);
 
 	writeq(cmd, mmio->addr.base + offset);
-	wmb_blk(nfit_blk);
+	nvdimm_flush(nfit_blk->nd_region);
 
 	if (nfit_blk->dimm_flags & NFIT_BLK_DCR_LATCH)
 		readq(mmio->addr.base + offset);
@@ -1496,7 +1478,7 @@ static int acpi_nfit_blk_single_io(struct nfit_blk *nfit_blk,
 	}
 
 	if (rw)
-		wmb_blk(nfit_blk);
+		nvdimm_flush(nfit_blk->nd_region);
 
 	rc = read_blk_stat(nfit_blk, lane) ? -EIO : 0;
 	return rc;
@@ -1570,7 +1552,6 @@ static int acpi_nfit_blk_region_enable(struct nvdimm_bus *nvdimm_bus,
 {
 	struct nvdimm_bus_descriptor *nd_desc = to_nd_desc(nvdimm_bus);
 	struct nd_blk_region *ndbr = to_nd_blk_region(dev);
-	struct nfit_flush *nfit_flush;
 	struct nfit_blk_mmio *mmio;
 	struct nfit_blk *nfit_blk;
 	struct nfit_mem *nfit_mem;
@@ -1645,15 +1626,7 @@ static int acpi_nfit_blk_region_enable(struct nvdimm_bus *nvdimm_bus,
 		return rc;
 	}
 
-	nfit_flush = nfit_mem->nfit_flush;
-	if (nfit_flush && nfit_flush->flush->hint_count != 0) {
-		nfit_blk->nvdimm_flush = devm_nvdimm_ioremap(dev,
-				nfit_flush->flush->hint_address[0], 8);
-		if (!nfit_blk->nvdimm_flush)
-			return -ENOMEM;
-	}
-
-	if (!arch_has_wmb_pmem() && !nfit_blk->nvdimm_flush)
+	if (nvdimm_has_flush(nfit_blk->nd_region) < 0)
 		dev_warn(dev, "unable to guarantee persistence of writes\n");
 
 	if (mmio->line_size == 0)

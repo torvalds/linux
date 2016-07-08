@@ -166,4 +166,6 @@ struct nvdimm *nd_blk_region_to_dimm(struct nd_blk_region *ndbr);
 unsigned int nd_region_acquire_lane(struct nd_region *nd_region);
 void nd_region_release_lane(struct nd_region *nd_region, unsigned int lane);
 u64 nd_fletcher64(void *addr, size_t len, bool le);
+void nvdimm_flush(struct nd_region *nd_region);
+int nvdimm_has_flush(struct nd_region *nd_region);
 #endif /* __LIBNVDIMM_H__ */

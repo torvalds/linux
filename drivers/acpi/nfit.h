@@ -183,7 +183,6 @@ struct nfit_blk {
 	u64 bdw_offset; /* post interleave offset */
 	u64 stat_offset;
 	u64 cmd_offset;
-	void __iomem *nvdimm_flush;
 	u32 dimm_flags;
 };
 
