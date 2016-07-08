@@ -11,8 +11,8 @@ Input and output devices support this I/O method when the
 :ref:`v4l2_capability <v4l2-capability>` returned by the
 :ref:`VIDIOC_QUERYCAP` ioctl is set. If the
 particular user pointer method (not only memory mapping) is supported
-must be determined by calling the
-:ref:`VIDIOC_REQBUFS` ioctl.
+must be determined by calling the :ref:`VIDIOC_REQBUFS` ioctl
+with the memory type set to ``V4L2_MEMORY_USERPTR``.
 
 This I/O method combines advantages of the read/write and memory mapping
 methods. Buffers (planes) are allocated by the application itself, and

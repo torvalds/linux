@@ -11,8 +11,8 @@ Input and output devices support this I/O method when the
 :ref:`v4l2_capability <v4l2-capability>` returned by the
 :ref:`VIDIOC_QUERYCAP` ioctl is set. There are two
 streaming methods, to determine if the memory mapping flavor is
-supported applications must call the
-:ref:`VIDIOC_REQBUFS` ioctl.
+supported applications must call the :ref:`VIDIOC_REQBUFS` ioctl
+with the memory type set to ``V4L2_MEMORY_MMAP``.
 
 Streaming is an I/O method where only pointers to buffers are exchanged
 between application and driver, the data itself is not copied. Memory
