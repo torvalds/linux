@@ -327,7 +327,7 @@ static int delcom_init(struct hidled_device *ldev)
 	 * Several Delcom devices share the same USB VID/PID
 	 * Check for family id 2 for Visual Signal Indicator
 	 */
-	return dp.fw.family_code == 2 ? 0 : -ENODEV;
+	return le16_to_cpu(dp.fw.family_code) == 2 ? 0 : -ENODEV;
 }
 
 static int luxafor_write(struct led_classdev *cdev, enum led_brightness br)
