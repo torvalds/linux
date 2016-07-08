@@ -226,6 +226,7 @@ struct nfc_digital_dev {
 	u8 curr_rf_tech;
 	u8 curr_nfc_dep_pni;
 	u8 did;
+	u16 dep_rwt;
 
 	u8 local_payload_max;
 	u8 remote_payload_max;
