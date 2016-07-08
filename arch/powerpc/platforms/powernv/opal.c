@@ -499,7 +499,7 @@ int opal_hmi_exception_early(struct pt_regs *regs)
 	 * The return value OPAL_SUCCESS is an indication that there is
 	 * an HMI event generated waiting to pull by Linux.
 	 */
-	rc = opal_handle_hmi();
+	rc = opal_rm_handle_hmi();
 	if (rc == OPAL_SUCCESS) {
 		local_paca->hmi_event_available = 1;
 		return 1;

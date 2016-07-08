@@ -196,8 +196,7 @@ fastsleep_workaround_at_entry:
 	/* Fast sleep workaround */
 	li	r3,1
 	li	r4,1
-	li	r0,OPAL_CONFIG_CPU_IDLE_STATE
-	bl	opal_call_realmode
+	bl	opal_rm_config_cpu_idle_state
 
 	/* Clear Lock bit */
 	li	r0,0
@@ -285,7 +284,7 @@ _GLOBAL(power7_wakeup_tb_loss)
 	 * and they are restored before switching to the process context. Hence
 	 * until they are restored, they are free to be used.
 	 *
-	 * Save SRR1 in a NVGPR as it might be clobbered in opal_call_realmode
+	 * Save SRR1 in a NVGPR as it might be clobbered in opal_call()
 	 * (called in CHECK_HMI_INTERRUPT). SRR1 is required to determine the
 	 * wakeup reason if we branch to kvm_start_guest.
 	 */
@@ -379,10 +378,7 @@ timebase_resync:
 	 * set in exceptions-64s.S */
 	ble	cr3,clear_lock
 	/* Time base re-sync */
-	li	r0,OPAL_RESYNC_TIMEBASE
-	bl	opal_call_realmode;
-	/* TODO: Check r3 for failure */
-
+	bl	opal_rm_resync_timebase;
 	/*
 	 * If waking up from sleep, per core state is not lost, skip to
 	 * clear_lock.
@@ -470,8 +466,7 @@ hypervisor_state_restored:
 fastsleep_workaround_at_exit:
 	li	r3,1
 	li	r4,0
-	li	r0,OPAL_CONFIG_CPU_IDLE_STATE
-	bl	opal_call_realmode
+	bl	opal_rm_config_cpu_idle_state
 	b	timebase_resync
 
 /*
