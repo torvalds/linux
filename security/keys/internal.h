@@ -260,10 +260,11 @@ static inline long keyctl_get_persistent(uid_t uid, key_serial_t destring)
 
 #ifdef CONFIG_KEY_DH_OPERATIONS
 extern long keyctl_dh_compute(struct keyctl_dh_params __user *, char __user *,
-			      size_t);
+			      size_t, void __user *);
 #else
 static inline long keyctl_dh_compute(struct keyctl_dh_params __user *params,
-				     char __user *buffer, size_t buflen)
+				     char __user *buffer, size_t buflen,
+				     void __user *reserved)
 {
 	return -EOPNOTSUPP;
 }

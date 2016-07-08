@@ -1122,12 +1122,12 @@ enum {
 #define AR9300_NUM_GPIO                          16
 #define AR9330_NUM_GPIO				 16
 #define AR9340_NUM_GPIO				 23
-#define AR9462_NUM_GPIO				 10
+#define AR9462_NUM_GPIO				 14
 #define AR9485_NUM_GPIO				 12
 #define AR9531_NUM_GPIO				 18
 #define AR9550_NUM_GPIO				 24
 #define AR9561_NUM_GPIO				 23
-#define AR9565_NUM_GPIO				 12
+#define AR9565_NUM_GPIO				 14
 #define AR9580_NUM_GPIO				 16
 #define AR7010_NUM_GPIO                          16
 
@@ -1139,12 +1139,12 @@ enum {
 #define AR9300_GPIO_MASK			 0x0000F4FF
 #define AR9330_GPIO_MASK			 0x0000F4FF
 #define AR9340_GPIO_MASK			 0x0000000F
-#define AR9462_GPIO_MASK			 0x000003FF
+#define AR9462_GPIO_MASK			 0x00003FFF
 #define AR9485_GPIO_MASK			 0x00000FFF
 #define AR9531_GPIO_MASK			 0x0000000F
 #define AR9550_GPIO_MASK			 0x0000000F
 #define AR9561_GPIO_MASK			 0x0000000F
-#define AR9565_GPIO_MASK			 0x00000FFF
+#define AR9565_GPIO_MASK			 0x00003FFF
 #define AR9580_GPIO_MASK			 0x0000F4FF
 #define AR7010_GPIO_MASK			 0x0000FFFF
 

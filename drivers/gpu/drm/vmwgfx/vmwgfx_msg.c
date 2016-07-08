@@ -28,6 +28,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/frame.h>
 #include <asm/hypervisor.h>
 #include "drmP.h"
 #include "vmwgfx_msg.h"
@@ -194,7 +195,7 @@ static int vmw_send_msg(struct rpc_channel *channel, const char *msg)
 
 	return -EINVAL;
 }
-
+STACK_FRAME_NON_STANDARD(vmw_send_msg);
 
 
 /**
@@ -304,6 +305,7 @@ static int vmw_recv_msg(struct rpc_channel *channel, void **msg,
 
 	return 0;
 }
+STACK_FRAME_NON_STANDARD(vmw_recv_msg);
 
 
 /**

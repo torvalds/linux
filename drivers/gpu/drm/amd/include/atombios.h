@@ -5538,6 +5538,78 @@ typedef struct  _ATOM_ASIC_PROFILING_INFO_V3_5
   ULONG  ulReserved[12];
 }ATOM_ASIC_PROFILING_INFO_V3_5;
 
+/* for Polars10/11 AVFS parameters */
+typedef struct  _ATOM_ASIC_PROFILING_INFO_V3_6
+{
+  ATOM_COMMON_TABLE_HEADER         asHeader;
+  ULONG  ulMaxVddc;
+  ULONG  ulMinVddc;
+  USHORT usLkgEuseIndex;
+  UCHAR  ucLkgEfuseBitLSB;
+  UCHAR  ucLkgEfuseLength;
+  ULONG  ulLkgEncodeLn_MaxDivMin;
+  ULONG  ulLkgEncodeMax;
+  ULONG  ulLkgEncodeMin;
+  EFUSE_LINEAR_FUNC_PARAM sRoFuse;
+  ULONG  ulEvvDefaultVddc;
+  ULONG  ulEvvNoCalcVddc;
+  ULONG  ulSpeed_Model;
+  ULONG  ulSM_A0;
+  ULONG  ulSM_A1;
+  ULONG  ulSM_A2;
+  ULONG  ulSM_A3;
+  ULONG  ulSM_A4;
+  ULONG  ulSM_A5;
+  ULONG  ulSM_A6;
+  ULONG  ulSM_A7;
+  UCHAR  ucSM_A0_sign;
+  UCHAR  ucSM_A1_sign;
+  UCHAR  ucSM_A2_sign;
+  UCHAR  ucSM_A3_sign;
+  UCHAR  ucSM_A4_sign;
+  UCHAR  ucSM_A5_sign;
+  UCHAR  ucSM_A6_sign;
+  UCHAR  ucSM_A7_sign;
+  ULONG  ulMargin_RO_a;
+  ULONG  ulMargin_RO_b;
+  ULONG  ulMargin_RO_c;
+  ULONG  ulMargin_fixed;
+  ULONG  ulMargin_Fmax_mean;
+  ULONG  ulMargin_plat_mean;
+  ULONG  ulMargin_Fmax_sigma;
+  ULONG  ulMargin_plat_sigma;
+  ULONG  ulMargin_DC_sigma;
+  ULONG  ulLoadLineSlop;
+  ULONG  ulaTDClimitPerDPM[8];
+  ULONG  ulaNoCalcVddcPerDPM[8];
+  ULONG  ulAVFS_meanNsigma_Acontant0;
+  ULONG  ulAVFS_meanNsigma_Acontant1;
+  ULONG  ulAVFS_meanNsigma_Acontant2;
+  USHORT usAVFS_meanNsigma_DC_tol_sigma;
+  USHORT usAVFS_meanNsigma_Platform_mean;
+  USHORT usAVFS_meanNsigma_Platform_sigma;
+  ULONG  ulGB_VDROOP_TABLE_CKSOFF_a0;
+  ULONG  ulGB_VDROOP_TABLE_CKSOFF_a1;
+  ULONG  ulGB_VDROOP_TABLE_CKSOFF_a2;
+  ULONG  ulGB_VDROOP_TABLE_CKSON_a0;
+  ULONG  ulGB_VDROOP_TABLE_CKSON_a1;
+  ULONG  ulGB_VDROOP_TABLE_CKSON_a2;
+  ULONG  ulAVFSGB_FUSE_TABLE_CKSOFF_m1;
+  USHORT usAVFSGB_FUSE_TABLE_CKSOFF_m2;
+  ULONG  ulAVFSGB_FUSE_TABLE_CKSOFF_b;
+  ULONG  ulAVFSGB_FUSE_TABLE_CKSON_m1;
+  USHORT usAVFSGB_FUSE_TABLE_CKSON_m2;
+  ULONG  ulAVFSGB_FUSE_TABLE_CKSON_b;
+  USHORT usMaxVoltage_0_25mv;
+  UCHAR  ucEnableGB_VDROOP_TABLE_CKSOFF;
+  UCHAR  ucEnableGB_VDROOP_TABLE_CKSON;
+  UCHAR  ucEnableGB_FUSE_TABLE_CKSOFF;
+  UCHAR  ucEnableGB_FUSE_TABLE_CKSON;
+  USHORT usPSM_Age_ComFactor;
+  UCHAR  ucEnableApplyAVFS_CKS_OFF_Voltage;
+  UCHAR  ucReserved;
+}ATOM_ASIC_PROFILING_INFO_V3_6;
+
 
 typedef struct _ATOM_SCLK_FCW_RANGE_ENTRY_V1{
   ULONG  ulMaxSclkFreq;

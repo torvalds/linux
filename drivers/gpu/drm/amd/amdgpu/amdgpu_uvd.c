@@ -253,19 +253,20 @@ int amdgpu_uvd_sw_fini(struct amdgpu_device *adev)
 {
 	int r;
 
-	if (adev->uvd.vcpu_bo == NULL)
-		return 0;
+	kfree(adev->uvd.saved_bo);
 
 	amd_sched_entity_fini(&adev->uvd.ring.sched, &adev->uvd.entity);
 
-	r = amdgpu_bo_reserve(adev->uvd.vcpu_bo, false);
-	if (!r) {
-		amdgpu_bo_kunmap(adev->uvd.vcpu_bo);
-		amdgpu_bo_unpin(adev->uvd.vcpu_bo);
-		amdgpu_bo_unreserve(adev->uvd.vcpu_bo);
-	}
+	if (adev->uvd.vcpu_bo) {
+		r = amdgpu_bo_reserve(adev->uvd.vcpu_bo, false);
+		if (!r) {
+			amdgpu_bo_kunmap(adev->uvd.vcpu_bo);
+			amdgpu_bo_unpin(adev->uvd.vcpu_bo);
+			amdgpu_bo_unreserve(adev->uvd.vcpu_bo);
+		}
 
-	amdgpu_bo_unref(&adev->uvd.vcpu_bo);
+		amdgpu_bo_unref(&adev->uvd.vcpu_bo);
+	}
 
 	amdgpu_ring_fini(&adev->uvd.ring);
 
@@ -1105,6 +1106,10 @@ static void amdgpu_uvd_idle_work_handler(struct work_struct *work)
 	if (fences == 0 && handles == 0) {
 		if (adev->pm.dpm_enabled) {
 			amdgpu_dpm_enable_uvd(adev, false);
+			/* just work around for uvd clock remain high even
+			 * when uvd dpm disabled on Polaris10 */
+			if (adev->asic_type == CHIP_POLARIS10)
+				amdgpu_asic_set_uvd_clocks(adev, 0, 0);
 		} else {
 			amdgpu_asic_set_uvd_clocks(adev, 0, 0);
 		}

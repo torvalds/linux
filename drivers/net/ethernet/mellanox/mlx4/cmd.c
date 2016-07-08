@@ -2597,7 +2597,6 @@ int mlx4_cmd_use_events(struct mlx4_dev *dev)
 	priv->cmd.free_head = 0;
 
 	sema_init(&priv->cmd.event_sem, priv->cmd.max_cmds);
-	spin_lock_init(&priv->cmd.context_lock);
 
 	for (priv->cmd.token_mask = 1;
 	     priv->cmd.token_mask < priv->cmd.max_cmds;

@@ -1,7 +1,9 @@
-/* CAN driver for Geschwister Schneider USB/CAN devices.
+/* CAN driver for Geschwister Schneider USB/CAN devices
+ * and bytewerk.org candleLight USB CAN interfaces.
  *
- * Copyright (C) 2013 Geschwister Schneider Technologie-,
+ * Copyright (C) 2013-2016 Geschwister Schneider Technologie-,
  * Entwicklungs- und Vertriebs UG (Haftungsbeschränkt).
+ * Copyright (C) 2016 Hubert Denkmair
  *
  * Many thanks to all socketcan devs!
  *
@@ -28,6 +30,9 @@
 /* Device specific constants */
 #define USB_GSUSB_1_VENDOR_ID      0x1d50
 #define USB_GSUSB_1_PRODUCT_ID     0x606f
+
+#define USB_CANDLELIGHT_VENDOR_ID  0x1209
+#define USB_CANDLELIGHT_PRODUCT_ID 0x2323
 
 #define GSUSB_ENDPOINT_IN          1
 #define GSUSB_ENDPOINT_OUT         2
@@ -952,6 +957,8 @@ static void gs_usb_disconnect(struct usb_interface *intf)
 static const struct usb_device_id gs_usb_table[] = {
 	{ USB_DEVICE_INTERFACE_NUMBER(USB_GSUSB_1_VENDOR_ID,
 				      USB_GSUSB_1_PRODUCT_ID, 0) },
+	{ USB_DEVICE_INTERFACE_NUMBER(USB_CANDLELIGHT_VENDOR_ID,
+				      USB_CANDLELIGHT_PRODUCT_ID, 0) },
 	{} /* Terminating entry */
 };
 
@@ -969,5 +976,6 @@ module_usb_driver(gs_usb_driver);
 MODULE_AUTHOR("Maximilian Schneider <mws@schneidersoft.net>");
 MODULE_DESCRIPTION(
 "Socket CAN device driver for Geschwister Schneider Technologie-, "
-"Entwicklungs- und Vertriebs UG. USB2.0 to CAN interfaces.");
+"Entwicklungs- und Vertriebs UG. USB2.0 to CAN interfaces\n"
+"and bytewerk.org candleLight USB CAN interfaces.");
 MODULE_LICENSE("GPL v2");

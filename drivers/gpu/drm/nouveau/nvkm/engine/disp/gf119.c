@@ -76,6 +76,7 @@ exec_lookup(struct nv50_disp *disp, int head, int or, u32 ctrl,
 	mask |= 0x0001 << or;
 	mask |= 0x0100 << head;
 
+
 	list_for_each_entry(outp, &disp->base.outp, head) {
 		if ((outp->info.hasht & 0xff) == type &&
 		    (outp->info.hashm & mask) == mask) {
@@ -155,25 +156,21 @@ exec_clkcmp(struct nv50_disp *disp, int head, int id, u32 pclk, u32 *conf)
 	if (!outp)
 		return NULL;
 
+	*conf = (ctrl & 0x00000f00) >> 8;
 	switch (outp->info.type) {
 	case DCB_OUTPUT_TMDS:
-		*conf = (ctrl & 0x00000f00) >> 8;
 		if (*conf == 5)
 			*conf |= 0x0100;
 		break;
 	case DCB_OUTPUT_LVDS:
-		*conf = disp->sor.lvdsconf;
+		*conf |= disp->sor.lvdsconf;
 		break;
-	case DCB_OUTPUT_DP:
-		*conf = (ctrl & 0x00000f00) >> 8;
-		break;
-	case DCB_OUTPUT_ANALOG:
 	default:
-		*conf = 0x00ff;
 		break;
 	}
 
-	data = nvbios_ocfg_match(bios, data, *conf, &ver, &hdr, &cnt, &len, &info2);
+	data = nvbios_ocfg_match(bios, data, *conf & 0xff, *conf >> 8,
+				 &ver, &hdr, &cnt, &len, &info2);
 	if (data && id < 0xff) {
 		data = nvbios_oclk_match(bios, info2.clkcmp[id], pclk);
 		if (data) {

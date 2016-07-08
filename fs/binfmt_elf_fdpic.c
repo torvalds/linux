@@ -1787,7 +1787,7 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 				goto end_coredump;
 	}
 
-	if (!dump_skip(cprm, dataoff - cprm->file->f_pos))
+	if (!dump_skip(cprm, dataoff - cprm->pos))
 		goto end_coredump;
 
 	if (!elf_fdpic_dump_segments(cprm))

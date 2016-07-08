@@ -51,7 +51,8 @@ extern void acpi_video_set_dmi_backlight_type(enum acpi_backlight_type type);
  */
 extern bool acpi_video_handles_brightness_key_presses(void);
 extern int acpi_video_get_levels(struct acpi_device *device,
-				 struct acpi_video_device_brightness **dev_br);
+				 struct acpi_video_device_brightness **dev_br,
+				 int *pmax_level);
 #else
 static inline int acpi_video_register(void) { return 0; }
 static inline void acpi_video_unregister(void) { return; }
@@ -72,7 +73,8 @@ static inline bool acpi_video_handles_brightness_key_presses(void)
 	return false;
 }
 static inline int acpi_video_get_levels(struct acpi_device *device,
-			struct acpi_video_device_brightness **dev_br)
+			struct acpi_video_device_brightness **dev_br,
+			int *pmax_level)
 {
 	return -ENODEV;
 }

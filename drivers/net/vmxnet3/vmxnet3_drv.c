@@ -1369,7 +1369,7 @@ vmxnet3_rq_rx_complete(struct vmxnet3_rx_queue *rq,
 				rcdlro = (struct Vmxnet3_RxCompDescExt *)rcd;
 
 				segCnt = rcdlro->segCnt;
-				BUG_ON(segCnt <= 1);
+				WARN_ON_ONCE(segCnt == 0);
 				mss = rcdlro->mss;
 				if (unlikely(segCnt <= 1))
 					segCnt = 0;

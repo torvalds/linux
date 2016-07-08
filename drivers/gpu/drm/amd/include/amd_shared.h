@@ -157,6 +157,7 @@ struct amd_ip_funcs {
 	int (*hw_init)(void *handle);
 	/* tears down the hw state */
 	int (*hw_fini)(void *handle);
+	void (*late_fini)(void *handle);
 	/* handles IP specific hw/sw changes for suspend */
 	int (*suspend)(void *handle);
 	/* handles IP specific hw/sw changes for resume */

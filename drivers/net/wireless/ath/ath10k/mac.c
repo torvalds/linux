@@ -679,10 +679,10 @@ static int ath10k_peer_create(struct ath10k *ar,
 
 	peer = ath10k_peer_find(ar, vdev_id, addr);
 	if (!peer) {
+		spin_unlock_bh(&ar->data_lock);
 		ath10k_warn(ar, "failed to find peer %pM on vdev %i after creation\n",
 			    addr, vdev_id);
 		ath10k_wmi_peer_delete(ar, vdev_id, addr);
-		spin_unlock_bh(&ar->data_lock);
 		return -ENOENT;
 	}
 

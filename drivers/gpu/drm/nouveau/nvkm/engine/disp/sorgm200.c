@@ -57,19 +57,6 @@ gm200_sor_dp_lane_map(struct nvkm_device *device, u8 lane)
 }
 
 static int
-gm200_sor_dp_pattern(struct nvkm_output_dp *outp, int pattern)
-{
-	struct nvkm_device *device = outp->base.disp->engine.subdev.device;
-	const u32 soff = gm200_sor_soff(outp);
-	const u32 data = 0x01010101 * pattern;
-	if (outp->base.info.sorconf.link & 1)
-		nvkm_mask(device, 0x61c110 + soff, 0x0f0f0f0f, data);
-	else
-		nvkm_mask(device, 0x61c12c + soff, 0x0f0f0f0f, data);
-	return 0;
-}
-
-static int
 gm200_sor_dp_lnk_pwr(struct nvkm_output_dp *outp, int nr)
 {
 	struct nvkm_device *device = outp->base.disp->engine.subdev.device;
@@ -129,7 +116,7 @@ gm200_sor_dp_drv_ctl(struct nvkm_output_dp *outp,
 
 static const struct nvkm_output_dp_func
 gm200_sor_dp_func = {
-	.pattern = gm200_sor_dp_pattern,
+	.pattern = gm107_sor_dp_pattern,
 	.lnk_pwr = gm200_sor_dp_lnk_pwr,
 	.lnk_ctl = gf119_sor_dp_lnk_ctl,
 	.drv_ctl = gm200_sor_dp_drv_ctl,

@@ -11,7 +11,6 @@
 
 / {
 	compatible = "snps,nsim";
-	clock-frequency = <80000000>;	/* 80 MHZ */
 	#address-cells = <1>;
 	#size-cells = <1>;
 	interrupt-parent = <&core_intc>;
