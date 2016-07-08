@@ -1583,6 +1583,8 @@ int udp_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 
 	if (sk_filter(sk, skb))
 		goto drop;
+	if (unlikely(skb->len < sizeof(struct udphdr)))
+		goto drop;
 
 	udp_csum_pull_header(skb);
 	if (sk_rcvqueues_full(sk, sk->sk_rcvbuf)) {
