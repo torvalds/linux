@@ -62,7 +62,6 @@ struct ceph_mount_options {
 	int cap_release_safety;
 	int max_readdir;       /* max readdir result (entires) */
 	int max_readdir_bytes; /* max readdir result (bytes) */
-	int mds_namespace;
 
 	/*
 	 * everything above this point can be memcmp'd; everything below
@@ -70,6 +69,7 @@ struct ceph_mount_options {
 	 */
 
 	char *snapdir_name;   /* default ".snap" */
+	char *mds_namespace;  /* default NULL */
 	char *server_path;    /* default  "/" */
 };
 
