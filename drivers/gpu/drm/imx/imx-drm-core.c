@@ -428,7 +428,8 @@ static const struct drm_ioctl_desc imx_drm_ioctls[] = {
 };
 
 static struct drm_driver imx_drm_driver = {
-	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME,
+	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME |
+				  DRIVER_ATOMIC,
 	.load			= imx_drm_driver_load,
 	.unload			= imx_drm_driver_unload,
 	.lastclose		= imx_drm_driver_lastclose,
