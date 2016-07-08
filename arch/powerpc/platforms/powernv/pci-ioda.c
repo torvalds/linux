@@ -1733,29 +1733,15 @@ static void pnv_pci_p7ioc_tce_invalidate(struct iommu_table *tbl,
 		(__be64 __iomem *)pe->phb->ioda.tce_inval_reg_phys :
 		pe->phb->ioda.tce_inval_reg;
 	unsigned long start, end, inc;
-	const unsigned shift = tbl->it_page_shift;
 
 	start = __pa(((__be64 *)tbl->it_base) + index - tbl->it_offset);
 	end = __pa(((__be64 *)tbl->it_base) + index - tbl->it_offset +
 			npages - 1);
 
-	/* BML uses this case for p6/p7/galaxy2: Shift addr and put in node */
-	if (tbl->it_busno) {
-		start <<= shift;
-		end <<= shift;
-		inc = 128ull << shift;
-		start |= tbl->it_busno;
-		end |= tbl->it_busno;
-	} else if (tbl->it_type & TCE_PCI_SWINV_PAIR) {
-		/* p7ioc-style invalidation, 2 TCEs per write */
-		start |= (1ull << 63);
-		end |= (1ull << 63);
-		inc = 16;
-        } else {
-		/* Default (older HW) */
-                inc = 128;
-	}
-
+	/* p7ioc-style invalidation, 2 TCEs per write */
+	start |= (1ull << 63);
+	end |= (1ull << 63);
+	inc = 16;
         end |= inc - 1;	/* round up end to be different than start */
 
         mb(); /* Ensure above stores are visible */
@@ -1781,7 +1767,7 @@ static int pnv_ioda1_tce_build(struct iommu_table *tbl, long index,
 	int ret = pnv_tce_build(tbl, index, npages, uaddr, direction,
 			attrs);
 
-	if (!ret && (tbl->it_type & TCE_PCI_SWINV_CREATE))
+	if (!ret)
 		pnv_pci_p7ioc_tce_invalidate(tbl, index, npages, false);
 
 	return ret;
@@ -1793,8 +1779,7 @@ static int pnv_ioda1_tce_xchg(struct iommu_table *tbl, long index,
 {
 	long ret = pnv_tce_xchg(tbl, index, hpa, direction);
 
-	if (!ret && (tbl->it_type &
-			(TCE_PCI_SWINV_CREATE | TCE_PCI_SWINV_FREE)))
+	if (!ret)
 		pnv_pci_p7ioc_tce_invalidate(tbl, index, 1, false);
 
 	return ret;
@@ -1806,8 +1791,7 @@ static void pnv_ioda1_tce_free(struct iommu_table *tbl, long index,
 {
 	pnv_tce_free(tbl, index, npages);
 
-	if (tbl->it_type & TCE_PCI_SWINV_FREE)
-		pnv_pci_p7ioc_tce_invalidate(tbl, index, npages, false);
+	pnv_pci_p7ioc_tce_invalidate(tbl, index, npages, false);
 }
 
 static struct iommu_table_ops pnv_ioda1_iommu_ops = {
@@ -1910,7 +1894,7 @@ static int pnv_ioda2_tce_build(struct iommu_table *tbl, long index,
 	int ret = pnv_tce_build(tbl, index, npages, uaddr, direction,
 			attrs);
 
-	if (!ret && (tbl->it_type & TCE_PCI_SWINV_CREATE))
+	if (!ret)
 		pnv_pci_ioda2_tce_invalidate(tbl, index, npages, false);
 
 	return ret;
@@ -1922,8 +1906,7 @@ static int pnv_ioda2_tce_xchg(struct iommu_table *tbl, long index,
 {
 	long ret = pnv_tce_xchg(tbl, index, hpa, direction);
 
-	if (!ret && (tbl->it_type &
-			(TCE_PCI_SWINV_CREATE | TCE_PCI_SWINV_FREE)))
+	if (!ret)
 		pnv_pci_ioda2_tce_invalidate(tbl, index, 1, false);
 
 	return ret;
@@ -1935,8 +1918,7 @@ static void pnv_ioda2_tce_free(struct iommu_table *tbl, long index,
 {
 	pnv_tce_free(tbl, index, npages);
 
-	if (tbl->it_type & TCE_PCI_SWINV_FREE)
-		pnv_pci_ioda2_tce_invalidate(tbl, index, npages, false);
+	pnv_pci_ioda2_tce_invalidate(tbl, index, npages, false);
 }
 
 static void pnv_ioda2_table_free(struct iommu_table *tbl)
@@ -2105,12 +2087,6 @@ found:
 				  base * PNV_IODA1_DMA32_SEGSIZE,
 				  IOMMU_PAGE_SHIFT_4K);
 
-	/* OPAL variant of P7IOC SW invalidated TCEs */
-	if (phb->ioda.tce_inval_reg)
-		tbl->it_type |= (TCE_PCI_SWINV_CREATE |
-				 TCE_PCI_SWINV_FREE   |
-				 TCE_PCI_SWINV_PAIR);
-
 	tbl->it_ops = &pnv_ioda1_iommu_ops;
 	pe->table_group.tce32_start = tbl->it_offset << tbl->it_page_shift;
 	pe->table_group.tce32_size = tbl->it_size << tbl->it_page_shift;
@@ -2233,8 +2209,6 @@ static long pnv_pci_ioda2_create_table(struct iommu_table_group *table_group,
 	}
 
 	tbl->it_ops = &pnv_ioda2_iommu_ops;
-	if (pe->phb->ioda.tce_inval_reg)
-		tbl->it_type |= (TCE_PCI_SWINV_CREATE | TCE_PCI_SWINV_FREE);
 
 	*ptbl = tbl;
 
@@ -2282,10 +2256,6 @@ static long pnv_pci_ioda2_setup_default_config(struct pnv_ioda_pe *pe)
 
 	if (!pnv_iommu_bypass_disabled)
 		pnv_pci_ioda2_set_bypass(pe, true);
-
-	/* OPAL variant of PHB3 invalidated TCEs */
-	if (pe->phb->ioda.tce_inval_reg)
-		tbl->it_type |= (TCE_PCI_SWINV_CREATE | TCE_PCI_SWINV_FREE);
 
 	/*
 	 * Setting table base here only for carrying iommu_group
