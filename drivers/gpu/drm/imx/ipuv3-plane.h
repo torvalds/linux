@@ -37,8 +37,6 @@ int ipu_plane_mode_set(struct ipu_plane *plane, struct drm_crtc *crtc,
 		       uint32_t src_x, uint32_t src_y, uint32_t src_w,
 		       uint32_t src_h, bool interlaced);
 
-int ipu_plane_set_base(struct ipu_plane *plane, struct drm_framebuffer *fb);
-
 int ipu_plane_get_resources(struct ipu_plane *plane);
 void ipu_plane_put_resources(struct ipu_plane *plane);
 

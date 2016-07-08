@@ -14,6 +14,7 @@
  */
 
 #include <drm/drmP.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
@@ -53,122 +54,6 @@ int ipu_plane_irq(struct ipu_plane *ipu_plane)
 {
 	return ipu_idmac_channel_irq(ipu_plane->ipu, ipu_plane->ipu_ch,
 				     IPU_IRQ_EOF);
-}
-
-int ipu_plane_set_base(struct ipu_plane *ipu_plane, struct drm_framebuffer *fb)
-{
-	struct drm_gem_cma_object *cma_obj[3], *old_cma_obj[3];
-	struct drm_plane_state *state = ipu_plane->base.state;
-	struct drm_framebuffer *old_fb = state->fb;
-	unsigned long eba, ubo, vbo, old_eba, old_ubo, old_vbo;
-	int active, i;
-	int x = state->src_x >> 16;
-	int y = state->src_y >> 16;
-
-	for (i = 0; i < drm_format_num_planes(fb->pixel_format); i++) {
-		cma_obj[i] = drm_fb_cma_get_gem_obj(fb, i);
-		if (!cma_obj[i]) {
-			DRM_DEBUG_KMS("plane %d entry is null.\n", i);
-			return -EFAULT;
-		}
-	}
-
-	for (i = 0; i < drm_format_num_planes(old_fb->pixel_format); i++) {
-		old_cma_obj[i] = drm_fb_cma_get_gem_obj(old_fb, i);
-		if (!old_cma_obj[i]) {
-			DRM_DEBUG_KMS("plane %d entry is null.\n", i);
-			return -EFAULT;
-		}
-	}
-
-	eba = cma_obj[0]->paddr + fb->offsets[0] +
-	      fb->pitches[0] * y + (fb->bits_per_pixel >> 3) * x;
-
-	if (eba & 0x7) {
-		DRM_DEBUG_KMS("base address must be a multiple of 8.\n");
-		return -EINVAL;
-	}
-
-	if (fb->pitches[0] < 1 || fb->pitches[0] > 16384) {
-		DRM_DEBUG_KMS("pitches out of range.\n");
-		return -EINVAL;
-	}
-
-	if (fb->pitches[0] != old_fb->pitches[0]) {
-		DRM_DEBUG_KMS("pitches must not change while plane is enabled.\n");
-		return -EINVAL;
-	}
-
-	switch (fb->pixel_format) {
-	case DRM_FORMAT_YUV420:
-	case DRM_FORMAT_YVU420:
-		/*
-		 * Multiplanar formats have to meet the following restrictions:
-		 * - The (up to) three plane addresses are EBA, EBA+UBO, EBA+VBO
-		 * - EBA, UBO and VBO are a multiple of 8
-		 * - UBO and VBO are unsigned and not larger than 0xfffff8
-		 * - Only EBA may be changed while scanout is active
-		 * - The strides of U and V planes must be identical.
-		 */
-		ubo = cma_obj[1]->paddr + fb->offsets[1] +
-		      fb->pitches[1] * y / 2 + x / 2 - eba;
-		vbo = cma_obj[2]->paddr + fb->offsets[2] +
-		      fb->pitches[2] * y / 2 + x / 2 - eba;
-
-		old_eba = old_cma_obj[0]->paddr + old_fb->offsets[0] +
-		      old_fb->pitches[0] * y +
-		      (old_fb->bits_per_pixel >> 3) * x;
-		old_ubo = old_cma_obj[1]->paddr + old_fb->offsets[1] +
-		      old_fb->pitches[1] * y / 2 + x / 2 - old_eba;
-		old_vbo = old_cma_obj[2]->paddr + old_fb->offsets[2] +
-		      old_fb->pitches[2] * y / 2 + x / 2 - old_eba;
-
-		if ((ubo & 0x7) || (vbo & 0x7)) {
-			DRM_DEBUG_KMS("U/V buffer offsets must be a multiple of 8.\n");
-			return -EINVAL;
-		}
-
-		if ((ubo > 0xfffff8) || (vbo > 0xfffff8)) {
-			DRM_DEBUG_KMS("U/V buffer offsets must be positive and not larger than 0xfffff8.\n");
-			return -EINVAL;
-		}
-
-		if (old_ubo != ubo || old_vbo != vbo) {
-			DRM_DEBUG_KMS("U/V buffer offsets must not change while plane is enabled.\n");
-			return -EINVAL;
-		}
-
-		if (fb->pitches[1] != fb->pitches[2]) {
-			DRM_DEBUG_KMS("U/V pitches must be identical.\n");
-			return -EINVAL;
-		}
-
-		if (fb->pitches[1] < 1 || fb->pitches[1] > 16384) {
-			DRM_DEBUG_KMS("U/V pitches out of range.\n");
-			return -EINVAL;
-		}
-
-		if (old_fb->pitches[1] != fb->pitches[1]) {
-			DRM_DEBUG_KMS("U/V pitches must not change while plane is enabled.\n");
-			return -EINVAL;
-		}
-
-		dev_dbg(ipu_plane->base.dev->dev,
-			"phys = %pad %pad %pad, x = %d, y = %d",
-			&cma_obj[0]->paddr, &cma_obj[1]->paddr,
-			&cma_obj[2]->paddr, x, y);
-		break;
-	default:
-		dev_dbg(ipu_plane->base.dev->dev, "phys = %pad, x = %d, y = %d",
-			&cma_obj[0]->paddr, x, y);
-		break;
-	}
-
-	active = ipu_idmac_get_current_buffer(ipu_plane->ipu_ch);
-	ipu_cpmem_set_buffer(ipu_plane->ipu_ch, !active, eba);
-	ipu_idmac_select_buffer(ipu_plane->ipu_ch, !active);
-
-	return 0;
 }
 
 static inline unsigned long
@@ -360,8 +245,8 @@ static void ipu_plane_destroy(struct drm_plane *plane)
 }
 
 static const struct drm_plane_funcs ipu_plane_funcs = {
-	.update_plane	= drm_plane_helper_update,
-	.disable_plane	= drm_plane_helper_disable,
+	.update_plane	= drm_atomic_helper_update_plane,
+	.disable_plane	= drm_atomic_helper_disable_plane,
 	.destroy	= ipu_plane_destroy,
 	.reset		= drm_atomic_helper_plane_reset,
 	.atomic_duplicate_state	= drm_atomic_helper_plane_duplicate_state,
@@ -380,18 +265,24 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 
 	/* Ok to disable */
 	if (!fb)
-		return old_fb ? 0 : -EINVAL;
+		return 0;
+
+	if (!state->crtc)
+		return -EINVAL;
+
+	crtc_state =
+		drm_atomic_get_existing_crtc_state(state->state, state->crtc);
+	if (WARN_ON(!crtc_state))
+		return -EINVAL;
 
 	/* CRTC should be enabled */
-	if (!state->crtc->enabled)
+	if (!crtc_state->enable)
 		return -EINVAL;
 
 	/* no scaling */
 	if (state->src_w >> 16 != state->crtc_w ||
 	    state->src_h >> 16 != state->crtc_h)
 		return -EINVAL;
-
-	crtc_state = state->crtc->state;
 
 	switch (plane->type) {
 	case DRM_PLANE_TYPE_PRIMARY:

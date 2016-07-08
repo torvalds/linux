@@ -24,8 +24,6 @@
 #include <linux/fb.h>
 #include <linux/clk.h>
 #include <linux/errno.h>
-#include <linux/reservation.h>
-#include <linux/dma-buf.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 
@@ -34,23 +32,6 @@
 #include "ipuv3-plane.h"
 
 #define DRIVER_DESC		"i.MX IPUv3 Graphics"
-
-enum ipu_flip_status {
-	IPU_FLIP_NONE,
-	IPU_FLIP_PENDING,
-	IPU_FLIP_SUBMITTED,
-};
-
-struct ipu_flip_work {
-	struct work_struct		unref_work;
-	struct drm_gem_object		*bo;
-	struct drm_pending_vblank_event *page_flip_event;
-	struct work_struct		fence_work;
-	struct ipu_crtc			*crtc;
-	struct fence			*excl;
-	unsigned			shared_count;
-	struct fence			**shared;
-};
 
 struct ipu_crtc {
 	struct device		*dev;
@@ -62,10 +43,6 @@ struct ipu_crtc {
 
 	struct ipu_dc		*dc;
 	struct ipu_di		*di;
-	int			enabled;
-	enum ipu_flip_status	flip_state;
-	struct workqueue_struct *flip_queue;
-	struct ipu_flip_work	*flip_work;
 	int			irq;
 };
 
@@ -75,34 +52,26 @@ static void ipu_crtc_enable(struct ipu_crtc *ipu_crtc)
 {
 	struct ipu_soc *ipu = dev_get_drvdata(ipu_crtc->dev->parent);
 
-	if (ipu_crtc->enabled)
-		return;
-
 	ipu_dc_enable(ipu);
 	ipu_dc_enable_channel(ipu_crtc->dc);
 	ipu_di_enable(ipu_crtc->di);
-	ipu_crtc->enabled = 1;
-
-	/*
-	 * In order not to be warned on enabling vblank failure,
-	 * we should call drm_crtc_vblank_on() after ->enabled is set to 1.
-	 */
-	drm_crtc_vblank_on(&ipu_crtc->base);
 }
 
 static void ipu_crtc_disable(struct ipu_crtc *ipu_crtc)
 {
 	struct ipu_soc *ipu = dev_get_drvdata(ipu_crtc->dev->parent);
-
-	if (!ipu_crtc->enabled)
-		return;
+	struct drm_crtc *crtc = &ipu_crtc->base;
 
 	ipu_dc_disable_channel(ipu_crtc->dc);
 	ipu_di_disable(ipu_crtc->di);
 	ipu_dc_disable(ipu);
-	ipu_crtc->enabled = 0;
 
-	drm_crtc_vblank_off(&ipu_crtc->base);
+	spin_lock_irq(&crtc->dev->event_lock);
+	if (crtc->state->event) {
+		drm_crtc_send_vblank_event(crtc, crtc->state->event);
+		crtc->state->event = NULL;
+	}
+	spin_unlock_irq(&crtc->dev->event_lock);
 }
 
 static void ipu_crtc_dpms(struct drm_crtc *crtc, int mode)
@@ -123,150 +92,20 @@ static void ipu_crtc_dpms(struct drm_crtc *crtc, int mode)
 	}
 }
 
-static void ipu_flip_unref_work_func(struct work_struct *__work)
-{
-	struct ipu_flip_work *work =
-			container_of(__work, struct ipu_flip_work, unref_work);
-
-	drm_gem_object_unreference_unlocked(work->bo);
-	kfree(work);
-}
-
-static void ipu_flip_fence_work_func(struct work_struct *__work)
-{
-	struct ipu_flip_work *work =
-			container_of(__work, struct ipu_flip_work, fence_work);
-	int i;
-
-	/* wait for all fences attached to the FB obj to signal */
-	if (work->excl) {
-		fence_wait(work->excl, false);
-		fence_put(work->excl);
-	}
-	for (i = 0; i < work->shared_count; i++) {
-		fence_wait(work->shared[i], false);
-		fence_put(work->shared[i]);
-	}
-
-	work->crtc->flip_state = IPU_FLIP_SUBMITTED;
-}
-
-static int ipu_page_flip(struct drm_crtc *crtc,
-		struct drm_framebuffer *fb,
-		struct drm_pending_vblank_event *event,
-		uint32_t page_flip_flags)
-{
-	struct drm_gem_cma_object *cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
-	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
-	struct ipu_flip_work *flip_work;
-	int ret;
-
-	if (ipu_crtc->flip_state != IPU_FLIP_NONE)
-		return -EBUSY;
-
-	ret = imx_drm_crtc_vblank_get(ipu_crtc->imx_crtc);
-	if (ret) {
-		dev_dbg(ipu_crtc->dev, "failed to acquire vblank counter\n");
-		list_del(&event->base.link);
-
-		return ret;
-	}
-
-	flip_work = kzalloc(sizeof *flip_work, GFP_KERNEL);
-	if (!flip_work) {
-		ret = -ENOMEM;
-		goto put_vblank;
-	}
-	INIT_WORK(&flip_work->unref_work, ipu_flip_unref_work_func);
-	flip_work->page_flip_event = event;
-
-	/* get BO backing the old framebuffer and take a reference */
-	flip_work->bo = &drm_fb_cma_get_gem_obj(crtc->primary->fb, 0)->base;
-	drm_gem_object_reference(flip_work->bo);
-
-	ipu_crtc->flip_work = flip_work;
-	/*
-	 * If the object has a DMABUF attached, we need to wait on its fences
-	 * if there are any.
-	 */
-	if (cma_obj->base.dma_buf) {
-		INIT_WORK(&flip_work->fence_work, ipu_flip_fence_work_func);
-		flip_work->crtc = ipu_crtc;
-
-		ret = reservation_object_get_fences_rcu(
-				cma_obj->base.dma_buf->resv, &flip_work->excl,
-				&flip_work->shared_count, &flip_work->shared);
-
-		if (unlikely(ret)) {
-			DRM_ERROR("failed to get fences for buffer\n");
-			goto free_flip_work;
-		}
-
-		/* No need to queue the worker if the are no fences */
-		if (!flip_work->excl && !flip_work->shared_count) {
-			ipu_crtc->flip_state = IPU_FLIP_SUBMITTED;
-		} else {
-			ipu_crtc->flip_state = IPU_FLIP_PENDING;
-			queue_work(ipu_crtc->flip_queue,
-				   &flip_work->fence_work);
-		}
-	} else {
-		ipu_crtc->flip_state = IPU_FLIP_SUBMITTED;
-	}
-
-	if (crtc->primary->state)
-		drm_atomic_set_fb_for_plane(crtc->primary->state, fb);
-
-	return 0;
-
-free_flip_work:
-	drm_gem_object_unreference_unlocked(flip_work->bo);
-	kfree(flip_work);
-	ipu_crtc->flip_work = NULL;
-put_vblank:
-	imx_drm_crtc_vblank_put(ipu_crtc->imx_crtc);
-
-	return ret;
-}
-
 static const struct drm_crtc_funcs ipu_crtc_funcs = {
-	.set_config = drm_crtc_helper_set_config,
+	.set_config = drm_atomic_helper_set_config,
 	.destroy = drm_crtc_cleanup,
-	.page_flip = ipu_page_flip,
+	.page_flip = drm_atomic_helper_page_flip,
 	.reset = drm_atomic_helper_crtc_reset,
 	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
 };
-
-static void ipu_crtc_handle_pageflip(struct ipu_crtc *ipu_crtc)
-{
-	unsigned long flags;
-	struct drm_device *drm = ipu_crtc->base.dev;
-	struct ipu_flip_work *work = ipu_crtc->flip_work;
-
-	spin_lock_irqsave(&drm->event_lock, flags);
-	if (work->page_flip_event)
-		drm_crtc_send_vblank_event(&ipu_crtc->base,
-					   work->page_flip_event);
-	imx_drm_crtc_vblank_put(ipu_crtc->imx_crtc);
-	spin_unlock_irqrestore(&drm->event_lock, flags);
-}
 
 static irqreturn_t ipu_irq_handler(int irq, void *dev_id)
 {
 	struct ipu_crtc *ipu_crtc = dev_id;
 
 	imx_drm_handle_vblank(ipu_crtc->imx_crtc);
-
-	if (ipu_crtc->flip_state == IPU_FLIP_SUBMITTED) {
-		struct ipu_plane *plane = ipu_crtc->plane[0];
-
-		ipu_plane_set_base(plane, ipu_crtc->base.primary->fb);
-		ipu_crtc_handle_pageflip(ipu_crtc);
-		queue_work(ipu_crtc->flip_queue,
-			   &ipu_crtc->flip_work->unref_work);
-		ipu_crtc->flip_state = IPU_FLIP_NONE;
-	}
 
 	return IRQ_HANDLED;
 }
@@ -310,7 +149,24 @@ static void ipu_crtc_commit(struct drm_crtc *crtc)
 static int ipu_crtc_atomic_check(struct drm_crtc *crtc,
 				 struct drm_crtc_state *state)
 {
+	u32 primary_plane_mask = 1 << drm_plane_index(crtc->primary);
+
+	if (state->active && (primary_plane_mask & state->plane_mask) == 0)
+		return -EINVAL;
+
 	return 0;
+}
+
+static void ipu_crtc_atomic_begin(struct drm_crtc *crtc,
+				  struct drm_crtc_state *old_crtc_state)
+{
+	spin_lock_irq(&crtc->dev->event_lock);
+	if (crtc->state->event) {
+		WARN_ON(drm_crtc_vblank_get(crtc));
+		drm_crtc_arm_vblank_event(crtc, crtc->state->event);
+		crtc->state->event = NULL;
+	}
+	spin_unlock_irq(&crtc->dev->event_lock);
 }
 
 static void ipu_crtc_mode_set_nofb(struct drm_crtc *crtc)
@@ -371,24 +227,16 @@ static void ipu_crtc_mode_set_nofb(struct drm_crtc *crtc)
 static const struct drm_crtc_helper_funcs ipu_helper_funcs = {
 	.dpms = ipu_crtc_dpms,
 	.mode_fixup = ipu_crtc_mode_fixup,
-	.mode_set = drm_helper_crtc_mode_set,
 	.mode_set_nofb = ipu_crtc_mode_set_nofb,
 	.prepare = ipu_crtc_prepare,
 	.commit = ipu_crtc_commit,
 	.atomic_check = ipu_crtc_atomic_check,
+	.atomic_begin = ipu_crtc_atomic_begin,
 };
 
 static int ipu_enable_vblank(struct drm_crtc *crtc)
 {
 	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
-
-	/*
-	 * ->commit is done after ->mode_set in drm_crtc_helper_set_mode(),
-	 * so waiting for vblank in drm_plane_helper_commit() will timeout.
-	 * Check the state here to avoid the waiting.
-	 */
-	if (!ipu_crtc->enabled)
-		return -EINVAL;
 
 	enable_irq(ipu_crtc->irq);
 
@@ -508,8 +356,6 @@ static int ipu_crtc_init(struct ipu_crtc *ipu_crtc,
 	/* Only enable IRQ when we actually need it to trigger work. */
 	disable_irq(ipu_crtc->irq);
 
-	ipu_crtc->flip_queue = create_singlethread_workqueue("ipu-crtc-flip");
-
 	return 0;
 
 err_put_plane1_res:
@@ -554,7 +400,6 @@ static void ipu_drm_unbind(struct device *dev, struct device *master,
 
 	imx_drm_remove_crtc(ipu_crtc->imx_crtc);
 
-	destroy_workqueue(ipu_crtc->flip_queue);
 	ipu_put_resources(ipu_crtc);
 	if (ipu_crtc->plane[1])
 		ipu_plane_put_resources(ipu_crtc->plane[1]);
