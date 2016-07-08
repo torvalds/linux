@@ -6,4 +6,4 @@
 DVB Frontend Header File
 ************************
 
-.. include:: ../../../output/frontend.h.rst
+.. kernel-include:: $BUILDDIR/frontend.h.rst

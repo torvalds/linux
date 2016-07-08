@@ -6,4 +6,4 @@
 DVB Demux Header File
 *********************
 
-.. include:: ../../../output/dmx.h.rst
+.. kernel-include:: $BUILDDIR/dmx.h.rst

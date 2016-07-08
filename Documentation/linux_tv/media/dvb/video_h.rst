@@ -6,4 +6,4 @@
 DVB Video Header File
 *********************
 
-.. include:: ../../../output/video.h.rst
+.. kernel-include:: $BUILDDIR/video.h.rst

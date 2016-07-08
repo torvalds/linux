@@ -6,4 +6,4 @@
 DVB Conditional Access Header File
 **********************************
 
-.. include:: ../../../output/ca.h.rst
+.. kernel-include:: $BUILDDIR/ca.h.rst

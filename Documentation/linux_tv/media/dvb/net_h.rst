@@ -6,4 +6,4 @@
 DVB Network Header File
 ***********************
 
-.. include:: ../../../output/net.h.rst
+.. kernel-include:: $BUILDDIR/net.h.rst

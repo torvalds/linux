@@ -6,4 +6,4 @@
 Video For Linux Two Header File
 *******************************
 
-.. include:: ../../../output/videodev2.h.rst
+.. kernel-include:: $BUILDDIR/videodev2.h.rst

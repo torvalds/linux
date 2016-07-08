@@ -32,10 +32,10 @@ ALLSPHINXOPTS   = -D version=$(KERNELVERSION) -D release=$(KERNELRELEASE) -d $(B
 I18NSPHINXOPTS  = $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) .
 
 quiet_cmd_sphinx = SPHINX  $@
-      cmd_sphinx = $(SPHINXBUILD) -b $2 $(ALLSPHINXOPTS) $(BUILDDIR)/$2
+      cmd_sphinx = BUILDDIR=$(BUILDDIR) $(SPHINXBUILD) -b $2 $(ALLSPHINXOPTS) $(BUILDDIR)/$2
 
 htmldocs:
-	$(MAKE) BUILDDIR=$(objtree)/$(BUILDDIR) -f $(srctree)/Documentation/linux_tv/Makefile $@
+	$(MAKE) BUILDDIR=$(BUILDDIR) -f $(srctree)/Documentation/linux_tv/Makefile $@
 	$(call cmd,sphinx,html)
 
 pdfdocs:
