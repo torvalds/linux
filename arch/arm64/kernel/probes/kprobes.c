@@ -576,6 +576,11 @@ bool arch_within_kprobe_blacklist(unsigned long addr)
 	return false;
 }
 
+void __kprobes __used *trampoline_probe_handler(struct pt_regs *regs)
+{
+	return NULL;
+}
+
 int __init arch_init_kprobes(void)
 {
 	return 0;
