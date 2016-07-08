@@ -406,6 +406,30 @@ int gb_control_interface_deactivate_prepare(struct gb_control *control)
 	return 0;
 }
 
+int gb_control_interface_hibernate_abort(struct gb_control *control)
+{
+	struct gb_control_intf_pm_response response;
+	int ret;
+
+	ret = gb_operation_sync(control->connection,
+				GB_CONTROL_TYPE_INTF_HIBERNATE_ABORT, NULL, 0,
+				&response, sizeof(response));
+	if (ret) {
+		dev_err(&control->dev,
+			"failed to send interface aborting hibernate: %d\n",
+			ret);
+		return ret;
+	}
+
+	if (response.status != GB_CONTROL_INTF_PM_OK) {
+		dev_err(&control->dev, "interface error while aborting hibernate: %d\n",
+			response.status);
+		return gb_control_interface_pm_status_map(response.status);
+	}
+
+	return 0;
+}
+
 static ssize_t vendor_string_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
