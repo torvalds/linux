@@ -74,6 +74,7 @@
 #define COMPAT_PT_DATA_ADDR		0x10004
 #define COMPAT_PT_TEXT_END_ADDR		0x10008
 #ifndef __ASSEMBLY__
+#include <linux/bug.h>
 
 /* sizeof(struct user) for AArch32 */
 #define COMPAT_USER_SZ	296
@@ -119,6 +120,8 @@ struct pt_regs {
 	u64 syscallno;
 };
 
+#define MAX_REG_OFFSET offsetof(struct pt_regs, pstate)
+
 #define arch_has_single_step()	(1)
 
 #ifdef CONFIG_COMPAT
@@ -146,6 +149,53 @@ struct pt_regs {
 
 #define user_stack_pointer(regs) \
 	(!compat_user_mode(regs) ? (regs)->sp : (regs)->compat_sp)
+
+extern int regs_query_register_offset(const char *name);
+extern const char *regs_query_register_name(unsigned int offset);
+extern unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs,
+					       unsigned int n);
+
+/**
+ * regs_get_register() - get register value from its offset
+ * @regs:	pt_regs from which register value is gotten
+ * @offset:	offset of the register.
+ *
+ * regs_get_register returns the value of a register whose offset from @regs.
+ * The @offset is the offset of the register in struct pt_regs.
+ * If @offset is bigger than MAX_REG_OFFSET, this returns 0.
+ */
+static inline u64 regs_get_register(struct pt_regs *regs, unsigned int offset)
+{
+	u64 val = 0;
+
+	WARN_ON(offset & 7);
+
+	offset >>= 3;
+	switch (offset) {
+	case 0 ... 30:
+		val = regs->regs[offset];
+		break;
+	case offsetof(struct pt_regs, sp) >> 3:
+		val = regs->sp;
+		break;
+	case offsetof(struct pt_regs, pc) >> 3:
+		val = regs->pc;
+		break;
+	case offsetof(struct pt_regs, pstate) >> 3:
+		val = regs->pstate;
+		break;
+	default:
+		val = 0;
+	}
+
+	return val;
+}
+
+/* Valid only for Kernel mode traps. */
+static inline unsigned long kernel_stack_pointer(struct pt_regs *regs)
+{
+	return regs->sp;
+}
 
 static inline unsigned long regs_return_value(struct pt_regs *regs)
 {
