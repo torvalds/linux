@@ -298,7 +298,7 @@ out:
  * that it expects something not of the given type.
  *
  * @access is formed from the NFSD_MAY_* constants defined in
- * include/linux/nfsd/nfsd.h.
+ * fs/nfsd/vfs.h.
  */
 __be32
 fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, umode_t type, int access)
