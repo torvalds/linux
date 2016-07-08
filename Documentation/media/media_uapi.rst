@@ -68,12 +68,12 @@ etc, please mail to:
 .. toctree::
     :maxdepth: 1
 
-    media/v4l/v4l2
-    media/dvb/dvbapi
-    media/rc/remote_controllers
-    media/mediactl/media-controller
-    media/gen-errors
-    media/fdl-appendix
+    uapi/v4l/v4l2
+    uapi/dvb/dvbapi
+    uapi/rc/remote_controllers
+    uapi/mediactl/media-controller
+    uapi/gen-errors
+    uapi/fdl-appendix
 
 .. only:: html
 

@@ -2,7 +2,7 @@
 
 PARSER = $(srctree)/Documentation/sphinx/parse-headers.pl
 UAPI = $(srctree)/include/uapi/linux
-SRC_DIR=$(srctree)/Documentation/linux_tv
+SRC_DIR=$(srctree)/Documentation/media
 
 FILES = audio.h.rst ca.h.rst dmx.h.rst frontend.h.rst net.h.rst video.h.rst \
 	  videodev2.h.rst

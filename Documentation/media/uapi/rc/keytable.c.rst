@@ -1,7 +1,7 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-file: media/v4l/keytable.c
-==========================
+file: uapi/v4l/keytable.c
+=========================
 
 .. code-block:: c
 

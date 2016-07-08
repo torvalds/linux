@@ -14,7 +14,7 @@ Contents:
    :maxdepth: 2
 
    kernel-documentation
-   linux_tv/index
+   media/media_uapi
 
 Indices and tables
 ==================
