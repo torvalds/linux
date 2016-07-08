@@ -293,11 +293,32 @@ static const struct vop_reg_data rk3399_init_reg_table[] = {
 	{RK3399_WIN3_CTRL0, 0x00000001},
 };
 
+static const struct vop_win_phy rk3399_win01_data = {
+	.scl = &rk3288_win_full_scl,
+	.data_formats = formats_win_full,
+	.nformats = ARRAY_SIZE(formats_win_full),
+	.enable = VOP_REG(RK3399_WIN0_CTRL0, 0x1, 0),
+	.format = VOP_REG(RK3399_WIN0_CTRL0, 0x7, 1),
+	.xmirror = VOP_REG(RK3399_WIN0_CTRL0, 0x1, 21),
+	.ymirror = VOP_REG(RK3399_WIN0_CTRL0, 0x1, 22),
+	.rb_swap = VOP_REG(RK3399_WIN0_CTRL0, 0x1, 12),
+	.act_info = VOP_REG(RK3399_WIN0_ACT_INFO, 0x1fff1fff, 0),
+	.dsp_info = VOP_REG(RK3399_WIN0_DSP_INFO, 0x0fff0fff, 0),
+	.dsp_st = VOP_REG(RK3399_WIN0_DSP_ST, 0x1fff1fff, 0),
+	.yrgb_mst = VOP_REG(RK3399_WIN0_YRGB_MST, 0xffffffff, 0),
+	.uv_mst = VOP_REG(RK3399_WIN0_CBR_MST, 0xffffffff, 0),
+	.yrgb_vir = VOP_REG(RK3399_WIN0_VIR, 0x3fff, 0),
+	.uv_vir = VOP_REG(RK3399_WIN0_VIR, 0x3fff, 16),
+	.src_alpha_ctl = VOP_REG(RK3399_WIN0_SRC_ALPHA_CTRL, 0xff, 0),
+	.dst_alpha_ctl = VOP_REG(RK3399_WIN0_DST_ALPHA_CTRL, 0xff, 0),
+};
+
 static const struct vop_win_phy rk3399_win23_data = {
 	.data_formats = formats_win_lite,
 	.nformats = ARRAY_SIZE(formats_win_lite),
 	.enable = VOP_REG(RK3399_WIN2_CTRL0, 0x1, 4),
 	.format = VOP_REG(RK3399_WIN2_CTRL0, 0x3, 5),
+	.ymirror = VOP_REG(RK3399_WIN2_CTRL1, 0x1, 15),
 	.rb_swap = VOP_REG(RK3399_WIN2_CTRL0, 0x1, 20),
 	.dsp_info = VOP_REG(RK3399_WIN2_DSP_INFO0, 0x0fff0fff, 0),
 	.dsp_st = VOP_REG(RK3399_WIN2_DSP_ST0, 0x1fff1fff, 0),
@@ -344,9 +365,9 @@ static const struct vop_win_phy *rk3399_area_data[] = {
 };
 
 static const struct vop_win_data rk3399_vop_win_data[] = {
-	{ .base = 0x00, .phy = &rk3288_win01_data,
+	{ .base = 0x00, .phy = &rk3399_win01_data,
 	  .type = DRM_PLANE_TYPE_PRIMARY },
-	{ .base = 0x40, .phy = &rk3288_win01_data,
+	{ .base = 0x40, .phy = &rk3399_win01_data,
 	  .type = DRM_PLANE_TYPE_OVERLAY },
 	{ .base = 0x00, .phy = &rk3399_win23_data,
 	  .type = DRM_PLANE_TYPE_OVERLAY,
@@ -372,7 +393,7 @@ static const struct vop_data rk3399_vop_big = {
 };
 
 static const struct vop_win_data rk3399_vop_lit_win_data[] = {
-	{ .base = 0x00, .phy = &rk3288_win01_data,
+	{ .base = 0x00, .phy = &rk3399_win01_data,
 	  .type = DRM_PLANE_TYPE_PRIMARY },
 	{ .phy = NULL },
 	{ .base = 0x00, .phy = &rk3288_win23_data,

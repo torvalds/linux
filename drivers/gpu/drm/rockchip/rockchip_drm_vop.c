@@ -88,6 +88,9 @@
 #define VOP_WIN_GET_YRGBADDR(vop, win) \
 		vop_readl(vop, win->offset + VOP_WIN_NAME(win, yrgb_mst).offset)
 
+#define VOP_WIN_SUPPORT(win, name) \
+		(win->phy->name.mask ? true : false)
+
 #define to_vop(x) container_of(x, struct vop, crtc)
 #define to_vop_win(x) container_of(x, struct vop_win, base)
 #define to_vop_plane_state(x) container_of(x, struct vop_plane_state, base)
@@ -120,6 +123,7 @@ struct vop_win {
 	uint32_t nformats;
 	struct vop *vop;
 
+	struct drm_property *rotation_prop;
 	struct vop_plane_state state;
 };
 
@@ -721,6 +725,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	struct rockchip_gem_object *rk_obj, *rk_uv_obj;
 	unsigned long offset;
 	dma_addr_t dma_addr;
+	int ymirror, xmirror;
 	uint32_t val;
 	bool rb_swap;
 
@@ -753,11 +758,19 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	dsp_st = dsp_sty << 16 | (dsp_stx & 0xffff);
 
 	offset = (src->x1 >> 16) * drm_format_plane_cpp(fb->pixel_format, 0);
-	offset += (src->y1 >> 16) * fb->pitches[0];
+	if (state->rotation & BIT(DRM_REFLECT_Y))
+		offset += ((src->y2 >> 16) - 1) * fb->pitches[0];
+	else
+		offset += (src->y1 >> 16) * fb->pitches[0];
 	vop_plane_state->yrgb_mst = rk_obj->dma_addr + offset + fb->offsets[0];
+
+	ymirror = !!(state->rotation & BIT(DRM_REFLECT_Y));
+	xmirror = !!(state->rotation & BIT(DRM_REFLECT_X));
 
 	spin_lock(&vop->reg_lock);
 
+	VOP_WIN_SET(vop, win, xmirror, xmirror);
+	VOP_WIN_SET(vop, win, ymirror, ymirror);
 	VOP_WIN_SET(vop, win, format, vop_plane_state->format);
 	VOP_WIN_SET(vop, win, yrgb_vir, fb->pitches[0] >> 2);
 	VOP_WIN_SET(vop, win, yrgb_mst, vop_plane_state->yrgb_mst);
@@ -877,6 +890,11 @@ static int vop_atomic_plane_set_property(struct drm_plane *plane,
 		return 0;
 	}
 
+	if (property == win->rotation_prop) {
+		state->rotation = val;
+		return 0;
+	}
+
 	DRM_ERROR("failed to set vop plane property\n");
 	return -EINVAL;
 }
@@ -891,6 +909,11 @@ static int vop_atomic_plane_get_property(struct drm_plane *plane,
 
 	if (property == win->vop->plane_zpos_prop) {
 		*val = plane_state->zpos;
+		return 0;
+	}
+
+	if (property == win->rotation_prop) {
+		*val = state->rotation;
 		return 0;
 	}
 
@@ -1332,6 +1355,8 @@ static int vop_plane_init(struct vop *vop, struct vop_win *win,
 			  unsigned long possible_crtcs)
 {
 	struct drm_plane *share = NULL;
+	unsigned int rotations = 0;
+	struct drm_property *prop;
 	int ret;
 
 	if (win->parent)
@@ -1347,6 +1372,26 @@ static int vop_plane_init(struct vop *vop, struct vop_win *win,
 	drm_plane_helper_add(&win->base, &plane_helper_funcs);
 	drm_object_attach_property(&win->base.base,
 				   vop->plane_zpos_prop, win->win_id);
+
+	if (VOP_WIN_SUPPORT(win, xmirror))
+		rotations |= BIT(DRM_REFLECT_X);
+
+	if (VOP_WIN_SUPPORT(win, ymirror))
+		rotations |= BIT(DRM_REFLECT_Y);
+
+	if (rotations) {
+		rotations |= BIT(DRM_ROTATE_0);
+		prop = drm_mode_create_rotation_property(vop->drm_dev,
+							 rotations);
+		if (!prop) {
+			DRM_ERROR("failed to create zpos property\n");
+			return -EINVAL;
+		}
+		drm_object_attach_property(&win->base.base, prop,
+					   BIT(DRM_ROTATE_0));
+		win->rotation_prop = prop;
+	}
+
 	return 0;
 }
 
