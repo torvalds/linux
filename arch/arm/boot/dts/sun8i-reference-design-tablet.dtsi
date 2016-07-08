@@ -105,6 +105,7 @@
 		interrupt-parent = <&nmi_intc>;
 		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
 		eldoin-supply = <&reg_dcdc1>;
+		drivevbus-supply = <&reg_vcc5v0>;
 		x-powers,drive-vbus-en;
 	};
 };
