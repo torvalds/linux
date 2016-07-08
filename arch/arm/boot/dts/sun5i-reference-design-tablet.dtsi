@@ -92,6 +92,10 @@
 
 #include "axp209.dtsi"
 
+&lradc {
+	vref-supply = <&reg_ldo2>;
+};
+
 &mmc0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_q8>;
