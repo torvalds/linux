@@ -2227,6 +2227,9 @@ static int smack_task_kill(struct task_struct *p, struct siginfo *info,
 	struct smack_known *tkp = smk_of_task_struct(p);
 	int rc;
 
+	if (!sig)
+		return 0; /* null signal; existence test */
+
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_TASK);
 	smk_ad_setfield_u_tsk(&ad, p);
 	/*
