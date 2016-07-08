@@ -1,0 +1,94 @@
+.. -*- coding: utf-8; mode: rst -*-
+
+.. _cec:
+
+#######
+CEC API
+#######
+
+.. _cec-api:
+
+*********************************
+CEC: Consumer Electronics Control
+*********************************
+
+
+.. _cec-intro:
+
+Introduction
+============
+
+Note: this documents the proposed CEC API. This API is not yet finalized
+and is currently only available as a staging kernel module.
+
+HDMI connectors provide a single pin for use by the Consumer Electronics
+Control protocol. This protocol allows different devices connected by an
+HDMI cable to communicate. The protocol for CEC version 1.4 is defined
+in supplements 1 (CEC) and 2 (HEAC or HDMI Ethernet and Audio Return
+Channel) of the HDMI 1.4a (:ref:`hdmi`) specification and the
+extensions added to CEC version 2.0 are defined in chapter 11 of the
+HDMI 2.0 (:ref:`hdmi2`) specification.
+
+The bitrate is very slow (effectively no more than 36 bytes per second)
+and is based on the ancient AV.link protocol used in old SCART
+connectors. The protocol closely resembles a crazy Rube Goldberg
+contraption and is an unholy mix of low and high level messages. Some
+messages, especially those part of the HEAC protocol layered on top of
+CEC, need to be handled by the kernel, others can be handled either by
+the kernel or by userspace.
+
+In addition, CEC can be implemented in HDMI receivers, transmitters and
+in USB devices that have an HDMI input and an HDMI output and that
+control just the CEC pin.
+
+Drivers that support CEC will create a CEC device node (/dev/cecX) to
+give userspace access to the CEC adapter. The
+:ref:`CEC_ADAP_G_CAPS <cec-ioc-adap-g-caps>` ioctl will tell
+userspace what it is allowed to do.
+
+
+.. _cec-user-func:
+
+******************
+Function Reference
+******************
+
+
+.. toctree::
+    :maxdepth: 1
+
+    cec-func-open
+    cec-func-close
+    cec-func-ioctl
+    cec-func-poll
+    cec-ioc-adap-g-caps
+    cec-ioc-adap-g-log-addrs
+    cec-ioc-adap-g-phys-addr
+    cec-ioc-dqevent
+    cec-ioc-g-mode
+    cec-ioc-receive
+
+
+**********************
+Revision and Copyright
+**********************
+
+
+:author:    Verkuil Hans
+:address:   hans.verkuil@cisco.com
+:contrib:   Initial version.
+
+**Copyright** 2016 : Hans Verkuil
+
+:revision: 1.0.0 / 2016-03-17 (*hv*)
+
+Initial revision
+
+
+.. ------------------------------------------------------------------------------
+.. This file was automatically converted from DocBook-XML with the dbxml
+.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
+.. from the linux kernel, refer to:
+..
+.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
+.. ------------------------------------------------------------------------------

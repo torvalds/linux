@@ -349,6 +349,16 @@ HDMI
 
 :author:    HDMI Licensing LLC (http://www.hdmi.org)
 
+.. _hdmi2:
+
+HDMI2
+=====
+
+:title:     High-Definition Multimedia Interface
+:subtitle:  Specification Version 2.0
+
+:author:    HDMI Licensing LLC (http://www.hdmi.org)
+
 .. _dp:
 
 DP
