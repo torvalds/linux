@@ -204,6 +204,11 @@ static const u16 pl011_zte_offsets[REG_ARRAY_SIZE] = {
 	[REG_DMACR] = ZX_UART011_DMACR,
 };
 
+static unsigned int get_fifosize_zte(struct amba_device *dev)
+{
+	return 16;
+}
+
 static struct vendor_data vendor_zte __maybe_unused = {
 	.reg_offset		= pl011_zte_offsets,
 	.access_32b		= true,
@@ -212,7 +217,7 @@ static struct vendor_data vendor_zte __maybe_unused = {
 	.fr_dsr			= ZX_UART01x_FR_DSR,
 	.fr_cts			= ZX_UART01x_FR_CTS,
 	.fr_ri			= ZX_UART011_FR_RI,
-	.get_fifosize		= get_fifosize_arm,
+	.get_fifosize		= get_fifosize_zte,
 };
 
 /* Deals with DMA transactions */
