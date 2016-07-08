@@ -48,8 +48,9 @@ struct ipu_crtc {
 
 #define to_ipu_crtc(x) container_of(x, struct ipu_crtc, base)
 
-static void ipu_crtc_enable(struct ipu_crtc *ipu_crtc)
+static void ipu_crtc_enable(struct drm_crtc *crtc)
 {
+	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
 	struct ipu_soc *ipu = dev_get_drvdata(ipu_crtc->dev->parent);
 
 	ipu_dc_enable(ipu);
@@ -57,10 +58,10 @@ static void ipu_crtc_enable(struct ipu_crtc *ipu_crtc)
 	ipu_di_enable(ipu_crtc->di);
 }
 
-static void ipu_crtc_disable(struct ipu_crtc *ipu_crtc)
+static void ipu_crtc_disable(struct drm_crtc *crtc)
 {
+	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
 	struct ipu_soc *ipu = dev_get_drvdata(ipu_crtc->dev->parent);
-	struct drm_crtc *crtc = &ipu_crtc->base;
 
 	ipu_dc_disable_channel(ipu_crtc->dc);
 	ipu_di_disable(ipu_crtc->di);
@@ -72,24 +73,6 @@ static void ipu_crtc_disable(struct ipu_crtc *ipu_crtc)
 		crtc->state->event = NULL;
 	}
 	spin_unlock_irq(&crtc->dev->event_lock);
-}
-
-static void ipu_crtc_dpms(struct drm_crtc *crtc, int mode)
-{
-	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
-
-	dev_dbg(ipu_crtc->dev, "%s mode: %d\n", __func__, mode);
-
-	switch (mode) {
-	case DRM_MODE_DPMS_ON:
-		ipu_crtc_enable(ipu_crtc);
-		break;
-	case DRM_MODE_DPMS_STANDBY:
-	case DRM_MODE_DPMS_SUSPEND:
-	case DRM_MODE_DPMS_OFF:
-		ipu_crtc_disable(ipu_crtc);
-		break;
-	}
 }
 
 static const struct drm_crtc_funcs ipu_crtc_funcs = {
@@ -130,20 +113,6 @@ static bool ipu_crtc_mode_fixup(struct drm_crtc *crtc,
 	drm_display_mode_from_videomode(&vm, adjusted_mode);
 
 	return true;
-}
-
-static void ipu_crtc_prepare(struct drm_crtc *crtc)
-{
-	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
-
-	ipu_crtc_disable(ipu_crtc);
-}
-
-static void ipu_crtc_commit(struct drm_crtc *crtc)
-{
-	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
-
-	ipu_crtc_enable(ipu_crtc);
 }
 
 static int ipu_crtc_atomic_check(struct drm_crtc *crtc,
@@ -225,13 +194,12 @@ static void ipu_crtc_mode_set_nofb(struct drm_crtc *crtc)
 }
 
 static const struct drm_crtc_helper_funcs ipu_helper_funcs = {
-	.dpms = ipu_crtc_dpms,
 	.mode_fixup = ipu_crtc_mode_fixup,
 	.mode_set_nofb = ipu_crtc_mode_set_nofb,
-	.prepare = ipu_crtc_prepare,
-	.commit = ipu_crtc_commit,
 	.atomic_check = ipu_crtc_atomic_check,
 	.atomic_begin = ipu_crtc_atomic_begin,
+	.disable = ipu_crtc_disable,
+	.enable = ipu_crtc_enable,
 };
 
 static int ipu_enable_vblank(struct drm_crtc *crtc)

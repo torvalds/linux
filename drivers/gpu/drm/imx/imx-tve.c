@@ -147,8 +147,7 @@ static void tve_enable(struct imx_tve *tve)
 		tve->enabled = true;
 		clk_prepare_enable(tve->clk);
 		ret = regmap_update_bits(tve->regmap, TVE_COM_CONF_REG,
-					 TVE_IPU_CLK_EN | TVE_EN,
-					 TVE_IPU_CLK_EN | TVE_EN);
+					 TVE_EN, TVE_EN);
 	}
 
 	/* clear interrupt status register */
@@ -171,7 +170,7 @@ static void tve_disable(struct imx_tve *tve)
 	if (tve->enabled) {
 		tve->enabled = false;
 		ret = regmap_update_bits(tve->regmap, TVE_COM_CONF_REG,
-					 TVE_IPU_CLK_EN | TVE_EN, 0);
+					 TVE_EN, 0);
 		clk_disable_unprepare(tve->clk);
 	}
 }
@@ -274,18 +273,6 @@ static struct drm_encoder *imx_tve_connector_best_encoder(
 	return &tve->imx_encoder.encoder;
 }
 
-static void imx_tve_encoder_dpms(struct drm_encoder *encoder, int mode)
-{
-	struct imx_drm_encoder *imx_encoder = enc_to_imx_enc(encoder);
-	struct imx_tve *tve = imx_enc_to_tve(imx_encoder);
-	int ret;
-
-	ret = regmap_update_bits(tve->regmap, TVE_COM_CONF_REG,
-				 TVE_TV_OUT_MODE_MASK, TVE_TV_OUT_DISABLE);
-	if (ret < 0)
-		dev_err(tve->dev, "failed to disable TVOUT: %d\n", ret);
-}
-
 static void imx_tve_encoder_mode_set(struct drm_encoder *encoder,
 				     struct drm_display_mode *orig_mode,
 				     struct drm_display_mode *mode)
@@ -315,6 +302,9 @@ static void imx_tve_encoder_mode_set(struct drm_encoder *encoder,
 			ret);
 	}
 
+	regmap_update_bits(tve->regmap, TVE_COM_CONF_REG,
+			   TVE_IPU_CLK_EN, TVE_IPU_CLK_EN);
+
 	if (tve->mode == TVE_MODE_VGA)
 		ret = tve_setup_vga(tve);
 	else
@@ -323,7 +313,7 @@ static void imx_tve_encoder_mode_set(struct drm_encoder *encoder,
 		dev_err(tve->dev, "failed to set configuration: %d\n", ret);
 }
 
-static void imx_tve_encoder_commit(struct drm_encoder *encoder)
+static void imx_tve_encoder_enable(struct drm_encoder *encoder)
 {
 	struct imx_drm_encoder *imx_encoder = enc_to_imx_enc(encoder);
 	struct imx_tve *tve = imx_enc_to_tve(imx_encoder);
@@ -340,7 +330,7 @@ static void imx_tve_encoder_disable(struct drm_encoder *encoder)
 }
 
 static const struct drm_connector_funcs imx_tve_connector_funcs = {
-	.dpms = drm_helper_connector_dpms,
+	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = imx_tve_connector_detect,
 	.destroy = imx_drm_connector_destroy,
@@ -360,9 +350,8 @@ static const struct drm_encoder_funcs imx_tve_encoder_funcs = {
 };
 
 static const struct drm_encoder_helper_funcs imx_tve_encoder_helper_funcs = {
-	.dpms = imx_tve_encoder_dpms,
 	.mode_set = imx_tve_encoder_mode_set,
-	.commit = imx_tve_encoder_commit,
+	.enable = imx_tve_encoder_enable,
 	.disable = imx_tve_encoder_disable,
 };
 

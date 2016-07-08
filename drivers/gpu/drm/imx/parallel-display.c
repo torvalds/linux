@@ -92,18 +92,7 @@ static struct drm_encoder *imx_pd_connector_best_encoder(
 	return &imxpd->imx_encoder.encoder;
 }
 
-static void imx_pd_encoder_dpms(struct drm_encoder *encoder, int mode)
-{
-	struct imx_drm_encoder *imx_encoder = enc_to_imx_enc(encoder);
-	struct imx_parallel_display *imxpd = imx_enc_to_imxpd(imx_encoder);
-
-	if (mode != DRM_MODE_DPMS_ON)
-		drm_panel_disable(imxpd->panel);
-	else
-		drm_panel_enable(imxpd->panel);
-}
-
-static void imx_pd_encoder_commit(struct drm_encoder *encoder)
+static void imx_pd_encoder_enable(struct drm_encoder *encoder)
 {
 	struct imx_drm_encoder *imx_encoder = enc_to_imx_enc(encoder);
 	struct imx_parallel_display *imxpd = imx_enc_to_imxpd(imx_encoder);
@@ -128,7 +117,7 @@ static void imx_pd_encoder_disable(struct drm_encoder *encoder)
 }
 
 static const struct drm_connector_funcs imx_pd_connector_funcs = {
-	.dpms = drm_helper_connector_dpms,
+	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = imx_pd_connector_detect,
 	.destroy = imx_drm_connector_destroy,
@@ -147,9 +136,8 @@ static const struct drm_encoder_funcs imx_pd_encoder_funcs = {
 };
 
 static const struct drm_encoder_helper_funcs imx_pd_encoder_helper_funcs = {
-	.dpms = imx_pd_encoder_dpms,
-	.commit = imx_pd_encoder_commit,
 	.mode_set = imx_pd_encoder_mode_set,
+	.enable = imx_pd_encoder_enable,
 	.disable = imx_pd_encoder_disable,
 };
 

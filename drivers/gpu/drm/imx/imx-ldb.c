@@ -172,10 +172,6 @@ static struct drm_encoder *imx_ldb_connector_best_encoder(
 	return &imx_ldb_ch->imx_encoder.encoder;
 }
 
-static void imx_ldb_encoder_dpms(struct drm_encoder *encoder, int mode)
-{
-}
-
 static void imx_ldb_set_clock(struct imx_ldb *ldb, int mux, int chno,
 		unsigned long serial_clk, unsigned long di_clk)
 {
@@ -204,7 +200,7 @@ static void imx_ldb_set_clock(struct imx_ldb *ldb, int mux, int chno,
 			chno);
 }
 
-static void imx_ldb_encoder_commit(struct drm_encoder *encoder)
+static void imx_ldb_encoder_enable(struct drm_encoder *encoder)
 {
 	struct imx_drm_encoder *imx_encoder = enc_to_imx_enc(encoder);
 	struct imx_ldb_channel *imx_ldb_ch = imx_enc_to_imx_ldb_ch(imx_encoder);
@@ -215,8 +211,13 @@ static void imx_ldb_encoder_commit(struct drm_encoder *encoder)
 	drm_panel_prepare(imx_ldb_ch->panel);
 
 	if (dual) {
+		clk_set_parent(ldb->clk_sel[mux], ldb->clk[0]);
+		clk_set_parent(ldb->clk_sel[mux], ldb->clk[1]);
+
 		clk_prepare_enable(ldb->clk[0]);
 		clk_prepare_enable(ldb->clk[1]);
+	} else {
+		clk_set_parent(ldb->clk_sel[mux], ldb->clk[imx_ldb_ch->chno]);
 	}
 
 	if (imx_ldb_ch == &ldb->channel[0] || dual) {
@@ -356,7 +357,7 @@ static void imx_ldb_encoder_disable(struct drm_encoder *encoder)
 }
 
 static const struct drm_connector_funcs imx_ldb_connector_funcs = {
-	.dpms = drm_helper_connector_dpms,
+	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = imx_ldb_connector_detect,
 	.destroy = imx_drm_connector_destroy,
@@ -375,9 +376,8 @@ static const struct drm_encoder_funcs imx_ldb_encoder_funcs = {
 };
 
 static const struct drm_encoder_helper_funcs imx_ldb_encoder_helper_funcs = {
-	.dpms = imx_ldb_encoder_dpms,
-	.commit = imx_ldb_encoder_commit,
 	.mode_set = imx_ldb_encoder_mode_set,
+	.enable = imx_ldb_encoder_enable,
 	.disable = imx_ldb_encoder_disable,
 };
 
