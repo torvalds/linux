@@ -431,12 +431,10 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 		goto error4;
 	INIT_WORK(&new->work, mtd_blktrans_work);
 
-	gd->driverfs_dev = &new->mtd->dev;
-
 	if (new->readonly)
 		set_disk_ro(gd, 1);
 
-	add_disk(gd);
+	device_add_disk(&new->mtd->dev, gd);
 
 	if (new->disk_attributes) {
 		ret = sysfs_create_group(&disk_to_dev(gd)->kobj,

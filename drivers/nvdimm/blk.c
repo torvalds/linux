@@ -287,14 +287,13 @@ static int nsblk_attach_disk(struct nd_namespace_blk *nsblk)
 		return -ENOMEM;
 	}
 
-	disk->driverfs_dev	= dev;
 	disk->first_minor	= 0;
 	disk->fops		= &nd_blk_fops;
 	disk->queue		= q;
 	disk->flags		= GENHD_FL_EXT_DEVT;
 	nvdimm_namespace_disk_name(&nsblk->common, disk->disk_name);
 	set_capacity(disk, 0);
-	add_disk(disk);
+	device_add_disk(dev, disk);
 
 	if (nsblk_meta_size(nsblk)) {
 		int rc = nd_integrity_init(disk, nsblk_meta_size(nsblk));

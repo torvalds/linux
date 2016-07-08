@@ -4350,8 +4350,7 @@ static int __init do_floppy_init(void)
 		/* to be cleaned up... */
 		disks[drive]->private_data = (void *)(long)drive;
 		disks[drive]->flags |= GENHD_FL_REMOVABLE;
-		disks[drive]->driverfs_dev = &floppy_device[drive].dev;
-		add_disk(disks[drive]);
+		device_add_disk(&floppy_device[drive].dev, disks[drive]);
 	}
 
 	return 0;

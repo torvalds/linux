@@ -1243,7 +1243,6 @@ static int mspro_block_init_disk(struct memstick_dev *card)
 	msb->usage_count = 1;
 	msb->disk->private_data = msb;
 	msb->disk->queue = msb->queue;
-	msb->disk->driverfs_dev = &card->dev;
 
 	sprintf(msb->disk->disk_name, "mspblk%d", disk_id);
 
@@ -1255,7 +1254,7 @@ static int mspro_block_init_disk(struct memstick_dev *card)
 	set_capacity(msb->disk, capacity);
 	dev_dbg(&card->dev, "capacity set %ld\n", capacity);
 
-	add_disk(msb->disk);
+	device_add_disk(&card->dev, msb->disk);
 	msb->active = 1;
 	return 0;
 

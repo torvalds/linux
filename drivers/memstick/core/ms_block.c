@@ -2146,7 +2146,6 @@ static int msb_init_disk(struct memstick_dev *card)
 	msb->disk->fops = &msb_bdops;
 	msb->disk->private_data = msb;
 	msb->disk->queue = msb->queue;
-	msb->disk->driverfs_dev = &card->dev;
 	msb->disk->flags |= GENHD_FL_EXT_DEVT;
 
 	capacity = msb->pages_in_block * msb->logical_block_count;
@@ -2163,7 +2162,7 @@ static int msb_init_disk(struct memstick_dev *card)
 		set_disk_ro(msb->disk, 1);
 
 	msb_start(card);
-	add_disk(msb->disk);
+	device_add_disk(&card->dev, msb->disk);
 	dbg("Disk added");
 	return 0;
 
