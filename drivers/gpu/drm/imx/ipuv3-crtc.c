@@ -18,6 +18,7 @@
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <drm/drmP.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <linux/fb.h>
@@ -216,6 +217,9 @@ static int ipu_page_flip(struct drm_crtc *crtc,
 	} else {
 		ipu_crtc->flip_state = IPU_FLIP_SUBMITTED;
 	}
+
+	if (crtc->primary->state)
+		drm_atomic_set_fb_for_plane(crtc->primary->state, fb);
 
 	return 0;
 
