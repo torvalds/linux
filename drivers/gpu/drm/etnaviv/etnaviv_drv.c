@@ -91,10 +91,8 @@ static void load_gpu(struct drm_device *dev)
 			int ret;
 
 			ret = etnaviv_gpu_init(g);
-			if (ret) {
-				dev_err(g->dev, "hw init failed: %d\n", ret);
+			if (ret)
 				priv->gpu[i] = NULL;
-			}
 		}
 	}
 }
