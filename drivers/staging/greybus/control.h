@@ -56,4 +56,5 @@ int gb_control_bundle_suspend(struct gb_control *control, u8 bundle_id);
 int gb_control_bundle_resume(struct gb_control *control, u8 bundle_id);
 int gb_control_bundle_deactivate(struct gb_control *control, u8 bundle_id);
 int gb_control_bundle_activate(struct gb_control *control, u8 bundle_id);
+int gb_control_interface_suspend_prepare(struct gb_control *control);
 #endif /* __CONTROL_H */

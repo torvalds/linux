@@ -130,6 +130,7 @@ struct gb_protocol_version_response {
 #define GB_CONTROL_TYPE_BUNDLE_RESUME		0x10
 #define GB_CONTROL_TYPE_BUNDLE_DEACTIVATE	0x11
 #define GB_CONTROL_TYPE_BUNDLE_ACTIVATE		0x12
+#define GB_CONTROL_TYPE_INTF_SUSPEND_PREPARE		0x13
 
 struct gb_control_version_request {
 	__u8	major;
@@ -211,6 +212,20 @@ struct gb_control_bundle_pm_request {
 } __packed;
 
 struct gb_control_bundle_pm_response {
+	__u8	status;
+} __packed;
+
+/*
+ * Interface Suspend Prepare and Deactivate Prepare operations use the same
+ * response layout and error codes. Define a single response structure and reuse
+ * it. Both operations have no payload.
+ */
+
+#define GB_CONTROL_INTF_PM_OK		0x00
+#define GB_CONTROL_INTF_PM_BUSY		0x01
+#define GB_CONTROL_INTF_PM_NA		0x02
+
+struct gb_control_intf_pm_response {
 	__u8	status;
 } __packed;
 
