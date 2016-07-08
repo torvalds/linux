@@ -9,6 +9,7 @@
  * Authors: Sanjay Lal <sanjayl@kymasys.com>
  */
 
+#include <linux/highmem.h>
 #include <linux/kvm_host.h>
 #include <asm/mmu_context.h>
 
@@ -330,6 +331,7 @@ u32 kvm_get_inst(u32 *opc, struct kvm_vcpu *vcpu)
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	unsigned long paddr, flags, vpn2, asid;
 	unsigned long va = (unsigned long)opc;
+	void *vaddr;
 	u32 inst;
 	int index;
 
@@ -360,7 +362,10 @@ u32 kvm_get_inst(u32 *opc, struct kvm_vcpu *vcpu)
 		local_irq_restore(flags);
 	} else if (KVM_GUEST_KSEGX(va) == KVM_GUEST_KSEG0) {
 		paddr = kvm_mips_translate_guest_kseg0_to_hpa(vcpu, va);
-		inst = *(u32 *) CKSEG0ADDR(paddr);
+		vaddr = kmap_atomic(pfn_to_page(PHYS_PFN(paddr)));
+		vaddr += paddr & ~PAGE_MASK;
+		inst = *(u32 *)vaddr;
+		kunmap_atomic(vaddr);
 	} else {
 		kvm_err("%s: illegal address: %p\n", __func__, opc);
 		return KVM_INVALID_INST;
