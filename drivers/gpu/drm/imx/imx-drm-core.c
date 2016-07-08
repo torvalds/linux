@@ -279,6 +279,8 @@ static int imx_drm_driver_load(struct drm_device *drm, unsigned long flags)
 		}
 	}
 
+	drm_mode_config_reset(drm);
+
 	/*
 	 * All components are now initialised, so setup the fb helper.
 	 * The fb helper takes copies of key hardware information, so the

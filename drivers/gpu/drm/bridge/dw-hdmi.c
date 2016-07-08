@@ -1500,6 +1500,9 @@ static const struct drm_connector_funcs dw_hdmi_connector_funcs = {
 	.detect = dw_hdmi_connector_detect,
 	.destroy = dw_hdmi_connector_destroy,
 	.force = dw_hdmi_connector_force,
+	.reset = drm_atomic_helper_connector_reset,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
 static const struct drm_connector_funcs dw_hdmi_atomic_connector_funcs = {

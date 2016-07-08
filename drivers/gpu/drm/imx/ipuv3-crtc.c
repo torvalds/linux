@@ -18,6 +18,7 @@
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <drm/drmP.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <linux/fb.h>
 #include <linux/clk.h>
@@ -232,6 +233,9 @@ static const struct drm_crtc_funcs ipu_crtc_funcs = {
 	.set_config = drm_crtc_helper_set_config,
 	.destroy = drm_crtc_cleanup,
 	.page_flip = ipu_page_flip,
+	.reset = drm_atomic_helper_crtc_reset,
+	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
 };
 
 static void ipu_crtc_handle_pageflip(struct ipu_crtc *ipu_crtc)
