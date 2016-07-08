@@ -199,37 +199,46 @@ int ipu_plane_mode_set(struct ipu_plane *ipu_plane, struct drm_crtc *crtc,
 	if (src_w != crtc_w || src_h != crtc_h)
 		return -EINVAL;
 
-	/* clip to crtc bounds */
-	if (crtc_x < 0) {
-		if (-crtc_x > crtc_w)
+	if (ipu_plane->base.type == DRM_PLANE_TYPE_PRIMARY) {
+		/* full plane doesn't support partial off screen */
+		if (crtc_x || crtc_y || crtc_w != mode->hdisplay ||
+			crtc_h != mode->vdisplay)
 			return -EINVAL;
-		src_x += -crtc_x;
-		src_w -= -crtc_x;
-		crtc_w -= -crtc_x;
-		crtc_x = 0;
-	}
-	if (crtc_y < 0) {
-		if (-crtc_y > crtc_h)
+
+		/* full plane minimum width is 13 pixels */
+		if (crtc_w < 13)
 			return -EINVAL;
-		src_y += -crtc_y;
-		src_h -= -crtc_y;
-		crtc_h -= -crtc_y;
-		crtc_y = 0;
-	}
-	if (crtc_x + crtc_w > mode->hdisplay) {
-		if (crtc_x > mode->hdisplay)
-			return -EINVAL;
-		crtc_w = mode->hdisplay - crtc_x;
-		src_w = crtc_w;
-	}
-	if (crtc_y + crtc_h > mode->vdisplay) {
-		if (crtc_y > mode->vdisplay)
-			return -EINVAL;
-		crtc_h = mode->vdisplay - crtc_y;
-		src_h = crtc_h;
-	}
-	/* full plane minimum width is 13 pixels */
-	if (crtc_w < 13 && (ipu_plane->dp_flow != IPU_DP_FLOW_SYNC_FG))
+	} else if (ipu_plane->base.type == DRM_PLANE_TYPE_OVERLAY) {
+		/* clip to crtc bounds */
+		if (crtc_x < 0) {
+			if (-crtc_x > crtc_w)
+				return -EINVAL;
+			src_x += -crtc_x;
+			src_w -= -crtc_x;
+			crtc_w -= -crtc_x;
+			crtc_x = 0;
+		}
+		if (crtc_y < 0) {
+			if (-crtc_y > crtc_h)
+				return -EINVAL;
+			src_y += -crtc_y;
+			src_h -= -crtc_y;
+			crtc_h -= -crtc_y;
+			crtc_y = 0;
+		}
+		if (crtc_x + crtc_w > mode->hdisplay) {
+			if (crtc_x > mode->hdisplay)
+				return -EINVAL;
+			crtc_w = mode->hdisplay - crtc_x;
+			src_w = crtc_w;
+		}
+		if (crtc_y + crtc_h > mode->vdisplay) {
+			if (crtc_y > mode->vdisplay)
+				return -EINVAL;
+			crtc_h = mode->vdisplay - crtc_y;
+			src_h = crtc_h;
+		}
+	} else
 		return -EINVAL;
 	if (crtc_h < 2)
 		return -EINVAL;
