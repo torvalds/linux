@@ -1,0 +1,91 @@
+
+In order to support ACPI open-ended hardware configurations (e.g. development
+boards) we need a way to augment the ACPI configuration provided by the firmware
+image. A common example is connecting sensors on I2C / SPI buses on development
+boards.
+
+Although this can be accomplished by creating a kernel platform driver or
+recompiling the firmware image with updated ACPI tables, neither is practical:
+the former proliferates board specific kernel code while the latter requires
+access to firmware tools which are often not publicly available.
+
+Because ACPI supports external references in AML code a more practical
+way to augment firmware ACPI configuration is by dynamically loading
+user defined SSDT tables that contain the board specific information.
+
+For example, to enumerate a Bosch BMA222E accelerometer on the I2C bus of the
+Minnowboard MAX development board exposed via the LSE connector [1], the
+following ASL code can be used:
+
+DefinitionBlock ("minnowmax.aml", "SSDT", 1, "Vendor", "Accel", 0x00000003)
+{
+    External (\_SB.I2C6, DeviceObj)
+
+    Scope (\_SB.I2C6)
+    {
+        Device (STAC)
+        {
+            Name (_ADR, Zero)
+            Name (_HID, "BMA222E")
+
+            Method (_CRS, 0, Serialized)
+            {
+                Name (RBUF, ResourceTemplate ()
+                {
+                    I2cSerialBus (0x0018, ControllerInitiated, 0x00061A80,
+                                  AddressingMode7Bit, "\\_SB.I2C6", 0x00,
+                                  ResourceConsumer, ,)
+                    GpioInt (Edge, ActiveHigh, Exclusive, PullDown, 0x0000,
+                             "\\_SB.GPO2", 0x00, ResourceConsumer, , )
+                    { // Pin list
+                        0
+                    }
+                })
+                Return (RBUF)
+            }
+        }
+    }
+}
+
+which can then be compiled to AML binary format:
+
+$ iasl minnowmax.asl
+
+Intel ACPI Component Architecture
+ASL Optimizing Compiler version 20140214-64 [Mar 29 2014]
+Copyright (c) 2000 - 2014 Intel Corporation
+
+ASL Input:     minnomax.asl - 30 lines, 614 bytes, 7 keywords
+AML Output:    minnowmax.aml - 165 bytes, 6 named objects, 1 executable opcodes
+
+[1] http://wiki.minnowboard.org/MinnowBoard_MAX#Low_Speed_Expansion_Connector_.28Top.29
+
+The resulting AML code can then be loaded by the kernel using one of the methods
+below.
+
+== Loading ACPI SSDTs from initrd ==
+
+This option allows loading of user defined SSDTs from initrd and it is useful
+when the system does not support EFI or when there is not enough EFI storage.
+
+It works in a similar way with initrd based ACPI tables override/upgrade: SSDT
+aml code must be placed in the first, uncompressed, initrd under the
+"kernel/firmware/acpi" path. Multiple files can be used and this will translate
+in loading multiple tables. Only SSDT and OEM tables are allowed. See
+initrd_table_override.txt for more details.
+
+Here is an example:
+
+# Add the raw ACPI tables to an uncompressed cpio archive.
+# They must be put into a /kernel/firmware/acpi directory inside the
+# cpio archive.
+# The uncompressed cpio archive must be the first.
+# Other, typically compressed cpio archives, must be
+# concatenated on top of the uncompressed one.
+mkdir -p kernel/firmware/acpi
+cp ssdt.aml kernel/firmware/acpi
+
+# Create the uncompressed cpio archive and concatenate the original initrd
+# on top:
+find kernel | cpio -H newc --create > /boot/instrumented_initrd
+cat /boot/initrd >>/boot/instrumented_initrd
