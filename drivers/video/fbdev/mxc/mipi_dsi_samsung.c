@@ -112,6 +112,10 @@ static int mipi_dsi_lcd_init(struct mipi_dsi_info *mipi_dsi,
 		return -EINVAL;
 	}
 
+	/* set default bpp to 32 if not set*/
+	if (!setting->default_bpp)
+		setting->default_bpp = 32;
+
 	mipi_dsi->lcd_callback->get_mipi_lcd_videomode(&mipi_lcd_modedb, &size,
 					&mipi_dsi->lcd_config);
 
