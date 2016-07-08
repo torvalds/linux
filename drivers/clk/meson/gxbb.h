@@ -234,7 +234,7 @@
 #define CLKID_HDMI_PCLK		  63
 #define CLKID_USB1_DDR_BRIDGE	  64
 #define CLKID_USB0_DDR_BRIDGE	  65
-#define CLKID_MMC_PCLK		  66
+/* CLKID_MMC_PCLK */	       
 #define CLKID_DVIN		  67
 #define CLKID_UART2		  68
 #define CLKID_SANA		  69
