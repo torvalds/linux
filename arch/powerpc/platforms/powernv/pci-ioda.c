@@ -2705,7 +2705,8 @@ void pnv_set_msi_irq_chip(struct pnv_phb *phb, unsigned int virq)
 	struct irq_data *idata;
 	struct irq_chip *ichip;
 
-	if (phb->type != PNV_PHB_IODA2)
+	/* The MSI EOI OPAL call is only needed on PHB3 */
+	if (phb->model != PNV_PHB_MODEL_PHB3)
 		return;
 
 	if (!phb->ioda.irq_chip_init) {
