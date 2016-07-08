@@ -35,7 +35,7 @@ static void nft_lookup_eval(const struct nft_expr *expr,
 	const struct nft_set_ext *ext;
 	bool found;
 
-	found = set->ops->lookup(set, &regs->data[priv->sreg], &ext) ^
+	found = set->ops->lookup(pkt->net, set, &regs->data[priv->sreg], &ext) ^
 		priv->invert;
 
 	if (!found) {

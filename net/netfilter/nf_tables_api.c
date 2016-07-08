@@ -1405,7 +1405,6 @@ static int nf_tables_newchain(struct net *net, struct sock *nlsk,
 			rcu_assign_pointer(basechain->stats, stats);
 		}
 
-		write_pnet(&basechain->pnet, net);
 		basechain->type = type;
 		chain = &basechain->chain;
 
@@ -2841,7 +2840,6 @@ static int nf_tables_newset(struct net *net, struct sock *nlsk,
 	}
 
 	INIT_LIST_HEAD(&set->bindings);
-	write_pnet(&set->pnet, net);
 	set->ops   = ops;
 	set->ktype = ktype;
 	set->klen  = desc.klen;
@@ -3520,7 +3518,7 @@ static int nft_add_set_elem(struct nft_ctx *ctx, struct nft_set *set,
 		goto err4;
 
 	ext->genmask = nft_genmask_cur(ctx->net) | NFT_SET_ELEM_BUSY_MASK;
-	err = set->ops->insert(set, &elem);
+	err = set->ops->insert(ctx->net, set, &elem);
 	if (err < 0)
 		goto err5;
 
@@ -3644,7 +3642,7 @@ static int nft_del_setelem(struct nft_ctx *ctx, struct nft_set *set,
 		goto err3;
 	}
 
-	priv = set->ops->deactivate(set, &elem);
+	priv = set->ops->deactivate(ctx->net, set, &elem);
 	if (priv == NULL) {
 		err = -ENOENT;
 		goto err4;
@@ -4018,7 +4016,7 @@ static int nf_tables_commit(struct net *net, struct sk_buff *skb)
 		case NFT_MSG_NEWSETELEM:
 			te = (struct nft_trans_elem *)trans->data;
 
-			te->set->ops->activate(te->set, &te->elem);
+			te->set->ops->activate(net, te->set, &te->elem);
 			nf_tables_setelem_notify(&trans->ctx, te->set,
 						 &te->elem,
 						 NFT_MSG_NEWSETELEM, 0);
@@ -4143,7 +4141,7 @@ static int nf_tables_abort(struct net *net, struct sk_buff *skb)
 		case NFT_MSG_DELSETELEM:
 			te = (struct nft_trans_elem *)trans->data;
 
-			te->set->ops->activate(te->set, &te->elem);
+			te->set->ops->activate(net, te->set, &te->elem);
 			te->set->ndeact--;
 
 			nft_trans_destroy(trans);
