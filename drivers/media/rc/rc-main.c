@@ -810,6 +810,7 @@ static const struct {
 	{ RC_BIT_SHARP,		"sharp",	"ir-sharp-decoder"	},
 	{ RC_BIT_MCE_KBD,	"mce_kbd",	"ir-mce_kbd-decoder"	},
 	{ RC_BIT_XMP,		"xmp",		"ir-xmp-decoder"	},
+	{ RC_BIT_CEC,		"cec",		NULL			},
 };
 
 /**

@@ -74,7 +74,8 @@ Section 11: Cropping, Composing, Scaling
 Section 12: Formats
 Section 13: Capture Overlay
 Section 14: Output Overlay
-Section 15: Some Future Improvements
+Section 15: CEC (Consumer Electronics Control)
+Section 16: Some Future Improvements
 
 
 Section 1: Configuring the driver
@@ -364,7 +365,11 @@ For HDMI inputs it is possible to set the EDID. By default a simple EDID
 is provided. You can only set the EDID for HDMI inputs. Internally, however,
 the EDID is shared between all HDMI inputs.
 
-No interpretation is done of the EDID data.
+No interpretation is done of the EDID data with the exception of the
+physical address. See the CEC section for more details.
+
+There is a maximum of 15 HDMI inputs (if there are more, then they will be
+reduced to 15) since that's the limitation of the EDID physical address.
 
 
 Section 3: Video Output
@@ -409,6 +414,9 @@ standard, and for all others a 1:1 pixel aspect ratio is returned.
 
 An HDMI output has a valid EDID which can be obtained through VIDIOC_G_EDID.
 
+There is a maximum of 15 HDMI outputs (if there are more, then they will be
+reduced to 15) since that's the limitation of the EDID physical address. See
+also the CEC section for more details.
 
 Section 4: VBI Capture
 ----------------------
@@ -1108,7 +1116,26 @@ capabilities will slow down the video loop considerably as a lot of checks have
 to be done per pixel.
 
 
-Section 15: Some Future Improvements
+Section 15: CEC (Consumer Electronics Control)
+----------------------------------------------
+
+If there are HDMI inputs then a CEC adapter will be created that has
+the same number of input ports. This is the equivalent of e.g. a TV that
+has that number of inputs. Each HDMI output will also create a
+CEC adapter that is hooked up to the corresponding input port, or (if there
+are more outputs than inputs) is not hooked up at all. In other words,
+this is the equivalent of hooking up each output device to an input port of
+the TV. Any remaining output devices remain unconnected.
+
+The EDID that each output reads reports a unique CEC physical address that is
+based on the physical address of the EDID of the input. So if the EDID of the
+receiver has physical address A.B.0.0, then each output will see an EDID
+containing physical address A.B.C.0 where C is 1 to the number of inputs. If
+there are more outputs than inputs then the remaining outputs have a CEC adapter
+that is disabled and reports an invalid physical address.
+
+
+Section 16: Some Future Improvements
 ------------------------------------
 
 Just as a reminder and in no particular order:
@@ -1121,8 +1148,6 @@ Just as a reminder and in no particular order:
 - Fix sequence/field numbering when looping of video with alternate fields
 - Add support for V4L2_CID_BG_COLOR for video outputs
 - Add ARGB888 overlay support: better testing of the alpha channel
-- Add custom DV timings support
-- Add support for V4L2_DV_FL_REDUCED_FPS
 - Improve pixel aspect support in the tpg code by passing a real v4l2_fract
 - Use per-queue locks and/or per-device locks to improve throughput
 - Add support to loop from a specific output to a specific input across
@@ -1133,3 +1158,4 @@ Just as a reminder and in no particular order:
 - Make a thread for the RDS generation, that would help in particular for the
   "Controls" RDS Rx I/O Mode as the read-only RDS controls could be updated
   in real-time.
+- Changing the EDID should cause hotplug detect emulation to happen.

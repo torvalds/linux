@@ -1695,6 +1695,9 @@ int vidioc_s_edid(struct file *file, void *_fh,
 			 struct v4l2_edid *edid)
 {
 	struct vivid_dev *dev = video_drvdata(file);
+	u16 phys_addr;
+	unsigned int i;
+	int ret;
 
 	memset(edid->reserved, 0, sizeof(edid->reserved));
 	if (edid->pad >= dev->num_inputs)
@@ -1703,14 +1706,32 @@ int vidioc_s_edid(struct file *file, void *_fh,
 		return -EINVAL;
 	if (edid->blocks == 0) {
 		dev->edid_blocks = 0;
-		return 0;
+		phys_addr = CEC_PHYS_ADDR_INVALID;
+		goto set_phys_addr;
 	}
 	if (edid->blocks > dev->edid_max_blocks) {
 		edid->blocks = dev->edid_max_blocks;
 		return -E2BIG;
 	}
+	phys_addr = cec_get_edid_phys_addr(edid->edid, edid->blocks * 128, NULL);
+	ret = cec_phys_addr_validate(phys_addr, &phys_addr, NULL);
+	if (ret)
+		return ret;
+
+	if (vb2_is_busy(&dev->vb_vid_cap_q))
+		return -EBUSY;
+
 	dev->edid_blocks = edid->blocks;
 	memcpy(dev->edid, edid->edid, edid->blocks * 128);
+
+set_phys_addr:
+	/* TODO: a proper hotplug detect cycle should be emulated here */
+	cec_s_phys_addr(dev->cec_rx_adap, phys_addr, false);
+
+	for (i = 0; i < MAX_OUTPUTS && dev->cec_tx_adap[i]; i++)
+		cec_s_phys_addr(dev->cec_tx_adap[i],
+				cec_phys_addr_for_input(phys_addr, i + 1),
+				false);
 	return 0;
 }
 
