@@ -1861,6 +1861,17 @@ static void pnv_pci_phb3_tce_invalidate(struct pnv_ioda_pe *pe, bool rm,
 	}
 }
 
+static inline void pnv_pci_ioda2_tce_invalidate_pe(struct pnv_ioda_pe *pe)
+{
+	struct pnv_phb *phb = pe->phb;
+
+	if (phb->model == PNV_PHB_MODEL_PHB3 && phb->regs)
+		pnv_pci_phb3_tce_invalidate_pe(pe);
+	else
+		opal_pci_tce_kill(phb->opal_id, OPAL_PCI_TCE_KILL_PE,
+				  pe->pe_number, 0, 0, 0);
+}
+
 static void pnv_pci_ioda2_tce_invalidate(struct iommu_table *tbl,
 		unsigned long index, unsigned long npages, bool rm)
 {
@@ -1869,17 +1880,31 @@ static void pnv_pci_ioda2_tce_invalidate(struct iommu_table *tbl,
 	list_for_each_entry_rcu(tgl, &tbl->it_group_list, next) {
 		struct pnv_ioda_pe *pe = container_of(tgl->table_group,
 				struct pnv_ioda_pe, table_group);
-		if (pe->phb->type == PNV_PHB_NPU) {
+		struct pnv_phb *phb = pe->phb;
+		unsigned int shift = tbl->it_page_shift;
+
+		if (phb->type == PNV_PHB_NPU) {
 			/*
 			 * The NVLink hardware does not support TCE kill
 			 * per TCE entry so we have to invalidate
 			 * the entire cache for it.
 			 */
-			pnv_pci_phb3_tce_invalidate_entire(pe->phb, rm);
+			pnv_pci_phb3_tce_invalidate_entire(phb, rm);
 			continue;
 		}
-		pnv_pci_phb3_tce_invalidate(pe, rm, tbl->it_page_shift,
-					    index, npages);
+		if (phb->model == PNV_PHB_MODEL_PHB3 && phb->regs)
+			pnv_pci_phb3_tce_invalidate(pe, rm, shift,
+						    index, npages);
+		else if (rm)
+			opal_rm_pci_tce_kill(phb->opal_id,
+					     OPAL_PCI_TCE_KILL_PAGES,
+					     pe->pe_number, 1u << shift,
+					     index << shift, npages);
+		else
+			opal_pci_tce_kill(phb->opal_id,
+					  OPAL_PCI_TCE_KILL_PAGES,
+					  pe->pe_number, 1u << shift,
+					  index << shift, npages);
 	}
 }
 
