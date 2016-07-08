@@ -297,7 +297,7 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 
 		job->vm_id = id - adev->vm_manager.ids;
 		job->vm_needs_flush = false;
-		trace_amdgpu_vm_grab_id(vm, ring->idx, job->vm_id, job->vm_pd_addr);
+		trace_amdgpu_vm_grab_id(vm, ring->idx, job);
 
 		mutex_unlock(&adev->vm_manager.lock);
 		return 0;
@@ -328,7 +328,7 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 	vm->ids[ring->idx] = id;
 
 	job->vm_id = id - adev->vm_manager.ids;
-	trace_amdgpu_vm_grab_id(vm, ring->idx, job->vm_id, job->vm_pd_addr);
+	trace_amdgpu_vm_grab_id(vm, ring->idx, job);
 
 error:
 	mutex_unlock(&adev->vm_manager.lock);
