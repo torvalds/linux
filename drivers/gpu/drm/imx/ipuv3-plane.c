@@ -53,24 +53,6 @@ int ipu_plane_irq(struct ipu_plane *ipu_plane)
 				     IPU_IRQ_EOF);
 }
 
-static int calc_vref(struct drm_display_mode *mode)
-{
-	unsigned long htotal, vtotal;
-
-	htotal = mode->htotal;
-	vtotal = mode->vtotal;
-
-	if (!htotal || !vtotal)
-		return 60;
-
-	return DIV_ROUND_UP(mode->clock * 1000, vtotal * htotal);
-}
-
-static inline int calc_bandwidth(int width, int height, unsigned int vref)
-{
-	return width * height * vref;
-}
-
 int ipu_plane_set_base(struct ipu_plane *ipu_plane, struct drm_framebuffer *fb,
 		       int x, int y)
 {
@@ -289,14 +271,6 @@ int ipu_plane_mode_set(struct ipu_plane *ipu_plane, struct drm_crtc *crtc,
 		default:
 			break;
 		}
-	}
-
-	ret = ipu_dmfc_alloc_bandwidth(ipu_plane->dmfc,
-			calc_bandwidth(crtc_w, crtc_h,
-				       calc_vref(mode)), 64);
-	if (ret) {
-		dev_err(dev, "allocating dmfc bandwidth failed with %d\n", ret);
-		return ret;
 	}
 
 	ipu_dmfc_config_wait4eot(ipu_plane->dmfc, crtc_w);
