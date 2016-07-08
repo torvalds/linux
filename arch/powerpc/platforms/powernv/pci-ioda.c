@@ -191,9 +191,6 @@ static int pnv_ioda2_init_m64(struct pnv_phb *phb)
 		goto fail;
 	}
 
-	/* Mark the M64 BAR assigned */
-	set_bit(phb->ioda.m64_bar_idx, &phb->ioda.m64_bar_alloc);
-
 	/*
 	 * Exclude the segments for reserved and root bus PE, which
 	 * are first or last two PEs.
@@ -404,6 +401,7 @@ static void __init pnv_ioda_parse_m64_window(struct pnv_phb *phb)
 	struct pci_controller *hose = phb->hose;
 	struct device_node *dn = hose->dn;
 	struct resource *res;
+	u32 m64_range[2], i;
 	const u32 *r;
 	u64 pci_addr;
 
@@ -424,6 +422,30 @@ static void __init pnv_ioda_parse_m64_window(struct pnv_phb *phb)
 		return;
 	}
 
+	/*
+	 * Find the available M64 BAR range and pickup the last one for
+	 * covering the whole 64-bits space. We support only one range.
+	 */
+	if (of_property_read_u32_array(dn, "ibm,opal-available-m64-ranges",
+				       m64_range, 2)) {
+		/* In absence of the property, assume 0..15 */
+		m64_range[0] = 0;
+		m64_range[1] = 16;
+	}
+	/* We only support 64 bits in our allocator */
+	if (m64_range[1] > 63) {
+		pr_warn("%s: Limiting M64 range to 63 (from %d) on PHB#%x\n",
+			__func__, m64_range[1], phb->hose->global_number);
+		m64_range[1] = 63;
+	}
+	/* Empty range, no m64 */
+	if (m64_range[1] <= m64_range[0]) {
+		pr_warn("%s: M64 empty, disabling M64 usage on PHB#%x\n",
+			__func__, phb->hose->global_number);
+		return;
+	}
+
+	/* Configure M64 informations */
 	res = &hose->mem_resources[1];
 	res->name = dn->full_name;
 	res->start = of_translate_address(dn, r + 2);
@@ -436,11 +458,28 @@ static void __init pnv_ioda_parse_m64_window(struct pnv_phb *phb)
 	phb->ioda.m64_segsize = phb->ioda.m64_size / phb->ioda.total_pe_num;
 	phb->ioda.m64_base = pci_addr;
 
-	pr_info(" MEM64 0x%016llx..0x%016llx -> 0x%016llx\n",
-			res->start, res->end, pci_addr);
+	/* This lines up nicely with the display from processing OF ranges */
+	pr_info(" MEM 0x%016llx..0x%016llx -> 0x%016llx (M64 #%d..%d)\n",
+		res->start, res->end, pci_addr, m64_range[0],
+		m64_range[0] + m64_range[1] - 1);
+
+	/* Mark all M64 used up by default */
+	phb->ioda.m64_bar_alloc = (unsigned long)-1;
 
 	/* Use last M64 BAR to cover M64 window */
-	phb->ioda.m64_bar_idx = 15;
+	m64_range[1]--;
+	phb->ioda.m64_bar_idx = m64_range[0] + m64_range[1];
+
+	pr_info(" Using M64 #%d as default window\n", phb->ioda.m64_bar_idx);
+
+	/* Mark remaining ones free */
+	for (i = m64_range[0]; i < m64_range[1]; i++)
+		clear_bit(i, &phb->ioda.m64_bar_alloc);
+
+	/*
+	 * Setup init functions for M64 based on IODA version, IODA3 uses
+	 * the IODA2 code.
+	 */
 	if (phb->type == PNV_PHB_IODA1)
 		phb->init_m64 = pnv_ioda1_init_m64;
 	else
