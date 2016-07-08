@@ -1234,3 +1234,101 @@ u32 aarch32_insn_mcr_extract_crm(u32 insn)
 {
 	return insn & CRM_MASK;
 }
+
+static bool __kprobes __check_eq(unsigned long pstate)
+{
+	return (pstate & PSR_Z_BIT) != 0;
+}
+
+static bool __kprobes __check_ne(unsigned long pstate)
+{
+	return (pstate & PSR_Z_BIT) == 0;
+}
+
+static bool __kprobes __check_cs(unsigned long pstate)
+{
+	return (pstate & PSR_C_BIT) != 0;
+}
+
+static bool __kprobes __check_cc(unsigned long pstate)
+{
+	return (pstate & PSR_C_BIT) == 0;
+}
+
+static bool __kprobes __check_mi(unsigned long pstate)
+{
+	return (pstate & PSR_N_BIT) != 0;
+}
+
+static bool __kprobes __check_pl(unsigned long pstate)
+{
+	return (pstate & PSR_N_BIT) == 0;
+}
+
+static bool __kprobes __check_vs(unsigned long pstate)
+{
+	return (pstate & PSR_V_BIT) != 0;
+}
+
+static bool __kprobes __check_vc(unsigned long pstate)
+{
+	return (pstate & PSR_V_BIT) == 0;
+}
+
+static bool __kprobes __check_hi(unsigned long pstate)
+{
+	pstate &= ~(pstate >> 1);	/* PSR_C_BIT &= ~PSR_Z_BIT */
+	return (pstate & PSR_C_BIT) != 0;
+}
+
+static bool __kprobes __check_ls(unsigned long pstate)
+{
+	pstate &= ~(pstate >> 1);	/* PSR_C_BIT &= ~PSR_Z_BIT */
+	return (pstate & PSR_C_BIT) == 0;
+}
+
+static bool __kprobes __check_ge(unsigned long pstate)
+{
+	pstate ^= (pstate << 3);	/* PSR_N_BIT ^= PSR_V_BIT */
+	return (pstate & PSR_N_BIT) == 0;
+}
+
+static bool __kprobes __check_lt(unsigned long pstate)
+{
+	pstate ^= (pstate << 3);	/* PSR_N_BIT ^= PSR_V_BIT */
+	return (pstate & PSR_N_BIT) != 0;
+}
+
+static bool __kprobes __check_gt(unsigned long pstate)
+{
+	/*PSR_N_BIT ^= PSR_V_BIT */
+	unsigned long temp = pstate ^ (pstate << 3);
+
+	temp |= (pstate << 1);	/*PSR_N_BIT |= PSR_Z_BIT */
+	return (temp & PSR_N_BIT) == 0;
+}
+
+static bool __kprobes __check_le(unsigned long pstate)
+{
+	/*PSR_N_BIT ^= PSR_V_BIT */
+	unsigned long temp = pstate ^ (pstate << 3);
+
+	temp |= (pstate << 1);	/*PSR_N_BIT |= PSR_Z_BIT */
+	return (temp & PSR_N_BIT) != 0;
+}
+
+static bool __kprobes __check_al(unsigned long pstate)
+{
+	return true;
+}
+
+/*
+ * Note that the ARMv8 ARM calls condition code 0b1111 "nv", but states that
+ * it behaves identically to 0b1110 ("al").
+ */
+pstate_check_t * const aarch32_opcode_cond_checks[16] = {
+	__check_eq, __check_ne, __check_cs, __check_cc,
+	__check_mi, __check_pl, __check_vs, __check_vc,
+	__check_hi, __check_ls, __check_ge, __check_lt,
+	__check_gt, __check_le, __check_al, __check_al
+};

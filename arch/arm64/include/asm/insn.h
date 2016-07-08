@@ -406,6 +406,9 @@ u32 aarch64_insn_extract_system_reg(u32 insn);
 u32 aarch32_insn_extract_reg_num(u32 insn, int offset);
 u32 aarch32_insn_mcr_extract_opc2(u32 insn);
 u32 aarch32_insn_mcr_extract_crm(u32 insn);
+
+typedef bool (pstate_check_t)(unsigned long);
+extern pstate_check_t * const aarch32_opcode_cond_checks[16];
 #endif /* __ASSEMBLY__ */
 
 #endif	/* __ASM_INSN_H */
