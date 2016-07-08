@@ -641,11 +641,9 @@ static int gb_interface_activate_operation(struct gb_interface *intf)
 
 static int gb_interface_hibernate_link(struct gb_interface *intf)
 {
-	dev_dbg(&intf->dev, "%s\n", __func__);
+	struct gb_svc *svc = intf->hd->svc;
 
-	/* FIXME: implement */
-
-	return 0;
+	return gb_svc_intf_set_power_mode_hibernate(svc, intf->interface_id);
 }
 
 /*
