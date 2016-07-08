@@ -8,7 +8,7 @@ V4L2_PIX_FMT_Z16 ('Z16 ')
 
 *man V4L2_PIX_FMT_Z16(2)*
 
-Interleaved grey-scale image, e.g. from a stereo-pair
+16-bit depth data with distance values at each pixel
 
 
 Description
