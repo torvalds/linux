@@ -49,8 +49,8 @@
 #include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
-	model = "Sinovoip BPI-M2+";
-	compatible = "sinovoip,bpi-m2+", "allwinner,sun8i-h3";
+	model = "Banana Pi BPI-M2-Plus";
+	compatible = "sinovoip,bpi-m2-plus", "allwinner,sun8i-h3";
 
 	aliases {
 		serial0 = &uart0;
@@ -67,7 +67,7 @@
 		pinctrl-0 = <&pwr_led_bpi_m2p>;
 
 		pwr_led {
-			label = "bpi-m2+:red:pwr";
+			label = "bananapi-m2-plus:red:pwr";
 			gpios = <&r_pio 0 10 GPIO_ACTIVE_HIGH>; /* PL10 */
 			default-state = "on";
 		};
