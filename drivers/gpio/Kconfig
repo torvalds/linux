@@ -49,7 +49,7 @@ config GPIO_DEVRES
 
 config OF_GPIO
 	def_bool y
-	depends on OF || COMPILE_TEST
+	depends on OF
 
 config GPIO_ACPI
 	def_bool y
