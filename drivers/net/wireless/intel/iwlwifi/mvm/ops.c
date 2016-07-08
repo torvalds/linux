@@ -577,17 +577,20 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 
 	mvm->restart_fw = iwlwifi_mod_params.restart_fw ? -1 : 0;
 
-	mvm->aux_queue = 15;
 	if (!iwl_mvm_is_dqa_supported(mvm)) {
-		mvm->first_agg_queue = 16;
 		mvm->last_agg_queue = mvm->cfg->base_params->num_of_queues - 1;
+
+		if (mvm->cfg->base_params->num_of_queues == 16) {
+			mvm->aux_queue = 11;
+			mvm->first_agg_queue = 12;
+		} else {
+			mvm->aux_queue = 15;
+			mvm->first_agg_queue = 16;
+		}
 	} else {
+		mvm->aux_queue = IWL_MVM_DQA_AUX_QUEUE;
 		mvm->first_agg_queue = IWL_MVM_DQA_MIN_DATA_QUEUE;
 		mvm->last_agg_queue = IWL_MVM_DQA_MAX_DATA_QUEUE;
-	}
-	if (mvm->cfg->base_params->num_of_queues == 16) {
-		mvm->aux_queue = 11;
-		mvm->first_agg_queue = 12;
 	}
 	mvm->sf_state = SF_UNINIT;
 	mvm->cur_ucode = IWL_UCODE_INIT;
@@ -608,6 +611,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	INIT_WORK(&mvm->d0i3_exit_work, iwl_mvm_d0i3_exit_work);
 	INIT_DELAYED_WORK(&mvm->fw_dump_wk, iwl_mvm_fw_error_dump_wk);
 	INIT_DELAYED_WORK(&mvm->tdls_cs.dwork, iwl_mvm_tdls_ch_switch_work);
+	INIT_DELAYED_WORK(&mvm->scan_timeout_dwork, iwl_mvm_scan_timeout_wk);
 	INIT_WORK(&mvm->add_stream_wk, iwl_mvm_add_new_dqa_stream_wk);
 
 	spin_lock_init(&mvm->d0i3_tx_lock);
@@ -663,6 +667,9 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		trans_cfg.cmd_queue = IWL_MVM_CMD_QUEUE;
 	trans_cfg.cmd_fifo = IWL_MVM_TX_FIFO_CMD;
 	trans_cfg.scd_set_active = true;
+
+	trans_cfg.cb_data_offs = offsetof(struct ieee80211_tx_info,
+					  driver_data[2]);
 
 	trans_cfg.sdio_adma_addr = fw->sdio_adma_addr;
 	trans_cfg.sw_csum_tx = IWL_MVM_SW_TX_CSUM_OFFLOAD;
@@ -766,9 +773,6 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 
 	iwl_mvm_tof_init(mvm);
 
-	setup_timer(&mvm->scan_timer, iwl_mvm_scan_timeout,
-		    (unsigned long)mvm);
-
 	return op_mode;
 
  out_unregister:
@@ -821,8 +825,6 @@ static void iwl_op_mode_mvm_stop(struct iwl_op_mode *op_mode)
 		kfree(mvm->nvm_sections[i].data);
 
 	iwl_mvm_tof_clean(mvm);
-
-	del_timer_sync(&mvm->scan_timer);
 
 	mutex_destroy(&mvm->mutex);
 	mutex_destroy(&mvm->d0i3_suspend_mutex);

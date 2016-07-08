@@ -161,21 +161,21 @@ static inline __le32 iwl_pcie_dma_addr2rbd_ptr(dma_addr_t dma_addr)
 	return cpu_to_le32((u32)(dma_addr >> 8));
 }
 
-static void iwl_pcie_write_prph_64_no_grab(struct iwl_trans *trans, u64 ofs,
-					   u64 val)
-{
-	iwl_write_prph_no_grab(trans, ofs, val & 0xffffffff);
-	iwl_write_prph_no_grab(trans, ofs + 4, val >> 32);
-}
-
 /*
  * iwl_pcie_rx_stop - stops the Rx DMA
  */
 int iwl_pcie_rx_stop(struct iwl_trans *trans)
 {
-	iwl_write_direct32(trans, FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
-	return iwl_poll_direct_bit(trans, FH_MEM_RSSR_RX_STATUS_REG,
-				   FH_RSSR_CHNL0_RX_STATUS_CHNL_IDLE, 1000);
+	if (trans->cfg->mq_rx_supported) {
+		iwl_write_prph(trans, RFH_RXF_DMA_CFG, 0);
+		return iwl_poll_prph_bit(trans, RFH_GEN_STATUS,
+					   RXF_DMA_IDLE, RXF_DMA_IDLE, 1000);
+	} else {
+		iwl_write_direct32(trans, FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
+		return iwl_poll_direct_bit(trans, FH_MEM_RSSR_RX_STATUS_REG,
+					   FH_RSSR_CHNL0_RX_STATUS_CHNL_IDLE,
+					   1000);
+	}
 }
 
 /*
@@ -233,10 +233,10 @@ static void iwl_pcie_rxq_check_wrptr(struct iwl_trans *trans)
 }
 
 /*
- * iwl_pcie_rxq_mq_restock - restock implementation for multi-queue rx
+ * iwl_pcie_rxmq_restock - restock implementation for multi-queue rx
  */
-static void iwl_pcie_rxq_mq_restock(struct iwl_trans *trans,
-				    struct iwl_rxq *rxq)
+static void iwl_pcie_rxmq_restock(struct iwl_trans *trans,
+				  struct iwl_rxq *rxq)
 {
 	struct iwl_rx_mem_buffer *rxb;
 
@@ -259,7 +259,7 @@ static void iwl_pcie_rxq_mq_restock(struct iwl_trans *trans,
 		rxb = list_first_entry(&rxq->rx_free, struct iwl_rx_mem_buffer,
 				       list);
 		list_del(&rxb->list);
-
+		rxb->invalid = false;
 		/* 12 first bits are expected to be empty */
 		WARN_ON(rxb->page_dma & DMA_BIT_MASK(12));
 		/* Point to Rx buffer via next RBD in circular buffer */
@@ -281,10 +281,10 @@ static void iwl_pcie_rxq_mq_restock(struct iwl_trans *trans,
 }
 
 /*
- * iwl_pcie_rxq_sq_restock - restock implementation for single queue rx
+ * iwl_pcie_rxsq_restock - restock implementation for single queue rx
  */
-static void iwl_pcie_rxq_sq_restock(struct iwl_trans *trans,
-				    struct iwl_rxq *rxq)
+static void iwl_pcie_rxsq_restock(struct iwl_trans *trans,
+				  struct iwl_rxq *rxq)
 {
 	struct iwl_rx_mem_buffer *rxb;
 
@@ -310,6 +310,7 @@ static void iwl_pcie_rxq_sq_restock(struct iwl_trans *trans,
 		rxb = list_first_entry(&rxq->rx_free, struct iwl_rx_mem_buffer,
 				       list);
 		list_del(&rxb->list);
+		rxb->invalid = false;
 
 		/* Point to Rx buffer via next RBD in circular buffer */
 		bd[rxq->write] = iwl_pcie_dma_addr2rbd_ptr(rxb->page_dma);
@@ -343,9 +344,9 @@ static
 void iwl_pcie_rxq_restock(struct iwl_trans *trans, struct iwl_rxq *rxq)
 {
 	if (trans->cfg->mq_rx_supported)
-		iwl_pcie_rxq_mq_restock(trans, rxq);
+		iwl_pcie_rxmq_restock(trans, rxq);
 	else
-		iwl_pcie_rxq_sq_restock(trans, rxq);
+		iwl_pcie_rxsq_restock(trans, rxq);
 }
 
 /*
@@ -809,17 +810,17 @@ static void iwl_pcie_rx_mq_hw_init(struct iwl_trans *trans)
 
 	for (i = 0; i < trans->num_rx_queues; i++) {
 		/* Tell device where to find RBD free table in DRAM */
-		iwl_pcie_write_prph_64_no_grab(trans,
-					       RFH_Q_FRBDCB_BA_LSB(i),
-					       trans_pcie->rxq[i].bd_dma);
+		iwl_write_prph64_no_grab(trans,
+					 RFH_Q_FRBDCB_BA_LSB(i),
+					 trans_pcie->rxq[i].bd_dma);
 		/* Tell device where to find RBD used table in DRAM */
-		iwl_pcie_write_prph_64_no_grab(trans,
-					       RFH_Q_URBDCB_BA_LSB(i),
-					       trans_pcie->rxq[i].used_bd_dma);
+		iwl_write_prph64_no_grab(trans,
+					 RFH_Q_URBDCB_BA_LSB(i),
+					 trans_pcie->rxq[i].used_bd_dma);
 		/* Tell device where in DRAM to update its Rx status */
-		iwl_pcie_write_prph_64_no_grab(trans,
-					       RFH_Q_URBD_STTS_WPTR_LSB(i),
-					       trans_pcie->rxq[i].rb_stts_dma);
+		iwl_write_prph64_no_grab(trans,
+					 RFH_Q_URBD_STTS_WPTR_LSB(i),
+					 trans_pcie->rxq[i].rb_stts_dma);
 		/* Reset device indice tables */
 		iwl_write_prph_no_grab(trans, RFH_Q_FRBDCB_WIDX(i), 0);
 		iwl_write_prph_no_grab(trans, RFH_Q_FRBDCB_RIDX(i), 0);
@@ -827,9 +828,6 @@ static void iwl_pcie_rx_mq_hw_init(struct iwl_trans *trans)
 
 		enabled |= BIT(i) | BIT(i + 16);
 	}
-
-	/* restock default queue */
-	iwl_pcie_rxq_mq_restock(trans, &trans_pcie->rxq[0]);
 
 	/*
 	 * Enable Rx DMA
@@ -956,16 +954,18 @@ int iwl_pcie_rx_init(struct iwl_trans *trans)
 		else
 			list_add(&rxb->list, &def_rxq->rx_used);
 		trans_pcie->global_table[i] = rxb;
-		rxb->vid = (u16)i;
+		rxb->vid = (u16)(i + 1);
+		rxb->invalid = true;
 	}
 
 	iwl_pcie_rxq_alloc_rbs(trans, GFP_KERNEL, def_rxq);
-	if (trans->cfg->mq_rx_supported) {
+
+	if (trans->cfg->mq_rx_supported)
 		iwl_pcie_rx_mq_hw_init(trans);
-	} else {
-		iwl_pcie_rxq_sq_restock(trans, def_rxq);
+	else
 		iwl_pcie_rx_hw_init(trans, def_rxq);
-	}
+
+	iwl_pcie_rxq_restock(trans, def_rxq);
 
 	spin_lock(&def_rxq->lock);
 	iwl_pcie_rxq_inc_wr_ptr(trans, def_rxq);
@@ -1244,10 +1244,19 @@ restart:
 			 */
 			u16 vid = le32_to_cpu(rxq->used_bd[i]) & 0x0FFF;
 
-			if (WARN(vid >= ARRAY_SIZE(trans_pcie->global_table),
-				 "Invalid rxb index from HW %u\n", (u32)vid))
+			if (WARN(!vid ||
+				 vid > ARRAY_SIZE(trans_pcie->global_table),
+				 "Invalid rxb index from HW %u\n", (u32)vid)) {
+				iwl_force_nmi(trans);
 				goto out;
-			rxb = trans_pcie->global_table[vid];
+			}
+			rxb = trans_pcie->global_table[vid - 1];
+			if (WARN(rxb->invalid,
+				 "Invalid rxb from HW %u\n", (u32)vid)) {
+				iwl_force_nmi(trans);
+				goto out;
+			}
+			rxb->invalid = true;
 		} else {
 			rxb = rxq->queue[i];
 			rxq->queue[i] = NULL;
@@ -1527,7 +1536,7 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 		 * have anything to service
 		 */
 		if (test_bit(STATUS_INT_ENABLED, &trans->status))
-			iwl_enable_interrupts(trans);
+			_iwl_enable_interrupts(trans);
 		spin_unlock(&trans_pcie->irq_lock);
 		lock_map_release(&trans->sync_cmd_lockdep_map);
 		return IRQ_NONE;
@@ -1719,15 +1728,17 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 			 inta & ~trans_pcie->inta_mask);
 	}
 
-	/* we are loading the firmware, enable FH_TX interrupt only */
-	if (handled & CSR_INT_BIT_FH_TX)
-		iwl_enable_fw_load_int(trans);
+	spin_lock(&trans_pcie->irq_lock);
 	/* only Re-enable all interrupt if disabled by irq */
-	else if (test_bit(STATUS_INT_ENABLED, &trans->status))
-		iwl_enable_interrupts(trans);
+	if (test_bit(STATUS_INT_ENABLED, &trans->status))
+		_iwl_enable_interrupts(trans);
+	/* we are loading the firmware, enable FH_TX interrupt only */
+	else if (handled & CSR_INT_BIT_FH_TX)
+		iwl_enable_fw_load_int(trans);
 	/* Re-enable RF_KILL if it occurred */
 	else if (handled & CSR_INT_BIT_RF_KILL)
 		iwl_enable_rfkill_int(trans);
+	spin_unlock(&trans_pcie->irq_lock);
 
 out:
 	lock_map_release(&trans->sync_cmd_lockdep_map);
@@ -1791,7 +1802,7 @@ void iwl_pcie_reset_ict(struct iwl_trans *trans)
 		return;
 
 	spin_lock(&trans_pcie->irq_lock);
-	iwl_disable_interrupts(trans);
+	_iwl_disable_interrupts(trans);
 
 	memset(trans_pcie->ict_tbl, 0, ICT_SIZE);
 
@@ -1807,7 +1818,7 @@ void iwl_pcie_reset_ict(struct iwl_trans *trans)
 	trans_pcie->use_ict = true;
 	trans_pcie->ict_index = 0;
 	iwl_write32(trans, CSR_INT, trans_pcie->inta_mask);
-	iwl_enable_interrupts(trans);
+	_iwl_enable_interrupts(trans);
 	spin_unlock(&trans_pcie->irq_lock);
 }
 

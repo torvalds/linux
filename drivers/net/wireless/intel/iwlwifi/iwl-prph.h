@@ -417,5 +417,6 @@ enum {
 };
 
 #define UREG_CHICK		(0xA05C00)
+#define UREG_CHICK_MSI_ENABLE	BIT(24)
 #define UREG_CHICK_MSIX_ENABLE	BIT(25)
 #endif				/* __iwl_prph_h__ */

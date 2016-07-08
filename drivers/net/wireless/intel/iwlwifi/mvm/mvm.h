@@ -687,12 +687,27 @@ struct iwl_mvm_baid_data {
  *	This is the state of a queue that has been fully configured (including
  *	SCD pointers, etc), has a specific RA/TID assigned to it, and can be
  *	used to send traffic.
+ * @IWL_MVM_QUEUE_SHARED: queue is shared, or in a process of becoming shared
+ *	This is a state in which a single queue serves more than one TID, all of
+ *	which are not aggregated. Note that the queue is only associated to one
+ *	RA.
+ * @IWL_MVM_QUEUE_INACTIVE: queue is allocated but no traffic on it
+ *	This is a state of a queue that has had traffic on it, but during the
+ *	last %IWL_MVM_DQA_QUEUE_TIMEOUT time period there has been no traffic on
+ *	it. In this state, when a new queue is needed to be allocated but no
+ *	such free queue exists, an inactive queue might be freed and given to
+ *	the new RA/TID.
  */
 enum iwl_mvm_queue_status {
 	IWL_MVM_QUEUE_FREE,
 	IWL_MVM_QUEUE_RESERVED,
 	IWL_MVM_QUEUE_READY,
+	IWL_MVM_QUEUE_SHARED,
+	IWL_MVM_QUEUE_INACTIVE,
 };
+
+#define IWL_MVM_DQA_QUEUE_TIMEOUT	(5 * HZ)
+#define IWL_MVM_NUM_CIPHERS             8
 
 struct iwl_mvm {
 	/* for logger access */
@@ -750,11 +765,16 @@ struct iwl_mvm {
 		u32 hw_queue_to_mac80211;
 		u8 hw_queue_refcount;
 		u8 ra_sta_id; /* The RA this queue is mapped to, if exists */
+		bool reserved; /* Is this the TXQ reserved for a STA */
+		u8 mac80211_ac; /* The mac80211 AC this queue is mapped to */
 		u16 tid_bitmap; /* Bitmap of the TIDs mapped to this queue */
+		/* Timestamp for inactivation per TID of this queue */
+		unsigned long last_frame_time[IWL_MAX_TID_COUNT + 1];
 		enum iwl_mvm_queue_status status;
 	} queue_info[IWL_MAX_HW_QUEUES];
 	spinlock_t queue_info_lock; /* For syncing queue mgmt operations */
 	struct work_struct add_stream_wk; /* To add streams to queues */
+
 	atomic_t mac80211_queue_stop_count[IEEE80211_MAX_QUEUES];
 
 	const char *nvm_file_name;
@@ -789,7 +809,7 @@ struct iwl_mvm {
 	struct iwl_mcast_filter_cmd *mcast_filter_cmd;
 	enum iwl_mvm_scan_type scan_type;
 	enum iwl_mvm_sched_scan_pass_all_states sched_scan_pass_all;
-	struct timer_list scan_timer;
+	struct delayed_work scan_timeout_dwork;
 
 	/* max number of simultaneous scans the FW supports */
 	unsigned int max_scans;
@@ -912,11 +932,6 @@ struct iwl_mvm {
 	wait_queue_head_t d0i3_exit_waitq;
 
 	/* BT-Coex */
-	u8 bt_ack_kill_msk[NUM_PHY_CTX];
-	u8 bt_cts_kill_msk[NUM_PHY_CTX];
-
-	struct iwl_bt_coex_profile_notif_old last_bt_notif_old;
-	struct iwl_bt_coex_ci_cmd_old last_bt_ci_cmd_old;
 	struct iwl_bt_coex_profile_notif last_bt_notif;
 	struct iwl_bt_coex_ci_cmd last_bt_ci_cmd;
 
@@ -996,7 +1011,8 @@ struct iwl_mvm {
 
 	struct iwl_mvm_shared_mem_cfg shared_mem_cfg;
 
-	u32 ciphers[6];
+	u32 ciphers[IWL_MVM_NUM_CIPHERS];
+	struct ieee80211_cipher_scheme cs[IWL_UCODE_MAX_CS];
 	struct iwl_mvm_tof_data tof_data;
 
 	struct ieee80211_vif *nan_vif;
@@ -1402,7 +1418,7 @@ int iwl_mvm_scan_size(struct iwl_mvm *mvm);
 int iwl_mvm_scan_stop(struct iwl_mvm *mvm, int type, bool notify);
 int iwl_mvm_max_scan_ie_len(struct iwl_mvm *mvm);
 void iwl_mvm_report_scan_aborted(struct iwl_mvm *mvm);
-void iwl_mvm_scan_timeout(unsigned long data);
+void iwl_mvm_scan_timeout_wk(struct work_struct *work);
 
 /* Scheduled scan */
 void iwl_mvm_rx_lmac_scan_complete_notif(struct iwl_mvm *mvm,
@@ -1618,7 +1634,7 @@ void iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
  */
 void iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 			 u8 tid, u8 flags);
-int iwl_mvm_find_free_queue(struct iwl_mvm *mvm, u8 minq, u8 maxq);
+int iwl_mvm_find_free_queue(struct iwl_mvm *mvm, u8 sta_id, u8 minq, u8 maxq);
 
 /* Return a bitmask with all the hw supported queues, except for the
  * command queue, which can't be flushed.
@@ -1724,6 +1740,8 @@ void iwl_mvm_sync_rx_queues_internal(struct iwl_mvm *mvm,
 				     u32 size);
 void iwl_mvm_reorder_timer_expired(unsigned long data);
 struct ieee80211_vif *iwl_mvm_get_bss_vif(struct iwl_mvm *mvm);
+
+void iwl_mvm_inactivity_check(struct iwl_mvm *mvm);
 
 void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error);
 unsigned int iwl_mvm_get_wd_timeout(struct iwl_mvm *mvm,

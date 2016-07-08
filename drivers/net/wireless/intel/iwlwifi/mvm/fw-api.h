@@ -90,6 +90,7 @@ enum {
  * DQA queue numbers
  *
  * @IWL_MVM_DQA_CMD_QUEUE: a queue reserved for sending HCMDs to the FW
+ * @IWL_MVM_DQA_AUX_QUEUE: a queue reserved for aux frames
  * @IWL_MVM_DQA_P2P_DEVICE_QUEUE: a queue reserved for P2P device frames
  * @IWL_MVM_DQA_GCAST_QUEUE: a queue reserved for P2P GO/SoftAP GCAST frames
  * @IWL_MVM_DQA_BSS_CLIENT_QUEUE: a queue reserved for BSS activity, to ensure
@@ -108,6 +109,7 @@ enum {
  */
 enum iwl_mvm_dqa_txq {
 	IWL_MVM_DQA_CMD_QUEUE = 0,
+	IWL_MVM_DQA_AUX_QUEUE = 1,
 	IWL_MVM_DQA_P2P_DEVICE_QUEUE = 2,
 	IWL_MVM_DQA_GCAST_QUEUE = 3,
 	IWL_MVM_DQA_BSS_CLIENT_QUEUE = 4,
@@ -127,9 +129,6 @@ enum iwl_mvm_tx_fifo {
 	IWL_MVM_TX_FIFO_CMD = 7,
 };
 
-#define IWL_MVM_STATION_COUNT	16
-
-#define IWL_MVM_TDLS_STA_COUNT	4
 
 /* commands */
 enum {
@@ -330,6 +329,7 @@ enum iwl_system_subcmd_ids {
 };
 
 enum iwl_data_path_subcmd_ids {
+	DQA_ENABLE_CMD = 0x0,
 	UPDATE_MU_GROUPS_CMD = 0x1,
 	TRIGGER_RX_QUEUES_NOTIF_CMD = 0x2,
 	MU_GROUP_MGMT_NOTIF = 0xFE,
@@ -358,6 +358,14 @@ enum {
 struct iwl_cmd_response {
 	__le32 status;
 };
+
+/*
+ * struct iwl_dqa_enable_cmd
+ * @cmd_queue: the TXQ number of the command queue
+ */
+struct iwl_dqa_enable_cmd {
+	__le32 cmd_queue;
+} __packed; /* DQA_CONTROL_CMD_API_S_VER_1 */
 
 /*
  * struct iwl_tx_ant_cfg_cmd

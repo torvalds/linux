@@ -211,6 +211,9 @@ static bool rs_sgi_allow(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	if (is_ht80(rate) && (vht_cap->cap &
 			     IEEE80211_VHT_CAP_SHORT_GI_80))
 		return true;
+	if (is_ht160(rate) && (vht_cap->cap &
+			     IEEE80211_VHT_CAP_SHORT_GI_160))
+		return true;
 
 	return false;
 }
@@ -399,7 +402,7 @@ static int iwl_hwrate_to_plcp_idx(u32 rate_n_flags)
 static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 				  struct ieee80211_sta *sta,
 				  struct iwl_lq_sta *lq_sta,
-				  int tid);
+				  int tid, bool ndp);
 static void rs_fill_lq_cmd(struct iwl_mvm *mvm,
 			   struct ieee80211_sta *sta,
 			   struct iwl_lq_sta *lq_sta,
@@ -445,6 +448,13 @@ static const u16 expected_tpt_siso_80MHz[4][IWL_RATE_COUNT] = {
 	{0, 0, 0, 0, 241, 0, 475, 701, 921, 1343, 1741, 1931, 2117, 2468, 2691},
 };
 
+static const u16 expected_tpt_siso_160MHz[4][IWL_RATE_COUNT] = {
+	{0, 0, 0, 0, 191, 0, 244, 288,  298,  308,  313,  318,  323,  328,  330},
+	{0, 0, 0, 0, 200, 0, 251, 293,  302,  312,  317,  322,  327,  332,  334},
+	{0, 0, 0, 0, 439, 0, 875, 1307, 1736, 2584, 3419, 3831, 4240, 5049, 5581},
+	{0, 0, 0, 0, 488, 0, 972, 1451, 1925, 2864, 3785, 4240, 4691, 5581, 6165},
+};
+
 static const u16 expected_tpt_mimo2_20MHz[4][IWL_RATE_COUNT] = {
 	{0, 0, 0, 0,  74, 0, 123, 155, 179, 213, 235, 243, 250,  261, 0},
 	{0, 0, 0, 0,  81, 0, 131, 164, 187, 221, 242, 250, 256,  267, 0},
@@ -464,6 +474,13 @@ static const u16 expected_tpt_mimo2_80MHz[4][IWL_RATE_COUNT] = {
 	{0, 0, 0, 0, 190, 0, 247,  269,  282,  302,  310,  313,  315,  319,  320},
 	{0, 0, 0, 0, 428, 0, 833, 1215, 1577, 2254, 2863, 3147, 3418, 3913, 4219},
 	{0, 0, 0, 0, 474, 0, 920, 1338, 1732, 2464, 3116, 3418, 3705, 4225, 4545},
+};
+
+static const u16 expected_tpt_mimo2_160MHz[4][IWL_RATE_COUNT] = {
+	{0, 0, 0, 0, 240, 0, 278,  308,  313,  319,  322,  324,  328,  330,   334},
+	{0, 0, 0, 0, 247, 0, 282,  310,  315,  320,  323,  325,  329,  332,   338},
+	{0, 0, 0, 0, 875, 0, 1735, 2582, 3414, 5043, 6619, 7389, 8147, 9629,  10592},
+	{0, 0, 0, 0, 971, 0, 1925, 2861, 3779, 5574, 7304, 8147, 8976, 10592, 11640},
 };
 
 /* mbps, mcs */
@@ -901,7 +918,6 @@ static int rs_rate_from_ucode_rate(const u32 ucode_rate,
 		}
 	}
 
-	WARN_ON_ONCE(rate->bw == RATE_MCS_CHAN_WIDTH_160);
 	WARN_ON_ONCE(rate->bw == RATE_MCS_CHAN_WIDTH_80 &&
 		     !is_vht(rate));
 
@@ -1161,7 +1177,7 @@ static u8 rs_get_tid(struct ieee80211_hdr *hdr)
 }
 
 void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
-			  int tid, struct ieee80211_tx_info *info)
+			  int tid, struct ieee80211_tx_info *info, bool ndp)
 {
 	int legacy_success;
 	int retries;
@@ -1384,7 +1400,7 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 done:
 	/* See if there's a better rate or modulation mode to try. */
 	if (sta->supp_rates[info->band])
-		rs_rate_scale_perform(mvm, sta, lq_sta, tid);
+		rs_rate_scale_perform(mvm, sta, lq_sta, tid, ndp);
 }
 
 /*
@@ -1407,7 +1423,8 @@ static void rs_mac80211_tx_status(void *mvm_r,
 	    info->flags & IEEE80211_TX_CTL_NO_ACK)
 		return;
 
-	iwl_mvm_rs_tx_status(mvm, sta, rs_get_tid(hdr), info);
+	iwl_mvm_rs_tx_status(mvm, sta, rs_get_tid(hdr), info,
+			     ieee80211_is_qos_nullfunc(hdr->frame_control));
 }
 
 /*
@@ -1494,6 +1511,9 @@ static const u16 *rs_get_expected_tpt_table(struct iwl_lq_sta *lq_sta,
 		case RATE_MCS_CHAN_WIDTH_80:
 			ht_tbl_pointer = expected_tpt_siso_80MHz;
 			break;
+		case RATE_MCS_CHAN_WIDTH_160:
+			ht_tbl_pointer = expected_tpt_siso_160MHz;
+			break;
 		default:
 			WARN_ON_ONCE(1);
 		}
@@ -1507,6 +1527,9 @@ static const u16 *rs_get_expected_tpt_table(struct iwl_lq_sta *lq_sta,
 			break;
 		case RATE_MCS_CHAN_WIDTH_80:
 			ht_tbl_pointer = expected_tpt_mimo2_80MHz;
+			break;
+		case RATE_MCS_CHAN_WIDTH_160:
+			ht_tbl_pointer = expected_tpt_mimo2_160MHz;
 			break;
 		default:
 			WARN_ON_ONCE(1);
@@ -1582,12 +1605,17 @@ static s32 rs_get_best_rate(struct iwl_mvm *mvm,
 
 static u32 rs_bw_from_sta_bw(struct ieee80211_sta *sta)
 {
-	if (sta->bandwidth >= IEEE80211_STA_RX_BW_80)
+	switch (sta->bandwidth) {
+	case IEEE80211_STA_RX_BW_160:
+		return RATE_MCS_CHAN_WIDTH_160;
+	case IEEE80211_STA_RX_BW_80:
 		return RATE_MCS_CHAN_WIDTH_80;
-	else if (sta->bandwidth >= IEEE80211_STA_RX_BW_40)
+	case IEEE80211_STA_RX_BW_40:
 		return RATE_MCS_CHAN_WIDTH_40;
-
-	return RATE_MCS_CHAN_WIDTH_20;
+	case IEEE80211_STA_RX_BW_20:
+	default:
+		return RATE_MCS_CHAN_WIDTH_20;
+	}
 }
 
 /*
@@ -2213,7 +2241,7 @@ static bool rs_tpc_perform(struct iwl_mvm *mvm,
 static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 				  struct ieee80211_sta *sta,
 				  struct iwl_lq_sta *lq_sta,
-				  int tid)
+				  int tid, bool ndp)
 {
 	int low = IWL_RATE_INVALID;
 	int high = IWL_RATE_INVALID;
@@ -2512,7 +2540,7 @@ lq_update:
 			    (lq_sta->tx_agg_tid_en & (1 << tid)) &&
 			    (tid != IWL_MAX_TID_COUNT)) {
 				tid_data = &sta_priv->tid_data[tid];
-				if (tid_data->state == IWL_AGG_OFF) {
+				if (tid_data->state == IWL_AGG_OFF && !ndp) {
 					IWL_DEBUG_RATE(mvm,
 						       "try to aggregate tid %d\n",
 						       tid);
@@ -2565,6 +2593,9 @@ static const struct rs_init_rate_info rs_optimal_rates_ht[] = {
 	{ S8_MIN, IWL_RATE_MCS_0_INDEX},
 };
 
+/* MCS index 9 is not valid for 20MHz VHT channel width,
+ * but is ok for 40, 80 and 160MHz channels.
+ */
 static const struct rs_init_rate_info rs_optimal_rates_vht_20mhz[] = {
 	{ -60, IWL_RATE_MCS_8_INDEX },
 	{ -64, IWL_RATE_MCS_7_INDEX },
@@ -2577,7 +2608,7 @@ static const struct rs_init_rate_info rs_optimal_rates_vht_20mhz[] = {
 	{ S8_MIN, IWL_RATE_MCS_0_INDEX},
 };
 
-static const struct rs_init_rate_info rs_optimal_rates_vht_40_80mhz[] = {
+static const struct rs_init_rate_info rs_optimal_rates_vht[] = {
 	{ -60, IWL_RATE_MCS_9_INDEX },
 	{ -64, IWL_RATE_MCS_8_INDEX },
 	{ -68, IWL_RATE_MCS_7_INDEX },
@@ -2640,9 +2671,9 @@ static void rs_init_optimal_rate(struct iwl_mvm *mvm,
 			lq_sta->optimal_nentries =
 				ARRAY_SIZE(rs_optimal_rates_vht_20mhz);
 		} else {
-			lq_sta->optimal_rates = rs_optimal_rates_vht_40_80mhz;
+			lq_sta->optimal_rates = rs_optimal_rates_vht;
 			lq_sta->optimal_nentries =
-				ARRAY_SIZE(rs_optimal_rates_vht_40_80mhz);
+				ARRAY_SIZE(rs_optimal_rates_vht);
 		}
 	} else if (is_ht(rate)) {
 		lq_sta->optimal_rates = rs_optimal_rates_ht;
@@ -2734,23 +2765,25 @@ static void rs_get_initial_rate(struct iwl_mvm *mvm,
 	 */
 	if (sta->vht_cap.vht_supported &&
 	    best_rssi > IWL_RS_LOW_RSSI_THRESHOLD) {
-		if (sta->bandwidth >= IEEE80211_STA_RX_BW_40) {
-			initial_rates = rs_optimal_rates_vht_40_80mhz;
-			nentries = ARRAY_SIZE(rs_optimal_rates_vht_40_80mhz);
-			if (sta->bandwidth >= IEEE80211_STA_RX_BW_80)
-				rate->bw = RATE_MCS_CHAN_WIDTH_80;
-			else
-				rate->bw = RATE_MCS_CHAN_WIDTH_40;
-		} else if (sta->bandwidth == IEEE80211_STA_RX_BW_20) {
+		switch (sta->bandwidth) {
+		case IEEE80211_STA_RX_BW_160:
+		case IEEE80211_STA_RX_BW_80:
+		case IEEE80211_STA_RX_BW_40:
+			initial_rates = rs_optimal_rates_vht;
+			nentries = ARRAY_SIZE(rs_optimal_rates_vht);
+			break;
+		case IEEE80211_STA_RX_BW_20:
 			initial_rates = rs_optimal_rates_vht_20mhz;
 			nentries = ARRAY_SIZE(rs_optimal_rates_vht_20mhz);
-			rate->bw = RATE_MCS_CHAN_WIDTH_20;
-		} else {
+			break;
+		default:
 			IWL_ERR(mvm, "Invalid BW %d\n", sta->bandwidth);
 			goto out;
 		}
+
 		active_rate = lq_sta->active_siso_rate;
 		rate->type = LQ_VHT_SISO;
+		rate->bw = rs_bw_from_sta_bw(sta);
 	} else if (sta->ht_cap.ht_supported &&
 		   best_rssi > IWL_RS_LOW_RSSI_THRESHOLD) {
 		initial_rates = rs_optimal_rates_ht;
@@ -3056,6 +3089,9 @@ void iwl_mvm_update_frame_stats(struct iwl_mvm *mvm, u32 rate, bool agg)
 		break;
 	case RATE_MCS_CHAN_WIDTH_80:
 		mvm->drv_rx_stats.bw_80_frames++;
+		break;
+	case RATE_MCS_CHAN_WIDTH_160:
+		mvm->drv_rx_stats.bw_160_frames++;
 		break;
 	default:
 		WARN_ONCE(1, "bad BW. rate 0x%x", rate);
@@ -3705,7 +3741,8 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 		desc += sprintf(buff + desc, " %s",
 				(is_ht20(rate)) ? "20MHz" :
 				(is_ht40(rate)) ? "40MHz" :
-				(is_ht80(rate)) ? "80Mhz" : "BAD BW");
+				(is_ht80(rate)) ? "80MHz" :
+				(is_ht160(rate)) ? "160MHz" : "BAD BW");
 		desc += sprintf(buff + desc, " %s %s %s %s\n",
 				(rate->sgi) ? "SGI" : "NGI",
 				(rate->ldpc) ? "LDPC" : "BCC",
@@ -3787,9 +3824,10 @@ static ssize_t rs_sta_dbgfs_stats_table_read(struct file *file,
 				lq_sta->active_tbl == i ? "*" : "x",
 				rate->type,
 				rate->sgi,
-				is_ht20(rate) ? "20Mhz" :
-				is_ht40(rate) ? "40Mhz" :
-				is_ht80(rate) ? "80Mhz" : "ERR",
+				is_ht20(rate) ? "20MHz" :
+				is_ht40(rate) ? "40MHz" :
+				is_ht80(rate) ? "80MHz" :
+				is_ht160(rate) ? "160MHz" : "ERR",
 				rate->index);
 		for (j = 0; j < IWL_RATE_COUNT; j++) {
 			desc += sprintf(buff+desc,
