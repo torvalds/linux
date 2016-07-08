@@ -109,8 +109,8 @@ EBUSY
        -  ``polarities``
 
        -  This is a bit mask that defines polarities of sync signals. bit 0
-	  (V4L2_DV_VSYNC_POS_POL) is for vertical sync polarity and bit
-	  1 (V4L2_DV_HSYNC_POS_POL) is for horizontal sync polarity. If
+	  (``V4L2_DV_VSYNC_POS_POL``) is for vertical sync polarity and bit
+	  1 (``V4L2_DV_HSYNC_POS_POL``) is for horizontal sync polarity. If
 	  the bit is set (1) it is positive polarity and if is cleared (0),
 	  it is negative polarity.
 
@@ -289,7 +289,7 @@ EBUSY
 
     -  .. row 3
 
-       -  V4L2_DV_BT_656_1120
+       -  ``V4L2_DV_BT_656_1120``
 
        -  0
 
@@ -317,25 +317,25 @@ EBUSY
 
     -  .. row 3
 
-       -  V4L2_DV_BT_STD_CEA861
+       -  ``V4L2_DV_BT_STD_CEA861``
 
        -  The timings follow the CEA-861 Digital TV Profile standard
 
     -  .. row 4
 
-       -  V4L2_DV_BT_STD_DMT
+       -  ``V4L2_DV_BT_STD_DMT``
 
        -  The timings follow the VESA Discrete Monitor Timings standard
 
     -  .. row 5
 
-       -  V4L2_DV_BT_STD_CVT
+       -  ``V4L2_DV_BT_STD_CVT``
 
        -  The timings follow the VESA Coordinated Video Timings standard
 
     -  .. row 6
 
-       -  V4L2_DV_BT_STD_GTF
+       -  ``V4L2_DV_BT_STD_GTF``
 
        -  The timings follow the VESA Generalized Timings Formula standard
 
@@ -361,7 +361,7 @@ EBUSY
 
     -  .. row 3
 
-       -  V4L2_DV_FL_REDUCED_BLANKING
+       -  ``V4L2_DV_FL_REDUCED_BLANKING``
 
        -  CVT/GTF specific: the timings use reduced blanking (CVT) or the
 	  'Secondary GTF' curve (GTF). In both cases the horizontal and/or
@@ -371,7 +371,7 @@ EBUSY
 
     -  .. row 4
 
-       -  V4L2_DV_FL_CAN_REDUCE_FPS
+       -  ``V4L2_DV_FL_CAN_REDUCE_FPS``
 
        -  CEA-861 specific: set for CEA-861 formats with a framerate that is
 	  a multiple of six. These formats can be optionally played at 1 /
@@ -383,11 +383,11 @@ EBUSY
 
     -  .. row 5
 
-       -  V4L2_DV_FL_REDUCED_FPS
+       -  ``V4L2_DV_FL_REDUCED_FPS``
 
        -  CEA-861 specific: only valid for video transmitters, the flag is
 	  cleared by receivers. It is also only valid for formats with the
-	  V4L2_DV_FL_CAN_REDUCE_FPS flag set, for other formats the
+	  ``V4L2_DV_FL_CAN_REDUCE_FPS`` flag set, for other formats the
 	  flag will be cleared by the driver. If the application sets this
 	  flag, then the pixelclock used to set up the transmitter is
 	  divided by 1.001 to make it compatible with NTSC framerates. If
@@ -396,7 +396,7 @@ EBUSY
 
     -  .. row 6
 
-       -  V4L2_DV_FL_HALF_LINE
+       -  ``V4L2_DV_FL_HALF_LINE``
 
        -  Specific to interlaced formats: if set, then the vertical
 	  frontporch of field 1 (aka the odd field) is really one half-line
@@ -407,7 +407,7 @@ EBUSY
 
     -  .. row 7
 
-       -  V4L2_DV_FL_IS_CE_VIDEO
+       -  ``V4L2_DV_FL_IS_CE_VIDEO``
 
        -  If set, then this is a Consumer Electronics (CE) video format.
 	  Such formats differ from other formats (commonly called IT

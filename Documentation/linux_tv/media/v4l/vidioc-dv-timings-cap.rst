@@ -217,26 +217,26 @@ that doesn't support them will return an ``EINVAL`` error code.
 
     -  .. row 3
 
-       -  V4L2_DV_BT_CAP_INTERLACED
+       -  ``V4L2_DV_BT_CAP_INTERLACED``
 
        -  Interlaced formats are supported.
 
     -  .. row 4
 
-       -  V4L2_DV_BT_CAP_PROGRESSIVE
+       -  ``V4L2_DV_BT_CAP_PROGRESSIVE``
 
        -  Progressive formats are supported.
 
     -  .. row 5
 
-       -  V4L2_DV_BT_CAP_REDUCED_BLANKING
+       -  ``V4L2_DV_BT_CAP_REDUCED_BLANKING``
 
        -  CVT/GTF specific: the timings can make use of reduced blanking
 	  (CVT) or the 'Secondary GTF' curve (GTF).
 
     -  .. row 6
 
-       -  V4L2_DV_BT_CAP_CUSTOM
+       -  ``V4L2_DV_BT_CAP_CUSTOM``
 
        -  Can support non-standard timings, i.e. timings not belonging to
 	  the standards set in the ``standards`` field.
