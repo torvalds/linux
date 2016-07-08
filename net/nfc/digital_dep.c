@@ -65,6 +65,9 @@
 #define DIGITAL_NFC_DEP_DID_BIT_SET(pfb) ((pfb) & DIGITAL_NFC_DEP_PFB_DID_BIT)
 #define DIGITAL_NFC_DEP_PFB_PNI(pfb)     ((pfb) & 0x03)
 
+#define DIGITAL_NFC_DEP_RTOX_VALUE(data) ((data) & 0x3F)
+#define DIGITAL_NFC_DEP_RTOX_MAX	 59
+
 #define DIGITAL_NFC_DEP_PFB_I_PDU          0x00
 #define DIGITAL_NFC_DEP_PFB_ACK_NACK_PDU   0x40
 #define DIGITAL_NFC_DEP_PFB_SUPERVISOR_PDU 0x80
@@ -643,6 +646,11 @@ static int digital_in_send_rtox(struct nfc_digital_dev *ddev,
 	struct digital_dep_req_res *dep_req;
 	struct sk_buff *skb;
 	int rc;
+	u16 rwt_int;
+
+	rwt_int = ddev->dep_rwt * rtox;
+	if (rwt_int > digital_rwt_map[DIGITAL_NFC_DEP_IN_MAX_WT])
+		rwt_int = digital_rwt_map[DIGITAL_NFC_DEP_IN_MAX_WT];
 
 	skb = digital_skb_alloc(ddev, 1);
 	if (!skb)
@@ -663,7 +671,7 @@ static int digital_in_send_rtox(struct nfc_digital_dev *ddev,
 
 	ddev->skb_add_crc(skb);
 
-	rc = digital_in_send_cmd(ddev, skb, ddev->dep_rwt,
+	rc = digital_in_send_cmd(ddev, skb, rwt_int,
 				 digital_in_recv_dep_res, data_exch);
 	if (rc)
 		kfree_skb(skb);
@@ -697,6 +705,7 @@ static void digital_in_recv_dep_res(struct nfc_digital_dev *ddev, void *arg,
 	u8 pfb;
 	uint size;
 	int rc;
+	u8 rtox;
 
 	if (IS_ERR(resp)) {
 		rc = PTR_ERR(resp);
@@ -865,7 +874,20 @@ static void digital_in_recv_dep_res(struct nfc_digital_dev *ddev, void *arg,
 			goto free_resp;
 		}
 
-		rc = digital_in_send_rtox(ddev, data_exch, resp->data[0]);
+		if (ddev->atn_count || ddev->nack_count) {
+			PROTOCOL_ERR("14.12.4.4");
+			rc = -EIO;
+			goto error;
+		}
+
+		rtox = DIGITAL_NFC_DEP_RTOX_VALUE(resp->data[0]);
+		if (!rtox || rtox > DIGITAL_NFC_DEP_RTOX_MAX) {
+			PROTOCOL_ERR("14.8.4.1");
+			rc = -EIO;
+			goto error;
+		}
+
+		rc = digital_in_send_rtox(ddev, data_exch, rtox);
 		if (rc)
 			goto error;
 
