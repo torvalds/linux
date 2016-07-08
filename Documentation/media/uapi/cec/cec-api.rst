@@ -1,5 +1,7 @@
 .. -*- coding: utf-8; mode: rst -*-
 
+.. include:: <isonum.txt>
+
 .. _cec:
 
 #######
@@ -72,13 +74,17 @@ Function Reference
 **********************
 Revision and Copyright
 **********************
+Authors:
 
+- Verkuil, Hans <hans.verkuil@cisco.com>
 
-:author:    Verkuil Hans
-:address:   hans.verkuil@cisco.com
-:contrib:   Initial version.
+ - Initial version.
 
-**Copyright** 2016 : Hans Verkuil
+**Copyright** |copy| 2016 : Hans Verkuil
+
+****************
+Revision History
+****************
 
 :revision: 1.0.0 / 2016-03-17 (*hv*)
 
