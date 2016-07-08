@@ -1165,7 +1165,7 @@ static void brcmnand_send_cmd(struct brcmnand_host *host, int cmd)
 	ctrl->cmd_pending = cmd;
 
 	intfc = brcmnand_read_reg(ctrl, BRCMNAND_INTFC_STATUS);
-	BUG_ON(!(intfc & INTFC_CTLR_READY));
+	WARN_ON(!(intfc & INTFC_CTLR_READY));
 
 	mb(); /* flush previous writes */
 	brcmnand_write_reg(ctrl, BRCMNAND_CMD_START,
