@@ -287,44 +287,45 @@ bl_validate_designator(struct pnfs_block_volume *v)
 	}
 }
 
+/*
+ * Try to open the udev path for the WWN.  At least on Debian the udev
+ * by-id path will always point to the dm-multipath device if one exists.
+ */
+static struct block_device *
+bl_open_udev_path(struct pnfs_block_volume *v)
+{
+	struct block_device *bdev;
+	const char *devname;
+
+	devname = kasprintf(GFP_KERNEL, "/dev/disk/by-id/wwn-0x%*phN",
+				v->scsi.designator_len, v->scsi.designator);
+	if (!devname)
+		return ERR_PTR(-ENOMEM);
+
+	bdev = blkdev_get_by_path(devname, FMODE_READ | FMODE_WRITE, NULL);
+	if (IS_ERR(bdev)) {
+		pr_warn("pNFS: failed to open device %s (%ld)\n",
+			devname, PTR_ERR(bdev));
+	}
+
+	kfree(devname);
+	return bdev;
+}
+
 static int
 bl_parse_scsi(struct nfs_server *server, struct pnfs_block_dev *d,
 		struct pnfs_block_volume *volumes, int idx, gfp_t gfp_mask)
 {
 	struct pnfs_block_volume *v = &volumes[idx];
 	const struct pr_ops *ops;
-	const char *devname;
 	int error;
 
 	if (!bl_validate_designator(v))
 		return -EINVAL;
 
-	switch (v->scsi.designator_len) {
-	case 8:
-		devname = kasprintf(GFP_KERNEL, "/dev/disk/by-id/wwn-0x%8phN",
-				v->scsi.designator);
-		break;
-	case 12:
-		devname = kasprintf(GFP_KERNEL, "/dev/disk/by-id/wwn-0x%12phN",
-				v->scsi.designator);
-		break;
-	case 16:
-		devname = kasprintf(GFP_KERNEL, "/dev/disk/by-id/wwn-0x%16phN",
-				v->scsi.designator);
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	d->bdev = blkdev_get_by_path(devname, FMODE_READ | FMODE_WRITE, NULL);
-	if (IS_ERR(d->bdev)) {
-		pr_warn("pNFS: failed to open device %s (%ld)\n",
-			devname, PTR_ERR(d->bdev));
-		kfree(devname);
+	d->bdev = bl_open_udev_path(v);
+	if (IS_ERR(d->bdev))
 		return PTR_ERR(d->bdev);
-	}
-
-	kfree(devname);
 
 	d->len = i_size_read(d->bdev->bd_inode);
 	d->map = bl_map_simple;
