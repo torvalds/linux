@@ -69,7 +69,7 @@ static const struct mt2701_afe_rate mt2701_afe_i2s_rates[] = {
 	{ .rate = 352800, .regvalue = 24 },
 };
 
-int mt2701_dai_num_to_i2s(struct mtk_base_afe *afe, int num)
+static int mt2701_dai_num_to_i2s(struct mtk_base_afe *afe, int num)
 {
 	int val = num - MT2701_IO_I2S;
 
