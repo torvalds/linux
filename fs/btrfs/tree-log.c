@@ -2422,8 +2422,8 @@ static noinline int walk_down_log_tree(struct btrfs_trans_handle *trans,
 		root_owner = btrfs_header_owner(parent);
 
 		next = btrfs_find_create_tree_block(root, bytenr);
-		if (!next)
-			return -ENOMEM;
+		if (IS_ERR(next))
+			return PTR_ERR(next);
 
 		if (*level == 1) {
 			ret = wc->process_func(root, next, wc, ptr_gen);

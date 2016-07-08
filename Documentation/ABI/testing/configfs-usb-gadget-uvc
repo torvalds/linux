@@ -1,6 +1,6 @@
 What:		/config/usb-gadget/gadget/functions/uvc.name
 Date:		Dec 2014
-KernelVersion:	3.20
+KernelVersion:	4.0
 Description:	UVC function directory
 
 		streaming_maxburst	- 0..15 (ss only)
@@ -9,37 +9,37 @@ Description:	UVC function directory
 
 What:		/config/usb-gadget/gadget/functions/uvc.name/control
 Date:		Dec 2014
-KernelVersion:	3.20
+KernelVersion:	4.0
 Description:	Control descriptors
 
 What:		/config/usb-gadget/gadget/functions/uvc.name/control/class
 Date:		Dec 2014
-KernelVersion:	3.20
+KernelVersion:	4.0
 Description:	Class descriptors
 
 What:		/config/usb-gadget/gadget/functions/uvc.name/control/class/ss
 Date:		Dec 2014
-KernelVersion:	3.20
+KernelVersion:	4.0
 Description:	Super speed control class descriptors
 
 What:		/config/usb-gadget/gadget/functions/uvc.name/control/class/fs
 Date:		Dec 2014
-KernelVersion:	3.20
+KernelVersion:	4.0
 Description:	Full speed control class descriptors
 
 What:		/config/usb-gadget/gadget/functions/uvc.name/control/terminal
 Date:		Dec 2014
-KernelVersion:	3.20
+KernelVersion:	4.0
 Description:	Terminal descriptors
 
 What:		/config/usb-gadget/gadget/functions/uvc.name/control/terminal/output
 Date:		Dec 2014
-KernelVersion:	3.20
+KernelVersion:	4.0
 Description:	Output terminal descriptors
 
 What:		/config/usb-gadget/gadget/functions/uvc.name/control/terminal/output/default
 Date:		Dec 2014
-KernelVersion:	3.20
+KernelVersion:	4.0
 Description:	Default output terminal descriptors
 
 		All attributes read only:
@@ -53,12 +53,12 @@ Description:	Default output terminal descriptors
 
 What:		/config/usb-gadget/gadget/functions/uvc.name/control/terminal/camera
 Date:		Dec 2014
-KernelVersion:	3.20
+KernelVersion:	4.0
 Description:	Camera terminal descriptors
 
 What:		/config/usb-gadget/gadget/functions/uvc.name/control/terminal/camera/default
 Date:		Dec 2014
-KernelVersion:	3.20
+KernelVersion:	4.0
 Description:	Default camera terminal descriptors
 
 		All attributes read only:
@@ -75,12 +75,12 @@ Description:	Default camera terminal descriptors
 
 What:		/config/usb-gadget/gadget/functions/uvc.name/control/processing
 Date:		Dec 2014
-KernelVersion:	3.20
+KernelVersion:	4.0
 Description:	Processing unit descriptors
 
 What:		/config/usb-gadget/gadget/functions/uvc.name/control/processing/default
 Date:		Dec 2014
-KernelVersion:	3.20
+KernelVersion:	4.0
 Description:	Default processing unit descriptors
 
 		All attributes read only:
@@ -94,49 +94,49 @@ Description:	Default processing unit descriptors
 
 What:		/config/usb-gadget/gadget/functions/uvc.name/control/header
 Date:		Dec 2014
-KernelVersion:	3.20
+KernelVersion:	4.0
 Description:	Control header descriptors
 
 What:		/config/usb-gadget/gadget/functions/uvc.name/control/header/name
 Date:		Dec 2014
-KernelVersion:	3.20
+KernelVersion:	4.0
 Description:	Specific control header descriptors
 
 dwClockFrequency
 bcdUVC
 What:		/config/usb-gadget/gadget/functions/uvc.name/streaming
 Date:		Dec 2014
-KernelVersion:	3.20
+KernelVersion:	4.0
 Description:	Streaming descriptors
 
 What:		/config/usb-gadget/gadget/functions/uvc.name/streaming/class
 Date:		Dec 2014
-KernelVersion:	3.20
+KernelVersion:	4.0
 Description:	Streaming class descriptors
 
 What:		/config/usb-gadget/gadget/functions/uvc.name/streaming/class/ss
 Date:		Dec 2014
-KernelVersion:	3.20
+KernelVersion:	4.0
 Description:	Super speed streaming class descriptors
 
 What:		/config/usb-gadget/gadget/functions/uvc.name/streaming/class/hs
 Date:		Dec 2014
-KernelVersion:	3.20
+KernelVersion:	4.0
 Description:	High speed streaming class descriptors
 
 What:		/config/usb-gadget/gadget/functions/uvc.name/streaming/class/fs
 Date:		Dec 2014
-KernelVersion:	3.20
+KernelVersion:	4.0
 Description:	Full speed streaming class descriptors
 
 What:		/config/usb-gadget/gadget/functions/uvc.name/streaming/color_matching
 Date:		Dec 2014
-KernelVersion:	3.20
+KernelVersion:	4.0
 Description:	Color matching descriptors
 
 What:		/config/usb-gadget/gadget/functions/uvc.name/streaming/color_matching/default
 Date:		Dec 2014
-KernelVersion:	3.20
+KernelVersion:	4.0
 Description:	Default color matching descriptors
 
 		All attributes read only:
@@ -150,12 +150,12 @@ Description:	Default color matching descriptors
 
 What:		/config/usb-gadget/gadget/functions/uvc.name/streaming/mjpeg
 Date:		Dec 2014
-KernelVersion:	3.20
+KernelVersion:	4.0
 Description:	MJPEG format descriptors
 
 What:		/config/usb-gadget/gadget/functions/uvc.name/streaming/mjpeg/name
 Date:		Dec 2014
-KernelVersion:	3.20
+KernelVersion:	4.0
 Description:	Specific MJPEG format descriptors
 
 		All attributes read only,
@@ -174,7 +174,7 @@ Description:	Specific MJPEG format descriptors
 
 What:		/config/usb-gadget/gadget/functions/uvc.name/streaming/mjpeg/name/name
 Date:		Dec 2014
-KernelVersion:	3.20
+KernelVersion:	4.0
 Description:	Specific MJPEG frame descriptors
 
 		dwFrameInterval		- indicates how frame interval can be
@@ -196,12 +196,12 @@ Description:	Specific MJPEG frame descriptors
 
 What:		/config/usb-gadget/gadget/functions/uvc.name/streaming/uncompressed
 Date:		Dec 2014
-KernelVersion:	3.20
+KernelVersion:	4.0
 Description:	Uncompressed format descriptors
 
 What:		/config/usb-gadget/gadget/functions/uvc.name/streaming/uncompressed/name
 Date:		Dec 2014
-KernelVersion:	3.20
+KernelVersion:	4.0
 Description:	Specific uncompressed format descriptors
 
 		bmaControls		- this format's data for bmaControls in
@@ -221,7 +221,7 @@ Description:	Specific uncompressed format descriptors
 
 What:		/config/usb-gadget/gadget/functions/uvc.name/streaming/uncompressed/name/name
 Date:		Dec 2014
-KernelVersion:	3.20
+KernelVersion:	4.0
 Description:	Specific uncompressed frame descriptors
 
 		dwFrameInterval		- indicates how frame interval can be
@@ -243,12 +243,12 @@ Description:	Specific uncompressed frame descriptors
 
 What:		/config/usb-gadget/gadget/functions/uvc.name/streaming/header
 Date:		Dec 2014
-KernelVersion:	3.20
+KernelVersion:	4.0
 Description:	Streaming header descriptors
 
 What:		/config/usb-gadget/gadget/functions/uvc.name/streaming/header/name
 Date:		Dec 2014
-KernelVersion:	3.20
+KernelVersion:	4.0
 Description:	Specific streaming header descriptors
 
 		All attributes read only:

@@ -79,6 +79,7 @@ static int i40iw_query_device(struct ib_device *ibdev,
 	props->max_qp_init_rd_atom = props->max_qp_rd_atom;
 	props->atomic_cap = IB_ATOMIC_NONE;
 	props->max_map_per_fmr = 1;
+	props->max_fast_reg_page_list_len = I40IW_MAX_PAGES_PER_FMR;
 	return 0;
 }
 
@@ -1527,7 +1528,7 @@ static struct ib_mr *i40iw_alloc_mr(struct ib_pd *pd,
 	mutex_lock(&iwdev->pbl_mutex);
 	status = i40iw_get_pble(&iwdev->sc_dev, iwdev->pble_rsrc, palloc, iwmr->page_cnt);
 	mutex_unlock(&iwdev->pbl_mutex);
-	if (!status)
+	if (status)
 		goto err1;
 
 	if (palloc->level != I40IW_LEVEL_1)
@@ -2149,6 +2150,7 @@ static int i40iw_post_send(struct ib_qp *ibqp,
 			struct i40iw_sc_dev *dev = &iwqp->iwdev->sc_dev;
 			struct i40iw_fast_reg_stag_info info;
 
+			memset(&info, 0, sizeof(info));
 			info.access_rights = I40IW_ACCESS_FLAGS_LOCALREAD;
 			info.access_rights |= i40iw_get_user_access(flags);
 			info.stag_key = reg_wr(ib_wr)->key & 0xff;
@@ -2158,9 +2160,13 @@ static int i40iw_post_send(struct ib_qp *ibqp,
 			info.addr_type = I40IW_ADDR_TYPE_VA_BASED;
 			info.va = (void *)(uintptr_t)iwmr->ibmr.iova;
 			info.total_len = iwmr->ibmr.length;
+			info.reg_addr_pa = *(u64 *)palloc->level1.addr;
 			info.first_pm_pbl_index = palloc->level1.idx;
 			info.local_fence = ib_wr->send_flags & IB_SEND_FENCE;
 			info.signaled = ib_wr->send_flags & IB_SEND_SIGNALED;
+
+			if (iwmr->npages > I40IW_MIN_PAGES_PER_FMR)
+				info.chunk_size = 1;
 
 			if (page_shift == 21)
 				info.page_size = 1; /* 2M page */
@@ -2327,13 +2333,16 @@ static int i40iw_req_notify_cq(struct ib_cq *ibcq,
 {
 	struct i40iw_cq *iwcq;
 	struct i40iw_cq_uk *ukcq;
-	enum i40iw_completion_notify cq_notify = IW_CQ_COMPL_SOLICITED;
+	unsigned long flags;
+	enum i40iw_completion_notify cq_notify = IW_CQ_COMPL_EVENT;
 
 	iwcq = (struct i40iw_cq *)ibcq;
 	ukcq = &iwcq->sc_cq.cq_uk;
-	if (notify_flags == IB_CQ_NEXT_COMP)
-		cq_notify = IW_CQ_COMPL_EVENT;
+	if (notify_flags == IB_CQ_SOLICITED)
+		cq_notify = IW_CQ_COMPL_SOLICITED;
+	spin_lock_irqsave(&iwcq->lock, flags);
 	ukcq->ops.iw_cq_request_notification(ukcq, cq_notify);
+	spin_unlock_irqrestore(&iwcq->lock, flags);
 	return 0;
 }
 

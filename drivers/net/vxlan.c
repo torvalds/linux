@@ -2952,30 +2952,6 @@ static int vxlan_dev_configure(struct net *src_net, struct net_device *dev,
 	return 0;
 }
 
-struct net_device *vxlan_dev_create(struct net *net, const char *name,
-				    u8 name_assign_type, struct vxlan_config *conf)
-{
-	struct nlattr *tb[IFLA_MAX+1];
-	struct net_device *dev;
-	int err;
-
-	memset(&tb, 0, sizeof(tb));
-
-	dev = rtnl_create_link(net, name, name_assign_type,
-			       &vxlan_link_ops, tb);
-	if (IS_ERR(dev))
-		return dev;
-
-	err = vxlan_dev_configure(net, dev, conf);
-	if (err < 0) {
-		free_netdev(dev);
-		return ERR_PTR(err);
-	}
-
-	return dev;
-}
-EXPORT_SYMBOL_GPL(vxlan_dev_create);
-
 static int vxlan_newlink(struct net *src_net, struct net_device *dev,
 			 struct nlattr *tb[], struct nlattr *data[])
 {
@@ -3267,6 +3243,40 @@ static struct rtnl_link_ops vxlan_link_ops __read_mostly = {
 	.fill_info	= vxlan_fill_info,
 	.get_link_net	= vxlan_get_link_net,
 };
+
+struct net_device *vxlan_dev_create(struct net *net, const char *name,
+				    u8 name_assign_type,
+				    struct vxlan_config *conf)
+{
+	struct nlattr *tb[IFLA_MAX + 1];
+	struct net_device *dev;
+	int err;
+
+	memset(&tb, 0, sizeof(tb));
+
+	dev = rtnl_create_link(net, name, name_assign_type,
+			       &vxlan_link_ops, tb);
+	if (IS_ERR(dev))
+		return dev;
+
+	err = vxlan_dev_configure(net, dev, conf);
+	if (err < 0) {
+		free_netdev(dev);
+		return ERR_PTR(err);
+	}
+
+	err = rtnl_configure_link(dev, NULL);
+	if (err < 0) {
+		LIST_HEAD(list_kill);
+
+		vxlan_dellink(dev, &list_kill);
+		unregister_netdevice_many(&list_kill);
+		return ERR_PTR(err);
+	}
+
+	return dev;
+}
+EXPORT_SYMBOL_GPL(vxlan_dev_create);
 
 static void vxlan_handle_lowerdev_unregister(struct vxlan_net *vn,
 					     struct net_device *dev)

@@ -110,17 +110,11 @@ _GLOBAL(tm_reclaim)
 	std	r3, STK_PARAM(R3)(r1)
 	SAVE_NVGPRS(r1)
 
-	/* We need to setup MSR for VSX register save instructions.  Here we
-	 * also clear the MSR RI since when we do the treclaim, we won't have a
-	 * valid kernel pointer for a while.  We clear RI here as it avoids
-	 * adding another mtmsr closer to the treclaim.  This makes the region
-	 * maked as non-recoverable wider than it needs to be but it saves on
-	 * inserting another mtmsrd later.
-	 */
+	/* We need to setup MSR for VSX register save instructions. */
 	mfmsr	r14
 	mr	r15, r14
 	ori	r15, r15, MSR_FP
-	li	r16, MSR_RI
+	li	r16, 0
 	ori	r16, r16, MSR_EE /* IRQs hard off */
 	andc	r15, r15, r16
 	oris	r15, r15, MSR_VEC@h
@@ -176,7 +170,17 @@ dont_backup_fp:
 1:	tdeqi   r6, 0
 	EMIT_BUG_ENTRY 1b,__FILE__,__LINE__,0
 
-	/* The moment we treclaim, ALL of our GPRs will switch
+	/* Clear MSR RI since we are about to change r1, EE is already off. */
+	li	r4, 0
+	mtmsrd	r4, 1
+
+	/*
+	 * BE CAREFUL HERE:
+	 * At this point we can't take an SLB miss since we have MSR_RI
+	 * off. Load only to/from the stack/paca which are in SLB bolted regions
+	 * until we turn MSR RI back on.
+	 *
+	 * The moment we treclaim, ALL of our GPRs will switch
 	 * to user register state.  (FPRs, CCR etc. also!)
 	 * Use an sprg and a tm_scratch in the PACA to shuffle.
 	 */
@@ -197,6 +201,11 @@ dont_backup_fp:
 
 	/* Store the PPR in r11 and reset to decent value */
 	std	r11, GPR11(r1)			/* Temporary stash */
+
+	/* Reset MSR RI so we can take SLB faults again */
+	li	r11, MSR_RI
+	mtmsrd	r11, 1
+
 	mfspr	r11, SPRN_PPR
 	HMT_MEDIUM
 
@@ -397,11 +406,6 @@ restore_gprs:
 	ld	r5, THREAD_TM_DSCR(r3)
 	ld	r6, THREAD_TM_PPR(r3)
 
-	/* Clear the MSR RI since we are about to change R1.  EE is already off
-	 */
-	li	r4, 0
-	mtmsrd	r4, 1
-
 	REST_GPR(0, r7)				/* GPR0 */
 	REST_2GPRS(2, r7)			/* GPR2-3 */
 	REST_GPR(4, r7)				/* GPR4 */
@@ -439,10 +443,33 @@ restore_gprs:
 	ld	r6, _CCR(r7)
 	mtcr    r6
 
-	REST_GPR(1, r7)				/* GPR1 */
-	REST_GPR(5, r7)				/* GPR5-7 */
 	REST_GPR(6, r7)
-	ld	r7, GPR7(r7)
+
+	/*
+	 * Store r1 and r5 on the stack so that we can access them
+	 * after we clear MSR RI.
+	 */
+
+	REST_GPR(5, r7)
+	std	r5, -8(r1)
+	ld	r5, GPR1(r7)
+	std	r5, -16(r1)
+
+	REST_GPR(7, r7)
+
+	/* Clear MSR RI since we are about to change r1. EE is already off */
+	li	r5, 0
+	mtmsrd	r5, 1
+
+	/*
+	 * BE CAREFUL HERE:
+	 * At this point we can't take an SLB miss since we have MSR_RI
+	 * off. Load only to/from the stack/paca which are in SLB bolted regions
+	 * until we turn MSR RI back on.
+	 */
+
+	ld	r5, -8(r1)
+	ld	r1, -16(r1)
 
 	/* Commit register state as checkpointed state: */
 	TRECHKPT

@@ -95,7 +95,7 @@ boot := arch/arm64/boot
 Image: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
-Image.%: vmlinux
+Image.%: Image
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
 zinstall install:

@@ -84,6 +84,7 @@ struct svc_xprt {
 
 	struct net		*xpt_net;
 	struct rpc_xprt		*xpt_bc_xprt;	/* NFSv4.1 backchannel */
+	struct rpc_xprt_switch	*xpt_bc_xps;	/* NFSv4.1 backchannel */
 };
 
 static inline void unregister_xpt_user(struct svc_xprt *xpt, struct svc_xpt_user *u)

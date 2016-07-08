@@ -405,7 +405,7 @@ int tipc_l2_send_msg(struct net *net, struct sk_buff *skb,
 		return 0;
 
 	/* Send RESET message even if bearer is detached from device */
-	tipc_ptr = rtnl_dereference(dev->tipc_ptr);
+	tipc_ptr = rcu_dereference_rtnl(dev->tipc_ptr);
 	if (unlikely(!tipc_ptr && !msg_is_reset(buf_msg(skb))))
 		goto drop;
 

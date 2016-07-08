@@ -342,7 +342,26 @@ do {									\
 } while (0)
 
 #ifdef CONFIG_X86_32
-#define __get_user_asm_u64(x, ptr, retval, errret)	(x) = __get_user_bad()
+#define __get_user_asm_u64(x, ptr, retval, errret)			\
+({									\
+	__typeof__(ptr) __ptr = (ptr);					\
+	asm volatile(ASM_STAC "\n"					\
+		     "1:	movl %2,%%eax\n"			\
+		     "2:	movl %3,%%edx\n"			\
+		     "3: " ASM_CLAC "\n"				\
+		     ".section .fixup,\"ax\"\n"				\
+		     "4:	mov %4,%0\n"				\
+		     "	xorl %%eax,%%eax\n"				\
+		     "	xorl %%edx,%%edx\n"				\
+		     "	jmp 3b\n"					\
+		     ".previous\n"					\
+		     _ASM_EXTABLE(1b, 4b)				\
+		     _ASM_EXTABLE(2b, 4b)				\
+		     : "=r" (retval), "=A"(x)				\
+		     : "m" (__m(__ptr)), "m" __m(((u32 *)(__ptr)) + 1),	\
+		       "i" (errret), "0" (retval));			\
+})
+
 #define __get_user_asm_ex_u64(x, ptr)			(x) = __get_user_bad()
 #else
 #define __get_user_asm_u64(x, ptr, retval, errret) \
@@ -429,7 +448,7 @@ do {									\
 #define __get_user_nocheck(x, ptr, size)				\
 ({									\
 	int __gu_err;							\
-	unsigned long __gu_val;						\
+	__inttype(*(ptr)) __gu_val;					\
 	__uaccess_begin();						\
 	__get_user_size(__gu_val, (ptr), (size), __gu_err, -EFAULT);	\
 	__uaccess_end();						\
