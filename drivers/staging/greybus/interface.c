@@ -861,6 +861,9 @@ void gb_interface_disable(struct gb_interface *intf)
 	list_for_each_entry_safe(bundle, next, &intf->bundles, links)
 		gb_bundle_destroy(bundle);
 
+	if (!intf->mode_switch && !intf->disconnected)
+		gb_control_interface_deactivate_prepare(intf->control);
+
 	gb_timesync_interface_remove(intf);
 	gb_control_del(intf->control);
 	gb_control_disable(intf->control);
