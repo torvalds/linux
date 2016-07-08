@@ -300,15 +300,14 @@ static void intel_workarounds(struct cpuinfo_x86 *c)
 	}
 
 	/*
-	 * P4 Xeon errata 037 workaround.
+	 * P4 Xeon erratum 037 workaround.
 	 * Hardware prefetcher may cause stale data to be loaded into the cache.
 	 */
 	if ((c->x86 == 15) && (c->x86_model == 1) && (c->x86_mask == 1)) {
 		if (msr_set_bit(MSR_IA32_MISC_ENABLE,
-				MSR_IA32_MISC_ENABLE_PREFETCH_DISABLE_BIT)
-		    > 0) {
+				MSR_IA32_MISC_ENABLE_PREFETCH_DISABLE_BIT) > 0) {
 			pr_info("CPU: C0 stepping P4 Xeon detected.\n");
-			pr_info("CPU: Disabling hardware prefetching (Errata 037)\n");
+			pr_info("CPU: Disabling hardware prefetching (Erratum 037)\n");
 		}
 	}
 
