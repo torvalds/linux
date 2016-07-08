@@ -823,15 +823,14 @@ static void digital_in_recv_dep_res(struct nfc_digital_dev *ddev, void *arg,
 			if (rc)
 				goto error;
 
-			return;
+			goto free_resp;
 		}
 
 		rc = digital_in_send_rtox(ddev, data_exch, resp->data[0]);
 		if (rc)
 			goto error;
 
-		kfree_skb(resp);
-		return;
+		goto free_resp;
 	}
 
 exit:
@@ -1225,8 +1224,7 @@ static void digital_tg_recv_dep_req(struct nfc_digital_dev *ddev, void *arg,
 
 		ddev->atn_count++;
 
-		kfree_skb(resp);
-		return;
+		goto free_resp;
 	}
 
 	rc = nfc_tm_data_received(ddev->nfc_dev, resp);
