@@ -9,7 +9,7 @@ ioctl VIDIOC_REQBUFS
 Name
 ====
 
-VIDIOC_REQBUFS - Initiate Memory Mapping or User Pointer I/O
+VIDIOC_REQBUFS - Initiate Memory Mapping, User Pointer I/O or DMA buffer I/O
 
 
 Synopsis
