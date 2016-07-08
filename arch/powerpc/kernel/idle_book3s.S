@@ -1,5 +1,6 @@
 /*
- *  This file contains the power_save function for Power7 CPUs.
+ *  This file contains idle entry/exit functions for POWER7 and
+ *  POWER8 CPUs.
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -75,7 +76,7 @@ core_idle_lock_held:
  * 	0 - don't check
  * 	1 - check
  */
-_GLOBAL(power7_powersave_common)
+_GLOBAL(pnv_powersave_common)
 	/* Use r3 to pass state nap/sleep/winkle */
 	/* NAP is a state loss, we create a regs frame on the
 	 * stack, fill it up with the state we care about and
@@ -135,14 +136,14 @@ _GLOBAL(power7_powersave_common)
 	LOAD_REG_IMMEDIATE(r5, MSR_IDLE)
 	li	r6, MSR_RI
 	andc	r6, r9, r6
-	LOAD_REG_ADDR(r7, power7_enter_nap_mode)
+	LOAD_REG_ADDR(r7, pnv_enter_arch207_idle_mode)
 	mtmsrd	r6, 1		/* clear RI before setting SRR0/1 */
 	mtspr	SPRN_SRR0, r7
 	mtspr	SPRN_SRR1, r5
 	rfid
 
-	.globl	power7_enter_nap_mode
-power7_enter_nap_mode:
+	.globl pnv_enter_arch207_idle_mode
+pnv_enter_arch207_idle_mode:
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 	/* Tell KVM we're napping */
 	li	r4,KVM_HWTHREAD_IN_NAP
@@ -242,19 +243,19 @@ _GLOBAL(power7_idle)
 _GLOBAL(power7_nap)
 	mr	r4,r3
 	li	r3,PNV_THREAD_NAP
-	b	power7_powersave_common
+	b	pnv_powersave_common
 	/* No return */
 
 _GLOBAL(power7_sleep)
 	li	r3,PNV_THREAD_SLEEP
 	li	r4,1
-	b	power7_powersave_common
+	b	pnv_powersave_common
 	/* No return */
 
 _GLOBAL(power7_winkle)
 	li	r3,PNV_THREAD_WINKLE
 	li	r4,1
-	b	power7_powersave_common
+	b	pnv_powersave_common
 	/* No return */
 
 #define CHECK_HMI_INTERRUPT						\
@@ -284,7 +285,7 @@ ALT_FTR_SECTION_END_NESTED_IFSET(CPU_FTR_ARCH_207S, 66);		\
  * r13 - Contents of HSPRG0
  * cr3 - set to gt if waking up with partial/complete hypervisor state loss
  */
-_GLOBAL(power7_restore_hyp_resource)
+_GLOBAL(pnv_restore_hyp_resource)
 	/*
 	 * Check if last bit of HSPGR0 is set. This indicates whether we are
 	 * waking up from winkle.
@@ -296,7 +297,7 @@ _GLOBAL(power7_restore_hyp_resource)
 
 	lbz	r0,PACA_THREAD_IDLE_STATE(r13)
 	cmpwi   cr2,r0,PNV_THREAD_NAP
-	bgt     cr2,power7_wakeup_tb_loss	/* Either sleep or Winkle */
+	bgt     cr2,pnv_wakeup_tb_loss	/* Either sleep or Winkle */
 
 	/*
 	 * We fall through here if PACA_THREAD_IDLE_STATE shows we are waking
@@ -306,10 +307,10 @@ _GLOBAL(power7_restore_hyp_resource)
 	bgt	cr3,.
 
 	blr	/* Return back to System Reset vector from where
-		   power7_restore_hyp_resource was invoked */
+		   pnv_restore_hyp_resource was invoked */
 
 
-_GLOBAL(power7_wakeup_tb_loss)
+_GLOBAL(pnv_wakeup_tb_loss)
 	ld	r2,PACATOC(r13);
 	ld	r1,PACAR1(r13)
 	/*
@@ -476,7 +477,7 @@ hypervisor_state_restored:
 	mtspr	SPRN_SRR1,r16
 	mtlr	r17
 	blr	/* Return back to System Reset vector from where
-		   power7_restore_hyp_resource was invoked */
+		   pnv_restore_hyp_resource was invoked */
 
 fastsleep_workaround_at_exit:
 	li	r3,1
@@ -489,7 +490,7 @@ fastsleep_workaround_at_exit:
  * R3 here contains the value that will be returned to the caller
  * of power7_nap.
  */
-_GLOBAL(power7_wakeup_loss)
+_GLOBAL(pnv_wakeup_loss)
 	ld	r1,PACAR1(r13)
 BEGIN_FTR_SECTION
 	CHECK_HMI_INTERRUPT
@@ -509,10 +510,10 @@ END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
  * R3 here contains the value that will be returned to the caller
  * of power7_nap.
  */
-_GLOBAL(power7_wakeup_noloss)
+_GLOBAL(pnv_wakeup_noloss)
 	lbz	r0,PACA_NAPSTATELOST(r13)
 	cmpwi	r0,0
-	bne	power7_wakeup_loss
+	bne	pnv_wakeup_loss
 BEGIN_FTR_SECTION
 	CHECK_HMI_INTERRUPT
 END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)

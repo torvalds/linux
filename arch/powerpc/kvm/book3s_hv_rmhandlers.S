@@ -392,7 +392,7 @@ kvm_no_guest:
 	cmpwi	r3, 0
 	bne	54f
 /*
- * We jump to power7_wakeup_loss, which will return to the caller
+ * We jump to pnv_wakeup_loss, which will return to the caller
  * of power7_nap in the powernv cpu offline loop.  The value we
  * put in r3 becomes the return value for power7_nap.
  */
@@ -401,7 +401,7 @@ kvm_no_guest:
 	rlwimi	r4, r3, 0, LPCR_PECE0 | LPCR_PECE1
 	mtspr	SPRN_LPCR, r4
 	li	r3, 0
-	b	power7_wakeup_loss
+	b	pnv_wakeup_loss
 
 53:	HMT_LOW
 	ld	r5, HSTATE_KVM_VCORE(r13)

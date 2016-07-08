@@ -108,7 +108,7 @@ BEGIN_FTR_SECTION
 
 	cmpwi	cr3,r13,2
 	GET_PACA(r13)
-	bl	power7_restore_hyp_resource
+	bl	pnv_restore_hyp_resource
 
 	li	r0,PNV_THREAD_RUNNING
 	stb	r0,PACA_THREAD_IDLE_STATE(r13)	/* Clear thread state */
@@ -128,8 +128,8 @@ BEGIN_FTR_SECTION
 	/* Return SRR1 from power7_nap() */
 	mfspr	r3,SPRN_SRR1
 	blt	cr3,2f
-	b	power7_wakeup_loss
-2:	b	power7_wakeup_noloss
+	b	pnv_wakeup_loss
+2:	b	pnv_wakeup_noloss
 
 9:
 END_FTR_SECTION_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
@@ -1269,7 +1269,7 @@ machine_check_handle_early:
 	GET_PACA(r13)
 	ld	r1,PACAR1(r13)
 	li	r3,PNV_THREAD_NAP
-	b	power7_enter_nap_mode
+	b	pnv_enter_arch207_idle_mode
 4:
 #endif
 	/*
