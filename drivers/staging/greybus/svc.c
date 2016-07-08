@@ -687,6 +687,41 @@ int gb_svc_intf_set_power_mode(struct gb_svc *svc, u8 intf_id, u8 hs_series,
 }
 EXPORT_SYMBOL_GPL(gb_svc_intf_set_power_mode);
 
+int gb_svc_intf_set_power_mode_hibernate(struct gb_svc *svc, u8 intf_id)
+{
+	struct gb_svc_intf_set_pwrm_request request;
+	struct gb_svc_intf_set_pwrm_response response;
+	int ret;
+	u16 result_code;
+
+	memset(&request, 0, sizeof(request));
+
+	request.intf_id = intf_id;
+	request.hs_series = GB_SVC_UNIPRO_HS_SERIES_A;
+	request.tx_mode = GB_SVC_UNIPRO_HIBERNATE_MODE;
+	request.rx_mode = GB_SVC_UNIPRO_HIBERNATE_MODE;
+
+	ret = gb_operation_sync(svc->connection, GB_SVC_TYPE_INTF_SET_PWRM,
+				&request, sizeof(request),
+				&response, sizeof(response));
+	if (ret < 0) {
+		dev_err(&svc->dev,
+			"failed to send set power mode operation to interface %u: %d\n",
+			intf_id, ret);
+		return ret;
+	}
+
+	result_code = response.result_code;
+	if (result_code != GB_SVC_SETPWRM_PWR_OK) {
+		dev_err(&svc->dev,
+			"failed to hibernate the link for interface %u: %u\n",
+			intf_id, result_code);
+		return -EIO;
+	}
+
+	return 0;
+}
+
 int gb_svc_ping(struct gb_svc *svc)
 {
 	return gb_operation_sync_timeout(svc->connection, GB_SVC_TYPE_PING,

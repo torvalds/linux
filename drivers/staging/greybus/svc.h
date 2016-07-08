@@ -84,6 +84,7 @@ int gb_svc_intf_set_power_mode(struct gb_svc *svc, u8 intf_id, u8 hs_series,
 			       u8 flags, u32 quirks,
 			       struct gb_svc_l2_timer_cfg *local,
 			       struct gb_svc_l2_timer_cfg *remote);
+int gb_svc_intf_set_power_mode_hibernate(struct gb_svc *svc, u8 intf_id);
 int gb_svc_ping(struct gb_svc *svc);
 int gb_svc_watchdog_create(struct gb_svc *svc);
 void gb_svc_watchdog_destroy(struct gb_svc *svc);
