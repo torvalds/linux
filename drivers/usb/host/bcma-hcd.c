@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
+#include <linux/of_platform.h>
 #include <linux/usb/ehci_pdriver.h>
 #include <linux/usb/ohci_pdriver.h>
 
@@ -338,6 +339,18 @@ err_unregister_ohci_dev:
 	return err;
 }
 
+static int bcma_hcd_usb30_init(struct bcma_hcd_device *bcma_hcd)
+{
+	struct bcma_device *core = bcma_hcd->core;
+	struct device *dev = &core->dev;
+
+	bcma_core_enable(core, 0);
+
+	of_platform_default_populate(dev->of_node, NULL, dev);
+
+	return 0;
+}
+
 static int bcma_hcd_probe(struct bcma_device *core)
 {
 	int err;
@@ -359,6 +372,11 @@ static int bcma_hcd_probe(struct bcma_device *core)
 	case BCMA_CORE_USB20_HOST:
 	case BCMA_CORE_NS_USB20:
 		err = bcma_hcd_usb20_init(usb_dev);
+		if (err)
+			return err;
+		break;
+	case BCMA_CORE_NS_USB30:
+		err = bcma_hcd_usb30_init(usb_dev);
 		if (err)
 			return err;
 		break;
@@ -416,6 +434,7 @@ static int bcma_hcd_resume(struct bcma_device *dev)
 static const struct bcma_device_id bcma_hcd_table[] = {
 	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_USB20_HOST, BCMA_ANY_REV, BCMA_ANY_CLASS),
 	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_NS_USB20, BCMA_ANY_REV, BCMA_ANY_CLASS),
+	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_NS_USB30, BCMA_ANY_REV, BCMA_ANY_CLASS),
 	{},
 };
 MODULE_DEVICE_TABLE(bcma, bcma_hcd_table);
