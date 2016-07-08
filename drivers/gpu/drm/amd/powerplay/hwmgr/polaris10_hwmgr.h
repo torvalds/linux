@@ -309,10 +309,6 @@ struct polaris10_hwmgr {
 	uint32_t                           up_hyst;
 	uint32_t disable_dpm_mask;
 	bool apply_optimized_settings;
-
-	/* soft pptable for re-uploading into smu */
-	void *soft_pp_table;
-
 	uint32_t                              avfs_vdroop_override_setting;
 	bool                                  apply_avfs_cks_off_voltage;
 };

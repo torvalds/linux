@@ -312,6 +312,23 @@ int polaris10_enable_smc_cac(struct pp_hwmgr *hwmgr)
 	return result;
 }
 
+int polaris10_disable_smc_cac(struct pp_hwmgr *hwmgr)
+{
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
+	int result = 0;
+
+	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_CAC) && data->cac_enabled) {
+		int smc_result = smum_send_msg_to_smc(hwmgr->smumgr,
+				(uint16_t)(PPSMC_MSG_DisableCac));
+		PP_ASSERT_WITH_CODE((smc_result == 0),
+				"Failed to disable CAC in SMC.", result = -1);
+
+		data->cac_enabled = false;
+	}
+	return result;
+}
+
 int polaris10_set_power_limit(struct pp_hwmgr *hwmgr, uint32_t n)
 {
 	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
@@ -370,6 +387,48 @@ int polaris10_enable_power_containment(struct pp_hwmgr *hwmgr)
 			}
 		}
 	}
+	return result;
+}
+
+int polaris10_disable_power_containment(struct pp_hwmgr *hwmgr)
+{
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
+	int result = 0;
+
+	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_PowerContainment) &&
+			data->power_containment_features) {
+		int smc_result;
+
+		if (data->power_containment_features &
+				POWERCONTAINMENT_FEATURE_TDCLimit) {
+			smc_result = smum_send_msg_to_smc(hwmgr->smumgr,
+					(uint16_t)(PPSMC_MSG_TDCLimitDisable));
+			PP_ASSERT_WITH_CODE((smc_result == 0),
+					"Failed to disable TDCLimit in SMC.",
+					result = smc_result);
+		}
+
+		if (data->power_containment_features &
+				POWERCONTAINMENT_FEATURE_DTE) {
+			smc_result = smum_send_msg_to_smc(hwmgr->smumgr,
+					(uint16_t)(PPSMC_MSG_DisableDTE));
+			PP_ASSERT_WITH_CODE((smc_result == 0),
+					"Failed to disable DTE in SMC.",
+					result = smc_result);
+		}
+
+		if (data->power_containment_features &
+				POWERCONTAINMENT_FEATURE_PkgPwrLimit) {
+			smc_result = smum_send_msg_to_smc(hwmgr->smumgr,
+					(uint16_t)(PPSMC_MSG_PkgPwrLimitDisable));
+			PP_ASSERT_WITH_CODE((smc_result == 0),
+					"Failed to disable PkgPwrTracking in SMC.",
+					result = smc_result);
+		}
+		data->power_containment_features = 0;
+	}
+
 	return result;
 }
 

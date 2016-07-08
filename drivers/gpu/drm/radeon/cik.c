@@ -53,6 +53,7 @@ MODULE_FIRMWARE("radeon/bonaire_mc.bin");
 MODULE_FIRMWARE("radeon/bonaire_rlc.bin");
 MODULE_FIRMWARE("radeon/bonaire_sdma.bin");
 MODULE_FIRMWARE("radeon/bonaire_smc.bin");
+MODULE_FIRMWARE("radeon/bonaire_k_smc.bin");
 
 MODULE_FIRMWARE("radeon/HAWAII_pfp.bin");
 MODULE_FIRMWARE("radeon/HAWAII_me.bin");
@@ -72,6 +73,7 @@ MODULE_FIRMWARE("radeon/hawaii_mc.bin");
 MODULE_FIRMWARE("radeon/hawaii_rlc.bin");
 MODULE_FIRMWARE("radeon/hawaii_sdma.bin");
 MODULE_FIRMWARE("radeon/hawaii_smc.bin");
+MODULE_FIRMWARE("radeon/hawaii_k_smc.bin");
 
 MODULE_FIRMWARE("radeon/KAVERI_pfp.bin");
 MODULE_FIRMWARE("radeon/KAVERI_me.bin");
@@ -1990,12 +1992,17 @@ static int cik_init_microcode(struct radeon_device *rdev)
 	int new_fw = 0;
 	int err;
 	int num_fw;
+	bool new_smc = false;
 
 	DRM_DEBUG("\n");
 
 	switch (rdev->family) {
 	case CHIP_BONAIRE:
 		chip_name = "BONAIRE";
+		if ((rdev->pdev->revision == 0x80) ||
+		    (rdev->pdev->revision == 0x81) ||
+		    (rdev->pdev->device == 0x665f))
+			new_smc = true;
 		new_chip_name = "bonaire";
 		pfp_req_size = CIK_PFP_UCODE_SIZE * 4;
 		me_req_size = CIK_ME_UCODE_SIZE * 4;
@@ -2010,6 +2017,8 @@ static int cik_init_microcode(struct radeon_device *rdev)
 		break;
 	case CHIP_HAWAII:
 		chip_name = "HAWAII";
+		if (rdev->pdev->revision == 0x80)
+			new_smc = true;
 		new_chip_name = "hawaii";
 		pfp_req_size = CIK_PFP_UCODE_SIZE * 4;
 		me_req_size = CIK_ME_UCODE_SIZE * 4;
@@ -2259,7 +2268,10 @@ static int cik_init_microcode(struct radeon_device *rdev)
 			}
 		}
 
-		snprintf(fw_name, sizeof(fw_name), "radeon/%s_smc.bin", new_chip_name);
+		if (new_smc)
+			snprintf(fw_name, sizeof(fw_name), "radeon/%s_k_smc.bin", new_chip_name);
+		else
+			snprintf(fw_name, sizeof(fw_name), "radeon/%s_smc.bin", new_chip_name);
 		err = request_firmware(&rdev->smc_fw, fw_name, rdev->dev);
 		if (err) {
 			snprintf(fw_name, sizeof(fw_name), "radeon/%s_smc.bin", chip_name);
@@ -8354,7 +8366,8 @@ static int cik_startup(struct radeon_device *rdev)
 		}
 	}
 	rdev->rlc.cs_data = ci_cs_data;
-	rdev->rlc.cp_table_size = CP_ME_TABLE_SIZE * 5 * 4;
+	rdev->rlc.cp_table_size = ALIGN(CP_ME_TABLE_SIZE * 5 * 4, 2048); /* CP JT */
+	rdev->rlc.cp_table_size += 64 * 1024; /* GDS */
 	r = sumo_rlc_init(rdev);
 	if (r) {
 		DRM_ERROR("Failed to init rlc BOs!\n");

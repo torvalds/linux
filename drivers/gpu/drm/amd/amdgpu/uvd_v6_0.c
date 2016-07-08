@@ -33,6 +33,7 @@
 #include "oss/oss_2_0_sh_mask.h"
 #include "smu/smu_7_1_3_d.h"
 #include "smu/smu_7_1_3_sh_mask.h"
+#include "bif/bif_5_1_d.h"
 #include "vi.h"
 
 static void uvd_v6_0_set_ring_funcs(struct amdgpu_device *adev);
@@ -385,8 +386,8 @@ static int uvd_v6_0_start(struct amdgpu_device *adev)
 	uint32_t mp_swap_cntl;
 	int i, j, r;
 
-	/*disable DPG */
-	WREG32_P(mmUVD_POWER_STATUS, 0, ~(1 << 2));
+	/* disable DPG */
+	WREG32_P(mmUVD_POWER_STATUS, 0, ~UVD_POWER_STATUS__UVD_PG_MODE_MASK);
 
 	/* disable byte swapping */
 	lmi_swap_cntl = 0;
@@ -405,17 +406,21 @@ static int uvd_v6_0_start(struct amdgpu_device *adev)
 	}
 
 	/* disable interupt */
-	WREG32_P(mmUVD_MASTINT_EN, 0, ~(1 << 1));
+	WREG32_P(mmUVD_MASTINT_EN, 0, ~UVD_MASTINT_EN__VCPU_EN_MASK);
 
 	/* stall UMC and register bus before resetting VCPU */
-	WREG32_P(mmUVD_LMI_CTRL2, 1 << 8, ~(1 << 8));
+	WREG32_P(mmUVD_LMI_CTRL2, UVD_LMI_CTRL2__STALL_ARB_UMC_MASK, ~UVD_LMI_CTRL2__STALL_ARB_UMC_MASK);
 	mdelay(1);
 
 	/* put LMI, VCPU, RBC etc... into reset */
-	WREG32(mmUVD_SOFT_RESET, UVD_SOFT_RESET__LMI_SOFT_RESET_MASK |
-		UVD_SOFT_RESET__VCPU_SOFT_RESET_MASK | UVD_SOFT_RESET__LBSI_SOFT_RESET_MASK |
-		UVD_SOFT_RESET__RBC_SOFT_RESET_MASK | UVD_SOFT_RESET__CSM_SOFT_RESET_MASK |
-		UVD_SOFT_RESET__CXW_SOFT_RESET_MASK | UVD_SOFT_RESET__TAP_SOFT_RESET_MASK |
+	WREG32(mmUVD_SOFT_RESET,
+		UVD_SOFT_RESET__LMI_SOFT_RESET_MASK |
+		UVD_SOFT_RESET__VCPU_SOFT_RESET_MASK |
+		UVD_SOFT_RESET__LBSI_SOFT_RESET_MASK |
+		UVD_SOFT_RESET__RBC_SOFT_RESET_MASK |
+		UVD_SOFT_RESET__CSM_SOFT_RESET_MASK |
+		UVD_SOFT_RESET__CXW_SOFT_RESET_MASK |
+		UVD_SOFT_RESET__TAP_SOFT_RESET_MASK |
 		UVD_SOFT_RESET__LMI_UMC_SOFT_RESET_MASK);
 	mdelay(5);
 
@@ -424,8 +429,13 @@ static int uvd_v6_0_start(struct amdgpu_device *adev)
 	mdelay(5);
 
 	/* initialize UVD memory controller */
-	WREG32(mmUVD_LMI_CTRL, 0x40 | (1 << 8) | (1 << 13) |
-			     (1 << 21) | (1 << 9) | (1 << 20));
+	WREG32(mmUVD_LMI_CTRL,
+		(0x40 << UVD_LMI_CTRL__WRITE_CLEAN_TIMER__SHIFT) |
+		UVD_LMI_CTRL__WRITE_CLEAN_TIMER_EN_MASK |
+		UVD_LMI_CTRL__DATA_COHERENCY_EN_MASK |
+		UVD_LMI_CTRL__VCPU_DATA_COHERENCY_EN_MASK |
+		UVD_LMI_CTRL__REQ_MODE_MASK |
+		UVD_LMI_CTRL__DISABLE_ON_FWV_FAIL_MASK);
 
 #ifdef __BIG_ENDIAN
 	/* swap (8 in 32) RB and IB */
@@ -447,10 +457,10 @@ static int uvd_v6_0_start(struct amdgpu_device *adev)
 	mdelay(5);
 
 	/* enable VCPU clock */
-	WREG32(mmUVD_VCPU_CNTL,  1 << 9);
+	WREG32(mmUVD_VCPU_CNTL, UVD_VCPU_CNTL__CLK_EN_MASK);
 
 	/* enable UMC */
-	WREG32_P(mmUVD_LMI_CTRL2, 0, ~(1 << 8));
+	WREG32_P(mmUVD_LMI_CTRL2, 0, ~UVD_LMI_CTRL2__STALL_ARB_UMC_MASK);
 
 	/* boot up the VCPU */
 	WREG32(mmUVD_SOFT_RESET, 0);
@@ -484,10 +494,12 @@ static int uvd_v6_0_start(struct amdgpu_device *adev)
 		return r;
 	}
 	/* enable master interrupt */
-	WREG32_P(mmUVD_MASTINT_EN, 3 << 1, ~(3 << 1));
+	WREG32_P(mmUVD_MASTINT_EN,
+		(UVD_MASTINT_EN__VCPU_EN_MASK|UVD_MASTINT_EN__SYS_EN_MASK),
+		~(UVD_MASTINT_EN__VCPU_EN_MASK|UVD_MASTINT_EN__SYS_EN_MASK));
 
 	/* clear the bit 4 of UVD_STATUS */
-	WREG32_P(mmUVD_STATUS, 0, ~(2 << 1));
+	WREG32_P(mmUVD_STATUS, 0, ~(2 << UVD_STATUS__VCPU_REPORT__SHIFT));
 
 	rb_bufsz = order_base_2(ring->ring_size);
 	tmp = 0;
@@ -578,6 +590,32 @@ static void uvd_v6_0_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64 seq
 	amdgpu_ring_write(ring, 0);
 	amdgpu_ring_write(ring, PACKET0(mmUVD_GPCOM_VCPU_CMD, 0));
 	amdgpu_ring_write(ring, 2);
+}
+
+/**
+ * uvd_v6_0_ring_emit_hdp_flush - emit an hdp flush
+ *
+ * @ring: amdgpu_ring pointer
+ *
+ * Emits an hdp flush.
+ */
+static void uvd_v6_0_ring_emit_hdp_flush(struct amdgpu_ring *ring)
+{
+	amdgpu_ring_write(ring, PACKET0(mmHDP_MEM_COHERENCY_FLUSH_CNTL, 0));
+	amdgpu_ring_write(ring, 0);
+}
+
+/**
+ * uvd_v6_0_ring_hdp_invalidate - emit an hdp invalidate
+ *
+ * @ring: amdgpu_ring pointer
+ *
+ * Emits an hdp invalidate.
+ */
+static void uvd_v6_0_ring_emit_hdp_invalidate(struct amdgpu_ring *ring)
+{
+	amdgpu_ring_write(ring, PACKET0(mmHDP_DEBUG0, 0));
+	amdgpu_ring_write(ring, 1);
 }
 
 /**
@@ -847,7 +885,8 @@ static int uvd_v6_0_set_clockgating_state(void *handle,
 	bool enable = (state == AMD_CG_STATE_GATE) ? true : false;
 	static int curstate = -1;
 
-	if (adev->asic_type == CHIP_FIJI)
+	if (adev->asic_type == CHIP_FIJI ||
+			adev->asic_type == CHIP_POLARIS10)
 		uvd_v6_set_bypass_mode(adev, enable);
 
 	if (!(adev->cg_flags & AMD_CG_SUPPORT_UVD_MGCG))
@@ -919,6 +958,8 @@ static const struct amdgpu_ring_funcs uvd_v6_0_ring_funcs = {
 	.parse_cs = amdgpu_uvd_ring_parse_cs,
 	.emit_ib = uvd_v6_0_ring_emit_ib,
 	.emit_fence = uvd_v6_0_ring_emit_fence,
+	.emit_hdp_flush = uvd_v6_0_ring_emit_hdp_flush,
+	.emit_hdp_invalidate = uvd_v6_0_ring_emit_hdp_invalidate,
 	.test_ring = uvd_v6_0_ring_test_ring,
 	.test_ib = uvd_v6_0_ring_test_ib,
 	.insert_nop = amdgpu_ring_insert_nop,

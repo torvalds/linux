@@ -173,7 +173,7 @@ struct ttm_tt;
  * @lru: List head for the lru list.
  * @ddestroy: List head for the delayed destroy list.
  * @swap: List head for swap LRU list.
- * @priv_flags: Flags describing buffer object internal state.
+ * @moving: Fence set when BO is moving
  * @vma_node: Address space manager node.
  * @offset: The current GPU offset, which can have different meanings
  * depending on the memory type. For SYSTEM type memory, it should be 0.
@@ -239,7 +239,7 @@ struct ttm_buffer_object {
 	 * Members protected by a bo reservation.
 	 */
 
-	unsigned long priv_flags;
+	struct fence *moving;
 
 	struct drm_vma_offset_node vma_node;
 

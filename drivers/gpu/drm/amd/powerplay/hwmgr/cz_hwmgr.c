@@ -1180,6 +1180,13 @@ static int cz_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 static int cz_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 {
 	int result = 0;
+	struct cz_hwmgr *data;
+
+	data = kzalloc(sizeof(struct cz_hwmgr), GFP_KERNEL);
+	if (data == NULL)
+		return -ENOMEM;
+
+	hwmgr->backend = data;
 
 	result = cz_initialize_dpm_defaults(hwmgr);
 	if (result != 0) {
@@ -1909,15 +1916,7 @@ static const struct pp_hwmgr_func cz_hwmgr_funcs = {
 
 int cz_hwmgr_init(struct pp_hwmgr *hwmgr)
 {
-	struct cz_hwmgr *cz_hwmgr;
-	int ret = 0;
-
-	cz_hwmgr = kzalloc(sizeof(struct cz_hwmgr), GFP_KERNEL);
-	if (cz_hwmgr == NULL)
-		return -ENOMEM;
-
-	hwmgr->backend = cz_hwmgr;
 	hwmgr->hwmgr_func = &cz_hwmgr_funcs;
 	hwmgr->pptable_func = &pptable_funcs;
-	return ret;
+	return 0;
 }

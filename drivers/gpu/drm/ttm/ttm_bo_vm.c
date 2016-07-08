@@ -48,15 +48,14 @@ static int ttm_bo_vm_fault_idle(struct ttm_buffer_object *bo,
 {
 	int ret = 0;
 
-	if (likely(!test_bit(TTM_BO_PRIV_FLAG_MOVING, &bo->priv_flags)))
+	if (likely(!bo->moving))
 		goto out_unlock;
 
 	/*
 	 * Quick non-stalling check for idle.
 	 */
-	ret = ttm_bo_wait(bo, false, true);
-	if (likely(ret == 0))
-		goto out_unlock;
+	if (fence_is_signaled(bo->moving))
+		goto out_clear;
 
 	/*
 	 * If possible, avoid waiting for GPU with mmap_sem
@@ -68,17 +67,23 @@ static int ttm_bo_vm_fault_idle(struct ttm_buffer_object *bo,
 			goto out_unlock;
 
 		up_read(&vma->vm_mm->mmap_sem);
-		(void) ttm_bo_wait(bo, true, false);
+		(void) fence_wait(bo->moving, true);
 		goto out_unlock;
 	}
 
 	/*
 	 * Ordinary wait.
 	 */
-	ret = ttm_bo_wait(bo, true, false);
-	if (unlikely(ret != 0))
+	ret = fence_wait(bo->moving, true);
+	if (unlikely(ret != 0)) {
 		ret = (ret != -ERESTARTSYS) ? VM_FAULT_SIGBUS :
 			VM_FAULT_NOPAGE;
+		goto out_unlock;
+	}
+
+out_clear:
+	fence_put(bo->moving);
+	bo->moving = NULL;
 
 out_unlock:
 	return ret;

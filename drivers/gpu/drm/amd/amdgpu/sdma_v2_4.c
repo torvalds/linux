@@ -255,19 +255,6 @@ static void sdma_v2_4_ring_emit_ib(struct amdgpu_ring *ring,
 				   unsigned vm_id, bool ctx_switch)
 {
 	u32 vmid = vm_id & 0xf;
-	u32 next_rptr = ring->wptr + 5;
-
-	while ((next_rptr & 7) != 2)
-		next_rptr++;
-
-	next_rptr += 6;
-
-	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_WRITE) |
-			  SDMA_PKT_HEADER_SUB_OP(SDMA_SUBOP_WRITE_LINEAR));
-	amdgpu_ring_write(ring, lower_32_bits(ring->next_rptr_gpu_addr) & 0xfffffffc);
-	amdgpu_ring_write(ring, upper_32_bits(ring->next_rptr_gpu_addr));
-	amdgpu_ring_write(ring, SDMA_PKT_WRITE_UNTILED_DW_3_COUNT(1));
-	amdgpu_ring_write(ring, next_rptr);
 
 	/* IB packet must end on a 8 DW boundary */
 	sdma_v2_4_ring_insert_nop(ring, (10 - (ring->wptr & 7)) % 8);

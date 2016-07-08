@@ -1077,9 +1077,6 @@ int tonga_pp_tables_uninitialize(struct pp_hwmgr *hwmgr)
 	struct phm_ppt_v1_information *pp_table_information =
 		(struct phm_ppt_v1_information *)(hwmgr->pptable);
 
-	if (NULL != hwmgr->soft_pp_table)
-		hwmgr->soft_pp_table = NULL;
-
 	kfree(pp_table_information->vdd_dep_on_sclk);
 	pp_table_information->vdd_dep_on_sclk = NULL;
 

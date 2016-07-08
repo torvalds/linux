@@ -206,7 +206,7 @@ int cz_dpm_powergate_vce(struct pp_hwmgr *hwmgr, bool bgate)
 							AMD_IP_BLOCK_TYPE_VCE,
 							AMD_PG_STATE_GATE);
 				cz_enable_disable_vce_dpm(hwmgr, false);
-			/* TODO: to figure out why vce can't be poweroff*/
+				cz_dpm_powerdown_vce(hwmgr);
 				cz_hwmgr->vce_power_gated = true;
 			} else {
 				cz_dpm_powerup_vce(hwmgr);
@@ -225,6 +225,7 @@ int cz_dpm_powergate_vce(struct pp_hwmgr *hwmgr, bool bgate)
 			}
 		}
 	} else {
+		cz_hwmgr->vce_power_gated = bgate;
 		cz_dpm_update_vce_dpm(hwmgr);
 		cz_enable_disable_vce_dpm(hwmgr, !bgate);
 		return 0;
