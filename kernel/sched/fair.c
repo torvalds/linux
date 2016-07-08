@@ -4866,6 +4866,7 @@ static int sched_group_energy(struct energy_env *eenv)
 		struct sched_group *sg_shared_cap = NULL;
 
 		cpu = cpumask_first(&visit_cpus);
+		cpumask_clear_cpu(cpu, &visit_cpus);
 
 		/*
 		 * Is the group utilization affected by cpus outside this
@@ -4928,8 +4929,12 @@ static int sched_group_energy(struct energy_env *eenv)
 
 				total_energy += sg_busy_energy + sg_idle_energy;
 
-				if (!sd->child)
-					cpumask_xor(&visit_cpus, &visit_cpus, sched_group_cpus(sg));
+				if (!sd->child) {
+					int i;
+
+					for_each_cpu(i, sched_group_cpus(sg))
+						cpumask_clear_cpu(i, &visit_cpus);
+				}
 
 				if (cpumask_equal(sched_group_cpus(sg), sched_group_cpus(eenv->sg_top)))
 					goto next_cpu;
