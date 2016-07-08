@@ -298,6 +298,56 @@ int gb_control_bundle_resume(struct gb_control *control, u8 bundle_id)
 	return 0;
 }
 
+int gb_control_bundle_deactivate(struct gb_control *control, u8 bundle_id)
+{
+	struct gb_control_bundle_pm_request request;
+	struct gb_control_bundle_pm_response response;
+	int ret;
+
+	request.bundle_id = bundle_id;
+	ret = gb_operation_sync(control->connection,
+				GB_CONTROL_TYPE_BUNDLE_DEACTIVATE, &request,
+				sizeof(request), &response, sizeof(response));
+	if (ret) {
+		dev_err(&control->dev,
+			"failed to send bundle deactivate: %d\n", ret);
+		return ret;
+	}
+
+	if (response.status != GB_CONTROL_BUNDLE_PM_OK) {
+		dev_err(&control->dev,
+			"bundle error while deactivating: %d\n", response.status);
+		return gb_control_bundle_pm_status_map(response.status);
+	}
+
+	return 0;
+}
+
+int gb_control_bundle_activate(struct gb_control *control, u8 bundle_id)
+{
+	struct gb_control_bundle_pm_request request;
+	struct gb_control_bundle_pm_response response;
+	int ret;
+
+	request.bundle_id = bundle_id;
+	ret = gb_operation_sync(control->connection,
+				GB_CONTROL_TYPE_BUNDLE_ACTIVATE, &request,
+				sizeof(request), &response, sizeof(response));
+	if (ret) {
+		dev_err(&control->dev,
+			"failed to send bundle activate: %d\n", ret);
+		return ret;
+	}
+
+	if (response.status != GB_CONTROL_BUNDLE_PM_OK) {
+		dev_err(&control->dev,
+			"bundle error while activating: %d\n", response.status);
+		return gb_control_bundle_pm_status_map(response.status);
+	}
+
+	return 0;
+}
+
 static ssize_t vendor_string_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {

@@ -128,6 +128,8 @@ struct gb_protocol_version_response {
 #define GB_CONTROL_TYPE_MODE_SWITCH		0x0e
 #define GB_CONTROL_TYPE_BUNDLE_SUSPEND		0x0f
 #define GB_CONTROL_TYPE_BUNDLE_RESUME		0x10
+#define GB_CONTROL_TYPE_BUNDLE_DEACTIVATE	0x11
+#define GB_CONTROL_TYPE_BUNDLE_ACTIVATE		0x12
 
 struct gb_control_version_request {
 	__u8	major;
