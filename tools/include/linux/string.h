@@ -8,7 +8,7 @@ void *memdup(const void *src, size_t len);
 
 int strtobool(const char *s, bool *res);
 
-#ifndef __UCLIBC__
+#ifdef __GLIBC__
 extern size_t strlcpy(char *dest, const char *src, size_t size);
 #endif
 
