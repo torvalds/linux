@@ -332,6 +332,8 @@ void kvm_mips_flush_host_tlb(int skip_kseg0)
 			/* Don't blow away guest kernel entries */
 			if (KVM_GUEST_KSEGX(entryhi) == KVM_GUEST_KSEG0)
 				continue;
+
+			write_c0_pagemask(old_pagemask);
 		}
 
 		/* Make sure all entries differ. */
