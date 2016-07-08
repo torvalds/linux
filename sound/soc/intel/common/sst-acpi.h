@@ -40,6 +40,6 @@ struct sst_acpi_mach {
 
 	/* board name */
 	const char *board;
-	void (*machine_quirk)(void);
+	struct sst_acpi_mach * (*machine_quirk)(void *arg);
 	void *pdata;
 };
