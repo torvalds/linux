@@ -354,7 +354,7 @@ phys_pte_init(pte_t *pte_page, unsigned long addr, unsigned long end,
 		 * pagetable pages as RO. So assume someone who pre-setup
 		 * these mappings are more intelligent.
 		 */
-		if (pte_val(*pte)) {
+		if (!pte_none(*pte)) {
 			if (!after_bootmem)
 				pages++;
 			continue;
@@ -396,7 +396,7 @@ phys_pmd_init(pmd_t *pmd_page, unsigned long address, unsigned long end,
 			continue;
 		}
 
-		if (pmd_val(*pmd)) {
+		if (!pmd_none(*pmd)) {
 			if (!pmd_large(*pmd)) {
 				spin_lock(&init_mm.page_table_lock);
 				pte = (pte_t *)pmd_page_vaddr(*pmd);
@@ -470,7 +470,7 @@ phys_pud_init(pud_t *pud_page, unsigned long addr, unsigned long end,
 			continue;
 		}
 
-		if (pud_val(*pud)) {
+		if (!pud_none(*pud)) {
 			if (!pud_large(*pud)) {
 				pmd = pmd_offset(pud, 0);
 				last_map_addr = phys_pmd_init(pmd, addr, end,
@@ -673,7 +673,7 @@ static void __meminit free_pte_table(pte_t *pte_start, pmd_t *pmd)
 
 	for (i = 0; i < PTRS_PER_PTE; i++) {
 		pte = pte_start + i;
-		if (pte_val(*pte))
+		if (!pte_none(*pte))
 			return;
 	}
 
@@ -691,7 +691,7 @@ static void __meminit free_pmd_table(pmd_t *pmd_start, pud_t *pud)
 
 	for (i = 0; i < PTRS_PER_PMD; i++) {
 		pmd = pmd_start + i;
-		if (pmd_val(*pmd))
+		if (!pmd_none(*pmd))
 			return;
 	}
 
@@ -710,7 +710,7 @@ static bool __meminit free_pud_table(pud_t *pud_start, pgd_t *pgd)
 
 	for (i = 0; i < PTRS_PER_PUD; i++) {
 		pud = pud_start + i;
-		if (pud_val(*pud))
+		if (!pud_none(*pud))
 			return false;
 	}
 
