@@ -25,6 +25,7 @@
 
 enum kprobe_insn {
 	INSN_REJECTED,
+	INSN_GOOD_NO_SLOT,
 	INSN_GOOD,
 };
 

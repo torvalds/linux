@@ -21,6 +21,7 @@
 #include <asm/sections.h>
 
 #include "decode-insn.h"
+#include "simulate-insn.h"
 
 static bool __kprobes aarch64_insn_is_steppable(u32 insn)
 {
@@ -74,6 +75,7 @@ static bool __kprobes aarch64_insn_is_steppable(u32 insn)
 /* Return:
  *   INSN_REJECTED     If instruction is one not allowed to kprobe,
  *   INSN_GOOD         If instruction is supported and uses instruction slot,
+ *   INSN_GOOD_NO_SLOT If instruction is supported but doesn't use its slot.
  */
 static enum kprobe_insn __kprobes
 arm_probe_decode_insn(kprobe_opcode_t insn, struct arch_specific_insn *asi)
@@ -84,8 +86,37 @@ arm_probe_decode_insn(kprobe_opcode_t insn, struct arch_specific_insn *asi)
 	 */
 	if (aarch64_insn_is_steppable(insn))
 		return INSN_GOOD;
-	else
+
+	if (aarch64_insn_is_bcond(insn)) {
+		asi->handler = simulate_b_cond;
+	} else if (aarch64_insn_is_cbz(insn) ||
+	    aarch64_insn_is_cbnz(insn)) {
+		asi->handler = simulate_cbz_cbnz;
+	} else if (aarch64_insn_is_tbz(insn) ||
+	    aarch64_insn_is_tbnz(insn)) {
+		asi->handler = simulate_tbz_tbnz;
+	} else if (aarch64_insn_is_adr_adrp(insn)) {
+		asi->handler = simulate_adr_adrp;
+	} else if (aarch64_insn_is_b(insn) ||
+	    aarch64_insn_is_bl(insn)) {
+		asi->handler = simulate_b_bl;
+	} else if (aarch64_insn_is_br(insn) ||
+	    aarch64_insn_is_blr(insn) ||
+	    aarch64_insn_is_ret(insn)) {
+		asi->handler = simulate_br_blr_ret;
+	} else if (aarch64_insn_is_ldr_lit(insn)) {
+		asi->handler = simulate_ldr_literal;
+	} else if (aarch64_insn_is_ldrsw_lit(insn)) {
+		asi->handler = simulate_ldrsw_literal;
+	} else {
+		/*
+		 * Instruction cannot be stepped out-of-line and we don't
+		 * (yet) simulate it.
+		 */
 		return INSN_REJECTED;
+	}
+
+	return INSN_GOOD_NO_SLOT;
 }
 
 static bool __kprobes
