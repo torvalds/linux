@@ -93,7 +93,7 @@ const char * const amd_df_mcablock_names[] = {
 EXPORT_SYMBOL_GPL(amd_df_mcablock_names);
 
 static DEFINE_PER_CPU(struct threshold_bank **, threshold_banks);
-static DEFINE_PER_CPU(unsigned char, bank_map);	/* see which banks are on */
+static DEFINE_PER_CPU(unsigned int, bank_map);	/* see which banks are on */
 
 static void amd_threshold_interrupt(void);
 static void amd_deferred_error_interrupt(void);
