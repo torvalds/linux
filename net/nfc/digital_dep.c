@@ -190,8 +190,6 @@ digital_send_dep_data_prep(struct nfc_digital_dev *ddev, struct sk_buff *skb,
 			return ERR_PTR(-ENOMEM);
 		}
 
-		skb_reserve(new_skb, ddev->tx_headroom + NFC_HEADER_SIZE +
-					DIGITAL_NFC_DEP_REQ_RES_HEADROOM);
 		memcpy(skb_put(new_skb, ddev->remote_payload_max), skb->data,
 		       ddev->remote_payload_max);
 		skb_pull(skb, ddev->remote_payload_max);
