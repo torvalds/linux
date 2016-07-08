@@ -425,7 +425,7 @@ static u64 mce_rdmsrl(u32 msr)
 	}
 
 	if (rdmsrl_safe(msr, &v)) {
-		WARN_ONCE(1, "mce: Unable to read msr %d!\n", msr);
+		WARN_ONCE(1, "mce: Unable to read MSR 0x%x!\n", msr);
 		/*
 		 * Return zero in case the access faulted. This should
 		 * not happen normally but can happen if the CPU does
