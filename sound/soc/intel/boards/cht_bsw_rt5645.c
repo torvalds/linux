@@ -357,7 +357,7 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 	char codec_name[16];
 	struct sst_acpi_mach *mach;
 	const char *i2c_name = NULL;
-	int dai_index;
+	int dai_index = 0;
 
 	drv = devm_kzalloc(&pdev->dev, sizeof(*drv), GFP_ATOMIC);
 	if (!drv)
