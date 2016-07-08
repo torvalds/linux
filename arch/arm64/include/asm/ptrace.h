@@ -147,8 +147,11 @@ struct pt_regs {
 #define fast_interrupts_enabled(regs) \
 	(!((regs)->pstate & PSR_F_BIT))
 
-#define user_stack_pointer(regs) \
+#define GET_USP(regs) \
 	(!compat_user_mode(regs) ? (regs)->sp : (regs)->compat_sp)
+
+#define SET_USP(ptregs, value) \
+	(!compat_user_mode(regs) ? ((regs)->sp = value) : ((regs)->compat_sp = value))
 
 extern int regs_query_register_offset(const char *name);
 extern const char *regs_query_register_name(unsigned int offset);
@@ -206,8 +209,15 @@ static inline unsigned long regs_return_value(struct pt_regs *regs)
 struct task_struct;
 int valid_user_regs(struct user_pt_regs *regs, struct task_struct *task);
 
-#define instruction_pointer(regs)	((unsigned long)(regs)->pc)
+#define GET_IP(regs)		((unsigned long)(regs)->pc)
+#define SET_IP(regs, value)	((regs)->pc = ((u64) (value)))
 
+#define GET_FP(ptregs)		((unsigned long)(ptregs)->regs[29])
+#define SET_FP(ptregs, value)	((ptregs)->regs[29] = ((u64) (value)))
+
+#include <asm-generic/ptrace.h>
+
+#undef profile_pc
 extern unsigned long profile_pc(struct pt_regs *regs);
 
 #endif /* __ASSEMBLY__ */

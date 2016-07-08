@@ -23,6 +23,7 @@
 #include <linux/hardirq.h>
 #include <linux/init.h>
 #include <linux/ptrace.h>
+#include <linux/kprobes.h>
 #include <linux/stat.h>
 #include <linux/uaccess.h>
 
@@ -266,6 +267,10 @@ static int single_step_handler(unsigned long addr, unsigned int esr,
 		 */
 		user_rewind_single_step(current);
 	} else {
+#ifdef	CONFIG_KPROBES
+		if (kprobe_single_step_handler(regs, esr) == DBG_HOOK_HANDLED)
+			return 0;
+#endif
 		if (call_step_hook(regs, esr) == DBG_HOOK_HANDLED)
 			return 0;
 
@@ -322,8 +327,15 @@ static int brk_handler(unsigned long addr, unsigned int esr,
 {
 	if (user_mode(regs)) {
 		send_user_sigtrap(TRAP_BRKPT);
-	} else if (call_break_hook(regs, esr) != DBG_HOOK_HANDLED) {
-		pr_warning("Unexpected kernel BRK exception at EL1\n");
+	}
+#ifdef	CONFIG_KPROBES
+	else if ((esr & BRK64_ESR_MASK) == BRK64_ESR_KPROBES) {
+		if (kprobe_breakpoint_handler(regs, esr) != DBG_HOOK_HANDLED)
+			return -EFAULT;
+	}
+#endif
+	else if (call_break_hook(regs, esr) != DBG_HOOK_HANDLED) {
+		pr_warn("Unexpected kernel BRK exception at EL1\n");
 		return -EFAULT;
 	}
 
