@@ -73,7 +73,7 @@ struct ipu_crtc {
 
 #define to_ipu_crtc(x) container_of(x, struct ipu_crtc, base)
 
-static void ipu_fb_enable(struct ipu_crtc *ipu_crtc)
+static void ipu_crtc_enable(struct ipu_crtc *ipu_crtc)
 {
 	struct ipu_soc *ipu = dev_get_drvdata(ipu_crtc->dev->parent);
 
@@ -81,30 +81,30 @@ static void ipu_fb_enable(struct ipu_crtc *ipu_crtc)
 		return;
 
 	ipu_dc_enable(ipu);
-	ipu_plane_enable(ipu_crtc->plane[0]);
-	/* Start DC channel and DI after IDMAC */
 	ipu_dc_enable_channel(ipu_crtc->dc);
 	ipu_di_enable(ipu_crtc->di);
-	drm_crtc_vblank_on(&ipu_crtc->base);
-
 	ipu_crtc->enabled = 1;
+
+	/*
+	 * In order not to be warned on enabling vblank failure,
+	 * we should call drm_crtc_vblank_on() after ->enabled is set to 1.
+	 */
+	drm_crtc_vblank_on(&ipu_crtc->base);
 }
 
-static void ipu_fb_disable(struct ipu_crtc *ipu_crtc)
+static void ipu_crtc_disable(struct ipu_crtc *ipu_crtc)
 {
 	struct ipu_soc *ipu = dev_get_drvdata(ipu_crtc->dev->parent);
 
 	if (!ipu_crtc->enabled)
 		return;
 
-	/* Stop DC channel and DI before IDMAC */
 	ipu_dc_disable_channel(ipu_crtc->dc);
 	ipu_di_disable(ipu_crtc->di);
-	ipu_plane_disable(ipu_crtc->plane[0]);
 	ipu_dc_disable(ipu);
-	drm_crtc_vblank_off(&ipu_crtc->base);
-
 	ipu_crtc->enabled = 0;
+
+	drm_crtc_vblank_off(&ipu_crtc->base);
 }
 
 static void ipu_crtc_dpms(struct drm_crtc *crtc, int mode)
@@ -115,12 +115,12 @@ static void ipu_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
-		ipu_fb_enable(ipu_crtc);
+		ipu_crtc_enable(ipu_crtc);
 		break;
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
 	case DRM_MODE_DPMS_OFF:
-		ipu_fb_disable(ipu_crtc);
+		ipu_crtc_disable(ipu_crtc);
 		break;
 	}
 }
@@ -234,18 +234,89 @@ static const struct drm_crtc_funcs ipu_crtc_funcs = {
 	.page_flip = ipu_page_flip,
 };
 
-static int ipu_crtc_mode_set(struct drm_crtc *crtc,
-			       struct drm_display_mode *orig_mode,
-			       struct drm_display_mode *mode,
-			       int x, int y,
-			       struct drm_framebuffer *old_fb)
+static void ipu_crtc_handle_pageflip(struct ipu_crtc *ipu_crtc)
+{
+	unsigned long flags;
+	struct drm_device *drm = ipu_crtc->base.dev;
+	struct ipu_flip_work *work = ipu_crtc->flip_work;
+
+	spin_lock_irqsave(&drm->event_lock, flags);
+	if (work->page_flip_event)
+		drm_crtc_send_vblank_event(&ipu_crtc->base,
+					   work->page_flip_event);
+	imx_drm_crtc_vblank_put(ipu_crtc->imx_crtc);
+	spin_unlock_irqrestore(&drm->event_lock, flags);
+}
+
+static irqreturn_t ipu_irq_handler(int irq, void *dev_id)
+{
+	struct ipu_crtc *ipu_crtc = dev_id;
+
+	imx_drm_handle_vblank(ipu_crtc->imx_crtc);
+
+	if (ipu_crtc->flip_state == IPU_FLIP_SUBMITTED) {
+		struct ipu_plane *plane = ipu_crtc->plane[0];
+
+		ipu_plane_set_base(plane, ipu_crtc->base.primary->fb);
+		ipu_crtc_handle_pageflip(ipu_crtc);
+		queue_work(ipu_crtc->flip_queue,
+			   &ipu_crtc->flip_work->unref_work);
+		ipu_crtc->flip_state = IPU_FLIP_NONE;
+	}
+
+	return IRQ_HANDLED;
+}
+
+static bool ipu_crtc_mode_fixup(struct drm_crtc *crtc,
+				  const struct drm_display_mode *mode,
+				  struct drm_display_mode *adjusted_mode)
+{
+	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
+	struct videomode vm;
+	int ret;
+
+	drm_display_mode_to_videomode(adjusted_mode, &vm);
+
+	ret = ipu_di_adjust_videomode(ipu_crtc->di, &vm);
+	if (ret)
+		return false;
+
+	if ((vm.vsync_len == 0) || (vm.hsync_len == 0))
+		return false;
+
+	drm_display_mode_from_videomode(&vm, adjusted_mode);
+
+	return true;
+}
+
+static void ipu_crtc_prepare(struct drm_crtc *crtc)
+{
+	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
+
+	ipu_crtc_disable(ipu_crtc);
+}
+
+static void ipu_crtc_commit(struct drm_crtc *crtc)
+{
+	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
+
+	ipu_crtc_enable(ipu_crtc);
+}
+
+static int ipu_crtc_atomic_check(struct drm_crtc *crtc,
+				 struct drm_crtc_state *state)
+{
+	return 0;
+}
+
+static void ipu_crtc_mode_set_nofb(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_encoder *encoder;
 	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
+	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
 	struct ipu_di_signal_cfg sig_cfg = {};
 	unsigned long encoder_types = 0;
-	int ret;
 
 	dev_dbg(ipu_crtc->dev, "%s: mode->hdisplay: %d\n", __func__,
 			mode->hdisplay);
@@ -283,108 +354,33 @@ static int ipu_crtc_mode_set(struct drm_crtc *crtc,
 
 	drm_display_mode_to_videomode(mode, &sig_cfg.mode);
 
-	ret = ipu_dc_init_sync(ipu_crtc->dc, ipu_crtc->di,
-			       mode->flags & DRM_MODE_FLAG_INTERLACE,
-			       ipu_crtc->bus_format, mode->hdisplay);
-	if (ret) {
-		dev_err(ipu_crtc->dev,
-				"initializing display controller failed with %d\n",
-				ret);
-		return ret;
-	}
-
-	ret = ipu_di_init_sync_panel(ipu_crtc->di, &sig_cfg);
-	if (ret) {
-		dev_err(ipu_crtc->dev,
-				"initializing panel failed with %d\n", ret);
-		return ret;
-	}
-
-	return ipu_plane_mode_set(ipu_crtc->plane[0], crtc, mode,
-				  crtc->primary->fb,
-				  0, 0, mode->hdisplay, mode->vdisplay,
-				  x, y, mode->hdisplay, mode->vdisplay,
-				  mode->flags & DRM_MODE_FLAG_INTERLACE);
-}
-
-static void ipu_crtc_handle_pageflip(struct ipu_crtc *ipu_crtc)
-{
-	unsigned long flags;
-	struct drm_device *drm = ipu_crtc->base.dev;
-	struct ipu_flip_work *work = ipu_crtc->flip_work;
-
-	spin_lock_irqsave(&drm->event_lock, flags);
-	if (work->page_flip_event)
-		drm_crtc_send_vblank_event(&ipu_crtc->base,
-					   work->page_flip_event);
-	imx_drm_crtc_vblank_put(ipu_crtc->imx_crtc);
-	spin_unlock_irqrestore(&drm->event_lock, flags);
-}
-
-static irqreturn_t ipu_irq_handler(int irq, void *dev_id)
-{
-	struct ipu_crtc *ipu_crtc = dev_id;
-
-	imx_drm_handle_vblank(ipu_crtc->imx_crtc);
-
-	if (ipu_crtc->flip_state == IPU_FLIP_SUBMITTED) {
-		struct ipu_plane *plane = ipu_crtc->plane[0];
-
-		ipu_plane_set_base(plane, ipu_crtc->base.primary->fb,
-				   plane->x, plane->y);
-		ipu_crtc_handle_pageflip(ipu_crtc);
-		queue_work(ipu_crtc->flip_queue,
-			   &ipu_crtc->flip_work->unref_work);
-		ipu_crtc->flip_state = IPU_FLIP_NONE;
-	}
-
-	return IRQ_HANDLED;
-}
-
-static bool ipu_crtc_mode_fixup(struct drm_crtc *crtc,
-				  const struct drm_display_mode *mode,
-				  struct drm_display_mode *adjusted_mode)
-{
-	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
-	struct videomode vm;
-	int ret;
-
-	drm_display_mode_to_videomode(adjusted_mode, &vm);
-
-	ret = ipu_di_adjust_videomode(ipu_crtc->di, &vm);
-	if (ret)
-		return false;
-
-	drm_display_mode_from_videomode(&vm, adjusted_mode);
-
-	return true;
-}
-
-static void ipu_crtc_prepare(struct drm_crtc *crtc)
-{
-	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
-
-	ipu_fb_disable(ipu_crtc);
-}
-
-static void ipu_crtc_commit(struct drm_crtc *crtc)
-{
-	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
-
-	ipu_fb_enable(ipu_crtc);
+	ipu_dc_init_sync(ipu_crtc->dc, ipu_crtc->di,
+			 mode->flags & DRM_MODE_FLAG_INTERLACE,
+			 ipu_crtc->bus_format, mode->hdisplay);
+	ipu_di_init_sync_panel(ipu_crtc->di, &sig_cfg);
 }
 
 static const struct drm_crtc_helper_funcs ipu_helper_funcs = {
 	.dpms = ipu_crtc_dpms,
 	.mode_fixup = ipu_crtc_mode_fixup,
-	.mode_set = ipu_crtc_mode_set,
+	.mode_set = drm_helper_crtc_mode_set,
+	.mode_set_nofb = ipu_crtc_mode_set_nofb,
 	.prepare = ipu_crtc_prepare,
 	.commit = ipu_crtc_commit,
+	.atomic_check = ipu_crtc_atomic_check,
 };
 
 static int ipu_enable_vblank(struct drm_crtc *crtc)
 {
 	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
+
+	/*
+	 * ->commit is done after ->mode_set in drm_crtc_helper_set_mode(),
+	 * so waiting for vblank in drm_plane_helper_commit() will timeout.
+	 * Check the state here to avoid the waiting.
+	 */
+	if (!ipu_crtc->enabled)
+		return -EINVAL;
 
 	enable_irq(ipu_crtc->irq);
 
@@ -496,8 +492,16 @@ static int ipu_crtc_init(struct ipu_crtc *ipu_crtc,
 						IPU_DP_FLOW_SYNC_FG,
 						drm_crtc_mask(&ipu_crtc->base),
 						DRM_PLANE_TYPE_OVERLAY);
-		if (IS_ERR(ipu_crtc->plane[1]))
+		if (IS_ERR(ipu_crtc->plane[1])) {
 			ipu_crtc->plane[1] = NULL;
+		} else {
+			ret = ipu_plane_get_resources(ipu_crtc->plane[1]);
+			if (ret) {
+				dev_err(ipu_crtc->dev, "getting plane 1 "
+					"resources failed with %d.\n", ret);
+				goto err_put_plane0_res;
+			}
+		}
 	}
 
 	ipu_crtc->irq = ipu_plane_irq(ipu_crtc->plane[0]);
@@ -505,7 +509,7 @@ static int ipu_crtc_init(struct ipu_crtc *ipu_crtc,
 			"imx_drm", ipu_crtc);
 	if (ret < 0) {
 		dev_err(ipu_crtc->dev, "irq request failed with %d.\n", ret);
-		goto err_put_plane_res;
+		goto err_put_plane1_res;
 	}
 	/* Only enable IRQ when we actually need it to trigger work. */
 	disable_irq(ipu_crtc->irq);
@@ -514,7 +518,10 @@ static int ipu_crtc_init(struct ipu_crtc *ipu_crtc,
 
 	return 0;
 
-err_put_plane_res:
+err_put_plane1_res:
+	if (ipu_crtc->plane[1])
+		ipu_plane_put_resources(ipu_crtc->plane[1]);
+err_put_plane0_res:
 	ipu_plane_put_resources(ipu_crtc->plane[0]);
 err_remove_crtc:
 	imx_drm_remove_crtc(ipu_crtc->imx_crtc);
@@ -554,8 +561,10 @@ static void ipu_drm_unbind(struct device *dev, struct device *master,
 	imx_drm_remove_crtc(ipu_crtc->imx_crtc);
 
 	destroy_workqueue(ipu_crtc->flip_queue);
-	ipu_plane_put_resources(ipu_crtc->plane[0]);
 	ipu_put_resources(ipu_crtc);
+	if (ipu_crtc->plane[1])
+		ipu_plane_put_resources(ipu_crtc->plane[1]);
+	ipu_plane_put_resources(ipu_crtc->plane[0]);
 }
 
 static const struct component_ops ipu_crtc_ops = {

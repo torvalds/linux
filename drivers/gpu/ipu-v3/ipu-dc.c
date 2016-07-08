@@ -178,10 +178,7 @@ int ipu_dc_init_sync(struct ipu_dc *dc, struct ipu_di *di, bool interlaced,
 	dc->di = ipu_di_get_num(di);
 
 	map = ipu_bus_format_to_map(bus_format);
-	if (map < 0) {
-		dev_dbg(priv->dev, "IPU_DISP: No MAP\n");
-		return map;
-	}
+	BUG_ON(map < 0);
 
 	/*
 	 * In interlaced mode we need more counters to create the asymmetric
