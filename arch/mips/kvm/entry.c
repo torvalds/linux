@@ -153,6 +153,25 @@ static void kvm_mips_build_restore_scratch(u32 **p, unsigned int tmp,
 }
 
 /**
+ * build_set_exc_base() - Assemble code to write exception base address.
+ * @p:		Code buffer pointer.
+ * @reg:	Source register (generated code may set WG bit in @reg).
+ *
+ * Assemble code to modify the exception base address in the EBase register,
+ * using the appropriately sized access and setting the WG bit if necessary.
+ */
+static inline void build_set_exc_base(u32 **p, unsigned int reg)
+{
+	if (cpu_has_ebase_wg) {
+		/* Set WG so that all the bits get written */
+		uasm_i_ori(p, reg, reg, MIPS_EBASE_WG);
+		UASM_i_MTC0(p, reg, C0_EBASE);
+	} else {
+		uasm_i_mtc0(p, reg, C0_EBASE);
+	}
+}
+
+/**
  * kvm_mips_build_vcpu_run() - Assemble function to start running a guest VCPU.
  * @addr:	Address to start writing code.
  *
@@ -216,7 +235,7 @@ void *kvm_mips_build_vcpu_run(void *addr)
 
 	/* load up the new EBASE */
 	UASM_i_LW(&p, K0, offsetof(struct kvm_vcpu_arch, guest_ebase), K1);
-	uasm_i_mtc0(&p, K0, C0_EBASE);
+	build_set_exc_base(&p, K0);
 
 	/*
 	 * Now that the new EBASE has been loaded, unset BEV, set
@@ -463,7 +482,7 @@ void *kvm_mips_build_exit(void *addr)
 
 	UASM_i_LA_mostly(&p, K0, (long)&ebase);
 	UASM_i_LW(&p, K0, uasm_rel_lo((long)&ebase), K0);
-	uasm_i_mtc0(&p, K0, C0_EBASE);
+	build_set_exc_base(&p, K0);
 
 	if (raw_cpu_has_fpu) {
 		/*
@@ -620,7 +639,7 @@ static void *kvm_mips_build_ret_to_guest(void *addr)
 	uasm_i_or(&p, K0, V1, AT);
 	uasm_i_mtc0(&p, K0, C0_STATUS);
 	uasm_i_ehb(&p);
-	uasm_i_mtc0(&p, T0, C0_EBASE);
+	build_set_exc_base(&p, T0);
 
 	/* Setup status register for running guest in UM */
 	uasm_i_ori(&p, V1, V1, ST0_EXL | KSU_USER | ST0_IE);
