@@ -6,8 +6,4 @@
 DVB Frontend Header File
 ************************
 
-
-.. toctree::
-    :maxdepth: 1
-
-    ../../frontend.h
+.. include:: ../../../output/frontend.h.rst

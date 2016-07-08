@@ -6,8 +6,4 @@
 DVB Audio Header File
 *********************
 
-
-.. toctree::
-    :maxdepth: 1
-
-    ../../audio.h
+.. include:: ../../../output/audio.h.rst

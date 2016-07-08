@@ -6,8 +6,4 @@
 DVB Demux Header File
 *********************
 
-
-.. toctree::
-    :maxdepth: 1
-
-    ../../dmx.h
+.. include:: ../../../output/dmx.h.rst

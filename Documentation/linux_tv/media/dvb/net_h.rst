@@ -6,8 +6,4 @@
 DVB Network Header File
 ***********************
 
-
-.. toctree::
-    :maxdepth: 1
-
-    ../../net.h
+.. include:: ../../../output/net.h.rst

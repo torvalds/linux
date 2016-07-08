@@ -9,7 +9,10 @@ FILES = audio.h.rst ca.h.rst dmx.h.rst frontend.h.rst net.h.rst video.h.rst \
 
 TARGETS := $(addprefix $(BUILDDIR)/, $(FILES))
 
-htmldocs: ${TARGETS}
+htmldocs: $(BUILDDIR) ${TARGETS}
+
+$(BUILDDIR):
+	$(Q)mkdir -p $@
 
 # Rule to convert a .h file to inline RST documentation
 
@@ -40,7 +43,7 @@ $(BUILDDIR)/net.h.rst: ${UAPI}/dvb/net.h ${PARSER} $(SRC_DIR)/net.h.rst.exceptio
 $(BUILDDIR)/video.h.rst: ${UAPI}/dvb/video.h ${PARSER} $(SRC_DIR)/video.h.rst.exceptions
 	@$($(quiet)gen_rst)
 
-videodev2.h.rst: ${UAPI}/videodev2.h ${PARSER} $(SRC_DIR)/videodev2.h.rst.exceptions
+$(BUILDDIR)/videodev2.h.rst: ${UAPI}/videodev2.h ${PARSER} $(SRC_DIR)/videodev2.h.rst.exceptions
 	@$($(quiet)gen_rst)
 
 cleandocs:

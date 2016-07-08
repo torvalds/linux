@@ -6,8 +6,4 @@
 DVB Video Header File
 *********************
 
-
-.. toctree::
-    :maxdepth: 1
-
-    ../../video.h
+.. include:: ../../../output/video.h.rst

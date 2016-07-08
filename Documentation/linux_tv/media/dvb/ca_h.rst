@@ -6,8 +6,4 @@
 DVB Conditional Access Header File
 **********************************
 
-
-.. toctree::
-    :maxdepth: 1
-
-    ../../ca.h
+.. include:: ../../../output/ca.h.rst
