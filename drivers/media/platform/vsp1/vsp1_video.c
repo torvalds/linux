@@ -675,6 +675,13 @@ static void vsp1_video_stop_streaming(struct vb2_queue *vq)
 	unsigned long flags;
 	int ret;
 
+	/* Clear the buffers ready flag to make sure the device won't be started
+	 * by a QBUF on the video node on the other side of the pipeline.
+	 */
+	spin_lock_irqsave(&video->irqlock, flags);
+	pipe->buffers_ready &= ~(1 << video->pipe_index);
+	spin_unlock_irqrestore(&video->irqlock, flags);
+
 	mutex_lock(&pipe->lock);
 	if (--pipe->stream_count == pipe->num_inputs) {
 		/* Stop the pipeline. */
