@@ -33,7 +33,7 @@ static int kvm_mips_trans_replace(struct kvm_vcpu *vcpu, u32 *opc,
 	unsigned long paddr, flags;
 	void *vaddr;
 
-	if (KVM_GUEST_KSEGX(opc) == KVM_GUEST_KSEG0) {
+	if (KVM_GUEST_KSEGX((unsigned long)opc) == KVM_GUEST_KSEG0) {
 		paddr = kvm_mips_translate_guest_kseg0_to_hpa(vcpu,
 							    (unsigned long)opc);
 		vaddr = kmap_atomic(pfn_to_page(PHYS_PFN(paddr)));
