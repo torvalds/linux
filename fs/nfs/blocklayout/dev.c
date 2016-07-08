@@ -316,7 +316,7 @@ bl_parse_scsi(struct nfs_server *server, struct pnfs_block_dev *d,
 		return -EINVAL;
 	}
 
-	d->bdev = blkdev_get_by_path(devname, FMODE_READ, NULL);
+	d->bdev = blkdev_get_by_path(devname, FMODE_READ | FMODE_WRITE, NULL);
 	if (IS_ERR(d->bdev)) {
 		pr_warn("pNFS: failed to open device %s (%ld)\n",
 			devname, PTR_ERR(d->bdev));
@@ -352,7 +352,7 @@ bl_parse_scsi(struct nfs_server *server, struct pnfs_block_dev *d,
 	return 0;
 
 out_blkdev_put:
-	blkdev_put(d->bdev, FMODE_READ);
+	blkdev_put(d->bdev, FMODE_READ | FMODE_WRITE);
 	return error;
 }
 
