@@ -237,7 +237,6 @@ struct nfc_digital_dev {
 	int nack_count;
 
 	struct sk_buff *saved_skb;
-	unsigned int saved_skb_len;
 
 	u16 target_fsc;
 

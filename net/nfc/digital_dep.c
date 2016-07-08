@@ -524,8 +524,7 @@ static int digital_in_send_ack(struct nfc_digital_dev *ddev,
 
 	ddev->skb_add_crc(skb);
 
-	ddev->saved_skb = skb_get(skb);
-	ddev->saved_skb_len = skb->len;
+	ddev->saved_skb = pskb_copy(skb, GFP_KERNEL);
 
 	rc = digital_in_send_cmd(ddev, skb, 1500, digital_in_recv_dep_res,
 				 data_exch);
@@ -627,16 +626,10 @@ static int digital_in_send_rtox(struct nfc_digital_dev *ddev,
 
 	ddev->skb_add_crc(skb);
 
-	ddev->saved_skb = skb_get(skb);
-	ddev->saved_skb_len = skb->len;
-
 	rc = digital_in_send_cmd(ddev, skb, 1500, digital_in_recv_dep_res,
 				 data_exch);
-	if (rc) {
+	if (rc)
 		kfree_skb(skb);
-		kfree_skb(ddev->saved_skb);
-		ddev->saved_skb = NULL;
-	}
 
 	return rc;
 }
@@ -644,11 +637,19 @@ static int digital_in_send_rtox(struct nfc_digital_dev *ddev,
 static int digital_in_send_saved_skb(struct nfc_digital_dev *ddev,
 				     struct digital_data_exch *data_exch)
 {
-	skb_get(ddev->saved_skb);
-	skb_push(ddev->saved_skb, ddev->saved_skb_len);
+	int rc;
 
-	return digital_in_send_cmd(ddev, ddev->saved_skb, 1500,
-				   digital_in_recv_dep_res, data_exch);
+	if (!ddev->saved_skb)
+		return -EINVAL;
+
+	skb_get(ddev->saved_skb);
+
+	rc = digital_in_send_cmd(ddev, ddev->saved_skb, 1500,
+				 digital_in_recv_dep_res, data_exch);
+	if (rc)
+		kfree_skb(ddev->saved_skb);
+
+	return rc;
 }
 
 static void digital_in_recv_dep_res(struct nfc_digital_dev *ddev, void *arg,
@@ -812,16 +813,11 @@ static void digital_in_recv_dep_res(struct nfc_digital_dev *ddev, void *arg,
 	case DIGITAL_NFC_DEP_PFB_SUPERVISOR_PDU:
 		if (!DIGITAL_NFC_DEP_PFB_IS_TIMEOUT(pfb)) { /* ATN */
 			rc = digital_in_send_saved_skb(ddev, data_exch);
-			if (rc) {
-				kfree_skb(ddev->saved_skb);
+			if (rc)
 				goto error;
-			}
 
 			return;
 		}
-
-		kfree_skb(ddev->saved_skb);
-		ddev->saved_skb = NULL;
 
 		rc = digital_in_send_rtox(ddev, data_exch, resp->data[0]);
 		if (rc)
@@ -876,8 +872,7 @@ int digital_in_send_dep_req(struct nfc_digital_dev *ddev,
 
 	ddev->skb_add_crc(tmp_skb);
 
-	ddev->saved_skb = skb_get(tmp_skb);
-	ddev->saved_skb_len = tmp_skb->len;
+	ddev->saved_skb = pskb_copy(tmp_skb, GFP_KERNEL);
 
 	rc = digital_in_send_cmd(ddev, tmp_skb, 1500, digital_in_recv_dep_res,
 				 data_exch);
@@ -956,8 +951,7 @@ static int digital_tg_send_ack(struct nfc_digital_dev *ddev,
 
 	ddev->skb_add_crc(skb);
 
-	ddev->saved_skb = skb_get(skb);
-	ddev->saved_skb_len = skb->len;
+	ddev->saved_skb = pskb_copy(skb, GFP_KERNEL);
 
 	rc = digital_tg_send_cmd(ddev, skb, 1500, digital_tg_recv_dep_req,
 				 data_exch);
@@ -1009,11 +1003,19 @@ static int digital_tg_send_atn(struct nfc_digital_dev *ddev)
 
 static int digital_tg_send_saved_skb(struct nfc_digital_dev *ddev)
 {
-	skb_get(ddev->saved_skb);
-	skb_push(ddev->saved_skb, ddev->saved_skb_len);
+	int rc;
 
-	return digital_tg_send_cmd(ddev, ddev->saved_skb, 1500,
-				   digital_tg_recv_dep_req, NULL);
+	if (!ddev->saved_skb)
+		return -EINVAL;
+
+	skb_get(ddev->saved_skb);
+
+	rc = digital_tg_send_cmd(ddev, ddev->saved_skb, 1500,
+				 digital_tg_recv_dep_req, NULL);
+	if (rc)
+		kfree_skb(ddev->saved_skb);
+
+	return rc;
 }
 
 static void digital_tg_recv_dep_req(struct nfc_digital_dev *ddev, void *arg,
@@ -1163,10 +1165,8 @@ static void digital_tg_recv_dep_req(struct nfc_digital_dev *ddev, void *arg,
 			ddev->atn_count = 0;
 
 			rc = digital_tg_send_saved_skb(ddev);
-			if (rc) {
-				kfree_skb(ddev->saved_skb);
+			if (rc)
 				goto exit;
-			}
 		}
 
 		return;
@@ -1235,8 +1235,7 @@ int digital_tg_send_dep_res(struct nfc_digital_dev *ddev, struct sk_buff *skb)
 
 	ddev->skb_add_crc(tmp_skb);
 
-	ddev->saved_skb = skb_get(tmp_skb);
-	ddev->saved_skb_len = tmp_skb->len;
+	ddev->saved_skb = pskb_copy(tmp_skb, GFP_KERNEL);
 
 	rc = digital_tg_send_cmd(ddev, tmp_skb, 1500, digital_tg_recv_dep_req,
 				 NULL);
