@@ -29,6 +29,8 @@ struct gb_control {
 struct gb_control *gb_control_create(struct gb_interface *intf);
 int gb_control_enable(struct gb_control *control);
 void gb_control_disable(struct gb_control *control);
+int gb_control_suspend(struct gb_control *control);
+int gb_control_resume(struct gb_control *control);
 int gb_control_add(struct gb_control *control);
 void gb_control_del(struct gb_control *control);
 struct gb_control *gb_control_get(struct gb_control *control);

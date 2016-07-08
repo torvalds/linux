@@ -546,6 +546,27 @@ void gb_control_disable(struct gb_control *control)
 		gb_connection_disable(control->connection);
 }
 
+int gb_control_suspend(struct gb_control *control)
+{
+	gb_connection_disable(control->connection);
+
+	return 0;
+}
+
+int gb_control_resume(struct gb_control *control)
+{
+	int ret;
+
+	ret = gb_connection_enable_tx(control->connection);
+	if (ret) {
+		dev_err(&control->connection->intf->dev,
+			"failed to enable control connection: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 int gb_control_add(struct gb_control *control)
 {
 	int ret;
