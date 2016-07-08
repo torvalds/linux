@@ -18,6 +18,7 @@ nvkm-y += nvkm/engine/disp/piornv50.o
 nvkm-y += nvkm/engine/disp/sornv50.o
 nvkm-y += nvkm/engine/disp/sorg94.o
 nvkm-y += nvkm/engine/disp/sorgf119.o
+nvkm-y += nvkm/engine/disp/sorgm107.o
 nvkm-y += nvkm/engine/disp/sorgm200.o
 nvkm-y += nvkm/engine/disp/dport.o
 

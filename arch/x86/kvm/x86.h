@@ -2,6 +2,7 @@
 #define ARCH_X86_KVM_X86_H
 
 #include <linux/kvm_host.h>
+#include <asm/pvclock.h>
 #include "kvm_cache_regs.h"
 
 #define MSR_IA32_CR_PAT_DEFAULT  0x0007040600070406ULL
@@ -194,6 +195,12 @@ extern unsigned int min_timer_period_us;
 extern unsigned int lapic_timer_advance_ns;
 
 extern struct static_key kvm_no_apic_vcpu;
+
+static inline u64 nsec_to_cycles(struct kvm_vcpu *vcpu, u64 nsec)
+{
+	return pvclock_scale_delta(nsec, vcpu->arch.virtual_tsc_mult,
+				   vcpu->arch.virtual_tsc_shift);
+}
 
 /* Same "calling convention" as do_div:
  * - divide (n << 32) by base

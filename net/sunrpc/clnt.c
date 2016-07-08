@@ -446,16 +446,27 @@ out_no_rpciod:
 	return ERR_PTR(err);
 }
 
-struct rpc_clnt *rpc_create_xprt(struct rpc_create_args *args,
+static struct rpc_clnt *rpc_create_xprt(struct rpc_create_args *args,
 					struct rpc_xprt *xprt)
 {
 	struct rpc_clnt *clnt = NULL;
 	struct rpc_xprt_switch *xps;
 
-	xps = xprt_switch_alloc(xprt, GFP_KERNEL);
-	if (xps == NULL)
-		return ERR_PTR(-ENOMEM);
-
+	if (args->bc_xprt && args->bc_xprt->xpt_bc_xps) {
+		WARN_ON(args->protocol != XPRT_TRANSPORT_BC_TCP);
+		xps = args->bc_xprt->xpt_bc_xps;
+		xprt_switch_get(xps);
+	} else {
+		xps = xprt_switch_alloc(xprt, GFP_KERNEL);
+		if (xps == NULL) {
+			xprt_put(xprt);
+			return ERR_PTR(-ENOMEM);
+		}
+		if (xprt->bc_xprt) {
+			xprt_switch_get(xps);
+			xprt->bc_xprt->xpt_bc_xps = xps;
+		}
+	}
 	clnt = rpc_new_client(args, xps, xprt, NULL);
 	if (IS_ERR(clnt))
 		return clnt;
@@ -483,7 +494,6 @@ struct rpc_clnt *rpc_create_xprt(struct rpc_create_args *args,
 
 	return clnt;
 }
-EXPORT_SYMBOL_GPL(rpc_create_xprt);
 
 /**
  * rpc_create - create an RPC client and transport with one call
@@ -508,6 +518,15 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 		.bc_xprt = args->bc_xprt,
 	};
 	char servername[48];
+
+	if (args->bc_xprt) {
+		WARN_ON(args->protocol != XPRT_TRANSPORT_BC_TCP);
+		xprt = args->bc_xprt->xpt_bc_xprt;
+		if (xprt) {
+			xprt_get(xprt);
+			return rpc_create_xprt(args, xprt);
+		}
+	}
 
 	if (args->flags & RPC_CLNT_CREATE_INFINITE_SLOTS)
 		xprtargs.flags |= XPRT_CREATE_INFINITE_SLOTS;

@@ -1051,7 +1051,7 @@ static int __init acpi_bus_init(void)
 	 * Maybe EC region is required at bus_scan/acpi_get_devices. So it
 	 * is necessary to enable it as early as possible.
 	 */
-	acpi_boot_ec_enable();
+	acpi_ec_dsdt_probe();
 
 	printk(KERN_INFO PREFIX "Interpreter enabled\n");
 

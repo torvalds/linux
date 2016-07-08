@@ -211,7 +211,7 @@ int dev_pm_opp_set_sharing_cpus(struct device *cpu_dev,
 		}
 
 		/* Mark opp-table as multiple CPUs are sharing it now */
-		opp_table->shared_opp = true;
+		opp_table->shared_opp = OPP_TABLE_ACCESS_SHARED;
 	}
 unlock:
 	mutex_unlock(&opp_table_lock);
@@ -227,7 +227,8 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_set_sharing_cpus);
  *
  * This updates the @cpumask with CPUs that are sharing OPPs with @cpu_dev.
  *
- * Returns -ENODEV if OPP table isn't already present.
+ * Returns -ENODEV if OPP table isn't already present and -EINVAL if the OPP
+ * table's status is access-unknown.
  *
  * Locking: The internal opp_table and opp structures are RCU protected.
  * Hence this function internally uses RCU updater strategy with mutex locks
@@ -249,9 +250,14 @@ int dev_pm_opp_get_sharing_cpus(struct device *cpu_dev, struct cpumask *cpumask)
 		goto unlock;
 	}
 
+	if (opp_table->shared_opp == OPP_TABLE_ACCESS_UNKNOWN) {
+		ret = -EINVAL;
+		goto unlock;
+	}
+
 	cpumask_clear(cpumask);
 
-	if (opp_table->shared_opp) {
+	if (opp_table->shared_opp == OPP_TABLE_ACCESS_SHARED) {
 		list_for_each_entry(opp_dev, &opp_table->dev_list, node)
 			cpumask_set_cpu(opp_dev->dev->id, cpumask);
 	} else {
