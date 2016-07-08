@@ -264,6 +264,17 @@
 			clock-names = "apb_pclk";
 		};
 
+		srab: srab@36000 {
+			compatible = "brcm,nsp-srab";
+			reg = <0x36000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			status = "disabled";
+
+			/* ports are defined in board DTS */
+		};
+
 		i2c0: i2c@38000 {
 			compatible = "brcm,iproc-i2c";
 			reg = <0x38000 0x50>;
