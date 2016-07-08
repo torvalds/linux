@@ -603,7 +603,8 @@ static void cpu_pmu_free_irq(struct arm_pmu *cpu_pmu)
 
 	irq = platform_get_irq(pmu_device, 0);
 	if (irq >= 0 && irq_is_percpu(irq)) {
-		on_each_cpu(cpu_pmu_disable_percpu_irq, &irq, 1);
+		on_each_cpu_mask(&cpu_pmu->supported_cpus,
+				 cpu_pmu_disable_percpu_irq, &irq, 1);
 		free_percpu_irq(irq, &hw_events->percpu_pmu);
 	} else {
 		for (i = 0; i < irqs; ++i) {
@@ -645,7 +646,9 @@ static int cpu_pmu_request_irq(struct arm_pmu *cpu_pmu, irq_handler_t handler)
 				irq);
 			return err;
 		}
-		on_each_cpu(cpu_pmu_enable_percpu_irq, &irq, 1);
+
+		on_each_cpu_mask(&cpu_pmu->supported_cpus,
+				 cpu_pmu_enable_percpu_irq, &irq, 1);
 	} else {
 		for (i = 0; i < irqs; ++i) {
 			int cpu = i;
@@ -961,9 +964,23 @@ static int of_pmu_irq_cfg(struct arm_pmu *pmu)
 		i++;
 	} while (1);
 
-	/* If we didn't manage to parse anything, claim to support all CPUs */
-	if (cpumask_weight(&pmu->supported_cpus) == 0)
-		cpumask_setall(&pmu->supported_cpus);
+	/* If we didn't manage to parse anything, try the interrupt affinity */
+	if (cpumask_weight(&pmu->supported_cpus) == 0) {
+		if (!using_spi) {
+			/* If using PPIs, check the affinity of the partition */
+			int ret, irq;
+
+			irq = platform_get_irq(pdev, 0);
+			ret = irq_get_percpu_devid_partition(irq, &pmu->supported_cpus);
+			if (ret) {
+				kfree(irqs);
+				return ret;
+			}
+		} else {
+			/* Otherwise default to all CPUs */
+			cpumask_setall(&pmu->supported_cpus);
+		}
+	}
 
 	/* If we matched up the IRQ affinities, use them to route the SPIs */
 	if (using_spi && i == pdev->num_resources)
