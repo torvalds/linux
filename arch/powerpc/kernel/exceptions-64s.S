@@ -107,25 +107,9 @@ BEGIN_FTR_SECTION
 	beq	9f
 
 	cmpwi	cr3,r13,2
-
-	/*
-	 * Check if last bit of HSPGR0 is set. This indicates whether we are
-	 * waking up from winkle.
-	 */
 	GET_PACA(r13)
-	clrldi	r5,r13,63
-	clrrdi	r13,r13,1
-	cmpwi	cr4,r5,1
-	mtspr	SPRN_HSPRG0,r13
+	bl	power7_restore_hyp_resource
 
-	lbz	r0,PACA_THREAD_IDLE_STATE(r13)
-	cmpwi   cr2,r0,PNV_THREAD_NAP
-	bgt     cr2,8f				/* Either sleep or Winkle */
-
-	/* Waking up from nap should not cause hypervisor state loss */
-	bgt	cr3,.
-
-	/* Waking up from nap */
 	li	r0,PNV_THREAD_RUNNING
 	stb	r0,PACA_THREAD_IDLE_STATE(r13)	/* Clear thread state */
 
@@ -143,13 +127,9 @@ BEGIN_FTR_SECTION
 
 	/* Return SRR1 from power7_nap() */
 	mfspr	r3,SPRN_SRR1
-	beq	cr3,2f
-	b	power7_wakeup_noloss
-2:	b	power7_wakeup_loss
-
-	/* Fast Sleep wakeup on PowerNV */
-8:	GET_PACA(r13)
-	b 	power7_wakeup_tb_loss
+	blt	cr3,2f
+	b	power7_wakeup_loss
+2:	b	power7_wakeup_noloss
 
 9:
 END_FTR_SECTION_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
