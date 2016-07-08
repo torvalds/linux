@@ -22,9 +22,11 @@
 
 #include "imx-drm.h"
 
+#define imx_enc_to_imx_hdmi(x) container_of(x, struct imx_hdmi, imx_encoder)
+
 struct imx_hdmi {
 	struct device *dev;
-	struct drm_encoder encoder;
+	struct imx_drm_encoder imx_encoder;
 	struct regmap *regmap;
 };
 
@@ -117,7 +119,8 @@ static void dw_hdmi_imx_encoder_mode_set(struct drm_encoder *encoder,
 
 static void dw_hdmi_imx_encoder_commit(struct drm_encoder *encoder)
 {
-	struct imx_hdmi *hdmi = container_of(encoder, struct imx_hdmi, encoder);
+	struct imx_drm_encoder *imx_encoder = enc_to_imx_enc(encoder);
+	struct imx_hdmi *hdmi = imx_enc_to_imx_hdmi(imx_encoder);
 	int mux = drm_of_encoder_active_port_id(hdmi->dev->of_node, encoder);
 
 	regmap_update_bits(hdmi->regmap, IOMUXC_GPR3,
@@ -125,14 +128,8 @@ static void dw_hdmi_imx_encoder_commit(struct drm_encoder *encoder)
 			   mux << IMX6Q_GPR3_HDMI_MUX_CTL_SHIFT);
 }
 
-static void dw_hdmi_imx_encoder_prepare(struct drm_encoder *encoder)
-{
-	imx_drm_set_bus_format(encoder, MEDIA_BUS_FMT_RGB888_1X24);
-}
-
 static const struct drm_encoder_helper_funcs dw_hdmi_imx_encoder_helper_funcs = {
 	.mode_set   = dw_hdmi_imx_encoder_mode_set,
-	.prepare    = dw_hdmi_imx_encoder_prepare,
 	.commit     = dw_hdmi_imx_encoder_commit,
 	.disable    = dw_hdmi_imx_encoder_disable,
 };
@@ -215,7 +212,10 @@ static int dw_hdmi_imx_bind(struct device *dev, struct device *master,
 	match = of_match_node(dw_hdmi_imx_dt_ids, pdev->dev.of_node);
 	plat_data = match->data;
 	hdmi->dev = &pdev->dev;
-	encoder = &hdmi->encoder;
+	encoder = &hdmi->imx_encoder.encoder;
+	hdmi->imx_encoder.bus_format = MEDIA_BUS_FMT_RGB888_1X24;
+	hdmi->imx_encoder.di_hsync_pin = 2;
+	hdmi->imx_encoder.di_vsync_pin = 3;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)

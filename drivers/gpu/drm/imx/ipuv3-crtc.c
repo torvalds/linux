@@ -67,10 +67,6 @@ struct ipu_crtc {
 	struct workqueue_struct *flip_queue;
 	struct ipu_flip_work	*flip_work;
 	int			irq;
-	u32			bus_format;
-	u32			bus_flags;
-	int			di_hsync_pin;
-	int			di_vsync_pin;
 };
 
 #define to_ipu_crtc(x) container_of(x, struct ipu_crtc, base)
@@ -321,6 +317,7 @@ static void ipu_crtc_mode_set_nofb(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_encoder *encoder;
+	struct imx_drm_encoder *imx_encoder = NULL;
 	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
 	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
 	struct ipu_di_signal_cfg sig_cfg = {};
@@ -331,9 +328,12 @@ static void ipu_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	dev_dbg(ipu_crtc->dev, "%s: mode->vdisplay: %d\n", __func__,
 			mode->vdisplay);
 
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head)
-		if (encoder->crtc == crtc)
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+		if (encoder->crtc == crtc) {
 			encoder_types |= BIT(encoder->encoder_type);
+			imx_encoder = enc_to_imx_enc(encoder);
+		}
+	}
 
 	dev_dbg(ipu_crtc->dev, "%s: attached to encoder types 0x%lx\n",
 		__func__, encoder_types);
@@ -351,20 +351,20 @@ static void ipu_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	else
 		sig_cfg.clkflags = 0;
 
-	sig_cfg.enable_pol = !(ipu_crtc->bus_flags & DRM_BUS_FLAG_DE_LOW);
+	sig_cfg.enable_pol = !(imx_encoder->bus_flags & DRM_BUS_FLAG_DE_LOW);
 	/* Default to driving pixel data on negative clock edges */
-	sig_cfg.clk_pol = !!(ipu_crtc->bus_flags &
+	sig_cfg.clk_pol = !!(imx_encoder->bus_flags &
 			     DRM_BUS_FLAG_PIXDATA_POSEDGE);
-	sig_cfg.bus_format = ipu_crtc->bus_format;
+	sig_cfg.bus_format = imx_encoder->bus_format;
 	sig_cfg.v_to_h_sync = 0;
-	sig_cfg.hsync_pin = ipu_crtc->di_hsync_pin;
-	sig_cfg.vsync_pin = ipu_crtc->di_vsync_pin;
+	sig_cfg.hsync_pin = imx_encoder->di_hsync_pin;
+	sig_cfg.vsync_pin = imx_encoder->di_vsync_pin;
 
 	drm_display_mode_to_videomode(mode, &sig_cfg.mode);
 
 	ipu_dc_init_sync(ipu_crtc->dc, ipu_crtc->di,
 			 mode->flags & DRM_MODE_FLAG_INTERLACE,
-			 ipu_crtc->bus_format, mode->hdisplay);
+			 imx_encoder->bus_format, mode->hdisplay);
 	ipu_di_init_sync_panel(ipu_crtc->di, &sig_cfg);
 }
 
@@ -402,23 +402,9 @@ static void ipu_disable_vblank(struct drm_crtc *crtc)
 	disable_irq_nosync(ipu_crtc->irq);
 }
 
-static int ipu_set_interface_pix_fmt(struct drm_crtc *crtc,
-		u32 bus_format, int hsync_pin, int vsync_pin, u32 bus_flags)
-{
-	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
-
-	ipu_crtc->bus_format = bus_format;
-	ipu_crtc->bus_flags = bus_flags;
-	ipu_crtc->di_hsync_pin = hsync_pin;
-	ipu_crtc->di_vsync_pin = vsync_pin;
-
-	return 0;
-}
-
 static const struct imx_drm_crtc_helper_funcs ipu_crtc_helper_funcs = {
 	.enable_vblank = ipu_enable_vblank,
 	.disable_vblank = ipu_disable_vblank,
-	.set_interface_pix_fmt = ipu_set_interface_pix_fmt,
 	.crtc_funcs = &ipu_crtc_funcs,
 	.crtc_helper_funcs = &ipu_helper_funcs,
 };

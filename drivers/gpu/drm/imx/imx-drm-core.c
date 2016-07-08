@@ -85,45 +85,6 @@ static int imx_drm_driver_unload(struct drm_device *drm)
 	return 0;
 }
 
-static struct imx_drm_crtc *imx_drm_find_crtc(struct drm_crtc *crtc)
-{
-	struct imx_drm_device *imxdrm = crtc->dev->dev_private;
-	unsigned i;
-
-	for (i = 0; i < MAX_CRTC; i++)
-		if (imxdrm->crtc[i] && imxdrm->crtc[i]->crtc == crtc)
-			return imxdrm->crtc[i];
-
-	return NULL;
-}
-
-int imx_drm_set_bus_config(struct drm_encoder *encoder, u32 bus_format,
-		int hsync_pin, int vsync_pin, u32 bus_flags)
-{
-	struct imx_drm_crtc_helper_funcs *helper;
-	struct imx_drm_crtc *imx_crtc;
-
-	imx_crtc = imx_drm_find_crtc(encoder->crtc);
-	if (!imx_crtc)
-		return -EINVAL;
-
-	helper = &imx_crtc->imx_drm_helper_funcs;
-	if (helper->set_interface_pix_fmt)
-		return helper->set_interface_pix_fmt(encoder->crtc,
-					bus_format, hsync_pin, vsync_pin,
-					bus_flags);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(imx_drm_set_bus_config);
-
-int imx_drm_set_bus_format(struct drm_encoder *encoder, u32 bus_format)
-{
-	return imx_drm_set_bus_config(encoder, bus_format, 2, 3,
-				      DRM_BUS_FLAG_DE_HIGH |
-				      DRM_BUS_FLAG_PIXDATA_NEGEDGE);
-}
-EXPORT_SYMBOL_GPL(imx_drm_set_bus_format);
-
 int imx_drm_crtc_vblank_get(struct imx_drm_crtc *imx_drm_crtc)
 {
 	return drm_crtc_vblank_get(imx_drm_crtc->crtc);
