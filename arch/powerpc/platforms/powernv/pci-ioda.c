@@ -3516,6 +3516,9 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	void *aux;
 	long rc;
 
+	if (!of_device_is_available(np))
+		return;
+
 	pr_info("Initializing %s PHB (%s)\n",
 		pnv_phb_names[ioda_type], of_node_full_name(np));
 
