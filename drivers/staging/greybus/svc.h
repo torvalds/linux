@@ -71,6 +71,8 @@ int gb_svc_intf_vsys_set(struct gb_svc *svc, u8 intf_id, bool enable);
 int gb_svc_intf_refclk_set(struct gb_svc *svc, u8 intf_id, bool enable);
 int gb_svc_intf_unipro_set(struct gb_svc *svc, u8 intf_id, bool enable);
 int gb_svc_intf_activate(struct gb_svc *svc, u8 intf_id, u8 *intf_type);
+int gb_svc_intf_resume(struct gb_svc *svc, u8 intf_id);
+
 int gb_svc_dme_peer_get(struct gb_svc *svc, u8 intf_id, u16 attr, u16 selector,
 			u32 *value);
 int gb_svc_dme_peer_set(struct gb_svc *svc, u8 intf_id, u16 attr, u16 selector,

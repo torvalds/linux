@@ -14,6 +14,7 @@
 
 #define SVC_INTF_EJECT_TIMEOUT		9000
 #define SVC_INTF_ACTIVATE_TIMEOUT	6000
+#define SVC_INTF_RESUME_TIMEOUT	3000
 
 struct gb_svc_deferred_request {
 	struct work_struct work;
@@ -350,6 +351,34 @@ int gb_svc_intf_activate(struct gb_svc *svc, u8 intf_id, u8 *intf_type)
 	}
 
 	*intf_type = response.intf_type;
+
+	return 0;
+}
+
+int gb_svc_intf_resume(struct gb_svc *svc, u8 intf_id)
+{
+	struct gb_svc_intf_resume_request request;
+	struct gb_svc_intf_resume_response response;
+	int ret;
+
+	request.intf_id = intf_id;
+
+	ret = gb_operation_sync_timeout(svc->connection,
+					GB_SVC_TYPE_INTF_RESUME,
+					&request, sizeof(request),
+					&response, sizeof(response),
+					SVC_INTF_RESUME_TIMEOUT);
+	if (ret < 0) {
+		dev_err(&svc->dev, "failed to send interface resume %u: %d\n",
+			intf_id, ret);
+		return ret;
+	}
+
+	if (response.status != GB_SVC_OP_SUCCESS) {
+		dev_err(&svc->dev, "failed to resume interface %u: %u\n",
+			intf_id, response.status);
+		return -EREMOTEIO;
+	}
 
 	return 0;
 }

@@ -1001,6 +1001,7 @@ struct gb_spi_transfer_response {
 #define GB_SVC_TYPE_INTF_UNIPRO_ENABLE		0x25
 #define GB_SVC_TYPE_INTF_UNIPRO_DISABLE		0x26
 #define GB_SVC_TYPE_INTF_ACTIVATE		0x27
+#define GB_SVC_TYPE_INTF_RESUME			0x28
 #define GB_SVC_TYPE_INTF_MAILBOX_EVENT		0x29
 
 /* Greybus SVC protocol status values */
@@ -1319,6 +1320,14 @@ struct gb_svc_intf_activate_request {
 struct gb_svc_intf_activate_response {
 	__u8	status;
 	__u8	intf_type;
+} __packed;
+
+struct gb_svc_intf_resume_request {
+	__u8	intf_id;
+} __packed;
+
+struct gb_svc_intf_resume_response {
+	__u8	status;
 } __packed;
 
 #define GB_SVC_INTF_MAILBOX_NONE		0x00
