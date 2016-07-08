@@ -1086,22 +1086,38 @@ static void digital_tg_recv_dep_req(struct nfc_digital_dev *ddev, void *arg,
 	case DIGITAL_NFC_DEP_PFB_I_PDU:
 		pr_debug("DIGITAL_NFC_DEP_PFB_I_PDU\n");
 
-		if ((ddev->atn_count && (DIGITAL_NFC_DEP_PFB_PNI(pfb - 1) !=
-						ddev->curr_nfc_dep_pni)) ||
-		    (DIGITAL_NFC_DEP_PFB_PNI(pfb) != ddev->curr_nfc_dep_pni)) {
+		if (ddev->atn_count) {
+			/* The target has received (and replied to) at least one
+			 * ATN DEP_REQ.
+			 */
+			ddev->atn_count = 0;
+
+			/* pni of resp PDU equal to the target current pni - 1
+			 * means resp is the previous DEP_REQ PDU received from
+			 * the initiator so the target replies with saved_skb
+			 * which is the previous DEP_RES saved in
+			 * digital_tg_send_dep_res().
+			 */
+			if (DIGITAL_NFC_DEP_PFB_PNI(pfb) ==
+			  DIGITAL_NFC_DEP_PFB_PNI(ddev->curr_nfc_dep_pni - 1)) {
+				rc = digital_tg_send_saved_skb(ddev);
+				if (rc)
+					goto exit;
+
+				goto free_resp;
+			}
+
+			/* atn_count > 0 and PDU pni != curr_nfc_dep_pni - 1
+			 * means the target probably did not received the last
+			 * DEP_REQ PDU sent by the initiator. The target
+			 * fallbacks to normal processing then.
+			 */
+		}
+
+		if (DIGITAL_NFC_DEP_PFB_PNI(pfb) != ddev->curr_nfc_dep_pni) {
 			PROTOCOL_ERR("14.12.3.4");
 			rc = -EIO;
 			goto exit;
-		}
-
-		if (ddev->atn_count) {
-			ddev->atn_count = 0;
-
-			rc = digital_tg_send_saved_skb(ddev);
-			if (rc)
-				goto exit;
-
-			return;
 		}
 
 		kfree_skb(ddev->saved_skb);
@@ -1197,6 +1213,11 @@ exit:
 
 	if (rc)
 		kfree_skb(resp);
+
+	return;
+
+free_resp:
+	dev_kfree_skb(resp);
 }
 
 int digital_tg_send_dep_res(struct nfc_digital_dev *ddev, struct sk_buff *skb)
