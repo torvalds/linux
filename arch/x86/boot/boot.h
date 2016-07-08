@@ -294,6 +294,7 @@ static inline int cmdline_find_option_bool(const char *option)
 
 /* cpu.c, cpucheck.c */
 int check_cpu(int *cpu_level_ptr, int *req_level_ptr, u32 **err_flags_ptr);
+int check_knl_erratum(void);
 int validate_cpu(void);
 
 /* early_serial_console.c */
