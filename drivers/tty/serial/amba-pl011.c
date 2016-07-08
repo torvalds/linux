@@ -209,7 +209,7 @@ static unsigned int get_fifosize_zte(struct amba_device *dev)
 	return 16;
 }
 
-static struct vendor_data vendor_zte __maybe_unused = {
+static struct vendor_data vendor_zte = {
 	.reg_offset		= pl011_zte_offsets,
 	.access_32b		= true,
 	.ifls			= UART011_IFLS_RX4_8|UART011_IFLS_TX4_8,
@@ -2651,6 +2651,11 @@ static struct amba_id pl011_ids[] = {
 		.id	= 0x00380802,
 		.mask	= 0x00ffffff,
 		.data	= &vendor_st,
+	},
+	{
+		.id	= AMBA_LINUX_ID(0x00, 0x1, 0xffe),
+		.mask	= 0x00ffffff,
+		.data	= &vendor_zte,
 	},
 	{ 0, 0 },
 };
