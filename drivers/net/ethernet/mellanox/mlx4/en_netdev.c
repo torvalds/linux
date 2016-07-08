@@ -406,14 +406,18 @@ static int mlx4_en_vlan_rx_add_vid(struct net_device *dev,
 	mutex_lock(&mdev->state_lock);
 	if (mdev->device_up && priv->port_up) {
 		err = mlx4_SET_VLAN_FLTR(mdev->dev, priv);
-		if (err)
+		if (err) {
 			en_err(priv, "Failed configuring VLAN filter\n");
+			goto out;
+		}
 	}
-	if (mlx4_register_vlan(mdev->dev, priv->port, vid, &idx))
-		en_dbg(HW, priv, "failed adding vlan %d\n", vid);
-	mutex_unlock(&mdev->state_lock);
+	err = mlx4_register_vlan(mdev->dev, priv->port, vid, &idx);
+	if (err)
+		en_dbg(HW, priv, "Failed adding vlan %d\n", vid);
 
-	return 0;
+out:
+	mutex_unlock(&mdev->state_lock);
+	return err;
 }
 
 static int mlx4_en_vlan_rx_kill_vid(struct net_device *dev,
@@ -421,7 +425,7 @@ static int mlx4_en_vlan_rx_kill_vid(struct net_device *dev,
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
-	int err;
+	int err = 0;
 
 	en_dbg(HW, priv, "Killing VID:%d\n", vid);
 
@@ -438,7 +442,7 @@ static int mlx4_en_vlan_rx_kill_vid(struct net_device *dev,
 	}
 	mutex_unlock(&mdev->state_lock);
 
-	return 0;
+	return err;
 }
 
 static void mlx4_en_u64_to_mac(unsigned char dst_mac[ETH_ALEN + 2], u64 src_mac)
@@ -2032,11 +2036,20 @@ err:
 	return -ENOMEM;
 }
 
+static void mlx4_en_shutdown(struct net_device *dev)
+{
+	rtnl_lock();
+	netif_device_detach(dev);
+	mlx4_en_close(dev);
+	rtnl_unlock();
+}
 
 void mlx4_en_destroy_netdev(struct net_device *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
+	bool shutdown = mdev->dev->persist->interface_state &
+					    MLX4_INTERFACE_STATE_SHUTDOWN;
 
 	en_dbg(DRV, priv, "Destroying netdev on port:%d\n", priv->port);
 
@@ -2044,7 +2057,10 @@ void mlx4_en_destroy_netdev(struct net_device *dev)
 	if (priv->registered) {
 		devlink_port_type_clear(mlx4_get_devlink_port(mdev->dev,
 							      priv->port));
-		unregister_netdev(dev);
+		if (shutdown)
+			mlx4_en_shutdown(dev);
+		else
+			unregister_netdev(dev);
 	}
 
 	if (priv->allocated)
@@ -2069,7 +2085,8 @@ void mlx4_en_destroy_netdev(struct net_device *dev)
 	kfree(priv->tx_ring);
 	kfree(priv->tx_cq);
 
-	free_netdev(dev);
+	if (!shutdown)
+		free_netdev(dev);
 }
 
 static int mlx4_en_change_mtu(struct net_device *dev, int new_mtu)
@@ -2447,9 +2464,14 @@ static netdev_features_t mlx4_en_features_check(struct sk_buff *skb,
 	 * strip that feature if this is an IPv6 encapsulated frame.
 	 */
 	if (skb->encapsulation &&
-	    (skb->ip_summed == CHECKSUM_PARTIAL) &&
-	    (ip_hdr(skb)->version != 4))
-		features &= ~(NETIF_F_CSUM_MASK | NETIF_F_GSO_MASK);
+	    (skb->ip_summed == CHECKSUM_PARTIAL)) {
+		struct mlx4_en_priv *priv = netdev_priv(dev);
+
+		if (!priv->vxlan_port ||
+		    (ip_hdr(skb)->version != 4) ||
+		    (udp_hdr(skb)->dest != priv->vxlan_port))
+			features &= ~(NETIF_F_CSUM_MASK | NETIF_F_GSO_MASK);
+	}
 
 	return features;
 }

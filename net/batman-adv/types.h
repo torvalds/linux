@@ -1137,11 +1137,13 @@ struct batadv_tt_change_node {
  * struct batadv_tt_req_node - data to keep track of the tt requests in flight
  * @addr: mac address address of the originator this request was sent to
  * @issued_at: timestamp used for purging stale tt requests
+ * @refcount: number of contexts the object is used by
  * @list: list node for batadv_priv_tt::req_list
  */
 struct batadv_tt_req_node {
 	u8 addr[ETH_ALEN];
 	unsigned long issued_at;
+	struct kref refcount;
 	struct hlist_node list;
 };
 

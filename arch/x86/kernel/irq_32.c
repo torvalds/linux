@@ -130,11 +130,9 @@ void irq_ctx_init(int cpu)
 
 void do_softirq_own_stack(void)
 {
-	struct thread_info *curstk;
 	struct irq_stack *irqstk;
 	u32 *isp, *prev_esp;
 
-	curstk = current_stack();
 	irqstk = __this_cpu_read(softirq_stack);
 
 	/* build the stack frame on the softirq stack */
