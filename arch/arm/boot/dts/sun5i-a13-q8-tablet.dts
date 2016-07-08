@@ -42,7 +42,7 @@
 
 /dts-v1/;
 #include "sun5i-a13.dtsi"
-#include "sun5i-q8-common.dtsi"
+#include "sun5i-reference-design-tablet.dtsi"
 
 / {
 	model = "Q8 A13 Tablet";
