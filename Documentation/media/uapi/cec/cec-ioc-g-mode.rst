@@ -1,21 +1,19 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _cec-ioc-g-mode:
+.. _CEC_MODE:
+.. _CEC_G_MODE:
+.. _CEC_S_MODE:
 
 ****************************
 ioctl CEC_G_MODE, CEC_S_MODE
 ****************************
 
-*man CEC_G_MODE(2)*
-
-CEC_S_MODE
-Get or set exclusive use of the CEC adapter
-
+CEC_G_MODE, CEC_S_MODE - Get or set exclusive use of the CEC adapter
 
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, __u32 *argp )
+.. cpp:function:: int ioctl( int fd, int request, __u32 *argp )
 
 Arguments
 =========
@@ -36,8 +34,8 @@ Note: this documents the proposed CEC API. This API is not yet finalized
 and is currently only available as a staging kernel module.
 
 By default any filehandle can use
-:ref:`CEC_TRANSMIT <cec-ioc-receive>` and
-:ref:`CEC_RECEIVE <cec-ioc-receive>`, but in order to prevent
+:ref:`CEC_TRANSMIT` and
+:ref:`CEC_RECEIVE`, but in order to prevent
 applications from stepping on each others toes it must be possible to
 obtain exclusive access to the CEC adapter. This ioctl sets the
 filehandle to initiator and/or follower mode which can be exclusive
@@ -56,7 +54,7 @@ If the message is not a reply, then the CEC framework will process it
 first. If there is no follower, then the message is just discarded and a
 feature abort is sent back to the initiator if the framework couldn't
 process it. If there is a follower, then the message is passed on to the
-follower who will use :ref:`CEC_RECEIVE <cec-ioc-receive>` to dequeue
+follower who will use :ref:`CEC_RECEIVE` to dequeue
 the new message. The framework expects the follower to make the right
 decisions.
 
@@ -68,10 +66,10 @@ There are some messages that the core will always process, regardless of
 the passthrough mode. See :ref:`cec-core-processing` for details.
 
 If there is no initiator, then any CEC filehandle can use
-:ref:`CEC_TRANSMIT <cec-ioc-receive>`. If there is an exclusive
+:ref:`CEC_TRANSMIT`. If there is an exclusive
 initiator then only that initiator can call
-:ref:`CEC_TRANSMIT <cec-ioc-receive>`. The follower can of course
-always call :ref:`CEC_TRANSMIT <cec-ioc-receive>`.
+:ref:`CEC_TRANSMIT`. The follower can of course
+always call :ref:`CEC_TRANSMIT`.
 
 Available initiator modes are:
 
@@ -84,7 +82,7 @@ Available initiator modes are:
     :widths:       3 1 4
 
 
-    -  .. row 1
+    -  .. _`CEC_MODE_NO_INITIATOR`:
 
        -  ``CEC_MODE_NO_INITIATOR``
 
@@ -93,7 +91,7 @@ Available initiator modes are:
        -  This is not an initiator, i.e. it cannot transmit CEC messages or
           make any other changes to the CEC adapter.
 
-    -  .. row 2
+    -  .. _`CEC_MODE_INITIATOR`:
 
        -  ``CEC_MODE_INITIATOR``
 
@@ -103,7 +101,7 @@ Available initiator modes are:
           it can transmit CEC messages and make changes to the CEC adapter,
           unless there is an exclusive initiator.
 
-    -  .. row 3
+    -  .. _`CEC_MODE_EXCL_INITIATOR`:
 
        -  ``CEC_MODE_EXCL_INITIATOR``
 
@@ -127,7 +125,7 @@ Available follower modes are:
     :widths:       3 1 4
 
 
-    -  .. row 1
+    -  .. _`CEC_MODE_NO_FOLLOWER`:
 
        -  ``CEC_MODE_NO_FOLLOWER``
 
@@ -135,7 +133,7 @@ Available follower modes are:
 
        -  This is not a follower (the default when the device is opened).
 
-    -  .. row 2
+    -  .. _`CEC_MODE_FOLLOWER`:
 
        -  ``CEC_MODE_FOLLOWER``
 
@@ -143,10 +141,10 @@ Available follower modes are:
 
        -  This is a follower and it will receive CEC messages unless there
           is an exclusive follower. You cannot become a follower if
-          ``CEC_CAP_TRANSMIT`` is not set or if ``CEC_MODE_NO_INITIATOR``
+          :ref:`CEC_CAP_TRANSMIT <CEC_CAP_TRANSMIT>` is not set or if :ref:`CEC_MODE_NO_INITIATOR <CEC_MODE_NO_INITIATOR>`
           was specified, EINVAL error code is returned in that case.
 
-    -  .. row 3
+    -  .. _`CEC_MODE_EXCL_FOLLOWER`:
 
        -  ``CEC_MODE_EXCL_FOLLOWER``
 
@@ -156,10 +154,10 @@ Available follower modes are:
           receive CEC messages for processing. If someone else is already
           the exclusive follower then an attempt to become one will return
           the EBUSY error code error. You cannot become a follower if
-          ``CEC_CAP_TRANSMIT`` is not set or if ``CEC_MODE_NO_INITIATOR``
+          :ref:`CEC_CAP_TRANSMIT <CEC_CAP_TRANSMIT>` is not set or if :ref:`CEC_MODE_NO_INITIATOR <CEC_MODE_NO_INITIATOR>`
           was specified, EINVAL error code is returned in that case.
 
-    -  .. row 4
+    -  .. _`CEC_MODE_EXCL_FOLLOWER_PASSTHRU`:
 
        -  ``CEC_MODE_EXCL_FOLLOWER_PASSTHRU``
 
@@ -171,18 +169,18 @@ Available follower modes are:
           to handle most core messages instead of relying on the CEC
           framework for that. If someone else is already the exclusive
           follower then an attempt to become one will return the EBUSY error
-          code error. You cannot become a follower if ``CEC_CAP_TRANSMIT``
-          is not set or if ``CEC_MODE_NO_INITIATOR`` was specified, EINVAL
+          code error. You cannot become a follower if :ref:`CEC_CAP_TRANSMIT <CEC_CAP_TRANSMIT>`
+          is not set or if :ref:`CEC_MODE_NO_INITIATOR <CEC_MODE_NO_INITIATOR>` was specified, EINVAL
           error code is returned in that case.
 
-    -  .. row 5
+    -  .. _`CEC_MODE_MONITOR`:
 
        -  ``CEC_MODE_MONITOR``
 
        -  0xe0
 
        -  Put the file descriptor into monitor mode. Can only be used in
-          combination with ``CEC_MODE_NO_INITIATOR``, otherwise EINVAL error
+          combination with :ref:`CEC_MODE_NO_INITIATOR <CEC_MODE_NO_INITIATOR>`, otherwise EINVAL error
           code will be returned. In monitor mode all messages this CEC
           device transmits and all messages it receives (both broadcast
           messages and directed messages for one its logical addresses) will
@@ -190,19 +188,19 @@ Available follower modes are:
           allowed if the process has the ``CAP_NET_ADMIN`` capability. If
           that is not set, then EPERM error code is returned.
 
-    -  .. row 6
+    -  .. _`CEC_MODE_MONITOR_ALL`:
 
        -  ``CEC_MODE_MONITOR_ALL``
 
        -  0xf0
 
        -  Put the file descriptor into 'monitor all' mode. Can only be used
-          in combination with ``CEC_MODE_NO_INITIATOR``, otherwise EINVAL
+          in combination with :ref:`CEC_MODE_NO_INITIATOR <CEC_MODE_NO_INITIATOR>`, otherwise EINVAL
           error code will be returned. In 'monitor all' mode all messages
           this CEC device transmits and all messages it receives, including
           directed messages for other CEC devices will be reported. This is
           very useful for debugging, but not all devices support this. This
-          mode requires that the ``CEC_CAP_MONITOR_ALL`` capability is set,
+          mode requires that the :ref:`CEC_CAP_MONITOR_ALL <CEC_CAP_MONITOR_ALL>` capability is set,
           otherwise EINVAL error code is returned. This is only allowed if
           the process has the ``CAP_NET_ADMIN`` capability. If that is not
           set, then EPERM error code is returned.
@@ -218,25 +216,25 @@ Core message processing details:
     :stub-columns: 0
 
 
-    -  .. row 1
+    -  .. _`CEC_MSG_GET_CEC_VERSION`:
 
        -  ``CEC_MSG_GET_CEC_VERSION``
 
        -  When in passthrough mode this message has to be handled by
           userspace, otherwise the core will return the CEC version that was
           set with
-          :ref:`CEC_ADAP_S_LOG_ADDRS <cec-ioc-adap-g-log-addrs>`.
+          :ref:`CEC_ADAP_S_LOG_ADDRS`.
 
-    -  .. row 2
+    -  .. _`CEC_MSG_GIVE_DEVICE_VENDOR_ID`:
 
        -  ``CEC_MSG_GIVE_DEVICE_VENDOR_ID``
 
        -  When in passthrough mode this message has to be handled by
           userspace, otherwise the core will return the vendor ID that was
           set with
-          :ref:`CEC_ADAP_S_LOG_ADDRS <cec-ioc-adap-g-log-addrs>`.
+          :ref:`CEC_ADAP_S_LOG_ADDRS`.
 
-    -  .. row 3
+    -  .. _`CEC_MSG_ABORT`:
 
        -  ``CEC_MSG_ABORT``
 
@@ -244,7 +242,7 @@ Core message processing details:
           userspace, otherwise the core will return a feature refused
           message as per the specification.
 
-    -  .. row 4
+    -  .. _`CEC_MSG_GIVE_PHYSICAL_ADDR`:
 
        -  ``CEC_MSG_GIVE_PHYSICAL_ADDR``
 
@@ -252,40 +250,40 @@ Core message processing details:
           userspace, otherwise the core will report the current physical
           address.
 
-    -  .. row 5
+    -  .. _`CEC_MSG_GIVE_OSD_NAME`:
 
        -  ``CEC_MSG_GIVE_OSD_NAME``
 
        -  When in passthrough mode this message has to be handled by
           userspace, otherwise the core will report the current OSD name as
           was set with
-          :ref:`CEC_ADAP_S_LOG_ADDRS <cec-ioc-adap-g-log-addrs>`.
+          :ref:`CEC_ADAP_S_LOG_ADDRS`.
 
-    -  .. row 6
+    -  .. _`CEC_MSG_GIVE_FEATURES`:
 
        -  ``CEC_MSG_GIVE_FEATURES``
 
        -  When in passthrough mode this message has to be handled by
           userspace, otherwise the core will report the current features as
           was set with
-          :ref:`CEC_ADAP_S_LOG_ADDRS <cec-ioc-adap-g-log-addrs>` or
+          :ref:`CEC_ADAP_S_LOG_ADDRS` or
           the message is ignore if the CEC version was older than 2.0.
 
-    -  .. row 7
+    -  .. _`CEC_MSG_USER_CONTROL_PRESSED`:
 
        -  ``CEC_MSG_USER_CONTROL_PRESSED``
 
-       -  If ``CEC_CAP_RC`` is set, then generate a remote control key
+       -  If :ref:`CEC_CAP_RC <CEC_CAP_RC>` is set, then generate a remote control key
           press. This message is always passed on to userspace.
 
-    -  .. row 8
+    -  .. _`CEC_MSG_USER_CONTROL_RELEASED`:
 
        -  ``CEC_MSG_USER_CONTROL_RELEASED``
 
-       -  If ``CEC_CAP_RC`` is set, then generate a remote control key
+       -  If :ref:`CEC_CAP_RC <CEC_CAP_RC>` is set, then generate a remote control key
           release. This message is always passed on to userspace.
 
-    -  .. row 9
+    -  .. _`CEC_MSG_REPORT_PHYSICAL_ADDR`:
 
        -  ``CEC_MSG_REPORT_PHYSICAL_ADDR``
 
@@ -300,12 +298,3 @@ Return Value
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

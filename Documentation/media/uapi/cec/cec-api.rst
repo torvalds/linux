@@ -43,7 +43,7 @@ control just the CEC pin.
 
 Drivers that support CEC will create a CEC device node (/dev/cecX) to
 give userspace access to the CEC adapter. The
-:ref:`CEC_ADAP_G_CAPS <cec-ioc-adap-g-caps>` ioctl will tell
+:ref:`CEC_ADAP_G_CAPS` ioctl will tell
 userspace what it is allowed to do.
 
 
@@ -83,12 +83,3 @@ Revision and Copyright
 :revision: 1.0.0 / 2016-03-17 (*hv*)
 
 Initial revision
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

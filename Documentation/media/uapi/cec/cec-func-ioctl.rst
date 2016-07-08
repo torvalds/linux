@@ -6,10 +6,10 @@
 cec ioctl()
 ***********
 
-*man cec-ioctl(2)*
+Name
+====
 
-Control a cec device
-
+cec-ioctl - Control a cec device
 
 Synopsis
 ========
@@ -19,7 +19,7 @@ Synopsis
     #include <sys/ioctl.h>
 
 
-.. c:function:: int ioctl( int fd, int request, void *argp )
+.. cpp:function:: int ioctl( int fd, int request, void *argp )
 
 Arguments
 =========
@@ -66,12 +66,3 @@ descriptions.
 
 When an ioctl that takes an output or read/write parameter fails, the
 parameter remains unmodified.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

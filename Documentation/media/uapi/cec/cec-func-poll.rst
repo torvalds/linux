@@ -6,9 +6,10 @@
 cec poll()
 **********
 
-*man cec-poll(2)*
+Name
+====
 
-Wait for some event on a file descriptor
+cec-poll - Wait for some event on a file descriptor
 
 
 Synopsis
@@ -19,7 +20,11 @@ Synopsis
     #include <sys/poll.h>
 
 
-.. c:function:: int poll( struct pollfd *ufds, unsigned int nfds, int timeout )
+.. cpp:function:: int poll( struct pollfd *ufds, unsigned int nfds, int timeout )
+
+Arguments
+=========
+
 
 Description
 ===========
@@ -63,12 +68,3 @@ EINTR
 
 EINVAL
     The ``nfds`` argument is greater than ``OPEN_MAX``.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

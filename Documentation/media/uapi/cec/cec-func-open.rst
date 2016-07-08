@@ -6,10 +6,10 @@
 cec open()
 **********
 
-*man cec-open(2)*
+Name
+====
 
-Open a cec device
-
+cec-open - Open a cec device
 
 Synopsis
 ========
@@ -19,7 +19,8 @@ Synopsis
     #include <fcntl.h>
 
 
-.. c:function:: int open( const char *device_name, int flags )
+.. cpp:function:: int open( const char *device_name, int flags )
+
 
 Arguments
 =========
@@ -31,11 +32,11 @@ Arguments
     Open flags. Access mode must be ``O_RDWR``.
 
     When the ``O_NONBLOCK`` flag is given, the
-    :ref:`CEC_RECEIVE <cec-ioc-receive>` ioctl will return EAGAIN
+    :ref:`CEC_RECEIVE` ioctl will return EAGAIN
     error code when no message is available, and the
-    :ref:`CEC_TRANSMIT <cec-ioc-receive>`,
-    :ref:`CEC_ADAP_S_PHYS_ADDR <cec-ioc-adap-g-phys-addr>` and
-    :ref:`CEC_ADAP_S_LOG_ADDRS <cec-ioc-adap-g-log-addrs>` ioctls
+    :ref:`CEC_TRANSMIT`,
+    :ref:`CEC_ADAP_S_PHYS_ADDR` and
+    :ref:`CEC_ADAP_S_LOG_ADDRS` ioctls
     all act in non-blocking mode.
 
     Other flags have no effect.
@@ -77,12 +78,3 @@ ENOMEM
 
 ENXIO
     No device corresponding to this device special file exists.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

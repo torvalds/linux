@@ -1,21 +1,23 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _cec-ioc-adap-g-phys-addr:
+.. _CEC_ADAP_PHYS_ADDR:
+.. _CEC_ADAP_G_PHYS_ADDR:
+.. _CEC_ADAP_S_PHYS_ADDR:
 
 ************************************************
 ioctl CEC_ADAP_G_PHYS_ADDR, CEC_ADAP_S_PHYS_ADDR
 ************************************************
 
-*man CEC_ADAP_G_PHYS_ADDR(2)*
+Name
+====
 
-CEC_ADAP_S_PHYS_ADDR
-Get or set the physical address
+CEC_ADAP_G_PHYS_ADDR, CEC_ADAP_S_PHYS_ADDR - Get or set the physical address
 
 
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, __u16 *argp )
+.. cpp:function:: int ioctl( int fd, int request, __u16 *argp )
 
 Arguments
 =========
@@ -36,15 +38,15 @@ Note: this documents the proposed CEC API. This API is not yet finalized
 and is currently only available as a staging kernel module.
 
 To query the current physical address applications call the
-``CEC_ADAP_G_PHYS_ADDR`` ioctl with a pointer to an __u16 where the
+:ref:`CEC_ADAP_G_PHYS_ADDR` ioctl with a pointer to an __u16 where the
 driver stores the physical address.
 
 To set a new physical address applications store the physical address in
-an __u16 and call the ``CEC_ADAP_S_PHYS_ADDR`` ioctl with a pointer to
-this integer. ``CEC_ADAP_S_PHYS_ADDR`` is only available if
+an __u16 and call the :ref:`CEC_ADAP_S_PHYS_ADDR` ioctl with a pointer to
+this integer. :ref:`CEC_ADAP_S_PHYS_ADDR` is only available if
 ``CEC_CAP_PHYS_ADDR`` is set (ENOTTY error code will be returned
-otherwise). ``CEC_ADAP_S_PHYS_ADDR`` can only be called by a file handle
-in initiator mode (see :ref:`CEC_S_MODE <cec-ioc-g-mode>`), if not
+otherwise). :ref:`CEC_ADAP_S_PHYS_ADDR` can only be called by a file handle
+in initiator mode (see :ref:`CEC_S_MODE`), if not
 EBUSY error code will be returned.
 
 The physical address is a 16-bit number where each group of 4 bits
@@ -67,12 +69,3 @@ Return Value
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------

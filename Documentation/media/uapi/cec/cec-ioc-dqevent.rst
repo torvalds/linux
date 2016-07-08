@@ -1,20 +1,21 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _cec-ioc-g-event:
+.. _CEC_DQEVENT:
 
 *****************
 ioctl CEC_DQEVENT
 *****************
 
-*man CEC_DQEVENT(2)*
+Name
+====
 
-Dequeue a CEC event
+CEC_DQEVENT - Dequeue a CEC event
 
 
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, int request, struct cec_event *argp )
+.. cpp:function:: int ioctl( int fd, int request, struct cec_event *argp )
 
 Arguments
 =========
@@ -35,7 +36,7 @@ Note: this documents the proposed CEC API. This API is not yet finalized
 and is currently only available as a staging kernel module.
 
 CEC devices can send asynchronous events. These can be retrieved by
-calling the ``CEC_DQEVENT`` ioctl. If the file descriptor is in
+calling the :ref:`CEC_DQEVENT` ioctl. If the file descriptor is in
 non-blocking mode and no event is pending, then it will return -1 and
 set errno to the EAGAIN error code.
 
@@ -155,7 +156,7 @@ state did change in between the two events.
 
        -  ``state_change``
 
-       -  The new adapter state as sent by the ``CEC_EVENT_STATE_CHANGE``
+       -  The new adapter state as sent by the :ref:`CEC_EVENT_STATE_CHANGE <CEC_EVENT_STATE_CHANGE>`
           event.
 
     -  .. row 6
@@ -165,7 +166,7 @@ state did change in between the two events.
 
        -  ``lost_msgs``
 
-       -  The number of lost messages as sent by the ``CEC_EVENT_LOST_MSGS``
+       -  The number of lost messages as sent by the :ref:`CEC_EVENT_LOST_MSGS <CEC_EVENT_LOST_MSGS>`
           event.
 
 
@@ -178,7 +179,7 @@ state did change in between the two events.
     :widths:       3 1 4
 
 
-    -  .. row 1
+    -  .. _CEC_EVENT_STATE_CHANGE:
 
        -  ``CEC_EVENT_STATE_CHANGE``
 
@@ -188,7 +189,7 @@ state did change in between the two events.
           called an initial event will be generated for that filehandle with
           the CEC Adapter's state at that time.
 
-    -  .. row 2
+    -  .. _CEC_EVENT_LOST_MSGS:
 
        -  ``CEC_EVENT_LOST_MSGS``
 
@@ -207,7 +208,7 @@ state did change in between the two events.
     :widths:       3 1 4
 
 
-    -  .. row 1
+    -  .. _CEC_EVENT_FL_INITIAL_VALUE:
 
        -  ``CEC_EVENT_FL_INITIAL_VALUE``
 
@@ -226,12 +227,3 @@ Return Value
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
-
-
-.. ------------------------------------------------------------------------------
-.. This file was automatically converted from DocBook-XML with the dbxml
-.. library (https://github.com/return42/sphkerneldoc). The origin XML comes
-.. from the linux kernel, refer to:
-..
-.. * https://github.com/torvalds/linux/tree/master/Documentation/DocBook
-.. ------------------------------------------------------------------------------
