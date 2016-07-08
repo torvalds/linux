@@ -86,6 +86,7 @@ struct pnv_phb {
 	u64			opal_id;
 	int			flags;
 	void __iomem		*regs;
+	u64			regs_phys;
 	int			initialized;
 	spinlock_t		lock;
 
@@ -162,12 +163,6 @@ struct pnv_phb {
 
 		/* Reverse map of PEs, indexed by {bus, devfn} */
 		unsigned int		pe_rmap[0x10000];
-
-		/* TCE cache invalidate registers (physical and
-		 * remapped)
-		 */
-		phys_addr_t		tce_inval_reg_phys;
-		__be64 __iomem		*tce_inval_reg;
 	} ioda;
 
 	/* PHB and hub status structure */
