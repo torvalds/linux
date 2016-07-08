@@ -56,15 +56,15 @@ On success, :c:func:`poll()` returns the number structures which have
 non-zero ``revents`` fields, or zero if the call timed out. On error -1
 is returned, and the ``errno`` variable is set appropriately:
 
-EBADF
+``EBADF``
     One or more of the ``ufds`` members specify an invalid file
     descriptor.
 
-EFAULT
+``EFAULT``
     ``ufds`` references an inaccessible memory area.
 
-EINTR
+``EINTR``
     The call was interrupted by a signal.
 
-EINVAL
+``EINVAL``
     The ``nfds`` argument is greater than ``OPEN_MAX``.

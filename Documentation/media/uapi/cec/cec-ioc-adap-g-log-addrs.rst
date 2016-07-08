@@ -58,7 +58,7 @@ by a file handle in initiator mode (see
 .. flat-table:: struct cec_log_addrs
     :header-rows:  0
     :stub-columns: 0
-    :widths:       1 1 2
+    :widths:       1 1 16
 
 
     -  .. row 1
@@ -292,7 +292,7 @@ by a file handle in initiator mode (see
 .. flat-table:: CEC Logical Address Types
     :header-rows:  0
     :stub-columns: 0
-    :widths:       3 1 4
+    :widths:       3 1 16
 
 
     -  .. _`CEC_LOG_ADDR_TYPE_TV`:

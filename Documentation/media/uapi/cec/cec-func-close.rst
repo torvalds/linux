@@ -45,5 +45,5 @@ Return Value
 :c:func:`close()` returns 0 on success. On error, -1 is returned, and
 ``errno`` is set appropriately. Possible error codes are:
 
-EBADF
+``EBADF``
     ``fd`` is not a valid open file descriptor.

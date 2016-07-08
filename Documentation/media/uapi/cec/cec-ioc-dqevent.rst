@@ -55,7 +55,7 @@ state did change in between the two events.
 .. flat-table:: struct cec_event_state_change
     :header-rows:  0
     :stub-columns: 0
-    :widths:       1 1 2
+    :widths:       1 1 8
 
 
     -  .. row 1
@@ -81,7 +81,7 @@ state did change in between the two events.
 .. flat-table:: struct cec_event_lost_msgs
     :header-rows:  0
     :stub-columns: 0
-    :widths:       1 1 2
+    :widths:       1 1 16
 
 
     -  .. row 1
@@ -107,7 +107,7 @@ state did change in between the two events.
 .. flat-table:: struct cec_event
     :header-rows:  0
     :stub-columns: 0
-    :widths:       1 1 2 1
+    :widths:       1 1 1 8
 
 
     -  .. row 1
@@ -176,7 +176,7 @@ state did change in between the two events.
 .. flat-table:: CEC Events Types
     :header-rows:  0
     :stub-columns: 0
-    :widths:       3 1 4
+    :widths:       3 1 16
 
 
     -  .. _CEC_EVENT_STATE_CHANGE:
@@ -205,7 +205,7 @@ state did change in between the two events.
 .. flat-table:: CEC Event Flags
     :header-rows:  0
     :stub-columns: 0
-    :widths:       3 1 4
+    :widths:       3 1 8
 
 
     -  .. _CEC_EVENT_FL_INITIAL_VALUE:

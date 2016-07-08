@@ -79,7 +79,7 @@ Available initiator modes are:
 .. flat-table:: Initiator Modes
     :header-rows:  0
     :stub-columns: 0
-    :widths:       3 1 4
+    :widths:       3 1 16
 
 
     -  .. _`CEC_MODE_NO_INITIATOR`:
@@ -122,7 +122,7 @@ Available follower modes are:
 .. flat-table:: Follower Modes
     :header-rows:  0
     :stub-columns: 0
-    :widths:       3 1 4
+    :widths:       3 1 16
 
 
     -  .. _`CEC_MODE_NO_FOLLOWER`:
@@ -214,6 +214,7 @@ Core message processing details:
 .. flat-table:: Core Message Processing
     :header-rows:  0
     :stub-columns: 0
+    :widths: 1 8
 
 
     -  .. _`CEC_MSG_GET_CEC_VERSION`:

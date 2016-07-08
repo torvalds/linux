@@ -57,7 +57,7 @@ queue, then it will return -1 and set errno to the EBUSY error code.
 .. flat-table:: struct cec_msg
     :header-rows:  0
     :stub-columns: 0
-    :widths:       1 1 2
+    :widths:       1 1 16
 
 
     -  .. row 1
@@ -214,7 +214,7 @@ queue, then it will return -1 and set errno to the EBUSY error code.
 .. flat-table:: CEC Transmit Status
     :header-rows:  0
     :stub-columns: 0
-    :widths:       3 1 4
+    :widths:       3 1 16
 
 
     -  .. _`CEC_TX_STATUS_OK`:
@@ -282,7 +282,7 @@ queue, then it will return -1 and set errno to the EBUSY error code.
 .. flat-table:: CEC Receive Status
     :header-rows:  0
     :stub-columns: 0
-    :widths:       3 1 4
+    :widths:       3 1 16
 
 
     -  .. _`CEC_RX_STATUS_OK`:

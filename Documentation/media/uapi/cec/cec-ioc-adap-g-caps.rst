@@ -45,7 +45,7 @@ returns the information to the application. The ioctl never fails.
 .. flat-table:: struct cec_caps
     :header-rows:  0
     :stub-columns: 0
-    :widths:       1 1 2
+    :widths:       1 1 16
 
 
     -  .. row 1
@@ -90,7 +90,7 @@ returns the information to the application. The ioctl never fails.
 .. flat-table:: CEC Capabilities Flags
     :header-rows:  0
     :stub-columns: 0
-    :widths:       3 1 4
+    :widths:       3 1 8
 
 
     -  .. _`CEC_CAP_PHYS_ADDR`:

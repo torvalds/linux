@@ -64,17 +64,17 @@ Return Value
 -1 is returned, and ``errno`` is set appropriately. Possible error codes
 include:
 
-EACCES
+``EACCES``
     The requested access to the file is not allowed.
 
-EMFILE
+``EMFILE``
     The process already has the maximum number of files open.
 
-ENFILE
+``ENFILE``
     The system limit on the total number of open files has been reached.
 
-ENOMEM
+``ENOMEM``
     Insufficient kernel memory was available.
 
-ENXIO
+``ENXIO``
     No device corresponding to this device special file exists.
