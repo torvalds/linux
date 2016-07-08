@@ -300,6 +300,18 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 	kvm_debug("Allocated %d bytes for KVM Exception Handlers @ %p\n",
 		  ALIGN(size, PAGE_SIZE), gebase);
 
+	/*
+	 * Check new ebase actually fits in CP0_EBase. The lack of a write gate
+	 * limits us to the low 512MB of physical address space. If the memory
+	 * we allocate is out of range, just give up now.
+	 */
+	if (!cpu_has_ebase_wg && virt_to_phys(gebase) >= 0x20000000) {
+		kvm_err("CP0_EBase.WG required for guest exception base %pK\n",
+			gebase);
+		err = -ENOMEM;
+		goto out_free_gebase;
+	}
+
 	/* Save new ebase */
 	vcpu->arch.guest_ebase = gebase;
 
