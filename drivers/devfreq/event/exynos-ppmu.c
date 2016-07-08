@@ -406,8 +406,6 @@ static int of_get_devfreq_events(struct device_node *np,
 		of_property_read_string(node, "event-name", &desc[j].name);
 
 		j++;
-
-		of_node_put(node);
 	}
 	info->desc = desc;
 
