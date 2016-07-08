@@ -404,8 +404,11 @@ void __init xics_init(void)
 	/* Fist locate ICP */
 	if (firmware_has_feature(FW_FEATURE_LPAR))
 		rc = icp_hv_init();
-	if (rc < 0)
+	if (rc < 0) {
 		rc = icp_native_init();
+		if (rc == -ENODEV)
+		    rc = icp_opal_init();
+	}
 	if (rc < 0) {
 		pr_warning("XICS: Cannot find a Presentation Controller !\n");
 		return;
