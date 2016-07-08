@@ -1141,37 +1141,9 @@ static void digital_tg_recv_dep_req(struct nfc_digital_dev *ddev, void *arg,
 		rc = 0;
 		break;
 	case DIGITAL_NFC_DEP_PFB_ACK_NACK_PDU:
-		if (!DIGITAL_NFC_DEP_NACK_BIT_SET(pfb)) { /* ACK */
-			if ((ddev->atn_count &&
-			     (DIGITAL_NFC_DEP_PFB_PNI(pfb - 1) !=
-						ddev->curr_nfc_dep_pni)) ||
-			    (DIGITAL_NFC_DEP_PFB_PNI(pfb) !=
-						ddev->curr_nfc_dep_pni) ||
-			    !ddev->chaining_skb || !ddev->saved_skb) {
-				rc = -EIO;
-				goto exit;
-			}
-
-			if (ddev->atn_count) {
-				ddev->atn_count = 0;
-
-				rc = digital_tg_send_saved_skb(ddev);
-				if (rc)
-					goto exit;
-
-				return;
-			}
-
-			kfree_skb(ddev->saved_skb);
-			ddev->saved_skb = NULL;
-
-			rc = digital_tg_send_dep_res(ddev, ddev->chaining_skb);
-			if (rc)
-				goto exit;
-		} else { /* NACK */
-			if ((DIGITAL_NFC_DEP_PFB_PNI(pfb + 1) !=
-						ddev->curr_nfc_dep_pni) ||
-			    !ddev->saved_skb) {
+		if (DIGITAL_NFC_DEP_NACK_BIT_SET(pfb)) { /* NACK */
+			if (DIGITAL_NFC_DEP_PFB_PNI(pfb + 1) !=
+						ddev->curr_nfc_dep_pni) {
 				rc = -EIO;
 				goto exit;
 			}
@@ -1181,9 +1153,52 @@ static void digital_tg_recv_dep_req(struct nfc_digital_dev *ddev, void *arg,
 			rc = digital_tg_send_saved_skb(ddev);
 			if (rc)
 				goto exit;
+
+			goto free_resp;
 		}
 
-		return;
+		/* ACK */
+		if (ddev->atn_count) {
+			/* The target has previously recevied one or more ATN
+			 * PDUs.
+			 */
+			ddev->atn_count = 0;
+
+			/* If the ACK PNI is equal to the target PNI - 1 means
+			 * that the initiator did not receive the previous PDU
+			 * sent by the target so re-send it.
+			 */
+			if (DIGITAL_NFC_DEP_PFB_PNI(pfb + 1) ==
+						ddev->curr_nfc_dep_pni) {
+				rc = digital_tg_send_saved_skb(ddev);
+				if (rc)
+					goto exit;
+
+				goto free_resp;
+			}
+
+			/* Otherwise, the target did not receive the previous
+			 * ACK PDU from the initiator. Fallback to normal
+			 * processing of chained PDU then.
+			 */
+		}
+
+		/* Keep on sending chained PDU */
+		if (!ddev->chaining_skb ||
+		    DIGITAL_NFC_DEP_PFB_PNI(pfb) !=
+					ddev->curr_nfc_dep_pni) {
+			rc = -EIO;
+			goto exit;
+		}
+
+		kfree_skb(ddev->saved_skb);
+		ddev->saved_skb = NULL;
+
+		rc = digital_tg_send_dep_res(ddev, ddev->chaining_skb);
+		if (rc)
+			goto exit;
+
+		goto free_resp;
 	case DIGITAL_NFC_DEP_PFB_SUPERVISOR_PDU:
 		if (DIGITAL_NFC_DEP_PFB_IS_TIMEOUT(pfb)) {
 			rc = -EINVAL;
