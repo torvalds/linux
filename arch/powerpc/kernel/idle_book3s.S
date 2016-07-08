@@ -1,6 +1,6 @@
 /*
- *  This file contains idle entry/exit functions for POWER7 and
- *  POWER8 CPUs.
+ *  This file contains idle entry/exit functions for POWER7,
+ *  POWER8 and POWER9 CPUs.
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -21,6 +21,7 @@
 #include <asm/opal.h>
 #include <asm/cpuidle.h>
 #include <asm/book3s/64/mmu-hash.h>
+#include <asm/mmu.h>
 
 #undef DEBUG
 
@@ -37,6 +38,11 @@
 #define _AMOR	GPR9
 #define _WORT	GPR10
 #define _WORC	GPR11
+#define _PTCR	GPR12
+
+#define PSSCR_HV_TEMPLATE	PSSCR_ESL | PSSCR_EC | \
+				PSSCR_PSLL_MASK | PSSCR_TR_MASK | \
+				PSSCR_MTL_MASK
 
 /* Idle state entry routines */
 
@@ -61,8 +67,17 @@ save_sprs_to_stack:
 	 * Note all register i.e per-core, per-subcore or per-thread is saved
 	 * here since any thread in the core might wake up first
 	 */
+BEGIN_FTR_SECTION
+	mfspr	r3,SPRN_PTCR
+	std	r3,_PTCR(r1)
+	/*
+	 * Note - SDR1 is dropped in Power ISA v3. Hence not restoring
+	 * SDR1 here
+	 */
+FTR_SECTION_ELSE
 	mfspr	r3,SPRN_SDR1
 	std	r3,_SDR1(r1)
+ALT_FTR_SECTION_END_IFSET(CPU_FTR_ARCH_300)
 	mfspr	r3,SPRN_RPR
 	std	r3,_RPR(r1)
 	mfspr	r3,SPRN_SPURR
@@ -100,7 +115,8 @@ core_idle_lock_held:
 
 /*
  * Pass requested state in r3:
- *	r3 - PNV_THREAD_NAP/SLEEP/WINKLE
+ *	r3 - PNV_THREAD_NAP/SLEEP/WINKLE in POWER8
+ *	   - Requested STOP state in POWER9
  *
  * To check IRQ_HAPPENED in r4
  * 	0 - don't check
@@ -161,7 +177,7 @@ _GLOBAL(pnv_powersave_common)
 
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 	/* Tell KVM we're entering idle */
-	li	r4,KVM_HWTHREAD_IN_NAP
+	li	r4,KVM_HWTHREAD_IN_IDLE
 	stb	r4,HSTATE_HWTHREAD_STATE(r13)
 #endif
 
@@ -243,6 +259,41 @@ enter_winkle:
 
 	IDLE_STATE_ENTER_SEQ(PPC_WINKLE)
 
+/*
+ * r3 - requested stop state
+ */
+power_enter_stop:
+/*
+ * Check if the requested state is a deep idle state.
+ */
+	LOAD_REG_ADDRBASE(r5,pnv_first_deep_stop_state)
+	ld	r4,ADDROFF(pnv_first_deep_stop_state)(r5)
+	cmpd	r3,r4
+	bge	2f
+	IDLE_STATE_ENTER_SEQ(PPC_STOP)
+2:
+/*
+ * Entering deep idle state.
+ * Clear thread bit in PACA_CORE_IDLE_STATE, save SPRs to
+ * stack and enter stop
+ */
+	lbz     r7,PACA_THREAD_MASK(r13)
+	ld      r14,PACA_CORE_IDLE_STATE_PTR(r13)
+
+lwarx_loop_stop:
+	lwarx   r15,0,r14
+	andi.   r9,r15,PNV_CORE_IDLE_LOCK_BIT
+	bnel    core_idle_lock_held
+	andc    r15,r15,r7                      /* Clear thread bit */
+
+	stwcx.  r15,0,r14
+	bne-    lwarx_loop_stop
+	isync
+
+	bl	save_sprs_to_stack
+
+	IDLE_STATE_ENTER_SEQ(PPC_STOP)
+
 _GLOBAL(power7_idle)
 	/* Now check if user or arch enabled NAP mode */
 	LOAD_REG_ADDRBASE(r3,powersave_nap)
@@ -293,6 +344,17 @@ ALT_FTR_SECTION_END_NESTED_IFSET(CPU_FTR_ARCH_207S, 66);		\
 
 
 /*
+ * r3 - requested stop state
+ */
+_GLOBAL(power9_idle_stop)
+	LOAD_REG_IMMEDIATE(r4, PSSCR_HV_TEMPLATE)
+	or	r4,r4,r3
+	mtspr	SPRN_PSSCR, r4
+	li	r4, 1
+	LOAD_REG_ADDR(r5,power_enter_stop)
+	b	pnv_powersave_common
+	/* No return */
+/*
  * Called from reset vector. Check whether we have woken up with
  * hypervisor state loss. If yes, restore hypervisor state and return
  * back to reset vector.
@@ -301,7 +363,33 @@ ALT_FTR_SECTION_END_NESTED_IFSET(CPU_FTR_ARCH_207S, 66);		\
  * cr3 - set to gt if waking up with partial/complete hypervisor state loss
  */
 _GLOBAL(pnv_restore_hyp_resource)
+	ld	r2,PACATOC(r13);
+BEGIN_FTR_SECTION
 	/*
+	 * POWER ISA 3. Use PSSCR to determine if we
+	 * are waking up from deep idle state
+	 */
+	LOAD_REG_ADDRBASE(r5,pnv_first_deep_stop_state)
+	ld	r4,ADDROFF(pnv_first_deep_stop_state)(r5)
+
+	mfspr	r5,SPRN_PSSCR
+	/*
+	 * 0-3 bits correspond to Power-Saving Level Status
+	 * which indicates the idle state we are waking up from
+	 */
+	rldicl  r5,r5,4,60
+	cmpd	cr4,r5,r4
+	bge	cr4,pnv_wakeup_tb_loss
+	/*
+	 * Waking up without hypervisor state loss. Return to
+	 * reset vector
+	 */
+	blr
+
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
+
+	/*
+	 * POWER ISA 2.07 or less.
 	 * Check if last bit of HSPGR0 is set. This indicates whether we are
 	 * waking up from winkle.
 	 */
@@ -324,9 +412,17 @@ _GLOBAL(pnv_restore_hyp_resource)
 	blr	/* Return back to System Reset vector from where
 		   pnv_restore_hyp_resource was invoked */
 
-
+/*
+ * Called if waking up from idle state which can cause either partial or
+ * complete hyp state loss.
+ * In POWER8, called if waking up from fastsleep or winkle
+ * In POWER9, called if waking up from stop state >= pnv_first_deep_stop_state
+ *
+ * r13 - PACA
+ * cr3 - gt if waking up with partial/complete hypervisor state loss
+ * cr4 - eq if waking up from complete hypervisor state loss.
+ */
 _GLOBAL(pnv_wakeup_tb_loss)
-	ld	r2,PACATOC(r13);
 	ld	r1,PACAR1(r13)
 	/*
 	 * Before entering any idle state, the NVGPRs are saved in the stack
@@ -361,35 +457,35 @@ lwarx_loop2:
 	bnel	core_idle_lock_held
 
 	cmpwi	cr2,r15,0
-	lbz	r4,PACA_SUBCORE_SIBLING_MASK(r13)
-	and	r4,r4,r15
-	cmpwi	cr1,r4,0	/* Check if first in subcore */
 
 	/*
 	 * At this stage
-	 * cr1 - 0b0100 if first thread to wakeup in subcore
-	 * cr2 - 0b0100 if first thread to wakeup in core
-	 * cr3-  0b0010 if waking up from sleep or winkle
-	 * cr4 - 0b0100 if waking up from winkle
+	 * cr2 - eq if first thread to wakeup in core
+	 * cr3-  gt if waking up with partial/complete hypervisor state loss
+	 * cr4 - eq if waking up from complete hypervisor state loss.
 	 */
 
-	or	r15,r15,r7		/* Set thread bit */
-
-	beq	cr1,first_thread_in_subcore
-
-	/* Not first thread in subcore to wake up */
-	stwcx.	r15,0,r14
-	bne-	lwarx_loop2
-	isync
-	b	common_exit
-
-first_thread_in_subcore:
-	/* First thread in subcore to wakeup */
 	ori	r15,r15,PNV_CORE_IDLE_LOCK_BIT
 	stwcx.	r15,0,r14
 	bne-	lwarx_loop2
 	isync
 
+BEGIN_FTR_SECTION
+	lbz	r4,PACA_SUBCORE_SIBLING_MASK(r13)
+	and	r4,r4,r15
+	cmpwi	r4,0	/* Check if first in subcore */
+
+	or	r15,r15,r7		/* Set thread bit */
+	beq	first_thread_in_subcore
+END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
+
+	or	r15,r15,r7		/* Set thread bit */
+	beq	cr2,first_thread_in_core
+
+	/* Not first thread in core or subcore to wake up */
+	b	clear_lock
+
+first_thread_in_subcore:
 	/*
 	 * If waking up from sleep, subcore state is not lost. Hence
 	 * skip subcore state restore
@@ -399,6 +495,7 @@ first_thread_in_subcore:
 	/* Restore per-subcore state */
 	ld      r4,_SDR1(r1)
 	mtspr   SPRN_SDR1,r4
+
 	ld      r4,_RPR(r1)
 	mtspr   SPRN_RPR,r4
 	ld	r4,_AMOR(r1)
@@ -414,19 +511,23 @@ subcore_state_restored:
 first_thread_in_core:
 
 	/*
-	 * First thread in the core waking up from fastsleep. It needs to
+	 * First thread in the core waking up from any state which can cause
+	 * partial or complete hypervisor state loss. It needs to
 	 * call the fastsleep workaround code if the platform requires it.
 	 * Call it unconditionally here. The below branch instruction will
-	 * be patched out when the idle states are discovered if platform
-	 * does not require workaround.
+	 * be patched out if the platform does not have fastsleep or does not
+	 * require the workaround. Patching will be performed during the
+	 * discovery of idle-states.
 	 */
 .global pnv_fastsleep_workaround_at_exit
 pnv_fastsleep_workaround_at_exit:
 	b	fastsleep_workaround_at_exit
 
 timebase_resync:
-	/* Do timebase resync if we are waking up from sleep. Use cr3 value
-	 * set in exceptions-64s.S */
+	/*
+	 * Use cr3 which indicates that we are waking up with atleast partial
+	 * hypervisor state loss to determine if TIMEBASE RESYNC is needed.
+	 */
 	ble	cr3,clear_lock
 	/* Time base re-sync */
 	li	r0,OPAL_RESYNC_TIMEBASE
@@ -439,7 +540,18 @@ timebase_resync:
 	 */
 	bne	cr4,clear_lock
 
-	/* Restore per core state */
+	/*
+	 * First thread in the core to wake up and its waking up with
+	 * complete hypervisor state loss. Restore per core hypervisor
+	 * state.
+	 */
+BEGIN_FTR_SECTION
+	ld	r4,_PTCR(r1)
+	mtspr	SPRN_PTCR,r4
+	ld	r4,_RPR(r1)
+	mtspr	SPRN_RPR,r4
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
+
 	ld	r4,_TSCR(r1)
 	mtspr	SPRN_TSCR,r4
 	ld	r4,_WORC(r1)
@@ -461,9 +573,9 @@ common_exit:
 
 	/* Waking up from winkle */
 
-	/* Restore per thread state */
-	bl	__restore_cpu_power8
-
+BEGIN_MMU_FTR_SECTION
+	b	no_segments
+END_MMU_FTR_SECTION_IFSET(MMU_FTR_RADIX)
 	/* Restore SLB  from PACA */
 	ld	r8,PACA_SLBSHADOWPTR(r13)
 
@@ -477,6 +589,9 @@ common_exit:
 	slbmte	r6,r5
 1:	addi	r8,r8,16
 	.endr
+no_segments:
+
+	/* Restore per thread state */
 
 	ld	r4,_SPURR(r1)
 	mtspr	SPRN_SPURR,r4
@@ -486,6 +601,16 @@ common_exit:
 	mtspr	SPRN_DSCR,r4
 	ld	r4,_WORT(r1)
 	mtspr	SPRN_WORT,r4
+
+	/* Call cur_cpu_spec->cpu_restore() */
+	LOAD_REG_ADDR(r4, cur_cpu_spec)
+	ld	r4,0(r4)
+	ld	r12,CPU_SPEC_RESTORE(r4)
+#ifdef PPC64_ELF_ABI_v1
+	ld	r12,0(r12)
+#endif
+	mtctr	r12
+	bctrl
 
 hypervisor_state_restored:
 

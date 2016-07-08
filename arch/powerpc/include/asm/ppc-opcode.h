@@ -205,6 +205,8 @@
 #define PPC_INST_SLEEP			0x4c0003a4
 #define PPC_INST_WINKLE			0x4c0003e4
 
+#define PPC_INST_STOP			0x4c0002e4
+
 /* A2 specific instructions */
 #define PPC_INST_ERATWE			0x7c0001a6
 #define PPC_INST_ERATRE			0x7c000166
@@ -393,6 +395,8 @@
 #define PPC_NAP			stringify_in_c(.long PPC_INST_NAP)
 #define PPC_SLEEP		stringify_in_c(.long PPC_INST_SLEEP)
 #define PPC_WINKLE		stringify_in_c(.long PPC_INST_WINKLE)
+
+#define PPC_STOP		stringify_in_c(.long PPC_INST_STOP)
 
 /* BHRB instructions */
 #define PPC_CLRBHRB		stringify_in_c(.long PPC_INST_CLRBHRB)

@@ -145,6 +145,15 @@
 #define MSR_64BIT	0
 #endif
 
+/* Power Management - Processor Stop Status and Control Register Fields */
+#define PSSCR_RL_MASK		0x0000000F /* Requested Level */
+#define PSSCR_MTL_MASK		0x000000F0 /* Maximum Transition Level */
+#define PSSCR_TR_MASK		0x00000300 /* Transition State */
+#define PSSCR_PSLL_MASK		0x000F0000 /* Power-Saving Level Limit */
+#define PSSCR_EC		0x00100000 /* Exit Criterion */
+#define PSSCR_ESL		0x00200000 /* Enable State Loss */
+#define PSSCR_SD		0x00400000 /* Status Disable */
+
 /* Floating Point Status and Control Register (FPSCR) Fields */
 #define FPSCR_FX	0x80000000	/* FPU exception summary */
 #define FPSCR_FEX	0x40000000	/* FPU enabled exception summary */
@@ -291,6 +300,7 @@
 #define SPRN_PMICR	0x354   /* Power Management Idle Control Reg */
 #define SPRN_PMSR	0x355   /* Power Management Status Reg */
 #define SPRN_PMMAR	0x356	/* Power Management Memory Activity Register */
+#define SPRN_PSSCR	0x357	/* Processor Stop Status and Control Register (ISA 3.0) */
 #define SPRN_PMCR	0x374	/* Power Management Control Register */
 
 /* HFSCR and FSCR bit numbers are the same */
