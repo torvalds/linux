@@ -55,6 +55,8 @@
 		};
 
 		uart1: uart@f7111000 {
+			assigned-clocks = <&sys_ctrl HI6220_UART1_SRC>;
+			assigned-clock-rates = <150000000>;
 			status = "ok";
 		};
 
