@@ -1072,14 +1072,15 @@ enum emulation_result kvm_mips_emulate_CP0(union mips_instruction inst,
 #endif
 			/* Get reg */
 			if ((rd == MIPS_CP0_COUNT) && (sel == 0)) {
-				vcpu->arch.gprs[rt] = kvm_mips_read_count(vcpu);
+				vcpu->arch.gprs[rt] =
+				    (s32)kvm_mips_read_count(vcpu);
 			} else if ((rd == MIPS_CP0_ERRCTL) && (sel == 0)) {
 				vcpu->arch.gprs[rt] = 0x0;
 #ifdef CONFIG_KVM_MIPS_DYN_TRANS
 				kvm_mips_trans_mfc0(inst, opc, vcpu);
 #endif
 			} else {
-				vcpu->arch.gprs[rt] = cop0->reg[rd][sel];
+				vcpu->arch.gprs[rt] = (s32)cop0->reg[rd][sel];
 
 #ifdef CONFIG_KVM_MIPS_DYN_TRANS
 				kvm_mips_trans_mfc0(inst, opc, vcpu);
@@ -2380,7 +2381,7 @@ enum emulation_result kvm_mips_handle_ri(u32 cause, u32 *opc,
 					     current_cpu_data.icache.linesz);
 			break;
 		case MIPS_HWR_CC:		/* Read count register */
-			arch->gprs[rt] = kvm_mips_read_count(vcpu);
+			arch->gprs[rt] = (s32)kvm_mips_read_count(vcpu);
 			break;
 		case MIPS_HWR_CCRES:		/* Count register resolution */
 			switch (current_cpu_data.cputype) {
