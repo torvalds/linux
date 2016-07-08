@@ -156,3 +156,17 @@ tmp=$(mktemp)
 /bin/echo -ne "\007\000\000\000" | cat - $filename > $tmp
 dd if=$tmp of="$EFIVARFS/$name-$guid" bs=$(stat -c %s $tmp)
 rm $tmp
+
+== Loading ACPI SSDTs from configfs ==
+
+This option allows loading of user defined SSDTs from userspace via the configfs
+interface. The CONFIG_ACPI_CONFIGFS option must be select and configfs must be
+mounted. In the following examples, we assume that configfs has been mounted in
+/config.
+
+New tables can be loading by creating new directories in /config/acpi/table/ and
+writing the SSDT aml code in the aml attribute:
+
+cd /config/acpi/table
+mkdir my_ssdt
+cat ~/ssdt.aml > my_ssdt/aml
