@@ -56,6 +56,8 @@ struct nvkm_fb {
 		int regions;
 	} tile;
 
+	u8 page;
+
 	struct nvkm_memory *mmu_rd;
 	struct nvkm_memory *mmu_wr;
 };
