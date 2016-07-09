@@ -1811,15 +1811,13 @@ static int sdhci_pci_probe(struct pci_dev *pdev,
 		return -ENODEV;
 	}
 
-	ret = pci_enable_device(pdev);
+	ret = pcim_enable_device(pdev);
 	if (ret)
 		return ret;
 
-	chip = kzalloc(sizeof(struct sdhci_pci_chip), GFP_KERNEL);
-	if (!chip) {
-		ret = -ENOMEM;
-		goto err;
-	}
+	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
+	if (!chip)
+		return -ENOMEM;
 
 	chip->pdev = pdev;
 	chip->fixes = (const struct sdhci_pci_fixes *)ent->driver_data;
@@ -1835,7 +1833,7 @@ static int sdhci_pci_probe(struct pci_dev *pdev,
 	if (chip->fixes && chip->fixes->probe) {
 		ret = chip->fixes->probe(chip);
 		if (ret)
-			goto free;
+			return ret;
 	}
 
 	slots = chip->num_slots;	/* Quirk may have changed this */
@@ -1845,8 +1843,7 @@ static int sdhci_pci_probe(struct pci_dev *pdev,
 		if (IS_ERR(slot)) {
 			for (i--; i >= 0; i--)
 				sdhci_pci_remove_slot(chip->slots[i]);
-			ret = PTR_ERR(slot);
-			goto free;
+			return PTR_ERR(slot);
 		}
 
 		chip->slots[i] = slot;
@@ -1856,35 +1853,18 @@ static int sdhci_pci_probe(struct pci_dev *pdev,
 		sdhci_pci_runtime_pm_allow(&pdev->dev);
 
 	return 0;
-
-free:
-	pci_set_drvdata(pdev, NULL);
-	kfree(chip);
-
-err:
-	pci_disable_device(pdev);
-	return ret;
 }
 
 static void sdhci_pci_remove(struct pci_dev *pdev)
 {
 	int i;
-	struct sdhci_pci_chip *chip;
+	struct sdhci_pci_chip *chip = pci_get_drvdata(pdev);
 
-	chip = pci_get_drvdata(pdev);
+	if (chip->allow_runtime_pm)
+		sdhci_pci_runtime_pm_forbid(&pdev->dev);
 
-	if (chip) {
-		if (chip->allow_runtime_pm)
-			sdhci_pci_runtime_pm_forbid(&pdev->dev);
-
-		for (i = 0; i < chip->num_slots; i++)
-			sdhci_pci_remove_slot(chip->slots[i]);
-
-		pci_set_drvdata(pdev, NULL);
-		kfree(chip);
-	}
-
-	pci_disable_device(pdev);
+	for (i = 0; i < chip->num_slots; i++)
+		sdhci_pci_remove_slot(chip->slots[i]);
 }
 
 static struct pci_driver sdhci_driver = {
