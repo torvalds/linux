@@ -14,7 +14,6 @@ This part describes the Video for Linux API version 2 (V4L2 API) specification.
 .. toctree::
     :numbered:
     :maxdepth: 1
-    :caption: Table of Contents
 
     common
     pixfmt

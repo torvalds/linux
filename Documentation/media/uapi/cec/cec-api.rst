@@ -15,7 +15,6 @@ This part describes the CEC: Consumer Electronics Control
 .. toctree::
     :maxdepth: 1
     :numbered:
-    :caption: Table of Contents
 
     cec-intro
     cec-funcs
