@@ -2153,6 +2153,7 @@ nv130_chipset = {
 	.name = "GP100",
 	.bar = gf100_bar_new,
 	.bios = nvkm_bios_new,
+	.bus = gf100_bus_new,
 	.devinit = gm200_devinit_new,
 	.fb = gp100_fb_new,
 	.imem = nv50_instmem_new,
