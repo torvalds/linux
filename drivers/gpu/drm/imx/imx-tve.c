@@ -628,7 +628,9 @@ static int imx_tve_bind(struct device *dev, struct device *master, void *data)
 
 	tve->dac_reg = devm_regulator_get(dev, "dac");
 	if (!IS_ERR(tve->dac_reg)) {
-		regulator_set_voltage(tve->dac_reg, 2750000, 2750000);
+		ret = regulator_set_voltage(tve->dac_reg, 2750000, 2750000);
+		if (ret)
+			return ret;
 		ret = regulator_enable(tve->dac_reg);
 		if (ret)
 			return ret;
