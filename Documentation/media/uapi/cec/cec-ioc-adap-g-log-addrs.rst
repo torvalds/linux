@@ -93,7 +93,7 @@ by a file handle in initiator mode (see
        -  The CEC version that this adapter shall use. See
           :ref:`cec-versions`. Used to implement the
           ``CEC_MSG_CEC_VERSION`` and ``CEC_MSG_REPORT_FEATURES`` messages.
-          Note that :ref:`CEC_OP_CEC_VERSION_1_3A <CEC_OP_CEC_VERSION_1_3A>` is not allowed by the CEC
+          Note that :ref:`CEC_OP_CEC_VERSION_1_3A <CEC-OP-CEC-VERSION-1-3A>` is not allowed by the CEC
           framework.
 
     -  .. row 4
@@ -161,7 +161,7 @@ by a file handle in initiator mode (see
        -  Logical address types. See :ref:`cec-log-addr-types` for
           possible types. The driver will update this with the actual
           logical address type that it claimed (e.g. it may have to fallback
-          to :ref:`CEC_LOG_ADDR_TYPE_UNREGISTERED <CEC_LOG_ADDR_TYPE_UNREGISTERED>`).
+          to :ref:`CEC_LOG_ADDR_TYPE_UNREGISTERED <CEC-LOG-ADDR-TYPE-UNREGISTERED>`).
 
     -  .. row 10
 
@@ -172,7 +172,7 @@ by a file handle in initiator mode (see
        -  CEC 2.0 specific: all device types. See
           :ref:`cec-all-dev-types-flags`. Used to implement the
           ``CEC_MSG_REPORT_FEATURES`` message. This field is ignored if
-          ``cec_version`` < :ref:`CEC_OP_CEC_VERSION_2_0 <CEC_OP_CEC_VERSION_2_0>`.
+          ``cec_version`` < :ref:`CEC_OP_CEC_VERSION_2_0 <CEC-OP-CEC-VERSION-2-0>`.
 
     -  .. row 11
 
@@ -183,7 +183,7 @@ by a file handle in initiator mode (see
        -  Features for each logical address. Used to implement the
           ``CEC_MSG_REPORT_FEATURES`` message. The 12 bytes include both the
           RC Profile and the Device Features. This field is ignored if
-          ``cec_version`` < :ref:`CEC_OP_CEC_VERSION_2_0 <CEC_OP_CEC_VERSION_2_0>`.
+          ``cec_version`` < :ref:`CEC_OP_CEC_VERSION_2_0 <CEC-OP-CEC-VERSION-2-0>`.
 
 
 
@@ -195,7 +195,7 @@ by a file handle in initiator mode (see
     :widths:       3 1 4
 
 
-    -  .. _`CEC_OP_CEC_VERSION_1_3A`:
+    -  .. _`CEC-OP-CEC-VERSION-1-3A`:
 
        -  ``CEC_OP_CEC_VERSION_1_3A``
 
@@ -203,7 +203,7 @@ by a file handle in initiator mode (see
 
        -  CEC version according to the HDMI 1.3a standard.
 
-    -  .. _`CEC_OP_CEC_VERSION_1_4B`:
+    -  .. _`CEC-OP-CEC-VERSION-1-4B`:
 
        -  ``CEC_OP_CEC_VERSION_1_4B``
 
@@ -211,7 +211,7 @@ by a file handle in initiator mode (see
 
        -  CEC version according to the HDMI 1.4b standard.
 
-    -  .. _`CEC_OP_CEC_VERSION_2_0`:
+    -  .. _`CEC-OP-CEC-VERSION-2-0`:
 
        -  ``CEC_OP_CEC_VERSION_2_0``
 
@@ -229,7 +229,7 @@ by a file handle in initiator mode (see
     :widths:       3 1 4
 
 
-    -  .. _`CEC_OP_PRIM_DEVTYPE_TV`:
+    -  .. _`CEC-OP-PRIM-DEVTYPE-TV`:
 
        -  ``CEC_OP_PRIM_DEVTYPE_TV``
 
@@ -237,7 +237,7 @@ by a file handle in initiator mode (see
 
        -  Use for a TV.
 
-    -  .. _`CEC_OP_PRIM_DEVTYPE_RECORD`:
+    -  .. _`CEC-OP-PRIM-DEVTYPE-RECORD`:
 
        -  ``CEC_OP_PRIM_DEVTYPE_RECORD``
 
@@ -245,7 +245,7 @@ by a file handle in initiator mode (see
 
        -  Use for a recording device.
 
-    -  .. _`CEC_OP_PRIM_DEVTYPE_TUNER`:
+    -  .. _`CEC-OP-PRIM-DEVTYPE-TUNER`:
 
        -  ``CEC_OP_PRIM_DEVTYPE_TUNER``
 
@@ -253,7 +253,7 @@ by a file handle in initiator mode (see
 
        -  Use for a device with a tuner.
 
-    -  .. _`CEC_OP_PRIM_DEVTYPE_PLAYBACK`:
+    -  .. _`CEC-OP-PRIM-DEVTYPE-PLAYBACK`:
 
        -  ``CEC_OP_PRIM_DEVTYPE_PLAYBACK``
 
@@ -261,7 +261,7 @@ by a file handle in initiator mode (see
 
        -  Use for a playback device.
 
-    -  .. _`CEC_OP_PRIM_DEVTYPE_AUDIOSYSTEM`:
+    -  .. _`CEC-OP-PRIM-DEVTYPE-AUDIOSYSTEM`:
 
        -  ``CEC_OP_PRIM_DEVTYPE_AUDIOSYSTEM``
 
@@ -269,7 +269,7 @@ by a file handle in initiator mode (see
 
        -  Use for an audio system (e.g. an audio/video receiver).
 
-    -  .. _`CEC_OP_PRIM_DEVTYPE_SWITCH`:
+    -  .. _`CEC-OP-PRIM-DEVTYPE-SWITCH`:
 
        -  ``CEC_OP_PRIM_DEVTYPE_SWITCH``
 
@@ -277,7 +277,7 @@ by a file handle in initiator mode (see
 
        -  Use for a CEC switch.
 
-    -  .. _`CEC_OP_PRIM_DEVTYPE_VIDEOPROC`:
+    -  .. _`CEC-OP-PRIM-DEVTYPE-VIDEOPROC`:
 
        -  ``CEC_OP_PRIM_DEVTYPE_VIDEOPROC``
 
@@ -295,7 +295,7 @@ by a file handle in initiator mode (see
     :widths:       3 1 16
 
 
-    -  .. _`CEC_LOG_ADDR_TYPE_TV`:
+    -  .. _`CEC-LOG-ADDR-TYPE-TV`:
 
        -  ``CEC_LOG_ADDR_TYPE_TV``
 
@@ -303,7 +303,7 @@ by a file handle in initiator mode (see
 
        -  Use for a TV.
 
-    -  .. _`CEC_LOG_ADDR_TYPE_RECORD`:
+    -  .. _`CEC-LOG-ADDR-TYPE-RECORD`:
 
        -  ``CEC_LOG_ADDR_TYPE_RECORD``
 
@@ -311,7 +311,7 @@ by a file handle in initiator mode (see
 
        -  Use for a recording device.
 
-    -  .. _`CEC_LOG_ADDR_TYPE_TUNER`:
+    -  .. _`CEC-LOG-ADDR-TYPE-TUNER`:
 
        -  ``CEC_LOG_ADDR_TYPE_TUNER``
 
@@ -319,7 +319,7 @@ by a file handle in initiator mode (see
 
        -  Use for a tuner device.
 
-    -  .. _`CEC_LOG_ADDR_TYPE_PLAYBACK`:
+    -  .. _`CEC-LOG-ADDR-TYPE-PLAYBACK`:
 
        -  ``CEC_LOG_ADDR_TYPE_PLAYBACK``
 
@@ -327,7 +327,7 @@ by a file handle in initiator mode (see
 
        -  Use for a playback device.
 
-    -  .. _`CEC_LOG_ADDR_TYPE_AUDIOSYSTEM`:
+    -  .. _`CEC-LOG-ADDR-TYPE-AUDIOSYSTEM`:
 
        -  ``CEC_LOG_ADDR_TYPE_AUDIOSYSTEM``
 
@@ -335,7 +335,7 @@ by a file handle in initiator mode (see
 
        -  Use for an audio system device.
 
-    -  .. _`CEC_LOG_ADDR_TYPE_SPECIFIC`:
+    -  .. _`CEC-LOG-ADDR-TYPE-SPECIFIC`:
 
        -  ``CEC_LOG_ADDR_TYPE_SPECIFIC``
 
@@ -343,7 +343,7 @@ by a file handle in initiator mode (see
 
        -  Use for a second TV or for a video processor device.
 
-    -  .. _`CEC_LOG_ADDR_TYPE_UNREGISTERED`:
+    -  .. _`CEC-LOG-ADDR-TYPE-UNREGISTERED`:
 
        -  ``CEC_LOG_ADDR_TYPE_UNREGISTERED``
 
@@ -363,7 +363,7 @@ by a file handle in initiator mode (see
     :widths:       3 1 4
 
 
-    -  .. _`CEC_OP_ALL_DEVTYPE_TV`:
+    -  .. _`CEC-OP-ALL-DEVTYPE-TV`:
 
        -  ``CEC_OP_ALL_DEVTYPE_TV``
 
@@ -371,7 +371,7 @@ by a file handle in initiator mode (see
 
        -  This supports the TV type.
 
-    -  .. _`CEC_OP_ALL_DEVTYPE_RECORD`:
+    -  .. _`CEC-OP-ALL-DEVTYPE-RECORD`:
 
        -  ``CEC_OP_ALL_DEVTYPE_RECORD``
 
@@ -379,7 +379,7 @@ by a file handle in initiator mode (see
 
        -  This supports the Recording type.
 
-    -  .. _`CEC_OP_ALL_DEVTYPE_TUNER`:
+    -  .. _`CEC-OP-ALL-DEVTYPE-TUNER`:
 
        -  ``CEC_OP_ALL_DEVTYPE_TUNER``
 
@@ -387,7 +387,7 @@ by a file handle in initiator mode (see
 
        -  This supports the Tuner type.
 
-    -  .. _`CEC_OP_ALL_DEVTYPE_PLAYBACK`:
+    -  .. _`CEC-OP-ALL-DEVTYPE-PLAYBACK`:
 
        -  ``CEC_OP_ALL_DEVTYPE_PLAYBACK``
 
@@ -395,7 +395,7 @@ by a file handle in initiator mode (see
 
        -  This supports the Playback type.
 
-    -  .. _`CEC_OP_ALL_DEVTYPE_AUDIOSYSTEM`:
+    -  .. _`CEC-OP-ALL-DEVTYPE-AUDIOSYSTEM`:
 
        -  ``CEC_OP_ALL_DEVTYPE_AUDIOSYSTEM``
 
@@ -403,7 +403,7 @@ by a file handle in initiator mode (see
 
        -  This supports the Audio System type.
 
-    -  .. _`CEC_OP_ALL_DEVTYPE_SWITCH`:
+    -  .. _`CEC-OP-ALL-DEVTYPE-SWITCH`:
 
        -  ``CEC_OP_ALL_DEVTYPE_SWITCH``
 

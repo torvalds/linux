@@ -69,6 +69,7 @@ Function Reference
     cec-ioc-dqevent
     cec-ioc-g-mode
     cec-ioc-receive
+    cec-header
 
 
 **********************

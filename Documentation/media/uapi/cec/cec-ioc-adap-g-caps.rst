@@ -93,7 +93,7 @@ returns the information to the application. The ioctl never fails.
     :widths:       3 1 8
 
 
-    -  .. _`CEC_CAP_PHYS_ADDR`:
+    -  .. _`CEC-CAP-PHYS-ADDR`:
 
        -  ``CEC_CAP_PHYS_ADDR``
 
@@ -105,7 +105,7 @@ returns the information to the application. The ioctl never fails.
           handled by the kernel whenever the EDID is set (for an HDMI
           receiver) or read (for an HDMI transmitter).
 
-    -  .. _`CEC_CAP_LOG_ADDRS`:
+    -  .. _`CEC-CAP-LOG-ADDRS`:
 
        -  ``CEC_CAP_LOG_ADDRS``
 
@@ -116,7 +116,7 @@ returns the information to the application. The ioctl never fails.
           this capability isn't set, then the kernel will have configured
           this.
 
-    -  .. _`CEC_CAP_TRANSMIT`:
+    -  .. _`CEC-CAP-TRANSMIT`:
 
        -  ``CEC_CAP_TRANSMIT``
 
@@ -129,7 +129,7 @@ returns the information to the application. The ioctl never fails.
           capability isn't set, then the kernel will handle all CEC
           transmits and process all CEC messages it receives.
 
-    -  .. _`CEC_CAP_PASSTHROUGH`:
+    -  .. _`CEC-CAP-PASSTHROUGH`:
 
        -  ``CEC_CAP_PASSTHROUGH``
 
@@ -138,7 +138,7 @@ returns the information to the application. The ioctl never fails.
        -  Userspace can use the passthrough mode by calling
           :ref:`CEC_S_MODE`.
 
-    -  .. _`CEC_CAP_RC`:
+    -  .. _`CEC-CAP-RC`:
 
        -  ``CEC_CAP_RC``
 
@@ -146,7 +146,7 @@ returns the information to the application. The ioctl never fails.
 
        -  This adapter supports the remote control protocol.
 
-    -  .. _`CEC_CAP_MONITOR_ALL`:
+    -  .. _`CEC-CAP-MONITOR-ALL`:
 
        -  ``CEC_CAP_MONITOR_ALL``
 

@@ -50,7 +50,7 @@ the intermediate state changes were lost but it is guaranteed that the
 state did change in between the two events.
 
 
-.. _cec-event-state-change:
+.. _cec-event-state-change_s:
 
 .. flat-table:: struct cec_event_state_change
     :header-rows:  0
@@ -76,7 +76,7 @@ state did change in between the two events.
 
 
 
-.. _cec-event-lost-msgs:
+.. _cec-event-lost-msgs_s:
 
 .. flat-table:: struct cec_event_lost_msgs
     :header-rows:  0
@@ -156,7 +156,7 @@ state did change in between the two events.
 
        -  ``state_change``
 
-       -  The new adapter state as sent by the :ref:`CEC_EVENT_STATE_CHANGE <CEC_EVENT_STATE_CHANGE>`
+       -  The new adapter state as sent by the :ref:`CEC_EVENT_STATE_CHANGE <CEC-EVENT-STATE-CHANGE>`
           event.
 
     -  .. row 6
@@ -166,7 +166,7 @@ state did change in between the two events.
 
        -  ``lost_msgs``
 
-       -  The number of lost messages as sent by the :ref:`CEC_EVENT_LOST_MSGS <CEC_EVENT_LOST_MSGS>`
+       -  The number of lost messages as sent by the :ref:`CEC_EVENT_LOST_MSGS <CEC-EVENT-LOST-MSGS>`
           event.
 
 
@@ -179,7 +179,7 @@ state did change in between the two events.
     :widths:       3 1 16
 
 
-    -  .. _CEC_EVENT_STATE_CHANGE:
+    -  .. _`CEC-EVENT-STATE-CHANGE`:
 
        -  ``CEC_EVENT_STATE_CHANGE``
 
@@ -189,7 +189,7 @@ state did change in between the two events.
           called an initial event will be generated for that filehandle with
           the CEC Adapter's state at that time.
 
-    -  .. _CEC_EVENT_LOST_MSGS:
+    -  .. _`CEC-EVENT-LOST-MSGS`:
 
        -  ``CEC_EVENT_LOST_MSGS``
 
@@ -208,7 +208,7 @@ state did change in between the two events.
     :widths:       3 1 8
 
 
-    -  .. _CEC_EVENT_FL_INITIAL_VALUE:
+    -  .. _`CEC-EVENT-FL-INITIAL-VALUE`:
 
        -  ``CEC_EVENT_FL_INITIAL_VALUE``
 

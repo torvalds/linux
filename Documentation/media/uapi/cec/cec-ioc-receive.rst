@@ -161,7 +161,7 @@ queue, then it will return -1 and set errno to the EBUSY error code.
           message) and ``timeout`` is non-zero is specifically allowed to
           send a message and wait up to ``timeout`` milliseconds for a
           Feature Abort reply. In this case ``rx_status`` will either be set
-          to :ref:`CEC_RX_STATUS_TIMEOUT <CEC_RX_STATUS_TIMEOUT>` or :ref:`CEC_RX_STATUS_FEATURE_ABORT <CEC_RX_STATUS_FEATURE_ABORT>`.
+          to :ref:`CEC_RX_STATUS_TIMEOUT <CEC-RX-STATUS-TIMEOUT>` or :ref:`CEC_RX_STATUS-FEATURE-ABORT <CEC-RX-STATUS-FEATURE-ABORT>`.
 
     -  .. row 10
 
@@ -172,7 +172,7 @@ queue, then it will return -1 and set errno to the EBUSY error code.
        -  A counter of the number of transmit attempts that resulted in the
           Arbitration Lost error. This is only set if the hardware supports
           this, otherwise it is always 0. This counter is only valid if the
-          :ref:`CEC_TX_STATUS_ARB_LOST <CEC_TX_STATUS_ARB_LOST>` status bit is set.
+          :ref:`CEC_TX_STATUS_ARB_LOST <CEC-TX-STATUS-ARB-LOST>` status bit is set.
 
     -  .. row 11
 
@@ -183,7 +183,7 @@ queue, then it will return -1 and set errno to the EBUSY error code.
        -  A counter of the number of transmit attempts that resulted in the
           Not Acknowledged error. This is only set if the hardware supports
           this, otherwise it is always 0. This counter is only valid if the
-          :ref:`CEC_TX_STATUS_NACK <CEC_TX_STATUS_NACK>` status bit is set.
+          :ref:`CEC_TX_STATUS_NACK <CEC-TX-STATUS-NACK>` status bit is set.
 
     -  .. row 12
 
@@ -194,7 +194,7 @@ queue, then it will return -1 and set errno to the EBUSY error code.
        -  A counter of the number of transmit attempts that resulted in the
           Arbitration Lost error. This is only set if the hardware supports
           this, otherwise it is always 0. This counter is only valid if the
-          :ref:`CEC_TX_STATUS_LOW_DRIVE <CEC_TX_STATUS_LOW_DRIVE>` status bit is set.
+          :ref:`CEC_TX_STATUS_LOW_DRIVE <CEC-TX-STATUS-LOW-DRIVE>` status bit is set.
 
     -  .. row 13
 
@@ -205,7 +205,7 @@ queue, then it will return -1 and set errno to the EBUSY error code.
        -  A counter of the number of transmit errors other than Arbitration
           Lost or Not Acknowledged. This is only set if the hardware
           supports this, otherwise it is always 0. This counter is only
-          valid if the :ref:`CEC_TX_STATUS_ERROR <CEC_TX_STATUS_ERROR>` status bit is set.
+          valid if the :ref:`CEC_TX_STATUS_ERROR <CEC-TX-STATUS-ERROR>` status bit is set.
 
 
 
@@ -217,18 +217,18 @@ queue, then it will return -1 and set errno to the EBUSY error code.
     :widths:       3 1 16
 
 
-    -  .. _`CEC_TX_STATUS_OK`:
+    -  .. _`CEC-TX-STATUS-OK`:
 
        -  ``CEC_TX_STATUS_OK``
 
        -  0x01
 
        -  The message was transmitted successfully. This is mutually
-          exclusive with :ref:`CEC_TX_STATUS_MAX_RETRIES <CEC_TX_STATUS_MAX_RETRIES>`. Other bits can still
+          exclusive with :ref:`CEC_TX_STATUS_MAX_RETRIES <CEC-TX-STATUS-MAX-RETRIES>`. Other bits can still
           be set if earlier attempts met with failure before the transmit
           was eventually successful.
 
-    -  .. _`CEC_TX_STATUS_ARB_LOST`:
+    -  .. _`CEC-TX-STATUS-ARB-LOST`:
 
        -  ``CEC_TX_STATUS_ARB_LOST``
 
@@ -236,7 +236,7 @@ queue, then it will return -1 and set errno to the EBUSY error code.
 
        -  CEC line arbitration was lost.
 
-    -  .. _`CEC_TX_STATUS_NACK`:
+    -  .. _`CEC-TX-STATUS-NACK`:
 
        -  ``CEC_TX_STATUS_NACK``
 
@@ -244,7 +244,7 @@ queue, then it will return -1 and set errno to the EBUSY error code.
 
        -  Message was not acknowledged.
 
-    -  .. _`CEC_TX_STATUS_LOW_DRIVE`:
+    -  .. _`CEC-TX-STATUS-LOW-DRIVE`:
 
        -  ``CEC_TX_STATUS_LOW_DRIVE``
 
@@ -254,7 +254,7 @@ queue, then it will return -1 and set errno to the EBUSY error code.
           follower detected an error on the bus and requests a
           retransmission.
 
-    -  .. _`CEC_TX_STATUS_ERROR`:
+    -  .. _`CEC-TX-STATUS-ERROR`:
 
        -  ``CEC_TX_STATUS_ERROR``
 
@@ -265,14 +265,14 @@ queue, then it will return -1 and set errno to the EBUSY error code.
           error occurred, or because the hardware tested for other
           conditions besides those two.
 
-    -  .. _`CEC_TX_STATUS_MAX_RETRIES`:
+    -  .. _`CEC-TX-STATUS-MAX-RETRIES`:
 
        -  ``CEC_TX_STATUS_MAX_RETRIES``
 
        -  0x20
 
        -  The transmit failed after one or more retries. This status bit is
-          mutually exclusive with :ref:`CEC_TX_STATUS_OK <CEC_TX_STATUS_OK>`. Other bits can still
+          mutually exclusive with :ref:`CEC_TX_STATUS_OK <CEC-TX-STATUS-OK>`. Other bits can still
           be set to explain which failures were seen.
 
 
@@ -285,7 +285,7 @@ queue, then it will return -1 and set errno to the EBUSY error code.
     :widths:       3 1 16
 
 
-    -  .. _`CEC_RX_STATUS_OK`:
+    -  .. _`CEC-RX-STATUS-OK`:
 
        -  ``CEC_RX_STATUS_OK``
 
@@ -293,7 +293,7 @@ queue, then it will return -1 and set errno to the EBUSY error code.
 
        -  The message was received successfully.
 
-    -  .. _CEC_RX_STATUS_TIMEOUT:
+    -  .. _`CEC-RX-STATUS-TIMEOUT`:
 
        -  ``CEC_RX_STATUS_TIMEOUT``
 
@@ -301,7 +301,7 @@ queue, then it will return -1 and set errno to the EBUSY error code.
 
        -  The reply to an earlier transmitted message timed out.
 
-    -  .. _`CEC_RX_STATUS_FEATURE_ABORT`:
+    -  .. _`CEC-RX-STATUS-FEATURE-ABORT`:
 
        -  ``CEC_RX_STATUS_FEATURE_ABORT``
 
