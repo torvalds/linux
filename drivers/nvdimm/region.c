@@ -82,6 +82,8 @@ static int nd_region_remove(struct device *dev)
 {
 	struct nd_region *nd_region = to_nd_region(dev);
 
+	device_for_each_child(dev, NULL, child_unregister);
+
 	/* flush attribute readers and disable */
 	nvdimm_bus_lock(dev);
 	nd_region->ns_seed = NULL;
@@ -91,7 +93,6 @@ static int nd_region_remove(struct device *dev)
 	dev_set_drvdata(dev, NULL);
 	nvdimm_bus_unlock(dev);
 
-	device_for_each_child(dev, NULL, child_unregister);
 	return 0;
 }
 
