@@ -39,6 +39,7 @@
 #define KEPLER_CHANNEL_GPFIFO_A                       /* cla06f.h */ 0x0000a06f
 #define KEPLER_CHANNEL_GPFIFO_B                       /* cla06f.h */ 0x0000a16f
 #define MAXWELL_CHANNEL_GPFIFO_A                      /* cla06f.h */ 0x0000b06f
+#define PASCAL_CHANNEL_GPFIFO_A                       /* cla06f.h */ 0x0000c06f
 
 #define NV50_DISP                                     /* cl5070.h */ 0x00005070
 #define G82_DISP                                      /* cl5070.h */ 0x00008270

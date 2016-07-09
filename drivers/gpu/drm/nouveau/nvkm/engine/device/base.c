@@ -2170,6 +2170,7 @@ nv130_chipset = {
 	.top = gk104_top_new,
 	.dma = gf119_dma_new,
 	.disp = gp100_disp_new,
+	.fifo = gp100_fifo_new,
 };
 
 static int
