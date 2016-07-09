@@ -1009,10 +1009,12 @@ static int mpls_dev_notify(struct notifier_block *this, unsigned long event,
 	unsigned int flags;
 
 	if (event == NETDEV_REGISTER) {
-		/* For now just support Ethernet and IPGRE devices */
+		/* For now just support Ethernet, IPGRE, SIT and IPIP devices */
 		if (dev->type == ARPHRD_ETHER ||
 		    dev->type == ARPHRD_LOOPBACK ||
-		    dev->type == ARPHRD_IPGRE) {
+		    dev->type == ARPHRD_IPGRE ||
+		    dev->type == ARPHRD_SIT ||
+		    dev->type == ARPHRD_TUNNEL) {
 			mdev = mpls_add_dev(dev);
 			if (IS_ERR(mdev))
 				return notifier_from_errno(PTR_ERR(mdev));
