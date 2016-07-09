@@ -68,7 +68,7 @@ gm107_ltc_zbc_clear_depth(struct nvkm_ltc *ltc, int i, const u32 depth)
 	nvkm_wr32(device, 0x17e34c, depth);
 }
 
-static void
+void
 gm107_ltc_intr_lts(struct nvkm_ltc *ltc, int c, int s)
 {
 	struct nvkm_subdev *subdev = &ltc->subdev;

@@ -2161,6 +2161,7 @@ nv130_chipset = {
 	.i2c = gm200_i2c_new,
 	.ibus = gm200_ibus_new,
 	.imem = nv50_instmem_new,
+	.ltc = gp100_ltc_new,
 	.mc = gp100_mc_new,
 	.mmu = gf100_mmu_new,
 	.pci = gp100_pci_new,

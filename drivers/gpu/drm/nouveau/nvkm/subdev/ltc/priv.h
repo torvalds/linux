@@ -35,6 +35,7 @@ void gf100_ltc_flush(struct nvkm_ltc *);
 extern const struct nvkm_bitfield gf100_ltc_lts_intr_name[];
 
 void gm107_ltc_intr(struct nvkm_ltc *);
+void gm107_ltc_intr_lts(struct nvkm_ltc *, int ltc, int lts);
 void gm107_ltc_cbc_clear(struct nvkm_ltc *, u32, u32);
 void gm107_ltc_cbc_wait(struct nvkm_ltc *);
 void gm107_ltc_zbc_clear_color(struct nvkm_ltc *, int, const u32[4]);
