@@ -140,10 +140,18 @@ config BNX2X_SRIOV
 	  allows for virtual function acceleration in virtual environments.
 
 config BGMAC
-	tristate "BCMA bus GBit core support"
+	tristate
+	help
+	  This enables the integrated ethernet controller support for many
+	  Broadcom (mostly iProc) SoCs. An appropriate bus interface driver
+	  needs to be enabled to select this.
+
+config BGMAC_BCMA
+	tristate "Broadcom iProc GBit BCMA support"
 	depends on BCMA && BCMA_HOST_SOC
 	depends on HAS_DMA
 	depends on BCM47XX || ARCH_BCM_5301X || COMPILE_TEST
+	select BGMAC
 	select PHYLIB
 	select FIXED_PHY
 	---help---
@@ -151,6 +159,19 @@ config BGMAC
 	  They can be found on BCM47xx SoCs and provide gigabit ethernet.
 	  In case of using this driver on BCM4706 it's also requires to enable
 	  BCMA_DRIVER_GMAC_CMN to make it work.
+
+config BGMAC_PLATFORM
+	tristate "Broadcom iProc GBit platform support"
+	depends on HAS_DMA
+	depends on ARCH_BCM_IPROC || COMPILE_TEST
+	depends on OF
+	select BGMAC
+	select PHYLIB
+	select FIXED_PHY
+	default ARCH_BCM_IPROC
+	---help---
+	  Say Y here if you want to use the Broadcom iProc Gigabit Ethernet
+	  controller through the generic platform interface
 
 config SYSTEMPORT
 	tristate "Broadcom SYSTEMPORT internal MAC support"
