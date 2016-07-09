@@ -1256,7 +1256,8 @@ struct sctp_endpoint {
 	/* SCTP-AUTH: endpoint shared keys */
 	struct list_head endpoint_shared_keys;
 	__u16 active_key_id;
-	__u8  auth_enable;
+	__u8  auth_enable:1,
+	      prsctp_enable:1;
 };
 
 /* Recover the outter endpoint structure. */
@@ -1848,7 +1849,8 @@ struct sctp_association {
 	__u16 active_key_id;
 
 	__u8 need_ecne:1,	/* Need to send an ECNE Chunk? */
-	     temp:1;		/* Is it a temporary association? */
+	     temp:1,		/* Is it a temporary association? */
+	     prsctp_enable:1;
 
 	struct sctp_priv_assoc_stats stats;
 };
