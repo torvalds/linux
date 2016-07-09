@@ -2103,8 +2103,8 @@ static int of_i2c_notify(struct notifier_block *nb, unsigned long action,
 		put_device(&adap->dev);
 
 		if (IS_ERR(client)) {
-			pr_err("%s: failed to create for '%s'\n",
-					__func__, rd->dn->full_name);
+			dev_err(&adap->dev, "failed to create client for '%s'\n",
+				 rd->dn->full_name);
 			return notifier_from_errno(PTR_ERR(client));
 		}
 		break;
