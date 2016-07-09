@@ -106,6 +106,7 @@ struct nvkm_device {
 		NV_C0    = 0xc0,
 		NV_E0    = 0xe0,
 		GM100    = 0x110,
+		GP100    = 0x130,
 	} card_type;
 	u32 chipset;
 	u8  chiprev;
