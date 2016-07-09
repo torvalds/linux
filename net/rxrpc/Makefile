@@ -10,6 +10,7 @@ af-rxrpc-y := \
 	conn_client.o \
 	conn_event.o \
 	conn_object.o \
+	conn_service.o \
 	input.o \
 	insecure.o \
 	key.o \

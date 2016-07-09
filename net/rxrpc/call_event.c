@@ -858,11 +858,6 @@ void rxrpc_process_call(struct work_struct *work)
 	iov[0].iov_len	= sizeof(whdr);
 
 	/* deal with events of a final nature */
-	if (test_bit(RXRPC_CALL_EV_RELEASE, &call->events)) {
-		rxrpc_release_call(call);
-		clear_bit(RXRPC_CALL_EV_RELEASE, &call->events);
-	}
-
 	if (test_bit(RXRPC_CALL_EV_RCVD_ERROR, &call->events)) {
 		enum rxrpc_skb_mark mark;
 		int error;
@@ -1094,7 +1089,7 @@ void rxrpc_process_call(struct work_struct *work)
 
 		if (call->state == RXRPC_CALL_SERVER_SECURING) {
 			_debug("securing");
-			write_lock(&call->conn->lock);
+			write_lock(&call->socket->call_lock);
 			if (!test_bit(RXRPC_CALL_RELEASED, &call->flags) &&
 			    !test_bit(RXRPC_CALL_EV_RELEASE, &call->events)) {
 				_debug("not released");
@@ -1102,7 +1097,7 @@ void rxrpc_process_call(struct work_struct *work)
 				list_move_tail(&call->accept_link,
 					       &call->socket->acceptq);
 			}
-			write_unlock(&call->conn->lock);
+			write_unlock(&call->socket->call_lock);
 			read_lock(&call->state_lock);
 			if (call->state < RXRPC_CALL_COMPLETE)
 				set_bit(RXRPC_CALL_EV_POST_ACCEPT, &call->events);
@@ -1142,6 +1137,11 @@ void rxrpc_process_call(struct work_struct *work)
 			if (rxrpc_drain_rx_oos_queue(call) < 0)
 				break;
 		goto maybe_reschedule;
+	}
+
+	if (test_bit(RXRPC_CALL_EV_RELEASE, &call->events)) {
+		rxrpc_release_call(call);
+		clear_bit(RXRPC_CALL_EV_RELEASE, &call->events);
 	}
 
 	/* other events may have been raised since we started checking */

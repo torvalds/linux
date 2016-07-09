@@ -75,7 +75,6 @@ static int rxrpc_accept_incoming_call(struct rxrpc_local *local,
 {
 	struct rxrpc_connection *conn;
 	struct rxrpc_skb_priv *sp, *nsp;
-	struct rxrpc_peer *peer;
 	struct rxrpc_call *call;
 	struct sk_buff *notification;
 	int ret;
@@ -94,15 +93,7 @@ static int rxrpc_accept_incoming_call(struct rxrpc_local *local,
 	rxrpc_new_skb(notification);
 	notification->mark = RXRPC_SKB_MARK_NEW_CALL;
 
-	peer = rxrpc_lookup_peer(local, srx, GFP_NOIO);
-	if (!peer) {
-		_debug("no peer");
-		ret = -EBUSY;
-		goto error;
-	}
-
-	conn = rxrpc_incoming_connection(local, peer, skb);
-	rxrpc_put_peer(peer);
+	conn = rxrpc_incoming_connection(local, srx, skb);
 	if (IS_ERR(conn)) {
 		_debug("no conn");
 		ret = PTR_ERR(conn);
@@ -128,12 +119,11 @@ static int rxrpc_accept_incoming_call(struct rxrpc_local *local,
 
 		spin_lock(&call->conn->state_lock);
 		if (sp->hdr.securityIndex > 0 &&
-		    call->conn->state == RXRPC_CONN_SERVER_UNSECURED) {
+		    call->conn->state == RXRPC_CONN_SERVICE_UNSECURED) {
 			_debug("await conn sec");
 			list_add_tail(&call->accept_link, &rx->secureq);
-			call->conn->state = RXRPC_CONN_SERVER_CHALLENGING;
-			rxrpc_get_connection(call->conn);
-			set_bit(RXRPC_CONN_CHALLENGE, &call->conn->events);
+			call->conn->state = RXRPC_CONN_SERVICE_CHALLENGING;
+			set_bit(RXRPC_CONN_EV_CHALLENGE, &call->conn->events);
 			rxrpc_queue_conn(call->conn);
 		} else {
 			_debug("conn ready");
@@ -227,20 +217,8 @@ void rxrpc_accept_incoming_calls(struct rxrpc_local *local)
 	whdr._rsvd	= 0;
 	whdr.serviceId	= htons(sp->hdr.serviceId);
 
-	/* determine the remote address */
-	memset(&srx, 0, sizeof(srx));
-	srx.srx_family = AF_RXRPC;
-	srx.transport.family = local->srx.transport.family;
-	srx.transport_type = local->srx.transport_type;
-	switch (srx.transport.family) {
-	case AF_INET:
-		srx.transport_len = sizeof(struct sockaddr_in);
-		srx.transport.sin.sin_port = udp_hdr(skb)->source;
-		srx.transport.sin.sin_addr.s_addr = ip_hdr(skb)->saddr;
-		break;
-	default:
-		goto busy;
-	}
+	if (rxrpc_extract_addr_from_skb(&srx, skb) < 0)
+		goto drop;
 
 	/* get the socket providing the service */
 	read_lock_bh(&local->services_lock);
@@ -283,6 +261,10 @@ backlog_full:
 	read_unlock_bh(&local->services_lock);
 busy:
 	rxrpc_busy(local, &srx, &whdr);
+	rxrpc_free_skb(skb);
+	return;
+
+drop:
 	rxrpc_free_skb(skb);
 	return;
 

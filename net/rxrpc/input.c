@@ -476,7 +476,7 @@ static void rxrpc_process_jumbo_packet(struct rxrpc_call *call,
 		sp->hdr.seq	+= 1;
 		sp->hdr.serial	+= 1;
 		sp->hdr.flags	= jhdr.flags;
-		sp->hdr._rsvd	= jhdr._rsvd;
+		sp->hdr._rsvd	= ntohs(jhdr._rsvd);
 
 		_proto("Rx DATA Jumbo %%%u", sp->hdr.serial - 1);
 
@@ -575,14 +575,13 @@ done:
  * post connection-level events to the connection
  * - this includes challenges, responses and some aborts
  */
-static void rxrpc_post_packet_to_conn(struct rxrpc_connection *conn,
+static bool rxrpc_post_packet_to_conn(struct rxrpc_connection *conn,
 				      struct sk_buff *skb)
 {
 	_enter("%p,%p", conn, skb);
 
-	rxrpc_get_connection(conn);
 	skb_queue_tail(&conn->rx_queue, skb);
-	rxrpc_queue_conn(conn);
+	return rxrpc_queue_conn(conn);
 }
 
 /*
@@ -595,7 +594,7 @@ static void rxrpc_post_packet_to_local(struct rxrpc_local *local,
 	_enter("%p,%p", local, skb);
 
 	skb_queue_tail(&local->event_queue, skb);
-	rxrpc_queue_work(&local->processor);
+	rxrpc_queue_local(local);
 }
 
 /*
@@ -627,32 +626,6 @@ int rxrpc_extract_header(struct rxrpc_skb_priv *sp, struct sk_buff *skb)
 	return 0;
 }
 
-static struct rxrpc_connection *rxrpc_conn_from_local(struct rxrpc_local *local,
-						      struct sk_buff *skb)
-{
-	struct rxrpc_peer *peer;
-	struct rxrpc_connection *conn;
-	struct sockaddr_rxrpc srx;
-
-	rxrpc_get_addr_from_skb(local, skb, &srx);
-	rcu_read_lock();
-	peer = rxrpc_lookup_peer_rcu(local, &srx);
-	if (!peer)
-		goto cant_find_peer;
-
-	conn = rxrpc_find_connection(local, peer, skb);
-	rcu_read_unlock();
-	if (!conn)
-		goto cant_find_conn;
-
-	return conn;
-
-cant_find_peer:
-	rcu_read_unlock();
-cant_find_conn:
-	return NULL;
-}
-
 /*
  * handle data received on the local endpoint
  * - may be called in interrupt context
@@ -663,6 +636,7 @@ cant_find_conn:
  */
 void rxrpc_data_ready(struct sock *sk)
 {
+	struct rxrpc_connection *conn;
 	struct rxrpc_skb_priv *sp;
 	struct rxrpc_local *local = sk->sk_user_data;
 	struct sk_buff *skb;
@@ -726,34 +700,37 @@ void rxrpc_data_ready(struct sock *sk)
 	    (sp->hdr.callNumber == 0 || sp->hdr.seq == 0))
 		goto bad_message;
 
+	rcu_read_lock();
+
+retry_find_conn:
+	conn = rxrpc_find_connection_rcu(local, skb);
+	if (!conn)
+		goto cant_route_call;
+
 	if (sp->hdr.callNumber == 0) {
-		/* This is a connection-level packet. These should be
-		 * fairly rare, so the extra overhead of looking them up the
-		 * old-fashioned way doesn't really hurt */
-		struct rxrpc_connection *conn;
-
-		conn = rxrpc_conn_from_local(local, skb);
-		if (!conn)
-			goto cant_route_call;
-
+		/* Connection-level packet */
 		_debug("CONN %p {%d}", conn, conn->debug_id);
-		rxrpc_post_packet_to_conn(conn, skb);
-		rxrpc_put_connection(conn);
+		if (!rxrpc_post_packet_to_conn(conn, skb))
+			goto retry_find_conn;
 	} else {
-		struct rxrpc_call *call;
+		/* Call-bound packets are routed by connection channel. */
+		unsigned int channel = sp->hdr.cid & RXRPC_CHANNELMASK;
+		struct rxrpc_channel *chan = &conn->channels[channel];
+		struct rxrpc_call *call = rcu_dereference(chan->call);
 
-		call = rxrpc_find_call_hash(&sp->hdr, local,
-					    AF_INET, &ip_hdr(skb)->saddr);
-		if (call)
-			rxrpc_post_packet_to_call(call, skb);
-		else
+		if (!call || atomic_read(&call->usage) == 0)
 			goto cant_route_call;
+
+		rxrpc_post_packet_to_call(call, skb);
 	}
 
+	rcu_read_unlock();
 out:
 	return;
 
 cant_route_call:
+	rcu_read_unlock();
+
 	_debug("can't route call");
 	if (sp->hdr.flags & RXRPC_CLIENT_INITIATED &&
 	    sp->hdr.type == RXRPC_PACKET_TYPE_DATA) {
