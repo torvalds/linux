@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat Inc.
+ * Copyright 2016 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,36 +19,40 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: Ben Skeggs
+ * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-#include "nv50.h"
 #include "rootnv50.h"
+#include "dmacnv50.h"
 
-static const struct nv50_disp_func
-gm107_disp = {
-	.intr = gf119_disp_intr,
-	.intr_error = gf119_disp_intr_error,
-	.uevent = &gf119_disp_chan_uevent,
-	.super = gf119_disp_intr_supervisor,
-	.root = &gm107_disp_root_oclass,
-	.head.vblank_init = gf119_disp_vblank_init,
-	.head.vblank_fini = gf119_disp_vblank_fini,
-	.head.scanoutpos = gf119_disp_root_scanoutpos,
-	.outp.internal.crt = nv50_dac_output_new,
-	.outp.internal.tmds = nv50_sor_output_new,
-	.outp.internal.lvds = nv50_sor_output_new,
-	.outp.internal.dp = gm107_sor_dp_new,
-	.dac.nr = 3,
-	.dac.power = nv50_dac_power,
-	.dac.sense = nv50_dac_sense,
-	.sor.nr = 4,
-	.sor.power = nv50_sor_power,
-	.sor.hda_eld = gf119_hda_eld,
-	.sor.hdmi = gk104_hdmi_ctrl,
+#include <nvif/class.h>
+
+static const struct nv50_disp_root_func
+gp104_disp_root = {
+	.init = gf119_disp_root_init,
+	.fini = gf119_disp_root_fini,
+	.dmac = {
+		&gp104_disp_core_oclass,
+		&gp104_disp_base_oclass,
+		&gp104_disp_ovly_oclass,
+	},
+	.pioc = {
+		&gk104_disp_oimm_oclass,
+		&gk104_disp_curs_oclass,
+	},
 };
 
-int
-gm107_disp_new(struct nvkm_device *device, int index, struct nvkm_disp **pdisp)
+static int
+gp104_disp_root_new(struct nvkm_disp *disp, const struct nvkm_oclass *oclass,
+		    void *data, u32 size, struct nvkm_object **pobject)
 {
-	return gf119_disp_new_(&gm107_disp, device, index, pdisp);
+	return nv50_disp_root_new_(&gp104_disp_root, disp, oclass,
+				   data, size, pobject);
 }
+
+const struct nvkm_disp_oclass
+gp104_disp_root_oclass = {
+	.base.oclass = GP104_DISP,
+	.base.minver = -1,
+	.base.maxver = -1,
+	.ctor = gp104_disp_root_new,
+};

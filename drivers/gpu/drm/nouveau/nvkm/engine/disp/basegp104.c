@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat Inc.
+ * Copyright 2016 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,36 +19,20 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: Ben Skeggs
+ * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-#include "nv50.h"
+#include "dmacnv50.h"
 #include "rootnv50.h"
 
-static const struct nv50_disp_func
-gm107_disp = {
-	.intr = gf119_disp_intr,
-	.intr_error = gf119_disp_intr_error,
-	.uevent = &gf119_disp_chan_uevent,
-	.super = gf119_disp_intr_supervisor,
-	.root = &gm107_disp_root_oclass,
-	.head.vblank_init = gf119_disp_vblank_init,
-	.head.vblank_fini = gf119_disp_vblank_fini,
-	.head.scanoutpos = gf119_disp_root_scanoutpos,
-	.outp.internal.crt = nv50_dac_output_new,
-	.outp.internal.tmds = nv50_sor_output_new,
-	.outp.internal.lvds = nv50_sor_output_new,
-	.outp.internal.dp = gm107_sor_dp_new,
-	.dac.nr = 3,
-	.dac.power = nv50_dac_power,
-	.dac.sense = nv50_dac_sense,
-	.sor.nr = 4,
-	.sor.power = nv50_sor_power,
-	.sor.hda_eld = gf119_hda_eld,
-	.sor.hdmi = gk104_hdmi_ctrl,
-};
+#include <nvif/class.h>
 
-int
-gm107_disp_new(struct nvkm_device *device, int index, struct nvkm_disp **pdisp)
-{
-	return gf119_disp_new_(&gm107_disp, device, index, pdisp);
-}
+const struct nv50_disp_dmac_oclass
+gp104_disp_base_oclass = {
+	.base.oclass = GK110_DISP_BASE_CHANNEL_DMA,
+	.base.minver = 0,
+	.base.maxver = 0,
+	.ctor = nv50_disp_base_new,
+	.func = &gp104_disp_dmac_func,
+	.mthd = &gf119_disp_base_chan_mthd,
+	.chid = 1,
+};
