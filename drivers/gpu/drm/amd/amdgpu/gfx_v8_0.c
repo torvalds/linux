@@ -47,6 +47,8 @@
 #include "dce/dce_10_0_d.h"
 #include "dce/dce_10_0_sh_mask.h"
 
+#include "smu/smu_7_1_3_d.h"
+
 #define GFX8_NUM_GFX_RINGS     1
 #define GFX8_NUM_COMPUTE_RINGS 8
 
@@ -297,7 +299,8 @@ static const u32 polaris11_golden_common_all[] =
 static const u32 golden_settings_polaris10_a11[] =
 {
 	mmATC_MISC_CG, 0x000c0fc0, 0x000c0200,
-	mmCB_HW_CONTROL, 0xfffdf3cf, 0x00006208,
+	mmCB_HW_CONTROL, 0xfffdf3cf, 0x00007208,
+	mmCB_HW_CONTROL_2, 0, 0x0f000000,
 	mmCB_HW_CONTROL_3, 0x000001ff, 0x00000040,
 	mmDB_DEBUG2, 0xf00fffff, 0x00000400,
 	mmPA_SC_ENHANCE, 0xffffffff, 0x20000001,
@@ -692,6 +695,7 @@ static void gfx_v8_0_init_golden_registers(struct amdgpu_device *adev)
 		amdgpu_program_register_sequence(adev,
 						 polaris10_golden_common_all,
 						 (const u32)ARRAY_SIZE(polaris10_golden_common_all));
+		WREG32_SMC(ixCG_ACLK_CNTL, 0x0000001C);
 		break;
 	case CHIP_CARRIZO:
 		amdgpu_program_register_sequence(adev,

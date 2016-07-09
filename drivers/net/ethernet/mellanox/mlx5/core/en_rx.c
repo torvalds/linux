@@ -212,6 +212,20 @@ err_free_skb:
 	return -ENOMEM;
 }
 
+void mlx5e_dealloc_rx_wqe(struct mlx5e_rq *rq, u16 ix)
+{
+	struct sk_buff *skb = rq->skb[ix];
+
+	if (skb) {
+		rq->skb[ix] = NULL;
+		dma_unmap_single(rq->pdev,
+				 *((dma_addr_t *)skb->cb),
+				 rq->wqe_sz,
+				 DMA_FROM_DEVICE);
+		dev_kfree_skb(skb);
+	}
+}
+
 static inline int mlx5e_mpwqe_strides_per_page(struct mlx5e_rq *rq)
 {
 	return rq->mpwqe_num_strides >> MLX5_MPWRQ_WQE_PAGE_ORDER;
@@ -574,6 +588,30 @@ int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, struct mlx5e_rx_wqe *wqe, u16 ix)
 	return 0;
 }
 
+void mlx5e_dealloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
+{
+	struct mlx5e_mpw_info *wi = &rq->wqe_info[ix];
+
+	wi->free_wqe(rq, wi);
+}
+
+void mlx5e_free_rx_descs(struct mlx5e_rq *rq)
+{
+	struct mlx5_wq_ll *wq = &rq->wq;
+	struct mlx5e_rx_wqe *wqe;
+	__be16 wqe_ix_be;
+	u16 wqe_ix;
+
+	while (!mlx5_wq_ll_is_empty(wq)) {
+		wqe_ix_be = *wq->tail_next;
+		wqe_ix    = be16_to_cpu(wqe_ix_be);
+		wqe       = mlx5_wq_ll_get_wqe(&rq->wq, wqe_ix);
+		rq->dealloc_wqe(rq, wqe_ix);
+		mlx5_wq_ll_pop(&rq->wq, wqe_ix_be,
+			       &wqe->next.next_wqe_index);
+	}
+}
+
 #define RQ_CANNOT_POST(rq) \
 		(!test_bit(MLX5E_RQ_STATE_POST_WQES_ENABLE, &rq->state) || \
 		 test_bit(MLX5E_RQ_STATE_UMR_WQE_IN_PROGRESS, &rq->state))
@@ -689,7 +727,7 @@ static inline void mlx5e_handle_csum(struct net_device *netdev,
 	if (is_first_ethertype_ip(skb)) {
 		skb->ip_summed = CHECKSUM_COMPLETE;
 		skb->csum = csum_unfold((__force __sum16)cqe->check_sum);
-		rq->stats.csum_sw++;
+		rq->stats.csum_complete++;
 		return;
 	}
 
@@ -699,7 +737,7 @@ static inline void mlx5e_handle_csum(struct net_device *netdev,
 		if (cqe_is_tunneled(cqe)) {
 			skb->csum_level = 1;
 			skb->encapsulation = 1;
-			rq->stats.csum_inner++;
+			rq->stats.csum_unnecessary_inner++;
 		}
 		return;
 	}
@@ -877,6 +915,9 @@ int mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget)
 {
 	struct mlx5e_rq *rq = container_of(cq, struct mlx5e_rq, cq);
 	int work_done = 0;
+
+	if (unlikely(test_bit(MLX5E_RQ_STATE_FLUSH_TIMEOUT, &rq->state)))
+		return 0;
 
 	if (cq->decmprs_left)
 		work_done += mlx5e_decompress_cqes_cont(rq, cq, 0, budget);

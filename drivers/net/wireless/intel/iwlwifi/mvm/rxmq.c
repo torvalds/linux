@@ -581,7 +581,7 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 			    struct iwl_rx_mpdu_desc *desc)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
+	struct iwl_mvm_sta *mvm_sta;
 	struct iwl_mvm_baid_data *baid_data;
 	struct iwl_mvm_reorder_buffer *buffer;
 	struct sk_buff *tail;
@@ -603,6 +603,8 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 	/* no sta yet */
 	if (WARN_ON(IS_ERR_OR_NULL(sta)))
 		return false;
+
+	mvm_sta = iwl_mvm_sta_from_mac80211(sta);
 
 	/* not a data packet */
 	if (!ieee80211_is_data_qos(hdr->frame_control) ||
