@@ -188,6 +188,9 @@ static int hw_ep_prime(struct ci_hdrc *ci, int num, int dir, int is_ctrl)
 {
 	int n = hw_ep_bit(num, dir);
 
+	/* Synchronize before ep prime */
+	wmb();
+
 	if (is_ctrl && dir == RX && hw_read(ci, OP_ENDPTSETUPSTAT, BIT(num)))
 		return -EAGAIN;
 
@@ -506,8 +509,6 @@ static int _hardware_enqueue(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq)
 		hwep->qh.ptr->cap |= mul << __ffs(QH_MULT);
 	}
 
-	wmb();   /* synchronize before ep prime */
-
 	ret = hw_ep_prime(ci, hwep->num, hwep->dir,
 			   hwep->type == USB_ENDPOINT_XFER_CONTROL);
 done:
@@ -533,9 +534,6 @@ static int reprime_dtd(struct ci_hdrc *ci, struct ci_hw_ep *hwep,
 	hwep->qh.ptr->td.next = node->dma;
 	hwep->qh.ptr->td.token &=
 		cpu_to_le32(~(TD_STATUS_HALTED | TD_STATUS_ACTIVE));
-
-	/* Synchronize before ep prime */
-	wmb();
 
 	return hw_ep_prime(ci, hwep->num, hwep->dir,
 				hwep->type == USB_ENDPOINT_XFER_CONTROL);
