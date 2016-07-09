@@ -2189,6 +2189,7 @@ nv134_chipset = {
 	.fb = gp104_fb_new,
 	.imem = nv50_instmem_new,
 	.mc = gp100_mc_new,
+	.mmu = gf100_mmu_new,
 	.pci = gp100_pci_new,
 	.timer = gk20a_timer_new,
 	.top = gk104_top_new,
