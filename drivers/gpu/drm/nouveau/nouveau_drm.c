@@ -430,6 +430,11 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 	nouveau_vga_init(drm);
 
 	if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
+		if (!nvxx_device(&drm->device)->mmu) {
+			ret = -ENOSYS;
+			goto fail_device;
+		}
+
 		ret = nvkm_vm_new(nvxx_device(&drm->device), 0, (1ULL << 40),
 				  0x1000, NULL, &drm->client.vm);
 		if (ret)
