@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _media-ioc-device-info:
+.. _media_ioc_device_info:
 
 ***************************
 ioctl MEDIA_IOC_DEVICE_INFO

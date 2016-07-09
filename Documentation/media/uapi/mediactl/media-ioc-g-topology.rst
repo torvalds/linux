@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _media-g-topology:
+.. _media_ioc_g_topology:
 
 **************************
 ioctl MEDIA_IOC_G_TOPOLOGY

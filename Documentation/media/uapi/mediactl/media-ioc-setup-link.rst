@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _media-ioc-setup-link:
+.. _media_ioc_setup_link:
 
 **************************
 ioctl MEDIA_IOC_SETUP_LINK

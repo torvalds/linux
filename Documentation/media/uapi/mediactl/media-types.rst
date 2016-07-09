@@ -15,6 +15,9 @@ Types and flags used to represent the media graph elements
 
     -  .. row 1
 
+       ..  _MEDIA-ENT-F-UNKNOWN:
+       .. _MEDIA-ENT-F-V4L2-SUBDEV-UNKNOWN:
+
        -  ``MEDIA_ENT_F_UNKNOWN`` and ``MEDIA_ENT_F_V4L2_SUBDEV_UNKNOWN``
 
        -  Unknown entity. That generally indicates that a driver didn't
@@ -22,11 +25,15 @@ Types and flags used to represent the media graph elements
 
     -  .. row 2
 
+       ..  _MEDIA-ENT-F-IO-V4L:
+
        -  ``MEDIA_ENT_F_IO_V4L``
 
        -  Data streaming input and/or output entity.
 
     -  .. row 3
+
+       ..  _MEDIA-ENT-F-IO-VBI:
 
        -  ``MEDIA_ENT_F_IO_VBI``
 
@@ -34,11 +41,15 @@ Types and flags used to represent the media graph elements
 
     -  .. row 4
 
+       ..  _MEDIA-ENT-F-IO-SWRADIO:
+
        -  ``MEDIA_ENT_F_IO_SWRADIO``
 
        -  V4L Software Digital Radio (SDR) streaming input or output entity
 
     -  .. row 5
+
+       ..  _MEDIA-ENT-F-IO-DTV:
 
        -  ``MEDIA_ENT_F_IO_DTV``
 
@@ -46,11 +57,15 @@ Types and flags used to represent the media graph elements
 
     -  .. row 6
 
+       ..  _MEDIA-ENT-F-DTV-DEMOD:
+
        -  ``MEDIA_ENT_F_DTV_DEMOD``
 
        -  Digital TV demodulator entity.
 
     -  .. row 7
+
+       ..  _MEDIA-ENT-F-TS-DEMUX:
 
        -  ``MEDIA_ENT_F_TS_DEMUX``
 
@@ -59,11 +74,15 @@ Types and flags used to represent the media graph elements
 
     -  .. row 8
 
+       ..  _MEDIA-ENT-F-DTV-CA:
+
        -  ``MEDIA_ENT_F_DTV_CA``
 
        -  Digital TV Conditional Access module (CAM) entity
 
     -  .. row 9
+
+       ..  _MEDIA-ENT-F-DTV-NET-DECAP:
 
        -  ``MEDIA_ENT_F_DTV_NET_DECAP``
 
@@ -72,11 +91,15 @@ Types and flags used to represent the media graph elements
 
     -  .. row 10
 
+       ..  _MEDIA-ENT-F-CONN-RF:
+
        -  ``MEDIA_ENT_F_CONN_RF``
 
        -  Connector for a Radio Frequency (RF) signal.
 
     -  .. row 11
+
+       ..  _MEDIA-ENT-F-CONN-SVIDEO:
 
        -  ``MEDIA_ENT_F_CONN_SVIDEO``
 
@@ -84,11 +107,15 @@ Types and flags used to represent the media graph elements
 
     -  .. row 12
 
+       ..  _MEDIA-ENT-F-CONN-COMPOSITE:
+
        -  ``MEDIA_ENT_F_CONN_COMPOSITE``
 
        -  Connector for a RGB composite signal.
 
     -  .. row 13
+
+       ..  _MEDIA-ENT-F-CAM-SENSOR:
 
        -  ``MEDIA_ENT_F_CAM_SENSOR``
 
@@ -96,17 +123,23 @@ Types and flags used to represent the media graph elements
 
     -  .. row 14
 
+       ..  _MEDIA-ENT-F-FLASH:
+
        -  ``MEDIA_ENT_F_FLASH``
 
        -  Flash controller entity.
 
     -  .. row 15
 
+       ..  _MEDIA-ENT-F-LENS:
+
        -  ``MEDIA_ENT_F_LENS``
 
        -  Lens controller entity.
 
     -  .. row 16
+
+       ..  _MEDIA-ENT-F-ATV-DECODER:
 
        -  ``MEDIA_ENT_F_ATV_DECODER``
 
@@ -119,6 +152,8 @@ Types and flags used to represent the media graph elements
 
     -  .. row 17
 
+       ..  _MEDIA-ENT-F-TUNER:
+
        -  ``MEDIA_ENT_F_TUNER``
 
        -  Digital TV, analog TV, radio and/or software radio tuner, with
@@ -129,6 +164,8 @@ Types and flags used to represent the media graph elements
 
     -  .. row 18
 
+       ..  _MEDIA-ENT-F-IF-VID-DECODER:
+
        -  ``MEDIA_ENT_F_IF_VID_DECODER``
 
        -  IF-PLL video decoder. It receives the IF from a PLL and decodes
@@ -138,6 +175,8 @@ Types and flags used to represent the media graph elements
 	  Those devices use a different I2C address than the tuner PLL.
 
     -  .. row 19
+
+       ..  _MEDIA-ENT-F-IF-AUD-DECODER:
 
        -  ``MEDIA_ENT_F_IF_AUD_DECODER``
 
@@ -150,11 +189,15 @@ Types and flags used to represent the media graph elements
 
     -  .. row 20
 
+       ..  _MEDIA-ENT-F-AUDIO-CAPTURE:
+
        -  ``MEDIA_ENT_F_AUDIO_CAPTURE``
 
        -  Audio Capture Function Entity.
 
     -  .. row 21
+
+       ..  _MEDIA-ENT-F-AUDIO-PLAYBACK:
 
        -  ``MEDIA_ENT_F_AUDIO_PLAYBACK``
 
@@ -162,11 +205,15 @@ Types and flags used to represent the media graph elements
 
     -  .. row 22
 
+       ..  _MEDIA-ENT-F-AUDIO-MIXER:
+
        -  ``MEDIA_ENT_F_AUDIO_MIXER``
 
        -  Audio Mixer Function Entity.
 
     -  .. row 23
+
+       ..  _MEDIA-ENT-F-PROC-VIDEO-COMPOSER:
 
        -  ``MEDIA_ENT_F_PROC_VIDEO_COMPOSER``
 
@@ -178,6 +225,8 @@ Types and flags used to represent the media graph elements
 	  means.
 
     -  ..  row 24
+
+       ..  _MEDIA-ENT-F-PROC-VIDEO-PIXEL-FORMATTER:
 
        -  ``MEDIA_ENT_F_PROC_VIDEO_PIXEL_FORMATTER``
 
@@ -191,6 +240,8 @@ Types and flags used to represent the media graph elements
 
     -  ..  row 25
 
+       ..  _MEDIA-ENT-F-PROC-VIDEO-PIXEL-ENC-CONV:
+
        -  ``MEDIA_ENT_F_PROC_VIDEO_PIXEL_ENC_CONV``
 
        -  Video pixel encoding converter. An entity capable of pixel
@@ -202,6 +253,8 @@ Types and flags used to represent the media graph elements
 	  conversions.
 
     -  ..  row 26
+
+       ..  _MEDIA-ENT-F-PROC-VIDEO-LUT:
 
        -  ``MEDIA_ENT_F_PROC_VIDEO_LUT``
 
@@ -215,6 +268,8 @@ Types and flags used to represent the media graph elements
 
     -  ..  row 27
 
+       ..  _MEDIA-ENT-F-PROC-VIDEO-SCALER:
+
        -  ``MEDIA_ENT_F_PROC_VIDEO_SCALER``
 
        -  Video scaler. An entity capable of video scaling must have
@@ -227,6 +282,8 @@ Types and flags used to represent the media graph elements
 	  skipping are considered as scaling.
 
     -  ..  row 28
+
+       ..  _MEDIA-ENT-F-PROC-VIDEO-STATISTICS:
 
        -  ``MEDIA_ENT_F_PROC_VIDEO_STATISTICS``
 
@@ -246,12 +303,16 @@ Types and flags used to represent the media graph elements
 
     -  .. row 1
 
+       ..  _MEDIA-ENT-FL-DEFAULT:
+
        -  ``MEDIA_ENT_FL_DEFAULT``
 
        -  Default entity for its type. Used to discover the default audio,
 	  VBI and video devices, the default camera sensor, ...
 
     -  .. row 2
+
+       ..  _MEDIA-ENT-FL-CONNECTOR:
 
        -  ``MEDIA_ENT_FL_CONNECTOR``
 
@@ -268,6 +329,8 @@ Types and flags used to represent the media graph elements
 
     -  .. row 1
 
+       ..  _MEDIA-INTF-T-DVB-FE:
+
        -  ``MEDIA_INTF_T_DVB_FE``
 
        -  Device node interface for the Digital TV frontend
@@ -275,6 +338,8 @@ Types and flags used to represent the media graph elements
        -  typically, /dev/dvb/adapter?/frontend?
 
     -  .. row 2
+
+       ..  _MEDIA-INTF-T-DVB-DEMUX:
 
        -  ``MEDIA_INTF_T_DVB_DEMUX``
 
@@ -284,6 +349,8 @@ Types and flags used to represent the media graph elements
 
     -  .. row 3
 
+       ..  _MEDIA-INTF-T-DVB-DVR:
+
        -  ``MEDIA_INTF_T_DVB_DVR``
 
        -  Device node interface for the Digital TV DVR
@@ -291,6 +358,8 @@ Types and flags used to represent the media graph elements
        -  typically, /dev/dvb/adapter?/dvr?
 
     -  .. row 4
+
+       ..  _MEDIA-INTF-T-DVB-CA:
 
        -  ``MEDIA_INTF_T_DVB_CA``
 
@@ -300,13 +369,17 @@ Types and flags used to represent the media graph elements
 
     -  .. row 5
 
-       -  ``MEDIA_INTF_T_DVB_FE``
+       ..  _MEDIA-INTF-T-DVB-NET:
+
+       -  ``MEDIA_INTF_T_DVB_NET``
 
        -  Device node interface for the Digital TV network control
 
        -  typically, /dev/dvb/adapter?/net?
 
     -  .. row 6
+
+       ..  _MEDIA-INTF-T-V4L-VIDEO:
 
        -  ``MEDIA_INTF_T_V4L_VIDEO``
 
@@ -316,6 +389,8 @@ Types and flags used to represent the media graph elements
 
     -  .. row 7
 
+       ..  _MEDIA-INTF-T-V4L-VBI:
+
        -  ``MEDIA_INTF_T_V4L_VBI``
 
        -  Device node interface for VBI (V4L)
@@ -323,6 +398,8 @@ Types and flags used to represent the media graph elements
        -  typically, /dev/vbi?
 
     -  .. row 8
+
+       ..  _MEDIA-INTF-T-V4L-RADIO:
 
        -  ``MEDIA_INTF_T_V4L_RADIO``
 
@@ -332,6 +409,8 @@ Types and flags used to represent the media graph elements
 
     -  .. row 9
 
+       ..  _MEDIA-INTF-T-V4L-SUBDEV:
+
        -  ``MEDIA_INTF_T_V4L_SUBDEV``
 
        -  Device node interface for a V4L subdevice
@@ -339,6 +418,8 @@ Types and flags used to represent the media graph elements
        -  typically, /dev/v4l-subdev?
 
     -  .. row 10
+
+       ..  _MEDIA-INTF-T-V4L-SWRADIO:
 
        -  ``MEDIA_INTF_T_V4L_SWRADIO``
 
@@ -348,6 +429,8 @@ Types and flags used to represent the media graph elements
 
     -  .. row 11
 
+       ..  _MEDIA-INTF-T-ALSA-PCM-CAPTURE:
+
        -  ``MEDIA_INTF_T_ALSA_PCM_CAPTURE``
 
        -  Device node interface for ALSA PCM Capture
@@ -355,6 +438,8 @@ Types and flags used to represent the media graph elements
        -  typically, /dev/snd/pcmC?D?c
 
     -  .. row 12
+
+       ..  _MEDIA-INTF-T-ALSA-PCM-PLAYBACK:
 
        -  ``MEDIA_INTF_T_ALSA_PCM_PLAYBACK``
 
@@ -364,6 +449,8 @@ Types and flags used to represent the media graph elements
 
     -  .. row 13
 
+       ..  _MEDIA-INTF-T-ALSA-CONTROL:
+
        -  ``MEDIA_INTF_T_ALSA_CONTROL``
 
        -  Device node interface for ALSA Control
@@ -371,6 +458,8 @@ Types and flags used to represent the media graph elements
        -  typically, /dev/snd/controlC?
 
     -  .. row 14
+
+       ..  _MEDIA-INTF-T-ALSA-COMPRESS:
 
        -  ``MEDIA_INTF_T_ALSA_COMPRESS``
 
@@ -380,6 +469,8 @@ Types and flags used to represent the media graph elements
 
     -  .. row 15
 
+       ..  _MEDIA-INTF-T-ALSA-RAWMIDI:
+
        -  ``MEDIA_INTF_T_ALSA_RAWMIDI``
 
        -  Device node interface for ALSA Raw MIDI
@@ -387,6 +478,8 @@ Types and flags used to represent the media graph elements
        -  typically, /dev/snd/midi?
 
     -  .. row 16
+
+       ..  _MEDIA-INTF-T-ALSA-HWDEP:
 
        -  ``MEDIA_INTF_T_ALSA_HWDEP``
 
@@ -396,6 +489,8 @@ Types and flags used to represent the media graph elements
 
     -  .. row 17
 
+       ..  _MEDIA-INTF-T-ALSA-SEQUENCER:
+
        -  ``MEDIA_INTF_T_ALSA_SEQUENCER``
 
        -  Device node interface for ALSA Sequencer
@@ -403,6 +498,8 @@ Types and flags used to represent the media graph elements
        -  typically, /dev/snd/seq
 
     -  .. row 18
+
+       ..  _MEDIA-INTF-T-ALSA-TIMER:
 
        -  ``MEDIA_INTF_T_ALSA_TIMER``
 
@@ -421,6 +518,8 @@ Types and flags used to represent the media graph elements
 
     -  .. row 1
 
+       ..  _MEDIA-PAD-FL-SINK:
+
        -  ``MEDIA_PAD_FL_SINK``
 
        -  Input pad, relative to the entity. Input pads sink data and are
@@ -428,12 +527,16 @@ Types and flags used to represent the media graph elements
 
     -  .. row 2
 
+       ..  _MEDIA-PAD-FL-SOURCE:
+
        -  ``MEDIA_PAD_FL_SOURCE``
 
        -  Output pad, relative to the entity. Output pads source data and
 	  are origins of links.
 
     -  .. row 3
+
+       ..  _MEDIA-PAD-FL-MUST-CONNECT:
 
        -  ``MEDIA_PAD_FL_MUST_CONNECT``
 
@@ -458,6 +561,8 @@ must be set for every pad.
 
     -  .. row 1
 
+       ..  _MEDIA-LNK-FL-ENABLED:
+
        -  ``MEDIA_LNK_FL_ENABLED``
 
        -  The link is enabled and can be used to transfer media data. When
@@ -466,12 +571,16 @@ must be set for every pad.
 
     -  .. row 2
 
+       ..  _MEDIA-LNK-FL-IMMUTABLE:
+
        -  ``MEDIA_LNK_FL_IMMUTABLE``
 
        -  The link enabled state can't be modified at runtime. An immutable
 	  link is always enabled.
 
     -  .. row 3
+
+       ..  _MEDIA-LNK-FL-DYNAMIC:
 
        -  ``MEDIA_LNK_FL_DYNAMIC``
 
@@ -480,12 +589,18 @@ must be set for every pad.
 
     -  .. row 4
 
+       ..  _MEDIA-LNK-FL-LINK-TYPE:
+
        -  ``MEDIA_LNK_FL_LINK_TYPE``
 
        -  This is a bitmask that defines the type of the link. Currently,
 	  two types of links are supported:
 
+	  .. _MEDIA-LNK-FL-DATA-LINK:
+
 	  ``MEDIA_LNK_FL_DATA_LINK`` if the link is between two pads
+
+	  .. _MEDIA-LNK-FL-INTERFACE-LINK:
 
 	  ``MEDIA_LNK_FL_INTERFACE_LINK`` if the link is between an
 	  interface and an entity

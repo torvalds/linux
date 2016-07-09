@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _media-ioc-enum-entities:
+.. _media_ioc_enum_entities:
 
 *****************************
 ioctl MEDIA_IOC_ENUM_ENTITIES
@@ -38,6 +38,8 @@ struct :ref:`media_entity_desc <media-entity-desc>` structure and
 call the MEDIA_IOC_ENUM_ENTITIES ioctl with a pointer to this
 structure. The driver fills the rest of the structure or returns an
 EINVAL error code when the id is invalid.
+
+.. _media-ent-id-flag-next:
 
 Entities can be enumerated by or'ing the id with the
 ``MEDIA_ENT_ID_FLAG_NEXT`` flag. The driver will return information

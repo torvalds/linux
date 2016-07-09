@@ -22,7 +22,7 @@ Media Controller
     media-controller-intro
     media-controller-model
     media-types
-
+    media-header
 
 .. _media-user-func:
 

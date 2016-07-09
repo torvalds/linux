@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _media-ioc-enum-links:
+.. _media_ioc_enum_links:
 
 **************************
 ioctl MEDIA_IOC_ENUM_LINKS
@@ -44,14 +44,12 @@ MEDIA_IOC_ENUM_LINKS ioctl with a pointer to this structure.
 If the ``pads`` field is not NULL, the driver fills the ``pads`` array
 with information about the entity's pads. The array must have enough
 room to store all the entity's pads. The number of pads can be retrieved
-with the :ref:`MEDIA_IOC_ENUM_ENTITIES <media-ioc-enum-entities>`
-ioctl.
+with :ref:`MEDIA_IOC_ENUM_ENTITIES`.
 
 If the ``links`` field is not NULL, the driver fills the ``links`` array
 with information about the entity's outbound links. The array must have
 enough room to store all the entity's outbound links. The number of
-outbound links can be retrieved with the
-:ref:`MEDIA_IOC_ENUM_ENTITIES <media-ioc-enum-entities>` ioctl.
+outbound links can be retrieved with :ref:`MEDIA_IOC_ENUM_ENTITIES`.
 
 Only forward links that originate at one of the entity's source pads are
 returned during the enumeration process.
