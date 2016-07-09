@@ -1501,15 +1501,6 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 			break;
 		}
 
-		/* Ensure that even if the GPU hangs, we get woken up.
-		 *
-		 * However, note that if no one is waiting, we never notice
-		 * a gpu hang. Eventually, we will have to wait for a resource
-		 * held by the GPU and so trigger a hangcheck. In the most
-		 * pathological case, this will be upon memory starvation!
-		 */
-		i915_queue_hangcheck(req->i915);
-
 		timeout_remain = io_schedule_timeout(timeout_remain);
 		if (timeout_remain == 0) {
 			ret = -ETIME;
