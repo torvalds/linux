@@ -33,7 +33,10 @@ enum nvkm_devidx {
 	NVKM_ENGINE_CE0,
 	NVKM_ENGINE_CE1,
 	NVKM_ENGINE_CE2,
-	NVKM_ENGINE_CE_LAST = NVKM_ENGINE_CE2,
+	NVKM_ENGINE_CE3,
+	NVKM_ENGINE_CE4,
+	NVKM_ENGINE_CE5,
+	NVKM_ENGINE_CE_LAST = NVKM_ENGINE_CE5,
 
 	NVKM_ENGINE_CIPHER,
 	NVKM_ENGINE_DISP,
@@ -136,7 +139,7 @@ struct nvkm_device {
 	struct nvkm_volt *volt;
 
 	struct nvkm_engine *bsp;
-	struct nvkm_engine *ce[3];
+	struct nvkm_engine *ce[6];
 	struct nvkm_engine *cipher;
 	struct nvkm_disp *disp;
 	struct nvkm_dma *dma;
@@ -206,7 +209,7 @@ struct nvkm_device_chip {
 	int (*volt    )(struct nvkm_device *, int idx, struct nvkm_volt **);
 
 	int (*bsp     )(struct nvkm_device *, int idx, struct nvkm_engine **);
-	int (*ce[3]   )(struct nvkm_device *, int idx, struct nvkm_engine **);
+	int (*ce[6]   )(struct nvkm_device *, int idx, struct nvkm_engine **);
 	int (*cipher  )(struct nvkm_device *, int idx, struct nvkm_engine **);
 	int (*disp    )(struct nvkm_device *, int idx, struct nvkm_disp **);
 	int (*dma     )(struct nvkm_device *, int idx, struct nvkm_dma **);
