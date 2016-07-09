@@ -166,6 +166,75 @@ Types and flags used to represent the media graph elements
 
        -  Audio Mixer Function Entity.
 
+    -  .. row 23
+
+       -  ``MEDIA_ENT_F_PROC_VIDEO_COMPOSER``
+
+       -  Video composer (blender). An entity capable of video
+	  composing must have at least two sink pads and one source
+	  pad, and composes input video frames onto output video
+	  frames. Composition can be performed using alpha blending,
+	  color keying, raster operations (ROP), stitching or any other
+	  means.
+
+    -  ..  row 24
+
+       -  ``MEDIA_ENT_F_PROC_VIDEO_PIXEL_FORMATTER``
+
+       -  Video pixel formatter. An entity capable of pixel formatting
+	  must have at least one sink pad and one source pad. Read
+	  pixel formatters read pixels from memory and perform a subset
+	  of unpacking, cropping, color keying, alpha multiplication
+	  and pixel encoding conversion. Write pixel formatters perform
+	  a subset of dithering, pixel encoding conversion and packing
+	  and write pixels to memory.
+
+    -  ..  row 25
+
+       -  ``MEDIA_ENT_F_PROC_VIDEO_PIXEL_ENC_CONV``
+
+       -  Video pixel encoding converter. An entity capable of pixel
+	  enconding conversion must have at least one sink pad and one
+	  source pad, and convert the encoding of pixels received on
+	  its sink pad(s) to a different encoding output on its source
+	  pad(s). Pixel encoding conversion includes but isn't limited
+	  to RGB to/from HSV, RGB to/from YUV and CFA (Bayer) to RGB
+	  conversions.
+
+    -  ..  row 26
+
+       -  ``MEDIA_ENT_F_PROC_VIDEO_LUT``
+
+       -  Video look-up table. An entity capable of video lookup table
+	  processing must have one sink pad and one source pad. It uses
+	  the values of the pixels received on its sink pad to look up
+	  entries in internal tables and output them on its source pad.
+	  The lookup processing can be performed on all components
+	  separately or combine them for multi-dimensional table
+	  lookups.
+
+    -  ..  row 27
+
+       -  ``MEDIA_ENT_F_PROC_VIDEO_SCALER``
+
+       -  Video scaler. An entity capable of video scaling must have
+	  at least one sink pad and one source pad, and scale the
+	  video frame(s) received on its sink pad(s) to a different
+	  resolution output on its source pad(s). The range of
+	  supported scaling ratios is entity-specific and can differ
+	  between the horizontal and vertical directions (in particular
+	  scaling can be supported in one direction only). Binning and
+	  skipping are considered as scaling.
+
+    -  ..  row 28
+
+       -  ``MEDIA_ENT_F_PROC_VIDEO_STATISTICS``
+
+       -  Video statistics computation (histogram, 3A, ...). An entity
+	  capable of statistics computation must have one sink pad and
+	  one source pad. It computes statistics over the frames
+	  received on its sink pad and outputs the statistics data on
+	  its source pad.
 
 
 .. _media-entity-flag:
