@@ -2159,6 +2159,7 @@ nv130_chipset = {
 	.fuse = gm107_fuse_new,
 	.gpio = gk104_gpio_new,
 	.i2c = gm200_i2c_new,
+	.ibus = gm200_ibus_new,
 	.imem = nv50_instmem_new,
 	.mc = gp100_mc_new,
 	.mmu = gf100_mmu_new,
