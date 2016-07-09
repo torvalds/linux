@@ -400,7 +400,8 @@ acpi_i2c_space_handler(u32 function, acpi_physical_address command,
 		break;
 
 	default:
-		pr_info("protocol(0x%02x) is not supported.\n", accessor_type);
+		dev_warn(&adapter->dev, "protocol 0x%02x not supported for client 0x%02x\n",
+			 accessor_type, client->addr);
 		ret = AE_BAD_PARAMETER;
 		goto err;
 	}
