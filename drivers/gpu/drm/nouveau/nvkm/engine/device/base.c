@@ -2185,6 +2185,7 @@ static const struct nvkm_device_chip
 nv134_chipset = {
 	.name = "GP104",
 	.mc = gp100_mc_new,
+	.pci = gp100_pci_new,
 	.top = gk104_top_new,
 };
 
