@@ -303,6 +303,8 @@ foreach my $r (keys %typedefs) {
 	$data =~ s/($start_delim)($r)$end_delim/$1$s$3/g;
 }
 
+$data =~ s/\\ \n/\n/g;
+
 #
 # Generate output file
 #
