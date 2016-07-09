@@ -2169,6 +2169,7 @@ nv130_chipset = {
 	.timer = gk20a_timer_new,
 	.top = gk104_top_new,
 	.dma = gf119_dma_new,
+	.disp = gp100_disp_new,
 };
 
 static int

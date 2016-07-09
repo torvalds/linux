@@ -50,6 +50,7 @@
 #define GK110_DISP                                    /* cl5070.h */ 0x00009270
 #define GM107_DISP                                    /* cl5070.h */ 0x00009470
 #define GM200_DISP                                    /* cl5070.h */ 0x00009570
+#define GP100_DISP                                    /* cl5070.h */ 0x00009770
 
 #define NV31_MPEG                                                    0x00003174
 #define G82_MPEG                                                     0x00008274
@@ -86,6 +87,7 @@
 #define GK110_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000927d
 #define GM107_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000947d
 #define GM200_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000957d
+#define GP100_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000977d
 
 #define NV50_DISP_OVERLAY_CHANNEL_DMA                 /* cl507e.h */ 0x0000507e
 #define G82_DISP_OVERLAY_CHANNEL_DMA                  /* cl507e.h */ 0x0000827e

@@ -495,6 +495,7 @@ nouveau_display_create(struct drm_device *dev)
 
 	if (nouveau_modeset != 2 && drm->vbios.dcb.entries) {
 		static const u16 oclass[] = {
+			GP100_DISP,
 			GM200_DISP,
 			GM107_DISP,
 			GK110_DISP,
