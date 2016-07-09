@@ -137,6 +137,8 @@ nvkm_fb_init(struct nvkm_subdev *subdev)
 		fb->func->init(fb);
 	if (fb->func->init_page)
 		fb->func->init_page(fb);
+	if (fb->func->init_unkn)
+		fb->func->init_unkn(fb);
 	return 0;
 }
 
