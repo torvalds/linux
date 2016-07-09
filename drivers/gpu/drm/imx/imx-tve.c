@@ -585,7 +585,7 @@ static int imx_tve_bind(struct device *dev, struct device *master, void *data)
 					   &tve->di_hsync_pin);
 
 		if (ret < 0) {
-			dev_err(dev, "failed to get vsync pin\n");
+			dev_err(dev, "failed to get hsync pin\n");
 			return ret;
 		}
 
