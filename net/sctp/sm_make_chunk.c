@@ -711,6 +711,17 @@ nodata:
 	return retval;
 }
 
+static void sctp_set_prsctp_policy(struct sctp_chunk *chunk,
+				   const struct sctp_sndrcvinfo *sinfo)
+{
+	if (!chunk->asoc->prsctp_enable)
+		return;
+
+	if (SCTP_PR_TTL_ENABLED(sinfo->sinfo_flags))
+		chunk->prsctp_param =
+			jiffies + msecs_to_jiffies(sinfo->sinfo_timetolive);
+}
+
 /* Make a DATA chunk for the given association from the provided
  * parameters.  However, do not populate the data payload.
  */
@@ -744,6 +755,7 @@ struct sctp_chunk *sctp_make_datafrag_empty(struct sctp_association *asoc,
 
 	retval->subh.data_hdr = sctp_addto_chunk(retval, sizeof(dp), &dp);
 	memcpy(&retval->sinfo, sinfo, sizeof(struct sctp_sndrcvinfo));
+	sctp_set_prsctp_policy(retval, sinfo);
 
 nodata:
 	return retval;
