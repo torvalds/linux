@@ -6,6 +6,8 @@
 # To add a new book the only step required is to add the book to the
 # list of DOCBOOKS.
 
+ifeq ($(IGNORE_DOCBOOKS),)
+
 DOCBOOKS := z8530book.xml device-drivers.xml \
 	    kernel-hacking.xml kernel-locking.xml deviceiobook.xml \
 	    writing_usb_driver.xml networking.xml \
@@ -215,6 +217,20 @@ silent_gen_xml = :
 	       -e "s/>/\\&gt;/g";     \
 	   echo "</programlisting>")  > $@
 
+else
+
+# Needed, due to cleanmediadocs
+include Documentation/DocBook/media/Makefile
+
+htmldocs:
+pdfdocs:
+psdocs:
+xmldocs:
+installmandocs:
+
+endif # IGNORE_DOCBOOKS
+
+
 ###
 # Help targets as used by the top-level makefile
 dochelp:
@@ -229,6 +245,9 @@ dochelp:
 	@echo
 	@echo  '  make DOCBOOKS="s1.xml s2.xml" [target] Generate only docs s1.xml s2.xml'
 	@echo  '  valid values for DOCBOOKS are: $(DOCBOOKS)'
+	@echo
+	@echo  "  make IGNORE_DOCBOOKS=1 [target] Don't generate docs from Docbook"
+	@echo  '     This is useful to generate only the ReST docs (Sphinx)'
 
 
 ###
