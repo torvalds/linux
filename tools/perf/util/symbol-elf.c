@@ -7,6 +7,7 @@
 
 #include "symbol.h"
 #include "demangle-java.h"
+#include "demangle-rust.h"
 #include "machine.h"
 #include "vdso.h"
 #include <symbol/kallsyms.h>
@@ -1081,6 +1082,13 @@ new_symbol:
 			demangled = bfd_demangle(NULL, elf_name, demangle_flags);
 			if (demangled == NULL)
 				demangled = java_demangle_sym(elf_name, JAVA_DEMANGLE_NORET);
+			else if (rust_is_mangled(demangled))
+				/*
+				 * Input to Rust demangling is the BFD-demangled
+				 * name which it Rust-demangles in place.
+				 */
+				rust_demangle_sym(demangled);
+
 			if (demangled != NULL)
 				elf_name = demangled;
 		}

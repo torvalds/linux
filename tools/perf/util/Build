@@ -113,6 +113,7 @@ libperf-y += scripting-engines/
 libperf-$(CONFIG_ZLIB) += zlib.o
 libperf-$(CONFIG_LZMA) += lzma.o
 libperf-y += demangle-java.o
+libperf-y += demangle-rust.o
 
 ifdef CONFIG_JITDUMP
 libperf-$(CONFIG_LIBELF) += jitdump.o
