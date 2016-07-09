@@ -1045,4 +1045,6 @@ struct ibmvnic_adapter {
 	u64 opt_rxba_entries_per_subcrq;
 	__be64 tx_rx_desc_req;
 	u8 map_id;
+
+	struct work_struct vnic_crq_init;
 };
