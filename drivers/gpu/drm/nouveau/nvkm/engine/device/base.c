@@ -2186,6 +2186,7 @@ nv134_chipset = {
 	.name = "GP104",
 	.bios = nvkm_bios_new,
 	.devinit = gm200_devinit_new,
+	.imem = nv50_instmem_new,
 	.mc = gp100_mc_new,
 	.pci = gp100_pci_new,
 	.timer = gk20a_timer_new,
