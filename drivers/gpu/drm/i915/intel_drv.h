@@ -1665,13 +1665,6 @@ enable_rpm_wakeref_asserts(struct drm_i915_private *dev_priv)
 	atomic_dec(&dev_priv->pm.wakeref_count);
 }
 
-/* TODO: convert users of these to rely instead on proper RPM refcounting */
-#define DISABLE_RPM_WAKEREF_ASSERTS(dev_priv)	\
-	disable_rpm_wakeref_asserts(dev_priv)
-
-#define ENABLE_RPM_WAKEREF_ASSERTS(dev_priv)	\
-	enable_rpm_wakeref_asserts(dev_priv)
-
 void intel_runtime_pm_get(struct drm_i915_private *dev_priv);
 bool intel_runtime_pm_get_if_in_use(struct drm_i915_private *dev_priv);
 void intel_runtime_pm_get_noresume(struct drm_i915_private *dev_priv);
