@@ -93,6 +93,15 @@ static void __intel_breadcrumbs_enable_irq(struct intel_breadcrumbs *b)
 	if (!b->irq_enabled ||
 	    test_bit(engine->id, &i915->gpu_error.missed_irq_rings))
 		mod_timer(&b->fake_irq, jiffies + 1);
+
+	/* Ensure that even if the GPU hangs, we get woken up.
+	 *
+	 * However, note that if no one is waiting, we never notice
+	 * a gpu hang. Eventually, we will have to wait for a resource
+	 * held by the GPU and so trigger a hangcheck. In the most
+	 * pathological case, this will be upon memory starvation!
+	 */
+	i915_queue_hangcheck(i915);
 }
 
 static void __intel_breadcrumbs_disable_irq(struct intel_breadcrumbs *b)
