@@ -1853,6 +1853,9 @@ struct sctp_association {
 	     prsctp_enable:1;
 
 	struct sctp_priv_assoc_stats stats;
+
+	__u64 abandoned_unsent[SCTP_PR_INDEX(MAX) + 1];
+	__u64 abandoned_sent[SCTP_PR_INDEX(MAX) + 1];
 };
 
 
