@@ -255,6 +255,10 @@ struct i2c_mux_core *i2c_mux_alloc(struct i2c_adapter *parent,
 	muxc->dev = dev;
 	if (flags & I2C_MUX_LOCKED)
 		muxc->mux_locked = true;
+	if (flags & I2C_MUX_ARBITRATOR)
+		muxc->arbitrator = true;
+	if (flags & I2C_MUX_GATE)
+		muxc->gate = true;
 	muxc->select = select;
 	muxc->deselect = deselect;
 	muxc->max_adapters = max_adapters;
@@ -335,18 +339,42 @@ int i2c_mux_add_adapter(struct i2c_mux_core *muxc,
 	 * nothing if !CONFIG_OF.
 	 */
 	if (muxc->dev->of_node) {
-		struct device_node *child;
+		struct device_node *dev_node = muxc->dev->of_node;
+		struct device_node *mux_node, *child = NULL;
 		u32 reg;
 
-		for_each_child_of_node(muxc->dev->of_node, child) {
-			ret = of_property_read_u32(child, "reg", &reg);
-			if (ret)
-				continue;
-			if (chan_id == reg) {
-				priv->adap.dev.of_node = child;
-				break;
+		if (muxc->arbitrator)
+			mux_node = of_get_child_by_name(dev_node, "i2c-arb");
+		else if (muxc->gate)
+			mux_node = of_get_child_by_name(dev_node, "i2c-gate");
+		else
+			mux_node = of_get_child_by_name(dev_node, "i2c-mux");
+
+		if (mux_node) {
+			/* A "reg" property indicates an old-style DT entry */
+			if (!of_property_read_u32(mux_node, "reg", &reg)) {
+				of_node_put(mux_node);
+				mux_node = NULL;
 			}
 		}
+
+		if (!mux_node)
+			mux_node = of_node_get(dev_node);
+		else if (muxc->arbitrator || muxc->gate)
+			child = of_node_get(mux_node);
+
+		if (!child) {
+			for_each_child_of_node(mux_node, child) {
+				ret = of_property_read_u32(child, "reg", &reg);
+				if (ret)
+					continue;
+				if (chan_id == reg)
+					break;
+			}
+		}
+
+		priv->adap.dev.of_node = child;
+		of_node_put(mux_node);
 	}
 
 	/*
