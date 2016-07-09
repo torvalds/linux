@@ -1,7 +1,7 @@
 /*
- * Analog Devices ADV7511 HDMI Transmitter Device Driver
+ * vivid-cec.h - A Virtual Video Test Driver, cec emulation
  *
- * Copyright 2013 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
+ * Copyright 2016 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
  *
  * This program is free software; you may redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,29 +17,17 @@
  * SOFTWARE.
  */
 
-#ifndef ADV7511_H
-#define ADV7511_H
+#ifdef CONFIG_VIDEO_VIVID_CEC
+struct cec_adapter *vivid_cec_alloc_adap(struct vivid_dev *dev,
+					 unsigned int idx,
+					 struct device *parent,
+					 bool is_source);
+void vivid_cec_bus_free_work(struct vivid_dev *dev);
 
-/* notify events */
-#define ADV7511_MONITOR_DETECT 0
-#define ADV7511_EDID_DETECT 1
+#else
 
-
-struct adv7511_monitor_detect {
-	int present;
-};
-
-struct adv7511_edid_detect {
-	int present;
-	int segment;
-	uint16_t phys_addr;
-};
-
-struct adv7511_platform_data {
-	u8 i2c_edid;
-	u8 i2c_cec;
-	u8 i2c_pktmem;
-	u32 cec_clk;
-};
+static inline void vivid_cec_bus_free_work(struct vivid_dev *dev)
+{
+}
 
 #endif
