@@ -360,6 +360,7 @@ int sctp_chunk_abandoned(struct sctp_chunk *chunk)
 		chunk->asoc->abandoned_sent[SCTP_PR_INDEX(RTX)]++;
 		return 1;
 	}
+	/* PRIO policy is processed by sendmsg, not here */
 
 	return 0;
 }
