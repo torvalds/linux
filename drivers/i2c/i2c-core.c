@@ -27,6 +27,8 @@
    I2C slave support (c) 2014 by Wolfram Sang <wsa@sang-engineering.com>
  */
 
+#define pr_fmt(fmt) "i2c-core: " fmt
+
 #include <dt-bindings/i2c/i2c.h>
 #include <asm/uaccess.h>
 #include <linux/acpi.h>
@@ -1609,7 +1611,7 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 		goto out_list;
 
 	if (!adap->algo) {
-		pr_err("i2c-core: adapter '%s': no algo supplied!\n", adap->name);
+		pr_err("adapter '%s': no algo supplied!\n", adap->name);
 		goto out_list;
 	}
 
@@ -1633,8 +1635,7 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 	adap->dev.type = &i2c_adapter_type;
 	res = device_register(&adap->dev);
 	if (res) {
-		pr_err("i2c-core: adapter '%s': can't register device (%d)\n",
-			adap->name, res);
+		pr_err("adapter '%s': can't register device (%d)\n", adap->name, res);
 		goto out_list;
 	}
 
@@ -1825,8 +1826,7 @@ void i2c_del_adapter(struct i2c_adapter *adap)
 	found = idr_find(&i2c_adapter_idr, adap->nr);
 	mutex_unlock(&core_lock);
 	if (found != adap) {
-		pr_debug("i2c-core: attempting to delete unregistered "
-			 "adapter [%s]\n", adap->name);
+		pr_debug("attempting to delete unregistered adapter [%s]\n", adap->name);
 		return;
 	}
 
@@ -1986,7 +1986,7 @@ int i2c_register_driver(struct module *owner, struct i2c_driver *driver)
 	if (res)
 		return res;
 
-	pr_debug("i2c-core: driver [%s] registered\n", driver->driver.name);
+	pr_debug("driver [%s] registered\n", driver->driver.name);
 
 	INIT_LIST_HEAD(&driver->clients);
 	/* Walk the adapters that are already present */
@@ -2013,7 +2013,7 @@ void i2c_del_driver(struct i2c_driver *driver)
 	i2c_for_each_dev(driver, __process_removed_driver);
 
 	driver_unregister(&driver->driver);
-	pr_debug("i2c-core: driver [%s] unregistered\n", driver->driver.name);
+	pr_debug("driver [%s] unregistered\n", driver->driver.name);
 }
 EXPORT_SYMBOL(i2c_del_driver);
 
@@ -2722,7 +2722,7 @@ static int i2c_smbus_check_pec(u8 cpec, struct i2c_msg *msg)
 	cpec = i2c_smbus_msg_pec(cpec, msg);
 
 	if (rpec != cpec) {
-		pr_debug("i2c-core: Bad PEC 0x%02x vs. 0x%02x\n",
+		pr_debug("Bad PEC 0x%02x vs. 0x%02x\n",
 			rpec, cpec);
 		return -EBADMSG;
 	}
