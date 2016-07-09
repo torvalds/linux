@@ -19,10 +19,10 @@ Remote Controllers
     :maxdepth: 1
     :numbered:
 
-    Remote_controllers_Intro
-    remote_controllers_sysfs_nodes
-    Remote_controllers_tables
-    Remote_controllers_table_change
+    rc-intro
+    rc-sysfs-nodes
+    rc-tables
+    rc-table-change
     lirc_device_interface
 
 
