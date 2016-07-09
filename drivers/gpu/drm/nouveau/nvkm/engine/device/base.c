@@ -2189,6 +2189,7 @@ nv134_chipset = {
 	.bus = gf100_bus_new,
 	.devinit = gm200_devinit_new,
 	.fb = gp104_fb_new,
+	.fuse = gm107_fuse_new,
 	.imem = nv50_instmem_new,
 	.mc = gp100_mc_new,
 	.mmu = gf100_mmu_new,
