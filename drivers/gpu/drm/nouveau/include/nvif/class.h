@@ -108,6 +108,8 @@
 #define MAXWELL_A                                     /* cl9097.h */ 0x0000b097
 #define MAXWELL_B                                     /* cl9097.h */ 0x0000b197
 
+#define PASCAL_A                                      /* cl9097.h */ 0x0000c097
+
 #define NV74_BSP                                                     0x000074b0
 
 #define GT212_MSVLD                                                  0x000085b1
@@ -141,6 +143,7 @@
 #define KEPLER_COMPUTE_B                                             0x0000a1c0
 #define MAXWELL_COMPUTE_A                                            0x0000b0c0
 #define MAXWELL_COMPUTE_B                                            0x0000b1c0
+#define PASCAL_COMPUTE_A                                             0x0000c0c0
 
 #define NV74_CIPHER                                                  0x000074c1
 #endif

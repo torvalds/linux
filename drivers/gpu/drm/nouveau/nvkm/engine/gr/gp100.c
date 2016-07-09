@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Red Hat Inc.
+ * Copyright 2016 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,45 +24,24 @@
 #include "gf100.h"
 #include "ctxgf100.h"
 
-#include <subdev/secboot.h>
-
 #include <nvif/class.h>
 
 /*******************************************************************************
  * PGRAPH engine/subdev functions
  ******************************************************************************/
 
-int
-gm200_gr_rops(struct gf100_gr *gr)
-{
-	return nvkm_rd32(gr->base.engine.subdev.device, 0x12006c);
-}
-
-void
-gm200_gr_init_gpc_mmu(struct gf100_gr *gr)
-{
-	struct nvkm_device *device = gr->base.engine.subdev.device;
-
-	nvkm_wr32(device, 0x418880, nvkm_rd32(device, 0x100c80) & 0xf0001fff);
-	nvkm_wr32(device, 0x418890, 0x00000000);
-	nvkm_wr32(device, 0x418894, 0x00000000);
-
-	nvkm_wr32(device, 0x4188b4, nvkm_rd32(device, 0x100cc8));
-	nvkm_wr32(device, 0x4188b8, nvkm_rd32(device, 0x100ccc));
-	nvkm_wr32(device, 0x4188b0, nvkm_rd32(device, 0x100cc4));
-}
-
 static void
-gm200_gr_init_rop_active_fbps(struct gf100_gr *gr)
+gp100_gr_init_rop_active_fbps(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
-	const u32 fbp_count = nvkm_rd32(device, 0x12006c);
+	/*XXX: otherwise identical to gm200 aside from mask.. do everywhere? */
+	const u32 fbp_count = nvkm_rd32(device, 0x12006c) & 0x0000000f;
 	nvkm_mask(device, 0x408850, 0x0000000f, fbp_count); /* zrop */
 	nvkm_mask(device, 0x408958, 0x0000000f, fbp_count); /* crop */
 }
 
-int
-gm200_gr_init(struct gf100_gr *gr)
+static int
+gp100_gr_init(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	const u32 magicgpc918 = DIV_ROUND_UP(0x00800000, gr->tpc_total);
@@ -74,8 +53,6 @@ gm200_gr_init(struct gf100_gr *gr)
 	gr->func->init_gpc_mmu(gr);
 
 	gf100_gr_mmio(gr, gr->fuc_sw_nonctx);
-
-	gm107_gr_init_bios(gr);
 
 	nvkm_wr32(device, GPC_UNIT(0, 0x3018), 0x00000001);
 
@@ -113,9 +90,9 @@ gm200_gr_init(struct gf100_gr *gr)
 	nvkm_wr32(device, 0x400100, 0xffffffff);
 	nvkm_wr32(device, 0x40013c, 0xffffffff);
 	nvkm_wr32(device, 0x400124, 0x00000002);
-	nvkm_wr32(device, 0x409c24, 0x000e0000);
+	nvkm_wr32(device, 0x409c24, 0x000f0002);
 	nvkm_wr32(device, 0x405848, 0xc0000000);
-	nvkm_wr32(device, 0x40584c, 0x00000001);
+	nvkm_mask(device, 0x40584c, 0x00000000, 0x00000001);
 	nvkm_wr32(device, 0x404000, 0xc0000000);
 	nvkm_wr32(device, 0x404600, 0xc0000000);
 	nvkm_wr32(device, 0x408030, 0xc0000000);
@@ -125,6 +102,9 @@ gm200_gr_init(struct gf100_gr *gr)
 	nvkm_wr32(device, 0x405840, 0xc0000000);
 	nvkm_wr32(device, 0x405844, 0x00ffffff);
 	nvkm_mask(device, 0x419cc0, 0x00000008, 0x00000008);
+
+	nvkm_mask(device, 0x419c9c, 0x00010000, 0x00010000);
+	nvkm_mask(device, 0x419c9c, 0x00020000, 0x00020000);
 
 	gr->func->init_ppc_exceptions(gr);
 
@@ -141,7 +121,7 @@ gm200_gr_init(struct gf100_gr *gr)
 			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x084), 0xc0000000);
 			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x430), 0xc0000000);
 			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x644), 0x00dffffe);
-			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x64c), 0x00000005);
+			nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x64c), 0x00000105);
 		}
 		nvkm_wr32(device, GPC_UNIT(gpc, 0x2c90), 0xffffffff);
 		nvkm_wr32(device, GPC_UNIT(gpc, 0x2c94), 0xffffffff);
@@ -161,71 +141,31 @@ gm200_gr_init(struct gf100_gr *gr)
 	nvkm_wr32(device, 0x40011c, 0xffffffff);
 	nvkm_wr32(device, 0x400134, 0xffffffff);
 
-	nvkm_wr32(device, 0x400054, 0x2c350f63);
-
 	gf100_gr_zbc_init(gr);
 
 	return gf100_gr_init_ctxctl(gr);
 }
 
-int
-gm200_gr_new_(const struct gf100_gr_func *func, struct nvkm_device *device,
-	      int index, struct nvkm_gr **pgr)
-{
-	struct gf100_gr *gr;
-	int ret;
-
-	if (!(gr = kzalloc(sizeof(*gr), GFP_KERNEL)))
-		return -ENOMEM;
-	*pgr = &gr->base;
-
-	ret = gf100_gr_ctor(func, device, index, gr);
-	if (ret)
-		return ret;
-
-	/* Load firmwares for non-secure falcons */
-	if (!nvkm_secboot_is_managed(device->secboot,
-				     NVKM_SECBOOT_FALCON_FECS)) {
-		if ((ret = gf100_gr_ctor_fw(gr, "gr/fecs_inst", &gr->fuc409c)) ||
-		    (ret = gf100_gr_ctor_fw(gr, "gr/fecs_data", &gr->fuc409d)))
-			return ret;
-	}
-	if (!nvkm_secboot_is_managed(device->secboot,
-				     NVKM_SECBOOT_FALCON_GPCCS)) {
-		if ((ret = gf100_gr_ctor_fw(gr, "gr/gpccs_inst", &gr->fuc41ac)) ||
-		    (ret = gf100_gr_ctor_fw(gr, "gr/gpccs_data", &gr->fuc41ad)))
-			return ret;
-	}
-
-	if ((ret = gk20a_gr_av_to_init(gr, "gr/sw_nonctx", &gr->fuc_sw_nonctx)) ||
-	    (ret = gk20a_gr_aiv_to_init(gr, "gr/sw_ctx", &gr->fuc_sw_ctx)) ||
-	    (ret = gk20a_gr_av_to_init(gr, "gr/sw_bundle_init", &gr->fuc_bundle)) ||
-	    (ret = gk20a_gr_av_to_method(gr, "gr/sw_method_init", &gr->fuc_method)))
-		return ret;
-
-	return 0;
-}
-
 static const struct gf100_gr_func
-gm200_gr = {
-	.init = gm200_gr_init,
+gp100_gr = {
+	.init = gp100_gr_init,
 	.init_gpc_mmu = gm200_gr_init_gpc_mmu,
-	.init_rop_active_fbps = gm200_gr_init_rop_active_fbps,
+	.init_rop_active_fbps = gp100_gr_init_rop_active_fbps,
 	.init_ppc_exceptions = gk104_gr_init_ppc_exceptions,
 	.rops = gm200_gr_rops,
 	.ppc_nr = 2,
-	.grctx = &gm200_grctx,
+	.grctx = &gp100_grctx,
 	.sclass = {
 		{ -1, -1, FERMI_TWOD_A },
 		{ -1, -1, KEPLER_INLINE_TO_MEMORY_B },
-		{ -1, -1, MAXWELL_B, &gf100_fermi },
-		{ -1, -1, MAXWELL_COMPUTE_B },
+		{ -1, -1, PASCAL_A, &gf100_fermi },
+		{ -1, -1, PASCAL_COMPUTE_A },
 		{}
 	}
 };
 
 int
-gm200_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
+gp100_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
 {
-	return gm200_gr_new_(&gm200_gr, device, index, pgr);
+	return gm200_gr_new_(&gp100_gr, device, index, pgr);
 }
