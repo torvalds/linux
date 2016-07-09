@@ -754,7 +754,7 @@ int main(void)
 	DEFINE(PPC_DBELL_SERVER, PPC_DBELL_SERVER);
 
 #ifdef CONFIG_PPC_8xx
-	DEFINE(VIRT_IMMR_BASE, __fix_to_virt(FIX_IMMR_BASE));
+	DEFINE(VIRT_IMMR_BASE, (u64)__fix_to_virt(FIX_IMMR_BASE));
 #endif
 
 	return 0;
