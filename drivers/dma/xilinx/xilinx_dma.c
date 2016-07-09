@@ -1895,14 +1895,15 @@ static struct dma_async_tx_descriptor *xilinx_dma_prep_dma_cyclic(
 	reg |= XILINX_DMA_CR_CYCLIC_BD_EN_MASK;
 	dma_ctrl_write(chan, XILINX_DMA_REG_DMACR, reg);
 
+	segment = list_last_entry(&desc->segments,
+				  struct xilinx_axidma_tx_segment,
+				  node);
+	segment->hw.next_desc = (u32) head_segment->phys;
+
 	/* For the last DMA_MEM_TO_DEV transfer, set EOP */
 	if (direction == DMA_MEM_TO_DEV) {
 		head_segment->hw.control |= XILINX_DMA_BD_SOP;
-		segment = list_last_entry(&desc->segments,
-					  struct xilinx_axidma_tx_segment,
-					  node);
 		segment->hw.control |= XILINX_DMA_BD_EOP;
-		segment->hw.next_desc = (u32) head_segment->phys;
 	}
 
 	return &desc->async_tx;
