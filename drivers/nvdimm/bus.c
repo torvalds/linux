@@ -136,6 +136,21 @@ static int nvdimm_bus_remove(struct device *dev)
 	return rc;
 }
 
+static void nvdimm_bus_shutdown(struct device *dev)
+{
+	struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(dev);
+	struct nd_device_driver *nd_drv = NULL;
+
+	if (dev->driver)
+		nd_drv = to_nd_device_driver(dev->driver);
+
+	if (nd_drv && nd_drv->shutdown) {
+		nd_drv->shutdown(dev);
+		dev_dbg(&nvdimm_bus->dev, "%s.shutdown(%s)\n",
+				dev->driver->name, dev_name(dev));
+	}
+}
+
 void nd_device_notify(struct device *dev, enum nvdimm_event event)
 {
 	device_lock(dev);
@@ -214,6 +229,7 @@ static struct bus_type nvdimm_bus_type = {
 	.match = nvdimm_bus_match,
 	.probe = nvdimm_bus_probe,
 	.remove = nvdimm_bus_remove,
+	.shutdown = nvdimm_bus_shutdown,
 };
 
 static ASYNC_DOMAIN_EXCLUSIVE(nd_async_domain);
