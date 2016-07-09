@@ -355,6 +355,10 @@ int sctp_chunk_abandoned(struct sctp_chunk *chunk)
 		else
 			chunk->asoc->abandoned_unsent[SCTP_PR_INDEX(TTL)]++;
 		return 1;
+	} else if (SCTP_PR_RTX_ENABLED(chunk->sinfo.sinfo_flags) &&
+		   chunk->sent_count > chunk->prsctp_param) {
+		chunk->asoc->abandoned_sent[SCTP_PR_INDEX(RTX)]++;
+		return 1;
 	}
 
 	return 0;

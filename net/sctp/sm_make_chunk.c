@@ -720,6 +720,8 @@ static void sctp_set_prsctp_policy(struct sctp_chunk *chunk,
 	if (SCTP_PR_TTL_ENABLED(sinfo->sinfo_flags))
 		chunk->prsctp_param =
 			jiffies + msecs_to_jiffies(sinfo->sinfo_timetolive);
+	else if (SCTP_PR_RTX_ENABLED(sinfo->sinfo_flags))
+		chunk->prsctp_param = sinfo->sinfo_timetolive;
 }
 
 /* Make a DATA chunk for the given association from the provided
