@@ -2151,6 +2151,7 @@ nv12b_chipset = {
 static const struct nvkm_device_chip
 nv130_chipset = {
 	.name = "GP100",
+	.top = gk104_top_new,
 };
 
 static int
