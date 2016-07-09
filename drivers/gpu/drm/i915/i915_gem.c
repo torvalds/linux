@@ -3281,10 +3281,12 @@ i915_gem_retire_work_handler(struct work_struct *work)
 	 * We do not need to do this test under locking as in the worst-case
 	 * we queue the retire worker once too often.
 	 */
-	if (READ_ONCE(dev_priv->gt.awake))
+	if (READ_ONCE(dev_priv->gt.awake)) {
+		i915_queue_hangcheck(dev_priv);
 		queue_delayed_work(dev_priv->wq,
 				   &dev_priv->gt.retire_work,
 				   round_jiffies_up_relative(HZ));
+	}
 }
 
 static void
