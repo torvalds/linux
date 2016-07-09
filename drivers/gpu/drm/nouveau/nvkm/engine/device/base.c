@@ -2184,6 +2184,7 @@ nv130_chipset = {
 static const struct nvkm_device_chip
 nv134_chipset = {
 	.name = "GP104",
+	.bar = gf100_bar_new,
 	.bios = nvkm_bios_new,
 	.devinit = gm200_devinit_new,
 	.fb = gp104_fb_new,
