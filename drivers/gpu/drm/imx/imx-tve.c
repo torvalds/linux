@@ -589,8 +589,8 @@ static int imx_tve_bind(struct device *dev, struct device *master, void *data)
 			return ret;
 		}
 
-		ret |= of_property_read_u32(np, "fsl,vsync-pin",
-					    &tve->di_vsync_pin);
+		ret = of_property_read_u32(np, "fsl,vsync-pin",
+					   &tve->di_vsync_pin);
 
 		if (ret < 0) {
 			dev_err(dev, "failed to get vsync pin\n");
