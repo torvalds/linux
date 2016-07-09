@@ -2164,6 +2164,7 @@ nv130_chipset = {
 	.ltc = gp100_ltc_new,
 	.mc = gp100_mc_new,
 	.mmu = gf100_mmu_new,
+	.secboot = gm200_secboot_new,
 	.pci = gp100_pci_new,
 	.timer = gk20a_timer_new,
 	.top = gk104_top_new,
