@@ -2200,6 +2200,7 @@ nv134_chipset = {
 	.pci = gp100_pci_new,
 	.timer = gk20a_timer_new,
 	.top = gk104_top_new,
+	.dma = gf119_dma_new,
 };
 
 static int
