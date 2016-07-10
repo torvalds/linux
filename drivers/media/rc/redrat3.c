@@ -475,6 +475,37 @@ static u32 redrat3_get_timeout(struct redrat3_dev *rr3)
 	return timeout;
 }
 
+static int redrat3_set_timeout(struct rc_dev *rc_dev, unsigned int timeoutns)
+{
+	struct redrat3_dev *rr3 = rc_dev->priv;
+	struct usb_device *udev = rr3->udev;
+	struct device *dev = rr3->dev;
+	u32 *timeout;
+	int ret;
+
+	timeout = kmalloc(sizeof(*timeout), GFP_KERNEL);
+	if (!timeout)
+		return -ENOMEM;
+
+	*timeout = cpu_to_be32(redrat3_us_to_len(timeoutns / 1000));
+	ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0), RR3_SET_IR_PARAM,
+		     USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
+		     RR3_IR_IO_SIG_TIMEOUT, 0, timeout, sizeof(*timeout),
+		     HZ * 25);
+	dev_dbg(dev, "set ir parm timeout %d ret 0x%02x\n",
+						be32_to_cpu(*timeout), ret);
+
+	if (ret == sizeof(*timeout)) {
+		rr3->hw_timeout = timeoutns / 1000;
+		ret = 0;
+	} else if (ret >= 0)
+		ret = -EIO;
+
+	kfree(timeout);
+
+	return ret;
+}
+
 static void redrat3_reset(struct redrat3_dev *rr3)
 {
 	struct usb_device *udev = rr3->udev;
@@ -856,7 +887,10 @@ static struct rc_dev *redrat3_init_rc_dev(struct redrat3_dev *rr3)
 	rc->priv = rr3;
 	rc->driver_type = RC_DRIVER_IR_RAW;
 	rc->allowed_protocols = RC_BIT_ALL;
+	rc->min_timeout = MS_TO_NS(RR3_RX_MIN_TIMEOUT);
+	rc->max_timeout = MS_TO_NS(RR3_RX_MAX_TIMEOUT);
 	rc->timeout = US_TO_NS(rr3->hw_timeout);
+	rc->s_timeout = redrat3_set_timeout;
 	rc->tx_ir = redrat3_transmit_ir;
 	rc->s_tx_carrier = redrat3_set_tx_carrier;
 	rc->driver_name = DRIVER_NAME;

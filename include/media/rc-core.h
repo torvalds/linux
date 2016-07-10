@@ -119,6 +119,7 @@ enum rc_filter_type {
  * @s_carrier_report: enable carrier reports
  * @s_filter: set the scancode filter
  * @s_wakeup_filter: set the wakeup scancode filter
+ * @s_timeout: set hardware timeout in ns
  */
 struct rc_dev {
 	struct device			dev;
@@ -174,6 +175,8 @@ struct rc_dev {
 						    struct rc_scancode_filter *filter);
 	int				(*s_wakeup_filter)(struct rc_dev *dev,
 							   struct rc_scancode_filter *filter);
+	int				(*s_timeout)(struct rc_dev *dev,
+						     unsigned int timeout);
 };
 
 #define to_rc_dev(d) container_of(d, struct rc_dev, dev)
