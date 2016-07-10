@@ -1104,7 +1104,7 @@ static void cec_claim_log_addrs(struct cec_adapter *adap, bool block)
  */
 void __cec_s_phys_addr(struct cec_adapter *adap, u16 phys_addr, bool block)
 {
-	if (phys_addr == adap->phys_addr)
+	if (phys_addr == adap->phys_addr || adap->devnode.unregistered)
 		return;
 
 	if (phys_addr == CEC_PHYS_ADDR_INVALID ||
@@ -1157,6 +1157,9 @@ int __cec_s_log_addrs(struct cec_adapter *adap,
 {
 	u16 type_mask = 0;
 	int i;
+
+	if (adap->devnode.unregistered)
+		return -ENODEV;
 
 	if (!log_addrs || log_addrs->num_log_addrs == 0) {
 		adap->log_addrs.num_log_addrs = 0;
