@@ -99,17 +99,9 @@ config EXT4_FS_SECURITY
 	  extended attributes for file security labels, say N.
 
 config EXT4_ENCRYPTION
-	tristate "Ext4 Encryption"
+	bool "Ext4 Encryption"
 	depends on EXT4_FS
-	select CRYPTO_AES
-	select CRYPTO_CBC
-	select CRYPTO_ECB
-	select CRYPTO_XTS
-	select CRYPTO_CTS
-	select CRYPTO_CTR
-	select CRYPTO_SHA256
-	select KEYS
-	select ENCRYPTED_KEYS
+	select FS_ENCRYPTION
 	help
 	  Enable encryption of ext4 files and directories.  This
 	  feature is similar to ecryptfs, but it is more memory

@@ -770,19 +770,13 @@ resizefs_out:
 		return ext4_ext_precache(inode);
 	case EXT4_IOC_SET_ENCRYPTION_POLICY: {
 #ifdef CONFIG_EXT4_FS_ENCRYPTION
-		struct ext4_encryption_policy policy;
-		int err = 0;
+		struct fscrypt_policy policy;
 
 		if (copy_from_user(&policy,
-				   (struct ext4_encryption_policy __user *)arg,
-				   sizeof(policy))) {
-			err = -EFAULT;
-			goto encryption_policy_out;
-		}
-
-		err = ext4_process_policy(&policy, inode);
-encryption_policy_out:
-		return err;
+				   (struct fscrypt_policy __user *)arg,
+				   sizeof(policy)))
+			return -EFAULT;
+		return fscrypt_process_policy(inode, &policy);
 #else
 		return -EOPNOTSUPP;
 #endif
@@ -825,12 +819,12 @@ encryption_policy_out:
 	}
 	case EXT4_IOC_GET_ENCRYPTION_POLICY: {
 #ifdef CONFIG_EXT4_FS_ENCRYPTION
-		struct ext4_encryption_policy policy;
+		struct fscrypt_policy policy;
 		int err = 0;
 
 		if (!ext4_encrypted_inode(inode))
 			return -ENOENT;
-		err = ext4_get_policy(inode, &policy);
+		err = fscrypt_get_policy(inode, &policy);
 		if (err)
 			return err;
 		if (copy_to_user((void __user *)arg, &policy, sizeof(policy)))
