@@ -29,6 +29,8 @@ source "drivers/staging/media/davinci_vpfe/Kconfig"
 
 source "drivers/staging/media/omap4iss/Kconfig"
 
+source "drivers/staging/media/pulse8-cec/Kconfig"
+
 source "drivers/staging/media/tw686x-kh/Kconfig"
 
 source "drivers/staging/media/s5p-cec/Kconfig"
