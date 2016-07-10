@@ -59,6 +59,7 @@ I/O control requests
     corresponding ioctls is undefined.
 
 .. _LIRC_GET_SEND_MODE:
+.. _lirc-mode-pulse:
 
 ``LIRC_GET_SEND_MODE``
 
@@ -66,6 +67,8 @@ I/O control requests
     lircd.
 
 .. _LIRC_GET_REC_MODE:
+.. _lirc-mode-mode2:
+.. _lirc-mode-lirccode:
 
 ``LIRC_GET_REC_MODE``
 
@@ -120,8 +123,8 @@ I/O control requests
     cannot be changed.
 
 .. _LIRC_GET_MIN_FILTER_PULSE:
-.. _LIRC_GET_MIN_FILTER_PULSE:
-.. _LIRC_GET_MAX_FILTER_SPACE:
+.. _LIRC_GET_MAX_FILTER_PULSE:
+.. _LIRC_GET_MIN_FILTER_SPACE:
 .. _LIRC_GET_MAX_FILTER_SPACE:
 
 ``LIRC_GET_M{IN,AX}_FILTER_{PULSE,SPACE}``
@@ -186,6 +189,7 @@ I/O control requests
 
 .. _LIRC_SET_REC_FILTER_PULSE:
 .. _LIRC_SET_REC_FILTER_SPACE:
+.. _LIRC_SET_REC_FILTER:
 
 ``LIRC_SET_REC_FILTER_{PULSE,SPACE}``
 
@@ -195,6 +199,7 @@ I/O control requests
     shall be used instead.
 
 .. _LIRC_SET_MEASURE_CARRIER_MODE:
+.. _lirc-mode2-frequency:
 
 ``LIRC_SET_MEASURE_CARRIER_MODE``
 
