@@ -1103,6 +1103,33 @@ PyMODINIT_FUNC initperf(void)
 	Py_INCREF(&pyrf_evsel__type);
 	PyModule_AddObject(module, "evsel", (PyObject*)&pyrf_evsel__type);
 
+	Py_INCREF(&pyrf_mmap_event__type);
+	PyModule_AddObject(module, "mmap_event", (PyObject *)&pyrf_mmap_event__type);
+
+	Py_INCREF(&pyrf_lost_event__type);
+	PyModule_AddObject(module, "lost_event", (PyObject *)&pyrf_lost_event__type);
+
+	Py_INCREF(&pyrf_comm_event__type);
+	PyModule_AddObject(module, "comm_event", (PyObject *)&pyrf_comm_event__type);
+
+	Py_INCREF(&pyrf_task_event__type);
+	PyModule_AddObject(module, "task_event", (PyObject *)&pyrf_task_event__type);
+
+	Py_INCREF(&pyrf_throttle_event__type);
+	PyModule_AddObject(module, "throttle_event", (PyObject *)&pyrf_throttle_event__type);
+
+	Py_INCREF(&pyrf_task_event__type);
+	PyModule_AddObject(module, "task_event", (PyObject *)&pyrf_task_event__type);
+
+	Py_INCREF(&pyrf_read_event__type);
+	PyModule_AddObject(module, "read_event", (PyObject *)&pyrf_read_event__type);
+
+	Py_INCREF(&pyrf_sample_event__type);
+	PyModule_AddObject(module, "sample_event", (PyObject *)&pyrf_sample_event__type);
+
+	Py_INCREF(&pyrf_context_switch_event__type);
+	PyModule_AddObject(module, "switch_event", (PyObject *)&pyrf_context_switch_event__type);
+
 	Py_INCREF(&pyrf_thread_map__type);
 	PyModule_AddObject(module, "thread_map", (PyObject*)&pyrf_thread_map__type);
 
