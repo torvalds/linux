@@ -38,6 +38,43 @@
 
 #include "power.h"
 
+#ifdef CONFIG_DEBUG_RODATA
+static bool hibernate_restore_protection;
+static bool hibernate_restore_protection_active;
+
+void enable_restore_image_protection(void)
+{
+	hibernate_restore_protection = true;
+}
+
+static inline void hibernate_restore_protection_begin(void)
+{
+	hibernate_restore_protection_active = hibernate_restore_protection;
+}
+
+static inline void hibernate_restore_protection_end(void)
+{
+	hibernate_restore_protection_active = false;
+}
+
+static inline void hibernate_restore_protect_page(void *page_address)
+{
+	if (hibernate_restore_protection_active)
+		set_memory_ro((unsigned long)page_address, 1);
+}
+
+static inline void hibernate_restore_unprotect_page(void *page_address)
+{
+	if (hibernate_restore_protection_active)
+		set_memory_rw((unsigned long)page_address, 1);
+}
+#else
+static inline void hibernate_restore_protection_begin(void) {}
+static inline void hibernate_restore_protection_end(void) {}
+static inline void hibernate_restore_protect_page(void *page_address) {}
+static inline void hibernate_restore_unprotect_page(void *page_address) {}
+#endif /* CONFIG_DEBUG_RODATA */
+
 static int swsusp_page_is_free(struct page *);
 static void swsusp_set_page_forbidden(struct page *);
 static void swsusp_unset_page_forbidden(struct page *);
@@ -1414,6 +1451,7 @@ loop:
 
 		memory_bm_clear_current(forbidden_pages_map);
 		memory_bm_clear_current(free_pages_map);
+		hibernate_restore_unprotect_page(page_address(page));
 		__free_page(page);
 		goto loop;
 	}
@@ -1425,6 +1463,7 @@ out:
 	buffer = NULL;
 	alloc_normal = 0;
 	alloc_highmem = 0;
+	hibernate_restore_protection_end();
 }
 
 /* Helper functions used for the shrinking of memory. */
@@ -2548,6 +2587,7 @@ int snapshot_write_next(struct snapshot_handle *handle)
 		if (error)
 			return error;
 
+		hibernate_restore_protection_begin();
 	} else if (handle->cur <= nr_meta_pages + 1) {
 		error = unpack_orig_pfns(buffer, &copy_bm);
 		if (error)
@@ -2570,6 +2610,7 @@ int snapshot_write_next(struct snapshot_handle *handle)
 		copy_last_highmem_page();
 		/* Restore page key for data page (s390 only). */
 		page_key_write(handle->buffer);
+		hibernate_restore_protect_page(handle->buffer);
 		handle->buffer = get_buffer(&orig_bm, &ca);
 		if (IS_ERR(handle->buffer))
 			return PTR_ERR(handle->buffer);
@@ -2594,6 +2635,7 @@ void snapshot_write_finalize(struct snapshot_handle *handle)
 	/* Restore page key for data page (s390 only). */
 	page_key_write(handle->buffer);
 	page_key_free();
+	hibernate_restore_protect_page(handle->buffer);
 	/* Do that only if we have loaded the image entirely */
 	if (handle->cur > 1 && handle->cur > nr_meta_pages + nr_copy_pages) {
 		memory_bm_recycle(&orig_bm);
