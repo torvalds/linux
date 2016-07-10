@@ -67,6 +67,10 @@ temp1_alarm:        alarm flag is set to 1 if the temperature is outside the
                     configured limits. Alarm only works in periodic measure mode
 humidity1_alarm:    alarm flag is set to 1 if the humidity is outside the
                     configured limits. Alarm only works in periodic measure mode
+heater_enable:      heater enable, heating element removes excess humidity from
+                    sensor
+                        0: turned off
+                        1: turned on
 update_interval:    update interval, 0 for single shot, interval in msec
                     for periodic measurement. If the interval is not supported
                     by the sensor, the next faster interval is chosen
