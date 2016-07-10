@@ -208,24 +208,25 @@ static const struct net_protocol tunnelmpls4_protocol = {
 static int __init tunnel4_init(void)
 {
 	if (inet_add_protocol(&tunnel4_protocol, IPPROTO_IPIP))
-		goto err_ipip;
+		goto err;
 #if IS_ENABLED(CONFIG_IPV6)
-	if (inet_add_protocol(&tunnel64_protocol, IPPROTO_IPV6))
-		goto err_ipv6;
+	if (inet_add_protocol(&tunnel64_protocol, IPPROTO_IPV6)) {
+		inet_del_protocol(&tunnel4_protocol, IPPROTO_IPIP);
+		goto err;
+	}
 #endif
 #if IS_ENABLED(CONFIG_MPLS)
-	if (inet_add_protocol(&tunnelmpls4_protocol, IPPROTO_MPLS))
-		goto err_mpls;
+	if (inet_add_protocol(&tunnelmpls4_protocol, IPPROTO_MPLS)) {
+		inet_del_protocol(&tunnel4_protocol, IPPROTO_IPIP);
+#if IS_ENABLED(CONFIG_IPV6)
+		inet_del_protocol(&tunnel64_protocol, IPPROTO_IPV6);
+#endif
+		goto err;
+	}
 #endif
 	return 0;
 
-#if IS_ENABLED(CONFIG_IPV6)
-err_mpls:
-	inet_del_protocol(&tunnel4_protocol, IPPROTO_IPV6);
-#endif
-err_ipv6:
-	inet_del_protocol(&tunnel4_protocol, IPPROTO_IPIP);
-err_ipip:
+err:
 	pr_err("%s: can't add protocol\n", __func__);
 	return -EAGAIN;
 }
