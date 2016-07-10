@@ -139,21 +139,21 @@ void nfsd4_setup_layout_type(struct svc_export *exp)
 	 * otherwise advertise the block layout.
 	 */
 #ifdef CONFIG_NFSD_FLEXFILELAYOUT
-	exp->ex_layout_type = LAYOUT_FLEX_FILES;
+	exp->ex_layout_types |= 1 << LAYOUT_FLEX_FILES;
 #endif
 #ifdef CONFIG_NFSD_BLOCKLAYOUT
 	/* overwrite flex file layout selection if needed */
 	if (sb->s_export_op->get_uuid &&
 	    sb->s_export_op->map_blocks &&
 	    sb->s_export_op->commit_blocks)
-		exp->ex_layout_type = LAYOUT_BLOCK_VOLUME;
+		exp->ex_layout_types |= 1 << LAYOUT_BLOCK_VOLUME;
 #endif
 #ifdef CONFIG_NFSD_SCSILAYOUT
 	/* overwrite block layout selection if needed */
 	if (sb->s_export_op->map_blocks &&
 	    sb->s_export_op->commit_blocks &&
 	    sb->s_bdev && sb->s_bdev->bd_disk->fops->pr_ops)
-		exp->ex_layout_type = LAYOUT_SCSI;
+		exp->ex_layout_types |= 1 << LAYOUT_SCSI;
 #endif
 }
 
