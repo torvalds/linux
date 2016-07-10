@@ -127,12 +127,14 @@ of the corresponding tuner/modulator is set.
        -  ``modulation``
 
        -  :cspan:`2` The supported modulation systems of this frequency
-	  band. See :ref:`band-modulation`. Note that currently only one
-	  modulation system per frequency band is supported. More work will
-	  need to be done if multiple modulation systems are possible.
-	  Contact the linux-media mailing list
-	  (`https://linuxtv.org/lists.php <https://linuxtv.org/lists.php>`__)
-	  if you need that functionality.
+	  band. See :ref:`band-modulation`.
+
+	  .. note:: Currently only one modulation system per frequency band
+	     is supported. More work will need to be done if multiple
+	     modulation systems are possible. Contact the linux-media
+	     mailing list
+	     (`https://linuxtv.org/lists.php <https://linuxtv.org/lists.php>`__)
+	     if you need such functionality.
 
     -  .. row 8
 

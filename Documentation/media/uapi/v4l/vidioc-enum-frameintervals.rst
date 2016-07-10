@@ -73,24 +73,20 @@ the device supports. Only for the ``V4L2_FRMIVAL_TYPE_DISCRETE`` type
 does it make sense to increase the index value to receive more frame
 intervals.
 
-Note that the order in which the frame intervals are returned has no
-special meaning. In particular does it not say anything about potential
-default frame intervals.
+.. note:: The order in which the frame intervals are returned has no
+   special meaning. In particular does it not say anything about potential
+   default frame intervals.
 
 Applications can assume that the enumeration data does not change
 without any interaction from the application itself. This means that the
 enumeration data is consistent if the application does not perform any
 other ioctl calls while it runs the frame interval enumeration.
 
+.. note::
 
-Notes
-=====
-
--  **Frame intervals and frame rates:** The V4L2 API uses frame
+   **Frame intervals and frame rates:** The V4L2 API uses frame
    intervals instead of frame rates. Given the frame interval the frame
    rate can be computed as follows:
-
-
 
    ::
 

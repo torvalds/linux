@@ -19,8 +19,10 @@ both sides and finally call :ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>`
 for both capture and output to start the codec.
 
 Video compression codecs use the MPEG controls to setup their codec
-parameters (note that the MPEG controls actually support many more
-codecs than just MPEG). See :ref:`mpeg-controls`.
+parameters
+
+.. note:: The MPEG controls actually support many more codecs than
+   just MPEG. See :ref:`mpeg-controls`.
 
 Memory-to-memory devices can often be used as a shared resource: you can
 open the video node multiple times, each application setting up their

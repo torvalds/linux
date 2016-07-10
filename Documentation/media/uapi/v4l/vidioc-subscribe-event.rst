@@ -51,9 +51,11 @@ using the :ref:`VIDIOC_DQEVENT` ioctl.
 
        -  ``type``
 
-       -  Type of the event, see :ref:`event-type`. Note that
-	  ``V4L2_EVENT_ALL`` can be used with VIDIOC_UNSUBSCRIBE_EVENT for
-	  unsubscribing all events at once.
+       -  Type of the event, see :ref:`event-type`.
+
+	  .. note:: ``V4L2_EVENT_ALL`` can be used with
+	     :ref:`VIDIOC_UNSUBSCRIBE_EVENT` for unsubscribing all events
+	     at once.
 
     -  .. row 2
 

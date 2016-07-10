@@ -82,10 +82,12 @@ fills the rest of the structure or returns an ``EINVAL`` error code when the
 ``id`` or ``index`` is invalid. Menu items are enumerated by calling
 ``VIDIOC_QUERYMENU`` with successive ``index`` values from struct
 :ref:`v4l2_queryctrl <v4l2-queryctrl>` ``minimum`` to ``maximum``,
-inclusive. Note that it is possible for ``VIDIOC_QUERYMENU`` to return
-an ``EINVAL`` error code for some indices between ``minimum`` and
-``maximum``. In that case that particular menu item is not supported by
-this driver. Also note that the ``minimum`` value is not necessarily 0.
+inclusive.
+
+.. note:: It is possible for ``VIDIOC_QUERYMENU`` to return
+   an ``EINVAL`` error code for some indices between ``minimum`` and
+   ``maximum``. In that case that particular menu item is not supported by
+   this driver. Also note that the ``minimum`` value is not necessarily 0.
 
 See also the examples in :ref:`control`.
 
@@ -184,9 +186,10 @@ See also the examples in :ref:`control`.
 
        -  The default value of a ``V4L2_CTRL_TYPE_INTEGER``, ``_BOOLEAN``,
 	  ``_BITMASK``, ``_MENU`` or ``_INTEGER_MENU`` control. Not valid
-	  for other types of controls. Note that drivers reset controls to
-	  their default value only when the driver is first loaded, never
-	  afterwards.
+	  for other types of controls.
+
+	  .. note:: Drivers reset controls to their default value only when
+	     the driver is first loaded, never afterwards.
 
     -  .. row 8
 
@@ -301,9 +304,10 @@ See also the examples in :ref:`control`.
 
        -  The default value of a ``V4L2_CTRL_TYPE_INTEGER``, ``_INTEGER64``,
 	  ``_BOOLEAN``, ``_BITMASK``, ``_MENU``, ``_INTEGER_MENU``, ``_U8``
-	  or ``_U16`` control. Not valid for other types of controls. Note
-	  that drivers reset controls to their default value only when the
-	  driver is first loaded, never afterwards.
+	  or ``_U16`` control. Not valid for other types of controls.
+
+	  .. note:: Drivers reset controls to their default value only when
+	     the driver is first loaded, never afterwards.
 
     -  .. row 8
 
@@ -722,11 +726,12 @@ See also the examples in :ref:`control`.
 	  control changes continuously. A typical example would be the
 	  current gain value if the device is in auto-gain mode. In such a
 	  case the hardware calculates the gain value based on the lighting
-	  conditions which can change over time. Note that setting a new
-	  value for a volatile control will have no effect and no
-	  ``V4L2_EVENT_CTRL_CH_VALUE`` will be sent, unless the
-	  ``V4L2_CTRL_FLAG_EXECUTE_ON_WRITE`` flag (see below) is also set.
-	  Otherwise the new value will just be ignored.
+	  conditions which can change over time.
+
+	  .. note:: Setting a new value for a volatile control will have no
+	     effect and no ``V4L2_EVENT_CTRL_CH_VALUE`` will be sent, unless
+	     the ``V4L2_CTRL_FLAG_EXECUTE_ON_WRITE`` flag (see below) is
+	     also set. Otherwise the new value will just be ignored.
 
     -  .. row 9
 

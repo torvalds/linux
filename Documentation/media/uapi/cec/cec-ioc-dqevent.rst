@@ -32,8 +32,8 @@ Arguments
 Description
 ===========
 
-Note: this documents the proposed CEC API. This API is not yet finalized
-and is currently only available as a staging kernel module.
+.. note:: This documents the proposed CEC API. This API is not yet finalized
+   and is currently only available as a staging kernel module.
 
 CEC devices can send asynchronous events. These can be retrieved by
 calling the :ref:`CEC_DQEVENT` ioctl. If the file descriptor is in
@@ -91,14 +91,14 @@ state did change in between the two events.
        -  ``lost_msgs``
 
        -  Set to the number of lost messages since the filehandle was opened
-          or since the last time this event was dequeued for this
-          filehandle. The messages lost are the oldest messages. So when a
-          new message arrives and there is no more room, then the oldest
-          message is discarded to make room for the new one. The internal
-          size of the message queue guarantees that all messages received in
-          the last two seconds will be stored. Since messages should be
-          replied to within a second according to the CEC specification,
-          this is more than enough.
+	  or since the last time this event was dequeued for this
+	  filehandle. The messages lost are the oldest messages. So when a
+	  new message arrives and there is no more room, then the oldest
+	  message is discarded to make room for the new one. The internal
+	  size of the message queue guarantees that all messages received in
+	  the last two seconds will be stored. Since messages should be
+	  replied to within a second according to the CEC specification,
+	  this is more than enough.
 
 
 
@@ -157,7 +157,7 @@ state did change in between the two events.
        -  ``state_change``
 
        -  The new adapter state as sent by the :ref:`CEC_EVENT_STATE_CHANGE <CEC-EVENT-STATE-CHANGE>`
-          event.
+	  event.
 
     -  .. row 6
 
@@ -167,7 +167,7 @@ state did change in between the two events.
        -  ``lost_msgs``
 
        -  The number of lost messages as sent by the :ref:`CEC_EVENT_LOST_MSGS <CEC-EVENT-LOST-MSGS>`
-          event.
+	  event.
 
 
 
@@ -186,8 +186,8 @@ state did change in between the two events.
        -  1
 
        -  Generated when the CEC Adapter's state changes. When open() is
-          called an initial event will be generated for that filehandle with
-          the CEC Adapter's state at that time.
+	  called an initial event will be generated for that filehandle with
+	  the CEC Adapter's state at that time.
 
     -  .. _`CEC-EVENT-LOST-MSGS`:
 
@@ -196,7 +196,7 @@ state did change in between the two events.
        -  2
 
        -  Generated if one or more CEC messages were lost because the
-          application didn't dequeue CEC messages fast enough.
+	  application didn't dequeue CEC messages fast enough.
 
 
 
@@ -215,9 +215,9 @@ state did change in between the two events.
        -  1
 
        -  Set for the initial events that are generated when the device is
-          opened. See the table above for which events do this. This allows
-          applications to learn the initial state of the CEC adapter at
-          open() time.
+	  opened. See the table above for which events do this. This allows
+	  applications to learn the initial state of the CEC adapter at
+	  open() time.
 
 
 

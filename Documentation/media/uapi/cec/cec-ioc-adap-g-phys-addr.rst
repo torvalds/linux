@@ -34,8 +34,8 @@ Arguments
 Description
 ===========
 
-Note: this documents the proposed CEC API. This API is not yet finalized
-and is currently only available as a staging kernel module.
+.. note:: This documents the proposed CEC API. This API is not yet finalized
+   and is currently only available as a staging kernel module.
 
 To query the current physical address applications call the
 :ref:`CEC_ADAP_G_PHYS_ADDR` ioctl with a pointer to an __u16 where the

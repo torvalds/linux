@@ -47,17 +47,20 @@ Arguments
     Regardless of the device type and the direction of data exchange it
     should be set to ``PROT_READ`` | ``PROT_WRITE``, permitting read
     and write access to image buffers. Drivers should support at least
-    this combination of flags. Note the Linux ``video-buf`` kernel
-    module, which is used by the bttv, saa7134, saa7146, cx88 and vivi
-    driver supports only ``PROT_READ`` | ``PROT_WRITE``. When the
-    driver does not support the desired protection the
-    :ref:`mmap() <func-mmap>` function fails.
+    this combination of flags.
 
-    Note device memory accesses (e. g. the memory on a graphics card
-    with video capturing hardware) may incur a performance penalty
-    compared to main memory accesses, or reads may be significantly
-    slower than writes or vice versa. Other I/O methods may be more
-    efficient in this case.
+    .. note::
+
+      #. The Linux ``videobuf`` kernel module, which is used by some
+	 drivers supports only ``PROT_READ`` | ``PROT_WRITE``. When the
+	 driver does not support the desired protection, the
+	 :ref:`mmap() <func-mmap>` function fails.
+
+      #. Device memory accesses (e. g. the memory on a graphics card
+	 with video capturing hardware) may incur a performance penalty
+	 compared to main memory accesses, or reads may be significantly
+	 slower than writes or vice versa. Other I/O methods may be more
+	 efficient in such case.
 
 ``flags``
     The ``flags`` parameter specifies the type of the mapped object,
@@ -73,11 +76,13 @@ Arguments
 
     One of the ``MAP_SHARED`` or ``MAP_PRIVATE`` flags must be set.
     ``MAP_SHARED`` allows applications to share the mapped memory with
-    other (e. g. child-) processes. Note the Linux ``video-buf`` module
-    which is used by the bttv, saa7134, saa7146, cx88 and vivi driver
-    supports only ``MAP_SHARED``. ``MAP_PRIVATE`` requests copy-on-write
-    semantics. V4L2 applications should not set the ``MAP_PRIVATE``,
-    ``MAP_DENYWRITE``, ``MAP_EXECUTABLE`` or ``MAP_ANON`` flag.
+    other (e. g. child-) processes.
+
+    .. note:: The Linux ``videobuf`` module  which is used by some
+       drivers supports only ``MAP_SHARED``. ``MAP_PRIVATE`` requests
+       copy-on-write semantics. V4L2 applications should not set the
+       ``MAP_PRIVATE``, ``MAP_DENYWRITE``, ``MAP_EXECUTABLE`` or ``MAP_ANON``
+       flags.
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.

@@ -72,14 +72,14 @@ reported on one (or several) V4L2 device nodes.
 Pad-level Formats
 =================
 
-    **Warning**
+.. warning::
 
-    Pad-level formats are only applicable to very complex device that
+    Pad-level formats are only applicable to very complex devices that
     need to expose low-level format configuration to user space. Generic
     V4L2 applications do *not* need to use the API described in this
     section.
 
-    **Note**
+.. note::
 
     For the purpose of this section, the term *format* means the
     combination of media bus data format, frame width and frame height.

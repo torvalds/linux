@@ -125,10 +125,12 @@ still cause this situation.
 	  the payload. If :ref:`VIDIOC_G_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` finds that this value is
 	  less than is required to store the payload result, then it is set
 	  to a value large enough to store the payload result and ``ENOSPC`` is
-	  returned. Note that for string controls this ``size`` field should
-	  not be confused with the length of the string. This field refers
-	  to the size of the memory that contains the string. The actual
-	  *length* of the string may well be much smaller.
+	  returned.
+
+	  .. note:: For string controls, this ``size`` field should
+	     not be confused with the length of the string. This field refers
+	     to the size of the memory that contains the string. The actual
+	     *length* of the string may well be much smaller.
 
     -  .. row 3
 
@@ -261,8 +263,10 @@ still cause this situation.
        -  Which value of the control to get/set/try.
 	  ``V4L2_CTRL_WHICH_CUR_VAL`` will return the current value of the
 	  control and ``V4L2_CTRL_WHICH_DEF_VAL`` will return the default
-	  value of the control. Please note that you can only get the
-	  default value of the control, you cannot set or try it.
+	  value of the control.
+
+	  .. note:: You can only get the default value of the control,
+	     you cannot set or try it.
 
 	  For backwards compatibility you can also use a control class here
 	  (see :ref:`ctrl-class`). In that case all controls have to

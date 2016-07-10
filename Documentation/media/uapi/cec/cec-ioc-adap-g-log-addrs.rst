@@ -35,8 +35,8 @@ Arguments
 Description
 ===========
 
-Note: this documents the proposed CEC API. This API is not yet finalized
-and is currently only available as a staging kernel module.
+.. note:: This documents the proposed CEC API. This API is not yet finalized
+   and is currently only available as a staging kernel module.
 
 To query the current CEC logical addresses, applications call the
 :ref:`CEC_ADAP_G_LOG_ADDRS` ioctl with a pointer to a
@@ -68,10 +68,10 @@ by a file handle in initiator mode (see
        -  ``log_addr`` [CEC_MAX_LOG_ADDRS]
 
        -  The actual logical addresses that were claimed. This is set by the
-          driver. If no logical address could be claimed, then it is set to
-          ``CEC_LOG_ADDR_INVALID``. If this adapter is Unregistered, then
-          ``log_addr[0]`` is set to 0xf and all others to
-          ``CEC_LOG_ADDR_INVALID``.
+	  driver. If no logical address could be claimed, then it is set to
+	  ``CEC_LOG_ADDR_INVALID``. If this adapter is Unregistered, then
+	  ``log_addr[0]`` is set to 0xf and all others to
+	  ``CEC_LOG_ADDR_INVALID``.
 
     -  .. row 2
 
@@ -80,9 +80,9 @@ by a file handle in initiator mode (see
        -  ``log_addr_mask``
 
        -  The bitmask of all logical addresses this adapter has claimed. If
-          this adapter is Unregistered then ``log_addr_mask`` sets bit 15
-          and clears all other bits. If this adapter is not configured at
-          all, then ``log_addr_mask`` is set to 0. Set by the driver.
+	  this adapter is Unregistered then ``log_addr_mask`` sets bit 15
+	  and clears all other bits. If this adapter is not configured at
+	  all, then ``log_addr_mask`` is set to 0. Set by the driver.
 
     -  .. row 3
 
@@ -91,10 +91,10 @@ by a file handle in initiator mode (see
        -  ``cec_version``
 
        -  The CEC version that this adapter shall use. See
-          :ref:`cec-versions`. Used to implement the
-          ``CEC_MSG_CEC_VERSION`` and ``CEC_MSG_REPORT_FEATURES`` messages.
-          Note that :ref:`CEC_OP_CEC_VERSION_1_3A <CEC-OP-CEC-VERSION-1-3A>` is not allowed by the CEC
-          framework.
+	  :ref:`cec-versions`. Used to implement the
+	  ``CEC_MSG_CEC_VERSION`` and ``CEC_MSG_REPORT_FEATURES`` messages.
+	  Note that :ref:`CEC_OP_CEC_VERSION_1_3A <CEC-OP-CEC-VERSION-1-3A>` is not allowed by the CEC
+	  framework.
 
     -  .. row 4
 
@@ -103,17 +103,17 @@ by a file handle in initiator mode (see
        -  ``num_log_addrs``
 
        -  Number of logical addresses to set up. Must be ≤
-          ``available_log_addrs`` as returned by
-          :ref:`CEC_ADAP_G_CAPS`. All arrays in
-          this structure are only filled up to index
-          ``available_log_addrs``-1. The remaining array elements will be
-          ignored. Note that the CEC 2.0 standard allows for a maximum of 2
-          logical addresses, although some hardware has support for more.
-          ``CEC_MAX_LOG_ADDRS`` is 4. The driver will return the actual
-          number of logical addresses it could claim, which may be less than
-          what was requested. If this field is set to 0, then the CEC
-          adapter shall clear all claimed logical addresses and all other
-          fields will be ignored.
+	  ``available_log_addrs`` as returned by
+	  :ref:`CEC_ADAP_G_CAPS`. All arrays in
+	  this structure are only filled up to index
+	  ``available_log_addrs``-1. The remaining array elements will be
+	  ignored. Note that the CEC 2.0 standard allows for a maximum of 2
+	  logical addresses, although some hardware has support for more.
+	  ``CEC_MAX_LOG_ADDRS`` is 4. The driver will return the actual
+	  number of logical addresses it could claim, which may be less than
+	  what was requested. If this field is set to 0, then the CEC
+	  adapter shall clear all claimed logical addresses and all other
+	  fields will be ignored.
 
     -  .. row 5
 
@@ -122,9 +122,9 @@ by a file handle in initiator mode (see
        -  ``vendor_id``
 
        -  The vendor ID is a 24-bit number that identifies the specific
-          vendor or entity. Based on this ID vendor specific commands may be
-          defined. If you do not want a vendor ID then set it to
-          ``CEC_VENDOR_ID_NONE``.
+	  vendor or entity. Based on this ID vendor specific commands may be
+	  defined. If you do not want a vendor ID then set it to
+	  ``CEC_VENDOR_ID_NONE``.
 
     -  .. row 6
 
@@ -141,7 +141,7 @@ by a file handle in initiator mode (see
        -  ``osd_name``\ [15]
 
        -  The On-Screen Display name as is returned by the
-          ``CEC_MSG_SET_OSD_NAME`` message.
+	  ``CEC_MSG_SET_OSD_NAME`` message.
 
     -  .. row 8
 
@@ -150,7 +150,7 @@ by a file handle in initiator mode (see
        -  ``primary_device_type`` [CEC_MAX_LOG_ADDRS]
 
        -  Primary device type for each logical address. See
-          :ref:`cec-prim-dev-types` for possible types.
+	  :ref:`cec-prim-dev-types` for possible types.
 
     -  .. row 9
 
@@ -159,9 +159,9 @@ by a file handle in initiator mode (see
        -  ``log_addr_type`` [CEC_MAX_LOG_ADDRS]
 
        -  Logical address types. See :ref:`cec-log-addr-types` for
-          possible types. The driver will update this with the actual
-          logical address type that it claimed (e.g. it may have to fallback
-          to :ref:`CEC_LOG_ADDR_TYPE_UNREGISTERED <CEC-LOG-ADDR-TYPE-UNREGISTERED>`).
+	  possible types. The driver will update this with the actual
+	  logical address type that it claimed (e.g. it may have to fallback
+	  to :ref:`CEC_LOG_ADDR_TYPE_UNREGISTERED <CEC-LOG-ADDR-TYPE-UNREGISTERED>`).
 
     -  .. row 10
 
@@ -170,9 +170,9 @@ by a file handle in initiator mode (see
        -  ``all_device_types`` [CEC_MAX_LOG_ADDRS]
 
        -  CEC 2.0 specific: all device types. See
-          :ref:`cec-all-dev-types-flags`. Used to implement the
-          ``CEC_MSG_REPORT_FEATURES`` message. This field is ignored if
-          ``cec_version`` < :ref:`CEC_OP_CEC_VERSION_2_0 <CEC-OP-CEC-VERSION-2-0>`.
+	  :ref:`cec-all-dev-types-flags`. Used to implement the
+	  ``CEC_MSG_REPORT_FEATURES`` message. This field is ignored if
+	  ``cec_version`` < :ref:`CEC_OP_CEC_VERSION_2_0 <CEC-OP-CEC-VERSION-2-0>`.
 
     -  .. row 11
 
@@ -181,9 +181,9 @@ by a file handle in initiator mode (see
        -  ``features`` [CEC_MAX_LOG_ADDRS][12]
 
        -  Features for each logical address. Used to implement the
-          ``CEC_MSG_REPORT_FEATURES`` message. The 12 bytes include both the
-          RC Profile and the Device Features. This field is ignored if
-          ``cec_version`` < :ref:`CEC_OP_CEC_VERSION_2_0 <CEC-OP-CEC-VERSION-2-0>`.
+	  ``CEC_MSG_REPORT_FEATURES`` message. The 12 bytes include both the
+	  RC Profile and the Device Features. This field is ignored if
+	  ``cec_version`` < :ref:`CEC_OP_CEC_VERSION_2_0 <CEC-OP-CEC-VERSION-2-0>`.
 
 
 
@@ -350,8 +350,8 @@ by a file handle in initiator mode (see
        -  6
 
        -  Use this if you just want to remain unregistered. Used for pure
-          CEC switches or CDC-only devices (CDC: Capability Discovery and
-          Control).
+	  CEC switches or CDC-only devices (CDC: Capability Discovery and
+	  Control).
 
 
 

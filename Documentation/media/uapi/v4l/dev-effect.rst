@@ -6,11 +6,10 @@
 Effect Devices Interface
 ************************
 
-    **Note**
-
-    This interface has been be suspended from the V4L2 API implemented
-    in Linux 2.6 until we have more experience with effect device
-    interfaces.
+.. note::
+    This interface has been be suspended from the V4L2 API.
+    The implementation for such effects should be done
+    via mem2mem devices.
 
 A V4L2 video effect device can do image effects, filtering, or combine
 two or more images or image streams. For example video transitions or

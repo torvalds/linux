@@ -166,11 +166,11 @@ struct v4l2_buffer
 	  output device because the application did not pass new data in
 	  time.
 
-	  Note this may count the frames received e.g. over USB, without
-	  taking into account the frames dropped by the remote hardware due
-	  to limited compression throughput or bus bandwidth. These devices
-	  identify by not enumerating any video standards, see
-	  :ref:`standard`.
+	  .. note:: This may count the frames received e.g. over USB, without
+	     taking into account the frames dropped by the remote hardware due
+	     to limited compression throughput or bus bandwidth. These devices
+	     identify by not enumerating any video standards, see
+	     :ref:`standard`.
 
     -  .. row 10
 
@@ -297,8 +297,10 @@ struct v4l2_plane
 	  stream, applications when it refers to an output stream. If the
 	  application sets this to 0 for an output stream, then
 	  ``bytesused`` will be set to the size of the plane (see the
-	  ``length`` field of this struct) by the driver. Note that the
-	  actual image data starts at ``data_offset`` which may not be 0.
+	  ``length`` field of this struct) by the driver.
+
+	  .. note:: Note that the actual image data starts at ``data_offset``
+	     which may not be 0.
 
     -  .. row 2
 
@@ -367,10 +369,11 @@ struct v4l2_plane
        -
        -  Offset in bytes to video data in the plane. Drivers must set this
 	  field when ``type`` refers to a capture stream, applications when
-	  it refers to an output stream. Note that data_offset is included
-	  in ``bytesused``. So the size of the image in the plane is
-	  ``bytesused``-``data_offset`` at offset ``data_offset`` from the
-	  start of the plane.
+	  it refers to an output stream.
+
+	  .. note:: That data_offset is included  in ``bytesused``. So the
+	     size of the image in the plane is ``bytesused``-``data_offset``
+	     at offset ``data_offset`` from the start of the plane.
 
     -  .. row 8
 

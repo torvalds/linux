@@ -48,11 +48,11 @@ the ones that implement DISEqC and multipoint LNBf's don't need to
 control the voltage level, provided that either 13V or 18V is sent to
 power up the LNBf.
 
-NOTE: if more than one device is connected to the same antenna, setting
-a voltage level may interfere on other devices, as they may lose the
-capability of setting polarization or IF. So, on those cases, setting
-the voltage to SEC_VOLTAGE_OFF while the device is not is used is
-recommended.
+.. attention:: if more than one device is connected to the same antenna,
+   setting a voltage level may interfere on other devices, as they may lose
+   the capability of setting polarization or IF. So, on those cases, setting
+   the voltage to SEC_VOLTAGE_OFF while the device is not is used is
+   recommended.
 
 
 Return Value

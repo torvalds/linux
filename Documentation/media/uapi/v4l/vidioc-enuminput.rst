@@ -233,8 +233,8 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
 
        -  The input is connected to a device that produces a signal that is
 	  flipped vertically and does not correct this before passing the
-	  signal to userspace. Note that a 180 degree rotation is the same
-	  as HFLIP | VFLIP
+	  signal to userspace.
+	  .. note:: A 180 degree rotation is the same as HFLIP | VFLIP
 
     -  .. row 8
 

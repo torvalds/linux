@@ -84,17 +84,20 @@ themselves than is possible with
 particular, this ioctl gives the dimensions of the N-dimensional array
 if this control consists of more than one element.
 
-It is important to realize that due to the flexibility of controls it is
-necessary to check whether the control you want to set actually is
-supported in the driver and what the valid range of values is. So use
-the :ref:`VIDIOC_QUERYCTRL` (or
-:ref:`VIDIOC_QUERY_EXT_CTRL <VIDIOC_QUERYCTRL>`) and
-:ref:`VIDIOC_QUERYMENU <VIDIOC_QUERYCTRL>` ioctls to check this. Also
-note that it is possible that some of the menu indices in a control of
-type ``V4L2_CTRL_TYPE_MENU`` may not be supported (``VIDIOC_QUERYMENU``
-will return an error). A good example is the list of supported MPEG
-audio bitrates. Some drivers only support one or two bitrates, others
-support a wider range.
+.. note::
+
+   #. It is important to realize that due to the flexibility of controls it is
+      necessary to check whether the control you want to set actually is
+      supported in the driver and what the valid range of values is. So use
+      the :ref:`VIDIOC_QUERYCTRL` (or :ref:`VIDIOC_QUERY_EXT_CTRL
+      <VIDIOC_QUERYCTRL>`) and :ref:`VIDIOC_QUERYMENU <VIDIOC_QUERYCTRL>`
+      ioctls to check this.
+
+   #. It is possible that some of the menu indices in a control of
+      type ``V4L2_CTRL_TYPE_MENU`` may not be supported (``VIDIOC_QUERYMENU``
+      will return an error). A good example is the list of supported MPEG
+      audio bitrates. Some drivers only support one or two bitrates, others
+      support a wider range.
 
 All controls use machine endianness.
 
@@ -181,10 +184,10 @@ Codec Control Reference
 Below all controls within the Codec control class are described. First
 the generic controls, then controls specific for certain hardware.
 
-Note: These controls are applicable to all codecs and not just MPEG. The
-defines are prefixed with V4L2_CID_MPEG/V4L2_MPEG as the controls
-were originally made for MPEG codecs and later extended to cover all
-encoding formats.
+.. note:: These controls are applicable to all codecs and not just MPEG. The
+   defines are prefixed with V4L2_CID_MPEG/V4L2_MPEG as the controls
+   were originally made for MPEG codecs and later extended to cover all
+   encoding formats.
 
 
 Generic Codec Controls
@@ -2282,13 +2285,15 @@ MFC 5.1 Control IDs
 ``V4L2_CID_MPEG_MFC51_VIDEO_RC_REACTION_COEFF (integer)``
     Reaction coefficient for MFC rate control. Applicable to encoders.
 
-    Note 1: Valid only when the frame level RC is enabled.
+    .. note::
 
-    Note 2: For tight CBR, this field must be small (ex. 2 ~ 10). For
-    VBR, this field must be large (ex. 100 ~ 1000).
+       #. Valid only when the frame level RC is enabled.
 
-    Note 3: It is not recommended to use the greater number than
-    FRAME_RATE * (10^9 / BIT_RATE).
+       #. For tight CBR, this field must be small (ex. 2 ~ 10). For
+	  VBR, this field must be large (ex. 100 ~ 1000).
+
+       #. It is not recommended to use the greater number than
+	  FRAME_RATE * (10^9 / BIT_RATE).
 
 ``V4L2_CID_MPEG_MFC51_VIDEO_H264_ADAPTIVE_RC_DARK (boolean)``
     Adaptive rate control for dark region. Valid only when H.264 and
@@ -4107,14 +4112,16 @@ transmitters for `VGA <http://en.wikipedia.org/wiki/Vga>`__,
 the receiver or transmitter subdevice that implements them, so they are
 only exposed on the ``/dev/v4l-subdev*`` device node.
 
-Note that these devices can have multiple input or output pads which are
-hooked up to e.g. HDMI connectors. Even though the subdevice will
-receive or transmit video from/to only one of those pads, the other pads
-can still be active when it comes to EDID (Extended Display
-Identification Data, :ref:`vesaedid`) and HDCP (High-bandwidth Digital
-Content Protection System, :ref:`hdcp`) processing, allowing the
-device to do the fairly slow EDID/HDCP handling in advance. This allows
-for quick switching between connectors.
+.. note::
+
+   Note that these devices can have multiple input or output pads which are
+   hooked up to e.g. HDMI connectors. Even though the subdevice will
+   receive or transmit video from/to only one of those pads, the other pads
+   can still be active when it comes to EDID (Extended Display
+   Identification Data, :ref:`vesaedid`) and HDCP (High-bandwidth Digital
+   Content Protection System, :ref:`hdcp`) processing, allowing the
+   device to do the fairly slow EDID/HDCP handling in advance. This allows
+   for quick switching between connectors.
 
 These pads appear in several of the controls in this section as
 bitmasks, one bit for each pad. Bit 0 corresponds to pad 0, bit 1 to pad

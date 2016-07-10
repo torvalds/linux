@@ -251,11 +251,13 @@ I/O control requests
     be useful of receivers that have otherwise narrow band receiver that
     prevents them to be used with some remotes. Wide band receiver might
     also be more precise On the other hand its disadvantage it usually
-    reduced range of reception. Note: wide band receiver might be
-    implictly enabled if you enable carrier reports. In that case it
-    will be disabled as soon as you disable carrier reports. Trying to
-    disable wide band receiver while carrier reports are active will do
-    nothing.
+    reduced range of reception.
+
+    .. note:: Wide band receiver might be
+       implictly enabled if you enable carrier reports. In that case it
+       will be disabled as soon as you disable carrier reports. Trying to
+       disable wide band receiver while carrier reports are active will do
+       nothing.
 
 
 .. _lirc_dev_errors:

@@ -42,10 +42,10 @@ to send a 22kHz tone in order to select between high/low band on some
 dual-band LNBf. It is also used to send signals to DiSEqC equipment, but
 this is done using the DiSEqC ioctls.
 
-NOTE: if more than one device is connected to the same antenna, setting
-a tone may interfere on other devices, as they may lose the capability
-of selecting the band. So, it is recommended that applications would
-change to SEC_TONE_OFF when the device is not used.
+.. attention:: If more than one device is connected to the same antenna,
+   setting a tone may interfere on other devices, as they may lose the
+   capability of selecting the band. So, it is recommended that applications
+   would change to SEC_TONE_OFF when the device is not used.
 
 .. _fe-sec-tone-mode-t:
 

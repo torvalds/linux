@@ -15,7 +15,9 @@ Conventionally V4L2 video capture devices are accessed through character
 device special files named ``/dev/video`` and ``/dev/video0`` to
 ``/dev/video63`` with major number 81 and minor numbers 0 to 63.
 ``/dev/video`` is typically a symbolic link to the preferred video
-device. Note the same device files are used for video output devices.
+device.
+
+.. note:: The same device file names are used for video output devices.
 
 
 Querying Capabilities

@@ -38,8 +38,8 @@ Arguments
 Description
 ===========
 
-Note: this documents the proposed CEC API. This API is not yet finalized
-and is currently only available as a staging kernel module.
+.. note:: This documents the proposed CEC API. This API is not yet finalized
+   and is currently only available as a staging kernel module.
 
 The :c:func:`ioctl()` function manipulates cec device parameters. The
 argument ``fd`` must be an open file descriptor.

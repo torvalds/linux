@@ -40,8 +40,8 @@ fill the rest of the structure or return an ``EINVAL`` error code. All
 formats are enumerable by beginning at index zero and incrementing by
 one until ``EINVAL`` is returned.
 
-Note that after switching input or output the list of enumerated image
-formats may be different.
+.. note:: After switching input or output the list of enumerated image
+   formats may be different.
 
 
 .. _v4l2-fmtdesc:
@@ -111,8 +111,10 @@ formats may be different.
 	      #define v4l2_fourcc(a,b,c,d) (((__u32)(a)<<0)|((__u32)(b)<<8)|((__u32)(c)<<16)|((__u32)(d)<<24))
 
 	  Several image formats are already defined by this specification in
-	  :ref:`pixfmt`. Note these codes are not the same as those used
-	  in the Windows world.
+	  :ref:`pixfmt`.
+
+	  .. attention:: These codes are not the same as those used
+	     in the Windows world.
 
     -  .. row 7
 

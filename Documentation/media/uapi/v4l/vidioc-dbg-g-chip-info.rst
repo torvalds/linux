@@ -33,7 +33,7 @@ Arguments
 Description
 ===========
 
-    **Note**
+.. note::
 
     This is an :ref:`experimental` interface and may
     change in the future.

@@ -35,7 +35,7 @@ Arguments
 Description
 ===========
 
-    **Note**
+.. note::
 
     This is an :ref:`obsolete` interface and may be removed
     in the future. It is superseded by

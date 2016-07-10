@@ -14,10 +14,10 @@ at devices capable of receiving and/or transmitting RDS information.
 For more information see the core RDS standard :ref:`iec62106` and the
 RBDS standard :ref:`nrsc4`.
 
-Note that the RBDS standard as is used in the USA is almost identical to
-the RDS standard. Any RDS decoder/encoder can also handle RBDS. Only
-some of the fields have slightly different meanings. See the RBDS
-standard for more information.
+.. note:: Note that the RBDS standard as is used in the USA is almost
+   identical to the RDS standard. Any RDS decoder/encoder can also handle
+   RBDS. Only some of the fields have slightly different meanings. See the
+   RBDS standard for more information.
 
 The RBDS standard also specifies support for MMBS (Modified Mobile
 Search). This is a proprietary format which seems to be discontinued.

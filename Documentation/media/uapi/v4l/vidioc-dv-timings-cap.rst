@@ -37,8 +37,10 @@ To query the capabilities of the DV receiver/transmitter applications
 initialize the ``pad`` field to 0, zero the reserved array of struct
 :ref:`v4l2_dv_timings_cap <v4l2-dv-timings-cap>` and call the
 ``VIDIOC_DV_TIMINGS_CAP`` ioctl on a video node and the driver will fill
-in the structure. Note that drivers may return different values after
-switching the video input or output.
+in the structure.
+
+.. note:: Drivers may return different values after
+   switching the video input or output.
 
 When implemented by the driver DV capabilities of subdevices can be
 queried by calling the ``VIDIOC_SUBDEV_DV_TIMINGS_CAP`` ioctl directly

@@ -45,8 +45,8 @@ Arguments
 Description
 ===========
 
-Note: this documents the proposed CEC API. This API is not yet finalized
-and is currently only available as a staging kernel module.
+.. note:: This documents the proposed CEC API. This API is not yet finalized
+   and is currently only available as a staging kernel module.
 
 To open a cec device applications call :c:func:`open()` with the
 desired device name. The function has no side effects; the device

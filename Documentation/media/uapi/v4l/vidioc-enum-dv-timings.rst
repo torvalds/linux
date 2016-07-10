@@ -47,8 +47,10 @@ field, set the ``pad`` field to 0, zero the reserved array of struct
 structure. Drivers fill the rest of the structure or return an ``EINVAL``
 error code when the index is out of bounds. To enumerate all supported
 DV timings, applications shall begin at index zero, incrementing by one
-until the driver returns ``EINVAL``. Note that drivers may enumerate a
-different set of DV timings after switching the video input or output.
+until the driver returns ``EINVAL``.
+
+.. note:: Drivers may enumerate a different set of DV timings after
+   switching the video input or output.
 
 When implemented by the driver DV timings of subdevices can be queried
 by calling the ``VIDIOC_SUBDEV_ENUM_DV_TIMINGS`` ioctl directly on a

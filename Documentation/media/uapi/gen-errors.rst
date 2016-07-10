@@ -92,10 +92,12 @@ Generic Error Codes
        -  Permission denied. Can be returned if the device needs write
 	  permission, or some special capabilities is needed (e. g. root)
 
+.. note::
 
-Note 1: ioctls may return other error codes. Since errors may have side
-effects such as a driver reset, applications should abort on unexpected
-errors.
+  #. This list is not exaustive; ioctls may return other error codes.
+     Since errors may have side effects such as a driver reset,
+     applications should abort on unexpected errors, or otherwise
+     assume that the device is in a bad state.
 
-Note 2: Request-specific error codes are listed in the individual
-requests descriptions.
+  #. Request-specific error codes are listed in the individual
+     requests descriptions.

@@ -43,16 +43,16 @@ will return V4L2_STD_UNKNOWN. When detection is not possible or fails,
 the set must contain all standards supported by the current video input
 or output.
 
-Please note that drivers shall *not* switch the video standard
-automatically if a new video standard is detected. Instead, drivers
-should send the ``V4L2_EVENT_SOURCE_CHANGE`` event (if they support
-this) and expect that userspace will take action by calling
-:ref:`VIDIOC_QUERYSTD`. The reason is that a new video standard can mean
-different buffer sizes as well, and you cannot change buffer sizes on
-the fly. In general, applications that receive the Source Change event
-will have to call :ref:`VIDIOC_QUERYSTD`, and if the detected video
-standard is valid they will have to stop streaming, set the new
-standard, allocate new buffers and start streaming again.
+.. note:: Drivers shall *not* switch the video standard
+   automatically if a new video standard is detected. Instead, drivers
+   should send the ``V4L2_EVENT_SOURCE_CHANGE`` event (if they support
+   this) and expect that userspace will take action by calling
+   :ref:`VIDIOC_QUERYSTD`. The reason is that a new video standard can mean
+   different buffer sizes as well, and you cannot change buffer sizes on
+   the fly. In general, applications that receive the Source Change event
+   will have to call :ref:`VIDIOC_QUERYSTD`, and if the detected video
+   standard is valid they will have to stop streaming, set the new
+   standard, allocate new buffers and start streaming again.
 
 
 Return Value

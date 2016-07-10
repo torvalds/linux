@@ -36,8 +36,9 @@ Arguments
 Description
 ===========
 
-WARNING: This is a very obscure legacy command, used only at stv0299
-driver. Should not be used on newer drivers.
+.. warning::
+   This is a very obscure legacy command, used only at stv0299
+   driver. Should not be used on newer drivers.
 
 It provides a non-standard method for selecting Diseqc voltage on the
 frontend, for Dish Network legacy switches.

@@ -17,10 +17,11 @@ plants needed cooling towers this used to be the only way to put live
 video into a window.
 
 Video overlay devices are accessed through the same character special
-files as :ref:`video capture <capture>` devices. Note the default
-function of a ``/dev/video`` device is video capturing. The overlay
-function is only available after calling the
-:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl.
+files as :ref:`video capture <capture>` devices.
+
+.. note:: The default function of a ``/dev/video`` device is video
+   capturing. The overlay function is only available after calling
+   the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl.
 
 The driver may support simultaneous overlay and capturing using the
 read/write and streaming I/O methods. If so, operation at the nominal
@@ -235,10 +236,10 @@ exceeded are undefined. [3]_
     :ref:`VIDIOC_S_FBUF <VIDIOC_G_FBUF>`,
     :ref:`framebuffer-flags`).
 
-    **Note**: this field was added in Linux 2.6.23, extending the structure.
-    However the :ref:`VIDIOC_[G|S|TRY]_FMT <VIDIOC_G_FMT>`
-    ioctls, which take a pointer to a :ref:`v4l2_format <v4l2-format>`
-    parent structure with padding bytes at the end, are not affected.
+    .. note:: This field was added in Linux 2.6.23, extending the
+       structure. However the :ref:`VIDIOC_[G|S|TRY]_FMT <VIDIOC_G_FMT>`
+       ioctls, which take a pointer to a :ref:`v4l2_format <v4l2-format>`
+       parent structure with padding bytes at the end, are not affected.
 
 
 .. _v4l2-clip:

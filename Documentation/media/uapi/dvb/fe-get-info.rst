@@ -144,8 +144,8 @@ struct dvb_frontend_info
        -  Capabilities supported by the frontend
 
 
-NOTE: The frequencies are specified in Hz for Terrestrial and Cable
-systems. They're specified in kHz for Satellite systems
+.. note:: The frequencies are specified in Hz for Terrestrial and Cable
+   systems. They're specified in kHz for Satellite systems
 
 
 .. _fe-caps-t:

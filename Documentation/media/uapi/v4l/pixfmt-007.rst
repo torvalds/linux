@@ -536,11 +536,13 @@ Colorspace DCI-P3 (V4L2_COLORSPACE_DCI_P3)
 The :ref:`smpte431` standard defines the colorspace used by cinema
 projectors that use the DCI-P3 colorspace. The default transfer function
 is ``V4L2_XFER_FUNC_DCI_P3``. The default Y'CbCr encoding is
-``V4L2_YCBCR_ENC_709``. Note that this colorspace does not specify a
-Y'CbCr encoding since it is not meant to be encoded to Y'CbCr. So this
-default Y'CbCr encoding was picked because it is the HDTV encoding. The
-default Y'CbCr quantization is limited range. The chromaticities of the
-primary colors and the white reference are:
+``V4L2_YCBCR_ENC_709``.
+
+.. note:: Note that this colorspace does not specify a
+   Y'CbCr encoding since it is not meant to be encoded to Y'CbCr. So this
+   default Y'CbCr encoding was picked because it is the HDTV encoding. The
+   default Y'CbCr quantization is limited range. The chromaticities of the
+   primary colors and the white reference are:
 
 
 
@@ -752,10 +754,10 @@ reference are:
        -  0.316
 
 
-Note that this colorspace uses Illuminant C instead of D65 as the white
-reference. To correctly convert an image in this colorspace to another
-that uses D65 you need to apply a chromatic adaptation algorithm such as
-the Bradford method.
+.. note:: This colorspace uses Illuminant C instead of D65 as the white
+   reference. To correctly convert an image in this colorspace to another
+   that uses D65 you need to apply a chromatic adaptation algorithm such as
+   the Bradford method.
 
 The transfer function was never properly defined for NTSC 1953. The Rec.
 709 transfer function is recommended in the literature:
@@ -886,9 +888,9 @@ reference are identical to sRGB. The transfer function use is
 with full range quantization where Y' is scaled to [0…255] and Cb/Cr are
 scaled to [-128…128] and then clipped to [-128…127].
 
-Note that the JPEG standard does not actually store colorspace
-information. So if something other than sRGB is used, then the driver
-will have to set that information explicitly. Effectively
-``V4L2_COLORSPACE_JPEG`` can be considered to be an abbreviation for
-``V4L2_COLORSPACE_SRGB``, ``V4L2_YCBCR_ENC_601`` and
-``V4L2_QUANTIZATION_FULL_RANGE``.
+.. note:: The JPEG standard does not actually store colorspace
+   information. So if something other than sRGB is used, then the driver
+   will have to set that information explicitly. Effectively
+   ``V4L2_COLORSPACE_JPEG`` can be considered to be an abbreviation for
+   ``V4L2_COLORSPACE_SRGB``, ``V4L2_YCBCR_ENC_601`` and
+   ``V4L2_QUANTIZATION_FULL_RANGE``.

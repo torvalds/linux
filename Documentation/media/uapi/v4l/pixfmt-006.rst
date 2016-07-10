@@ -17,9 +17,11 @@ identifier (enum :ref:`v4l2_quantization <v4l2-quantization>`) to
 specify non-standard quantization methods. Most of the time only the
 colorspace field of struct :ref:`v4l2_pix_format <v4l2-pix-format>`
 or struct :ref:`v4l2_pix_format_mplane <v4l2-pix-format-mplane>`
-needs to be filled in. Note that the default R'G'B' quantization is full
-range for all colorspaces except for BT.2020 which uses limited range
-R'G'B' quantization.
+needs to be filled in.
+
+.. note:: The default R'G'B' quantization is full range for all
+   colorspaces except for BT.2020 which uses limited range R'G'B'
+   quantization.
 
 
 .. _v4l2-colorspace:

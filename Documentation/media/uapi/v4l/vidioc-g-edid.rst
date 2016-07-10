@@ -65,8 +65,10 @@ If ``start_block`` and ``blocks`` are both set to 0 when
 :ref:`VIDIOC_G_EDID <VIDIOC_G_EDID>` is called, then the driver will set ``blocks`` to the
 total number of available EDID blocks and it will return 0 without
 copying any data. This is an easy way to discover how many EDID blocks
-there are. Note that if there are no EDID blocks available at all, then
-the driver will set ``blocks`` to 0 and it returns 0.
+there are.
+
+.. note:: If there are no EDID blocks available at all, then
+   the driver will set ``blocks`` to 0 and it returns 0.
 
 To set the EDID blocks of a receiver the application has to fill in the
 ``pad``, ``blocks`` and ``edid`` fields, set ``start_block`` to 0 and

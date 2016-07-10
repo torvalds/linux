@@ -39,16 +39,16 @@ similar to sensing the video standard. To do so, applications call
 :ref:`v4l2_dv_timings <v4l2-dv-timings>`. Once the hardware detects
 the timings, it will fill in the timings structure.
 
-Please note that drivers shall *not* switch timings automatically if new
-timings are detected. Instead, drivers should send the
-``V4L2_EVENT_SOURCE_CHANGE`` event (if they support this) and expect
-that userspace will take action by calling :ref:`VIDIOC_QUERY_DV_TIMINGS`.
-The reason is that new timings usually mean different buffer sizes as
-well, and you cannot change buffer sizes on the fly. In general,
-applications that receive the Source Change event will have to call
-:ref:`VIDIOC_QUERY_DV_TIMINGS`, and if the detected timings are valid they
-will have to stop streaming, set the new timings, allocate new buffers
-and start streaming again.
+.. note:: Drivers shall *not* switch timings automatically if new
+   timings are detected. Instead, drivers should send the
+   ``V4L2_EVENT_SOURCE_CHANGE`` event (if they support this) and expect
+   that userspace will take action by calling :ref:`VIDIOC_QUERY_DV_TIMINGS`.
+   The reason is that new timings usually mean different buffer sizes as
+   well, and you cannot change buffer sizes on the fly. In general,
+   applications that receive the Source Change event will have to call
+   :ref:`VIDIOC_QUERY_DV_TIMINGS`, and if the detected timings are valid they
+   will have to stop streaming, set the new timings, allocate new buffers
+   and start streaming again.
 
 If the timings could not be detected because there was no signal, then
 ENOLINK is returned. If a signal was detected, but it was unstable and
