@@ -653,6 +653,7 @@ static int pyrf_evsel__init(struct pyrf_evsel *pevsel,
 	attr.precise_ip	    = precise_ip;
 	attr.mmap_data	    = mmap_data;
 	attr.sample_id_all  = sample_id_all;
+	attr.size	    = sizeof(attr);
 
 	perf_evsel__init(&pevsel->evsel, &attr, idx);
 	return 0;
