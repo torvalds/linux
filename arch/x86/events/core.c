@@ -263,7 +263,7 @@ static bool check_hw_exists(void)
 
 msr_fail:
 	pr_cont("Broken PMU hardware detected, using software events only.\n");
-	pr_info("%sFailed to access perfctr msr (MSR %x is %Lx)\n",
+	printk("%sFailed to access perfctr msr (MSR %x is %Lx)\n",
 		boot_cpu_has(X86_FEATURE_HYPERVISOR) ? KERN_INFO : KERN_ERR,
 		reg, val_new);
 
