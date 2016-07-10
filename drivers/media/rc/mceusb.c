@@ -942,7 +942,7 @@ static int mceusb_set_tx_carrier(struct rc_dev *dev, u32 carrier)
 
 	}
 
-	return carrier;
+	return 0;
 }
 
 /*
