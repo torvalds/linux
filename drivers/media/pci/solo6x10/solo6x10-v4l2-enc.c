@@ -33,7 +33,7 @@
 #include "solo6x10-jpeg.h"
 
 #define MIN_VID_BUFFERS		2
-#define FRAME_BUF_SIZE		(196 * 1024)
+#define FRAME_BUF_SIZE		(400 * 1024)
 #define MP4_QS			16
 #define DMA_ALIGN		4096
 
