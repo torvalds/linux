@@ -651,8 +651,8 @@ static int perf_evlist__event2id(struct perf_evlist *evlist,
 	return 0;
 }
 
-static struct perf_evsel *perf_evlist__event2evsel(struct perf_evlist *evlist,
-						   union perf_event *event)
+struct perf_evsel *perf_evlist__event2evsel(struct perf_evlist *evlist,
+					    union perf_event *event)
 {
 	struct perf_evsel *first = perf_evlist__first(evlist);
 	struct hlist_head *head;
