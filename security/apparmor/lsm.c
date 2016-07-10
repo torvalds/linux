@@ -529,7 +529,7 @@ static int apparmor_setprocattr(struct task_struct *task, char *name,
 	if (!*args)
 		goto out;
 
-	arg_size = size - (args - (char *) value);
+	arg_size = size - (args - (largs ? largs : (char *) value));
 	if (strcmp(name, "current") == 0) {
 		if (strcmp(command, "changehat") == 0) {
 			error = aa_setprocattr_changehat(args, arg_size,
