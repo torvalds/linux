@@ -26,9 +26,10 @@ No buffers (planes) are allocated beforehand, consequently they are not
 indexed and cannot be queried like mapped buffers with the
 :ref:`VIDIOC_QUERYBUF <VIDIOC_QUERYBUF>` ioctl.
 
+Example: Initiating streaming I/O with user pointers
+====================================================
 
 .. code-block:: c
-    :caption: Example 3.3. Initiating streaming I/O with user pointers
 
     struct v4l2_requestbuffers reqbuf;
 

@@ -48,8 +48,13 @@ symbol rate of 5.217 Mbauds, those properties should be sent to
 
 -  :ref:`DTV_TUNE <DTV-TUNE>`
 
-The code that would do the above is:
+The code that would that would do the above is show in
+:ref:`dtv-prop-example`.
 
+.. _dtv-prop-example:
+
+Example: Setting digital TV frontend properties
+===============================================
 
 .. code-block:: c
 

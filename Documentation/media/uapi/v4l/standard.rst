@@ -64,9 +64,10 @@ Applications can make use of the :ref:`input-capabilities` and
 :ref:`output-capabilities` flags to determine whether the video
 standard ioctls can be used with the given input or output.
 
+Example: Information about the current video standard
+=====================================================
 
 .. code-block:: c
-    :caption: Example 1.5. Information about the current video standard
 
     v4l2_std_id std_id;
     struct v4l2_standard standard;
@@ -100,9 +101,10 @@ standard ioctls can be used with the given input or output.
 	exit(EXIT_FAILURE);
     }
 
+Example: Listing the video standards supported by the current input
+===================================================================
 
 .. code-block:: c
-    :caption: Example 1.6. Listing the video standards supported by the current input
 
     struct v4l2_input input;
     struct v4l2_standard standard;
@@ -139,9 +141,10 @@ standard ioctls can be used with the given input or output.
 	exit(EXIT_FAILURE);
     }
 
+Example: Selecting a new video standard
+=======================================
 
 .. code-block:: c
-    :caption: Example 1.7. Selecting a new video standard
 
     struct v4l2_input input;
     v4l2_std_id std_id;

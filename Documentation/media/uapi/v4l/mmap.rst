@@ -52,9 +52,10 @@ allocated in physical memory, as opposed to virtual memory, which can be
 swapped out to disk. Applications should free the buffers as soon as
 possible with the :ref:`munmap() <func-munmap>` function.
 
+Example: Mapping buffers in the single-planar API
+=================================================
 
 .. code-block:: c
-    :caption: Example 3.1. Mapping buffers in the single-planar API
 
     struct v4l2_requestbuffers reqbuf;
     struct {
@@ -122,8 +123,10 @@ possible with the :ref:`munmap() <func-munmap>` function.
 	munmap(buffers[i].start, buffers[i].length);
 
 
+Example: Mapping buffers in the multi-planar API
+================================================
+
 .. code-block:: c
-    :caption: Example 3.2. Mapping buffers in the multi-planar API
 
     struct v4l2_requestbuffers reqbuf;
     /* Our current format uses 3 planes per buffer */

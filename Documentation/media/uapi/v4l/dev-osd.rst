@@ -50,9 +50,10 @@ standard. A V4L2 driver may reject attempts to change the video standard
 (or any other ioctl which would imply a framebuffer size change) with an
 ``EBUSY`` error code until all applications closed the framebuffer device.
 
+Example: Finding a framebuffer device for OSD
+---------------------------------------------
 
 .. code-block:: c
-    :caption: Example 4.1. Finding a framebuffer device for OSD
 
     #include <linux/fb.h>
 

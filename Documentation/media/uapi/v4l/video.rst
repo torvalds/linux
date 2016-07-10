@@ -28,8 +28,10 @@ applications call the :ref:`VIDIOC_S_INPUT <VIDIOC_G_INPUT>` and
 implement all the input ioctls when the device has one or more inputs,
 all the output ioctls when the device has one or more outputs.
 
+Example: Information about the current video input
+==================================================
+
 .. code-block:: c
-    :caption: Example 1.1. Information about the current video input
 
     struct v4l2_input input;
     int index;
@@ -50,8 +52,10 @@ all the output ioctls when the device has one or more outputs.
     printf("Current input: %s\\n", input.name);
 
 
+Example: Switching to the first video input
+===========================================
+
 .. code-block:: c
-    :caption: Example 1.2. Switching to the first video input
 
     int index;
 

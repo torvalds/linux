@@ -54,8 +54,10 @@ in the struct :ref:`v4l2_capability <v4l2-capability>` returned by
 the :ref:`VIDIOC_QUERYCAP` ioctl.
 
 
+Example: Information about the current audio input
+==================================================
+
 .. code-block:: c
-    :caption: Example 1.3. Information about the current audio input
 
     struct v4l2_audio audio;
 
@@ -69,8 +71,10 @@ the :ref:`VIDIOC_QUERYCAP` ioctl.
     printf("Current input: %s\\n", audio.name);
 
 
+Example: Switching to the first audio input
+===========================================
+
 .. code-block:: c
-    :caption: Example 1.4. Switching to the first audio input
 
     struct v4l2_audio audio;
 

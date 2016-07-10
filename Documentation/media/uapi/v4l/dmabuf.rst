@@ -37,8 +37,10 @@ driver must be switched into DMABUF I/O mode by calling the
 :ref:`VIDIOC_REQBUFS <VIDIOC_REQBUFS>` with the desired buffer type.
 
 
+Example: Initiating streaming I/O with DMABUF file descriptors
+==============================================================
+
 .. code-block:: c
-    :caption: Example 3.4. Initiating streaming I/O with DMABUF file descriptors
 
     struct v4l2_requestbuffers reqbuf;
 
@@ -62,9 +64,10 @@ buffers, every plane can be associated with a different DMABUF
 descriptor. Although buffers are commonly cycled, applications can pass
 a different DMABUF descriptor at each :ref:`VIDIOC_QBUF <VIDIOC_QBUF>` call.
 
+Example: Queueing DMABUF using single plane API
+===============================================
 
 .. code-block:: c
-    :caption: Example 3.5. Queueing DMABUF using single plane API
 
     int buffer_queue(int v4lfd, int index, int dmafd)
     {
@@ -84,9 +87,10 @@ a different DMABUF descriptor at each :ref:`VIDIOC_QBUF <VIDIOC_QBUF>` call.
 	return 0;
     }
 
+Example 3.6. Queueing DMABUF using multi plane API
+==================================================
 
 .. code-block:: c
-    :caption: Example 3.6. Queueing DMABUF using multi plane API
 
     int buffer_queue_mp(int v4lfd, int index, int dmafd[], int n_planes)
     {

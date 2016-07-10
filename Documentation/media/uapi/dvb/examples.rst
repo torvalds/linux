@@ -17,8 +17,8 @@ updated/recommended examples.
 
 .. _tuning:
 
-Tuning
-======
+Example: Tuning
+===============
 
 We will start with a generic tuning subroutine that uses the frontend
 and SEC, as well as the demux devices. The example is given for QPSK
@@ -238,8 +238,8 @@ switch, and weather conditions this may be necessary.
 
 .. _the_dvr_device:
 
-The DVR device
-==============
+Example: The DVR device
+========================
 
 The following program code shows how to use the DVR device for
 recording.

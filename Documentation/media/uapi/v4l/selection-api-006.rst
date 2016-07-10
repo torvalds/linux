@@ -8,9 +8,10 @@ Examples
 ``V4L2_BUF_TYPE_VIDEO_CAPTURE`` for other devices; change target to
 ``V4L2_SEL_TGT_COMPOSE_*`` family to configure composing area)
 
+Example: Resetting the cropping parameters
+==========================================
 
 .. code-block:: c
-	:caption: Example 1.15. Resetting the cropping parameters
 
 	struct v4l2_selection sel = {
 	    .type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
@@ -27,9 +28,10 @@ Examples
 Setting a composing area on output of size of *at most* half of limit
 placed at a center of a display.
 
+Example: Simple downscaling
+===========================
 
 .. code-block:: c
-   :caption: Example 1.16. Simple downscaling
 
 	struct v4l2_selection sel = {
 	    .type = V4L2_BUF_TYPE_VIDEO_OUTPUT,
@@ -55,9 +57,10 @@ placed at a center of a display.
 A video output device is assumed; change ``V4L2_BUF_TYPE_VIDEO_OUTPUT``
 for other devices
 
+Example: Querying for scaling factors
+=====================================
 
 .. code-block:: c
-   :caption: Example 1.17. Querying for scaling factors
 
 	struct v4l2_selection compose = {
 	    .type = V4L2_BUF_TYPE_VIDEO_OUTPUT,
