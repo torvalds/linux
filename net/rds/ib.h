@@ -181,6 +181,9 @@ struct rds_ib_connection {
 
 	/* Batched completions */
 	unsigned int		i_unsignaled_wrs;
+
+	/* Endpoint role in connection */
+	bool			i_active_side;
 };
 
 /* This assumes that atomic_t is at least 32 bits */

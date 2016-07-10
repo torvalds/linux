@@ -120,16 +120,17 @@ void rds_ib_cm_connect_complete(struct rds_connection *conn, struct rdma_cm_even
 		rds_conn_destroy(conn);
 		return;
 	} else {
-		pr_notice("RDS/IB: connected <%pI4,%pI4> version %u.%u%s\n",
+		pr_notice("RDS/IB: %s conn connected <%pI4,%pI4> version %u.%u%s\n",
+			  ic->i_active_side ? "Active" : "Passive",
 			  &conn->c_laddr, &conn->c_faddr,
 			  RDS_PROTOCOL_MAJOR(conn->c_version),
 			  RDS_PROTOCOL_MINOR(conn->c_version),
 			  ic->i_flowctl ? ", flow control" : "");
 	}
 
-	/*
-	 * Init rings and fill recv. this needs to wait until protocol negotiation
-	 * is complete, since ring layout is different from 3.0 to 3.1.
+	/* Init rings and fill recv. this needs to wait until protocol
+	 * negotiation is complete, since ring layout is different
+	 * from 3.1 to 4.1.
 	 */
 	rds_ib_send_init_ring(ic);
 	rds_ib_recv_init_ring(ic);
@@ -685,6 +686,7 @@ out:
 		if (ic->i_cm_id == cm_id)
 			ret = 0;
 	}
+	ic->i_active_side = true;
 	return ret;
 }
 
@@ -859,6 +861,7 @@ void rds_ib_conn_path_shutdown(struct rds_conn_path *cp)
 	ic->i_sends = NULL;
 	vfree(ic->i_recvs);
 	ic->i_recvs = NULL;
+	ic->i_active_side = false;
 }
 
 int rds_ib_conn_alloc(struct rds_connection *conn, gfp_t gfp)
