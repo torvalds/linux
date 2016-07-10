@@ -2,6 +2,7 @@
 #include <structmember.h>
 #include <inttypes.h>
 #include <poll.h>
+#include <linux/err.h>
 #include "evlist.h"
 #include "evsel.h"
 #include "event.h"
@@ -1076,7 +1077,32 @@ static struct {
 	{ .name = NULL, },
 };
 
+static PyObject *pyrf__tracepoint(struct pyrf_evsel *pevsel,
+				  PyObject *args, PyObject *kwargs)
+{
+	struct event_format *tp_format;
+	static char *kwlist[] = { "sys", "name", NULL };
+	char *sys  = NULL;
+	char *name = NULL;
+
+	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|ss", kwlist,
+					 &sys, &name))
+		return NULL;
+
+	tp_format = trace_event__tp_format(sys, name);
+	if (IS_ERR(tp_format))
+		return PyInt_FromLong(-1);
+
+	return PyInt_FromLong(tp_format->id);
+}
+
 static PyMethodDef perf__methods[] = {
+	{
+		.ml_name  = "tracepoint",
+		.ml_meth  = (PyCFunction) pyrf__tracepoint,
+		.ml_flags = METH_VARARGS | METH_KEYWORDS,
+		.ml_doc	  = PyDoc_STR("Get tracepoint config.")
+	},
 	{ .ml_name = NULL, }
 };
 
