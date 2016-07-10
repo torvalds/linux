@@ -39,20 +39,26 @@ effect hardware.
 DTV_FREQUENCY
 =============
 
-Central frequency of the channel.
+Frequency of the digital TV transponder/channel.
 
-Notes:
+.. note::
 
-1)For satellite delivery systems, it is measured in kHz. For the other
-ones, it is measured in Hz.
+  #. For satellite delivery systems, the frequency is in kHz.
 
-2)For ISDB-T, the channels are usually transmitted with an offset of
-143kHz. E.g. a valid frequency could be 474143 kHz. The stepping is
-bound to the bandwidth of the channel which is 6MHz.
+  #. For cable and terrestrial delivery systems, the frequency is in
+     Hz.
 
-3)As in ISDB-Tsb the channel consists of only one or three segments the
-frequency step is 429kHz, 3*429 respectively. As for ISDB-T the central
-frequency of the channel is expected.
+  #. On most delivery systems, the frequency is the center frequency
+     of the transponder/channel. The exception is for ISDB-T, where
+     the main carrier has a 1/7 offset from the center.
+
+  #. For ISDB-T, the channels are usually transmitted with an offset of
+     about 143kHz. E.g. a valid frequency could be 474,143 kHz. The
+     stepping is  bound to the bandwidth of the channel which is
+     typically 6MHz.
+
+  #. In ISDB-Tsb, the channel consists of only one or three segments the
+     frequency step is 429kHz, 3*429 respectively.
 
 
 .. _DTV-MODULATION:
