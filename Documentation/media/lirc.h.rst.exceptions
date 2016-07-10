@@ -1,0 +1,2 @@
+# Ignore header name
+ignore define _LINUX_LIRC_H

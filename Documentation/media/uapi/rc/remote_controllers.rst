@@ -24,6 +24,7 @@ Remote Controllers
     rc-tables
     rc-table-change
     lirc_device_interface
+    lirc-header
 
 
 **********************

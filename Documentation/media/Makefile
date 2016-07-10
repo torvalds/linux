@@ -6,7 +6,7 @@ KAPI = $(srctree)/include/linux
 SRC_DIR=$(srctree)/Documentation/media
 
 FILES = audio.h.rst ca.h.rst dmx.h.rst frontend.h.rst net.h.rst video.h.rst \
-	  videodev2.h.rst media.h.rst cec.h.rst
+	  videodev2.h.rst media.h.rst cec.h.rst lirc.h.rst
 
 TARGETS := $(addprefix $(BUILDDIR)/, $(FILES))
 
@@ -51,6 +51,9 @@ $(BUILDDIR)/media.h.rst: ${UAPI}/media.h ${PARSER} $(SRC_DIR)/media.h.rst.except
 	@$($(quiet)gen_rst)
 
 $(BUILDDIR)/cec.h.rst: ${KAPI}/cec.h ${PARSER} $(SRC_DIR)/cec.h.rst.exceptions
+	@$($(quiet)gen_rst)
+
+$(BUILDDIR)/lirc.h.rst: ${UAPI}/lirc.h ${PARSER} $(SRC_DIR)/lirc.h.rst.exceptions
 	@$($(quiet)gen_rst)
 
 cleandocs:
