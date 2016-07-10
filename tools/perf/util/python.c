@@ -290,6 +290,97 @@ static PyObject *pyrf_sample_event__repr(struct pyrf_event *pevent)
 	return ret;
 }
 
+static bool is_tracepoint(struct pyrf_event *pevent)
+{
+	return pevent->evsel->attr.type == PERF_TYPE_TRACEPOINT;
+}
+
+static int is_printable_array(char *p, unsigned int len)
+{
+	unsigned int i;
+
+	for (i = 0; i < len; i++) {
+		if (!isprint(p[i]) && !isspace(p[i]))
+			return 0;
+	}
+
+	return 1;
+}
+
+static PyObject*
+tracepoint_field(struct pyrf_event *pe, struct format_field *field)
+{
+	struct pevent *pevent = field->event->pevent;
+	void *data = pe->sample.raw_data;
+	PyObject *ret = NULL;
+	unsigned long long val;
+	unsigned int offset, len;
+
+	if (field->flags & FIELD_IS_ARRAY) {
+		offset = field->offset;
+		len    = field->size;
+		if (field->flags & FIELD_IS_DYNAMIC) {
+			val     = pevent_read_number(pevent, data + offset, len);
+			offset  = val;
+			len     = offset >> 16;
+			offset &= 0xffff;
+		}
+		if (field->flags & FIELD_IS_STRING &&
+		    is_printable_array(data + offset, len)) {
+			ret = PyString_FromString((char *)data + offset);
+		} else {
+			ret = PyByteArray_FromStringAndSize((const char *) data + offset, len);
+			field->flags &= ~FIELD_IS_STRING;
+		}
+	} else {
+		val = pevent_read_number(pevent, data + field->offset,
+					 field->size);
+		if (field->flags & FIELD_IS_POINTER)
+			ret = PyLong_FromUnsignedLong((unsigned long) val);
+		else if (field->flags & FIELD_IS_SIGNED)
+			ret = PyLong_FromLong((long) val);
+		else
+			ret = PyLong_FromUnsignedLong((unsigned long) val);
+	}
+
+	return ret;
+}
+
+static PyObject*
+get_tracepoint_field(struct pyrf_event *pevent, PyObject *attr_name)
+{
+	const char *str = PyString_AsString(PyObject_Str(attr_name));
+	struct perf_evsel *evsel = pevent->evsel;
+	struct format_field *field;
+
+	if (!evsel->tp_format) {
+		struct event_format *tp_format;
+
+		tp_format = trace_event__tp_format_id(evsel->attr.config);
+		if (!tp_format)
+			return NULL;
+
+		evsel->tp_format = tp_format;
+	}
+
+	field = pevent_find_any_field(evsel->tp_format, str);
+	if (!field)
+		return NULL;
+
+	return tracepoint_field(pevent, field);
+}
+
+static PyObject*
+pyrf_sample_event__getattro(struct pyrf_event *pevent, PyObject *attr_name)
+{
+	PyObject *obj = NULL;
+
+	if (is_tracepoint(pevent))
+		obj = get_tracepoint_field(pevent, attr_name);
+
+	return obj ?: PyObject_GenericGetAttr((PyObject *) pevent, attr_name);
+}
+
 static PyTypeObject pyrf_sample_event__type = {
 	PyVarObject_HEAD_INIT(NULL, 0)
 	.tp_name	= "perf.sample_event",
@@ -298,6 +389,7 @@ static PyTypeObject pyrf_sample_event__type = {
 	.tp_doc		= pyrf_sample_event__doc,
 	.tp_members	= pyrf_sample_event__members,
 	.tp_repr	= (reprfunc)pyrf_sample_event__repr,
+	.tp_getattro	= (getattrofunc) pyrf_sample_event__getattro,
 };
 
 static char pyrf_context_switch_event__doc[] = PyDoc_STR("perf context_switch event object.");
