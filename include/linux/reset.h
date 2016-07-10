@@ -84,8 +84,8 @@ static inline struct reset_control *__devm_reset_control_get(
 #endif /* CONFIG_RESET_CONTROLLER */
 
 /**
- * reset_control_get - Lookup and obtain an exclusive reference to a
- *                     reset controller.
+ * reset_control_get_exclusive - Lookup and obtain an exclusive reference
+ *                               to a reset controller.
  * @dev: device to be reset by the controller
  * @id: reset line name
  *
@@ -98,18 +98,12 @@ static inline struct reset_control *__devm_reset_control_get(
  *
  * Use of id names is optional.
  */
-static inline struct reset_control *__must_check reset_control_get(
-					struct device *dev, const char *id)
+static inline struct reset_control *
+__must_check reset_control_get_exclusive(struct device *dev, const char *id)
 {
 #ifndef CONFIG_RESET_CONTROLLER
 	WARN_ON(1);
 #endif
-	return __of_reset_control_get(dev ? dev->of_node : NULL, id, 0, 0);
-}
-
-static inline struct reset_control *reset_control_get_optional(
-					struct device *dev, const char *id)
-{
 	return __of_reset_control_get(dev ? dev->of_node : NULL, id, 0, 0);
 }
 
@@ -141,9 +135,21 @@ static inline struct reset_control *reset_control_get_shared(
 	return __of_reset_control_get(dev ? dev->of_node : NULL, id, 0, 1);
 }
 
+static inline struct reset_control *reset_control_get_optional_exclusive(
+					struct device *dev, const char *id)
+{
+	return __of_reset_control_get(dev ? dev->of_node : NULL, id, 0, 0);
+}
+
+static inline struct reset_control *reset_control_get_optional_shared(
+					struct device *dev, const char *id)
+{
+	return __of_reset_control_get(dev ? dev->of_node : NULL, id, 0, 1);
+}
+
 /**
- * of_reset_control_get - Lookup and obtain an exclusive reference to a
- *                        reset controller.
+ * of_reset_control_get_exclusive - Lookup and obtain an exclusive reference
+ *                                  to a reset controller.
  * @node: device to be reset by the controller
  * @id: reset line name
  *
@@ -151,15 +157,41 @@ static inline struct reset_control *reset_control_get_shared(
  *
  * Use of id names is optional.
  */
-static inline struct reset_control *of_reset_control_get(
+static inline struct reset_control *of_reset_control_get_exclusive(
 				struct device_node *node, const char *id)
 {
 	return __of_reset_control_get(node, id, 0, 0);
 }
 
 /**
- * of_reset_control_get_by_index - Lookup and obtain an exclusive reference to
- *                                 a reset controller by index.
+ * of_reset_control_get_shared - Lookup and obtain an shared reference
+ *                               to a reset controller.
+ * @node: device to be reset by the controller
+ * @id: reset line name
+ *
+ * When a reset-control is shared, the behavior of reset_control_assert /
+ * deassert is changed, the reset-core will keep track of a deassert_count
+ * and only (re-)assert the reset after reset_control_assert has been called
+ * as many times as reset_control_deassert was called. Also see the remark
+ * about shared reset-controls in the reset_control_assert docs.
+ *
+ * Calling reset_control_assert without first calling reset_control_deassert
+ * is not allowed on a shared reset control. Calling reset_control_reset is
+ * also not allowed on a shared reset control.
+ * Returns a struct reset_control or IS_ERR() condition containing errno.
+ *
+ * Use of id names is optional.
+ */
+static inline struct reset_control *of_reset_control_get_shared(
+				struct device_node *node, const char *id)
+{
+	return __of_reset_control_get(node, id, 0, 1);
+}
+
+/**
+ * of_reset_control_get_exclusive_by_index - Lookup and obtain an exclusive
+ *                                           reference to a reset controller
+ *                                           by index.
  * @node: device to be reset by the controller
  * @index: index of the reset controller
  *
@@ -167,49 +199,60 @@ static inline struct reset_control *of_reset_control_get(
  * in whatever order. Returns a struct reset_control or IS_ERR() condition
  * containing errno.
  */
-static inline struct reset_control *of_reset_control_get_by_index(
+static inline struct reset_control *of_reset_control_get_exclusive_by_index(
 					struct device_node *node, int index)
 {
 	return __of_reset_control_get(node, NULL, index, 0);
 }
 
 /**
- * devm_reset_control_get - resource managed reset_control_get()
+ * of_reset_control_get_shared_by_index - Lookup and obtain an shared
+ *                                        reference to a reset controller
+ *                                        by index.
+ * @node: device to be reset by the controller
+ * @index: index of the reset controller
+ *
+ * When a reset-control is shared, the behavior of reset_control_assert /
+ * deassert is changed, the reset-core will keep track of a deassert_count
+ * and only (re-)assert the reset after reset_control_assert has been called
+ * as many times as reset_control_deassert was called. Also see the remark
+ * about shared reset-controls in the reset_control_assert docs.
+ *
+ * Calling reset_control_assert without first calling reset_control_deassert
+ * is not allowed on a shared reset control. Calling reset_control_reset is
+ * also not allowed on a shared reset control.
+ * Returns a struct reset_control or IS_ERR() condition containing errno.
+ *
+ * This is to be used to perform a list of resets for a device or power domain
+ * in whatever order. Returns a struct reset_control or IS_ERR() condition
+ * containing errno.
+ */
+static inline struct reset_control *of_reset_control_get_shared_by_index(
+					struct device_node *node, int index)
+{
+	return __of_reset_control_get(node, NULL, index, 1);
+}
+
+/**
+ * devm_reset_control_get_exclusive - resource managed
+ *                                    reset_control_get_exclusive()
  * @dev: device to be reset by the controller
  * @id: reset line name
  *
- * Managed reset_control_get(). For reset controllers returned from this
- * function, reset_control_put() is called automatically on driver detach.
- * See reset_control_get() for more information.
+ * Managed reset_control_get_exclusive(). For reset controllers returned
+ * from this function, reset_control_put() is called automatically on driver
+ * detach.
+ *
+ * See reset_control_get_exclusive() for more information.
  */
-static inline struct reset_control *__must_check devm_reset_control_get(
-					struct device *dev, const char *id)
+static inline struct reset_control *
+__must_check devm_reset_control_get_exclusive(struct device *dev,
+					      const char *id)
 {
 #ifndef CONFIG_RESET_CONTROLLER
 	WARN_ON(1);
 #endif
 	return __devm_reset_control_get(dev, id, 0, 0);
-}
-
-static inline struct reset_control *devm_reset_control_get_optional(
-					struct device *dev, const char *id)
-{
-	return __devm_reset_control_get(dev, id, 0, 0);
-}
-
-/**
- * devm_reset_control_get_by_index - resource managed reset_control_get
- * @dev: device to be reset by the controller
- * @index: index of the reset controller
- *
- * Managed reset_control_get(). For reset controllers returned from this
- * function, reset_control_put() is called automatically on driver detach.
- * See reset_control_get() for more information.
- */
-static inline struct reset_control *devm_reset_control_get_by_index(
-					struct device *dev, int index)
-{
-	return __devm_reset_control_get(dev, NULL, index, 0);
 }
 
 /**
@@ -227,6 +270,36 @@ static inline struct reset_control *devm_reset_control_get_shared(
 	return __devm_reset_control_get(dev, id, 0, 1);
 }
 
+static inline struct reset_control *devm_reset_control_get_optional_exclusive(
+					struct device *dev, const char *id)
+{
+	return __devm_reset_control_get(dev, id, 0, 0);
+}
+
+static inline struct reset_control *devm_reset_control_get_optional_shared(
+					struct device *dev, const char *id)
+{
+	return __devm_reset_control_get(dev, id, 0, 1);
+}
+
+/**
+ * devm_reset_control_get_exclusive_by_index - resource managed
+ *                                             reset_control_get_exclusive()
+ * @dev: device to be reset by the controller
+ * @index: index of the reset controller
+ *
+ * Managed reset_control_get_exclusive(). For reset controllers returned from
+ * this function, reset_control_put() is called automatically on driver
+ * detach.
+ *
+ * See reset_control_get_exclusive() for more information.
+ */
+static inline struct reset_control *
+devm_reset_control_get_exclusive_by_index(struct device *dev, int index)
+{
+	return __devm_reset_control_get(dev, NULL, index, 0);
+}
+
 /**
  * devm_reset_control_get_shared_by_index - resource managed
  * reset_control_get_shared
@@ -237,10 +310,60 @@ static inline struct reset_control *devm_reset_control_get_shared(
  * this function, reset_control_put() is called automatically on driver detach.
  * See reset_control_get_shared() for more information.
  */
-static inline struct reset_control *devm_reset_control_get_shared_by_index(
-					struct device *dev, int index)
+static inline struct reset_control *
+devm_reset_control_get_shared_by_index(struct device *dev, int index)
 {
 	return __devm_reset_control_get(dev, NULL, index, 1);
 }
 
+/*
+ * TEMPORARY calls to use during transition:
+ *
+ *   of_reset_control_get() => of_reset_control_get_exclusive()
+ *
+ * These inline function calls will be removed once all consumers
+ * have been moved over to the new explicit API.
+ */
+static inline struct reset_control *reset_control_get(
+				struct device *dev, const char *id)
+{
+	return reset_control_get_exclusive(dev, id);
+}
+
+static inline struct reset_control *reset_control_get_optional(
+					struct device *dev, const char *id)
+{
+	return reset_control_get_optional_exclusive(dev, id);
+}
+
+static inline struct reset_control *of_reset_control_get(
+				struct device_node *node, const char *id)
+{
+	return of_reset_control_get_exclusive(node, id);
+}
+
+static inline struct reset_control *of_reset_control_get_by_index(
+				struct device_node *node, int index)
+{
+	return of_reset_control_get_exclusive_by_index(node, index);
+}
+
+static inline struct reset_control *devm_reset_control_get(
+				struct device *dev, const char *id)
+{
+	return devm_reset_control_get_exclusive(dev, id);
+}
+
+static inline struct reset_control *devm_reset_control_get_optional(
+				struct device *dev, const char *id)
+{
+	return devm_reset_control_get_optional_exclusive(dev, id);
+
+}
+
+static inline struct reset_control *devm_reset_control_get_by_index(
+				struct device *dev, int index)
+{
+	return devm_reset_control_get_exclusive_by_index(dev, index);
+}
 #endif

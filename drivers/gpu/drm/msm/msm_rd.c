@@ -312,6 +312,9 @@ void msm_rd_dump_submit(struct msm_gem_submit *submit)
 		struct msm_gem_object *obj = submit->bos[idx].obj;
 		const char *buf = msm_gem_vaddr_locked(&obj->base);
 
+		if (IS_ERR(buf))
+			continue;
+
 		buf += iova - submit->bos[idx].iova;
 
 		rd_write_section(rd, RD_GPUADDR,

@@ -3458,6 +3458,8 @@ static int mvneta_open(struct net_device *dev)
 	return 0;
 
 err_free_irq:
+	unregister_cpu_notifier(&pp->cpu_notifier);
+	on_each_cpu(mvneta_percpu_disable, pp, true);
 	free_percpu_irq(pp->dev->irq, pp->ports);
 err_cleanup_txqs:
 	mvneta_cleanup_txqs(pp);

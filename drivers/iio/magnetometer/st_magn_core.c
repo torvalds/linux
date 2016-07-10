@@ -572,6 +572,7 @@ static const struct iio_info magn_info = {
 static const struct iio_trigger_ops st_magn_trigger_ops = {
 	.owner = THIS_MODULE,
 	.set_trigger_state = ST_MAGN_TRIGGER_SET_STATE,
+	.validate_device = st_sensors_validate_device,
 };
 #define ST_MAGN_TRIGGER_OPS (&st_magn_trigger_ops)
 #else

@@ -1302,7 +1302,7 @@ static int tonga_populate_smc_mvdd_table(struct pp_hwmgr *hwmgr,
 			table->Smio[count] |=
 				data->mvdd_voltage_table.entries[count].smio_low;
 		}
-		table->SmioMask2 = data->vddci_voltage_table.mask_low;
+		table->SmioMask2 = data->mvdd_voltage_table.mask_low;
 
 		CONVERT_FROM_HOST_TO_SMC_UL(table->MvddLevelCount);
 	}
@@ -2845,27 +2845,6 @@ static int tonga_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 			data->dpm_table.mclk_table.dpm_levels[data->dpm_table.mclk_table.count].enabled = 1; /*(i==0) ? 1 : 0; */
 			data->dpm_table.mclk_table.count++;
 		}
-	}
-
-	/* Initialize Vddc DPM table based on allow Vddc values.  And populate corresponding std values. */
-	for (i = 0; i < allowed_vdd_sclk_table->count; i++) {
-		data->dpm_table.vddc_table.dpm_levels[i].value = allowed_vdd_mclk_table->entries[i].vddc;
-		/* tonga_hwmgr->dpm_table.VddcTable.dpm_levels[i].param1 = stdVoltageTable->entries[i].Leakage; */
-		/* param1 is for corresponding std voltage */
-		data->dpm_table.vddc_table.dpm_levels[i].enabled = 1;
-	}
-	data->dpm_table.vddc_table.count = allowed_vdd_sclk_table->count;
-
-	if (NULL != allowed_vdd_mclk_table) {
-		/* Initialize Vddci DPM table based on allow Mclk values */
-		for (i = 0; i < allowed_vdd_mclk_table->count; i++) {
-			data->dpm_table.vdd_ci_table.dpm_levels[i].value = allowed_vdd_mclk_table->entries[i].vddci;
-			data->dpm_table.vdd_ci_table.dpm_levels[i].enabled = 1;
-			data->dpm_table.mvdd_table.dpm_levels[i].value = allowed_vdd_mclk_table->entries[i].mvdd;
-			data->dpm_table.mvdd_table.dpm_levels[i].enabled = 1;
-		}
-		data->dpm_table.vdd_ci_table.count = allowed_vdd_mclk_table->count;
-		data->dpm_table.mvdd_table.count = allowed_vdd_mclk_table->count;
 	}
 
 	/* setup PCIE gen speed levels*/
@@ -4510,6 +4489,7 @@ int tonga_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	data->vdd_ci_control = TONGA_VOLTAGE_CONTROL_NONE;
 	data->vdd_gfx_control = TONGA_VOLTAGE_CONTROL_NONE;
 	data->mvdd_control = TONGA_VOLTAGE_CONTROL_NONE;
+	data->force_pcie_gen = PP_PCIEGenInvalid;
 
 	if (atomctrl_is_voltage_controled_by_gpio_v3(hwmgr,
 				VOLTAGE_TYPE_VDDC, VOLTAGE_OBJ_SVID2)) {

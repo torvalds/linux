@@ -1244,12 +1244,6 @@ static atomic_t kvm_guest_has_master_clock = ATOMIC_INIT(0);
 static DEFINE_PER_CPU(unsigned long, cpu_tsc_khz);
 static unsigned long max_tsc_khz;
 
-static inline u64 nsec_to_cycles(struct kvm_vcpu *vcpu, u64 nsec)
-{
-	return pvclock_scale_delta(nsec, vcpu->arch.virtual_tsc_mult,
-				   vcpu->arch.virtual_tsc_shift);
-}
-
 static u32 adjust_tsc_khz(u32 khz, s32 ppm)
 {
 	u64 v = (u64)khz * (1000000 + ppm);

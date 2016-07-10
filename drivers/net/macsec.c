@@ -605,12 +605,41 @@ static void macsec_encrypt_done(struct crypto_async_request *base, int err)
 	dev_put(dev);
 }
 
+static struct aead_request *macsec_alloc_req(struct crypto_aead *tfm,
+					     unsigned char **iv,
+					     struct scatterlist **sg)
+{
+	size_t size, iv_offset, sg_offset;
+	struct aead_request *req;
+	void *tmp;
+
+	size = sizeof(struct aead_request) + crypto_aead_reqsize(tfm);
+	iv_offset = size;
+	size += GCM_AES_IV_LEN;
+
+	size = ALIGN(size, __alignof__(struct scatterlist));
+	sg_offset = size;
+	size += sizeof(struct scatterlist) * (MAX_SKB_FRAGS + 1);
+
+	tmp = kmalloc(size, GFP_ATOMIC);
+	if (!tmp)
+		return NULL;
+
+	*iv = (unsigned char *)(tmp + iv_offset);
+	*sg = (struct scatterlist *)(tmp + sg_offset);
+	req = tmp;
+
+	aead_request_set_tfm(req, tfm);
+
+	return req;
+}
+
 static struct sk_buff *macsec_encrypt(struct sk_buff *skb,
 				      struct net_device *dev)
 {
 	int ret;
-	struct scatterlist sg[MAX_SKB_FRAGS + 1];
-	unsigned char iv[GCM_AES_IV_LEN];
+	struct scatterlist *sg;
+	unsigned char *iv;
 	struct ethhdr *eth;
 	struct macsec_eth_header *hh;
 	size_t unprotected_len;
@@ -668,8 +697,6 @@ static struct sk_buff *macsec_encrypt(struct sk_buff *skb,
 	macsec_fill_sectag(hh, secy, pn);
 	macsec_set_shortlen(hh, unprotected_len - 2 * ETH_ALEN);
 
-	macsec_fill_iv(iv, secy->sci, pn);
-
 	skb_put(skb, secy->icv_len);
 
 	if (skb->len - ETH_HLEN > macsec_priv(dev)->real_dev->mtu) {
@@ -684,12 +711,14 @@ static struct sk_buff *macsec_encrypt(struct sk_buff *skb,
 		return ERR_PTR(-EINVAL);
 	}
 
-	req = aead_request_alloc(tx_sa->key.tfm, GFP_ATOMIC);
+	req = macsec_alloc_req(tx_sa->key.tfm, &iv, &sg);
 	if (!req) {
 		macsec_txsa_put(tx_sa);
 		kfree_skb(skb);
 		return ERR_PTR(-ENOMEM);
 	}
+
+	macsec_fill_iv(iv, secy->sci, pn);
 
 	sg_init_table(sg, MAX_SKB_FRAGS + 1);
 	skb_to_sgvec(skb, sg, 0, skb->len);
@@ -861,7 +890,6 @@ static void macsec_decrypt_done(struct crypto_async_request *base, int err)
 out:
 	macsec_rxsa_put(rx_sa);
 	dev_put(dev);
-	return;
 }
 
 static struct sk_buff *macsec_decrypt(struct sk_buff *skb,
@@ -871,8 +899,8 @@ static struct sk_buff *macsec_decrypt(struct sk_buff *skb,
 				      struct macsec_secy *secy)
 {
 	int ret;
-	struct scatterlist sg[MAX_SKB_FRAGS + 1];
-	unsigned char iv[GCM_AES_IV_LEN];
+	struct scatterlist *sg;
+	unsigned char *iv;
 	struct aead_request *req;
 	struct macsec_eth_header *hdr;
 	u16 icv_len = secy->icv_len;
@@ -882,7 +910,7 @@ static struct sk_buff *macsec_decrypt(struct sk_buff *skb,
 	if (!skb)
 		return ERR_PTR(-ENOMEM);
 
-	req = aead_request_alloc(rx_sa->key.tfm, GFP_ATOMIC);
+	req = macsec_alloc_req(rx_sa->key.tfm, &iv, &sg);
 	if (!req) {
 		kfree_skb(skb);
 		return ERR_PTR(-ENOMEM);
@@ -1234,7 +1262,7 @@ static struct crypto_aead *macsec_alloc_tfm(char *key, int key_len, int icv_len)
 	struct crypto_aead *tfm;
 	int ret;
 
-	tfm = crypto_alloc_aead("gcm(aes)", 0, CRYPTO_ALG_ASYNC);
+	tfm = crypto_alloc_aead("gcm(aes)", 0, 0);
 	if (!tfm || IS_ERR(tfm))
 		return NULL;
 
@@ -2612,6 +2640,7 @@ static netdev_tx_t macsec_start_xmit(struct sk_buff *skb,
 		u64_stats_update_begin(&secy_stats->syncp);
 		secy_stats->stats.OutPktsUntagged++;
 		u64_stats_update_end(&secy_stats->syncp);
+		skb->dev = macsec->real_dev;
 		len = skb->len;
 		ret = dev_queue_xmit(skb);
 		count_tx(dev, ret, len);
@@ -3361,6 +3390,7 @@ static void __exit macsec_exit(void)
 	genl_unregister_family(&macsec_fam);
 	rtnl_link_unregister(&macsec_link_ops);
 	unregister_netdevice_notifier(&macsec_notifier);
+	rcu_barrier();
 }
 
 module_init(macsec_init);

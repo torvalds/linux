@@ -207,6 +207,9 @@ struct blkfront_info
 	struct blk_mq_tag_set tag_set;
 	struct blkfront_ring_info *rinfo;
 	unsigned int nr_rings;
+	/* Save uncomplete reqs and bios for migration. */
+	struct list_head requests;
+	struct bio_list bio_list;
 };
 
 static unsigned int nr_minors;
@@ -874,8 +877,12 @@ static int blkif_queue_rq(struct blk_mq_hw_ctx *hctx,
 			  const struct blk_mq_queue_data *qd)
 {
 	unsigned long flags;
-	struct blkfront_ring_info *rinfo = (struct blkfront_ring_info *)hctx->driver_data;
+	int qid = hctx->queue_num;
+	struct blkfront_info *info = hctx->queue->queuedata;
+	struct blkfront_ring_info *rinfo = NULL;
 
+	BUG_ON(info->nr_rings <= qid);
+	rinfo = &info->rinfo[qid];
 	blk_mq_start_request(qd->rq);
 	spin_lock_irqsave(&rinfo->ring_lock, flags);
 	if (RING_FULL(&rinfo->ring))
@@ -901,20 +908,9 @@ out_busy:
 	return BLK_MQ_RQ_QUEUE_BUSY;
 }
 
-static int blk_mq_init_hctx(struct blk_mq_hw_ctx *hctx, void *data,
-			    unsigned int index)
-{
-	struct blkfront_info *info = (struct blkfront_info *)data;
-
-	BUG_ON(info->nr_rings <= index);
-	hctx->driver_data = &info->rinfo[index];
-	return 0;
-}
-
 static struct blk_mq_ops blkfront_mq_ops = {
 	.queue_rq = blkif_queue_rq,
 	.map_queue = blk_mq_map_queue,
-	.init_hctx = blk_mq_init_hctx,
 };
 
 static int xlvbd_init_blk_queue(struct gendisk *gd, u16 sector_size,
@@ -950,6 +946,7 @@ static int xlvbd_init_blk_queue(struct gendisk *gd, u16 sector_size,
 		return PTR_ERR(rq);
 	}
 
+	rq->queuedata = info;
 	queue_flag_set_unlocked(QUEUE_FLAG_VIRT, rq);
 
 	if (info->feature_discard) {
@@ -2008,69 +2005,22 @@ static int blkif_recover(struct blkfront_info *info)
 {
 	unsigned int i, r_index;
 	struct request *req, *n;
-	struct blk_shadow *copy;
 	int rc;
 	struct bio *bio, *cloned_bio;
-	struct bio_list bio_list, merge_bio;
 	unsigned int segs, offset;
 	int pending, size;
 	struct split_bio *split_bio;
-	struct list_head requests;
 
 	blkfront_gather_backend_features(info);
 	segs = info->max_indirect_segments ? : BLKIF_MAX_SEGMENTS_PER_REQUEST;
 	blk_queue_max_segments(info->rq, segs);
-	bio_list_init(&bio_list);
-	INIT_LIST_HEAD(&requests);
 
 	for (r_index = 0; r_index < info->nr_rings; r_index++) {
-		struct blkfront_ring_info *rinfo;
-
-		rinfo = &info->rinfo[r_index];
-		/* Stage 1: Make a safe copy of the shadow state. */
-		copy = kmemdup(rinfo->shadow, sizeof(rinfo->shadow),
-			       GFP_NOIO | __GFP_REPEAT | __GFP_HIGH);
-		if (!copy)
-			return -ENOMEM;
-
-		/* Stage 2: Set up free list. */
-		memset(&rinfo->shadow, 0, sizeof(rinfo->shadow));
-		for (i = 0; i < BLK_RING_SIZE(info); i++)
-			rinfo->shadow[i].req.u.rw.id = i+1;
-		rinfo->shadow_free = rinfo->ring.req_prod_pvt;
-		rinfo->shadow[BLK_RING_SIZE(info)-1].req.u.rw.id = 0x0fffffff;
+		struct blkfront_ring_info *rinfo = &info->rinfo[r_index];
 
 		rc = blkfront_setup_indirect(rinfo);
-		if (rc) {
-			kfree(copy);
+		if (rc)
 			return rc;
-		}
-
-		for (i = 0; i < BLK_RING_SIZE(info); i++) {
-			/* Not in use? */
-			if (!copy[i].request)
-				continue;
-
-			/*
-			 * Get the bios in the request so we can re-queue them.
-			 */
-			if (copy[i].request->cmd_flags &
-			    (REQ_FLUSH | REQ_FUA | REQ_DISCARD | REQ_SECURE)) {
-				/*
-				 * Flush operations don't contain bios, so
-				 * we need to requeue the whole request
-				 */
-				list_add(&copy[i].request->queuelist, &requests);
-				continue;
-			}
-			merge_bio.head = copy[i].request->bio;
-			merge_bio.tail = copy[i].request->biotail;
-			bio_list_merge(&bio_list, &merge_bio);
-			copy[i].request->bio = NULL;
-			blk_end_request_all(copy[i].request, 0);
-		}
-
-		kfree(copy);
 	}
 	xenbus_switch_state(info->xbdev, XenbusStateConnected);
 
@@ -2085,7 +2035,7 @@ static int blkif_recover(struct blkfront_info *info)
 		kick_pending_request_queues(rinfo);
 	}
 
-	list_for_each_entry_safe(req, n, &requests, queuelist) {
+	list_for_each_entry_safe(req, n, &info->requests, queuelist) {
 		/* Requeue pending requests (flush or discard) */
 		list_del_init(&req->queuelist);
 		BUG_ON(req->nr_phys_segments > segs);
@@ -2093,7 +2043,7 @@ static int blkif_recover(struct blkfront_info *info)
 	}
 	blk_mq_kick_requeue_list(info->rq);
 
-	while ((bio = bio_list_pop(&bio_list)) != NULL) {
+	while ((bio = bio_list_pop(&info->bio_list)) != NULL) {
 		/* Traverse the list of pending bios and re-queue them */
 		if (bio_segments(bio) > segs) {
 			/*
@@ -2139,8 +2089,41 @@ static int blkfront_resume(struct xenbus_device *dev)
 {
 	struct blkfront_info *info = dev_get_drvdata(&dev->dev);
 	int err = 0;
+	unsigned int i, j;
 
 	dev_dbg(&dev->dev, "blkfront_resume: %s\n", dev->nodename);
+
+	bio_list_init(&info->bio_list);
+	INIT_LIST_HEAD(&info->requests);
+	for (i = 0; i < info->nr_rings; i++) {
+		struct blkfront_ring_info *rinfo = &info->rinfo[i];
+		struct bio_list merge_bio;
+		struct blk_shadow *shadow = rinfo->shadow;
+
+		for (j = 0; j < BLK_RING_SIZE(info); j++) {
+			/* Not in use? */
+			if (!shadow[j].request)
+				continue;
+
+			/*
+			 * Get the bios in the request so we can re-queue them.
+			 */
+			if (shadow[j].request->cmd_flags &
+					(REQ_FLUSH | REQ_FUA | REQ_DISCARD | REQ_SECURE)) {
+				/*
+				 * Flush operations don't contain bios, so
+				 * we need to requeue the whole request
+				 */
+				list_add(&shadow[j].request->queuelist, &info->requests);
+				continue;
+			}
+			merge_bio.head = shadow[j].request->bio;
+			merge_bio.tail = shadow[j].request->biotail;
+			bio_list_merge(&info->bio_list, &merge_bio);
+			shadow[j].request->bio = NULL;
+			blk_mq_end_request(shadow[j].request, 0);
+		}
+	}
 
 	blkif_free(info, info->connected == BLKIF_STATE_CONNECTED);
 
@@ -2149,6 +2132,8 @@ static int blkfront_resume(struct xenbus_device *dev)
 		return err;
 
 	err = talk_to_blkback(dev, info);
+	if (!err)
+		blk_mq_update_nr_hw_queues(&info->tag_set, info->nr_rings);
 
 	/*
 	 * We have to wait for the backend to switch to
@@ -2485,10 +2470,23 @@ static void blkback_changed(struct xenbus_device *dev,
 		break;
 
 	case XenbusStateConnected:
-		if (dev->state != XenbusStateInitialised) {
+		/*
+		 * talk_to_blkback sets state to XenbusStateInitialised
+		 * and blkfront_connect sets it to XenbusStateConnected
+		 * (if connection went OK).
+		 *
+		 * If the backend (or toolstack) decides to poke at backend
+		 * state (and re-trigger the watch by setting the state repeatedly
+		 * to XenbusStateConnected (4)) we need to deal with this.
+		 * This is allowed as this is used to communicate to the guest
+		 * that the size of disk has changed!
+		 */
+		if ((dev->state != XenbusStateInitialised) &&
+		    (dev->state != XenbusStateConnected)) {
 			if (talk_to_blkback(dev, info))
 				break;
 		}
+
 		blkfront_connect(info);
 		break;
 

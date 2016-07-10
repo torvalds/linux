@@ -229,6 +229,11 @@ struct mlxsw_sp_port {
 		struct ieee_maxrate *maxrate;
 		struct ieee_pfc *pfc;
 	} dcb;
+	struct {
+		u8 module;
+		u8 width;
+		u8 lane;
+	} mapping;
 	/* 802.1Q bridge VLANs */
 	unsigned long *active_vlans;
 	unsigned long *untagged_vlans;
