@@ -18,16 +18,8 @@
 #include <linux/nmi.h>
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/perf_event.h>
 
 #ifdef CONFIG_HARDLOCKUP_DETECTOR
-int hw_nmi_get_event(void)
-{
-	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
-		return PERF_COUNT_HW_REF_CPU_CYCLES;
-	return PERF_COUNT_HW_CPU_CYCLES;
-}
-
 u64 hw_nmi_get_sample_period(int watchdog_thresh)
 {
 	return (u64)(cpu_khz) * 1000 * watchdog_thresh;
