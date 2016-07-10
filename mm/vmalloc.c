@@ -314,7 +314,7 @@ static void __insert_vmap_area(struct vmap_area *va)
 {
 	struct rb_node **p = &vmap_area_root.rb_node;
 	struct rb_node *parent = NULL;
-	struct rb_node *tmp;
+	struct rb_node *prev = NULL;
 
 	while (*p) {
 		struct vmap_area *tmp_va;
@@ -323,9 +323,10 @@ static void __insert_vmap_area(struct vmap_area *va)
 		tmp_va = rb_entry(parent, struct vmap_area, rb_node);
 		if (va->va_start < tmp_va->va_end)
 			p = &(*p)->rb_left;
-		else if (va->va_end > tmp_va->va_start)
+		else if (va->va_end > tmp_va->va_start){
+			prev = *p;
 			p = &(*p)->rb_right;
-		else
+		}else
 			BUG();
 	}
 
@@ -333,11 +334,10 @@ static void __insert_vmap_area(struct vmap_area *va)
 	rb_insert_color(&va->rb_node, &vmap_area_root);
 
 	/* address-sort this list */
-	tmp = rb_prev(&va->rb_node);
-	if (tmp) {
-		struct vmap_area *prev;
-		prev = rb_entry(tmp, struct vmap_area, rb_node);
-		list_add_rcu(&va->list, &prev->list);
+	if (prev) {
+		struct vmap_area *prev_area;
+		prev_area = rb_entry(prev, struct vmap_area, rb_node);
+		list_add_rcu(&va->list, &prev_area->list);
 	} else
 		list_add_rcu(&va->list, &vmap_area_list);
 }
@@ -2316,15 +2316,19 @@ static bool pvm_find_next_prev(unsigned long end,
 			       struct vmap_area **pprev)
 {
 	struct rb_node *n = vmap_area_root.rb_node;
+	struct rb_node *prev = NULL;
+	struct rb_node *next = NULL;
 	struct vmap_area *va = NULL;
 
 	while (n) {
 		va = rb_entry(n, struct vmap_area, rb_node);
-		if (end < va->va_end)
+		if (end < va->va_end){
+			next = n;
 			n = n->rb_left;
-		else if (end > va->va_end)
+		}else if (end > va->va_end){
+			prev = n;
 			n = n->rb_right;
-		else
+		}else
 			break;
 	}
 
@@ -2333,10 +2337,10 @@ static bool pvm_find_next_prev(unsigned long end,
 
 	if (va->va_end > end) {
 		*pnext = va;
-		*pprev = node_to_va(rb_prev(&(*pnext)->rb_node));
+		*pprev = node_to_va(prev));
 	} else {
 		*pprev = va;
-		*pnext = node_to_va(rb_next(&(*pprev)->rb_node));
+		*pnext = node_to_va(next);
 	}
 	return true;
 }
