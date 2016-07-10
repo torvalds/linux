@@ -46,7 +46,6 @@
 #include "acnamesp.h"
 #include "acdispat.h"
 #include "actables.h"
-#include "acinterp.h"
 
 #define _COMPONENT          ACPI_NAMESPACE
 ACPI_MODULE_NAME("nsload")
@@ -79,8 +78,6 @@ acpi_ns_load_table(u32 table_index, struct acpi_namespace_node *node)
 
 	ACPI_FUNCTION_TRACE(ns_load_table);
 
-	acpi_ex_enter_interpreter();
-
 	/*
 	 * Parse the table and load the namespace with all named
 	 * objects found within. Control methods are NOT parsed
@@ -92,7 +89,7 @@ acpi_ns_load_table(u32 table_index, struct acpi_namespace_node *node)
 	 */
 	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
 	if (ACPI_FAILURE(status)) {
-		goto unlock_interp;
+		return_ACPI_STATUS(status);
 	}
 
 	/* If table already loaded into namespace, just return */
@@ -133,8 +130,6 @@ acpi_ns_load_table(u32 table_index, struct acpi_namespace_node *node)
 
 unlock:
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
-unlock_interp:
-	(void)acpi_ex_exit_interpreter();
 
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
