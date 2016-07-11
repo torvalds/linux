@@ -30,5 +30,7 @@ int asoc_simple_card_parse_daifmt(struct device *dev,
 int asoc_simple_card_set_dailink_name(struct device *dev,
 				      struct snd_soc_dai_link *dai_link,
 				      const char *fmt, ...);
+int asoc_simple_card_parse_card_name(struct snd_soc_card *card,
+				     char *prefix);
 
 #endif /* __SIMPLE_CARD_CORE_H */
