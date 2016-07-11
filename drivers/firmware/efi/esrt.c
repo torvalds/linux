@@ -16,6 +16,7 @@
 #include <linux/device.h>
 #include <linux/efi.h>
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/kobject.h>
 #include <linux/list.h>
@@ -387,9 +388,9 @@ static int __init esrt_sysfs_init(void)
 	if (!esrt_data || !esrt_data_size)
 		return -ENOSYS;
 
-	esrt = ioremap(esrt_data, esrt_data_size);
+	esrt = memremap(esrt_data, esrt_data_size, MEMREMAP_WB);
 	if (!esrt) {
-		pr_err("ioremap(%pa, %zu) failed.\n", &esrt_data,
+		pr_err("memremap(%pa, %zu) failed.\n", &esrt_data,
 		       esrt_data_size);
 		return -ENOMEM;
 	}
