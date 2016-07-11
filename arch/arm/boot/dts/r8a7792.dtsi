@@ -279,7 +279,7 @@
 			clocks = <&extal_clk>;
 			#clock-cells = <1>;
 			clock-output-names = "main", "pll0", "pll1", "pll3",
-					     "lb", "qspi", "z", "adsp";
+					     "lb", "qspi", "z";
 			#power-domain-cells = <0>;
 		};
 
