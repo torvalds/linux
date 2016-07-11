@@ -156,8 +156,6 @@ befs_bt_read_super(struct super_block *sb, const befs_data_stream *ds,
 	sup->max_depth = fs32_to_cpu(sb, od_sup->max_depth);
 	sup->data_type = fs32_to_cpu(sb, od_sup->data_type);
 	sup->root_node_ptr = fs64_to_cpu(sb, od_sup->root_node_ptr);
-	sup->free_node_ptr = fs64_to_cpu(sb, od_sup->free_node_ptr);
-	sup->max_size = fs64_to_cpu(sb, od_sup->max_size);
 
 	brelse(bh);
 	if (sup->magic != BEFS_BTREE_MAGIC) {
