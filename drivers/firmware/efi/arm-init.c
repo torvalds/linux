@@ -247,6 +247,7 @@ void __init efi_init(void)
 
 	reserve_regions();
 	efi_memattr_init();
+	efi_esrt_init();
 	efi_memmap_unmap();
 
 	memblock_reserve(params.mmap & PAGE_MASK,
