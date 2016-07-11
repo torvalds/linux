@@ -14,6 +14,7 @@
 #include <signal.h>
 #include "../util/stat.h"
 #include <subcmd/parse-options.h>
+#include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <errno.h>
 #include "bench.h"
