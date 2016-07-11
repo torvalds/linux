@@ -52,3 +52,26 @@ int asoc_simple_card_parse_daifmt(struct device *dev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(asoc_simple_card_parse_daifmt);
+
+int asoc_simple_card_set_dailink_name(struct device *dev,
+				      struct snd_soc_dai_link *dai_link,
+				      const char *fmt, ...)
+{
+	va_list ap;
+	char *name = NULL;
+	int ret = -ENOMEM;
+
+	va_start(ap, fmt);
+	name = devm_kvasprintf(dev, GFP_KERNEL, fmt, ap);
+	va_end(ap);
+
+	if (name) {
+		ret = 0;
+
+		dai_link->name		= name;
+		dai_link->stream_name	= name;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(asoc_simple_card_set_dailink_name);
