@@ -345,6 +345,9 @@ export srctree OUTPUT RM CC LD AR CFLAGS V BISON FLEX AWK
 include $(srctree)/tools/build/Makefile.include
 
 $(PERF_IN): prepare FORCE
+	@(test -f ../../include/uapi/linux/perf_event.h && ( \
+        (diff -B ../include/uapi/linux/perf_event.h ../../include/uapi/linux/perf_event.h >/dev/null) \
+        || echo "Warning: tools/include/uapi/linux/perf_event.h differs from kernel" >&2 )) || true
 	$(Q)$(MAKE) $(build)=perf
 
 $(OUTPUT)perf: $(PERFLIBS) $(PERF_IN) $(LIBTRACEEVENT_DYNAMIC_LIST)

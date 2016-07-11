@@ -54,6 +54,7 @@ tools/include/linux/hash.h
 tools/include/linux/kernel.h
 tools/include/linux/list.h
 tools/include/linux/log2.h
+tools/include/uapi/linux/perf_event.h
 tools/include/linux/poison.h
 tools/include/linux/rbtree.h
 tools/include/linux/rbtree_augmented.h
@@ -66,7 +67,6 @@ include/asm-generic/bitops/const_hweight.h
 include/asm-generic/bitops/fls64.h
 include/asm-generic/bitops/__fls.h
 include/asm-generic/bitops/fls.h
-include/linux/perf_event.h
 include/linux/list.h
 include/linux/hash.h
 include/linux/stringify.h
@@ -79,7 +79,6 @@ arch/*/lib/memset*.S
 arch/*/include/asm/*features.h
 include/linux/poison.h
 include/linux/hw_breakpoint.h
-include/uapi/linux/perf_event.h
 include/uapi/linux/bpf.h
 include/uapi/linux/bpf_common.h
 include/uapi/linux/const.h
