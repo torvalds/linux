@@ -37,12 +37,12 @@
 #define PWM_SCALE_SHIFT	0
 
 struct tegra_pwm_chip {
-	struct pwm_chip		chip;
-	struct device		*dev;
+	struct pwm_chip chip;
+	struct device *dev;
 
-	struct clk		*clk;
+	struct clk *clk;
 
-	void __iomem		*mmio_base;
+	void __iomem *mmio_base;
 };
 
 static inline struct tegra_pwm_chip *to_tegra_pwm_chip(struct pwm_chip *chip)
