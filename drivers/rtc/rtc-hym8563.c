@@ -198,7 +198,7 @@ static int hym8563_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alm)
 		return ret;
 
 	/* The alarm only has a minute accuracy */
-	alm_tm->tm_sec = -1;
+	alm_tm->tm_sec = 0;
 
 	alm_tm->tm_min = (buf[0] & HYM8563_ALM_BIT_DISABLE) ?
 					-1 :
