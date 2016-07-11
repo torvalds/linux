@@ -211,7 +211,7 @@ static const struct regulator_desc pma8084_switch = {
 static const struct regulator_desc pm8x41_hfsmps = {
 	.linear_ranges = (struct regulator_linear_range[]) {
 		REGULATOR_LINEAR_RANGE( 375000,  0,  95, 12500),
-		REGULATOR_LINEAR_RANGE(1550000, 96, 158, 25000),
+		REGULATOR_LINEAR_RANGE(1575000, 96, 158, 25000),
 	},
 	.n_linear_ranges = 2,
 	.n_voltages = 159,
