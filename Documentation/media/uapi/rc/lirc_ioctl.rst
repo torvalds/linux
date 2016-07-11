@@ -49,15 +49,6 @@ device can rely on working with the default settings initially.
 I/O control requests
 ====================
 
-.. _LIRC_GET_REC_MODE:
-.. _lirc-mode-mode2:
-.. _lirc-mode-lirccode:
-
-``LIRC_GET_REC_MODE``
-
-    Get supported receive modes. Only ``LIRC_MODE_MODE2`` and
-    ``LIRC_MODE_LIRCCODE`` are supported by lircd.
-
 .. _LIRC_SET_SEND_DUTY_CYCLE:
 
 ``LIRC_SET_SEND_DUTY_CYCLE``
