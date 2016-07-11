@@ -38,43 +38,144 @@
 #define SUPPORTED_CABLE_MAX	32
 #define CABLE_NAME_MAX		30
 
-static const char *extcon_name[] =  {
-	[EXTCON_NONE]			= "NONE",
+struct __extcon_info {
+	unsigned int type;
+	unsigned int id;
+	const char *name;
+
+} extcon_info[] = {
+	[EXTCON_NONE] = {
+		.type = EXTCON_TYPE_MISC,
+		.id = EXTCON_NONE,
+		.name = "NONE",
+	},
 
 	/* USB external connector */
-	[EXTCON_USB]			= "USB",
-	[EXTCON_USB_HOST]		= "USB-HOST",
+	[EXTCON_USB] = {
+		.type = EXTCON_TYPE_USB,
+		.id = EXTCON_USB,
+		.name = "USB",
+	},
+	[EXTCON_USB_HOST] = {
+		.type = EXTCON_TYPE_USB,
+		.id = EXTCON_USB_HOST,
+		.name = "USB_HOST",
+	},
 
 	/* Charging external connector */
-	[EXTCON_CHG_USB_SDP]		= "SDP",
-	[EXTCON_CHG_USB_DCP]		= "DCP",
-	[EXTCON_CHG_USB_CDP]		= "CDP",
-	[EXTCON_CHG_USB_ACA]		= "ACA",
-	[EXTCON_CHG_USB_FAST]		= "FAST-CHARGER",
-	[EXTCON_CHG_USB_SLOW]		= "SLOW-CHARGER",
+	[EXTCON_CHG_USB_SDP] = {
+		.type = EXTCON_TYPE_CHG | EXTCON_TYPE_USB,
+		.id = EXTCON_CHG_USB_SDP,
+		.name = "SDP",
+	},
+	[EXTCON_CHG_USB_DCP] = {
+		.type = EXTCON_TYPE_CHG | EXTCON_TYPE_USB,
+		.id = EXTCON_CHG_USB_DCP,
+		.name = "DCP",
+	},
+	[EXTCON_CHG_USB_CDP] = {
+		.type = EXTCON_TYPE_CHG | EXTCON_TYPE_USB,
+		.id = EXTCON_CHG_USB_CDP,
+		.name = "CDP",
+	},
+	[EXTCON_CHG_USB_ACA] = {
+		.type = EXTCON_TYPE_CHG | EXTCON_TYPE_USB,
+		.id = EXTCON_CHG_USB_ACA,
+		.name = "ACA",
+	},
+	[EXTCON_CHG_USB_FAST] = {
+		.type = EXTCON_TYPE_CHG | EXTCON_TYPE_USB,
+		.id = EXTCON_CHG_USB_FAST,
+		.name = "FAST-CHARGER",
+	},
+	[EXTCON_CHG_USB_SLOW] = {
+		.type = EXTCON_TYPE_CHG | EXTCON_TYPE_USB,
+		.id = EXTCON_CHG_USB_SLOW,
+		.name = "SLOW-CHARGER",
+	},
 
 	/* Jack external connector */
-	[EXTCON_JACK_MICROPHONE]	= "MICROPHONE",
-	[EXTCON_JACK_HEADPHONE]		= "HEADPHONE",
-	[EXTCON_JACK_LINE_IN]		= "LINE-IN",
-	[EXTCON_JACK_LINE_OUT]		= "LINE-OUT",
-	[EXTCON_JACK_VIDEO_IN]		= "VIDEO-IN",
-	[EXTCON_JACK_VIDEO_OUT]		= "VIDEO-OUT",
-	[EXTCON_JACK_SPDIF_IN]		= "SPDIF-IN",
-	[EXTCON_JACK_SPDIF_OUT]		= "SPDIF-OUT",
+	[EXTCON_JACK_MICROPHONE] = {
+		.type = EXTCON_TYPE_JACK,
+		.id = EXTCON_JACK_MICROPHONE,
+		.name = "MICROPHONE",
+	},
+	[EXTCON_JACK_HEADPHONE] = {
+		.type = EXTCON_TYPE_JACK,
+		.id = EXTCON_JACK_HEADPHONE,
+		.name = "HEADPHONE",
+	},
+	[EXTCON_JACK_LINE_IN] = {
+		.type = EXTCON_TYPE_JACK,
+		.id = EXTCON_JACK_LINE_IN,
+		.name = "LINE-IN",
+	},
+	[EXTCON_JACK_LINE_OUT] = {
+		.type = EXTCON_TYPE_JACK,
+		.id = EXTCON_JACK_LINE_OUT,
+		.name = "LINE-OUT",
+	},
+	[EXTCON_JACK_VIDEO_IN] = {
+		.type = EXTCON_TYPE_JACK,
+		.id = EXTCON_JACK_VIDEO_IN,
+		.name = "VIDEO-IN",
+	},
+	[EXTCON_JACK_VIDEO_OUT] = {
+		.type = EXTCON_TYPE_JACK,
+		.id = EXTCON_JACK_VIDEO_OUT,
+		.name = "VIDEO-OUT",
+	},
+	[EXTCON_JACK_SPDIF_IN] = {
+		.type = EXTCON_TYPE_JACK,
+		.id = EXTCON_JACK_SPDIF_IN,
+		.name = "SPDIF-IN",
+	},
+	[EXTCON_JACK_SPDIF_OUT] = {
+		.type = EXTCON_TYPE_JACK,
+		.id = EXTCON_JACK_SPDIF_OUT,
+		.name = "SPDIF-OUT",
+	},
 
 	/* Display external connector */
-	[EXTCON_DISP_HDMI]		= "HDMI",
-	[EXTCON_DISP_MHL]		= "MHL",
-	[EXTCON_DISP_DVI]		= "DVI",
-	[EXTCON_DISP_VGA]		= "VGA",
+	[EXTCON_DISP_HDMI] = {
+		.type = EXTCON_TYPE_DISP,
+		.id = EXTCON_DISP_HDMI,
+		.name = "HDMI",
+	},
+	[EXTCON_DISP_MHL] = {
+		.type = EXTCON_TYPE_DISP,
+		.id = EXTCON_DISP_MHL,
+		.name = "MHL",
+	},
+	[EXTCON_DISP_DVI] = {
+		.type = EXTCON_TYPE_DISP,
+		.id = EXTCON_DISP_DVI,
+		.name = "DVI",
+	},
+	[EXTCON_DISP_VGA] = {
+		.type = EXTCON_TYPE_DISP,
+		.id = EXTCON_DISP_VGA,
+		.name = "VGA",
+	},
 
 	/* Miscellaneous external connector */
-	[EXTCON_DOCK]			= "DOCK",
-	[EXTCON_JIG]			= "JIG",
-	[EXTCON_MECHANICAL]		= "MECHANICAL",
+	[EXTCON_DOCK] = {
+		.type = EXTCON_TYPE_MISC,
+		.id = EXTCON_DOCK,
+		.name = "DOCK",
+	},
+	[EXTCON_JIG] = {
+		.type = EXTCON_TYPE_MISC,
+		.id = EXTCON_JIG,
+		.name = "JIG",
+	},
+	[EXTCON_MECHANICAL] = {
+		.type = EXTCON_TYPE_MISC,
+		.id = EXTCON_MECHANICAL,
+		.name = "MECHANICAL",
+	},
 
-	NULL,
+	{ /* sentinel */ }
 };
 
 /**
@@ -168,7 +269,7 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 
 	for (i = 0; i < edev->max_supported; i++) {
 		count += sprintf(buf + count, "%s=%d\n",
-				extcon_name[edev->supported_cable[i]],
+				extcon_info[edev->supported_cable[i]].name,
 				 !!(edev->state & (1 << i)));
 	}
 
@@ -193,7 +294,7 @@ static ssize_t cable_name_show(struct device *dev,
 	int i = cable->cable_index;
 
 	return sprintf(buf, "%s\n",
-			extcon_name[cable->edev->supported_cable[i]]);
+			extcon_info[cable->edev->supported_cable[i]].name);
 }
 
 static ssize_t cable_state_show(struct device *dev,
