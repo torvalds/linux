@@ -518,7 +518,7 @@ static void rsnd_adg_get_clkout(struct rsnd_priv *priv,
 		}
 	}
 
-	rsnd_mod_bset(adg_mod, SSICKR, 0x00FF0000, ckr);
+	rsnd_mod_bset(adg_mod, SSICKR, 0x80FF0000, ckr);
 	rsnd_mod_write(adg_mod, BRRA,  rbga);
 	rsnd_mod_write(adg_mod, BRRB,  rbgb);
 

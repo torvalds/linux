@@ -718,7 +718,7 @@ static int gic_shared_irq_domain_map(struct irq_domain *d, unsigned int virq,
 
 	spin_lock_irqsave(&gic_lock, flags);
 	gic_map_to_pin(intr, gic_cpu_pin);
-	gic_map_to_vpe(intr, vpe);
+	gic_map_to_vpe(intr, mips_cm_vp_id(vpe));
 	for (i = 0; i < min(gic_vpes, NR_CPUS); i++)
 		clear_bit(intr, pcpu_masks[i].pcpu_mask);
 	set_bit(intr, pcpu_masks[vpe].pcpu_mask);
@@ -959,7 +959,7 @@ int gic_ipi_domain_match(struct irq_domain *d, struct device_node *node,
 	switch (bus_token) {
 	case DOMAIN_BUS_IPI:
 		is_ipi = d->bus_token == bus_token;
-		return to_of_node(d->fwnode) == node && is_ipi;
+		return (!node || to_of_node(d->fwnode) == node) && is_ipi;
 		break;
 	default:
 		return 0;

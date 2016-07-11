@@ -92,7 +92,7 @@ static struct drm_driver sun4i_drv_driver = {
 	/* Frame Buffer Operations */
 
 	/* VBlank Operations */
-	.get_vblank_counter	= drm_vblank_count,
+	.get_vblank_counter	= drm_vblank_no_hw_counter,
 	.enable_vblank		= sun4i_drv_enable_vblank,
 	.disable_vblank		= sun4i_drv_disable_vblank,
 };
@@ -310,6 +310,7 @@ static int sun4i_drv_probe(struct platform_device *pdev)
 
 		count += sun4i_drv_add_endpoints(&pdev->dev, &match,
 						pipeline);
+		of_node_put(pipeline);
 
 		DRM_DEBUG_DRIVER("Queued %d outputs on pipeline %d\n",
 				 count, i);
