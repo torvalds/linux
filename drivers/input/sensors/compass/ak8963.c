@@ -31,9 +31,8 @@
 #endif
 #include <linux/sensor-dev.h>
 
-#define SENSOR_DATA_SIZE		8
-
-
+#define AKM_SENSOR_INFO_SIZE 2
+#define AKM_SENSOR_CONF_SIZE 3
 #define SENSOR_DATA_SIZE	8
 #define YPR_DATA_SIZE		12
 #define RWBUF_SIZE		16
@@ -83,6 +82,9 @@ Defines a register address of the AK8963.*/
 #define AK8963_REG_TS1		0x0D
 #define AK8963_REG_TS2		0x0E
 #define AK8963_REG_I2CDIS	0x0F
+
+#define AK8963_WIA_VALUE		0x48
+
 /*! @}*/
 
 /*! \name AK8963 fuse-rom address
@@ -115,8 +117,8 @@ Defines a read-only address of the fuse ROM of the AK8963.*/
 #define ECS_IOCTL_GET_PROJECT_NAME      _IOR(COMPASS_IOCTL_MAGIC, 0x0D, char[64])
 #define ECS_IOCTL_GET_MATRIX            _IOR(COMPASS_IOCTL_MAGIC, 0x0E, short [4][3][3])
 #define ECS_IOCTL_GET_PLATFORM_DATA     _IOR(COMPASS_IOCTL_MAGIC, 0x0E, struct akm_platform_data)
-
-
+#define ECS_IOCTL_GET_INFO			_IOR(COMPASS_IOCTL_MAGIC, 0x27, unsigned char[AKM_SENSOR_INFO_SIZE])
+#define ECS_IOCTL_GET_CONF			_IOR(COMPASS_IOCTL_MAGIC, 0x28, unsigned char[AKM_SENSOR_CONF_SIZE])
 
 #define AK8963_DEVICE_ID		0x48
 static struct i2c_client *this_client;
@@ -301,12 +303,12 @@ static void compass_set_YPR(int *rbuf)
 	DBG("%s:buf[0]=0x%x\n",__func__, rbuf[0]);
 	
 	/* Report magnetic sensor information */
-	if (atomic_read(&sensor->flags.m_flag) && (rbuf[0] & ORI_DATA_READY)) {
-		input_report_abs(sensor->input_dev, ABS_RX, rbuf[9]);
-		input_report_abs(sensor->input_dev, ABS_RY, rbuf[10]);
-		input_report_abs(sensor->input_dev, ABS_RZ, rbuf[11]);
-		input_report_abs(sensor->input_dev, ABS_RUDDER, rbuf[4]);
-		DBG("%s:m_flag:x=%d,y=%d,z=%d,RUDDER=%d\n",__func__,rbuf[9], rbuf[10], rbuf[11], rbuf[4]);
+	if (atomic_read(&sensor->flags.m_flag) && (rbuf[0] & MAG_DATA_READY)) {
+		input_report_abs(sensor->input_dev, ABS_RX, rbuf[5]);
+		input_report_abs(sensor->input_dev, ABS_RY, rbuf[6]);
+		input_report_abs(sensor->input_dev, ABS_RZ, rbuf[7]);
+		input_report_abs(sensor->input_dev, ABS_RUDDER, rbuf[8]);
+		DBG("%s:m_flag:x=%d,y=%d,z=%d,RUDDER=%d\n", __func__, rbuf[5], rbuf[6], rbuf[7], rbuf[8]);
 	}
 	
 	/* Report acceleration sensor information */
@@ -320,13 +322,13 @@ static void compass_set_YPR(int *rbuf)
 	}
 	
 	/* Report magnetic vector information */
-	if (atomic_read(&sensor->flags.mv_flag) && (rbuf[0] & MAG_DATA_READY)) {
-		input_report_abs(sensor->input_dev, ABS_HAT0X, rbuf[5]);
-		input_report_abs(sensor->input_dev, ABS_HAT0Y, rbuf[6]);
-		input_report_abs(sensor->input_dev, ABS_BRAKE, rbuf[7]);	
-		input_report_abs(sensor->input_dev, ABS_HAT1X, rbuf[8]);
-	
-		DBG("%s:mv_flag:x=%d,y=%d,z=%d,status=%d\n",__func__,rbuf[5], rbuf[6], rbuf[7], rbuf[8]);
+	if (atomic_read(&sensor->flags.mv_flag) && (rbuf[0] & ORI_DATA_READY)) {
+		input_report_abs(sensor->input_dev, ABS_HAT0X, rbuf[9]);
+		input_report_abs(sensor->input_dev, ABS_HAT0Y, rbuf[10]);
+		input_report_abs(sensor->input_dev, ABS_BRAKE, rbuf[11]);
+		input_report_abs(sensor->input_dev, ABS_HAT1X, rbuf[12]);
+
+		DBG("%s:mv_flag:x=%d,y=%d,z=%d,status=%d\n", __func__, rbuf[9], rbuf[10], rbuf[11], rbuf[12]);
 	}
 	
 	input_sync(sensor->input_dev);
@@ -486,7 +488,9 @@ static long compass_dev_ioctl(struct file *file,
 	void __user *argp = (void __user *)arg;
 	int result = 0;
 	struct akm_platform_data compass;
-		
+	unsigned char sense_info[AKM_SENSOR_INFO_SIZE];
+	unsigned char sense_conf[AKM_SENSOR_CONF_SIZE];
+
 	/* NOTE: In this function the size of "char" should be 1-byte. */
 	char compass_data[SENSOR_DATA_SIZE];	/* for GETDATA */
 	char rwbuf[RWBUF_SIZE]; 		/* for READ/WRITE */
@@ -529,6 +533,8 @@ static long compass_dev_ioctl(struct file *file,
 			return -EFAULT;
 		}
 		break;
+	case ECS_IOCTL_GET_INFO:
+	case ECS_IOCTL_GET_CONF:
 	case ECS_IOCTL_GETDATA:
 	case ECS_IOCTL_GET_OPEN_STATUS:
 	case ECS_IOCTL_GET_CLOSE_STATUS:
@@ -547,6 +553,32 @@ static long compass_dev_ioctl(struct file *file,
 	}
 
 	switch (cmd) {
+	case ECS_IOCTL_GET_INFO:
+		sense_info[0] = AK8963_REG_WIA;
+		mutex_lock(&sensor->operation_mutex);
+		ret = sensor_rx_data(client, &sense_info[0], AKM_SENSOR_INFO_SIZE);
+		mutex_unlock(&sensor->operation_mutex);
+		if (ret < 0) {
+			printk("%s:fait to get sense_info\n", __func__);
+			return ret;
+		}
+		/* Check read data */
+		if (sense_info[0] != AK8963_WIA_VALUE) {
+			dev_err(&client->dev,
+				"%s: The device is not AKM Compass.", __func__);
+			return -ENXIO;
+		}
+		break;
+	case ECS_IOCTL_GET_CONF:
+		sense_conf[0] = AK8963_FUSE_ASAX;
+		mutex_lock(&sensor->operation_mutex);
+		ret = sensor_rx_data(client, &sense_conf[0], AKM_SENSOR_CONF_SIZE);
+		mutex_unlock(&sensor->operation_mutex);
+		if (ret < 0) {
+			printk("%s:fait to get sense_conf\n", __func__);
+			return ret;
+		}
+		break;
 	case ECS_IOCTL_WRITE:
 		DBG("%s:ECS_IOCTL_WRITE start\n",__func__);
 		mutex_lock(&sensor->operation_mutex);
@@ -698,6 +730,18 @@ static long compass_dev_ioctl(struct file *file,
 	case ECS_IOCTL_GET_ACCEL:
 		if (copy_to_user(argp, &acc_buf, sizeof(acc_buf))) {
 			printk("%s:error:%d\n",__FUNCTION__,__LINE__);
+			return -EFAULT;
+		}
+		break;
+	case ECS_IOCTL_GET_INFO:
+		if (copy_to_user(argp, &sense_info,	sizeof(sense_info))) {
+			printk("%s:error:%d\n", __FUNCTION__, __LINE__);
+			return -EFAULT;
+		}
+		break;
+	case ECS_IOCTL_GET_CONF:
+		if (copy_to_user(argp, &sense_conf,	sizeof(sense_conf))) {
+			printk("%s:error:%d\n", __FUNCTION__, __LINE__);
 			return -EFAULT;
 		}
 		break;
