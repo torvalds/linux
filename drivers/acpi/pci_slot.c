@@ -25,7 +25,6 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -36,13 +35,6 @@
 #include <linux/pci-acpi.h>
 
 static int check_sta_before_sun;
-
-#define DRIVER_VERSION 	"0.1"
-#define DRIVER_AUTHOR	"Alex Chiang <achiang@hp.com>"
-#define DRIVER_DESC	"ACPI PCI Slot Detection Driver"
-MODULE_AUTHOR(DRIVER_AUTHOR);
-MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_LICENSE("GPL");
 
 #define _COMPONENT		ACPI_PCI_COMPONENT
 ACPI_MODULE_NAME("pci_slot");
