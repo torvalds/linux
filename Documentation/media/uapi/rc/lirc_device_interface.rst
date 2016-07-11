@@ -15,4 +15,5 @@ LIRC Device Interface
     lirc-get-features
     lirc-get-send-mode
     lirc-get-rec-mode
+    lirc-get-rec-resolution
     lirc_ioctl

@@ -58,16 +58,6 @@ I/O control requests
     could be used to switch off carrier generation in the future, so
     these values should be reserved.
 
-.. _LIRC_GET_REC_RESOLUTION:
-
-``LIRC_GET_REC_RESOLUTION``
-
-    Some receiver have maximum resolution which is defined by internal
-    sample rate or data format limitations. E.g. it's common that
-    signals can only be reported in 50 microsecond steps. This integer
-    value is used by lircd to automatically adjust the aeps tolerance
-    value in the lircd config file.
-
 .. _LIRC_GET_MIN_TIMEOUT:
 .. _LIRC_GET_MAX_TIMEOUT:
 
