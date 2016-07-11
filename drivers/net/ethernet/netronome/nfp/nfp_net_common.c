@@ -2578,7 +2578,7 @@ static void nfp_net_del_vxlan_port(struct net_device *netdev,
 		return;
 
 	idx = nfp_net_find_vxlan_idx(nn, ti->port);
-	if (!nn->vxlan_usecnt[idx] || idx == -ENOSPC)
+	if (idx == -ENOSPC || !nn->vxlan_usecnt[idx])
 		return;
 
 	if (!--nn->vxlan_usecnt[idx])
