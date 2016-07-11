@@ -77,6 +77,63 @@
 
 #define EXTCON_NUM		63
 
+/*
+ * Define the property of supported external connectors.
+ *
+ * When adding the new extcon property, they *must* have
+ * the type/value/default information. Also, you *have to*
+ * modify the EXTCON_PROP_[type]_START/END definitions
+ * which mean the range of the supported properties
+ * for each extcon type.
+ *
+ * The naming style of property
+ * : EXTCON_PROP_[type]_[property name]
+ *
+ * EXTCON_PROP_USB_[property name]	: USB property
+ * EXTCON_PROP_CHG_[property name]	: Charger property
+ * EXTCON_PROP_JACK_[property name]	: Jack property
+ * EXTCON_PROP_DISP_[property name]	: Display property
+ */
+
+/*
+ * Properties of EXTCON_TYPE_USB.
+ *
+ * - EXTCON_PROP_USB_VBUS
+ * @type:	integer (intval)
+ * @value:	0 (low) or 1 (high)
+ * @default:	0 (low)
+ */
+#define EXTCON_PROP_USB_VBUS		0
+
+#define EXTCON_PROP_USB_MIN		0
+#define EXTCON_PROP_USB_MAX		0
+#define EXTCON_PROP_USB_CNT	(EXTCON_PROP_USB_MAX - EXTCON_PROP_USB_MIN + 1)
+
+/* Properties of EXTCON_TYPE_CHG. */
+#define EXTCON_PROP_CHG_MIN		50
+#define EXTCON_PROP_CHG_MAX		50
+#define EXTCON_PROP_CHG_CNT	(EXTCON_PROP_CHG_MAX - EXTCON_PROP_CHG_MIN + 1)
+
+/* Properties of EXTCON_TYPE_JACK. */
+#define EXTCON_PROP_JACK_MIN		100
+#define EXTCON_PROP_JACK_MAX		100
+#define EXTCON_PROP_JACK_CNT (EXTCON_PROP_JACK_MAX - EXTCON_PROP_JACK_MIN + 1)
+
+/* Properties of EXTCON_TYPE_DISP. */
+#define EXTCON_PROP_DISP_MIN		150
+#define EXTCON_PROP_DISP_MAX		150
+#define EXTCON_PROP_DISP_CNT (EXTCON_PROP_DISP_MAX - EXTCON_PROP_DISP_MIN + 1)
+
+/*
+ * Define the type of property's value.
+ *
+ * Define the property's value as union type. Because each property
+ * would need the different data type to store it.
+ */
+union extcon_property_value {
+	int intval;	/* type : integer (intval) */
+};
+
 struct extcon_cable;
 
 /**
@@ -167,6 +224,17 @@ extern int extcon_set_cable_state_(struct extcon_dev *edev, unsigned int id,
 				   bool cable_state);
 
 /*
+ * get/set_property access the property value of each external connector.
+ * They are used to access the property of each cable based on the property id.
+ */
+extern int extcon_get_property(struct extcon_dev *edev, unsigned int id,
+				unsigned int prop,
+				union extcon_property_value *prop_val);
+extern int extcon_set_property(struct extcon_dev *edev, unsigned int id,
+				unsigned int prop,
+				union extcon_property_value prop_val);
+
+/*
  * Following APIs are to monitor every action of a notifier.
  * Registrar gets notified for every external port of a connection device.
  * Probably this could be used to debug an action of notifier; however,
@@ -235,6 +303,19 @@ static inline int extcon_get_cable_state_(struct extcon_dev *edev,
 
 static inline int extcon_set_cable_state_(struct extcon_dev *edev,
 					  unsigned int id, bool cable_state)
+{
+	return 0;
+}
+
+static inline int extcon_get_property(struct extcon_dev *edev, unsigned int id,
+					unsigned int prop,
+					union extcon_property_value *prop_val)
+{
+	return 0;
+}
+static inline int extcon_set_property(struct extcon_dev *edev, unsigned int id,
+					unsigned int prop,
+					union extcon_property_value prop_val)
 {
 	return 0;
 }
