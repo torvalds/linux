@@ -21,6 +21,7 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/b53.h>
+#include <linux/of.h>
 
 #include "b53_priv.h"
 
@@ -356,11 +357,44 @@ static struct b53_io_ops b53_srab_ops = {
 	.write64 = b53_srab_write64,
 };
 
+static const struct of_device_id b53_srab_of_match[] = {
+	{ .compatible = "brcm,bcm53010-srab" },
+	{ .compatible = "brcm,bcm53011-srab" },
+	{ .compatible = "brcm,bcm53012-srab" },
+	{ .compatible = "brcm,bcm53018-srab" },
+	{ .compatible = "brcm,bcm53019-srab" },
+	{ .compatible = "brcm,bcm5301x-srab" },
+	{ .compatible = "brcm,bcm58522-srab", .data = (void *)BCM58XX_DEVICE_ID },
+	{ .compatible = "brcm,bcm58525-srab", .data = (void *)BCM58XX_DEVICE_ID },
+	{ .compatible = "brcm,bcm58535-srab", .data = (void *)BCM58XX_DEVICE_ID },
+	{ .compatible = "brcm,bcm58622-srab", .data = (void *)BCM58XX_DEVICE_ID },
+	{ .compatible = "brcm,bcm58623-srab", .data = (void *)BCM58XX_DEVICE_ID },
+	{ .compatible = "brcm,bcm58625-srab", .data = (void *)BCM58XX_DEVICE_ID },
+	{ .compatible = "brcm,bcm88312-srab", .data = (void *)BCM58XX_DEVICE_ID },
+	{ .compatible = "brcm,nsp-srab", .data = (void *)BCM58XX_DEVICE_ID },
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(of, b53_srab_of_match);
+
 static int b53_srab_probe(struct platform_device *pdev)
 {
+	struct b53_platform_data *pdata = pdev->dev.platform_data;
+	struct device_node *dn = pdev->dev.of_node;
+	const struct of_device_id *of_id = NULL;
 	struct b53_srab_priv *priv;
 	struct b53_device *dev;
 	struct resource *r;
+
+	if (dn)
+		of_id = of_match_node(b53_srab_of_match, dn);
+
+	if (of_id) {
+		pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+		if (!pdata)
+			return -ENOMEM;
+
+		pdata->chip_id = (u32)of_id->data;
+	}
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -374,6 +408,9 @@ static int b53_srab_probe(struct platform_device *pdev)
 	dev = b53_switch_alloc(&pdev->dev, &b53_srab_ops, priv);
 	if (!dev)
 		return -ENOMEM;
+
+	if (pdata)
+		dev->pdata = pdata;
 
 	platform_set_drvdata(pdev, dev);
 
@@ -389,16 +426,6 @@ static int b53_srab_remove(struct platform_device *pdev)
 
 	return 0;
 }
-
-static const struct of_device_id b53_srab_of_match[] = {
-	{ .compatible = "brcm,bcm53010-srab" },
-	{ .compatible = "brcm,bcm53011-srab" },
-	{ .compatible = "brcm,bcm53012-srab" },
-	{ .compatible = "brcm,bcm53018-srab" },
-	{ .compatible = "brcm,bcm53019-srab" },
-	{ .compatible = "brcm,bcm5301x-srab" },
-	{ /* sentinel */ },
-};
 
 static struct platform_driver b53_srab_driver = {
 	.probe = b53_srab_probe,
