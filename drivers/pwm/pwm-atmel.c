@@ -64,7 +64,8 @@ struct atmel_pwm_chip {
 	void __iomem *base;
 
 	unsigned int updated_pwms;
-	struct mutex isr_lock; /* ISR is cleared when read, ensure only one thread does that */
+	/* ISR is cleared when read, ensure only one thread does that */
+	struct mutex isr_lock;
 
 	void (*config)(struct pwm_chip *chip, struct pwm_device *pwm,
 		       unsigned long dty, unsigned long prd);
@@ -334,6 +335,8 @@ MODULE_DEVICE_TABLE(of, atmel_pwm_dt_ids);
 static inline const struct atmel_pwm_data *
 atmel_pwm_get_driver_data(struct platform_device *pdev)
 {
+	const struct platform_device_id *id;
+
 	if (pdev->dev.of_node) {
 		const struct of_device_id *match;
 
@@ -342,13 +345,11 @@ atmel_pwm_get_driver_data(struct platform_device *pdev)
 			return NULL;
 
 		return match->data;
-	} else {
-		const struct platform_device_id *id;
-
-		id = platform_get_device_id(pdev);
-
-		return (struct atmel_pwm_data *)id->driver_data;
 	}
+
+	id = platform_get_device_id(pdev);
+
+	return (struct atmel_pwm_data *)id->driver_data;
 }
 
 static int atmel_pwm_probe(struct platform_device *pdev)
