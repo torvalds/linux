@@ -36,8 +36,6 @@
 #define PWM_SCALE_WIDTH	13
 #define PWM_SCALE_SHIFT	0
 
-#define NUM_PWM 4
-
 struct tegra_pwm_chip {
 	struct pwm_chip		chip;
 	struct device		*dev;
@@ -192,7 +190,7 @@ static int tegra_pwm_probe(struct platform_device *pdev)
 	pwm->chip.dev = &pdev->dev;
 	pwm->chip.ops = &tegra_pwm_ops;
 	pwm->chip.base = -1;
-	pwm->chip.npwm = NUM_PWM;
+	pwm->chip.npwm = 4;
 
 	ret = pwmchip_add(&pwm->chip);
 	if (ret < 0) {
@@ -206,12 +204,12 @@ static int tegra_pwm_probe(struct platform_device *pdev)
 static int tegra_pwm_remove(struct platform_device *pdev)
 {
 	struct tegra_pwm_chip *pc = platform_get_drvdata(pdev);
-	int i;
+	unsigned int i;
 
 	if (WARN_ON(!pc))
 		return -ENODEV;
 
-	for (i = 0; i < NUM_PWM; i++) {
+	for (i = 0; i < pc->chip.npwm; i++) {
 		struct pwm_device *pwm = &pc->chip.pwms[i];
 
 		if (!pwm_is_enabled(pwm))
