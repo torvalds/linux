@@ -217,8 +217,39 @@
 #define SEQID_RD_EVCR		12
 #define SEQID_WD_EVCR		13
 
+/* last two lut slots for dynamic luts*/
+#define SEQID_DYNAMIC_CMD0	14
+#define SEQID_DYNAMIC_CMD1	15
+
 #define QUADSPI_MIN_IOMAP SZ_4M
 
+/* dynamic lut configs */
+#define MAX_LUT_REGS 4
+struct lut_desc {
+	u8 cmd;
+	u32 lut[MAX_LUT_REGS];
+};
+
+/*
+ * define two lut_des in the struct because many commands use in pairs.
+ * To add a single command, just leave the second desc as blank.
+ */
+struct lut_desc_pair {
+	struct lut_desc lut_desc0;
+	struct lut_desc lut_desc1;
+};
+
+struct lut_desc_pair current_lut_pair;
+
+static const struct lut_desc_pair dynamic_lut_table[] = {
+	/* VCR RD/WR pair */
+	{ {SPINOR_OP_RD_VCR, {LUT0(CMD, PAD1, SPINOR_OP_RD_EVCR) |
+			     LUT1(READ, PAD1, 0x1)} },
+	  {SPINOR_OP_WR_VCR, {LUT0(CMD, PAD1, SPINOR_OP_WD_EVCR) |
+			     LUT1(WRITE, PAD1, 0x1)} },
+	},
+	{/* sentinel */},
+};
 enum fsl_qspi_devtype {
 	FSL_QUADSPI_VYBRID,
 	FSL_QUADSPI_IMX6SX,
@@ -480,9 +511,68 @@ static void fsl_qspi_init_lut(struct fsl_qspi *q)
 	fsl_qspi_lock_lut(q);
 }
 
+static int fsl_qspi_clk_prep_enable(struct fsl_qspi *q);
+static void fsl_qspi_clk_disable_unprep(struct fsl_qspi *q);
+
+static int fsl_qspi_update_dynamic_lut(struct fsl_qspi *q, int index)
+{
+	void __iomem *base = q->iobase;
+	u32 lut_base;
+	int i;
+	int size;
+
+	fsl_qspi_unlock_lut(q);
+
+	lut_base = SEQID_DYNAMIC_CMD0 * 4;
+	size = ARRAY_SIZE(dynamic_lut_table[index].lut_desc0.lut);
+	for (i = 0; i < size; i++) {
+		writel(dynamic_lut_table[index].lut_desc0.lut[i],
+				base + QUADSPI_LUT(lut_base + i));
+	}
+
+	lut_base = SEQID_DYNAMIC_CMD1 * 4;
+	size = ARRAY_SIZE(dynamic_lut_table[index].lut_desc1.lut);
+	for (i = 0; i < size; i++) {
+		writel(dynamic_lut_table[index].lut_desc1.lut[i],
+				base + QUADSPI_LUT(lut_base + i));
+	}
+
+	fsl_qspi_lock_lut(q);
+
+	return 0;
+}
+
+static int fsl_qspi_search_dynamic_lut(struct fsl_qspi *q, u8 cmd)
+{
+	int i;
+	int ret = 0;
+
+	if (cmd == current_lut_pair.lut_desc0.cmd)
+		return SEQID_DYNAMIC_CMD0;
+	if (cmd == current_lut_pair.lut_desc1.cmd)
+		return SEQID_DYNAMIC_CMD1;
+	for (i = 0; i < ARRAY_SIZE(dynamic_lut_table); i++) {
+		if (cmd == dynamic_lut_table[i].lut_desc0.cmd)
+			ret = SEQID_DYNAMIC_CMD0;
+		if (cmd == dynamic_lut_table[i].lut_desc1.cmd)
+			ret = SEQID_DYNAMIC_CMD1;
+		if (ret) {
+			if (fsl_qspi_update_dynamic_lut(q, i)) {
+				pr_err(" failed to update dynamic lut\n");
+				return 0;
+			}
+			current_lut_pair = dynamic_lut_table[i];
+			return ret;
+		}
+	}
+	return ret;
+}
+
 /* Get the SEQID for the command */
 static int fsl_qspi_get_seqid(struct fsl_qspi *q, u8 cmd)
 {
+	int ret;
+
 	switch (cmd) {
 	case SPINOR_OP_READ_1_1_4_D:
 	case SPINOR_OP_READ_1_4_4_D:
@@ -518,6 +608,9 @@ static int fsl_qspi_get_seqid(struct fsl_qspi *q, u8 cmd)
 	case SPINOR_OP_WD_EVCR:
 		return SEQID_WD_EVCR;
 	default:
+		ret = fsl_qspi_search_dynamic_lut(q, cmd);
+		if (ret)
+			return ret;
 		dev_err(q->dev, "Unsupported cmd 0x%.2x\n", cmd);
 		break;
 	}
@@ -853,6 +946,7 @@ static int fsl_qspi_nor_setup_last(struct fsl_qspi *q)
 
 	/* Init the LUT table again. */
 	fsl_qspi_init_lut(q);
+	fsl_qspi_update_dynamic_lut(q, 0);
 
 	/* Init for AHB read */
 	fsl_qspi_init_abh_read(q);
