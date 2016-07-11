@@ -1,9 +1,11 @@
 /* static struct idle_state idle_states_cluster_a53[] = { */
+/*        { .power = 56 }, /\* arch_cpu_idle() (active idle) = WFI *\/ */
 /*        { .power = 56 }, /\* WFI *\/ */
 /*        { .power = 56 }, /\* cpu-sleep-0 *\/ */
 /* }; */
 
 /* static struct idle_state idle_states_cluster_a72[] = { */
+/*        { .power = 65 }, /\* arch_cpu_idle() (active idle) = WFI *\/ */
 /*        { .power = 65 }, /\* WFI *\/ */
 /*        { .power = 65 }, /\* cpu-sleep-0 *\/ */
 /* }; */
@@ -45,11 +47,13 @@
 /* }; */
 
 /* static struct idle_state idle_states_core_a53[] = { */
+/*        { .power = 6 }, /\* arch_cpu_idle() (active idle) = WFI *\/ */
 /*        { .power = 6 }, /\* WFI *\/ */
 /*        { .power = 0 }, /\* cpu-sleep-0 *\/ */
 /* }; */
 
 /* static struct idle_state idle_states_core_a72[] = { */
+/*        { .power = 15 }, /\* arch_cpu_idle() (active idle) = WFI *\/ */
 /*        { .power = 15 }, /\* WFI *\/ */
 /*        { .power = 0  }, /\* cpu-sleep-0 *\/ */
 /* }; */
@@ -90,6 +94,7 @@ energy-costs {
 		>;
 		idle-cost-data = <
 		      15
+		      15
 		       0
 		>;
 	};
@@ -104,6 +109,7 @@ energy-costs {
 		//	449    263	/* 1512M */
 		>;
 		idle-cost-data = <
+		      6
 		      6
 		      0
 		>;
@@ -122,6 +128,7 @@ energy-costs {
 		idle-cost-data = <
 			 65
 			 65
+			 65
 		>;
 	};
 	CLUSTER_COST_A53: cluster-cost1 {
@@ -135,6 +142,7 @@ energy-costs {
 		//	449    263	/* 1512M */
 		>;
 		idle-cost-data = <
+			56
 			56
 			56
 		>;
