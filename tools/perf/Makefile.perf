@@ -348,6 +348,21 @@ $(PERF_IN): prepare FORCE
 	@(test -f ../../include/uapi/linux/perf_event.h && ( \
         (diff -B ../include/uapi/linux/perf_event.h ../../include/uapi/linux/perf_event.h >/dev/null) \
         || echo "Warning: tools/include/uapi/linux/perf_event.h differs from kernel" >&2 )) || true
+	@(test -f ../../arch/x86/include/asm/disabled-features.h && ( \
+        (diff -B ../arch/x86/include/asm/disabled-features.h ../../arch/x86/include/asm/disabled-features.h >/dev/null) \
+        || echo "Warning: tools/arch/x86/include/asm/disabled-features.h differs from kernel" >&2 )) || true
+	@(test -f ../../arch/x86/include/asm/required-features.h && ( \
+        (diff -B ../arch/x86/include/asm/required-features.h ../../arch/x86/include/asm/required-features.h >/dev/null) \
+        || echo "Warning: tools/arch/x86/include/asm/required-features.h differs from kernel" >&2 )) || true
+	@(test -f ../../arch/x86/include/asm/cpufeatures.h && ( \
+        (diff -B ../arch/x86/include/asm/cpufeatures.h ../../arch/x86/include/asm/cpufeatures.h >/dev/null) \
+        || echo "Warning: tools/arch/x86/include/asm/cpufeatures.h differs from kernel" >&2 )) || true
+	@(test -f ../../arch/x86/lib/memcpy_64.S && ( \
+        (diff -B ../arch/x86/lib/memcpy_64.S ../../arch/x86/lib/memcpy_64.S >/dev/null) \
+        || echo "Warning: tools/arch/x86/lib/memcpy_64.S differs from kernel" >&2 )) || true
+	@(test -f ../../arch/x86/lib/memset_64.S && ( \
+        (diff -B ../arch/x86/lib/memset_64.S ../../arch/x86/lib/memset_64.S >/dev/null) \
+        || echo "Warning: tools/arch/x86/lib/memset_64.S differs from kernel" >&2 )) || true
 	$(Q)$(MAKE) $(build)=perf
 
 $(OUTPUT)perf: $(PERFLIBS) $(PERF_IN) $(LIBTRACEEVENT_DYNAMIC_LIST)

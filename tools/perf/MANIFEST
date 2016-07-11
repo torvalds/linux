@@ -12,6 +12,11 @@ tools/arch/sparc/include/asm/barrier_32.h
 tools/arch/sparc/include/asm/barrier_64.h
 tools/arch/tile/include/asm/barrier.h
 tools/arch/x86/include/asm/barrier.h
+tools/arch/x86/include/asm/cpufeatures.h
+tools/arch/x86/include/asm/disabled-features.h
+tools/arch/x86/include/asm/required-features.h
+tools/arch/x86/lib/memcpy_64.S
+tools/arch/x86/lib/memset_64.S
 tools/arch/xtensa/include/asm/barrier.h
 tools/scripts
 tools/build
@@ -31,6 +36,7 @@ tools/lib/find_bit.c
 tools/lib/bitmap.c
 tools/lib/str_error_r.c
 tools/lib/vsprintf.c
+tools/include/asm/alternative-asm.h
 tools/include/asm/atomic.h
 tools/include/asm/barrier.h
 tools/include/asm/bug.h
@@ -74,9 +80,6 @@ include/linux/swab.h
 arch/*/include/asm/unistd*.h
 arch/*/include/uapi/asm/unistd*.h
 arch/*/include/uapi/asm/perf_regs.h
-arch/*/lib/memcpy*.S
-arch/*/lib/memset*.S
-arch/*/include/asm/*features.h
 include/linux/poison.h
 include/linux/hw_breakpoint.h
 include/uapi/linux/bpf.h
