@@ -349,6 +349,8 @@ void tipc_link_remove_bc_peer(struct tipc_link *snd_l,
 	u16 ack = snd_l->snd_nxt - 1;
 
 	snd_l->ackers--;
+	rcv_l->bc_peer_is_up = true;
+	rcv_l->state = LINK_ESTABLISHED;
 	tipc_link_bc_ack_rcv(rcv_l, ack, xmitq);
 	tipc_link_reset(rcv_l);
 	rcv_l->state = LINK_RESET;
