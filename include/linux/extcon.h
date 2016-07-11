@@ -29,6 +29,15 @@
 #include <linux/device.h>
 
 /*
+ * Define the type of supported external connectors
+ */
+#define EXTCON_TYPE_USB		BIT(0)	/* USB connector */
+#define EXTCON_TYPE_CHG		BIT(1)	/* Charger connector */
+#define EXTCON_TYPE_JACK	BIT(2)	/* Jack connector */
+#define EXTCON_TYPE_DISP	BIT(3)	/* Display connector */
+#define EXTCON_TYPE_MISC	BIT(4)	/* Miscellaneous connector */
+
+/*
  * Define the unique id of supported external connectors
  */
 #define EXTCON_NONE		0
