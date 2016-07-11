@@ -207,14 +207,14 @@ void virtio_process_queue(struct virtio_dev *dev, uint32_t qidx)
 	if (dev->ops->acquire_queue)
 		dev->ops->acquire_queue(dev, qidx);
 
-	virtio_set_avail_event(q, q->avail->idx);
-
 	while (q->last_avail_idx != le16toh(q->avail->idx)) {
 		/* Make sure following loads happens after loading q->avail->idx.
 		 */
 		__sync_synchronize();
 		if (virtio_process_one(dev, q, q->last_avail_idx) < 0)
 			break;
+		if (q->last_avail_idx == le16toh(q->avail->idx))
+			virtio_set_avail_event(q, q->avail->idx);
 	}
 
 	if (dev->ops->release_queue)
