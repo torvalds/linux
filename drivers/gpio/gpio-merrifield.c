@@ -105,7 +105,11 @@ static int mrfld_gpio_get(struct gpio_chip *chip, unsigned int offset)
 static void mrfld_gpio_set(struct gpio_chip *chip, unsigned int offset,
 			   int value)
 {
+	struct mrfld_gpio *priv = gpiochip_get_data(chip);
 	void __iomem *gpsr, *gpcr;
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&priv->lock, flags);
 
 	if (value) {
 		gpsr = gpio_reg(chip, offset, GPSR);
@@ -114,6 +118,8 @@ static void mrfld_gpio_set(struct gpio_chip *chip, unsigned int offset,
 		gpcr = gpio_reg(chip, offset, GPCR);
 		writel(BIT(offset % 32), gpcr);
 	}
+
+	raw_spin_unlock_irqrestore(&priv->lock, flags);
 }
 
 static int mrfld_gpio_direction_input(struct gpio_chip *chip,
@@ -160,8 +166,13 @@ static void mrfld_irq_ack(struct irq_data *d)
 	struct mrfld_gpio *priv = irq_data_get_irq_chip_data(d);
 	u32 gpio = irqd_to_hwirq(d);
 	void __iomem *gisr = gpio_reg(&priv->chip, gpio, GISR);
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&priv->lock, flags);
 
 	writel(BIT(gpio % 32), gisr);
+
+	raw_spin_unlock_irqrestore(&priv->lock, flags);
 }
 
 static void mrfld_irq_unmask_mask(struct irq_data *d, bool unmask)
