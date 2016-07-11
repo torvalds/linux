@@ -36,6 +36,7 @@ struct rockchip_hdmi {
 	struct drm_encoder encoder;
 	enum dw_hdmi_devtype dev_type;
 	struct clk *vpll_clk;
+	struct clk *grf_clk;
 };
 
 #define to_rockchip_hdmi(x)	container_of(x, struct rockchip_hdmi, x)
@@ -166,6 +167,16 @@ static int rockchip_hdmi_parse_dt(struct rockchip_hdmi *hdmi)
 		return PTR_ERR(hdmi->vpll_clk);
 	}
 
+	hdmi->grf_clk = devm_clk_get(hdmi->dev, "grf");
+	if (PTR_ERR(hdmi->grf_clk) == -ENOENT) {
+		hdmi->grf_clk = NULL;
+	} else if (PTR_ERR(hdmi->grf_clk) == -EPROBE_DEFER) {
+		return -EPROBE_DEFER;
+	} else if (IS_ERR(hdmi->grf_clk)) {
+		dev_err(hdmi->dev, "failed to get grf clock\n");
+		return PTR_ERR(hdmi->grf_clk);
+	}
+
 	ret = clk_prepare_enable(hdmi->vpll_clk);
 	if (ret) {
 		dev_err(hdmi->dev, "Failed to enable HDMI vpll: %d\n", ret);
@@ -225,6 +236,7 @@ static void dw_hdmi_rockchip_encoder_enable(struct drm_encoder *encoder)
 	u32 lcdsel_grf_reg, lcdsel_mask;
 	u32 val;
 	int mux;
+	int ret;
 
 	switch (hdmi->dev_type) {
 	case RK3288_HDMI:
@@ -245,9 +257,17 @@ static void dw_hdmi_rockchip_encoder_enable(struct drm_encoder *encoder)
 	else
 		val = HIWORD_UPDATE(0, lcdsel_mask);
 
+	ret = clk_prepare_enable(hdmi->grf_clk);
+	if (ret < 0) {
+		dev_err(hdmi->dev, "failed to enable grfclk %d\n", ret);
+		return;
+	}
+
 	regmap_write(hdmi->regmap, lcdsel_grf_reg, val);
 	dev_dbg(hdmi->dev, "vop %s output to hdmi\n",
 		(mux) ? "LIT" : "BIG");
+
+	clk_disable_unprepare(hdmi->grf_clk);
 }
 
 static int
