@@ -1245,7 +1245,14 @@ static struct platform_driver rk_iommu_driver = {
 
 static int __init rockchip_iommu_init_driver(void)
 {
+	struct device_node *np;
 	int ret;
+
+	np = of_find_matching_node(NULL, iommu_dt_ids);
+	if (!np) {
+		pr_err("Failed to find legacy iommu devices\n");
+		return -ENODEV;
+	}
 
 	lv2table_kmem_cache = kmem_cache_create("rk-iommu-lv2table",
 						LV2TABLE_SIZE, LV2TABLE_SIZE,
