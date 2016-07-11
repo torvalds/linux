@@ -125,7 +125,11 @@ struct wl18xx_fw_packet_counters {
 	/* Tx rate of the last transmitted packet */
 	u8 tx_last_rate;
 
-	u8 padding[2];
+	/* Tx rate or Tx rate estimate pre-calculated by fw in mbps units */
+	u8 tx_last_rate_mbps;
+
+	/* hlid for which the rates were reported */
+	u8 hlid;
 } __packed;
 
 /* FW status registers */
