@@ -323,8 +323,15 @@ static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
 		 */
 		fpu__drop(fpu);
 
-		if (__copy_from_user(&fpu->state.xsave, buf_fx, state_size) ||
-		    __copy_from_user(&env, buf, sizeof(env))) {
+		if (using_compacted_format()) {
+			err = copyin_to_xsaves(NULL, buf_fx,
+					       &fpu->state.xsave);
+		} else {
+			err = __copy_from_user(&fpu->state.xsave,
+					       buf_fx, state_size);
+		}
+
+		if (err || __copy_from_user(&env, buf, sizeof(env))) {
 			fpstate_init(&fpu->state);
 			trace_x86_fpu_init_state(fpu);
 			err = -1;
