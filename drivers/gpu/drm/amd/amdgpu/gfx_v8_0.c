@@ -28,6 +28,7 @@
 #include "vid.h"
 #include "amdgpu_ucode.h"
 #include "amdgpu_atombios.h"
+#include "atombios_i2c.h"
 #include "clearstate_vi.h"
 
 #include "gmc/gmc_8_2_d.h"
@@ -698,6 +699,10 @@ static void gfx_v8_0_init_golden_registers(struct amdgpu_device *adev)
 						 polaris10_golden_common_all,
 						 (const u32)ARRAY_SIZE(polaris10_golden_common_all));
 		WREG32_SMC(ixCG_ACLK_CNTL, 0x0000001C);
+		if (adev->pdev->revision == 0xc7) {
+			amdgpu_atombios_i2c_channel_trans(adev, 0x10, 0x96, 0x1E, 0xDD);
+			amdgpu_atombios_i2c_channel_trans(adev, 0x10, 0x96, 0x1F, 0xD0);
+		}
 		break;
 	case CHIP_CARRIZO:
 		amdgpu_program_register_sequence(adev,
