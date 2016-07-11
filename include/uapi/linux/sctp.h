@@ -112,6 +112,31 @@ typedef __s32 sctp_assoc_t;
 #define SCTP_SOCKOPT_CONNECTX	110		/* CONNECTX requests. */
 #define SCTP_SOCKOPT_CONNECTX3	111	/* CONNECTX requests (updated) */
 #define SCTP_GET_ASSOC_STATS	112	/* Read only */
+#define SCTP_PR_SUPPORTED	113
+#define SCTP_DEFAULT_PRINFO	114
+#define SCTP_PR_ASSOC_STATUS	115
+
+/* PR-SCTP policies */
+#define SCTP_PR_SCTP_NONE	0x0000
+#define SCTP_PR_SCTP_TTL	0x0010
+#define SCTP_PR_SCTP_RTX	0x0020
+#define SCTP_PR_SCTP_PRIO	0x0030
+#define SCTP_PR_SCTP_MAX	SCTP_PR_SCTP_PRIO
+#define SCTP_PR_SCTP_MASK	0x0030
+
+#define __SCTP_PR_INDEX(x)	((x >> 4) - 1)
+#define SCTP_PR_INDEX(x)	__SCTP_PR_INDEX(SCTP_PR_SCTP_ ## x)
+
+#define SCTP_PR_POLICY(x)	((x) & SCTP_PR_SCTP_MASK)
+#define SCTP_PR_SET_POLICY(flags, x)	\
+	do {				\
+		flags &= ~SCTP_PR_SCTP_MASK;	\
+		flags |= x;		\
+	} while (0)
+
+#define SCTP_PR_TTL_ENABLED(x)	(SCTP_PR_POLICY(x) == SCTP_PR_SCTP_TTL)
+#define SCTP_PR_RTX_ENABLED(x)	(SCTP_PR_POLICY(x) == SCTP_PR_SCTP_RTX)
+#define SCTP_PR_PRIO_ENABLED(x)	(SCTP_PR_POLICY(x) == SCTP_PR_SCTP_PRIO)
 
 /* These are bit fields for msghdr->msg_flags.  See section 5.1.  */
 /* On user space Linux, these live in <bits/socket.h> as an enum.  */
@@ -900,6 +925,23 @@ struct sctp_paddrthlds {
 	struct sockaddr_storage spt_address;
 	__u16 spt_pathmaxrxt;
 	__u16 spt_pathpfthld;
+};
+
+/*
+ * Socket Option for Getting the Association/Stream-Specific PR-SCTP Status
+ */
+struct sctp_prstatus {
+	sctp_assoc_t sprstat_assoc_id;
+	__u16 sprstat_sid;
+	__u16 sprstat_policy;
+	__u64 sprstat_abandoned_unsent;
+	__u64 sprstat_abandoned_sent;
+};
+
+struct sctp_default_prinfo {
+	sctp_assoc_t pr_assoc_id;
+	__u32 pr_value;
+	__u16 pr_policy;
 };
 
 #endif /* _UAPI_SCTP_H */

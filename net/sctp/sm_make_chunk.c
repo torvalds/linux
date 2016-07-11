@@ -261,7 +261,7 @@ struct sctp_chunk *sctp_make_init(const struct sctp_association *asoc,
 	chunksize += WORD_ROUND(SCTP_SAT_LEN(num_types));
 	chunksize += sizeof(ecap_param);
 
-	if (net->sctp.prsctp_enable)
+	if (asoc->prsctp_enable)
 		chunksize += sizeof(prsctp_param);
 
 	/* ADDIP: Section 4.2.7:
@@ -355,7 +355,7 @@ struct sctp_chunk *sctp_make_init(const struct sctp_association *asoc,
 		sctp_addto_param(retval, num_ext, extensions);
 	}
 
-	if (net->sctp.prsctp_enable)
+	if (asoc->prsctp_enable)
 		sctp_addto_chunk(retval, sizeof(prsctp_param), &prsctp_param);
 
 	if (sp->adaptation_ind) {
@@ -711,6 +711,20 @@ nodata:
 	return retval;
 }
 
+static void sctp_set_prsctp_policy(struct sctp_chunk *chunk,
+				   const struct sctp_sndrcvinfo *sinfo)
+{
+	if (!chunk->asoc->prsctp_enable)
+		return;
+
+	if (SCTP_PR_TTL_ENABLED(sinfo->sinfo_flags))
+		chunk->prsctp_param =
+			jiffies + msecs_to_jiffies(sinfo->sinfo_timetolive);
+	else if (SCTP_PR_RTX_ENABLED(sinfo->sinfo_flags) ||
+		 SCTP_PR_PRIO_ENABLED(sinfo->sinfo_flags))
+		chunk->prsctp_param = sinfo->sinfo_timetolive;
+}
+
 /* Make a DATA chunk for the given association from the provided
  * parameters.  However, do not populate the data payload.
  */
@@ -744,6 +758,7 @@ struct sctp_chunk *sctp_make_datafrag_empty(struct sctp_association *asoc,
 
 	retval->subh.data_hdr = sctp_addto_chunk(retval, sizeof(dp), &dp);
 	memcpy(&retval->sinfo, sinfo, sizeof(struct sctp_sndrcvinfo));
+	sctp_set_prsctp_policy(retval, sinfo);
 
 nodata:
 	return retval;
@@ -2024,8 +2039,8 @@ static void sctp_process_ext_param(struct sctp_association *asoc,
 	for (i = 0; i < num_ext; i++) {
 		switch (param.ext->chunks[i]) {
 		case SCTP_CID_FWD_TSN:
-			if (net->sctp.prsctp_enable && !asoc->peer.prsctp_capable)
-				    asoc->peer.prsctp_capable = 1;
+			if (asoc->prsctp_enable && !asoc->peer.prsctp_capable)
+				asoc->peer.prsctp_capable = 1;
 			break;
 		case SCTP_CID_AUTH:
 			/* if the peer reports AUTH, assume that he
@@ -2169,7 +2184,7 @@ static sctp_ierror_t sctp_verify_param(struct net *net,
 		break;
 
 	case SCTP_PARAM_FWD_TSN_SUPPORT:
-		if (net->sctp.prsctp_enable)
+		if (ep->prsctp_enable)
 			break;
 		goto fallthrough;
 
@@ -2653,7 +2668,7 @@ do_addr_param:
 		break;
 
 	case SCTP_PARAM_FWD_TSN_SUPPORT:
-		if (net->sctp.prsctp_enable) {
+		if (asoc->prsctp_enable) {
 			asoc->peer.prsctp_capable = 1;
 			break;
 		}

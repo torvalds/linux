@@ -316,6 +316,8 @@ static sctp_xmit_t __sctp_packet_append_chunk(struct sctp_packet *packet,
 		packet->has_data = 1;
 		/* timestamp the chunk for rtx purposes */
 		chunk->sent_at = jiffies;
+		/* Mainly used for prsctp RTX policy */
+		chunk->sent_count++;
 		break;
 	case SCTP_CID_COOKIE_ECHO:
 		packet->has_cookie_echo = 1;
