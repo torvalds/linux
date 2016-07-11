@@ -49,15 +49,6 @@ device can rely on working with the default settings initially.
 I/O control requests
 ====================
 
-
-.. _LIRC_GET_SEND_MODE:
-.. _lirc-mode-pulse:
-
-``LIRC_GET_SEND_MODE``
-
-    Get supported transmit mode. Only ``LIRC_MODE_PULSE`` is supported by
-    lircd.
-
 .. _LIRC_GET_REC_MODE:
 .. _lirc-mode-mode2:
 .. _lirc-mode-lirccode:

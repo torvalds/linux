@@ -13,4 +13,5 @@ LIRC Device Interface
     lirc_read
     lirc_write
     lirc-get-features
+    lirc-get-send-mode
     lirc_ioctl
