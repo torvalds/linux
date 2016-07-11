@@ -60,6 +60,7 @@
 #include "hash.h"
 #include "props.h"
 #include "qgroup.h"
+#include "dedupe.h"
 
 struct btrfs_iget_args {
 	struct btrfs_key *location;
@@ -105,8 +106,9 @@ static int btrfs_truncate(struct inode *inode);
 static int btrfs_finish_ordered_io(struct btrfs_ordered_extent *ordered_extent);
 static noinline int cow_file_range(struct inode *inode,
 				   struct page *locked_page,
-				   u64 start, u64 end, int *page_started,
-				   unsigned long *nr_written, int unlock);
+				   u64 start, u64 end, u64 delalloc_end,
+				   int *page_started, unsigned long *nr_written,
+				   int unlock, struct btrfs_dedupe_hash *hash);
 static struct extent_map *create_pinned_em(struct inode *inode, u64 start,
 					   u64 len, u64 orig_start,
 					   u64 block_start, u64 block_len,
@@ -710,7 +712,10 @@ retry:
 					     async_extent->start,
 					     async_extent->start +
 					     async_extent->ram_size - 1,
-					     &page_started, &nr_written, 0);
+					     async_extent->start +
+					     async_extent->ram_size - 1,
+					     &page_started, &nr_written, 0,
+					     NULL);
 
 			/* JDM XXX */
 
@@ -923,9 +928,9 @@ static u64 get_extent_allocation_hint(struct inode *inode, u64 start,
  */
 static noinline int cow_file_range(struct inode *inode,
 				   struct page *locked_page,
-				   u64 start, u64 end, int *page_started,
-				   unsigned long *nr_written,
-				   int unlock)
+				   u64 start, u64 end, u64 delalloc_end,
+				   int *page_started, unsigned long *nr_written,
+				   int unlock, struct btrfs_dedupe_hash *hash)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	u64 alloc_hint = 0;
@@ -1416,7 +1421,8 @@ out_check:
 		if (cow_start != (u64)-1) {
 			ret = cow_file_range(inode, locked_page,
 					     cow_start, found_key.offset - 1,
-					     page_started, nr_written, 1);
+					     end, page_started, nr_written, 1,
+					     NULL);
 			if (ret) {
 				if (!nolock && nocow)
 					btrfs_end_write_no_snapshoting(root);
@@ -1499,8 +1505,8 @@ out_check:
 	}
 
 	if (cow_start != (u64)-1) {
-		ret = cow_file_range(inode, locked_page, cow_start, end,
-				     page_started, nr_written, 1);
+		ret = cow_file_range(inode, locked_page, cow_start, end, end,
+				     page_started, nr_written, 1, NULL);
 		if (ret)
 			goto error;
 	}
@@ -1559,8 +1565,8 @@ static int run_delalloc_range(struct inode *inode, struct page *locked_page,
 		ret = run_delalloc_nocow(inode, locked_page, start, end,
 					 page_started, 0, nr_written);
 	} else if (!inode_need_compress(inode)) {
-		ret = cow_file_range(inode, locked_page, start, end,
-				      page_started, nr_written, 1);
+		ret = cow_file_range(inode, locked_page, start, end, end,
+				      page_started, nr_written, 1, NULL);
 	} else {
 		set_bit(BTRFS_INODE_HAS_ASYNC_EXTENT,
 			&BTRFS_I(inode)->runtime_flags);
