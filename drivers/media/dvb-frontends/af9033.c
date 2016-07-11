@@ -816,7 +816,7 @@ static int af9033_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct af9033_dev *dev = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-	int ret, i, tmp;
+	int ret, i, tmp = 0;
 	u8 u8tmp, buf[7];
 
 	dev_dbg(&dev->client->dev, "\n");
@@ -880,7 +880,7 @@ static int af9033_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	/* CNR */
 	if (dev->fe_status & FE_HAS_VITERBI) {
 		u32 snr_val, snr_lut_size;
-		const struct val_snr *snr_lut;
+		const struct val_snr *snr_lut = NULL;
 
 		/* read value */
 		ret = af9033_rd_regs(dev, 0x80002c, buf, 3);
