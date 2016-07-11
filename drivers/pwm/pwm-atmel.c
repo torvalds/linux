@@ -337,15 +337,8 @@ atmel_pwm_get_driver_data(struct platform_device *pdev)
 {
 	const struct platform_device_id *id;
 
-	if (pdev->dev.of_node) {
-		const struct of_device_id *match;
-
-		match = of_match_device(atmel_pwm_dt_ids, &pdev->dev);
-		if (!match)
-			return NULL;
-
-		return match->data;
-	}
+	if (pdev->dev.of_node)
+		return of_device_get_match_data(&pdev->dev);
 
 	id = platform_get_device_id(pdev);
 
