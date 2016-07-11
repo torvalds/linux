@@ -393,7 +393,7 @@ static int b53_srab_probe(struct platform_device *pdev)
 		if (!pdata)
 			return -ENOMEM;
 
-		pdata->chip_id = (u32)of_id->data;
+		pdata->chip_id = (u32)(unsigned long)of_id->data;
 	}
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
