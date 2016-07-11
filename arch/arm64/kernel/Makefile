@@ -54,7 +54,6 @@ obj-m					+= $(arm64-obj-m)
 head-y					:= head.o
 extra-y					+= $(head-y) vmlinux.lds
 
-# Check that the vDSO symbol offsets header file is up to date and re-generate
-# it if necessary.
-$(objtree)/include/generated/vdso-offsets.h: FORCE
-	$(Q)$(MAKE) $(build)=$(obj)/vdso $@
+# vDSO - this must be built first to generate the symbol offsets
+$(call objectify,$(arm64-obj-y)): $(obj)/vdso/vdso-offsets.h
+$(obj)/vdso/vdso-offsets.h: $(obj)/vdso
