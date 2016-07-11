@@ -476,6 +476,7 @@ static void ar9002_hw_set_bt_ant_diversity(struct ath_hw *ah, bool enable)
 static void ar9002_hw_spectral_scan_config(struct ath_hw *ah,
 				    struct ath_spec_scan *param)
 {
+	u32 repeat_bit;
 	u8 count;
 
 	if (!param->enabled) {
@@ -486,12 +487,15 @@ static void ar9002_hw_spectral_scan_config(struct ath_hw *ah,
 	REG_SET_BIT(ah, AR_PHY_RADAR_0, AR_PHY_RADAR_0_FFT_ENA);
 	REG_SET_BIT(ah, AR_PHY_SPECTRAL_SCAN, AR_PHY_SPECTRAL_SCAN_ENABLE);
 
-	if (param->short_repeat)
-		REG_SET_BIT(ah, AR_PHY_SPECTRAL_SCAN,
-			    AR_PHY_SPECTRAL_SCAN_SHORT_REPEAT);
+	if (AR_SREV_9280(ah))
+		repeat_bit = AR_PHY_SPECTRAL_SCAN_SHORT_REPEAT;
 	else
-		REG_CLR_BIT(ah, AR_PHY_SPECTRAL_SCAN,
-			    AR_PHY_SPECTRAL_SCAN_SHORT_REPEAT);
+		repeat_bit = AR_PHY_SPECTRAL_SCAN_SHORT_REPEAT_KIWI;
+
+	if (param->short_repeat)
+		REG_SET_BIT(ah, AR_PHY_SPECTRAL_SCAN, repeat_bit);
+	else
+		REG_CLR_BIT(ah, AR_PHY_SPECTRAL_SCAN, repeat_bit);
 
 	/* on AR92xx, the highest bit of count will make the the chip send
 	 * spectral samples endlessly. Check if this really was intended,
@@ -499,15 +503,25 @@ static void ar9002_hw_spectral_scan_config(struct ath_hw *ah,
 	 */
 	count = param->count;
 	if (param->endless) {
-		if (AR_SREV_9271(ah))
-			count = 0;
-		else
+		if (AR_SREV_9280(ah))
 			count = 0x80;
+		else
+			count = 0;
 	} else if (count & 0x80)
 		count = 0x7f;
+	else if (!count)
+		count = 1;
 
-	REG_RMW_FIELD(ah, AR_PHY_SPECTRAL_SCAN,
-		      AR_PHY_SPECTRAL_SCAN_COUNT, count);
+	if (AR_SREV_9280(ah)) {
+		REG_RMW_FIELD(ah, AR_PHY_SPECTRAL_SCAN,
+			      AR_PHY_SPECTRAL_SCAN_COUNT, count);
+	} else {
+		REG_RMW_FIELD(ah, AR_PHY_SPECTRAL_SCAN,
+			      AR_PHY_SPECTRAL_SCAN_COUNT_KIWI, count);
+		REG_SET_BIT(ah, AR_PHY_SPECTRAL_SCAN,
+			    AR_PHY_SPECTRAL_SCAN_PHYERR_MASK_SELECT);
+	}
+
 	REG_RMW_FIELD(ah, AR_PHY_SPECTRAL_SCAN,
 		      AR_PHY_SPECTRAL_SCAN_PERIOD, param->period);
 	REG_RMW_FIELD(ah, AR_PHY_SPECTRAL_SCAN,
