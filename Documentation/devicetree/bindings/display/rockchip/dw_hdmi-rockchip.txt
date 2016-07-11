@@ -17,7 +17,8 @@ Required properties:
 
 Optional properties
 - ddc-i2c-bus: phandle of an I2C controller used for DDC EDID probing
-- clocks, clock-names: phandle to the HDMI CEC clock, name should be "cec"
+- clocks, clock-names: phandle to the HDMI CEC clock, name should be "cec",
+		       phandle to the VPLL clock, name should be "vpll".
 
 Example:
 hdmi: hdmi@ff980000 {
