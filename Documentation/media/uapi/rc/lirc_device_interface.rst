@@ -12,4 +12,5 @@ LIRC Device Interface
     lirc_dev_intro
     lirc_read
     lirc_write
+    lirc-get-features
     lirc_ioctl

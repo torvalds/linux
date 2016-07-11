@@ -50,14 +50,6 @@ I/O control requests
 ====================
 
 
-.. _LIRC_GET_FEATURES:
-
-``LIRC_GET_FEATURES``
-
-    Obviously, get the underlying hardware device's features. If a
-    driver does not announce support of certain features, calling of the
-    corresponding ioctls is undefined.
-
 .. _LIRC_GET_SEND_MODE:
 .. _lirc-mode-pulse:
 
