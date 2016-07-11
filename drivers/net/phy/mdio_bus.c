@@ -675,21 +675,28 @@ phy_registers_store(struct device *dev,
 		    const char *buf, size_t count)
 {
 	struct phy_device *phydev = to_phy_device(dev);
-	long long index, val;
+	int index, val;
 	int i;
+	char tmp[32];
 
 	for (i = 0; i < count; i++) {
 		if (*(buf + i) == ' ')
 			break;
 	}
 
-	if (!kstrtoll(buf, 0, &index)) {
-		pr_err("Please input like1: <reg index> <value>\n");
+	memset(tmp, 0, sizeof(tmp));
+	strncpy(tmp, buf, i);
+	if (kstrtoint(tmp, 0, &index)) {
+		pr_err("wrong register index input\n");
+		pr_err("usage: <reg index> <value>\n");
 		return count;
 	}
 
-	if (!kstrtoll(buf + i + 1, 0, &val)) {
-		pr_err("Please input like2: <reg index> <value>\n");
+	memset(tmp, 0, sizeof(tmp));
+	strncpy(tmp, buf + i + 1, strlen(buf) - i - 1);
+	if (kstrtoint(tmp, 0, &val)) {
+		pr_err("wrong register value input\n");
+		pr_err("usage: <reg index> <value>\n");
 		return count;
 	}
 
