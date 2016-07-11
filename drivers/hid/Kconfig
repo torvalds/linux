@@ -425,6 +425,7 @@ config HID_LOGITECH_DJ
 config HID_LOGITECH_HIDPP
 	tristate "Logitech HID++ devices support"
 	depends on HID_LOGITECH
+	select POWER_SUPPLY
 	---help---
 	Support for Logitech devices relyingon the HID++ Logitech specification
 
