@@ -1559,7 +1559,12 @@ void tipc_link_bc_sync_rcv(struct tipc_link *l, struct tipc_msg *hdr,
 	if (!msg_peer_node_is_up(hdr))
 		return;
 
-	l->bc_peer_is_up = true;
+	/* Open when peer ackowledges our bcast init msg (pkt #1) */
+	if (msg_ack(hdr))
+		l->bc_peer_is_up = true;
+
+	if (!l->bc_peer_is_up)
+		return;
 
 	/* Ignore if peers_snd_nxt goes beyond receive window */
 	if (more(peers_snd_nxt, l->rcv_nxt + l->window))
