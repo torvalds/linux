@@ -82,6 +82,7 @@ struct NCR_700_Device_Parameters {
 	 * cmnd[1], this could be in static storage */
 	unsigned char cmnd[MAX_COMMAND_SIZE];
 	__u8	depth;
+	struct scsi_cmnd *current_cmnd;	/* currently active command */
 };
 
 
