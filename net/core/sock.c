@@ -1938,6 +1938,10 @@ int __sock_cmsg_send(struct sock *sk, struct msghdr *msg, struct cmsghdr *cmsg,
 		sockc->tsflags &= ~SOF_TIMESTAMPING_TX_RECORD_MASK;
 		sockc->tsflags |= tsflags;
 		break;
+	/* SCM_RIGHTS and SCM_CREDENTIALS are semantically in SOL_UNIX. */
+	case SCM_RIGHTS:
+	case SCM_CREDENTIALS:
+		break;
 	default:
 		return -EINVAL;
 	}
