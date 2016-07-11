@@ -833,7 +833,7 @@ static int hdmi_phy_configure(struct dw_hdmi *hdmi, unsigned char prep,
 	dw_hdmi_phy_gen2_txpwron(hdmi, 1);
 	dw_hdmi_phy_gen2_pddq(hdmi, 0);
 
-	if (hdmi->dev_type == RK3288_HDMI)
+	if (is_rockchip(hdmi->dev_type))
 		dw_hdmi_phy_enable_spare(hdmi, 1);
 
 	/*Wait for PHY PLL lock */

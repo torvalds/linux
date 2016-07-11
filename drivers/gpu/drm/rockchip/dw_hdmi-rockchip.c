@@ -21,13 +21,18 @@
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_vop.h"
 
-#define GRF_SOC_CON6                    0x025c
-#define HDMI_SEL_VOP_LIT                (1 << 4)
+#define RK3288_GRF_SOC_CON6		0x025C
+#define RK3288_HDMI_LCDC_SEL		BIT(4)
+#define RK3399_GRF_SOC_CON20		0x6250
+#define RK3399_HDMI_LCDC_SEL		BIT(6)
+
+#define HIWORD_UPDATE(val, mask)	(val | (mask) << 16)
 
 struct rockchip_hdmi {
 	struct device *dev;
 	struct regmap *regmap;
 	struct drm_encoder encoder;
+	enum dw_hdmi_devtype dev_type;
 };
 
 #define to_rockchip_hdmi(x)	container_of(x, struct rockchip_hdmi, x)
@@ -194,16 +199,30 @@ static void dw_hdmi_rockchip_encoder_mode_set(struct drm_encoder *encoder,
 static void dw_hdmi_rockchip_encoder_enable(struct drm_encoder *encoder)
 {
 	struct rockchip_hdmi *hdmi = to_rockchip_hdmi(encoder);
+	u32 lcdsel_grf_reg, lcdsel_mask;
 	u32 val;
 	int mux;
 
+	switch (hdmi->dev_type) {
+	case RK3288_HDMI:
+		lcdsel_grf_reg = RK3288_GRF_SOC_CON6;
+		lcdsel_mask = RK3288_HDMI_LCDC_SEL;
+		break;
+	case RK3399_HDMI:
+		lcdsel_grf_reg = RK3399_GRF_SOC_CON20;
+		lcdsel_mask = RK3399_HDMI_LCDC_SEL;
+		break;
+	default:
+		return;
+	};
+
 	mux = drm_of_encoder_active_endpoint_id(hdmi->dev->of_node, encoder);
 	if (mux)
-		val = HDMI_SEL_VOP_LIT | (HDMI_SEL_VOP_LIT << 16);
+		val = HIWORD_UPDATE(lcdsel_mask, lcdsel_mask);
 	else
-		val = HDMI_SEL_VOP_LIT << 16;
+		val = HIWORD_UPDATE(0, lcdsel_mask);
 
-	regmap_write(hdmi->regmap, GRF_SOC_CON6, val);
+	regmap_write(hdmi->regmap, lcdsel_grf_reg, val);
 	dev_dbg(hdmi->dev, "vop %s output to hdmi\n",
 		(mux) ? "LIT" : "BIG");
 }
@@ -229,7 +248,7 @@ static const struct drm_encoder_helper_funcs dw_hdmi_rockchip_encoder_helper_fun
 	.atomic_check = dw_hdmi_rockchip_encoder_atomic_check,
 };
 
-static const struct dw_hdmi_plat_data rockchip_hdmi_drv_data = {
+static const struct dw_hdmi_plat_data rk3288_hdmi_drv_data = {
 	.mode_valid = dw_hdmi_rockchip_mode_valid,
 	.mpll_cfg   = rockchip_mpll_cfg,
 	.cur_ctr    = rockchip_cur_ctr,
@@ -237,9 +256,20 @@ static const struct dw_hdmi_plat_data rockchip_hdmi_drv_data = {
 	.dev_type   = RK3288_HDMI,
 };
 
+static const struct dw_hdmi_plat_data rk3399_hdmi_drv_data = {
+	.mode_valid = dw_hdmi_rockchip_mode_valid,
+	.mpll_cfg   = rockchip_mpll_cfg,
+	.cur_ctr    = rockchip_cur_ctr,
+	.phy_config = rockchip_phy_config,
+	.dev_type   = RK3399_HDMI,
+};
+
 static const struct of_device_id dw_hdmi_rockchip_dt_ids[] = {
 	{ .compatible = "rockchip,rk3288-dw-hdmi",
-	  .data = &rockchip_hdmi_drv_data
+	  .data = &rk3288_hdmi_drv_data
+	},
+	{ .compatible = "rockchip,rk3399-dw-hdmi",
+	  .data = &rk3399_hdmi_drv_data
 	},
 	{},
 };
@@ -268,6 +298,7 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 	match = of_match_node(dw_hdmi_rockchip_dt_ids, pdev->dev.of_node);
 	plat_data = match->data;
 	hdmi->dev = &pdev->dev;
+	hdmi->dev_type = plat_data->dev_type;
 	encoder = &hdmi->encoder;
 
 	irq = platform_get_irq(pdev, 0);
