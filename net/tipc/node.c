@@ -1297,10 +1297,6 @@ static void tipc_node_bc_rcv(struct net *net, struct sk_buff *skb, int bearer_id
 
 	rc = tipc_bcast_rcv(net, be->link, skb);
 
-	/* Broadcast link reset may happen at reassembly failure */
-	if (rc & TIPC_LINK_DOWN_EVT)
-		tipc_node_reset_links(n);
-
 	/* Broadcast ACKs are sent on a unicast link */
 	if (rc & TIPC_LINK_SND_BC_ACK) {
 		tipc_node_read_lock(n);
@@ -1320,6 +1316,17 @@ static void tipc_node_bc_rcv(struct net *net, struct sk_buff *skb, int bearer_id
 		spin_unlock_bh(&be->inputq2.lock);
 		tipc_sk_mcast_rcv(net, &be->arrvq, &be->inputq2);
 	}
+
+	if (rc & TIPC_LINK_DOWN_EVT) {
+		/* Reception reassembly failure => reset all links to peer */
+		if (!tipc_link_is_up(be->link))
+			tipc_node_reset_links(n);
+
+		/* Retransmission failure => reset all links to all peers */
+		if (!tipc_link_is_up(tipc_bc_sndlink(net)))
+			tipc_bearer_reset_all(net);
+	}
+
 	tipc_node_put(n);
 }
 
