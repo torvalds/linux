@@ -5700,6 +5700,16 @@ out:
 	mutex_unlock(&wl->mutex);
 }
 
+static u32 wlcore_op_get_expected_throughput(struct ieee80211_sta *sta)
+{
+	struct wl1271_station *wl_sta = (struct wl1271_station *)sta->drv_priv;
+	struct wl1271 *wl = wl_sta->wl;
+	u8 hlid = wl_sta->hlid;
+
+	/* return in units of Kbps */
+	return (wl->links[hlid].fw_rate_mbps * 1000);
+}
+
 static bool wl1271_tx_frames_pending(struct ieee80211_hw *hw)
 {
 	struct wl1271 *wl = hw->priv;
@@ -5900,6 +5910,7 @@ static const struct ieee80211_ops wl1271_ops = {
 	.switch_vif_chanctx = wlcore_op_switch_vif_chanctx,
 	.sta_rc_update = wlcore_op_sta_rc_update,
 	.sta_statistics = wlcore_op_sta_statistics,
+	.get_expected_throughput = wlcore_op_get_expected_throughput,
 	CFG80211_TESTMODE_CMD(wl1271_tm_cmd)
 };
 
