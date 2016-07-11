@@ -42,7 +42,7 @@ struct tegra_pwm_chip {
 
 	struct clk *clk;
 
-	void __iomem *mmio_base;
+	void __iomem *regs;
 };
 
 static inline struct tegra_pwm_chip *to_tegra_pwm_chip(struct pwm_chip *chip)
@@ -52,13 +52,13 @@ static inline struct tegra_pwm_chip *to_tegra_pwm_chip(struct pwm_chip *chip)
 
 static inline u32 pwm_readl(struct tegra_pwm_chip *chip, unsigned int num)
 {
-	return readl(chip->mmio_base + (num << 4));
+	return readl(chip->regs + (num << 4));
 }
 
 static inline void pwm_writel(struct tegra_pwm_chip *chip, unsigned int num,
 			     unsigned long val)
 {
-	writel(val, chip->mmio_base + (num << 4));
+	writel(val, chip->regs + (num << 4));
 }
 
 static int tegra_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -177,9 +177,9 @@ static int tegra_pwm_probe(struct platform_device *pdev)
 	pwm->dev = &pdev->dev;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pwm->mmio_base = devm_ioremap_resource(&pdev->dev, r);
-	if (IS_ERR(pwm->mmio_base))
-		return PTR_ERR(pwm->mmio_base);
+	pwm->regs = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(pwm->regs))
+		return PTR_ERR(pwm->regs);
 
 	platform_set_drvdata(pdev, pwm);
 
