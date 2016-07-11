@@ -115,7 +115,7 @@ endif
 FEATURE_CHECK_CFLAGS-libbabeltrace := $(LIBBABELTRACE_CFLAGS)
 FEATURE_CHECK_LDFLAGS-libbabeltrace := $(LIBBABELTRACE_LDFLAGS) -lbabeltrace-ctf
 
-FEATURE_CHECK_CFLAGS-bpf = -I. -I$(srctree)/tools/include -I$(srctree)/arch/$(ARCH)/include/uapi -I$(srctree)/include/uapi
+FEATURE_CHECK_CFLAGS-bpf = -I. -I$(srctree)/tools/include -I$(srctree)/tools/arch/$(ARCH)/include/uapi -I$(srctree)/tools/include/uapi
 # include ARCH specific config
 -include $(src-perf)/arch/$(ARCH)/Makefile
 
@@ -210,7 +210,8 @@ CFLAGS += -I$(srctree)/tools/include/uapi
 CFLAGS += -I$(srctree)/tools/include/
 CFLAGS += -I$(srctree)/arch/$(ARCH)/include/uapi
 CFLAGS += -I$(srctree)/arch/$(ARCH)/include
-CFLAGS += -I$(srctree)/tools/arch/$(ARCH)/include
+CFLAGS += -I$(srctree)/tools/arch/$(ARCH)/include/uapi
+CFLAGS += -I$(srctree)/tools/arch/$(ARCH)/
 CFLAGS += -I$(srctree)/include/uapi
 CFLAGS += -I$(srctree)/include
 

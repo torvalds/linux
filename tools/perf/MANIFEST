@@ -23,7 +23,6 @@ tools/build
 tools/arch/x86/include/asm/atomic.h
 tools/arch/x86/include/asm/rmwcc.h
 tools/lib/traceevent
-tools/lib/bpf
 tools/lib/api
 tools/lib/bpf
 tools/lib/subcmd
@@ -60,6 +59,8 @@ tools/include/linux/hash.h
 tools/include/linux/kernel.h
 tools/include/linux/list.h
 tools/include/linux/log2.h
+tools/include/uapi/linux/bpf.h
+tools/include/uapi/linux/bpf_common.h
 tools/include/uapi/linux/perf_event.h
 tools/include/linux/poison.h
 tools/include/linux/rbtree.h
@@ -82,8 +83,6 @@ arch/*/include/uapi/asm/unistd*.h
 arch/*/include/uapi/asm/perf_regs.h
 include/linux/poison.h
 include/linux/hw_breakpoint.h
-include/uapi/linux/bpf.h
-include/uapi/linux/bpf_common.h
 include/uapi/linux/const.h
 include/uapi/linux/swab.h
 include/uapi/linux/hw_breakpoint.h
