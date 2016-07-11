@@ -1,3 +1,5 @@
+.. _vga_switcheroo:
+
 ==============
 VGA Switcheroo
 ==============
@@ -94,9 +96,3 @@ Public functions
 
 .. kernel-doc:: include/linux/apple-gmux.h
    :internal:
-
-.. WARNING: DOCPROC directive not supported: !Cdrivers/gpu/vga/vga_switcheroo.c
-
-.. WARNING: DOCPROC directive not supported: !Cinclude/linux/vga_switcheroo.h
-
-.. WARNING: DOCPROC directive not supported: !Cdrivers/platform/x86/apple-gmux.c

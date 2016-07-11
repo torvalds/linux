@@ -280,8 +280,8 @@ private data in the open method should free it here.
 The lastclose method should restore CRTC and plane properties to default
 value, so that a subsequent open of the device will not inherit state
 from the previous user. It can also be used to execute delayed power
-switching state changes, e.g. in conjunction with the vga_switcheroo
-infrastructure (see ?). Beyond that KMS drivers should not do any
+switching state changes, e.g. in conjunction with the :ref:`vga_switcheroo`
+infrastructure. Beyond that KMS drivers should not do any
 further cleanup. Only legacy UMS drivers might need to clean up device
 state so that the vga console or an independent fbdev driver could take
 over.
