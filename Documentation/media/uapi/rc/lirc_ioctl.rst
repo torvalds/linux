@@ -49,15 +49,6 @@ device can rely on working with the default settings initially.
 I/O control requests
 ====================
 
-.. _LIRC_SET_SEND_DUTY_CYCLE:
-
-``LIRC_SET_SEND_DUTY_CYCLE``
-
-    Set the duty cycle (from 0 to 100) of the carrier signal.
-    Currently, no special meaning is defined for 0 or 100, but this
-    could be used to switch off carrier generation in the future, so
-    these values should be reserved.
-
 .. _LIRC_GET_MIN_TIMEOUT:
 .. _LIRC_GET_MAX_TIMEOUT:
 

@@ -16,4 +16,5 @@ LIRC Device Interface
     lirc-get-send-mode
     lirc-get-rec-mode
     lirc-get-rec-resolution
+    lirc-set-send-duty-cycle
     lirc_ioctl
