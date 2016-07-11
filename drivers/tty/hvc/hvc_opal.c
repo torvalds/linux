@@ -214,7 +214,13 @@ static int hvc_opal_probe(struct platform_device *dev)
 		dev->dev.of_node->full_name,
 		boot ? " (boot console)" : "");
 
-	irq = opal_event_request(ilog2(OPAL_EVENT_CONSOLE_INPUT));
+	irq = irq_of_parse_and_map(dev->dev.of_node, 0);
+	if (!irq) {
+		pr_info("hvc%d: No interrupts property, using OPAL event\n",
+				termno);
+		irq = opal_event_request(ilog2(OPAL_EVENT_CONSOLE_INPUT));
+	}
+
 	if (!irq) {
 		pr_err("hvc_opal: Unable to map interrupt for device %s\n",
 			dev->dev.of_node->full_name);
