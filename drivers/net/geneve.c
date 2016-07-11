@@ -1134,9 +1134,9 @@ static struct device_type geneve_type = {
 	.name = "geneve",
 };
 
-/* Calls the ndo_add_udp_enc_port of the caller in order to
+/* Calls the ndo_udp_tunnel_add of the caller in order to
  * supply the listening GENEVE udp ports. Callers are expected
- * to implement the ndo_add_udp_enc_port.
+ * to implement the ndo_udp_tunnel_add.
  */
 static void geneve_push_rx_ports(struct net_device *dev)
 {

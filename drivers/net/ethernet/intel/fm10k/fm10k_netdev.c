@@ -432,9 +432,7 @@ static void fm10k_restore_vxlan_port(struct fm10k_intfc *interface)
 /**
  * fm10k_add_vxlan_port
  * @netdev: network interface device structure
- * @sa_family: Address family of new port
- * @port: port number used for VXLAN
- * @type: Enumerated value specifying udp encapsulation type
+ * @ti: Tunnel endpoint information
  *
  * This function is called when a new VXLAN interface has added a new port
  * number to the range that is currently in use for VXLAN.  The new port
@@ -480,9 +478,7 @@ insert_tail:
 /**
  * fm10k_del_vxlan_port
  * @netdev: network interface device structure
- * @sa_family: Address family of freed port
- * @port: port number used for VXLAN
- * @type: Enumerated value specifying udp encapsulation type
+ * @ti: Tunnel endpoint information
  *
  * This function is called when a new VXLAN interface has freed a port
  * number from the range that is currently in use for VXLAN.  The freed

@@ -2475,9 +2475,9 @@ static struct device_type vxlan_type = {
 	.name = "vxlan",
 };
 
-/* Calls the ndo_add_udp_enc_port of the caller in order to
+/* Calls the ndo_udp_tunnel_add of the caller in order to
  * supply the listening VXLAN udp ports. Callers are expected
- * to implement the ndo_add_udp_enc_port.
+ * to implement the ndo_udp_tunnel_add.
  */
 static void vxlan_push_rx_ports(struct net_device *dev)
 {

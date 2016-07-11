@@ -8851,9 +8851,7 @@ static int ixgbe_set_features(struct net_device *netdev,
 /**
  * ixgbe_add_vxlan_port - Get notifications about VXLAN ports that come up
  * @dev: The port's netdev
- * @sa_family: Socket Family that VXLAN is notifiying us about
- * @port: New UDP port number that VXLAN started listening to
- * @type: Enumerated type specifying UDP tunnel type
+ * @ti: Tunnel endpoint information
  **/
 static void ixgbe_add_vxlan_port(struct net_device *dev,
 				 struct udp_tunnel_info *ti)
@@ -8888,9 +8886,7 @@ static void ixgbe_add_vxlan_port(struct net_device *dev,
 /**
  * ixgbe_del_vxlan_port - Get notifications about VXLAN ports that go away
  * @dev: The port's netdev
- * @sa_family: Socket Family that VXLAN is notifying us about
- * @port: UDP port number that VXLAN stopped listening to
- * @type: Enumerated type specifying UDP tunnel type
+ * @ti: Tunnel endpoint information
  **/
 static void ixgbe_del_vxlan_port(struct net_device *dev,
 				 struct udp_tunnel_info *ti)
