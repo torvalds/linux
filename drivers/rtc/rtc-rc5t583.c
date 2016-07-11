@@ -128,6 +128,7 @@ static int rc5t583_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alm)
 		return ret;
 	}
 
+	alm->time.tm_sec = 0;
 	alm->time.tm_min = bcd2bin(alarm_data[0]);
 	alm->time.tm_hour = bcd2bin(alarm_data[1]);
 	alm->time.tm_mday = bcd2bin(alarm_data[2]);
