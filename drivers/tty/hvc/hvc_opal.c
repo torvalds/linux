@@ -224,6 +224,9 @@ static int hvc_opal_probe(struct platform_device *dev)
 	hp = hvc_alloc(termno, irq, ops, MAX_VIO_PUT_CHARS);
 	if (IS_ERR(hp))
 		return PTR_ERR(hp);
+
+	/* hvc consoles on powernv may need to share a single irq */
+	hp->flags = IRQF_SHARED;
 	dev_set_drvdata(&dev->dev, hp);
 
 	return 0;
