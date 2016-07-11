@@ -33,6 +33,7 @@ struct coeff {
 
 enum ar9003_cal_types {
 	IQ_MISMATCH_CAL = BIT(0),
+	TEMP_COMP_CAL = BIT(1),
 };
 
 static void ar9003_hw_setup_calibration(struct ath_hw *ah,
@@ -57,6 +58,12 @@ static void ar9003_hw_setup_calibration(struct ath_hw *ah,
 
 		/* Kick-off cal */
 		REG_SET_BIT(ah, AR_PHY_TIMING4, AR_PHY_TIMING4_DO_CAL);
+		break;
+	case TEMP_COMP_CAL:
+		ath_dbg(common, CALIBRATE,
+			"starting Temperature Compensation Calibration\n");
+		REG_SET_BIT(ah, AR_CH0_THERM, AR_CH0_THERM_LOCAL);
+		REG_SET_BIT(ah, AR_CH0_THERM, AR_CH0_THERM_START);
 		break;
 	default:
 		ath_err(common, "Invalid calibration type\n");
@@ -86,7 +93,8 @@ static bool ar9003_hw_per_calibration(struct ath_hw *ah,
 		/*
 		* Accumulate cal measures for active chains
 		*/
-		cur_caldata->calCollect(ah);
+		if (cur_caldata->calCollect)
+			cur_caldata->calCollect(ah);
 		ah->cal_samples++;
 
 		if (ah->cal_samples >= cur_caldata->calNumSamples) {
@@ -99,7 +107,8 @@ static bool ar9003_hw_per_calibration(struct ath_hw *ah,
 			/*
 			* Process accumulated data
 			*/
-			cur_caldata->calPostProc(ah, numChains);
+			if (cur_caldata->calPostProc)
+				cur_caldata->calPostProc(ah, numChains);
 
 			/* Calibration has finished. */
 			caldata->CalValid |= cur_caldata->calType;
@@ -314,9 +323,16 @@ static const struct ath9k_percal_data iq_cal_single_sample = {
 	ar9003_hw_iqcalibrate
 };
 
+static const struct ath9k_percal_data temp_cal_single_sample = {
+	TEMP_COMP_CAL,
+	MIN_CAL_SAMPLES,
+	PER_MAX_LOG_COUNT,
+};
+
 static void ar9003_hw_init_cal_settings(struct ath_hw *ah)
 {
 	ah->iq_caldata.calData = &iq_cal_single_sample;
+	ah->temp_caldata.calData = &temp_cal_single_sample;
 
 	if (AR_SREV_9300_20_OR_LATER(ah)) {
 		ah->enabled_cals |= TX_IQ_CAL;
@@ -324,7 +340,7 @@ static void ar9003_hw_init_cal_settings(struct ath_hw *ah)
 			ah->enabled_cals |= TX_IQ_ON_AGC_CAL;
 	}
 
-	ah->supp_cals = IQ_MISMATCH_CAL;
+	ah->supp_cals = IQ_MISMATCH_CAL | TEMP_COMP_CAL;
 }
 
 #define OFF_UPPER_LT 24
@@ -1382,6 +1398,9 @@ static void ar9003_hw_init_cal_common(struct ath_hw *ah)
 
 	INIT_CAL(&ah->iq_caldata);
 	INSERT_CAL(ah, &ah->iq_caldata);
+
+	INIT_CAL(&ah->temp_caldata);
+	INSERT_CAL(ah, &ah->temp_caldata);
 
 	/* Initialize current pointer to first element in list */
 	ah->cal_list_curr = ah->cal_list;
