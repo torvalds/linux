@@ -47,21 +47,12 @@ static const struct of_device_id rsrc_card_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, rsrc_card_of_match);
 
-struct rsrc_card_dai {
-	unsigned int sysclk;
-	unsigned int tx_slot_mask;
-	unsigned int rx_slot_mask;
-	int slots;
-	int slot_width;
-	struct clk *clk;
-};
-
 #define IDX_CPU		0
 #define IDX_CODEC	1
 struct rsrc_card_priv {
 	struct snd_soc_card snd_card;
 	struct snd_soc_codec_conf codec_conf;
-	struct rsrc_card_dai *dai_props;
+	struct asoc_simple_dai *dai_props;
 	struct snd_soc_dai_link *dai_link;
 	u32 convert_rate;
 	u32 convert_channels;
@@ -75,7 +66,7 @@ static int rsrc_card_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct rsrc_card_priv *priv =	snd_soc_card_get_drvdata(rtd->card);
-	struct rsrc_card_dai *dai_props =
+	struct asoc_simple_dai *dai_props =
 		rsrc_priv_to_props(priv, rtd->num);
 
 	return clk_prepare_enable(dai_props->clk);
@@ -85,7 +76,7 @@ static void rsrc_card_shutdown(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct rsrc_card_priv *priv =	snd_soc_card_get_drvdata(rtd->card);
-	struct rsrc_card_dai *dai_props =
+	struct asoc_simple_dai *dai_props =
 		rsrc_priv_to_props(priv, rtd->num);
 
 	clk_disable_unprepare(dai_props->clk);
@@ -101,7 +92,7 @@ static int rsrc_card_dai_init(struct snd_soc_pcm_runtime *rtd)
 	struct rsrc_card_priv *priv = snd_soc_card_get_drvdata(rtd->card);
 	struct snd_soc_dai *dai;
 	struct snd_soc_dai_link *dai_link;
-	struct rsrc_card_dai *dai_props;
+	struct asoc_simple_dai *dai_props;
 	int num = rtd->num;
 	int ret;
 
@@ -163,7 +154,7 @@ static int rsrc_card_parse_links(struct device_node *np,
 {
 	struct device *dev = rsrc_priv_to_dev(priv);
 	struct snd_soc_dai_link *dai_link = rsrc_priv_to_link(priv, idx);
-	struct rsrc_card_dai *dai_props = rsrc_priv_to_props(priv, idx);
+	struct asoc_simple_dai *dai_props = rsrc_priv_to_props(priv, idx);
 	struct of_phandle_args args;
 	int ret;
 
@@ -267,7 +258,7 @@ static int rsrc_card_parse_clk(struct device_node *np,
 			       int idx, bool is_fe)
 {
 	struct snd_soc_dai_link *dai_link = rsrc_priv_to_link(priv, idx);
-	struct rsrc_card_dai *dai_props = rsrc_priv_to_props(priv, idx);
+	struct asoc_simple_dai *dai_props = rsrc_priv_to_props(priv, idx);
 	struct clk *clk;
 	struct device_node *of_np = is_fe ?	dai_link->cpu_of_node :
 						dai_link->codec_of_node;
@@ -304,7 +295,7 @@ static int rsrc_card_dai_sub_link_of(struct device_node *node,
 {
 	struct device *dev = rsrc_priv_to_dev(priv);
 	struct snd_soc_dai_link *dai_link = rsrc_priv_to_link(priv, idx);
-	struct rsrc_card_dai *dai_props = rsrc_priv_to_props(priv, idx);
+	struct asoc_simple_dai *dai_props = rsrc_priv_to_props(priv, idx);
 	int ret;
 
 	ret = rsrc_card_parse_links(np, priv, idx, is_fe);
@@ -371,7 +362,7 @@ static int rsrc_card_parse_of(struct device_node *node,
 			      struct device *dev)
 {
 	const struct rsrc_card_of_data *of_data = of_device_get_match_data(dev);
-	struct rsrc_card_dai *props;
+	struct asoc_simple_dai *props;
 	struct snd_soc_dai_link *links;
 	int ret;
 	int num;
