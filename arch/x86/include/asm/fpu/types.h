@@ -232,6 +232,12 @@ struct xstate_header {
 } __attribute__((packed));
 
 /*
+ * xstate_header.xcomp_bv[63] indicates that the extended_state_area
+ * is in compacted format.
+ */
+#define XCOMP_BV_COMPACTED_FORMAT ((u64)1 << 63)
+
+/*
  * This is our most modern FPU state format, as saved by the XSAVE
  * and restored by the XRSTOR instructions.
  *
