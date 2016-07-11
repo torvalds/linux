@@ -91,8 +91,7 @@ LIRC features
 .. _LIRC_CAN_SET_REC_DUTY_CYCLE_RANGE:
 
 ``LIRC_CAN_SET_REC_DUTY_CYCLE_RANGE``
-    The driver supports
-    :ref:`LIRC_SET_REC_DUTY_CYCLE_RANGE.`
+    Unused. Kept just to avoid breaking uAPI.
 
 .. _LIRC_CAN_SET_REC_CARRIER_RANGE:
 
@@ -115,8 +114,7 @@ LIRC features
 .. _LIRC_CAN_SET_REC_FILTER:
 
 ``LIRC_CAN_SET_REC_FILTER``
-    The driver supports
-    :ref:`LIRC_SET_REC_FILTER.`
+    Unused. Kept just to avoid breaking uAPI.
 
 .. _LIRC_CAN_MEASURE_CARRIER:
 
@@ -133,8 +131,7 @@ LIRC features
 .. _LIRC_CAN_NOTIFY_DECODE:
 
 ``LIRC_CAN_NOTIFY_DECODE``
-    The driver supports
-    :ref:`LIRC_NOTIFY_DECODE.`
+    Unused. Kept just to avoid breaking uAPI.
 
 .. _LIRC_CAN_SEND_RAW:
 
