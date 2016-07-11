@@ -427,9 +427,6 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 	if (!node)
 		return -EINVAL;
 
-	/* Parse the card name from DT */
-	snd_soc_of_parse_card_name(&priv->snd_card, PREFIX "name");
-
 	/* The off-codec widgets */
 	if (of_property_read_bool(node, PREFIX "widgets")) {
 		ret = snd_soc_of_parse_audio_simple_widgets(&priv->snd_card,
@@ -450,9 +447,6 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 	ret = of_property_read_u32(node, PREFIX "mclk-fs", &val);
 	if (ret == 0)
 		priv->mclk_fs = val;
-
-	dev_dbg(dev, "New simple-card: %s\n", priv->snd_card.name ?
-		priv->snd_card.name : "");
 
 	/* Single/Muti DAI link(s) & New style of DT node */
 	if (of_get_child_by_name(node, PREFIX "dai-link")) {
@@ -476,8 +470,9 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 			return ret;
 	}
 
-	if (!priv->snd_card.name)
-		priv->snd_card.name = priv->snd_card.dai_link->name;
+	ret = asoc_simple_card_parse_card_name(&priv->snd_card, PREFIX);
+	if (ret)
+		return ret;
 
 	return 0;
 }
