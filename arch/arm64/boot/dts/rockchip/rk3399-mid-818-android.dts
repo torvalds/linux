@@ -44,6 +44,7 @@
 
 #include "rk3399.dtsi"
 #include "rk3399-android.dtsi"
+#include <dt-bindings/sensor-dev.h>
 
 / {
 	compatible = "rockchip,rk3399-mid", "rockchip,rk3399";
@@ -567,6 +568,31 @@
 		orientation-z= <0>;
 		mpu-debug = <1>;
 	};
+
+	sensor@0d {
+		status = "okay";
+		compatible = "ak8963";
+		pinctrl-names = "default";
+		pinctrl-0 = <&ak8963_irq_gpio>;
+		reg = <0x0d>;
+		type = <SENSOR_TYPE_COMPASS>;
+		irq-gpio = <&gpio2 28 IRQ_TYPE_EDGE_RISING>;
+		irq_enable = <0>;
+		poll_delay_ms = <30>;
+		layout = <3>;
+	};
+
+	sensor@20 {
+		status = "disabled";
+		compatible = "capella,light_cm3218";
+		pinctrl-names = "default";
+		pinctrl-0 = <&cm3218_irq_gpio>;
+		reg = <0x20>;
+		type = <SENSOR_TYPE_LIGHT>;
+		irq-gpio = <&gpio4 24 IRQ_TYPE_EDGE_RISING>;
+		irq_enable = <1>;
+		poll_delay_ms = <30>;
+	};
 };
 
 &i2c5 {
@@ -747,6 +773,18 @@
 	mpu6500 {
 		mpu6500_irq_gpio: mpu6500-irq-gpio {
 			rockchip,pins = <2 27 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	ak8963 {
+		ak8963_irq_gpio: ak8963-irq-gpio {
+			rockchip,pins = <2 28 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	cm3218 {
+		cm3218_irq_gpio: cm3218-irq-gpio {
+			rockchip,pins = <4 24 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };
