@@ -181,8 +181,8 @@ befs_bt_read_super(struct super_block *sb, const befs_data_stream *ds,
  * Calls befs_read_datastream to read in the indicated btree node and
  * makes sure its header fields are in cpu byteorder, byteswapping if
  * necessary.
- * Note: node->bh must be NULL when this function called first
- * time. Don't forget brelse(node->bh) after last call.
+ * Note: node->bh must be NULL when this function is called the first time.
+ * Don't forget brelse(node->bh) after last call.
  *
  * On success, returns BEFS_OK and *@node contains the btree node that
  * starts at @node_off, with the node->head fields in cpu byte order.
