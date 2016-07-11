@@ -351,7 +351,7 @@ void default_machine_crash_shutdown(struct pt_regs *regs)
 	old_handler = __debugger_fault_handler;
 	__debugger_fault_handler = handle_fault;
 	crash_shutdown_cpu = smp_processor_id();
-	for (i = 0; crash_shutdown_handles[i] && i < CRASH_HANDLER_MAX; i++) {
+	for (i = 0; i < CRASH_HANDLER_MAX && crash_shutdown_handles[i]; i++) {
 		if (setjmp(crash_shutdown_buf) == 0) {
 			/*
 			 * Insert syncs and delay to ensure
