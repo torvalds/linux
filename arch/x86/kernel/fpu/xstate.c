@@ -760,6 +760,11 @@ void *__raw_xsave_addr(struct xregs_state *xsave, int xstate_feature_mask)
 {
 	int feature_nr = fls64(xstate_feature_mask) - 1;
 
+	if (!xfeature_enabled(feature_nr)) {
+		WARN_ON_FPU(1);
+		return NULL;
+	}
+
 	return (void *)xsave + xstate_comp_offsets[feature_nr];
 }
 /*
