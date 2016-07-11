@@ -13,7 +13,7 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/acpi.h>
 #include <linux/regmap.h>
 #include <acpi/acpi_lpat.h>
@@ -319,5 +319,3 @@ out_error:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(intel_pmic_install_opregion_handler);
-
-MODULE_LICENSE("GPL");

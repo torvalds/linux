@@ -13,7 +13,7 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/acpi.h>
 #include <linux/mfd/intel_soc_pmic.h>
 #include <linux/regmap.h>
@@ -417,8 +417,4 @@ static int __init intel_bxtwc_pmic_opregion_driver_init(void)
 {
 	return platform_driver_register(&intel_bxtwc_pmic_opregion_driver);
 }
-
 device_initcall(intel_bxtwc_pmic_opregion_driver_init);
-
-MODULE_DESCRIPTION("BXT WhiskeyCove ACPI opregion driver");
-MODULE_LICENSE("GPL");
