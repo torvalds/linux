@@ -319,7 +319,6 @@ static int asoc_simple_card_dai_link_of(struct device_node *node,
 	struct device_node *cpu = NULL;
 	struct device_node *plat = NULL;
 	struct device_node *codec = NULL;
-	char *name;
 	char prop[128];
 	char *prefix = "";
 	int ret, cpu_args;
@@ -380,19 +379,13 @@ static int asoc_simple_card_dai_link_of(struct device_node *node,
 	if (!dai_link->platform_of_node)
 		dai_link->platform_of_node = dai_link->cpu_of_node;
 
-	/* DAI link name is created from CPU/CODEC dai name */
-	name = devm_kzalloc(dev,
-			    strlen(dai_link->cpu_dai_name)   +
-			    strlen(dai_link->codec_dai_name) + 2,
-			    GFP_KERNEL);
-	if (!name) {
-		ret = -ENOMEM;
+	ret = asoc_simple_card_set_dailink_name(dev, dai_link,
+						"%s-%s",
+						dai_link->cpu_dai_name,
+						dai_link->codec_dai_name);
+	if (ret < 0)
 		goto dai_link_of_err;
-	}
 
-	sprintf(name, "%s-%s", dai_link->cpu_dai_name,
-				dai_link->codec_dai_name);
-	dai_link->name = dai_link->stream_name = name;
 	dai_link->ops = &asoc_simple_card_ops;
 	dai_link->init = asoc_simple_card_dai_init;
 
