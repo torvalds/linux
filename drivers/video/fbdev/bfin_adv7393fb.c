@@ -797,7 +797,7 @@ static struct i2c_driver bfin_adv7393_fb_driver = {
 
 static int __init bfin_adv7393_fb_driver_init(void)
 {
-#if  defined(CONFIG_I2C_BLACKFIN_TWI) || defined(CONFIG_I2C_BLACKFIN_TWI_MODULE)
+#if IS_ENABLED(CONFIG_I2C_BLACKFIN_TWI)
 	request_module("i2c-bfin-twi");
 #else
 	request_module("i2c-gpio");
