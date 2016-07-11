@@ -113,7 +113,7 @@ static const u32 clock_lut_it9135[] = {
  * 0  TS
  * 1  DCA + PIP
  * 3  PIP
- * 5  DCA + PIP
+ * 5  DCA + PIP (AF9035 only)
  * n  DCA
  *
  * Values 0, 3 and 5 are seen to this day. 0 for single TS and 3/5 for dual TS.
