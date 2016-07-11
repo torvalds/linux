@@ -49,19 +49,6 @@ device can rely on working with the default settings initially.
 I/O control requests
 ====================
 
-.. _LIRC_GET_MIN_TIMEOUT:
-.. _LIRC_GET_MAX_TIMEOUT:
-
-``LIRC_GET_M{IN,AX}_TIMEOUT``
-
-    Some devices have internal timers that can be used to detect when
-    there's no IR activity for a long time. This can help lircd in
-    detecting that a IR signal is finished and can speed up the decoding
-    process. Returns an integer value with the minimum/maximum timeout
-    that can be set. Some devices have a fixed timeout, in that case
-    both ioctls will return the same value even though the timeout
-    cannot be changed.
-
 .. _LIRC_GET_LENGTH:
 
 ``LIRC_GET_LENGTH``

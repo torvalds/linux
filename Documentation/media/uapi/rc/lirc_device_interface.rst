@@ -17,4 +17,5 @@ LIRC Device Interface
     lirc-get-rec-mode
     lirc-get-rec-resolution
     lirc-set-send-duty-cycle
+    lirc-get-timeout
     lirc_ioctl
