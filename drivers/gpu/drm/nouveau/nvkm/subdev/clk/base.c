@@ -74,6 +74,21 @@ nvkm_clk_adjust(struct nvkm_clk *clk, bool adjust,
 /******************************************************************************
  * C-States
  *****************************************************************************/
+static struct nvkm_cstate *
+nvkm_cstate_get(struct nvkm_clk *clk, struct nvkm_pstate *pstate, int cstatei)
+{
+	struct nvkm_cstate *cstate;
+	if (cstatei == NVKM_CLK_CSTATE_HIGHEST)
+		return list_last_entry(&pstate->list, typeof(*cstate), head);
+	else {
+		list_for_each_entry(cstate, &pstate->list, head) {
+			if (cstate->id == cstatei)
+				return cstate;
+		}
+	}
+	return NULL;
+}
+
 static int
 nvkm_cstate_prog(struct nvkm_clk *clk, struct nvkm_pstate *pstate, int cstatei)
 {
@@ -85,7 +100,7 @@ nvkm_cstate_prog(struct nvkm_clk *clk, struct nvkm_pstate *pstate, int cstatei)
 	int ret;
 
 	if (!list_empty(&pstate->list)) {
-		cstate = list_entry(pstate->list.prev, typeof(*cstate), head);
+		cstate = nvkm_cstate_get(clk, pstate, cstatei);
 	} else {
 		cstate = &pstate->base;
 	}
@@ -208,7 +223,7 @@ nvkm_pstate_prog(struct nvkm_clk *clk, int pstatei)
 		ram->func->tidy(ram);
 	}
 
-	return nvkm_cstate_prog(clk, pstate, 0);
+	return nvkm_cstate_prog(clk, pstate, NVKM_CLK_CSTATE_HIGHEST);
 }
 
 static void

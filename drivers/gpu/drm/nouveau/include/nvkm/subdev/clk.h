@@ -6,6 +6,10 @@
 struct nvbios_pll;
 struct nvkm_pll_vals;
 
+#define NVKM_CLK_CSTATE_DEFAULT -1 /* POSTed default */
+#define NVKM_CLK_CSTATE_BASE    -2 /* pstate base */
+#define NVKM_CLK_CSTATE_HIGHEST -3 /* highest possible */
+
 enum nv_clk_src {
 	nv_clk_src_crystal,
 	nv_clk_src_href,
