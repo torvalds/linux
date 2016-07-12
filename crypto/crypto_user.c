@@ -378,32 +378,6 @@ drop_alg:
 	return err;
 }
 
-static struct crypto_alg *crypto_user_skcipher_alg(const char *name, u32 type,
-						   u32 mask)
-{
-	int err;
-	struct crypto_alg *alg;
-
-	type = crypto_skcipher_type(type);
-	mask = crypto_skcipher_mask(mask);
-
-	for (;;) {
-		alg = crypto_lookup_skcipher(name,  type, mask);
-		if (!IS_ERR(alg))
-			return alg;
-
-		err = PTR_ERR(alg);
-		if (err != -EAGAIN)
-			break;
-		if (fatal_signal_pending(current)) {
-			err = -EINTR;
-			break;
-		}
-	}
-
-	return ERR_PTR(err);
-}
-
 static int crypto_add_alg(struct sk_buff *skb, struct nlmsghdr *nlh,
 			  struct nlattr **attrs)
 {
@@ -436,16 +410,7 @@ static int crypto_add_alg(struct sk_buff *skb, struct nlmsghdr *nlh,
 	else
 		name = p->cru_name;
 
-	switch (p->cru_type & p->cru_mask & CRYPTO_ALG_TYPE_MASK) {
-	case CRYPTO_ALG_TYPE_GIVCIPHER:
-	case CRYPTO_ALG_TYPE_BLKCIPHER:
-	case CRYPTO_ALG_TYPE_ABLKCIPHER:
-		alg = crypto_user_skcipher_alg(name, p->cru_type, p->cru_mask);
-		break;
-	default:
-		alg = crypto_alg_mod_lookup(name, p->cru_type, p->cru_mask);
-	}
-
+	alg = crypto_alg_mod_lookup(name, p->cru_type, p->cru_mask);
 	if (IS_ERR(alg))
 		return PTR_ERR(alg);
 
