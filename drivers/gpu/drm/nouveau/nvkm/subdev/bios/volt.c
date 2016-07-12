@@ -142,7 +142,10 @@ nvbios_volt_entry_parse(struct nvkm_bios *bios, int idx, u8 *ver, u8 *len,
 		info->vid     = nvbios_rd08(bios, volt + 0x01) >> 2;
 		break;
 	case 0x40:
+		break;
 	case 0x50:
+		info->voltage = nvbios_rd32(bios, volt) & 0x001fffff;
+		info->vid     = (nvbios_rd32(bios, volt) >> 23) & 0xff;
 		break;
 	}
 	return volt;
