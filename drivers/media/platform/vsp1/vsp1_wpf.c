@@ -364,7 +364,7 @@ struct vsp1_rwpf *vsp1_wpf_create(struct vsp1_device *vsp1, unsigned int index)
 		return ERR_PTR(ret);
 
 	/* Initialize the display list manager. */
-	wpf->dlm = vsp1_dlm_create(vsp1, index, 4);
+	wpf->dlm = vsp1_dlm_create(vsp1, index, 64);
 	if (!wpf->dlm) {
 		ret = -ENOMEM;
 		goto error;
