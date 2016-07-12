@@ -120,7 +120,7 @@ static inline bool kvm_apic_map_get_logical_dest(struct kvm_apic_map *map,
 	switch (map->mode) {
 	case KVM_APIC_MODE_X2APIC: {
 		u32 offset = (dest_id >> 16) * 16;
-		u32 max_apic_id = ARRAY_SIZE(map->phys_map) - 1;
+		u32 max_apic_id = map->max_apic_id;
 
 		if (offset <= max_apic_id) {
 			u8 cluster_size = min(max_apic_id - offset + 1, 16U);
@@ -152,13 +152,21 @@ static void recalculate_apic_map(struct kvm *kvm)
 	struct kvm_apic_map *new, *old = NULL;
 	struct kvm_vcpu *vcpu;
 	int i;
-
-	new = kzalloc(sizeof(struct kvm_apic_map), GFP_KERNEL);
+	u32 max_id = 255;
 
 	mutex_lock(&kvm->arch.apic_map_lock);
 
+	kvm_for_each_vcpu(i, vcpu, kvm)
+		if (kvm_apic_present(vcpu))
+			max_id = max(max_id, kvm_apic_id(vcpu->arch.apic));
+
+	new = kzalloc(sizeof(struct kvm_apic_map) +
+	              sizeof(struct kvm_lapic *) * (max_id + 1), GFP_KERNEL);
+
 	if (!new)
 		goto out;
+
+	new->max_apic_id = max_id;
 
 	kvm_for_each_vcpu(i, vcpu, kvm) {
 		struct kvm_lapic *apic = vcpu->arch.apic;
@@ -172,7 +180,7 @@ static void recalculate_apic_map(struct kvm *kvm)
 		aid = kvm_apic_id(apic);
 		ldr = kvm_lapic_get_reg(apic, APIC_LDR);
 
-		if (aid < ARRAY_SIZE(new->phys_map))
+		if (aid <= new->max_apic_id)
 			new->phys_map[aid] = apic;
 
 		if (apic_x2apic_mode(apic)) {
@@ -710,7 +718,7 @@ static inline bool kvm_apic_map_get_dest_lapic(struct kvm *kvm,
 		return false;
 
 	if (irq->dest_mode == APIC_DEST_PHYSICAL) {
-		if (irq->dest_id >= ARRAY_SIZE(map->phys_map)) {
+		if (irq->dest_id > map->max_apic_id) {
 			*bitmap = 0;
 		} else {
 			*dst = &map->phys_map[irq->dest_id];
