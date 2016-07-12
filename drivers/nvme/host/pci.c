@@ -310,6 +310,11 @@ static int nvme_init_iod(struct request *rq, unsigned size,
 	iod->npages = -1;
 	iod->nents = 0;
 	iod->length = size;
+
+	if (!(rq->cmd_flags & REQ_DONTPREP)) {
+		rq->retries = 0;
+		rq->cmd_flags |= REQ_DONTPREP;
+	}
 	return 0;
 }
 
@@ -623,6 +628,7 @@ static void nvme_complete_rq(struct request *req)
 
 	if (unlikely(req->errors)) {
 		if (nvme_req_needs_retry(req, req->errors)) {
+			req->retries++;
 			nvme_requeue_req(req);
 			return;
 		}
