@@ -279,8 +279,6 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 		}
 		dev->reg_base[i] = devm_ioremap_resource(&pdev->dev, res);
 		if (IS_ERR((__force void *)dev->reg_base[i])) {
-			dev_err(&pdev->dev,
-				"devm_ioremap_resource %d failed.", i);
 			ret = PTR_ERR((__force void *)dev->reg_base[i]);
 			goto err_res;
 		}
