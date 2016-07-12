@@ -417,7 +417,8 @@ dtb-$(CONFIG_SOC_IMX7D) += \
 	imx7d-nitrogen7.dtb \
 	imx7d-sbc-imx7.dtb \
 	imx7d-sdb.dtb \
-	imx7s-colibri-eval-v3.dtb
+	imx7s-colibri-eval-v3.dtb \
+	imx7s-warp.dtb
 dtb-$(CONFIG_SOC_LS1021A) += \
 	ls1021a-qds.dtb \
 	ls1021a-twr.dtb
