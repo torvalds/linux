@@ -395,9 +395,6 @@ static int rsrc_card_parse_of(struct device_node *node,
 					       "audio-routing");
 	}
 
-	/* Parse the card name from DT */
-	snd_soc_of_parse_card_name(&priv->snd_card, "card-name");
-
 	/* sampling rate convert */
 	of_property_read_u32(node, "convert-rate", &priv->convert_rate);
 
@@ -413,8 +410,9 @@ static int rsrc_card_parse_of(struct device_node *node,
 	if (ret < 0)
 		return ret;
 
-	if (!priv->snd_card.name)
-		priv->snd_card.name = priv->snd_card.dai_link->name;
+	ret = asoc_simple_card_parse_card_name(&priv->snd_card, "card-");
+	if (ret < 0)
+		return ret;
 
 	return 0;
 }
