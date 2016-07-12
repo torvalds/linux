@@ -1297,12 +1297,9 @@ static int sdhci_esdhc_suspend(struct device *dev)
 static int sdhci_esdhc_resume(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
-	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct pltfm_imx_data *imx_data = sdhci_pltfm_priv(pltfm_host);
 
-	/* restore watermark setting in case it's lost in low power mode */
-	if (esdhc_is_usdhc(imx_data))
-		writel(ESDHC_WTMK_DEFAULT_VAL, host->ioaddr + ESDHC_WTMK_LVL);
+	/* re-initialize hw state in case it's lost in low power mode */
+	sdhci_esdhc_imx_hwinit(host);
 
 	return sdhci_pltfm_resume(dev);
 }
