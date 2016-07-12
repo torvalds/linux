@@ -16,8 +16,7 @@ config NVME_TARGET
 config NVME_TARGET_LOOP
 	tristate "NVMe loopback device support"
 	depends on BLK_DEV_NVME
-	depends on CONFIGFS_FS
-	select NVME_TARGET
+	depends on NVME_TARGET
 	select NVME_FABRICS
 	select SG_POOL
 	help
@@ -29,7 +28,7 @@ config NVME_TARGET_LOOP
 config NVME_TARGET_RDMA
 	tristate "NVMe over Fabrics RDMA target support"
 	depends on INFINIBAND
-	select NVME_TARGET
+	depends on NVME_TARGET
 	help
 	  This enables the NVMe RDMA target support, which allows exporting NVMe
 	  devices over RDMA.
