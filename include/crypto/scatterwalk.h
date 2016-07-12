@@ -16,14 +16,10 @@
 #ifndef _CRYPTO_SCATTERWALK_H
 #define _CRYPTO_SCATTERWALK_H
 
-#include <asm/kmap_types.h>
 #include <crypto/algapi.h>
-#include <linux/hardirq.h>
 #include <linux/highmem.h>
 #include <linux/kernel.h>
-#include <linux/mm.h>
 #include <linux/scatterlist.h>
-#include <linux/sched.h>
 
 static inline void scatterwalk_crypto_chain(struct scatterlist *head,
 					    struct scatterlist *sg,
@@ -83,11 +79,49 @@ static inline void scatterwalk_unmap(void *vaddr)
 	kunmap_atomic(vaddr);
 }
 
-void scatterwalk_start(struct scatter_walk *walk, struct scatterlist *sg);
+static inline void scatterwalk_start(struct scatter_walk *walk,
+				     struct scatterlist *sg)
+{
+	walk->sg = sg;
+	walk->offset = sg->offset;
+}
+
+static inline void *scatterwalk_map(struct scatter_walk *walk)
+{
+	return kmap_atomic(scatterwalk_page(walk)) +
+	       offset_in_page(walk->offset);
+}
+
+static inline void scatterwalk_pagedone(struct scatter_walk *walk, int out,
+					unsigned int more)
+{
+	if (out) {
+		struct page *page;
+
+		page = sg_page(walk->sg) + ((walk->offset - 1) >> PAGE_SHIFT);
+		/* Test ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE first as
+		 * PageSlab cannot be optimised away per se due to
+		 * use of volatile pointer.
+		 */
+		if (ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE && !PageSlab(page))
+			flush_dcache_page(page);
+	}
+
+	if (more && walk->offset >= walk->sg->offset + walk->sg->length)
+		scatterwalk_start(walk, sg_next(walk->sg));
+}
+
+static inline void scatterwalk_done(struct scatter_walk *walk, int out,
+				    int more)
+{
+	if (!more || walk->offset >= walk->sg->offset + walk->sg->length ||
+	    !(walk->offset & (PAGE_SIZE - 1)))
+		scatterwalk_pagedone(walk, out, more);
+}
+
 void scatterwalk_copychunks(void *buf, struct scatter_walk *walk,
 			    size_t nbytes, int out);
 void *scatterwalk_map(struct scatter_walk *walk);
-void scatterwalk_done(struct scatter_walk *walk, int out, int more);
 
 void scatterwalk_map_and_copy(void *buf, struct scatterlist *sg,
 			      unsigned int start, unsigned int nbytes, int out);
