@@ -880,6 +880,7 @@ static noinline int early_drop(struct net *net, unsigned int _hash)
 		struct hlist_nulls_head *ct_hash;
 		unsigned hash, sequence, drops;
 
+		rcu_read_lock();
 		do {
 			sequence = read_seqcount_begin(&nf_conntrack_generation);
 			hash = scale_hash(_hash++);
@@ -887,6 +888,8 @@ static noinline int early_drop(struct net *net, unsigned int _hash)
 		} while (read_seqcount_retry(&nf_conntrack_generation, sequence));
 
 		drops = early_drop_list(net, &ct_hash[hash]);
+		rcu_read_unlock();
+
 		if (drops) {
 			NF_CT_STAT_ADD_ATOMIC(net, early_drop, drops);
 			return true;
