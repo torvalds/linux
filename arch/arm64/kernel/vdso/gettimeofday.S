@@ -87,6 +87,15 @@ x_tmp		.req	x8
 	msub	\res_nsec, x_tmp, \nsec_to_sec, \res_nsec
 	.endm
 
+	/*
+	 * Returns in res_{sec,nsec} the timespec based on the clock_raw delta,
+	 * used for CLOCK_MONOTONIC_RAW.
+	 */
+	.macro	get_ts_clock_raw res_sec, res_nsec, clock_nsec, nsec_to_sec
+	udiv	\res_sec, \clock_nsec, \nsec_to_sec
+	msub	\res_nsec, \res_sec, \nsec_to_sec, \clock_nsec
+	.endm
+
 	/* sec and nsec are modified in place. */
 	.macro add_ts sec, nsec, ts_sec, ts_nsec, nsec_to_sec
 	/* Add timespec. */
@@ -135,7 +144,8 @@ ENTRY(__kernel_gettimeofday)
 1:	seqcnt_acquire
 	syscall_check fail=4f
 	ldr	x10, [vdso_data, #VDSO_CS_CYCLE_LAST]
-	ldp	w11, w12, [vdso_data, #VDSO_CS_MULT]
+	/* w11 = cs_mono_mult, w12 = cs_shift */
+	ldp	w11, w12, [vdso_data, #VDSO_CS_MONO_MULT]
 	ldp	x13, x14, [vdso_data, #VDSO_XTIME_CLK_SEC]
 	seqcnt_check fail=1b
 
@@ -172,20 +182,20 @@ ENDPROC(__kernel_gettimeofday)
 /* int __kernel_clock_gettime(clockid_t clock_id, struct timespec *tp); */
 ENTRY(__kernel_clock_gettime)
 	.cfi_startproc
-	cmp 	w0, #JUMPSLOT_MAX
-	b.hi 	syscall
+	cmp	w0, #JUMPSLOT_MAX
+	b.hi	syscall
 	adr	vdso_data, _vdso_data
-	adr 	x_tmp, jumptable
-	add 	x_tmp, x_tmp, w0, uxtw #2
-	br 	x_tmp
+	adr	x_tmp, jumptable
+	add	x_tmp, x_tmp, w0, uxtw #2
+	br	x_tmp
 
 	ALIGN
 jumptable:
 	jump_slot jumptable, CLOCK_REALTIME, realtime
 	jump_slot jumptable, CLOCK_MONOTONIC, monotonic
-	b 	syscall
-	b 	syscall
-	b 	syscall
+	b	syscall
+	b	syscall
+	jump_slot jumptable, CLOCK_MONOTONIC_RAW, monotonic_raw
 	jump_slot jumptable, CLOCK_REALTIME_COARSE, realtime_coarse
 	jump_slot jumptable, CLOCK_MONOTONIC_COARSE, monotonic_coarse
 
@@ -198,7 +208,8 @@ realtime:
 	seqcnt_acquire
 	syscall_check fail=syscall
 	ldr	x10, [vdso_data, #VDSO_CS_CYCLE_LAST]
-	ldp	w11, w12, [vdso_data, #VDSO_CS_MULT]
+	/* w11 = cs_mono_mult, w12 = cs_shift */
+	ldp	w11, w12, [vdso_data, #VDSO_CS_MONO_MULT]
 	ldp	x13, x14, [vdso_data, #VDSO_XTIME_CLK_SEC]
 	seqcnt_check fail=realtime
 
@@ -216,7 +227,8 @@ monotonic:
 	seqcnt_acquire
 	syscall_check fail=syscall
 	ldr	x10, [vdso_data, #VDSO_CS_CYCLE_LAST]
-	ldp	w11, w12, [vdso_data, #VDSO_CS_MULT]
+	/* w11 = cs_mono_mult, w12 = cs_shift */
+	ldp	w11, w12, [vdso_data, #VDSO_CS_MONO_MULT]
 	ldp	x13, x14, [vdso_data, #VDSO_XTIME_CLK_SEC]
 	ldp	x3, x4, [vdso_data, #VDSO_WTM_CLK_SEC]
 	seqcnt_check fail=monotonic
@@ -231,6 +243,28 @@ monotonic:
 		clock_nsec=x15, xtime_sec=x13, xtime_nsec=x14, nsec_to_sec=x9
 
 	add_ts sec=x10, nsec=x11, ts_sec=x3, ts_nsec=x4, nsec_to_sec=x9
+	clock_gettime_return, shift=1
+
+	ALIGN
+monotonic_raw:
+	seqcnt_acquire
+	syscall_check fail=syscall
+	ldr	x10, [vdso_data, #VDSO_CS_CYCLE_LAST]
+	/* w11 = cs_raw_mult, w12 = cs_shift */
+	ldp	w12, w11, [vdso_data, #VDSO_CS_SHIFT]
+	ldp	x13, x14, [vdso_data, #VDSO_RAW_TIME_SEC]
+	seqcnt_check fail=monotonic_raw
+
+	/* All computations are done with left-shifted nsecs. */
+	lsl	x14, x14, x12
+	get_nsec_per_sec res=x9
+	lsl	x9, x9, x12
+
+	get_clock_shifted_nsec res=x15, cycle_last=x10, mult=x11
+	get_ts_clock_raw res_sec=x10, res_nsec=x11, \
+		clock_nsec=x15, nsec_to_sec=x9
+
+	add_ts sec=x10, nsec=x11, ts_sec=x13, ts_nsec=x14, nsec_to_sec=x9
 	clock_gettime_return, shift=1
 
 	ALIGN
@@ -265,6 +299,7 @@ ENTRY(__kernel_clock_getres)
 	.cfi_startproc
 	cmp	w0, #CLOCK_REALTIME
 	ccmp	w0, #CLOCK_MONOTONIC, #0x4, ne
+	ccmp	w0, #CLOCK_MONOTONIC_RAW, #0x4, ne
 	b.ne	1f
 
 	ldr	x2, 5f
