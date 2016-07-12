@@ -788,9 +788,9 @@ static int mtk_vpu_probe(struct platform_device *pdev)
 
 	/* Get VPU clock */
 	vpu->clk = devm_clk_get(dev, "main");
-	if (!vpu->clk) {
+	if (IS_ERR(vpu->clk)) {
 		dev_err(dev, "get vpu clock failed\n");
-		return -EINVAL;
+		return PTR_ERR(vpu->clk);
 	}
 
 	platform_set_drvdata(pdev, vpu);
