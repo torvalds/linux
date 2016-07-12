@@ -330,6 +330,21 @@ static int tipc_reset_bearer(struct net *net, struct tipc_bearer *b)
 	return 0;
 }
 
+/* tipc_bearer_reset_all - reset all links on all bearers
+ */
+void tipc_bearer_reset_all(struct net *net)
+{
+	struct tipc_net *tn = tipc_net(net);
+	struct tipc_bearer *b;
+	int i;
+
+	for (i = 0; i < MAX_BEARERS; i++) {
+		b = rcu_dereference_rtnl(tn->bearer_list[i]);
+		if (b)
+			tipc_reset_bearer(net, b);
+	}
+}
+
 /**
  * bearer_disable
  *
