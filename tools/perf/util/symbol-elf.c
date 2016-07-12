@@ -1790,6 +1790,7 @@ void kcore_extract__delete(struct kcore_extract *kce)
 	unlink(kce->extract_filename);
 }
 
+#ifdef HAVE_GELF_GETNOTE_SUPPORT
 /**
  * populate_sdt_note : Parse raw data and identify SDT note
  * @elf: elf of the opened file
@@ -2041,6 +2042,7 @@ int sdt_notes__get_count(struct list_head *start)
 		count++;
 	return count;
 }
+#endif
 
 void symbol__elf_init(void)
 {

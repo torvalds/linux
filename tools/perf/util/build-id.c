@@ -533,7 +533,7 @@ int build_id_cache__list_build_ids(const char *pathname,
 	return ret;
 }
 
-#ifdef HAVE_LIBELF_SUPPORT
+#if defined(HAVE_LIBELF_SUPPORT) && defined(HAVE_GELF_GETNOTE_SUPPORT)
 static int build_id_cache__add_sdt_cache(const char *sbuild_id,
 					  const char *realname)
 {

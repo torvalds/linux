@@ -624,6 +624,7 @@ out_err:
 	return ret;
 }
 
+#ifdef HAVE_GELF_GETNOTE_SUPPORT
 static unsigned long long sdt_note__get_addr(struct sdt_note *note)
 {
 	return note->bit32 ? (unsigned long long)note->addr.a32[0]
@@ -682,6 +683,7 @@ int probe_cache__scan_sdt(struct probe_cache *pcache, const char *pathname)
 	cleanup_sdt_note_list(&sdtlist);
 	return ret;
 }
+#endif
 
 static int probe_cache_entry__write(struct probe_cache_entry *entry, int fd)
 {

@@ -309,6 +309,12 @@ ifndef NO_LIBELF
     CFLAGS += -DHAVE_ELF_GETPHDRNUM_SUPPORT
   endif
 
+  ifeq ($(feature-libelf-gelf_getnote), 1)
+    CFLAGS += -DHAVE_GELF_GETNOTE_SUPPORT
+  else
+    msg := $(warning gelf_getnote() not found on libelf, SDT support disabled);
+  endif
+
   ifeq ($(feature-libelf-getshdrstrndx), 1)
     CFLAGS += -DHAVE_ELF_GETSHDRSTRNDX_SUPPORT
   endif
