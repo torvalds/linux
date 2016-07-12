@@ -677,7 +677,7 @@ int dsa_register_switch(struct dsa_switch *ds, struct device_node *np)
 }
 EXPORT_SYMBOL_GPL(dsa_register_switch);
 
-void _dsa_unregister_switch(struct dsa_switch *ds)
+static void _dsa_unregister_switch(struct dsa_switch *ds)
 {
 	struct dsa_switch_tree *dst = ds->dst;
 
