@@ -77,8 +77,7 @@ int phm_dispatch_table(struct pp_hwmgr *hwmgr,
 
 	result = phm_run_table(hwmgr, rt_table, input, output, temp_storage);
 
-	if (NULL != temp_storage)
-		kfree(temp_storage);
+	kfree(temp_storage);
 
 	return result;
 }

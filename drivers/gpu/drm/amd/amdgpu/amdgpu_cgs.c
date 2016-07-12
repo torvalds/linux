@@ -1065,8 +1065,7 @@ static int amdgpu_cgs_acpi_eval_object(struct cgs_device *cgs_device,
 	}
 
 error:
-	if (obj != NULL)
-		kfree(obj);
+	kfree(obj);
 	kfree((void *)input.pointer);
 	return result;
 }
