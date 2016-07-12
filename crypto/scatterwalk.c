@@ -87,9 +87,11 @@ void scatterwalk_copychunks(void *buf, struct scatter_walk *walk,
 		if (len_this_page > nbytes)
 			len_this_page = nbytes;
 
-		vaddr = scatterwalk_map(walk);
-		memcpy_dir(buf, vaddr, len_this_page, out);
-		scatterwalk_unmap(vaddr);
+		if (out != 2) {
+			vaddr = scatterwalk_map(walk);
+			memcpy_dir(buf, vaddr, len_this_page, out);
+			scatterwalk_unmap(vaddr);
+		}
 
 		scatterwalk_advance(walk, len_this_page);
 
@@ -99,7 +101,7 @@ void scatterwalk_copychunks(void *buf, struct scatter_walk *walk,
 		buf += len_this_page;
 		nbytes -= len_this_page;
 
-		scatterwalk_pagedone(walk, out, 1);
+		scatterwalk_pagedone(walk, out & 1, 1);
 	}
 }
 EXPORT_SYMBOL_GPL(scatterwalk_copychunks);
