@@ -348,6 +348,9 @@ $(PERF_IN): prepare FORCE
 	@(test -f ../../include/uapi/linux/perf_event.h && ( \
         (diff -B ../include/uapi/linux/perf_event.h ../../include/uapi/linux/perf_event.h >/dev/null) \
         || echo "Warning: tools/include/uapi/linux/perf_event.h differs from kernel" >&2 )) || true
+	@(test -f ../../include/uapi/linux/hw_breakpoint.h && ( \
+        (diff -B ../include/uapi/linux/hw_breakpoint.h ../../include/uapi/linux/hw_breakpoint.h >/dev/null) \
+        || echo "Warning: tools/include/uapi/linux/hw_breakpoint.h differs from kernel" >&2 )) || true
 	@(test -f ../../arch/x86/include/asm/disabled-features.h && ( \
         (diff -B ../arch/x86/include/asm/disabled-features.h ../../arch/x86/include/asm/disabled-features.h >/dev/null) \
         || echo "Warning: tools/arch/x86/include/asm/disabled-features.h differs from kernel" >&2 )) || true
