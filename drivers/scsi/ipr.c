@@ -98,7 +98,7 @@ static unsigned int ipr_transop_timeout = 0;
 static unsigned int ipr_debug = 0;
 static unsigned int ipr_max_devs = IPR_DEFAULT_SIS64_DEVS;
 static unsigned int ipr_dual_ioa_raid = 1;
-static unsigned int ipr_number_of_msix = 2;
+static unsigned int ipr_number_of_msix = 16;
 static unsigned int ipr_fast_reboot;
 static DEFINE_SPINLOCK(ipr_driver_lock);
 
@@ -222,7 +222,7 @@ module_param_named(max_devs, ipr_max_devs, int, 0);
 MODULE_PARM_DESC(max_devs, "Specify the maximum number of physical devices. "
 		 "[Default=" __stringify(IPR_DEFAULT_SIS64_DEVS) "]");
 module_param_named(number_of_msix, ipr_number_of_msix, int, 0);
-MODULE_PARM_DESC(number_of_msix, "Specify the number of MSIX interrupts to use on capable adapters (1 - 16).  (default:2)");
+MODULE_PARM_DESC(number_of_msix, "Specify the number of MSIX interrupts to use on capable adapters (1 - 16).  (default:16)");
 module_param_named(fast_reboot, ipr_fast_reboot, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(fast_reboot, "Skip adapter shutdown during reboot. Set to 1 to enable. (default: 0)");
 MODULE_LICENSE("GPL");
