@@ -342,7 +342,7 @@ static int __init armada_370_xp_timer_common_init(struct device_node *np)
 	}
 
 	res = armada_370_xp_timer_setup(this_cpu_ptr(armada_370_xp_evt));
-	if (!res) {
+	if (res) {
 		pr_err("Failed to setup timer");
 		return res;
 	}
