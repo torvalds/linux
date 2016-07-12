@@ -72,7 +72,6 @@
 #include <sys/ioctl.h>
 #include <inttypes.h>
 #include <linux/kernel.h>
-#include <linux/magic.h>
 #include <linux/types.h>
 #include <sys/ttydefaults.h>
 #include <api/fs/tracing_path.h>
