@@ -2319,7 +2319,7 @@ static unsigned int ata_scsiop_inq_b0(struct ata_scsi_args *args, u8 *rbuf)
 	 * with the unmap bit set.
 	 */
 	if (ata_id_has_trim(args->id)) {
-		put_unaligned_be64(65535 * 512 / 8, &rbuf[36]);
+		put_unaligned_be64(65535 * ATA_MAX_TRIM_RNUM, &rbuf[36]);
 		put_unaligned_be32(1, &rbuf[28]);
 	}
 
@@ -3311,8 +3311,8 @@ static unsigned int ata_scsi_write_same_xlat(struct ata_queued_cmd *qc)
 
 	buf = page_address(sg_page(scsi_sglist(scmd)));
 
-	if (n_block <= 65535 * 512 / 8) {
-		size = ata_set_lba_range_entries(buf, 512, block, n_block);
+	if (n_block <= 65535 * ATA_MAX_TRIM_RNUM) {
+		size = ata_set_lba_range_entries(buf, ATA_MAX_TRIM_RNUM, block, n_block);
 	} else {
 		fp = 2;
 		goto invalid_fld;

@@ -48,6 +48,7 @@ enum {
 	ATA_MAX_SECTORS_1024    = 1024,
 	ATA_MAX_SECTORS_LBA48	= 65535,/* TODO: 65536? */
 	ATA_MAX_SECTORS_TAPE	= 65535,
+	ATA_MAX_TRIM_RNUM	= 64,	/* 512-byte payload / (6-byte LBA + 2-byte range per entry) */
 
 	ATA_ID_WORDS		= 256,
 	ATA_ID_CONFIG		= 0,
@@ -1069,12 +1070,12 @@ static inline void ata_id_to_hd_driveid(u16 *id)
  * TO NV CACHE PINNED SET.
  */
 static inline unsigned ata_set_lba_range_entries(void *_buffer,
-		unsigned buf_size, u64 sector, unsigned long count)
+		unsigned num, u64 sector, unsigned long count)
 {
 	__le64 *buffer = _buffer;
 	unsigned i = 0, used_bytes;
 
-	while (i < buf_size / 8 ) { /* 6-byte LBA + 2-byte range per entry */
+	while (i < num) {
 		u64 entry = sector |
 			((u64)(count > 0xffff ? 0xffff : count) << 48);
 		buffer[i++] = __cpu_to_le64(entry);
