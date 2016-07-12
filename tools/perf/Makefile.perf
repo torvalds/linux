@@ -363,6 +363,18 @@ $(PERF_IN): prepare FORCE
 	@(test -f ../../arch/x86/lib/memset_64.S && ( \
         (diff -B ../arch/x86/lib/memset_64.S ../../arch/x86/lib/memset_64.S >/dev/null) \
         || echo "Warning: tools/arch/x86/lib/memset_64.S differs from kernel" >&2 )) || true
+	@(test -f ../../arch/arm/include/uapi/asm/perf_regs.h && ( \
+        (diff -B ../arch/arm/include/uapi/asm/perf_regs.h ../../arch/arm/include/uapi/asm/perf_regs.h >/dev/null) \
+        || echo "Warning: tools/arch/arm/include/uapi/asm/perf_regs.h differs from kernel" >&2 )) || true
+	@(test -f ../../arch/arm64/include/uapi/asm/perf_regs.h && ( \
+        (diff -B ../arch/arm64/include/uapi/asm/perf_regs.h ../../arch/arm64/include/uapi/asm/perf_regs.h >/dev/null) \
+        || echo "Warning: tools/arch/arm64/include/uapi/asm/perf_regs.h differs from kernel" >&2 )) || true
+	@(test -f ../../arch/powerpc/include/uapi/asm/perf_regs.h && ( \
+        (diff -B ../arch/powerpc/include/uapi/asm/perf_regs.h ../../arch/powerpc/include/uapi/asm/perf_regs.h >/dev/null) \
+        || echo "Warning: tools/arch/powerpc/include/uapi/asm/perf_regs.h differs from kernel" >&2 )) || true
+	@(test -f ../../arch/x86/include/uapi/asm/perf_regs.h && ( \
+        (diff -B ../arch/x86/include/uapi/asm/perf_regs.h ../../arch/x86/include/uapi/asm/perf_regs.h >/dev/null) \
+        || echo "Warning: tools/arch/x86/include/uapi/asm/perf_regs.h differs from kernel" >&2 )) || true
 	$(Q)$(MAKE) $(build)=perf
 
 $(OUTPUT)perf: $(PERFLIBS) $(PERF_IN) $(LIBTRACEEVENT_DYNAMIC_LIST)
