@@ -4322,7 +4322,6 @@ static int polaris10_trim_single_dpm_states(struct pp_hwmgr *hwmgr,
 static int polaris10_trim_dpm_states(struct pp_hwmgr *hwmgr,
 		const struct polaris10_power_state *polaris10_ps)
 {
-	int result = 0;
 	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	uint32_t high_limit_count;
 
@@ -4342,7 +4341,7 @@ static int polaris10_trim_dpm_states(struct pp_hwmgr *hwmgr,
 			polaris10_ps->performance_levels[0].memory_clock,
 			polaris10_ps->performance_levels[high_limit_count].memory_clock);
 
-	return result;
+	return 0;
 }
 
 static int polaris10_generate_dpm_level_enable_mask(

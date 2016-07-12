@@ -1662,7 +1662,6 @@ static int fiji_populate_cac_table(struct pp_hwmgr *hwmgr,
 {
 	uint32_t count;
 	uint8_t index;
-	int result = 0;
 	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
@@ -1684,7 +1683,7 @@ static int fiji_populate_cac_table(struct pp_hwmgr *hwmgr,
 						VOLTAGE_SCALE)) / 25);
 	}
 
-	return result;
+	return 0;
 }
 
 /**
@@ -4573,7 +4572,6 @@ static int fiji_trim_single_dpm_states(struct pp_hwmgr *hwmgr,
 static int fiji_trim_dpm_states(struct pp_hwmgr *hwmgr,
 		const struct fiji_power_state *fiji_ps)
 {
-	int result = 0;
 	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
 	uint32_t high_limit_count;
 
@@ -4593,7 +4591,7 @@ static int fiji_trim_dpm_states(struct pp_hwmgr *hwmgr,
 			fiji_ps->performance_levels[0].memory_clock,
 			fiji_ps->performance_levels[high_limit_count].memory_clock);
 
-	return result;
+	return 0;
 }
 
 static int fiji_generate_dpm_level_enable_mask(

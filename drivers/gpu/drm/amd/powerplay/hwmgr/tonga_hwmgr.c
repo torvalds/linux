@@ -1334,7 +1334,6 @@ static int tonga_populate_cac_tables(struct pp_hwmgr *hwmgr,
 {
 	uint32_t count;
 	uint8_t index;
-	int result = 0;
 	tonga_hwmgr *data = (tonga_hwmgr *)(hwmgr->backend);
 	struct phm_ppt_v1_information *pptable_info = (struct phm_ppt_v1_information *)(hwmgr->pptable);
 	struct phm_ppt_v1_voltage_lookup_table *vddgfx_lookup_table = pptable_info->vddgfx_lookup_table;
@@ -1381,7 +1380,7 @@ static int tonga_populate_cac_tables(struct pp_hwmgr *hwmgr,
 		}
 	}
 
-	return result;
+	return 0;
 }
 
 
@@ -5460,7 +5459,6 @@ static	int tonga_trim_single_dpm_states(struct pp_hwmgr *hwmgr,
 
 static int tonga_trim_dpm_states(struct pp_hwmgr *hwmgr, const struct tonga_power_state *hw_state)
 {
-	int result = 0;
 	struct tonga_hwmgr *data = (struct tonga_hwmgr *)(hwmgr->backend);
 	uint32_t high_limit_count;
 
@@ -5480,7 +5478,7 @@ static int tonga_trim_dpm_states(struct pp_hwmgr *hwmgr, const struct tonga_powe
 						hw_state->performance_levels[0].memory_clock,
 						hw_state->performance_levels[high_limit_count].memory_clock);
 
-	return result;
+	return 0;
 }
 
 static int tonga_generate_dpm_level_enable_mask(struct pp_hwmgr *hwmgr, const void *input)

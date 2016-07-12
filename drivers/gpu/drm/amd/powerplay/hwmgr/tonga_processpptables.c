@@ -1068,7 +1068,6 @@ int tonga_pp_tables_initialize(struct pp_hwmgr *hwmgr)
 
 int tonga_pp_tables_uninitialize(struct pp_hwmgr *hwmgr)
 {
-	int result = 0;
 	struct phm_ppt_v1_information *pp_table_information =
 		(struct phm_ppt_v1_information *)(hwmgr->pptable);
 
@@ -1108,7 +1107,7 @@ int tonga_pp_tables_uninitialize(struct pp_hwmgr *hwmgr)
 	kfree(hwmgr->pptable);
 	hwmgr->pptable = NULL;
 
-	return result;
+	return 0;
 }
 
 const struct pp_table_func tonga_pptable_funcs = {
