@@ -56,6 +56,7 @@
 #define RM_RESET_MSG_ADDR	0x40000004
 
 #define RM_MAX_READ_SIZE	56
+#define RM_PACKET_CRC_SIZE	2
 
 /* Touch relative info */
 #define RM_MAX_RETRIES		3
@@ -137,6 +138,7 @@ struct raydium_data {
 	u32 data_bank_addr;
 	u8 report_size;
 	u8 contact_size;
+	u8 pkg_size;
 
 	enum raydium_boot_mode boot_mode;
 
@@ -280,12 +282,14 @@ static int raydium_i2c_query_ts_info(struct raydium_data *ts)
 		 * then the size changed (due to firmware update?) and keep
 		 * old size instead.
 		 */
-		if (ts->report_data && ts->report_size != data_info.pkg_size)
+		if (ts->report_data && ts->pkg_size != data_info.pkg_size) {
 			dev_warn(&client->dev,
 				 "report size changes, was: %d, new: %d\n",
-				 ts->report_size, data_info.pkg_size);
-		else
-			ts->report_size = data_info.pkg_size;
+				 ts->pkg_size, data_info.pkg_size);
+		} else {
+			ts->pkg_size = data_info.pkg_size;
+			ts->report_size = ts->pkg_size - RM_PACKET_CRC_SIZE;
+		}
 
 		ts->contact_size = data_info.tp_info_size;
 		ts->data_bank_addr = le32_to_cpu(data_info.data_bank_addr);
@@ -612,6 +616,17 @@ static int raydium_i2c_fw_write_page(struct i2c_client *client,
 	return error;
 }
 
+static u16 raydium_calc_chksum(const u8 *buf, u16 len)
+{
+	u16 checksum = 0;
+	u16 i;
+
+	for (i = 0; i < len; i++)
+		checksum += buf[i];
+
+	return checksum;
+}
+
 static int raydium_i2c_do_update_firmware(struct raydium_data *ts,
 					 const struct firmware *fw)
 {
@@ -724,9 +739,7 @@ static int raydium_i2c_do_update_firmware(struct raydium_data *ts,
 		return error;
 	}
 
-	fw_checksum = 0;
-	for (i = 0; i < fw->size; i++)
-		fw_checksum += fw->data[i];
+	fw_checksum = raydium_calc_chksum(fw->data, fw->size);
 
 	error = raydium_i2c_write_checksum(client, fw->size, fw_checksum);
 	if (error)
@@ -780,15 +793,6 @@ out_enable_irq:
 static void raydium_mt_event(struct raydium_data *ts)
 {
 	int i;
-	int error;
-
-	error = raydium_i2c_read_message(ts->client, ts->data_bank_addr,
-					 ts->report_data, ts->report_size);
-	if (error) {
-		dev_err(&ts->client->dev, "%s: failed to read data: %d\n",
-			__func__, error);
-		return;
-	}
 
 	for (i = 0; i < ts->report_size / ts->contact_size; i++) {
 		u8 *contact = &ts->report_data[ts->contact_size * i];
@@ -822,10 +826,30 @@ static void raydium_mt_event(struct raydium_data *ts)
 static irqreturn_t raydium_i2c_irq(int irq, void *_dev)
 {
 	struct raydium_data *ts = _dev;
+	int error;
+	u16 fw_crc;
+	u16 calc_crc;
 
-	if (ts->boot_mode != RAYDIUM_TS_BLDR)
-		raydium_mt_event(ts);
+	if (ts->boot_mode != RAYDIUM_TS_MAIN)
+		goto out;
 
+	error = raydium_i2c_read_message(ts->client, ts->data_bank_addr,
+					 ts->report_data, ts->pkg_size);
+	if (error)
+		goto out;
+
+	fw_crc = get_unaligned_le16(&ts->report_data[ts->report_size]);
+	calc_crc = raydium_calc_chksum(ts->report_data, ts->report_size);
+	if (unlikely(fw_crc != calc_crc)) {
+		dev_warn(&ts->client->dev,
+			 "%s: invalid packet crc %#04x vs %#04x\n",
+			 __func__, calc_crc, fw_crc);
+		goto out;
+	}
+
+	raydium_mt_event(ts);
+
+out:
 	return IRQ_HANDLED;
 }
 
@@ -1050,7 +1074,7 @@ static int raydium_i2c_probe(struct i2c_client *client,
 	}
 
 	ts->report_data = devm_kmalloc(&client->dev,
-				       ts->report_size, GFP_KERNEL);
+				       ts->pkg_size, GFP_KERNEL);
 	if (!ts->report_data)
 		return -ENOMEM;
 
