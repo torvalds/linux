@@ -299,11 +299,6 @@ int aead_init_geniv(struct crypto_aead *aead)
 	if (IS_ERR(ctx->sknull))
 		goto out;
 
-	ctx->null = crypto_get_default_null_skcipher();
-	err = PTR_ERR(ctx->null);
-	if (IS_ERR(ctx->null))
-		goto drop_sknull;
-
 	child = crypto_spawn_aead(aead_instance_ctx(inst));
 	err = PTR_ERR(child);
 	if (IS_ERR(child))
@@ -319,8 +314,6 @@ out:
 	return err;
 
 drop_null:
-	crypto_put_default_null_skcipher();
-drop_sknull:
 	crypto_put_default_null_skcipher2();
 	goto out;
 }
@@ -331,7 +324,6 @@ void aead_exit_geniv(struct crypto_aead *tfm)
 	struct aead_geniv_ctx *ctx = crypto_aead_ctx(tfm);
 
 	crypto_free_aead(ctx->child);
-	crypto_put_default_null_skcipher();
 	crypto_put_default_null_skcipher2();
 }
 EXPORT_SYMBOL_GPL(aead_exit_geniv);
