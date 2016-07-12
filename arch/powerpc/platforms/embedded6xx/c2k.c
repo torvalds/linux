@@ -99,7 +99,7 @@ static void c2k_reset_board(void)
 	out_le32(mv64x60_gpp_reg_base + MV64x60_GPP_VALUE_SET, 0x00080004);
 }
 
-static void c2k_restart(char *cmd)
+static void __noreturn c2k_restart(char *cmd)
 {
 	c2k_reset_board();
 	msleep(100);

@@ -68,7 +68,7 @@ DECLARE_PCI_FIXUP_HEADER(0x1033, 0x0035, quirk_ppc_currituck_usb_fixup);
 #define AVR_PWRCTL_RESET (0x02)
 
 static struct i2c_client *avr_i2c_client;
-static void avr_halt_system(int pwrctl_flags)
+static void __noreturn avr_halt_system(int pwrctl_flags)
 {
 	/* Request the AVR to reset the system */
 	i2c_smbus_write_byte_data(avr_i2c_client,
@@ -84,7 +84,7 @@ static void avr_power_off_system(void)
 	avr_halt_system(AVR_PWRCTL_PWROFF);
 }
 
-static void avr_reset_system(char *cmd)
+static void __noreturn avr_reset_system(char *cmd)
 {
 	avr_halt_system(AVR_PWRCTL_RESET);
 }

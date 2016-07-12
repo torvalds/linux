@@ -94,7 +94,7 @@ static unsigned long maple_find_nvram_base(void)
 	return result;
 }
 
-static void maple_restart(char *cmd)
+static void __noreturn maple_restart(char *cmd)
 {
 	unsigned int maple_nvram_base;
 	const unsigned int *maple_nvram_offset, *maple_nvram_command;
@@ -119,9 +119,10 @@ static void maple_restart(char *cmd)
 	for (;;) ;
  fail:
 	printk(KERN_EMERG "Maple: Manual Restart Required\n");
+	for (;;) ;
 }
 
-static void maple_power_off(void)
+static void __noreturn maple_power_off(void)
 {
 	unsigned int maple_nvram_base;
 	const unsigned int *maple_nvram_offset, *maple_nvram_command;
@@ -146,9 +147,10 @@ static void maple_power_off(void)
 	for (;;) ;
  fail:
 	printk(KERN_EMERG "Maple: Manual Power-Down Required\n");
+	for (;;) ;
 }
 
-static void maple_halt(void)
+static void __noreturn maple_halt(void)
 {
 	maple_power_off();
 }

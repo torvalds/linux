@@ -123,7 +123,7 @@ static int __init request_isa_regions(void)
 }
 machine_device_initcall(amigaone, request_isa_regions);
 
-void amigaone_restart(char *cmd)
+void __noreturn amigaone_restart(char *cmd)
 {
 	local_irq_disable();
 

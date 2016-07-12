@@ -112,7 +112,7 @@ unsigned long __init wii_mmu_mapin_mem2(unsigned long top)
 	return delta + bl;
 }
 
-static void wii_spin(void)
+static void __noreturn wii_spin(void)
 {
 	local_irq_disable();
 	for (;;)
@@ -160,7 +160,7 @@ static void __init wii_setup_arch(void)
 	}
 }
 
-static void wii_restart(char *cmd)
+static void __noreturn wii_restart(char *cmd)
 {
 	local_irq_disable();
 
@@ -185,7 +185,7 @@ static void wii_power_off(void)
 	wii_spin();
 }
 
-static void wii_halt(void)
+static void __noreturn wii_halt(void)
 {
 	if (ppc_md.restart)
 		ppc_md.restart(NULL);

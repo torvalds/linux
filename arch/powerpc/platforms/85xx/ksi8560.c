@@ -44,7 +44,7 @@
 
 static void __iomem *cpld_base = NULL;
 
-static void machine_restart(char *cmd)
+static void __noreturn machine_restart(char *cmd)
 {
 	if (cpld_base)
 		out_8(cpld_base + KSI8560_CPLD_RCR1, KSI8560_CPLD_RCR1_CPUHR);

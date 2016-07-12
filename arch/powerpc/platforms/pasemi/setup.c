@@ -62,7 +62,7 @@ static int num_mce_regs;
 static int nmi_virq = NO_IRQ;
 
 
-static void pas_restart(char *cmd)
+static void __noreturn pas_restart(char *cmd)
 {
 	/* Need to put others cpu in hold loop so they're not sleeping */
 	smp_send_stop();

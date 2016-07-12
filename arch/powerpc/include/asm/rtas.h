@@ -339,9 +339,9 @@ extern int rtas_service_present(const char *service);
 extern int rtas_call(int token, int, int, int *, ...);
 void rtas_call_unlocked(struct rtas_args *args, int token, int nargs,
 			int nret, ...);
-extern void rtas_restart(char *cmd);
+extern void __noreturn rtas_restart(char *cmd);
 extern void rtas_power_off(void);
-extern void rtas_halt(void);
+extern void __noreturn rtas_halt(void);
 extern void rtas_os_term(char *str);
 extern int rtas_get_sensor(int sensor, int index, int *state);
 extern int rtas_get_sensor_fast(int sensor, int index, int *state);

@@ -100,7 +100,7 @@ static void __init linkstation_init_IRQ(void)
 extern void avr_uart_configure(void);
 extern void avr_uart_send(const char);
 
-static void linkstation_restart(char *cmd)
+static void __noreturn linkstation_restart(char *cmd)
 {
 	local_irq_disable();
 
@@ -113,7 +113,7 @@ static void linkstation_restart(char *cmd)
 		avr_uart_send('G');	/* "kick" */
 }
 
-static void linkstation_power_off(void)
+static void __noreturn linkstation_power_off(void)
 {
 	local_irq_disable();
 
@@ -127,7 +127,7 @@ static void linkstation_power_off(void)
 	/* NOTREACHED */
 }
 
-static void linkstation_halt(void)
+static void __noreturn linkstation_halt(void)
 {
 	linkstation_power_off();
 	/* NOTREACHED */

@@ -146,7 +146,7 @@ void mpc7448_hpc2_show_cpuinfo(struct seq_file *m)
 	seq_printf(m, "vendor\t\t: Freescale Semiconductor\n");
 }
 
-void mpc7448_hpc2_restart(char *cmd)
+static void __noreturn mpc7448_hpc2_restart(char *cmd)
 {
 	local_irq_disable();
 

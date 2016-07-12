@@ -80,7 +80,7 @@ static void ps3_power_save(void)
 	lv1_pause(0);
 }
 
-static void ps3_restart(char *cmd)
+static void __noreturn ps3_restart(char *cmd)
 {
 	DBG("%s:%d cmd '%s'\n", __func__, __LINE__, cmd);
 
@@ -96,7 +96,7 @@ static void ps3_power_off(void)
 	ps3_sys_manager_power_off(); /* never returns */
 }
 
-static void ps3_halt(void)
+static void __noreturn ps3_halt(void)
 {
 	DBG("%s:%d\n", __func__, __LINE__);
 

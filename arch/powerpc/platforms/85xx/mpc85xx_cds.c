@@ -83,7 +83,7 @@ static int mpc85xx_exclude_device(struct pci_controller *hose,
 		return PCIBIOS_SUCCESSFUL;
 }
 
-static void mpc85xx_cds_restart(char *cmd)
+static void __noreturn mpc85xx_cds_restart(char *cmd)
 {
 	struct pci_dev *dev;
 	u_char tmp;

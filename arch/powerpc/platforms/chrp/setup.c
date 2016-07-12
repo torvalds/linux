@@ -239,7 +239,7 @@ out:
 	of_node_put(np);
 }
 
-static void briq_restart(char *cmd)
+static void __noreturn briq_restart(char *cmd)
 {
 	local_irq_disable();
 	if (briq_SPOR)

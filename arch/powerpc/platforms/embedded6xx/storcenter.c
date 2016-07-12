@@ -96,7 +96,7 @@ static void __init storcenter_init_IRQ(void)
 	mpic_init(mpic);
 }
 
-static void storcenter_restart(char *cmd)
+static void __noreturn storcenter_restart(char *cmd)
 {
 	local_irq_disable();
 

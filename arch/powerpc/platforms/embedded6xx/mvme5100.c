@@ -177,7 +177,7 @@ static void mvme5100_show_cpuinfo(struct seq_file *m)
 	seq_puts(m, "Machine\t\t: MVME5100\n");
 }
 
-static void mvme5100_restart(char *cmd)
+static void __noreturn mvme5100_restart(char *cmd)
 {
 
 	local_irq_disable();
