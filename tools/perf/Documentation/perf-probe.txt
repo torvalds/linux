@@ -152,7 +152,9 @@ Probe points are defined by following syntax.
      [[GROUP:]EVENT=]SRC;PTN [ARG ...]
 
     4) Pre-defined SDT events or cached event with name
-     %[PROVIDER:]SDTEVENT
+     %[sdt_PROVIDER:]SDTEVENT
+     or,
+     sdt_PROVIDER:SDTEVENT
 
 'EVENT' specifies the name of new event, if omitted, it will be set the name of the probed function. You can also specify a group name by 'GROUP', if omitted, set 'probe' is used for kprobe and 'probe_<bin>' is used for uprobe.
 Note that using existing group name can conflict with other events. Especially, using the group name reserved for kernel modules can hide embedded events in the
