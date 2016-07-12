@@ -2451,7 +2451,7 @@ static unsigned int ata_msense_ctl_mode(struct ata_device *dev, u8 *buf,
 					bool changeable)
 {
 	modecpy(buf, def_control_mpage, sizeof(def_control_mpage), changeable);
-	if (changeable && (dev->flags & ATA_DFLAG_D_SENSE))
+	if (changeable || (dev->flags & ATA_DFLAG_D_SENSE))
 		buf[2] |= (1 << 2);	/* Descriptor sense requested */
 	return sizeof(def_control_mpage);
 }
