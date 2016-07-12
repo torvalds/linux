@@ -6117,12 +6117,14 @@ static int handle_ept_violation(struct kvm_vcpu *vcpu)
 	gpa = vmcs_read64(GUEST_PHYSICAL_ADDRESS);
 	trace_kvm_page_fault(gpa, exit_qualification);
 
-	/* It is a write fault? */
-	error_code = exit_qualification & PFERR_WRITE_MASK;
+	/* it is a read fault? */
+	error_code = (exit_qualification << 2) & PFERR_USER_MASK;
+	/* it is a write fault? */
+	error_code |= exit_qualification & PFERR_WRITE_MASK;
 	/* It is a fetch fault? */
 	error_code |= (exit_qualification << 2) & PFERR_FETCH_MASK;
 	/* ept page table is present? */
-	error_code |= (exit_qualification >> 3) & PFERR_PRESENT_MASK;
+	error_code |= (exit_qualification & 0x38) != 0;
 
 	vcpu->arch.exit_qualification = exit_qualification;
 
@@ -6469,11 +6471,12 @@ static __init int hardware_setup(void)
 	vmx_disable_intercept_msr_write_x2apic(0x83f);
 
 	if (enable_ept) {
-		kvm_mmu_set_mask_ptes(0ull,
+		kvm_mmu_set_mask_ptes(VMX_EPT_READABLE_MASK,
 			(enable_ept_ad_bits) ? VMX_EPT_ACCESS_BIT : 0ull,
 			(enable_ept_ad_bits) ? VMX_EPT_DIRTY_BIT : 0ull,
-			0ull, VMX_EPT_EXECUTABLE_MASK);
-			0ull, VMX_EPT_EXECUTABLE_MASK, VMX_EPT_READABLE_MASK);
+			0ull, VMX_EPT_EXECUTABLE_MASK,
+			cpu_has_vmx_ept_execute_only() ?
+				      0ull : VMX_EPT_READABLE_MASK);
 		ept_set_mmio_spte_mask();
 		kvm_enable_tdp();
 	} else

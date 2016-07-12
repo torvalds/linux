@@ -2522,6 +2522,12 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 	if (set_mmio_spte(vcpu, sptep, gfn, pfn, pte_access))
 		return 0;
 
+	/*
+	 * For the EPT case, shadow_present_mask is 0 if hardware
+	 * supports exec-only page table entries.  In that case,
+	 * ACC_USER_MASK and shadow_user_mask are used to represent
+	 * read access.  See FNAME(gpte_access) in paging_tmpl.h.
+	 */
 	spte |= shadow_present_mask;
 	if (!speculative)
 		spte |= shadow_accessed_mask;
@@ -3915,9 +3921,7 @@ static void update_permission_bitmask(struct kvm_vcpu *vcpu,
 				 *   clearer.
 				 */
 				smap = cr4_smap && u && !uf && !ff;
-			} else
-				/* Not really needed: no U/S accesses on ept  */
-				u = 1;
+			}
 
 			fault = (ff && !x) || (uf && !u) || (wf && !w) ||
 				(smapf && smap);
