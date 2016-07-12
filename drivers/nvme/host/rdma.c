@@ -299,8 +299,8 @@ static int nvme_rdma_reinit_request(void *data, struct request *rq)
 	req->mr = ib_alloc_mr(dev->pd, IB_MR_TYPE_MEM_REG,
 			ctrl->max_fr_pages);
 	if (IS_ERR(req->mr)) {
-		req->mr = NULL;
 		ret = PTR_ERR(req->mr);
+		req->mr = NULL;
 	}
 
 	req->need_inval = false;
