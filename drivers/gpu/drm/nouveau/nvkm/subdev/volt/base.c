@@ -110,13 +110,47 @@ nvkm_volt_map(struct nvkm_volt *volt, u8 id, u8 temp)
 
 	vmap = nvbios_vmap_entry_parse(bios, id, &ver, &len, &info);
 	if (vmap) {
+		s64 result;
+
+		if (volt->speedo < 0)
+			return volt->speedo;
+
+		if (ver == 0x10 || (ver == 0x20 && info.mode == 0)) {
+			result  =  (s64)info.arg[0] / 10;
+			result += ((s64)info.arg[1] * volt->speedo) / 10;
+			result += ((s64)info.arg[2] * volt->speedo * volt->speedo) / 100000;
+		} else if (ver == 0x20) {
+			switch (info.mode) {
+			/* 0x0 handled above! */
+			case 0x1:
+				result =  ((s64)info.arg[0] * 15625) >> 18;
+				result += ((s64)info.arg[1] * volt->speedo * 15625) >> 18;
+				result += ((s64)info.arg[2] * temp * 15625) >> 10;
+				result += ((s64)info.arg[3] * volt->speedo * temp * 15625) >> 18;
+				result += ((s64)info.arg[4] * volt->speedo * volt->speedo * 15625) >> 30;
+				result += ((s64)info.arg[5] * temp * temp * 15625) >> 18;
+				break;
+			case 0x3:
+				result = (info.min + info.max) / 2;
+				break;
+			case 0x2:
+			default:
+				result = info.min;
+				break;
+			}
+		} else {
+			return -ENODEV;
+		}
+
+		result = min(max(result, (s64)info.min), (s64)info.max);
+
 		if (info.link != 0xff) {
 			int ret = nvkm_volt_map(volt, info.link, temp);
 			if (ret < 0)
 				return ret;
-			info.min += ret;
+			result += ret;
 		}
-		return info.min;
+		return result;
 	}
 
 	return id ? id * 10000 : -ENODEV;
