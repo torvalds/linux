@@ -361,4 +361,8 @@ void print_binary(unsigned char *data, size_t len,
 		  size_t bytes_per_line, print_binary_t printer,
 		  void *extra);
 
+#ifndef __GLIBC__
+extern int sched_getcpu(void);
+#endif
+
 #endif /* GIT_COMPAT_UTIL_H */

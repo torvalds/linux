@@ -4,18 +4,24 @@
 #include "cloexec.h"
 #include "asm/bug.h"
 #include "debug.h"
+#include <unistd.h>
+#include <asm/unistd.h>
+#include <sys/syscall.h>
 
 static unsigned long flag = PERF_FLAG_FD_CLOEXEC;
 
-#ifdef __GLIBC_PREREQ
-#if !__GLIBC_PREREQ(2, 6)
 int __weak sched_getcpu(void)
 {
+#ifdef __NR_getcpu
+	unsigned cpu;
+	int err = syscall(__NR_getcpu, &cpu, NULL, NULL);
+	if (!err)
+		return cpu;
+#else
 	errno = ENOSYS;
+#endif
 	return -1;
 }
-#endif
-#endif
 
 static int perf_flag_probe(void)
 {
