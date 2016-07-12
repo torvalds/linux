@@ -259,7 +259,9 @@ gk104_ram_calc_gddr5(struct gk104_ram *ram, u32 freq)
 
 	ram_mask(fuc, 0x10f808, 0x40000000, 0x40000000);
 	ram_block(fuc);
-	ram_wr32(fuc, 0x62c000, 0x0f0f0000);
+
+	if (nvkm_device_engine(ram->base.fb->subdev.device, NVKM_ENGINE_DISP))
+		ram_wr32(fuc, 0x62c000, 0x0f0f0000);
 
 	/* MR1: turn termination on early, for some reason.. */
 	if ((ram->base.mr[1] & 0x03c) != 0x030) {
@@ -658,7 +660,9 @@ gk104_ram_calc_gddr5(struct gk104_ram *ram, u32 freq)
 		gk104_ram_train(fuc, 0x80020000, 0x01000000);
 
 	ram_unblock(fuc);
-	ram_wr32(fuc, 0x62c000, 0x0f0f0f00);
+
+	if (nvkm_device_engine(ram->base.fb->subdev.device, NVKM_ENGINE_DISP))
+		ram_wr32(fuc, 0x62c000, 0x0f0f0f00);
 
 	if (next->bios.rammap_11_08_01)
 		data = 0x00000800;
@@ -706,7 +710,9 @@ gk104_ram_calc_sddr3(struct gk104_ram *ram, u32 freq)
 
 	ram_mask(fuc, 0x10f808, 0x40000000, 0x40000000);
 	ram_block(fuc);
-	ram_wr32(fuc, 0x62c000, 0x0f0f0000);
+
+	if (nvkm_device_engine(ram->base.fb->subdev.device, NVKM_ENGINE_DISP))
+		ram_wr32(fuc, 0x62c000, 0x0f0f0000);
 
 	if (vc == 1 && ram_have(fuc, gpio2E)) {
 		u32 temp  = ram_mask(fuc, gpio2E, 0x3000, fuc->r_func2E[1]);
@@ -936,7 +942,9 @@ gk104_ram_calc_sddr3(struct gk104_ram *ram, u32 freq)
 	ram_nsec(fuc, 1000);
 
 	ram_unblock(fuc);
-	ram_wr32(fuc, 0x62c000, 0x0f0f0f00);
+
+	if (nvkm_device_engine(ram->base.fb->subdev.device, NVKM_ENGINE_DISP))
+		ram_wr32(fuc, 0x62c000, 0x0f0f0f00);
 
 	if (next->bios.rammap_11_08_01)
 		data = 0x00000800;
