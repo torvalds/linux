@@ -1379,14 +1379,30 @@ void intel_ddi_disable_pipe_clock(struct intel_crtc *intel_crtc)
 			   TRANS_CLK_SEL_DISABLED);
 }
 
-static void skl_ddi_set_iboost(struct drm_i915_private *dev_priv,
-			       u32 level, enum port port, int type)
+static void _skl_ddi_set_iboost(struct drm_i915_private *dev_priv,
+				enum port port, uint8_t iboost)
 {
+	u32 tmp;
+
+	tmp = I915_READ(DISPIO_CR_TX_BMU_CR0);
+	tmp &= ~(BALANCE_LEG_MASK(port) | BALANCE_LEG_DISABLE(port));
+	if (iboost)
+		tmp |= iboost << BALANCE_LEG_SHIFT(port);
+	else
+		tmp |= BALANCE_LEG_DISABLE(port);
+	I915_WRITE(DISPIO_CR_TX_BMU_CR0, tmp);
+}
+
+static void skl_ddi_set_iboost(struct intel_encoder *encoder, u32 level)
+{
+	struct intel_digital_port *intel_dig_port = enc_to_dig_port(&encoder->base);
+	struct drm_i915_private *dev_priv = to_i915(intel_dig_port->base.base.dev);
+	enum port port = intel_dig_port->port;
+	int type = encoder->type;
 	const struct ddi_buf_trans *ddi_translations;
 	uint8_t iboost;
 	uint8_t dp_iboost, hdmi_iboost;
 	int n_entries;
-	u32 reg;
 
 	/* VBT may override standard boost values */
 	dp_iboost = dev_priv->vbt.ddi_port_info[port].dp_boost_level;
@@ -1428,16 +1444,10 @@ static void skl_ddi_set_iboost(struct drm_i915_private *dev_priv,
 		return;
 	}
 
-	reg = I915_READ(DISPIO_CR_TX_BMU_CR0);
-	reg &= ~BALANCE_LEG_MASK(port);
-	reg &= ~(1 << (BALANCE_LEG_DISABLE_SHIFT + port));
+	_skl_ddi_set_iboost(dev_priv, port, iboost);
 
-	if (iboost)
-		reg |= iboost << BALANCE_LEG_SHIFT(port);
-	else
-		reg |= 1 << (BALANCE_LEG_DISABLE_SHIFT + port);
-
-	I915_WRITE(DISPIO_CR_TX_BMU_CR0, reg);
+	if (port == PORT_A && intel_dig_port->max_lanes == 4)
+		_skl_ddi_set_iboost(dev_priv, PORT_E, iboost);
 }
 
 static void bxt_ddi_vswing_sequence(struct drm_i915_private *dev_priv,
@@ -1568,7 +1578,7 @@ uint32_t ddi_signal_levels(struct intel_dp *intel_dp)
 	level = translate_signal_level(signal_levels);
 
 	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
-		skl_ddi_set_iboost(dev_priv, level, port, encoder->type);
+		skl_ddi_set_iboost(encoder, level);
 	else if (IS_BROXTON(dev_priv))
 		bxt_ddi_vswing_sequence(dev_priv, level, port, encoder->type);
 
