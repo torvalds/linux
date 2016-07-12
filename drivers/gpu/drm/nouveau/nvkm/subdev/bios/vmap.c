@@ -105,7 +105,7 @@ nvbios_vmap_entry_parse(struct nvkm_bios *bios, int idx, u8 *ver, u8 *len,
 		info->arg[2] = nvbios_rd32(bios, vmap + 0x10);
 		break;
 	case 0x20:
-		info->unk0   = nvbios_rd08(bios, vmap + 0x00);
+		info->mode   = nvbios_rd08(bios, vmap + 0x00);
 		info->link   = nvbios_rd08(bios, vmap + 0x01);
 		info->min    = nvbios_rd32(bios, vmap + 0x02);
 		info->max    = nvbios_rd32(bios, vmap + 0x06);
