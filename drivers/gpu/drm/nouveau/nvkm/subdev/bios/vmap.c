@@ -61,7 +61,17 @@ nvbios_vmap_parse(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
 	memset(info, 0x00, sizeof(*info));
 	switch (!!vmap * *ver) {
 	case 0x10:
+		info->max0 = 0xff;
+		info->max1 = 0xff;
+		info->max2 = 0xff;
+		break;
 	case 0x20:
+		info->max0 = nvbios_rd08(bios, vmap + 0x7);
+		info->max1 = nvbios_rd08(bios, vmap + 0x8);
+		if (*len >= 0xc)
+			info->max2 = nvbios_rd08(bios, vmap + 0xc);
+		else
+			info->max2 = 0xff;
 		break;
 	}
 	return vmap;
