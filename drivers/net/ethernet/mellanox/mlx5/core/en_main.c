@@ -2656,7 +2656,7 @@ static void mlx5e_tx_timeout(struct net_device *dev)
 	for (i = 0; i < priv->params.num_channels * priv->params.num_tc; i++) {
 		struct mlx5e_sq *sq = priv->txq_to_sq_map[i];
 
-		if (!netif_tx_queue_stopped(netdev_get_tx_queue(dev, i)))
+		if (!netif_xmit_stopped(netdev_get_tx_queue(dev, i)))
 			continue;
 		sched_work = true;
 		set_bit(MLX5E_SQ_STATE_TX_TIMEOUT, &sq->state);
