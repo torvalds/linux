@@ -763,6 +763,9 @@ void cec_received_msg(struct cec_adapter *adap, struct cec_msg *msg)
 	bool is_reply = false;
 	bool valid_la = true;
 
+	if (WARN_ON(!msg->len || msg->len > CEC_MAX_MSG_SIZE))
+		return;
+
 	mutex_lock(&adap->lock);
 	msg->ts = ktime_get_ns();
 	msg->rx_status = CEC_RX_STATUS_OK;
