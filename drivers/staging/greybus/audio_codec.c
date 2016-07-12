@@ -971,7 +971,7 @@ static void gbaudio_codec_cleanup(struct gbaudio_module_info *module)
 		ret = gb_audio_apbridgea_unregister_cport(data->connection,
 						i2s_port, cportid,
 						AUDIO_APBRIDGEA_DIRECTION_TX);
-		gbcodec->stream[0].state = GBAUDIO_CODEC_SHUTDOWN;
+		module->ctrlstate[0] = GBAUDIO_CODEC_SHUTDOWN;
 	}
 
 	if (cap_state == GBAUDIO_CODEC_START) {
@@ -996,7 +996,7 @@ static void gbaudio_codec_cleanup(struct gbaudio_module_info *module)
 		ret = gb_audio_apbridgea_unregister_cport(data->connection,
 						i2s_port, cportid,
 						AUDIO_APBRIDGEA_DIRECTION_RX);
-		gbcodec->stream[1].state = GBAUDIO_CODEC_SHUTDOWN;
+		module->ctrlstate[1] = GBAUDIO_CODEC_SHUTDOWN;
 	}
 }
 
