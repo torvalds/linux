@@ -1204,7 +1204,7 @@ static int parse_perf_probe_event_name(char **arg, struct perf_probe_event *pev)
 	ptr = strchr(*arg, ':');
 	if (ptr) {
 		*ptr = '\0';
-		if (!is_c_func_name(*arg))
+		if (!pev->sdt && !is_c_func_name(*arg))
 			goto ng_name;
 		pev->group = strdup(*arg);
 		if (!pev->group)
@@ -1212,7 +1212,7 @@ static int parse_perf_probe_event_name(char **arg, struct perf_probe_event *pev)
 		*arg = ptr + 1;
 	} else
 		pev->group = NULL;
-	if (!is_c_func_name(*arg)) {
+	if (!pev->sdt && !is_c_func_name(*arg)) {
 ng_name:
 		semantic_error("%s is bad for event name -it must "
 			       "follow C symbol-naming rule.\n", *arg);
@@ -1644,6 +1644,7 @@ int parse_probe_trace_command(const char *cmd, struct probe_trace_event *tev)
 			ret = -ENOMEM;
 			goto out;
 		}
+		tev->uprobes = (tp->module[0] == '/');
 		p++;
 	} else
 		p = argv[1];
@@ -2518,7 +2519,7 @@ static int probe_trace_event__set_name(struct probe_trace_event *tev,
 	int ret;
 
 	/* If probe_event or trace_event already have the name, reuse it */
-	if (pev->event)
+	if (pev->event && !pev->sdt)
 		event = pev->event;
 	else if (tev->event)
 		event = tev->event;
@@ -2531,7 +2532,7 @@ static int probe_trace_event__set_name(struct probe_trace_event *tev,
 		else
 			event = tev->point.realname;
 	}
-	if (pev->group)
+	if (pev->group && !pev->sdt)
 		group = pev->group;
 	else if (tev->group)
 		group = tev->group;
@@ -2894,6 +2895,100 @@ errout:
 
 bool __weak arch__prefers_symtab(void) { return false; }
 
+/* Concatinate two arrays */
+static void *memcat(void *a, size_t sz_a, void *b, size_t sz_b)
+{
+	void *ret;
+
+	ret = malloc(sz_a + sz_b);
+	if (ret) {
+		memcpy(ret, a, sz_a);
+		memcpy(ret + sz_a, b, sz_b);
+	}
+	return ret;
+}
+
+static int
+concat_probe_trace_events(struct probe_trace_event **tevs, int *ntevs,
+			  struct probe_trace_event **tevs2, int ntevs2)
+{
+	struct probe_trace_event *new_tevs;
+	int ret = 0;
+
+	if (ntevs == 0) {
+		*tevs = *tevs2;
+		*ntevs = ntevs2;
+		*tevs2 = NULL;
+		return 0;
+	}
+
+	if (*ntevs + ntevs2 > probe_conf.max_probes)
+		ret = -E2BIG;
+	else {
+		/* Concatinate the array of probe_trace_event */
+		new_tevs = memcat(*tevs, (*ntevs) * sizeof(**tevs),
+				  *tevs2, ntevs2 * sizeof(**tevs2));
+		if (!new_tevs)
+			ret = -ENOMEM;
+		else {
+			free(*tevs);
+			*tevs = new_tevs;
+			*ntevs += ntevs2;
+		}
+	}
+	if (ret < 0)
+		clear_probe_trace_events(*tevs2, ntevs2);
+	zfree(tevs2);
+
+	return ret;
+}
+
+/*
+ * Try to find probe_trace_event from given probe caches. Return the number
+ * of cached events found, if an error occurs return the error.
+ */
+static int find_cached_events(struct perf_probe_event *pev,
+			      struct probe_trace_event **tevs,
+			      const char *target)
+{
+	struct probe_cache *cache;
+	struct probe_cache_entry *entry;
+	struct probe_trace_event *tmp_tevs = NULL;
+	int ntevs = 0;
+	int ret = 0;
+
+	cache = probe_cache__new(target);
+	/* Return 0 ("not found") if the target has no probe cache. */
+	if (!cache)
+		return 0;
+
+	for_each_probe_cache_entry(entry, cache) {
+		/* Skip the cache entry which has no name */
+		if (!entry->pev.event || !entry->pev.group)
+			continue;
+		if ((!pev->group || strglobmatch(entry->pev.group, pev->group)) &&
+		    strglobmatch(entry->pev.event, pev->event)) {
+			ret = probe_cache_entry__get_event(entry, &tmp_tevs);
+			if (ret > 0)
+				ret = concat_probe_trace_events(tevs, &ntevs,
+								&tmp_tevs, ret);
+			if (ret < 0)
+				break;
+		}
+	}
+	probe_cache__delete(cache);
+	if (ret < 0) {
+		clear_probe_trace_events(*tevs, ntevs);
+		zfree(tevs);
+	} else {
+		ret = ntevs;
+		if (ntevs > 0 && target && target[0] == '/')
+			pev->uprobes = true;
+	}
+
+	return ret;
+}
+
 static int find_probe_trace_events_from_cache(struct perf_probe_event *pev,
 					      struct probe_trace_event **tevs)
 {
@@ -2902,6 +2997,10 @@ static int find_probe_trace_events_from_cache(struct perf_probe_event *pev,
 	struct probe_trace_event *tev;
 	struct str_node *node;
 	int ret, i;
+
+	if (pev->sdt)
+		/* For SDT/cached events, we use special search functions */
+		return find_cached_events(pev, tevs, pev->target);
 
 	cache = probe_cache__new(pev->target);
 	if (!cache)

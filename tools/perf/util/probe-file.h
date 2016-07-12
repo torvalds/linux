@@ -34,6 +34,9 @@ int probe_file__get_events(int fd, struct strfilter *filter,
 				  struct strlist *plist);
 int probe_file__del_strlist(int fd, struct strlist *namelist);
 
+int probe_cache_entry__get_event(struct probe_cache_entry *entry,
+				 struct probe_trace_event **tevs);
+
 struct probe_cache *probe_cache__new(const char *target);
 int probe_cache__add_entry(struct probe_cache *pcache,
 			   struct perf_probe_event *pev,
