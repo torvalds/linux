@@ -99,6 +99,10 @@ PCI_IRQ_NOMSI and PCI_IRQ_NOMSIX flag in case a device claims to support
 MSI or MSI-X, but the support is broken, or to pass PCI_IRQ_NOLEGACY in
 case the device does not support legacy interrupt lines.
 
+By default this function will spread the interrupts around the available
+CPUs, but this feature can be disabled by passing the PCI_IRQ_NOAFFINITY
+flag.
+
 To get the Linux IRQ numbers passed to request_irq() and free_irq() and the
 vectors, use the following function:
 

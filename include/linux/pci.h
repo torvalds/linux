@@ -320,6 +320,7 @@ struct pci_dev {
 	 * directly, use the values stored here. They might be different!
 	 */
 	unsigned int	irq;
+	struct cpumask	*irq_affinity;
 	struct resource resource[DEVICE_COUNT_RESOURCE]; /* I/O and memory regions + expansion ROMs */
 
 	bool match_driver;		/* Skip attaching driver */
@@ -1240,6 +1241,7 @@ int pci_set_vga_state(struct pci_dev *pdev, bool decode,
 #define PCI_IRQ_NOLEGACY	(1 << 0) /* don't use legacy interrupts */
 #define PCI_IRQ_NOMSI		(1 << 1) /* don't use MSI interrupts */
 #define PCI_IRQ_NOMSIX		(1 << 2) /* don't use MSI-X interrupts */
+#define PCI_IRQ_NOAFFINITY	(1 << 3) /* don't auto-assign affinity */
 
 /* kmem_cache style wrapper around pci_alloc_consistent() */
 
