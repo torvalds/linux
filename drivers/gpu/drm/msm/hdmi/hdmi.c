@@ -537,10 +537,7 @@ static int msm_hdmi_register_audio_driver(struct hdmi *hdmi, struct device *dev)
 							 PLATFORM_DEVID_AUTO,
 							 &codec_data,
 							 sizeof(codec_data));
-	if (IS_ERR(hdmi->audio_pdev))
-		return PTR_ERR(hdmi->audio_pdev);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(hdmi->audio_pdev);
 }
 
 static int msm_hdmi_bind(struct device *dev, struct device *master, void *data)
