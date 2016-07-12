@@ -175,7 +175,7 @@ static int
 nvkm_pstate_prog(struct nvkm_clk *clk, int pstatei)
 {
 	struct nvkm_subdev *subdev = &clk->subdev;
-	struct nvkm_ram *ram = subdev->device->fb->ram;
+	struct nvkm_fb *fb = subdev->device->fb;
 	struct nvkm_pci *pci = subdev->device->pci;
 	struct nvkm_pstate *pstate;
 	int ret, idx = 0;
@@ -190,7 +190,8 @@ nvkm_pstate_prog(struct nvkm_clk *clk, int pstatei)
 
 	nvkm_pcie_set_link(pci, pstate->pcie_speed, pstate->pcie_width);
 
-	if (ram && ram->func->calc) {
+	if (fb && fb->ram && fb->ram->func->calc) {
+		struct nvkm_ram *ram = fb->ram;
 		int khz = pstate->base.domain[nv_clk_src_mem];
 		do {
 			ret = ram->func->calc(ram, khz);
