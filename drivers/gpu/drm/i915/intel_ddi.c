@@ -434,7 +434,7 @@ void intel_prepare_ddi_buffer(struct intel_encoder *encoder)
 		/* If we're boosting the current, set bit 31 of trans1 */
 		if (dev_priv->vbt.ddi_port_info[port].hdmi_boost_level ||
 		    dev_priv->vbt.ddi_port_info[port].dp_boost_level)
-			iboost_bit = 1<<31;
+			iboost_bit = DDI_BUF_BALANCE_LEG_ENABLE;
 
 		if (WARN_ON(encoder->type == INTEL_OUTPUT_EDP &&
 			    port != PORT_A && port != PORT_E &&
