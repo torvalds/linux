@@ -43,7 +43,6 @@
 #include <linux/err.h>
 #include <linux/filter.h>
 #include <linux/audit.h>
-#include <sys/ptrace.h>
 #include <linux/random.h>
 #include <linux/stringify.h>
 
