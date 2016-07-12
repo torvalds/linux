@@ -26,3 +26,37 @@ What you should see for a chardev:
 
     $ ls -l /dev/lirc*
     crw-rw---- 1 root root 248, 0 Jul 2 22:20 /dev/lirc0
+
+**********
+LIRC modes
+**********
+
+LIRC supports some modes of receiving and sending IR codes, as shown
+on the following table.
+
+.. _lirc-mode-mode2:
+
+``LIRC_MODE_MODE2``
+
+    The driver returns a sequence of pulse and space codes to userspace.
+
+    This mode is used only for IR receive.
+
+.. _lirc-mode-lirccode:
+
+``LIRC_MODE_LIRCCODE``
+
+    The IR signal is decoded internally by the receiver. The LIRC interface
+    returns the scancode as an integer value. This is the usual mode used
+    by several TV media cards.
+
+    This mode is used only for IR receive.
+
+.. _lirc-mode-pulse:
+
+``LIRC_MODE_PULSE``
+
+    On puse mode, a sequence of pulse/space integer values are written to the
+    lirc device using :Ref:`lirc-write`.
+
+    This mode is used only for IR send.

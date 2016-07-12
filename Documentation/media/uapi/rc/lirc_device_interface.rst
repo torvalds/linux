@@ -27,4 +27,3 @@ LIRC Device Interface
     lirc-set-rec-timeout-reports
     lirc-set-measure-carrier-mode
     lirc-set-wideband-receiver
-    lirc_ioctl

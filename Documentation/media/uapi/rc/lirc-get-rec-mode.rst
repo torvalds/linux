@@ -1,15 +1,16 @@
 .. -*- coding: utf-8; mode: rst -*-
 
 .. _lirc_get_rec_mode:
+.. _lirc_set_rec_mode:
 
-***********************
-ioctl LIRC_GET_REC_MODE
-***********************
+**********************************************
+ioctls LIRC_GET_REC_MODE and LIRC_SET_REC_MODE
+**********************************************
 
 Name
 ====
 
-LIRC_GET_REC_MODE - Get supported receive modes.
+LIRC_GET_REC_MODE/LIRC_GET_REC_MODE - Get/set supported receive modes.
 
 Synopsis
 ========
@@ -23,7 +24,7 @@ Arguments
     File descriptor returned by open().
 
 ``request``
-    LIRC_GET_REC_MODE
+    LIRC_GET_REC_MODE or LIRC_GET_REC_MODE
 
 ``rx_modes``
     Bitmask with the supported transmit modes.
@@ -31,24 +32,9 @@ Arguments
 Description
 ===========
 
-Get supported receive modes.
-
-Supported receive modes
-=======================
-
-.. _lirc-mode-mode2:
-
-``LIRC_MODE_MODE2``
-
-    The driver returns a sequence of pulse and space codes to userspace.
-
-.. _lirc-mode-lirccode:
-
-``LIRC_MODE_LIRCCODE``
-
-    The IR signal is decoded internally by the receiver. The LIRC interface
-    returns the scancode as an integer value. This is the usual mode used
-    by several TV media cards.
+Get/set supported receive modes. Only :ref:`LIRC_MODE_MODE2 <lirc-mode-mode2>`
+and :ref:`LIRC_MODE_LIRCCODE <lirc-mode-lirccode>` are supported for IR
+receive.
 
 
 Return Value

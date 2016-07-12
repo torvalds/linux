@@ -1,15 +1,16 @@
 .. -*- coding: utf-8; mode: rst -*-
 
 .. _lirc_get_send_mode:
+.. _lirc_set_send_mode:
 
-************************
-ioctl LIRC_GET_SEND_MODE
-************************
+************************************************
+ioctls LIRC_GET_SEND_MODE and LIRC_SET_SEND_MODE
+************************************************
 
 Name
 ====
 
-LIRC_GET_SEND_MODE - Get supported transmit mode.
+LIRC_GET_SEND_MODE/LIRC_SET_SEND_MODE - Get/set supported transmit mode.
 
 Synopsis
 ========
@@ -32,13 +33,9 @@ Arguments
 Description
 ===========
 
-Get supported transmit mode.
+Get/set supported transmit mode.
 
-.. _lirc-mode-pulse:
-
-Currently, only ``LIRC_MODE_PULSE`` is supported by lircd on TX. On
-puse mode, a sequence of pulse/space integer values are written to the
-lirc device using :Ref:`lirc-write`.
+Only :ref:`LIRC_MODE_PULSE <lirc-mode-pulse>` is supported by for IR send.
 
 Return Value
 ============
