@@ -29,7 +29,7 @@ struct nvkm_volt {
 
 int nvkm_volt_map_min(struct nvkm_volt *volt, u8 id);
 int nvkm_volt_get(struct nvkm_volt *);
-int nvkm_volt_set_id(struct nvkm_volt *, u8 id, int condition);
+int nvkm_volt_set_id(struct nvkm_volt *, u8 id, u8 min_id, int condition);
 
 int nv40_volt_new(struct nvkm_device *, int, struct nvkm_volt **);
 int gk104_volt_new(struct nvkm_device *, int, struct nvkm_volt **);
