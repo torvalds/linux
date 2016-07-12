@@ -204,10 +204,13 @@ void amdgpu_fence_process(struct amdgpu_ring *ring)
 	if (seq != ring->fence_drv.sync_seq)
 		amdgpu_fence_schedule_fallback(ring);
 
+	if (unlikely(seq == last_seq))
+		return;
+
 	last_seq &= drv->num_fences_mask;
 	seq &= drv->num_fences_mask;
 
-	while (last_seq != seq) {
+	do {
 		struct fence *fence, **ptr;
 
 		++last_seq;
@@ -228,7 +231,7 @@ void amdgpu_fence_process(struct amdgpu_ring *ring)
 			BUG();
 
 		fence_put(fence);
-	}
+	} while (last_seq != seq);
 }
 
 /**
