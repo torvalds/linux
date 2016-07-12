@@ -505,6 +505,7 @@ static bool st33zp24_req_canceled(struct tpm_chip *chip, u8 status)
 }
 
 static const struct tpm_class_ops st33zp24_tpm = {
+	.flags = TPM_OPS_AUTO_STARTUP,
 	.send = st33zp24_send,
 	.recv = st33zp24_recv,
 	.cancel = st33zp24_cancel,
@@ -591,9 +592,6 @@ int st33zp24_probe(void *phy_id, const struct st33zp24_phy_ops *ops,
 
 		tpm_gen_interrupt(chip);
 	}
-
-	tpm_get_timeouts(chip);
-	tpm_do_selftest(chip);
 
 	return tpm_chip_register(chip);
 _tpm_clean_answer:

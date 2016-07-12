@@ -567,6 +567,7 @@ static bool tpm_tis_i2c_req_canceled(struct tpm_chip *chip, u8 status)
 }
 
 static const struct tpm_class_ops tpm_tis_i2c = {
+	.flags = TPM_OPS_AUTO_STARTUP,
 	.status = tpm_tis_i2c_status,
 	.recv = tpm_tis_i2c_recv,
 	.send = tpm_tis_i2c_send,
@@ -618,9 +619,6 @@ static int tpm_tis_i2c_init(struct device *dev)
 	dev_info(dev, "1.2 TPM (device-id 0x%X)\n", vendor >> 16);
 
 	tpm_dev.chip = chip;
-
-	tpm_get_timeouts(chip);
-	tpm_do_selftest(chip);
 
 	return tpm_chip_register(chip);
 out_release:

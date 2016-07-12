@@ -638,6 +638,7 @@ void tpm_tis_remove(struct tpm_chip *chip)
 EXPORT_SYMBOL_GPL(tpm_tis_remove);
 
 static const struct tpm_class_ops tpm_tis = {
+	.flags = TPM_OPS_AUTO_STARTUP,
 	.status = tpm_tis_status,
 	.recv = tpm_tis_recv,
 	.send = tpm_tis_send,
@@ -770,29 +771,6 @@ int tpm_tis_core_init(struct device *dev, struct tpm_tis_data *priv, int irq,
 					"TPM interrupt not working, polling instead\n");
 		} else {
 			tpm_tis_probe_irq(chip, intmask);
-		}
-	}
-
-	if (chip->flags & TPM_CHIP_FLAG_TPM2) {
-		rc = tpm2_do_selftest(chip);
-		if (rc == TPM2_RC_INITIALIZE) {
-			dev_warn(dev, "Firmware has not started TPM\n");
-			rc  = tpm2_startup(chip, TPM2_SU_CLEAR);
-			if (!rc)
-				rc = tpm2_do_selftest(chip);
-		}
-
-		if (rc) {
-			dev_err(dev, "TPM self test failed\n");
-			if (rc > 0)
-				rc = -ENODEV;
-			goto out_err;
-		}
-	} else {
-		if (tpm_do_selftest(chip)) {
-			dev_err(dev, "TPM self test failed\n");
-			rc = -ENODEV;
-			goto out_err;
 		}
 	}
 

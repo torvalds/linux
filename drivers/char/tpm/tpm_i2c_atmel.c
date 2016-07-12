@@ -141,6 +141,7 @@ static bool i2c_atmel_req_canceled(struct tpm_chip *chip, u8 status)
 }
 
 static const struct tpm_class_ops i2c_atmel = {
+	.flags = TPM_OPS_AUTO_STARTUP,
 	.status = i2c_atmel_read_status,
 	.recv = i2c_atmel_recv,
 	.send = i2c_atmel_send,
@@ -179,11 +180,6 @@ static int i2c_atmel_probe(struct i2c_client *client,
 	/* There is no known way to probe for this device, and all version
 	 * information seems to be read via TPM commands. Thus we rely on the
 	 * TPM startup process in the common code to detect the device. */
-	if (tpm_get_timeouts(chip))
-		return -ENODEV;
-
-	if (tpm_do_selftest(chip))
-		return -ENODEV;
 
 	return tpm_chip_register(chip);
 }

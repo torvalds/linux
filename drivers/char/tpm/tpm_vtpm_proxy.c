@@ -346,6 +346,7 @@ static bool vtpm_proxy_tpm_req_canceled(struct tpm_chip  *chip, u8 status)
 }
 
 static const struct tpm_class_ops vtpm_proxy_tpm_ops = {
+	.flags = TPM_OPS_AUTO_STARTUP,
 	.recv = vtpm_proxy_tpm_op_recv,
 	.send = vtpm_proxy_tpm_op_send,
 	.cancel = vtpm_proxy_tpm_op_cancel,
@@ -365,14 +366,6 @@ static void vtpm_proxy_work(struct work_struct *work)
 	struct proxy_dev *proxy_dev = container_of(work, struct proxy_dev,
 						   work);
 	int rc;
-
-	if (proxy_dev->flags & VTPM_PROXY_FLAG_TPM2)
-		rc = tpm2_startup(proxy_dev->chip, TPM2_SU_CLEAR);
-	else
-		rc = tpm_get_timeouts(proxy_dev->chip);
-
-	if (rc)
-		goto err;
 
 	rc = tpm_chip_register(proxy_dev->chip);
 	if (rc)

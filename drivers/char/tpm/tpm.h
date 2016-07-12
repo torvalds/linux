@@ -484,6 +484,7 @@ ssize_t tpm_transmit_cmd(struct tpm_chip *chip, void *cmd, int len,
 			 const char *desc);
 extern int tpm_get_timeouts(struct tpm_chip *);
 extern void tpm_gen_interrupt(struct tpm_chip *);
+int tpm1_auto_startup(struct tpm_chip *chip);
 extern int tpm_do_selftest(struct tpm_chip *);
 extern unsigned long tpm_calc_ordinal_duration(struct tpm_chip *, u32);
 extern int tpm_pm_suspend(struct device *);
@@ -526,10 +527,9 @@ int tpm2_unseal_trusted(struct tpm_chip *chip,
 ssize_t tpm2_get_tpm_pt(struct tpm_chip *chip, u32 property_id,
 			u32 *value, const char *desc);
 
-extern int tpm2_startup(struct tpm_chip *chip, u16 startup_type);
+int tpm2_auto_startup(struct tpm_chip *chip);
 extern void tpm2_shutdown(struct tpm_chip *chip, u16 shutdown_type);
 extern unsigned long tpm2_calc_ordinal_duration(struct tpm_chip *, u32);
-extern int tpm2_do_selftest(struct tpm_chip *chip);
 extern int tpm2_gen_interrupt(struct tpm_chip *chip);
 extern int tpm2_probe(struct tpm_chip *chip);
 #endif

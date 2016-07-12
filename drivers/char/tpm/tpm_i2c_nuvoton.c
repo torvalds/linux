@@ -461,6 +461,7 @@ static bool i2c_nuvoton_req_canceled(struct tpm_chip *chip, u8 status)
 }
 
 static const struct tpm_class_ops tpm_i2c = {
+	.flags = TPM_OPS_AUTO_STARTUP,
 	.status = i2c_nuvoton_read_status,
 	.recv = i2c_nuvoton_recv,
 	.send = i2c_nuvoton_send,
@@ -606,12 +607,6 @@ static int i2c_nuvoton_probe(struct i2c_client *client,
 			}
 		}
 	}
-
-	if (tpm_get_timeouts(chip))
-		return -ENODEV;
-
-	if (tpm_do_selftest(chip))
-		return -ENODEV;
 
 	return tpm_chip_register(chip);
 }

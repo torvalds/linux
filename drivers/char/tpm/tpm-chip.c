@@ -354,6 +354,15 @@ int tpm_chip_register(struct tpm_chip *chip)
 {
 	int rc;
 
+	if (chip->ops->flags & TPM_OPS_AUTO_STARTUP) {
+		if (chip->flags & TPM_CHIP_FLAG_TPM2)
+			rc = tpm2_auto_startup(chip);
+		else
+			rc = tpm1_auto_startup(chip);
+		if (rc)
+			return rc;
+	}
+
 	rc = tpm1_chip_register(chip);
 	if (rc)
 		return rc;
