@@ -115,26 +115,36 @@ static inline int apic_enabled(struct kvm_lapic *apic)
 	(LVT_MASK | APIC_MODE_MASK | APIC_INPUT_POLARITY | \
 	 APIC_LVT_REMOTE_IRR | APIC_LVT_LEVEL_TRIGGER)
 
-/* The logical map is definitely wrong if we have multiple
- * modes at the same time.  (Physical map is always right.)
- */
-static inline bool kvm_apic_logical_map_valid(struct kvm_apic_map *map)
-{
-	return !(map->mode & (map->mode - 1));
-}
+static inline bool kvm_apic_map_get_logical_dest(struct kvm_apic_map *map,
+		u32 dest_id, struct kvm_lapic ***cluster, u16 *mask) {
+	switch (map->mode) {
+	case KVM_APIC_MODE_X2APIC: {
+		u32 offset = (dest_id >> 16) * 16;
+		u32 max_apic_id = ARRAY_SIZE(map->phys_map) - 1;
 
-static inline void
-apic_logical_id(struct kvm_apic_map *map, u32 dest_id, u16 *cid, u16 *lid)
-{
-	unsigned lid_bits;
+		if (offset <= max_apic_id) {
+			u8 cluster_size = min(max_apic_id - offset + 1, 16U);
 
-	BUILD_BUG_ON(KVM_APIC_MODE_XAPIC_CLUSTER !=  4);
-	BUILD_BUG_ON(KVM_APIC_MODE_XAPIC_FLAT    !=  8);
-	BUILD_BUG_ON(KVM_APIC_MODE_X2APIC        != 16);
-	lid_bits = map->mode;
+			*cluster = &map->phys_map[offset];
+			*mask = dest_id & (0xffff >> (16 - cluster_size));
+		} else {
+			*mask = 0;
+		}
 
-	*cid = dest_id >> lid_bits;
-	*lid = dest_id & ((1 << lid_bits) - 1);
+		return true;
+		}
+	case KVM_APIC_MODE_XAPIC_FLAT:
+		*cluster = map->xapic_flat_map;
+		*mask = dest_id & 0xff;
+		return true;
+	case KVM_APIC_MODE_XAPIC_CLUSTER:
+		*cluster = map->xapic_cluster_map[dest_id >> 4];
+		*mask = dest_id & 0xf;
+		return true;
+	default:
+		/* Not optimized. */
+		return false;
+	}
 }
 
 static void recalculate_apic_map(struct kvm *kvm)
@@ -152,7 +162,8 @@ static void recalculate_apic_map(struct kvm *kvm)
 
 	kvm_for_each_vcpu(i, vcpu, kvm) {
 		struct kvm_lapic *apic = vcpu->arch.apic;
-		u16 cid, lid;
+		struct kvm_lapic **cluster;
+		u16 mask;
 		u32 ldr, aid;
 
 		if (!kvm_apic_present(vcpu))
@@ -174,13 +185,11 @@ static void recalculate_apic_map(struct kvm *kvm)
 				new->mode |= KVM_APIC_MODE_XAPIC_CLUSTER;
 		}
 
-		if (!kvm_apic_logical_map_valid(new))
+		if (!kvm_apic_map_get_logical_dest(new, ldr, &cluster, &mask))
 			continue;
 
-		apic_logical_id(new, ldr, &cid, &lid);
-
-		if (lid && cid < ARRAY_SIZE(new->logical_map))
-			new->logical_map[cid][ffs(lid) - 1] = apic;
+		if (mask)
+			cluster[ffs(mask) - 1] = apic;
 	}
 out:
 	old = rcu_dereference_protected(kvm->arch.apic_map,
@@ -685,7 +694,6 @@ static inline bool kvm_apic_map_get_dest_lapic(struct kvm *kvm,
 {
 	int i, lowest;
 	bool x2apic_ipi;
-	u16 cid;
 
 	if (irq->shorthand == APIC_DEST_SELF && src) {
 		*dst = src;
@@ -711,17 +719,10 @@ static inline bool kvm_apic_map_get_dest_lapic(struct kvm *kvm,
 		return true;
 	}
 
-	if (!kvm_apic_logical_map_valid(map))
+	*bitmap = 0;
+	if (!kvm_apic_map_get_logical_dest(map, irq->dest_id, dst,
+				(u16 *)bitmap))
 		return false;
-
-	apic_logical_id(map, irq->dest_id, &cid, (u16 *)bitmap);
-
-	if (cid >= ARRAY_SIZE(map->logical_map)) {
-		*bitmap = 0;
-		return true;
-	}
-
-	*dst = map->logical_map[cid];
 
 	if (!kvm_lowest_prio_delivery(irq))
 		return true;
