@@ -21,6 +21,8 @@ struct probe_cache {
 
 #define PF_FL_UPROBE	1
 #define PF_FL_RW	2
+#define for_each_probe_cache_entry(entry, pcache) \
+	list_for_each_entry(entry, &pcache->entries, node)
 
 int probe_file__open(int flag);
 int probe_file__open_both(int *kfd, int *ufd, int flag);
