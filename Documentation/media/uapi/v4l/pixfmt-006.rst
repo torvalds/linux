@@ -240,6 +240,12 @@ needs to be filled in.
 
        -  Use the constant luminance BT.2020 Yc'CbcCrc encoding.
 
+    -  .. row 10
+
+       -  ``V4L2_YCBCR_ENC_SMPTE_240M``
+
+       -  Use the SMPTE 240M Y'CbCr encoding.
+
 
 
 .. _v4l2-quantization:

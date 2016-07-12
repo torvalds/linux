@@ -85,9 +85,7 @@ replace symbol V4L2_YCBCR_ENC_DEFAULT v4l2-ycbcr-encoding
 replace symbol V4L2_YCBCR_ENC_SYCC v4l2-ycbcr-encoding
 replace symbol V4L2_YCBCR_ENC_XV601 v4l2-ycbcr-encoding
 replace symbol V4L2_YCBCR_ENC_XV709 v4l2-ycbcr-encoding
-
-# Is this deprecated, or just a missing reference?
-replace symbol V4L2_YCBCR_ENC_SMPTE240M v4l2-ycbcr-encoding-FIXME
+replace symbol V4L2_YCBCR_ENC_SMPTE240M v4l2-ycbcr-encoding
 
 # Documented enum v4l2_quantization
 replace symbol V4L2_QUANTIZATION_DEFAULT v4l2-quantization
