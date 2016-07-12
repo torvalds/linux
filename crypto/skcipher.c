@@ -325,13 +325,13 @@ static const struct crypto_type crypto_skcipher_type2 = {
 	.tfmsize = offsetof(struct crypto_skcipher, base),
 };
 
-int crypto_grab_skcipher2(struct crypto_skcipher_spawn *spawn,
+int crypto_grab_skcipher(struct crypto_skcipher_spawn *spawn,
 			  const char *name, u32 type, u32 mask)
 {
 	spawn->base.frontend = &crypto_skcipher_type2;
 	return crypto_grab_spawn(&spawn->base, name, type, mask);
 }
-EXPORT_SYMBOL_GPL(crypto_grab_skcipher2);
+EXPORT_SYMBOL_GPL(crypto_grab_skcipher);
 
 struct crypto_skcipher *crypto_alloc_skcipher(const char *alg_name,
 					      u32 type, u32 mask)

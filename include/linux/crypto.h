@@ -488,8 +488,6 @@ struct ablkcipher_tfm {
 	              unsigned int keylen);
 	int (*encrypt)(struct ablkcipher_request *req);
 	int (*decrypt)(struct ablkcipher_request *req);
-	int (*givencrypt)(struct skcipher_givcrypt_request *req);
-	int (*givdecrypt)(struct skcipher_givcrypt_request *req);
 
 	struct crypto_ablkcipher *base;
 
@@ -713,23 +711,6 @@ static inline u32 crypto_skcipher_mask(u32 mask)
  * which operation just finished if it invoked multiple in parallel. This
  * state information is unused by the kernel crypto API.
  */
-
-/**
- * crypto_alloc_ablkcipher() - allocate asynchronous block cipher handle
- * @alg_name: is the cra_name / name or cra_driver_name / driver name of the
- *	      ablkcipher cipher
- * @type: specifies the type of the cipher
- * @mask: specifies the mask for the cipher
- *
- * Allocate a cipher handle for an ablkcipher. The returned struct
- * crypto_ablkcipher is the cipher handle that is required for any subsequent
- * API invocation for that ablkcipher.
- *
- * Return: allocated cipher handle in case of success; IS_ERR() is true in case
- *	   of an error, PTR_ERR() returns the error code.
- */
-struct crypto_ablkcipher *crypto_alloc_ablkcipher(const char *alg_name,
-						  u32 type, u32 mask);
 
 static inline struct crypto_tfm *crypto_ablkcipher_tfm(
 	struct crypto_ablkcipher *tfm)
