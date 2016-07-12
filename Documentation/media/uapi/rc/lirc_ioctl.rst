@@ -46,17 +46,6 @@ device can rely on working with the default settings initially.
 
 .. _lirc-request:
 
-I/O control requests
-====================
-
-.. _LIRC_GET_LENGTH:
-
-``LIRC_GET_LENGTH``
-
-    Retrieves the code length in bits (only for ``LIRC_MODE_LIRCCODE).``
-    Reads on the device must be done in blocks matching the bit count.
-    The bit could should be rounded up so that it matches full bytes.
-
 .. _LIRC_SET_SEND_MODE:
 .. _LIRC_SET_REC_MODE:
 
