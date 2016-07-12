@@ -766,9 +766,9 @@ error_key_type:
 error_sock:
 	proto_unregister(&rxrpc_proto);
 error_proto:
-	destroy_workqueue(rxrpc_workqueue);
-error_security:
 	rxrpc_exit_security();
+error_security:
+	destroy_workqueue(rxrpc_workqueue);
 error_work_queue:
 	kmem_cache_destroy(rxrpc_call_jar);
 error_call_jar:
