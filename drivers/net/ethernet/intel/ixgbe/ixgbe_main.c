@@ -10112,6 +10112,7 @@ static int __init ixgbe_init_module(void)
 
 	ret = pci_register_driver(&ixgbe_driver);
 	if (ret) {
+		destroy_workqueue(ixgbe_wq);
 		ixgbe_dbg_exit();
 		return ret;
 	}
