@@ -2044,8 +2044,8 @@ static int lbs_leave_ibss(struct wiphy *wiphy, struct net_device *dev)
 
 
 
-int lbs_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
-		       bool enabled, int timeout)
+static int lbs_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
+			      bool enabled, int timeout)
 {
 	struct lbs_private *priv = wiphy_priv(wiphy);
 
