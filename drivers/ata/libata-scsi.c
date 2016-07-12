@@ -2437,7 +2437,7 @@ static unsigned int ata_msense_caching(u16 *id, u8 *buf, bool changeable)
 }
 
 /**
- *	ata_msense_ctl_mode - Simulate MODE SENSE control mode page
+ *	ata_msense_control - Simulate MODE SENSE control mode page
  *	@dev: ATA device of interest
  *	@buf: output buffer
  *	@changeable: whether changeable parameters are requested
@@ -2447,7 +2447,7 @@ static unsigned int ata_msense_caching(u16 *id, u8 *buf, bool changeable)
  *	LOCKING:
  *	None.
  */
-static unsigned int ata_msense_ctl_mode(struct ata_device *dev, u8 *buf,
+static unsigned int ata_msense_control(struct ata_device *dev, u8 *buf,
 					bool changeable)
 {
 	modecpy(buf, def_control_mpage, sizeof(def_control_mpage), changeable);
@@ -2571,13 +2571,13 @@ static unsigned int ata_scsiop_mode_sense(struct ata_scsi_args *args, u8 *rbuf)
 		break;
 
 	case CONTROL_MPAGE:
-		p += ata_msense_ctl_mode(args->dev, p, page_control == 1);
+		p += ata_msense_control(args->dev, p, page_control == 1);
 		break;
 
 	case ALL_MPAGES:
 		p += ata_msense_rw_recovery(p, page_control == 1);
 		p += ata_msense_caching(args->id, p, page_control == 1);
-		p += ata_msense_ctl_mode(args->dev, p, page_control == 1);
+		p += ata_msense_control(args->dev, p, page_control == 1);
 		break;
 
 	default:		/* invalid page code */
@@ -3672,7 +3672,7 @@ static int ata_mselect_control(struct ata_queued_cmd *qc,
 	/*
 	 * Check that read-only bits are not modified.
 	 */
-	ata_msense_ctl_mode(dev, mpage, false);
+	ata_msense_control(dev, mpage, false);
 	for (i = 0; i < CONTROL_MPAGE_LEN - 2; i++) {
 		if (i == 0)
 			continue;
