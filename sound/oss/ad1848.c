@@ -254,7 +254,7 @@ static void ad_write(ad1848_info * devc, int reg, int data)
 
 static void wait_for_calibration(ad1848_info * devc)
 {
-	int timeout = 0;
+	int timeout;
 
 	/*
 	 * Wait until the auto calibration process has finished.
