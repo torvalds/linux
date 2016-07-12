@@ -240,7 +240,8 @@ maintainer="$name <$email>"
 # Try to determine distribution
 if [ -n "$KDEB_CHANGELOG_DIST" ]; then
         distribution=$KDEB_CHANGELOG_DIST
-elif distribution=$(lsb_release -cs 2>/dev/null) && [ -n "$distribution" ]; then
+# In some cases lsb_release returns the codename as n/a, which breaks dpkg-parsechangelog
+elif distribution=$(lsb_release -cs 2>/dev/null) && [ -n "$distribution" ] && [ "$distribution" != "n/a" ]; then
         : # nothing to do in this case
 else
         distribution="unstable"
