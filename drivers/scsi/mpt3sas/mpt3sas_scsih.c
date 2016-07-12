@@ -9035,8 +9035,11 @@ scsih_pci_mmio_enabled(struct pci_dev *pdev)
 
 	/* TODO - dump whatever for debugging purposes */
 
-	/* Request a slot reset. */
-	return PCI_ERS_RESULT_NEED_RESET;
+	/* This called only if scsih_pci_error_detected returns
+	 * PCI_ERS_RESULT_CAN_RECOVER. Read/write to the device still
+	 * works, no need to reset slot.
+	 */
+	return PCI_ERS_RESULT_RECOVERED;
 }
 
 /*
