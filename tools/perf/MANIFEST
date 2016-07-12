@@ -73,6 +73,7 @@ tools/include/linux/poison.h
 tools/include/linux/rbtree.h
 tools/include/linux/rbtree_augmented.h
 tools/include/linux/string.h
+tools/include/linux/stringify.h
 tools/include/linux/types.h
 tools/include/linux/err.h
 tools/include/linux/bitmap.h
@@ -83,7 +84,6 @@ include/asm-generic/bitops/__fls.h
 include/asm-generic/bitops/fls.h
 include/linux/list.h
 include/linux/hash.h
-include/linux/stringify.h
 include/linux/swab.h
 arch/*/include/asm/unistd*.h
 arch/*/include/uapi/asm/unistd*.h
