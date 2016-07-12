@@ -320,6 +320,18 @@ enum port intel_ddi_get_encoder_port(struct intel_encoder *encoder)
 }
 
 static const struct ddi_buf_trans *
+bdw_get_buf_trans_edp(struct drm_i915_private *dev_priv, int *n_entries)
+{
+	if (dev_priv->vbt.edp.low_vswing) {
+		*n_entries = ARRAY_SIZE(bdw_ddi_translations_edp);
+		return bdw_ddi_translations_edp;
+	} else {
+		*n_entries = ARRAY_SIZE(bdw_ddi_translations_dp);
+		return bdw_ddi_translations_dp;
+	}
+}
+
+static const struct ddi_buf_trans *
 skl_get_buf_trans_dp(struct drm_i915_private *dev_priv, int *n_entries)
 {
 	if (IS_SKL_ULX(dev_priv) || IS_KBL_ULX(dev_priv)) {
@@ -436,13 +448,7 @@ void intel_prepare_dp_ddi_buffers(struct intel_encoder *encoder)
 	} else if (IS_BROADWELL(dev_priv)) {
 		ddi_translations_fdi = bdw_ddi_translations_fdi;
 		ddi_translations_dp = bdw_ddi_translations_dp;
-		if (dev_priv->vbt.edp.low_vswing) {
-			ddi_translations_edp = bdw_ddi_translations_edp;
-			n_edp_entries = ARRAY_SIZE(bdw_ddi_translations_edp);
-		} else {
-			ddi_translations_edp = bdw_ddi_translations_dp;
-			n_edp_entries = ARRAY_SIZE(bdw_ddi_translations_dp);
-		}
+		ddi_translations_edp = bdw_get_buf_trans_edp(dev_priv, &n_edp_entries);
 		n_dp_entries = ARRAY_SIZE(bdw_ddi_translations_dp);
 	} else if (IS_HASWELL(dev_priv)) {
 		ddi_translations_fdi = hsw_ddi_translations_fdi;
