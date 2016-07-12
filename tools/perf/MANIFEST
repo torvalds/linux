@@ -15,8 +15,14 @@ tools/arch/x86/include/asm/barrier.h
 tools/arch/x86/include/asm/cpufeatures.h
 tools/arch/x86/include/asm/disabled-features.h
 tools/arch/x86/include/asm/required-features.h
+tools/arch/x86/include/uapi/asm/svm.h
+tools/arch/x86/include/uapi/asm/vmx.h
+tools/arch/x86/include/uapi/asm/kvm.h
+tools/arch/x86/include/uapi/asm/kvm_perf.h
 tools/arch/x86/lib/memcpy_64.S
 tools/arch/x86/lib/memset_64.S
+tools/arch/s390/include/uapi/asm/kvm_perf.h
+tools/arch/s390/include/uapi/asm/sie.h
 tools/arch/xtensa/include/asm/barrier.h
 tools/scripts
 tools/build
@@ -85,12 +91,3 @@ tools/arch/*/include/uapi/asm/perf_regs.h
 include/linux/poison.h
 include/uapi/linux/const.h
 include/uapi/linux/swab.h
-arch/x86/include/asm/svm.h
-arch/x86/include/asm/vmx.h
-arch/x86/include/asm/kvm_host.h
-arch/x86/include/uapi/asm/svm.h
-arch/x86/include/uapi/asm/vmx.h
-arch/x86/include/uapi/asm/kvm.h
-arch/x86/include/uapi/asm/kvm_perf.h
-arch/s390/include/uapi/asm/sie.h
-arch/s390/include/uapi/asm/kvm_perf.h
