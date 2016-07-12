@@ -3720,6 +3720,10 @@ static int emulate_store_desc_ptr(struct x86_emulate_ctxt *ctxt,
 {
 	struct desc_ptr desc_ptr;
 
+	if ((ctxt->ops->get_cr(ctxt, 4) & X86_CR4_UMIP) &&
+	    ctxt->ops->cpl(ctxt) > 0)
+		return emulate_gp(ctxt, 0);
+
 	if (ctxt->mode == X86EMUL_MODE_PROT64)
 		ctxt->op_bytes = 8;
 	get(ctxt, &desc_ptr);
@@ -3779,6 +3783,10 @@ static int em_lidt(struct x86_emulate_ctxt *ctxt)
 
 static int em_smsw(struct x86_emulate_ctxt *ctxt)
 {
+	if ((ctxt->ops->get_cr(ctxt, 4) & X86_CR4_UMIP) &&
+	    ctxt->ops->cpl(ctxt) > 0)
+		return emulate_gp(ctxt, 0);
+
 	if (ctxt->dst.type == OP_MEM)
 		ctxt->dst.bytes = 2;
 	ctxt->dst.val = ctxt->ops->get_cr(ctxt, 0);
