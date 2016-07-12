@@ -54,17 +54,6 @@ device can rely on working with the default settings initially.
     Set send/receive mode. Largely obsolete for send, as only
     ``LIRC_MODE_PULSE`` is supported.
 
-.. _LIRC_SET_REC_TIMEOUT:
-
-``LIRC_SET_REC_TIMEOUT``
-
-    Sets the integer value for IR inactivity timeout (cf.
-    ``LIRC_GET_MIN_TIMEOUT`` and ``LIRC_GET_MAX_TIMEOUT).`` A value of 0
-    (if supported by the hardware) disables all hardware timeouts and
-    data should be reported as soon as possible. If the exact value
-    cannot be set, then the next possible value _greater_ than the
-    given value should be set.
-
 .. _LIRC_SET_REC_TIMEOUT_REPORTS:
 
 ``LIRC_SET_REC_TIMEOUT_REPORTS``

@@ -18,6 +18,7 @@ LIRC Device Interface
     lirc-get-rec-resolution
     lirc-set-send-duty-cycle
     lirc-get-timeout
+    lirc-set-rec-timeout
     lirc-get-length
     lirc-set-rec-carrier
     lirc-set-rec-carrier-range
