@@ -1482,6 +1482,11 @@ struct kvm_irq_routing_msi {
 	__u32 pad;
 };
 
+On x86, address_hi is ignored unless the KVM_X2APIC_API_USE_32BIT_IDS
+feature of KVM_CAP_X2APIC_API capability is enabled.  If it is enabled,
+address_hi bits 31-8 provide bits 31-8 of the destination id.  Bits 7-0 of
+address_hi must be zero.
+
 struct kvm_irq_routing_s390_adapter {
 	__u64 ind_addr;
 	__u64 summary_addr;
@@ -1583,6 +1588,17 @@ struct kvm_lapic_state {
 Reads the Local APIC registers and copies them into the input argument.  The
 data format and layout are the same as documented in the architecture manual.
 
+If KVM_X2APIC_API_USE_32BIT_IDS feature of KVM_CAP_X2APIC_API is
+enabled, then the format of APIC_ID register depends on the APIC mode
+(reported by MSR_IA32_APICBASE) of its VCPU.  x2APIC stores APIC ID in
+the APIC_ID register (bytes 32-35).  xAPIC only allows an 8-bit APIC ID
+which is stored in bits 31-24 of the APIC register, or equivalently in
+byte 35 of struct kvm_lapic_state's regs field.  KVM_GET_LAPIC must then
+be called after MSR_IA32_APICBASE has been set with KVM_SET_MSR.
+
+If KVM_X2APIC_API_USE_32BIT_IDS feature is disabled, struct kvm_lapic_state
+always uses xAPIC format.
+
 
 4.58 KVM_SET_LAPIC
 
@@ -1599,6 +1615,10 @@ struct kvm_lapic_state {
 
 Copies the input argument into the Local APIC registers.  The data format
 and layout are the same as documented in the architecture manual.
+
+The format of the APIC ID register (bytes 32-35 of struct kvm_lapic_state's
+regs field) depends on the state of the KVM_CAP_X2APIC_API capability.
+See the note in KVM_GET_LAPIC.
 
 
 4.59 KVM_IOEVENTFD
@@ -2179,6 +2199,10 @@ struct kvm_msi {
 };
 
 No flags are defined so far. The corresponding field must be 0.
+
+On x86, address_hi is ignored unless the KVM_CAP_X2APIC_API capability is
+enabled.  If it is enabled, address_hi bits 31-8 provide bits 31-8 of the
+destination id.  Bits 7-0 of address_hi must be zero.
 
 
 4.71 KVM_CREATE_PIT2
@@ -3810,6 +3834,23 @@ Parameters: none
 Allows use of runtime-instrumentation introduced with zEC12 processor.
 Will return -EINVAL if the machine does not support runtime-instrumentation.
 Will return -EBUSY if a VCPU has already been created.
+
+7.7 KVM_CAP_X2APIC_API
+
+Architectures: x86
+Parameters: args[0] - features that should be enabled
+Returns: 0 on success, -EINVAL when args[0] contains invalid features
+
+Valid feature flags in args[0] are
+
+#define KVM_X2APIC_API_USE_32BIT_IDS            (1ULL << 0)
+
+Enabling KVM_X2APIC_API_USE_32BIT_IDS changes the behavior of
+KVM_SET_GSI_ROUTING, KVM_SIGNAL_MSI, KVM_SET_LAPIC, and KVM_GET_LAPIC,
+allowing the use of 32-bit APIC IDs.  See KVM_CAP_X2APIC_API in their
+respective sections.
+
+
 
 8. Other capabilities.
 ----------------------

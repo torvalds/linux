@@ -1991,10 +1991,15 @@ static int kvm_apic_state_fixup(struct kvm_vcpu *vcpu,
 	if (apic_x2apic_mode(vcpu->arch.apic)) {
 		u32 *id = (u32 *)(s->regs + APIC_ID);
 
-		if (set)
-			*id >>= 24;
-		else
-			*id <<= 24;
+		if (vcpu->kvm->arch.x2apic_format) {
+			if (*id != vcpu->vcpu_id)
+				return -EINVAL;
+		} else {
+			if (set)
+				*id >>= 24;
+			else
+				*id <<= 24;
+		}
 	}
 
 	return 0;

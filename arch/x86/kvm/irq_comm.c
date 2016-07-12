@@ -110,13 +110,17 @@ int kvm_irq_delivery_to_apic(struct kvm *kvm, struct kvm_lapic *src,
 	return r;
 }
 
-void kvm_set_msi_irq(struct kvm_kernel_irq_routing_entry *e,
+void kvm_set_msi_irq(struct kvm *kvm, struct kvm_kernel_irq_routing_entry *e,
 		     struct kvm_lapic_irq *irq)
 {
-	trace_kvm_msi_set_irq(e->msi.address_lo, e->msi.data);
+	trace_kvm_msi_set_irq(e->msi.address_lo | (kvm->arch.x2apic_format ?
+	                                     (u64)e->msi.address_hi << 32 : 0),
+	                      e->msi.data);
 
 	irq->dest_id = (e->msi.address_lo &
 			MSI_ADDR_DEST_ID_MASK) >> MSI_ADDR_DEST_ID_SHIFT;
+	if (kvm->arch.x2apic_format)
+		irq->dest_id |= MSI_ADDR_EXT_DEST_ID(e->msi.address_hi);
 	irq->vector = (e->msi.data &
 			MSI_DATA_VECTOR_MASK) >> MSI_DATA_VECTOR_SHIFT;
 	irq->dest_mode = (1 << MSI_ADDR_DEST_MODE_SHIFT) & e->msi.address_lo;
@@ -129,15 +133,24 @@ void kvm_set_msi_irq(struct kvm_kernel_irq_routing_entry *e,
 }
 EXPORT_SYMBOL_GPL(kvm_set_msi_irq);
 
+static inline bool kvm_msi_route_invalid(struct kvm *kvm,
+		struct kvm_kernel_irq_routing_entry *e)
+{
+	return kvm->arch.x2apic_format && (e->msi.address_hi & 0xff);
+}
+
 int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
 		struct kvm *kvm, int irq_source_id, int level, bool line_status)
 {
 	struct kvm_lapic_irq irq;
 
+	if (kvm_msi_route_invalid(kvm, e))
+		return -EINVAL;
+
 	if (!level)
 		return -1;
 
-	kvm_set_msi_irq(e, &irq);
+	kvm_set_msi_irq(kvm, e, &irq);
 
 	return kvm_irq_delivery_to_apic(kvm, NULL, &irq, NULL);
 }
@@ -153,7 +166,10 @@ int kvm_arch_set_irq_inatomic(struct kvm_kernel_irq_routing_entry *e,
 	if (unlikely(e->type != KVM_IRQ_ROUTING_MSI))
 		return -EWOULDBLOCK;
 
-	kvm_set_msi_irq(e, &irq);
+	if (kvm_msi_route_invalid(kvm, e))
+		return -EINVAL;
+
+	kvm_set_msi_irq(kvm, e, &irq);
 
 	if (kvm_irq_delivery_to_apic_fast(kvm, NULL, &irq, &r, NULL))
 		return r;
@@ -286,6 +302,9 @@ int kvm_set_routing_entry(struct kvm *kvm,
 		e->msi.address_lo = ue->u.msi.address_lo;
 		e->msi.address_hi = ue->u.msi.address_hi;
 		e->msi.data = ue->u.msi.data;
+
+		if (kvm_msi_route_invalid(kvm, e))
+			goto out;
 		break;
 	case KVM_IRQ_ROUTING_HV_SINT:
 		e->set = kvm_hv_set_sint;
@@ -394,7 +413,7 @@ void kvm_scan_ioapic_routes(struct kvm_vcpu *vcpu,
 			if (entry->type != KVM_IRQ_ROUTING_MSI)
 				continue;
 
-			kvm_set_msi_irq(entry, &irq);
+			kvm_set_msi_irq(vcpu->kvm, entry, &irq);
 
 			if (irq.level && kvm_apic_match_dest(vcpu, NULL, 0,
 						irq.dest_id, irq.dest_mode))

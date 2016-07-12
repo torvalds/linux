@@ -782,6 +782,8 @@ struct kvm_arch {
 	u32 ldr_mode;
 	struct page *avic_logical_id_table_page;
 	struct page *avic_physical_id_table_page;
+
+	bool x2apic_format;
 };
 
 struct kvm_vm_stat {
@@ -1364,7 +1366,7 @@ bool kvm_vcpu_is_bsp(struct kvm_vcpu *vcpu);
 bool kvm_intr_is_single_vcpu(struct kvm *kvm, struct kvm_lapic_irq *irq,
 			     struct kvm_vcpu **dest_vcpu);
 
-void kvm_set_msi_irq(struct kvm_kernel_irq_routing_entry *e,
+void kvm_set_msi_irq(struct kvm *kvm, struct kvm_kernel_irq_routing_entry *e,
 		     struct kvm_lapic_irq *irq);
 
 static inline void kvm_arch_vcpu_blocking(struct kvm_vcpu *vcpu)

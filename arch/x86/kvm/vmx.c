@@ -11104,7 +11104,7 @@ static int vmx_update_pi_irte(struct kvm *kvm, unsigned int host_irq,
 		 * We will support full lowest-priority interrupt later.
 		 */
 
-		kvm_set_msi_irq(e, &irq);
+		kvm_set_msi_irq(kvm, e, &irq);
 		if (!kvm_intr_is_single_vcpu(kvm, &irq, &vcpu)) {
 			/*
 			 * Make sure the IRTE is in remapped mode if

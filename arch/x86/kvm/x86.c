@@ -90,6 +90,8 @@ static u64 __read_mostly efer_reserved_bits = ~((u64)EFER_SCE);
 #define VM_STAT(x) offsetof(struct kvm, stat.x), KVM_STAT_VM
 #define VCPU_STAT(x) offsetof(struct kvm_vcpu, stat.x), KVM_STAT_VCPU
 
+#define KVM_X2APIC_API_VALID_FLAGS (KVM_X2APIC_API_USE_32BIT_IDS)
+
 static void update_cr8_intercept(struct kvm_vcpu *vcpu);
 static void process_nmi(struct kvm_vcpu *vcpu);
 static void enter_smm(struct kvm_vcpu *vcpu);
@@ -2625,6 +2627,9 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_TSC_CONTROL:
 		r = kvm_has_tsc_control;
 		break;
+	case KVM_CAP_X2APIC_API:
+		r = KVM_X2APIC_API_VALID_FLAGS;
+		break;
 	default:
 		r = 0;
 		break;
@@ -3799,6 +3804,16 @@ split_irqchip_unlock:
 		mutex_unlock(&kvm->lock);
 		break;
 	}
+	case KVM_CAP_X2APIC_API:
+		r = -EINVAL;
+		if (cap->args[0] & ~KVM_X2APIC_API_VALID_FLAGS)
+			break;
+
+		if (cap->args[0] & KVM_X2APIC_API_USE_32BIT_IDS)
+			kvm->arch.x2apic_format = true;
+
+		r = 0;
+		break;
 	default:
 		r = -EINVAL;
 		break;
