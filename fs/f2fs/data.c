@@ -1085,8 +1085,10 @@ submit_and_realloc:
 		}
 		if (bio == NULL) {
 			bio = f2fs_grab_bio(inode, block_nr, nr_pages);
-			if (IS_ERR(bio))
+			if (IS_ERR(bio)) {
+				bio = NULL;
 				goto set_error_page;
+			}
 		}
 
 		if (bio_add_page(bio, page, blocksize, 0) < blocksize)
