@@ -33,9 +33,6 @@ static inline void memcpy_dir(void *buf, void *sgdata, size_t nbytes, int out)
 void scatterwalk_start(struct scatter_walk *walk, struct scatterlist *sg)
 {
 	walk->sg = sg;
-
-	BUG_ON(!sg->length);
-
 	walk->offset = sg->offset;
 }
 EXPORT_SYMBOL_GPL(scatterwalk_start);
