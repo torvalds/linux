@@ -181,6 +181,11 @@ KBUILD_CFLAGS	+= -pipe -Iarch/$(ARCH) $(CFLAGS-y)
 CPP		= $(CC) -E $(KBUILD_CFLAGS)
 
 CHECKFLAGS	+= -m$(CONFIG_WORD_SIZE) -D__powerpc__ -D__powerpc$(CONFIG_WORD_SIZE)__
+ifdef CONFIG_CPU_BIG_ENDIAN
+CHECKFLAGS	+= -D__BIG_ENDIAN__
+else
+CHECKFLAGS	+= -D__LITTLE_ENDIAN__
+endif
 
 KBUILD_LDFLAGS_MODULE += arch/powerpc/lib/crtsavres.o
 
