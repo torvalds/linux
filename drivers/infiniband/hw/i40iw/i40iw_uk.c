@@ -761,7 +761,6 @@ static enum i40iw_status_code i40iw_cq_poll_completion(struct i40iw_cq_uk *cq,
 	struct i40iw_ring *pring = NULL;
 	u32 wqe_idx, q_type, array_idx = 0;
 	enum i40iw_status_code ret_code = 0;
-	enum i40iw_status_code ret_code2 = 0;
 	bool move_cq_head = true;
 	u8 polarity;
 	u8 addl_wqes = 0;
@@ -869,10 +868,7 @@ exit:
 			move_cq_head = false;
 
 	if (move_cq_head) {
-		I40IW_RING_MOVE_HEAD(cq->cq_ring, ret_code2);
-
-		if (ret_code2 && !ret_code)
-			ret_code = ret_code2;
+		I40IW_RING_MOVE_HEAD_NOCHECK(cq->cq_ring);
 
 		if (I40IW_RING_GETCURRENT_HEAD(cq->cq_ring) == 0)
 			cq->polarity ^= 1;
