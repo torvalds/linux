@@ -62,12 +62,8 @@ static void scatterwalk_pagedone(struct scatter_walk *walk, int out,
 			flush_dcache_page(page);
 	}
 
-	if (more) {
-		walk->offset += PAGE_SIZE - 1;
-		walk->offset &= PAGE_MASK;
-		if (walk->offset >= walk->sg->offset + walk->sg->length)
-			scatterwalk_start(walk, sg_next(walk->sg));
-	}
+	if (more && walk->offset >= walk->sg->offset + walk->sg->length)
+		scatterwalk_start(walk, sg_next(walk->sg));
 }
 
 void scatterwalk_done(struct scatter_walk *walk, int out, int more)
