@@ -774,7 +774,7 @@ int tonga_process_firmware_header(struct pp_hwmgr *hwmgr)
 
 	uint32_t tmp;
 	int result;
-	bool error = 0;
+	bool error = false;
 
 	result = tonga_read_smc_sram_dword(hwmgr->smumgr,
 				SMU72_FIRMWARE_HEADER_LOCATION +
@@ -933,11 +933,11 @@ int tonga_init_power_gate_state(struct pp_hwmgr *hwmgr)
 {
 	tonga_hwmgr *data = (tonga_hwmgr *)(hwmgr->backend);
 
-	data->uvd_power_gated = 0;
-	data->vce_power_gated = 0;
-	data->samu_power_gated = 0;
-	data->acp_power_gated = 0;
-	data->pg_acp_init = 1;
+	data->uvd_power_gated = false;
+	data->vce_power_gated = false;
+	data->samu_power_gated = false;
+	data->acp_power_gated = false;
+	data->pg_acp_init = true;
 
 	return 0;
 }
@@ -991,7 +991,7 @@ static int tonga_trim_voltage_table(struct pp_hwmgr *hwmgr,
 {
 	uint32_t table_size, i, j;
 	uint16_t vvalue;
-	bool bVoltageFound = 0;
+	bool bVoltageFound = false;
 	pp_atomctrl_voltage_table *table;
 
 	PP_ASSERT_WITH_CODE((NULL != voltage_table), "Voltage Table empty.", return -1;);
@@ -1007,11 +1007,11 @@ static int tonga_trim_voltage_table(struct pp_hwmgr *hwmgr,
 
 	for (i = 0; i < voltage_table->count; i++) {
 		vvalue = voltage_table->entries[i].value;
-		bVoltageFound = 0;
+		bVoltageFound = false;
 
 		for (j = 0; j < table->count; j++) {
 			if (vvalue == table->entries[j].value) {
-				bVoltageFound = 1;
+				bVoltageFound = true;
 				break;
 			}
 		}
@@ -2705,7 +2705,7 @@ static int tonga_reset_single_dpm_table(
 
 	dpm_table->count = count;
 	for (i = 0; i < MAX_REGULAR_DPM_NUMBER; i++) {
-		dpm_table->dpm_levels[i].enabled = 0;
+		dpm_table->dpm_levels[i].enabled = false;
 	}
 
 	return 0;
@@ -2718,7 +2718,7 @@ static void tonga_setup_pcie_table_entry(
 {
 	dpm_table->dpm_levels[index].value = pcie_gen;
 	dpm_table->dpm_levels[index].param1 = pcie_lanes;
-	dpm_table->dpm_levels[index].enabled = 1;
+	dpm_table->dpm_levels[index].enabled = true;
 }
 
 static int tonga_setup_default_pcie_tables(struct pp_hwmgr *hwmgr)
@@ -2828,7 +2828,7 @@ static int tonga_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 				allowed_vdd_sclk_table->entries[i].clk) {
 			data->dpm_table.sclk_table.dpm_levels[data->dpm_table.sclk_table.count].value =
 				allowed_vdd_sclk_table->entries[i].clk;
-			data->dpm_table.sclk_table.dpm_levels[data->dpm_table.sclk_table.count].enabled = 1; /*(i==0) ? 1 : 0; to do */
+			data->dpm_table.sclk_table.dpm_levels[data->dpm_table.sclk_table.count].enabled = true; /*(i==0) ? 1 : 0; to do */
 			data->dpm_table.sclk_table.count++;
 		}
 	}
@@ -2842,7 +2842,7 @@ static int tonga_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 			allowed_vdd_mclk_table->entries[i].clk) {
 			data->dpm_table.mclk_table.dpm_levels[data->dpm_table.mclk_table.count].value =
 				allowed_vdd_mclk_table->entries[i].clk;
-			data->dpm_table.mclk_table.dpm_levels[data->dpm_table.mclk_table.count].enabled = 1; /*(i==0) ? 1 : 0; */
+			data->dpm_table.mclk_table.dpm_levels[data->dpm_table.mclk_table.count].enabled = true; /*(i==0) ? 1 : 0; */
 			data->dpm_table.mclk_table.count++;
 		}
 	}
@@ -3741,7 +3741,7 @@ uint8_t tonga_get_memory_modile_index(struct pp_hwmgr *hwmgr)
 
 bool tonga_check_s0_mc_reg_index(uint16_t inReg, uint16_t *outReg)
 {
-	bool result = 1;
+	bool result = true;
 
 	switch (inReg) {
 	case  mmMC_SEQ_RAS_TIMING:
@@ -3825,7 +3825,7 @@ bool tonga_check_s0_mc_reg_index(uint16_t inReg, uint16_t *outReg)
 		break;
 
 	default:
-		result = 0;
+		result = false;
 		break;
 	}
 
@@ -4449,7 +4449,7 @@ int tonga_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 
 	hwmgr->backend = data;
 
-	data->dll_defaule_on = 0;
+	data->dll_defaule_on = false;
 	data->sram_end = SMC_RAM_END;
 
 	data->activity_target[0] = PPTONGA_TARGETACTIVITY_DFLT;
@@ -4555,13 +4555,13 @@ int tonga_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 
 	/* ULV Support*/
 	ulv = &(data->ulv);
-	ulv->ulv_supported = 0;
+	ulv->ulv_supported = false;
 
 	/* Initalize Dynamic State Adjustment Rule Settings*/
 	result = tonga_initializa_dynamic_state_adjustment_rule_settings(hwmgr);
 	if (result)
 		printk(KERN_ERR "[ powerplay ] tonga_initializa_dynamic_state_adjustment_rule_settings failed!\n");
-	data->uvd_enabled = 0;
+	data->uvd_enabled = false;
 
 	table = &(data->smc_state_table);
 
@@ -4608,7 +4608,7 @@ int tonga_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 		PHM_PlatformCaps_SMU7);
 
-	data->vddc_phase_shed_control = 0;
+	data->vddc_phase_shed_control = false;
 
 	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 		      PHM_PlatformCaps_UVDPowerGating);
@@ -4627,7 +4627,7 @@ int tonga_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	}
 
 	if (0 == result) {
-		data->is_tlu_enabled = 0;
+		data->is_tlu_enabled = false;
 		hwmgr->platform_descriptor.hardwareActivityPerformanceLevels =
 			TONGA_MAX_HARDWARE_POWERLEVELS;
 		hwmgr->platform_descriptor.hardwarePerformanceLevels = 2;

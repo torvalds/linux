@@ -3261,7 +3261,7 @@ int polaris10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	if (0 == result) {
 		struct cgs_system_info sys_info = {0};
 
-		data->is_tlu_enabled = 0;
+		data->is_tlu_enabled = false;
 
 		hwmgr->platform_descriptor.hardwareActivityPerformanceLevels =
 							POLARIS10_MAX_HARDWARE_POWERLEVELS;

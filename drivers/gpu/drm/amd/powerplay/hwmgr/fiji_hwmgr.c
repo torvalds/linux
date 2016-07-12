@@ -698,7 +698,7 @@ static int fiji_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	if (0 == result) {
 		struct cgs_system_info sys_info = {0};
 
-		data->is_tlu_enabled = 0;
+		data->is_tlu_enabled = false;
 		hwmgr->platform_descriptor.hardwareActivityPerformanceLevels =
 				FIJI_MAX_HARDWARE_POWERLEVELS;
 		hwmgr->platform_descriptor.hardwarePerformanceLevels = 2;
@@ -1450,7 +1450,7 @@ static void fiji_setup_pcie_table_entry(
 {
 	dpm_table->dpm_levels[index].value = pcie_gen;
 	dpm_table->dpm_levels[index].param1 = pcie_lanes;
-	dpm_table->dpm_levels[index].enabled = 1;
+	dpm_table->dpm_levels[index].enabled = true;
 }
 
 static int fiji_setup_default_pcie_table(struct pp_hwmgr *hwmgr)
