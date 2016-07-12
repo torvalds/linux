@@ -3034,7 +3034,7 @@ static int ci_populate_single_memory_level(struct amdgpu_device *adev,
 
 	if (pi->mclk_stutter_mode_threshold &&
 	    (memory_clock <= pi->mclk_stutter_mode_threshold) &&
-	    (pi->uvd_enabled == false) &&
+	    (!pi->uvd_enabled) &&
 	    (RREG32(mmDPG_PIPE_STUTTER_CONTROL) & DPG_PIPE_STUTTER_CONTROL__STUTTER_ENABLE_MASK) &&
 	    (adev->pm.dpm.new_active_crtc_count <= 2))
 		memory_level->StutterEnable = true;

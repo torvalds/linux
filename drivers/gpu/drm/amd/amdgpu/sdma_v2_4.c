@@ -393,7 +393,7 @@ static void sdma_v2_4_enable(struct amdgpu_device *adev, bool enable)
 	u32 f32_cntl;
 	int i;
 
-	if (enable == false) {
+	if (!enable) {
 		sdma_v2_4_gfx_stop(adev);
 		sdma_v2_4_rlc_stop(adev);
 	}

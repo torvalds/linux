@@ -354,7 +354,7 @@ static void cik_sdma_enable(struct amdgpu_device *adev, bool enable)
 	u32 me_cntl;
 	int i;
 
-	if (enable == false) {
+	if (!enable) {
 		cik_sdma_gfx_stop(adev);
 		cik_sdma_rlc_stop(adev);
 	}
