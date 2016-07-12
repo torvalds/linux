@@ -122,7 +122,7 @@ static void amdgpu_flip_work_func(struct work_struct *__work)
 		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 		usleep_range(min_udelay, 2 * min_udelay);
 		spin_lock_irqsave(&crtc->dev->event_lock, flags);
-	};
+	}
 
 	if (!repcnt)
 		DRM_DEBUG_DRIVER("Delay problem on crtc %d: min_udelay %d, "

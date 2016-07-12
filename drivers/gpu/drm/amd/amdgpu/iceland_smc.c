@@ -211,7 +211,7 @@ static int iceland_send_msg_to_smc_without_waiting(struct amdgpu_device *adev,
 						   PPSMC_Msg msg)
 {
 	if (!iceland_is_smc_ram_running(adev))
-		return -EINVAL;;
+		return -EINVAL;
 
 	if (wait_smu_response(adev)) {
 		DRM_ERROR("Failed to send previous message\n");
