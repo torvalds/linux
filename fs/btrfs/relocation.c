@@ -1171,8 +1171,12 @@ out:
 			lower = list_entry(useless.next,
 					   struct backref_node, list);
 			list_del_init(&lower->list);
+			if (lower == node)
+				node = NULL;
 			free_backref_node(cache, lower);
 		}
+
+		free_backref_node(cache, node);
 		return ERR_PTR(err);
 	}
 	ASSERT(!node || !node->detached);
