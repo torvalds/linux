@@ -187,9 +187,9 @@ static int tc_dwc_g210_setup_20bit_rmmi_lane1(struct ufs_hba *hba)
 	};
 
 	/* Get the available lane count */
-	ufshcd_dme_get(hba, UIC_ARG_MIB(PA_CONNECTEDRXDATALANES),
+	ufshcd_dme_get(hba, UIC_ARG_MIB(PA_AVAILRXDATALANES),
 			&connected_rx_lanes);
-	ufshcd_dme_get(hba, UIC_ARG_MIB(PA_CONNECTEDTXDATALANES),
+	ufshcd_dme_get(hba, UIC_ARG_MIB(PA_AVAILTXDATALANES),
 			&connected_tx_lanes);
 
 	if (connected_tx_lanes == 2) {
