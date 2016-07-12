@@ -257,8 +257,8 @@ replace define V4L2_STD_ALL v4l2-std-id
 
 # V4L2 DT BT timings definitions
 
-replace define V4L2_DV_PROGRESSIVE v4l2-dv-fixme
-replace define V4L2_DV_INTERLACED v4l2-dv-fixme
+replace define V4L2_DV_PROGRESSIVE v4l2-bt-timings
+replace define V4L2_DV_INTERLACED v4l2-bt-timings
 
 replace define V4L2_DV_VSYNC_POS_POL v4l2-bt-timings
 replace define V4L2_DV_HSYNC_POS_POL v4l2-bt-timings

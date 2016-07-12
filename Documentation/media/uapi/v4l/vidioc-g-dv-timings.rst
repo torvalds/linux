@@ -100,7 +100,7 @@ EBUSY
 
        -  ``interlaced``
 
-       -  Progressive (0) or interlaced (1)
+       -  Progressive (``V4L2_DV_PROGRESSIVE``) or interlaced (``V4L2_DV_INTERLACED``).
 
     -  .. row 4
 
