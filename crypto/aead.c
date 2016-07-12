@@ -346,8 +346,12 @@ static int aead_prepare_alg(struct aead_alg *alg)
 {
 	struct crypto_alg *base = &alg->base;
 
-	if (max(alg->maxauthsize, alg->ivsize) > PAGE_SIZE / 8)
+	if (max3(alg->maxauthsize, alg->ivsize, alg->chunksize) >
+	    PAGE_SIZE / 8)
 		return -EINVAL;
+
+	if (!alg->chunksize)
+		alg->chunksize = base->cra_blocksize;
 
 	base->cra_type = &crypto_aead_type;
 	base->cra_flags &= ~CRYPTO_ALG_TYPE_MASK;

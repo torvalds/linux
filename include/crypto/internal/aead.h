@@ -159,6 +159,27 @@ static inline struct aead_request *aead_get_backlog(struct aead_queue *queue)
 	return req ? container_of(req, struct aead_request, base) : NULL;
 }
 
+static inline unsigned int crypto_aead_alg_chunksize(struct aead_alg *alg)
+{
+	return alg->chunksize;
+}
+
+/**
+ * crypto_aead_chunksize() - obtain chunk size
+ * @tfm: cipher handle
+ *
+ * The block size is set to one for ciphers such as CCM.  However,
+ * you still need to provide incremental updates in multiples of
+ * the underlying block size as the IV does not have sub-block
+ * granularity.  This is known in this API as the chunk size.
+ *
+ * Return: chunk size in bytes
+ */
+static inline unsigned int crypto_aead_chunksize(struct crypto_aead *tfm)
+{
+	return crypto_aead_alg_chunksize(crypto_aead_alg(tfm));
+}
+
 int crypto_register_aead(struct aead_alg *alg);
 void crypto_unregister_aead(struct aead_alg *alg);
 int crypto_register_aeads(struct aead_alg *algs, int count);
