@@ -165,12 +165,16 @@ static int seqiv_aead_encrypt(struct aead_request *req)
 	info = req->iv;
 
 	if (req->src != req->dst) {
-		struct blkcipher_desc desc = {
-			.tfm = ctx->null,
-		};
+		SKCIPHER_REQUEST_ON_STACK(nreq, ctx->sknull);
 
-		err = crypto_blkcipher_encrypt(&desc, req->dst, req->src,
-					       req->assoclen + req->cryptlen);
+		skcipher_request_set_tfm(nreq, ctx->sknull);
+		skcipher_request_set_callback(nreq, req->base.flags,
+					      NULL, NULL);
+		skcipher_request_set_crypt(nreq, req->src, req->dst,
+					   req->assoclen + req->cryptlen,
+					   NULL);
+
+		err = crypto_skcipher_encrypt(nreq);
 		if (err)
 			return err;
 	}
