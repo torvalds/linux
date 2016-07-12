@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _lirc_read:
+.. _lirc-read:
 
 ***********
 LIRC read()

@@ -38,7 +38,7 @@ Get supported transmit mode.
 
 Currently, only ``LIRC_MODE_PULSE`` is supported by lircd on TX. On
 puse mode, a sequence of pulse/space integer values are written to the
-lirc device using ``write()``.
+lirc device using :Ref:`lirc-write`.
 
 Return Value
 ============

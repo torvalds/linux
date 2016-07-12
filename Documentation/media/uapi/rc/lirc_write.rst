@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _lirc_write:
+.. _lirc-write:
 
 ************
 LIRC write()
@@ -36,7 +36,7 @@ Arguments
 Description
 ===========
 
-:ref:`write() <func-write>` writes up to ``count`` bytes to the device
+:ref:`write() <lirc-write>` writes up to ``count`` bytes to the device
 referenced by the file descriptor ``fd`` from the buffer starting at
 ``buf``.
 

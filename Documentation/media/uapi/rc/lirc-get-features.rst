@@ -44,8 +44,7 @@ LIRC features
 
 ``LIRC_CAN_REC_RAW``
 
-    The driver is capable of receiving using
-    :ref:`LIRC_MODE_RAW <lirc-mode-raw>`.
+    Unused. Kept just to avoid breaking uAPI.
 
 .. _LIRC-CAN-REC-PULSE:
 
@@ -153,7 +152,7 @@ LIRC features
 
 ``LIRC_CAN_SEND_RAW``
 
-    The driver supports sending using :ref:`LIRC_MODE_RAW <lirc-mode-raw>`.
+    Unused. Kept just to avoid breaking uAPI.
 
 .. _LIRC-CAN-SEND-PULSE:
 
