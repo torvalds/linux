@@ -713,11 +713,9 @@ static void msix_program_entries(struct pci_dev *dev,
 	int i = 0;
 
 	for_each_pci_msi_entry(entry, dev) {
-		int offset = entries[i].entry * PCI_MSIX_ENTRY_SIZE +
-						PCI_MSIX_ENTRY_VECTOR_CTRL;
-
 		entries[i].vector = entry->irq;
-		entry->masked = readl(entry->mask_base + offset);
+		entry->masked = readl(pci_msix_desc_addr(entry) +
+				PCI_MSIX_ENTRY_VECTOR_CTRL);
 		msix_mask_irq(entry, 1);
 		i++;
 	}
