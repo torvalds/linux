@@ -39,6 +39,7 @@ extern int cz_hwmgr_init(struct pp_hwmgr *hwmgr);
 extern int tonga_hwmgr_init(struct pp_hwmgr *hwmgr);
 extern int fiji_hwmgr_init(struct pp_hwmgr *hwmgr);
 extern int polaris10_hwmgr_init(struct pp_hwmgr *hwmgr);
+extern int iceland_hwmgr_init(struct pp_hwmgr *hwmgr);
 
 int hwmgr_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 {
@@ -67,6 +68,9 @@ int hwmgr_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 		break;
 	case AMDGPU_FAMILY_VI:
 		switch (hwmgr->chip_id) {
+		case CHIP_TOPAZ:
+			iceland_hwmgr_init(hwmgr);
+			break;
 		case CHIP_TONGA:
 			tonga_hwmgr_init(hwmgr);
 			break;
