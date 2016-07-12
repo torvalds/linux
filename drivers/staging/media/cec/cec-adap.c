@@ -284,7 +284,7 @@ static void cec_data_cancel(struct cec_data *data)
 		list_del_init(&data->list);
 
 	/* Mark it as an error */
-	data->msg.ts = ktime_get_ns();
+	data->msg.tx_ts = ktime_get_ns();
 	data->msg.tx_status = CEC_TX_STATUS_ERROR |
 			      CEC_TX_STATUS_MAX_RETRIES;
 	data->attempts = 0;
@@ -459,6 +459,7 @@ void cec_transmit_done(struct cec_adapter *adap, u8 status, u8 arb_lost_cnt,
 {
 	struct cec_data *data;
 	struct cec_msg *msg;
+	u64 ts = ktime_get_ns();
 
 	dprintk(2, "cec_transmit_done %02x\n", status);
 	mutex_lock(&adap->lock);
@@ -477,7 +478,7 @@ void cec_transmit_done(struct cec_adapter *adap, u8 status, u8 arb_lost_cnt,
 
 	/* Drivers must fill in the status! */
 	WARN_ON(status == 0);
-	msg->ts = ktime_get_ns();
+	msg->tx_ts = ts;
 	msg->tx_status |= status;
 	msg->tx_arb_lost_cnt += arb_lost_cnt;
 	msg->tx_nack_cnt += nack_cnt;
@@ -561,7 +562,7 @@ static void cec_wait_timeout(struct work_struct *work)
 
 	/* Mark the message as timed out */
 	list_del_init(&data->list);
-	data->msg.ts = ktime_get_ns();
+	data->msg.rx_ts = ktime_get_ns();
 	data->msg.rx_status = CEC_RX_STATUS_TIMEOUT;
 	cec_data_completed(data);
 unlock:
@@ -766,13 +767,14 @@ void cec_received_msg(struct cec_adapter *adap, struct cec_msg *msg)
 	if (WARN_ON(!msg->len || msg->len > CEC_MAX_MSG_SIZE))
 		return;
 
-	mutex_lock(&adap->lock);
-	msg->ts = ktime_get_ns();
+	msg->rx_ts = ktime_get_ns();
 	msg->rx_status = CEC_RX_STATUS_OK;
-	msg->tx_status = 0;
 	msg->sequence = msg->reply = msg->timeout = 0;
+	msg->tx_status = 0;
+	msg->tx_ts = 0;
 	msg->flags = 0;
 
+	mutex_lock(&adap->lock);
 	dprintk(2, "cec_received_msg: %*ph\n", msg->len, msg->msg);
 
 	/* Check if this message was for us (directed or broadcast). */
@@ -794,7 +796,6 @@ void cec_received_msg(struct cec_adapter *adap, struct cec_msg *msg)
 		 */
 		list_for_each_entry(data, &adap->wait_queue, list) {
 			struct cec_msg *dst = &data->msg;
-			u8 dst_reply;
 
 			/* Does the command match? */
 			if ((abort && cmd != dst->msg[1]) ||
@@ -807,11 +808,10 @@ void cec_received_msg(struct cec_adapter *adap, struct cec_msg *msg)
 				continue;
 
 			/* We got a reply */
-			msg->sequence = dst->sequence;
-			msg->tx_status = dst->tx_status;
-			dst_reply = dst->reply;
-			*dst = *msg;
-			dst->reply = dst_reply;
+			memcpy(dst->msg, msg->msg, msg->len);
+			dst->len = msg->len;
+			dst->rx_ts = msg->rx_ts;
+			dst->rx_status = msg->rx_status;
 			if (abort) {
 				dst->reply = 0;
 				dst->rx_status |= CEC_RX_STATUS_FEATURE_ABORT;
