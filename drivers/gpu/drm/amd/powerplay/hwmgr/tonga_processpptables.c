@@ -167,8 +167,7 @@ static int get_vddc_lookup_table(
 	table_size = sizeof(uint32_t) +
 		sizeof(phm_ppt_v1_voltage_lookup_record) * max_levels;
 
-	table = (phm_ppt_v1_voltage_lookup_table *)
-		kzalloc(table_size, GFP_KERNEL);
+	table = kzalloc(table_size, GFP_KERNEL);
 
 	if (NULL == table)
 		return -ENOMEM;
@@ -327,7 +326,7 @@ static int get_valid_clk(
 	table_size = sizeof(uint32_t) +
 		sizeof(uint32_t) * clk_volt_pp_table->count;
 
-	table = (struct phm_clock_array *)kzalloc(table_size, GFP_KERNEL);
+	table = kzalloc(table_size, GFP_KERNEL);
 
 	if (NULL == table)
 		return -ENOMEM;
@@ -377,8 +376,7 @@ static int get_mclk_voltage_dependency_table(
 	table_size = sizeof(uint32_t) + sizeof(phm_ppt_v1_clock_voltage_dependency_record)
 		* mclk_dep_table->ucNumEntries;
 
-	mclk_table = (phm_ppt_v1_clock_voltage_dependency_table *)
-		kzalloc(table_size, GFP_KERNEL);
+	mclk_table = kzalloc(table_size, GFP_KERNEL);
 
 	if (NULL == mclk_table)
 		return -ENOMEM;
@@ -424,8 +422,7 @@ static int get_sclk_voltage_dependency_table(
 		table_size = sizeof(uint32_t) + sizeof(phm_ppt_v1_clock_voltage_dependency_record)
 			* tonga_table->ucNumEntries;
 
-		sclk_table = (phm_ppt_v1_clock_voltage_dependency_table *)
-			kzalloc(table_size, GFP_KERNEL);
+		sclk_table = kzalloc(table_size, GFP_KERNEL);
 
 		if (NULL == sclk_table)
 			return -ENOMEM;
@@ -456,8 +453,7 @@ static int get_sclk_voltage_dependency_table(
 		table_size = sizeof(uint32_t) + sizeof(phm_ppt_v1_clock_voltage_dependency_record)
 			* polaris_table->ucNumEntries;
 
-		sclk_table = (phm_ppt_v1_clock_voltage_dependency_table *)
-			kzalloc(table_size, GFP_KERNEL);
+		sclk_table = kzalloc(table_size, GFP_KERNEL);
 
 		if (NULL == sclk_table)
 			return -ENOMEM;
@@ -504,7 +500,7 @@ static int get_pcie_table(
 		table_size = sizeof(uint32_t) +
 			sizeof(phm_ppt_v1_pcie_record) * atom_pcie_table->ucNumEntries;
 
-		pcie_table = (phm_ppt_v1_pcie_table *)kzalloc(table_size, GFP_KERNEL);
+		pcie_table = kzalloc(table_size, GFP_KERNEL);
 
 		if (pcie_table == NULL)
 			return -ENOMEM;
@@ -541,7 +537,7 @@ static int get_pcie_table(
 		table_size = sizeof(uint32_t) +
 			sizeof(phm_ppt_v1_pcie_record) * atom_pcie_table->ucNumEntries;
 
-		pcie_table = (phm_ppt_v1_pcie_table *)kzalloc(table_size, GFP_KERNEL);
+		pcie_table = kzalloc(table_size, GFP_KERNEL);
 
 		if (pcie_table == NULL)
 			return -ENOMEM;
@@ -695,8 +691,7 @@ static int get_mm_clock_voltage_table(
 	table_size = sizeof(uint32_t) +
 		sizeof(phm_ppt_v1_mm_clock_voltage_dependency_record)
 		* mm_dependency_table->ucNumEntries;
-	mm_table = (phm_ppt_v1_mm_clock_voltage_dependency_table *)
-		kzalloc(table_size, GFP_KERNEL);
+	mm_table = kzalloc(table_size, GFP_KERNEL);
 
 	if (NULL == mm_table)
 		return -ENOMEM;

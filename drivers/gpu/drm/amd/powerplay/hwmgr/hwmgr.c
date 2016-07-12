@@ -534,7 +534,7 @@ int phm_initializa_dynamic_state_adjustment_rule_settings(struct pp_hwmgr *hwmgr
 
 	/* initialize vddc_dep_on_dal_pwrl table */
 	table_size = sizeof(uint32_t) + 4 * sizeof(struct phm_clock_voltage_dependency_record);
-	table_clk_vlt = (struct phm_clock_voltage_dependency_table *)kzalloc(table_size, GFP_KERNEL);
+	table_clk_vlt = kzalloc(table_size, GFP_KERNEL);
 
 	if (NULL == table_clk_vlt) {
 		printk(KERN_ERR "[ powerplay ] Can not allocate space for vddc_dep_on_dal_pwrl! \n");
