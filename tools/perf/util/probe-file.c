@@ -808,7 +808,7 @@ int probe_cache__show_all_caches(struct strfilter *filter)
 	pr_debug("list cache with filter: %s\n", buf);
 	free(buf);
 
-	bidlist = build_id_cache__list_all();
+	bidlist = build_id_cache__list_all(true);
 	if (!bidlist) {
 		pr_debug("Failed to get buildids: %d\n", errno);
 		return -EINVAL;

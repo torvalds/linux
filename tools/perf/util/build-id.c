@@ -206,6 +206,31 @@ out:
 	return ret;
 }
 
+/* Check if the given build_id cache is valid on current running system */
+static bool build_id_cache__valid_id(char *sbuild_id)
+{
+	char real_sbuild_id[SBUILD_ID_SIZE] = "";
+	char *pathname;
+	int ret = 0;
+	bool result = false;
+
+	pathname = build_id_cache__origname(sbuild_id);
+	if (!pathname)
+		return false;
+
+	if (!strcmp(pathname, DSO__NAME_KALLSYMS))
+		ret = sysfs__sprintf_build_id("/", real_sbuild_id);
+	else if (pathname[0] == '/')
+		ret = filename__sprintf_build_id(pathname, real_sbuild_id);
+	else
+		ret = -EINVAL;	/* Should we support other special DSO cache? */
+	if (ret >= 0)
+		result = (strcmp(sbuild_id, real_sbuild_id) == 0);
+	free(pathname);
+
+	return result;
+}
+
 static const char *build_id_cache__basename(bool is_kallsyms, bool is_vdso)
 {
 	return is_kallsyms ? "kallsyms" : (is_vdso ? "vdso" : "elf");
@@ -433,12 +458,16 @@ static bool lsdir_bid_tail_filter(const char *name __maybe_unused,
 	return (i == SBUILD_ID_SIZE - 3) && (d->d_name[i] == '\0');
 }
 
-struct strlist *build_id_cache__list_all(void)
+struct strlist *build_id_cache__list_all(bool validonly)
 {
 	struct strlist *toplist, *linklist = NULL, *bidlist;
 	struct str_node *nd, *nd2;
 	char *topdir, *linkdir = NULL;
 	char sbuild_id[SBUILD_ID_SIZE];
+
+	/* for filename__ functions */
+	if (validonly)
+		symbol__init(NULL);
 
 	/* Open the top-level directory */
 	if (asprintf(&topdir, "%s/.build-id/", buildid_dir) < 0)
@@ -470,6 +499,8 @@ struct strlist *build_id_cache__list_all(void)
 			if (snprintf(sbuild_id, SBUILD_ID_SIZE, "%s%s",
 				     nd->s, nd2->s) != SBUILD_ID_SIZE - 1)
 				goto err_out;
+			if (validonly && !build_id_cache__valid_id(sbuild_id))
+				continue;
 			if (strlist__add(bidlist, sbuild_id) < 0)
 				goto err_out;
 		}
