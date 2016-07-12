@@ -1080,6 +1080,52 @@ int atomctrl_get_voltage_evv_on_sclk(
 }
 
 /**
+ * atomctrl_get_voltage_evv gets voltage via call to ATOM COMMAND table.
+ * @param hwmgr	input: pointer to hwManager
+ * @param virtual_voltage_id      input: voltage id which match per voltage DPM state: 0xff01, 0xff02.. 0xff08
+ * @param voltage		       output: real voltage level in unit of mv
+ */
+int atomctrl_get_voltage_evv(struct pp_hwmgr *hwmgr,
+			     uint16_t virtual_voltage_id,
+			     uint16_t *voltage)
+{
+	int result;
+	int entry_id;
+	GET_VOLTAGE_INFO_INPUT_PARAMETER_V1_2 get_voltage_info_param_space;
+
+	/* search for leakage voltage ID 0xff01 ~ 0xff08 and sckl */
+	for (entry_id = 0; entry_id < hwmgr->dyn_state.vddc_dependency_on_sclk->count; entry_id++) {
+		if (hwmgr->dyn_state.vddc_dependency_on_sclk->entries[entry_id].v == virtual_voltage_id) {
+			/* found */
+			break;
+		}
+	}
+
+	PP_ASSERT_WITH_CODE(entry_id < hwmgr->dyn_state.vddc_dependency_on_sclk->count,
+	        "Can't find requested voltage id in vddc_dependency_on_sclk table!",
+	        return -EINVAL;
+	);
+
+	get_voltage_info_param_space.ucVoltageType = VOLTAGE_TYPE_VDDC;
+	get_voltage_info_param_space.ucVoltageMode = ATOM_GET_VOLTAGE_EVV_VOLTAGE;
+	get_voltage_info_param_space.usVoltageLevel = virtual_voltage_id;
+	get_voltage_info_param_space.ulSCLKFreq =
+		cpu_to_le32(hwmgr->dyn_state.vddc_dependency_on_sclk->entries[entry_id].clk);
+
+	result = cgs_atom_exec_cmd_table(hwmgr->device,
+			GetIndexIntoMasterTable(COMMAND, GetVoltageInfo),
+			&get_voltage_info_param_space);
+
+	if (0 != result)
+		return result;
+
+	*voltage = le16_to_cpu(((GET_EVV_VOLTAGE_INFO_OUTPUT_PARAMETER_V1_2 *)
+				(&get_voltage_info_param_space))->usVoltageLevel);
+
+	return result;
+}
+
+/**
  * Get the mpll reference clock in 10KHz
  */
 uint32_t atomctrl_get_mpll_reference_clock(struct pp_hwmgr *hwmgr)
