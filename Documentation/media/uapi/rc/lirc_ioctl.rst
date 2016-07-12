@@ -54,13 +54,6 @@ device can rely on working with the default settings initially.
     Set send/receive mode. Largely obsolete for send, as only
     ``LIRC_MODE_PULSE`` is supported.
 
-.. _LIRC_SET_SEND_CARRIER:
-.. _LIRC_SET_REC_CARRIER:
-
-``LIRC_SET_{SEND,REC}_CARRIER``
-
-    Set send/receive carrier (in Hz).
-
 .. _LIRC_SET_TRANSMITTER_MASK:
 
 ``LIRC_SET_TRANSMITTER_MASK``
@@ -98,17 +91,6 @@ device can rely on working with the default settings initially.
     Enable (1)/disable (0) measure mode. If enabled, from the next key
     press on, the driver will send ``LIRC_MODE2_FREQUENCY`` packets. By
     default this should be turned off.
-
-
-.. _LIRC_SET_REC_CARRIER_RANGE:
-
-``LIRC_SET_REC_CARRIER_RANGE``
-
-    To set a range use
-    ``LIRC_SET_REC_CARRIER_RANGE``
-    with the lower bound first and later
-    ``LIRC_SET_REC_CARRIER`` with the upper
-    bound.
 
 .. _LIRC_SET_WIDEBAND_RECEIVER:
 

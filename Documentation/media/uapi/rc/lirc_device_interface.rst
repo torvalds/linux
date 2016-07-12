@@ -19,4 +19,7 @@ LIRC Device Interface
     lirc-set-send-duty-cycle
     lirc-get-timeout
     lirc-get-length
+    lirc-set-rec-carrier
+    lirc-set-rec-carrier-range
+    lirc-set-send-carrier
     lirc_ioctl
