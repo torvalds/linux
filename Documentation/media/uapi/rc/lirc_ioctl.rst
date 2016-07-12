@@ -54,25 +54,6 @@ device can rely on working with the default settings initially.
     Set send/receive mode. Largely obsolete for send, as only
     ``LIRC_MODE_PULSE`` is supported.
 
-.. _LIRC_SET_WIDEBAND_RECEIVER:
-
-``LIRC_SET_WIDEBAND_RECEIVER``
-
-    Some receivers are equipped with special wide band receiver which is
-    intended to be used to learn output of existing remote. Calling that
-    ioctl with (1) will enable it, and with (0) disable it. This might
-    be useful of receivers that have otherwise narrow band receiver that
-    prevents them to be used with some remotes. Wide band receiver might
-    also be more precise On the other hand its disadvantage it usually
-    reduced range of reception.
-
-    .. note:: Wide band receiver might be
-       implictly enabled if you enable carrier reports. In that case it
-       will be disabled as soon as you disable carrier reports. Trying to
-       disable wide band receiver while carrier reports are active will do
-       nothing.
-
-
 .. _lirc_dev_errors:
 
 Return Value
