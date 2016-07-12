@@ -1372,6 +1372,10 @@ static enum drm_mode_status
 tegra_sor_connector_mode_valid(struct drm_connector *connector,
 			       struct drm_display_mode *mode)
 {
+	/* HDMI 2.0 modes are not yet supported */
+	if (mode->clock > 340000)
+		return MODE_NOCLOCK;
+
 	return MODE_OK;
 }
 
