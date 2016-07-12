@@ -419,13 +419,13 @@ static const struct sdhci_pci_fixes sdhci_intel_byt_sd = {
 };
 
 /* Define Host controllers for Intel Merrifield platform */
-#define INTEL_MRFL_EMMC_0	0
-#define INTEL_MRFL_EMMC_1	1
+#define INTEL_MRFLD_EMMC_0	0
+#define INTEL_MRFLD_EMMC_1	1
 
-static int intel_mrfl_mmc_probe_slot(struct sdhci_pci_slot *slot)
+static int intel_mrfld_mmc_probe_slot(struct sdhci_pci_slot *slot)
 {
-	if ((PCI_FUNC(slot->chip->pdev->devfn) != INTEL_MRFL_EMMC_0) &&
-	    (PCI_FUNC(slot->chip->pdev->devfn) != INTEL_MRFL_EMMC_1))
+	if ((PCI_FUNC(slot->chip->pdev->devfn) != INTEL_MRFLD_EMMC_0) &&
+	    (PCI_FUNC(slot->chip->pdev->devfn) != INTEL_MRFLD_EMMC_1))
 		/* SD support is not ready yet */
 		return -ENODEV;
 
@@ -435,12 +435,12 @@ static int intel_mrfl_mmc_probe_slot(struct sdhci_pci_slot *slot)
 	return 0;
 }
 
-static const struct sdhci_pci_fixes sdhci_intel_mrfl_mmc = {
+static const struct sdhci_pci_fixes sdhci_intel_mrfld_mmc = {
 	.quirks		= SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC,
 	.quirks2	= SDHCI_QUIRK2_BROKEN_HS200 |
 			SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
 	.allow_runtime_pm = true,
-	.probe_slot	= intel_mrfl_mmc_probe_slot,
+	.probe_slot	= intel_mrfld_mmc_probe_slot,
 };
 
 /* O2Micro extra registers */
@@ -1104,10 +1104,10 @@ static const struct pci_device_id pci_ids[] = {
 
 	{
 		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_MRFL_MMC,
+		.device		= PCI_DEVICE_ID_INTEL_MRFLD_MMC,
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (kernel_ulong_t)&sdhci_intel_mrfl_mmc,
+		.driver_data	= (kernel_ulong_t)&sdhci_intel_mrfld_mmc,
 	},
 
 	{
