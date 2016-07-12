@@ -54,16 +54,6 @@ device can rely on working with the default settings initially.
     Set send/receive mode. Largely obsolete for send, as only
     ``LIRC_MODE_PULSE`` is supported.
 
-.. _LIRC_SET_TRANSMITTER_MASK:
-
-``LIRC_SET_TRANSMITTER_MASK``
-
-    This enables the given set of transmitters. The first transmitter is
-    encoded by the least significant bit, etc. When an invalid bit mask
-    is given, i.e. a bit is set, even though the device does not have so
-    many transitters, then this ioctl returns the number of available
-    transitters and does nothing otherwise.
-
 .. _LIRC_SET_REC_TIMEOUT:
 
 ``LIRC_SET_REC_TIMEOUT``
