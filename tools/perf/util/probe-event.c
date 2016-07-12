@@ -1547,7 +1547,9 @@ bool perf_probe_event_need_dwarf(struct perf_probe_event *pev)
 		return true;
 
 	for (i = 0; i < pev->nargs; i++)
-		if (is_c_varname(pev->args[i].var))
+		if (is_c_varname(pev->args[i].var) ||
+		    !strcmp(pev->args[i].var, "$params") ||
+		    !strcmp(pev->args[i].var, "$vars"))
 			return true;
 
 	return false;
