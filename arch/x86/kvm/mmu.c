@@ -3189,7 +3189,7 @@ static int mmu_alloc_shadow_roots(struct kvm_vcpu *vcpu)
 		MMU_WARN_ON(VALID_PAGE(root));
 		if (vcpu->arch.mmu.root_level == PT32E_ROOT_LEVEL) {
 			pdptr = vcpu->arch.mmu.get_pdptr(vcpu, i);
-			if (!is_present_gpte(pdptr)) {
+			if (!(pdptr & PT_PRESENT_MASK)) {
 				vcpu->arch.mmu.pae_root[i] = 0;
 				continue;
 			}
