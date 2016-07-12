@@ -732,16 +732,18 @@ static void hv_msi_free(struct irq_domain *domain, struct msi_domain_info *info,
 
 	pdev = msi_desc_to_pci_dev(msi);
 	hbus = info->data;
-	hpdev = get_pcichild_wslot(hbus, devfn_to_wslot(pdev->devfn));
-	if (!hpdev)
+	int_desc = irq_data_get_irq_chip_data(irq_data);
+	if (!int_desc)
 		return;
 
-	int_desc = irq_data_get_irq_chip_data(irq_data);
-	if (int_desc) {
-		irq_data->chip_data = NULL;
-		hv_int_desc_free(hpdev, int_desc);
+	irq_data->chip_data = NULL;
+	hpdev = get_pcichild_wslot(hbus, devfn_to_wslot(pdev->devfn));
+	if (!hpdev) {
+		kfree(int_desc);
+		return;
 	}
 
+	hv_int_desc_free(hpdev, int_desc);
 	put_pcichild(hpdev, hv_pcidev_ref_by_slot);
 }
 
