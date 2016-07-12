@@ -184,27 +184,6 @@ replace define V4L2_JPEG_MARKER_DRI jpeg-markers
 replace define V4L2_JPEG_MARKER_COM jpeg-markers
 replace define V4L2_JPEG_MARKER_APP jpeg-markers
 
-#V4L2 buffer flags
-replace define V4L2_BUF_FLAG_MAPPED buffer-flags
-replace define V4L2_BUF_FLAG_QUEUED buffer-flags
-replace define V4L2_BUF_FLAG_DONE buffer-flags
-replace define V4L2_BUF_FLAG_ERROR buffer-flags
-replace define V4L2_BUF_FLAG_KEYFRAME buffer-flags
-replace define V4L2_BUF_FLAG_PFRAME buffer-flags
-replace define V4L2_BUF_FLAG_BFRAME buffer-flags
-replace define V4L2_BUF_FLAG_TIMECODE buffer-flags
-replace define V4L2_BUF_FLAG_PREPARED buffer-flags
-replace define V4L2_BUF_FLAG_NO_CACHE_INVALIDATE buffer-flags
-replace define V4L2_BUF_FLAG_NO_CACHE_CLEAN buffer-flags
-replace define V4L2_BUF_FLAG_TIMESTAMP_MASK buffer-flags
-replace define V4L2_BUF_FLAG_TIMESTAMP_UNKNOWN buffer-flags
-replace define V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC buffer-flags
-replace define V4L2_BUF_FLAG_TIMESTAMP_COPY buffer-flags
-replace define V4L2_BUF_FLAG_TSTAMP_SRC_MASK buffer-flags
-replace define V4L2_BUF_FLAG_TSTAMP_SRC_EOF buffer-flags
-replace define V4L2_BUF_FLAG_TSTAMP_SRC_SOE buffer-flags
-replace define V4L2_BUF_FLAG_LAST buffer-flags-FIXME
-
 # V4L2 framebuffer caps and flags
 
 replace define V4L2_FBUF_CAP_EXTERNOVERLAY framebuffer-cap
