@@ -58,6 +58,7 @@
 #include <linux/workqueue.h>
 #include <asm/byteorder.h>
 #include <net/devlink.h>
+#include <trace/events/devlink.h>
 
 #include "core.h"
 #include "item.h"
@@ -447,6 +448,10 @@ static int mlxsw_emad_transmit(struct mlxsw_core *mlxsw_core,
 	if (!skb)
 		return -ENOMEM;
 
+	trace_devlink_hwmsg(priv_to_devlink(mlxsw_core), false, 0,
+			    skb->data + mlxsw_core->driver->txhdr_len,
+			    skb->len - mlxsw_core->driver->txhdr_len);
+
 	atomic_set(&trans->active, 1);
 	err = mlxsw_core_skb_transmit(mlxsw_core, skb, &trans->tx_info);
 	if (err) {
@@ -528,6 +533,9 @@ static void mlxsw_emad_rx_listener_func(struct sk_buff *skb, u8 local_port,
 {
 	struct mlxsw_core *mlxsw_core = priv;
 	struct mlxsw_reg_trans *trans;
+
+	trace_devlink_hwmsg(priv_to_devlink(mlxsw_core), true, 0,
+			    skb->data, skb->len);
 
 	if (!mlxsw_emad_is_resp(skb))
 		goto free_skb;
@@ -1110,13 +1118,13 @@ int mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 	if (err)
 		goto err_emad_init;
 
-	err = mlxsw_hwmon_init(mlxsw_core, mlxsw_bus_info, &mlxsw_core->hwmon);
-	if (err)
-		goto err_hwmon_init;
-
 	err = devlink_register(devlink, mlxsw_bus_info->dev);
 	if (err)
 		goto err_devlink_register;
+
+	err = mlxsw_hwmon_init(mlxsw_core, mlxsw_bus_info, &mlxsw_core->hwmon);
+	if (err)
+		goto err_hwmon_init;
 
 	err = mlxsw_driver->init(mlxsw_core, mlxsw_bus_info);
 	if (err)
@@ -1131,9 +1139,9 @@ int mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 err_debugfs_init:
 	mlxsw_core->driver->fini(mlxsw_core);
 err_driver_init:
+err_hwmon_init:
 	devlink_unregister(devlink);
 err_devlink_register:
-err_hwmon_init:
 	mlxsw_emad_fini(mlxsw_core);
 err_emad_init:
 	mlxsw_bus->fini(bus_priv);
