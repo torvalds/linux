@@ -810,7 +810,7 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 }
 
 static int amdgpu_cgs_query_system_info(struct cgs_device *cgs_device,
-				struct cgs_system_info *sys_info)
+					struct cgs_system_info *sys_info)
 {
 	CGS_FUNC_ADEV;
 
@@ -829,6 +829,12 @@ static int amdgpu_cgs_query_system_info(struct cgs_device *cgs_device,
 		break;
 	case CGS_SYSTEM_INFO_PCIE_MLW:
 		sys_info->value = adev->pm.pcie_mlw_mask;
+		break;
+	case CGS_SYSTEM_INFO_PCIE_DEV:
+		sys_info->value = adev->pdev->device;
+		break;
+	case CGS_SYSTEM_INFO_PCIE_REV:
+		sys_info->value = adev->pdev->revision;
 		break;
 	case CGS_SYSTEM_INFO_CG_FLAGS:
 		sys_info->value = adev->cg_flags;
