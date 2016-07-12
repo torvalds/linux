@@ -3027,6 +3027,16 @@ int sdhci_setup_host(struct sdhci_host *host)
 
 	mmc = host->mmc;
 
+	/*
+	 * If there are external regulators, get them. Note this must be done
+	 * early before resetting the host and reading the capabilities so that
+	 * the host can take the appropriate action if regulators are not
+	 * available.
+	 */
+	ret = mmc_regulator_get_supply(mmc);
+	if (ret == -EPROBE_DEFER)
+		return ret;
+
 	sdhci_read_caps(host);
 
 	override_timeout_clk = host->timeout_clk;
@@ -3258,11 +3268,6 @@ int sdhci_setup_host(struct sdhci_host *host)
 	    mmc_card_is_removable(mmc) &&
 	    mmc_gpio_get_cd(host->mmc) < 0)
 		mmc->caps |= MMC_CAP_NEEDS_POLL;
-
-	/* If there are external regulators, get them */
-	ret = mmc_regulator_get_supply(mmc);
-	if (ret == -EPROBE_DEFER)
-		goto undma;
 
 	/* If vqmmc regulator and no 1.8V signalling, then there's no UHS */
 	if (!IS_ERR(mmc->supply.vqmmc)) {
