@@ -4149,8 +4149,8 @@ static int polaris10_freeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 	if ((0 == data->sclk_dpm_key_disabled) &&
 		(data->need_update_smu7_dpm_table &
 			(DPMTABLE_OD_UPDATE_SCLK + DPMTABLE_UPDATE_SCLK))) {
-		PP_ASSERT_WITH_CODE(true == polaris10_is_dpm_running(hwmgr),
-				"Trying to freeze SCLK DPM when DPM is disabled",
+		PP_ASSERT_WITH_CODE(polaris10_is_dpm_running(hwmgr),
+				    "Trying to freeze SCLK DPM when DPM is disabled",
 				);
 		PP_ASSERT_WITH_CODE(0 == smum_send_msg_to_smc(hwmgr->smumgr,
 				PPSMC_MSG_SCLKDPM_FreezeLevel),
@@ -4161,8 +4161,8 @@ static int polaris10_freeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 	if ((0 == data->mclk_dpm_key_disabled) &&
 		(data->need_update_smu7_dpm_table &
 		 DPMTABLE_OD_UPDATE_MCLK)) {
-		PP_ASSERT_WITH_CODE(true == polaris10_is_dpm_running(hwmgr),
-				"Trying to freeze MCLK DPM when DPM is disabled",
+		PP_ASSERT_WITH_CODE(polaris10_is_dpm_running(hwmgr),
+				    "Trying to freeze MCLK DPM when DPM is disabled",
 				);
 		PP_ASSERT_WITH_CODE(0 == smum_send_msg_to_smc(hwmgr->smumgr,
 				PPSMC_MSG_MCLKDPM_FreezeLevel),
@@ -4552,8 +4552,8 @@ static int polaris10_unfreeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 		(data->need_update_smu7_dpm_table &
 		(DPMTABLE_OD_UPDATE_SCLK + DPMTABLE_UPDATE_SCLK))) {
 
-		PP_ASSERT_WITH_CODE(true == polaris10_is_dpm_running(hwmgr),
-				"Trying to Unfreeze SCLK DPM when DPM is disabled",
+		PP_ASSERT_WITH_CODE(polaris10_is_dpm_running(hwmgr),
+				    "Trying to Unfreeze SCLK DPM when DPM is disabled",
 				);
 		PP_ASSERT_WITH_CODE(0 == smum_send_msg_to_smc(hwmgr->smumgr,
 				PPSMC_MSG_SCLKDPM_UnfreezeLevel),
@@ -4564,8 +4564,8 @@ static int polaris10_unfreeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 	if ((0 == data->mclk_dpm_key_disabled) &&
 		(data->need_update_smu7_dpm_table & DPMTABLE_OD_UPDATE_MCLK)) {
 
-		PP_ASSERT_WITH_CODE(true == polaris10_is_dpm_running(hwmgr),
-				"Trying to Unfreeze MCLK DPM when DPM is disabled",
+		PP_ASSERT_WITH_CODE(polaris10_is_dpm_running(hwmgr),
+				    "Trying to Unfreeze MCLK DPM when DPM is disabled",
 				);
 		PP_ASSERT_WITH_CODE(0 == smum_send_msg_to_smc(hwmgr->smumgr,
 				PPSMC_MSG_SCLKDPM_UnfreezeLevel),
