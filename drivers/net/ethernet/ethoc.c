@@ -860,6 +860,11 @@ static netdev_tx_t ethoc_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned int entry;
 	void *dest;
 
+	if (skb_put_padto(skb, ETHOC_ZLEN)) {
+		dev->stats.tx_errors++;
+		goto out_no_free;
+	}
+
 	if (unlikely(skb->len > ETHOC_BUFSIZ)) {
 		dev->stats.tx_errors++;
 		goto out;
@@ -894,6 +899,7 @@ static netdev_tx_t ethoc_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb_tx_timestamp(skb);
 out:
 	dev_kfree_skb(skb);
+out_no_free:
 	return NETDEV_TX_OK;
 }
 
