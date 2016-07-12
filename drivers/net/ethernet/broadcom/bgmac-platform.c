@@ -141,7 +141,7 @@ static int bgmac_probe(struct platform_device *pdev)
 	}
 
 	bgmac->plat.idm_base = devm_ioremap_resource(&pdev->dev, regs);
-	if (!bgmac->plat.idm_base) {
+	if (IS_ERR(bgmac->plat.idm_base)) {
 		dev_err(&pdev->dev, "Unable to map idm resource\n");
 		return PTR_ERR(bgmac->plat.idm_base);
 	}
