@@ -95,7 +95,7 @@ EXPORT_SYMBOL_GPL(cxl_update_properties);
 
 static int __init cxl_base_init(void)
 {
-	struct device_node *np = NULL;
+	struct device_node *np;
 	struct platform_device *dev;
 	int count = 0;
 
@@ -105,8 +105,7 @@ static int __init cxl_base_init(void)
 	if (cpu_has_feature(CPU_FTR_HVMODE))
 		return 0;
 
-	while ((np = of_find_compatible_node(np, NULL,
-				     "ibm,coherent-platform-facility"))) {
+	for_each_compatible_node(np, NULL, "ibm,coherent-platform-facility") {
 		dev = of_platform_device_create(np, NULL, NULL);
 		if (dev)
 			count++;
