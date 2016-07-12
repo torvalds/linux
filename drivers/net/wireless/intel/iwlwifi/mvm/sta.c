@@ -2050,11 +2050,9 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		baid_data->baid = baid;
 		baid_data->timeout = timeout;
 		baid_data->last_rx = jiffies;
-		init_timer(&baid_data->session_timer);
-		baid_data->session_timer.function =
-			iwl_mvm_rx_agg_session_expired;
-		baid_data->session_timer.data =
-			(unsigned long)&mvm->baid_map[baid];
+		setup_timer(&baid_data->session_timer,
+			    iwl_mvm_rx_agg_session_expired,
+			    (unsigned long)&mvm->baid_map[baid]);
 		baid_data->mvm = mvm;
 		baid_data->tid = tid;
 		baid_data->sta_id = mvm_sta->sta_id;
