@@ -1838,6 +1838,7 @@ struct ib_mr *i40iw_reg_phys_mr(struct ib_pd *pd,
 	iwmr->ibmr.lkey = stag;
 	iwmr->page_cnt = 1;
 	iwmr->pgaddrmem[0]  = addr;
+	iwmr->length = size;
 	status = i40iw_hwreg_mr(iwdev, iwmr, access);
 	if (status) {
 		i40iw_free_stag(iwdev, stag);
@@ -1861,7 +1862,7 @@ static struct ib_mr *i40iw_get_dma_mr(struct ib_pd *pd, int acc)
 {
 	u64 kva = 0;
 
-	return i40iw_reg_phys_mr(pd, 0, 0xffffffffffULL, acc, &kva);
+	return i40iw_reg_phys_mr(pd, 0, 0, acc, &kva);
 }
 
 /**
