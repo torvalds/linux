@@ -1567,12 +1567,12 @@ static enum i40iw_status_code i40iw_del_multiple_qhash(
 		ret = i40iw_manage_qhash(iwdev, cm_info,
 					 I40IW_QHASH_TYPE_TCP_SYN,
 					 I40IW_QHASH_MANAGE_TYPE_DELETE, NULL, false);
-		kfree(child_listen_node);
-		cm_parent_listen_node->cm_core->stats_listen_nodes_destroyed++;
 		i40iw_debug(&iwdev->sc_dev,
 			    I40IW_DEBUG_CM,
 			    "freed pointer = %p\n",
 			    child_listen_node);
+		kfree(child_listen_node);
+		cm_parent_listen_node->cm_core->stats_listen_nodes_destroyed++;
 	}
 	spin_unlock_irqrestore(&iwdev->cm_core.listen_list_lock, flags);
 
