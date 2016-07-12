@@ -1168,10 +1168,6 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 	dev->variant = mfc_get_drv_data(pdev);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res == NULL) {
-		dev_err(&pdev->dev, "failed to get io resource\n");
-		return -ENOENT;
-	}
 	dev->regs_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(dev->regs_base))
 		return PTR_ERR(dev->regs_base);
