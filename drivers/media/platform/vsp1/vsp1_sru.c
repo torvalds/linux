@@ -306,8 +306,27 @@ static void sru_configure(struct vsp1_entity *entity,
 	vsp1_sru_write(sru, dl, VI6_SRU_CTRL2, param->ctrl2);
 }
 
+static unsigned int sru_max_width(struct vsp1_entity *entity,
+				  struct vsp1_pipeline *pipe)
+{
+	struct vsp1_sru *sru = to_sru(&entity->subdev);
+	struct v4l2_mbus_framefmt *input;
+	struct v4l2_mbus_framefmt *output;
+
+	input = vsp1_entity_get_pad_format(&sru->entity, sru->entity.config,
+					   SRU_PAD_SINK);
+	output = vsp1_entity_get_pad_format(&sru->entity, sru->entity.config,
+					    SRU_PAD_SOURCE);
+
+	if (input->width != output->width)
+		return 512;
+	else
+		return 256;
+}
+
 static const struct vsp1_entity_operations sru_entity_ops = {
 	.configure = sru_configure,
+	.max_width = sru_max_width,
 };
 
 /* -----------------------------------------------------------------------------

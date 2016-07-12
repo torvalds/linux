@@ -77,6 +77,8 @@ enum vsp1_pipeline_state {
  * @uds_input: entity at the input of the UDS, if the UDS is present
  * @entities: list of entities in the pipeline
  * @dl: display list associated with the pipeline
+ * @div_size: The maximum allowed partition size for the pipeline
+ * @partitions: The number of partitions used to process one frame
  */
 struct vsp1_pipeline {
 	struct media_pipeline pipe;
@@ -104,6 +106,9 @@ struct vsp1_pipeline {
 	struct list_head entities;
 
 	struct vsp1_dl_list *dl;
+
+	unsigned int div_size;
+	unsigned int partitions;
 };
 
 void vsp1_pipeline_reset(struct vsp1_pipeline *pipe);

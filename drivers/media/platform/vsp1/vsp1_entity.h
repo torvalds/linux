@@ -77,11 +77,14 @@ struct vsp1_route {
  * @destroy:	Destroy the entity.
  * @configure:	Setup the hardware based on the entity state (pipeline, formats,
  *		selection rectangles, ...)
+ * @max_width:	Return the max supported width of data that the entity can
+ *		process in a single operation.
  */
 struct vsp1_entity_operations {
 	void (*destroy)(struct vsp1_entity *);
 	void (*configure)(struct vsp1_entity *, struct vsp1_pipeline *,
 			  struct vsp1_dl_list *, enum vsp1_entity_params);
+	unsigned int (*max_width)(struct vsp1_entity *, struct vsp1_pipeline *);
 };
 
 struct vsp1_entity {
