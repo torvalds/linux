@@ -160,6 +160,7 @@ nvkm_cstate_new(struct nvkm_clk *clk, int idx, struct nvkm_pstate *pstate)
 
 	*cstate = pstate->base;
 	cstate->voltage = cstepX.voltage;
+	cstate->id = idx;
 
 	while (domain && domain->name != nv_clk_src_max) {
 		if (domain->flags & NVKM_CLK_DOM_FLAG_CORE) {
