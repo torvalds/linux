@@ -54,14 +54,6 @@ device can rely on working with the default settings initially.
     Set send/receive mode. Largely obsolete for send, as only
     ``LIRC_MODE_PULSE`` is supported.
 
-.. _LIRC_SET_REC_TIMEOUT_REPORTS:
-
-``LIRC_SET_REC_TIMEOUT_REPORTS``
-
-    Enable (1) or disable (0) timeout reports in ``LIRC_MODE_MODE2.`` By
-    default, timeout reports should be turned off.
-
-
 .. _LIRC_SET_MEASURE_CARRIER_MODE:
 .. _lirc-mode2-frequency:
 

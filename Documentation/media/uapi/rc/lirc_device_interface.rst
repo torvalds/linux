@@ -24,4 +24,5 @@ LIRC Device Interface
     lirc-set-rec-carrier-range
     lirc-set-send-carrier
     lirc-set-transmitter-mask
+    lirc-set-rec-timeout-reports
     lirc_ioctl
