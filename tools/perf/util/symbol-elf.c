@@ -16,6 +16,7 @@
 #define EM_AARCH64	183  /* ARM 64 bit */
 #endif
 
+typedef Elf64_Nhdr GElf_Nhdr;
 
 #ifdef HAVE_CPLUS_DEMANGLE_SUPPORT
 extern char *cplus_demangle(const char *, int);
