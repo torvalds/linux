@@ -52,7 +52,7 @@ ioctl never fails.
 
        -  char
 
-       -  ``driver``\ [16]
+       -  ``driver``\ \[16\]
 
        -  Name of the driver implementing the media API as a NUL-terminated
 	  ASCII string. The driver version is stored in the
@@ -66,7 +66,7 @@ ioctl never fails.
 
        -  char
 
-       -  ``model``\ [32]
+       -  ``model``\ \[32\]
 
        -  Device model name as a NUL-terminated UTF-8 string. The device
 	  version is stored in the ``device_version`` field and is not be
@@ -76,7 +76,7 @@ ioctl never fails.
 
        -  char
 
-       -  ``serial``\ [40]
+       -  ``serial``\ \[40\]
 
        -  Serial number as a NUL-terminated ASCII string.
 
@@ -84,7 +84,7 @@ ioctl never fails.
 
        -  char
 
-       -  ``bus_info``\ [32]
+       -  ``bus_info``\ \[32\]
 
        -  Location of the device in the system as a NUL-terminated ASCII
 	  string. This includes the bus type name (PCI, USB, ...) and a
@@ -120,7 +120,7 @@ ioctl never fails.
 
        -  __u32
 
-       -  ``reserved``\ [31]
+       -  ``reserved``\ \[31\]
 
        -  Reserved for future extensions. Drivers and applications must set
 	  this array to zero.

@@ -62,7 +62,7 @@ file: media/v4l/v4l2grab.c
 	    int                             r, fd = -1;
 	    unsigned int                    i, n_buffers;
 	    char                            *dev_name = "/dev/video0";
-	    char                            out_name[256];
+	    char                            out_name\[256\];
 	    FILE                            *fout;
 	    struct buffer                   *buffers;
 

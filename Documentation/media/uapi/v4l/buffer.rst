@@ -379,7 +379,7 @@ struct v4l2_plane
 
        -  __u32
 
-       -  ``reserved[11]``
+       -  ``reserved\[11\]``
 
        -
        -  Reserved for future use. Should be zeroed by drivers and
@@ -868,7 +868,7 @@ struct v4l2_timecode
 
        -  __u8
 
-       -  ``userbits``\ [4]
+       -  ``userbits``\ \[4\]
 
        -  The "user group" bits from the timecode.
 

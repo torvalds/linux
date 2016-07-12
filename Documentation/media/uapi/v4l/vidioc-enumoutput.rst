@@ -62,7 +62,7 @@ EINVAL.
 
        -  __u8
 
-       -  ``name``\ [32]
+       -  ``name``\ \[32\]
 
        -  Name of the video output, a NUL-terminated ASCII string, for
 	  example: "Vout". This information is intended for the user,
@@ -131,7 +131,7 @@ EINVAL.
 
        -  __u32
 
-       -  ``reserved``\ [3]
+       -  ``reserved``\ \[3\]
 
        -  Reserved for future extensions. Drivers must set the array to
 	  zero.

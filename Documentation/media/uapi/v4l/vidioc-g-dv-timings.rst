@@ -259,7 +259,7 @@ EBUSY
        -
        -  __u32
 
-       -  ``reserved``\ [32]
+       -  ``reserved``\ \[32\]
 
        -
 

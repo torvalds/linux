@@ -13,14 +13,14 @@ struct dtv_property
 
     struct dtv_property {
 	__u32 cmd;
-	__u32 reserved[3];
+	__u32 reserved\[3\];
 	union {
 	    __u32 data;
 	    struct dtv_fe_stats st;
 	    struct {
-		__u8 data[32];
+		__u8 data\[32\];
 		__u32 len;
-		__u32 reserved1[3];
+		__u32 reserved1\[3\];
 		void *reserved2;
 	    } buffer;
 	} u;

@@ -75,7 +75,7 @@ as ``VIDIOC_G_AUDOUT`` does.
 
        -  __u8
 
-       -  ``name``\ [32]
+       -  ``name``\ \[32\]
 
        -  Name of the audio output, a NUL-terminated ASCII string, for
 	  example: "Line Out". This information is intended for the user,
@@ -103,7 +103,7 @@ as ``VIDIOC_G_AUDOUT`` does.
 
        -  __u32
 
-       -  ``reserved``\ [2]
+       -  ``reserved``\ \[2\]
 
        -  Reserved for future extensions. Drivers and applications must set
 	  the array to zero.

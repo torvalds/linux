@@ -130,7 +130,7 @@ that doesn't support them will return an ``EINVAL`` error code.
 
        -  __u32
 
-       -  ``reserved``\ [16]
+       -  ``reserved``\ \[16\]
 
        -  Reserved for future extensions. Drivers must set the array to
 	  zero.
@@ -167,7 +167,7 @@ that doesn't support them will return an ``EINVAL`` error code.
 
        -  __u32
 
-       -  ``reserved``\ [2]
+       -  ``reserved``\ \[2\]
 
        -  Reserved for future extensions. Drivers and applications must set
 	  the array to zero.
@@ -193,7 +193,7 @@ that doesn't support them will return an ``EINVAL`` error code.
        -
        -  __u32
 
-       -  ``raw_data``\ [32]
+       -  ``raw_data``\ \[32\]
 
        -
 

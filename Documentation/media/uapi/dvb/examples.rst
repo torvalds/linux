@@ -87,7 +87,7 @@ tuners, but can easily be adjusted for QAM.
 	 struct secCmdSequence scmds;
 	 struct dmx_pes_filter_params pesFilterParams;
 	 FrontendParameters frp;
-	 struct pollfd pfd[1];
+	 struct pollfd pfd\[1\];
 	 FrontendEvent event;
 	 int demux1, demux2, demux3, front;
 
@@ -143,7 +143,7 @@ tuners, but can easily be adjusted for QAM.
 	 scmd.u.diseqc.addr=0x10;
 	 scmd.u.diseqc.cmd=0x38;
 	 scmd.u.diseqc.numParams=1;
-	 scmd.u.diseqc.params[0] = 0xF0 | ((diseqc * 4) & 0x0F) |
+	 scmd.u.diseqc.params\[0\] = 0xF0 | ((diseqc * 4) & 0x0F) |
 	     (scmds.continuousTone == SEC_TONE_ON ? 1 : 0) |
 	     (scmds.voltage==SEC_VOLTAGE_18 ? 2 : 0);
 
@@ -168,11 +168,11 @@ tuners, but can easily be adjusted for QAM.
 	     return -1;
 	 }
 
-	 pfd[0].fd = front;
-	 pfd[0].events = POLLIN;
+	 pfd\[0\].fd = front;
+	 pfd\[0\].events = POLLIN;
 
 	 if (poll(pfd,1,3000)){
-	     if (pfd[0].revents & POLLIN){
+	     if (pfd\[0\].revents & POLLIN){
 		 printf("Getting QPSK event\\n");
 		 if ( ioctl(front, FE_GET_EVENT, &event)
 
@@ -324,7 +324,7 @@ recording.
 	 int written;
 	 uint8_t buf[BUFFY];
 	 uint64_t length;
-	 struct pollfd pfd[1];
+	 struct pollfd pfd\[1\];
 	 int dvr, dvr_out;
 
 	 /* open dvr device */
@@ -351,13 +351,13 @@ recording.
 	     return -1;
 	 }
 
-	 pfd[0].fd = dvr;
-	 pfd[0].events = POLLIN;
+	 pfd\[0\].fd = dvr;
+	 pfd\[0\].events = POLLIN;
 
 	 /* poll for dvr data and write to file */
 	 while (length < MAX_LENGTH ) {
 	     if (poll(pfd,1,1)){
-		 if (pfd[0].revents & POLLIN){
+		 if (pfd\[0\].revents & POLLIN){
 		     len = read(dvr, buf, BUFFY);
 		     if (len < 0){
 			 perror("recording");

@@ -124,7 +124,7 @@ See also the examples in :ref:`control`.
 
        -  __u8
 
-       -  ``name``\ [32]
+       -  ``name``\ \[32\]
 
        -  Name of the control, a NUL-terminated ASCII string. This
 	  information is intended for the user.
@@ -203,7 +203,7 @@ See also the examples in :ref:`control`.
 
        -  __u32
 
-       -  ``reserved``\ [2]
+       -  ``reserved``\ \[2\]
 
        -  Reserved for future extensions. Drivers must set the array to
 	  zero.
@@ -245,7 +245,7 @@ See also the examples in :ref:`control`.
 
        -  char
 
-       -  ``name``\ [32]
+       -  ``name``\ \[32\]
 
        -  Name of the control, a NUL-terminated ASCII string. This
 	  information is intended for the user.
@@ -326,7 +326,7 @@ See also the examples in :ref:`control`.
        -  The size in bytes of a single element of the array. Given a char
 	  pointer ``p`` to a 3-dimensional array you can find the position
 	  of cell ``(z, y, x)`` as follows:
-	  ``p + ((z * dims[1] + y) * dims[0] + x) * elem_size``.
+	  ``p + ((z * dims\[1\] + y) * dims\[0\] + x) * elem_size``.
 	  ``elem_size`` is always valid, also when the control isn't an
 	  array. For string controls ``elem_size`` is equal to
 	  ``maximum + 1``.
@@ -363,7 +363,7 @@ See also the examples in :ref:`control`.
 
        -  __u32
 
-       -  ``reserved``\ [32]
+       -  ``reserved``\ \[32\]
 
        -  Reserved for future extensions. Applications and drivers must set
 	  the array to zero.
@@ -410,7 +410,7 @@ See also the examples in :ref:`control`.
        -
        -  __u8
 
-       -  ``name``\ [32]
+       -  ``name``\ \[32\]
 
        -  Name of the menu item, a NUL-terminated ASCII string. This
 	  information is intended for the user. This field is valid for

@@ -139,7 +139,7 @@ queue, then it will return -1 and set errno to the EBUSY error code.
 
        -  __u8
 
-       -  ``msg``\ [16]
+       -  ``msg``\ \[16\]
 
        -  The message payload. For :ref:`CEC_TRANSMIT` this is filled in by the
 	  application. The driver will fill this in for :ref:`CEC_RECEIVE` and

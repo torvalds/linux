@@ -53,7 +53,7 @@ specification the ioctl returns an ``EINVAL`` error code.
 
        -  __u8
 
-       -  ``driver``\ [16]
+       -  ``driver``\ \[16\]
 
        -  Name of the driver, a unique NUL-terminated ASCII string. For
 	  example: "bttv". Driver specific applications can use this
@@ -69,7 +69,7 @@ specification the ioctl returns an ``EINVAL`` error code.
 
        -  __u8
 
-       -  ``card``\ [32]
+       -  ``card``\ \[32\]
 
        -  Name of the device, a NUL-terminated UTF-8 string. For example:
 	  "Yoyodyne TV/FM". One driver may support different brands or
@@ -84,7 +84,7 @@ specification the ioctl returns an ``EINVAL`` error code.
 
        -  __u8
 
-       -  ``bus_info``\ [32]
+       -  ``bus_info``\ \[32\]
 
        -  Location of the device in the system, a NUL-terminated ASCII
 	  string. For example: "PCI:0000:05:06.0". This information is
@@ -166,7 +166,7 @@ specification the ioctl returns an ``EINVAL`` error code.
 
        -  __u32
 
-       -  ``reserved``\ [3]
+       -  ``reserved``\ \[3\]
 
        -  Reserved for future extensions. Drivers must set this array to
 	  zero.

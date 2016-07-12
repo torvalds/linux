@@ -57,7 +57,7 @@ struct dvb_frontend_info
 
        -  char
 
-       -  name[128]
+       -  name\[128\]
 
        -  Name of the frontend
 

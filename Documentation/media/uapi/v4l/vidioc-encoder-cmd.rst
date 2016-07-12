@@ -94,7 +94,7 @@ introduced in Linux 2.6.21.
 
        -  __u32
 
-       -  ``data``\ [8]
+       -  ``data``\ \[8\]
 
        -  Reserved for future extensions. Drivers and applications must set
 	  the array to zero.

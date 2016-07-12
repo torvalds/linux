@@ -110,7 +110,7 @@ data transfer, set by the driver in order to inform application.
 
        -  __u8
 
-       -  ``reserved[24]``
+       -  ``reserved\[24\]``
 
        -  This array is reserved for future extensions. Drivers and
 	  applications must set it to zero.

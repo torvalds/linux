@@ -70,7 +70,7 @@ by a file handle in initiator mode (see
        -  The actual logical addresses that were claimed. This is set by the
 	  driver. If no logical address could be claimed, then it is set to
 	  ``CEC_LOG_ADDR_INVALID``. If this adapter is Unregistered, then
-	  ``log_addr[0]`` is set to 0xf and all others to
+	  ``log_addr\[0\]`` is set to 0xf and all others to
 	  ``CEC_LOG_ADDR_INVALID``.
 
     -  .. row 2
@@ -138,7 +138,7 @@ by a file handle in initiator mode (see
 
        -  char
 
-       -  ``osd_name``\ [15]
+       -  ``osd_name``\ \[15\]
 
        -  The On-Screen Display name as is returned by the
 	  ``CEC_MSG_SET_OSD_NAME`` message.
@@ -178,7 +178,7 @@ by a file handle in initiator mode (see
 
        -  __u8
 
-       -  ``features`` [CEC_MAX_LOG_ADDRS][12]
+       -  ``features`` [CEC_MAX_LOG_ADDRS]\[12\]
 
        -  Features for each logical address. Used to implement the
 	  ``CEC_MSG_REPORT_FEATURES`` message. The 12 bytes include both the

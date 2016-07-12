@@ -125,7 +125,7 @@ than the number requested.
 
        -  __u32
 
-       -  ``reserved``\ [8]
+       -  ``reserved``\ \[8\]
 
        -  A place holder for future extensions. Drivers and applications
 	  must set the array to zero.

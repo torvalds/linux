@@ -68,7 +68,7 @@ Example: Finding a framebuffer device for OSD
     }
 
     for (i = 0; i < 30; i++) {
-	char dev_name[16];
+	char dev_name\[16\];
 	struct fb_fix_screeninfo si;
 
 	snprintf(dev_name, sizeof(dev_name), "/dev/fb%u", i);

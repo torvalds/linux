@@ -178,7 +178,7 @@ introduced in Linux 3.3.
        -
        -  __u32
 
-       -  ``data``\ [16]
+       -  ``data``\ \[16\]
 
        -  Reserved for future extensions. Drivers and applications must set
 	  the array to zero.

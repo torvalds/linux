@@ -94,7 +94,7 @@ encoding. You usually do want to add them.
 
        -  char
 
-       -  ``APP_data``\ [60]
+       -  ``APP_data``\ \[60\]
 
        -
 
@@ -110,7 +110,7 @@ encoding. You usually do want to add them.
 
        -  char
 
-       -  ``COM_data``\ [60]
+       -  ``COM_data``\ \[60\]
 
        -
 

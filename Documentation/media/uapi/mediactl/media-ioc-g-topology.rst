@@ -163,7 +163,7 @@ desired arrays with the media graph elements.
 
        -  char
 
-       -  ``name``\ [64]
+       -  ``name``\ \[64\]
 
        -  Entity name as an UTF-8 NULL-terminated string.
 
@@ -179,7 +179,7 @@ desired arrays with the media graph elements.
 
        -  __u32
 
-       -  ``reserved``\ [12]
+       -  ``reserved``\ \[12\]
 
        -  Reserved for future extensions. Drivers and applications must set
 	  this array to zero.
@@ -221,7 +221,7 @@ desired arrays with the media graph elements.
 
        -  __u32
 
-       -  ``reserved``\ [9]
+       -  ``reserved``\ \[9\]
 
        -  Reserved for future extensions. Drivers and applications must set
 	  this array to zero.
@@ -299,7 +299,7 @@ desired arrays with the media graph elements.
 
        -  __u32
 
-       -  ``reserved``\ [9]
+       -  ``reserved``\ \[9\]
 
        -  Reserved for future extensions. Drivers and applications must set
 	  this array to zero.
@@ -354,7 +354,7 @@ desired arrays with the media graph elements.
 
        -  __u32
 
-       -  ``reserved``\ [5]
+       -  ``reserved``\ \[5\]
 
        -  Reserved for future extensions. Drivers and applications must set
 	  this array to zero.

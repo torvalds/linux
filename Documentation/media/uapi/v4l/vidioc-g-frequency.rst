@@ -102,7 +102,7 @@ write-only ioctl, it does not return the actual new frequency.
 
        -  __u32
 
-       -  ``reserved``\ [8]
+       -  ``reserved``\ \[8\]
 
        -  Reserved for future extensions. Drivers and applications must set
 	  the array to zero.

@@ -171,7 +171,7 @@ The format as returned by :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` must be identical
        -
        -  __u8
 
-       -  ``raw_data``\ [200]
+       -  ``raw_data``\ \[200\]
 
        -  Place holder for future extensions.
 

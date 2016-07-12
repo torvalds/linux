@@ -86,7 +86,7 @@ one until ``EINVAL`` is returned.
 
        -  __u8
 
-       -  ``description``\ [32]
+       -  ``description``\ \[32\]
 
        -  Description of the format, a NUL-terminated ASCII string. This
 	  information is intended for the user, for example: "YUV 4:2:2".
@@ -120,7 +120,7 @@ one until ``EINVAL`` is returned.
 
        -  __u32
 
-       -  ``reserved``\ [4]
+       -  ``reserved``\ \[4\]
 
        -  Reserved for future extensions. Drivers must set the array to
 	  zero.

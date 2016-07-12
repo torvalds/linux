@@ -61,7 +61,7 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
 
        -  __u8
 
-       -  ``name``\ [32]
+       -  ``name``\ \[32\]
 
        -  Name of the video input, a NUL-terminated ASCII string, for
 	  example: "Vin (Composite 2)". This information is intended for the
@@ -141,7 +141,7 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
 
        -  __u32
 
-       -  ``reserved``\ [3]
+       -  ``reserved``\ \[3\]
 
        -  Reserved for future extensions. Drivers must set the array to
 	  zero.

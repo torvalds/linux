@@ -179,7 +179,7 @@ Examples
 
        -  __u32
 
-       -  ``reserved[11]``
+       -  ``reserved\[11\]``
 
        -  Reserved field for future use. Drivers and applications must set
 	  the array to zero.

@@ -116,7 +116,7 @@ call.
        -
        -  __u8
 
-       -  ``data``\ [64]
+       -  ``data``\ \[64\]
 
        -  Event data. Defined by the event type. The union should be used to
 	  define easily accessible type for events.
@@ -167,7 +167,7 @@ call.
 
        -  __u32
 
-       -  ``reserved``\ [8]
+       -  ``reserved``\ \[8\]
 
        -
        -  Reserved for future extensions. Drivers must set the array to

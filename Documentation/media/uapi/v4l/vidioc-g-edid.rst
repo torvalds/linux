@@ -131,7 +131,7 @@ EDID is no longer available.
 
        -  __u32
 
-       -  ``reserved``\ [5]
+       -  ``reserved``\ \[5\]
 
        -  Reserved for future extensions. Applications and drivers must set
 	  the array to zero.

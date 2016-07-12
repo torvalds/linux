@@ -86,7 +86,7 @@ video elementary streams.
 
        -  __u32
 
-       -  ``reserved``\ [4]
+       -  ``reserved``\ \[4\]
 
        -  :cspan:`2` Reserved for future extensions. Drivers must set the
 	  array to zero.
@@ -153,7 +153,7 @@ video elementary streams.
 
        -  __u32
 
-       -  ``reserved``\ [2]
+       -  ``reserved``\ \[2\]
 
        -  Reserved for future extensions. Drivers must set the array to
 	  zero.
