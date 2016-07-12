@@ -578,10 +578,12 @@ static int omap_aes_copy_sgs(struct omap_aes_dev *dd)
 	sg_init_table(&dd->in_sgl, 1);
 	sg_set_buf(&dd->in_sgl, buf_in, total);
 	dd->in_sg = &dd->in_sgl;
+	dd->in_sg_len = 1;
 
 	sg_init_table(&dd->out_sgl, 1);
 	sg_set_buf(&dd->out_sgl, buf_out, total);
 	dd->out_sg = &dd->out_sgl;
+	dd->out_sg_len = 1;
 
 	return 0;
 }
@@ -602,7 +604,6 @@ static int omap_aes_prepare_req(struct crypto_engine *engine,
 			crypto_ablkcipher_reqtfm(req));
 	struct omap_aes_dev *dd = omap_aes_find_dev(ctx);
 	struct omap_aes_reqctx *rctx;
-	int len;
 
 	if (!dd)
 		return -ENODEV;
@@ -614,6 +615,14 @@ static int omap_aes_prepare_req(struct crypto_engine *engine,
 	dd->in_sg = req->src;
 	dd->out_sg = req->dst;
 
+	dd->in_sg_len = sg_nents_for_len(dd->in_sg, dd->total);
+	if (dd->in_sg_len < 0)
+		return dd->in_sg_len;
+
+	dd->out_sg_len = sg_nents_for_len(dd->out_sg, dd->total);
+	if (dd->out_sg_len < 0)
+		return dd->out_sg_len;
+
 	if (omap_aes_check_aligned(dd->in_sg, dd->total) ||
 	    omap_aes_check_aligned(dd->out_sg, dd->total)) {
 		if (omap_aes_copy_sgs(dd))
@@ -622,11 +631,6 @@ static int omap_aes_prepare_req(struct crypto_engine *engine,
 	} else {
 		dd->sgs_copied = 0;
 	}
-
-	len = ALIGN(dd->total, AES_BLOCK_SIZE);
-	dd->in_sg_len = scatterwalk_bytes_sglen(dd->in_sg, len);
-	dd->out_sg_len = scatterwalk_bytes_sglen(dd->out_sg, len);
-	BUG_ON(dd->in_sg_len < 0 || dd->out_sg_len < 0);
 
 	rctx = ablkcipher_request_ctx(req);
 	ctx = crypto_ablkcipher_ctx(crypto_ablkcipher_reqtfm(req));
