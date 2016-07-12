@@ -443,8 +443,12 @@ struct omap_hwmod_omap2_prcm {
  * HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT: Some IP blocks don't have a PRCM
  *     module-level context loss register associated with them; this
  *     flag bit should be set in those cases
+ * HWMOD_OMAP4_ZERO_CLKCTRL_OFFSET: Some IP blocks have a valid CLKCTRL
+ *	offset of zero; this flag bit should be set in those cases to
+ *	distinguish from hwmods that have no clkctrl offset.
  */
 #define HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT		(1 << 0)
+#define HWMOD_OMAP4_ZERO_CLKCTRL_OFFSET		(1 << 1)
 
 /**
  * struct omap_hwmod_omap4_prcm - OMAP4-specific PRCM data
