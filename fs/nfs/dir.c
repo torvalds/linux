@@ -1485,11 +1485,13 @@ int nfs_atomic_open(struct inode *dir, struct dentry *dentry,
 		    struct file *file, unsigned open_flags,
 		    umode_t mode, int *opened)
 {
+	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wq);
 	struct nfs_open_context *ctx;
 	struct dentry *res;
 	struct iattr attr = { .ia_valid = ATTR_OPEN };
 	struct inode *inode;
 	unsigned int lookup_flags = 0;
+	bool switched = false;
 	int err;
 
 	/* Expect a negative dentry */
@@ -1504,7 +1506,7 @@ int nfs_atomic_open(struct inode *dir, struct dentry *dentry,
 
 	/* NFS only supports OPEN on regular files */
 	if ((open_flags & O_DIRECTORY)) {
-		if (!d_unhashed(dentry)) {
+		if (!d_in_lookup(dentry)) {
 			/*
 			 * Hashed negative dentry with O_DIRECTORY: dentry was
 			 * revalidated and is fine, no need to perform lookup
@@ -1526,6 +1528,17 @@ int nfs_atomic_open(struct inode *dir, struct dentry *dentry,
 	if (open_flags & O_TRUNC) {
 		attr.ia_valid |= ATTR_SIZE;
 		attr.ia_size = 0;
+	}
+
+	if (!(open_flags & O_CREAT) && !d_in_lookup(dentry)) {
+		d_drop(dentry);
+		switched = true;
+		dentry = d_alloc_parallel(dentry->d_parent,
+					  &dentry->d_name, &wq);
+		if (IS_ERR(dentry))
+			return PTR_ERR(dentry);
+		if (unlikely(!d_in_lookup(dentry)))
+			return finish_no_open(file, dentry);
 	}
 
 	ctx = create_nfs_open_context(dentry, open_flags);
@@ -1563,14 +1576,23 @@ int nfs_atomic_open(struct inode *dir, struct dentry *dentry,
 	trace_nfs_atomic_open_exit(dir, ctx, open_flags, err);
 	put_nfs_open_context(ctx);
 out:
+	if (unlikely(switched)) {
+		d_lookup_done(dentry);
+		dput(dentry);
+	}
 	return err;
 
 no_open:
 	res = nfs_lookup(dir, dentry, lookup_flags);
-	err = PTR_ERR(res);
+	if (switched) {
+		d_lookup_done(dentry);
+		if (!res)
+			res = dentry;
+		else
+			dput(dentry);
+	}
 	if (IS_ERR(res))
-		goto out;
-
+		return PTR_ERR(res);
 	return finish_no_open(file, res);
 }
 EXPORT_SYMBOL_GPL(nfs_atomic_open);
