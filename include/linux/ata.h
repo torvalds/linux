@@ -409,6 +409,9 @@ enum {
 	SETFEATURES_WC_ON	= 0x02, /* Enable write cache */
 	SETFEATURES_WC_OFF	= 0x82, /* Disable write cache */
 
+	SETFEATURES_RA_ON	= 0xaa, /* Enable read look-ahead */
+	SETFEATURES_RA_OFF	= 0x55, /* Disable read look-ahead */
+
 	/* Enable/Disable Automatic Acoustic Management */
 	SETFEATURES_AAM_ON	= 0x42,
 	SETFEATURES_AAM_OFF	= 0xC2,

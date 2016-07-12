@@ -5127,7 +5127,9 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 		switch (qc->tf.command) {
 		case ATA_CMD_SET_FEATURES:
 			if (qc->tf.feature != SETFEATURES_WC_ON &&
-			    qc->tf.feature != SETFEATURES_WC_OFF)
+			    qc->tf.feature != SETFEATURES_WC_OFF &&
+			    qc->tf.feature != SETFEATURES_RA_ON &&
+			    qc->tf.feature != SETFEATURES_RA_OFF)
 				break;
 			/* fall through */
 		case ATA_CMD_INIT_DEV_PARAMS: /* CHS translation changed */
