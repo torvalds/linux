@@ -1,17 +1,16 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _lirc_dev:
+.. _lirc_func:
 
-LIRC Device Interface
-=====================
+LIRC Function Reference
+=======================
 
 
 .. toctree::
     :maxdepth: 1
 
-    lirc_dev_intro
-    lirc_read
-    lirc_write
+    lirc-read
+    lirc-write
     lirc-get-features
     lirc-get-send-mode
     lirc-get-rec-mode

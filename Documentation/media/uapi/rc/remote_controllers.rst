@@ -23,8 +23,7 @@ Remote Controllers
     rc-sysfs-nodes
     rc-tables
     rc-table-change
-    lirc_device_interface
-    lirc-header
+    lirc-dev
 
 
 **********************
