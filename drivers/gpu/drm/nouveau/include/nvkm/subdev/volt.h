@@ -17,6 +17,7 @@ struct nvkm_volt {
 	u32 min_uv;
 };
 
+int nvkm_volt_map_min(struct nvkm_volt *volt, u8 id);
 int nvkm_volt_get(struct nvkm_volt *);
 int nvkm_volt_set_id(struct nvkm_volt *, u8 id, int condition);
 

@@ -65,6 +65,28 @@ nvkm_volt_set(struct nvkm_volt *volt, u32 uv)
 	return ret;
 }
 
+int
+nvkm_volt_map_min(struct nvkm_volt *volt, u8 id)
+{
+	struct nvkm_bios *bios = volt->subdev.device->bios;
+	struct nvbios_vmap_entry info;
+	u8  ver, len;
+	u16 vmap;
+
+	vmap = nvbios_vmap_entry_parse(bios, id, &ver, &len, &info);
+	if (vmap) {
+		if (info.link != 0xff) {
+			int ret = nvkm_volt_map_min(volt, info.link);
+			if (ret < 0)
+				return ret;
+			info.min += ret;
+		}
+		return info.min;
+	}
+
+	return id ? id * 10000 : -ENODEV;
+}
+
 static int
 nvkm_volt_map(struct nvkm_volt *volt, u8 id)
 {

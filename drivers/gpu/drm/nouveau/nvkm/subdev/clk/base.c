@@ -138,6 +138,7 @@ static int
 nvkm_cstate_new(struct nvkm_clk *clk, int idx, struct nvkm_pstate *pstate)
 {
 	struct nvkm_bios *bios = clk->subdev.device->bios;
+	struct nvkm_volt *volt = clk->subdev.device->volt;
 	const struct nvkm_domain *domain = clk->domains;
 	struct nvkm_cstate *cstate = NULL;
 	struct nvbios_cstepX cstepX;
@@ -147,6 +148,9 @@ nvkm_cstate_new(struct nvkm_clk *clk, int idx, struct nvkm_pstate *pstate)
 	data = nvbios_cstepXp(bios, idx, &ver, &hdr, &cstepX);
 	if (!data)
 		return -ENOENT;
+
+	if (volt && nvkm_volt_map_min(volt, cstepX.voltage) > volt->max_uv)
+		return -EINVAL;
 
 	cstate = kzalloc(sizeof(*cstate), GFP_KERNEL);
 	if (!cstate)
