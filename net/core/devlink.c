@@ -26,6 +26,10 @@
 #include <net/net_namespace.h>
 #include <net/sock.h>
 #include <net/devlink.h>
+#define CREATE_TRACE_POINTS
+#include <trace/events/devlink.h>
+
+EXPORT_TRACEPOINT_SYMBOL_GPL(devlink_hwmsg);
 
 static LIST_HEAD(devlink_list);
 
