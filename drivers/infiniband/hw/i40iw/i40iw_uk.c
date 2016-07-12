@@ -291,9 +291,9 @@ static enum i40iw_status_code i40iw_rdma_write(struct i40iw_qp_uk *qp,
 
 	i40iw_set_fragment(wqe, 0, op_info->lo_sg_list);
 
-	for (i = 1; i < op_info->num_lo_sges; i++) {
-		byte_off = 32 + (i - 1) * 16;
+	for (i = 1, byte_off = 32; i < op_info->num_lo_sges; i++) {
 		i40iw_set_fragment(wqe, byte_off, &op_info->lo_sg_list[i]);
+		byte_off += 16;
 	}
 
 	wmb(); /* make sure WQE is populated before valid bit is set */
@@ -401,9 +401,9 @@ static enum i40iw_status_code i40iw_send(struct i40iw_qp_uk *qp,
 
 	i40iw_set_fragment(wqe, 0, op_info->sg_list);
 
-	for (i = 1; i < op_info->num_sges; i++) {
-		byte_off = 32 + (i - 1) * 16;
+	for (i = 1, byte_off = 32; i < op_info->num_sges; i++) {
 		i40iw_set_fragment(wqe, byte_off, &op_info->sg_list[i]);
+		byte_off += 16;
 	}
 
 	wmb(); /* make sure WQE is populated before valid bit is set */
@@ -685,9 +685,9 @@ static enum i40iw_status_code i40iw_post_receive(struct i40iw_qp_uk *qp,
 
 	i40iw_set_fragment(wqe, 0, info->sg_list);
 
-	for (i = 1; i < info->num_sges; i++) {
-		byte_off = 32 + (i - 1) * 16;
+	for (i = 1, byte_off = 32; i < info->num_sges; i++) {
 		i40iw_set_fragment(wqe, byte_off, &info->sg_list[i]);
+		byte_off += 16;
 	}
 
 	wmb(); /* make sure WQE is populated before valid bit is set */
