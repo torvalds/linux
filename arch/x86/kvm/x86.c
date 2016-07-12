@@ -7927,7 +7927,7 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 	kfree(kvm->arch.vpic);
 	kfree(kvm->arch.vioapic);
 	kvm_free_vcpus(kvm);
-	kfree(rcu_dereference_check(kvm->arch.apic_map, 1));
+	kvfree(rcu_dereference_check(kvm->arch.apic_map, 1));
 	kvm_mmu_uninit_vm(kvm);
 }
 
