@@ -442,8 +442,10 @@ static inline int crypto_memneq(const void *a, const void *b, size_t size)
 
 static inline void crypto_yield(u32 flags)
 {
+#if !defined(CONFIG_PREEMPT) || defined(CONFIG_PREEMPT_VOLUNTARY)
 	if (flags & CRYPTO_TFM_REQ_MAY_SLEEP)
 		cond_resched();
+#endif
 }
 
 #endif	/* _CRYPTO_ALGAPI_H */
