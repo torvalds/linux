@@ -235,7 +235,7 @@ static void *vgem_prime_vmap(struct drm_gem_object *obj)
 	if (IS_ERR(pages))
 		return NULL;
 
-	addr = vmap(pages, n_pages, 0, pgprot_writecombine(PAGE_KERNEL_IO));
+	addr = vmap(pages, n_pages, 0, pgprot_writecombine(PAGE_KERNEL));
 	drm_gem_put_pages(obj, pages, false, false);
 
 	return addr;
