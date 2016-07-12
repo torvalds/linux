@@ -49,6 +49,21 @@ struct devs_id {
 	static const struct devs_id *const __intel_mid_sfi_##i##_dev __used	\
 	__attribute__((__section__(".x86_intel_mid_dev.init"))) = &i
 
+/**
+* struct mid_sd_board_info - template for SD device creation
+* @name:		identifies the driver
+* @bus_num:		board-specific identifier for a given SD controller
+* @max_clk:		the maximum frequency device supports
+* @platform_data:	the particular data stored there is driver-specific
+*/
+struct mid_sd_board_info {
+	char		name[SFI_NAME_LEN];
+	int		bus_num;
+	unsigned short	addr;
+	u32		max_clk;
+	void		*platform_data;
+};
+
 /*
  * Medfield is the follow-up of Moorestown, it combines two chip solution into
  * one. Other than that it also added always-on and constant tsc and lapic
