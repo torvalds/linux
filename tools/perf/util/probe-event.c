@@ -2557,41 +2557,60 @@ static int probe_trace_event__set_name(struct probe_trace_event *tev,
 	return 0;
 }
 
-static int __add_probe_trace_events(struct perf_probe_event *pev,
-				     struct probe_trace_event *tevs,
-				     int ntevs, bool allow_suffix)
+static int __open_probe_file_and_namelist(bool uprobe,
+					  struct strlist **namelist)
 {
-	int i, fd, ret;
-	struct probe_trace_event *tev = NULL;
-	struct probe_cache *cache = NULL;
-	struct strlist *namelist;
+	int fd;
 
-	fd = probe_file__open(PF_FL_RW | (pev->uprobes ? PF_FL_UPROBE : 0));
+	fd = probe_file__open(PF_FL_RW | (uprobe ? PF_FL_UPROBE : 0));
 	if (fd < 0)
 		return fd;
 
 	/* Get current event names */
-	namelist = probe_file__get_namelist(fd);
-	if (!namelist) {
+	*namelist = probe_file__get_namelist(fd);
+	if (!(*namelist)) {
 		pr_debug("Failed to get current event list.\n");
-		ret = -ENOMEM;
-		goto close_out;
+		close(fd);
+		return -ENOMEM;
 	}
+	return fd;
+}
+
+static int __add_probe_trace_events(struct perf_probe_event *pev,
+				     struct probe_trace_event *tevs,
+				     int ntevs, bool allow_suffix)
+{
+	int i, fd[2] = {-1, -1}, up, ret;
+	struct probe_trace_event *tev = NULL;
+	struct probe_cache *cache = NULL;
+	struct strlist *namelist[2] = {NULL, NULL};
+
+	up = pev->uprobes ? 1 : 0;
+	fd[up] = __open_probe_file_and_namelist(up, &namelist[up]);
+	if (fd[up] < 0)
+		return fd[up];
 
 	ret = 0;
 	for (i = 0; i < ntevs; i++) {
 		tev = &tevs[i];
+		up = tev->uprobes ? 1 : 0;
+		if (fd[up] == -1) {	/* Open the kprobe/uprobe_events */
+			fd[up] = __open_probe_file_and_namelist(up,
+								&namelist[up]);
+			if (fd[up] < 0)
+				goto close_out;
+		}
 		/* Skip if the symbol is out of .text or blacklisted */
 		if (!tev->point.symbol && !pev->uprobes)
 			continue;
 
 		/* Set new name for tev (and update namelist) */
-		ret = probe_trace_event__set_name(tev, pev, namelist,
+		ret = probe_trace_event__set_name(tev, pev, namelist[up],
 						  allow_suffix);
 		if (ret < 0)
 			break;
 
-		ret = probe_file__add_event(fd, tev);
+		ret = probe_file__add_event(fd[up], tev);
 		if (ret < 0)
 			break;
 
@@ -2614,9 +2633,12 @@ static int __add_probe_trace_events(struct perf_probe_event *pev,
 		probe_cache__delete(cache);
 	}
 
-	strlist__delete(namelist);
 close_out:
-	close(fd);
+	for (up = 0; up < 2; up++) {
+		strlist__delete(namelist[up]);
+		if (fd[up] >= 0)
+			close(fd[up]);
+	}
 	return ret;
 }
 
@@ -2989,6 +3011,48 @@ static int find_cached_events(struct perf_probe_event *pev,
 	return ret;
 }
 
+/* Try to find probe_trace_event from all probe caches */
+static int find_cached_events_all(struct perf_probe_event *pev,
+				   struct probe_trace_event **tevs)
+{
+	struct probe_trace_event *tmp_tevs = NULL;
+	struct strlist *bidlist;
+	struct str_node *nd;
+	char *pathname;
+	int ntevs = 0;
+	int ret;
+
+	/* Get the buildid list of all valid caches */
+	bidlist = build_id_cache__list_all(true);
+	if (!bidlist) {
+		ret = -errno;
+		pr_debug("Failed to get buildids: %d\n", ret);
+		return ret;
+	}
+
+	ret = 0;
+	strlist__for_each_entry(nd, bidlist) {
+		pathname = build_id_cache__origname(nd->s);
+		ret = find_cached_events(pev, &tmp_tevs, pathname);
+		/* In the case of cnt == 0, we just skip it */
+		if (ret > 0)
+			ret = concat_probe_trace_events(tevs, &ntevs,
+							&tmp_tevs, ret);
+		free(pathname);
+		if (ret < 0)
+			break;
+	}
+	strlist__delete(bidlist);
+
+	if (ret < 0) {
+		clear_probe_trace_events(*tevs, ntevs);
+		zfree(tevs);
+	} else
+		ret = ntevs;
+
+	return ret;
+}
+
 static int find_probe_trace_events_from_cache(struct perf_probe_event *pev,
 					      struct probe_trace_event **tevs)
 {
@@ -2998,10 +3062,13 @@ static int find_probe_trace_events_from_cache(struct perf_probe_event *pev,
 	struct str_node *node;
 	int ret, i;
 
-	if (pev->sdt)
+	if (pev->sdt) {
 		/* For SDT/cached events, we use special search functions */
-		return find_cached_events(pev, tevs, pev->target);
-
+		if (!pev->target)
+			return find_cached_events_all(pev, tevs);
+		else
+			return find_cached_events(pev, tevs, pev->target);
+	}
 	cache = probe_cache__new(pev->target);
 	if (!cache)
 		return 0;
