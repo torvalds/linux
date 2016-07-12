@@ -494,7 +494,6 @@ static void s5p_mfc_handle_error(struct s5p_mfc_dev *dev,
 	s5p_mfc_hw_call(dev->mfc_ops, clear_int_flags, dev);
 	s5p_mfc_clock_off();
 	wake_up_dev(dev, reason, err);
-	return;
 }
 
 /* Header parsing interrupt handling */
