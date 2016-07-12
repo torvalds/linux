@@ -27,6 +27,7 @@
 #include <subdev/bios/boost.h>
 #include <subdev/bios/cstep.h>
 #include <subdev/bios/perf.h>
+#include <subdev/bios/vpstate.h>
 #include <subdev/fb.h>
 #include <subdev/therm.h>
 #include <subdev/volt.h>
@@ -78,8 +79,24 @@ static bool
 nvkm_cstate_valid(struct nvkm_clk *clk, struct nvkm_cstate *cstate,
 		  u32 max_volt, int temp)
 {
+	const struct nvkm_domain *domain = clk->domains;
 	struct nvkm_volt *volt = clk->subdev.device->volt;
 	int voltage;
+
+	while (domain && domain->name != nv_clk_src_max) {
+		if (domain->flags & NVKM_CLK_DOM_FLAG_VPSTATE) {
+			u32 freq = cstate->domain[domain->name];
+			switch (clk->boost_mode) {
+			case NVKM_CLK_BOOST_NONE:
+				if (clk->base_khz && freq > clk->base_khz)
+					return false;
+			case NVKM_CLK_BOOST_BIOS:
+				if (clk->boost_khz && freq > clk->boost_khz)
+					return false;
+			}
+		}
+		domain++;
+	}
 
 	if (!volt)
 		return true;
@@ -635,10 +652,22 @@ int
 nvkm_clk_ctor(const struct nvkm_clk_func *func, struct nvkm_device *device,
 	      int index, bool allow_reclock, struct nvkm_clk *clk)
 {
+	struct nvkm_subdev *subdev = &clk->subdev;
+	struct nvkm_bios *bios = device->bios;
 	int ret, idx, arglen;
 	const char *mode;
+	struct nvbios_vpstate_header h;
 
-	nvkm_subdev_ctor(&nvkm_clk, device, index, &clk->subdev);
+	nvkm_subdev_ctor(&nvkm_clk, device, index, subdev);
+
+	if (bios && !nvbios_vpstate_parse(bios, &h)) {
+		struct nvbios_vpstate_entry base, boost;
+		if (!nvbios_vpstate_entry(bios, &h, h.boost_id, &boost))
+			clk->boost_khz = boost.clock_mhz * 1000;
+		if (!nvbios_vpstate_entry(bios, &h, h.base_id, &base))
+			clk->base_khz = base.clock_mhz * 1000;
+	}
+
 	clk->func = func;
 	INIT_LIST_HEAD(&clk->states);
 	clk->domains = func->domains;
@@ -681,6 +710,8 @@ nvkm_clk_ctor(const struct nvkm_clk_func *func, struct nvkm_device *device,
 	if (mode)
 		clk->ustate_dc = nvkm_clk_nstate(clk, mode, arglen);
 
+	clk->boost_mode = nvkm_longopt(device->cfgopt, "NvBoost",
+				       NVKM_CLK_BOOST_NONE);
 	return 0;
 }
 
