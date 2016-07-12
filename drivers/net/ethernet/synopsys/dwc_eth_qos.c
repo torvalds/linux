@@ -2877,7 +2877,7 @@ static int dwceqos_probe(struct platform_device *pdev)
 		ret = of_phy_register_fixed_link(lp->pdev->dev.of_node);
 		if (ret < 0) {
 			dev_err(&pdev->dev, "invalid fixed-link");
-			goto err_out_unregister_netdev;
+			goto err_out_unregister_clk_notifier;
 		}
 
 		lp->phy_node = of_node_get(lp->pdev->dev.of_node);
