@@ -774,17 +774,13 @@ static int mtk_vpu_probe(struct platform_device *pdev)
 	vpu->dev = &pdev->dev;
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "tcm");
 	vpu->reg.tcm = devm_ioremap_resource(dev, res);
-	if (IS_ERR((__force void *)vpu->reg.tcm)) {
-		dev_err(dev, "devm_ioremap_resource vpu tcm failed.\n");
+	if (IS_ERR((__force void *)vpu->reg.tcm))
 		return PTR_ERR((__force void *)vpu->reg.tcm);
-	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "cfg_reg");
 	vpu->reg.cfg = devm_ioremap_resource(dev, res);
-	if (IS_ERR((__force void *)vpu->reg.cfg)) {
-		dev_err(dev, "devm_ioremap_resource vpu cfg failed.\n");
+	if (IS_ERR((__force void *)vpu->reg.cfg))
 		return PTR_ERR((__force void *)vpu->reg.cfg);
-	}
 
 	/* Get VPU clock */
 	vpu->clk = devm_clk_get(dev, "main");
