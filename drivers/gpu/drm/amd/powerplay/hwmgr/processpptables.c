@@ -810,6 +810,19 @@ static const ATOM_PPLIB_POWERPLAYTABLE *get_powerplay_table(
 	return (const ATOM_PPLIB_POWERPLAYTABLE *)table_addr;
 }
 
+int pp_tables_get_response_times(struct pp_hwmgr *hwmgr,
+				uint32_t *vol_rep_time, uint32_t *bb_rep_time)
+{
+	const ATOM_PPLIB_POWERPLAYTABLE *powerplay_tab = get_powerplay_table(hwmgr);
+
+	PP_ASSERT_WITH_CODE(NULL != powerplay_tab,
+			    "Missing PowerPlay Table!", return -EINVAL);
+
+	*vol_rep_time = (uint32_t)le16_to_cpu(powerplay_tab->usVoltageTime);
+	*bb_rep_time = (uint32_t)le16_to_cpu(powerplay_tab->usBackbiasTime);
+
+	return 0;
+}
 
 int pp_tables_get_num_of_entries(struct pp_hwmgr *hwmgr,
 				     unsigned long *num_of_entries)
