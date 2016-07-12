@@ -591,12 +591,12 @@ bool atomctrl_get_pp_assign_pin(
 		const uint32_t pinId,
 		pp_atomctrl_gpio_pin_assignment *gpio_pin_assignment)
 {
-	bool bRet = 0;
+	bool bRet = false;
 	ATOM_GPIO_PIN_LUT *gpio_lookup_table =
 		get_gpio_lookup_table(hwmgr->device);
 
 	PP_ASSERT_WITH_CODE((NULL != gpio_lookup_table),
-			"Could not find GPIO lookup Table in BIOS.", return -1);
+			"Could not find GPIO lookup Table in BIOS.", return false);
 
 	bRet = atomctrl_lookup_gpio_pin(gpio_lookup_table, pinId,
 		gpio_pin_assignment);
