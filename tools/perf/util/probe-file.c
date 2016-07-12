@@ -547,6 +547,15 @@ probe_cache__find(struct probe_cache *pcache, struct perf_probe_event *pev)
 		return NULL;
 
 	list_for_each_entry(entry, &pcache->entries, node) {
+		if (pev->sdt) {
+			if (entry->pev.event &&
+			    streql(entry->pev.event, pev->event) &&
+			    (!pev->group ||
+			     streql(entry->pev.group, pev->group)))
+				goto found;
+
+			continue;
+		}
 		/* Hit if same event name or same command-string */
 		if ((pev->event &&
 		     (streql(entry->pev.group, pev->group) &&

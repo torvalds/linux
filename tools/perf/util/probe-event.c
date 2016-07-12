@@ -1197,6 +1197,34 @@ err:
 	return err;
 }
 
+static int parse_perf_probe_event_name(char **arg, struct perf_probe_event *pev)
+{
+	char *ptr;
+
+	ptr = strchr(*arg, ':');
+	if (ptr) {
+		*ptr = '\0';
+		if (!is_c_func_name(*arg))
+			goto ng_name;
+		pev->group = strdup(*arg);
+		if (!pev->group)
+			return -ENOMEM;
+		*arg = ptr + 1;
+	} else
+		pev->group = NULL;
+	if (!is_c_func_name(*arg)) {
+ng_name:
+		semantic_error("%s is bad for event name -it must "
+			       "follow C symbol-naming rule.\n", *arg);
+		return -EINVAL;
+	}
+	pev->event = strdup(*arg);
+	if (pev->event == NULL)
+		return -ENOMEM;
+
+	return 0;
+}
+
 /* Parse probepoint definition. */
 static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 {
@@ -1204,38 +1232,43 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 	char *ptr, *tmp;
 	char c, nc = 0;
 	bool file_spec = false;
+	int ret;
+
 	/*
 	 * <Syntax>
 	 * perf probe [GRP:][EVENT=]SRC[:LN|;PTN]
 	 * perf probe [GRP:][EVENT=]FUNC[@SRC][+OFFS|%return|:LN|;PAT]
+	 * perf probe %[GRP:]SDT_EVENT
 	 */
 	if (!arg)
 		return -EINVAL;
 
+	if (arg[0] == '%') {
+		pev->sdt = true;
+		arg++;
+	}
+
 	ptr = strpbrk(arg, ";=@+%");
+	if (pev->sdt) {
+		if (ptr) {
+			semantic_error("%s must contain only an SDT event name.\n", arg);
+			return -EINVAL;
+		}
+		ret = parse_perf_probe_event_name(&arg, pev);
+		if (ret == 0) {
+			if (asprintf(&pev->point.function, "%%%s", pev->event) < 0)
+				ret = -errno;
+		}
+		return ret;
+	}
+
 	if (ptr && *ptr == '=') {	/* Event name */
 		*ptr = '\0';
 		tmp = ptr + 1;
-		ptr = strchr(arg, ':');
-		if (ptr) {
-			*ptr = '\0';
-			if (!is_c_func_name(arg))
-				goto not_fname;
-			pev->group = strdup(arg);
-			if (!pev->group)
-				return -ENOMEM;
-			arg = ptr + 1;
-		} else
-			pev->group = NULL;
-		if (!is_c_func_name(arg)) {
-not_fname:
-			semantic_error("%s is bad for event name -it must "
-				       "follow C symbol-naming rule.\n", arg);
-			return -EINVAL;
-		}
-		pev->event = strdup(arg);
-		if (pev->event == NULL)
-			return -ENOMEM;
+		ret = parse_perf_probe_event_name(&arg, pev);
+		if (ret < 0)
+			return ret;
+
 		arg = tmp;
 	}
 
@@ -2876,7 +2909,8 @@ static int find_probe_trace_events_from_cache(struct perf_probe_event *pev,
 
 	entry = probe_cache__find(cache, pev);
 	if (!entry) {
-		ret = 0;
+		/* SDT must be in the cache */
+		ret = pev->sdt ? -ENOENT : 0;
 		goto out;
 	}
 
@@ -2915,7 +2949,7 @@ static int convert_to_probe_trace_events(struct perf_probe_event *pev,
 {
 	int ret;
 
-	if (!pev->group) {
+	if (!pev->group && !pev->sdt) {
 		/* Set group name if not given */
 		if (!pev->uprobes) {
 			pev->group = strdup(PERFPROBE_GROUP);
@@ -2934,8 +2968,8 @@ static int convert_to_probe_trace_events(struct perf_probe_event *pev,
 
 	/* At first, we need to lookup cache entry */
 	ret = find_probe_trace_events_from_cache(pev, tevs);
-	if (ret > 0)
-		return ret;	/* Found in probe cache */
+	if (ret > 0 || pev->sdt)	/* SDT can be found only in the cache */
+		return ret == 0 ? -ENOENT : ret; /* Found in probe cache */
 
 	if (arch__prefers_symtab() && !perf_probe_event_need_dwarf(pev)) {
 		ret = find_probe_trace_events_from_map(pev, tevs);

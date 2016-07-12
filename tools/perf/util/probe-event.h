@@ -85,6 +85,7 @@ struct perf_probe_event {
 	char			*group;	/* Group name */
 	struct perf_probe_point	point;	/* Probe point */
 	int			nargs;	/* Number of arguments */
+	bool			sdt;	/* SDT/cached event flag */
 	bool			uprobes;	/* Uprobe event flag */
 	char			*target;	/* Target binary */
 	struct perf_probe_arg	*args;	/* Arguments */
