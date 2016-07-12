@@ -1251,8 +1251,21 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 	ptr = strpbrk(arg, ";=@+%");
 	if (pev->sdt) {
 		if (ptr) {
-			semantic_error("%s must contain only an SDT event name.\n", arg);
-			return -EINVAL;
+			if (*ptr != '@') {
+				semantic_error("%s must be an SDT name.\n",
+					       arg);
+				return -EINVAL;
+			}
+			/* This must be a target file name or build id */
+			tmp = build_id_cache__complement(ptr + 1);
+			if (tmp) {
+				pev->target = build_id_cache__origname(tmp);
+				free(tmp);
+			} else
+				pev->target = strdup(ptr + 1);
+			if (!pev->target)
+				return -ENOMEM;
+			*ptr = '\0';
 		}
 		ret = parse_perf_probe_event_name(&arg, pev);
 		if (ret == 0) {
