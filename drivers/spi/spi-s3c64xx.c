@@ -1133,9 +1133,9 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 		goto err_deref_master;
 	}
 
-	if (clk_prepare_enable(sdd->clk)) {
+	ret = clk_prepare_enable(sdd->clk);
+	if (ret) {
 		dev_err(&pdev->dev, "Couldn't enable clock 'spi'\n");
-		ret = -EBUSY;
 		goto err_deref_master;
 	}
 
@@ -1148,9 +1148,9 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 		goto err_disable_clk;
 	}
 
-	if (clk_prepare_enable(sdd->src_clk)) {
+	ret = clk_prepare_enable(sdd->src_clk);
+	if (ret) {
 		dev_err(&pdev->dev, "Couldn't enable clock '%s'\n", clk_name);
-		ret = -EBUSY;
 		goto err_disable_clk;
 	}
 
