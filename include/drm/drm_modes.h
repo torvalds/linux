@@ -459,7 +459,7 @@ void drm_display_mode_to_videomode(const struct drm_display_mode *dmode,
 				   struct videomode *vm);
 void drm_bus_flags_from_videomode(const struct videomode *vm, u32 *bus_flags);
 int of_get_drm_display_mode(struct device_node *np,
-			    struct drm_display_mode *dmode,
+			    struct drm_display_mode *dmode, u32 *bus_flags,
 			    int index);
 
 void drm_mode_set_name(struct drm_display_mode *mode);

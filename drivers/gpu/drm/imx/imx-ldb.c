@@ -66,6 +66,7 @@ struct imx_ldb_channel {
 	struct drm_display_mode mode;
 	int mode_valid;
 	u32 bus_format;
+	u32 bus_flags;
 };
 
 static inline struct imx_ldb_channel *con_to_imx_ldb_ch(struct drm_connector *c)
@@ -379,8 +380,13 @@ static int imx_ldb_encoder_atomic_check(struct drm_encoder *encoder,
 	u32 bus_format = imx_ldb_ch->bus_format;
 
 	/* Bus format description in DT overrides connector display info. */
-	if (!bus_format && di->num_bus_formats)
+	if (!bus_format && di->num_bus_formats) {
 		bus_format = di->bus_formats[0];
+		imx_crtc_state->bus_flags = di->bus_flags;
+	} else {
+		bus_format = imx_ldb_ch->bus_format;
+		imx_crtc_state->bus_flags = imx_ldb_ch->bus_flags;
+	}
 	switch (bus_format) {
 	case MEDIA_BUS_FMT_RGB666_1X7X3_SPWG:
 		imx_crtc_state->bus_format = MEDIA_BUS_FMT_RGB666_1X18;
@@ -674,6 +680,7 @@ static int imx_ldb_bind(struct device *dev, struct device *master, void *data)
 				/* fallback to display-timings node */
 				ret = of_get_drm_display_mode(child,
 							      &channel->mode,
+							      &channel->bus_flags,
 							      OF_USE_NATIVE_MODE);
 				if (!ret)
 					channel->mode_valid = 1;
