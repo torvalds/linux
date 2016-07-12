@@ -92,7 +92,7 @@ int dm355_gpio_register(void);
 /* DM365 function declarations */
 void dm365_init(void);
 void dm365_init_asp(void);
-void dm365_init_vc(struct snd_platform_data *pdata);
+void dm365_init_vc(void);
 void dm365_init_ks(struct davinci_ks_platform_data *pdata);
 void dm365_init_rtc(void);
 void dm365_init_spi0(unsigned chipselect_mask,

@@ -1151,11 +1151,10 @@ void __init dm365_init_asp(void)
 	platform_device_register(&dm365_asp_device);
 }
 
-void __init dm365_init_vc(struct snd_platform_data *pdata)
+void __init dm365_init_vc(void)
 {
 	davinci_cfg_reg(DM365_EVT2_VC_TX);
 	davinci_cfg_reg(DM365_EVT3_VC_RX);
-	dm365_vc_device.dev.platform_data = pdata;
 	platform_device_register(&dm365_vc_device);
 }
 
