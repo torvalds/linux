@@ -101,7 +101,7 @@ struct pulse8 {
 	bool started;
 };
 
-void pulse8_irq_work_handler(struct work_struct *work)
+static void pulse8_irq_work_handler(struct work_struct *work)
 {
 	struct pulse8 *pulse8 =
 		container_of(work, struct pulse8, work);
