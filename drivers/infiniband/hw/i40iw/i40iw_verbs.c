@@ -2259,7 +2259,7 @@ static int i40iw_poll_cq(struct ib_cq *ibcq,
 
 	spin_lock_irqsave(&iwcq->lock, flags);
 	while (cqe_count < num_entries) {
-		ret = ukcq->ops.iw_cq_poll_completion(ukcq, &cq_poll_info, true);
+		ret = ukcq->ops.iw_cq_poll_completion(ukcq, &cq_poll_info);
 		if (ret == I40IW_ERR_QUEUE_EMPTY) {
 			break;
 		} else if (ret == I40IW_ERR_QUEUE_DESTROYED) {
