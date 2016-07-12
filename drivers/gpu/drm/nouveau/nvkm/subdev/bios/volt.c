@@ -75,20 +75,24 @@ nvbios_volt_parse(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
 	case 0x12:
 		info->type    = NVBIOS_VOLT_GPIO;
 		info->vidmask = nvbios_rd08(bios, volt + 0x04);
+		info->ranged  = false;
 		break;
 	case 0x20:
 		info->type    = NVBIOS_VOLT_GPIO;
 		info->vidmask = nvbios_rd08(bios, volt + 0x05);
+		info->ranged  = false;
 		break;
 	case 0x30:
 		info->type    = NVBIOS_VOLT_GPIO;
 		info->vidmask = nvbios_rd08(bios, volt + 0x04);
+		info->ranged  = false;
 		break;
 	case 0x40:
 		info->type    = NVBIOS_VOLT_GPIO;
 		info->base    = nvbios_rd32(bios, volt + 0x04);
 		info->step    = nvbios_rd16(bios, volt + 0x08);
 		info->vidmask = nvbios_rd08(bios, volt + 0x0b);
+		info->ranged  = true; /* XXX: find the flag byte */
 		/*XXX*/
 		info->min     = 0;
 		info->max     = info->base;
@@ -104,9 +108,11 @@ nvbios_volt_parse(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
 			info->pwm_freq  = nvbios_rd32(bios, volt + 0x5) / 1000;
 			info->pwm_range = nvbios_rd32(bios, volt + 0x16);
 		} else {
-			info->type      = NVBIOS_VOLT_GPIO;
-			info->vidmask   = nvbios_rd08(bios, volt + 0x06);
-			info->step      = nvbios_rd16(bios, volt + 0x16);
+			info->type    = NVBIOS_VOLT_GPIO;
+			info->vidmask = nvbios_rd08(bios, volt + 0x06);
+			info->step    = nvbios_rd16(bios, volt + 0x16);
+			info->ranged  =
+				!!(nvbios_rd08(bios, volt + 0x4) & 0x2);
 		}
 		break;
 	}

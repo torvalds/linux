@@ -112,6 +112,7 @@ nvkm_volt_set_id(struct nvkm_volt *volt, u8 id, int condition)
 static void
 nvkm_volt_parse_bios(struct nvkm_bios *bios, struct nvkm_volt *volt)
 {
+	struct nvkm_subdev *subdev = &bios->subdev;
 	struct nvbios_volt_entry ivid;
 	struct nvbios_volt info;
 	u8  ver, hdr, cnt, len;
@@ -119,7 +120,8 @@ nvkm_volt_parse_bios(struct nvkm_bios *bios, struct nvkm_volt *volt)
 	int i;
 
 	data = nvbios_volt_parse(bios, &ver, &hdr, &cnt, &len, &info);
-	if (data && info.vidmask && info.base && info.step) {
+	if (data && info.vidmask && info.base && info.step && info.ranged) {
+		nvkm_debug(subdev, "found ranged based VIDs\n");
 		volt->min_uv = info.min;
 		volt->max_uv = info.max;
 		for (i = 0; i < info.vidmask + 1; i++) {
@@ -132,7 +134,8 @@ nvkm_volt_parse_bios(struct nvkm_bios *bios, struct nvkm_volt *volt)
 			info.base += info.step;
 		}
 		volt->vid_mask = info.vidmask;
-	} else if (data && info.vidmask) {
+	} else if (data && info.vidmask && !info.ranged) {
+		nvkm_debug(subdev, "found entry based VIDs\n");
 		volt->min_uv = 0xffffffff;
 		volt->max_uv = 0;
 		for (i = 0; i < cnt; i++) {
