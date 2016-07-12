@@ -92,8 +92,6 @@ void scatterwalk_done(struct scatter_walk *walk, int out, int more);
 void scatterwalk_map_and_copy(void *buf, struct scatterlist *sg,
 			      unsigned int start, unsigned int nbytes, int out);
 
-int scatterwalk_bytes_sglen(struct scatterlist *sg, int num_bytes);
-
 struct scatterlist *scatterwalk_ffwd(struct scatterlist dst[2],
 				     struct scatterlist *src,
 				     unsigned int len);
