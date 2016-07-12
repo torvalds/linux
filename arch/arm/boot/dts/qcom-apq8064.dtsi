@@ -712,7 +712,6 @@
 			reg		= <0x12500000 0x400>;
 			interrupts	= <GIC_SPI 100 IRQ_TYPE_NONE>;
 			status		= "disabled";
-			dr_mode		= "host";
 
 			clocks		= <&gcc USB_HS1_XCVR_CLK>,
 					  <&gcc USB_HS1_H_CLK>;
