@@ -460,6 +460,8 @@ static void gbcodec_shutdown(struct snd_pcm_substream *substream,
 
 	if (list_empty(&codec->module_list)) {
 		dev_err(codec->dev, "No codec module available\n");
+		codec->stream[substream->stream].state = GBAUDIO_CODEC_SHUTDOWN;
+		codec->stream[substream->stream].dai_name = NULL;
 		mutex_unlock(&codec->lock);
 		pm_relax(dai->dev);
 		return;
@@ -733,8 +735,14 @@ static int gbcodec_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 	mutex_lock(&codec->lock);
 	if (list_empty(&codec->module_list)) {
 		dev_err(codec->dev, "No codec module available\n");
+		if (mute) {
+			codec->stream[stream].state = GBAUDIO_CODEC_STOP;
+			ret = 0;
+		} else {
+			ret = -ENODEV;
+		}
 		mutex_unlock(&codec->lock);
-		return -ENODEV;
+		return ret;
 	}
 
 	list_for_each_entry(module, &codec->module_list, list) {
