@@ -5204,6 +5204,11 @@ static bool svm_xsaves_supported(void)
 	return false;
 }
 
+static bool svm_umip_emulated(void)
+{
+	return false;
+}
+
 static bool svm_has_wbinvd_exit(void)
 {
 	return true;
@@ -5597,6 +5602,7 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 	.invpcid_supported = svm_invpcid_supported,
 	.mpx_supported = svm_mpx_supported,
 	.xsaves_supported = svm_xsaves_supported,
+	.umip_emulated = svm_umip_emulated,
 
 	.set_supported_cpuid = svm_set_supported_cpuid,
 
