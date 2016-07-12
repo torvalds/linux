@@ -33,7 +33,7 @@ signals. The first enumerated standard is a set of B and G/PAL, switched
 automatically depending on the selected radio frequency in UHF or VHF
 band. Enumeration gives a "PAL-B/G" or "PAL-I" choice. Similar a
 Composite input may collapse standards, enumerating "PAL-B/G/H/I",
-"NTSC-M" and "SECAM-D/K". [1]_
+"NTSC-M" and "SECAM-D/K". [#f1]_
 
 To query and select the standard used by the current video input or
 output applications call the :ref:`VIDIOC_G_STD <VIDIOC_G_STD>` and
@@ -177,7 +177,7 @@ Example: Selecting a new video standard
 	exit(EXIT_FAILURE);
     }
 
-.. [1]
+.. [#f1]
    Some users are already confused by technical terms PAL, NTSC and
    SECAM. There is no point asking them to distinguish between B, G, D,
    or K when the software or hardware can do that automatically.

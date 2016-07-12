@@ -99,12 +99,12 @@ linux-media mailing list:
 Multiple Opens
 ==============
 
-V4L2 devices can be opened more than once. [1]_ When this is supported
+V4L2 devices can be opened more than once. [#f1]_ When this is supported
 by the driver, users can for example start a "panel" application to
 change controls like brightness or audio volume, while another
 application captures video and audio. In other words, panel applications
 are comparable to an ALSA audio mixer application. Just opening a V4L2
-device should not change the state of the device. [2]_
+device should not change the state of the device. [#f2]_
 
 Once an application has allocated the memory buffers needed for
 streaming data (by calling the :ref:`VIDIOC_REQBUFS`
@@ -117,7 +117,7 @@ that would affect the buffer sizes (e.g. by calling the
 no longer allowed to allocate buffers or start or stop streaming. The
 EBUSY error code will be returned instead.
 
-Merely opening a V4L2 device does not grant exclusive access. [3]_
+Merely opening a V4L2 device does not grant exclusive access. [#f3]_
 Initiating data exchange however assigns the right to read or write the
 requested type of data, and to change related properties, to this file
 descriptor. Applications can request additional access privileges using
@@ -142,17 +142,17 @@ respectively. Devices are programmed using the
 :ref:`ioctl() <func-ioctl>` function as explained in the following
 sections.
 
-.. [1]
+.. [#f1]
    There are still some old and obscure drivers that have not been
    updated to allow for multiple opens. This implies that for such
    drivers :ref:`open() <func-open>` can return an ``EBUSY`` error code
    when the device is already in use.
 
-.. [2]
+.. [#f2]
    Unfortunately, opening a radio device often switches the state of the
    device to radio mode in many drivers. This behavior should be fixed
    eventually as it violates the V4L2 specification.
 
-.. [3]
+.. [#f3]
    Drivers could recognize the ``O_EXCL`` open flag. Presently this is
    not required, so applications cannot know if it really works.

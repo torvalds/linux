@@ -52,7 +52,7 @@ using driver module options. The major device number remains 81.
 
        -  Video capture and overlay
 
-       -  ``/dev/video`` and ``/dev/bttv0``\  [1]_, ``/dev/video0`` to
+       -  ``/dev/video`` and ``/dev/bttv0``\  [#f1]_, ``/dev/video0`` to
 	  ``/dev/video63``
 
        -  0-63
@@ -61,7 +61,7 @@ using driver module options. The major device number remains 81.
 
        -  Radio receiver
 
-       -  ``/dev/radio``\  [2]_, ``/dev/radio0`` to ``/dev/radio63``
+       -  ``/dev/radio``\  [#f2]_, ``/dev/radio0`` to ``/dev/radio63``
 
        -  64-127
 
@@ -457,7 +457,7 @@ into the struct :ref:`v4l2_pix_format <v4l2-pix-format>`:
 
        -  ``VIDEO_PALETTE_HI240``
 
-       -  :ref:`V4L2_PIX_FMT_HI240 <pixfmt-reserved>` [3]_
+       -  :ref:`V4L2_PIX_FMT_HI240 <pixfmt-reserved>` [#f3]_
 
     -  .. row 4
 
@@ -481,7 +481,7 @@ into the struct :ref:`v4l2_pix_format <v4l2-pix-format>`:
 
        -  ``VIDEO_PALETTE_RGB32``
 
-       -  :ref:`V4L2_PIX_FMT_BGR32 <pixfmt-rgb>` [4]_
+       -  :ref:`V4L2_PIX_FMT_BGR32 <pixfmt-rgb>` [#f4]_
 
     -  .. row 8
 
@@ -491,7 +491,7 @@ into the struct :ref:`v4l2_pix_format <v4l2-pix-format>`:
 
     -  .. row 9
 
-       -  ``VIDEO_PALETTE_YUYV``\  [5]_
+       -  ``VIDEO_PALETTE_YUYV``\  [#f5]_
 
        -  :ref:`V4L2_PIX_FMT_YUYV <V4L2-PIX-FMT-YUYV>`
 
@@ -511,13 +511,13 @@ into the struct :ref:`v4l2_pix_format <v4l2-pix-format>`:
 
        -  ``VIDEO_PALETTE_YUV411``
 
-       -  :ref:`V4L2_PIX_FMT_Y41P <V4L2-PIX-FMT-Y41P>` [6]_
+       -  :ref:`V4L2_PIX_FMT_Y41P <V4L2-PIX-FMT-Y41P>` [#f6]_
 
     -  .. row 13
 
        -  ``VIDEO_PALETTE_RAW``
 
-       -  None [7]_
+       -  None [#f7]_
 
     -  .. row 14
 
@@ -529,7 +529,7 @@ into the struct :ref:`v4l2_pix_format <v4l2-pix-format>`:
 
        -  ``VIDEO_PALETTE_YUV411P``
 
-       -  :ref:`V4L2_PIX_FMT_YUV411P <V4L2-PIX-FMT-YUV411P>` [8]_
+       -  :ref:`V4L2_PIX_FMT_YUV411P <V4L2-PIX-FMT-YUV411P>` [#f8]_
 
     -  .. row 16
 
@@ -876,7 +876,7 @@ with the following parameters:
 
        -  count[]
 
-       -  16, 16 [9]_
+       -  16, 16 [#f9]_
 
     -  .. row 8
 
@@ -915,40 +915,40 @@ No replacement exists for ``VIDIOCKEY``, and the V4L functions for
 microcode programming. A new interface for MPEG compression and playback
 devices is documented in :ref:`extended-controls`.
 
-.. [1]
+.. [#f1]
    According to Documentation/devices.txt these should be symbolic links
    to ``/dev/video0``. Note the original bttv interface is not
    compatible with V4L or V4L2.
 
-.. [2]
+.. [#f2]
    According to ``Documentation/devices.txt`` a symbolic link to
    ``/dev/radio0``.
 
-.. [3]
+.. [#f3]
    This is a custom format used by the BTTV driver, not one of the V4L2
    standard formats.
 
-.. [4]
+.. [#f4]
    Presumably all V4L RGB formats are little-endian, although some
    drivers might interpret them according to machine endianness. V4L2
    defines little-endian, big-endian and red/blue swapped variants. For
    details see :ref:`pixfmt-rgb`.
 
-.. [5]
+.. [#f5]
    ``VIDEO_PALETTE_YUV422`` and ``VIDEO_PALETTE_YUYV`` are the same
    formats. Some V4L drivers respond to one, some to the other.
 
-.. [6]
+.. [#f6]
    Not to be confused with ``V4L2_PIX_FMT_YUV411P``, which is a planar
    format.
 
-.. [7]
+.. [#f7]
    V4L explains this as: "RAW capture (BT848)"
 
-.. [8]
+.. [#f8]
    Not to be confused with ``V4L2_PIX_FMT_Y41P``, which is a packed
    format.
 
-.. [9]
+.. [#f9]
    Old driver versions used different values, eventually the custom
    ``BTTV_VBISIZE`` ioctl was added to query the correct values.

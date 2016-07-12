@@ -17,7 +17,7 @@ device.
 
 All controls are accessed using an ID value. V4L2 defines several IDs
 for specific purposes. Drivers can also implement their own custom
-controls using ``V4L2_CID_PRIVATE_BASE``  [1]_ and higher values. The
+controls using ``V4L2_CID_PRIVATE_BASE``  [#f1]_ and higher values. The
 pre-defined control IDs have the prefix ``V4L2_CID_``, and are listed in
 :ref:`control-id`. The ID is used when querying the attributes of a
 control, and when getting or setting the current value.
@@ -522,7 +522,7 @@ Example: Changing controls
     /* Errors ignored */
     ioctl(fd, VIDIOC_S_CTRL, &control);
 
-.. [1]
+.. [#f1]
    The use of ``V4L2_CID_PRIVATE_BASE`` is problematic because different
    drivers may use the same ``V4L2_CID_PRIVATE_BASE`` ID for different
    controls. This makes it hard to programatically set such controls

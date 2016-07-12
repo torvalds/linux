@@ -622,7 +622,7 @@ To change the radio frequency the
 
        -  ``LANG2 = SAP``
 
-       -  ``LANG1_LANG2``\  [1]_
+       -  ``LANG1_LANG2``\  [#f1]_
 
     -  .. row 3
 
@@ -686,7 +686,7 @@ To change the radio frequency the
 
        -  Language 1
 
-       -  Lang1/Lang2 (deprecated [2]_) or Lang1/Lang1
+       -  Lang1/Lang2 (deprecated [#f2]_) or Lang1/Lang1
 
        -  Language 1
 
@@ -706,11 +706,11 @@ EINVAL
     The struct :ref:`v4l2_tuner <v4l2-tuner>` ``index`` is out of
     bounds.
 
-.. [1]
+.. [#f1]
    This mode has been added in Linux 2.6.17 and may not be supported by
    older drivers.
 
-.. [2]
+.. [#f2]
    Playback of both languages in ``MODE_STEREO`` is deprecated. In the
    future drivers should produce only the primary language in this mode.
    Applications should request ``MODE_LANG1_LANG2`` to record both

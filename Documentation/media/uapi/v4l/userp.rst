@@ -54,7 +54,7 @@ driver swaps memory pages within physical memory to create a continuous
 area of memory. This happens transparently to the application in the
 virtual memory subsystem of the kernel. When buffer pages have been
 swapped out to disk they are brought back and finally locked in physical
-memory for DMA. [1]_
+memory for DMA. [#f1]_
 
 Filled or displayed buffers are dequeued with the
 :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl. The driver can unlock the
@@ -99,9 +99,9 @@ Drivers implementing user pointer I/O must support the
 :ref:`VIDIOC_REQBUFS <VIDIOC_REQBUFS>`, :ref:`VIDIOC_QBUF <VIDIOC_QBUF>`,
 :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>`, :ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>`
 and :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` ioctls, the
-:ref:`select() <func-select>` and :ref:`poll() <func-poll>` function. [2]_
+:ref:`select() <func-select>` and :ref:`poll() <func-poll>` function. [#f2]_
 
-.. [1]
+.. [#f1]
    We expect that frequently used buffers are typically not swapped out.
    Anyway, the process of swapping, locking or generating scatter-gather
    lists may be time consuming. The delay can be masked by the depth of
@@ -113,7 +113,7 @@ and :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` ioctls, the
    disk. Output buffers must be saved on the incoming and outgoing queue
    because an application may share them with other processes.
 
-.. [2]
+.. [#f2]
    At the driver level :ref:`select() <func-select>` and :ref:`poll() <func-poll>` are
    the same, and :ref:`select() <func-select>` is too important to be optional.
    The rest should be evident.

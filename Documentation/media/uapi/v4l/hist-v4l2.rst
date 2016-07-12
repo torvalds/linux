@@ -1391,7 +1391,7 @@ the X Window system, implemented for example by the XFree86 project. Its
 scope is similar to V4L2, an API to video capture and output devices for
 X clients. Xv allows applications to display live video in a window,
 send window contents to a TV output, and capture or output still images
-in XPixmaps [1]_. With their implementation XFree86 makes the extension
+in XPixmaps [#f1]_. With their implementation XFree86 makes the extension
 available across many operating systems and architectures.
 
 Because the driver is embedded into the X server Xv has a number of
@@ -1476,5 +1476,5 @@ should not be implemented in new drivers.
    ``VIDIOC_SUBDEV_G_SELECTION`` and ``VIDIOC_SUBDEV_S_SELECTION``,
    :ref:`VIDIOC_SUBDEV_G_SELECTION`.
 
-.. [1]
+.. [#f1]
    This is not implemented in XFree86.

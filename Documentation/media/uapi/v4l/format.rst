@@ -73,7 +73,7 @@ Image Format Enumeration
 
 Apart of the generic format negotiation functions a special ioctl to
 enumerate all image formats supported by video capture, overlay or
-output devices is available. [1]_
+output devices is available. [#f1]_
 
 The :ref:`VIDIOC_ENUM_FMT` ioctl must be supported
 by all drivers exchanging image data with applications.
@@ -85,7 +85,7 @@ by all drivers exchanging image data with applications.
     If necessary driver writers should publish an example conversion
     routine or library for integration into applications.
 
-.. [1]
+.. [#f1]
    Enumerating formats an application has no a-priori knowledge of
    (otherwise it could explicitly ask for them and need not enumerate)
    seems useless, but there are applications serving as proxy between

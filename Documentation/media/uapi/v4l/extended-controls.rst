@@ -3183,7 +3183,7 @@ Camera Control IDs
     of the illumination varies significantly throughout the scene, i.e.
     there are simultaneously very dark and very bright areas. It is most
     commonly realized in cameras by combining two subsequent frames with
-    different exposure times.  [1]_
+    different exposure times.  [#f1]_
 
 .. _v4l2-image-stabilization:
 
@@ -4526,6 +4526,6 @@ RF_TUNER Control IDs
     Is synthesizer PLL locked? RF tuner is receiving given frequency
     when that control is set. This is a read-only control.
 
-.. [1]
+.. [#f1]
    This control may be changed to a menu control in the future, if more
    options are required.

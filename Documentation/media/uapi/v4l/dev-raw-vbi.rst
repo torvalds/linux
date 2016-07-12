@@ -11,7 +11,7 @@ sequence of lines of an analog video signal. During VBI no picture
 information is transmitted, allowing some time while the electron beam
 of a cathode ray tube TV returns to the top of the screen. Using an
 oscilloscope you will find here the vertical synchronization pulses and
-short data packages ASK modulated [1]_ onto the video signal. These are
+short data packages ASK modulated [#f1]_ onto the video signal. These are
 transmissions of services such as Teletext or Closed Caption.
 
 Subject of this interface type is raw VBI data, as sampled off a video
@@ -143,7 +143,7 @@ and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does
        -  ``sample_format``
 
        -  Defines the sample format as in :ref:`pixfmt`, a
-	  four-character-code. [2]_ Usually this is ``V4L2_PIX_FMT_GREY``,
+	  four-character-code. [#f2]_ Usually this is ``V4L2_PIX_FMT_GREY``,
 	  i. e. each sample consists of 8 bits with lower values oriented
 	  towards the black level. Do not assume any other correlation of
 	  values with the signal level. For example, the MSB does not
@@ -155,7 +155,7 @@ and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does
 
        -  __u32
 
-       -  ``start``\ [2]_
+       -  ``start``\ [#f2]_
 
        -  This is the scanning system line number associated with the first
 	  line of the VBI image, of the first and the second field
@@ -173,7 +173,7 @@ and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does
 
        -  __u32
 
-       -  ``count``\ [2]_
+       -  ``count``\ [#f2]_
 
        -  The number of lines in the first and second field image,
 	  respectively.
@@ -218,7 +218,7 @@ and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does
 
        -  __u32
 
-       -  ``reserved``\ [2]_
+       -  ``reserved``\ [#f2]_
 
        -  This array is reserved for future extensions. Drivers and
 	  applications must set it to zero.
@@ -245,7 +245,7 @@ and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does
 	  or bottom field depending on the video standard. When this flag is
 	  set the first or second field may be stored first, however the
 	  fields are still in correct temporal order with the older field
-	  first in memory. [3]_
+	  first in memory. [#f3]_
 
     -  .. row 2
 
@@ -336,15 +336,15 @@ points returning an ``EBUSY`` error code if the required hardware resources
 are temporarily unavailable, for example the device is already in use by
 another process.
 
-.. [1]
+.. [#f1]
    ASK: Amplitude-Shift Keying. A high signal level represents a '1'
    bit, a low level a '0' bit.
 
-.. [2]
+.. [#f2]
    A few devices may be unable to sample VBI data at all but can extend
    the video capture window to the VBI region.
 
-.. [3]
+.. [#f3]
    Most VBI services transmit on both fields, but some have different
    semantics depending on the field number. These cannot be reliable
    decoded or encoded when ``V4L2_VBI_UNSYNC`` is set.

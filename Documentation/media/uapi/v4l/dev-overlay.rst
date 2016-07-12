@@ -33,7 +33,7 @@ Applications should use different file descriptors for capturing and
 overlay. This must be supported by all drivers capable of simultaneous
 capturing and overlay. Optionally these drivers may also permit
 capturing and overlay with a single file descriptor for compatibility
-with V4L and earlier versions of V4L2. [1]_
+with V4L and earlier versions of V4L2. [#f1]_
 
 
 Querying Capabilities
@@ -216,7 +216,7 @@ bits like:
 
     ((__u8 *) bitmap)[w.width * y + x / 8] & (1 << (x & 7))
 
-where ``0`` ≤ x < ``w.width`` and ``0`` ≤ y <``w.height``. [2]_
+where ``0`` ≤ x < ``w.width`` and ``0`` ≤ y <``w.height``. [#f2]_
 
 When a clipping bit mask is not supported the driver ignores this field,
 its contents after calling :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` are
@@ -227,7 +227,7 @@ Applications need not create a clip list or bit mask. When they pass
 both, or despite negotiating chroma-keying, the results are undefined.
 Regardless of the chosen method, the clipping abilities of the hardware
 may be limited in quantity or quality. The results when these limits are
-exceeded are undefined. [3]_
+exceeded are undefined. [#f3]_
 
 ``__u8 global_alpha``
     The global alpha value used to blend the framebuffer with video
@@ -244,7 +244,7 @@ exceeded are undefined. [3]_
 
 .. _v4l2-clip:
 
-struct v4l2_clip [4]_
+struct v4l2_clip [#f4]_
 ---------------------
 
 ``struct v4l2_rect c``
@@ -284,7 +284,7 @@ Enabling Overlay
 To start or stop the frame buffer overlay applications call the
 :ref:`VIDIOC_OVERLAY` ioctl.
 
-.. [1]
+.. [#f1]
    A common application of two file descriptors is the XFree86
    :ref:`Xv/V4L <xvideo>` interface driver and a V4L2 application.
    While the X server controls video overlay, the application can take
@@ -301,17 +301,17 @@ To start or stop the frame buffer overlay applications call the
    Hence as a complexity trade-off drivers *must* support two file
    descriptors and *may* support single fd operation.
 
-.. [2]
+.. [#f2]
    Should we require ``w.width`` to be a multiple of eight?
 
-.. [3]
+.. [#f3]
    When the image is written into frame buffer memory it will be
    undesirable if the driver clips out less pixels than expected,
    because the application and graphics system are not aware these
    regions need to be refreshed. The driver should clip out more pixels
    or not write the image at all.
 
-.. [4]
+.. [#f4]
    The X Window system defines "regions" which are vectors of ``struct
    BoxRec { short x1, y1, x2, y2; }`` with ``width = x2 - x1`` and
    ``height = y2 - y1``, so one cannot pass X11 clip lists directly.

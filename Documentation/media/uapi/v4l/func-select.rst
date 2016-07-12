@@ -50,7 +50,7 @@ set appropriately. When the application did not call
 :ref:`VIDIOC_STREAMON` yet the :ref:`select() <func-select>`
 function succeeds, setting the bit of the file descriptor in ``readfds``
 or ``writefds``, but subsequent :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>`
-calls will fail. [1]_
+calls will fail. [#f1]_
 
 When use of the :ref:`read() <func-read>` function has been negotiated and the
 driver does not capture yet, the :ref:`select() <func-select>` function starts
@@ -100,7 +100,7 @@ EINVAL
     The ``nfds`` argument is less than zero or greater than
     ``FD_SETSIZE``.
 
-.. [1]
+.. [#f1]
    The Linux kernel implements :ref:`select() <func-select>` like the
    :ref:`poll() <func-poll>` function, but :ref:`select() <func-select>` cannot
    return a ``POLLERR``.

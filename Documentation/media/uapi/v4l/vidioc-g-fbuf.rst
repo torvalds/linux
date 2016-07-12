@@ -112,7 +112,7 @@ destructive video overlay.
 
        -
        -  Physical base address of the framebuffer, that is the address of
-	  the pixel in the top left corner of the framebuffer. [1]_
+	  the pixel in the top left corner of the framebuffer. [#f1]_
 
     -  .. row 4
 
@@ -492,7 +492,7 @@ EPERM
 EINVAL
     The :ref:`VIDIOC_S_FBUF <VIDIOC_G_FBUF>` parameters are unsuitable.
 
-.. [1]
+.. [#f1]
    A physical base address may not suit all platforms. GK notes in
    theory we should pass something like PCI device + memory region +
    offset instead. If you encounter problems please discuss on the

@@ -53,7 +53,7 @@ returns ``EINVAL``.
 
 In both cases, when the driver sets the ``V4L2_CTRL_FLAG_DISABLED`` flag
 in the ``flags`` field this control is permanently disabled and should
-be ignored by the application. [1]_
+be ignored by the application. [#f1]_
 
 When the application ORs ``id`` with ``V4L2_CTRL_FLAG_NEXT_CTRL`` the
 driver returns the next supported non-compound control, or ``EINVAL`` if
@@ -776,7 +776,7 @@ EINVAL
 EACCES
     An attempt was made to read a write-only control.
 
-.. [1]
+.. [#f1]
    ``V4L2_CTRL_FLAG_DISABLED`` was intended for two purposes: Drivers
    can skip predefined controls not supported by the hardware (although
    returning ``EINVAL`` would do as well), or disable predefined and private

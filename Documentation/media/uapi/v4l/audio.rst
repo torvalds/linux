@@ -11,7 +11,7 @@ capture devices have inputs, output devices have outputs, zero or more
 each. Radio devices have no audio inputs or outputs. They have exactly
 one tuner which in fact *is* an audio source, but this API associates
 tuners with video inputs or outputs only, and radio devices have none of
-these. [1]_ A connector on a TV card to loop back the received audio
+these. [#f1]_ A connector on a TV card to loop back the received audio
 signal to a sound card is not considered an audio output.
 
 Audio and video inputs and outputs are associated. Selecting a video
@@ -88,7 +88,7 @@ Example: Switching to the first audio input
 	exit(EXIT_FAILURE);
     }
 
-.. [1]
+.. [#f1]
    Actually struct :ref:`v4l2_audio <v4l2-audio>` ought to have a
    ``tuner`` field like struct :ref:`v4l2_input <v4l2-input>`, not
    only making the API more consistent but also permitting radio devices

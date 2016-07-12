@@ -31,17 +31,17 @@ vidctrl tool is fictitious):
 To read from the device applications use the :ref:`read() <func-read>`
 function, to write the :ref:`write() <func-write>` function. Drivers
 must implement one I/O method if they exchange data with applications,
-but it need not be this. [1]_ When reading or writing is supported, the
+but it need not be this. [#f1]_ When reading or writing is supported, the
 driver must also support the :ref:`select() <func-select>` and
-:ref:`poll() <func-poll>` function. [2]_
+:ref:`poll() <func-poll>` function. [#f2]_
 
-.. [1]
+.. [#f1]
    It would be desirable if applications could depend on drivers
    supporting all I/O interfaces, but as much as the complex memory
    mapping I/O can be inadequate for some devices we have no reason to
    require this interface, which is most useful for simple applications
    capturing still images.
 
-.. [2]
+.. [#f2]
    At the driver level :ref:`select() <func-select>` and :ref:`poll() <func-poll>` are
    the same, and :ref:`select() <func-select>` is too important to be optional.

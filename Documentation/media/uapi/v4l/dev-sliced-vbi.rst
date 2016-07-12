@@ -126,7 +126,7 @@ struct v4l2_sliced_vbi_format
 	  specified in this field. For example, if ``service_set`` is
 	  initialized with ``V4L2_SLICED_TELETEXT_B | V4L2_SLICED_WSS_625``,
 	  a driver for the cx25840 video decoder sets lines 7-22 of both
-	  fields [1]_ to ``V4L2_SLICED_TELETEXT_B`` and line 23 of the first
+	  fields [#f1]_ to ``V4L2_SLICED_TELETEXT_B`` and line 23 of the first
 	  field to ``V4L2_SLICED_WSS_625``. If ``service_set`` is set to
 	  zero, then the values of ``service_lines`` will be used instead.
 
@@ -817,6 +817,6 @@ Line Identifiers for struct v4l2_mpeg_vbi_itv0_line id field
 
 
 
-.. [1]
+.. [#f1]
    According to :ref:`ETS 300 706 <ets300706>` lines 6-22 of the first
    field and lines 5-22 of the second field may carry Teletext data.

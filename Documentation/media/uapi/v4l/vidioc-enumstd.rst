@@ -41,7 +41,7 @@ structure or return an ``EINVAL`` error code when the index is out of
 bounds. To enumerate all standards applications shall begin at index
 zero, incrementing by one until the driver returns ``EINVAL``. Drivers may
 enumerate a different set of standards after switching the video input
-or output. [1]_
+or output. [#f1]_
 
 
 .. _v4l2-standard:
@@ -278,11 +278,11 @@ support digital TV. See also the Linux DVB API at
 
        -  Characteristics
 
-       -  M/NTSC [2]_
+       -  M/NTSC [#f2]_
 
        -  M/PAL
 
-       -  N/PAL [3]_
+       -  N/PAL [#f3]_
 
        -  B, B1, G/PAL
 
@@ -369,7 +369,7 @@ support digital TV. See also the Linux DVB API at
 
        -  + 4.5
 
-       -  + 5.5 ± 0.001  [4]_  [5]_  [6]_  [7]_
+       -  + 5.5 ± 0.001  [#f4]_  [#f5]_  [#f6]_  [#f7]_
 
        -  + 6.5 ± 0.001
 
@@ -383,7 +383,7 @@ support digital TV. See also the Linux DVB API at
 
        -  + 6.5
 
-       -  + 6.5  [8]_
+       -  + 6.5  [#f8]_
 
 
 Return Value
@@ -400,42 +400,42 @@ EINVAL
 ENODATA
     Standard video timings are not supported for this input or output.
 
-.. [1]
+.. [#f1]
    The supported standards may overlap and we need an unambiguous set to
    find the current standard returned by :ref:`VIDIOC_G_STD <VIDIOC_G_STD>`.
 
-.. [2]
+.. [#f2]
    Japan uses a standard similar to M/NTSC (V4L2_STD_NTSC_M_JP).
 
-.. [3]
+.. [#f3]
    The values in brackets apply to the combination N/PAL a.k.a.
    N\ :sub:`C` used in Argentina (V4L2_STD_PAL_Nc).
 
-.. [4]
+.. [#f4]
    In the Federal Republic of Germany, Austria, Italy, the Netherlands,
    Slovakia and Switzerland a system of two sound carriers is used, the
    frequency of the second carrier being 242.1875 kHz above the
    frequency of the first sound carrier. For stereophonic sound
    transmissions a similar system is used in Australia.
 
-.. [5]
+.. [#f5]
    New Zealand uses a sound carrier displaced 5.4996 ± 0.0005 MHz from
    the vision carrier.
 
-.. [6]
+.. [#f6]
    In Denmark, Finland, New Zealand, Sweden and Spain a system of two
    sound carriers is used. In Iceland, Norway and Poland the same system
    is being introduced. The second carrier is 5.85 MHz above the vision
    carrier and is DQPSK modulated with 728 kbit/s sound and data
    multiplex. (NICAM system)
 
-.. [7]
+.. [#f7]
    In the United Kingdom, a system of two sound carriers is used. The
    second sound carrier is 6.552 MHz above the vision carrier and is
    DQPSK modulated with a 728 kbit/s sound and data multiplex able to
    carry two sound channels. (NICAM system)
 
-.. [8]
+.. [#f8]
    In France, a digital carrier 5.85 MHz away from the vision carrier
    may be used in addition to the main sound carrier. It is modulated in
    differentially encoded QPSK with a 728 kbit/s sound and data
