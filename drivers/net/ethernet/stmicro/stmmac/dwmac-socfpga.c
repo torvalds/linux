@@ -214,7 +214,7 @@ static int socfpga_dwmac_parse_data(struct socfpga_dwmac *dwmac, struct device *
 				dev_err(dev,
 					"%s: ERROR: failed mapping tse control port\n",
 					__func__);
-				return PTR_ERR(dwmac->pcs.sgmii_adapter_base);
+				return PTR_ERR(dwmac->pcs.tse_pcs_base);
 			}
 		}
 	}
