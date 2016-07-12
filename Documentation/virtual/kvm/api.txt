@@ -3844,12 +3844,18 @@ Returns: 0 on success, -EINVAL when args[0] contains invalid features
 Valid feature flags in args[0] are
 
 #define KVM_X2APIC_API_USE_32BIT_IDS            (1ULL << 0)
+#define KVM_X2APIC_API_DISABLE_BROADCAST_QUIRK  (1ULL << 1)
 
 Enabling KVM_X2APIC_API_USE_32BIT_IDS changes the behavior of
 KVM_SET_GSI_ROUTING, KVM_SIGNAL_MSI, KVM_SET_LAPIC, and KVM_GET_LAPIC,
 allowing the use of 32-bit APIC IDs.  See KVM_CAP_X2APIC_API in their
 respective sections.
 
+KVM_X2APIC_API_DISABLE_BROADCAST_QUIRK must be enabled for x2APIC to work
+in logical mode or with more than 255 VCPUs.  Otherwise, KVM treats 0xff
+as a broadcast even in x2APIC mode in order to support physical x2APIC
+without interrupt remapping.  This is undesirable in logical mode,
+where 0xff represents CPUs 0-7 in cluster 0.
 
 
 8. Other capabilities.

@@ -784,6 +784,7 @@ struct kvm_arch {
 	struct page *avic_physical_id_table_page;
 
 	bool x2apic_format;
+	bool x2apic_broadcast_quirk_disabled;
 };
 
 struct kvm_vm_stat {

@@ -1315,5 +1315,6 @@ struct kvm_assigned_msix_entry {
 };
 
 #define KVM_X2APIC_API_USE_32BIT_IDS            (1ULL << 0)
+#define KVM_X2APIC_API_DISABLE_BROADCAST_QUIRK  (1ULL << 1)
 
 #endif /* __LINUX_KVM_H */
