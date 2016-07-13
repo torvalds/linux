@@ -517,6 +517,13 @@ static int cpuhp_invoke_ap_callback(int cpu, enum cpuhp_state state,
 	if (!cpu_online(cpu))
 		return 0;
 
+	/*
+	 * If we are up and running, use the hotplug thread. For early calls
+	 * we invoke the thread function directly.
+	 */
+	if (!st->thread)
+		return cpuhp_invoke_callback(cpu, state, cb);
+
 	st->cb_state = state;
 	st->cb = cb;
 	/*
