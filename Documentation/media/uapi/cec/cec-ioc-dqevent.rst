@@ -45,9 +45,9 @@ there is no more room in a queue then the last event is overwritten with
 the new one. This means that intermediate results can be thrown away but
 that the latest event is always available. This also means that is it
 possible to read two successive events that have the same value (e.g.
-two :ref:`CEC_EVENT_STATE_CHANGE <CEC_EVENT_STATE_CHANGE>` events with the same state). In that case
-the intermediate state changes were lost but it is guaranteed that the
-state did change in between the two events.
+two :ref:`CEC_EVENT_STATE_CHANGE <CEC-EVENT-STATE-CHANGE>` events with
+the same state). In that case the intermediate state changes were lost but
+it is guaranteed that the state did change in between the two events.
 
 
 .. _cec-event-state-change_s:
