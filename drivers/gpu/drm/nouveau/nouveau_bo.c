@@ -424,13 +424,7 @@ nouveau_bo_map(struct nouveau_bo *nvbo)
 	if (ret)
 		return ret;
 
-	/*
-	 * TTM buffers allocated using the DMA API already have a mapping, let's
-	 * use it instead.
-	 */
-	if (!nvbo->force_coherent)
-		ret = ttm_bo_kmap(&nvbo->bo, 0, nvbo->bo.mem.num_pages,
-				  &nvbo->kmap);
+	ret = ttm_bo_kmap(&nvbo->bo, 0, nvbo->bo.mem.num_pages, &nvbo->kmap);
 
 	ttm_bo_unreserve(&nvbo->bo);
 	return ret;
@@ -442,12 +436,7 @@ nouveau_bo_unmap(struct nouveau_bo *nvbo)
 	if (!nvbo)
 		return;
 
-	/*
-	 * TTM buffers allocated using the DMA API already had a coherent
-	 * mapping which we used, no need to unmap.
-	 */
-	if (!nvbo->force_coherent)
-		ttm_bo_kunmap(&nvbo->kmap);
+	ttm_bo_kunmap(&nvbo->kmap);
 }
 
 void
@@ -506,35 +495,13 @@ nouveau_bo_validate(struct nouveau_bo *nvbo, bool interruptible,
 	return 0;
 }
 
-static inline void *
-_nouveau_bo_mem_index(struct nouveau_bo *nvbo, unsigned index, void *mem, u8 sz)
-{
-	struct ttm_dma_tt *dma_tt;
-	u8 *m = mem;
-
-	index *= sz;
-
-	if (m) {
-		/* kmap'd address, return the corresponding offset */
-		m += index;
-	} else {
-		/* DMA-API mapping, lookup the right address */
-		dma_tt = (struct ttm_dma_tt *)nvbo->bo.ttm;
-		m = dma_tt->cpu_address[index / PAGE_SIZE];
-		m += index % PAGE_SIZE;
-	}
-
-	return m;
-}
-#define nouveau_bo_mem_index(o, i, m) _nouveau_bo_mem_index(o, i, m, sizeof(*m))
-
 void
 nouveau_bo_wr16(struct nouveau_bo *nvbo, unsigned index, u16 val)
 {
 	bool is_iomem;
 	u16 *mem = ttm_kmap_obj_virtual(&nvbo->kmap, &is_iomem);
 
-	mem = nouveau_bo_mem_index(nvbo, index, mem);
+	mem += index;
 
 	if (is_iomem)
 		iowrite16_native(val, (void __force __iomem *)mem);
@@ -548,7 +515,7 @@ nouveau_bo_rd32(struct nouveau_bo *nvbo, unsigned index)
 	bool is_iomem;
 	u32 *mem = ttm_kmap_obj_virtual(&nvbo->kmap, &is_iomem);
 
-	mem = nouveau_bo_mem_index(nvbo, index, mem);
+	mem += index;
 
 	if (is_iomem)
 		return ioread32_native((void __force __iomem *)mem);
@@ -562,7 +529,7 @@ nouveau_bo_wr32(struct nouveau_bo *nvbo, unsigned index, u32 val)
 	bool is_iomem;
 	u32 *mem = ttm_kmap_obj_virtual(&nvbo->kmap, &is_iomem);
 
-	mem = nouveau_bo_mem_index(nvbo, index, mem);
+	mem += index;
 
 	if (is_iomem)
 		iowrite32_native(val, (void __force __iomem *)mem);
@@ -1492,14 +1459,6 @@ nouveau_ttm_tt_populate(struct ttm_tt *ttm)
 	dev = drm->dev;
 	pdev = device->dev;
 
-	/*
-	 * Objects matching this condition have been marked as force_coherent,
-	 * so use the DMA API for them.
-	 */
-	if (!nvxx_device(&drm->device)->func->cpu_coherent &&
-	    ttm->caching_state == tt_uncached)
-		return ttm_dma_populate(ttm_dma, dev->dev);
-
 #if IS_ENABLED(CONFIG_AGP)
 	if (drm->agp.bridge) {
 		return ttm_agp_tt_populate(ttm);
@@ -1556,16 +1515,6 @@ nouveau_ttm_tt_unpopulate(struct ttm_tt *ttm)
 	device = nvxx_device(&drm->device);
 	dev = drm->dev;
 	pdev = device->dev;
-
-	/*
-	 * Objects matching this condition have been marked as force_coherent,
-	 * so use the DMA API for them.
-	 */
-	if (!nvxx_device(&drm->device)->func->cpu_coherent &&
-	    ttm->caching_state == tt_uncached) {
-		ttm_dma_unpopulate(ttm_dma, dev->dev);
-		return;
-	}
 
 #if IS_ENABLED(CONFIG_AGP)
 	if (drm->agp.bridge) {
