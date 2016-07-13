@@ -1905,6 +1905,11 @@ static void wacom_remote_destroy_one(struct wacom *wacom, unsigned int index)
 	struct wacom_remote *remote = wacom->remote;
 	u32 serial = remote->remotes[index].serial;
 	int i;
+	unsigned long flags;
+
+	spin_lock_irqsave(&remote->remote_lock, flags);
+	remote->remotes[index].registered = false;
+	spin_unlock_irqrestore(&remote->remote_lock, flags);
 
 	if (remote->remotes[index].group.name)
 		devres_release_group(&wacom->hdev->dev,
@@ -1914,6 +1919,7 @@ static void wacom_remote_destroy_one(struct wacom *wacom, unsigned int index)
 		if (remote->remotes[i].serial == serial) {
 			remote->remotes[i].serial = 0;
 			remote->remotes[i].group.name = NULL;
+			remote->remotes[i].registered = false;
 			wacom->led.groups[i].select = WACOM_STATUS_UNKNOWN;
 		}
 	}
@@ -1946,7 +1952,31 @@ static int wacom_remote_create_one(struct wacom *wacom, u32 serial,
 	if (error)
 		goto fail;
 
+	remote->remotes[index].input = wacom_allocate_input(wacom);
+	if (!remote->remotes[index].input) {
+		error = -ENOMEM;
+		goto fail;
+	}
+	remote->remotes[index].input->uniq = remote->remotes[index].group.name;
+	remote->remotes[index].input->name = wacom->wacom_wac.pad_name;
+
+	if (!remote->remotes[index].input->name) {
+		error = -EINVAL;
+		goto fail;
+	}
+
+	error = wacom_setup_pad_input_capabilities(remote->remotes[index].input,
+						   &wacom->wacom_wac);
+	if (error)
+		goto fail;
+
 	remote->remotes[index].serial = serial;
+
+	error = input_register_device(remote->remotes[index].input);
+	if (error)
+		goto fail;
+
+	remote->remotes[index].registered = true;
 
 	devres_close_group(dev, &remote->remotes[index]);
 	return 0;

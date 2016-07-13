@@ -751,22 +751,37 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 static int wacom_remote_irq(struct wacom_wac *wacom_wac, size_t len)
 {
 	unsigned char *data = wacom_wac->data;
-	struct input_dev *input = wacom_wac->pad_input;
+	struct input_dev *input;
 	struct wacom *wacom = container_of(wacom_wac, struct wacom, wacom_wac);
 	struct wacom_remote *remote = wacom->remote;
 	struct wacom_features *features = &wacom_wac->features;
 	int bat_charging, bat_percent, touch_ring_mode;
 	__u32 serial;
-	int i;
+	int i, index = -1;
+	unsigned long flags;
 
 	if (data[0] != WACOM_REPORT_REMOTE) {
-		dev_dbg(input->dev.parent,
-			"%s: received unknown report #%d", __func__, data[0]);
+		hid_dbg(wacom->hdev, "%s: received unknown report #%d",
+			__func__, data[0]);
 		return 0;
 	}
 
 	serial = data[3] + (data[4] << 8) + (data[5] << 16);
 	wacom_wac->id[0] = PAD_DEVICE_ID;
+
+	spin_lock_irqsave(&remote->remote_lock, flags);
+
+	for (i = 0; i < WACOM_MAX_REMOTES; i++) {
+		if (remote->remotes[i].serial == serial) {
+			index = i;
+			break;
+		}
+	}
+
+	if (index < 0 || !remote->remotes[index].registered)
+		goto out;
+
+	input = remote->remotes[index].input;
 
 	input_report_key(input, BTN_0, (data[9] & 0x01));
 	input_report_key(input, BTN_1, (data[9] & 0x02));
@@ -804,6 +819,8 @@ static int wacom_remote_irq(struct wacom_wac *wacom_wac, size_t len)
 
 	input_event(input, EV_MSC, MSC_SERIAL, serial);
 
+	input_sync(input);
+
 	/*Which mode select (LED light) is currently on?*/
 	touch_ring_mode = (data[11] & 0xC0) >> 6;
 
@@ -821,7 +838,9 @@ static int wacom_remote_irq(struct wacom_wac *wacom_wac, size_t len)
 	wacom_notify_battery(wacom_wac, bat_percent, bat_charging, 1,
 			     bat_charging);
 
-	return 1;
+out:
+	spin_unlock_irqrestore(&remote->remote_lock, flags);
+	return 0;
 }
 
 static void wacom_remote_status_irq(struct wacom_wac *wacom_wac, size_t len)
@@ -2458,6 +2477,9 @@ void wacom_setup_device_quirks(struct wacom *wacom)
 			features->quirks |= WACOM_QUIRK_BATTERY;
 		}
 	}
+
+	if (features->type == REMOTE)
+		features->device_type |= WACOM_DEVICETYPE_WL_MONITOR;
 }
 
 int wacom_setup_pen_input_capabilities(struct input_dev *input_dev,
@@ -2760,6 +2782,9 @@ int wacom_setup_pad_input_capabilities(struct input_dev *input_dev,
 	struct wacom_features *features = &wacom_wac->features;
 
 	if (!(features->device_type & WACOM_DEVICETYPE_PAD))
+		return -ENODEV;
+
+	if (features->type == REMOTE && input_dev == wacom_wac->pad_input)
 		return -ENODEV;
 
 	input_dev->evbit[0] |= BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
