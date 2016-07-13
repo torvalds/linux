@@ -364,6 +364,15 @@ int security_dentry_init_security(struct dentry *dentry, int mode,
 }
 EXPORT_SYMBOL(security_dentry_init_security);
 
+int security_dentry_create_files_as(struct dentry *dentry, int mode,
+				    struct qstr *name,
+				    const struct cred *old, struct cred *new)
+{
+	return call_int_hook(dentry_create_files_as, 0, dentry, mode,
+				name, old, new);
+}
+EXPORT_SYMBOL(security_dentry_create_files_as);
+
 int security_inode_init_security(struct inode *inode, struct inode *dir,
 				 const struct qstr *qstr,
 				 const initxattrs initxattrs, void *fs_data)
@@ -1635,6 +1644,8 @@ struct security_hook_heads security_hook_heads = {
 		LIST_HEAD_INIT(security_hook_heads.sb_parse_opts_str),
 	.dentry_init_security =
 		LIST_HEAD_INIT(security_hook_heads.dentry_init_security),
+	.dentry_create_files_as =
+		LIST_HEAD_INIT(security_hook_heads.dentry_create_files_as),
 #ifdef CONFIG_SECURITY_PATH
 	.path_unlink =	LIST_HEAD_INIT(security_hook_heads.path_unlink),
 	.path_mkdir =	LIST_HEAD_INIT(security_hook_heads.path_mkdir),
