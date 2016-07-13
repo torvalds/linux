@@ -1844,7 +1844,7 @@ static int wacom_probe(struct hid_device *hdev,
 	/* hid-core sets this quirk for the boot interface */
 	hdev->quirks &= ~HID_QUIRK_NOGET;
 
-	wacom = kzalloc(sizeof(struct wacom), GFP_KERNEL);
+	wacom = devm_kzalloc(&hdev->dev, sizeof(struct wacom), GFP_KERNEL);
 	if (!wacom)
 		return -ENOMEM;
 
@@ -1892,7 +1892,6 @@ static int wacom_probe(struct hid_device *hdev,
 
 fail_type:
 fail_parse:
-	kfree(wacom);
 	hid_set_drvdata(hdev, NULL);
 	return error;
 }
@@ -1916,7 +1915,6 @@ static void wacom_remove(struct hid_device *hdev)
 	wacom_remove_shared_data(wacom);
 
 	hid_set_drvdata(hdev, NULL);
-	kfree(wacom);
 }
 
 #ifdef CONFIG_PM
