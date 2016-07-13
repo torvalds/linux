@@ -92,25 +92,17 @@ static struct syscore_ops ledtrig_cpu_syscore_ops = {
 	.resume		= ledtrig_cpu_syscore_resume,
 };
 
-static int ledtrig_cpu_notify(struct notifier_block *self,
-					   unsigned long action, void *hcpu)
+static int ledtrig_starting_cpu(unsigned int cpu)
 {
-	switch (action & ~CPU_TASKS_FROZEN) {
-	case CPU_STARTING:
-		ledtrig_cpu(CPU_LED_START);
-		break;
-	case CPU_DYING:
-		ledtrig_cpu(CPU_LED_STOP);
-		break;
-	}
-
-	return NOTIFY_OK;
+	ledtrig_cpu(CPU_LED_START);
+	return 0;
 }
 
-
-static struct notifier_block ledtrig_cpu_nb = {
-	.notifier_call = ledtrig_cpu_notify,
-};
+static int ledtrig_dying_cpu(unsigned int cpu)
+{
+	ledtrig_cpu(CPU_LED_STOP);
+	return 0;
+}
 
 static int __init ledtrig_cpu_init(void)
 {
@@ -133,7 +125,13 @@ static int __init ledtrig_cpu_init(void)
 	}
 
 	register_syscore_ops(&ledtrig_cpu_syscore_ops);
-	register_cpu_notifier(&ledtrig_cpu_nb);
+
+	/*
+	 * FIXME: Why needs this to happen in the interrupt disabled
+	 * low level bringup phase of a cpu?
+	 */
+	cpuhp_setup_state(CPUHP_AP_LEDTRIG_STARTING, "AP_LEDTRIG_STARTING",
+			  ledtrig_starting_cpu, ledtrig_dying_cpu);
 
 	pr_info("ledtrig-cpu: registered to indicate activity on CPUs\n");
 
