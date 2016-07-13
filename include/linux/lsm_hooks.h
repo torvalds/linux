@@ -410,6 +410,14 @@
  *	@src indicates the union dentry of file that is being copied up.
  *	@new pointer to pointer to return newly allocated creds.
  *	Returns 0 on success or a negative error code on error.
+ * @inode_copy_up_xattr:
+ *	Filter the xattrs being copied up when a unioned file is copied
+ *	up from a lower layer to the union/overlay layer.
+ *	@name indicates the name of the xattr.
+ *	Returns 0 to accept the xattr, 1 to discard the xattr, -EOPNOTSUPP if
+ *	security module does not know about attribute or a negative error code
+ *	to abort the copy up. Note that the caller is responsible for reading
+ *	and writing the xattrs as this hook is merely a filter.
  *
  * Security hooks for file operations
  *
@@ -1435,6 +1443,7 @@ union security_list_options {
 					size_t buffer_size);
 	void (*inode_getsecid)(struct inode *inode, u32 *secid);
 	int (*inode_copy_up)(struct dentry *src, struct cred **new);
+	int (*inode_copy_up_xattr)(const char *name);
 
 	int (*file_permission)(struct file *file, int mask);
 	int (*file_alloc_security)(struct file *file);
@@ -1707,6 +1716,7 @@ struct security_hook_heads {
 	struct list_head inode_listsecurity;
 	struct list_head inode_getsecid;
 	struct list_head inode_copy_up;
+	struct list_head inode_copy_up_xattr;
 	struct list_head file_permission;
 	struct list_head file_alloc_security;
 	struct list_head file_free_security;
