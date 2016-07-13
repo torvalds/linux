@@ -149,9 +149,10 @@ static ssize_t rd_read(struct file *file, char __user *buf,
 		goto out;
 
 	n = min_t(int, sz, circ_count_to_end(&rd->fifo));
-	ret = copy_to_user(buf, fptr, n);
-	if (ret)
+	if (copy_to_user(buf, fptr, n)) {
+		ret = -EFAULT;
 		goto out;
+	}
 
 	fifo->tail = (fifo->tail + n) & (BUF_SZ - 1);
 	*ppos += n;
