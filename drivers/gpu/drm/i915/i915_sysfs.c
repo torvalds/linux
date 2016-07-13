@@ -271,8 +271,6 @@ static ssize_t gt_act_freq_mhz_show(struct device *kdev,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	int ret;
 
-	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
-
 	intel_runtime_pm_get(dev_priv);
 
 	mutex_lock(&dev_priv->rps.hw_lock);
@@ -303,19 +301,10 @@ static ssize_t gt_cur_freq_mhz_show(struct device *kdev,
 	struct drm_minor *minor = dev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	int ret;
 
-	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
-
-	intel_runtime_pm_get(dev_priv);
-
-	mutex_lock(&dev_priv->rps.hw_lock);
-	ret = intel_gpu_freq(dev_priv, dev_priv->rps.cur_freq);
-	mutex_unlock(&dev_priv->rps.hw_lock);
-
-	intel_runtime_pm_put(dev_priv);
-
-	return snprintf(buf, PAGE_SIZE, "%d\n", ret);
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+			intel_gpu_freq(dev_priv,
+				       dev_priv->rps.cur_freq));
 }
 
 static ssize_t gt_boost_freq_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf)
@@ -324,7 +313,8 @@ static ssize_t gt_boost_freq_mhz_show(struct device *kdev, struct device_attribu
 	struct drm_i915_private *dev_priv = to_i915(minor->dev);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n",
-			intel_gpu_freq(dev_priv, dev_priv->rps.boost_freq));
+			intel_gpu_freq(dev_priv,
+				       dev_priv->rps.boost_freq));
 }
 
 static ssize_t gt_boost_freq_mhz_store(struct device *kdev,
@@ -360,9 +350,9 @@ static ssize_t vlv_rpe_freq_mhz_show(struct device *kdev,
 	struct drm_device *dev = minor->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
-	return snprintf(buf, PAGE_SIZE,
-			"%d\n",
-			intel_gpu_freq(dev_priv, dev_priv->rps.efficient_freq));
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+			intel_gpu_freq(dev_priv,
+				       dev_priv->rps.efficient_freq));
 }
 
 static ssize_t gt_max_freq_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf)
@@ -370,15 +360,10 @@ static ssize_t gt_max_freq_mhz_show(struct device *kdev, struct device_attribute
 	struct drm_minor *minor = dev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	int ret;
 
-	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
-
-	mutex_lock(&dev_priv->rps.hw_lock);
-	ret = intel_gpu_freq(dev_priv, dev_priv->rps.max_freq_softlimit);
-	mutex_unlock(&dev_priv->rps.hw_lock);
-
-	return snprintf(buf, PAGE_SIZE, "%d\n", ret);
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+			intel_gpu_freq(dev_priv,
+				       dev_priv->rps.max_freq_softlimit));
 }
 
 static ssize_t gt_max_freq_mhz_store(struct device *kdev,
@@ -394,8 +379,6 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 	ret = kstrtou32(buf, 0, &val);
 	if (ret)
 		return ret;
-
-	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
 
 	intel_runtime_pm_get(dev_priv);
 
@@ -438,15 +421,10 @@ static ssize_t gt_min_freq_mhz_show(struct device *kdev, struct device_attribute
 	struct drm_minor *minor = dev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	int ret;
 
-	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
-
-	mutex_lock(&dev_priv->rps.hw_lock);
-	ret = intel_gpu_freq(dev_priv, dev_priv->rps.min_freq_softlimit);
-	mutex_unlock(&dev_priv->rps.hw_lock);
-
-	return snprintf(buf, PAGE_SIZE, "%d\n", ret);
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+			intel_gpu_freq(dev_priv,
+				       dev_priv->rps.min_freq_softlimit));
 }
 
 static ssize_t gt_min_freq_mhz_store(struct device *kdev,
@@ -462,8 +440,6 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 	ret = kstrtou32(buf, 0, &val);
 	if (ret)
 		return ret;
-
-	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
 
 	intel_runtime_pm_get(dev_priv);
 

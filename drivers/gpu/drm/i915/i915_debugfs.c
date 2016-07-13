@@ -1205,8 +1205,6 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 
 	intel_runtime_pm_get(dev_priv);
 
-	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
-
 	if (IS_GEN5(dev)) {
 		u16 rgvswctl = I915_READ16(MEMSWCTL);
 		u16 rgvstat = I915_READ16(MEMSTAT_ILK);
@@ -1897,8 +1895,6 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 	}
 
 	intel_runtime_pm_get(dev_priv);
-
-	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
 
 	ret = mutex_lock_interruptible(&dev_priv->rps.hw_lock);
 	if (ret)
@@ -4952,20 +4948,11 @@ i915_max_freq_get(void *data, u64 *val)
 {
 	struct drm_device *dev = data;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	int ret;
 
 	if (INTEL_INFO(dev)->gen < 6)
 		return -ENODEV;
 
-	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
-
-	ret = mutex_lock_interruptible(&dev_priv->rps.hw_lock);
-	if (ret)
-		return ret;
-
 	*val = intel_gpu_freq(dev_priv, dev_priv->rps.max_freq_softlimit);
-	mutex_unlock(&dev_priv->rps.hw_lock);
-
 	return 0;
 }
 
@@ -4979,8 +4966,6 @@ i915_max_freq_set(void *data, u64 val)
 
 	if (INTEL_INFO(dev)->gen < 6)
 		return -ENODEV;
-
-	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
 
 	DRM_DEBUG_DRIVER("Manually setting max freq to %llu\n", val);
 
@@ -5019,20 +5004,11 @@ i915_min_freq_get(void *data, u64 *val)
 {
 	struct drm_device *dev = data;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	int ret;
 
-	if (INTEL_INFO(dev)->gen < 6)
+	if (INTEL_GEN(dev_priv) < 6)
 		return -ENODEV;
 
-	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
-
-	ret = mutex_lock_interruptible(&dev_priv->rps.hw_lock);
-	if (ret)
-		return ret;
-
 	*val = intel_gpu_freq(dev_priv, dev_priv->rps.min_freq_softlimit);
-	mutex_unlock(&dev_priv->rps.hw_lock);
-
 	return 0;
 }
 
@@ -5044,10 +5020,8 @@ i915_min_freq_set(void *data, u64 val)
 	u32 hw_max, hw_min;
 	int ret;
 
-	if (INTEL_INFO(dev)->gen < 6)
+	if (INTEL_GEN(dev_priv) < 6)
 		return -ENODEV;
-
-	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
 
 	DRM_DEBUG_DRIVER("Manually setting min freq to %llu\n", val);
 
