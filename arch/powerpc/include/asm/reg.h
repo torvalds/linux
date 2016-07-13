@@ -366,6 +366,7 @@
 #define   LPCR_HVICE   0x00000002      /* P9: HV interrupt enable */
 #define   LPCR_HDICE   0x00000001      /* Hyp Decr enable (HV,PR,EE) */
 #define   LPCR_UPRT    0x00400000      /* Use Process Table (ISA 3) */
+#define   LPCR_HR      0x00100000
 #ifndef SPRN_LPID
 #define SPRN_LPID	0x13F	/* Logical Partition Identifier */
 #endif
