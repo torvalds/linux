@@ -2009,6 +2009,8 @@ logical_ring_setup(struct intel_engine_cs *engine)
 	struct drm_i915_private *dev_priv = engine->i915;
 	enum forcewake_domains fw_domains;
 
+	intel_engine_setup_common(engine);
+
 	/* Intentionally left blank. */
 	engine->buffer = NULL;
 
@@ -2026,21 +2028,12 @@ logical_ring_setup(struct intel_engine_cs *engine)
 
 	engine->fw_domains = fw_domains;
 
-	INIT_LIST_HEAD(&engine->active_list);
-	INIT_LIST_HEAD(&engine->request_list);
-	INIT_LIST_HEAD(&engine->buffers);
-	INIT_LIST_HEAD(&engine->execlist_queue);
-	spin_lock_init(&engine->execlist_lock);
-
 	tasklet_init(&engine->irq_tasklet,
 		     intel_lrc_irq_handler, (unsigned long)engine);
 
 	logical_ring_init_platform_invariants(engine);
 	logical_ring_default_vfuncs(engine);
 	logical_ring_default_irqs(engine);
-
-	intel_engine_init_hangcheck(engine);
-	i915_gem_batch_pool_init(&dev_priv->drm, &engine->batch_pool);
 }
 
 static int
@@ -2049,11 +2042,7 @@ logical_ring_init(struct intel_engine_cs *engine)
 	struct i915_gem_context *dctx = engine->i915->kernel_context;
 	int ret;
 
-	ret = intel_engine_init_breadcrumbs(engine);
-	if (ret)
-		goto error;
-
-	ret = i915_cmd_parser_init_ring(engine);
+	ret = intel_engine_init_common(engine);
 	if (ret)
 		goto error;
 

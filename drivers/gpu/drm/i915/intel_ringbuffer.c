@@ -549,11 +549,6 @@ static bool stop_ring(struct intel_engine_cs *engine)
 	return (I915_READ_HEAD(engine) & HEAD_ADDR) == 0;
 }
 
-void intel_engine_init_hangcheck(struct intel_engine_cs *engine)
-{
-	memset(&engine->hangcheck, 0, sizeof(engine->hangcheck));
-}
-
 static int init_ring_common(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
@@ -2176,15 +2171,12 @@ static int intel_init_ring_buffer(struct intel_engine_cs *engine)
 
 	WARN_ON(engine->buffer);
 
-	INIT_LIST_HEAD(&engine->active_list);
-	INIT_LIST_HEAD(&engine->request_list);
-	INIT_LIST_HEAD(&engine->execlist_queue);
-	INIT_LIST_HEAD(&engine->buffers);
-	i915_gem_batch_pool_init(&dev_priv->drm, &engine->batch_pool);
+	intel_engine_setup_common(engine);
+
 	memset(engine->semaphore.sync_seqno, 0,
 	       sizeof(engine->semaphore.sync_seqno));
 
-	ret = intel_engine_init_breadcrumbs(engine);
+	ret = intel_engine_init_common(engine);
 	if (ret)
 		goto error;
 
@@ -2224,10 +2216,6 @@ static int intel_init_ring_buffer(struct intel_engine_cs *engine)
 		intel_destroy_ringbuffer_obj(ringbuf);
 		goto error;
 	}
-
-	ret = i915_cmd_parser_init_ring(engine);
-	if (ret)
-		goto error;
 
 	return 0;
 
