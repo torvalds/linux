@@ -25,7 +25,6 @@
 #define WAC_CMD_RETRIES		10
 #define WAC_CMD_DELETE_PAIRING	0x20
 #define WAC_CMD_UNPAIR_ALL	0xFF
-#define WAC_REMOTE_SERIAL_MAX_STRLEN	9
 
 #define DEV_ATTR_RW_PERM (S_IRUGO | S_IWUSR | S_IWGRP)
 #define DEV_ATTR_WO_PERM (S_IWUSR | S_IWGRP)
@@ -1233,23 +1232,21 @@ DEVICE_EKR_ATTR_GROUP(4);
 int wacom_remote_create_attr_group(struct wacom *wacom, __u32 serial, int index)
 {
 	int error = 0;
-	char *buf;
 	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
 
 	wacom_wac->serial[index] = serial;
 
-	buf = kzalloc(WAC_REMOTE_SERIAL_MAX_STRLEN, GFP_KERNEL);
-	if (!buf)
+	wacom->remote_group[index].name = devm_kasprintf(&wacom->hdev->dev,
+							 GFP_KERNEL,
+							 "%d", serial);
+	if (!wacom->remote_group[index].name)
 		return -ENOMEM;
-	snprintf(buf, WAC_REMOTE_SERIAL_MAX_STRLEN, "%d", serial);
-	wacom->remote_group[index].name = buf;
 
 	error = sysfs_create_group(wacom->remote_dir,
 				   &wacom->remote_group[index]);
 	if (error) {
 		hid_err(wacom->hdev,
 			"cannot create sysfs group err: %d\n", error);
-		kobject_put(wacom->remote_dir);
 		return error;
 	}
 
@@ -1271,7 +1268,8 @@ void wacom_remote_destroy_attr_group(struct wacom *wacom, __u32 serial)
 			if (wacom->remote_group[i].name) {
 				sysfs_remove_group(wacom->remote_dir,
 						   &wacom->remote_group[i]);
-				kfree(wacom->remote_group[i].name);
+				devm_kfree(&wacom->hdev->dev,
+					   (char *)wacom->remote_group[i].name);
 				wacom->remote_group[i].name = NULL;
 			}
 		}
