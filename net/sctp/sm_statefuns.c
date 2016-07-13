@@ -6125,7 +6125,8 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 		af = sctp_get_af_specific(
 			ipver2af(ip_hdr(chunk->skb)->version));
 
-		if (af && af->is_ce(chunk->skb) && asoc->peer.ecn_capable) {
+		if (af && af->is_ce(sctp_gso_headskb(chunk->skb)) &&
+		    asoc->peer.ecn_capable) {
 			/* Do real work as sideffect. */
 			sctp_add_cmd_sf(commands, SCTP_CMD_ECN_CE,
 					SCTP_U32(tsn));

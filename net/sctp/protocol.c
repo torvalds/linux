@@ -240,6 +240,7 @@ static void sctp_v4_from_skb(union sctp_addr *addr, struct sk_buff *skb,
 	port = &addr->v4.sin_port;
 	addr->v4.sin_family = AF_INET;
 
+	/* Always called on head skb, so this is safe */
 	sh = sctp_hdr(skb);
 	if (is_saddr) {
 		*port  = sh->source;

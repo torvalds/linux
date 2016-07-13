@@ -218,6 +218,13 @@ new_skb:
 		chunk->has_asconf = 0;
 		chunk->end_of_packet = 0;
 		chunk->ecn_ce_done = 0;
+		if (chunk->head_skb) {
+			struct sctp_input_cb
+				*cb = SCTP_INPUT_CB(chunk->skb),
+				*head_cb = SCTP_INPUT_CB(chunk->head_skb);
+
+			cb->chunk = head_cb->chunk;
+		}
 	}
 
 	chunk->chunk_hdr = ch;

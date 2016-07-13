@@ -48,11 +48,11 @@
  */
 struct sctp_ulpevent {
 	struct sctp_association *asoc;
+	struct sctp_chunk *chunk;
 	unsigned int rmem_len;
 	__u32 ppid;
 	__u32 tsn;
 	__u32 cumtsn;
-	int iif;
 	__u16 stream;
 	__u16 ssn;
 	__u16 flags;

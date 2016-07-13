@@ -420,6 +420,7 @@ static void sctp_v6_from_skb(union sctp_addr *addr, struct sk_buff *skb,
 	addr->v6.sin6_flowinfo = 0; /* FIXME */
 	addr->v6.sin6_scope_id = ((struct inet6_skb_parm *)skb->cb)->iif;
 
+	/* Always called on head skb, so this is safe */
 	sh = sctp_hdr(skb);
 	if (is_saddr) {
 		*port  = sh->source;
@@ -710,8 +711,7 @@ static int sctp_v6_addr_to_user(struct sctp_sock *sp, union sctp_addr *addr)
 /* Where did this skb come from?  */
 static int sctp_v6_skb_iif(const struct sk_buff *skb)
 {
-	struct inet6_skb_parm *opt = (struct inet6_skb_parm *) skb->cb;
-	return opt->iif;
+	return IP6CB(skb)->iif;
 }
 
 /* Was this packet marked by Explicit Congestion Notification? */
@@ -780,15 +780,14 @@ static void sctp_inet6_skb_msgname(struct sk_buff *skb, char *msgname,
 	if (ip_hdr(skb)->version == 4) {
 		addr->v4.sin_family = AF_INET;
 		addr->v4.sin_port = sh->source;
-		addr->v4.sin_addr.s_addr =  ip_hdr(skb)->saddr;
+		addr->v4.sin_addr.s_addr = ip_hdr(skb)->saddr;
 	} else {
 		addr->v6.sin6_family = AF_INET6;
 		addr->v6.sin6_flowinfo = 0;
 		addr->v6.sin6_port = sh->source;
 		addr->v6.sin6_addr = ipv6_hdr(skb)->saddr;
 		if (ipv6_addr_type(&addr->v6.sin6_addr) & IPV6_ADDR_LINKLOCAL) {
-			struct sctp_ulpevent *ev = sctp_skb2event(skb);
-			addr->v6.sin6_scope_id = ev->iif;
+			addr->v6.sin6_scope_id = sctp_v6_skb_iif(skb);
 		}
 	}
 

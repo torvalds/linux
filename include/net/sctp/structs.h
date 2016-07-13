@@ -1107,6 +1107,13 @@ struct sctp_input_cb {
 };
 #define SCTP_INPUT_CB(__skb)	((struct sctp_input_cb *)&((__skb)->cb[0]))
 
+static inline const struct sk_buff *sctp_gso_headskb(const struct sk_buff *skb)
+{
+	const struct sctp_chunk *chunk = SCTP_INPUT_CB(skb)->chunk;
+
+	return chunk->head_skb ? : skb;
+}
+
 /* These bind address data fields common between endpoints and associations */
 struct sctp_bind_addr {
 
