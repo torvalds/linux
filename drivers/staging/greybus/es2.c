@@ -1204,6 +1204,8 @@ static int arpc_sync(struct es2_ap_dev *es2, u8 type, void *payload,
 	*result = rpc->resp->result;
 	if (*result)
 		retval = -EREMOTEIO;
+	else
+		retval = 0;
 
 out_arpc_del:
 	spin_lock_irqsave(&es2->arpc_lock, flags);
