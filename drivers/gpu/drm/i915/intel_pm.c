@@ -5149,6 +5149,7 @@ static void gen6_init_rps_frequencies(struct drm_i915_private *dev_priv)
 	}
 
 	dev_priv->rps.idle_freq = dev_priv->rps.min_freq;
+	dev_priv->rps.cur_freq = dev_priv->rps.idle_freq;
 
 	/* Preserve min/max settings in case of re-init */
 	if (dev_priv->rps.max_freq_softlimit == 0)
@@ -5163,6 +5164,18 @@ static void gen6_init_rps_frequencies(struct drm_i915_private *dev_priv)
 			dev_priv->rps.min_freq_softlimit =
 				dev_priv->rps.min_freq;
 	}
+}
+
+static void reset_rps(struct drm_i915_private *dev_priv,
+		      void (*set)(struct drm_i915_private *, u8))
+{
+	u8 freq = dev_priv->rps.cur_freq;
+
+	/* force a reset */
+	dev_priv->rps.power = -1;
+	dev_priv->rps.cur_freq = -1;
+
+	set(dev_priv, freq);
 }
 
 /* See the Gen9_GT_PM_Programming_Guide doc for the below */
@@ -5201,8 +5214,7 @@ static void gen9_enable_rps(struct drm_i915_private *dev_priv)
 	/* Leaning on the below call to gen6_set_rps to program/setup the
 	 * Up/Down EI & threshold registers, as well as the RP_CONTROL,
 	 * RP_INTERRUPT_LIMITS & RPNSWREQ registers */
-	dev_priv->rps.power = HIGH_POWER; /* force a reset */
-	gen6_set_rps(dev_priv, dev_priv->rps.idle_freq);
+	reset_rps(dev_priv, gen6_set_rps);
 
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 }
@@ -5348,8 +5360,7 @@ static void gen8_enable_rps(struct drm_i915_private *dev_priv)
 
 	/* 6: Ring frequency + overclocking (our driver does this later */
 
-	dev_priv->rps.power = HIGH_POWER; /* force a reset */
-	gen6_set_rps(dev_priv, dev_priv->rps.idle_freq);
+	reset_rps(dev_priv, gen6_set_rps);
 
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 }
@@ -5442,8 +5453,7 @@ static void gen6_enable_rps(struct drm_i915_private *dev_priv)
 		dev_priv->rps.max_freq = pcu_mbox & 0xff;
 	}
 
-	dev_priv->rps.power = HIGH_POWER; /* force a reset */
-	gen6_set_rps(dev_priv, dev_priv->rps.idle_freq);
+	reset_rps(dev_priv, gen6_set_rps);
 
 	rc6vids = 0;
 	ret = sandybridge_pcode_read(dev_priv, GEN6_PCODE_READ_RC6VIDS, &rc6vids);
@@ -5807,6 +5817,7 @@ static void valleyview_init_gt_powersave(struct drm_i915_private *dev_priv)
 			 dev_priv->rps.min_freq);
 
 	dev_priv->rps.idle_freq = dev_priv->rps.min_freq;
+	dev_priv->rps.cur_freq = dev_priv->rps.idle_freq;
 
 	/* Preserve min/max settings in case of re-init */
 	if (dev_priv->rps.max_freq_softlimit == 0)
@@ -5871,6 +5882,7 @@ static void cherryview_init_gt_powersave(struct drm_i915_private *dev_priv)
 		  "Odd GPU freq values\n");
 
 	dev_priv->rps.idle_freq = dev_priv->rps.min_freq;
+	dev_priv->rps.cur_freq = dev_priv->rps.idle_freq;
 
 	/* Preserve min/max settings in case of re-init */
 	if (dev_priv->rps.max_freq_softlimit == 0)
@@ -5970,16 +5982,7 @@ static void cherryview_enable_rps(struct drm_i915_private *dev_priv)
 	DRM_DEBUG_DRIVER("GPLL enabled? %s\n", yesno(val & GPLLENABLE));
 	DRM_DEBUG_DRIVER("GPU status: 0x%08x\n", val);
 
-	dev_priv->rps.cur_freq = (val >> 8) & 0xff;
-	DRM_DEBUG_DRIVER("current GPU freq: %d MHz (%u)\n",
-			 intel_gpu_freq(dev_priv, dev_priv->rps.cur_freq),
-			 dev_priv->rps.cur_freq);
-
-	DRM_DEBUG_DRIVER("setting GPU freq to %d MHz (%u)\n",
-			 intel_gpu_freq(dev_priv, dev_priv->rps.idle_freq),
-			 dev_priv->rps.idle_freq);
-
-	valleyview_set_rps(dev_priv, dev_priv->rps.idle_freq);
+	reset_rps(dev_priv, valleyview_set_rps);
 
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 }
@@ -6059,16 +6062,7 @@ static void valleyview_enable_rps(struct drm_i915_private *dev_priv)
 	DRM_DEBUG_DRIVER("GPLL enabled? %s\n", yesno(val & GPLLENABLE));
 	DRM_DEBUG_DRIVER("GPU status: 0x%08x\n", val);
 
-	dev_priv->rps.cur_freq = (val >> 8) & 0xff;
-	DRM_DEBUG_DRIVER("current GPU freq: %d MHz (%u)\n",
-			 intel_gpu_freq(dev_priv, dev_priv->rps.cur_freq),
-			 dev_priv->rps.cur_freq);
-
-	DRM_DEBUG_DRIVER("setting GPU freq to %d MHz (%u)\n",
-			 intel_gpu_freq(dev_priv, dev_priv->rps.idle_freq),
-			 dev_priv->rps.idle_freq);
-
-	valleyview_set_rps(dev_priv, dev_priv->rps.idle_freq);
+	reset_rps(dev_priv, valleyview_set_rps);
 
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 }
