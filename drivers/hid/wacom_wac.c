@@ -808,7 +808,7 @@ static int wacom_remote_irq(struct wacom_wac *wacom_wac, size_t len)
 
 	for (i = 0; i < WACOM_MAX_REMOTES; i++) {
 		if (wacom_wac->serial[i] == serial)
-			wacom->led.select[i] = touch_ring_mode;
+			wacom->led.groups[i].select = touch_ring_mode;
 	}
 
 	if (!wacom->battery &&

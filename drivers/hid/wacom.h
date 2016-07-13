@@ -110,6 +110,10 @@ enum wacom_worker {
 	WACOM_WORKER_BATTERY,
 };
 
+struct wacom_group_leds {
+	u8 select; /* status led selector (0..3) */
+};
+
 struct wacom {
 	struct usb_device *usbdev;
 	struct usb_interface *intf;
@@ -118,8 +122,8 @@ struct wacom {
 	struct mutex lock;
 	struct work_struct wireless_work;
 	struct work_struct battery_work;
-	struct wacom_led {
-		u8 select[5]; /* status led selector (0..3) */
+	struct wacom_leds {
+		struct wacom_group_leds *groups;
 		u8 llv;       /* status led brightness no button (1..127) */
 		u8 hlv;       /* status led brightness button pressed (1..127) */
 		u8 img_lum;   /* OLED matrix display brightness */
