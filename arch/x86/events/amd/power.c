@@ -255,7 +255,7 @@ static void power_cpu_init(int cpu)
 	 * 1) If any CPU is set at cpu_mask in the same compute unit, do
 	 * nothing.
 	 * 2) If no CPU is set at cpu_mask in the same compute unit,
-	 * set current STARTING CPU.
+	 * set current ONLINE CPU.
 	 *
 	 * Note: if there is a CPU aside of the new one already in the
 	 * sibling mask, then it is also in cpu_mask.
@@ -272,7 +272,7 @@ power_cpu_notifier(struct notifier_block *self, unsigned long action, void *hcpu
 
 	switch (action & ~CPU_TASKS_FROZEN) {
 	case CPU_DOWN_FAILED:
-	case CPU_STARTING:
+	case CPU_ONLINE:
 		power_cpu_init(cpu);
 		break;
 	case CPU_DOWN_PREPARE:
