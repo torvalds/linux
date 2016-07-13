@@ -484,6 +484,10 @@ static void r4k__flush_cache_vunmap(void)
 	r4k_blast_dcache();
 }
 
+/*
+ * Note: flush_tlb_range() assumes flush_cache_range() sufficiently flushes
+ * whole caches when vma is executable.
+ */
 static inline void local_r4k_flush_cache_range(void * args)
 {
 	struct vm_area_struct *vma = args;

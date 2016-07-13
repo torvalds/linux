@@ -512,10 +512,17 @@ void flush_tlb_range(struct vm_area_struct *vma, unsigned long start, unsigned l
 		smp_on_other_tlbs(flush_tlb_range_ipi, &fd);
 	} else {
 		unsigned int cpu;
+		int exec = vma->vm_flags & VM_EXEC;
 
 		for_each_online_cpu(cpu) {
+			/*
+			 * flush_cache_range() will only fully flush icache if
+			 * the VMA is executable, otherwise we must invalidate
+			 * ASID without it appearing to has_valid_asid() as if
+			 * mm has been completely unused by that CPU.
+			 */
 			if (cpu != smp_processor_id() && cpu_context(cpu, mm))
-				cpu_context(cpu, mm) = 0;
+				cpu_context(cpu, mm) = !exec;
 		}
 	}
 	local_flush_tlb_range(vma, start, end);
@@ -560,8 +567,14 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 		unsigned int cpu;
 
 		for_each_online_cpu(cpu) {
+			/*
+			 * flush_cache_page() only does partial flushes, so
+			 * invalidate ASID without it appearing to
+			 * has_valid_asid() as if mm has been completely unused
+			 * by that CPU.
+			 */
 			if (cpu != smp_processor_id() && cpu_context(cpu, vma->vm_mm))
-				cpu_context(cpu, vma->vm_mm) = 0;
+				cpu_context(cpu, vma->vm_mm) = 1;
 		}
 	}
 	local_flush_tlb_page(vma, page);
