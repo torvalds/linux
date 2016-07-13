@@ -234,6 +234,20 @@ config RTC_DRV_DS1307_HWMON
 	  Say Y here if you want to expose temperature sensor data on
 	  rtc-ds1307 (only DS3231)
 
+config RTC_DRV_DS1307_CENTURY
+	bool "Century bit support for rtc-ds1307"
+	depends on RTC_DRV_DS1307
+	default n
+	help
+	  The DS1307 driver suffered from a bug where it was enabling the
+	  century bit inconditionnally but never used it when reading the time.
+	  It made the driver unable to support dates beyond 2099.
+	  Setting this option will add proper support for the century bit but if
+	  the time was previously set using a kernel predating this option,
+	  reading the date will return a date in the next century.
+	  To solve that, you could boot a kernel without this option set, set
+	  the RTC date and then boot a kernel with this option set.
+
 config RTC_DRV_DS1374
 	tristate "Dallas/Maxim DS1374"
 	help
