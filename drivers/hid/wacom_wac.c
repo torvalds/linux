@@ -2763,10 +2763,63 @@ static void wacom_setup_numbered_buttons(struct input_dev *input_dev,
 		__set_bit(BTN_BASE + (i-16), input_dev->keybit);
 }
 
+static bool wacom_is_led_toggled(struct wacom *wacom, int button_count,
+				 int mask, int group)
+{
+	int button_per_group;
+
+	button_per_group = button_count/wacom->led.count;
+
+	return mask & (1 << (group * button_per_group));
+}
+
+static void wacom_update_led(struct wacom *wacom, int button_count, int mask,
+			     int group)
+{
+	struct wacom_led *led, *next_led;
+	int cur;
+	bool pressed;
+
+	pressed = wacom_is_led_toggled(wacom, button_count, mask, group);
+	cur = wacom->led.groups[group].select;
+
+	led = wacom_led_find(wacom, group, cur);
+	if (!led) {
+		hid_err(wacom->hdev, "can't find current LED %d in group %d\n",
+			cur, group);
+		return;
+	}
+
+	if (!pressed) {
+		led->held = false;
+		return;
+	}
+
+	if (led->held && pressed)
+		return;
+
+	next_led = wacom_led_next(wacom, led);
+	if (!next_led) {
+		hid_err(wacom->hdev, "can't find next LED in group %d\n",
+			group);
+		return;
+	}
+	if (next_led == led)
+		return;
+
+	next_led->held = true;
+	led_trigger_event(&next_led->trigger,
+			  wacom_leds_brightness_get(next_led));
+}
+
 static void wacom_report_numbered_buttons(struct input_dev *input_dev,
 				int button_count, int mask)
 {
+	struct wacom *wacom = input_get_drvdata(input_dev);
 	int i;
+
+	for (i = 0; i < wacom->led.count; i++)
+		wacom_update_led(wacom,  button_count, mask, i);
 
 	for (i = 0; i < button_count && i < 10; i++)
 		input_report_key(input_dev, BTN_0 + i, mask & (1 << i));

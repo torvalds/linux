@@ -216,4 +216,8 @@ int wacom_wac_event(struct hid_device *hdev, struct hid_field *field,
 		struct hid_usage *usage, __s32 value);
 void wacom_wac_report(struct hid_device *hdev, struct hid_report *report);
 void wacom_battery_work(struct work_struct *work);
+enum led_brightness wacom_leds_brightness_get(struct wacom_led *led);
+struct wacom_led *wacom_led_find(struct wacom *wacom, unsigned int group,
+				 unsigned int id);
+struct wacom_led *wacom_led_next(struct wacom *wacom, struct wacom_led *cur);
 #endif
