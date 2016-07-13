@@ -120,8 +120,10 @@ struct wacom_remote {
 	spinlock_t remote_lock;
 	struct kfifo remote_fifo;
 	struct kobject *remote_dir;
-	struct attribute_group remote_group[WACOM_MAX_REMOTES];
-	__u32 serial[WACOM_MAX_REMOTES];
+	struct {
+		struct attribute_group group;
+		u32 serial;
+	} remotes[WACOM_MAX_REMOTES];
 };
 
 struct wacom {
