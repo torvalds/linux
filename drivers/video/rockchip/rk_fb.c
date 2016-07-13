@@ -3645,6 +3645,13 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 		mutex_unlock(&dev_drv->switch_screen);
 		return 0;
 	} else {
+		if (load_screen || (rk_fb->disp_policy != DISPLAY_POLICY_BOX)) {
+			for (i = 0; i < dev_drv->lcdc_win_num; i++) {
+				if (dev_drv->win[i] && dev_drv->win[i]->state &&
+					dev_drv->ops->win_direct_en)
+					dev_drv->ops->win_direct_en(dev_drv, i, 0);
+			}
+		}
 		if (dev_drv->uboot_logo) {
 			if (dev_drv->cur_screen->mode.xres !=
 				screen->mode.xres ||
@@ -3660,14 +3667,6 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 		dev_drv->cur_screen->ysize = dev_drv->cur_screen->mode.yres;
 		dev_drv->cur_screen->x_mirror = dev_drv->rotate_mode & X_MIRROR;
 		dev_drv->cur_screen->y_mirror = dev_drv->rotate_mode & Y_MIRROR;
-	}
-
-	if (load_screen || (rk_fb->disp_policy != DISPLAY_POLICY_BOX)) {
-		for (i = 0; i < dev_drv->lcdc_win_num; i++) {
-			if (dev_drv->win[i] && dev_drv->win[i]->state &&
-				dev_drv->ops->win_direct_en)
-				dev_drv->ops->win_direct_en(dev_drv, i, 0);
-		}
 	}
 
 	if (!dev_drv->uboot_logo || load_screen ||
