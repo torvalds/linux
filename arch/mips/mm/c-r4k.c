@@ -40,6 +40,43 @@
 #include <asm/mips-cm.h>
 
 /*
+ * Bits describing what cache ops an SMP callback function may perform.
+ *
+ * R4K_HIT   -	Virtual user or kernel address based cache operations. The
+ *		active_mm must be checked before using user addresses, falling
+ *		back to kmap.
+ * R4K_INDEX -	Index based cache operations.
+ */
+
+#define R4K_HIT		BIT(0)
+#define R4K_INDEX	BIT(1)
+
+/**
+ * r4k_op_needs_ipi() - Decide if a cache op needs to be done on every core.
+ * @type:	Type of cache operations (R4K_HIT or R4K_INDEX).
+ *
+ * Decides whether a cache op needs to be performed on every core in the system.
+ * This may change depending on the @type of cache operation.
+ *
+ * Returns:	1 if the cache operation @type should be done on every core in
+ *		the system.
+ *		0 if the cache operation @type is globalized and only needs to
+ *		be performed on a simple CPU.
+ */
+static inline bool r4k_op_needs_ipi(unsigned int type)
+{
+	/* The MIPS Coherence Manager (CM) globalizes address-based cache ops */
+	if (mips_cm_present())
+		return false;
+
+	/*
+	 * Hardware doesn't globalize the required cache ops, so SMP calls may
+	 * be needed.
+	 */
+	return true;
+}
+
+/*
  * Special Variant of smp_call_function for use by cache functions:
  *
  *  o No return value
@@ -48,19 +85,11 @@
  *    primary cache.
  *  o doesn't disable interrupts on the local CPU
  */
-static inline void r4k_on_each_cpu(void (*func) (void *info), void *info)
+static inline void r4k_on_each_cpu(unsigned int type,
+				   void (*func)(void *info), void *info)
 {
 	preempt_disable();
-
-	/*
-	 * The Coherent Manager propagates address-based cache ops to other
-	 * cores but not index-based ops. However, r4k_on_each_cpu is used
-	 * in both cases so there is no easy way to tell what kind of op is
-	 * executed to the other cores. The best we can probably do is
-	 * to restrict that call when a CM is not present because both
-	 * CM-based SMP protocols (CMP & CPS) restrict index-based cache ops.
-	 */
-	if (!mips_cm_present())
+	if (r4k_op_needs_ipi(type))
 		smp_call_function_many(&cpu_foreign_map, func, info, 1);
 	func(info);
 	preempt_enable();
@@ -456,7 +485,7 @@ static inline void local_r4k___flush_cache_all(void * args)
 
 static void r4k___flush_cache_all(void)
 {
-	r4k_on_each_cpu(local_r4k___flush_cache_all, NULL);
+	r4k_on_each_cpu(R4K_INDEX, local_r4k___flush_cache_all, NULL);
 }
 
 static inline int has_valid_asid(const struct mm_struct *mm)
@@ -514,7 +543,7 @@ static void r4k_flush_cache_range(struct vm_area_struct *vma,
 	int exec = vma->vm_flags & VM_EXEC;
 
 	if (cpu_has_dc_aliases || exec)
-		r4k_on_each_cpu(local_r4k_flush_cache_range, vma);
+		r4k_on_each_cpu(R4K_INDEX, local_r4k_flush_cache_range, vma);
 }
 
 static inline void local_r4k_flush_cache_mm(void * args)
@@ -546,7 +575,7 @@ static void r4k_flush_cache_mm(struct mm_struct *mm)
 	if (!cpu_has_dc_aliases)
 		return;
 
-	r4k_on_each_cpu(local_r4k_flush_cache_mm, mm);
+	r4k_on_each_cpu(R4K_INDEX, local_r4k_flush_cache_mm, mm);
 }
 
 struct flush_cache_page_args {
@@ -641,7 +670,7 @@ static void r4k_flush_cache_page(struct vm_area_struct *vma,
 	args.addr = addr;
 	args.pfn = pfn;
 
-	r4k_on_each_cpu(local_r4k_flush_cache_page, &args);
+	r4k_on_each_cpu(R4K_HIT, local_r4k_flush_cache_page, &args);
 }
 
 static inline void local_r4k_flush_data_cache_page(void * addr)
@@ -654,7 +683,8 @@ static void r4k_flush_data_cache_page(unsigned long addr)
 	if (in_atomic())
 		local_r4k_flush_data_cache_page((void *)addr);
 	else
-		r4k_on_each_cpu(local_r4k_flush_data_cache_page, (void *) addr);
+		r4k_on_each_cpu(R4K_HIT, local_r4k_flush_data_cache_page,
+				(void *) addr);
 }
 
 struct flush_icache_range_args {
@@ -715,7 +745,8 @@ static void r4k_flush_icache_range(unsigned long start, unsigned long end)
 	args.start = start;
 	args.end = end;
 
-	r4k_on_each_cpu(local_r4k_flush_icache_range_ipi, &args);
+	r4k_on_each_cpu(R4K_HIT | R4K_INDEX, local_r4k_flush_icache_range_ipi,
+			&args);
 	instruction_hazard();
 }
 
@@ -898,7 +929,7 @@ static void r4k_flush_cache_sigtramp(unsigned long addr)
 	args.mm = current->mm;
 	args.addr = addr;
 
-	r4k_on_each_cpu(local_r4k_flush_cache_sigtramp, &args);
+	r4k_on_each_cpu(R4K_HIT, local_r4k_flush_cache_sigtramp, &args);
 
 	put_page(args.page);
 out:
@@ -941,7 +972,8 @@ static void r4k_flush_kernel_vmap_range(unsigned long vaddr, int size)
 	args.vaddr = (unsigned long) vaddr;
 	args.size = size;
 
-	r4k_on_each_cpu(local_r4k_flush_kernel_vmap_range, &args);
+	r4k_on_each_cpu(R4K_HIT | R4K_INDEX, local_r4k_flush_kernel_vmap_range,
+			&args);
 }
 
 static inline void rm7k_erratum31(void)
