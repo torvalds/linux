@@ -267,7 +267,6 @@ static s32 ixgbevf_get_mac_addr_vf(struct ixgbe_hw *hw, u8 *mac_addr)
 
 static s32 ixgbevf_set_uc_addr_vf(struct ixgbe_hw *hw, u32 index, u8 *addr)
 {
-	struct ixgbe_mbx_info *mbx = &hw->mbx;
 	u32 msgbuf[3], msgbuf_chk;
 	u8 *msg_addr = (u8 *)(&msgbuf[1]);
 	s32 ret_val;
@@ -284,11 +283,8 @@ static s32 ixgbevf_set_uc_addr_vf(struct ixgbe_hw *hw, u32 index, u8 *addr)
 
 	if (addr)
 		ether_addr_copy(msg_addr, addr);
-	ret_val = mbx->ops.write_posted(hw, msgbuf, 3);
 
-	if (!ret_val)
-		ret_val = mbx->ops.read_posted(hw, msgbuf, 3);
-
+	ret_val = ixgbevf_write_msg_read_ack(hw, msgbuf, msgbuf, 3);
 	if (!ret_val) {
 		msgbuf[0] &= ~IXGBE_VT_MSGTYPE_CTS;
 
@@ -437,7 +433,6 @@ int ixgbevf_get_rss_key_locked(struct ixgbe_hw *hw, u8 *rss_key)
 static s32 ixgbevf_set_rar_vf(struct ixgbe_hw *hw, u32 index, u8 *addr,
 			      u32 vmdq)
 {
-	struct ixgbe_mbx_info *mbx = &hw->mbx;
 	u32 msgbuf[3];
 	u8 *msg_addr = (u8 *)(&msgbuf[1]);
 	s32 ret_val;
@@ -445,10 +440,8 @@ static s32 ixgbevf_set_rar_vf(struct ixgbe_hw *hw, u32 index, u8 *addr,
 	memset(msgbuf, 0, sizeof(msgbuf));
 	msgbuf[0] = IXGBE_VF_SET_MAC_ADDR;
 	ether_addr_copy(msg_addr, addr);
-	ret_val = mbx->ops.write_posted(hw, msgbuf, 3);
 
-	if (!ret_val)
-		ret_val = mbx->ops.read_posted(hw, msgbuf, 3);
+	ret_val = ixgbevf_write_msg_read_ack(hw, msgbuf, msgbuf, 2);
 
 	msgbuf[0] &= ~IXGBE_VT_MSGTYPE_CTS;
 
@@ -545,7 +538,6 @@ static s32 ixgbevf_hv_update_mc_addr_list_vf(struct ixgbe_hw *hw,
  **/
 static s32 ixgbevf_update_xcast_mode(struct ixgbe_hw *hw, int xcast_mode)
 {
-	struct ixgbe_mbx_info *mbx = &hw->mbx;
 	u32 msgbuf[2];
 	s32 err;
 
@@ -559,11 +551,7 @@ static s32 ixgbevf_update_xcast_mode(struct ixgbe_hw *hw, int xcast_mode)
 	msgbuf[0] = IXGBE_VF_UPDATE_XCAST_MODE;
 	msgbuf[1] = xcast_mode;
 
-	err = mbx->ops.write_posted(hw, msgbuf, 2);
-	if (err)
-		return err;
-
-	err = mbx->ops.read_posted(hw, msgbuf, 2);
+	err = ixgbevf_write_msg_read_ack(hw, msgbuf, msgbuf, 2);
 	if (err)
 		return err;
 
@@ -592,7 +580,6 @@ static s32 ixgbevf_hv_update_xcast_mode(struct ixgbe_hw *hw, int xcast_mode)
 static s32 ixgbevf_set_vfta_vf(struct ixgbe_hw *hw, u32 vlan, u32 vind,
 			       bool vlan_on)
 {
-	struct ixgbe_mbx_info *mbx = &hw->mbx;
 	u32 msgbuf[2];
 	s32 err;
 
@@ -601,11 +588,7 @@ static s32 ixgbevf_set_vfta_vf(struct ixgbe_hw *hw, u32 vlan, u32 vind,
 	/* Setting the 8 bit field MSG INFO to TRUE indicates "add" */
 	msgbuf[0] |= vlan_on << IXGBE_VT_MSGINFO_SHIFT;
 
-	err = mbx->ops.write_posted(hw, msgbuf, 2);
-	if (err)
-		goto mbx_err;
-
-	err = mbx->ops.read_posted(hw, msgbuf, 2);
+	err = ixgbevf_write_msg_read_ack(hw, msgbuf, msgbuf, 2);
 	if (err)
 		goto mbx_err;
 
@@ -853,11 +836,8 @@ static int ixgbevf_negotiate_api_version_vf(struct ixgbe_hw *hw, int api)
 	msg[0] = IXGBE_VF_API_NEGOTIATE;
 	msg[1] = api;
 	msg[2] = 0;
-	err = hw->mbx.ops.write_posted(hw, msg, 3);
 
-	if (!err)
-		err = hw->mbx.ops.read_posted(hw, msg, 3);
-
+	err = ixgbevf_write_msg_read_ack(hw, msg, msg, 3);
 	if (!err) {
 		msg[0] &= ~IXGBE_VT_MSGTYPE_CTS;
 
@@ -906,11 +886,8 @@ int ixgbevf_get_queues(struct ixgbe_hw *hw, unsigned int *num_tcs,
 	/* Fetch queue configuration from the PF */
 	msg[0] = IXGBE_VF_GET_QUEUE;
 	msg[1] = msg[2] = msg[3] = msg[4] = 0;
-	err = hw->mbx.ops.write_posted(hw, msg, 5);
 
-	if (!err)
-		err = hw->mbx.ops.read_posted(hw, msg, 5);
-
+	err = ixgbevf_write_msg_read_ack(hw, msg, msg, 5);
 	if (!err) {
 		msg[0] &= ~IXGBE_VT_MSGTYPE_CTS;
 
