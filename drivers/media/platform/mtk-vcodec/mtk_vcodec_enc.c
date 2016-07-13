@@ -328,10 +328,11 @@ static int vidioc_try_fmt(struct v4l2_format *f, struct mtk_video_fmt *fmt)
 			pix_fmt_mp->height += 32;
 
 		mtk_v4l2_debug(0,
-			"before resize width=%d, height=%d, after resize width=%d, height=%d, sizeimage=%d",
+			"before resize width=%d, height=%d, after resize width=%d, height=%d, sizeimage=%d %d",
 			tmp_w, tmp_h, pix_fmt_mp->width,
 			pix_fmt_mp->height,
-			pix_fmt_mp->width * pix_fmt_mp->height);
+			pix_fmt_mp->plane_fmt[0].sizeimage,
+			pix_fmt_mp->plane_fmt[1].sizeimage);
 
 		pix_fmt_mp->num_planes = fmt->num_planes;
 		pix_fmt_mp->plane_fmt[0].sizeimage =
@@ -1166,9 +1167,13 @@ void mtk_vcodec_enc_set_default_params(struct mtk_vcodec_ctx *ctx)
 		(q_data->coded_height + 32) <= MTK_VENC_MAX_H)
 		q_data->coded_height += 32;
 
-	q_data->sizeimage[0] = q_data->coded_width * q_data->coded_height;
+	q_data->sizeimage[0] =
+		q_data->coded_width * q_data->coded_height+
+		((ALIGN(q_data->coded_width, 16) * 2) * 16);
 	q_data->bytesperline[0] = q_data->coded_width;
-	q_data->sizeimage[1] = q_data->sizeimage[0] / 2;
+	q_data->sizeimage[1] =
+		(q_data->coded_width * q_data->coded_height) / 2 +
+		(ALIGN(q_data->coded_width, 16) * 16);
 	q_data->bytesperline[1] = q_data->coded_width;
 
 	q_data = &ctx->q_data[MTK_Q_DATA_DST];
