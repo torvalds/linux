@@ -4911,7 +4911,7 @@ void gen6_rps_boost(struct drm_i915_private *dev_priv,
 	 */
 	if (!(dev_priv->gt.awake &&
 	      dev_priv->rps.enabled &&
-	      dev_priv->rps.cur_freq < dev_priv->rps.max_freq_softlimit))
+	      dev_priv->rps.cur_freq < dev_priv->rps.boost_freq))
 		return;
 
 	/* Force a RPS boost (and don't count it against the client) if
@@ -6531,6 +6531,9 @@ void intel_init_gt_powersave(struct drm_i915_private *dev_priv)
 			dev_priv->rps.max_freq = params & 0xff;
 		}
 	}
+
+	/* Finally allow us to boost to max by default */
+	dev_priv->rps.boost_freq = dev_priv->rps.max_freq;
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
 }
