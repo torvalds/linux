@@ -815,6 +815,8 @@ static struct sst_acpi_mach sst_bxtp_devdata[] = {
 
 static struct sst_acpi_mach sst_kbl_devdata[] = {
 	{ "INT343A", "kbl_alc286s_i2s", "intel/dsp_fw_kbl.bin", NULL, NULL, NULL },
+	{ "INT343B", "kbl_n88l25_s4567", "intel/dsp_fw_kbl.bin", NULL, NULL, &skl_dmic_data },
+	{ "MX98357A", "kbl_n88l25_m98357a", "intel/dsp_fw_kbl.bin", NULL, NULL, &skl_dmic_data },
 	{}
 };
 
