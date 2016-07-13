@@ -784,12 +784,33 @@ static inline void local_r4k_flush_icache_range_ipi(void *args)
 static void r4k_flush_icache_range(unsigned long start, unsigned long end)
 {
 	struct flush_icache_range_args args;
+	unsigned long size, cache_size;
 
 	args.start = start;
 	args.end = end;
 	args.type = R4K_HIT | R4K_INDEX;
 
+	/*
+	 * Indexed cache ops require an SMP call.
+	 * Consider if that can or should be avoided.
+	 */
+	preempt_disable();
+	if (r4k_op_needs_ipi(R4K_INDEX) && !r4k_op_needs_ipi(R4K_HIT)) {
+		/*
+		 * If address-based cache ops don't require an SMP call, then
+		 * use them exclusively for small flushes.
+		 */
+		size = start - end;
+		cache_size = icache_size;
+		if (!cpu_has_ic_fills_f_dc) {
+			size *= 2;
+			cache_size += dcache_size;
+		}
+		if (size <= cache_size)
+			args.type &= ~R4K_INDEX;
+	}
 	r4k_on_each_cpu(args.type, local_r4k_flush_icache_range_ipi, &args);
+	preempt_enable();
 	instruction_hazard();
 }
 
