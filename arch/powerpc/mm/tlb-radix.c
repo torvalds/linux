@@ -299,8 +299,65 @@ static int radix_get_mmu_psize(int page_size)
 
 void radix__tlb_flush(struct mmu_gather *tlb)
 {
+	int psize = 0;
 	struct mm_struct *mm = tlb->mm;
-	radix__flush_tlb_mm(mm);
+	int page_size = tlb->page_size;
+
+	psize = radix_get_mmu_psize(page_size);
+	/*
+	 * if page size is not something we understand, do a full mm flush
+	 */
+	if (psize != -1 && !tlb->fullmm && !tlb->need_flush_all)
+		radix__flush_tlb_range_psize(mm, tlb->start, tlb->end, psize);
+	else
+		radix__flush_tlb_mm(mm);
+}
+
+#define TLB_FLUSH_ALL -1UL
+/*
+ * Number of pages above which we will do a bcast tlbie. Just a
+ * number at this point copied from x86
+ */
+static unsigned long tlb_single_page_flush_ceiling __read_mostly = 33;
+
+void radix__flush_tlb_range_psize(struct mm_struct *mm, unsigned long start,
+				  unsigned long end, int psize)
+{
+	unsigned long pid;
+	unsigned long addr;
+	int local = mm_is_core_local(mm);
+	unsigned long ap = mmu_get_ap(psize);
+	int lock_tlbie = !mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE);
+	unsigned long page_size = 1UL << mmu_psize_defs[psize].shift;
+
+
+	preempt_disable();
+	pid = mm ? mm->context.id : 0;
+	if (unlikely(pid == MMU_NO_CONTEXT))
+		goto err_out;
+
+	if (end == TLB_FLUSH_ALL ||
+	    (end - start) > tlb_single_page_flush_ceiling * page_size) {
+		if (local)
+			_tlbiel_pid(pid, RIC_FLUSH_TLB);
+		else
+			_tlbie_pid(pid, RIC_FLUSH_TLB);
+		goto err_out;
+	}
+	for (addr = start; addr < end; addr += page_size) {
+
+		if (local)
+			_tlbiel_va(addr, pid, ap, RIC_FLUSH_TLB);
+		else {
+			if (lock_tlbie)
+				raw_spin_lock(&native_tlbie_lock);
+			_tlbie_va(addr, pid, ap, RIC_FLUSH_TLB);
+			if (lock_tlbie)
+				raw_spin_unlock(&native_tlbie_lock);
+		}
+	}
+err_out:
+	preempt_enable();
 }
 
 void radix__flush_tlb_lpid_va(unsigned long lpid, unsigned long gpa,
