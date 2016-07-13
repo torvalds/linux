@@ -401,6 +401,15 @@
  *	@inode contains a pointer to the inode.
  *	@secid contains a pointer to the location where result will be saved.
  *	In case of failure, @secid will be set to zero.
+ * @inode_copy_up:
+ *	A file is about to be copied up from lower layer to upper layer of
+ *	overlay filesystem. Security module can prepare a set of new creds
+ *	and modify as need be and return new creds. Caller will switch to
+ *	new creds temporarily to create new file and release newly allocated
+ *	creds.
+ *	@src indicates the union dentry of file that is being copied up.
+ *	@new pointer to pointer to return newly allocated creds.
+ *	Returns 0 on success or a negative error code on error.
  *
  * Security hooks for file operations
  *
@@ -1425,6 +1434,7 @@ union security_list_options {
 	int (*inode_listsecurity)(struct inode *inode, char *buffer,
 					size_t buffer_size);
 	void (*inode_getsecid)(struct inode *inode, u32 *secid);
+	int (*inode_copy_up)(struct dentry *src, struct cred **new);
 
 	int (*file_permission)(struct file *file, int mask);
 	int (*file_alloc_security)(struct file *file);
@@ -1696,6 +1706,7 @@ struct security_hook_heads {
 	struct list_head inode_setsecurity;
 	struct list_head inode_listsecurity;
 	struct list_head inode_getsecid;
+	struct list_head inode_copy_up;
 	struct list_head file_permission;
 	struct list_head file_alloc_security;
 	struct list_head file_free_security;

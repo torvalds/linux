@@ -282,6 +282,7 @@ int security_inode_getsecurity(struct inode *inode, const char *name, void **buf
 int security_inode_setsecurity(struct inode *inode, const char *name, const void *value, size_t size, int flags);
 int security_inode_listsecurity(struct inode *inode, char *buffer, size_t buffer_size);
 void security_inode_getsecid(struct inode *inode, u32 *secid);
+int security_inode_copy_up(struct dentry *src, struct cred **new);
 int security_file_permission(struct file *file, int mask);
 int security_file_alloc(struct file *file);
 void security_file_free(struct file *file);
@@ -756,6 +757,11 @@ static inline int security_inode_listsecurity(struct inode *inode, char *buffer,
 static inline void security_inode_getsecid(struct inode *inode, u32 *secid)
 {
 	*secid = 0;
+}
+
+static inline int security_inode_copy_up(struct dentry *src, struct cred **new)
+{
+	return 0;
 }
 
 static inline int security_file_permission(struct file *file, int mask)

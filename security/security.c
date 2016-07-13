@@ -748,6 +748,12 @@ void security_inode_getsecid(struct inode *inode, u32 *secid)
 	call_void_hook(inode_getsecid, inode, secid);
 }
 
+int security_inode_copy_up(struct dentry *src, struct cred **new)
+{
+	return call_int_hook(inode_copy_up, 0, src, new);
+}
+EXPORT_SYMBOL(security_inode_copy_up);
+
 int security_file_permission(struct file *file, int mask)
 {
 	int ret;
@@ -1684,6 +1690,8 @@ struct security_hook_heads security_hook_heads = {
 		LIST_HEAD_INIT(security_hook_heads.inode_listsecurity),
 	.inode_getsecid =
 		LIST_HEAD_INIT(security_hook_heads.inode_getsecid),
+	.inode_copy_up =
+		LIST_HEAD_INIT(security_hook_heads.inode_copy_up),
 	.file_permission =
 		LIST_HEAD_INIT(security_hook_heads.file_permission),
 	.file_alloc_security =
