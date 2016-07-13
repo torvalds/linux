@@ -391,3 +391,10 @@ void radix__flush_tlb_lpid(unsigned long lpid)
 	asm volatile("eieio; tlbsync; ptesync": : :"memory");
 }
 EXPORT_SYMBOL(radix__flush_tlb_lpid);
+
+void radix__flush_pmd_tlb_range(struct vm_area_struct *vma,
+				unsigned long start, unsigned long end)
+{
+	radix__flush_tlb_range_psize(vma->vm_mm, start, end, MMU_PAGE_2M);
+}
+EXPORT_SYMBOL(radix__flush_pmd_tlb_range);
