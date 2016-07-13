@@ -188,6 +188,17 @@ int cxl_pci_vphb_add(struct cxl_afu *afu)
 	struct device_node *vphb_dn;
 	struct device *parent;
 
+	/*
+	 * If there are no AFU configuration records we won't have anything to
+	 * expose under the vPHB, so skip creating one, returning success since
+	 * this is still a valid case. This will also opt us out of EEH
+	 * handling since we won't have anything special to do if there are no
+	 * kernel drivers attached to the vPHB, and EEH handling is not yet
+	 * supported in the peer model.
+	 */
+	if (!afu->crs_num)
+		return 0;
+
 	/* The parent device is the adapter. Reuse the device node of
 	 * the adapter.
 	 * We don't seem to care what device node is used for the vPHB,

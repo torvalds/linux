@@ -1572,6 +1572,9 @@ static pci_ers_result_t cxl_pci_error_detected(struct pci_dev *pdev,
 		 */
 		for (i = 0; i < adapter->slices; i++) {
 			afu = adapter->afu[i];
+			/* Only participate in EEH if we are on a virtual PHB */
+			if (afu->phb == NULL)
+				return PCI_ERS_RESULT_NONE;
 			cxl_vphb_error_detected(afu, state);
 		}
 		return PCI_ERS_RESULT_DISCONNECT;
