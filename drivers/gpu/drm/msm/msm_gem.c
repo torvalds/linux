@@ -830,9 +830,7 @@ struct drm_gem_object *msm_gem_new(struct drm_device *dev,
 	return obj;
 
 fail:
-	if (obj)
-		drm_gem_object_unreference(obj);
-
+	drm_gem_object_unreference(obj);
 	return ERR_PTR(ret);
 }
 
