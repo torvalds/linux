@@ -181,8 +181,7 @@ static inline unsigned long compute_tlbie_rb(unsigned long v, unsigned long r,
 
 	switch (b_psize) {
 	case MMU_PAGE_4K:
-		sllp = ((mmu_psize_defs[a_psize].sllp & SLB_VSID_L) >> 6) |
-			((mmu_psize_defs[a_psize].sllp & SLB_VSID_LP) >> 4);
+		sllp = get_sllp_encoding(a_psize);
 		rb |= sllp << 5;	/*  AP field */
 		rb |= (va_low & 0x7ff) << 12;	/* remaining 11 bits of AVA */
 		break;
