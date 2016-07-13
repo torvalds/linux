@@ -721,12 +721,16 @@ static void r4k_flush_data_cache_page(unsigned long addr)
 struct flush_icache_range_args {
 	unsigned long start;
 	unsigned long end;
+	unsigned int type;
 };
 
-static inline void local_r4k_flush_icache_range(unsigned long start, unsigned long end)
+static inline void __local_r4k_flush_icache_range(unsigned long start,
+						  unsigned long end,
+						  unsigned int type)
 {
 	if (!cpu_has_ic_fills_f_dc) {
-		if (end - start >= dcache_size) {
+		if (type == R4K_INDEX ||
+		    (type & R4K_INDEX && end - start >= dcache_size)) {
 			r4k_blast_dcache();
 		} else {
 			R4600_HIT_CACHEOP_WAR_IMPL;
@@ -734,7 +738,8 @@ static inline void local_r4k_flush_icache_range(unsigned long start, unsigned lo
 		}
 	}
 
-	if (end - start > icache_size)
+	if (type == R4K_INDEX ||
+	    (type & R4K_INDEX && end - start > icache_size))
 		r4k_blast_icache();
 	else {
 		switch (boot_cpu_type()) {
@@ -760,13 +765,20 @@ static inline void local_r4k_flush_icache_range(unsigned long start, unsigned lo
 #endif
 }
 
+static inline void local_r4k_flush_icache_range(unsigned long start,
+						unsigned long end)
+{
+	__local_r4k_flush_icache_range(start, end, R4K_HIT | R4K_INDEX);
+}
+
 static inline void local_r4k_flush_icache_range_ipi(void *args)
 {
 	struct flush_icache_range_args *fir_args = args;
 	unsigned long start = fir_args->start;
 	unsigned long end = fir_args->end;
+	unsigned int type = fir_args->type;
 
-	local_r4k_flush_icache_range(start, end);
+	__local_r4k_flush_icache_range(start, end, type);
 }
 
 static void r4k_flush_icache_range(unsigned long start, unsigned long end)
@@ -775,9 +787,9 @@ static void r4k_flush_icache_range(unsigned long start, unsigned long end)
 
 	args.start = start;
 	args.end = end;
+	args.type = R4K_HIT | R4K_INDEX;
 
-	r4k_on_each_cpu(R4K_HIT | R4K_INDEX, local_r4k_flush_icache_range_ipi,
-			&args);
+	r4k_on_each_cpu(args.type, local_r4k_flush_icache_range_ipi, &args);
 	instruction_hazard();
 }
 
