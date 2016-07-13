@@ -1336,6 +1336,7 @@ static int wacom_initialize_leds(struct wacom *wacom)
 }
 
 static enum power_supply_property wacom_battery_props[] = {
+	POWER_SUPPLY_PROP_MODEL_NAME,
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_SCOPE,
@@ -1350,6 +1351,9 @@ static int wacom_battery_get_property(struct power_supply *psy,
 	int ret = 0;
 
 	switch (psp) {
+		case POWER_SUPPLY_PROP_MODEL_NAME:
+			val->strval = battery->wacom->wacom_wac.name;
+			break;
 		case POWER_SUPPLY_PROP_PRESENT:
 			val->intval = battery->bat_connected;
 			break;
@@ -1391,6 +1395,8 @@ static int __wacom_initialize_battery(struct wacom *wacom,
 
 	if (!devres_open_group(dev, bat_desc, GFP_KERNEL))
 		return -ENOMEM;
+
+	battery->wacom = wacom;
 
 	n = atomic_inc_return(&battery_no) - 1;
 
@@ -1863,6 +1869,9 @@ static void wacom_update_name(struct wacom *wacom, const char *suffix)
 		strlcpy(name, features->name, sizeof(name));
 	}
 
+	snprintf(wacom_wac->name, sizeof(wacom_wac->name), "%s%s",
+		 name, suffix);
+
 	/* Append the device type to the name */
 	snprintf(wacom_wac->pen_name, sizeof(wacom_wac->pen_name),
 		"%s%s Pen", name, suffix);
@@ -2097,6 +2106,8 @@ static void wacom_wireless_work(struct work_struct *work)
 				goto fail;
 		}
 
+		strlcpy(wacom_wac->name, wacom_wac1->name,
+			sizeof(wacom_wac->name));
 		error = wacom_initialize_battery(wacom);
 		if (error)
 			goto fail;

@@ -226,6 +226,7 @@ struct wacom_remote_data {
 };
 
 struct wacom_wac {
+	char name[WACOM_NAME_MAX];
 	char pen_name[WACOM_NAME_MAX];
 	char touch_name[WACOM_NAME_MAX];
 	char pad_name[WACOM_NAME_MAX];

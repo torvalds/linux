@@ -134,6 +134,7 @@ struct wacom_group_leds {
 };
 
 struct wacom_battery {
+	struct wacom *wacom;
 	struct power_supply_desc bat_desc;
 	struct power_supply *battery;
 	char bat_name[WACOM_NAME_MAX];
