@@ -1,6 +1,7 @@
 .. -*- coding: utf-8; mode: rst -*-
 
 .. _VIDIOC_SUBSCRIBE_EVENT:
+.. _VIDIOC_UNSUBSCRIBE_EVENT:
 
 ******************************************************
 ioctl VIDIOC_SUBSCRIBE_EVENT, VIDIOC_UNSUBSCRIBE_EVENT
@@ -54,8 +55,8 @@ using the :ref:`VIDIOC_DQEVENT` ioctl.
        -  Type of the event, see :ref:`event-type`.
 
 	  .. note:: ``V4L2_EVENT_ALL`` can be used with
-	     :ref:`VIDIOC_UNSUBSCRIBE_EVENT` for unsubscribing all events
-	     at once.
+	     :ref:`VIDIOC_UNSUBSCRIBE_EVENT <VIDIOC_SUBSCRIBE_EVENT>` for
+	     unsubscribing all events at once.
 
     -  .. row 2
 

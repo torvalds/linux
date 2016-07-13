@@ -245,7 +245,7 @@ exceeded are undefined. [#f3]_
 .. _v4l2-clip:
 
 struct v4l2_clip [#f4]_
----------------------
+-----------------------
 
 ``struct v4l2_rect c``
     Coordinates of the clipping rectangle, relative to the top, left

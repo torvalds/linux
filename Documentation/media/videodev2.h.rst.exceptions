@@ -531,6 +531,5 @@ replace ioctl VIDIOC_TRY_ENCODER_CMD vidioc_encoder_cmd
 replace ioctl VIDIOC_TRY_EXT_CTRLS vidioc_g_ext_ctrls
 replace ioctl VIDIOC_TRY_FMT vidioc_g_fmt
 replace ioctl VIDIOC_STREAMOFF vidioc_streamon
-replace ioctl VIDIOC_UNSUBSCRIBE_EVENT vidioc_subscribe_event
 replace ioctl VIDIOC_QUERY_EXT_CTRL vidioc_queryctrl
 replace ioctl VIDIOC_QUERYMENU vidioc_queryctrl
