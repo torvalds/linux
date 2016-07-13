@@ -67,7 +67,7 @@ int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request
 int intel_logical_ring_reserve_space(struct drm_i915_gem_request *request);
 void intel_logical_ring_stop(struct intel_engine_cs *engine);
 void intel_logical_ring_cleanup(struct intel_engine_cs *engine);
-int intel_logical_rings_init(struct drm_device *dev);
+int intel_engines_init(struct drm_device *dev);
 
 int logical_ring_flush_all_caches(struct drm_i915_gem_request *req);
 /**

@@ -484,11 +484,11 @@ int intel_ring_invalidate_all_caches(struct drm_i915_gem_request *req);
 int intel_init_pipe_control(struct intel_engine_cs *engine, int size);
 void intel_fini_pipe_control(struct intel_engine_cs *engine);
 
-int intel_init_render_ring_buffer(struct drm_device *dev);
-int intel_init_bsd_ring_buffer(struct drm_device *dev);
-int intel_init_bsd2_ring_buffer(struct drm_device *dev);
-int intel_init_blt_ring_buffer(struct drm_device *dev);
-int intel_init_vebox_ring_buffer(struct drm_device *dev);
+int intel_init_render_ring_buffer(struct intel_engine_cs *engine);
+int intel_init_bsd_ring_buffer(struct intel_engine_cs *engine);
+int intel_init_bsd2_ring_buffer(struct intel_engine_cs *engine);
+int intel_init_blt_ring_buffer(struct intel_engine_cs *engine);
+int intel_init_vebox_ring_buffer(struct intel_engine_cs *engine);
 
 u64 intel_ring_get_active_head(struct intel_engine_cs *engine);
 static inline u32 intel_engine_get_seqno(struct intel_engine_cs *engine)
