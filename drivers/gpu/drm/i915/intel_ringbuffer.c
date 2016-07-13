@@ -2168,21 +2168,19 @@ static void intel_ring_context_unpin(struct i915_gem_context *ctx,
 	i915_gem_context_unreference(ctx);
 }
 
-static int intel_init_ring_buffer(struct drm_device *dev,
-				  struct intel_engine_cs *engine)
+static int intel_init_ring_buffer(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = engine->i915;
 	struct intel_ringbuffer *ringbuf;
 	int ret;
 
 	WARN_ON(engine->buffer);
 
-	engine->i915 = dev_priv;
 	INIT_LIST_HEAD(&engine->active_list);
 	INIT_LIST_HEAD(&engine->request_list);
 	INIT_LIST_HEAD(&engine->execlist_queue);
 	INIT_LIST_HEAD(&engine->buffers);
-	i915_gem_batch_pool_init(dev, &engine->batch_pool);
+	i915_gem_batch_pool_init(&dev_priv->drm, &engine->batch_pool);
 	memset(engine->semaphore.sync_seqno, 0,
 	       sizeof(engine->semaphore.sync_seqno));
 
@@ -2875,7 +2873,7 @@ int intel_init_render_ring_buffer(struct intel_engine_cs *engine)
 	engine->init_hw = init_render_ring;
 	engine->cleanup = render_ring_cleanup;
 
-	ret = intel_init_ring_buffer(&dev_priv->drm, engine);
+	ret = intel_init_ring_buffer(engine);
 	if (ret)
 		return ret;
 
@@ -2914,7 +2912,7 @@ int intel_init_bsd_ring_buffer(struct intel_engine_cs *engine)
 			engine->irq_enable_mask = I915_BSD_USER_INTERRUPT;
 	}
 
-	return intel_init_ring_buffer(&dev_priv->drm, engine);
+	return intel_init_ring_buffer(engine);
 }
 
 /**
@@ -2928,7 +2926,7 @@ int intel_init_bsd2_ring_buffer(struct intel_engine_cs *engine)
 
 	engine->flush = gen6_bsd_ring_flush;
 
-	return intel_init_ring_buffer(&dev_priv->drm, engine);
+	return intel_init_ring_buffer(engine);
 }
 
 int intel_init_blt_ring_buffer(struct intel_engine_cs *engine)
@@ -2941,7 +2939,7 @@ int intel_init_blt_ring_buffer(struct intel_engine_cs *engine)
 	if (INTEL_GEN(dev_priv) < 8)
 		engine->irq_enable_mask = GT_BLT_USER_INTERRUPT;
 
-	return intel_init_ring_buffer(&dev_priv->drm, engine);
+	return intel_init_ring_buffer(engine);
 }
 
 int intel_init_vebox_ring_buffer(struct intel_engine_cs *engine)
@@ -2958,7 +2956,7 @@ int intel_init_vebox_ring_buffer(struct intel_engine_cs *engine)
 		engine->irq_disable = hsw_vebox_irq_disable;
 	}
 
-	return intel_init_ring_buffer(&dev_priv->drm, engine);
+	return intel_init_ring_buffer(engine);
 }
 
 int
