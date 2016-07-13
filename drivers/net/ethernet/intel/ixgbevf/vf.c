@@ -33,6 +33,18 @@
  */
 #define IXGBE_HV_RESET_OFFSET           0x201
 
+static inline s32 ixgbevf_write_msg_read_ack(struct ixgbe_hw *hw, u32 *msg,
+					     u32 *retmsg, u16 size)
+{
+	struct ixgbe_mbx_info *mbx = &hw->mbx;
+	s32 retval = mbx->ops.write_posted(hw, msg, size);
+
+	if (retval)
+		return retval;
+
+	return mbx->ops.read_posted(hw, retmsg, size);
+}
+
 /**
  *  ixgbevf_start_hw_vf - Prepare hardware for Tx/Rx
  *  @hw: pointer to hardware structure
@@ -470,17 +482,6 @@ static s32 ixgbevf_hv_set_rar_vf(struct ixgbe_hw *hw, u32 index, u8 *addr,
 	return -EOPNOTSUPP;
 }
 
-static void ixgbevf_write_msg_read_ack(struct ixgbe_hw *hw,
-				       u32 *msg, u16 size)
-{
-	struct ixgbe_mbx_info *mbx = &hw->mbx;
-	u32 retmsg[IXGBE_VFMAILBOX_SIZE];
-	s32 retval = mbx->ops.write_posted(hw, msg, size);
-
-	if (!retval)
-		mbx->ops.read_posted(hw, retmsg, size);
-}
-
 /**
  *  ixgbevf_update_mc_addr_list_vf - Update Multicast addresses
  *  @hw: pointer to the HW structure
@@ -521,7 +522,7 @@ static s32 ixgbevf_update_mc_addr_list_vf(struct ixgbe_hw *hw,
 		vector_list[i++] = ixgbevf_mta_vector(hw, ha->addr);
 	}
 
-	ixgbevf_write_msg_read_ack(hw, msgbuf, IXGBE_VFMAILBOX_SIZE);
+	ixgbevf_write_msg_read_ack(hw, msgbuf, msgbuf, IXGBE_VFMAILBOX_SIZE);
 
 	return 0;
 }
@@ -799,13 +800,22 @@ out:
  *  @hw: pointer to the HW structure
  *  @max_size: value to assign to max frame size
  **/
-static void ixgbevf_set_rlpml_vf(struct ixgbe_hw *hw, u16 max_size)
+static s32 ixgbevf_set_rlpml_vf(struct ixgbe_hw *hw, u16 max_size)
 {
 	u32 msgbuf[2];
+	s32 ret_val;
 
 	msgbuf[0] = IXGBE_VF_SET_LPE;
 	msgbuf[1] = max_size;
-	ixgbevf_write_msg_read_ack(hw, msgbuf, 2);
+
+	ret_val = ixgbevf_write_msg_read_ack(hw, msgbuf, msgbuf, 2);
+	if (ret_val)
+		return ret_val;
+	if ((msgbuf[0] & IXGBE_VF_SET_LPE) &&
+	    (msgbuf[0] & IXGBE_VT_MSGTYPE_NACK))
+		return IXGBE_ERR_MBX;
+
+	return 0;
 }
 
 /**
@@ -814,7 +824,7 @@ static void ixgbevf_set_rlpml_vf(struct ixgbe_hw *hw, u16 max_size)
  * @max_size: value to assign to max frame size
  * Hyper-V variant.
  **/
-static void ixgbevf_hv_set_rlpml_vf(struct ixgbe_hw *hw, u16 max_size)
+static s32 ixgbevf_hv_set_rlpml_vf(struct ixgbe_hw *hw, u16 max_size)
 {
 	u32 reg;
 
@@ -825,6 +835,8 @@ static void ixgbevf_hv_set_rlpml_vf(struct ixgbe_hw *hw, u16 max_size)
 	/* CRC == 4 */
 	reg |= ((max_size + 4) | IXGBE_RXDCTL_RLPML_EN);
 	IXGBE_WRITE_REG(hw, IXGBE_VFRXDCTL(0), reg);
+
+	return 0;
 }
 
 /**

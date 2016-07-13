@@ -1802,16 +1802,19 @@ static void ixgbevf_configure_rx_ring(struct ixgbevf_adapter *adapter,
  **/
 static void ixgbevf_configure_rx(struct ixgbevf_adapter *adapter)
 {
-	int i;
 	struct ixgbe_hw *hw = &adapter->hw;
 	struct net_device *netdev = adapter->netdev;
+	int i, ret;
 
 	ixgbevf_setup_psrtype(adapter);
 	if (hw->mac.type >= ixgbe_mac_X550_vf)
 		ixgbevf_setup_vfmrqc(adapter);
 
 	/* notify the PF of our intent to use this size of frame */
-	hw->mac.ops.set_rlpml(hw, netdev->mtu + ETH_HLEN + ETH_FCS_LEN);
+	ret = hw->mac.ops.set_rlpml(hw, netdev->mtu + ETH_HLEN + ETH_FCS_LEN);
+	if (ret)
+		dev_err(&adapter->pdev->dev,
+			"Failed to set MTU at %d\n", netdev->mtu);
 
 	/* Setup the HW Rx Head and Tail Descriptor Pointers and
 	 * the Base and Length of the Rx Descriptor Ring
@@ -3737,6 +3740,7 @@ static int ixgbevf_change_mtu(struct net_device *netdev, int new_mtu)
 	struct ixgbe_hw *hw = &adapter->hw;
 	int max_frame = new_mtu + ETH_HLEN + ETH_FCS_LEN;
 	int max_possible_frame = MAXIMUM_ETHERNET_VLAN_SIZE;
+	int ret;
 
 	switch (adapter->hw.api_version) {
 	case ixgbe_mbox_api_11:
@@ -3753,13 +3757,16 @@ static int ixgbevf_change_mtu(struct net_device *netdev, int new_mtu)
 	if ((new_mtu < 68) || (max_frame > max_possible_frame))
 		return -EINVAL;
 
+	/* notify the PF of our intent to use this size of frame */
+	ret = hw->mac.ops.set_rlpml(hw, max_frame);
+	if (ret)
+		return -EINVAL;
+
 	hw_dbg(hw, "changing MTU from %d to %d\n",
 	       netdev->mtu, new_mtu);
+
 	/* must set new MTU before calling down or up */
 	netdev->mtu = new_mtu;
-
-	/* notify the PF of our intent to use this size of frame */
-	hw->mac.ops.set_rlpml(hw, max_frame);
 
 	return 0;
 }

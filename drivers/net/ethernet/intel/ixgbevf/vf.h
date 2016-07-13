@@ -69,7 +69,7 @@ struct ixgbe_mac_operations {
 	s32 (*disable_mc)(struct ixgbe_hw *);
 	s32 (*clear_vfta)(struct ixgbe_hw *);
 	s32 (*set_vfta)(struct ixgbe_hw *, u32, u32, bool);
-	void (*set_rlpml)(struct ixgbe_hw *, u16);
+	s32 (*set_rlpml)(struct ixgbe_hw *, u16);
 };
 
 enum ixgbe_mac_type {
