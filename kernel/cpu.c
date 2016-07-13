@@ -1180,6 +1180,11 @@ static struct cpuhp_step cpuhp_bp_states[] = {
 		.teardown		= NULL,
 		.cant_stop		= true,
 	},
+	[CPUHP_PERF_PREPARE] = {
+		.name = "perf prepare",
+		.startup = perf_event_init_cpu,
+		.teardown = perf_event_exit_cpu,
+	},
 	/*
 	 * Preparatory and dead notifiers. Will be replaced once the notifiers
 	 * are converted to states.
@@ -1257,6 +1262,12 @@ static struct cpuhp_step cpuhp_ap_states[] = {
 		.startup		= smpboot_unpark_threads,
 		.teardown		= NULL,
 	},
+	[CPUHP_AP_PERF_ONLINE] = {
+		.name = "perf online",
+		.startup = perf_event_init_cpu,
+		.teardown = perf_event_exit_cpu,
+	},
+
 	/*
 	 * Online/down_prepare notifiers. Will be removed once the notifiers
 	 * are converted to states.
