@@ -753,6 +753,7 @@ static int wacom_remote_irq(struct wacom_wac *wacom_wac, size_t len)
 	unsigned char *data = wacom_wac->data;
 	struct input_dev *input = wacom_wac->pad_input;
 	struct wacom *wacom = container_of(wacom_wac, struct wacom, wacom_wac);
+	struct wacom_remote *remote = wacom->remote;
 	struct wacom_features *features = &wacom_wac->features;
 	int bat_charging, bat_percent, touch_ring_mode;
 	__u32 serial;
@@ -807,7 +808,7 @@ static int wacom_remote_irq(struct wacom_wac *wacom_wac, size_t len)
 	touch_ring_mode = (data[11] & 0xC0) >> 6;
 
 	for (i = 0; i < WACOM_MAX_REMOTES; i++) {
-		if (wacom_wac->serial[i] == serial)
+		if (remote->serial[i] == serial)
 			wacom->led.groups[i].select = touch_ring_mode;
 	}
 
@@ -827,6 +828,7 @@ static void wacom_remote_status_irq(struct wacom_wac *wacom_wac, size_t len)
 {
 	struct wacom *wacom = container_of(wacom_wac, struct wacom, wacom_wac);
 	unsigned char *data = wacom_wac->data;
+	struct wacom_remote *remote = wacom->remote;
 	struct wacom_remote_data remote_data;
 	unsigned long flags;
 	int i, ret;
@@ -845,16 +847,16 @@ static void wacom_remote_status_irq(struct wacom_wac *wacom_wac, size_t len)
 		remote_data.remote[i].connected = connected;
 	}
 
-	spin_lock_irqsave(&wacom->remote_lock, flags);
+	spin_lock_irqsave(&remote->remote_lock, flags);
 
-	ret = kfifo_in(&wacom->remote_fifo, &remote_data, sizeof(remote_data));
+	ret = kfifo_in(&remote->remote_fifo, &remote_data, sizeof(remote_data));
 	if (ret != sizeof(remote_data)) {
-		spin_unlock_irqrestore(&wacom->remote_lock, flags);
+		spin_unlock_irqrestore(&remote->remote_lock, flags);
 		hid_err(wacom->hdev, "Can't queue Remote status event.\n");
 		return;
 	}
 
-	spin_unlock_irqrestore(&wacom->remote_lock, flags);
+	spin_unlock_irqrestore(&remote->remote_lock, flags);
 
 	wacom_schedule_work(wacom_wac, WACOM_WORKER_REMOTE);
 }

@@ -116,6 +116,14 @@ struct wacom_group_leds {
 	u8 select; /* status led selector (0..3) */
 };
 
+struct wacom_remote {
+	spinlock_t remote_lock;
+	struct kfifo remote_fifo;
+	struct kobject *remote_dir;
+	struct attribute_group remote_group[WACOM_MAX_REMOTES];
+	__u32 serial[WACOM_MAX_REMOTES];
+};
+
 struct wacom {
 	struct usb_device *usbdev;
 	struct usb_interface *intf;
@@ -125,8 +133,7 @@ struct wacom {
 	struct work_struct wireless_work;
 	struct work_struct battery_work;
 	struct work_struct remote_work;
-	spinlock_t remote_lock;
-	struct kfifo remote_fifo;
+	struct wacom_remote *remote;
 	struct wacom_leds {
 		struct wacom_group_leds *groups;
 		u8 llv;       /* status led brightness no button (1..127) */
@@ -137,8 +144,6 @@ struct wacom {
 	struct power_supply *ac;
 	struct power_supply_desc battery_desc;
 	struct power_supply_desc ac_desc;
-	struct kobject *remote_dir;
-	struct attribute_group remote_group[5];
 	bool resources;
 };
 
