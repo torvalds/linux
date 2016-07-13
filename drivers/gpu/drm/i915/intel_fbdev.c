@@ -768,7 +768,7 @@ void intel_fbdev_fini(struct drm_device *dev)
 	if (!ifbdev)
 		return;
 
-	flush_work(&dev_priv->fbdev_suspend_work);
+	cancel_work_sync(&dev_priv->fbdev_suspend_work);
 	if (!current_is_async())
 		intel_fbdev_sync(ifbdev);
 
