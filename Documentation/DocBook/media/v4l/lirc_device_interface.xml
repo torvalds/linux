@@ -114,7 +114,7 @@ on working with the default settings initially.</para>
       <para>Some receiver have maximum resolution which is defined by internal
       sample rate or data format limitations. E.g. it's common that signals can
       only be reported in 50 microsecond steps. This integer value is used by
-      lircd to automatically adjust the aeps tolerance value in the lircd
+      lircd to automatically adjust the steps tolerance value in the lircd
       config file.</para>
     </listitem>
   </varlistentry>
