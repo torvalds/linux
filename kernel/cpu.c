@@ -1195,6 +1195,11 @@ static struct cpuhp_step cpuhp_bp_states[] = {
 		.startup = hrtimers_prepare_cpu,
 		.teardown = hrtimers_dead_cpu,
 	},
+	[CPUHP_SMPCFD_PREPARE] = {
+		.name = "SMPCFD prepare",
+		.startup = smpcfd_prepare_cpu,
+		.teardown = smpcfd_dead_cpu,
+	},
 	[CPUHP_TIMERS_DEAD] = {
 		.name = "timers dead",
 		.startup = NULL,
@@ -1217,6 +1222,10 @@ static struct cpuhp_step cpuhp_bp_states[] = {
 		.startup		= bringup_cpu,
 		.teardown		= NULL,
 		.cant_stop		= true,
+	},
+	[CPUHP_AP_SMPCFD_DYING] = {
+		.startup = NULL,
+		.teardown = smpcfd_dying_cpu,
 	},
 	/*
 	 * Handled on controll processor until the plugged processor manages
