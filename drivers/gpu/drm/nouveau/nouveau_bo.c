@@ -209,8 +209,7 @@ nouveau_bo_new(struct drm_device *dev, int size, int align,
 	nvbo->tile_flags = tile_flags;
 	nvbo->bo.bdev = &drm->ttm.bdev;
 
-	if (!nvxx_device(&drm->device)->func->cpu_coherent)
-		nvbo->force_coherent = flags & TTM_PL_FLAG_UNCACHED;
+	nvbo->force_coherent = flags & TTM_PL_FLAG_UNCACHED;
 
 	nvbo->page_shift = 12;
 	if (drm->client.vm) {
