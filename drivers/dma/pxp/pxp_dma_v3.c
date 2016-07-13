@@ -851,6 +851,12 @@ static int pxp_set_scaling(struct pxps *pxp)
 	struct pxp_layer_param *out_params = &pxp_conf->out_param;
 
 	proc_data->scaling = 1;
+
+	if (!proc_data->drect.width || !proc_data->drect.height) {
+		pr_err("Invalid drect width and height passed in\n");
+		return -EINVAL;
+	}
+
 	decx = proc_data->srect.width / proc_data->drect.width;
 	decy = proc_data->srect.height / proc_data->drect.height;
 	if (decx > 1) {
