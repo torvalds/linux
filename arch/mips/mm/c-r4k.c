@@ -841,12 +841,16 @@ static void local_r4k_flush_cache_sigtramp(void *args)
 	}
 
 	R4600_HIT_CACHEOP_WAR_IMPL;
-	if (dc_lsize)
-		vaddr ? flush_dcache_line(addr & ~(dc_lsize - 1))
-		      : protected_writeback_dcache_line(addr & ~(dc_lsize - 1));
-	if (!cpu_icache_snoops_remote_store && scache_size)
-		vaddr ? flush_scache_line(addr & ~(sc_lsize - 1))
-		      : protected_writeback_scache_line(addr & ~(sc_lsize - 1));
+	if (!cpu_has_ic_fills_f_dc) {
+		if (dc_lsize)
+			vaddr ? flush_dcache_line(addr & ~(dc_lsize - 1))
+			      : protected_writeback_dcache_line(
+							addr & ~(dc_lsize - 1));
+		if (!cpu_icache_snoops_remote_store && scache_size)
+			vaddr ? flush_scache_line(addr & ~(sc_lsize - 1))
+			      : protected_writeback_scache_line(
+							addr & ~(sc_lsize - 1));
+	}
 	if (ic_lsize)
 		vaddr ? flush_icache_line(addr & ~(ic_lsize - 1))
 		      : protected_flush_icache_line(addr & ~(ic_lsize - 1));
