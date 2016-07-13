@@ -141,6 +141,26 @@
 		#sound-dai-cells = <0>;
 	};
 
+	hdmi_sound: hdmi-sound {
+		status = "okay";
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "rockchip,hdmi";
+		simple-audio-card,cpu {
+			sound-dai = <&i2s2>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&dw_hdmi_audio>;
+		};
+	};
+
+	dw_hdmi_audio: dw-hdmi-audio {
+		status = "okay";
+		compatible = "rockchip,dw-hdmi-audio";
+		#sound-dai-cells = <0>;
+	};
+
 	sdio_pwrseq: sdio-pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		clocks = <&rk808 1>;
@@ -734,10 +754,3 @@
 	status = "okay";
 };
 
-&dw_hdmi_audio {
-	status = "okay";
-};
-
-&hdmi_sound {
-	status = "okay";
-};
