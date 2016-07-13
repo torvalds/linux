@@ -130,6 +130,7 @@ struct wacom_group_leds {
 	u8 select; /* status led selector (0..3) */
 	struct wacom_led *leds;
 	unsigned int count;
+	struct device *dev;
 };
 
 struct wacom_battery {

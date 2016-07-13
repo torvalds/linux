@@ -1068,6 +1068,13 @@ static int wacom_led_register_one(struct device *dev, struct wacom *wacom,
 	return 0;
 }
 
+static void wacom_led_groups_release_one(void *data)
+{
+	struct wacom_group_leds *group = data;
+
+	devres_release_group(group->dev, group);
+}
+
 static int wacom_led_groups_alloc_and_register_one(struct device *dev,
 						   struct wacom *wacom,
 						   int group_id, int count,
@@ -1098,7 +1105,25 @@ static int wacom_led_groups_alloc_and_register_one(struct device *dev,
 			goto err;
 	}
 
-	devres_remove_group(dev, &wacom->led.groups[group_id]);
+	wacom->led.groups[group_id].dev = dev;
+
+	devres_close_group(dev, &wacom->led.groups[group_id]);
+
+	/*
+	 * There is a bug (?) in devm_led_classdev_register() in which its
+	 * increments the refcount of the parent. If the parent is an input
+	 * device, that means the ref count never reaches 0 when
+	 * devm_input_device_release() gets called.
+	 * This means that the LEDs are still there after disconnect.
+	 * Manually force the release of the group so that the leds are released
+	 * once we are done using them.
+	 */
+	error = devm_add_action_or_reset(&wacom->hdev->dev,
+					 wacom_led_groups_release_one,
+					 &wacom->led.groups[group_id]);
+	if (error)
+		return error;
+
 	return 0;
 
 err:
