@@ -43,7 +43,7 @@ Each port children node must have the following mandatory properties:
 Note that a port labelled "dsa" will imply checking for the uplink phandle
 described below.
 
-Optionnal property:
+Optional property:
 - link			: Should be a list of phandles to another switch's DSA port.
 			  This property is only used when switches are being
 			  chained/cascaded together. This port is used as outgoing port
