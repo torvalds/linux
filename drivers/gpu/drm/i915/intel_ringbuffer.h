@@ -362,10 +362,6 @@ struct intel_engine_cs {
 	u32 (*get_cmd_length_mask)(u32 cmd_header);
 };
 
-struct intel_engine_cs *
-intel_engine_setup(struct drm_i915_private *dev_priv,
-		   enum intel_engine_id id);
-
 static inline bool
 intel_engine_initialized(const struct intel_engine_cs *engine)
 {
