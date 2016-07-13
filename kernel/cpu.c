@@ -1185,6 +1185,11 @@ static struct cpuhp_step cpuhp_bp_states[] = {
 		.startup = perf_event_init_cpu,
 		.teardown = perf_event_exit_cpu,
 	},
+	[CPUHP_WORKQUEUE_PREP] = {
+		.name = "workqueue prepare",
+		.startup = workqueue_prepare_cpu,
+		.teardown = NULL,
+	},
 	/*
 	 * Preparatory and dead notifiers. Will be replaced once the notifiers
 	 * are converted to states.
@@ -1266,6 +1271,11 @@ static struct cpuhp_step cpuhp_ap_states[] = {
 		.name = "perf online",
 		.startup = perf_event_init_cpu,
 		.teardown = perf_event_exit_cpu,
+	},
+	[CPUHP_AP_WORKQUEUE_ONLINE] = {
+		.name = "workqueue online",
+		.startup = workqueue_online_cpu,
+		.teardown = workqueue_offline_cpu,
 	},
 
 	/*
