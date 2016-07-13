@@ -4,9 +4,9 @@
 .. _CEC_ADAP_G_LOG_ADDRS:
 .. _CEC_ADAP_S_LOG_ADDRS:
 
-************************************************
-ioctl CEC_ADAP_G_LOG_ADDRS, CEC_ADAP_S_LOG_ADDRS
-************************************************
+****************************************************
+ioctls CEC_ADAP_G_LOG_ADDRS and CEC_ADAP_S_LOG_ADDRS
+****************************************************
 
 Name
 ====
@@ -38,19 +38,17 @@ Description
 .. note:: This documents the proposed CEC API. This API is not yet finalized
    and is currently only available as a staging kernel module.
 
-To query the current CEC logical addresses, applications call the
-:ref:`CEC_ADAP_G_LOG_ADDRS` ioctl with a pointer to a
-:c:type:`struct cec_log_addrs` structure where the drivers stores
-the logical addresses.
+To query the current CEC logical addresses, applications call
+:ref:`ioctl CEC_ADAP_G_LOG_ADDRS <CEC_ADAP_G_LOG_ADDRS>` with a pointer to a
+:c:type:`struct cec_log_addrs` where the driver stores the logical addresses.
 
-To set new logical addresses, applications fill in struct
-:c:type:`struct cec_log_addrs` and call the :ref:`CEC_ADAP_S_LOG_ADDRS`
-ioctl with a pointer to this struct. The :ref:`CEC_ADAP_S_LOG_ADDRS` ioctl
+To set new logical addresses, applications fill in
+:c:type:`struct cec_log_addrs` and call :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`
+with a pointer to this struct. The :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`
 is only available if ``CEC_CAP_LOG_ADDRS`` is set (ENOTTY error code is
 returned otherwise). This ioctl will block until all requested logical
-addresses have been claimed. :ref:`CEC_ADAP_S_LOG_ADDRS` can only be called
-by a file handle in initiator mode (see
-:ref:`CEC_S_MODE`).
+addresses have been claimed. The :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>` can only be called
+by a file handle in initiator mode (see :ref:`CEC_S_MODE`).
 
 
 .. _cec-log-addrs:

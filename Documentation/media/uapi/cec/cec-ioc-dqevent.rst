@@ -36,7 +36,7 @@ Description
    and is currently only available as a staging kernel module.
 
 CEC devices can send asynchronous events. These can be retrieved by
-calling the :ref:`CEC_DQEVENT` ioctl. If the file descriptor is in
+calling :ref:`ioctl CEC_DQEVENT <CEC_DQEVENT>`. If the file descriptor is in
 non-blocking mode and no event is pending, then it will return -1 and
 set errno to the EAGAIN error code.
 
@@ -45,7 +45,7 @@ there is no more room in a queue then the last event is overwritten with
 the new one. This means that intermediate results can be thrown away but
 that the latest event is always available. This also means that is it
 possible to read two successive events that have the same value (e.g.
-two CEC_EVENT_STATE_CHANGE events with the same state). In that case
+two :ref:`CEC_EVENT_STATE_CHANGE <CEC_EVENT_STATE_CHANGE>` events with the same state). In that case
 the intermediate state changes were lost but it is guaranteed that the
 state did change in between the two events.
 

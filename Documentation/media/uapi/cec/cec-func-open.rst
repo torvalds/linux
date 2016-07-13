@@ -32,11 +32,11 @@ Arguments
     Open flags. Access mode must be ``O_RDWR``.
 
     When the ``O_NONBLOCK`` flag is given, the
-    :ref:`CEC_RECEIVE` ioctl will return EAGAIN
-    error code when no message is available, and the
-    :ref:`CEC_TRANSMIT`,
-    :ref:`CEC_ADAP_S_PHYS_ADDR` and
-    :ref:`CEC_ADAP_S_LOG_ADDRS` ioctls
+    :ref:`CEC_RECEIVE <CEC_RECEIVE>` ioctl will return the EAGAIN
+    error code when no message is available, and ioctls
+    :ref:`CEC_TRANSMIT <CEC_TRANSMIT>`,
+    :ref:`CEC_ADAP_S_PHYS_ADDR <CEC_ADAP_S_PHYS_ADDR>` and
+    :ref:`CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`
     all act in non-blocking mode.
 
     Other flags have no effect.

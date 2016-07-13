@@ -34,7 +34,7 @@ Description
 .. note:: This documents the proposed CEC API. This API is not yet finalized
    and is currently only available as a staging kernel module.
 
-All cec devices must support the :ref:`CEC_ADAP_G_CAPS` ioctl. To query
+All cec devices must support :ref:`ioctl CEC_ADAP_G_CAPS <CEC_ADAP_G_CAPS>`. To query
 device information, applications call the ioctl with a pointer to a
 struct :ref:`cec_caps <cec-caps>`. The driver fills the structure and
 returns the information to the application. The ioctl never fails.
@@ -100,7 +100,7 @@ returns the information to the application. The ioctl never fails.
        -  0x00000001
 
        -  Userspace has to configure the physical address by calling
-	  :ref:`CEC_ADAP_S_PHYS_ADDR`. If
+	  :ref:`ioctl CEC_ADAP_S_PHYS_ADDR <CEC_ADAP_S_PHYS_ADDR>`. If
 	  this capability isn't set, then setting the physical address is
 	  handled by the kernel whenever the EDID is set (for an HDMI
 	  receiver) or read (for an HDMI transmitter).
@@ -112,7 +112,7 @@ returns the information to the application. The ioctl never fails.
        -  0x00000002
 
        -  Userspace has to configure the logical addresses by calling
-	  :ref:`CEC_ADAP_S_LOG_ADDRS`. If
+	  :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`. If
 	  this capability isn't set, then the kernel will have configured
 	  this.
 
@@ -123,7 +123,7 @@ returns the information to the application. The ioctl never fails.
        -  0x00000004
 
        -  Userspace can transmit CEC messages by calling
-	  :ref:`CEC_TRANSMIT`. This implies that
+	  :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>`. This implies that
 	  userspace can be a follower as well, since being able to transmit
 	  messages is a prerequisite of becoming a follower. If this
 	  capability isn't set, then the kernel will handle all CEC
@@ -136,7 +136,7 @@ returns the information to the application. The ioctl never fails.
        -  0x00000008
 
        -  Userspace can use the passthrough mode by calling
-	  :ref:`CEC_S_MODE`.
+	  :ref:`ioctl CEC_S_MODE <CEC_S_MODE>`.
 
     -  .. _`CEC-CAP-RC`:
 

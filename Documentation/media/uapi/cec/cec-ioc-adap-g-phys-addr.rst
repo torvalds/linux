@@ -4,9 +4,9 @@
 .. _CEC_ADAP_G_PHYS_ADDR:
 .. _CEC_ADAP_S_PHYS_ADDR:
 
-************************************************
-ioctl CEC_ADAP_G_PHYS_ADDR, CEC_ADAP_S_PHYS_ADDR
-************************************************
+****************************************************
+ioctls CEC_ADAP_G_PHYS_ADDR and CEC_ADAP_S_PHYS_ADDR
+****************************************************
 
 Name
 ====
@@ -37,15 +37,15 @@ Description
 .. note:: This documents the proposed CEC API. This API is not yet finalized
    and is currently only available as a staging kernel module.
 
-To query the current physical address applications call the
-:ref:`CEC_ADAP_G_PHYS_ADDR` ioctl with a pointer to an __u16 where the
+To query the current physical address applications call
+:ref:`ioctl CEC_ADAP_G_PHYS_ADDR <CEC_ADAP_G_PHYS_ADDR>` with a pointer to a __u16 where the
 driver stores the physical address.
 
 To set a new physical address applications store the physical address in
-an __u16 and call the :ref:`CEC_ADAP_S_PHYS_ADDR` ioctl with a pointer to
-this integer. :ref:`CEC_ADAP_S_PHYS_ADDR` is only available if
+a __u16 and call :ref:`ioctl CEC_ADAP_S_PHYS_ADDR <CEC_ADAP_S_PHYS_ADDR>` with a pointer to
+this integer. The :ref:`ioctl CEC_ADAP_S_PHYS_ADDR <CEC_ADAP_S_PHYS_ADDR>` is only available if
 ``CEC_CAP_PHYS_ADDR`` is set (ENOTTY error code will be returned
-otherwise). :ref:`CEC_ADAP_S_PHYS_ADDR` can only be called by a file handle
+otherwise). The :ref:`ioctl CEC_ADAP_S_PHYS_ADDR <CEC_ADAP_S_PHYS_ADDR>` can only be called by a file handle
 in initiator mode (see :ref:`CEC_S_MODE`), if not
 EBUSY error code will be returned.
 

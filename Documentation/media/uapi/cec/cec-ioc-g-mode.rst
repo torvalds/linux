@@ -4,9 +4,9 @@
 .. _CEC_G_MODE:
 .. _CEC_S_MODE:
 
-****************************
-ioctl CEC_G_MODE, CEC_S_MODE
-****************************
+********************************
+ioctls CEC_G_MODE and CEC_S_MODE
+********************************
 
 CEC_G_MODE, CEC_S_MODE - Get or set exclusive use of the CEC adapter
 
@@ -33,9 +33,7 @@ Description
 .. note:: This documents the proposed CEC API. This API is not yet finalized
    and is currently only available as a staging kernel module.
 
-By default any filehandle can use
-:ref:`CEC_TRANSMIT` and
-:ref:`CEC_RECEIVE`, but in order to prevent
+By default any filehandle can use :ref:`CEC_TRANSMIT`, but in order to prevent
 applications from stepping on each others toes it must be possible to
 obtain exclusive access to the CEC adapter. This ioctl sets the
 filehandle to initiator and/or follower mode which can be exclusive
@@ -54,7 +52,7 @@ If the message is not a reply, then the CEC framework will process it
 first. If there is no follower, then the message is just discarded and a
 feature abort is sent back to the initiator if the framework couldn't
 process it. If there is a follower, then the message is passed on to the
-follower who will use :ref:`CEC_RECEIVE` to dequeue
+follower who will use :ref:`ioctl CEC_RECEIVE <CEC_RECEIVE>` to dequeue
 the new message. The framework expects the follower to make the right
 decisions.
 
@@ -66,10 +64,10 @@ There are some messages that the core will always process, regardless of
 the passthrough mode. See :ref:`cec-core-processing` for details.
 
 If there is no initiator, then any CEC filehandle can use
-:ref:`CEC_TRANSMIT`. If there is an exclusive
+:ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>`. If there is an exclusive
 initiator then only that initiator can call
 :ref:`CEC_TRANSMIT`. The follower can of course
-always call :ref:`CEC_TRANSMIT`.
+always call :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>`.
 
 Available initiator modes are:
 
@@ -141,7 +139,7 @@ Available follower modes are:
 
        -  This is a follower and it will receive CEC messages unless there
 	  is an exclusive follower. You cannot become a follower if
-	  :ref:`CEC_CAP_TRANSMIT <CEC-CAP-TRANSMIT>` is not set or if :ref:`CEC-MODE-NO-INITIATOR <CEC-MODE-NO-INITIATOR>`
+	  :ref:`CEC_CAP_TRANSMIT <CEC-CAP-TRANSMIT>` is not set or if :ref:`CEC_MODE_NO_INITIATOR <CEC-MODE-NO-INITIATOR>`
 	  was specified, EINVAL error code is returned in that case.
 
     -  .. _`CEC-MODE-EXCL-FOLLOWER`:
@@ -154,7 +152,7 @@ Available follower modes are:
 	  receive CEC messages for processing. If someone else is already
 	  the exclusive follower then an attempt to become one will return
 	  the EBUSY error code error. You cannot become a follower if
-	  :ref:`CEC_CAP_TRANSMIT <CEC-CAP-TRANSMIT>` is not set or if :ref:`CEC-MODE-NO-INITIATOR <CEC-MODE-NO-INITIATOR>`
+	  :ref:`CEC_CAP_TRANSMIT <CEC-CAP-TRANSMIT>` is not set or if :ref:`CEC_MODE_NO_INITIATOR <CEC-MODE-NO-INITIATOR>`
 	  was specified, EINVAL error code is returned in that case.
 
     -  .. _`CEC-MODE-EXCL-FOLLOWER-PASSTHRU`:
@@ -223,8 +221,7 @@ Core message processing details:
 
        -  When in passthrough mode this message has to be handled by
 	  userspace, otherwise the core will return the CEC version that was
-	  set with
-	  :ref:`CEC_ADAP_S_LOG_ADDRS`.
+	  set with :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`.
 
     -  .. _`CEC-MSG-GIVE-DEVICE-VENDOR-ID`:
 
@@ -232,8 +229,7 @@ Core message processing details:
 
        -  When in passthrough mode this message has to be handled by
 	  userspace, otherwise the core will return the vendor ID that was
-	  set with
-	  :ref:`CEC_ADAP_S_LOG_ADDRS`.
+	  set with :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`.
 
     -  .. _`CEC-MSG-ABORT`:
 
@@ -257,8 +253,7 @@ Core message processing details:
 
        -  When in passthrough mode this message has to be handled by
 	  userspace, otherwise the core will report the current OSD name as
-	  was set with
-	  :ref:`CEC_ADAP_S_LOG_ADDRS`.
+	  was set with :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`.
 
     -  .. _`CEC-MSG-GIVE-FEATURES`:
 
@@ -266,9 +261,8 @@ Core message processing details:
 
        -  When in passthrough mode this message has to be handled by
 	  userspace, otherwise the core will report the current features as
-	  was set with
-	  :ref:`CEC_ADAP_S_LOG_ADDRS` or
-	  the message is ignore if the CEC version was older than 2.0.
+	  was set with :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`
+	  or the message is ignored if the CEC version was older than 2.0.
 
     -  .. _`CEC-MSG-USER-CONTROL-PRESSED`:
 

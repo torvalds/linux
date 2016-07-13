@@ -3,9 +3,9 @@
 .. _CEC_TRANSMIT:
 .. _CEC_RECEIVE:
 
-*******************************
-ioctl CEC_RECEIVE, CEC_TRANSMIT
-*******************************
+***********************************
+ioctls CEC_RECEIVE and CEC_TRANSMIT
+***********************************
 
 Name
 ====
@@ -37,8 +37,8 @@ Description
    and is currently only available as a staging kernel module.
 
 To receive a CEC message the application has to fill in the
-:c:type:`struct cec_msg` structure and pass it to the :ref:`CEC_RECEIVE`
-ioctl. :ref:`CEC_RECEIVE` is only available if ``CEC_CAP_RECEIVE`` is set.
+:c:type:`struct cec_msg` and pass it to :ref:`ioctl CEC_RECEIVE <CEC_RECEIVE>`.
+The :ref:`ioctl CEC_RECEIVE <CEC_RECEIVE>` is only available if ``CEC_CAP_RECEIVE`` is set.
 If the file descriptor is in non-blocking mode and there are no received
 messages pending, then it will return -1 and set errno to the EAGAIN
 error code. If the file descriptor is in blocking mode and ``timeout``
@@ -46,8 +46,8 @@ is non-zero and no message arrived within ``timeout`` milliseconds, then
 it will return -1 and set errno to the ETIMEDOUT error code.
 
 To send a CEC message the application has to fill in the
-:c:type:`struct cec_msg` structure and pass it to the
-:ref:`CEC_TRANSMIT` ioctl. :ref:`CEC_TRANSMIT` is only available if
+:c:type:`struct cec_msg` and pass it to
+:ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>`. The :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>` is only available if
 ``CEC_CAP_TRANSMIT`` is set. If there is no more room in the transmit
 queue, then it will return -1 and set errno to the EBUSY error code.
 
@@ -82,10 +82,10 @@ queue, then it will return -1 and set errno to the EBUSY error code.
 
        -  ``len``
 
-       -  The length of the message. For :ref:`CEC_TRANSMIT` this is filled in
+       -  The length of the message. For :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>` this is filled in
 	  by the application. The driver will fill this in for
-	  :ref:`CEC_RECEIVE` and for :ref:`CEC_TRANSMIT` it will be filled in with
-	  the length of the reply message if ``reply`` was set.
+	  :ref:`ioctl CEC_RECEIVE <CEC_RECEIVE>`. For :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>` it will be
+	  filled in by the driver with the length of the reply message if ``reply`` was set.
 
     -  .. row 4
 
@@ -95,8 +95,8 @@ queue, then it will return -1 and set errno to the EBUSY error code.
 
        -  The timeout in milliseconds. This is the time the device will wait
 	  for a message to be received before timing out. If it is set to 0,
-	  then it will wait indefinitely when it is called by
-	  :ref:`CEC_RECEIVE`. If it is 0 and it is called by :ref:`CEC_TRANSMIT`,
+	  then it will wait indefinitely when it is called by :ref:`ioctl CEC_RECEIVE <CEC_RECEIVE>`.
+	  If it is 0 and it is called by :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>`,
 	  then it will be replaced by 1000 if the ``reply`` is non-zero or
 	  ignored if ``reply`` is 0.
 
@@ -135,10 +135,10 @@ queue, then it will return -1 and set errno to the EBUSY error code.
 
        -  ``msg``\ [16]
 
-       -  The message payload. For :ref:`CEC_TRANSMIT` this is filled in by the
-	  application. The driver will fill this in for :ref:`CEC_RECEIVE` and
-	  for :ref:`CEC_TRANSMIT` it will be filled in with the payload of the
-	  reply message if ``reply`` was set.
+       -  The message payload. For :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>` this is filled in by the
+	  application. The driver will fill this in for :ref:`ioctl CEC_RECEIVE <CEC_RECEIVE>`.
+	  For :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>` it will be filled in by the driver with
+	  the payload of the reply message if ``timeout`` was set.
 
     -  .. row 8
 
@@ -150,12 +150,12 @@ queue, then it will return -1 and set errno to the EBUSY error code.
 	  ``timeout`` is 0, then don't wait for a reply but return after
 	  transmitting the message. If there was an error as indicated by the
 	  ``tx_status`` field, then ``reply`` and ``timeout`` are
-	  both set to 0 by the driver. Ignored by :ref:`CEC_RECEIVE`. The case
+	  both set to 0 by the driver. Ignored by :ref:`ioctl CEC_RECEIVE <CEC_RECEIVE>`. The case
 	  where ``reply`` is 0 (this is the opcode for the Feature Abort
 	  message) and ``timeout`` is non-zero is specifically allowed to
 	  send a message and wait up to ``timeout`` milliseconds for a
 	  Feature Abort reply. In this case ``rx_status`` will either be set
-	  to :ref:`CEC_RX_STATUS_TIMEOUT <CEC-RX-STATUS-TIMEOUT>` or :ref:`CEC_RX_STATUS-FEATURE-ABORT <CEC-RX-STATUS-FEATURE-ABORT>`.
+	  to :ref:`CEC_RX_STATUS_TIMEOUT <CEC-RX-STATUS-TIMEOUT>` or :ref:`CEC_RX_STATUS_FEATURE_ABORT <CEC-RX-STATUS-FEATURE-ABORT>`.
 
     -  .. row 9
 
