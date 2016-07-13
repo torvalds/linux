@@ -129,10 +129,8 @@ static int bgmac_probe(struct platform_device *pdev)
 	}
 
 	bgmac->plat.base = devm_ioremap_resource(&pdev->dev, regs);
-	if (IS_ERR(bgmac->plat.base)) {
-		dev_err(&pdev->dev, "Unable to map base resource\n");
+	if (IS_ERR(bgmac->plat.base))
 		return PTR_ERR(bgmac->plat.base);
-	}
 
 	regs = platform_get_resource_byname(pdev, IORESOURCE_MEM, "idm_base");
 	if (!regs) {
@@ -141,10 +139,8 @@ static int bgmac_probe(struct platform_device *pdev)
 	}
 
 	bgmac->plat.idm_base = devm_ioremap_resource(&pdev->dev, regs);
-	if (IS_ERR(bgmac->plat.idm_base)) {
-		dev_err(&pdev->dev, "Unable to map idm resource\n");
+	if (IS_ERR(bgmac->plat.idm_base))
 		return PTR_ERR(bgmac->plat.idm_base);
-	}
 
 	bgmac->read = platform_bgmac_read;
 	bgmac->write = platform_bgmac_write;
