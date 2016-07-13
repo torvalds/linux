@@ -708,12 +708,19 @@ static int skylake_audio_probe(struct platform_device *pdev)
 	return devm_snd_soc_register_card(&pdev->dev, &skylake_audio_card);
 }
 
+static const struct platform_device_id skl_board_ids[] = {
+	{ .name = "skl_n88l25_s4567" },
+	{ .name = "kbl_n88l25_s4567" },
+	{ }
+};
+
 static struct platform_driver skylake_audio = {
 	.probe = skylake_audio_probe,
 	.driver = {
 		.name = "skl_n88l25_s4567",
 		.pm = &snd_soc_pm_ops,
 	},
+	.id_table = skl_board_ids,
 };
 
 module_platform_driver(skylake_audio)
@@ -727,3 +734,4 @@ MODULE_AUTHOR("Yong Zhi <yong.zhi@intel.com>");
 MODULE_DESCRIPTION("Intel Audio Machine driver for SKL with NAU88L25 and SSM4567 in I2S Mode");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:skl_n88l25_s4567");
+MODULE_ALIAS("platform:kbl_n88l25_s4567");
