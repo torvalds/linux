@@ -431,6 +431,10 @@ void vtime_common_task_switch(struct task_struct *prev)
 }
 #endif
 
+#endif /* CONFIG_VIRT_CPU_ACCOUNTING */
+
+
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
 /*
  * Archs that account the whole time spent in the idle task
  * (outside irq) as idle time can rely on this and just implement
@@ -440,33 +444,16 @@ void vtime_common_task_switch(struct task_struct *prev)
  * vtime_account().
  */
 #ifndef __ARCH_HAS_VTIME_ACCOUNT
-void vtime_common_account_irq_enter(struct task_struct *tsk)
+void vtime_account_irq_enter(struct task_struct *tsk)
 {
-	if (!in_interrupt()) {
-		/*
-		 * If we interrupted user, context_tracking_in_user()
-		 * is 1 because the context tracking don't hook
-		 * on irq entry/exit. This way we know if
-		 * we need to flush user time on kernel entry.
-		 */
-		if (context_tracking_in_user()) {
-			vtime_account_user(tsk);
-			return;
-		}
-
-		if (is_idle_task(tsk)) {
-			vtime_account_idle(tsk);
-			return;
-		}
-	}
-	vtime_account_system(tsk);
+	if (!in_interrupt() && is_idle_task(tsk))
+		vtime_account_idle(tsk);
+	else
+		vtime_account_system(tsk);
 }
-EXPORT_SYMBOL_GPL(vtime_common_account_irq_enter);
+EXPORT_SYMBOL_GPL(vtime_account_irq_enter);
 #endif /* __ARCH_HAS_VTIME_ACCOUNT */
-#endif /* CONFIG_VIRT_CPU_ACCOUNTING */
 
-
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
 void task_cputime_adjusted(struct task_struct *p, cputime_t *ut, cputime_t *st)
 {
 	*ut = p->utime;

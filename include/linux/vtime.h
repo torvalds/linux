@@ -14,18 +14,7 @@ struct task_struct;
  */
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
 static inline bool vtime_accounting_cpu_enabled(void) { return true; }
-
-#ifdef __ARCH_HAS_VTIME_ACCOUNT
 extern void vtime_account_irq_enter(struct task_struct *tsk);
-#else
-extern void vtime_common_account_irq_enter(struct task_struct *tsk);
-static inline void vtime_account_irq_enter(struct task_struct *tsk)
-{
-	if (vtime_accounting_cpu_enabled())
-		vtime_common_account_irq_enter(tsk);
-}
-#endif /* __ARCH_HAS_VTIME_ACCOUNT */
-
 #endif /* CONFIG_VIRT_CPU_ACCOUNTING_NATIVE */
 
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
