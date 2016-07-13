@@ -124,7 +124,7 @@ static inline void set_cpu_core_map(int cpu)
  * Calculate a new cpu_foreign_map mask whenever a
  * new cpu appears or disappears.
  */
-static inline void calculate_cpu_foreign_map(void)
+void calculate_cpu_foreign_map(void)
 {
 	int i, k, core_present;
 	cpumask_t temp_foreign_map;
