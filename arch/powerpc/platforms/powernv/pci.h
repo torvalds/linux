@@ -1,6 +1,10 @@
 #ifndef __POWERNV_PCI_H
 #define __POWERNV_PCI_H
 
+#include <linux/iommu.h>
+#include <asm/iommu.h>
+#include <asm/msi_bitmap.h>
+
 struct pci_dn;
 
 enum pnv_phb_type {
@@ -212,6 +216,8 @@ extern void pnv_pci_dma_dev_setup(struct pci_dev *pdev);
 extern void pnv_pci_dma_bus_setup(struct pci_bus *bus);
 extern int pnv_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type);
 extern void pnv_teardown_msi_irqs(struct pci_dev *pdev);
+extern struct pnv_ioda_pe *pnv_ioda_get_pe(struct pci_dev *dev);
+extern void pnv_set_msi_irq_chip(struct pnv_phb *phb, unsigned int virq);
 
 extern void pe_level_printk(const struct pnv_ioda_pe *pe, const char *level,
 			    const char *fmt, ...);
