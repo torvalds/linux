@@ -21,8 +21,11 @@
 
 #include <trace/events/thp.h>
 
-static int native_update_partition_table(u64 patb1)
+static int native_register_process_table(unsigned long base, unsigned long pg_sz,
+					 unsigned long table_size)
 {
+	unsigned long patb1 = base | table_size | PATB_GR;
+
 	partition_tb->patb1 = cpu_to_be64(patb1);
 	return 0;
 }
@@ -168,7 +171,7 @@ redo:
 	 * of process table here. But our linear mapping also enable us to use
 	 * physical address here.
 	 */
-	ppc_md.update_partition_table(__pa(process_tb) | (PRTB_SIZE_SHIFT - 12) | PATB_GR);
+	ppc_md.register_process_table(__pa(process_tb), 0, PRTB_SIZE_SHIFT - 12);
 	pr_info("Process table %p and radix root for kernel: %p\n", process_tb, init_mm.pgd);
 }
 
@@ -195,7 +198,7 @@ static void __init radix_init_partition_table(void)
 
 void __init radix_init_native(void)
 {
-	ppc_md.update_partition_table = native_update_partition_table;
+	ppc_md.register_process_table = native_register_process_table;
 }
 
 static int __init get_idx_from_shift(unsigned int shift)

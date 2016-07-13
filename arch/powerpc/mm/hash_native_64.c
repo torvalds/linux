@@ -725,8 +725,14 @@ static void native_flush_hash_range(unsigned long number, int local)
 	local_irq_restore(flags);
 }
 
-static int native_update_partition_table(u64 patb1)
+static int native_register_proc_table(unsigned long base, unsigned long page_size,
+				      unsigned long table_size)
 {
+	unsigned long patb1 = base << 25; /* VSID */
+
+	patb1 |= (page_size << 5);  /* sllp */
+	patb1 |= table_size;
+
 	partition_tb->patb1 = cpu_to_be64(patb1);
 	return 0;
 }
@@ -743,5 +749,5 @@ void __init hpte_init_native(void)
 	ppc_md.hugepage_invalidate   = native_hugepage_invalidate;
 
 	if (cpu_has_feature(CPU_FTR_ARCH_300))
-		ppc_md.update_partition_table = native_update_partition_table;
+		ppc_md.register_process_table = native_register_proc_table;
 }
