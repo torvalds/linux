@@ -224,6 +224,7 @@ new_skb:
 				*head_cb = SCTP_INPUT_CB(chunk->head_skb);
 
 			cb->chunk = head_cb->chunk;
+			cb->af = head_cb->af;
 		}
 	}
 

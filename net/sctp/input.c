@@ -140,6 +140,7 @@ int sctp_rcv(struct sk_buff *skb)
 	af = sctp_get_af_specific(family);
 	if (unlikely(!af))
 		goto discard_it;
+	SCTP_INPUT_CB(skb)->af = af;
 
 	/* Initialize local addresses for lookups. */
 	af->from_skb(&src, skb, 1);

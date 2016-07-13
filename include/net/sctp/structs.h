@@ -1104,6 +1104,7 @@ struct sctp_input_cb {
 #endif
 	} header;
 	struct sctp_chunk *chunk;
+	struct sctp_af *af;
 };
 #define SCTP_INPUT_CB(__skb)	((struct sctp_input_cb *)&((__skb)->cb[0]))
 
