@@ -3465,6 +3465,10 @@ static const struct pci_controller_ops pnv_npu_ioda_controller_ops = {
 const struct pci_controller_ops pnv_cxl_cx4_ioda_controller_ops = {
 	.dma_dev_setup		= pnv_pci_dma_dev_setup,
 	.dma_bus_setup		= pnv_pci_dma_bus_setup,
+#ifdef CONFIG_PCI_MSI
+	.setup_msi_irqs		= pnv_cxl_cx4_setup_msi_irqs,
+	.teardown_msi_irqs	= pnv_cxl_cx4_teardown_msi_irqs,
+#endif
 	.enable_device_hook	= pnv_cxl_enable_device_hook,
 	.disable_device		= pnv_cxl_disable_device,
 	.release_device		= pnv_pci_release_device,

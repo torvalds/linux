@@ -247,6 +247,8 @@ extern void pnv_npu_release_ownership(struct pnv_ioda_pe *npe);
 /* cxl functions */
 extern bool pnv_cxl_enable_device_hook(struct pci_dev *dev);
 extern void pnv_cxl_disable_device(struct pci_dev *dev);
+extern int pnv_cxl_cx4_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type);
+extern void pnv_cxl_cx4_teardown_msi_irqs(struct pci_dev *pdev);
 
 
 /* phb ops (cxl switches these when enabling the kernel api on the phb) */
