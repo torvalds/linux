@@ -15,8 +15,10 @@ the license is included in the chapter entitled "GNU Free Documentation
 License".
 
 
+.. contents::
+
 .. toctree::
-    :maxdepth: 1
+    :maxdepth: 5
 
     intro
     uapi/v4l/v4l2
@@ -26,10 +28,3 @@ License".
     uapi/cec/cec-api
     uapi/gen-errors
     uapi/fdl-appendix
-
-.. only:: html
-
-  Retrieval
-  =========
-
-  * :ref:`genindex`
