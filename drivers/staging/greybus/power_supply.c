@@ -18,8 +18,8 @@
 
 struct gb_power_supply_prop {
 	enum power_supply_property	prop;
-	u32				val;
-	u32				previous_val;
+	int				val;
+	int				previous_val;
 	bool				is_writeable;
 };
 
@@ -142,8 +142,8 @@ static void check_changed(struct gb_power_supply *gbpsy,
 			  struct gb_power_supply_prop *prop)
 {
 	const struct gb_power_supply_changes *psyc;
-	u32 val = prop->val;
-	u32 prev_val = prop->previous_val;
+	int val = prop->val;
+	int prev_val = prop->previous_val;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(psy_props_changes); i++) {
@@ -317,7 +317,7 @@ static int __gb_power_supply_property_update(struct gb_power_supply *gbpsy,
 	struct gb_power_supply_prop *prop;
 	struct gb_power_supply_get_property_request req;
 	struct gb_power_supply_get_property_response resp;
-	u32 val;
+	int val;
 	int ret;
 
 	prop = get_psy_prop(gbpsy, psp);
@@ -481,6 +481,7 @@ static int gb_power_supply_property_set(struct gb_power_supply *gbpsy,
 	req.psy_id = gbpsy->id;
 	req.property = (u8)psp;
 	req.prop_val = cpu_to_le32(val);
+	req.prop_val = cpu_to_le32((s32)val);
 
 	ret = gb_operation_sync(connection, GB_POWER_SUPPLY_TYPE_SET_PROPERTY,
 				&req, sizeof(req), NULL, 0);
