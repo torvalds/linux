@@ -165,12 +165,8 @@ static int socfpga_dwmac_parse_data(struct socfpga_dwmac *dwmac, struct device *
 			dwmac->splitter_base =
 			    devm_ioremap_resource(dev, &res_splitter);
 
-			if (IS_ERR(dwmac->splitter_base)) {
-				dev_err(dev,
-					"%s: ERROR: failed mapping emac splitter\n",
-					__func__);
+			if (IS_ERR(dwmac->splitter_base))
 				return PTR_ERR(dwmac->splitter_base);
-			}
 		}
 
 		index = of_property_match_string(np_sgmii_adapter, "reg-names",
@@ -188,11 +184,8 @@ static int socfpga_dwmac_parse_data(struct socfpga_dwmac *dwmac, struct device *
 			dwmac->pcs.sgmii_adapter_base =
 			    devm_ioremap_resource(dev, &res_sgmii_adapter);
 
-			if (IS_ERR(dwmac->pcs.sgmii_adapter_base)) {
-				dev_err(dev, "%s: failed to mapping adapter\n",
-					__func__);
+			if (IS_ERR(dwmac->pcs.sgmii_adapter_base))
 				return PTR_ERR(dwmac->pcs.sgmii_adapter_base);
-			}
 		}
 
 		index = of_property_match_string(np_sgmii_adapter, "reg-names",
@@ -210,12 +203,8 @@ static int socfpga_dwmac_parse_data(struct socfpga_dwmac *dwmac, struct device *
 			dwmac->pcs.tse_pcs_base =
 			    devm_ioremap_resource(dev, &res_tse_pcs);
 
-			if (IS_ERR(dwmac->pcs.tse_pcs_base)) {
-				dev_err(dev,
-					"%s: ERROR: failed mapping tse control port\n",
-					__func__);
+			if (IS_ERR(dwmac->pcs.tse_pcs_base))
 				return PTR_ERR(dwmac->pcs.tse_pcs_base);
-			}
 		}
 	}
 	dwmac->reg_offset = reg_offset;
