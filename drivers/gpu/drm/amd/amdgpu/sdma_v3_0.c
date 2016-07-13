@@ -1320,26 +1320,77 @@ static int sdma_v3_0_wait_for_idle(void *handle)
 	return -ETIMEDOUT;
 }
 
-static int sdma_v3_0_soft_reset(void *handle)
+static int sdma_v3_0_check_soft_reset(void *handle)
 {
-	u32 srbm_soft_reset = 0;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	u32 srbm_soft_reset = 0;
 	u32 tmp = RREG32(mmSRBM_STATUS2);
 
-	if (tmp & SRBM_STATUS2__SDMA_BUSY_MASK) {
-		/* sdma0 */
-		tmp = RREG32(mmSDMA0_F32_CNTL + SDMA0_REGISTER_OFFSET);
-		tmp = REG_SET_FIELD(tmp, SDMA0_F32_CNTL, HALT, 0);
-		WREG32(mmSDMA0_F32_CNTL + SDMA0_REGISTER_OFFSET, tmp);
+	if ((tmp & SRBM_STATUS2__SDMA_BUSY_MASK) ||
+	    (tmp & SRBM_STATUS2__SDMA1_BUSY_MASK)) {
 		srbm_soft_reset |= SRBM_SOFT_RESET__SOFT_RESET_SDMA_MASK;
-	}
-	if (tmp & SRBM_STATUS2__SDMA1_BUSY_MASK) {
-		/* sdma1 */
-		tmp = RREG32(mmSDMA0_F32_CNTL + SDMA1_REGISTER_OFFSET);
-		tmp = REG_SET_FIELD(tmp, SDMA0_F32_CNTL, HALT, 0);
-		WREG32(mmSDMA0_F32_CNTL + SDMA1_REGISTER_OFFSET, tmp);
 		srbm_soft_reset |= SRBM_SOFT_RESET__SOFT_RESET_SDMA1_MASK;
 	}
+
+	if (srbm_soft_reset) {
+		adev->ip_block_status[AMD_IP_BLOCK_TYPE_SDMA].hang = true;
+		adev->sdma.srbm_soft_reset = srbm_soft_reset;
+	} else {
+		adev->ip_block_status[AMD_IP_BLOCK_TYPE_SDMA].hang = false;
+		adev->sdma.srbm_soft_reset = 0;
+	}
+
+	return 0;
+}
+
+static int sdma_v3_0_pre_soft_reset(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	u32 srbm_soft_reset = 0;
+
+	if (!adev->ip_block_status[AMD_IP_BLOCK_TYPE_SDMA].hang)
+		return 0;
+
+	srbm_soft_reset = adev->sdma.srbm_soft_reset;
+
+	if (REG_GET_FIELD(srbm_soft_reset, SRBM_SOFT_RESET, SOFT_RESET_SDMA) ||
+	    REG_GET_FIELD(srbm_soft_reset, SRBM_SOFT_RESET, SOFT_RESET_SDMA1)) {
+		sdma_v3_0_ctx_switch_enable(adev, false);
+		sdma_v3_0_enable(adev, false);
+	}
+
+	return 0;
+}
+
+static int sdma_v3_0_post_soft_reset(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	u32 srbm_soft_reset = 0;
+
+	if (!adev->ip_block_status[AMD_IP_BLOCK_TYPE_SDMA].hang)
+		return 0;
+
+	srbm_soft_reset = adev->sdma.srbm_soft_reset;
+
+	if (REG_GET_FIELD(srbm_soft_reset, SRBM_SOFT_RESET, SOFT_RESET_SDMA) ||
+	    REG_GET_FIELD(srbm_soft_reset, SRBM_SOFT_RESET, SOFT_RESET_SDMA1)) {
+		sdma_v3_0_gfx_resume(adev);
+		sdma_v3_0_rlc_resume(adev);
+	}
+
+	return 0;
+}
+
+static int sdma_v3_0_soft_reset(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	u32 srbm_soft_reset = 0;
+	u32 tmp;
+
+	if (!adev->ip_block_status[AMD_IP_BLOCK_TYPE_SDMA].hang)
+		return 0;
+
+	srbm_soft_reset = adev->sdma.srbm_soft_reset;
 
 	if (srbm_soft_reset) {
 		tmp = RREG32(mmSRBM_SOFT_RESET);
@@ -1559,6 +1610,9 @@ const struct amd_ip_funcs sdma_v3_0_ip_funcs = {
 	.resume = sdma_v3_0_resume,
 	.is_idle = sdma_v3_0_is_idle,
 	.wait_for_idle = sdma_v3_0_wait_for_idle,
+	.check_soft_reset = sdma_v3_0_check_soft_reset,
+	.pre_soft_reset = sdma_v3_0_pre_soft_reset,
+	.post_soft_reset = sdma_v3_0_post_soft_reset,
 	.soft_reset = sdma_v3_0_soft_reset,
 	.set_clockgating_state = sdma_v3_0_set_clockgating_state,
 	.set_powergating_state = sdma_v3_0_set_powergating_state,

@@ -1733,6 +1733,7 @@ struct amdgpu_sdma {
 	struct amdgpu_irq_src	trap_irq;
 	struct amdgpu_irq_src	illegal_inst_irq;
 	int			num_instances;
+	uint32_t                    srbm_soft_reset;
 };
 
 /*
