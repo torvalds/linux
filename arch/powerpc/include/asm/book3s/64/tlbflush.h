@@ -57,14 +57,6 @@ static inline void local_flush_tlb_page(struct vm_area_struct *vma,
 	return hash__local_flush_tlb_page(vma, vmaddr);
 }
 
-static inline void flush_tlb_page_nohash(struct vm_area_struct *vma,
-					 unsigned long vmaddr)
-{
-	if (radix_enabled())
-		return radix__flush_tlb_page(vma, vmaddr);
-	return hash__flush_tlb_page_nohash(vma, vmaddr);
-}
-
 static inline void tlb_flush(struct mmu_gather *tlb)
 {
 	if (radix_enabled())
