@@ -54,6 +54,19 @@ static inline void cxl_calls_put(struct cxl_calls *calls) { }
 
 #endif /* CONFIG_CXL_MODULE */
 
+/* AFU refcount management */
+struct cxl_afu *cxl_afu_get(struct cxl_afu *afu)
+{
+	return (get_device(&afu->dev) == NULL) ? NULL : afu;
+}
+EXPORT_SYMBOL_GPL(cxl_afu_get);
+
+void cxl_afu_put(struct cxl_afu *afu)
+{
+	put_device(&afu->dev);
+}
+EXPORT_SYMBOL_GPL(cxl_afu_put);
+
 void cxl_slbia(struct mm_struct *mm)
 {
 	struct cxl_calls *calls;

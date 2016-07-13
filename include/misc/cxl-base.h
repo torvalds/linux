@@ -36,11 +36,15 @@ static inline void cxl_ctx_put(void)
        atomic_dec(&cxl_use_count);
 }
 
+struct cxl_afu *cxl_afu_get(struct cxl_afu *afu);
+void cxl_afu_put(struct cxl_afu *afu);
 void cxl_slbia(struct mm_struct *mm);
 
 #else /* CONFIG_CXL_BASE */
 
 static inline bool cxl_ctx_in_use(void) { return false; }
+static inline struct cxl_afu *cxl_afu_get(struct cxl_afu *afu) { return NULL; }
+static inline void cxl_afu_put(struct cxl_afu *afu) {}
 static inline void cxl_slbia(struct mm_struct *mm) {}
 
 #endif /* CONFIG_CXL_BASE */
