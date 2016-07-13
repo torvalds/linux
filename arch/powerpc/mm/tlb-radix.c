@@ -165,12 +165,6 @@ void radix__local_flush_tlb_page(struct vm_area_struct *vma, unsigned long vmadd
 EXPORT_SYMBOL(radix__local_flush_tlb_page);
 
 #ifdef CONFIG_SMP
-static int mm_is_core_local(struct mm_struct *mm)
-{
-	return cpumask_subset(mm_cpumask(mm),
-			      topology_sibling_cpumask(smp_processor_id()));
-}
-
 void radix__flush_tlb_mm(struct mm_struct *mm)
 {
 	unsigned long pid;
