@@ -289,7 +289,6 @@ static void cec_data_cancel(struct cec_data *data)
 			      CEC_TX_STATUS_MAX_RETRIES;
 	data->attempts = 0;
 	data->msg.tx_error_cnt = 1;
-	data->msg.reply = 0;
 	/* Queue transmitted message for monitoring purposes */
 	cec_queue_msg_monitor(data->adap, &data->msg, 1);
 
@@ -511,16 +510,8 @@ void cec_transmit_done(struct cec_adapter *adap, u8 status, u8 arb_lost_cnt,
 	/* Queue transmitted message for monitoring purposes */
 	cec_queue_msg_monitor(adap, msg, 1);
 
-	/*
-	 * Clear reply and timeout on error or if the adapter is no longer
-	 * configured. It makes no sense to wait for a reply in that case.
-	 */
-	if (!(status & CEC_TX_STATUS_OK) || !adap->is_configured) {
-		msg->reply = 0;
-		msg->timeout = 0;
-	}
-
-	if (msg->timeout) {
+	if ((status & CEC_TX_STATUS_OK) && adap->is_configured &&
+	    msg->timeout) {
 		/*
 		 * Queue the message into the wait queue if we want to wait
 		 * for a reply.
@@ -648,6 +639,8 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 		dprintk(2, "cec_transmit_msg: %*ph%s\n",
 			msg->len, msg->msg, !block ? " (nb)" : "");
 
+	msg->rx_ts = 0;
+	msg->tx_ts = 0;
 	msg->rx_status = 0;
 	msg->tx_status = 0;
 	msg->tx_arb_lost_cnt = 0;
@@ -812,10 +805,8 @@ void cec_received_msg(struct cec_adapter *adap, struct cec_msg *msg)
 			dst->len = msg->len;
 			dst->rx_ts = msg->rx_ts;
 			dst->rx_status = msg->rx_status;
-			if (abort) {
-				dst->reply = 0;
+			if (abort)
 				dst->rx_status |= CEC_RX_STATUS_FEATURE_ABORT;
-			}
 			/* Remove it from the wait_queue */
 			list_del_init(&data->list);
 
