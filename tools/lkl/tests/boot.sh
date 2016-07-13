@@ -13,7 +13,7 @@ if [ -z "$fstype" ]; then
 fi
 
 file=`mktemp`
-dd if=/dev/zero of=$file bs=1024 count=20480
+dd if=/dev/zero of=$file bs=1024 count=102400
 
 yes | mkfs.$fstype $file >/dev/null
 
