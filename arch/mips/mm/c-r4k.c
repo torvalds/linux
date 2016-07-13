@@ -488,19 +488,41 @@ static void r4k___flush_cache_all(void)
 	r4k_on_each_cpu(R4K_INDEX, local_r4k___flush_cache_all, NULL);
 }
 
-static inline int has_valid_asid(const struct mm_struct *mm)
+/**
+ * has_valid_asid() - Determine if an mm already has an ASID.
+ * @mm:		Memory map.
+ * @type:	R4K_HIT or R4K_INDEX, type of cache op.
+ *
+ * Determines whether @mm already has an ASID on any of the CPUs which cache ops
+ * of type @type within an r4k_on_each_cpu() call will affect. If
+ * r4k_on_each_cpu() does an SMP call to a single VPE in each core, then the
+ * scope of the operation is confined to sibling CPUs, otherwise all online CPUs
+ * will need to be checked.
+ *
+ * Must be called in non-preemptive context.
+ *
+ * Returns:	1 if the CPUs affected by @type cache ops have an ASID for @mm.
+ *		0 otherwise.
+ */
+static inline int has_valid_asid(const struct mm_struct *mm, unsigned int type)
 {
-#ifdef CONFIG_MIPS_MT_SMP
-	int i;
+	unsigned int i;
+	const cpumask_t *mask = cpu_present_mask;
 
-	for_each_online_cpu(i)
+	/* cpu_sibling_map[] undeclared when !CONFIG_SMP */
+#ifdef CONFIG_SMP
+	/*
+	 * If r4k_on_each_cpu does SMP calls, it does them to a single VPE in
+	 * each foreign core, so we only need to worry about siblings.
+	 * Otherwise we need to worry about all present CPUs.
+	 */
+	if (r4k_op_needs_ipi(type))
+		mask = &cpu_sibling_map[smp_processor_id()];
+#endif
+	for_each_cpu(i, mask)
 		if (cpu_context(i, mm))
 			return 1;
-
 	return 0;
-#else
-	return cpu_context(smp_processor_id(), mm);
-#endif
 }
 
 static void r4k__flush_cache_vmap(void)
@@ -522,7 +544,7 @@ static inline void local_r4k_flush_cache_range(void * args)
 	struct vm_area_struct *vma = args;
 	int exec = vma->vm_flags & VM_EXEC;
 
-	if (!(has_valid_asid(vma->vm_mm)))
+	if (!has_valid_asid(vma->vm_mm, R4K_INDEX))
 		return;
 
 	/*
@@ -550,7 +572,7 @@ static inline void local_r4k_flush_cache_mm(void * args)
 {
 	struct mm_struct *mm = args;
 
-	if (!has_valid_asid(mm))
+	if (!has_valid_asid(mm, R4K_INDEX))
 		return;
 
 	/*
@@ -600,10 +622,10 @@ static inline void local_r4k_flush_cache_page(void *args)
 	void *vaddr;
 
 	/*
-	 * If ownes no valid ASID yet, cannot possibly have gotten
+	 * If owns no valid ASID yet, cannot possibly have gotten
 	 * this page into the cache.
 	 */
-	if (!has_valid_asid(mm))
+	if (!has_valid_asid(mm, R4K_HIT))
 		return;
 
 	addr &= PAGE_MASK;
@@ -851,7 +873,7 @@ static void local_r4k_flush_cache_sigtramp(void *args)
 	 * If owns no valid ASID yet, cannot possibly have gotten
 	 * this page into the cache.
 	 */
-	if (!has_valid_asid(mm))
+	if (!has_valid_asid(mm, R4K_HIT))
 		return;
 
 	if (mm == current->active_mm) {
