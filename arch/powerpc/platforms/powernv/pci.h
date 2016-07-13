@@ -76,6 +76,7 @@ struct pnv_ioda_pe {
 };
 
 #define PNV_PHB_FLAG_EEH	(1 << 0)
+#define PNV_PHB_FLAG_CXL	(1 << 1) /* Real PHB supporting the cxl kernel API */
 
 struct pnv_phb {
 	struct pci_controller	*hose;
@@ -177,6 +178,9 @@ struct pnv_phb {
 		struct OpalIoP7IOCErrorData 	hub_diag;
 	} diag;
 
+#ifdef CONFIG_CXL_BASE
+	struct cxl_afu *cxl_afu;
+#endif
 };
 
 extern struct pci_ops pnv_pci_ops;
@@ -218,6 +222,7 @@ extern int pnv_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type);
 extern void pnv_teardown_msi_irqs(struct pci_dev *pdev);
 extern struct pnv_ioda_pe *pnv_ioda_get_pe(struct pci_dev *dev);
 extern void pnv_set_msi_irq_chip(struct pnv_phb *phb, unsigned int virq);
+extern bool pnv_pci_enable_device_hook(struct pci_dev *dev);
 
 extern void pe_level_printk(const struct pnv_ioda_pe *pe, const char *level,
 			    const char *fmt, ...);
@@ -237,5 +242,14 @@ extern long pnv_npu_set_window(struct pnv_ioda_pe *npe, int num,
 extern long pnv_npu_unset_window(struct pnv_ioda_pe *npe, int num);
 extern void pnv_npu_take_ownership(struct pnv_ioda_pe *npe);
 extern void pnv_npu_release_ownership(struct pnv_ioda_pe *npe);
+
+
+/* cxl functions */
+extern bool pnv_cxl_enable_device_hook(struct pci_dev *dev);
+extern void pnv_cxl_disable_device(struct pci_dev *dev);
+
+
+/* phb ops (cxl switches these when enabling the kernel api on the phb) */
+extern const struct pci_controller_ops pnv_cxl_cx4_ioda_controller_ops;
 
 #endif /* __POWERNV_PCI_H */
