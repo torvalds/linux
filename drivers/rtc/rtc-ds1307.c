@@ -186,6 +186,7 @@ static const struct i2c_device_id ds1307_id[] = {
 	{ "mcp7941x", mcp794xx },
 	{ "pt7c4338", ds_1307 },
 	{ "rx8025", rx_8025 },
+	{ "isl12057", ds_1337 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ds1307_id);
@@ -1331,6 +1332,11 @@ static int ds1307_probe(struct i2c_client *client,
  * if supported by the RTC.
  */
 	if (of_property_read_bool(client->dev.of_node, "wakeup-source")) {
+		ds1307_can_wakeup_device = true;
+	}
+	/* Intersil ISL12057 DT backward compatibility */
+	if (of_property_read_bool(client->dev.of_node,
+				  "isil,irq2-can-wakeup-machine")) {
 		ds1307_can_wakeup_device = true;
 	}
 #endif
