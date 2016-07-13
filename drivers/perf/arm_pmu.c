@@ -691,24 +691,15 @@ static int cpu_pmu_request_irq(struct arm_pmu *cpu_pmu, irq_handler_t handler)
  * UNKNOWN at reset, the PMU must be explicitly reset to avoid reading
  * junk values out of them.
  */
-static int cpu_pmu_notify(struct notifier_block *b, unsigned long action,
-			  void *hcpu)
+static int arm_perf_starting_cpu(unsigned int cpu)
 {
-	int cpu = (unsigned long)hcpu;
-	struct arm_pmu *pmu = container_of(b, struct arm_pmu, hotplug_nb);
-
-	if ((action & ~CPU_TASKS_FROZEN) != CPU_STARTING)
-		return NOTIFY_DONE;
-
-	if (!cpumask_test_cpu(cpu, &pmu->supported_cpus))
-		return NOTIFY_DONE;
-
-	if (pmu->reset)
-		pmu->reset(pmu);
-	else
-		return NOTIFY_DONE;
-
-	return NOTIFY_OK;
+	if (!__oprofile_cpu_pmu)
+		return 0;
+	if (!cpumask_test_cpu(cpu, &__oprofile_cpu_pmu->supported_cpus))
+		return 0;
+	if (__oprofile_cpu_pmu->reset)
+		__oprofile_cpu_pmu->reset(__oprofile_cpu_pmu);
+	return 0;
 }
 
 #ifdef CONFIG_CPU_PM
@@ -819,8 +810,9 @@ static int cpu_pmu_init(struct arm_pmu *cpu_pmu)
 	if (!cpu_hw_events)
 		return -ENOMEM;
 
-	cpu_pmu->hotplug_nb.notifier_call = cpu_pmu_notify;
-	err = register_cpu_notifier(&cpu_pmu->hotplug_nb);
+	err = cpuhp_setup_state_nocalls(CPUHP_AP_PERF_ARM_STARTING,
+					"AP_PERF_ARM_STARTING",
+					arm_perf_starting_cpu, NULL);
 	if (err)
 		goto out_hw_events;
 
@@ -858,7 +850,7 @@ static int cpu_pmu_init(struct arm_pmu *cpu_pmu)
 	return 0;
 
 out_unregister:
-	unregister_cpu_notifier(&cpu_pmu->hotplug_nb);
+	cpuhp_remove_state_nocalls(CPUHP_AP_PERF_ARM_STARTING);
 out_hw_events:
 	free_percpu(cpu_hw_events);
 	return err;
@@ -867,7 +859,7 @@ out_hw_events:
 static void cpu_pmu_destroy(struct arm_pmu *cpu_pmu)
 {
 	cpu_pm_pmu_unregister(cpu_pmu);
-	unregister_cpu_notifier(&cpu_pmu->hotplug_nb);
+	cpuhp_remove_state_nocalls(CPUHP_AP_PERF_ARM_STARTING);
 	free_percpu(cpu_pmu->hw_events);
 }
 
@@ -1027,6 +1019,8 @@ int arm_pmu_device_probe(struct platform_device *pdev,
 	if (ret)
 		goto out_destroy;
 
+	WARN(__oprofile_cpu_pmu, "%s(): missing PMU strucure for CPU-hotplug\n",
+	     __func__);
 	if (!__oprofile_cpu_pmu)
 		__oprofile_cpu_pmu = pmu;
 
