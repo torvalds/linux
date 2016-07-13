@@ -218,6 +218,13 @@ struct hid_data {
 	int num_received;
 };
 
+struct wacom_remote_data {
+	struct {
+		u32 serial;
+		bool connected;
+	} remote[WACOM_MAX_REMOTES];
+};
+
 struct wacom_wac {
 	char pen_name[WACOM_NAME_MAX];
 	char touch_name[WACOM_NAME_MAX];

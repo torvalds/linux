@@ -90,6 +90,7 @@
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/hid.h>
+#include <linux/kfifo.h>
 #include <linux/usb/input.h>
 #include <linux/power_supply.h>
 #include <asm/unaligned.h>
@@ -108,6 +109,7 @@
 enum wacom_worker {
 	WACOM_WORKER_WIRELESS,
 	WACOM_WORKER_BATTERY,
+	WACOM_WORKER_REMOTE,
 };
 
 struct wacom_group_leds {
@@ -122,6 +124,9 @@ struct wacom {
 	struct mutex lock;
 	struct work_struct wireless_work;
 	struct work_struct battery_work;
+	struct work_struct remote_work;
+	spinlock_t remote_lock;
+	struct kfifo remote_fifo;
 	struct wacom_leds {
 		struct wacom_group_leds *groups;
 		u8 llv;       /* status led brightness no button (1..127) */
@@ -149,6 +154,9 @@ static inline void wacom_schedule_work(struct wacom_wac *wacom_wac,
 	case WACOM_WORKER_BATTERY:
 		schedule_work(&wacom->battery_work);
 		break;
+	case WACOM_WORKER_REMOTE:
+		schedule_work(&wacom->remote_work);
+		break;
 	}
 }
 
@@ -168,7 +176,4 @@ int wacom_wac_event(struct hid_device *hdev, struct hid_field *field,
 		struct hid_usage *usage, __s32 value);
 void wacom_wac_report(struct hid_device *hdev, struct hid_report *report);
 void wacom_battery_work(struct work_struct *work);
-int wacom_remote_create_attr_group(struct wacom *wacom, __u32 serial,
-				   int index);
-void wacom_remote_destroy_attr_group(struct wacom *wacom, __u32 serial);
 #endif

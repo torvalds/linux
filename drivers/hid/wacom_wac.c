@@ -823,52 +823,40 @@ static int wacom_remote_irq(struct wacom_wac *wacom_wac, size_t len)
 	return 1;
 }
 
-static int wacom_remote_status_irq(struct wacom_wac *wacom_wac, size_t len)
+static void wacom_remote_status_irq(struct wacom_wac *wacom_wac, size_t len)
 {
 	struct wacom *wacom = container_of(wacom_wac, struct wacom, wacom_wac);
 	unsigned char *data = wacom_wac->data;
-	int i;
+	struct wacom_remote_data remote_data;
+	unsigned long flags;
+	int i, ret;
 
 	if (data[0] != WACOM_REPORT_DEVICE_LIST)
-		return 0;
+		return;
+
+	memset(&remote_data, 0, sizeof(struct wacom_remote_data));
 
 	for (i = 0; i < WACOM_MAX_REMOTES; i++) {
 		int j = i * 6;
 		int serial = (data[j+6] << 16) + (data[j+5] << 8) + data[j+4];
 		bool connected = data[j+2];
 
-		if (connected) {
-			int k;
-
-			if (wacom_wac->serial[i] == serial)
-				continue;
-
-			if (wacom_wac->serial[i]) {
-				wacom_remote_destroy_attr_group(wacom,
-							wacom_wac->serial[i]);
-			}
-
-			/* A remote can pair more than once with an EKR,
-			 * check to make sure this serial isn't already paired.
-			 */
-			for (k = 0; k < WACOM_MAX_REMOTES; k++) {
-				if (wacom_wac->serial[k] == serial)
-					break;
-			}
-
-			if (k < WACOM_MAX_REMOTES) {
-				wacom_wac->serial[i] = serial;
-				continue;
-			}
-			wacom_remote_create_attr_group(wacom, serial, i);
-
-		} else if (wacom_wac->serial[i]) {
-			wacom_remote_destroy_attr_group(wacom,
-							wacom_wac->serial[i]);
-		}
+		remote_data.remote[i].serial = serial;
+		remote_data.remote[i].connected = connected;
 	}
 
-	return 0;
+	spin_lock_irqsave(&wacom->remote_lock, flags);
+
+	ret = kfifo_in(&wacom->remote_fifo, &remote_data, sizeof(remote_data));
+	if (ret != sizeof(remote_data)) {
+		spin_unlock_irqrestore(&wacom->remote_lock, flags);
+		hid_err(wacom->hdev, "Can't queue Remote status event.\n");
+		return;
+	}
+
+	spin_unlock_irqrestore(&wacom->remote_lock, flags);
+
+	wacom_schedule_work(wacom_wac, WACOM_WORKER_REMOTE);
 }
 
 static int wacom_intuos_general(struct wacom_wac *wacom)
@@ -2310,8 +2298,9 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 		break;
 
 	case REMOTE:
+		sync = false;
 		if (wacom_wac->data[0] == WACOM_REPORT_DEVICE_LIST)
-			sync = wacom_remote_status_irq(wacom_wac, len);
+			wacom_remote_status_irq(wacom_wac, len);
 		else
 			sync = wacom_remote_irq(wacom_wac, len);
 		break;
