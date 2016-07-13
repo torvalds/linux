@@ -49,14 +49,11 @@ DEFINE_PER_CPU(seqcount_t, irq_time_seq);
  */
 void irqtime_account_irq(struct task_struct *curr)
 {
-	unsigned long flags;
 	s64 delta;
 	int cpu;
 
 	if (!sched_clock_irqtime)
 		return;
-
-	local_irq_save(flags);
 
 	cpu = smp_processor_id();
 	delta = sched_clock_cpu(cpu) - __this_cpu_read(irq_start_time);
@@ -75,7 +72,6 @@ void irqtime_account_irq(struct task_struct *curr)
 		__this_cpu_add(cpu_softirq_time, delta);
 
 	irq_time_write_end();
-	local_irq_restore(flags);
 }
 EXPORT_SYMBOL_GPL(irqtime_account_irq);
 
