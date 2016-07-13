@@ -967,27 +967,17 @@ static const struct attribute_group temac_attr_group = {
 };
 
 /* ethtool support */
-static int temac_get_settings(struct net_device *ndev, struct ethtool_cmd *cmd)
-{
-	return phy_ethtool_gset(ndev->phydev, cmd);
-}
-
-static int temac_set_settings(struct net_device *ndev, struct ethtool_cmd *cmd)
-{
-	return phy_ethtool_sset(ndev->phydev, cmd);
-}
-
 static int temac_nway_reset(struct net_device *ndev)
 {
 	return phy_start_aneg(ndev->phydev);
 }
 
 static const struct ethtool_ops temac_ethtool_ops = {
-	.get_settings = temac_get_settings,
-	.set_settings = temac_set_settings,
 	.nway_reset = temac_nway_reset,
 	.get_link = ethtool_op_get_link,
 	.get_ts_info = ethtool_op_get_ts_info,
+	.get_link_ksettings = phy_ethtool_get_link_ksettings,
+	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
 
 static int temac_of_probe(struct platform_device *op)
