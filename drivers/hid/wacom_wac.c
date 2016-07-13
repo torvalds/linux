@@ -2768,6 +2768,15 @@ static bool wacom_is_led_toggled(struct wacom *wacom, int button_count,
 {
 	int button_per_group;
 
+	/*
+	 * 24HD and 21UX2 have LED group 1 to the left and LED group 0
+	 * to the right. We need to reverse the group to match this
+	 * historical behavior.
+	 */
+	if (wacom->wacom_wac.features.type == WACOM_24HD ||
+	    wacom->wacom_wac.features.type == WACOM_21UX2)
+		group = 1 - group;
+
 	button_per_group = button_count/wacom->led.count;
 
 	return mask & (1 << (group * button_per_group));
