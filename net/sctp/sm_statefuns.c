@@ -6118,12 +6118,11 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	 * chunk later.
 	 */
 
-	if (!chunk->ecn_ce_done) {
+	if (asoc->peer.ecn_capable && !chunk->ecn_ce_done) {
 		struct sctp_af *af = SCTP_INPUT_CB(chunk->skb)->af;
 		chunk->ecn_ce_done = 1;
 
-		if (af->is_ce(sctp_gso_headskb(chunk->skb)) &&
-		    asoc->peer.ecn_capable) {
+		if (af->is_ce(sctp_gso_headskb(chunk->skb))) {
 			/* Do real work as sideffect. */
 			sctp_add_cmd_sf(commands, SCTP_CMD_ECN_CE,
 					SCTP_U32(tsn));
