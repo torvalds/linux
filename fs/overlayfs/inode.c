@@ -137,8 +137,11 @@ int ovl_permission(struct inode *inode, int mask)
 		return err;
 
 	old_cred = ovl_override_creds(inode->i_sb);
-	if (!is_upper && !special_file(realinode->i_mode))
+	if (!is_upper && !special_file(realinode->i_mode) && mask & MAY_WRITE) {
 		mask &= ~(MAY_WRITE | MAY_APPEND);
+		/* Make sure mounter can read file for copy up later */
+		mask |= MAY_READ;
+	}
 	err = inode_permission(realinode, mask);
 	revert_creds(old_cred);
 
