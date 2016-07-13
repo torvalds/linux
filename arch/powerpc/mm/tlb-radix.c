@@ -140,8 +140,8 @@ void radix__local_flush_tlb_pwc(struct mmu_gather *tlb, unsigned long addr)
 }
 EXPORT_SYMBOL(radix__local_flush_tlb_pwc);
 
-void radix___local_flush_tlb_page(struct mm_struct *mm, unsigned long vmaddr,
-			    unsigned long ap, int nid)
+void radix__local_flush_tlb_page_psize(struct mm_struct *mm, unsigned long vmaddr,
+				       unsigned long ap)
 {
 	unsigned long pid;
 
@@ -159,8 +159,8 @@ void radix__local_flush_tlb_page(struct vm_area_struct *vma, unsigned long vmadd
 	if (vma && is_vm_hugetlb_page(vma))
 		return __local_flush_hugetlb_page(vma, vmaddr);
 #endif
-	radix___local_flush_tlb_page(vma ? vma->vm_mm : NULL, vmaddr,
-			       mmu_get_ap(mmu_virtual_psize), 0);
+	radix__local_flush_tlb_page_psize(vma ? vma->vm_mm : NULL, vmaddr,
+					  mmu_get_ap(mmu_virtual_psize));
 }
 EXPORT_SYMBOL(radix__local_flush_tlb_page);
 
@@ -215,8 +215,8 @@ no_context:
 }
 EXPORT_SYMBOL(radix__flush_tlb_pwc);
 
-void radix___flush_tlb_page(struct mm_struct *mm, unsigned long vmaddr,
-		       unsigned long ap, int nid)
+void radix__flush_tlb_page_psize(struct mm_struct *mm, unsigned long vmaddr,
+				 unsigned long ap)
 {
 	unsigned long pid;
 
@@ -244,8 +244,8 @@ void radix__flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr)
 	if (vma && is_vm_hugetlb_page(vma))
 		return flush_hugetlb_page(vma, vmaddr);
 #endif
-	radix___flush_tlb_page(vma ? vma->vm_mm : NULL, vmaddr,
-			 mmu_get_ap(mmu_virtual_psize), 0);
+	radix__flush_tlb_page_psize(vma ? vma->vm_mm : NULL, vmaddr,
+				    mmu_get_ap(mmu_virtual_psize));
 }
 EXPORT_SYMBOL(radix__flush_tlb_page);
 

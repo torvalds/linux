@@ -20,7 +20,7 @@ void radix__flush_hugetlb_page(struct vm_area_struct *vma, unsigned long vmaddr)
 		WARN(1, "Wrong huge page shift\n");
 		return ;
 	}
-	radix___flush_tlb_page(vma->vm_mm, vmaddr, ap, 0);
+	radix__flush_tlb_page_psize(vma->vm_mm, vmaddr, ap);
 }
 
 void radix__local_flush_hugetlb_page(struct vm_area_struct *vma, unsigned long vmaddr)
@@ -37,7 +37,7 @@ void radix__local_flush_hugetlb_page(struct vm_area_struct *vma, unsigned long v
 		WARN(1, "Wrong huge page shift\n");
 		return ;
 	}
-	radix___local_flush_tlb_page(vma->vm_mm, vmaddr, ap, 0);
+	radix__local_flush_tlb_page_psize(vma->vm_mm, vmaddr, ap);
 }
 
 /*
