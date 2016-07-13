@@ -714,10 +714,9 @@ int remove_section_mapping(unsigned long start, unsigned long end)
 #endif /* CONFIG_MEMORY_HOTPLUG */
 
 static void __init hash_init_partition_table(phys_addr_t hash_table,
-					     unsigned long pteg_count)
+					     unsigned long htab_size)
 {
 	unsigned long ps_field;
-	unsigned long htab_size;
 	unsigned long patb_size = 1UL << PATB_SIZE_SHIFT;
 
 	/*
@@ -725,7 +724,7 @@ static void __init hash_init_partition_table(phys_addr_t hash_table,
 	 * We can ignore that for lpid 0
 	 */
 	ps_field = 0;
-	htab_size =  __ilog2(pteg_count) - 11;
+	htab_size =  __ilog2(htab_size) - 18;
 
 	BUILD_BUG_ON_MSG((PATB_SIZE_SHIFT > 24), "Partition table size too large.");
 	partition_tb = __va(memblock_alloc_base(patb_size, patb_size,
@@ -811,7 +810,7 @@ static void __init htab_initialize(void)
 		htab_address = __va(table);
 
 		/* htab absolute addr + encoded htabsize */
-		_SDR1 = table + __ilog2(pteg_count) - 11;
+		_SDR1 = table + __ilog2(htab_size_bytes) - 18;
 
 		/* Initialize the HPT with no entries */
 		memset((void *)table, 0, htab_size_bytes);
@@ -820,7 +819,7 @@ static void __init htab_initialize(void)
 			/* Set SDR1 */
 			mtspr(SPRN_SDR1, _SDR1);
 		else
-			hash_init_partition_table(table, pteg_count);
+			hash_init_partition_table(table, htab_size_bytes);
 	}
 
 	prot = pgprot_val(PAGE_KERNEL);
