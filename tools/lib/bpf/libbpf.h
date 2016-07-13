@@ -165,6 +165,15 @@ int bpf_program__set_prep(struct bpf_program *prog, int nr_instance,
 int bpf_program__nth_fd(struct bpf_program *prog, int n);
 
 /*
+ * Adjust type of bpf program. Default is kprobe.
+ */
+int bpf_program__set_tracepoint(struct bpf_program *prog);
+int bpf_program__set_kprobe(struct bpf_program *prog);
+
+bool bpf_program__is_tracepoint(struct bpf_program *prog);
+bool bpf_program__is_kprobe(struct bpf_program *prog);
+
+/*
  * We don't need __attribute__((packed)) now since it is
  * unnecessary for 'bpf_map_def' because they are all aligned.
  * In addition, using it will trigger -Wpacked warning message,

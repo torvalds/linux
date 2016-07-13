@@ -158,6 +158,7 @@ struct bpf_program {
 	char *section_name;
 	struct bpf_insn *insns;
 	size_t insns_cnt;
+	enum bpf_prog_type type;
 
 	struct {
 		int insn_idx;
@@ -299,6 +300,7 @@ bpf_program__init(void *data, size_t size, char *name, int idx,
 	prog->idx = idx;
 	prog->instances.fds = NULL;
 	prog->instances.nr = -1;
+	prog->type = BPF_PROG_TYPE_KPROBE;
 
 	return 0;
 errout:
@@ -894,8 +896,8 @@ static int bpf_object__collect_reloc(struct bpf_object *obj)
 }
 
 static int
-load_program(struct bpf_insn *insns, int insns_cnt,
-	     char *license, u32 kern_version, int *pfd)
+load_program(enum bpf_prog_type type, struct bpf_insn *insns,
+	     int insns_cnt, char *license, u32 kern_version, int *pfd)
 {
 	int ret;
 	char *log_buf;
@@ -907,9 +909,8 @@ load_program(struct bpf_insn *insns, int insns_cnt,
 	if (!log_buf)
 		pr_warning("Alloc log buffer for bpf loader error, continue without log\n");
 
-	ret = bpf_load_program(BPF_PROG_TYPE_KPROBE, insns,
-			       insns_cnt, license, kern_version,
-			       log_buf, BPF_LOG_BUF_SIZE);
+	ret = bpf_load_program(type, insns, insns_cnt, license,
+			       kern_version, log_buf, BPF_LOG_BUF_SIZE);
 
 	if (ret >= 0) {
 		*pfd = ret;
@@ -968,7 +969,7 @@ bpf_program__load(struct bpf_program *prog,
 			pr_warning("Program '%s' is inconsistent: nr(%d) != 1\n",
 				   prog->section_name, prog->instances.nr);
 		}
-		err = load_program(prog->insns, prog->insns_cnt,
+		err = load_program(prog->type, prog->insns, prog->insns_cnt,
 				   license, kern_version, &fd);
 		if (!err)
 			prog->instances.fds[0] = fd;
@@ -997,7 +998,7 @@ bpf_program__load(struct bpf_program *prog,
 			continue;
 		}
 
-		err = load_program(result.new_insn_ptr,
+		err = load_program(prog->type, result.new_insn_ptr,
 				   result.new_insn_cnt,
 				   license, kern_version, &fd);
 
@@ -1314,6 +1315,44 @@ int bpf_program__nth_fd(struct bpf_program *prog, int n)
 	}
 
 	return fd;
+}
+
+static void bpf_program__set_type(struct bpf_program *prog,
+				  enum bpf_prog_type type)
+{
+	prog->type = type;
+}
+
+int bpf_program__set_tracepoint(struct bpf_program *prog)
+{
+	if (!prog)
+		return -EINVAL;
+	bpf_program__set_type(prog, BPF_PROG_TYPE_TRACEPOINT);
+	return 0;
+}
+
+int bpf_program__set_kprobe(struct bpf_program *prog)
+{
+	if (!prog)
+		return -EINVAL;
+	bpf_program__set_type(prog, BPF_PROG_TYPE_KPROBE);
+	return 0;
+}
+
+static bool bpf_program__is_type(struct bpf_program *prog,
+				 enum bpf_prog_type type)
+{
+	return prog ? (prog->type == type) : false;
+}
+
+bool bpf_program__is_tracepoint(struct bpf_program *prog)
+{
+	return bpf_program__is_type(prog, BPF_PROG_TYPE_TRACEPOINT);
+}
+
+bool bpf_program__is_kprobe(struct bpf_program *prog)
+{
+	return bpf_program__is_type(prog, BPF_PROG_TYPE_KPROBE);
 }
 
 int bpf_map__fd(struct bpf_map *map)
