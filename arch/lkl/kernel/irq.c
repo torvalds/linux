@@ -38,17 +38,22 @@ int lkl_trigger_irq(int irq)
 
 static void run_irqs(void)
 {
-	int i;
+	int i = 1;
 	unsigned long status;
+
+	if (!irq_status)
+		return;
 
 	status = TEST_AND_CLEAR_IRQ_STATUS(IRQS_MASK);
 
-	for (i = 1; i < NR_IRQS; i++) {
-		if (status & IRQ_BIT(i)) {
+	while (status) {
+		if (status & 1) {
 			irq_enter();
 			generic_handle_irq(i);
 			irq_exit();
 		}
+		status = status >> 1;
+		i++;
 	}
 }
 
