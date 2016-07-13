@@ -352,9 +352,11 @@ static void init_iommu_group(struct device *dev)
 	if (!domain)
 		goto out;
 
-	dma_domain = to_pdomain(domain)->priv;
+	if (to_pdomain(domain)->flags == PD_DMA_OPS_MASK) {
+		dma_domain = to_pdomain(domain)->priv;
+		init_unity_mappings_for_device(dev, dma_domain);
+	}
 
-	init_unity_mappings_for_device(dev, dma_domain);
 out:
 	iommu_group_put(group);
 }
