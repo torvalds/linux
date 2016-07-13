@@ -5436,7 +5436,7 @@ static void gen6_enable_rps(struct drm_i915_private *dev_priv)
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 }
 
-static void __gen6_update_ring_freq(struct drm_i915_private *dev_priv)
+static void gen6_update_ring_freq(struct drm_i915_private *dev_priv)
 {
 	int min_freq = 15;
 	unsigned int gpu_freq;
@@ -5518,16 +5518,6 @@ static void __gen6_update_ring_freq(struct drm_i915_private *dev_priv)
 					ring_freq << GEN6_PCODE_FREQ_RING_RATIO_SHIFT |
 					gpu_freq);
 	}
-}
-
-void gen6_update_ring_freq(struct drm_i915_private *dev_priv)
-{
-	if (!HAS_CORE_RING_FREQ(dev_priv))
-		return;
-
-	mutex_lock(&dev_priv->rps.hw_lock);
-	__gen6_update_ring_freq(dev_priv);
-	mutex_unlock(&dev_priv->rps.hw_lock);
 }
 
 static int cherryview_rps_max_freq(struct drm_i915_private *dev_priv)
@@ -6624,13 +6614,13 @@ void intel_enable_gt_powersave(struct drm_i915_private *dev_priv)
 		gen9_enable_rc6(dev_priv);
 		gen9_enable_rps(dev_priv);
 		if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
-			__gen6_update_ring_freq(dev_priv);
+			gen6_update_ring_freq(dev_priv);
 	} else if (IS_BROADWELL(dev_priv)) {
 		gen8_enable_rps(dev_priv);
-		__gen6_update_ring_freq(dev_priv);
+		gen6_update_ring_freq(dev_priv);
 	} else if (INTEL_GEN(dev_priv) >= 6) {
 		gen6_enable_rps(dev_priv);
-		__gen6_update_ring_freq(dev_priv);
+		gen6_update_ring_freq(dev_priv);
 	} else if (IS_IRONLAKE_M(dev_priv)) {
 		ironlake_enable_drps(dev_priv);
 		intel_init_emon(dev_priv);
