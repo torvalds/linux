@@ -210,9 +210,9 @@ static int vp8_enc_alloc_work_buf(struct venc_vp8_inst *inst)
 		wb[i].iova = inst->work_bufs[i].dma_addr;
 
 		mtk_vcodec_debug(inst,
-				 "work_bufs[%d] va=0x%p,iova=0x%p,size=%zu",
+				 "work_bufs[%d] va=0x%p,iova=%pad,size=%zu",
 				 i, inst->work_bufs[i].va,
-				 (void *)inst->work_bufs[i].dma_addr,
+				 &inst->work_bufs[i].dma_addr,
 				 inst->work_bufs[i].size);
 	}
 
