@@ -147,6 +147,7 @@ struct intel_engine_cs {
 	unsigned int hw_id;
 	unsigned int guc_id; /* XXX same as hw_id? */
 	u32		mmio_base;
+	unsigned int irq_shift;
 	struct intel_ringbuffer *buffer;
 	struct list_head buffers;
 
@@ -360,6 +361,10 @@ struct intel_engine_cs {
 	 */
 	u32 (*get_cmd_length_mask)(u32 cmd_header);
 };
+
+struct intel_engine_cs *
+intel_engine_setup(struct drm_i915_private *dev_priv,
+		   enum intel_engine_id id);
 
 static inline bool
 intel_engine_initialized(const struct intel_engine_cs *engine)

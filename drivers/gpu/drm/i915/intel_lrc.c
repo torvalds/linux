@@ -1978,8 +1978,9 @@ logical_ring_default_vfuncs(struct intel_engine_cs *engine)
 }
 
 static inline void
-logical_ring_default_irqs(struct intel_engine_cs *engine, unsigned shift)
+logical_ring_default_irqs(struct intel_engine_cs *engine)
 {
+	unsigned shift = engine->irq_shift;
 	engine->irq_enable_mask = GT_RENDER_USER_INTERRUPT << shift;
 	engine->irq_keep_mask = GT_CONTEXT_SWITCH_INTERRUPT << shift;
 }
@@ -2083,14 +2084,14 @@ static int logical_render_ring_init(struct intel_engine_cs *engine)
 	return ret;
 }
 
-static const struct logical_ring_info {
+static const struct engine_info {
 	const char *name;
 	unsigned exec_id;
 	unsigned guc_id;
 	u32 mmio_base;
 	unsigned irq_shift;
 	int (*init)(struct intel_engine_cs *engine);
-} logical_rings[] = {
+} intel_engines[] = {
 	[RCS] = {
 		.name = "render ring",
 		.exec_id = I915_EXEC_RENDER,
@@ -2133,20 +2134,31 @@ static const struct logical_ring_info {
 	},
 };
 
+struct intel_engine_cs *
+intel_engine_setup(struct drm_i915_private *dev_priv,
+		   enum intel_engine_id id)
+{
+	const struct engine_info *info = &intel_engines[id];
+	struct intel_engine_cs *engine = &dev_priv->engine[id];
+
+	engine->id = id;
+	engine->i915 = dev_priv;
+	engine->name = info->name;
+	engine->exec_id = info->exec_id;
+	engine->hw_id = engine->guc_id = info->guc_id;
+	engine->mmio_base = info->mmio_base;
+	engine->irq_shift = info->irq_shift;
+
+	return engine;
+}
+
 static struct intel_engine_cs *
 logical_ring_setup(struct drm_i915_private *dev_priv, enum intel_engine_id id)
 {
-	const struct logical_ring_info *info = &logical_rings[id];
-	struct intel_engine_cs *engine = &dev_priv->engine[id];
+	struct intel_engine_cs *engine;
 	enum forcewake_domains fw_domains;
 
-	engine->id = id;
-	engine->name = info->name;
-	engine->exec_id = info->exec_id;
-	engine->guc_id = info->guc_id;
-	engine->mmio_base = info->mmio_base;
-
-	engine->i915 = dev_priv;
+	engine = intel_engine_setup(dev_priv, id);
 
 	/* Intentionally left blank. */
 	engine->buffer = NULL;
@@ -2176,7 +2188,7 @@ logical_ring_setup(struct drm_i915_private *dev_priv, enum intel_engine_id id)
 
 	logical_ring_init_platform_invariants(engine);
 	logical_ring_default_vfuncs(engine);
-	logical_ring_default_irqs(engine, info->irq_shift);
+	logical_ring_default_irqs(engine);
 
 	intel_engine_init_hangcheck(engine);
 	i915_gem_batch_pool_init(&dev_priv->drm, &engine->batch_pool);
@@ -2205,14 +2217,14 @@ int intel_logical_rings_init(struct drm_device *dev)
 	WARN_ON(INTEL_INFO(dev_priv)->ring_mask &
 		GENMASK(sizeof(mask) * BITS_PER_BYTE - 1, I915_NUM_ENGINES));
 
-	for (i = 0; i < ARRAY_SIZE(logical_rings); i++) {
+	for (i = 0; i < ARRAY_SIZE(intel_engines); i++) {
 		if (!HAS_ENGINE(dev_priv, i))
 			continue;
 
-		if (!logical_rings[i].init)
+		if (!intel_engines[i].init)
 			continue;
 
-		ret = logical_rings[i].init(logical_ring_setup(dev_priv, i));
+		ret = intel_engines[i].init(logical_ring_setup(dev_priv, i));
 		if (ret)
 			goto cleanup;
 
@@ -2220,7 +2232,7 @@ int intel_logical_rings_init(struct drm_device *dev)
 	}
 
 	/*
-	 * Catch failures to update logical_rings table when the new engines
+	 * Catch failures to update intel_engines table when the new engines
 	 * are added to the driver by a warning and disabling the forgotten
 	 * engines.
 	 */

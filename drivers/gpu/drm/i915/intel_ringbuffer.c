@@ -2839,14 +2839,10 @@ static void intel_ring_default_vfuncs(struct drm_i915_private *dev_priv,
 int intel_init_render_ring_buffer(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_engine_cs *engine = &dev_priv->engine[RCS];
+	struct intel_engine_cs *engine;
 	int ret;
 
-	engine->name = "render ring";
-	engine->id = RCS;
-	engine->exec_id = I915_EXEC_RENDER;
-	engine->hw_id = 0;
-	engine->mmio_base = RENDER_RING_BASE;
+	engine = intel_engine_setup(dev_priv, RCS);
 
 	intel_ring_default_vfuncs(dev_priv, engine);
 
@@ -2901,17 +2897,13 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 int intel_init_bsd_ring_buffer(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_engine_cs *engine = &dev_priv->engine[VCS];
+	struct intel_engine_cs *engine;
 
-	engine->name = "bsd ring";
-	engine->id = VCS;
-	engine->exec_id = I915_EXEC_BSD;
-	engine->hw_id = 1;
+	engine = intel_engine_setup(dev_priv, VCS);
 
 	intel_ring_default_vfuncs(dev_priv, engine);
 
 	if (INTEL_GEN(dev_priv) >= 6) {
-		engine->mmio_base = GEN6_BSD_RING_BASE;
 		/* gen6 bsd needs a special wa for tail updates */
 		if (IS_GEN6(dev_priv))
 			engine->write_tail = gen6_bsd_ring_write_tail;
@@ -2939,13 +2931,9 @@ int intel_init_bsd_ring_buffer(struct drm_device *dev)
 int intel_init_bsd2_ring_buffer(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_engine_cs *engine = &dev_priv->engine[VCS2];
+	struct intel_engine_cs *engine;
 
-	engine->name = "bsd2 ring";
-	engine->id = VCS2;
-	engine->exec_id = I915_EXEC_BSD;
-	engine->hw_id = 4;
-	engine->mmio_base = GEN8_BSD2_RING_BASE;
+	engine = intel_engine_setup(dev_priv, VCS2);
 
 	intel_ring_default_vfuncs(dev_priv, engine);
 
@@ -2959,13 +2947,9 @@ int intel_init_bsd2_ring_buffer(struct drm_device *dev)
 int intel_init_blt_ring_buffer(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_engine_cs *engine = &dev_priv->engine[BCS];
+	struct intel_engine_cs *engine;
 
-	engine->name = "blitter ring";
-	engine->id = BCS;
-	engine->exec_id = I915_EXEC_BLT;
-	engine->hw_id = 2;
-	engine->mmio_base = BLT_RING_BASE;
+	engine = intel_engine_setup(dev_priv, BCS);
 
 	intel_ring_default_vfuncs(dev_priv, engine);
 
@@ -2982,13 +2966,9 @@ int intel_init_blt_ring_buffer(struct drm_device *dev)
 int intel_init_vebox_ring_buffer(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_engine_cs *engine = &dev_priv->engine[VECS];
+	struct intel_engine_cs *engine;
 
-	engine->name = "video enhancement ring";
-	engine->id = VECS;
-	engine->exec_id = I915_EXEC_VEBOX;
-	engine->hw_id = 3;
-	engine->mmio_base = VEBOX_RING_BASE;
+	engine = intel_engine_setup(dev_priv, VECS);
 
 	intel_ring_default_vfuncs(dev_priv, engine);
 
