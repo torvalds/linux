@@ -3169,6 +3169,8 @@ static void i915_gem_reset_engine_cleanup(struct intel_engine_cs *engine)
 	}
 
 	intel_ring_init_seqno(engine, engine->last_submitted_seqno);
+
+	engine->i915->gt.active_engines &= ~intel_engine_flag(engine);
 }
 
 void i915_gem_reset(struct drm_device *dev)
@@ -3186,6 +3188,7 @@ void i915_gem_reset(struct drm_device *dev)
 
 	for_each_engine(engine, dev_priv)
 		i915_gem_reset_engine_cleanup(engine);
+	mod_delayed_work(dev_priv->wq, &dev_priv->gt.idle_work, 0);
 
 	i915_gem_context_reset(dev);
 
