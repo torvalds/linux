@@ -344,15 +344,8 @@ asmlinkage void start_secondary(void)
 static void stop_this_cpu(void *dummy)
 {
 	/*
-	 * Remove this CPU. Be a bit slow here and
-	 * set the bits for every online CPU so we don't miss
-	 * any IPI whilst taking this VPE down.
+	 * Remove this CPU:
 	 */
-
-	cpumask_copy(&cpu_foreign_map, cpu_online_mask);
-
-	/* Make it visible to every other CPU */
-	smp_mb();
 
 	set_cpu_online(smp_processor_id(), false);
 	calculate_cpu_foreign_map();
