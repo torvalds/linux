@@ -2076,7 +2076,7 @@ out_unlock:
 	spin_unlock(&iommu->lock);
 	spin_unlock_irqrestore(&device_domain_lock, flags);
 
-	return 0;
+	return ret;
 }
 
 struct domain_context_mapping_data {
