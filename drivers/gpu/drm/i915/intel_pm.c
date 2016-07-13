@@ -5343,7 +5343,7 @@ static void gen8_enable_rps(struct drm_i915_private *dev_priv)
 static void gen6_enable_rps(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
-	u32 rc6vids, pcu_mbox = 0, rc6_mask = 0;
+	u32 rc6vids, rc6_mask = 0;
 	u32 gtfifodbg;
 	int rc6_mode;
 	int ret;
@@ -5416,14 +5416,6 @@ static void gen6_enable_rps(struct drm_i915_private *dev_priv)
 	ret = sandybridge_pcode_write(dev_priv, GEN6_PCODE_WRITE_MIN_FREQ_TABLE, 0);
 	if (ret)
 		DRM_DEBUG_DRIVER("Failed to set the min frequency\n");
-
-	ret = sandybridge_pcode_read(dev_priv, GEN6_READ_OC_PARAMS, &pcu_mbox);
-	if (!ret && (pcu_mbox & (1<<31))) { /* OC supported */
-		DRM_DEBUG_DRIVER("Overclocking supported. Max: %dMHz, Overclock max: %dMHz\n",
-				 (dev_priv->rps.max_freq_softlimit & 0xff) * 50,
-				 (pcu_mbox & 0xff) * 50);
-		dev_priv->rps.max_freq = pcu_mbox & 0xff;
-	}
 
 	reset_rps(dev_priv, gen6_set_rps);
 
@@ -6525,6 +6517,20 @@ void intel_init_gt_powersave(struct drm_i915_private *dev_priv)
 			max_t(int,
 			      dev_priv->rps.efficient_freq,
 			      intel_freq_opcode(dev_priv, 450));
+
+	/* After setting max-softlimit, find the overclock max freq */
+	if (IS_GEN6(dev_priv) ||
+	    IS_IVYBRIDGE(dev_priv) || IS_HASWELL(dev_priv)) {
+		u32 params = 0;
+
+		sandybridge_pcode_read(dev_priv, GEN6_READ_OC_PARAMS, &params);
+		if (params & BIT(31)) { /* OC supported */
+			DRM_DEBUG_DRIVER("Overclocking supported, max: %dMHz, overclock: %dMHz\n",
+					 (dev_priv->rps.max_freq & 0xff) * 50,
+					 (params & 0xff) * 50);
+			dev_priv->rps.max_freq = params & 0xff;
+		}
+	}
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
 }
