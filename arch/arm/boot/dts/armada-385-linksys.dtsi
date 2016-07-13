@@ -62,11 +62,6 @@
 			  MBUS_ID(0x09, 0x15) 0 0xf1110000 0x10000>;
 
 		internal-regs {
-
-			spi@10600 {
-				status = "disabled";
-			};
-
 			i2c@11000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&i2c0_pins>;
@@ -331,4 +326,8 @@
 		marvell,pins = "mpp50";
 		marvell,function = "gpio";
 	};
+};
+
+&spi0 {
+	status = "disabled";
 };

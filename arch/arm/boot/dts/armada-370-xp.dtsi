@@ -148,26 +148,6 @@
 				interrupts = <50>;
 			};
 
-			spi0: spi@10600 {
-				reg = <0x10600 0x28>;
-				#address-cells = <1>;
-				#size-cells = <0>;
-				cell-index = <0>;
-				interrupts = <30>;
-				clocks = <&coreclk 0>;
-				status = "disabled";
-			};
-
-			spi1: spi@10680 {
-				reg = <0x10680 0x28>;
-				#address-cells = <1>;
-				#size-cells = <0>;
-				cell-index = <1>;
-				interrupts = <92>;
-				clocks = <&coreclk 0>;
-				status = "disabled";
-			};
-
 			i2c0: i2c@11000 {
 				compatible = "marvell,mv64xxx-i2c";
 				#address-cells = <1>;
@@ -319,6 +299,26 @@
 				cap-mmc-highspeed;
 				status = "disabled";
 			};
+		};
+
+		spi0: spi@10600 {
+			reg = <MBUS_ID(0xf0, 0x01) 0x10600 0x28>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			cell-index = <0>;
+			interrupts = <30>;
+			clocks = <&coreclk 0>;
+			status = "disabled";
+		};
+
+		spi1: spi@10680 {
+			reg = <MBUS_ID(0xf0, 0x01) 0x10680 0x28>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			cell-index = <1>;
+			interrupts = <92>;
+			clocks = <&coreclk 0>;
+			status = "disabled";
 		};
 	};
 
