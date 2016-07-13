@@ -1998,7 +1998,6 @@ out_put_masters:
 
 static int arm_smmu_device_remove(struct platform_device *pdev)
 {
-	int i;
 	struct device *dev = &pdev->dev;
 	struct arm_smmu_device *curr, *smmu = NULL;
 	struct rb_node *node;
@@ -2024,9 +2023,6 @@ static int arm_smmu_device_remove(struct platform_device *pdev)
 
 	if (!bitmap_empty(smmu->context_map, ARM_SMMU_MAX_CBS))
 		dev_err(dev, "removing device with active domains!\n");
-
-	for (i = 0; i < smmu->num_global_irqs; ++i)
-		devm_free_irq(smmu->dev, smmu->irqs[i], smmu);
 
 	/* Turn the thing off */
 	writel(sCR0_CLIENTPD, ARM_SMMU_GR0_NS(smmu) + ARM_SMMU_GR0_sCR0);
