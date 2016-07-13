@@ -181,6 +181,7 @@
 #define PPC_INST_MTSPR_DSCR_USER	0x7c0303a6
 #define PPC_INST_MTSPR_DSCR_USER_MASK	0xfc1fffff
 #define PPC_INST_SLBFEE			0x7c0007a7
+#define PPC_INST_SLBIA			0x7c0003e4
 
 #define PPC_INST_STRING			0x7c00042a
 #define PPC_INST_STRING_MASK		0xfc0007fe
@@ -442,5 +443,7 @@
 					       ___PPC_RA(a) |		\
 					       ___PPC_RB(b))
 
+#define PPC_SLBIA(IH)	stringify_in_c(.long PPC_INST_SLBIA | \
+				       ((IH & 0x7) << 21))
 
 #endif /* _ASM_POWERPC_PPC_OPCODE_H */
