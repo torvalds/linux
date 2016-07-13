@@ -91,6 +91,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/hid.h>
 #include <linux/kfifo.h>
+#include <linux/leds.h>
 #include <linux/usb/input.h>
 #include <linux/power_supply.h>
 #include <asm/unaligned.h>
@@ -112,8 +113,23 @@ enum wacom_worker {
 	WACOM_WORKER_REMOTE,
 };
 
+struct wacom;
+
+struct wacom_led {
+	struct led_classdev cdev;
+	struct led_trigger trigger;
+	struct wacom *wacom;
+	unsigned int group;
+	unsigned int id;
+	u8 llv;
+	u8 hlv;
+	bool held;
+};
+
 struct wacom_group_leds {
 	u8 select; /* status led selector (0..3) */
+	struct wacom_led *leds;
+	unsigned int count;
 };
 
 struct wacom_battery {
@@ -154,9 +170,12 @@ struct wacom {
 	struct wacom_remote *remote;
 	struct wacom_leds {
 		struct wacom_group_leds *groups;
+		unsigned int count;
 		u8 llv;       /* status led brightness no button (1..127) */
 		u8 hlv;       /* status led brightness button pressed (1..127) */
 		u8 img_lum;   /* OLED matrix display brightness */
+		u8 max_llv;   /* maximum brightness of LED (llv) */
+		u8 max_hlv;   /* maximum brightness of LED (hlv) */
 	} led;
 	struct wacom_battery battery;
 	bool resources;
