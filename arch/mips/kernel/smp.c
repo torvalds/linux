@@ -72,7 +72,7 @@ EXPORT_SYMBOL(cpu_core_map);
  * A logcal cpu mask containing only one VPE per core to
  * reduce the number of IPIs on large MT systems.
  */
-cpumask_t cpu_foreign_map __read_mostly;
+cpumask_t cpu_foreign_map[NR_CPUS] __read_mostly;
 EXPORT_SYMBOL(cpu_foreign_map);
 
 /* representing cpus for which sibling maps can be computed */
@@ -141,7 +141,9 @@ void calculate_cpu_foreign_map(void)
 			cpumask_set_cpu(i, &temp_foreign_map);
 	}
 
-	cpumask_copy(&cpu_foreign_map, &temp_foreign_map);
+	for_each_online_cpu(i)
+		cpumask_andnot(&cpu_foreign_map[i],
+			       &temp_foreign_map, &cpu_sibling_map[i]);
 }
 
 struct plat_smp_ops *mp_ops;

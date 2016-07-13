@@ -56,7 +56,9 @@
  * @type:	Type of cache operations (R4K_HIT or R4K_INDEX).
  *
  * Decides whether a cache op needs to be performed on every core in the system.
- * This may change depending on the @type of cache operation.
+ * This may change depending on the @type of cache operation, as well as the set
+ * of online CPUs, so preemption should be disabled by the caller to prevent CPU
+ * hotplug from changing the result.
  *
  * Returns:	1 if the cache operation @type should be done on every core in
  *		the system.
@@ -71,9 +73,15 @@ static inline bool r4k_op_needs_ipi(unsigned int type)
 
 	/*
 	 * Hardware doesn't globalize the required cache ops, so SMP calls may
-	 * be needed.
+	 * be needed, but only if there are foreign CPUs (non-siblings with
+	 * separate caches).
 	 */
-	return true;
+	/* cpu_foreign_map[] undeclared when !CONFIG_SMP */
+#ifdef CONFIG_SMP
+	return !cpumask_empty(&cpu_foreign_map[0]);
+#else
+	return false;
+#endif
 }
 
 /*
@@ -90,7 +98,8 @@ static inline void r4k_on_each_cpu(unsigned int type,
 {
 	preempt_disable();
 	if (r4k_op_needs_ipi(type))
-		smp_call_function_many(&cpu_foreign_map, func, info, 1);
+		smp_call_function_many(&cpu_foreign_map[smp_processor_id()],
+				       func, info, 1);
 	func(info);
 	preempt_enable();
 }
