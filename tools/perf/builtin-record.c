@@ -361,7 +361,7 @@ static int record__mmap_evlist(struct record *rec,
 			return -errno;
 		} else {
 			pr_err("failed to mmap with %d (%s)\n", errno,
-				strerror_r(errno, msg, sizeof(msg)));
+				str_error_r(errno, msg, sizeof(msg)));
 			if (errno)
 				return -errno;
 			else
@@ -407,7 +407,7 @@ try_again:
 	if (perf_evlist__apply_filters(evlist, &pos)) {
 		error("failed to set filter \"%s\" on event %s with %d (%s)\n",
 			pos->filter, perf_evsel__name(pos), errno,
-			strerror_r(errno, msg, sizeof(msg)));
+			str_error_r(errno, msg, sizeof(msg)));
 		rc = -1;
 		goto out;
 	}
@@ -1003,7 +1003,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 
 	if (forks && workload_exec_errno) {
 		char msg[STRERR_BUFSIZE];
-		const char *emsg = strerror_r(workload_exec_errno, msg, sizeof(msg));
+		const char *emsg = str_error_r(workload_exec_errno, msg, sizeof(msg));
 		pr_err("Workload failed: %s\n", emsg);
 		err = -1;
 		goto out_child;

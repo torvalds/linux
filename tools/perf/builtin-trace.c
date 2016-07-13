@@ -43,7 +43,6 @@
 #include <linux/err.h>
 #include <linux/filter.h>
 #include <linux/audit.h>
-#include <sys/ptrace.h>
 #include <linux/random.h>
 #include <linux/stringify.h>
 
@@ -333,6 +332,10 @@ static size_t syscall_arg__scnprintf_fd(char *bf, size_t size,
 					struct syscall_arg *arg);
 
 #define SCA_FD syscall_arg__scnprintf_fd
+
+#ifndef AT_FDCWD
+#define AT_FDCWD	-100
+#endif
 
 static size_t syscall_arg__scnprintf_fd_at(char *bf, size_t size,
 					   struct syscall_arg *arg)
@@ -1601,7 +1604,7 @@ signed_print:
 		fprintf(trace->output, ") = %ld", ret);
 	} else if (ret < 0 && (sc->fmt->errmsg || sc->fmt->errpid)) {
 		char bf[STRERR_BUFSIZE];
-		const char *emsg = strerror_r(-ret, bf, sizeof(bf)),
+		const char *emsg = str_error_r(-ret, bf, sizeof(bf)),
 			   *e = audit_errno_to_name(-ret);
 
 		fprintf(trace->output, ") = -1 %s %s", e, emsg);
@@ -2402,7 +2405,7 @@ out_error_apply_filters:
 	fprintf(trace->output,
 		"Failed to set filter \"%s\" on event %s with %d (%s)\n",
 		evsel->filter, perf_evsel__name(evsel), errno,
-		strerror_r(errno, errbuf, sizeof(errbuf)));
+		str_error_r(errno, errbuf, sizeof(errbuf)));
 	goto out_delete_evlist;
 }
 out_error_mem:

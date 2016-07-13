@@ -7,6 +7,7 @@
 
 #include "symbol.h"
 #include "demangle-java.h"
+#include "demangle-rust.h"
 #include "machine.h"
 #include "vdso.h"
 #include <symbol/kallsyms.h>
@@ -16,6 +17,7 @@
 #define EM_AARCH64	183  /* ARM 64 bit */
 #endif
 
+typedef Elf64_Nhdr GElf_Nhdr;
 
 #ifdef HAVE_CPLUS_DEMANGLE_SUPPORT
 extern char *cplus_demangle(const char *, int);
@@ -1080,6 +1082,13 @@ new_symbol:
 			demangled = bfd_demangle(NULL, elf_name, demangle_flags);
 			if (demangled == NULL)
 				demangled = java_demangle_sym(elf_name, JAVA_DEMANGLE_NORET);
+			else if (rust_is_mangled(demangled))
+				/*
+				 * Input to Rust demangling is the BFD-demangled
+				 * name which it Rust-demangles in place.
+				 */
+				rust_demangle_sym(demangled);
+
 			if (demangled != NULL)
 				elf_name = demangled;
 		}
@@ -1789,6 +1798,7 @@ void kcore_extract__delete(struct kcore_extract *kce)
 	unlink(kce->extract_filename);
 }
 
+#ifdef HAVE_GELF_GETNOTE_SUPPORT
 /**
  * populate_sdt_note : Parse raw data and identify SDT note
  * @elf: elf of the opened file
@@ -2040,6 +2050,7 @@ int sdt_notes__get_count(struct list_head *start)
 		count++;
 	return count;
 }
+#endif
 
 void symbol__elf_init(void)
 {

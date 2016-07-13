@@ -1,4 +1,5 @@
 #include <api/fd/array.h>
+#include <poll.h>
 #include "util/debug.h"
 #include "tests/tests.h"
 

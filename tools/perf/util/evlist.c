@@ -651,8 +651,8 @@ static int perf_evlist__event2id(struct perf_evlist *evlist,
 	return 0;
 }
 
-static struct perf_evsel *perf_evlist__event2evsel(struct perf_evlist *evlist,
-						   union perf_event *event)
+struct perf_evsel *perf_evlist__event2evsel(struct perf_evlist *evlist,
+					    union perf_event *event)
 {
 	struct perf_evsel *first = perf_evlist__first(evlist);
 	struct hlist_head *head;
@@ -1790,7 +1790,7 @@ int perf_evlist__strerror_open(struct perf_evlist *evlist,
 			       int err, char *buf, size_t size)
 {
 	int printed, value;
-	char sbuf[STRERR_BUFSIZE], *emsg = strerror_r(err, sbuf, sizeof(sbuf));
+	char sbuf[STRERR_BUFSIZE], *emsg = str_error_r(err, sbuf, sizeof(sbuf));
 
 	switch (err) {
 	case EACCES:
@@ -1842,7 +1842,7 @@ out_default:
 
 int perf_evlist__strerror_mmap(struct perf_evlist *evlist, int err, char *buf, size_t size)
 {
-	char sbuf[STRERR_BUFSIZE], *emsg = strerror_r(err, sbuf, sizeof(sbuf));
+	char sbuf[STRERR_BUFSIZE], *emsg = str_error_r(err, sbuf, sizeof(sbuf));
 	int pages_attempted = evlist->mmap_len / 1024, pages_max_per_user, printed = 0;
 
 	switch (err) {

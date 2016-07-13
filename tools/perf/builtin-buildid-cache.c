@@ -351,7 +351,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 						continue;
 					}
 					pr_warning("Couldn't add %s: %s\n",
-						   pos->s, strerror_r(errno, sbuf, sizeof(sbuf)));
+						   pos->s, str_error_r(errno, sbuf, sizeof(sbuf)));
 				}
 
 			strlist__delete(list);
@@ -369,7 +369,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 						continue;
 					}
 					pr_warning("Couldn't remove %s: %s\n",
-						   pos->s, strerror_r(errno, sbuf, sizeof(sbuf)));
+						   pos->s, str_error_r(errno, sbuf, sizeof(sbuf)));
 				}
 
 			strlist__delete(list);
@@ -387,7 +387,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 						continue;
 					}
 					pr_warning("Couldn't remove %s: %s\n",
-						   pos->s, strerror_r(errno, sbuf, sizeof(sbuf)));
+						   pos->s, str_error_r(errno, sbuf, sizeof(sbuf)));
 				}
 
 			strlist__delete(list);
@@ -408,7 +408,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 						continue;
 					}
 					pr_warning("Couldn't update %s: %s\n",
-						   pos->s, strerror_r(errno, sbuf, sizeof(sbuf)));
+						   pos->s, str_error_r(errno, sbuf, sizeof(sbuf)));
 				}
 
 			strlist__delete(list);

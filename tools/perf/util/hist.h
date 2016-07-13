@@ -10,6 +10,7 @@
 #include "ui/progress.h"
 
 struct hist_entry;
+struct hist_entry_ops;
 struct addr_location;
 struct symbol;
 
@@ -127,6 +128,16 @@ struct hist_entry *hists__add_entry(struct hists *hists,
 				    struct mem_info *mi,
 				    struct perf_sample *sample,
 				    bool sample_self);
+
+struct hist_entry *hists__add_entry_ops(struct hists *hists,
+					struct hist_entry_ops *ops,
+					struct addr_location *al,
+					struct symbol *sym_parent,
+					struct branch_info *bi,
+					struct mem_info *mi,
+					struct perf_sample *sample,
+					bool sample_self);
+
 int hist_entry_iter__add(struct hist_entry_iter *iter, struct addr_location *al,
 			 int max_stack_depth, void *arg);
 

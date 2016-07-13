@@ -26,6 +26,7 @@ endif
 
 CFLAGS += -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64
 CFLAGS += -I$(srctree)/tools/lib/api
+CFLAGS += -I$(srctree)/tools/include
 
 RM = rm -f
 

@@ -374,7 +374,7 @@ static int run_builtin(struct cmd_struct *p, int argc, const char **argv)
 	/* Check for ENOSPC and EIO errors.. */
 	if (fflush(stdout)) {
 		fprintf(stderr, "write failure on standard output: %s",
-			strerror_r(errno, sbuf, sizeof(sbuf)));
+			str_error_r(errno, sbuf, sizeof(sbuf)));
 		goto out;
 	}
 	if (ferror(stdout)) {
@@ -383,7 +383,7 @@ static int run_builtin(struct cmd_struct *p, int argc, const char **argv)
 	}
 	if (fclose(stdout)) {
 		fprintf(stderr, "close failed on standard output: %s",
-			strerror_r(errno, sbuf, sizeof(sbuf)));
+			str_error_r(errno, sbuf, sizeof(sbuf)));
 		goto out;
 	}
 	status = 0;
@@ -497,6 +497,16 @@ void pthread__unblock_sigwinch(void)
 	pthread_sigmask(SIG_UNBLOCK, &set, NULL);
 }
 
+#ifdef _SC_LEVEL1_DCACHE_LINESIZE
+#define cache_line_size(cacheline_sizep) *cacheline_sizep = sysconf(_SC_LEVEL1_DCACHE_LINESIZE)
+#else
+static void cache_line_size(int *cacheline_sizep)
+{
+	if (sysfs__read_int("devices/system/cpu/cpu0/cache/index0/coherency_line_size", cacheline_sizep))
+		perror("cannot determine cache line size");
+}
+#endif
+
 int main(int argc, const char **argv)
 {
 	const char *cmd;
@@ -509,7 +519,7 @@ int main(int argc, const char **argv)
 
 	/* The page_size is placed in util object. */
 	page_size = sysconf(_SC_PAGE_SIZE);
-	cacheline_size = sysconf(_SC_LEVEL1_DCACHE_LINESIZE);
+	cache_line_size(&cacheline_size);
 
 	if (sysctl__read_int("kernel/perf_event_max_stack", &value) == 0)
 		sysctl_perf_event_max_stack = value;
@@ -615,7 +625,7 @@ int main(int argc, const char **argv)
 	}
 
 	fprintf(stderr, "Failed to run command '%s': %s\n",
-		cmd, strerror_r(errno, sbuf, sizeof(sbuf)));
+		cmd, str_error_r(errno, sbuf, sizeof(sbuf)));
 out:
 	return 1;
 }

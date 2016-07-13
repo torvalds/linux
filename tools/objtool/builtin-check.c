@@ -26,6 +26,7 @@
  */
 
 #include <string.h>
+#include <stdlib.h>
 #include <subcmd/parse-options.h>
 
 #include "builtin.h"

@@ -1589,7 +1589,7 @@ bpf_loader_strerror(int err, char *buf, size_t size)
 		snprintf(buf, size, "Unknown bpf loader error %d", err);
 	else
 		snprintf(buf, size, "%s",
-			 strerror_r(err, sbuf, sizeof(sbuf)));
+			 str_error_r(err, sbuf, sizeof(sbuf)));
 
 	buf[size - 1] = '\0';
 	return -1;

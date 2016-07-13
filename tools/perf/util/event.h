@@ -8,6 +8,7 @@
 #include "map.h"
 #include "build-id.h"
 #include "perf_regs.h"
+#include <asm/perf_regs.h>
 
 struct mmap_event {
 	struct perf_event_header header;

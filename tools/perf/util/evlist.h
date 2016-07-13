@@ -323,4 +323,7 @@ void perf_event_attr__set_max_precise_ip(struct perf_event_attr *attr);
 
 struct perf_evsel *
 perf_evlist__find_evsel_by_str(struct perf_evlist *evlist, const char *str);
+
+struct perf_evsel *perf_evlist__event2evsel(struct perf_evlist *evlist,
+					    union perf_event *event);
 #endif /* __PERF_EVLIST_H */

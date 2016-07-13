@@ -11,6 +11,8 @@
  * which is what it's designed for.
  */
 #include "cache.h"
+#include "util.h"
+#include <limits.h>
 
 static char bad_path[] = "/bad-path/";
 /*

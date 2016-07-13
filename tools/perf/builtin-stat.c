@@ -596,7 +596,7 @@ try_again:
 	if (perf_evlist__apply_filters(evsel_list, &counter)) {
 		error("failed to set filter \"%s\" on event %s with %d (%s)\n",
 			counter->filter, perf_evsel__name(counter), errno,
-			strerror_r(errno, msg, sizeof(msg)));
+			str_error_r(errno, msg, sizeof(msg)));
 		return -1;
 	}
 
@@ -637,7 +637,7 @@ try_again:
 		wait(&status);
 
 		if (workload_exec_errno) {
-			const char *emsg = strerror_r(workload_exec_errno, msg, sizeof(msg));
+			const char *emsg = str_error_r(workload_exec_errno, msg, sizeof(msg));
 			pr_err("Workload failed: %s\n", emsg);
 			return -1;
 		}

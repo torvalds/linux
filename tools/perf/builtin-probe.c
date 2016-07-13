@@ -308,7 +308,7 @@ static void pr_err_with_code(const char *msg, int err)
 
 	pr_err("%s", msg);
 	pr_debug(" Reason: %s (Code: %d)",
-		 strerror_r(-err, sbuf, sizeof(sbuf)), err);
+		 str_error_r(-err, sbuf, sizeof(sbuf)), err);
 	pr_err("\n");
 }
 

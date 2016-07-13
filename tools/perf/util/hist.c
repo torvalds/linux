@@ -352,86 +352,114 @@ void hists__delete_entries(struct hists *hists)
  * histogram, sorted on item, collects periods
  */
 
+static int hist_entry__init(struct hist_entry *he,
+			    struct hist_entry *template,
+			    bool sample_self)
+{
+	*he = *template;
+
+	if (symbol_conf.cumulate_callchain) {
+		he->stat_acc = malloc(sizeof(he->stat));
+		if (he->stat_acc == NULL)
+			return -ENOMEM;
+		memcpy(he->stat_acc, &he->stat, sizeof(he->stat));
+		if (!sample_self)
+			memset(&he->stat, 0, sizeof(he->stat));
+	}
+
+	map__get(he->ms.map);
+
+	if (he->branch_info) {
+		/*
+		 * This branch info is (a part of) allocated from
+		 * sample__resolve_bstack() and will be freed after
+		 * adding new entries.  So we need to save a copy.
+		 */
+		he->branch_info = malloc(sizeof(*he->branch_info));
+		if (he->branch_info == NULL) {
+			map__zput(he->ms.map);
+			free(he->stat_acc);
+			return -ENOMEM;
+		}
+
+		memcpy(he->branch_info, template->branch_info,
+		       sizeof(*he->branch_info));
+
+		map__get(he->branch_info->from.map);
+		map__get(he->branch_info->to.map);
+	}
+
+	if (he->mem_info) {
+		map__get(he->mem_info->iaddr.map);
+		map__get(he->mem_info->daddr.map);
+	}
+
+	if (symbol_conf.use_callchain)
+		callchain_init(he->callchain);
+
+	if (he->raw_data) {
+		he->raw_data = memdup(he->raw_data, he->raw_size);
+
+		if (he->raw_data == NULL) {
+			map__put(he->ms.map);
+			if (he->branch_info) {
+				map__put(he->branch_info->from.map);
+				map__put(he->branch_info->to.map);
+				free(he->branch_info);
+			}
+			if (he->mem_info) {
+				map__put(he->mem_info->iaddr.map);
+				map__put(he->mem_info->daddr.map);
+			}
+			free(he->stat_acc);
+			return -ENOMEM;
+		}
+	}
+	INIT_LIST_HEAD(&he->pairs.node);
+	thread__get(he->thread);
+
+	if (!symbol_conf.report_hierarchy)
+		he->leaf = true;
+
+	return 0;
+}
+
+static void *hist_entry__zalloc(size_t size)
+{
+	return zalloc(size + sizeof(struct hist_entry));
+}
+
+static void hist_entry__free(void *ptr)
+{
+	free(ptr);
+}
+
+static struct hist_entry_ops default_ops = {
+	.new	= hist_entry__zalloc,
+	.free	= hist_entry__free,
+};
+
 static struct hist_entry *hist_entry__new(struct hist_entry *template,
 					  bool sample_self)
 {
+	struct hist_entry_ops *ops = template->ops;
 	size_t callchain_size = 0;
 	struct hist_entry *he;
+	int err = 0;
+
+	if (!ops)
+		ops = template->ops = &default_ops;
 
 	if (symbol_conf.use_callchain)
 		callchain_size = sizeof(struct callchain_root);
 
-	he = zalloc(sizeof(*he) + callchain_size);
-
-	if (he != NULL) {
-		*he = *template;
-
-		if (symbol_conf.cumulate_callchain) {
-			he->stat_acc = malloc(sizeof(he->stat));
-			if (he->stat_acc == NULL) {
-				free(he);
-				return NULL;
-			}
-			memcpy(he->stat_acc, &he->stat, sizeof(he->stat));
-			if (!sample_self)
-				memset(&he->stat, 0, sizeof(he->stat));
+	he = ops->new(callchain_size);
+	if (he) {
+		err = hist_entry__init(he, template, sample_self);
+		if (err) {
+			ops->free(he);
+			he = NULL;
 		}
-
-		map__get(he->ms.map);
-
-		if (he->branch_info) {
-			/*
-			 * This branch info is (a part of) allocated from
-			 * sample__resolve_bstack() and will be freed after
-			 * adding new entries.  So we need to save a copy.
-			 */
-			he->branch_info = malloc(sizeof(*he->branch_info));
-			if (he->branch_info == NULL) {
-				map__zput(he->ms.map);
-				free(he->stat_acc);
-				free(he);
-				return NULL;
-			}
-
-			memcpy(he->branch_info, template->branch_info,
-			       sizeof(*he->branch_info));
-
-			map__get(he->branch_info->from.map);
-			map__get(he->branch_info->to.map);
-		}
-
-		if (he->mem_info) {
-			map__get(he->mem_info->iaddr.map);
-			map__get(he->mem_info->daddr.map);
-		}
-
-		if (symbol_conf.use_callchain)
-			callchain_init(he->callchain);
-
-		if (he->raw_data) {
-			he->raw_data = memdup(he->raw_data, he->raw_size);
-
-			if (he->raw_data == NULL) {
-				map__put(he->ms.map);
-				if (he->branch_info) {
-					map__put(he->branch_info->from.map);
-					map__put(he->branch_info->to.map);
-					free(he->branch_info);
-				}
-				if (he->mem_info) {
-					map__put(he->mem_info->iaddr.map);
-					map__put(he->mem_info->daddr.map);
-				}
-				free(he->stat_acc);
-				free(he);
-				return NULL;
-			}
-		}
-		INIT_LIST_HEAD(&he->pairs.node);
-		thread__get(he->thread);
-
-		if (!symbol_conf.report_hierarchy)
-			he->leaf = true;
 	}
 
 	return he;
@@ -531,13 +559,15 @@ out:
 	return he;
 }
 
-struct hist_entry *hists__add_entry(struct hists *hists,
-				    struct addr_location *al,
-				    struct symbol *sym_parent,
-				    struct branch_info *bi,
-				    struct mem_info *mi,
-				    struct perf_sample *sample,
-				    bool sample_self)
+static struct hist_entry*
+__hists__add_entry(struct hists *hists,
+		   struct addr_location *al,
+		   struct symbol *sym_parent,
+		   struct branch_info *bi,
+		   struct mem_info *mi,
+		   struct perf_sample *sample,
+		   bool sample_self,
+		   struct hist_entry_ops *ops)
 {
 	struct hist_entry entry = {
 		.thread	= al->thread,
@@ -564,9 +594,35 @@ struct hist_entry *hists__add_entry(struct hists *hists,
 		.transaction = sample->transaction,
 		.raw_data = sample->raw_data,
 		.raw_size = sample->raw_size,
+		.ops = ops,
 	};
 
 	return hists__findnew_entry(hists, &entry, al, sample_self);
+}
+
+struct hist_entry *hists__add_entry(struct hists *hists,
+				    struct addr_location *al,
+				    struct symbol *sym_parent,
+				    struct branch_info *bi,
+				    struct mem_info *mi,
+				    struct perf_sample *sample,
+				    bool sample_self)
+{
+	return __hists__add_entry(hists, al, sym_parent, bi, mi,
+				  sample, sample_self, NULL);
+}
+
+struct hist_entry *hists__add_entry_ops(struct hists *hists,
+					struct hist_entry_ops *ops,
+					struct addr_location *al,
+					struct symbol *sym_parent,
+					struct branch_info *bi,
+					struct mem_info *mi,
+					struct perf_sample *sample,
+					bool sample_self)
+{
+	return __hists__add_entry(hists, al, sym_parent, bi, mi,
+				  sample, sample_self, ops);
 }
 
 static int
@@ -1043,6 +1099,8 @@ hist_entry__collapse(struct hist_entry *left, struct hist_entry *right)
 
 void hist_entry__delete(struct hist_entry *he)
 {
+	struct hist_entry_ops *ops = he->ops;
+
 	thread__zput(he->thread);
 	map__zput(he->ms.map);
 
@@ -1067,7 +1125,7 @@ void hist_entry__delete(struct hist_entry *he)
 	free_callchain(he->callchain);
 	free(he->trace_output);
 	free(he->raw_data);
-	free(he);
+	ops->free(he);
 }
 
 /*

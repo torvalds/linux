@@ -1018,13 +1018,13 @@ static int kvm_live_open_events(struct perf_kvm_stat *kvm)
 	err = perf_evlist__open(evlist);
 	if (err < 0) {
 		printf("Couldn't create the events: %s\n",
-		       strerror_r(errno, sbuf, sizeof(sbuf)));
+		       str_error_r(errno, sbuf, sizeof(sbuf)));
 		goto out;
 	}
 
 	if (perf_evlist__mmap(evlist, kvm->opts.mmap_pages, false) < 0) {
 		ui__error("Failed to mmap the events: %s\n",
-			  strerror_r(errno, sbuf, sizeof(sbuf)));
+			  str_error_r(errno, sbuf, sizeof(sbuf)));
 		perf_evlist__close(evlist);
 		goto out;
 	}

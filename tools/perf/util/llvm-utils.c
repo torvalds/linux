@@ -3,12 +3,14 @@
  * Copyright (C) 2015, Huawei Inc.
  */
 
+#include <errno.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "debug.h"
 #include "llvm-utils.h"
 #include "config.h"
+#include "util.h"
 
 #define CLANG_BPF_CMD_DEFAULT_TEMPLATE				\
 		"$CLANG_EXEC -D__KERNEL__ -D__NR_CPUS__=$NR_CPUS "\
@@ -106,7 +108,7 @@ read_from_pipe(const char *cmd, void **p_buf, size_t *p_read_sz)
 	file = popen(cmd, "r");
 	if (!file) {
 		pr_err("ERROR: unable to popen cmd: %s\n",
-		       strerror_r(errno, serr, sizeof(serr)));
+		       str_error_r(errno, serr, sizeof(serr)));
 		return -EINVAL;
 	}
 
@@ -140,7 +142,7 @@ read_from_pipe(const char *cmd, void **p_buf, size_t *p_read_sz)
 
 	if (ferror(file)) {
 		pr_err("ERROR: error occurred when reading from pipe: %s\n",
-		       strerror_r(errno, serr, sizeof(serr)));
+		       str_error_r(errno, serr, sizeof(serr)));
 		err = -EIO;
 		goto errout;
 	}
@@ -382,7 +384,7 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 	if (path[0] != '-' && realpath(path, abspath) == NULL) {
 		err = errno;
 		pr_err("ERROR: problems with path %s: %s\n",
-		       path, strerror_r(err, serr, sizeof(serr)));
+		       path, str_error_r(err, serr, sizeof(serr)));
 		return -err;
 	}
 
@@ -410,7 +412,7 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 	if (nr_cpus_avail <= 0) {
 		pr_err(
 "WARNING:\tunable to get available CPUs in this system: %s\n"
-"        \tUse 128 instead.\n", strerror_r(errno, serr, sizeof(serr)));
+"        \tUse 128 instead.\n", str_error_r(errno, serr, sizeof(serr)));
 		nr_cpus_avail = 128;
 	}
 	snprintf(nr_cpus_avail_str, sizeof(nr_cpus_avail_str), "%d",

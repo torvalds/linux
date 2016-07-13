@@ -60,7 +60,7 @@ static int do_test(struct perf_evlist *evlist, int mmap_pages,
 	err = perf_evlist__mmap(evlist, mmap_pages, true);
 	if (err < 0) {
 		pr_debug("perf_evlist__mmap: %s\n",
-			 strerror_r(errno, sbuf, sizeof(sbuf)));
+			 str_error_r(errno, sbuf, sizeof(sbuf)));
 		return TEST_FAIL;
 	}
 
@@ -124,7 +124,7 @@ int test__backward_ring_buffer(int subtest __maybe_unused)
 	err = perf_evlist__open(evlist);
 	if (err < 0) {
 		pr_debug("perf_evlist__open: %s\n",
-			 strerror_r(errno, sbuf, sizeof(sbuf)));
+			 str_error_r(errno, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
 
