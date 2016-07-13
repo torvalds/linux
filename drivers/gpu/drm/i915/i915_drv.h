@@ -1188,7 +1188,7 @@ struct intel_gen6_power_mgmt {
 	bool client_boost;
 
 	bool enabled;
-	struct delayed_work delayed_resume_work;
+	struct delayed_work autoenable_work;
 	unsigned boosts;
 
 	struct intel_rps_client semaphores, mmioflips;

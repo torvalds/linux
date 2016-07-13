@@ -435,7 +435,7 @@ void intel_uncore_sanitize(struct drm_i915_private *dev_priv)
 	i915.enable_rc6 = sanitize_rc6_option(dev_priv, i915.enable_rc6);
 
 	/* BIOS often leaves RC6 enabled, but disable it for hw init */
-	intel_disable_gt_powersave(dev_priv);
+	intel_sanitize_gt_powersave(dev_priv);
 }
 
 static void __intel_uncore_forcewake_get(struct drm_i915_private *dev_priv,

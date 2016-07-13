@@ -6536,6 +6536,8 @@ void intel_init_gt_powersave(struct drm_i915_private *dev_priv)
 	dev_priv->rps.boost_freq = dev_priv->rps.max_freq;
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
+
+	intel_autoenable_gt_powersave(dev_priv);
 }
 
 void intel_cleanup_gt_powersave(struct drm_i915_private *dev_priv)
@@ -6547,13 +6549,6 @@ void intel_cleanup_gt_powersave(struct drm_i915_private *dev_priv)
 
 	if (!i915.enable_rc6)
 		intel_runtime_pm_put(dev_priv);
-}
-
-static void gen6_suspend_rps(struct drm_i915_private *dev_priv)
-{
-	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
-
-	gen6_disable_rps_interrupts(dev_priv);
 }
 
 /**
@@ -6569,50 +6564,63 @@ void intel_suspend_gt_powersave(struct drm_i915_private *dev_priv)
 	if (INTEL_GEN(dev_priv) < 6)
 		return;
 
-	gen6_suspend_rps(dev_priv);
+	if (cancel_delayed_work_sync(&dev_priv->rps.autoenable_work))
+		intel_runtime_pm_put(dev_priv);
 
-	/* Force GPU to min freq during suspend */
-	gen6_rps_idle(dev_priv);
+	/* gen6_rps_idle() will be called later to disable interrupts */
+}
+
+void intel_sanitize_gt_powersave(struct drm_i915_private *dev_priv)
+{
+	dev_priv->rps.enabled = true; /* force disabling */
+	intel_disable_gt_powersave(dev_priv);
+
+	gen6_reset_rps_interrupts(dev_priv);
 }
 
 void intel_disable_gt_powersave(struct drm_i915_private *dev_priv)
 {
-	if (IS_IRONLAKE_M(dev_priv)) {
-		ironlake_disable_drps(dev_priv);
-	} else if (INTEL_INFO(dev_priv)->gen >= 6) {
-		intel_suspend_gt_powersave(dev_priv);
-
-		mutex_lock(&dev_priv->rps.hw_lock);
-		if (INTEL_INFO(dev_priv)->gen >= 9) {
-			gen9_disable_rc6(dev_priv);
-			gen9_disable_rps(dev_priv);
-		} else if (IS_CHERRYVIEW(dev_priv))
-			cherryview_disable_rps(dev_priv);
-		else if (IS_VALLEYVIEW(dev_priv))
-			valleyview_disable_rps(dev_priv);
-		else
-			gen6_disable_rps(dev_priv);
-
-		dev_priv->rps.enabled = false;
-		mutex_unlock(&dev_priv->rps.hw_lock);
-	}
-}
-
-static void intel_gen6_powersave_work(struct work_struct *work)
-{
-	struct drm_i915_private *dev_priv =
-		container_of(work, struct drm_i915_private,
-			     rps.delayed_resume_work.work);
+	if (!READ_ONCE(dev_priv->rps.enabled))
+		return;
 
 	mutex_lock(&dev_priv->rps.hw_lock);
 
-	gen6_reset_rps_interrupts(dev_priv);
+	if (INTEL_GEN(dev_priv) >= 9) {
+		gen9_disable_rc6(dev_priv);
+		gen9_disable_rps(dev_priv);
+	} else if (IS_CHERRYVIEW(dev_priv)) {
+		cherryview_disable_rps(dev_priv);
+	} else if (IS_VALLEYVIEW(dev_priv)) {
+		valleyview_disable_rps(dev_priv);
+	} else if (INTEL_GEN(dev_priv) >= 6) {
+		gen6_disable_rps(dev_priv);
+	}  else if (IS_IRONLAKE_M(dev_priv)) {
+		ironlake_disable_drps(dev_priv);
+	}
+
+	dev_priv->rps.enabled = false;
+	mutex_unlock(&dev_priv->rps.hw_lock);
+}
+
+void intel_enable_gt_powersave(struct drm_i915_private *dev_priv)
+{
+	/* We shouldn't be disabling as we submit, so this should be less
+	 * racy than it appears!
+	 */
+	if (READ_ONCE(dev_priv->rps.enabled))
+		return;
+
+	/* Powersaving is controlled by the host when inside a VM */
+	if (intel_vgpu_active(dev_priv))
+		return;
+
+	mutex_lock(&dev_priv->rps.hw_lock);
 
 	if (IS_CHERRYVIEW(dev_priv)) {
 		cherryview_enable_rps(dev_priv);
 	} else if (IS_VALLEYVIEW(dev_priv)) {
 		valleyview_enable_rps(dev_priv);
-	} else if (INTEL_INFO(dev_priv)->gen >= 9) {
+	} else if (INTEL_GEN(dev_priv) >= 9) {
 		gen9_enable_rc6(dev_priv);
 		gen9_enable_rps(dev_priv);
 		if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
@@ -6620,9 +6628,12 @@ static void intel_gen6_powersave_work(struct work_struct *work)
 	} else if (IS_BROADWELL(dev_priv)) {
 		gen8_enable_rps(dev_priv);
 		__gen6_update_ring_freq(dev_priv);
-	} else {
+	} else if (INTEL_GEN(dev_priv) >= 6) {
 		gen6_enable_rps(dev_priv);
 		__gen6_update_ring_freq(dev_priv);
+	} else if (IS_IRONLAKE_M(dev_priv)) {
+		ironlake_enable_drps(dev_priv);
+		intel_init_emon(dev_priv);
 	}
 
 	WARN_ON(dev_priv->rps.max_freq < dev_priv->rps.min_freq);
@@ -6632,18 +6643,47 @@ static void intel_gen6_powersave_work(struct work_struct *work)
 	WARN_ON(dev_priv->rps.efficient_freq > dev_priv->rps.max_freq);
 
 	dev_priv->rps.enabled = true;
-
-	gen6_enable_rps_interrupts(dev_priv);
-
 	mutex_unlock(&dev_priv->rps.hw_lock);
+}
 
+static void __intel_autoenable_gt_powersave(struct work_struct *work)
+{
+	struct drm_i915_private *dev_priv =
+		container_of(work, typeof(*dev_priv), rps.autoenable_work.work);
+	struct intel_engine_cs *rcs;
+	struct drm_i915_gem_request *req;
+
+	if (READ_ONCE(dev_priv->rps.enabled))
+		goto out;
+
+	rcs = &dev_priv->engine[RCS];
+	if (rcs->last_context)
+		goto out;
+
+	if (!rcs->init_context)
+		goto out;
+
+	mutex_lock(&dev_priv->drm.struct_mutex);
+
+	req = i915_gem_request_alloc(rcs, dev_priv->kernel_context);
+	if (IS_ERR(req))
+		goto unlock;
+
+	if (!i915.enable_execlists && i915_switch_context(req) == 0)
+		rcs->init_context(req);
+
+	/* Mark the device busy, calling intel_enable_gt_powersave() */
+	i915_add_request_no_flush(req);
+
+unlock:
+	mutex_unlock(&dev_priv->drm.struct_mutex);
+out:
 	intel_runtime_pm_put(dev_priv);
 }
 
-void intel_enable_gt_powersave(struct drm_i915_private *dev_priv)
+void intel_autoenable_gt_powersave(struct drm_i915_private *dev_priv)
 {
-	/* Powersaving is controlled by the host when inside a VM */
-	if (intel_vgpu_active(dev_priv))
+	if (READ_ONCE(dev_priv->rps.enabled))
 		return;
 
 	if (IS_IRONLAKE_M(dev_priv)) {
@@ -6664,19 +6704,11 @@ void intel_enable_gt_powersave(struct drm_i915_private *dev_priv)
 		 * paths, so the _noresume version is enough (and in case of
 		 * runtime resume it's necessary).
 		 */
-		if (schedule_delayed_work(&dev_priv->rps.delayed_resume_work,
-					   round_jiffies_up_relative(HZ)))
+		if (queue_delayed_work(dev_priv->wq,
+				       &dev_priv->rps.autoenable_work,
+				       round_jiffies_up_relative(HZ)))
 			intel_runtime_pm_get_noresume(dev_priv);
 	}
-}
-
-void intel_reset_gt_powersave(struct drm_i915_private *dev_priv)
-{
-	if (INTEL_INFO(dev_priv)->gen < 6)
-		return;
-
-	gen6_suspend_rps(dev_priv);
-	dev_priv->rps.enabled = false;
 }
 
 static void ibx_init_clock_gating(struct drm_device *dev)
@@ -7785,8 +7817,8 @@ void intel_pm_setup(struct drm_device *dev)
 	mutex_init(&dev_priv->rps.hw_lock);
 	spin_lock_init(&dev_priv->rps.client_lock);
 
-	INIT_DELAYED_WORK(&dev_priv->rps.delayed_resume_work,
-			  intel_gen6_powersave_work);
+	INIT_DELAYED_WORK(&dev_priv->rps.autoenable_work,
+			  __intel_autoenable_gt_powersave);
 	INIT_LIST_HEAD(&dev_priv->rps.clients);
 	INIT_LIST_HEAD(&dev_priv->rps.semaphores.link);
 	INIT_LIST_HEAD(&dev_priv->rps.mmioflips.link);

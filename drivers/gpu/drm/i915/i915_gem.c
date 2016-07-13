@@ -2842,6 +2842,7 @@ static void i915_gem_mark_busy(const struct intel_engine_cs *engine)
 	intel_runtime_pm_get_noresume(dev_priv);
 	dev_priv->gt.awake = true;
 
+	intel_enable_gt_powersave(dev_priv);
 	i915_update_gfx_val(dev_priv);
 	if (INTEL_GEN(dev_priv) >= 6)
 		gen6_rps_busy(dev_priv);
@@ -4978,6 +4979,8 @@ i915_gem_suspend(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	int ret = 0;
+
+	intel_suspend_gt_powersave(dev_priv);
 
 	mutex_lock(&dev->struct_mutex);
 	ret = i915_gem_wait_for_idle(dev_priv);
