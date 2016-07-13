@@ -693,9 +693,9 @@ int bpf__load(struct bpf_object *obj)
 	return 0;
 }
 
-int bpf__foreach_tev(struct bpf_object *obj,
-		     bpf_prog_iter_callback_t func,
-		     void *arg)
+int bpf__foreach_event(struct bpf_object *obj,
+		       bpf_prog_iter_callback_t func,
+		       void *arg)
 {
 	struct bpf_program *prog;
 	int err;
@@ -728,7 +728,7 @@ int bpf__foreach_tev(struct bpf_object *obj,
 				return fd;
 			}
 
-			err = (*func)(tev, fd, arg);
+			err = (*func)(tev->group, tev->event, fd, arg);
 			if (err) {
 				pr_debug("bpf: call back failed, stop iterate\n");
 				return err;

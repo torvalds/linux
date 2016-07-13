@@ -584,7 +584,7 @@ struct __add_bpf_event_param {
 	struct list_head *head_config;
 };
 
-static int add_bpf_event(struct probe_trace_event *tev, int fd,
+static int add_bpf_event(const char *group, const char *event, int fd,
 			 void *_param)
 {
 	LIST_HEAD(new_evsels);
@@ -595,27 +595,27 @@ static int add_bpf_event(struct probe_trace_event *tev, int fd,
 	int err;
 
 	pr_debug("add bpf event %s:%s and attach bpf program %d\n",
-		 tev->group, tev->event, fd);
+		 group, event, fd);
 
-	err = parse_events_add_tracepoint(&new_evsels, &evlist->idx, tev->group,
-					  tev->event, evlist->error,
+	err = parse_events_add_tracepoint(&new_evsels, &evlist->idx, group,
+					  event, evlist->error,
 					  param->head_config);
 	if (err) {
 		struct perf_evsel *evsel, *tmp;
 
 		pr_debug("Failed to add BPF event %s:%s\n",
-			 tev->group, tev->event);
+			 group, event);
 		list_for_each_entry_safe(evsel, tmp, &new_evsels, node) {
 			list_del(&evsel->node);
 			perf_evsel__delete(evsel);
 		}
 		return err;
 	}
-	pr_debug("adding %s:%s\n", tev->group, tev->event);
+	pr_debug("adding %s:%s\n", group, event);
 
 	list_for_each_entry(pos, &new_evsels, node) {
 		pr_debug("adding %s:%s to %p\n",
-			 tev->group, tev->event, pos);
+			 group, event, pos);
 		pos->bpf_fd = fd;
 	}
 	list_splice(&new_evsels, list);
@@ -661,7 +661,7 @@ int parse_events_load_bpf_obj(struct parse_events_evlist *data,
 		goto errout;
 	}
 
-	err = bpf__foreach_tev(obj, add_bpf_event, &param);
+	err = bpf__foreach_event(obj, add_bpf_event, &param);
 	if (err) {
 		snprintf(errbuf, sizeof(errbuf),
 			 "Attach events in BPF object failed");
