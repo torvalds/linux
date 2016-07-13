@@ -9,6 +9,7 @@
 
 #include <linux/pci.h>
 #include <misc/cxl.h>
+#include <asm/pnv-pci.h>
 #include "cxl.h"
 
 static int cxl_dma_set_mask(struct pci_dev *pdev, u64 dma_mask)
@@ -258,13 +259,18 @@ void cxl_pci_vphb_remove(struct cxl_afu *afu)
 	pcibios_free_controller(phb);
 }
 
+static bool _cxl_pci_is_vphb_device(struct pci_controller *phb)
+{
+	return (phb->ops == &cxl_pcie_pci_ops);
+}
+
 bool cxl_pci_is_vphb_device(struct pci_dev *dev)
 {
 	struct pci_controller *phb;
 
 	phb = pci_bus_to_host(dev->bus);
 
-	return (phb->ops == &cxl_pcie_pci_ops);
+	return _cxl_pci_is_vphb_device(phb);
 }
 
 struct cxl_afu *cxl_pci_to_afu(struct pci_dev *dev)
@@ -273,7 +279,13 @@ struct cxl_afu *cxl_pci_to_afu(struct pci_dev *dev)
 
 	phb = pci_bus_to_host(dev->bus);
 
-	return (struct cxl_afu *)phb->private_data;
+	if (_cxl_pci_is_vphb_device(phb))
+		return (struct cxl_afu *)phb->private_data;
+
+	if (pnv_pci_on_cxl_phb(dev))
+		return pnv_cxl_phb_to_afu(phb);
+
+	return ERR_PTR(-ENODEV);
 }
 EXPORT_SYMBOL_GPL(cxl_pci_to_afu);
 

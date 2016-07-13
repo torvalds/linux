@@ -13,6 +13,7 @@
 #include <linux/file.h>
 #include <misc/cxl.h>
 #include <linux/fs.h>
+#include <asm/pnv-pci.h>
 
 #include "cxl.h"
 
@@ -24,6 +25,8 @@ struct cxl_context *cxl_dev_context_init(struct pci_dev *dev)
 	int rc;
 
 	afu = cxl_pci_to_afu(dev);
+	if (IS_ERR(afu))
+		return ERR_CAST(afu);
 
 	ctx = cxl_context_alloc();
 	if (IS_ERR(ctx)) {
@@ -438,6 +441,8 @@ EXPORT_SYMBOL_GPL(cxl_perst_reloads_same_image);
 ssize_t cxl_read_adapter_vpd(struct pci_dev *dev, void *buf, size_t count)
 {
 	struct cxl_afu *afu = cxl_pci_to_afu(dev);
+	if (IS_ERR(afu))
+		return -ENODEV;
 
 	return cxl_ops->read_adapter_vpd(afu->adapter, buf, count);
 }
