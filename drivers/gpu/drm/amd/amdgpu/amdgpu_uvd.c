@@ -662,7 +662,7 @@ static int amdgpu_uvd_cs_msg(struct amdgpu_uvd_cs_ctx *ctx,
 		}
 
 		DRM_ERROR("No more free UVD handles!\n");
-		return -EINVAL;
+		return -ENOSPC;
 
 	case 1:
 		/* it's a decode msg, calc buffer sizes */
