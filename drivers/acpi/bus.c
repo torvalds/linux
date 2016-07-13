@@ -925,11 +925,13 @@ void __init acpi_early_init(void)
 		goto error0;
 	}
 
-	status = acpi_load_tables();
-	if (ACPI_FAILURE(status)) {
-		printk(KERN_ERR PREFIX
-		       "Unable to load the System Description Tables\n");
-		goto error0;
+	if (acpi_gbl_group_module_level_code) {
+		status = acpi_load_tables();
+		if (ACPI_FAILURE(status)) {
+			printk(KERN_ERR PREFIX
+			       "Unable to load the System Description Tables\n");
+			goto error0;
+		}
 	}
 
 #ifdef CONFIG_X86
@@ -995,17 +997,10 @@ static int __init acpi_bus_init(void)
 
 	acpi_os_initialize1();
 
-	status = acpi_enable_subsystem(ACPI_NO_ACPI_ENABLE);
-	if (ACPI_FAILURE(status)) {
-		printk(KERN_ERR PREFIX
-		       "Unable to start the ACPI Interpreter\n");
-		goto error1;
-	}
-
 	/*
 	 * ACPI 2.0 requires the EC driver to be loaded and work before
-	 * the EC device is found in the namespace (i.e. before acpi_initialize_objects()
-	 * is called).
+	 * the EC device is found in the namespace (i.e. before
+	 * acpi_load_tables() is called).
 	 *
 	 * This is accomplished by looking for the ECDT table, and getting
 	 * the EC parameters out of that.
@@ -1013,11 +1008,30 @@ static int __init acpi_bus_init(void)
 	status = acpi_ec_ecdt_probe();
 	/* Ignore result. Not having an ECDT is not fatal. */
 
+	if (!acpi_gbl_group_module_level_code) {
+		status = acpi_load_tables();
+		if (ACPI_FAILURE(status)) {
+			printk(KERN_ERR PREFIX
+			       "Unable to load the System Description Tables\n");
+			goto error1;
+		}
+	}
+
+	status = acpi_enable_subsystem(ACPI_NO_ACPI_ENABLE);
+	if (ACPI_FAILURE(status)) {
+		printk(KERN_ERR PREFIX
+		       "Unable to start the ACPI Interpreter\n");
+		goto error1;
+	}
+
 	status = acpi_initialize_objects(ACPI_FULL_INITIALIZATION);
 	if (ACPI_FAILURE(status)) {
 		printk(KERN_ERR PREFIX "Unable to initialize ACPI objects\n");
 		goto error1;
 	}
+
+	/* Set capability bits for _OSC under processor scope */
+	acpi_early_processor_osc();
 
 	/*
 	 * _OSC method may exist in module level code,
@@ -1037,7 +1051,7 @@ static int __init acpi_bus_init(void)
 	 * Maybe EC region is required at bus_scan/acpi_get_devices. So it
 	 * is necessary to enable it as early as possible.
 	 */
-	acpi_boot_ec_enable();
+	acpi_ec_dsdt_probe();
 
 	printk(KERN_INFO PREFIX "Interpreter enabled\n");
 

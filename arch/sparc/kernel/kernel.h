@@ -54,12 +54,12 @@ void do_signal32(struct pt_regs * regs);
 asmlinkage int do_sys32_sigstack(u32 u_ssptr, u32 u_ossptr, unsigned long sp);
 
 /* compat_audit.c */
-extern unsigned sparc32_dir_class[];
-extern unsigned sparc32_chattr_class[];
-extern unsigned sparc32_write_class[];
-extern unsigned sparc32_read_class[];
-extern unsigned sparc32_signal_class[];
-int sparc32_classify_syscall(unsigned syscall);
+extern unsigned int sparc32_dir_class[];
+extern unsigned int sparc32_chattr_class[];
+extern unsigned int sparc32_write_class[];
+extern unsigned int sparc32_read_class[];
+extern unsigned int sparc32_signal_class[];
+int sparc32_classify_syscall(unsigned int syscall);
 #endif
 
 #ifdef CONFIG_SPARC32
@@ -127,6 +127,7 @@ extern unsigned int t_nmi[];
 extern unsigned int linux_trap_ipi15_sun4d[];
 extern unsigned int linux_trap_ipi15_sun4m[];
 
+extern struct tt_entry trapbase;
 extern struct tt_entry trapbase_cpu1;
 extern struct tt_entry trapbase_cpu2;
 extern struct tt_entry trapbase_cpu3;

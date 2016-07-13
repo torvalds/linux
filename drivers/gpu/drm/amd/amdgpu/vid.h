@@ -54,7 +54,8 @@
 #define AUD3_REGISTER_OFFSET                 (0x17b4 - 0x17a8)
 #define AUD4_REGISTER_OFFSET                 (0x17b8 - 0x17a8)
 #define AUD5_REGISTER_OFFSET                 (0x17bc - 0x17a8)
-#define AUD6_REGISTER_OFFSET                 (0x17c4 - 0x17a8)
+#define AUD6_REGISTER_OFFSET                 (0x17c0 - 0x17a8)
+#define AUD7_REGISTER_OFFSET                 (0x17c4 - 0x17a8)
 
 /* hpd instance offsets */
 #define HPD0_REGISTER_OFFSET                 (0x1898 - 0x1898)
@@ -70,8 +71,6 @@
 #define		MEID(x)						((x) << 2)
 #define		VMID(x)						((x) << 4)
 #define		QUEUEID(x)					((x) << 8)
-
-#define RB_BITMAP_WIDTH_PER_SH     2
 
 #define MC_SEQ_MISC0__MT__MASK	0xf0000000
 #define MC_SEQ_MISC0__MT__GDDR1  0x10000000
@@ -367,7 +366,7 @@
 #define VCE_CMD_IB		0x00000002
 #define VCE_CMD_FENCE		0x00000003
 #define VCE_CMD_TRAP		0x00000004
-#define VCE_CMD_IB_AUTO 	0x00000005
+#define VCE_CMD_IB_AUTO	0x00000005
 #define VCE_CMD_SEMAPHORE	0x00000006
 
 #endif

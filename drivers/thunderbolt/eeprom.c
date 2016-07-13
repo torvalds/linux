@@ -221,7 +221,7 @@ struct tb_drom_entry_port {
 	u8 micro1:4;
 	u8 micro3;
 
-	/* BYTES 5-6, TODO: verify (find hardware that has these set) */
+	/* BYTES 6-7, TODO: verify (find hardware that has these set) */
 	u8 peer_port_rid:4;
 	u8 unknown3:3;
 	bool has_peer_port:1;
@@ -388,6 +388,11 @@ int tb_drom_read(struct tb_switch *sw)
 		sw->ports[4].link_nr = 1;
 		sw->ports[3].dual_link_port = &sw->ports[4];
 		sw->ports[4].dual_link_port = &sw->ports[3];
+
+		/* Port 5 is inaccessible on this gen 1 controller */
+		if (sw->config.device_id == PCI_DEVICE_ID_INTEL_LIGHT_RIDGE)
+			sw->ports[5].disabled = true;
+
 		return 0;
 	}
 
@@ -444,6 +449,7 @@ int tb_drom_read(struct tb_switch *sw)
 	return tb_drom_parse_entries(sw);
 err:
 	kfree(sw->drom);
+	sw->drom = NULL;
 	return -EIO;
 
 }

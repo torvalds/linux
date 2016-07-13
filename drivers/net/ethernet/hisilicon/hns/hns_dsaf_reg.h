@@ -10,25 +10,20 @@
 #ifndef _DSAF_REG_H_
 #define _DSAF_REG_H_
 
-#define HNS_DEBUG_RING_IRQ_IDX 55
-#define HNS_SERVICE_RING_IRQ_IDX 59
-#define HNS_DEBUG_RING_IRQ_OFFSET 2
-#define HNSV2_DEBUG_RING_IRQ_IDX 409
-#define HNSV2_SERVICE_RING_IRQ_IDX 25
-#define HNSV2_DEBUG_RING_IRQ_OFFSET 9
+#include <linux/regmap.h>
+#define HNS_DEBUG_RING_IRQ_IDX		0
+#define HNS_SERVICE_RING_IRQ_IDX	59
+#define HNSV2_SERVICE_RING_IRQ_IDX	25
 
-#define DSAF_MAX_PORT_NUM_PER_CHIP 8
-#define DSAF_SERVICE_PORT_NUM_PER_DSAF 6
-#define DSAF_MAX_VM_NUM 128
+#define DSAF_MAX_PORT_NUM	6
+#define DSAF_MAX_VM_NUM		128
 
-#define DSAF_COMM_DEV_NUM 3
-#define DSAF_PPE_INODE_BASE 6
-#define HNS_DSAF_COMM_SERVICE_NW_IDX 0
+#define DSAF_COMM_DEV_NUM	1
+#define DSAF_PPE_INODE_BASE	6
 #define DSAF_DEBUG_NW_NUM	2
 #define DSAF_SERVICE_NW_NUM	6
 #define DSAF_COMM_CHN		DSAF_SERVICE_NW_NUM
 #define DSAF_GE_NUM		((DSAF_SERVICE_NW_NUM) + (DSAF_DEBUG_NW_NUM))
-#define DSAF_PORT_NUM		((DSAF_SERVICE_NW_NUM) + (DSAF_DEBUG_NW_NUM))
 #define DSAF_XGE_NUM		DSAF_SERVICE_NW_NUM
 #define DSAF_PORT_TYPE_NUM 3
 #define DSAF_NODE_NUM		18
@@ -103,6 +98,8 @@
 /*serdes offset**/
 #define HNS_MAC_HILINK3_REG DSAF_SUB_SC_HILINK3_CRG_CTRL0_REG
 #define HNS_MAC_HILINK4_REG DSAF_SUB_SC_HILINK4_CRG_CTRL0_REG
+#define HNS_MAC_HILINK3V2_REG DSAF_SUB_SC_HILINK3_CRG_CTRL1_REG
+#define HNS_MAC_HILINK4V2_REG DSAF_SUB_SC_HILINK4_CRG_CTRL1_REG
 #define HNS_MAC_LANE0_CTLEDFE_REG 0x000BFFCCULL
 #define HNS_MAC_LANE1_CTLEDFE_REG 0x000BFFBCULL
 #define HNS_MAC_LANE2_CTLEDFE_REG 0x000BFFACULL
@@ -135,6 +132,7 @@
 #define DSAF_PPE_INT_STS_0_REG		0x1E0
 #define DSAF_ROCEE_INT_STS_0_REG	0x200
 #define DSAFV2_SERDES_LBK_0_REG         0x220
+#define DSAF_PAUSE_CFG_REG		0x240
 #define DSAF_PPE_QID_CFG_0_REG		0x300
 #define DSAF_SW_PORT_TYPE_0_REG		0x320
 #define DSAF_STP_PORT_TYPE_0_REG	0x340
@@ -153,6 +151,7 @@
 #define DSAF_INODE_FINAL_IN_PKT_NUM_0_REG	0x1030
 #define DSAF_INODE_SBM_PID_NUM_0_REG		0x1038
 #define DSAF_INODE_FINAL_IN_PAUSE_NUM_0_REG	0x103C
+#define DSAFV2_INODE_FINAL_IN_PAUSE_NUM_0_REG	0x1024
 #define DSAF_INODE_SBM_RELS_NUM_0_REG		0x104C
 #define DSAF_INODE_SBM_DROP_NUM_0_REG		0x1050
 #define DSAF_INODE_CRC_FALSE_NUM_0_REG		0x1054
@@ -404,6 +403,7 @@
 #define RCB_CFG_OVERTIME_REG			0x9300
 #define RCB_CFG_PKTLINE_INT_NUM_REG		0x9304
 #define RCB_CFG_OVERTIME_INT_NUM_REG		0x9308
+#define RCB_PORT_CFG_OVERTIME_REG		0x9430
 
 #define RCB_RING_RX_RING_BASEADDR_L_REG		0x00000
 #define RCB_RING_RX_RING_BASEADDR_H_REG		0x00004
@@ -708,6 +708,10 @@
 #define DSAF_PFC_UNINT_CNT_M ((1ULL << 9) - 1)
 #define DSAF_PFC_UNINT_CNT_S 0
 
+#define DSAF_MAC_PAUSE_RX_EN_B 2
+#define DSAF_PFC_PAUSE_RX_EN_B 1
+#define DSAF_PFC_PAUSE_TX_EN_B 0
+
 #define DSAF_PPE_QID_CFG_M 0xFF
 #define DSAF_PPE_QID_CFG_S 0
 
@@ -922,6 +926,8 @@
 #define GMAC_LP_REG_CF2MI_LP_EN_B	2
 
 #define GMAC_MODE_CHANGE_EB_B	0
+#define GMAC_UC_MATCH_EN_B	0
+#define GMAC_ADDR_EN_B		16
 
 #define GMAC_RECV_CTRL_STRIP_PAD_EN_B	3
 #define GMAC_RECV_CTRL_RUNT_PKT_EN_B	4
@@ -981,6 +987,19 @@ static inline u32 dsaf_read_reg(u8 __iomem *base, u32 reg)
 	u8 __iomem *reg_addr = ACCESS_ONCE(base);
 
 	return readl(reg_addr + reg);
+}
+
+static inline void dsaf_write_syscon(struct regmap *base, u32 reg, u32 value)
+{
+	regmap_write(base, reg, value);
+}
+
+static inline u32 dsaf_read_syscon(struct regmap *base, u32 reg)
+{
+	unsigned int val;
+
+	regmap_read(base, reg, &val);
+	return val;
 }
 
 #define dsaf_read_dev(a, reg) \

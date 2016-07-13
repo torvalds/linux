@@ -37,10 +37,10 @@
 #define DP_DPCD_SIZE DP_RECEIVER_CAP_SIZE
 
 static char *voltage_names[] = {
-        "0.4V", "0.6V", "0.8V", "1.2V"
+	"0.4V", "0.6V", "0.8V", "1.2V"
 };
 static char *pre_emph_names[] = {
-        "0dB", "3.5dB", "6dB", "9.5dB"
+	"0dB", "3.5dB", "6dB", "9.5dB"
 };
 
 /***** radeon AUX functions *****/
@@ -326,8 +326,8 @@ int radeon_dp_get_dp_link_config(struct drm_connector *connector,
 			}
 		}
 	} else {
-		for (lane_num = 1; lane_num <= max_lane_num; lane_num <<= 1) {
-			for (i = 0; i < ARRAY_SIZE(link_rates) && link_rates[i] <= max_link_rate; i++) {
+		for (i = 0; i < ARRAY_SIZE(link_rates) && link_rates[i] <= max_link_rate; i++) {
+			for (lane_num = 1; lane_num <= max_lane_num; lane_num <<= 1) {
 				max_pix_clock = (lane_num * link_rates[i] * 8) / bpp;
 				if (max_pix_clock >= pix_clock) {
 					*dp_lanes = lane_num;

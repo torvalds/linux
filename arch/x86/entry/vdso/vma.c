@@ -18,7 +18,6 @@
 #include <asm/vdso.h>
 #include <asm/vvar.h>
 #include <asm/page.h>
-#include <asm/hpet.h>
 #include <asm/desc.h>
 #include <asm/cpufeature.h>
 
@@ -129,16 +128,6 @@ static int vvar_fault(const struct vm_special_mapping *sm,
 	if (sym_offset == image->sym_vvar_page) {
 		ret = vm_insert_pfn(vma, (unsigned long)vmf->virtual_address,
 				    __pa_symbol(&__vvar_page) >> PAGE_SHIFT);
-	} else if (sym_offset == image->sym_hpet_page) {
-#ifdef CONFIG_HPET_TIMER
-		if (hpet_address && vclock_was_used(VCLOCK_HPET)) {
-			ret = vm_insert_pfn_prot(
-				vma,
-				(unsigned long)vmf->virtual_address,
-				hpet_address >> PAGE_SHIFT,
-				pgprot_noncached(PAGE_READONLY));
-		}
-#endif
 	} else if (sym_offset == image->sym_pvclock_page) {
 		struct pvclock_vsyscall_time_info *pvti =
 			pvclock_pvti_cpu0_va();
@@ -174,7 +163,8 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
 		addr = 0;
 	}
 
-	down_write(&mm->mmap_sem);
+	if (down_write_killable(&mm->mmap_sem))
+		return -EINTR;
 
 	addr = get_unmapped_area(NULL, addr,
 				 image->size - image->sym_vvar_start, 0, 0);

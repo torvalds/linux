@@ -9,6 +9,7 @@ if MTD_SPI_NOR
 
 config MTD_MT81xx_NOR
 	tristate "Mediatek MT81xx SPI NOR flash controller"
+	depends on HAS_IOMEM
 	help
 	  This enables access to SPI NOR flash, using MT81xx SPI NOR flash
 	  controller. This controller does not support generic SPI BUS, it only
@@ -30,7 +31,7 @@ config MTD_SPI_NOR_USE_4K_SECTORS
 
 config SPI_FSL_QUADSPI
 	tristate "Freescale Quad SPI controller"
-	depends on ARCH_MXC || COMPILE_TEST
+	depends on ARCH_MXC || SOC_LS1021A || ARCH_LAYERSCAPE || COMPILE_TEST
 	depends on HAS_IOMEM
 	help
 	  This enables support for the Quad SPI controller in master mode.

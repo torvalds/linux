@@ -43,8 +43,7 @@ int __init btrfs_delayed_inode_init(void)
 
 void btrfs_delayed_inode_exit(void)
 {
-	if (delayed_node_cache)
-		kmem_cache_destroy(delayed_node_cache);
+	kmem_cache_destroy(delayed_node_cache);
 }
 
 static inline void btrfs_init_delayed_node(
@@ -135,7 +134,7 @@ again:
 	/* cached in the btrfs inode and can be accessed */
 	atomic_add(2, &node->refs);
 
-	ret = radix_tree_preload(GFP_NOFS & ~__GFP_HIGHMEM);
+	ret = radix_tree_preload(GFP_NOFS);
 	if (ret) {
 		kmem_cache_free(delayed_node_cache, node);
 		return ERR_PTR(ret);
@@ -651,9 +650,14 @@ static int btrfs_delayed_inode_reserve_metadata(
 			goto out;
 
 		ret = btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes);
-		if (!WARN_ON(ret))
+		if (!ret)
 			goto out;
 
+		if (btrfs_test_opt(root, ENOSPC_DEBUG)) {
+			btrfs_debug(root->fs_info,
+				    "block rsv migrate returned %d", ret);
+			WARN_ON(1);
+		}
 		/*
 		 * Ok this is a problem, let's just steal from the global rsv
 		 * since this really shouldn't happen that often.
@@ -1602,15 +1606,23 @@ int btrfs_inode_delayed_dir_index_count(struct inode *inode)
 	return 0;
 }
 
-void btrfs_get_delayed_items(struct inode *inode, struct list_head *ins_list,
-			     struct list_head *del_list)
+bool btrfs_readdir_get_delayed_items(struct inode *inode,
+				     struct list_head *ins_list,
+				     struct list_head *del_list)
 {
 	struct btrfs_delayed_node *delayed_node;
 	struct btrfs_delayed_item *item;
 
 	delayed_node = btrfs_get_delayed_node(inode);
 	if (!delayed_node)
-		return;
+		return false;
+
+	/*
+	 * We can only do one readdir with delayed items at a time because of
+	 * item->readdir_list.
+	 */
+	inode_unlock_shared(inode);
+	inode_lock(inode);
 
 	mutex_lock(&delayed_node->mutex);
 	item = __btrfs_first_delayed_insertion_item(delayed_node);
@@ -1637,10 +1649,13 @@ void btrfs_get_delayed_items(struct inode *inode, struct list_head *ins_list,
 	 * requeue or dequeue this delayed node.
 	 */
 	atomic_dec(&delayed_node->refs);
+
+	return true;
 }
 
-void btrfs_put_delayed_items(struct list_head *ins_list,
-			     struct list_head *del_list)
+void btrfs_readdir_put_delayed_items(struct inode *inode,
+				     struct list_head *ins_list,
+				     struct list_head *del_list)
 {
 	struct btrfs_delayed_item *curr, *next;
 
@@ -1655,6 +1670,12 @@ void btrfs_put_delayed_items(struct list_head *ins_list,
 		if (atomic_dec_and_test(&curr->refs))
 			kfree(curr);
 	}
+
+	/*
+	 * The VFS is going to do up_read(), so we need to downgrade back to a
+	 * read lock.
+	 */
+	downgrade_write(&inode->i_rwsem);
 }
 
 int btrfs_should_delete_dir_index(struct list_head *del_list,

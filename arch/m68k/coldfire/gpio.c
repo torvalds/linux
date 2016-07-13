@@ -158,11 +158,6 @@ static int mcfgpio_to_irq(struct gpio_chip *chip, unsigned offset)
 		return -EINVAL;
 }
 
-static struct bus_type mcfgpio_subsys = {
-	.name		= "gpio",
-	.dev_name	= "gpio",
-};
-
 static struct gpio_chip mcfgpio_chip = {
 	.label			= "mcfgpio",
 	.request		= mcfgpio_request,
@@ -178,8 +173,7 @@ static struct gpio_chip mcfgpio_chip = {
 
 static int __init mcfgpio_sysinit(void)
 {
-	gpiochip_add_data(&mcfgpio_chip, NULL);
-	return subsys_system_register(&mcfgpio_subsys, NULL);
+	return gpiochip_add_data(&mcfgpio_chip, NULL);
 }
 
 core_initcall(mcfgpio_sysinit);

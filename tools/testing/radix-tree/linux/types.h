@@ -1,14 +1,12 @@
 #ifndef _TYPES_H
 #define _TYPES_H
 
+#include "../../include/linux/types.h"
+
 #define __rcu
 #define __read_mostly
 
 #define BITS_PER_LONG (sizeof(long) * 8)
-
-struct list_head {
-	struct list_head *next, *prev;
-};
 
 static inline void INIT_LIST_HEAD(struct list_head *list)
 {
@@ -22,7 +20,6 @@ typedef struct {
 
 #define uninitialized_var(x) x = x
 
-typedef unsigned gfp_t;
 #include <linux/gfp.h>
 
 #endif

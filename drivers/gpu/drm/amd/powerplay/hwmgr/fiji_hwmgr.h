@@ -29,6 +29,7 @@
 #include "smu73_discrete.h"
 #include "ppatomctrl.h"
 #include "fiji_ppsmc.h"
+#include "pp_endian.h"
 
 #define FIJI_MAX_HARDWARE_POWERLEVELS	2
 #define FIJI_AT_DFLT	30
@@ -262,7 +263,7 @@ struct fiji_hwmgr {
 	bool                           enable_tdc_limit_feature;
 	bool                           enable_pkg_pwr_tracking_feature;
 	bool                           disable_uvd_power_tune_feature;
-	struct fiji_pt_defaults       *power_tune_defaults;
+	const struct fiji_pt_defaults  *power_tune_defaults;
 	struct SMU73_Discrete_PmFuses  power_tune_table;
 	uint32_t                       dte_tj_offset;
 	uint32_t                       fast_watermark_threshold;
@@ -301,6 +302,9 @@ struct fiji_hwmgr {
 	bool                           pg_acp_init;
 	bool                           frtc_enabled;
 	bool                           frtc_status_changed;
+
+	/* soft pptable for re-uploading into smu */
+	void *soft_pp_table;
 };
 
 /* To convert to Q8.8 format for firmware */
@@ -337,7 +341,6 @@ enum Fiji_I2CLineID {
 #define FIJI_UNUSED_GPIO_PIN       0x7F
 
 extern int tonga_initializa_dynamic_state_adjustment_rule_settings(struct pp_hwmgr *hwmgr);
-extern int tonga_hwmgr_backend_fini(struct pp_hwmgr *hwmgr);
 extern int tonga_get_mc_microcode_version (struct pp_hwmgr *hwmgr);
 extern int tonga_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr);
 extern int tonga_notify_smc_display_change(struct pp_hwmgr *hwmgr, bool has_display);
@@ -346,16 +349,5 @@ int fiji_update_uvd_dpm(struct pp_hwmgr *hwmgr, bool bgate);
 int fiji_update_samu_dpm(struct pp_hwmgr *hwmgr, bool bgate);
 int fiji_update_acp_dpm(struct pp_hwmgr *hwmgr, bool bgate);
 int fiji_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable);
-
-#define PP_HOST_TO_SMC_UL(X) cpu_to_be32(X)
-#define PP_SMC_TO_HOST_UL(X) be32_to_cpu(X)
-
-#define PP_HOST_TO_SMC_US(X) cpu_to_be16(X)
-#define PP_SMC_TO_HOST_US(X) be16_to_cpu(X)
-
-#define CONVERT_FROM_HOST_TO_SMC_UL(X) ((X) = PP_HOST_TO_SMC_UL(X))
-#define CONVERT_FROM_SMC_TO_HOST_UL(X) ((X) = PP_SMC_TO_HOST_UL(X))
-
-#define CONVERT_FROM_HOST_TO_SMC_US(X) ((X) = PP_HOST_TO_SMC_US(X))
 
 #endif /* _FIJI_HWMGR_H_ */

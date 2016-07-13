@@ -446,18 +446,12 @@ end:
 
 void snd_dice_stream_destroy_duplex(struct snd_dice *dice)
 {
-	struct reg_params tx_params, rx_params;
+	unsigned int i;
 
-	snd_dice_transaction_clear_enable(dice);
-
-	if (get_register_params(dice, &tx_params, &rx_params) == 0) {
-		stop_streams(dice, AMDTP_IN_STREAM, &tx_params);
-		stop_streams(dice, AMDTP_OUT_STREAM, &rx_params);
+	for (i = 0; i < MAX_STREAMS; i++) {
+		destroy_stream(dice, AMDTP_IN_STREAM, i);
+		destroy_stream(dice, AMDTP_OUT_STREAM, i);
 	}
-
-	release_resources(dice);
-
-	dice->substreams_counter = 0;
 }
 
 void snd_dice_stream_update_duplex(struct snd_dice *dice)

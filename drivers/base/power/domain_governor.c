@@ -37,10 +37,10 @@ static int dev_update_qos_constraint(struct device *dev, void *data)
 }
 
 /**
- * default_stop_ok - Default PM domain governor routine for stopping devices.
+ * default_suspend_ok - Default PM domain governor routine to suspend devices.
  * @dev: Device to check.
  */
-static bool default_stop_ok(struct device *dev)
+static bool default_suspend_ok(struct device *dev)
 {
 	struct gpd_timing_data *td = &dev_gpd_data(dev)->td;
 	unsigned long flags;
@@ -51,13 +51,13 @@ static bool default_stop_ok(struct device *dev)
 	spin_lock_irqsave(&dev->power.lock, flags);
 
 	if (!td->constraint_changed) {
-		bool ret = td->cached_stop_ok;
+		bool ret = td->cached_suspend_ok;
 
 		spin_unlock_irqrestore(&dev->power.lock, flags);
 		return ret;
 	}
 	td->constraint_changed = false;
-	td->cached_stop_ok = false;
+	td->cached_suspend_ok = false;
 	td->effective_constraint_ns = -1;
 	constraint_ns = __dev_pm_qos_read_value(dev);
 
@@ -83,13 +83,13 @@ static bool default_stop_ok(struct device *dev)
 			return false;
 	}
 	td->effective_constraint_ns = constraint_ns;
-	td->cached_stop_ok = constraint_ns >= 0;
+	td->cached_suspend_ok = constraint_ns >= 0;
 
 	/*
 	 * The children have been suspended already, so we don't need to take
-	 * their stop latencies into account here.
+	 * their suspend latencies into account here.
 	 */
-	return td->cached_stop_ok;
+	return td->cached_suspend_ok;
 }
 
 /**
@@ -150,7 +150,7 @@ static bool __default_power_down_ok(struct dev_pm_domain *pd,
 		 */
 		td = &to_gpd_data(pdd)->td;
 		constraint_ns = td->effective_constraint_ns;
-		/* default_stop_ok() need not be called before us. */
+		/* default_suspend_ok() need not be called before us. */
 		if (constraint_ns < 0) {
 			constraint_ns = dev_pm_qos_read_value(pdd->dev);
 			constraint_ns *= NSEC_PER_USEC;
@@ -227,7 +227,7 @@ static bool always_on_power_down_ok(struct dev_pm_domain *domain)
 }
 
 struct dev_power_governor simple_qos_governor = {
-	.stop_ok = default_stop_ok,
+	.suspend_ok = default_suspend_ok,
 	.power_down_ok = default_power_down_ok,
 };
 
@@ -236,5 +236,5 @@ struct dev_power_governor simple_qos_governor = {
  */
 struct dev_power_governor pm_domain_always_on_gov = {
 	.power_down_ok = always_on_power_down_ok,
-	.stop_ok = default_stop_ok,
+	.suspend_ok = default_suspend_ok,
 };

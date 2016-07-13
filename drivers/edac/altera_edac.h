@@ -195,4 +195,132 @@ struct altr_sdram_mc_data {
 	const struct altr_sdram_prv_data *data;
 };
 
+/************************** EDAC Device Defines **************************/
+/***** General Device Trigger Defines *****/
+#define ALTR_UE_TRIGGER_CHAR            'U'   /* Trigger for UE */
+#define ALTR_TRIGGER_READ_WRD_CNT       32    /* Line size x 4 */
+#define ALTR_TRIG_OCRAM_BYTE_SIZE       128   /* Line size x 4 */
+#define ALTR_TRIG_L2C_BYTE_SIZE         4096  /* Full Page */
+
+/******* Cyclone5 and Arria5 Defines *******/
+/* OCRAM ECC Management Group Defines */
+#define ALTR_MAN_GRP_OCRAM_ECC_OFFSET   0x04
+#define ALTR_OCR_ECC_REG_OFFSET         0x00
+#define ALTR_OCR_ECC_EN                 BIT(0)
+#define ALTR_OCR_ECC_INJS               BIT(1)
+#define ALTR_OCR_ECC_INJD               BIT(2)
+#define ALTR_OCR_ECC_SERR               BIT(3)
+#define ALTR_OCR_ECC_DERR               BIT(4)
+
+/* L2 ECC Management Group Defines */
+#define ALTR_MAN_GRP_L2_ECC_OFFSET      0x00
+#define ALTR_L2_ECC_REG_OFFSET          0x00
+#define ALTR_L2_ECC_EN                  BIT(0)
+#define ALTR_L2_ECC_INJS                BIT(1)
+#define ALTR_L2_ECC_INJD                BIT(2)
+
+/* Arria10 General ECC Block Module Defines */
+#define ALTR_A10_ECC_CTRL_OFST          0x08
+#define ALTR_A10_ECC_EN                 BIT(0)
+#define ALTR_A10_ECC_INITA              BIT(16)
+#define ALTR_A10_ECC_INITB              BIT(24)
+
+#define ALTR_A10_ECC_INITSTAT_OFST      0x0C
+#define ALTR_A10_ECC_INITCOMPLETEA      BIT(0)
+#define ALTR_A10_ECC_INITCOMPLETEB      BIT(8)
+
+#define ALTR_A10_ECC_ERRINTEN_OFST      0x10
+#define ALTR_A10_ECC_SERRINTEN          BIT(0)
+
+#define ALTR_A10_ECC_INTSTAT_OFST       0x20
+#define ALTR_A10_ECC_SERRPENA           BIT(0)
+#define ALTR_A10_ECC_DERRPENA           BIT(8)
+#define ALTR_A10_ECC_ERRPENA_MASK       (ALTR_A10_ECC_SERRPENA | \
+					 ALTR_A10_ECC_DERRPENA)
+#define ALTR_A10_ECC_SERRPENB           BIT(16)
+#define ALTR_A10_ECC_DERRPENB           BIT(24)
+#define ALTR_A10_ECC_ERRPENB_MASK       (ALTR_A10_ECC_SERRPENB | \
+					 ALTR_A10_ECC_DERRPENB)
+
+#define ALTR_A10_ECC_INTTEST_OFST       0x24
+#define ALTR_A10_ECC_TSERRA             BIT(0)
+#define ALTR_A10_ECC_TDERRA             BIT(8)
+
+/* ECC Manager Defines */
+#define A10_SYSMGR_ECC_INTMASK_SET_OFST   0x94
+#define A10_SYSMGR_ECC_INTMASK_CLR_OFST   0x98
+#define A10_SYSMGR_ECC_INTMASK_OCRAM      BIT(1)
+
+#define A10_SYSMGR_ECC_INTSTAT_SERR_OFST  0x9C
+#define A10_SYSMGR_ECC_INTSTAT_DERR_OFST  0xA0
+#define A10_SYSMGR_ECC_INTSTAT_L2         BIT(0)
+#define A10_SYSMGR_ECC_INTSTAT_OCRAM      BIT(1)
+
+#define A10_SYSGMR_MPU_CLEAR_L2_ECC_OFST  0xA8
+#define A10_SYSGMR_MPU_CLEAR_L2_ECC_SB    BIT(15)
+#define A10_SYSGMR_MPU_CLEAR_L2_ECC_MB    BIT(31)
+
+/* Arria 10 L2 ECC Management Group Defines */
+#define ALTR_A10_L2_ECC_CTL_OFST        0x0
+#define ALTR_A10_L2_ECC_EN_CTL          BIT(0)
+
+#define ALTR_A10_L2_ECC_STATUS          0xFFD060A4
+#define ALTR_A10_L2_ECC_STAT_OFST       0xA4
+#define ALTR_A10_L2_ECC_SERR_PEND       BIT(0)
+#define ALTR_A10_L2_ECC_MERR_PEND       BIT(0)
+
+#define ALTR_A10_L2_ECC_CLR_OFST        0x4
+#define ALTR_A10_L2_ECC_SERR_CLR        BIT(15)
+#define ALTR_A10_L2_ECC_MERR_CLR        BIT(31)
+
+#define ALTR_A10_L2_ECC_INJ_OFST        ALTR_A10_L2_ECC_CTL_OFST
+#define ALTR_A10_L2_ECC_CE_INJ_MASK     0x00000101
+#define ALTR_A10_L2_ECC_UE_INJ_MASK     0x00010101
+
+/* Arria 10 OCRAM ECC Management Group Defines */
+#define ALTR_A10_OCRAM_ECC_EN_CTL       (BIT(1) | BIT(0))
+
+struct altr_edac_device_dev;
+
+struct edac_device_prv_data {
+	int (*setup)(struct altr_edac_device_dev *device);
+	int ce_clear_mask;
+	int ue_clear_mask;
+	int irq_status_mask;
+	char dbgfs_name[20];
+	void * (*alloc_mem)(size_t size, void **other);
+	void (*free_mem)(void *p, size_t size, void *other);
+	int ecc_enable_mask;
+	int ecc_en_ofst;
+	int ce_set_mask;
+	int ue_set_mask;
+	int set_err_ofst;
+	irqreturn_t (*ecc_irq_handler)(struct altr_edac_device_dev *dci,
+				       bool sb);
+	int trig_alloc_sz;
+	const struct file_operations *inject_fops;
+};
+
+struct altr_edac_device_dev {
+	struct list_head next;
+	void __iomem *base;
+	int sb_irq;
+	int db_irq;
+	const struct edac_device_prv_data *data;
+	struct dentry *debugfs_dir;
+	char *edac_dev_name;
+	struct altr_arria10_edac *edac;
+	struct edac_device_ctl_info *edac_dev;
+	struct device ddev;
+	int edac_idx;
+};
+
+struct altr_arria10_edac {
+	struct device		*dev;
+	struct regmap		*ecc_mgr_map;
+	int sb_irq;
+	int db_irq;
+	struct list_head	a10_ecc_devices;
+};
+
 #endif	/* #ifndef _ALTERA_EDAC_H */

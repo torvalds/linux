@@ -46,9 +46,7 @@ static struct stm_data dummy_stm[DUMMY_STM_MAX];
 
 static int nr_dummies = 4;
 
-module_param(nr_dummies, int, 0600);
-
-static unsigned int dummy_stm_nr;
+module_param(nr_dummies, int, 0400);
 
 static unsigned int fail_mode;
 
@@ -65,12 +63,12 @@ static int dummy_stm_link(struct stm_data *data, unsigned int master,
 
 static int dummy_stm_init(void)
 {
-	int i, ret = -ENOMEM, __nr_dummies = ACCESS_ONCE(nr_dummies);
+	int i, ret = -ENOMEM;
 
-	if (__nr_dummies < 0 || __nr_dummies > DUMMY_STM_MAX)
+	if (nr_dummies < 0 || nr_dummies > DUMMY_STM_MAX)
 		return -EINVAL;
 
-	for (i = 0; i < __nr_dummies; i++) {
+	for (i = 0; i < nr_dummies; i++) {
 		dummy_stm[i].name = kasprintf(GFP_KERNEL, "dummy_stm.%d", i);
 		if (!dummy_stm[i].name)
 			goto fail_unregister;
@@ -85,8 +83,6 @@ static int dummy_stm_init(void)
 		if (ret)
 			goto fail_free;
 	}
-
-	dummy_stm_nr = __nr_dummies;
 
 	return 0;
 
@@ -105,7 +101,7 @@ static void dummy_stm_exit(void)
 {
 	int i;
 
-	for (i = 0; i < dummy_stm_nr; i++) {
+	for (i = 0; i < nr_dummies; i++) {
 		stm_unregister_device(&dummy_stm[i]);
 		kfree(dummy_stm[i].name);
 	}

@@ -940,6 +940,7 @@ void itrace_synth_opts__set_default(struct itrace_synth_opts *synth_opts)
 	synth_opts->period = PERF_ITRACE_DEFAULT_PERIOD;
 	synth_opts->callchain_sz = PERF_ITRACE_DEFAULT_CALLCHAIN_SZ;
 	synth_opts->last_branch_sz = PERF_ITRACE_DEFAULT_LAST_BRANCH_SZ;
+	synth_opts->initial_skip = 0;
 }
 
 /*
@@ -1063,6 +1064,12 @@ int itrace_parse_synth_opts(const struct option *opt, const char *str,
 					goto out_err;
 				synth_opts->last_branch_sz = val;
 			}
+			break;
+		case 's':
+			synth_opts->initial_skip = strtoul(p, &endptr, 10);
+			if (p == endptr)
+				goto out_err;
+			p = endptr;
 			break;
 		case ' ':
 		case ',':

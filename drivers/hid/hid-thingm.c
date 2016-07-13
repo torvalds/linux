@@ -148,13 +148,21 @@ static int thingm_led_set(struct led_classdev *ldev,
 			  enum led_brightness brightness)
 {
 	struct thingm_led *led = container_of(ldev, struct thingm_led, ldev);
-	int ret;
 
-	ret = thingm_write_color(led->rgb);
-	if (ret)
-		hid_err(led->rgb->tdev->hdev, "failed to write color\n");
+	return thingm_write_color(led->rgb);
+}
 
-	return ret;
+static int thingm_init_led(struct thingm_led *led, const char *color_name,
+			   struct thingm_rgb *rgb, int minor)
+{
+	snprintf(led->name, sizeof(led->name), "thingm%d:%s:led%d",
+		 minor, color_name, rgb->num);
+	led->ldev.name = led->name;
+	led->ldev.max_brightness = 255;
+	led->ldev.brightness_set_blocking = thingm_led_set;
+	led->ldev.flags = LED_HW_PLUGGABLE;
+	led->rgb = rgb;
+	return devm_led_classdev_register(&rgb->tdev->hdev->dev, &led->ldev);
 }
 
 static int thingm_init_rgb(struct thingm_rgb *rgb)
@@ -163,42 +171,17 @@ static int thingm_init_rgb(struct thingm_rgb *rgb)
 	int err;
 
 	/* Register the red diode */
-	snprintf(rgb->red.name, sizeof(rgb->red.name),
-			"thingm%d:red:led%d", minor, rgb->num);
-	rgb->red.ldev.name = rgb->red.name;
-	rgb->red.ldev.max_brightness = 255;
-	rgb->red.ldev.brightness_set_blocking = thingm_led_set;
-	rgb->red.rgb = rgb;
-
-	err = devm_led_classdev_register(&rgb->tdev->hdev->dev,
-					 &rgb->red.ldev);
+	err = thingm_init_led(&rgb->red, "red", rgb, minor);
 	if (err)
 		return err;
 
 	/* Register the green diode */
-	snprintf(rgb->green.name, sizeof(rgb->green.name),
-			"thingm%d:green:led%d", minor, rgb->num);
-	rgb->green.ldev.name = rgb->green.name;
-	rgb->green.ldev.max_brightness = 255;
-	rgb->green.ldev.brightness_set_blocking = thingm_led_set;
-	rgb->green.rgb = rgb;
-
-	err = devm_led_classdev_register(&rgb->tdev->hdev->dev,
-					 &rgb->green.ldev);
+	err = thingm_init_led(&rgb->green, "green", rgb, minor);
 	if (err)
 		return err;
 
 	/* Register the blue diode */
-	snprintf(rgb->blue.name, sizeof(rgb->blue.name),
-			"thingm%d:blue:led%d", minor, rgb->num);
-	rgb->blue.ldev.name = rgb->blue.name;
-	rgb->blue.ldev.max_brightness = 255;
-	rgb->blue.ldev.brightness_set_blocking = thingm_led_set;
-	rgb->blue.rgb = rgb;
-
-	err = devm_led_classdev_register(&rgb->tdev->hdev->dev,
-					 &rgb->blue.ldev);
-	return err;
+	return thingm_init_led(&rgb->blue, "blue", rgb, minor);
 }
 
 static int thingm_probe(struct hid_device *hdev, const struct hid_device_id *id)

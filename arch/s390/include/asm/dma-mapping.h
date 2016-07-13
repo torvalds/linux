@@ -11,11 +11,13 @@
 
 #define DMA_ERROR_CODE		(~(dma_addr_t) 0x0)
 
-extern struct dma_map_ops s390_dma_ops;
+extern struct dma_map_ops s390_pci_dma_ops;
 
 static inline struct dma_map_ops *get_dma_ops(struct device *dev)
 {
-	return &s390_dma_ops;
+	if (dev && dev->archdata.dma_ops)
+		return dev->archdata.dma_ops;
+	return &dma_noop_ops;
 }
 
 static inline void dma_cache_sync(struct device *dev, void *vaddr, size_t size,

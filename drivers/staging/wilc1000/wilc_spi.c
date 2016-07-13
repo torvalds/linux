@@ -196,9 +196,6 @@ static int wilc_spi_tx(struct wilc *wilc, u8 *b, u32 len)
 		dev_err(&spi->dev,
 			"can't write data with the following length: %d\n",
 			len);
-		dev_err(&spi->dev,
-			"FAILED due to NULL buffer or ZERO length check the following length: %d\n",
-			len);
 		ret = -EINVAL;
 	}
 

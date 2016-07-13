@@ -66,7 +66,7 @@
 	samsung,keypad-num-rows = <2>;
 	samsung,keypad-num-columns = <8>;
 	linux,keypad-no-autorepeat;
-	linux,keypad-wakeup;
+	wakeup-source;
 	pinctrl-names = "default";
 	pinctrl-0 = <&keypad_rows &keypad_cols>;
 	status = "okay";

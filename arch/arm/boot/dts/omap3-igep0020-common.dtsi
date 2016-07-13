@@ -194,6 +194,12 @@
 			OMAP3630_CORE2_IOPAD(0x25f8, PIN_OUTPUT | MUX_MODE4) /* etk_d14.gpio_28 */
 		>;
 	};
+
+	mmc1_wp_pins: pinmux_mmc1_cd_pins {
+		pinctrl-single,pins = <
+			OMAP3630_CORE2_IOPAD(0x25fa, PIN_INPUT | MUX_MODE4)   /* etk_d15.gpio_29 */
+		>;
+	};
 };
 
 &i2c3 {
@@ -210,8 +216,8 @@
 };
 
 &gpmc {
-	ranges = <0 0 0x00000000 0x20000000>,
-		 <5 0 0x2c000000 0x01000000>;
+	ranges = <0 0 0x30000000 0x01000000>,	/* CS0: 16MB for NAND */
+		 <5 0 0x2c000000 0x01000000>;	/* CS5: 16MB for ethernet */
 
 	ethernet@gpmc {
 		pinctrl-names = "default";
@@ -249,4 +255,9 @@
 			data-lines = <24>;
 		};
 	};
+};
+
+&mmc1 {
+	pinctrl-0 = <&mmc1_pins &mmc1_wp_pins>;
+	wp-gpios = <&gpio1 29 GPIO_ACTIVE_LOW>;	/* gpio_29 */
 };

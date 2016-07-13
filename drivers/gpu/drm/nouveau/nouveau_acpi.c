@@ -6,7 +6,7 @@
 #include <drm/drm_edid.h>
 #include <acpi/video.h>
 
-#include "nouveau_drm.h"
+#include "nouveau_drv.h"
 #include "nouveau_acpi.h"
 
 #define NOUVEAU_DSM_LED 0x02
@@ -314,7 +314,7 @@ void nouveau_register_dsm_handler(void)
 	if (!r)
 		return;
 
-	vga_switcheroo_register_handler(&nouveau_dsm_handler);
+	vga_switcheroo_register_handler(&nouveau_dsm_handler, 0);
 }
 
 /* Must be called for Optimus models before the card can be turned off */

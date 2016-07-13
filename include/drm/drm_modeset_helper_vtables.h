@@ -439,7 +439,7 @@ struct drm_encoder_helper_funcs {
 	 * can be modified by this callback and does not need to match mode.
 	 *
 	 * This function is used by both legacy CRTC helpers and atomic helpers.
-	 * With atomic helpers it is optional.
+	 * This hook is optional.
 	 *
 	 * NOTE:
 	 *
@@ -672,7 +672,7 @@ struct drm_connector_helper_funcs {
 	 * fixed panel can also manually add specific modes using
 	 * drm_mode_probed_add(). Drivers which manually add modes should also
 	 * make sure that the @display_info, @width_mm and @height_mm fields of the
-	 * struct #drm_connector are filled in.
+	 * struct &drm_connector are filled in.
 	 *
 	 * Virtual drivers that just want some standard VESA mode with a given
 	 * resolution can call drm_add_modes_noedid(), and mark the preferred

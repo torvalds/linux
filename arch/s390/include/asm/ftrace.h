@@ -12,7 +12,9 @@
 
 #ifndef __ASSEMBLY__
 
-#define ftrace_return_address(n) __builtin_return_address(n)
+unsigned long return_address(int depth);
+
+#define ftrace_return_address(n) return_address(n)
 
 void _mcount(void);
 void ftrace_caller(void);

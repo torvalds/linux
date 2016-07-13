@@ -36,9 +36,9 @@
 
 /* fixed rate clocks */
 static struct hisi_fixed_rate_clock hip04_fixed_rate_clks[] __initdata = {
-	{ HIP04_OSC50M,   "osc50m",   NULL, CLK_IS_ROOT, 50000000, },
-	{ HIP04_CLK_50M,  "clk50m",   NULL, CLK_IS_ROOT, 50000000, },
-	{ HIP04_CLK_168M, "clk168m",  NULL, CLK_IS_ROOT, 168750000, },
+	{ HIP04_OSC50M,   "osc50m",   NULL, 0, 50000000, },
+	{ HIP04_CLK_50M,  "clk50m",   NULL, 0, 50000000, },
+	{ HIP04_CLK_168M, "clk168m",  NULL, 0, 168750000, },
 };
 
 static void __init hip04_clk_init(struct device_node *np)

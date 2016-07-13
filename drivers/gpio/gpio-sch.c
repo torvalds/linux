@@ -61,9 +61,8 @@ static unsigned sch_gpio_bit(struct sch_gpio *sch, unsigned gpio)
 	return gpio % 8;
 }
 
-static int sch_gpio_reg_get(struct gpio_chip *gc, unsigned gpio, unsigned reg)
+static int sch_gpio_reg_get(struct sch_gpio *sch, unsigned gpio, unsigned reg)
 {
-	struct sch_gpio *sch = gpiochip_get_data(gc);
 	unsigned short offset, bit;
 	u8 reg_val;
 
@@ -75,10 +74,9 @@ static int sch_gpio_reg_get(struct gpio_chip *gc, unsigned gpio, unsigned reg)
 	return reg_val;
 }
 
-static void sch_gpio_reg_set(struct gpio_chip *gc, unsigned gpio, unsigned reg,
+static void sch_gpio_reg_set(struct sch_gpio *sch, unsigned gpio, unsigned reg,
 			     int val)
 {
-	struct sch_gpio *sch = gpiochip_get_data(gc);
 	unsigned short offset, bit;
 	u8 reg_val;
 
@@ -98,14 +96,15 @@ static int sch_gpio_direction_in(struct gpio_chip *gc, unsigned gpio_num)
 	struct sch_gpio *sch = gpiochip_get_data(gc);
 
 	spin_lock(&sch->lock);
-	sch_gpio_reg_set(gc, gpio_num, GIO, 1);
+	sch_gpio_reg_set(sch, gpio_num, GIO, 1);
 	spin_unlock(&sch->lock);
 	return 0;
 }
 
 static int sch_gpio_get(struct gpio_chip *gc, unsigned gpio_num)
 {
-	return sch_gpio_reg_get(gc, gpio_num, GLV);
+	struct sch_gpio *sch = gpiochip_get_data(gc);
+	return sch_gpio_reg_get(sch, gpio_num, GLV);
 }
 
 static void sch_gpio_set(struct gpio_chip *gc, unsigned gpio_num, int val)
@@ -113,7 +112,7 @@ static void sch_gpio_set(struct gpio_chip *gc, unsigned gpio_num, int val)
 	struct sch_gpio *sch = gpiochip_get_data(gc);
 
 	spin_lock(&sch->lock);
-	sch_gpio_reg_set(gc, gpio_num, GLV, val);
+	sch_gpio_reg_set(sch, gpio_num, GLV, val);
 	spin_unlock(&sch->lock);
 }
 
@@ -123,7 +122,7 @@ static int sch_gpio_direction_out(struct gpio_chip *gc, unsigned gpio_num,
 	struct sch_gpio *sch = gpiochip_get_data(gc);
 
 	spin_lock(&sch->lock);
-	sch_gpio_reg_set(gc, gpio_num, GIO, 0);
+	sch_gpio_reg_set(sch, gpio_num, GIO, 0);
 	spin_unlock(&sch->lock);
 
 	/*
@@ -182,13 +181,13 @@ static int sch_gpio_probe(struct platform_device *pdev)
 		 * GPIO7 is configured by the CMC as SLPIOVR
 		 * Enable GPIO[9:8] core powered gpios explicitly
 		 */
-		sch_gpio_reg_set(&sch->chip, 8, GEN, 1);
-		sch_gpio_reg_set(&sch->chip, 9, GEN, 1);
+		sch_gpio_reg_set(sch, 8, GEN, 1);
+		sch_gpio_reg_set(sch, 9, GEN, 1);
 		/*
 		 * SUS_GPIO[2:0] enabled by default
 		 * Enable SUS_GPIO3 resume powered gpio explicitly
 		 */
-		sch_gpio_reg_set(&sch->chip, 13, GEN, 1);
+		sch_gpio_reg_set(sch, 13, GEN, 1);
 		break;
 
 	case PCI_DEVICE_ID_INTEL_ITC_LPC:

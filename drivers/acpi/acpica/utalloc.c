@@ -231,7 +231,7 @@ acpi_status acpi_ut_delete_caches(void)
  *
  ******************************************************************************/
 
-acpi_status acpi_ut_validate_buffer(struct acpi_buffer * buffer)
+acpi_status acpi_ut_validate_buffer(struct acpi_buffer *buffer)
 {
 
 	/* Obviously, the structure pointer must be valid */
@@ -272,8 +272,7 @@ acpi_status acpi_ut_validate_buffer(struct acpi_buffer * buffer)
  ******************************************************************************/
 
 acpi_status
-acpi_ut_initialize_buffer(struct acpi_buffer * buffer,
-			  acpi_size required_length)
+acpi_ut_initialize_buffer(struct acpi_buffer *buffer, acpi_size required_length)
 {
 	acpi_size input_buffer_length;
 

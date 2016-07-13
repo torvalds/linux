@@ -49,12 +49,6 @@
   <refsect1>
     <title>Description</title>
 
-    <note>
-      <title>Experimental</title>
-      <para>This is an <link linkend="experimental">experimental</link>
-      interface and may change in the future.</para>
-    </note>
-
     <para>To enumerate media bus formats available at a given sub-device pad
     applications initialize the <structfield>pad</structfield>, <structfield>which</structfield>
     and <structfield>index</structfield> fields of &v4l2-subdev-mbus-code-enum; and

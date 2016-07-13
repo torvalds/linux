@@ -28,7 +28,6 @@ int build_id__mark_dso_hit(struct perf_tool *tool __maybe_unused,
 			   struct machine *machine)
 {
 	struct addr_location al;
-	u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 	struct thread *thread = machine__findnew_thread(machine, sample->pid,
 							sample->tid);
 
@@ -38,7 +37,7 @@ int build_id__mark_dso_hit(struct perf_tool *tool __maybe_unused,
 		return -1;
 	}
 
-	thread__find_addr_map(thread, cpumode, MAP__FUNCTION, sample->ip, &al);
+	thread__find_addr_map(thread, sample->cpumode, MAP__FUNCTION, sample->ip, &al);
 
 	if (al.map != NULL)
 		al.map->dso->hit = 1;
@@ -257,19 +256,19 @@ static int machine__write_buildid_table(struct machine *machine, int fd)
 		size_t name_len;
 		bool in_kernel = false;
 
-		if (!pos->hit)
+		if (!pos->hit && !dso__is_vdso(pos))
 			continue;
 
 		if (dso__is_vdso(pos)) {
 			name = pos->short_name;
-			name_len = pos->short_name_len + 1;
+			name_len = pos->short_name_len;
 		} else if (dso__is_kcore(pos)) {
 			machine__mmap_name(machine, nm, sizeof(nm));
 			name = nm;
-			name_len = strlen(nm) + 1;
+			name_len = strlen(nm);
 		} else {
 			name = pos->long_name;
-			name_len = pos->long_name_len + 1;
+			name_len = pos->long_name_len;
 		}
 
 		in_kernel = pos->kernel ||
@@ -366,39 +365,17 @@ static char *build_id_cache__dirname_from_path(const char *name,
 int build_id_cache__list_build_ids(const char *pathname,
 				   struct strlist **result)
 {
-	struct strlist *list;
 	char *dir_name;
-	DIR *dir;
-	struct dirent *d;
 	int ret = 0;
 
-	list = strlist__new(NULL, NULL);
 	dir_name = build_id_cache__dirname_from_path(pathname, false, false);
-	if (!list || !dir_name) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!dir_name)
+		return -ENOMEM;
 
-	/* List up all dirents */
-	dir = opendir(dir_name);
-	if (!dir) {
+	*result = lsdir(dir_name, lsdir_no_dot_filter);
+	if (!*result)
 		ret = -errno;
-		goto out;
-	}
-
-	while ((d = readdir(dir)) != NULL) {
-		if (!strcmp(d->d_name, ".") || !strcmp(d->d_name, ".."))
-			continue;
-		strlist__add(list, d->d_name);
-	}
-	closedir(dir);
-
-out:
 	free(dir_name);
-	if (ret)
-		strlist__delete(list);
-	else
-		*result = list;
 
 	return ret;
 }

@@ -56,6 +56,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 
+#include <linux/if_link.h>
 #include <linux/atomic.h>
 #include <linux/mmu_notifier.h>
 #include <asm/uaccess.h>
@@ -95,6 +96,11 @@ enum rdma_node_type {
 	RDMA_NODE_RNIC,
 	RDMA_NODE_USNIC,
 	RDMA_NODE_USNIC_UDP,
+};
+
+enum {
+	/* set the local administered indication */
+	IB_SA_WELL_KNOWN_GUID	= BIT_ULL(57) | 2,
 };
 
 enum rdma_transport_type {
@@ -211,8 +217,10 @@ enum ib_device_cap_flags {
 	IB_DEVICE_CROSS_CHANNEL		= (1 << 27),
 	IB_DEVICE_MANAGED_FLOW_STEERING		= (1 << 29),
 	IB_DEVICE_SIGNATURE_HANDOVER		= (1 << 30),
-	IB_DEVICE_ON_DEMAND_PAGING		= (1 << 31),
+	IB_DEVICE_ON_DEMAND_PAGING		= (1ULL << 31),
 	IB_DEVICE_SG_GAPS_REG			= (1ULL << 32),
+	IB_DEVICE_VIRTUAL_FUNCTION		= (1ULL << 33),
+	IB_DEVICE_RAW_SCATTER_FCS		= (1ULL << 34),
 };
 
 enum ib_signature_prot_cap {
@@ -274,7 +282,7 @@ struct ib_device_attr {
 	u32			hw_ver;
 	int			max_qp;
 	int			max_qp_wr;
-	int			device_cap_flags;
+	u64			device_cap_flags;
 	int			max_sge;
 	int			max_sge_rd;
 	int			max_cq;
@@ -395,56 +403,55 @@ enum ib_port_speed {
 	IB_SPEED_EDR	= 32
 };
 
-struct ib_protocol_stats {
-	/* TBD... */
+/**
+ * struct rdma_hw_stats
+ * @timestamp - Used by the core code to track when the last update was
+ * @lifespan - Used by the core code to determine how old the counters
+ *   should be before being updated again.  Stored in jiffies, defaults
+ *   to 10 milliseconds, drivers can override the default be specifying
+ *   their own value during their allocation routine.
+ * @name - Array of pointers to static names used for the counters in
+ *   directory.
+ * @num_counters - How many hardware counters there are.  If name is
+ *   shorter than this number, a kernel oops will result.  Driver authors
+ *   are encouraged to leave BUILD_BUG_ON(ARRAY_SIZE(@name) < num_counters)
+ *   in their code to prevent this.
+ * @value - Array of u64 counters that are accessed by the sysfs code and
+ *   filled in by the drivers get_stats routine
+ */
+struct rdma_hw_stats {
+	unsigned long	timestamp;
+	unsigned long	lifespan;
+	const char * const *names;
+	int		num_counters;
+	u64		value[];
 };
 
-struct iw_protocol_stats {
-	u64	ipInReceives;
-	u64	ipInHdrErrors;
-	u64	ipInTooBigErrors;
-	u64	ipInNoRoutes;
-	u64	ipInAddrErrors;
-	u64	ipInUnknownProtos;
-	u64	ipInTruncatedPkts;
-	u64	ipInDiscards;
-	u64	ipInDelivers;
-	u64	ipOutForwDatagrams;
-	u64	ipOutRequests;
-	u64	ipOutDiscards;
-	u64	ipOutNoRoutes;
-	u64	ipReasmTimeout;
-	u64	ipReasmReqds;
-	u64	ipReasmOKs;
-	u64	ipReasmFails;
-	u64	ipFragOKs;
-	u64	ipFragFails;
-	u64	ipFragCreates;
-	u64	ipInMcastPkts;
-	u64	ipOutMcastPkts;
-	u64	ipInBcastPkts;
-	u64	ipOutBcastPkts;
+#define RDMA_HW_STATS_DEFAULT_LIFESPAN 10
+/**
+ * rdma_alloc_hw_stats_struct - Helper function to allocate dynamic struct
+ *   for drivers.
+ * @names - Array of static const char *
+ * @num_counters - How many elements in array
+ * @lifespan - How many milliseconds between updates
+ */
+static inline struct rdma_hw_stats *rdma_alloc_hw_stats_struct(
+		const char * const *names, int num_counters,
+		unsigned long lifespan)
+{
+	struct rdma_hw_stats *stats;
 
-	u64	tcpRtoAlgorithm;
-	u64	tcpRtoMin;
-	u64	tcpRtoMax;
-	u64	tcpMaxConn;
-	u64	tcpActiveOpens;
-	u64	tcpPassiveOpens;
-	u64	tcpAttemptFails;
-	u64	tcpEstabResets;
-	u64	tcpCurrEstab;
-	u64	tcpInSegs;
-	u64	tcpOutSegs;
-	u64	tcpRetransSegs;
-	u64	tcpInErrs;
-	u64	tcpOutRsts;
-};
+	stats = kzalloc(sizeof(*stats) + num_counters * sizeof(u64),
+			GFP_KERNEL);
+	if (!stats)
+		return NULL;
+	stats->names = names;
+	stats->num_counters = num_counters;
+	stats->lifespan = msecs_to_jiffies(lifespan);
 
-union rdma_protocol_stats {
-	struct ib_protocol_stats	ib;
-	struct iw_protocol_stats	iw;
-};
+	return stats;
+}
+
 
 /* Define bits for the various functionality this port needs to be supported by
  * the core.
@@ -490,6 +497,7 @@ union rdma_protocol_stats {
 					| RDMA_CORE_CAP_OPA_MAD)
 
 struct ib_port_attr {
+	u64			subnet_prefix;
 	enum ib_port_state	state;
 	enum ib_mtu		max_mtu;
 	enum ib_mtu		active_mtu;
@@ -509,6 +517,7 @@ struct ib_port_attr {
 	u8			active_width;
 	u8			active_speed;
 	u8                      phys_state;
+	bool			grh_required;
 };
 
 enum ib_device_modify_flags {
@@ -614,6 +623,7 @@ enum {
 };
 
 #define IB_LID_PERMISSIVE	cpu_to_be16(0xFFFF)
+#define IB_MULTICAST_LID_BASE	cpu_to_be16(0xC000)
 
 enum ib_ah_flags {
 	IB_AH_GRH	= 1
@@ -921,6 +931,13 @@ struct ib_qp_cap {
 	u32	max_send_sge;
 	u32	max_recv_sge;
 	u32	max_inline_data;
+
+	/*
+	 * Maximum number of rdma_rw_ctx structures in flight at a time.
+	 * ib_create_qp() will calculate the right amount of neededed WRs
+	 * and MRs based on this.
+	 */
+	u32	max_rdma_ctxs;
 };
 
 enum ib_sig_type {
@@ -971,6 +988,7 @@ enum ib_qp_create_flags {
 	IB_QP_CREATE_NETIF_QP			= 1 << 5,
 	IB_QP_CREATE_SIGNATURE_EN		= 1 << 6,
 	IB_QP_CREATE_USE_GFP_NOIO		= 1 << 7,
+	IB_QP_CREATE_SCATTER_FCS		= 1 << 8,
 	/* reserve bits 26-31 for low level drivers' internal use */
 	IB_QP_CREATE_RESERVED_START		= 1 << 26,
 	IB_QP_CREATE_RESERVED_END		= 1 << 31,
@@ -992,7 +1010,11 @@ struct ib_qp_init_attr {
 	enum ib_sig_type	sq_sig_type;
 	enum ib_qp_type		qp_type;
 	enum ib_qp_create_flags	create_flags;
-	u8			port_num; /* special QP types only */
+
+	/*
+	 * Only needed for special QP types, or when using the RW API.
+	 */
+	u8			port_num;
 };
 
 struct ib_qp_open_attr {
@@ -1411,9 +1433,14 @@ struct ib_qp {
 	struct ib_pd	       *pd;
 	struct ib_cq	       *send_cq;
 	struct ib_cq	       *recv_cq;
+	spinlock_t		mr_lock;
+	int			mrs_used;
+	struct list_head	rdma_mrs;
+	struct list_head	sig_mrs;
 	struct ib_srq	       *srq;
 	struct ib_xrcd	       *xrcd; /* XRC TGT QPs only */
 	struct list_head	xrcd_list;
+
 	/* count times opened, mcast attaches, flow attaches */
 	atomic_t		usecnt;
 	struct list_head	open_list;
@@ -1428,12 +1455,16 @@ struct ib_qp {
 struct ib_mr {
 	struct ib_device  *device;
 	struct ib_pd	  *pd;
-	struct ib_uobject *uobject;
 	u32		   lkey;
 	u32		   rkey;
 	u64		   iova;
 	u32		   length;
 	unsigned int	   page_size;
+	bool		   need_inval;
+	union {
+		struct ib_uobject	*uobject;	/* user */
+		struct list_head	qp_entry;	/* FR */
+	};
 };
 
 struct ib_mw {
@@ -1675,8 +1706,29 @@ struct ib_device {
 
 	struct iw_cm_verbs	     *iwcm;
 
-	int		           (*get_protocol_stats)(struct ib_device *device,
-							 union rdma_protocol_stats *stats);
+	/**
+	 * alloc_hw_stats - Allocate a struct rdma_hw_stats and fill in the
+	 *   driver initialized data.  The struct is kfree()'ed by the sysfs
+	 *   core when the device is removed.  A lifespan of -1 in the return
+	 *   struct tells the core to set a default lifespan.
+	 */
+	struct rdma_hw_stats      *(*alloc_hw_stats)(struct ib_device *device,
+						     u8 port_num);
+	/**
+	 * get_hw_stats - Fill in the counter value(s) in the stats struct.
+	 * @index - The index in the value array we wish to have updated, or
+	 *   num_counters if we want all stats updated
+	 * Return codes -
+	 *   < 0 - Error, no counters updated
+	 *   index - Updated the single counter pointed to by index
+	 *   num_counters - Updated all counters (will reset the timestamp
+	 *     and prevent further calls for lifespan milliseconds)
+	 * Drivers are allowed to update all counters in leiu of just the
+	 *   one given in index at their option
+	 */
+	int		           (*get_hw_stats)(struct ib_device *device,
+						   struct rdma_hw_stats *stats,
+						   u8 port, int index);
 	int		           (*query_device)(struct ib_device *device,
 						   struct ib_device_attr *device_attr,
 						   struct ib_udata *udata);
@@ -1817,7 +1869,8 @@ struct ib_device {
 					       u32 max_num_sg);
 	int                        (*map_mr_sg)(struct ib_mr *mr,
 						struct scatterlist *sg,
-						int sg_nents);
+						int sg_nents,
+						unsigned int *sg_offset);
 	struct ib_mw *             (*alloc_mw)(struct ib_pd *pd,
 					       enum ib_mw_type type,
 					       struct ib_udata *udata);
@@ -1860,6 +1913,14 @@ struct ib_device {
 	void			   (*disassociate_ucontext)(struct ib_ucontext *ibcontext);
 	void			   (*drain_rq)(struct ib_qp *qp);
 	void			   (*drain_sq)(struct ib_qp *qp);
+	int			   (*set_vf_link_state)(struct ib_device *device, int vf, u8 port,
+							int state);
+	int			   (*get_vf_config)(struct ib_device *device, int vf, u8 port,
+						   struct ifla_vf_info *ivf);
+	int			   (*get_vf_stats)(struct ib_device *device, int vf, u8 port,
+						   struct ifla_vf_stats *stats);
+	int			   (*set_vf_guid)(struct ib_device *device, int vf, u8 port, u64 guid,
+						  int type);
 
 	struct ib_dma_mapping_ops   *dma_ops;
 
@@ -1885,6 +1946,8 @@ struct ib_device {
 	u8                           node_type;
 	u8                           phys_port_cnt;
 	struct ib_device_attr        attrs;
+	struct attribute_group	     *hw_stats_ag;
+	struct rdma_hw_stats         *hw_stats;
 
 	/**
 	 * The following mandatory functions are used only at device
@@ -2299,9 +2362,30 @@ static inline bool rdma_cap_roce_gid_table(const struct ib_device *device,
 		device->add_gid && device->del_gid;
 }
 
+/*
+ * Check if the device supports READ W/ INVALIDATE.
+ */
+static inline bool rdma_cap_read_inv(struct ib_device *dev, u32 port_num)
+{
+	/*
+	 * iWarp drivers must support READ W/ INVALIDATE.  No other protocol
+	 * has support for it yet.
+	 */
+	return rdma_protocol_iwarp(dev, port_num);
+}
+
 int ib_query_gid(struct ib_device *device,
 		 u8 port_num, int index, union ib_gid *gid,
 		 struct ib_gid_attr *attr);
+
+int ib_set_vf_link_state(struct ib_device *device, int vf, u8 port,
+			 int state);
+int ib_get_vf_config(struct ib_device *device, int vf, u8 port,
+		     struct ifla_vf_info *info);
+int ib_get_vf_stats(struct ib_device *device, int vf, u8 port,
+		    struct ifla_vf_stats *stats);
+int ib_set_vf_guid(struct ib_device *device, int vf, u8 port, u64 guid,
+		   int type);
 
 int ib_query_pkey(struct ib_device *device,
 		  u8 port_num, u16 index, u16 *pkey);
@@ -3084,29 +3168,23 @@ struct net_device *ib_get_net_dev_by_params(struct ib_device *dev, u8 port,
 					    u16 pkey, const union ib_gid *gid,
 					    const struct sockaddr *addr);
 
-int ib_map_mr_sg(struct ib_mr *mr,
-		 struct scatterlist *sg,
-		 int sg_nents,
-		 unsigned int page_size);
+int ib_map_mr_sg(struct ib_mr *mr, struct scatterlist *sg, int sg_nents,
+		 unsigned int *sg_offset, unsigned int page_size);
 
 static inline int
-ib_map_mr_sg_zbva(struct ib_mr *mr,
-		  struct scatterlist *sg,
-		  int sg_nents,
-		  unsigned int page_size)
+ib_map_mr_sg_zbva(struct ib_mr *mr, struct scatterlist *sg, int sg_nents,
+		  unsigned int *sg_offset, unsigned int page_size)
 {
 	int n;
 
-	n = ib_map_mr_sg(mr, sg, sg_nents, page_size);
+	n = ib_map_mr_sg(mr, sg, sg_nents, sg_offset, page_size);
 	mr->iova = 0;
 
 	return n;
 }
 
-int ib_sg_to_pages(struct ib_mr *mr,
-		   struct scatterlist *sgl,
-		   int sg_nents,
-		   int (*set_page)(struct ib_mr *, u64));
+int ib_sg_to_pages(struct ib_mr *mr, struct scatterlist *sgl, int sg_nents,
+		unsigned int *sg_offset, int (*set_page)(struct ib_mr *, u64));
 
 void ib_drain_rq(struct ib_qp *qp);
 void ib_drain_sq(struct ib_qp *qp);

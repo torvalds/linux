@@ -570,11 +570,12 @@ int intel_pmu_drain_bts_buffer(void)
 	 * We will overwrite the from and to address before we output
 	 * the sample.
 	 */
+	rcu_read_lock();
 	perf_prepare_sample(&header, &data, event, &regs);
 
 	if (perf_output_begin(&handle, event, header.size *
 			      (top - base - skip)))
-		return 1;
+		goto unlock;
 
 	for (at = base; at < top; at++) {
 		/* Filter out any records that contain kernel addresses. */
@@ -593,6 +594,8 @@ int intel_pmu_drain_bts_buffer(void)
 	/* There's new data available. */
 	event->hw.interrupts++;
 	event->pending_kill = POLL_IN;
+unlock:
+	rcu_read_unlock();
 	return 1;
 }
 
@@ -637,6 +640,12 @@ struct event_constraint intel_atom_pebs_event_constraints[] = {
 struct event_constraint intel_slm_pebs_event_constraints[] = {
 	/* INST_RETIRED.ANY_P, inv=1, cmask=16 (cycles:p). */
 	INTEL_FLAGS_EVENT_CONSTRAINT(0x108000c0, 0x1),
+	/* Allow all events as PEBS with no flags */
+	INTEL_ALL_EVENT_CONSTRAINT(0, 0x1),
+	EVENT_CONSTRAINT_END
+};
+
+struct event_constraint intel_glm_pebs_event_constraints[] = {
 	/* Allow all events as PEBS with no flags */
 	INTEL_ALL_EVENT_CONSTRAINT(0, 0x1),
 	EVENT_CONSTRAINT_END

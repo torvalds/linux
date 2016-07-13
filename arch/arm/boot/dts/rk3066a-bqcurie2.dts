@@ -42,6 +42,7 @@
  */
 
 /dts-v1/;
+#include <dt-bindings/input/input.h>
 #include "rk3066a.dtsi"
 
 / {
@@ -51,6 +52,18 @@
 	memory {
 		device_type = "memory";
 		reg = <0x60000000 0x40000000>;
+	};
+
+	vdd_log: vdd-log {
+		compatible = "pwm-regulator";
+		pwms = <&pwm3 0 1000>;
+		regulator-name = "vdd_log";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+		regulator-always-on;
+		voltage-table = <1000000 100>,
+				<1200000 42>;
+		status = "okay";
 	};
 
 	vcc_sd0: fixed-regulator {
@@ -65,24 +78,21 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 		autorepeat;
 
-		button@0 {
+		power {
 			gpios = <&gpio6 2 GPIO_ACTIVE_LOW>; /* GPIO6_A2 */
-			linux,code = <116>;
+			linux,code = <KEY_POWER>;
 			label = "GPIO Key Power";
 			linux,input-type = <1>;
-			gpio-key,wakeup = <1>;
+			wakeup-source;
 			debounce-interval = <100>;
 		};
-		button@1 {
+		volume-down {
 			gpios = <&gpio4 21 GPIO_ACTIVE_LOW>; /* GPIO4_C5 */
-			linux,code = <104>;
+			linux,code = <KEY_VOLUMEDOWN>;
 			label = "GPIO Key Vol-";
 			linux,input-type = <1>;
-			gpio-key,wakeup = <0>;
 			debounce-interval = <100>;
 		};
 		/* VOL+ comes somehow thru the ADC */
@@ -201,6 +211,10 @@
 
 	bus-width = <4>;
 	disable-wp;
+};
+
+&pwm3 {
+	status = "okay";
 };
 
 &uart0 {

@@ -144,12 +144,6 @@ enum se_cmd_flags_table {
 	SCF_USE_CPUID			= 0x00800000,
 };
 
-/* struct se_dev_entry->lun_flags and struct se_lun->lun_access */
-enum transport_lunflags_table {
-	TRANSPORT_LUNFLAGS_READ_ONLY		= 0x01,
-	TRANSPORT_LUNFLAGS_READ_WRITE		= 0x02,
-};
-
 /*
  * Used by transport_send_check_condition_and_sense()
  * to signal which ASC/ASCQ sense payload should be built.
@@ -542,7 +536,6 @@ struct se_node_acl {
 	char			initiatorname[TRANSPORT_IQN_LEN];
 	/* Used to signal demo mode created ACL, disabled by default */
 	bool			dynamic_node_acl;
-	bool			acl_stop:1;
 	u32			queue_depth;
 	u32			acl_index;
 	enum target_prot_type	saved_prot_type;
@@ -609,7 +602,6 @@ struct se_session {
 	struct list_head	sess_cmd_list;
 	struct list_head	sess_wait_list;
 	spinlock_t		sess_cmd_lock;
-	struct kref		sess_kref;
 	void			*sess_cmd_map;
 	struct percpu_ida	sess_tag_pool;
 };
@@ -633,11 +625,10 @@ struct se_lun_acl {
 };
 
 struct se_dev_entry {
-	/* See transport_lunflags_table */
 	u64			mapped_lun;
 	u64			pr_res_key;
 	u64			creation_time;
-	u32			lun_flags;
+	bool			lun_access_ro;
 	u32			attach_count;
 	atomic_long_t		total_cmds;
 	atomic_long_t		read_bytes;
@@ -711,7 +702,7 @@ struct se_lun {
 	u64			unpacked_lun;
 #define SE_LUN_LINK_MAGIC			0xffff7771
 	u32			lun_link_magic;
-	u32			lun_access;
+	bool			lun_access_ro;
 	u32			lun_index;
 
 	/* RELATIVE TARGET PORT IDENTIFER */

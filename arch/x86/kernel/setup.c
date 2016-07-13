@@ -112,6 +112,7 @@
 #include <asm/alternative.h>
 #include <asm/prom.h>
 #include <asm/microcode.h>
+#include <asm/mmu_context.h>
 
 /*
  * max_low_pfn_mapped: highest direct mapped pfn under 4GB
@@ -397,11 +398,19 @@ static void __init reserve_initrd(void)
 
 	memblock_free(ramdisk_image, ramdisk_end - ramdisk_image);
 }
+
+static void __init early_initrd_acpi_init(void)
+{
+	early_acpi_table_init((void *)initrd_start, initrd_end - initrd_start);
+}
 #else
 static void __init early_reserve_initrd(void)
 {
 }
 static void __init reserve_initrd(void)
+{
+}
+static void __init early_initrd_acpi_init(void)
 {
 }
 #endif /* CONFIG_BLK_DEV_INITRD */
@@ -1137,9 +1146,7 @@ void __init setup_arch(char **cmdline_p)
 
 	reserve_initrd();
 
-#if defined(CONFIG_ACPI) && defined(CONFIG_BLK_DEV_INITRD)
-	acpi_initrd_override((void *)initrd_start, initrd_end - initrd_start);
-#endif
+	early_initrd_acpi_init();
 
 	vsmp_init();
 
@@ -1282,3 +1289,11 @@ static int __init register_kernel_offset_dumper(void)
 	return 0;
 }
 __initcall(register_kernel_offset_dumper);
+
+void arch_show_smap(struct seq_file *m, struct vm_area_struct *vma)
+{
+	if (!boot_cpu_has(X86_FEATURE_OSPKE))
+		return;
+
+	seq_printf(m, "ProtectionKey:  %8u\n", vma_pkey(vma));
+}

@@ -301,9 +301,9 @@ EXPORT_SYMBOL_GPL(ubi_open_volume_nm);
  */
 struct ubi_volume_desc *ubi_open_volume_path(const char *pathname, int mode)
 {
-	int error, ubi_num, vol_id, mod;
-	struct inode *inode;
+	int error, ubi_num, vol_id;
 	struct path path;
+	struct kstat stat;
 
 	dbg_gen("open volume %s, mode %d", pathname, mode);
 
@@ -314,14 +314,17 @@ struct ubi_volume_desc *ubi_open_volume_path(const char *pathname, int mode)
 	if (error)
 		return ERR_PTR(error);
 
-	inode = d_backing_inode(path.dentry);
-	mod = inode->i_mode;
-	ubi_num = ubi_major2num(imajor(inode));
-	vol_id = iminor(inode) - 1;
+	error = vfs_getattr(&path, &stat);
 	path_put(&path);
+	if (error)
+		return ERR_PTR(error);
 
-	if (!S_ISCHR(mod))
+	if (!S_ISCHR(stat.mode))
 		return ERR_PTR(-EINVAL);
+
+	ubi_num = ubi_major2num(MAJOR(stat.rdev));
+	vol_id = MINOR(stat.rdev) - 1;
+
 	if (vol_id >= 0 && ubi_num >= 0)
 		return ubi_open_volume(ubi_num, vol_id, mode);
 	return ERR_PTR(-ENODEV);
@@ -708,7 +711,7 @@ int ubi_leb_map(struct ubi_volume_desc *desc, int lnum)
 	struct ubi_volume *vol = desc->vol;
 	struct ubi_device *ubi = vol->ubi;
 
-	dbg_gen("unmap LEB %d:%d", vol->vol_id, lnum);
+	dbg_gen("map LEB %d:%d", vol->vol_id, lnum);
 
 	if (desc->mode == UBI_READONLY || vol->vol_type == UBI_STATIC_VOLUME)
 		return -EROFS;

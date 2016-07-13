@@ -69,49 +69,61 @@
  * Register map
  */
 #define DT2821_ADCSR_REG		0x00
-#define DT2821_ADCSR_ADERR		(1 << 15)
-#define DT2821_ADCSR_ADCLK		(1 << 9)
-#define DT2821_ADCSR_MUXBUSY		(1 << 8)
-#define DT2821_ADCSR_ADDONE		(1 << 7)
-#define DT2821_ADCSR_IADDONE		(1 << 6)
+#define DT2821_ADCSR_ADERR		BIT(15)
+#define DT2821_ADCSR_ADCLK		BIT(9)
+#define DT2821_ADCSR_MUXBUSY		BIT(8)
+#define DT2821_ADCSR_ADDONE		BIT(7)
+#define DT2821_ADCSR_IADDONE		BIT(6)
 #define DT2821_ADCSR_GS(x)		(((x) & 0x3) << 4)
 #define DT2821_ADCSR_CHAN(x)		(((x) & 0xf) << 0)
 #define DT2821_CHANCSR_REG		0x02
-#define DT2821_CHANCSR_LLE		(1 << 15)
-#define DT2821_CHANCSR_PRESLA(x)	(((x) & 0xf) >> 8)
+#define DT2821_CHANCSR_LLE		BIT(15)
+#define DT2821_CHANCSR_TO_PRESLA(x)	(((x) >> 8) & 0xf)
 #define DT2821_CHANCSR_NUMB(x)		((((x) - 1) & 0xf) << 0)
 #define DT2821_ADDAT_REG		0x04
 #define DT2821_DACSR_REG		0x06
-#define DT2821_DACSR_DAERR		(1 << 15)
+#define DT2821_DACSR_DAERR		BIT(15)
 #define DT2821_DACSR_YSEL(x)		((x) << 9)
-#define DT2821_DACSR_SSEL		(1 << 8)
-#define DT2821_DACSR_DACRDY		(1 << 7)
-#define DT2821_DACSR_IDARDY		(1 << 6)
-#define DT2821_DACSR_DACLK		(1 << 5)
-#define DT2821_DACSR_HBOE		(1 << 1)
-#define DT2821_DACSR_LBOE		(1 << 0)
+#define DT2821_DACSR_SSEL		BIT(8)
+#define DT2821_DACSR_DACRDY		BIT(7)
+#define DT2821_DACSR_IDARDY		BIT(6)
+#define DT2821_DACSR_DACLK		BIT(5)
+#define DT2821_DACSR_HBOE		BIT(1)
+#define DT2821_DACSR_LBOE		BIT(0)
 #define DT2821_DADAT_REG		0x08
 #define DT2821_DIODAT_REG		0x0a
 #define DT2821_SUPCSR_REG		0x0c
-#define DT2821_SUPCSR_DMAD		(1 << 15)
-#define DT2821_SUPCSR_ERRINTEN		(1 << 14)
-#define DT2821_SUPCSR_CLRDMADNE		(1 << 13)
-#define DT2821_SUPCSR_DDMA		(1 << 12)
-#define DT2821_SUPCSR_DS_PIO		(0 << 10)
-#define DT2821_SUPCSR_DS_AD_CLK		(1 << 10)
-#define DT2821_SUPCSR_DS_DA_CLK		(2 << 10)
-#define DT2821_SUPCSR_DS_AD_TRIG	(3 << 10)
-#define DT2821_SUPCSR_BUFFB		(1 << 9)
-#define DT2821_SUPCSR_SCDN		(1 << 8)
-#define DT2821_SUPCSR_DACON		(1 << 7)
-#define DT2821_SUPCSR_ADCINIT		(1 << 6)
-#define DT2821_SUPCSR_DACINIT		(1 << 5)
-#define DT2821_SUPCSR_PRLD		(1 << 4)
-#define DT2821_SUPCSR_STRIG		(1 << 3)
-#define DT2821_SUPCSR_XTRIG		(1 << 2)
-#define DT2821_SUPCSR_XCLK		(1 << 1)
-#define DT2821_SUPCSR_BDINIT		(1 << 0)
+#define DT2821_SUPCSR_DMAD		BIT(15)
+#define DT2821_SUPCSR_ERRINTEN		BIT(14)
+#define DT2821_SUPCSR_CLRDMADNE		BIT(13)
+#define DT2821_SUPCSR_DDMA		BIT(12)
+#define DT2821_SUPCSR_DS(x)		(((x) & 0x3) << 10)
+#define DT2821_SUPCSR_DS_PIO		DT2821_SUPCSR_DS(0)
+#define DT2821_SUPCSR_DS_AD_CLK		DT2821_SUPCSR_DS(1)
+#define DT2821_SUPCSR_DS_DA_CLK		DT2821_SUPCSR_DS(2)
+#define DT2821_SUPCSR_DS_AD_TRIG	DT2821_SUPCSR_DS(3)
+#define DT2821_SUPCSR_BUFFB		BIT(9)
+#define DT2821_SUPCSR_SCDN		BIT(8)
+#define DT2821_SUPCSR_DACON		BIT(7)
+#define DT2821_SUPCSR_ADCINIT		BIT(6)
+#define DT2821_SUPCSR_DACINIT		BIT(5)
+#define DT2821_SUPCSR_PRLD		BIT(4)
+#define DT2821_SUPCSR_STRIG		BIT(3)
+#define DT2821_SUPCSR_XTRIG		BIT(2)
+#define DT2821_SUPCSR_XCLK		BIT(1)
+#define DT2821_SUPCSR_BDINIT		BIT(0)
 #define DT2821_TMRCTR_REG		0x0e
+#define DT2821_TMRCTR_PRESCALE(x)	(((x) & 0xf) << 8)
+#define DT2821_TMRCTR_DIVIDER(x)	((255 - ((x) & 0xff)) << 0)
+
+/* Pacer Clock */
+#define DT2821_OSC_BASE		250	/* 4 MHz (in nanoseconds) */
+#define DT2821_PRESCALE(x)	BIT(x)
+#define DT2821_PRESCALE_MAX	15
+#define DT2821_DIVIDER_MAX	255
+#define DT2821_OSC_MAX		(DT2821_OSC_BASE *			\
+				 DT2821_PRESCALE(DT2821_PRESCALE_MAX) *	\
+				 DT2821_DIVIDER_MAX)
 
 static const struct comedi_lrange range_dt282x_ai_lo_bipolar = {
 	4, {
@@ -364,10 +376,10 @@ static unsigned int dt282x_ns_to_timer(unsigned int *ns, unsigned int flags)
 {
 	unsigned int prescale, base, divider;
 
-	for (prescale = 0; prescale < 16; prescale++) {
-		if (prescale == 1)
+	for (prescale = 0; prescale <= DT2821_PRESCALE_MAX; prescale++) {
+		if (prescale == 1)	/* 0 and 1 are both divide by 1 */
 			continue;
-		base = 250 * (1 << prescale);
+		base = DT2821_OSC_BASE * DT2821_PRESCALE(prescale);
 		switch (flags & CMDF_ROUND_MASK) {
 		case CMDF_ROUND_NEAREST:
 		default:
@@ -380,15 +392,17 @@ static unsigned int dt282x_ns_to_timer(unsigned int *ns, unsigned int flags)
 			divider = DIV_ROUND_UP(*ns, base);
 			break;
 		}
-		if (divider < 256) {
-			*ns = divider * base;
-			return (prescale << 8) | (255 - divider);
-		}
+		if (divider <= DT2821_DIVIDER_MAX)
+			break;
 	}
-	base = 250 * (1 << 15);
-	divider = 255;
+	if (divider > DT2821_DIVIDER_MAX) {
+		prescale = DT2821_PRESCALE_MAX;
+		divider = DT2821_DIVIDER_MAX;
+		base = DT2821_OSC_BASE * DT2821_PRESCALE(prescale);
+	}
 	*ns = divider * base;
-	return (15 << 8) | (255 - divider);
+	return DT2821_TMRCTR_PRESCALE(prescale) |
+	       DT2821_TMRCTR_DIVIDER(divider);
 }
 
 static void dt282x_munge(struct comedi_device *dev,
@@ -683,13 +697,8 @@ static int dt282x_ai_cmdtest(struct comedi_device *dev,
 	/* Step 3: check if arguments are trivially valid */
 
 	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
-
 	err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
-
-	err |= comedi_check_trigger_arg_min(&cmd->convert_arg, 4000);
-
-#define SLOWEST_TIMER	(250*(1<<15)*255)
-	err |= comedi_check_trigger_arg_max(&cmd->convert_arg, SLOWEST_TIMER);
+	err |= comedi_check_trigger_arg_max(&cmd->convert_arg, DT2821_OSC_MAX);
 	err |= comedi_check_trigger_arg_min(&cmd->convert_arg, board->ai_speed);
 	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
 					   cmd->chanlist_len);
@@ -1084,20 +1093,6 @@ static int dt282x_initialize(struct comedi_device *dev)
 	return 0;
 }
 
-/*
-   options:
-   0	i/o base
-   1	irq
-   2	dma1
-   3	dma2
-   4	0=single ended, 1=differential
-   5	ai 0=straight binary, 1=2's comp
-   6	ao0 0=straight binary, 1=2's comp
-   7	ao1 0=straight binary, 1=2's comp
-   8	ai 0=±10 V, 1=0-10 V, 2=±5 V, 3=0-5 V
-   9	ao0 0=±10 V, 1=0-10 V, 2=±5 V, 3=0-5 V, 4=±2.5 V
-   10	ao1 0=±10 V, 1=0-10 V, 2=±5 V, 3=0-5 V, 4=±2.5 V
- */
 static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct dt282x_board *board = dev->board_ptr;

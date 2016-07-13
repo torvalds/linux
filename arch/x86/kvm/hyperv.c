@@ -1116,6 +1116,11 @@ int kvm_hv_hypercall(struct kvm_vcpu *vcpu)
 		break;
 	case HVCALL_POST_MESSAGE:
 	case HVCALL_SIGNAL_EVENT:
+		/* don't bother userspace if it has no way to handle it */
+		if (!vcpu_to_synic(vcpu)->active) {
+			res = HV_STATUS_INVALID_HYPERCALL_CODE;
+			break;
+		}
 		vcpu->run->exit_reason = KVM_EXIT_HYPERV;
 		vcpu->run->hyperv.type = KVM_EXIT_HYPERV_HCALL;
 		vcpu->run->hyperv.u.hcall.input = param;

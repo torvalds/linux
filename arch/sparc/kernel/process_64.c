@@ -103,7 +103,7 @@ static void show_regwindow32(struct pt_regs *regs)
 	mm_segment_t old_fs;
 	
 	__asm__ __volatile__ ("flushw");
-	rw = compat_ptr((unsigned)regs->u_regs[14]);
+	rw = compat_ptr((unsigned int)regs->u_regs[14]);
 	old_fs = get_fs();
 	set_fs (USER_DS);
 	if (copy_from_user (&r_w, rw, sizeof(r_w))) {
@@ -417,9 +417,9 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
 }
 
 /* Free current thread data structures etc.. */
-void exit_thread(void)
+void exit_thread(struct task_struct *tsk)
 {
-	struct thread_info *t = current_thread_info();
+	struct thread_info *t = task_thread_info(tsk);
 
 	if (t->utraps) {
 		if (t->utraps[0] < 2)

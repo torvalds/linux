@@ -176,19 +176,6 @@ static inline unsigned long drm_vma_node_size(struct drm_vma_offset_node *node)
 }
 
 /**
- * drm_vma_node_has_offset() - Check whether node is added to offset manager
- * @node: Node to be checked
- *
- * RETURNS:
- * true iff the node was previously allocated an offset and added to
- * an vma offset manager.
- */
-static inline bool drm_vma_node_has_offset(struct drm_vma_offset_node *node)
-{
-	return drm_mm_node_allocated(&node->vm_node);
-}
-
-/**
  * drm_vma_node_offset_addr() - Return sanitized offset for user-space mmaps
  * @node: Linked offset node
  *
@@ -220,7 +207,7 @@ static inline __u64 drm_vma_node_offset_addr(struct drm_vma_offset_node *node)
 static inline void drm_vma_node_unmap(struct drm_vma_offset_node *node,
 				      struct address_space *file_mapping)
 {
-	if (drm_vma_node_has_offset(node))
+	if (drm_mm_node_allocated(&node->vm_node))
 		unmap_mapping_range(file_mapping,
 				    drm_vma_node_offset_addr(node),
 				    drm_vma_node_size(node) << PAGE_SHIFT, 1);

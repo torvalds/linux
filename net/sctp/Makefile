@@ -4,6 +4,7 @@
 
 obj-$(CONFIG_IP_SCTP) += sctp.o
 obj-$(CONFIG_NET_SCTPPROBE) += sctp_probe.o
+obj-$(CONFIG_INET_SCTP_DIAG) += sctp_diag.o
 
 sctp-y := sm_statetable.o sm_statefuns.o sm_sideeffect.o \
 	  protocol.o endpointola.o associola.o \

@@ -84,6 +84,12 @@
 #define WACOM_DEVICETYPE_WL_MONITOR     0x0008
 
 #define WACOM_VENDORDEFINED_PEN		0xff0d0001
+#define WACOM_G9_PAGE			0xff090000
+#define WACOM_G9_DIGITIZER		(WACOM_G9_PAGE | 0x02)
+#define WACOM_G9_TOUCHSCREEN		(WACOM_G9_PAGE | 0x11)
+#define WACOM_G11_PAGE			0xff110000
+#define WACOM_G11_DIGITIZER		(WACOM_G11_PAGE | 0x02)
+#define WACOM_G11_TOUCHSCREEN		(WACOM_G11_PAGE | 0x11)
 
 #define WACOM_PEN_FIELD(f)	(((f)->logical == HID_DG_STYLUS) || \
 				 ((f)->physical == HID_DG_STYLUS) || \
@@ -171,6 +177,7 @@ struct wacom_features {
 	int y_fuzz;
 	int pressure_fuzz;
 	int distance_fuzz;
+	int tilt_fuzz;
 	unsigned quirks;
 	unsigned touch_max;
 	int oVid;
@@ -238,6 +245,8 @@ struct wacom_wac {
 	int ps_connected;
 	u8 bt_features;
 	u8 bt_high_speed;
+	int mode_report;
+	int mode_value;
 	struct hid_data hid_data;
 };
 

@@ -47,7 +47,6 @@ struct ceph_options {
 	unsigned long mount_timeout;		/* jiffies */
 	unsigned long osd_idle_ttl;		/* jiffies */
 	unsigned long osd_keepalive_timeout;	/* jiffies */
-	unsigned long monc_ping_timeout;	/* jiffies */
 
 	/*
 	 * any type that can't be simply compared or doesn't need need
@@ -68,7 +67,12 @@ struct ceph_options {
 #define CEPH_MOUNT_TIMEOUT_DEFAULT	msecs_to_jiffies(60 * 1000)
 #define CEPH_OSD_KEEPALIVE_DEFAULT	msecs_to_jiffies(5 * 1000)
 #define CEPH_OSD_IDLE_TTL_DEFAULT	msecs_to_jiffies(60 * 1000)
-#define CEPH_MONC_PING_TIMEOUT_DEFAULT	msecs_to_jiffies(30 * 1000)
+
+#define CEPH_MONC_HUNT_INTERVAL		msecs_to_jiffies(3 * 1000)
+#define CEPH_MONC_PING_INTERVAL		msecs_to_jiffies(10 * 1000)
+#define CEPH_MONC_PING_TIMEOUT		msecs_to_jiffies(30 * 1000)
+#define CEPH_MONC_HUNT_BACKOFF		2
+#define CEPH_MONC_HUNT_MAX_MULT		10
 
 #define CEPH_MSG_MAX_FRONT_LEN	(16*1024*1024)
 #define CEPH_MSG_MAX_MIDDLE_LEN	(16*1024*1024)
@@ -172,9 +176,66 @@ extern void ceph_put_snap_context(struct ceph_snap_context *sc);
  */
 static inline int calc_pages_for(u64 off, u64 len)
 {
-	return ((off+len+PAGE_CACHE_SIZE-1) >> PAGE_CACHE_SHIFT) -
-		(off >> PAGE_CACHE_SHIFT);
+	return ((off+len+PAGE_SIZE-1) >> PAGE_SHIFT) -
+		(off >> PAGE_SHIFT);
 }
+
+/*
+ * These are not meant to be generic - an integer key is assumed.
+ */
+#define DEFINE_RB_INSDEL_FUNCS(name, type, keyfld, nodefld)		\
+static void insert_##name(struct rb_root *root, type *t)		\
+{									\
+	struct rb_node **n = &root->rb_node;				\
+	struct rb_node *parent = NULL;					\
+									\
+	BUG_ON(!RB_EMPTY_NODE(&t->nodefld));				\
+									\
+	while (*n) {							\
+		type *cur = rb_entry(*n, type, nodefld);		\
+									\
+		parent = *n;						\
+		if (t->keyfld < cur->keyfld)				\
+			n = &(*n)->rb_left;				\
+		else if (t->keyfld > cur->keyfld)			\
+			n = &(*n)->rb_right;				\
+		else							\
+			BUG();						\
+	}								\
+									\
+	rb_link_node(&t->nodefld, parent, n);				\
+	rb_insert_color(&t->nodefld, root);				\
+}									\
+static void erase_##name(struct rb_root *root, type *t)			\
+{									\
+	BUG_ON(RB_EMPTY_NODE(&t->nodefld));				\
+	rb_erase(&t->nodefld, root);					\
+	RB_CLEAR_NODE(&t->nodefld);					\
+}
+
+#define DEFINE_RB_LOOKUP_FUNC(name, type, keyfld, nodefld)		\
+static type *lookup_##name(struct rb_root *root,			\
+			   typeof(((type *)0)->keyfld) key)		\
+{									\
+	struct rb_node *n = root->rb_node;				\
+									\
+	while (n) {							\
+		type *cur = rb_entry(n, type, nodefld);			\
+									\
+		if (key < cur->keyfld)					\
+			n = n->rb_left;					\
+		else if (key > cur->keyfld)				\
+			n = n->rb_right;				\
+		else							\
+			return cur;					\
+	}								\
+									\
+	return NULL;							\
+}
+
+#define DEFINE_RB_FUNCS(name, type, keyfld, nodefld)			\
+DEFINE_RB_INSDEL_FUNCS(name, type, keyfld, nodefld)			\
+DEFINE_RB_LOOKUP_FUNC(name, type, keyfld, nodefld)
 
 extern struct kmem_cache *ceph_inode_cachep;
 extern struct kmem_cache *ceph_cap_cachep;

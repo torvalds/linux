@@ -9,6 +9,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#include <net/sock.h>
 #include <rxrpc/packet.h>
 
 #if 0
@@ -124,10 +125,14 @@ enum rxrpc_command {
  * RxRPC security module interface
  */
 struct rxrpc_security {
-	struct module		*owner;		/* providing module */
-	struct list_head	link;		/* link in master list */
 	const char		*name;		/* name of this service */
 	u8			security_index;	/* security type provided */
+
+	/* Initialise a security service */
+	int (*init)(void);
+
+	/* Clean up a security service */
+	void (*exit)(void);
 
 	/* initialise a connection's security */
 	int (*init_connection_security)(struct rxrpc_connection *);
@@ -268,7 +273,7 @@ struct rxrpc_connection {
 	struct rb_root		calls;		/* calls on this connection */
 	struct sk_buff_head	rx_queue;	/* received conn-level packets */
 	struct rxrpc_call	*channels[RXRPC_MAXCALLS]; /* channels (active calls) */
-	struct rxrpc_security	*security;	/* applied security module */
+	const struct rxrpc_security *security;	/* applied security module */
 	struct key		*key;		/* security for this connection (client) */
 	struct key		*server_key;	/* security for this service */
 	struct crypto_skcipher	*cipher;	/* encryption handle */
@@ -289,7 +294,9 @@ struct rxrpc_connection {
 		RXRPC_CONN_LOCALLY_ABORTED,	/* - conn aborted locally */
 		RXRPC_CONN_NETWORK_ERROR,	/* - conn terminated by network error */
 	} state;
-	int			error;		/* error code for local abort */
+	u32			local_abort;	/* local abort code */
+	u32			remote_abort;	/* remote abort code */
+	int			error;		/* local error incurred */
 	int			debug_id;	/* debug ID for printks */
 	unsigned int		call_counter;	/* call ID counter */
 	atomic_t		serial;		/* packet serial number counter */
@@ -399,7 +406,9 @@ struct rxrpc_call {
 	rwlock_t		state_lock;	/* lock for state transition */
 	atomic_t		usage;
 	atomic_t		sequence;	/* Tx data packet sequence counter */
-	u32			abort_code;	/* local/remote abort code */
+	u32			local_abort;	/* local abort code */
+	u32			remote_abort;	/* remote abort code */
+	int			error;		/* local error incurred */
 	enum rxrpc_call_state	state : 8;	/* current state of call */
 	int			debug_id;	/* debug ID for printks */
 	u8			channel;	/* connection channel occupied by this call */
@@ -453,7 +462,7 @@ static inline void rxrpc_abort_call(struct rxrpc_call *call, u32 abort_code)
 {
 	write_lock_bh(&call->state_lock);
 	if (call->state < RXRPC_CALL_COMPLETE) {
-		call->abort_code = abort_code;
+		call->local_abort = abort_code;
 		call->state = RXRPC_CALL_LOCALLY_ABORTED;
 		set_bit(RXRPC_CALL_EV_ABORT, &call->events);
 	}
@@ -478,13 +487,6 @@ int rxrpc_reject_call(struct rxrpc_sock *);
 /*
  * ar-ack.c
  */
-extern unsigned int rxrpc_requested_ack_delay;
-extern unsigned int rxrpc_soft_ack_delay;
-extern unsigned int rxrpc_idle_ack_delay;
-extern unsigned int rxrpc_rx_window_size;
-extern unsigned int rxrpc_rx_mtu;
-extern unsigned int rxrpc_rx_jumbo_max;
-
 void __rxrpc_propose_ACK(struct rxrpc_call *, u8, u32, bool);
 void rxrpc_propose_ACK(struct rxrpc_call *, u8, u32, bool);
 void rxrpc_process_call(struct work_struct *);
@@ -506,7 +508,7 @@ struct rxrpc_call *rxrpc_get_client_call(struct rxrpc_sock *,
 					 unsigned long, int, gfp_t);
 struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *,
 				       struct rxrpc_connection *,
-				       struct rxrpc_host_header *, gfp_t);
+				       struct rxrpc_host_header *);
 struct rxrpc_call *rxrpc_find_server_call(struct rxrpc_sock *, unsigned long);
 void rxrpc_release_call(struct rxrpc_call *);
 void rxrpc_release_calls_on_socket(struct rxrpc_sock *);
@@ -531,8 +533,7 @@ void __exit rxrpc_destroy_all_connections(void);
 struct rxrpc_connection *rxrpc_find_connection(struct rxrpc_transport *,
 					       struct rxrpc_host_header *);
 extern struct rxrpc_connection *
-rxrpc_incoming_connection(struct rxrpc_transport *, struct rxrpc_host_header *,
-			  gfp_t);
+rxrpc_incoming_connection(struct rxrpc_transport *, struct rxrpc_host_header *);
 
 /*
  * ar-connevent.c
@@ -550,8 +551,6 @@ void rxrpc_UDP_error_handler(struct work_struct *);
 /*
  * ar-input.c
  */
-extern const char *rxrpc_pkts[];
-
 void rxrpc_data_ready(struct sock *);
 int rxrpc_queue_rcv_skb(struct rxrpc_call *, struct sk_buff *, bool, bool);
 void rxrpc_fast_process_packet(struct rxrpc_call *, struct sk_buff *);
@@ -610,14 +609,10 @@ int rxrpc_recvmsg(struct socket *, struct msghdr *, size_t, int);
 /*
  * ar-security.c
  */
-int rxrpc_register_security(struct rxrpc_security *);
-void rxrpc_unregister_security(struct rxrpc_security *);
+int __init rxrpc_init_security(void);
+void rxrpc_exit_security(void);
 int rxrpc_init_client_conn_security(struct rxrpc_connection *);
 int rxrpc_init_server_conn_security(struct rxrpc_connection *);
-int rxrpc_secure_packet(const struct rxrpc_call *, struct sk_buff *, size_t,
-			void *);
-int rxrpc_verify_packet(const struct rxrpc_call *, struct sk_buff *, u32 *);
-void rxrpc_clear_conn_security(struct rxrpc_connection *);
 
 /*
  * ar-skbuff.c
@@ -635,6 +630,33 @@ void rxrpc_put_transport(struct rxrpc_transport *);
 void __exit rxrpc_destroy_all_transports(void);
 struct rxrpc_transport *rxrpc_find_transport(struct rxrpc_local *,
 					     struct rxrpc_peer *);
+
+/*
+ * insecure.c
+ */
+extern const struct rxrpc_security rxrpc_no_security;
+
+/*
+ * misc.c
+ */
+extern unsigned int rxrpc_requested_ack_delay;
+extern unsigned int rxrpc_soft_ack_delay;
+extern unsigned int rxrpc_idle_ack_delay;
+extern unsigned int rxrpc_rx_window_size;
+extern unsigned int rxrpc_rx_mtu;
+extern unsigned int rxrpc_rx_jumbo_max;
+
+extern const char *const rxrpc_pkts[];
+extern const s8 rxrpc_ack_priority[];
+
+extern const char *rxrpc_acks(u8 reason);
+
+/*
+ * rxkad.c
+ */
+#ifdef CONFIG_RXKAD
+extern const struct rxrpc_security rxkad;
+#endif
 
 /*
  * sysctl.c

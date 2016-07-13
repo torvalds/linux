@@ -139,7 +139,7 @@ void ath_debug_rate_stats(struct ath_softc *sc,
 	}
 
 	if (IS_OFDM_RATE(rs->rs_rate)) {
-		if (ah->curchan->chan->band == IEEE80211_BAND_2GHZ)
+		if (ah->curchan->chan->band == NL80211_BAND_2GHZ)
 			rstats->ofdm_stats[rxs->rate_idx - 4].ofdm_cnt++;
 		else
 			rstats->ofdm_stats[rxs->rate_idx].ofdm_cnt++;
@@ -173,7 +173,7 @@ static ssize_t read_file_node_recv(struct file *file, char __user *user_buf,
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_rx_rate_stats *rstats;
 	struct ieee80211_sta *sta = an->sta;
-	enum ieee80211_band band;
+	enum nl80211_band band;
 	u32 len = 0, size = 4096;
 	char *buf;
 	size_t retval;
@@ -206,7 +206,7 @@ static ssize_t read_file_node_recv(struct file *file, char __user *user_buf,
 	len += scnprintf(buf + len, size - len, "\n");
 
 legacy:
-	if (band == IEEE80211_BAND_2GHZ) {
+	if (band == NL80211_BAND_2GHZ) {
 		PRINT_CCK_RATE("CCK-1M/LP", 0, false);
 		PRINT_CCK_RATE("CCK-2M/LP", 1, false);
 		PRINT_CCK_RATE("CCK-5.5M/LP", 2, false);

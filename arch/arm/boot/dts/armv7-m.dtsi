@@ -1,7 +1,7 @@
 #include "skeleton.dtsi"
 
 / {
-	nvic: nv-interrupt-controller  {
+	nvic: interrupt-controller@e000e100  {
 		compatible = "arm,armv7m-nvic";
 		interrupt-controller;
 		#interrupt-cells = <1>;

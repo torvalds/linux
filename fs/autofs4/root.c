@@ -39,7 +39,7 @@ const struct file_operations autofs4_root_operations = {
 	.open		= dcache_dir_open,
 	.release	= dcache_dir_close,
 	.read		= generic_read_dir,
-	.iterate	= dcache_readdir,
+	.iterate_shared	= dcache_readdir,
 	.llseek		= dcache_dir_lseek,
 	.unlocked_ioctl	= autofs4_root_ioctl,
 #ifdef CONFIG_COMPAT
@@ -51,7 +51,7 @@ const struct file_operations autofs4_dir_operations = {
 	.open		= autofs4_dir_open,
 	.release	= dcache_dir_close,
 	.read		= generic_read_dir,
-	.iterate	= dcache_readdir,
+	.iterate_shared	= dcache_readdir,
 	.llseek		= dcache_dir_lseek,
 };
 
@@ -458,7 +458,7 @@ static int autofs4_d_manage(struct dentry *dentry, bool rcu_walk)
 		 */
 		struct inode *inode;
 
-		if (ino->flags & (AUTOFS_INF_EXPIRING | AUTOFS_INF_NO_RCU))
+		if (ino->flags & AUTOFS_INF_WANT_EXPIRE)
 			return 0;
 		if (d_mountpoint(dentry))
 			return 0;

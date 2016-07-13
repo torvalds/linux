@@ -36,15 +36,58 @@
 #include <asm/reg.h>
 #include <asm/smp.h> /* Required for cpu_sibling_mask() in UP configs */
 #include <asm/opal.h>
+#include <linux/timer.h>
 
 #define POWERNV_MAX_PSTATES	256
 #define PMSR_PSAFE_ENABLE	(1UL << 30)
 #define PMSR_SPR_EM_DISABLE	(1UL << 31)
 #define PMSR_MAX(x)		((x >> 32) & 0xFF)
 
+#define MAX_RAMP_DOWN_TIME				5120
+/*
+ * On an idle system we want the global pstate to ramp-down from max value to
+ * min over a span of ~5 secs. Also we want it to initially ramp-down slowly and
+ * then ramp-down rapidly later on.
+ *
+ * This gives a percentage rampdown for time elapsed in milliseconds.
+ * ramp_down_percentage = ((ms * ms) >> 18)
+ *			~= 3.8 * (sec * sec)
+ *
+ * At 0 ms	ramp_down_percent = 0
+ * At 5120 ms	ramp_down_percent = 100
+ */
+#define ramp_down_percent(time)		((time * time) >> 18)
+
+/* Interval after which the timer is queued to bring down global pstate */
+#define GPSTATE_TIMER_INTERVAL				2000
+
+/**
+ * struct global_pstate_info -	Per policy data structure to maintain history of
+ *				global pstates
+ * @highest_lpstate:		The local pstate from which we are ramping down
+ * @elapsed_time:		Time in ms spent in ramping down from
+ *				highest_lpstate
+ * @last_sampled_time:		Time from boot in ms when global pstates were
+ *				last set
+ * @last_lpstate,last_gpstate:	Last set values for local and global pstates
+ * @timer:			Is used for ramping down if cpu goes idle for
+ *				a long time with global pstate held high
+ * @gpstate_lock:		A spinlock to maintain synchronization between
+ *				routines called by the timer handler and
+ *				governer's target_index calls
+ */
+struct global_pstate_info {
+	int highest_lpstate;
+	unsigned int elapsed_time;
+	unsigned int last_sampled_time;
+	int last_lpstate;
+	int last_gpstate;
+	spinlock_t gpstate_lock;
+	struct timer_list timer;
+};
+
 static struct cpufreq_frequency_table powernv_freqs[POWERNV_MAX_PSTATES+1];
 static bool rebooting, throttled, occ_reset;
-static unsigned int *core_to_chip_map;
 
 static const char * const throttle_reason[] = {
 	"No throttling",
@@ -55,6 +98,16 @@ static const char * const throttle_reason[] = {
 	"OCC Reset"
 };
 
+enum throttle_reason_type {
+	NO_THROTTLE = 0,
+	POWERCAP,
+	CPU_OVERTEMP,
+	POWER_SUPPLY_FAILURE,
+	OVERCURRENT,
+	OCC_RESET_THROTTLE,
+	OCC_MAX_REASON
+};
+
 static struct chip {
 	unsigned int id;
 	bool throttled;
@@ -62,9 +115,13 @@ static struct chip {
 	u8 throttle_reason;
 	cpumask_t mask;
 	struct work_struct throttle;
+	int throttle_turbo;
+	int throttle_sub_turbo;
+	int reason[OCC_MAX_REASON];
 } *chips;
 
 static int nr_chips;
+static DEFINE_PER_CPU(struct chip *, chip_info);
 
 /*
  * Note: The set of pstates consists of contiguous integers, the
@@ -80,6 +137,17 @@ static struct powernv_pstate_info {
 	int nominal;
 	int nr_pstates;
 } powernv_pstate_info;
+
+static inline void reset_gpstates(struct cpufreq_policy *policy)
+{
+	struct global_pstate_info *gpstates = policy->driver_data;
+
+	gpstates->highest_lpstate = 0;
+	gpstates->elapsed_time = 0;
+	gpstates->last_sampled_time = 0;
+	gpstates->last_lpstate = 0;
+	gpstates->last_gpstate = 0;
+}
 
 /*
  * Initialize the freq table based on data obtained
@@ -196,6 +264,42 @@ static struct freq_attr *powernv_cpu_freq_attr[] = {
 	NULL,
 };
 
+#define throttle_attr(name, member)					\
+static ssize_t name##_show(struct cpufreq_policy *policy, char *buf)	\
+{									\
+	struct chip *chip = per_cpu(chip_info, policy->cpu);		\
+									\
+	return sprintf(buf, "%u\n", chip->member);			\
+}									\
+									\
+static struct freq_attr throttle_attr_##name = __ATTR_RO(name)		\
+
+throttle_attr(unthrottle, reason[NO_THROTTLE]);
+throttle_attr(powercap, reason[POWERCAP]);
+throttle_attr(overtemp, reason[CPU_OVERTEMP]);
+throttle_attr(supply_fault, reason[POWER_SUPPLY_FAILURE]);
+throttle_attr(overcurrent, reason[OVERCURRENT]);
+throttle_attr(occ_reset, reason[OCC_RESET_THROTTLE]);
+throttle_attr(turbo_stat, throttle_turbo);
+throttle_attr(sub_turbo_stat, throttle_sub_turbo);
+
+static struct attribute *throttle_attrs[] = {
+	&throttle_attr_unthrottle.attr,
+	&throttle_attr_powercap.attr,
+	&throttle_attr_overtemp.attr,
+	&throttle_attr_supply_fault.attr,
+	&throttle_attr_overcurrent.attr,
+	&throttle_attr_occ_reset.attr,
+	&throttle_attr_turbo_stat.attr,
+	&throttle_attr_sub_turbo_stat.attr,
+	NULL,
+};
+
+static const struct attribute_group throttle_attr_grp = {
+	.name	= "throttle_stats",
+	.attrs	= throttle_attrs,
+};
+
 /* Helper routines */
 
 /* Access helpers to power mgt SPR */
@@ -236,6 +340,7 @@ static inline void set_pmspr(unsigned long sprn, unsigned long val)
 struct powernv_smp_call_data {
 	unsigned int freq;
 	int pstate_id;
+	int gpstate_id;
 };
 
 /*
@@ -294,19 +399,21 @@ static unsigned int powernv_cpufreq_get(unsigned int cpu)
  * (struct powernv_smp_call_data *) and the pstate_id which needs to be set
  * on this CPU should be present in freq_data->pstate_id.
  */
-static void set_pstate(void *freq_data)
+static void set_pstate(void *data)
 {
 	unsigned long val;
-	unsigned long pstate_ul =
-		((struct powernv_smp_call_data *) freq_data)->pstate_id;
+	struct powernv_smp_call_data *freq_data = data;
+	unsigned long pstate_ul = freq_data->pstate_id;
+	unsigned long gpstate_ul = freq_data->gpstate_id;
 
 	val = get_pmspr(SPRN_PMCR);
 	val = val & 0x0000FFFFFFFFFFFFULL;
 
 	pstate_ul = pstate_ul & 0xFF;
+	gpstate_ul = gpstate_ul & 0xFF;
 
 	/* Set both global(bits 56..63) and local(bits 48..55) PStates */
-	val = val | (pstate_ul << 56) | (pstate_ul << 48);
+	val = val | (gpstate_ul << 56) | (pstate_ul << 48);
 
 	pr_debug("Setting cpu %d pmcr to %016lX\n",
 			raw_smp_processor_id(), val);
@@ -324,34 +431,35 @@ static inline unsigned int get_nominal_index(void)
 
 static void powernv_cpufreq_throttle_check(void *data)
 {
+	struct chip *chip;
 	unsigned int cpu = smp_processor_id();
-	unsigned int chip_id = core_to_chip_map[cpu_core_index_of_thread(cpu)];
 	unsigned long pmsr;
-	int pmsr_pmax, i;
+	int pmsr_pmax;
 
 	pmsr = get_pmspr(SPRN_PMSR);
-
-	for (i = 0; i < nr_chips; i++)
-		if (chips[i].id == chip_id)
-			break;
+	chip = this_cpu_read(chip_info);
 
 	/* Check for Pmax Capping */
 	pmsr_pmax = (s8)PMSR_MAX(pmsr);
 	if (pmsr_pmax != powernv_pstate_info.max) {
-		if (chips[i].throttled)
+		if (chip->throttled)
 			goto next;
-		chips[i].throttled = true;
-		if (pmsr_pmax < powernv_pstate_info.nominal)
+		chip->throttled = true;
+		if (pmsr_pmax < powernv_pstate_info.nominal) {
 			pr_warn_once("CPU %d on Chip %u has Pmax reduced below nominal frequency (%d < %d)\n",
-				     cpu, chips[i].id, pmsr_pmax,
+				     cpu, chip->id, pmsr_pmax,
 				     powernv_pstate_info.nominal);
-		trace_powernv_throttle(chips[i].id,
-				      throttle_reason[chips[i].throttle_reason],
+			chip->throttle_sub_turbo++;
+		} else {
+			chip->throttle_turbo++;
+		}
+		trace_powernv_throttle(chip->id,
+				      throttle_reason[chip->throttle_reason],
 				      pmsr_pmax);
-	} else if (chips[i].throttled) {
-		chips[i].throttled = false;
-		trace_powernv_throttle(chips[i].id,
-				      throttle_reason[chips[i].throttle_reason],
+	} else if (chip->throttled) {
+		chip->throttled = false;
+		trace_powernv_throttle(chip->id,
+				      throttle_reason[chip->throttle_reason],
 				      pmsr_pmax);
 	}
 
@@ -374,6 +482,111 @@ next:
 	}
 }
 
+/**
+ * calc_global_pstate - Calculate global pstate
+ * @elapsed_time:	Elapsed time in milliseconds
+ * @local_pstate:	New local pstate
+ * @highest_lpstate:	pstate from which its ramping down
+ *
+ * Finds the appropriate global pstate based on the pstate from which its
+ * ramping down and the time elapsed in ramping down. It follows a quadratic
+ * equation which ensures that it reaches ramping down to pmin in 5sec.
+ */
+static inline int calc_global_pstate(unsigned int elapsed_time,
+				     int highest_lpstate, int local_pstate)
+{
+	int pstate_diff;
+
+	/*
+	 * Using ramp_down_percent we get the percentage of rampdown
+	 * that we are expecting to be dropping. Difference between
+	 * highest_lpstate and powernv_pstate_info.min will give a absolute
+	 * number of how many pstates we will drop eventually by the end of
+	 * 5 seconds, then just scale it get the number pstates to be dropped.
+	 */
+	pstate_diff =  ((int)ramp_down_percent(elapsed_time) *
+			(highest_lpstate - powernv_pstate_info.min)) / 100;
+
+	/* Ensure that global pstate is >= to local pstate */
+	if (highest_lpstate - pstate_diff < local_pstate)
+		return local_pstate;
+	else
+		return highest_lpstate - pstate_diff;
+}
+
+static inline void  queue_gpstate_timer(struct global_pstate_info *gpstates)
+{
+	unsigned int timer_interval;
+
+	/*
+	 * Setting up timer to fire after GPSTATE_TIMER_INTERVAL ms, But
+	 * if it exceeds MAX_RAMP_DOWN_TIME ms for ramp down time.
+	 * Set timer such that it fires exactly at MAX_RAMP_DOWN_TIME
+	 * seconds of ramp down time.
+	 */
+	if ((gpstates->elapsed_time + GPSTATE_TIMER_INTERVAL)
+	     > MAX_RAMP_DOWN_TIME)
+		timer_interval = MAX_RAMP_DOWN_TIME - gpstates->elapsed_time;
+	else
+		timer_interval = GPSTATE_TIMER_INTERVAL;
+
+	mod_timer_pinned(&gpstates->timer, jiffies +
+			msecs_to_jiffies(timer_interval));
+}
+
+/**
+ * gpstate_timer_handler
+ *
+ * @data: pointer to cpufreq_policy on which timer was queued
+ *
+ * This handler brings down the global pstate closer to the local pstate
+ * according quadratic equation. Queues a new timer if it is still not equal
+ * to local pstate
+ */
+void gpstate_timer_handler(unsigned long data)
+{
+	struct cpufreq_policy *policy = (struct cpufreq_policy *)data;
+	struct global_pstate_info *gpstates = policy->driver_data;
+	int gpstate_id;
+	unsigned int time_diff = jiffies_to_msecs(jiffies)
+					- gpstates->last_sampled_time;
+	struct powernv_smp_call_data freq_data;
+
+	if (!spin_trylock(&gpstates->gpstate_lock))
+		return;
+
+	gpstates->last_sampled_time += time_diff;
+	gpstates->elapsed_time += time_diff;
+	freq_data.pstate_id = gpstates->last_lpstate;
+
+	if ((gpstates->last_gpstate == freq_data.pstate_id) ||
+	    (gpstates->elapsed_time > MAX_RAMP_DOWN_TIME)) {
+		gpstate_id = freq_data.pstate_id;
+		reset_gpstates(policy);
+		gpstates->highest_lpstate = freq_data.pstate_id;
+	} else {
+		gpstate_id = calc_global_pstate(gpstates->elapsed_time,
+						gpstates->highest_lpstate,
+						freq_data.pstate_id);
+	}
+
+	/*
+	 * If local pstate is equal to global pstate, rampdown is over
+	 * So timer is not required to be queued.
+	 */
+	if (gpstate_id != freq_data.pstate_id)
+		queue_gpstate_timer(gpstates);
+
+	freq_data.gpstate_id = gpstate_id;
+	gpstates->last_gpstate = freq_data.gpstate_id;
+	gpstates->last_lpstate = freq_data.pstate_id;
+
+	spin_unlock(&gpstates->gpstate_lock);
+
+	/* Timer may get migrated to a different cpu on cpu hot unplug */
+	smp_call_function_any(policy->cpus, set_pstate, &freq_data, 1);
+}
+
 /*
  * powernv_cpufreq_target_index: Sets the frequency corresponding to
  * the cpufreq table entry indexed by new_index on the cpus in the
@@ -383,6 +596,8 @@ static int powernv_cpufreq_target_index(struct cpufreq_policy *policy,
 					unsigned int new_index)
 {
 	struct powernv_smp_call_data freq_data;
+	unsigned int cur_msec, gpstate_id;
+	struct global_pstate_info *gpstates = policy->driver_data;
 
 	if (unlikely(rebooting) && new_index != get_nominal_index())
 		return 0;
@@ -390,7 +605,58 @@ static int powernv_cpufreq_target_index(struct cpufreq_policy *policy,
 	if (!throttled)
 		powernv_cpufreq_throttle_check(NULL);
 
+	cur_msec = jiffies_to_msecs(get_jiffies_64());
+
+	spin_lock(&gpstates->gpstate_lock);
 	freq_data.pstate_id = powernv_freqs[new_index].driver_data;
+
+	if (!gpstates->last_sampled_time) {
+		gpstate_id = freq_data.pstate_id;
+		gpstates->highest_lpstate = freq_data.pstate_id;
+		goto gpstates_done;
+	}
+
+	if (gpstates->last_gpstate > freq_data.pstate_id) {
+		gpstates->elapsed_time += cur_msec -
+						 gpstates->last_sampled_time;
+
+		/*
+		 * If its has been ramping down for more than MAX_RAMP_DOWN_TIME
+		 * we should be resetting all global pstate related data. Set it
+		 * equal to local pstate to start fresh.
+		 */
+		if (gpstates->elapsed_time > MAX_RAMP_DOWN_TIME) {
+			reset_gpstates(policy);
+			gpstates->highest_lpstate = freq_data.pstate_id;
+			gpstate_id = freq_data.pstate_id;
+		} else {
+		/* Elaspsed_time is less than 5 seconds, continue to rampdown */
+			gpstate_id = calc_global_pstate(gpstates->elapsed_time,
+							gpstates->highest_lpstate,
+							freq_data.pstate_id);
+		}
+	} else {
+		reset_gpstates(policy);
+		gpstates->highest_lpstate = freq_data.pstate_id;
+		gpstate_id = freq_data.pstate_id;
+	}
+
+	/*
+	 * If local pstate is equal to global pstate, rampdown is over
+	 * So timer is not required to be queued.
+	 */
+	if (gpstate_id != freq_data.pstate_id)
+		queue_gpstate_timer(gpstates);
+	else
+		del_timer_sync(&gpstates->timer);
+
+gpstates_done:
+	freq_data.gpstate_id = gpstate_id;
+	gpstates->last_sampled_time = cur_msec;
+	gpstates->last_gpstate = freq_data.gpstate_id;
+	gpstates->last_lpstate = freq_data.pstate_id;
+
+	spin_unlock(&gpstates->gpstate_lock);
 
 	/*
 	 * Use smp_call_function to send IPI and execute the
@@ -398,20 +664,61 @@ static int powernv_cpufreq_target_index(struct cpufreq_policy *policy,
 	 * if current CPU is within policy->cpus (core)
 	 */
 	smp_call_function_any(policy->cpus, set_pstate, &freq_data, 1);
-
 	return 0;
 }
 
 static int powernv_cpufreq_cpu_init(struct cpufreq_policy *policy)
 {
-	int base, i;
+	int base, i, ret;
+	struct kernfs_node *kn;
+	struct global_pstate_info *gpstates;
 
 	base = cpu_first_thread_sibling(policy->cpu);
 
 	for (i = 0; i < threads_per_core; i++)
 		cpumask_set_cpu(base + i, policy->cpus);
 
-	return cpufreq_table_validate_and_show(policy, powernv_freqs);
+	kn = kernfs_find_and_get(policy->kobj.sd, throttle_attr_grp.name);
+	if (!kn) {
+		int ret;
+
+		ret = sysfs_create_group(&policy->kobj, &throttle_attr_grp);
+		if (ret) {
+			pr_info("Failed to create throttle stats directory for cpu %d\n",
+				policy->cpu);
+			return ret;
+		}
+	} else {
+		kernfs_put(kn);
+	}
+
+	gpstates =  kzalloc(sizeof(*gpstates), GFP_KERNEL);
+	if (!gpstates)
+		return -ENOMEM;
+
+	policy->driver_data = gpstates;
+
+	/* initialize timer */
+	init_timer_deferrable(&gpstates->timer);
+	gpstates->timer.data = (unsigned long)policy;
+	gpstates->timer.function = gpstate_timer_handler;
+	gpstates->timer.expires = jiffies +
+				msecs_to_jiffies(GPSTATE_TIMER_INTERVAL);
+	spin_lock_init(&gpstates->gpstate_lock);
+	ret = cpufreq_table_validate_and_show(policy, powernv_freqs);
+
+	if (ret < 0)
+		kfree(policy->driver_data);
+
+	return ret;
+}
+
+static int powernv_cpufreq_cpu_exit(struct cpufreq_policy *policy)
+{
+	/* timer is deleted in cpufreq_cpu_stop() */
+	kfree(policy->driver_data);
+
+	return 0;
 }
 
 static int powernv_cpufreq_reboot_notifier(struct notifier_block *nb,
@@ -517,8 +824,10 @@ static int powernv_cpufreq_occ_msg(struct notifier_block *nb,
 				break;
 
 		if (omsg.throttle_status >= 0 &&
-		    omsg.throttle_status <= OCC_MAX_THROTTLE_STATUS)
+		    omsg.throttle_status <= OCC_MAX_THROTTLE_STATUS) {
 			chips[i].throttle_reason = omsg.throttle_status;
+			chips[i].reason[omsg.throttle_status]++;
+		}
 
 		if (!omsg.throttle_status)
 			chips[i].restore = true;
@@ -537,15 +846,19 @@ static struct notifier_block powernv_cpufreq_opal_nb = {
 static void powernv_cpufreq_stop_cpu(struct cpufreq_policy *policy)
 {
 	struct powernv_smp_call_data freq_data;
+	struct global_pstate_info *gpstates = policy->driver_data;
 
 	freq_data.pstate_id = powernv_pstate_info.min;
+	freq_data.gpstate_id = powernv_pstate_info.min;
 	smp_call_function_single(policy->cpu, set_pstate, &freq_data, 1);
+	del_timer_sync(&gpstates->timer);
 }
 
 static struct cpufreq_driver powernv_cpufreq_driver = {
 	.name		= "powernv-cpufreq",
 	.flags		= CPUFREQ_CONST_LOOPS,
 	.init		= powernv_cpufreq_cpu_init,
+	.exit		= powernv_cpufreq_cpu_exit,
 	.verify		= cpufreq_generic_frequency_table_verify,
 	.target_index	= powernv_cpufreq_target_index,
 	.get		= powernv_cpufreq_get,
@@ -558,47 +871,34 @@ static int init_chip_info(void)
 	unsigned int chip[256];
 	unsigned int cpu, i;
 	unsigned int prev_chip_id = UINT_MAX;
-	cpumask_t cpu_mask;
-	int ret = -ENOMEM;
 
-	core_to_chip_map = kcalloc(cpu_nr_cores(), sizeof(unsigned int),
-				   GFP_KERNEL);
-	if (!core_to_chip_map)
-		goto out;
-
-	cpumask_copy(&cpu_mask, cpu_possible_mask);
-	for_each_cpu(cpu, &cpu_mask) {
+	for_each_possible_cpu(cpu) {
 		unsigned int id = cpu_to_chip_id(cpu);
 
 		if (prev_chip_id != id) {
 			prev_chip_id = id;
 			chip[nr_chips++] = id;
 		}
-		core_to_chip_map[cpu_core_index_of_thread(cpu)] = id;
-		cpumask_andnot(&cpu_mask, &cpu_mask, cpu_sibling_mask(cpu));
 	}
 
 	chips = kcalloc(nr_chips, sizeof(struct chip), GFP_KERNEL);
 	if (!chips)
-		goto free_chip_map;
+		return -ENOMEM;
 
 	for (i = 0; i < nr_chips; i++) {
 		chips[i].id = chip[i];
 		cpumask_copy(&chips[i].mask, cpumask_of_node(chip[i]));
 		INIT_WORK(&chips[i].throttle, powernv_cpufreq_work_fn);
+		for_each_cpu(cpu, &chips[i].mask)
+			per_cpu(chip_info, cpu) =  &chips[i];
 	}
 
 	return 0;
-free_chip_map:
-	kfree(core_to_chip_map);
-out:
-	return ret;
 }
 
 static inline void clean_chip_info(void)
 {
 	kfree(chips);
-	kfree(core_to_chip_map);
 }
 
 static inline void unregister_all_notifiers(void)

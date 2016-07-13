@@ -131,8 +131,8 @@ acpi_ex_check_object_type(acpi_object_type type_needed,
 
 acpi_status
 acpi_ex_resolve_operands(u16 opcode,
-			 union acpi_operand_object ** stack_ptr,
-			 struct acpi_walk_state * walk_state)
+			 union acpi_operand_object **stack_ptr,
+			 struct acpi_walk_state *walk_state)
 {
 	union acpi_operand_object *obj_desc;
 	acpi_status status = AE_OK;

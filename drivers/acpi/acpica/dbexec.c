@@ -361,7 +361,7 @@ acpi_db_execution_walk(acpi_handle obj_handle,
  ******************************************************************************/
 
 void
-acpi_db_execute(char *name, char **args, acpi_object_type * types, u32 flags)
+acpi_db_execute(char *name, char **args, acpi_object_type *types, u32 flags)
 {
 	acpi_status status;
 	struct acpi_buffer return_obj;

@@ -30,8 +30,8 @@ int squashfs_readpage_block(struct page *target_page, u64 block, int bsize)
 	struct inode *inode = target_page->mapping->host;
 	struct squashfs_sb_info *msblk = inode->i_sb->s_fs_info;
 
-	int file_end = (i_size_read(inode) - 1) >> PAGE_CACHE_SHIFT;
-	int mask = (1 << (msblk->block_log - PAGE_CACHE_SHIFT)) - 1;
+	int file_end = (i_size_read(inode) - 1) >> PAGE_SHIFT;
+	int mask = (1 << (msblk->block_log - PAGE_SHIFT)) - 1;
 	int start_index = target_page->index & ~mask;
 	int end_index = start_index | mask;
 	int i, n, pages, missing_pages, bytes, res = -ENOMEM;
@@ -68,7 +68,7 @@ int squashfs_readpage_block(struct page *target_page, u64 block, int bsize)
 
 		if (PageUptodate(page[i])) {
 			unlock_page(page[i]);
-			page_cache_release(page[i]);
+			put_page(page[i]);
 			page[i] = NULL;
 			missing_pages++;
 		}
@@ -96,10 +96,10 @@ int squashfs_readpage_block(struct page *target_page, u64 block, int bsize)
 		goto mark_errored;
 
 	/* Last page may have trailing bytes not filled */
-	bytes = res % PAGE_CACHE_SIZE;
+	bytes = res % PAGE_SIZE;
 	if (bytes) {
 		pageaddr = kmap_atomic(page[pages - 1]);
-		memset(pageaddr + bytes, 0, PAGE_CACHE_SIZE - bytes);
+		memset(pageaddr + bytes, 0, PAGE_SIZE - bytes);
 		kunmap_atomic(pageaddr);
 	}
 
@@ -109,7 +109,7 @@ int squashfs_readpage_block(struct page *target_page, u64 block, int bsize)
 		SetPageUptodate(page[i]);
 		unlock_page(page[i]);
 		if (page[i] != target_page)
-			page_cache_release(page[i]);
+			put_page(page[i]);
 	}
 
 	kfree(actor);
@@ -127,7 +127,7 @@ mark_errored:
 		flush_dcache_page(page[i]);
 		SetPageError(page[i]);
 		unlock_page(page[i]);
-		page_cache_release(page[i]);
+		put_page(page[i]);
 	}
 
 out:
@@ -153,21 +153,21 @@ static int squashfs_read_cache(struct page *target_page, u64 block, int bsize,
 	}
 
 	for (n = 0; n < pages && bytes > 0; n++,
-			bytes -= PAGE_CACHE_SIZE, offset += PAGE_CACHE_SIZE) {
-		int avail = min_t(int, bytes, PAGE_CACHE_SIZE);
+			bytes -= PAGE_SIZE, offset += PAGE_SIZE) {
+		int avail = min_t(int, bytes, PAGE_SIZE);
 
 		if (page[n] == NULL)
 			continue;
 
 		pageaddr = kmap_atomic(page[n]);
 		squashfs_copy_data(pageaddr, buffer, offset, avail);
-		memset(pageaddr + avail, 0, PAGE_CACHE_SIZE - avail);
+		memset(pageaddr + avail, 0, PAGE_SIZE - avail);
 		kunmap_atomic(pageaddr);
 		flush_dcache_page(page[n]);
 		SetPageUptodate(page[n]);
 		unlock_page(page[n]);
 		if (page[n] != target_page)
-			page_cache_release(page[n]);
+			put_page(page[n]);
 	}
 
 out:

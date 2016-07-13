@@ -11,5 +11,6 @@ using one of the following compatible strings:
   allwinner,sun7i-a20
   allwinner,sun8i-a23
   allwinner,sun8i-a33
+  allwinner,sun8i-a83t
   allwinner,sun8i-h3
   allwinner,sun9i-a80

@@ -171,7 +171,7 @@ static int rds_tcp_data_recv(read_descriptor_t *desc, struct sk_buff *skb,
 	while (left) {
 		if (!tinc) {
 			tinc = kmem_cache_alloc(rds_tcp_incoming_slab,
-					        arg->gfp);
+						arg->gfp);
 			if (!tinc) {
 				desc->error = -ENOMEM;
 				goto out;
@@ -207,22 +207,14 @@ static int rds_tcp_data_recv(read_descriptor_t *desc, struct sk_buff *skb,
 		}
 
 		if (left && tc->t_tinc_data_rem) {
-			clone = skb_clone(skb, arg->gfp);
+			to_copy = min(tc->t_tinc_data_rem, left);
+
+			clone = pskb_extract(skb, offset, to_copy, arg->gfp);
 			if (!clone) {
 				desc->error = -ENOMEM;
 				goto out;
 			}
 
-			to_copy = min(tc->t_tinc_data_rem, left);
-			if (!pskb_pull(clone, offset) ||
-			    pskb_trim(clone, to_copy)) {
-				pr_warn("rds_tcp_data_recv: pull/trim failed "
-					"left %zu data_rem %zu skb_len %d\n",
-					left, tc->t_tinc_data_rem, skb->len);
-				kfree_skb(clone);
-				desc->error = -ENOMEM;
-				goto out;
-			}
 			skb_queue_tail(&tinc->ti_skb_list, clone);
 
 			rdsdebug("skb %p data %p len %d off %u to_copy %zu -> "
@@ -309,7 +301,7 @@ void rds_tcp_data_ready(struct sock *sk)
 
 	rdsdebug("data ready sk %p\n", sk);
 
-	read_lock(&sk->sk_callback_lock);
+	read_lock_bh(&sk->sk_callback_lock);
 	conn = sk->sk_user_data;
 	if (!conn) { /* check for teardown race */
 		ready = sk->sk_data_ready;
@@ -323,7 +315,7 @@ void rds_tcp_data_ready(struct sock *sk)
 	if (rds_tcp_read_sock(conn, GFP_ATOMIC) == -ENOMEM)
 		queue_delayed_work(rds_wq, &conn->c_recv_w, 0);
 out:
-	read_unlock(&sk->sk_callback_lock);
+	read_unlock_bh(&sk->sk_callback_lock);
 	ready(sk);
 }
 

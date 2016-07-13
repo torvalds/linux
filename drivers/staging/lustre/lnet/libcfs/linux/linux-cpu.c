@@ -755,8 +755,13 @@ cfs_cpt_table_create(int ncpt)
 			struct cfs_cpu_partition *part;
 			int    n;
 
-			if (cpt >= ncpt)
-				goto failed;
+			/*
+			 * Each emulated NUMA node has all allowed CPUs in
+			 * the mask.
+			 * End loop when all partitions have assigned CPUs.
+			 */
+			if (cpt == ncpt)
+				break;
 
 			part = &cptab->ctb_parts[cpt];
 

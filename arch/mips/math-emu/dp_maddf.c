@@ -14,8 +14,12 @@
 
 #include "ieee754dp.h"
 
-union ieee754dp ieee754dp_maddf(union ieee754dp z, union ieee754dp x,
-				union ieee754dp y)
+enum maddf_flags {
+	maddf_negate_product	= 1 << 0,
+};
+
+static union ieee754dp _dp_maddf(union ieee754dp z, union ieee754dp x,
+				 union ieee754dp y, enum maddf_flags flags)
 {
 	int re;
 	int rs;
@@ -32,16 +36,15 @@ union ieee754dp ieee754dp_maddf(union ieee754dp z, union ieee754dp x,
 
 	COMPXDP;
 	COMPYDP;
-
-	u64 zm; int ze; int zs __maybe_unused; int zc;
+	COMPZDP;
 
 	EXPLODEXDP;
 	EXPLODEYDP;
-	EXPLODEDP(z, zc, zs, ze, zm)
+	EXPLODEZDP;
 
 	FLUSHXDP;
 	FLUSHYDP;
-	FLUSHDP(z, zc, zs, ze, zm);
+	FLUSHZDP;
 
 	ieee754_clearcx();
 
@@ -50,7 +53,7 @@ union ieee754dp ieee754dp_maddf(union ieee754dp z, union ieee754dp x,
 		ieee754_setcx(IEEE754_INVALID_OPERATION);
 		return ieee754dp_nanxcpt(z);
 	case IEEE754_CLASS_DNORM:
-		DPDNORMx(zm, ze);
+		DPDNORMZ;
 	/* QNAN is handled separately below */
 	}
 
@@ -154,13 +157,15 @@ union ieee754dp ieee754dp_maddf(union ieee754dp z, union ieee754dp x,
 
 	re = xe + ye;
 	rs = xs ^ ys;
+	if (flags & maddf_negate_product)
+		rs ^= 1;
 
 	/* shunt to top of word */
 	xm <<= 64 - (DP_FBITS + 1);
 	ym <<= 64 - (DP_FBITS + 1);
 
 	/*
-	 * Multiply 32 bits xm, ym to give high 32 bits rm with stickness.
+	 * Multiply 64 bits xm, ym to give high 64 bits rm with stickness.
 	 */
 
 	/* 32 * 32 => 64 */
@@ -198,7 +203,7 @@ union ieee754dp ieee754dp_maddf(union ieee754dp z, union ieee754dp x,
 	if ((s64) rm < 0) {
 		rm = (rm >> (64 - (DP_FBITS + 1 + 3))) |
 		     ((rm << (DP_FBITS + 1 + 3)) != 0);
-			re++;
+		re++;
 	} else {
 		rm = (rm >> (64 - (DP_FBITS + 1 + 3 + 1))) |
 		     ((rm << (DP_FBITS + 1 + 3 + 1)) != 0);
@@ -262,4 +267,16 @@ union ieee754dp ieee754dp_maddf(union ieee754dp z, union ieee754dp x,
 	}
 
 	return ieee754dp_format(zs, ze, zm);
+}
+
+union ieee754dp ieee754dp_maddf(union ieee754dp z, union ieee754dp x,
+				union ieee754dp y)
+{
+	return _dp_maddf(z, x, y, 0);
+}
+
+union ieee754dp ieee754dp_msubf(union ieee754dp z, union ieee754dp x,
+				union ieee754dp y)
+{
+	return _dp_maddf(z, x, y, maddf_negate_product);
 }

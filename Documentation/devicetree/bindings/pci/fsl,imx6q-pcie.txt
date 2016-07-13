@@ -4,8 +4,8 @@ This PCIe host controller is based on the Synopsis Designware PCIe IP
 and thus inherits all the common properties defined in designware-pcie.txt.
 
 Required properties:
-- compatible: "fsl,imx6q-pcie"
-- reg: base addresse and length of the pcie controller
+- compatible: "fsl,imx6q-pcie", "fsl,imx6sx-pcie", "fsl,imx6qp-pcie"
+- reg: base address and length of the PCIe controller
 - interrupts: A list of interrupt outputs of the controller. Must contain an
   entry for each entry in the interrupt-names property.
 - interrupt-names: Must include the following entries:
@@ -19,6 +19,20 @@ Optional properties:
 - fsl,tx-deemph-gen2-6db: Gen2 (6db) De-emphasis value. Default: 20
 - fsl,tx-swing-full: Gen2 TX SWING FULL value. Default: 127
 - fsl,tx-swing-low: TX launch amplitude swing_low value. Default: 127
+- fsl,max-link-speed: Specify PCI gen for link capability. Must be '2' for
+  gen2, otherwise will default to gen1. Note that the IMX6 LVDS clock outputs
+  do not meet gen2 jitter requirements and thus for gen2 capability a gen2
+  compliant clock generator should be used and configured.
+- reset-gpio: Should specify the GPIO for controlling the PCI bus device reset
+  signal. It's not polarity aware and defaults to active-low reset sequence
+  (L=reset state, H=operation state).
+- reset-gpio-active-high: If present then the reset sequence using the GPIO
+  specified in the "reset-gpio" property is reversed (H=reset state,
+  L=operation state).
+
+Additional required properties for imx6sx-pcie:
+- clock names: Must include the following additional entries:
+	- "pcie_inbound_axi"
 
 Example:
 

@@ -25,6 +25,7 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/list.h>
+#include <linux/serial_core.h>
 
 #include <asm/io.h>
 #include <asm/xen/hypervisor.h>
@@ -245,6 +246,18 @@ err:
 	return -ENODEV;
 }
 
+static int xencons_info_pv_init(struct xencons_info *info, int vtermno)
+{
+	info->evtchn = xen_start_info->console.domU.evtchn;
+	/* GFN == MFN for PV guest */
+	info->intf = gfn_to_virt(xen_start_info->console.domU.mfn);
+	info->vtermno = vtermno;
+
+	list_add_tail(&info->list, &xenconsoles);
+
+	return 0;
+}
+
 static int xen_pv_console_init(void)
 {
 	struct xencons_info *info;
@@ -264,13 +277,8 @@ static int xen_pv_console_init(void)
 		/* already configured */
 		return 0;
 	}
-	info->evtchn = xen_start_info->console.domU.evtchn;
-	/* GFN == MFN for PV guest */
-	info->intf = gfn_to_virt(xen_start_info->console.domU.mfn);
-	info->vtermno = HVC_COOKIE;
-
 	spin_lock(&xencons_lock);
-	list_add_tail(&info->list, &xenconsoles);
+	xencons_info_pv_init(info, HVC_COOKIE);
 	spin_unlock(&xencons_lock);
 
 	return 0;
@@ -597,15 +605,39 @@ static int xen_cons_init(void)
 }
 console_initcall(xen_cons_init);
 
+#ifdef CONFIG_X86
+static void xen_hvm_early_write(uint32_t vtermno, const char *str, int len)
+{
+	if (xen_cpuid_base())
+		outsb(0xe9, str, len);
+}
+#else
+static void xen_hvm_early_write(uint32_t vtermno, const char *str, int len) { }
+#endif
+
 #ifdef CONFIG_EARLY_PRINTK
+static int __init xenboot_setup_console(struct console *console, char *string)
+{
+	static struct xencons_info xenboot;
+
+	if (xen_initial_domain())
+		return 0;
+	if (!xen_pv_domain())
+		return -ENODEV;
+
+	return xencons_info_pv_init(&xenboot, 0);
+}
+
 static void xenboot_write_console(struct console *console, const char *string,
 				  unsigned len)
 {
 	unsigned int linelen, off = 0;
 	const char *pos;
 
-	if (!xen_pv_domain())
+	if (!xen_pv_domain()) {
+		xen_hvm_early_write(0, string, len);
 		return;
+	}
 
 	dom0_write_console(0, string, len);
 
@@ -628,6 +660,7 @@ static void xenboot_write_console(struct console *console, const char *string,
 struct console xenboot_console = {
 	.name		= "xenboot",
 	.write		= xenboot_write_console,
+	.setup		= xenboot_setup_console,
 	.flags		= CON_PRINTBUFFER | CON_BOOT | CON_ANYTIME,
 	.index		= -1,
 };
@@ -640,17 +673,10 @@ void xen_raw_console_write(const char *str)
 
 	if (xen_domain()) {
 		rc = dom0_write_console(0, str, len);
-#ifdef CONFIG_X86
-		if (rc == -ENOSYS && xen_hvm_domain())
-			goto outb_print;
-
-	} else if (xen_cpuid_base()) {
-		int i;
-outb_print:
-		for (i = 0; i < len; i++)
-			outb(str[i], 0xe9);
-#endif
+		if (rc != -ENOSYS || !xen_hvm_domain())
+			return;
 	}
+	xen_hvm_early_write(0, str, len);
 }
 
 void xen_raw_printk(const char *fmt, ...)
@@ -664,3 +690,18 @@ void xen_raw_printk(const char *fmt, ...)
 
 	xen_raw_console_write(buf);
 }
+
+static void xenboot_earlycon_write(struct console *console,
+				  const char *string,
+				  unsigned len)
+{
+	dom0_write_console(0, string, len);
+}
+
+static int __init xenboot_earlycon_setup(struct earlycon_device *device,
+					    const char *opt)
+{
+	device->con->write = xenboot_earlycon_write;
+	return 0;
+}
+EARLYCON_DECLARE(xenboot, xenboot_earlycon_setup);

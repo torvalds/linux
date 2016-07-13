@@ -84,6 +84,7 @@
 #define MSG_COFFREQ		0x42
 #define MSG_CONREQ		0x43
 #define MSG_CCONFREQ		0x47
+#define MSG_NMTS		0xb0
 #define MSG_LMTS		0xb4
 
 /*
@@ -129,6 +130,22 @@
 #define ICAN3_CAN_TYPE_EFF	0x01
 
 #define ICAN3_CAN_DLC_MASK	0x0f
+
+/* Janz ICAN3 NMTS subtypes */
+#define NMTS_CREATE_NODE_REQ	0x0
+#define NMTS_SLAVE_STATE_IND	0x8
+#define NMTS_SLAVE_EVENT_IND	0x9
+
+/* Janz ICAN3 LMTS subtypes */
+#define LMTS_BUSON_REQ		0x0
+#define LMTS_BUSOFF_REQ		0x1
+#define LMTS_CAN_CONF_REQ	0x2
+
+/* Janz ICAN3 NMTS Event indications */
+#define NE_LOCAL_OCCURRED	0x3
+#define NE_LOCAL_RESOLVED	0x2
+#define NE_REMOTE_OCCURRED	0xc
+#define NE_REMOTE_RESOLVED	0x8
 
 /*
  * SJA1000 Status and Error Register Definitions
@@ -800,21 +817,41 @@ static int ican3_set_bus_state(struct ican3_dev *mod, bool on)
 		return ican3_send_msg(mod, &msg);
 
 	} else if (mod->fwtype == ICAN3_FWTYPE_CAL_CANOPEN) {
+		/* bittiming + can-on/off request */
 		memset(&msg, 0, sizeof(msg));
 		msg.spec = MSG_LMTS;
 		if (on) {
 			msg.len = cpu_to_le16(4);
-			msg.data[0] = 0;
+			msg.data[0] = LMTS_BUSON_REQ;
 			msg.data[1] = 0;
 			msg.data[2] = btr0;
 			msg.data[3] = btr1;
 		} else {
 			msg.len = cpu_to_le16(2);
-			msg.data[0] = 1;
+			msg.data[0] = LMTS_BUSOFF_REQ;
 			msg.data[1] = 0;
 		}
+		res = ican3_send_msg(mod, &msg);
+		if (res)
+			return res;
 
-		return ican3_send_msg(mod, &msg);
+		if (on) {
+			/* create NMT Slave Node for error processing
+			 *   class 2 (with error capability, see CiA/DS203-1)
+			 *   id    1
+			 *   name  locnod1 (must be exactly 7 bytes)
+			 */
+			memset(&msg, 0, sizeof(msg));
+			msg.spec = MSG_NMTS;
+			msg.len = cpu_to_le16(11);
+			msg.data[0] = NMTS_CREATE_NODE_REQ;
+			msg.data[1] = 0;
+			msg.data[2] = 2;                 /* node class */
+			msg.data[3] = 1;                 /* node id */
+			strcpy(msg.data + 4, "locnod1"); /* node name  */
+			return ican3_send_msg(mod, &msg);
+		}
+		return 0;
 	}
 	return -ENOTSUPP;
 }
@@ -849,12 +886,23 @@ static int ican3_set_buserror(struct ican3_dev *mod, u8 quota)
 {
 	struct ican3_msg msg;
 
-	memset(&msg, 0, sizeof(msg));
-	msg.spec = MSG_CCONFREQ;
-	msg.len = cpu_to_le16(2);
-	msg.data[0] = 0x00;
-	msg.data[1] = quota;
-
+	if (mod->fwtype == ICAN3_FWTYPE_ICANOS) {
+		memset(&msg, 0, sizeof(msg));
+		msg.spec = MSG_CCONFREQ;
+		msg.len = cpu_to_le16(2);
+		msg.data[0] = 0x00;
+		msg.data[1] = quota;
+	} else if (mod->fwtype == ICAN3_FWTYPE_CAL_CANOPEN) {
+		memset(&msg, 0, sizeof(msg));
+		msg.spec = MSG_LMTS;
+		msg.len = cpu_to_le16(4);
+		msg.data[0] = LMTS_CAN_CONF_REQ;
+		msg.data[1] = 0x00;
+		msg.data[2] = 0x00;
+		msg.data[3] = quota;
+	} else {
+		return -ENOTSUPP;
+	}
 	return ican3_send_msg(mod, &msg);
 }
 
@@ -1150,6 +1198,41 @@ static void ican3_handle_inquiry(struct ican3_dev *mod, struct ican3_msg *msg)
 	}
 }
 
+/* Handle NMTS Slave Event Indication Messages from the firmware */
+static void ican3_handle_nmtsind(struct ican3_dev *mod, struct ican3_msg *msg)
+{
+	u16 subspec;
+
+	subspec = msg->data[0] + msg->data[1] * 0x100;
+	if (subspec == NMTS_SLAVE_EVENT_IND) {
+		switch (msg->data[2]) {
+		case NE_LOCAL_OCCURRED:
+		case NE_LOCAL_RESOLVED:
+			/* now follows the same message as Raw ICANOS CEVTIND
+			 * shift the data at the same place and call this method
+			 */
+			le16_add_cpu(&msg->len, -3);
+			memmove(msg->data, msg->data + 3, le16_to_cpu(msg->len));
+			ican3_handle_cevtind(mod, msg);
+			break;
+		case NE_REMOTE_OCCURRED:
+		case NE_REMOTE_RESOLVED:
+			/* should not occurre, ignore */
+			break;
+		default:
+			netdev_warn(mod->ndev, "unknown NMTS event indication %x\n",
+				    msg->data[2]);
+			break;
+		}
+	} else if (subspec == NMTS_SLAVE_STATE_IND) {
+		/* ignore state indications */
+	} else {
+		netdev_warn(mod->ndev, "unhandled NMTS indication %x\n",
+			    subspec);
+		return;
+	}
+}
+
 static void ican3_handle_unknown_message(struct ican3_dev *mod,
 					struct ican3_msg *msg)
 {
@@ -1178,6 +1261,9 @@ static void ican3_handle_message(struct ican3_dev *mod, struct ican3_msg *msg)
 		break;
 	case MSG_INQUIRY:
 		ican3_handle_inquiry(mod, msg);
+		break;
+	case MSG_NMTS:
+		ican3_handle_nmtsind(mod, msg);
 		break;
 	default:
 		ican3_handle_unknown_message(mod, msg);

@@ -293,7 +293,6 @@ static int process_sample_event(struct machine *machine,
 {
 	struct perf_sample sample;
 	struct thread *thread;
-	u8 cpumode;
 	int ret;
 
 	if (perf_evlist__parse_sample(evlist, event, &sample)) {
@@ -307,9 +306,7 @@ static int process_sample_event(struct machine *machine,
 		return -1;
 	}
 
-	cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
-
-	ret = read_object_code(sample.ip, READLEN, cpumode, thread, state);
+	ret = read_object_code(sample.ip, READLEN, sample.cpumode, thread, state);
 	thread__put(thread);
 	return ret;
 }
@@ -535,7 +532,7 @@ static int do_test_code_reading(bool try_kcore)
 			goto out_put;
 		}
 
-		perf_evlist__config(evlist, &opts);
+		perf_evlist__config(evlist, &opts, NULL);
 
 		evsel = perf_evlist__first(evlist);
 

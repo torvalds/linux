@@ -57,6 +57,16 @@ void amd_sched_fence_signal(struct amd_sched_fence *fence)
 		FENCE_TRACE(&fence->base, "was already signaled\n");
 }
 
+void amd_sched_job_pre_schedule(struct amd_gpu_scheduler *sched ,
+				struct amd_sched_job *s_job)
+{
+	unsigned long flags;
+	spin_lock_irqsave(&sched->job_list_lock, flags);
+	list_add_tail(&s_job->node, &sched->ring_mirror_list);
+	sched->ops->begin_job(s_job);
+	spin_unlock_irqrestore(&sched->job_list_lock, flags);
+}
+
 void amd_sched_fence_scheduled(struct amd_sched_fence *s_fence)
 {
 	struct fence_cb *cur, *tmp;
@@ -84,10 +94,31 @@ static bool amd_sched_fence_enable_signaling(struct fence *f)
 	return true;
 }
 
-static void amd_sched_fence_release(struct fence *f)
+/**
+ * amd_sched_fence_free - free up the fence memory
+ *
+ * @rcu: RCU callback head
+ *
+ * Free up the fence memory after the RCU grace period.
+ */
+static void amd_sched_fence_free(struct rcu_head *rcu)
 {
+	struct fence *f = container_of(rcu, struct fence, rcu);
 	struct amd_sched_fence *fence = to_amd_sched_fence(f);
 	kmem_cache_free(sched_fence_slab, fence);
+}
+
+/**
+ * amd_sched_fence_release - callback that fence can be freed
+ *
+ * @fence: fence
+ *
+ * This function is called when the reference count becomes zero.
+ * It just RCU schedules freeing up the fence.
+ */
+static void amd_sched_fence_release(struct fence *f)
+{
+	call_rcu(&f->rcu, amd_sched_fence_free);
 }
 
 const struct fence_ops amd_sched_fence_ops = {

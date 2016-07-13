@@ -175,6 +175,7 @@ err:
 static int octeon_spi_probe(struct platform_device *pdev)
 {
 	struct resource *res_mem;
+	void __iomem *reg_base;
 	struct spi_master *master;
 	struct octeon_spi *p;
 	int err = -ENOENT;
@@ -186,19 +187,13 @@ static int octeon_spi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, master);
 
 	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	reg_base = devm_ioremap_resource(&pdev->dev, res_mem);
+	if (IS_ERR(reg_base)) {
+		err = PTR_ERR(reg_base);
+		goto fail;
+	}
 
-	if (res_mem == NULL) {
-		dev_err(&pdev->dev, "found no memory resource\n");
-		err = -ENXIO;
-		goto fail;
-	}
-	if (!devm_request_mem_region(&pdev->dev, res_mem->start,
-				     resource_size(res_mem), res_mem->name)) {
-		dev_err(&pdev->dev, "request_mem_region failed\n");
-		goto fail;
-	}
-	p->register_base = (u64)devm_ioremap(&pdev->dev, res_mem->start,
-					     resource_size(res_mem));
+	p->register_base = (u64)reg_base;
 
 	master->num_chipselect = 4;
 	master->mode_bits = SPI_CPHA |

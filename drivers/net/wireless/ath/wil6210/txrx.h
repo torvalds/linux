@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2016 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -478,6 +478,16 @@ static inline int wil_rxdesc_seq(struct vring_rx_desc *d)
 static inline int wil_rxdesc_ext_subtype(struct vring_rx_desc *d)
 {
 	return WIL_GET_BITS(d->mac.d0, 28, 31);
+}
+
+static inline int wil_rxdesc_key_id(struct vring_rx_desc *d)
+{
+	return WIL_GET_BITS(d->mac.d1, 4, 5);
+}
+
+static inline int wil_rxdesc_security(struct vring_rx_desc *d)
+{
+	return WIL_GET_BITS(d->mac.d1, 7, 7);
 }
 
 static inline int wil_rxdesc_ds_bits(struct vring_rx_desc *d)

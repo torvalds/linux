@@ -107,14 +107,19 @@ static struct stmp3xxx_wdt_pdata wdt_pdata = {
 
 static void stmp3xxx_wdt_register(struct platform_device *rtc_pdev)
 {
+	int rc = -1;
 	struct platform_device *wdt_pdev =
 		platform_device_alloc("stmp3xxx_rtc_wdt", rtc_pdev->id);
 
 	if (wdt_pdev) {
 		wdt_pdev->dev.parent = &rtc_pdev->dev;
 		wdt_pdev->dev.platform_data = &wdt_pdata;
-		platform_device_add(wdt_pdev);
+		rc = platform_device_add(wdt_pdev);
 	}
+
+	if (rc)
+		dev_err(&rtc_pdev->dev,
+			"failed to register stmp3xxx_rtc_wdt\n");
 }
 #else
 static void stmp3xxx_wdt_register(struct platform_device *rtc_pdev)

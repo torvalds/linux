@@ -91,10 +91,14 @@ static inline u8 dw_mci_exynos_get_ciu_div(struct dw_mci *host)
 		return SDMMC_CLKSEL_GET_DIV(mci_readl(host, CLKSEL)) + 1;
 }
 
-static int dw_mci_exynos_priv_init(struct dw_mci *host)
+static void dw_mci_exynos_config_smu(struct dw_mci *host)
 {
 	struct dw_mci_exynos_priv_data *priv = host->priv;
 
+	/*
+	 * If Exynos is provided the Security management,
+	 * set for non-ecryption mode at this time.
+	 */
 	if (priv->ctrl_type == DW_MCI_TYPE_EXYNOS5420_SMU ||
 		priv->ctrl_type == DW_MCI_TYPE_EXYNOS7_SMU) {
 		mci_writel(host, MPSBEGIN0, 0);
@@ -104,6 +108,13 @@ static int dw_mci_exynos_priv_init(struct dw_mci *host)
 			   SDMMC_MPSCTRL_VALID |
 			   SDMMC_MPSCTRL_NON_SECURE_WRITE_BIT);
 	}
+}
+
+static int dw_mci_exynos_priv_init(struct dw_mci *host)
+{
+	struct dw_mci_exynos_priv_data *priv = host->priv;
+
+	dw_mci_exynos_config_smu(host);
 
 	if (priv->ctrl_type >= DW_MCI_TYPE_EXYNOS5420) {
 		priv->saved_strobe_ctrl = mci_readl(host, HS400_DLINE_CTRL);
@@ -114,13 +125,6 @@ static int dw_mci_exynos_priv_init(struct dw_mci *host)
 			priv->dqs_delay =
 				DQS_CTRL_GET_RD_DELAY(priv->saved_strobe_ctrl);
 	}
-
-	return 0;
-}
-
-static int dw_mci_exynos_setup_clock(struct dw_mci *host)
-{
-	struct dw_mci_exynos_priv_data *priv = host->priv;
 
 	host->bus_hz /= (priv->ciu_div + 1);
 
@@ -145,6 +149,16 @@ static void dw_mci_exynos_set_clksel_timing(struct dw_mci *host, u32 timing)
 		mci_writel(host, CLKSEL64, clksel);
 	else
 		mci_writel(host, CLKSEL, clksel);
+
+	/*
+	 * Exynos4412 and Exynos5250 extends the use of CMD register with the
+	 * use of bit 29 (which is reserved on standard MSHC controllers) for
+	 * optionally bypassing the HOLD register for command and data. The
+	 * HOLD register should be bypassed in case there is no phase shift
+	 * applied on CMD/DATA that is sent to the card.
+	 */
+	if (!SDMMC_CLKSEL_GET_DRV_WD3(clksel))
+		set_bit(DW_MMC_CARD_NO_USE_HOLD, &host->cur_slot->flags);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -159,7 +173,7 @@ static int dw_mci_exynos_resume(struct device *dev)
 {
 	struct dw_mci *host = dev_get_drvdata(dev);
 
-	dw_mci_exynos_priv_init(host);
+	dw_mci_exynos_config_smu(host);
 	return dw_mci_resume(host);
 }
 
@@ -201,26 +215,6 @@ static int dw_mci_exynos_resume_noirq(struct device *dev)
 #define dw_mci_exynos_resume		NULL
 #define dw_mci_exynos_resume_noirq	NULL
 #endif /* CONFIG_PM_SLEEP */
-
-static void dw_mci_exynos_prepare_command(struct dw_mci *host, u32 *cmdr)
-{
-	struct dw_mci_exynos_priv_data *priv = host->priv;
-	/*
-	 * Exynos4412 and Exynos5250 extends the use of CMD register with the
-	 * use of bit 29 (which is reserved on standard MSHC controllers) for
-	 * optionally bypassing the HOLD register for command and data. The
-	 * HOLD register should be bypassed in case there is no phase shift
-	 * applied on CMD/DATA that is sent to the card.
-	 */
-	if (priv->ctrl_type == DW_MCI_TYPE_EXYNOS7 ||
-		priv->ctrl_type == DW_MCI_TYPE_EXYNOS7_SMU) {
-		if (SDMMC_CLKSEL_GET_DRV_WD3(mci_readl(host, CLKSEL64)))
-			*cmdr |= SDMMC_CMD_USE_HOLD_REG;
-	 } else {
-		if (SDMMC_CLKSEL_GET_DRV_WD3(mci_readl(host, CLKSEL)))
-			*cmdr |= SDMMC_CMD_USE_HOLD_REG;
-	}
-}
 
 static void dw_mci_exynos_config_hs400(struct dw_mci *host, u32 timing)
 {
@@ -499,8 +493,6 @@ static unsigned long exynos_dwmmc_caps[4] = {
 static const struct dw_mci_drv_data exynos_drv_data = {
 	.caps			= exynos_dwmmc_caps,
 	.init			= dw_mci_exynos_priv_init,
-	.setup_clock		= dw_mci_exynos_setup_clock,
-	.prepare_command	= dw_mci_exynos_prepare_command,
 	.set_ios		= dw_mci_exynos_set_ios,
 	.parse_dt		= dw_mci_exynos_parse_dt,
 	.execute_tuning		= dw_mci_exynos_execute_tuning,

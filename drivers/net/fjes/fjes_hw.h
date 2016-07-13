@@ -33,9 +33,9 @@ struct fjes_hw;
 #define EP_BUFFER_SUPPORT_VLAN_MAX 4
 #define EP_BUFFER_INFO_SIZE 4096
 
-#define FJES_DEVICE_RESET_TIMEOUT  ((17 + 1) * 3) /* sec */
-#define FJES_COMMAND_REQ_TIMEOUT  (5 + 1) /* sec */
-#define FJES_COMMAND_REQ_BUFF_TIMEOUT	(8 * 3) /* sec */
+#define FJES_DEVICE_RESET_TIMEOUT  ((17 + 1) * 3 * 8) /* sec */
+#define FJES_COMMAND_REQ_TIMEOUT  ((5 + 1) * 3 * 8) /* sec */
+#define FJES_COMMAND_REQ_BUFF_TIMEOUT	(60 * 3) /* sec */
 #define FJES_COMMAND_EPSTOP_WAIT_TIMEOUT	(1) /* sec */
 
 #define FJES_CMD_REQ_ERR_INFO_PARAM  (0x0001)
@@ -57,6 +57,7 @@ struct fjes_hw;
 #define FJES_RX_STOP_REQ_DONE		(0x1)
 #define FJES_RX_STOP_REQ_REQUEST	(0x2)
 #define FJES_RX_POLL_WORK		(0x4)
+#define FJES_RX_MTU_CHANGING_DONE	(0x8)
 
 #define EP_BUFFER_SIZE \
 	(((sizeof(union ep_buffer_info) + (128 * (64 * 1024))) \
@@ -299,6 +300,8 @@ struct fjes_hw {
 	u8 *base;
 
 	struct fjes_hw_info hw_info;
+
+	spinlock_t rx_status_lock; /* spinlock for rx_status */
 };
 
 int fjes_hw_init(struct fjes_hw *);

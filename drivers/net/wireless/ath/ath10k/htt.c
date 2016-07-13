@@ -149,7 +149,7 @@ int ath10k_htt_connect(struct ath10k_htt *htt)
 	memset(&conn_resp, 0, sizeof(conn_resp));
 
 	conn_req.ep_ops.ep_tx_complete = ath10k_htt_htc_tx_complete;
-	conn_req.ep_ops.ep_rx_complete = ath10k_htt_t2h_msg_handler;
+	conn_req.ep_ops.ep_rx_complete = ath10k_htt_htc_t2h_msg_handler;
 
 	/* connect to control service */
 	conn_req.service_id = ATH10K_HTC_SVC_ID_HTT_DATA_MSG;
@@ -183,7 +183,7 @@ int ath10k_htt_init(struct ath10k *ar)
 		8 + /* llc snap */
 		2; /* ip4 dscp or ip6 priority */
 
-	switch (ar->htt.op_version) {
+	switch (ar->running_fw->fw_file.htt_op_version) {
 	case ATH10K_FW_HTT_OP_VERSION_10_4:
 		ar->htt.t2h_msg_types = htt_10_4_t2h_msg_types;
 		ar->htt.t2h_msg_types_max = HTT_10_4_T2H_NUM_MSGS;
@@ -208,7 +208,7 @@ int ath10k_htt_init(struct ath10k *ar)
 	return 0;
 }
 
-#define HTT_TARGET_VERSION_TIMEOUT_HZ (3*HZ)
+#define HTT_TARGET_VERSION_TIMEOUT_HZ (3 * HZ)
 
 static int ath10k_htt_verify_version(struct ath10k_htt *htt)
 {

@@ -173,4 +173,25 @@ out:
 	return -ENODEV;
 }
 
+static void __exit cppc_cpufreq_exit(void)
+{
+	struct cpudata *cpu;
+	int i;
+
+	cpufreq_unregister_driver(&cppc_cpufreq_driver);
+
+	for_each_possible_cpu(i) {
+		cpu = all_cpu_data[i];
+		free_cpumask_var(cpu->shared_cpu_map);
+		kfree(cpu);
+	}
+
+	kfree(all_cpu_data);
+}
+
+module_exit(cppc_cpufreq_exit);
+MODULE_AUTHOR("Ashwin Chaugule");
+MODULE_DESCRIPTION("CPUFreq driver based on the ACPI CPPC v5.0+ spec");
+MODULE_LICENSE("GPL");
+
 late_initcall(cppc_cpufreq_init);

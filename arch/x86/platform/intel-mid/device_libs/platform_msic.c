@@ -1,5 +1,5 @@
 /*
- * platform_msic.c: MSIC platform data initilization file
+ * platform_msic.c: MSIC platform data initialization file
  *
  * (C) Copyright 2013 Intel Corporation
  * Author: Sathyanarayanan Kuppuswamy <sathyanarayanan.kuppuswamy@intel.com>

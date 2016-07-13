@@ -7,7 +7,7 @@
  * Copyright (C) 2000 by Silicon Graphics, Inc.
  * Copyright (C) 2004 by Christoph Hellwig
  *
- * On SGI IP27 the ARC memory configuration data is completly bogus but
+ * On SGI IP27 the ARC memory configuration data is completely bogus but
  * alternate easier to use mechanisms are available.
  */
 #include <linux/init.h>

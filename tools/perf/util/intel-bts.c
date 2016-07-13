@@ -66,6 +66,7 @@ struct intel_bts {
 	u64				branches_id;
 	size_t				branches_event_size;
 	bool				synth_needs_swap;
+	unsigned long			num_events;
 };
 
 struct intel_bts_queue {
@@ -275,10 +276,15 @@ static int intel_bts_synth_branch_sample(struct intel_bts_queue *btsq,
 	union perf_event event;
 	struct perf_sample sample = { .ip = 0, };
 
+	if (bts->synth_opts.initial_skip &&
+	    bts->num_events++ <= bts->synth_opts.initial_skip)
+		return 0;
+
 	event.sample.header.type = PERF_RECORD_SAMPLE;
 	event.sample.header.misc = PERF_RECORD_MISC_USER;
 	event.sample.header.size = sizeof(struct perf_event_header);
 
+	sample.cpumode = PERF_RECORD_MISC_USER;
 	sample.ip = le64_to_cpu(branch->from);
 	sample.pid = btsq->pid;
 	sample.tid = btsq->tid;
@@ -678,7 +684,7 @@ static int intel_bts_process_auxtrace_event(struct perf_session *session,
 	return 0;
 }
 
-static int intel_bts_flush(struct perf_session *session __maybe_unused,
+static int intel_bts_flush(struct perf_session *session,
 			   struct perf_tool *tool __maybe_unused)
 {
 	struct intel_bts *bts = container_of(session->auxtrace, struct intel_bts,

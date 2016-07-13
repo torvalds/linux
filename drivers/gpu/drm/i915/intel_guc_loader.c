@@ -59,7 +59,7 @@
  *
  */
 
-#define I915_SKL_GUC_UCODE "i915/skl_guc_ver4.bin"
+#define I915_SKL_GUC_UCODE "i915/skl_guc_ver6.bin"
 MODULE_FIRMWARE(I915_SKL_GUC_UCODE);
 
 /* User-friendly representation of an enum */
@@ -81,14 +81,14 @@ const char *intel_guc_fw_status_repr(enum intel_guc_fw_status status)
 
 static void direct_interrupts_to_host(struct drm_i915_private *dev_priv)
 {
-	struct intel_engine_cs *ring;
-	int i, irqs;
+	struct intel_engine_cs *engine;
+	int irqs;
 
 	/* tell all command streamers NOT to forward interrupts and vblank to GuC */
 	irqs = _MASKED_FIELD(GFX_FORWARD_VBLANK_MASK, GFX_FORWARD_VBLANK_NEVER);
 	irqs |= _MASKED_BIT_DISABLE(GFX_INTERRUPT_STEERING);
-	for_each_ring(ring, dev_priv, i)
-		I915_WRITE(RING_MODE_GEN7(ring), irqs);
+	for_each_engine(engine, dev_priv)
+		I915_WRITE(RING_MODE_GEN7(engine), irqs);
 
 	/* route all GT interrupts to the host */
 	I915_WRITE(GUC_BCS_RCS_IER, 0);
@@ -98,14 +98,14 @@ static void direct_interrupts_to_host(struct drm_i915_private *dev_priv)
 
 static void direct_interrupts_to_guc(struct drm_i915_private *dev_priv)
 {
-	struct intel_engine_cs *ring;
-	int i, irqs;
+	struct intel_engine_cs *engine;
+	int irqs;
 
 	/* tell all command streamers to forward interrupts and vblank to GuC */
 	irqs = _MASKED_FIELD(GFX_FORWARD_VBLANK_MASK, GFX_FORWARD_VBLANK_ALWAYS);
 	irqs |= _MASKED_BIT_ENABLE(GFX_INTERRUPT_STEERING);
-	for_each_ring(ring, dev_priv, i)
-		I915_WRITE(RING_MODE_GEN7(ring), irqs);
+	for_each_engine(engine, dev_priv)
+		I915_WRITE(RING_MODE_GEN7(engine), irqs);
 
 	/* route USER_INTERRUPT to Host, all others are sent to GuC. */
 	irqs = GT_RENDER_USER_INTERRUPT << GEN8_RCS_IRQ_SHIFT |
@@ -165,6 +165,13 @@ static void set_guc_init_params(struct drm_i915_private *dev_priv)
 			i915.guc_log_level << GUC_LOG_VERBOSITY_SHIFT;
 	}
 
+	if (guc->ads_obj) {
+		u32 ads = (u32)i915_gem_obj_ggtt_offset(guc->ads_obj)
+				>> PAGE_SHIFT;
+		params[GUC_CTL_DEBUG] |= ads << GUC_ADS_ADDR_SHIFT;
+		params[GUC_CTL_DEBUG] |= GUC_ADS_ENABLED;
+	}
+
 	/* If GuC submission is enabled, set up additional parameters here */
 	if (i915.enable_guc_submission) {
 		u32 pgs = i915_gem_obj_ggtt_offset(dev_priv->guc.ctx_pool_obj);
@@ -192,7 +199,7 @@ static void set_guc_init_params(struct drm_i915_private *dev_priv)
  * the value matches either of two values representing completion
  * of the GuC boot process.
  *
- * This is used for polling the GuC status in a wait_for_atomic()
+ * This is used for polling the GuC status in a wait_for()
  * loop below.
  */
 static inline bool guc_ucode_response(struct drm_i915_private *dev_priv,
@@ -252,14 +259,14 @@ static int guc_ucode_xfer_dma(struct drm_i915_private *dev_priv)
 	I915_WRITE(DMA_CTRL, _MASKED_BIT_ENABLE(UOS_MOVE | START_DMA));
 
 	/*
-	 * Spin-wait for the DMA to complete & the GuC to start up.
+	 * Wait for the DMA to complete & the GuC to start up.
 	 * NB: Docs recommend not using the interrupt for completion.
 	 * Measurements indicate this should take no more than 20ms, so a
 	 * timeout here indicates that the GuC has failed and is unusable.
 	 * (Higher levels of the driver will attempt to fall back to
 	 * execlist mode if this happens.)
 	 */
-	ret = wait_for_atomic(guc_ucode_response(dev_priv, &status), 100);
+	ret = wait_for(guc_ucode_response(dev_priv, &status), 100);
 
 	DRM_DEBUG_DRIVER("DMA status 0x%x, GuC status 0x%x\n",
 			I915_READ(DMA_CTRL), status);
@@ -346,6 +353,24 @@ static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
 	return ret;
 }
 
+static int i915_reset_guc(struct drm_i915_private *dev_priv)
+{
+	int ret;
+	u32 guc_status;
+
+	ret = intel_guc_reset(dev_priv);
+	if (ret) {
+		DRM_ERROR("GuC reset failed, ret = %d\n", ret);
+		return ret;
+	}
+
+	guc_status = I915_READ(GUC_STATUS);
+	WARN(!(guc_status & GS_MIA_IN_RESET),
+	     "GuC status: 0x%x, MIA core expected to be in reset\n", guc_status);
+
+	return ret;
+}
+
 /**
  * intel_guc_ucode_load() - load GuC uCode into the device
  * @dev:	drm device
@@ -362,7 +387,7 @@ int intel_guc_ucode_load(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_guc_fw *guc_fw = &dev_priv->guc.guc_fw;
-	int err = 0;
+	int retries, err = 0;
 
 	if (!i915.enable_guc_submission)
 		return 0;
@@ -410,9 +435,33 @@ int intel_guc_ucode_load(struct drm_device *dev)
 	if (err)
 		goto fail;
 
-	err = guc_ucode_xfer(dev_priv);
-	if (err)
-		goto fail;
+	/*
+	 * WaEnableuKernelHeaderValidFix:skl,bxt
+	 * For BXT, this is only upto B0 but below WA is required for later
+	 * steppings also so this is extended as well.
+	 */
+	/* WaEnableGuCBootHashCheckNotSet:skl,bxt */
+	for (retries = 3; ; ) {
+		/*
+		 * Always reset the GuC just before (re)loading, so
+		 * that the state and timing are fairly predictable
+		 */
+		err = i915_reset_guc(dev_priv);
+		if (err) {
+			DRM_ERROR("GuC reset failed, err %d\n", err);
+			goto fail;
+		}
+
+		err = guc_ucode_xfer(dev_priv);
+		if (!err)
+			break;
+
+		if (--retries == 0)
+			goto fail;
+
+		DRM_INFO("GuC fw load failed, err %d; will reset and "
+			"retry %d more time(s)\n", err, retries);
+	}
 
 	guc_fw->guc_fw_load_status = GUC_FIRMWARE_SUCCESS;
 
@@ -433,11 +482,13 @@ int intel_guc_ucode_load(struct drm_device *dev)
 	return 0;
 
 fail:
+	DRM_ERROR("GuC firmware load failed, err %d\n", err);
 	if (guc_fw->guc_fw_load_status == GUC_FIRMWARE_PENDING)
 		guc_fw->guc_fw_load_status = GUC_FIRMWARE_FAIL;
 
 	direct_interrupts_to_host(dev_priv);
 	i915_guc_submission_disable(dev);
+	i915_guc_submission_fini(dev);
 
 	return err;
 }
@@ -554,10 +605,12 @@ fail:
 	DRM_ERROR("Failed to fetch GuC firmware from %s (error %d)\n",
 		  guc_fw->guc_fw_path, err);
 
+	mutex_lock(&dev->struct_mutex);
 	obj = guc_fw->guc_fw_obj;
 	if (obj)
 		drm_gem_object_unreference(&obj->base);
 	guc_fw->guc_fw_obj = NULL;
+	mutex_unlock(&dev->struct_mutex);
 
 	release_firmware(fw);		/* OK even if fw is NULL */
 	guc_fw->guc_fw_fetch_status = GUC_FIRMWARE_FAIL;
@@ -585,8 +638,8 @@ void intel_guc_ucode_init(struct drm_device *dev)
 		fw_path = NULL;
 	} else if (IS_SKYLAKE(dev)) {
 		fw_path = I915_SKL_GUC_UCODE;
-		guc_fw->guc_fw_major_wanted = 4;
-		guc_fw->guc_fw_minor_wanted = 3;
+		guc_fw->guc_fw_major_wanted = 6;
+		guc_fw->guc_fw_minor_wanted = 1;
 	} else {
 		i915.enable_guc_submission = false;
 		fw_path = "";	/* unknown device */
@@ -624,10 +677,11 @@ void intel_guc_ucode_fini(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_guc_fw *guc_fw = &dev_priv->guc.guc_fw;
 
+	mutex_lock(&dev->struct_mutex);
 	direct_interrupts_to_host(dev_priv);
+	i915_guc_submission_disable(dev);
 	i915_guc_submission_fini(dev);
 
-	mutex_lock(&dev->struct_mutex);
 	if (guc_fw->guc_fw_obj)
 		drm_gem_object_unreference(&guc_fw->guc_fw_obj->base);
 	guc_fw->guc_fw_obj = NULL;

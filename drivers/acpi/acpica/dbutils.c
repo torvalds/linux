@@ -56,8 +56,6 @@ acpi_status acpi_db_second_pass_parse(union acpi_parse_object *root);
 void acpi_db_dump_buffer(u32 address);
 #endif
 
-static char *gbl_hex_to_ascii = "0123456789ABCDEF";
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_db_match_argument
@@ -82,8 +80,9 @@ acpi_db_match_argument(char *user_argument,
 	}
 
 	for (i = 0; arguments[i].name; i++) {
-		if (strstr(arguments[i].name, user_argument) ==
-		    arguments[i].name) {
+		if (strstr(ACPI_CAST_PTR(char, arguments[i].name),
+			   ACPI_CAST_PTR(char,
+					 user_argument)) == arguments[i].name) {
 			return (i);
 		}
 	}
@@ -339,7 +338,7 @@ void acpi_db_uint32_to_hex_string(u32 value, char *buffer)
 	buffer[8] = '\0';
 
 	for (i = 7; i >= 0; i--) {
-		buffer[i] = gbl_hex_to_ascii[value & 0x0F];
+		buffer[i] = acpi_gbl_upper_hex_digits[value & 0x0F];
 		value = value >> 4;
 	}
 }

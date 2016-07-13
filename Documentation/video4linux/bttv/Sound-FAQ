@@ -55,7 +55,7 @@ receiver chips.  Some boards use the i2c bus instead of the gpio pins
 to connect the mux chip.
 
 As mentioned above, there is a array which holds the required
-informations for each known board.  You basically have to create a new
+information for each known board.  You basically have to create a new
 line for your board.  The important fields are these two:
 
 struct tvcard

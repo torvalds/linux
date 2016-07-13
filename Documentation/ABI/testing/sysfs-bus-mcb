@@ -1,0 +1,29 @@
+What:		/sys/bus/mcb/devices/mcb:X
+Date:		March 2016
+KernelVersion:	4.7
+Contact:	Johannes Thumshirn <jth@kernel.org>
+Description:	Hardware chip or device hosting the MEN chameleon bus
+
+What:		/sys/bus/mcb/devices/mcb:X/revision
+Date:		March 2016
+KernelVersion:	4.7
+Contact:	Johannes Thumshirn <jth@kernel.org>
+Description:	The FPGA's revision number
+
+What:		/sys/bus/mcb/devices/mcb:X/minor
+Date:		March 2016
+KernelVersion:	4.7
+Contact:	Johannes Thumshirn <jth@kernel.org>
+Description:	The FPGA's minor number
+
+What:		/sys/bus/mcb/devices/mcb:X/model
+Date:		March 2016
+KernelVersion:	4.7
+Contact:	Johannes Thumshirn <jth@kernel.org>
+Description:	The FPGA's model number
+
+What:		/sys/bus/mcb/devices/mcb:X/name
+Date:		March 2016
+KernelVersion:	4.7
+Contact:	Johannes Thumshirn <jth@kernel.org>
+Description:	The FPGA's name

@@ -30,6 +30,7 @@
 #include "clk-rcg.h"
 #include "clk-branch.h"
 #include "reset.h"
+#include "gdsc.h"
 
 #define F(f, s, h, m, n) { (f), (s), (2 * (h) - 1), (m), (n) }
 
@@ -1320,7 +1321,7 @@ static struct clk_branch gcc_mmss_bimc_gfx_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_mmss_bimc_gfx_clk",
-			.flags = CLK_SET_RATE_PARENT | CLK_IS_ROOT,
+			.flags = CLK_SET_RATE_PARENT,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2314,7 +2315,7 @@ static struct clk_branch gcc_bimc_gfx_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_bimc_gfx_clk",
-			.flags = CLK_SET_RATE_PARENT | CLK_IS_ROOT,
+			.flags = CLK_SET_RATE_PARENT,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2814,7 +2815,6 @@ static struct clk_branch gcc_ufs_sys_clk_core_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_ufs_sys_clk_core_clk",
 			.ops = &clk_branch2_ops,
-			.flags = CLK_IS_ROOT,
 		},
 	},
 };
@@ -2827,7 +2827,6 @@ static struct clk_branch gcc_ufs_tx_symbol_clk_core_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_ufs_tx_symbol_clk_core_clk",
 			.ops = &clk_branch2_ops,
-			.flags = CLK_IS_ROOT,
 		},
 	},
 };
@@ -3059,6 +3058,83 @@ static struct clk_hw *gcc_msm8996_hws[] = {
 	&ufs_ice_core_postdiv_clk_src.hw,
 };
 
+static struct gdsc aggre0_noc_gdsc = {
+	.gdscr = 0x81004,
+	.gds_hw_ctrl = 0x81028,
+	.pd = {
+		.name = "aggre0_noc",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
+};
+
+static struct gdsc hlos1_vote_aggre0_noc_gdsc = {
+	.gdscr = 0x7d024,
+	.pd = {
+		.name = "hlos1_vote_aggre0_noc",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
+};
+
+static struct gdsc hlos1_vote_lpass_adsp_gdsc = {
+	.gdscr = 0x7d034,
+	.pd = {
+		.name = "hlos1_vote_lpass_adsp",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
+};
+
+static struct gdsc hlos1_vote_lpass_core_gdsc = {
+	.gdscr = 0x7d038,
+	.pd = {
+		.name = "hlos1_vote_lpass_core",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
+};
+
+static struct gdsc usb30_gdsc = {
+	.gdscr = 0xf004,
+	.pd = {
+		.name = "usb30",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+};
+
+static struct gdsc pcie0_gdsc = {
+	.gdscr = 0x6b004,
+	.pd = {
+		.name = "pcie0",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+};
+
+static struct gdsc pcie1_gdsc = {
+	.gdscr = 0x6d004,
+	.pd = {
+		.name = "pcie1",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+};
+
+static struct gdsc pcie2_gdsc = {
+	.gdscr = 0x6e004,
+	.pd = {
+		.name = "pcie2",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+};
+
+static struct gdsc ufs_gdsc = {
+	.gdscr = 0x75004,
+	.pd = {
+		.name = "ufs",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+};
+
 static struct clk_regmap *gcc_msm8996_clocks[] = {
 	[GPLL0_EARLY] = &gpll0_early.clkr,
 	[GPLL0] = &gpll0.clkr,
@@ -3245,6 +3321,18 @@ static struct clk_regmap *gcc_msm8996_clocks[] = {
 	[GCC_RX1_USB2_CLKREF_CLK] = &gcc_rx1_usb2_clkref_clk.clkr,
 };
 
+static struct gdsc *gcc_msm8996_gdscs[] = {
+	[AGGRE0_NOC_GDSC] = &aggre0_noc_gdsc,
+	[HLOS1_VOTE_AGGRE0_NOC_GDSC] = &hlos1_vote_aggre0_noc_gdsc,
+	[HLOS1_VOTE_LPASS_ADSP_GDSC] = &hlos1_vote_lpass_adsp_gdsc,
+	[HLOS1_VOTE_LPASS_CORE_GDSC] = &hlos1_vote_lpass_core_gdsc,
+	[USB30_GDSC] = &usb30_gdsc,
+	[PCIE0_GDSC] = &pcie0_gdsc,
+	[PCIE1_GDSC] = &pcie1_gdsc,
+	[PCIE2_GDSC] = &pcie2_gdsc,
+	[UFS_GDSC] = &ufs_gdsc,
+};
+
 static const struct qcom_reset_map gcc_msm8996_resets[] = {
 	[GCC_SYSTEM_NOC_BCR] = { 0x4000 },
 	[GCC_CONFIG_NOC_BCR] = { 0x5000 },
@@ -3363,6 +3451,8 @@ static const struct qcom_cc_desc gcc_msm8996_desc = {
 	.num_clks = ARRAY_SIZE(gcc_msm8996_clocks),
 	.resets = gcc_msm8996_resets,
 	.num_resets = ARRAY_SIZE(gcc_msm8996_resets),
+	.gdscs = gcc_msm8996_gdscs,
+	.num_gdscs = ARRAY_SIZE(gcc_msm8996_gdscs),
 };
 
 static const struct of_device_id gcc_msm8996_match_table[] = {

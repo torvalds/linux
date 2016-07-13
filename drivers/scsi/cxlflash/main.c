@@ -289,7 +289,7 @@ static void context_reset(struct afu_cmd *cmd)
 		atomic64_set(&afu->room, room);
 		if (room)
 			goto write_rrin;
-		udelay(nretry);
+		udelay(1 << nretry);
 	} while (nretry++ < MC_ROOM_RETRY_CNT);
 
 	pr_err("%s: no cmd_room to send reset\n", __func__);
@@ -303,7 +303,7 @@ write_rrin:
 		if (rrin != 0x1)
 			break;
 		/* Double delay each time */
-		udelay(2 << nretry);
+		udelay(1 << nretry);
 	} while (nretry++ < MC_ROOM_RETRY_CNT);
 }
 
@@ -338,7 +338,7 @@ retry:
 			atomic64_set(&afu->room, room);
 			if (room)
 				goto write_ioarrin;
-			udelay(nretry);
+			udelay(1 << nretry);
 		} while (nretry++ < MC_ROOM_RETRY_CNT);
 
 		dev_err(dev, "%s: no cmd_room to send 0x%X\n",
@@ -352,7 +352,7 @@ retry:
 		 * afu->room.
 		 */
 		if (nretry++ < MC_ROOM_RETRY_CNT) {
-			udelay(nretry);
+			udelay(1 << nretry);
 			goto retry;
 		}
 
@@ -683,28 +683,23 @@ static void stop_afu(struct cxlflash_cfg *cfg)
 }
 
 /**
- * term_mc() - terminates the master context
+ * term_intr() - disables all AFU interrupts
  * @cfg:	Internal structure associated with the host.
  * @level:	Depth of allocation, where to begin waterfall tear down.
  *
  * Safe to call with AFU/MC in partially allocated/initialized state.
  */
-static void term_mc(struct cxlflash_cfg *cfg, enum undo_level level)
+static void term_intr(struct cxlflash_cfg *cfg, enum undo_level level)
 {
-	int rc = 0;
 	struct afu *afu = cfg->afu;
 	struct device *dev = &cfg->dev->dev;
 
 	if (!afu || !cfg->mcctx) {
-		dev_err(dev, "%s: returning from term_mc with NULL afu or MC\n",
-		       __func__);
+		dev_err(dev, "%s: returning with NULL afu or MC\n", __func__);
 		return;
 	}
 
 	switch (level) {
-	case UNDO_START:
-		rc = cxl_stop_context(cfg->mcctx);
-		BUG_ON(rc);
 	case UNMAP_THREE:
 		cxl_unmap_afu_irq(cfg->mcctx, 3, afu);
 	case UNMAP_TWO:
@@ -713,9 +708,34 @@ static void term_mc(struct cxlflash_cfg *cfg, enum undo_level level)
 		cxl_unmap_afu_irq(cfg->mcctx, 1, afu);
 	case FREE_IRQ:
 		cxl_free_afu_irqs(cfg->mcctx);
-	case RELEASE_CONTEXT:
-		cfg->mcctx = NULL;
+		/* fall through */
+	case UNDO_NOOP:
+		/* No action required */
+		break;
 	}
+}
+
+/**
+ * term_mc() - terminates the master context
+ * @cfg:	Internal structure associated with the host.
+ * @level:	Depth of allocation, where to begin waterfall tear down.
+ *
+ * Safe to call with AFU/MC in partially allocated/initialized state.
+ */
+static void term_mc(struct cxlflash_cfg *cfg)
+{
+	int rc = 0;
+	struct afu *afu = cfg->afu;
+	struct device *dev = &cfg->dev->dev;
+
+	if (!afu || !cfg->mcctx) {
+		dev_err(dev, "%s: returning with NULL afu or MC\n", __func__);
+		return;
+	}
+
+	rc = cxl_stop_context(cfg->mcctx);
+	WARN_ON(rc);
+	cfg->mcctx = NULL;
 }
 
 /**
@@ -726,10 +746,20 @@ static void term_mc(struct cxlflash_cfg *cfg, enum undo_level level)
  */
 static void term_afu(struct cxlflash_cfg *cfg)
 {
+	/*
+	 * Tear down is carefully orchestrated to ensure
+	 * no interrupts can come in when the problem state
+	 * area is unmapped.
+	 *
+	 * 1) Disable all AFU interrupts
+	 * 2) Unmap the problem state area
+	 * 3) Stop the master context
+	 */
+	term_intr(cfg, UNMAP_THREE);
 	if (cfg->afu)
 		stop_afu(cfg);
 
-	term_mc(cfg, UNDO_START);
+	term_mc(cfg);
 
 	pr_debug("%s: returning\n", __func__);
 }
@@ -1597,41 +1627,24 @@ static int start_afu(struct cxlflash_cfg *cfg)
 }
 
 /**
- * init_mc() - create and register as the master context
+ * init_intr() - setup interrupt handlers for the master context
  * @cfg:	Internal structure associated with the host.
  *
  * Return: 0 on success, -errno on failure
  */
-static int init_mc(struct cxlflash_cfg *cfg)
+static enum undo_level init_intr(struct cxlflash_cfg *cfg,
+				 struct cxl_context *ctx)
 {
-	struct cxl_context *ctx;
-	struct device *dev = &cfg->dev->dev;
 	struct afu *afu = cfg->afu;
+	struct device *dev = &cfg->dev->dev;
 	int rc = 0;
-	enum undo_level level;
-
-	ctx = cxl_get_context(cfg->dev);
-	if (unlikely(!ctx))
-		return -ENOMEM;
-	cfg->mcctx = ctx;
-
-	/* Set it up as a master with the CXL */
-	cxl_set_master(ctx);
-
-	/* During initialization reset the AFU to start from a clean slate */
-	rc = cxl_afu_reset(cfg->mcctx);
-	if (unlikely(rc)) {
-		dev_err(dev, "%s: initial AFU reset failed rc=%d\n",
-			__func__, rc);
-		level = RELEASE_CONTEXT;
-		goto out;
-	}
+	enum undo_level level = UNDO_NOOP;
 
 	rc = cxl_allocate_afu_irqs(ctx, 3);
 	if (unlikely(rc)) {
 		dev_err(dev, "%s: call to allocate_afu_irqs failed rc=%d!\n",
 			__func__, rc);
-		level = RELEASE_CONTEXT;
+		level = UNDO_NOOP;
 		goto out;
 	}
 
@@ -1661,8 +1674,47 @@ static int init_mc(struct cxlflash_cfg *cfg)
 		level = UNMAP_TWO;
 		goto out;
 	}
+out:
+	return level;
+}
 
-	rc = 0;
+/**
+ * init_mc() - create and register as the master context
+ * @cfg:	Internal structure associated with the host.
+ *
+ * Return: 0 on success, -errno on failure
+ */
+static int init_mc(struct cxlflash_cfg *cfg)
+{
+	struct cxl_context *ctx;
+	struct device *dev = &cfg->dev->dev;
+	int rc = 0;
+	enum undo_level level;
+
+	ctx = cxl_get_context(cfg->dev);
+	if (unlikely(!ctx)) {
+		rc = -ENOMEM;
+		goto ret;
+	}
+	cfg->mcctx = ctx;
+
+	/* Set it up as a master with the CXL */
+	cxl_set_master(ctx);
+
+	/* During initialization reset the AFU to start from a clean slate */
+	rc = cxl_afu_reset(cfg->mcctx);
+	if (unlikely(rc)) {
+		dev_err(dev, "%s: initial AFU reset failed rc=%d\n",
+			__func__, rc);
+		goto ret;
+	}
+
+	level = init_intr(cfg, ctx);
+	if (unlikely(level)) {
+		dev_err(dev, "%s: setting up interrupts failed rc=%d\n",
+			__func__, rc);
+		goto out;
+	}
 
 	/* This performs the equivalent of the CXL_IOCTL_START_WORK.
 	 * The CXL_IOCTL_GET_PROCESS_ELEMENT is implicit in the process
@@ -1678,7 +1730,7 @@ ret:
 	pr_debug("%s: returning rc=%d\n", __func__, rc);
 	return rc;
 out:
-	term_mc(cfg, level);
+	term_intr(cfg, level);
 	goto ret;
 }
 
@@ -1751,7 +1803,8 @@ out:
 err2:
 	kref_put(&afu->mapcount, afu_unmap);
 err1:
-	term_mc(cfg, UNDO_START);
+	term_intr(cfg, UNMAP_THREE);
+	term_mc(cfg);
 	goto out;
 }
 
@@ -2488,8 +2541,7 @@ static pci_ers_result_t cxlflash_pci_error_detected(struct pci_dev *pdev,
 		if (unlikely(rc))
 			dev_err(dev, "%s: Failed to mark user contexts!(%d)\n",
 				__func__, rc);
-		stop_afu(cfg);
-		term_mc(cfg, UNDO_START);
+		term_afu(cfg);
 		return PCI_ERS_RESULT_NEED_RESET;
 	case pci_channel_io_perm_failure:
 		cfg->state = STATE_FAILTERM;

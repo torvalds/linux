@@ -28,6 +28,10 @@
 
 #include "drm.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #ifndef __SAVAGE_SAREA_DEFINES__
 #define __SAVAGE_SAREA_DEFINES__
 
@@ -208,5 +212,9 @@ union drm_savage_cmd_header {
 		unsigned int value;
 	} clear1;		/* SAVAGE_CMD_CLEAR data */
 };
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif

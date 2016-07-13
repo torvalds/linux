@@ -68,7 +68,7 @@ int btrfs_init_test_fs(void)
 	if (IS_ERR(test_mnt)) {
 		printk(KERN_ERR "btrfs: cannot mount test file system\n");
 		unregister_filesystem(&test_type);
-		return ret;
+		return PTR_ERR(test_mnt);
 	}
 	return 0;
 }
@@ -175,7 +175,7 @@ void btrfs_free_dummy_root(struct btrfs_root *root)
 }
 
 struct btrfs_block_group_cache *
-btrfs_alloc_dummy_block_group(unsigned long length)
+btrfs_alloc_dummy_block_group(unsigned long length, u32 sectorsize)
 {
 	struct btrfs_block_group_cache *cache;
 
@@ -188,18 +188,12 @@ btrfs_alloc_dummy_block_group(unsigned long length)
 		kfree(cache);
 		return NULL;
 	}
-	cache->fs_info = btrfs_alloc_dummy_fs_info();
-	if (!cache->fs_info) {
-		kfree(cache->free_space_ctl);
-		kfree(cache);
-		return NULL;
-	}
 
 	cache->key.objectid = 0;
 	cache->key.offset = length;
 	cache->key.type = BTRFS_BLOCK_GROUP_ITEM_KEY;
-	cache->sectorsize = 4096;
-	cache->full_stripe_len = 4096;
+	cache->sectorsize = sectorsize;
+	cache->full_stripe_len = sectorsize;
 
 	INIT_LIST_HEAD(&cache->list);
 	INIT_LIST_HEAD(&cache->cluster_list);

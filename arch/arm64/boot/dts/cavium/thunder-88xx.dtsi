@@ -360,6 +360,11 @@
 		             <1 10 0xff01>;
 	};
 
+	pmu {
+		compatible = "cavium,thunder-pmu", "arm,armv8-pmuv3";
+		interrupts = <1 7 4>;
+	};
+
 	soc {
 		compatible = "simple-bus";
 		#address-cells = <2>;

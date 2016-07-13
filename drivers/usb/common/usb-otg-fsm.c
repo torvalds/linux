@@ -21,6 +21,7 @@
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/mutex.h>
@@ -60,8 +61,6 @@ static int otg_set_protocol(struct otg_fsm *fsm, int protocol)
 
 	return 0;
 }
-
-static int state_changed;
 
 /* Called when leaving a state.  Do state clean up jobs here */
 static void otg_leave_state(struct otg_fsm *fsm, enum usb_otg_state old_state)
@@ -208,7 +207,6 @@ static void otg_start_hnp_polling(struct otg_fsm *fsm)
 /* Called when entering a state */
 static int otg_set_state(struct otg_fsm *fsm, enum usb_otg_state new_state)
 {
-	state_changed = 1;
 	if (fsm->otg->state == new_state)
 		return 0;
 	VDBG("Set state: %s\n", usb_otg_state_string(new_state));
@@ -324,6 +322,7 @@ static int otg_set_state(struct otg_fsm *fsm, enum usb_otg_state new_state)
 	}
 
 	fsm->otg->state = new_state;
+	fsm->state_changed = 1;
 	return 0;
 }
 
@@ -335,7 +334,7 @@ int otg_statemachine(struct otg_fsm *fsm)
 	mutex_lock(&fsm->lock);
 
 	state = fsm->otg->state;
-	state_changed = 0;
+	fsm->state_changed = 0;
 	/* State machine state change judgement */
 
 	switch (state) {
@@ -448,7 +447,8 @@ int otg_statemachine(struct otg_fsm *fsm)
 	}
 	mutex_unlock(&fsm->lock);
 
-	VDBG("quit statemachine, changed = %d\n", state_changed);
-	return state_changed;
+	VDBG("quit statemachine, changed = %d\n", fsm->state_changed);
+	return fsm->state_changed;
 }
 EXPORT_SYMBOL_GPL(otg_statemachine);
+MODULE_LICENSE("GPL");

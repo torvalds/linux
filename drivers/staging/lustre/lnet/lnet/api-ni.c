@@ -1215,9 +1215,9 @@ lnet_shutdown_lndni(struct lnet_ni *ni)
 }
 
 static int
-lnet_startup_lndni(struct lnet_ni *ni, __s32 peer_timeout,
-		   __s32 peer_cr, __s32 peer_buf_cr, __s32 credits)
+lnet_startup_lndni(struct lnet_ni *ni, struct lnet_ioctl_config_data *conf)
 {
+	struct lnet_ioctl_config_lnd_tunables *lnd_tunables = NULL;
 	int rc = -EINVAL;
 	int lnd_type;
 	lnd_t *lnd;
@@ -1275,6 +1275,21 @@ lnet_startup_lndni(struct lnet_ni *ni, __s32 peer_timeout,
 
 	ni->ni_lnd = lnd;
 
+	if (conf && conf->cfg_hdr.ioc_len > sizeof(*conf))
+		lnd_tunables = (struct lnet_ioctl_config_lnd_tunables *)conf->cfg_bulk;
+
+	if (lnd_tunables) {
+		LIBCFS_ALLOC(ni->ni_lnd_tunables,
+			     sizeof(*ni->ni_lnd_tunables));
+		if (!ni->ni_lnd_tunables) {
+			mutex_unlock(&the_lnet.ln_lnd_mutex);
+			rc = -ENOMEM;
+			goto failed0;
+		}
+		memcpy(ni->ni_lnd_tunables, lnd_tunables,
+		       sizeof(*ni->ni_lnd_tunables));
+	}
+
 	rc = lnd->lnd_startup(ni);
 
 	mutex_unlock(&the_lnet.ln_lnd_mutex);
@@ -1292,20 +1307,28 @@ lnet_startup_lndni(struct lnet_ni *ni, __s32 peer_timeout,
 	 * If given some LND tunable parameters, parse those now to
 	 * override the values in the NI structure.
 	 */
-	if (peer_buf_cr >= 0)
-		ni->ni_peerrtrcredits = peer_buf_cr;
-	if (peer_timeout >= 0)
-		ni->ni_peertimeout = peer_timeout;
+	if (conf && conf->cfg_config_u.cfg_net.net_peer_rtr_credits >= 0) {
+		ni->ni_peerrtrcredits =
+			conf->cfg_config_u.cfg_net.net_peer_rtr_credits;
+	}
+	if (conf && conf->cfg_config_u.cfg_net.net_peer_timeout >= 0) {
+		ni->ni_peertimeout =
+			conf->cfg_config_u.cfg_net.net_peer_timeout;
+	}
 	/*
 	 * TODO
 	 * Note: For now, don't allow the user to change
 	 * peertxcredits as this number is used in the
 	 * IB LND to control queue depth.
-	 * if (peer_cr != -1)
-	 *	ni->ni_peertxcredits = peer_cr;
+	 *
+	 * if (conf && conf->cfg_config_u.cfg_net.net_peer_tx_credits != -1)
+	 *	ni->ni_peertxcredits =
+	 *		conf->cfg_config_u.cfg_net.net_peer_tx_credits;
 	 */
-	if (credits >= 0)
-		ni->ni_maxtxcredits = credits;
+	if (conf && conf->cfg_config_u.cfg_net.net_max_tx_credits >= 0) {
+		ni->ni_maxtxcredits =
+			conf->cfg_config_u.cfg_net.net_max_tx_credits;
+	}
 
 	LASSERT(ni->ni_peertimeout <= 0 || lnd->lnd_query);
 
@@ -1367,7 +1390,7 @@ lnet_startup_lndnis(struct list_head *nilist)
 	while (!list_empty(nilist)) {
 		ni = list_entry(nilist->next, lnet_ni_t, ni_list);
 		list_del(&ni->ni_list);
-		rc = lnet_startup_lndni(ni, -1, -1, -1, -1);
+		rc = lnet_startup_lndni(ni, NULL);
 
 		if (rc < 0)
 			goto failed;
@@ -1641,25 +1664,20 @@ EXPORT_SYMBOL(LNetNIFini);
  * parameters
  *
  * \param[in] ni network       interface structure
- * \param[out] cpt_count       the number of cpts the ni is on
- * \param[out] nid             Network Interface ID
- * \param[out] peer_timeout    NI peer timeout
- * \param[out] peer_tx_crdits  NI peer transmit credits
- * \param[out] peer_rtr_credits NI peer router credits
- * \param[out] max_tx_credits  NI max transmit credit
- * \param[out] net_config      Network configuration
+ * \param[out] config	       NI configuration
  */
 static void
-lnet_fill_ni_info(struct lnet_ni *ni, __u32 *cpt_count, __u64 *nid,
-		  int *peer_timeout, int *peer_tx_credits,
-		  int *peer_rtr_credits, int *max_tx_credits,
-		  struct lnet_ioctl_net_config *net_config)
+lnet_fill_ni_info(struct lnet_ni *ni, struct lnet_ioctl_config_data *config)
 {
+	struct lnet_ioctl_config_lnd_tunables *lnd_cfg = NULL;
+	struct lnet_ioctl_net_config *net_config;
+	size_t min_size, tunable_size = 0;
 	int i;
 
-	if (!ni)
+	if (!ni || !config)
 		return;
 
+	net_config = (struct lnet_ioctl_net_config *) config->cfg_bulk;
 	if (!net_config)
 		return;
 
@@ -1675,11 +1693,11 @@ lnet_fill_ni_info(struct lnet_ni *ni, __u32 *cpt_count, __u64 *nid,
 			sizeof(net_config->ni_interfaces[i]));
 	}
 
-	*nid = ni->ni_nid;
-	*peer_timeout = ni->ni_peertimeout;
-	*peer_tx_credits = ni->ni_peertxcredits;
-	*peer_rtr_credits = ni->ni_peerrtrcredits;
-	*max_tx_credits = ni->ni_maxtxcredits;
+	config->cfg_nid = ni->ni_nid;
+	config->cfg_config_u.cfg_net.net_peer_timeout = ni->ni_peertimeout;
+	config->cfg_config_u.cfg_net.net_max_tx_credits = ni->ni_maxtxcredits;
+	config->cfg_config_u.cfg_net.net_peer_tx_credits = ni->ni_peertxcredits;
+	config->cfg_config_u.cfg_net.net_peer_rtr_credits = ni->ni_peerrtrcredits;
 
 	net_config->ni_status = ni->ni_status->ns_status;
 
@@ -1689,18 +1707,40 @@ lnet_fill_ni_info(struct lnet_ni *ni, __u32 *cpt_count, __u64 *nid,
 		for (i = 0; i < num_cpts; i++)
 			net_config->ni_cpts[i] = ni->ni_cpts[i];
 
-		*cpt_count = num_cpts;
+		config->cfg_ncpts = num_cpts;
+	}
+
+	/*
+	 * See if user land tools sent in a newer and larger version
+	 * of struct lnet_tunables than what the kernel uses.
+	 */
+	min_size = sizeof(*config) + sizeof(*net_config);
+
+	if (config->cfg_hdr.ioc_len > min_size)
+		tunable_size = config->cfg_hdr.ioc_len - min_size;
+
+	/* Don't copy to much data to user space */
+	min_size = min(tunable_size, sizeof(*ni->ni_lnd_tunables));
+	lnd_cfg = (struct lnet_ioctl_config_lnd_tunables *)net_config->cfg_bulk;
+
+	if (ni->ni_lnd_tunables && lnd_cfg && min_size) {
+		memcpy(lnd_cfg, ni->ni_lnd_tunables, min_size);
+		config->cfg_config_u.cfg_net.net_interface_count = 1;
+
+		/* Tell user land that kernel side has less data */
+		if (tunable_size > sizeof(*ni->ni_lnd_tunables)) {
+			min_size = tunable_size - sizeof(ni->ni_lnd_tunables);
+			config->cfg_hdr.ioc_len -= min_size;
+		}
 	}
 }
 
-int
-lnet_get_net_config(int idx, __u32 *cpt_count, __u64 *nid, int *peer_timeout,
-		    int *peer_tx_credits, int *peer_rtr_credits,
-		    int *max_tx_credits,
-		    struct lnet_ioctl_net_config *net_config)
+static int
+lnet_get_net_config(struct lnet_ioctl_config_data *config)
 {
 	struct lnet_ni *ni;
 	struct list_head *tmp;
+	int idx = config->cfg_count;
 	int cpt, i = 0;
 	int rc = -ENOENT;
 
@@ -1712,9 +1752,7 @@ lnet_get_net_config(int idx, __u32 *cpt_count, __u64 *nid, int *peer_timeout,
 
 		ni = list_entry(tmp, lnet_ni_t, ni_list);
 		lnet_ni_lock(ni);
-		lnet_fill_ni_info(ni, cpt_count, nid, peer_timeout,
-				  peer_tx_credits, peer_rtr_credits,
-				  max_tx_credits, net_config);
+		lnet_fill_ni_info(ni, config);
 		lnet_ni_unlock(ni);
 		rc = 0;
 		break;
@@ -1725,10 +1763,9 @@ lnet_get_net_config(int idx, __u32 *cpt_count, __u64 *nid, int *peer_timeout,
 }
 
 int
-lnet_dyn_add_ni(lnet_pid_t requested_pid, char *nets,
-		__s32 peer_timeout, __s32 peer_cr, __s32 peer_buf_cr,
-		__s32 credits)
+lnet_dyn_add_ni(lnet_pid_t requested_pid, struct lnet_ioctl_config_data *conf)
 {
+	char *nets = conf->cfg_config_u.cfg_net.net_intf;
 	lnet_ping_info_t *pinfo;
 	lnet_handle_md_t md_handle;
 	struct lnet_ni *ni;
@@ -1773,8 +1810,7 @@ lnet_dyn_add_ni(lnet_pid_t requested_pid, char *nets,
 
 	list_del_init(&ni->ni_list);
 
-	rc = lnet_startup_lndni(ni, peer_timeout, peer_cr,
-				peer_buf_cr, credits);
+	rc = lnet_startup_lndni(ni, conf);
 	if (rc)
 		goto failed1;
 
@@ -1864,6 +1900,10 @@ LNetCtl(unsigned int cmd, void *arg)
 	int rc;
 	unsigned long secs_passed;
 
+	BUILD_BUG_ON(LIBCFS_IOC_DATA_MAX <
+		     sizeof(struct lnet_ioctl_net_config) +
+		     sizeof(struct lnet_ioctl_config_data));
+
 	switch (cmd) {
 	case IOC_LIBCFS_GET_NI:
 		rc = LNetGetId(data->ioc_count, &id);
@@ -1918,27 +1958,14 @@ LNetCtl(unsigned int cmd, void *arg)
 				      &config->cfg_config_u.cfg_route.rtr_priority);
 
 	case IOC_LIBCFS_GET_NET: {
-		struct lnet_ioctl_net_config *net_config;
-		size_t total = sizeof(*config) + sizeof(*net_config);
-
+		size_t total = sizeof(*config) +
+			       sizeof(struct lnet_ioctl_net_config);
 		config = arg;
 
 		if (config->cfg_hdr.ioc_len < total)
 			return -EINVAL;
 
-		net_config = (struct lnet_ioctl_net_config *)
-				config->cfg_bulk;
-		if (!net_config)
-			return -EINVAL;
-
-		return lnet_get_net_config(config->cfg_count,
-					   &config->cfg_ncpts,
-					   &config->cfg_nid,
-					   &config->cfg_config_u.cfg_net.net_peer_timeout,
-					   &config->cfg_config_u.cfg_net.net_peer_tx_credits,
-					   &config->cfg_config_u.cfg_net.net_peer_rtr_credits,
-					   &config->cfg_config_u.cfg_net.net_max_tx_credits,
-					   net_config);
+		return lnet_get_net_config(config);
 	}
 
 	case IOC_LIBCFS_GET_LNET_STATS: {

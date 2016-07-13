@@ -117,11 +117,13 @@ struct pxad_chan {
 	/* protected by vc->lock */
 	struct pxad_phy		*phy;
 	struct dma_pool		*desc_pool;	/* Descriptors pool */
+	dma_cookie_t		bus_error;
 };
 
 struct pxad_device {
 	struct dma_device		slave;
 	int				nr_chans;
+	int				nr_requestors;
 	void __iomem			*base;
 	struct pxad_phy			*phys;
 	spinlock_t			phy_lock;	/* Phy association */
@@ -473,7 +475,7 @@ static void pxad_free_phy(struct pxad_chan *chan)
 		return;
 
 	/* clear the channel mapping in DRCMR */
-	if (chan->drcmr <= DRCMR_CHLNUM) {
+	if (chan->drcmr <= pdev->nr_requestors) {
 		reg = pxad_drcmr(chan->drcmr);
 		writel_relaxed(0, chan->phy->base + reg);
 	}
@@ -509,6 +511,7 @@ static bool is_running_chan_misaligned(struct pxad_chan *chan)
 
 static void phy_enable(struct pxad_phy *phy, bool misaligned)
 {
+	struct pxad_device *pdev;
 	u32 reg, dalgn;
 
 	if (!phy->vchan)
@@ -518,7 +521,8 @@ static void phy_enable(struct pxad_phy *phy, bool misaligned)
 		"%s(); phy=%p(%d) misaligned=%d\n", __func__,
 		phy, phy->idx, misaligned);
 
-	if (phy->vchan->drcmr <= DRCMR_CHLNUM) {
+	pdev = to_pxad_dev(phy->vchan->vc.chan.device);
+	if (phy->vchan->drcmr <= pdev->nr_requestors) {
 		reg = pxad_drcmr(phy->vchan->drcmr);
 		writel_relaxed(DRCMR_MAPVLD | phy->idx, phy->base + reg);
 	}
@@ -560,6 +564,7 @@ static void pxad_launch_chan(struct pxad_chan *chan,
 			return;
 		}
 	}
+	chan->bus_error = 0;
 
 	/*
 	 * Program the descriptor's address into the DMA controller,
@@ -663,6 +668,7 @@ static irqreturn_t pxad_chan_handler(int irq, void *dev_id)
 	struct virt_dma_desc *vd, *tmp;
 	unsigned int dcsr;
 	unsigned long flags;
+	dma_cookie_t last_started = 0;
 
 	BUG_ON(!chan);
 
@@ -675,6 +681,7 @@ static irqreturn_t pxad_chan_handler(int irq, void *dev_id)
 		dev_dbg(&chan->vc.chan.dev->device,
 			"%s(): checking txd %p[%x]: completed=%d\n",
 			__func__, vd, vd->tx.cookie, is_desc_completed(vd));
+		last_started = vd->tx.cookie;
 		if (to_pxad_sw_desc(vd)->cyclic) {
 			vchan_cyclic_callback(vd);
 			break;
@@ -687,7 +694,12 @@ static irqreturn_t pxad_chan_handler(int irq, void *dev_id)
 		}
 	}
 
-	if (dcsr & PXA_DCSR_STOPSTATE) {
+	if (dcsr & PXA_DCSR_BUSERR) {
+		chan->bus_error = last_started;
+		phy_disable(phy);
+	}
+
+	if (!chan->bus_error && dcsr & PXA_DCSR_STOPSTATE) {
 		dev_dbg(&chan->vc.chan.dev->device,
 		"%s(): channel stopped, submitted_empty=%d issued_empty=%d",
 			__func__,
@@ -914,6 +926,7 @@ static void pxad_get_config(struct pxad_chan *chan,
 {
 	u32 maxburst = 0, dev_addr = 0;
 	enum dma_slave_buswidth width = DMA_SLAVE_BUSWIDTH_UNDEFINED;
+	struct pxad_device *pdev = to_pxad_dev(chan->vc.chan.device);
 
 	*dcmd = 0;
 	if (dir == DMA_DEV_TO_MEM) {
@@ -922,7 +935,7 @@ static void pxad_get_config(struct pxad_chan *chan,
 		dev_addr = chan->cfg.src_addr;
 		*dev_src = dev_addr;
 		*dcmd |= PXA_DCMD_INCTRGADDR;
-		if (chan->drcmr <= DRCMR_CHLNUM)
+		if (chan->drcmr <= pdev->nr_requestors)
 			*dcmd |= PXA_DCMD_FLOWSRC;
 	}
 	if (dir == DMA_MEM_TO_DEV) {
@@ -931,7 +944,7 @@ static void pxad_get_config(struct pxad_chan *chan,
 		dev_addr = chan->cfg.dst_addr;
 		*dev_dst = dev_addr;
 		*dcmd |= PXA_DCMD_INCSRCADDR;
-		if (chan->drcmr <= DRCMR_CHLNUM)
+		if (chan->drcmr <= pdev->nr_requestors)
 			*dcmd |= PXA_DCMD_FLOWTRG;
 	}
 	if (dir == DMA_MEM_TO_MEM)
@@ -1245,6 +1258,9 @@ static enum dma_status pxad_tx_status(struct dma_chan *dchan,
 	struct pxad_chan *chan = to_pxad_chan(dchan);
 	enum dma_status ret;
 
+	if (cookie == chan->bus_error)
+		return DMA_ERROR;
+
 	ret = dma_cookie_status(dchan, cookie, txstate);
 	if (likely(txstate && (ret != DMA_ERROR)))
 		dma_set_residue(txstate, pxad_residue(chan, cookie));
@@ -1317,7 +1333,7 @@ static int pxad_init_phys(struct platform_device *op,
 	return 0;
 }
 
-static const struct of_device_id const pxad_dt_ids[] = {
+static const struct of_device_id pxad_dt_ids[] = {
 	{ .compatible = "marvell,pdma-1.0", },
 	{}
 };
@@ -1341,13 +1357,15 @@ static struct dma_chan *pxad_dma_xlate(struct of_phandle_args *dma_spec,
 
 static int pxad_init_dmadev(struct platform_device *op,
 			    struct pxad_device *pdev,
-			    unsigned int nr_phy_chans)
+			    unsigned int nr_phy_chans,
+			    unsigned int nr_requestors)
 {
 	int ret;
 	unsigned int i;
 	struct pxad_chan *c;
 
 	pdev->nr_chans = nr_phy_chans;
+	pdev->nr_requestors = nr_requestors;
 	INIT_LIST_HEAD(&pdev->slave.channels);
 	pdev->slave.device_alloc_chan_resources = pxad_alloc_chan_resources;
 	pdev->slave.device_free_chan_resources = pxad_free_chan_resources;
@@ -1382,7 +1400,7 @@ static int pxad_probe(struct platform_device *op)
 	const struct of_device_id *of_id;
 	struct mmp_dma_platdata *pdata = dev_get_platdata(&op->dev);
 	struct resource *iores;
-	int ret, dma_channels = 0;
+	int ret, dma_channels = 0, nb_requestors = 0;
 	const enum dma_slave_buswidth widths =
 		DMA_SLAVE_BUSWIDTH_1_BYTE   | DMA_SLAVE_BUSWIDTH_2_BYTES |
 		DMA_SLAVE_BUSWIDTH_4_BYTES;
@@ -1399,13 +1417,23 @@ static int pxad_probe(struct platform_device *op)
 		return PTR_ERR(pdev->base);
 
 	of_id = of_match_device(pxad_dt_ids, &op->dev);
-	if (of_id)
+	if (of_id) {
 		of_property_read_u32(op->dev.of_node, "#dma-channels",
 				     &dma_channels);
-	else if (pdata && pdata->dma_channels)
+		ret = of_property_read_u32(op->dev.of_node, "#dma-requests",
+					   &nb_requestors);
+		if (ret) {
+			dev_warn(pdev->slave.dev,
+				 "#dma-requests set to default 32 as missing in OF: %d",
+				 ret);
+			nb_requestors = 32;
+		};
+	} else if (pdata && pdata->dma_channels) {
 		dma_channels = pdata->dma_channels;
-	else
+		nb_requestors = pdata->nb_requestors;
+	} else {
 		dma_channels = 32;	/* default 32 channel */
+	}
 
 	dma_cap_set(DMA_SLAVE, pdev->slave.cap_mask);
 	dma_cap_set(DMA_MEMCPY, pdev->slave.cap_mask);
@@ -1423,7 +1451,7 @@ static int pxad_probe(struct platform_device *op)
 	pdev->slave.descriptor_reuse = true;
 
 	pdev->slave.dev = &op->dev;
-	ret = pxad_init_dmadev(op, pdev, dma_channels);
+	ret = pxad_init_dmadev(op, pdev, dma_channels, nb_requestors);
 	if (ret) {
 		dev_err(pdev->slave.dev, "unable to register\n");
 		return ret;
@@ -1442,7 +1470,8 @@ static int pxad_probe(struct platform_device *op)
 
 	platform_set_drvdata(op, pdev);
 	pxad_init_debugfs(pdev);
-	dev_info(pdev->slave.dev, "initialized %d channels\n", dma_channels);
+	dev_info(pdev->slave.dev, "initialized %d channels on %d requestors\n",
+		 dma_channels, nb_requestors);
 	return 0;
 }
 

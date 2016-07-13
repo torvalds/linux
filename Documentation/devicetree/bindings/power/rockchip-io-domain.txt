@@ -35,8 +35,12 @@ Required properties:
   - "rockchip,rk3288-io-voltage-domain" for rk3288
   - "rockchip,rk3368-io-voltage-domain" for rk3368
   - "rockchip,rk3368-pmu-io-voltage-domain" for rk3368 pmu-domains
-- rockchip,grf: phandle to the syscon managing the "general register files"
+  - "rockchip,rk3399-io-voltage-domain" for rk3399
+  - "rockchip,rk3399-pmu-io-voltage-domain" for rk3399 pmu-domains
 
+Deprecated properties:
+- rockchip,grf: phandle to the syscon managing the "general register files"
+    Systems should move the io-domains to a sub-node of the grf simple-mfd.
 
 You specify supplies using the standard regulator bindings by including
 a phandle the relevant regulator.  All specified supplies must be able
@@ -78,6 +82,15 @@ Possible supplies for rk3368:
 Possible supplies for rk3368 pmu-domains:
 - pmu-supply:    The supply connected to PMUIO_VDD.
 - vop-supply:    The supply connected to LCDC_VDD.
+
+Possible supplies for rk3399:
+- bt656-supply:  The supply connected to APIO2_VDD.
+- audio-supply:  The supply connected to APIO5_VDD.
+- sdmmc-supply:  The supply connected to SDMMC0_VDD.
+- gpio1830       The supply connected to APIO4_VDD.
+
+Possible supplies for rk3399 pmu-domains:
+- pmu1830-supply:The supply connected to PMUIO2_VDD.
 
 Example:
 

@@ -95,23 +95,23 @@ enum DPM_EVENT_SRC {
 /* [2.5%,~2.5%] Clock stretched is multiple of 2.5% vs
  * not and [Fmin, Fmax, LDO_REFSEL, USE_FOR_LOW_FREQ]
  */
-uint16_t fiji_clock_stretcher_lookup_table[2][4] = { {600, 1050, 3, 0},
-                                                {600, 1050, 6, 1} };
+static const uint16_t fiji_clock_stretcher_lookup_table[2][4] =
+{ {600, 1050, 3, 0}, {600, 1050, 6, 1} };
 
 /* [FF, SS] type, [] 4 voltage ranges, and
  * [Floor Freq, Boundary Freq, VID min , VID max]
  */
-uint32_t fiji_clock_stretcher_ddt_table[2][4][4] =
+static const uint32_t fiji_clock_stretcher_ddt_table[2][4][4] =
 { { {265, 529, 120, 128}, {325, 650, 96, 119}, {430, 860, 32, 95}, {0, 0, 0, 31} },
   { {275, 550, 104, 112}, {319, 638, 96, 103}, {360, 720, 64, 95}, {384, 768, 32, 63} } };
 
 /* [Use_For_Low_freq] value, [0%, 5%, 10%, 7.14%, 14.28%, 20%]
  * (coming from PWR_CKS_CNTL.stretch_amount reg spec)
  */
-uint8_t fiji_clock_stretch_amount_conversion[2][6] = { {0, 1, 3, 2, 4, 5},
-                                                  {0, 2, 4, 5, 6, 5} };
+static const uint8_t fiji_clock_stretch_amount_conversion[2][6] =
+{ {0, 1, 3, 2, 4, 5}, {0, 2, 4, 5, 6, 5} };
 
-const unsigned long PhwFiji_Magic = (unsigned long)(PHM_VIslands_Magic);
+static const unsigned long PhwFiji_Magic = (unsigned long)(PHM_VIslands_Magic);
 
 struct fiji_power_state *cast_phw_fiji_power_state(
 				  struct pp_hw_power_state *hw_ps)
@@ -465,14 +465,14 @@ static int fiji_set_private_data_based_on_pptable(struct pp_hwmgr *hwmgr)
 			table_info->vdd_dep_on_mclk;
 
 	PP_ASSERT_WITH_CODE(allowed_sclk_vdd_table != NULL,
-		"VDD dependency on SCLK table is missing. 	\
+		"VDD dependency on SCLK table is missing.	\
 		This table is mandatory", return -EINVAL);
 	PP_ASSERT_WITH_CODE(allowed_sclk_vdd_table->count >= 1,
-		"VDD dependency on SCLK table has to have is missing. 	\
+		"VDD dependency on SCLK table has to have is missing.	\
 		This table is mandatory", return -EINVAL);
 
 	PP_ASSERT_WITH_CODE(allowed_mclk_vdd_table != NULL,
-		"VDD dependency on MCLK table is missing. 	\
+		"VDD dependency on MCLK table is missing.	\
 		This table is mandatory", return -EINVAL);
 	PP_ASSERT_WITH_CODE(allowed_mclk_vdd_table->count >= 1,
 		"VDD dependency on MCLK table has to have is missing.	 \
@@ -579,6 +579,18 @@ static int fiji_patch_boot_state(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
+static int fiji_hwmgr_backend_fini(struct pp_hwmgr *hwmgr)
+{
+	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
+
+	if (data->soft_pp_table) {
+		kfree(data->soft_pp_table);
+		data->soft_pp_table = NULL;
+	}
+
+	return phm_hwmgr_backend_fini(hwmgr);
+}
+
 static int fiji_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 {
 	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
@@ -620,6 +632,8 @@ static int fiji_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	data->voltage_control = FIJI_VOLTAGE_CONTROL_NONE;
 	data->vddci_control = FIJI_VOLTAGE_CONTROL_NONE;
 	data->mvdd_control = FIJI_VOLTAGE_CONTROL_NONE;
+
+	data->force_pcie_gen = PP_PCIEGenInvalid;
 
 	if (atomctrl_is_voltage_controled_by_gpio_v3(hwmgr,
 			VOLTAGE_TYPE_VDDC, VOLTAGE_OBJ_SVID2))
@@ -734,7 +748,7 @@ static int fiji_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 			data->pcie_lane_cap = (uint32_t)sys_info.value;
 	} else {
 		/* Ignore return value in here, we are cleaning up a mess. */
-		tonga_hwmgr_backend_fini(hwmgr);
+		fiji_hwmgr_backend_fini(hwmgr);
 	}
 
 	return 0;
@@ -1818,7 +1832,7 @@ static uint16_t fiji_find_closest_vddci(struct pp_hwmgr *hwmgr, uint16_t vddci)
 
 	PP_ASSERT_WITH_CODE(false,
 			"VDDCI is larger than max VDDCI in VDDCI Voltage Table!",
-			return vddci_table->entries[i].value);
+			return vddci_table->entries[i-1].value);
 }
 
 static int fiji_get_dependency_volt_by_clk(struct pp_hwmgr *hwmgr,
@@ -1885,6 +1899,23 @@ static int fiji_get_dependency_volt_by_clk(struct pp_hwmgr *hwmgr,
 
 	return 0;
 }
+
+static uint8_t fiji_get_sleep_divider_id_from_clock(uint32_t clock,
+		uint32_t clock_insr)
+{
+	uint8_t i;
+	uint32_t temp;
+	uint32_t min = max(clock_insr, (uint32_t)FIJI_MINIMUM_ENGINE_CLOCK);
+
+	PP_ASSERT_WITH_CODE((clock >= min), "Engine clock can't satisfy stutter requirement!", return 0);
+	for (i = FIJI_MAX_DEEPSLEEP_DIVIDER_ID;  ; i--) {
+		temp = clock >> i;
+
+		if (temp >= min || i == 0)
+			break;
+	}
+	return i;
+}
 /**
 * Populates single SMC SCLK structure using the provided engine clock
 *
@@ -1928,17 +1959,13 @@ static int fiji_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 
 	threshold = clock * data->fast_watermark_threshold / 100;
 
-	/*
-	* TODO: get minimum clocks from dal configaration
-	* PECI_GetMinClockSettings(hwmgr->pPECI, &minClocks);
-	*/
-	/* data->DisplayTiming.minClockInSR = minClocks.engineClockInSR; */
 
-	/* get level->DeepSleepDivId
-	if (phm_cap_enabled(hwmgr->platformDescriptor.platformCaps, PHM_PlatformCaps_SclkDeepSleep))
-	{
-	level->DeepSleepDivId = PhwFiji_GetSleepDividerIdFromClock(hwmgr, clock, minClocks.engineClockInSR);
-	} */
+	data->display_timing.min_clock_in_sr = hwmgr->display_config.min_core_set_clock_in_sr;
+
+	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_SclkDeepSleep))
+		level->DeepSleepDivId = fiji_get_sleep_divider_id_from_clock(clock,
+								hwmgr->display_config.min_core_set_clock_in_sr);
+
 
 	/* Default to slow, highest DPM level will be
 	 * set to PPSMC_DISPLAY_WATERMARK_LOW later.
@@ -2389,6 +2416,7 @@ static int fiji_populate_smc_vce_level(struct pp_hwmgr *hwmgr,
 
 	for(count = 0; count < table->VceLevelCount; count++) {
 		table->VceLevel[count].Frequency = mm_table->entries[count].eclk;
+		table->VceLevel[count].MinVoltage = 0;
 		table->VceLevel[count].MinVoltage |=
 				(mm_table->entries[count].vddc * VOLTAGE_SCALE) << VDDC_SHIFT;
 		table->VceLevel[count].MinVoltage |=
@@ -2465,6 +2493,7 @@ static int fiji_populate_smc_samu_level(struct pp_hwmgr *hwmgr,
 
 	for (count = 0; count < table->SamuLevelCount; count++) {
 		/* not sure whether we need evclk or not */
+		table->SamuLevel[count].MinVoltage = 0;
 		table->SamuLevel[count].Frequency = mm_table->entries[count].samclock;
 		table->SamuLevel[count].MinVoltage |= (mm_table->entries[count].vddc *
 				VOLTAGE_SCALE) << VDDC_SHIFT;
@@ -2562,6 +2591,7 @@ static int fiji_populate_smc_uvd_level(struct pp_hwmgr *hwmgr,
 	table->UvdBootLevel = 0;
 
 	for (count = 0; count < table->UvdLevelCount; count++) {
+		table->UvdLevel[count].MinVoltage = 0;
 		table->UvdLevel[count].VclkFrequency = mm_table->entries[count].vclk;
 		table->UvdLevel[count].DclkFrequency = mm_table->entries[count].dclk;
 		table->UvdLevel[count].MinVoltage |= (mm_table->entries[count].vddc *
@@ -2900,6 +2930,8 @@ static int fiji_init_smc_table(struct pp_hwmgr *hwmgr)
 	if(FIJI_VOLTAGE_CONTROL_NONE != data->voltage_control)
 		fiji_populate_smc_voltage_tables(hwmgr, table);
 
+	table->SystemFlags = 0;
+
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_AutomaticDCTransition))
 		table->SystemFlags |= PPSMC_SYSTEMFLAG_GPIO_DC;
@@ -2997,6 +3029,7 @@ static int fiji_init_smc_table(struct pp_hwmgr *hwmgr)
 	table->MemoryThermThrottleEnable = 1;
 	table->PCIeBootLinkLevel = 0;      /* 0:Gen1 1:Gen2 2:Gen3*/
 	table->PCIeGenInterval = 1;
+	table->VRConfig = 0;
 
 	result = fiji_populate_vr_config(hwmgr, table);
 	PP_ASSERT_WITH_CODE(0 == result,
@@ -3358,7 +3391,7 @@ static void fiji_set_dpm_event_sources(struct pp_hwmgr *hwmgr,
 				DPM_EVENT_SRC, src);
 		PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, GENERAL_PWRMGT,
 				THERMAL_PROTECTION_DIS,
-				phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+				!phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 						PHM_PlatformCaps_ThermalController));
 	} else
 		PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, GENERAL_PWRMGT,
@@ -3542,46 +3575,11 @@ static int fiji_force_dpm_highest(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static void fiji_apply_dal_min_voltage_request(struct pp_hwmgr *hwmgr)
-{
-	struct phm_ppt_v1_information *table_info =
-			(struct phm_ppt_v1_information *)hwmgr->pptable;
-	struct phm_clock_voltage_dependency_table *table =
-				table_info->vddc_dep_on_dal_pwrl;
-	struct phm_ppt_v1_clock_voltage_dependency_table *vddc_table;
-	enum PP_DAL_POWERLEVEL dal_power_level = hwmgr->dal_power_level;
-	uint32_t req_vddc = 0, req_volt, i;
-
-	if (!table && !(dal_power_level >= PP_DAL_POWERLEVEL_ULTRALOW &&
-			dal_power_level <= PP_DAL_POWERLEVEL_PERFORMANCE))
-		return;
-
-	for (i= 0; i < table->count; i++) {
-		if (dal_power_level == table->entries[i].clk) {
-			req_vddc = table->entries[i].v;
-			break;
-		}
-	}
-
-	vddc_table = table_info->vdd_dep_on_sclk;
-	for (i= 0; i < vddc_table->count; i++) {
-		if (req_vddc <= vddc_table->entries[i].vddc) {
-			req_volt = (((uint32_t)vddc_table->entries[i].vddc) * VOLTAGE_SCALE)
-					<< VDDC_SHIFT;
-			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
-					PPSMC_MSG_VddC_Request, req_volt);
-			return;
-		}
-	}
-	printk(KERN_ERR "DAL requested level can not"
-			" found a available voltage in VDDC DPM Table \n");
-}
-
 static int fiji_upload_dpmlevel_enable_mask(struct pp_hwmgr *hwmgr)
 {
 	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
 
-	fiji_apply_dal_min_voltage_request(hwmgr);
+	phm_apply_dal_min_voltage_request(hwmgr);
 
 	if (!data->sclk_dpm_key_disabled) {
 		if (data->dpm_level_enable_mask.sclk_dpm_enable_mask)
@@ -4060,7 +4058,6 @@ static int fiji_find_dpm_states_clocks_in_dpm_table(struct pp_hwmgr *hwmgr, cons
 	struct fiji_single_dpm_table *mclk_table = &(data->dpm_table.mclk_table);
 	uint32_t mclk = fiji_ps->performance_levels
 			[fiji_ps->performance_level_count - 1].memory_clock;
-	struct PP_Clocks min_clocks = {0};
 	uint32_t i;
 	struct cgs_display_info info = {0};
 
@@ -4074,10 +4071,8 @@ static int fiji_find_dpm_states_clocks_in_dpm_table(struct pp_hwmgr *hwmgr, cons
 	if (i >= sclk_table->count)
 		data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_SCLK;
 	else {
-	/* TODO: Check SCLK in DAL's minimum clocks
-	 * in case DeepSleep divider update is required.
-	 */
-		if(data->display_timing.min_clock_in_sr != min_clocks.engineClockInSR)
+		if(data->display_timing.min_clock_in_sr !=
+			hwmgr->display_config.min_core_set_clock_in_sr)
 			data->need_update_smu7_dpm_table |= DPMTABLE_UPDATE_SCLK;
 	}
 
@@ -4275,7 +4270,6 @@ static int fiji_populate_and_upload_sclk_mclk_dpm_levels(
 	if (data->need_update_smu7_dpm_table & DPMTABLE_OD_UPDATE_MCLK) {
 		dpm_table->mclk_table.dpm_levels
 			[dpm_table->mclk_table.count - 1].value = mclk;
-
 		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_OD6PlusinACSupport) ||
 			phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
@@ -4322,7 +4316,7 @@ static int fiji_populate_and_upload_sclk_mclk_dpm_levels(
 
 	if (data->need_update_smu7_dpm_table &
 			(DPMTABLE_OD_UPDATE_SCLK + DPMTABLE_UPDATE_SCLK)) {
-		result = fiji_populate_all_memory_levels(hwmgr);
+		result = fiji_populate_all_graphic_levels(hwmgr);
 		PP_ASSERT_WITH_CODE((0 == result),
 				"Failed to populate SCLK during PopulateNewDPMClocksStates Function!",
 				return result);
@@ -4886,6 +4880,10 @@ static void fiji_print_current_perforce_level(
 	activity_percent >>= 8;
 
 	seq_printf(m, "\n [GPU load]: %u%%\n\n", activity_percent > 100 ? 100 : activity_percent);
+
+	seq_printf(m, "uvd    %sabled\n", data->uvd_power_gated ? "dis" : "en");
+
+	seq_printf(m, "vce    %sabled\n", data->vce_power_gated ? "dis" : "en");
 }
 
 static int fiji_program_display_gap(struct pp_hwmgr *hwmgr)
@@ -5073,9 +5071,215 @@ static int fiji_get_fan_control_mode(struct pp_hwmgr *hwmgr)
 				CG_FDO_CTRL2, FDO_PWM_MODE);
 }
 
+static int fiji_get_pp_table(struct pp_hwmgr *hwmgr, char **table)
+{
+	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
+
+	if (!data->soft_pp_table) {
+		data->soft_pp_table = kmemdup(hwmgr->soft_pp_table,
+					      hwmgr->soft_pp_table_size,
+					      GFP_KERNEL);
+		if (!data->soft_pp_table)
+			return -ENOMEM;
+	}
+
+	*table = (char *)&data->soft_pp_table;
+
+	return hwmgr->soft_pp_table_size;
+}
+
+static int fiji_set_pp_table(struct pp_hwmgr *hwmgr, const char *buf, size_t size)
+{
+	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
+
+	if (!data->soft_pp_table) {
+		data->soft_pp_table = kzalloc(hwmgr->soft_pp_table_size, GFP_KERNEL);
+		if (!data->soft_pp_table)
+			return -ENOMEM;
+	}
+
+	memcpy(data->soft_pp_table, buf, size);
+
+	hwmgr->soft_pp_table = data->soft_pp_table;
+
+	/* TODO: re-init powerplay to implement modified pptable */
+
+	return 0;
+}
+
+static int fiji_force_clock_level(struct pp_hwmgr *hwmgr,
+		enum pp_clock_type type, uint32_t mask)
+{
+	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
+
+	if (hwmgr->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL)
+		return -EINVAL;
+
+	switch (type) {
+	case PP_SCLK:
+		if (!data->sclk_dpm_key_disabled)
+			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+					PPSMC_MSG_SCLKDPM_SetEnabledMask,
+					data->dpm_level_enable_mask.sclk_dpm_enable_mask & mask);
+		break;
+
+	case PP_MCLK:
+		if (!data->mclk_dpm_key_disabled)
+			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+					PPSMC_MSG_MCLKDPM_SetEnabledMask,
+					data->dpm_level_enable_mask.mclk_dpm_enable_mask & mask);
+		break;
+
+	case PP_PCIE:
+	{
+		uint32_t tmp = mask & data->dpm_level_enable_mask.pcie_dpm_enable_mask;
+		uint32_t level = 0;
+
+		while (tmp >>= 1)
+			level++;
+
+		if (!data->pcie_dpm_key_disabled)
+			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+					PPSMC_MSG_PCIeDPM_ForceLevel,
+					level);
+		break;
+	}
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static int fiji_print_clock_levels(struct pp_hwmgr *hwmgr,
+		enum pp_clock_type type, char *buf)
+{
+	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
+	struct fiji_single_dpm_table *sclk_table = &(data->dpm_table.sclk_table);
+	struct fiji_single_dpm_table *mclk_table = &(data->dpm_table.mclk_table);
+	struct fiji_single_dpm_table *pcie_table = &(data->dpm_table.pcie_speed_table);
+	int i, now, size = 0;
+	uint32_t clock, pcie_speed;
+
+	switch (type) {
+	case PP_SCLK:
+		smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_API_GetSclkFrequency);
+		clock = cgs_read_register(hwmgr->device, mmSMC_MSG_ARG_0);
+
+		for (i = 0; i < sclk_table->count; i++) {
+			if (clock > sclk_table->dpm_levels[i].value)
+				continue;
+			break;
+		}
+		now = i;
+
+		for (i = 0; i < sclk_table->count; i++)
+			size += sprintf(buf + size, "%d: %uMhz %s\n",
+					i, sclk_table->dpm_levels[i].value / 100,
+					(i == now) ? "*" : "");
+		break;
+	case PP_MCLK:
+		smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_API_GetMclkFrequency);
+		clock = cgs_read_register(hwmgr->device, mmSMC_MSG_ARG_0);
+
+		for (i = 0; i < mclk_table->count; i++) {
+			if (clock > mclk_table->dpm_levels[i].value)
+				continue;
+			break;
+		}
+		now = i;
+
+		for (i = 0; i < mclk_table->count; i++)
+			size += sprintf(buf + size, "%d: %uMhz %s\n",
+					i, mclk_table->dpm_levels[i].value / 100,
+					(i == now) ? "*" : "");
+		break;
+	case PP_PCIE:
+		pcie_speed = fiji_get_current_pcie_speed(hwmgr);
+		for (i = 0; i < pcie_table->count; i++) {
+			if (pcie_speed != pcie_table->dpm_levels[i].value)
+				continue;
+			break;
+		}
+		now = i;
+
+		for (i = 0; i < pcie_table->count; i++)
+			size += sprintf(buf + size, "%d: %s %s\n", i,
+					(pcie_table->dpm_levels[i].value == 0) ? "2.5GB, x1" :
+					(pcie_table->dpm_levels[i].value == 1) ? "5.0GB, x16" :
+					(pcie_table->dpm_levels[i].value == 2) ? "8.0GB, x16" : "",
+					(i == now) ? "*" : "");
+		break;
+	default:
+		break;
+	}
+	return size;
+}
+
+static inline bool fiji_are_power_levels_equal(const struct fiji_performance_level *pl1,
+							   const struct fiji_performance_level *pl2)
+{
+	return ((pl1->memory_clock == pl2->memory_clock) &&
+		  (pl1->engine_clock == pl2->engine_clock) &&
+		  (pl1->pcie_gen == pl2->pcie_gen) &&
+		  (pl1->pcie_lane == pl2->pcie_lane));
+}
+
+int fiji_check_states_equal(struct pp_hwmgr *hwmgr, const struct pp_hw_power_state *pstate1, const struct pp_hw_power_state *pstate2, bool *equal)
+{
+	const struct fiji_power_state *psa = cast_const_phw_fiji_power_state(pstate1);
+	const struct fiji_power_state *psb = cast_const_phw_fiji_power_state(pstate2);
+	int i;
+
+	if (equal == NULL || psa == NULL || psb == NULL)
+		return -EINVAL;
+
+	/* If the two states don't even have the same number of performance levels they cannot be the same state. */
+	if (psa->performance_level_count != psb->performance_level_count) {
+		*equal = false;
+		return 0;
+	}
+
+	for (i = 0; i < psa->performance_level_count; i++) {
+		if (!fiji_are_power_levels_equal(&(psa->performance_levels[i]), &(psb->performance_levels[i]))) {
+			/* If we have found even one performance level pair that is different the states are different. */
+			*equal = false;
+			return 0;
+		}
+	}
+
+	/* If all performance levels are the same try to use the UVD clocks to break the tie.*/
+	*equal = ((psa->uvd_clks.vclk == psb->uvd_clks.vclk) && (psa->uvd_clks.dclk == psb->uvd_clks.dclk));
+	*equal &= ((psa->vce_clks.evclk == psb->vce_clks.evclk) && (psa->vce_clks.ecclk == psb->vce_clks.ecclk));
+	*equal &= (psa->sclk_threshold == psb->sclk_threshold);
+	*equal &= (psa->acp_clk == psb->acp_clk);
+
+	return 0;
+}
+
+bool fiji_check_smc_update_required_for_display_configuration(struct pp_hwmgr *hwmgr)
+{
+	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
+	bool is_update_required = false;
+	struct cgs_display_info info = {0,0,NULL};
+
+	cgs_get_active_displays_info(hwmgr->device, &info);
+
+	if (data->display_timing.num_existing_displays != info.display_count)
+		is_update_required = true;
+
+	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_SclkDeepSleep)) {
+		if(hwmgr->display_config.min_core_set_clock_in_sr != data->display_timing.min_clock_in_sr)
+			is_update_required = true;
+	}
+
+	return is_update_required;
+}
+
+
 static const struct pp_hwmgr_func fiji_hwmgr_funcs = {
 	.backend_init = &fiji_hwmgr_backend_init,
-	.backend_fini = &tonga_hwmgr_backend_fini,
+	.backend_fini = &fiji_hwmgr_backend_fini,
 	.asic_setup = &fiji_setup_asic_task,
 	.dynamic_state_management_enable = &fiji_enable_dpm_tasks,
 	.force_dpm_level = &fiji_dpm_force_dpm_level,
@@ -5108,6 +5312,12 @@ static const struct pp_hwmgr_func fiji_hwmgr_funcs = {
 	.register_internal_thermal_interrupt = fiji_register_internal_thermal_interrupt,
 	.set_fan_control_mode = fiji_set_fan_control_mode,
 	.get_fan_control_mode = fiji_get_fan_control_mode,
+	.check_states_equal = fiji_check_states_equal,
+	.check_smc_update_required_for_display_configuration = fiji_check_smc_update_required_for_display_configuration,
+	.get_pp_table = fiji_get_pp_table,
+	.set_pp_table = fiji_set_pp_table,
+	.force_clock_level = fiji_force_clock_level,
+	.print_clock_levels = fiji_print_clock_levels,
 };
 
 int fiji_hwmgr_init(struct pp_hwmgr *hwmgr)

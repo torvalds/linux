@@ -261,14 +261,14 @@ struct page *ufs_get_locked_page(struct address_space *mapping,
 		if (unlikely(page->mapping == NULL)) {
 			/* Truncate got there first */
 			unlock_page(page);
-			page_cache_release(page);
+			put_page(page);
 			page = NULL;
 			goto out;
 		}
 
 		if (!PageUptodate(page) || PageError(page)) {
 			unlock_page(page);
-			page_cache_release(page);
+			put_page(page);
 
 			printk(KERN_ERR "ufs_change_blocknr: "
 			       "can not read page: ino %lu, index: %lu\n",

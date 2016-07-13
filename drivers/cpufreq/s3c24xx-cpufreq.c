@@ -10,6 +10,8 @@
  * published by the Free Software Foundation.
 */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -175,7 +177,7 @@ static int s3c_cpufreq_settarget(struct cpufreq_policy *policy,
 	cpu_new.freq.fclk = cpu_new.pll.frequency;
 
 	if (s3c_cpufreq_calcdivs(&cpu_new) < 0) {
-		printk(KERN_ERR "no divisors for %d\n", target_freq);
+		pr_err("no divisors for %d\n", target_freq);
 		goto err_notpossible;
 	}
 
@@ -187,7 +189,7 @@ static int s3c_cpufreq_settarget(struct cpufreq_policy *policy,
 
 	if (cpu_new.freq.hclk != cpu_cur.freq.hclk) {
 		if (s3c_cpufreq_calcio(&cpu_new) < 0) {
-			printk(KERN_ERR "%s: no IO timings\n", __func__);
+			pr_err("%s: no IO timings\n", __func__);
 			goto err_notpossible;
 		}
 	}
@@ -262,7 +264,7 @@ static int s3c_cpufreq_settarget(struct cpufreq_policy *policy,
 	return 0;
 
  err_notpossible:
-	printk(KERN_ERR "no compatible settings for %d\n", target_freq);
+	pr_err("no compatible settings for %d\n", target_freq);
 	return -EINVAL;
 }
 
@@ -331,7 +333,7 @@ static int s3c_cpufreq_target(struct cpufreq_policy *policy,
 						     &index);
 
 		if (ret < 0) {
-			printk(KERN_ERR "%s: no PLL available\n", __func__);
+			pr_err("%s: no PLL available\n", __func__);
 			goto err_notpossible;
 		}
 
@@ -346,7 +348,7 @@ static int s3c_cpufreq_target(struct cpufreq_policy *policy,
 	return s3c_cpufreq_settarget(policy, target_freq, pll);
 
  err_notpossible:
-	printk(KERN_ERR "no compatible settings for %d\n", target_freq);
+	pr_err("no compatible settings for %d\n", target_freq);
 	return -EINVAL;
 }
 
@@ -356,7 +358,7 @@ struct clk *s3c_cpufreq_clk_get(struct device *dev, const char *name)
 
 	clk = clk_get(dev, name);
 	if (IS_ERR(clk))
-		printk(KERN_ERR "cpufreq: failed to get clock '%s'\n", name);
+		pr_err("failed to get clock '%s'\n", name);
 
 	return clk;
 }
@@ -378,15 +380,16 @@ static int __init s3c_cpufreq_initclks(void)
 
 	if (IS_ERR(clk_fclk) || IS_ERR(clk_hclk) || IS_ERR(clk_pclk) ||
 	    IS_ERR(_clk_mpll) || IS_ERR(clk_arm) || IS_ERR(_clk_xtal)) {
-		printk(KERN_ERR "%s: could not get clock(s)\n", __func__);
+		pr_err("%s: could not get clock(s)\n", __func__);
 		return -ENOENT;
 	}
 
-	printk(KERN_INFO "%s: clocks f=%lu,h=%lu,p=%lu,a=%lu\n", __func__,
-	       clk_get_rate(clk_fclk) / 1000,
-	       clk_get_rate(clk_hclk) / 1000,
-	       clk_get_rate(clk_pclk) / 1000,
-	       clk_get_rate(clk_arm) / 1000);
+	pr_info("%s: clocks f=%lu,h=%lu,p=%lu,a=%lu\n",
+		__func__,
+		clk_get_rate(clk_fclk) / 1000,
+		clk_get_rate(clk_hclk) / 1000,
+		clk_get_rate(clk_pclk) / 1000,
+		clk_get_rate(clk_arm) / 1000);
 
 	return 0;
 }
@@ -424,7 +427,7 @@ static int s3c_cpufreq_resume(struct cpufreq_policy *policy)
 
 	ret = s3c_cpufreq_settarget(NULL, suspend_freq, &suspend_pll);
 	if (ret) {
-		printk(KERN_ERR "%s: failed to reset pll/freq\n", __func__);
+		pr_err("%s: failed to reset pll/freq\n", __func__);
 		return ret;
 	}
 
@@ -449,13 +452,12 @@ static struct cpufreq_driver s3c24xx_driver = {
 int s3c_cpufreq_register(struct s3c_cpufreq_info *info)
 {
 	if (!info || !info->name) {
-		printk(KERN_ERR "%s: failed to pass valid information\n",
-		       __func__);
+		pr_err("%s: failed to pass valid information\n", __func__);
 		return -EINVAL;
 	}
 
-	printk(KERN_INFO "S3C24XX CPU Frequency driver, %s cpu support\n",
-	       info->name);
+	pr_info("S3C24XX CPU Frequency driver, %s cpu support\n",
+		info->name);
 
 	/* check our driver info has valid data */
 
@@ -478,7 +480,7 @@ int __init s3c_cpufreq_setboard(struct s3c_cpufreq_board *board)
 	struct s3c_cpufreq_board *ours;
 
 	if (!board) {
-		printk(KERN_INFO "%s: no board data\n", __func__);
+		pr_info("%s: no board data\n", __func__);
 		return -EINVAL;
 	}
 
@@ -487,7 +489,7 @@ int __init s3c_cpufreq_setboard(struct s3c_cpufreq_board *board)
 
 	ours = kzalloc(sizeof(*ours), GFP_KERNEL);
 	if (ours == NULL) {
-		printk(KERN_ERR "%s: no memory\n", __func__);
+		pr_err("%s: no memory\n", __func__);
 		return -ENOMEM;
 	}
 
@@ -502,15 +504,15 @@ static int __init s3c_cpufreq_auto_io(void)
 	int ret;
 
 	if (!cpu_cur.info->get_iotiming) {
-		printk(KERN_ERR "%s: get_iotiming undefined\n", __func__);
+		pr_err("%s: get_iotiming undefined\n", __func__);
 		return -ENOENT;
 	}
 
-	printk(KERN_INFO "%s: working out IO settings\n", __func__);
+	pr_info("%s: working out IO settings\n", __func__);
 
 	ret = (cpu_cur.info->get_iotiming)(&cpu_cur, &s3c24xx_iotiming);
 	if (ret)
-		printk(KERN_ERR "%s: failed to get timings\n", __func__);
+		pr_err("%s: failed to get timings\n", __func__);
 
 	return ret;
 }
@@ -561,7 +563,7 @@ static void s3c_cpufreq_update_loctkime(void)
 	val = calc_locktime(rate, cpu_cur.info->locktime_u) << bits;
 	val |= calc_locktime(rate, cpu_cur.info->locktime_m);
 
-	printk(KERN_INFO "%s: new locktime is 0x%08x\n", __func__, val);
+	pr_info("%s: new locktime is 0x%08x\n", __func__, val);
 	__raw_writel(val, S3C2410_LOCKTIME);
 }
 
@@ -580,7 +582,7 @@ static int s3c_cpufreq_build_freq(void)
 
 	ftab = kzalloc(sizeof(*ftab) * size, GFP_KERNEL);
 	if (!ftab) {
-		printk(KERN_ERR "%s: no memory for tables\n", __func__);
+		pr_err("%s: no memory for tables\n", __func__);
 		return -ENOMEM;
 	}
 
@@ -608,15 +610,14 @@ static int __init s3c_cpufreq_initcall(void)
 		if (cpu_cur.board->auto_io) {
 			ret = s3c_cpufreq_auto_io();
 			if (ret) {
-				printk(KERN_ERR "%s: failed to get io timing\n",
+				pr_err("%s: failed to get io timing\n",
 				       __func__);
 				goto out;
 			}
 		}
 
 		if (cpu_cur.board->need_io && !cpu_cur.info->set_iotiming) {
-			printk(KERN_ERR "%s: no IO support registered\n",
-			       __func__);
+			pr_err("%s: no IO support registered\n", __func__);
 			ret = -EINVAL;
 			goto out;
 		}
@@ -666,9 +667,9 @@ int s3c_plltab_register(struct cpufreq_frequency_table *plls,
 		vals += plls_no;
 		vals->frequency = CPUFREQ_TABLE_END;
 
-		printk(KERN_INFO "cpufreq: %d PLL entries\n", plls_no);
+		pr_info("%d PLL entries\n", plls_no);
 	} else
-		printk(KERN_ERR "cpufreq: no memory for PLL tables\n");
+		pr_err("no memory for PLL tables\n");
 
 	return vals ? 0 : -ENOMEM;
 }

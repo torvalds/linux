@@ -66,7 +66,7 @@
  * The major version changes when data structures change in an incompatible
  * way. The driver must be the same for initialization to succeed.
  */
-#define HFI1_USER_SWMAJOR 4
+#define HFI1_USER_SWMAJOR 6
 
 /*
  * Minor version differences are always compatible
@@ -75,7 +75,12 @@
  * may not be implemented; the user code must deal with this if it
  * cares, or it must abort after initialization reports the difference.
  */
-#define HFI1_USER_SWMINOR 0
+#define HFI1_USER_SWMINOR 1
+
+/*
+ * We will encode the major/minor inside a single 32bit version number.
+ */
+#define HFI1_SWMAJOR_SHIFT 16
 
 /*
  * Set of HW and driver capability/feature bits.
@@ -93,7 +98,7 @@
 #define HFI1_CAP_MULTI_PKT_EGR    (1UL <<  7) /* Enable multi-packet Egr buffs*/
 #define HFI1_CAP_NODROP_RHQ_FULL  (1UL <<  8) /* Don't drop on Hdr Q full */
 #define HFI1_CAP_NODROP_EGR_FULL  (1UL <<  9) /* Don't drop on EGR buffs full */
-#define HFI1_CAP_TID_UNMAP        (1UL << 10) /* Enable Expected TID caching */
+#define HFI1_CAP_TID_UNMAP        (1UL << 10) /* Disable Expected TID caching */
 #define HFI1_CAP_PRINT_UNIMPL     (1UL << 11) /* Show for unimplemented feats */
 #define HFI1_CAP_ALLOW_PERM_JKEY  (1UL << 12) /* Allow use of permissive JKEY */
 #define HFI1_CAP_NO_INTEGRITY     (1UL << 13) /* Enable ctxt integrity checks */
@@ -107,19 +112,6 @@
 #define HFI1_RCVHDR_ENTSIZE_16   (1UL << 1)
 #define HFI1_RCVDHR_ENTSIZE_32   (1UL << 2)
 
-/*
- * If the unit is specified via open, HFI choice is fixed.  If port is
- * specified, it's also fixed.  Otherwise we try to spread contexts
- * across ports and HFIs, using different algorithms.  WITHIN is
- * the old default, prior to this mechanism.
- */
-#define HFI1_ALG_ACROSS 0 /* round robin contexts across HFIs, then
-			  * ports; this is the default */
-#define HFI1_ALG_WITHIN 1 /* use all contexts on an HFI (round robin
-			  * active ports within), then next HFI */
-#define HFI1_ALG_COUNT  2 /* number of algorithm choices */
-
-
 /* User commands. */
 #define HFI1_CMD_ASSIGN_CTXT     1	/* allocate HFI and context */
 #define HFI1_CMD_CTXT_INFO       2	/* find out what resources we got */
@@ -127,33 +119,68 @@
 #define HFI1_CMD_TID_UPDATE      4	/* update expected TID entries */
 #define HFI1_CMD_TID_FREE        5	/* free expected TID entries */
 #define HFI1_CMD_CREDIT_UPD      6	/* force an update of PIO credit */
-#define HFI1_CMD_SDMA_STATUS_UPD 7      /* force update of SDMA status ring */
 
 #define HFI1_CMD_RECV_CTRL       8	/* control receipt of packets */
 #define HFI1_CMD_POLL_TYPE       9	/* set the kind of polling we want */
 #define HFI1_CMD_ACK_EVENT       10	/* ack & clear user status bits */
 #define HFI1_CMD_SET_PKEY        11     /* set context's pkey */
 #define HFI1_CMD_CTXT_RESET      12     /* reset context's HW send context */
-/* separate EPROM commands from normal PSM commands */
-#define HFI1_CMD_EP_INFO         64      /* read EPROM device ID */
-#define HFI1_CMD_EP_ERASE_CHIP   65      /* erase whole EPROM */
-/* range 66-74 no longer used */
-#define HFI1_CMD_EP_ERASE_RANGE  75      /* erase EPROM range */
-#define HFI1_CMD_EP_READ_RANGE   76      /* read EPROM range */
-#define HFI1_CMD_EP_WRITE_RANGE  77      /* write EPROM range */
+#define HFI1_CMD_TID_INVAL_READ  13     /* read TID cache invalidations */
+#define HFI1_CMD_GET_VERS	 14	/* get the version of the user cdev */
+
+/*
+ * User IOCTLs can not go above 128 if they do then see common.h and change the
+ * base for the snoop ioctl
+ */
+#define IB_IOCTL_MAGIC 0x1b /* See Documentation/ioctl/ioctl-number.txt */
+
+/*
+ * Make the ioctls occupy the last 0xf0-0xff portion of the IB range
+ */
+#define __NUM(cmd) (HFI1_CMD_##cmd + 0xe0)
+
+struct hfi1_cmd;
+#define HFI1_IOCTL_ASSIGN_CTXT \
+	_IOWR(IB_IOCTL_MAGIC, __NUM(ASSIGN_CTXT), struct hfi1_user_info)
+#define HFI1_IOCTL_CTXT_INFO \
+	_IOW(IB_IOCTL_MAGIC, __NUM(CTXT_INFO), struct hfi1_ctxt_info)
+#define HFI1_IOCTL_USER_INFO \
+	_IOW(IB_IOCTL_MAGIC, __NUM(USER_INFO), struct hfi1_base_info)
+#define HFI1_IOCTL_TID_UPDATE \
+	_IOWR(IB_IOCTL_MAGIC, __NUM(TID_UPDATE), struct hfi1_tid_info)
+#define HFI1_IOCTL_TID_FREE \
+	_IOWR(IB_IOCTL_MAGIC, __NUM(TID_FREE), struct hfi1_tid_info)
+#define HFI1_IOCTL_CREDIT_UPD \
+	_IO(IB_IOCTL_MAGIC, __NUM(CREDIT_UPD))
+#define HFI1_IOCTL_RECV_CTRL \
+	_IOW(IB_IOCTL_MAGIC, __NUM(RECV_CTRL), int)
+#define HFI1_IOCTL_POLL_TYPE \
+	_IOW(IB_IOCTL_MAGIC, __NUM(POLL_TYPE), int)
+#define HFI1_IOCTL_ACK_EVENT \
+	_IOW(IB_IOCTL_MAGIC, __NUM(ACK_EVENT), unsigned long)
+#define HFI1_IOCTL_SET_PKEY \
+	_IOW(IB_IOCTL_MAGIC, __NUM(SET_PKEY), __u16)
+#define HFI1_IOCTL_CTXT_RESET \
+	_IO(IB_IOCTL_MAGIC, __NUM(CTXT_RESET))
+#define HFI1_IOCTL_TID_INVAL_READ \
+	_IOWR(IB_IOCTL_MAGIC, __NUM(TID_INVAL_READ), struct hfi1_tid_info)
+#define HFI1_IOCTL_GET_VERS \
+	_IOR(IB_IOCTL_MAGIC, __NUM(GET_VERS), int)
 
 #define _HFI1_EVENT_FROZEN_BIT         0
 #define _HFI1_EVENT_LINKDOWN_BIT       1
 #define _HFI1_EVENT_LID_CHANGE_BIT     2
 #define _HFI1_EVENT_LMC_CHANGE_BIT     3
 #define _HFI1_EVENT_SL2VL_CHANGE_BIT   4
-#define _HFI1_MAX_EVENT_BIT _HFI1_EVENT_SL2VL_CHANGE_BIT
+#define _HFI1_EVENT_TID_MMU_NOTIFY_BIT 5
+#define _HFI1_MAX_EVENT_BIT _HFI1_EVENT_TID_MMU_NOTIFY_BIT
 
 #define HFI1_EVENT_FROZEN            (1UL << _HFI1_EVENT_FROZEN_BIT)
 #define HFI1_EVENT_LINKDOWN          (1UL << _HFI1_EVENT_LINKDOWN_BIT)
 #define HFI1_EVENT_LID_CHANGE        (1UL << _HFI1_EVENT_LID_CHANGE_BIT)
 #define HFI1_EVENT_LMC_CHANGE        (1UL << _HFI1_EVENT_LMC_CHANGE_BIT)
 #define HFI1_EVENT_SL2VL_CHANGE      (1UL << _HFI1_EVENT_SL2VL_CHANGE_BIT)
+#define HFI1_EVENT_TID_MMU_NOTIFY    (1UL << _HFI1_EVENT_TID_MMU_NOTIFY_BIT)
 
 /*
  * These are the status bits readable (in ASCII form, 64bit value)
@@ -196,9 +223,7 @@ struct hfi1_user_info {
 	 * Should be set to HFI1_USER_SWVERSION.
 	 */
 	__u32 userversion;
-	__u16 pad;
-	/* HFI selection algorithm, if unit has not selected */
-	__u16 hfi1_alg;
+	__u32 pad;
 	/*
 	 * If two or more processes wish to share a context, each process
 	 * must set the subcontext_cnt and subcontext_id to the same
@@ -238,17 +263,6 @@ struct hfi1_tid_info {
 	__u32 tidcnt;
 	/* length of transfer buffer programmed by this request */
 	__u32 length;
-	/*
-	 * pointer to bitmap of TIDs used for this call;
-	 * checked for being large enough at open
-	 */
-	__u64 tidmap;
-};
-
-struct hfi1_cmd {
-	__u32 type;        /* command type */
-	__u32 len;         /* length of struct pointed to by add */
-	__u64 addr;        /* pointer to user structure */
 };
 
 enum hfi1_sdma_comp_state {

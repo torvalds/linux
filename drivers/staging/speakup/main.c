@@ -263,7 +263,7 @@ static struct notifier_block vt_notifier_block = {
 static unsigned char get_attributes(struct vc_data *vc, u16 *pos)
 {
 	pos = screen_pos(vc, pos - (u16 *)vc->vc_origin, 1);
-	return (u_char) (scr_readw(pos) >> 8);
+	return (scr_readw(pos) & ~vc->vc_hi_font_mask) >> 8;
 }
 
 static void speakup_date(struct vc_data *vc)
@@ -473,8 +473,10 @@ static u16 get_char(struct vc_data *vc, u16 *pos, u_char *attribs)
 		w = scr_readw(pos);
 		c = w & 0xff;
 
-		if (w & vc->vc_hi_font_mask)
+		if (w & vc->vc_hi_font_mask) {
+			w &= ~vc->vc_hi_font_mask;
 			c |= 0x100;
+		}
 
 		ch = inverse_translate(vc, c, 0);
 		*attribs = (w & 0xff00) >> 8;

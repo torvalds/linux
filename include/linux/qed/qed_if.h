@@ -25,6 +25,15 @@
 #include <linux/qed/common_hsi.h>
 #include <linux/qed/qed_chain.h>
 
+enum dcbx_protocol_type {
+	DCBX_PROTOCOL_ISCSI,
+	DCBX_PROTOCOL_FCOE,
+	DCBX_PROTOCOL_ROCE,
+	DCBX_PROTOCOL_ROCE_V2,
+	DCBX_PROTOCOL_ETH,
+	DCBX_MAX_PROTOCOL_TYPE
+};
+
 enum qed_led_mode {
 	QED_LED_MODE_OFF,
 	QED_LED_MODE_ON,
@@ -93,6 +102,7 @@ struct qed_dev_info {
 
 	u32		flash_size;
 	u8		mf_mode;
+	bool		tx_switching;
 };
 
 enum qed_sb_type {
@@ -110,6 +120,7 @@ struct qed_link_params {
 #define QED_LINK_OVERRIDE_SPEED_ADV_SPEEDS      BIT(1)
 #define QED_LINK_OVERRIDE_SPEED_FORCED_SPEED    BIT(2)
 #define QED_LINK_OVERRIDE_PAUSE_CONFIG          BIT(3)
+#define QED_LINK_OVERRIDE_LOOPBACK_MODE         BIT(4)
 	u32	override_flags;
 	bool	autoneg;
 	u32	adv_speeds;
@@ -118,6 +129,12 @@ struct qed_link_params {
 #define QED_LINK_PAUSE_RX_ENABLE                BIT(1)
 #define QED_LINK_PAUSE_TX_ENABLE                BIT(2)
 	u32	pause_config;
+#define QED_LINK_LOOPBACK_NONE                  BIT(0)
+#define QED_LINK_LOOPBACK_INT_PHY               BIT(1)
+#define QED_LINK_LOOPBACK_EXT_PHY               BIT(2)
+#define QED_LINK_LOOPBACK_EXT                   BIT(3)
+#define QED_LINK_LOOPBACK_MAC                   BIT(4)
+	u32	loopback_mode;
 };
 
 struct qed_link_output {
@@ -131,6 +148,13 @@ struct qed_link_output {
 	u8	port;                   /* In PORT defs */
 	bool	autoneg;
 	u32	pause_config;
+};
+
+struct qed_probe_params {
+	enum qed_protocol protocol;
+	u32 dp_module;
+	u8 dp_level;
+	bool is_vf;
 };
 
 #define QED_DRV_VER_STR_SIZE 12
@@ -158,10 +182,49 @@ struct qed_common_cb_ops {
 			       struct qed_link_output	*link);
 };
 
+struct qed_selftest_ops {
+/**
+ * @brief selftest_interrupt - Perform interrupt test
+ *
+ * @param cdev
+ *
+ * @return 0 on success, error otherwise.
+ */
+	int (*selftest_interrupt)(struct qed_dev *cdev);
+
+/**
+ * @brief selftest_memory - Perform memory test
+ *
+ * @param cdev
+ *
+ * @return 0 on success, error otherwise.
+ */
+	int (*selftest_memory)(struct qed_dev *cdev);
+
+/**
+ * @brief selftest_register - Perform register test
+ *
+ * @param cdev
+ *
+ * @return 0 on success, error otherwise.
+ */
+	int (*selftest_register)(struct qed_dev *cdev);
+
+/**
+ * @brief selftest_clock - Perform clock test
+ *
+ * @param cdev
+ *
+ * @return 0 on success, error otherwise.
+ */
+	int (*selftest_clock)(struct qed_dev *cdev);
+};
+
 struct qed_common_ops {
+	struct qed_selftest_ops *selftest;
+
 	struct qed_dev*	(*probe)(struct pci_dev *dev,
-				 enum qed_protocol protocol,
-				 u32 dp_module, u8 dp_level);
+				 struct qed_probe_params *params);
 
 	void		(*remove)(struct qed_dev *cdev);
 
@@ -211,6 +274,16 @@ struct qed_common_ops {
 
 	void		(*simd_handler_clean)(struct qed_dev *cdev,
 					      int index);
+
+/**
+ * @brief can_link_change - can the instance change the link or not
+ *
+ * @param cdev
+ *
+ * @return true if link-change is allowed, false otherwise.
+ */
+	bool (*can_link_change)(struct qed_dev *cdev);
+
 /**
  * @brief set_link - set links according to params
  *
@@ -270,15 +343,6 @@ struct qed_common_ops {
 	int (*set_led)(struct qed_dev *cdev,
 		       enum qed_led_mode mode);
 };
-
-/**
- * @brief qed_get_protocol_version
- *
- * @param protocol
- *
- * @return version supported by qed for given protocol driver
- */
-u32 qed_get_protocol_version(enum qed_protocol protocol);
 
 #define MASK_FIELD(_name, _value) \
 	((_value) &= (_name ## _MASK))
@@ -393,16 +457,16 @@ struct qed_eth_stats {
 
 	/* port */
 	u64	rx_64_byte_packets;
-	u64	rx_127_byte_packets;
-	u64	rx_255_byte_packets;
-	u64	rx_511_byte_packets;
-	u64	rx_1023_byte_packets;
-	u64	rx_1518_byte_packets;
-	u64	rx_1522_byte_packets;
-	u64	rx_2047_byte_packets;
-	u64	rx_4095_byte_packets;
-	u64	rx_9216_byte_packets;
-	u64	rx_16383_byte_packets;
+	u64	rx_65_to_127_byte_packets;
+	u64	rx_128_to_255_byte_packets;
+	u64	rx_256_to_511_byte_packets;
+	u64	rx_512_to_1023_byte_packets;
+	u64	rx_1024_to_1518_byte_packets;
+	u64	rx_1519_to_1522_byte_packets;
+	u64	rx_1519_to_2047_byte_packets;
+	u64	rx_2048_to_4095_byte_packets;
+	u64	rx_4096_to_9216_byte_packets;
+	u64	rx_9217_to_16383_byte_packets;
 	u64	rx_crc_errors;
 	u64	rx_mac_crtl_frames;
 	u64	rx_pause_frames;
@@ -524,4 +588,15 @@ static inline void internal_ram_wr(void __iomem *addr,
 	__internal_ram_wr(NULL, addr, size, data);
 }
 
+enum qed_rss_caps {
+	QED_RSS_IPV4		= 0x1,
+	QED_RSS_IPV6		= 0x2,
+	QED_RSS_IPV4_TCP	= 0x4,
+	QED_RSS_IPV6_TCP	= 0x8,
+	QED_RSS_IPV4_UDP	= 0x10,
+	QED_RSS_IPV6_UDP	= 0x20,
+};
+
+#define QED_RSS_IND_TABLE_SIZE 128
+#define QED_RSS_KEY_SIZE 10 /* size in 32b chunks */
 #endif

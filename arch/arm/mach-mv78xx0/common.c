@@ -168,8 +168,7 @@ static struct clk *tclk;
 
 static void __init clk_init(void)
 {
-	tclk = clk_register_fixed_rate(NULL, "tclk", NULL, CLK_IS_ROOT,
-				       get_tclk());
+	tclk = clk_register_fixed_rate(NULL, "tclk", NULL, 0, get_tclk());
 
 	orion_clkdev_init(tclk);
 }
@@ -405,9 +404,8 @@ void __init mv78xx0_init(void)
 	printk("HCLK = %dMHz, ", (hclk + 499999) / 1000000);
 	printk("TCLK = %dMHz\n", (get_tclk() + 499999) / 1000000);
 
-#ifdef CONFIG_CACHE_FEROCEON_L2
-	feroceon_l2_init(is_l2_writethrough());
-#endif
+	if (IS_ENABLED(CONFIG_CACHE_FEROCEON_L2))
+		feroceon_l2_init(is_l2_writethrough());
 
 	/* Setup root of clk tree */
 	clk_init();

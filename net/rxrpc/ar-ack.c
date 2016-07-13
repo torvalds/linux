@@ -20,74 +20,6 @@
 #include "ar-internal.h"
 
 /*
- * How long to wait before scheduling ACK generation after seeing a
- * packet with RXRPC_REQUEST_ACK set (in jiffies).
- */
-unsigned int rxrpc_requested_ack_delay = 1;
-
-/*
- * How long to wait before scheduling an ACK with subtype DELAY (in jiffies).
- *
- * We use this when we've received new data packets.  If those packets aren't
- * all consumed within this time we will send a DELAY ACK if an ACK was not
- * requested to let the sender know it doesn't need to resend.
- */
-unsigned int rxrpc_soft_ack_delay = 1 * HZ;
-
-/*
- * How long to wait before scheduling an ACK with subtype IDLE (in jiffies).
- *
- * We use this when we've consumed some previously soft-ACK'd packets when
- * further packets aren't immediately received to decide when to send an IDLE
- * ACK let the other end know that it can free up its Tx buffer space.
- */
-unsigned int rxrpc_idle_ack_delay = 0.5 * HZ;
-
-/*
- * Receive window size in packets.  This indicates the maximum number of
- * unconsumed received packets we're willing to retain in memory.  Once this
- * limit is hit, we should generate an EXCEEDS_WINDOW ACK and discard further
- * packets.
- */
-unsigned int rxrpc_rx_window_size = 32;
-
-/*
- * Maximum Rx MTU size.  This indicates to the sender the size of jumbo packet
- * made by gluing normal packets together that we're willing to handle.
- */
-unsigned int rxrpc_rx_mtu = 5692;
-
-/*
- * The maximum number of fragments in a received jumbo packet that we tell the
- * sender that we're willing to handle.
- */
-unsigned int rxrpc_rx_jumbo_max = 4;
-
-static const char *rxrpc_acks(u8 reason)
-{
-	static const char *const str[] = {
-		"---", "REQ", "DUP", "OOS", "WIN", "MEM", "PNG", "PNR", "DLY",
-		"IDL", "-?-"
-	};
-
-	if (reason >= ARRAY_SIZE(str))
-		reason = ARRAY_SIZE(str) - 1;
-	return str[reason];
-}
-
-static const s8 rxrpc_ack_priority[] = {
-	[0]				= 0,
-	[RXRPC_ACK_DELAY]		= 1,
-	[RXRPC_ACK_REQUESTED]		= 2,
-	[RXRPC_ACK_IDLE]		= 3,
-	[RXRPC_ACK_PING_RESPONSE]	= 4,
-	[RXRPC_ACK_DUPLICATE]		= 5,
-	[RXRPC_ACK_OUT_OF_SEQUENCE]	= 6,
-	[RXRPC_ACK_EXCEEDS_WINDOW]	= 7,
-	[RXRPC_ACK_NOSPACE]		= 8,
-};
-
-/*
  * propose an ACK be sent
  */
 void __rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
@@ -426,7 +358,7 @@ static void rxrpc_rotate_tx_window(struct rxrpc_call *call, u32 hard)
 	int tail = call->acks_tail, old_tail;
 	int win = CIRC_CNT(call->acks_head, tail, call->acks_winsz);
 
-	kenter("{%u,%u},%u", call->acks_hard, win, hard);
+	_enter("{%u,%u},%u", call->acks_hard, win, hard);
 
 	ASSERTCMP(hard - call->acks_hard, <=, win);
 
@@ -656,7 +588,8 @@ process_further:
 		_proto("OOSQ DATA %%%u { #%u }", sp->hdr.serial, sp->hdr.seq);
 
 		/* secured packets must be verified and possibly decrypted */
-		if (rxrpc_verify_packet(call, skb, _abort_code) < 0)
+		if (call->conn->security->verify_packet(call, skb,
+							_abort_code) < 0)
 			goto protocol_error;
 
 		rxrpc_insert_oos_packet(call, skb);
@@ -901,8 +834,8 @@ void rxrpc_process_call(struct work_struct *work)
 
 	/* there's a good chance we're going to have to send a message, so set
 	 * one up in advance */
-	msg.msg_name	= &call->conn->trans->peer->srx.transport.sin;
-	msg.msg_namelen	= sizeof(call->conn->trans->peer->srx.transport.sin);
+	msg.msg_name	= &call->conn->trans->peer->srx.transport;
+	msg.msg_namelen	= call->conn->trans->peer->srx.transport_len;
 	msg.msg_control	= NULL;
 	msg.msg_controllen = 0;
 	msg.msg_flags	= 0;
@@ -973,7 +906,7 @@ void rxrpc_process_call(struct work_struct *work)
 				       ECONNABORTED, true) < 0)
 			goto no_mem;
 		whdr.type = RXRPC_PACKET_TYPE_ABORT;
-		data = htonl(call->abort_code);
+		data = htonl(call->local_abort);
 		iov[1].iov_base = &data;
 		iov[1].iov_len = sizeof(data);
 		genbit = RXRPC_CALL_EV_ABORT;
@@ -1036,7 +969,7 @@ void rxrpc_process_call(struct work_struct *work)
 		write_lock_bh(&call->state_lock);
 		if (call->state <= RXRPC_CALL_COMPLETE) {
 			call->state = RXRPC_CALL_LOCALLY_ABORTED;
-			call->abort_code = RX_CALL_TIMEOUT;
+			call->local_abort = RX_CALL_TIMEOUT;
 			set_bit(RXRPC_CALL_EV_ABORT, &call->events);
 		}
 		write_unlock_bh(&call->state_lock);

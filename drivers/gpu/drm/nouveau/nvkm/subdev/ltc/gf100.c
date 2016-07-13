@@ -129,9 +129,7 @@ gf100_ltc_invalidate(struct nvkm_ltc *ltc)
 	s64 taken;
 
 	nvkm_wr32(device, 0x70004, 0x00000001);
-	taken = nvkm_wait_msec(device, 2, 0x70004, 0x00000003, 0x00000000);
-	if (taken < 0)
-		nvkm_warn(&ltc->subdev, "LTC invalidate timeout\n");
+	taken = nvkm_wait_msec(device, 2000, 0x70004, 0x00000003, 0x00000000);
 
 	if (taken > 0)
 		nvkm_debug(&ltc->subdev, "LTC invalidate took %lld ns\n", taken);
@@ -144,9 +142,7 @@ gf100_ltc_flush(struct nvkm_ltc *ltc)
 	s64 taken;
 
 	nvkm_wr32(device, 0x70010, 0x00000001);
-	taken = nvkm_wait_msec(device, 2, 0x70010, 0x00000003, 0x00000000);
-	if (taken < 0)
-		nvkm_warn(&ltc->subdev, "LTC flush timeout\n");
+	taken = nvkm_wait_msec(device, 2000, 0x70010, 0x00000003, 0x00000000);
 
 	if (taken > 0)
 		nvkm_debug(&ltc->subdev, "LTC flush took %lld ns\n", taken);

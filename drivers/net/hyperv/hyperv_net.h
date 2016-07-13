@@ -158,7 +158,7 @@ enum rndis_device_state {
 };
 
 struct rndis_device {
-	struct netvsc_device *net_dev;
+	struct net_device *ndev;
 
 	enum rndis_device_state state;
 	bool link_state;
@@ -201,6 +201,8 @@ int rndis_filter_receive(struct hv_device *dev,
 
 int rndis_filter_set_packet_filter(struct rndis_device *dev, u32 new_filter);
 int rndis_filter_set_device_mac(struct hv_device *hdev, char *mac);
+
+void netvsc_switch_datapath(struct net_device *nv_dev, bool vf);
 
 #define NVSP_INVALID_PROTOCOL_VERSION	((u32)0xFFFFFFFF)
 
@@ -619,6 +621,7 @@ struct nvsp_message {
 #define NETVSC_PACKET_SIZE                      4096
 
 #define VRSS_SEND_TAB_SIZE 16
+#define VRSS_CHANNEL_MAX 64
 
 #define RNDIS_MAX_PKT_DEFAULT 8
 #define RNDIS_PKT_ALIGN_DEFAULT 8
@@ -640,10 +643,18 @@ struct netvsc_reconfig {
 	u32 event;
 };
 
+struct garp_wrk {
+	struct work_struct dwrk;
+	struct net_device *netdev;
+	struct netvsc_device *netvsc_dev;
+};
+
 /* The context of the netvsc device  */
 struct net_device_context {
 	/* point back to our device context */
 	struct hv_device *device_ctx;
+	/* netvsc_device */
+	struct netvsc_device *nvdev;
 	/* reconfigure work */
 	struct delayed_work dwork;
 	/* last reconfig time */
@@ -655,6 +666,7 @@ struct net_device_context {
 
 	struct work_struct work;
 	u32 msg_enable; /* debug level */
+	struct garp_wrk gwrk;
 
 	struct netvsc_stats __percpu *tx_stats;
 	struct netvsc_stats __percpu *rx_stats;
@@ -662,17 +674,17 @@ struct net_device_context {
 	/* Ethtool settings */
 	u8 duplex;
 	u32 speed;
+
+	/* the device is going away */
+	bool start_remove;
 };
 
 /* Per netvsc device */
 struct netvsc_device {
-	struct hv_device *dev;
-
 	u32 nvsp_version;
 
 	atomic_t num_outstanding_sends;
 	wait_queue_head_t wait_drain;
-	bool start_remove;
 	bool destroy;
 
 	/* Receive buffer allocated by us but manages by NetVSP */
@@ -698,15 +710,13 @@ struct netvsc_device {
 	struct nvsp_message revoke_packet;
 	/* unsigned char HwMacAddr[HW_MACADDR_LEN]; */
 
-	struct net_device *ndev;
-
-	struct vmbus_channel *chn_table[NR_CPUS];
+	struct vmbus_channel *chn_table[VRSS_CHANNEL_MAX];
 	u32 send_table[VRSS_SEND_TAB_SIZE];
 	u32 max_chn;
 	u32 num_chn;
 	spinlock_t sc_lock; /* Protects num_sc_offered variable */
 	u32 num_sc_offered;
-	atomic_t queue_sends[NR_CPUS];
+	atomic_t queue_sends[VRSS_CHANNEL_MAX];
 
 	/* Holds rndis device info */
 	void *extension;
@@ -718,17 +728,19 @@ struct netvsc_device {
 	/* The sub channel callback buffer */
 	unsigned char *sub_cb_buf;
 
-	struct multi_send_data msd[NR_CPUS];
+	struct multi_send_data msd[VRSS_CHANNEL_MAX];
 	u32 max_pkt; /* max number of pkt in one send, e.g. 8 */
 	u32 pkt_align; /* alignment bytes, e.g. 8 */
-
-	/* The net device context */
-	struct net_device_context *nd_ctx;
 
 	/* 1: allocated, serial number is valid. 0: not allocated */
 	u32 vf_alloc;
 	/* Serial number of the VF to team with */
 	u32 vf_serial;
+	atomic_t open_cnt;
+	/* State to manage the associated VF interface. */
+	bool vf_inject;
+	struct net_device *vf_netdev;
+	atomic_t vf_use_cnt;
 };
 
 /* NdisInitialize message */

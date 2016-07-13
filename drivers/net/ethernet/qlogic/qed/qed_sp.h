@@ -52,6 +52,7 @@ int qed_eth_cqe_completion(struct qed_hwfn *p_hwfn,
 
 union ramrod_data {
 	struct pf_start_ramrod_data pf_start;
+	struct pf_update_ramrod_data pf_update;
 	struct rx_queue_start_ramrod_data rx_queue_start;
 	struct rx_queue_update_ramrod_data rx_queue_update;
 	struct rx_queue_stop_ramrod_data rx_queue_stop;
@@ -61,6 +62,9 @@ union ramrod_data {
 	struct vport_stop_ramrod_data vport_stop;
 	struct vport_update_ramrod_data vport_update;
 	struct vport_filter_update_ramrod_data vport_filter_update;
+
+	struct vf_start_ramrod_data vf_start;
+	struct vf_stop_ramrod_data vf_stop;
 };
 
 #define EQ_MAX_CREDIT   0xffffffff
@@ -338,13 +342,29 @@ int qed_sp_init_request(struct qed_hwfn *p_hwfn,
  * to the internal RAM of the UStorm by the Function Start Ramrod.
  *
  * @param p_hwfn
+ * @param p_tunn
  * @param mode
+ * @param allow_npar_tx_switch
  *
  * @return int
  */
 
 int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
-		    enum qed_mf_mode mode);
+		    struct qed_tunn_start_params *p_tunn,
+		    enum qed_mf_mode mode, bool allow_npar_tx_switch);
+
+/**
+ * @brief qed_sp_pf_update - PF Function Update Ramrod
+ *
+ * This ramrod updates function-related parameters. Every parameter can be
+ * updated independently, according to configuration flags.
+ *
+ * @param p_hwfn
+ *
+ * @return int
+ */
+
+int qed_sp_pf_update(struct qed_hwfn *p_hwfn);
 
 /**
  * @brief qed_sp_pf_stop - PF Function Stop Ramrod
@@ -361,5 +381,19 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
  */
 
 int qed_sp_pf_stop(struct qed_hwfn *p_hwfn);
+
+int qed_sp_pf_update_tunn_cfg(struct qed_hwfn *p_hwfn,
+			      struct qed_tunn_update_params *p_tunn,
+			      enum spq_mode comp_mode,
+			      struct qed_spq_comp_cb *p_comp_data);
+/**
+ * @brief qed_sp_heartbeat_ramrod - Send empty Ramrod
+ *
+ * @param p_hwfn
+ *
+ * @return int
+ */
+
+int qed_sp_heartbeat_ramrod(struct qed_hwfn *p_hwfn);
 
 #endif

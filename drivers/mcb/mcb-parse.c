@@ -57,7 +57,7 @@ static int chameleon_parse_gdd(struct mcb_bus *bus,
 	mdev->id = GDD_DEV(reg1);
 	mdev->rev = GDD_REV(reg1);
 	mdev->var = GDD_VAR(reg1);
-	mdev->bar = GDD_BAR(reg1);
+	mdev->bar = GDD_BAR(reg2);
 	mdev->group = GDD_GRP(reg2);
 	mdev->inst = GDD_INS(reg2);
 
@@ -113,16 +113,11 @@ int chameleon_parse_cells(struct mcb_bus *bus, phys_addr_t mapbase,
 	}
 	p += hsize;
 
-	pr_debug("header->revision = %d\n", header->revision);
-	pr_debug("header->model = 0x%x ('%c')\n", header->model,
-		header->model);
-	pr_debug("header->minor = %d\n", header->minor);
-	pr_debug("header->bus_type = 0x%x\n", header->bus_type);
-
-
-	pr_debug("header->magic = 0x%x\n", header->magic);
-	pr_debug("header->filename = \"%.*s\"\n", CHAMELEON_FILENAME_LEN,
-		header->filename);
+	bus->revision = header->revision;
+	bus->model = header->model;
+	bus->minor = header->minor;
+	snprintf(bus->name, CHAMELEON_FILENAME_LEN + 1, "%s",
+		 header->filename);
 
 	for_each_chameleon_cell(dtype, p) {
 		switch (dtype) {

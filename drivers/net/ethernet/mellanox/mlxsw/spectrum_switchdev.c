@@ -214,7 +214,15 @@ static int __mlxsw_sp_port_flood_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	mlxsw_reg_sftr_pack(sftr_pl, MLXSW_SP_FLOOD_TABLE_BM, idx_begin,
 			    table_type, range, local_port, set);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sftr), sftr_pl);
+	if (err)
+		goto err_flood_bm_set;
+	else
+		goto buffer_out;
 
+err_flood_bm_set:
+	mlxsw_reg_sftr_pack(sftr_pl, MLXSW_SP_FLOOD_TABLE_UC, idx_begin,
+			    table_type, range, local_port, !set);
+	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sftr), sftr_pl);
 buffer_out:
 	kfree(sftr_pl);
 	return err;
@@ -1430,8 +1438,8 @@ static void mlxsw_sp_fdb_notify_rec_process(struct mlxsw_sp *mlxsw_sp,
 
 static void mlxsw_sp_fdb_notify_work_schedule(struct mlxsw_sp *mlxsw_sp)
 {
-	schedule_delayed_work(&mlxsw_sp->fdb_notify.dw,
-			      msecs_to_jiffies(mlxsw_sp->fdb_notify.interval));
+	mlxsw_core_schedule_dw(&mlxsw_sp->fdb_notify.dw,
+			       msecs_to_jiffies(mlxsw_sp->fdb_notify.interval));
 }
 
 static void mlxsw_sp_fdb_notify_work(struct work_struct *work)

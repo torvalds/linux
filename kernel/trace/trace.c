@@ -74,11 +74,6 @@ static struct tracer_opt dummy_tracer_opt[] = {
 	{ }
 };
 
-static struct tracer_flags dummy_tracer_flags = {
-	.val = 0,
-	.opts = dummy_tracer_opt
-};
-
 static int
 dummy_set_flag(struct trace_array *tr, u32 old_flags, u32 bit, int set)
 {
@@ -258,6 +253,9 @@ unsigned long long ns2usecs(cycle_t nsec)
 #define TOP_LEVEL_TRACE_FLAGS (TRACE_ITER_PRINTK |			\
 	       TRACE_ITER_PRINTK_MSGONLY | TRACE_ITER_RECORD_CMD)
 
+/* trace_flags that are default zero for instances */
+#define ZEROED_TRACE_FLAGS \
+	TRACE_ITER_EVENT_FORK
 
 /*
  * The global_trace is the descriptor that holds the tracing
@@ -308,33 +306,18 @@ void trace_array_put(struct trace_array *this_tr)
 	mutex_unlock(&trace_types_lock);
 }
 
-int filter_check_discard(struct trace_event_file *file, void *rec,
-			 struct ring_buffer *buffer,
-			 struct ring_buffer_event *event)
-{
-	if (unlikely(file->flags & EVENT_FILE_FL_FILTERED) &&
-	    !filter_match_preds(file->filter, rec)) {
-		ring_buffer_discard_commit(buffer, event);
-		return 1;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(filter_check_discard);
-
 int call_filter_check_discard(struct trace_event_call *call, void *rec,
 			      struct ring_buffer *buffer,
 			      struct ring_buffer_event *event)
 {
 	if (unlikely(call->flags & TRACE_EVENT_FL_FILTERED) &&
 	    !filter_match_preds(call->filter, rec)) {
-		ring_buffer_discard_commit(buffer, event);
+		__trace_event_discard_commit(buffer, event);
 		return 1;
 	}
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(call_filter_check_discard);
 
 static cycle_t buffer_ftrace_now(struct trace_buffer *buf, int cpu)
 {
@@ -1258,11 +1241,21 @@ int __init register_tracer(struct tracer *type)
 
 	if (!type->set_flag)
 		type->set_flag = &dummy_set_flag;
-	if (!type->flags)
-		type->flags = &dummy_tracer_flags;
-	else
+	if (!type->flags) {
+		/*allocate a dummy tracer_flags*/
+		type->flags = kmalloc(sizeof(*type->flags), GFP_KERNEL);
+		if (!type->flags) {
+			ret = -ENOMEM;
+			goto out;
+		}
+		type->flags->val = 0;
+		type->flags->opts = dummy_tracer_opt;
+	} else
 		if (!type->flags->opts)
 			type->flags->opts = dummy_tracer_opt;
+
+	/* store the tracer for __set_tracer_option */
+	type->flags->trace = type;
 
 	ret = run_tracer_selftest(type);
 	if (ret < 0)
@@ -1659,12 +1652,23 @@ tracing_generic_entry_update(struct trace_entry *entry, unsigned long flags,
 #else
 		TRACE_FLAG_IRQS_NOSUPPORT |
 #endif
+		((pc & NMI_MASK    ) ? TRACE_FLAG_NMI     : 0) |
 		((pc & HARDIRQ_MASK) ? TRACE_FLAG_HARDIRQ : 0) |
 		((pc & SOFTIRQ_MASK) ? TRACE_FLAG_SOFTIRQ : 0) |
 		(tif_need_resched() ? TRACE_FLAG_NEED_RESCHED : 0) |
 		(test_preempt_need_resched() ? TRACE_FLAG_PREEMPT_RESCHED : 0);
 }
 EXPORT_SYMBOL_GPL(tracing_generic_entry_update);
+
+static __always_inline void
+trace_event_setup(struct ring_buffer_event *event,
+		  int type, unsigned long flags, int pc)
+{
+	struct trace_entry *ent = ring_buffer_event_data(event);
+
+	tracing_generic_entry_update(ent, flags, pc);
+	ent->type = type;
+}
 
 struct ring_buffer_event *
 trace_buffer_lock_reserve(struct ring_buffer *buffer,
@@ -1675,34 +1679,137 @@ trace_buffer_lock_reserve(struct ring_buffer *buffer,
 	struct ring_buffer_event *event;
 
 	event = ring_buffer_lock_reserve(buffer, len);
-	if (event != NULL) {
-		struct trace_entry *ent = ring_buffer_event_data(event);
-
-		tracing_generic_entry_update(ent, flags, pc);
-		ent->type = type;
-	}
+	if (event != NULL)
+		trace_event_setup(event, type, flags, pc);
 
 	return event;
+}
+
+DEFINE_PER_CPU(struct ring_buffer_event *, trace_buffered_event);
+DEFINE_PER_CPU(int, trace_buffered_event_cnt);
+static int trace_buffered_event_ref;
+
+/**
+ * trace_buffered_event_enable - enable buffering events
+ *
+ * When events are being filtered, it is quicker to use a temporary
+ * buffer to write the event data into if there's a likely chance
+ * that it will not be committed. The discard of the ring buffer
+ * is not as fast as committing, and is much slower than copying
+ * a commit.
+ *
+ * When an event is to be filtered, allocate per cpu buffers to
+ * write the event data into, and if the event is filtered and discarded
+ * it is simply dropped, otherwise, the entire data is to be committed
+ * in one shot.
+ */
+void trace_buffered_event_enable(void)
+{
+	struct ring_buffer_event *event;
+	struct page *page;
+	int cpu;
+
+	WARN_ON_ONCE(!mutex_is_locked(&event_mutex));
+
+	if (trace_buffered_event_ref++)
+		return;
+
+	for_each_tracing_cpu(cpu) {
+		page = alloc_pages_node(cpu_to_node(cpu),
+					GFP_KERNEL | __GFP_NORETRY, 0);
+		if (!page)
+			goto failed;
+
+		event = page_address(page);
+		memset(event, 0, sizeof(*event));
+
+		per_cpu(trace_buffered_event, cpu) = event;
+
+		preempt_disable();
+		if (cpu == smp_processor_id() &&
+		    this_cpu_read(trace_buffered_event) !=
+		    per_cpu(trace_buffered_event, cpu))
+			WARN_ON_ONCE(1);
+		preempt_enable();
+	}
+
+	return;
+ failed:
+	trace_buffered_event_disable();
+}
+
+static void enable_trace_buffered_event(void *data)
+{
+	/* Probably not needed, but do it anyway */
+	smp_rmb();
+	this_cpu_dec(trace_buffered_event_cnt);
+}
+
+static void disable_trace_buffered_event(void *data)
+{
+	this_cpu_inc(trace_buffered_event_cnt);
+}
+
+/**
+ * trace_buffered_event_disable - disable buffering events
+ *
+ * When a filter is removed, it is faster to not use the buffered
+ * events, and to commit directly into the ring buffer. Free up
+ * the temp buffers when there are no more users. This requires
+ * special synchronization with current events.
+ */
+void trace_buffered_event_disable(void)
+{
+	int cpu;
+
+	WARN_ON_ONCE(!mutex_is_locked(&event_mutex));
+
+	if (WARN_ON_ONCE(!trace_buffered_event_ref))
+		return;
+
+	if (--trace_buffered_event_ref)
+		return;
+
+	preempt_disable();
+	/* For each CPU, set the buffer as used. */
+	smp_call_function_many(tracing_buffer_mask,
+			       disable_trace_buffered_event, NULL, 1);
+	preempt_enable();
+
+	/* Wait for all current users to finish */
+	synchronize_sched();
+
+	for_each_tracing_cpu(cpu) {
+		free_page((unsigned long)per_cpu(trace_buffered_event, cpu));
+		per_cpu(trace_buffered_event, cpu) = NULL;
+	}
+	/*
+	 * Make sure trace_buffered_event is NULL before clearing
+	 * trace_buffered_event_cnt.
+	 */
+	smp_wmb();
+
+	preempt_disable();
+	/* Do the work on each cpu */
+	smp_call_function_many(tracing_buffer_mask,
+			       enable_trace_buffered_event, NULL, 1);
+	preempt_enable();
 }
 
 void
 __buffer_unlock_commit(struct ring_buffer *buffer, struct ring_buffer_event *event)
 {
 	__this_cpu_write(trace_cmdline_save, true);
-	ring_buffer_unlock_commit(buffer, event);
-}
 
-void trace_buffer_unlock_commit(struct trace_array *tr,
-				struct ring_buffer *buffer,
-				struct ring_buffer_event *event,
-				unsigned long flags, int pc)
-{
-	__buffer_unlock_commit(buffer, event);
-
-	ftrace_trace_stack(tr, buffer, flags, 6, pc, NULL);
-	ftrace_trace_userstack(buffer, flags, pc);
+	/* If this is the temp buffer, we need to commit fully */
+	if (this_cpu_read(trace_buffered_event) == event) {
+		/* Length is in event->array[0] */
+		ring_buffer_write(buffer, event->array[0], &event->array[1]);
+		/* Release the temp buffer */
+		this_cpu_dec(trace_buffered_event_cnt);
+	} else
+		ring_buffer_unlock_commit(buffer, event);
 }
-EXPORT_SYMBOL_GPL(trace_buffer_unlock_commit);
 
 static struct ring_buffer *temp_buffer;
 
@@ -1713,8 +1820,23 @@ trace_event_buffer_lock_reserve(struct ring_buffer **current_rb,
 			  unsigned long flags, int pc)
 {
 	struct ring_buffer_event *entry;
+	int val;
 
 	*current_rb = trace_file->tr->trace_buffer.buffer;
+
+	if ((trace_file->flags &
+	     (EVENT_FILE_FL_SOFT_DISABLED | EVENT_FILE_FL_FILTERED)) &&
+	    (entry = this_cpu_read(trace_buffered_event))) {
+		/* Try to use the per cpu buffer first */
+		val = this_cpu_inc_return(trace_buffered_event_cnt);
+		if (val == 1) {
+			trace_event_setup(entry, type, flags, pc);
+			entry->array[0] = len;
+			return entry;
+		}
+		this_cpu_dec(trace_buffered_event_cnt);
+	}
+
 	entry = trace_buffer_lock_reserve(*current_rb,
 					 type, len, flags, pc);
 	/*
@@ -1732,17 +1854,6 @@ trace_event_buffer_lock_reserve(struct ring_buffer **current_rb,
 }
 EXPORT_SYMBOL_GPL(trace_event_buffer_lock_reserve);
 
-struct ring_buffer_event *
-trace_current_buffer_lock_reserve(struct ring_buffer **current_rb,
-				  int type, unsigned long len,
-				  unsigned long flags, int pc)
-{
-	*current_rb = global_trace.trace_buffer.buffer;
-	return trace_buffer_lock_reserve(*current_rb,
-					 type, len, flags, pc);
-}
-EXPORT_SYMBOL_GPL(trace_current_buffer_lock_reserve);
-
 void trace_buffer_unlock_commit_regs(struct trace_array *tr,
 				     struct ring_buffer *buffer,
 				     struct ring_buffer_event *event,
@@ -1754,14 +1865,6 @@ void trace_buffer_unlock_commit_regs(struct trace_array *tr,
 	ftrace_trace_stack(tr, buffer, flags, 0, pc, regs);
 	ftrace_trace_userstack(buffer, flags, pc);
 }
-EXPORT_SYMBOL_GPL(trace_buffer_unlock_commit_regs);
-
-void trace_current_buffer_discard_commit(struct ring_buffer *buffer,
-					 struct ring_buffer_event *event)
-{
-	ring_buffer_discard_commit(buffer, event);
-}
-EXPORT_SYMBOL_GPL(trace_current_buffer_discard_commit);
 
 void
 trace_function(struct trace_array *tr,
@@ -2071,20 +2174,20 @@ void trace_printk_init_buffers(void)
 
 	/* trace_printk() is for debug use only. Don't use it in production. */
 
-	pr_warning("\n");
-	pr_warning("**********************************************************\n");
-	pr_warning("**   NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE   **\n");
-	pr_warning("**                                                      **\n");
-	pr_warning("** trace_printk() being used. Allocating extra memory.  **\n");
-	pr_warning("**                                                      **\n");
-	pr_warning("** This means that this is a DEBUG kernel and it is     **\n");
-	pr_warning("** unsafe for production use.                           **\n");
-	pr_warning("**                                                      **\n");
-	pr_warning("** If you see this message and you are not debugging    **\n");
-	pr_warning("** the kernel, report this immediately to your vendor!  **\n");
-	pr_warning("**                                                      **\n");
-	pr_warning("**   NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE   **\n");
-	pr_warning("**********************************************************\n");
+	pr_warn("\n");
+	pr_warn("**********************************************************\n");
+	pr_warn("**   NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE   **\n");
+	pr_warn("**                                                      **\n");
+	pr_warn("** trace_printk() being used. Allocating extra memory.  **\n");
+	pr_warn("**                                                      **\n");
+	pr_warn("** This means that this is a DEBUG kernel and it is     **\n");
+	pr_warn("** unsafe for production use.                           **\n");
+	pr_warn("**                                                      **\n");
+	pr_warn("** If you see this message and you are not debugging    **\n");
+	pr_warn("** the kernel, report this immediately to your vendor!  **\n");
+	pr_warn("**                                                      **\n");
+	pr_warn("**   NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE   **\n");
+	pr_warn("**********************************************************\n");
 
 	/* Expand the buffers to set size */
 	tracing_update_buffers();
@@ -3505,7 +3608,7 @@ static int __set_tracer_option(struct trace_array *tr,
 			       struct tracer_flags *tracer_flags,
 			       struct tracer_opt *opts, int neg)
 {
-	struct tracer *trace = tr->current_trace;
+	struct tracer *trace = tracer_flags->trace;
 	int ret;
 
 	ret = trace->set_flag(tr, tracer_flags->val, opts->bit, !neg);
@@ -3564,6 +3667,9 @@ int set_tracer_flag(struct trace_array *tr, unsigned int mask, int enabled)
 
 	if (mask == TRACE_ITER_RECORD_CMD)
 		trace_event_enable_cmd_record(enabled);
+
+	if (mask == TRACE_ITER_EVENT_FORK)
+		trace_event_follow_fork(tr, enabled);
 
 	if (mask == TRACE_ITER_OVERWRITE) {
 		ring_buffer_change_overwrite(tr->trace_buffer.buffer, enabled);
@@ -3652,7 +3758,7 @@ tracing_trace_options_write(struct file *filp, const char __user *ubuf,
 	if (cnt >= sizeof(buf))
 		return -EINVAL;
 
-	if (copy_from_user(&buf, ubuf, cnt))
+	if (copy_from_user(buf, ubuf, cnt))
 		return -EFAULT;
 
 	buf[cnt] = 0;
@@ -3798,11 +3904,18 @@ static const char readme_msg[] =
 	"\t   trigger: traceon, traceoff\n"
 	"\t            enable_event:<system>:<event>\n"
 	"\t            disable_event:<system>:<event>\n"
+#ifdef CONFIG_HIST_TRIGGERS
+	"\t            enable_hist:<system>:<event>\n"
+	"\t            disable_hist:<system>:<event>\n"
+#endif
 #ifdef CONFIG_STACKTRACE
 	"\t\t    stacktrace\n"
 #endif
 #ifdef CONFIG_TRACER_SNAPSHOT
 	"\t\t    snapshot\n"
+#endif
+#ifdef CONFIG_HIST_TRIGGERS
+	"\t\t    hist (see below)\n"
 #endif
 	"\t   example: echo traceoff > events/block/block_unplug/trigger\n"
 	"\t            echo traceoff:3 > events/block/block_unplug/trigger\n"
@@ -3819,6 +3932,56 @@ static const char readme_msg[] =
 	"\t   To remove a trigger with a count:\n"
 	"\t     echo '!<trigger>:0 > <system>/<event>/trigger\n"
 	"\t   Filters can be ignored when removing a trigger.\n"
+#ifdef CONFIG_HIST_TRIGGERS
+	"      hist trigger\t- If set, event hits are aggregated into a hash table\n"
+	"\t    Format: hist:keys=<field1[,field2,...]>\n"
+	"\t            [:values=<field1[,field2,...]>]\n"
+	"\t            [:sort=<field1[,field2,...]>]\n"
+	"\t            [:size=#entries]\n"
+	"\t            [:pause][:continue][:clear]\n"
+	"\t            [:name=histname1]\n"
+	"\t            [if <filter>]\n\n"
+	"\t    When a matching event is hit, an entry is added to a hash\n"
+	"\t    table using the key(s) and value(s) named, and the value of a\n"
+	"\t    sum called 'hitcount' is incremented.  Keys and values\n"
+	"\t    correspond to fields in the event's format description.  Keys\n"
+	"\t    can be any field, or the special string 'stacktrace'.\n"
+	"\t    Compound keys consisting of up to two fields can be specified\n"
+	"\t    by the 'keys' keyword.  Values must correspond to numeric\n"
+	"\t    fields.  Sort keys consisting of up to two fields can be\n"
+	"\t    specified using the 'sort' keyword.  The sort direction can\n"
+	"\t    be modified by appending '.descending' or '.ascending' to a\n"
+	"\t    sort field.  The 'size' parameter can be used to specify more\n"
+	"\t    or fewer than the default 2048 entries for the hashtable size.\n"
+	"\t    If a hist trigger is given a name using the 'name' parameter,\n"
+	"\t    its histogram data will be shared with other triggers of the\n"
+	"\t    same name, and trigger hits will update this common data.\n\n"
+	"\t    Reading the 'hist' file for the event will dump the hash\n"
+	"\t    table in its entirety to stdout.  If there are multiple hist\n"
+	"\t    triggers attached to an event, there will be a table for each\n"
+	"\t    trigger in the output.  The table displayed for a named\n"
+	"\t    trigger will be the same as any other instance having the\n"
+	"\t    same name.  The default format used to display a given field\n"
+	"\t    can be modified by appending any of the following modifiers\n"
+	"\t    to the field name, as applicable:\n\n"
+	"\t            .hex        display a number as a hex value\n"
+	"\t            .sym        display an address as a symbol\n"
+	"\t            .sym-offset display an address as a symbol and offset\n"
+	"\t            .execname   display a common_pid as a program name\n"
+	"\t            .syscall    display a syscall id as a syscall name\n\n"
+	"\t            .log2       display log2 value rather than raw number\n\n"
+	"\t    The 'pause' parameter can be used to pause an existing hist\n"
+	"\t    trigger or to start a hist trigger but not log any events\n"
+	"\t    until told to do so.  'continue' can be used to start or\n"
+	"\t    restart a paused hist trigger.\n\n"
+	"\t    The 'clear' parameter will clear the contents of a running\n"
+	"\t    hist trigger and leave its current paused/active state\n"
+	"\t    unchanged.\n\n"
+	"\t    The enable_hist and disable_hist triggers can be used to\n"
+	"\t    have one event conditionally start and stop another event's\n"
+	"\t    already-attached hist trigger.  The syntax is analagous to\n"
+	"\t    the enable_event and disable_event triggers.\n"
+#endif
 ;
 
 static ssize_t
@@ -4101,7 +4264,7 @@ trace_insert_enum_map_file(struct module *mod, struct trace_enum_map **start,
 	 */
 	map_array = kmalloc(sizeof(*map_array) * (len + 2), GFP_KERNEL);
 	if (!map_array) {
-		pr_warning("Unable to allocate trace enum mapping\n");
+		pr_warn("Unable to allocate trace enum mapping\n");
 		return;
 	}
 
@@ -4468,7 +4631,7 @@ tracing_set_trace_write(struct file *filp, const char __user *ubuf,
 	if (cnt > MAX_TRACER_SIZE)
 		cnt = MAX_TRACER_SIZE;
 
-	if (copy_from_user(&buf, ubuf, cnt))
+	if (copy_from_user(buf, ubuf, cnt))
 		return -EFAULT;
 
 	buf[cnt] = 0;
@@ -4949,7 +5112,10 @@ static ssize_t tracing_splice_read_pipe(struct file *filp,
 
 	spd.nr_pages = i;
 
-	ret = splice_to_pipe(pipe, &spd);
+	if (i)
+		ret = splice_to_pipe(pipe, &spd);
+	else
+		ret = 0;
 out:
 	splice_shrink_spd(&spd);
 	return ret;
@@ -5255,7 +5421,7 @@ static ssize_t tracing_clock_write(struct file *filp, const char __user *ubuf,
 	if (cnt >= sizeof(buf))
 		return -EINVAL;
 
-	if (copy_from_user(&buf, ubuf, cnt))
+	if (copy_from_user(buf, ubuf, cnt))
 		return -EFAULT;
 
 	buf[cnt] = 0;
@@ -6131,7 +6297,7 @@ tracing_init_tracefs_percpu(struct trace_array *tr, long cpu)
 	snprintf(cpu_dir, 30, "cpu%ld", cpu);
 	d_cpu = tracefs_create_dir(cpu_dir, d_percpu);
 	if (!d_cpu) {
-		pr_warning("Could not create tracefs '%s' entry\n", cpu_dir);
+		pr_warn("Could not create tracefs '%s' entry\n", cpu_dir);
 		return;
 	}
 
@@ -6318,7 +6484,7 @@ struct dentry *trace_create_file(const char *name,
 
 	ret = tracefs_create_file(name, mode, parent, data, fops);
 	if (!ret)
-		pr_warning("Could not create tracefs '%s' entry\n", name);
+		pr_warn("Could not create tracefs '%s' entry\n", name);
 
 	return ret;
 }
@@ -6337,7 +6503,7 @@ static struct dentry *trace_options_init_dentry(struct trace_array *tr)
 
 	tr->options = tracefs_create_dir("options", d_tracer);
 	if (!tr->options) {
-		pr_warning("Could not create tracefs directory 'options'\n");
+		pr_warn("Could not create tracefs directory 'options'\n");
 		return NULL;
 	}
 
@@ -6391,11 +6557,8 @@ create_trace_option_files(struct trace_array *tr, struct tracer *tracer)
 		return;
 
 	for (i = 0; i < tr->nr_topts; i++) {
-		/*
-		 * Check if these flags have already been added.
-		 * Some tracers share flags.
-		 */
-		if (tr->topts[i].tracer->flags == tracer->flags)
+		/* Make sure there's no duplicate flags. */
+		if (WARN_ON_ONCE(tr->topts[i].tracer->flags == tracer->flags))
 			return;
 	}
 
@@ -6644,7 +6807,7 @@ static int instance_mkdir(const char *name)
 	if (!alloc_cpumask_var(&tr->tracing_cpumask, GFP_KERNEL))
 		goto out_free_tr;
 
-	tr->trace_flags = global_trace.trace_flags;
+	tr->trace_flags = global_trace.trace_flags & ~ZEROED_TRACE_FLAGS;
 
 	cpumask_copy(tr->tracing_cpumask, cpu_all_mask);
 
@@ -6717,6 +6880,12 @@ static int instance_rmdir(const char *name)
 		goto out_unlock;
 
 	list_del(&tr->list);
+
+	/* Disable all the flags that were enabled coming in */
+	for (i = 0; i < TRACE_FLAGS_MAX_SIZE; i++) {
+		if ((1 << i) & ZEROED_TRACE_FLAGS)
+			set_tracer_flag(tr, 1 << i, 0);
+	}
 
 	tracing_set_nop(tr);
 	event_trace_del_tracer(tr);
@@ -7248,8 +7417,8 @@ __init static int tracer_alloc_buffers(void)
 	if (trace_boot_clock) {
 		ret = tracing_set_clock(&global_trace, trace_boot_clock);
 		if (ret < 0)
-			pr_warning("Trace clock %s not defined, going back to default\n",
-				   trace_boot_clock);
+			pr_warn("Trace clock %s not defined, going back to default\n",
+				trace_boot_clock);
 	}
 
 	/*

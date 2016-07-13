@@ -134,6 +134,16 @@ config HID_APPLEIR
 
 	Say Y here if you want support for Apple infrared remote control.
 
+config HID_ASUS
+	tristate "Asus"
+	depends on I2C_HID
+	---help---
+	Support for Asus notebook built-in keyboard via i2c.
+
+	Supported devices:
+	- EeeBook X205TA
+	- VivoBook E200HA
+
 config HID_AUREAL
 	tristate "Aureal"
 	depends on HID

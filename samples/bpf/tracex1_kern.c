@@ -23,16 +23,14 @@ int bpf_prog1(struct pt_regs *ctx)
 	/* attaches to kprobe netif_receive_skb,
 	 * looks for packets on loobpack device and prints them
 	 */
-	char devname[IFNAMSIZ] = {};
+	char devname[IFNAMSIZ];
 	struct net_device *dev;
 	struct sk_buff *skb;
 	int len;
 
 	/* non-portable! works for the given kernel only */
 	skb = (struct sk_buff *) PT_REGS_PARM1(ctx);
-
 	dev = _(skb->dev);
-
 	len = _(skb->len);
 
 	bpf_probe_read(devname, sizeof(devname), dev->name);

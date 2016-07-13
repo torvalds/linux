@@ -1,6 +1,6 @@
 /**************************************************************************
  *
- * Copyright © 2009-2015 VMware, Inc., Palo Alto, CA., USA
+ * Copyright © 2009-2016 VMware, Inc., Palo Alto, CA., USA
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -43,6 +43,12 @@
 
 #define VMW_MIN_INITIAL_WIDTH 800
 #define VMW_MIN_INITIAL_HEIGHT 600
+
+#ifndef VMWGFX_GIT_VERSION
+#define VMWGFX_GIT_VERSION "Unknown"
+#endif
+
+#define VMWGFX_REPO "In Tree"
 
 
 /**
@@ -195,7 +201,7 @@ static const struct drm_ioctl_desc vmw_ioctls[] = {
 		      DRM_MASTER | DRM_AUTH),
 	VMW_IOCTL_DEF(VMW_UPDATE_LAYOUT,
 		      vmw_kms_update_layout_ioctl,
-		      DRM_MASTER),
+		      DRM_MASTER | DRM_CONTROL_ALLOW),
 	VMW_IOCTL_DEF(VMW_CREATE_SHADER,
 		      vmw_shader_define_ioctl,
 		      DRM_AUTH | DRM_RENDER_ALLOW),
@@ -326,7 +332,7 @@ static int vmw_dummy_query_bo_create(struct vmw_private *dev_priv)
 	if (unlikely(ret != 0))
 		return ret;
 
-	ret = ttm_bo_reserve(&vbo->base, false, true, false, NULL);
+	ret = ttm_bo_reserve(&vbo->base, false, true, NULL);
 	BUG_ON(ret != 0);
 	vmw_bo_pin_reserved(vbo, true);
 
@@ -613,6 +619,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	uint32_t svga_id;
 	enum vmw_res_type i;
 	bool refuse_dma = false;
+	char host_log[100] = {0};
 
 	dev_priv = kzalloc(sizeof(*dev_priv), GFP_KERNEL);
 	if (unlikely(dev_priv == NULL)) {
@@ -628,6 +635,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	mutex_init(&dev_priv->cmdbuf_mutex);
 	mutex_init(&dev_priv->release_mutex);
 	mutex_init(&dev_priv->binding_mutex);
+	mutex_init(&dev_priv->global_kms_state_mutex);
 	rwlock_init(&dev_priv->resource_lock);
 	ttm_lock_init(&dev_priv->reservation_sem);
 	spin_lock_init(&dev_priv->hw_lock);
@@ -873,6 +881,16 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	DRM_INFO("DX: %s\n", dev_priv->has_dx ? "yes." : "no.");
 
+	snprintf(host_log, sizeof(host_log), "vmwgfx: %s-%s",
+		VMWGFX_REPO, VMWGFX_GIT_VERSION);
+	vmw_host_log(host_log);
+
+	memset(host_log, 0, sizeof(host_log));
+	snprintf(host_log, sizeof(host_log), "vmwgfx: Module Version: %d.%d.%d",
+		VMWGFX_DRIVER_MAJOR, VMWGFX_DRIVER_MINOR,
+		VMWGFX_DRIVER_PATCHLEVEL);
+	vmw_host_log(host_log);
+
 	if (dev_priv->enable_fb) {
 		vmw_fifo_resource_inc(dev_priv);
 		vmw_svga_enable(dev_priv);
@@ -972,15 +990,6 @@ static int vmw_driver_unload(struct drm_device *dev)
 	return 0;
 }
 
-static void vmw_preclose(struct drm_device *dev,
-			 struct drm_file *file_priv)
-{
-	struct vmw_fpriv *vmw_fp = vmw_fpriv(file_priv);
-	struct vmw_private *dev_priv = vmw_priv(dev);
-
-	vmw_event_fence_fpriv_gone(dev_priv->fman, &vmw_fp->fence_events);
-}
-
 static void vmw_postclose(struct drm_device *dev,
 			 struct drm_file *file_priv)
 {
@@ -1011,7 +1020,6 @@ static int vmw_driver_open(struct drm_device *dev, struct drm_file *file_priv)
 	if (unlikely(vmw_fp == NULL))
 		return ret;
 
-	INIT_LIST_HEAD(&vmw_fp->fence_events);
 	vmw_fp->tfile = ttm_object_file_init(dev_priv->tdev, 10);
 	if (unlikely(vmw_fp->tfile == NULL))
 		goto out_no_tfile;
@@ -1214,6 +1222,7 @@ static int vmw_master_set(struct drm_device *dev,
 	}
 
 	dev_priv->active_master = vmaster;
+	drm_sysfs_hotplug_event(dev);
 
 	return 0;
 }
@@ -1501,7 +1510,6 @@ static struct drm_driver driver = {
 	.master_set = vmw_master_set,
 	.master_drop = vmw_master_drop,
 	.open = vmw_driver_open,
-	.preclose = vmw_preclose,
 	.postclose = vmw_postclose,
 	.set_busid = drm_pci_set_busid,
 
@@ -1540,10 +1548,8 @@ static int __init vmwgfx_init(void)
 {
 	int ret;
 
-#ifdef CONFIG_VGA_CONSOLE
 	if (vgacon_text_force())
 		return -EINVAL;
-#endif
 
 	ret = drm_pci_init(&driver, &vmw_pci_driver);
 	if (ret)

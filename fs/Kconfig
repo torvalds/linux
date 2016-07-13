@@ -52,6 +52,7 @@ config FS_DAX_PMD
 	depends on FS_DAX
 	depends on ZONE_DEVICE
 	depends on TRANSPARENT_HUGEPAGE
+	depends on BROKEN
 
 endif # BLOCK
 
@@ -83,6 +84,8 @@ config MANDATORY_FILE_LOCKING
 	  mounted filesystems to support mandatory locking.
 
 	  To the best of my knowledge this is dead code that no one cares about.
+
+source "fs/crypto/Kconfig"
 
 source "fs/notify/Kconfig"
 
@@ -207,6 +210,7 @@ menuconfig MISC_FILESYSTEMS
 
 if MISC_FILESYSTEMS
 
+source "fs/orangefs/Kconfig"
 source "fs/adfs/Kconfig"
 source "fs/affs/Kconfig"
 source "fs/ecryptfs/Kconfig"

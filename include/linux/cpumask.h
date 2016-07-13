@@ -607,8 +607,6 @@ static inline int cpulist_parse(const char *buf, struct cpumask *dstp)
 
 /**
  * cpumask_size - size to allocate for a 'struct cpumask' in bytes
- *
- * This will eventually be a runtime variable, depending on nr_cpu_ids.
  */
 static inline size_t cpumask_size(void)
 {
@@ -745,12 +743,10 @@ set_cpu_present(unsigned int cpu, bool present)
 static inline void
 set_cpu_online(unsigned int cpu, bool online)
 {
-	if (online) {
+	if (online)
 		cpumask_set_cpu(cpu, &__cpu_online_mask);
-		cpumask_set_cpu(cpu, &__cpu_active_mask);
-	} else {
+	else
 		cpumask_clear_cpu(cpu, &__cpu_online_mask);
-	}
 }
 
 static inline void

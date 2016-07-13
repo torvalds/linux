@@ -22,6 +22,7 @@
 #include <dt-bindings/clock/exynos4.h>
 #include <dt-bindings/clock/exynos-audss-clk.h>
 #include "skeleton.dtsi"
+#include "exynos-syscon-restart.dtsi"
 
 / {
 	interrupt-parent = <&gic>;
@@ -76,7 +77,12 @@
 		reg = <0x10000000 0x100>;
 	};
 
-	mipi_phy: video-phy@10020710 {
+	memory-controller@12570000 {
+		compatible = "samsung,exynos4210-srom";
+		reg = <0x12570000 0x14>;
+	};
+
+	mipi_phy: video-phy {
 		compatible = "samsung,s5pv210-mipi-video-phy";
 		#phy-cells = <1>;
 		syscon = <&pmu_system_controller>;
@@ -156,20 +162,6 @@
 		interrupt-controller;
 		#interrupt-cells = <3>;
 		interrupt-parent = <&gic>;
-	};
-
-	poweroff: syscon-poweroff {
-		compatible = "syscon-poweroff";
-		regmap = <&pmu_system_controller>;
-		offset = <0x330C>; /* PS_HOLD_CONTROL */
-		mask = <0x5200>; /* reset value */
-	};
-
-	reboot: syscon-reboot {
-		compatible = "syscon-reboot";
-		regmap = <&pmu_system_controller>;
-		offset = <0x0400>; /* SWRESET */
-		mask = <0x1>;
 	};
 
 	dsi_0: dsi@11C80000 {
@@ -661,7 +653,7 @@
 	amba {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "arm,amba-bus";
+		compatible = "simple-bus";
 		interrupt-parent = <&gic>;
 		ranges;
 
@@ -748,6 +740,18 @@
 		phy = <&hdmi_i2c_phy>;
 		power-domains = <&pd_tv>;
 		samsung,syscon-phandle = <&pmu_system_controller>;
+		status = "disabled";
+	};
+
+	hdmicec: cec@100B0000 {
+		compatible = "samsung,s5p-cec";
+		reg = <0x100B0000 0x200>;
+		interrupts = <0 114 0>;
+		clocks = <&clock CLK_HDMI_CEC>;
+		clock-names = "hdmicec";
+		samsung,syscon-phandle = <&pmu_system_controller>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&hdmi_cec>;
 		status = "disabled";
 	};
 
@@ -977,11 +981,18 @@
 		#iommu-cells = <0>;
 	};
 
+	sss: sss@10830000 {
+		compatible = "samsung,exynos4210-secss";
+		reg = <0x10830000 0x300>;
+		interrupts = <0 112 0>;
+		clocks = <&clock CLK_SSS>;
+		clock-names = "secss";
+	};
+
 	prng: rng@10830400 {
 		compatible = "samsung,exynos4-rng";
 		reg = <0x10830400 0x200>;
 		clocks = <&clock CLK_SSS>;
 		clock-names = "secss";
-		status = "disabled";
 	};
 };

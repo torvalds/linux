@@ -3,7 +3,23 @@
 #
 
 KASAN_SANITIZE_slab_common.o := n
+KASAN_SANITIZE_slab.o := n
 KASAN_SANITIZE_slub.o := n
+
+# These files are disabled because they produce non-interesting and/or
+# flaky coverage that is not a function of syscall inputs. E.g. slab is out of
+# free pages, or a task is migrated between nodes.
+KCOV_INSTRUMENT_slab_common.o := n
+KCOV_INSTRUMENT_slob.o := n
+KCOV_INSTRUMENT_slab.o := n
+KCOV_INSTRUMENT_slub.o := n
+KCOV_INSTRUMENT_page_alloc.o := n
+KCOV_INSTRUMENT_debug-pagealloc.o := n
+KCOV_INSTRUMENT_kmemleak.o := n
+KCOV_INSTRUMENT_kmemcheck.o := n
+KCOV_INSTRUMENT_memcontrol.o := n
+KCOV_INSTRUMENT_mmzone.o := n
+KCOV_INSTRUMENT_vmstat.o := n
 
 mmu-y			:= nommu.o
 mmu-$(CONFIG_MMU)	:= gup.o highmem.o memory.o mincore.o \
@@ -73,6 +89,7 @@ obj-$(CONFIG_MEMORY_ISOLATION) += page_isolation.o
 obj-$(CONFIG_ZPOOL)	+= zpool.o
 obj-$(CONFIG_ZBUD)	+= zbud.o
 obj-$(CONFIG_ZSMALLOC)	+= zsmalloc.o
+obj-$(CONFIG_Z3FOLD)	+= z3fold.o
 obj-$(CONFIG_GENERIC_EARLY_IOREMAP) += early_ioremap.o
 obj-$(CONFIG_CMA)	+= cma.o
 obj-$(CONFIG_MEMORY_BALLOON) += balloon_compaction.o

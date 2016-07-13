@@ -13,7 +13,7 @@ static void (*old_vmaster_hook)(void *, int);
 static bool is_thinkpad(struct hda_codec *codec)
 {
 	return (codec->core.subsystem_id >> 16 == 0x17aa) &&
-	       (acpi_dev_present("LEN0068") || acpi_dev_present("IBM0068"));
+	       (acpi_dev_found("LEN0068") || acpi_dev_found("IBM0068"));
 }
 
 static void update_tpacpi_mute_led(void *private_data, int enabled)

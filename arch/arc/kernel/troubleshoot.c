@@ -276,7 +276,7 @@ static int tlb_stats_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-/* called on user read(): display the couters */
+/* called on user read(): display the counters */
 static ssize_t tlb_stats_output(struct file *file,	/* file descriptor */
 				char __user *user_buf,	/* user buffer */
 				size_t len,		/* length of buffer */

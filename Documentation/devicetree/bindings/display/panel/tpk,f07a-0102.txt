@@ -1,0 +1,8 @@
+TPK U.S.A. LLC Fusion 7" integrated projected capacitive touch display with,
+800 x 480 (WVGA) LCD panel.
+
+Required properties:
+- compatible: should be "tpk,f07a-0102"
+
+This binding is compatible with the simple-panel binding, which is specified
+in simple-panel.txt in this directory.

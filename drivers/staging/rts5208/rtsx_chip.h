@@ -950,7 +950,6 @@ do {								\
 int rtsx_force_power_on(struct rtsx_chip *chip, u8 ctl);
 int rtsx_force_power_down(struct rtsx_chip *chip, u8 ctl);
 
-void rtsx_disable_card_int(struct rtsx_chip *chip);
 void rtsx_enable_card_int(struct rtsx_chip *chip);
 void rtsx_enable_bus_int(struct rtsx_chip *chip);
 void rtsx_disable_bus_int(struct rtsx_chip *chip);
@@ -958,7 +957,6 @@ int rtsx_reset_chip(struct rtsx_chip *chip);
 int rtsx_init_chip(struct rtsx_chip *chip);
 void rtsx_release_chip(struct rtsx_chip *chip);
 void rtsx_polling_func(struct rtsx_chip *chip);
-void rtsx_undo_delink(struct rtsx_chip *chip);
 void rtsx_stop_cmd(struct rtsx_chip *chip, int card);
 int rtsx_write_register(struct rtsx_chip *chip, u16 addr, u8 mask, u8 data);
 int rtsx_read_register(struct rtsx_chip *chip, u16 addr, u8 *data);
@@ -975,7 +973,6 @@ int rtsx_read_efuse(struct rtsx_chip *chip, u8 addr, u8 *val);
 int rtsx_write_efuse(struct rtsx_chip *chip, u8 addr, u8 val);
 int rtsx_clr_phy_reg_bit(struct rtsx_chip *chip, u8 reg, u8 bit);
 int rtsx_set_phy_reg_bit(struct rtsx_chip *chip, u8 reg, u8 bit);
-int rtsx_check_link_ready(struct rtsx_chip *chip);
 void rtsx_enter_ss(struct rtsx_chip *chip);
 void rtsx_exit_ss(struct rtsx_chip *chip);
 int rtsx_pre_handle_interrupt(struct rtsx_chip *chip);

@@ -42,7 +42,7 @@ static void __init tango_clocksource_init(struct device_node *np)
 
 	ret = clocksource_mmio_init(xtal_in_cnt, "tango-xtal", xtal_freq, 350,
 				    32, clocksource_mmio_readl_up);
-	if (!ret) {
+	if (ret) {
 		pr_err("%s: registration failed\n", np->full_name);
 		return;
 	}

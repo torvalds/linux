@@ -11,8 +11,12 @@ struct gf100_fifo {
 
 	struct list_head chan;
 
-	struct work_struct fault;
-	u64 mask;
+	struct {
+		struct work_struct work;
+		u64 mask;
+	} recover;
+
+	int pbdma_nr;
 
 	struct {
 		struct nvkm_memory *mem[2];
@@ -24,7 +28,6 @@ struct gf100_fifo {
 		struct nvkm_memory *mem;
 		struct nvkm_vma bar;
 	} user;
-	int spoon_nr;
 };
 
 void gf100_fifo_intr_engine(struct gf100_fifo *);

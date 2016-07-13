@@ -135,6 +135,7 @@
 				};
 			};
 
+			/* CON3 */
 			ethernet@30000 {
 				status = "okay";
 				phy = <&phy2>;
@@ -144,6 +145,7 @@
 				bm,pool-short = <3>;
 			};
 
+			/* CON2 */
 			ethernet@34000 {
 				status = "okay";
 				phy = <&phy1>;
@@ -153,6 +155,7 @@
 				bm,pool-short = <3>;
 			};
 
+			/* CON4 */
 			ethernet@70000 {
 				pinctrl-names = "default";
 

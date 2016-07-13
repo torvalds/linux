@@ -438,6 +438,11 @@ struct auxtrace_record *intel_bts_recording_init(int *err)
 	if (!intel_bts_pmu)
 		return NULL;
 
+	if (setenv("JITDUMP_USE_ARCH_TIMESTAMP", "1", 1)) {
+		*err = -errno;
+		return NULL;
+	}
+
 	btsr = zalloc(sizeof(struct intel_bts_recording));
 	if (!btsr) {
 		*err = -ENOMEM;

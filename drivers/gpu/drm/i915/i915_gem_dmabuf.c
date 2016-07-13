@@ -95,14 +95,12 @@ static void i915_gem_unmap_dma_buf(struct dma_buf_attachment *attachment,
 {
 	struct drm_i915_gem_object *obj = dma_buf_to_obj(attachment->dmabuf);
 
-	mutex_lock(&obj->base.dev->struct_mutex);
-
 	dma_unmap_sg(attachment->dev, sg->sgl, sg->nents, dir);
 	sg_free_table(sg);
 	kfree(sg);
 
+	mutex_lock(&obj->base.dev->struct_mutex);
 	i915_gem_object_unpin_pages(obj);
-
 	mutex_unlock(&obj->base.dev->struct_mutex);
 }
 
@@ -110,51 +108,17 @@ static void *i915_gem_dmabuf_vmap(struct dma_buf *dma_buf)
 {
 	struct drm_i915_gem_object *obj = dma_buf_to_obj(dma_buf);
 	struct drm_device *dev = obj->base.dev;
-	struct sg_page_iter sg_iter;
-	struct page **pages;
-	int ret, i;
+	void *addr;
+	int ret;
 
 	ret = i915_mutex_lock_interruptible(dev);
 	if (ret)
 		return ERR_PTR(ret);
 
-	if (obj->dma_buf_vmapping) {
-		obj->vmapping_count++;
-		goto out_unlock;
-	}
-
-	ret = i915_gem_object_get_pages(obj);
-	if (ret)
-		goto err;
-
-	i915_gem_object_pin_pages(obj);
-
-	ret = -ENOMEM;
-
-	pages = drm_malloc_ab(obj->base.size >> PAGE_SHIFT, sizeof(*pages));
-	if (pages == NULL)
-		goto err_unpin;
-
-	i = 0;
-	for_each_sg_page(obj->pages->sgl, &sg_iter, obj->pages->nents, 0)
-		pages[i++] = sg_page_iter_page(&sg_iter);
-
-	obj->dma_buf_vmapping = vmap(pages, i, 0, PAGE_KERNEL);
-	drm_free_large(pages);
-
-	if (!obj->dma_buf_vmapping)
-		goto err_unpin;
-
-	obj->vmapping_count = 1;
-out_unlock:
+	addr = i915_gem_object_pin_map(obj);
 	mutex_unlock(&dev->struct_mutex);
-	return obj->dma_buf_vmapping;
 
-err_unpin:
-	i915_gem_object_unpin_pages(obj);
-err:
-	mutex_unlock(&dev->struct_mutex);
-	return ERR_PTR(ret);
+	return addr;
 }
 
 static void i915_gem_dmabuf_vunmap(struct dma_buf *dma_buf, void *vaddr)
@@ -163,12 +127,7 @@ static void i915_gem_dmabuf_vunmap(struct dma_buf *dma_buf, void *vaddr)
 	struct drm_device *dev = obj->base.dev;
 
 	mutex_lock(&dev->struct_mutex);
-	if (--obj->vmapping_count == 0) {
-		vunmap(obj->dma_buf_vmapping);
-		obj->dma_buf_vmapping = NULL;
-
-		i915_gem_object_unpin_pages(obj);
-	}
+	i915_gem_object_unpin_map(obj);
 	mutex_unlock(&dev->struct_mutex);
 }
 
@@ -193,10 +152,26 @@ static void i915_gem_dmabuf_kunmap(struct dma_buf *dma_buf, unsigned long page_n
 
 static int i915_gem_dmabuf_mmap(struct dma_buf *dma_buf, struct vm_area_struct *vma)
 {
-	return -EINVAL;
+	struct drm_i915_gem_object *obj = dma_buf_to_obj(dma_buf);
+	int ret;
+
+	if (obj->base.size < vma->vm_end - vma->vm_start)
+		return -EINVAL;
+
+	if (!obj->base.filp)
+		return -ENODEV;
+
+	ret = obj->base.filp->f_op->mmap(obj->base.filp, vma);
+	if (ret)
+		return ret;
+
+	fput(vma->vm_file);
+	vma->vm_file = get_file(obj->base.filp);
+
+	return 0;
 }
 
-static int i915_gem_begin_cpu_access(struct dma_buf *dma_buf, size_t start, size_t length, enum dma_data_direction direction)
+static int i915_gem_begin_cpu_access(struct dma_buf *dma_buf, enum dma_data_direction direction)
 {
 	struct drm_i915_gem_object *obj = dma_buf_to_obj(dma_buf);
 	struct drm_device *dev = obj->base.dev;
@@ -212,6 +187,22 @@ static int i915_gem_begin_cpu_access(struct dma_buf *dma_buf, size_t start, size
 	return ret;
 }
 
+static int i915_gem_end_cpu_access(struct dma_buf *dma_buf, enum dma_data_direction direction)
+{
+	struct drm_i915_gem_object *obj = dma_buf_to_obj(dma_buf);
+	struct drm_device *dev = obj->base.dev;
+	int ret;
+
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		return ret;
+
+	ret = i915_gem_object_set_to_gtt_domain(obj, false);
+	mutex_unlock(&dev->struct_mutex);
+
+	return ret;
+}
+
 static const struct dma_buf_ops i915_dmabuf_ops =  {
 	.map_dma_buf = i915_gem_map_dma_buf,
 	.unmap_dma_buf = i915_gem_unmap_dma_buf,
@@ -224,6 +215,7 @@ static const struct dma_buf_ops i915_dmabuf_ops =  {
 	.vmap = i915_gem_dmabuf_vmap,
 	.vunmap = i915_gem_dmabuf_vunmap,
 	.begin_cpu_access = i915_gem_begin_cpu_access,
+	.end_cpu_access = i915_gem_end_cpu_access,
 };
 
 struct dma_buf *i915_gem_prime_export(struct drm_device *dev,

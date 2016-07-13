@@ -102,7 +102,7 @@ static struct ieee80211_rate cw1200_mcs_rates[] = {
 
 
 #define CHAN2G(_channel, _freq, _flags) {			\
-	.band			= IEEE80211_BAND_2GHZ,		\
+	.band			= NL80211_BAND_2GHZ,		\
 	.center_freq		= (_freq),			\
 	.hw_value		= (_channel),			\
 	.flags			= (_flags),			\
@@ -111,7 +111,7 @@ static struct ieee80211_rate cw1200_mcs_rates[] = {
 }
 
 #define CHAN5G(_channel, _flags) {				\
-	.band			= IEEE80211_BAND_5GHZ,		\
+	.band			= NL80211_BAND_5GHZ,		\
 	.center_freq	= 5000 + (5 * (_channel)),		\
 	.hw_value		= (_channel),			\
 	.flags			= (_flags),			\
@@ -311,12 +311,12 @@ static struct ieee80211_hw *cw1200_init_common(const u8 *macaddr,
 
 	hw->sta_data_size = sizeof(struct cw1200_sta_priv);
 
-	hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &cw1200_band_2ghz;
+	hw->wiphy->bands[NL80211_BAND_2GHZ] = &cw1200_band_2ghz;
 	if (have_5ghz)
-		hw->wiphy->bands[IEEE80211_BAND_5GHZ] = &cw1200_band_5ghz;
+		hw->wiphy->bands[NL80211_BAND_5GHZ] = &cw1200_band_5ghz;
 
 	/* Channel params have to be cleared before registering wiphy again */
-	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
+	for (band = 0; band < NUM_NL80211_BANDS; band++) {
 		struct ieee80211_supported_band *sband = hw->wiphy->bands[band];
 		if (!sband)
 			continue;

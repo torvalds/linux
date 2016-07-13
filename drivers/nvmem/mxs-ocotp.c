@@ -94,7 +94,7 @@ static int mxs_ocotp_read(void *context, const void *reg, size_t reg_size,
 	if (ret)
 		goto close_banks;
 
-	while (val_size) {
+	while (val_size >= reg_size) {
 		if ((offset < OCOTP_DATA_OFFSET) || (offset % 16)) {
 			/* fill up non-data register */
 			*buf = 0;
@@ -103,7 +103,7 @@ static int mxs_ocotp_read(void *context, const void *reg, size_t reg_size,
 		}
 
 		buf++;
-		val_size--;
+		val_size -= reg_size;
 		offset += reg_size;
 	}
 

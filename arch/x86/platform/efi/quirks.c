@@ -1,3 +1,5 @@
+#define pr_fmt(fmt) "efi: " fmt
+
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -55,19 +57,50 @@ void efi_delete_dummy_variable(void)
 }
 
 /*
+ * In the nonblocking case we do not attempt to perform garbage
+ * collection if we do not have enough free space. Rather, we do the
+ * bare minimum check and give up immediately if the available space
+ * is below EFI_MIN_RESERVE.
+ *
+ * This function is intended to be small and simple because it is
+ * invoked from crash handler paths.
+ */
+static efi_status_t
+query_variable_store_nonblocking(u32 attributes, unsigned long size)
+{
+	efi_status_t status;
+	u64 storage_size, remaining_size, max_size;
+
+	status = efi.query_variable_info_nonblocking(attributes, &storage_size,
+						     &remaining_size,
+						     &max_size);
+	if (status != EFI_SUCCESS)
+		return status;
+
+	if (remaining_size - size < EFI_MIN_RESERVE)
+		return EFI_OUT_OF_RESOURCES;
+
+	return EFI_SUCCESS;
+}
+
+/*
  * Some firmware implementations refuse to boot if there's insufficient space
  * in the variable store. Ensure that we never use more than a safe limit.
  *
  * Return EFI_SUCCESS if it is safe to write 'size' bytes to the variable
  * store.
  */
-efi_status_t efi_query_variable_store(u32 attributes, unsigned long size)
+efi_status_t efi_query_variable_store(u32 attributes, unsigned long size,
+				      bool nonblocking)
 {
 	efi_status_t status;
 	u64 storage_size, remaining_size, max_size;
 
 	if (!(attributes & EFI_VARIABLE_NON_VOLATILE))
 		return 0;
+
+	if (nonblocking)
+		return query_variable_store_nonblocking(attributes, size);
 
 	status = efi.query_variable_info(attributes, &storage_size,
 					 &remaining_size, &max_size);
@@ -162,10 +195,9 @@ static bool can_free_region(u64 start, u64 size)
 */
 void __init efi_reserve_boot_services(void)
 {
-	void *p;
+	efi_memory_desc_t *md;
 
-	for (p = memmap.map; p < memmap.map_end; p += memmap.desc_size) {
-		efi_memory_desc_t *md = p;
+	for_each_efi_memory_desc(md) {
 		u64 start = md->phys_addr;
 		u64 size = md->num_pages << EFI_PAGE_SHIFT;
 		bool already_reserved;
@@ -217,10 +249,9 @@ void __init efi_reserve_boot_services(void)
 
 void __init efi_free_boot_services(void)
 {
-	void *p;
+	efi_memory_desc_t *md;
 
-	for (p = memmap.map; p < memmap.map_end; p += memmap.desc_size) {
-		efi_memory_desc_t *md = p;
+	for_each_efi_memory_desc(md) {
 		unsigned long long start = md->phys_addr;
 		unsigned long long size = md->num_pages << EFI_PAGE_SHIFT;
 
@@ -312,7 +343,7 @@ void __init efi_apply_memmap_quirks(void)
 	 * services.
 	 */
 	if (!efi_runtime_supported()) {
-		pr_info("efi: Setup done, disabling due to 32/64-bit mismatch\n");
+		pr_info("Setup done, disabling due to 32/64-bit mismatch\n");
 		efi_unmap_memmap();
 	}
 
@@ -340,5 +371,5 @@ bool efi_reboot_required(void)
 
 bool efi_poweroff_required(void)
 {
-	return !!acpi_gbl_reduced_hardware;
+	return acpi_gbl_reduced_hardware || acpi_no_s5;
 }

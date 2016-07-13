@@ -14,8 +14,6 @@
 #include <linux/of.h>
 #include <linux/slab.h>
 
-#define to_clk_multiplier(_hw) container_of(_hw, struct clk_multiplier, hw)
-
 static unsigned long __get_mult(struct clk_multiplier *mult,
 				unsigned long rate,
 				unsigned long parent_rate)

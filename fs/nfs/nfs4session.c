@@ -135,6 +135,43 @@ static struct nfs4_slot *nfs4_find_or_create_slot(struct nfs4_slot_table  *tbl,
 	return ERR_PTR(-ENOMEM);
 }
 
+static void nfs4_lock_slot(struct nfs4_slot_table *tbl,
+		struct nfs4_slot *slot)
+{
+	u32 slotid = slot->slot_nr;
+
+	__set_bit(slotid, tbl->used_slots);
+	if (slotid > tbl->highest_used_slotid ||
+	    tbl->highest_used_slotid == NFS4_NO_SLOT)
+		tbl->highest_used_slotid = slotid;
+	slot->generation = tbl->generation;
+}
+
+/*
+ * nfs4_try_to_lock_slot - Given a slot try to allocate it
+ *
+ * Note: must be called with the slot_tbl_lock held.
+ */
+bool nfs4_try_to_lock_slot(struct nfs4_slot_table *tbl, struct nfs4_slot *slot)
+{
+	if (nfs4_test_locked_slot(tbl, slot->slot_nr))
+		return false;
+	nfs4_lock_slot(tbl, slot);
+	return true;
+}
+
+/*
+ * nfs4_lookup_slot - Find a slot but don't allocate it
+ *
+ * Note: must be called with the slot_tbl_lock held.
+ */
+struct nfs4_slot *nfs4_lookup_slot(struct nfs4_slot_table *tbl, u32 slotid)
+{
+	if (slotid <= tbl->max_slotid)
+		return nfs4_find_or_create_slot(tbl, slotid, 1, GFP_NOWAIT);
+	return ERR_PTR(-E2BIG);
+}
+
 /*
  * nfs4_alloc_slot - efficiently look for a free slot
  *
@@ -153,18 +190,11 @@ struct nfs4_slot *nfs4_alloc_slot(struct nfs4_slot_table *tbl)
 		__func__, tbl->used_slots[0], tbl->highest_used_slotid,
 		tbl->max_slotid + 1);
 	slotid = find_first_zero_bit(tbl->used_slots, tbl->max_slotid + 1);
-	if (slotid > tbl->max_slotid)
-		goto out;
-	ret = nfs4_find_or_create_slot(tbl, slotid, 1, GFP_NOWAIT);
-	if (IS_ERR(ret))
-		goto out;
-	__set_bit(slotid, tbl->used_slots);
-	if (slotid > tbl->highest_used_slotid ||
-			tbl->highest_used_slotid == NFS4_NO_SLOT)
-		tbl->highest_used_slotid = slotid;
-	ret->generation = tbl->generation;
-
-out:
+	if (slotid <= tbl->max_slotid) {
+		ret = nfs4_find_or_create_slot(tbl, slotid, 1, GFP_NOWAIT);
+		if (!IS_ERR(ret))
+			nfs4_lock_slot(tbl, ret);
+	}
 	dprintk("<-- %s used_slots=%04lx highest_used=%u slotid=%u\n",
 		__func__, tbl->used_slots[0], tbl->highest_used_slotid,
 		!IS_ERR(ret) ? ret->slot_nr : NFS4_NO_SLOT);

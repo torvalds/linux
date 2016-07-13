@@ -38,14 +38,25 @@ static inline int is_exec_fault(void)
 
 /* We only try to do i/d cache coherency on stuff that looks like
  * reasonably "normal" PTEs. We currently require a PTE to be present
- * and we avoid _PAGE_SPECIAL and _PAGE_NO_CACHE. We also only do that
+ * and we avoid _PAGE_SPECIAL and cache inhibited pte. We also only do that
  * on userspace PTEs
  */
 static inline int pte_looks_normal(pte_t pte)
 {
+
+#if defined(CONFIG_PPC_BOOK3S_64)
+	if ((pte_val(pte) & (_PAGE_PRESENT | _PAGE_SPECIAL)) == _PAGE_PRESENT) {
+		if (pte_ci(pte))
+			return 0;
+		if (pte_user(pte))
+			return 1;
+	}
+	return 0;
+#else
 	return (pte_val(pte) &
-	    (_PAGE_PRESENT | _PAGE_SPECIAL | _PAGE_NO_CACHE | _PAGE_USER)) ==
-	    (_PAGE_PRESENT | _PAGE_USER);
+		(_PAGE_PRESENT | _PAGE_SPECIAL | _PAGE_NO_CACHE | _PAGE_USER)) ==
+		(_PAGE_PRESENT | _PAGE_USER);
+#endif
 }
 
 static struct page *maybe_pte_to_page(pte_t pte)
@@ -71,6 +82,9 @@ static struct page *maybe_pte_to_page(pte_t pte)
 
 static pte_t set_pte_filter(pte_t pte)
 {
+	if (radix_enabled())
+		return pte;
+
 	pte = __pte(pte_val(pte) & ~_PAGE_HPTEFLAGS);
 	if (pte_looks_normal(pte) && !(cpu_has_feature(CPU_FTR_COHERENT_ICACHE) ||
 				       cpu_has_feature(CPU_FTR_NOEXECUTE))) {
@@ -177,8 +191,8 @@ void set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
 	 * _PAGE_PRESENT, but we can be sure that it is not in hpte.
 	 * Hence we can use set_pte_at for them.
 	 */
-	VM_WARN_ON((pte_val(*ptep) & (_PAGE_PRESENT | _PAGE_USER)) ==
-		(_PAGE_PRESENT | _PAGE_USER));
+	VM_WARN_ON(pte_present(*ptep) && !pte_protnone(*ptep));
+
 	/*
 	 * Add the pte bit when tryint set a pte
 	 */

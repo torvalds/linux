@@ -299,13 +299,11 @@ EXPORT_SYMBOL_GPL(_snd_hdac_read_parm);
 int snd_hdac_read_parm_uncached(struct hdac_device *codec, hda_nid_t nid,
 				int parm)
 {
-	int val;
+	unsigned int cmd, val;
 
-	if (codec->regmap)
-		regcache_cache_bypass(codec->regmap, true);
-	val = snd_hdac_read_parm(codec, nid, parm);
-	if (codec->regmap)
-		regcache_cache_bypass(codec->regmap, false);
+	cmd = snd_hdac_regmap_encode_verb(nid, AC_VERB_PARAMETERS) | parm;
+	if (snd_hdac_regmap_read_raw_uncached(codec, cmd, &val) < 0)
+		return -1;
 	return val;
 }
 EXPORT_SYMBOL_GPL(snd_hdac_read_parm_uncached);

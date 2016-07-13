@@ -36,6 +36,7 @@
  * @target:	The target state
  * @thread:	Pointer to the hotplug thread
  * @should_run:	Thread should execute
+ * @rollback:	Perform a rollback
  * @cb_stat:	The state for a single callback (install/uninstall)
  * @cb:		Single callback function (install/uninstall)
  * @result:	Result of the operation
@@ -47,6 +48,7 @@ struct cpuhp_cpu_state {
 #ifdef CONFIG_SMP
 	struct task_struct	*thread;
 	bool			should_run;
+	bool			rollback;
 	enum cpuhp_state	cb_state;
 	int			(*cb)(unsigned int cpu);
 	int			result;
@@ -301,6 +303,11 @@ static int cpu_notify(unsigned long val, unsigned int cpu)
 	return __cpu_notify(val, cpu, -1, NULL);
 }
 
+static void cpu_notify_nofail(unsigned long val, unsigned int cpu)
+{
+	BUG_ON(cpu_notify(val, cpu));
+}
+
 /* Notifier wrappers for transitioning to state machine */
 static int notify_prepare(unsigned int cpu)
 {
@@ -477,6 +484,16 @@ static void cpuhp_thread_fun(unsigned int cpu)
 		} else {
 			ret = cpuhp_invoke_callback(cpu, st->cb_state, st->cb);
 		}
+	} else if (st->rollback) {
+		BUG_ON(st->state < CPUHP_AP_ONLINE_IDLE);
+
+		undo_cpu_down(cpu, st, cpuhp_ap_states);
+		/*
+		 * This is a momentary workaround to keep the notifier users
+		 * happy. Will go away once we got rid of the notifiers.
+		 */
+		cpu_notify_nofail(CPU_DOWN_FAILED, cpu);
+		st->rollback = false;
 	} else {
 		/* Cannot happen .... */
 		BUG_ON(st->state < CPUHP_AP_ONLINE_IDLE);
@@ -636,11 +653,6 @@ static inline void check_for_tasks(int dead_cpu)
 	read_unlock(&tasklist_lock);
 }
 
-static void cpu_notify_nofail(unsigned long val, unsigned int cpu)
-{
-	BUG_ON(cpu_notify(val, cpu));
-}
-
 static int notify_down_prepare(unsigned int cpu)
 {
 	int err, nr_calls = 0;
@@ -691,21 +703,6 @@ static int takedown_cpu(unsigned int cpu)
 	struct cpuhp_cpu_state *st = per_cpu_ptr(&cpuhp_state, cpu);
 	int err;
 
-	/*
-	 * By now we've cleared cpu_active_mask, wait for all preempt-disabled
-	 * and RCU users of this state to go away such that all new such users
-	 * will observe it.
-	 *
-	 * For CONFIG_PREEMPT we have preemptible RCU and its sync_rcu() might
-	 * not imply sync_sched(), so wait for both.
-	 *
-	 * Do sync before park smpboot threads to take care the rcu boost case.
-	 */
-	if (IS_ENABLED(CONFIG_PREEMPT))
-		synchronize_rcu_mult(call_rcu, call_rcu_sched);
-	else
-		synchronize_rcu();
-
 	/* Park the smpboot threads */
 	kthread_park(per_cpu_ptr(&cpuhp_state, cpu)->thread);
 	smpboot_park_threads(cpu);
@@ -721,9 +718,10 @@ static int takedown_cpu(unsigned int cpu)
 	 */
 	err = stop_machine(take_cpu_down, NULL, cpumask_of(cpu));
 	if (err) {
-		/* CPU didn't die: tell everyone.  Can't complain. */
-		cpu_notify_nofail(CPU_DOWN_FAILED, cpu);
+		/* CPU refused to die */
 		irq_unlock_sparse();
+		/* Unpark the hotplug thread so we can rollback there */
+		kthread_unpark(per_cpu_ptr(&cpuhp_state, cpu)->thread);
 		return err;
 	}
 	BUG_ON(cpu_online(cpu));
@@ -832,6 +830,11 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen,
 	 * to do the further cleanups.
 	 */
 	ret = cpuhp_down_callbacks(cpu, st, cpuhp_bp_states, target);
+	if (ret && st->state > CPUHP_TEARDOWN_CPU && st->state < prev_state) {
+		st->target = prev_state;
+		st->rollback = true;
+		cpuhp_kick_ap_work(cpu);
+	}
 
 	hasdied = prev_state != st->state && st->state == CPUHP_OFFLINE;
 out:
@@ -905,8 +908,6 @@ void cpuhp_online_idle(enum cpuhp_state state)
 
 	st->state = CPUHP_AP_ONLINE_IDLE;
 
-	/* The cpu is marked online, set it active now */
-	set_cpu_active(cpu, true);
 	/* Unpark the stopper thread and the hotplug thread of this cpu */
 	stop_machine_unpark(cpu);
 	kthread_unpark(st->thread);
@@ -1218,6 +1219,12 @@ static struct cpuhp_step cpuhp_ap_states[] = {
 		.name			= "ap:offline",
 		.cant_stop		= true,
 	},
+	/* First state is scheduler control. Interrupts are disabled */
+	[CPUHP_AP_SCHED_STARTING] = {
+		.name			= "sched:starting",
+		.startup		= sched_cpu_starting,
+		.teardown		= sched_cpu_dying,
+	},
 	/*
 	 * Low level startup/teardown notifiers. Run with interrupts
 	 * disabled. Will be removed once the notifiers are converted to
@@ -1249,11 +1256,21 @@ static struct cpuhp_step cpuhp_ap_states[] = {
 		.name			= "notify:online",
 		.startup		= notify_online,
 		.teardown		= notify_down_prepare,
+		.skip_onerr		= true,
 	},
 #endif
 	/*
 	 * The dynamically registered state space is here
 	 */
+
+#ifdef CONFIG_SMP
+	/* Last state is scheduler control setting the cpu active */
+	[CPUHP_AP_ACTIVE] = {
+		.name			= "sched:active",
+		.startup		= sched_cpu_activate,
+		.teardown		= sched_cpu_deactivate,
+	},
+#endif
 
 	/* CPU is fully up and running. */
 	[CPUHP_ONLINE] = {

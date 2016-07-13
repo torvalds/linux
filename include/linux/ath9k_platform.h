@@ -31,6 +31,10 @@ struct ath9k_platform_data {
 	u32 gpio_mask;
 	u32 gpio_val;
 
+	u32 bt_active_pin;
+	u32 bt_priority_pin;
+	u32 wlan_active_pin;
+
 	bool endian_check;
 	bool is_clk_25mhz;
 	bool tx_gain_buffalo;

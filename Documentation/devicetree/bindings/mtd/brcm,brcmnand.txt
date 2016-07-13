@@ -24,6 +24,7 @@ Required properties:
                          brcm,brcmnand-v5.0
                          brcm,brcmnand-v6.0
                          brcm,brcmnand-v6.1
+                         brcm,brcmnand-v6.2
                          brcm,brcmnand-v7.0
                          brcm,brcmnand-v7.1
                          brcm,brcmnand
@@ -52,7 +53,7 @@ Optional properties:
                               v7.0. Use this property to describe the rare
                               earlier versions of this core that include WP
 
- -- Additonal SoC-specific NAND controller properties --
+ -- Additional SoC-specific NAND controller properties --
 
 The NAND controller is integrated differently on the variety of SoCs on which it
 is found. Part of this integration involves providing status and enable bits

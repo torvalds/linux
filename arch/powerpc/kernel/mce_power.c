@@ -72,11 +72,15 @@ void __flush_tlb_power8(unsigned int action)
 
 void __flush_tlb_power9(unsigned int action)
 {
+	if (radix_enabled())
+		flush_tlb_206(POWER9_TLB_SETS_RADIX, action);
+
 	flush_tlb_206(POWER9_TLB_SETS_HASH, action);
 }
 
 
 /* flush SLBs and reload */
+#ifdef CONFIG_PPC_STD_MMU_64
 static void flush_and_reload_slb(void)
 {
 	struct slb_shadow *slb;
@@ -110,6 +114,7 @@ static void flush_and_reload_slb(void)
 		asm volatile("slbmte %0,%1" : : "r" (rs), "r" (rb));
 	}
 }
+#endif
 
 static long mce_handle_derror(uint64_t dsisr, uint64_t slb_error_bits)
 {
@@ -120,6 +125,7 @@ static long mce_handle_derror(uint64_t dsisr, uint64_t slb_error_bits)
 	 * reset the error bits whenever we handle them so that at the end
 	 * we can check whether we handled all of them or not.
 	 * */
+#ifdef CONFIG_PPC_STD_MMU_64
 	if (dsisr & slb_error_bits) {
 		flush_and_reload_slb();
 		/* reset error bits */
@@ -131,6 +137,7 @@ static long mce_handle_derror(uint64_t dsisr, uint64_t slb_error_bits)
 		/* reset error bits */
 		dsisr &= ~P7_DSISR_MC_TLB_MULTIHIT_MFTLB;
 	}
+#endif
 	/* Any other errors we don't understand? */
 	if (dsisr & 0xffffffffUL)
 		handled = 0;
@@ -150,6 +157,7 @@ static long mce_handle_common_ierror(uint64_t srr1)
 	switch (P7_SRR1_MC_IFETCH(srr1)) {
 	case 0:
 		break;
+#ifdef CONFIG_PPC_STD_MMU_64
 	case P7_SRR1_MC_IFETCH_SLB_PARITY:
 	case P7_SRR1_MC_IFETCH_SLB_MULTIHIT:
 		/* flush and reload SLBs for SLB errors. */
@@ -162,6 +170,7 @@ static long mce_handle_common_ierror(uint64_t srr1)
 			handled = 1;
 		}
 		break;
+#endif
 	default:
 		break;
 	}
@@ -175,10 +184,12 @@ static long mce_handle_ierror_p7(uint64_t srr1)
 
 	handled = mce_handle_common_ierror(srr1);
 
+#ifdef CONFIG_PPC_STD_MMU_64
 	if (P7_SRR1_MC_IFETCH(srr1) == P7_SRR1_MC_IFETCH_SLB_BOTH) {
 		flush_and_reload_slb();
 		handled = 1;
 	}
+#endif
 	return handled;
 }
 
@@ -321,10 +332,12 @@ static long mce_handle_ierror_p8(uint64_t srr1)
 
 	handled = mce_handle_common_ierror(srr1);
 
+#ifdef CONFIG_PPC_STD_MMU_64
 	if (P7_SRR1_MC_IFETCH(srr1) == P8_SRR1_MC_IFETCH_ERAT_MULTIHIT) {
 		flush_and_reload_slb();
 		handled = 1;
 	}
+#endif
 	return handled;
 }
 

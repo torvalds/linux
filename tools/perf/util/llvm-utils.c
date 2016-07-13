@@ -3,11 +3,11 @@
  * Copyright (C) 2015, Huawei Inc.
  */
 
+#include <limits.h>
 #include <stdio.h>
-#include "util.h"
+#include <stdlib.h>
 #include "debug.h"
 #include "llvm-utils.h"
-#include "cache.h"
 
 #define CLANG_BPF_CMD_DEFAULT_TEMPLATE				\
 		"$CLANG_EXEC -D__KERNEL__ -D__NR_CPUS__=$NR_CPUS "\
@@ -98,11 +98,12 @@ read_from_pipe(const char *cmd, void **p_buf, size_t *p_read_sz)
 	void *buf = NULL;
 	FILE *file = NULL;
 	size_t read_sz = 0, buf_sz = 0;
+	char serr[STRERR_BUFSIZE];
 
 	file = popen(cmd, "r");
 	if (!file) {
 		pr_err("ERROR: unable to popen cmd: %s\n",
-		       strerror(errno));
+		       strerror_r(errno, serr, sizeof(serr)));
 		return -EINVAL;
 	}
 
@@ -136,7 +137,7 @@ read_from_pipe(const char *cmd, void **p_buf, size_t *p_read_sz)
 
 	if (ferror(file)) {
 		pr_err("ERROR: error occurred when reading from pipe: %s\n",
-		       strerror(errno));
+		       strerror_r(errno, serr, sizeof(serr)));
 		err = -EIO;
 		goto errout;
 	}
@@ -334,9 +335,17 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 	unsigned int kernel_version;
 	char linux_version_code_str[64];
 	const char *clang_opt = llvm_param.clang_opt;
-	char clang_path[PATH_MAX], nr_cpus_avail_str[64];
+	char clang_path[PATH_MAX], abspath[PATH_MAX], nr_cpus_avail_str[64];
+	char serr[STRERR_BUFSIZE];
 	char *kbuild_dir = NULL, *kbuild_include_opts = NULL;
 	const char *template = llvm_param.clang_bpf_cmd_template;
+
+	if (path[0] != '-' && realpath(path, abspath) == NULL) {
+		err = errno;
+		pr_err("ERROR: problems with path %s: %s\n",
+		       path, strerror_r(err, serr, sizeof(serr)));
+		return -err;
+	}
 
 	if (!template)
 		template = CLANG_BPF_CMD_DEFAULT_TEMPLATE;
@@ -362,7 +371,7 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 	if (nr_cpus_avail <= 0) {
 		pr_err(
 "WARNING:\tunable to get available CPUs in this system: %s\n"
-"        \tUse 128 instead.\n", strerror(errno));
+"        \tUse 128 instead.\n", strerror_r(errno, serr, sizeof(serr)));
 		nr_cpus_avail = 128;
 	}
 	snprintf(nr_cpus_avail_str, sizeof(nr_cpus_avail_str), "%d",
@@ -387,8 +396,7 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 	 * stdin to be source file (testing).
 	 */
 	force_set_env("CLANG_SOURCE",
-		      (path[0] == '-') ? path :
-		      make_nonrelative_path(path));
+		      (path[0] == '-') ? path : abspath);
 
 	pr_debug("llvm compiling command template: %s\n", template);
 	err = read_from_pipe(template, &obj_buf, &obj_buf_sz);

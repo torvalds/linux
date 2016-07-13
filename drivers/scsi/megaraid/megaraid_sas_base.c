@@ -1838,7 +1838,7 @@ static int megasas_slave_configure(struct scsi_device *sdev)
 	struct megasas_instance *instance;
 
 	instance = megasas_lookup_instance(sdev->host->host_no);
-	if (instance->allow_fw_scan) {
+	if (instance->pd_list_not_supported) {
 		if (sdev->channel < MEGASAS_MAX_PD_CHANNELS &&
 			sdev->type == TYPE_DISK) {
 			pd_index = (sdev->channel * MEGASAS_MAX_DEV_PER_CHANNEL) +
@@ -1874,7 +1874,8 @@ static int megasas_slave_alloc(struct scsi_device *sdev)
 		pd_index =
 			(sdev->channel * MEGASAS_MAX_DEV_PER_CHANNEL) +
 			sdev->id;
-		if ((instance->allow_fw_scan || instance->pd_list[pd_index].driveState ==
+		if ((instance->pd_list_not_supported ||
+			instance->pd_list[pd_index].driveState ==
 			MR_PD_STATE_SYSTEM)) {
 			goto scan_target;
 		}
@@ -2669,17 +2670,6 @@ blk_eh_timer_return megasas_reset_timer(struct scsi_cmnd *scmd)
 }
 
 /**
- * megasas_reset_device -	Device reset handler entry point
- */
-static int megasas_reset_device(struct scsi_cmnd *scmd)
-{
-	/*
-	 * First wait for all commands to complete
-	 */
-	return megasas_generic_reset(scmd);
-}
-
-/**
  * megasas_reset_bus_host -	Bus & host reset handler entry point
  */
 static int megasas_reset_bus_host(struct scsi_cmnd *scmd)
@@ -2696,6 +2686,50 @@ static int megasas_reset_bus_host(struct scsi_cmnd *scmd)
 		ret = megasas_reset_fusion(scmd->device->host, 1);
 	else
 		ret = megasas_generic_reset(scmd);
+
+	return ret;
+}
+
+/**
+ * megasas_task_abort - Issues task abort request to firmware
+ *			(supported only for fusion adapters)
+ * @scmd:		SCSI command pointer
+ */
+static int megasas_task_abort(struct scsi_cmnd *scmd)
+{
+	int ret;
+	struct megasas_instance *instance;
+
+	instance = (struct megasas_instance *)scmd->device->host->hostdata;
+
+	if (instance->ctrl_context)
+		ret = megasas_task_abort_fusion(scmd);
+	else {
+		sdev_printk(KERN_NOTICE, scmd->device, "TASK ABORT not supported\n");
+		ret = FAILED;
+	}
+
+	return ret;
+}
+
+/**
+ * megasas_reset_target:  Issues target reset request to firmware
+ *                        (supported only for fusion adapters)
+ * @scmd:                 SCSI command pointer
+ */
+static int megasas_reset_target(struct scsi_cmnd *scmd)
+{
+	int ret;
+	struct megasas_instance *instance;
+
+	instance = (struct megasas_instance *)scmd->device->host->hostdata;
+
+	if (instance->ctrl_context)
+		ret = megasas_reset_target_fusion(scmd);
+	else {
+		sdev_printk(KERN_NOTICE, scmd->device, "TARGET RESET not supported\n");
+		ret = FAILED;
+	}
 
 	return ret;
 }
@@ -2968,8 +3002,8 @@ static struct scsi_host_template megasas_template = {
 	.slave_alloc = megasas_slave_alloc,
 	.slave_destroy = megasas_slave_destroy,
 	.queuecommand = megasas_queue_command,
-	.eh_device_reset_handler = megasas_reset_device,
-	.eh_bus_reset_handler = megasas_reset_bus_host,
+	.eh_target_reset_handler = megasas_reset_target,
+	.eh_abort_handler = megasas_task_abort,
 	.eh_host_reset_handler = megasas_reset_bus_host,
 	.eh_timed_out = megasas_reset_timer,
 	.shost_attrs = megaraid_host_attrs,
@@ -4087,7 +4121,13 @@ megasas_get_pd_list(struct megasas_instance *instance)
 
 	switch (ret) {
 	case DCMD_FAILED:
-		megaraid_sas_kill_hba(instance);
+		dev_info(&instance->pdev->dev, "MR_DCMD_PD_LIST_QUERY "
+			"failed/not supported by firmware\n");
+
+		if (instance->ctrl_context)
+			megaraid_sas_kill_hba(instance);
+		else
+			instance->pd_list_not_supported = 1;
 		break;
 	case DCMD_TIMEOUT:
 
@@ -5034,7 +5074,6 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	case PCI_DEVICE_ID_DELL_PERC5:
 	default:
 		instance->instancet = &megasas_instance_template_xscale;
-		instance->allow_fw_scan = 1;
 		break;
 	}
 
@@ -5146,7 +5185,7 @@ static int megasas_init_fw(struct megasas_instance *instance)
 
 	instance->instancet->enable_intr(instance);
 
-	dev_err(&instance->pdev->dev, "INIT adapter done\n");
+	dev_info(&instance->pdev->dev, "INIT adapter done\n");
 
 	megasas_setup_jbod_map(instance);
 
@@ -5592,14 +5631,6 @@ static int megasas_io_attach(struct megasas_instance *instance)
 	host->max_lun = MEGASAS_MAX_LUN;
 	host->max_cmd_len = 16;
 
-	/* Fusion only supports host reset */
-	if (instance->ctrl_context) {
-		host->hostt->eh_device_reset_handler = NULL;
-		host->hostt->eh_bus_reset_handler = NULL;
-		host->hostt->eh_target_reset_handler = megasas_reset_target_fusion;
-		host->hostt->eh_abort_handler = megasas_task_abort_fusion;
-	}
-
 	/*
 	 * Notify the mid-layer about the new controller
 	 */
@@ -5755,13 +5786,6 @@ static int megasas_probe_one(struct pci_dev *pdev,
 		break;
 	}
 
-	instance->system_info_buf = pci_zalloc_consistent(pdev,
-					sizeof(struct MR_DRV_SYSTEM_INFO),
-					&instance->system_info_h);
-
-	if (!instance->system_info_buf)
-		dev_info(&instance->pdev->dev, "Can't allocate system info buffer\n");
-
 	/* Crash dump feature related initialisation*/
 	instance->drv_buf_index = 0;
 	instance->drv_buf_alloc = 0;
@@ -5770,14 +5794,6 @@ static int megasas_probe_one(struct pci_dev *pdev,
 	instance->fw_crash_state = UNAVAILABLE;
 	spin_lock_init(&instance->crashdump_lock);
 	instance->crash_dump_buf = NULL;
-
-	if (!reset_devices)
-		instance->crash_dump_buf = pci_alloc_consistent(pdev,
-						CRASH_DMA_BUF_SIZE,
-						&instance->crash_dump_h);
-	if (!instance->crash_dump_buf)
-		dev_err(&pdev->dev, "Can't allocate Firmware "
-			"crash dump DMA buffer\n");
 
 	megasas_poll_wait_aen = 0;
 	instance->flag_ieee = 0;
@@ -5797,11 +5813,26 @@ static int megasas_probe_one(struct pci_dev *pdev,
 		goto fail_alloc_dma_buf;
 	}
 
-	instance->pd_info = pci_alloc_consistent(pdev,
-		sizeof(struct MR_PD_INFO), &instance->pd_info_h);
+	if (!reset_devices) {
+		instance->system_info_buf = pci_zalloc_consistent(pdev,
+					sizeof(struct MR_DRV_SYSTEM_INFO),
+					&instance->system_info_h);
+		if (!instance->system_info_buf)
+			dev_info(&instance->pdev->dev, "Can't allocate system info buffer\n");
 
-	if (!instance->pd_info)
-		dev_err(&instance->pdev->dev, "Failed to alloc mem for pd_info\n");
+		instance->pd_info = pci_alloc_consistent(pdev,
+			sizeof(struct MR_PD_INFO), &instance->pd_info_h);
+
+		if (!instance->pd_info)
+			dev_err(&instance->pdev->dev, "Failed to alloc mem for pd_info\n");
+
+		instance->crash_dump_buf = pci_alloc_consistent(pdev,
+						CRASH_DMA_BUF_SIZE,
+						&instance->crash_dump_h);
+		if (!instance->crash_dump_buf)
+			dev_err(&pdev->dev, "Can't allocate Firmware "
+				"crash dump DMA buffer\n");
+	}
 
 	/*
 	 * Initialize locks and queues
@@ -6650,12 +6681,13 @@ out:
 	}
 
 	for (i = 0; i < ioc->sge_count; i++) {
-		if (kbuff_arr[i])
+		if (kbuff_arr[i]) {
 			dma_free_coherent(&instance->pdev->dev,
 					  le32_to_cpu(kern_sge32[i].length),
 					  kbuff_arr[i],
 					  le32_to_cpu(kern_sge32[i].phys_addr));
 			kbuff_arr[i] = NULL;
+		}
 	}
 
 	megasas_return_cmd(instance, cmd);
@@ -7165,6 +7197,16 @@ megasas_aen_polling(struct work_struct *work)
 static int __init megasas_init(void)
 {
 	int rval;
+
+	/*
+	 * Booted in kdump kernel, minimize memory footprints by
+	 * disabling few features
+	 */
+	if (reset_devices) {
+		msix_vectors = 1;
+		rdpq_enable = 0;
+		dual_qdepth_disable = 1;
+	}
 
 	/*
 	 * Announce driver version and other information

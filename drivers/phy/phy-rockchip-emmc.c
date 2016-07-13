@@ -176,7 +176,10 @@ static int rockchip_emmc_phy_probe(struct platform_device *pdev)
 	struct regmap *grf;
 	unsigned int reg_offset;
 
-	grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,grf");
+	if (!dev->parent || !dev->parent->of_node)
+		return -ENODEV;
+
+	grf = syscon_node_to_regmap(dev->parent->of_node);
 	if (IS_ERR(grf)) {
 		dev_err(dev, "Missing rockchip,grf property\n");
 		return PTR_ERR(grf);

@@ -49,12 +49,6 @@
   <refsect1>
     <title>Description</title>
 
-    <note>
-      <title>Experimental</title>
-      <para>This is an <link linkend="experimental">experimental</link>
-      interface and may change in the future.</para>
-    </note>
-
     <para>The selections are used to configure various image
     processing functionality performed by the subdevs which affect the
     image size. This currently includes cropping, scaling and

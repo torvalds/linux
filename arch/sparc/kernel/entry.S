@@ -1225,20 +1225,18 @@ breakpoint_trap:
 	RESTORE_ALL
 
 #ifdef CONFIG_KGDB
-	.align	4
-	.globl	kgdb_trap_low
-	.type	kgdb_trap_low,#function
-kgdb_trap_low:
+	ENTRY(kgdb_trap_low)
 	rd	%wim,%l3
 	SAVE_ALL
 	wr 	%l0, PSR_ET, %psr
 	WRITE_PAUSE
 
+	mov	%l7, %o0		! trap_level
 	call	kgdb_trap
-	 add	%sp, STACKFRAME_SZ, %o0
+	 add	%sp, STACKFRAME_SZ, %o1	! struct pt_regs *regs
 
 	RESTORE_ALL
-	.size	kgdb_trap_low,.-kgdb_trap_low
+	ENDPROC(kgdb_trap_low)
 #endif
 
 	.align	4
@@ -1255,7 +1253,7 @@ flush_patch_exception:
 kuw_patch1_7win:	sll	%o3, 6, %o3
 
 	/* No matter how much overhead this routine has in the worst
-	 * case scenerio, it is several times better than taking the
+	 * case scenario, it is several times better than taking the
 	 * traps with the old method of just doing flush_user_windows().
 	 */
 kill_user_windows:

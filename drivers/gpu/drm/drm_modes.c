@@ -98,7 +98,7 @@ void drm_mode_destroy(struct drm_device *dev, struct drm_display_mode *mode)
 	if (!mode)
 		return;
 
-	drm_mode_object_put(dev, &mode->base);
+	drm_mode_object_unregister(dev, &mode->base);
 
 	kfree(mode);
 }
@@ -1371,8 +1371,7 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 	}
 done:
 	if (i >= 0) {
-		printk(KERN_WARNING
-			"parse error at position %i in video mode '%s'\n",
+		pr_warn("[drm] parse error at position %i in video mode '%s'\n",
 			i, name);
 		mode->specified = false;
 		return false;
@@ -1518,6 +1517,8 @@ int drm_mode_convert_umode(struct drm_display_mode *out,
 	out->status = drm_mode_validate_basic(out);
 	if (out->status != MODE_OK)
 		goto out;
+
+	drm_mode_set_crtcinfo(out, CRTC_INTERLACE_HALVE_V);
 
 	ret = 0;
 

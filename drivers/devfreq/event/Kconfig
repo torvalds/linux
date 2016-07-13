@@ -13,6 +13,14 @@ menuconfig PM_DEVFREQ_EVENT
 
 if PM_DEVFREQ_EVENT
 
+config DEVFREQ_EVENT_EXYNOS_NOCP
+	bool "EXYNOS NoC (Network On Chip) Probe DEVFREQ event Driver"
+	depends on ARCH_EXYNOS
+	select PM_OPP
+	help
+	  This add the devfreq-event driver for Exynos SoC. It provides NoC
+	  (Network on Chip) Probe counters to measure the bandwidth of AXI bus.
+
 config DEVFREQ_EVENT_EXYNOS_PPMU
 	bool "EXYNOS PPMU (Platform Performance Monitoring Unit) DEVFREQ event Driver"
 	depends on ARCH_EXYNOS

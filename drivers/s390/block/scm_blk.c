@@ -303,7 +303,7 @@ static void scm_blk_request(struct request_queue *rq)
 		if (req->cmd_type != REQ_TYPE_FS) {
 			blk_start_request(req);
 			blk_dump_rq_flags(req, KMSG_COMPONENT " bad request");
-			blk_end_request_all(req, -EIO);
+			__blk_end_request_all(req, -EIO);
 			continue;
 		}
 

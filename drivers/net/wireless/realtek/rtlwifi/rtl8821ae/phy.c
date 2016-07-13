@@ -418,9 +418,9 @@ u32 phy_get_tx_swing_8812A(struct ieee80211_hw *hw, u8	band,
 			out = 0x16A; /* -3 dB */
 		}
 	} else {
-	    u32 swing = 0, swing_a = 0, swing_b = 0;
+		u32 swing = 0, swing_a = 0, swing_b = 0;
 
-	    if (band == BAND_ON_2_4G) {
+		if (band == BAND_ON_2_4G) {
 			if (reg_swing_2g == auto_temp) {
 				efuse_shadow_read(hw, 1, 0xC6, (u32 *)&swing);
 				swing = (swing == 0xFF) ? 0x00 : swing;
@@ -514,7 +514,7 @@ u32 phy_get_tx_swing_8812A(struct ieee80211_hw *hw, u8	band,
 
 	RT_TRACE(rtlpriv, COMP_SCAN, DBG_LOUD,
 		 "<=== PHY_GetTxBBSwing_8812A, out = 0x%X\n", out);
-	 return out;
+	return out;
 }
 
 void rtl8821ae_phy_switch_wirelessband(struct ieee80211_hw *hw, u8 band)
@@ -959,7 +959,7 @@ static void _rtl8821ae_phy_store_txpower_by_rate_base(struct ieee80211_hw *hw)
 static void _phy_convert_txpower_dbm_to_relative_value(u32 *data, u8 start,
 						u8 end, u8 base_val)
 {
-	char i = 0;
+	int i;
 	u8 temp_value = 0;
 	u32 temp_data = 0;
 

@@ -28,6 +28,7 @@
 #include "ppatomctrl.h"
 #include "ppinterrupt.h"
 #include "tonga_powertune.h"
+#include "pp_endian.h"
 
 #define TONGA_MAX_HARDWARE_POWERLEVELS 2
 #define TONGA_DYNCLK_NUMBER_OF_TREND_COEFFICIENTS 15
@@ -73,7 +74,7 @@ struct tonga_power_state {
 };
 
 struct _phw_tonga_dpm_level {
-	bool  		enabled;
+	bool		enabled;
 	uint32_t    value;
 	uint32_t    param1;
 };
@@ -236,20 +237,20 @@ struct tonga_hwmgr {
 	irq_handler_func_t             ctf_callback;
 	void                             *ctf_context;
 
-	phw_tonga_clock_registers      	  clock_registers;
+	phw_tonga_clock_registers	  clock_registers;
 	phw_tonga_voltage_smio_registers  voltage_smio_registers;
 
-	bool                         	is_memory_GDDR5;
+	bool	is_memory_GDDR5;
 	uint16_t                          acpi_vddc;
-	bool                         	pspp_notify_required;        /* Flag to indicate if PSPP notification to SBIOS is required */
+	bool	pspp_notify_required;        /* Flag to indicate if PSPP notification to SBIOS is required */
 	uint16_t                          force_pcie_gen;            /* The forced PCI-E speed if not 0xffff */
 	uint16_t                          acpi_pcie_gen;             /* The PCI-E speed at ACPI time */
 	uint32_t                           pcie_gen_cap;             /* The PCI-E speed capabilities bitmap from CAIL */
 	uint32_t                           pcie_lane_cap;            /* The PCI-E lane capabilities bitmap from CAIL */
 	uint32_t                           pcie_spc_cap;             /* Symbol Per Clock Capabilities from registry */
-	phw_tonga_leakage_voltage       	vddc_leakage;            /* The Leakage VDDC supported (based on leakage ID).*/
-	phw_tonga_leakage_voltage       	vddcgfx_leakage;         /* The Leakage VDDC supported (based on leakage ID). */
-	phw_tonga_leakage_voltage       	vddci_leakage;           /* The Leakage VDDCI supported (based on leakage ID). */
+	phw_tonga_leakage_voltage	vddc_leakage;            /* The Leakage VDDC supported (based on leakage ID).*/
+	phw_tonga_leakage_voltage	vddcgfx_leakage;         /* The Leakage VDDC supported (based on leakage ID). */
+	phw_tonga_leakage_voltage	vddci_leakage;           /* The Leakage VDDCI supported (based on leakage ID). */
 
 	uint32_t                           mvdd_control;
 	uint32_t                           vddc_mask_low;
@@ -262,8 +263,8 @@ struct tonga_hwmgr {
 	uint32_t                           mclk_stutter_mode_threshold;
 	uint32_t                           mclk_edc_enable_threshold;
 	uint32_t                           mclk_edc_wr_enable_threshold;
-	bool                         	is_uvd_enabled;
-	bool                         	is_xdma_enabled;
+	bool	is_uvd_enabled;
+	bool	is_xdma_enabled;
 	phw_tonga_vbios_boot_state      vbios_boot_state;
 
 	bool                         battery_state;
@@ -352,6 +353,8 @@ struct tonga_hwmgr {
 	bool                           acp_power_gated;  /* 1: gated, 0:not gated */
 	bool                           pg_acp_init;
 
+	/* soft pptable for re-uploading into smu */
+	void *soft_pp_table;
 };
 
 typedef struct tonga_hwmgr tonga_hwmgr;
@@ -385,17 +388,6 @@ typedef struct tonga_hwmgr tonga_hwmgr;
 #define TONGA_Q88_FORMAT_CONVERSION_UNIT             256 /*To convert to Q8.8 format for firmware */
 
 #define TONGA_UNUSED_GPIO_PIN                        0x7F
-
-#define PP_HOST_TO_SMC_UL(X) cpu_to_be32(X)
-#define PP_SMC_TO_HOST_UL(X) be32_to_cpu(X)
-
-#define PP_HOST_TO_SMC_US(X) cpu_to_be16(X)
-#define PP_SMC_TO_HOST_US(X) be16_to_cpu(X)
-
-#define CONVERT_FROM_HOST_TO_SMC_UL(X) ((X) = PP_HOST_TO_SMC_UL(X))
-#define CONVERT_FROM_SMC_TO_HOST_UL(X) ((X) = PP_SMC_TO_HOST_UL(X))
-
-#define CONVERT_FROM_HOST_TO_SMC_US(X) ((X) = PP_HOST_TO_SMC_US(X))
 
 int tonga_hwmgr_init(struct pp_hwmgr *hwmgr);
 int tonga_update_vce_dpm(struct pp_hwmgr *hwmgr, const void *input);

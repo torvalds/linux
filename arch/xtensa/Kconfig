@@ -5,7 +5,6 @@ config XTENSA
 	def_bool y
 	select ARCH_WANT_FRAME_POINTERS
 	select ARCH_WANT_IPC_PARSE_VERSION
-	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select BUILDTIME_EXTABLE_SORT
 	select CLONE_BACKWARDS
 	select COMMON_CLK
@@ -15,8 +14,10 @@ config XTENSA
 	select GENERIC_PCI_IOMAP
 	select GENERIC_SCHED_CLOCK
 	select HAVE_DMA_API_DEBUG
+	select HAVE_EXIT_THREAD
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUTEX_CMPXCHG if !MMU
+	select HAVE_HW_BREAKPOINT if PERF_EVENTS
 	select HAVE_IRQ_TIME_ACCOUNTING
 	select HAVE_OPROFILE
 	select HAVE_PERF_EVENTS
@@ -135,6 +136,22 @@ config XTENSA_VARIANT_HAVE_PERF_EVENTS
 	help
 	  Enable if core variant has Performance Monitor Module with
 	  External Registers Interface.
+
+	  If unsure, say N.
+
+config XTENSA_FAKE_NMI
+	bool "Treat PMM IRQ as NMI"
+	depends on XTENSA_VARIANT_HAVE_PERF_EVENTS
+	default n
+	help
+	  If PMM IRQ is the only IRQ at EXCM level it is safe to
+	  treat it as NMI, which improves accuracy of profiling.
+
+	  If there are other interrupts at or above PMM IRQ priority level
+	  but not above the EXCM level, PMM IRQ still may be treated as NMI,
+	  but only if these IRQs are not used. There will be a build warning
+	  saying that this is not safe, and a bugcheck if one of these IRQs
+	  actually fire.
 
 	  If unsure, say N.
 

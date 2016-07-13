@@ -390,10 +390,10 @@ iwl_eeprom_enh_txp_read_element(struct iwl_nvm_data *data,
 				int n_channels, s8 max_txpower_avg)
 {
 	int ch_idx;
-	enum ieee80211_band band;
+	enum nl80211_band band;
 
 	band = txp->flags & IWL_EEPROM_ENH_TXP_FL_BAND_52G ?
-		IEEE80211_BAND_5GHZ : IEEE80211_BAND_2GHZ;
+		NL80211_BAND_5GHZ : NL80211_BAND_2GHZ;
 
 	for (ch_idx = 0; ch_idx < n_channels; ch_idx++) {
 		struct ieee80211_channel *chan = &data->channels[ch_idx];
@@ -526,7 +526,7 @@ static void iwl_init_band_reference(const struct iwl_cfg *cfg,
 
 static void iwl_mod_ht40_chan_info(struct device *dev,
 				   struct iwl_nvm_data *data, int n_channels,
-				   enum ieee80211_band band, u16 channel,
+				   enum nl80211_band band, u16 channel,
 				   const struct iwl_eeprom_channel *eeprom_ch,
 				   u8 clear_ht40_extension_channel)
 {
@@ -548,7 +548,7 @@ static void iwl_mod_ht40_chan_info(struct device *dev,
 	IWL_DEBUG_EEPROM(dev,
 			 "HT40 Ch. %d [%sGHz] %s%s%s%s%s(0x%02x %ddBm): Ad-Hoc %ssupported\n",
 			 channel,
-			 band == IEEE80211_BAND_5GHZ ? "5.2" : "2.4",
+			 band == NL80211_BAND_5GHZ ? "5.2" : "2.4",
 			 CHECK_AND_PRINT(IBSS),
 			 CHECK_AND_PRINT(ACTIVE),
 			 CHECK_AND_PRINT(RADAR),
@@ -606,8 +606,8 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 			n_channels++;
 
 			channel->hw_value = eeprom_ch_array[ch_idx];
-			channel->band = (band == 1) ? IEEE80211_BAND_2GHZ
-						    : IEEE80211_BAND_5GHZ;
+			channel->band = (band == 1) ? NL80211_BAND_2GHZ
+						    : NL80211_BAND_5GHZ;
 			channel->center_freq =
 				ieee80211_channel_to_frequency(
 					channel->hw_value, channel->band);
@@ -677,15 +677,15 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 
 	/* Two additional EEPROM bands for 2.4 and 5 GHz HT40 channels */
 	for (band = 6; band <= 7; band++) {
-		enum ieee80211_band ieeeband;
+		enum nl80211_band ieeeband;
 
 		iwl_init_band_reference(cfg, eeprom, eeprom_size, band,
 					&eeprom_ch_count, &eeprom_ch_info,
 					&eeprom_ch_array);
 
 		/* EEPROM band 6 is 2.4, band 7 is 5 GHz */
-		ieeeband = (band == 6) ? IEEE80211_BAND_2GHZ
-				       : IEEE80211_BAND_5GHZ;
+		ieeeband = (band == 6) ? NL80211_BAND_2GHZ
+				       : NL80211_BAND_5GHZ;
 
 		/* Loop through each band adding each of the channels */
 		for (ch_idx = 0; ch_idx < eeprom_ch_count; ch_idx++) {
@@ -708,7 +708,7 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 
 int iwl_init_sband_channels(struct iwl_nvm_data *data,
 			    struct ieee80211_supported_band *sband,
-			    int n_channels, enum ieee80211_band band)
+			    int n_channels, enum nl80211_band band)
 {
 	struct ieee80211_channel *chan = &data->channels[0];
 	int n = 0, idx = 0;
@@ -734,7 +734,7 @@ int iwl_init_sband_channels(struct iwl_nvm_data *data,
 void iwl_init_ht_hw_capab(const struct iwl_cfg *cfg,
 			  struct iwl_nvm_data *data,
 			  struct ieee80211_sta_ht_cap *ht_info,
-			  enum ieee80211_band band,
+			  enum nl80211_band band,
 			  u8 tx_chains, u8 rx_chains)
 {
 	int max_bit_rate = 0;
@@ -813,22 +813,22 @@ static void iwl_init_sbands(struct device *dev, const struct iwl_cfg *cfg,
 	int n_used = 0;
 	struct ieee80211_supported_band *sband;
 
-	sband = &data->bands[IEEE80211_BAND_2GHZ];
-	sband->band = IEEE80211_BAND_2GHZ;
+	sband = &data->bands[NL80211_BAND_2GHZ];
+	sband->band = NL80211_BAND_2GHZ;
 	sband->bitrates = &iwl_cfg80211_rates[RATES_24_OFFS];
 	sband->n_bitrates = N_RATES_24;
 	n_used += iwl_init_sband_channels(data, sband, n_channels,
-					  IEEE80211_BAND_2GHZ);
-	iwl_init_ht_hw_capab(cfg, data, &sband->ht_cap, IEEE80211_BAND_2GHZ,
+					  NL80211_BAND_2GHZ);
+	iwl_init_ht_hw_capab(cfg, data, &sband->ht_cap, NL80211_BAND_2GHZ,
 			     data->valid_tx_ant, data->valid_rx_ant);
 
-	sband = &data->bands[IEEE80211_BAND_5GHZ];
-	sband->band = IEEE80211_BAND_5GHZ;
+	sband = &data->bands[NL80211_BAND_5GHZ];
+	sband->band = NL80211_BAND_5GHZ;
 	sband->bitrates = &iwl_cfg80211_rates[RATES_52_OFFS];
 	sband->n_bitrates = N_RATES_52;
 	n_used += iwl_init_sband_channels(data, sband, n_channels,
-					  IEEE80211_BAND_5GHZ);
-	iwl_init_ht_hw_capab(cfg, data, &sband->ht_cap, IEEE80211_BAND_5GHZ,
+					  NL80211_BAND_5GHZ);
+	iwl_init_ht_hw_capab(cfg, data, &sband->ht_cap, NL80211_BAND_5GHZ,
 			     data->valid_tx_ant, data->valid_rx_ant);
 
 	if (n_channels != n_used)

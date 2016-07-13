@@ -1391,13 +1391,6 @@ static void dw_hdmi_bridge_mode_set(struct drm_bridge *bridge,
 	mutex_unlock(&hdmi->mutex);
 }
 
-static bool dw_hdmi_bridge_mode_fixup(struct drm_bridge *bridge,
-				      const struct drm_display_mode *mode,
-				      struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
 static void dw_hdmi_bridge_disable(struct drm_bridge *bridge)
 {
 	struct dw_hdmi *hdmi = bridge->driver_private;
@@ -1418,11 +1411,6 @@ static void dw_hdmi_bridge_enable(struct drm_bridge *bridge)
 	dw_hdmi_update_power(hdmi);
 	dw_hdmi_update_phy_mask(hdmi);
 	mutex_unlock(&hdmi->mutex);
-}
-
-static void dw_hdmi_bridge_nop(struct drm_bridge *bridge)
-{
-	/* do nothing */
 }
 
 static enum drm_connector_status
@@ -1543,10 +1531,7 @@ static const struct drm_connector_helper_funcs dw_hdmi_connector_helper_funcs = 
 static const struct drm_bridge_funcs dw_hdmi_bridge_funcs = {
 	.enable = dw_hdmi_bridge_enable,
 	.disable = dw_hdmi_bridge_disable,
-	.pre_enable = dw_hdmi_bridge_nop,
-	.post_disable = dw_hdmi_bridge_nop,
 	.mode_set = dw_hdmi_bridge_mode_set,
-	.mode_fixup = dw_hdmi_bridge_mode_fixup,
 };
 
 static irqreturn_t dw_hdmi_hardirq(int irq, void *dev_id)

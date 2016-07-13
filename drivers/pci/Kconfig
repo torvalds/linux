@@ -83,6 +83,9 @@ config HT_IRQ
 config PCI_ATS
 	bool
 
+config PCI_ECAM
+	bool
+
 config PCI_IOV
 	bool "PCI IOV support"
 	depends on PCI
@@ -128,4 +131,5 @@ config PCI_HYPERV
           The PCI device frontend driver allows the kernel to import arbitrary
           PCI devices from a PCI backend to support PCI driver domains.
 
+source "drivers/pci/hotplug/Kconfig"
 source "drivers/pci/host/Kconfig"

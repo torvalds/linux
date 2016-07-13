@@ -13,7 +13,6 @@
 
 #include <uapi/linux/time.h>
 #include <asm/vgtod.h>
-#include <asm/hpet.h>
 #include <asm/vvar.h>
 #include <asm/unistd.h>
 #include <asm/msr.h>
@@ -27,16 +26,6 @@
 extern int __vdso_clock_gettime(clockid_t clock, struct timespec *ts);
 extern int __vdso_gettimeofday(struct timeval *tv, struct timezone *tz);
 extern time_t __vdso_time(time_t *t);
-
-#ifdef CONFIG_HPET_TIMER
-extern u8 hpet_page
-	__attribute__((visibility("hidden")));
-
-static notrace cycle_t vread_hpet(void)
-{
-	return *(const volatile u32 *)(&hpet_page + HPET_COUNTER);
-}
-#endif
 
 #ifdef CONFIG_PARAVIRT_CLOCK
 extern u8 pvclock_page
@@ -178,7 +167,7 @@ notrace static cycle_t vread_tsc(void)
 
 	/*
 	 * GCC likes to generate cmov here, but this branch is extremely
-	 * predictable (it's just a funciton of time and the likely is
+	 * predictable (it's just a function of time and the likely is
 	 * very likely) and there's a data dependence, so force GCC
 	 * to generate a branch instead.  I don't barrier() because
 	 * we don't actually need a barrier, and if this function
@@ -195,10 +184,6 @@ notrace static inline u64 vgetsns(int *mode)
 
 	if (gtod->vclock_mode == VCLOCK_TSC)
 		cycles = vread_tsc();
-#ifdef CONFIG_HPET_TIMER
-	else if (gtod->vclock_mode == VCLOCK_HPET)
-		cycles = vread_hpet();
-#endif
 #ifdef CONFIG_PARAVIRT_CLOCK
 	else if (gtod->vclock_mode == VCLOCK_PVCLOCK)
 		cycles = vread_pvclock(mode);

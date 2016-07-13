@@ -18,6 +18,8 @@ Required properties for all the ethernet interfaces:
   - First is the Rx interrupt.  This irq is mandatory.
   - Second is the Tx completion interrupt.
     This is supported only on SGMII based 1GbE and 10GbE interfaces.
+- channel: Ethernet to CPU, start channel (prefetch buffer) number
+  - Must map to the first irq and irqs must be sequential
 - port-id: Port number (0 or 1)
 - clocks: Reference to the clock entry.
 - local-mac-address: MAC address assigned to this device

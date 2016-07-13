@@ -45,6 +45,7 @@
 #include <linux/uaccess.h>
 #include <linux/memory.h>
 
+#include <asm/text-patching.h>
 #include <asm/debugreg.h>
 #include <asm/apicdef.h>
 #include <asm/apic.h>
@@ -609,9 +610,9 @@ static struct notifier_block kgdb_notifier = {
 };
 
 /**
- *	kgdb_arch_init - Perform any architecture specific initalization.
+ *	kgdb_arch_init - Perform any architecture specific initialization.
  *
- *	This function will handle the initalization of any architecture
+ *	This function will handle the initialization of any architecture
  *	specific callbacks.
  */
 int kgdb_arch_init(void)

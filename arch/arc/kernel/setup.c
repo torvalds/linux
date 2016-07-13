@@ -13,7 +13,6 @@
 #include <linux/console.h>
 #include <linux/module.h>
 #include <linux/cpu.h>
-#include <linux/clk-provider.h>
 #include <linux/of_fdt.h>
 #include <linux/of_platform.h>
 #include <linux/cache.h>
@@ -24,7 +23,6 @@
 #include <asm/page.h>
 #include <asm/irq.h>
 #include <asm/unwind.h>
-#include <asm/clk.h>
 #include <asm/mach_desc.h>
 #include <asm/smp.h>
 
@@ -91,11 +89,9 @@ static void read_decode_ccm_bcr(struct cpuinfo_arc *cpu)
 
 static void read_arc_build_cfg_regs(void)
 {
-	struct bcr_perip uncached_space;
 	struct bcr_timer timer;
 	struct bcr_generic bcr;
 	struct cpuinfo_arc *cpu = &cpuinfo_arc700[smp_processor_id()];
-	unsigned long perip_space;
 	FIX_PTR(cpu);
 
 	READ_BCR(AUX_IDENTITY, cpu->core);
@@ -107,14 +103,6 @@ static void read_arc_build_cfg_regs(void)
 	cpu->extn.rtc = timer.rtc;
 
 	cpu->vec_base = read_aux_reg(AUX_INTR_VEC_BASE);
-
-	READ_BCR(ARC_REG_D_UNCACH_BCR, uncached_space);
-        if (uncached_space.ver < 3)
-		perip_space = uncached_space.start << 24;
-	else
-		perip_space = read_aux_reg(AUX_NON_VOL) & 0xF0000000;
-
-	BUG_ON(perip_space != ARC_UNCACHED_ADDR_SPACE);
 
 	READ_BCR(ARC_REG_MUL_BCR, cpu->extn_mpy);
 
@@ -230,10 +218,6 @@ static char *arc_cpu_mumbojumbo(int cpu_id, char *buf, int len)
 	if (tbl->info.id == 0)
 		n += scnprintf(buf + n, len - n, "UNKNOWN ARC Processor\n");
 
-	n += scnprintf(buf + n, len - n, "CPU speed\t: %u.%02u Mhz\n",
-		       (unsigned int)(arc_get_core_freq() / 1000000),
-		       (unsigned int)(arc_get_core_freq() / 10000) % 100);
-
 	n += scnprintf(buf + n, len - n, "Timers\t\t: %s%s%s%s\nISA Extn\t: ",
 		       IS_AVAIL1(cpu->extn.timer0, "Timer0 "),
 		       IS_AVAIL1(cpu->extn.timer1, "Timer1 "),
@@ -288,8 +272,8 @@ static char *arc_extn_mumbojumbo(int cpu_id, char *buf, int len)
 	FIX_PTR(cpu);
 
 	n += scnprintf(buf + n, len - n,
-		       "Vector Table\t: %#x\nUncached Base\t: %#x\n",
-		       cpu->vec_base, ARC_UNCACHED_ADDR_SPACE);
+		       "Vector Table\t: %#x\nUncached Base\t: %#lx\n",
+		       cpu->vec_base, perip_base);
 
 	if (cpu->extn.fpu_sp || cpu->extn.fpu_dp)
 		n += scnprintf(buf + n, len - n, "FPU\t\t: %s%s\n",
@@ -324,9 +308,6 @@ static void arc_chk_core_config(void)
 	if (!cpu->extn.timer1)
 		panic("Timer1 is not present!\n");
 
-	if (IS_ENABLED(CONFIG_ARC_HAS_RTC) && !cpu->extn.rtc)
-		panic("RTC is not present\n");
-
 #ifdef CONFIG_ARC_HAS_DCCM
 	/*
 	 * DCCM can be arbit placed in hardware.
@@ -357,11 +338,6 @@ static void arc_chk_core_config(void)
 		pr_warn("CONFIG_ARC_FPU_SAVE_RESTORE needed for working apps\n");
 	else if (!cpu->extn.fpu_dp && fpu_enabled)
 		panic("FPU non-existent, disable CONFIG_ARC_FPU_SAVE_RESTORE\n");
-
-	if (is_isa_arcv2() && IS_ENABLED(CONFIG_SMP) && cpu->isa.atomic &&
-	    IS_ENABLED(CONFIG_ARC_HAS_LLSC) &&
-	    !IS_ENABLED(CONFIG_ARC_STAR_9000923308))
-		panic("llock/scond livelock workaround missing\n");
 }
 
 /*
@@ -416,7 +392,7 @@ void __init setup_arch(char **cmdline_p)
 		/*
 		 * If we are here, it is established that @uboot_arg didn't
 		 * point to DT blob. Instead if u-boot says it is cmdline,
-		 * Appent to embedded DT cmdline.
+		 * append to embedded DT cmdline.
 		 * setup_machine_fdt() would have populated @boot_command_line
 		 */
 		if (uboot_tag == 1) {
@@ -459,12 +435,11 @@ void __init setup_arch(char **cmdline_p)
 
 static int __init customize_machine(void)
 {
-	of_clk_init(NULL);
 	/*
 	 * Traverses flattened DeviceTree - registering platform devices
 	 * (if any) complete with their resources
 	 */
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
+	of_platform_default_populate(NULL, NULL, NULL);
 
 	if (machine_desc->init_machine)
 		machine_desc->init_machine();
@@ -492,6 +467,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 {
 	char *str;
 	int cpu_id = ptr_to_cpu(v);
+	struct device_node *core_clk = of_find_node_by_name(NULL, "core_clk");
+	u32 freq = 0;
 
 	if (!cpu_online(cpu_id)) {
 		seq_printf(m, "processor [%d]\t: Offline\n", cpu_id);
@@ -503,6 +480,11 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		goto done;
 
 	seq_printf(m, arc_cpu_mumbojumbo(cpu_id, str, PAGE_SIZE));
+
+	of_property_read_u32(core_clk, "clock-frequency", &freq);
+	if (freq)
+		seq_printf(m, "CPU speed\t: %u.%02u Mhz\n",
+			   freq / 1000000, (freq / 10000) % 100);
 
 	seq_printf(m, "Bogo MIPS\t: %lu.%02lu\n",
 		   loops_per_jiffy / (500000 / HZ),

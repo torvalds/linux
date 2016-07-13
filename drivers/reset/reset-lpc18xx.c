@@ -35,6 +35,7 @@
 
 struct lpc18xx_rgu_data {
 	struct reset_controller_dev rcdev;
+	struct notifier_block restart_nb;
 	struct clk *clk_delay;
 	struct clk *clk_reg;
 	void __iomem *base;
@@ -44,23 +45,19 @@ struct lpc18xx_rgu_data {
 
 #define to_rgu_data(p) container_of(p, struct lpc18xx_rgu_data, rcdev)
 
-static void __iomem *rgu_base;
-
-static int lpc18xx_rgu_restart(struct notifier_block *this, unsigned long mode,
+static int lpc18xx_rgu_restart(struct notifier_block *nb, unsigned long mode,
 			       void *cmd)
 {
-	writel(BIT(LPC18XX_RGU_CORE_RST), rgu_base + LPC18XX_RGU_CTRL0);
+	struct lpc18xx_rgu_data *rc = container_of(nb, struct lpc18xx_rgu_data,
+						   restart_nb);
+
+	writel(BIT(LPC18XX_RGU_CORE_RST), rc->base + LPC18XX_RGU_CTRL0);
 	mdelay(2000);
 
 	pr_emerg("%s: unable to restart system\n", __func__);
 
 	return NOTIFY_DONE;
 }
-
-static struct notifier_block lpc18xx_rgu_restart_nb = {
-	.notifier_call = lpc18xx_rgu_restart,
-	.priority = 192,
-};
 
 /*
  * The LPC18xx RGU has mostly self-deasserting resets except for the
@@ -136,7 +133,7 @@ static int lpc18xx_rgu_status(struct reset_controller_dev *rcdev,
 	return !(readl(rc->base + offset) & bit);
 }
 
-static struct reset_control_ops lpc18xx_rgu_ops = {
+static const struct reset_control_ops lpc18xx_rgu_ops = {
 	.reset		= lpc18xx_rgu_reset,
 	.assert		= lpc18xx_rgu_assert,
 	.deassert	= lpc18xx_rgu_deassert,
@@ -205,8 +202,9 @@ static int lpc18xx_rgu_probe(struct platform_device *pdev)
 		goto dis_clks;
 	}
 
-	rgu_base = rc->base;
-	ret = register_restart_handler(&lpc18xx_rgu_restart_nb);
+	rc->restart_nb.priority = 192,
+	rc->restart_nb.notifier_call = lpc18xx_rgu_restart,
+	ret = register_restart_handler(&rc->restart_nb);
 	if (ret)
 		dev_warn(&pdev->dev, "failed to register restart handler\n");
 
@@ -225,7 +223,7 @@ static int lpc18xx_rgu_remove(struct platform_device *pdev)
 	struct lpc18xx_rgu_data *rc = platform_get_drvdata(pdev);
 	int ret;
 
-	ret = unregister_restart_handler(&lpc18xx_rgu_restart_nb);
+	ret = unregister_restart_handler(&rc->restart_nb);
 	if (ret)
 		dev_warn(&pdev->dev, "failed to unregister restart handler\n");
 

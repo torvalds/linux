@@ -21,15 +21,15 @@
  * @dma_dev:	required DMA master device
  * @src_id:	src request line
  * @dst_id:	dst request line
- * @src_master: src master for transfers on allocated channel.
- * @dst_master: dest master for transfers on allocated channel.
+ * @m_master:	memory master for transfers on allocated channel
+ * @p_master:	peripheral master for transfers on allocated channel
  */
 struct dw_dma_slave {
 	struct device		*dma_dev;
 	u8			src_id;
 	u8			dst_id;
-	u8			src_master;
-	u8			dst_master;
+	u8			m_master;
+	u8			p_master;
 };
 
 /**
@@ -43,7 +43,7 @@ struct dw_dma_slave {
  * @block_size: Maximum block size supported by the controller
  * @nr_masters: Number of AHB masters supported by the controller
  * @data_width: Maximum data width supported by hardware per AHB master
- *		(0 - 8bits, 1 - 16bits, ..., 5 - 256bits)
+ *		(in bytes, power of 2)
  */
 struct dw_dma_platform_data {
 	unsigned int	nr_channels;
@@ -55,7 +55,7 @@ struct dw_dma_platform_data {
 #define CHAN_PRIORITY_ASCENDING		0	/* chan0 highest */
 #define CHAN_PRIORITY_DESCENDING	1	/* chan7 highest */
 	unsigned char	chan_priority;
-	unsigned short	block_size;
+	unsigned int	block_size;
 	unsigned char	nr_masters;
 	unsigned char	data_width[DW_DMA_MAX_NR_MASTERS];
 };

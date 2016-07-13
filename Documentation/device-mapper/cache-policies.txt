@@ -11,7 +11,7 @@ Every bio that is mapped by the target is referred to the policy.
 The policy can return a simple HIT or MISS or issue a migration.
 
 Currently there's no way for the policy to issue background work,
-e.g. to start writing back dirty blocks that are going to be evicte
+e.g. to start writing back dirty blocks that are going to be evicted
 soon.
 
 Because we map bios, rather than requests it's easy for the policy
@@ -48,7 +48,7 @@ with the multiqueue (mq) policy.
 
 The smq policy (vs mq) offers the promise of less memory utilization,
 improved performance and increased adaptability in the face of changing
-workloads.  SMQ also does not have any cumbersome tuning knobs.
+workloads.  smq also does not have any cumbersome tuning knobs.
 
 Users may switch from "mq" to "smq" simply by appropriately reloading a
 DM table that is using the cache target.  Doing so will cause all of the
@@ -57,47 +57,45 @@ degrade slightly until smq recalculates the origin device's hotspots
 that should be cached.
 
 Memory usage:
-The mq policy uses a lot of memory; 88 bytes per cache block on a 64
+The mq policy used a lot of memory; 88 bytes per cache block on a 64
 bit machine.
 
-SMQ uses 28bit indexes to implement it's data structures rather than
+smq uses 28bit indexes to implement it's data structures rather than
 pointers.  It avoids storing an explicit hit count for each block.  It
-has a 'hotspot' queue rather than a pre cache which uses a quarter of
+has a 'hotspot' queue, rather than a pre-cache, which uses a quarter of
 the entries (each hotspot block covers a larger area than a single
 cache block).
 
-All these mean smq uses ~25bytes per cache block.  Still a lot of
+All this means smq uses ~25bytes per cache block.  Still a lot of
 memory, but a substantial improvement nontheless.
 
 Level balancing:
-MQ places entries in different levels of the multiqueue structures
-based on their hit count (~ln(hit count)).  This means the bottom
-levels generally have the most entries, and the top ones have very
-few.  Having unbalanced levels like this reduces the efficacy of the
+mq placed entries in different levels of the multiqueue structures
+based on their hit count (~ln(hit count)).  This meant the bottom
+levels generally had the most entries, and the top ones had very
+few.  Having unbalanced levels like this reduced the efficacy of the
 multiqueue.
 
-SMQ does not maintain a hit count, instead it swaps hit entries with
-the least recently used entry from the level above.  The over all
+smq does not maintain a hit count, instead it swaps hit entries with
+the least recently used entry from the level above.  The overall
 ordering being a side effect of this stochastic process.  With this
 scheme we can decide how many entries occupy each multiqueue level,
 resulting in better promotion/demotion decisions.
 
 Adaptability:
-The MQ policy maintains a hit count for each cache block.  For a
+The mq policy maintained a hit count for each cache block.  For a
 different block to get promoted to the cache it's hit count has to
-exceed the lowest currently in the cache.  This means it can take a
+exceed the lowest currently in the cache.  This meant it could take a
 long time for the cache to adapt between varying IO patterns.
-Periodically degrading the hit counts could help with this, but I
-haven't found a nice general solution.
 
-SMQ doesn't maintain hit counts, so a lot of this problem just goes
+smq doesn't maintain hit counts, so a lot of this problem just goes
 away.  In addition it tracks performance of the hotspot queue, which
 is used to decide which blocks to promote.  If the hotspot queue is
 performing badly then it starts moving entries more quickly between
 levels.  This lets it adapt to new IO patterns very quickly.
 
 Performance:
-Testing SMQ shows substantially better performance than MQ.
+Testing smq shows substantially better performance than mq.
 
 cleaner
 -------

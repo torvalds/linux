@@ -14,6 +14,7 @@ export CFLAGS
 
 SUB_DIRS = benchmarks 		\
 	   copyloops		\
+	   context_switch	\
 	   dscr			\
 	   mm			\
 	   pmu			\

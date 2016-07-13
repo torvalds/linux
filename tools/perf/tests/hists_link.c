@@ -76,17 +76,12 @@ static int add_hist_entries(struct perf_evlist *evlist, struct machine *machine)
 		struct hists *hists = evsel__hists(evsel);
 
 		for (k = 0; k < ARRAY_SIZE(fake_common_samples); k++) {
-			const union perf_event event = {
-				.header = {
-					.misc = PERF_RECORD_MISC_USER,
-				},
-			};
-
+			sample.cpumode = PERF_RECORD_MISC_USER;
 			sample.pid = fake_common_samples[k].pid;
 			sample.tid = fake_common_samples[k].pid;
 			sample.ip = fake_common_samples[k].ip;
-			if (perf_event__preprocess_sample(&event, machine, &al,
-							  &sample) < 0)
+
+			if (machine__resolve(machine, &al, &sample) < 0)
 				goto out;
 
 			he = __hists__add_entry(hists, &al, NULL,
@@ -102,17 +97,10 @@ static int add_hist_entries(struct perf_evlist *evlist, struct machine *machine)
 		}
 
 		for (k = 0; k < ARRAY_SIZE(fake_samples[i]); k++) {
-			const union perf_event event = {
-				.header = {
-					.misc = PERF_RECORD_MISC_USER,
-				},
-			};
-
 			sample.pid = fake_samples[i][k].pid;
 			sample.tid = fake_samples[i][k].pid;
 			sample.ip = fake_samples[i][k].ip;
-			if (perf_event__preprocess_sample(&event, machine, &al,
-							  &sample) < 0)
+			if (machine__resolve(machine, &al, &sample) < 0)
 				goto out;
 
 			he = __hists__add_entry(hists, &al, NULL,
@@ -157,7 +145,7 @@ static int __validate_match(struct hists *hists)
 	/*
 	 * Only entries from fake_common_samples should have a pair.
 	 */
-	if (sort__need_collapse)
+	if (hists__has(hists, need_collapse))
 		root = &hists->entries_collapsed;
 	else
 		root = hists->entries_in;
@@ -209,7 +197,7 @@ static int __validate_link(struct hists *hists, int idx)
 	 * and some entries will have no pair.  However every entry
 	 * in other hists should have (dummy) pair.
 	 */
-	if (sort__need_collapse)
+	if (hists__has(hists, need_collapse))
 		root = &hists->entries_collapsed;
 	else
 		root = hists->entries_in;

@@ -65,8 +65,8 @@ int tcp_rack_mark_lost(struct sock *sk)
 			if (scb->sacked & TCPCB_SACKED_RETRANS) {
 				scb->sacked &= ~TCPCB_SACKED_RETRANS;
 				tp->retrans_out -= tcp_skb_pcount(skb);
-				NET_INC_STATS_BH(sock_net(sk),
-						 LINUX_MIB_TCPLOSTRETRANSMIT);
+				NET_INC_STATS(sock_net(sk),
+					      LINUX_MIB_TCPLOSTRETRANSMIT);
 			}
 		} else if (!(scb->sacked & TCPCB_RETRANS)) {
 			/* Original data are sent sequentially so stop early

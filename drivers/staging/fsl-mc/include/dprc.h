@@ -94,11 +94,6 @@ int dprc_close(struct fsl_mc_io *mc_io,
  */
 #define DPRC_CFG_OPT_TOPOLOGY_CHANGES_ALLOWED	0x00000008
 
-/* IOMMU bypass - indicates whether objects of this container are permitted
- * to bypass the IOMMU.
- */
-#define DPRC_CFG_OPT_IOMMU_BYPASS		0x00000010
-
 /* AIOP - Indicates that container belongs to AIOP.  */
 #define DPRC_CFG_OPT_AIOP			0x00000020
 
@@ -173,12 +168,12 @@ int dprc_reset_container(struct fsl_mc_io *mc_io,
  * struct dprc_irq_cfg - IRQ configuration
  * @paddr:	Address that must be written to signal a message-based interrupt
  * @val:	Value to write into irq_addr address
- * @user_irq_id: A user defined number associated with this IRQ
+ * @irq_num:	A user defined number associated with this IRQ
  */
 struct dprc_irq_cfg {
 	     phys_addr_t	paddr;
 	     u32		val;
-	     int		user_irq_id;
+	     int		irq_num;
 };
 
 int dprc_set_irq(struct fsl_mc_io	*mc_io,
@@ -353,6 +348,14 @@ int dprc_get_obj_count(struct fsl_mc_io *mc_io,
 #define DPRC_OBJ_STATE_PLUGGED		0x00000002
 
 /**
+ * Shareability flag - Object flag indicating no memory shareability.
+ * the object generates memory accesses that are non coherent with other
+ * masters;
+ * user is responsible for proper memory handling through IOMMU configuration.
+ */
+#define DPRC_OBJ_FLAG_NO_MEM_SHAREABILITY		0x0001
+
+/**
  * struct dprc_obj_desc - Object descriptor, returned from dprc_get_obj()
  * @type: Type of object: NULL terminated string
  * @id: ID of logical object resource
@@ -363,6 +366,7 @@ int dprc_get_obj_count(struct fsl_mc_io *mc_io,
  * @region_count: Number of mappable regions supported by the object
  * @state: Object state: combination of DPRC_OBJ_STATE_ states
  * @label: Object label
+ * @flags: Object's flags
  */
 struct dprc_obj_desc {
 	char type[16];
@@ -374,6 +378,7 @@ struct dprc_obj_desc {
 	u8 region_count;
 	u32 state;
 	char label[16];
+	u16 flags;
 };
 
 int dprc_get_obj(struct fsl_mc_io	*mc_io,

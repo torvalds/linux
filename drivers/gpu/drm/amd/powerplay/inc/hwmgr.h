@@ -141,7 +141,7 @@ enum phm_master_table_flag {
 struct phm_master_table_header {
 	uint32_t storage_size;
 	uint32_t flags;
-	struct phm_master_table_item *master_list;
+	const struct phm_master_table_item *master_list;
 };
 
 struct phm_runtime_table_header {
@@ -199,7 +199,7 @@ extern int phm_dispatch_table(struct pp_hwmgr *hwmgr,
 			      void *input, void *output);
 
 extern int phm_construct_table(struct pp_hwmgr *hwmgr,
-			       struct phm_master_table_header *master_table,
+			       const struct phm_master_table_header *master_table,
 			       struct phm_runtime_table_header *rt_table);
 
 extern int phm_destroy_table(struct pp_hwmgr *hwmgr,
@@ -325,8 +325,19 @@ struct pp_hwmgr_func {
 				bool cc6_disable, bool pstate_disable,
 				bool pstate_switch_disable);
 	int (*get_dal_power_level)(struct pp_hwmgr *hwmgr,
-				   struct amd_pp_dal_clock_info *info);
+			struct amd_pp_simple_clock_info *info);
+	int (*get_performance_level)(struct pp_hwmgr *, const struct pp_hw_power_state *,
+			PHM_PerformanceLevelDesignation, uint32_t, PHM_PerformanceLevel *);
+	int (*get_current_shallow_sleep_clocks)(struct pp_hwmgr *hwmgr,
+				const struct pp_hw_power_state *state, struct pp_clock_info *clock_info);
+	int (*get_clock_by_type)(struct pp_hwmgr *hwmgr, enum amd_pp_clock_type type, struct amd_pp_clocks *clocks);
+	int (*get_max_high_clocks)(struct pp_hwmgr *hwmgr, struct amd_pp_simple_clock_info *clocks);
 	int (*power_off_asic)(struct pp_hwmgr *hwmgr);
+	int (*get_pp_table)(struct pp_hwmgr *hwmgr, char **table);
+	int (*set_pp_table)(struct pp_hwmgr *hwmgr, const char *buf, size_t size);
+	int (*force_clock_level)(struct pp_hwmgr *hwmgr, enum pp_clock_type type, uint32_t mask);
+	int (*print_clock_levels)(struct pp_hwmgr *hwmgr, enum pp_clock_type type, char *buf);
+	int (*enable_per_cu_power_gating)(struct pp_hwmgr *hwmgr, bool enable);
 };
 
 struct pp_table_func {
@@ -400,6 +411,8 @@ struct phm_cac_tdp_table {
 	uint8_t  ucVr_I2C_Line;
 	uint8_t  ucPlx_I2C_address;
 	uint8_t  ucPlx_I2C_Line;
+	uint32_t usBoostPowerLimit;
+	uint8_t  ucCKS_LDO_REFSEL;
 };
 
 struct phm_ppm_table {
@@ -489,7 +502,7 @@ struct phm_dynamic_state_info {
 	struct phm_ppm_table                          *ppm_parameter_table;
 	struct phm_cac_tdp_table                      *cac_dtp_table;
 	struct phm_clock_voltage_dependency_table	  *vdd_gfx_dependency_on_sclk;
-	struct phm_vq_budgeting_table		  		  *vq_budgeting_table;
+	struct phm_vq_budgeting_table				  *vq_budgeting_table;
 };
 
 struct pp_fan_info {
@@ -566,6 +579,7 @@ struct pp_hwmgr {
 	void *device;
 	struct pp_smumgr *smumgr;
 	const void *soft_pp_table;
+	uint32_t soft_pp_table_size;
 	bool need_pp_table_upload;
 	enum amd_dpm_forced_level dpm_level;
 	bool block_hw_access;
@@ -661,7 +675,7 @@ extern int phm_get_sclk_for_voltage_evv(struct pp_hwmgr *hwmgr, phm_ppt_v1_volta
 extern int phm_initializa_dynamic_state_adjustment_rule_settings(struct pp_hwmgr *hwmgr);
 extern int phm_hwmgr_backend_fini(struct pp_hwmgr *hwmgr);
 extern uint32_t phm_get_lowest_enabled_level(struct pp_hwmgr *hwmgr, uint32_t mask);
-
+extern void phm_apply_dal_min_voltage_request(struct pp_hwmgr *hwmgr);
 
 #define PHM_ENTIRE_REGISTER_MASK 0xFFFFFFFFU
 

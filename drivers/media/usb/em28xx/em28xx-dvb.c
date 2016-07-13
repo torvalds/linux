@@ -58,6 +58,8 @@
 #include "ts2020.h"
 #include "si2168.h"
 #include "si2157.h"
+#include "tc90522.h"
+#include "qm1d1c0042.h"
 
 MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
 MODULE_LICENSE("GPL");
@@ -786,6 +788,68 @@ static int em28xx_mt352_terratec_xs_init(struct dvb_frontend *fe)
 	mt352_write(fe, tuner_go,       sizeof(tuner_go));
 	return 0;
 }
+
+static void px_bcud_init(struct em28xx *dev)
+{
+	int i;
+	struct {
+		unsigned char r[4];
+		int len;
+	} regs1[] = {
+		{{ 0x0e, 0x77 }, 2},
+		{{ 0x0f, 0x77 }, 2},
+		{{ 0x03, 0x90 }, 2},
+	}, regs2[] = {
+		{{ 0x07, 0x01 }, 2},
+		{{ 0x08, 0x10 }, 2},
+		{{ 0x13, 0x00 }, 2},
+		{{ 0x17, 0x00 }, 2},
+		{{ 0x03, 0x01 }, 2},
+		{{ 0x10, 0xb1 }, 2},
+		{{ 0x11, 0x40 }, 2},
+		{{ 0x85, 0x7a }, 2},
+		{{ 0x87, 0x04 }, 2},
+	};
+	static struct em28xx_reg_seq gpio[] = {
+		{EM28XX_R06_I2C_CLK,		0x40,	0xff,	300},
+		{EM2874_R80_GPIO_P0_CTRL,	0xfd,	0xff,	60},
+		{EM28XX_R15_RGAIN,		0x20,	0xff,	0},
+		{EM28XX_R16_GGAIN,		0x20,	0xff,	0},
+		{EM28XX_R17_BGAIN,		0x20,	0xff,	0},
+		{EM28XX_R18_ROFFSET,		0x00,	0xff,	0},
+		{EM28XX_R19_GOFFSET,		0x00,	0xff,	0},
+		{EM28XX_R1A_BOFFSET,		0x00,	0xff,	0},
+		{EM28XX_R23_UOFFSET,		0x00,	0xff,	0},
+		{EM28XX_R24_VOFFSET,		0x00,	0xff,	0},
+		{EM28XX_R26_COMPR,		0x00,	0xff,	0},
+		{0x13,				0x08,	0xff,	0},
+		{EM28XX_R12_VINENABLE,		0x27,	0xff,	0},
+		{EM28XX_R0C_USBSUSP,		0x10,	0xff,	0},
+		{EM28XX_R27_OUTFMT,		0x00,	0xff,	0},
+		{EM28XX_R10_VINMODE,		0x00,	0xff,	0},
+		{EM28XX_R11_VINCTRL,		0x11,	0xff,	0},
+		{EM2874_R50_IR_CONFIG,		0x01,	0xff,	0},
+		{EM2874_R5F_TS_ENABLE,		0x80,	0xff,	0},
+		{EM28XX_R06_I2C_CLK,		0x46,	0xff,	0},
+	};
+	em28xx_write_reg(dev, EM28XX_R06_I2C_CLK, 0x46);
+	/* sleeping ISDB-T */
+	dev->dvb->i2c_client_demod->addr = 0x14;
+	for (i = 0; i < ARRAY_SIZE(regs1); i++)
+		i2c_master_send(dev->dvb->i2c_client_demod, regs1[i].r,
+				regs1[i].len);
+	/* sleeping ISDB-S */
+	dev->dvb->i2c_client_demod->addr = 0x15;
+	for (i = 0; i < ARRAY_SIZE(regs2); i++)
+		i2c_master_send(dev->dvb->i2c_client_demod, regs2[i].r,
+				regs2[i].len);
+	for (i = 0; i < ARRAY_SIZE(gpio); i++) {
+		em28xx_write_reg_bits(dev, gpio[i].reg, gpio[i].val,
+				      gpio[i].mask);
+		if (gpio[i].sleep > 0)
+			msleep(gpio[i].sleep);
+	}
+};
 
 static struct mt352_config terratec_xs_mt352_cfg = {
 	.demod_address = (0x1e >> 1),
@@ -1760,6 +1824,127 @@ static int em28xx_dvb_init(struct em28xx *dev)
 			}
 
 			dvb->i2c_client_tuner = client;
+		}
+		break;
+
+	case EM28178_BOARD_PLEX_PX_BCUD:
+		{
+			struct i2c_client *client;
+			struct i2c_board_info info;
+			struct tc90522_config tc90522_config;
+			struct qm1d1c0042_config qm1d1c0042_config;
+
+			/* attach demod */
+			memset(&tc90522_config, 0, sizeof(tc90522_config));
+			memset(&info, 0, sizeof(struct i2c_board_info));
+			strlcpy(info.type, "tc90522sat", I2C_NAME_SIZE);
+			info.addr = 0x15;
+			info.platform_data = &tc90522_config;
+			request_module("tc90522");
+			client = i2c_new_device(&dev->i2c_adap[dev->def_i2c_bus], &info);
+			if (client == NULL || client->dev.driver == NULL) {
+				result = -ENODEV;
+				goto out_free;
+			}
+			dvb->i2c_client_demod = client;
+			if (!try_module_get(client->dev.driver->owner)) {
+				i2c_unregister_device(client);
+				result = -ENODEV;
+				goto out_free;
+			}
+
+			/* attach tuner */
+			memset(&qm1d1c0042_config, 0,
+			       sizeof(qm1d1c0042_config));
+			qm1d1c0042_config.fe = tc90522_config.fe;
+			qm1d1c0042_config.lpf = 1;
+			memset(&info, 0, sizeof(struct i2c_board_info));
+			strlcpy(info.type, "qm1d1c0042", I2C_NAME_SIZE);
+			info.addr = 0x61;
+			info.platform_data = &qm1d1c0042_config;
+			request_module(info.type);
+			client = i2c_new_device(tc90522_config.tuner_i2c,
+						&info);
+			if (client == NULL || client->dev.driver == NULL) {
+				module_put(dvb->i2c_client_demod->dev.driver->owner);
+				i2c_unregister_device(dvb->i2c_client_demod);
+				result = -ENODEV;
+				goto out_free;
+			}
+			dvb->i2c_client_tuner = client;
+			if (!try_module_get(client->dev.driver->owner)) {
+				i2c_unregister_device(client);
+				module_put(dvb->i2c_client_demod->dev.driver->owner);
+				i2c_unregister_device(dvb->i2c_client_demod);
+				result = -ENODEV;
+				goto out_free;
+			}
+			dvb->fe[0] = tc90522_config.fe;
+			px_bcud_init(dev);
+		}
+		break;
+	case EM28174_BOARD_HAUPPAUGE_WINTV_DUALHD_DVB:
+		{
+			struct i2c_adapter *adapter;
+			struct i2c_client *client;
+			struct i2c_board_info info;
+			struct si2168_config si2168_config;
+			struct si2157_config si2157_config;
+
+			/* attach demod */
+			memset(&si2168_config, 0, sizeof(si2168_config));
+			si2168_config.i2c_adapter = &adapter;
+			si2168_config.fe = &dvb->fe[0];
+			si2168_config.ts_mode = SI2168_TS_SERIAL;
+			memset(&info, 0, sizeof(struct i2c_board_info));
+			strlcpy(info.type, "si2168", I2C_NAME_SIZE);
+			info.addr = 0x64;
+			info.platform_data = &si2168_config;
+			request_module(info.type);
+			client = i2c_new_device(&dev->i2c_adap[dev->def_i2c_bus], &info);
+			if (client == NULL || client->dev.driver == NULL) {
+				result = -ENODEV;
+				goto out_free;
+			}
+
+			if (!try_module_get(client->dev.driver->owner)) {
+				i2c_unregister_device(client);
+				result = -ENODEV;
+				goto out_free;
+			}
+
+			dvb->i2c_client_demod = client;
+
+			/* attach tuner */
+			memset(&si2157_config, 0, sizeof(si2157_config));
+			si2157_config.fe = dvb->fe[0];
+			si2157_config.if_port = 1;
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+			si2157_config.mdev = dev->media_dev;
+#endif
+			memset(&info, 0, sizeof(struct i2c_board_info));
+			strlcpy(info.type, "si2157", I2C_NAME_SIZE);
+			info.addr = 0x60;
+			info.platform_data = &si2157_config;
+			request_module(info.type);
+			client = i2c_new_device(adapter, &info);
+			if (client == NULL || client->dev.driver == NULL) {
+				module_put(dvb->i2c_client_demod->dev.driver->owner);
+				i2c_unregister_device(dvb->i2c_client_demod);
+				result = -ENODEV;
+				goto out_free;
+			}
+
+			if (!try_module_get(client->dev.driver->owner)) {
+				i2c_unregister_device(client);
+				module_put(dvb->i2c_client_demod->dev.driver->owner);
+				i2c_unregister_device(dvb->i2c_client_demod);
+				result = -ENODEV;
+				goto out_free;
+			}
+
+			dvb->i2c_client_tuner = client;
+
 		}
 		break;
 	default:

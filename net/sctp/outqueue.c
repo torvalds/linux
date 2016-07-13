@@ -866,8 +866,10 @@ static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 				 * sender MUST assure that at least one T3-rtx
 				 * timer is running.
 				 */
-				if (chunk->chunk_hdr->type == SCTP_CID_FWD_TSN)
-					sctp_transport_reset_timers(transport);
+				if (chunk->chunk_hdr->type == SCTP_CID_FWD_TSN) {
+					sctp_transport_reset_t3_rtx(transport);
+					transport->last_time_sent = jiffies;
+				}
 			}
 			break;
 
@@ -924,8 +926,10 @@ static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 			error = sctp_outq_flush_rtx(q, packet,
 						    rtx_timeout, &start_timer);
 
-			if (start_timer)
-				sctp_transport_reset_timers(transport);
+			if (start_timer) {
+				sctp_transport_reset_t3_rtx(transport);
+				transport->last_time_sent = jiffies;
+			}
 
 			/* This can happen on COOKIE-ECHO resend.  Only
 			 * one chunk can get bundled with a COOKIE-ECHO.
@@ -978,8 +982,12 @@ static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 			     (new_transport->state == SCTP_UNCONFIRMED) ||
 			     (new_transport->state == SCTP_PF)))
 				new_transport = asoc->peer.active_path;
-			if (new_transport->state == SCTP_UNCONFIRMED)
+			if (new_transport->state == SCTP_UNCONFIRMED) {
+				WARN_ONCE(1, "Atempt to send packet on unconfirmed path.");
+				sctp_chunk_fail(chunk, 0);
+				sctp_chunk_free(chunk);
 				continue;
+			}
 
 			/* Change packets if necessary.  */
 			if (new_transport != transport) {
@@ -1058,7 +1066,8 @@ static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 			list_add_tail(&chunk->transmitted_list,
 				      &transport->transmitted);
 
-			sctp_transport_reset_timers(transport);
+			sctp_transport_reset_t3_rtx(transport);
+			transport->last_time_sent = jiffies;
 
 			/* Only let one DATA chunk get bundled with a
 			 * COOKIE-ECHO chunk.

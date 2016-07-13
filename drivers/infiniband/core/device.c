@@ -650,10 +650,26 @@ int ib_query_port(struct ib_device *device,
 		  u8 port_num,
 		  struct ib_port_attr *port_attr)
 {
+	union ib_gid gid;
+	int err;
+
 	if (port_num < rdma_start_port(device) || port_num > rdma_end_port(device))
 		return -EINVAL;
 
-	return device->query_port(device, port_num, port_attr);
+	memset(port_attr, 0, sizeof(*port_attr));
+	err = device->query_port(device, port_num, port_attr);
+	if (err || port_attr->subnet_prefix)
+		return err;
+
+	if (rdma_port_get_link_layer(device, port_num) != IB_LINK_LAYER_INFINIBAND)
+		return 0;
+
+	err = ib_query_gid(device, port_num, 0, &gid, NULL);
+	if (err)
+		return err;
+
+	port_attr->subnet_prefix = be64_to_cpu(gid.global.subnet_prefix);
+	return 0;
 }
 EXPORT_SYMBOL(ib_query_port);
 
@@ -942,6 +958,29 @@ struct net_device *ib_get_net_dev_by_params(struct ib_device *dev,
 }
 EXPORT_SYMBOL(ib_get_net_dev_by_params);
 
+static struct ibnl_client_cbs ibnl_ls_cb_table[] = {
+	[RDMA_NL_LS_OP_RESOLVE] = {
+		.dump = ib_nl_handle_resolve_resp,
+		.module = THIS_MODULE },
+	[RDMA_NL_LS_OP_SET_TIMEOUT] = {
+		.dump = ib_nl_handle_set_timeout,
+		.module = THIS_MODULE },
+	[RDMA_NL_LS_OP_IP_RESOLVE] = {
+		.dump = ib_nl_handle_ip_res_resp,
+		.module = THIS_MODULE },
+};
+
+static int ib_add_ibnl_clients(void)
+{
+	return ibnl_add_client(RDMA_NL_LS, ARRAY_SIZE(ibnl_ls_cb_table),
+			       ibnl_ls_cb_table);
+}
+
+static void ib_remove_ibnl_clients(void)
+{
+	ibnl_remove_client(RDMA_NL_LS);
+}
+
 static int __init ib_core_init(void)
 {
 	int ret;
@@ -970,10 +1009,42 @@ static int __init ib_core_init(void)
 		goto err_sysfs;
 	}
 
+	ret = addr_init();
+	if (ret) {
+		pr_warn("Could't init IB address resolution\n");
+		goto err_ibnl;
+	}
+
+	ret = ib_mad_init();
+	if (ret) {
+		pr_warn("Couldn't init IB MAD\n");
+		goto err_addr;
+	}
+
+	ret = ib_sa_init();
+	if (ret) {
+		pr_warn("Couldn't init SA\n");
+		goto err_mad;
+	}
+
+	ret = ib_add_ibnl_clients();
+	if (ret) {
+		pr_warn("Couldn't register ibnl clients\n");
+		goto err_sa;
+	}
+
 	ib_cache_setup();
 
 	return 0;
 
+err_sa:
+	ib_sa_cleanup();
+err_mad:
+	ib_mad_cleanup();
+err_addr:
+	addr_cleanup();
+err_ibnl:
+	ibnl_cleanup();
 err_sysfs:
 	class_unregister(&ib_class);
 err_comp:
@@ -986,6 +1057,10 @@ err:
 static void __exit ib_core_cleanup(void)
 {
 	ib_cache_cleanup();
+	ib_remove_ibnl_clients();
+	ib_sa_cleanup();
+	ib_mad_cleanup();
+	addr_cleanup();
 	ibnl_cleanup();
 	class_unregister(&ib_class);
 	destroy_workqueue(ib_comp_wq);

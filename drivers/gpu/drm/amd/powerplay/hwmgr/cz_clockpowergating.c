@@ -237,7 +237,7 @@ int cz_dpm_powergate_vce(struct pp_hwmgr *hwmgr, bool bgate)
 }
 
 
-static struct phm_master_table_item cz_enable_clock_power_gatings_list[] = {
+static const struct phm_master_table_item cz_enable_clock_power_gatings_list[] = {
 	/*we don't need an exit table here, because there is only D3 cold on Kv*/
 	{ phm_cf_want_uvd_power_gating, cz_tf_uvd_power_gating_initialize },
 	{ phm_cf_want_vce_power_gating, cz_tf_vce_power_gating_initialize },
@@ -245,7 +245,7 @@ static struct phm_master_table_item cz_enable_clock_power_gatings_list[] = {
 	{ NULL, NULL }
 };
 
-struct phm_master_table_header cz_phm_enable_clock_power_gatings_master = {
+const struct phm_master_table_header cz_phm_enable_clock_power_gatings_master = {
 	0,
 	PHM_MasterTableFlag_None,
 	cz_enable_clock_power_gatings_list

@@ -18,6 +18,7 @@
 #include "qed_hw.h"
 #include "qed_init_ops.h"
 #include "qed_reg_addr.h"
+#include "qed_sriov.h"
 
 #define QED_INIT_MAX_POLL_COUNT 100
 #define QED_INIT_POLL_PERIOD_US 500
@@ -127,6 +128,9 @@ static int qed_init_rt(struct qed_hwfn	*p_hwfn,
 int qed_init_alloc(struct qed_hwfn *p_hwfn)
 {
 	struct qed_rt_data *rt_data = &p_hwfn->rt_data;
+
+	if (IS_VF(p_hwfn->cdev))
+		return 0;
 
 	rt_data->b_valid = kzalloc(sizeof(bool) * RUNTIME_ARRAY_SIZE,
 				   GFP_KERNEL);

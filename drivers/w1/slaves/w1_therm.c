@@ -92,10 +92,13 @@ static void w1_therm_remove_slave(struct w1_slave *sl)
 static ssize_t w1_slave_show(struct device *device,
 	struct device_attribute *attr, char *buf);
 
+static ssize_t w1_slave_store(struct device *device,
+	struct device_attribute *attr, const char *buf, size_t size);
+
 static ssize_t w1_seq_show(struct device *device,
 	struct device_attribute *attr, char *buf);
 
-static DEVICE_ATTR_RO(w1_slave);
+static DEVICE_ATTR_RW(w1_slave);
 static DEVICE_ATTR_RO(w1_seq);
 
 static struct attribute *w1_therm_attrs[] = {
@@ -154,7 +157,16 @@ struct w1_therm_family_converter
 	u16			reserved;
 	struct w1_family	*f;
 	int			(*convert)(u8 rom[9]);
+	int			(*precision)(struct device *device, int val);
+	int			(*eeprom)(struct device *device);
 };
+
+/* write configuration to eeprom */
+static inline int w1_therm_eeprom(struct device *device);
+
+/* Set precision for conversion */
+static inline int w1_DS18B20_precision(struct device *device, int val);
+static inline int w1_DS18S20_precision(struct device *device, int val);
 
 /* The return value is millidegrees Centigrade. */
 static inline int w1_DS18B20_convert_temp(u8 rom[9]);
@@ -163,25 +175,193 @@ static inline int w1_DS18S20_convert_temp(u8 rom[9]);
 static struct w1_therm_family_converter w1_therm_families[] = {
 	{
 		.f		= &w1_therm_family_DS18S20,
-		.convert 	= w1_DS18S20_convert_temp
+		.convert	= w1_DS18S20_convert_temp,
+		.precision	= w1_DS18S20_precision,
+		.eeprom		= w1_therm_eeprom
 	},
 	{
 		.f		= &w1_therm_family_DS1822,
-		.convert 	= w1_DS18B20_convert_temp
+		.convert	= w1_DS18B20_convert_temp,
+		.precision	= w1_DS18S20_precision,
+		.eeprom		= w1_therm_eeprom
 	},
 	{
 		.f		= &w1_therm_family_DS18B20,
-		.convert 	= w1_DS18B20_convert_temp
+		.convert	= w1_DS18B20_convert_temp,
+		.precision	= w1_DS18B20_precision,
+		.eeprom		= w1_therm_eeprom
 	},
 	{
 		.f		= &w1_therm_family_DS28EA00,
-		.convert	= w1_DS18B20_convert_temp
+		.convert	= w1_DS18B20_convert_temp,
+		.precision	= w1_DS18S20_precision,
+		.eeprom		= w1_therm_eeprom
 	},
 	{
 		.f		= &w1_therm_family_DS1825,
-		.convert	= w1_DS18B20_convert_temp
+		.convert	= w1_DS18B20_convert_temp,
+		.precision	= w1_DS18S20_precision,
+		.eeprom		= w1_therm_eeprom
 	}
 };
+
+static inline int w1_therm_eeprom(struct device *device)
+{
+	struct w1_slave *sl = dev_to_w1_slave(device);
+	struct w1_master *dev = sl->master;
+	u8 rom[9], external_power;
+	int ret, max_trying = 10;
+	u8 *family_data = sl->family_data;
+
+	ret = mutex_lock_interruptible(&dev->bus_mutex);
+	if (ret != 0)
+		goto post_unlock;
+
+	if (!sl->family_data) {
+		ret = -ENODEV;
+		goto pre_unlock;
+	}
+
+	/* prevent the slave from going away in sleep */
+	atomic_inc(THERM_REFCNT(family_data));
+	memset(rom, 0, sizeof(rom));
+
+	while (max_trying--) {
+		if (!w1_reset_select_slave(sl)) {
+			unsigned int tm = 10;
+			unsigned long sleep_rem;
+
+			/* check if in parasite mode */
+			w1_write_8(dev, W1_READ_PSUPPLY);
+			external_power = w1_read_8(dev);
+
+			if (w1_reset_select_slave(sl))
+				continue;
+
+			/* 10ms strong pullup/delay after the copy command */
+			if (w1_strong_pullup == 2 ||
+			    (!external_power && w1_strong_pullup))
+				w1_next_pullup(dev, tm);
+
+			w1_write_8(dev, W1_COPY_SCRATCHPAD);
+
+			if (external_power) {
+				mutex_unlock(&dev->bus_mutex);
+
+				sleep_rem = msleep_interruptible(tm);
+				if (sleep_rem != 0) {
+					ret = -EINTR;
+					goto post_unlock;
+				}
+
+				ret = mutex_lock_interruptible(&dev->bus_mutex);
+				if (ret != 0)
+					goto post_unlock;
+			} else if (!w1_strong_pullup) {
+				sleep_rem = msleep_interruptible(tm);
+				if (sleep_rem != 0) {
+					ret = -EINTR;
+					goto pre_unlock;
+				}
+			}
+
+			break;
+		}
+	}
+
+pre_unlock:
+	mutex_unlock(&dev->bus_mutex);
+
+post_unlock:
+	atomic_dec(THERM_REFCNT(family_data));
+	return ret;
+}
+
+/* DS18S20 does not feature configuration register */
+static inline int w1_DS18S20_precision(struct device *device, int val)
+{
+	return 0;
+}
+
+static inline int w1_DS18B20_precision(struct device *device, int val)
+{
+	struct w1_slave *sl = dev_to_w1_slave(device);
+	struct w1_master *dev = sl->master;
+	u8 rom[9], crc;
+	int ret, max_trying = 10;
+	u8 *family_data = sl->family_data;
+	uint8_t precision_bits;
+	uint8_t mask = 0x60;
+
+	if(val > 12 || val < 9) {
+		pr_warn("Unsupported precision\n");
+		return -1;
+	}
+
+	ret = mutex_lock_interruptible(&dev->bus_mutex);
+	if (ret != 0)
+		goto post_unlock;
+
+	if (!sl->family_data) {
+		ret = -ENODEV;
+		goto pre_unlock;
+	}
+
+	/* prevent the slave from going away in sleep */
+	atomic_inc(THERM_REFCNT(family_data));
+	memset(rom, 0, sizeof(rom));
+
+	/* translate precision to bitmask (see datasheet page 9) */
+	switch (val) {
+	case 9:
+		precision_bits = 0x00;
+		break;
+	case 10:
+		precision_bits = 0x20;
+		break;
+	case 11:
+		precision_bits = 0x40;
+		break;
+	case 12:
+	default:
+		precision_bits = 0x60;
+		break;
+	}
+
+	while (max_trying--) {
+		crc = 0;
+
+		if (!w1_reset_select_slave(sl)) {
+			int count = 0;
+
+			/* read values to only alter precision bits */
+			w1_write_8(dev, W1_READ_SCRATCHPAD);
+			if ((count = w1_read_block(dev, rom, 9)) != 9)
+				dev_warn(device, "w1_read_block() returned %u instead of 9.\n",	count);
+
+			crc = w1_calc_crc8(rom, 8);
+			if (rom[8] == crc) {
+				rom[4] = (rom[4] & ~mask) | (precision_bits & mask);
+
+				if (!w1_reset_select_slave(sl)) {
+					w1_write_8(dev, W1_WRITE_SCRATCHPAD);
+					w1_write_8(dev, rom[2]);
+					w1_write_8(dev, rom[3]);
+					w1_write_8(dev, rom[4]);
+
+					break;
+				}
+			}
+		}
+	}
+
+pre_unlock:
+	mutex_unlock(&dev->bus_mutex);
+
+post_unlock:
+	atomic_dec(THERM_REFCNT(family_data));
+	return ret;
+}
 
 static inline int w1_DS18B20_convert_temp(u8 rom[9])
 {
@@ -220,6 +400,30 @@ static inline int w1_convert_temp(u8 rom[9], u8 fid)
 	return 0;
 }
 
+static ssize_t w1_slave_store(struct device *device,
+			      struct device_attribute *attr, const char *buf,
+			      size_t size)
+{
+	int val, ret;
+	struct w1_slave *sl = dev_to_w1_slave(device);
+	int i;
+
+	ret = kstrtoint(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < ARRAY_SIZE(w1_therm_families); ++i) {
+		if (w1_therm_families[i].f->fid == sl->family->fid) {
+			/* zero value indicates to write current configuration to eeprom */
+			if (0 == val)
+				ret = w1_therm_families[i].eeprom(device);
+			else
+				ret = w1_therm_families[i].precision(device, val);
+			break;
+		}
+	}
+	return ret ? : size;
+}
 
 static ssize_t w1_slave_show(struct device *device,
 	struct device_attribute *attr, char *buf)
@@ -311,7 +515,7 @@ static ssize_t w1_slave_show(struct device *device,
 	for (i = 0; i < 9; ++i)
 		c -= snprintf(buf + PAGE_SIZE - c, c, "%02x ", rom[i]);
 	c -= snprintf(buf + PAGE_SIZE - c, c, ": crc=%02x %s\n",
-			   crc, (verdict) ? "YES" : "NO");
+		      crc, (verdict) ? "YES" : "NO");
 	if (verdict)
 		memcpy(family_data, rom, sizeof(rom));
 	else

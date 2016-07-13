@@ -42,10 +42,8 @@ module_param_named(modeset, virtio_gpu_modeset, int, 0400);
 
 static int virtio_gpu_probe(struct virtio_device *vdev)
 {
-#ifdef CONFIG_VGA_CONSOLE
 	if (vgacon_text_force() && virtio_gpu_modeset == -1)
 		return -EINVAL;
-#endif
 
 	if (virtio_gpu_modeset == 0)
 		return -EINVAL;
@@ -118,7 +116,7 @@ static const struct file_operations virtio_gpu_driver_fops = {
 
 
 static struct drm_driver driver = {
-	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME | DRIVER_RENDER,
+	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME | DRIVER_RENDER | DRIVER_ATOMIC,
 	.set_busid = drm_virtio_set_busid,
 	.load = virtio_gpu_driver_load,
 	.unload = virtio_gpu_driver_unload,

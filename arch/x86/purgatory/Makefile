@@ -1,3 +1,5 @@
+OBJECT_FILES_NON_STANDARD := y
+
 purgatory-y := purgatory.o stack.o setup-x86_$(BITS).o sha256.o entry64.o string.o
 
 targets += $(purgatory-y)
@@ -24,7 +26,5 @@ quiet_cmd_bin2c = BIN2C   $@
 
 $(obj)/kexec-purgatory.c: $(obj)/purgatory.ro FORCE
 	$(call if_changed,bin2c)
-	@:
-
 
 obj-$(CONFIG_KEXEC_FILE)	+= kexec-purgatory.o

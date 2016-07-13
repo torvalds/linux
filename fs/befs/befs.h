@@ -116,7 +116,7 @@ BEFS_I(const struct inode *inode)
 }
 
 static inline befs_blocknr_t
-iaddr2blockno(struct super_block *sb, befs_inode_addr * iaddr)
+iaddr2blockno(struct super_block *sb, const befs_inode_addr *iaddr)
 {
 	return ((iaddr->allocation_group << BEFS_SB(sb)->ag_shift) +
 		iaddr->start);
@@ -141,7 +141,7 @@ befs_iaddrs_per_block(struct super_block *sb)
 }
 
 static inline int
-befs_iaddr_is_empty(befs_inode_addr * iaddr)
+befs_iaddr_is_empty(const befs_inode_addr *iaddr)
 {
 	return (!iaddr->allocation_group) && (!iaddr->start) && (!iaddr->len);
 }

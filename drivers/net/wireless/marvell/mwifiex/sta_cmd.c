@@ -1558,6 +1558,30 @@ static int mwifiex_cmd_robust_coex(struct mwifiex_private *priv,
 	return 0;
 }
 
+static int mwifiex_cmd_gtk_rekey_offload(struct mwifiex_private *priv,
+					 struct host_cmd_ds_command *cmd,
+					 u16 cmd_action,
+					 struct cfg80211_gtk_rekey_data *data)
+{
+	struct host_cmd_ds_gtk_rekey_params *rekey = &cmd->params.rekey;
+	u64 rekey_ctr;
+
+	cmd->command = cpu_to_le16(HostCmd_CMD_GTK_REKEY_OFFLOAD_CFG);
+	cmd->size = cpu_to_le16(sizeof(*rekey) + S_DS_GEN);
+
+	rekey->action = cpu_to_le16(cmd_action);
+	if (cmd_action == HostCmd_ACT_GEN_SET) {
+		memcpy(rekey->kek, data->kek, NL80211_KEK_LEN);
+		memcpy(rekey->kck, data->kck, NL80211_KCK_LEN);
+		rekey_ctr = be64_to_cpup((__be64 *)data->replay_ctr);
+		rekey->replay_ctr_low = cpu_to_le32((u32)rekey_ctr);
+		rekey->replay_ctr_high =
+			cpu_to_le32((u32)((u64)rekey_ctr >> 32));
+	}
+
+	return 0;
+}
+
 static int
 mwifiex_cmd_coalesce_cfg(struct mwifiex_private *priv,
 			 struct host_cmd_ds_command *cmd,
@@ -2094,6 +2118,10 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 		ret = mwifiex_cmd_robust_coex(priv, cmd_ptr, cmd_action,
 					      data_buf);
 		break;
+	case HostCmd_CMD_GTK_REKEY_OFFLOAD_CFG:
+		ret = mwifiex_cmd_gtk_rekey_offload(priv, cmd_ptr, cmd_action,
+						    data_buf);
+		break;
 	default:
 		mwifiex_dbg(priv->adapter, ERROR,
 			    "PREP_CMD: unknown cmd- %#x\n", cmd_no);
@@ -2134,6 +2162,7 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta, bool init)
 	enum state_11d_t state_11d;
 	struct mwifiex_ds_11n_tx_cfg tx_cfg;
 	u8 sdio_sp_rx_aggr_enable;
+	int data;
 
 	if (first_sta) {
 		if (priv->adapter->iface_type == MWIFIEX_PCIE) {
@@ -2154,9 +2183,16 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta, bool init)
 		 * The cal-data can be read from device tree and/or
 		 * a configuration file and downloaded to firmware.
 		 */
-		adapter->dt_node =
-				of_find_node_by_name(NULL, "marvell_cfgdata");
-		if (adapter->dt_node) {
+		if (priv->adapter->iface_type == MWIFIEX_SDIO &&
+		    adapter->dev->of_node) {
+			adapter->dt_node = adapter->dev->of_node;
+			if (of_property_read_u32(adapter->dt_node,
+						 "marvell,wakeup-pin",
+						 &data) == 0) {
+				pr_debug("Wakeup pin = 0x%x\n", data);
+				adapter->hs_cfg.gpio = data;
+			}
+
 			ret = mwifiex_dnld_dt_cfgdata(priv, adapter->dt_node,
 						      "marvell,caldata");
 			if (ret)

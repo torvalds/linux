@@ -1,16 +1,10 @@
 #include <linux/module.h>
-#include <linux/spinlock.h>
-#include <linux/sort.h>
 #include <asm/uaccess.h>
+#include <asm/traps.h>
 
 typedef bool (*ex_handler_t)(const struct exception_table_entry *,
 			    struct pt_regs *, int);
 
-static inline unsigned long
-ex_insn_addr(const struct exception_table_entry *x)
-{
-	return (unsigned long)&x->insn + x->insn;
-}
 static inline unsigned long
 ex_fixup_addr(const struct exception_table_entry *x)
 {
@@ -48,6 +42,43 @@ bool ex_handler_ext(const struct exception_table_entry *fixup,
 	return true;
 }
 EXPORT_SYMBOL(ex_handler_ext);
+
+bool ex_handler_rdmsr_unsafe(const struct exception_table_entry *fixup,
+			     struct pt_regs *regs, int trapnr)
+{
+	WARN_ONCE(1, "unchecked MSR access error: RDMSR from 0x%x\n",
+		  (unsigned int)regs->cx);
+
+	/* Pretend that the read succeeded and returned 0. */
+	regs->ip = ex_fixup_addr(fixup);
+	regs->ax = 0;
+	regs->dx = 0;
+	return true;
+}
+EXPORT_SYMBOL(ex_handler_rdmsr_unsafe);
+
+bool ex_handler_wrmsr_unsafe(const struct exception_table_entry *fixup,
+			     struct pt_regs *regs, int trapnr)
+{
+	WARN_ONCE(1, "unchecked MSR access error: WRMSR to 0x%x (tried to write 0x%08x%08x)\n",
+		  (unsigned int)regs->cx,
+		  (unsigned int)regs->dx, (unsigned int)regs->ax);
+
+	/* Pretend that the write succeeded. */
+	regs->ip = ex_fixup_addr(fixup);
+	return true;
+}
+EXPORT_SYMBOL(ex_handler_wrmsr_unsafe);
+
+bool ex_handler_clear_fs(const struct exception_table_entry *fixup,
+			 struct pt_regs *regs, int trapnr)
+{
+	if (static_cpu_has(X86_BUG_NULL_SEG))
+		asm volatile ("mov %0, %%fs" : : "rm" (__USER_DS));
+	asm volatile ("mov %0, %%fs" : : "rm" (0));
+	return ex_handler_default(fixup, regs, trapnr);
+}
+EXPORT_SYMBOL(ex_handler_clear_fs);
 
 bool ex_has_fault_handler(unsigned long ip)
 {
@@ -89,125 +120,46 @@ int fixup_exception(struct pt_regs *regs, int trapnr)
 	return handler(e, regs, trapnr);
 }
 
+extern unsigned int early_recursion_flag;
+
 /* Restricted version used during very early boot */
-int __init early_fixup_exception(unsigned long *ip)
+void __init early_fixup_exception(struct pt_regs *regs, int trapnr)
 {
-	const struct exception_table_entry *e;
-	unsigned long new_ip;
-	ex_handler_t handler;
+	/* Ignore early NMIs. */
+	if (trapnr == X86_TRAP_NMI)
+		return;
 
-	e = search_exception_tables(*ip);
-	if (!e)
-		return 0;
+	if (early_recursion_flag > 2)
+		goto halt_loop;
 
-	new_ip  = ex_fixup_addr(e);
-	handler = ex_fixup_handler(e);
-
-	/* special handling not supported during early boot */
-	if (handler != ex_handler_default)
-		return 0;
-
-	*ip = new_ip;
-	return 1;
-}
-
-/*
- * Search one exception table for an entry corresponding to the
- * given instruction address, and return the address of the entry,
- * or NULL if none is found.
- * We use a binary search, and thus we assume that the table is
- * already sorted.
- */
-const struct exception_table_entry *
-search_extable(const struct exception_table_entry *first,
-	       const struct exception_table_entry *last,
-	       unsigned long value)
-{
-	while (first <= last) {
-		const struct exception_table_entry *mid;
-		unsigned long addr;
-
-		mid = ((last - first) >> 1) + first;
-		addr = ex_insn_addr(mid);
-		if (addr < value)
-			first = mid + 1;
-		else if (addr > value)
-			last = mid - 1;
-		else
-			return mid;
-        }
-        return NULL;
-}
-
-/*
- * The exception table needs to be sorted so that the binary
- * search that we use to find entries in it works properly.
- * This is used both for the kernel exception table and for
- * the exception tables of modules that get loaded.
- *
- */
-static int cmp_ex(const void *a, const void *b)
-{
-	const struct exception_table_entry *x = a, *y = b;
+	if (regs->cs != __KERNEL_CS)
+		goto fail;
 
 	/*
-	 * This value will always end up fittin in an int, because on
-	 * both i386 and x86-64 the kernel symbol-reachable address
-	 * space is < 2 GiB.
+	 * The full exception fixup machinery is available as soon as
+	 * the early IDT is loaded.  This means that it is the
+	 * responsibility of extable users to either function correctly
+	 * when handlers are invoked early or to simply avoid causing
+	 * exceptions before they're ready to handle them.
 	 *
-	 * This compare is only valid after normalization.
+	 * This is better than filtering which handlers can be used,
+	 * because refusing to call a handler here is guaranteed to
+	 * result in a hard-to-debug panic.
+	 *
+	 * Keep in mind that not all vectors actually get here.  Early
+	 * fage faults, for example, are special.
 	 */
-	return x->insn - y->insn;
+	if (fixup_exception(regs, trapnr))
+		return;
+
+fail:
+	early_printk("PANIC: early exception 0x%02x IP %lx:%lx error %lx cr2 0x%lx\n",
+		     (unsigned)trapnr, (unsigned long)regs->cs, regs->ip,
+		     regs->orig_ax, read_cr2());
+
+	show_regs(regs);
+
+halt_loop:
+	while (true)
+		halt();
 }
-
-void sort_extable(struct exception_table_entry *start,
-		  struct exception_table_entry *finish)
-{
-	struct exception_table_entry *p;
-	int i;
-
-	/* Convert all entries to being relative to the start of the section */
-	i = 0;
-	for (p = start; p < finish; p++) {
-		p->insn += i;
-		i += 4;
-		p->fixup += i;
-		i += 4;
-		p->handler += i;
-		i += 4;
-	}
-
-	sort(start, finish - start, sizeof(struct exception_table_entry),
-	     cmp_ex, NULL);
-
-	/* Denormalize all entries */
-	i = 0;
-	for (p = start; p < finish; p++) {
-		p->insn -= i;
-		i += 4;
-		p->fixup -= i;
-		i += 4;
-		p->handler -= i;
-		i += 4;
-	}
-}
-
-#ifdef CONFIG_MODULES
-/*
- * If the exception table is sorted, any referring to the module init
- * will be at the beginning or the end.
- */
-void trim_init_extable(struct module *m)
-{
-	/*trim the beginning*/
-	while (m->num_exentries &&
-	       within_module_init(ex_insn_addr(&m->extable[0]), m)) {
-		m->extable++;
-		m->num_exentries--;
-	}
-	/*trim the end*/
-	while (m->num_exentries &&
-	       within_module_init(ex_insn_addr(&m->extable[m->num_exentries-1]), m))
-		m->num_exentries--;
-}
-#endif /* CONFIG_MODULES */

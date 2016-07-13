@@ -25,12 +25,6 @@
 #include <net/net_namespace.h>
 #include "ar-internal.h"
 
-const char *rxrpc_pkts[] = {
-	"?00",
-	"DATA", "ACK", "BUSY", "ABORT", "ACKALL", "CHALL", "RESP", "DEBUG",
-	"?09", "?10", "?11", "?12", "VERSION", "?14", "?15"
-};
-
 /*
  * queue a packet for recvmsg to pass to userspace
  * - the caller must hold a lock on call->lock
@@ -199,7 +193,7 @@ static int rxrpc_fast_process_data(struct rxrpc_call *call,
 
 	/* if the packet need security things doing to it, then it goes down
 	 * the slow path */
-	if (call->conn->security)
+	if (call->conn->security_ix)
 		goto enqueue_packet;
 
 	sp->call = call;
@@ -355,7 +349,7 @@ void rxrpc_fast_process_packet(struct rxrpc_call *call, struct sk_buff *skb)
 		write_lock_bh(&call->state_lock);
 		if (call->state < RXRPC_CALL_COMPLETE) {
 			call->state = RXRPC_CALL_REMOTELY_ABORTED;
-			call->abort_code = abort_code;
+			call->remote_abort = abort_code;
 			set_bit(RXRPC_CALL_EV_RCVD_ABORT, &call->events);
 			rxrpc_queue_call(call);
 		}
@@ -428,7 +422,7 @@ protocol_error:
 protocol_error_locked:
 	if (call->state <= RXRPC_CALL_COMPLETE) {
 		call->state = RXRPC_CALL_LOCALLY_ABORTED;
-		call->abort_code = RX_PROTOCOL_ERROR;
+		call->local_abort = RX_PROTOCOL_ERROR;
 		set_bit(RXRPC_CALL_EV_ABORT, &call->events);
 		rxrpc_queue_call(call);
 	}
@@ -500,7 +494,7 @@ protocol_error:
 	write_lock_bh(&call->state_lock);
 	if (call->state <= RXRPC_CALL_COMPLETE) {
 		call->state = RXRPC_CALL_LOCALLY_ABORTED;
-		call->abort_code = RX_PROTOCOL_ERROR;
+		call->local_abort = RX_PROTOCOL_ERROR;
 		set_bit(RXRPC_CALL_EV_ABORT, &call->events);
 		rxrpc_queue_call(call);
 	}
@@ -612,9 +606,9 @@ int rxrpc_extract_header(struct rxrpc_skb_priv *sp, struct sk_buff *skb)
 	struct rxrpc_wire_header whdr;
 
 	/* dig out the RxRPC connection details */
-	if (skb_copy_bits(skb, sizeof(struct udphdr), &whdr, sizeof(whdr)) < 0)
+	if (skb_copy_bits(skb, 0, &whdr, sizeof(whdr)) < 0)
 		return -EBADMSG;
-	if (!pskb_pull(skb, sizeof(struct udphdr) + sizeof(whdr)))
+	if (!pskb_pull(skb, sizeof(whdr)))
 		BUG();
 
 	memset(sp, 0, sizeof(*sp));
@@ -704,12 +698,12 @@ void rxrpc_data_ready(struct sock *sk)
 	if (skb_checksum_complete(skb)) {
 		rxrpc_free_skb(skb);
 		rxrpc_put_local(local);
-		UDP_INC_STATS_BH(&init_net, UDP_MIB_INERRORS, 0);
+		__UDP_INC_STATS(&init_net, UDP_MIB_INERRORS, 0);
 		_leave(" [CSUM failed]");
 		return;
 	}
 
-	UDP_INC_STATS_BH(&init_net, UDP_MIB_INDATAGRAMS, 0);
+	__UDP_INC_STATS(&init_net, UDP_MIB_INDATAGRAMS, 0);
 
 	/* The socket buffer we have is owned by UDP, with UDP's data all over
 	 * it, but we really want our own data there.

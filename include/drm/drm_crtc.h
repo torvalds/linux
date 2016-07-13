@@ -45,20 +45,12 @@ struct drm_clip_rect;
 struct device_node;
 struct fence;
 
-#define DRM_MODE_OBJECT_CRTC 0xcccccccc
-#define DRM_MODE_OBJECT_CONNECTOR 0xc0c0c0c0
-#define DRM_MODE_OBJECT_ENCODER 0xe0e0e0e0
-#define DRM_MODE_OBJECT_MODE 0xdededede
-#define DRM_MODE_OBJECT_PROPERTY 0xb0b0b0b0
-#define DRM_MODE_OBJECT_FB 0xfbfbfbfb
-#define DRM_MODE_OBJECT_BLOB 0xbbbbbbbb
-#define DRM_MODE_OBJECT_PLANE 0xeeeeeeee
-#define DRM_MODE_OBJECT_ANY 0
-
 struct drm_mode_object {
 	uint32_t id;
 	uint32_t type;
 	struct drm_object_properties *properties;
+	struct kref refcount;
+	void (*free_cb)(struct kref *kref);
 };
 
 #define DRM_OBJECT_MAX_PROPERTY 24
@@ -126,6 +118,14 @@ enum subpixel_order {
 #define DRM_COLOR_FORMAT_RGB444		(1<<0)
 #define DRM_COLOR_FORMAT_YCRCB444	(1<<1)
 #define DRM_COLOR_FORMAT_YCRCB422	(1<<2)
+
+#define DRM_BUS_FLAG_DE_LOW		(1<<0)
+#define DRM_BUS_FLAG_DE_HIGH		(1<<1)
+/* drive data on pos. edge */
+#define DRM_BUS_FLAG_PIXDATA_POSEDGE	(1<<2)
+/* drive data on neg. edge */
+#define DRM_BUS_FLAG_PIXDATA_NEGEDGE	(1<<3)
+
 /*
  * Describes a given display (e.g. CRT or flat panel) and its limitations.
  */
@@ -147,6 +147,7 @@ struct drm_display_info {
 
 	const u32 *bus_formats;
 	unsigned int num_bus_formats;
+	u32 bus_flags;
 
 	/* Mask of supported hdmi deep color modes */
 	u8 edid_hdmi_dc_modes;
@@ -233,8 +234,8 @@ struct drm_framebuffer {
 	 * should be deferred.  In cases like this, the driver would like to
 	 * hold a ref to the fb even though it has already been removed from
 	 * userspace perspective.
+	 * The refcount is stored inside the mode object.
 	 */
-	struct kref refcount;
 	/*
 	 * Place on the dev->mode_config.fb_list, access protected by
 	 * dev->mode_config.fb_lock.
@@ -258,7 +259,6 @@ struct drm_framebuffer {
 struct drm_property_blob {
 	struct drm_mode_object base;
 	struct drm_device *dev;
-	struct kref refcount;
 	struct list_head head_global;
 	struct list_head head_file;
 	size_t length;
@@ -305,12 +305,20 @@ struct drm_plane_helper_funcs;
  * @mode_changed: crtc_state->mode or crtc_state->enable has been changed
  * @active_changed: crtc_state->active has been toggled.
  * @connectors_changed: connectors to this crtc have been updated
+ * @color_mgmt_changed: color management properties have changed (degamma or
+ *	gamma LUT or CSC matrix)
  * @plane_mask: bitmask of (1 << drm_plane_index(plane)) of attached planes
  * @connector_mask: bitmask of (1 << drm_connector_index(connector)) of attached connectors
+ * @encoder_mask: bitmask of (1 << drm_encoder_index(encoder)) of attached encoders
  * @last_vblank_count: for helpers and drivers to capture the vblank of the
  * 	update to ensure framebuffer cleanup isn't done too early
  * @adjusted_mode: for use by helpers and drivers to compute adjusted mode timings
  * @mode: current mode timings
+ * @degamma_lut: Lookup table for converting framebuffer pixel data
+ *	before apply the conversion matrix
+ * @ctm: Transformation matrix
+ * @gamma_lut: Lookup table for converting pixel data after the
+ *	conversion matrix
  * @event: optional pointer to a DRM event to signal upon completion of the
  * 	state update
  * @state: backpointer to global drm_atomic_state
@@ -332,6 +340,7 @@ struct drm_crtc_state {
 	bool mode_changed : 1;
 	bool active_changed : 1;
 	bool connectors_changed : 1;
+	bool color_mgmt_changed : 1;
 
 	/* attached planes bitmask:
 	 * WARNING: transitional helpers do not maintain plane_mask so
@@ -341,6 +350,7 @@ struct drm_crtc_state {
 	u32 plane_mask;
 
 	u32 connector_mask;
+	u32 encoder_mask;
 
 	/* last_vblank_count: for vblank waits before cleanup */
 	u32 last_vblank_count;
@@ -352,6 +362,11 @@ struct drm_crtc_state {
 
 	/* blob property to expose current mode to atomic userspace */
 	struct drm_property_blob *mode_blob;
+
+	/* blob property to expose color management to userspace */
+	struct drm_property_blob *degamma_lut;
+	struct drm_property_blob *ctm;
+	struct drm_property_blob *gamma_lut;
 
 	struct drm_pending_vblank_event *event;
 
@@ -755,7 +770,7 @@ struct drm_crtc {
 	int x, y;
 	const struct drm_crtc_funcs *funcs;
 
-	/* CRTC gamma size for reporting to userspace */
+	/* Legacy FB CRTC gamma size for reporting to userspace */
 	uint32_t gamma_size;
 	uint16_t *gamma_store;
 
@@ -1582,6 +1597,8 @@ struct drm_bridge_funcs {
 	 *
 	 * The bridge can assume that the display pipe (i.e. clocks and timing
 	 * signals) feeding it is still running when this callback is called.
+	 *
+	 * The disable callback is optional.
 	 */
 	void (*disable)(struct drm_bridge *bridge);
 
@@ -1598,6 +1615,8 @@ struct drm_bridge_funcs {
 	 * The bridge must assume that the display pipe (i.e. clocks and timing
 	 * singals) feeding it is no longer running when this callback is
 	 * called.
+	 *
+	 * The post_disable callback is optional.
 	 */
 	void (*post_disable)(struct drm_bridge *bridge);
 
@@ -1626,6 +1645,8 @@ struct drm_bridge_funcs {
 	 * will not yet be running when this callback is called. The bridge must
 	 * not enable the display link feeding the next bridge in the chain (if
 	 * there is one) when this callback is called.
+	 *
+	 * The pre_enable callback is optional.
 	 */
 	void (*pre_enable)(struct drm_bridge *bridge);
 
@@ -1643,6 +1664,8 @@ struct drm_bridge_funcs {
 	 * signals) feeding it is running when this callback is called. This
 	 * callback must enable the display link feeding the next bridge in the
 	 * chain if there is one.
+	 *
+	 * The enable callback is optional.
 	 */
 	void (*enable)(struct drm_bridge *bridge);
 };
@@ -1675,6 +1698,7 @@ struct drm_bridge {
  * @dev: parent DRM device
  * @allow_modeset: allow full modeset
  * @legacy_cursor_update: hint to enforce legacy cursor IOCTL semantics
+ * @legacy_set_config: Disable conflicting encoders instead of failing with -EINVAL.
  * @planes: pointer to array of plane pointers
  * @plane_states: pointer to array of plane states pointers
  * @crtcs: pointer to array of CRTC pointers
@@ -1688,6 +1712,7 @@ struct drm_atomic_state {
 	struct drm_device *dev;
 	bool allow_modeset : 1;
 	bool legacy_cursor_update : 1;
+	bool legacy_set_config : 1;
 	struct drm_plane **planes;
 	struct drm_plane_state **plane_states;
 	struct drm_crtc **crtcs;
@@ -1870,7 +1895,7 @@ struct drm_mode_config_funcs {
 	 * drm_atomic_helper_commit(), or one of the exported sub-functions of
 	 * it.
 	 *
-	 * Asynchronous commits (as indicated with the async parameter) must
+	 * Nonblocking commits (as indicated with the nonblock parameter) must
 	 * do any preparatory work which might result in an unsuccessful commit
 	 * in the context of this callback. The only exceptions are hardware
 	 * errors resulting in -EIO. But even in that case the driver must
@@ -1883,7 +1908,7 @@ struct drm_mode_config_funcs {
 	 * The driver must wait for any pending rendering to the new
 	 * framebuffers to complete before executing the flip. It should also
 	 * wait for any pending rendering from other drivers if the underlying
-	 * buffer is a shared dma-buf. Asynchronous commits must not wait for
+	 * buffer is a shared dma-buf. Nonblocking commits must not wait for
 	 * rendering in the context of this callback.
 	 *
 	 * An application can request to be notified when the atomic commit has
@@ -1914,7 +1939,7 @@ struct drm_mode_config_funcs {
 	 *
 	 * 0 on success or one of the below negative error codes:
 	 *
-	 *  - -EBUSY, if an asynchronous updated is requested and there is
+	 *  - -EBUSY, if a nonblocking updated is requested and there is
 	 *    an earlier updated pending. Drivers are allowed to support a queue
 	 *    of outstanding updates, but currently no driver supports that.
 	 *    Note that drivers must wait for preceding updates to complete if a
@@ -1944,7 +1969,7 @@ struct drm_mode_config_funcs {
 	 */
 	int (*atomic_commit)(struct drm_device *dev,
 			     struct drm_atomic_state *state,
-			     bool async);
+			     bool nonblock);
 
 	/**
 	 * @atomic_state_alloc:
@@ -2024,6 +2049,15 @@ struct drm_mode_config_funcs {
  * @property_blob_list: list of all the blob property objects
  * @blob_lock: mutex for blob property allocation and management
  * @*_property: core property tracking
+ * @degamma_lut_property: LUT used to convert the framebuffer's colors to linear
+ *	gamma
+ * @degamma_lut_size_property: size of the degamma LUT as supported by the
+ *	driver (read-only)
+ * @ctm_property: Matrix used to convert colors after the lookup in the
+ *	degamma LUT
+ * @gamma_lut_property: LUT used to convert the colors, after the CSC matrix, to
+ *	the gamma space of the connected screen (read-only)
+ * @gamma_lut_size_property: size of the gamma LUT as supported by the driver
  * @preferred_depth: preferred RBG pixel depth, used by fb helpers
  * @prefer_shadow: hint to userspace to prefer shadow-fb rendering
  * @async_page_flip: does this device support async flips on the primary plane?
@@ -2126,6 +2160,13 @@ struct drm_mode_config {
 	struct drm_property *aspect_ratio_property;
 	struct drm_property *dirty_info_property;
 
+	/* Optional color correction properties */
+	struct drm_property *degamma_lut_property;
+	struct drm_property *degamma_lut_size_property;
+	struct drm_property *ctm_property;
+	struct drm_property *gamma_lut_property;
+	struct drm_property *gamma_lut_size_property;
+
 	/* properties for virtual machine layout */
 	struct drm_property *suggested_x_property;
 	struct drm_property *suggested_y_property;
@@ -2155,6 +2196,17 @@ struct drm_mode_config {
 	list_for_each_entry((plane), &(dev)->mode_config.plane_list, head) \
 		for_each_if ((plane_mask) & (1 << drm_plane_index(plane)))
 
+/**
+ * drm_for_each_encoder_mask - iterate over encoders specified by bitmask
+ * @encoder: the loop cursor
+ * @dev: the DRM device
+ * @encoder_mask: bitmask of encoder indices
+ *
+ * Iterate over all encoders specified by bitmask.
+ */
+#define drm_for_each_encoder_mask(encoder, dev, encoder_mask) \
+	list_for_each_entry((encoder), &(dev)->mode_config.encoder_list, head) \
+		for_each_if ((encoder_mask) & (1 << drm_encoder_index(encoder)))
 
 #define obj_to_crtc(x) container_of(x, struct drm_crtc, base)
 #define obj_to_connector(x) container_of(x, struct drm_connector, base)
@@ -2207,8 +2259,9 @@ static inline unsigned drm_connector_index(struct drm_connector *connector)
 	return connector->connector_id;
 }
 
-/* helper to unplug all connectors from sysfs for device */
-extern void drm_connector_unplug_all(struct drm_device *dev);
+/* helpers to {un}register all connectors from sysfs for device */
+extern int drm_connector_register_all(struct drm_device *dev);
+extern void drm_connector_unregister_all(struct drm_device *dev);
 
 extern int drm_bridge_add(struct drm_bridge *bridge);
 extern void drm_bridge_remove(struct drm_bridge *bridge);
@@ -2231,6 +2284,7 @@ int drm_encoder_init(struct drm_device *dev,
 		     struct drm_encoder *encoder,
 		     const struct drm_encoder_funcs *funcs,
 		     int encoder_type, const char *name, ...);
+extern unsigned int drm_encoder_index(struct drm_encoder *encoder);
 
 /**
  * drm_encoder_crtc_ok - can a given crtc drive a given encoder?
@@ -2288,6 +2342,8 @@ extern void drm_property_destroy_user_blobs(struct drm_device *dev,
 extern bool drm_probe_ddc(struct i2c_adapter *adapter);
 extern struct edid *drm_get_edid(struct drm_connector *connector,
 				 struct i2c_adapter *adapter);
+extern struct edid *drm_get_edid_switcheroo(struct drm_connector *connector,
+					    struct i2c_adapter *adapter);
 extern struct edid *drm_edid_duplicate(const struct edid *edid);
 extern int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid);
 extern void drm_mode_config_init(struct drm_device *dev);
@@ -2331,8 +2387,6 @@ extern int drm_framebuffer_init(struct drm_device *dev,
 				const struct drm_framebuffer_funcs *funcs);
 extern struct drm_framebuffer *drm_framebuffer_lookup(struct drm_device *dev,
 						      uint32_t id);
-extern void drm_framebuffer_unreference(struct drm_framebuffer *fb);
-extern void drm_framebuffer_reference(struct drm_framebuffer *fb);
 extern void drm_framebuffer_remove(struct drm_framebuffer *fb);
 extern void drm_framebuffer_cleanup(struct drm_framebuffer *fb);
 extern void drm_framebuffer_unregister_private(struct drm_framebuffer *fb);
@@ -2390,6 +2444,8 @@ extern int drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
 					 int gamma_size);
 extern struct drm_mode_object *drm_mode_object_find(struct drm_device *dev,
 		uint32_t id, uint32_t type);
+void drm_mode_object_reference(struct drm_mode_object *obj);
+void drm_mode_object_unreference(struct drm_mode_object *obj);
 
 /* IOCTLs */
 extern int drm_mode_getresources(struct drm_device *dev,
@@ -2455,6 +2511,8 @@ extern int drm_edid_header_is_valid(const u8 *raw_edid);
 extern bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid,
 				 bool *edid_corrupt);
 extern bool drm_edid_is_valid(struct edid *edid);
+extern void drm_edid_get_monitor_name(struct edid *edid, char *name,
+				      int buflen);
 
 extern struct drm_tile_group *drm_mode_create_tile_group(struct drm_device *dev,
 							 char topology[8]);
@@ -2488,6 +2546,8 @@ extern int drm_format_num_planes(uint32_t format);
 extern int drm_format_plane_cpp(uint32_t format, int plane);
 extern int drm_format_horz_chroma_subsampling(uint32_t format);
 extern int drm_format_vert_chroma_subsampling(uint32_t format);
+extern int drm_format_plane_width(int width, uint32_t format, int plane);
+extern int drm_format_plane_height(int height, uint32_t format, int plane);
 extern const char *drm_get_format_name(uint32_t format);
 extern struct drm_property *drm_mode_create_rotation_property(struct drm_device *dev,
 							      unsigned int supported_rotations);
@@ -2520,7 +2580,15 @@ static inline struct drm_encoder *drm_encoder_find(struct drm_device *dev,
 	return mo ? obj_to_encoder(mo) : NULL;
 }
 
-static inline struct drm_connector *drm_connector_find(struct drm_device *dev,
+/**
+ * drm_connector_lookup - lookup connector object
+ * @dev: DRM device
+ * @id: connector object id
+ *
+ * This function looks up the connector object specified by id
+ * add takes a reference to it.
+ */
+static inline struct drm_connector *drm_connector_lookup(struct drm_device *dev,
 		uint32_t id)
 {
 	struct drm_mode_object *mo;
@@ -2534,6 +2602,80 @@ static inline struct drm_property *drm_property_find(struct drm_device *dev,
 	struct drm_mode_object *mo;
 	mo = drm_mode_object_find(dev, id, DRM_MODE_OBJECT_PROPERTY);
 	return mo ? obj_to_property(mo) : NULL;
+}
+
+/*
+ * Extract a degamma/gamma LUT value provided by user and round it to the
+ * precision supported by the hardware.
+ */
+static inline uint32_t drm_color_lut_extract(uint32_t user_input,
+					     uint32_t bit_precision)
+{
+	uint32_t val = user_input;
+	uint32_t max = 0xffff >> (16 - bit_precision);
+
+	/* Round only if we're not using full precision. */
+	if (bit_precision < 16) {
+		val += 1UL << (16 - bit_precision - 1);
+		val >>= 16 - bit_precision;
+	}
+
+	return clamp_val(val, 0, max);
+}
+
+/**
+ * drm_framebuffer_reference - incr the fb refcnt
+ * @fb: framebuffer
+ *
+ * This functions increments the fb's refcount.
+ */
+static inline void drm_framebuffer_reference(struct drm_framebuffer *fb)
+{
+	drm_mode_object_reference(&fb->base);
+}
+
+/**
+ * drm_framebuffer_unreference - unref a framebuffer
+ * @fb: framebuffer to unref
+ *
+ * This functions decrements the fb's refcount and frees it if it drops to zero.
+ */
+static inline void drm_framebuffer_unreference(struct drm_framebuffer *fb)
+{
+	drm_mode_object_unreference(&fb->base);
+}
+
+/**
+ * drm_framebuffer_read_refcount - read the framebuffer reference count.
+ * @fb: framebuffer
+ *
+ * This functions returns the framebuffer's reference count.
+ */
+static inline uint32_t drm_framebuffer_read_refcount(struct drm_framebuffer *fb)
+{
+	return atomic_read(&fb->base.refcount.refcount);
+}
+
+/**
+ * drm_connector_reference - incr the connector refcnt
+ * @connector: connector
+ *
+ * This function increments the connector's refcount.
+ */
+static inline void drm_connector_reference(struct drm_connector *connector)
+{
+	drm_mode_object_reference(&connector->base);
+}
+
+/**
+ * drm_connector_unreference - unref a connector
+ * @connector: connector to unref
+ *
+ * This function decrements the connector's refcount and frees it if it drops to zero.
+ */
+static inline void drm_connector_unreference(struct drm_connector *connector)
+{
+	drm_mode_object_unreference(&connector->base);
 }
 
 /* Plane list iterator for legacy (overlay only) planes. */

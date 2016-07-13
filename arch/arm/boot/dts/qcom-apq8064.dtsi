@@ -124,6 +124,95 @@
 		hwlocks = <&sfpb_mutex 3>;
 	};
 
+	smd {
+		compatible = "qcom,smd";
+
+		modem@0 {
+			interrupts = <0 37 IRQ_TYPE_EDGE_RISING>;
+
+			qcom,ipc = <&l2cc 8 3>;
+			qcom,smd-edge = <0>;
+
+			status = "disabled";
+		};
+
+		q6@1 {
+			interrupts = <0 90 IRQ_TYPE_EDGE_RISING>;
+
+			qcom,ipc = <&l2cc 8 15>;
+			qcom,smd-edge = <1>;
+
+			status = "disabled";
+		};
+
+		dsps@3 {
+			interrupts = <0 138 IRQ_TYPE_EDGE_RISING>;
+
+			qcom,ipc = <&sps_sic_non_secure 0x4080 0>;
+			qcom,smd-edge = <3>;
+
+			status = "disabled";
+		};
+
+		riva@6 {
+			interrupts = <0 198 IRQ_TYPE_EDGE_RISING>;
+
+			qcom,ipc = <&l2cc 8 25>;
+			qcom,smd-edge = <6>;
+
+			status = "disabled";
+		};
+	};
+
+	smsm {
+		compatible = "qcom,smsm";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		qcom,ipc-1 = <&l2cc 8 4>;
+		qcom,ipc-2 = <&l2cc 8 14>;
+		qcom,ipc-3 = <&l2cc 8 23>;
+		qcom,ipc-4 = <&sps_sic_non_secure 0x4094 0>;
+
+		apps_smsm: apps@0 {
+			reg = <0>;
+			#qcom,state-cells = <1>;
+		};
+
+		modem_smsm: modem@1 {
+			reg = <1>;
+			interrupts = <0 38 IRQ_TYPE_EDGE_RISING>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		q6_smsm: q6@2 {
+			reg = <2>;
+			interrupts = <0 89 IRQ_TYPE_EDGE_RISING>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		wcnss_smsm: wcnss@3 {
+			reg = <3>;
+			interrupts = <0 204 IRQ_TYPE_EDGE_RISING>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		dsps_smsm: dsps@4 {
+			reg = <4>;
+			interrupts = <0 137 IRQ_TYPE_EDGE_RISING>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+	};
+
 	soc: soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -142,62 +231,6 @@
 
 			pinctrl-names = "default";
 			pinctrl-0 = <&ps_hold>;
-
-			sdc4_gpios: sdc4-gpios {
-				pios {
-					pins = "gpio63", "gpio64", "gpio65", "gpio66", "gpio67", "gpio68";
-					function = "sdc4";
-				};
-			};
-
-			ps_hold: ps_hold {
-				mux {
-					pins = "gpio78";
-					function = "ps_hold";
-				};
-			};
-
-			i2c1_pins: i2c1 {
-				mux {
-					pins = "gpio20", "gpio21";
-					function = "gsbi1";
-				};
-			};
-
-			i2c3_pins: i2c3 {
-				mux {
-					pins = "gpio8", "gpio9";
-					function = "gsbi3";
-				};
-			};
-
-			gsbi6_uart_2pins: gsbi6_uart_2pins {
-				mux {
-					pins = "gpio14", "gpio15";
-					function = "gsbi6";
-				};
-			};
-
-			gsbi6_uart_4pins: gsbi6_uart_4pins {
-				mux {
-					pins = "gpio14", "gpio15", "gpio16", "gpio17";
-					function = "gsbi6";
-				};
-			};
-
-			gsbi7_uart_2pins: gsbi7_uart_2pins {
-				mux {
-					pins = "gpio82", "gpio83";
-					function = "gsbi7";
-				};
-			};
-
-			gsbi7_uart_4pins: gsbi7_uart_4pins {
-				mux {
-					pins = "gpio82", "gpio83", "gpio84", "gpio85";
-					function = "gsbi7";
-				};
-			};
 		};
 
 		sfpb_wrapper_mutex: syscon@1200000 {
@@ -268,6 +301,11 @@
 			regulator;
 		};
 
+		sps_sic_non_secure: sps-sic-non-secure@12100000 {
+			compatible	= "syscon";
+			reg		= <0x12100000 0x10000>;
+		};
+
 		gsbi1: gsbi@12440000 {
 			status = "disabled";
 			compatible = "qcom,gsbi-v1.0.0";
@@ -281,10 +319,21 @@
 
 			syscon-tcsr = <&tcsr>;
 
-			i2c1: i2c@12460000 {
+			gsbi1_serial: serial@12450000 {
+				compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
+				reg = <0x12450000 0x100>,
+				      <0x12400000 0x03>;
+				interrupts = <0 193 0x0>;
+				clocks = <&gcc GSBI1_UART_CLK>, <&gcc GSBI1_H_CLK>;
+				clock-names = "core", "iface";
+				status = "disabled";
+			};
+
+			gsbi1_i2c: i2c@12460000 {
 				compatible = "qcom,i2c-qup-v1.1.1";
 				pinctrl-0 = <&i2c1_pins>;
-				pinctrl-names = "default";
+				pinctrl-1 = <&i2c1_pins_sleep>;
+				pinctrl-names = "default", "sleep";
 				reg = <0x12460000 0x1000>;
 				interrupts = <0 194 IRQ_TYPE_NONE>;
 				clocks = <&gcc GSBI1_QUP_CLK>, <&gcc GSBI1_H_CLK>;
@@ -292,6 +341,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 			};
+
 		};
 
 		gsbi2: gsbi@12480000 {
@@ -307,9 +357,12 @@
 
 			syscon-tcsr = <&tcsr>;
 
-			i2c2: i2c@124a0000 {
+			gsbi2_i2c: i2c@124a0000 {
 				compatible = "qcom,i2c-qup-v1.1.1";
 				reg = <0x124a0000 0x1000>;
+				pinctrl-0 = <&i2c2_pins>;
+				pinctrl-1 = <&i2c2_pins_sleep>;
+				pinctrl-names = "default", "sleep";
 				interrupts = <0 196 IRQ_TYPE_NONE>;
 				clocks = <&gcc GSBI2_QUP_CLK>, <&gcc GSBI2_H_CLK>;
 				clock-names = "core", "iface";
@@ -328,14 +381,41 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
-			i2c3: i2c@16280000 {
+			gsbi3_i2c: i2c@16280000 {
 				compatible = "qcom,i2c-qup-v1.1.1";
 				pinctrl-0 = <&i2c3_pins>;
-				pinctrl-names = "default";
+				pinctrl-1 = <&i2c3_pins_sleep>;
+				pinctrl-names = "default", "sleep";
 				reg = <0x16280000 0x1000>;
 				interrupts = <GIC_SPI 151 IRQ_TYPE_NONE>;
 				clocks = <&gcc GSBI3_QUP_CLK>,
 					 <&gcc GSBI3_H_CLK>;
+				clock-names = "core", "iface";
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+		};
+
+		gsbi4: gsbi@16300000 {
+			status = "disabled";
+			compatible = "qcom,gsbi-v1.0.0";
+			cell-index = <4>;
+			reg = <0x16300000 0x03>;
+			clocks = <&gcc GSBI4_H_CLK>;
+			clock-names = "iface";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			gsbi4_i2c: i2c@16380000 {
+				compatible = "qcom,i2c-qup-v1.1.1";
+				pinctrl-0 = <&i2c4_pins>;
+				pinctrl-1 = <&i2c4_pins_sleep>;
+				pinctrl-names = "default", "sleep";
+				reg = <0x16380000 0x1000>;
+				interrupts = <GIC_SPI 153 IRQ_TYPE_NONE>;
+				clocks = <&gcc GSBI4_QUP_CLK>,
+					 <&gcc GSBI4_H_CLK>;
 				clock-names = "core", "iface";
 			};
 		};
@@ -360,6 +440,20 @@
 				clock-names = "core", "iface";
 				status = "disabled";
 			};
+
+			gsbi5_spi: spi@1a280000 {
+				compatible = "qcom,spi-qup-v1.1.1";
+				reg = <0x1a280000 0x1000>;
+				interrupts = <0 155 0>;
+				pinctrl-0 = <&spi5_default>;
+				pinctrl-1 = <&spi5_sleep>;
+				pinctrl-names = "default", "sleep";
+				clocks = <&gcc GSBI5_QUP_CLK>, <&gcc GSBI5_H_CLK>;
+				clock-names = "core", "iface";
+				status = "disabled";
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
 		};
 
 		gsbi6: gsbi@16500000 {
@@ -382,6 +476,18 @@
 				clock-names = "core", "iface";
 				status = "disabled";
 			};
+
+			gsbi6_i2c: i2c@16580000 {
+				compatible = "qcom,i2c-qup-v1.1.1";
+				pinctrl-0 = <&i2c6_pins>;
+				pinctrl-1 = <&i2c6_pins_sleep>;
+				pinctrl-names = "default", "sleep";
+				reg = <0x16580000 0x1000>;
+				interrupts = <GIC_SPI 157 IRQ_TYPE_NONE>;
+				clocks = <&gcc GSBI6_QUP_CLK>,
+					 <&gcc GSBI6_H_CLK>;
+				clock-names = "core", "iface";
+			};
 		};
 
 		gsbi7: gsbi@16600000 {
@@ -402,6 +508,19 @@
 				      <0x16600000 0x1000>;
 				interrupts = <0 158 0x0>;
 				clocks = <&gcc GSBI7_UART_CLK>, <&gcc GSBI7_H_CLK>;
+				clock-names = "core", "iface";
+				status = "disabled";
+			};
+
+			gsbi7_i2c: i2c@16680000 {
+				compatible = "qcom,i2c-qup-v1.1.1";
+				pinctrl-0 = <&i2c7_pins>;
+				pinctrl-1 = <&i2c7_pins_sleep>;
+				pinctrl-names = "default", "sleep";
+				reg = <0x16680000 0x1000>;
+				interrupts = <GIC_SPI 159 IRQ_TYPE_NONE>;
+				clocks = <&gcc GSBI7_QUP_CLK>,
+					 <&gcc GSBI7_H_CLK>;
 				clock-names = "core", "iface";
 				status = "disabled";
 			};
@@ -520,6 +639,11 @@
 					  <GIC_SPI 21 IRQ_TYPE_EDGE_RISING>,
 					  <GIC_SPI 22 IRQ_TYPE_EDGE_RISING>;
 			interrupt-names	= "ack", "err", "wakeup";
+
+			rpmcc: clock-controller {
+				compatible	= "qcom,rpmcc-apq8064", "qcom,rpmcc";
+				#clock-cells = <1>;
+			};
 
 			regulators {
 				compatible = "qcom,rpm-pm8921-regulators";
@@ -665,7 +789,7 @@
 		};
 
 		sata0: sata@29000000 {
-			compatible		= "generic-ahci";
+			compatible		= "qcom,apq8064-ahci", "generic-ahci";
 			status			= "disabled";
 			reg			= <0x29000000 0x180>;
 			interrupts		= <GIC_SPI 209 IRQ_TYPE_NONE>;
@@ -687,6 +811,7 @@
 
 			phys			= <&sata_phy0>;
 			phy-names		= "sata-phy";
+			ports-implemented	= <0x1>;
 		};
 
 		/* Temporary fixed regulator */
@@ -721,7 +846,7 @@
 		};
 
 		amba {
-			compatible = "arm,amba-bus";
+			compatible = "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
@@ -823,3 +948,4 @@
 		};
 	};
 };
+#include "qcom-apq8064-pins.dtsi"

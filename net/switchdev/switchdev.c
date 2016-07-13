@@ -305,6 +305,8 @@ static void switchdev_port_attr_set_deferred(struct net_device *dev,
 	if (err && err != -EOPNOTSUPP)
 		netdev_err(dev, "failed (err=%d) to set attribute (id=%d)\n",
 			   err, attr->id);
+	if (attr->complete)
+		attr->complete(dev, err, attr->complete_priv);
 }
 
 static int switchdev_port_attr_set_defer(struct net_device *dev,
@@ -434,6 +436,8 @@ static void switchdev_port_obj_add_deferred(struct net_device *dev,
 	if (err && err != -EOPNOTSUPP)
 		netdev_err(dev, "failed (err=%d) to add object (id=%d)\n",
 			   err, obj->id);
+	if (obj->complete)
+		obj->complete(dev, err, obj->complete_priv);
 }
 
 static int switchdev_port_obj_add_defer(struct net_device *dev,
@@ -502,6 +506,8 @@ static void switchdev_port_obj_del_deferred(struct net_device *dev,
 	if (err && err != -EOPNOTSUPP)
 		netdev_err(dev, "failed (err=%d) to del object (id=%d)\n",
 			   err, obj->id);
+	if (obj->complete)
+		obj->complete(dev, err, obj->complete_priv);
 }
 
 static int switchdev_port_obj_del_defer(struct net_device *dev,
@@ -1079,7 +1085,7 @@ nla_put_failure:
  *	@filter_dev: filter device
  *	@idx:
  *
- *	Delete FDB entry from switch device.
+ *	Dump FDB entries from switch device.
  */
 int switchdev_port_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
 			    struct net_device *dev,
@@ -1182,6 +1188,7 @@ int switchdev_fib_ipv4_add(u32 dst, int dst_len, struct fib_info *fi,
 		.obj.id = SWITCHDEV_OBJ_ID_IPV4_FIB,
 		.dst = dst,
 		.dst_len = dst_len,
+		.fi = fi,
 		.tos = tos,
 		.type = type,
 		.nlflags = nlflags,
@@ -1189,8 +1196,6 @@ int switchdev_fib_ipv4_add(u32 dst, int dst_len, struct fib_info *fi,
 	};
 	struct net_device *dev;
 	int err = 0;
-
-	memcpy(&ipv4_fib.fi, fi, sizeof(ipv4_fib.fi));
 
 	/* Don't offload route if using custom ip rules or if
 	 * IPv4 FIB offloading has been disabled completely.
@@ -1236,6 +1241,7 @@ int switchdev_fib_ipv4_del(u32 dst, int dst_len, struct fib_info *fi,
 		.obj.id = SWITCHDEV_OBJ_ID_IPV4_FIB,
 		.dst = dst,
 		.dst_len = dst_len,
+		.fi = fi,
 		.tos = tos,
 		.type = type,
 		.nlflags = 0,
@@ -1243,8 +1249,6 @@ int switchdev_fib_ipv4_del(u32 dst, int dst_len, struct fib_info *fi,
 	};
 	struct net_device *dev;
 	int err = 0;
-
-	memcpy(&ipv4_fib.fi, fi, sizeof(ipv4_fib.fi));
 
 	if (!(fi->fib_flags & RTNH_F_OFFLOAD))
 		return 0;

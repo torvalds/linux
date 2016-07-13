@@ -1394,8 +1394,6 @@ retry:
 		}
 
 		pinned_pages->nr_pages = get_user_pages(
-				current,
-				mm,
 				(u64)addr,
 				nr_pages,
 				!!(prot & SCIF_PROT_WRITE),

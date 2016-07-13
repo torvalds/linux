@@ -230,14 +230,14 @@
 
 	flash0@40000000 {
 		/* 2 * 32MiB NOR Flash memory */
-		compatible = "arm,vexpress-flash", "cfi-flash";
+		compatible = "arm,versatile-flash", "cfi-flash";
 		reg = <0x40000000 0x04000000>;
 		bank-width = <4>;
 	};
 
 	flash1@44000000 {
 		// 2 * 32MiB NOR Flash memory
-		compatible = "arm,vexpress-flash", "cfi-flash";
+		compatible = "arm,versatile-flash", "cfi-flash";
 		reg = <0x44000000 0x04000000>;
 		bank-width = <4>;
 	};
@@ -627,16 +627,17 @@
 					};
 				};
 
+				/* Standard 640x480 VGA timings */
 				panel-timing {
-					clock-frequency = <63500127>;
-					hactive = <1024>;
-					hback-porch = <152>;
-					hfront-porch = <48>;
-					hsync-len = <104>;
-					vactive = <768>;
-					vback-porch = <23>;
-					vfront-porch = <3>;
-					vsync-len = <4>;
+					clock-frequency = <25175000>;
+					hactive = <640>;
+					hback-porch = <48>;
+					hfront-porch = <16>;
+					hsync-len = <96>;
+					vactive = <480>;
+					vback-porch = <33>;
+					vfront-porch = <10>;
+					vsync-len = <2>;
 				};
 			};
 		};

@@ -55,15 +55,13 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/miscdevice.h>
-#include <linux/module.h>
+#include <linux/init.h>
 
 #include "xenbus_comms.h"
 
 #include <xen/xenbus.h>
 #include <xen/xen.h>
 #include <asm/xen/hypervisor.h>
-
-MODULE_LICENSE("GPL");
 
 /*
  * An element of a list of outstanding transactions, for which we're
@@ -318,11 +316,18 @@ static int xenbus_write_transaction(unsigned msg_type,
 			rc = -ENOMEM;
 			goto out;
 		}
+	} else {
+		list_for_each_entry(trans, &u->transactions, list)
+			if (trans->handle.id == u->u.msg.tx_id)
+				break;
+		if (&trans->list == &u->transactions)
+			return -ESRCH;
 	}
 
 	reply = xenbus_dev_request_and_reply(&u->u.msg);
 	if (IS_ERR(reply)) {
-		kfree(trans);
+		if (msg_type == XS_TRANSACTION_START)
+			kfree(trans);
 		rc = PTR_ERR(reply);
 		goto out;
 	}
@@ -335,12 +340,7 @@ static int xenbus_write_transaction(unsigned msg_type,
 			list_add(&trans->list, &u->transactions);
 		}
 	} else if (u->u.msg.type == XS_TRANSACTION_END) {
-		list_for_each_entry(trans, &u->transactions, list)
-			if (trans->handle.id == u->u.msg.tx_id)
-				break;
-		BUG_ON(&trans->list == &u->transactions);
 		list_del(&trans->list);
-
 		kfree(trans);
 	}
 
@@ -626,11 +626,4 @@ static int __init xenbus_init(void)
 		pr_err("Could not register xenbus frontend device\n");
 	return err;
 }
-
-static void __exit xenbus_exit(void)
-{
-	misc_deregister(&xenbus_dev);
-}
-
-module_init(xenbus_init);
-module_exit(xenbus_exit);
+device_initcall(xenbus_init);

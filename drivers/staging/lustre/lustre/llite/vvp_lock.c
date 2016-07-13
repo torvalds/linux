@@ -40,7 +40,7 @@
 
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include "../include/obd.h"
+#include "../include/obd_support.h"
 #include "../include/lustre_lite.h"
 
 #include "vvp_internal.h"
@@ -51,36 +51,41 @@
  *
  */
 
-/**
- * Estimates lock value for the purpose of managing the lock cache during
- * memory shortages.
- *
- * Locks for memory mapped files are almost infinitely precious, others are
- * junk. "Mapped locks" are heavy, but not infinitely heavy, so that they are
- * ordered within themselves by weights assigned from other layers.
- */
-static unsigned long vvp_lock_weigh(const struct lu_env *env,
-				    const struct cl_lock_slice *slice)
+static void vvp_lock_fini(const struct lu_env *env, struct cl_lock_slice *slice)
 {
-	struct ccc_object *cob = cl2ccc(slice->cls_obj);
+	struct vvp_lock *vlk = cl2vvp_lock(slice);
 
-	return atomic_read(&cob->cob_mmap_cnt) > 0 ? ~0UL >> 2 : 0;
+	kmem_cache_free(vvp_lock_kmem, vlk);
+}
+
+static int vvp_lock_enqueue(const struct lu_env *env,
+			    const struct cl_lock_slice *slice,
+			    struct cl_io *unused, struct cl_sync_io *anchor)
+{
+	CLOBINVRNT(env, slice->cls_obj, vvp_object_invariant(slice->cls_obj));
+
+	return 0;
 }
 
 static const struct cl_lock_operations vvp_lock_ops = {
-	.clo_delete    = ccc_lock_delete,
-	.clo_fini      = ccc_lock_fini,
-	.clo_enqueue   = ccc_lock_enqueue,
-	.clo_wait      = ccc_lock_wait,
-	.clo_use       = ccc_lock_use,
-	.clo_unuse     = ccc_lock_unuse,
-	.clo_fits_into = ccc_lock_fits_into,
-	.clo_state     = ccc_lock_state,
-	.clo_weigh     = vvp_lock_weigh
+	.clo_fini	= vvp_lock_fini,
+	.clo_enqueue	= vvp_lock_enqueue,
 };
 
 int vvp_lock_init(const struct lu_env *env, struct cl_object *obj,
-		  struct cl_lock *lock, const struct cl_io *io)
+		  struct cl_lock *lock, const struct cl_io *unused)
 {
-	return ccc_lock_init(env, obj, lock, io, &vvp_lock_ops);
+	struct vvp_lock *vlk;
+	int result;
+
+	CLOBINVRNT(env, obj, vvp_object_invariant(obj));
+
+	vlk = kmem_cache_zalloc(vvp_lock_kmem, GFP_NOFS);
+	if (vlk) {
+		cl_lock_slice_add(lock, &vlk->vlk_cl, obj, &vvp_lock_ops);
+		result = 0;
+	} else {
+		result = -ENOMEM;
+	}
+	return result;
 }

@@ -372,7 +372,7 @@ int gma_crtc_cursor_set(struct drm_crtc *crtc,
 		return -EINVAL;
 	}
 
-	obj = drm_gem_object_lookup(dev, file_priv, handle);
+	obj = drm_gem_object_lookup(file_priv, handle);
 	if (!obj) {
 		ret = -ENOENT;
 		goto unlock;
@@ -476,20 +476,6 @@ int gma_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 		gma_power_end(dev);
 	}
 	return 0;
-}
-
-bool gma_encoder_mode_fixup(struct drm_encoder *encoder,
-			    const struct drm_display_mode *mode,
-			    struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
-bool gma_crtc_mode_fixup(struct drm_crtc *crtc,
-			 const struct drm_display_mode *mode,
-			 struct drm_display_mode *adjusted_mode)
-{
-	return true;
 }
 
 void gma_crtc_prepare(struct drm_crtc *crtc)

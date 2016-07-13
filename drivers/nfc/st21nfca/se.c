@@ -32,8 +32,6 @@
 #define ST21NFCA_EVT_CONNECTIVITY		0x10
 #define ST21NFCA_EVT_TRANSACTION		0x12
 
-#define ST21NFCA_ESE_HOST_ID			0xc0
-
 #define ST21NFCA_SE_TO_HOT_PLUG			1000
 /* Connectivity pipe only */
 #define ST21NFCA_SE_COUNT_PIPE_UICC		0x01

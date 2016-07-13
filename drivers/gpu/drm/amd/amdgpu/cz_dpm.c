@@ -1579,7 +1579,6 @@ static int cz_dpm_update_sclk_limit(struct amdgpu_device *adev)
 
 static int cz_dpm_set_deep_sleep_sclk_threshold(struct amdgpu_device *adev)
 {
-	int ret = 0;
 	struct cz_power_info *pi = cz_get_pi(adev);
 
 	if (pi->caps_sclk_ds) {
@@ -1588,20 +1587,19 @@ static int cz_dpm_set_deep_sleep_sclk_threshold(struct amdgpu_device *adev)
 				CZ_MIN_DEEP_SLEEP_SCLK);
 	}
 
-	return ret;
+	return 0;
 }
 
 /* ?? without dal support, is this still needed in setpowerstate list*/
 static int cz_dpm_set_watermark_threshold(struct amdgpu_device *adev)
 {
-	int ret = 0;
 	struct cz_power_info *pi = cz_get_pi(adev);
 
 	cz_send_msg_to_smc_with_parameter(adev,
 			PPSMC_MSG_SetWatermarkFrequency,
 			pi->sclk_dpm.soft_max_clk);
 
-	return ret;
+	return 0;
 }
 
 static int cz_dpm_enable_nbdpm(struct amdgpu_device *adev)
@@ -1636,7 +1634,6 @@ static void cz_dpm_nbdpm_lm_pstate_enable(struct amdgpu_device *adev,
 
 static int cz_dpm_update_low_memory_pstate(struct amdgpu_device *adev)
 {
-	int ret = 0;
 	struct cz_power_info *pi = cz_get_pi(adev);
 	struct cz_ps *ps = &pi->requested_ps;
 
@@ -1647,21 +1644,19 @@ static int cz_dpm_update_low_memory_pstate(struct amdgpu_device *adev)
 			cz_dpm_nbdpm_lm_pstate_enable(adev, true);
 	}
 
-	return ret;
+	return 0;
 }
 
 /* with dpm enabled */
 static int cz_dpm_set_power_state(struct amdgpu_device *adev)
 {
-	int ret = 0;
-
 	cz_dpm_update_sclk_limit(adev);
 	cz_dpm_set_deep_sleep_sclk_threshold(adev);
 	cz_dpm_set_watermark_threshold(adev);
 	cz_dpm_enable_nbdpm(adev);
 	cz_dpm_update_low_memory_pstate(adev);
 
-	return ret;
+	return 0;
 }
 
 static void cz_dpm_post_set_power_state(struct amdgpu_device *adev)
@@ -2230,6 +2225,7 @@ static void cz_dpm_powergate_vce(struct amdgpu_device *adev, bool gate)
 }
 
 const struct amd_ip_funcs cz_dpm_ip_funcs = {
+	.name = "cz_dpm",
 	.early_init = cz_dpm_early_init,
 	.late_init = cz_dpm_late_init,
 	.sw_init = cz_dpm_sw_init,
@@ -2241,7 +2237,6 @@ const struct amd_ip_funcs cz_dpm_ip_funcs = {
 	.is_idle = NULL,
 	.wait_for_idle = NULL,
 	.soft_reset = NULL,
-	.print_status = NULL,
 	.set_clockgating_state = cz_dpm_set_clockgating_state,
 	.set_powergating_state = cz_dpm_set_powergating_state,
 };

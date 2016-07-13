@@ -15,15 +15,9 @@
 #include <linux/clk-provider.h>
 #include <linux/clkdev.h>
 #include <linux/clk/at91_pmc.h>
-#include <linux/delay.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_irq.h>
-#include <linux/io.h>
-#include <linux/interrupt.h>
-#include <linux/irq.h>
-#include <linux/sched.h>
-#include <linux/wait.h>
+#include <linux/regmap.h>
+#include <linux/mfd/syscon.h>
 
 #include "pmc.h"
 
@@ -31,7 +25,7 @@
 
 struct clk_sama5d4_h32mx {
 	struct clk_hw hw;
-	struct at91_pmc *pmc;
+	struct regmap *regmap;
 };
 
 #define to_clk_sama5d4_h32mx(hw) container_of(hw, struct clk_sama5d4_h32mx, hw)
@@ -40,8 +34,10 @@ static unsigned long clk_sama5d4_h32mx_recalc_rate(struct clk_hw *hw,
 						 unsigned long parent_rate)
 {
 	struct clk_sama5d4_h32mx *h32mxclk = to_clk_sama5d4_h32mx(hw);
+	unsigned int mckr;
 
-	if (pmc_read(h32mxclk->pmc, AT91_PMC_MCKR) & AT91_PMC_H32MXDIV)
+	regmap_read(h32mxclk->regmap, AT91_PMC_MCKR, &mckr);
+	if (mckr & AT91_PMC_H32MXDIV)
 		return parent_rate / 2;
 
 	if (parent_rate > H32MX_MAX_FREQ)
@@ -70,18 +66,16 @@ static int clk_sama5d4_h32mx_set_rate(struct clk_hw *hw, unsigned long rate,
 				    unsigned long parent_rate)
 {
 	struct clk_sama5d4_h32mx *h32mxclk = to_clk_sama5d4_h32mx(hw);
-	struct at91_pmc *pmc = h32mxclk->pmc;
-	u32 tmp;
+	u32 mckr = 0;
 
 	if (parent_rate != rate && (parent_rate / 2) != rate)
 		return -EINVAL;
 
-	pmc_lock(pmc);
-	tmp = pmc_read(pmc, AT91_PMC_MCKR) & ~AT91_PMC_H32MXDIV;
 	if ((parent_rate / 2) == rate)
-		tmp |= AT91_PMC_H32MXDIV;
-	pmc_write(pmc, AT91_PMC_MCKR, tmp);
-	pmc_unlock(pmc);
+		mckr = AT91_PMC_H32MXDIV;
+
+	regmap_update_bits(h32mxclk->regmap, AT91_PMC_MCKR,
+			   AT91_PMC_H32MXDIV, mckr);
 
 	return 0;
 }
@@ -92,13 +86,17 @@ static const struct clk_ops h32mx_ops = {
 	.set_rate = clk_sama5d4_h32mx_set_rate,
 };
 
-void __init of_sama5d4_clk_h32mx_setup(struct device_node *np,
-				     struct at91_pmc *pmc)
+static void __init of_sama5d4_clk_h32mx_setup(struct device_node *np)
 {
 	struct clk_sama5d4_h32mx *h32mxclk;
 	struct clk_init_data init;
 	const char *parent_name;
+	struct regmap *regmap;
 	struct clk *clk;
+
+	regmap = syscon_node_to_regmap(of_get_parent(np));
+	if (IS_ERR(regmap))
+		return;
 
 	h32mxclk = kzalloc(sizeof(*h32mxclk), GFP_KERNEL);
 	if (!h32mxclk)
@@ -113,13 +111,15 @@ void __init of_sama5d4_clk_h32mx_setup(struct device_node *np,
 	init.flags = CLK_SET_RATE_GATE;
 
 	h32mxclk->hw.init = &init;
-	h32mxclk->pmc = pmc;
+	h32mxclk->regmap = regmap;
 
 	clk = clk_register(NULL, &h32mxclk->hw);
-	if (!clk) {
+	if (IS_ERR(clk)) {
 		kfree(h32mxclk);
 		return;
 	}
 
 	of_clk_add_provider(np, of_clk_src_simple_get, clk);
 }
+CLK_OF_DECLARE(of_sama5d4_clk_h32mx_setup, "atmel,sama5d4-clk-h32mx",
+	       of_sama5d4_clk_h32mx_setup);

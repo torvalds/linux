@@ -286,7 +286,7 @@ static int register_device(int minor, struct pp_struct *pp)
 	struct parport *port;
 	struct pardevice *pdev = NULL;
 	char *name;
-	struct pardev_cb ppdev_cb;
+	int fl;
 
 	name = kasprintf(GFP_KERNEL, CHRDEV "%x", minor);
 	if (name == NULL)
@@ -299,11 +299,9 @@ static int register_device(int minor, struct pp_struct *pp)
 		return -ENXIO;
 	}
 
-	memset(&ppdev_cb, 0, sizeof(ppdev_cb));
-	ppdev_cb.irq_func = pp_irq;
-	ppdev_cb.flags = (pp->flags & PP_EXCL) ? PARPORT_FLAG_EXCL : 0;
-	ppdev_cb.private = pp;
-	pdev = parport_register_dev_model(port, name, &ppdev_cb, minor);
+	fl = (pp->flags & PP_EXCL) ? PARPORT_FLAG_EXCL : 0;
+	pdev = parport_register_device(port, name, NULL,
+				       NULL, pp_irq, fl, pp);
 	parport_put_port(port);
 
 	if (!pdev) {
@@ -801,23 +799,10 @@ static void pp_detach(struct parport *port)
 	device_destroy(ppdev_class, MKDEV(PP_MAJOR, port->number));
 }
 
-static int pp_probe(struct pardevice *par_dev)
-{
-	struct device_driver *drv = par_dev->dev.driver;
-	int len = strlen(drv->name);
-
-	if (strncmp(par_dev->name, drv->name, len))
-		return -ENODEV;
-
-	return 0;
-}
-
 static struct parport_driver pp_driver = {
 	.name		= CHRDEV,
-	.probe		= pp_probe,
-	.match_port	= pp_attach,
+	.attach		= pp_attach,
 	.detach		= pp_detach,
-	.devmodel	= true,
 };
 
 static int __init ppdev_init(void)

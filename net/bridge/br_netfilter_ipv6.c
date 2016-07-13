@@ -122,13 +122,13 @@ int br_validate_ipv6(struct net *net, struct sk_buff *skb)
 
 	if (pkt_len || hdr->nexthdr != NEXTHDR_HOP) {
 		if (pkt_len + ip6h_len > skb->len) {
-			IP6_INC_STATS_BH(net, idev,
-					 IPSTATS_MIB_INTRUNCATEDPKTS);
+			__IP6_INC_STATS(net, idev,
+					IPSTATS_MIB_INTRUNCATEDPKTS);
 			goto drop;
 		}
 		if (pskb_trim_rcsum(skb, pkt_len + ip6h_len)) {
-			IP6_INC_STATS_BH(net, idev,
-					 IPSTATS_MIB_INDISCARDS);
+			__IP6_INC_STATS(net, idev,
+					IPSTATS_MIB_INDISCARDS);
 			goto drop;
 		}
 	}
@@ -142,7 +142,7 @@ int br_validate_ipv6(struct net *net, struct sk_buff *skb)
 	return 0;
 
 inhdr_error:
-	IP6_INC_STATS_BH(net, idev, IPSTATS_MIB_INHDRERRORS);
+	__IP6_INC_STATS(net, idev, IPSTATS_MIB_INHDRERRORS);
 drop:
 	return -1;
 }

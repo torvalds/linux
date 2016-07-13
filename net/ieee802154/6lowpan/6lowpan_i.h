@@ -41,22 +41,10 @@ static inline u32 ieee802154_addr_hash(const struct ieee802154_addr *a)
 		return (((__force u64)a->extended_addr) >> 32) ^
 			(((__force u64)a->extended_addr) & 0xffffffff);
 	case IEEE802154_ADDR_SHORT:
-		return (__force u32)(a->short_addr);
+		return (__force u32)(a->short_addr + (a->pan_id << 16));
 	default:
 		return 0;
 	}
-}
-
-/* private device info */
-struct lowpan_dev_info {
-	struct net_device	*wdev; /* wpan device ptr */
-	u16			fragment_tag;
-};
-
-static inline struct
-lowpan_dev_info *lowpan_dev_info(const struct net_device *dev)
-{
-	return (struct lowpan_dev_info *)lowpan_priv(dev)->priv;
 }
 
 int lowpan_frag_rcv(struct sk_buff *skb, const u8 frag_type);

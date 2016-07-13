@@ -181,17 +181,18 @@ static int parse_reply_info_dir(void **p, void *end,
 
 	ceph_decode_need(p, end, sizeof(num) + 2, bad);
 	num = ceph_decode_32(p);
-	info->dir_end = ceph_decode_8(p);
-	info->dir_complete = ceph_decode_8(p);
+	{
+		u16 flags = ceph_decode_16(p);
+		info->dir_end = !!(flags & CEPH_READDIR_FRAG_END);
+		info->dir_complete = !!(flags & CEPH_READDIR_FRAG_COMPLETE);
+		info->hash_order = !!(flags & CEPH_READDIR_HASH_ORDER);
+	}
 	if (num == 0)
 		goto done;
 
-	BUG_ON(!info->dir_in);
-	info->dir_dname = (void *)(info->dir_in + num);
-	info->dir_dname_len = (void *)(info->dir_dname + num);
-	info->dir_dlease = (void *)(info->dir_dname_len + num);
-	if ((unsigned long)(info->dir_dlease + num) >
-	    (unsigned long)info->dir_in + info->dir_buf_size) {
+	BUG_ON(!info->dir_entries);
+	if ((unsigned long)(info->dir_entries + num) >
+	    (unsigned long)info->dir_entries + info->dir_buf_size) {
 		pr_err("dir contents are larger than expected\n");
 		WARN_ON(1);
 		goto bad;
@@ -199,21 +200,23 @@ static int parse_reply_info_dir(void **p, void *end,
 
 	info->dir_nr = num;
 	while (num) {
+		struct ceph_mds_reply_dir_entry *rde = info->dir_entries + i;
 		/* dentry */
 		ceph_decode_need(p, end, sizeof(u32)*2, bad);
-		info->dir_dname_len[i] = ceph_decode_32(p);
-		ceph_decode_need(p, end, info->dir_dname_len[i], bad);
-		info->dir_dname[i] = *p;
-		*p += info->dir_dname_len[i];
-		dout("parsed dir dname '%.*s'\n", info->dir_dname_len[i],
-		     info->dir_dname[i]);
-		info->dir_dlease[i] = *p;
+		rde->name_len = ceph_decode_32(p);
+		ceph_decode_need(p, end, rde->name_len, bad);
+		rde->name = *p;
+		*p += rde->name_len;
+		dout("parsed dir dname '%.*s'\n", rde->name_len, rde->name);
+		rde->lease = *p;
 		*p += sizeof(struct ceph_mds_reply_lease);
 
 		/* inode */
-		err = parse_reply_info_in(p, end, &info->dir_in[i], features);
+		err = parse_reply_info_in(p, end, &rde->inode, features);
 		if (err < 0)
 			goto out_bad;
+		/* ceph_readdir_prepopulate() will update it */
+		rde->offset = 0;
 		i++;
 		num--;
 	}
@@ -345,9 +348,9 @@ out_bad:
 
 static void destroy_reply_info(struct ceph_mds_reply_info_parsed *info)
 {
-	if (!info->dir_in)
+	if (!info->dir_entries)
 		return;
-	free_pages((unsigned long)info->dir_in, get_order(info->dir_buf_size));
+	free_pages((unsigned long)info->dir_entries, get_order(info->dir_buf_size));
 }
 
 
@@ -386,9 +389,7 @@ void ceph_put_mds_session(struct ceph_mds_session *s)
 	     atomic_read(&s->s_ref), atomic_read(&s->s_ref)-1);
 	if (atomic_dec_and_test(&s->s_ref)) {
 		if (s->s_auth.authorizer)
-			ceph_auth_destroy_authorizer(
-				s->s_mdsc->fsc->client->monc.auth,
-				s->s_auth.authorizer);
+			ceph_auth_destroy_authorizer(s->s_auth.authorizer);
 		kfree(s);
 	}
 }
@@ -569,51 +570,23 @@ void ceph_mdsc_release_request(struct kref *kref)
 	kfree(req);
 }
 
+DEFINE_RB_FUNCS(request, struct ceph_mds_request, r_tid, r_node)
+
 /*
  * lookup session, bump ref if found.
  *
  * called under mdsc->mutex.
  */
-static struct ceph_mds_request *__lookup_request(struct ceph_mds_client *mdsc,
-					     u64 tid)
+static struct ceph_mds_request *
+lookup_get_request(struct ceph_mds_client *mdsc, u64 tid)
 {
 	struct ceph_mds_request *req;
-	struct rb_node *n = mdsc->request_tree.rb_node;
 
-	while (n) {
-		req = rb_entry(n, struct ceph_mds_request, r_node);
-		if (tid < req->r_tid)
-			n = n->rb_left;
-		else if (tid > req->r_tid)
-			n = n->rb_right;
-		else {
-			ceph_mdsc_get_request(req);
-			return req;
-		}
-	}
-	return NULL;
-}
+	req = lookup_request(&mdsc->request_tree, tid);
+	if (req)
+		ceph_mdsc_get_request(req);
 
-static void __insert_request(struct ceph_mds_client *mdsc,
-			     struct ceph_mds_request *new)
-{
-	struct rb_node **p = &mdsc->request_tree.rb_node;
-	struct rb_node *parent = NULL;
-	struct ceph_mds_request *req = NULL;
-
-	while (*p) {
-		parent = *p;
-		req = rb_entry(parent, struct ceph_mds_request, r_node);
-		if (new->r_tid < req->r_tid)
-			p = &(*p)->rb_left;
-		else if (new->r_tid > req->r_tid)
-			p = &(*p)->rb_right;
-		else
-			BUG();
-	}
-
-	rb_link_node(&new->r_node, parent, p);
-	rb_insert_color(&new->r_node, &mdsc->request_tree);
+	return req;
 }
 
 /*
@@ -632,7 +605,7 @@ static void __register_request(struct ceph_mds_client *mdsc,
 				  req->r_num_caps);
 	dout("__register_request %p tid %lld\n", req, req->r_tid);
 	ceph_mdsc_get_request(req);
-	__insert_request(mdsc, req);
+	insert_request(&mdsc->request_tree, req);
 
 	req->r_uid = current_fsuid();
 	req->r_gid = current_fsgid();
@@ -665,8 +638,7 @@ static void __unregister_request(struct ceph_mds_client *mdsc,
 		}
 	}
 
-	rb_erase(&req->r_node, &mdsc->request_tree);
-	RB_CLEAR_NODE(&req->r_node);
+	erase_request(&mdsc->request_tree, req);
 
 	if (req->r_unsafe_dir && req->r_got_unsafe) {
 		struct ceph_inode_info *ci = ceph_inode(req->r_unsafe_dir);
@@ -870,12 +842,14 @@ static struct ceph_msg *create_session_open_msg(struct ceph_mds_client *mdsc, u6
 	int metadata_bytes = 0;
 	int metadata_key_count = 0;
 	struct ceph_options *opt = mdsc->fsc->client->options;
+	struct ceph_mount_options *fsopt = mdsc->fsc->mount_options;
 	void *p;
 
 	const char* metadata[][2] = {
 		{"hostname", utsname()->nodename},
 		{"kernel_version", utsname()->release},
-		{"entity_id", opt->name ? opt->name : ""},
+		{"entity_id", opt->name ? : ""},
+		{"root", fsopt->server_path ? : "/"},
 		{NULL, NULL}
 	};
 
@@ -1151,9 +1125,11 @@ out:
 static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
 				  void *arg)
 {
+	struct ceph_fs_client *fsc = (struct ceph_fs_client *)arg;
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	LIST_HEAD(to_remove);
-	int drop = 0;
+	bool drop = false;
+	bool invalidate = false;
 
 	dout("removing cap %p, ci is %p, inode is %p\n",
 	     cap, ci, &ci->vfs_inode);
@@ -1161,8 +1137,13 @@ static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
 	__ceph_remove_cap(cap, false);
 	if (!ci->i_auth_cap) {
 		struct ceph_cap_flush *cf;
-		struct ceph_mds_client *mdsc =
-			ceph_sb_to_client(inode->i_sb)->mdsc;
+		struct ceph_mds_client *mdsc = fsc->mdsc;
+
+		ci->i_ceph_flags |= CEPH_I_CAP_DROPPED;
+
+		if (ci->i_wrbuffer_ref > 0 &&
+		    ACCESS_ONCE(fsc->mount_state) == CEPH_MOUNT_SHUTDOWN)
+			invalidate = true;
 
 		while (true) {
 			struct rb_node *n = rb_first(&ci->i_cap_flush_tree);
@@ -1185,7 +1166,7 @@ static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
 				inode, ceph_ino(inode));
 			ci->i_dirty_caps = 0;
 			list_del_init(&ci->i_dirty_item);
-			drop = 1;
+			drop = true;
 		}
 		if (!list_empty(&ci->i_flushing_item)) {
 			pr_warn_ratelimited(
@@ -1195,7 +1176,7 @@ static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
 			ci->i_flushing_caps = 0;
 			list_del_init(&ci->i_flushing_item);
 			mdsc->num_cap_flushing--;
-			drop = 1;
+			drop = true;
 		}
 		spin_unlock(&mdsc->cap_dirty_lock);
 
@@ -1212,7 +1193,11 @@ static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
 		list_del(&cf->list);
 		ceph_free_cap_flush(cf);
 	}
-	while (drop--)
+
+	wake_up_all(&ci->i_cap_wq);
+	if (invalidate)
+		ceph_queue_invalidate(inode);
+	if (drop)
 		iput(inode);
 	return 0;
 }
@@ -1222,12 +1207,13 @@ static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
  */
 static void remove_session_caps(struct ceph_mds_session *session)
 {
+	struct ceph_fs_client *fsc = session->s_mdsc->fsc;
+	struct super_block *sb = fsc->sb;
 	dout("remove_session_caps on %p\n", session);
-	iterate_session_caps(session, remove_session_caps_cb, NULL);
+	iterate_session_caps(session, remove_session_caps_cb, fsc);
 
 	spin_lock(&session->s_cap_lock);
 	if (session->s_nr_caps > 0) {
-		struct super_block *sb = session->s_mdsc->fsc->sb;
 		struct inode *inode;
 		struct ceph_cap *cap, *prev = NULL;
 		struct ceph_vino vino;
@@ -1272,13 +1258,13 @@ static int wake_up_session_cb(struct inode *inode, struct ceph_cap *cap,
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
 
-	wake_up_all(&ci->i_cap_wq);
 	if (arg) {
 		spin_lock(&ci->i_ceph_lock);
 		ci->i_wanted_max_size = 0;
 		ci->i_requested_max_size = 0;
 		spin_unlock(&ci->i_ceph_lock);
 	}
+	wake_up_all(&ci->i_cap_wq);
 	return 0;
 }
 
@@ -1610,7 +1596,7 @@ again:
 	while (!list_empty(&tmp_list)) {
 		if (!msg) {
 			msg = ceph_msg_new(CEPH_MSG_CLIENT_CAPRELEASE,
-					PAGE_CACHE_SIZE, GFP_NOFS, false);
+					PAGE_SIZE, GFP_NOFS, false);
 			if (!msg)
 				goto out_err;
 			head = msg->front.iov_base;
@@ -1673,8 +1659,7 @@ int ceph_alloc_readdir_reply_buffer(struct ceph_mds_request *req,
 	struct ceph_inode_info *ci = ceph_inode(dir);
 	struct ceph_mds_reply_info_parsed *rinfo = &req->r_reply_info;
 	struct ceph_mount_options *opt = req->r_mdsc->fsc->mount_options;
-	size_t size = sizeof(*rinfo->dir_in) + sizeof(*rinfo->dir_dname_len) +
-		      sizeof(*rinfo->dir_dname) + sizeof(*rinfo->dir_dlease);
+	size_t size = sizeof(struct ceph_mds_reply_dir_entry);
 	int order, num_entries;
 
 	spin_lock(&ci->i_ceph_lock);
@@ -1685,14 +1670,14 @@ int ceph_alloc_readdir_reply_buffer(struct ceph_mds_request *req,
 
 	order = get_order(size * num_entries);
 	while (order >= 0) {
-		rinfo->dir_in = (void*)__get_free_pages(GFP_KERNEL |
-							__GFP_NOWARN,
-							order);
-		if (rinfo->dir_in)
+		rinfo->dir_entries = (void*)__get_free_pages(GFP_KERNEL |
+							     __GFP_NOWARN,
+							     order);
+		if (rinfo->dir_entries)
 			break;
 		order--;
 	}
-	if (!rinfo->dir_in)
+	if (!rinfo->dir_entries)
 		return -ENOMEM;
 
 	num_entries = (PAGE_SIZE << order) / size;
@@ -1724,12 +1709,13 @@ ceph_mdsc_create_request(struct ceph_mds_client *mdsc, int op, int mode)
 	INIT_LIST_HEAD(&req->r_unsafe_target_item);
 	req->r_fmode = -1;
 	kref_init(&req->r_kref);
+	RB_CLEAR_NODE(&req->r_node);
 	INIT_LIST_HEAD(&req->r_wait);
 	init_completion(&req->r_completion);
 	init_completion(&req->r_safe_completion);
 	INIT_LIST_HEAD(&req->r_unsafe_item);
 
-	req->r_stamp = CURRENT_TIME;
+	req->r_stamp = current_fs_time(mdsc->fsc->sb);
 
 	req->r_op = op;
 	req->r_direct_mode = mode;
@@ -2416,7 +2402,7 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 	/* get request, session */
 	tid = le64_to_cpu(msg->hdr.tid);
 	mutex_lock(&mdsc->mutex);
-	req = __lookup_request(mdsc, tid);
+	req = lookup_get_request(mdsc, tid);
 	if (!req) {
 		dout("handle_reply on unknown tid %llu\n", tid);
 		mutex_unlock(&mdsc->mutex);
@@ -2540,6 +2526,7 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 
 	/* insert trace into our cache */
 	mutex_lock(&req->r_fill_mutex);
+	current->journal_info = req;
 	err = ceph_fill_trace(mdsc->fsc->sb, req, req->r_session);
 	if (err == 0) {
 		if (result == 0 && (req->r_op == CEPH_MDS_OP_READDIR ||
@@ -2547,6 +2534,7 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 			ceph_readdir_prepopulate(req, req->r_session);
 		ceph_unreserve_caps(mdsc, &req->r_caps_reservation);
 	}
+	current->journal_info = NULL;
 	mutex_unlock(&req->r_fill_mutex);
 
 	up_read(&mdsc->snap_rwsem);
@@ -2604,7 +2592,7 @@ static void handle_forward(struct ceph_mds_client *mdsc,
 	fwd_seq = ceph_decode_32(&p);
 
 	mutex_lock(&mdsc->mutex);
-	req = __lookup_request(mdsc, tid);
+	req = lookup_get_request(mdsc, tid);
 	if (!req) {
 		dout("forward tid %llu to mds%d - req dne\n", tid, next_mds);
 		goto out;  /* dup reply? */
@@ -3764,7 +3752,6 @@ void ceph_mdsc_handle_map(struct ceph_mds_client *mdsc, struct ceph_msg *msg)
 	dout("handle_map epoch %u len %d\n", epoch, (int)maplen);
 
 	/* do we need it? */
-	ceph_monc_got_mdsmap(&mdsc->fsc->client->monc, epoch);
 	mutex_lock(&mdsc->mutex);
 	if (mdsc->mdsmap && epoch <= mdsc->mdsmap->m_epoch) {
 		dout("handle_map epoch %u <= our %u\n",
@@ -3791,6 +3778,8 @@ void ceph_mdsc_handle_map(struct ceph_mds_client *mdsc, struct ceph_msg *msg)
 	mdsc->fsc->sb->s_maxbytes = mdsc->mdsmap->m_max_file_size;
 
 	__wake_requests(mdsc, &mdsc->waiting_for_map);
+	ceph_monc_got_map(&mdsc->fsc->client->monc, CEPH_SUB_MDSMAP,
+			  mdsc->mdsmap->m_epoch);
 
 	mutex_unlock(&mdsc->mutex);
 	schedule_delayed(mdsc);
@@ -3897,7 +3886,7 @@ static struct ceph_auth_handshake *get_authorizer(struct ceph_connection *con,
 	struct ceph_auth_handshake *auth = &s->s_auth;
 
 	if (force_new && auth->authorizer) {
-		ceph_auth_destroy_authorizer(ac, auth->authorizer);
+		ceph_auth_destroy_authorizer(auth->authorizer);
 		auth->authorizer = NULL;
 	}
 	if (!auth->authorizer) {

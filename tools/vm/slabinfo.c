@@ -492,7 +492,7 @@ static void slab_stats(struct slabinfo *s)
 			s->deactivate_to_head + s->deactivate_to_tail + s->deactivate_bypass;
 
 	if (total) {
-		printf("\nSlab Deactivation             Ocurrences  %%\n");
+		printf("\nSlab Deactivation             Occurrences %%\n");
 		printf("-------------------------------------------------\n");
 		printf("Slab full                     %7lu  %3lu%%\n",
 			s->deactivate_full, (s->deactivate_full * 100) / total);

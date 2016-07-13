@@ -327,6 +327,8 @@ static void set_times(struct tca6507_chip *tca, int bank)
 	int result;
 
 	result = choose_times(tca->bank[bank].ontime, &c1, &c2);
+	if (result < 0)
+		return;
 	dev_dbg(&tca->client->dev,
 		"Chose on  times %d(%d) %d(%d) for %dms\n",
 		c1, time_codes[c1],

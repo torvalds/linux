@@ -238,18 +238,9 @@ struct property_entry {
 	.name = _name_,				\
 }
 
-/**
- * struct property_set - Collection of "built-in" device properties.
- * @fwnode: Handle to be pointed to by the fwnode field of struct device.
- * @properties: Array of properties terminated with a null entry.
- */
-struct property_set {
-	struct fwnode_handle fwnode;
-	struct property_entry *properties;
-};
-
-int device_add_property_set(struct device *dev, const struct property_set *pset);
-void device_remove_property_set(struct device *dev);
+int device_add_properties(struct device *dev,
+			  struct property_entry *properties);
+void device_remove_properties(struct device *dev);
 
 bool device_dma_supported(struct device *dev);
 

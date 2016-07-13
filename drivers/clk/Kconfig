@@ -6,9 +6,6 @@ config CLKDEV_LOOKUP
 config HAVE_CLK_PREPARE
 	bool
 
-config HAVE_MACH_CLKDEV
-	bool
-
 config COMMON_CLK
 	bool
 	select HAVE_CLK_PREPARE
@@ -99,6 +96,14 @@ config COMMON_CLK_SI570
 	  This driver supports Silicon Labs 570/571/598/599 programmable
 	  clock generators.
 
+config COMMON_CLK_CDCE706
+	tristate "Clock driver for TI CDCE706 clock synthesizer"
+	depends on I2C
+	select REGMAP_I2C
+	select RATIONAL
+	---help---
+	  This driver supports TI CDCE706 programmable 3-PLL clock synthesizer.
+
 config COMMON_CLK_CDCE925
 	tristate "Clock driver for TI CDCE925 devices"
 	depends on I2C
@@ -170,6 +175,7 @@ config COMMON_CLK_KEYSTONE
 config COMMON_CLK_NXP
 	def_bool COMMON_CLK && (ARCH_LPC18XX || ARCH_LPC32XX)
 	select REGMAP_MMIO if ARCH_LPC32XX
+	select MFD_SYSCON if ARCH_LPC18XX
 	---help---
 	  Support for clock providers on NXP platforms.
 
@@ -190,23 +196,24 @@ config COMMON_CLK_PWM
 config COMMON_CLK_PXA
 	def_bool COMMON_CLK && ARCH_PXA
 	---help---
-	  Sypport for the Marvell PXA SoC.
+	  Support for the Marvell PXA SoC.
 
-config COMMON_CLK_CDCE706
-	tristate "Clock driver for TI CDCE706 clock synthesizer"
-	depends on I2C
-	select REGMAP_I2C
-	select RATIONAL
+config COMMON_CLK_PIC32
+	def_bool COMMON_CLK && MACH_PIC32
+
+config COMMON_CLK_OXNAS
+	bool "Clock driver for the OXNAS SoC Family"
+	select MFD_SYSCON
 	---help---
-	  This driver supports TI CDCE706 programmable 3-PLL clock synthesizer.
+	  Support for the OXNAS SoC Family clocks.
 
 source "drivers/clk/bcm/Kconfig"
 source "drivers/clk/hisilicon/Kconfig"
-source "drivers/clk/qcom/Kconfig"
-
-endmenu
-
 source "drivers/clk/mvebu/Kconfig"
-
+source "drivers/clk/qcom/Kconfig"
+source "drivers/clk/renesas/Kconfig"
 source "drivers/clk/samsung/Kconfig"
 source "drivers/clk/tegra/Kconfig"
+source "drivers/clk/ti/Kconfig"
+
+endmenu

@@ -212,7 +212,14 @@ struct hist_entry;
 int record_parse_callchain_opt(const struct option *opt, const char *arg, int unset);
 int record_callchain_opt(const struct option *opt, const char *arg, int unset);
 
-int sample__resolve_callchain(struct perf_sample *sample, struct symbol **parent,
+struct record_opts;
+
+int record_opts__parse_callchain(struct record_opts *record,
+				 struct callchain_param *callchain,
+				 const char *arg, bool unset);
+
+int sample__resolve_callchain(struct perf_sample *sample,
+			      struct callchain_cursor *cursor, struct symbol **parent,
 			      struct perf_evsel *evsel, struct addr_location *al,
 			      int max_stack);
 int hist_entry__append_callchain(struct hist_entry *he, struct perf_sample *sample);
@@ -220,7 +227,7 @@ int fill_callchain_info(struct addr_location *al, struct callchain_cursor_node *
 			bool hide_unresolved);
 
 extern const char record_callchain_help[];
-extern int parse_callchain_record(const char *arg, struct callchain_param *param);
+int parse_callchain_record(const char *arg, struct callchain_param *param);
 int parse_callchain_record_opt(const char *arg, struct callchain_param *param);
 int parse_callchain_report_opt(const char *arg);
 int parse_callchain_top_opt(const char *arg);
@@ -236,7 +243,7 @@ static inline void callchain_cursor_snapshot(struct callchain_cursor *dest,
 }
 
 #ifdef HAVE_SKIP_CALLCHAIN_IDX
-extern int arch_skip_callchain_idx(struct thread *thread, struct ip_callchain *chain);
+int arch_skip_callchain_idx(struct thread *thread, struct ip_callchain *chain);
 #else
 static inline int arch_skip_callchain_idx(struct thread *thread __maybe_unused,
 			struct ip_callchain *chain __maybe_unused)

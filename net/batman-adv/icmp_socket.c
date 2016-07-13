@@ -104,25 +104,21 @@ static int batadv_socket_open(struct inode *inode, struct file *file)
 
 static int batadv_socket_release(struct inode *inode, struct file *file)
 {
-	struct batadv_socket_client *socket_client = file->private_data;
-	struct batadv_socket_packet *socket_packet;
-	struct list_head *list_pos, *list_pos_tmp;
+	struct batadv_socket_client *client = file->private_data;
+	struct batadv_socket_packet *packet, *tmp;
 
-	spin_lock_bh(&socket_client->lock);
+	spin_lock_bh(&client->lock);
 
 	/* for all packets in the queue ... */
-	list_for_each_safe(list_pos, list_pos_tmp, &socket_client->queue_list) {
-		socket_packet = list_entry(list_pos,
-					   struct batadv_socket_packet, list);
-
-		list_del(list_pos);
-		kfree(socket_packet);
+	list_for_each_entry_safe(packet, tmp, &client->queue_list, list) {
+		list_del(&packet->list);
+		kfree(packet);
 	}
 
-	batadv_socket_client_hash[socket_client->index] = NULL;
-	spin_unlock_bh(&socket_client->lock);
+	batadv_socket_client_hash[client->index] = NULL;
+	spin_unlock_bh(&client->lock);
 
-	kfree(socket_client);
+	kfree(client);
 	module_put(THIS_MODULE);
 
 	return 0;
@@ -337,7 +333,7 @@ err:
 }
 
 /**
- * batadv_socket_receive_packet - schedule an icmp packet to be sent to
+ * batadv_socket_add_packet - schedule an icmp packet to be sent to
  *  userspace on an icmp socket.
  * @socket_client: the socket this packet belongs to
  * @icmph: pointer to the header of the icmp packet

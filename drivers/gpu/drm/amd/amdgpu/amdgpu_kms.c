@@ -303,7 +303,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			fw_info.feature = adev->vce.fb_version;
 			break;
 		case AMDGPU_INFO_FW_UVD:
-			fw_info.ver = 0;
+			fw_info.ver = adev->uvd.fw_version;
 			fw_info.feature = 0;
 			break;
 		case AMDGPU_INFO_FW_GMC:
@@ -382,8 +382,9 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		struct drm_amdgpu_info_vram_gtt vram_gtt;
 
 		vram_gtt.vram_size = adev->mc.real_vram_size;
+		vram_gtt.vram_size -= adev->vram_pin_size;
 		vram_gtt.vram_cpu_accessible_size = adev->mc.visible_vram_size;
-		vram_gtt.vram_cpu_accessible_size -= adev->vram_pin_size;
+		vram_gtt.vram_cpu_accessible_size -= (adev->vram_pin_size - adev->invisible_pin_size);
 		vram_gtt.gtt_size  = adev->mc.gtt_size;
 		vram_gtt.gtt_size -= adev->gart_pin_size;
 		return copy_to_user(out, &vram_gtt,
@@ -426,7 +427,6 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 	}
 	case AMDGPU_INFO_DEV_INFO: {
 		struct drm_amdgpu_info_device dev_info = {};
-		struct amdgpu_cu_info cu_info;
 
 		dev_info.device_id = dev->pdev->device;
 		dev_info.chip_rev = adev->rev_id;
@@ -448,7 +448,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		}
 		dev_info.enabled_rb_pipes_mask = adev->gfx.config.backend_enable_mask;
 		dev_info.num_rb_pipes = adev->gfx.config.max_backends_per_se *
-					adev->gfx.config.max_shader_engines;
+			adev->gfx.config.max_shader_engines;
 		dev_info.num_hw_gfx_contexts = adev->gfx.config.max_hw_contexts;
 		dev_info._pad = 0;
 		dev_info.ids_flags = 0;
@@ -461,11 +461,11 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 					     AMDGPU_GPU_PAGE_SIZE;
 		dev_info.gart_page_size = AMDGPU_GPU_PAGE_SIZE;
 
-		amdgpu_asic_get_cu_info(adev, &cu_info);
-		dev_info.cu_active_number = cu_info.number;
-		dev_info.cu_ao_mask = cu_info.ao_cu_mask;
+		dev_info.cu_active_number = adev->gfx.cu_info.number;
+		dev_info.cu_ao_mask = adev->gfx.cu_info.ao_cu_mask;
 		dev_info.ce_ram_size = adev->gfx.ce_ram_size;
-		memcpy(&dev_info.cu_bitmap[0], &cu_info.bitmap[0], sizeof(cu_info.bitmap));
+		memcpy(&dev_info.cu_bitmap[0], &adev->gfx.cu_info.bitmap[0],
+		       sizeof(adev->gfx.cu_info.bitmap));
 		dev_info.vram_type = adev->mc.vram_type;
 		dev_info.vram_bit_width = adev->mc.vram_width;
 		dev_info.vce_harvest_config = adev->vce.harvest_config;
@@ -727,6 +727,12 @@ int amdgpu_get_vblank_timestamp_kms(struct drm_device *dev, unsigned int pipe,
 
 	/* Get associated drm_crtc: */
 	crtc = &adev->mode_info.crtcs[pipe]->base;
+	if (!crtc) {
+		/* This can occur on driver load if some component fails to
+		 * initialize completely and driver is unloaded */
+		DRM_ERROR("Uninitialized crtc %d\n", pipe);
+		return -EINVAL;
+	}
 
 	/* Helper routine in DRM core does all the work: */
 	return drm_calc_vbltimestamp_from_scanoutpos(dev, pipe, max_error,
@@ -749,4 +755,4 @@ const struct drm_ioctl_desc amdgpu_ioctls_kms[] = {
 	DRM_IOCTL_DEF_DRV(AMDGPU_GEM_OP, amdgpu_gem_op_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(AMDGPU_GEM_USERPTR, amdgpu_gem_userptr_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
 };
-int amdgpu_max_kms_ioctl = ARRAY_SIZE(amdgpu_ioctls_kms);
+const int amdgpu_max_kms_ioctl = ARRAY_SIZE(amdgpu_ioctls_kms);

@@ -1278,7 +1278,7 @@ static void cw1200_do_join(struct cw1200_common *priv)
 	join.dtim_period = priv->join_dtim_period;
 
 	join.channel_number = priv->channel->hw_value;
-	join.band = (priv->channel->band == IEEE80211_BAND_5GHZ) ?
+	join.band = (priv->channel->band == NL80211_BAND_5GHZ) ?
 		WSM_PHY_BAND_5G : WSM_PHY_BAND_2_4G;
 
 	memcpy(join.bssid, bssid, sizeof(join.bssid));
@@ -1462,7 +1462,7 @@ int cw1200_enable_listening(struct cw1200_common *priv)
 	};
 
 	if (priv->channel) {
-		start.band = priv->channel->band == IEEE80211_BAND_5GHZ ?
+		start.band = priv->channel->band == NL80211_BAND_5GHZ ?
 			     WSM_PHY_BAND_5G : WSM_PHY_BAND_2_4G;
 		start.channel_number = priv->channel->hw_value;
 	} else {
@@ -2315,7 +2315,7 @@ static int cw1200_start_ap(struct cw1200_common *priv)
 	struct wsm_start start = {
 		.mode = priv->vif->p2p ?
 				WSM_START_MODE_P2P_GO : WSM_START_MODE_AP,
-		.band = (priv->channel->band == IEEE80211_BAND_5GHZ) ?
+		.band = (priv->channel->band == NL80211_BAND_5GHZ) ?
 				WSM_PHY_BAND_5G : WSM_PHY_BAND_2_4G,
 		.channel_number = priv->channel->hw_value,
 		.beacon_interval = conf->beacon_int,

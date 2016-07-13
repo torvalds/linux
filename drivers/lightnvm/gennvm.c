@@ -20,6 +20,68 @@
 
 #include "gennvm.h"
 
+static int gennvm_get_area(struct nvm_dev *dev, sector_t *lba, sector_t len)
+{
+	struct gen_nvm *gn = dev->mp;
+	struct gennvm_area *area, *prev, *next;
+	sector_t begin = 0;
+	sector_t max_sectors = (dev->sec_size * dev->total_secs) >> 9;
+
+	if (len > max_sectors)
+		return -EINVAL;
+
+	area = kmalloc(sizeof(struct gennvm_area), GFP_KERNEL);
+	if (!area)
+		return -ENOMEM;
+
+	prev = NULL;
+
+	spin_lock(&dev->lock);
+	list_for_each_entry(next, &gn->area_list, list) {
+		if (begin + len > next->begin) {
+			begin = next->end;
+			prev = next;
+			continue;
+		}
+		break;
+	}
+
+	if ((begin + len) > max_sectors) {
+		spin_unlock(&dev->lock);
+		kfree(area);
+		return -EINVAL;
+	}
+
+	area->begin = *lba = begin;
+	area->end = begin + len;
+
+	if (prev) /* insert into sorted order */
+		list_add(&area->list, &prev->list);
+	else
+		list_add(&area->list, &gn->area_list);
+	spin_unlock(&dev->lock);
+
+	return 0;
+}
+
+static void gennvm_put_area(struct nvm_dev *dev, sector_t begin)
+{
+	struct gen_nvm *gn = dev->mp;
+	struct gennvm_area *area;
+
+	spin_lock(&dev->lock);
+	list_for_each_entry(area, &gn->area_list, list) {
+		if (area->begin != begin)
+			continue;
+
+		list_del(&area->list);
+		spin_unlock(&dev->lock);
+		kfree(area);
+		return;
+	}
+	spin_unlock(&dev->lock);
+}
+
 static void gennvm_blocks_free(struct nvm_dev *dev)
 {
 	struct gen_nvm *gn = dev->mp;
@@ -67,27 +129,25 @@ static int gennvm_luns_init(struct nvm_dev *dev, struct gen_nvm *gn)
 	return 0;
 }
 
-static int gennvm_block_bb(struct ppa_addr ppa, int nr_blocks, u8 *blks,
-								void *private)
+static int gennvm_block_bb(struct gen_nvm *gn, struct ppa_addr ppa,
+							u8 *blks, int nr_blks)
 {
-	struct gen_nvm *gn = private;
 	struct nvm_dev *dev = gn->dev;
 	struct gen_lun *lun;
 	struct nvm_block *blk;
 	int i;
 
+	nr_blks = nvm_bb_tbl_fold(dev, blks, nr_blks);
+	if (nr_blks < 0)
+		return nr_blks;
+
 	lun = &gn->luns[(dev->luns_per_chnl * ppa.g.ch) + ppa.g.lun];
 
-	for (i = 0; i < nr_blocks; i++) {
+	for (i = 0; i < nr_blks; i++) {
 		if (blks[i] == 0)
 			continue;
 
 		blk = &lun->vlun.blocks[i];
-		if (!blk) {
-			pr_err("gennvm: BB data is out of bounds.\n");
-			return -EINVAL;
-		}
-
 		list_move_tail(&blk->list, &lun->bb_list);
 		lun->vlun.nr_bad_blocks++;
 		lun->vlun.nr_free_blocks--;
@@ -154,13 +214,21 @@ static int gennvm_blocks_init(struct nvm_dev *dev, struct gen_nvm *gn)
 	struct gen_lun *lun;
 	struct nvm_block *block;
 	sector_t lun_iter, blk_iter, cur_block_id = 0;
-	int ret;
+	int ret, nr_blks;
+	u8 *blks;
+
+	nr_blks = dev->blks_per_lun * dev->plane_mode;
+	blks = kmalloc(nr_blks, GFP_KERNEL);
+	if (!blks)
+		return -ENOMEM;
 
 	gennvm_for_each_lun(gn, lun, lun_iter) {
 		lun->vlun.blocks = vzalloc(sizeof(struct nvm_block) *
 							dev->blks_per_lun);
-		if (!lun->vlun.blocks)
+		if (!lun->vlun.blocks) {
+			kfree(blks);
 			return -ENOMEM;
+		}
 
 		for (blk_iter = 0; blk_iter < dev->blks_per_lun; blk_iter++) {
 			block = &lun->vlun.blocks[blk_iter];
@@ -184,18 +252,19 @@ static int gennvm_blocks_init(struct nvm_dev *dev, struct gen_nvm *gn)
 
 			ppa.ppa = 0;
 			ppa.g.ch = lun->vlun.chnl_id;
-			ppa.g.lun = lun->vlun.id;
-			ppa = generic_to_dev_addr(dev, ppa);
+			ppa.g.lun = lun->vlun.lun_id;
 
-			ret = dev->ops->get_bb_tbl(dev, ppa,
-						dev->blks_per_lun,
-						gennvm_block_bb, gn);
+			ret = nvm_get_bb_tbl(dev, ppa, blks);
 			if (ret)
-				pr_err("gennvm: could not read BB table\n");
+				pr_err("gennvm: could not get BB table\n");
+
+			ret = gennvm_block_bb(gn, ppa, blks, nr_blks);
+			if (ret)
+				pr_err("gennvm: BB table map failed\n");
 		}
 	}
 
-	if (dev->ops->get_l2p_tbl) {
+	if ((dev->identity.dom & NVM_RSP_L2P) && dev->ops->get_l2p_tbl) {
 		ret = dev->ops->get_l2p_tbl(dev, 0, dev->total_secs,
 							gennvm_block_map, dev);
 		if (ret) {
@@ -204,6 +273,7 @@ static int gennvm_blocks_init(struct nvm_dev *dev, struct gen_nvm *gn)
 		}
 	}
 
+	kfree(blks);
 	return 0;
 }
 
@@ -229,6 +299,7 @@ static int gennvm_register(struct nvm_dev *dev)
 
 	gn->dev = dev;
 	gn->nr_luns = dev->nr_luns;
+	INIT_LIST_HEAD(&gn->area_list);
 	dev->mp = gn;
 
 	ret = gennvm_luns_init(dev, gn);
@@ -336,64 +407,60 @@ static void gennvm_put_blk(struct nvm_dev *dev, struct nvm_block *blk)
 	spin_unlock(&vlun->lock);
 }
 
-static void gennvm_blk_set_type(struct nvm_dev *dev, struct ppa_addr *ppa,
-								int type)
+static void gennvm_mark_blk(struct nvm_dev *dev, struct ppa_addr ppa, int type)
 {
 	struct gen_nvm *gn = dev->mp;
 	struct gen_lun *lun;
 	struct nvm_block *blk;
 
-	if (unlikely(ppa->g.ch > dev->nr_chnls ||
-					ppa->g.lun > dev->luns_per_chnl ||
-					ppa->g.blk > dev->blks_per_lun)) {
+	pr_debug("gennvm: ppa  (ch: %u lun: %u blk: %u pg: %u) -> %u\n",
+			ppa.g.ch, ppa.g.lun, ppa.g.blk, ppa.g.pg, type);
+
+	if (unlikely(ppa.g.ch > dev->nr_chnls ||
+					ppa.g.lun > dev->luns_per_chnl ||
+					ppa.g.blk > dev->blks_per_lun)) {
 		WARN_ON_ONCE(1);
 		pr_err("gennvm: ppa broken (ch: %u > %u lun: %u > %u blk: %u > %u",
-				ppa->g.ch, dev->nr_chnls,
-				ppa->g.lun, dev->luns_per_chnl,
-				ppa->g.blk, dev->blks_per_lun);
+				ppa.g.ch, dev->nr_chnls,
+				ppa.g.lun, dev->luns_per_chnl,
+				ppa.g.blk, dev->blks_per_lun);
 		return;
 	}
 
-	lun = &gn->luns[ppa->g.lun * ppa->g.ch];
-	blk = &lun->vlun.blocks[ppa->g.blk];
+	lun = &gn->luns[ppa.g.lun * ppa.g.ch];
+	blk = &lun->vlun.blocks[ppa.g.blk];
 
 	/* will be moved to bb list on put_blk from target */
 	blk->state = type;
 }
 
-/* mark block bad. It is expected the target recover from the error. */
+/*
+ * mark block bad in gennvm. It is expected that the target recovers separately
+ */
 static void gennvm_mark_blk_bad(struct nvm_dev *dev, struct nvm_rq *rqd)
 {
-	int i;
-
-	if (!dev->ops->set_bb_tbl)
-		return;
-
-	if (dev->ops->set_bb_tbl(dev, rqd, 1))
-		return;
+	int bit = -1;
+	int max_secs = dev->ops->max_phys_sect;
+	void *comp_bits = &rqd->ppa_status;
 
 	nvm_addr_to_generic_mode(dev, rqd);
 
 	/* look up blocks and mark them as bad */
-	if (rqd->nr_pages > 1)
-		for (i = 0; i < rqd->nr_pages; i++)
-			gennvm_blk_set_type(dev, &rqd->ppa_list[i],
-						NVM_BLK_ST_BAD);
-	else
-		gennvm_blk_set_type(dev, &rqd->ppa_addr, NVM_BLK_ST_BAD);
+	if (rqd->nr_ppas == 1) {
+		gennvm_mark_blk(dev, rqd->ppa_addr, NVM_BLK_ST_BAD);
+		return;
+	}
+
+	while ((bit = find_next_bit(comp_bits, max_secs, bit + 1)) < max_secs)
+		gennvm_mark_blk(dev, rqd->ppa_list[bit], NVM_BLK_ST_BAD);
 }
 
 static void gennvm_end_io(struct nvm_rq *rqd)
 {
 	struct nvm_tgt_instance *ins = rqd->ins;
 
-	switch (rqd->error) {
-	case NVM_RSP_SUCCESS:
-	case NVM_RSP_ERR_EMPTYPAGE:
-		break;
-	case NVM_RSP_ERR_FAILWRITE:
+	if (rqd->error == NVM_RSP_ERR_FAILWRITE)
 		gennvm_mark_blk_bad(rqd->dev, rqd);
-	}
 
 	ins->tt->end_io(rqd);
 }
@@ -419,9 +486,22 @@ static int gennvm_erase_blk(struct nvm_dev *dev, struct nvm_block *blk,
 	return nvm_erase_ppa(dev, &addr, 1);
 }
 
+static int gennvm_reserve_lun(struct nvm_dev *dev, int lunid)
+{
+	return test_and_set_bit(lunid, dev->lun_map);
+}
+
+static void gennvm_release_lun(struct nvm_dev *dev, int lunid)
+{
+	WARN_ON(!test_and_clear_bit(lunid, dev->lun_map));
+}
+
 static struct nvm_lun *gennvm_get_lun(struct nvm_dev *dev, int lunid)
 {
 	struct gen_nvm *gn = dev->mp;
+
+	if (unlikely(lunid >= dev->nr_luns))
+		return NULL;
 
 	return &gn->luns[lunid].vlun;
 }
@@ -463,8 +543,16 @@ static struct nvmm_type gennvm = {
 	.submit_io		= gennvm_submit_io,
 	.erase_blk		= gennvm_erase_blk,
 
+	.mark_blk		= gennvm_mark_blk,
+
 	.get_lun		= gennvm_get_lun,
+	.reserve_lun		= gennvm_reserve_lun,
+	.release_lun		= gennvm_release_lun,
 	.lun_info_print		= gennvm_lun_info_print,
+
+	.get_area		= gennvm_get_area,
+	.put_area		= gennvm_put_area,
+
 };
 
 static int __init gennvm_module_init(void)

@@ -126,7 +126,9 @@ EXPORT_SYMBOL(ath10k_info);
 
 void ath10k_debug_print_hwfw_info(struct ath10k *ar)
 {
+	const struct firmware *firmware;
 	char fw_features[128] = {};
+	u32 crc = 0;
 
 	ath10k_core_get_fw_features_str(ar, fw_features, sizeof(fw_features));
 
@@ -143,11 +145,15 @@ void ath10k_debug_print_hwfw_info(struct ath10k *ar)
 		    config_enabled(CONFIG_ATH10K_DFS_CERTIFIED),
 		    config_enabled(CONFIG_NL80211_TESTMODE));
 
+	firmware = ar->normal_mode_fw.fw_file.firmware;
+	if (firmware)
+		crc = crc32_le(0, firmware->data, firmware->size);
+
 	ath10k_info(ar, "firmware ver %s api %d features %s crc32 %08x\n",
 		    ar->hw->wiphy->fw_version,
 		    ar->fw_api,
 		    fw_features,
-		    crc32_le(0, ar->firmware->data, ar->firmware->size));
+		    crc);
 }
 
 void ath10k_debug_print_board_info(struct ath10k *ar)
@@ -163,7 +169,8 @@ void ath10k_debug_print_board_info(struct ath10k *ar)
 	ath10k_info(ar, "board_file api %d bmi_id %s crc32 %08x",
 		    ar->bd_api,
 		    boardinfo,
-		    crc32_le(0, ar->board->data, ar->board->size));
+		    crc32_le(0, ar->normal_mode_fw.board->data,
+			     ar->normal_mode_fw.board->size));
 }
 
 void ath10k_debug_print_boot_info(struct ath10k *ar)
@@ -171,8 +178,8 @@ void ath10k_debug_print_boot_info(struct ath10k *ar)
 	ath10k_info(ar, "htt-ver %d.%d wmi-op %d htt-op %d cal %s max-sta %d raw %d hwcrypto %d\n",
 		    ar->htt.target_version_major,
 		    ar->htt.target_version_minor,
-		    ar->wmi.op_version,
-		    ar->htt.op_version,
+		    ar->normal_mode_fw.fw_file.wmi_op_version,
+		    ar->normal_mode_fw.fw_file.htt_op_version,
 		    ath10k_cal_mode_str(ar->cal_mode),
 		    ar->max_num_stations,
 		    test_bit(ATH10K_FLAG_RAW_MODE, &ar->dev_flags),
@@ -319,7 +326,7 @@ static void ath10k_debug_fw_stats_reset(struct ath10k *ar)
 void ath10k_debug_fw_stats_process(struct ath10k *ar, struct sk_buff *skb)
 {
 	struct ath10k_fw_stats stats = {};
-	bool is_start, is_started, is_end, peer_stats_svc;
+	bool is_start, is_started, is_end;
 	size_t num_peers;
 	size_t num_vdevs;
 	int ret;
@@ -346,13 +353,11 @@ void ath10k_debug_fw_stats_process(struct ath10k *ar, struct sk_buff *skb)
 	 *  b) consume stat update events until another one with pdev stats is
 	 *     delivered which is treated as end-of-data and is itself discarded
 	 */
-
-	peer_stats_svc = test_bit(WMI_SERVICE_PEER_STATS, ar->wmi.svc_map);
-	if (peer_stats_svc)
+	if (ath10k_peer_stats_enabled(ar))
 		ath10k_sta_update_rx_duration(ar, &stats.peers);
 
 	if (ar->debug.fw_stats_done) {
-		if (!peer_stats_svc)
+		if (!ath10k_peer_stats_enabled(ar))
 			ath10k_warn(ar, "received unsolicited stats update event\n");
 
 		goto free;
@@ -1447,7 +1452,7 @@ static int ath10k_debug_cal_data_open(struct inode *inode, struct file *file)
 		goto err;
 	}
 
-	buf = vmalloc(QCA988X_CAL_DATA_LEN);
+	buf = vmalloc(ar->hw_params.cal_data_len);
 	if (!buf) {
 		ret = -ENOMEM;
 		goto err;
@@ -1462,7 +1467,7 @@ static int ath10k_debug_cal_data_open(struct inode *inode, struct file *file)
 	}
 
 	ret = ath10k_hif_diag_read(ar, le32_to_cpu(addr), buf,
-				   QCA988X_CAL_DATA_LEN);
+				   ar->hw_params.cal_data_len);
 	if (ret) {
 		ath10k_warn(ar, "failed to read calibration data: %d\n", ret);
 		goto err_vfree;
@@ -1487,10 +1492,11 @@ static ssize_t ath10k_debug_cal_data_read(struct file *file,
 					  char __user *user_buf,
 					  size_t count, loff_t *ppos)
 {
+	struct ath10k *ar = file->private_data;
 	void *buf = file->private_data;
 
 	return simple_read_from_buffer(user_buf, count, ppos,
-				       buf, QCA988X_CAL_DATA_LEN);
+				       buf, ar->hw_params.cal_data_len);
 }
 
 static int ath10k_debug_cal_data_release(struct inode *inode,
@@ -2019,7 +2025,12 @@ static ssize_t ath10k_write_pktlog_filter(struct file *file,
 		goto out;
 	}
 
-	if (filter && (filter != ar->debug.pktlog_filter)) {
+	if (filter == ar->debug.pktlog_filter) {
+		ret = count;
+		goto out;
+	}
+
+	if (filter) {
 		ret = ath10k_wmi_pdev_pktlog_enable(ar, filter);
 		if (ret) {
 			ath10k_warn(ar, "failed to enable pktlog filter %x: %d\n",
@@ -2114,7 +2125,7 @@ static ssize_t ath10k_write_btcoex(struct file *file,
 	struct ath10k *ar = file->private_data;
 	char buf[32];
 	size_t buf_size;
-	int ret = 0;
+	int ret;
 	bool val;
 
 	buf_size = min(count, (sizeof(buf) - 1));
@@ -2134,8 +2145,10 @@ static ssize_t ath10k_write_btcoex(struct file *file,
 		goto exit;
 	}
 
-	if (!(test_bit(ATH10K_FLAG_BTCOEX, &ar->dev_flags) ^ val))
+	if (!(test_bit(ATH10K_FLAG_BTCOEX, &ar->dev_flags) ^ val)) {
+		ret = count;
 		goto exit;
+	}
 
 	if (val)
 		set_bit(ATH10K_FLAG_BTCOEX, &ar->dev_flags);
@@ -2174,6 +2187,75 @@ static const struct file_operations fops_btcoex = {
 	.open = simple_open
 };
 
+static ssize_t ath10k_write_peer_stats(struct file *file,
+				       const char __user *ubuf,
+				       size_t count, loff_t *ppos)
+{
+	struct ath10k *ar = file->private_data;
+	char buf[32];
+	size_t buf_size;
+	int ret;
+	bool val;
+
+	buf_size = min(count, (sizeof(buf) - 1));
+	if (copy_from_user(buf, ubuf, buf_size))
+		return -EFAULT;
+
+	buf[buf_size] = '\0';
+
+	if (strtobool(buf, &val) != 0)
+		return -EINVAL;
+
+	mutex_lock(&ar->conf_mutex);
+
+	if (ar->state != ATH10K_STATE_ON &&
+	    ar->state != ATH10K_STATE_RESTARTED) {
+		ret = -ENETDOWN;
+		goto exit;
+	}
+
+	if (!(test_bit(ATH10K_FLAG_PEER_STATS, &ar->dev_flags) ^ val)) {
+		ret = count;
+		goto exit;
+	}
+
+	if (val)
+		set_bit(ATH10K_FLAG_PEER_STATS, &ar->dev_flags);
+	else
+		clear_bit(ATH10K_FLAG_PEER_STATS, &ar->dev_flags);
+
+	ath10k_info(ar, "restarting firmware due to Peer stats change");
+
+	queue_work(ar->workqueue, &ar->restart_work);
+	ret = count;
+
+exit:
+	mutex_unlock(&ar->conf_mutex);
+	return ret;
+}
+
+static ssize_t ath10k_read_peer_stats(struct file *file, char __user *ubuf,
+				      size_t count, loff_t *ppos)
+
+{
+	char buf[32];
+	struct ath10k *ar = file->private_data;
+	int len = 0;
+
+	mutex_lock(&ar->conf_mutex);
+	len = scnprintf(buf, sizeof(buf) - len, "%d\n",
+			test_bit(ATH10K_FLAG_PEER_STATS, &ar->dev_flags));
+	mutex_unlock(&ar->conf_mutex);
+
+	return simple_read_from_buffer(ubuf, count, ppos, buf, len);
+}
+
+static const struct file_operations fops_peer_stats = {
+	.read = ath10k_read_peer_stats,
+	.write = ath10k_write_peer_stats,
+	.open = simple_open
+};
+
 static ssize_t ath10k_debug_fw_checksums_read(struct file *file,
 					      char __user *user_buf,
 					      size_t count, loff_t *ppos)
@@ -2191,23 +2273,28 @@ static ssize_t ath10k_debug_fw_checksums_read(struct file *file,
 
 	len += scnprintf(buf + len, buf_len - len,
 			 "firmware-N.bin\t\t%08x\n",
-			 crc32_le(0, ar->firmware->data, ar->firmware->size));
+			 crc32_le(0, ar->normal_mode_fw.fw_file.firmware->data,
+				  ar->normal_mode_fw.fw_file.firmware->size));
 	len += scnprintf(buf + len, buf_len - len,
 			 "athwlan\t\t\t%08x\n",
-			 crc32_le(0, ar->firmware_data, ar->firmware_len));
+			 crc32_le(0, ar->normal_mode_fw.fw_file.firmware_data,
+				  ar->normal_mode_fw.fw_file.firmware_len));
 	len += scnprintf(buf + len, buf_len - len,
 			 "otp\t\t\t%08x\n",
-			 crc32_le(0, ar->otp_data, ar->otp_len));
+			 crc32_le(0, ar->normal_mode_fw.fw_file.otp_data,
+				  ar->normal_mode_fw.fw_file.otp_len));
 	len += scnprintf(buf + len, buf_len - len,
 			 "codeswap\t\t%08x\n",
-			 crc32_le(0, ar->swap.firmware_codeswap_data,
-				  ar->swap.firmware_codeswap_len));
+			 crc32_le(0, ar->normal_mode_fw.fw_file.codeswap_data,
+				  ar->normal_mode_fw.fw_file.codeswap_len));
 	len += scnprintf(buf + len, buf_len - len,
 			 "board-N.bin\t\t%08x\n",
-			 crc32_le(0, ar->board->data, ar->board->size));
+			 crc32_le(0, ar->normal_mode_fw.board->data,
+				  ar->normal_mode_fw.board->size));
 	len += scnprintf(buf + len, buf_len - len,
 			 "board\t\t\t%08x\n",
-			 crc32_le(0, ar->board_data, ar->board_len));
+			 crc32_le(0, ar->normal_mode_fw.board_data,
+				  ar->normal_mode_fw.board_len));
 
 	ret_cnt = simple_read_from_buffer(user_buf, count, ppos, buf, len);
 
@@ -2336,6 +2423,11 @@ int ath10k_debug_register(struct ath10k *ar)
 	if (test_bit(WMI_SERVICE_COEX_GPIO, ar->wmi.svc_map))
 		debugfs_create_file("btcoex", S_IRUGO | S_IWUSR,
 				    ar->debug.debugfs_phy, ar, &fops_btcoex);
+
+	if (test_bit(WMI_SERVICE_PEER_STATS, ar->wmi.svc_map))
+		debugfs_create_file("peer_stats", S_IRUGO | S_IWUSR,
+				    ar->debug.debugfs_phy, ar,
+				    &fops_peer_stats);
 
 	debugfs_create_file("fw_checksums", S_IRUSR,
 			    ar->debug.debugfs_phy, ar, &fops_fw_checksums);

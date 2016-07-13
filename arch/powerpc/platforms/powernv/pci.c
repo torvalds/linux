@@ -39,9 +39,6 @@
 /* Delay in usec */
 #define PCI_RESET_DELAY_US	3000000
 
-#define cfg_dbg(fmt...)	do { } while(0)
-//#define cfg_dbg(fmt...)	printk(fmt)
-
 #ifdef CONFIG_PCI_MSI
 int pnv_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 {
@@ -370,7 +367,7 @@ static void pnv_pci_config_check_eeh(struct pci_dn *pdn)
 	struct pnv_phb *phb = pdn->phb->private_data;
 	u8	fstate;
 	__be16	pcierr;
-	int	pe_no;
+	unsigned int pe_no;
 	s64	rc;
 
 	/*
@@ -380,7 +377,7 @@ static void pnv_pci_config_check_eeh(struct pci_dn *pdn)
 	 */
 	pe_no = pdn->pe_number;
 	if (pe_no == IODA_INVALID_PE) {
-		pe_no = phb->ioda.reserved_pe;
+		pe_no = phb->ioda.reserved_pe_idx;
 	}
 
 	/*
@@ -402,8 +399,8 @@ static void pnv_pci_config_check_eeh(struct pci_dn *pdn)
 		}
 	}
 
-	cfg_dbg(" -> EEH check, bdfn=%04x PE#%d fstate=%x\n",
-		(pdn->busno << 8) | (pdn->devfn), pe_no, fstate);
+	pr_devel(" -> EEH check, bdfn=%04x PE#%d fstate=%x\n",
+		 (pdn->busno << 8) | (pdn->devfn), pe_no, fstate);
 
 	/* Clear the frozen state if applicable */
 	if (fstate == OPAL_EEH_STOPPED_MMIO_FREEZE ||
@@ -451,8 +448,8 @@ int pnv_pci_cfg_read(struct pci_dn *pdn,
 		return PCIBIOS_FUNC_NOT_SUPPORTED;
 	}
 
-	cfg_dbg("%s: bus: %x devfn: %x +%x/%x -> %08x\n",
-		__func__, pdn->busno, pdn->devfn, where, size, *val);
+	pr_devel("%s: bus: %x devfn: %x +%x/%x -> %08x\n",
+		 __func__, pdn->busno, pdn->devfn, where, size, *val);
 	return PCIBIOS_SUCCESSFUL;
 }
 
@@ -462,8 +459,8 @@ int pnv_pci_cfg_write(struct pci_dn *pdn,
 	struct pnv_phb *phb = pdn->phb->private_data;
 	u32 bdfn = (pdn->busno << 8) | pdn->devfn;
 
-	cfg_dbg("%s: bus: %x devfn: %x +%x/%x -> %08x\n",
-		pdn->busno, pdn->devfn, where, size, val);
+	pr_devel("%s: bus: %x devfn: %x +%x/%x -> %08x\n",
+		 __func__, pdn->busno, pdn->devfn, where, size, val);
 	switch (size) {
 	case 1:
 		opal_pci_config_write_byte(phb->opal_id, bdfn, where, val);

@@ -23,10 +23,8 @@ Required properties:
   - "samsung,exynos4210-secss" for Exynos4210, Exynos4212, Exynos4412, Exynos5250,
 		Exynos5260 and Exynos5420 SoCs.
 - reg : Offset and length of the register set for the module
-- interrupts : interrupt specifiers of SSS module interrupts, should contain
-		following entries:
-		- first : feed control interrupt (required for all variants),
-		- second : hash interrupt (required only for samsung,s5pv210-secss).
+- interrupts : interrupt specifiers of SSS module interrupts (one feed
+		control interrupt).
 
 - clocks : list of clock phandle and specifier pairs for all clocks  listed in
 		clock-names property.

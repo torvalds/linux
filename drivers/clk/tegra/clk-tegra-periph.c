@@ -803,7 +803,7 @@ static struct tegra_periph_init_data gate_clks[] = {
 	GATE("hda2hdmi", "clk_m", 128, TEGRA_PERIPH_ON_APB, tegra_clk_hda2hdmi, 0),
 	GATE("bsea", "clk_m", 62, 0, tegra_clk_bsea, 0),
 	GATE("bsev", "clk_m", 63, 0, tegra_clk_bsev, 0),
-	GATE("mipi-cal", "clk_m", 56, 0, tegra_clk_mipi_cal, 0),
+	GATE("mipi-cal", "clk72mhz", 56, 0, tegra_clk_mipi_cal, 0),
 	GATE("usbd", "clk_m", 22, 0, tegra_clk_usbd, 0),
 	GATE("usb2", "clk_m", 58, 0, tegra_clk_usb2, 0),
 	GATE("usb3", "clk_m", 59, 0, tegra_clk_usb3, 0),
@@ -821,7 +821,6 @@ static struct tegra_periph_init_data gate_clks[] = {
 	GATE("ispb", "clk_m", 3, 0, tegra_clk_ispb, 0),
 	GATE("vim2_clk", "clk_m", 11, 0, tegra_clk_vim2_clk, 0),
 	GATE("pcie", "clk_m", 70, 0, tegra_clk_pcie, 0),
-	GATE("dpaux", "clk_m", 181, 0, tegra_clk_dpaux, 0),
 	GATE("gpu", "pll_ref", 184, 0, tegra_clk_gpu, 0),
 	GATE("pllg_ref", "pll_ref", 189, 0, tegra_clk_pll_g_ref, 0),
 	GATE("hsic_trk", "usb2_hsic_trk", 209, TEGRA_PERIPH_NO_RESET, tegra_clk_hsic_trk, 0),
@@ -877,7 +876,7 @@ static void __init periph_clk_init(void __iomem *clk_base,
 	struct clk **dt_clk;
 
 	for (i = 0; i < ARRAY_SIZE(periph_clks); i++) {
-		struct tegra_clk_periph_regs *bank;
+		const struct tegra_clk_periph_regs *bank;
 		struct tegra_periph_init_data *data;
 
 		data = periph_clks + i;

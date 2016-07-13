@@ -50,9 +50,11 @@
  * KMS wrapper.
  * - 3.0.0 - initial driver
  * - 3.1.0 - allow reading more status registers (GRBM, SRBM, SDMA, CP)
+ * - 3.2.0 - GFX8: Uses EOP_TC_WB_ACTION_EN, so UMDs don't have to do the same
+ *           at the end of IBs.
  */
 #define KMS_DRIVER_MAJOR	3
-#define KMS_DRIVER_MINOR	1
+#define KMS_DRIVER_MINOR	2
 #define KMS_DRIVER_PATCHLEVEL	0
 
 int amdgpu_vram_limit = 0;
@@ -69,7 +71,6 @@ int amdgpu_dpm = -1;
 int amdgpu_smc_load_fw = 1;
 int amdgpu_aspm = -1;
 int amdgpu_runtime_pm = -1;
-int amdgpu_hard_reset = 0;
 unsigned amdgpu_ip_block_mask = 0xffffffff;
 int amdgpu_bapm = -1;
 int amdgpu_deep_color = 0;
@@ -78,10 +79,8 @@ int amdgpu_vm_block_size = -1;
 int amdgpu_vm_fault_stop = 0;
 int amdgpu_vm_debug = 0;
 int amdgpu_exp_hw_support = 0;
-int amdgpu_enable_scheduler = 1;
 int amdgpu_sched_jobs = 32;
 int amdgpu_sched_hw_submission = 2;
-int amdgpu_enable_semaphores = 0;
 int amdgpu_powerplay = -1;
 unsigned amdgpu_pcie_gen_cap = 0;
 unsigned amdgpu_pcie_lane_cap = 0;
@@ -128,9 +127,6 @@ module_param_named(aspm, amdgpu_aspm, int, 0444);
 MODULE_PARM_DESC(runpm, "PX runtime pm (1 = force enable, 0 = disable, -1 = PX only default)");
 module_param_named(runpm, amdgpu_runtime_pm, int, 0444);
 
-MODULE_PARM_DESC(hard_reset, "PCI config reset (1 = force enable, 0 = disable (default))");
-module_param_named(hard_reset, amdgpu_hard_reset, int, 0444);
-
 MODULE_PARM_DESC(ip_block_mask, "IP Block Mask (all blocks enabled (default))");
 module_param_named(ip_block_mask, amdgpu_ip_block_mask, uint, 0444);
 
@@ -155,17 +151,11 @@ module_param_named(vm_debug, amdgpu_vm_debug, int, 0644);
 MODULE_PARM_DESC(exp_hw_support, "experimental hw support (1 = enable, 0 = disable (default))");
 module_param_named(exp_hw_support, amdgpu_exp_hw_support, int, 0444);
 
-MODULE_PARM_DESC(enable_scheduler, "enable SW GPU scheduler (1 = enable (default), 0 = disable)");
-module_param_named(enable_scheduler, amdgpu_enable_scheduler, int, 0444);
-
 MODULE_PARM_DESC(sched_jobs, "the max number of jobs supported in the sw queue (default 32)");
 module_param_named(sched_jobs, amdgpu_sched_jobs, int, 0444);
 
 MODULE_PARM_DESC(sched_hw_submission, "the max number of HW submissions (default 2)");
 module_param_named(sched_hw_submission, amdgpu_sched_hw_submission, int, 0444);
-
-MODULE_PARM_DESC(enable_semaphores, "Enable semaphores (1 = enable, 0 = disable (default))");
-module_param_named(enable_semaphores, amdgpu_enable_semaphores, int, 0644);
 
 #ifdef CONFIG_DRM_AMD_POWERPLAY
 MODULE_PARM_DESC(powerplay, "Powerplay component (1 = enable, 0 = disable, -1 = auto (default))");
@@ -178,7 +168,7 @@ module_param_named(pcie_gen_cap, amdgpu_pcie_gen_cap, uint, 0444);
 MODULE_PARM_DESC(pcie_lane_cap, "PCIE Lane Caps (0: autodetect (default))");
 module_param_named(pcie_lane_cap, amdgpu_pcie_lane_cap, uint, 0444);
 
-static struct pci_device_id pciidlist[] = {
+static const struct pci_device_id pciidlist[] = {
 #ifdef CONFIG_DRM_AMDGPU_CIK
 	/* Kaveri */
 	{0x1002, 0x1304, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_KAVERI|AMD_IS_MOBILITY|AMD_IS_APU},
@@ -289,6 +279,28 @@ static struct pci_device_id pciidlist[] = {
 	{0x1002, 0x9877, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_CARRIZO|AMD_IS_APU},
 	/* stoney */
 	{0x1002, 0x98E4, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_STONEY|AMD_IS_APU},
+	/* Polaris11 */
+	{0x1002, 0x67E0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS11},
+	{0x1002, 0x67E3, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS11},
+	{0x1002, 0x67E8, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS11},
+	{0x1002, 0x67EB, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS11},
+	{0x1002, 0x67EF, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS11},
+	{0x1002, 0x67FF, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS11},
+	{0x1002, 0x67E1, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS11},
+	{0x1002, 0x67E7, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS11},
+	{0x1002, 0x67E9, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS11},
+	/* Polaris10 */
+	{0x1002, 0x67C0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS10},
+	{0x1002, 0x67C1, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS10},
+	{0x1002, 0x67C2, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS10},
+	{0x1002, 0x67C4, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS10},
+	{0x1002, 0x67C7, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS10},
+	{0x1002, 0x67DF, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS10},
+	{0x1002, 0x67C8, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS10},
+	{0x1002, 0x67C9, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS10},
+	{0x1002, 0x67CA, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS10},
+	{0x1002, 0x67CC, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS10},
+	{0x1002, 0x67CF, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS10},
 
 	{0, 0, 0}
 };
@@ -329,6 +341,14 @@ static int amdgpu_pci_probe(struct pci_dev *pdev,
 			 "See modparam exp_hw_support\n");
 		return -ENODEV;
 	}
+
+	/*
+	 * Initialize amdkfd before starting radeon. If it was not loaded yet,
+	 * defer radeon probing
+	 */
+	ret = amdgpu_amdkfd_init();
+	if (ret == -EPROBE_DEFER)
+		return ret;
 
 	/* Get rid of things like offb */
 	ret = amdgpu_kick_out_firmware_fb(pdev);
@@ -518,7 +538,7 @@ static struct drm_driver kms_driver = {
 	.irq_uninstall = amdgpu_irq_uninstall,
 	.irq_handler = amdgpu_irq_handler,
 	.ioctls = amdgpu_ioctls_kms,
-	.gem_free_object = amdgpu_gem_object_free,
+	.gem_free_object_unlocked = amdgpu_gem_object_free,
 	.gem_open_object = amdgpu_gem_object_open,
 	.gem_close_object = amdgpu_gem_object_close,
 	.dumb_create = amdgpu_mode_dumb_create,
@@ -557,23 +577,22 @@ static struct pci_driver amdgpu_kms_pci_driver = {
 	.driver.pm = &amdgpu_pm_ops,
 };
 
+
+
 static int __init amdgpu_init(void)
 {
-#ifdef CONFIG_VGA_CONSOLE
+	amdgpu_sync_init();
+	amdgpu_fence_slab_init();
 	if (vgacon_text_force()) {
 		DRM_ERROR("VGACON disables amdgpu kernel modesetting.\n");
 		return -EINVAL;
 	}
-#endif
 	DRM_INFO("amdgpu kernel modesetting enabled.\n");
 	driver = &kms_driver;
 	pdriver = &amdgpu_kms_pci_driver;
 	driver->driver_features |= DRIVER_MODESET;
 	driver->num_ioctls = amdgpu_max_kms_ioctl;
 	amdgpu_register_atpx_handler();
-
-	amdgpu_amdkfd_init();
-
 	/* let modprobe override vga console setting */
 	return drm_pci_init(driver, pdriver);
 }
@@ -583,6 +602,8 @@ static void __exit amdgpu_exit(void)
 	amdgpu_amdkfd_fini();
 	drm_pci_exit(driver, pdriver);
 	amdgpu_unregister_atpx_handler();
+	amdgpu_sync_fini();
+	amdgpu_fence_slab_fini();
 }
 
 module_init(amdgpu_init);

@@ -30,7 +30,7 @@ config AF_RXRPC_DEBUG
 
 
 config RXKAD
-	tristate "RxRPC Kerberos security"
+	bool "RxRPC Kerberos security"
 	depends on AF_RXRPC
 	select CRYPTO
 	select CRYPTO_MANAGER

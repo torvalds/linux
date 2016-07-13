@@ -14,6 +14,8 @@
  * @gtscap: gts capabilities pointer
  * @drsmcap: dma resume capabilities pointer
  * @hlink_list: link list of HDA links
+ * @lock: lock for link mgmt
+ * @cmd_dma_state: state of cmd DMAs: CORB and RIRB
  */
 struct hdac_ext_bus {
 	struct hdac_bus bus;
@@ -27,6 +29,9 @@ struct hdac_ext_bus {
 	void __iomem *drsmcap;
 
 	struct list_head hlink_list;
+
+	struct mutex lock;
+	bool cmd_dma_state;
 };
 
 int snd_hdac_ext_bus_init(struct hdac_ext_bus *sbus, struct device *dev,
@@ -142,6 +147,9 @@ struct hdac_ext_link {
 	void __iomem *ml_addr; /* link output stream reg pointer */
 	u32 lcaps;   /* link capablities */
 	u16 lsdiid;  /* link sdi identifier */
+
+	int ref_count;
+
 	struct list_head list;
 };
 
@@ -153,6 +161,11 @@ void snd_hdac_ext_link_set_stream_id(struct hdac_ext_link *link,
 				 int stream);
 void snd_hdac_ext_link_clear_stream_id(struct hdac_ext_link *link,
 				 int stream);
+
+int snd_hdac_ext_bus_link_get(struct hdac_ext_bus *ebus,
+				struct hdac_ext_link *link);
+int snd_hdac_ext_bus_link_put(struct hdac_ext_bus *ebus,
+				struct hdac_ext_link *link);
 
 /* update register macro */
 #define snd_hdac_updatel(addr, reg, mask, val)		\

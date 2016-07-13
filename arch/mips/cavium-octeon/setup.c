@@ -43,8 +43,6 @@
 #include <asm/octeon/cvmx-mio-defs.h>
 #include <asm/octeon/cvmx-rst-defs.h>
 
-extern struct plat_smp_ops octeon_smp_ops;
-
 #ifdef CONFIG_PCI
 extern void pci_console_init(const char *arg);
 #endif
@@ -466,15 +464,25 @@ static void octeon_halt(void)
 
 static char __read_mostly octeon_system_type[80];
 
-static int __init init_octeon_system_type(void)
+static void __init init_octeon_system_type(void)
 {
-	snprintf(octeon_system_type, sizeof(octeon_system_type), "%s (%s)",
-		cvmx_board_type_to_string(octeon_bootinfo->board_type),
-		octeon_model_get_string(read_c0_prid()));
+	char const *board_type;
 
-	return 0;
+	board_type = cvmx_board_type_to_string(octeon_bootinfo->board_type);
+	if (board_type == NULL) {
+		struct device_node *root;
+		int ret;
+
+		root = of_find_node_by_path("/");
+		ret = of_property_read_string(root, "model", &board_type);
+		of_node_put(root);
+		if (ret)
+			board_type = "Unsupported Board";
+	}
+
+	snprintf(octeon_system_type, sizeof(octeon_system_type), "%s (%s)",
+		 board_type, octeon_model_get_string(read_c0_prid()));
 }
-early_initcall(init_octeon_system_type);
 
 /**
  * Return a string representing the system type
@@ -492,8 +500,6 @@ const char *get_system_type(void)
 void octeon_user_io_init(void)
 {
 	union octeon_cvmemctl cvmmemctl;
-	union cvmx_iob_fau_timeout fau_timeout;
-	union cvmx_pow_nw_tim nm_tim;
 
 	/* Get the current settings for CP0_CVMMEMCTL_REG */
 	cvmmemctl.u64 = read_c0_cvmmemctl();
@@ -595,17 +601,27 @@ void octeon_user_io_init(void)
 			  CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE,
 			  CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE * 128);
 
-	/* Set a default for the hardware timeouts */
-	fau_timeout.u64 = 0;
-	fau_timeout.s.tout_val = 0xfff;
-	/* Disable tagwait FAU timeout */
-	fau_timeout.s.tout_enb = 0;
-	cvmx_write_csr(CVMX_IOB_FAU_TIMEOUT, fau_timeout.u64);
+	if (octeon_has_feature(OCTEON_FEATURE_FAU)) {
+		union cvmx_iob_fau_timeout fau_timeout;
 
-	nm_tim.u64 = 0;
-	/* 4096 cycles */
-	nm_tim.s.nw_tim = 3;
-	cvmx_write_csr(CVMX_POW_NW_TIM, nm_tim.u64);
+		/* Set a default for the hardware timeouts */
+		fau_timeout.u64 = 0;
+		fau_timeout.s.tout_val = 0xfff;
+		/* Disable tagwait FAU timeout */
+		fau_timeout.s.tout_enb = 0;
+		cvmx_write_csr(CVMX_IOB_FAU_TIMEOUT, fau_timeout.u64);
+	}
+
+	if ((!OCTEON_IS_MODEL(OCTEON_CN68XX) &&
+	     !OCTEON_IS_MODEL(OCTEON_CN7XXX)) ||
+	    OCTEON_IS_MODEL(OCTEON_CN70XX)) {
+		union cvmx_pow_nw_tim nm_tim;
+
+		nm_tim.u64 = 0;
+		/* 4096 cycles */
+		nm_tim.s.nw_tim = 3;
+		cvmx_write_csr(CVMX_POW_NW_TIM, nm_tim.u64);
+	}
 
 	write_octeon_c0_icacheerr(0);
 	write_c0_derraddr1(0);
@@ -637,9 +653,22 @@ void __init prom_init(void)
 	sysinfo = cvmx_sysinfo_get();
 	memset(sysinfo, 0, sizeof(*sysinfo));
 	sysinfo->system_dram_size = octeon_bootinfo->dram_size << 20;
-	sysinfo->phy_mem_desc_ptr =
-		cvmx_phys_to_ptr(octeon_bootinfo->phy_mem_desc_addr);
-	sysinfo->core_mask = octeon_bootinfo->core_mask;
+	sysinfo->phy_mem_desc_addr = (u64)phys_to_virt(octeon_bootinfo->phy_mem_desc_addr);
+
+	if ((octeon_bootinfo->major_version > 1) ||
+	    (octeon_bootinfo->major_version == 1 &&
+	     octeon_bootinfo->minor_version >= 4))
+		cvmx_coremask_copy(&sysinfo->core_mask,
+				   &octeon_bootinfo->ext_core_mask);
+	else
+		cvmx_coremask_set64(&sysinfo->core_mask,
+				    octeon_bootinfo->core_mask);
+
+	/* Some broken u-boot pass garbage in upper bits, clear them out */
+	if (!OCTEON_IS_MODEL(OCTEON_CN78XX))
+		for (i = 512; i < 1024; i++)
+			cvmx_coremask_clear_core(&sysinfo->core_mask, i);
+
 	sysinfo->exception_base_addr = octeon_bootinfo->exception_base_addr;
 	sysinfo->cpu_clock_hz = octeon_bootinfo->eclock_hz;
 	sysinfo->dram_data_rate_hz = octeon_bootinfo->dclock_hz * 2;
@@ -867,7 +896,7 @@ void __init prom_init(void)
 #endif
 
 	octeon_user_io_init();
-	register_smp_ops(&octeon_smp_ops);
+	octeon_setup_smp();
 }
 
 /* Exclude a single page from the regions obtained in plat_mem_setup. */
@@ -1079,6 +1108,7 @@ void __init prom_free_prom_memory(void)
 	}
 }
 
+void __init octeon_fill_mac_addresses(void);
 int octeon_prune_device_tree(void);
 
 extern const char __appended_dtb;
@@ -1088,11 +1118,13 @@ void __init device_tree_init(void)
 {
 	const void *fdt;
 	bool do_prune;
+	bool fill_mac;
 
 #ifdef CONFIG_MIPS_ELF_APPENDED_DTB
 	if (!fdt_check_header(&__appended_dtb)) {
 		fdt = &__appended_dtb;
 		do_prune = false;
+		fill_mac = true;
 		pr_info("Using appended Device Tree.\n");
 	} else
 #endif
@@ -1101,13 +1133,16 @@ void __init device_tree_init(void)
 		if (fdt_check_header(fdt))
 			panic("Corrupt Device Tree passed to kernel.");
 		do_prune = false;
+		fill_mac = false;
 		pr_info("Using passed Device Tree.\n");
 	} else if (OCTEON_IS_MODEL(OCTEON_CN68XX)) {
 		fdt = &__dtb_octeon_68xx_begin;
 		do_prune = true;
+		fill_mac = true;
 	} else {
 		fdt = &__dtb_octeon_3xxx_begin;
 		do_prune = true;
+		fill_mac = true;
 	}
 
 	initial_boot_params = (void *)fdt;
@@ -1116,7 +1151,10 @@ void __init device_tree_init(void)
 		octeon_prune_device_tree();
 		pr_info("Using internal Device Tree.\n");
 	}
+	if (fill_mac)
+		octeon_fill_mac_addresses();
 	unflatten_and_copy_device_tree();
+	init_octeon_system_type();
 }
 
 static int __initdata disable_octeon_edac_p;

@@ -45,6 +45,7 @@ static const char *perf_event__names[] = {
 	[PERF_RECORD_STAT]			= "STAT",
 	[PERF_RECORD_STAT_ROUND]		= "STAT_ROUND",
 	[PERF_RECORD_EVENT_UPDATE]		= "EVENT_UPDATE",
+	[PERF_RECORD_TIME_CONV]			= "TIME_CONV",
 };
 
 const char *perf_event__name(unsigned int id)
@@ -56,13 +57,22 @@ const char *perf_event__name(unsigned int id)
 	return perf_event__names[id];
 }
 
-static struct perf_sample synth_sample = {
+static int perf_tool__process_synth_event(struct perf_tool *tool,
+					  union perf_event *event,
+					  struct machine *machine,
+					  perf_event__handler_t process)
+{
+	struct perf_sample synth_sample = {
 	.pid	   = -1,
 	.tid	   = -1,
 	.time	   = -1,
 	.stream_id = -1,
 	.cpu	   = -1,
 	.period	   = 1,
+	.cpumode   = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK,
+	};
+
+	return process(tool, event, &synth_sample, machine);
 };
 
 /*
@@ -186,7 +196,7 @@ pid_t perf_event__synthesize_comm(struct perf_tool *tool,
 	if (perf_event__prepare_comm(event, pid, machine, &tgid, &ppid) != 0)
 		return -1;
 
-	if (process(tool, event, &synth_sample, machine) != 0)
+	if (perf_tool__process_synth_event(tool, event, machine, process) != 0)
 		return -1;
 
 	return tgid;
@@ -218,7 +228,7 @@ static int perf_event__synthesize_fork(struct perf_tool *tool,
 
 	event->fork.header.size = (sizeof(event->fork) + machine->id_hdr_size);
 
-	if (process(tool, event, &synth_sample, machine) != 0)
+	if (perf_tool__process_synth_event(tool, event, machine, process) != 0)
 		return -1;
 
 	return 0;
@@ -344,7 +354,7 @@ out:
 		event->mmap2.pid = tgid;
 		event->mmap2.tid = pid;
 
-		if (process(tool, event, &synth_sample, machine) != 0) {
+		if (perf_tool__process_synth_event(tool, event, machine, process) != 0) {
 			rc = -1;
 			break;
 		}
@@ -402,7 +412,7 @@ int perf_event__synthesize_modules(struct perf_tool *tool,
 
 		memcpy(event->mmap.filename, pos->dso->long_name,
 		       pos->dso->long_name_len + 1);
-		if (process(tool, event, &synth_sample, machine) != 0) {
+		if (perf_tool__process_synth_event(tool, event, machine, process) != 0) {
 			rc = -1;
 			break;
 		}
@@ -424,7 +434,7 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 {
 	char filename[PATH_MAX];
 	DIR *tasks;
-	struct dirent dirent, *next;
+	struct dirent *dirent;
 	pid_t tgid, ppid;
 	int rc = 0;
 
@@ -453,11 +463,11 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 		return 0;
 	}
 
-	while (!readdir_r(tasks, &dirent, &next) && next) {
+	while ((dirent = readdir(tasks)) != NULL) {
 		char *end;
 		pid_t _pid;
 
-		_pid = strtol(dirent.d_name, &end, 10);
+		_pid = strtol(dirent->d_name, &end, 10);
 		if (*end)
 			continue;
 
@@ -472,7 +482,7 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 		/*
 		 * Send the prepared comm event
 		 */
-		if (process(tool, comm_event, &synth_sample, machine) != 0)
+		if (perf_tool__process_synth_event(tool, comm_event, machine, process) != 0)
 			break;
 
 		rc = 0;
@@ -566,7 +576,7 @@ int perf_event__synthesize_threads(struct perf_tool *tool,
 {
 	DIR *proc;
 	char proc_path[PATH_MAX];
-	struct dirent dirent, *next;
+	struct dirent *dirent;
 	union perf_event *comm_event, *mmap_event, *fork_event;
 	int err = -1;
 
@@ -591,9 +601,9 @@ int perf_event__synthesize_threads(struct perf_tool *tool,
 	if (proc == NULL)
 		goto out_free_fork;
 
-	while (!readdir_r(proc, &dirent, &next) && next) {
+	while ((dirent = readdir(proc)) != NULL) {
 		char *end;
-		pid_t pid = strtol(dirent.d_name, &end, 10);
+		pid_t pid = strtol(dirent->d_name, &end, 10);
 
 		if (*end) /* only interested in proper numerical dirents */
 			continue;
@@ -663,6 +673,8 @@ int perf_event__synthesize_kernel_mmap(struct perf_tool *tool,
 	int err;
 	union perf_event *event;
 
+	if (symbol_conf.kptr_restrict)
+		return -1;
 	if (map == NULL)
 		return -1;
 
@@ -701,7 +713,7 @@ int perf_event__synthesize_kernel_mmap(struct perf_tool *tool,
 	event->mmap.len   = map->end - event->mmap.start;
 	event->mmap.pid   = machine->pid;
 
-	err = process(tool, event, &synth_sample, machine);
+	err = perf_tool__process_synth_event(tool, event, machine, process);
 	free(event);
 
 	return err;
@@ -1295,12 +1307,9 @@ void thread__find_addr_location(struct thread *thread,
  * Callers need to drop the reference to al->thread, obtained in
  * machine__findnew_thread()
  */
-int perf_event__preprocess_sample(const union perf_event *event,
-				  struct machine *machine,
-				  struct addr_location *al,
-				  struct perf_sample *sample)
+int machine__resolve(struct machine *machine, struct addr_location *al,
+		     struct perf_sample *sample)
 {
-	u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 	struct thread *thread = machine__findnew_thread(machine, sample->pid,
 							sample->tid);
 
@@ -1315,11 +1324,11 @@ int perf_event__preprocess_sample(const union perf_event *event,
 	 * events, but for older perf.data files there was no such thing, so do
 	 * it now.
 	 */
-	if (cpumode == PERF_RECORD_MISC_KERNEL &&
+	if (sample->cpumode == PERF_RECORD_MISC_KERNEL &&
 	    machine__kernel_map(machine) == NULL)
 		machine__create_kernel_maps(machine);
 
-	thread__find_addr_map(thread, cpumode, MAP__FUNCTION, sample->ip, al);
+	thread__find_addr_map(thread, sample->cpumode, MAP__FUNCTION, sample->ip, al);
 	dump_printf(" ...... dso: %s\n",
 		    al->map ? al->map->dso->long_name :
 			al->level == 'H' ? "[hypervisor]" : "<not found>");
@@ -1395,16 +1404,12 @@ bool sample_addr_correlates_sym(struct perf_event_attr *attr)
 	return false;
 }
 
-void perf_event__preprocess_sample_addr(union perf_event *event,
-					struct perf_sample *sample,
-					struct thread *thread,
-					struct addr_location *al)
+void thread__resolve(struct thread *thread, struct addr_location *al,
+		     struct perf_sample *sample)
 {
-	u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
-
-	thread__find_addr_map(thread, cpumode, MAP__FUNCTION, sample->addr, al);
+	thread__find_addr_map(thread, sample->cpumode, MAP__FUNCTION, sample->addr, al);
 	if (!al->map)
-		thread__find_addr_map(thread, cpumode, MAP__VARIABLE,
+		thread__find_addr_map(thread, sample->cpumode, MAP__VARIABLE,
 				      sample->addr, al);
 
 	al->cpu = sample->cpu;

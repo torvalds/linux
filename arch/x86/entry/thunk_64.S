@@ -12,9 +12,11 @@
 	/* rdi:	arg1 ... normal C conventions. rax is saved/restored. */
 	.macro THUNK name, func, put_ret_addr_in_rdi=0
 	.globl \name
+	.type \name, @function
 \name:
+	pushq %rbp
+	movq %rsp, %rbp
 
-	/* this one pushes 9 elems, the next one would be %rIP */
 	pushq %rdi
 	pushq %rsi
 	pushq %rdx
@@ -26,8 +28,8 @@
 	pushq %r11
 
 	.if \put_ret_addr_in_rdi
-	/* 9*8(%rsp) is return addr on stack */
-	movq 9*8(%rsp), %rdi
+	/* 8(%rbp) is return addr on stack */
+	movq 8(%rbp), %rdi
 	.endif
 
 	call \func
@@ -62,6 +64,7 @@ restore:
 	popq %rdx
 	popq %rsi
 	popq %rdi
+	popq %rbp
 	ret
 	_ASM_NOKPROBE(restore)
 #endif

@@ -10,8 +10,8 @@ msm-y := \
 	hdmi/hdmi_audio.o \
 	hdmi/hdmi_bridge.o \
 	hdmi/hdmi_connector.o \
-	hdmi/hdmi_hdcp.o \
 	hdmi/hdmi_i2c.o \
+	hdmi/hdmi_phy.o \
 	hdmi/hdmi_phy_8960.o \
 	hdmi/hdmi_phy_8x60.o \
 	hdmi/hdmi_phy_8x74.o \
@@ -39,8 +39,10 @@ msm-y := \
 	mdp/mdp5/mdp5_plane.o \
 	mdp/mdp5/mdp5_smp.o \
 	msm_atomic.o \
+	msm_debugfs.o \
 	msm_drv.o \
 	msm_fb.o \
+	msm_fence.o \
 	msm_gem.o \
 	msm_gem_prime.o \
 	msm_gem_submit.o \
@@ -52,6 +54,10 @@ msm-y := \
 
 msm-$(CONFIG_DRM_FBDEV_EMULATION) += msm_fbdev.o
 msm-$(CONFIG_COMMON_CLK) += mdp/mdp4/mdp4_lvds_pll.o
+msm-$(CONFIG_COMMON_CLK) += hdmi/hdmi_pll_8960.o
+msm-$(CONFIG_COMMON_CLK) += hdmi/hdmi_phy_8996.o
+
+msm-$(CONFIG_DRM_MSM_HDMI_HDCP) += hdmi/hdmi_hdcp.o
 
 msm-$(CONFIG_DRM_MSM_DSI) += dsi/dsi.o \
 			mdp/mdp4/mdp4_dsi_encoder.o \

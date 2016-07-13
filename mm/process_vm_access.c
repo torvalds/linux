@@ -98,9 +98,14 @@ static int process_vm_rw_single_vec(unsigned long addr,
 		int pages = min(nr_pages, max_pages_per_loop);
 		size_t bytes;
 
-		/* Get the pages we're interested in */
-		pages = get_user_pages_unlocked(task, mm, pa, pages,
-						vm_write, 0, process_pages);
+		/*
+		 * Get the pages we're interested in.  We must
+		 * add FOLL_REMOTE because task/mm might not
+		 * current/current->mm
+		 */
+		pages = __get_user_pages_unlocked(task, mm, pa, pages,
+						  vm_write, 0, process_pages,
+						  FOLL_REMOTE);
 		if (pages <= 0)
 			return -EFAULT;
 

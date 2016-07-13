@@ -371,6 +371,7 @@ int brcmf_fweh_activate_events(struct brcmf_if *ifp)
 	int i, err;
 	s8 eventmask[BRCMF_EVENTING_MASK_LEN];
 
+	memset(eventmask, 0, sizeof(eventmask));
 	for (i = 0; i < BRCMF_E_LAST; i++) {
 		if (ifp->drvr->fweh.evt_handler[i]) {
 			brcmf_dbg(EVENT, "enable event %s\n",

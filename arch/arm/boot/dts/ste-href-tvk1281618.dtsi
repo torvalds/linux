@@ -24,20 +24,19 @@
 
 		button@139 {
 			/* Proximity sensor */
-			gpios = <&gpio6 25 0x4>;
+			gpios = <&gpio6 25 GPIO_ACTIVE_HIGH>;
 			linux,code = <11>; /* SW_FRONT_PROXIMITY */
 			label = "SFH7741 Proximity Sensor";
 		};
 		button@145 {
 			/* Hall sensor */
-			gpios = <&gpio4 17 0x4>;
+			gpios = <&gpio4 17 GPIO_ACTIVE_HIGH>;
 			linux,code = <0>; /* SW_LID */
 			label = "HED54XXU11 Hall Effect Sensor";
 		};
 	};
 
 	soc {
-		/* Add Synaptics touch screen, TC35893 keypad etc here */
 		i2c@80004000 {
 			tc35893@44 {
 				compatible = "toshiba,tc35893";
@@ -94,14 +93,15 @@
 				/* Accelerometer */
 				compatible = "st,lsm303dlh-accel";
 				st,drdy-int-pin = <1>;
+				drive-open-drain;
 				reg = <0x18>;
 				vdd-supply = <&ab8500_ldo_aux1_reg>;
 				vddio-supply = <&db8500_vsmps2_reg>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&accel_tvk_mode>;
 				interrupt-parent = <&gpio2>;
-				interrupts = <18 IRQ_TYPE_EDGE_RISING>,
-					     <19 IRQ_TYPE_EDGE_RISING>;
+				interrupts = <18 IRQ_TYPE_EDGE_FALLING>,
+					     <19 IRQ_TYPE_EDGE_FALLING>;
 			};
 			lsm303dlh@1e {
 				/*
@@ -119,14 +119,15 @@
 				/* Accelerometer */
 				compatible = "st,lis331dl-accel";
 				st,drdy-int-pin = <1>;
+				drive-open-drain;
 				reg = <0x1c>;
 				vdd-supply = <&ab8500_ldo_aux1_reg>;
 				vddio-supply = <&db8500_vsmps2_reg>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&accel_tvk_mode>;
 				interrupt-parent = <&gpio2>;
-				interrupts = <18 IRQ_TYPE_EDGE_RISING>,
-					     <19 IRQ_TYPE_EDGE_RISING>;
+				interrupts = <18 IRQ_TYPE_EDGE_FALLING>,
+					     <19 IRQ_TYPE_EDGE_FALLING>;
 			};
 			ak8974@0f {
 				/* Magnetometer */
@@ -159,6 +160,33 @@
 				vddio-supply = <&db8500_vsmps2_reg>;
 			};
 		};
+
+		i2c@80110000 {
+			synaptics@4b {
+				/* Synaptics RMI4 TM1217 touchscreen */
+				compatible = "syna,rmi4-i2c";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0x4b>;
+				vdd-supply = <&ab8500_ldo_aux1_reg>;
+				vddio-supply = <&db8500_vsmps2_reg>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&synaptics_tvk_mode>;
+				interrupt-parent = <&gpio2>;
+				interrupts = <20 IRQ_TYPE_EDGE_FALLING>;
+
+				rmi-f01@1 {
+					reg = <0x1>;
+					syna,nosleep = <1>;
+				};
+				rmi-f11@11 {
+					reg = <0x11>;
+					touchscreen-inverted-x;
+					syna,sensor-type = <1>;
+				};
+			};
+		};
+
 		pinctrl {
 			/* Pull up this GPIO pin */
 			tc35893 {
@@ -190,7 +218,7 @@
 					/* Accelerometer interrupt lines 1 & 2 */
 					tvk_cfg {
 						pins = "GPIO82_C1", "GPIO83_D3";
-						ste,config = <&gpio_in_pd>;
+						ste,config = <&gpio_in_pu>;
 					};
 				};
 			};
@@ -209,6 +237,15 @@
 					tvk_cfg2 {
 						pins = "GPIO32_V2";
 						ste,config = <&gpio_in_pd>;
+					};
+				};
+			};
+			synaptics {
+				synaptics_tvk_mode: synaptics_tvk {
+					/* Touchscreen uses GPIO 84 */
+					tvk_cfg1 {
+						pins = "GPIO84_C2";
+						ste,config = <&gpio_in_pu>;
 					};
 				};
 			};

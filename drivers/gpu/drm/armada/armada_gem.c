@@ -278,7 +278,7 @@ int armada_gem_dumb_map_offset(struct drm_file *file, struct drm_device *dev,
 	struct armada_gem_object *obj;
 	int ret = 0;
 
-	obj = armada_gem_object_lookup(dev, file, handle);
+	obj = armada_gem_object_lookup(file, handle);
 	if (!obj) {
 		DRM_ERROR("failed to lookup gem object\n");
 		return -EINVAL;
@@ -348,7 +348,7 @@ int armada_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	struct armada_gem_object *dobj;
 	unsigned long addr;
 
-	dobj = armada_gem_object_lookup(dev, file, args->handle);
+	dobj = armada_gem_object_lookup(file, args->handle);
 	if (dobj == NULL)
 		return -ENOENT;
 
@@ -391,7 +391,7 @@ int armada_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		return ret;
 
-	dobj = armada_gem_object_lookup(dev, file, args->handle);
+	dobj = armada_gem_object_lookup(file, args->handle);
 	if (dobj == NULL)
 		return -ENOENT;
 
@@ -481,7 +481,7 @@ armada_gem_prime_map_dma_buf(struct dma_buf_attachment *attach,
 
  release:
 	for_each_sg(sgt->sgl, sg, num, i)
-		page_cache_release(sg_page(sg));
+		put_page(sg_page(sg));
  free_table:
 	sg_free_table(sgt);
  free_sgt:
@@ -502,7 +502,7 @@ static void armada_gem_prime_unmap_dma_buf(struct dma_buf_attachment *attach,
 	if (dobj->obj.filp) {
 		struct scatterlist *sg;
 		for_each_sg(sgt->sgl, sg, sgt->nents, i)
-			page_cache_release(sg_page(sg));
+			put_page(sg_page(sg));
 	}
 
 	sg_free_table(sgt);

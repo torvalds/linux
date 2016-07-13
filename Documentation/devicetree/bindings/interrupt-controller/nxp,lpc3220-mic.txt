@@ -1,38 +1,60 @@
-* NXP LPC32xx Main Interrupt Controller
-  (MIC, including SIC1 and SIC2 secondary controllers)
+* NXP LPC32xx MIC, SIC1 and SIC2 Interrupt Controllers
 
 Required properties:
-- compatible: Should be "nxp,lpc3220-mic"
-- interrupt-controller: Identifies the node as an interrupt controller.
-- interrupt-parent: Empty for the interrupt controller itself
-- #interrupt-cells: The number of cells to define the interrupts. Should be 2.
-  The first cell is the IRQ number
-  The second cell is used to specify mode:
-      1 = low-to-high edge triggered
-      2 = high-to-low edge triggered
-      4 = active high level-sensitive
-      8 = active low level-sensitive
-      Default for internal sources should be set to 4 (active high).
-- reg: Should contain MIC registers location and length
+- compatible: "nxp,lpc3220-mic" or "nxp,lpc3220-sic".
+- reg: should contain IC registers location and length.
+- interrupt-controller: identifies the node as an interrupt controller.
+- #interrupt-cells: the number of cells to define an interrupt, should be 2.
+  The first cell is the IRQ number, the second cell is used to specify
+  one of the supported IRQ types:
+      IRQ_TYPE_EDGE_RISING = low-to-high edge triggered,
+      IRQ_TYPE_EDGE_FALLING = high-to-low edge triggered,
+      IRQ_TYPE_LEVEL_HIGH = active high level-sensitive,
+      IRQ_TYPE_LEVEL_LOW = active low level-sensitive.
+  Reset value is IRQ_TYPE_LEVEL_LOW.
+
+Optional properties:
+- interrupt-parent: empty for MIC interrupt controller, link to parent
+  MIC interrupt controller for SIC1 and SIC2
+- interrupts: empty for MIC interrupt controller, cascaded MIC
+  hardware interrupts for SIC1 and SIC2
 
 Examples:
-	/*
-	 * MIC
-	 */
+
+	/* LPC32xx MIC, SIC1 and SIC2 interrupt controllers */
 	mic: interrupt-controller@40008000 {
 		compatible = "nxp,lpc3220-mic";
+		reg = <0x40008000 0x4000>;
 		interrupt-controller;
-		interrupt-parent;
 		#interrupt-cells = <2>;
-		reg = <0x40008000 0xC000>;
 	};
 
-	/*
-	 * ADC
-	 */
+	sic1: interrupt-controller@4000c000 {
+		compatible = "nxp,lpc3220-sic";
+		reg = <0x4000c000 0x4000>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+
+		interrupt-parent = <&mic>;
+		interrupts = <0 IRQ_TYPE_LEVEL_LOW>,
+			     <30 IRQ_TYPE_LEVEL_LOW>;
+	};
+
+	sic2: interrupt-controller@40010000 {
+		compatible = "nxp,lpc3220-sic";
+		reg = <0x40010000 0x4000>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+
+		interrupt-parent = <&mic>;
+		interrupts = <1 IRQ_TYPE_LEVEL_LOW>,
+			     <31 IRQ_TYPE_LEVEL_LOW>;
+	};
+
+	/* ADC */
 	adc@40048000 {
 		compatible = "nxp,lpc3220-adc";
 		reg = <0x40048000 0x1000>;
-		interrupt-parent = <&mic>;
-		interrupts = <39 4>;
+		interrupt-parent = <&sic1>;
+		interrupts = <7 IRQ_TYPE_LEVEL_HIGH>;
 	};

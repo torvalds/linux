@@ -59,11 +59,8 @@ static LIST_HEAD(dvfs_info_list);
 static struct mtk_cpu_dvfs_info *mtk_cpu_dvfs_info_lookup(int cpu)
 {
 	struct mtk_cpu_dvfs_info *info;
-	struct list_head *list;
 
-	list_for_each(list, &dvfs_info_list) {
-		info = list_entry(list, struct mtk_cpu_dvfs_info, list_head);
-
+	list_for_each_entry(info, &dvfs_info_list, list_head) {
 		if (cpumask_test_cpu(cpu, &info->cpus))
 			return info;
 	}
@@ -310,17 +307,24 @@ static int mtk_cpufreq_set_target(struct cpufreq_policy *policy,
 	return 0;
 }
 
+#define DYNAMIC_POWER "dynamic-power-coefficient"
+
 static void mtk_cpufreq_ready(struct cpufreq_policy *policy)
 {
 	struct mtk_cpu_dvfs_info *info = policy->driver_data;
 	struct device_node *np = of_node_get(info->cpu_dev->of_node);
+	u32 capacitance = 0;
 
 	if (WARN_ON(!np))
 		return;
 
 	if (of_find_property(np, "#cooling-cells", NULL)) {
-		info->cdev = of_cpufreq_cooling_register(np,
-							 policy->related_cpus);
+		of_property_read_u32(np, DYNAMIC_POWER, &capacitance);
+
+		info->cdev = of_cpufreq_power_cooling_register(np,
+						policy->related_cpus,
+						capacitance,
+						NULL);
 
 		if (IS_ERR(info->cdev)) {
 			dev_err(info->cpu_dev,
@@ -524,8 +528,7 @@ static struct cpufreq_driver mt8173_cpufreq_driver = {
 
 static int mt8173_cpufreq_probe(struct platform_device *pdev)
 {
-	struct mtk_cpu_dvfs_info *info;
-	struct list_head *list, *tmp;
+	struct mtk_cpu_dvfs_info *info, *tmp;
 	int cpu, ret;
 
 	for_each_possible_cpu(cpu) {
@@ -559,11 +562,9 @@ static int mt8173_cpufreq_probe(struct platform_device *pdev)
 	return 0;
 
 release_dvfs_info_list:
-	list_for_each_safe(list, tmp, &dvfs_info_list) {
-		info = list_entry(list, struct mtk_cpu_dvfs_info, list_head);
-
+	list_for_each_entry_safe(info, tmp, &dvfs_info_list, list_head) {
 		mtk_cpu_dvfs_info_release(info);
-		list_del(list);
+		list_del(&info->list_head);
 	}
 
 	return ret;

@@ -509,8 +509,8 @@ static int au1000_mii_probe(struct net_device *dev)
 	 * on the current MAC's MII bus
 	 */
 	for (phy_addr = 0; phy_addr < PHY_MAX_ADDR; phy_addr++)
-		if (mdiobus_get_phy(aup->mii_bus, aup->phy_addr)) {
-			phydev = mdiobus_get_phy(aup->mii_bus, aup->phy_addr);
+		if (mdiobus_get_phy(aup->mii_bus, phy_addr)) {
+			phydev = mdiobus_get_phy(aup->mii_bus, phy_addr);
 			if (!aup->phy_search_highest_addr)
 				/* break out with first one found */
 				break;
@@ -1074,7 +1074,7 @@ static void au1000_tx_timeout(struct net_device *dev)
 	netdev_err(dev, "au1000_tx_timeout: dev=%p\n", dev);
 	au1000_reset_mac(dev);
 	au1000_init(dev);
-	dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(dev); /* prevent tx timeout */
 	netif_wake_queue(dev);
 }
 
@@ -1269,7 +1269,7 @@ static int au1000_probe(struct platform_device *pdev)
 		aup->phy_irq = pd->phy_irq;
 	}
 
-	if (aup->phy_busid && aup->phy_busid > 0) {
+	if (aup->phy_busid > 0) {
 		dev_err(&pdev->dev, "MAC0-associated PHY attached 2nd MACs MII bus not supported yet\n");
 		err = -ENODEV;
 		goto err_mdiobus_alloc;

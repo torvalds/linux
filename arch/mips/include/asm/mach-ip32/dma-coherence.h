@@ -86,7 +86,7 @@ static inline void plat_post_dma_flush(struct device *dev)
 
 static inline int plat_device_is_coherent(struct device *dev)
 {
-	return 0;		/* IP32 is non-cohernet */
+	return 0;		/* IP32 is non-coherent */
 }
 
 #endif /* __ASM_MACH_IP32_DMA_COHERENCE_H */

@@ -154,6 +154,11 @@
 	a->mpa_rx.start_port = 0;					\
 } while (0)
 
+struct mwifiex_plt_wake_cfg {
+	int irq_wifi;
+	bool wake_by_wifi;
+};
+
 /* data structure for SDIO MPA TX */
 struct mwifiex_sdio_mpa_tx {
 	/* multiport tx aggregation buffer pointer */
@@ -237,6 +242,8 @@ struct mwifiex_sdio_card_reg {
 struct sdio_mmc_card {
 	struct sdio_func *func;
 	struct mwifiex_adapter *adapter;
+	struct device_node *plt_of_node;
+	struct mwifiex_plt_wake_cfg *plt_wake_cfg;
 
 	const char *firmware;
 	const struct mwifiex_sdio_card_reg *reg;

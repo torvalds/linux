@@ -9,7 +9,6 @@
 #include <linux/linkage.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/module.h>
 
 #include <asm/sync_bitops.h>
 #include <asm/xen/hypercall.h>

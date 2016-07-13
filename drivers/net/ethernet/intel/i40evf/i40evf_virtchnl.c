@@ -270,10 +270,6 @@ void i40evf_configure_queues(struct i40evf_adapter *adapter)
 		vqpi->rxq.max_pkt_size = adapter->netdev->mtu
 					+ ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN;
 		vqpi->rxq.databuffer_size = adapter->rx_rings[i].rx_buf_len;
-		if (adapter->flags & I40EVF_FLAG_RX_PS_ENABLED) {
-			vqpi->rxq.splithdr_enabled = true;
-			vqpi->rxq.hdr_size = I40E_RX_HDR_SIZE;
-		}
 		vqpi++;
 	}
 
@@ -645,6 +641,7 @@ void i40evf_del_vlans(struct i40evf_adapter *adapter)
 void i40evf_set_promiscuous(struct i40evf_adapter *adapter, int flags)
 {
 	struct i40e_virtchnl_promisc_info vpi;
+	int promisc_all;
 
 	if (adapter->current_op != I40E_VIRTCHNL_OP_UNKNOWN) {
 		/* bail because we already have a command pending */
@@ -652,6 +649,27 @@ void i40evf_set_promiscuous(struct i40evf_adapter *adapter, int flags)
 			adapter->current_op);
 		return;
 	}
+
+	promisc_all = I40E_FLAG_VF_UNICAST_PROMISC |
+		      I40E_FLAG_VF_MULTICAST_PROMISC;
+	if ((flags & promisc_all) == promisc_all) {
+		adapter->flags |= I40EVF_FLAG_PROMISC_ON;
+		adapter->aq_required &= ~I40EVF_FLAG_AQ_REQUEST_PROMISC;
+		dev_info(&adapter->pdev->dev, "Entering promiscuous mode\n");
+	}
+
+	if (flags & I40E_FLAG_VF_MULTICAST_PROMISC) {
+		adapter->flags |= I40EVF_FLAG_ALLMULTI_ON;
+		adapter->aq_required &= ~I40EVF_FLAG_AQ_REQUEST_ALLMULTI;
+		dev_info(&adapter->pdev->dev, "Entering multicast promiscuous mode\n");
+	}
+
+	if (!flags) {
+		adapter->flags &= ~I40EVF_FLAG_PROMISC_ON;
+		adapter->aq_required &= ~I40EVF_FLAG_AQ_RELEASE_PROMISC;
+		dev_info(&adapter->pdev->dev, "Leaving promiscuous mode\n");
+	}
+
 	adapter->current_op = I40E_VIRTCHNL_OP_CONFIG_PROMISCUOUS_MODE;
 	vpi.vsi_id = adapter->vsi_res->vsi_id;
 	vpi.flags = flags;
@@ -681,6 +699,115 @@ void i40evf_request_stats(struct i40evf_adapter *adapter)
 		/* if the request failed, don't lock out others */
 		adapter->current_op = I40E_VIRTCHNL_OP_UNKNOWN;
 }
+
+/**
+ * i40evf_get_hena
+ * @adapter: adapter structure
+ *
+ * Request hash enable capabilities from PF
+ **/
+void i40evf_get_hena(struct i40evf_adapter *adapter)
+{
+	if (adapter->current_op != I40E_VIRTCHNL_OP_UNKNOWN) {
+		/* bail because we already have a command pending */
+		dev_err(&adapter->pdev->dev, "Cannot get RSS hash capabilities, command %d pending\n",
+			adapter->current_op);
+		return;
+	}
+	adapter->current_op = I40E_VIRTCHNL_OP_GET_RSS_HENA_CAPS;
+	adapter->aq_required &= ~I40EVF_FLAG_AQ_GET_HENA;
+	i40evf_send_pf_msg(adapter, I40E_VIRTCHNL_OP_GET_RSS_HENA_CAPS,
+			   NULL, 0);
+}
+
+/**
+ * i40evf_set_hena
+ * @adapter: adapter structure
+ *
+ * Request the PF to set our RSS hash capabilities
+ **/
+void i40evf_set_hena(struct i40evf_adapter *adapter)
+{
+	struct i40e_virtchnl_rss_hena vrh;
+
+	if (adapter->current_op != I40E_VIRTCHNL_OP_UNKNOWN) {
+		/* bail because we already have a command pending */
+		dev_err(&adapter->pdev->dev, "Cannot set RSS hash enable, command %d pending\n",
+			adapter->current_op);
+		return;
+	}
+	vrh.hena = adapter->hena;
+	adapter->current_op = I40E_VIRTCHNL_OP_SET_RSS_HENA;
+	adapter->aq_required &= ~I40EVF_FLAG_AQ_SET_HENA;
+	i40evf_send_pf_msg(adapter, I40E_VIRTCHNL_OP_SET_RSS_HENA,
+			   (u8 *)&vrh, sizeof(vrh));
+}
+
+/**
+ * i40evf_set_rss_key
+ * @adapter: adapter structure
+ *
+ * Request the PF to set our RSS hash key
+ **/
+void i40evf_set_rss_key(struct i40evf_adapter *adapter)
+{
+	struct i40e_virtchnl_rss_key *vrk;
+	int len;
+
+	if (adapter->current_op != I40E_VIRTCHNL_OP_UNKNOWN) {
+		/* bail because we already have a command pending */
+		dev_err(&adapter->pdev->dev, "Cannot set RSS key, command %d pending\n",
+			adapter->current_op);
+		return;
+	}
+	len = sizeof(struct i40e_virtchnl_rss_key) +
+	      (adapter->rss_key_size * sizeof(u8)) - 1;
+	vrk = kzalloc(len, GFP_KERNEL);
+	if (!vrk)
+		return;
+	vrk->vsi_id = adapter->vsi.id;
+	vrk->key_len = adapter->rss_key_size;
+	memcpy(vrk->key, adapter->rss_key, adapter->rss_key_size);
+
+	adapter->current_op = I40E_VIRTCHNL_OP_CONFIG_RSS_KEY;
+	adapter->aq_required &= ~I40EVF_FLAG_AQ_SET_RSS_KEY;
+	i40evf_send_pf_msg(adapter, I40E_VIRTCHNL_OP_CONFIG_RSS_KEY,
+			   (u8 *)vrk, len);
+	kfree(vrk);
+}
+
+/**
+ * i40evf_set_rss_lut
+ * @adapter: adapter structure
+ *
+ * Request the PF to set our RSS lookup table
+ **/
+void i40evf_set_rss_lut(struct i40evf_adapter *adapter)
+{
+	struct i40e_virtchnl_rss_lut *vrl;
+	int len;
+
+	if (adapter->current_op != I40E_VIRTCHNL_OP_UNKNOWN) {
+		/* bail because we already have a command pending */
+		dev_err(&adapter->pdev->dev, "Cannot set RSS LUT, command %d pending\n",
+			adapter->current_op);
+		return;
+	}
+	len = sizeof(struct i40e_virtchnl_rss_lut) +
+	      (adapter->rss_lut_size * sizeof(u8)) - 1;
+	vrl = kzalloc(len, GFP_KERNEL);
+	if (!vrl)
+		return;
+	vrl->vsi_id = adapter->vsi.id;
+	vrl->lut_entries = adapter->rss_lut_size;
+	memcpy(vrl->lut, adapter->rss_lut, adapter->rss_lut_size);
+	adapter->current_op = I40E_VIRTCHNL_OP_CONFIG_RSS_LUT;
+	adapter->aq_required &= ~I40EVF_FLAG_AQ_SET_RSS_LUT;
+	i40evf_send_pf_msg(adapter, I40E_VIRTCHNL_OP_CONFIG_RSS_LUT,
+			   (u8 *)vrl, len);
+	kfree(vrl);
+}
+
 /**
  * i40evf_request_reset
  * @adapter: adapter structure
@@ -819,6 +946,16 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 		 */
 		if (v_opcode != adapter->current_op)
 			return;
+		break;
+	case I40E_VIRTCHNL_OP_GET_RSS_HENA_CAPS: {
+		struct i40e_virtchnl_rss_hena *vrh =
+			(struct i40e_virtchnl_rss_hena *)msg;
+		if (msglen == sizeof(*vrh))
+			adapter->hena = vrh->hena;
+		else
+			dev_warn(&adapter->pdev->dev,
+				 "Invalid message %d from PF\n", v_opcode);
+		}
 		break;
 	default:
 		if (v_opcode != adapter->current_op)
