@@ -2587,9 +2587,6 @@ static inline unsigned drm_connector_index(struct drm_connector *connector)
 	return connector->connector_id;
 }
 
-/* helpers to {un}register all connectors from sysfs for device */
-extern void drm_connector_unregister_all(struct drm_device *dev);
-
 extern __printf(5, 6)
 int drm_encoder_init(struct drm_device *dev,
 		     struct drm_encoder *encoder,

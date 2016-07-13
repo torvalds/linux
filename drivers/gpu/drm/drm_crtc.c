@@ -1107,6 +1107,15 @@ void drm_connector_unregister(struct drm_connector *connector)
 }
 EXPORT_SYMBOL(drm_connector_unregister);
 
+static void drm_connector_unregister_all(struct drm_device *dev)
+{
+	struct drm_connector *connector;
+
+	/* FIXME: taking the mode config mutex ends up in a clash with sysfs */
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
+		drm_connector_unregister(connector);
+}
+
 static int drm_connector_register_all(struct drm_device *dev)
 {
 	struct drm_connector *connector;
@@ -1129,26 +1138,6 @@ err:
 	drm_connector_unregister_all(dev);
 	return ret;
 }
-
-/**
- * drm_connector_unregister_all - unregister connector userspace interfaces
- * @dev: drm device
- *
- * This functions unregisters all connectors from sysfs and other places so
- * that userspace can no longer access them. Drivers should call this as the
- * first step tearing down the device instace, or when the underlying
- * physical device disappeared (e.g. USB unplug), right before calling
- * drm_dev_unregister().
- */
-void drm_connector_unregister_all(struct drm_device *dev)
-{
-	struct drm_connector *connector;
-
-	/* FIXME: taking the mode config mutex ends up in a clash with sysfs */
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
-		drm_connector_unregister(connector);
-}
-EXPORT_SYMBOL(drm_connector_unregister_all);
 
 static int drm_encoder_register_all(struct drm_device *dev)
 {
