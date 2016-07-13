@@ -90,6 +90,7 @@ static const char *libbpf_strerror_table[NR_ERRNO] = {
 	[ERRCODE_OFFSET(VERIFY)]	= "Kernel verifier blocks program loading",
 	[ERRCODE_OFFSET(PROG2BIG)]	= "Program too big",
 	[ERRCODE_OFFSET(KVER)]		= "Incorrect kernel version",
+	[ERRCODE_OFFSET(PROGTYPE)]	= "Kernel doesn't support this program type",
 };
 
 int libbpf_strerror(int err, char *buf, size_t size)
@@ -926,15 +927,27 @@ load_program(enum bpf_prog_type type, struct bpf_insn *insns,
 		pr_warning("-- BEGIN DUMP LOG ---\n");
 		pr_warning("\n%s\n", log_buf);
 		pr_warning("-- END LOG --\n");
+	} else if (insns_cnt >= BPF_MAXINSNS) {
+		pr_warning("Program too large (%d insns), at most %d insns\n",
+			   insns_cnt, BPF_MAXINSNS);
+		ret = -LIBBPF_ERRNO__PROG2BIG;
 	} else {
-		if (insns_cnt >= BPF_MAXINSNS) {
-			pr_warning("Program too large (%d insns), at most %d insns\n",
-				   insns_cnt, BPF_MAXINSNS);
-			ret = -LIBBPF_ERRNO__PROG2BIG;
-		} else if (log_buf) {
-			pr_warning("log buffer is empty\n");
-			ret = -LIBBPF_ERRNO__KVER;
+		/* Wrong program type? */
+		if (type != BPF_PROG_TYPE_KPROBE) {
+			int fd;
+
+			fd = bpf_load_program(BPF_PROG_TYPE_KPROBE, insns,
+					      insns_cnt, license, kern_version,
+					      NULL, 0);
+			if (fd >= 0) {
+				close(fd);
+				ret = -LIBBPF_ERRNO__PROGTYPE;
+				goto out;
+			}
 		}
+
+		if (log_buf)
+			ret = -LIBBPF_ERRNO__KVER;
 	}
 
 out:

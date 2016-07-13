@@ -39,6 +39,7 @@ enum libbpf_errno {
 	LIBBPF_ERRNO__VERIFY,	/* Kernel verifier blocks program loading */
 	LIBBPF_ERRNO__PROG2BIG,	/* Program too big */
 	LIBBPF_ERRNO__KVER,	/* Incorrect kernel version */
+	LIBBPF_ERRNO__PROGTYPE,	/* Kernel doesn't support this program type */
 	__LIBBPF_ERRNO__END,
 };
 
