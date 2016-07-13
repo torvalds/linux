@@ -2790,6 +2790,8 @@ static void intel_ring_init_semaphores(struct drm_i915_private *dev_priv,
 static void intel_ring_init_irq(struct drm_i915_private *dev_priv,
 				struct intel_engine_cs *engine)
 {
+	engine->irq_enable_mask = GT_RENDER_USER_INTERRUPT << engine->irq_shift;
+
 	if (INTEL_GEN(dev_priv) >= 8) {
 		engine->irq_enable = gen8_irq_enable;
 		engine->irq_disable = gen8_irq_disable;
@@ -2843,7 +2845,6 @@ int intel_init_render_ring_buffer(struct intel_engine_cs *engine)
 
 	intel_ring_default_vfuncs(dev_priv, engine);
 
-	engine->irq_enable_mask = GT_RENDER_USER_INTERRUPT;
 	if (HAS_L3_DPF(dev_priv))
 		engine->irq_keep_mask = GT_RENDER_L3_PARITY_ERROR_INTERRUPT;
 
@@ -2902,10 +2903,7 @@ int intel_init_bsd_ring_buffer(struct intel_engine_cs *engine)
 		if (IS_GEN6(dev_priv))
 			engine->write_tail = gen6_bsd_ring_write_tail;
 		engine->flush = gen6_bsd_ring_flush;
-		if (INTEL_GEN(dev_priv) >= 8)
-			engine->irq_enable_mask =
-				GT_RENDER_USER_INTERRUPT << GEN8_VCS1_IRQ_SHIFT;
-		else
+		if (INTEL_GEN(dev_priv) < 8)
 			engine->irq_enable_mask = GT_BSD_USER_INTERRUPT;
 	} else {
 		engine->mmio_base = BSD_RING_BASE;
@@ -2929,8 +2927,6 @@ int intel_init_bsd2_ring_buffer(struct intel_engine_cs *engine)
 	intel_ring_default_vfuncs(dev_priv, engine);
 
 	engine->flush = gen6_bsd_ring_flush;
-	engine->irq_enable_mask =
-			GT_RENDER_USER_INTERRUPT << GEN8_VCS2_IRQ_SHIFT;
 
 	return intel_init_ring_buffer(&dev_priv->drm, engine);
 }
@@ -2942,10 +2938,7 @@ int intel_init_blt_ring_buffer(struct intel_engine_cs *engine)
 	intel_ring_default_vfuncs(dev_priv, engine);
 
 	engine->flush = gen6_ring_flush;
-	if (INTEL_GEN(dev_priv) >= 8)
-		engine->irq_enable_mask =
-			GT_RENDER_USER_INTERRUPT << GEN8_BCS_IRQ_SHIFT;
-	else
+	if (INTEL_GEN(dev_priv) < 8)
 		engine->irq_enable_mask = GT_BLT_USER_INTERRUPT;
 
 	return intel_init_ring_buffer(&dev_priv->drm, engine);
@@ -2959,10 +2952,7 @@ int intel_init_vebox_ring_buffer(struct intel_engine_cs *engine)
 
 	engine->flush = gen6_ring_flush;
 
-	if (INTEL_GEN(dev_priv) >= 8) {
-		engine->irq_enable_mask =
-			GT_RENDER_USER_INTERRUPT << GEN8_VECS_IRQ_SHIFT;
-	} else {
+	if (INTEL_GEN(dev_priv) < 8) {
 		engine->irq_enable_mask = PM_VEBOX_USER_INTERRUPT;
 		engine->irq_enable = hsw_vebox_irq_enable;
 		engine->irq_disable = hsw_vebox_irq_disable;
