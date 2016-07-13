@@ -1195,6 +1195,11 @@ static struct cpuhp_step cpuhp_bp_states[] = {
 		.startup = hrtimers_prepare_cpu,
 		.teardown = hrtimers_dead_cpu,
 	},
+	[CPUHP_TIMERS_DEAD] = {
+		.name = "timers dead",
+		.startup = NULL,
+		.teardown = timers_dead_cpu,
+	},
 	/*
 	 * Preparatory and dead notifiers. Will be replaced once the notifiers
 	 * are converted to states.
