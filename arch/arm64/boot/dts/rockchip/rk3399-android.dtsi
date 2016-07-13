@@ -480,10 +480,6 @@
 	};
 };
 
-&i2s2 {
-	#sound-dai-cells = <0>;
-};
-
 &usbdrd_dwc3_0 {
 	dr_mode = "peripheral";
 };

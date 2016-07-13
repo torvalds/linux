@@ -239,6 +239,10 @@
 	#sound-dai-cells = <0>;
 };
 
+&i2s2 {
+	#sound-dai-cells = <0>;
+};
+
 &spdif {
 	pinctrl-0 = <&spdif_bus_1>;
 	status = "okay";
