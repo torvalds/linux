@@ -12,6 +12,7 @@
 #include <linux/mm.h>
 #include <linux/hugetlb.h>
 #include <linux/memblock.h>
+#include <asm/ppc-opcode.h>
 
 #include <asm/tlb.h>
 #include <asm/tlbflush.h>
@@ -34,8 +35,7 @@ static inline void __tlbiel_pid(unsigned long pid, int set,
 	r = 1;   /* raidx format */
 
 	asm volatile("ptesync": : :"memory");
-	asm volatile(".long 0x7c000224 | (%0 << 11) | (%1 << 16) |"
-		     "(%2 << 17) | (%3 << 18) | (%4 << 21)"
+	asm volatile(PPC_TLBIEL(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(rs) : "memory");
 	asm volatile("ptesync": : :"memory");
 }
@@ -63,8 +63,7 @@ static inline void _tlbie_pid(unsigned long pid, unsigned long ric)
 	r = 1;   /* raidx format */
 
 	asm volatile("ptesync": : :"memory");
-	asm volatile(".long 0x7c000264 | (%0 << 11) | (%1 << 16) |"
-		     "(%2 << 17) | (%3 << 18) | (%4 << 21)"
+	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(rs) : "memory");
 	asm volatile("eieio; tlbsync; ptesync": : :"memory");
 }
@@ -81,8 +80,7 @@ static inline void _tlbiel_va(unsigned long va, unsigned long pid,
 	r = 1;   /* raidx format */
 
 	asm volatile("ptesync": : :"memory");
-	asm volatile(".long 0x7c000224 | (%0 << 11) | (%1 << 16) |"
-		     "(%2 << 17) | (%3 << 18) | (%4 << 21)"
+	asm volatile(PPC_TLBIEL(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(rs) : "memory");
 	asm volatile("ptesync": : :"memory");
 }
@@ -99,8 +97,7 @@ static inline void _tlbie_va(unsigned long va, unsigned long pid,
 	r = 1;   /* raidx format */
 
 	asm volatile("ptesync": : :"memory");
-	asm volatile(".long 0x7c000264 | (%0 << 11) | (%1 << 16) |"
-		     "(%2 << 17) | (%3 << 18) | (%4 << 21)"
+	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(rs) : "memory");
 	asm volatile("eieio; tlbsync; ptesync": : :"memory");
 }

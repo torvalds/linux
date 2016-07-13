@@ -190,6 +190,7 @@
 #define PPC_INST_STSWX			0x7c00052a
 #define PPC_INST_STXVD2X		0x7c000798
 #define PPC_INST_TLBIE			0x7c000264
+#define PPC_INST_TLBIEL			0x7c000224
 #define PPC_INST_TLBILX			0x7c000024
 #define PPC_INST_WAIT			0x7c00007c
 #define PPC_INST_TLBIVAX		0x7c000624
@@ -281,6 +282,9 @@
 #define ___PPC_RB(b)	(((b) & 0x1f) << 11)
 #define ___PPC_RS(s)	(((s) & 0x1f) << 21)
 #define ___PPC_RT(t)	___PPC_RS(t)
+#define ___PPC_R(r)	(((r) & 0x1) << 16)
+#define ___PPC_PRS(prs)	(((prs) & 0x1) << 17)
+#define ___PPC_RIC(ric)	(((ric) & 0x3) << 18)
 #define __PPC_RA(a)	___PPC_RA(__REG_##a)
 #define __PPC_RA0(a)	___PPC_RA(__REGA0_##a)
 #define __PPC_RB(b)	___PPC_RB(__REG_##b)
@@ -347,6 +351,16 @@
 					__PPC_WC(w))
 #define PPC_TLBIE(lp,a) 	stringify_in_c(.long PPC_INST_TLBIE | \
 					       ___PPC_RB(a) | ___PPC_RS(lp))
+#define	PPC_TLBIE_5(rb,rs,ric,prs,r) \
+				stringify_in_c(.long PPC_INST_TLBIE | \
+					___PPC_RB(rb) | ___PPC_RS(rs) | \
+					___PPC_RIC(ric) | ___PPC_PRS(prs) | \
+					___PPC_R(r))
+#define	PPC_TLBIEL(rb,rs,ric,prs,r) \
+				stringify_in_c(.long PPC_INST_TLBIEL | \
+					___PPC_RB(rb) | ___PPC_RS(rs) | \
+					___PPC_RIC(ric) | ___PPC_PRS(prs) | \
+					___PPC_R(r))
 #define PPC_TLBSRX_DOT(a,b)	stringify_in_c(.long PPC_INST_TLBSRX_DOT | \
 					__PPC_RA0(a) | __PPC_RB(b))
 #define PPC_TLBIVAX(a,b)	stringify_in_c(.long PPC_INST_TLBIVAX | \
