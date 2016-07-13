@@ -755,12 +755,32 @@ next_step:
 		/* phase 3 */
 		inode = find_gc_inode(gc_list, dni.ino);
 		if (inode) {
+			struct f2fs_inode_info *fi = F2FS_I(inode);
+			bool locked = false;
+
+			if (S_ISREG(inode->i_mode)) {
+				if (!down_write_trylock(&fi->dio_rwsem[READ]))
+					continue;
+				if (!down_write_trylock(
+						&fi->dio_rwsem[WRITE])) {
+					up_write(&fi->dio_rwsem[READ]);
+					continue;
+				}
+				locked = true;
+			}
+
 			start_bidx = start_bidx_of_node(nofs, inode)
 								+ ofs_in_node;
 			if (f2fs_encrypted_inode(inode) && S_ISREG(inode->i_mode))
 				move_encrypted_block(inode, start_bidx);
 			else
 				move_data_page(inode, start_bidx, gc_type);
+
+			if (locked) {
+				up_write(&fi->dio_rwsem[WRITE]);
+				up_write(&fi->dio_rwsem[READ]);
+			}
+
 			stat_inc_data_blk_count(sbi, 1, gc_type);
 		}
 	}
