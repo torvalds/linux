@@ -12,12 +12,9 @@ struct task_struct;
 /*
  * vtime_accounting_cpu_enabled() definitions/declarations
  */
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
+#if defined(CONFIG_VIRT_CPU_ACCOUNTING_NATIVE)
 static inline bool vtime_accounting_cpu_enabled(void) { return true; }
-extern void vtime_account_irq_enter(struct task_struct *tsk);
-#endif /* CONFIG_VIRT_CPU_ACCOUNTING_NATIVE */
-
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
+#elif defined(CONFIG_VIRT_CPU_ACCOUNTING_GEN)
 /*
  * Checks if vtime is enabled on some CPU. Cputime readers want to be careful
  * in that case and compute the tickless cputime.
@@ -38,11 +35,9 @@ static inline bool vtime_accounting_cpu_enabled(void)
 
 	return false;
 }
-#endif /* CONFIG_VIRT_CPU_ACCOUNTING_GEN */
-
-#ifndef CONFIG_VIRT_CPU_ACCOUNTING
+#else /* !CONFIG_VIRT_CPU_ACCOUNTING */
 static inline bool vtime_accounting_cpu_enabled(void) { return false; }
-#endif /* !CONFIG_VIRT_CPU_ACCOUNTING */
+#endif
 
 
 /*
@@ -70,14 +65,10 @@ extern void vtime_account_user(struct task_struct *tsk);
 static inline void vtime_task_switch(struct task_struct *prev) { }
 static inline void vtime_account_system(struct task_struct *tsk) { }
 static inline void vtime_account_user(struct task_struct *tsk) { }
-static inline void vtime_account_irq_enter(struct task_struct *tsk) { }
 #endif /* !CONFIG_VIRT_CPU_ACCOUNTING */
 
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
 extern void arch_vtime_task_switch(struct task_struct *tsk);
-static inline void vtime_account_irq_enter(struct task_struct *tsk) { }
-static inline void vtime_account_irq_exit(struct task_struct *tsk) { }
-
 extern void vtime_user_enter(struct task_struct *tsk);
 
 static inline void vtime_user_exit(struct task_struct *tsk)
@@ -88,17 +79,25 @@ extern void vtime_guest_enter(struct task_struct *tsk);
 extern void vtime_guest_exit(struct task_struct *tsk);
 extern void vtime_init_idle(struct task_struct *tsk, int cpu);
 #else /* !CONFIG_VIRT_CPU_ACCOUNTING_GEN  */
-static inline void vtime_account_irq_exit(struct task_struct *tsk)
-{
-	/* On hard|softirq exit we always account to hard|softirq cputime */
-	vtime_account_system(tsk);
-}
 static inline void vtime_user_enter(struct task_struct *tsk) { }
 static inline void vtime_user_exit(struct task_struct *tsk) { }
 static inline void vtime_guest_enter(struct task_struct *tsk) { }
 static inline void vtime_guest_exit(struct task_struct *tsk) { }
 static inline void vtime_init_idle(struct task_struct *tsk, int cpu) { }
 #endif
+
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
+extern void vtime_account_irq_enter(struct task_struct *tsk);
+static inline void vtime_account_irq_exit(struct task_struct *tsk)
+{
+	/* On hard|softirq exit we always account to hard|softirq cputime */
+	vtime_account_system(tsk);
+}
+#else /* !CONFIG_VIRT_CPU_ACCOUNTING_NATIVE */
+static inline void vtime_account_irq_enter(struct task_struct *tsk) { }
+static inline void vtime_account_irq_exit(struct task_struct *tsk) { }
+#endif
+
 
 #ifdef CONFIG_IRQ_TIME_ACCOUNTING
 extern void irqtime_account_irq(struct task_struct *tsk);
