@@ -1527,7 +1527,7 @@ static void wacom_calculate_res(struct wacom_features *features)
 
 void wacom_battery_work(struct work_struct *work)
 {
-	struct wacom *wacom = container_of(work, struct wacom, work);
+	struct wacom *wacom = container_of(work, struct wacom, battery_work);
 
 	if ((wacom->wacom_wac.features.quirks & WACOM_QUIRK_BATTERY) &&
 	     !wacom->battery) {
@@ -1743,7 +1743,7 @@ fail_allocate_inputs:
 
 static void wacom_wireless_work(struct work_struct *work)
 {
-	struct wacom *wacom = container_of(work, struct wacom, work);
+	struct wacom *wacom = container_of(work, struct wacom, wireless_work);
 	struct usb_device *usbdev = wacom->usbdev;
 	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
 	struct hid_device *hdev1, *hdev2;
@@ -1871,7 +1871,8 @@ static int wacom_probe(struct hid_device *hdev,
 	wacom->usbdev = dev;
 	wacom->intf = intf;
 	mutex_init(&wacom->lock);
-	INIT_WORK(&wacom->work, wacom_wireless_work);
+	INIT_WORK(&wacom->wireless_work, wacom_wireless_work);
+	INIT_WORK(&wacom->battery_work, wacom_battery_work);
 
 	/* ask for the report descriptor to be loaded by HID */
 	error = hid_parse(hdev);
@@ -1912,7 +1913,8 @@ static void wacom_remove(struct hid_device *hdev)
 
 	hid_hw_stop(hdev);
 
-	cancel_work_sync(&wacom->work);
+	cancel_work_sync(&wacom->wireless_work);
+	cancel_work_sync(&wacom->battery_work);
 	kobject_put(wacom->remote_dir);
 	wacom_destroy_leds(wacom);
 	wacom_clean_inputs(wacom);

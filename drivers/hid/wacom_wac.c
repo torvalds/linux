@@ -814,8 +814,7 @@ static int wacom_remote_irq(struct wacom_wac *wacom_wac, size_t len)
 	if (!wacom->battery &&
 	    !(features->quirks & WACOM_QUIRK_BATTERY)) {
 		features->quirks |= WACOM_QUIRK_BATTERY;
-		INIT_WORK(&wacom->work, wacom_battery_work);
-		wacom_schedule_work(wacom_wac);
+		wacom_schedule_work(wacom_wac, WACOM_WORKER_BATTERY);
 	}
 
 	wacom_notify_battery(wacom_wac, bat_percent, bat_charging, 1,
@@ -2150,7 +2149,7 @@ static int wacom_wireless_irq(struct wacom_wac *wacom, size_t len)
 		charging = !!(data[5] & 0x80);
 		if (wacom->pid != pid) {
 			wacom->pid = pid;
-			wacom_schedule_work(wacom);
+			wacom_schedule_work(wacom, WACOM_WORKER_WIRELESS);
 		}
 
 		if (w->battery)
@@ -2159,7 +2158,7 @@ static int wacom_wireless_irq(struct wacom_wac *wacom, size_t len)
 	} else if (wacom->pid != 0) {
 		/* disconnected while previously connected */
 		wacom->pid = 0;
-		wacom_schedule_work(wacom);
+		wacom_schedule_work(wacom, WACOM_WORKER_WIRELESS);
 		wacom_notify_battery(wacom, 0, 0, 0, 0);
 	}
 
@@ -2194,15 +2193,13 @@ static int wacom_status_irq(struct wacom_wac *wacom_wac, size_t len)
 		if (!wacom->battery &&
 		    !(features->quirks & WACOM_QUIRK_BATTERY)) {
 			features->quirks |= WACOM_QUIRK_BATTERY;
-			INIT_WORK(&wacom->work, wacom_battery_work);
-			wacom_schedule_work(wacom_wac);
+			wacom_schedule_work(wacom_wac, WACOM_WORKER_BATTERY);
 		}
 	}
 	else if ((features->quirks & WACOM_QUIRK_BATTERY) &&
 		 wacom->battery) {
 		features->quirks &= ~WACOM_QUIRK_BATTERY;
-		INIT_WORK(&wacom->work, wacom_battery_work);
-		wacom_schedule_work(wacom_wac);
+		wacom_schedule_work(wacom_wac, WACOM_WORKER_BATTERY);
 		wacom_notify_battery(wacom_wac, 0, 0, 0, 0);
 	}
 	return 0;

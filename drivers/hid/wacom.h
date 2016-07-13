@@ -105,13 +105,19 @@
 #define USB_VENDOR_ID_WACOM	0x056a
 #define USB_VENDOR_ID_LENOVO	0x17ef
 
+enum wacom_worker {
+	WACOM_WORKER_WIRELESS,
+	WACOM_WORKER_BATTERY,
+};
+
 struct wacom {
 	struct usb_device *usbdev;
 	struct usb_interface *intf;
 	struct wacom_wac wacom_wac;
 	struct hid_device *hdev;
 	struct mutex lock;
-	struct work_struct work;
+	struct work_struct wireless_work;
+	struct work_struct battery_work;
 	struct wacom_led {
 		u8 select[5]; /* status led selector (0..3) */
 		u8 llv;       /* status led brightness no button (1..127) */
@@ -127,10 +133,19 @@ struct wacom {
 	struct attribute_group remote_group[5];
 };
 
-static inline void wacom_schedule_work(struct wacom_wac *wacom_wac)
+static inline void wacom_schedule_work(struct wacom_wac *wacom_wac,
+				       enum wacom_worker which)
 {
 	struct wacom *wacom = container_of(wacom_wac, struct wacom, wacom_wac);
-	schedule_work(&wacom->work);
+
+	switch (which) {
+	case WACOM_WORKER_WIRELESS:
+		schedule_work(&wacom->wireless_work);
+		break;
+	case WACOM_WORKER_BATTERY:
+		schedule_work(&wacom->battery_work);
+		break;
+	}
 }
 
 extern const struct hid_device_id wacom_ids[];
