@@ -1205,6 +1205,11 @@ static struct cpuhp_step cpuhp_bp_states[] = {
 		.startup = NULL,
 		.teardown = timers_dead_cpu,
 	},
+	[CPUHP_RCUTREE_PREP] = {
+		.name = "RCU-tree prepare",
+		.startup = rcutree_prepare_cpu,
+		.teardown = rcutree_dead_cpu,
+	},
 	/*
 	 * Preparatory and dead notifiers. Will be replaced once the notifiers
 	 * are converted to states.
@@ -1263,6 +1268,10 @@ static struct cpuhp_step cpuhp_ap_states[] = {
 		.startup		= sched_cpu_starting,
 		.teardown		= sched_cpu_dying,
 	},
+	[CPUHP_AP_RCUTREE_DYING] = {
+		.startup = NULL,
+		.teardown = rcutree_dying_cpu,
+	},
 	/*
 	 * Low level startup/teardown notifiers. Run with interrupts
 	 * disabled. Will be removed once the notifiers are converted to
@@ -1295,6 +1304,11 @@ static struct cpuhp_step cpuhp_ap_states[] = {
 		.name = "workqueue online",
 		.startup = workqueue_online_cpu,
 		.teardown = workqueue_offline_cpu,
+	},
+	[CPUHP_AP_RCUTREE_ONLINE] = {
+		.name = "RCU-tree online",
+		.startup = rcutree_online_cpu,
+		.teardown = rcutree_offline_cpu,
 	},
 
 	/*
