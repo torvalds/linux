@@ -130,8 +130,7 @@ static int lowpan_newlink(struct net *src_net, struct net_device *ldev,
 
 	pr_debug("adding new link\n");
 
-	if (!tb[IFLA_LINK] ||
-	    !net_eq(dev_net(ldev), &init_net))
+	if (!tb[IFLA_LINK])
 		return -EINVAL;
 	/* find and hold wpan device */
 	wdev = dev_get_by_index(dev_net(ldev), nla_get_u32(tb[IFLA_LINK]));

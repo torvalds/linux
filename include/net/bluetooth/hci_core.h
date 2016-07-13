@@ -654,6 +654,7 @@ enum {
 	HCI_CONN_PARAM_REMOVAL_PEND,
 	HCI_CONN_NEW_LINK_KEY,
 	HCI_CONN_SCANNING,
+	HCI_CONN_AUTH_FAILURE,
 };
 
 static inline bool hci_conn_ssp_enabled(struct hci_conn *conn)
