@@ -739,7 +739,7 @@ static void __init hash_init_partition_table(phys_addr_t hash_table,
 	 * For now UPRT is 0 for us.
 	 */
 	partition_tb->patb1 = 0;
-	DBG("Partition table %p\n", partition_tb);
+	pr_info("Partition table %p\n", partition_tb);
 	/*
 	 * update partition table control register,
 	 * 64 K size.
@@ -947,6 +947,7 @@ void __init hash__early_init_mmu(void)
 	 */
 	htab_initialize();
 
+	pr_info("Initializing hash mmu with SLB\n");
 	/* Initialize SLB management */
 	slb_initialize();
 }

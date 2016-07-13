@@ -182,7 +182,8 @@ static void __init radix_init_partition_table(void)
 	partition_tb = early_alloc_pgtable(1UL << PATB_SIZE_SHIFT);
 	partition_tb->patb0 = cpu_to_be64(rts_field | __pa(init_mm.pgd) |
 					  RADIX_PGD_INDEX_SIZE | PATB_HR);
-	printk("Partition table %p\n", partition_tb);
+	pr_info("Initializing Radix MMU\n");
+	pr_info("Partition table %p\n", partition_tb);
 
 	memblock_set_current_limit(MEMBLOCK_ALLOC_ANYWHERE);
 	/*
