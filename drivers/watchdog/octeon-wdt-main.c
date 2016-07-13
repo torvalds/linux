@@ -431,7 +431,7 @@ static int octeon_wdt_cpu_callback(struct notifier_block *nfb,
 {
 	unsigned int cpu = (unsigned long)hcpu;
 
-	switch (action) {
+	switch (action & ~CPU_TASKS_FROZEN) {
 	case CPU_DOWN_PREPARE:
 		octeon_wdt_disable_interrupt(cpu);
 		break;

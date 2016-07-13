@@ -36,3 +36,12 @@ config TCM_QLA2XXX
 	default n
 	---help---
 	Say Y here to enable the TCM_QLA2XXX fabric module for QLogic 24xx+ series target mode HBAs
+
+if TCM_QLA2XXX
+config TCM_QLA2XXX_DEBUG
+	bool "TCM_QLA2XXX fabric module DEBUG mode for QLogic 24xx+ series target mode HBAs"
+	default n
+	---help---
+	Say Y here to enable the TCM_QLA2XXX fabric module DEBUG for QLogic 24xx+ series target mode HBAs
+	This will include code to enable the SCSI command jammer
+endif

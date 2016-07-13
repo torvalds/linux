@@ -31,7 +31,11 @@ void clear_user_page(void *to, unsigned long u_vaddr, struct page *page);
  * These are used to make use of C type-checking..
  */
 typedef struct {
+#ifdef CONFIG_ARC_HAS_PAE40
+	unsigned long long pte;
+#else
 	unsigned long pte;
+#endif
 } pte_t;
 typedef struct {
 	unsigned long pgd;

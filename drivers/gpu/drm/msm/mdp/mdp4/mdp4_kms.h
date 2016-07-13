@@ -37,8 +37,6 @@ struct mdp4_kms {
 
 	void __iomem *mmio;
 
-	struct regulator *dsi_pll_vdda;
-	struct regulator *dsi_pll_vddio;
 	struct regulator *vdd;
 
 	struct clk *clk;

@@ -128,7 +128,7 @@ struct resource eseries_tmio_resources[] = {
 /* Some e-series hardware cannot control the 32K clock */
 static void __init __maybe_unused eseries_register_clks(void)
 {
-	clk_register_fixed_rate(NULL, "CLK_CK32K", NULL, CLK_IS_ROOT, 32768);
+	clk_register_fixed_rate(NULL, "CLK_CK32K", NULL, 0, 32768);
 }
 
 #ifdef CONFIG_MACH_E330

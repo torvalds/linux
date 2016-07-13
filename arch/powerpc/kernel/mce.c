@@ -37,7 +37,7 @@ static DEFINE_PER_CPU(int, mce_queue_count);
 static DEFINE_PER_CPU(struct machine_check_event[MAX_MC_EVT], mce_event_queue);
 
 static void machine_check_process_queued_event(struct irq_work *work);
-struct irq_work mce_event_process_work = {
+static struct irq_work mce_event_process_work = {
         .func = machine_check_process_queued_event,
 };
 

@@ -1121,7 +1121,7 @@ void dib0090_pwm_gain_reset(struct dvb_frontend *fe)
 				(state->current_band == BAND_CBAND) ? "CBAND" : "NOT CBAND",
 				state->identity.version & 0x1f);
 
-		if (rf_ramp && ((state->rf_ramp[0] == 0) ||
+		if (rf_ramp && ((state->rf_ramp && state->rf_ramp[0] == 0) ||
 		    (state->current_band == BAND_CBAND &&
 		    (state->identity.version & 0x1f) <= P1D_E_F))) {
 			dprintk("DE-Engage mux for direct gain reg control");

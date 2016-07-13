@@ -46,6 +46,13 @@ config KVM_ARM_HOST
 	---help---
 	  Provides host support for ARM processors.
 
+config KVM_NEW_VGIC
+	bool "New VGIC implementation"
+	depends on KVM
+	default y
+	---help---
+	  uses the new VGIC implementation
+
 source drivers/vhost/Kconfig
 
 endif # VIRTUALIZATION

@@ -217,6 +217,16 @@
 #define VI6_RPF_SRCM_ADDR_C1		0x0344
 #define VI6_RPF_SRCM_ADDR_AI		0x0348
 
+#define VI6_RPF_MULT_ALPHA		0x036c
+#define VI6_RPF_MULT_ALPHA_A_MMD_NONE	(0 << 12)
+#define VI6_RPF_MULT_ALPHA_A_MMD_RATIO	(1 << 12)
+#define VI6_RPF_MULT_ALPHA_P_MMD_NONE	(0 << 8)
+#define VI6_RPF_MULT_ALPHA_P_MMD_RATIO	(1 << 8)
+#define VI6_RPF_MULT_ALPHA_P_MMD_IMAGE	(2 << 8)
+#define VI6_RPF_MULT_ALPHA_P_MMD_BOTH	(3 << 8)
+#define VI6_RPF_MULT_ALPHA_RATIO_MASK	(0xff < 0)
+#define VI6_RPF_MULT_ALPHA_RATIO_SHIFT	0
+
 /* -----------------------------------------------------------------------------
  * WPF Control Registers
  */

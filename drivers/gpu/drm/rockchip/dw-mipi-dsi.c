@@ -879,7 +879,6 @@ static void dw_mipi_dsi_encoder_commit(struct drm_encoder *encoder)
 {
 	struct dw_mipi_dsi *dsi = encoder_to_dsi(encoder);
 	int mux = drm_of_encoder_active_endpoint_id(dsi->dev->of_node, encoder);
-	u32 interface_pix_fmt;
 	u32 val;
 
 	if (clk_prepare_enable(dsi->pclk)) {
@@ -895,24 +894,6 @@ static void dw_mipi_dsi_encoder_commit(struct drm_encoder *encoder)
 
 	clk_disable_unprepare(dsi->pclk);
 
-	switch (dsi->format) {
-	case MIPI_DSI_FMT_RGB888:
-		interface_pix_fmt = ROCKCHIP_OUT_MODE_P888;
-		break;
-	case MIPI_DSI_FMT_RGB666:
-		interface_pix_fmt = ROCKCHIP_OUT_MODE_P666;
-		break;
-	case MIPI_DSI_FMT_RGB565:
-		interface_pix_fmt = ROCKCHIP_OUT_MODE_P565;
-		break;
-	default:
-		WARN_ON(1);
-		return;
-	}
-
-	rockchip_drm_crtc_mode_config(encoder->crtc, DRM_MODE_CONNECTOR_DSI,
-				      interface_pix_fmt);
-
 	if (mux)
 		val = DSI0_SEL_VOP_LIT | (DSI0_SEL_VOP_LIT << 16);
 	else
@@ -922,11 +903,40 @@ static void dw_mipi_dsi_encoder_commit(struct drm_encoder *encoder)
 	dev_dbg(dsi->dev, "vop %s output to dsi0\n", (mux) ? "LIT" : "BIG");
 }
 
+static int
+dw_mipi_dsi_encoder_atomic_check(struct drm_encoder *encoder,
+				 struct drm_crtc_state *crtc_state,
+				 struct drm_connector_state *conn_state)
+{
+	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
+	struct dw_mipi_dsi *dsi = encoder_to_dsi(encoder);
+
+	switch (dsi->format) {
+	case MIPI_DSI_FMT_RGB888:
+		s->output_mode = ROCKCHIP_OUT_MODE_P888;
+		break;
+	case MIPI_DSI_FMT_RGB666:
+		s->output_mode = ROCKCHIP_OUT_MODE_P666;
+		break;
+	case MIPI_DSI_FMT_RGB565:
+		s->output_mode = ROCKCHIP_OUT_MODE_P565;
+		break;
+	default:
+		WARN_ON(1);
+		return -EINVAL;
+	}
+
+	s->output_type = DRM_MODE_CONNECTOR_DSI;
+
+	return 0;
+}
+
 static struct drm_encoder_helper_funcs
 dw_mipi_dsi_encoder_helper_funcs = {
 	.commit = dw_mipi_dsi_encoder_commit,
 	.mode_set = dw_mipi_dsi_encoder_mode_set,
 	.disable = dw_mipi_dsi_encoder_disable,
+	.atomic_check = dw_mipi_dsi_encoder_atomic_check,
 };
 
 static struct drm_encoder_funcs dw_mipi_dsi_encoder_funcs = {

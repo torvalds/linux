@@ -83,7 +83,7 @@ static int tvp5150_read(struct v4l2_subdev *sd, unsigned char addr)
 	return rc;
 }
 
-static inline void tvp5150_write(struct v4l2_subdev *sd, unsigned char addr,
+static int tvp5150_write(struct v4l2_subdev *sd, unsigned char addr,
 				 unsigned char value)
 {
 	struct i2c_client *c = v4l2_get_subdevdata(sd);
@@ -92,7 +92,9 @@ static inline void tvp5150_write(struct v4l2_subdev *sd, unsigned char addr,
 	v4l2_dbg(2, debug, sd, "tvp5150: writing 0x%02x 0x%02x\n", addr, value);
 	rc = i2c_smbus_write_byte_data(c, addr, value);
 	if (rc < 0)
-		v4l2_dbg(0, debug, sd, "i2c i/o error: rc == %d\n", rc);
+		v4l2_err(sd, "i2c i/o error: rc == %d\n", rc);
+
+	return rc;
 }
 
 static void dump_reg_range(struct v4l2_subdev *sd, char *s, u8 init,
@@ -1159,8 +1161,7 @@ static int tvp5150_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *
 
 static int tvp5150_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_register *reg)
 {
-	tvp5150_write(sd, reg->reg & 0xff, reg->val & 0xff);
-	return 0;
+	return tvp5150_write(sd, reg->reg & 0xff, reg->val & 0xff);
 }
 #endif
 

@@ -279,8 +279,7 @@ static void mdc_setattr_pack_rec(struct mdt_rec_setattr *rec,
 	rec->sa_atime  = LTIME_S(op_data->op_attr.ia_atime);
 	rec->sa_mtime  = LTIME_S(op_data->op_attr.ia_mtime);
 	rec->sa_ctime  = LTIME_S(op_data->op_attr.ia_ctime);
-	rec->sa_attr_flags =
-			((struct ll_iattr *)&op_data->op_attr)->ia_attr_flags;
+	rec->sa_attr_flags = op_data->op_attr_flags;
 	if ((op_data->op_attr.ia_valid & ATTR_GID) &&
 	    in_group_p(op_data->op_attr.ia_gid))
 		rec->sa_suppgid =
@@ -439,7 +438,6 @@ void mdc_getattr_pack(struct ptlrpc_request *req, __u64 valid, int flags,
 		char *tmp = req_capsule_client_get(&req->rq_pill, &RMF_NAME);
 
 		LOGL0(op_data->op_name, op_data->op_namelen, tmp);
-
 	}
 }
 
@@ -455,7 +453,7 @@ static void mdc_hsm_release_pack(struct ptlrpc_request *req,
 		lock = ldlm_handle2lock(&op_data->op_lease_handle);
 		if (lock) {
 			data->cd_handle = lock->l_remote_handle;
-			ldlm_lock_put(lock);
+			LDLM_LOCK_PUT(lock);
 		}
 		ldlm_cli_cancel(&op_data->op_lease_handle, LCF_LOCAL);
 
@@ -481,9 +479,9 @@ static int mdc_req_avail(struct client_obd *cli, struct mdc_cache_waiter *mcw)
 {
 	int rc;
 
-	client_obd_list_lock(&cli->cl_loi_list_lock);
+	spin_lock(&cli->cl_loi_list_lock);
 	rc = list_empty(&mcw->mcw_entry);
-	client_obd_list_unlock(&cli->cl_loi_list_lock);
+	spin_unlock(&cli->cl_loi_list_lock);
 	return rc;
 };
 
@@ -497,23 +495,23 @@ int mdc_enter_request(struct client_obd *cli)
 	struct mdc_cache_waiter mcw;
 	struct l_wait_info lwi = LWI_INTR(LWI_ON_SIGNAL_NOOP, NULL);
 
-	client_obd_list_lock(&cli->cl_loi_list_lock);
+	spin_lock(&cli->cl_loi_list_lock);
 	if (cli->cl_r_in_flight >= cli->cl_max_rpcs_in_flight) {
 		list_add_tail(&mcw.mcw_entry, &cli->cl_cache_waiters);
 		init_waitqueue_head(&mcw.mcw_waitq);
-		client_obd_list_unlock(&cli->cl_loi_list_lock);
+		spin_unlock(&cli->cl_loi_list_lock);
 		rc = l_wait_event(mcw.mcw_waitq, mdc_req_avail(cli, &mcw),
 				  &lwi);
 		if (rc) {
-			client_obd_list_lock(&cli->cl_loi_list_lock);
+			spin_lock(&cli->cl_loi_list_lock);
 			if (list_empty(&mcw.mcw_entry))
 				cli->cl_r_in_flight--;
 			list_del_init(&mcw.mcw_entry);
-			client_obd_list_unlock(&cli->cl_loi_list_lock);
+			spin_unlock(&cli->cl_loi_list_lock);
 		}
 	} else {
 		cli->cl_r_in_flight++;
-		client_obd_list_unlock(&cli->cl_loi_list_lock);
+		spin_unlock(&cli->cl_loi_list_lock);
 	}
 	return rc;
 }
@@ -523,7 +521,7 @@ void mdc_exit_request(struct client_obd *cli)
 	struct list_head *l, *tmp;
 	struct mdc_cache_waiter *mcw;
 
-	client_obd_list_lock(&cli->cl_loi_list_lock);
+	spin_lock(&cli->cl_loi_list_lock);
 	cli->cl_r_in_flight--;
 	list_for_each_safe(l, tmp, &cli->cl_cache_waiters) {
 		if (cli->cl_r_in_flight >= cli->cl_max_rpcs_in_flight) {
@@ -538,5 +536,5 @@ void mdc_exit_request(struct client_obd *cli)
 	}
 	/* Empty waiting list? Decrease reqs in-flight number */
 
-	client_obd_list_unlock(&cli->cl_loi_list_lock);
+	spin_unlock(&cli->cl_loi_list_lock);
 }

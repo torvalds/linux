@@ -43,7 +43,7 @@ static void local_flush_tlb_from(int entry)
 {
 	unsigned long old_ctx;
 
-	old_ctx = read_c0_entryhi() & ASID_MASK;
+	old_ctx = read_c0_entryhi() & cpu_asid_mask(&current_cpu_data);
 	write_c0_entrylo0(0);
 	while (entry < current_cpu_data.tlbsize) {
 		write_c0_index(entry << 8);
@@ -81,6 +81,7 @@ void local_flush_tlb_mm(struct mm_struct *mm)
 void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 			   unsigned long end)
 {
+	unsigned long asid_mask = cpu_asid_mask(&current_cpu_data);
 	struct mm_struct *mm = vma->vm_mm;
 	int cpu = smp_processor_id();
 
@@ -89,13 +90,13 @@ void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 
 #ifdef DEBUG_TLB
 		printk("[tlbrange<%lu,0x%08lx,0x%08lx>]",
-			cpu_context(cpu, mm) & ASID_MASK, start, end);
+			cpu_context(cpu, mm) & asid_mask, start, end);
 #endif
 		local_irq_save(flags);
 		size = (end - start + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
 		if (size <= current_cpu_data.tlbsize) {
-			int oldpid = read_c0_entryhi() & ASID_MASK;
-			int newpid = cpu_context(cpu, mm) & ASID_MASK;
+			int oldpid = read_c0_entryhi() & asid_mask;
+			int newpid = cpu_context(cpu, mm) & asid_mask;
 
 			start &= PAGE_MASK;
 			end += PAGE_SIZE - 1;
@@ -159,6 +160,7 @@ void local_flush_tlb_kernel_range(unsigned long start, unsigned long end)
 
 void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 {
+	unsigned long asid_mask = cpu_asid_mask(&current_cpu_data);
 	int cpu = smp_processor_id();
 
 	if (cpu_context(cpu, vma->vm_mm) != 0) {
@@ -168,10 +170,10 @@ void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 #ifdef DEBUG_TLB
 		printk("[tlbpage<%lu,0x%08lx>]", cpu_context(cpu, vma->vm_mm), page);
 #endif
-		newpid = cpu_context(cpu, vma->vm_mm) & ASID_MASK;
+		newpid = cpu_context(cpu, vma->vm_mm) & asid_mask;
 		page &= PAGE_MASK;
 		local_irq_save(flags);
-		oldpid = read_c0_entryhi() & ASID_MASK;
+		oldpid = read_c0_entryhi() & asid_mask;
 		write_c0_entryhi(page | newpid);
 		BARRIER;
 		tlb_probe();
@@ -190,6 +192,7 @@ finish:
 
 void __update_tlb(struct vm_area_struct *vma, unsigned long address, pte_t pte)
 {
+	unsigned long asid_mask = cpu_asid_mask(&current_cpu_data);
 	unsigned long flags;
 	int idx, pid;
 
@@ -199,10 +202,10 @@ void __update_tlb(struct vm_area_struct *vma, unsigned long address, pte_t pte)
 	if (current->active_mm != vma->vm_mm)
 		return;
 
-	pid = read_c0_entryhi() & ASID_MASK;
+	pid = read_c0_entryhi() & asid_mask;
 
 #ifdef DEBUG_TLB
-	if ((pid != (cpu_context(cpu, vma->vm_mm) & ASID_MASK)) || (cpu_context(cpu, vma->vm_mm) == 0)) {
+	if ((pid != (cpu_context(cpu, vma->vm_mm) & asid_mask)) || (cpu_context(cpu, vma->vm_mm) == 0)) {
 		printk("update_mmu_cache: Wheee, bogus tlbpid mmpid=%lu tlbpid=%d\n",
 		       (cpu_context(cpu, vma->vm_mm)), pid);
 	}
@@ -228,6 +231,7 @@ void __update_tlb(struct vm_area_struct *vma, unsigned long address, pte_t pte)
 void add_wired_entry(unsigned long entrylo0, unsigned long entrylo1,
 		     unsigned long entryhi, unsigned long pagemask)
 {
+	unsigned long asid_mask = cpu_asid_mask(&current_cpu_data);
 	unsigned long flags;
 	unsigned long old_ctx;
 	static unsigned long wired = 0;
@@ -243,7 +247,7 @@ void add_wired_entry(unsigned long entrylo0, unsigned long entrylo1,
 
 		local_irq_save(flags);
 		/* Save old context and create impossible VPN2 value */
-		old_ctx = read_c0_entryhi() & ASID_MASK;
+		old_ctx = read_c0_entryhi() & asid_mask;
 		old_pagemask = read_c0_pagemask();
 		w = read_c0_wired();
 		write_c0_wired(w + 1);
@@ -266,7 +270,7 @@ void add_wired_entry(unsigned long entrylo0, unsigned long entrylo1,
 #endif
 
 		local_irq_save(flags);
-		old_ctx = read_c0_entryhi() & ASID_MASK;
+		old_ctx = read_c0_entryhi() & asid_mask;
 		write_c0_entrylo0(entrylo0);
 		write_c0_entryhi(entryhi);
 		write_c0_index(wired);

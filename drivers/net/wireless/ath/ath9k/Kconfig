@@ -75,6 +75,26 @@ config ATH9K_STATION_STATISTICS
 	---help---
 	  This option enables detailed statistics for association stations.
 
+config ATH9K_TX99
+	bool "Atheros ath9k TX99 testing support"
+	depends on ATH9K_DEBUGFS && CFG80211_CERTIFICATION_ONUS
+	default n
+	---help---
+	  Say N. This should only be enabled on systems undergoing
+	  certification testing and evaluation in a controlled environment.
+	  Enabling this will only enable TX99 support, all other modes of
+	  operation will be disabled.
+
+	  TX99 support enables Specific Absorption Rate (SAR) testing.
+	  SAR is the unit of measurement for the amount of radio frequency(RF)
+	  absorbed by the body when using a wireless device. The RF exposure
+	  limits used are expressed in the terms of SAR, which is a measure
+	  of the electric and magnetic field strength and power density for
+	  transmitters operating at frequencies from 300 kHz to 100 GHz.
+	  Regulatory bodies around the world require that wireless device
+	  be evaluated to meet the RF exposure limits set forth in the
+	  governmental SAR regulations.
+
 config ATH9K_DFS_CERTIFIED
 	bool "Atheros DFS support for certified platforms"
 	depends on ATH9K && CFG80211_CERTIFICATION_ONUS
@@ -102,26 +122,6 @@ config ATH9K_DYNACK
 	  This option enables ath9k dynamic ACK timeout estimation algorithm
 	  based on ACK frame RX timestamp, TX frame timestamp and frame
 	  duration
-
-config ATH9K_TX99
-	bool "Atheros ath9k TX99 testing support"
-	depends on ATH9K_DEBUGFS && CFG80211_CERTIFICATION_ONUS
-	default n
-	---help---
-	  Say N. This should only be enabled on systems undergoing
-	  certification testing and evaluation in a controlled environment.
-	  Enabling this will only enable TX99 support, all other modes of
-	  operation will be disabled.
-
-	  TX99 support enables Specific Absorption Rate (SAR) testing.
-	  SAR is the unit of measurement for the amount of radio frequency(RF)
-	  absorbed by the body when using a wireless device. The RF exposure
-	  limits used are expressed in the terms of SAR, which is a measure
-	  of the electric and magnetic field strength and power density for
-	  transmitters operating at frequencies from 300 kHz to 100 GHz.
-	  Regulatory bodies around the world require that wireless device
-	  be evaluated to meet the RF exposure limits set forth in the
-	  governmental SAR regulations.
 
 config ATH9K_WOW
 	bool "Wake on Wireless LAN support (EXPERIMENTAL)"

@@ -29,6 +29,10 @@
 
 #include "drm.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 /* Please note that modifications to all structs defined here are
  * subject to backwards-compatibility constraints.
  */
@@ -1169,5 +1173,9 @@ struct drm_i915_gem_context_param {
 #define I915_CONTEXT_PARAM_GTT_SIZE	0x3
 	__u64 value;
 };
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif /* _UAPI_I915_DRM_H_ */

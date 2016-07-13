@@ -29,7 +29,7 @@
 #include <nvif/cla06f.h>
 #include <nvif/unpack.h>
 
-#include "nouveau_drm.h"
+#include "nouveau_drv.h"
 #include "nouveau_dma.h"
 #include "nouveau_gem.h"
 #include "nouveau_chan.h"

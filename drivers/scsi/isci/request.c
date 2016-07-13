@@ -3169,7 +3169,10 @@ static enum sci_status isci_request_stp_request_construct(struct isci_request *i
 	status = sci_io_request_construct_basic_sata(ireq);
 
 	if (qc && (qc->tf.command == ATA_CMD_FPDMA_WRITE ||
-		   qc->tf.command == ATA_CMD_FPDMA_READ)) {
+		   qc->tf.command == ATA_CMD_FPDMA_READ ||
+		   qc->tf.command == ATA_CMD_FPDMA_RECV ||
+		   qc->tf.command == ATA_CMD_FPDMA_SEND ||
+		   qc->tf.command == ATA_CMD_NCQ_NON_DATA)) {
 		fis->sector_count = qc->tag << 3;
 		ireq->tc->type.stp.ncq_tag = qc->tag;
 	}

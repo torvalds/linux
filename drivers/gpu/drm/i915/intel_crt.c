@@ -120,22 +120,16 @@ static unsigned int intel_crt_get_flags(struct intel_encoder *encoder)
 static void intel_crt_get_config(struct intel_encoder *encoder,
 				 struct intel_crtc_state *pipe_config)
 {
-	struct drm_device *dev = encoder->base.dev;
-	int dotclock;
-
 	pipe_config->base.adjusted_mode.flags |= intel_crt_get_flags(encoder);
 
-	dotclock = pipe_config->port_clock;
-
-	if (HAS_PCH_SPLIT(dev))
-		ironlake_check_encoder_dotclock(pipe_config, dotclock);
-
-	pipe_config->base.adjusted_mode.crtc_clock = dotclock;
+	pipe_config->base.adjusted_mode.crtc_clock = pipe_config->port_clock;
 }
 
 static void hsw_crt_get_config(struct intel_encoder *encoder,
 			       struct intel_crtc_state *pipe_config)
 {
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+
 	intel_ddi_get_config(encoder, pipe_config);
 
 	pipe_config->base.adjusted_mode.flags &= ~(DRM_MODE_FLAG_PHSYNC |
@@ -143,6 +137,8 @@ static void hsw_crt_get_config(struct intel_encoder *encoder,
 					      DRM_MODE_FLAG_PVSYNC |
 					      DRM_MODE_FLAG_NVSYNC);
 	pipe_config->base.adjusted_mode.flags |= intel_crt_get_flags(encoder);
+
+	pipe_config->base.adjusted_mode.crtc_clock = lpt_get_iclkip(dev_priv);
 }
 
 /* Note: The caller is required to filter out dpms modes not supported by the
@@ -222,18 +218,26 @@ intel_crt_mode_valid(struct drm_connector *connector,
 {
 	struct drm_device *dev = connector->dev;
 	int max_dotclk = to_i915(dev)->max_dotclk_freq;
+	int max_clock;
 
-	int max_clock = 0;
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return MODE_NO_DBLESCAN;
 
 	if (mode->clock < 25000)
 		return MODE_CLOCK_LOW;
 
-	if (IS_GEN2(dev))
-		max_clock = 350000;
-	else
+	if (HAS_PCH_LPT(dev))
+		max_clock = 180000;
+	else if (IS_VALLEYVIEW(dev))
+		/*
+		 * 270 MHz due to current DPLL limits,
+		 * DAC limit supposedly 355 MHz.
+		 */
+		max_clock = 270000;
+	else if (IS_GEN3(dev) || IS_GEN4(dev))
 		max_clock = 400000;
+	else
+		max_clock = 350000;
 	if (mode->clock > max_clock)
 		return MODE_CLOCK_HIGH;
 
@@ -267,14 +271,8 @@ static bool intel_crt_compute_config(struct intel_encoder *encoder,
 	}
 
 	/* FDI must always be 2.7 GHz */
-	if (HAS_DDI(dev)) {
-		pipe_config->ddi_pll_sel = PORT_CLK_SEL_SPLL;
+	if (HAS_DDI(dev))
 		pipe_config->port_clock = 135000 * 2;
-
-		pipe_config->dpll_hw_state.wrpll = 0;
-		pipe_config->dpll_hw_state.spll =
-			SPLL_PLL_ENABLE | SPLL_PLL_FREQ_1350MHz | SPLL_PLL_SSC;
-	}
 
 	return true;
 }
@@ -658,6 +656,8 @@ intel_crt_detect(struct drm_connector *connector, bool force)
 		else if (INTEL_INFO(dev)->gen < 4)
 			status = intel_crt_load_detect(crt,
 				to_intel_crtc(connector->state->crtc)->pipe);
+		else if (i915.load_detect_test)
+			status = connector_status_disconnected;
 		else
 			status = connector_status_unknown;
 		intel_release_load_detect_pipe(connector, &tmp, &ctx);

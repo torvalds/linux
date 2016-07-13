@@ -7,6 +7,16 @@ config DRM_BRIDGE
 menu "Display Interface Bridges"
 	depends on DRM && DRM_BRIDGE
 
+config DRM_ANALOGIX_ANX78XX
+	tristate "Analogix ANX78XX bridge"
+	select DRM_KMS_HELPER
+	select REGMAP_I2C
+	---help---
+	  ANX78XX is an ultra-low Full-HD SlimPort transmitter
+	  designed for portable devices. The ANX78XX transforms
+	  the HDMI output of an application processor to MyDP
+	  or DisplayPort.
+
 config DRM_DW_HDMI
 	tristate
 	select DRM_KMS_HELPER
@@ -39,5 +49,7 @@ config DRM_PARADE_PS8622
 	select BACKLIGHT_CLASS_DEVICE
 	---help---
 	  Parade eDP-LVDS bridge chip driver.
+
+source "drivers/gpu/drm/bridge/analogix/Kconfig"
 
 endmenu

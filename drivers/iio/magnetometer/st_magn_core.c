@@ -484,6 +484,7 @@ static const struct st_sensor_settings st_magn_sensors_settings[] = {
 			.mask_int1 = ST_MAGN_3_DRDY_INT_MASK,
 			.addr_ihl = ST_MAGN_3_IHL_IRQ_ADDR,
 			.mask_ihl = ST_MAGN_3_IHL_IRQ_MASK,
+			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
 		},
 		.multi_read_bit = ST_MAGN_3_MULTIREAD_BIT,
 		.bootime = 2,
@@ -571,6 +572,7 @@ static const struct iio_info magn_info = {
 static const struct iio_trigger_ops st_magn_trigger_ops = {
 	.owner = THIS_MODULE,
 	.set_trigger_state = ST_MAGN_TRIGGER_SET_STATE,
+	.validate_device = st_sensors_validate_device,
 };
 #define ST_MAGN_TRIGGER_OPS (&st_magn_trigger_ops)
 #else

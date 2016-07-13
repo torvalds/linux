@@ -937,6 +937,10 @@ static int spi_qup_pm_suspend_runtime(struct device *device)
 	config = readl(controller->base + QUP_CONFIG);
 	config |= QUP_CONFIG_CLOCK_AUTO_GATE;
 	writel_relaxed(config, controller->base + QUP_CONFIG);
+
+	clk_disable_unprepare(controller->cclk);
+	clk_disable_unprepare(controller->iclk);
+
 	return 0;
 }
 
@@ -945,6 +949,15 @@ static int spi_qup_pm_resume_runtime(struct device *device)
 	struct spi_master *master = dev_get_drvdata(device);
 	struct spi_qup *controller = spi_master_get_devdata(master);
 	u32 config;
+	int ret;
+
+	ret = clk_prepare_enable(controller->iclk);
+	if (ret)
+		return ret;
+
+	ret = clk_prepare_enable(controller->cclk);
+	if (ret)
+		return ret;
 
 	/* Disable clocks auto gaiting */
 	config = readl_relaxed(controller->base + QUP_CONFIG);
@@ -1017,6 +1030,8 @@ static int spi_qup_remove(struct platform_device *pdev)
 
 	pm_runtime_put_noidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
+	spi_master_put(master);
+
 	return 0;
 }
 

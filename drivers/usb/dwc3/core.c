@@ -60,6 +60,20 @@ void dwc3_set_mode(struct dwc3 *dwc, u32 mode)
 	dwc3_writel(dwc->regs, DWC3_GCTL, reg);
 }
 
+u32 dwc3_core_fifo_space(struct dwc3_ep *dep, u8 type)
+{
+	struct dwc3		*dwc = dep->dwc;
+	u32			reg;
+
+	dwc3_writel(dwc->regs, DWC3_GDBGFIFOSPACE,
+			DWC3_GDBGFIFOSPACE_NUM(dep->number) |
+			DWC3_GDBGFIFOSPACE_TYPE(type));
+
+	reg = dwc3_readl(dwc->regs, DWC3_GDBGFIFOSPACE);
+
+	return DWC3_GDBGFIFOSPACE_SPACE_AVAILABLE(reg);
+}
+
 /**
  * dwc3_core_soft_reset - Issues core soft reset and PHY reset
  * @dwc: pointer to our context structure
@@ -203,13 +217,10 @@ static struct dwc3_event_buffer *dwc3_alloc_one_event_buffer(struct dwc3 *dwc,
 static void dwc3_free_event_buffers(struct dwc3 *dwc)
 {
 	struct dwc3_event_buffer	*evt;
-	int i;
 
-	for (i = 0; i < dwc->num_event_buffers; i++) {
-		evt = dwc->ev_buffs[i];
-		if (evt)
-			dwc3_free_one_event_buffer(dwc, evt);
-	}
+	evt = dwc->ev_buf;
+	if (evt)
+		dwc3_free_one_event_buffer(dwc, evt);
 }
 
 /**
@@ -222,27 +233,14 @@ static void dwc3_free_event_buffers(struct dwc3 *dwc)
  */
 static int dwc3_alloc_event_buffers(struct dwc3 *dwc, unsigned length)
 {
-	int			num;
-	int			i;
+	struct dwc3_event_buffer *evt;
 
-	num = DWC3_NUM_INT(dwc->hwparams.hwparams1);
-	dwc->num_event_buffers = num;
-
-	dwc->ev_buffs = devm_kzalloc(dwc->dev, sizeof(*dwc->ev_buffs) * num,
-			GFP_KERNEL);
-	if (!dwc->ev_buffs)
-		return -ENOMEM;
-
-	for (i = 0; i < num; i++) {
-		struct dwc3_event_buffer	*evt;
-
-		evt = dwc3_alloc_one_event_buffer(dwc, length);
-		if (IS_ERR(evt)) {
-			dev_err(dwc->dev, "can't allocate event buffer\n");
-			return PTR_ERR(evt);
-		}
-		dwc->ev_buffs[i] = evt;
+	evt = dwc3_alloc_one_event_buffer(dwc, length);
+	if (IS_ERR(evt)) {
+		dev_err(dwc->dev, "can't allocate event buffer\n");
+		return PTR_ERR(evt);
 	}
+	dwc->ev_buf = evt;
 
 	return 0;
 }
@@ -256,25 +254,22 @@ static int dwc3_alloc_event_buffers(struct dwc3 *dwc, unsigned length)
 static int dwc3_event_buffers_setup(struct dwc3 *dwc)
 {
 	struct dwc3_event_buffer	*evt;
-	int				n;
 
-	for (n = 0; n < dwc->num_event_buffers; n++) {
-		evt = dwc->ev_buffs[n];
-		dwc3_trace(trace_dwc3_core,
-				"Event buf %p dma %08llx length %d\n",
-				evt->buf, (unsigned long long) evt->dma,
-				evt->length);
+	evt = dwc->ev_buf;
+	dwc3_trace(trace_dwc3_core,
+			"Event buf %p dma %08llx length %d\n",
+			evt->buf, (unsigned long long) evt->dma,
+			evt->length);
 
-		evt->lpos = 0;
+	evt->lpos = 0;
 
-		dwc3_writel(dwc->regs, DWC3_GEVNTADRLO(n),
-				lower_32_bits(evt->dma));
-		dwc3_writel(dwc->regs, DWC3_GEVNTADRHI(n),
-				upper_32_bits(evt->dma));
-		dwc3_writel(dwc->regs, DWC3_GEVNTSIZ(n),
-				DWC3_GEVNTSIZ_SIZE(evt->length));
-		dwc3_writel(dwc->regs, DWC3_GEVNTCOUNT(n), 0);
-	}
+	dwc3_writel(dwc->regs, DWC3_GEVNTADRLO(0),
+			lower_32_bits(evt->dma));
+	dwc3_writel(dwc->regs, DWC3_GEVNTADRHI(0),
+			upper_32_bits(evt->dma));
+	dwc3_writel(dwc->regs, DWC3_GEVNTSIZ(0),
+			DWC3_GEVNTSIZ_SIZE(evt->length));
+	dwc3_writel(dwc->regs, DWC3_GEVNTCOUNT(0), 0);
 
 	return 0;
 }
@@ -282,19 +277,16 @@ static int dwc3_event_buffers_setup(struct dwc3 *dwc)
 static void dwc3_event_buffers_cleanup(struct dwc3 *dwc)
 {
 	struct dwc3_event_buffer	*evt;
-	int				n;
 
-	for (n = 0; n < dwc->num_event_buffers; n++) {
-		evt = dwc->ev_buffs[n];
+	evt = dwc->ev_buf;
 
-		evt->lpos = 0;
+	evt->lpos = 0;
 
-		dwc3_writel(dwc->regs, DWC3_GEVNTADRLO(n), 0);
-		dwc3_writel(dwc->regs, DWC3_GEVNTADRHI(n), 0);
-		dwc3_writel(dwc->regs, DWC3_GEVNTSIZ(n), DWC3_GEVNTSIZ_INTMASK
-				| DWC3_GEVNTSIZ_SIZE(0));
-		dwc3_writel(dwc->regs, DWC3_GEVNTCOUNT(n), 0);
-	}
+	dwc3_writel(dwc->regs, DWC3_GEVNTADRLO(0), 0);
+	dwc3_writel(dwc->regs, DWC3_GEVNTADRHI(0), 0);
+	dwc3_writel(dwc->regs, DWC3_GEVNTSIZ(0), DWC3_GEVNTSIZ_INTMASK
+			| DWC3_GEVNTSIZ_SIZE(0));
+	dwc3_writel(dwc->regs, DWC3_GEVNTCOUNT(0), 0);
 }
 
 static int dwc3_alloc_scratch_buffers(struct dwc3 *dwc)
@@ -433,6 +425,9 @@ static int dwc3_phy_setup(struct dwc3 *dwc)
 
 	if (dwc->u2ss_inp3_quirk)
 		reg |= DWC3_GUSB3PIPECTL_U2SSINP3OK;
+
+	if (dwc->dis_rxdet_inp3_quirk)
+		reg |= DWC3_GUSB3PIPECTL_DISRXDETINP3;
 
 	if (dwc->req_p1p2p3_quirk)
 		reg |= DWC3_GUSB3PIPECTL_REQP1P2P3;
@@ -882,9 +877,6 @@ static int dwc3_probe(struct platform_device *pdev)
 	dwc->usb3_lpm_capable = device_property_read_bool(dev,
 				"snps,usb3_lpm_capable");
 
-	dwc->needs_fifo_resize = device_property_read_bool(dev,
-				"tx-fifo-resize");
-
 	dwc->disable_scramble_quirk = device_property_read_bool(dev,
 				"snps,disable_scramble_quirk");
 	dwc->u2exit_lfps_quirk = device_property_read_bool(dev,
@@ -907,6 +899,8 @@ static int dwc3_probe(struct platform_device *pdev)
 				"snps,dis_u2_susphy_quirk");
 	dwc->dis_enblslpm_quirk = device_property_read_bool(dev,
 				"snps,dis_enblslpm_quirk");
+	dwc->dis_rxdet_inp3_quirk = device_property_read_bool(dev,
+				"snps,dis_rxdet_inp3_quirk");
 
 	dwc->tx_de_emphasis_quirk = device_property_read_bool(dev,
 				"snps,tx_de_emphasis_quirk");
@@ -926,7 +920,6 @@ static int dwc3_probe(struct platform_device *pdev)
 		if (pdata->hird_threshold)
 			hird_threshold = pdata->hird_threshold;
 
-		dwc->needs_fifo_resize = pdata->tx_fifo_resize;
 		dwc->usb3_lpm_capable = pdata->usb3_lpm_capable;
 		dwc->dr_mode = pdata->dr_mode;
 
@@ -941,6 +934,7 @@ static int dwc3_probe(struct platform_device *pdev)
 		dwc->dis_u3_susphy_quirk = pdata->dis_u3_susphy_quirk;
 		dwc->dis_u2_susphy_quirk = pdata->dis_u2_susphy_quirk;
 		dwc->dis_enblslpm_quirk = pdata->dis_enblslpm_quirk;
+		dwc->dis_rxdet_inp3_quirk = pdata->dis_rxdet_inp3_quirk;
 
 		dwc->tx_de_emphasis_quirk = pdata->tx_de_emphasis_quirk;
 		if (pdata->tx_de_emphasis)
@@ -1050,18 +1044,10 @@ static int dwc3_probe(struct platform_device *pdev)
 	if (ret)
 		goto err5;
 
-	ret = dwc3_debugfs_init(dwc);
-	if (ret) {
-		dev_err(dev, "failed to initialize debugfs\n");
-		goto err6;
-	}
-
+	dwc3_debugfs_init(dwc);
 	pm_runtime_allow(dev);
 
 	return 0;
-
-err6:
-	dwc3_core_exit_mode(dwc);
 
 err5:
 	dwc3_event_buffers_cleanup(dwc);

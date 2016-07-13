@@ -32,6 +32,7 @@
 #include <linux/ieee80211.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
+#include <linux/pm_runtime.h>
 #include <net/ip6_checksum.h>
 #include <net/tso.h>
 
@@ -605,7 +606,7 @@ static void iwl_pcie_clear_cmd_in_flight(struct iwl_trans *trans)
 	if (trans_pcie->ref_cmd_in_flight) {
 		trans_pcie->ref_cmd_in_flight = false;
 		IWL_DEBUG_RPM(trans, "clear ref_cmd_in_flight - unref\n");
-		iwl_trans_pcie_unref(trans);
+		iwl_trans_unref(trans);
 	}
 
 	if (!trans->cfg->base_params->apmg_wake_up_wa)
@@ -650,7 +651,7 @@ static void iwl_pcie_txq_unmap(struct iwl_trans *trans, int txq_id)
 			if (txq_id != trans_pcie->cmd_queue) {
 				IWL_DEBUG_RPM(trans, "Q %d - last tx freed\n",
 					      q->id);
-				iwl_trans_pcie_unref(trans);
+				iwl_trans_unref(trans);
 			} else {
 				iwl_pcie_clear_cmd_in_flight(trans);
 			}
@@ -1134,7 +1135,7 @@ void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 
 	if (q->read_ptr == q->write_ptr) {
 		IWL_DEBUG_RPM(trans, "Q %d - last tx reclaimed\n", q->id);
-		iwl_trans_pcie_unref(trans);
+		iwl_trans_unref(trans);
 	}
 
 out:
@@ -1153,7 +1154,7 @@ static int iwl_pcie_set_cmd_in_flight(struct iwl_trans *trans,
 	    !trans_pcie->ref_cmd_in_flight) {
 		trans_pcie->ref_cmd_in_flight = true;
 		IWL_DEBUG_RPM(trans, "set ref_cmd_in_flight - ref\n");
-		iwl_trans_pcie_ref(trans);
+		iwl_trans_ref(trans);
 	}
 
 	/*
@@ -1799,6 +1800,16 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 	IWL_DEBUG_INFO(trans, "Setting HCMD_ACTIVE for command %s\n",
 		       iwl_get_cmd_string(trans, cmd->id));
 
+	if (pm_runtime_suspended(&trans_pcie->pci_dev->dev)) {
+		ret = wait_event_timeout(trans_pcie->d0i3_waitq,
+				 pm_runtime_active(&trans_pcie->pci_dev->dev),
+				 msecs_to_jiffies(IWL_TRANS_IDLE_TIMEOUT));
+		if (!ret) {
+			IWL_ERR(trans, "Timeout exiting D0i3 before hcmd\n");
+			return -ETIMEDOUT;
+		}
+	}
+
 	cmd_idx = iwl_pcie_enqueue_hcmd(trans, cmd);
 	if (cmd_idx < 0) {
 		ret = cmd_idx;
@@ -2362,7 +2373,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 				txq->frozen_expiry_remainder = txq->wd_timeout;
 		}
 		IWL_DEBUG_RPM(trans, "Q: %d first tx - take ref\n", q->id);
-		iwl_trans_pcie_ref(trans);
+		iwl_trans_ref(trans);
 	}
 
 	/* Tell device the write index *just past* this latest filled TFD */

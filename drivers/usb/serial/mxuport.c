@@ -503,7 +503,7 @@ static void mxuport_process_read_urb_demux_data(struct urb *urb)
 			return;
 		}
 
-		if (test_bit(ASYNCB_INITIALIZED, &demux_port->port.flags)) {
+		if (tty_port_initialized(&demux_port->port)) {
 			ch = data + HEADER_SIZE;
 			mxuport_process_read_urb_data(demux_port, ch, rcv_len);
 		} else {
@@ -544,7 +544,7 @@ static void mxuport_process_read_urb_demux_event(struct urb *urb)
 		}
 
 		demux_port = serial->port[rcv_port];
-		if (test_bit(ASYNCB_INITIALIZED, &demux_port->port.flags)) {
+		if (tty_port_initialized(&demux_port->port)) {
 			ch = data + HEADER_SIZE;
 			rcv_event = get_unaligned_be16(data + 2);
 			mxuport_process_read_urb_event(demux_port, ch,
@@ -1259,6 +1259,15 @@ static int mxuport_attach(struct usb_serial *serial)
 	return 0;
 }
 
+static void mxuport_release(struct usb_serial *serial)
+{
+	struct usb_serial_port *port0 = serial->port[0];
+	struct usb_serial_port *port1 = serial->port[1];
+
+	usb_serial_generic_close(port1);
+	usb_serial_generic_close(port0);
+}
+
 static int mxuport_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct mxuport_port *mxport = usb_get_serial_port_data(port);
@@ -1339,7 +1348,7 @@ static int mxuport_resume(struct usb_serial *serial)
 
 	for (i = 0; i < serial->num_ports; i++) {
 		port = serial->port[i];
-		if (!test_bit(ASYNCB_INITIALIZED, &port->port.flags))
+		if (!tty_port_initialized(&port->port))
 			continue;
 
 		r = usb_serial_generic_write_start(port, GFP_NOIO);
@@ -1361,6 +1370,7 @@ static struct usb_serial_driver mxuport_device = {
 	.probe			= mxuport_probe,
 	.port_probe		= mxuport_port_probe,
 	.attach			= mxuport_attach,
+	.release		= mxuport_release,
 	.calc_num_ports		= mxuport_calc_num_ports,
 	.open			= mxuport_open,
 	.close			= mxuport_close,

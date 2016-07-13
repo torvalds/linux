@@ -35,6 +35,7 @@ vmbus_dev_dict = {
 	'{ba6163d9-04a1-4d29-b605-72e2ffb1dc7f}' : 'Synthetic SCSI Controller',
 	'{2f9bcc4a-0069-4af3-b76b-6fd0be528cda}' : 'Synthetic fiber channel adapter',
 	'{8c2eaf3d-32a7-4b09-ab99-bd1f1c86b501}' : 'Synthetic RDMA adapter',
+	'{44c4f61d-4444-4400-9d52-802e27ede19f}' : 'PCI Express pass-through',
 	'{276aacf4-ac15-426c-98dd-7521ad3f01fe}' : '[Reserved system device]',
 	'{f8e65716-3cb3-4a06-9a60-1889c5cccab5}' : '[Reserved system device]',
 	'{3375baf4-9e15-4b30-b765-67acb10d607b}' : '[Reserved system device]',

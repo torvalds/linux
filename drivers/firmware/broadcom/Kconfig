@@ -9,3 +9,14 @@ config BCM47XX_NVRAM
 	  This driver provides an easy way to get value of requested parameter.
 	  It simply reads content of NVRAM and parses it. It doesn't control any
 	  hardware part itself.
+
+config BCM47XX_SPROM
+	bool "Broadcom SPROM driver"
+	depends on BCM47XX_NVRAM
+	help
+	  Broadcom devices store configuration data in SPROM. Accessing it is
+	  specific to the bus host type, e.g. PCI(e) devices have it mapped in
+	  a PCI BAR.
+	  In case of SoC devices SPROM content is stored on a flash used by
+	  bootloader firmware CFE. This driver provides method to ssb and bcma
+	  drivers to read SPROM on SoC.

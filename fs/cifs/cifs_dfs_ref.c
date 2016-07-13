@@ -151,8 +151,12 @@ char *cifs_compose_mount_options(const char *sb_mountdata,
 	if (sb_mountdata == NULL)
 		return ERR_PTR(-EINVAL);
 
-	if (strlen(fullpath) - ref->path_consumed)
+	if (strlen(fullpath) - ref->path_consumed) {
 		prepath = fullpath + ref->path_consumed;
+		/* skip initial delimiter */
+		if (*prepath == '/' || *prepath == '\\')
+			prepath++;
+	}
 
 	*devname = cifs_build_devname(ref->node_name, prepath);
 	if (IS_ERR(*devname)) {

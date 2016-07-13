@@ -92,7 +92,8 @@
 			ohci: ohci@0 {
 				compatible = "nxp,ohci-nxp", "usb-ohci";
 				reg = <0x0 0x300>;
-				interrupts = <59 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-parent = <&sic1>;
+				interrupts = <27 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&usbclk LPC32XX_USB_CLK_HOST>;
 				status = "disabled";
 			};
@@ -100,10 +101,11 @@
 			usbd: usbd@0 {
 				compatible = "nxp,lpc3220-udc";
 				reg = <0x0 0x300>;
-				interrupts = <61 IRQ_TYPE_LEVEL_HIGH>,
-					     <62 IRQ_TYPE_LEVEL_HIGH>,
-					     <60 IRQ_TYPE_LEVEL_HIGH>,
-					     <58 IRQ_TYPE_LEVEL_LOW>;
+				interrupt-parent = <&sic1>;
+				interrupts = <29 IRQ_TYPE_LEVEL_HIGH>,
+					     <30 IRQ_TYPE_LEVEL_HIGH>,
+					     <28 IRQ_TYPE_LEVEL_HIGH>,
+					     <26 IRQ_TYPE_LEVEL_LOW>;
 				clocks = <&usbclk LPC32XX_USB_CLK_DEVICE>;
 				status = "disabled";
 			};
@@ -111,7 +113,8 @@
 			i2cusb: i2c@300 {
 				compatible = "nxp,pnx-i2c";
 				reg = <0x300 0x100>;
-				interrupts = <63 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-parent = <&sic1>;
+				interrupts = <31 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&usbclk LPC32XX_USB_CLK_I2C>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -162,30 +165,44 @@
 			compatible = "simple-bus";
 			ranges = <0x20000000 0x20000000 0x30000000>;
 
+			/*
+			 * ssp0 and spi1 are shared pins;
+			 * enable one in your board dts, as needed.
+			 */
 			ssp0: ssp@20084000 {
 				compatible = "arm,pl022", "arm,primecell";
 				reg = <0x20084000 0x1000>;
 				interrupts = <20 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk LPC32XX_CLK_SSP0>;
 				clock-names = "apb_pclk";
+				status = "disabled";
 			};
 
 			spi1: spi@20088000 {
 				compatible = "nxp,lpc3220-spi";
 				reg = <0x20088000 0x1000>;
+				clocks = <&clk LPC32XX_CLK_SPI1>;
+				status = "disabled";
 			};
 
+			/*
+			 * ssp1 and spi2 are shared pins;
+			 * enable one in your board dts, as needed.
+			 */
 			ssp1: ssp@2008c000 {
 				compatible = "arm,pl022", "arm,primecell";
 				reg = <0x2008c000 0x1000>;
 				interrupts = <21 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk LPC32XX_CLK_SSP1>;
 				clock-names = "apb_pclk";
+				status = "disabled";
 			};
 
 			spi2: spi@20090000 {
 				compatible = "nxp,lpc3220-spi";
 				reg = <0x20090000 0x1000>;
+				clocks = <&clk LPC32XX_CLK_SPI2>;
+				status = "disabled";
 			};
 
 			i2s0: i2s@20094000 {
@@ -249,7 +266,8 @@
 			i2c1: i2c@400A0000 {
 				compatible = "nxp,pnx-i2c";
 				reg = <0x400A0000 0x100>;
-				interrupts = <51 IRQ_TYPE_LEVEL_LOW>;
+				interrupt-parent = <&sic1>;
+				interrupts = <19 IRQ_TYPE_LEVEL_LOW>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 				pnx,timeout = <0x64>;
@@ -259,7 +277,8 @@
 			i2c2: i2c@400A8000 {
 				compatible = "nxp,pnx-i2c";
 				reg = <0x400A8000 0x100>;
-				interrupts = <50 IRQ_TYPE_LEVEL_LOW>;
+				interrupt-parent = <&sic1>;
+				interrupts = <18 IRQ_TYPE_LEVEL_LOW>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 				pnx,timeout = <0x64>;
@@ -294,20 +313,39 @@
 
 					clocks = <&xtal_32k>, <&xtal>;
 					clock-names = "xtal_32k", "xtal";
+
+					assigned-clocks = <&clk LPC32XX_CLK_HCLK_PLL>;
+					assigned-clock-rates = <208000000>;
 				};
 			};
 
-			/*
-			 * MIC Interrupt controller includes:
-			 *   MIC @40008000
-			 *   SIC1 @4000C000
-			 *   SIC2 @40010000
-			 */
 			mic: interrupt-controller@40008000 {
 				compatible = "nxp,lpc3220-mic";
+				reg = <0x40008000 0x4000>;
 				interrupt-controller;
-				reg = <0x40008000 0xC000>;
 				#interrupt-cells = <2>;
+			};
+
+			sic1: interrupt-controller@4000c000 {
+				compatible = "nxp,lpc3220-sic";
+				reg = <0x4000c000 0x4000>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+
+				interrupt-parent = <&mic>;
+				interrupts = <0 IRQ_TYPE_LEVEL_LOW>,
+					     <30 IRQ_TYPE_LEVEL_LOW>;
+				};
+
+			sic2: interrupt-controller@40010000 {
+				compatible = "nxp,lpc3220-sic";
+				reg = <0x40010000 0x4000>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+
+				interrupt-parent = <&mic>;
+				interrupts = <1 IRQ_TYPE_LEVEL_LOW>,
+					     <31 IRQ_TYPE_LEVEL_LOW>;
 			};
 
 			uart1: serial@40014000 {
@@ -334,7 +372,8 @@
 			rtc: rtc@40024000 {
 				compatible = "nxp,lpc3220-rtc";
 				reg = <0x40024000 0x1000>;
-				interrupts = <52 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-parent = <&sic1>;
+				interrupts = <20 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk LPC32XX_CLK_RTC>;
 			};
 
@@ -387,7 +426,8 @@
 			adc: adc@40048000 {
 				compatible = "nxp,lpc3220-adc";
 				reg = <0x40048000 0x1000>;
-				interrupts = <39 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-parent = <&sic1>;
+				interrupts = <7 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk LPC32XX_CLK_ADC>;
 				status = "disabled";
 			};
@@ -395,7 +435,8 @@
 			tsc: tsc@40048000 {
 				compatible = "nxp,lpc3220-tsc";
 				reg = <0x40048000 0x1000>;
-				interrupts = <39 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-parent = <&sic1>;
+				interrupts = <7 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk LPC32XX_CLK_ADC>;
 				status = "disabled";
 			};

@@ -210,9 +210,6 @@ TTY_IO_ERROR		If set, causes all subsequent userspace read/write
 
 TTY_OTHER_CLOSED	Device is a pty and the other side has closed.
 
-TTY_OTHER_DONE		Device is a pty and the other side has closed and
-			all pending input processing has been completed.
-
 TTY_NO_WRITE_SPLIT	Prevent driver from splitting up writes into
 			smaller chunks.
 

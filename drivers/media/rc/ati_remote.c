@@ -873,13 +873,10 @@ static int ati_remote_probe(struct usb_interface *interface,
 	strlcat(ati_remote->rc_phys, "/input0", sizeof(ati_remote->rc_phys));
 	strlcat(ati_remote->mouse_phys, "/input1", sizeof(ati_remote->mouse_phys));
 
-	if (udev->manufacturer)
-		strlcpy(ati_remote->rc_name, udev->manufacturer,
-			sizeof(ati_remote->rc_name));
-
-	if (udev->product)
-		snprintf(ati_remote->rc_name, sizeof(ati_remote->rc_name),
-			 "%s %s", ati_remote->rc_name, udev->product);
+	snprintf(ati_remote->rc_name, sizeof(ati_remote->rc_name), "%s%s%s",
+		udev->manufacturer ?: "",
+		udev->manufacturer && udev->product ? " " : "",
+		udev->product ?: "");
 
 	if (!strlen(ati_remote->rc_name))
 		snprintf(ati_remote->rc_name, sizeof(ati_remote->rc_name),

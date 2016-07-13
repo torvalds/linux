@@ -30,6 +30,10 @@ INCLUDES := -I$(srctree)/tools/include
 CFLAGS   += -Wall -Werror $(EXTRA_WARNINGS) -fomit-frame-pointer -O2 -g $(INCLUDES)
 LDFLAGS  += -lelf $(LIBSUBCMD)
 
+# Allow old libelf to be used:
+elfshdr := $(shell echo '\#include <libelf.h>' | $(CC) $(CFLAGS) -x c -E - | grep elf_getshdr)
+CFLAGS += $(if $(elfshdr),,-DLIBELF_USE_DEPRECATED)
+
 AWK = awk
 export srctree OUTPUT CFLAGS ARCH AWK
 include $(srctree)/tools/build/Makefile.include

@@ -42,6 +42,7 @@
 #include <linux/vmalloc.h>
 #include <linux/radix-tree.h>
 #include <linux/workqueue.h>
+#include <linux/interrupt.h>
 
 #include <linux/mlx5/device.h>
 #include <linux/mlx5/doorbell.h>
@@ -312,6 +313,14 @@ struct mlx5_buf {
 	u8			page_shift;
 };
 
+struct mlx5_eq_tasklet {
+	struct list_head list;
+	struct list_head process_list;
+	struct tasklet_struct task;
+	/* lock on completion tasklet list */
+	spinlock_t lock;
+};
+
 struct mlx5_eq {
 	struct mlx5_core_dev   *dev;
 	__be32 __iomem	       *doorbell;
@@ -325,6 +334,7 @@ struct mlx5_eq {
 	struct list_head	list;
 	int			index;
 	struct mlx5_rsc_debug	*dbg;
+	struct mlx5_eq_tasklet	tasklet_ctx;
 };
 
 struct mlx5_core_psv {

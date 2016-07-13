@@ -1141,7 +1141,7 @@ static int ast_cursor_set(struct drm_crtc *crtc,
 	if (width > AST_MAX_HWC_WIDTH || height > AST_MAX_HWC_HEIGHT)
 		return -EINVAL;
 
-	obj = drm_gem_object_lookup(crtc->dev, file_priv, handle);
+	obj = drm_gem_object_lookup(file_priv, handle);
 	if (!obj) {
 		DRM_ERROR("Cannot find cursor object %x for crtc\n", handle);
 		return -ENOENT;

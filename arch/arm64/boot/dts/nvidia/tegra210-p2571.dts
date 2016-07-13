@@ -7,7 +7,7 @@
 	model = "NVIDIA Tegra210 P2571 reference design";
 	compatible = "nvidia,p2571", "nvidia,tegra210";
 
-	pinmux: pinmux@0,700008d4 {
+	pinmux: pinmux@700008d4 {
 		pinctrl-names = "boot";
 		pinctrl-0 = <&state_boot>;
 

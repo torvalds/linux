@@ -129,6 +129,7 @@ struct ade7758_state {
 	unsigned char		tx_buf[8];
 
 };
+
 #ifdef CONFIG_IIO_BUFFER
 /* At the moment triggers are only used for ring buffer
  * filling. This may change!
@@ -138,25 +139,22 @@ void ade7758_remove_trigger(struct iio_dev *indio_dev);
 int ade7758_probe_trigger(struct iio_dev *indio_dev);
 
 ssize_t ade7758_read_data_from_ring(struct device *dev,
-		struct device_attribute *attr,
-		char *buf);
-
+				    struct device_attribute *attr, char *buf);
 
 int ade7758_configure_ring(struct iio_dev *indio_dev);
 void ade7758_unconfigure_ring(struct iio_dev *indio_dev);
 
 int ade7758_set_irq(struct device *dev, bool enable);
 
-int ade7758_spi_write_reg_8(struct device *dev,
-		u8 reg_address, u8 val);
-int ade7758_spi_read_reg_8(struct device *dev,
-		u8 reg_address, u8 *val);
+int ade7758_spi_write_reg_8(struct device *dev, u8 reg_address, u8 val);
+int ade7758_spi_read_reg_8(struct device *dev, u8 reg_address, u8 *val);
 
 #else /* CONFIG_IIO_BUFFER */
 
 static inline void ade7758_remove_trigger(struct iio_dev *indio_dev)
 {
 }
+
 static inline int ade7758_probe_trigger(struct iio_dev *indio_dev)
 {
 	return 0;
@@ -166,16 +164,20 @@ static int ade7758_configure_ring(struct iio_dev *indio_dev)
 {
 	return 0;
 }
+
 static inline void ade7758_unconfigure_ring(struct iio_dev *indio_dev)
 {
 }
+
 static inline int ade7758_initialize_ring(struct iio_ring_buffer *ring)
 {
 	return 0;
 }
+
 static inline void ade7758_uninitialize_ring(struct iio_dev *indio_dev)
 {
 }
+
 #endif /* CONFIG_IIO_BUFFER */
 
 #endif

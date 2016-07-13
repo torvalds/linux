@@ -760,50 +760,54 @@ static void visual_init(struct vc_data *vc, int num, int init)
 
 int vc_allocate(unsigned int currcons)	/* return 0 on success */
 {
+	struct vt_notifier_param param;
+	struct vc_data *vc;
+
 	WARN_CONSOLE_UNLOCKED();
 
 	if (currcons >= MAX_NR_CONSOLES)
 		return -ENXIO;
-	if (!vc_cons[currcons].d) {
-	    struct vc_data *vc;
-	    struct vt_notifier_param param;
 
-	    /* prevent users from taking too much memory */
-	    if (currcons >= MAX_NR_USER_CONSOLES && !capable(CAP_SYS_RESOURCE))
-	      return -EPERM;
+	if (vc_cons[currcons].d)
+		return 0;
 
-	    /* due to the granularity of kmalloc, we waste some memory here */
-	    /* the alloc is done in two steps, to optimize the common situation
-	       of a 25x80 console (structsize=216, screenbuf_size=4000) */
-	    /* although the numbers above are not valid since long ago, the
-	       point is still up-to-date and the comment still has its value
-	       even if only as a historical artifact.  --mj, July 1998 */
-	    param.vc = vc = kzalloc(sizeof(struct vc_data), GFP_KERNEL);
-	    if (!vc)
+	/* due to the granularity of kmalloc, we waste some memory here */
+	/* the alloc is done in two steps, to optimize the common situation
+	   of a 25x80 console (structsize=216, screenbuf_size=4000) */
+	/* although the numbers above are not valid since long ago, the
+	   point is still up-to-date and the comment still has its value
+	   even if only as a historical artifact.  --mj, July 1998 */
+	param.vc = vc = kzalloc(sizeof(struct vc_data), GFP_KERNEL);
+	if (!vc)
 		return -ENOMEM;
-	    vc_cons[currcons].d = vc;
-	    tty_port_init(&vc->port);
-	    INIT_WORK(&vc_cons[currcons].SAK_work, vc_SAK);
-	    visual_init(vc, currcons, 1);
-	    if (!*vc->vc_uni_pagedir_loc)
+
+	vc_cons[currcons].d = vc;
+	tty_port_init(&vc->port);
+	INIT_WORK(&vc_cons[currcons].SAK_work, vc_SAK);
+
+	visual_init(vc, currcons, 1);
+
+	if (!*vc->vc_uni_pagedir_loc)
 		con_set_default_unimap(vc);
-	    vc->vc_screenbuf = kmalloc(vc->vc_screenbuf_size, GFP_KERNEL);
-	    if (!vc->vc_screenbuf) {
-		kfree(vc);
-		vc_cons[currcons].d = NULL;
-		return -ENOMEM;
-	    }
 
-	    /* If no drivers have overridden us and the user didn't pass a
-	       boot option, default to displaying the cursor */
-	    if (global_cursor_default == -1)
-		    global_cursor_default = 1;
+	vc->vc_screenbuf = kmalloc(vc->vc_screenbuf_size, GFP_KERNEL);
+	if (!vc->vc_screenbuf)
+		goto err_free;
 
-	    vc_init(vc, vc->vc_rows, vc->vc_cols, 1);
-	    vcs_make_sysfs(currcons);
-	    atomic_notifier_call_chain(&vt_notifier_list, VT_ALLOCATE, &param);
-	}
+	/* If no drivers have overridden us and the user didn't pass a
+	   boot option, default to displaying the cursor */
+	if (global_cursor_default == -1)
+		global_cursor_default = 1;
+
+	vc_init(vc, vc->vc_rows, vc->vc_cols, 1);
+	vcs_make_sysfs(currcons);
+	atomic_notifier_call_chain(&vt_notifier_list, VT_ALLOCATE, &param);
+
 	return 0;
+err_free:
+	kfree(vc);
+	vc_cons[currcons].d = NULL;
+	return -ENOMEM;
 }
 
 static inline int resize_screen(struct vc_data *vc, int width, int height,
@@ -1035,20 +1039,27 @@ struct vc_data *vc_deallocate(unsigned int currcons)
 #define VT100ID "\033[?1;2c"
 #define VT102ID "\033[?6c"
 
-unsigned char color_table[] = { 0, 4, 2, 6, 1, 5, 3, 7,
+const unsigned char color_table[] = { 0, 4, 2, 6, 1, 5, 3, 7,
 				       8,12,10,14, 9,13,11,15 };
 
 /* the default colour table, for VGA+ colour systems */
-int default_red[] = {0x00,0xaa,0x00,0xaa,0x00,0xaa,0x00,0xaa,
-    0x55,0xff,0x55,0xff,0x55,0xff,0x55,0xff};
-int default_grn[] = {0x00,0x00,0xaa,0x55,0x00,0x00,0xaa,0xaa,
-    0x55,0x55,0xff,0xff,0x55,0x55,0xff,0xff};
-int default_blu[] = {0x00,0x00,0x00,0x00,0xaa,0xaa,0xaa,0xaa,
-    0x55,0x55,0x55,0x55,0xff,0xff,0xff,0xff};
+unsigned char default_red[] = {
+	0x00, 0xaa, 0x00, 0xaa, 0x00, 0xaa, 0x00, 0xaa,
+	0x55, 0xff, 0x55, 0xff, 0x55, 0xff, 0x55, 0xff
+};
+module_param_array(default_red, byte, NULL, S_IRUGO | S_IWUSR);
 
-module_param_array(default_red, int, NULL, S_IRUGO | S_IWUSR);
-module_param_array(default_grn, int, NULL, S_IRUGO | S_IWUSR);
-module_param_array(default_blu, int, NULL, S_IRUGO | S_IWUSR);
+unsigned char default_grn[] = {
+	0x00, 0x00, 0xaa, 0x55, 0x00, 0x00, 0xaa, 0xaa,
+	0x55, 0x55, 0xff, 0xff, 0x55, 0x55, 0xff, 0xff
+};
+module_param_array(default_grn, byte, NULL, S_IRUGO | S_IWUSR);
+
+unsigned char default_blu[] = {
+	0x00, 0x00, 0x00, 0x00, 0xaa, 0xaa, 0xaa, 0xaa,
+	0x55, 0x55, 0x55, 0x55, 0xff, 0xff, 0xff, 0xff
+};
+module_param_array(default_blu, byte, NULL, S_IRUGO | S_IWUSR);
 
 /*
  * gotoxy() must verify all boundaries, because the arguments
@@ -3564,7 +3575,7 @@ static int do_register_con_driver(const struct consw *csw, int first, int last)
 	struct module *owner = csw->owner;
 	struct con_driver *con_driver;
 	const char *desc;
-	int i, retval = 0;
+	int i, retval;
 
 	WARN_CONSOLE_UNLOCKED();
 
@@ -3575,17 +3586,17 @@ static int do_register_con_driver(const struct consw *csw, int first, int last)
 		con_driver = &registered_con_driver[i];
 
 		/* already registered */
-		if (con_driver->con == csw)
+		if (con_driver->con == csw) {
 			retval = -EBUSY;
+			goto err;
+		}
 	}
 
-	if (retval)
-		goto err;
-
 	desc = csw->con_startup();
-
-	if (!desc)
+	if (!desc) {
+		retval = -ENODEV;
 		goto err;
+	}
 
 	retval = -EINVAL;
 

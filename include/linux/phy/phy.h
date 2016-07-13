@@ -77,6 +77,7 @@ struct phy {
  */
 struct phy_provider {
 	struct device		*dev;
+	struct device_node	*children;
 	struct module		*owner;
 	struct list_head	list;
 	struct phy * (*of_xlate)(struct device *dev,
@@ -93,10 +94,16 @@ struct phy_lookup {
 #define	to_phy(a)	(container_of((a), struct phy, dev))
 
 #define	of_phy_provider_register(dev, xlate)	\
-	__of_phy_provider_register((dev), THIS_MODULE, (xlate))
+	__of_phy_provider_register((dev), NULL, THIS_MODULE, (xlate))
 
 #define	devm_of_phy_provider_register(dev, xlate)	\
-	__devm_of_phy_provider_register((dev), THIS_MODULE, (xlate))
+	__devm_of_phy_provider_register((dev), NULL, THIS_MODULE, (xlate))
+
+#define of_phy_provider_register_full(dev, children, xlate) \
+	__of_phy_provider_register(dev, children, THIS_MODULE, xlate)
+
+#define devm_of_phy_provider_register_full(dev, children, xlate) \
+	__devm_of_phy_provider_register(dev, children, THIS_MODULE, xlate)
 
 static inline void phy_set_drvdata(struct phy *phy, void *data)
 {
@@ -147,11 +154,13 @@ struct phy *devm_phy_create(struct device *dev, struct device_node *node,
 void phy_destroy(struct phy *phy);
 void devm_phy_destroy(struct device *dev, struct phy *phy);
 struct phy_provider *__of_phy_provider_register(struct device *dev,
-	struct module *owner, struct phy * (*of_xlate)(struct device *dev,
-	struct of_phandle_args *args));
+	struct device_node *children, struct module *owner,
+	struct phy * (*of_xlate)(struct device *dev,
+				 struct of_phandle_args *args));
 struct phy_provider *__devm_of_phy_provider_register(struct device *dev,
-	struct module *owner, struct phy * (*of_xlate)(struct device *dev,
-	struct of_phandle_args *args));
+	struct device_node *children, struct module *owner,
+	struct phy * (*of_xlate)(struct device *dev,
+				 struct of_phandle_args *args));
 void of_phy_provider_unregister(struct phy_provider *phy_provider);
 void devm_of_phy_provider_unregister(struct device *dev,
 	struct phy_provider *phy_provider);
@@ -312,15 +321,17 @@ static inline void devm_phy_destroy(struct device *dev, struct phy *phy)
 }
 
 static inline struct phy_provider *__of_phy_provider_register(
-	struct device *dev, struct module *owner, struct phy * (*of_xlate)(
-	struct device *dev, struct of_phandle_args *args))
+	struct device *dev, struct device_node *children, struct module *owner,
+	struct phy * (*of_xlate)(struct device *dev,
+				 struct of_phandle_args *args))
 {
 	return ERR_PTR(-ENOSYS);
 }
 
 static inline struct phy_provider *__devm_of_phy_provider_register(struct device
-	*dev, struct module *owner, struct phy * (*of_xlate)(struct device *dev,
-	struct of_phandle_args *args))
+	*dev, struct device_node *children, struct module *owner,
+	struct phy * (*of_xlate)(struct device *dev,
+				 struct of_phandle_args *args))
 {
 	return ERR_PTR(-ENOSYS);
 }

@@ -1925,24 +1925,11 @@ static int virtnet_probe(struct virtio_device *vdev)
 
 	virtio_device_ready(vdev);
 
-	/* Last of all, set up some receive buffers. */
-	for (i = 0; i < vi->curr_queue_pairs; i++) {
-		try_fill_recv(vi, &vi->rq[i], GFP_KERNEL);
-
-		/* If we didn't even get one input buffer, we're useless. */
-		if (vi->rq[i].vq->num_free ==
-		    virtqueue_get_vring_size(vi->rq[i].vq)) {
-			free_unused_bufs(vi);
-			err = -ENOMEM;
-			goto free_recv_bufs;
-		}
-	}
-
 	vi->nb.notifier_call = &virtnet_cpu_callback;
 	err = register_hotcpu_notifier(&vi->nb);
 	if (err) {
 		pr_debug("virtio_net: registering cpu notifier failed\n");
-		goto free_recv_bufs;
+		goto free_unregister_netdev;
 	}
 
 	/* Assume link up if device can't report link status,
@@ -1960,10 +1947,9 @@ static int virtnet_probe(struct virtio_device *vdev)
 
 	return 0;
 
-free_recv_bufs:
+free_unregister_netdev:
 	vi->vdev->config->reset(vdev);
 
-	free_receive_bufs(vi);
 	unregister_netdev(dev);
 free_vqs:
 	cancel_delayed_work_sync(&vi->refill);

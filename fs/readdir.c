@@ -35,13 +35,13 @@ int iterate_dir(struct file *file, struct dir_context *ctx)
 	if (res)
 		goto out;
 
-	if (shared)
+	if (shared) {
 		inode_lock_shared(inode);
-	else
-		inode_lock(inode);
-	// res = mutex_lock_killable(&inode->i_mutex);
-	// if (res)
-	//	goto out;
+	} else {
+		res = down_write_killable(&inode->i_rwsem);
+		if (res)
+			goto out;
+	}
 
 	res = -ENOENT;
 	if (!IS_DEADDIR(inode)) {
@@ -182,6 +182,8 @@ static int filldir(struct dir_context *ctx, const char *name, int namlen,
 	}
 	dirent = buf->previous;
 	if (dirent) {
+		if (signal_pending(current))
+			return -EINTR;
 		if (__put_user(offset, &dirent->d_off))
 			goto efault;
 	}
@@ -261,6 +263,8 @@ static int filldir64(struct dir_context *ctx, const char *name, int namlen,
 		return -EINVAL;
 	dirent = buf->previous;
 	if (dirent) {
+		if (signal_pending(current))
+			return -EINTR;
 		if (__put_user(offset, &dirent->d_off))
 			goto efault;
 	}

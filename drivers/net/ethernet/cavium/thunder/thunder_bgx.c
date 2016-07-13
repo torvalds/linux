@@ -274,11 +274,13 @@ static void bgx_sgmii_change_link_state(struct lmac *lmac)
 static void bgx_lmac_handler(struct net_device *netdev)
 {
 	struct lmac *lmac = container_of(netdev, struct lmac, netdev);
-	struct phy_device *phydev = lmac->phydev;
+	struct phy_device *phydev;
 	int link_changed = 0;
 
 	if (!lmac)
 		return;
+
+	phydev = lmac->phydev;
 
 	if (!phydev->link && lmac->last_link)
 		link_changed = -1;

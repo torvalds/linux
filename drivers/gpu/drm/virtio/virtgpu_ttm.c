@@ -426,6 +426,8 @@ static struct ttm_bo_driver virtio_gpu_bo_driver = {
 	.io_mem_free = &virtio_gpu_ttm_io_mem_free,
 	.move_notify = &virtio_gpu_bo_move_notify,
 	.swap_notify = &virtio_gpu_bo_swap_notify,
+	.lru_tail = &ttm_bo_default_lru_tail,
+	.swap_lru_tail = &ttm_bo_default_swap_lru_tail,
 };
 
 int virtio_gpu_ttm_init(struct virtio_gpu_device *vgdev)

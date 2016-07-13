@@ -21,6 +21,7 @@
 &mmc {
 	status = "okay";
 	num-slots = <1>;
+	cap-sd-highspeed;
 	broken-cd;
 	bus-width = <4>;
 };

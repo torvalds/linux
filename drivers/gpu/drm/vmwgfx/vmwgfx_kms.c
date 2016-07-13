@@ -98,7 +98,7 @@ int vmw_cursor_update_dmabuf(struct vmw_private *dev_priv,
 	kmap_offset = 0;
 	kmap_num = (width*height*4 + PAGE_SIZE - 1) >> PAGE_SHIFT;
 
-	ret = ttm_bo_reserve(&dmabuf->base, true, false, false, NULL);
+	ret = ttm_bo_reserve(&dmabuf->base, true, false, NULL);
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("reserve failed\n");
 		return -EINVAL;
@@ -318,7 +318,7 @@ void vmw_kms_cursor_snoop(struct vmw_surface *srf,
 	kmap_offset = cmd->dma.guest.ptr.offset >> PAGE_SHIFT;
 	kmap_num = (64*64*4) >> PAGE_SHIFT;
 
-	ret = ttm_bo_reserve(bo, true, false, false, NULL);
+	ret = ttm_bo_reserve(bo, true, false, NULL);
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("reserve failed\n");
 		return;
@@ -1859,7 +1859,7 @@ int vmw_kms_helper_buffer_prepare(struct vmw_private *dev_priv,
 	struct ttm_buffer_object *bo = &buf->base;
 	int ret;
 
-	ttm_bo_reserve(bo, false, false, interruptible, NULL);
+	ttm_bo_reserve(bo, false, false, NULL);
 	ret = vmw_validate_single_buffer(dev_priv, bo, interruptible,
 					 validate_as_mob);
 	if (ret)
@@ -2143,13 +2143,13 @@ int vmw_kms_fbdev_init_data(struct vmw_private *dev_priv,
 void vmw_kms_del_active(struct vmw_private *dev_priv,
 			struct vmw_display_unit *du)
 {
-	lockdep_assert_held_once(&dev_priv->dev->mode_config.mutex);
-
+	mutex_lock(&dev_priv->global_kms_state_mutex);
 	if (du->active_implicit) {
 		if (--(dev_priv->num_implicit) == 0)
 			dev_priv->implicit_fb = NULL;
 		du->active_implicit = false;
 	}
+	mutex_unlock(&dev_priv->global_kms_state_mutex);
 }
 
 /**
@@ -2165,8 +2165,7 @@ void vmw_kms_add_active(struct vmw_private *dev_priv,
 			struct vmw_display_unit *du,
 			struct vmw_framebuffer *vfb)
 {
-	lockdep_assert_held_once(&dev_priv->dev->mode_config.mutex);
-
+	mutex_lock(&dev_priv->global_kms_state_mutex);
 	WARN_ON_ONCE(!dev_priv->num_implicit && dev_priv->implicit_fb);
 
 	if (!du->active_implicit && du->is_implicit) {
@@ -2174,6 +2173,7 @@ void vmw_kms_add_active(struct vmw_private *dev_priv,
 		du->active_implicit = true;
 		dev_priv->num_implicit++;
 	}
+	mutex_unlock(&dev_priv->global_kms_state_mutex);
 }
 
 /**
@@ -2190,16 +2190,13 @@ bool vmw_kms_crtc_flippable(struct vmw_private *dev_priv,
 			    struct drm_crtc *crtc)
 {
 	struct vmw_display_unit *du = vmw_crtc_to_du(crtc);
+	bool ret;
 
-	lockdep_assert_held_once(&dev_priv->dev->mode_config.mutex);
+	mutex_lock(&dev_priv->global_kms_state_mutex);
+	ret = !du->is_implicit || dev_priv->num_implicit == 1;
+	mutex_unlock(&dev_priv->global_kms_state_mutex);
 
-	if (!du->is_implicit)
-		return true;
-
-	if (dev_priv->num_implicit != 1)
-		return false;
-
-	return true;
+	return ret;
 }
 
 /**
@@ -2214,16 +2211,18 @@ void vmw_kms_update_implicit_fb(struct vmw_private *dev_priv,
 	struct vmw_display_unit *du = vmw_crtc_to_du(crtc);
 	struct vmw_framebuffer *vfb;
 
-	lockdep_assert_held_once(&dev_priv->dev->mode_config.mutex);
+	mutex_lock(&dev_priv->global_kms_state_mutex);
 
 	if (!du->is_implicit)
-		return;
+		goto out_unlock;
 
 	vfb = vmw_framebuffer_to_vfb(crtc->primary->fb);
 	WARN_ON_ONCE(dev_priv->num_implicit != 1 &&
 		     dev_priv->implicit_fb != vfb);
 
 	dev_priv->implicit_fb = vfb;
+out_unlock:
+	mutex_unlock(&dev_priv->global_kms_state_mutex);
 }
 
 /**

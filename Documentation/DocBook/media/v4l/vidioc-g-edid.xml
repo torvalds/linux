@@ -1,6 +1,6 @@
 <refentry id="vidioc-g-edid">
   <refmeta>
-    <refentrytitle>ioctl VIDIOC_G_EDID, VIDIOC_S_EDID</refentrytitle>
+    <refentrytitle>ioctl VIDIOC_G_EDID, VIDIOC_S_EDID, VIDIOC_SUBDEV_G_EDID, VIDIOC_SUBDEV_S_EDID</refentrytitle>
     &manvol;
   </refmeta>
 
@@ -71,7 +71,8 @@
 
     <para>To get the EDID data the application has to fill in the <structfield>pad</structfield>,
     <structfield>start_block</structfield>, <structfield>blocks</structfield> and <structfield>edid</structfield>
-    fields and call <constant>VIDIOC_G_EDID</constant>. The current EDID from block
+    fields, zero the <structfield>reserved</structfield> array and call
+    <constant>VIDIOC_G_EDID</constant>. The current EDID from block
     <structfield>start_block</structfield> and of size <structfield>blocks</structfield>
     will be placed in the memory <structfield>edid</structfield> points to. The <structfield>edid</structfield>
     pointer must point to memory at least <structfield>blocks</structfield>&nbsp;*&nbsp;128 bytes
@@ -92,8 +93,9 @@
     the driver will set <structfield>blocks</structfield> to 0 and it returns 0.</para>
 
     <para>To set the EDID blocks of a receiver the application has to fill in the <structfield>pad</structfield>,
-    <structfield>blocks</structfield> and <structfield>edid</structfield> fields and set
-    <structfield>start_block</structfield> to 0. It is not possible to set part of an EDID,
+    <structfield>blocks</structfield> and <structfield>edid</structfield> fields, set
+    <structfield>start_block</structfield> to 0 and zero the <structfield>reserved</structfield> array.
+    It is not possible to set part of an EDID,
     it is always all or nothing. Setting the EDID data is only valid for receivers as it makes
     no sense for a transmitter.</para>
 

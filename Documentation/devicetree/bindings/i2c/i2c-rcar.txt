@@ -19,6 +19,9 @@ Optional properties:
 - clock-frequency: desired I2C bus clock frequency in Hz. The absence of this
   property indicates the default frequency 100 kHz.
 - clocks: clock specifier.
+- dmas: Must contain a list of two references to DMA specifiers, one for
+  transmission, and one for reception.
+- dma-names: Must contain a list of two DMA names, "tx" and "rx".
 
 - i2c-scl-falling-time-ns: see i2c.txt
 - i2c-scl-internal-delay-ns: see i2c.txt

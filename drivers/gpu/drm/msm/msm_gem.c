@@ -21,6 +21,7 @@
 #include <linux/pfn_t.h>
 
 #include "msm_drv.h"
+#include "msm_fence.h"
 #include "msm_gem.h"
 #include "msm_gpu.h"
 #include "msm_mmu.h"
@@ -373,7 +374,7 @@ int msm_gem_dumb_map_offset(struct drm_file *file, struct drm_device *dev,
 	int ret = 0;
 
 	/* GEM does all our handle to object mapping */
-	obj = drm_gem_object_lookup(dev, file, handle);
+	obj = drm_gem_object_lookup(file, handle);
 	if (obj == NULL) {
 		ret = -ENOENT;
 		goto fail;
@@ -397,6 +398,8 @@ void *msm_gem_vaddr_locked(struct drm_gem_object *obj)
 			return ERR_CAST(pages);
 		msm_obj->vaddr = vmap(pages, obj->size >> PAGE_SHIFT,
 				VM_MAP, pgprot_writecombine(PAGE_KERNEL));
+		if (msm_obj->vaddr == NULL)
+			return ERR_PTR(-ENOMEM);
 	}
 	return msm_obj->vaddr;
 }
@@ -410,27 +413,62 @@ void *msm_gem_vaddr(struct drm_gem_object *obj)
 	return ret;
 }
 
-/* setup callback for when bo is no longer busy..
- * TODO probably want to differentiate read vs write..
- */
-int msm_gem_queue_inactive_cb(struct drm_gem_object *obj,
-		struct msm_fence_cb *cb)
+/* must be called before _move_to_active().. */
+int msm_gem_sync_object(struct drm_gem_object *obj,
+		struct msm_fence_context *fctx, bool exclusive)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
-	uint32_t fence = msm_gem_fence(msm_obj,
-			MSM_PREP_READ | MSM_PREP_WRITE);
-	return msm_queue_fence_cb(obj->dev, cb, fence);
+	struct reservation_object_list *fobj;
+	struct fence *fence;
+	int i, ret;
+
+	if (!exclusive) {
+		/* NOTE: _reserve_shared() must happen before _add_shared_fence(),
+		 * which makes this a slightly strange place to call it.  OTOH this
+		 * is a convenient can-fail point to hook it in.  (And similar to
+		 * how etnaviv and nouveau handle this.)
+		 */
+		ret = reservation_object_reserve_shared(msm_obj->resv);
+		if (ret)
+			return ret;
+	}
+
+	fobj = reservation_object_get_list(msm_obj->resv);
+	if (!fobj || (fobj->shared_count == 0)) {
+		fence = reservation_object_get_excl(msm_obj->resv);
+		/* don't need to wait on our own fences, since ring is fifo */
+		if (fence && (fence->context != fctx->context)) {
+			ret = fence_wait(fence, true);
+			if (ret)
+				return ret;
+		}
+	}
+
+	if (!exclusive || !fobj)
+		return 0;
+
+	for (i = 0; i < fobj->shared_count; i++) {
+		fence = rcu_dereference_protected(fobj->shared[i],
+						reservation_object_held(msm_obj->resv));
+		if (fence->context != fctx->context) {
+			ret = fence_wait(fence, true);
+			if (ret)
+				return ret;
+		}
+	}
+
+	return 0;
 }
 
 void msm_gem_move_to_active(struct drm_gem_object *obj,
-		struct msm_gpu *gpu, bool write, uint32_t fence)
+		struct msm_gpu *gpu, bool exclusive, struct fence *fence)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 	msm_obj->gpu = gpu;
-	if (write)
-		msm_obj->write_fence = fence;
+	if (exclusive)
+		reservation_object_add_excl_fence(msm_obj->resv, fence);
 	else
-		msm_obj->read_fence = fence;
+		reservation_object_add_shared_fence(msm_obj->resv, fence);
 	list_del_init(&msm_obj->mm_list);
 	list_add_tail(&msm_obj->mm_list, &gpu->active_list);
 }
@@ -444,30 +482,30 @@ void msm_gem_move_to_inactive(struct drm_gem_object *obj)
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
 	msm_obj->gpu = NULL;
-	msm_obj->read_fence = 0;
-	msm_obj->write_fence = 0;
 	list_del_init(&msm_obj->mm_list);
 	list_add_tail(&msm_obj->mm_list, &priv->inactive_list);
 }
 
 int msm_gem_cpu_prep(struct drm_gem_object *obj, uint32_t op, ktime_t *timeout)
 {
-	struct drm_device *dev = obj->dev;
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
-	int ret = 0;
+	bool write = !!(op & MSM_PREP_WRITE);
 
-	if (is_active(msm_obj)) {
-		uint32_t fence = msm_gem_fence(msm_obj, op);
+	if (op & MSM_PREP_NOSYNC) {
+		if (!reservation_object_test_signaled_rcu(msm_obj->resv, write))
+			return -EBUSY;
+	} else {
+		int ret;
 
-		if (op & MSM_PREP_NOSYNC)
-			timeout = NULL;
-
-		ret = msm_wait_fence(dev, fence, timeout, true);
+		ret = reservation_object_wait_timeout_rcu(msm_obj->resv, write,
+				true, timeout_to_jiffies(timeout));
+		if (ret <= 0)
+			return ret == 0 ? -ETIMEDOUT : ret;
 	}
 
 	/* TODO cache maintenance */
 
-	return ret;
+	return 0;
 }
 
 int msm_gem_cpu_fini(struct drm_gem_object *obj)
@@ -477,18 +515,46 @@ int msm_gem_cpu_fini(struct drm_gem_object *obj)
 }
 
 #ifdef CONFIG_DEBUG_FS
+static void describe_fence(struct fence *fence, const char *type,
+		struct seq_file *m)
+{
+	if (!fence_is_signaled(fence))
+		seq_printf(m, "\t%9s: %s %s seq %u\n", type,
+				fence->ops->get_driver_name(fence),
+				fence->ops->get_timeline_name(fence),
+				fence->seqno);
+}
+
 void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 {
-	struct drm_device *dev = obj->dev;
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+	struct reservation_object *robj = msm_obj->resv;
+	struct reservation_object_list *fobj;
+	struct fence *fence;
 	uint64_t off = drm_vma_node_start(&obj->vma_node);
 
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
-	seq_printf(m, "%08x: %c(r=%u,w=%u) %2d (%2d) %08llx %p %zu\n",
+	WARN_ON(!mutex_is_locked(&obj->dev->struct_mutex));
+
+	seq_printf(m, "%08x: %c %2d (%2d) %08llx %p %zu\n",
 			msm_obj->flags, is_active(msm_obj) ? 'A' : 'I',
-			msm_obj->read_fence, msm_obj->write_fence,
 			obj->name, obj->refcount.refcount.counter,
 			off, msm_obj->vaddr, obj->size);
+
+	rcu_read_lock();
+	fobj = rcu_dereference(robj->fence);
+	if (fobj) {
+		unsigned int i, shared_count = fobj->shared_count;
+
+		for (i = 0; i < shared_count; i++) {
+			fence = rcu_dereference(fobj->shared[i]);
+			describe_fence(fence, "Shared", m);
+		}
+	}
+
+	fence = rcu_dereference(robj->fence_excl);
+	if (fence)
+		describe_fence(fence, "Exclusive", m);
+	rcu_read_unlock();
 }
 
 void msm_gem_describe_objects(struct list_head *list, struct seq_file *m)
@@ -583,6 +649,7 @@ int msm_gem_new_handle(struct drm_device *dev, struct drm_file *file,
 
 static int msm_gem_new_impl(struct drm_device *dev,
 		uint32_t size, uint32_t flags,
+		struct reservation_object *resv,
 		struct drm_gem_object **obj)
 {
 	struct msm_drm_private *priv = dev->dev_private;
@@ -622,8 +689,12 @@ static int msm_gem_new_impl(struct drm_device *dev,
 
 	msm_obj->flags = flags;
 
-	msm_obj->resv = &msm_obj->_resv;
-	reservation_object_init(msm_obj->resv);
+	if (resv) {
+		msm_obj->resv = resv;
+	} else {
+		msm_obj->resv = &msm_obj->_resv;
+		reservation_object_init(msm_obj->resv);
+	}
 
 	INIT_LIST_HEAD(&msm_obj->submit_entry);
 	list_add_tail(&msm_obj->mm_list, &priv->inactive_list);
@@ -643,7 +714,7 @@ struct drm_gem_object *msm_gem_new(struct drm_device *dev,
 
 	size = PAGE_ALIGN(size);
 
-	ret = msm_gem_new_impl(dev, size, flags, &obj);
+	ret = msm_gem_new_impl(dev, size, flags, NULL, &obj);
 	if (ret)
 		goto fail;
 
@@ -665,10 +736,11 @@ fail:
 }
 
 struct drm_gem_object *msm_gem_import(struct drm_device *dev,
-		uint32_t size, struct sg_table *sgt)
+		struct dma_buf *dmabuf, struct sg_table *sgt)
 {
 	struct msm_gem_object *msm_obj;
 	struct drm_gem_object *obj;
+	uint32_t size;
 	int ret, npages;
 
 	/* if we don't have IOMMU, don't bother pretending we can import: */
@@ -677,9 +749,9 @@ struct drm_gem_object *msm_gem_import(struct drm_device *dev,
 		return ERR_PTR(-EINVAL);
 	}
 
-	size = PAGE_ALIGN(size);
+	size = PAGE_ALIGN(dmabuf->size);
 
-	ret = msm_gem_new_impl(dev, size, MSM_BO_WC, &obj);
+	ret = msm_gem_new_impl(dev, size, MSM_BO_WC, dmabuf->resv, &obj);
 	if (ret)
 		goto fail;
 

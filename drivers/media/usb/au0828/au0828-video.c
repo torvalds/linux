@@ -679,8 +679,6 @@ int au0828_v4l2_device_register(struct usb_interface *interface,
 	if (retval) {
 		pr_err("%s() v4l2_device_register failed\n",
 		       __func__);
-		mutex_unlock(&dev->lock);
-		kfree(dev);
 		return retval;
 	}
 
@@ -691,8 +689,6 @@ int au0828_v4l2_device_register(struct usb_interface *interface,
 	if (retval) {
 		pr_err("%s() v4l2_ctrl_handler_init failed\n",
 		       __func__);
-		mutex_unlock(&dev->lock);
-		kfree(dev);
 		return retval;
 	}
 	dev->v4l2_dev.ctrl_handler = &dev->v4l2_ctrl_hdl;

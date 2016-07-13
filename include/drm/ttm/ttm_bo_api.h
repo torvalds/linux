@@ -314,7 +314,7 @@ ttm_bo_reference(struct ttm_buffer_object *bo)
  * Returns -EBUSY if no_wait is true and the buffer is busy.
  * Returns -ERESTARTSYS if interrupted by a signal.
  */
-extern int ttm_bo_wait(struct ttm_buffer_object *bo, bool lazy,
+extern int ttm_bo_wait(struct ttm_buffer_object *bo,
 		       bool interruptible, bool no_wait);
 /**
  * ttm_bo_validate

@@ -52,13 +52,6 @@ static void dbg_hcs_params(struct ehci_hcd *ehci, char *label)
 		ehci_dbg(ehci, "%s portroute %s\n", label, buf);
 	}
 }
-#else
-
-static inline void dbg_hcs_params(struct ehci_hcd *ehci, char *label) {}
-
-#endif
-
-#ifdef CONFIG_DYNAMIC_DEBUG
 
 /*
  * check the values in the HCCPARAMS register
@@ -92,13 +85,6 @@ static void dbg_hcc_params(struct ehci_hcd *ehci, char *label)
 				" 32 periodic list" : "");
 	}
 }
-#else
-
-static inline void dbg_hcc_params(struct ehci_hcd *ehci, char *label) {}
-
-#endif
-
-#ifdef CONFIG_DYNAMIC_DEBUG
 
 static void __maybe_unused
 dbg_qtd(const char *label, struct ehci_hcd *ehci, struct ehci_qtd *qtd)
@@ -281,37 +267,6 @@ dbg_port_buf(char *buf, unsigned len, const char *label, int port, u32 status)
 		(status & PORT_CONNECT) ? " CONNECT" : "");
 }
 
-#else
-static inline void __maybe_unused
-dbg_qh(char *label, struct ehci_hcd *ehci, struct ehci_qh *qh)
-{}
-
-static inline int __maybe_unused
-dbg_status_buf(char *buf, unsigned len, const char *label, u32 status)
-{
-	return 0;
-}
-
-static inline int __maybe_unused
-dbg_command_buf(char *buf, unsigned len, const char *label, u32 command)
-{
-	return 0;
-}
-
-static inline int __maybe_unused
-dbg_intr_buf(char *buf, unsigned len, const char *label, u32 enable)
-{
-	return 0;
-}
-
-static inline int __maybe_unused
-dbg_port_buf(char *buf, unsigned len, const char *label, int port, u32 status)
-{
-	return 0;
-}
-
-#endif	/* CONFIG_DYNAMIC_DEBUG */
-
 static inline void
 dbg_status(struct ehci_hcd *ehci, const char *label, u32 status)
 {
@@ -340,13 +295,6 @@ dbg_port(struct ehci_hcd *ehci, const char *label, int port, u32 status)
 }
 
 /*-------------------------------------------------------------------------*/
-
-#ifndef CONFIG_DYNAMIC_DEBUG
-
-static inline void create_debug_files(struct ehci_hcd *bus) { }
-static inline void remove_debug_files(struct ehci_hcd *bus) { }
-
-#else
 
 /* troubleshooting help: expose state in debugfs */
 
@@ -1119,5 +1067,39 @@ static inline void remove_debug_files(struct ehci_hcd *ehci)
 {
 	debugfs_remove_recursive(ehci->debug_dir);
 }
+
+#else /* CONFIG_DYNAMIC_DEBUG */
+
+static inline void dbg_hcs_params(struct ehci_hcd *ehci, char *label) { }
+static inline void dbg_hcc_params(struct ehci_hcd *ehci, char *label) { }
+
+static inline void __maybe_unused dbg_qh(const char *label,
+		struct ehci_hcd *ehci, struct ehci_qh *qh) { }
+
+static inline int __maybe_unused dbg_status_buf(const char *buf,
+		unsigned int len, const char *label, u32 status)
+{ return 0; }
+
+static inline int __maybe_unused dbg_command_buf(const char *buf,
+		unsigned int len, const char *label, u32 command)
+{ return 0; }
+
+static inline int __maybe_unused dbg_intr_buf(const char *buf,
+		unsigned int len, const char *label, u32 enable)
+{ return 0; }
+
+static inline int __maybe_unused dbg_port_buf(char *buf,
+		unsigned int len, const char *label, int port, u32 status)
+{ return 0; }
+
+static inline void dbg_status(struct ehci_hcd *ehci, const char *label,
+		u32 status) { }
+static inline void dbg_cmd(struct ehci_hcd *ehci, const char *label,
+		u32 command) { }
+static inline void dbg_port(struct ehci_hcd *ehci, const char *label,
+		int port, u32 status) { }
+
+static inline void create_debug_files(struct ehci_hcd *bus) { }
+static inline void remove_debug_files(struct ehci_hcd *bus) { }
 
 #endif /* CONFIG_DYNAMIC_DEBUG */

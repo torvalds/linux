@@ -69,6 +69,11 @@
 	};
 };
 
+&nfc {
+	assigned-clocks = <&clks VF610_CLK_NFC>;
+	assigned-clock-rates = <33000000>;
+};
+
 &iomuxc {
 	vf610-colibri {
 		pinctrl_touchctrl_idle: touchctrl_idle {

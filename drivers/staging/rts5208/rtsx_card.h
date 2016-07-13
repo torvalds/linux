@@ -1024,8 +1024,6 @@ int detect_card_cd(struct rtsx_chip *chip, int card);
 int check_card_exist(struct rtsx_chip *chip, unsigned int lun);
 int check_card_ready(struct rtsx_chip *chip, unsigned int lun);
 int check_card_wp(struct rtsx_chip *chip, unsigned int lun);
-int check_card_fail(struct rtsx_chip *chip, unsigned int lun);
-int check_card_ejected(struct rtsx_chip *chip, unsigned int lun);
 void eject_card(struct rtsx_chip *chip, unsigned int lun);
 u8 get_lun_card(struct rtsx_chip *chip, unsigned int lun);
 

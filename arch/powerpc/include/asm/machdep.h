@@ -256,6 +256,7 @@ struct machdep_calls {
 #ifdef CONFIG_ARCH_RANDOM
 	int (*get_random_seed)(unsigned long *v);
 #endif
+	int (*update_partition_table)(u64);
 };
 
 extern void e500_idle(void);

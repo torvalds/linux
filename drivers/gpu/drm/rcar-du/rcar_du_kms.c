@@ -283,7 +283,8 @@ static void rcar_du_atomic_work(struct work_struct *work)
 }
 
 static int rcar_du_atomic_commit(struct drm_device *dev,
-				 struct drm_atomic_state *state, bool async)
+				 struct drm_atomic_state *state,
+				 bool nonblock)
 {
 	struct rcar_du_device *rcdu = dev->dev_private;
 	struct rcar_du_commit *commit;
@@ -328,7 +329,7 @@ static int rcar_du_atomic_commit(struct drm_device *dev,
 	/* Swap the state, this is the point of no return. */
 	drm_atomic_helper_swap_state(dev, state);
 
-	if (async)
+	if (nonblock)
 		schedule_work(&commit->work);
 	else
 		rcar_du_atomic_complete(commit);

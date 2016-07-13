@@ -335,15 +335,15 @@ static int geneve_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 
 	/* Need Geneve and inner Ethernet header to be present */
 	if (unlikely(!pskb_may_pull(skb, GENEVE_BASE_HLEN)))
-		goto error;
+		goto drop;
 
 	/* Return packets with reserved bits set */
 	geneveh = geneve_hdr(skb);
 	if (unlikely(geneveh->ver != GENEVE_VER))
-		goto error;
+		goto drop;
 
 	if (unlikely(geneveh->proto_type != htons(ETH_P_TEB)))
-		goto error;
+		goto drop;
 
 	gs = rcu_dereference_sk_user_data(sk);
 	if (!gs)
@@ -366,10 +366,6 @@ drop:
 	/* Consume bad packet */
 	kfree_skb(skb);
 	return 0;
-
-error:
-	/* Let the UDP layer deal with the skb */
-	return 1;
 }
 
 static struct socket *geneve_create_sock(struct net *net, bool ipv6,

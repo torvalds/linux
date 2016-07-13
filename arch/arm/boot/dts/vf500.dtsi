@@ -81,6 +81,7 @@
 				compatible = "arm,cortex-a5-pmu";
 				interrupts = <7 IRQ_TYPE_LEVEL_HIGH>;
 				interrupt-affinity = <&a5_cpu>;
+				reg = <0x40089000 0x1000>;
 			};
 		};
 

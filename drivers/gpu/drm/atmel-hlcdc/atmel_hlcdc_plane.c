@@ -37,6 +37,7 @@
  * @xstride: value to add to the pixel pointer between each line
  * @pstride: value to add to the pixel pointer between each pixel
  * @nplanes: number of planes (deduced from pixel_format)
+ * @prepared: plane update has been prepared
  */
 struct atmel_hlcdc_plane_state {
 	struct drm_plane_state base;
@@ -58,12 +59,15 @@ struct atmel_hlcdc_plane_state {
 	int disc_w;
 	int disc_h;
 
+	int ahb_id;
+
 	/* These fields are private and should not be touched */
 	int bpp[ATMEL_HLCDC_MAX_PLANES];
 	unsigned int offsets[ATMEL_HLCDC_MAX_PLANES];
 	int xstride[ATMEL_HLCDC_MAX_PLANES];
 	int pstride[ATMEL_HLCDC_MAX_PLANES];
 	int nplanes;
+	bool prepared;
 };
 
 static inline struct atmel_hlcdc_plane_state *
@@ -335,6 +339,8 @@ atmel_hlcdc_plane_update_pos_and_size(struct atmel_hlcdc_plane *plane,
 
 		atmel_hlcdc_layer_update_cfg(&plane->layer, 13, 0xffffffff,
 					     factor_reg);
+	} else {
+		atmel_hlcdc_layer_update_cfg(&plane->layer, 13, 0xffffffff, 0);
 	}
 }
 
@@ -359,8 +365,10 @@ atmel_hlcdc_plane_update_general_settings(struct atmel_hlcdc_plane *plane,
 
 	atmel_hlcdc_layer_update_cfg(&plane->layer,
 				     ATMEL_HLCDC_LAYER_DMA_CFG_ID,
-				     ATMEL_HLCDC_LAYER_DMA_BLEN_MASK,
-				     ATMEL_HLCDC_LAYER_DMA_BLEN_INCR16);
+				     ATMEL_HLCDC_LAYER_DMA_BLEN_MASK |
+				     ATMEL_HLCDC_LAYER_DMA_SIF,
+				     ATMEL_HLCDC_LAYER_DMA_BLEN_INCR16 |
+				     state->ahb_id);
 
 	atmel_hlcdc_layer_update_cfg(&plane->layer, layout->general_config,
 				     ATMEL_HLCDC_LAYER_ITER2BL |
@@ -433,6 +441,41 @@ static void atmel_hlcdc_plane_update_buffers(struct atmel_hlcdc_plane *plane,
 						state->pstride[i]);
 		}
 	}
+}
+
+int atmel_hlcdc_plane_prepare_ahb_routing(struct drm_crtc_state *c_state)
+{
+	unsigned int ahb_load[2] = { };
+	struct drm_plane *plane;
+
+	drm_atomic_crtc_state_for_each_plane(plane, c_state) {
+		struct atmel_hlcdc_plane_state *plane_state;
+		struct drm_plane_state *plane_s;
+		unsigned int pixels, load = 0;
+		int i;
+
+		plane_s = drm_atomic_get_plane_state(c_state->state, plane);
+		if (IS_ERR(plane_s))
+			return PTR_ERR(plane_s);
+
+		plane_state =
+			drm_plane_state_to_atmel_hlcdc_plane_state(plane_s);
+
+		pixels = (plane_state->src_w * plane_state->src_h) -
+			 (plane_state->disc_w * plane_state->disc_h);
+
+		for (i = 0; i < plane_state->nplanes; i++)
+			load += pixels * plane_state->bpp[i];
+
+		if (ahb_load[0] <= ahb_load[1])
+			plane_state->ahb_id = 0;
+		else
+			plane_state->ahb_id = 1;
+
+		ahb_load[plane_state->ahb_id] += load;
+	}
+
+	return 0;
 }
 
 int
@@ -714,12 +757,54 @@ static int atmel_hlcdc_plane_atomic_check(struct drm_plane *p,
 static int atmel_hlcdc_plane_prepare_fb(struct drm_plane *p,
 					const struct drm_plane_state *new_state)
 {
+	/*
+	 * FIXME: we should avoid this const -> non-const cast but it's
+	 * currently the only solution we have to modify the ->prepared
+	 * state and rollback the update request.
+	 * Ideally, we should rework the code to attach all the resources
+	 * to atmel_hlcdc_plane_state (including the DMA desc allocation),
+	 * but this require a complete rework of the atmel_hlcdc_layer
+	 * code.
+	 */
+	struct drm_plane_state *s = (struct drm_plane_state *)new_state;
 	struct atmel_hlcdc_plane *plane = drm_plane_to_atmel_hlcdc_plane(p);
+	struct atmel_hlcdc_plane_state *state =
+			drm_plane_state_to_atmel_hlcdc_plane_state(s);
+	int ret;
 
-	if (!new_state->fb)
-		return 0;
+	ret = atmel_hlcdc_layer_update_start(&plane->layer);
+	if (!ret)
+		state->prepared = true;
 
-	return atmel_hlcdc_layer_update_start(&plane->layer);
+	return ret;
+}
+
+static void atmel_hlcdc_plane_cleanup_fb(struct drm_plane *p,
+				const struct drm_plane_state *old_state)
+{
+	/*
+	 * FIXME: we should avoid this const -> non-const cast but it's
+	 * currently the only solution we have to modify the ->prepared
+	 * state and rollback the update request.
+	 * Ideally, we should rework the code to attach all the resources
+	 * to atmel_hlcdc_plane_state (including the DMA desc allocation),
+	 * but this require a complete rework of the atmel_hlcdc_layer
+	 * code.
+	 */
+	struct drm_plane_state *s = (struct drm_plane_state *)old_state;
+	struct atmel_hlcdc_plane *plane = drm_plane_to_atmel_hlcdc_plane(p);
+	struct atmel_hlcdc_plane_state *state =
+			drm_plane_state_to_atmel_hlcdc_plane_state(s);
+
+	/*
+	 * The Request has already been applied or cancelled, nothing to do
+	 * here.
+	 */
+	if (!state->prepared)
+		return;
+
+	atmel_hlcdc_layer_update_rollback(&plane->layer);
+	state->prepared = false;
 }
 
 static void atmel_hlcdc_plane_atomic_update(struct drm_plane *p,
@@ -844,6 +929,7 @@ static void atmel_hlcdc_plane_init_properties(struct atmel_hlcdc_plane *plane,
 
 static struct drm_plane_helper_funcs atmel_hlcdc_layer_plane_helper_funcs = {
 	.prepare_fb = atmel_hlcdc_plane_prepare_fb,
+	.cleanup_fb = atmel_hlcdc_plane_cleanup_fb,
 	.atomic_check = atmel_hlcdc_plane_atomic_check,
 	.atomic_update = atmel_hlcdc_plane_atomic_update,
 	.atomic_disable = atmel_hlcdc_plane_atomic_disable,
@@ -883,6 +969,7 @@ atmel_hlcdc_plane_atomic_duplicate_state(struct drm_plane *p)
 		return NULL;
 
 	copy->disc_updated = false;
+	copy->prepared = false;
 
 	if (copy->base.fb)
 		drm_framebuffer_reference(copy->base.fb);

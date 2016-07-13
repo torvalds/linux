@@ -3286,10 +3286,8 @@ static void rt5645_jack_detect_work(struct work_struct *work)
 		if (btn_type == 0)/* button release */
 			report =  rt5645->jack_type;
 		else {
-			if (rt5645->pdata.jd_invert) {
-				mod_timer(&rt5645->btn_check_timer,
-					msecs_to_jiffies(100));
-			}
+			mod_timer(&rt5645->btn_check_timer,
+				msecs_to_jiffies(100));
 		}
 
 		break;
@@ -3557,6 +3555,12 @@ static const struct dmi_system_id dmi_platform_intel_braswell[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "GOOGLE"),
 		},
 	},
+	{
+		.ident = "Google Setzer",
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "Setzer"),
+		},
+	},
 	{ }
 };
 
@@ -3810,9 +3814,9 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 	if (rt5645->pdata.jd_invert) {
 		regmap_update_bits(rt5645->regmap, RT5645_IRQ_CTRL2,
 			RT5645_JD_1_1_MASK, RT5645_JD_1_1_INV);
-		setup_timer(&rt5645->btn_check_timer,
-			rt5645_btn_check_callback, (unsigned long)rt5645);
 	}
+	setup_timer(&rt5645->btn_check_timer,
+		rt5645_btn_check_callback, (unsigned long)rt5645);
 
 	INIT_DELAYED_WORK(&rt5645->jack_detect_work, rt5645_jack_detect_work);
 	INIT_DELAYED_WORK(&rt5645->rcclock_work, rt5645_rcclock_work);

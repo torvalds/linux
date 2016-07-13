@@ -1058,7 +1058,8 @@ static int adi_pinctrl_probe(struct platform_device *pdev)
 	adi_pinmux_desc.npins = pinctrl->soc->npins;
 
 	/* Now register the pin controller and all pins it handles */
-	pinctrl->pctl = pinctrl_register(&adi_pinmux_desc, &pdev->dev, pinctrl);
+	pinctrl->pctl = devm_pinctrl_register(&pdev->dev, &adi_pinmux_desc,
+					      pinctrl);
 	if (IS_ERR(pinctrl->pctl)) {
 		dev_err(&pdev->dev, "could not register pinctrl ADI2 driver\n");
 		return PTR_ERR(pinctrl->pctl);
@@ -1069,18 +1070,8 @@ static int adi_pinctrl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int adi_pinctrl_remove(struct platform_device *pdev)
-{
-	struct adi_pinctrl *pinctrl = platform_get_drvdata(pdev);
-
-	pinctrl_unregister(pinctrl->pctl);
-
-	return 0;
-}
-
 static struct platform_driver adi_pinctrl_driver = {
 	.probe		= adi_pinctrl_probe,
-	.remove		= adi_pinctrl_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 	},

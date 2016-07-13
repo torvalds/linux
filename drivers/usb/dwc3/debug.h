@@ -217,11 +217,11 @@ static inline const char *dwc3_gadget_event_type_string(u8 event)
 void dwc3_trace(void (*trace)(struct va_format *), const char *fmt, ...);
 
 #ifdef CONFIG_DEBUG_FS
-extern int dwc3_debugfs_init(struct dwc3 *);
+extern void dwc3_debugfs_init(struct dwc3 *);
 extern void dwc3_debugfs_exit(struct dwc3 *);
 #else
-static inline int dwc3_debugfs_init(struct dwc3 *d)
-{  return 0;  }
+static inline void dwc3_debugfs_init(struct dwc3 *d)
+{  }
 static inline void dwc3_debugfs_exit(struct dwc3 *d)
 {  }
 #endif

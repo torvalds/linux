@@ -202,7 +202,7 @@ static void sti_atomic_work(struct work_struct *work)
 }
 
 static int sti_atomic_commit(struct drm_device *drm,
-			     struct drm_atomic_state *state, bool async)
+			     struct drm_atomic_state *state, bool nonblock)
 {
 	struct sti_private *private = drm->dev_private;
 	int err;
@@ -211,7 +211,7 @@ static int sti_atomic_commit(struct drm_device *drm,
 	if (err)
 		return err;
 
-	/* serialize outstanding asynchronous commits */
+	/* serialize outstanding nonblocking commits */
 	mutex_lock(&private->commit.lock);
 	flush_work(&private->commit.work);
 
@@ -223,7 +223,7 @@ static int sti_atomic_commit(struct drm_device *drm,
 
 	drm_atomic_helper_swap_state(drm, state);
 
-	if (async)
+	if (nonblock)
 		sti_atomic_schedule(private, state);
 	else
 		sti_atomic_complete(private, state);

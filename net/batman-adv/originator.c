@@ -619,6 +619,8 @@ batadv_neigh_node_new(struct batadv_orig_node *orig_node,
 	struct batadv_neigh_node *neigh_node;
 	struct batadv_hardif_neigh_node *hardif_neigh = NULL;
 
+	spin_lock_bh(&orig_node->neigh_list_lock);
+
 	neigh_node = batadv_neigh_node_get(orig_node, hard_iface, neigh_addr);
 	if (neigh_node)
 		goto out;
@@ -650,15 +652,15 @@ batadv_neigh_node_new(struct batadv_orig_node *orig_node,
 	kref_init(&neigh_node->refcount);
 	kref_get(&neigh_node->refcount);
 
-	spin_lock_bh(&orig_node->neigh_list_lock);
 	hlist_add_head_rcu(&neigh_node->list, &orig_node->neigh_list);
-	spin_unlock_bh(&orig_node->neigh_list_lock);
 
 	batadv_dbg(BATADV_DBG_BATMAN, orig_node->bat_priv,
 		   "Creating new neighbor %pM for orig_node %pM on interface %s\n",
 		   neigh_addr, orig_node->orig, hard_iface->net_dev->name);
 
 out:
+	spin_unlock_bh(&orig_node->neigh_list_lock);
+
 	if (hardif_neigh)
 		batadv_hardif_neigh_put(hardif_neigh);
 	return neigh_node;

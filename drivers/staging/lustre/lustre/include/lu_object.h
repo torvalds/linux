@@ -198,7 +198,6 @@ typedef int (*lu_printer_t)(const struct lu_env *env,
  * Operations specific for particular lu_object.
  */
 struct lu_object_operations {
-
 	/**
 	 * Allocate lower-layer parts of the object by calling
 	 * lu_device_operations::ldo_object_alloc() of the corresponding
@@ -656,21 +655,21 @@ static inline struct seq_server_site *lu_site2seq(const struct lu_site *s)
  * @{
  */
 
-int  lu_site_init	 (struct lu_site *s, struct lu_device *d);
-void lu_site_fini	 (struct lu_site *s);
-int  lu_site_init_finish  (struct lu_site *s);
-void lu_stack_fini	(const struct lu_env *env, struct lu_device *top);
-void lu_device_get	(struct lu_device *d);
-void lu_device_put	(struct lu_device *d);
-int  lu_device_init       (struct lu_device *d, struct lu_device_type *t);
-void lu_device_fini       (struct lu_device *d);
-int  lu_object_header_init(struct lu_object_header *h);
+int lu_site_init(struct lu_site *s, struct lu_device *d);
+void lu_site_fini(struct lu_site *s);
+int lu_site_init_finish(struct lu_site *s);
+void lu_stack_fini(const struct lu_env *env, struct lu_device *top);
+void lu_device_get(struct lu_device *d);
+void lu_device_put(struct lu_device *d);
+int lu_device_init(struct lu_device *d, struct lu_device_type *t);
+void lu_device_fini(struct lu_device *d);
+int lu_object_header_init(struct lu_object_header *h);
 void lu_object_header_fini(struct lu_object_header *h);
-int  lu_object_init       (struct lu_object *o,
-			   struct lu_object_header *h, struct lu_device *d);
-void lu_object_fini       (struct lu_object *o);
-void lu_object_add_top    (struct lu_object_header *h, struct lu_object *o);
-void lu_object_add	(struct lu_object *before, struct lu_object *o);
+int lu_object_init(struct lu_object *o,
+		   struct lu_object_header *h, struct lu_device *d);
+void lu_object_fini(struct lu_object *o);
+void lu_object_add_top(struct lu_object_header *h, struct lu_object *o);
+void lu_object_add(struct lu_object *before, struct lu_object *o);
 
 /**
  * Helpers to initialize and finalize device types.
@@ -781,9 +780,8 @@ int lu_cdebug_printer(const struct lu_env *env,
  */
 #define LU_OBJECT_DEBUG(mask, env, object, format, ...)		   \
 do {								      \
-	LIBCFS_DEBUG_MSG_DATA_DECL(msgdata, mask, NULL);		  \
-									  \
 	if (cfs_cdebug_show(mask, DEBUG_SUBSYSTEM)) {		     \
+		LIBCFS_DEBUG_MSG_DATA_DECL(msgdata, mask, NULL);		\
 		lu_object_print(env, &msgdata, lu_cdebug_printer, object);\
 		CDEBUG(mask, format, ## __VA_ARGS__);		    \
 	}								 \
@@ -794,9 +792,8 @@ do {								      \
  */
 #define LU_OBJECT_HEADER(mask, env, object, format, ...)		\
 do {								    \
-	LIBCFS_DEBUG_MSG_DATA_DECL(msgdata, mask, NULL);		\
-									\
 	if (cfs_cdebug_show(mask, DEBUG_SUBSYSTEM)) {		   \
+		LIBCFS_DEBUG_MSG_DATA_DECL(msgdata, mask, NULL);		\
 		lu_object_header_print(env, &msgdata, lu_cdebug_printer,\
 				       (object)->lo_header);	    \
 		lu_cdebug_printer(env, &msgdata, "\n");		 \
@@ -1007,6 +1004,10 @@ enum lu_context_tag {
 	 */
 	LCT_LOCAL = 1 << 7,
 	/**
+	 * session for server thread
+	 **/
+	LCT_SERVER_SESSION = BIT(8),
+	/**
 	 * Set when at least one of keys, having values in this context has
 	 * non-NULL lu_context_key::lct_exit() method. This is used to
 	 * optimize lu_context_exit() call.
@@ -1118,7 +1119,7 @@ struct lu_context_key {
 	{							 \
 		type *value;				      \
 								  \
-		CLASSERT(PAGE_SIZE >= sizeof (*value));       \
+		CLASSERT(PAGE_SIZE >= sizeof(*value));        \
 								  \
 		value = kzalloc(sizeof(*value), GFP_NOFS);	\
 		if (!value)				\
@@ -1154,12 +1155,12 @@ do {						    \
 	(key)->lct_owner = THIS_MODULE;		 \
 } while (0)
 
-int   lu_context_key_register(struct lu_context_key *key);
-void  lu_context_key_degister(struct lu_context_key *key);
-void *lu_context_key_get     (const struct lu_context *ctx,
-			       const struct lu_context_key *key);
-void  lu_context_key_quiesce (struct lu_context_key *key);
-void  lu_context_key_revive  (struct lu_context_key *key);
+int lu_context_key_register(struct lu_context_key *key);
+void lu_context_key_degister(struct lu_context_key *key);
+void *lu_context_key_get(const struct lu_context *ctx,
+			 const struct lu_context_key *key);
+void lu_context_key_quiesce(struct lu_context_key *key);
+void lu_context_key_revive(struct lu_context_key *key);
 
 /*
  * LU_KEY_INIT_GENERIC() has to be a macro to correctly determine an
@@ -1216,21 +1217,21 @@ void  lu_context_key_revive  (struct lu_context_key *key);
 	LU_TYPE_START(mod, __VA_ARGS__);	\
 	LU_TYPE_STOP(mod, __VA_ARGS__)
 
-int   lu_context_init  (struct lu_context *ctx, __u32 tags);
-void  lu_context_fini  (struct lu_context *ctx);
-void  lu_context_enter (struct lu_context *ctx);
-void  lu_context_exit  (struct lu_context *ctx);
-int   lu_context_refill(struct lu_context *ctx);
+int lu_context_init(struct lu_context *ctx, __u32 tags);
+void lu_context_fini(struct lu_context *ctx);
+void lu_context_enter(struct lu_context *ctx);
+void lu_context_exit(struct lu_context *ctx);
+int lu_context_refill(struct lu_context *ctx);
 
 /*
  * Helper functions to operate on multiple keys. These are used by the default
  * device type operations, defined by LU_TYPE_INIT_FINI().
  */
 
-int  lu_context_key_register_many(struct lu_context_key *k, ...);
+int lu_context_key_register_many(struct lu_context_key *k, ...);
 void lu_context_key_degister_many(struct lu_context_key *k, ...);
-void lu_context_key_revive_many  (struct lu_context_key *k, ...);
-void lu_context_key_quiesce_many (struct lu_context_key *k, ...);
+void lu_context_key_revive_many(struct lu_context_key *k, ...);
+void lu_context_key_quiesce_many(struct lu_context_key *k, ...);
 
 /**
  * Environment.
@@ -1246,9 +1247,9 @@ struct lu_env {
 	struct lu_context *le_ses;
 };
 
-int  lu_env_init  (struct lu_env *env, __u32 tags);
-void lu_env_fini  (struct lu_env *env);
-int  lu_env_refill(struct lu_env *env);
+int lu_env_init(struct lu_env *env, __u32 tags);
+void lu_env_fini(struct lu_env *env);
+int lu_env_refill(struct lu_env *env);
 
 /** @} lu_context */
 

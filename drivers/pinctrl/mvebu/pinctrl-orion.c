@@ -239,18 +239,12 @@ static int orion_pinctrl_probe(struct platform_device *pdev)
 	return mvebu_pinctrl_probe(pdev);
 }
 
-static int orion_pinctrl_remove(struct platform_device *pdev)
-{
-	return mvebu_pinctrl_remove(pdev);
-}
-
 static struct platform_driver orion_pinctrl_driver = {
 	.driver = {
 		.name = "orion-pinctrl",
 		.of_match_table = of_match_ptr(orion_pinctrl_of_match),
 	},
 	.probe = orion_pinctrl_probe,
-	.remove = orion_pinctrl_remove,
 };
 
 module_platform_driver(orion_pinctrl_driver);

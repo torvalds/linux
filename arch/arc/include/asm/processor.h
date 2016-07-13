@@ -57,9 +57,19 @@ struct task_struct;
  * A lot of busy-wait loops in SMP are based off of non-volatile data otherwise
  * get optimised away by gcc
  */
-#define cpu_relax()	__asm__ __volatile__ ("" : : : "memory")
+#ifndef CONFIG_EZNPS_MTM_EXT
 
-#define cpu_relax_lowlatency() cpu_relax()
+#define cpu_relax()		barrier()
+#define cpu_relax_lowlatency()	cpu_relax()
+
+#else
+
+#define cpu_relax()     \
+	__asm__ __volatile__ (".word %0" : : "i"(CTOP_INST_SCHD_RW) : "memory")
+
+#define cpu_relax_lowlatency()	barrier()
+
+#endif
 
 #define copy_segments(tsk, mm)      do { } while (0)
 #define release_segments(mm)        do { } while (0)
@@ -68,7 +78,7 @@ struct task_struct;
 #define KSTK_ESP(tsk)   (task_pt_regs(tsk)->sp)
 
 /*
- * Where abouts of Task's sp, fp, blink when it was last seen in kernel mode.
+ * Where about of Task's sp, fp, blink when it was last seen in kernel mode.
  * Look in process.c for details of kernel stack layout
  */
 #define TSK_K_ESP(tsk)		(tsk->thread.ksp)
@@ -97,7 +107,7 @@ extern unsigned int get_wchan(struct task_struct *p);
 #endif /* !__ASSEMBLY__ */
 
 /*
- * System Memory Map on ARC
+ * Default System Memory Map on ARC
  *
  * ---------------------------- (lower 2G, Translated) -------------------------
  * 0x0000_0000		0x5FFF_FFFF	(user vaddr: TASK_SIZE)
@@ -109,20 +119,37 @@ extern unsigned int get_wchan(struct task_struct *p);
  * 0xC000_0000		0xFFFF_FFFF	(peripheral uncached space)
  * -----------------------------------------------------------------------------
  */
-#define VMALLOC_START	0x70000000
 
-/*
- * 1 PGDIR_SIZE each for fixmap/pkmap, 2 PGDIR_SIZE gutter
- * See asm/highmem.h for details
- */
-#define VMALLOC_SIZE	(PAGE_OFFSET - VMALLOC_START - PGDIR_SIZE * 4)
+#define TASK_SIZE	0x60000000
+
+#define VMALLOC_START	(PAGE_OFFSET - (CONFIG_ARC_KVADDR_SIZE << 20))
+
+/* 1 PGDIR_SIZE each for fixmap/pkmap, 2 PGDIR_SIZE gutter (see asm/highmem.h) */
+#define VMALLOC_SIZE	((CONFIG_ARC_KVADDR_SIZE << 20) - PGDIR_SIZE * 4)
+
 #define VMALLOC_END	(VMALLOC_START + VMALLOC_SIZE)
 
-#define USER_KERNEL_GUTTER    0x10000000
+#define USER_KERNEL_GUTTER    (VMALLOC_START - TASK_SIZE)
 
-#define TASK_SIZE	(VMALLOC_START - USER_KERNEL_GUTTER)
-
+#ifdef CONFIG_ARC_PLAT_EZNPS
+/* NPS architecture defines special window of 129M in user address space for
+ * special memory areas, when accessing this window the MMU do not use TLB.
+ * Instead MMU direct the access to:
+ * 0x57f00000:0x57ffffff -- 1M of closely coupled memory (aka CMEM)
+ * 0x58000000:0x5fffffff -- 16 huge pages, 8M each, with fixed map (aka FMTs)
+ *
+ * CMEM - is the fastest memory we got and its size is 16K.
+ * FMT  - is used to map either to internal/external memory.
+ * Internal memory is the second fast memory and its size is 16M
+ * External memory is the biggest memory (16G) and also the slowest.
+ *
+ * STACK_TOP need to be PMD align (21bit) that is why we supply 0x57e00000.
+ */
+#define STACK_TOP       0x57e00000
+#else
 #define STACK_TOP       TASK_SIZE
+#endif
+
 #define STACK_TOP_MAX   STACK_TOP
 
 /* This decides where the kernel will search for a free chunk of vm

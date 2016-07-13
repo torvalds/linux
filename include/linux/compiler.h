@@ -357,6 +357,10 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
 #define __deprecated_for_modules
 #endif
 
+#ifndef __malloc
+#define __malloc
+#endif
+
 /*
  * Allow us to avoid 'defined but not used' warnings on functions and data,
  * as well as force them to be emitted to the assembly file.

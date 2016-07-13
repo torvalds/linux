@@ -19,8 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/efi.h>
-#include <linux/verify_pefile.h>
-#include <keys/system_keyring.h>
+#include <linux/verification.h>
 
 #include <asm/bootparam.h>
 #include <asm/setup.h>
@@ -529,18 +528,9 @@ static int bzImage64_cleanup(void *loader_data)
 #ifdef CONFIG_KEXEC_BZIMAGE_VERIFY_SIG
 static int bzImage64_verify_sig(const char *kernel, unsigned long kernel_len)
 {
-	bool trusted;
-	int ret;
-
-	ret = verify_pefile_signature(kernel, kernel_len,
-				      system_trusted_keyring,
-				      VERIFYING_KEXEC_PE_SIGNATURE,
-				      &trusted);
-	if (ret < 0)
-		return ret;
-	if (!trusted)
-		return -EKEYREJECTED;
-	return 0;
+	return verify_pefile_signature(kernel, kernel_len,
+				       NULL,
+				       VERIFYING_KEXEC_PE_SIGNATURE);
 }
 #endif
 

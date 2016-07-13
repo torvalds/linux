@@ -111,7 +111,7 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		spin_lock_irqsave(&dgnc_global_lock, flags);
 
 		memset(&ddi, 0, sizeof(ddi));
-		ddi.dinfo_nboards = dgnc_NumBoards;
+		ddi.dinfo_nboards = dgnc_num_boards;
 		sprintf(ddi.dinfo_version, "%s", DG_PART);
 
 		spin_unlock_irqrestore(&dgnc_global_lock, flags);
@@ -131,27 +131,27 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (copy_from_user(&brd, uarg, sizeof(int)))
 			return -EFAULT;
 
-		if (brd < 0 || brd >= dgnc_NumBoards)
+		if (brd < 0 || brd >= dgnc_num_boards)
 			return -ENODEV;
 
 		memset(&di, 0, sizeof(di));
 
 		di.info_bdnum = brd;
 
-		spin_lock_irqsave(&dgnc_Board[brd]->bd_lock, flags);
+		spin_lock_irqsave(&dgnc_board[brd]->bd_lock, flags);
 
-		di.info_bdtype = dgnc_Board[brd]->dpatype;
-		di.info_bdstate = dgnc_Board[brd]->dpastatus;
+		di.info_bdtype = dgnc_board[brd]->dpatype;
+		di.info_bdstate = dgnc_board[brd]->dpastatus;
 		di.info_ioport = 0;
-		di.info_physaddr = (ulong)dgnc_Board[brd]->membase;
-		di.info_physsize = (ulong)dgnc_Board[brd]->membase
-			- dgnc_Board[brd]->membase_end;
-		if (dgnc_Board[brd]->state != BOARD_FAILED)
-			di.info_nports = dgnc_Board[brd]->nasync;
+		di.info_physaddr = (ulong)dgnc_board[brd]->membase;
+		di.info_physsize = (ulong)dgnc_board[brd]->membase
+			- dgnc_board[brd]->membase_end;
+		if (dgnc_board[brd]->state != BOARD_FAILED)
+			di.info_nports = dgnc_board[brd]->nasync;
 		else
 			di.info_nports = 0;
 
-		spin_unlock_irqrestore(&dgnc_Board[brd]->bd_lock, flags);
+		spin_unlock_irqrestore(&dgnc_board[brd]->bd_lock, flags);
 
 		if (copy_to_user(uarg, &di, sizeof(di)))
 			return -EFAULT;
@@ -174,14 +174,14 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		channel = ni.channel;
 
 		/* Verify boundaries on board */
-		if (board >= dgnc_NumBoards)
+		if (board >= dgnc_num_boards)
 			return -ENODEV;
 
 		/* Verify boundaries on channel */
-		if (channel >= dgnc_Board[board]->nasync)
+		if (channel >= dgnc_board[board]->nasync)
 			return -ENODEV;
 
-		ch = dgnc_Board[board]->channels[channel];
+		ch = dgnc_board[board]->channels[channel];
 
 		if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
 			return -ENODEV;

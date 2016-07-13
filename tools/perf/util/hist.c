@@ -117,6 +117,13 @@ void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 			hists__new_col_len(hists, HISTC_SYMBOL_TO, symlen);
 			hists__set_unres_dso_col_len(hists, HISTC_DSO_TO);
 		}
+
+		if (h->branch_info->srcline_from)
+			hists__new_col_len(hists, HISTC_SRCLINE_FROM,
+					strlen(h->branch_info->srcline_from));
+		if (h->branch_info->srcline_to)
+			hists__new_col_len(hists, HISTC_SRCLINE_TO,
+					strlen(h->branch_info->srcline_to));
 	}
 
 	if (h->mem_info) {
@@ -1042,6 +1049,8 @@ void hist_entry__delete(struct hist_entry *he)
 	if (he->branch_info) {
 		map__zput(he->branch_info->from.map);
 		map__zput(he->branch_info->to.map);
+		free_srcline(he->branch_info->srcline_from);
+		free_srcline(he->branch_info->srcline_to);
 		zfree(&he->branch_info);
 	}
 

@@ -85,7 +85,6 @@ extern struct configfs_attribute *passthrough_attrib_attrs[];
 void	*transport_kmap_data_sg(struct se_cmd *);
 void	transport_kunmap_data_sg(struct se_cmd *);
 /* core helpers also used by xcopy during internal command setup */
-int	target_alloc_sgl(struct scatterlist **, unsigned int *, u32, bool);
 sense_reason_t	transport_generic_map_mem_to_cmd(struct se_cmd *,
 		struct scatterlist *, u32, struct scatterlist *, u32);
 

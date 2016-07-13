@@ -324,7 +324,12 @@ static int adis_self_test(struct adis *adis)
 
 	msleep(adis->data->startup_delay);
 
-	return adis_check_status(adis);
+	ret = adis_check_status(adis);
+
+	if (adis->data->self_test_no_autoclear)
+		adis_write_reg_16(adis, adis->data->msc_ctrl_reg, 0x00);
+
+	return ret;
 }
 
 /**

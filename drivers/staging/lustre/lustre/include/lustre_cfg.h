@@ -161,7 +161,7 @@ static inline void *lustre_cfg_buf(struct lustre_cfg *lcfg, int index)
 	int offset;
 	int bufcount;
 
-	LASSERT (index >= 0);
+	LASSERT(index >= 0);
 
 	bufcount = lcfg->lcfg_bufcount;
 	if (index >= bufcount)

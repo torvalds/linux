@@ -50,12 +50,6 @@ input</refpurpose>
   <refsect1>
     <title>Description</title>
 
-    <note>
-      <title>Experimental</title>
-      <para>This is an <link linkend="experimental"> experimental </link>
-      interface and may change in the future.</para>
-    </note>
-
     <para>The hardware may be able to detect the current DV timings
 automatically, similar to sensing the video standard. To do so, applications
 call <constant>VIDIOC_QUERY_DV_TIMINGS</constant> with a pointer to a

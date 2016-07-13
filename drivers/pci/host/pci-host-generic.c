@@ -25,41 +25,12 @@
 #include <linux/of_pci.h>
 #include <linux/platform_device.h>
 
-#include "pci-host-common.h"
+#include "../ecam.h"
 
-static void __iomem *gen_pci_map_cfg_bus_cam(struct pci_bus *bus,
-					     unsigned int devfn,
-					     int where)
-{
-	struct gen_pci *pci = bus->sysdata;
-	resource_size_t idx = bus->number - pci->cfg.bus_range->start;
-
-	return pci->cfg.win[idx] + ((devfn << 8) | where);
-}
-
-static struct gen_pci_cfg_bus_ops gen_pci_cfg_cam_bus_ops = {
+static struct pci_ecam_ops gen_pci_cfg_cam_bus_ops = {
 	.bus_shift	= 16,
-	.ops		= {
-		.map_bus	= gen_pci_map_cfg_bus_cam,
-		.read		= pci_generic_config_read,
-		.write		= pci_generic_config_write,
-	}
-};
-
-static void __iomem *gen_pci_map_cfg_bus_ecam(struct pci_bus *bus,
-					      unsigned int devfn,
-					      int where)
-{
-	struct gen_pci *pci = bus->sysdata;
-	resource_size_t idx = bus->number - pci->cfg.bus_range->start;
-
-	return pci->cfg.win[idx] + ((devfn << 12) | where);
-}
-
-static struct gen_pci_cfg_bus_ops gen_pci_cfg_ecam_bus_ops = {
-	.bus_shift	= 20,
-	.ops		= {
-		.map_bus	= gen_pci_map_cfg_bus_ecam,
+	.pci_ops	= {
+		.map_bus	= pci_ecam_map_bus,
 		.read		= pci_generic_config_read,
 		.write		= pci_generic_config_write,
 	}
@@ -70,25 +41,22 @@ static const struct of_device_id gen_pci_of_match[] = {
 	  .data = &gen_pci_cfg_cam_bus_ops },
 
 	{ .compatible = "pci-host-ecam-generic",
-	  .data = &gen_pci_cfg_ecam_bus_ops },
+	  .data = &pci_generic_ecam_ops },
 
 	{ },
 };
+
 MODULE_DEVICE_TABLE(of, gen_pci_of_match);
 
 static int gen_pci_probe(struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
 	const struct of_device_id *of_id;
-	struct gen_pci *pci = devm_kzalloc(dev, sizeof(*pci), GFP_KERNEL);
+	struct pci_ecam_ops *ops;
 
-	if (!pci)
-		return -ENOMEM;
+	of_id = of_match_node(gen_pci_of_match, pdev->dev.of_node);
+	ops = (struct pci_ecam_ops *)of_id->data;
 
-	of_id = of_match_node(gen_pci_of_match, dev->of_node);
-	pci->cfg.ops = (struct gen_pci_cfg_bus_ops *)of_id->data;
-
-	return pci_host_common_probe(pdev, pci);
+	return pci_host_common_probe(pdev, ops);
 }
 
 static struct platform_driver gen_pci_driver = {

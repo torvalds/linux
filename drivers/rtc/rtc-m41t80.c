@@ -32,41 +32,42 @@
 #include <linux/watchdog.h>
 #endif
 
-#define M41T80_REG_SSEC	0
-#define M41T80_REG_SEC	1
-#define M41T80_REG_MIN	2
-#define M41T80_REG_HOUR	3
-#define M41T80_REG_WDAY	4
-#define M41T80_REG_DAY	5
-#define M41T80_REG_MON	6
-#define M41T80_REG_YEAR	7
-#define M41T80_REG_ALARM_MON	0xa
-#define M41T80_REG_ALARM_DAY	0xb
-#define M41T80_REG_ALARM_HOUR	0xc
-#define M41T80_REG_ALARM_MIN	0xd
-#define M41T80_REG_ALARM_SEC	0xe
-#define M41T80_REG_FLAGS	0xf
-#define M41T80_REG_SQW	0x13
+#define M41T80_REG_SSEC		0x00
+#define M41T80_REG_SEC		0x01
+#define M41T80_REG_MIN		0x02
+#define M41T80_REG_HOUR		0x03
+#define M41T80_REG_WDAY		0x04
+#define M41T80_REG_DAY		0x05
+#define M41T80_REG_MON		0x06
+#define M41T80_REG_YEAR		0x07
+#define M41T80_REG_ALARM_MON	0x0a
+#define M41T80_REG_ALARM_DAY	0x0b
+#define M41T80_REG_ALARM_HOUR	0x0c
+#define M41T80_REG_ALARM_MIN	0x0d
+#define M41T80_REG_ALARM_SEC	0x0e
+#define M41T80_REG_FLAGS	0x0f
+#define M41T80_REG_SQW		0x13
 
 #define M41T80_DATETIME_REG_SIZE	(M41T80_REG_YEAR + 1)
 #define M41T80_ALARM_REG_SIZE	\
 	(M41T80_REG_ALARM_SEC + 1 - M41T80_REG_ALARM_MON)
 
-#define M41T80_SEC_ST		(1 << 7)	/* ST: Stop Bit */
-#define M41T80_ALMON_AFE	(1 << 7)	/* AFE: AF Enable Bit */
-#define M41T80_ALMON_SQWE	(1 << 6)	/* SQWE: SQW Enable Bit */
-#define M41T80_ALHOUR_HT	(1 << 6)	/* HT: Halt Update Bit */
-#define M41T80_FLAGS_AF		(1 << 6)	/* AF: Alarm Flag Bit */
-#define M41T80_FLAGS_BATT_LOW	(1 << 4)	/* BL: Battery Low Bit */
-#define M41T80_WATCHDOG_RB2	(1 << 7)	/* RB: Watchdog resolution */
-#define M41T80_WATCHDOG_RB1	(1 << 1)	/* RB: Watchdog resolution */
-#define M41T80_WATCHDOG_RB0	(1 << 0)	/* RB: Watchdog resolution */
+#define M41T80_SEC_ST		BIT(7)	/* ST: Stop Bit */
+#define M41T80_ALMON_AFE	BIT(7)	/* AFE: AF Enable Bit */
+#define M41T80_ALMON_SQWE	BIT(6)	/* SQWE: SQW Enable Bit */
+#define M41T80_ALHOUR_HT	BIT(6)	/* HT: Halt Update Bit */
+#define M41T80_FLAGS_OF		BIT(2)	/* OF: Oscillator Failure Bit */
+#define M41T80_FLAGS_AF		BIT(6)	/* AF: Alarm Flag Bit */
+#define M41T80_FLAGS_BATT_LOW	BIT(4)	/* BL: Battery Low Bit */
+#define M41T80_WATCHDOG_RB2	BIT(7)	/* RB: Watchdog resolution */
+#define M41T80_WATCHDOG_RB1	BIT(1)	/* RB: Watchdog resolution */
+#define M41T80_WATCHDOG_RB0	BIT(0)	/* RB: Watchdog resolution */
 
-#define M41T80_FEATURE_HT	(1 << 0)	/* Halt feature */
-#define M41T80_FEATURE_BL	(1 << 1)	/* Battery low indicator */
-#define M41T80_FEATURE_SQ	(1 << 2)	/* Squarewave feature */
-#define M41T80_FEATURE_WD	(1 << 3)	/* Extra watchdog resolution */
-#define M41T80_FEATURE_SQ_ALT	(1 << 4)	/* RSx bits are in reg 4 */
+#define M41T80_FEATURE_HT	BIT(0)	/* Halt feature */
+#define M41T80_FEATURE_BL	BIT(1)	/* Battery low indicator */
+#define M41T80_FEATURE_SQ	BIT(2)	/* Squarewave feature */
+#define M41T80_FEATURE_WD	BIT(3)	/* Extra watchdog resolution */
+#define M41T80_FEATURE_SQ_ALT	BIT(4)	/* RSx bits are in reg 4 */
 
 static DEFINE_MUTEX(m41t80_rtc_mutex);
 static const struct i2c_device_id m41t80_id[] = {
@@ -90,27 +91,65 @@ struct m41t80_data {
 	struct rtc_device *rtc;
 };
 
+static irqreturn_t m41t80_handle_irq(int irq, void *dev_id)
+{
+	struct i2c_client *client = dev_id;
+	struct m41t80_data *m41t80 = i2c_get_clientdata(client);
+	struct mutex *lock = &m41t80->rtc->ops_lock;
+	unsigned long events = 0;
+	int flags, flags_afe;
+
+	mutex_lock(lock);
+
+	flags_afe = i2c_smbus_read_byte_data(client, M41T80_REG_ALARM_MON);
+	if (flags_afe < 0) {
+		mutex_unlock(lock);
+		return IRQ_NONE;
+	}
+
+	flags = i2c_smbus_read_byte_data(client, M41T80_REG_FLAGS);
+	if (flags <= 0) {
+		mutex_unlock(lock);
+		return IRQ_NONE;
+	}
+
+	if (flags & M41T80_FLAGS_AF) {
+		flags &= ~M41T80_FLAGS_AF;
+		flags_afe &= ~M41T80_ALMON_AFE;
+		events |= RTC_AF;
+	}
+
+	if (events) {
+		rtc_update_irq(m41t80->rtc, 1, events);
+		i2c_smbus_write_byte_data(client, M41T80_REG_FLAGS, flags);
+		i2c_smbus_write_byte_data(client, M41T80_REG_ALARM_MON,
+					  flags_afe);
+	}
+
+	mutex_unlock(lock);
+
+	return IRQ_HANDLED;
+}
+
 static int m41t80_get_datetime(struct i2c_client *client,
 			       struct rtc_time *tm)
 {
-	u8 buf[M41T80_DATETIME_REG_SIZE], dt_addr[1] = { M41T80_REG_SEC };
-	struct i2c_msg msgs[] = {
-		{
-			.addr	= client->addr,
-			.flags	= 0,
-			.len	= 1,
-			.buf	= dt_addr,
-		},
-		{
-			.addr	= client->addr,
-			.flags	= I2C_M_RD,
-			.len	= M41T80_DATETIME_REG_SIZE - M41T80_REG_SEC,
-			.buf	= buf + M41T80_REG_SEC,
-		},
-	};
+	unsigned char buf[8];
+	int err, flags;
 
-	if (i2c_transfer(client->adapter, msgs, 2) < 0) {
-		dev_err(&client->dev, "read error\n");
+	flags = i2c_smbus_read_byte_data(client, M41T80_REG_FLAGS);
+	if (flags < 0)
+		return flags;
+
+	if (flags & M41T80_FLAGS_OF) {
+		dev_err(&client->dev, "Oscillator failure, data is invalid.\n");
+		return -EINVAL;
+	}
+
+	err = i2c_smbus_read_i2c_block_data(client, M41T80_REG_SSEC,
+					    sizeof(buf), buf);
+	if (err < 0) {
+		dev_err(&client->dev, "Unable to read date\n");
 		return -EIO;
 	}
 
@@ -129,70 +168,42 @@ static int m41t80_get_datetime(struct i2c_client *client,
 /* Sets the given date and time to the real time clock. */
 static int m41t80_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 {
-	u8 wbuf[1 + M41T80_DATETIME_REG_SIZE];
-	u8 *buf = &wbuf[1];
-	u8 dt_addr[1] = { M41T80_REG_SEC };
-	struct i2c_msg msgs_in[] = {
-		{
-			.addr	= client->addr,
-			.flags	= 0,
-			.len	= 1,
-			.buf	= dt_addr,
-		},
-		{
-			.addr	= client->addr,
-			.flags	= I2C_M_RD,
-			.len	= M41T80_DATETIME_REG_SIZE - M41T80_REG_SEC,
-			.buf	= buf + M41T80_REG_SEC,
-		},
-	};
-	struct i2c_msg msgs[] = {
-		{
-			.addr	= client->addr,
-			.flags	= 0,
-			.len	= 1 + M41T80_DATETIME_REG_SIZE,
-			.buf	= wbuf,
-		 },
-	};
+	unsigned char buf[8];
+	int err, flags;
 
-	/* Read current reg values into buf[1..7] */
-	if (i2c_transfer(client->adapter, msgs_in, 2) < 0) {
-		dev_err(&client->dev, "read error\n");
-		return -EIO;
-	}
-
-	wbuf[0] = 0; /* offset into rtc's regs */
-	/* Merge time-data and register flags into buf[0..7] */
-	buf[M41T80_REG_SSEC] = 0;
-	buf[M41T80_REG_SEC] =
-		bin2bcd(tm->tm_sec) | (buf[M41T80_REG_SEC] & ~0x7f);
-	buf[M41T80_REG_MIN] =
-		bin2bcd(tm->tm_min) | (buf[M41T80_REG_MIN] & ~0x7f);
-	buf[M41T80_REG_HOUR] =
-		bin2bcd(tm->tm_hour) | (buf[M41T80_REG_HOUR] & ~0x3f);
-	buf[M41T80_REG_WDAY] =
-		(tm->tm_wday & 0x07) | (buf[M41T80_REG_WDAY] & ~0x07);
-	buf[M41T80_REG_DAY] =
-		bin2bcd(tm->tm_mday) | (buf[M41T80_REG_DAY] & ~0x3f);
-	buf[M41T80_REG_MON] =
-		bin2bcd(tm->tm_mon + 1) | (buf[M41T80_REG_MON] & ~0x1f);
-
-	/* assume 20YY not 19YY */
-	if (tm->tm_year < 100 || tm->tm_year > 199) {
-		dev_err(&client->dev, "Year must be between 2000 and 2099. It's %d.\n",
-			tm->tm_year + 1900);
+	if (tm->tm_year < 100 || tm->tm_year > 199)
 		return -EINVAL;
-	}
-	buf[M41T80_REG_YEAR] = bin2bcd(tm->tm_year % 100);
 
-	if (i2c_transfer(client->adapter, msgs, 1) != 1) {
-		dev_err(&client->dev, "write error\n");
+	buf[M41T80_REG_SSEC] = 0;
+	buf[M41T80_REG_SEC] = bin2bcd(tm->tm_sec);
+	buf[M41T80_REG_MIN] = bin2bcd(tm->tm_min);
+	buf[M41T80_REG_HOUR] = bin2bcd(tm->tm_hour);
+	buf[M41T80_REG_DAY] = bin2bcd(tm->tm_mday);
+	buf[M41T80_REG_MON] = bin2bcd(tm->tm_mon + 1);
+	buf[M41T80_REG_YEAR] = bin2bcd(tm->tm_year - 100);
+	buf[M41T80_REG_WDAY] = tm->tm_wday;
+
+	err = i2c_smbus_write_i2c_block_data(client, M41T80_REG_SSEC,
+					     sizeof(buf), buf);
+	if (err < 0) {
+		dev_err(&client->dev, "Unable to write to date registers\n");
+		return err;
+	}
+
+	/* Clear the OF bit of Flags Register */
+	flags = i2c_smbus_read_byte_data(client, M41T80_REG_FLAGS);
+	if (flags < 0)
+		return flags;
+
+	if (i2c_smbus_write_byte_data(client, M41T80_REG_FLAGS,
+				      flags & ~M41T80_FLAGS_OF)) {
+		dev_err(&client->dev, "Unable to write flags register\n");
 		return -EIO;
 	}
-	return 0;
+
+	return err;
 }
 
-#if defined(CONFIG_RTC_INTF_PROC) || defined(CONFIG_RTC_INTF_PROC_MODULE)
 static int m41t80_rtc_proc(struct device *dev, struct seq_file *seq)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -206,9 +217,6 @@ static int m41t80_rtc_proc(struct device *dev, struct seq_file *seq)
 	}
 	return 0;
 }
-#else
-#define m41t80_rtc_proc NULL
-#endif
 
 static int m41t80_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
@@ -220,19 +228,117 @@ static int m41t80_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	return m41t80_set_datetime(to_i2c_client(dev), tm);
 }
 
-/*
- * XXX - m41t80 alarm functionality is reported broken.
- * until it is fixed, don't register alarm functions.
- */
+static int m41t80_alarm_irq_enable(struct device *dev, unsigned int enabled)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	int flags, retval;
+
+	flags = i2c_smbus_read_byte_data(client, M41T80_REG_ALARM_MON);
+	if (flags < 0)
+		return flags;
+
+	if (enabled)
+		flags |= M41T80_ALMON_AFE;
+	else
+		flags &= ~M41T80_ALMON_AFE;
+
+	retval = i2c_smbus_write_byte_data(client, M41T80_REG_ALARM_MON, flags);
+	if (retval < 0) {
+		dev_info(dev, "Unable to enable alarm IRQ %d\n", retval);
+		return retval;
+	}
+	return 0;
+}
+
+static int m41t80_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	u8 alarmvals[5];
+	int ret, err;
+
+	alarmvals[0] = bin2bcd(alrm->time.tm_mon + 1);
+	alarmvals[1] = bin2bcd(alrm->time.tm_mday);
+	alarmvals[2] = bin2bcd(alrm->time.tm_hour);
+	alarmvals[3] = bin2bcd(alrm->time.tm_min);
+	alarmvals[4] = bin2bcd(alrm->time.tm_sec);
+
+	/* Clear AF and AFE flags */
+	ret = i2c_smbus_read_byte_data(client, M41T80_REG_ALARM_MON);
+	if (ret < 0)
+		return ret;
+	err = i2c_smbus_write_byte_data(client, M41T80_REG_ALARM_MON,
+					ret & ~(M41T80_ALMON_AFE));
+	if (err < 0) {
+		dev_err(dev, "Unable to clear AFE bit\n");
+		return err;
+	}
+
+	ret = i2c_smbus_read_byte_data(client, M41T80_REG_FLAGS);
+	if (ret < 0)
+		return ret;
+
+	err = i2c_smbus_write_byte_data(client, M41T80_REG_FLAGS,
+					ret & ~(M41T80_FLAGS_AF));
+	if (err < 0) {
+		dev_err(dev, "Unable to clear AF bit\n");
+		return err;
+	}
+
+	/* Write the alarm */
+	err = i2c_smbus_write_i2c_block_data(client, M41T80_REG_ALARM_MON,
+					     5, alarmvals);
+	if (err)
+		return err;
+
+	/* Enable the alarm interrupt */
+	if (alrm->enabled) {
+		alarmvals[0] |= M41T80_ALMON_AFE;
+		err = i2c_smbus_write_byte_data(client, M41T80_REG_ALARM_MON,
+						alarmvals[0]);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static int m41t80_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	u8 alarmvals[5];
+	int flags, ret;
+
+	ret = i2c_smbus_read_i2c_block_data(client, M41T80_REG_ALARM_MON,
+					    5, alarmvals);
+	if (ret != 5)
+		return ret < 0 ? ret : -EIO;
+
+	flags = i2c_smbus_read_byte_data(client, M41T80_REG_FLAGS);
+	if (flags < 0)
+		return flags;
+
+	alrm->time.tm_sec  = bcd2bin(alarmvals[4] & 0x7f);
+	alrm->time.tm_min  = bcd2bin(alarmvals[3] & 0x7f);
+	alrm->time.tm_hour = bcd2bin(alarmvals[2] & 0x3f);
+	alrm->time.tm_wday = -1;
+	alrm->time.tm_mday = bcd2bin(alarmvals[1] & 0x3f);
+	alrm->time.tm_mon  = bcd2bin(alarmvals[0] & 0x3f);
+	alrm->time.tm_year = -1;
+
+	alrm->enabled = !!(alarmvals[0] & M41T80_ALMON_AFE);
+	alrm->pending = (flags & M41T80_FLAGS_AF) && alrm->enabled;
+
+	return 0;
+}
+
 static struct rtc_class_ops m41t80_rtc_ops = {
 	.read_time = m41t80_rtc_read_time,
 	.set_time = m41t80_rtc_set_time,
 	.proc = m41t80_rtc_proc,
 };
 
-#if defined(CONFIG_RTC_INTF_SYSFS) || defined(CONFIG_RTC_INTF_SYSFS_MODULE)
-static ssize_t m41t80_sysfs_show_flags(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t flags_show(struct device *dev,
+			  struct device_attribute *attr, char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	int val;
@@ -242,10 +348,10 @@ static ssize_t m41t80_sysfs_show_flags(struct device *dev,
 		return val;
 	return sprintf(buf, "%#x\n", val);
 }
-static DEVICE_ATTR(flags, S_IRUGO, m41t80_sysfs_show_flags, NULL);
+static DEVICE_ATTR_RO(flags);
 
-static ssize_t m41t80_sysfs_show_sqwfreq(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t sqwfreq_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct m41t80_data *clientdata = i2c_get_clientdata(client);
@@ -272,14 +378,19 @@ static ssize_t m41t80_sysfs_show_sqwfreq(struct device *dev,
 	}
 	return sprintf(buf, "%d\n", val);
 }
-static ssize_t m41t80_sysfs_set_sqwfreq(struct device *dev,
-				struct device_attribute *attr,
-				const char *buf, size_t count)
+
+static ssize_t sqwfreq_store(struct device *dev,
+			     struct device_attribute *attr,
+			     const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct m41t80_data *clientdata = i2c_get_clientdata(client);
 	int almon, sqw, reg_sqw, rc;
-	int val = simple_strtoul(buf, NULL, 0);
+	unsigned long val;
+
+	rc = kstrtoul(buf, 0, &val);
+	if (rc < 0)
+		return rc;
 
 	if (!(clientdata->features & M41T80_FEATURE_SQ))
 		return -EINVAL;
@@ -308,7 +419,7 @@ static ssize_t m41t80_sysfs_set_sqwfreq(struct device *dev,
 	sqw = (sqw & 0x0f) | (val << 4);
 
 	rc = i2c_smbus_write_byte_data(client, M41T80_REG_ALARM_MON,
-				      almon & ~M41T80_ALMON_SQWE);
+				       almon & ~M41T80_ALMON_SQWE);
 	if (rc < 0)
 		return rc;
 
@@ -318,34 +429,23 @@ static ssize_t m41t80_sysfs_set_sqwfreq(struct device *dev,
 			return rc;
 
 		rc = i2c_smbus_write_byte_data(client, M41T80_REG_ALARM_MON,
-					     almon | M41T80_ALMON_SQWE);
-		if (rc <0)
+					       almon | M41T80_ALMON_SQWE);
+		if (rc < 0)
 			return rc;
 	}
 	return count;
 }
-static DEVICE_ATTR(sqwfreq, S_IRUGO | S_IWUSR,
-		   m41t80_sysfs_show_sqwfreq, m41t80_sysfs_set_sqwfreq);
+static DEVICE_ATTR_RW(sqwfreq);
 
 static struct attribute *attrs[] = {
 	&dev_attr_flags.attr,
 	&dev_attr_sqwfreq.attr,
 	NULL,
 };
+
 static struct attribute_group attr_group = {
 	.attrs = attrs,
 };
-
-static int m41t80_sysfs_register(struct device *dev)
-{
-	return sysfs_create_group(&dev->kobj, &attr_group);
-}
-#else
-static int m41t80_sysfs_register(struct device *dev)
-{
-	return 0;
-}
-#endif
 
 #ifdef CONFIG_RTC_DRV_M41T80_WDT
 /*
@@ -394,7 +494,7 @@ static void wdt_ping(void)
 		/*
 		 * WDS = 1 (0x80), mulitplier = WD_TIMO, resolution = 1s (0x02)
 		 */
-		i2c_data[1] = wdt_margin<<2 | 0x82;
+		i2c_data[1] = wdt_margin << 2 | 0x82;
 
 	/*
 	 * M41T65 has three bits for watchdog resolution.  Don't set bit 7, as
@@ -636,49 +736,76 @@ static struct notifier_block wdt_notifier = {
  *
  *****************************************************************************
  */
+
+static void m41t80_remove_sysfs_group(void *_dev)
+{
+	struct device *dev = _dev;
+
+	sysfs_remove_group(&dev->kobj, &attr_group);
+}
+
 static int m41t80_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
+	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
 	int rc = 0;
 	struct rtc_device *rtc = NULL;
 	struct rtc_time tm;
-	struct m41t80_data *clientdata = NULL;
+	struct m41t80_data *m41t80_data = NULL;
 
-	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C
-				     | I2C_FUNC_SMBUS_BYTE_DATA))
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_I2C_BLOCK |
+				     I2C_FUNC_SMBUS_BYTE_DATA)) {
+		dev_err(&adapter->dev, "doesn't support I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_I2C_BLOCK\n");
 		return -ENODEV;
+	}
 
-	clientdata = devm_kzalloc(&client->dev, sizeof(*clientdata),
-				GFP_KERNEL);
-	if (!clientdata)
+	m41t80_data = devm_kzalloc(&client->dev, sizeof(*m41t80_data),
+				   GFP_KERNEL);
+	if (!m41t80_data)
 		return -ENOMEM;
 
-	clientdata->features = id->driver_data;
-	i2c_set_clientdata(client, clientdata);
+	m41t80_data->features = id->driver_data;
+	i2c_set_clientdata(client, m41t80_data);
+
+	if (client->irq > 0) {
+		rc = devm_request_threaded_irq(&client->dev, client->irq,
+					       NULL, m41t80_handle_irq,
+					       IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+					       "m41t80", client);
+		if (rc) {
+			dev_warn(&client->dev, "unable to request IRQ, alarms disabled\n");
+			client->irq = 0;
+		} else {
+			m41t80_rtc_ops.read_alarm = m41t80_read_alarm;
+			m41t80_rtc_ops.set_alarm = m41t80_set_alarm;
+			m41t80_rtc_ops.alarm_irq_enable = m41t80_alarm_irq_enable;
+			/* Enable the wakealarm */
+			device_init_wakeup(&client->dev, true);
+		}
+	}
 
 	rtc = devm_rtc_device_register(&client->dev, client->name,
-					&m41t80_rtc_ops, THIS_MODULE);
+				       &m41t80_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
 
-	clientdata->rtc = rtc;
+	m41t80_data->rtc = rtc;
 
 	/* Make sure HT (Halt Update) bit is cleared */
 	rc = i2c_smbus_read_byte_data(client, M41T80_REG_ALARM_HOUR);
 
 	if (rc >= 0 && rc & M41T80_ALHOUR_HT) {
-		if (clientdata->features & M41T80_FEATURE_HT) {
+		if (m41t80_data->features & M41T80_FEATURE_HT) {
 			m41t80_get_datetime(client, &tm);
 			dev_info(&client->dev, "HT bit was set!\n");
 			dev_info(&client->dev,
-				 "Power Down at "
-				 "%04i-%02i-%02i %02i:%02i:%02i\n",
+				 "Power Down at %04i-%02i-%02i %02i:%02i:%02i\n",
 				 tm.tm_year + 1900,
 				 tm.tm_mon + 1, tm.tm_mday, tm.tm_hour,
 				 tm.tm_min, tm.tm_sec);
 		}
 		rc = i2c_smbus_write_byte_data(client, M41T80_REG_ALARM_HOUR,
-					      rc & ~M41T80_ALHOUR_HT);
+					       rc & ~M41T80_ALHOUR_HT);
 	}
 
 	if (rc < 0) {
@@ -691,18 +818,30 @@ static int m41t80_probe(struct i2c_client *client,
 
 	if (rc >= 0 && rc & M41T80_SEC_ST)
 		rc = i2c_smbus_write_byte_data(client, M41T80_REG_SEC,
-					      rc & ~M41T80_SEC_ST);
+					       rc & ~M41T80_SEC_ST);
 	if (rc < 0) {
 		dev_err(&client->dev, "Can't clear ST bit\n");
 		return rc;
 	}
 
-	rc = m41t80_sysfs_register(&client->dev);
-	if (rc)
+	/* Export sysfs entries */
+	rc = sysfs_create_group(&(&client->dev)->kobj, &attr_group);
+	if (rc) {
+		dev_err(&client->dev, "Failed to create sysfs group: %d\n", rc);
 		return rc;
+	}
+
+	rc = devm_add_action(&client->dev, m41t80_remove_sysfs_group,
+			     &client->dev);
+	if (rc) {
+		m41t80_remove_sysfs_group(&client->dev);
+		dev_err(&client->dev,
+			"Failed to add sysfs cleanup action: %d\n", rc);
+		return rc;
+	}
 
 #ifdef CONFIG_RTC_DRV_M41T80_WDT
-	if (clientdata->features & M41T80_FEATURE_HT) {
+	if (m41t80_data->features & M41T80_FEATURE_HT) {
 		save_client = client;
 		rc = misc_register(&wdt_dev);
 		if (rc)

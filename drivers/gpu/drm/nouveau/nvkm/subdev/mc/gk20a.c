@@ -26,10 +26,11 @@
 static const struct nvkm_mc_func
 gk20a_mc = {
 	.init = nv50_mc_init,
-	.intr = gf100_mc_intr,
+	.intr = gk104_mc_intr,
 	.intr_unarm = gf100_mc_intr_unarm,
 	.intr_rearm = gf100_mc_intr_rearm,
 	.intr_mask = gf100_mc_intr_mask,
+	.reset = gk104_mc_reset,
 };
 
 int

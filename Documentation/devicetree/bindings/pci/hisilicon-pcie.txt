@@ -34,11 +34,11 @@ Hip05 Example (note that Hip06 is the same except compatible):
 		ranges = <0x82000000 0 0x00000000 0x220 0x00000000 0 0x10000000>;
 		num-lanes = <8>;
 		port-id = <1>;
-		#interrupts-cells = <1>;
-		interrupts-map-mask = <0xf800 0 0 7>;
-		interrupts-map = <0x0 0 0 1 &mbigen_pcie 1 10
-				  0x0 0 0 2 &mbigen_pcie 2 11
-				  0x0 0 0 3 &mbigen_pcie 3 12
-				  0x0 0 0 4 &mbigen_pcie 4 13>;
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0xf800 0 0 7>;
+		interrupt-map = <0x0 0 0 1 &mbigen_pcie 1 10
+				 0x0 0 0 2 &mbigen_pcie 2 11
+				 0x0 0 0 3 &mbigen_pcie 3 12
+				 0x0 0 0 4 &mbigen_pcie 4 13>;
 		status = "ok";
 	};

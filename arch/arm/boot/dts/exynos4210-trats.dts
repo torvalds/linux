@@ -298,6 +298,8 @@
 		compatible = "maxim,max8997-pmic";
 
 		reg = <0x66>;
+		interrupt-parent = <&gpx0>;
+		interrupts = <7 0>;
 
 		max8997,pmic-buck1-uses-gpio-dvs;
 		max8997,pmic-buck2-uses-gpio-dvs;
@@ -359,7 +361,7 @@
 			};
 
 			vusbdac_reg: LDO8 {
-			     regulator-name = "VUSB/VDAC_3.3V_C210";
+			     regulator-name = "VUSB+VDAC_3.3V_C210";
 			     regulator-min-microvolt = <3300000>;
 			     regulator-max-microvolt = <3300000>;
 			};

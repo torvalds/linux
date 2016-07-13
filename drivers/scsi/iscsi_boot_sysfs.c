@@ -306,6 +306,42 @@ static struct attribute_group iscsi_boot_initiator_attr_group = {
 	.is_visible = iscsi_boot_ini_attr_is_visible,
 };
 
+/* iBFT ACPI Table attributes */
+iscsi_boot_rd_attr(acpitbl_signature, signature, ISCSI_BOOT_ACPITBL_SIGNATURE);
+iscsi_boot_rd_attr(acpitbl_oem_id, oem_id, ISCSI_BOOT_ACPITBL_OEM_ID);
+iscsi_boot_rd_attr(acpitbl_oem_table_id, oem_table_id,
+		   ISCSI_BOOT_ACPITBL_OEM_TABLE_ID);
+
+static struct attribute *acpitbl_attrs[] = {
+	&iscsi_boot_attr_acpitbl_signature.attr,
+	&iscsi_boot_attr_acpitbl_oem_id.attr,
+	&iscsi_boot_attr_acpitbl_oem_table_id.attr,
+	NULL
+};
+
+static umode_t iscsi_boot_acpitbl_attr_is_visible(struct kobject *kobj,
+					     struct attribute *attr, int i)
+{
+	struct iscsi_boot_kobj *boot_kobj =
+			container_of(kobj, struct iscsi_boot_kobj, kobj);
+
+	if (attr ==  &iscsi_boot_attr_acpitbl_signature.attr)
+		return boot_kobj->is_visible(boot_kobj->data,
+					     ISCSI_BOOT_ACPITBL_SIGNATURE);
+	if (attr ==  &iscsi_boot_attr_acpitbl_oem_id.attr)
+		return boot_kobj->is_visible(boot_kobj->data,
+					     ISCSI_BOOT_ACPITBL_OEM_ID);
+	if (attr ==  &iscsi_boot_attr_acpitbl_oem_table_id.attr)
+		return boot_kobj->is_visible(boot_kobj->data,
+					     ISCSI_BOOT_ACPITBL_OEM_TABLE_ID);
+	return 0;
+}
+
+static struct attribute_group iscsi_boot_acpitbl_attr_group = {
+	.attrs = acpitbl_attrs,
+	.is_visible = iscsi_boot_acpitbl_attr_is_visible,
+};
+
 static struct iscsi_boot_kobj *
 iscsi_boot_create_kobj(struct iscsi_boot_kset *boot_kset,
 		       struct attribute_group *attr_group,
@@ -434,6 +470,32 @@ iscsi_boot_create_ethernet(struct iscsi_boot_kset *boot_kset, int index,
 				      is_visible, release);
 }
 EXPORT_SYMBOL_GPL(iscsi_boot_create_ethernet);
+
+/**
+ * iscsi_boot_create_acpitbl() - create boot acpi table sysfs dir
+ * @boot_kset: boot kset
+ * @index: not used
+ * @data: driver specific data
+ * @show: attr show function
+ * @is_visible: attr visibility function
+ * @release: release function
+ *
+ * Note: The boot sysfs lib will free the data passed in for the caller
+ * when all refs to the acpitbl kobject have been released.
+ */
+struct iscsi_boot_kobj *
+iscsi_boot_create_acpitbl(struct iscsi_boot_kset *boot_kset, int index,
+			   void *data,
+			   ssize_t (*show)(void *data, int type, char *buf),
+			   umode_t (*is_visible)(void *data, int type),
+			   void (*release)(void *data))
+{
+	return iscsi_boot_create_kobj(boot_kset,
+				      &iscsi_boot_acpitbl_attr_group,
+				      "acpi_header", index, data, show,
+				      is_visible, release);
+}
+EXPORT_SYMBOL_GPL(iscsi_boot_create_acpitbl);
 
 /**
  * iscsi_boot_create_kset() - creates root sysfs tree

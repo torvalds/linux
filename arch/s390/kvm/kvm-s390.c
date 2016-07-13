@@ -61,10 +61,12 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "exit_external_request", VCPU_STAT(exit_external_request) },
 	{ "exit_external_interrupt", VCPU_STAT(exit_external_interrupt) },
 	{ "exit_instruction", VCPU_STAT(exit_instruction) },
+	{ "exit_pei", VCPU_STAT(exit_pei) },
 	{ "exit_program_interruption", VCPU_STAT(exit_program_interruption) },
 	{ "exit_instr_and_program_int", VCPU_STAT(exit_instr_and_program) },
 	{ "halt_successful_poll", VCPU_STAT(halt_successful_poll) },
 	{ "halt_attempted_poll", VCPU_STAT(halt_attempted_poll) },
+	{ "halt_poll_invalid", VCPU_STAT(halt_poll_invalid) },
 	{ "halt_wakeup", VCPU_STAT(halt_wakeup) },
 	{ "instruction_lctlg", VCPU_STAT(instruction_lctlg) },
 	{ "instruction_lctl", VCPU_STAT(instruction_lctl) },
@@ -118,9 +120,9 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 };
 
 /* upper facilities limit for kvm */
-unsigned long kvm_s390_fac_list_mask[] = {
-	0xffe6fffbfcfdfc40UL,
-	0x005e800000000000UL,
+unsigned long kvm_s390_fac_list_mask[16] = {
+	0xffe6000000000000UL,
+	0x005e000000000000UL,
 };
 
 unsigned long kvm_s390_fac_list_mask_size(void)
@@ -638,6 +640,7 @@ static int kvm_s390_get_tod(struct kvm *kvm, struct kvm_device_attr *attr)
 static int kvm_s390_set_processor(struct kvm *kvm, struct kvm_device_attr *attr)
 {
 	struct kvm_s390_vm_cpu_processor *proc;
+	u16 lowest_ibc, unblocked_ibc;
 	int ret = 0;
 
 	mutex_lock(&kvm->lock);
@@ -652,9 +655,17 @@ static int kvm_s390_set_processor(struct kvm *kvm, struct kvm_device_attr *attr)
 	}
 	if (!copy_from_user(proc, (void __user *)attr->addr,
 			    sizeof(*proc))) {
-		memcpy(&kvm->arch.model.cpu_id, &proc->cpuid,
-		       sizeof(struct cpuid));
-		kvm->arch.model.ibc = proc->ibc;
+		kvm->arch.model.cpuid = proc->cpuid;
+		lowest_ibc = sclp.ibc >> 16 & 0xfff;
+		unblocked_ibc = sclp.ibc & 0xfff;
+		if (lowest_ibc && proc->ibc) {
+			if (proc->ibc > unblocked_ibc)
+				kvm->arch.model.ibc = unblocked_ibc;
+			else if (proc->ibc < lowest_ibc)
+				kvm->arch.model.ibc = lowest_ibc;
+			else
+				kvm->arch.model.ibc = proc->ibc;
+		}
 		memcpy(kvm->arch.model.fac_list, proc->fac_list,
 		       S390_ARCH_FAC_LIST_SIZE_BYTE);
 	} else
@@ -687,7 +698,7 @@ static int kvm_s390_get_processor(struct kvm *kvm, struct kvm_device_attr *attr)
 		ret = -ENOMEM;
 		goto out;
 	}
-	memcpy(&proc->cpuid, &kvm->arch.model.cpu_id, sizeof(struct cpuid));
+	proc->cpuid = kvm->arch.model.cpuid;
 	proc->ibc = kvm->arch.model.ibc;
 	memcpy(&proc->fac_list, kvm->arch.model.fac_list,
 	       S390_ARCH_FAC_LIST_SIZE_BYTE);
@@ -1081,10 +1092,13 @@ static void kvm_s390_set_crycb_format(struct kvm *kvm)
 		kvm->arch.crypto.crycbd |= CRYCB_FORMAT1;
 }
 
-static void kvm_s390_get_cpu_id(struct cpuid *cpu_id)
+static u64 kvm_s390_get_initial_cpuid(void)
 {
-	get_cpu_id(cpu_id);
-	cpu_id->version = 0xff;
+	struct cpuid cpuid;
+
+	get_cpu_id(&cpuid);
+	cpuid.version = 0xff;
+	return *((u64 *) &cpuid);
 }
 
 static void kvm_s390_crypto_init(struct kvm *kvm)
@@ -1175,7 +1189,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	memcpy(kvm->arch.model.fac_list, kvm->arch.model.fac_mask,
 	       S390_ARCH_FAC_LIST_SIZE_BYTE);
 
-	kvm_s390_get_cpu_id(&kvm->arch.model.cpu_id);
+	kvm->arch.model.cpuid = kvm_s390_get_initial_cpuid();
 	kvm->arch.model.ibc = sclp.ibc & 0x0fff;
 
 	kvm_s390_crypto_init(kvm);
@@ -1624,7 +1638,6 @@ static void kvm_s390_vcpu_setup_model(struct kvm_vcpu *vcpu)
 {
 	struct kvm_s390_cpu_model *model = &vcpu->kvm->arch.model;
 
-	vcpu->arch.cpu_id = model->cpu_id;
 	vcpu->arch.sie_block->ibc = model->ibc;
 	if (test_kvm_facility(vcpu->kvm, 7))
 		vcpu->arch.sie_block->fac = (u32)(u64) model->fac_list;
@@ -1645,11 +1658,14 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 
 	kvm_s390_vcpu_setup_model(vcpu);
 
-	vcpu->arch.sie_block->ecb   = 6;
+	vcpu->arch.sie_block->ecb = 0x02;
+	if (test_kvm_facility(vcpu->kvm, 9))
+		vcpu->arch.sie_block->ecb |= 0x04;
 	if (test_kvm_facility(vcpu->kvm, 50) && test_kvm_facility(vcpu->kvm, 73))
 		vcpu->arch.sie_block->ecb |= 0x10;
 
-	vcpu->arch.sie_block->ecb2  = 8;
+	if (test_kvm_facility(vcpu->kvm, 8))
+		vcpu->arch.sie_block->ecb2 |= 0x08;
 	vcpu->arch.sie_block->eca   = 0xC1002000U;
 	if (sclp.has_siif)
 		vcpu->arch.sie_block->eca |= 1;
@@ -2971,12 +2987,30 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 	return;
 }
 
+static inline unsigned long nonhyp_mask(int i)
+{
+	unsigned int nonhyp_fai = (sclp.hmfai << i * 2) >> 30;
+
+	return 0x0000ffffffffffffUL >> (nonhyp_fai << 4);
+}
+
+void kvm_arch_vcpu_block_finish(struct kvm_vcpu *vcpu)
+{
+	vcpu->valid_wakeup = false;
+}
+
 static int __init kvm_s390_init(void)
 {
+	int i;
+
 	if (!sclp.has_sief2) {
 		pr_info("SIE not available\n");
 		return -ENODEV;
 	}
+
+	for (i = 0; i < 16; i++)
+		kvm_s390_fac_list_mask[i] |=
+			S390_lowcore.stfle_fac_list[i] & nonhyp_mask(i);
 
 	return kvm_init(NULL, sizeof(struct kvm_vcpu), 0, THIS_MODULE);
 }

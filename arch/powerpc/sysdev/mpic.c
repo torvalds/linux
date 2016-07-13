@@ -2004,8 +2004,15 @@ static struct syscore_ops mpic_syscore_ops = {
 
 static int mpic_init_sys(void)
 {
+	int rc;
+
 	register_syscore_ops(&mpic_syscore_ops);
-	subsys_system_register(&mpic_subsys, NULL);
+	rc = subsys_system_register(&mpic_subsys, NULL);
+	if (rc) {
+		unregister_syscore_ops(&mpic_syscore_ops);
+		pr_err("mpic: Failed to register subsystem!\n");
+		return rc;
+	}
 
 	return 0;
 }

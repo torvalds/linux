@@ -314,7 +314,7 @@ void qset_free_std(struct whc *whc, struct whc_std *std)
 		kfree(std->bounce_buf);
 	}
 	if (std->pl_virt) {
-		if (std->dma_addr)
+		if (!dma_mapping_error(whc->wusbhc.dev, std->dma_addr))
 			dma_unmap_single(whc->wusbhc.dev, std->dma_addr,
 					 std->num_pointers * sizeof(struct whc_page_list_entry),
 					 DMA_TO_DEVICE);
@@ -535,9 +535,11 @@ static int qset_add_urb_sg(struct whc *whc, struct whc_qset *qset, struct urb *u
 	list_for_each_entry(std, &qset->stds, list_node) {
 		if (std->ntds_remaining == -1) {
 			pl_len = std->num_pointers * sizeof(struct whc_page_list_entry);
-			std->ntds_remaining = ntds--;
 			std->dma_addr = dma_map_single(whc->wusbhc.dev, std->pl_virt,
 						       pl_len, DMA_TO_DEVICE);
+			if (dma_mapping_error(whc->wusbhc.dev, std->dma_addr))
+				return -EFAULT;
+			std->ntds_remaining = ntds--;
 		}
 	}
 	return 0;
@@ -618,6 +620,8 @@ static int qset_add_urb_sg_linearize(struct whc *whc, struct whc_qset *qset,
 
 		std->dma_addr = dma_map_single(&whc->umc->dev, std->bounce_buf, std->len,
 					       is_out ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
+		if (dma_mapping_error(&whc->umc->dev, std->dma_addr))
+			return -EFAULT;
 
 		if (qset_fill_page_list(whc, std, mem_flags) < 0)
 			return -ENOMEM;

@@ -27,7 +27,7 @@ MODULE_AUTHOR("Jaya Kumar <jayakumar.lkml@gmail.com>");
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
-#define W8001_MAX_LENGTH	11
+#define W8001_MAX_LENGTH	13
 #define W8001_LEAD_MASK		0x80
 #define W8001_LEAD_BYTE		0x80
 #define W8001_TAB_MASK		0x40
@@ -339,6 +339,15 @@ static irqreturn_t w8001_interrupt(struct serio *serio,
 		w8001->idx = 0;
 		parse_multi_touch(w8001);
 		break;
+
+	default:
+		/*
+		 * ThinkPad X60 Tablet PC (pen only device) sometimes
+		 * sends invalid data packets that are larger than
+		 * W8001_PKTLEN_TPCPEN. Let's start over again.
+		 */
+		if (!w8001->touch_dev && w8001->idx > W8001_PKTLEN_TPCPEN - 1)
+			w8001->idx = 0;
 	}
 
 	return IRQ_HANDLED;

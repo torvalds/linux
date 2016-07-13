@@ -15,7 +15,7 @@
     that are present on the transport stream. This is done through
     <constant>/dev/dvb/adapter?/net?</constant> device node.
     The data will be available via virtual <constant>dvb?_?</constant>
-    network interfaces, and will be controled/routed via the standard
+    network interfaces, and will be controlled/routed via the standard
     ip tools (like ip, route, netstat, ifconfig, etc).</para>
 <para> Data types and and ioctl definitions are defined via
     <constant>linux/dvb/net.h</constant> header.</para>

@@ -106,8 +106,9 @@ EXPORT_SYMBOL_GPL(snd_hwparams_to_dma_slave_config);
  * direction of the substream. If the substream is a playback stream the dst
  * fields will be initialized, if it is a capture stream the src fields will be
  * initialized. The {dst,src}_addr_width field will only be initialized if the
- * addr_width field of the DAI DMA data struct is not equal to
- * DMA_SLAVE_BUSWIDTH_UNDEFINED.
+ * SND_DMAENGINE_PCM_DAI_FLAG_PACK flag is set or if the addr_width field of
+ * the DAI DMA data struct is not equal to DMA_SLAVE_BUSWIDTH_UNDEFINED. If
+ * both conditions are met the latter takes priority.
  */
 void snd_dmaengine_pcm_set_config_from_dai_data(
 	const struct snd_pcm_substream *substream,
@@ -117,11 +118,17 @@ void snd_dmaengine_pcm_set_config_from_dai_data(
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		slave_config->dst_addr = dma_data->addr;
 		slave_config->dst_maxburst = dma_data->maxburst;
+		if (dma_data->flags & SND_DMAENGINE_PCM_DAI_FLAG_PACK)
+			slave_config->dst_addr_width =
+				DMA_SLAVE_BUSWIDTH_UNDEFINED;
 		if (dma_data->addr_width != DMA_SLAVE_BUSWIDTH_UNDEFINED)
 			slave_config->dst_addr_width = dma_data->addr_width;
 	} else {
 		slave_config->src_addr = dma_data->addr;
 		slave_config->src_maxburst = dma_data->maxburst;
+		if (dma_data->flags & SND_DMAENGINE_PCM_DAI_FLAG_PACK)
+			slave_config->src_addr_width =
+				DMA_SLAVE_BUSWIDTH_UNDEFINED;
 		if (dma_data->addr_width != DMA_SLAVE_BUSWIDTH_UNDEFINED)
 			slave_config->src_addr_width = dma_data->addr_width;
 	}

@@ -308,7 +308,7 @@ module_param(radio_nr, int, 0);
 MODULE_PARM_DESC(radio_nr,
 		 "Minor number for radio device (-1 ==> auto assign)");
 
-static struct region_info region_configs[] = {
+static const struct region_info region_configs[] = {
 	/* USA */
 	{
 		.channel_spacing	= 20,

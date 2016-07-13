@@ -141,35 +141,6 @@ config SND_SEQ_HRTIMER_DEFAULT
 	  Say Y here to use the HR-timer backend as the default sequencer
 	  timer.
 
-config SND_RTCTIMER
-	tristate "RTC Timer support"
-	depends on RTC
-	select SND_TIMER
-	help
-	  Say Y here to enable RTC timer support for ALSA.  ALSA uses
-	  the RTC timer as a precise timing source and maps the RTC
-	  timer to ALSA's timer interface.  The ALSA sequencer code also
-	  can use this timing source.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called snd-rtctimer.
-
-	  Note that this option is exclusive with the new RTC drivers
-	  (CONFIG_RTC_CLASS) since this requires the old API.
-
-config SND_SEQ_RTCTIMER_DEFAULT
-	bool "Use RTC as default sequencer timer"
-	depends on SND_RTCTIMER && SND_SEQUENCER
-	depends on !SND_SEQ_HRTIMER_DEFAULT
-	default y
-	help
-	  Say Y here to use the RTC timer as the default sequencer
-	  timer.  This is strongly recommended because it ensures
-	  precise MIDI timing even when the system timer runs at less
-	  than 1000 Hz.
-
-	  If in doubt, say Y.
-
 config SND_DYNAMIC_MINORS
 	bool "Dynamic device file minor numbers"
 	help
