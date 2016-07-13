@@ -63,7 +63,7 @@ struct digicolor_timer {
 	int timer_id; /* one of TIMER_* */
 };
 
-struct digicolor_timer *dc_timer(struct clock_event_device *ce)
+static struct digicolor_timer *dc_timer(struct clock_event_device *ce)
 {
 	return container_of(ce, struct digicolor_timer, ce);
 }
@@ -148,7 +148,7 @@ static u64 notrace digicolor_timer_sched_read(void)
 	return ~readl(dc_timer_dev.base + COUNT(TIMER_B));
 }
 
-static void __init digicolor_timer_init(struct device_node *node)
+static int __init digicolor_timer_init(struct device_node *node)
 {
 	unsigned long rate;
 	struct clk *clk;
@@ -161,19 +161,19 @@ static void __init digicolor_timer_init(struct device_node *node)
 	dc_timer_dev.base = of_iomap(node, 0);
 	if (!dc_timer_dev.base) {
 		pr_err("Can't map registers");
-		return;
+		return -ENXIO;
 	}
 
 	irq = irq_of_parse_and_map(node, dc_timer_dev.timer_id);
 	if (irq <= 0) {
 		pr_err("Can't parse IRQ");
-		return;
+		return -EINVAL;
 	}
 
 	clk = of_clk_get(node, 0);
 	if (IS_ERR(clk)) {
 		pr_err("Can't get timer clock");
-		return;
+		return PTR_ERR(clk);
 	}
 	clk_prepare_enable(clk);
 	rate = clk_get_rate(clk);
@@ -190,13 +190,17 @@ static void __init digicolor_timer_init(struct device_node *node)
 	ret = request_irq(irq, digicolor_timer_interrupt,
 			  IRQF_TIMER | IRQF_IRQPOLL, "digicolor_timerC",
 			  &dc_timer_dev.ce);
-	if (ret)
+	if (ret) {
 		pr_warn("request of timer irq %d failed (%d)\n", irq, ret);
+		return ret;
+	}
 
 	dc_timer_dev.ce.cpumask = cpu_possible_mask;
 	dc_timer_dev.ce.irq = irq;
 
 	clockevents_config_and_register(&dc_timer_dev.ce, rate, 0, 0xffffffff);
+
+	return 0;
 }
 CLOCKSOURCE_OF_DECLARE(conexant_digicolor, "cnxt,cx92755-timer",
 		       digicolor_timer_init);
