@@ -2763,18 +2763,47 @@ static void wacom_setup_numbered_buttons(struct input_dev *input_dev,
 		__set_bit(BTN_BASE + (i-16), input_dev->keybit);
 }
 
+static void wacom_24hd_update_leds(struct wacom *wacom, int mask, int group)
+{
+	struct wacom_led *led;
+	int i;
+	bool updated = false;
+
+	/*
+	 * 24HD has LED group 1 to the left and LED group 0 to the right.
+	 * So group 0 matches the second half of the buttons and thus the mask
+	 * needs to be shifted.
+	 */
+	if (group == 0)
+		mask >>= 8;
+
+	for (i = 0; i < 3; i++) {
+		led = wacom_led_find(wacom, group, i);
+		if (!led) {
+			hid_err(wacom->hdev, "can't find LED %d in group %d\n",
+				i, group);
+			continue;
+		}
+		if (!updated && mask & BIT(i)) {
+			led->held = true;
+			led_trigger_event(&led->trigger, LED_FULL);
+		} else {
+			led->held = false;
+		}
+	}
+}
+
 static bool wacom_is_led_toggled(struct wacom *wacom, int button_count,
 				 int mask, int group)
 {
 	int button_per_group;
 
 	/*
-	 * 24HD and 21UX2 have LED group 1 to the left and LED group 0
+	 * 21UX2 has LED group 1 to the left and LED group 0
 	 * to the right. We need to reverse the group to match this
 	 * historical behavior.
 	 */
-	if (wacom->wacom_wac.features.type == WACOM_24HD ||
-	    wacom->wacom_wac.features.type == WACOM_21UX2)
+	if (wacom->wacom_wac.features.type == WACOM_21UX2)
 		group = 1 - group;
 
 	button_per_group = button_count/wacom->led.count;
@@ -2788,6 +2817,9 @@ static void wacom_update_led(struct wacom *wacom, int button_count, int mask,
 	struct wacom_led *led, *next_led;
 	int cur;
 	bool pressed;
+
+	if (wacom->wacom_wac.features.type == WACOM_24HD)
+		return wacom_24hd_update_leds(wacom, mask, group);
 
 	pressed = wacom_is_led_toggled(wacom, button_count, mask, group);
 	cur = wacom->led.groups[group].select;
