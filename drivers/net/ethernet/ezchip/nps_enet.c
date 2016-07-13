@@ -46,16 +46,17 @@ static void nps_enet_read_rx_fifo(struct net_device *ndev,
 	if (dst_is_aligned) {
 		ioread32_rep(priv->regs_base + NPS_ENET_REG_RX_BUF, reg, len);
 		reg += len;
-	}
-	else { /* !dst_is_aligned */
+	} else { /* !dst_is_aligned */
 		for (i = 0; i < len; i++, reg++) {
 			u32 buf = nps_enet_reg_get(priv, NPS_ENET_REG_RX_BUF);
+
 			put_unaligned_be32(buf, reg);
 		}
 	}
 	/* copy last bytes (if any) */
 	if (last) {
 		u32 buf;
+
 		ioread32_rep(priv->regs_base + NPS_ENET_REG_RX_BUF, &buf, 1);
 		memcpy((u8 *)reg, &buf, last);
 	}
@@ -459,7 +460,6 @@ static void nps_enet_set_rx_mode(struct net_device *ndev)
 			 | NPS_ENET_ENABLE << CFG_2_DISK_DA_SHIFT;
 		ge_mac_cfg_2_value = (ge_mac_cfg_2_value & ~CFG_2_DISK_MC_MASK)
 			 | NPS_ENET_ENABLE << CFG_2_DISK_MC_SHIFT;
-
 	}
 
 	nps_enet_reg_set(priv, NPS_ENET_REG_GE_MAC_CFG_2, ge_mac_cfg_2_value);
