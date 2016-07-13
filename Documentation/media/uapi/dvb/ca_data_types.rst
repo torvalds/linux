@@ -77,7 +77,7 @@ ca_msg_t
 	unsigned int index;
 	unsigned int type;
 	unsigned int length;
-	unsigned char msg\[256\];
+	unsigned char msg[256];
     } ca_msg_t;
 
 
@@ -92,7 +92,7 @@ ca_descr_t
     typedef struct ca_descr {
 	unsigned int index;
 	unsigned int parity;
-	unsigned char cw\[8\];
+	unsigned char cw[8];
     } ca_descr_t;
 
 

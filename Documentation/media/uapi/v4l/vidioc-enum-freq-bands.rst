@@ -140,7 +140,7 @@ of the corresponding tuner/modulator is set.
 
        -  __u32
 
-       -  ``reserved``\ \[9\]
+       -  ``reserved``\ [9]
 
        -  Reserved for future extensions. Applications and drivers must set
 	  the array to zero.

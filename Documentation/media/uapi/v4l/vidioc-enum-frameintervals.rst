@@ -217,7 +217,7 @@ application should zero out all members except for the *IN* fields.
 
        -  __u32
 
-       -  ``reserved\[2\]``
+       -  ``reserved[2]``
 
        -
        -  Reserved space for future use. Must be zeroed by drivers and

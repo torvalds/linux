@@ -182,7 +182,7 @@ Selection targets and flags are documented in
 
        -  __u32
 
-       -  ``reserved\[9\]``
+       -  ``reserved[9]``
 
        -  Reserved fields for future use. Drivers and applications must zero
 	  this array.

@@ -103,7 +103,7 @@ union holding separate parameters for input and output devices.
        -
        -  __u8
 
-       -  ``raw_data``\ \[200\]
+       -  ``raw_data``\ [200]
 
        -  A place holder for future extensions.
 
@@ -183,7 +183,7 @@ union holding separate parameters for input and output devices.
 
        -  __u32
 
-       -  ``reserved``\ \[4\]
+       -  ``reserved``\ [4]
 
        -  Reserved for future extensions. Drivers and applications must set
 	  the array to zero.
@@ -271,7 +271,7 @@ union holding separate parameters for input and output devices.
 
        -  __u32
 
-       -  ``reserved``\ \[4\]
+       -  ``reserved``\ [4]
 
        -  Reserved for future extensions. Drivers and applications must set
 	  the array to zero.

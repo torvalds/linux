@@ -125,7 +125,7 @@ it can be extended safely in the future.
 	    } play;
 
 	    struct {
-		__u32 data\[16\];
+		__u32 data[16];
 	    } raw;
 	};
     };
@@ -352,7 +352,7 @@ passed to the ioctl VIDEO_GET_NAVI:
      typedef
      struct video_navi_pack {
 	 int length;         /* 0 ... 1024 */
-	 uint8_t data\[1024\];
+	 uint8_t data[1024];
      } video_navi_pack_t;
 
 

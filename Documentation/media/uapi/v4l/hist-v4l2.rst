@@ -266,7 +266,7 @@ V4L2 Version 0.20 2000-11-23
 A number of changes were made to the raw VBI interface.
 
 1. Figures clarifying the line numbering scheme were added to the V4L2
-   API specification. The ``start``\ \[0\] and ``start``\ \[1\] fields no
+   API specification. The ``start``\ [0] and ``start``\ [1] fields no
    longer count line numbers beginning at zero. Rationale: a) The
    previous definition was unclear. b) The ``start``\ [] values are
    ordinal numbers. c) There is no point in inventing a new line
@@ -274,8 +274,8 @@ A number of changes were made to the raw VBI interface.
    Compatibility: Add one to the start values. Applications depending on
    the previous semantics may not function correctly.
 
-2. The restriction "count\[0\] > 0 and count\[1\] > 0" has been relaxed to
-   "(count\[0\] + count\[1\]) > 0". Rationale: Drivers may allocate
+2. The restriction "count[0] > 0 and count[1] > 0" has been relaxed to
+   "(count[0] + count[1]) > 0". Rationale: Drivers may allocate
    resources at scan line granularity and some data services are
    transmitted only on the first field. The comment that both ``count``
    values will usually be equal is misleading and pointless and has been
@@ -649,7 +649,7 @@ This unnamed version was finally merged into Linux 2.5.46.
     memory. It was barely useful and so was removed.
 
 14. In struct :ref:`v4l2_framebuffer <v4l2-framebuffer>` the
-    ``base\[3\]`` array anticipating double- and triple-buffering in
+    ``base[3]`` array anticipating double- and triple-buffering in
     off-screen video memory, however without defining a synchronization
     mechanism, was replaced by a single pointer. The
     ``V4L2_FBUF_CAP_SCALEUP`` and ``V4L2_FBUF_CAP_SCALEDOWN`` flags were
@@ -833,7 +833,7 @@ V4L2 in Linux 2.6.6, 2004-05-09
 V4L2 in Linux 2.6.8
 ===================
 
-1. A new field ``input`` (former ``reserved\[0\]``) was added to the
+1. A new field ``input`` (former ``reserved[0]``) was added to the
    struct :ref:`v4l2_buffer <v4l2-buffer>` structure. Purpose of this
    field is to alternate between video inputs (e. g. cameras) in step
    with the video capturing process. This function must be enabled with

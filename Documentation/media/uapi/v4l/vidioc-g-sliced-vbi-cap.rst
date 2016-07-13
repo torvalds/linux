@@ -65,7 +65,7 @@ the sliced VBI API is unsupported or ``type`` is invalid.
 
        -  __u16
 
-       -  ``service_lines``\ \[2\]\[24\]
+       -  ``service_lines``\ [2][24]
 
        -  :cspan:`2` Each element of this array contains a set of data
 	  services the hardware can look for or insert into a particular
@@ -87,7 +87,7 @@ the sliced VBI API is unsupported or ``type`` is invalid.
 
        -
        -
-       -  ``service_lines``\ \[0\]\[1\]
+       -  ``service_lines``\ [0][1]
 
        -  1
 
@@ -97,7 +97,7 @@ the sliced VBI API is unsupported or ``type`` is invalid.
 
        -
        -
-       -  ``service_lines``\ \[0\]\[23\]
+       -  ``service_lines``\ [0][23]
 
        -  23
 
@@ -107,7 +107,7 @@ the sliced VBI API is unsupported or ``type`` is invalid.
 
        -
        -
-       -  ``service_lines``\ \[1\]\[1\]
+       -  ``service_lines``\ [1][1]
 
        -  264
 
@@ -117,7 +117,7 @@ the sliced VBI API is unsupported or ``type`` is invalid.
 
        -
        -
-       -  ``service_lines``\ \[1\]\[23\]
+       -  ``service_lines``\ [1][23]
 
        -  286
 
@@ -147,8 +147,8 @@ the sliced VBI API is unsupported or ``type`` is invalid.
 
        -
        -
-       -  :cspan:`2` Drivers must set ``service_lines`` \[0\]\[0\] and
-	  ``service_lines``\ \[1\]\[0\] to zero.
+       -  :cspan:`2` Drivers must set ``service_lines`` [0][0] and
+	  ``service_lines``\ [1][0] to zero.
 
     -  .. row 12
 
@@ -164,7 +164,7 @@ the sliced VBI API is unsupported or ``type`` is invalid.
 
        -  __u32
 
-       -  ``reserved``\ \[3\]
+       -  ``reserved``\ [3]
 
        -  :cspan:`2` This array is reserved for future extensions.
 	  Applications and drivers must set it to zero.

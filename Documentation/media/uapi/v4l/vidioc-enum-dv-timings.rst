@@ -92,7 +92,7 @@ return an ``EINVAL`` error code.
 
        -  __u32
 
-       -  ``reserved``\ \[2\]
+       -  ``reserved``\ [2]
 
        -  Reserved for future extensions. Drivers and applications must set
 	  the array to zero.

@@ -115,7 +115,7 @@ instructions.
        -
        -  char
 
-       -  ``name\[32\]``
+       -  ``name[32]``
 
        -  Match a chip by this name, interpreted according to the ``type``
 	  field. Currently unused.
@@ -142,7 +142,7 @@ instructions.
 
        -  char
 
-       -  ``name\[32\]``
+       -  ``name[32]``
 
        -  The name of the chip.
 
@@ -161,7 +161,7 @@ instructions.
 
        -  __u32
 
-       -  ``reserved\[8\]``
+       -  ``reserved[8]``
 
        -  Reserved fields, both application and driver must set these to 0.
 

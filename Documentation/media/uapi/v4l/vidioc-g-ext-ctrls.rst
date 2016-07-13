@@ -136,7 +136,7 @@ still cause this situation.
 
        -  __u32
 
-       -  ``reserved2``\ \[1\]
+       -  ``reserved2``\ [1]
 
        -
        -  Reserved for future extensions. Drivers and applications must set
@@ -338,7 +338,7 @@ still cause this situation.
 
        -  __u32
 
-       -  ``reserved``\ \[2\]
+       -  ``reserved``\ [2]
 
        -  Reserved for future extensions. Drivers and applications must set
 	  the array to zero.

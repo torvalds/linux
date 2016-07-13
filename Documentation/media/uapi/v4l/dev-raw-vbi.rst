@@ -188,7 +188,7 @@ and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does
 	  service transmissions embedded in the picture.
 
 	  An application can set the first or second ``count`` value to zero
-	  if no data is required from the respective field; ``count``\ \[1\]
+	  if no data is required from the respective field; ``count``\ [1]
 	  if the scanning system is progressive, i. e. not interlaced. The
 	  corresponding start value shall be ignored by the application and
 	  driver. Anyway, drivers may not support single field capturing and
@@ -318,7 +318,7 @@ The total size of a frame computes as follows:
 
 .. code-block:: c
 
-    (count\[0\] + count\[1\]) * samples_per_line * sample size in bytes
+    (count[0] + count[1]) * samples_per_line * sample size in bytes
 
 The sample size is most likely always one byte, applications must check
 the ``sample_format`` field though, to function properly with other

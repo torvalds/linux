@@ -78,7 +78,7 @@ or output. [#f1]_
 
        -  __u8
 
-       -  ``name``\ \[24\]
+       -  ``name``\ [24]
 
        -  Name of the standard, a NUL-terminated ASCII string, for example:
 	  "PAL-B/G", "NTSC Japan". This information is intended for the
@@ -105,7 +105,7 @@ or output. [#f1]_
 
        -  __u32
 
-       -  ``reserved``\ \[4\]
+       -  ``reserved``\ [4]
 
        -  Reserved for future extensions. Drivers must set the array to
 	  zero.

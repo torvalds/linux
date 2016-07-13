@@ -95,7 +95,7 @@ information about the try formats.
 
        -  __u32
 
-       -  ``reserved``\ \[8\]
+       -  ``reserved``\ [8]
 
        -  Reserved for future extensions. Applications and drivers must set
 	  the array to zero.

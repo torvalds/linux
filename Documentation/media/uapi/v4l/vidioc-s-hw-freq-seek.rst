@@ -150,7 +150,7 @@ error code is returned and no seek takes place.
 
        -  __u32
 
-       -  ``reserved``\ \[5\]
+       -  ``reserved``\ [5]
 
        -  Reserved for future extensions. Applications must set the array to
 	  zero.

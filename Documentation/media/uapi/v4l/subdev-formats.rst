@@ -92,7 +92,7 @@ Media Bus Formats
 
        -  __u16
 
-       -  ``reserved``\ \[11\]
+       -  ``reserved``\ [11]
 
        -  Reserved for future extensions. Applications and drivers must set
 	  the array to zero.

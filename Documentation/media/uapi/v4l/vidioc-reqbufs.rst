@@ -107,7 +107,7 @@ any DMA in progress, an implicit
 
        -  __u32
 
-       -  ``reserved``\ \[2\]
+       -  ``reserved``\ [2]
 
        -  A place holder for future extensions. Drivers and applications
 	  must set the array to zero.

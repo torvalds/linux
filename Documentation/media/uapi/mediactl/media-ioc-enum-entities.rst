@@ -75,7 +75,7 @@ id's until they get an error.
 
        -  char
 
-       -  ``name``\ \[32\]
+       -  ``name``\ [32]
 
        -
        -
@@ -181,7 +181,7 @@ id's until they get an error.
        -
        -  __u8
 
-       -  ``raw``\ \[184\]
+       -  ``raw``\ [184]
 
        -
        -

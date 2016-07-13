@@ -140,7 +140,7 @@ struct v4l2_sliced_vbi_format
 
        -  __u16
 
-       -  ``service_lines``\ \[2\]\[24\]
+       -  ``service_lines``\ [2][24]
 
        -  :cspan:`2`
 
@@ -170,7 +170,7 @@ struct v4l2_sliced_vbi_format
 
        -
        -
-       -  ``service_lines``\ \[0\]\[1\]
+       -  ``service_lines``\ [0][1]
 
        -  1
 
@@ -180,7 +180,7 @@ struct v4l2_sliced_vbi_format
 
        -
        -
-       -  ``service_lines``\ \[0\]\[23\]
+       -  ``service_lines``\ [0][23]
 
        -  23
 
@@ -190,7 +190,7 @@ struct v4l2_sliced_vbi_format
 
        -
        -
-       -  ``service_lines``\ \[1\]\[1\]
+       -  ``service_lines``\ [1][1]
 
        -  264
 
@@ -200,7 +200,7 @@ struct v4l2_sliced_vbi_format
 
        -
        -
-       -  ``service_lines``\ \[1\]\[23\]
+       -  ``service_lines``\ [1][23]
 
        -  286
 
@@ -210,8 +210,8 @@ struct v4l2_sliced_vbi_format
 
        -
        -
-       -  :cspan:`2` Drivers must set ``service_lines`` \[0\]\[0\] and
-	  ``service_lines``\ \[1\]\[0\] to zero. The
+       -  :cspan:`2` Drivers must set ``service_lines`` [0][0] and
+	  ``service_lines``\ [1][0] to zero. The
 	  ``V4L2_VBI_ITU_525_F1_START``, ``V4L2_VBI_ITU_525_F2_START``,
 	  ``V4L2_VBI_ITU_625_F1_START`` and ``V4L2_VBI_ITU_625_F2_START``
 	  defines give the start line numbers for each field for each 525 or
@@ -238,7 +238,7 @@ struct v4l2_sliced_vbi_format
 
        -  __u32
 
-       -  ``reserved``\ \[2\]
+       -  ``reserved``\ [2]
 
        -  :cspan:`2` This array is reserved for future extensions.
 	  Applications and drivers must set it to zero.
@@ -427,7 +427,7 @@ struct v4l2_sliced_vbi_data
 
        -  __u8
 
-       -  ``data``\ \[48\]
+       -  ``data``\ [48]
 
        -  The packet payload. See :ref:`vbi-services` for the contents and
 	  number of bytes passed for each data type. The contents of padding
@@ -566,7 +566,7 @@ struct v4l2_mpeg_vbi_fmt_ivtv
 
        -  __u8
 
-       -  ``magic``\ \[4\]
+       -  ``magic``\ [4]
 
        -
        -  A "magic" constant from :ref:`v4l2-mpeg-vbi-fmt-ivtv-magic` that
@@ -662,7 +662,7 @@ struct v4l2_mpeg_vbi_itv0
 
        -  __le32
 
-       -  ``linemask``\ \[2\]
+       -  ``linemask``\ [2]
 
        -  Bitmasks indicating the VBI service lines present. These
 	  ``linemask`` values are stored in little endian byte order in the
@@ -675,30 +675,30 @@ struct v4l2_mpeg_vbi_itv0
 
 	  ::
 
-	      linemask\[0\] b0:     line  6     first field
-	      linemask\[0\] b17:        line 23     first field
-	      linemask\[0\] b18:        line  6     second field
-	      linemask\[0\] b31:        line 19     second field
-	      linemask\[1\] b0:     line 20     second field
-	      linemask\[1\] b3:     line 23     second field
-	      linemask\[1\] b4-b31: unused and set to 0
+	      linemask[0] b0:     line  6     first field
+	      linemask[0] b17:        line 23     first field
+	      linemask[0] b18:        line  6     second field
+	      linemask[0] b31:        line 19     second field
+	      linemask[1] b0:     line 20     second field
+	      linemask[1] b3:     line 23     second field
+	      linemask[1] b4-b31: unused and set to 0
 
     -  .. row 2
 
        -  struct
 	  :ref:`v4l2_mpeg_vbi_itv0_line <v4l2-mpeg-vbi-itv0-line>`
 
-       -  ``line``\ \[35\]
+       -  ``line``\ [35]
 
        -  This is a variable length array that holds from 1 to 35 lines of
 	  sliced VBI data. The sliced VBI data lines present correspond to
 	  the bits set in the ``linemask`` array, starting from b\ :sub:`0`
-	  of ``linemask``\ \[0\] up through b\ :sub:`31` of ``linemask``\ \[0\],
-	  and from b\ :sub:`0` of ``linemask``\ \[1\] up through b\ :sub:`3` of
-	  ``linemask``\ \[1\]. ``line``\ \[0\] corresponds to the first bit
-	  found set in the ``linemask`` array, ``line``\ \[1\] corresponds to
+	  of ``linemask``\ [0] up through b\ :sub:`31` of ``linemask``\ [0],
+	  and from b\ :sub:`0` of ``linemask``\ [1] up through b\ :sub:`3` of
+	  ``linemask``\ [1]. ``line``\ [0] corresponds to the first bit
+	  found set in the ``linemask`` array, ``line``\ [1] corresponds to
 	  the second bit found set in the ``linemask`` array, etc. If no
-	  ``linemask`` array bits are set, then ``line``\ \[0\] may contain
+	  ``linemask`` array bits are set, then ``line``\ [0] may contain
 	  one line of unspecified data that should be ignored by
 	  applications.
 
@@ -720,11 +720,11 @@ struct v4l2_mpeg_vbi_ITV0
        -  struct
 	  :ref:`v4l2_mpeg_vbi_itv0_line <v4l2-mpeg-vbi-itv0-line>`
 
-       -  ``line``\ \[36\]
+       -  ``line``\ [36]
 
-       -  A fixed length array of 36 lines of sliced VBI data. ``line``\ \[0\]
-	  through ``line``\ \[17\] correspond to lines 6 through 23 of the
-	  first field. ``line``\ \[18\] through ``line``\ \[35\] corresponds to
+       -  A fixed length array of 36 lines of sliced VBI data. ``line``\ [0]
+	  through ``line``\ [17] correspond to lines 6 through 23 of the
+	  first field. ``line``\ [18] through ``line``\ [35] corresponds to
 	  lines 6 through 23 of the second field.
 
 
@@ -754,7 +754,7 @@ struct v4l2_mpeg_vbi_itv0_line
 
        -  __u8
 
-       -  ``data``\ \[42\]
+       -  ``data``\ [42]
 
        -  The sliced VBI data for the line.
 

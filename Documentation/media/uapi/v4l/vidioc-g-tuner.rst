@@ -79,7 +79,7 @@ To change the radio frequency the
 
        -  __u8
 
-       -  ``name``\ \[32\]
+       -  ``name``\ [32]
 
        -  :cspan:`1`
 
@@ -246,7 +246,7 @@ To change the radio frequency the
 
        -  __u32
 
-       -  ``reserved``\ \[4\]
+       -  ``reserved``\ [4]
 
        -  :cspan:`1` Reserved for future extensions. Drivers and
 	  applications must set the array to zero.

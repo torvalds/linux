@@ -41,7 +41,7 @@ describing all planes of that format.
 
        -  __u16
 
-       -  ``reserved\[6\]``
+       -  ``reserved[6]``
 
        -  Reserved for future extensions. Should be zeroed by drivers and
 	  applications.
@@ -160,7 +160,7 @@ describing all planes of that format.
 
        -  __u8
 
-       -  ``reserved\[7\]``
+       -  ``reserved[7]``
 
        -  Reserved for future extensions. Should be zeroed by drivers and
 	  applications.

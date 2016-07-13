@@ -123,7 +123,7 @@ instructions.
        -
        -  char
 
-       -  ``name\[32\]``
+       -  ``name[32]``
 
        -  Match a chip by this name, interpreted according to the ``type``
 	  field. Currently unused.

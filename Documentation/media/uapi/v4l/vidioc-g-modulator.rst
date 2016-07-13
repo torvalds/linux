@@ -81,7 +81,7 @@ To change the radio frequency the
 
        -  __u8
 
-       -  ``name``\ \[32\]
+       -  ``name``\ [32]
 
        -  Name of the modulator, a NUL-terminated ASCII string. This
 	  information is intended for the user.
@@ -149,7 +149,7 @@ To change the radio frequency the
 
        -  __u32
 
-       -  ``reserved``\ \[3\]
+       -  ``reserved``\ [3]
 
        -  Reserved for future extensions. Drivers and applications must set
 	  the array to zero.

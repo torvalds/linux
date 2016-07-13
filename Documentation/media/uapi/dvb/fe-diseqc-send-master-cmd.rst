@@ -52,9 +52,9 @@ struct dvb_diseqc_master_cmd
 
        -  uint8_t
 
-       -  msg\[6\]
+       -  msg[6]
 
-       -  DiSEqC message (framing, address, command, data\[3\])
+       -  DiSEqC message (framing, address, command, data[3])
 
     -  .. row 2
 

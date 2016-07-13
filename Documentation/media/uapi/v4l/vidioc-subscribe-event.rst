@@ -79,7 +79,7 @@ using the :ref:`VIDIOC_DQEVENT` ioctl.
 
        -  __u32
 
-       -  ``reserved``\ \[5\]
+       -  ``reserved``\ [5]
 
        -  Reserved for future extensions. Drivers and applications must set
 	  the array to zero.

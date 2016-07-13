@@ -52,9 +52,9 @@ struct dvb_diseqc_slave_reply
 
        -  uint8_t
 
-       -  msg\[4\]
+       -  msg[4]
 
-       -  DiSEqC message (framing, data\[3\])
+       -  DiSEqC message (framing, data[3])
 
     -  .. row 2
 

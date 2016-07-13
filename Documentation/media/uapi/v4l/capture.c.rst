@@ -88,7 +88,7 @@ file: media/v4l/capture.c
 
 	    switch (io) {
 	    case IO_METHOD_READ:
-		    if (-1 == read(fd, buffers\[0\].start, buffers\[0\].length)) {
+		    if (-1 == read(fd, buffers[0].start, buffers[0].length)) {
 			    switch (errno) {
 			    case EAGAIN:
 				    return 0;
@@ -103,7 +103,7 @@ file: media/v4l/capture.c
 			    }
 		    }
 
-		    process_image(buffers\[0\].start, buffers\[0\].length);
+		    process_image(buffers[0].start, buffers[0].length);
 		    break;
 
 	    case IO_METHOD_MMAP:
@@ -284,7 +284,7 @@ file: media/v4l/capture.c
 
 	    switch (io) {
 	    case IO_METHOD_READ:
-		    free(buffers\[0\].start);
+		    free(buffers[0].start);
 		    break;
 
 	    case IO_METHOD_MMAP:
@@ -311,10 +311,10 @@ file: media/v4l/capture.c
 		    exit(EXIT_FAILURE);
 	    }
 
-	    buffers\[0\].length = buffer_size;
-	    buffers\[0\].start = malloc(buffer_size);
+	    buffers[0].length = buffer_size;
+	    buffers[0].start = malloc(buffer_size);
 
-	    if (!buffers\[0\].start) {
+	    if (!buffers[0].start) {
 		    fprintf(stderr, "Out of memory\\n");
 		    exit(EXIT_FAILURE);
 	    }
@@ -575,7 +575,7 @@ file: media/v4l/capture.c
 		     "-f | --format        Force format to 640x480 YUYVn"
 		     "-c | --count         Number of frames to grab [%i]n"
 		     "",
-		     argv\[0\], dev_name, frame_count);
+		     argv[0], dev_name, frame_count);
     }
 
     static const char short_options[] = "d:hmruofc:";

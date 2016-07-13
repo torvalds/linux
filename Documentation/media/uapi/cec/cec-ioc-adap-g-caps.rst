@@ -52,7 +52,7 @@ returns the information to the application. The ioctl never fails.
 
        -  char
 
-       -  ``driver\[32\]``
+       -  ``driver[32]``
 
        -  The name of the cec adapter driver.
 
@@ -60,7 +60,7 @@ returns the information to the application. The ioctl never fails.
 
        -  char
 
-       -  ``name\[32\]``
+       -  ``name[32]``
 
        -  The name of this CEC adapter. The combination ``driver`` and
 	  ``name`` must be unique.
