@@ -386,7 +386,6 @@ static int q6v5_mpss_validate(struct q6v5 *qproc, const struct firmware *fw)
 	phys_addr_t fw_addr;
 	bool relocate;
 	size_t size;
-	u32 val;
 	int ret;
 	int i;
 
@@ -425,8 +424,13 @@ static int q6v5_mpss_validate(struct q6v5 *qproc, const struct firmware *fw)
 		writel(size, qproc->rmb_base + RMB_PMI_CODE_LENGTH_REG);
 	}
 
-	val = readl(qproc->rmb_base + RMB_MBA_STATUS_REG);
-	return val < 0 ? val : 0;
+	ret = q6v5_rmb_mba_wait(qproc, RMB_MBA_AUTH_COMPLETE, 10000);
+	if (ret == -ETIMEDOUT)
+		dev_err(qproc->dev, "MPSS authentication timed out\n");
+	else if (ret < 0)
+		dev_err(qproc->dev, "MPSS authentication failed: %d\n", ret);
+
+	return ret < 0 ? ret : 0;
 }
 
 static int q6v5_mpss_load(struct q6v5 *qproc)
@@ -463,14 +467,6 @@ static int q6v5_mpss_load(struct q6v5 *qproc)
 		goto release_firmware;
 
 	ret = q6v5_mpss_validate(qproc, fw);
-	if (ret)
-		goto release_firmware;
-
-	ret = q6v5_rmb_mba_wait(qproc, RMB_MBA_AUTH_COMPLETE, 10000);
-	if (ret == -ETIMEDOUT)
-		dev_err(qproc->dev, "MPSS authentication timed out\n");
-	else if (ret < 0)
-		dev_err(qproc->dev, "MPSS authentication failed: %d\n", ret);
 
 release_firmware:
 	release_firmware(fw);
