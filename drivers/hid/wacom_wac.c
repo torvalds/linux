@@ -1941,7 +1941,7 @@ static int wacom_bpt3_touch(struct wacom_wac *wacom)
 	}
 
 	/* only update touch if we actually have a touchpad and touch data changed */
-	if (wacom->touch_registered && touch_changed) {
+	if (wacom->touch_input && touch_changed) {
 		input_mt_sync_frame(wacom->touch_input);
 		wacom->shared->touch_down = wacom_wac_finger_count_touches(wacom);
 	}
