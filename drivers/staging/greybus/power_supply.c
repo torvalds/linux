@@ -18,6 +18,7 @@
 
 struct gb_power_supply_prop {
 	enum power_supply_property	prop;
+	u8				gb_prop;
 	int				val;
 	int				previous_val;
 	bool				is_writeable;
@@ -82,6 +83,210 @@ static const struct gb_power_supply_changes psy_props_changes[] = {
 		.tolerance_change =	0,
 	},
 };
+
+static int get_psp_from_gb_prop(int gb_prop, enum power_supply_property *psp)
+{
+	int prop;
+
+	switch (gb_prop) {
+	case GB_POWER_SUPPLY_PROP_STATUS:
+		prop = POWER_SUPPLY_PROP_STATUS;
+		break;
+	case GB_POWER_SUPPLY_PROP_CHARGE_TYPE:
+		prop = POWER_SUPPLY_PROP_CHARGE_TYPE;
+		break;
+	case GB_POWER_SUPPLY_PROP_HEALTH:
+		prop = POWER_SUPPLY_PROP_HEALTH;
+		break;
+	case GB_POWER_SUPPLY_PROP_PRESENT:
+		prop = POWER_SUPPLY_PROP_PRESENT;
+		break;
+	case GB_POWER_SUPPLY_PROP_ONLINE:
+		prop = POWER_SUPPLY_PROP_ONLINE;
+		break;
+	case GB_POWER_SUPPLY_PROP_AUTHENTIC:
+		prop = POWER_SUPPLY_PROP_AUTHENTIC;
+		break;
+	case GB_POWER_SUPPLY_PROP_TECHNOLOGY:
+		prop = POWER_SUPPLY_PROP_TECHNOLOGY;
+		break;
+	case GB_POWER_SUPPLY_PROP_CYCLE_COUNT:
+		prop = POWER_SUPPLY_PROP_CYCLE_COUNT;
+		break;
+	case GB_POWER_SUPPLY_PROP_VOLTAGE_MAX:
+		prop = POWER_SUPPLY_PROP_VOLTAGE_MAX;
+		break;
+	case GB_POWER_SUPPLY_PROP_VOLTAGE_MIN:
+		prop = POWER_SUPPLY_PROP_VOLTAGE_MIN;
+		break;
+	case GB_POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN:
+		prop = POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN;
+		break;
+	case GB_POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN:
+		prop = POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN;
+		break;
+	case GB_POWER_SUPPLY_PROP_VOLTAGE_NOW:
+		prop = POWER_SUPPLY_PROP_VOLTAGE_NOW;
+		break;
+	case GB_POWER_SUPPLY_PROP_VOLTAGE_AVG:
+		prop = POWER_SUPPLY_PROP_VOLTAGE_AVG;
+		break;
+	case GB_POWER_SUPPLY_PROP_VOLTAGE_OCV:
+		prop = POWER_SUPPLY_PROP_VOLTAGE_OCV;
+		break;
+	case GB_POWER_SUPPLY_PROP_VOLTAGE_BOOT:
+		prop = POWER_SUPPLY_PROP_VOLTAGE_BOOT;
+		break;
+	case GB_POWER_SUPPLY_PROP_CURRENT_MAX:
+		prop = POWER_SUPPLY_PROP_CURRENT_MAX;
+		break;
+	case GB_POWER_SUPPLY_PROP_CURRENT_NOW:
+		prop = POWER_SUPPLY_PROP_CURRENT_NOW;
+		break;
+	case GB_POWER_SUPPLY_PROP_CURRENT_AVG:
+		prop = POWER_SUPPLY_PROP_CURRENT_AVG;
+		break;
+	case GB_POWER_SUPPLY_PROP_CURRENT_BOOT:
+		prop = POWER_SUPPLY_PROP_CURRENT_BOOT;
+		break;
+	case GB_POWER_SUPPLY_PROP_POWER_NOW:
+		prop = POWER_SUPPLY_PROP_POWER_NOW;
+		break;
+	case GB_POWER_SUPPLY_PROP_POWER_AVG:
+		prop = POWER_SUPPLY_PROP_POWER_AVG;
+		break;
+	case GB_POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
+		prop = POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN;
+		break;
+	case GB_POWER_SUPPLY_PROP_CHARGE_EMPTY_DESIGN:
+		prop = POWER_SUPPLY_PROP_CHARGE_EMPTY_DESIGN;
+		break;
+	case GB_POWER_SUPPLY_PROP_CHARGE_FULL:
+		prop = POWER_SUPPLY_PROP_CHARGE_FULL;
+		break;
+	case GB_POWER_SUPPLY_PROP_CHARGE_EMPTY:
+		prop = POWER_SUPPLY_PROP_CHARGE_EMPTY;
+		break;
+	case GB_POWER_SUPPLY_PROP_CHARGE_NOW:
+		prop = POWER_SUPPLY_PROP_CHARGE_NOW;
+		break;
+	case GB_POWER_SUPPLY_PROP_CHARGE_AVG:
+		prop = POWER_SUPPLY_PROP_CHARGE_AVG;
+		break;
+	case GB_POWER_SUPPLY_PROP_CHARGE_COUNTER:
+		prop = POWER_SUPPLY_PROP_CHARGE_COUNTER;
+		break;
+	case GB_POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT:
+		prop = POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT;
+		break;
+	case GB_POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX:
+		prop = POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX;
+		break;
+	case GB_POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE:
+		prop = POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE;
+		break;
+	case GB_POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE_MAX:
+		prop = POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE_MAX;
+		break;
+	case GB_POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT:
+		prop = POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT;
+		break;
+	case GB_POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT_MAX:
+		prop = POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT_MAX;
+		break;
+	case GB_POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
+		prop = POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT;
+		break;
+	case GB_POWER_SUPPLY_PROP_ENERGY_FULL_DESIGN:
+		prop = POWER_SUPPLY_PROP_ENERGY_FULL_DESIGN;
+		break;
+	case GB_POWER_SUPPLY_PROP_ENERGY_EMPTY_DESIGN:
+		prop = POWER_SUPPLY_PROP_ENERGY_EMPTY_DESIGN;
+		break;
+	case GB_POWER_SUPPLY_PROP_ENERGY_FULL:
+		prop = POWER_SUPPLY_PROP_ENERGY_FULL;
+		break;
+	case GB_POWER_SUPPLY_PROP_ENERGY_EMPTY:
+		prop = POWER_SUPPLY_PROP_ENERGY_EMPTY;
+		break;
+	case GB_POWER_SUPPLY_PROP_ENERGY_NOW:
+		prop = POWER_SUPPLY_PROP_ENERGY_NOW;
+		break;
+	case GB_POWER_SUPPLY_PROP_ENERGY_AVG:
+		prop = POWER_SUPPLY_PROP_ENERGY_AVG;
+		break;
+	case GB_POWER_SUPPLY_PROP_CAPACITY:
+		prop = POWER_SUPPLY_PROP_CAPACITY;
+		break;
+	case GB_POWER_SUPPLY_PROP_CAPACITY_ALERT_MIN:
+		prop = POWER_SUPPLY_PROP_CAPACITY_ALERT_MIN;
+		break;
+	case GB_POWER_SUPPLY_PROP_CAPACITY_ALERT_MAX:
+		prop = POWER_SUPPLY_PROP_CAPACITY_ALERT_MAX;
+		break;
+	case GB_POWER_SUPPLY_PROP_CAPACITY_LEVEL:
+		prop = POWER_SUPPLY_PROP_CAPACITY_LEVEL;
+		break;
+	case GB_POWER_SUPPLY_PROP_TEMP:
+		prop = POWER_SUPPLY_PROP_TEMP;
+		break;
+	case GB_POWER_SUPPLY_PROP_TEMP_MAX:
+		prop = POWER_SUPPLY_PROP_TEMP_MAX;
+		break;
+	case GB_POWER_SUPPLY_PROP_TEMP_MIN:
+		prop = POWER_SUPPLY_PROP_TEMP_MIN;
+		break;
+	case GB_POWER_SUPPLY_PROP_TEMP_ALERT_MIN:
+		prop = POWER_SUPPLY_PROP_TEMP_ALERT_MIN;
+		break;
+	case GB_POWER_SUPPLY_PROP_TEMP_ALERT_MAX:
+		prop = POWER_SUPPLY_PROP_TEMP_ALERT_MAX;
+		break;
+	case GB_POWER_SUPPLY_PROP_TEMP_AMBIENT:
+		prop = POWER_SUPPLY_PROP_TEMP_AMBIENT;
+		break;
+	case GB_POWER_SUPPLY_PROP_TEMP_AMBIENT_ALERT_MIN:
+		prop = POWER_SUPPLY_PROP_TEMP_AMBIENT_ALERT_MIN;
+		break;
+	case GB_POWER_SUPPLY_PROP_TEMP_AMBIENT_ALERT_MAX:
+		prop = POWER_SUPPLY_PROP_TEMP_AMBIENT_ALERT_MAX;
+		break;
+	case GB_POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW:
+		prop = POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW;
+		break;
+	case GB_POWER_SUPPLY_PROP_TIME_TO_EMPTY_AVG:
+		prop = POWER_SUPPLY_PROP_TIME_TO_EMPTY_AVG;
+		break;
+	case GB_POWER_SUPPLY_PROP_TIME_TO_FULL_NOW:
+		prop = POWER_SUPPLY_PROP_TIME_TO_FULL_NOW;
+		break;
+	case GB_POWER_SUPPLY_PROP_TIME_TO_FULL_AVG:
+		prop = POWER_SUPPLY_PROP_TIME_TO_FULL_AVG;
+		break;
+	case GB_POWER_SUPPLY_PROP_TYPE:
+		prop = POWER_SUPPLY_PROP_TYPE;
+		break;
+	case GB_POWER_SUPPLY_PROP_SCOPE:
+		prop = POWER_SUPPLY_PROP_SCOPE;
+		break;
+	case GB_POWER_SUPPLY_PROP_CHARGE_TERM_CURRENT:
+		prop = POWER_SUPPLY_PROP_CHARGE_TERM_CURRENT;
+		break;
+	case GB_POWER_SUPPLY_PROP_CALIBRATE:
+		prop = POWER_SUPPLY_PROP_CALIBRATE;
+		break;
+	default:
+		prop = -1;
+		break;
+	}
+
+	if (prop < 0)
+		return prop;
+
+	*psp = (enum power_supply_property)prop;
+
+	return 0;
+}
 
 static struct gb_connection *get_conn_from_psy(struct gb_power_supply *gbpsy)
 {
@@ -253,8 +458,9 @@ static int gb_power_supply_prop_descriptors_get(struct gb_power_supply *gbpsy)
 	struct gb_power_supply_get_property_descriptors_response *resp;
 	struct gb_operation *op;
 	u8 props_count = gbpsy->properties_count;
+	enum power_supply_property psp;
 	int ret;
-	int i;
+	int i, r = 0;
 
 	if (props_count == 0)
 		return 0;
@@ -276,6 +482,17 @@ static int gb_power_supply_prop_descriptors_get(struct gb_power_supply *gbpsy)
 
 	resp = op->response->payload;
 
+	/* validate received properties */
+	for (i = 0; i < props_count; i++) {
+		ret = get_psp_from_gb_prop(resp->props[i].property, &psp);
+		if (ret < 0) {
+			dev_warn(&connection->bundle->dev,
+				 "greybus property %u it is not supported by this kernel, dropped\n",
+				 resp->props[i].property);
+			gbpsy->properties_count--;
+		}
+	}
+
 	gbpsy->props = kcalloc(gbpsy->properties_count, sizeof(*gbpsy->props),
 			      GFP_KERNEL);
 	if (!gbpsy->props) {
@@ -290,12 +507,18 @@ static int gb_power_supply_prop_descriptors_get(struct gb_power_supply *gbpsy)
 		goto out_put_operation;
 	}
 
-	/* Store available properties */
-	for (i = 0; i < gbpsy->properties_count; i++) {
-		gbpsy->props[i].prop = resp->props[i].property;
-		gbpsy->props_raw[i] = resp->props[i].property;
+	/* Store available properties, skip the ones we do not support */
+	for (i = 0; i < props_count; i++) {
+		ret = get_psp_from_gb_prop(resp->props[i].property, &psp);
+		if (ret < 0) {
+			r++;
+			continue;
+		}
+		gbpsy->props[i - r].prop = psp;
+		gbpsy->props[i - r].gb_prop = resp->props[i].property;
+		gbpsy->props_raw[i - r] = psp;
 		if (resp->props[i].is_writeable)
-			gbpsy->props[i].is_writeable = true;
+			gbpsy->props[i - r].is_writeable = true;
 	}
 
 	/*
@@ -304,6 +527,7 @@ static int gb_power_supply_prop_descriptors_get(struct gb_power_supply *gbpsy)
 	 */
 	_gb_power_supply_append_props(gbpsy);
 
+	ret = 0;
 out_put_operation:
 	gb_operation_put(op);
 
@@ -324,7 +548,7 @@ static int __gb_power_supply_property_update(struct gb_power_supply *gbpsy,
 	if (!prop)
 		return -EINVAL;
 	req.psy_id = gbpsy->id;
-	req.property = (u8)psp;
+	req.property = prop->gb_prop;
 
 	ret = gb_operation_sync(connection, GB_POWER_SUPPLY_TYPE_GET_PROPERTY,
 				&req, sizeof(req), &resp, sizeof(resp));
@@ -479,8 +703,7 @@ static int gb_power_supply_property_set(struct gb_power_supply *gbpsy,
 	if (!prop)
 		return -EINVAL;
 	req.psy_id = gbpsy->id;
-	req.property = (u8)psp;
-	req.prop_val = cpu_to_le32(val);
+	req.property = prop->gb_prop;
 	req.prop_val = cpu_to_le32((s32)val);
 
 	ret = gb_operation_sync(connection, GB_POWER_SUPPLY_TYPE_SET_PROPERTY,

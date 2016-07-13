@@ -305,6 +305,20 @@ static inline bool led_sysfs_is_disabled(struct led_classdev *led_cdev)
 #define PSY_HAVE_PUT
 #endif
 
+/*
+ * General power supply properties that could be absent from various reasons,
+ * like kernel versions or vendor specific versions
+ */
+#ifndef POWER_SUPPLY_PROP_VOLTAGE_BOOT
+	#define POWER_SUPPLY_PROP_VOLTAGE_BOOT	-1
+#endif
+#ifndef POWER_SUPPLY_PROP_CURRENT_BOOT
+	#define POWER_SUPPLY_PROP_CURRENT_BOOT	-1
+#endif
+#ifndef POWER_SUPPLY_PROP_CALIBRATE
+	#define POWER_SUPPLY_PROP_CALIBRATE	-1
+#endif
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)
 #define SPI_DEV_MODALIAS "spidev"
 #define SPI_NOR_MODALIAS "spi-nor"
