@@ -473,7 +473,10 @@ unsigned int acpi_cpufreq_fast_switch(struct cpufreq_policy *policy,
 	/*
 	 * Find the closest frequency above target_freq.
 	 */
-	index = cpufreq_table_find_index_dl(policy, target_freq);
+	if (policy->cached_target_freq == target_freq)
+		index = policy->cached_resolved_idx;
+	else
+		index = cpufreq_table_find_index_dl(policy, target_freq);
 
 	entry = &policy->freq_table[index];
 	next_freq = entry->frequency;
