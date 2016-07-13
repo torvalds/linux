@@ -711,14 +711,14 @@ static cputime_t vtime_delta(struct task_struct *tsk)
 static cputime_t get_vtime_delta(struct task_struct *tsk)
 {
 	unsigned long now = READ_ONCE(jiffies);
-	cputime_t delta, steal;
+	cputime_t delta, other;
 
 	delta = jiffies_to_cputime(now - tsk->vtime_snap);
-	steal = steal_account_process_time(delta);
+	other = account_other_time(delta);
 	WARN_ON_ONCE(tsk->vtime_snap_whence == VTIME_INACTIVE);
 	tsk->vtime_snap = now;
 
-	return delta - steal;
+	return delta - other;
 }
 
 static void __vtime_account_system(struct task_struct *tsk)
@@ -735,16 +735,6 @@ void vtime_account_system(struct task_struct *tsk)
 
 	write_seqcount_begin(&tsk->vtime_seqcount);
 	__vtime_account_system(tsk);
-	write_seqcount_end(&tsk->vtime_seqcount);
-}
-
-void vtime_gen_account_irq_exit(struct task_struct *tsk)
-{
-	write_seqcount_begin(&tsk->vtime_seqcount);
-	if (vtime_delta(tsk))
-		__vtime_account_system(tsk);
-	if (context_tracking_in_user())
-		tsk->vtime_snap_whence = VTIME_USER;
 	write_seqcount_end(&tsk->vtime_seqcount);
 }
 
