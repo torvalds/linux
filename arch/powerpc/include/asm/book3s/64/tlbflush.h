@@ -16,6 +16,16 @@ static inline void flush_pmd_tlb_range(struct vm_area_struct *vma,
 	return hash__flush_tlb_range(vma, start, end);
 }
 
+#define __HAVE_ARCH_FLUSH_HUGETLB_TLB_RANGE
+static inline void flush_hugetlb_tlb_range(struct vm_area_struct *vma,
+					   unsigned long start,
+					   unsigned long end)
+{
+	if (radix_enabled())
+		return radix__flush_hugetlb_tlb_range(vma, start, end);
+	return hash__flush_tlb_range(vma, start, end);
+}
+
 static inline void flush_tlb_range(struct vm_area_struct *vma,
 				   unsigned long start, unsigned long end)
 {

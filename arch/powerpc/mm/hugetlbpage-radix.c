@@ -25,6 +25,16 @@ void radix__local_flush_hugetlb_page(struct vm_area_struct *vma, unsigned long v
 	radix__local_flush_tlb_page_psize(vma->vm_mm, vmaddr, psize);
 }
 
+void radix__flush_hugetlb_tlb_range(struct vm_area_struct *vma, unsigned long start,
+				   unsigned long end)
+{
+	int psize;
+	struct hstate *hstate = hstate_file(vma->vm_file);
+
+	psize = hstate_get_psize(hstate);
+	radix__flush_tlb_range_psize(vma->vm_mm, start, end, psize);
+}
+
 /*
  * A vairant of hugetlb_get_unmapped_area doing topdown search
  * FIXME!! should we do as x86 does or non hugetlb area does ?
