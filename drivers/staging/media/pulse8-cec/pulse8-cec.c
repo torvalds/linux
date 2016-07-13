@@ -424,7 +424,7 @@ static int pulse8_received(struct cec_adapter *adap, struct cec_msg *msg)
 	return -ENOMSG;
 }
 
-const struct cec_adap_ops pulse8_cec_adap_ops = {
+static const struct cec_adap_ops pulse8_cec_adap_ops = {
 	.adap_enable = pulse8_cec_adap_enable,
 	.adap_log_addr = pulse8_cec_adap_log_addr,
 	.adap_transmit = pulse8_cec_adap_transmit,
