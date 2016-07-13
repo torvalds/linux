@@ -37,6 +37,9 @@ DEFINE_PRINT_FN(info, 1)
 DEFINE_PRINT_FN(debug, 1)
 
 struct bpf_prog_priv {
+	bool is_tp;
+	char *sys_name;
+	char *evt_name;
 	struct perf_probe_event pev;
 	bool need_prologue;
 	struct bpf_insn *insns_buf;
@@ -118,6 +121,8 @@ clear_prog_priv(struct bpf_program *prog __maybe_unused,
 	cleanup_perf_probe_events(&priv->pev, 1);
 	zfree(&priv->insns_buf);
 	zfree(&priv->type_mapping);
+	zfree(&priv->sys_name);
+	zfree(&priv->evt_name);
 	free(priv);
 }
 
@@ -269,7 +274,8 @@ nextline:
 }
 
 static int
-parse_prog_config(const char *config_str, struct perf_probe_event *pev)
+parse_prog_config(const char *config_str, const char **p_main_str,
+		  bool *is_tp, struct perf_probe_event *pev)
 {
 	int err;
 	const char *main_str = parse_prog_config_kvpair(config_str, pev);
@@ -277,6 +283,22 @@ parse_prog_config(const char *config_str, struct perf_probe_event *pev)
 	if (IS_ERR(main_str))
 		return PTR_ERR(main_str);
 
+	*p_main_str = main_str;
+	if (!strchr(main_str, '=')) {
+		/* Is a tracepoint event? */
+		const char *s = strchr(main_str, ':');
+
+		if (!s) {
+			pr_debug("bpf: '%s' is not a valid tracepoint\n",
+				 config_str);
+			return -BPF_LOADER_ERRNO__CONFIG;
+		}
+
+		*is_tp = true;
+		return 0;
+	}
+
+	*is_tp = false;
 	err = parse_perf_probe_command(main_str, pev);
 	if (err < 0) {
 		pr_debug("bpf: '%s' is not a valid config string\n",
@@ -292,7 +314,8 @@ config_bpf_program(struct bpf_program *prog)
 {
 	struct perf_probe_event *pev = NULL;
 	struct bpf_prog_priv *priv = NULL;
-	const char *config_str;
+	const char *config_str, *main_str;
+	bool is_tp = false;
 	int err;
 
 	/* Initialize per-program probing setting */
@@ -313,9 +336,18 @@ config_bpf_program(struct bpf_program *prog)
 	pev = &priv->pev;
 
 	pr_debug("bpf: config program '%s'\n", config_str);
-	err = parse_prog_config(config_str, pev);
+	err = parse_prog_config(config_str, &main_str, &is_tp, pev);
 	if (err)
 		goto errout;
+
+	if (is_tp) {
+		char *s = strchr(main_str, ':');
+
+		priv->is_tp = true;
+		priv->sys_name = strndup(main_str, s - main_str);
+		priv->evt_name = strdup(s + 1);
+		goto set_priv;
+	}
 
 	if (pev->group && strcmp(pev->group, PERF_BPF_PROBE_GROUP)) {
 		pr_debug("bpf: '%s': group for event is set and not '%s'.\n",
@@ -339,6 +371,7 @@ config_bpf_program(struct bpf_program *prog)
 	}
 	pr_debug("bpf: config '%s' is ok\n", config_str);
 
+set_priv:
 	err = bpf_program__set_priv(prog, priv, clear_prog_priv);
 	if (err) {
 		pr_debug("Failed to set priv for program '%s'\n", config_str);
@@ -387,7 +420,7 @@ preproc_gen_prologue(struct bpf_program *prog, int n,
 	size_t prologue_cnt = 0;
 	int i, err;
 
-	if (IS_ERR(priv) || !priv)
+	if (IS_ERR(priv) || !priv || priv->is_tp)
 		goto errout;
 
 	pev = &priv->pev;
@@ -544,6 +577,11 @@ static int hook_load_preprocessor(struct bpf_program *prog)
 		return -BPF_LOADER_ERRNO__INTERNAL;
 	}
 
+	if (priv->is_tp) {
+		priv->need_prologue = false;
+		return 0;
+	}
+
 	pev = &priv->pev;
 	for (i = 0; i < pev->ntevs; i++) {
 		struct probe_trace_event *tev = &pev->tevs[i];
@@ -610,6 +648,13 @@ int bpf__probe(struct bpf_object *obj)
 			err = PTR_ERR(priv);
 			goto out;
 		}
+
+		if (priv->is_tp) {
+			bpf_program__set_tracepoint(prog);
+			continue;
+		}
+
+		bpf_program__set_kprobe(prog);
 		pev = &priv->pev;
 
 		err = convert_perf_probe_events(pev, 1);
@@ -650,7 +695,7 @@ int bpf__unprobe(struct bpf_object *obj)
 		struct bpf_prog_priv *priv = bpf_program__priv(prog);
 		int i;
 
-		if (IS_ERR(priv) || !priv)
+		if (IS_ERR(priv) || !priv || priv->is_tp)
 			continue;
 
 		for (i = 0; i < priv->pev.ntevs; i++) {
@@ -709,6 +754,16 @@ int bpf__foreach_event(struct bpf_object *obj,
 		if (IS_ERR(priv) || !priv) {
 			pr_debug("bpf: failed to get private field\n");
 			return -BPF_LOADER_ERRNO__INTERNAL;
+		}
+
+		if (priv->is_tp) {
+			fd = bpf_program__fd(prog);
+			err = (*func)(priv->sys_name, priv->evt_name, fd, arg);
+			if (err) {
+				pr_debug("bpf: tracepoint call back failed, stop iterate\n");
+				return err;
+			}
+			continue;
 		}
 
 		pev = &priv->pev;
