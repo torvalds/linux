@@ -1720,9 +1720,10 @@ static int wacom_parse_and_register(struct wacom *wacom, bool wireless)
 		error = hid_hw_open(hdev);
 
 	if ((wacom_wac->features.type == INTUOSHT ||
-	    wacom_wac->features.type == INTUOSHT2) &&
+	     wacom_wac->features.type == INTUOSHT2) &&
 	    (wacom_wac->features.device_type & WACOM_DEVICETYPE_TOUCH)) {
-			wacom_wac->shared->touch_input = wacom_wac->touch_input;
+		wacom_wac->shared->type = wacom_wac->features.type;
+		wacom_wac->shared->touch_input = wacom_wac->touch_input;
 	}
 
 	return 0;
