@@ -770,6 +770,15 @@ static int arche_platform_resume(struct device *dev)
 	return 0;
 }
 
+static void arche_platform_shutdown(struct platform_device *pdev)
+{
+	struct arche_platform_drvdata *arche_pdata = platform_get_drvdata(pdev);
+
+	arche_platform_poweroff_seq(arche_pdata);
+
+	usb3613_hub_mode_ctrl(false);
+}
+
 static SIMPLE_DEV_PM_OPS(arche_platform_pm_ops,
 			arche_platform_suspend,
 			arche_platform_resume);
@@ -789,6 +798,7 @@ MODULE_DEVICE_TABLE(of, arche_combined_id);
 static struct platform_driver arche_platform_device_driver = {
 	.probe		= arche_platform_probe,
 	.remove		= arche_platform_remove,
+	.shutdown	= arche_platform_shutdown,
 	.driver		= {
 		.name	= "arche-platform-ctrl",
 		.pm	= &arche_platform_pm_ops,

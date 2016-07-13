@@ -146,10 +146,21 @@ static int greybus_uevent(struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 
+static void greybus_shutdown(struct device *dev)
+{
+	if (is_gb_host_device(dev)) {
+		struct gb_host_device *hd;
+
+		hd = to_gb_host_device(dev);
+		gb_hd_shutdown(hd);
+	}
+}
+
 struct bus_type greybus_bus_type = {
 	.name =		"greybus",
 	.match =	greybus_match_device,
 	.uevent =	greybus_uevent,
+	.shutdown =	greybus_shutdown,
 };
 
 static int greybus_probe(struct device *dev)

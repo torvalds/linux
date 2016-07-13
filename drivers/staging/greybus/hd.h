@@ -75,6 +75,7 @@ struct gb_host_device *gb_hd_create(struct gb_hd_driver *driver,
 					size_t num_cports);
 int gb_hd_add(struct gb_host_device *hd);
 void gb_hd_del(struct gb_host_device *hd);
+void gb_hd_shutdown(struct gb_host_device *hd);
 void gb_hd_put(struct gb_host_device *hd);
 int gb_hd_output(struct gb_host_device *hd, void *req, u16 size, u8 cmd,
 		 bool in_irq);

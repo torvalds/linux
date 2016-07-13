@@ -444,6 +444,11 @@ static int arche_apb_ctrl_resume(struct device *dev)
 	return 0;
 }
 
+static void arche_apb_ctrl_shutdown(struct platform_device *pdev)
+{
+	apb_ctrl_poweroff(&pdev->dev);
+}
+
 static SIMPLE_DEV_PM_OPS(arche_apb_ctrl_pm_ops, arche_apb_ctrl_suspend,
 			 arche_apb_ctrl_resume);
 
@@ -455,6 +460,7 @@ static struct of_device_id arche_apb_ctrl_of_match[] = {
 static struct platform_driver arche_apb_ctrl_device_driver = {
 	.probe		= arche_apb_ctrl_probe,
 	.remove		= arche_apb_ctrl_remove,
+	.shutdown	= arche_apb_ctrl_shutdown,
 	.driver		= {
 		.name	= "arche-apb-ctrl",
 		.pm	= &arche_apb_ctrl_pm_ops,

@@ -232,6 +232,12 @@ void gb_hd_del(struct gb_host_device *hd)
 }
 EXPORT_SYMBOL_GPL(gb_hd_del);
 
+void gb_hd_shutdown(struct gb_host_device *hd)
+{
+	gb_svc_del(hd->svc);
+}
+EXPORT_SYMBOL_GPL(gb_hd_shutdown);
+
 void gb_hd_put(struct gb_host_device *hd)
 {
 	put_device(&hd->dev);
