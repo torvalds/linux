@@ -17,5 +17,6 @@ $(obj)/constants.py: $(SRCTREE)/$(obj)/constants.py.in
 	$(call if_changed,gen_constants_py)
 
 build_constants_py: $(obj)/constants.py
+	@:
 
 clean-files := *.pyc *.pyo $(if $(KBUILD_SRC),*.py) $(obj)/constants.py
