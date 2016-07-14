@@ -812,6 +812,28 @@ static const unsigned int avb_avtp_match_pins[] = {
 static const unsigned int avb_avtp_match_mux[] = {
 	AVB_AVTP_MATCH_MARK,
 };
+/* - CAN -------------------------------------------------------------------- */
+static const unsigned int can0_data_pins[] = {
+	/* TX, RX */
+	RCAR_GP_PIN(10, 27), RCAR_GP_PIN(10, 28),
+};
+static const unsigned int can0_data_mux[] = {
+	CAN0_TX_MARK, CAN0_RX_MARK,
+};
+static const unsigned int can1_data_pins[] = {
+	/* TX, RX */
+	RCAR_GP_PIN(10, 30), RCAR_GP_PIN(10, 31),
+};
+static const unsigned int can1_data_mux[] = {
+	CAN1_TX_MARK, CAN1_RX_MARK,
+};
+static const unsigned int can_clk_pins[] = {
+	/* CAN_CLK */
+	RCAR_GP_PIN(10, 29),
+};
+static const unsigned int can_clk_mux[] = {
+	CAN_CLK_MARK,
+};
 /* - INTC ------------------------------------------------------------------- */
 static const unsigned int intc_irq0_pins[] = {
 	/* IRQ0 */
@@ -981,6 +1003,9 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(avb_mii),
 	SH_PFC_PIN_GROUP(avb_gmii),
 	SH_PFC_PIN_GROUP(avb_avtp_match),
+	SH_PFC_PIN_GROUP(can0_data),
+	SH_PFC_PIN_GROUP(can1_data),
+	SH_PFC_PIN_GROUP(can_clk),
 	SH_PFC_PIN_GROUP(intc_irq0),
 	SH_PFC_PIN_GROUP(intc_irq1),
 	SH_PFC_PIN_GROUP(intc_irq2),
@@ -1013,6 +1038,16 @@ static const char * const avb_groups[] = {
 	"avb_mii",
 	"avb_gmii",
 	"avb_avtp_match",
+};
+
+static const char * const can0_groups[] = {
+	"can0_data",
+	"can_clk",
+};
+
+static const char * const can1_groups[] = {
+	"can1_data",
+	"can_clk",
 };
 
 static const char * const intc_groups[] = {
@@ -1054,6 +1089,8 @@ static const char * const sdhi0_groups[] = {
 
 static const struct sh_pfc_function pinmux_functions[] = {
 	SH_PFC_FUNCTION(avb),
+	SH_PFC_FUNCTION(can0),
+	SH_PFC_FUNCTION(can1),
 	SH_PFC_FUNCTION(intc),
 	SH_PFC_FUNCTION(lbsc),
 	SH_PFC_FUNCTION(scif0),
