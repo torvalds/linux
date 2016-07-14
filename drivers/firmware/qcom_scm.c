@@ -308,6 +308,14 @@ static const struct reset_control_ops qcom_scm_pas_reset_ops = {
 	.deassert = qcom_scm_pas_reset_deassert,
 };
 
+/**
+ * qcom_scm_is_available() - Checks if SCM is available
+ */
+bool qcom_scm_is_available(void)
+{
+	return !!__scm;
+}
+EXPORT_SYMBOL(qcom_scm_is_available);
 
 static int qcom_scm_probe(struct platform_device *pdev)
 {
@@ -407,7 +415,7 @@ static int __init qcom_scm_init(void)
 	return platform_driver_register(&qcom_scm_driver);
 }
 
-arch_initcall(qcom_scm_init);
+subsys_initcall(qcom_scm_init);
 
 static void __exit qcom_scm_exit(void)
 {
