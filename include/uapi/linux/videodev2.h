@@ -1254,6 +1254,9 @@ struct v4l2_standard {
  *		(aka field 2) of interlaced field formats
  * @standards:	Standards the timing belongs to
  * @flags:	Flags
+ * @picture_aspect: The picture aspect ratio (hor/vert).
+ * @cea861_vic:	VIC code as per the CEA-861 standard.
+ * @hdmi_vic:	VIC code as per the HDMI standard.
  * @reserved:	Reserved fields, must be zeroed.
  *
  * A note regarding vertical interlaced timings: height refers to the total
@@ -1283,7 +1286,10 @@ struct v4l2_bt_timings {
 	__u32	il_vbackporch;
 	__u32	standards;
 	__u32	flags;
-	__u32	reserved[14];
+	struct v4l2_fract picture_aspect;
+	__u8	cea861_vic;
+	__u8	hdmi_vic;
+	__u8	reserved[46];
 } __attribute__ ((packed));
 
 /* Interlaced or progressive format */
@@ -1345,7 +1351,24 @@ struct v4l2_bt_timings {
  * total height. For these formats, if this flag is set, the first
  * field has the extra line. If not, it is the second field.
  */
-#define V4L2_DV_FL_FIRST_FIELD_EXTRA_LINE		(1 << 5)
+#define V4L2_DV_FL_FIRST_FIELD_EXTRA_LINE	(1 << 5)
+/*
+ * If set, then the picture_aspect field is valid. Otherwise assume that the
+ * pixels are square, so the picture aspect ratio is the same as the width to
+ * height ratio.
+ */
+#define V4L2_DV_FL_HAS_PICTURE_ASPECT		(1 << 6)
+/*
+ * If set, then the cea861_vic field is valid and contains the Video
+ * Identification Code as per the CEA-861 standard.
+ */
+#define V4L2_DV_FL_HAS_CEA861_VIC		(1 << 7)
+/*
+ * If set, then the hdmi_vic field is valid and contains the Video
+ * Identification Code as per the HDMI standard (HDMI Vendor Specific
+ * InfoFrame).
+ */
+#define V4L2_DV_FL_HAS_HDMI_VIC			(1 << 8)
 
 /* A few useful defines to calculate the total blanking and frame sizes */
 #define V4L2_DV_BT_BLANKING_WIDTH(bt) \
