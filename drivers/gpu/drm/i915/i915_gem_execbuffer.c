@@ -186,6 +186,35 @@ err:
 	return ret;
 }
 
+static inline struct i915_vma *
+eb_get_batch_vma(struct eb_vmas *eb)
+{
+	/* The batch is always the LAST item in the VMA list */
+	struct i915_vma *vma = list_last_entry(&eb->vmas, typeof(*vma), exec_list);
+
+	return vma;
+}
+
+static struct drm_i915_gem_object *
+eb_get_batch(struct eb_vmas *eb)
+{
+	struct i915_vma *vma = eb_get_batch_vma(eb);
+
+	/*
+	 * SNA is doing fancy tricks with compressing batch buffers, which leads
+	 * to negative relocation deltas. Usually that works out ok since the
+	 * relocate address is still positive, except when the batch is placed
+	 * very low in the GTT. Ensure this doesn't happen.
+	 *
+	 * Note that actual hangs have only been observed on gen7, but for
+	 * paranoia do it everywhere.
+	 */
+	if ((vma->exec_entry->flags & EXEC_OBJECT_PINNED) == 0)
+		vma->exec_entry->flags |= __EXEC_OBJECT_NEEDS_BIAS;
+
+	return vma->obj;
+}
+
 static struct i915_vma *eb_get_vma(struct eb_vmas *eb, unsigned long handle)
 {
 	if (eb->and < 0) {
@@ -1339,26 +1368,6 @@ gen8_dispatch_bsd_ring(struct drm_i915_private *dev_priv, struct drm_file *file)
 	}
 
 	return file_priv->bsd_ring;
-}
-
-static struct drm_i915_gem_object *
-eb_get_batch(struct eb_vmas *eb)
-{
-	struct i915_vma *vma = list_entry(eb->vmas.prev, typeof(*vma), exec_list);
-
-	/*
-	 * SNA is doing fancy tricks with compressing batch buffers, which leads
-	 * to negative relocation deltas. Usually that works out ok since the
-	 * relocate address is still positive, except when the batch is placed
-	 * very low in the GTT. Ensure this doesn't happen.
-	 *
-	 * Note that actual hangs have only been observed on gen7, but for
-	 * paranoia do it everywhere.
-	 */
-	if ((vma->exec_entry->flags & EXEC_OBJECT_PINNED) == 0)
-		vma->exec_entry->flags |= __EXEC_OBJECT_NEEDS_BIAS;
-
-	return vma->obj;
 }
 
 #define I915_USER_RINGS (4)
