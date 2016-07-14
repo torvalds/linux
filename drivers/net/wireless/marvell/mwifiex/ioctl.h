@@ -83,6 +83,8 @@ struct wep_key {
 #define MWIFIEX_AUTH_MODE_AUTO  0xFF
 #define BAND_CONFIG_BG          0x00
 #define BAND_CONFIG_A           0x01
+#define MWIFIEX_SEC_CHAN_BELOW	0x30
+#define MWIFIEX_SEC_CHAN_ABOVE	0x10
 #define MWIFIEX_SUPPORTED_RATES                 14
 #define MWIFIEX_SUPPORTED_RATES_EXT             32
 #define MWIFIEX_TDLS_SUPPORTED_RATES		8

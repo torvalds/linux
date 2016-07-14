@@ -20,6 +20,7 @@
 /* for brcmu_d11inf */
 #include <brcmu_d11.h>
 
+#include "core.h"
 #include "fwil_types.h"
 #include "p2p.h"
 

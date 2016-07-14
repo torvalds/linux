@@ -141,6 +141,7 @@ enum iwl_sta_flags {
  * @STA_KEY_FLG_CCM: CCMP encryption algorithm
  * @STA_KEY_FLG_TKIP: TKIP encryption algorithm
  * @STA_KEY_FLG_EXT: extended cipher algorithm (depends on the FW support)
+ * @STA_KEY_FLG_GCMP: GCMP encryption algorithm
  * @STA_KEY_FLG_CMAC: CMAC encryption algorithm
  * @STA_KEY_FLG_ENC_UNKNOWN: unknown encryption algorithm
  * @STA_KEY_FLG_EN_MSK: mask for encryption algorithmi value
@@ -149,6 +150,7 @@ enum iwl_sta_flags {
  * @STA_KEY_FLG_KEYID_MSK: the index of the key
  * @STA_KEY_NOT_VALID: key is invalid
  * @STA_KEY_FLG_WEP_13BYTES: set for 13 bytes WEP key
+ * @STA_KEY_FLG_KEY_32BYTES for non-wep key set for 32 bytes key
  * @STA_KEY_MULTICAST: set for multical key
  * @STA_KEY_MFP: key is used for Management Frame Protection
  */
@@ -158,6 +160,7 @@ enum iwl_sta_key_flag {
 	STA_KEY_FLG_CCM			= (2 << 0),
 	STA_KEY_FLG_TKIP		= (3 << 0),
 	STA_KEY_FLG_EXT			= (4 << 0),
+	STA_KEY_FLG_GCMP		= (5 << 0),
 	STA_KEY_FLG_CMAC		= (6 << 0),
 	STA_KEY_FLG_ENC_UNKNOWN		= (7 << 0),
 	STA_KEY_FLG_EN_MSK		= (7 << 0),
@@ -167,6 +170,7 @@ enum iwl_sta_key_flag {
 	STA_KEY_FLG_KEYID_MSK		= (3 << STA_KEY_FLG_KEYID_POS),
 	STA_KEY_NOT_VALID		= BIT(11),
 	STA_KEY_FLG_WEP_13BYTES		= BIT(12),
+	STA_KEY_FLG_KEY_32BYTES		= BIT(12),
 	STA_KEY_MULTICAST		= BIT(14),
 	STA_KEY_MFP			= BIT(15),
 };
@@ -388,7 +392,6 @@ struct iwl_mvm_add_sta_cmd {
  * @key_offset: key offset in key storage
  * @key_flags: type %iwl_sta_key_flag
  * @key: key material data
- * @key2: key material data
  * @rx_secur_seq_cnt: RX security sequence counter for the key
  * @tkip_rx_tsc_byte2: TSC[2] for key mix ph1 detection
  * @tkip_rx_ttak: 10-byte unicast TKIP TTAK for Rx
@@ -397,8 +400,7 @@ struct iwl_mvm_add_sta_key_cmd {
 	u8 sta_id;
 	u8 key_offset;
 	__le16 key_flags;
-	u8 key[16];
-	u8 key2[16];
+	u8 key[32];
 	u8 rx_secur_seq_cnt[16];
 	u8 tkip_rx_tsc_byte2;
 	u8 reserved;

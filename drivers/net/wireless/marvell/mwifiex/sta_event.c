@@ -474,8 +474,8 @@ void mwifiex_bt_coex_wlan_param_update_event(struct mwifiex_private *priv,
 			scantlv =
 			    (struct mwifiex_ie_types_btcoex_scan_time *)tlv;
 			adapter->coex_scan = scantlv->coex_scan;
-			adapter->coex_min_scan_time = scantlv->min_scan_time;
-			adapter->coex_max_scan_time = scantlv->max_scan_time;
+			adapter->coex_min_scan_time = le16_to_cpu(scantlv->min_scan_time);
+			adapter->coex_max_scan_time = le16_to_cpu(scantlv->max_scan_time);
 			break;
 
 		default:
@@ -708,7 +708,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 
 	case EVENT_EXT_SCAN_REPORT:
 		mwifiex_dbg(adapter, EVENT, "event: EXT_SCAN Report\n");
-		if (adapter->ext_scan)
+		if (adapter->ext_scan && !priv->scan_aborting)
 			ret = mwifiex_handle_event_ext_scan_report(priv,
 						adapter->event_skb->data);
 

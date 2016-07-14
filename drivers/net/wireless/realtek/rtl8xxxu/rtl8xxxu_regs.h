@@ -405,7 +405,11 @@
 #define REG_DWBCN1_CTRL_8723B		0x0228
 
 /* 0x0280 ~ 0x02FF	RXDMA Configuration */
-#define REG_RXDMA_AGG_PG_TH		0x0280
+#define REG_RXDMA_AGG_PG_TH		0x0280	/* 0-7 : USB DMA size bits
+						   8-14: USB DMA timeout
+						   15  : Aggregation enable
+						         Only seems to be used
+							 on 8723bu/8192eu */
 #define  RXDMA_USB_AGG_ENABLE		BIT(31)
 #define REG_RXPKT_NUM			0x0284
 #define  RXPKT_NUM_RXDMA_IDLE		BIT(17)
@@ -1052,10 +1056,14 @@
 #define  USB_HIMR_ROK			BIT(0)	/*  Receive DMA OK Interrupt */
 
 #define REG_USB_SPECIAL_OPTION		0xfe55
+#define  USB_SPEC_USB_AGG_ENABLE	BIT(3)	/* Enable USB aggregation */
+#define  USB_SPEC_INT_BULK_SELECT	BIT(4)	/* Use interrupt endpoint to
+						   deliver interrupt packet.
+						   0: Use int, 1: use bulk */
 #define REG_USB_HRPWM			0xfe58
 #define REG_USB_DMA_AGG_TO		0xfe5b
-#define REG_USB_AGG_TO			0xfe5c
-#define REG_USB_AGG_TH			0xfe5d
+#define REG_USB_AGG_TIMEOUT		0xfe5c
+#define REG_USB_AGG_THRESH		0xfe5d
 
 #define REG_NORMAL_SIE_VID		0xfe60	/* 0xfe60 - 0xfe61 */
 #define REG_NORMAL_SIE_PID		0xfe62	/* 0xfe62 - 0xfe63 */

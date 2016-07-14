@@ -469,7 +469,9 @@ static int mwifiex_ret_rf_antenna(struct mwifiex_private *priv,
 	struct host_cmd_ds_rf_ant_siso *ant_siso = &resp->params.ant_siso;
 	struct mwifiex_adapter *adapter = priv->adapter;
 
-	if (adapter->hw_dev_mcs_support == HT_STREAM_2X2)
+	if (adapter->hw_dev_mcs_support == HT_STREAM_2X2) {
+		priv->tx_ant = le16_to_cpu(ant_mimo->tx_ant_mode);
+		priv->rx_ant = le16_to_cpu(ant_mimo->rx_ant_mode);
 		mwifiex_dbg(adapter, INFO,
 			    "RF_ANT_RESP: Tx action = 0x%x, Tx Mode = 0x%04x\t"
 			    "Rx action = 0x%x, Rx Mode = 0x%04x\n",
@@ -477,12 +479,14 @@ static int mwifiex_ret_rf_antenna(struct mwifiex_private *priv,
 			    le16_to_cpu(ant_mimo->tx_ant_mode),
 			    le16_to_cpu(ant_mimo->action_rx),
 			    le16_to_cpu(ant_mimo->rx_ant_mode));
-	else
+	} else {
+		priv->tx_ant = le16_to_cpu(ant_siso->ant_mode);
+		priv->rx_ant = le16_to_cpu(ant_siso->ant_mode);
 		mwifiex_dbg(adapter, INFO,
 			    "RF_ANT_RESP: action = 0x%x, Mode = 0x%04x\n",
 			    le16_to_cpu(ant_siso->action),
 			    le16_to_cpu(ant_siso->ant_mode));
-
+	}
 	return 0;
 }
 

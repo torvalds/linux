@@ -2261,6 +2261,8 @@ int brcmf_p2p_del_vif(struct wiphy *wiphy, struct wireless_dev *wdev)
 			return 0;
 		brcmf_p2p_cancel_remain_on_channel(vif->ifp);
 		brcmf_p2p_deinit_discovery(p2p);
+		break;
+
 	default:
 		return -ENOTSUPP;
 	}
@@ -2286,8 +2288,7 @@ int brcmf_p2p_del_vif(struct wiphy *wiphy, struct wireless_dev *wdev)
 		else
 			err = 0;
 	}
-	if (err)
-		brcmf_remove_interface(vif->ifp);
+	brcmf_remove_interface(vif->ifp, true);
 
 	brcmf_cfg80211_arm_vif_event(cfg, NULL);
 	if (vif->wdev.iftype != NL80211_IFTYPE_P2P_DEVICE)
@@ -2393,7 +2394,7 @@ void brcmf_p2p_detach(struct brcmf_p2p_info *p2p)
 	if (vif != NULL) {
 		brcmf_p2p_cancel_remain_on_channel(vif->ifp);
 		brcmf_p2p_deinit_discovery(p2p);
-		brcmf_remove_interface(vif->ifp);
+		brcmf_remove_interface(vif->ifp, false);
 	}
 	/* just set it all to zero */
 	memset(p2p, 0, sizeof(*p2p));
