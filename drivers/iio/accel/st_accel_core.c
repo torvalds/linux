@@ -215,6 +215,22 @@
 #define ST_ACCEL_6_IHL_IRQ_MASK			0x80
 #define ST_ACCEL_6_MULTIREAD_BIT		true
 
+/* CUSTOM VALUES FOR SENSOR 7 */
+#define ST_ACCEL_7_ODR_ADDR			0x20
+#define ST_ACCEL_7_ODR_MASK			0x30
+#define ST_ACCEL_7_ODR_AVL_280HZ_VAL		0x00
+#define ST_ACCEL_7_ODR_AVL_560HZ_VAL		0x01
+#define ST_ACCEL_7_ODR_AVL_1120HZ_VAL		0x02
+#define ST_ACCEL_7_ODR_AVL_4480HZ_VAL		0x03
+#define ST_ACCEL_7_PW_ADDR			0x20
+#define ST_ACCEL_7_PW_MASK			0xc0
+#define ST_ACCEL_7_FS_AVL_2_GAIN		IIO_G_TO_M_S_2(488)
+#define ST_ACCEL_7_BDU_ADDR			0x21
+#define ST_ACCEL_7_BDU_MASK			0x40
+#define ST_ACCEL_7_DRDY_IRQ_ADDR		0x21
+#define ST_ACCEL_7_DRDY_IRQ_INT1_MASK		0x04
+#define ST_ACCEL_7_MULTIREAD_BIT		false
+
 static const struct iio_chan_spec st_accel_8bit_channels[] = {
 	ST_SENSORS_LSM_CHANNELS(IIO_ACCEL,
 			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
@@ -660,6 +676,54 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 			.mask_ihl = ST_ACCEL_6_IHL_IRQ_MASK,
 		},
 		.multi_read_bit = ST_ACCEL_6_MULTIREAD_BIT,
+		.bootime = 2,
+	},
+	{
+		/* No WAI register present */
+		.sensors_supported = {
+			[0] = LIS3L02DQ_ACCEL_DEV_NAME,
+		},
+		.ch = (struct iio_chan_spec *)st_accel_12bit_channels,
+		.odr = {
+			.addr = ST_ACCEL_7_ODR_ADDR,
+			.mask = ST_ACCEL_7_ODR_MASK,
+			.odr_avl = {
+				{ 280, ST_ACCEL_7_ODR_AVL_280HZ_VAL, },
+				{ 560, ST_ACCEL_7_ODR_AVL_560HZ_VAL, },
+				{ 1120, ST_ACCEL_7_ODR_AVL_1120HZ_VAL, },
+				{ 4480, ST_ACCEL_7_ODR_AVL_4480HZ_VAL, },
+			},
+		},
+		.pw = {
+			.addr = ST_ACCEL_7_PW_ADDR,
+			.mask = ST_ACCEL_7_PW_MASK,
+			.value_on = ST_SENSORS_DEFAULT_POWER_ON_VALUE,
+			.value_off = ST_SENSORS_DEFAULT_POWER_OFF_VALUE,
+		},
+		.enable_axis = {
+			.addr = ST_SENSORS_DEFAULT_AXIS_ADDR,
+			.mask = ST_SENSORS_DEFAULT_AXIS_MASK,
+		},
+		.fs = {
+			.fs_avl = {
+				[0] = {
+					.num = ST_ACCEL_FS_AVL_2G,
+					.gain = ST_ACCEL_7_FS_AVL_2_GAIN,
+				},
+			},
+		},
+		/*
+		 * The part has a BDU bit but if set the data is never
+		 * updated so don't set it.
+		 */
+		.bdu = {
+		},
+		.drdy_irq = {
+			.addr = ST_ACCEL_7_DRDY_IRQ_ADDR,
+			.mask_int1 = ST_ACCEL_7_DRDY_IRQ_INT1_MASK,
+			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
+		},
+		.multi_read_bit = ST_ACCEL_7_MULTIREAD_BIT,
 		.bootime = 2,
 	},
 };

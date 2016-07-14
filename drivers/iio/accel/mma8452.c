@@ -634,11 +634,7 @@ static int mma8452_set_freefall_mode(struct mma8452_data *data, bool state)
 		val |= MMA8452_FF_MT_CFG_OAE;
 	}
 
-	val = mma8452_change_config(data, chip->ev_cfg, val);
-	if (val)
-		return val;
-
-	return 0;
+	return mma8452_change_config(data, chip->ev_cfg, val);
 }
 
 static int mma8452_set_hp_filter_frequency(struct mma8452_data *data,
@@ -917,7 +913,7 @@ static int mma8452_write_event_config(struct iio_dev *indio_dev,
 static void mma8452_transient_interrupt(struct iio_dev *indio_dev)
 {
 	struct mma8452_data *data = iio_priv(indio_dev);
-	s64 ts = iio_get_time_ns();
+	s64 ts = iio_get_time_ns(indio_dev);
 	int src;
 
 	src = i2c_smbus_read_byte_data(data->client, data->chip_info->ev_src);
@@ -997,7 +993,7 @@ static irqreturn_t mma8452_trigger_handler(int irq, void *p)
 		goto done;
 
 	iio_push_to_buffers_with_timestamp(indio_dev, buffer,
-					   iio_get_time_ns());
+					   iio_get_time_ns(indio_dev));
 
 done:
 	iio_trigger_notify_done(indio_dev->trig);
@@ -1579,8 +1575,8 @@ static int mma8452_probe(struct i2c_client *client,
 		goto buffer_cleanup;
 
 	ret = mma8452_set_freefall_mode(data, false);
-	if (ret)
-		return ret;
+	if (ret < 0)
+		goto buffer_cleanup;
 
 	return 0;
 

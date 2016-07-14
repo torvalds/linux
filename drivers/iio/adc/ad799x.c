@@ -212,7 +212,7 @@ static irqreturn_t ad799x_trigger_handler(int irq, void *p)
 		goto out;
 
 	iio_push_to_buffers_with_timestamp(indio_dev, st->rx_buf,
-			iio_get_time_ns());
+			iio_get_time_ns(indio_dev));
 out:
 	iio_trigger_notify_done(indio_dev->trig);
 
@@ -502,7 +502,7 @@ static irqreturn_t ad799x_event_handler(int irq, void *private)
 							    (i >> 1),
 							    IIO_EV_TYPE_THRESH,
 							    IIO_EV_DIR_FALLING),
-				       iio_get_time_ns());
+				       iio_get_time_ns(indio_dev));
 	}
 
 done:
@@ -806,6 +806,7 @@ static int ad799x_probe(struct i2c_client *client,
 	st->client = client;
 
 	indio_dev->dev.parent = &client->dev;
+	indio_dev->dev.of_node = client->dev.of_node;
 	indio_dev->name = id->name;
 	indio_dev->info = st->chip_config->info;
 

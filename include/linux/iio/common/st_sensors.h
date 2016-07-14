@@ -223,6 +223,7 @@ struct st_sensor_settings {
  * @get_irq_data_ready: Function to get the IRQ used for data ready signal.
  * @tf: Transfer function structure used by I/O operations.
  * @tb: Transfer buffers and mutex used by I/O operations.
+ * @edge_irq: the IRQ triggers on edges and need special handling.
  * @hw_irq_trigger: if we're using the hardware interrupt on the sensor.
  * @hw_timestamp: Latest timestamp from the interrupt handler, when in use.
  */
@@ -250,6 +251,7 @@ struct st_sensor_data {
 	const struct st_sensor_transfer_function *tf;
 	struct st_sensor_transfer_buffer tb;
 
+	bool edge_irq;
 	bool hw_irq_trigger;
 	s64 hw_timestamp;
 };
