@@ -469,7 +469,7 @@ struct mlx5_irq_info {
 };
 
 struct mlx5_fc_stats {
-	struct list_head list;
+	struct rb_root counters;
 	struct list_head addlist;
 	/* protect addlist add/splice operations */
 	spinlock_t addlist_lock;
