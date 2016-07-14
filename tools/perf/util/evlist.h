@@ -35,6 +35,12 @@ struct perf_mmap {
 	char		 event_copy[PERF_SAMPLE_MAX_SIZE] __attribute__((aligned(8)));
 };
 
+static inline size_t
+perf_mmap__mmap_len(struct perf_mmap *map)
+{
+	return map->mask + 1 + page_size;
+}
+
 struct perf_evlist {
 	struct list_head entries;
 	struct hlist_head heads[PERF_EVLIST__HLIST_SIZE];
@@ -128,6 +134,12 @@ struct perf_evsel *perf_evlist__id2evsel_strict(struct perf_evlist *evlist,
 						u64 id);
 
 struct perf_sample_id *perf_evlist__id2sid(struct perf_evlist *evlist, u64 id);
+
+union perf_event *perf_mmap__read_forward(struct perf_mmap *map, bool check_messup);
+union perf_event *perf_mmap__read_backward(struct perf_mmap *map);
+
+void perf_mmap__read_catchup(struct perf_mmap *md);
+void perf_mmap__consume(struct perf_mmap *md, bool overwrite);
 
 union perf_event *perf_evlist__mmap_read(struct perf_evlist *evlist, int idx);
 

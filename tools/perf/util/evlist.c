@@ -29,6 +29,7 @@
 
 static void perf_evlist__mmap_put(struct perf_evlist *evlist, int idx);
 static void __perf_evlist__munmap(struct perf_evlist *evlist, int idx);
+static void perf_mmap__munmap(struct perf_mmap *map);
 
 #define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
 #define SID(e, x, y) xyarray__entry(e->sample_id, x, y)
@@ -781,9 +782,8 @@ broken_event:
 	return event;
 }
 
-union perf_event *perf_evlist__mmap_read_forward(struct perf_evlist *evlist, int idx)
+union perf_event *perf_mmap__read_forward(struct perf_mmap *md, bool check_messup)
 {
-	struct perf_mmap *md = &evlist->mmap[idx];
 	u64 head;
 	u64 old = md->prev;
 
@@ -795,13 +795,12 @@ union perf_event *perf_evlist__mmap_read_forward(struct perf_evlist *evlist, int
 
 	head = perf_mmap__read_head(md);
 
-	return perf_mmap__read(md, evlist->overwrite, old, head, &md->prev);
+	return perf_mmap__read(md, check_messup, old, head, &md->prev);
 }
 
 union perf_event *
-perf_evlist__mmap_read_backward(struct perf_evlist *evlist, int idx)
+perf_mmap__read_backward(struct perf_mmap *md)
 {
-	struct perf_mmap *md = &evlist->mmap[idx];
 	u64 head, end;
 	u64 start = md->prev;
 
@@ -836,6 +835,31 @@ perf_evlist__mmap_read_backward(struct perf_evlist *evlist, int idx)
 	return perf_mmap__read(md, false, start, end, &md->prev);
 }
 
+union perf_event *perf_evlist__mmap_read_forward(struct perf_evlist *evlist, int idx)
+{
+	struct perf_mmap *md = &evlist->mmap[idx];
+
+	/*
+	 * Check messup is required for forward overwritable ring buffer:
+	 * memory pointed by md->prev can be overwritten in this case.
+	 * No need for read-write ring buffer: kernel stop outputting when
+	 * it hit md->prev (perf_mmap__consume()).
+	 */
+	return perf_mmap__read_forward(md, evlist->overwrite);
+}
+
+union perf_event *perf_evlist__mmap_read_backward(struct perf_evlist *evlist, int idx)
+{
+	struct perf_mmap *md = &evlist->mmap[idx];
+
+	/*
+	 * No need to check messup for backward ring buffer:
+	 * We can always read arbitrary long data from a backward
+	 * ring buffer unless we forget to pause it before reading.
+	 */
+	return perf_mmap__read_backward(md);
+}
+
 union perf_event *perf_evlist__mmap_read(struct perf_evlist *evlist, int idx)
 {
 	if (!evlist->backward)
@@ -843,9 +867,8 @@ union perf_event *perf_evlist__mmap_read(struct perf_evlist *evlist, int idx)
 	return perf_evlist__mmap_read_backward(evlist, idx);
 }
 
-void perf_evlist__mmap_read_catchup(struct perf_evlist *evlist, int idx)
+void perf_mmap__read_catchup(struct perf_mmap *md)
 {
-	struct perf_mmap *md = &evlist->mmap[idx];
 	u64 head;
 
 	if (!atomic_read(&md->refcnt))
@@ -855,38 +878,54 @@ void perf_evlist__mmap_read_catchup(struct perf_evlist *evlist, int idx)
 	md->prev = head;
 }
 
+void perf_evlist__mmap_read_catchup(struct perf_evlist *evlist, int idx)
+{
+	perf_mmap__read_catchup(&evlist->mmap[idx]);
+}
+
 static bool perf_mmap__empty(struct perf_mmap *md)
 {
 	return perf_mmap__read_head(md) == md->prev && !md->auxtrace_mmap.base;
 }
 
+static void perf_mmap__get(struct perf_mmap *map)
+{
+	atomic_inc(&map->refcnt);
+}
+
+static void perf_mmap__put(struct perf_mmap *md)
+{
+	BUG_ON(md->base && atomic_read(&md->refcnt) == 0);
+
+	if (atomic_dec_and_test(&md->refcnt))
+		perf_mmap__munmap(md);
+}
+
 static void perf_evlist__mmap_get(struct perf_evlist *evlist, int idx)
 {
-	atomic_inc(&evlist->mmap[idx].refcnt);
+	perf_mmap__get(&evlist->mmap[idx]);
 }
 
 static void perf_evlist__mmap_put(struct perf_evlist *evlist, int idx)
 {
-	struct perf_mmap *md = &evlist->mmap[idx];
-
-	BUG_ON(md->base && atomic_read(&md->refcnt) == 0);
-
-	if (atomic_dec_and_test(&md->refcnt))
-		__perf_evlist__munmap(evlist, idx);
+	perf_mmap__put(&evlist->mmap[idx]);
 }
 
-void perf_evlist__mmap_consume(struct perf_evlist *evlist, int idx)
+void perf_mmap__consume(struct perf_mmap *md, bool overwrite)
 {
-	struct perf_mmap *md = &evlist->mmap[idx];
-
-	if (!evlist->overwrite) {
+	if (!overwrite) {
 		u64 old = md->prev;
 
 		perf_mmap__write_tail(md, old);
 	}
 
 	if (atomic_read(&md->refcnt) == 1 && perf_mmap__empty(md))
-		perf_evlist__mmap_put(evlist, idx);
+		perf_mmap__put(md);
+}
+
+void perf_evlist__mmap_consume(struct perf_evlist *evlist, int idx)
+{
+	perf_mmap__consume(&evlist->mmap[idx], evlist->overwrite);
 }
 
 int __weak auxtrace_mmap__mmap(struct auxtrace_mmap *mm __maybe_unused,
@@ -917,15 +956,20 @@ void __weak auxtrace_mmap_params__set_idx(
 {
 }
 
+static void perf_mmap__munmap(struct perf_mmap *map)
+{
+	if (map->base != NULL) {
+		munmap(map->base, perf_mmap__mmap_len(map));
+		map->base = NULL;
+		map->fd = -1;
+		atomic_set(&map->refcnt, 0);
+	}
+	auxtrace_mmap__munmap(&map->auxtrace_mmap);
+}
+
 static void __perf_evlist__munmap(struct perf_evlist *evlist, int idx)
 {
-	if (evlist->mmap[idx].base != NULL) {
-		munmap(evlist->mmap[idx].base, evlist->mmap_len);
-		evlist->mmap[idx].base = NULL;
-		evlist->mmap[idx].fd = -1;
-		atomic_set(&evlist->mmap[idx].refcnt, 0);
-	}
-	auxtrace_mmap__munmap(&evlist->mmap[idx].auxtrace_mmap);
+	perf_mmap__munmap(&evlist->mmap[idx]);
 }
 
 void perf_evlist__munmap(struct perf_evlist *evlist)
@@ -941,20 +985,21 @@ void perf_evlist__munmap(struct perf_evlist *evlist)
 	zfree(&evlist->mmap);
 }
 
-static int perf_evlist__alloc_mmap(struct perf_evlist *evlist)
+static struct perf_mmap *perf_evlist__alloc_mmap(struct perf_evlist *evlist)
 {
 	int i;
+	struct perf_mmap *map;
 
 	evlist->nr_mmaps = cpu_map__nr(evlist->cpus);
 	if (cpu_map__empty(evlist->cpus))
 		evlist->nr_mmaps = thread_map__nr(evlist->threads);
-	evlist->mmap = zalloc(evlist->nr_mmaps * sizeof(struct perf_mmap));
-	if (!evlist->mmap)
-		return -ENOMEM;
+	map = zalloc(evlist->nr_mmaps * sizeof(struct perf_mmap));
+	if (!map)
+		return NULL;
 
 	for (i = 0; i < evlist->nr_mmaps; i++)
-		evlist->mmap[i].fd = -1;
-	return 0;
+		map[i].fd = -1;
+	return map;
 }
 
 struct mmap_params {
@@ -963,8 +1008,8 @@ struct mmap_params {
 	struct auxtrace_mmap_params auxtrace_mp;
 };
 
-static int __perf_evlist__mmap(struct perf_evlist *evlist, int idx,
-			       struct mmap_params *mp, int fd)
+static int perf_mmap__mmap(struct perf_mmap *map,
+			   struct mmap_params *mp, int fd)
 {
 	/*
 	 * The last one will be done at perf_evlist__mmap_consume(), so that we
@@ -979,24 +1024,30 @@ static int __perf_evlist__mmap(struct perf_evlist *evlist, int idx,
 	 * evlist layer can't just drop it when filtering events in
 	 * perf_evlist__filter_pollfd().
 	 */
-	atomic_set(&evlist->mmap[idx].refcnt, 2);
-	evlist->mmap[idx].prev = 0;
-	evlist->mmap[idx].mask = mp->mask;
-	evlist->mmap[idx].base = mmap(NULL, evlist->mmap_len, mp->prot,
-				      MAP_SHARED, fd, 0);
-	if (evlist->mmap[idx].base == MAP_FAILED) {
+	atomic_set(&map->refcnt, 2);
+	map->prev = 0;
+	map->mask = mp->mask;
+	map->base = mmap(NULL, perf_mmap__mmap_len(map), mp->prot,
+			 MAP_SHARED, fd, 0);
+	if (map->base == MAP_FAILED) {
 		pr_debug2("failed to mmap perf event ring buffer, error %d\n",
 			  errno);
-		evlist->mmap[idx].base = NULL;
+		map->base = NULL;
 		return -1;
 	}
-	evlist->mmap[idx].fd = fd;
+	map->fd = fd;
 
-	if (auxtrace_mmap__mmap(&evlist->mmap[idx].auxtrace_mmap,
-				&mp->auxtrace_mp, evlist->mmap[idx].base, fd))
+	if (auxtrace_mmap__mmap(&map->auxtrace_mmap,
+				&mp->auxtrace_mp, map->base, fd))
 		return -1;
 
 	return 0;
+}
+
+static int __perf_evlist__mmap(struct perf_evlist *evlist, int idx,
+			       struct mmap_params *mp, int fd)
+{
+	return perf_mmap__mmap(&evlist->mmap[idx], mp, fd);
 }
 
 static bool
@@ -1248,7 +1299,9 @@ int perf_evlist__mmap_ex(struct perf_evlist *evlist, unsigned int pages,
 		.prot = PROT_READ | (overwrite ? 0 : PROT_WRITE),
 	};
 
-	if (evlist->mmap == NULL && perf_evlist__alloc_mmap(evlist) < 0)
+	if (!evlist->mmap)
+		evlist->mmap = perf_evlist__alloc_mmap(evlist);
+	if (!evlist->mmap)
 		return -ENOMEM;
 
 	if (evlist->pollfd.entries == NULL && perf_evlist__alloc_pollfd(evlist) < 0)
