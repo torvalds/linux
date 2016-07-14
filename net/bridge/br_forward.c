@@ -138,17 +138,18 @@ void br_deliver(const struct net_bridge_port *to, struct sk_buff *skb)
 EXPORT_SYMBOL_GPL(br_deliver);
 
 /* called with rcu_read_lock */
-void br_forward(const struct net_bridge_port *to, struct sk_buff *skb, struct sk_buff *skb0)
+void br_forward(const struct net_bridge_port *to, struct sk_buff *skb,
+		bool local_rcv)
 {
 	if (to && should_deliver(to, skb)) {
-		if (skb0)
+		if (local_rcv)
 			deliver_clone(to, skb, __br_forward);
 		else
 			__br_forward(to, skb);
 		return;
 	}
 
-	if (!skb0)
+	if (!local_rcv)
 		kfree_skb(skb);
 }
 
@@ -193,10 +194,9 @@ out:
 
 /* called under bridge lock */
 static void br_flood(struct net_bridge *br, struct sk_buff *skb,
-		     struct sk_buff *skb0,
 		     void (*__packet_hook)(const struct net_bridge_port *p,
 					   struct sk_buff *skb),
-		     bool unicast)
+		     bool local_rcv, bool unicast)
 {
 	u8 igmp_type = br_multicast_igmp_type(skb);
 	struct net_bridge_port *prev;
@@ -227,14 +227,14 @@ static void br_flood(struct net_bridge *br, struct sk_buff *skb,
 	if (!prev)
 		goto out;
 
-	if (skb0)
+	if (local_rcv)
 		deliver_clone(prev, skb, __packet_hook);
 	else
 		__packet_hook(prev, skb);
 	return;
 
 out:
-	if (!skb0)
+	if (!local_rcv)
 		kfree_skb(skb);
 }
 
@@ -242,23 +242,24 @@ out:
 /* called with rcu_read_lock */
 void br_flood_deliver(struct net_bridge *br, struct sk_buff *skb, bool unicast)
 {
-	br_flood(br, skb, NULL, __br_deliver, unicast);
+	br_flood(br, skb, __br_deliver, false, unicast);
 }
 
 /* called under bridge lock */
 void br_flood_forward(struct net_bridge *br, struct sk_buff *skb,
-		      struct sk_buff *skb2, bool unicast)
+		      bool local_rcv, bool unicast)
 {
-	br_flood(br, skb, skb2, __br_forward, unicast);
+	br_flood(br, skb, __br_forward, local_rcv, unicast);
 }
 
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 /* called with rcu_read_lock */
 static void br_multicast_flood(struct net_bridge_mdb_entry *mdst,
-			       struct sk_buff *skb, struct sk_buff *skb0,
+			       struct sk_buff *skb,
 			       void (*__packet_hook)(
 					const struct net_bridge_port *p,
-					struct sk_buff *skb))
+					struct sk_buff *skb),
+			       bool local_rcv)
 {
 	struct net_device *dev = BR_INPUT_SKB_CB(skb)->brdev;
 	u8 igmp_type = br_multicast_igmp_type(skb);
@@ -295,14 +296,14 @@ static void br_multicast_flood(struct net_bridge_mdb_entry *mdst,
 	if (!prev)
 		goto out;
 
-	if (skb0)
+	if (local_rcv)
 		deliver_clone(prev, skb, __packet_hook);
 	else
 		__packet_hook(prev, skb);
 	return;
 
 out:
-	if (!skb0)
+	if (!local_rcv)
 		kfree_skb(skb);
 }
 
@@ -310,13 +311,13 @@ out:
 void br_multicast_deliver(struct net_bridge_mdb_entry *mdst,
 			  struct sk_buff *skb)
 {
-	br_multicast_flood(mdst, skb, NULL, __br_deliver);
+	br_multicast_flood(mdst, skb, __br_deliver, false);
 }
 
 /* called with rcu_read_lock */
 void br_multicast_forward(struct net_bridge_mdb_entry *mdst,
-			  struct sk_buff *skb, struct sk_buff *skb2)
+			  struct sk_buff *skb, bool local_rcv)
 {
-	br_multicast_flood(mdst, skb, skb2, __br_forward);
+	br_multicast_flood(mdst, skb, __br_forward, local_rcv);
 }
 #endif

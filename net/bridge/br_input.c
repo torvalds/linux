@@ -131,13 +131,12 @@ static void br_do_proxy_arp(struct sk_buff *skb, struct net_bridge *br,
 /* note: already called with rcu_read_lock */
 int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
+	bool local_rcv = false, mcast_hit = false, unicast = true;
 	struct net_bridge_port *p = br_port_get_rcu(skb->dev);
 	const unsigned char *dest = eth_hdr(skb)->h_dest;
 	struct net_bridge_fdb_entry *dst = NULL;
-	bool mcast_hit = false, unicast = true;
 	struct net_bridge_mdb_entry *mdst;
 	struct net_bridge *br;
-	struct sk_buff *skb2;
 	u16 vid = 0;
 
 	if (!p || p->state == BR_STATE_DISABLED)
@@ -160,17 +159,13 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 
 	BR_INPUT_SKB_CB(skb)->brdev = br->dev;
 
-	/* The packet skb2 goes to the local host (NULL to skip). */
-	skb2 = NULL;
-
-	if (br->dev->flags & IFF_PROMISC)
-		skb2 = skb;
+	local_rcv = !!(br->dev->flags & IFF_PROMISC);
 
 	if (IS_ENABLED(CONFIG_INET) && skb->protocol == htons(ETH_P_ARP))
 		br_do_proxy_arp(skb, br, vid, p);
 
 	if (is_broadcast_ether_addr(dest)) {
-		skb2 = skb;
+		local_rcv = true;
 		unicast = false;
 	} else if (is_multicast_ether_addr(dest)) {
 		mdst = br_mdb_get(br, skb, vid);
@@ -178,12 +173,12 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 		    br_multicast_querier_exists(br, eth_hdr(skb))) {
 			if ((mdst && mdst->mglist) ||
 			    br_multicast_is_router(br)) {
-				skb2 = skb;
+				local_rcv = true;
 				br->dev->stats.multicast++;
 			}
 			mcast_hit = true;
 		} else {
-			skb2 = skb;
+			local_rcv = true;
 			br->dev->stats.multicast++;
 		}
 		unicast = false;
@@ -194,16 +189,16 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 
 	if (dst) {
 		dst->used = jiffies;
-		br_forward(dst->dst, skb, skb2);
+		br_forward(dst->dst, skb, local_rcv);
 	} else {
 		if (!mcast_hit)
-			br_flood_forward(br, skb, skb2, unicast);
+			br_flood_forward(br, skb, local_rcv, unicast);
 		else
-			br_multicast_forward(mdst, skb, skb2);
+			br_multicast_forward(mdst, skb, local_rcv);
 	}
 
-	if (skb2)
-		return br_pass_frame_up(skb2);
+	if (local_rcv)
+		return br_pass_frame_up(skb);
 
 out:
 	return 0;
