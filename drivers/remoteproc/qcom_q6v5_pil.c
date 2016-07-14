@@ -680,17 +680,13 @@ static int q6v5_init_mem(struct q6v5 *qproc, struct platform_device *pdev)
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "qdsp6");
 	qproc->reg_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(qproc->reg_base)) {
-		dev_err(qproc->dev, "failed to get qdsp6_base\n");
+	if (IS_ERR(qproc->reg_base))
 		return PTR_ERR(qproc->reg_base);
-	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "rmb");
 	qproc->rmb_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(qproc->rmb_base)) {
-		dev_err(qproc->dev, "failed to get rmb_base\n");
+	if (IS_ERR(qproc->rmb_base))
 		return PTR_ERR(qproc->rmb_base);
-	}
 
 	ret = of_parse_phandle_with_fixed_args(pdev->dev.of_node,
 					       "qcom,halt-regs", 3, 0, &args);
