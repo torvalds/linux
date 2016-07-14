@@ -970,10 +970,15 @@ static int zynqmp_dma_chan_probe(struct zynqmp_dma_device *zdev,
 	chan->dst_burst_len = ZYNQMP_DMA_AWLEN_RST_VAL;
 	chan->src_burst_len = ZYNQMP_DMA_ARLEN_RST_VAL;
 	err = of_property_read_u32(node, "xlnx,bus-width", &chan->bus_width);
-	if ((err < 0) && ((chan->bus_width != ZYNQMP_DMA_BUS_WIDTH_64) ||
-			  (chan->bus_width != ZYNQMP_DMA_BUS_WIDTH_128))) {
-		dev_err(zdev->dev, "invalid bus-width value");
+	if (err < 0) {
+		dev_err(&pdev->dev, "missing xlnx,bus-width property\n");
 		return err;
+	}
+
+	if (chan->bus_width != ZYNQMP_DMA_BUS_WIDTH_64 &&
+	    chan->bus_width != ZYNQMP_DMA_BUS_WIDTH_128) {
+		dev_err(zdev->dev, "invalid bus-width value");
+		return -EINVAL;
 	}
 
 	chan->is_dmacoherent =  of_property_read_bool(node, "dma-coherent");
