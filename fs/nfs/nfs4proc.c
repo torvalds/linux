@@ -7886,6 +7886,7 @@ nfs4_layoutget_handle_exception(struct rpc_task *task,
 	struct pnfs_layout_hdr *lo;
 	int nfs4err = task->tk_status;
 	int err, status = 0;
+	LIST_HEAD(head);
 
 	dprintk("--> %s tk_status => %d\n", __func__, -task->tk_status);
 
@@ -7930,30 +7931,25 @@ nfs4_layoutget_handle_exception(struct rpc_task *task,
 	case -NFS4ERR_BAD_STATEID:
 		exception->timeout = 0;
 		spin_lock(&inode->i_lock);
-		if (nfs4_stateid_match(&lgp->args.stateid,
+		lo = NFS_I(inode)->layout;
+		/* If the open stateid was bad, then recover it. */
+		if (!lo || test_bit(NFS_LAYOUT_INVALID_STID, &lo->plh_flags) ||
+		    nfs4_stateid_match_other(&lgp->args.stateid,
 					&lgp->args.ctx->state->stateid)) {
 			spin_unlock(&inode->i_lock);
-			/* If the open stateid was bad, then recover it. */
 			exception->state = lgp->args.ctx->state;
 			break;
 		}
-		lo = NFS_I(inode)->layout;
-		if (lo && !test_bit(NFS_LAYOUT_INVALID_STID, &lo->plh_flags) &&
-		    nfs4_stateid_match_other(&lgp->args.stateid, &lo->plh_stateid)) {
-			LIST_HEAD(head);
 
-			/*
-			 * Mark the bad layout state as invalid, then retry
-			 * with the current stateid.
-			 */
-			set_bit(NFS_LAYOUT_INVALID_STID, &lo->plh_flags);
-			pnfs_mark_matching_lsegs_invalid(lo, &head, NULL, 0);
-			spin_unlock(&inode->i_lock);
-			pnfs_free_lseg_list(&head);
-			status = -EAGAIN;
-			goto out;
-		} else
-			spin_unlock(&inode->i_lock);
+		/*
+		 * Mark the bad layout state as invalid, then retry
+		 */
+		set_bit(NFS_LAYOUT_INVALID_STID, &lo->plh_flags);
+		pnfs_mark_matching_lsegs_invalid(lo, &head, NULL, 0);
+		spin_unlock(&inode->i_lock);
+		pnfs_free_lseg_list(&head);
+		status = -EAGAIN;
+		goto out;
 	}
 
 	err = nfs4_handle_exception(server, nfs4err, exception);
