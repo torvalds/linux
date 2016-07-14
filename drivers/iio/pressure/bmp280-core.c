@@ -970,7 +970,7 @@ int bmp280_common_probe(struct device *dev,
 	data->vdda = devm_regulator_get(dev, "vdda");
 	if (IS_ERR(data->vdda)) {
 		dev_err(dev, "failed to get VDDA regulator\n");
-		ret = PTR_ERR(data->vddd);
+		ret = PTR_ERR(data->vdda);
 		goto out_disable_vddd;
 	}
 	ret = regulator_enable(data->vdda);
