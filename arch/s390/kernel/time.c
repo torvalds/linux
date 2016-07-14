@@ -562,6 +562,7 @@ static int stp_sync_clock(void *data)
 				lpar_offset = qto.tod_epoch_difference;
 			atomic_notifier_call_chain(&s390_epoch_delta_notifier,
 						   0, &clock_delta);
+			stp_sync->fixup_cc = clock_delta;
 			fixup_clock_comparator(clock_delta);
 			rc = chsc_sstpi(stp_page, &stp_info,
 					sizeof(struct stp_sstpi));
