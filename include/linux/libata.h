@@ -1063,32 +1063,32 @@ static inline unsigned int ata_prot_flags(u8 prot)
 	return 0;
 }
 
-static inline int ata_is_atapi(u8 prot)
+static inline bool ata_is_atapi(u8 prot)
 {
 	return ata_prot_flags(prot) & ATA_PROT_FLAG_ATAPI;
 }
 
-static inline int ata_is_nodata(u8 prot)
+static inline bool ata_is_nodata(u8 prot)
 {
 	return !(ata_prot_flags(prot) & ATA_PROT_FLAG_DATA);
 }
 
-static inline int ata_is_pio(u8 prot)
+static inline bool ata_is_pio(u8 prot)
 {
 	return ata_prot_flags(prot) & ATA_PROT_FLAG_PIO;
 }
 
-static inline int ata_is_dma(u8 prot)
+static inline bool ata_is_dma(u8 prot)
 {
 	return ata_prot_flags(prot) & ATA_PROT_FLAG_DMA;
 }
 
-static inline int ata_is_ncq(u8 prot)
+static inline bool ata_is_ncq(u8 prot)
 {
 	return ata_prot_flags(prot) & ATA_PROT_FLAG_NCQ;
 }
 
-static inline int ata_is_data(u8 prot)
+static inline bool ata_is_data(u8 prot)
 {
 	return ata_prot_flags(prot) & ATA_PROT_FLAG_DATA;
 }
@@ -1407,7 +1407,7 @@ static inline bool sata_pmp_attached(struct ata_port *ap)
 	return ap->nr_pmp_links != 0;
 }
 
-static inline int ata_is_host_link(const struct ata_link *link)
+static inline bool ata_is_host_link(const struct ata_link *link)
 {
 	return link == &link->ap->link || link == link->ap->slave_link;
 }
@@ -1422,7 +1422,7 @@ static inline bool sata_pmp_attached(struct ata_port *ap)
 	return false;
 }
 
-static inline int ata_is_host_link(const struct ata_link *link)
+static inline bool ata_is_host_link(const struct ata_link *link)
 {
 	return 1;
 }
