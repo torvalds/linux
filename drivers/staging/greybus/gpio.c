@@ -66,20 +66,31 @@ static int gb_gpio_line_count_operation(struct gb_gpio_controller *ggc)
 static int gb_gpio_activate_operation(struct gb_gpio_controller *ggc, u8 which)
 {
 	struct gb_gpio_activate_request request;
+	struct gbphy_device *gbphy_dev = ggc->gbphy_dev;
 	int ret;
+
+	ret = gbphy_runtime_get_sync(gbphy_dev);
+	if (ret)
+		return ret;
 
 	request.which = which;
 	ret = gb_operation_sync(ggc->connection, GB_GPIO_TYPE_ACTIVATE,
 				 &request, sizeof(request), NULL, 0);
-	if (!ret)
-		ggc->lines[which].active = true;
-	return ret;
+	if (ret) {
+		gbphy_runtime_put_autosuspend(gbphy_dev);
+		return ret;
+	}
+
+	ggc->lines[which].active = true;
+
+	return 0;
 }
 
 static void gb_gpio_deactivate_operation(struct gb_gpio_controller *ggc,
 					u8 which)
 {
-	struct device *dev = &ggc->gbphy_dev->dev;
+	struct gbphy_device *gbphy_dev = ggc->gbphy_dev;
+	struct device *dev = &gbphy_dev->dev;
 	struct gb_gpio_deactivate_request request;
 	int ret;
 
@@ -88,10 +99,13 @@ static void gb_gpio_deactivate_operation(struct gb_gpio_controller *ggc,
 				 &request, sizeof(request), NULL, 0);
 	if (ret) {
 		dev_err(dev, "failed to deactivate gpio %u\n", which);
-		return;
+		goto out_pm_put;
 	}
 
 	ggc->lines[which].active = false;
+
+out_pm_put:
+	gbphy_runtime_put_autosuspend(gbphy_dev);
 }
 
 static int gb_gpio_get_direction_operation(struct gb_gpio_controller *ggc,
@@ -709,6 +723,7 @@ static int gb_gpio_probe(struct gbphy_device *gbphy_dev,
 		goto exit_gpiochip_remove;
 	}
 
+	gbphy_runtime_put_autosuspend(gbphy_dev);
 	return 0;
 
 exit_gpiochip_remove:
@@ -728,6 +743,11 @@ static void gb_gpio_remove(struct gbphy_device *gbphy_dev)
 {
 	struct gb_gpio_controller *ggc = gb_gbphy_get_data(gbphy_dev);
 	struct gb_connection *connection = ggc->connection;
+	int ret;
+
+	ret = gbphy_runtime_get_sync(gbphy_dev);
+	if (ret)
+		gbphy_runtime_get_noresume(gbphy_dev);
 
 	gb_connection_disable_rx(connection);
 	gb_gpio_irqchip_remove(ggc);
