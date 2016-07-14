@@ -2984,7 +2984,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
 }
 
 void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
-		unsigned long address, bool freeze)
+		unsigned long address, bool freeze, struct page *page)
 {
 	spinlock_t *ptl;
 	struct mm_struct *mm = vma->vm_mm;
@@ -2992,8 +2992,17 @@ void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
 
 	mmu_notifier_invalidate_range_start(mm, haddr, haddr + HPAGE_PMD_SIZE);
 	ptl = pmd_lock(mm, pmd);
+
+	/*
+	 * If caller asks to setup a migration entries, we need a page to check
+	 * pmd against. Otherwise we can end up replacing wrong page.
+	 */
+	VM_BUG_ON(freeze && !page);
+	if (page && page != pmd_page(*pmd))
+	        goto out;
+
 	if (pmd_trans_huge(*pmd)) {
-		struct page *page = pmd_page(*pmd);
+		page = pmd_page(*pmd);
 		if (PageMlocked(page))
 			clear_page_mlock(page);
 	} else if (!pmd_devmap(*pmd))
@@ -3020,24 +3029,8 @@ void split_huge_pmd_address(struct vm_area_struct *vma, unsigned long address,
 		return;
 
 	pmd = pmd_offset(pud, address);
-	if (!pmd_present(*pmd) || (!pmd_trans_huge(*pmd) && !pmd_devmap(*pmd)))
-		return;
 
-	/*
-	 * If caller asks to setup a migration entries, we need a page to check
-	 * pmd against. Otherwise we can end up replacing wrong page.
-	 */
-	VM_BUG_ON(freeze && !page);
-	if (page && page != pmd_page(*pmd))
-		return;
-
-	/*
-	 * Caller holds the mmap_sem write mode or the anon_vma lock,
-	 * so a huge pmd cannot materialize from under us (khugepaged
-	 * holds both the mmap_sem write mode and the anon_vma lock
-	 * write mode).
-	 */
-	__split_huge_pmd(vma, pmd, address, freeze);
+	__split_huge_pmd(vma, pmd, address, freeze, page);
 }
 
 void vma_adjust_trans_huge(struct vm_area_struct *vma,
