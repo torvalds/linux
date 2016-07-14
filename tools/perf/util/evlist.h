@@ -41,6 +41,34 @@ perf_mmap__mmap_len(struct perf_mmap *map)
 	return map->mask + 1 + page_size;
 }
 
+/*
+ * State machine of bkw_mmap_state:
+ *
+ *                     .________________(forbid)_____________.
+ *                     |                                     V
+ * NOTREADY --(0)--> RUNNING --(1)--> DATA_PENDING --(2)--> EMPTY
+ *                     ^  ^              |   ^               |
+ *                     |  |__(forbid)____/   |___(forbid)___/|
+ *                     |                                     |
+ *                      \_________________(3)_______________/
+ *
+ * NOTREADY     : Backward ring buffers are not ready
+ * RUNNING      : Backward ring buffers are recording
+ * DATA_PENDING : We are required to collect data from backward ring buffers
+ * EMPTY        : We have collected data from backward ring buffers.
+ *
+ * (0): Setup backward ring buffer
+ * (1): Pause ring buffers for reading
+ * (2): Read from ring buffers
+ * (3): Resume ring buffers for recording
+ */
+enum bkw_mmap_state {
+	BKW_MMAP_NOTREADY,
+	BKW_MMAP_RUNNING,
+	BKW_MMAP_DATA_PENDING,
+	BKW_MMAP_EMPTY,
+};
+
 struct perf_evlist {
 	struct list_head entries;
 	struct hlist_head heads[PERF_EVLIST__HLIST_SIZE];
@@ -54,6 +82,7 @@ struct perf_evlist {
 	int		 id_pos;
 	int		 is_pos;
 	u64		 combined_sample_type;
+	enum bkw_mmap_state bkw_mmap_state;
 	struct {
 		int	cork_fd;
 		pid_t	pid;
@@ -134,6 +163,8 @@ struct perf_evsel *perf_evlist__id2evsel_strict(struct perf_evlist *evlist,
 						u64 id);
 
 struct perf_sample_id *perf_evlist__id2sid(struct perf_evlist *evlist, u64 id);
+
+void perf_evlist__toggle_bkw_mmap(struct perf_evlist *evlist, enum bkw_mmap_state state);
 
 union perf_event *perf_mmap__read_forward(struct perf_mmap *map, bool check_messup);
 union perf_event *perf_mmap__read_backward(struct perf_mmap *map);

@@ -513,6 +513,9 @@ static int record__mmap_read_evlist(struct record *rec, struct perf_evlist *evli
 	if (!maps)
 		return 0;
 
+	if (backward && evlist->bkw_mmap_state != BKW_MMAP_DATA_PENDING)
+		return 0;
+
 	for (i = 0; i < evlist->nr_mmaps; i++) {
 		struct auxtrace_mmap *mm = &maps[i].auxtrace_mmap;
 
@@ -538,6 +541,8 @@ static int record__mmap_read_evlist(struct record *rec, struct perf_evlist *evli
 	if (bytes_written != rec->bytes_written)
 		rc = record__write(rec, &finished_round_event, sizeof(finished_round_event));
 
+	if (backward)
+		perf_evlist__toggle_bkw_mmap(evlist, BKW_MMAP_EMPTY);
 out:
 	return rc;
 }

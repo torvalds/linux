@@ -15,6 +15,7 @@
 #include "evlist.h"
 #include "evsel.h"
 #include "debug.h"
+#include "asm/bug.h"
 #include <unistd.h>
 
 #include "parse-events.h"
@@ -44,6 +45,7 @@ void perf_evlist__init(struct perf_evlist *evlist, struct cpu_map *cpus,
 	perf_evlist__set_maps(evlist, cpus, threads);
 	fdarray__init(&evlist->pollfd, 64);
 	evlist->workload.pid = -1;
+	evlist->bkw_mmap_state = BKW_MMAP_NOTREADY;
 }
 
 struct perf_evlist *perf_evlist__new(void)
@@ -1068,6 +1070,8 @@ static int perf_evlist__mmap_per_evsel(struct perf_evlist *evlist, int idx,
 				if (!maps)
 					return -1;
 				evlist->backward_mmap = maps;
+				if (evlist->bkw_mmap_state == BKW_MMAP_NOTREADY)
+					perf_evlist__toggle_bkw_mmap(evlist, BKW_MMAP_RUNNING);
 			}
 		}
 
@@ -1971,4 +1975,62 @@ perf_evlist__find_evsel_by_str(struct perf_evlist *evlist,
 	}
 
 	return NULL;
+}
+
+void perf_evlist__toggle_bkw_mmap(struct perf_evlist *evlist,
+				  enum bkw_mmap_state state)
+{
+	enum bkw_mmap_state old_state = evlist->bkw_mmap_state;
+	enum action {
+		NONE,
+		PAUSE,
+		RESUME,
+	} action = NONE;
+
+	if (!evlist->backward_mmap)
+		return;
+
+	switch (old_state) {
+	case BKW_MMAP_NOTREADY: {
+		if (state != BKW_MMAP_RUNNING)
+			goto state_err;;
+		break;
+	}
+	case BKW_MMAP_RUNNING: {
+		if (state != BKW_MMAP_DATA_PENDING)
+			goto state_err;
+		action = PAUSE;
+		break;
+	}
+	case BKW_MMAP_DATA_PENDING: {
+		if (state != BKW_MMAP_EMPTY)
+			goto state_err;
+		break;
+	}
+	case BKW_MMAP_EMPTY: {
+		if (state != BKW_MMAP_RUNNING)
+			goto state_err;
+		action = RESUME;
+		break;
+	}
+	default:
+		WARN_ONCE(1, "Shouldn't get there\n");
+	}
+
+	evlist->bkw_mmap_state = state;
+
+	switch (action) {
+	case PAUSE:
+		perf_evlist__pause(evlist);
+		break;
+	case RESUME:
+		perf_evlist__resume(evlist);
+		break;
+	case NONE:
+	default:
+		break;
+	}
+
+state_err:
+	return;
 }
