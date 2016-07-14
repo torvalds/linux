@@ -50,10 +50,6 @@
 #include <asm/cio.h>
 #include "entry.h"
 
-/* change this if you have some constant time drift */
-#define USECS_PER_JIFFY     ((unsigned long) 1000000/HZ)
-#define CLK_TICKS_PER_JIFFY ((unsigned long) USECS_PER_JIFFY << 12)
-
 u64 sched_clock_base_cc = -1;	/* Force to data section. */
 EXPORT_SYMBOL_GPL(sched_clock_base_cc);
 
@@ -318,43 +314,6 @@ void __init time_init(void)
 	vtime_init();
 }
 
-/*
- * The time is "clock". old is what we think the time is.
- * Adjust the value by a multiple of jiffies and add the delta to ntp.
- * "delay" is an approximation how long the synchronization took. If
- * the time correction is positive, then "delay" is subtracted from
- * the time difference and only the remaining part is passed to ntp.
- */
-static unsigned long long adjust_time(unsigned long long old,
-				      unsigned long long clock,
-				      unsigned long long delay)
-{
-	unsigned long long delta, ticks;
-	struct timex adjust;
-
-	if (clock > old) {
-		/* It is later than we thought. */
-		delta = ticks = clock - old;
-		delta = ticks = (delta < delay) ? 0 : delta - delay;
-		delta -= do_div(ticks, CLK_TICKS_PER_JIFFY);
-		adjust.offset = ticks * (1000000 / HZ);
-	} else {
-		/* It is earlier than we thought. */
-		delta = ticks = old - clock;
-		delta -= do_div(ticks, CLK_TICKS_PER_JIFFY);
-		delta = -delta;
-		adjust.offset = -ticks * (1000000 / HZ);
-	}
-	sched_clock_base_cc += delta;
-	if (adjust.offset != 0) {
-		pr_notice("The ETR interface has adjusted the clock "
-			  "by %li microseconds\n", adjust.offset);
-		adjust.modes = ADJ_OFFSET_SINGLESHOT;
-		do_adjtimex(&adjust);
-	}
-	return delta;
-}
-
 static DEFINE_PER_CPU(atomic_t, clock_sync_word);
 static DEFINE_MUTEX(clock_sync_mutex);
 static unsigned long clock_sync_flags;
@@ -582,7 +541,7 @@ void stp_queue_work(void)
 static int stp_sync_clock(void *data)
 {
 	static int first;
-	unsigned long long old_clock, delta, new_clock, clock_delta;
+	unsigned long long clock_delta;
 	struct clock_sync_data *stp_sync;
 	struct ptff_qto qto;
 	int rc;
@@ -605,18 +564,17 @@ static int stp_sync_clock(void *data)
 	if (stp_info.todoff[0] || stp_info.todoff[1] ||
 	    stp_info.todoff[2] || stp_info.todoff[3] ||
 	    stp_info.tmd != 2) {
-		old_clock = get_tod_clock();
 		rc = chsc_sstpc(stp_page, STP_OP_SYNC, 0, &clock_delta);
 		if (rc == 0) {
-			new_clock = old_clock + clock_delta;
-			delta = adjust_time(old_clock, new_clock, 0);
+			/* fixup the monotonic sched clock */
+			sched_clock_base_cc += clock_delta;
 			if (ptff_query(PTFF_QTO) &&
 			    ptff(&qto, sizeof(qto), PTFF_QTO) == 0)
 				/* Update LPAR offset */
 				lpar_offset = qto.tod_epoch_difference;
 			atomic_notifier_call_chain(&s390_epoch_delta_notifier,
 						   0, &clock_delta);
-			fixup_clock_comparator(delta);
+			fixup_clock_comparator(clock_delta);
 			rc = chsc_sstpi(stp_page, &stp_info,
 					sizeof(struct stp_sstpi));
 			if (rc == 0 && stp_info.tmd != 2)
