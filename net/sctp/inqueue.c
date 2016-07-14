@@ -217,7 +217,14 @@ new_skb:
 		chunk->auth = 0;
 		chunk->has_asconf = 0;
 		chunk->end_of_packet = 0;
-		chunk->ecn_ce_done = 0;
+		if (chunk->head_skb) {
+			struct sctp_input_cb
+				*cb = SCTP_INPUT_CB(chunk->skb),
+				*head_cb = SCTP_INPUT_CB(chunk->head_skb);
+
+			cb->chunk = head_cb->chunk;
+			cb->af = head_cb->af;
+		}
 	}
 
 	chunk->chunk_hdr = ch;

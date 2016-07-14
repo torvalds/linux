@@ -51,7 +51,7 @@ static void sctp_ulpevent_release_frag_data(struct sctp_ulpevent *event);
 
 /* Initialize an ULP event from an given skb.  */
 static void sctp_ulpevent_init(struct sctp_ulpevent *event,
-			       int msg_flags,
+			       __u16 msg_flags,
 			       unsigned int len)
 {
 	memset(event, 0, sizeof(struct sctp_ulpevent));
@@ -60,7 +60,7 @@ static void sctp_ulpevent_init(struct sctp_ulpevent *event,
 }
 
 /* Create a new sctp_ulpevent.  */
-static struct sctp_ulpevent *sctp_ulpevent_new(int size, int msg_flags,
+static struct sctp_ulpevent *sctp_ulpevent_new(int size, __u16 msg_flags,
 					       gfp_t gfp)
 {
 	struct sctp_ulpevent *event;
@@ -701,6 +701,12 @@ struct sctp_ulpevent *sctp_ulpevent_make_rcvmsg(struct sctp_association *asoc,
 
 	sctp_ulpevent_receive_data(event, asoc);
 
+	/* And hold the chunk as we need it for getting the IP headers
+	 * later in recvmsg
+	 */
+	sctp_chunk_hold(chunk);
+	event->chunk = chunk;
+
 	event->stream = ntohs(chunk->subh.data_hdr->stream);
 	event->ssn = ntohs(chunk->subh.data_hdr->ssn);
 	event->ppid = chunk->subh.data_hdr->ppid;
@@ -710,11 +716,11 @@ struct sctp_ulpevent *sctp_ulpevent_make_rcvmsg(struct sctp_association *asoc,
 	}
 	event->tsn = ntohl(chunk->subh.data_hdr->tsn);
 	event->msg_flags |= chunk->chunk_hdr->flags;
-	event->iif = sctp_chunk_iif(chunk);
 
 	return event;
 
 fail_mark:
+	sctp_chunk_put(chunk);
 	kfree_skb(skb);
 fail:
 	return NULL;
@@ -1007,6 +1013,7 @@ static void sctp_ulpevent_release_data(struct sctp_ulpevent *event)
 
 done:
 	sctp_assoc_rwnd_increase(event->asoc, len);
+	sctp_chunk_put(event->chunk);
 	sctp_ulpevent_release_owner(event);
 }
 
@@ -1029,6 +1036,7 @@ static void sctp_ulpevent_release_frag_data(struct sctp_ulpevent *event)
 	}
 
 done:
+	sctp_chunk_put(event->chunk);
 	sctp_ulpevent_release_owner(event);
 }
 

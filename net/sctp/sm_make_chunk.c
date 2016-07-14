@@ -108,14 +108,9 @@ static void sctp_control_set_owner_w(struct sctp_chunk *chunk)
 /* What was the inbound interface for this chunk? */
 int sctp_chunk_iif(const struct sctp_chunk *chunk)
 {
-	struct sctp_af *af;
-	int iif = 0;
+	struct sk_buff *skb = chunk->skb;
 
-	af = sctp_get_af_specific(ipver2af(ip_hdr(chunk->skb)->version));
-	if (af)
-		iif = af->skb_iif(chunk->skb);
-
-	return iif;
+	return SCTP_INPUT_CB(skb)->af->skb_iif(skb);
 }
 
 /* RFC 2960 3.3.2 Initiation (INIT) (1)
@@ -1600,7 +1595,6 @@ struct sctp_association *sctp_make_temp_asoc(const struct sctp_endpoint *ep,
 	struct sctp_association *asoc;
 	struct sk_buff *skb;
 	sctp_scope_t scope;
-	struct sctp_af *af;
 
 	/* Create the bare association.  */
 	scope = sctp_scope(sctp_source(chunk));
@@ -1610,16 +1604,10 @@ struct sctp_association *sctp_make_temp_asoc(const struct sctp_endpoint *ep,
 	asoc->temp = 1;
 	skb = chunk->skb;
 	/* Create an entry for the source address of the packet.  */
-	af = sctp_get_af_specific(ipver2af(ip_hdr(skb)->version));
-	if (unlikely(!af))
-		goto fail;
-	af->from_skb(&asoc->c.peer_addr, skb, 1);
+	SCTP_INPUT_CB(skb)->af->from_skb(&asoc->c.peer_addr, skb, 1);
+
 nodata:
 	return asoc;
-
-fail:
-	sctp_association_free(asoc);
-	return NULL;
 }
 
 /* Build a cookie representing asoc.

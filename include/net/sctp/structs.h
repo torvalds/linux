@@ -59,6 +59,7 @@
 #include <linux/workqueue.h>	/* We need tq_struct.	 */
 #include <linux/sctp.h>		/* We need sctp* header structs.  */
 #include <net/sctp/auth.h>	/* We need auth specific structs */
+#include <net/ip.h>		/* For inet_skb_parm */
 
 /* A convenience structure for handling sockaddr structures.
  * We should wean ourselves off this.
@@ -1090,6 +1091,28 @@ void sctp_prsctp_prune(struct sctp_association *asoc,
 static inline void sctp_outq_cork(struct sctp_outq *q)
 {
 	q->cork = 1;
+}
+
+/* SCTP skb control block.
+ * sctp_input_cb is currently used on rx and sock rx queue
+ */
+struct sctp_input_cb {
+	union {
+		struct inet_skb_parm	h4;
+#if IS_ENABLED(CONFIG_IPV6)
+		struct inet6_skb_parm	h6;
+#endif
+	} header;
+	struct sctp_chunk *chunk;
+	struct sctp_af *af;
+};
+#define SCTP_INPUT_CB(__skb)	((struct sctp_input_cb *)&((__skb)->cb[0]))
+
+static inline const struct sk_buff *sctp_gso_headskb(const struct sk_buff *skb)
+{
+	const struct sctp_chunk *chunk = SCTP_INPUT_CB(skb)->chunk;
+
+	return chunk->head_skb ? : skb;
 }
 
 /* These bind address data fields common between endpoints and associations */
