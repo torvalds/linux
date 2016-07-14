@@ -46,7 +46,8 @@ Optional properties:
     The second cell represents the MICBIAS to be used.
     The third cell represents the value of the micd-pol-gpio pin.
 
-  - wlf,gpsw : Settings for the general purpose switch
+  - wlf,gpsw : Settings for the general purpose switch, set as one of the
+    ARIZONA_GPSW_XXX defines.
 
 Example:
 
