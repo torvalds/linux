@@ -1,0 +1,4 @@
+config HIO
+	tristate "ES3000 V2 High-Performance PCIe SSD"
+	---help---
+	Driver for ES3000 V2 High-Performance PCIe SSD.
