@@ -1645,6 +1645,7 @@ lookup_again:
 	lseg = send_layoutget(lo, ctx, &stateid, &arg, &timeout, gfp_flags);
 	trace_pnfs_update_layout(ino, pos, count, iomode, lo, lseg,
 				 PNFS_UPDATE_LAYOUT_SEND_LAYOUTGET);
+	atomic_dec(&lo->plh_outstanding);
 	if (IS_ERR(lseg)) {
 		switch(PTR_ERR(lseg)) {
 		case -ERECALLCONFLICT:
@@ -1652,26 +1653,26 @@ lookup_again:
 				lseg = NULL;
 			/* Fallthrough */
 		case -EAGAIN:
-			pnfs_put_layout_hdr(lo);
-			if (first)
-				pnfs_clear_first_layoutget(lo);
-			if (lseg) {
-				trace_pnfs_update_layout(ino, pos, count,
-					iomode, lo, lseg, PNFS_UPDATE_LAYOUT_RETRY);
-				goto lookup_again;
-			}
-			/* Fallthrough */
+			break;
 		default:
 			if (!nfs_error_is_fatal(PTR_ERR(lseg))) {
 				pnfs_layout_clear_fail_bit(lo, pnfs_iomode_to_fail_bit(iomode));
 				lseg = NULL;
 			}
+			goto out_put_layout_hdr;
+		}
+		if (lseg) {
+			if (first)
+				pnfs_clear_first_layoutget(lo);
+			trace_pnfs_update_layout(ino, pos, count,
+				iomode, lo, lseg, PNFS_UPDATE_LAYOUT_RETRY);
+			pnfs_put_layout_hdr(lo);
+			goto lookup_again;
 		}
 	} else {
 		pnfs_layout_clear_fail_bit(lo, pnfs_iomode_to_fail_bit(iomode));
 	}
 
-	atomic_dec(&lo->plh_outstanding);
 out_put_layout_hdr:
 	if (first)
 		pnfs_clear_first_layoutget(lo);
