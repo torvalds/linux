@@ -3520,7 +3520,7 @@ static unsigned int ata_scsi_zbc_out_xlat(struct ata_queued_cmd *qc)
 	struct scsi_cmnd *scmd = qc->scsicmd;
 	struct ata_device *dev = qc->dev;
 	const u8 *cdb = scmd->cmnd;
-	u8 reset_all, sa;
+	u8 all, sa;
 	u64 block;
 	u32 n_block;
 	u16 fp = (u16)-1;
@@ -3547,7 +3547,7 @@ static unsigned int ata_scsi_zbc_out_xlat(struct ata_queued_cmd *qc)
 	if (block > dev->n_sectors)
 		goto out_of_range;
 
-	reset_all = cdb[14] & 0x1;
+	all = cdb[14] & 0x1;
 
 	if (ata_ncq_enabled(qc->dev) &&
 	    ata_fpdma_zac_mgmt_out_supported(qc->dev)) {
@@ -3555,12 +3555,12 @@ static unsigned int ata_scsi_zbc_out_xlat(struct ata_queued_cmd *qc)
 		tf->command = ATA_CMD_NCQ_NON_DATA;
 		tf->feature = ATA_SUBCMD_NCQ_NON_DATA_ZAC_MGMT_OUT;
 		tf->nsect = qc->tag << 3;
-		tf->auxiliary = sa | ((u16)(reset_all & 0x1) << 8);
+		tf->auxiliary = sa | ((u16)all << 8);
 	} else {
 		tf->protocol = ATA_PROT_NODATA;
 		tf->command = ATA_CMD_ZAC_MGMT_OUT;
 		tf->feature = sa;
-		tf->hob_feature = reset_all & 0x1;
+		tf->hob_feature = all;
 	}
 	tf->lbah = (block >> 16) & 0xff;
 	tf->lbam = (block >> 8) & 0xff;
