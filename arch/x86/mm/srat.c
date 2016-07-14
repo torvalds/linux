@@ -13,7 +13,7 @@
 #include <linux/acpi.h>
 #include <linux/mmzone.h>
 #include <linux/bitmap.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/topology.h>
 #include <linux/bootmem.h>
 #include <linux/memblock.h>
