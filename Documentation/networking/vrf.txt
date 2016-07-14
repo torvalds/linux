@@ -189,7 +189,7 @@ older form without it.
 
 
    Or using the brief output:
-   $ ip -br link show master red
+   $ ip -br link show vrf red
    eth1             UP             02:00:00:00:02:02 <BROADCAST,MULTICAST,UP,LOWER_UP>
    eth2             UP             02:00:00:00:02:03 <BROADCAST,MULTICAST,UP,LOWER_UP>
    eth5             DOWN           02:00:00:00:02:06 <BROADCAST,MULTICAST>
@@ -207,8 +207,8 @@ older form without it.
    10.2.1.254 dev eth1 lladdr a6:d9:c7:4f:06:23 REACHABLE
    10.2.2.254 dev eth2 lladdr 5e:54:01:6a:ee:80 REACHABLE
 
-    $ ip -6 neigh show vrf red
-    2002:1::64 dev eth1 lladdr a6:d9:c7:4f:06:23 REACHABLE
+   $ ip -6 neigh show vrf red
+   2002:1::64 dev eth1 lladdr a6:d9:c7:4f:06:23 REACHABLE
 
 
 6. Show Addresses for a VRF
