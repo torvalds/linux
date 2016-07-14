@@ -1648,6 +1648,7 @@ lookup_again:
 	atomic_dec(&lo->plh_outstanding);
 	if (IS_ERR(lseg)) {
 		switch(PTR_ERR(lseg)) {
+		case -EBUSY:
 		case -ERECALLCONFLICT:
 			if (time_after(jiffies, giveup))
 				lseg = NULL;
