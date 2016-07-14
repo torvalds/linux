@@ -352,6 +352,10 @@ REGULATOR
   devm_regulator_put()
   devm_regulator_register()
 
+RESET
+  devm_reset_control_get()
+  devm_reset_controller_register()
+
 SLAVE DMA ENGINE
   devm_acpi_dma_controller_register()
 

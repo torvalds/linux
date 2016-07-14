@@ -12,8 +12,12 @@ menuconfig RESET_CONTROLLER
 
 	  If unsure, say no.
 
+if RESET_CONTROLLER
+
 config RESET_OXNAS
 	bool
 
 source "drivers/reset/sti/Kconfig"
 source "drivers/reset/hisilicon/Kconfig"
+
+endif
