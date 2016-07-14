@@ -66,7 +66,7 @@ nfs4_file_open(struct inode *inode, struct file *filp)
 	if (openflags & O_TRUNC) {
 		attr.ia_valid |= ATTR_SIZE;
 		attr.ia_size = 0;
-		nfs_sync_inode(inode);
+		filemap_write_and_wait(inode->i_mapping);
 	}
 
 	inode = NFS_PROTO(dir)->open_context(dir, ctx, openflags, &attr, NULL);
