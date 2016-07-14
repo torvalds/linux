@@ -62,30 +62,6 @@ static struct {
 	{ "tx-1024-1518-byte-packets" },
 };
 
-static int
-pasemi_mac_ethtool_get_settings(struct net_device *netdev,
-			       struct ethtool_cmd *cmd)
-{
-	struct phy_device *phydev = netdev->phydev;
-
-	if (!phydev)
-		return -EOPNOTSUPP;
-
-	return phy_ethtool_gset(phydev, cmd);
-}
-
-static int
-pasemi_mac_ethtool_set_settings(struct net_device *netdev,
-			       struct ethtool_cmd *cmd)
-{
-	struct phy_device *phydev = netdev->phydev;
-
-	if (!phydev)
-		return -EOPNOTSUPP;
-
-	return phy_ethtool_sset(phydev, cmd);
-}
-
 static u32
 pasemi_mac_ethtool_get_msglevel(struct net_device *netdev)
 {
@@ -143,8 +119,6 @@ static void pasemi_mac_get_strings(struct net_device *netdev, u32 stringset,
 }
 
 const struct ethtool_ops pasemi_mac_ethtool_ops = {
-	.get_settings		= pasemi_mac_ethtool_get_settings,
-	.set_settings		= pasemi_mac_ethtool_set_settings,
 	.get_msglevel		= pasemi_mac_ethtool_get_msglevel,
 	.set_msglevel		= pasemi_mac_ethtool_set_msglevel,
 	.get_link		= ethtool_op_get_link,
@@ -152,5 +126,7 @@ const struct ethtool_ops pasemi_mac_ethtool_ops = {
 	.get_strings		= pasemi_mac_get_strings,
 	.get_sset_count		= pasemi_mac_get_sset_count,
 	.get_ethtool_stats	= pasemi_mac_get_ethtool_stats,
+	.get_link_ksettings	= phy_ethtool_get_link_ksettings,
+	.set_link_ksettings	= phy_ethtool_set_link_ksettings,
 };
 
