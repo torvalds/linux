@@ -30,6 +30,7 @@
 static void perf_evlist__mmap_put(struct perf_evlist *evlist, int idx);
 static void __perf_evlist__munmap(struct perf_evlist *evlist, int idx);
 static void perf_mmap__munmap(struct perf_mmap *map);
+static void perf_mmap__put(struct perf_mmap *map);
 
 #define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
 #define SID(e, x, y) xyarray__entry(e->sample_id, x, y)
@@ -466,7 +467,8 @@ int perf_evlist__alloc_pollfd(struct perf_evlist *evlist)
 	return 0;
 }
 
-static int __perf_evlist__add_pollfd(struct perf_evlist *evlist, int fd, int idx, short revent)
+static int __perf_evlist__add_pollfd(struct perf_evlist *evlist, int fd,
+				     struct perf_mmap *map, short revent)
 {
 	int pos = fdarray__add(&evlist->pollfd, fd, revent | POLLERR | POLLHUP);
 	/*
@@ -474,7 +476,7 @@ static int __perf_evlist__add_pollfd(struct perf_evlist *evlist, int fd, int idx
 	 * close the associated evlist->mmap[] entry.
 	 */
 	if (pos >= 0) {
-		evlist->pollfd.priv[pos].idx = idx;
+		evlist->pollfd.priv[pos].ptr = map;
 
 		fcntl(fd, F_SETFL, O_NONBLOCK);
 	}
@@ -484,15 +486,16 @@ static int __perf_evlist__add_pollfd(struct perf_evlist *evlist, int fd, int idx
 
 int perf_evlist__add_pollfd(struct perf_evlist *evlist, int fd)
 {
-	return __perf_evlist__add_pollfd(evlist, fd, -1, POLLIN);
+	return __perf_evlist__add_pollfd(evlist, fd, NULL, POLLIN);
 }
 
 static void perf_evlist__munmap_filtered(struct fdarray *fda, int fd,
 					 void *arg __maybe_unused)
 {
-	struct perf_evlist *evlist = container_of(fda, struct perf_evlist, pollfd);
+	struct perf_mmap *map = fda->priv[fd].ptr;
 
-	perf_evlist__mmap_put(evlist, fda->priv[fd].idx);
+	if (map)
+		perf_mmap__put(map);
 }
 
 int perf_evlist__filter_pollfd(struct perf_evlist *evlist, short revents_and_mask)
@@ -1098,7 +1101,7 @@ static int perf_evlist__mmap_per_evsel(struct perf_evlist *evlist, int idx,
 		 * Therefore don't add it for polling.
 		 */
 		if (!evsel->system_wide &&
-		    __perf_evlist__add_pollfd(evlist, fd, idx, revent) < 0) {
+		    __perf_evlist__add_pollfd(evlist, fd, &evlist->mmap[idx], revent) < 0) {
 			perf_evlist__mmap_put(evlist, idx);
 			return -1;
 		}
