@@ -162,12 +162,21 @@ static int greybus_probe(struct device *dev)
 	if (!id)
 		return -ENODEV;
 
+	/*
+	 * FIXME: We need to perform error handling on bundle activate call
+	 * below when firmware is ready. We just allow the activate operation to
+	 * fail for now since bundle may be in active already.
+	 */
+	gb_control_bundle_activate(bundle->intf->control, bundle->id);
+
 	retval = driver->probe(bundle, id);
 	if (retval) {
 		/*
 		 * Catch buggy drivers that fail to destroy their connections.
 		 */
 		WARN_ON(!list_empty(&bundle->connections));
+
+		gb_control_bundle_deactivate(bundle->intf->control, bundle->id);
 
 		return retval;
 	}
@@ -202,6 +211,9 @@ static int greybus_remove(struct device *dev)
 
 	/* Catch buggy drivers that fail to destroy their connections. */
 	WARN_ON(!list_empty(&bundle->connections));
+
+	if (!bundle->intf->disconnected)
+		gb_control_bundle_deactivate(bundle->intf->control, bundle->id);
 
 	return 0;
 }
