@@ -3130,8 +3130,8 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 		tf->command = cdb[9];
 	}
 
-	/* For NCQ commands with FPDMA protocol, copy the tag value */
-	if (tf->protocol == ATA_PROT_NCQ)
+	/* For NCQ commands copy the tag value */
+	if (ata_is_ncq(tf->protocol))
 		tf->nsect = qc->tag << 3;
 
 	/* enforce correct master/slave bit */

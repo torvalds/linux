@@ -1975,7 +1975,7 @@ unsigned int ahci_qc_issue(struct ata_queued_cmd *qc)
 	 */
 	pp->active_link = qc->dev->link;
 
-	if (qc->tf.protocol == ATA_PROT_NCQ)
+	if (ata_is_ncq(qc->tf.protocol))
 		writel(1 << qc->tag, port_mmio + PORT_SCR_ACT);
 
 	if (pp->fbs_enabled && pp->fbs_last_dev != qc->dev->link->pmp) {
