@@ -176,6 +176,10 @@ static int gb_i2c_transfer_operation(struct gb_i2c_device *gb_i2c_dev,
 	if (!operation)
 		return -ENOMEM;
 
+	ret = gbphy_runtime_get_sync(gb_i2c_dev->gbphy_dev);
+	if (ret)
+		goto exit_operation_put;
+
 	ret = gb_operation_request_send_sync(operation);
 	if (!ret) {
 		struct gb_i2c_transfer_response *response;
@@ -187,6 +191,9 @@ static int gb_i2c_transfer_operation(struct gb_i2c_device *gb_i2c_dev,
 		dev_err(dev, "transfer operation failed (%d)\n", ret);
 	}
 
+	gbphy_runtime_put_autosuspend(gb_i2c_dev->gbphy_dev);
+
+exit_operation_put:
 	gb_operation_put(operation);
 
 	return ret;
@@ -290,6 +297,7 @@ static int gb_i2c_probe(struct gbphy_device *gbphy_dev,
 	if (ret)
 		goto exit_connection_disable;
 
+	gbphy_runtime_put_autosuspend(gbphy_dev);
 	return 0;
 
 exit_connection_disable:
@@ -306,6 +314,11 @@ static void gb_i2c_remove(struct gbphy_device *gbphy_dev)
 {
 	struct gb_i2c_device *gb_i2c_dev = gb_gbphy_get_data(gbphy_dev);
 	struct gb_connection *connection = gb_i2c_dev->connection;
+	int ret;
+
+	ret = gbphy_runtime_get_sync(gbphy_dev);
+	if (ret)
+		gbphy_runtime_get_noresume(gbphy_dev);
 
 	i2c_del_adapter(&gb_i2c_dev->adapter);
 	gb_connection_disable(connection);
