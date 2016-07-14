@@ -572,6 +572,30 @@ static void setup_APIC_timer(void)
 }
 
 /*
+ * Install the updated TSC frequency from recalibration at the TSC
+ * deadline clockevent devices.
+ */
+static void __lapic_update_tsc_freq(void *info)
+{
+	struct clock_event_device *levt = this_cpu_ptr(&lapic_events);
+
+	if (!this_cpu_has(X86_FEATURE_TSC_DEADLINE_TIMER))
+		return;
+
+	clockevents_update_freq(levt, tsc_khz * (1000 / TSC_DIVISOR));
+}
+
+void lapic_update_tsc_freq(void)
+{
+	/*
+	 * The clockevent device's ->mult and ->shift can both be
+	 * changed. In order to avoid races, schedule the frequency
+	 * update code on each CPU.
+	 */
+	on_each_cpu(__lapic_update_tsc_freq, NULL, 0);
+}
+
+/*
  * In this functions we calibrate APIC bus clocks to the external timer.
  *
  * We want to do the calibration only once since we want to have local timer
