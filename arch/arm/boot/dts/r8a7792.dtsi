@@ -511,6 +511,13 @@
 			clock-div = <8>;
 			clock-mult = <1>;
 		};
+		rcan_clk: rcan {
+			compatible = "fixed-factor-clock";
+			clocks = <&pll1_div2_clk>;
+			#clock-cells = <0>;
+			clock-div = <49>;
+			clock-mult = <1>;
+		};
 
 		/* Gate clocks */
 		mstp1_clks: mstp1_clks@e6150134 {
@@ -572,7 +579,8 @@
 			reg = <0 0xe6150994 0 4>, <0 0xe61509a4 0 4>;
 			clocks = <&cp_clk>, <&cp_clk>, <&cp_clk>, <&cp_clk>,
 				 <&cp_clk>, <&cp_clk>, <&cp_clk>, <&cp_clk>,
-				 <&cp_clk>, <&cp_clk>, <&cp_clk>, <&cp_clk>;
+				 <&cp_clk>, <&cp_clk>, <&p_clk>, <&p_clk>,
+				 <&cp_clk>, <&cp_clk>;
 			#clock-cells = <1>;
 			clock-indices = <
 				R8A7792_CLK_GPIO7 R8A7792_CLK_GPIO6
@@ -580,12 +588,14 @@
 				R8A7792_CLK_GPIO3 R8A7792_CLK_GPIO2
 				R8A7792_CLK_GPIO1 R8A7792_CLK_GPIO0
 				R8A7792_CLK_GPIO11 R8A7792_CLK_GPIO10
+				R8A7792_CLK_CAN1 R8A7792_CLK_CAN0
 				R8A7792_CLK_GPIO9 R8A7792_CLK_GPIO8
 			>;
 			clock-output-names =
 				"gpio7", "gpio6", "gpio5", "gpio4",
 				"gpio3", "gpio2", "gpio1", "gpio0",
-				"gpio11", "gpio10", "gpio9", "gpio8";
+				"gpio11", "gpio10", "can1", "can0",
+				"gpio9", "gpio8";
 		};
 	};
 
@@ -599,6 +609,14 @@
 
 	/* External SCIF clock */
 	scif_clk: scif {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		/* This value must be overridden by the board. */
+		clock-frequency = <0>;
+	};
+
+	/* External CAN clock */
+	can_clk: can {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		/* This value must be overridden by the board. */
