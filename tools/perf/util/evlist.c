@@ -708,12 +708,12 @@ static int perf_evlist__set_paused(struct perf_evlist *evlist, bool value)
 	return 0;
 }
 
-int perf_evlist__pause(struct perf_evlist *evlist)
+static int perf_evlist__pause(struct perf_evlist *evlist)
 {
 	return perf_evlist__set_paused(evlist, true);
 }
 
-int perf_evlist__resume(struct perf_evlist *evlist)
+static int perf_evlist__resume(struct perf_evlist *evlist)
 {
 	return perf_evlist__set_paused(evlist, false);
 }
