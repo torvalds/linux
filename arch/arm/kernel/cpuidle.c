@@ -47,18 +47,13 @@ int arm_cpuidle_simple_enter(struct cpuidle_device *dev,
  * This function calls the underlying arch specific low level PM code as
  * registered at the init time.
  *
- * Returns -EOPNOTSUPP if no suspend callback is defined, the result of the
- * callback otherwise.
+ * Returns the result of the suspend callback.
  */
 int arm_cpuidle_suspend(int index)
 {
-	int ret = -EOPNOTSUPP;
 	int cpu = smp_processor_id();
 
-	if (cpuidle_ops[cpu].suspend)
-		ret = cpuidle_ops[cpu].suspend(index);
-
-	return ret;
+	return cpuidle_ops[cpu].suspend(index);
 }
 
 /**
@@ -92,8 +87,8 @@ static const struct cpuidle_ops *__init arm_cpuidle_get_ops(const char *method)
  * process.
  *
  * Return 0 on sucess, -ENOENT if no 'enable-method' is defined, -EOPNOTSUPP if
- * no cpuidle_ops is registered for the 'enable-method', or if no init callback
- * is defined.
+ * no cpuidle_ops is registered for the 'enable-method', or if either init or
+ * suspend callback isn't defined.
  */
 static int __init arm_cpuidle_read_ops(struct device_node *dn, int cpu)
 {
@@ -111,8 +106,8 @@ static int __init arm_cpuidle_read_ops(struct device_node *dn, int cpu)
 		return -EOPNOTSUPP;
 	}
 
-	if (!ops->init) {
-		pr_warn("cpuidle_ops '%s': no init callback\n",
+	if (!ops->init || !ops->suspend) {
+		pr_warn("cpuidle_ops '%s': no init or suspend callback\n",
 			enable_method);
 		return -EOPNOTSUPP;
 	}
