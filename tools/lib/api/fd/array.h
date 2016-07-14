@@ -22,6 +22,7 @@ struct fdarray {
 	struct pollfd *entries;
 	union {
 		int    idx;
+		void   *ptr;
 	} *priv;
 };
 
