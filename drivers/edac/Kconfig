@@ -398,6 +398,13 @@ config EDAC_ALTERA_ETHERNET
 	  Support for error detection and correction on the
 	  Altera Ethernet FIFO Memory for Altera SoCs.
 
+config EDAC_ALTERA_NAND
+	bool "Altera NAND FIFO ECC"
+	depends on EDAC_ALTERA=y && MTD_NAND_DENALI
+	help
+	  Support for error detection and correction on the
+	  Altera NAND FIFO Memory for Altera SoCs.
+
 config EDAC_SYNOPSYS
 	tristate "Synopsys DDR Memory Controller"
 	depends on EDAC_MM_EDAC && ARCH_ZYNQ
