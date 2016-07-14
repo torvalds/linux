@@ -168,35 +168,21 @@ void rds_tcp_reset_callbacks(struct socket *sock,
 	wait_event(cp->cp_waitq, !test_bit(RDS_IN_XMIT, &cp->cp_flags));
 	lock_sock(osock->sk);
 	/* reset receive side state for rds_tcp_data_recv() for osock  */
+	cancel_delayed_work_sync(&cp->cp_send_w);
+	cancel_delayed_work_sync(&cp->cp_recv_w);
 	if (tc->t_tinc) {
 		rds_inc_put(&tc->t_tinc->ti_inc);
 		tc->t_tinc = NULL;
 	}
 	tc->t_tinc_hdr_rem = sizeof(struct rds_header);
 	tc->t_tinc_data_rem = 0;
-	tc->t_sock = NULL;
-
-	write_lock_bh(&osock->sk->sk_callback_lock);
-
-	osock->sk->sk_user_data = NULL;
-	osock->sk->sk_data_ready = tc->t_orig_data_ready;
-	osock->sk->sk_write_space = tc->t_orig_write_space;
-	osock->sk->sk_state_change = tc->t_orig_state_change;
-	write_unlock_bh(&osock->sk->sk_callback_lock);
+	rds_tcp_restore_callbacks(osock, tc);
 	release_sock(osock->sk);
 	sock_release(osock);
 newsock:
 	rds_send_path_reset(cp);
 	lock_sock(sock->sk);
-	write_lock_bh(&sock->sk->sk_callback_lock);
-	tc->t_sock = sock;
-	tc->t_cpath = cp;
-	sock->sk->sk_user_data = cp;
-	sock->sk->sk_data_ready = rds_tcp_data_ready;
-	sock->sk->sk_write_space = rds_tcp_write_space;
-	sock->sk->sk_state_change = rds_tcp_state_change;
-
-	write_unlock_bh(&sock->sk->sk_callback_lock);
+	rds_tcp_set_callbacks(sock, cp);
 	release_sock(sock->sk);
 }
 
