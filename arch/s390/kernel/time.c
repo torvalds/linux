@@ -318,10 +318,8 @@ static DEFINE_PER_CPU(atomic_t, clock_sync_word);
 static DEFINE_MUTEX(clock_sync_mutex);
 static unsigned long clock_sync_flags;
 
-#define CLOCK_SYNC_HAS_ETR	0
-#define CLOCK_SYNC_HAS_STP	1
-#define CLOCK_SYNC_ETR		2
-#define CLOCK_SYNC_STP		3
+#define CLOCK_SYNC_HAS_STP	0
+#define CLOCK_SYNC_STP		1
 
 /*
  * The get_clock function for the physical clock. It will get the current
@@ -343,34 +341,32 @@ int get_phys_clock(unsigned long long *clock)
 	if (sw0 == sw1 && (sw0 & 0x80000000U))
 		/* Success: time is in sync. */
 		return 0;
-	if (!test_bit(CLOCK_SYNC_HAS_ETR, &clock_sync_flags) &&
-	    !test_bit(CLOCK_SYNC_HAS_STP, &clock_sync_flags))
+	if (!test_bit(CLOCK_SYNC_HAS_STP, &clock_sync_flags))
 		return -EOPNOTSUPP;
-	if (!test_bit(CLOCK_SYNC_ETR, &clock_sync_flags) &&
-	    !test_bit(CLOCK_SYNC_STP, &clock_sync_flags))
+	if (!test_bit(CLOCK_SYNC_STP, &clock_sync_flags))
 		return -EACCES;
 	return -EAGAIN;
 }
 EXPORT_SYMBOL(get_phys_clock);
 
 /*
- * Make get_sync_clock return -EAGAIN.
+ * Make get_phys_clock() return -EAGAIN.
  */
 static void disable_sync_clock(void *dummy)
 {
 	atomic_t *sw_ptr = this_cpu_ptr(&clock_sync_word);
 	/*
-	 * Clear the in-sync bit 2^31. All get_sync_clock calls will
+	 * Clear the in-sync bit 2^31. All get_phys_clock calls will
 	 * fail until the sync bit is turned back on. In addition
 	 * increase the "sequence" counter to avoid the race of an
-	 * etr event and the complete recovery against get_sync_clock.
+	 * stp event and the complete recovery against get_phys_clock.
 	 */
 	atomic_andnot(0x80000000, sw_ptr);
 	atomic_inc(sw_ptr);
 }
 
 /*
- * Make get_sync_clock return 0 again.
+ * Make get_phys_clock() return 0 again.
  * Needs to be called from a context disabled for preemption.
  */
 static void enable_sync_clock(void)
@@ -393,7 +389,7 @@ static inline int check_sync_clock(void)
 	return rc;
 }
 
-/* Single threaded workqueue used for etr and stp sync events */
+/* Single threaded workqueue used for stp sync events */
 static struct workqueue_struct *time_sync_wq;
 
 static void __init time_init_wq(void)
@@ -407,20 +403,12 @@ struct clock_sync_data {
 	atomic_t cpus;
 	int in_sync;
 	unsigned long long fixup_cc;
-	int etr_port;
-	struct etr_aib *etr_aib;
 };
 
 static void clock_sync_cpu(struct clock_sync_data *sync)
 {
 	atomic_dec(&sync->cpus);
 	enable_sync_clock();
-	/*
-	 * This looks like a busy wait loop but it isn't. etr_sync_cpus
-	 * is called on all other cpus while the TOD clocks is stopped.
-	 * __udelay will stop the cpu on an enabled wait psw until the
-	 * TOD is running again.
-	 */
 	while (sync->in_sync == 0) {
 		__udelay(1);
 		/*
