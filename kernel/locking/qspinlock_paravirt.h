@@ -70,11 +70,14 @@ struct pv_node {
 static inline bool pv_queued_spin_steal_lock(struct qspinlock *lock)
 {
 	struct __qspinlock *l = (void *)lock;
-	int ret = !(atomic_read(&lock->val) & _Q_LOCKED_PENDING_MASK) &&
-		   (cmpxchg(&l->locked, 0, _Q_LOCKED_VAL) == 0);
 
-	qstat_inc(qstat_pv_lock_stealing, ret);
-	return ret;
+	if (!(atomic_read(&lock->val) & _Q_LOCKED_PENDING_MASK) &&
+	    (cmpxchg(&l->locked, 0, _Q_LOCKED_VAL) == 0)) {
+		qstat_inc(qstat_pv_lock_stealing, true);
+		return true;
+	}
+
+	return false;
 }
 
 /*
@@ -257,7 +260,6 @@ static struct pv_node *pv_unhash(struct qspinlock *lock)
 static inline bool
 pv_wait_early(struct pv_node *prev, int loop)
 {
-
 	if ((loop & PV_PREV_CHECK_MASK) != 0)
 		return false;
 
