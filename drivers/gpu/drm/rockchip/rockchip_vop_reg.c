@@ -190,7 +190,7 @@ static const struct vop_data rk3288_vop = {
 	.win_size = ARRAY_SIZE(rk3288_vop_win_data),
 };
 
-static const struct vop_scl_regs rk3066_win_scl = {
+static const struct vop_scl_regs rk3036_win_scl = {
 	.scale_yrgb_x = VOP_REG(RK3036_WIN0_SCL_FACTOR_YRGB, 0xffff, 0x0),
 	.scale_yrgb_y = VOP_REG(RK3036_WIN0_SCL_FACTOR_YRGB, 0xffff, 16),
 	.scale_cbcr_x = VOP_REG(RK3036_WIN0_SCL_FACTOR_CBR, 0xffff, 0x0),
@@ -198,7 +198,7 @@ static const struct vop_scl_regs rk3066_win_scl = {
 };
 
 static const struct vop_win_phy rk3036_win0_data = {
-	.scl = &rk3066_win_scl,
+	.scl = &rk3036_win_scl,
 	.data_formats = formats_win_full,
 	.nformats = ARRAY_SIZE(formats_win_full),
 	.enable = VOP_REG(RK3036_SYS_CTRL, 0x1, 0),
