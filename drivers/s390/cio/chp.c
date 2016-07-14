@@ -428,11 +428,14 @@ int chp_update_desc(struct channel_path *chp)
 	if (rc)
 		return rc;
 
-	rc = chsc_determine_fmt1_channel_path_desc(chp->chpid, &chp->desc_fmt1);
-	if (rc)
-		return rc;
+	/*
+	 * Fetching the following data is optional. Not all machines or
+	 * hypervisors implement the required chsc commands.
+	 */
+	chsc_determine_fmt1_channel_path_desc(chp->chpid, &chp->desc_fmt1);
+	chsc_get_channel_measurement_chars(chp);
 
-	return chsc_get_channel_measurement_chars(chp);
+	return 0;
 }
 
 /**

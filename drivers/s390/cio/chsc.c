@@ -1020,7 +1020,7 @@ int chsc_get_channel_measurement_chars(struct channel_path *chp)
 	chp->cmg = -1;
 
 	if (!css_chsc_characteristics.scmc || !css_chsc_characteristics.secm)
-		return 0;
+		return -EINVAL;
 
 	spin_lock_irq(&chsc_page_lock);
 	memset(chsc_page, 0, PAGE_SIZE);
