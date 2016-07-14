@@ -1,5 +1,5 @@
 /*
- * mrfl.c: Intel Merrifield platform specific setup code
+ * Intel Merrifield platform specific setup code
  *
  * (C) Copyright 2013 Intel Corporation
  *
