@@ -1920,9 +1920,9 @@ static int omap_nand_probe(struct platform_device *pdev)
 		dma_cap_set(DMA_SLAVE, mask);
 		info->dma = dma_request_chan(pdev->dev.parent, "rxtx");
 
-		if (!info->dma) {
+		if (IS_ERR(info->dma)) {
 			dev_err(&pdev->dev, "DMA engine request failed\n");
-			err = -ENXIO;
+			err = PTR_ERR(info->dma);
 			goto return_error;
 		} else {
 			struct dma_slave_config cfg;
