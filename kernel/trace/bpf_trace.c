@@ -245,8 +245,10 @@ static u64 bpf_perf_event_output(u64 r1, u64 r2, u64 flags, u64 r4, u64 size)
 	struct bpf_event_entry *ee;
 	struct perf_event *event;
 	struct perf_raw_record raw = {
-		.size = size,
-		.data = data,
+		.frag = {
+			.size = size,
+			.data = data,
+		},
 	};
 
 	if (unlikely(flags & ~(BPF_F_INDEX_MASK)))
