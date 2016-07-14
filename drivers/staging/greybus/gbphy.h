@@ -66,5 +66,45 @@ void gb_gbphy_deregister_driver(struct gbphy_driver *driver);
 #define module_gbphy_driver(__gbphy_driver)	\
 	module_driver(__gbphy_driver, gb_gbphy_register, gb_gbphy_deregister)
 
+#ifdef CONFIG_PM_RUNTIME
+static inline int gbphy_runtime_get_sync(struct gbphy_device *gbphy_dev)
+{
+	struct device *dev = &gbphy_dev->dev;
+	int ret;
+
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		dev_err(dev, "pm_runtime_get_sync failed: %d\n", ret);
+		pm_runtime_put_noidle(dev);
+		return ret;
+	}
+
+	return 0;
+}
+
+static inline void gbphy_runtime_put_autosuspend(struct gbphy_device *gbphy_dev)
+{
+	struct device *dev = &gbphy_dev->dev;
+
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
+}
+
+static inline void gbphy_runtime_get_noresume(struct gbphy_device *gbphy_dev)
+{
+	pm_runtime_get_noresume(&gbphy_dev->dev);
+}
+
+static inline void gbphy_runtime_put_noidle(struct gbphy_device *gbphy_dev)
+{
+	pm_runtime_put_noidle(&gbphy_dev->dev);
+}
+#else
+static inline int gbphy_runtime_get_sync(struct device *dev) { return 0; }
+static inline void gbphy_runtime_put_autosuspend(struct device *dev) {}
+static inline void gbphy_runtime_get_noresume(struct gbphy_device *gbphy_dev) {}
+static inline void gbphy_runtime_put_noidle(struct gbphy_device *gbphy_dev) {}
+#endif
+
 #endif /* __GBPHY_H */
 

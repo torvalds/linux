@@ -19,6 +19,8 @@
 #include "greybus.h"
 #include "gbphy.h"
 
+#define GB_GBPHY_AUTOSUSPEND_MS	3000
+
 struct gbphy_host {
 	struct gb_bundle *bundle;
 	struct list_head devices;
@@ -50,9 +52,25 @@ static void gbphy_dev_release(struct device *dev)
 	kfree(gbphy_dev);
 }
 
+#ifdef CONFIG_PM_RUNTIME
+static int gb_gbphy_idle(struct device *dev)
+{
+	pm_runtime_mark_last_busy(dev);
+	pm_request_autosuspend(dev);
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops gb_gbphy_pm_ops = {
+	SET_RUNTIME_PM_OPS(pm_generic_runtime_suspend,
+			   pm_generic_runtime_resume,
+			   gb_gbphy_idle)
+};
+
 static struct device_type greybus_gbphy_dev_type = {
 	.name	 =	"gbphy_device",
 	.release =	gbphy_dev_release,
+	.pm	=	&gb_gbphy_pm_ops,
 };
 
 static int gbphy_dev_uevent(struct device *dev, struct kobj_uevent_env *env)
@@ -118,12 +136,38 @@ static int gbphy_dev_probe(struct device *dev)
 	struct gbphy_driver *gbphy_drv = to_gbphy_driver(dev->driver);
 	struct gbphy_device *gbphy_dev = to_gbphy_dev(dev);
 	const struct gbphy_device_id *id;
+	int ret;
 
 	id = gbphy_dev_match_id(gbphy_dev, gbphy_drv);
 	if (!id)
 		return -ENODEV;
 
-	return gbphy_drv->probe(gbphy_dev, id);
+	/* for old kernels we need get_sync to resume parent devices */
+	ret = gb_pm_runtime_get_sync(gbphy_dev->bundle);
+	if (ret < 0)
+		return ret;
+
+	pm_runtime_set_autosuspend_delay(dev, GB_GBPHY_AUTOSUSPEND_MS);
+	pm_runtime_use_autosuspend(dev);
+	pm_runtime_get_noresume(dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+
+	/*
+	 * Drivers should call put on the gbphy dev before returning
+	 * from probe if they support runtime pm.
+	 */
+	ret = gbphy_drv->probe(gbphy_dev, id);
+	if (ret) {
+		pm_runtime_disable(dev);
+		pm_runtime_set_suspended(dev);
+		pm_runtime_put_noidle(dev);
+		pm_runtime_dont_use_autosuspend(dev);
+	}
+
+	gb_pm_runtime_put_autosuspend(gbphy_dev->bundle);
+
+	return ret;
 }
 
 static int gbphy_dev_remove(struct device *dev)
@@ -132,6 +176,12 @@ static int gbphy_dev_remove(struct device *dev)
 	struct gbphy_device *gbphy_dev = to_gbphy_dev(dev);
 
 	gbphy_drv->remove(gbphy_dev);
+
+	pm_runtime_disable(dev);
+	pm_runtime_set_suspended(dev);
+	pm_runtime_put_noidle(dev);
+	pm_runtime_dont_use_autosuspend(dev);
+
 	return 0;
 }
 
@@ -211,6 +261,11 @@ static void gb_gbphy_disconnect(struct gb_bundle *bundle)
 {
 	struct gbphy_host *gbphy_host = greybus_get_drvdata(bundle);
 	struct gbphy_device *gbphy_dev, *temp;
+	int ret;
+
+	ret = gb_pm_runtime_get_sync(bundle);
+	if (ret < 0)
+		gb_pm_runtime_get_noresume(bundle);
 
 	list_for_each_entry_safe(gbphy_dev, temp, &gbphy_host->devices, list) {
 		list_del(&gbphy_dev->list);
@@ -250,6 +305,8 @@ static int gb_gbphy_probe(struct gb_bundle *bundle,
 		}
 		list_add(&gbphy_dev->list, &gbphy_host->devices);
 	}
+
+	gb_pm_runtime_put_autosuspend(bundle);
 
 	return 0;
 }
