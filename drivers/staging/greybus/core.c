@@ -13,6 +13,8 @@
 #include "greybus.h"
 #include "greybus_trace.h"
 
+#define GB_BUNDLE_AUTOSUSPEND_MS	3000
+
 /* Allow greybus to be disabled at boot if needed */
 static bool nogreybus;
 #ifdef MODULE
@@ -162,12 +164,31 @@ static int greybus_probe(struct device *dev)
 	if (!id)
 		return -ENODEV;
 
+	retval = pm_runtime_get_sync(&bundle->intf->dev);
+	if (retval < 0) {
+		pm_runtime_put_noidle(&bundle->intf->dev);
+		return retval;
+	}
+
 	/*
 	 * FIXME: We need to perform error handling on bundle activate call
 	 * below when firmware is ready. We just allow the activate operation to
 	 * fail for now since bundle may be in active already.
 	 */
 	gb_control_bundle_activate(bundle->intf->control, bundle->id);
+
+	/*
+	 * Unbound bundle devices are always deactivated. During probe, the
+	 * Runtime PM is set to enabled and active and the usage count is
+	 * incremented. If the driver supports runtime PM, it should call
+	 * pm_runtime_put() in its probe routine and pm_runtime_get_sync()
+	 * in remove routine.
+	 */
+	pm_runtime_set_autosuspend_delay(dev, GB_BUNDLE_AUTOSUSPEND_MS);
+	pm_runtime_use_autosuspend(dev);
+	pm_runtime_get_noresume(dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
 
 	retval = driver->probe(bundle, id);
 	if (retval) {
@@ -178,10 +199,18 @@ static int greybus_probe(struct device *dev)
 
 		gb_control_bundle_deactivate(bundle->intf->control, bundle->id);
 
+		pm_runtime_disable(dev);
+		pm_runtime_set_suspended(dev);
+		pm_runtime_put_noidle(dev);
+		pm_runtime_dont_use_autosuspend(dev);
+		pm_runtime_put(&bundle->intf->dev);
+
 		return retval;
 	}
 
 	gb_timesync_schedule_asynchronous(bundle->intf);
+
+	pm_runtime_put(&bundle->intf->dev);
 
 	return 0;
 }
@@ -191,6 +220,11 @@ static int greybus_remove(struct device *dev)
 	struct greybus_driver *driver = to_greybus_driver(dev->driver);
 	struct gb_bundle *bundle = to_gb_bundle(dev);
 	struct gb_connection *connection;
+	int retval;
+
+	retval = pm_runtime_get_sync(dev);
+	if (retval < 0)
+		dev_err(dev, "failed to resume bundle: %d\n", retval);
 
 	/*
 	 * Disable (non-offloaded) connections early in case the interface is
@@ -214,6 +248,12 @@ static int greybus_remove(struct device *dev)
 
 	if (!bundle->intf->disconnected)
 		gb_control_bundle_deactivate(bundle->intf->control, bundle->id);
+
+	pm_runtime_put_noidle(dev);
+	pm_runtime_disable(dev);
+	pm_runtime_set_suspended(dev);
+	pm_runtime_dont_use_autosuspend(dev);
+	pm_runtime_put_noidle(dev);
 
 	return 0;
 }

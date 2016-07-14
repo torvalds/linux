@@ -40,4 +40,51 @@ struct gb_bundle *gb_bundle_create(struct gb_interface *intf, u8 bundle_id,
 int gb_bundle_add(struct gb_bundle *bundle);
 void gb_bundle_destroy(struct gb_bundle *bundle);
 
+/* Bundle Runtime PM wrappers */
+#ifdef CONFIG_PM_RUNTIME
+static inline int gb_pm_runtime_get_sync(struct gb_bundle *bundle)
+{
+	int retval;
+
+	retval = pm_runtime_get_sync(&bundle->dev);
+	if (retval < 0) {
+		dev_err(&bundle->dev,
+			"pm_runtime_get_sync failed: %d\n", retval);
+		pm_runtime_put_noidle(&bundle->dev);
+		return retval;
+	}
+
+	return 0;
+}
+
+static inline int gb_pm_runtime_put_autosuspend(struct gb_bundle *bundle)
+{
+	int retval;
+
+	pm_runtime_mark_last_busy(&bundle->dev);
+	retval = pm_runtime_put_autosuspend(&bundle->dev);
+
+	return retval;
+}
+
+static inline void gb_pm_runtime_get_noresume(struct gb_bundle *bundle)
+{
+	pm_runtime_get_noresume(&bundle->dev);
+}
+
+static inline void gb_pm_runtime_put_noidle(struct gb_bundle *bundle)
+{
+	pm_runtime_put_noidle(&bundle->dev);
+}
+
+#else
+static inline int gb_pm_runtime_get_sync(struct gb_bundle *bundle)
+{ return 0; }
+static inline int gb_pm_runtime_put_autosuspend(struct gb_bundle *bundle)
+{ return 0; }
+
+static inline void gb_pm_runtime_get_noresume(struct gb_bundle *bundle) {}
+static inline void gb_pm_runtime_put_noidle(struct gb_bundle *bundle) {}
+#endif
+
 #endif /* __BUNDLE_H */
