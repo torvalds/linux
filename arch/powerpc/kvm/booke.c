@@ -2038,7 +2038,7 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 		if (type == KVMPPC_DEBUG_NONE)
 			continue;
 
-		if (type & !(KVMPPC_DEBUG_WATCH_READ |
+		if (type & ~(KVMPPC_DEBUG_WATCH_READ |
 			     KVMPPC_DEBUG_WATCH_WRITE |
 			     KVMPPC_DEBUG_BREAKPOINT))
 			return -EINVAL;
