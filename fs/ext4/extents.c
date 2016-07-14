@@ -3337,24 +3337,26 @@ static int ext4_split_extent(handle_t *handle,
 				map->m_lblk + map->m_len, split_flag1, flags1);
 		if (err)
 			goto out;
+			
+		/*
+	 	 * Update path is required because previous ext4_split_extent_at() may
+	 	 * result in split of original leaf or extent zeroout.
+	 	 */
+		path = ext4_find_extent(inode, map->m_lblk, ppath, 0);
+		if (IS_ERR(path))
+			return PTR_ERR(path);
+		depth = ext_depth(inode);
+		ex = path[depth].p_ext;
+		if (!ex) {
+			EXT4_ERROR_INODE(inode, "unexpected hole at %lu",
+				 (unsigned long) map->m_lblk);
+			return -EFSCORRUPTED;
+		}
+		unwritten = ext4_ext_is_unwritten(ex);
 	} else {
 		allocated = ee_len - (map->m_lblk - ee_block);
 	}
-	/*
-	 * Update path is required because previous ext4_split_extent_at() may
-	 * result in split of original leaf or extent zeroout.
-	 */
-	path = ext4_find_extent(inode, map->m_lblk, ppath, 0);
-	if (IS_ERR(path))
-		return PTR_ERR(path);
-	depth = ext_depth(inode);
-	ex = path[depth].p_ext;
-	if (!ex) {
-		EXT4_ERROR_INODE(inode, "unexpected hole at %lu",
-				 (unsigned long) map->m_lblk);
-		return -EFSCORRUPTED;
-	}
-	unwritten = ext4_ext_is_unwritten(ex);
+	
 	split_flag1 = 0;
 
 	if (map->m_lblk >= ee_block) {
