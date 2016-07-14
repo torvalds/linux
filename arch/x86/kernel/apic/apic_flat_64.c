@@ -15,7 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/ctype.h>
 #include <linux/hardirq.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <asm/smp.h>
 #include <asm/apic.h>
 #include <asm/ipi.h>

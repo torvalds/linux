@@ -16,7 +16,7 @@
 #include <linux/notifier.h>
 #include <linux/kprobes.h>
 #include <linux/nmi.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/delay.h>
 
 #ifdef CONFIG_HARDLOCKUP_DETECTOR

@@ -2,7 +2,7 @@
 
 #include <linux/pci.h>
 #include <linux/cache.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/swiotlb.h>
 #include <linux/bootmem.h>
 #include <linux/dma-mapping.h>

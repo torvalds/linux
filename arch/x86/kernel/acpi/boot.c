@@ -28,7 +28,7 @@
 #include <linux/acpi_pmtmr.h>
 #include <linux/efi.h>
 #include <linux/cpumask.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/dmi.h>
 #include <linux/irq.h>
 #include <linux/slab.h>
