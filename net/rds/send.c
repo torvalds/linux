@@ -963,6 +963,29 @@ static int rds_cmsg_send(struct rds_sock *rs, struct rds_message *rm,
 	return ret;
 }
 
+static void rds_send_ping(struct rds_connection *conn);
+
+static int rds_send_mprds_hash(struct rds_sock *rs, struct rds_connection *conn)
+{
+	int hash;
+
+	if (conn->c_npaths == 0)
+		hash = RDS_MPATH_HASH(rs, RDS_MPATH_WORKERS);
+	else
+		hash = RDS_MPATH_HASH(rs, conn->c_npaths);
+	if (conn->c_npaths == 0 && hash != 0) {
+		rds_send_ping(conn);
+
+		if (conn->c_npaths == 0) {
+			wait_event_interruptible(conn->c_hs_waitq,
+						 (conn->c_npaths != 0));
+		}
+		if (conn->c_npaths == 1)
+			hash = 0;
+	}
+	return hash;
+}
+
 int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 {
 	struct sock *sk = sock->sk;
@@ -1075,7 +1098,10 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 		goto out;
 	}
 
-	cpath = &conn->c_path[0];
+	if (conn->c_trans->t_mp_capable)
+		cpath = &conn->c_path[rds_send_mprds_hash(rs, conn)];
+	else
+		cpath = &conn->c_path[0];
 
 	rds_conn_path_connect_if_down(cpath);
 
@@ -1135,10 +1161,16 @@ out:
 }
 
 /*
- * Reply to a ping packet.
+ * send out a probe. Can be shared by rds_send_ping,
+ * rds_send_pong, rds_send_hb.
+ * rds_send_hb should use h_flags
+ *   RDS_FLAG_HB_PING|RDS_FLAG_ACK_REQUIRED
+ * or
+ *   RDS_FLAG_HB_PONG|RDS_FLAG_ACK_REQUIRED
  */
 int
-rds_send_pong(struct rds_conn_path *cp, __be16 dport)
+rds_send_probe(struct rds_conn_path *cp, __be16 sport,
+	       __be16 dport, u8 h_flags)
 {
 	struct rds_message *rm;
 	unsigned long flags;
@@ -1166,9 +1198,18 @@ rds_send_pong(struct rds_conn_path *cp, __be16 dport)
 	rm->m_inc.i_conn = cp->cp_conn;
 	rm->m_inc.i_conn_path = cp;
 
-	rds_message_populate_header(&rm->m_inc.i_hdr, 0, dport,
+	rds_message_populate_header(&rm->m_inc.i_hdr, sport, dport,
 				    cp->cp_next_tx_seq);
+	rm->m_inc.i_hdr.h_flags |= h_flags;
 	cp->cp_next_tx_seq++;
+
+	if (RDS_HS_PROBE(sport, dport) && cp->cp_conn->c_trans->t_mp_capable) {
+		u16 npaths = RDS_MPATH_WORKERS;
+
+		rds_message_add_extension(&rm->m_inc.i_hdr,
+					  RDS_EXTHDR_NPATHS, &npaths,
+					  sizeof(npaths));
+	}
 	spin_unlock_irqrestore(&cp->cp_lock, flags);
 
 	rds_stats_inc(s_send_queued);
@@ -1184,4 +1225,26 @@ out:
 	if (rm)
 		rds_message_put(rm);
 	return ret;
+}
+
+int
+rds_send_pong(struct rds_conn_path *cp, __be16 dport)
+{
+	return rds_send_probe(cp, 0, dport, 0);
+}
+
+void
+rds_send_ping(struct rds_connection *conn)
+{
+	unsigned long flags;
+	struct rds_conn_path *cp = &conn->c_path[0];
+
+	spin_lock_irqsave(&cp->cp_lock, flags);
+	if (conn->c_ping_triggered) {
+		spin_unlock_irqrestore(&cp->cp_lock, flags);
+		return;
+	}
+	conn->c_ping_triggered = 1;
+	spin_unlock_irqrestore(&cp->cp_lock, flags);
+	rds_send_probe(&conn->c_path[0], RDS_FLAG_PROBE_PORT, 0, 0);
 }

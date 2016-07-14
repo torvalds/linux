@@ -38,7 +38,6 @@
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
 
-#include "rds_single_path.h"
 #include "rds.h"
 #include "tcp.h"
 
@@ -358,6 +357,7 @@ struct rds_transport rds_tcp_transport = {
 	.t_name			= "tcp",
 	.t_type			= RDS_TRANS_TCP,
 	.t_prefer_loopback	= 1,
+	.t_mp_capable		= 1,
 };
 
 static int rds_tcp_netid;

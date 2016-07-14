@@ -85,7 +85,9 @@ enum {
 #define RDS_RECV_REFILL		3
 
 /* Max number of multipaths per RDS connection. Must be a power of 2 */
-#define	RDS_MPATH_WORKERS	1
+#define	RDS_MPATH_WORKERS	8
+#define	RDS_MPATH_HASH(rs, n) (jhash_1word((rs)->rs_bound_port, \
+			       (rs)->rs_hash_initval) & ((n) - 1))
 
 /* Per mpath connection state */
 struct rds_conn_path {
@@ -131,7 +133,8 @@ struct rds_connection {
 	__be32			c_laddr;
 	__be32			c_faddr;
 	unsigned int		c_loopback:1,
-				c_pad_to_32:31;
+				c_ping_triggered:1,
+				c_pad_to_32:30;
 	int			c_npaths;
 	struct rds_connection	*c_passive;
 	struct rds_transport	*c_trans;
@@ -147,6 +150,7 @@ struct rds_connection {
 	unsigned long		c_map_queued;
 
 	struct rds_conn_path	c_path[RDS_MPATH_WORKERS];
+	wait_queue_head_t	c_hs_waitq; /* handshake waitq */
 };
 
 static inline
@@ -166,6 +170,17 @@ void rds_conn_net_set(struct rds_connection *conn, struct net *net)
 #define RDS_FLAG_RETRANSMITTED	0x04
 #define RDS_MAX_ADV_CREDIT	255
 
+/* RDS_FLAG_PROBE_PORT is the reserved sport used for sending a ping
+ * probe to exchange control information before establishing a connection.
+ * Currently the control information that is exchanged is the number of
+ * supported paths. If the peer is a legacy (older kernel revision) peer,
+ * it would return a pong message without additional control information
+ * that would then alert the sender that the peer was an older rev.
+ */
+#define RDS_FLAG_PROBE_PORT	1
+#define	RDS_HS_PROBE(sport, dport) \
+		((sport == RDS_FLAG_PROBE_PORT && dport == 0) || \
+		 (sport == 0 && dport == RDS_FLAG_PROBE_PORT))
 /*
  * Maximum space available for extension headers.
  */
@@ -224,6 +239,11 @@ struct rds_ext_header_rdma_dest {
 	__be32			h_rdma_rkey;
 	__be32			h_rdma_offset;
 };
+
+/* Extension header announcing number of paths.
+ * Implicit length = 2 bytes.
+ */
+#define RDS_EXTHDR_NPATHS	4
 
 #define __RDS_EXTHDR_MAX	16 /* for now */
 
@@ -545,6 +565,7 @@ struct rds_sock {
 	/* Socket options - in case there will be more */
 	unsigned char		rs_recverr,
 				rs_cong_monitor;
+	u32			rs_hash_initval;
 };
 
 static inline struct rds_sock *rds_sk_to_rs(const struct sock *sk)

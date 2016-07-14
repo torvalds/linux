@@ -35,7 +35,6 @@
 #include <linux/in.h>
 #include <net/tcp.h>
 
-#include "rds_single_path.h"
 #include "rds.h"
 #include "tcp.h"
 
@@ -69,6 +68,52 @@ int rds_tcp_keepalive(struct socket *sock)
 				(char *)&keepidle, sizeof(keepidle));
 bail:
 	return ret;
+}
+
+/* rds_tcp_accept_one_path(): if accepting on cp_index > 0, make sure the
+ * client's ipaddr < server's ipaddr. Otherwise, close the accepted
+ * socket and force a reconneect from smaller -> larger ip addr. The reason
+ * we special case cp_index 0 is to allow the rds probe ping itself to itself
+ * get through efficiently.
+ * Since reconnects are only initiated from the node with the numerically
+ * smaller ip address, we recycle conns in RDS_CONN_ERROR on the passive side
+ * by moving them to CONNECTING in this function.
+ */
+struct rds_tcp_connection *rds_tcp_accept_one_path(struct rds_connection *conn)
+{
+	int i;
+	bool peer_is_smaller = (conn->c_faddr < conn->c_laddr);
+	int npaths = conn->c_npaths;
+
+	if (npaths <= 1) {
+		struct rds_conn_path *cp = &conn->c_path[0];
+		int ret;
+
+		ret = rds_conn_path_transition(cp, RDS_CONN_DOWN,
+					       RDS_CONN_CONNECTING);
+		if (!ret)
+			rds_conn_path_transition(cp, RDS_CONN_ERROR,
+						 RDS_CONN_CONNECTING);
+		return cp->cp_transport_data;
+	}
+
+	/* for mprds, paths with cp_index > 0 MUST be initiated by the peer
+	 * with the smaller address.
+	 */
+	if (!peer_is_smaller)
+		return NULL;
+
+	for (i = 1; i < npaths; i++) {
+		struct rds_conn_path *cp = &conn->c_path[i];
+
+		if (rds_conn_path_transition(cp, RDS_CONN_DOWN,
+					     RDS_CONN_CONNECTING) ||
+		    rds_conn_path_transition(cp, RDS_CONN_ERROR,
+					     RDS_CONN_CONNECTING)) {
+			return cp->cp_transport_data;
+		}
+	}
+	return NULL;
 }
 
 int rds_tcp_accept_one(struct socket *sock)
@@ -120,12 +165,14 @@ int rds_tcp_accept_one(struct socket *sock)
 	 * If the client reboots, this conn will need to be cleaned up.
 	 * rds_tcp_state_change() will do that cleanup
 	 */
-	rs_tcp = (struct rds_tcp_connection *)conn->c_transport_data;
-	cp = &conn->c_path[0];
-	rds_conn_transition(conn, RDS_CONN_DOWN, RDS_CONN_CONNECTING);
+	rs_tcp = rds_tcp_accept_one_path(conn);
+	if (!rs_tcp)
+		goto rst_nsk;
 	mutex_lock(&rs_tcp->t_conn_path_lock);
-	conn_state = rds_conn_state(conn);
-	if (conn_state != RDS_CONN_CONNECTING && conn_state != RDS_CONN_UP)
+	cp = rs_tcp->t_cpath;
+	conn_state = rds_conn_path_state(cp);
+	if (conn_state != RDS_CONN_CONNECTING && conn_state != RDS_CONN_UP &&
+	    conn_state != RDS_CONN_ERROR)
 		goto rst_nsk;
 	if (rs_tcp->t_sock) {
 		/* Need to resolve a duelling SYN between peers.
@@ -135,11 +182,11 @@ int rds_tcp_accept_one(struct socket *sock)
 		 * c_transport_data.
 		 */
 		if (ntohl(inet->inet_saddr) < ntohl(inet->inet_daddr) ||
-		    !conn->c_path[0].cp_outgoing) {
+		    !cp->cp_outgoing) {
 			goto rst_nsk;
 		} else {
 			rds_tcp_reset_callbacks(new_sock, cp);
-			conn->c_path[0].cp_outgoing = 0;
+			cp->cp_outgoing = 0;
 			/* rds_connect_path_complete() marks RDS_CONN_UP */
 			rds_connect_path_complete(cp, RDS_CONN_RESETTING);
 		}
