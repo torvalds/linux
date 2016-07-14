@@ -169,7 +169,7 @@
 
 	};
 
-	onewire@0 {
+	onewire {
 		compatible = "w1-gpio";
 		gpios = <&pioA 21 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";
