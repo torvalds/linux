@@ -90,6 +90,14 @@ Required Properties:
 - interrupts      : Should be single bit error interrupt, then double bit error
 	interrupt, in this order.
 
+NAND FIFO ECC
+Required Properties:
+- compatible      : Should be "altr,socfpga-nand-ecc"
+- reg             : Address and size for ECC block registers.
+- altr,ecc-parent : phandle to parent NAND node.
+- interrupts      : Should be single bit error interrupt, then double bit error
+	interrupt, in this order.
+
 Example:
 
 	eccmgr: eccmgr@ffd06000 {
@@ -131,5 +139,29 @@ Example:
 			altr,ecc-parent = <&gmac0>;
 			interrupts = <5 IRQ_TYPE_LEVEL_HIGH>,
 				     <37 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		nand-buf-ecc@ff8c2000 {
+			compatible = "altr,socfpga-nand-ecc";
+			reg = <0xff8c2000 0x400>;
+			altr,ecc-parent = <&nand>;
+			interrupts = <11 IRQ_TYPE_LEVEL_HIGH>,
+				     <43 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		nand-rd-ecc@ff8c2400 {
+			compatible = "altr,socfpga-nand-ecc";
+			reg = <0xff8c2400 0x400>;
+			altr,ecc-parent = <&nand>;
+			interrupts = <13 IRQ_TYPE_LEVEL_HIGH>,
+				     <45 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		nand-wr-ecc@ff8c2800 {
+			compatible = "altr,socfpga-nand-ecc";
+			reg = <0xff8c2800 0x400>;
+			altr,ecc-parent = <&nand>;
+			interrupts = <12 IRQ_TYPE_LEVEL_HIGH>,
+				     <44 IRQ_TYPE_LEVEL_HIGH>;
 		};
 	};
