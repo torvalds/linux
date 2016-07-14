@@ -3468,7 +3468,7 @@ static unsigned int ata_scsi_zbc_in_xlat(struct ata_queued_cmd *qc)
 		goto invalid_param_len;
 	}
 	sect = n_block / 512;
-	options = cdb[14];
+	options = cdb[14] & 0xbf;
 
 	if (ata_ncq_enabled(qc->dev) &&
 	    ata_fpdma_zac_mgmt_in_supported(qc->dev)) {
@@ -3478,7 +3478,7 @@ static unsigned int ata_scsi_zbc_in_xlat(struct ata_queued_cmd *qc)
 		tf->nsect = qc->tag << 3;
 		tf->feature = sect & 0xff;
 		tf->hob_feature = (sect >> 8) & 0xff;
-		tf->auxiliary = ATA_SUBCMD_ZAC_MGMT_IN_REPORT_ZONES;
+		tf->auxiliary = ATA_SUBCMD_ZAC_MGMT_IN_REPORT_ZONES | (options << 8);
 	} else {
 		tf->command = ATA_CMD_ZAC_MGMT_IN;
 		tf->feature = ATA_SUBCMD_ZAC_MGMT_IN_REPORT_ZONES;
