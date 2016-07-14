@@ -639,6 +639,14 @@
 				interrupts = <5 IRQ_TYPE_LEVEL_HIGH>,
 					     <37 IRQ_TYPE_LEVEL_HIGH>;
 			};
+
+			dma-ecc@ff8c8000 {
+				compatible = "altr,socfpga-dma-ecc";
+				reg = <0xff8c8000 0x400>;
+				altr,ecc-parent = <&pdma>;
+				interrupts = <10 IRQ_TYPE_LEVEL_HIGH>,
+					     <42 IRQ_TYPE_LEVEL_HIGH>;
+			};
 		};
 
 		rst: rstmgr@ffd05000 {
