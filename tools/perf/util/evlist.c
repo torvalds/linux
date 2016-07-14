@@ -1003,7 +1003,7 @@ static bool
 perf_evlist__should_poll(struct perf_evlist *evlist __maybe_unused,
 			 struct perf_evsel *evsel)
 {
-	if (evsel->overwrite)
+	if (evsel->attr.write_backward)
 		return false;
 	return true;
 }
@@ -1018,7 +1018,7 @@ static int perf_evlist__mmap_per_evsel(struct perf_evlist *evlist, int idx,
 	evlist__for_each_entry(evlist, evsel) {
 		int fd;
 
-		if (evsel->overwrite != (evlist->overwrite && evlist->backward))
+		if (!!evsel->attr.write_backward != (evlist->overwrite && evlist->backward))
 			continue;
 
 		if (evsel->system_wide && thread)
