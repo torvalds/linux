@@ -106,6 +106,14 @@ Required Properties:
 - interrupts      : Should be single bit error interrupt, then double bit error
 	interrupt, in this order.
 
+USB FIFO ECC
+Required Properties:
+- compatible      : Should be "altr,socfpga-usb-ecc"
+- reg             : Address and size for ECC block registers.
+- altr,ecc-parent : phandle to parent USB node.
+- interrupts      : Should be single bit error interrupt, then double bit error
+	interrupt, in this order.
+
 Example:
 
 	eccmgr: eccmgr@ffd06000 {
@@ -179,5 +187,12 @@ Example:
 			altr,ecc-parent = <&pdma>;
 			interrupts = <10 IRQ_TYPE_LEVEL_HIGH>,
 				     <42 IRQ_TYPE_LEVEL_HIGH>;
+
+		usb0-ecc@ff8c8800 {
+			compatible = "altr,socfpga-usb-ecc";
+			reg = <0xff8c8800 0x400>;
+			altr,ecc-parent = <&usb0>;
+			interrupts = <2 IRQ_TYPE_LEVEL_HIGH>,
+				     <34 IRQ_TYPE_LEVEL_HIGH>;
 		};
 	};
