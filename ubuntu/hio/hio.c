@@ -8233,10 +8233,12 @@ out:
 	return;
 }
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,2,0))
-static int ssd_make_request(struct request_queue *q, struct bio *bio)
-#else
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,4,0))
+static blk_qc_t ssd_make_request(struct request_queue *q, struct bio *bio)
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,0))
 static void ssd_make_request(struct request_queue *q, struct bio *bio)
+#else
+static int ssd_make_request(struct request_queue *q, struct bio *bio)
 #endif
 {
 	struct ssd_device *dev = q->queuedata;
@@ -8318,10 +8320,12 @@ static void ssd_make_request(struct request_queue *q, struct bio *bio)
 	}
 
 out:
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,2,0))
-	return 0;
-#else
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,4,0))
+	return BLK_QC_T_NONE;
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,0))
 	return;
+#else
+	return 0;
 #endif
 }
 
