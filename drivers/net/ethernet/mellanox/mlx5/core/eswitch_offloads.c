@@ -38,6 +38,11 @@
 #include "mlx5_core.h"
 #include "eswitch.h"
 
+enum {
+	FDB_FAST_PATH = 0,
+	FDB_SLOW_PATH
+};
+
 static struct mlx5_flow_rule *
 mlx5_eswitch_add_send_to_vport_rule(struct mlx5_eswitch *esw, int vport, u32 sqn)
 {
@@ -149,7 +154,7 @@ static int esw_add_fdb_miss_rule(struct mlx5_eswitch *esw)
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_VPORT;
 	dest.vport_num = 0;
 
-	flow_rule = mlx5_add_flow_rule(esw->fdb_table.fdb, spec,
+	flow_rule = mlx5_add_flow_rule(esw->fdb_table.offloads.fdb, spec,
 				       MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
 				       0, &dest);
 	if (IS_ERR(flow_rule)) {
@@ -165,6 +170,8 @@ out:
 }
 
 #define MAX_PF_SQ 256
+#define ESW_OFFLOADS_NUM_ENTRIES (1 << 13) /* 8K */
+#define ESW_OFFLOADS_NUM_GROUPS  4
 
 static int esw_create_offloads_fdb_table(struct mlx5_eswitch *esw, int nvports)
 {
@@ -190,14 +197,24 @@ static int esw_create_offloads_fdb_table(struct mlx5_eswitch *esw, int nvports)
 	esw_debug(dev, "Create offloads FDB table, log_max_size(%d)\n",
 		  MLX5_CAP_ESW_FLOWTABLE_FDB(dev, log_max_ft_size));
 
-	table_size = nvports + MAX_PF_SQ + 1;
-	fdb = mlx5_create_flow_table(root_ns, 0, table_size, 0);
+	fdb = mlx5_create_auto_grouped_flow_table(root_ns, FDB_FAST_PATH,
+						  ESW_OFFLOADS_NUM_ENTRIES,
+						  ESW_OFFLOADS_NUM_GROUPS, 0);
 	if (IS_ERR(fdb)) {
 		err = PTR_ERR(fdb);
-		esw_warn(dev, "Failed to create FDB Table err %d\n", err);
-		goto fdb_err;
+		esw_warn(dev, "Failed to create Fast path FDB Table err %d\n", err);
+		goto fast_fdb_err;
 	}
 	esw->fdb_table.fdb = fdb;
+
+	table_size = nvports + MAX_PF_SQ + 1;
+	fdb = mlx5_create_flow_table(root_ns, FDB_SLOW_PATH, table_size, 0);
+	if (IS_ERR(fdb)) {
+		err = PTR_ERR(fdb);
+		esw_warn(dev, "Failed to create slow path FDB Table err %d\n", err);
+		goto slow_fdb_err;
+	}
+	esw->fdb_table.offloads.fdb = fdb;
 
 	/* create send-to-vport group */
 	memset(flow_group_in, 0, inlen);
@@ -247,8 +264,10 @@ miss_rule_err:
 miss_err:
 	mlx5_destroy_flow_group(esw->fdb_table.offloads.send_to_vport_grp);
 send_vport_err:
-	mlx5_destroy_flow_table(fdb);
-fdb_err:
+	mlx5_destroy_flow_table(esw->fdb_table.offloads.fdb);
+slow_fdb_err:
+	mlx5_destroy_flow_table(esw->fdb_table.fdb);
+fast_fdb_err:
 ns_err:
 	kvfree(flow_group_in);
 	return err;
@@ -264,6 +283,7 @@ static void esw_destroy_offloads_fdb_table(struct mlx5_eswitch *esw)
 	mlx5_destroy_flow_group(esw->fdb_table.offloads.send_to_vport_grp);
 	mlx5_destroy_flow_group(esw->fdb_table.offloads.miss_grp);
 
+	mlx5_destroy_flow_table(esw->fdb_table.offloads.fdb);
 	mlx5_destroy_flow_table(esw->fdb_table.fdb);
 }
 
