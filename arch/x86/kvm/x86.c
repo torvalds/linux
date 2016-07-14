@@ -36,7 +36,8 @@
 #include <linux/kvm.h>
 #include <linux/fs.h>
 #include <linux/vmalloc.h>
-#include <linux/module.h>
+#include <linux/export.h>
+#include <linux/moduleparam.h>
 #include <linux/mman.h>
 #include <linux/highmem.h>
 #include <linux/iommu.h>

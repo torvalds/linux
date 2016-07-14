@@ -13,7 +13,7 @@
  */
 
 #include <linux/kvm_host.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/vmalloc.h>
 #include <linux/uaccess.h>
 #include <asm/fpu/internal.h> /* For use_eager_fpu.  Ugh! */
