@@ -37,8 +37,11 @@
 #include <linux/mlx5/fs.h>
 #include <linux/mlx5/device.h>
 #include <linux/rhashtable.h>
+#include <net/switchdev.h>
+#include <net/tc_act/tc_mirred.h>
 #include "en.h"
 #include "en_tc.h"
+#include "eswitch.h"
 
 struct mlx5e_tc_flow {
 	struct rhash_head	node;
@@ -336,6 +339,56 @@ static int parse_tc_nic_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 		return -EINVAL;
 	}
 
+	return 0;
+}
+
+static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
+				u32 *action, u32 *dest_vport)
+{
+	const struct tc_action *a;
+
+	if (tc_no_actions(exts))
+		return -EINVAL;
+
+	*action = 0;
+
+	tc_for_each_action(a, exts) {
+		/* Only support a single action per rule */
+		if (*action)
+			return -EINVAL;
+
+		if (is_tcf_gact_shot(a)) {
+			*action = MLX5_FLOW_CONTEXT_ACTION_DROP |
+				  MLX5_FLOW_CONTEXT_ACTION_COUNT;
+			continue;
+		}
+
+		if (is_tcf_mirred_redirect(a)) {
+			int ifindex = tcf_mirred_ifindex(a);
+			struct net_device *out_dev;
+			struct mlx5e_priv *out_priv;
+			struct mlx5_eswitch_rep *out_rep;
+
+			out_dev = __dev_get_by_index(dev_net(priv->netdev), ifindex);
+
+			if (!switchdev_port_same_parent_id(priv->netdev, out_dev)) {
+				pr_err("devices %s %s not on same switch HW, can't offload forwarding\n",
+				       priv->netdev->name, out_dev->name);
+				return -EINVAL;
+			}
+
+			out_priv = netdev_priv(out_dev);
+			out_rep  = out_priv->ppriv;
+			if (out_rep->vport == 0)
+				*dest_vport = FDB_UPLINK_VPORT;
+			else
+				*dest_vport = out_rep->vport;
+			*action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
+			continue;
+		}
+
+		return -EINVAL;
+	}
 	return 0;
 }
 
