@@ -119,11 +119,10 @@ backward_rb_find_range(void *buf, int mask, u64 head, u64 *start, u64 *end)
 }
 
 static int
-rb_find_range(struct perf_evlist *evlist,
-	      void *data, int mask, u64 head, u64 old,
-	      u64 *start, u64 *end)
+rb_find_range(void *data, int mask, u64 head, u64 old,
+	      u64 *start, u64 *end, bool backward)
 {
-	if (!evlist->backward) {
+	if (!backward) {
 		*start = old;
 		*end = head;
 		return 0;
@@ -132,9 +131,10 @@ rb_find_range(struct perf_evlist *evlist,
 	return backward_rb_find_range(data, mask, head, start, end);
 }
 
-static int record__mmap_read(struct record *rec, struct perf_evlist *evlist, int idx)
+static int
+record__mmap_read(struct record *rec, struct perf_mmap *md,
+		  bool overwrite, bool backward)
 {
-	struct perf_mmap *md = &evlist->mmap[idx];
 	u64 head = perf_mmap__read_head(md);
 	u64 old = md->prev;
 	u64 end = head, start = old;
@@ -143,8 +143,8 @@ static int record__mmap_read(struct record *rec, struct perf_evlist *evlist, int
 	void *buf;
 	int rc = 0;
 
-	if (rb_find_range(evlist, data, md->mask, head,
-			  old, &start, &end))
+	if (rb_find_range(data, md->mask, head,
+			  old, &start, &end, backward))
 		return -1;
 
 	if (start == end)
@@ -157,7 +157,7 @@ static int record__mmap_read(struct record *rec, struct perf_evlist *evlist, int
 		WARN_ONCE(1, "failed to keep up with mmap data. (warn only once)\n");
 
 		md->prev = head;
-		perf_evlist__mmap_consume(evlist, idx);
+		perf_mmap__consume(md, overwrite || backward);
 		return 0;
 	}
 
@@ -182,7 +182,7 @@ static int record__mmap_read(struct record *rec, struct perf_evlist *evlist, int
 	}
 
 	md->prev = head;
-	perf_evlist__mmap_consume(evlist, idx);
+	perf_mmap__consume(md, overwrite || backward);
 out:
 	return rc;
 }
@@ -498,20 +498,27 @@ static struct perf_event_header finished_round_event = {
 	.type = PERF_RECORD_FINISHED_ROUND,
 };
 
-static int record__mmap_read_evlist(struct record *rec, struct perf_evlist *evlist)
+static int record__mmap_read_evlist(struct record *rec, struct perf_evlist *evlist,
+				    bool backward)
 {
 	u64 bytes_written = rec->bytes_written;
 	int i;
 	int rc = 0;
+	struct perf_mmap *maps;
 
 	if (!evlist)
 		return 0;
 
-	for (i = 0; i < evlist->nr_mmaps; i++) {
-		struct auxtrace_mmap *mm = &evlist->mmap[i].auxtrace_mmap;
+	maps = evlist->mmap;
+	if (!maps)
+		return 0;
 
-		if (evlist->mmap[i].base) {
-			if (record__mmap_read(rec, evlist, i) != 0) {
+	for (i = 0; i < evlist->nr_mmaps; i++) {
+		struct auxtrace_mmap *mm = &maps[i].auxtrace_mmap;
+
+		if (maps[i].base) {
+			if (record__mmap_read(rec, &maps[i],
+					      evlist->overwrite, backward) != 0) {
 				rc = -1;
 				goto out;
 			}
@@ -539,7 +546,7 @@ static int record__mmap_read_all(struct record *rec)
 {
 	int err;
 
-	err = record__mmap_read_evlist(rec, rec->evlist);
+	err = record__mmap_read_evlist(rec, rec->evlist, false);
 	if (err)
 		return err;
 
