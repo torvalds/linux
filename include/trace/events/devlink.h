@@ -22,7 +22,7 @@ TRACE_EVENT(devlink_hwmsg,
 	TP_STRUCT__entry(
 		__string(bus_name, devlink->dev->bus->name)
 		__string(dev_name, dev_name(devlink->dev))
-		__string(owner_name, devlink->dev->driver->owner->name)
+		__string(driver_name, devlink->dev->driver->name)
 		__field(bool, incoming)
 		__field(unsigned long, type)
 		__dynamic_array(u8, buf, len)
@@ -32,16 +32,16 @@ TRACE_EVENT(devlink_hwmsg,
 	TP_fast_assign(
 		__assign_str(bus_name, devlink->dev->bus->name);
 		__assign_str(dev_name, dev_name(devlink->dev));
-		__assign_str(owner_name, devlink->dev->driver->owner->name);
+		__assign_str(driver_name, devlink->dev->driver->name);
 		__entry->incoming = incoming;
 		__entry->type = type;
 		memcpy(__get_dynamic_array(buf), buf, len);
 		__entry->len = len;
 	),
 
-	TP_printk("bus_name=%s dev_name=%s owner_name=%s incoming=%d type=%lu buf=0x[%*phD] len=%lu",
+	TP_printk("bus_name=%s dev_name=%s driver_name=%s incoming=%d type=%lu buf=0x[%*phD] len=%lu",
 		  __get_str(bus_name), __get_str(dev_name),
-		  __get_str(owner_name), __entry->incoming, __entry->type,
+		  __get_str(driver_name), __entry->incoming, __entry->type,
 		  (int) __entry->len, __get_dynamic_array(buf), __entry->len)
 );
 
