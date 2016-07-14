@@ -131,11 +131,11 @@ static void br_do_proxy_arp(struct sk_buff *skb, struct net_bridge *br,
 /* note: already called with rcu_read_lock */
 int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
-	const unsigned char *dest = eth_hdr(skb)->h_dest;
 	struct net_bridge_port *p = br_port_get_rcu(skb->dev);
-	struct net_bridge *br;
-	struct net_bridge_fdb_entry *dst;
+	const unsigned char *dest = eth_hdr(skb)->h_dest;
+	struct net_bridge_fdb_entry *dst = NULL;
 	struct net_bridge_mdb_entry *mdst;
+	struct net_bridge *br;
 	struct sk_buff *skb2;
 	bool unicast = true;
 	u16 vid = 0;
@@ -166,8 +166,6 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 	if (br->dev->flags & IFF_PROMISC)
 		skb2 = skb;
 
-	dst = NULL;
-
 	if (IS_ENABLED(CONFIG_INET) && skb->protocol == htons(ETH_P_ARP))
 		br_do_proxy_arp(skb, br, vid, p);
 
@@ -185,13 +183,12 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 			skb = NULL;
 			if (!skb2)
 				goto out;
-		} else
+		} else {
 			skb2 = skb;
-
+		}
 		unicast = false;
 		br->dev->stats.multicast++;
-	} else if ((dst = __br_fdb_get(br, dest, vid)) &&
-			dst->is_local) {
+	} else if ((dst = __br_fdb_get(br, dest, vid)) && dst->is_local) {
 		skb2 = skb;
 		/* Do not forward the packet since it's local. */
 		skb = NULL;
@@ -201,8 +198,9 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 		if (dst) {
 			dst->used = jiffies;
 			br_forward(dst->dst, skb, skb2);
-		} else
+		} else {
 			br_flood_forward(br, skb, skb2, unicast);
+		}
 	}
 
 	if (skb2)
