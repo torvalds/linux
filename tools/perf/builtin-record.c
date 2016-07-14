@@ -604,12 +604,15 @@ record__finish_output(struct record *rec)
 	return;
 }
 
-static int record__synthesize_workload(struct record *rec)
+static int record__synthesize_workload(struct record *rec, bool tail)
 {
 	struct {
 		struct thread_map map;
 		struct thread_map_data map_data;
 	} thread_map;
+
+	if (rec->opts.tail_synthesize != tail)
+		return 0;
 
 	thread_map.map.nr = 1;
 	thread_map.map.map[0].pid = rec->evlist->workload.pid;
@@ -621,7 +624,7 @@ static int record__synthesize_workload(struct record *rec)
 						 rec->opts.proc_map_timeout);
 }
 
-static int record__synthesize(struct record *rec);
+static int record__synthesize(struct record *rec, bool tail);
 
 static int
 record__switch_output(struct record *rec, bool at_exit)
@@ -631,6 +634,10 @@ record__switch_output(struct record *rec, bool at_exit)
 
 	/* Same Size:      "2015122520103046"*/
 	char timestamp[] = "InvalidTimestamp";
+
+	record__synthesize(rec, true);
+	if (target__none(&rec->opts.target))
+		record__synthesize_workload(rec, true);
 
 	rec->samples = 0;
 	record__finish_output(rec);
@@ -654,7 +661,7 @@ record__switch_output(struct record *rec, bool at_exit)
 
 	/* Output tracking events */
 	if (!at_exit) {
-		record__synthesize(rec);
+		record__synthesize(rec, false);
 
 		/*
 		 * In 'perf record --switch-output' without -a,
@@ -666,7 +673,7 @@ record__switch_output(struct record *rec, bool at_exit)
 		 * perf_event__synthesize_thread_map() for those events.
 		 */
 		if (target__none(&rec->opts.target))
-			record__synthesize_workload(rec);
+			record__synthesize_workload(rec, false);
 	}
 	return fd;
 }
@@ -720,7 +727,7 @@ static const struct perf_event_mmap_page *record__pick_pc(struct record *rec)
 	return NULL;
 }
 
-static int record__synthesize(struct record *rec)
+static int record__synthesize(struct record *rec, bool tail)
 {
 	struct perf_session *session = rec->session;
 	struct machine *machine = &session->machines.host;
@@ -729,6 +736,9 @@ static int record__synthesize(struct record *rec)
 	struct perf_tool *tool = &rec->tool;
 	int fd = perf_data_file__fd(file);
 	int err = 0;
+
+	if (rec->opts.tail_synthesize != tail)
+		return 0;
 
 	if (file->is_pipe) {
 		err = perf_event__synthesize_attrs(tool, session,
@@ -893,7 +903,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 
 	machine = &session->machines.host;
 
-	err = record__synthesize(rec);
+	err = record__synthesize(rec, false);
 	if (err < 0)
 		goto out_child;
 
@@ -1057,6 +1067,9 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	if (!quiet)
 		fprintf(stderr, "[ perf record: Woken up %ld times to write data ]\n", waking);
 
+	if (target__none(&rec->opts.target))
+		record__synthesize_workload(rec, true);
+
 out_child:
 	if (forks) {
 		int exit_status;
@@ -1075,6 +1088,7 @@ out_child:
 	} else
 		status = err;
 
+	record__synthesize(rec, true);
 	/* this will be recalculated during process_buildids() */
 	rec->samples = 0;
 
@@ -1399,6 +1413,8 @@ struct option __record_options[] = {
 	OPT_BOOLEAN_SET('i', "no-inherit", &record.opts.no_inherit,
 			&record.opts.no_inherit_set,
 			"child tasks do not inherit counters"),
+	OPT_BOOLEAN(0, "tail-synthesize", &record.opts.tail_synthesize,
+		    "synthesize non-sample events at the end of output"),
 	OPT_BOOLEAN(0, "overwrite", &record.opts.overwrite, "use overwrite mode"),
 	OPT_UINTEGER('F', "freq", &record.opts.user_freq, "profile at this frequency"),
 	OPT_CALLBACK('m', "mmap-pages", &record.opts, "pages[,pages]",
@@ -1609,6 +1625,9 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 			disable_buildid_cache();
 		}
 	}
+
+	if (record.opts.overwrite)
+		record.opts.tail_synthesize = true;
 
 	if (rec->evlist->nr_entries == 0 &&
 	    perf_evlist__add_default(rec->evlist) < 0) {
