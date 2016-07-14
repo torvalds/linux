@@ -187,7 +187,7 @@ bad_area_nosemaphore:
 
 		if (show_unhandled_signals && unhandled_signal(tsk, SIGSEGV) &&
 		    printk_ratelimit()) {
-			pr_info("%s%s[%d]: segfault at %lx pc %08x sp %08x write %d trap %#x (%s)",
+			printk("%s%s[%d]: segfault at %lx pc %08x sp %08x write %d trap %#x (%s)",
 			       task_pid_nr(tsk) > 1 ? KERN_INFO : KERN_EMERG,
 			       tsk->comm, task_pid_nr(tsk), address,
 			       regs->ctx.CurrPC, regs->ctx.AX[0].U0,
