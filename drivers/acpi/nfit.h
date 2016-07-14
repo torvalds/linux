@@ -135,7 +135,6 @@ struct nfit_mem {
 struct acpi_nfit_desc {
 	struct nvdimm_bus_descriptor nd_desc;
 	struct acpi_table_header acpi_header;
-	struct acpi_nfit_header *nfit;
 	struct mutex init_mutex;
 	struct list_head memdevs;
 	struct list_head flushes;
@@ -201,6 +200,6 @@ static inline struct acpi_nfit_desc *to_acpi_desc(
 }
 
 const u8 *to_nfit_uuid(enum nfit_uuids id);
-int acpi_nfit_init(struct acpi_nfit_desc *nfit, acpi_size sz);
+int acpi_nfit_init(struct acpi_nfit_desc *acpi_desc, void *nfit, acpi_size sz);
 void acpi_nfit_desc_init(struct acpi_nfit_desc *acpi_desc, struct device *dev);
 #endif /* __NFIT_H__ */

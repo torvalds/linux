@@ -2291,12 +2291,11 @@ static int acpi_nfit_check_deletions(struct acpi_nfit_desc *acpi_desc,
 	return 0;
 }
 
-int acpi_nfit_init(struct acpi_nfit_desc *acpi_desc, acpi_size sz)
+int acpi_nfit_init(struct acpi_nfit_desc *acpi_desc, void *data, acpi_size sz)
 {
 	struct device *dev = acpi_desc->dev;
 	struct nfit_table_prev prev;
 	const void *end;
-	u8 *data;
 	int rc;
 
 	mutex_lock(&acpi_desc->init_mutex);
@@ -2321,7 +2320,6 @@ int acpi_nfit_init(struct acpi_nfit_desc *acpi_desc, acpi_size sz)
 	list_cut_position(&prev.flushes, &acpi_desc->flushes,
 				acpi_desc->flushes.prev);
 
-	data = (u8 *) acpi_desc->nfit;
 	end = data + sz;
 	while (!IS_ERR_OR_NULL(data))
 		data = add_table(acpi_desc, &prev, data, end);
@@ -2461,40 +2459,30 @@ static int acpi_nfit_add(struct acpi_device *adev)
 	if (!acpi_desc->nvdimm_bus)
 		return -ENOMEM;
 
-	/*
-	 * Save the acpi header for later and then skip it,
-	 * making nfit point to the first nfit table header.
-	 */
+	/* Save the acpi header for exporting the revision via sysfs */
 	acpi_desc->acpi_header = *tbl;
-	acpi_desc->nfit = (void *) tbl + sizeof(struct acpi_table_nfit);
-	sz -= sizeof(struct acpi_table_nfit);
 
 	/* Evaluate _FIT and override with that if present */
 	status = acpi_evaluate_object(adev->handle, "_FIT", NULL, &buf);
 	if (ACPI_SUCCESS(status) && buf.length > 0) {
-		union acpi_object *obj;
-		/*
-		 * Adjust for the acpi_object header of the _FIT
-		 */
-		obj = buf.pointer;
-		if (obj->type == ACPI_TYPE_BUFFER) {
-			acpi_desc->nfit =
-				(struct acpi_nfit_header *)obj->buffer.pointer;
-			sz = obj->buffer.length;
-			rc = acpi_nfit_init(acpi_desc, sz);
-		} else
+		union acpi_object *obj = buf.pointer;
+
+		if (obj->type == ACPI_TYPE_BUFFER)
+			rc = acpi_nfit_init(acpi_desc, obj->buffer.pointer,
+					obj->buffer.length);
+		else
 			dev_dbg(dev, "%s invalid type %d, ignoring _FIT\n",
 				 __func__, (int) obj->type);
-		acpi_desc->nfit = NULL;
 		kfree(buf.pointer);
 	} else
-		rc = acpi_nfit_init(acpi_desc, sz);
+		/* skip over the lead-in header table */
+		rc = acpi_nfit_init(acpi_desc, (void *) tbl
+				+ sizeof(struct acpi_table_nfit),
+				sz - sizeof(struct acpi_table_nfit));
 
-	if (rc) {
+	if (rc)
 		nvdimm_bus_unregister(acpi_desc->nvdimm_bus);
-		return rc;
-	}
-	return 0;
+	return rc;
 }
 
 static int acpi_nfit_remove(struct acpi_device *adev)
@@ -2511,8 +2499,8 @@ static void acpi_nfit_notify(struct acpi_device *adev, u32 event)
 {
 	struct acpi_nfit_desc *acpi_desc = dev_get_drvdata(&adev->dev);
 	struct acpi_buffer buf = { ACPI_ALLOCATE_BUFFER, NULL };
-	union acpi_object *obj;
 	struct device *dev = &adev->dev;
+	union acpi_object *obj;
 	acpi_status status;
 	int ret;
 
@@ -2550,14 +2538,12 @@ static void acpi_nfit_notify(struct acpi_device *adev, u32 event)
 
 	obj = buf.pointer;
 	if (obj->type == ACPI_TYPE_BUFFER) {
-		acpi_desc->nfit =
-			(struct acpi_nfit_header *)obj->buffer.pointer;
-		ret = acpi_nfit_init(acpi_desc, obj->buffer.length);
+		ret = acpi_nfit_init(acpi_desc, obj->buffer.pointer,
+				obj->buffer.length);
 		if (ret)
 			dev_err(dev, "failed to merge updated NFIT\n");
 	} else
 		dev_err(dev, "Invalid _FIT\n");
-	acpi_desc->nfit = NULL;
 	kfree(buf.pointer);
 
  out_unlock:

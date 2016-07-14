@@ -1460,7 +1460,6 @@ static int nfit_test_probe(struct platform_device *pdev)
 	nfit_test->setup(nfit_test);
 	acpi_desc = &nfit_test->acpi_desc;
 	acpi_nfit_desc_init(acpi_desc, &pdev->dev);
-	acpi_desc->nfit = nfit_test->nfit_buf;
 	acpi_desc->blk_do_io = nfit_test_blk_do_io;
 	nd_desc = &acpi_desc->nd_desc;
 	nd_desc->provider_name = NULL;
@@ -1469,7 +1468,8 @@ static int nfit_test_probe(struct platform_device *pdev)
 	if (!acpi_desc->nvdimm_bus)
 		return -ENXIO;
 
-	rc = acpi_nfit_init(acpi_desc, nfit_test->nfit_size);
+	rc = acpi_nfit_init(acpi_desc, nfit_test->nfit_buf,
+			nfit_test->nfit_size);
 	if (rc) {
 		nvdimm_bus_unregister(acpi_desc->nvdimm_bus);
 		return rc;
@@ -1481,7 +1481,8 @@ static int nfit_test_probe(struct platform_device *pdev)
 	nfit_test->setup_hotplug = 1;
 	nfit_test->setup(nfit_test);
 
-	rc = acpi_nfit_init(acpi_desc, nfit_test->nfit_size);
+	rc = acpi_nfit_init(acpi_desc, nfit_test->nfit_buf,
+			nfit_test->nfit_size);
 	if (rc) {
 		nvdimm_bus_unregister(acpi_desc->nvdimm_bus);
 		return rc;
