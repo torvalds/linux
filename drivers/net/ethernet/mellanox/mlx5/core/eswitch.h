@@ -145,6 +145,7 @@ struct mlx5_eswitch_fdb {
 		} legacy;
 
 		struct offloads_fdb {
+			struct mlx5_flow_table *fdb;
 			struct mlx5_flow_group *send_to_vport_grp;
 			struct mlx5_flow_group *miss_grp;
 			struct mlx5_flow_rule  *miss_rule;
@@ -221,6 +222,12 @@ int mlx5_eswitch_get_vport_stats(struct mlx5_eswitch *esw,
 				 int vport,
 				 struct ifla_vf_stats *vf_stats);
 
+struct mlx5_flow_spec;
+
+struct mlx5_flow_rule *
+mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
+				struct mlx5_flow_spec *spec,
+				u32 action, u32 src_vport, u32 dst_vport);
 struct mlx5_flow_rule *
 mlx5_eswitch_create_vport_rx_rule(struct mlx5_eswitch *esw, int vport, u32 tirn);
 

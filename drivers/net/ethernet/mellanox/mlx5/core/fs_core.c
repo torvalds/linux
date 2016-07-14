@@ -1712,15 +1712,21 @@ static int init_fdb_root_ns(struct mlx5_flow_steering *steering)
 	if (!steering->fdb_root_ns)
 		return -ENOMEM;
 
-	/* Create single prio */
 	prio = fs_create_prio(&steering->fdb_root_ns->ns, 0, 1);
-	if (IS_ERR(prio)) {
-		cleanup_root_ns(steering->fdb_root_ns);
-		steering->fdb_root_ns = NULL;
-		return PTR_ERR(prio);
-	} else {
-		return 0;
-	}
+	if (IS_ERR(prio))
+		goto out_err;
+
+	prio = fs_create_prio(&steering->fdb_root_ns->ns, 1, 1);
+	if (IS_ERR(prio))
+		goto out_err;
+
+	set_prio_attrs(steering->fdb_root_ns);
+	return 0;
+
+out_err:
+	cleanup_root_ns(steering->fdb_root_ns);
+	steering->fdb_root_ns = NULL;
+	return PTR_ERR(prio);
 }
 
 static int init_ingress_acl_root_ns(struct mlx5_flow_steering *steering)

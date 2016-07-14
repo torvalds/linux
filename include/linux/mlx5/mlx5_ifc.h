@@ -893,7 +893,10 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         reserved_at_330[0xb];
 	u8         log_max_xrcd[0x5];
 
-	u8         reserved_at_340[0x20];
+	u8         reserved_at_340[0x8];
+	u8         log_max_flow_counter_bulk[0x8];
+	u8         max_flow_counter[0x10];
+
 
 	u8         reserved_at_360[0x3];
 	u8         log_max_rq[0x5];
@@ -980,7 +983,8 @@ struct mlx5_ifc_dest_format_struct_bits {
 };
 
 struct mlx5_ifc_flow_counter_list_bits {
-	u8         reserved_at_0[0x10];
+	u8         clear[0x1];
+	u8         num_of_counters[0xf];
 	u8         flow_counter_id[0x10];
 
 	u8         reserved_at_20[0x20];
