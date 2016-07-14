@@ -333,6 +333,10 @@ static int gb_camera_capabilities(struct gb_camera *gcam,
 	struct gb_operation *op = NULL;
 	int ret;
 
+	ret = gb_pm_runtime_get_sync(gcam->bundle);
+	if (ret)
+		return ret;
+
 	mutex_lock(&gcam->mutex);
 
 	if (!gcam->connection) {
@@ -362,6 +366,9 @@ done:
 	mutex_unlock(&gcam->mutex);
 	if (op)
 		gb_operation_put(op);
+
+	gb_pm_runtime_put_autosuspend(gcam->bundle);
+
 	return ret;
 }
 
@@ -407,6 +414,10 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 	}
 
 	mutex_lock(&gcam->mutex);
+
+	ret = gb_pm_runtime_get_sync(gcam->bundle);
+	if (ret)
+		goto done_skip_pm_put;
 
 	if (!gcam->connection) {
 		ret = -EINVAL;
@@ -460,9 +471,24 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 	if (gcam->state == GB_CAMERA_STATE_CONFIGURED) {
 		gb_camera_teardown_data_connection(gcam);
 		gcam->state = GB_CAMERA_STATE_UNCONFIGURED;
+
+		/*
+		 * When unconfiguring streams release the PM runtime reference
+		 * that was acquired when streams were configured. The bundle
+		 * won't be suspended until the PM runtime reference acquired at
+		 * the beginning of this function gets released right before
+		 * returning.
+		 */
+		gb_pm_runtime_put_noidle(gcam->bundle);
 	}
 
 	if (resp->num_streams) {
+		/*
+		 * Make sure the bundle won't be suspended until streams get
+		 * unconfigured after the stream is configured successfully
+		 */
+		gb_pm_runtime_get_noresume(gcam->bundle);
+
 		ret = gb_camera_setup_data_connection(gcam, resp, csi_params);
 		if (ret < 0) {
 			memset(req, 0, sizeof(*req));
@@ -472,6 +498,7 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 					  resp, sizeof(*resp));
 			*flags = 0;
 			*num_streams = 0;
+			gb_pm_runtime_put_noidle(gcam->bundle);
 			goto done;
 		}
 
@@ -479,6 +506,9 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 	}
 
 done:
+	gb_pm_runtime_put_autosuspend(gcam->bundle);
+
+done_skip_pm_put:
 	mutex_unlock(&gcam->mutex);
 	kfree(req);
 	kfree(resp);
@@ -1150,6 +1180,8 @@ static int gb_camera_probe(struct gb_bundle *bundle,
 
 	greybus_set_drvdata(bundle, gcam);
 
+	gb_pm_runtime_put_autosuspend(gcam->bundle);
+
 	return 0;
 
 error:
@@ -1161,6 +1193,11 @@ error:
 static void gb_camera_disconnect(struct gb_bundle *bundle)
 {
 	struct gb_camera *gcam = greybus_get_drvdata(bundle);
+	int ret;
+
+	ret = gb_pm_runtime_get_sync(bundle);
+	if (ret)
+		gb_pm_runtime_get_noresume(bundle);
 
 	gb_camera_cleanup(gcam);
 	gb_camera_unregister(&gcam->module);
@@ -1171,11 +1208,55 @@ static const struct greybus_bundle_id gb_camera_id_table[] = {
 	{ },
 };
 
+#ifdef CONFIG_PM_RUNTIME
+static int gb_camera_suspend(struct device *dev)
+{
+	struct gb_bundle *bundle = to_gb_bundle(dev);
+	struct gb_camera *gcam = greybus_get_drvdata(bundle);
+
+	if (gcam->data_connection)
+		gb_connection_disable(gcam->data_connection);
+
+	gb_connection_disable(gcam->connection);
+
+	return 0;
+}
+
+static int gb_camera_resume(struct device *dev)
+{
+	struct gb_bundle *bundle = to_gb_bundle(dev);
+	struct gb_camera *gcam = greybus_get_drvdata(bundle);
+	int ret;
+
+	ret = gb_connection_enable(gcam->connection);
+	if (ret) {
+		gcam_err(gcam, "failed to enable connection: %d\n", ret);
+		return ret;
+	}
+
+	if (gcam->data_connection) {
+		ret = gb_connection_enable(gcam->data_connection);
+		if (ret) {
+			gcam_err(gcam,
+				 "failed to enable data connection: %d\n", ret);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops gb_camera_pm_ops = {
+	SET_RUNTIME_PM_OPS(gb_camera_suspend, gb_camera_resume, NULL)
+};
+
 static struct greybus_driver gb_camera_driver = {
 	.name		= "camera",
 	.probe		= gb_camera_probe,
 	.disconnect	= gb_camera_disconnect,
 	.id_table	= gb_camera_id_table,
+	.driver.pm	= &gb_camera_pm_ops,
 };
 
 module_greybus_driver(gb_camera_driver);
