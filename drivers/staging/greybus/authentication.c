@@ -209,6 +209,7 @@ static int cap_ioctl(struct gb_cap *cap, unsigned int cmd,
 	struct cap_ioc_get_endpoint_uid endpoint_uid;
 	struct cap_ioc_get_ims_certificate *ims_cert;
 	struct cap_ioc_authenticate *authenticate;
+	size_t size;
 	int ret;
 
 	switch (cmd) {
@@ -222,38 +223,26 @@ static int cap_ioctl(struct gb_cap *cap, unsigned int cmd,
 
 		return 0;
 	case CAP_IOC_GET_IMS_CERTIFICATE:
-		ims_cert = kzalloc(sizeof(*ims_cert), GFP_KERNEL);
-		if (!ims_cert)
-			return -ENOMEM;
-
-		if (copy_from_user(ims_cert, buf, sizeof(*ims_cert))) {
-			ret = -EFAULT;
-			goto free_ims_cert;
-		}
+		size = sizeof(*ims_cert);
+		ims_cert = memdup_user(buf, size);
+		if (IS_ERR(ims_cert))
+			return PTR_ERR(ims_cert);
 
 		ret = cap_get_ims_certificate(cap, ims_cert->certificate_class,
 					      ims_cert->certificate_id,
 					      ims_cert->certificate,
 					      &ims_cert->cert_size,
 					      &ims_cert->result_code);
-		if (ret)
-			goto free_ims_cert;
-
-		if (copy_to_user(buf, ims_cert, sizeof(*ims_cert)))
+		if (!ret && copy_to_user(buf, ims_cert, size))
 			ret = -EFAULT;
-
-free_ims_cert:
 		kfree(ims_cert);
+
 		return ret;
 	case CAP_IOC_AUTHENTICATE:
-		authenticate = kzalloc(sizeof(*authenticate), GFP_KERNEL);
-		if (!authenticate)
-			return -ENOMEM;
-
-		if (copy_from_user(authenticate, buf, sizeof(*authenticate))) {
-			ret = -EFAULT;
-			goto free_authenticate;
-		}
+		size = sizeof(*authenticate);
+		authenticate = memdup_user(buf, size);
+		if (IS_ERR(authenticate))
+			return PTR_ERR(authenticate);
 
 		ret = cap_authenticate(cap, authenticate->auth_type,
 				       authenticate->uid,
@@ -262,13 +251,10 @@ free_ims_cert:
 				       authenticate->response,
 				       &authenticate->signature_size,
 				       authenticate->signature);
-		if (ret)
-			goto free_authenticate;
-
-		if (copy_to_user(buf, authenticate, sizeof(*authenticate)))
+		if (!ret && copy_to_user(buf, authenticate, size))
 			ret = -EFAULT;
-free_authenticate:
 		kfree(authenticate);
+
 		return ret;
 	default:
 		return -ENOTTY;
