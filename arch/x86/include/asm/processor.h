@@ -419,6 +419,9 @@ struct thread_struct {
 	/* Max allowed port in the bitmap, in bytes: */
 	unsigned		io_bitmap_max;
 
+	unsigned int		sig_on_uaccess_error:1;
+	unsigned int		uaccess_err:1;	/* uaccess failed */
+
 	/* Floating point and extended processor state */
 	struct fpu		fpu;
 	/*

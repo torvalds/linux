@@ -37,7 +37,7 @@ bool ex_handler_ext(const struct exception_table_entry *fixup,
 		   struct pt_regs *regs, int trapnr)
 {
 	/* Special hack for uaccess_err */
-	current_thread_info()->uaccess_err = 1;
+	current->thread.uaccess_err = 1;
 	regs->ip = ex_fixup_addr(fixup);
 	return true;
 }
