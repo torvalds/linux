@@ -611,7 +611,7 @@ static int cport_reset(struct gb_host_device *hd, u16 cport_id)
 	struct usb_device *udev = es2->usb_dev;
 	struct arpc_cport_reset req;
 	int retval;
-	int result;
+	int result = 0;
 
 	switch (cport_id) {
 	case GB_SVC_CPORT_ID:
