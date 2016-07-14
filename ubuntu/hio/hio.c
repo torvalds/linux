@@ -4769,9 +4769,6 @@ static int ssd_done_thread(void *data)
 	struct ssd_device *dev;
 	struct bio *bio;
 	struct bio *next;
-#ifdef SSD_ESCAPE_IRQ
-	cpumask_t new_mask;
-#endif
 
 	if (!data) {
 		return -EINVAL;
@@ -4811,10 +4808,14 @@ static int ssd_done_thread(void *data)
 #ifdef SSD_ESCAPE_IRQ
 			if (unlikely(smp_processor_id() == dev->irq_cpu)) {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28))
-				cpumask_setall(&new_mask);
-				cpumask_clear_cpu(dev->irq_cpu, &new_mask);
-				set_cpus_allowed_ptr(current, &new_mask);
+				cpumask_var_t new_mask;
+				alloc_cpumask_var(&new_mask, GFP_ATOMIC);
+				cpumask_setall(new_mask);
+				cpumask_clear_cpu(dev->irq_cpu, new_mask);
+				set_cpus_allowed_ptr(current, new_mask);
+				free_cpumask_var(new_mask);
 #else
+				cpumask_t new_mask;
 				cpus_setall(new_mask);
 				cpu_clear(dev->irq_cpu, new_mask);
 				set_cpus_allowed(current, new_mask);
@@ -4831,9 +4832,6 @@ static int ssd_send_thread(void *data)
 	struct ssd_device *dev;
 	struct bio *bio;
 	struct bio *next;
-#ifdef SSD_ESCAPE_IRQ
-	cpumask_t new_mask;
-#endif
 
 	if (!data) {
 		return -EINVAL;
@@ -4871,10 +4869,14 @@ static int ssd_send_thread(void *data)
 #ifdef SSD_ESCAPE_IRQ
 			if (unlikely(smp_processor_id() == dev->irq_cpu)) {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28))
-				cpumask_setall(&new_mask);
-				cpumask_clear_cpu(dev->irq_cpu, &new_mask);
-				set_cpus_allowed_ptr(current, &new_mask);
+				cpumask_var_t new_mask;
+				alloc_cpumask_var(&new_mask, GFP_ATOMIC);
+				cpumask_setall(new_mask);
+				cpumask_clear_cpu(dev->irq_cpu, new_mask);
+				set_cpus_allowed_ptr(current, new_mask);
+				free_cpumask_var(new_mask);
 #else
+				cpumask_t new_mask;
 				cpus_setall(new_mask);
 				cpu_clear(dev->irq_cpu, new_mask);
 				set_cpus_allowed(current, new_mask);
