@@ -213,6 +213,7 @@ static int gbcodec_mixer_ctl_get(struct snd_kcontrol *kcontrol,
 	struct gbaudio_module_info *module;
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct gbaudio_codec_info *gb = snd_soc_codec_get_drvdata(codec);
+	struct gb_bundle *bundle;
 
 	dev_dbg(codec->dev, "Entered %s:%s\n", __func__, kcontrol->id.name);
 	module = find_gb_module(gb, kcontrol->id.name);
@@ -221,9 +222,17 @@ static int gbcodec_mixer_ctl_get(struct snd_kcontrol *kcontrol,
 
 	data = (struct gbaudio_ctl_pvt *)kcontrol->private_value;
 	info = (struct gb_audio_ctl_elem_info *)data->info;
+	bundle = to_gb_bundle(module->dev);
+
+	ret = gb_pm_runtime_get_sync(bundle);
+	if (ret)
+		return ret;
 
 	ret = gb_audio_gb_get_control(module->mgmt_connection, data->ctl_id,
 				      GB_AUDIO_INVALID_INDEX, &gbvalue);
+
+	gb_pm_runtime_put_autosuspend(bundle);
+
 	if (ret) {
 		dev_err_ratelimited(codec->dev, "%d:Error in %s for %s\n", ret,
 				    __func__, kcontrol->id.name);
@@ -266,6 +275,7 @@ static int gbcodec_mixer_ctl_put(struct snd_kcontrol *kcontrol,
 	struct gbaudio_module_info *module;
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct gbaudio_codec_info *gb = snd_soc_codec_get_drvdata(codec);
+	struct gb_bundle *bundle;
 
 	dev_dbg(codec->dev, "Entered %s:%s\n", __func__, kcontrol->id.name);
 	module = find_gb_module(gb, kcontrol->id.name);
@@ -274,6 +284,7 @@ static int gbcodec_mixer_ctl_put(struct snd_kcontrol *kcontrol,
 
 	data = (struct gbaudio_ctl_pvt *)kcontrol->private_value;
 	info = (struct gb_audio_ctl_elem_info *)data->info;
+	bundle = to_gb_bundle(module->dev);
 
 	/* update ucontrol */
 	switch (info->type) {
@@ -302,8 +313,15 @@ static int gbcodec_mixer_ctl_put(struct snd_kcontrol *kcontrol,
 	if (ret)
 		return ret;
 
+	ret = gb_pm_runtime_get_sync(bundle);
+	if (ret)
+		return ret;
+
 	ret = gb_audio_gb_set_control(module->mgmt_connection, data->ctl_id,
 				      GB_AUDIO_INVALID_INDEX, &gbvalue);
+
+	gb_pm_runtime_put_autosuspend(bundle);
+
 	if (ret) {
 		dev_err_ratelimited(codec->dev, "%d:Error in %s for %s\n", ret,
 				    __func__, kcontrol->id.name);
@@ -370,6 +388,7 @@ static int gbcodec_mixer_dapm_ctl_get(struct snd_kcontrol *kcontrol,
 	struct snd_soc_dapm_widget *widget = wlist->widgets[0];
 	struct snd_soc_codec *codec = widget->codec;
 	struct gbaudio_codec_info *gb = snd_soc_codec_get_drvdata(codec);
+	struct gb_bundle *bundle;
 
 	dev_dbg(codec->dev, "Entered %s:%s\n", __func__, kcontrol->id.name);
 	module = find_gb_module(gb, kcontrol->id.name);
@@ -378,14 +397,22 @@ static int gbcodec_mixer_dapm_ctl_get(struct snd_kcontrol *kcontrol,
 
 	data = (struct gbaudio_ctl_pvt *)kcontrol->private_value;
 	info = (struct gb_audio_ctl_elem_info *)data->info;
+	bundle = to_gb_bundle(module->dev);
 
 	if (data->vcount == 2)
 		dev_warn(widget->dapm->dev,
 			 "GB: Control '%s' is stereo, which is not supported\n",
 			 kcontrol->id.name);
 
+	ret = gb_pm_runtime_get_sync(bundle);
+	if (ret)
+		return ret;
+
 	ret = gb_audio_gb_get_control(module->mgmt_connection, data->ctl_id,
 				      GB_AUDIO_INVALID_INDEX, &gbvalue);
+
+	gb_pm_runtime_put_autosuspend(bundle);
+
 	if (ret) {
 		dev_err_ratelimited(codec->dev, "%d:Error in %s for %s\n", ret,
 				    __func__, kcontrol->id.name);
@@ -410,6 +437,7 @@ static int gbcodec_mixer_dapm_ctl_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_dapm_widget *widget = wlist->widgets[0];
 	struct snd_soc_codec *codec = widget->codec;
 	struct gbaudio_codec_info *gb = snd_soc_codec_get_drvdata(codec);
+	struct gb_bundle *bundle;
 
 	dev_dbg(codec->dev, "Entered %s:%s\n", __func__, kcontrol->id.name);
 	module = find_gb_module(gb, kcontrol->id.name);
@@ -418,6 +446,7 @@ static int gbcodec_mixer_dapm_ctl_put(struct snd_kcontrol *kcontrol,
 
 	data = (struct gbaudio_ctl_pvt *)kcontrol->private_value;
 	info = (struct gb_audio_ctl_elem_info *)data->info;
+	bundle = to_gb_bundle(module->dev);
 
 	if (data->vcount == 2)
 		dev_warn(widget->dapm->dev,
@@ -441,9 +470,17 @@ static int gbcodec_mixer_dapm_ctl_put(struct snd_kcontrol *kcontrol,
 		}
 		gbvalue.value.integer_value[0] =
 			ucontrol->value.integer.value[0];
+
+		ret = gb_pm_runtime_get_sync(bundle);
+		if (ret)
+			return ret;
+
 		ret = gb_audio_gb_set_control(module->mgmt_connection,
 					      data->ctl_id,
 					      GB_AUDIO_INVALID_INDEX, &gbvalue);
+
+		gb_pm_runtime_put_autosuspend(bundle);
+
 		if (ret) {
 			dev_err_ratelimited(codec->dev,
 					    "%d:Error in %s for %s\n", ret,
@@ -850,6 +887,7 @@ static int gbaudio_widget_event(struct snd_soc_dapm_widget *w,
 	struct snd_soc_codec *codec = w->codec;
 	struct gbaudio_codec_info *gbcodec = snd_soc_codec_get_drvdata(codec);
 	struct gbaudio_module_info *module;
+	struct gb_bundle *bundle;
 
 	dev_dbg(codec->dev, "%s %s %d\n", __func__, w->name, event);
 
@@ -864,6 +902,12 @@ static int gbaudio_widget_event(struct snd_soc_dapm_widget *w,
 		dev_err(codec->dev, "Invalid widget name:%s\n", w->name);
 		return -EINVAL;
 	}
+
+	bundle = to_gb_bundle(module->dev);
+
+	ret = gb_pm_runtime_get_sync(bundle);
+	if (ret)
+		return ret;
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
@@ -883,6 +927,9 @@ static int gbaudio_widget_event(struct snd_soc_dapm_widget *w,
 		dev_err_ratelimited(codec->dev,
 				    "%d: widget, event:%d failed:%d\n", wid,
 				    event, ret);
+
+	gb_pm_runtime_put_autosuspend(bundle);
+
 	return ret;
 }
 

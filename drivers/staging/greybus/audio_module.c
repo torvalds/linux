@@ -332,6 +332,8 @@ static int gb_audio_probe(struct gb_bundle *bundle,
 
 	dev_dbg(dev, "Add GB Audio device:%s\n", gbmodule->name);
 
+	gb_pm_runtime_put_autosuspend(bundle);
+
 	return 0;
 
 disable_data_connection:
@@ -366,6 +368,8 @@ static void gb_audio_disconnect(struct gb_bundle *bundle)
 	struct gbaudio_module_info *gbmodule = greybus_get_drvdata(bundle);
 	struct gbaudio_data_connection *dai, *_dai;
 
+	gb_pm_runtime_get_sync(bundle);
+
 	/* cleanup module related resources first */
 	gbaudio_unregister_module(gbmodule);
 
@@ -394,11 +398,58 @@ static const struct greybus_bundle_id gb_audio_id_table[] = {
 };
 MODULE_DEVICE_TABLE(greybus, gb_audio_id_table);
 
+#ifdef CONFIG_PM_RUNTIME
+static int gb_audio_suspend(struct device *dev)
+{
+	struct gb_bundle *bundle = to_gb_bundle(dev);
+	struct gbaudio_module_info *gbmodule = greybus_get_drvdata(bundle);
+	struct gbaudio_data_connection *dai;
+
+	list_for_each_entry(dai, &gbmodule->data_list, list)
+		gb_connection_disable(dai->connection);
+
+	gb_connection_disable(gbmodule->mgmt_connection);
+
+	return 0;
+}
+
+static int gb_audio_resume(struct device *dev)
+{
+	struct gb_bundle *bundle = to_gb_bundle(dev);
+	struct gbaudio_module_info *gbmodule = greybus_get_drvdata(bundle);
+	struct gbaudio_data_connection *dai;
+	int ret;
+
+	ret = gb_connection_enable(gbmodule->mgmt_connection);
+	if (ret) {
+		dev_err(dev, "%d:Error while enabling mgmt connection\n", ret);
+		return ret;
+	}
+
+	list_for_each_entry(dai, &gbmodule->data_list, list) {
+		ret = gb_connection_enable(dai->connection);
+		if (ret) {
+			dev_err(dev,
+				"%d:Error while enabling %d:data connection\n",
+				ret, dai->data_cport);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops gb_audio_pm_ops = {
+	SET_RUNTIME_PM_OPS(gb_audio_suspend, gb_audio_resume, NULL)
+};
+
 static struct greybus_driver gb_audio_driver = {
 	.name		= "gb-audio",
 	.probe		= gb_audio_probe,
 	.disconnect	= gb_audio_disconnect,
 	.id_table	= gb_audio_id_table,
+	.driver.pm	= &gb_audio_pm_ops,
 };
 module_greybus_driver(gb_audio_driver);
 
