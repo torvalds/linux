@@ -1122,12 +1122,12 @@ static void arpc_free(struct arpc *rpc)
 	kfree(rpc);
 }
 
-static struct arpc *arpc_find(struct es2_ap_dev *es2, u8 id)
+static struct arpc *arpc_find(struct es2_ap_dev *es2, __le16 id)
 {
 	struct arpc *rpc;
 
 	list_for_each_entry(rpc, &es2->arpcs, list) {
-		if (le16_to_cpu(rpc->req->id) == id)
+		if (rpc->req->id == id)
 			return rpc;
 	}
 
@@ -1250,7 +1250,7 @@ static void arpc_in_callback(struct urb *urb)
 
 	resp = urb->transfer_buffer;
 	spin_lock_irqsave(&es2->arpc_lock, flags);
-	rpc = arpc_find(es2, le16_to_cpu(resp->id));
+	rpc = arpc_find(es2, resp->id);
 	if (!rpc) {
 		dev_err(dev, "invalid arpc response id received: %d\n",
 			resp->id);
