@@ -56,6 +56,7 @@
 				status = "okay";
 				port {
 					isi_0: endpoint@0 {
+						reg = <0>;
 						remote-endpoint = <&ov2640_0>;
 						bus-width = <8>;
 						vsync-active = <1>;
