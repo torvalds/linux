@@ -114,6 +114,14 @@ Required Properties:
 - interrupts      : Should be single bit error interrupt, then double bit error
 	interrupt, in this order.
 
+QSPI FIFO ECC
+Required Properties:
+- compatible      : Should be "altr,socfpga-qspi-ecc"
+- reg             : Address and size for ECC block registers.
+- altr,ecc-parent : phandle to parent QSPI node.
+- interrupts      : Should be single bit error interrupt, then double bit error
+	interrupt, in this order.
+
 Example:
 
 	eccmgr: eccmgr@ffd06000 {
@@ -194,5 +202,13 @@ Example:
 			altr,ecc-parent = <&usb0>;
 			interrupts = <2 IRQ_TYPE_LEVEL_HIGH>,
 				     <34 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		qspi-ecc@ff8c8400 {
+			compatible = "altr,socfpga-qspi-ecc";
+			reg = <0xff8c8400 0x400>;
+			altr,ecc-parent = <&qspi>;
+			interrupts = <14 IRQ_TYPE_LEVEL_HIGH>,
+				     <46 IRQ_TYPE_LEVEL_HIGH>;
 		};
 	};
