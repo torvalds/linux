@@ -139,7 +139,7 @@ static int sst_bxt_prepare_fw(struct sst_dsp *ctx,
 base_fw_load_failed:
 	ctx->dsp_ops.cleanup(ctx->dev, &ctx->dmab, stream_tag);
 	skl_dsp_core_power_down(ctx, SKL_DSP_CORE_MASK(1));
-	skl_dsp_disable_core(ctx, SKL_DSP_CORE_MASK(1));
+	skl_dsp_disable_core(ctx, SKL_DSP_CORE0_MASK);
 	return ret;
 }
 
@@ -232,6 +232,7 @@ static int bxt_set_dsp_D0(struct sst_dsp *ctx, unsigned int core_id)
 	unsigned int core_mask = SKL_DSP_CORE_MASK(core_id);
 
 	if (skl->fw_loaded == false) {
+		skl->boot_complete = false;
 		ret = bxt_load_base_firmware(ctx);
 		if (ret < 0)
 			dev_err(ctx->dev, "reload fw failed: %d\n", ret);
