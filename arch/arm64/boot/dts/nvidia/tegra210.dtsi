@@ -35,6 +35,26 @@
 			resets = <&tegra_car 207>;
 			reset-names = "dpaux";
 			status = "disabled";
+
+			state_dpaux1_aux: pinmux-aux {
+				groups = "dpaux-io";
+				function = "aux";
+			};
+
+			state_dpaux1_i2c: pinmux-i2c {
+				groups = "dpaux-io";
+				function = "i2c";
+			};
+
+			state_dpaux1_off: pinmux-off {
+				groups = "dpaux-io";
+				function = "off";
+			};
+
+			i2c-bus {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
 		};
 
 		vi@54080000 {
@@ -154,6 +174,10 @@
 			clock-names = "sor", "parent", "dp", "safe";
 			resets = <&tegra_car 182>;
 			reset-names = "sor";
+			pinctrl-0 = <&state_dpaux_aux>;
+			pinctrl-1 = <&state_dpaux_i2c>;
+			pinctrl-2 = <&state_dpaux_off>;
+			pinctrl-names = "aux", "i2c", "off";
 			status = "disabled";
 		};
 
@@ -162,12 +186,17 @@
 			reg = <0x0 0x54580000 0x0 0x00040000>;
 			interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&tegra_car TEGRA210_CLK_SOR1>,
+				 <&tegra_car TEGRA210_CLK_SOR1_SRC>,
 				 <&tegra_car TEGRA210_CLK_PLL_D2_OUT0>,
 				 <&tegra_car TEGRA210_CLK_PLL_DP>,
 				 <&tegra_car TEGRA210_CLK_SOR_SAFE>;
-			clock-names = "sor", "parent", "dp", "safe";
+			clock-names = "sor", "source", "parent", "dp", "safe";
 			resets = <&tegra_car 183>;
 			reset-names = "sor";
+			pinctrl-0 = <&state_dpaux1_aux>;
+			pinctrl-1 = <&state_dpaux1_i2c>;
+			pinctrl-2 = <&state_dpaux1_off>;
+			pinctrl-names = "aux", "i2c", "off";
 			status = "disabled";
 		};
 
@@ -181,6 +210,26 @@
 			resets = <&tegra_car 181>;
 			reset-names = "dpaux";
 			status = "disabled";
+
+			state_dpaux_aux: pinmux-aux {
+				groups = "dpaux-io";
+				function = "aux";
+			};
+
+			state_dpaux_i2c: pinmux-i2c {
+				groups = "dpaux-io";
+				function = "i2c";
+			};
+
+			state_dpaux_off: pinmux-off {
+				groups = "dpaux-io";
+				function = "off";
+			};
+
+			i2c-bus {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
 		};
 
 		isp@54600000 {
@@ -478,6 +527,9 @@
 		reset-names = "i2c";
 		dmas = <&apbdma 26>, <&apbdma 26>;
 		dma-names = "rx", "tx";
+		pinctrl-0 = <&state_dpaux1_i2c>;
+		pinctrl-1 = <&state_dpaux1_off>;
+		pinctrl-names = "default", "idle";
 		status = "disabled";
 	};
 
@@ -508,6 +560,9 @@
 		reset-names = "i2c";
 		dmas = <&apbdma 30>, <&apbdma 30>;
 		dma-names = "rx", "tx";
+		pinctrl-0 = <&state_dpaux_i2c>;
+		pinctrl-1 = <&state_dpaux_off>;
+		pinctrl-names = "default", "idle";
 		status = "disabled";
 	};
 
@@ -584,6 +639,39 @@
 		reg = <0x0 0x7000e400 0x0 0x400>;
 		clocks = <&tegra_car TEGRA210_CLK_PCLK>, <&clk32k_in>;
 		clock-names = "pclk", "clk32k_in";
+
+		powergates {
+			pd_audio: aud {
+				clocks = <&tegra_car TEGRA210_CLK_APE>,
+					 <&tegra_car TEGRA210_CLK_APB2APE>;
+				resets = <&tegra_car 198>;
+				#power-domain-cells = <0>;
+			};
+
+			pd_xusbss: xusba {
+				clocks = <&tegra_car TEGRA210_CLK_XUSB_SS>;
+				clock-names = "xusb-ss";
+				resets = <&tegra_car TEGRA210_CLK_XUSB_SS>;
+				reset-names = "xusb-ss";
+				#power-domain-cells = <0>;
+			};
+
+			pd_xusbdev: xusbb {
+				clocks = <&tegra_car TEGRA210_CLK_XUSB_DEV>;
+				clock-names = "xusb-dev";
+				resets = <&tegra_car 95>;
+				reset-names = "xusb-dev";
+				#power-domain-cells = <0>;
+			};
+
+			pd_xusbhost: xusbc {
+				clocks = <&tegra_car TEGRA210_CLK_XUSB_HOST>;
+				clock-names = "xusb-host";
+				resets = <&tegra_car TEGRA210_CLK_XUSB_HOST>;
+				reset-names = "xusb-host";
+				#power-domain-cells = <0>;
+			};
+		};
 	};
 
 	fuse@7000f800 {
@@ -619,6 +707,196 @@
 			 <&tegra_car 111>; /* hda2codec_2x */
 		reset-names = "hda", "hda2hdmi", "hda2codec_2x";
 		status = "disabled";
+	};
+
+	usb@70090000 {
+		compatible = "nvidia,tegra210-xusb";
+		reg = <0x0 0x70090000 0x0 0x8000>,
+		      <0x0 0x70098000 0x0 0x1000>,
+		      <0x0 0x70099000 0x0 0x1000>;
+		reg-names = "hcd", "fpci", "ipfs";
+
+		interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
+
+		clocks = <&tegra_car TEGRA210_CLK_XUSB_HOST>,
+			 <&tegra_car TEGRA210_CLK_XUSB_HOST_SRC>,
+			 <&tegra_car TEGRA210_CLK_XUSB_FALCON_SRC>,
+			 <&tegra_car TEGRA210_CLK_XUSB_SS>,
+			 <&tegra_car TEGRA210_CLK_XUSB_SS_DIV2>,
+			 <&tegra_car TEGRA210_CLK_XUSB_SS_SRC>,
+			 <&tegra_car TEGRA210_CLK_XUSB_HS_SRC>,
+			 <&tegra_car TEGRA210_CLK_XUSB_FS_SRC>,
+			 <&tegra_car TEGRA210_CLK_PLL_U_480M>,
+			 <&tegra_car TEGRA210_CLK_CLK_M>,
+			 <&tegra_car TEGRA210_CLK_PLL_E>;
+		clock-names = "xusb_host", "xusb_host_src",
+			      "xusb_falcon_src", "xusb_ss",
+			      "xusb_ss_div2", "xusb_ss_src",
+			      "xusb_hs_src", "xusb_fs_src",
+			      "pll_u_480m", "clk_m", "pll_e";
+		resets = <&tegra_car 89>, <&tegra_car 156>,
+			 <&tegra_car 143>;
+		reset-names = "xusb_host", "xusb_ss", "xusb_src";
+
+		nvidia,xusb-padctl = <&padctl>;
+
+		status = "disabled";
+	};
+
+	padctl: padctl@7009f000 {
+		compatible = "nvidia,tegra210-xusb-padctl";
+		reg = <0x0 0x7009f000 0x0 0x1000>;
+		resets = <&tegra_car 142>;
+		reset-names = "padctl";
+
+		status = "disabled";
+
+		pads {
+			usb2 {
+				clocks = <&tegra_car TEGRA210_CLK_USB2_TRK>;
+				clock-names = "trk";
+				status = "disabled";
+
+				lanes {
+					usb2-0 {
+						status = "disabled";
+						#phy-cells = <0>;
+					};
+
+					usb2-1 {
+						status = "disabled";
+						#phy-cells = <0>;
+					};
+
+					usb2-2 {
+						status = "disabled";
+						#phy-cells = <0>;
+					};
+
+					usb2-3 {
+						status = "disabled";
+						#phy-cells = <0>;
+					};
+				};
+			};
+
+			hsic {
+				clocks = <&tegra_car TEGRA210_CLK_HSIC_TRK>;
+				clock-names = "trk";
+				status = "disabled";
+
+				lanes {
+					hsic-0 {
+						status = "disabled";
+						#phy-cells = <0>;
+					};
+
+					hsic-1 {
+						status = "disabled";
+						#phy-cells = <0>;
+					};
+				};
+			};
+
+			pcie {
+				clocks = <&tegra_car TEGRA210_CLK_PLL_E>;
+				clock-names = "pll";
+				resets = <&tegra_car 205>;
+				reset-names = "phy";
+				status = "disabled";
+
+				lanes {
+					pcie-0 {
+						status = "disabled";
+						#phy-cells = <0>;
+					};
+
+					pcie-1 {
+						status = "disabled";
+						#phy-cells = <0>;
+					};
+
+					pcie-2 {
+						status = "disabled";
+						#phy-cells = <0>;
+					};
+
+					pcie-3 {
+						status = "disabled";
+						#phy-cells = <0>;
+					};
+
+					pcie-4 {
+						status = "disabled";
+						#phy-cells = <0>;
+					};
+
+					pcie-5 {
+						status = "disabled";
+						#phy-cells = <0>;
+					};
+
+					pcie-6 {
+						status = "disabled";
+						#phy-cells = <0>;
+					};
+				};
+			};
+
+			sata {
+				clocks = <&tegra_car TEGRA210_CLK_PLL_E>;
+				clock-names = "pll";
+				resets = <&tegra_car 204>;
+				reset-names = "phy";
+				status = "disabled";
+
+				lanes {
+					sata-0 {
+						status = "disabled";
+						#phy-cells = <0>;
+					};
+				};
+			};
+		};
+
+		ports {
+			usb2-0 {
+				status = "disabled";
+			};
+
+			usb2-1 {
+				status = "disabled";
+			};
+
+			usb2-2 {
+				status = "disabled";
+			};
+
+			usb2-3 {
+				status = "disabled";
+			};
+
+			hsic-0 {
+				status = "disabled";
+			};
+
+			usb3-0 {
+				status = "disabled";
+			};
+
+			usb3-1 {
+				status = "disabled";
+			};
+
+			usb3-2 {
+				status = "disabled";
+			};
+
+			usb3-3 {
+				status = "disabled";
+			};
+		};
 	};
 
 	sdhci@700b0000 {
@@ -671,6 +949,18 @@
 		clocks = <&tegra_car TEGRA210_CLK_MIPI_CAL>;
 		clock-names = "mipi-cal";
 		#nvidia,mipi-calibrate-cells = <1>;
+	};
+
+	aconnect@702c0000 {
+		compatible = "nvidia,tegra210-aconnect";
+		clocks = <&tegra_car TEGRA210_CLK_APE>,
+			 <&tegra_car TEGRA210_CLK_APB2APE>;
+		clock-names = "ape", "apb2ape";
+		power-domains = <&pd_audio>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x702c0000 0x0 0x702c0000 0x00040000>;
+		status = "disabled";
 	};
 
 	spi@70410000 {
