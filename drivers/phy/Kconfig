@@ -44,6 +44,16 @@ config ARMADA375_USBCLUSTER_PHY
 	depends on OF && HAS_IOMEM
 	select GENERIC_PHY
 
+config PHY_DA8XX_USB
+	tristate "TI DA8xx USB PHY Driver"
+	depends on ARCH_DAVINCI_DA8XX
+	select GENERIC_PHY
+	select MFD_SYSCON
+	help
+	  Enable this to support the USB PHY on DA8xx SoCs.
+
+	  This driver controls both the USB 1.1 PHY and the USB 2.0 PHY.
+
 config PHY_DM816X_USB
 	tristate "TI dm816x USB PHY driver"
 	depends on ARCH_OMAP2PLUS
