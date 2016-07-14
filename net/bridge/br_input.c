@@ -189,12 +189,12 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 
 	if (dst) {
 		dst->used = jiffies;
-		br_forward(dst->dst, skb, local_rcv);
+		br_forward(dst->dst, skb, local_rcv, false);
 	} else {
 		if (!mcast_hit)
-			br_flood_forward(br, skb, local_rcv, unicast);
+			br_flood(br, skb, unicast, local_rcv, false);
 		else
-			br_multicast_forward(mdst, skb, local_rcv);
+			br_multicast_flood(mdst, skb, local_rcv, false);
 	}
 
 	if (local_rcv)
