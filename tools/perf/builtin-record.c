@@ -509,7 +509,7 @@ static int record__mmap_read_evlist(struct record *rec, struct perf_evlist *evli
 	if (!evlist)
 		return 0;
 
-	maps = evlist->mmap;
+	maps = backward ? evlist->backward_mmap : evlist->mmap;
 	if (!maps)
 		return 0;
 
@@ -696,8 +696,12 @@ perf_event__synth_time_conv(const struct perf_event_mmap_page *pc __maybe_unused
 static const struct perf_event_mmap_page *
 perf_evlist__pick_pc(struct perf_evlist *evlist)
 {
-	if (evlist && evlist->mmap && evlist->mmap[0].base)
-		return evlist->mmap[0].base;
+	if (evlist) {
+		if (evlist->mmap && evlist->mmap[0].base)
+			return evlist->mmap[0].base;
+		if (evlist->backward_mmap && evlist->backward_mmap[0].base)
+			return evlist->backward_mmap[0].base;
+	}
 	return NULL;
 }
 
