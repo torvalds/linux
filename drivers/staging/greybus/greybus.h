@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/module.h>
+#include <linux/pm_runtime.h>
 #include <linux/idr.h>
 
 #include "kernel_ver.h"

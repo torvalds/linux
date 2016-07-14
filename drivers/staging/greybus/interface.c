@@ -7,12 +7,19 @@
  * Released under the GPLv2 only.
  */
 
+#include <linux/delay.h>
+
 #include "greybus.h"
 #include "greybus_trace.h"
 
 #define GB_INTERFACE_MODE_SWITCH_TIMEOUT	2000
 
 #define GB_INTERFACE_DEVICE_ID_BAD	0xff
+
+#define GB_INTERFACE_AUTOSUSPEND_MS			3000
+
+/* Time required for interface to enter standby before disabling REFCLK */
+#define GB_INTERFACE_SUSPEND_HIBERNATE_DELAY_MS			20
 
 /* Don't-care selector index */
 #define DME_SELECTOR_INDEX_NULL		0
@@ -36,6 +43,8 @@
 #define TOSHIBA_ES3_APBRIDGE_DPID	0x1001
 #define TOSHIBA_ES3_GBPHY_DPID	0x1002
 
+static int gb_interface_hibernate_link(struct gb_interface *intf);
+static int gb_interface_refclk_set(struct gb_interface *intf, bool enable);
 
 static int gb_interface_dme_attr_get(struct gb_interface *intf,
 							u16 attr, u32 *val)
@@ -505,9 +514,92 @@ static void gb_interface_release(struct device *dev)
 	kfree(intf);
 }
 
+#ifdef CONFIG_PM_RUNTIME
+static int gb_interface_suspend(struct device *dev)
+{
+	struct gb_interface *intf = to_gb_interface(dev);
+	int ret, timesync_ret;
+
+	ret = gb_control_interface_suspend_prepare(intf->control);
+	if (ret)
+		return ret;
+
+	gb_timesync_interface_remove(intf);
+
+	ret = gb_control_suspend(intf->control);
+	if (ret)
+		goto err_hibernate_abort;
+
+	ret = gb_interface_hibernate_link(intf);
+	if (ret)
+		return ret;
+
+	/* Delay to allow interface to enter standby before disabling refclk */
+	msleep(GB_INTERFACE_SUSPEND_HIBERNATE_DELAY_MS);
+
+	ret = gb_interface_refclk_set(intf, false);
+	if (ret)
+		return ret;
+
+	return 0;
+
+err_hibernate_abort:
+	gb_control_interface_hibernate_abort(intf->control);
+
+	timesync_ret = gb_timesync_interface_add(intf);
+	if (timesync_ret) {
+		dev_err(dev, "failed to add to timesync: %d\n", timesync_ret);
+		return timesync_ret;
+	}
+
+	return ret;
+}
+
+static int gb_interface_resume(struct device *dev)
+{
+	struct gb_interface *intf = to_gb_interface(dev);
+	struct gb_svc *svc = intf->hd->svc;
+	int ret;
+
+	ret = gb_interface_refclk_set(intf, true);
+	if (ret)
+		return ret;
+
+	ret = gb_svc_intf_resume(svc, intf->interface_id);
+	if (ret)
+		return ret;
+
+	ret = gb_control_resume(intf->control);
+	if (ret)
+		return ret;
+
+	ret = gb_timesync_interface_add(intf);
+	if (ret) {
+		dev_err(dev, "failed to add to timesync: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int gb_interface_runtime_idle(struct device *dev)
+{
+	pm_runtime_mark_last_busy(dev);
+	pm_request_autosuspend(dev);
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops gb_interface_pm_ops = {
+	SET_RUNTIME_PM_OPS(gb_interface_suspend, gb_interface_resume,
+			   gb_interface_runtime_idle)
+};
+
 struct device_type greybus_interface_type = {
 	.name =		"greybus_interface",
 	.release =	gb_interface_release,
+	.pm =		&gb_interface_pm_ops,
 };
 
 /*
@@ -552,6 +644,9 @@ struct gb_interface *gb_interface_create(struct gb_module *module,
 	device_initialize(&intf->dev);
 	dev_set_name(&intf->dev, "%s.%u", dev_name(&module->dev),
 			interface_id);
+
+	pm_runtime_set_autosuspend_delay(&intf->dev,
+					 GB_INTERFACE_AUTOSUSPEND_MS);
 
 	trace_gb_interface_create(intf);
 
@@ -809,6 +904,11 @@ int gb_interface_enable(struct gb_interface *intf)
 		goto err_destroy_bundles;
 	}
 
+	pm_runtime_use_autosuspend(&intf->dev);
+	pm_runtime_get_noresume(&intf->dev);
+	pm_runtime_set_active(&intf->dev);
+	pm_runtime_enable(&intf->dev);
+
 	list_for_each_entry_safe_reverse(bundle, tmp, &intf->bundles, links) {
 		ret = gb_bundle_add(bundle);
 		if (ret) {
@@ -820,6 +920,8 @@ int gb_interface_enable(struct gb_interface *intf)
 	kfree(manifest);
 
 	intf->enabled = true;
+
+	pm_runtime_put(&intf->dev);
 
 	trace_gb_interface_enable(intf);
 
@@ -854,6 +956,8 @@ void gb_interface_disable(struct gb_interface *intf)
 
 	trace_gb_interface_disable(intf);
 
+	pm_runtime_get_sync(&intf->dev);
+
 	/* Set disconnected flag to avoid I/O during connection tear down. */
 	if (intf->quirks & GB_INTERFACE_QUIRK_FORCED_DISABLE)
 		intf->disconnected = true;
@@ -871,6 +975,11 @@ void gb_interface_disable(struct gb_interface *intf)
 	intf->control = NULL;
 
 	intf->enabled = false;
+
+	pm_runtime_disable(&intf->dev);
+	pm_runtime_set_suspended(&intf->dev);
+	pm_runtime_dont_use_autosuspend(&intf->dev);
+	pm_runtime_put_noidle(&intf->dev);
 }
 
 /* Enable TimeSync on an Interface control connection. */
