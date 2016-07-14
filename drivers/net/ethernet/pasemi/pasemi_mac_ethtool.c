@@ -66,8 +66,7 @@ static int
 pasemi_mac_ethtool_get_settings(struct net_device *netdev,
 			       struct ethtool_cmd *cmd)
 {
-	struct pasemi_mac *mac = netdev_priv(netdev);
-	struct phy_device *phydev = mac->phydev;
+	struct phy_device *phydev = netdev->phydev;
 
 	if (!phydev)
 		return -EOPNOTSUPP;
@@ -79,8 +78,7 @@ static int
 pasemi_mac_ethtool_set_settings(struct net_device *netdev,
 			       struct ethtool_cmd *cmd)
 {
-	struct pasemi_mac *mac = netdev_priv(netdev);
-	struct phy_device *phydev = mac->phydev;
+	struct phy_device *phydev = netdev->phydev;
 
 	if (!phydev)
 		return -EOPNOTSUPP;
