@@ -555,7 +555,7 @@ static int record__mmap_read_all(struct record *rec)
 	if (err)
 		return err;
 
-	return err;
+	return record__mmap_read_evlist(rec, rec->evlist, true);
 }
 
 static void record__init_features(struct record *rec)
@@ -953,6 +953,17 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	for (;;) {
 		unsigned long long hits = rec->samples;
 
+		/*
+		 * rec->evlist->bkw_mmap_state is possible to be
+		 * BKW_MMAP_EMPTY here: when done == true and
+		 * hits != rec->samples in previous round.
+		 *
+		 * perf_evlist__toggle_bkw_mmap ensure we never
+		 * convert BKW_MMAP_EMPTY to BKW_MMAP_DATA_PENDING.
+		 */
+		if (trigger_is_hit(&switch_output_trigger) || done || draining)
+			perf_evlist__toggle_bkw_mmap(rec->evlist, BKW_MMAP_DATA_PENDING);
+
 		if (record__mmap_read_all(rec) < 0) {
 			trigger_error(&auxtrace_snapshot_trigger);
 			trigger_error(&switch_output_trigger);
@@ -972,7 +983,25 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 		}
 
 		if (trigger_is_hit(&switch_output_trigger)) {
+			/*
+			 * If switch_output_trigger is hit, the data in
+			 * overwritable ring buffer should have been collected,
+			 * so bkw_mmap_state should be set to BKW_MMAP_EMPTY.
+			 *
+			 * If SIGUSR2 raise after or during record__mmap_read_all(),
+			 * record__mmap_read_all() didn't collect data from
+			 * overwritable ring buffer. Read again.
+			 */
+			if (rec->evlist->bkw_mmap_state == BKW_MMAP_RUNNING)
+				continue;
 			trigger_ready(&switch_output_trigger);
+
+			/*
+			 * Reenable events in overwrite ring buffer after
+			 * record__mmap_read_all(): we should have collected
+			 * data from it.
+			 */
+			perf_evlist__toggle_bkw_mmap(rec->evlist, BKW_MMAP_RUNNING);
 
 			if (!quiet)
 				fprintf(stderr, "[ perf record: dump data: Woken up %ld times ]\n",
