@@ -60,6 +60,10 @@
 	clock-frequency = <20000000>;
 };
 
+&can_clk {
+	clock-frequency = <48000000>;
+};
+
 &pfc {
 	scif0_pins: scif0 {
 		groups = "scif0_data";
@@ -81,6 +85,11 @@
 			function = "lbsc";
 		};
 	};
+
+	can0_pins: can0 {
+		groups = "can0_data", "can_clk";
+		function = "can0";
+	};
 };
 
 &scif0 {
@@ -92,6 +101,13 @@
 
 &scif3 {
 	pinctrl-0 = <&scif3_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+
+&can0 {
+	pinctrl-0 = <&can0_pins>;
 	pinctrl-names = "default";
 
 	status = "okay";
