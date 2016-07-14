@@ -530,8 +530,8 @@ static void rmi_f11_rel_pos_report(struct f11_data *f11, u8 n_finger)
 	struct f11_2d_data *data = &f11->data;
 	s8 x, y;
 
-	x = data->rel_pos[n_finger * 2];
-	y = data->rel_pos[n_finger * 2 + 1];
+	x = data->rel_pos[n_finger * RMI_F11_REL_BYTES];
+	y = data->rel_pos[n_finger * RMI_F11_REL_BYTES + 1];
 
 	rmi_2d_sensor_rel_report(sensor, x, y);
 }
