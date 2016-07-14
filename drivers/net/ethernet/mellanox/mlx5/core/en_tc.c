@@ -112,6 +112,22 @@ err_create_ft:
 	return rule;
 }
 
+static struct mlx5_flow_rule *mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
+						    struct mlx5_flow_spec *spec,
+						    u32 action, u32 dst_vport)
+{
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+	struct mlx5_eswitch_rep *rep = priv->ppriv;
+	u32 src_vport;
+
+	if (rep->vport) /* set source vport for the flow */
+		src_vport = rep->vport;
+	else
+		src_vport = FDB_UPLINK_VPORT;
+
+	return mlx5_eswitch_add_offloaded_rule(esw, spec, action, src_vport, dst_vport);
+}
+
 static void mlx5e_tc_del_flow(struct mlx5e_priv *priv,
 			      struct mlx5_flow_rule *rule)
 {
@@ -397,11 +413,11 @@ int mlx5e_configure_flower(struct mlx5e_priv *priv, __be16 protocol,
 {
 	struct mlx5e_tc_table *tc = &priv->fs.tc;
 	int err = 0;
-	u32 flow_tag;
-	u32 action;
+	u32 flow_tag, action, dest_vport = 0;
 	struct mlx5e_tc_flow *flow;
 	struct mlx5_flow_spec *spec;
 	struct mlx5_flow_rule *old = NULL;
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 
 	flow = rhashtable_lookup_fast(&tc->ht, &f->cookie,
 				      tc->ht_params);
@@ -422,11 +438,18 @@ int mlx5e_configure_flower(struct mlx5e_priv *priv, __be16 protocol,
 	if (err < 0)
 		goto err_free;
 
-	err = parse_tc_nic_actions(priv, f->exts, &action, &flow_tag);
-	if (err < 0)
-		goto err_free;
+	if (esw && esw->mode == SRIOV_OFFLOADS) {
+		err = parse_tc_fdb_actions(priv, f->exts, &action, &dest_vport);
+		if (err < 0)
+			goto err_free;
+		flow->rule = mlx5e_tc_add_fdb_flow(priv, spec, action, dest_vport);
+	} else {
+		err = parse_tc_nic_actions(priv, f->exts, &action, &flow_tag);
+		if (err < 0)
+			goto err_free;
+		flow->rule = mlx5e_tc_add_nic_flow(priv, spec, action, flow_tag);
+	}
 
-	flow->rule = mlx5e_tc_add_nic_flow(priv, spec, action, flow_tag);
 	if (IS_ERR(flow->rule)) {
 		err = PTR_ERR(flow->rule);
 		goto err_free;
