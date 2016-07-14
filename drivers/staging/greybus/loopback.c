@@ -25,6 +25,7 @@
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 #include <linux/atomic.h>
+#include <linux/pm_runtime.h>
 
 #include <asm/div64.h>
 
@@ -976,14 +977,26 @@ static int gb_loopback_fn(void *data)
 	int error = 0;
 	int us_wait = 0;
 	int type;
+	int ret;
 	u32 size;
 
 	struct gb_loopback *gb = data;
+	struct gb_bundle *bundle = gb->connection->bundle;
+
+	ret = gb_pm_runtime_get_sync(bundle);
+	if (ret)
+		return ret;
 
 	while (1) {
-		if (!gb->type)
+		if (!gb->type) {
+			gb_pm_runtime_put_autosuspend(bundle);
 			wait_event_interruptible(gb->wq, gb->type ||
 						 kthread_should_stop());
+			ret = gb_pm_runtime_get_sync(bundle);
+			if (ret)
+				return ret;
+		}
+
 		if (kthread_should_stop())
 			break;
 
@@ -1042,6 +1055,9 @@ static int gb_loopback_fn(void *data)
 		if (us_wait)
 			udelay(us_wait);
 	}
+
+	gb_pm_runtime_put_autosuspend(bundle);
+
 	return 0;
 }
 
@@ -1233,6 +1249,9 @@ static int gb_loopback_probe(struct gb_bundle *bundle,
 	spin_unlock_irqrestore(&gb_dev.lock, flags);
 
 	gb_connection_latency_tag_enable(connection);
+
+	gb_pm_runtime_put_autosuspend(bundle);
+
 	return 0;
 
 out_kfifo1:
@@ -1259,6 +1278,11 @@ static void gb_loopback_disconnect(struct gb_bundle *bundle)
 {
 	struct gb_loopback *gb = greybus_get_drvdata(bundle);
 	unsigned long flags;
+	int ret;
+
+	ret = gb_pm_runtime_get_sync(bundle);
+	if (ret)
+		gb_pm_runtime_get_noresume(bundle);
 
 	gb_connection_disable(gb->connection);
 
