@@ -49,6 +49,9 @@ Optional properties:
 - mmc-hs400-enhanced-strobe: eMMC HS400 enhanced strobe mode is supported
 - dsr: Value the card's (optional) Driver Stage Register (DSR) should be
   programmed with. Valid range: [0 .. 0xffff].
+- no-sdio: controller is limited to send sdio cmd during initialization
+- no-sd: controller is limited to send sd cmd during initialization
+- no-mmc: controller is limited to send mmc cmd during initialization
 
 *NOTE* on CD and WP polarity. To use common for all SD/MMC host controllers line
 polarity properties, we have to fix the meaning of the "normal" and "inverted"
