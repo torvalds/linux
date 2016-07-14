@@ -69,15 +69,13 @@ static irqreturn_t
 nvkm_pci_intr(int irq, void *arg)
 {
 	struct nvkm_pci *pci = arg;
-	struct nvkm_mc *mc = pci->subdev.device->mc;
+	struct nvkm_device *device = pci->subdev.device;
 	bool handled = false;
-	if (likely(mc)) {
-		nvkm_mc_intr_unarm(mc);
-		if (pci->msi)
-			pci->func->msi_rearm(pci);
-		nvkm_mc_intr(mc, &handled);
-		nvkm_mc_intr_rearm(mc);
-	}
+	nvkm_mc_intr_unarm(device);
+	if (pci->msi)
+		pci->func->msi_rearm(pci);
+	nvkm_mc_intr(device, &handled);
+	nvkm_mc_intr_rearm(device);
 	return handled ? IRQ_HANDLED : IRQ_NONE;
 }
 
