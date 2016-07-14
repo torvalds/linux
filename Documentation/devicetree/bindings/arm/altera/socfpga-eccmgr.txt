@@ -98,6 +98,14 @@ Required Properties:
 - interrupts      : Should be single bit error interrupt, then double bit error
 	interrupt, in this order.
 
+DMA FIFO ECC
+Required Properties:
+- compatible      : Should be "altr,socfpga-dma-ecc"
+- reg             : Address and size for ECC block registers.
+- altr,ecc-parent : phandle to parent DMA node.
+- interrupts      : Should be single bit error interrupt, then double bit error
+	interrupt, in this order.
+
 Example:
 
 	eccmgr: eccmgr@ffd06000 {
@@ -163,5 +171,13 @@ Example:
 			altr,ecc-parent = <&nand>;
 			interrupts = <12 IRQ_TYPE_LEVEL_HIGH>,
 				     <44 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		dma-ecc@ff8c8000 {
+			compatible = "altr,socfpga-dma-ecc";
+			reg = <0xff8c8000 0x400>;
+			altr,ecc-parent = <&pdma>;
+			interrupts = <10 IRQ_TYPE_LEVEL_HIGH>,
+				     <42 IRQ_TYPE_LEVEL_HIGH>;
 		};
 	};
