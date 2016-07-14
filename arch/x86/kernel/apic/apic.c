@@ -313,7 +313,7 @@ int lapic_get_maxlvt(void)
 
 /* Clock divisor */
 #define APIC_DIVISOR 16
-#define TSC_DIVISOR  32
+#define TSC_DIVISOR  8
 
 /*
  * This function sets up the local APIC timer, with a timeout of
@@ -565,7 +565,7 @@ static void setup_APIC_timer(void)
 				    CLOCK_EVT_FEAT_DUMMY);
 		levt->set_next_event = lapic_next_deadline;
 		clockevents_config_and_register(levt,
-						(tsc_khz / TSC_DIVISOR) * 1000,
+						tsc_khz * (1000 / TSC_DIVISOR),
 						0xF, ~0UL);
 	} else
 		clockevents_register_device(levt);
