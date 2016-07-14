@@ -1505,7 +1505,7 @@ pnfs_update_layout(struct inode *ino,
 	struct pnfs_layout_segment *lseg = NULL;
 	nfs4_stateid stateid;
 	long timeout = 0;
-	unsigned long giveup = jiffies + rpc_get_timeout(server->client);
+	unsigned long giveup = jiffies + (clp->cl_lease_time << 1);
 	bool first;
 
 	if (!pnfs_enabled_sb(NFS_SERVER(ino))) {
@@ -1649,9 +1649,18 @@ lookup_again:
 	if (IS_ERR(lseg)) {
 		switch(PTR_ERR(lseg)) {
 		case -EBUSY:
-		case -ERECALLCONFLICT:
 			if (time_after(jiffies, giveup))
 				lseg = NULL;
+			break;
+		case -ERECALLCONFLICT:
+			/* Huh? We hold no layouts, how is there a recall? */
+			if (first) {
+				lseg = NULL;
+				break;
+			}
+			/* Destroy the existing layout and start over */
+			if (time_after(jiffies, giveup))
+				pnfs_destroy_layout(NFS_I(ino));
 			/* Fallthrough */
 		case -EAGAIN:
 			break;
