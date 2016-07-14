@@ -1084,23 +1084,20 @@ EXPORT_SYMBOL_GPL(page_mkclean);
  * page_move_anon_rmap - move a page to our anon_vma
  * @page:	the page to move to our anon_vma
  * @vma:	the vma the page belongs to
- * @address:	the user virtual address mapped
  *
  * When a page belongs exclusively to one process after a COW event,
  * that page can be moved into the anon_vma that belongs to just that
  * process, so the rmap code will not search the parent or sibling
  * processes.
  */
-void page_move_anon_rmap(struct page *page,
-	struct vm_area_struct *vma, unsigned long address)
+void page_move_anon_rmap(struct page *page, struct vm_area_struct *vma)
 {
 	struct anon_vma *anon_vma = vma->anon_vma;
 
+	page = compound_head(page);
+
 	VM_BUG_ON_PAGE(!PageLocked(page), page);
 	VM_BUG_ON_VMA(!anon_vma, vma);
-	if (IS_ENABLED(CONFIG_DEBUG_VM) && PageTransHuge(page))
-		address &= HPAGE_PMD_MASK;
-	VM_BUG_ON_PAGE(page->index != linear_page_index(vma, address), page);
 
 	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
 	/*
