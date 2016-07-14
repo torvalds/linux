@@ -34,10 +34,11 @@
 #include <linux/dma_remapping.h>
 #include <linux/uaccess.h>
 
-#define  __EXEC_OBJECT_HAS_PIN (1<<31)
-#define  __EXEC_OBJECT_HAS_FENCE (1<<30)
-#define  __EXEC_OBJECT_NEEDS_MAP (1<<29)
-#define  __EXEC_OBJECT_NEEDS_BIAS (1<<28)
+#define  __EXEC_OBJECT_HAS_PIN		(1<<31)
+#define  __EXEC_OBJECT_HAS_FENCE	(1<<30)
+#define  __EXEC_OBJECT_NEEDS_MAP	(1<<29)
+#define  __EXEC_OBJECT_NEEDS_BIAS	(1<<28)
+#define  __EXEC_OBJECT_INTERNAL_FLAGS (0xf<<28) /* all of the above */
 
 #define BATCH_OFFSET_BIAS (256*1024)
 
@@ -1006,6 +1007,9 @@ validate_exec_list(struct drm_device *dev,
 	unsigned relocs_max = UINT_MAX / sizeof(struct drm_i915_gem_relocation_entry);
 	unsigned invalid_flags;
 	int i;
+
+	/* INTERNAL flags must not overlap with external ones */
+	BUILD_BUG_ON(__EXEC_OBJECT_INTERNAL_FLAGS & ~__EXEC_OBJECT_UNKNOWN_FLAGS);
 
 	invalid_flags = __EXEC_OBJECT_UNKNOWN_FLAGS;
 	if (USES_FULL_PPGTT(dev))
