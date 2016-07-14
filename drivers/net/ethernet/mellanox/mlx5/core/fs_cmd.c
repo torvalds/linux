@@ -413,3 +413,70 @@ int mlx5_cmd_fc_query(struct mlx5_core_dev *dev, u16 id,
 
 	return 0;
 }
+
+struct mlx5_cmd_fc_bulk {
+	u16 id;
+	int num;
+	int outlen;
+	u32 out[0];
+};
+
+struct mlx5_cmd_fc_bulk *
+mlx5_cmd_fc_bulk_alloc(struct mlx5_core_dev *dev, u16 id, int num)
+{
+	struct mlx5_cmd_fc_bulk *b;
+	int outlen = sizeof(*b) +
+		MLX5_ST_SZ_BYTES(query_flow_counter_out) +
+		MLX5_ST_SZ_BYTES(traffic_counter) * num;
+
+	b = kzalloc(outlen, GFP_KERNEL);
+	if (!b)
+		return NULL;
+
+	b->id = id;
+	b->num = num;
+	b->outlen = outlen;
+
+	return b;
+}
+
+void mlx5_cmd_fc_bulk_free(struct mlx5_cmd_fc_bulk *b)
+{
+	kfree(b);
+}
+
+int
+mlx5_cmd_fc_bulk_query(struct mlx5_core_dev *dev, struct mlx5_cmd_fc_bulk *b)
+{
+	u32 in[MLX5_ST_SZ_DW(query_flow_counter_in)];
+
+	memset(in, 0, sizeof(in));
+
+	MLX5_SET(query_flow_counter_in, in, opcode,
+		 MLX5_CMD_OP_QUERY_FLOW_COUNTER);
+	MLX5_SET(query_flow_counter_in, in, op_mod, 0);
+	MLX5_SET(query_flow_counter_in, in, flow_counter_id, b->id);
+	MLX5_SET(query_flow_counter_in, in, num_of_counters, b->num);
+
+	return mlx5_cmd_exec_check_status(dev, in, sizeof(in),
+					  b->out, b->outlen);
+}
+
+void mlx5_cmd_fc_bulk_get(struct mlx5_core_dev *dev,
+			  struct mlx5_cmd_fc_bulk *b, u16 id,
+			  u64 *packets, u64 *bytes)
+{
+	int index = id - b->id;
+	void *stats;
+
+	if (index < 0 || index >= b->num) {
+		mlx5_core_warn(dev, "Flow counter id (0x%x) out of range (0x%x..0x%x). Counter ignored.\n",
+			       id, b->id, b->id + b->num - 1);
+		return;
+	}
+
+	stats = MLX5_ADDR_OF(query_flow_counter_out, b->out,
+			     flow_statistics[index]);
+	*packets = MLX5_GET64(traffic_counter, stats, packets);
+	*bytes = MLX5_GET64(traffic_counter, stats, octets);
+}

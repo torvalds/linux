@@ -90,16 +90,66 @@ static void mlx5_fc_stats_insert(struct rb_root *root, struct mlx5_fc *counter)
 	rb_insert_color(&counter->node, root);
 }
 
+static struct rb_node *mlx5_fc_stats_query(struct mlx5_core_dev *dev,
+					   struct mlx5_fc *first,
+					   u16 last_id)
+{
+	struct mlx5_cmd_fc_bulk *b;
+	struct rb_node *node = NULL;
+	u16 afirst_id;
+	int num;
+	int err;
+	int max_bulk = 1 << MLX5_CAP_GEN(dev, log_max_flow_counter_bulk);
+
+	/* first id must be aligned to 4 when using bulk query */
+	afirst_id = first->id & ~0x3;
+
+	/* number of counters to query inc. the last counter */
+	num = ALIGN(last_id - afirst_id + 1, 4);
+	if (num > max_bulk) {
+		num = max_bulk;
+		last_id = afirst_id + num - 1;
+	}
+
+	b = mlx5_cmd_fc_bulk_alloc(dev, afirst_id, num);
+	if (!b) {
+		mlx5_core_err(dev, "Error allocating resources for bulk query\n");
+		return NULL;
+	}
+
+	err = mlx5_cmd_fc_bulk_query(dev, b);
+	if (err) {
+		mlx5_core_err(dev, "Error doing bulk query: %d\n", err);
+		goto out;
+	}
+
+	for (node = &first->node; node; node = rb_next(node)) {
+		struct mlx5_fc *counter = rb_entry(node, struct mlx5_fc, node);
+		struct mlx5_fc_cache *c = &counter->cache;
+
+		if (counter->id > last_id)
+			break;
+
+		mlx5_cmd_fc_bulk_get(dev, b,
+				     counter->id, &c->packets, &c->bytes);
+	}
+
+out:
+	mlx5_cmd_fc_bulk_free(b);
+
+	return node;
+}
+
 static void mlx5_fc_stats_work(struct work_struct *work)
 {
 	struct mlx5_core_dev *dev = container_of(work, struct mlx5_core_dev,
 						 priv.fc_stats.work.work);
 	struct mlx5_fc_stats *fc_stats = &dev->priv.fc_stats;
 	unsigned long now = jiffies;
-	struct mlx5_fc *counter;
+	struct mlx5_fc *counter = NULL;
+	struct mlx5_fc *last = NULL;
 	struct rb_node *node;
 	LIST_HEAD(tmplist);
-	int err = 0;
 
 	spin_lock(&fc_stats->addlist_lock);
 
@@ -115,12 +165,7 @@ static void mlx5_fc_stats_work(struct work_struct *work)
 
 	node = rb_first(&fc_stats->counters);
 	while (node) {
-		struct mlx5_fc_cache *c;
-		u64 packets;
-		u64 bytes;
-
 		counter = rb_entry(node, struct mlx5_fc, node);
-		c = &counter->cache;
 
 		node = rb_next(node);
 
@@ -133,26 +178,20 @@ static void mlx5_fc_stats_work(struct work_struct *work)
 			continue;
 		}
 
-		if (time_before(now, fc_stats->next_query))
-			continue;
-
-		err = mlx5_cmd_fc_query(dev, counter->id, &packets, &bytes);
-		if (err) {
-			pr_err("Error querying stats for counter id %d\n",
-			       counter->id);
-			continue;
-		}
-
-		if (packets == c->packets)
-			continue;
-
-		c->lastuse = jiffies;
-		c->packets = packets;
-		c->bytes   = bytes;
+		last = counter;
 	}
 
-	if (time_after_eq(now, fc_stats->next_query))
-		fc_stats->next_query = now + MLX5_FC_STATS_PERIOD;
+	if (time_before(now, fc_stats->next_query) || !last)
+		return;
+
+	node = rb_first(&fc_stats->counters);
+	while (node) {
+		counter = rb_entry(node, struct mlx5_fc, node);
+
+		node = mlx5_fc_stats_query(dev, counter, last->id);
+	}
+
+	fc_stats->next_query = now + MLX5_FC_STATS_PERIOD;
 }
 
 struct mlx5_fc *mlx5_fc_create(struct mlx5_core_dev *dev, bool aging)
