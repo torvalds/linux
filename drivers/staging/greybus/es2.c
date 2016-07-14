@@ -1127,7 +1127,7 @@ static struct arpc *arpc_find(struct es2_ap_dev *es2, u8 id)
 	struct arpc *rpc;
 
 	list_for_each_entry(rpc, &es2->arpcs, list) {
-		if (rpc->req->id == id)
+		if (le16_to_cpu(rpc->req->id) == id)
 			return rpc;
 	}
 
@@ -1137,7 +1137,7 @@ static struct arpc *arpc_find(struct es2_ap_dev *es2, u8 id)
 static void arpc_add(struct es2_ap_dev *es2, struct arpc *rpc)
 {
 	rpc->active = true;
-	rpc->req->id = (u16)(es2->arpc_id_cycle++);
+	rpc->req->id = cpu_to_le16(es2->arpc_id_cycle++);
 	list_add_tail(&es2->arpcs, &rpc->list);
 }
 
@@ -1159,9 +1159,9 @@ static int arpc_send(struct es2_ap_dev *es2, struct arpc *rpc, int timeout)
 				 USB_DIR_OUT | USB_TYPE_VENDOR |
 				 USB_RECIP_INTERFACE,
 				 0, 0,
-				 rpc->req, rpc->req->size,
+				 rpc->req, le16_to_cpu(rpc->req->size),
 				 ES2_TIMEOUT);
-	if (retval != rpc->req->size) {
+	if (retval != le16_to_cpu(rpc->req->size)) {
 		dev_err(&udev->dev,
 			"failed to send ARPC request %d: %d\n",
 			rpc->req->type, retval);
@@ -1250,7 +1250,7 @@ static void arpc_in_callback(struct urb *urb)
 
 	resp = urb->transfer_buffer;
 	spin_lock_irqsave(&es2->arpc_lock, flags);
-	rpc = arpc_find(es2, resp->id);
+	rpc = arpc_find(es2, le16_to_cpu(resp->id));
 	if (!rpc) {
 		dev_err(dev, "invalid arpc response id received: %d\n",
 			resp->id);
