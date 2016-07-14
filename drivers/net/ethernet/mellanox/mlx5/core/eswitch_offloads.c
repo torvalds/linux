@@ -43,6 +43,49 @@ enum {
 	FDB_SLOW_PATH
 };
 
+struct mlx5_flow_rule *
+mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
+				struct mlx5_flow_spec *spec,
+				u32 action, u32 src_vport, u32 dst_vport)
+{
+	struct mlx5_flow_destination dest = { 0 };
+	struct mlx5_fc *counter = NULL;
+	struct mlx5_flow_rule *rule;
+	void *misc;
+
+	if (esw->mode != SRIOV_OFFLOADS)
+		return ERR_PTR(-EOPNOTSUPP);
+
+	if (action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) {
+		dest.type = MLX5_FLOW_DESTINATION_TYPE_VPORT;
+		dest.vport_num = dst_vport;
+		action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
+	} else if (action & MLX5_FLOW_CONTEXT_ACTION_COUNT) {
+		counter = mlx5_fc_create(esw->dev, true);
+		if (IS_ERR(counter))
+			return ERR_CAST(counter);
+		dest.type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
+		dest.counter = counter;
+	}
+
+	misc = MLX5_ADDR_OF(fte_match_param, spec->match_value, misc_parameters);
+	MLX5_SET(fte_match_set_misc, misc, source_port, src_vport);
+
+	misc = MLX5_ADDR_OF(fte_match_param, spec->match_criteria, misc_parameters);
+	MLX5_SET_TO_ONES(fte_match_set_misc, misc, source_port);
+
+	spec->match_criteria_enable = MLX5_MATCH_OUTER_HEADERS |
+				      MLX5_MATCH_MISC_PARAMETERS;
+
+	rule = mlx5_add_flow_rule((struct mlx5_flow_table *)esw->fdb_table.fdb,
+				  spec, action, 0, &dest);
+
+	if (IS_ERR(rule))
+		mlx5_fc_destroy(esw->dev, counter);
+
+	return rule;
+}
+
 static struct mlx5_flow_rule *
 mlx5_eswitch_add_send_to_vport_rule(struct mlx5_eswitch *esw, int vport, u32 sqn)
 {
