@@ -11401,7 +11401,7 @@ static int ssd_init_irq(struct ssd_device *dev)
 	static int cpu_affinity = 0;
 #endif
 #if ((LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,35)) || (defined RHEL_MAJOR && RHEL_MAJOR == 6))
-	const struct cpumask *mask;
+	const struct cpumask *mask = NULL;
 	static int cpu = 0;
 	int j;
 #endif
