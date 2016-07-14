@@ -60,6 +60,9 @@
 #if (LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,17))
 #include <linux/devfs_fs_kernel.h>
 #endif
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,3,0))
+#define bio_endio(bio, errors) bio_endio(bio)
+#endif
 
 /* driver */
 #define MODULE_NAME		"hio"
