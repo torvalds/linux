@@ -367,6 +367,20 @@ options.
 'perf record --dry-run -e' can act as a BPF script compiler if llvm.dump-obj
 in config file is set to true.
 
+--overwrite::
+Makes all events use an overwritable ring buffer. An overwritable ring
+buffer works like a flight recorder: when it gets full, the kernel will
+overwrite the oldest records, that thus will never make it to the
+perf.data file.
+
+When '--overwrite' and '--switch-output' are used perf records and drops
+events until it receives a signal, meaning that something unusual was
+detected that warrants taking a snapshot of the most current events,
+those fitting in the ring buffer at that moment.
+
+'overwrite' attribute can also be set or canceled for an event using
+config terms. For example: 'cycles/overwrite/' and 'instructions/no-overwrite/'.
+
 SEE ALSO
 --------
 linkperf:perf-stat[1], linkperf:perf-list[1]

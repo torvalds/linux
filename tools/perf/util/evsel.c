@@ -695,6 +695,9 @@ static void apply_config_terms(struct perf_evsel *evsel,
 			 */
 			attr->inherit = term->val.inherit ? 1 : 0;
 			break;
+		case PERF_EVSEL__CONFIG_TERM_OVERWRITE:
+			attr->write_backward = term->val.overwrite ? 1 : 0;
+			break;
 		default:
 			break;
 		}
@@ -776,6 +779,7 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts,
 
 	attr->sample_id_all = perf_missing_features.sample_id_all ? 0 : 1;
 	attr->inherit	    = !opts->no_inherit;
+	attr->write_backward = opts->overwrite ? 1 : 0;
 
 	perf_evsel__set_sample_bit(evsel, IP);
 	perf_evsel__set_sample_bit(evsel, TID);
