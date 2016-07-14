@@ -1053,6 +1053,8 @@ static inline unsigned int ata_prot_flags(u8 prot)
 		return ATA_PROT_FLAG_DMA;
 	case ATA_PROT_NCQ:
 		return ATA_PROT_FLAG_DMA | ATA_PROT_FLAG_NCQ;
+	case ATA_PROT_NCQ_NODATA:
+		return ATA_PROT_FLAG_NCQ;
 	case ATAPI_PROT_NODATA:
 		return ATA_PROT_FLAG_ATAPI;
 	case ATAPI_PROT_PIO:

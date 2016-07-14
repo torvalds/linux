@@ -3082,6 +3082,9 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 		goto invalid_fld;
 	}
 
+	if (ata_is_ncq(tf->protocol) && (cdb[2] & 0x3) == 0)
+		tf->protocol = ATA_PROT_NCQ_NODATA;
+
 	/* enable LBA */
 	tf->flags |= ATA_TFLAG_LBA;
 
@@ -3548,7 +3551,7 @@ static unsigned int ata_scsi_zbc_out_xlat(struct ata_queued_cmd *qc)
 
 	if (ata_ncq_enabled(qc->dev) &&
 	    ata_fpdma_zac_mgmt_out_supported(qc->dev)) {
-		tf->protocol = ATA_PROT_NCQ;
+		tf->protocol = ATA_PROT_NCQ_NODATA;
 		tf->command = ATA_CMD_NCQ_NON_DATA;
 		tf->hob_nsect = ATA_SUBCMD_NCQ_NON_DATA_ZAC_MGMT_OUT;
 		tf->nsect = qc->tag << 3;

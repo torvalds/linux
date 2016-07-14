@@ -530,6 +530,7 @@ enum ata_tf_protocols {
 	ATA_PROT_PIO,		/* PIO data xfer */
 	ATA_PROT_DMA,		/* DMA */
 	ATA_PROT_NCQ,		/* NCQ */
+	ATA_PROT_NCQ_NODATA,	/* NCQ no data */
 	ATAPI_PROT_NODATA,	/* packet command, no data */
 	ATAPI_PROT_PIO,		/* packet command, PIO data xfer*/
 	ATAPI_PROT_DMA,		/* packet command with special DMA sauce */
