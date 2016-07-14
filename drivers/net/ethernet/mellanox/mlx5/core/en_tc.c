@@ -62,7 +62,7 @@ static struct mlx5_flow_rule *mlx5e_tc_add_flow(struct mlx5e_priv *priv,
 	if (action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) {
 		dest.type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
 		dest.ft = priv->fs.vlan.ft.t;
-	} else {
+	} else if (action & MLX5_FLOW_CONTEXT_ACTION_COUNT) {
 		counter = mlx5_fc_create(dev, true);
 		if (IS_ERR(counter))
 			return ERR_CAST(counter);
