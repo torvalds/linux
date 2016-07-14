@@ -1438,6 +1438,7 @@ static int f2fs_write_data_pages(struct address_space *mapping,
 {
 	struct inode *inode = mapping->host;
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+	struct blk_plug plug;
 	int ret;
 
 	/* deal with chardevs and other special file */
@@ -1463,7 +1464,9 @@ static int f2fs_write_data_pages(struct address_space *mapping,
 
 	trace_f2fs_writepages(mapping->host, wbc, DATA);
 
+	blk_start_plug(&plug);
 	ret = f2fs_write_cache_pages(mapping, wbc);
+	blk_finish_plug(&plug);
 	/*
 	 * if some pages were truncated, we cannot guarantee its mapping->host
 	 * to detect pending bios.

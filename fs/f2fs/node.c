@@ -1618,6 +1618,7 @@ static int f2fs_write_node_pages(struct address_space *mapping,
 			    struct writeback_control *wbc)
 {
 	struct f2fs_sb_info *sbi = F2FS_M_SB(mapping);
+	struct blk_plug plug;
 	long diff;
 
 	/* balancing f2fs's metadata in background */
@@ -1631,7 +1632,9 @@ static int f2fs_write_node_pages(struct address_space *mapping,
 
 	diff = nr_pages_to_write(sbi, NODE, wbc);
 	wbc->sync_mode = WB_SYNC_NONE;
+	blk_start_plug(&plug);
 	sync_node_pages(sbi, wbc);
+	blk_finish_plug(&plug);
 	wbc->nr_to_write = max((long)0, wbc->nr_to_write - diff);
 	return 0;
 

@@ -2102,6 +2102,7 @@ static ssize_t f2fs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
+	struct blk_plug plug;
 	ssize_t ret;
 
 	if (f2fs_encrypted_inode(inode) &&
@@ -2113,8 +2114,11 @@ static ssize_t f2fs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	ret = generic_write_checks(iocb, from);
 	if (ret > 0) {
 		ret = f2fs_preallocate_blocks(iocb, from);
-		if (!ret)
+		if (!ret) {
+			blk_start_plug(&plug);
 			ret = __generic_file_write_iter(iocb, from);
+			blk_finish_plug(&plug);
+		}
 	}
 	inode_unlock(inode);
 

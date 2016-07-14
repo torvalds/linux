@@ -808,6 +808,7 @@ static int do_garbage_collect(struct f2fs_sb_info *sbi,
 {
 	struct page *sum_page;
 	struct f2fs_summary_block *sum;
+	struct blk_plug plug;
 	unsigned int segno = start_segno;
 	unsigned int end_segno = start_segno + sbi->segs_per_sec;
 	int seg_freed = 0;
@@ -824,6 +825,8 @@ static int do_garbage_collect(struct f2fs_sb_info *sbi,
 		sum_page = get_sum_page(sbi, segno++);
 		unlock_page(sum_page);
 	}
+
+	blk_start_plug(&plug);
 
 	for (segno = start_segno; segno < end_segno; segno++) {
 
@@ -861,6 +864,8 @@ static int do_garbage_collect(struct f2fs_sb_info *sbi,
 	if (gc_type == FG_GC)
 		f2fs_submit_merged_bio(sbi,
 				(type == SUM_TYPE_NODE) ? NODE : DATA, WRITE);
+
+	blk_finish_plug(&plug);
 
 	if (gc_type == FG_GC) {
 		while (start_segno < end_segno)
