@@ -412,6 +412,13 @@ config EDAC_ALTERA_DMA
 	  Support for error detection and correction on the
 	  Altera DMA FIFO Memory for Altera SoCs.
 
+config EDAC_ALTERA_USB
+	bool "Altera USB FIFO ECC"
+	depends on EDAC_ALTERA=y && USB_DWC2
+	help
+	  Support for error detection and correction on the
+	  Altera USB FIFO Memory for Altera SoCs.
+
 config EDAC_SYNOPSYS
 	tristate "Synopsys DDR Memory Controller"
 	depends on EDAC_MM_EDAC && ARCH_ZYNQ
