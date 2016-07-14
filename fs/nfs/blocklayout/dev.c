@@ -89,7 +89,8 @@ nfs4_block_decode_volume(struct xdr_stream *xdr, struct pnfs_block_volume *b)
 			memcpy(&b->simple.sigs[i].sig, p,
 				b->simple.sigs[i].sig_len);
 
-			b->simple.len += 8 + 4 + b->simple.sigs[i].sig_len;
+			b->simple.len += 8 + 4 + \
+				(XDR_QUADLEN(b->simple.sigs[i].sig_len) << 2);
 		}
 		break;
 	case PNFS_BLOCK_VOLUME_SLICE:
