@@ -2607,9 +2607,12 @@ static void ata_eh_link_report(struct ata_link *link)
 				[DMA_FROM_DEVICE]	= "in",
 			};
 			static const char *prot_str[] = {
+				[ATA_PROT_UNKNOWN]	= "unknown",
+				[ATA_PROT_NODATA]	= "nodata",
 				[ATA_PROT_PIO]		= "pio",
 				[ATA_PROT_DMA]		= "dma",
 				[ATA_PROT_NCQ]		= "ncq",
+				[ATAPI_PROT_NODATA]	= "nodata",
 				[ATAPI_PROT_PIO]	= "pio",
 				[ATAPI_PROT_DMA]	= "dma",
 			};
