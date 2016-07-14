@@ -114,6 +114,9 @@ intel_th_output_assigned(struct intel_th_device *thdev)
  * @unassign:	deassociate an output type device from an output port
  * @enable:	enable tracing for a given output device
  * @disable:	disable tracing for a given output device
+ * @irq:	interrupt callback
+ * @activate:	enable tracing on the output's side
+ * @deactivate:	disable tracing on the output's side
  * @fops:	file operations for device nodes
  * @attr_group:	attributes provided by the driver
  *
