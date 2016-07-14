@@ -1238,7 +1238,7 @@
 		};
 	};
 
-	i2c@0 {
+	i2c-gpio-0 {
 		compatible = "i2c-gpio";
 		gpios = <&pioA 30 GPIO_ACTIVE_HIGH /* sda */
 			 &pioA 31 GPIO_ACTIVE_HIGH /* scl */
@@ -1253,7 +1253,7 @@
 		status = "disabled";
 	};
 
-	i2c@1 {
+	i2c-gpio-1 {
 		compatible = "i2c-gpio";
 		gpios = <&pioC 0 GPIO_ACTIVE_HIGH /* sda */
 			 &pioC 1 GPIO_ACTIVE_HIGH /* scl */
@@ -1268,7 +1268,7 @@
 		status = "disabled";
 	};
 
-	i2c@2 {
+	i2c-gpio-2 {
 		compatible = "i2c-gpio";
 		gpios = <&pioB 4 GPIO_ACTIVE_HIGH /* sda */
 			 &pioB 5 GPIO_ACTIVE_HIGH /* scl */

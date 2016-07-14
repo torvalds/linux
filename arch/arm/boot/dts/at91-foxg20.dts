@@ -125,7 +125,7 @@
 		};
 	};
 
-	i2c@0 {
+	i2c-gpio-0 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c0>;
 		i2c-gpio,delay-us = <5>;	/* ~85 kHz */

@@ -1316,7 +1316,7 @@
 		};
 	};
 
-	i2c@0 {
+	i2c-gpio-0 {
 		compatible = "i2c-gpio";
 		gpios = <&pioA 20 GPIO_ACTIVE_HIGH /* sda */
 			 &pioA 21 GPIO_ACTIVE_HIGH /* scl */

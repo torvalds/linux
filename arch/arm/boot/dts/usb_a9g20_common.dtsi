@@ -19,7 +19,7 @@
 		reg = <0x20000000 0x4000000>;
 	};
 
-	i2c@0 {
+	i2c-gpio-0 {
 		rv3029c2@56 {
 			compatible = "rv3029c2";
 			reg = <0x56>;
