@@ -28,7 +28,6 @@
 #include <linux/err.h>
 
 static void perf_evlist__mmap_put(struct perf_evlist *evlist, int idx);
-static void __perf_evlist__munmap(struct perf_evlist *evlist, int idx);
 static void perf_mmap__munmap(struct perf_mmap *map);
 static void perf_mmap__put(struct perf_mmap *map);
 
@@ -970,12 +969,7 @@ static void perf_mmap__munmap(struct perf_mmap *map)
 	auxtrace_mmap__munmap(&map->auxtrace_mmap);
 }
 
-static void __perf_evlist__munmap(struct perf_evlist *evlist, int idx)
-{
-	perf_mmap__munmap(&evlist->mmap[idx]);
-}
-
-void perf_evlist__munmap(struct perf_evlist *evlist)
+static void perf_evlist__munmap_nofree(struct perf_evlist *evlist)
 {
 	int i;
 
@@ -983,8 +977,12 @@ void perf_evlist__munmap(struct perf_evlist *evlist)
 		return;
 
 	for (i = 0; i < evlist->nr_mmaps; i++)
-		__perf_evlist__munmap(evlist, i);
+		perf_mmap__munmap(&evlist->mmap[i]);
+}
 
+void perf_evlist__munmap(struct perf_evlist *evlist)
+{
+	perf_evlist__munmap_nofree(evlist);
 	zfree(&evlist->mmap);
 }
 
@@ -1142,8 +1140,7 @@ static int perf_evlist__mmap_per_cpu(struct perf_evlist *evlist,
 	return 0;
 
 out_unmap:
-	for (cpu = 0; cpu < nr_cpus; cpu++)
-		__perf_evlist__munmap(evlist, cpu);
+	perf_evlist__munmap_nofree(evlist);
 	return -1;
 }
 
@@ -1168,8 +1165,7 @@ static int perf_evlist__mmap_per_thread(struct perf_evlist *evlist,
 	return 0;
 
 out_unmap:
-	for (thread = 0; thread < nr_threads; thread++)
-		__perf_evlist__munmap(evlist, thread);
+	perf_evlist__munmap_nofree(evlist);
 	return -1;
 }
 
