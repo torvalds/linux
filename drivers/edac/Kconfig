@@ -419,6 +419,13 @@ config EDAC_ALTERA_USB
 	  Support for error detection and correction on the
 	  Altera USB FIFO Memory for Altera SoCs.
 
+config EDAC_ALTERA_QSPI
+	bool "Altera QSPI FIFO ECC"
+	depends on EDAC_ALTERA=y && SPI_CADENCE_QUADSPI
+	help
+	  Support for error detection and correction on the
+	  Altera QSPI FIFO Memory for Altera SoCs.
+
 config EDAC_SYNOPSYS
 	tristate "Synopsys DDR Memory Controller"
 	depends on EDAC_MM_EDAC && ARCH_ZYNQ

@@ -1366,6 +1366,33 @@ early_initcall(socfpga_init_usb_ecc);
 
 #endif	/* CONFIG_EDAC_ALTERA_USB */
 
+/********************** QSPI Device Functions **********************/
+
+#ifdef CONFIG_EDAC_ALTERA_QSPI
+
+static const struct edac_device_prv_data a10_qspiecc_data = {
+	.setup = altr_check_ecc_deps,
+	.ce_clear_mask = ALTR_A10_ECC_SERRPENA,
+	.ue_clear_mask = ALTR_A10_ECC_DERRPENA,
+	.dbgfs_name = "altr_trigger",
+	.ecc_enable_mask = ALTR_A10_COMMON_ECC_EN_CTL,
+	.ecc_en_ofst = ALTR_A10_ECC_CTRL_OFST,
+	.ce_set_mask = ALTR_A10_ECC_TSERRA,
+	.ue_set_mask = ALTR_A10_ECC_TDERRA,
+	.set_err_ofst = ALTR_A10_ECC_INTTEST_OFST,
+	.ecc_irq_handler = altr_edac_a10_ecc_irq,
+	.inject_fops = &altr_edac_a10_device_inject_fops,
+};
+
+static int __init socfpga_init_qspi_ecc(void)
+{
+	return altr_init_a10_ecc_device_type("altr,socfpga-qspi-ecc");
+}
+
+early_initcall(socfpga_init_qspi_ecc);
+
+#endif	/* CONFIG_EDAC_ALTERA_QSPI */
+
 /********************* Arria10 EDAC Device Functions *************************/
 static const struct of_device_id altr_edac_a10_device_of_match[] = {
 #ifdef CONFIG_EDAC_ALTERA_L2C
@@ -1387,6 +1414,9 @@ static const struct of_device_id altr_edac_a10_device_of_match[] = {
 #endif
 #ifdef CONFIG_EDAC_ALTERA_USB
 	{ .compatible = "altr,socfpga-usb-ecc", .data = &a10_usbecc_data },
+#endif
+#ifdef CONFIG_EDAC_ALTERA_QSPI
+	{ .compatible = "altr,socfpga-qspi-ecc", .data = &a10_qspiecc_data },
 #endif
 	{},
 };
@@ -1680,7 +1710,8 @@ static int altr_edac_a10_probe(struct platform_device *pdev)
 		    of_device_is_compatible(child, "altr,socfpga-eth-mac-ecc") ||
 		    of_device_is_compatible(child, "altr,socfpga-nand-ecc") ||
 		    of_device_is_compatible(child, "altr,socfpga-dma-ecc") ||
-		    of_device_is_compatible(child, "altr,socfpga-usb-ecc"))
+		    of_device_is_compatible(child, "altr,socfpga-usb-ecc") ||
+		    of_device_is_compatible(child, "altr,socfpga-qspi-ecc"))
 
 			altr_edac_a10_device_add(edac, child);
 
