@@ -771,6 +771,16 @@ static void gb_tty_dtr_rts(struct tty_port *port, int on)
 	send_control(gb_tty, newctrl);
 }
 
+static int gb_tty_port_activate(struct tty_port *port,
+				struct tty_struct *tty)
+{
+	struct gb_tty *gb_tty;
+
+	gb_tty = container_of(port, struct gb_tty, port);
+
+	return gbphy_runtime_get_sync(gb_tty->gbphy_dev);
+}
+
 static void gb_tty_port_shutdown(struct tty_port *port)
 {
 	struct gb_tty *gb_tty;
@@ -800,6 +810,8 @@ static void gb_tty_port_shutdown(struct tty_port *port)
 
 out:
 	gb_tty->close_pending = false;
+
+	gbphy_runtime_put_autosuspend(gb_tty->gbphy_dev);
 }
 
 static const struct tty_operations gb_ops = {
@@ -822,6 +834,7 @@ static const struct tty_operations gb_ops = {
 
 static struct tty_port_operations gb_port_ops = {
 	.dtr_rts =		gb_tty_dtr_rts,
+	.activate =		gb_tty_port_activate,
 	.shutdown =		gb_tty_port_shutdown,
 };
 
@@ -922,6 +935,7 @@ static int gb_uart_probe(struct gbphy_device *gbphy_dev,
 		goto exit_connection_disable;
 	}
 
+	gbphy_runtime_put_autosuspend(gbphy_dev);
 	return 0;
 
 exit_connection_disable:
@@ -945,6 +959,11 @@ static void gb_uart_remove(struct gbphy_device *gbphy_dev)
 	struct gb_tty *gb_tty = gb_gbphy_get_data(gbphy_dev);
 	struct gb_connection *connection = gb_tty->connection;
 	struct tty_struct *tty;
+	int ret;
+
+	ret = gbphy_runtime_get_sync(gbphy_dev);
+	if (ret)
+		gbphy_runtime_get_noresume(gbphy_dev);
 
 	mutex_lock(&gb_tty->mutex);
 	gb_tty->disconnected = true;
