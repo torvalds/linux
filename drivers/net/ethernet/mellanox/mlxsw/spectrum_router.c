@@ -1803,7 +1803,7 @@ int mlxsw_sp_router_fib4_del(struct mlxsw_sp_port *mlxsw_sp_port,
 					      sizeof(fib4->dst), fib4->dst_len);
 	if (!fib_entry) {
 		dev_warn(mlxsw_sp->bus_info->dev, "Failed to find FIB4 entry being removed.\n");
-		return PTR_ERR(vr);
+		return -ENOENT;
 	}
 	mlxsw_sp_fib_entry_del(mlxsw_sp_port->mlxsw_sp, fib_entry);
 	mlxsw_sp_fib_entry_remove(vr->fib, fib_entry);
