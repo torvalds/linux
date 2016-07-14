@@ -551,6 +551,13 @@ static void rds_tcp_kill_sock(struct net *net)
 	}
 }
 
+void *rds_tcp_listen_sock_def_readable(struct net *net)
+{
+	struct rds_tcp_net *rtn = net_generic(net, rds_tcp_netid);
+
+	return rtn->rds_tcp_listen_sock->sk->sk_user_data;
+}
+
 static int rds_tcp_dev_event(struct notifier_block *this,
 			     unsigned long event, void *ptr)
 {

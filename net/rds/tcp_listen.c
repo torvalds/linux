@@ -183,6 +183,8 @@ void rds_tcp_listen_data_ready(struct sock *sk)
 	 */
 	if (sk->sk_state == TCP_LISTEN)
 		rds_tcp_accept_work(sk);
+	else
+		ready = rds_tcp_listen_sock_def_readable(sock_net(sk));
 
 out:
 	read_unlock_bh(&sk->sk_callback_lock);
