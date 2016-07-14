@@ -1232,7 +1232,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 				goto unreg_dev;
 			}
 			bus_cnt++;
-			if (bus_cnt <= in_type_counter[HDMI])
+			if (bus_cnt <= out_type_counter[HDMI])
 				cec_s_phys_addr(adap, bus_cnt << 12, false);
 			else
 				cec_s_phys_addr(adap, 0x1000, false);
