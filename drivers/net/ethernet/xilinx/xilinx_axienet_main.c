@@ -525,7 +525,7 @@ static void axienet_adjust_link(struct net_device *ndev)
 	u32 link_state;
 	u32 setspeed = 1;
 	struct axienet_local *lp = netdev_priv(ndev);
-	struct phy_device *phy = lp->phy_dev;
+	struct phy_device *phy = ndev->phydev;
 
 	link_state = phy->speed | (phy->duplex << 1) | phy->link;
 	if (lp->last_link != link_state) {
@@ -911,6 +911,7 @@ static int axienet_open(struct net_device *ndev)
 {
 	int ret, mdio_mcreg;
 	struct axienet_local *lp = netdev_priv(ndev);
+	struct phy_device *phydev = NULL;
 
 	dev_dbg(&ndev->dev, "axienet_open()\n");
 
@@ -934,19 +935,19 @@ static int axienet_open(struct net_device *ndev)
 
 	if (lp->phy_node) {
 		if (lp->phy_type == XAE_PHY_TYPE_GMII) {
-			lp->phy_dev = of_phy_connect(lp->ndev, lp->phy_node,
-					     axienet_adjust_link, 0,
-					     PHY_INTERFACE_MODE_GMII);
+			phydev = of_phy_connect(lp->ndev, lp->phy_node,
+						axienet_adjust_link, 0,
+						PHY_INTERFACE_MODE_GMII);
 		} else if (lp->phy_type == XAE_PHY_TYPE_RGMII_2_0) {
-			lp->phy_dev = of_phy_connect(lp->ndev, lp->phy_node,
-					     axienet_adjust_link, 0,
-					     PHY_INTERFACE_MODE_RGMII_ID);
+			phydev = of_phy_connect(lp->ndev, lp->phy_node,
+						axienet_adjust_link, 0,
+						PHY_INTERFACE_MODE_RGMII_ID);
 		}
 
-		if (!lp->phy_dev)
+		if (!phydev)
 			dev_err(lp->dev, "of_phy_connect() failed\n");
 		else
-			phy_start(lp->phy_dev);
+			phy_start(phydev);
 	}
 
 	/* Enable tasklets for Axi DMA error handling */
@@ -967,9 +968,8 @@ static int axienet_open(struct net_device *ndev)
 err_rx_irq:
 	free_irq(lp->tx_irq, ndev);
 err_tx_irq:
-	if (lp->phy_dev)
-		phy_disconnect(lp->phy_dev);
-	lp->phy_dev = NULL;
+	if (phydev)
+		phy_disconnect(phydev);
 	tasklet_kill(&lp->dma_err_tasklet);
 	dev_err(lp->dev, "request_irq() failed\n");
 	return ret;
@@ -1006,9 +1006,8 @@ static int axienet_stop(struct net_device *ndev)
 	free_irq(lp->tx_irq, ndev);
 	free_irq(lp->rx_irq, ndev);
 
-	if (lp->phy_dev)
-		phy_disconnect(lp->phy_dev);
-	lp->phy_dev = NULL;
+	if (ndev->phydev)
+		phy_disconnect(ndev->phydev);
 
 	axienet_dma_bd_release(ndev);
 	return 0;
@@ -1092,8 +1091,7 @@ static const struct net_device_ops axienet_netdev_ops = {
 static int axienet_ethtools_get_settings(struct net_device *ndev,
 					 struct ethtool_cmd *ecmd)
 {
-	struct axienet_local *lp = netdev_priv(ndev);
-	struct phy_device *phydev = lp->phy_dev;
+	struct phy_device *phydev = ndev->phydev;
 	if (!phydev)
 		return -ENODEV;
 	return phy_ethtool_gset(phydev, ecmd);
@@ -1115,8 +1113,7 @@ static int axienet_ethtools_get_settings(struct net_device *ndev,
 static int axienet_ethtools_set_settings(struct net_device *ndev,
 					 struct ethtool_cmd *ecmd)
 {
-	struct axienet_local *lp = netdev_priv(ndev);
-	struct phy_device *phydev = lp->phy_dev;
+	struct phy_device *phydev = ndev->phydev;
 	if (!phydev)
 		return -ENODEV;
 	return phy_ethtool_sset(phydev, ecmd);
