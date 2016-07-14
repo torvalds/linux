@@ -313,6 +313,11 @@ static inline bool led_sysfs_is_disabled(struct led_classdev *led_cdev)
 #define SPI_NOR_MODALIAS "m25p80"
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 12, 0)
+/* Starting from this version, the spi core handles runtime pm automatically */
+#define SPI_CORE_SUPPORT_PM
+#endif
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 13, 0)
 /**
  * reinit_completion - reinitialize a completion structure

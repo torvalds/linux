@@ -15,6 +15,7 @@
 
 #include "greybus.h"
 #include "spilib.h"
+#include "gbphy.h"
 
 struct gb_spilib {
 	struct gb_connection	*connection;
@@ -372,6 +373,26 @@ out:
 	return ret;
 }
 
+#ifndef SPI_CORE_SUPPORT_PM
+static int gb_spi_prepare_transfer_hardware(struct spi_master *master)
+{
+	struct gb_spilib *spi = spi_master_get_devdata(master);
+	struct gbphy_device *gbphy_dev = to_gbphy_dev(spi->parent);
+
+	return gbphy_runtime_get_sync(gbphy_dev);
+}
+
+static int gb_spi_unprepare_transfer_hardware(struct spi_master *master)
+{
+	struct gb_spilib *spi = spi_master_get_devdata(master);
+	struct gbphy_device *gbphy_dev = to_gbphy_dev(spi->parent);
+
+	gbphy_runtime_put_autosuspend(gbphy_dev);
+
+	return 0;
+}
+#endif
+
 static int gb_spi_setup(struct spi_device *spi)
 {
 	/* Nothing to do for now */
@@ -496,6 +517,14 @@ int gb_spilib_master_init(struct gb_connection *connection, struct device *dev)
 	master->cleanup = gb_spi_cleanup;
 	master->setup = gb_spi_setup;
 	master->transfer_one_message = gb_spi_transfer_one_message;
+
+#ifndef SPI_CORE_SUPPORT_PM
+	master->prepare_transfer_hardware = gb_spi_prepare_transfer_hardware;
+	master->unprepare_transfer_hardware =
+			gb_spi_unprepare_transfer_hardware;
+#else
+	master->auto_runtime_pm = true;
+#endif
 
 	ret = spi_register_master(master);
 	if (ret < 0)

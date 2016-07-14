@@ -35,6 +35,7 @@ static int gb_spi_probe(struct gbphy_device *gbphy_dev,
 
 	gb_gbphy_set_data(gbphy_dev, connection);
 
+	gbphy_runtime_put_autosuspend(gbphy_dev);
 	return 0;
 
 exit_connection_disable:
@@ -48,6 +49,11 @@ exit_connection_destroy:
 static void gb_spi_remove(struct gbphy_device *gbphy_dev)
 {
 	struct gb_connection *connection = gb_gbphy_get_data(gbphy_dev);
+	int ret;
+
+	ret = gbphy_runtime_get_sync(gbphy_dev);
+	if (ret)
+		gbphy_runtime_get_noresume(gbphy_dev);
 
 	gb_spilib_master_exit(connection);
 	gb_connection_disable(connection);
