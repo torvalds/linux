@@ -134,10 +134,10 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 	struct net_bridge_port *p = br_port_get_rcu(skb->dev);
 	const unsigned char *dest = eth_hdr(skb)->h_dest;
 	struct net_bridge_fdb_entry *dst = NULL;
+	bool mcast_hit = false, unicast = true;
 	struct net_bridge_mdb_entry *mdst;
 	struct net_bridge *br;
 	struct sk_buff *skb2;
-	bool unicast = true;
 	u16 vid = 0;
 
 	if (!p || p->state == BR_STATE_DISABLED)
@@ -177,30 +177,29 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 		if ((mdst || BR_INPUT_SKB_CB_MROUTERS_ONLY(skb)) &&
 		    br_multicast_querier_exists(br, eth_hdr(skb))) {
 			if ((mdst && mdst->mglist) ||
-			    br_multicast_is_router(br))
+			    br_multicast_is_router(br)) {
 				skb2 = skb;
-			br_multicast_forward(mdst, skb, skb2);
-			skb = NULL;
-			if (!skb2)
-				goto out;
+				br->dev->stats.multicast++;
+			}
+			mcast_hit = true;
 		} else {
 			skb2 = skb;
+			br->dev->stats.multicast++;
 		}
 		unicast = false;
-		br->dev->stats.multicast++;
 	} else if ((dst = __br_fdb_get(br, dest, vid)) && dst->is_local) {
-		skb2 = skb;
 		/* Do not forward the packet since it's local. */
-		skb = NULL;
+		return br_pass_frame_up(skb);
 	}
 
-	if (skb) {
-		if (dst) {
-			dst->used = jiffies;
-			br_forward(dst->dst, skb, skb2);
-		} else {
+	if (dst) {
+		dst->used = jiffies;
+		br_forward(dst->dst, skb, skb2);
+	} else {
+		if (!mcast_hit)
 			br_flood_forward(br, skb, skb2, unicast);
-		}
+		else
+			br_multicast_forward(mdst, skb, skb2);
 	}
 
 	if (skb2)
