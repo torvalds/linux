@@ -65,8 +65,8 @@ nfs4_block_decode_volume(struct xdr_stream *xdr, struct pnfs_block_volume *b)
 		if (!p)
 			return -EIO;
 		b->simple.nr_sigs = be32_to_cpup(p++);
-		if (!b->simple.nr_sigs) {
-			dprintk("no signature\n");
+		if (!b->simple.nr_sigs || b->simple.nr_sigs > PNFS_BLOCK_MAX_UUIDS) {
+			dprintk("Bad signature count: %d\n", b->simple.nr_sigs);
 			return -EIO;
 		}
 
@@ -105,7 +105,12 @@ nfs4_block_decode_volume(struct xdr_stream *xdr, struct pnfs_block_volume *b)
 		p = xdr_inline_decode(xdr, 4);
 		if (!p)
 			return -EIO;
+
 		b->concat.volumes_count = be32_to_cpup(p++);
+		if (b->concat.volumes_count > PNFS_BLOCK_MAX_DEVICES) {
+			dprintk("Too many volumes: %d\n", b->concat.volumes_count);
+			return -EIO;
+		}
 
 		p = xdr_inline_decode(xdr, b->concat.volumes_count * 4);
 		if (!p)
@@ -117,8 +122,13 @@ nfs4_block_decode_volume(struct xdr_stream *xdr, struct pnfs_block_volume *b)
 		p = xdr_inline_decode(xdr, 8 + 4);
 		if (!p)
 			return -EIO;
+
 		p = xdr_decode_hyper(p, &b->stripe.chunk_size);
 		b->stripe.volumes_count = be32_to_cpup(p++);
+		if (b->stripe.volumes_count > PNFS_BLOCK_MAX_DEVICES) {
+			dprintk("Too many volumes: %d\n", b->stripe.volumes_count);
+			return -EIO;
+		}
 
 		p = xdr_inline_decode(xdr, b->stripe.volumes_count * 4);
 		if (!p)
