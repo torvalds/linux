@@ -44,7 +44,6 @@ void perf_evlist__init(struct perf_evlist *evlist, struct cpu_map *cpus,
 	perf_evlist__set_maps(evlist, cpus, threads);
 	fdarray__init(&evlist->pollfd, 64);
 	evlist->workload.pid = -1;
-	evlist->backward = false;
 }
 
 struct perf_evlist *perf_evlist__new(void)
@@ -867,9 +866,7 @@ union perf_event *perf_evlist__mmap_read_backward(struct perf_evlist *evlist, in
 
 union perf_event *perf_evlist__mmap_read(struct perf_evlist *evlist, int idx)
 {
-	if (!evlist->backward)
-		return perf_evlist__mmap_read_forward(evlist, idx);
-	return perf_evlist__mmap_read_backward(evlist, idx);
+	return perf_evlist__mmap_read_forward(evlist, idx);
 }
 
 void perf_mmap__read_catchup(struct perf_mmap *md)

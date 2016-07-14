@@ -101,7 +101,6 @@ int test__backward_ring_buffer(int subtest __maybe_unused)
 		return TEST_FAIL;
 	}
 
-	evlist->backward = true;
 	err = perf_evlist__create_maps(evlist, &opts.target);
 	if (err < 0) {
 		pr_debug("Not enough memory to create thread/cpu maps\n");
