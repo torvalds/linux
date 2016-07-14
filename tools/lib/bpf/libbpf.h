@@ -39,6 +39,7 @@ enum libbpf_errno {
 	LIBBPF_ERRNO__VERIFY,	/* Kernel verifier blocks program loading */
 	LIBBPF_ERRNO__PROG2BIG,	/* Program too big */
 	LIBBPF_ERRNO__KVER,	/* Incorrect kernel version */
+	LIBBPF_ERRNO__PROGTYPE,	/* Kernel doesn't support this program type */
 	__LIBBPF_ERRNO__END,
 };
 
@@ -163,6 +164,15 @@ int bpf_program__set_prep(struct bpf_program *prog, int nr_instance,
 			  bpf_program_prep_t prep);
 
 int bpf_program__nth_fd(struct bpf_program *prog, int n);
+
+/*
+ * Adjust type of bpf program. Default is kprobe.
+ */
+int bpf_program__set_tracepoint(struct bpf_program *prog);
+int bpf_program__set_kprobe(struct bpf_program *prog);
+
+bool bpf_program__is_tracepoint(struct bpf_program *prog);
+bool bpf_program__is_kprobe(struct bpf_program *prog);
 
 /*
  * We don't need __attribute__((packed)) now since it is

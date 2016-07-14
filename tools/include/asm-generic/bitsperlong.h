@@ -3,6 +3,24 @@
 
 #include <uapi/asm-generic/bitsperlong.h>
 
+/*
+ * In the kernel, where this file comes from, we can rely on CONFIG_64BIT,
+ * here we have to make amends with what the various compilers provides us
+ * to figure out if we're on a 64-bit machine...
+ */
+#ifdef __SIZEOF_LONG__
+# if __SIZEOF_LONG__ == 8
+#  define CONFIG_64BIT
+# endif
+#else
+# ifdef __WORDSIZE
+#  if __WORDSIZE == 64
+#   define CONFIG_64BIT
+#  endif
+# else
+#  error Failed to determine BITS_PER_LONG value
+# endif
+#endif
 
 #ifdef CONFIG_64BIT
 #define BITS_PER_LONG 64
@@ -10,11 +28,7 @@
 #define BITS_PER_LONG 32
 #endif /* CONFIG_64BIT */
 
-/*
- * FIXME: The check currently breaks x86-64 build, so it's
- * temporarily disabled. Please fix x86-64 and reenable
- */
-#if 0 && BITS_PER_LONG != __BITS_PER_LONG
+#if BITS_PER_LONG != __BITS_PER_LONG
 #error Inconsistent word size. Check asm/bitsperlong.h
 #endif
 

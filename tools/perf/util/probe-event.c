@@ -1197,6 +1197,34 @@ err:
 	return err;
 }
 
+static int parse_perf_probe_event_name(char **arg, struct perf_probe_event *pev)
+{
+	char *ptr;
+
+	ptr = strchr(*arg, ':');
+	if (ptr) {
+		*ptr = '\0';
+		if (!pev->sdt && !is_c_func_name(*arg))
+			goto ng_name;
+		pev->group = strdup(*arg);
+		if (!pev->group)
+			return -ENOMEM;
+		*arg = ptr + 1;
+	} else
+		pev->group = NULL;
+	if (!pev->sdt && !is_c_func_name(*arg)) {
+ng_name:
+		semantic_error("%s is bad for event name -it must "
+			       "follow C symbol-naming rule.\n", *arg);
+		return -EINVAL;
+	}
+	pev->event = strdup(*arg);
+	if (pev->event == NULL)
+		return -ENOMEM;
+
+	return 0;
+}
+
 /* Parse probepoint definition. */
 static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 {
@@ -1204,38 +1232,64 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 	char *ptr, *tmp;
 	char c, nc = 0;
 	bool file_spec = false;
+	int ret;
+
 	/*
 	 * <Syntax>
 	 * perf probe [GRP:][EVENT=]SRC[:LN|;PTN]
 	 * perf probe [GRP:][EVENT=]FUNC[@SRC][+OFFS|%return|:LN|;PAT]
+	 * perf probe %[GRP:]SDT_EVENT
 	 */
 	if (!arg)
 		return -EINVAL;
 
+	/*
+	 * If the probe point starts with '%',
+	 * or starts with "sdt_" and has a ':' but no '=',
+	 * then it should be a SDT/cached probe point.
+	 */
+	if (arg[0] == '%' ||
+	    (!strncmp(arg, "sdt_", 4) &&
+	     !!strchr(arg, ':') && !strchr(arg, '='))) {
+		pev->sdt = true;
+		if (arg[0] == '%')
+			arg++;
+	}
+
 	ptr = strpbrk(arg, ";=@+%");
+	if (pev->sdt) {
+		if (ptr) {
+			if (*ptr != '@') {
+				semantic_error("%s must be an SDT name.\n",
+					       arg);
+				return -EINVAL;
+			}
+			/* This must be a target file name or build id */
+			tmp = build_id_cache__complement(ptr + 1);
+			if (tmp) {
+				pev->target = build_id_cache__origname(tmp);
+				free(tmp);
+			} else
+				pev->target = strdup(ptr + 1);
+			if (!pev->target)
+				return -ENOMEM;
+			*ptr = '\0';
+		}
+		ret = parse_perf_probe_event_name(&arg, pev);
+		if (ret == 0) {
+			if (asprintf(&pev->point.function, "%%%s", pev->event) < 0)
+				ret = -errno;
+		}
+		return ret;
+	}
+
 	if (ptr && *ptr == '=') {	/* Event name */
 		*ptr = '\0';
 		tmp = ptr + 1;
-		ptr = strchr(arg, ':');
-		if (ptr) {
-			*ptr = '\0';
-			if (!is_c_func_name(arg))
-				goto not_fname;
-			pev->group = strdup(arg);
-			if (!pev->group)
-				return -ENOMEM;
-			arg = ptr + 1;
-		} else
-			pev->group = NULL;
-		if (!is_c_func_name(arg)) {
-not_fname:
-			semantic_error("%s is bad for event name -it must "
-				       "follow C symbol-naming rule.\n", arg);
-			return -EINVAL;
-		}
-		pev->event = strdup(arg);
-		if (pev->event == NULL)
-			return -ENOMEM;
+		ret = parse_perf_probe_event_name(&arg, pev);
+		if (ret < 0)
+			return ret;
+
 		arg = tmp;
 	}
 
@@ -1547,7 +1601,9 @@ bool perf_probe_event_need_dwarf(struct perf_probe_event *pev)
 		return true;
 
 	for (i = 0; i < pev->nargs; i++)
-		if (is_c_varname(pev->args[i].var))
+		if (is_c_varname(pev->args[i].var) ||
+		    !strcmp(pev->args[i].var, "$params") ||
+		    !strcmp(pev->args[i].var, "$vars"))
 			return true;
 
 	return false;
@@ -1609,6 +1665,7 @@ int parse_probe_trace_command(const char *cmd, struct probe_trace_event *tev)
 			ret = -ENOMEM;
 			goto out;
 		}
+		tev->uprobes = (tp->module[0] == '/');
 		p++;
 	} else
 		p = argv[1];
@@ -2483,7 +2540,7 @@ static int probe_trace_event__set_name(struct probe_trace_event *tev,
 	int ret;
 
 	/* If probe_event or trace_event already have the name, reuse it */
-	if (pev->event)
+	if (pev->event && !pev->sdt)
 		event = pev->event;
 	else if (tev->event)
 		event = tev->event;
@@ -2496,7 +2553,7 @@ static int probe_trace_event__set_name(struct probe_trace_event *tev,
 		else
 			event = tev->point.realname;
 	}
-	if (pev->group)
+	if (pev->group && !pev->sdt)
 		group = pev->group;
 	else if (tev->group)
 		group = tev->group;
@@ -2521,41 +2578,60 @@ static int probe_trace_event__set_name(struct probe_trace_event *tev,
 	return 0;
 }
 
-static int __add_probe_trace_events(struct perf_probe_event *pev,
-				     struct probe_trace_event *tevs,
-				     int ntevs, bool allow_suffix)
+static int __open_probe_file_and_namelist(bool uprobe,
+					  struct strlist **namelist)
 {
-	int i, fd, ret;
-	struct probe_trace_event *tev = NULL;
-	struct probe_cache *cache = NULL;
-	struct strlist *namelist;
+	int fd;
 
-	fd = probe_file__open(PF_FL_RW | (pev->uprobes ? PF_FL_UPROBE : 0));
+	fd = probe_file__open(PF_FL_RW | (uprobe ? PF_FL_UPROBE : 0));
 	if (fd < 0)
 		return fd;
 
 	/* Get current event names */
-	namelist = probe_file__get_namelist(fd);
-	if (!namelist) {
+	*namelist = probe_file__get_namelist(fd);
+	if (!(*namelist)) {
 		pr_debug("Failed to get current event list.\n");
-		ret = -ENOMEM;
-		goto close_out;
+		close(fd);
+		return -ENOMEM;
 	}
+	return fd;
+}
+
+static int __add_probe_trace_events(struct perf_probe_event *pev,
+				     struct probe_trace_event *tevs,
+				     int ntevs, bool allow_suffix)
+{
+	int i, fd[2] = {-1, -1}, up, ret;
+	struct probe_trace_event *tev = NULL;
+	struct probe_cache *cache = NULL;
+	struct strlist *namelist[2] = {NULL, NULL};
+
+	up = pev->uprobes ? 1 : 0;
+	fd[up] = __open_probe_file_and_namelist(up, &namelist[up]);
+	if (fd[up] < 0)
+		return fd[up];
 
 	ret = 0;
 	for (i = 0; i < ntevs; i++) {
 		tev = &tevs[i];
+		up = tev->uprobes ? 1 : 0;
+		if (fd[up] == -1) {	/* Open the kprobe/uprobe_events */
+			fd[up] = __open_probe_file_and_namelist(up,
+								&namelist[up]);
+			if (fd[up] < 0)
+				goto close_out;
+		}
 		/* Skip if the symbol is out of .text or blacklisted */
 		if (!tev->point.symbol && !pev->uprobes)
 			continue;
 
 		/* Set new name for tev (and update namelist) */
-		ret = probe_trace_event__set_name(tev, pev, namelist,
+		ret = probe_trace_event__set_name(tev, pev, namelist[up],
 						  allow_suffix);
 		if (ret < 0)
 			break;
 
-		ret = probe_file__add_event(fd, tev);
+		ret = probe_file__add_event(fd[up], tev);
 		if (ret < 0)
 			break;
 
@@ -2578,9 +2654,12 @@ static int __add_probe_trace_events(struct perf_probe_event *pev,
 		probe_cache__delete(cache);
 	}
 
-	strlist__delete(namelist);
 close_out:
-	close(fd);
+	for (up = 0; up < 2; up++) {
+		strlist__delete(namelist[up]);
+		if (fd[up] >= 0)
+			close(fd[up]);
+	}
 	return ret;
 }
 
@@ -2859,6 +2938,142 @@ errout:
 
 bool __weak arch__prefers_symtab(void) { return false; }
 
+/* Concatinate two arrays */
+static void *memcat(void *a, size_t sz_a, void *b, size_t sz_b)
+{
+	void *ret;
+
+	ret = malloc(sz_a + sz_b);
+	if (ret) {
+		memcpy(ret, a, sz_a);
+		memcpy(ret + sz_a, b, sz_b);
+	}
+	return ret;
+}
+
+static int
+concat_probe_trace_events(struct probe_trace_event **tevs, int *ntevs,
+			  struct probe_trace_event **tevs2, int ntevs2)
+{
+	struct probe_trace_event *new_tevs;
+	int ret = 0;
+
+	if (ntevs == 0) {
+		*tevs = *tevs2;
+		*ntevs = ntevs2;
+		*tevs2 = NULL;
+		return 0;
+	}
+
+	if (*ntevs + ntevs2 > probe_conf.max_probes)
+		ret = -E2BIG;
+	else {
+		/* Concatinate the array of probe_trace_event */
+		new_tevs = memcat(*tevs, (*ntevs) * sizeof(**tevs),
+				  *tevs2, ntevs2 * sizeof(**tevs2));
+		if (!new_tevs)
+			ret = -ENOMEM;
+		else {
+			free(*tevs);
+			*tevs = new_tevs;
+			*ntevs += ntevs2;
+		}
+	}
+	if (ret < 0)
+		clear_probe_trace_events(*tevs2, ntevs2);
+	zfree(tevs2);
+
+	return ret;
+}
+
+/*
+ * Try to find probe_trace_event from given probe caches. Return the number
+ * of cached events found, if an error occurs return the error.
+ */
+static int find_cached_events(struct perf_probe_event *pev,
+			      struct probe_trace_event **tevs,
+			      const char *target)
+{
+	struct probe_cache *cache;
+	struct probe_cache_entry *entry;
+	struct probe_trace_event *tmp_tevs = NULL;
+	int ntevs = 0;
+	int ret = 0;
+
+	cache = probe_cache__new(target);
+	/* Return 0 ("not found") if the target has no probe cache. */
+	if (!cache)
+		return 0;
+
+	for_each_probe_cache_entry(entry, cache) {
+		/* Skip the cache entry which has no name */
+		if (!entry->pev.event || !entry->pev.group)
+			continue;
+		if ((!pev->group || strglobmatch(entry->pev.group, pev->group)) &&
+		    strglobmatch(entry->pev.event, pev->event)) {
+			ret = probe_cache_entry__get_event(entry, &tmp_tevs);
+			if (ret > 0)
+				ret = concat_probe_trace_events(tevs, &ntevs,
+								&tmp_tevs, ret);
+			if (ret < 0)
+				break;
+		}
+	}
+	probe_cache__delete(cache);
+	if (ret < 0) {
+		clear_probe_trace_events(*tevs, ntevs);
+		zfree(tevs);
+	} else {
+		ret = ntevs;
+		if (ntevs > 0 && target && target[0] == '/')
+			pev->uprobes = true;
+	}
+
+	return ret;
+}
+
+/* Try to find probe_trace_event from all probe caches */
+static int find_cached_events_all(struct perf_probe_event *pev,
+				   struct probe_trace_event **tevs)
+{
+	struct probe_trace_event *tmp_tevs = NULL;
+	struct strlist *bidlist;
+	struct str_node *nd;
+	char *pathname;
+	int ntevs = 0;
+	int ret;
+
+	/* Get the buildid list of all valid caches */
+	bidlist = build_id_cache__list_all(true);
+	if (!bidlist) {
+		ret = -errno;
+		pr_debug("Failed to get buildids: %d\n", ret);
+		return ret;
+	}
+
+	ret = 0;
+	strlist__for_each_entry(nd, bidlist) {
+		pathname = build_id_cache__origname(nd->s);
+		ret = find_cached_events(pev, &tmp_tevs, pathname);
+		/* In the case of cnt == 0, we just skip it */
+		if (ret > 0)
+			ret = concat_probe_trace_events(tevs, &ntevs,
+							&tmp_tevs, ret);
+		free(pathname);
+		if (ret < 0)
+			break;
+	}
+	strlist__delete(bidlist);
+
+	if (ret < 0) {
+		clear_probe_trace_events(*tevs, ntevs);
+		zfree(tevs);
+	} else
+		ret = ntevs;
+
+	return ret;
+}
+
 static int find_probe_trace_events_from_cache(struct perf_probe_event *pev,
 					      struct probe_trace_event **tevs)
 {
@@ -2868,13 +3083,21 @@ static int find_probe_trace_events_from_cache(struct perf_probe_event *pev,
 	struct str_node *node;
 	int ret, i;
 
+	if (pev->sdt) {
+		/* For SDT/cached events, we use special search functions */
+		if (!pev->target)
+			return find_cached_events_all(pev, tevs);
+		else
+			return find_cached_events(pev, tevs, pev->target);
+	}
 	cache = probe_cache__new(pev->target);
 	if (!cache)
 		return 0;
 
 	entry = probe_cache__find(cache, pev);
 	if (!entry) {
-		ret = 0;
+		/* SDT must be in the cache */
+		ret = pev->sdt ? -ENOENT : 0;
 		goto out;
 	}
 
@@ -2913,7 +3136,7 @@ static int convert_to_probe_trace_events(struct perf_probe_event *pev,
 {
 	int ret;
 
-	if (!pev->group) {
+	if (!pev->group && !pev->sdt) {
 		/* Set group name if not given */
 		if (!pev->uprobes) {
 			pev->group = strdup(PERFPROBE_GROUP);
@@ -2932,8 +3155,8 @@ static int convert_to_probe_trace_events(struct perf_probe_event *pev,
 
 	/* At first, we need to lookup cache entry */
 	ret = find_probe_trace_events_from_cache(pev, tevs);
-	if (ret > 0)
-		return ret;	/* Found in probe cache */
+	if (ret > 0 || pev->sdt)	/* SDT can be found only in the cache */
+		return ret == 0 ? -ENOENT : ret; /* Found in probe cache */
 
 	if (arch__prefers_symtab() && !perf_probe_event_need_dwarf(pev)) {
 		ret = find_probe_trace_events_from_map(pev, tevs);

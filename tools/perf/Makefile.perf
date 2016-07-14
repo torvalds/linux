@@ -81,6 +81,9 @@ include ../scripts/utilities.mak
 #
 # Define NO_LIBBPF if you do not want BPF support
 #
+# Define NO_SDT if you do not want to define SDT event in perf tools,
+# note that it doesn't disable SDT scanning support.
+#
 # Define FEATURES_DUMP to provide features detection dump file
 # and bypass the feature detection
 

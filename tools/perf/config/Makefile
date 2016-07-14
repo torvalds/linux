@@ -355,6 +355,16 @@ ifndef NO_LIBELF
   endif # NO_LIBBPF
 endif # NO_LIBELF
 
+ifndef NO_SDT
+  ifneq ($(feature-sdt), 1)
+    msg := $(warning No sys/sdt.h found, no SDT events are defined, please install systemtap-sdt-devel or systemtap-sdt-dev);
+    NO_SDT := 1;
+  else
+    CFLAGS += -DHAVE_SDT_EVENT
+    $(call detected,CONFIG_SDT_EVENT)
+  endif
+endif
+
 ifdef PERF_HAVE_JITDUMP
   ifndef NO_DWARF
     $(call detected,CONFIG_JITDUMP)

@@ -362,13 +362,38 @@ probe_cache_entry__new(struct perf_probe_event *pev)
 	return entry;
 }
 
-/* For the kernel probe caches, pass target = NULL */
+int probe_cache_entry__get_event(struct probe_cache_entry *entry,
+				 struct probe_trace_event **tevs)
+{
+	struct probe_trace_event *tev;
+	struct str_node *node;
+	int ret, i;
+
+	ret = strlist__nr_entries(entry->tevlist);
+	if (ret > probe_conf.max_probes)
+		return -E2BIG;
+
+	*tevs = zalloc(ret * sizeof(*tev));
+	if (!*tevs)
+		return -ENOMEM;
+
+	i = 0;
+	strlist__for_each_entry(node, entry->tevlist) {
+		tev = &(*tevs)[i++];
+		ret = parse_probe_trace_command(node->s, tev);
+		if (ret < 0)
+			break;
+	}
+	return i;
+}
+
+/* For the kernel probe caches, pass target = NULL or DSO__NAME_KALLSYMS */
 static int probe_cache__open(struct probe_cache *pcache, const char *target)
 {
 	char cpath[PATH_MAX];
 	char sbuildid[SBUILD_ID_SIZE];
 	char *dir_name = NULL;
-	bool is_kallsyms = !target;
+	bool is_kallsyms = false;
 	int ret, fd;
 
 	if (target && build_id_cache__cached(target)) {
@@ -378,12 +403,13 @@ static int probe_cache__open(struct probe_cache *pcache, const char *target)
 		goto found;
 	}
 
-	if (target)
-		ret = filename__sprintf_build_id(target, sbuildid);
-	else {
+	if (!target || !strcmp(target, DSO__NAME_KALLSYMS)) {
 		target = DSO__NAME_KALLSYMS;
+		is_kallsyms = true;
 		ret = sysfs__sprintf_build_id("/", sbuildid);
-	}
+	} else
+		ret = filename__sprintf_build_id(target, sbuildid);
+
 	if (ret < 0) {
 		pr_debug("Failed to get build-id from %s.\n", target);
 		return ret;
@@ -546,7 +572,16 @@ probe_cache__find(struct probe_cache *pcache, struct perf_probe_event *pev)
 	if (!cmd)
 		return NULL;
 
-	list_for_each_entry(entry, &pcache->entries, node) {
+	for_each_probe_cache_entry(entry, pcache) {
+		if (pev->sdt) {
+			if (entry->pev.event &&
+			    streql(entry->pev.event, pev->event) &&
+			    (!pev->group ||
+			     streql(entry->pev.group, pev->group)))
+				goto found;
+
+			continue;
+		}
 		/* Hit if same event name or same command-string */
 		if ((pev->event &&
 		     (streql(entry->pev.group, pev->group) &&
@@ -567,7 +602,7 @@ probe_cache__find_by_name(struct probe_cache *pcache,
 {
 	struct probe_cache_entry *entry = NULL;
 
-	list_for_each_entry(entry, &pcache->entries, node) {
+	for_each_probe_cache_entry(entry, pcache) {
 		/* Hit if same event name or same command-string */
 		if (streql(entry->pev.group, group) &&
 		    streql(entry->pev.event, event))
@@ -739,7 +774,7 @@ int probe_cache__commit(struct probe_cache *pcache)
 	if (ret < 0)
 		goto out;
 
-	list_for_each_entry(entry, &pcache->entries, node) {
+	for_each_probe_cache_entry(entry, pcache) {
 		ret = probe_cache_entry__write(entry, pcache->fd);
 		pr_debug("Cache committed: %d\n", ret);
 		if (ret < 0)
@@ -781,7 +816,7 @@ static int probe_cache__show_entries(struct probe_cache *pcache,
 {
 	struct probe_cache_entry *entry;
 
-	list_for_each_entry(entry, &pcache->entries, node) {
+	for_each_probe_cache_entry(entry, pcache) {
 		if (probe_cache_entry__compare(entry, filter))
 			printf("%s\n", entry->spev);
 	}
@@ -799,7 +834,7 @@ int probe_cache__show_all_caches(struct strfilter *filter)
 	pr_debug("list cache with filter: %s\n", buf);
 	free(buf);
 
-	bidlist = build_id_cache__list_all();
+	bidlist = build_id_cache__list_all(true);
 	if (!bidlist) {
 		pr_debug("Failed to get buildids: %d\n", errno);
 		return -EINVAL;
