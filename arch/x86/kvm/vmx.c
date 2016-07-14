@@ -405,6 +405,12 @@ struct nested_vmx {
 	/* The host-usable pointer to the above */
 	struct page *current_vmcs12_page;
 	struct vmcs12 *current_vmcs12;
+	/*
+	 * Cache of the guest's VMCS, existing outside of guest memory.
+	 * Loaded from guest memory during VMPTRLD. Flushed to guest
+	 * memory during VMXOFF, VMCLEAR, VMPTRLD.
+	 */
+	struct vmcs12 *cached_vmcs12;
 	struct vmcs *current_shadow_vmcs;
 	/*
 	 * Indicates if the shadow vmcs must be updated with the
@@ -858,7 +864,7 @@ static inline short vmcs_field_to_offset(unsigned long field)
 
 static inline struct vmcs12 *get_vmcs12(struct kvm_vcpu *vcpu)
 {
-	return to_vmx(vcpu)->nested.current_vmcs12;
+	return to_vmx(vcpu)->nested.cached_vmcs12;
 }
 
 static struct page *nested_get_page(struct kvm_vcpu *vcpu, gpa_t addr)
@@ -6987,10 +6993,16 @@ static int handle_vmon(struct kvm_vcpu *vcpu)
 		return 1;
 	}
 
+	vmx->nested.cached_vmcs12 = kmalloc(VMCS12_SIZE, GFP_KERNEL);
+	if (!vmx->nested.cached_vmcs12)
+		return -ENOMEM;
+
 	if (enable_shadow_vmcs) {
 		shadow_vmcs = alloc_vmcs();
-		if (!shadow_vmcs)
+		if (!shadow_vmcs) {
+			kfree(vmx->nested.cached_vmcs12);
 			return -ENOMEM;
+		}
 		/* mark vmcs as shadow */
 		shadow_vmcs->revision_id |= (1u << 31);
 		/* init shadow vmcs */
@@ -7061,6 +7073,11 @@ static inline void nested_release_vmcs12(struct vcpu_vmx *vmx)
 		vmcs_write64(VMCS_LINK_POINTER, -1ull);
 	}
 	vmx->nested.posted_intr_nv = -1;
+
+	/* Flush VMCS12 to guest memory */
+	memcpy(vmx->nested.current_vmcs12, vmx->nested.cached_vmcs12,
+	       VMCS12_SIZE);
+
 	kunmap(vmx->nested.current_vmcs12_page);
 	nested_release_page(vmx->nested.current_vmcs12_page);
 	vmx->nested.current_vmptr = -1ull;
@@ -7081,6 +7098,7 @@ static void free_nested(struct vcpu_vmx *vmx)
 	nested_release_vmcs12(vmx);
 	if (enable_shadow_vmcs)
 		free_vmcs(vmx->nested.current_shadow_vmcs);
+	kfree(vmx->nested.cached_vmcs12);
 	/* Unpin physical memory we referred to in current vmcs02 */
 	if (vmx->nested.apic_access_page) {
 		nested_release_page(vmx->nested.apic_access_page);
@@ -7484,6 +7502,13 @@ static int handle_vmptrld(struct kvm_vcpu *vcpu)
 		vmx->nested.current_vmptr = vmptr;
 		vmx->nested.current_vmcs12 = new_vmcs12;
 		vmx->nested.current_vmcs12_page = page;
+		/*
+		 * Load VMCS12 from guest memory since it is not already
+		 * cached.
+		 */
+		memcpy(vmx->nested.cached_vmcs12,
+		       vmx->nested.current_vmcs12, VMCS12_SIZE);
+
 		if (enable_shadow_vmcs) {
 			vmcs_set_bits(SECONDARY_VM_EXEC_CONTROL,
 				      SECONDARY_EXEC_SHADOW_VMCS);
@@ -8456,7 +8481,7 @@ static void vmx_set_apic_access_page_addr(struct kvm_vcpu *vcpu, hpa_t hpa)
 	 * the next L2->L1 exit.
 	 */
 	if (!is_guest_mode(vcpu) ||
-	    !nested_cpu_has2(vmx->nested.current_vmcs12,
+	    !nested_cpu_has2(get_vmcs12(&vmx->vcpu),
 			     SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES))
 		vmcs_write64(APIC_ACCESS_ADDR, hpa);
 }
