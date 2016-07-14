@@ -39,7 +39,7 @@ TRACE_EVENT(devlink_hwmsg,
 		__entry->len = len;
 	),
 
-	TP_printk("bus_name=%s dev_name=%s driver_name=%s incoming=%d type=%lu buf=0x[%*phD] len=%lu",
+	TP_printk("bus_name=%s dev_name=%s driver_name=%s incoming=%d type=%lu buf=0x[%*phD] len=%zu",
 		  __get_str(bus_name), __get_str(dev_name),
 		  __get_str(driver_name), __entry->incoming, __entry->type,
 		  (int) __entry->len, __get_dynamic_array(buf), __entry->len)
