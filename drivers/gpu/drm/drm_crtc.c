@@ -613,11 +613,6 @@ void drm_framebuffer_remove(struct drm_framebuffer *fb)
 	 * in this manner.
 	 */
 	if (drm_framebuffer_read_refcount(fb) > 1) {
-		if (dev->mode_config.funcs->atomic_commit) {
-			drm_atomic_remove_fb(fb);
-			goto out;
-		}
-
 		drm_modeset_lock_all(dev);
 		/* remove from any CRTC */
 		drm_for_each_crtc(crtc, dev) {
@@ -635,7 +630,6 @@ void drm_framebuffer_remove(struct drm_framebuffer *fb)
 		drm_modeset_unlock_all(dev);
 	}
 
-out:
 	drm_framebuffer_unreference(fb);
 }
 EXPORT_SYMBOL(drm_framebuffer_remove);
