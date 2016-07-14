@@ -163,7 +163,7 @@ struct rxrpc_connection *rxrpc_incoming_connection(struct rxrpc_local *local,
 
 	if (!peer) {
 		peer = rxrpc_lookup_peer(local, srx, GFP_NOIO);
-		if (IS_ERR(peer))
+		if (!peer)
 			goto enomem;
 	}
 
