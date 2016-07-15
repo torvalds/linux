@@ -533,7 +533,7 @@ struct gb_bootrom_get_vid_pid_response {
 #define GB_POWER_SUPPLY_TYPE_SET_PROPERTY		0x06
 #define GB_POWER_SUPPLY_TYPE_EVENT			0x07
 
-/* Should match up with battery technologies in linux/power_supply.h */
+/* Greybus power supply battery technologies types */
 #define GB_POWER_SUPPLY_TECH_UNKNOWN			0x0000
 #define GB_POWER_SUPPLY_TECH_NiMH			0x0001
 #define GB_POWER_SUPPLY_TECH_LION			0x0002
@@ -542,7 +542,7 @@ struct gb_bootrom_get_vid_pid_response {
 #define GB_POWER_SUPPLY_TECH_NiCd			0x0005
 #define GB_POWER_SUPPLY_TECH_LiMn			0x0006
 
-/* Should match up with power supply types in linux/power_supply.h */
+/* Greybus power supply types */
 #define GB_POWER_SUPPLY_UNKNOWN_TYPE			0x0000
 #define GB_POWER_SUPPLY_BATTERY_TYPE			0x0001
 #define GB_POWER_SUPPLY_UPS_TYPE			0x0002
@@ -552,7 +552,7 @@ struct gb_bootrom_get_vid_pid_response {
 #define GB_POWER_SUPPLY_USB_CDP_TYPE			0x0006
 #define GB_POWER_SUPPLY_USB_ACA_TYPE			0x0007
 
-/* Should match up with power supply health in linux/power_supply.h */
+/* Greybus power supply health values */
 #define GB_POWER_SUPPLY_HEALTH_UNKNOWN			0x0000
 #define GB_POWER_SUPPLY_HEALTH_GOOD			0x0001
 #define GB_POWER_SUPPLY_HEALTH_OVERHEAT			0x0002
@@ -563,12 +563,12 @@ struct gb_bootrom_get_vid_pid_response {
 #define GB_POWER_SUPPLY_HEALTH_WATCHDOG_TIMER_EXPIRE	0x0007
 #define GB_POWER_SUPPLY_HEALTH_SAFETY_TIMER_EXPIRE	0x0008
 
-/* Should match up with battery status in linux/power_supply.h */
-#define GB_POWER_SUPPLY_STATUS_UNKNOWN		0x0000
-#define GB_POWER_SUPPLY_STATUS_CHARGING		0x0001
-#define GB_POWER_SUPPLY_STATUS_DISCHARGING	0x0002
-#define GB_POWER_SUPPLY_STATUS_NOT_CHARGING	0x0003
-#define GB_POWER_SUPPLY_STATUS_FULL		0x0004
+/* Greybus power supply status values */
+#define GB_POWER_SUPPLY_STATUS_UNKNOWN			0x0000
+#define GB_POWER_SUPPLY_STATUS_CHARGING			0x0001
+#define GB_POWER_SUPPLY_STATUS_DISCHARGING		0x0002
+#define GB_POWER_SUPPLY_STATUS_NOT_CHARGING		0x0003
+#define GB_POWER_SUPPLY_STATUS_FULL			0x0004
 
 struct gb_power_supply_get_supplies_response {
 	__u8	supplies_count;
