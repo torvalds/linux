@@ -411,7 +411,7 @@ epub_exclude_files = ['search.html']
 # multiple PDF files here actually tries to get the cross-referencing right
 # *between* PDF files.
 pdf_documents = [
-    ('index', u'Kernel', u'Kernel', u'J. Random Bozo'),
+    ('kernel-documentation', u'Kernel', u'Kernel', u'J. Random Bozo'),
 ]
 
 # kernel-doc extension configuration for running Sphinx directly (e.g. by Read
