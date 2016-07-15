@@ -579,6 +579,12 @@ static int gb_interface_resume(struct device *dev)
 		return ret;
 	}
 
+	ret = gb_timesync_schedule_synchronous(intf);
+	if (ret) {
+		dev_err(dev, "failed to synchronize FrameTime: %d\n", ret);
+		return ret;
+	}
+
 	return 0;
 }
 
