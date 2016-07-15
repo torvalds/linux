@@ -5494,7 +5494,7 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int op,
 		}
 
 	} else if (map->type & BTRFS_BLOCK_GROUP_DUP) {
-		if (op == REQ_OP_WRITE || REQ_OP_DISCARD ||
+		if (op == REQ_OP_WRITE || op == REQ_OP_DISCARD ||
 		    op == REQ_GET_READ_MIRRORS) {
 			num_stripes = map->num_stripes;
 		} else if (mirror_num) {
