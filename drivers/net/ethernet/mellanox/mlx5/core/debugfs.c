@@ -395,37 +395,37 @@ out:
 static u64 cq_read_field(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
 			 int index)
 {
-	struct mlx5_query_cq_mbox_out *out;
-	struct mlx5_cq_context *ctx;
+	int outlen = MLX5_ST_SZ_BYTES(query_cq_out);
 	u64 param = 0;
+	void *ctx;
+	u32 *out;
 	int err;
 
-	out = kzalloc(sizeof(*out), GFP_KERNEL);
+	out = mlx5_vzalloc(outlen);
 	if (!out)
 		return param;
 
-	ctx = &out->ctx;
-
-	err = mlx5_core_query_cq(dev, cq, out);
+	err = mlx5_core_query_cq(dev, cq, out, outlen);
 	if (err) {
 		mlx5_core_warn(dev, "failed to query cq\n");
 		goto out;
 	}
+	ctx = MLX5_ADDR_OF(query_cq_out, out, cq_context);
 
 	switch (index) {
 	case CQ_PID:
 		param = cq->pid;
 		break;
 	case CQ_NUM_CQES:
-		param = 1 << ((be32_to_cpu(ctx->log_sz_usr_page) >> 24) & 0x1f);
+		param = 1 << MLX5_GET(cqc, ctx, log_cq_size);
 		break;
 	case CQ_LOG_PG_SZ:
-		param = (ctx->log_pg_sz & 0x1f) + 12;
+		param = MLX5_GET(cqc, ctx, log_page_size);
 		break;
 	}
 
 out:
-	kfree(out);
+	kvfree(out);
 	return param;
 }
 
