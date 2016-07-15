@@ -220,6 +220,50 @@ static int gb_camera_operation_sync_flags(struct gb_connection *connection,
 	return ret;
 }
 
+static int gb_camera_get_max_pkt_size(struct gb_camera *gcam,
+		struct gb_camera_configure_streams_response *resp)
+{
+	unsigned int max_pkt_size = 0;
+	unsigned int i;
+
+	for (i = 0; i < resp->num_streams; i++) {
+		struct gb_camera_stream_config_response *cfg = &resp->config[i];
+		const struct gb_camera_fmt_info *fmt_info;
+		unsigned int pkt_size;
+
+		fmt_info = gb_camera_get_format_info(cfg->format);
+		if (!fmt_info) {
+			gcam_err(gcam, "unsupported greybus image format: %d\n",
+				 cfg->format);
+			return -EIO;
+		}
+
+		if (fmt_info->bpp == 0) {
+			pkt_size = le32_to_cpu(cfg->max_pkt_size);
+
+			if (pkt_size == 0) {
+				gcam_err(gcam,
+					 "Stream %u: invalid zero maximum packet size\n",
+					 i);
+				return -EIO;
+			}
+		} else {
+			pkt_size = le16_to_cpu(cfg->width) * fmt_info->bpp / 8;
+
+			if (pkt_size != le32_to_cpu(cfg->max_pkt_size)) {
+				gcam_err(gcam,
+					 "Stream %u: maximum packet size mismatch (%u/%u)\n",
+					 i, pkt_size, cfg->max_pkt_size);
+				return -EIO;
+			}
+		}
+
+		max_pkt_size = max(pkt_size, max_pkt_size);
+	}
+
+	return max_pkt_size;
+}
+
 /*
  * Temporary support for camera modules implementing legacy version
  * of camera specifications
@@ -409,8 +453,8 @@ struct ap_csi_config_request {
 #define GB_CAMERA_CSI_FLAG_CLOCK_CONTINUOUS 0x01
 	__u8 num_lanes;
 	__u8 padding;
-	__le32 bus_freq;
-	__le32 lines_per_second;
+	__le32 csi_clk_freq;
+	__le32 max_pkt_size;
 } __packed;
 
 /*
@@ -418,14 +462,18 @@ struct ap_csi_config_request {
  * requirements.
  */
 #define GB_CAMERA_CSI_NUM_DATA_LANES		4
-#define GB_CAMERA_LINES_PER_SECOND		(1280 * 30)
+
+#define GB_CAMERA_CSI_CLK_FREQ_MAX		999000000U
+#define GB_CAMERA_CSI_CLK_FREQ_MIN		100000000U
+#define GB_CAMERA_CSI_CLK_FREQ_MARGIN		150000000U
 
 static int gb_camera_setup_data_connection(struct gb_camera *gcam,
-		const struct gb_camera_configure_streams_response *resp,
+		struct gb_camera_configure_streams_response *resp,
 		struct gb_camera_csi_params *csi_params)
 {
 	struct ap_csi_config_request csi_cfg;
 	struct gb_connection *conn;
+	unsigned int clk_freq;
 	int ret;
 
 	/*
@@ -451,34 +499,40 @@ static int gb_camera_setup_data_connection(struct gb_camera *gcam,
 		goto error_conn_disable;
 
 	/*
-	 * Configure the APB1 CSI transmitter with hard-coded bus frequency,
-	 * lanes number and lines per second.
+	 * Configure the APB-A CSI-2 transmitter.
 	 *
-	 * TODO: Use the data rate and size information reported by camera
-	 * module to compute the required CSI bandwidth, and configure the
-	 * CSI receiver on AP side, and the CSI transmitter on APB1 side
-	 * accordingly.
+	 * Hardcode the number of lanes to 4 and compute the bus clock frequency
+	 * based on the module bandwidth requirements with a safety margin.
 	 */
 	memset(&csi_cfg, 0, sizeof(csi_cfg));
 	csi_cfg.csi_id = 1;
 	csi_cfg.flags = 0;
 	csi_cfg.num_lanes = GB_CAMERA_CSI_NUM_DATA_LANES;
-	csi_cfg.bus_freq = cpu_to_le32(960000000);
-	csi_cfg.lines_per_second = GB_CAMERA_LINES_PER_SECOND;
+
+	clk_freq = resp->data_rate / 2 / GB_CAMERA_CSI_NUM_DATA_LANES;
+	clk_freq = clamp(clk_freq + GB_CAMERA_CSI_CLK_FREQ_MARGIN,
+			 GB_CAMERA_CSI_CLK_FREQ_MIN,
+			 GB_CAMERA_CSI_CLK_FREQ_MAX);
+	csi_cfg.csi_clk_freq = clk_freq;
+
+	ret = gb_camera_get_max_pkt_size(gcam, resp);
+	if (ret < 0) {
+		ret = -EIO;
+		goto error_power;
+	}
+	csi_cfg.max_pkt_size = ret;
 
 	ret = gb_hd_output(gcam->connection->hd, &csi_cfg,
 			   sizeof(csi_cfg),
 			   GB_APB_REQUEST_CSI_TX_CONTROL, false);
-
 	if (ret < 0) {
 		gcam_err(gcam, "failed to start the CSI transmitter\n");
 		goto error_power;
 	}
 
 	if (csi_params) {
+		csi_params->clk_freq = csi_cfg.csi_clk_freq;
 		csi_params->num_lanes = csi_cfg.num_lanes;
-		/* Transmitting two bits per cycle. (DDR clock) */
-		csi_params->clk_freq = csi_cfg.bus_freq / 2;
 	}
 
 	return 0;
@@ -664,28 +718,30 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 		gb_pm_runtime_put_noidle(gcam->bundle);
 	}
 
-	if (resp->num_streams) {
-		/*
-		 * Make sure the bundle won't be suspended until streams get
-		 * unconfigured after the stream is configured successfully
-		 */
-		gb_pm_runtime_get_noresume(gcam->bundle);
+	if (resp->num_streams == 0)
+		goto done;
 
-		ret = gb_camera_setup_data_connection(gcam, resp, csi_params);
-		if (ret < 0) {
-			memset(req, 0, sizeof(*req));
-			gb_operation_sync(gcam->connection,
-					  GB_CAMERA_TYPE_CONFIGURE_STREAMS,
-					  req, sizeof(*req),
-					  resp, sizeof(*resp));
-			*flags = 0;
-			*num_streams = 0;
-			gb_pm_runtime_put_noidle(gcam->bundle);
-			goto done;
-		}
+	/*
+	 * Make sure the bundle won't be suspended until streams get
+	 * unconfigured after the stream is configured successfully
+	 */
+	gb_pm_runtime_get_noresume(gcam->bundle);
 
-		gcam->state = GB_CAMERA_STATE_CONFIGURED;
+	/* Setup CSI-2 connection from APB-A to AP */
+	ret = gb_camera_setup_data_connection(gcam, resp, csi_params);
+	if (ret < 0) {
+		memset(req, 0, sizeof(*req));
+		gb_operation_sync(gcam->connection,
+				  GB_CAMERA_TYPE_CONFIGURE_STREAMS,
+				  req, sizeof(*req),
+				  resp, sizeof(*resp));
+		*flags = 0;
+		*num_streams = 0;
+		gb_pm_runtime_put_noidle(gcam->bundle);
+		goto done;
 	}
+
+	gcam->state = GB_CAMERA_STATE_CONFIGURED;
 
 done:
 	gb_pm_runtime_put_autosuspend(gcam->bundle);
