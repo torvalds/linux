@@ -255,6 +255,8 @@ static inline u64 val_mask(int val, u64 msk, int shift)
 #define  V_EDP_OUT_EN(x)			VAL_MASK(x, 1, 14)
 #define  V_MIPI_OUT_EN(x)			VAL_MASK(x, 1, 15)
 #define  V_OVERLAY_MODE(x)			VAL_MASK(x, 1, 16)
+/* rk3399 only*/
+#define  V_DP_OUT_EN(x)				VAL_MASK(x, 1, 11)
 /* rk322x only */
 #define  V_FS_SAME_ADDR_MASK_EN(x)		VAL_MASK(x, 1, 17)
 #define  V_POST_LB_MODE(x)			VAL_MASK(x, 1, 18)
@@ -340,6 +342,11 @@ static inline u64 val_mask(int val, u64 msk, int shift)
 #define  V_MIPI_VSYNC_POL(x)			VAL_MASK(x, 1, 29)
 #define  V_MIPI_DEN_POL(x)			VAL_MASK(x, 1, 30)
 #define  V_MIPI_DCLK_POL(x)			VAL_MASK(x, 1, 31)
+/* rk3399 only*/
+#define  V_DP_HSYNC_POL(x)			VAL_MASK(x, 1, 16)
+#define  V_DP_VSYNC_POL(x)			VAL_MASK(x, 1, 17)
+#define  V_DP_DEN_POL(x)			VAL_MASK(x, 1, 18)
+#define  V_DP_DCLK_POL(x)			VAL_MASK(x, 1, 19)
 #define DSP_BG				0x00000018
 #define  V_DSP_BG_BLUE(x)			VAL_MASK(x, 10, 0)
 #define  V_DSP_BG_GREEN(x)			VAL_MASK(x, 10, 10)

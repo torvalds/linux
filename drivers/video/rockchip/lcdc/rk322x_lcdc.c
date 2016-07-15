@@ -1960,6 +1960,20 @@ static int vop_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 				V_DITHER_DOWN_SEL(0) |
 				V_DITHER_DOWN_MODE(0);
 			break;
+		case OUT_YUV_422:
+			face = OUT_YUV_422;
+			val = V_DITHER_DOWN_EN(0) | V_DITHER_UP_EN(1) |
+				V_PRE_DITHER_DOWN_EN(1) |
+				V_DITHER_DOWN_SEL(0) |
+				V_DITHER_DOWN_MODE(0);
+			break;
+		case OUT_YUV_422_10BIT:
+			face = OUT_YUV_422;
+			val = V_DITHER_DOWN_EN(0) | V_DITHER_UP_EN(1) |
+				V_PRE_DITHER_DOWN_EN(0) |
+				V_DITHER_DOWN_SEL(0) |
+				V_DITHER_DOWN_MODE(0);
+			break;
 		case OUT_P101010:
 			face = OUT_P101010;
 			val = V_DITHER_DOWN_EN(0) | V_DITHER_UP_EN(1) |
@@ -2040,6 +2054,25 @@ static int vop_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 				V_EDP_VSYNC_POL(screen->pin_vsync) |
 				V_EDP_DEN_POL(screen->pin_den) |
 				V_EDP_DCLK_POL(screen->pin_dclk);
+			/*hsync vsync den dclk polo,dither */
+			vop_msk_reg(vop_dev, DSP_CTRL1, val);
+			break;
+		case SCREEN_DP:
+			dclk_ddr = 0;
+			if ((VOP_CHIP(vop_dev) == VOP_RK3399) &&
+			    ((screen->face == OUT_P888) ||
+			     (screen->face == OUT_P101010))) {
+				if (vop_dev->id == 0)
+					face = OUT_P101010;
+				else
+					face = OUT_P888;
+			}
+			val = V_DP_OUT_EN(1);
+			vop_msk_reg(vop_dev, SYS_CTRL, val);
+			val = V_DP_HSYNC_POL(screen->pin_hsync) |
+				V_DP_VSYNC_POL(screen->pin_vsync) |
+				V_DP_DEN_POL(screen->pin_den) |
+				V_DP_DCLK_POL(screen->pin_dclk);
 			/*hsync vsync den dclk polo,dither */
 			vop_msk_reg(vop_dev, DSP_CTRL1, val);
 			break;
