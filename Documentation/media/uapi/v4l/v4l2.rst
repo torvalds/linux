@@ -68,6 +68,10 @@ Authors, in alphabetical order:
 
   - SDR API.
 
+- Ribalda, Ricardo
+
+  - Introduce HSV formats and other minor changes.
+
 - Rubli, Martin
 
   - Designed and documented the VIDIOC_ENUM_FRAMESIZES and VIDIOC_ENUM_FRAMEINTERVALS ioctls.
