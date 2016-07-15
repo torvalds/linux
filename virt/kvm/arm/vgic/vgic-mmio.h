@@ -96,6 +96,12 @@ unsigned long vgic_data_mmio_bus_to_host(const void *val, unsigned int len);
 void vgic_data_host_to_mmio_bus(void *buf, unsigned int len,
 				unsigned long data);
 
+unsigned long extract_bytes(unsigned long data, unsigned int offset,
+			    unsigned int num);
+
+u64 update_64bit_reg(u64 reg, unsigned int offset, unsigned int len,
+		     unsigned long val);
+
 unsigned long vgic_mmio_read_raz(struct kvm_vcpu *vcpu,
 				 gpa_t addr, unsigned int len);
 

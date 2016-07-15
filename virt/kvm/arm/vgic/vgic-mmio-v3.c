@@ -23,15 +23,15 @@
 #include "vgic-mmio.h"
 
 /* extract @num bytes at @offset bytes offset in data */
-static unsigned long extract_bytes(unsigned long data, unsigned int offset,
-				   unsigned int num)
+unsigned long extract_bytes(unsigned long data, unsigned int offset,
+			    unsigned int num)
 {
 	return (data >> (offset * 8)) & GENMASK_ULL(num * 8 - 1, 0);
 }
 
 /* allows updates of any half of a 64-bit register (or the whole thing) */
-static u64 update_64bit_reg(u64 reg, unsigned int offset, unsigned int len,
-			    unsigned long val)
+u64 update_64bit_reg(u64 reg, unsigned int offset, unsigned int len,
+		     unsigned long val)
 {
 	int lower = (offset & 4) * 8;
 	int upper = lower + 8 * len - 1;

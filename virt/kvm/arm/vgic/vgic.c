@@ -33,10 +33,16 @@ struct vgic_global __section(.hyp.text) kvm_vgic_global_state;
 
 /*
  * Locking order is always:
- *   vgic_cpu->ap_list_lock
- *     vgic_irq->irq_lock
+ * its->cmd_lock (mutex)
+ *   its->its_lock (mutex)
+ *     vgic_cpu->ap_list_lock
+ *       vgic_irq->irq_lock
  *
- * (that is, always take the ap_list_lock before the struct vgic_irq lock).
+ * If you need to take multiple locks, always take the upper lock first,
+ * then the lower ones, e.g. first take the its_lock, then the irq_lock.
+ * If you are already holding a lock and need to take a higher one, you
+ * have to drop the lower ranking lock first and re-aquire it after having
+ * taken the upper one.
  *
  * When taking more than one ap_list_lock at the same time, always take the
  * lowest numbered VCPU's ap_list_lock first, so:

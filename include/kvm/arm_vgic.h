@@ -22,6 +22,7 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 #include <kvm/iodev.h>
+#include <linux/list.h>
 
 #define VGIC_V3_MAX_CPUS	255
 #define VGIC_V2_MAX_CPUS	8
@@ -136,6 +137,21 @@ struct vgic_its {
 	bool			enabled;
 	bool			initialized;
 	struct vgic_io_device	iodev;
+
+	/* These registers correspond to GITS_BASER{0,1} */
+	u64			baser_device_table;
+	u64			baser_coll_table;
+
+	/* Protects the command queue */
+	struct mutex		cmd_lock;
+	u64			cbaser;
+	u32			creadr;
+	u32			cwriter;
+
+	/* Protects the device and collection lists */
+	struct mutex		its_lock;
+	struct list_head	device_list;
+	struct list_head	collection_list;
 };
 
 struct vgic_dist {
