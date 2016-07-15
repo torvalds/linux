@@ -1567,9 +1567,9 @@ batadv_tt_global_orig_entry_add(struct batadv_tt_global_entry *tt_global,
 	orig_entry->orig_node = orig_node;
 	orig_entry->ttvn = ttvn;
 	kref_init(&orig_entry->refcount);
-	kref_get(&orig_entry->refcount);
 
 	spin_lock_bh(&tt_global->list_lock);
+	kref_get(&orig_entry->refcount);
 	hlist_add_head_rcu(&orig_entry->list,
 			   &tt_global->orig_list);
 	spin_unlock_bh(&tt_global->list_lock);
