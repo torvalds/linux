@@ -542,7 +542,7 @@ static ssize_t ep_aio(struct kiocb *iocb,
 	 */
 	spin_lock_irq(&epdata->dev->lock);
 	value = -ENODEV;
-	if (unlikely(epdata->ep))
+	if (unlikely(epdata->ep == NULL))
 		goto fail;
 
 	req = usb_ep_alloc_request(epdata->ep, GFP_ATOMIC);
