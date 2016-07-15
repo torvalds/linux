@@ -5047,11 +5047,11 @@ static int gfx_v8_0_wait_for_idle(void *handle)
 	return -ETIMEDOUT;
 }
 
-static int gfx_v8_0_soft_reset(void *handle)
+static int gfx_v8_0_check_soft_reset(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	u32 grbm_soft_reset = 0, srbm_soft_reset = 0;
 	u32 tmp;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	/* GRBM_STATUS */
 	tmp = RREG32(mmGRBM_STATUS);
@@ -5060,16 +5060,12 @@ static int gfx_v8_0_soft_reset(void *handle)
 		   GRBM_STATUS__TA_BUSY_MASK | GRBM_STATUS__VGT_BUSY_MASK |
 		   GRBM_STATUS__DB_BUSY_MASK | GRBM_STATUS__CB_BUSY_MASK |
 		   GRBM_STATUS__GDS_BUSY_MASK | GRBM_STATUS__SPI_BUSY_MASK |
-		   GRBM_STATUS__IA_BUSY_MASK | GRBM_STATUS__IA_BUSY_NO_DMA_MASK)) {
+		   GRBM_STATUS__IA_BUSY_MASK | GRBM_STATUS__IA_BUSY_NO_DMA_MASK |
+		   GRBM_STATUS__CP_BUSY_MASK | GRBM_STATUS__CP_COHERENCY_BUSY_MASK)) {
 		grbm_soft_reset = REG_SET_FIELD(grbm_soft_reset,
 						GRBM_SOFT_RESET, SOFT_RESET_CP, 1);
 		grbm_soft_reset = REG_SET_FIELD(grbm_soft_reset,
 						GRBM_SOFT_RESET, SOFT_RESET_GFX, 1);
-	}
-
-	if (tmp & (GRBM_STATUS__CP_BUSY_MASK | GRBM_STATUS__CP_COHERENCY_BUSY_MASK)) {
-		grbm_soft_reset = REG_SET_FIELD(grbm_soft_reset,
-						GRBM_SOFT_RESET, SOFT_RESET_CP, 1);
 		srbm_soft_reset = REG_SET_FIELD(srbm_soft_reset,
 						SRBM_SOFT_RESET, SOFT_RESET_GRBM, 1);
 	}
@@ -5080,73 +5076,99 @@ static int gfx_v8_0_soft_reset(void *handle)
 		grbm_soft_reset = REG_SET_FIELD(grbm_soft_reset,
 						GRBM_SOFT_RESET, SOFT_RESET_RLC, 1);
 
+	if (REG_GET_FIELD(tmp, GRBM_STATUS2, CPF_BUSY) ||
+	    REG_GET_FIELD(tmp, GRBM_STATUS2, CPC_BUSY) ||
+	    REG_GET_FIELD(tmp, GRBM_STATUS2, CPG_BUSY)) {
+		grbm_soft_reset = REG_SET_FIELD(grbm_soft_reset, GRBM_SOFT_RESET,
+						SOFT_RESET_CPF, 1);
+		grbm_soft_reset = REG_SET_FIELD(grbm_soft_reset, GRBM_SOFT_RESET,
+						SOFT_RESET_CPC, 1);
+		grbm_soft_reset = REG_SET_FIELD(grbm_soft_reset, GRBM_SOFT_RESET,
+						SOFT_RESET_CPG, 1);
+		srbm_soft_reset = REG_SET_FIELD(srbm_soft_reset, SRBM_SOFT_RESET,
+						SOFT_RESET_GRBM, 1);
+	}
+
 	/* SRBM_STATUS */
 	tmp = RREG32(mmSRBM_STATUS);
 	if (REG_GET_FIELD(tmp, SRBM_STATUS, GRBM_RQ_PENDING))
 		srbm_soft_reset = REG_SET_FIELD(srbm_soft_reset,
 						SRBM_SOFT_RESET, SOFT_RESET_GRBM, 1);
+	if (REG_GET_FIELD(tmp, SRBM_STATUS, SEM_BUSY))
+		srbm_soft_reset = REG_SET_FIELD(srbm_soft_reset,
+						SRBM_SOFT_RESET, SOFT_RESET_SEM, 1);
 
 	if (grbm_soft_reset || srbm_soft_reset) {
-		/* stop the rlc */
-		gfx_v8_0_rlc_stop(adev);
+		adev->ip_block_status[AMD_IP_BLOCK_TYPE_GFX].hang = true;
+		adev->gfx.grbm_soft_reset = grbm_soft_reset;
+		adev->gfx.srbm_soft_reset = srbm_soft_reset;
+	} else {
+		adev->ip_block_status[AMD_IP_BLOCK_TYPE_GFX].hang = false;
+		adev->gfx.grbm_soft_reset = 0;
+		adev->gfx.srbm_soft_reset = 0;
+	}
 
-		/* Disable GFX parsing/prefetching */
-		gfx_v8_0_cp_gfx_enable(adev, false);
+	return 0;
+}
 
-		/* Disable MEC parsing/prefetching */
-		gfx_v8_0_cp_compute_enable(adev, false);
+static int gfx_v8_0_soft_reset(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	u32 grbm_soft_reset = 0, srbm_soft_reset = 0;
+	u32 tmp;
 
-		if (grbm_soft_reset || srbm_soft_reset) {
-			tmp = RREG32(mmGMCON_DEBUG);
-			tmp = REG_SET_FIELD(tmp,
-					    GMCON_DEBUG, GFX_STALL, 1);
-			tmp = REG_SET_FIELD(tmp,
-					    GMCON_DEBUG, GFX_CLEAR, 1);
-			WREG32(mmGMCON_DEBUG, tmp);
+	if (!adev->ip_block_status[AMD_IP_BLOCK_TYPE_GFX].hang)
+		return 0;
 
-			udelay(50);
-		}
+	grbm_soft_reset = adev->gfx.grbm_soft_reset;
+	srbm_soft_reset = adev->gfx.srbm_soft_reset;
 
-		if (grbm_soft_reset) {
-			tmp = RREG32(mmGRBM_SOFT_RESET);
-			tmp |= grbm_soft_reset;
-			dev_info(adev->dev, "GRBM_SOFT_RESET=0x%08X\n", tmp);
-			WREG32(mmGRBM_SOFT_RESET, tmp);
-			tmp = RREG32(mmGRBM_SOFT_RESET);
-
-			udelay(50);
-
-			tmp &= ~grbm_soft_reset;
-			WREG32(mmGRBM_SOFT_RESET, tmp);
-			tmp = RREG32(mmGRBM_SOFT_RESET);
-		}
-
-		if (srbm_soft_reset) {
-			tmp = RREG32(mmSRBM_SOFT_RESET);
-			tmp |= srbm_soft_reset;
-			dev_info(adev->dev, "SRBM_SOFT_RESET=0x%08X\n", tmp);
-			WREG32(mmSRBM_SOFT_RESET, tmp);
-			tmp = RREG32(mmSRBM_SOFT_RESET);
-
-			udelay(50);
-
-			tmp &= ~srbm_soft_reset;
-			WREG32(mmSRBM_SOFT_RESET, tmp);
-			tmp = RREG32(mmSRBM_SOFT_RESET);
-		}
-
-		if (grbm_soft_reset || srbm_soft_reset) {
-			tmp = RREG32(mmGMCON_DEBUG);
-			tmp = REG_SET_FIELD(tmp,
-					    GMCON_DEBUG, GFX_STALL, 0);
-			tmp = REG_SET_FIELD(tmp,
-					    GMCON_DEBUG, GFX_CLEAR, 0);
-			WREG32(mmGMCON_DEBUG, tmp);
-		}
-
-		/* Wait a little for things to settle down */
+	if (grbm_soft_reset || srbm_soft_reset) {
+		tmp = RREG32(mmGMCON_DEBUG);
+		tmp = REG_SET_FIELD(tmp, GMCON_DEBUG, GFX_STALL, 1);
+		tmp = REG_SET_FIELD(tmp, GMCON_DEBUG, GFX_CLEAR, 1);
+		WREG32(mmGMCON_DEBUG, tmp);
 		udelay(50);
 	}
+
+	if (grbm_soft_reset) {
+		tmp = RREG32(mmGRBM_SOFT_RESET);
+		tmp |= grbm_soft_reset;
+		dev_info(adev->dev, "GRBM_SOFT_RESET=0x%08X\n", tmp);
+		WREG32(mmGRBM_SOFT_RESET, tmp);
+		tmp = RREG32(mmGRBM_SOFT_RESET);
+
+		udelay(50);
+
+		tmp &= ~grbm_soft_reset;
+		WREG32(mmGRBM_SOFT_RESET, tmp);
+		tmp = RREG32(mmGRBM_SOFT_RESET);
+	}
+
+	if (srbm_soft_reset) {
+		tmp = RREG32(mmSRBM_SOFT_RESET);
+		tmp |= srbm_soft_reset;
+		dev_info(adev->dev, "SRBM_SOFT_RESET=0x%08X\n", tmp);
+		WREG32(mmSRBM_SOFT_RESET, tmp);
+		tmp = RREG32(mmSRBM_SOFT_RESET);
+
+		udelay(50);
+
+		tmp &= ~srbm_soft_reset;
+		WREG32(mmSRBM_SOFT_RESET, tmp);
+		tmp = RREG32(mmSRBM_SOFT_RESET);
+	}
+
+	if (grbm_soft_reset || srbm_soft_reset) {
+		tmp = RREG32(mmGMCON_DEBUG);
+		tmp = REG_SET_FIELD(tmp, GMCON_DEBUG, GFX_STALL, 0);
+		tmp = REG_SET_FIELD(tmp, GMCON_DEBUG, GFX_CLEAR, 0);
+		WREG32(mmGMCON_DEBUG, tmp);
+	}
+
+	/* Wait a little for things to settle down */
+	udelay(50);
+
 	return 0;
 }
 
@@ -6334,6 +6356,7 @@ const struct amd_ip_funcs gfx_v8_0_ip_funcs = {
 	.resume = gfx_v8_0_resume,
 	.is_idle = gfx_v8_0_is_idle,
 	.wait_for_idle = gfx_v8_0_wait_for_idle,
+	.check_soft_reset = gfx_v8_0_check_soft_reset,
 	.soft_reset = gfx_v8_0_soft_reset,
 	.set_clockgating_state = gfx_v8_0_set_clockgating_state,
 	.set_powergating_state = gfx_v8_0_set_powergating_state,

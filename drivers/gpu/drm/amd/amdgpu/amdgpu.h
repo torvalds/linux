@@ -1195,6 +1195,10 @@ struct amdgpu_gfx {
 	unsigned			ce_ram_size;
 	struct amdgpu_cu_info		cu_info;
 	const struct amdgpu_gfx_funcs	*funcs;
+
+	/* reset mask */
+	uint32_t                        grbm_soft_reset;
+	uint32_t                        srbm_soft_reset;
 };
 
 int amdgpu_ib_get(struct amdgpu_device *adev, struct amdgpu_vm *vm,
