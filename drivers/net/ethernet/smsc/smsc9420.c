@@ -231,26 +231,6 @@ static int smsc9420_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return phy_mii_ioctl(dev->phydev, ifr, cmd);
 }
 
-static int smsc9420_ethtool_get_settings(struct net_device *dev,
-					 struct ethtool_cmd *cmd)
-{
-	if (!dev->phydev)
-		return -ENODEV;
-
-	cmd->maxtxpkt = 1;
-	cmd->maxrxpkt = 1;
-	return phy_ethtool_gset(dev->phydev, cmd);
-}
-
-static int smsc9420_ethtool_set_settings(struct net_device *dev,
-					 struct ethtool_cmd *cmd)
-{
-	if (!dev->phydev)
-		return -ENODEV;
-
-	return phy_ethtool_sset(dev->phydev, cmd);
-}
-
 static void smsc9420_ethtool_get_drvinfo(struct net_device *netdev,
 					 struct ethtool_drvinfo *drvinfo)
 {
@@ -434,8 +414,6 @@ static int smsc9420_ethtool_set_eeprom(struct net_device *dev,
 }
 
 static const struct ethtool_ops smsc9420_ethtool_ops = {
-	.get_settings = smsc9420_ethtool_get_settings,
-	.set_settings = smsc9420_ethtool_set_settings,
 	.get_drvinfo = smsc9420_ethtool_get_drvinfo,
 	.get_msglevel = smsc9420_ethtool_get_msglevel,
 	.set_msglevel = smsc9420_ethtool_set_msglevel,
@@ -447,6 +425,8 @@ static const struct ethtool_ops smsc9420_ethtool_ops = {
 	.get_regs_len = smsc9420_ethtool_getregslen,
 	.get_regs = smsc9420_ethtool_getregs,
 	.get_ts_info = ethtool_op_get_ts_info,
+	.get_link_ksettings = phy_ethtool_get_link_ksettings,
+	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
 
 /* Sets the device MAC address to dev_addr */
