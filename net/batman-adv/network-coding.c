@@ -856,14 +856,13 @@ batadv_nc_get_nc_node(struct batadv_priv *bat_priv,
 	if (!nc_node)
 		return NULL;
 
-	kref_get(&orig_neigh_node->refcount);
-
 	/* Initialize nc_node */
 	INIT_LIST_HEAD(&nc_node->list);
-	ether_addr_copy(nc_node->addr, orig_node->orig);
-	nc_node->orig_node = orig_neigh_node;
 	kref_init(&nc_node->refcount);
 	kref_get(&nc_node->refcount);
+	ether_addr_copy(nc_node->addr, orig_node->orig);
+	kref_get(&orig_neigh_node->refcount);
+	nc_node->orig_node = orig_neigh_node;
 
 	/* Select ingoing or outgoing coding node */
 	if (in_coding) {
