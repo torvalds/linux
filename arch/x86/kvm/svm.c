@@ -41,7 +41,6 @@
 #include <asm/desc.h>
 #include <asm/debugreg.h>
 #include <asm/kvm_para.h>
-#include <asm/vgtod.h>
 
 #include <asm/virtext.h>
 #include "trace.h"
@@ -1531,6 +1530,9 @@ static void svm_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 			wrmsrl(MSR_AMD64_TSC_RATIO, tsc_ratio);
 		}
 	}
+	/* This assumes that the kernel never uses MSR_TSC_AUX */
+	if (static_cpu_has(X86_FEATURE_RDTSCP))
+		wrmsrl(MSR_TSC_AUX, svm->tsc_aux);
 
 	avic_vcpu_load(vcpu, cpu);
 }
@@ -4472,8 +4474,6 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 	svm->vmcb->save.cr2 = vcpu->arch.cr2;
 
 	clgi();
-	if (static_cpu_has(X86_FEATURE_RDTSCP))
-		wrmsrl(MSR_TSC_AUX, svm->tsc_aux);
 
 	local_irq_enable();
 
@@ -4551,8 +4551,6 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 		);
 
 #ifdef CONFIG_X86_64
-	if (static_cpu_has(X86_FEATURE_RDTSCP))
-		wrmsrl(MSR_TSC_AUX, __getcpu());
 	wrmsrl(MSR_GS_BASE, svm->host.gs_base);
 #else
 	loadsegment(fs, svm->host.fs);
