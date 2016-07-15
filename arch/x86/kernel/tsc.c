@@ -335,12 +335,6 @@ int check_tsc_unstable(void)
 }
 EXPORT_SYMBOL_GPL(check_tsc_unstable);
 
-int check_tsc_disabled(void)
-{
-	return tsc_disabled;
-}
-EXPORT_SYMBOL_GPL(check_tsc_disabled);
-
 #ifdef CONFIG_X86_TSC
 int __init notsc_setup(char *str)
 {
