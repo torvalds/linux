@@ -785,7 +785,7 @@ static void dm_old_request_fn(struct request_queue *q)
 		     md_in_flight(md) && rq->bio && rq->bio->bi_vcnt == 1 &&
 		     md->last_rq_pos == pos && md->last_rq_rw == rq_data_dir(rq)) ||
 		    (ti->type->busy && ti->type->busy(ti))) {
-			blk_delay_queue(q, HZ / 100);
+			blk_delay_queue(q, 10);
 			return;
 		}
 
