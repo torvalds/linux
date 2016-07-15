@@ -782,7 +782,10 @@ struct drm_crtc {
 	struct drm_plane *primary;
 	struct drm_plane *cursor;
 
-	/* position inside the mode_config.list, can be used as a [] idx */
+	/**
+	 * @index: Position inside the mode_config.list, can be used as an array
+	 * index. It is invariant over the lifetime of the CRTC.
+	 */
 	unsigned index;
 
 	/* position of cursor plane on crtc */
@@ -1209,7 +1212,10 @@ struct drm_encoder {
 	char *name;
 	int encoder_type;
 
-	/* position inside the mode_config.list, can be used as a [] idx */
+	/**
+	 * @index: Position inside the mode_config.list, can be used as an array
+	 * index. It is invariant over the lifetime of the encoder.
+	 */
 	unsigned index;
 
 	uint32_t possible_crtcs;
@@ -1710,7 +1716,10 @@ struct drm_plane {
 
 	enum drm_plane_type type;
 
-	/* position inside the mode_config.list, can be used as a [] idx */
+	/**
+	 * @index: Position inside the mode_config.list, can be used as an array
+	 * index. It is invariant over the lifetime of the plane.
+	 */
 	unsigned index;
 
 	const struct drm_plane_helper_funcs *helper_private;
@@ -2318,8 +2327,6 @@ struct drm_mode_config_funcs {
  * @fb_lock: mutex to protect fb state and lists
  * @num_fb: number of fbs available
  * @fb_list: list of framebuffers available
- * @num_connector: number of connectors on this device
- * @connector_list: list of connector objects
  * @num_encoder: number of encoders on this device
  * @encoder_list: list of encoder objects
  * @num_overlay_plane: number of overlay planes on this device
@@ -2394,8 +2401,17 @@ struct drm_mode_config {
 	int num_fb;
 	struct list_head fb_list;
 
+	/**
+	 * @num_connector: Number of connectors on this device.
+	 */
 	int num_connector;
+	/**
+	 * @connector_ida: ID allocator for connector indices.
+	 */
 	struct ida connector_ida;
+	/**
+	 * @connector_list: List of connector objects.
+	 */
 	struct list_head connector_list;
 	int num_encoder;
 	struct list_head encoder_list;
