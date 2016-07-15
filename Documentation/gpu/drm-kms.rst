@@ -67,9 +67,6 @@ drivers can manually clean up a framebuffer at module unload time with
 DRM Format Handling
 -------------------
 
-.. kernel-doc:: include/drm/drm_fourcc.h
-   :internal:
-
 .. kernel-doc:: drivers/gpu/drm/drm_fourcc.c
    :export:
 
