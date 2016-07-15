@@ -165,6 +165,8 @@ struct amd_ip_funcs {
 	int (*pre_soft_reset)(void *handle);
 	/* soft reset the IP block */
 	int (*soft_reset)(void *handle);
+	/* post soft reset the IP block */
+	int (*post_soft_reset)(void *handle);
 	/* enable/disable cg for the IP block */
 	int (*set_clockgating_state)(void *handle,
 				     enum amd_clockgating_state state);

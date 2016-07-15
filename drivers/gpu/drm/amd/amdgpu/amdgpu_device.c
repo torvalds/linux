@@ -1962,11 +1962,64 @@ int amdgpu_pre_soft_reset(struct amdgpu_device *adev)
 	for (i = 0; i < adev->num_ip_blocks; i++) {
 		if (!adev->ip_block_status[i].valid)
 			continue;
-		if (adev->ip_blocks[i].funcs->pre_soft_reset) {
+		if (adev->ip_block_status[i].hang &&
+		    adev->ip_blocks[i].funcs->pre_soft_reset) {
 			r = adev->ip_blocks[i].funcs->pre_soft_reset(adev);
 			if (r)
 				return r;
 		}
+	}
+
+	return 0;
+}
+
+static bool amdgpu_need_full_reset(struct amdgpu_device *adev)
+{
+	if (adev->ip_block_status[AMD_IP_BLOCK_TYPE_GMC].hang ||
+	    adev->ip_block_status[AMD_IP_BLOCK_TYPE_IH].hang ||
+	    adev->ip_block_status[AMD_IP_BLOCK_TYPE_SMC].hang ||
+	    adev->ip_block_status[AMD_IP_BLOCK_TYPE_GFX].hang ||
+	    adev->ip_block_status[AMD_IP_BLOCK_TYPE_SDMA].hang ||
+	    adev->ip_block_status[AMD_IP_BLOCK_TYPE_UVD].hang ||
+	    adev->ip_block_status[AMD_IP_BLOCK_TYPE_VCE].hang ||
+	    adev->ip_block_status[AMD_IP_BLOCK_TYPE_ACP].hang ||
+	    adev->ip_block_status[AMD_IP_BLOCK_TYPE_DCE].hang) {
+		DRM_INFO("Some block need full reset!\n");
+		return true;
+	}
+	return false;
+}
+
+static int amdgpu_soft_reset(struct amdgpu_device *adev)
+{
+	int i, r = 0;
+
+	for (i = 0; i < adev->num_ip_blocks; i++) {
+		if (!adev->ip_block_status[i].valid)
+			continue;
+		if (adev->ip_block_status[i].hang &&
+		    adev->ip_blocks[i].funcs->soft_reset) {
+			r = adev->ip_blocks[i].funcs->soft_reset(adev);
+			if (r)
+				return r;
+		}
+	}
+
+	return 0;
+}
+
+static int amdgpu_post_soft_reset(struct amdgpu_device *adev)
+{
+	int i, r = 0;
+
+	for (i = 0; i < adev->num_ip_blocks; i++) {
+		if (!adev->ip_block_status[i].valid)
+			continue;
+		if (adev->ip_block_status[i].hang &&
+		    adev->ip_blocks[i].funcs->post_soft_reset)
+			r = adev->ip_blocks[i].funcs->post_soft_reset(adev);
+		if (r)
+			return r;
 	}
 
 	return 0;
@@ -1984,6 +2037,7 @@ int amdgpu_gpu_reset(struct amdgpu_device *adev)
 {
 	int i, r;
 	int resched;
+	bool need_full_reset;
 
 	if (!amdgpu_check_soft_reset(adev)) {
 		DRM_INFO("No hardware hang detected. Did some blocks stall?\n");
@@ -2007,28 +2061,42 @@ int amdgpu_gpu_reset(struct amdgpu_device *adev)
 	/* after all hw jobs are reset, hw fence is meaningless, so force_completion */
 	amdgpu_fence_driver_force_completion(adev);
 
-	/* save scratch */
-	amdgpu_atombios_scratch_regs_save(adev);
-	r = amdgpu_suspend(adev);
+	need_full_reset = amdgpu_need_full_reset(adev);
+
+	if (!need_full_reset) {
+		amdgpu_pre_soft_reset(adev);
+		r = amdgpu_soft_reset(adev);
+		amdgpu_post_soft_reset(adev);
+		if (r || amdgpu_check_soft_reset(adev)) {
+			DRM_INFO("soft reset failed, will fallback to full reset!\n");
+			need_full_reset = true;
+		}
+	}
+
+	if (need_full_reset) {
+		/* save scratch */
+		amdgpu_atombios_scratch_regs_save(adev);
+		r = amdgpu_suspend(adev);
 
 retry:
-	/* Disable fb access */
-	if (adev->mode_info.num_crtc) {
-		struct amdgpu_mode_mc_save save;
-		amdgpu_display_stop_mc_access(adev, &save);
-		amdgpu_wait_for_idle(adev, AMD_IP_BLOCK_TYPE_GMC);
-	}
+		/* Disable fb access */
+		if (adev->mode_info.num_crtc) {
+			struct amdgpu_mode_mc_save save;
+			amdgpu_display_stop_mc_access(adev, &save);
+			amdgpu_wait_for_idle(adev, AMD_IP_BLOCK_TYPE_GMC);
+		}
 
-	r = amdgpu_asic_reset(adev);
-	/* post card */
-	amdgpu_atom_asic_init(adev->mode_info.atom_context);
+		r = amdgpu_asic_reset(adev);
+		/* post card */
+		amdgpu_atom_asic_init(adev->mode_info.atom_context);
 
-	if (!r) {
-		dev_info(adev->dev, "GPU reset succeeded, trying to resume\n");
-		r = amdgpu_resume(adev);
+		if (!r) {
+			dev_info(adev->dev, "GPU reset succeeded, trying to resume\n");
+			r = amdgpu_resume(adev);
+		}
+		/* restore scratch */
+		amdgpu_atombios_scratch_regs_restore(adev);
 	}
-	/* restore scratch */
-	amdgpu_atombios_scratch_regs_restore(adev);
 	if (!r) {
 		r = amdgpu_ib_ring_tests(adev);
 		if (r) {
