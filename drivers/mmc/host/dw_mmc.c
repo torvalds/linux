@@ -2527,47 +2527,6 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_OF
-/* given a slot, find out the device node representing that slot */
-static struct device_node *dw_mci_of_find_slot_node(struct dw_mci_slot *slot)
-{
-	struct device *dev = slot->mmc->parent;
-	struct device_node *np;
-	const __be32 *addr;
-	int len;
-
-	if (!dev || !dev->of_node)
-		return NULL;
-
-	for_each_child_of_node(dev->of_node, np) {
-		addr = of_get_property(np, "reg", &len);
-		if (!addr || (len < sizeof(int)))
-			continue;
-		if (be32_to_cpup(addr) == slot->id)
-			return np;
-	}
-	return NULL;
-}
-
-static void dw_mci_slot_of_parse(struct dw_mci_slot *slot)
-{
-	struct device_node *np = dw_mci_of_find_slot_node(slot);
-
-	if (!np)
-		return;
-
-	if (of_property_read_bool(np, "disable-wp")) {
-		slot->mmc->caps2 |= MMC_CAP2_NO_WRITE_PROTECT;
-		dev_warn(slot->mmc->parent,
-			"Slot quirk 'disable-wp' is deprecated\n");
-	}
-}
-#else /* CONFIG_OF */
-static void dw_mci_slot_of_parse(struct dw_mci_slot *slot)
-{
-}
-#endif /* CONFIG_OF */
-
 static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 {
 	struct mmc_host *mmc;
@@ -2629,8 +2588,6 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 
 	if (host->pdata->caps2)
 		mmc->caps2 = host->pdata->caps2;
-
-	dw_mci_slot_of_parse(slot);
 
 	ret = mmc_of_parse(mmc);
 	if (ret)
