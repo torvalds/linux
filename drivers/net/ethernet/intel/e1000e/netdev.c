@@ -154,16 +154,6 @@ void __ew32(struct e1000_hw *hw, unsigned long reg, u32 val)
 	writel(val, hw->hw_addr + reg);
 }
 
-static bool e1000e_vlan_used(struct e1000_adapter *adapter)
-{
-	u16 vid;
-
-	for_each_set_bit(vid, adapter->active_vlans, VLAN_N_VID)
-		return true;
-
-	return false;
-}
-
 /**
  * e1000_regdump - register printout routine
  * @hw: pointer to the HW structure
@@ -3453,8 +3443,7 @@ static void e1000e_set_rx_mode(struct net_device *netdev)
 
 	ew32(RCTL, rctl);
 
-	if (netdev->features & NETIF_F_HW_VLAN_CTAG_RX ||
-	    e1000e_vlan_used(adapter))
+	if (netdev->features & NETIF_F_HW_VLAN_CTAG_RX)
 		e1000e_vlan_strip_enable(adapter);
 	else
 		e1000e_vlan_strip_disable(adapter);
@@ -6925,6 +6914,14 @@ static netdev_features_t e1000_fix_features(struct net_device *netdev,
 	/* Jumbo frame workaround on 82579 and newer requires CRC be stripped */
 	if ((hw->mac.type >= e1000_pch2lan) && (netdev->mtu > ETH_DATA_LEN))
 		features &= ~NETIF_F_RXFCS;
+
+	/* Since there is no support for separate Rx/Tx vlan accel
+	 * enable/disable make sure Tx flag is always in same state as Rx.
+	 */
+	if (features & NETIF_F_HW_VLAN_CTAG_RX)
+		features |= NETIF_F_HW_VLAN_CTAG_TX;
+	else
+		features &= ~NETIF_F_HW_VLAN_CTAG_TX;
 
 	return features;
 }

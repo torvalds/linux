@@ -134,7 +134,7 @@ VDSO_LDFLAGS_vdso32.lds = -m32 -Wl,-m,elf_i386 -Wl,-soname=linux-gate.so.1
 override obj-dirs = $(dir $(obj)) $(obj)/vdso32/
 
 targets += vdso32/vdso32.lds
-targets += vdso32/note.o vdso32/vclock_gettime.o vdso32/system_call.o
+targets += vdso32/note.o vdso32/system_call.o vdso32/sigreturn.o
 targets += vdso32/vclock_gettime.o
 
 KBUILD_AFLAGS_32 := $(filter-out -m64,$(KBUILD_AFLAGS)) -DBUILD_VDSO
@@ -156,7 +156,8 @@ $(obj)/vdso32.so.dbg: FORCE \
 		      $(obj)/vdso32/vdso32.lds \
 		      $(obj)/vdso32/vclock_gettime.o \
 		      $(obj)/vdso32/note.o \
-		      $(obj)/vdso32/system_call.o
+		      $(obj)/vdso32/system_call.o \
+		      $(obj)/vdso32/sigreturn.o
 	$(call if_changed,vdso)
 
 #
