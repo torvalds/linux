@@ -649,5 +649,5 @@ Vertical Blanking and Interrupt Handling Functions Reference
 .. kernel-doc:: drivers/gpu/drm/drm_irq.c
    :export:
 
-.. kernel-doc:: include/drm/drmP.h
-   :functions: drm_crtc_vblank_waitqueue
+.. kernel-doc:: include/drm/drm_irq.h
+   :internal:

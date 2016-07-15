@@ -52,7 +52,6 @@
 #include <linux/poll.h>
 #include <linux/ratelimit.h>
 #include <linux/sched.h>
-#include <linux/seqlock.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/vmalloc.h>
@@ -87,6 +86,7 @@ struct drm_device_dma;
 struct drm_dma_handle;
 struct drm_gem_object;
 struct drm_master;
+struct drm_vblank_crtc;
 
 struct device_node;
 struct videomode;
@@ -684,35 +684,6 @@ struct drm_minor {
 	struct mutex debugfs_lock; /* Protects debugfs_list. */
 };
 
-
-struct drm_pending_vblank_event {
-	struct drm_pending_event base;
-	unsigned int pipe;
-	struct drm_event_vblank event;
-};
-
-struct drm_vblank_crtc {
-	struct drm_device *dev;		/* pointer to the drm_device */
-	wait_queue_head_t queue;	/**< VBLANK wait queue */
-	struct timer_list disable_timer;		/* delayed disable timer */
-
-	seqlock_t seqlock;		/* protects vblank count and time */
-
-	u32 count;			/* vblank counter */
-	struct timeval time;		/* vblank timestamp */
-
-	atomic_t refcount;		/* number of users of vblank interruptsper crtc */
-	u32 last;			/* protected by dev->vbl_lock, used */
-					/* for wraparound handling */
-	u32 last_wait;			/* Last vblank seqno waited per CRTC */
-	unsigned int inmodeset;		/* Display driver is setting mode */
-	unsigned int pipe;		/* crtc index */
-	int framedur_ns;		/* frame/field duration in ns */
-	int linedur_ns;			/* line duration in ns */
-	bool enabled;			/* so we don't call enable more than
-					   once per disable */
-};
-
 /**
  * DRM device structure. This structure represent a complete card that
  * may contain multiple heads.
@@ -847,6 +818,8 @@ struct drm_device {
 	int switch_power_state;
 };
 
+#include <drm/drm_irq.h>
+
 #define DRM_SWITCH_POWER_ON 0
 #define DRM_SWITCH_POWER_OFF 1
 #define DRM_SWITCH_POWER_CHANGING 2
@@ -932,56 +905,6 @@ void drm_clflush_virt_range(void *addr, unsigned long length);
  * These are exported to drivers so that they can implement fencing using
  * DMA quiscent + idle. DMA quiescent usually requires the hardware lock.
  */
-
-				/* IRQ support (drm_irq.h) */
-extern int drm_irq_install(struct drm_device *dev, int irq);
-extern int drm_irq_uninstall(struct drm_device *dev);
-
-extern int drm_vblank_init(struct drm_device *dev, unsigned int num_crtcs);
-extern int drm_wait_vblank(struct drm_device *dev, void *data,
-			   struct drm_file *filp);
-extern u32 drm_vblank_count(struct drm_device *dev, unsigned int pipe);
-extern u32 drm_crtc_vblank_count(struct drm_crtc *crtc);
-extern u32 drm_crtc_vblank_count_and_time(struct drm_crtc *crtc,
-					  struct timeval *vblanktime);
-extern void drm_crtc_send_vblank_event(struct drm_crtc *crtc,
-				       struct drm_pending_vblank_event *e);
-extern void drm_crtc_arm_vblank_event(struct drm_crtc *crtc,
-				      struct drm_pending_vblank_event *e);
-extern bool drm_handle_vblank(struct drm_device *dev, unsigned int pipe);
-extern bool drm_crtc_handle_vblank(struct drm_crtc *crtc);
-extern int drm_crtc_vblank_get(struct drm_crtc *crtc);
-extern void drm_crtc_vblank_put(struct drm_crtc *crtc);
-extern void drm_wait_one_vblank(struct drm_device *dev, unsigned int pipe);
-extern void drm_crtc_wait_one_vblank(struct drm_crtc *crtc);
-extern void drm_vblank_off(struct drm_device *dev, unsigned int pipe);
-extern void drm_vblank_on(struct drm_device *dev, unsigned int pipe);
-extern void drm_crtc_vblank_off(struct drm_crtc *crtc);
-extern void drm_crtc_vblank_reset(struct drm_crtc *crtc);
-extern void drm_crtc_vblank_on(struct drm_crtc *crtc);
-extern void drm_vblank_cleanup(struct drm_device *dev);
-extern u32 drm_accurate_vblank_count(struct drm_crtc *crtc);
-extern u32 drm_vblank_no_hw_counter(struct drm_device *dev, unsigned int pipe);
-
-extern int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
-						 unsigned int pipe, int *max_error,
-						 struct timeval *vblank_time,
-						 unsigned flags,
-						 const struct drm_display_mode *mode);
-extern void drm_calc_timestamping_constants(struct drm_crtc *crtc,
-					    const struct drm_display_mode *mode);
-
-/**
- * drm_crtc_vblank_waitqueue - get vblank waitqueue for the CRTC
- * @crtc: which CRTC's vblank waitqueue to retrieve
- *
- * This function returns a pointer to the vblank waitqueue for the CRTC.
- * Drivers can use this to implement vblank waits using wait_event() & co.
- */
-static inline wait_queue_head_t *drm_crtc_vblank_waitqueue(struct drm_crtc *crtc)
-{
-	return &crtc->dev->vblank[drm_crtc_index(crtc)].queue;
-}
 
 /* Modesetting support */
 extern void drm_vblank_pre_modeset(struct drm_device *dev, unsigned int pipe);

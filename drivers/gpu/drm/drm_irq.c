@@ -1695,7 +1695,6 @@ int drm_wait_vblank(struct drm_device *dev, void *data,
 
 	DRM_DEBUG("waiting on vblank count %d, crtc %u\n",
 		  vblwait->request.sequence, pipe);
-	vblank->last_wait = vblwait->request.sequence;
 	DRM_WAIT_ON(ret, vblank->queue, 3 * HZ,
 		    (((drm_vblank_count(dev, pipe) -
 		       vblwait->request.sequence) <= (1 << 23)) ||
