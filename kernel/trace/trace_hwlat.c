@@ -42,6 +42,7 @@
 #include <linux/kthread.h>
 #include <linux/tracefs.h>
 #include <linux/uaccess.h>
+#include <linux/cpumask.h>
 #include <linux/delay.h>
 #include "trace.h"
 
@@ -211,6 +212,57 @@ out:
 	return ret;
 }
 
+static struct cpumask save_cpumask;
+static bool disable_migrate;
+
+static void move_to_next_cpu(void)
+{
+	static struct cpumask *current_mask;
+	int next_cpu;
+
+	if (disable_migrate)
+		return;
+
+	/* Just pick the first CPU on first iteration */
+	if (!current_mask) {
+		current_mask = &save_cpumask;
+		get_online_cpus();
+		cpumask_and(current_mask, cpu_online_mask, tracing_buffer_mask);
+		put_online_cpus();
+		next_cpu = cpumask_first(current_mask);
+		goto set_affinity;
+	}
+
+	/*
+	 * If for some reason the user modifies the CPU affinity
+	 * of this thread, than stop migrating for the duration
+	 * of the current test.
+	 */
+	if (!cpumask_equal(current_mask, &current->cpus_allowed))
+		goto disable;
+
+	get_online_cpus();
+	cpumask_and(current_mask, cpu_online_mask, tracing_buffer_mask);
+	next_cpu = cpumask_next(smp_processor_id(), current_mask);
+	put_online_cpus();
+
+	if (next_cpu >= nr_cpu_ids)
+		next_cpu = cpumask_first(current_mask);
+
+ set_affinity:
+	if (next_cpu >= nr_cpu_ids) /* Shouldn't happen! */
+		goto disable;
+
+	cpumask_clear(current_mask);
+	cpumask_set_cpu(next_cpu, current_mask);
+
+	sched_setaffinity(0, current_mask);
+	return;
+
+ disable:
+	disable_migrate = true;
+}
+
 /*
  * kthread_fn - The CPU time sampling/hardware latency detection kernel thread
  *
@@ -229,6 +281,8 @@ static int kthread_fn(void *data)
 	u64 interval;
 
 	while (!kthread_should_stop()) {
+
+		move_to_next_cpu();
 
 		local_irq_disable();
 		get_sample();
@@ -473,6 +527,7 @@ static int hwlat_tracer_init(struct trace_array *tr)
 
 	hwlat_trace = tr;
 
+	disable_migrate = false;
 	hwlat_data.count = 0;
 	tr->max_latency = 0;
 	save_tracing_thresh = tracing_thresh;
