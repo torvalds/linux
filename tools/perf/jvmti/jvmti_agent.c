@@ -491,10 +491,11 @@ jvmti_write_debug_info(void *agent, uint64_t code, const char *file,
 		if (sret != 1)
 			goto error;
 	}
-	if (padding_count)
+	if (padding_count) {
 		sret = fwrite_unlocked(pad_bytes, padding_count, 1, fp);
 		if (sret != 1)
 			goto error;
+	}
 
 	funlockfile(fp);
 	return 0;
