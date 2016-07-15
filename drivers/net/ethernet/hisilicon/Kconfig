@@ -23,6 +23,18 @@ config HIX5HD2_GMAC
 	help
 	  This selects the hix5hd2 mac family network device.
 
+config HISI_FEMAC
+	tristate "Hisilicon Fast Ethernet MAC device support"
+	depends on HAS_IOMEM
+	select PHYLIB
+	select RESET_CONTROLLER
+	help
+	  This selects the Hisilicon Fast Ethernet MAC device(FEMAC).
+	  The FEMAC receives and transmits data over Ethernet
+	  ports at 10/100 Mbps in full-duplex or half-duplex mode.
+	  The FEMAC exchanges data with the CPU, and supports
+	  the energy efficient Ethernet (EEE).
+
 config HIP04_ETH
 	tristate "HISILICON P04 Ethernet support"
 	depends on HAS_IOMEM	# For MFD_SYSCON
