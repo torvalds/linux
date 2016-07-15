@@ -810,6 +810,9 @@ int efi_status_to_err(efi_status_t status)
 	case EFI_NOT_FOUND:
 		err = -ENOENT;
 		break;
+	case EFI_ABORTED:
+		err = -EINTR;
+		break;
 	default:
 		err = -EINVAL;
 	}
