@@ -74,76 +74,93 @@ struct gb_camera_stream_config {
 	unsigned int max_size;
 };
 
-struct gb_camera_fmt_map {
+struct gb_camera_fmt_info {
 	enum v4l2_mbus_pixelcode mbus_code;
 	unsigned int gb_format;
+	unsigned int bpp;
 };
 
 /* GB format to media code map */
-static const struct gb_camera_fmt_map mbus_to_gbus_format[] = {
+static const struct gb_camera_fmt_info gb_fmt_info[] = {
 	{
 		.mbus_code = V4L2_MBUS_FMT_UYVY8_1X16,
 		.gb_format = 0x01,
+		.bpp	   = 16,
 	},
 	{
 		.mbus_code = V4L2_MBUS_FMT_NV12_1x8,
 		.gb_format = 0x12,
+		.bpp	   = 12,
 	},
 	{
 		.mbus_code = V4L2_MBUS_FMT_NV21_1x8,
 		.gb_format = 0x13,
+		.bpp	   = 12,
 	},
 	{
 		.mbus_code = V4L2_MBUS_FMT_YU12_1x8,
 		.gb_format = 0x16,
+		.bpp	   = 12,
 	},
 	{
 		.mbus_code = V4L2_MBUS_FMT_YV12_1x8,
 		.gb_format = 0x17,
+		.bpp	   = 12,
 	},
 	{
 		.mbus_code = V4L2_MBUS_FMT_JPEG_1X8,
 		.gb_format = 0x40,
+		.bpp	   = 0,
 	},
 	{
 		.mbus_code = V4L2_MBUS_FMT_ARA_METADATA_1X8,
 		.gb_format = 0x41,
+		.bpp	   = 0,
 	},
 	{
 		.mbus_code = V4L2_MBUS_FMT_ARA_DEBUG_DATA_1X8,
 		.gb_format = 0x42,
+		.bpp	   = 0,
 	},
 	{
 		.mbus_code = V4L2_MBUS_FMT_SBGGR10_1X10,
 		.gb_format = 0x80,
+		.bpp	   = 10,
 	},
 	{
 		.mbus_code = V4L2_MBUS_FMT_SGBRG10_1X10,
 		.gb_format = 0x81,
+		.bpp	   = 10,
 	},
 	{
 		.mbus_code = V4L2_MBUS_FMT_SGRBG10_1X10,
 		.gb_format = 0x82,
+		.bpp	   = 10,
 	},
 	{
 		.mbus_code = V4L2_MBUS_FMT_SRGGB10_1X10,
 		.gb_format = 0x83,
+		.bpp	   = 10,
 	},
 	{
 		.mbus_code = V4L2_MBUS_FMT_SBGGR12_1X12,
 		.gb_format = 0x84,
+		.bpp	   = 12,
 	},
 	{
 		.mbus_code = V4L2_MBUS_FMT_SGBRG12_1X12,
 		.gb_format = 0x85,
+		.bpp	   = 12,
 	},
 	{
 		.mbus_code = V4L2_MBUS_FMT_SGRBG12_1X12,
 		.gb_format = 0x86,
+		.bpp	   = 12,
 	},
 	{
 		.mbus_code = V4L2_MBUS_FMT_SRGGB12_1X12,
 		.gb_format = 0x87,
+		.bpp	   = 12,
 	},
 };
 
@@ -615,22 +632,22 @@ static unsigned int gb_camera_mbus_to_gb(enum v4l2_mbus_pixelcode mbus_code)
 {
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(mbus_to_gbus_format); i++) {
-		if (mbus_to_gbus_format[i].mbus_code == mbus_code)
-			return mbus_to_gbus_format[i].gb_format;
+	for (i = 0; i < ARRAY_SIZE(gb_fmt_info); i++) {
+		if (gb_fmt_info[i].mbus_code == mbus_code)
+			return gb_fmt_info[i].gb_format;
 	}
-	return mbus_to_gbus_format[0].gb_format;
+	return gb_fmt_info[0].gb_format;
 }
 
 static enum v4l2_mbus_pixelcode gb_camera_gb_to_mbus(u16 gb_fmt)
 {
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(mbus_to_gbus_format); i++) {
-		if (mbus_to_gbus_format[i].gb_format == gb_fmt)
-			return mbus_to_gbus_format[i].mbus_code;
+	for (i = 0; i < ARRAY_SIZE(gb_fmt_info); i++) {
+		if (gb_fmt_info[i].gb_format == gb_fmt)
+			return gb_fmt_info[i].mbus_code;
 	}
-	return mbus_to_gbus_format[0].mbus_code;
+	return gb_fmt_info[0].mbus_code;
 }
 
 static ssize_t gb_camera_op_capabilities(void *priv, char *data, size_t len)
