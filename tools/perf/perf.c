@@ -503,7 +503,7 @@ void pthread__unblock_sigwinch(void)
 static void cache_line_size(int *cacheline_sizep)
 {
 	if (sysfs__read_int("devices/system/cpu/cpu0/cache/index0/coherency_line_size", cacheline_sizep))
-		perror("cannot determine cache line size");
+		pr_debug("cannot determine cache line size");
 }
 #endif
 
