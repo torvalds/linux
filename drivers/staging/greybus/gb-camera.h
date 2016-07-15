@@ -41,13 +41,10 @@ struct gb_camera_stream {
  * struct gb_camera_csi_params - CSI configuration parameters
  * @num_lanes: number of CSI data lanes
  * @clk_freq: CSI clock frequency in Hz
- * @lines_per_second: Total number of lines in a second of transmission
- *                    (blanking included)
  */
 struct gb_camera_csi_params {
 	unsigned int num_lanes;
 	unsigned int clk_freq;
-	unsigned int lines_per_second;
 };
 
 /**
