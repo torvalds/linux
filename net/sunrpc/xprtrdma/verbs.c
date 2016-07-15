@@ -765,7 +765,7 @@ rpcrdma_mr_recovery_worker(struct work_struct *work)
 		mw->mw_xprt->rx_ia.ri_ops->ro_recover_mr(mw);
 
 		spin_lock(&buf->rb_recovery_lock);
-	};
+	}
 	spin_unlock(&buf->rb_recovery_lock);
 }
 
