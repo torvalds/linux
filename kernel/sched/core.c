@@ -5394,13 +5394,15 @@ void idle_task_exit(void)
 /*
  * Since this CPU is going 'away' for a while, fold any nr_active delta
  * we might have. Assumes we're called after migrate_tasks() so that the
- * nr_active count is stable.
+ * nr_active count is stable. We need to take the teardown thread which
+ * is calling this into account, so we hand in adjust = 1 to the load
+ * calculation.
  *
  * Also see the comment "Global load-average calculations".
  */
 static void calc_load_migrate(struct rq *rq)
 {
-	long delta = calc_load_fold_active(rq);
+	long delta = calc_load_fold_active(rq, 1);
 	if (delta)
 		atomic_long_add(delta, &calc_load_tasks);
 }

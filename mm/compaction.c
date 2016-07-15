@@ -1009,8 +1009,6 @@ static void isolate_freepages(struct compact_control *cc)
 				block_end_pfn = block_start_pfn,
 				block_start_pfn -= pageblock_nr_pages,
 				isolate_start_pfn = block_start_pfn) {
-		unsigned long isolated;
-
 		/*
 		 * This can iterate a massively long zone without finding any
 		 * suitable migration targets, so periodically check if we need
@@ -1034,36 +1032,30 @@ static void isolate_freepages(struct compact_control *cc)
 			continue;
 
 		/* Found a block suitable for isolating free pages from. */
-		isolated = isolate_freepages_block(cc, &isolate_start_pfn,
-						block_end_pfn, freelist, false);
-		/* If isolation failed early, do not continue needlessly */
-		if (!isolated && isolate_start_pfn < block_end_pfn &&
-		    cc->nr_migratepages > cc->nr_freepages)
-			break;
+		isolate_freepages_block(cc, &isolate_start_pfn, block_end_pfn,
+					freelist, false);
 
 		/*
-		 * If we isolated enough freepages, or aborted due to async
-		 * compaction being contended, terminate the loop.
-		 * Remember where the free scanner should restart next time,
-		 * which is where isolate_freepages_block() left off.
-		 * But if it scanned the whole pageblock, isolate_start_pfn
-		 * now points at block_end_pfn, which is the start of the next
-		 * pageblock.
-		 * In that case we will however want to restart at the start
-		 * of the previous pageblock.
+		 * If we isolated enough freepages, or aborted due to lock
+		 * contention, terminate.
 		 */
 		if ((cc->nr_freepages >= cc->nr_migratepages)
 							|| cc->contended) {
-			if (isolate_start_pfn >= block_end_pfn)
+			if (isolate_start_pfn >= block_end_pfn) {
+				/*
+				 * Restart at previous pageblock if more
+				 * freepages can be isolated next time.
+				 */
 				isolate_start_pfn =
 					block_start_pfn - pageblock_nr_pages;
+			}
 			break;
-		} else {
+		} else if (isolate_start_pfn < block_end_pfn) {
 			/*
-			 * isolate_freepages_block() should not terminate
-			 * prematurely unless contended, or isolated enough
+			 * If isolation failed early, do not continue
+			 * needlessly.
 			 */
-			VM_BUG_ON(isolate_start_pfn < block_end_pfn);
+			break;
 		}
 	}
 

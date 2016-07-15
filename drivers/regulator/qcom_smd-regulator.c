@@ -152,7 +152,6 @@ static const struct regulator_ops rpm_smps_ldo_ops_fixed = {
 	.enable = rpm_reg_enable,
 	.disable = rpm_reg_disable,
 	.is_enabled = rpm_reg_is_enabled,
-	.list_voltage = regulator_list_voltage_linear_range,
 
 	.get_voltage = rpm_reg_get_voltage,
 	.set_voltage = rpm_reg_set_voltage,
