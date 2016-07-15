@@ -671,10 +671,10 @@ int tpm_tis_core_init(struct device *dev, struct tpm_tis_data *priv, int irq,
 #endif
 
 	/* Maximum timeouts */
-	chip->timeout_a = TIS_TIMEOUT_A_MAX;
-	chip->timeout_b = TIS_TIMEOUT_B_MAX;
-	chip->timeout_c = TIS_TIMEOUT_C_MAX;
-	chip->timeout_d = TIS_TIMEOUT_D_MAX;
+	chip->timeout_a = msecs_to_jiffies(TIS_TIMEOUT_A_MAX);
+	chip->timeout_b = msecs_to_jiffies(TIS_TIMEOUT_B_MAX);
+	chip->timeout_c = msecs_to_jiffies(TIS_TIMEOUT_C_MAX);
+	chip->timeout_d = msecs_to_jiffies(TIS_TIMEOUT_D_MAX);
 	priv->phy_ops = phy_ops;
 	dev_set_drvdata(&chip->dev, priv);
 
