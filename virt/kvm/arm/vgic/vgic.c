@@ -64,6 +64,28 @@ struct vgic_irq *vgic_get_irq(struct kvm *kvm, struct kvm_vcpu *vcpu,
 	return NULL;
 }
 
+static void vgic_get_irq_kref(struct vgic_irq *irq)
+{
+	if (irq->intid < VGIC_MIN_LPI)
+		return;
+
+	kref_get(&irq->refcount);
+}
+
+/* The refcount should never drop to 0 at the moment. */
+static void vgic_irq_release(struct kref *ref)
+{
+	WARN_ON(1);
+}
+
+void vgic_put_irq(struct kvm *kvm, struct vgic_irq *irq)
+{
+	if (irq->intid < VGIC_MIN_LPI)
+		return;
+
+	kref_put(&irq->refcount, vgic_irq_release);
+}
+
 /**
  * kvm_vgic_target_oracle - compute the target vcpu for an irq
  *
@@ -236,6 +258,11 @@ retry:
 		goto retry;
 	}
 
+	/*
+	 * Grab a reference to the irq to reflect the fact that it is
+	 * now in the ap_list.
+	 */
+	vgic_get_irq_kref(irq);
 	list_add_tail(&irq->ap_list, &vcpu->arch.vgic_cpu.ap_list_head);
 	irq->vcpu = vcpu;
 
@@ -269,14 +296,17 @@ static int vgic_update_irq_pending(struct kvm *kvm, int cpuid,
 	if (!irq)
 		return -EINVAL;
 
-	if (irq->hw != mapped_irq)
+	if (irq->hw != mapped_irq) {
+		vgic_put_irq(kvm, irq);
 		return -EINVAL;
+	}
 
 	spin_lock(&irq->irq_lock);
 
 	if (!vgic_validate_injection(irq, level)) {
 		/* Nothing to see here, move along... */
 		spin_unlock(&irq->irq_lock);
+		vgic_put_irq(kvm, irq);
 		return 0;
 	}
 
@@ -288,6 +318,7 @@ static int vgic_update_irq_pending(struct kvm *kvm, int cpuid,
 	}
 
 	vgic_queue_irq_unlock(kvm, irq);
+	vgic_put_irq(kvm, irq);
 
 	return 0;
 }
@@ -330,18 +361,20 @@ int kvm_vgic_map_phys_irq(struct kvm_vcpu *vcpu, u32 virt_irq, u32 phys_irq)
 	irq->hwintid = phys_irq;
 
 	spin_unlock(&irq->irq_lock);
+	vgic_put_irq(vcpu->kvm, irq);
 
 	return 0;
 }
 
 int kvm_vgic_unmap_phys_irq(struct kvm_vcpu *vcpu, unsigned int virt_irq)
 {
-	struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, virt_irq);
-
-	BUG_ON(!irq);
+	struct vgic_irq *irq;
 
 	if (!vgic_initialized(vcpu->kvm))
 		return -EAGAIN;
+
+	irq = vgic_get_irq(vcpu->kvm, vcpu, virt_irq);
+	BUG_ON(!irq);
 
 	spin_lock(&irq->irq_lock);
 
@@ -349,6 +382,7 @@ int kvm_vgic_unmap_phys_irq(struct kvm_vcpu *vcpu, unsigned int virt_irq)
 	irq->hwintid = 0;
 
 	spin_unlock(&irq->irq_lock);
+	vgic_put_irq(vcpu->kvm, irq);
 
 	return 0;
 }
@@ -386,6 +420,15 @@ retry:
 			list_del(&irq->ap_list);
 			irq->vcpu = NULL;
 			spin_unlock(&irq->irq_lock);
+
+			/*
+			 * This vgic_put_irq call matches the
+			 * vgic_get_irq_kref in vgic_queue_irq_unlock,
+			 * where we added the LPI to the ap_list. As
+			 * we remove the irq from the list, we drop
+			 * also drop the refcount.
+			 */
+			vgic_put_irq(vcpu->kvm, irq);
 			continue;
 		}
 
@@ -614,6 +657,7 @@ bool kvm_vgic_map_is_active(struct kvm_vcpu *vcpu, unsigned int virt_irq)
 	spin_lock(&irq->irq_lock);
 	map_is_active = irq->hw && irq->active;
 	spin_unlock(&irq->irq_lock);
+	vgic_put_irq(vcpu->kvm, irq);
 
 	return map_is_active;
 }

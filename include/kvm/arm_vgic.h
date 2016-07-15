@@ -96,6 +96,7 @@ struct vgic_irq {
 	bool active;			/* not used for LPIs */
 	bool enabled;
 	bool hw;			/* Tied to HW IRQ */
+	struct kref refcount;		/* Used for LPIs */
 	u32 hwintid;			/* HW INTID number */
 	union {
 		u8 targets;			/* GICv2 target VCPUs mask */

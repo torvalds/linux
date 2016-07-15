@@ -177,6 +177,7 @@ static int kvm_vgic_dist_init(struct kvm *kvm, unsigned int nr_spis)
 		spin_lock_init(&irq->irq_lock);
 		irq->vcpu = NULL;
 		irq->target_vcpu = vcpu0;
+		kref_init(&irq->refcount);
 		if (dist->vgic_model == KVM_DEV_TYPE_ARM_VGIC_V2)
 			irq->targets = 0;
 		else
@@ -211,6 +212,7 @@ static void kvm_vgic_vcpu_init(struct kvm_vcpu *vcpu)
 		irq->vcpu = NULL;
 		irq->target_vcpu = vcpu;
 		irq->targets = 1U << vcpu->vcpu_id;
+		kref_init(&irq->refcount);
 		if (vgic_irq_is_sgi(i)) {
 			/* SGIs */
 			irq->enabled = 1;

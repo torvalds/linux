@@ -80,15 +80,17 @@ static unsigned long vgic_mmio_read_irouter(struct kvm_vcpu *vcpu,
 {
 	int intid = VGIC_ADDR_TO_INTID(addr, 64);
 	struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, NULL, intid);
+	unsigned long ret = 0;
 
 	if (!irq)
 		return 0;
 
 	/* The upper word is RAZ for us. */
-	if (addr & 4)
-		return 0;
+	if (!(addr & 4))
+		ret = extract_bytes(READ_ONCE(irq->mpidr), addr & 7, len);
 
-	return extract_bytes(READ_ONCE(irq->mpidr), addr & 7, len);
+	vgic_put_irq(vcpu->kvm, irq);
+	return ret;
 }
 
 static void vgic_mmio_write_irouter(struct kvm_vcpu *vcpu,
@@ -96,13 +98,15 @@ static void vgic_mmio_write_irouter(struct kvm_vcpu *vcpu,
 				    unsigned long val)
 {
 	int intid = VGIC_ADDR_TO_INTID(addr, 64);
-	struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, NULL, intid);
-
-	if (!irq)
-		return;
+	struct vgic_irq *irq;
 
 	/* The upper word is WI for us since we don't implement Aff3. */
 	if (addr & 4)
+		return;
+
+	irq = vgic_get_irq(vcpu->kvm, NULL, intid);
+
+	if (!irq)
 		return;
 
 	spin_lock(&irq->irq_lock);
@@ -112,6 +116,7 @@ static void vgic_mmio_write_irouter(struct kvm_vcpu *vcpu,
 	irq->target_vcpu = kvm_mpidr_to_vcpu(vcpu->kvm, irq->mpidr);
 
 	spin_unlock(&irq->irq_lock);
+	vgic_put_irq(vcpu->kvm, irq);
 }
 
 static unsigned long vgic_mmio_read_v3r_typer(struct kvm_vcpu *vcpu,
@@ -445,5 +450,6 @@ void vgic_v3_dispatch_sgi(struct kvm_vcpu *vcpu, u64 reg)
 		irq->pending = true;
 
 		vgic_queue_irq_unlock(vcpu->kvm, irq);
+		vgic_put_irq(vcpu->kvm, irq);
 	}
 }

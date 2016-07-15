@@ -113,6 +113,7 @@ void vgic_v3_fold_lr_state(struct kvm_vcpu *vcpu)
 		}
 
 		spin_unlock(&irq->irq_lock);
+		vgic_put_irq(vcpu->kvm, irq);
 	}
 }
 
