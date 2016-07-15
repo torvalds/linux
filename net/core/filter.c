@@ -2025,6 +2025,47 @@ bool bpf_helper_changes_skb_data(void *func)
 	return false;
 }
 
+static unsigned long bpf_skb_copy(void *dst_buff, const void *skb,
+				  unsigned long len)
+{
+	void *ptr = skb_header_pointer(skb, 0, len, dst_buff);
+
+	if (unlikely(!ptr))
+		return len;
+	if (ptr != dst_buff)
+		memcpy(dst_buff, ptr, len);
+
+	return 0;
+}
+
+static u64 bpf_skb_event_output(u64 r1, u64 r2, u64 flags, u64 r4,
+				u64 meta_size)
+{
+	struct sk_buff *skb = (struct sk_buff *)(long) r1;
+	struct bpf_map *map = (struct bpf_map *)(long) r2;
+	u64 skb_size = (flags & BPF_F_CTXLEN_MASK) >> 32;
+	void *meta = (void *)(long) r4;
+
+	if (unlikely(flags & ~(BPF_F_CTXLEN_MASK | BPF_F_INDEX_MASK)))
+		return -EINVAL;
+	if (unlikely(skb_size > skb->len))
+		return -EFAULT;
+
+	return bpf_event_output(map, flags, meta, meta_size, skb, skb_size,
+				bpf_skb_copy);
+}
+
+static const struct bpf_func_proto bpf_skb_event_output_proto = {
+	.func		= bpf_skb_event_output,
+	.gpl_only	= true,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_CONST_MAP_PTR,
+	.arg3_type	= ARG_ANYTHING,
+	.arg4_type	= ARG_PTR_TO_STACK,
+	.arg5_type	= ARG_CONST_STACK_SIZE,
+};
+
 static unsigned short bpf_tunnel_key_af(u64 flags)
 {
 	return flags & BPF_F_TUNINFO_IPV6 ? AF_INET6 : AF_INET;
@@ -2357,7 +2398,7 @@ tc_cls_act_func_proto(enum bpf_func_id func_id)
 	case BPF_FUNC_get_hash_recalc:
 		return &bpf_get_hash_recalc_proto;
 	case BPF_FUNC_perf_event_output:
-		return bpf_get_event_output_proto();
+		return &bpf_skb_event_output_proto;
 	case BPF_FUNC_get_smp_processor_id:
 		return &bpf_get_smp_processor_id_proto;
 #ifdef CONFIG_SOCK_CGROUP_DATA
