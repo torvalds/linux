@@ -13924,8 +13924,50 @@ out:
 
 #undef for_each_intel_crtc_masked
 
+/*
+ * FIXME: Remove this once i915 is fully DRIVER_ATOMIC by calling
+ *        drm_atomic_helper_legacy_gamma_set() directly.
+ */
+static int intel_atomic_legacy_gamma_set(struct drm_crtc *crtc,
+					 u16 *red, u16 *green, u16 *blue,
+					 uint32_t size)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_mode_config *config = &dev->mode_config;
+	struct drm_crtc_state *state;
+	int ret;
+
+	ret = drm_atomic_helper_legacy_gamma_set(crtc, red, green, blue, size);
+	if (ret)
+		return ret;
+
+	/*
+	 * Make sure we update the legacy properties so this works when
+	 * atomic is not enabled.
+	 */
+
+	state = crtc->state;
+
+	drm_object_property_set_value(&crtc->base,
+				      config->degamma_lut_property,
+				      (state->degamma_lut) ?
+				      state->degamma_lut->base.id : 0);
+
+	drm_object_property_set_value(&crtc->base,
+				      config->ctm_property,
+				      (state->ctm) ?
+				      state->ctm->base.id : 0);
+
+	drm_object_property_set_value(&crtc->base,
+				      config->gamma_lut_property,
+				      (state->gamma_lut) ?
+				      state->gamma_lut->base.id : 0);
+
+	return 0;
+}
+
 static const struct drm_crtc_funcs intel_crtc_funcs = {
-	.gamma_set = drm_atomic_helper_legacy_gamma_set,
+	.gamma_set = intel_atomic_legacy_gamma_set,
 	.set_config = drm_atomic_helper_set_config,
 	.set_property = drm_atomic_helper_crtc_set_property,
 	.destroy = intel_crtc_destroy,
