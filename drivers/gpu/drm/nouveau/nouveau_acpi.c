@@ -107,7 +107,7 @@ static int nouveau_optimus_dsm(acpi_handle handle, int func, int arg, uint32_t *
  * requirements on the fourth parameter, so a private implementation
  * instead of using acpi_check_dsm().
  */
-static int nouveau_check_optimus_dsm(acpi_handle handle)
+static int nouveau_dsm_get_optimus_functions(acpi_handle handle)
 {
 	int result;
 
@@ -122,7 +122,9 @@ static int nouveau_check_optimus_dsm(acpi_handle handle)
 	 * ACPI Spec v4 9.14.1: if bit 0 is zero, no function is supported.
 	 * If the n-th bit is enabled, function n is supported
 	 */
-	return result & 1 && result & (1 << NOUVEAU_DSM_OPTIMUS_CAPS);
+	if (result & 1 && result & (1 << NOUVEAU_DSM_OPTIMUS_CAPS))
+		return result;
+	return 0;
 }
 
 static int nouveau_dsm(acpi_handle handle, int func, int arg)
@@ -214,7 +216,7 @@ static void nouveau_dsm_pci_probe(struct pci_dev *pdev, acpi_handle *dhandle_out
 {
 	acpi_handle dhandle;
 	bool supports_mux;
-	bool supports_opt;
+	int optimus_funcs;
 
 	dhandle = ACPI_HANDLE(&pdev->dev);
 	if (!dhandle)
@@ -225,17 +227,17 @@ static void nouveau_dsm_pci_probe(struct pci_dev *pdev, acpi_handle *dhandle_out
 
 	supports_mux = acpi_check_dsm(dhandle, nouveau_dsm_muid, 0x00000102,
 				      1 << NOUVEAU_DSM_POWER);
-	supports_opt = nouveau_check_optimus_dsm(dhandle);
+	optimus_funcs = nouveau_dsm_get_optimus_functions(dhandle);
 
 	/* Does not look like a Nvidia device. */
-	if (!supports_mux && !supports_opt)
+	if (!supports_mux && !optimus_funcs)
 		return;
 
 	*dhandle_out = dhandle;
 	*has_mux = supports_mux;
-	*has_opt = supports_opt;
+	*has_opt = !!optimus_funcs;
 
-	if (supports_opt) {
+	if (optimus_funcs) {
 		uint32_t result;
 		nouveau_optimus_dsm(dhandle, NOUVEAU_DSM_OPTIMUS_CAPS, 0,
 				    &result);
