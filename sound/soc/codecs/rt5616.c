@@ -1314,7 +1314,7 @@ static int rt5616_i2c_probe(struct i2c_client *i2c,
 		dev_err(&i2c->dev,
 			"Device with ID register %#x is not rt5616\n",
 			val);
-		ret = -ENODEV;
+		return -ENODEV;
 	}
 	regmap_write(rt5616->regmap, RT5616_RESET, 0);
 	regmap_update_bits(rt5616->regmap, RT5616_PWR_ANLG1,
