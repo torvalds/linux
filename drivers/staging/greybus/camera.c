@@ -277,6 +277,13 @@ struct ap_csi_config_request {
 	__le32 lines_per_second;
 } __packed;
 
+/*
+ * TODO: Compute the number of lanes dynamically based on bandwidth
+ * requirements.
+ */
+#define GB_CAMERA_CSI_NUM_DATA_LANES		4
+#define GB_CAMERA_LINES_PER_SECOND		(1280 * 30)
+
 static int gb_camera_setup_data_connection(struct gb_camera *gcam,
 		const struct gb_camera_configure_streams_response *resp,
 		struct gb_camera_csi_params *csi_params)
@@ -308,8 +315,8 @@ static int gb_camera_setup_data_connection(struct gb_camera *gcam,
 		goto error_conn_disable;
 
 	/*
-	 * Configure the APB1 CSI transmitter using the lines count reported by
-	 * the  camera module, but with hard-coded bus frequency and lanes number.
+	 * Configure the APB1 CSI transmitter with hard-coded bus frequency,
+	 * lanes number and lines per second.
 	 *
 	 * TODO: use the clocking and size informations reported by camera module
 	 * to compute the required CSI bandwidth, and configure the CSI receiver
@@ -318,9 +325,9 @@ static int gb_camera_setup_data_connection(struct gb_camera *gcam,
 	memset(&csi_cfg, 0, sizeof(csi_cfg));
 	csi_cfg.csi_id = 1;
 	csi_cfg.flags = 0;
-	csi_cfg.num_lanes = resp->num_lanes;
+	csi_cfg.num_lanes = GB_CAMERA_CSI_NUM_DATA_LANES;
 	csi_cfg.bus_freq = cpu_to_le32(960000000);
-	csi_cfg.lines_per_second = resp->lines_per_second;
+	csi_cfg.lines_per_second = GB_CAMERA_LINES_PER_SECOND;
 
 	ret = gb_hd_output(gcam->connection->hd, &csi_cfg,
 			   sizeof(csi_cfg),
@@ -335,7 +342,6 @@ static int gb_camera_setup_data_connection(struct gb_camera *gcam,
 		csi_params->num_lanes = csi_cfg.num_lanes;
 		/* Transmitting two bits per cycle. (DDR clock) */
 		csi_params->clk_freq = csi_cfg.bus_freq / 2;
-		csi_params->lines_per_second = csi_cfg.lines_per_second;
 	}
 
 	return 0;
