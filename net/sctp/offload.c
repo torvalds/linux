@@ -92,7 +92,28 @@ static const struct net_offload sctp_offload = {
 	},
 };
 
+static const struct net_offload sctp6_offload = {
+	.callbacks = {
+		.gso_segment = sctp_gso_segment,
+	},
+};
+
 int __init sctp_offload_init(void)
 {
-	return inet_add_offload(&sctp_offload, IPPROTO_SCTP);
+	int ret;
+
+	ret = inet_add_offload(&sctp_offload, IPPROTO_SCTP);
+	if (ret)
+		goto out;
+
+	ret = inet6_add_offload(&sctp6_offload, IPPROTO_SCTP);
+	if (ret)
+		goto ipv4;
+
+	return ret;
+
+ipv4:
+	inet_del_offload(&sctp_offload, IPPROTO_SCTP);
+out:
+	return ret;
 }
