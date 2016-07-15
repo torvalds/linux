@@ -80,7 +80,7 @@ extern unsigned vivid_debug;
 
 struct vivid_fmt {
 	u32	fourcc;          /* v4l2 format id */
-	bool	is_yuv;
+	enum	tgp_color_enc color_enc;
 	bool	can_do_overlay;
 	u8	vdownsampling[TPG_MAX_PLANES];
 	u32	alpha_mask;

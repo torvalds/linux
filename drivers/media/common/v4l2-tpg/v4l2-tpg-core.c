@@ -237,13 +237,13 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 	case V4L2_PIX_FMT_GREY:
 	case V4L2_PIX_FMT_Y16:
 	case V4L2_PIX_FMT_Y16_BE:
-		tpg->is_yuv = false;
+		tpg->color_enc = TGP_COLOR_ENC_RGB;
 		break;
 	case V4L2_PIX_FMT_YUV444:
 	case V4L2_PIX_FMT_YUV555:
 	case V4L2_PIX_FMT_YUV565:
 	case V4L2_PIX_FMT_YUV32:
-		tpg->is_yuv = true;
+		tpg->color_enc = TGP_COLOR_ENC_YCBCR;
 		break;
 	case V4L2_PIX_FMT_YUV420M:
 	case V4L2_PIX_FMT_YVU420M:
@@ -256,7 +256,7 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 		tpg->hdownsampling[1] = 2;
 		tpg->hdownsampling[2] = 2;
 		tpg->planes = 3;
-		tpg->is_yuv = true;
+		tpg->color_enc = TGP_COLOR_ENC_YCBCR;
 		break;
 	case V4L2_PIX_FMT_YUV422M:
 	case V4L2_PIX_FMT_YVU422M:
@@ -268,7 +268,7 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 		tpg->hdownsampling[1] = 2;
 		tpg->hdownsampling[2] = 2;
 		tpg->planes = 3;
-		tpg->is_yuv = true;
+		tpg->color_enc = TGP_COLOR_ENC_YCBCR;
 		break;
 	case V4L2_PIX_FMT_NV16M:
 	case V4L2_PIX_FMT_NV61M:
@@ -280,7 +280,7 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 		tpg->hdownsampling[1] = 1;
 		tpg->hmask[1] = ~1;
 		tpg->planes = 2;
-		tpg->is_yuv = true;
+		tpg->color_enc = TGP_COLOR_ENC_YCBCR;
 		break;
 	case V4L2_PIX_FMT_NV12M:
 	case V4L2_PIX_FMT_NV21M:
@@ -292,7 +292,7 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 		tpg->hdownsampling[1] = 1;
 		tpg->hmask[1] = ~1;
 		tpg->planes = 2;
-		tpg->is_yuv = true;
+		tpg->color_enc = TGP_COLOR_ENC_YCBCR;
 		break;
 	case V4L2_PIX_FMT_YUV444M:
 	case V4L2_PIX_FMT_YVU444M:
@@ -302,21 +302,21 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 		tpg->vdownsampling[2] = 1;
 		tpg->hdownsampling[1] = 1;
 		tpg->hdownsampling[2] = 1;
-		tpg->is_yuv = true;
+		tpg->color_enc = TGP_COLOR_ENC_YCBCR;
 		break;
 	case V4L2_PIX_FMT_NV24:
 	case V4L2_PIX_FMT_NV42:
 		tpg->vdownsampling[1] = 1;
 		tpg->hdownsampling[1] = 1;
 		tpg->planes = 2;
-		tpg->is_yuv = true;
+		tpg->color_enc = TGP_COLOR_ENC_YCBCR;
 		break;
 	case V4L2_PIX_FMT_YUYV:
 	case V4L2_PIX_FMT_UYVY:
 	case V4L2_PIX_FMT_YVYU:
 	case V4L2_PIX_FMT_VYUY:
 		tpg->hmask[0] = ~1;
-		tpg->is_yuv = true;
+		tpg->color_enc = TGP_COLOR_ENC_YCBCR;
 		break;
 	default:
 		return false;
@@ -775,7 +775,8 @@ static void precalculate_color(struct tpg_data *tpg, int k)
 	 * Remember that r, g and b are still in the 0 - 0xff0 range.
 	 */
 	if (tpg->real_rgb_range == V4L2_DV_RGB_RANGE_LIMITED &&
-	    tpg->rgb_range == V4L2_DV_RGB_RANGE_FULL && !tpg->is_yuv) {
+	    tpg->rgb_range == V4L2_DV_RGB_RANGE_FULL &&
+	    tpg->color_enc == TGP_COLOR_ENC_RGB) {
 		/*
 		 * Convert from full range (which is what r, g and b are)
 		 * to limited range (which is the 'real' RGB range), which
@@ -785,7 +786,9 @@ static void precalculate_color(struct tpg_data *tpg, int k)
 		g = (g * 219) / 255 + (16 << 4);
 		b = (b * 219) / 255 + (16 << 4);
 	} else if (tpg->real_rgb_range != V4L2_DV_RGB_RANGE_LIMITED &&
-		   tpg->rgb_range == V4L2_DV_RGB_RANGE_LIMITED && !tpg->is_yuv) {
+		   tpg->rgb_range == V4L2_DV_RGB_RANGE_LIMITED &&
+		   tpg->color_enc == TGP_COLOR_ENC_RGB) {
+
 		/*
 		 * Clamp r, g and b to the limited range and convert to full
 		 * range since that's what we deliver.
@@ -818,7 +821,7 @@ static void precalculate_color(struct tpg_data *tpg, int k)
 
 		cb = (128 << 4) + (tmp_cb * tpg->contrast * tpg->saturation) / (128 * 128);
 		cr = (128 << 4) + (tmp_cr * tpg->contrast * tpg->saturation) / (128 * 128);
-		if (tpg->is_yuv) {
+		if (tpg->color_enc == TGP_COLOR_ENC_YCBCR) {
 			tpg->colors[k][0] = clamp(y >> 4, 1, 254);
 			tpg->colors[k][1] = clamp(cb >> 4, 1, 254);
 			tpg->colors[k][2] = clamp(cr >> 4, 1, 254);
@@ -827,7 +830,7 @@ static void precalculate_color(struct tpg_data *tpg, int k)
 		ycbcr_to_color(tpg, y, cb, cr, &r, &g, &b);
 	}
 
-	if (tpg->is_yuv) {
+	if (tpg->color_enc == TGP_COLOR_ENC_YCBCR) {
 		/* Convert to YCbCr */
 		int y, cb, cr;
 
@@ -1840,7 +1843,8 @@ static void tpg_recalc(struct tpg_data *tpg)
 
 		if (tpg->quantization == V4L2_QUANTIZATION_DEFAULT)
 			tpg->real_quantization =
-				V4L2_MAP_QUANTIZATION_DEFAULT(!tpg->is_yuv,
+				V4L2_MAP_QUANTIZATION_DEFAULT(
+					tpg->color_enc != TGP_COLOR_ENC_YCBCR,
 					tpg->colorspace, tpg->real_ycbcr_enc);
 
 		tpg_precalculate_colors(tpg);
@@ -1887,11 +1891,24 @@ static int tpg_pattern_avg(const struct tpg_data *tpg,
 	return -1;
 }
 
+static const char *tpg_color_enc_str(enum tgp_color_enc
+						 color_enc)
+{
+	switch (color_enc) {
+	case TGP_COLOR_ENC_YCBCR:
+		return "Y'CbCr";
+	case TGP_COLOR_ENC_RGB:
+	default:
+		return "R'G'B";
+
+	}
+}
+
 void tpg_log_status(struct tpg_data *tpg)
 {
 	pr_info("tpg source WxH: %ux%u (%s)\n",
-			tpg->src_width, tpg->src_height,
-			tpg->is_yuv ? "YCbCr" : "RGB");
+		tpg->src_width, tpg->src_height,
+		tpg_color_enc_str(tpg->color_enc));
 	pr_info("tpg field: %u\n", tpg->field);
 	pr_info("tpg crop: %ux%u@%dx%d\n", tpg->crop.width, tpg->crop.height,
 			tpg->crop.left, tpg->crop.top);

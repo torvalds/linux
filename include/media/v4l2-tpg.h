@@ -87,6 +87,11 @@ enum tpg_move_mode {
 	TPG_MOVE_POS_FAST,
 };
 
+enum tgp_color_enc {
+	TGP_COLOR_ENC_RGB,
+	TGP_COLOR_ENC_YCBCR,
+};
+
 extern const char * const tpg_aspect_strings[];
 
 #define TPG_MAX_PLANES 3
@@ -119,7 +124,7 @@ struct tpg_data {
 	u8				saturation;
 	s16				hue;
 	u32				fourcc;
-	bool				is_yuv;
+	enum tgp_color_enc		color_enc;
 	u32				colorspace;
 	u32				xfer_func;
 	u32				ycbcr_enc;
