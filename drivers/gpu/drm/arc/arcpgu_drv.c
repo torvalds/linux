@@ -28,8 +28,7 @@ static void arcpgu_fb_output_poll_changed(struct drm_device *dev)
 {
 	struct arcpgu_drm_private *arcpgu = dev->dev_private;
 
-	if (arcpgu->fbdev)
-		drm_fbdev_cma_hotplug_event(arcpgu->fbdev);
+	drm_fbdev_cma_hotplug_event(arcpgu->fbdev);
 }
 
 static struct drm_mode_config_funcs arcpgu_drm_modecfg_funcs = {
