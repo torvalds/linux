@@ -445,6 +445,20 @@ struct vivid_fmt vivid_formats[] = {
 		.planes   = 1,
 		.buffers = 1,
 	},
+	{
+		.fourcc   = V4L2_PIX_FMT_HSV24, /* HSV 24bits */
+		.vdownsampling = { 1 },
+		.bit_depth = { 24 },
+		.planes   = 1,
+		.buffers = 1,
+	},
+	{
+		.fourcc   = V4L2_PIX_FMT_HSV32, /* HSV 32bits */
+		.vdownsampling = { 1 },
+		.bit_depth = { 32 },
+		.planes   = 1,
+		.buffers = 1,
+	},
 
 	/* Multiplanar formats */
 
