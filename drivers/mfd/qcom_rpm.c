@@ -589,6 +589,7 @@ static int qcom_rpm_probe(struct platform_device *pdev)
 	}
 
 	rpm->ipc_regmap = syscon_node_to_regmap(syscon_np);
+	of_node_put(syscon_np);
 	if (IS_ERR(rpm->ipc_regmap))
 		return PTR_ERR(rpm->ipc_regmap);
 
