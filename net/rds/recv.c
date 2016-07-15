@@ -156,6 +156,67 @@ static void rds_recv_incoming_exthdrs(struct rds_incoming *inc, struct rds_sock 
 	}
 }
 
+static void rds_recv_hs_exthdrs(struct rds_header *hdr,
+				struct rds_connection *conn)
+{
+	unsigned int pos = 0, type, len;
+	union {
+		struct rds_ext_header_version version;
+		u16 rds_npaths;
+	} buffer;
+
+	while (1) {
+		len = sizeof(buffer);
+		type = rds_message_next_extension(hdr, &pos, &buffer, &len);
+		if (type == RDS_EXTHDR_NONE)
+			break;
+		/* Process extension header here */
+		switch (type) {
+		case RDS_EXTHDR_NPATHS:
+			conn->c_npaths = min_t(int, RDS_MPATH_WORKERS,
+					       buffer.rds_npaths);
+			break;
+		default:
+			pr_warn_ratelimited("ignoring unknown exthdr type "
+					     "0x%x\n", type);
+		}
+	}
+	/* if RDS_EXTHDR_NPATHS was not found, default to a single-path */
+	conn->c_npaths = max_t(int, conn->c_npaths, 1);
+}
+
+/* rds_start_mprds() will synchronously start multiple paths when appropriate.
+ * The scheme is based on the following rules:
+ *
+ * 1. rds_sendmsg on first connect attempt sends the probe ping, with the
+ *    sender's npaths (s_npaths)
+ * 2. rcvr of probe-ping knows the mprds_paths = min(s_npaths, r_npaths). It
+ *    sends back a probe-pong with r_npaths. After that, if rcvr is the
+ *    smaller ip addr, it starts rds_conn_path_connect_if_down on all
+ *    mprds_paths.
+ * 3. sender gets woken up, and can move to rds_conn_path_connect_if_down.
+ *    If it is the smaller ipaddr, rds_conn_path_connect_if_down can be
+ *    called after reception of the probe-pong on all mprds_paths.
+ *    Otherwise (sender of probe-ping is not the smaller ip addr): just call
+ *    rds_conn_path_connect_if_down on the hashed path. (see rule 4)
+ * 4. when cp_index > 0, rds_connect_worker must only trigger
+ *    a connection if laddr < faddr.
+ * 5. sender may end up queuing the packet on the cp. will get sent out later.
+ *    when connection is completed.
+ */
+static void rds_start_mprds(struct rds_connection *conn)
+{
+	int i;
+	struct rds_conn_path *cp;
+
+	if (conn->c_npaths > 1 && conn->c_laddr < conn->c_faddr) {
+		for (i = 1; i < conn->c_npaths; i++) {
+			cp = &conn->c_path[i];
+			rds_conn_path_connect_if_down(cp);
+		}
+	}
+}
+
 /*
  * The transport must make sure that this is serialized against other
  * rx and conn reset on this specific conn.
@@ -232,6 +293,20 @@ void rds_recv_incoming(struct rds_connection *conn, __be32 saddr, __be32 daddr,
 		}
 		rds_stats_inc(s_recv_ping);
 		rds_send_pong(cp, inc->i_hdr.h_sport);
+		/* if this is a handshake ping, start multipath if necessary */
+		if (RDS_HS_PROBE(inc->i_hdr.h_sport, inc->i_hdr.h_dport)) {
+			rds_recv_hs_exthdrs(&inc->i_hdr, cp->cp_conn);
+			rds_start_mprds(cp->cp_conn);
+		}
+		goto out;
+	}
+
+	if (inc->i_hdr.h_dport ==  RDS_FLAG_PROBE_PORT &&
+	    inc->i_hdr.h_sport == 0) {
+		rds_recv_hs_exthdrs(&inc->i_hdr, cp->cp_conn);
+		/* if this is a handshake pong, start multipath if necessary */
+		rds_start_mprds(cp->cp_conn);
+		wake_up(&cp->cp_conn->c_hs_waitq);
 		goto out;
 	}
 

@@ -34,7 +34,6 @@
 #include <linux/in.h>
 #include <net/tcp.h>
 
-#include "rds_single_path.h"
 #include "rds.h"
 #include "tcp.h"
 
@@ -81,6 +80,12 @@ int rds_tcp_conn_path_connect(struct rds_conn_path *cp)
 	int ret;
 	struct rds_connection *conn = cp->cp_conn;
 	struct rds_tcp_connection *tc = cp->cp_transport_data;
+
+	/* for multipath rds,we only trigger the connection after
+	 * the handshake probe has determined the number of paths.
+	 */
+	if (cp->cp_index > 0 && cp->cp_conn->c_npaths < 2)
+		return -EAGAIN;
 
 	mutex_lock(&tc->t_conn_path_lock);
 
