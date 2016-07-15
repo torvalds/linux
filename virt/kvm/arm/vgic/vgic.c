@@ -36,7 +36,8 @@ struct vgic_global __section(.hyp.text) kvm_vgic_global_state;
  * its->cmd_lock (mutex)
  *   its->its_lock (mutex)
  *     vgic_cpu->ap_list_lock
- *       vgic_irq->irq_lock
+ *       kvm->lpi_list_lock
+ *         vgic_irq->irq_lock
  *
  * If you need to take multiple locks, always take the upper lock first,
  * then the lower ones, e.g. first take the its_lock, then the irq_lock.
@@ -51,6 +52,41 @@ struct vgic_global __section(.hyp.text) kvm_vgic_global_state;
  *     spin_lock(vcpuY->arch.vgic_cpu.ap_list_lock);
  */
 
+/*
+ * Iterate over the VM's list of mapped LPIs to find the one with a
+ * matching interrupt ID and return a reference to the IRQ structure.
+ */
+static struct vgic_irq *vgic_get_lpi(struct kvm *kvm, u32 intid)
+{
+	struct vgic_dist *dist = &kvm->arch.vgic;
+	struct vgic_irq *irq = NULL;
+
+	spin_lock(&dist->lpi_list_lock);
+
+	list_for_each_entry(irq, &dist->lpi_list_head, lpi_list) {
+		if (irq->intid != intid)
+			continue;
+
+		/*
+		 * This increases the refcount, the caller is expected to
+		 * call vgic_put_irq() later once it's finished with the IRQ.
+		 */
+		kref_get(&irq->refcount);
+		goto out_unlock;
+	}
+	irq = NULL;
+
+out_unlock:
+	spin_unlock(&dist->lpi_list_lock);
+
+	return irq;
+}
+
+/*
+ * This looks up the virtual interrupt ID to get the corresponding
+ * struct vgic_irq. It also increases the refcount, so any caller is expected
+ * to call vgic_put_irq() once it's finished with this IRQ.
+ */
 struct vgic_irq *vgic_get_irq(struct kvm *kvm, struct kvm_vcpu *vcpu,
 			      u32 intid)
 {
@@ -62,9 +98,9 @@ struct vgic_irq *vgic_get_irq(struct kvm *kvm, struct kvm_vcpu *vcpu,
 	if (intid <= VGIC_MAX_SPI)
 		return &kvm->arch.vgic.spis[intid - VGIC_NR_PRIVATE_IRQS];
 
-	/* LPIs are not yet covered */
+	/* LPIs */
 	if (intid >= VGIC_MIN_LPI)
-		return NULL;
+		return vgic_get_lpi(kvm, intid);
 
 	WARN(1, "Looking up struct vgic_irq for reserved INTID");
 	return NULL;
@@ -78,18 +114,33 @@ static void vgic_get_irq_kref(struct vgic_irq *irq)
 	kref_get(&irq->refcount);
 }
 
-/* The refcount should never drop to 0 at the moment. */
+/*
+ * We can't do anything in here, because we lack the kvm pointer to
+ * lock and remove the item from the lpi_list. So we keep this function
+ * empty and use the return value of kref_put() to trigger the freeing.
+ */
 static void vgic_irq_release(struct kref *ref)
 {
-	WARN_ON(1);
 }
 
 void vgic_put_irq(struct kvm *kvm, struct vgic_irq *irq)
 {
+	struct vgic_dist *dist;
+
 	if (irq->intid < VGIC_MIN_LPI)
 		return;
 
-	kref_put(&irq->refcount, vgic_irq_release);
+	if (!kref_put(&irq->refcount, vgic_irq_release))
+		return;
+
+	dist = &kvm->arch.vgic;
+
+	spin_lock(&dist->lpi_list_lock);
+	list_del(&irq->lpi_list);
+	dist->lpi_list_count--;
+	spin_unlock(&dist->lpi_list_lock);
+
+	kfree(irq);
 }
 
 /**

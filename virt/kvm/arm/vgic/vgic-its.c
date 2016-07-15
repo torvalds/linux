@@ -56,6 +56,7 @@ struct its_collection {
 struct its_itte {
 	struct list_head itte_list;
 
+	struct vgic_irq *irq;
 	struct its_collection *collection;
 	u32 lpi;
 	u32 event_id;
@@ -148,6 +149,10 @@ static unsigned long vgic_mmio_read_its_idregs(struct kvm *kvm,
 static void its_free_itte(struct kvm *kvm, struct its_itte *itte)
 {
 	list_del(&itte->itte_list);
+
+	/* This put matches the get in vgic_add_lpi. */
+	vgic_put_irq(kvm, itte->irq);
+
 	kfree(itte);
 }
 

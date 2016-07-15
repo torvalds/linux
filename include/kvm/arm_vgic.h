@@ -77,6 +77,7 @@ enum vgic_irq_config {
 
 struct vgic_irq {
 	spinlock_t irq_lock;		/* Protects the content of the struct */
+	struct list_head lpi_list;	/* Used to link all LPIs together */
 	struct list_head ap_list;
 
 	struct kvm_vcpu *vcpu;		/* SGIs and PPIs: The VCPU
@@ -193,6 +194,11 @@ struct vgic_dist {
 	 * GICv3 spec: 6.1.2 "LPI Configuration tables"
 	 */
 	u64			propbaser;
+
+	/* Protects the lpi_list and the count value below. */
+	spinlock_t		lpi_list_lock;
+	struct list_head	lpi_list_head;
+	int			lpi_list_count;
 };
 
 struct vgic_v2_cpu_if {
