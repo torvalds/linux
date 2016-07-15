@@ -677,25 +677,6 @@ au1000_setup_hw_rings(struct au1000_private *aup, void __iomem *tx_base)
  * ethtool operations
  */
 
-static int au1000_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
-{
-	if (dev->phydev)
-		return phy_ethtool_gset(dev->phydev, cmd);
-
-	return -EINVAL;
-}
-
-static int au1000_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
-{
-	if (!capable(CAP_NET_ADMIN))
-		return -EPERM;
-
-	if (dev->phydev)
-		return phy_ethtool_sset(dev->phydev, cmd);
-
-	return -EINVAL;
-}
-
 static void
 au1000_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
@@ -720,12 +701,12 @@ static u32 au1000_get_msglevel(struct net_device *dev)
 }
 
 static const struct ethtool_ops au1000_ethtool_ops = {
-	.get_settings = au1000_get_settings,
-	.set_settings = au1000_set_settings,
 	.get_drvinfo = au1000_get_drvinfo,
 	.get_link = ethtool_op_get_link,
 	.get_msglevel = au1000_get_msglevel,
 	.set_msglevel = au1000_set_msglevel,
+	.get_link_ksettings = phy_ethtool_get_link_ksettings,
+	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
 
 
