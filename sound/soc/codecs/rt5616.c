@@ -323,9 +323,9 @@ static const struct snd_kcontrol_new rt5616_snd_controls[] = {
 			RT5616_L_VOL_SFT, RT5616_R_VOL_SFT,
 			175, 0, dac_vol_tlv),
 	/* IN1/IN2 Control */
-	SOC_SINGLE_TLV("IN1 Boost", RT5616_IN1_IN2,
+	SOC_SINGLE_TLV("IN1 Boost Volume", RT5616_IN1_IN2,
 		RT5616_BST_SFT1, 8, 0, bst_tlv),
-	SOC_SINGLE_TLV("IN2 Boost", RT5616_IN1_IN2,
+	SOC_SINGLE_TLV("IN2 Boost Volume", RT5616_IN1_IN2,
 		RT5616_BST_SFT2, 8, 0, bst_tlv),
 	/* INL/INR Volume Control */
 	SOC_DOUBLE_TLV("IN Capture Volume", RT5616_INL1_INR1_VOL,
@@ -339,7 +339,7 @@ static const struct snd_kcontrol_new rt5616_snd_controls[] = {
 			127, 0, adc_vol_tlv),
 
 	/* ADC Boost Volume Control */
-	SOC_DOUBLE_TLV("ADC Boost Gain", RT5616_ADC_BST_VOL,
+	SOC_DOUBLE_TLV("ADC Boost Volume", RT5616_ADC_BST_VOL,
 			RT5616_ADC_L_BST_SFT, RT5616_ADC_R_BST_SFT,
 			3, 0, adc_bst_tlv),
 };
