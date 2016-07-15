@@ -1937,6 +1937,24 @@ int amdgpu_resume_kms(struct drm_device *dev, bool resume, bool fbcon)
 	return 0;
 }
 
+static bool amdgpu_check_soft_reset(struct amdgpu_device *adev)
+{
+	int i;
+	bool asic_hang = false;
+
+	for (i = 0; i < adev->num_ip_blocks; i++) {
+		if (!adev->ip_block_status[i].valid)
+			continue;
+		if (adev->ip_blocks[i].funcs->check_soft_reset)
+			adev->ip_blocks[i].funcs->check_soft_reset(adev);
+		if (adev->ip_block_status[i].hang) {
+			DRM_INFO("IP block:%d is hang!\n", i);
+			asic_hang = true;
+		}
+	}
+	return asic_hang;
+}
+
 /**
  * amdgpu_gpu_reset - reset the asic
  *
@@ -1949,6 +1967,11 @@ int amdgpu_gpu_reset(struct amdgpu_device *adev)
 {
 	int i, r;
 	int resched;
+
+	if (!amdgpu_check_soft_reset(adev)) {
+		DRM_INFO("No hardware hang detected. Did some blocks stall?\n");
+		return 0;
+	}
 
 	atomic_inc(&adev->gpu_reset_counter);
 
