@@ -49,7 +49,7 @@ bool vgic_has_its(struct kvm *kvm)
 	if (dist->vgic_model != KVM_DEV_TYPE_ARM_VGIC_V3)
 		return false;
 
-	return false;
+	return dist->has_its;
 }
 
 static unsigned long vgic_mmio_read_v3_misc(struct kvm_vcpu *vcpu,

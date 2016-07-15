@@ -21,8 +21,8 @@
 
 /* common helpers */
 
-static int vgic_check_ioaddr(struct kvm *kvm, phys_addr_t *ioaddr,
-			     phys_addr_t addr, phys_addr_t alignment)
+int vgic_check_ioaddr(struct kvm *kvm, phys_addr_t *ioaddr,
+		      phys_addr_t addr, phys_addr_t alignment)
 {
 	if (addr & ~KVM_PHYS_MASK)
 		return -E2BIG;
