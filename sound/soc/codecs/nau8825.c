@@ -1349,9 +1349,9 @@ static bool nau8825_is_jack_inserted(struct regmap *regmap)
 	int status, jkdet;
 
 	regmap_read(regmap, NAU8825_REG_JACK_DET_CTRL, &jkdet);
-	active_high = !!(jkdet & NAU8825_JACK_POLARITY);
+	active_high = jkdet & NAU8825_JACK_POLARITY;
 	regmap_read(regmap, NAU8825_REG_I2C_DEVICE_ID, &status);
-	is_high = !!(status & NAU8825_GPIO2JD1);
+	is_high = status & NAU8825_GPIO2JD1;
 	/* return jack connection status according to jack insertion logic
 	 * active high or active low.
 	 */
