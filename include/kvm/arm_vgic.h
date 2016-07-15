@@ -108,13 +108,33 @@ struct vgic_irq {
 };
 
 struct vgic_register_region;
+struct vgic_its;
+
+enum iodev_type {
+	IODEV_CPUIF,
+	IODEV_DIST,
+	IODEV_REDIST,
+	IODEV_ITS
+};
 
 struct vgic_io_device {
 	gpa_t base_addr;
-	struct kvm_vcpu *redist_vcpu;
+	union {
+		struct kvm_vcpu *redist_vcpu;
+		struct vgic_its *its;
+	};
 	const struct vgic_register_region *regions;
+	enum iodev_type iodev_type;
 	int nr_regions;
 	struct kvm_io_device dev;
+};
+
+struct vgic_its {
+	/* The base address of the ITS control register frame */
+	gpa_t			vgic_its_base;
+
+	bool			enabled;
+	struct vgic_io_device	iodev;
 };
 
 struct vgic_dist {

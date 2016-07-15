@@ -473,8 +473,7 @@ static int dispatch_mmio_read(struct kvm_vcpu *vcpu, struct kvm_io_device *dev,
 {
 	struct vgic_io_device *iodev = kvm_to_vgic_iodev(dev);
 	const struct vgic_register_region *region;
-	struct kvm_vcpu *r_vcpu;
-	unsigned long data;
+	unsigned long data = 0;
 
 	region = vgic_find_mmio_region(iodev->regions, iodev->nr_regions,
 				       addr - iodev->base_addr);
@@ -483,8 +482,20 @@ static int dispatch_mmio_read(struct kvm_vcpu *vcpu, struct kvm_io_device *dev,
 		return 0;
 	}
 
-	r_vcpu = iodev->redist_vcpu ? iodev->redist_vcpu : vcpu;
-	data = region->read(r_vcpu, addr, len);
+	switch (iodev->iodev_type) {
+	case IODEV_CPUIF:
+		return 1;
+	case IODEV_DIST:
+		data = region->read(vcpu, addr, len);
+		break;
+	case IODEV_REDIST:
+		data = region->read(iodev->redist_vcpu, addr, len);
+		break;
+	case IODEV_ITS:
+		data = region->its_read(vcpu->kvm, iodev->its, addr, len);
+		break;
+	}
+
 	vgic_data_host_to_mmio_bus(val, len, data);
 	return 0;
 }
@@ -494,7 +505,6 @@ static int dispatch_mmio_write(struct kvm_vcpu *vcpu, struct kvm_io_device *dev,
 {
 	struct vgic_io_device *iodev = kvm_to_vgic_iodev(dev);
 	const struct vgic_register_region *region;
-	struct kvm_vcpu *r_vcpu;
 	unsigned long data = vgic_data_mmio_bus_to_host(val, len);
 
 	region = vgic_find_mmio_region(iodev->regions, iodev->nr_regions,
@@ -505,8 +515,20 @@ static int dispatch_mmio_write(struct kvm_vcpu *vcpu, struct kvm_io_device *dev,
 	if (!check_region(region, addr, len))
 		return 0;
 
-	r_vcpu = iodev->redist_vcpu ? iodev->redist_vcpu : vcpu;
-	region->write(r_vcpu, addr, len, data);
+	switch (iodev->iodev_type) {
+	case IODEV_CPUIF:
+		break;
+	case IODEV_DIST:
+		region->write(vcpu, addr, len, data);
+		break;
+	case IODEV_REDIST:
+		region->write(iodev->redist_vcpu, addr, len, data);
+		break;
+	case IODEV_ITS:
+		region->its_write(vcpu->kvm, iodev->its, addr, len, data);
+		break;
+	}
+
 	return 0;
 }
 
@@ -536,6 +558,7 @@ int vgic_register_dist_iodev(struct kvm *kvm, gpa_t dist_base_address,
 	}
 
 	io_device->base_addr = dist_base_address;
+	io_device->iodev_type = IODEV_DIST;
 	io_device->redist_vcpu = NULL;
 
 	mutex_lock(&kvm->slots_lock);

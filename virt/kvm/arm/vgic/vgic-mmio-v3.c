@@ -42,6 +42,16 @@ static u64 update_64bit_reg(u64 reg, unsigned int offset, unsigned int len,
 	return reg | ((u64)val << lower);
 }
 
+bool vgic_has_its(struct kvm *kvm)
+{
+	struct vgic_dist *dist = &kvm->arch.vgic;
+
+	if (dist->vgic_model != KVM_DEV_TYPE_ARM_VGIC_V3)
+		return false;
+
+	return false;
+}
+
 static unsigned long vgic_mmio_read_v3_misc(struct kvm_vcpu *vcpu,
 					    gpa_t addr, unsigned int len)
 {
@@ -130,6 +140,32 @@ static void vgic_mmio_write_irouter(struct kvm_vcpu *vcpu,
 
 	spin_unlock(&irq->irq_lock);
 	vgic_put_irq(vcpu->kvm, irq);
+}
+
+static unsigned long vgic_mmio_read_v3r_ctlr(struct kvm_vcpu *vcpu,
+					     gpa_t addr, unsigned int len)
+{
+	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
+
+	return vgic_cpu->lpis_enabled ? GICR_CTLR_ENABLE_LPIS : 0;
+}
+
+
+static void vgic_mmio_write_v3r_ctlr(struct kvm_vcpu *vcpu,
+				     gpa_t addr, unsigned int len,
+				     unsigned long val)
+{
+	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
+	bool was_enabled = vgic_cpu->lpis_enabled;
+
+	if (!vgic_has_its(vcpu->kvm))
+		return;
+
+	vgic_cpu->lpis_enabled = val & GICR_CTLR_ENABLE_LPIS;
+
+	if (!was_enabled && vgic_cpu->lpis_enabled) {
+		/* Eventually do something */
+	}
 }
 
 static unsigned long vgic_mmio_read_v3r_typer(struct kvm_vcpu *vcpu,
@@ -372,7 +408,7 @@ static const struct vgic_register_region vgic_v3_dist_registers[] = {
 
 static const struct vgic_register_region vgic_v3_rdbase_registers[] = {
 	REGISTER_DESC_WITH_LENGTH(GICR_CTLR,
-		vgic_mmio_read_raz, vgic_mmio_write_wi, 4,
+		vgic_mmio_read_v3r_ctlr, vgic_mmio_write_v3r_ctlr, 4,
 		VGIC_ACCESS_32bit),
 	REGISTER_DESC_WITH_LENGTH(GICR_IIDR,
 		vgic_mmio_read_v3r_iidr, vgic_mmio_write_wi, 4,
@@ -450,6 +486,7 @@ int vgic_register_redist_iodevs(struct kvm *kvm, gpa_t redist_base_address)
 
 		kvm_iodevice_init(&rd_dev->dev, &kvm_io_gic_ops);
 		rd_dev->base_addr = rd_base;
+		rd_dev->iodev_type = IODEV_REDIST;
 		rd_dev->regions = vgic_v3_rdbase_registers;
 		rd_dev->nr_regions = ARRAY_SIZE(vgic_v3_rdbase_registers);
 		rd_dev->redist_vcpu = vcpu;
@@ -464,6 +501,7 @@ int vgic_register_redist_iodevs(struct kvm *kvm, gpa_t redist_base_address)
 
 		kvm_iodevice_init(&sgi_dev->dev, &kvm_io_gic_ops);
 		sgi_dev->base_addr = sgi_base;
+		sgi_dev->iodev_type = IODEV_REDIST;
 		sgi_dev->regions = vgic_v3_sgibase_registers;
 		sgi_dev->nr_regions = ARRAY_SIZE(vgic_v3_sgibase_registers);
 		sgi_dev->redist_vcpu = vcpu;

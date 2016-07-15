@@ -21,10 +21,19 @@ struct vgic_register_region {
 	unsigned int len;
 	unsigned int bits_per_irq;
 	unsigned int access_flags;
-	unsigned long (*read)(struct kvm_vcpu *vcpu, gpa_t addr,
-			      unsigned int len);
-	void (*write)(struct kvm_vcpu *vcpu, gpa_t addr, unsigned int len,
-		      unsigned long val);
+	union {
+		unsigned long (*read)(struct kvm_vcpu *vcpu, gpa_t addr,
+				      unsigned int len);
+		unsigned long (*its_read)(struct kvm *kvm, struct vgic_its *its,
+					  gpa_t addr, unsigned int len);
+	};
+	union {
+		void (*write)(struct kvm_vcpu *vcpu, gpa_t addr,
+			      unsigned int len, unsigned long val);
+		void (*its_write)(struct kvm *kvm, struct vgic_its *its,
+				  gpa_t addr, unsigned int len,
+				  unsigned long val);
+	};
 };
 
 extern struct kvm_io_device_ops kvm_io_gic_ops;

@@ -72,6 +72,7 @@ void vgic_v3_enable(struct kvm_vcpu *vcpu);
 int vgic_v3_probe(const struct gic_kvm_info *info);
 int vgic_v3_map_resources(struct kvm *kvm);
 int vgic_register_redist_iodevs(struct kvm *kvm, gpa_t dist_base_address);
+bool vgic_has_its(struct kvm *kvm);
 #else
 static inline void vgic_v3_process_maintenance(struct kvm_vcpu *vcpu)
 {
@@ -123,6 +124,12 @@ static inline int vgic_register_redist_iodevs(struct kvm *kvm,
 {
 	return -ENODEV;
 }
+
+static inline bool vgic_has_its(struct kvm *kvm)
+{
+	return false;
+}
+
 #endif
 
 int kvm_register_vgic_device(unsigned long type);
