@@ -430,7 +430,7 @@ static struct bpf_event_entry *bpf_event_entry_gen(struct file *perf_file,
 {
 	struct bpf_event_entry *ee;
 
-	ee = kzalloc(sizeof(*ee), GFP_KERNEL);
+	ee = kzalloc(sizeof(*ee), GFP_ATOMIC);
 	if (ee) {
 		ee->event = perf_file->private_data;
 		ee->perf_file = perf_file;
