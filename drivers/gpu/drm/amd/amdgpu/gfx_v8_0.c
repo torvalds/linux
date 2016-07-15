@@ -5229,6 +5229,49 @@ static int gfx_v8_0_soft_reset(void *handle)
 	return 0;
 }
 
+static void gfx_v8_0_init_hqd(struct amdgpu_device *adev,
+			      struct amdgpu_ring *ring)
+{
+	vi_srbm_select(adev, ring->me, ring->pipe, ring->queue, 0);
+	WREG32(mmCP_HQD_DEQUEUE_REQUEST, 0);
+	WREG32(mmCP_HQD_PQ_RPTR, 0);
+	WREG32(mmCP_HQD_PQ_WPTR, 0);
+	vi_srbm_select(adev, 0, 0, 0, 0);
+}
+
+static int gfx_v8_0_post_soft_reset(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	u32 grbm_soft_reset = 0, srbm_soft_reset = 0;
+
+	if (!adev->ip_block_status[AMD_IP_BLOCK_TYPE_GFX].hang)
+		return 0;
+
+	grbm_soft_reset = adev->gfx.grbm_soft_reset;
+	srbm_soft_reset = adev->gfx.srbm_soft_reset;
+
+	if (REG_GET_FIELD(grbm_soft_reset, GRBM_SOFT_RESET, SOFT_RESET_CP) ||
+	    REG_GET_FIELD(grbm_soft_reset, GRBM_SOFT_RESET, SOFT_RESET_GFX))
+		gfx_v8_0_cp_gfx_resume(adev);
+
+	if (REG_GET_FIELD(grbm_soft_reset, GRBM_SOFT_RESET, SOFT_RESET_CP) ||
+	    REG_GET_FIELD(grbm_soft_reset, GRBM_SOFT_RESET, SOFT_RESET_CPF) ||
+	    REG_GET_FIELD(grbm_soft_reset, GRBM_SOFT_RESET, SOFT_RESET_CPC) ||
+	    REG_GET_FIELD(grbm_soft_reset, GRBM_SOFT_RESET, SOFT_RESET_CPG)) {
+		int i;
+
+		for (i = 0; i < adev->gfx.num_compute_rings; i++) {
+			struct amdgpu_ring *ring = &adev->gfx.compute_ring[i];
+
+			gfx_v8_0_init_hqd(adev, ring);
+		}
+		gfx_v8_0_cp_compute_resume(adev);
+	}
+	gfx_v8_0_rlc_start(adev);
+
+	return 0;
+}
+
 /**
  * gfx_v8_0_get_gpu_clock_counter - return GPU clock counter snapshot
  *
@@ -6416,6 +6459,7 @@ const struct amd_ip_funcs gfx_v8_0_ip_funcs = {
 	.check_soft_reset = gfx_v8_0_check_soft_reset,
 	.pre_soft_reset = gfx_v8_0_pre_soft_reset,
 	.soft_reset = gfx_v8_0_soft_reset,
+	.post_soft_reset = gfx_v8_0_post_soft_reset,
 	.set_clockgating_state = gfx_v8_0_set_clockgating_state,
 	.set_powergating_state = gfx_v8_0_set_powergating_state,
 };
