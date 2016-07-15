@@ -570,6 +570,19 @@ struct gb_bootrom_get_vid_pid_response {
 #define GB_POWER_SUPPLY_STATUS_NOT_CHARGING		0x0003
 #define GB_POWER_SUPPLY_STATUS_FULL			0x0004
 
+/* Greybus power supply capacity level values */
+#define GB_POWER_SUPPLY_CAPACITY_LEVEL_UNKNOWN		0x0000
+#define GB_POWER_SUPPLY_CAPACITY_LEVEL_CRITICAL		0x0001
+#define GB_POWER_SUPPLY_CAPACITY_LEVEL_LOW		0x0002
+#define GB_POWER_SUPPLY_CAPACITY_LEVEL_NORMAL		0x0003
+#define GB_POWER_SUPPLY_CAPACITY_LEVEL_HIGH		0x0004
+#define GB_POWER_SUPPLY_CAPACITY_LEVEL_FULL		0x0005
+
+/* Greybus power supply scope values */
+#define GB_POWER_SUPPLY_SCOPE_UNKNOWN			0x0000
+#define GB_POWER_SUPPLY_SCOPE_SYSTEM			0x0001
+#define GB_POWER_SUPPLY_SCOPE_DEVICE			0x0002
+
 struct gb_power_supply_get_supplies_response {
 	__u8	supplies_count;
 } __packed;
