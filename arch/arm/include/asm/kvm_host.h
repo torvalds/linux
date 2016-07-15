@@ -272,7 +272,7 @@ static inline void __cpu_reset_hyp_mode(unsigned long vector_ptr,
 	kvm_call_hyp((void *)virt_to_idmap(__kvm_hyp_reset), vector_ptr);
 }
 
-static inline int kvm_arch_dev_ioctl_check_extension(long ext)
+static inline int kvm_arch_dev_ioctl_check_extension(struct kvm *kvm, long ext)
 {
 	return 0;
 }
