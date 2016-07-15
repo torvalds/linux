@@ -82,12 +82,6 @@ static int bcm2835_wdt_stop(struct watchdog_device *wdog)
 	return 0;
 }
 
-static int bcm2835_wdt_set_timeout(struct watchdog_device *wdog, unsigned int t)
-{
-	wdog->timeout = t;
-	return 0;
-}
-
 static unsigned int bcm2835_wdt_get_timeleft(struct watchdog_device *wdog)
 {
 	struct bcm2835_wdt *wdt = watchdog_get_drvdata(wdog);
@@ -100,7 +94,6 @@ static const struct watchdog_ops bcm2835_wdt_ops = {
 	.owner =	THIS_MODULE,
 	.start =	bcm2835_wdt_start,
 	.stop =		bcm2835_wdt_stop,
-	.set_timeout =	bcm2835_wdt_set_timeout,
 	.get_timeleft =	bcm2835_wdt_get_timeleft,
 };
 
