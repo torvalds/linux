@@ -53,12 +53,14 @@
 
 #define DEFAULT_COUNT 10
 
-static void lkdtm_handler(void);
 static int lkdtm_debugfs_open(struct inode *inode, struct file *file);
 static ssize_t lkdtm_debugfs_read(struct file *f, char __user *user_buf,
 		size_t count, loff_t *off);
 static ssize_t direct_entry(struct file *f, const char __user *user_buf,
 			    size_t count, loff_t *off);
+
+#ifdef CONFIG_KPROBES
+static void lkdtm_handler(void);
 static ssize_t lkdtm_debugfs_entry(struct file *f,
 				   const char __user *user_buf,
 				   size_t count, loff_t *off);
@@ -118,7 +120,7 @@ static int jp_scsi_dispatch_cmd(struct scsi_cmnd *cmd)
 	return 0;
 }
 
-#ifdef CONFIG_IDE
+# ifdef CONFIG_IDE
 static int jp_generic_ide_ioctl(ide_drive_t *drive, struct file *file,
 			struct block_device *bdev, unsigned int cmd,
 			unsigned long arg)
@@ -127,8 +129,8 @@ static int jp_generic_ide_ioctl(ide_drive_t *drive, struct file *file,
 	jprobe_return();
 	return 0;
 }
+# endif
 #endif
-
 
 /* Crash points */
 struct crashpoint {
@@ -238,10 +240,6 @@ static struct jprobe *lkdtm_jprobe;
 struct crashpoint *lkdtm_crashpoint;
 struct crashtype *lkdtm_crashtype;
 
-/* Global crash counter and spinlock. */
-static int crash_count = DEFAULT_COUNT;
-static DEFINE_SPINLOCK(crash_count_lock);
-
 /* Module parameters */
 static int recur_count = -1;
 module_param(recur_count, int, 0644);
@@ -285,29 +283,6 @@ static noinline void lkdtm_do_action(struct crashtype *crashtype)
 	crashtype->func();
 }
 
-/* Called by jprobe entry points. */
-static void lkdtm_handler(void)
-{
-	unsigned long flags;
-	bool do_it = false;
-
-	BUG_ON(!lkdtm_crashpoint || !lkdtm_crashtype);
-
-	spin_lock_irqsave(&crash_count_lock, flags);
-	crash_count--;
-	pr_info("Crash point %s of type %s hit, trigger in %d rounds\n",
-		lkdtm_crashpoint->name, lkdtm_crashtype->name, crash_count);
-
-	if (crash_count == 0) {
-		do_it = true;
-		crash_count = cpoint_count;
-	}
-	spin_unlock_irqrestore(&crash_count_lock, flags);
-
-	if (do_it)
-		lkdtm_do_action(lkdtm_crashtype);
-}
-
 static int lkdtm_register_cpoint(struct crashpoint *crashpoint,
 				 struct crashtype *crashtype)
 {
@@ -335,6 +310,34 @@ static int lkdtm_register_cpoint(struct crashpoint *crashpoint,
 	}
 
 	return ret;
+}
+
+#ifdef CONFIG_KPROBES
+/* Global crash counter and spinlock. */
+static int crash_count = DEFAULT_COUNT;
+static DEFINE_SPINLOCK(crash_count_lock);
+
+/* Called by jprobe entry points. */
+static void lkdtm_handler(void)
+{
+	unsigned long flags;
+	bool do_it = false;
+
+	BUG_ON(!lkdtm_crashpoint || !lkdtm_crashtype);
+
+	spin_lock_irqsave(&crash_count_lock, flags);
+	crash_count--;
+	pr_info("Crash point %s of type %s hit, trigger in %d rounds\n",
+		lkdtm_crashpoint->name, lkdtm_crashtype->name, crash_count);
+
+	if (crash_count == 0) {
+		do_it = true;
+		crash_count = cpoint_count;
+	}
+	spin_unlock_irqrestore(&crash_count_lock, flags);
+
+	if (do_it)
+		lkdtm_do_action(lkdtm_crashtype);
 }
 
 static ssize_t lkdtm_debugfs_entry(struct file *f,
@@ -374,6 +377,7 @@ static ssize_t lkdtm_debugfs_entry(struct file *f,
 
 	return count;
 }
+#endif
 
 /* Generic read callback that just prints out the available crash types */
 static ssize_t lkdtm_debugfs_read(struct file *f, char __user *user_buf,
@@ -476,8 +480,10 @@ static int __init lkdtm_module_init(void)
 		}
 	}
 
+#ifdef CONFIG_KPROBES
 	/* Set crash count. */
 	crash_count = cpoint_count;
+#endif
 
 	/* Handle test-specific initialization. */
 	lkdtm_bugs_init(&recur_count);
