@@ -345,7 +345,3 @@ error:
 	return err;
 }
 device_initcall(ts5500_init);
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Savoir-faire Linux Inc. <kernel@savoirfairelinux.com>");
-MODULE_DESCRIPTION("Technologic Systems TS-5500 platform driver");
