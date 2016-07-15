@@ -180,16 +180,26 @@ err_cleanup:
 static int fsl_dcu_attach_endpoint(struct fsl_dcu_drm_device *fsl_dev,
 				   const struct of_endpoint *ep)
 {
+	struct drm_bridge *bridge;
 	struct device_node *np;
 
 	np = of_graph_get_remote_port_parent(ep->local_node);
 
 	fsl_dev->connector.panel = of_drm_find_panel(np);
-	of_node_put(np);
-	if (fsl_dev->connector.panel)
+	if (fsl_dev->connector.panel) {
+		of_node_put(np);
 		return fsl_dcu_attach_panel(fsl_dev, fsl_dev->connector.panel);
+	}
 
-	return -ENODEV;
+	bridge = of_drm_find_bridge(np);
+	of_node_put(np);
+	if (!bridge)
+		return -ENODEV;
+
+	fsl_dev->encoder.bridge = bridge;
+	bridge->encoder = &fsl_dev->encoder;
+
+	return drm_bridge_attach(fsl_dev->drm, bridge);
 }
 
 int fsl_dcu_create_outputs(struct fsl_dcu_drm_device *fsl_dev)
