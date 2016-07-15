@@ -2125,7 +2125,7 @@ static int of_get_pxafb_display(struct device *dev, struct device_node *disp,
 
 	timings = of_get_display_timings(disp);
 	if (!timings)
-		goto out;
+		return -EINVAL;
 
 	ret = -ENOMEM;
 	info->modes = kmalloc_array(timings->num_timings,
