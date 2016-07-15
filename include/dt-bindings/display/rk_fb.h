@@ -26,6 +26,8 @@
 #define OUT_YUV_420	    14
 #define OUT_P101010	    15
 #define OUT_YUV_420_10BIT   16
+#define OUT_YUV_422	    12
+#define OUT_YUV_422_10BIT   17
 #define OUT_P16BPP4         24
 #define OUT_D888_P666       0x21	//18bit screen,connect to lcdc D2~D7, D10~D15, D18~D23
 #define OUT_D888_P565       0x22
@@ -43,6 +45,7 @@
 #define SCREEN_TVOUT_TEST  10
 #define SCREEN_LVDS_10BIT	 11
 #define SCREEN_DUAL_LVDS_10BIT   12
+#define SCREEN_DP		13
 
 #define LVDS_8BIT_1     0
 #define LVDS_8BIT_2     1
