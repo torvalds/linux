@@ -703,7 +703,7 @@ ssize_t tpm2_get_tpm_pt(struct tpm_chip *chip, u32 property_id,  u32 *value,
 
 	rc = tpm_transmit_cmd(chip, &cmd, sizeof(cmd), desc);
 	if (!rc)
-		*value = cmd.params.get_tpm_pt_out.value;
+		*value = be32_to_cpu(cmd.params.get_tpm_pt_out.value);
 
 	return rc;
 }
