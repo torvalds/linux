@@ -603,6 +603,7 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 			 * easy to handle it here so the behavior will be
 			 * consistent.
 			 */
+			msg->tx_ts = ktime_get_ns();
 			msg->tx_status = CEC_TX_STATUS_NACK |
 					 CEC_TX_STATUS_MAX_RETRIES;
 			msg->tx_nack_cnt = 1;
