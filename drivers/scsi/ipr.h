@@ -1478,6 +1478,7 @@ struct ipr_ioa_cfg {
 	u8 in_ioa_bringdown:1;
 	u8 ioa_unit_checked:1;
 	u8 dump_taken:1;
+	u8 scan_enabled:1;
 	u8 scan_done:1;
 	u8 needs_hard_reset:1;
 	u8 dual_raid:1;
