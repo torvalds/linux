@@ -94,12 +94,26 @@
 			"Headphone Jack", "HPOL",
 			"Headphone Jack", "HPOR";
 
-		simple-audio-card,cpu {
-			sound-dai = <&i2s>;
+		simple-audio-card,dai-link@0 {
+			format = "i2s";
+			cpu {
+				sound-dai = <&i2s>;
+			};
+
+			codec {
+				sound-dai = <&rt5616>;
+			};
 		};
 
-		simple-audio-card,codec {
-			sound-dai = <&rt5616>;
+		simple-audio-card,dai-link@1 {
+			format = "i2s";
+			cpu {
+				sound-dai = <&i2s>;
+			};
+
+			codec {
+				sound-dai = <&hdmi>;
+			};
 		};
 	};
 
@@ -136,10 +150,6 @@
 };
 
 &hdmi {
-	status = "okay";
-};
-
-&hdmi_sound {
 	status = "okay";
 };
 
