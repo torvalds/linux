@@ -2,9 +2,7 @@
  * This is for all the tests related to copy_to_user() and copy_from_user()
  * hardening.
  */
-#define pr_fmt(fmt) "lkdtm: " fmt
-
-#include <linux/kernel.h>
+#include "lkdtm.h"
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/mman.h>

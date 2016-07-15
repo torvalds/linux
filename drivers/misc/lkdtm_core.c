@@ -30,9 +30,7 @@
  *
  * See Documentation/fault-injection/provoke-crashes.txt for instructions
  */
-#define pr_fmt(fmt) "lkdtm: " fmt
-
-#include <linux/kernel.h>
+#include "lkdtm.h"
 #include <linux/fs.h>
 #include <linux/module.h>
 #include <linux/buffer_head.h>
@@ -48,8 +46,6 @@
 #ifdef CONFIG_IDE
 #include <linux/ide.h>
 #endif
-
-#include "lkdtm.h"
 
 #define DEFAULT_COUNT 10
 

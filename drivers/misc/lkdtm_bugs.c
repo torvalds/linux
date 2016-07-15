@@ -4,12 +4,8 @@
  * lockups) along with other things that don't fit well into existing LKDTM
  * test source files.
  */
-#define pr_fmt(fmt) "lkdtm: " fmt
-
-#include <linux/kernel.h>
-#include <linux/sched.h>
-
 #include "lkdtm.h"
+#include <linux/sched.h>
 
 /*
  * Make sure our attempts to over run the kernel stack doesn't trigger

@@ -2,12 +2,8 @@
  * This is for all the tests relating directly to heap memory, including
  * page allocation and slab allocations.
  */
-#define pr_fmt(fmt) "lkdtm: " fmt
-
-#include <linux/kernel.h>
-#include <linux/slab.h>
-
 #include "lkdtm.h"
+#include <linux/slab.h>
 
 /*
  * This tries to stay within the next largest power-of-2 kmalloc cache
