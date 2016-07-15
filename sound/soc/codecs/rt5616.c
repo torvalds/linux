@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
@@ -144,6 +145,7 @@ struct rt5616_priv {
 	struct snd_soc_codec *codec;
 	struct delayed_work patch_work;
 	struct regmap *regmap;
+	struct clk *mclk;
 
 	int sysclk;
 	int sysclk_src;
@@ -1159,7 +1161,34 @@ static int rt5616_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 static int rt5616_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
+	struct rt5616_priv *rt5616 = snd_soc_codec_get_drvdata(codec);
+	int ret;
+
 	switch (level) {
+
+	case SND_SOC_BIAS_ON:
+		break;
+
+	case SND_SOC_BIAS_PREPARE:
+		/*
+		 * SND_SOC_BIAS_PREPARE is called while preparing for a
+		 * transition to ON or away from ON. If current bias_level
+		 * is SND_SOC_BIAS_ON, then it is preparing for a transition
+		 * away from ON. Disable the clock in that case, otherwise
+		 * enable it.
+		 */
+		if (IS_ERR(rt5616->mclk))
+			break;
+
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_ON) {
+			clk_disable_unprepare(rt5616->mclk);
+		} else {
+			ret = clk_prepare_enable(rt5616->mclk);
+			if (ret)
+				return ret;
+		}
+		break;
+
 	case SND_SOC_BIAS_STANDBY:
 		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			snd_soc_update_bits(codec, RT5616_PWR_ANLG1,
@@ -1197,6 +1226,11 @@ static int rt5616_set_bias_level(struct snd_soc_codec *codec,
 static int rt5616_probe(struct snd_soc_codec *codec)
 {
 	struct rt5616_priv *rt5616 = snd_soc_codec_get_drvdata(codec);
+
+	/* Check if MCLK provided */
+	rt5616->mclk = devm_clk_get(codec->dev, "mclk");
+	if (PTR_ERR(rt5616->mclk) == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
 
 	rt5616->codec = codec;
 
