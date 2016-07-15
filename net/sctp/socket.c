@@ -202,7 +202,7 @@ struct sctp_association *sctp_id2assoc(struct sock *sk, sctp_assoc_t id)
 		 * could be a TCP-style listening socket or a socket which
 		 * hasn't yet called connect() to establish an association.
 		 */
-		if (!sctp_sstate(sk, ESTABLISHED))
+		if (!sctp_sstate(sk, ESTABLISHED) && !sctp_sstate(sk, CLOSING))
 			return NULL;
 
 		/* Get the first and the only association from the list. */
@@ -1068,7 +1068,7 @@ static int __sctp_connect(struct sock *sk,
 	 * is already connected.
 	 * It cannot be done even on a TCP-style listening socket.
 	 */
-	if (sctp_sstate(sk, ESTABLISHED) ||
+	if (sctp_sstate(sk, ESTABLISHED) || sctp_sstate(sk, CLOSING) ||
 	    (sctp_style(sk, TCP) && sctp_sstate(sk, LISTENING))) {
 		err = -EISCONN;
 		goto out_free;
@@ -1705,18 +1705,19 @@ static int sctp_sendmsg(struct sock *sk, struct msghdr *msg, size_t msg_len)
 	if (msg_name) {
 		/* Look for a matching association on the endpoint. */
 		asoc = sctp_endpoint_lookup_assoc(ep, &to, &transport);
-		if (!asoc) {
-			/* If we could not find a matching association on the
-			 * endpoint, make sure that it is not a TCP-style
-			 * socket that already has an association or there is
-			 * no peeled-off association on another socket.
-			 */
-			if ((sctp_style(sk, TCP) &&
-			     sctp_sstate(sk, ESTABLISHED)) ||
-			    sctp_endpoint_is_peeled_off(ep, &to)) {
-				err = -EADDRNOTAVAIL;
-				goto out_unlock;
-			}
+
+		/* If we could not find a matching association on the
+		 * endpoint, make sure that it is not a TCP-style
+		 * socket that already has an association or there is
+		 * no peeled-off association on another socket.
+		 */
+		if (!asoc &&
+		    ((sctp_style(sk, TCP) &&
+		      (sctp_sstate(sk, ESTABLISHED) ||
+		       sctp_sstate(sk, CLOSING))) ||
+		     sctp_endpoint_is_peeled_off(ep, &to))) {
+			err = -EADDRNOTAVAIL;
+			goto out_unlock;
 		}
 	} else {
 		asoc = sctp_id2assoc(sk, associd);
@@ -2077,7 +2078,8 @@ static int sctp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 
 	lock_sock(sk);
 
-	if (sctp_style(sk, TCP) && !sctp_sstate(sk, ESTABLISHED)) {
+	if (sctp_style(sk, TCP) && !sctp_sstate(sk, ESTABLISHED) &&
+	    !sctp_sstate(sk, CLOSING)) {
 		err = -ENOTCONN;
 		goto out;
 	}
