@@ -104,6 +104,7 @@ enum {
 	NUM_MEM = NUM_DCR + NUM_BDW + 2 /* spa0 iset */ + 4 /* spa1 iset */,
 	DIMM_SIZE = SZ_32M,
 	LABEL_SIZE = SZ_128K,
+	SPA_VCD_SIZE = SZ_4M,
 	SPA0_SIZE = DIMM_SIZE,
 	SPA1_SIZE = DIMM_SIZE*2,
 	SPA2_SIZE = DIMM_SIZE,
@@ -618,7 +619,7 @@ static int nfit_test0_alloc(struct nfit_test *t)
 
 static int nfit_test1_alloc(struct nfit_test *t)
 {
-	size_t nfit_size = sizeof(struct acpi_nfit_system_address)
+	size_t nfit_size = sizeof(struct acpi_nfit_system_address) * 2
 		+ sizeof(struct acpi_nfit_memory_map)
 		+ offsetof(struct acpi_nfit_control_region, window_size);
 
@@ -629,6 +630,10 @@ static int nfit_test1_alloc(struct nfit_test *t)
 
 	t->spa_set[0] = test_alloc(t, SPA2_SIZE, &t->spa_set_dma[0]);
 	if (!t->spa_set[0])
+		return -ENOMEM;
+
+	t->spa_set[1] = test_alloc(t, SPA_VCD_SIZE, &t->spa_set_dma[1]);
+	if (!t->spa_set[1])
 		return -ENOMEM;
 
 	return ars_state_init(&t->pdev.dev, &t->ars_state);
@@ -1335,7 +1340,16 @@ static void nfit_test1_setup(struct nfit_test *t)
 	spa->address = t->spa_set_dma[0];
 	spa->length = SPA2_SIZE;
 
-	offset += sizeof(*spa);
+	/* virtual cd region */
+	spa = nfit_buf + sizeof(*spa);
+	spa->header.type = ACPI_NFIT_TYPE_SYSTEM_ADDRESS;
+	spa->header.length = sizeof(*spa);
+	memcpy(spa->range_guid, to_nfit_uuid(NFIT_SPA_VCD), 16);
+	spa->range_index = 0;
+	spa->address = t->spa_set_dma[1];
+	spa->length = SPA_VCD_SIZE;
+
+	offset += sizeof(*spa) * 2;
 	/* mem-region0 (spa0, dimm0) */
 	memdev = nfit_buf + offset;
 	memdev->header.type = ACPI_NFIT_TYPE_MEMORY_MAP;
