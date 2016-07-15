@@ -271,7 +271,6 @@ static void kvm_vgic_dist_destroy(struct kvm *kvm)
 	dist->initialized = false;
 
 	kfree(dist->spis);
-	kfree(dist->redist_iodevs);
 	dist->nr_spis = 0;
 
 	mutex_unlock(&kvm->lock);

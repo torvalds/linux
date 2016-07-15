@@ -285,21 +285,14 @@ unsigned int vgic_v3_init_dist_iodev(struct vgic_io_device *dev)
 
 int vgic_register_redist_iodevs(struct kvm *kvm, gpa_t redist_base_address)
 {
-	int nr_vcpus = atomic_read(&kvm->online_vcpus);
 	struct kvm_vcpu *vcpu;
-	struct vgic_io_device *devices;
 	int c, ret = 0;
-
-	devices = kmalloc(sizeof(struct vgic_io_device) * nr_vcpus * 2,
-			  GFP_KERNEL);
-	if (!devices)
-		return -ENOMEM;
 
 	kvm_for_each_vcpu(c, vcpu, kvm) {
 		gpa_t rd_base = redist_base_address + c * SZ_64K * 2;
 		gpa_t sgi_base = rd_base + SZ_64K;
-		struct vgic_io_device *rd_dev = &devices[c * 2];
-		struct vgic_io_device *sgi_dev = &devices[c * 2 + 1];
+		struct vgic_io_device *rd_dev = &vcpu->arch.vgic_cpu.rd_iodev;
+		struct vgic_io_device *sgi_dev = &vcpu->arch.vgic_cpu.sgi_iodev;
 
 		kvm_iodevice_init(&rd_dev->dev, &kvm_io_gic_ops);
 		rd_dev->base_addr = rd_base;
@@ -335,14 +328,15 @@ int vgic_register_redist_iodevs(struct kvm *kvm, gpa_t redist_base_address)
 	if (ret) {
 		/* The current c failed, so we start with the previous one. */
 		for (c--; c >= 0; c--) {
+			struct vgic_cpu *vgic_cpu;
+
+			vcpu = kvm_get_vcpu(kvm, c);
+			vgic_cpu = &vcpu->arch.vgic_cpu;
 			kvm_io_bus_unregister_dev(kvm, KVM_MMIO_BUS,
-						  &devices[c * 2].dev);
+						  &vgic_cpu->rd_iodev.dev);
 			kvm_io_bus_unregister_dev(kvm, KVM_MMIO_BUS,
-						  &devices[c * 2 + 1].dev);
+						  &vgic_cpu->sgi_iodev.dev);
 		}
-		kfree(devices);
-	} else {
-		kvm->arch.vgic.redist_iodevs = devices;
 	}
 
 	return ret;

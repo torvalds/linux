@@ -145,7 +145,6 @@ struct vgic_dist {
 	struct vgic_irq		*spis;
 
 	struct vgic_io_device	dist_iodev;
-	struct vgic_io_device	*redist_iodevs;
 };
 
 struct vgic_v2_cpu_if {
@@ -193,6 +192,13 @@ struct vgic_cpu {
 	struct list_head ap_list_head;
 
 	u64 live_lrs;
+
+	/*
+	 * Members below are used with GICv3 emulation only and represent
+	 * parts of the redistributor.
+	 */
+	struct vgic_io_device	rd_iodev;
+	struct vgic_io_device	sgi_iodev;
 };
 
 int kvm_vgic_addr(struct kvm *kvm, unsigned long type, u64 *addr, bool write);
