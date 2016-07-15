@@ -78,6 +78,7 @@ int vgic_v3_map_resources(struct kvm *kvm);
 int vgic_register_redist_iodevs(struct kvm *kvm, gpa_t dist_base_address);
 bool vgic_has_its(struct kvm *kvm);
 void vgic_enable_lpis(struct kvm_vcpu *vcpu);
+int vgic_its_inject_msi(struct kvm *kvm, struct kvm_msi *msi);
 #else
 static inline void vgic_v3_process_maintenance(struct kvm_vcpu *vcpu)
 {
@@ -137,6 +138,11 @@ static inline bool vgic_has_its(struct kvm *kvm)
 
 static inline void vgic_enable_lpis(struct kvm_vcpu *vcpu)
 {
+}
+
+static inline int vgic_its_inject_msi(struct kvm *kvm, struct kvm_msi *msi)
+{
+	return -ENODEV;
 }
 #endif
 
