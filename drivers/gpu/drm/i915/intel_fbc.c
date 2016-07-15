@@ -1075,6 +1075,8 @@ out:
 /**
  * intel_fbc_enable: tries to enable FBC on the CRTC
  * @crtc: the CRTC
+ * @crtc_state: corresponding &drm_crtc_state for @crtc
+ * @plane_state: corresponding &drm_plane_state for the primary plane of @crtc
  *
  * This function checks if the given CRTC was chosen for FBC, then enables it if
  * possible. Notice that it doesn't activate FBC. It is valid to call

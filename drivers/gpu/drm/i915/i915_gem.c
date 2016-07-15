@@ -916,7 +916,7 @@ fast_user_write(struct io_mapping *mapping,
 /**
  * This is the fast pwrite path, where we copy the data directly from the
  * user into the GTT, uncached.
- * @dev: drm device pointer
+ * @i915: i915 device private data
  * @obj: i915 gem object
  * @args: pwrite arguments structure
  * @file: drm file pointer

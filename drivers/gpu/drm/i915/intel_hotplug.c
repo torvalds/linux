@@ -525,7 +525,6 @@ void i915_hpd_poll_init_work(struct work_struct *work) {
 /**
  * intel_hpd_poll_init - enables/disables polling for connectors with hpd
  * @dev_priv: i915 device instance
- * @enabled: Whether to enable or disable polling
  *
  * This function enables polling for all connectors, regardless of whether or
  * not they support hotplug detection. Under certain conditions HPD may not be

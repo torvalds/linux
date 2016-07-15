@@ -97,6 +97,7 @@ static struct _balloon_info_ bl_info;
 
 /**
  * intel_vgt_deballoon - deballoon reserved graphics address trunks
+ * @dev_priv: i915 device private data
  *
  * This function is called to deallocate the ballooned-out graphic memory, when
  * driver is unloaded or when ballooning fails.
@@ -138,7 +139,7 @@ static int vgt_balloon_space(struct drm_mm *mm,
 
 /**
  * intel_vgt_balloon - balloon out reserved graphics address trunks
- * @dev: drm device
+ * @dev_priv: i915 device private data
  *
  * This function is called at the initialization stage, to balloon out the
  * graphic address space allocated to other vGPUs, by marking these spaces as
