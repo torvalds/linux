@@ -288,7 +288,6 @@ logical_ring_init_platform_invariants(struct intel_engine_cs *engine)
 /**
  * intel_lr_context_descriptor_update() - calculate & cache the descriptor
  * 					  descriptor for a pinned context
- *
  * @ctx: Context to work on
  * @engine: Engine the descriptor will be used with
  *
@@ -297,12 +296,13 @@ logical_ring_init_platform_invariants(struct intel_engine_cs *engine)
  * expensive to calculate, we'll just do it once and cache the result,
  * which remains valid until the context is unpinned.
  *
- * This is what a descriptor looks like, from LSB to MSB:
- *    bits  0-11:    flags, GEN8_CTX_* (cached in ctx_desc_template)
- *    bits 12-31:    LRCA, GTT address of (the HWSP of) this context
- *    bits 32-52:    ctx ID, a globally unique tag
- *    bits 53-54:    mbz, reserved for use by hardware
- *    bits 55-63:    group ID, currently unused and set to 0
+ * This is what a descriptor looks like, from LSB to MSB::
+ *
+ *      bits  0-11:    flags, GEN8_CTX_* (cached in ctx_desc_template)
+ *      bits 12-31:    LRCA, GTT address of (the HWSP of) this context
+ *      bits 32-52:    ctx ID, a globally unique tag
+ *      bits 53-54:    mbz, reserved for use by hardware
+ *      bits 55-63:    group ID, currently unused and set to 0
  */
 static void
 intel_lr_context_descriptor_update(struct i915_gem_context *ctx,
@@ -539,10 +539,7 @@ get_context_status(struct intel_engine_cs *engine, unsigned int read_pointer,
 	return status;
 }
 
-/**
- * intel_lrc_irq_handler() - handle Context Switch interrupts
- * @data: tasklet handler passed in unsigned long
- *
+/*
  * Check the unread Context Status Buffers and manage the submission of new
  * contexts to the ELSP accordingly.
  */
@@ -807,7 +804,7 @@ intel_logical_ring_advance_and_submit(struct drm_i915_gem_request *request)
 }
 
 /**
- * execlists_submission() - submit a batchbuffer for execution, Execlists style
+ * intel_execlists_submission() - submit a batchbuffer for execution, Execlists style
  * @params: execbuffer call parameters.
  * @args: execbuffer call arguments.
  * @vmas: list of vmas.
@@ -1094,7 +1091,7 @@ static int intel_logical_ring_workarounds_emit(struct drm_i915_gem_request *req)
  * code duplication.
  */
 static inline int gen8_emit_flush_coherentl3_wa(struct intel_engine_cs *engine,
-						uint32_t *const batch,
+						uint32_t *batch,
 						uint32_t index)
 {
 	uint32_t l3sqc4_flush = (0x40400000 | GEN8_LQSC_FLUSH_COHERENT_LINES);
@@ -1155,37 +1152,24 @@ static inline int wa_ctx_end(struct i915_wa_ctx_bb *wa_ctx,
 	return 0;
 }
 
-/**
- * gen8_init_indirectctx_bb() - initialize indirect ctx batch with WA
+/*
+ * Typically we only have one indirect_ctx and per_ctx batch buffer which are
+ * initialized at the beginning and shared across all contexts but this field
+ * helps us to have multiple batches at different offsets and select them based
+ * on a criteria. At the moment this batch always start at the beginning of the page
+ * and at this point we don't have multiple wa_ctx batch buffers.
  *
- * @engine: only applicable for RCS
- * @wa_ctx: structure representing wa_ctx
- *  offset: specifies start of the batch, should be cache-aligned. This is updated
- *    with the offset value received as input.
- *  size: size of the batch in DWORDS but HW expects in terms of cachelines
- * @batch: page in which WA are loaded
- * @offset: This field specifies the start of the batch, it should be
- *  cache-aligned otherwise it is adjusted accordingly.
- *  Typically we only have one indirect_ctx and per_ctx batch buffer which are
- *  initialized at the beginning and shared across all contexts but this field
- *  helps us to have multiple batches at different offsets and select them based
- *  on a criteria. At the moment this batch always start at the beginning of the page
- *  and at this point we don't have multiple wa_ctx batch buffers.
+ * The number of WA applied are not known at the beginning; we use this field
+ * to return the no of DWORDS written.
  *
- *  The number of WA applied are not known at the beginning; we use this field
- *  to return the no of DWORDS written.
- *
- *  It is to be noted that this batch does not contain MI_BATCH_BUFFER_END
- *  so it adds NOOPs as padding to make it cacheline aligned.
- *  MI_BATCH_BUFFER_END will be added to perctx batch and both of them together
- *  makes a complete batch buffer.
- *
- * Return: non-zero if we exceed the PAGE_SIZE limit.
+ * It is to be noted that this batch does not contain MI_BATCH_BUFFER_END
+ * so it adds NOOPs as padding to make it cacheline aligned.
+ * MI_BATCH_BUFFER_END will be added to perctx batch and both of them together
+ * makes a complete batch buffer.
  */
-
 static int gen8_init_indirectctx_bb(struct intel_engine_cs *engine,
 				    struct i915_wa_ctx_bb *wa_ctx,
-				    uint32_t *const batch,
+				    uint32_t *batch,
 				    uint32_t *offset)
 {
 	uint32_t scratch_addr;
@@ -1229,26 +1213,18 @@ static int gen8_init_indirectctx_bb(struct intel_engine_cs *engine,
 	return wa_ctx_end(wa_ctx, *offset = index, CACHELINE_DWORDS);
 }
 
-/**
- * gen8_init_perctx_bb() - initialize per ctx batch with WA
+/*
+ *  This batch is started immediately after indirect_ctx batch. Since we ensure
+ *  that indirect_ctx ends on a cacheline this batch is aligned automatically.
  *
- * @engine: only applicable for RCS
- * @wa_ctx: structure representing wa_ctx
- *  offset: specifies start of the batch, should be cache-aligned.
- *  size: size of the batch in DWORDS but HW expects in terms of cachelines
- * @batch: page in which WA are loaded
- * @offset: This field specifies the start of this batch.
- *   This batch is started immediately after indirect_ctx batch. Since we ensure
- *   that indirect_ctx ends on a cacheline this batch is aligned automatically.
- *
- *   The number of DWORDS written are returned using this field.
+ *  The number of DWORDS written are returned using this field.
  *
  *  This batch is terminated with MI_BATCH_BUFFER_END and so we need not add padding
  *  to align it with cacheline as padding after MI_BATCH_BUFFER_END is redundant.
  */
 static int gen8_init_perctx_bb(struct intel_engine_cs *engine,
 			       struct i915_wa_ctx_bb *wa_ctx,
-			       uint32_t *const batch,
+			       uint32_t *batch,
 			       uint32_t *offset)
 {
 	uint32_t index = wa_ctx_start(wa_ctx, *offset, CACHELINE_DWORDS);
@@ -1263,7 +1239,7 @@ static int gen8_init_perctx_bb(struct intel_engine_cs *engine,
 
 static int gen9_init_indirectctx_bb(struct intel_engine_cs *engine,
 				    struct i915_wa_ctx_bb *wa_ctx,
-				    uint32_t *const batch,
+				    uint32_t *batch,
 				    uint32_t *offset)
 {
 	int ret;
@@ -1330,7 +1306,7 @@ static int gen9_init_indirectctx_bb(struct intel_engine_cs *engine,
 
 static int gen9_init_perctx_bb(struct intel_engine_cs *engine,
 			       struct i915_wa_ctx_bb *wa_ctx,
-			       uint32_t *const batch,
+			       uint32_t *batch,
 			       uint32_t *offset)
 {
 	uint32_t index = wa_ctx_start(wa_ctx, *offset, CACHELINE_DWORDS);
@@ -1916,9 +1892,7 @@ static int gen8_init_rcs_context(struct drm_i915_gem_request *req)
 
 /**
  * intel_logical_ring_cleanup() - deallocate the Engine Command Streamer
- *
  * @engine: Engine Command Streamer.
- *
  */
 void intel_logical_ring_cleanup(struct intel_engine_cs *engine)
 {
@@ -2365,19 +2339,6 @@ uint32_t intel_lr_context_size(struct intel_engine_cs *engine)
 	return ret;
 }
 
-/**
- * execlists_context_deferred_alloc() - create the LRC specific bits of a context
- * @ctx: LR context to create.
- * @engine: engine to be used with the context.
- *
- * This function can be called more than once, with different engines, if we plan
- * to use the context with them. The context backing objects and the ringbuffers
- * (specially the ringbuffer backing objects) suck a lot of memory up, and that's why
- * the creation is a deferred call: it's better to make sure first that we need to use
- * a given ring with the context.
- *
- * Return: non-zero on error.
- */
 static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 					    struct intel_engine_cs *engine)
 {
