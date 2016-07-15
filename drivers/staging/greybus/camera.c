@@ -173,6 +173,41 @@ static const struct gb_camera_fmt_info gb_fmt_info[] = {
 #define gcam_info(gcam, format...)	dev_info(&gcam->bundle->dev, format)
 #define gcam_err(gcam, format...)	dev_err(&gcam->bundle->dev, format)
 
+static int gb_camera_operation_sync_flags(struct gb_connection *connection,
+					  int type, unsigned int flags,
+					  void *request, size_t request_size,
+					  void *response, size_t *response_size)
+{
+	struct gb_operation *operation;
+	int ret;
+
+	operation = gb_operation_create_flags(connection, type, request_size,
+					      *response_size, flags,
+					      GFP_KERNEL);
+	if (!operation)
+		return  -ENOMEM;
+
+	if (request_size)
+		memcpy(operation->request->payload, request, request_size);
+
+	ret = gb_operation_request_send_sync(operation);
+	if (ret) {
+		dev_err(&connection->hd->dev,
+			"%s: synchronous operation of type 0x%02x failed: %d\n",
+			connection->name, type, ret);
+	} else {
+		*response_size = operation->response->payload_size;
+
+		if (operation->response->payload_size)
+			memcpy(response, operation->response->payload,
+			       operation->response->payload_size);
+	}
+
+	gb_operation_put(operation);
+
+	return ret;
+}
+
 /* -----------------------------------------------------------------------------
  * Hardware Configuration
  */
@@ -347,7 +382,6 @@ static void gb_camera_teardown_data_connection(struct gb_camera *gcam)
 static int gb_camera_capabilities(struct gb_camera *gcam,
 				  u8 *capabilities, size_t *size)
 {
-	struct gb_operation *op = NULL;
 	int ret;
 
 	ret = gb_pm_runtime_get_sync(gcam->bundle);
@@ -361,28 +395,16 @@ static int gb_camera_capabilities(struct gb_camera *gcam,
 		goto done;
 	}
 
-	op = gb_operation_create_flags(gcam->connection,
-				       GB_CAMERA_TYPE_CAPABILITIES, 0, *size,
-				       GB_OPERATION_FLAG_SHORT_RESPONSE,
-				       GFP_KERNEL);
-	if (!op) {
-		ret = -ENOMEM;
-		goto done;
-	}
-
-	ret = gb_operation_request_send_sync(op);
-	if (ret) {
+	ret = gb_camera_operation_sync_flags(gcam->connection,
+					     GB_CAMERA_TYPE_CAPABILITIES,
+					     GB_OPERATION_FLAG_SHORT_RESPONSE,
+					     NULL, 0,
+					     (void *)capabilities, size);
+	if (ret)
 		gcam_err(gcam, "failed to retrieve capabilities: %d\n", ret);
-		goto done;
-	}
-
-	memcpy(capabilities, op->response->payload, op->response->payload_size);
-	*size = op->response->payload_size;
 
 done:
 	mutex_unlock(&gcam->mutex);
-	if (op)
-		gb_operation_put(op);
 
 	gb_pm_runtime_put_autosuspend(gcam->bundle);
 
