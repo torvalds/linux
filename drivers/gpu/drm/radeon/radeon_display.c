@@ -1711,6 +1711,7 @@ void radeon_modeset_fini(struct radeon_device *rdev)
 		radeon_afmt_fini(rdev);
 		drm_kms_helper_poll_fini(rdev->ddev);
 		radeon_hpd_fini(rdev);
+		drm_crtc_force_disable_all(rdev->ddev);
 		drm_mode_config_cleanup(rdev->ddev);
 		rdev->mode_info.mode_config_initialized = false;
 	}

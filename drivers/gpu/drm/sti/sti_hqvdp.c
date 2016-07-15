@@ -1363,6 +1363,7 @@ static int sti_hqvdp_probe(struct platform_device *pdev)
 	vtg_np = of_parse_phandle(pdev->dev.of_node, "st,vtg", 0);
 	if (vtg_np)
 		hqvdp->vtg = of_vtg_find(vtg_np);
+	of_node_put(vtg_np);
 
 	platform_set_drvdata(pdev, hqvdp);
 

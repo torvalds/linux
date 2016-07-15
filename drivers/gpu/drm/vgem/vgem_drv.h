@@ -35,12 +35,6 @@
 #define to_vgem_bo(x) container_of(x, struct drm_vgem_gem_object, base)
 struct drm_vgem_gem_object {
 	struct drm_gem_object base;
-	struct page **pages;
-	bool use_dma_buf;
 };
-
-/* vgem_drv.c */
-extern void vgem_gem_put_pages(struct drm_vgem_gem_object *obj);
-extern int vgem_gem_get_pages(struct drm_vgem_gem_object *obj);
 
 #endif

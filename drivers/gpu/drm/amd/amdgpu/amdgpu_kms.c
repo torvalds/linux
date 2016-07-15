@@ -60,7 +60,10 @@ int amdgpu_driver_unload_kms(struct drm_device *dev)
 	if (adev->rmmio == NULL)
 		goto done_free;
 
-	pm_runtime_get_sync(dev->dev);
+	if (amdgpu_device_is_px(dev)) {
+		pm_runtime_get_sync(dev->dev);
+		pm_runtime_forbid(dev->dev);
+	}
 
 	amdgpu_amdkfd_device_fini(adev);
 
@@ -135,9 +138,12 @@ int amdgpu_driver_load_kms(struct drm_device *dev, unsigned long flags)
 	}
 
 out:
-	if (r)
+	if (r) {
+		/* balance pm_runtime_get_sync in amdgpu_driver_unload_kms */
+		if (adev->rmmio && amdgpu_device_is_px(dev))
+			pm_runtime_put_noidle(dev->dev);
 		amdgpu_driver_unload_kms(dev);
-
+	}
 
 	return r;
 }

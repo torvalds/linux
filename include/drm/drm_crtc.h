@@ -2588,7 +2588,6 @@ static inline unsigned drm_connector_index(struct drm_connector *connector)
 }
 
 /* helpers to {un}register all connectors from sysfs for device */
-extern int drm_connector_register_all(struct drm_device *dev);
 extern void drm_connector_unregister_all(struct drm_device *dev);
 
 extern __printf(5, 6)
@@ -2654,6 +2653,8 @@ extern struct drm_plane * drm_plane_from_index(struct drm_device *dev, int idx);
 extern void drm_plane_force_disable(struct drm_plane *plane);
 extern void drm_crtc_get_hv_timing(const struct drm_display_mode *mode,
 				   int *hdisplay, int *vdisplay);
+extern int drm_crtc_force_disable(struct drm_crtc *crtc);
+extern int drm_crtc_force_disable_all(struct drm_device *dev);
 
 extern void drm_encoder_cleanup(struct drm_encoder *encoder);
 

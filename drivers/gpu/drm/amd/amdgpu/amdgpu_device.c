@@ -1712,6 +1712,7 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 	amdgpu_bo_evict_vram(adev);
 	amdgpu_ib_pool_fini(adev);
 	amdgpu_fence_driver_fini(adev);
+	drm_crtc_force_disable_all(adev->ddev);
 	amdgpu_fbdev_fini(adev);
 	r = amdgpu_fini(adev);
 	kfree(adev->ip_block_status);

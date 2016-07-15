@@ -1041,8 +1041,7 @@ static struct vmw_master *vmw_master_check(struct drm_device *dev,
 	struct vmw_fpriv *vmw_fp = vmw_fpriv(file_priv);
 	struct vmw_master *vmaster;
 
-	if (file_priv->minor->type != DRM_MINOR_LEGACY ||
-	    !(flags & DRM_AUTH))
+	if (!drm_is_primary_client(file_priv) || !(flags & DRM_AUTH))
 		return NULL;
 
 	ret = mutex_lock_interruptible(&dev->master_mutex);

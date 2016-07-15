@@ -410,7 +410,7 @@ static void armada_drm_crtc_irq(struct armada_crtc *dcrtc, u32 stat)
 		DRM_ERROR("graphics underflow on crtc %u\n", dcrtc->num);
 
 	if (stat & VSYNC_IRQ)
-		drm_handle_vblank(dcrtc->crtc.dev, dcrtc->num);
+		drm_crtc_handle_vblank(&dcrtc->crtc);
 
 	spin_lock(&dcrtc->irq_lock);
 	ovl_plane = dcrtc->plane;
