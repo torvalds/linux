@@ -299,6 +299,14 @@
 			};
 		};
 
+		pwm: pwm@66010000 {
+			compatible = "brcm,iproc-pwm";
+			reg = <0x66010000 0x28>;
+			clocks = <&osc>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
 		mdio_mux_iproc: mdio-mux@6602023c {
 			compatible = "brcm,mdio-mux-iproc";
 			reg = <0x6602023c 0x14>;
