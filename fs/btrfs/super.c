@@ -2052,9 +2052,6 @@ static int btrfs_calc_avail_data_space(struct btrfs_root *root, u64 *free_bytes)
  * chunk).
  *
  * If metadata is exhausted, f_bavail will be 0.
- *
- * FIXME: not accurate for mixed block groups, total and free/used are ok,
- * available appears slightly larger.
  */
 static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
