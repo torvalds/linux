@@ -44,14 +44,10 @@ struct drm_gem_object *rockchip_fb_get_gem_obj(struct drm_framebuffer *fb,
 static void rockchip_drm_fb_destroy(struct drm_framebuffer *fb)
 {
 	struct rockchip_drm_fb *rockchip_fb = to_rockchip_fb(fb);
-	struct drm_gem_object *obj;
 	int i;
 
-	for (i = 0; i < ROCKCHIP_MAX_FB_BUFFER; i++) {
-		obj = rockchip_fb->obj[i];
-		if (obj)
-			drm_gem_object_unreference_unlocked(obj);
-	}
+	for (i = 0; i < ROCKCHIP_MAX_FB_BUFFER; i++)
+		drm_gem_object_unreference_unlocked(rockchip_fb->obj[i]);
 
 	drm_framebuffer_cleanup(fb);
 	kfree(rockchip_fb);
