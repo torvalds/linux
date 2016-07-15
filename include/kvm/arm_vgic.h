@@ -146,6 +146,14 @@ struct vgic_dist {
 	struct vgic_irq		*spis;
 
 	struct vgic_io_device	dist_iodev;
+
+	/*
+	 * Contains the attributes and gpa of the LPI configuration table.
+	 * Since we report GICR_TYPER.CommonLPIAff as 0b00, we can share
+	 * one address across all redistributors.
+	 * GICv3 spec: 6.1.2 "LPI Configuration tables"
+	 */
+	u64			propbaser;
 };
 
 struct vgic_v2_cpu_if {
@@ -200,6 +208,11 @@ struct vgic_cpu {
 	 */
 	struct vgic_io_device	rd_iodev;
 	struct vgic_io_device	sgi_iodev;
+
+	/* Contains the attributes and gpa of the LPI pending tables. */
+	u64 pendbaser;
+
+	bool lpis_enabled;
 };
 
 int kvm_vgic_addr(struct kvm *kvm, unsigned long type, u64 *addr, bool write);
