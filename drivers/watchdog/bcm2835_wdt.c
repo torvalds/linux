@@ -96,7 +96,7 @@ static unsigned int bcm2835_wdt_get_timeleft(struct watchdog_device *wdog)
 	return WDOG_TICKS_TO_SECS(ret & PM_WDOG_TIME_SET);
 }
 
-static struct watchdog_ops bcm2835_wdt_ops = {
+static const struct watchdog_ops bcm2835_wdt_ops = {
 	.owner =	THIS_MODULE,
 	.start =	bcm2835_wdt_start,
 	.stop =		bcm2835_wdt_stop,
@@ -104,7 +104,7 @@ static struct watchdog_ops bcm2835_wdt_ops = {
 	.get_timeleft =	bcm2835_wdt_get_timeleft,
 };
 
-static struct watchdog_info bcm2835_wdt_info = {
+static const struct watchdog_info bcm2835_wdt_info = {
 	.options =	WDIOF_SETTIMEOUT | WDIOF_MAGICCLOSE |
 			WDIOF_KEEPALIVEPING,
 	.identity =	"Broadcom BCM2835 Watchdog timer",
