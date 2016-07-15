@@ -446,7 +446,6 @@ struct drm_dp_mst_topology_mgr {
 	   the mstb tx_slots and txmsg->state once they are queued */
 	struct mutex qlock;
 	struct list_head tx_msg_downq;
-	bool tx_down_in_progress;
 
 	/* payload info + lock for it */
 	struct mutex payload_lock;
