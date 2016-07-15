@@ -6309,14 +6309,11 @@ struct cgroup_namespace *copy_cgroup_ns(unsigned long flags,
 	if (!ns_capable(user_ns, CAP_SYS_ADMIN))
 		return ERR_PTR(-EPERM);
 
-	mutex_lock(&cgroup_mutex);
+	/* It is not safe to take cgroup_mutex here */
 	spin_lock_irq(&css_set_lock);
-
 	cset = task_css_set(current);
 	get_css_set(cset);
-
 	spin_unlock_irq(&css_set_lock);
-	mutex_unlock(&cgroup_mutex);
 
 	new_ns = alloc_cgroup_ns();
 	if (IS_ERR(new_ns)) {
