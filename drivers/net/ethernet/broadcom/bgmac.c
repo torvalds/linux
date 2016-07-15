@@ -231,7 +231,7 @@ err_dma:
 	dma_unmap_single(dma_dev, slot->dma_addr, skb_headlen(skb),
 			 DMA_TO_DEVICE);
 
-	while (i > 0) {
+	while (i-- > 0) {
 		int index = (ring->end + i) % BGMAC_TX_RING_SLOTS;
 		struct bgmac_slot_info *slot = &ring->slots[index];
 		u32 ctl1 = le32_to_cpu(ring->cpu_base[index].ctl1);
