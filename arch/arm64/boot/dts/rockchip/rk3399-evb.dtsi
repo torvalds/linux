@@ -215,6 +215,35 @@
 	};
 };
 
+&cpu_l0 {
+	cpu-supply = <&vdd_cpu_l>;
+};
+
+&cpu_l1 {
+	cpu-supply = <&vdd_cpu_l>;
+};
+
+&cpu_l2 {
+	cpu-supply = <&vdd_cpu_l>;
+};
+
+&cpu_l3 {
+	cpu-supply = <&vdd_cpu_l>;
+};
+
+&cpu_b0 {
+	cpu-supply = <&vdd_cpu_b>;
+};
+
+&cpu_b1 {
+	cpu-supply = <&vdd_cpu_b>;
+};
+
+&gpu {
+	status = "okay";
+	mali-supply = <&vdd_gpu>;
+};
+
 &sdmmc {
 	clock-frequency = <150000000>;
 	clock-freq-min-max = <400000 150000000>;
@@ -284,6 +313,22 @@
 	i2c-scl-falling-time-ns = <15>;
 };
 
+&i2c1 {
+	status = "okay";
+	i2c-scl-rising-time-ns = <300>;
+	i2c-scl-falling-time-ns = <15>;
+
+	es8316: es8316@10 {
+		#sound-dai-cells = <0>;
+		compatible = "everest,es8316";
+		reg = <0x10>;
+		clocks = <&cru SCLK_I2S_8CH_OUT>;
+		clock-names = "mclk";
+		spk-con-gpio = <&gpio0 11 GPIO_ACTIVE_HIGH>;
+		hp-det-gpio = <&gpio4 28 GPIO_ACTIVE_LOW>;
+	};
+};
+
 &i2c4 {
 	status = "okay";
 	i2c-scl-rising-time-ns = <600>;
@@ -298,22 +343,6 @@
 		max-y = <1900>;
 		tp-size = <911>;
 		tp-supply = <&vcc3v0_tp>;
-	};
-};
-
-&i2c1 {
-	status = "okay";
-	i2c-scl-rising-time-ns = <300>;
-	i2c-scl-falling-time-ns = <15>;
-
-	es8316: es8316@10 {
-		#sound-dai-cells = <0>;
-		compatible = "everest,es8316";
-		reg = <0x10>;
-		clocks = <&cru SCLK_I2S_8CH_OUT>;
-		clock-names = "mclk";
-		spk-con-gpio = <&gpio0 11 GPIO_ACTIVE_HIGH>;
-		hp-det-gpio = <&gpio4 28 GPIO_ACTIVE_LOW>;
 	};
 };
 
