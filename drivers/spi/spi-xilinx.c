@@ -341,9 +341,10 @@ static irqreturn_t xilinx_spi_irq(int irq, void *dev_id)
 
 	if (ipif_isr & XSPI_INTR_TX_EMPTY) {	/* Transmission completed */
 		complete(&xspi->done);
+		return IRQ_HANDLED;
 	}
 
-	return IRQ_HANDLED;
+	return IRQ_NONE;
 }
 
 static int xilinx_spi_find_buffer_size(struct xilinx_spi *xspi)
