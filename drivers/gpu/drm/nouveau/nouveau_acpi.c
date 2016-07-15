@@ -45,6 +45,7 @@
 static struct nouveau_dsm_priv {
 	bool dsm_detected;
 	bool optimus_detected;
+	bool optimus_flags_detected;
 	acpi_handle dhandle;
 	acpi_handle rom_handle;
 } nouveau_dsm_priv;
@@ -212,7 +213,8 @@ static const struct vga_switcheroo_handler nouveau_dsm_handler = {
 };
 
 static void nouveau_dsm_pci_probe(struct pci_dev *pdev, acpi_handle *dhandle_out,
-				  bool *has_mux, bool *has_opt)
+				  bool *has_mux, bool *has_opt,
+				  bool *has_opt_flags)
 {
 	acpi_handle dhandle;
 	bool supports_mux;
@@ -236,6 +238,7 @@ static void nouveau_dsm_pci_probe(struct pci_dev *pdev, acpi_handle *dhandle_out
 	*dhandle_out = dhandle;
 	*has_mux = supports_mux;
 	*has_opt = !!optimus_funcs;
+	*has_opt_flags = optimus_funcs & (1 << NOUVEAU_DSM_OPTIMUS_FLAGS);
 
 	if (optimus_funcs) {
 		uint32_t result;
@@ -256,6 +259,7 @@ static bool nouveau_dsm_detect(void)
 	acpi_handle dhandle = NULL;
 	bool has_mux = false;
 	bool has_optimus = false;
+	bool has_optimus_flags = false;
 	int vga_count = 0;
 	bool guid_valid;
 	bool ret = false;
@@ -270,13 +274,15 @@ static bool nouveau_dsm_detect(void)
 	while ((pdev = pci_get_class(PCI_CLASS_DISPLAY_VGA << 8, pdev)) != NULL) {
 		vga_count++;
 
-		nouveau_dsm_pci_probe(pdev, &dhandle, &has_mux, &has_optimus);
+		nouveau_dsm_pci_probe(pdev, &dhandle, &has_mux, &has_optimus,
+				      &has_optimus_flags);
 	}
 
 	while ((pdev = pci_get_class(PCI_CLASS_DISPLAY_3D << 8, pdev)) != NULL) {
 		vga_count++;
 
-		nouveau_dsm_pci_probe(pdev, &dhandle, &has_mux, &has_optimus);
+		nouveau_dsm_pci_probe(pdev, &dhandle, &has_mux, &has_optimus,
+				      &has_optimus_flags);
 	}
 
 	/* find the optimus DSM or the old v1 DSM */
@@ -287,6 +293,7 @@ static bool nouveau_dsm_detect(void)
 		printk(KERN_INFO "VGA switcheroo: detected Optimus DSM method %s handle\n",
 			acpi_method_name);
 		nouveau_dsm_priv.optimus_detected = true;
+		nouveau_dsm_priv.optimus_flags_detected = has_optimus_flags;
 		ret = true;
 	} else if (vga_count == 2 && has_mux && guid_valid) {
 		nouveau_dsm_priv.dhandle = dhandle;
@@ -320,8 +327,9 @@ void nouveau_switcheroo_optimus_dsm(void)
 	if (!nouveau_dsm_priv.optimus_detected)
 		return;
 
-	nouveau_optimus_dsm(nouveau_dsm_priv.dhandle, NOUVEAU_DSM_OPTIMUS_FLAGS,
-			    0x3, &result);
+	if (nouveau_dsm_priv.optimus_flags_detected)
+		nouveau_optimus_dsm(nouveau_dsm_priv.dhandle, NOUVEAU_DSM_OPTIMUS_FLAGS,
+				    0x3, &result);
 
 	nouveau_optimus_dsm(nouveau_dsm_priv.dhandle, NOUVEAU_DSM_OPTIMUS_CAPS,
 		NOUVEAU_DSM_OPTIMUS_SET_POWERDOWN, &result);
