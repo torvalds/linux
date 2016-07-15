@@ -101,10 +101,9 @@ struct pkcs1pad_inst_ctx {
 };
 
 struct pkcs1pad_request {
-	struct akcipher_request child_req;
-
 	struct scatterlist in_sg[2], out_sg[1];
 	uint8_t *in_buf, *out_buf;
+	struct akcipher_request child_req;
 };
 
 static int pkcs1pad_set_pub_key(struct crypto_akcipher *tfm, const void *key,
