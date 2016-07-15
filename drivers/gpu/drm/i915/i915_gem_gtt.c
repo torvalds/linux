@@ -153,7 +153,7 @@ int intel_sanitize_enable_ppgtt(struct drm_i915_private *dev_priv,
 #endif
 
 	/* Early VLV doesn't have this */
-	if (IS_VALLEYVIEW(dev_priv) && dev_priv->dev->pdev->revision < 0xb) {
+	if (IS_VALLEYVIEW(dev_priv) && dev_priv->drm.pdev->revision < 0xb) {
 		DRM_DEBUG_DRIVER("disabling PPGTT on pre-B3 step VLV\n");
 		return 0;
 	}
@@ -1570,13 +1570,13 @@ static void gen6_dump_ppgtt(struct i915_hw_ppgtt *ppgtt, struct seq_file *m)
 	struct i915_page_table *unused;
 	gen6_pte_t scratch_pte;
 	uint32_t pd_entry;
-	uint32_t  pte, pde, temp;
+	uint32_t  pte, pde;
 	uint32_t start = ppgtt->base.start, length = ppgtt->base.total;
 
 	scratch_pte = vm->pte_encode(px_dma(vm->scratch_page),
 				     I915_CACHE_LLC, true, 0);
 
-	gen6_for_each_pde(unused, &ppgtt->pd, start, length, temp, pde) {
+	gen6_for_each_pde(unused, &ppgtt->pd, start, length, pde) {
 		u32 expected;
 		gen6_pte_t *pt_vaddr;
 		const dma_addr_t pt_addr = px_dma(ppgtt->pd.page_table[pde]);
@@ -1640,9 +1640,9 @@ static void gen6_write_page_range(struct drm_i915_private *dev_priv,
 {
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	struct i915_page_table *pt;
-	uint32_t pde, temp;
+	uint32_t pde;
 
-	gen6_for_each_pde(pt, pd, start, length, temp, pde)
+	gen6_for_each_pde(pt, pd, start, length, pde)
 		gen6_write_pde(pd, pde, pt);
 
 	/* Make sure write is complete before other code can use this page
@@ -1683,17 +1683,6 @@ static int hsw_mm_switch(struct i915_hw_ppgtt *ppgtt,
 	return 0;
 }
 
-static int vgpu_mm_switch(struct i915_hw_ppgtt *ppgtt,
-			  struct drm_i915_gem_request *req)
-{
-	struct intel_engine_cs *engine = req->engine;
-	struct drm_i915_private *dev_priv = to_i915(ppgtt->base.dev);
-
-	I915_WRITE(RING_PP_DIR_DCLV(engine), PP_DIR_DCLV_2G);
-	I915_WRITE(RING_PP_DIR_BASE(engine), get_pd_offset(ppgtt));
-	return 0;
-}
-
 static int gen7_mm_switch(struct i915_hw_ppgtt *ppgtt,
 			  struct drm_i915_gem_request *req)
 {
@@ -1731,21 +1720,16 @@ static int gen6_mm_switch(struct i915_hw_ppgtt *ppgtt,
 			  struct drm_i915_gem_request *req)
 {
 	struct intel_engine_cs *engine = req->engine;
-	struct drm_device *dev = ppgtt->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
+	struct drm_i915_private *dev_priv = req->i915;
 
 	I915_WRITE(RING_PP_DIR_DCLV(engine), PP_DIR_DCLV_2G);
 	I915_WRITE(RING_PP_DIR_BASE(engine), get_pd_offset(ppgtt));
-
-	POSTING_READ(RING_PP_DIR_DCLV(engine));
-
 	return 0;
 }
 
 static void gen8_ppgtt_enable(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_engine_cs *engine;
 
 	for_each_engine(engine, dev_priv) {
@@ -1757,7 +1741,7 @@ static void gen8_ppgtt_enable(struct drm_device *dev)
 
 static void gen7_ppgtt_enable(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_engine_cs *engine;
 	uint32_t ecochk, ecobits;
 
@@ -1782,7 +1766,7 @@ static void gen7_ppgtt_enable(struct drm_device *dev)
 
 static void gen6_ppgtt_enable(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	uint32_t ecochk, gab_ctl, ecobits;
 
 	ecobits = I915_READ(GAC_ECO_BITS);
@@ -1875,7 +1859,7 @@ static int gen6_alloc_va_range(struct i915_address_space *vm,
 	struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
 	struct i915_page_table *pt;
 	uint32_t start, length, start_save, length_save;
-	uint32_t pde, temp;
+	uint32_t pde;
 	int ret;
 
 	if (WARN_ON(start_in + length_in > ppgtt->base.total))
@@ -1891,7 +1875,7 @@ static int gen6_alloc_va_range(struct i915_address_space *vm,
 	 * need allocation. The second stage marks use ptes within the page
 	 * tables.
 	 */
-	gen6_for_each_pde(pt, &ppgtt->pd, start, length, temp, pde) {
+	gen6_for_each_pde(pt, &ppgtt->pd, start, length, pde) {
 		if (pt != vm->scratch_pt) {
 			WARN_ON(bitmap_empty(pt->used_ptes, GEN6_PTES));
 			continue;
@@ -1916,7 +1900,7 @@ static int gen6_alloc_va_range(struct i915_address_space *vm,
 	start = start_save;
 	length = length_save;
 
-	gen6_for_each_pde(pt, &ppgtt->pd, start, length, temp, pde) {
+	gen6_for_each_pde(pt, &ppgtt->pd, start, length, pde) {
 		DECLARE_BITMAP(tmp_bitmap, GEN6_PTES);
 
 		bitmap_zero(tmp_bitmap, GEN6_PTES);
@@ -1985,15 +1969,16 @@ static void gen6_free_scratch(struct i915_address_space *vm)
 static void gen6_ppgtt_cleanup(struct i915_address_space *vm)
 {
 	struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
+	struct i915_page_directory *pd = &ppgtt->pd;
+	struct drm_device *dev = vm->dev;
 	struct i915_page_table *pt;
 	uint32_t pde;
 
 	drm_mm_remove_node(&ppgtt->node);
 
-	gen6_for_all_pdes(pt, ppgtt, pde) {
+	gen6_for_all_pdes(pt, pd, pde)
 		if (pt != vm->scratch_pt)
-			free_pt(ppgtt->base.dev, pt);
-	}
+			free_pt(dev, pt);
 
 	gen6_free_scratch(vm);
 }
@@ -2059,9 +2044,9 @@ static void gen6_scratch_va_range(struct i915_hw_ppgtt *ppgtt,
 				  uint64_t start, uint64_t length)
 {
 	struct i915_page_table *unused;
-	uint32_t pde, temp;
+	uint32_t pde;
 
-	gen6_for_each_pde(unused, &ppgtt->pd, start, length, temp, pde)
+	gen6_for_each_pde(unused, &ppgtt->pd, start, length, pde)
 		ppgtt->pd.page_table[pde] = ppgtt->base.scratch_pt;
 }
 
@@ -2073,17 +2058,14 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 	int ret;
 
 	ppgtt->base.pte_encode = ggtt->base.pte_encode;
-	if (IS_GEN6(dev)) {
+	if (intel_vgpu_active(dev_priv) || IS_GEN6(dev))
 		ppgtt->switch_mm = gen6_mm_switch;
-	} else if (IS_HASWELL(dev)) {
+	else if (IS_HASWELL(dev))
 		ppgtt->switch_mm = hsw_mm_switch;
-	} else if (IS_GEN7(dev)) {
+	else if (IS_GEN7(dev))
 		ppgtt->switch_mm = gen7_mm_switch;
-	} else
+	else
 		BUG();
-
-	if (intel_vgpu_active(dev_priv))
-		ppgtt->switch_mm = vgpu_mm_switch;
 
 	ret = gen6_ppgtt_alloc(ppgtt);
 	if (ret)
@@ -2133,7 +2115,7 @@ static void i915_address_space_init(struct i915_address_space *vm,
 				    struct drm_i915_private *dev_priv)
 {
 	drm_mm_init(&vm->mm, vm->start, vm->total);
-	vm->dev = dev_priv->dev;
+	vm->dev = &dev_priv->drm;
 	INIT_LIST_HEAD(&vm->active_list);
 	INIT_LIST_HEAD(&vm->inactive_list);
 	list_add_tail(&vm->global_link, &dev_priv->vm_list);
@@ -2141,7 +2123,7 @@ static void i915_address_space_init(struct i915_address_space *vm,
 
 static void gtt_write_workarounds(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	/* This function is for gtt related workarounds. This function is
 	 * called on driver load and after a GPU reset, so you can place
@@ -2160,7 +2142,7 @@ static void gtt_write_workarounds(struct drm_device *dev)
 
 static int i915_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	int ret = 0;
 
 	ret = __hw_ppgtt_init(dev, ppgtt);
@@ -2261,8 +2243,8 @@ static bool do_idling(struct drm_i915_private *dev_priv)
 
 	if (unlikely(ggtt->do_idle_maps)) {
 		dev_priv->mm.interruptible = false;
-		if (i915_gpu_idle(dev_priv->dev)) {
-			DRM_ERROR("Couldn't idle GPU\n");
+		if (i915_gem_wait_for_idle(dev_priv)) {
+			DRM_ERROR("Failed to wait for idle; VT'd may hang.\n");
 			/* Wait a bit, in hopes it avoids the hang */
 			udelay(10);
 		}
@@ -2610,7 +2592,7 @@ static void i915_ggtt_insert_entries(struct i915_address_space *vm,
 				     uint64_t start,
 				     enum i915_cache_level cache_level, u32 unused)
 {
-	struct drm_i915_private *dev_priv = vm->dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(vm->dev);
 	unsigned int flags = (cache_level == I915_CACHE_NONE) ?
 		AGP_USER_MEMORY : AGP_USER_CACHED_MEMORY;
 	int rpm_atomic_seq;
@@ -2628,7 +2610,7 @@ static void i915_ggtt_clear_range(struct i915_address_space *vm,
 				  uint64_t length,
 				  bool unused)
 {
-	struct drm_i915_private *dev_priv = vm->dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(vm->dev);
 	unsigned first_entry = start >> PAGE_SHIFT;
 	unsigned num_entries = length >> PAGE_SHIFT;
 	int rpm_atomic_seq;
@@ -2709,7 +2691,7 @@ static int aliasing_gtt_bind_vma(struct i915_vma *vma,
 static void ggtt_unbind_vma(struct i915_vma *vma)
 {
 	struct drm_device *dev = vma->vm->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_gem_object *obj = vma->obj;
 	const uint64_t size = min_t(uint64_t,
 				    obj->base.size,
@@ -2735,7 +2717,7 @@ static void ggtt_unbind_vma(struct i915_vma *vma)
 void i915_gem_gtt_finish_object(struct drm_i915_gem_object *obj)
 {
 	struct drm_device *dev = obj->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	bool interruptible;
 
 	interruptible = do_idling(dev_priv);
@@ -3137,7 +3119,7 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 	ggtt->base.unbind_vma = ggtt_unbind_vma;
 	ggtt->base.insert_page = gen8_ggtt_insert_page;
 	ggtt->base.clear_range = nop_clear_range;
-	if (!USES_FULL_PPGTT(dev_priv))
+	if (!USES_FULL_PPGTT(dev_priv) || intel_scanout_needs_vtd_wa(dev_priv))
 		ggtt->base.clear_range = gen8_ggtt_clear_range;
 
 	ggtt->base.insert_entries = gen8_ggtt_insert_entries;
@@ -3197,7 +3179,7 @@ static int i915_gmch_probe(struct i915_ggtt *ggtt)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	int ret;
 
-	ret = intel_gmch_probe(dev_priv->bridge_dev, dev_priv->dev->pdev, NULL);
+	ret = intel_gmch_probe(dev_priv->bridge_dev, dev_priv->drm.pdev, NULL);
 	if (!ret) {
 		DRM_ERROR("failed to set up gmch\n");
 		return -EIO;
@@ -3206,7 +3188,7 @@ static int i915_gmch_probe(struct i915_ggtt *ggtt)
 	intel_gtt_get(&ggtt->base.total, &ggtt->stolen_size,
 		      &ggtt->mappable_base, &ggtt->mappable_end);
 
-	ggtt->do_idle_maps = needs_idle_maps(dev_priv->dev);
+	ggtt->do_idle_maps = needs_idle_maps(&dev_priv->drm);
 	ggtt->base.insert_page = i915_ggtt_insert_page;
 	ggtt->base.insert_entries = i915_ggtt_insert_entries;
 	ggtt->base.clear_range = i915_ggtt_clear_range;

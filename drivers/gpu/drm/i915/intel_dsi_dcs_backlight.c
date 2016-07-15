@@ -159,7 +159,7 @@ static int dcs_setup_backlight(struct intel_connector *connector,
 int intel_dsi_dcs_init_backlight_funcs(struct intel_connector *intel_connector)
 {
 	struct drm_device *dev = intel_connector->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_encoder *encoder = intel_connector->encoder;
 	struct intel_panel *panel = &intel_connector->panel;
 

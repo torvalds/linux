@@ -362,23 +362,24 @@ static bool intel_fb_initial_config(struct drm_fb_helper *fb_helper,
 				    bool *enabled, int width, int height)
 {
 	struct drm_device *dev = fb_helper->dev;
+	unsigned long conn_configured, mask;
+	unsigned int count = min(fb_helper->connector_count, BITS_PER_LONG);
 	int i, j;
 	bool *save_enabled;
 	bool fallback = true;
 	int num_connectors_enabled = 0;
 	int num_connectors_detected = 0;
-	uint64_t conn_configured = 0, mask;
 	int pass = 0;
 
-	save_enabled = kcalloc(fb_helper->connector_count, sizeof(bool),
-			       GFP_KERNEL);
+	save_enabled = kcalloc(count, sizeof(bool), GFP_KERNEL);
 	if (!save_enabled)
 		return false;
 
-	memcpy(save_enabled, enabled, fb_helper->connector_count);
-	mask = (1 << fb_helper->connector_count) - 1;
+	memcpy(save_enabled, enabled, count);
+	mask = BIT(count) - 1;
+	conn_configured = 0;
 retry:
-	for (i = 0; i < fb_helper->connector_count; i++) {
+	for (i = 0; i < count; i++) {
 		struct drm_fb_helper_connector *fb_conn;
 		struct drm_connector *connector;
 		struct drm_encoder *encoder;
@@ -388,7 +389,7 @@ retry:
 		fb_conn = fb_helper->connector_info[i];
 		connector = fb_conn->connector;
 
-		if (conn_configured & (1 << i))
+		if (conn_configured & BIT(i))
 			continue;
 
 		if (pass == 0 && !connector->has_tile)
@@ -400,7 +401,7 @@ retry:
 		if (!enabled[i]) {
 			DRM_DEBUG_KMS("connector %s not enabled, skipping\n",
 				      connector->name);
-			conn_configured |= (1 << i);
+			conn_configured |= BIT(i);
 			continue;
 		}
 
@@ -419,7 +420,7 @@ retry:
 			DRM_DEBUG_KMS("connector %s has no encoder or crtc, skipping\n",
 				      connector->name);
 			enabled[i] = false;
-			conn_configured |= (1 << i);
+			conn_configured |= BIT(i);
 			continue;
 		}
 
@@ -432,14 +433,15 @@ retry:
 			intel_crtc->lut_b[j] = j;
 		}
 
-		new_crtc = intel_fb_helper_crtc(fb_helper, connector->state->crtc);
+		new_crtc = intel_fb_helper_crtc(fb_helper,
+						connector->state->crtc);
 
 		/*
 		 * Make sure we're not trying to drive multiple connectors
 		 * with a single CRTC, since our cloning support may not
 		 * match the BIOS.
 		 */
-		for (j = 0; j < fb_helper->connector_count; j++) {
+		for (j = 0; j < count; j++) {
 			if (crtcs[j] == new_crtc) {
 				DRM_DEBUG_KMS("fallback: cloned configuration\n");
 				goto bail;
@@ -498,7 +500,7 @@ retry:
 			      modes[i]->flags & DRM_MODE_FLAG_INTERLACE ? "i" :"");
 
 		fallback = false;
-		conn_configured |= (1 << i);
+		conn_configured |= BIT(i);
 	}
 
 	if ((conn_configured & mask) != mask) {
@@ -522,7 +524,7 @@ retry:
 	if (fallback) {
 bail:
 		DRM_DEBUG_KMS("Not using firmware configuration\n");
-		memcpy(enabled, save_enabled, fb_helper->connector_count);
+		memcpy(enabled, save_enabled, count);
 		kfree(save_enabled);
 		return false;
 	}
@@ -538,8 +540,7 @@ static const struct drm_fb_helper_funcs intel_fb_helper_funcs = {
 	.fb_probe = intelfb_create,
 };
 
-static void intel_fbdev_destroy(struct drm_device *dev,
-				struct intel_fbdev *ifbdev)
+static void intel_fbdev_destroy(struct intel_fbdev *ifbdev)
 {
 	/* We rely on the object-free to release the VMA pinning for
 	 * the info->screen_base mmaping. Leaking the VMA is simpler than
@@ -552,12 +553,14 @@ static void intel_fbdev_destroy(struct drm_device *dev,
 	drm_fb_helper_fini(&ifbdev->helper);
 
 	if (ifbdev->fb) {
-		mutex_lock(&dev->struct_mutex);
+		mutex_lock(&ifbdev->helper.dev->struct_mutex);
 		intel_unpin_fb_obj(&ifbdev->fb->base, BIT(DRM_ROTATE_0));
-		mutex_unlock(&dev->struct_mutex);
+		mutex_unlock(&ifbdev->helper.dev->struct_mutex);
 
 		drm_framebuffer_remove(&ifbdev->fb->base);
 	}
+
+	kfree(ifbdev);
 }
 
 /*
@@ -690,9 +693,9 @@ out:
 
 static void intel_fbdev_suspend_worker(struct work_struct *work)
 {
-	intel_fbdev_set_suspend(container_of(work,
-					     struct drm_i915_private,
-					     fbdev_suspend_work)->dev,
+	intel_fbdev_set_suspend(&container_of(work,
+					      struct drm_i915_private,
+					      fbdev_suspend_work)->drm,
 				FBINFO_STATE_RUNNING,
 				true);
 }
@@ -700,7 +703,7 @@ static void intel_fbdev_suspend_worker(struct work_struct *work)
 int intel_fbdev_init(struct drm_device *dev)
 {
 	struct intel_fbdev *ifbdev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	int ret;
 
 	if (WARN_ON(INTEL_INFO(dev)->num_pipes == 0))
@@ -732,38 +735,50 @@ int intel_fbdev_init(struct drm_device *dev)
 
 static void intel_fbdev_initial_config(void *data, async_cookie_t cookie)
 {
-	struct drm_i915_private *dev_priv = data;
-	struct intel_fbdev *ifbdev = dev_priv->fbdev;
+	struct intel_fbdev *ifbdev = data;
 
 	/* Due to peculiar init order wrt to hpd handling this is separate. */
 	if (drm_fb_helper_initial_config(&ifbdev->helper,
 					 ifbdev->preferred_bpp))
-		intel_fbdev_fini(dev_priv->dev);
+		intel_fbdev_fini(ifbdev->helper.dev);
 }
 
 void intel_fbdev_initial_config_async(struct drm_device *dev)
 {
-	async_schedule(intel_fbdev_initial_config, to_i915(dev));
+	struct intel_fbdev *ifbdev = to_i915(dev)->fbdev;
+
+	ifbdev->cookie = async_schedule(intel_fbdev_initial_config, ifbdev);
+}
+
+static void intel_fbdev_sync(struct intel_fbdev *ifbdev)
+{
+	if (!ifbdev->cookie)
+		return;
+
+	/* Only serialises with all preceding async calls, hence +1 */
+	async_synchronize_cookie(ifbdev->cookie + 1);
+	ifbdev->cookie = 0;
 }
 
 void intel_fbdev_fini(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	if (!dev_priv->fbdev)
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_fbdev *ifbdev = dev_priv->fbdev;
+
+	if (!ifbdev)
 		return;
 
 	flush_work(&dev_priv->fbdev_suspend_work);
-
 	if (!current_is_async())
-		async_synchronize_full();
-	intel_fbdev_destroy(dev, dev_priv->fbdev);
-	kfree(dev_priv->fbdev);
+		intel_fbdev_sync(ifbdev);
+
+	intel_fbdev_destroy(ifbdev);
 	dev_priv->fbdev = NULL;
 }
 
 void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_fbdev *ifbdev = dev_priv->fbdev;
 	struct fb_info *info;
 
@@ -812,7 +827,7 @@ void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous
 
 void intel_fbdev_output_poll_changed(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	if (dev_priv->fbdev)
 		drm_fb_helper_hotplug_event(&dev_priv->fbdev->helper);
 }
@@ -820,12 +835,14 @@ void intel_fbdev_output_poll_changed(struct drm_device *dev)
 void intel_fbdev_restore_mode(struct drm_device *dev)
 {
 	int ret;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_fbdev *ifbdev = dev_priv->fbdev;
 	struct drm_fb_helper *fb_helper;
 
 	if (!ifbdev)
 		return;
+
+	intel_fbdev_sync(ifbdev);
 
 	fb_helper = &ifbdev->helper;
 

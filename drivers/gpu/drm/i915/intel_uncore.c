@@ -1299,9 +1299,11 @@ static void intel_uncore_fw_domains_init(struct drm_i915_private *dev_priv)
 		fw_domain_init(dev_priv, FW_DOMAIN_ID_RENDER,
 			       FORCEWAKE_MT, FORCEWAKE_MT_ACK);
 
+		spin_lock_irq(&dev_priv->uncore.lock);
 		fw_domains_get_with_thread_status(dev_priv, FORCEWAKE_ALL);
 		ecobus = __raw_i915_read32(dev_priv, ECOBUS);
 		fw_domains_put_with_fifo(dev_priv, FORCEWAKE_ALL);
+		spin_unlock_irq(&dev_priv->uncore.lock);
 
 		if (!(ecobus & FORCEWAKE_MT_ENABLE)) {
 			DRM_INFO("No MT forcewake available on Ivybridge, this can result in issues\n");
@@ -1407,7 +1409,7 @@ static const struct register_whitelist {
 int i915_reg_read_ioctl(struct drm_device *dev,
 			void *data, struct drm_file *file)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_reg_read *reg = data;
 	struct register_whitelist const *entry = whitelist;
 	unsigned size;
@@ -1469,7 +1471,7 @@ static int i915_reset_complete(struct pci_dev *pdev)
 
 static int i915_do_reset(struct drm_i915_private *dev_priv, unsigned engine_mask)
 {
-	struct pci_dev *pdev = dev_priv->dev->pdev;
+	struct pci_dev *pdev = dev_priv->drm.pdev;
 
 	/* assert reset for at least 20 usec */
 	pci_write_config_byte(pdev, I915_GDRST, GRDOM_RESET_ENABLE);
@@ -1488,14 +1490,14 @@ static int g4x_reset_complete(struct pci_dev *pdev)
 
 static int g33_do_reset(struct drm_i915_private *dev_priv, unsigned engine_mask)
 {
-	struct pci_dev *pdev = dev_priv->dev->pdev;
+	struct pci_dev *pdev = dev_priv->drm.pdev;
 	pci_write_config_byte(pdev, I915_GDRST, GRDOM_RESET_ENABLE);
 	return wait_for(g4x_reset_complete(pdev), 500);
 }
 
 static int g4x_do_reset(struct drm_i915_private *dev_priv, unsigned engine_mask)
 {
-	struct pci_dev *pdev = dev_priv->dev->pdev;
+	struct pci_dev *pdev = dev_priv->drm.pdev;
 	int ret;
 
 	pci_write_config_byte(pdev, I915_GDRST,
@@ -1530,15 +1532,17 @@ static int ironlake_do_reset(struct drm_i915_private *dev_priv,
 
 	I915_WRITE(ILK_GDSR,
 		   ILK_GRDOM_RENDER | ILK_GRDOM_RESET_ENABLE);
-	ret = wait_for((I915_READ(ILK_GDSR) &
-			ILK_GRDOM_RESET_ENABLE) == 0, 500);
+	ret = intel_wait_for_register(dev_priv,
+				      ILK_GDSR, ILK_GRDOM_RESET_ENABLE, 0,
+				      500);
 	if (ret)
 		return ret;
 
 	I915_WRITE(ILK_GDSR,
 		   ILK_GRDOM_MEDIA | ILK_GRDOM_RESET_ENABLE);
-	ret = wait_for((I915_READ(ILK_GDSR) &
-			ILK_GRDOM_RESET_ENABLE) == 0, 500);
+	ret = intel_wait_for_register(dev_priv,
+				      ILK_GDSR, ILK_GRDOM_RESET_ENABLE, 0,
+				      500);
 	if (ret)
 		return ret;
 
@@ -1551,20 +1555,16 @@ static int ironlake_do_reset(struct drm_i915_private *dev_priv,
 static int gen6_hw_domain_reset(struct drm_i915_private *dev_priv,
 				u32 hw_domain_mask)
 {
-	int ret;
-
 	/* GEN6_GDRST is not in the gt power well, no need to check
 	 * for fifo space for the write or forcewake the chip for
 	 * the read
 	 */
 	__raw_i915_write32(dev_priv, GEN6_GDRST, hw_domain_mask);
 
-#define ACKED ((__raw_i915_read32(dev_priv, GEN6_GDRST) & hw_domain_mask) == 0)
 	/* Spin waiting for the device to ack the reset requests */
-	ret = wait_for(ACKED, 500);
-#undef ACKED
-
-	return ret;
+	return intel_wait_for_register_fw(dev_priv,
+					  GEN6_GDRST, hw_domain_mask, 0,
+					  500);
 }
 
 /**
@@ -1609,13 +1609,74 @@ static int gen6_reset_engines(struct drm_i915_private *dev_priv,
 	return ret;
 }
 
-static int wait_for_register_fw(struct drm_i915_private *dev_priv,
-				i915_reg_t reg,
-				const u32 mask,
-				const u32 value,
-				const unsigned long timeout_ms)
+/**
+ * intel_wait_for_register_fw - wait until register matches expected state
+ * @dev_priv: the i915 device
+ * @reg: the register to read
+ * @mask: mask to apply to register value
+ * @value: expected value
+ * @timeout_ms: timeout in millisecond
+ *
+ * This routine waits until the target register @reg contains the expected
+ * @value after applying the @mask, i.e. it waits until
+ *   (I915_READ_FW(@reg) & @mask) == @value
+ * Otherwise, the wait will timeout after @timeout_ms milliseconds.
+ *
+ * Note that this routine assumes the caller holds forcewake asserted, it is
+ * not suitable for very long waits. See intel_wait_for_register() if you
+ * wish to wait without holding forcewake for the duration (i.e. you expect
+ * the wait to be slow).
+ *
+ * Returns 0 if the register matches the desired condition, or -ETIMEOUT.
+ */
+int intel_wait_for_register_fw(struct drm_i915_private *dev_priv,
+			       i915_reg_t reg,
+			       const u32 mask,
+			       const u32 value,
+			       const unsigned long timeout_ms)
 {
-	return wait_for((I915_READ_FW(reg) & mask) == value, timeout_ms);
+#define done ((I915_READ_FW(reg) & mask) == value)
+	int ret = wait_for_us(done, 2);
+	if (ret)
+		ret = wait_for(done, timeout_ms);
+	return ret;
+#undef done
+}
+
+/**
+ * intel_wait_for_register - wait until register matches expected state
+ * @dev_priv: the i915 device
+ * @reg: the register to read
+ * @mask: mask to apply to register value
+ * @value: expected value
+ * @timeout_ms: timeout in millisecond
+ *
+ * This routine waits until the target register @reg contains the expected
+ * @value after applying the @mask, i.e. it waits until
+ *   (I915_READ(@reg) & @mask) == @value
+ * Otherwise, the wait will timeout after @timeout_ms milliseconds.
+ *
+ * Returns 0 if the register matches the desired condition, or -ETIMEOUT.
+ */
+int intel_wait_for_register(struct drm_i915_private *dev_priv,
+			    i915_reg_t reg,
+			    const u32 mask,
+			    const u32 value,
+			    const unsigned long timeout_ms)
+{
+
+	unsigned fw =
+		intel_uncore_forcewake_for_reg(dev_priv, reg, FW_REG_READ);
+	int ret;
+
+	intel_uncore_forcewake_get(dev_priv, fw);
+	ret = wait_for_us((I915_READ_FW(reg) & mask) == value, 2);
+	intel_uncore_forcewake_put(dev_priv, fw);
+	if (ret)
+		ret = wait_for((I915_READ_NOTRACE(reg) & mask) == value,
+			       timeout_ms);
+
+	return ret;
 }
 
 static int gen8_request_engine_reset(struct intel_engine_cs *engine)
@@ -1626,11 +1687,11 @@ static int gen8_request_engine_reset(struct intel_engine_cs *engine)
 	I915_WRITE_FW(RING_RESET_CTL(engine->mmio_base),
 		      _MASKED_BIT_ENABLE(RESET_CTL_REQUEST_RESET));
 
-	ret = wait_for_register_fw(dev_priv,
-				   RING_RESET_CTL(engine->mmio_base),
-				   RESET_CTL_READY_TO_RESET,
-				   RESET_CTL_READY_TO_RESET,
-				   700);
+	ret = intel_wait_for_register_fw(dev_priv,
+					 RING_RESET_CTL(engine->mmio_base),
+					 RESET_CTL_READY_TO_RESET,
+					 RESET_CTL_READY_TO_RESET,
+					 700);
 	if (ret)
 		DRM_ERROR("%s: reset request timeout\n", engine->name);
 

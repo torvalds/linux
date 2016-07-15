@@ -58,7 +58,7 @@
 static void i965_write_fence_reg(struct drm_device *dev, int reg,
 				 struct drm_i915_gem_object *obj)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	i915_reg_t fence_reg_lo, fence_reg_hi;
 	int fence_pitch_shift;
 
@@ -117,7 +117,7 @@ static void i965_write_fence_reg(struct drm_device *dev, int reg,
 static void i915_write_fence_reg(struct drm_device *dev, int reg,
 				 struct drm_i915_gem_object *obj)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	u32 val;
 
 	if (obj) {
@@ -156,7 +156,7 @@ static void i915_write_fence_reg(struct drm_device *dev, int reg,
 static void i830_write_fence_reg(struct drm_device *dev, int reg,
 				struct drm_i915_gem_object *obj)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	uint32_t val;
 
 	if (obj) {
@@ -193,7 +193,7 @@ inline static bool i915_gem_object_needs_mb(struct drm_i915_gem_object *obj)
 static void i915_gem_write_fence(struct drm_device *dev, int reg,
 				 struct drm_i915_gem_object *obj)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	/* Ensure that all CPU reads are completed before installing a fence
 	 * and all writes before removing the fence.
@@ -229,7 +229,7 @@ static void i915_gem_object_update_fence(struct drm_i915_gem_object *obj,
 					 struct drm_i915_fence_reg *fence,
 					 bool enable)
 {
-	struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
 	int reg = fence_number(dev_priv, fence);
 
 	i915_gem_write_fence(obj->base.dev, reg, enable ? obj : NULL);
@@ -286,7 +286,7 @@ i915_gem_object_wait_fence(struct drm_i915_gem_object *obj)
 int
 i915_gem_object_put_fence(struct drm_i915_gem_object *obj)
 {
-	struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
 	struct drm_i915_fence_reg *fence;
 	int ret;
 
@@ -311,7 +311,7 @@ i915_gem_object_put_fence(struct drm_i915_gem_object *obj)
 static struct drm_i915_fence_reg *
 i915_find_fence_reg(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_fence_reg *reg, *avail;
 	int i;
 
@@ -367,7 +367,7 @@ int
 i915_gem_object_get_fence(struct drm_i915_gem_object *obj)
 {
 	struct drm_device *dev = obj->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	bool enable = obj->tiling_mode != I915_TILING_NONE;
 	struct drm_i915_fence_reg *reg;
 	int ret;
@@ -433,7 +433,7 @@ bool
 i915_gem_object_pin_fence(struct drm_i915_gem_object *obj)
 {
 	if (obj->fence_reg != I915_FENCE_REG_NONE) {
-		struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
+		struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
 		struct i915_vma *ggtt_vma = i915_gem_obj_to_ggtt(obj);
 
 		WARN_ON(!ggtt_vma ||
@@ -457,7 +457,7 @@ void
 i915_gem_object_unpin_fence(struct drm_i915_gem_object *obj)
 {
 	if (obj->fence_reg != I915_FENCE_REG_NONE) {
-		struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
+		struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
 		WARN_ON(dev_priv->fence_regs[obj->fence_reg].pin_count <= 0);
 		dev_priv->fence_regs[obj->fence_reg].pin_count--;
 	}
@@ -472,7 +472,7 @@ i915_gem_object_unpin_fence(struct drm_i915_gem_object *obj)
  */
 void i915_gem_restore_fences(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	int i;
 
 	for (i = 0; i < dev_priv->num_fence_regs; i++) {
@@ -549,7 +549,7 @@ void i915_gem_restore_fences(struct drm_device *dev)
 void
 i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	uint32_t swizzle_x = I915_BIT_6_SWIZZLE_UNKNOWN;
 	uint32_t swizzle_y = I915_BIT_6_SWIZZLE_UNKNOWN;
 

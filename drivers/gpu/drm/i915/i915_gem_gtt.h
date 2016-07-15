@@ -390,27 +390,27 @@ struct i915_hw_ppgtt {
 	void (*debug_dump)(struct i915_hw_ppgtt *ppgtt, struct seq_file *m);
 };
 
-/* For each pde iterates over every pde between from start until start + length.
- * If start, and start+length are not perfectly divisible, the macro will round
- * down, and up as needed. The macro modifies pde, start, and length. Dev is
- * only used to differentiate shift values. Temp is temp.  On gen6/7, start = 0,
- * and length = 2G effectively iterates over every PDE in the system.
- *
- * XXX: temp is not actually needed, but it saves doing the ALIGN operation.
+/*
+ * gen6_for_each_pde() iterates over every pde from start until start+length.
+ * If start and start+length are not perfectly divisible, the macro will round
+ * down and up as needed. Start=0 and length=2G effectively iterates over
+ * every PDE in the system. The macro modifies ALL its parameters except 'pd',
+ * so each of the other parameters should preferably be a simple variable, or
+ * at most an lvalue with no side-effects!
  */
-#define gen6_for_each_pde(pt, pd, start, length, temp, iter) \
-	for (iter = gen6_pde_index(start); \
-	     length > 0 && iter < I915_PDES ? \
-			(pt = (pd)->page_table[iter]), 1 : 0; \
-	     iter++, \
-	     temp = ALIGN(start+1, 1 << GEN6_PDE_SHIFT) - start, \
-	     temp = min_t(unsigned, temp, length), \
-	     start += temp, length -= temp)
+#define gen6_for_each_pde(pt, pd, start, length, iter)			\
+	for (iter = gen6_pde_index(start);				\
+	     length > 0 && iter < I915_PDES &&				\
+		(pt = (pd)->page_table[iter], true);			\
+	     ({ u32 temp = ALIGN(start+1, 1 << GEN6_PDE_SHIFT);		\
+		    temp = min(temp - start, length);			\
+		    start += temp, length -= temp; }), ++iter)
 
-#define gen6_for_all_pdes(pt, ppgtt, iter)  \
-	for (iter = 0;		\
-	     pt = ppgtt->pd.page_table[iter], iter < I915_PDES;	\
-	     iter++)
+#define gen6_for_all_pdes(pt, pd, iter)					\
+	for (iter = 0;							\
+	     iter < I915_PDES &&					\
+		(pt = (pd)->page_table[iter], true);			\
+	     ++iter)
 
 static inline uint32_t i915_pte_index(uint64_t address, uint32_t pde_shift)
 {

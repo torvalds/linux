@@ -65,6 +65,9 @@ MODULE_FIRMWARE(I915_SKL_GUC_UCODE);
 #define I915_BXT_GUC_UCODE "i915/bxt_guc_ver8_7.bin"
 MODULE_FIRMWARE(I915_BXT_GUC_UCODE);
 
+#define I915_KBL_GUC_UCODE "i915/kbl_guc_ver9_14.bin"
+MODULE_FIRMWARE(I915_KBL_GUC_UCODE);
+
 /* User-friendly representation of an enum */
 const char *intel_guc_fw_status_repr(enum intel_guc_fw_status status)
 {
@@ -87,7 +90,7 @@ static void direct_interrupts_to_host(struct drm_i915_private *dev_priv)
 	struct intel_engine_cs *engine;
 	int irqs;
 
-	/* tell all command streamers NOT to forward interrupts and vblank to GuC */
+	/* tell all command streamers NOT to forward interrupts or vblank to GuC */
 	irqs = _MASKED_FIELD(GFX_FORWARD_VBLANK_MASK, GFX_FORWARD_VBLANK_NEVER);
 	irqs |= _MASKED_BIT_DISABLE(GFX_INTERRUPT_STEERING);
 	for_each_engine(engine, dev_priv)
@@ -105,9 +108,8 @@ static void direct_interrupts_to_guc(struct drm_i915_private *dev_priv)
 	int irqs;
 	u32 tmp;
 
-	/* tell all command streamers to forward interrupts and vblank to GuC */
-	irqs = _MASKED_FIELD(GFX_FORWARD_VBLANK_MASK, GFX_FORWARD_VBLANK_ALWAYS);
-	irqs |= _MASKED_BIT_ENABLE(GFX_INTERRUPT_STEERING);
+	/* tell all command streamers to forward interrupts (but not vblank) to GuC */
+	irqs = _MASKED_BIT_ENABLE(GFX_INTERRUPT_STEERING);
 	for_each_engine(engine, dev_priv)
 		I915_WRITE(RING_MODE_GEN7(engine), irqs);
 
@@ -312,7 +314,7 @@ static u32 guc_wopcm_size(struct drm_i915_private *dev_priv)
 static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
 {
 	struct intel_guc_fw *guc_fw = &dev_priv->guc.guc_fw;
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	int ret;
 
 	ret = i915_gem_object_set_to_gtt_domain(guc_fw->guc_fw_obj, false);
@@ -411,7 +413,7 @@ static int i915_reset_guc(struct drm_i915_private *dev_priv)
  */
 int intel_guc_setup(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_guc_fw *guc_fw = &dev_priv->guc.guc_fw;
 	const char *fw_path = guc_fw->guc_fw_path;
 	int retries, ret, err;
@@ -606,7 +608,7 @@ static void guc_fw_fetch(struct drm_device *dev, struct intel_guc_fw *guc_fw)
 
 	/* Header and uCode will be loaded to WOPCM. Size of the two. */
 	size = guc_fw->header_size + guc_fw->ucode_size;
-	if (size > guc_wopcm_size(dev->dev_private)) {
+	if (size > guc_wopcm_size(to_i915(dev))) {
 		DRM_ERROR("Firmware is too large to fit in WOPCM\n");
 		goto fail;
 	}
@@ -679,7 +681,7 @@ fail:
  */
 void intel_guc_init(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_guc_fw *guc_fw = &dev_priv->guc.guc_fw;
 	const char *fw_path;
 
@@ -699,6 +701,10 @@ void intel_guc_init(struct drm_device *dev)
 		fw_path = I915_BXT_GUC_UCODE;
 		guc_fw->guc_fw_major_wanted = 8;
 		guc_fw->guc_fw_minor_wanted = 7;
+	} else if (IS_KABYLAKE(dev)) {
+		fw_path = I915_KBL_GUC_UCODE;
+		guc_fw->guc_fw_major_wanted = 9;
+		guc_fw->guc_fw_minor_wanted = 14;
 	} else {
 		fw_path = "";	/* unknown device */
 	}
@@ -728,7 +734,7 @@ void intel_guc_init(struct drm_device *dev)
  */
 void intel_guc_fini(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_guc_fw *guc_fw = &dev_priv->guc.guc_fw;
 
 	mutex_lock(&dev->struct_mutex);
