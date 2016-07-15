@@ -57,6 +57,7 @@ config ROCKCHIP_ANALOGIX_DP
 config ROCKCHIP_INNO_HDMI
 	tristate "Rockchip specific extensions for Innosilicon HDMI"
 	depends on DRM_ROCKCHIP
+	select SND_SOC_HDMI_CODEC
 	help
 	  This selects support for Rockchip SoC specific extensions
 	  for the Innosilicon HDMI driver. If you want to enable
