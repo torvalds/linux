@@ -926,6 +926,35 @@ int i915_switch_context(struct drm_i915_gem_request *req)
 	return do_rcs_switch(req);
 }
 
+int i915_gem_switch_to_kernel_context(struct drm_i915_private *dev_priv)
+{
+	struct intel_engine_cs *engine;
+
+	for_each_engine(engine, dev_priv) {
+		struct drm_i915_gem_request *req;
+		int ret;
+
+		if (engine->last_context == NULL)
+			continue;
+
+		if (engine->last_context == dev_priv->kernel_context)
+			continue;
+
+		req = i915_gem_request_alloc(engine, dev_priv->kernel_context);
+		if (IS_ERR(req))
+			return PTR_ERR(req);
+
+		ret = 0;
+		if (!i915.enable_execlists)
+			ret = i915_switch_context(req);
+		i915_add_request_no_flush(req);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static bool contexts_enabled(struct drm_device *dev)
 {
 	return i915.enable_execlists || to_i915(dev)->hw_context_size;

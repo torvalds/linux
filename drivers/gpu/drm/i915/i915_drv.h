@@ -3525,6 +3525,7 @@ void i915_gem_context_reset(struct drm_device *dev);
 int i915_gem_context_open(struct drm_device *dev, struct drm_file *file);
 void i915_gem_context_close(struct drm_device *dev, struct drm_file *file);
 int i915_switch_context(struct drm_i915_gem_request *req);
+int i915_gem_switch_to_kernel_context(struct drm_i915_private *dev_priv);
 void i915_gem_context_free(struct kref *ctx_ref);
 struct drm_i915_gem_object *
 i915_gem_alloc_context_obj(struct drm_device *dev, size_t size);
