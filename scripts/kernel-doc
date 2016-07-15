@@ -2994,7 +2994,7 @@ sub process_file($) {
 		    }
 		} elsif ($inline_doc_state == STATE_INLINE_NAME) {
 		    $inline_doc_state = STATE_INLINE_ERROR;
-		    print STDERR "Warning(${file}:$.): ";
+		    print STDERR "${file}:$.: warning: ";
 		    print STDERR "Incorrect use of kernel-doc format: $_";
 		    ++$warnings;
 		}
