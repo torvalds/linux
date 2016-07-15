@@ -351,7 +351,8 @@ static int mlxsw_sp_dcbnl_ieee_setpfc(struct net_device *dev,
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 	int err;
 
-	if (mlxsw_sp_port->link.tx_pause || mlxsw_sp_port->link.rx_pause) {
+	if ((mlxsw_sp_port->link.tx_pause || mlxsw_sp_port->link.rx_pause) &&
+	    pfc->pfc_en) {
 		netdev_err(dev, "PAUSE frames already enabled on port\n");
 		return -EINVAL;
 	}
