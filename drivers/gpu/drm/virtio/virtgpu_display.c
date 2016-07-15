@@ -53,8 +53,7 @@ static void virtio_gpu_user_framebuffer_destroy(struct drm_framebuffer *fb)
 	struct virtio_gpu_framebuffer *virtio_gpu_fb
 		= to_virtio_gpu_framebuffer(fb);
 
-	if (virtio_gpu_fb->obj)
-		drm_gem_object_unreference_unlocked(virtio_gpu_fb->obj);
+	drm_gem_object_unreference_unlocked(virtio_gpu_fb->obj);
 	drm_framebuffer_cleanup(fb);
 	kfree(virtio_gpu_fb);
 }
@@ -326,8 +325,7 @@ virtio_gpu_user_framebuffer_create(struct drm_device *dev,
 	ret = virtio_gpu_framebuffer_init(dev, virtio_gpu_fb, mode_cmd, obj);
 	if (ret) {
 		kfree(virtio_gpu_fb);
-		if (obj)
-			drm_gem_object_unreference_unlocked(obj);
+		drm_gem_object_unreference_unlocked(obj);
 		return NULL;
 	}
 
