@@ -1055,16 +1055,18 @@ static void free_adapter(struct cxl *adapter)
 	struct irq_avail *cur;
 	int i;
 
-	if (adapter->guest->irq_avail) {
-		for (i = 0; i < adapter->guest->irq_nranges; i++) {
-			cur = &adapter->guest->irq_avail[i];
-			kfree(cur->bitmap);
+	if (adapter->guest) {
+		if (adapter->guest->irq_avail) {
+			for (i = 0; i < adapter->guest->irq_nranges; i++) {
+				cur = &adapter->guest->irq_avail[i];
+				kfree(cur->bitmap);
+			}
+			kfree(adapter->guest->irq_avail);
 		}
-		kfree(adapter->guest->irq_avail);
+		kfree(adapter->guest->status);
+		kfree(adapter->guest);
 	}
-	kfree(adapter->guest->status);
 	cxl_remove_adapter_nr(adapter);
-	kfree(adapter->guest);
 	kfree(adapter);
 }
 
