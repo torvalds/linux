@@ -430,6 +430,8 @@ static int mark_source_chains(const struct xt_table_info *newinfo,
 				size = e->next_offset;
 				e = (struct arpt_entry *)
 					(entry0 + pos + size);
+				if (pos + size >= newinfo->size)
+					return 0;
 				e->counters.pcnt = pos;
 				pos += size;
 			} else {
@@ -452,6 +454,8 @@ static int mark_source_chains(const struct xt_table_info *newinfo,
 				} else {
 					/* ... this is a fallthru */
 					newpos = pos + e->next_offset;
+					if (newpos >= newinfo->size)
+						return 0;
 				}
 				e = (struct arpt_entry *)
 					(entry0 + newpos);
@@ -675,10 +679,8 @@ static int translate_table(struct xt_table_info *newinfo, void *entry0,
 		}
 	}
 
-	if (!mark_source_chains(newinfo, repl->valid_hooks, entry0)) {
-		duprintf("Looping hook\n");
+	if (!mark_source_chains(newinfo, repl->valid_hooks, entry0))
 		return -ELOOP;
-	}
 
 	/* Finally, each sanity check must pass */
 	i = 0;
