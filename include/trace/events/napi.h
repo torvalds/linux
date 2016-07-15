@@ -18,16 +18,16 @@ TRACE_EVENT(napi_poll,
 
 	TP_STRUCT__entry(
 		__field(	struct napi_struct *,	napi)
+		__string(	dev_name, napi->dev ? napi->dev->name : NO_DEV)
 		__field(	int,			work)
 		__field(	int,			budget)
-		__string(	dev_name, napi->dev ? napi->dev->name : NO_DEV)
 	),
 
 	TP_fast_assign(
 		__entry->napi = napi;
+		__assign_str(dev_name, napi->dev ? napi->dev->name : NO_DEV);
 		__entry->work = work;
 		__entry->budget = budget;
-		__assign_str(dev_name, napi->dev ? napi->dev->name : NO_DEV);
 	),
 
 	TP_printk("napi poll on napi struct %p for device %s work %d budget %d",
