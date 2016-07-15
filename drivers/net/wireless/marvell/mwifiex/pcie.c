@@ -2300,6 +2300,12 @@ static int mwifiex_process_pcie_int(struct mwifiex_adapter *adapter)
 			}
 
 		}
+		if (!card->msi_enable) {
+			spin_lock_irqsave(&adapter->int_lock, flags);
+			pcie_ireg |= adapter->int_status;
+			adapter->int_status = 0;
+			spin_unlock_irqrestore(&adapter->int_lock, flags);
+		}
 	}
 	mwifiex_dbg(adapter, INTR,
 		    "info: cmd_sent=%d data_sent=%d\n",
