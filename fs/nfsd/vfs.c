@@ -1161,7 +1161,11 @@ nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	if (isdotent(fname, flen))
 		goto out;
 
-	err = fh_verify(rqstp, fhp, S_IFDIR, NFSD_MAY_CREATE);
+	/*
+	 * Even though it is a create, first let's see if we are even allowed
+	 * to peek inside the parent
+	 */
+	err = fh_verify(rqstp, fhp, S_IFDIR, NFSD_MAY_EXEC);
 	if (err)
 		goto out;
 
@@ -1210,6 +1214,11 @@ nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 			dentry, dchild);
 		goto out; 
 	}
+
+	/* Now let's see if we actually have permissions to create */
+	err = nfsd_permission(rqstp, fhp->fh_export, dentry, NFSD_MAY_CREATE);
+	if (err)
+		goto out;
 
 	if (!(iap->ia_valid & ATTR_MODE))
 		iap->ia_mode = 0;

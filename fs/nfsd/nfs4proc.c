@@ -605,8 +605,12 @@ nfsd4_create(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 
 	fh_init(&resfh, NFS4_FHSIZE);
 
+	/*
+	 * We just check that parent is accessible here, nfsd_* do their
+	 * own access permission checks
+	 */
 	status = fh_verify(rqstp, &cstate->current_fh, S_IFDIR,
-			   NFSD_MAY_CREATE);
+			   NFSD_MAY_EXEC);
 	if (status)
 		return status;
 
