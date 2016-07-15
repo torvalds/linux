@@ -398,6 +398,8 @@ void *msm_gem_vaddr_locked(struct drm_gem_object *obj)
 			return ERR_CAST(pages);
 		msm_obj->vaddr = vmap(pages, obj->size >> PAGE_SHIFT,
 				VM_MAP, pgprot_writecombine(PAGE_KERNEL));
+		if (msm_obj->vaddr == NULL)
+			return ERR_PTR(-ENOMEM);
 	}
 	return msm_obj->vaddr;
 }

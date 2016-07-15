@@ -247,7 +247,11 @@ void pnfs_fetch_commit_bucket_list(struct list_head *pages,
 }
 
 /* Helper function for pnfs_generic_commit_pagelist to catch an empty
- * page list. This can happen when two commits race. */
+ * page list. This can happen when two commits race.
+ *
+ * This must be called instead of nfs_init_commit - call one or the other, but
+ * not both!
+ */
 static bool
 pnfs_generic_commit_cancel_empty_pagelist(struct list_head *pages,
 					  struct nfs_commit_data *data,
@@ -256,7 +260,11 @@ pnfs_generic_commit_cancel_empty_pagelist(struct list_head *pages,
 	if (list_empty(pages)) {
 		if (atomic_dec_and_test(&cinfo->mds->rpcs_out))
 			wake_up_atomic_t(&cinfo->mds->rpcs_out);
-		nfs_commitdata_release(data);
+		/* don't call nfs_commitdata_release - it tries to put
+		 * the open_context which is not acquired until nfs_init_commit
+		 * which has not been called on @data */
+		WARN_ON_ONCE(data->context);
+		nfs_commit_free(data);
 		return true;
 	}
 

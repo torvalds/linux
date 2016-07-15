@@ -300,16 +300,15 @@ int hfi1_get_proc_affinity(struct hfi1_devdata *dd, int node)
 	const struct cpumask *node_mask,
 		*proc_mask = tsk_cpus_allowed(current);
 	struct cpu_mask_set *set = &dd->affinity->proc;
-	char buf[1024];
 
 	/*
 	 * check whether process/context affinity has already
 	 * been set
 	 */
 	if (cpumask_weight(proc_mask) == 1) {
-		scnprintf(buf, 1024, "%*pbl", cpumask_pr_args(proc_mask));
-		hfi1_cdbg(PROC, "PID %u %s affinity set to CPU %s",
-			  current->pid, current->comm, buf);
+		hfi1_cdbg(PROC, "PID %u %s affinity set to CPU %*pbl",
+			  current->pid, current->comm,
+			  cpumask_pr_args(proc_mask));
 		/*
 		 * Mark the pre-set CPU as used. This is atomic so we don't
 		 * need the lock
@@ -318,9 +317,9 @@ int hfi1_get_proc_affinity(struct hfi1_devdata *dd, int node)
 		cpumask_set_cpu(cpu, &set->used);
 		goto done;
 	} else if (cpumask_weight(proc_mask) < cpumask_weight(&set->mask)) {
-		scnprintf(buf, 1024, "%*pbl", cpumask_pr_args(proc_mask));
-		hfi1_cdbg(PROC, "PID %u %s affinity set to CPU set(s) %s",
-			  current->pid, current->comm, buf);
+		hfi1_cdbg(PROC, "PID %u %s affinity set to CPU set(s) %*pbl",
+			  current->pid, current->comm,
+			  cpumask_pr_args(proc_mask));
 		goto done;
 	}
 
@@ -356,8 +355,8 @@ int hfi1_get_proc_affinity(struct hfi1_devdata *dd, int node)
 	cpumask_or(intrs, intrs, (dd->affinity->rcv_intr.gen ?
 				  &dd->affinity->rcv_intr.mask :
 				  &dd->affinity->rcv_intr.used));
-	scnprintf(buf, 1024, "%*pbl", cpumask_pr_args(intrs));
-	hfi1_cdbg(PROC, "CPUs used by interrupts: %s", buf);
+	hfi1_cdbg(PROC, "CPUs used by interrupts: %*pbl",
+		  cpumask_pr_args(intrs));
 
 	/*
 	 * If we don't have a NUMA node requested, preference is towards
@@ -366,18 +365,16 @@ int hfi1_get_proc_affinity(struct hfi1_devdata *dd, int node)
 	if (node == -1)
 		node = dd->node;
 	node_mask = cpumask_of_node(node);
-	scnprintf(buf, 1024, "%*pbl", cpumask_pr_args(node_mask));
-	hfi1_cdbg(PROC, "device on NUMA %u, CPUs %s", node, buf);
+	hfi1_cdbg(PROC, "device on NUMA %u, CPUs %*pbl", node,
+		  cpumask_pr_args(node_mask));
 
 	/* diff will hold all unused cpus */
 	cpumask_andnot(diff, &set->mask, &set->used);
-	scnprintf(buf, 1024, "%*pbl", cpumask_pr_args(diff));
-	hfi1_cdbg(PROC, "unused CPUs (all) %s", buf);
+	hfi1_cdbg(PROC, "unused CPUs (all) %*pbl", cpumask_pr_args(diff));
 
 	/* get cpumask of available CPUs on preferred NUMA */
 	cpumask_and(mask, diff, node_mask);
-	scnprintf(buf, 1024, "%*pbl", cpumask_pr_args(mask));
-	hfi1_cdbg(PROC, "available cpus on NUMA %s", buf);
+	hfi1_cdbg(PROC, "available cpus on NUMA %*pbl", cpumask_pr_args(mask));
 
 	/*
 	 * At first, we don't want to place processes on the same
@@ -395,8 +392,8 @@ int hfi1_get_proc_affinity(struct hfi1_devdata *dd, int node)
 		cpumask_andnot(diff, &set->mask, &set->used);
 		cpumask_andnot(mask, diff, node_mask);
 	}
-	scnprintf(buf, 1024, "%*pbl", cpumask_pr_args(mask));
-	hfi1_cdbg(PROC, "possible CPUs for process %s", buf);
+	hfi1_cdbg(PROC, "possible CPUs for process %*pbl",
+		  cpumask_pr_args(mask));
 
 	cpu = cpumask_first(mask);
 	if (cpu >= nr_cpu_ids) /* empty */

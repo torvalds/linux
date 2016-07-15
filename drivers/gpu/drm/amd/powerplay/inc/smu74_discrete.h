@@ -223,6 +223,16 @@ struct SMU74_Discrete_StateInfo {
 
 typedef struct SMU74_Discrete_StateInfo SMU74_Discrete_StateInfo;
 
+struct SMU_QuadraticCoeffs {
+	int32_t m1;
+	uint32_t b;
+
+	int16_t m2;
+	uint8_t m1_shift;
+	uint8_t m2_shift;
+};
+typedef struct SMU_QuadraticCoeffs SMU_QuadraticCoeffs;
+
 struct SMU74_Discrete_DpmTable {
 
 	SMU74_PIDController                  GraphicsPIDController;
@@ -258,7 +268,15 @@ struct SMU74_Discrete_DpmTable {
 	uint8_t                             ThermOutPolarity;
 	uint8_t                             ThermOutMode;
 	uint8_t                             BootPhases;
-	uint32_t                            Reserved[4];
+
+	uint8_t                             VRHotLevel;
+	uint8_t                             LdoRefSel;
+	uint8_t                             Reserved1[2];
+	uint16_t                            FanStartTemperature;
+	uint16_t                            FanStopTemperature;
+	uint16_t                            MaxVoltage;
+	uint16_t                            Reserved2;
+	uint32_t                            Reserved[1];
 
 	SMU74_Discrete_GraphicsLevel        GraphicsLevel[SMU74_MAX_LEVELS_GRAPHICS];
 	SMU74_Discrete_MemoryLevel          MemoryACPILevel;
@@ -347,6 +365,8 @@ struct SMU74_Discrete_DpmTable {
 
 	uint32_t                            CurrSclkPllRange;
 	sclkFcwRange_t                      SclkFcwRangeTable[NUM_SCLK_RANGE];
+	GB_VDROOP_TABLE_t                   BTCGB_VDROOP_TABLE[BTCGB_VDROOP_TABLE_MAX_ENTRIES];
+	SMU_QuadraticCoeffs                 AVFSGB_VDROOP_TABLE[AVFSGB_VDROOP_TABLE_MAX_ENTRIES];
 };
 
 typedef struct SMU74_Discrete_DpmTable SMU74_Discrete_DpmTable;
@@ -549,16 +569,6 @@ struct SMU7_AcpiScoreboard {
 };
 
 typedef struct SMU7_AcpiScoreboard SMU7_AcpiScoreboard;
-
-struct SMU_QuadraticCoeffs {
-	int32_t m1;
-	uint32_t b;
-
-	int16_t m2;
-	uint8_t m1_shift;
-	uint8_t m2_shift;
-};
-typedef struct SMU_QuadraticCoeffs SMU_QuadraticCoeffs;
 
 struct SMU74_Discrete_PmFuses {
 	uint8_t BapmVddCVidHiSidd[8];
@@ -820,6 +830,17 @@ typedef struct SMU7_GfxCuPgScoreboard SMU7_GfxCuPgScoreboard;
 #define DB_IR_SHIFT 25
 #define DB_PCC_SHIFT 26 
 #define DB_EDC_SHIFT 27
+
+#define BTCGB0_Vdroop_Enable_MASK  0x1
+#define BTCGB1_Vdroop_Enable_MASK  0x2
+#define AVFSGB0_Vdroop_Enable_MASK 0x4
+#define AVFSGB1_Vdroop_Enable_MASK 0x8
+
+#define BTCGB0_Vdroop_Enable_SHIFT  0
+#define BTCGB1_Vdroop_Enable_SHIFT  1
+#define AVFSGB0_Vdroop_Enable_SHIFT 2
+#define AVFSGB1_Vdroop_Enable_SHIFT 3
+
 
 #pragma pack(pop)
 

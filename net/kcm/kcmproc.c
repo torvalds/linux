@@ -241,6 +241,7 @@ static const struct file_operations kcm_seq_fops = {
 	.open		= kcm_seq_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
+	.release	= seq_release_net,
 };
 
 static struct kcm_seq_muxinfo kcm_seq_muxinfo = {

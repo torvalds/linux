@@ -28,9 +28,9 @@ Also required are:
 * Standard pinctrl properties that specify the pin mux state for each child
   bus. See ../pinctrl/pinctrl-bindings.txt.
 
-* Standard I2C mux properties. See mux.txt in this directory.
+* Standard I2C mux properties. See i2c-mux.txt in this directory.
 
-* I2C child bus nodes. See mux.txt in this directory.
+* I2C child bus nodes. See i2c-mux.txt in this directory.
 
 For each named state defined in the pinctrl-names property, an I2C child bus
 will be created. I2C child bus numbers are assigned based on the index into

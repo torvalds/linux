@@ -110,6 +110,9 @@ struct fuse_inode {
 
 	/** Miscellaneous bits describing inode state */
 	unsigned long state;
+
+	/** Lock for serializing lookup and readdir for back compatibility*/
+	struct mutex mutex;
 };
 
 /** FUSE inode state bits */
@@ -540,6 +543,9 @@ struct fuse_conn {
 	/** write-back cache policy (default is write-through) */
 	unsigned writeback_cache:1;
 
+	/** allow parallel lookups and readdir (default is serialized) */
+	unsigned parallel_dirops:1;
+
 	/*
 	 * The following bitfields are only for optimization purposes
 	 * and hence races in setting them will not cause malfunction
@@ -955,5 +961,8 @@ int fuse_do_setattr(struct inode *inode, struct iattr *attr,
 		    struct file *file);
 
 void fuse_set_initialized(struct fuse_conn *fc);
+
+void fuse_unlock_inode(struct inode *inode);
+void fuse_lock_inode(struct inode *inode);
 
 #endif /* _FS_FUSE_I_H */

@@ -1339,7 +1339,7 @@ static int cpsw_ndo_open(struct net_device *ndev)
 	if (priv->coal_intvl != 0) {
 		struct ethtool_coalesce coal;
 
-		coal.rx_coalesce_usecs = (priv->coal_intvl << 4);
+		coal.rx_coalesce_usecs = priv->coal_intvl;
 		cpsw_set_coalesce(ndev, &coal);
 	}
 
@@ -2505,8 +2505,6 @@ static int cpsw_probe(struct platform_device *pdev)
 clean_ale_ret:
 	cpsw_ale_destroy(priv->ale);
 clean_dma_ret:
-	cpdma_chan_destroy(priv->txch);
-	cpdma_chan_destroy(priv->rxch);
 	cpdma_ctlr_destroy(priv->dma);
 clean_runtime_disable_ret:
 	pm_runtime_disable(&pdev->dev);
@@ -2534,8 +2532,6 @@ static int cpsw_remove(struct platform_device *pdev)
 	unregister_netdev(ndev);
 
 	cpsw_ale_destroy(priv->ale);
-	cpdma_chan_destroy(priv->txch);
-	cpdma_chan_destroy(priv->rxch);
 	cpdma_ctlr_destroy(priv->dma);
 	pm_runtime_disable(&pdev->dev);
 	device_for_each_child(&pdev->dev, NULL, cpsw_remove_child_device);

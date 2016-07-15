@@ -172,7 +172,7 @@ static int spufs_arch_write_note(struct spu_context *ctx, int i,
 	if (rc < 0)
 		goto out;
 
-	skip = roundup(cprm->file->f_pos - total + sz, 4) - cprm->file->f_pos;
+	skip = roundup(cprm->pos - total + sz, 4) - cprm->pos;
 	if (!dump_skip(cprm, skip))
 		goto Eio;
 out:

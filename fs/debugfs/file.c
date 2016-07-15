@@ -127,7 +127,6 @@ static int open_proxy_open(struct inode *inode, struct file *filp)
 		r = real_fops->open(inode, filp);
 
 out:
-	fops_put(real_fops);
 	debugfs_use_file_finish(srcu_idx);
 	return r;
 }
@@ -262,8 +261,10 @@ static int full_proxy_open(struct inode *inode, struct file *filp)
 
 	if (real_fops->open) {
 		r = real_fops->open(inode, filp);
-
-		if (filp->f_op != proxy_fops) {
+		if (r) {
+			replace_fops(filp, d_inode(dentry)->i_fop);
+			goto free_proxy;
+		} else if (filp->f_op != proxy_fops) {
 			/* No protection against file removal anymore. */
 			WARN(1, "debugfs file owner replaced proxy fops: %pd",
 				dentry);

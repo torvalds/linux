@@ -2178,6 +2178,11 @@ static ssize_t qib_write(struct file *fp, const char __user *data,
 
 	switch (cmd.type) {
 	case QIB_CMD_ASSIGN_CTXT:
+		if (rcd) {
+			ret = -EINVAL;
+			goto bail;
+		}
+
 		ret = qib_assign_ctxt(fp, &cmd.cmd.user_info);
 		if (ret)
 			goto bail;

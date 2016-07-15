@@ -250,6 +250,35 @@ struct pp_atomctrl_gpio_pin_assignment {
 };
 typedef struct pp_atomctrl_gpio_pin_assignment pp_atomctrl_gpio_pin_assignment;
 
+struct pp_atom_ctrl__avfs_parameters {
+	uint32_t  ulAVFS_meanNsigma_Acontant0;
+	uint32_t  ulAVFS_meanNsigma_Acontant1;
+	uint32_t  ulAVFS_meanNsigma_Acontant2;
+	uint16_t usAVFS_meanNsigma_DC_tol_sigma;
+	uint16_t usAVFS_meanNsigma_Platform_mean;
+	uint16_t usAVFS_meanNsigma_Platform_sigma;
+	uint32_t  ulGB_VDROOP_TABLE_CKSOFF_a0;
+	uint32_t  ulGB_VDROOP_TABLE_CKSOFF_a1;
+	uint32_t  ulGB_VDROOP_TABLE_CKSOFF_a2;
+	uint32_t  ulGB_VDROOP_TABLE_CKSON_a0;
+	uint32_t  ulGB_VDROOP_TABLE_CKSON_a1;
+	uint32_t  ulGB_VDROOP_TABLE_CKSON_a2;
+	uint32_t  ulAVFSGB_FUSE_TABLE_CKSOFF_m1;
+	uint16_t  usAVFSGB_FUSE_TABLE_CKSOFF_m2;
+	uint32_t  ulAVFSGB_FUSE_TABLE_CKSOFF_b;
+	uint32_t  ulAVFSGB_FUSE_TABLE_CKSON_m1;
+	uint16_t  usAVFSGB_FUSE_TABLE_CKSON_m2;
+	uint32_t  ulAVFSGB_FUSE_TABLE_CKSON_b;
+	uint16_t  usMaxVoltage_0_25mv;
+	uint8_t  ucEnableGB_VDROOP_TABLE_CKSOFF;
+	uint8_t  ucEnableGB_VDROOP_TABLE_CKSON;
+	uint8_t  ucEnableGB_FUSE_TABLE_CKSOFF;
+	uint8_t  ucEnableGB_FUSE_TABLE_CKSON;
+	uint16_t usPSM_Age_ComFactor;
+	uint8_t  ucEnableApplyAVFS_CKS_OFF_Voltage;
+	uint8_t  ucReserved;
+};
+
 extern bool atomctrl_get_pp_assign_pin(struct pp_hwmgr *hwmgr, const uint32_t pinId, pp_atomctrl_gpio_pin_assignment *gpio_pin_assignment);
 extern int atomctrl_get_voltage_evv_on_sclk(struct pp_hwmgr *hwmgr, uint8_t voltage_type, uint32_t sclk, uint16_t virtual_voltage_Id, uint16_t *voltage);
 extern uint32_t atomctrl_get_mpll_reference_clock(struct pp_hwmgr *hwmgr);
@@ -276,7 +305,10 @@ extern int atomctrl_get_engine_pll_dividers_ai(struct pp_hwmgr *hwmgr, uint32_t 
 extern int atomctrl_set_ac_timing_ai(struct pp_hwmgr *hwmgr, uint32_t memory_clock,
 								uint8_t level);
 extern int atomctrl_get_voltage_evv_on_sclk_ai(struct pp_hwmgr *hwmgr, uint8_t voltage_type,
-				uint32_t sclk, uint16_t virtual_voltage_Id, uint16_t *voltage);
+				uint32_t sclk, uint16_t virtual_voltage_Id, uint32_t *voltage);
 extern int atomctrl_get_smc_sclk_range_table(struct pp_hwmgr *hwmgr, struct pp_atom_ctrl_sclk_range_table *table);
+
+extern int atomctrl_get_avfs_information(struct pp_hwmgr *hwmgr, struct pp_atom_ctrl__avfs_parameters *param);
+
 #endif
 
