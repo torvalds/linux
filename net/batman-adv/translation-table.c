@@ -734,7 +734,6 @@ bool batadv_tt_local_add(struct net_device *soft_iface, const u8 *addr,
 	if (batadv_is_wifi_netdev(in_dev))
 		tt_local->common.flags |= BATADV_TT_CLIENT_WIFI;
 	kref_init(&tt_local->common.refcount);
-	kref_get(&tt_local->common.refcount);
 	tt_local->last_seen = jiffies;
 	tt_local->common.added_at = tt_local->last_seen;
 	tt_local->vlan = vlan;
@@ -746,6 +745,7 @@ bool batadv_tt_local_add(struct net_device *soft_iface, const u8 *addr,
 	    is_multicast_ether_addr(addr))
 		tt_local->common.flags |= BATADV_TT_CLIENT_NOPURGE;
 
+	kref_get(&tt_local->common.refcount);
 	hash_added = batadv_hash_add(bat_priv->tt.local_hash, batadv_compare_tt,
 				     batadv_choose_tt, &tt_local->common,
 				     &tt_local->common.hash_entry);
