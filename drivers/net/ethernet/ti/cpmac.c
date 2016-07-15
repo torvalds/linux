@@ -837,25 +837,6 @@ static int cpmac_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return phy_mii_ioctl(dev->phydev, ifr, cmd);
 }
 
-static int cpmac_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
-{
-	if (dev->phydev)
-		return phy_ethtool_gset(dev->phydev, cmd);
-
-	return -EINVAL;
-}
-
-static int cpmac_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
-{
-	if (!capable(CAP_NET_ADMIN))
-		return -EPERM;
-
-	if (dev->phydev)
-		return phy_ethtool_sset(dev->phydev, cmd);
-
-	return -EINVAL;
-}
-
 static void cpmac_get_ringparam(struct net_device *dev,
 						struct ethtool_ringparam *ring)
 {
@@ -893,12 +874,12 @@ static void cpmac_get_drvinfo(struct net_device *dev,
 }
 
 static const struct ethtool_ops cpmac_ethtool_ops = {
-	.get_settings = cpmac_get_settings,
-	.set_settings = cpmac_set_settings,
 	.get_drvinfo = cpmac_get_drvinfo,
 	.get_link = ethtool_op_get_link,
 	.get_ringparam = cpmac_get_ringparam,
 	.set_ringparam = cpmac_set_ringparam,
+	.get_link_ksettings = phy_ethtool_get_link_ksettings,
+	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
 
 static void cpmac_adjust_link(struct net_device *dev)
