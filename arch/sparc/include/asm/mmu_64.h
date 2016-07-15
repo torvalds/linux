@@ -92,7 +92,8 @@ struct tsb_config {
 typedef struct {
 	spinlock_t		lock;
 	unsigned long		sparc64_ctx_val;
-	unsigned long		huge_pte_count;
+	unsigned long		hugetlb_pte_count;
+	unsigned long		thp_pte_count;
 	struct tsb_config	tsb_block[MM_NUM_TSBS];
 	struct hv_tsb_descr	tsb_descr[MM_NUM_TSBS];
 } mm_context_t;
