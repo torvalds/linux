@@ -78,37 +78,37 @@ enum {
 };
 
 struct nfit_spa {
-	struct acpi_nfit_system_address *spa;
 	struct list_head list;
 	struct nd_region *nd_region;
 	unsigned int ars_done:1;
 	u32 clear_err_unit;
 	u32 max_ars;
+	struct acpi_nfit_system_address spa[0];
 };
 
 struct nfit_dcr {
-	struct acpi_nfit_control_region *dcr;
 	struct list_head list;
+	struct acpi_nfit_control_region dcr[0];
 };
 
 struct nfit_bdw {
-	struct acpi_nfit_data_region *bdw;
 	struct list_head list;
+	struct acpi_nfit_data_region bdw[0];
 };
 
 struct nfit_idt {
-	struct acpi_nfit_interleave *idt;
 	struct list_head list;
+	struct acpi_nfit_interleave idt[0];
 };
 
 struct nfit_flush {
-	struct acpi_nfit_flush_address *flush;
 	struct list_head list;
+	struct acpi_nfit_flush_address flush[0];
 };
 
 struct nfit_memdev {
-	struct acpi_nfit_memory_map *memdev;
 	struct list_head list;
+	struct acpi_nfit_memory_map memdev[0];
 };
 
 /* assembled tables for a given dimm/memory-device */
