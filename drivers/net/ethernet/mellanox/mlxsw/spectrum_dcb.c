@@ -249,6 +249,7 @@ static int mlxsw_sp_dcbnl_ieee_setets(struct net_device *dev,
 		return err;
 
 	memcpy(mlxsw_sp_port->dcb.ets, ets, sizeof(*ets));
+	mlxsw_sp_port->dcb.ets->ets_cap = IEEE_8021QAZ_MAX_TCS;
 
 	return 0;
 }
@@ -372,6 +373,7 @@ static int mlxsw_sp_dcbnl_ieee_setpfc(struct net_device *dev,
 	}
 
 	memcpy(mlxsw_sp_port->dcb.pfc, pfc, sizeof(*pfc));
+	mlxsw_sp_port->dcb.pfc->pfc_cap = IEEE_8021QAZ_MAX_TCS;
 
 	return 0;
 
