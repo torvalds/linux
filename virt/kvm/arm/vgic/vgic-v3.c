@@ -296,6 +296,7 @@ out:
 int vgic_v3_probe(const struct gic_kvm_info *info)
 {
 	u32 ich_vtr_el2 = kvm_call_hyp(__vgic_v3_get_ich_vtr_el2);
+	int ret;
 
 	/*
 	 * The ListRegs field is 5 bits, but there is a architectural
@@ -319,12 +320,22 @@ int vgic_v3_probe(const struct gic_kvm_info *info)
 	} else {
 		kvm_vgic_global_state.vcpu_base = info->vcpu.start;
 		kvm_vgic_global_state.can_emulate_gicv2 = true;
-		kvm_register_vgic_device(KVM_DEV_TYPE_ARM_VGIC_V2);
+		ret = kvm_register_vgic_device(KVM_DEV_TYPE_ARM_VGIC_V2);
+		if (ret) {
+			kvm_err("Cannot register GICv2 KVM device.\n");
+			return ret;
+		}
 		kvm_info("vgic-v2@%llx\n", info->vcpu.start);
 	}
+	ret = kvm_register_vgic_device(KVM_DEV_TYPE_ARM_VGIC_V3);
+	if (ret) {
+		kvm_err("Cannot register GICv3 KVM device.\n");
+		kvm_unregister_device_ops(KVM_DEV_TYPE_ARM_VGIC_V2);
+		return ret;
+	}
+
 	if (kvm_vgic_global_state.vcpu_base == 0)
 		kvm_info("disabling GICv2 emulation\n");
-	kvm_register_vgic_device(KVM_DEV_TYPE_ARM_VGIC_V3);
 
 	kvm_vgic_global_state.vctrl_base = NULL;
 	kvm_vgic_global_state.type = VGIC_V3;
