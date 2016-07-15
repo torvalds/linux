@@ -654,8 +654,8 @@ batadv_neigh_node_create(struct batadv_orig_node *orig_node,
 
 	/* extra reference for return */
 	kref_init(&neigh_node->refcount);
-	kref_get(&neigh_node->refcount);
 
+	kref_get(&neigh_node->refcount);
 	hlist_add_head_rcu(&neigh_node->list, &orig_node->neigh_list);
 
 	batadv_dbg(BATADV_DBG_BATMAN, orig_node->bat_priv,
