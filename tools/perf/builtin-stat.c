@@ -290,8 +290,12 @@ perf_evsel__write_stat_event(struct perf_evsel *counter, u32 cpu, u32 thread,
 static int read_counter(struct perf_evsel *counter)
 {
 	int nthreads = thread_map__nr(evsel_list->threads);
-	int ncpus = perf_evsel__nr_cpus(counter);
-	int cpu, thread;
+	int ncpus, cpu, thread;
+
+	if (target__has_cpu(&target))
+		ncpus = perf_evsel__nr_cpus(counter);
+	else
+		ncpus = 1;
 
 	if (!counter->supported)
 		return -ENOENT;
