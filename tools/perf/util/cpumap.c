@@ -589,14 +589,24 @@ int cpu__setup_cpunode_map(void)
 
 bool cpu_map__has(struct cpu_map *cpus, int cpu)
 {
+	return cpu_map__idx(cpus, cpu) != -1;
+}
+
+int cpu_map__idx(struct cpu_map *cpus, int cpu)
+{
 	int i;
 
 	for (i = 0; i < cpus->nr; ++i) {
 		if (cpus->map[i] == cpu)
-			return true;
+			return i;
 	}
 
-	return false;
+	return -1;
+}
+
+int cpu_map__cpu(struct cpu_map *cpus, int idx)
+{
+	return cpus->map[idx];
 }
 
 size_t cpu_map__snprint(struct cpu_map *map, char *buf, size_t size)
