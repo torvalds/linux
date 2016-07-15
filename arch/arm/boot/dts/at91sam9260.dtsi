@@ -938,25 +938,21 @@
 				atmel,adc-res-names = "lowres", "highres";
 				atmel,adc-use-res = "highres";
 
-				trigger@0 {
-					reg = <0>;
+				trigger0 {
 					trigger-name = "timer-counter-0";
 					trigger-value = <0x1>;
 				};
-				trigger@1 {
-					reg = <1>;
+				trigger1 {
 					trigger-name = "timer-counter-1";
 					trigger-value = <0x3>;
 				};
 
-				trigger@2 {
-					reg = <2>;
+				trigger2 {
 					trigger-name = "timer-counter-2";
 					trigger-value = <0x5>;
 				};
 
-				trigger@3 {
-					reg = <3>;
+				trigger3 {
 					trigger-name = "external";
 					trigger-value = <0xd>;
 					trigger-external;
@@ -1017,7 +1013,7 @@
 		};
 	};
 
-	i2c@0 {
+	i2c-gpio-0 {
 		compatible = "i2c-gpio";
 		gpios = <&pioA 23 GPIO_ACTIVE_HIGH /* sda */
 			 &pioA 24 GPIO_ACTIVE_HIGH /* scl */

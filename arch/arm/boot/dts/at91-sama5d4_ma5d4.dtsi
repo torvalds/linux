@@ -109,7 +109,7 @@
 		};
 	};
 
-	vcc_3v3_reg: fixedregulator@0 {
+	vcc_3v3_reg: fixedregulator_3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "VCC 3V3";
 		regulator-min-microvolt = <3300000>;
@@ -118,7 +118,7 @@
 		regulator-always-on;
 	};
 
-	vcc_mmc0_reg: fixedregulator@1 {
+	vcc_mmc0_reg: fixedregulator_mmc0 {
 		compatible = "regulator-fixed";
 		gpio = <&pioE 15 GPIO_ACTIVE_HIGH>;
 		regulator-name = "RST_n MCI0";

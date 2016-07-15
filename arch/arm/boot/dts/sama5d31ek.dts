@@ -9,6 +9,7 @@
 /dts-v1/;
 #include "sama5d31.dtsi"
 #include "sama5d3xmb.dtsi"
+#include "sama5d3xmb_emac.dtsi"
 #include "sama5d3xdm.dtsi"
 
 / {
