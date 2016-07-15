@@ -67,6 +67,94 @@ struct its_itte {
  * supports more. Let's be restrictive here.
  */
 #define CBASER_ADDRESS(x)	((x) & GENMASK_ULL(47, 12))
+#define PENDBASER_ADDRESS(x)	((x) & GENMASK_ULL(47, 16))
+
+/*
+ * Create a snapshot of the current LPI list, so that we can enumerate all
+ * LPIs without holding any lock.
+ * Returns the array length and puts the kmalloc'ed array into intid_ptr.
+ */
+static int vgic_copy_lpi_list(struct kvm *kvm, u32 **intid_ptr)
+{
+	struct vgic_dist *dist = &kvm->arch.vgic;
+	struct vgic_irq *irq;
+	u32 *intids;
+	int irq_count = dist->lpi_list_count, i = 0;
+
+	/*
+	 * We use the current value of the list length, which may change
+	 * after the kmalloc. We don't care, because the guest shouldn't
+	 * change anything while the command handling is still running,
+	 * and in the worst case we would miss a new IRQ, which one wouldn't
+	 * expect to be covered by this command anyway.
+	 */
+	intids = kmalloc_array(irq_count, sizeof(intids[0]), GFP_KERNEL);
+	if (!intids)
+		return -ENOMEM;
+
+	spin_lock(&dist->lpi_list_lock);
+	list_for_each_entry(irq, &dist->lpi_list_head, lpi_list) {
+		/* We don't need to "get" the IRQ, as we hold the list lock. */
+		intids[i] = irq->intid;
+		if (++i == irq_count)
+			break;
+	}
+	spin_unlock(&dist->lpi_list_lock);
+
+	*intid_ptr = intids;
+	return irq_count;
+}
+
+/*
+ * Scan the whole LPI pending table and sync the pending bit in there
+ * with our own data structures. This relies on the LPI being
+ * mapped before.
+ */
+static int its_sync_lpi_pending_table(struct kvm_vcpu *vcpu)
+{
+	gpa_t pendbase = PENDBASER_ADDRESS(vcpu->arch.vgic_cpu.pendbaser);
+	struct vgic_irq *irq;
+	int last_byte_offset = -1;
+	int ret = 0;
+	u32 *intids;
+	int nr_irqs, i;
+
+	nr_irqs = vgic_copy_lpi_list(vcpu->kvm, &intids);
+	if (nr_irqs < 0)
+		return nr_irqs;
+
+	for (i = 0; i < nr_irqs; i++) {
+		int byte_offset, bit_nr;
+		u8 pendmask;
+
+		byte_offset = intids[i] / BITS_PER_BYTE;
+		bit_nr = intids[i] % BITS_PER_BYTE;
+
+		/*
+		 * For contiguously allocated LPIs chances are we just read
+		 * this very same byte in the last iteration. Reuse that.
+		 */
+		if (byte_offset != last_byte_offset) {
+			ret = kvm_read_guest(vcpu->kvm, pendbase + byte_offset,
+					     &pendmask, 1);
+			if (ret) {
+				kfree(intids);
+				return ret;
+			}
+			last_byte_offset = byte_offset;
+		}
+
+		irq = vgic_get_irq(vcpu->kvm, NULL, intids[i]);
+		spin_lock(&irq->irq_lock);
+		irq->pending = pendmask & (1U << bit_nr);
+		vgic_queue_irq_unlock(vcpu->kvm, irq);
+		vgic_put_irq(vcpu->kvm, irq);
+	}
+
+	kfree(intids);
+
+	return ret;
+}
 
 static unsigned long vgic_mmio_read_its_ctlr(struct kvm *vcpu,
 					     struct vgic_its *its,
@@ -402,6 +490,13 @@ static struct vgic_register_region its_registers[] = {
 		vgic_mmio_read_its_idregs, its_mmio_write_wi, 0x30,
 		VGIC_ACCESS_32bit),
 };
+
+/* This is called on setting the LPI enable bit in the redistributor. */
+void vgic_enable_lpis(struct kvm_vcpu *vcpu)
+{
+	if (!(vcpu->arch.vgic_cpu.pendbaser & GICR_PENDBASER_PTZ))
+		its_sync_lpi_pending_table(vcpu);
+}
 
 static int vgic_its_init_its(struct kvm *kvm, struct vgic_its *its)
 {
