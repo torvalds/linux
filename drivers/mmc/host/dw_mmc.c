@@ -3151,12 +3151,10 @@ err_dmaunmap:
 		host->dma_ops->exit(host);
 
 err_clk_ciu:
-	if (!IS_ERR(host->ciu_clk))
-		clk_disable_unprepare(host->ciu_clk);
+	clk_disable_unprepare(host->ciu_clk);
 
 err_clk_biu:
-	if (!IS_ERR(host->biu_clk))
-		clk_disable_unprepare(host->biu_clk);
+	clk_disable_unprepare(host->biu_clk);
 
 	return ret;
 }
@@ -3182,11 +3180,8 @@ void dw_mci_remove(struct dw_mci *host)
 	if (host->use_dma && host->dma_ops->exit)
 		host->dma_ops->exit(host);
 
-	if (!IS_ERR(host->ciu_clk))
-		clk_disable_unprepare(host->ciu_clk);
-
-	if (!IS_ERR(host->biu_clk))
-		clk_disable_unprepare(host->biu_clk);
+	clk_disable_unprepare(host->ciu_clk);
+	clk_disable_unprepare(host->biu_clk);
 }
 EXPORT_SYMBOL(dw_mci_remove);
 
