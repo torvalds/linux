@@ -142,6 +142,12 @@
 /* sclk_out: spi master internal logic in rk3x can support 50Mhz */
 #define MAX_SCLK_OUT		50000000
 
+/*
+ * SPI_CTRLR1 is 16-bits, so we should support lengths of 0xffff + 1. However,
+ * the controller seems to hang when given 0x10000, so stick with this for now.
+ */
+#define ROCKCHIP_SPI_MAX_TRANLEN		0xffff
+
 enum rockchip_ssi_type {
 	SSI_MOTO_SPI = 0,
 	SSI_TI_SSP,
@@ -573,6 +579,11 @@ static void rockchip_spi_config(struct rockchip_spi *rs)
 	dev_dbg(rs->dev, "cr0 0x%x, div %d\n", cr0, div);
 }
 
+static size_t rockchip_spi_max_transfer_size(struct spi_device *spi)
+{
+	return ROCKCHIP_SPI_MAX_TRANLEN;
+}
+
 static int rockchip_spi_transfer_one(
 		struct spi_master *master,
 		struct spi_device *spi,
@@ -586,6 +597,11 @@ static int rockchip_spi_transfer_one(
 
 	if (!xfer->tx_buf && !xfer->rx_buf) {
 		dev_err(rs->dev, "No buffer for transfer\n");
+		return -EINVAL;
+	}
+
+	if (xfer->len > ROCKCHIP_SPI_MAX_TRANLEN) {
+		dev_err(rs->dev, "Transfer is too long (%d)\n", xfer->len);
 		return -EINVAL;
 	}
 
@@ -728,6 +744,7 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 	master->prepare_message = rockchip_spi_prepare_message;
 	master->unprepare_message = rockchip_spi_unprepare_message;
 	master->transfer_one = rockchip_spi_transfer_one;
+	master->max_transfer_size = rockchip_spi_max_transfer_size;
 	master->handle_err = rockchip_spi_handle_err;
 
 	rs->dma_tx.ch = dma_request_chan(rs->dev, "tx");
