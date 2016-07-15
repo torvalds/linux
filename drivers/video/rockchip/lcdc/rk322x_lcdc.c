@@ -1998,6 +1998,12 @@ static int vop_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 			}
 			val = V_HDMI_OUT_EN(1) | V_SW_UV_OFFSET_EN(0);
 			vop_msk_reg(vop_dev, SYS_CTRL, val);
+			val = V_HDMI_HSYNC_POL(screen->pin_hsync) |
+				V_HDMI_VSYNC_POL(screen->pin_vsync) |
+				V_HDMI_DEN_POL(screen->pin_den) |
+				V_HDMI_DCLK_POL(screen->pin_dclk);
+			/*hsync vsync den dclk polo,dither */
+			vop_msk_reg(vop_dev, DSP_CTRL1, val);
 			break;
 		case SCREEN_RGB:
 		case SCREEN_LVDS:
@@ -2007,10 +2013,22 @@ static int vop_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 		case SCREEN_MIPI:
 			val = V_MIPI_OUT_EN(1);
 			vop_msk_reg(vop_dev, SYS_CTRL, val);
+			val = V_MIPI_HSYNC_POL(screen->pin_hsync) |
+				V_MIPI_VSYNC_POL(screen->pin_vsync) |
+				V_MIPI_DEN_POL(screen->pin_den) |
+				V_MIPI_DCLK_POL(screen->pin_dclk);
+			/*hsync vsync den dclk polo,dither */
+			vop_msk_reg(vop_dev, DSP_CTRL1, val);
 			break;
 		case SCREEN_DUAL_MIPI:
 			val = V_MIPI_OUT_EN(1) | V_MIPI_DUAL_CHANNEL_EN(1);
 			vop_msk_reg(vop_dev, SYS_CTRL, val);
+			val = V_MIPI_HSYNC_POL(screen->pin_hsync) |
+				V_MIPI_VSYNC_POL(screen->pin_vsync) |
+				V_MIPI_DEN_POL(screen->pin_den) |
+				V_MIPI_DCLK_POL(screen->pin_dclk);
+			/*hsync vsync den dclk polo,dither */
+			vop_msk_reg(vop_dev, DSP_CTRL1, val);
 			break;
 		case SCREEN_EDP:
 			if ((VOP_CHIP(vop_dev) == VOP_RK3399) &&
@@ -2018,18 +2036,18 @@ static int vop_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 				face = OUT_P101010;
 			val = V_EDP_OUT_EN(1);
 			vop_msk_reg(vop_dev, SYS_CTRL, val);
+			val = V_EDP_HSYNC_POL(screen->pin_hsync) |
+				V_EDP_VSYNC_POL(screen->pin_vsync) |
+				V_EDP_DEN_POL(screen->pin_den) |
+				V_EDP_DCLK_POL(screen->pin_dclk);
+			/*hsync vsync den dclk polo,dither */
+			vop_msk_reg(vop_dev, DSP_CTRL1, val);
 			break;
 		default:
 			dev_err(vop_dev->dev, "un supported interface[%d]!\n",
 				screen->type);
 			break;
 		}
-		val = V_HDMI_HSYNC_POL(screen->pin_hsync) |
-			V_HDMI_VSYNC_POL(screen->pin_vsync) |
-			V_HDMI_DEN_POL(screen->pin_den) |
-			V_HDMI_DCLK_POL(screen->pin_dclk);
-		/*hsync vsync den dclk polo,dither */
-		vop_msk_reg(vop_dev, DSP_CTRL1, val);
 
 		if (screen->color_mode == COLOR_RGB)
 			dev_drv->overlay_mode = VOP_RGB_DOMAIN;
