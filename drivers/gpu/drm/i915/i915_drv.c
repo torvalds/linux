@@ -1590,9 +1590,7 @@ static int i915_drm_resume(struct drm_device *dev)
 
 	intel_csr_ucode_resume(dev_priv);
 
-	mutex_lock(&dev->struct_mutex);
-	i915_gem_restore_gtt_mappings(dev);
-	mutex_unlock(&dev->struct_mutex);
+	i915_gem_resume(dev);
 
 	i915_restore_state(dev);
 	intel_opregion_setup(dev_priv);

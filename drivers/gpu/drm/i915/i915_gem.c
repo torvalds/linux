@@ -4983,12 +4983,30 @@ i915_gem_suspend(struct drm_device *dev)
 	intel_suspend_gt_powersave(dev_priv);
 
 	mutex_lock(&dev->struct_mutex);
+
+	/* We have to flush all the executing contexts to main memory so
+	 * that they can saved in the hibernation image. To ensure the last
+	 * context image is coherent, we have to switch away from it. That
+	 * leaves the dev_priv->kernel_context still active when
+	 * we actually suspend, and its image in memory may not match the GPU
+	 * state. Fortunately, the kernel_context is disposable and we do
+	 * not rely on its state.
+	 */
+	ret = i915_gem_switch_to_kernel_context(dev_priv);
+	if (ret)
+		goto err;
+
 	ret = i915_gem_wait_for_idle(dev_priv);
 	if (ret)
 		goto err;
 
 	i915_gem_retire_requests(dev_priv);
 
+	/* Note that rather than stopping the engines, all we have to do
+	 * is assert that every RING_HEAD == RING_TAIL (all execution complete)
+	 * and similar for all logical context images (to ensure they are
+	 * all ready for hibernation).
+	 */
 	i915_gem_stop_engines(dev);
 	i915_gem_context_lost(dev_priv);
 	mutex_unlock(&dev->struct_mutex);
@@ -5007,6 +5025,23 @@ i915_gem_suspend(struct drm_device *dev)
 err:
 	mutex_unlock(&dev->struct_mutex);
 	return ret;
+}
+
+void i915_gem_resume(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = to_i915(dev);
+
+	mutex_lock(&dev->struct_mutex);
+	i915_gem_restore_gtt_mappings(dev);
+
+	/* As we didn't flush the kernel context before suspend, we cannot
+	 * guarantee that the context image is complete. So let's just reset
+	 * it and start again.
+	 */
+	if (i915.enable_execlists)
+		intel_lr_context_reset(dev_priv, dev_priv->kernel_context);
+
+	mutex_unlock(&dev->struct_mutex);
 }
 
 void i915_gem_init_swizzling(struct drm_device *dev)
