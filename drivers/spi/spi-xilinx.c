@@ -455,7 +455,10 @@ static int xilinx_spi_probe(struct platform_device *pdev)
 	xspi->buffer_size = xilinx_spi_find_buffer_size(xspi);
 
 	xspi->irq = platform_get_irq(pdev, 0);
-	if (xspi->irq >= 0) {
+	if (xspi->irq < 0 && xspi->irq != -ENXIO) {
+		ret = xspi->irq;
+		goto put_master;
+	} else if (xspi->irq >= 0) {
 		/* Register for SPI Interrupt */
 		ret = devm_request_irq(&pdev->dev, xspi->irq, xilinx_spi_irq, 0,
 				dev_name(&pdev->dev), xspi);
