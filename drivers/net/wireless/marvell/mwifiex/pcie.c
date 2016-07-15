@@ -202,7 +202,6 @@ static int mwifiex_pcie_probe(struct pci_dev *pdev,
 	if (mwifiex_add_card(card, &add_remove_card_sem, &pcie_ops,
 			     MWIFIEX_PCIE)) {
 		pr_err("%s failed\n", __func__);
-		kfree(card);
 		return -1;
 	}
 
@@ -2843,7 +2842,6 @@ static int mwifiex_pcie_request_irq(struct mwifiex_adapter *adapter)
 			  "MRVL_PCIE", &card->share_irq_ctx);
 	if (ret) {
 		pr_err("request_irq failed: ret=%d\n", ret);
-		adapter->card = NULL;
 		return -1;
 	}
 
