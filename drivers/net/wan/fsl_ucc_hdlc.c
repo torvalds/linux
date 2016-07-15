@@ -1126,7 +1126,6 @@ static int ucc_hdlc_probe(struct platform_device *pdev)
 
 err_hdlc_init:
 err_miss_tsa_property:
-	kfree(uhdlc_priv);
 	if (uhdlc_priv->tsa)
 		kfree(utdm);
 err_alloc_utdm:
