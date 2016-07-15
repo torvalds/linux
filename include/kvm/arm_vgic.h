@@ -163,6 +163,9 @@ struct vgic_dist {
 	/* vGIC model the kernel emulates for the guest (GICv2 or GICv3) */
 	u32			vgic_model;
 
+	/* Do injected MSIs require an additional device ID? */
+	bool			msis_require_devid;
+
 	int			nr_spis;
 
 	/* TODO: Consider moving to global state */
@@ -307,5 +310,7 @@ static inline int kvm_vgic_get_max_vcpus(void)
 {
 	return kvm_vgic_global_state.max_gic_vcpus;
 }
+
+int kvm_send_userspace_msi(struct kvm *kvm, struct kvm_msi *msi);
 
 #endif /* __KVM_ARM_VGIC_H */
