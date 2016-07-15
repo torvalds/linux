@@ -87,7 +87,15 @@ struct drm_dp_mst_port {
 	struct drm_connector *connector;
 	struct drm_dp_mst_topology_mgr *mgr;
 
-	struct edid *cached_edid; /* for DP logical ports - make tiling work */
+	/**
+	 * @cached_edid: for DP logical ports - make tiling work by ensuring
+	 * that the EDID for all connectors is read immediately.
+	 */
+	struct edid *cached_edid;
+	/**
+	 * @has_audio: Tracks whether the sink connector to this port is
+	 * audio-capable.
+	 */
 	bool has_audio;
 };
 
@@ -397,70 +405,154 @@ struct drm_dp_payload {
 
 /**
  * struct drm_dp_mst_topology_mgr - DisplayPort MST manager
- * @dev: device pointer for adding i2c devices etc.
- * @cbs: callbacks for connector addition and destruction.
- * @max_dpcd_transaction_bytes - maximum number of bytes to read/write in one go.
- * @aux: aux channel for the DP connector.
- * @max_payloads: maximum number of payloads the GPU can generate.
- * @conn_base_id: DRM connector ID this mgr is connected to.
- * @down_rep_recv: msg receiver state for down replies.
- * @up_req_recv: msg receiver state for up requests.
- * @lock: protects mst state, primary, dpcd.
- * @mst_state: if this manager is enabled for an MST capable port.
- * @mst_primary: pointer to the primary branch device.
- * @dpcd: cache of DPCD for primary port.
- * @pbn_div: PBN to slots divisor.
  *
  * This struct represents the toplevel displayport MST topology manager.
  * There should be one instance of this for every MST capable DP connector
  * on the GPU.
  */
 struct drm_dp_mst_topology_mgr {
-
+	/**
+	 * @dev: device pointer for adding i2c devices etc.
+	 */
 	struct device *dev;
+	/**
+	 * @cbs: callbacks for connector addition and destruction.
+	 */
 	const struct drm_dp_mst_topology_cbs *cbs;
+	/**
+	 * @max_dpcd_transaction_bytes: maximum number of bytes to read/write
+	 * in one go.
+	 */
 	int max_dpcd_transaction_bytes;
-	struct drm_dp_aux *aux; /* auxch for this topology mgr to use */
+	/**
+	 * @aux: AUX channel for the DP MST connector this topolgy mgr is
+	 * controlling.
+	 */
+	struct drm_dp_aux *aux;
+	/**
+	 * @max_payloads: maximum number of payloads the GPU can generate.
+	 */
 	int max_payloads;
+	/**
+	 * @conn_base_id: DRM connector ID this mgr is connected to. Only used
+	 * to build the MST connector path value.
+	 */
 	int conn_base_id;
 
-	/* only ever accessed from the workqueue - which should be serialised */
+	/**
+	 * @down_rep_recv: Message receiver state for down replies. This and
+	 * @up_req_recv are only ever access from the work item, which is
+	 * serialised.
+	 */
 	struct drm_dp_sideband_msg_rx down_rep_recv;
+	/**
+	 * @up_req_recv: Message receiver state for up requests. This and
+	 * @down_rep_recv are only ever access from the work item, which is
+	 * serialised.
+	 */
 	struct drm_dp_sideband_msg_rx up_req_recv;
 
-	/* pointer to info about the initial MST device */
-	struct mutex lock; /* protects mst_state + primary + dpcd */
+	/**
+	 * @lock: protects mst state, primary, dpcd.
+	 */
+	struct mutex lock;
 
+	/**
+	 * @mst_state: If this manager is enabled for an MST capable port. False
+	 * if no MST sink/branch devices is connected.
+	 */
 	bool mst_state;
+	/**
+	 * @mst_primary: Pointer to the primary/first branch device.
+	 */
 	struct drm_dp_mst_branch *mst_primary;
 
+	/**
+	 * @dpcd: Cache of DPCD for primary port.
+	 */
 	u8 dpcd[DP_RECEIVER_CAP_SIZE];
+	/**
+	 * @sink_count: Sink count from DEVICE_SERVICE_IRQ_VECTOR_ESI0.
+	 */
 	u8 sink_count;
+	/**
+	 * @pbn_div: PBN to slots divisor.
+	 */
 	int pbn_div;
+	/**
+	 * @total_slots: Total slots that can be allocated.
+	 */
 	int total_slots;
+	/**
+	 * @avail_slots: Still available slots that can be allocated.
+	 */
 	int avail_slots;
+	/**
+	 * @total_pbn: Total PBN count.
+	 */
 	int total_pbn;
 
-	/* messages to be transmitted */
-	/* qlock protects the upq/downq and in_progress,
-	   the mstb tx_slots and txmsg->state once they are queued */
+	/**
+	 * @qlock: protects @tx_msg_downq, the tx_slots in struct
+	 * &drm_dp_mst_branch and txmsg->state once they are queued
+	 */
 	struct mutex qlock;
+	/**
+	 * @tx_msg_downq: List of pending down replies.
+	 */
 	struct list_head tx_msg_downq;
 
-	/* payload info + lock for it */
+	/**
+	 * @payload_lock: Protect payload information.
+	 */
 	struct mutex payload_lock;
+	/**
+	 * @proposed_vcpis: Array of pointers for the new VCPI allocation. The
+	 * VCPI structure itself is embedded into the corresponding
+	 * &drm_dp_mst_port structure.
+	 */
 	struct drm_dp_vcpi **proposed_vcpis;
+	/**
+	 * @payloads: Array of payloads.
+	 */
 	struct drm_dp_payload *payloads;
+	/**
+	 * @payload_mask: Elements of @payloads actually in use. Since
+	 * reallocation of active outputs isn't possible gaps can be created by
+	 * disabling outputs out of order compared to how they've been enabled.
+	 */
 	unsigned long payload_mask;
+	/**
+	 * @vcpi_mask: Similar to @payload_mask, but for @proposed_vcpis.
+	 */
 	unsigned long vcpi_mask;
 
+	/**
+	 * @tx_waitq: Wait to queue stall for the tx worker.
+	 */
 	wait_queue_head_t tx_waitq;
+	/**
+	 * @work: Probe work.
+	 */
 	struct work_struct work;
-
+	/**
+	 * @tx_work: Sideband transmit worker. This can nest within the main
+	 * @work worker for each transaction @work launches.
+	 */
 	struct work_struct tx_work;
 
+	/**
+	 * @destroy_connector_list: List of to be destroyed connectors.
+	 */
 	struct list_head destroy_connector_list;
+	/**
+	 * @destroy_connector_lock: Protects @connector_list.
+	 */
 	struct mutex destroy_connector_lock;
+	/**
+	 * @destroy_connector_work: Work item to destroy connectors. Needed to
+	 * avoid locking inversion.
+	 */
 	struct work_struct destroy_connector_work;
 };
 

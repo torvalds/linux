@@ -2365,6 +2365,7 @@ EXPORT_SYMBOL(drm_dp_mst_hpd_irq);
 
 /**
  * drm_dp_mst_detect_port() - get connection status for an MST port
+ * @connector: DRM connector for this port
  * @mgr: manager for this port
  * @port: unverified pointer to a port
  *
