@@ -164,6 +164,18 @@ static const struct gb_camera_fmt_info gb_fmt_info[] = {
 	},
 };
 
+static const struct gb_camera_fmt_info *gb_camera_get_format_info(u16 gb_fmt)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(gb_fmt_info); i++) {
+		if (gb_fmt_info[i].gb_format == gb_fmt)
+			return &gb_fmt_info[i];
+	}
+
+	return NULL;
+}
+
 #define ES2_APB_CDSI0_CPORT		16
 #define ES2_APB_CDSI1_CPORT		17
 
@@ -206,6 +218,130 @@ static int gb_camera_operation_sync_flags(struct gb_connection *connection,
 	gb_operation_put(operation);
 
 	return ret;
+}
+
+/*
+ * Temporary support for camera modules implementing legacy version
+ * of camera specifications
+ */
+static int gb_camera_configure_stream_translate_deprecated(
+			struct gb_camera *gcam,
+			void *module_resp,
+			struct gb_camera_configure_streams_response *resp)
+{
+	unsigned int i;
+	struct gb_camera_configure_streams_response_deprecated *dresp =
+		(struct gb_camera_configure_streams_response_deprecated *)
+		module_resp;
+
+	if (dresp->padding != 0) {
+		gcam_err(gcam, "legacy response padding != 0\n");
+		return -EIO;
+	}
+
+	resp->num_streams = dresp->num_streams;
+	resp->flags = dresp->flags;
+	resp->data_rate = dresp->bus_freq;
+
+	for (i = 0; i < dresp->num_streams; i++) {
+		const struct gb_camera_fmt_info *fmt_info;
+		struct gb_camera_stream_config_response *cfg;
+
+		if (dresp->config[i].padding ||
+		    dresp->config[i].max_pkt_size) {
+			gcam_err(gcam, "legacy stream #%u padding != 0\n", i);
+			return -EIO;
+		}
+
+		resp->config[i] = dresp->config[i];
+		cfg = &resp->config[i];
+
+		/*
+		 * As implementations of legacy version of camera protocol do
+		 * not provide the max_pkt_size attribute, re-calculate it on
+		 * AP side.
+		 */
+		fmt_info = gb_camera_get_format_info(cfg->format);
+		if (!fmt_info) {
+			gcam_err(gcam, "unsupported greybus image format %d\n",
+				 cfg->format);
+			return -EIO;
+		}
+
+		if (fmt_info->bpp == 0) {
+			cfg->max_pkt_size = cpu_to_le16(4096);
+		} else if (fmt_info->bpp > 0) {
+			unsigned int width = le16_to_cpu(cfg->width);
+
+			cfg->max_pkt_size = cpu_to_le32(width * fmt_info->bpp / 8);
+		}
+	}
+
+	return 0;
+}
+
+/*
+ * Validate the stream configuration response verifying padding is correctly
+ * set and the returned number of streams is supported
+ *
+ * FIXME: The function also checks which protocol version the camera module
+ *	  implements and if it supports or not the new bandwidth requirements
+ *	  definition parameters.
+ *	  In case the camera implements the legacy version of protocol
+ *	  specifications, it gets translated to the new one.
+ */
+static int gb_camera_configure_streams_validate_response(
+		struct gb_camera *gcam,
+		void *module_resp,
+		struct gb_camera_configure_streams_response *ap_resp,
+		unsigned int resp_size,
+		unsigned int nstreams)
+{
+	struct gb_camera_configure_streams_response *resp;
+	unsigned int i;
+	unsigned int module_resp_size =
+			resp_size -
+			sizeof(struct gb_camera_stream_config_response) *
+			nstreams;
+
+	/* TODO: remove support for legacy camera modules */
+	if (module_resp_size == GB_CAMERA_CONFIGURE_STREAMS_DEPRECATED_SIZE)
+		return gb_camera_configure_stream_translate_deprecated(gcam,
+							module_resp, ap_resp);
+
+	if (module_resp_size != GB_CAMERA_CONFIGURE_STREAMS_SIZE) {
+		gcam_err(gcam, "unrecognized protocol version %u\n",
+			 module_resp_size);
+		return -EIO;
+	}
+
+	resp = (struct gb_camera_configure_streams_response *) module_resp;
+	*ap_resp = *resp;
+
+	/* Validate the returned response structure */
+	if (ap_resp->padding[0] || ap_resp->padding[1]) {
+		gcam_err(gcam, "response padding != 0\n");
+		return -EIO;
+	}
+
+	if (ap_resp->num_streams > nstreams) {
+		gcam_err(gcam, "got #streams %u > request %u\n",
+			 resp->num_streams, nstreams);
+		return -EIO;
+	}
+
+	for (i = 0; i < ap_resp->num_streams; i++) {
+		struct gb_camera_stream_config_response *cfg = &resp->config[i];
+
+		if (cfg->padding) {
+			gcam_err(gcam, "stream #%u padding != 0\n", i);
+			return -EIO;
+		}
+
+		ap_resp->config[i] = *cfg;
+	}
+
+	return 0;
 }
 
 /* -----------------------------------------------------------------------------
@@ -318,9 +454,10 @@ static int gb_camera_setup_data_connection(struct gb_camera *gcam,
 	 * Configure the APB1 CSI transmitter with hard-coded bus frequency,
 	 * lanes number and lines per second.
 	 *
-	 * TODO: use the clocking and size informations reported by camera module
-	 * to compute the required CSI bandwidth, and configure the CSI receiver
-	 * on AP side, and the CSI transmitter on APB1 side accordingly.
+	 * TODO: Use the data rate and size information reported by camera
+	 * module to compute the required CSI bandwidth, and configure the
+	 * CSI receiver on AP side, and the CSI transmitter on APB1 side
+	 * accordingly.
 	 */
 	memset(&csi_cfg, 0, sizeof(csi_cfg));
 	csi_cfg.csi_id = 1;
@@ -425,10 +562,12 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 {
 	struct gb_camera_configure_streams_request *req;
 	struct gb_camera_configure_streams_response *resp;
+	void *module_resp;
 	unsigned int nstreams = *num_streams;
 	unsigned int i;
 	size_t req_size;
 	size_t resp_size;
+	size_t module_resp_size;
 	int ret;
 
 	if (nstreams > GB_CAMERA_MAX_STREAMS)
@@ -437,11 +576,21 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 	req_size = sizeof(*req) + nstreams * sizeof(req->config[0]);
 	resp_size = sizeof(*resp) + nstreams * sizeof(resp->config[0]);
 
+	/*
+	 * FIXME: Reserve enough space for the deprecated version of the
+	 *	  configure_stream response, as it is bigger than the
+	 *	  newly defined one
+	 */
+	module_resp_size = GB_CAMERA_CONFIGURE_STREAMS_DEPRECATED_SIZE +
+			   nstreams * sizeof(resp->config[0]);
+
 	req = kmalloc(req_size, GFP_KERNEL);
 	resp = kmalloc(resp_size, GFP_KERNEL);
-	if (!req || !resp) {
+	module_resp = kmalloc(module_resp_size, GFP_KERNEL);
+	if (!req || !resp || !module_resp) {
 		kfree(req);
 		kfree(resp);
+		kfree(module_resp);
 		return -ENOMEM;
 	}
 
@@ -469,24 +618,18 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 		goto done;
 	}
 
-	ret = gb_operation_sync(gcam->connection,
-				GB_CAMERA_TYPE_CONFIGURE_STREAMS,
-				req, req_size, resp, resp_size);
+	ret = gb_camera_operation_sync_flags(gcam->connection,
+					     GB_CAMERA_TYPE_CONFIGURE_STREAMS,
+					     GB_OPERATION_FLAG_SHORT_RESPONSE,
+					     req, req_size,
+					     module_resp, &module_resp_size);
 	if (ret < 0)
 		goto done;
 
-	if (resp->num_streams > nstreams) {
-		gcam_dbg(gcam, "got #streams %u > request %u\n",
-			 resp->num_streams, nstreams);
-		ret = -EIO;
+	ret = gb_camera_configure_streams_validate_response(gcam,
+			module_resp, resp, module_resp_size, nstreams);
+	if (ret < 0)
 		goto done;
-	}
-
-	if (resp->padding != 0) {
-		gcam_dbg(gcam, "response padding != 0");
-		ret = -EIO;
-		goto done;
-	}
 
 	*flags = resp->flags;
 	*num_streams = resp->num_streams;
@@ -501,12 +644,6 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 		streams[i].dt[0] = cfg->data_type[0];
 		streams[i].dt[1] = cfg->data_type[1];
 		streams[i].max_size = le32_to_cpu(cfg->max_size);
-
-		if (cfg->padding[0] || cfg->padding[1] || cfg->padding[2]) {
-			gcam_dbg(gcam, "stream #%u padding != 0", i);
-			ret = -EIO;
-			goto done;
-		}
 	}
 
 	if ((resp->flags & GB_CAMERA_CONFIGURE_STREAMS_ADJUSTED) ||
@@ -557,6 +694,7 @@ done_skip_pm_put:
 	mutex_unlock(&gcam->mutex);
 	kfree(req);
 	kfree(resp);
+	kfree(module_resp);
 	return ret;
 }
 
