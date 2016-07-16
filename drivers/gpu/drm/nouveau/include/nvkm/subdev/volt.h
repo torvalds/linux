@@ -27,6 +27,7 @@ struct nvkm_volt {
 	u8 max2_id;
 };
 
+int nvkm_volt_map(struct nvkm_volt *volt, u8 id, u8 temperature);
 int nvkm_volt_map_min(struct nvkm_volt *volt, u8 id);
 int nvkm_volt_get(struct nvkm_volt *);
 int nvkm_volt_set_id(struct nvkm_volt *, u8 id, u8 min_id, u8 temp,
