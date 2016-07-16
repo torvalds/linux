@@ -916,14 +916,18 @@ static void precalculate_color(struct tpg_data *tpg, int k)
 		if (!ycbcr_valid)
 			color_to_ycbcr(tpg, r, g, b, &y, &cb, &cr);
 
+		y >>= 4;
+		cb >>= 4;
+		cr >>= 4;
 		if (tpg->real_quantization == V4L2_QUANTIZATION_LIM_RANGE) {
-			y = clamp(y, 16 << 4, 235 << 4);
-			cb = clamp(cb, 16 << 4, 240 << 4);
-			cr = clamp(cr, 16 << 4, 240 << 4);
+			y = clamp(y, 16, 235);
+			cb = clamp(cb, 16, 240);
+			cr = clamp(cr, 16, 240);
+		} else {
+			y = clamp(y, 1, 254);
+			cb = clamp(cb, 1, 254);
+			cr = clamp(cr, 1, 254);
 		}
-		y = clamp(y >> 4, 1, 254);
-		cb = clamp(cb >> 4, 1, 254);
-		cr = clamp(cr >> 4, 1, 254);
 		switch (tpg->fourcc) {
 		case V4L2_PIX_FMT_YUV444:
 			y >>= 4;
