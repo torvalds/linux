@@ -38,44 +38,42 @@
 
 int mlx5_core_access_reg(struct mlx5_core_dev *dev, void *data_in,
 			 int size_in, void *data_out, int size_out,
-			 u16 reg_num, int arg, int write)
+			 u16 reg_id, int arg, int write)
 {
-	struct mlx5_access_reg_mbox_in *in = NULL;
-	struct mlx5_access_reg_mbox_out *out = NULL;
+	int outlen = MLX5_ST_SZ_BYTES(access_register_out) + size_out;
+	int inlen = MLX5_ST_SZ_BYTES(access_register_in) + size_in;
 	int err = -ENOMEM;
+	u32 *out = NULL;
+	u32 *in = NULL;
+	void *data;
 
-	in = mlx5_vzalloc(sizeof(*in) + size_in);
-	if (!in)
-		return -ENOMEM;
+	in = mlx5_vzalloc(inlen);
+	out = mlx5_vzalloc(outlen);
+	if (!in || !out)
+		goto out;
 
-	out = mlx5_vzalloc(sizeof(*out) + size_out);
-	if (!out)
-		goto ex1;
+	data = MLX5_ADDR_OF(access_register_in, in, register_data);
+	memcpy(data, data_in, size_in);
 
-	memcpy(in->data, data_in, size_in);
-	in->hdr.opcode = cpu_to_be16(MLX5_CMD_OP_ACCESS_REG);
-	in->hdr.opmod = cpu_to_be16(!write);
-	in->arg = cpu_to_be32(arg);
-	in->register_id = cpu_to_be16(reg_num);
-	err = mlx5_cmd_exec(dev, in, sizeof(*in) + size_in, out,
-			    sizeof(*out) + size_out);
+	MLX5_SET(access_register_in, in, opcode, MLX5_CMD_OP_ACCESS_REG);
+	MLX5_SET(access_register_in, in, op_mod, !write);
+	MLX5_SET(access_register_in, in, argument, arg);
+	MLX5_SET(access_register_in, in, register_id, reg_id);
+
+	err = mlx5_cmd_exec(dev, in, inlen, out, outlen);
+	err = err ? : mlx5_cmd_status_to_err_v2(out);
 	if (err)
-		goto ex2;
+		goto out;
 
-	if (out->hdr.status)
-		err = mlx5_cmd_status_to_err(&out->hdr);
+	data = MLX5_ADDR_OF(access_register_out, out, register_data);
+	memcpy(data_out, data, size_out);
 
-	if (!err)
-		memcpy(data_out, out->data, size_out);
-
-ex2:
+out:
 	kvfree(out);
-ex1:
 	kvfree(in);
 	return err;
 }
 EXPORT_SYMBOL_GPL(mlx5_core_access_reg);
-
 
 struct mlx5_reg_pcap {
 	u8			rsvd0;

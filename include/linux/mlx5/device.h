@@ -1165,35 +1165,6 @@ struct mlx5_dump_mkey_mbox_out {
 	__be32			mkey;
 };
 
-struct mlx5_mad_ifc_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	__be16			remote_lid;
-	u8			rsvd0;
-	u8			port;
-	u8			rsvd1[4];
-	u8			data[256];
-};
-
-struct mlx5_mad_ifc_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	u8			rsvd[8];
-	u8			data[256];
-};
-
-struct mlx5_access_reg_mbox_in {
-	struct mlx5_inbox_hdr		hdr;
-	u8				rsvd0[2];
-	__be16				register_id;
-	__be32				arg;
-	__be32				data[0];
-};
-
-struct mlx5_access_reg_mbox_out {
-	struct mlx5_outbox_hdr		hdr;
-	u8				rsvd[8];
-	__be32				data[0];
-};
-
 #define MLX5_ATTR_EXTENDED_PORT_INFO	cpu_to_be16(0xff90)
 
 enum {
