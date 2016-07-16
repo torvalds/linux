@@ -152,7 +152,7 @@ enum {
 	MLX5_CMD_OP_CONFIG_INT_MODERATION         = 0x804,
 	MLX5_CMD_OP_ACCESS_REG                    = 0x805,
 	MLX5_CMD_OP_ATTACH_TO_MCG                 = 0x806,
-	MLX5_CMD_OP_DETTACH_FROM_MCG              = 0x807,
+	MLX5_CMD_OP_DETACH_FROM_MCG               = 0x807,
 	MLX5_CMD_OP_GET_DROPPED_PACKET_LOG        = 0x80a,
 	MLX5_CMD_OP_MAD_IFC                       = 0x50d,
 	MLX5_CMD_OP_QUERY_MAD_DEMUX               = 0x80b,
