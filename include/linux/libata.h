@@ -1070,11 +1070,6 @@ static inline bool ata_is_atapi(u8 prot)
 	return ata_prot_flags(prot) & ATA_PROT_FLAG_ATAPI;
 }
 
-static inline bool ata_is_nodata(u8 prot)
-{
-	return !(ata_prot_flags(prot) & ATA_PROT_FLAG_DATA);
-}
-
 static inline bool ata_is_pio(u8 prot)
 {
 	return ata_prot_flags(prot) & ATA_PROT_FLAG_PIO;

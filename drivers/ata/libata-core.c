@@ -5044,7 +5044,7 @@ static void ata_verify_xfer(struct ata_queued_cmd *qc)
 {
 	struct ata_device *dev = qc->dev;
 
-	if (ata_is_nodata(qc->tf.protocol))
+	if (!ata_is_data(qc->tf.protocol))
 		return;
 
 	if ((dev->mwdma_mask || dev->udma_mask) && ata_is_pio(qc->tf.protocol))
