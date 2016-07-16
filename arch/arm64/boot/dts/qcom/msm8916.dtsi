@@ -192,10 +192,11 @@
 	};
 
 	firmware {
-		scm {
+		scm: scm {
 			compatible = "qcom,scm";
 			clocks = <&gcc GCC_CRYPTO_CLK>, <&gcc GCC_CRYPTO_AXI_CLK>, <&gcc GCC_CRYPTO_AHB_CLK>;
 			clock-names = "core", "bus", "iface";
+			#reset-cells = <1>;
 		};
 	};
 
