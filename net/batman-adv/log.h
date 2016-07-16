@@ -63,7 +63,7 @@ enum batadv_dbg_level {
 	BATADV_DBG_NC		= BIT(5),
 	BATADV_DBG_MCAST	= BIT(6),
 	BATADV_DBG_TP_METER	= BIT(7),
-	BATADV_DBG_ALL		= 127,
+	BATADV_DBG_ALL		= 255,
 };
 
 #ifdef CONFIG_BATMAN_ADV_DEBUG
