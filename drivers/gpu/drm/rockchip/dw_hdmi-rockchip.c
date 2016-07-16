@@ -300,7 +300,39 @@ dw_hdmi_rockchip_encoder_mode_fixup(struct drm_encoder *encoder,
 				    const struct drm_display_mode *mode,
 				    struct drm_display_mode *adj_mode)
 {
-	return true;
+	struct rockchip_hdmi *hdmi = to_rockchip_hdmi(encoder);
+	int pclk = adj_mode->clock * 1000;
+	int best_diff = INT_MAX;
+	int best_clock = 0;
+	int slop;
+	int i;
+
+	/* Pick the best clock */
+	for (i = 0; i < ARRAY_SIZE(dw_hdmi_rates); i++) {
+		int diff = dw_hdmi_rates[i] - pclk;
+
+		if (diff < 0)
+			diff = -diff;
+		if (diff < best_diff) {
+			best_diff = diff;
+			best_clock = dw_hdmi_rates[i];
+
+			/* Bail early if we're exact */
+			if (best_diff == 0)
+				return true;
+		}
+	}
+
+	/* Double check that it's OK */
+	slop = CLK_SLOP(pclk);
+	if ((pclk >= best_clock - slop) && (pclk <= best_clock + slop)) {
+		adj_mode->clock = DIV_ROUND_UP(best_clock, 1000);
+		return true;
+	}
+
+	/* Shoudn't be here; we should have said rate wasn't valid */
+	dev_warn(hdmi->dev, "tried to set invalid rate %d\n", adj_mode->clock);
+	return false;
 }
 
 static void dw_hdmi_rockchip_encoder_mode_set(struct drm_encoder *encoder,
