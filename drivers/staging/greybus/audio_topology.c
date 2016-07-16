@@ -131,8 +131,8 @@ static const char *gbaudio_map_widgetid(struct gbaudio_module_info *module,
 	return NULL;
 }
 
-const char **gb_generate_enum_strings(struct gbaudio_module_info *gb,
-				      struct gb_audio_enumerated *gbenum)
+static const char **gb_generate_enum_strings(struct gbaudio_module_info *gb,
+					     struct gb_audio_enumerated *gbenum)
 {
 	const char **strings;
 	int i;
