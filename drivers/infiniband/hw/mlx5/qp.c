@@ -2968,7 +2968,7 @@ static void set_reg_umr_seg(struct mlx5_wqe_umr_ctrl_seg *umr,
 
 	memset(umr, 0, sizeof(*umr));
 
-	if (mr->access_mode == MLX5_ACCESS_MODE_KLM)
+	if (mr->access_mode == MLX5_MKC_ACCESS_MODE_KLMS)
 		/* KLMs take twice the size of MTTs */
 		ndescs *= 2;
 
@@ -3111,9 +3111,9 @@ static void set_reg_mkey_seg(struct mlx5_mkey_seg *seg,
 
 	memset(seg, 0, sizeof(*seg));
 
-	if (mr->access_mode == MLX5_ACCESS_MODE_MTT)
+	if (mr->access_mode == MLX5_MKC_ACCESS_MODE_MTT)
 		seg->log2_page_size = ilog2(mr->ibmr.page_size);
-	else if (mr->access_mode == MLX5_ACCESS_MODE_KLM)
+	else if (mr->access_mode == MLX5_MKC_ACCESS_MODE_KLMS)
 		/* KLMs take twice the size of MTTs */
 		ndescs *= 2;
 
@@ -3454,7 +3454,7 @@ static void set_sig_mkey_segment(struct mlx5_mkey_seg *seg,
 	memset(seg, 0, sizeof(*seg));
 
 	seg->flags = get_umr_flags(wr->access_flags) |
-				   MLX5_ACCESS_MODE_KLM;
+				   MLX5_MKC_ACCESS_MODE_KLMS;
 	seg->qpn_mkey7_0 = cpu_to_be32((sig_key & 0xff) | 0xffffff00);
 	seg->flags_pd = cpu_to_be32(MLX5_MKEY_REMOTE_INVAL | sigerr << 26 |
 				    MLX5_MKEY_BSF_EN | pdn);

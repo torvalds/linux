@@ -3489,7 +3489,7 @@ struct mlx5_ifc_query_special_contexts_out_bits {
 
 	u8         syndrome[0x20];
 
-	u8         reserved_at_40[0x20];
+	u8         dump_fill_mkey[0x20];
 
 	u8         resd_lkey[0x20];
 };

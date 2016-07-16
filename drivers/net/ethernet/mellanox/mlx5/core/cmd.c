@@ -1301,10 +1301,12 @@ void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u64 vec)
 				callback = ent->callback;
 				context = ent->context;
 				err = ent->ret;
-				if (!err)
+				if (!err) {
 					err = mlx5_copy_from_msg(ent->uout,
 								 ent->out,
 								 ent->uout_size);
+					err = err ? err : mlx5_cmd_status_to_err_v2(ent->uout);
+				}
 
 				mlx5_free_cmd_msg(dev, ent->out);
 				free_msg(dev, ent->in);
