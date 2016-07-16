@@ -915,8 +915,7 @@ static int amdgpu_cgs_acpi_eval_object(struct cgs_device *cgs_device,
 	acpi_handle handle;
 	struct acpi_object_list input;
 	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
-	union acpi_object *params = NULL;
-	union acpi_object *obj = NULL;
+	union acpi_object *params, *obj;
 	uint8_t name[5] = {'\0'};
 	struct cgs_acpi_method_argument *argument = NULL;
 	uint32_t i, count;
@@ -1008,7 +1007,7 @@ static int amdgpu_cgs_acpi_eval_object(struct cgs_device *cgs_device,
 
 	if (ACPI_FAILURE(status)) {
 		result = -EIO;
-		goto error;
+		goto free_input;
 	}
 
 	/* return the output info */
@@ -1018,7 +1017,7 @@ static int amdgpu_cgs_acpi_eval_object(struct cgs_device *cgs_device,
 		if ((obj->type != ACPI_TYPE_PACKAGE) ||
 			(obj->package.count != count)) {
 			result = -EIO;
-			goto error;
+			goto free_obj;
 		}
 		params = obj->package.elements;
 	} else
@@ -1026,13 +1025,13 @@ static int amdgpu_cgs_acpi_eval_object(struct cgs_device *cgs_device,
 
 	if (params == NULL) {
 		result = -EIO;
-		goto error;
+		goto free_obj;
 	}
 
 	for (i = 0; i < count; i++) {
 		if (argument->type != params->type) {
 			result = -EIO;
-			goto error;
+			goto free_obj;
 		}
 		switch (params->type) {
 		case ACPI_TYPE_INTEGER:
@@ -1042,7 +1041,7 @@ static int amdgpu_cgs_acpi_eval_object(struct cgs_device *cgs_device,
 			if ((params->string.length != argument->data_length) ||
 				(params->string.pointer == NULL)) {
 				result = -EIO;
-				goto error;
+				goto free_obj;
 			}
 			strncpy(argument->pointer,
 				params->string.pointer,
@@ -1051,7 +1050,7 @@ static int amdgpu_cgs_acpi_eval_object(struct cgs_device *cgs_device,
 		case ACPI_TYPE_BUFFER:
 			if (params->buffer.pointer == NULL) {
 				result = -EIO;
-				goto error;
+				goto free_obj;
 			}
 			memcpy(argument->pointer,
 				params->buffer.pointer,
@@ -1064,8 +1063,9 @@ static int amdgpu_cgs_acpi_eval_object(struct cgs_device *cgs_device,
 		params++;
 	}
 
-error:
+free_obj:
 	kfree(obj);
+free_input:
 	kfree((void *)input.pointer);
 	return result;
 }
