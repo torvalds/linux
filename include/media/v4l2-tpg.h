@@ -91,6 +91,7 @@ enum tgp_color_enc {
 	TGP_COLOR_ENC_RGB,
 	TGP_COLOR_ENC_YCBCR,
 	TGP_COLOR_ENC_HSV,
+	TGP_COLOR_ENC_LUMA,
 };
 
 extern const char * const tpg_aspect_strings[];

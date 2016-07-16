@@ -234,10 +234,12 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 	case V4L2_PIX_FMT_XBGR32:
 	case V4L2_PIX_FMT_ARGB32:
 	case V4L2_PIX_FMT_ABGR32:
+		tpg->color_enc = TGP_COLOR_ENC_RGB;
+		break;
 	case V4L2_PIX_FMT_GREY:
 	case V4L2_PIX_FMT_Y16:
 	case V4L2_PIX_FMT_Y16_BE:
-		tpg->color_enc = TGP_COLOR_ENC_RGB;
+		tpg->color_enc = TGP_COLOR_ENC_LUMA;
 		break;
 	case V4L2_PIX_FMT_YUV444:
 	case V4L2_PIX_FMT_YUV555:
@@ -823,9 +825,9 @@ static void precalculate_color(struct tpg_data *tpg, int k)
 		g <<= 4;
 		b <<= 4;
 	}
-	if (tpg->qual == TPG_QUAL_GRAY || tpg->fourcc == V4L2_PIX_FMT_GREY ||
-	    tpg->fourcc == V4L2_PIX_FMT_Y16 ||
-	    tpg->fourcc == V4L2_PIX_FMT_Y16_BE) {
+
+	if (tpg->qual == TPG_QUAL_GRAY ||
+	    tpg->color_enc ==  TGP_COLOR_ENC_LUMA) {
 		/* Rec. 709 Luma function */
 		/* (0.2126, 0.7152, 0.0722) * (255 * 256) */
 		r = g = b = (13879 * r + 46688 * g + 4713 * b) >> 16;
@@ -865,8 +867,9 @@ static void precalculate_color(struct tpg_data *tpg, int k)
 		b = (b - (16 << 4)) * 255 / 219;
 	}
 
-	if (tpg->brightness != 128 || tpg->contrast != 128 ||
-	    tpg->saturation != 128 || tpg->hue) {
+	if ((tpg->brightness != 128 || tpg->contrast != 128 ||
+	     tpg->saturation != 128 || tpg->hue) &&
+	    tpg->color_enc != TGP_COLOR_ENC_LUMA) {
 		/* Implement these operations */
 		int y, cb, cr;
 		int tmp_cb, tmp_cr;
@@ -892,6 +895,10 @@ static void precalculate_color(struct tpg_data *tpg, int k)
 			return;
 		}
 		ycbcr_to_color(tpg, y, cb, cr, &r, &g, &b);
+	} else if ((tpg->brightness != 128 || tpg->contrast != 128) &&
+		   tpg->color_enc == TGP_COLOR_ENC_LUMA) {
+		r = (16 << 4) + ((r - (16 << 4)) * tpg->contrast) / 128;
+		r += (tpg->brightness << 4) - (128 << 4);
 	}
 
 	switch (tpg->color_enc) {
@@ -940,6 +947,11 @@ static void precalculate_color(struct tpg_data *tpg, int k)
 		tpg->colors[k][0] = y;
 		tpg->colors[k][1] = cb;
 		tpg->colors[k][2] = cr;
+		break;
+	}
+	case TGP_COLOR_ENC_LUMA:
+	{
+		tpg->colors[k][0] = r >> 4;
 		break;
 	}
 	case TGP_COLOR_ENC_RGB:
@@ -1983,6 +1995,8 @@ static const char *tpg_color_enc_str(enum tgp_color_enc
 		return "HSV";
 	case TGP_COLOR_ENC_YCBCR:
 		return "Y'CbCr";
+	case TGP_COLOR_ENC_LUMA:
+		return "Luma";
 	case TGP_COLOR_ENC_RGB:
 	default:
 		return "R'G'B";
