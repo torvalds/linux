@@ -155,8 +155,7 @@ struct ctl_table_set {
 
 struct ctl_table_root {
 	struct ctl_table_set default_set;
-	struct ctl_table_set *(*lookup)(struct ctl_table_root *root,
-					   struct nsproxy *namespaces);
+	struct ctl_table_set *(*lookup)(struct ctl_table_root *root);
 	int (*permissions)(struct ctl_table_header *head, struct ctl_table *table);
 };
 
