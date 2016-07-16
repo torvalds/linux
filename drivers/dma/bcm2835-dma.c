@@ -614,7 +614,7 @@ static void bcm2835_dma_issue_pending(struct dma_chan *chan)
 	spin_unlock_irqrestore(&c->vc.lock, flags);
 }
 
-struct dma_async_tx_descriptor *bcm2835_dma_prep_dma_memcpy(
+static struct dma_async_tx_descriptor *bcm2835_dma_prep_dma_memcpy(
 	struct dma_chan *chan, dma_addr_t dst, dma_addr_t src,
 	size_t len, unsigned long flags)
 {
