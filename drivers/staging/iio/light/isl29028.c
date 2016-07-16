@@ -546,7 +546,6 @@ static const struct of_device_id isl29028_of_match[] = {
 MODULE_DEVICE_TABLE(of, isl29028_of_match);
 
 static struct i2c_driver isl29028_driver = {
-	.class	= I2C_CLASS_HWMON,
 	.driver  = {
 		.name = "isl29028",
 		.of_match_table = isl29028_of_match,
