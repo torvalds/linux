@@ -149,7 +149,6 @@ enum {
 	/* protocol flags */
 	ATA_PROT_FLAG_PIO	= (1 << 0), /* is PIO */
 	ATA_PROT_FLAG_DMA	= (1 << 1), /* is DMA */
-	ATA_PROT_FLAG_DATA	= ATA_PROT_FLAG_PIO | ATA_PROT_FLAG_DMA,
 	ATA_PROT_FLAG_NCQ	= (1 << 2), /* is NCQ */
 	ATA_PROT_FLAG_ATAPI	= (1 << 3), /* is ATAPI */
 
@@ -1087,7 +1086,7 @@ static inline bool ata_is_ncq(u8 prot)
 
 static inline bool ata_is_data(u8 prot)
 {
-	return ata_prot_flags(prot) & ATA_PROT_FLAG_DATA;
+	return ata_prot_flags(prot) & (ATA_PROT_FLAG_PIO | ATA_PROT_FLAG_DMA);
 }
 
 static inline int is_multi_taskfile(struct ata_taskfile *tf)
