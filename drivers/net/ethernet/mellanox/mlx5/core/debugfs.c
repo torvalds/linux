@@ -358,32 +358,32 @@ out:
 static u64 eq_read_field(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
 			 int index)
 {
-	struct mlx5_query_eq_mbox_out *out;
-	struct mlx5_eq_context *ctx;
+	int outlen = MLX5_ST_SZ_BYTES(query_eq_out);
 	u64 param = 0;
+	void *ctx;
+	u32 *out;
 	int err;
 
-	out = kzalloc(sizeof(*out), GFP_KERNEL);
+	out = kzalloc(outlen, GFP_KERNEL);
 	if (!out)
 		return param;
 
-	ctx = &out->ctx;
-
-	err = mlx5_core_eq_query(dev, eq, out, sizeof(*out));
+	err = mlx5_core_eq_query(dev, eq, out, outlen);
 	if (err) {
 		mlx5_core_warn(dev, "failed to query eq\n");
 		goto out;
 	}
+	ctx = MLX5_ADDR_OF(query_eq_out, out, eq_context_entry);
 
 	switch (index) {
 	case EQ_NUM_EQES:
-		param = 1 << ((be32_to_cpu(ctx->log_sz_usr_page) >> 24) & 0x1f);
+		param = 1 << MLX5_GET(eqc, ctx, log_eq_size);
 		break;
 	case EQ_INTR:
-		param = ctx->intr;
+		param = MLX5_GET(eqc, ctx, intr);
 		break;
 	case EQ_LOG_PG_SZ:
-		param = (ctx->log_page_size & 0x1f) + 12;
+		param = MLX5_GET(eqc, ctx, log_page_size) + 12;
 		break;
 	}
 
