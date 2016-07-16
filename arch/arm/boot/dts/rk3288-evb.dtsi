@@ -103,6 +103,21 @@
 		};
 	};
 
+	hdmi-sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,name = "DW-HDMI";
+		simple-audio-card,mclk-fs = <512>;
+
+		simple-audio-card,cpu {
+			sound-dai = <&i2s>;
+		};
+
+		simple-audio-card,codec {
+			sound-dai = <&hdmi>;
+		};
+	};
+
 	lvds_panel: lvds_panel {
 		compatible ="auo,b101ew05","simple-panel";
 		backlight = <&backlight>;
@@ -211,6 +226,9 @@
 };
 
 &hdmi {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	#sound-dai-cells = <0>;
 	ddc-i2c-bus = <&i2c5>;
 	status = "okay";
 };
@@ -272,6 +290,11 @@
 };
 
 &i2c5 {
+	status = "okay";
+};
+
+&i2s {
+	#sound-dai-cells = <0>;
 	status = "okay";
 };
 
