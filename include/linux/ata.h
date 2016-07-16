@@ -523,17 +523,23 @@ enum {
 	SERR_DEV_XCHG		= (1 << 26), /* device exchanged */
 };
 
-enum ata_tf_protocols {
-	/* ATA taskfile protocols */
-	ATA_PROT_UNKNOWN,	/* unknown/invalid */
-	ATA_PROT_NODATA,	/* no data */
-	ATA_PROT_PIO,		/* PIO data xfer */
-	ATA_PROT_DMA,		/* DMA */
-	ATA_PROT_NCQ,		/* NCQ */
-	ATA_PROT_NCQ_NODATA,	/* NCQ no data */
-	ATAPI_PROT_NODATA,	/* packet command, no data */
-	ATAPI_PROT_PIO,		/* packet command, PIO data xfer*/
-	ATAPI_PROT_DMA,		/* packet command with special DMA sauce */
+enum ata_prot_flags {
+	/* protocol flags */
+	ATA_PROT_FLAG_PIO	= (1 << 0), /* is PIO */
+	ATA_PROT_FLAG_DMA	= (1 << 1), /* is DMA */
+	ATA_PROT_FLAG_NCQ	= (1 << 2), /* is NCQ */
+	ATA_PROT_FLAG_ATAPI	= (1 << 3), /* is ATAPI */
+
+	/* taskfile protocols */
+	ATA_PROT_UNKNOWN	= (u8)-1,
+	ATA_PROT_NODATA		= 0,
+	ATA_PROT_PIO		= ATA_PROT_FLAG_PIO,
+	ATA_PROT_DMA		= ATA_PROT_FLAG_DMA,
+	ATA_PROT_NCQ_NODATA	= ATA_PROT_FLAG_NCQ,
+	ATA_PROT_NCQ		= ATA_PROT_FLAG_DMA | ATA_PROT_FLAG_NCQ,
+	ATAPI_PROT_NODATA	= ATA_PROT_FLAG_ATAPI,
+	ATAPI_PROT_PIO		= ATA_PROT_FLAG_ATAPI | ATA_PROT_FLAG_PIO,
+	ATAPI_PROT_DMA		= ATA_PROT_FLAG_ATAPI | ATA_PROT_FLAG_DMA,
 };
 
 enum ata_ioctls {
