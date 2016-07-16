@@ -1306,7 +1306,7 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 		 * textures). Fallback to the shmem path in that case. */
 	}
 
-	if (ret == -EFAULT) {
+	if (ret == -EFAULT || ret == -ENOSPC) {
 		if (obj->phys_handle)
 			ret = i915_gem_phys_pwrite(obj, args, file);
 		else if (i915_gem_object_has_struct_page(obj))
