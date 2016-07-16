@@ -163,8 +163,10 @@ static int rockchip_vpu_iommu_init(struct rockchip_vpu_dev *vpu)
 		return -ENOMEM;
 
 	vpu->domain = iommu_domain_alloc(vpu->dev->bus);
-	if (!vpu->domain)
+	if (!vpu->domain) {
+		ret = -ENOMEM;
 		goto err_free_parms;
+	}
 
 	ret = iommu_get_dma_cookie(vpu->domain);
 	if (ret)
