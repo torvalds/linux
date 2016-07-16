@@ -59,7 +59,7 @@ int phm_dispatch_table(struct pp_hwmgr *hwmgr,
 		       struct phm_runtime_table_header *rt_table,
 		       void *input, void *output)
 {
-	int result = 0;
+	int result;
 	void *temp_storage;
 
 	if (hwmgr == NULL || rt_table == NULL) {
