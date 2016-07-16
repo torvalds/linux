@@ -209,6 +209,7 @@ static long cec_transmit(struct cec_adapter *adap, struct cec_fh *fh,
 /* Called by CEC_RECEIVE: wait for a message to arrive */
 static int cec_receive_msg(struct cec_fh *fh, struct cec_msg *msg, bool block)
 {
+	u32 timeout = msg->timeout;
 	int res;
 
 	do {
@@ -225,6 +226,8 @@ static int cec_receive_msg(struct cec_fh *fh, struct cec_msg *msg, bool block)
 			kfree(entry);
 			fh->queued_msgs--;
 			mutex_unlock(&fh->lock);
+			/* restore original timeout value */
+			msg->timeout = timeout;
 			return 0;
 		}
 
