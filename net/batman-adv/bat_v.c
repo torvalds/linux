@@ -129,6 +129,7 @@ batadv_v_hardif_neigh_init(struct batadv_hardif_neigh_node *hardif_neigh)
 		  batadv_v_elp_throughput_metric_update);
 }
 
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
 /**
  * batadv_v_orig_print_neigh - print neighbors for the originator table
  * @orig_node: the orig_node for which the neighbors are printed
@@ -212,6 +213,7 @@ static void batadv_v_neigh_print(struct batadv_priv *bat_priv,
 	if (batman_count == 0)
 		seq_puts(seq, "No batman nodes in range ...\n");
 }
+#endif
 
 /**
  * batadv_v_neigh_dump_neigh - Dump a neighbour into a message
@@ -345,6 +347,7 @@ batadv_v_neigh_dump(struct sk_buff *msg, struct netlink_callback *cb,
 	cb->args[1] = idx;
 }
 
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
 /**
  * batadv_v_orig_print - print the originator table
  * @bat_priv: the bat priv with all the soft interface information
@@ -411,6 +414,7 @@ next:
 	if (batman_count == 0)
 		seq_puts(seq, "No batman nodes in range ...\n");
 }
+#endif
 
 /**
  * batadv_v_orig_dump_subentry - Dump an originator subentry into a
@@ -827,6 +831,7 @@ out:
 	return ret;
 }
 
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
 /* fails if orig_node has no router */
 static int batadv_v_gw_write_buffer_text(struct batadv_priv *bat_priv,
 					 struct seq_file *seq,
@@ -896,6 +901,7 @@ static void batadv_v_gw_print(struct batadv_priv *bat_priv,
 	if (gw_count == 0)
 		seq_puts(seq, "No gateways in range ...\n");
 }
+#endif
 
 /**
  * batadv_v_gw_dump_entry - Dump a gateway into a message
@@ -1034,11 +1040,15 @@ static struct batadv_algo_ops batadv_batman_v __read_mostly = {
 		.hardif_init = batadv_v_hardif_neigh_init,
 		.cmp = batadv_v_neigh_cmp,
 		.is_similar_or_better = batadv_v_neigh_is_sob,
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
 		.print = batadv_v_neigh_print,
+#endif
 		.dump = batadv_v_neigh_dump,
 	},
 	.orig = {
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
 		.print = batadv_v_orig_print,
+#endif
 		.dump = batadv_v_orig_dump,
 	},
 	.gw = {
@@ -1046,7 +1056,9 @@ static struct batadv_algo_ops batadv_batman_v __read_mostly = {
 		.show_sel_class = batadv_v_show_sel_class,
 		.get_best_gw_node = batadv_v_gw_get_best_gw_node,
 		.is_eligible = batadv_v_gw_is_eligible,
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
 		.print = batadv_v_gw_print,
+#endif
 		.dump = batadv_v_gw_dump,
 	},
 };

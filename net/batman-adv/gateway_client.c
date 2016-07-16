@@ -482,6 +482,7 @@ void batadv_gw_node_free(struct batadv_priv *bat_priv)
 	spin_unlock_bh(&bat_priv->gw.list_lock);
 }
 
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
 int batadv_gw_client_seq_print_text(struct seq_file *seq, void *offset)
 {
 	struct net_device *net_dev = (struct net_device *)seq->private;
@@ -509,6 +510,7 @@ int batadv_gw_client_seq_print_text(struct seq_file *seq, void *offset)
 
 	return 0;
 }
+#endif
 
 /**
  * batadv_gw_dump - Dump gateways into a message

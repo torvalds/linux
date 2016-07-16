@@ -101,6 +101,7 @@ int batadv_algo_select(struct batadv_priv *bat_priv, char *name)
 	return 0;
 }
 
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
 int batadv_algo_seq_print_text(struct seq_file *seq, void *offset)
 {
 	struct batadv_algo_ops *bat_algo_ops;
@@ -113,6 +114,7 @@ int batadv_algo_seq_print_text(struct seq_file *seq, void *offset)
 
 	return 0;
 }
+#endif
 
 static int batadv_param_set_ra(const char *val, const struct kernel_param *kp)
 {

@@ -1047,6 +1047,7 @@ container_register:
 	kfree(tt_data);
 }
 
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
 int batadv_tt_local_seq_print_text(struct seq_file *seq, void *offset)
 {
 	struct net_device *net_dev = (struct net_device *)seq->private;
@@ -1114,6 +1115,7 @@ out:
 		batadv_hardif_put(primary_if);
 	return 0;
 }
+#endif
 
 /**
  * batadv_tt_local_dump_entry - Dump one TT local entry into a message
@@ -1796,6 +1798,7 @@ batadv_transtable_best_orig(struct batadv_priv *bat_priv,
 	return best_entry;
 }
 
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
 /**
  * batadv_tt_global_print_entry - print all orig nodes who announce the address
  *  for this global entry
@@ -1919,6 +1922,7 @@ out:
 		batadv_hardif_put(primary_if);
 	return 0;
 }
+#endif
 
 /**
  * batadv_tt_global_dump_subentry - Dump all TT local entries into a message

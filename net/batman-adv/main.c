@@ -282,6 +282,7 @@ bool batadv_is_my_mac(struct batadv_priv *bat_priv, const u8 *addr)
 	return is_my_mac;
 }
 
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
 /**
  * batadv_seq_print_text_primary_if_get - called from debugfs table printing
  *  function that requires the primary interface
@@ -317,6 +318,7 @@ batadv_seq_print_text_primary_if_get(struct seq_file *seq)
 out:
 	return primary_if;
 }
+#endif
 
 /**
  * batadv_max_header_len - calculate maximum encapsulation overhead for a
