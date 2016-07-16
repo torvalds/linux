@@ -574,6 +574,19 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 	unsigned int timeout;
 	int res = 0;
 
+	msg->rx_ts = 0;
+	msg->tx_ts = 0;
+	msg->rx_status = 0;
+	msg->tx_status = 0;
+	msg->tx_arb_lost_cnt = 0;
+	msg->tx_nack_cnt = 0;
+	msg->tx_low_drive_cnt = 0;
+	msg->tx_error_cnt = 0;
+	msg->flags = 0;
+	msg->sequence = ++adap->sequence;
+	if (!msg->sequence)
+		msg->sequence = ++adap->sequence;
+
 	if (msg->reply && msg->timeout == 0) {
 		/* Make sure the timeout isn't 0. */
 		msg->timeout = 1000;
@@ -640,14 +653,6 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 		dprintk(2, "cec_transmit_msg: %*ph%s\n",
 			msg->len, msg->msg, !block ? " (nb)" : "");
 
-	msg->rx_ts = 0;
-	msg->tx_ts = 0;
-	msg->rx_status = 0;
-	msg->tx_status = 0;
-	msg->tx_arb_lost_cnt = 0;
-	msg->tx_nack_cnt = 0;
-	msg->tx_low_drive_cnt = 0;
-	msg->tx_error_cnt = 0;
 	data->msg = *msg;
 	data->fh = fh;
 	data->adap = adap;
@@ -673,7 +678,6 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 	init_completion(&data->c);
 	INIT_DELAYED_WORK(&data->work, cec_wait_timeout);
 
-	data->msg.sequence = adap->sequence++;
 	if (fh)
 		list_add_tail(&data->xfer_list, &fh->xfer_list);
 	list_add_tail(&data->list, &adap->transmit_queue);
