@@ -2910,7 +2910,8 @@ static int dwceqos_probe(struct platform_device *pdev)
 		     (unsigned long)ndev);
 	tasklet_disable(&lp->tx_bdreclaim_tasklet);
 
-	lp->txtimeout_handler_wq = create_singlethread_workqueue(DRIVER_NAME);
+	lp->txtimeout_handler_wq = alloc_workqueue(DRIVER_NAME,
+						   WQ_MEM_RECLAIM, 0);
 	INIT_WORK(&lp->txtimeout_reinit, dwceqos_reinit_for_txtimeout);
 
 	platform_set_drvdata(pdev, ndev);
