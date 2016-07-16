@@ -1,6 +1,10 @@
 #ifndef __LKDTM_H
 #define __LKDTM_H
 
+#define pr_fmt(fmt) "lkdtm: " fmt
+
+#include <linux/kernel.h>
+
 /* lkdtm_bugs.c */
 void __init lkdtm_bugs_init(int *recur_param);
 void lkdtm_PANIC(void);
@@ -52,6 +56,5 @@ void lkdtm_USERCOPY_STACK_FRAME_TO(void);
 void lkdtm_USERCOPY_STACK_FRAME_FROM(void);
 void lkdtm_USERCOPY_STACK_BEYOND(void);
 void lkdtm_USERCOPY_KERNEL(void);
-
 
 #endif

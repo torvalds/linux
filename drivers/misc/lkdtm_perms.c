@@ -3,16 +3,12 @@
  * permissions: non-executable regions, non-writable regions, and
  * even non-readable regions.
  */
-#define pr_fmt(fmt) "lkdtm: " fmt
-
-#include <linux/kernel.h>
+#include "lkdtm.h"
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/mman.h>
 #include <linux/uaccess.h>
 #include <asm/cacheflush.h>
-
-#include "lkdtm.h"
 
 /* Whether or not to fill the target memory area with do_nothing(). */
 #define CODE_WRITE	true
