@@ -60,7 +60,7 @@ int phm_dispatch_table(struct pp_hwmgr *hwmgr,
 		       void *input, void *output)
 {
 	int result = 0;
-	void *temp_storage = NULL;
+	void *temp_storage;
 
 	if (hwmgr == NULL || rt_table == NULL) {
 		printk(KERN_ERR "[ powerplay ] Invalid Parameter!\n");
@@ -73,6 +73,8 @@ int phm_dispatch_table(struct pp_hwmgr *hwmgr,
 			printk(KERN_ERR "[ powerplay ] Could not allocate table temporary storage\n");
 			return -ENOMEM;
 		}
+	} else {
+		temp_storage = NULL;
 	}
 
 	result = phm_run_table(hwmgr, rt_table, input, output, temp_storage);
