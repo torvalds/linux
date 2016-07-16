@@ -162,38 +162,22 @@ int mlx5_query_hca_caps(struct mlx5_core_dev *dev)
 
 int mlx5_cmd_init_hca(struct mlx5_core_dev *dev)
 {
-	struct mlx5_cmd_init_hca_mbox_in in;
-	struct mlx5_cmd_init_hca_mbox_out out;
+	u32 out[MLX5_ST_SZ_DW(init_hca_out)] = {0};
+	u32 in[MLX5_ST_SZ_DW(init_hca_in)]   = {0};
 	int err;
 
-	memset(&in, 0, sizeof(in));
-	memset(&out, 0, sizeof(out));
-	in.hdr.opcode = cpu_to_be16(MLX5_CMD_OP_INIT_HCA);
-	err = mlx5_cmd_exec(dev, &in, sizeof(in), &out, sizeof(out));
-	if (err)
-		return err;
-
-	if (out.hdr.status)
-		err = mlx5_cmd_status_to_err(&out.hdr);
-
-	return err;
+	MLX5_SET(init_hca_in, in, opcode, MLX5_CMD_OP_INIT_HCA);
+	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+	return err ? : mlx5_cmd_status_to_err_v2(out);
 }
 
 int mlx5_cmd_teardown_hca(struct mlx5_core_dev *dev)
 {
-	struct mlx5_cmd_teardown_hca_mbox_in in;
-	struct mlx5_cmd_teardown_hca_mbox_out out;
+	u32 out[MLX5_ST_SZ_DW(teardown_hca_out)] = {0};
+	u32 in[MLX5_ST_SZ_DW(teardown_hca_in)]   = {0};
 	int err;
 
-	memset(&in, 0, sizeof(in));
-	memset(&out, 0, sizeof(out));
-	in.hdr.opcode = cpu_to_be16(MLX5_CMD_OP_TEARDOWN_HCA);
-	err = mlx5_cmd_exec(dev, &in, sizeof(in), &out, sizeof(out));
-	if (err)
-		return err;
-
-	if (out.hdr.status)
-		err = mlx5_cmd_status_to_err(&out.hdr);
-
-	return err;
+	MLX5_SET(teardown_hca_in, in, opcode, MLX5_CMD_OP_TEARDOWN_HCA);
+	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+	return err ? : mlx5_cmd_status_to_err_v2(out);
 }

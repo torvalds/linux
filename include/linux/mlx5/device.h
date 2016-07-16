@@ -455,30 +455,6 @@ struct mlx5_odp_caps {
 	char reserved2[0xe4];
 };
 
-struct mlx5_cmd_init_hca_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	u8			rsvd0[2];
-	__be16			profile;
-	u8			rsvd1[4];
-};
-
-struct mlx5_cmd_init_hca_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	u8			rsvd[8];
-};
-
-struct mlx5_cmd_teardown_hca_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	u8			rsvd0[2];
-	__be16			profile;
-	u8			rsvd1[4];
-};
-
-struct mlx5_cmd_teardown_hca_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	u8			rsvd[8];
-};
-
 struct mlx5_cmd_layout {
 	u8		type;
 	u8		rsvd0[3];
