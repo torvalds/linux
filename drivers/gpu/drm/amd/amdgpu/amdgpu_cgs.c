@@ -921,7 +921,6 @@ static int amdgpu_cgs_acpi_eval_object(struct cgs_device *cgs_device,
 	uint32_t i, count;
 	acpi_status status;
 	int result = 0;
-	uint32_t func_no = 0xFFFFFFFF;
 
 	handle = ACPI_HANDLE(&adev->pdev->dev);
 	if (!handle)
@@ -938,7 +937,6 @@ static int amdgpu_cgs_acpi_eval_object(struct cgs_device *cgs_device,
 		if (info->pinput_argument == NULL)
 			return -EINVAL;
 		argument = info->pinput_argument;
-		func_no = argument->value;
 		for (i = 0; i < info->input_count; i++) {
 			if (((argument->type == ACPI_TYPE_STRING) ||
 			     (argument->type == ACPI_TYPE_BUFFER)) &&
