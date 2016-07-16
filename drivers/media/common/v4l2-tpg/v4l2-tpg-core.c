@@ -795,6 +795,8 @@ static void precalculate_color(struct tpg_data *tpg, int k)
 	int r = tpg_colors[col].r;
 	int g = tpg_colors[col].g;
 	int b = tpg_colors[col].b;
+	int y, cb, cr;
+	bool ycbcr_valid = false;
 
 	if (k == TPG_COLOR_TEXTBG) {
 		col = tpg_get_textbg_color(tpg);
@@ -871,7 +873,6 @@ static void precalculate_color(struct tpg_data *tpg, int k)
 	     tpg->saturation != 128 || tpg->hue) &&
 	    tpg->color_enc != TGP_COLOR_ENC_LUMA) {
 		/* Implement these operations */
-		int y, cb, cr;
 		int tmp_cb, tmp_cr;
 
 		/* First convert to YCbCr */
@@ -888,13 +889,10 @@ static void precalculate_color(struct tpg_data *tpg, int k)
 
 		cb = (128 << 4) + (tmp_cb * tpg->contrast * tpg->saturation) / (128 * 128);
 		cr = (128 << 4) + (tmp_cr * tpg->contrast * tpg->saturation) / (128 * 128);
-		if (tpg->color_enc == TGP_COLOR_ENC_YCBCR) {
-			tpg->colors[k][0] = clamp(y >> 4, 1, 254);
-			tpg->colors[k][1] = clamp(cb >> 4, 1, 254);
-			tpg->colors[k][2] = clamp(cr >> 4, 1, 254);
-			return;
-		}
-		ycbcr_to_color(tpg, y, cb, cr, &r, &g, &b);
+		if (tpg->color_enc == TGP_COLOR_ENC_YCBCR)
+			ycbcr_valid = true;
+		else
+			ycbcr_to_color(tpg, y, cb, cr, &r, &g, &b);
 	} else if ((tpg->brightness != 128 || tpg->contrast != 128) &&
 		   tpg->color_enc == TGP_COLOR_ENC_LUMA) {
 		r = (16 << 4) + ((r - (16 << 4)) * tpg->contrast) / 128;
@@ -915,9 +913,8 @@ static void precalculate_color(struct tpg_data *tpg, int k)
 	case TGP_COLOR_ENC_YCBCR:
 	{
 		/* Convert to YCbCr */
-		int y, cb, cr;
-
-		color_to_ycbcr(tpg, r, g, b, &y, &cb, &cr);
+		if (!ycbcr_valid)
+			color_to_ycbcr(tpg, r, g, b, &y, &cb, &cr);
 
 		if (tpg->real_quantization == V4L2_QUANTIZATION_LIM_RANGE) {
 			y = clamp(y, 16 << 4, 235 << 4);
