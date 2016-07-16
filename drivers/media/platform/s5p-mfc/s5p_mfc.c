@@ -153,7 +153,7 @@ static void s5p_mfc_watchdog(unsigned long arg)
 		 * error. Now it is time to kill all instances and
 		 * reset the MFC. */
 		mfc_err("Time out during waiting for HW\n");
-		queue_work(dev->watchdog_workqueue, &dev->watchdog_work);
+		schedule_work(&dev->watchdog_work);
 	}
 	dev->watchdog_timer.expires = jiffies +
 					msecs_to_jiffies(MFC_WATCHDOG_INTERVAL);
@@ -1246,7 +1246,6 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, dev);
 
 	dev->hw_lock = 0;
-	dev->watchdog_workqueue = create_singlethread_workqueue(S5P_MFC_NAME);
 	INIT_WORK(&dev->watchdog_work, s5p_mfc_watchdog_worker);
 	atomic_set(&dev->watchdog_cnt, 0);
 	init_timer(&dev->watchdog_timer);
@@ -1324,8 +1323,7 @@ static int s5p_mfc_remove(struct platform_device *pdev)
 	mutex_unlock(&dev->mfc_mutex);
 
 	del_timer_sync(&dev->watchdog_timer);
-	flush_workqueue(dev->watchdog_workqueue);
-	destroy_workqueue(dev->watchdog_workqueue);
+	flush_work(&dev->watchdog_work);
 
 	video_unregister_device(dev->vfd_enc);
 	video_unregister_device(dev->vfd_dec);
