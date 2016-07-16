@@ -234,6 +234,11 @@
 			reg = <0x1905000 0x20000>;
 		};
 
+		tcsr: syscon@1937000 {
+			compatible = "qcom,tcsr-msm8916", "syscon";
+			reg = <0x1937000 0x30000>;
+		};
+
 		tcsr_mutex: hwlock {
 			compatible = "qcom,tcsr-mutex";
 			syscon = <&tcsr_mutex_regs 0 0x1000>;
