@@ -360,7 +360,7 @@ void print_binary(unsigned char *data, size_t len,
 		  size_t bytes_per_line, print_binary_t printer,
 		  void *extra);
 
-#ifndef __GLIBC__
+#if !defined(__GLIBC__) && !defined(__ANDROID__)
 extern int sched_getcpu(void);
 #endif
 

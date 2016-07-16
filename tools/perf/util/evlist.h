@@ -35,6 +35,40 @@ struct perf_mmap {
 	char		 event_copy[PERF_SAMPLE_MAX_SIZE] __attribute__((aligned(8)));
 };
 
+static inline size_t
+perf_mmap__mmap_len(struct perf_mmap *map)
+{
+	return map->mask + 1 + page_size;
+}
+
+/*
+ * State machine of bkw_mmap_state:
+ *
+ *                     .________________(forbid)_____________.
+ *                     |                                     V
+ * NOTREADY --(0)--> RUNNING --(1)--> DATA_PENDING --(2)--> EMPTY
+ *                     ^  ^              |   ^               |
+ *                     |  |__(forbid)____/   |___(forbid)___/|
+ *                     |                                     |
+ *                      \_________________(3)_______________/
+ *
+ * NOTREADY     : Backward ring buffers are not ready
+ * RUNNING      : Backward ring buffers are recording
+ * DATA_PENDING : We are required to collect data from backward ring buffers
+ * EMPTY        : We have collected data from backward ring buffers.
+ *
+ * (0): Setup backward ring buffer
+ * (1): Pause ring buffers for reading
+ * (2): Read from ring buffers
+ * (3): Resume ring buffers for recording
+ */
+enum bkw_mmap_state {
+	BKW_MMAP_NOTREADY,
+	BKW_MMAP_RUNNING,
+	BKW_MMAP_DATA_PENDING,
+	BKW_MMAP_EMPTY,
+};
+
 struct perf_evlist {
 	struct list_head entries;
 	struct hlist_head heads[PERF_EVLIST__HLIST_SIZE];
@@ -44,17 +78,18 @@ struct perf_evlist {
 	bool		 overwrite;
 	bool		 enabled;
 	bool		 has_user_cpus;
-	bool		 backward;
 	size_t		 mmap_len;
 	int		 id_pos;
 	int		 is_pos;
 	u64		 combined_sample_type;
+	enum bkw_mmap_state bkw_mmap_state;
 	struct {
 		int	cork_fd;
 		pid_t	pid;
 	} workload;
 	struct fdarray	 pollfd;
 	struct perf_mmap *mmap;
+	struct perf_mmap *backward_mmap;
 	struct thread_map *threads;
 	struct cpu_map	  *cpus;
 	struct perf_evsel *selected;
@@ -129,6 +164,14 @@ struct perf_evsel *perf_evlist__id2evsel_strict(struct perf_evlist *evlist,
 
 struct perf_sample_id *perf_evlist__id2sid(struct perf_evlist *evlist, u64 id);
 
+void perf_evlist__toggle_bkw_mmap(struct perf_evlist *evlist, enum bkw_mmap_state state);
+
+union perf_event *perf_mmap__read_forward(struct perf_mmap *map, bool check_messup);
+union perf_event *perf_mmap__read_backward(struct perf_mmap *map);
+
+void perf_mmap__read_catchup(struct perf_mmap *md);
+void perf_mmap__consume(struct perf_mmap *md, bool overwrite);
+
 union perf_event *perf_evlist__mmap_read(struct perf_evlist *evlist, int idx);
 
 union perf_event *perf_evlist__mmap_read_forward(struct perf_evlist *evlist,
@@ -139,8 +182,6 @@ void perf_evlist__mmap_read_catchup(struct perf_evlist *evlist, int idx);
 
 void perf_evlist__mmap_consume(struct perf_evlist *evlist, int idx);
 
-int perf_evlist__pause(struct perf_evlist *evlist);
-int perf_evlist__resume(struct perf_evlist *evlist);
 int perf_evlist__open(struct perf_evlist *evlist);
 void perf_evlist__close(struct perf_evlist *evlist);
 

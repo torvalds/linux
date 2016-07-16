@@ -23,6 +23,7 @@
  *  Frederic Weisbecker gave his permission to relicense the code to
  *  the Lesser General Public License.
  */
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -33,7 +34,7 @@
 #include <limits.h>
 #include <linux/string.h>
 
-#include <netinet/ip6.h>
+#include <netinet/in.h>
 #include "event-parse.h"
 #include "event-utils.h"
 
