@@ -386,6 +386,21 @@ exit:
 	return pylist;
 }
 
+static int is_printable_array(char *p, unsigned int len)
+{
+	unsigned int i;
+
+	if (!p || !len || p[len - 1] != 0)
+		return 0;
+
+	len--;
+
+	for (i = 0; i < len; i++) {
+		if (!isprint(p[i]) && !isspace(p[i]))
+			return 0;
+	}
+	return 1;
+}
 
 static void python_process_tracepoint(struct perf_sample *sample,
 				      struct perf_evsel *evsel,
@@ -457,14 +472,26 @@ static void python_process_tracepoint(struct perf_sample *sample,
 		pydict_set_item_string_decref(dict, "common_callchain", callchain);
 	}
 	for (field = event->format.fields; field; field = field->next) {
-		if (field->flags & FIELD_IS_STRING) {
-			int offset;
+		unsigned int offset, len;
+		unsigned long long val;
+
+		if (field->flags & FIELD_IS_ARRAY) {
+			offset = field->offset;
+			len    = field->size;
 			if (field->flags & FIELD_IS_DYNAMIC) {
-				offset = *(int *)(data + field->offset);
+				val     = pevent_read_number(scripting_context->pevent,
+							     data + offset, len);
+				offset  = val;
+				len     = offset >> 16;
 				offset &= 0xffff;
-			} else
-				offset = field->offset;
-			obj = PyString_FromString((char *)data + offset);
+			}
+			if (field->flags & FIELD_IS_STRING &&
+			    is_printable_array(data + offset, len)) {
+				obj = PyString_FromString((char *) data + offset);
+			} else {
+				obj = PyByteArray_FromStringAndSize((const char *) data + offset, len);
+				field->flags &= ~FIELD_IS_STRING;
+			}
 		} else { /* FIELD_IS_NUMERIC */
 			obj = get_field_numeric_entry(event, field, data);
 		}
