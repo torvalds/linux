@@ -1076,7 +1076,7 @@ static int amdgpu_cgs_acpi_eval_object(struct cgs_device *cgs_device,
 }
 #endif
 
-int amdgpu_cgs_call_acpi_method(struct cgs_device *cgs_device,
+static int amdgpu_cgs_call_acpi_method(struct cgs_device *cgs_device,
 					uint32_t acpi_method,
 					uint32_t acpi_function,
 					void *pinput, void *poutput,
