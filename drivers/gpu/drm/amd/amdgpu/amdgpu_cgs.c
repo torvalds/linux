@@ -917,7 +917,7 @@ static int amdgpu_cgs_acpi_eval_object(struct cgs_device *cgs_device,
 	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *params, *obj;
 	uint8_t name[5] = {'\0'};
-	struct cgs_acpi_method_argument *argument = NULL;
+	struct cgs_acpi_method_argument *argument;
 	uint32_t i, count;
 	acpi_status status;
 	int result = 0;
