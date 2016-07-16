@@ -449,27 +449,6 @@ static irqreturn_t bfin_mac_wake_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int
-bfin_mac_ethtool_getsettings(struct net_device *dev, struct ethtool_cmd *cmd)
-{
-	if (dev->phydev)
-		return phy_ethtool_gset(dev->phydev, cmd);
-
-	return -EINVAL;
-}
-
-static int
-bfin_mac_ethtool_setsettings(struct net_device *dev, struct ethtool_cmd *cmd)
-{
-	if (!capable(CAP_NET_ADMIN))
-		return -EPERM;
-
-	if (dev->phydev)
-		return phy_ethtool_sset(dev->phydev, cmd);
-
-	return -EINVAL;
-}
-
 static void bfin_mac_ethtool_getdrvinfo(struct net_device *dev,
 					struct ethtool_drvinfo *info)
 {
@@ -547,8 +526,6 @@ static int bfin_mac_ethtool_get_ts_info(struct net_device *dev,
 #endif
 
 static const struct ethtool_ops bfin_mac_ethtool_ops = {
-	.get_settings = bfin_mac_ethtool_getsettings,
-	.set_settings = bfin_mac_ethtool_setsettings,
 	.get_link = ethtool_op_get_link,
 	.get_drvinfo = bfin_mac_ethtool_getdrvinfo,
 	.get_wol = bfin_mac_ethtool_getwol,
@@ -556,6 +533,8 @@ static const struct ethtool_ops bfin_mac_ethtool_ops = {
 #ifdef CONFIG_BFIN_MAC_USE_HWSTAMP
 	.get_ts_info = bfin_mac_ethtool_get_ts_info,
 #endif
+	.get_link_ksettings = phy_ethtool_get_link_ksettings,
+	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
 
 /**************************************************************************/
