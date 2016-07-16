@@ -747,7 +747,7 @@ int inno_hdmi_audio_config_set(struct inno_hdmi *hdmi, struct audio_info *audio)
 	return inno_hdmi_config_audio_aai(hdmi, audio);
 }
 
-static int inno_hdmi_audio_hw_params(struct device *dev,
+static int inno_hdmi_audio_hw_params(struct device *dev, void *d,
 				     struct hdmi_codec_daifmt *daifmt,
 				     struct hdmi_codec_params *params)
 {
@@ -777,12 +777,12 @@ static int inno_hdmi_audio_hw_params(struct device *dev,
 	return inno_hdmi_audio_config_set(hdmi, &audio);
 }
 
-static void inno_hdmi_audio_shutdown(struct device *dev)
+static void inno_hdmi_audio_shutdown(struct device *dev, void *d)
 {
 	/* do nothing */
 }
 
-static int inno_hdmi_audio_digital_mute(struct device *dev, bool mute)
+static int inno_hdmi_audio_digital_mute(struct device *dev, void *d, bool mute)
 {
 	struct inno_hdmi *hdmi = dev_get_drvdata(dev);
 
@@ -803,7 +803,8 @@ static int inno_hdmi_audio_digital_mute(struct device *dev, bool mute)
 	return 0;
 }
 
-static int inno_hdmi_audio_get_eld(struct device *dev, uint8_t *buf, size_t len)
+static int inno_hdmi_audio_get_eld(struct device *dev, void *d,
+				   uint8_t *buf, size_t len)
 {
 	struct inno_hdmi *hdmi = dev_get_drvdata(dev);
 	struct drm_mode_config *config = &hdmi->encoder.dev->mode_config;
