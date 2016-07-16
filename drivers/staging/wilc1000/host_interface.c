@@ -3363,7 +3363,7 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 		if (!hif_workqueue) {
 			netdev_err(vif->ndev, "Failed to create workqueue\n");
 			result = -ENOMEM;
-			goto _fail_mq_;
+			goto _fail_;
 		}
 
 		setup_timer(&periodic_rssi, GetPeriodicRSSI,
@@ -3391,7 +3391,6 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 
 	clients_count++;
 
-_fail_mq_:
 	destroy_workqueue(hif_workqueue);
 _fail_:
 	return result;
