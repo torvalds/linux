@@ -189,15 +189,12 @@ static long cec_transmit(struct cec_adapter *adap, struct cec_fh *fh,
 	if (copy_from_user(&msg, parg, sizeof(msg)))
 		return -EFAULT;
 	mutex_lock(&adap->lock);
-	if (!adap->is_configured) {
+	if (!adap->is_configured)
 		err = -ENONET;
-	} else if (cec_is_busy(adap, fh)) {
+	else if (cec_is_busy(adap, fh))
 		err = -EBUSY;
-	} else {
-		if (!block || !msg.reply)
-			fh = NULL;
+	else
 		err = cec_transmit_msg_fh(adap, &msg, fh, block);
-	}
 	mutex_unlock(&adap->lock);
 	if (err)
 		return err;
