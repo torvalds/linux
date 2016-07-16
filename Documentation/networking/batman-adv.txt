@@ -32,7 +32,7 @@ compatible interfaces. Once found, it will create  subfolders  in
 the /sys directories of each supported interface, e.g.
 
 # ls /sys/class/net/eth0/batman_adv/
-# iface_status  mesh_iface
+# elp_interval  iface_status  mesh_iface  throughput_override
 
 If an interface does not have the "batman_adv" subfolder it prob-
 ably is not supported. Not supported  interfaces  are:  loopback,
