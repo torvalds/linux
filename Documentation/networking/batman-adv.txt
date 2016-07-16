@@ -80,9 +80,10 @@ folder:
 There is a special folder for debugging information:
 
 # ls /sys/kernel/debug/batman_adv/bat0/
-# bla_backbone_table  log                 transtable_global
-# bla_claim_table     originators         transtable_local
-# gateways            socket
+# bla_backbone_table  log          neighbors          transtable_local
+# bla_claim_table     mcast_flags  originators
+# dat_cache           nc           socket
+# gateways            nc_nodes     transtable_global
 
 Some of the files contain all sort of status information  regard-
 ing  the  mesh  network.  For  example, you can view the table of
