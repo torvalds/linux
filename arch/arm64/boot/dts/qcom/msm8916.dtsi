@@ -86,6 +86,11 @@
 			reg = <0x0 0x89300000 0x0 0x600000>;
 			no-map;
 		};
+
+		mba_mem: mba@8ea00000 {
+			no-map;
+			reg = <0 0x8ea00000 0 0x100000>;
+		};
 	};
 
 	cpus {
