@@ -121,13 +121,13 @@ enum cgs_system_info_id {
 };
 
 struct cgs_system_info {
-	uint64_t       size;
-	uint64_t       info_id;
+	uint64_t			size;
+	enum cgs_system_info_id		info_id;
 	union {
-		void           *ptr;
-		uint64_t        value;
+		void			*ptr;
+		uint64_t		value;
 	};
-	uint64_t               padding[13];
+	uint64_t			padding[13];
 };
 
 /*
