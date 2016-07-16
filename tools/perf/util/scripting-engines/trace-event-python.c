@@ -386,22 +386,6 @@ exit:
 	return pylist;
 }
 
-static int is_printable_array(char *p, unsigned int len)
-{
-	unsigned int i;
-
-	if (!p || !len || p[len - 1] != 0)
-		return 0;
-
-	len--;
-
-	for (i = 0; i < len; i++) {
-		if (!isprint(p[i]) && !isspace(p[i]))
-			return 0;
-	}
-	return 1;
-}
-
 static void python_process_tracepoint(struct perf_sample *sample,
 				      struct perf_evsel *evsel,
 				      struct addr_location *al)

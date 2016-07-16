@@ -746,3 +746,19 @@ void print_binary(unsigned char *data, size_t len,
 	}
 	printer(BINARY_PRINT_DATA_END, -1, extra);
 }
+
+int is_printable_array(char *p, unsigned int len)
+{
+	unsigned int i;
+
+	if (!p || !len || p[len - 1] != 0)
+		return 0;
+
+	len--;
+
+	for (i = 0; i < len; i++) {
+		if (!isprint(p[i]) && !isspace(p[i]))
+			return 0;
+	}
+	return 1;
+}
