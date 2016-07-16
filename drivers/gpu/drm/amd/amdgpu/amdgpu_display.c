@@ -516,9 +516,7 @@ static void amdgpu_user_framebuffer_destroy(struct drm_framebuffer *fb)
 {
 	struct amdgpu_framebuffer *amdgpu_fb = to_amdgpu_framebuffer(fb);
 
-	if (amdgpu_fb->obj) {
-		drm_gem_object_unreference_unlocked(amdgpu_fb->obj);
-	}
+	drm_gem_object_unreference_unlocked(amdgpu_fb->obj);
 	drm_framebuffer_cleanup(fb);
 	kfree(amdgpu_fb);
 }
