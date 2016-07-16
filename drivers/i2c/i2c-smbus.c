@@ -302,8 +302,8 @@ EXPORT_SYMBOL_GPL(i2c_setup_smbus_host_notify);
  * i2c_handle_smbus_host_notify - Forward a Host Notify event to the correct
  * I2C client.
  * @host_notify: the struct host_notify attached to the relevant adapter
- * @data: the Host Notify data which contains the payload and address of the
- * client
+ * @addr: the I2C address of the notifying device
+ * @data: the payload of the notification
  * Context: can't sleep
  *
  * Helper function to be called from an I2C bus driver's interrupt
