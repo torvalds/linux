@@ -138,11 +138,18 @@ static int download_firmware(struct gb_bootrom *bootrom, u8 stage)
 {
 	struct gb_connection *connection = bootrom->connection;
 	struct gb_interface *intf = connection->bundle->intf;
-	char firmware_name[48];
+	char firmware_name[49];
 	int rc;
 
 	/* Already have a firmware, free it */
 	free_firmware(bootrom);
+
+	/* Bootrom protocol is only supported for loading Stage 2 firmware */
+	if (stage != 2) {
+		dev_err(&connection->bundle->dev, "Invalid boot stage: %u\n",
+			stage);
+		return -EINVAL;
+	}
 
 	/*
 	 * Create firmware name
@@ -150,9 +157,9 @@ static int download_firmware(struct gb_bootrom *bootrom, u8 stage)
 	 * XXX Name it properly..
 	 */
 	snprintf(firmware_name, sizeof(firmware_name),
-		 "ara_%08x_%08x_%08x_%08x_%02x.tftf",
+		 "ara_%08x_%08x_%08x_%08x_s2l.tftf",
 		 intf->ddbl1_manufacturer_id, intf->ddbl1_product_id,
-		 intf->vendor_id, intf->product_id, stage);
+		 intf->vendor_id, intf->product_id);
 
 	// FIXME:
 	// Turn to dev_dbg later after everyone has valid bootloaders with good
