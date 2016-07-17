@@ -28,4 +28,5 @@ License".
 	fimc
 	ivtv
 	meye
+	omap3isp
 	zr364xx
