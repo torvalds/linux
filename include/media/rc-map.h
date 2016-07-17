@@ -98,10 +98,25 @@ struct rc_map_list {
 
 /* Routines from rc-map.c */
 
+/**
+ * rc_map_register() - Registers a Remote Controler scancode map
+ *
+ * @map:	pointer to struct rc_map_list
+ */
 int rc_map_register(struct rc_map_list *map);
+
+/**
+ * rc_map_unregister() - Unregisters a Remote Controler scancode map
+ *
+ * @map:	pointer to struct rc_map_list
+ */
 void rc_map_unregister(struct rc_map_list *map);
+
+/**
+ * rc_map_get - gets an RC map from its name
+ * @name: name of the RC scancode map
+ */
 struct rc_map *rc_map_get(const char *name);
-void rc_map_init(void);
 
 /* Names of the several keytables defined in-kernel */
 
