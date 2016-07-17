@@ -52,7 +52,8 @@ static unsigned int cec_poll(struct file *filp,
 	if (!devnode->registered)
 		return POLLERR | POLLHUP;
 	mutex_lock(&adap->lock);
-	if (adap->is_configured)
+	if (adap->is_configured &&
+	    adap->transmit_queue_sz < CEC_MAX_MSG_TX_QUEUE_SZ)
 		res |= POLLOUT | POLLWRNORM;
 	if (fh->queued_msgs)
 		res |= POLLIN | POLLRDNORM;
