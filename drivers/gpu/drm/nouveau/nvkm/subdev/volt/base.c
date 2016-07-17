@@ -196,6 +196,14 @@ nvkm_volt_parse_bios(struct nvkm_bios *bios, struct nvkm_volt *volt)
 }
 
 static int
+nvkm_volt_speedo_read(struct nvkm_volt *volt)
+{
+	if (volt->func->speedo_read)
+		return volt->func->speedo_read(volt);
+	return -EINVAL;
+}
+
+static int
 nvkm_volt_init(struct nvkm_subdev *subdev)
 {
 	struct nvkm_volt *volt = nvkm_volt(subdev);
@@ -209,6 +217,21 @@ nvkm_volt_init(struct nvkm_subdev *subdev)
 	return 0;
 }
 
+static int
+nvkm_volt_oneinit(struct nvkm_subdev *subdev)
+{
+	struct nvkm_volt *volt = nvkm_volt(subdev);
+
+	volt->speedo = nvkm_volt_speedo_read(volt);
+	if (volt->speedo > 0)
+		nvkm_debug(&volt->subdev, "speedo %x\n", volt->speedo);
+
+	if (volt->func->oneinit)
+		return volt->func->oneinit(volt);
+
+	return 0;
+}
+
 static void *
 nvkm_volt_dtor(struct nvkm_subdev *subdev)
 {
@@ -219,6 +242,7 @@ static const struct nvkm_subdev_func
 nvkm_volt = {
 	.dtor = nvkm_volt_dtor,
 	.init = nvkm_volt_init,
+	.oneinit = nvkm_volt_oneinit,
 };
 
 void

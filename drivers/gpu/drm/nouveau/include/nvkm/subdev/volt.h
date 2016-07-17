@@ -25,6 +25,8 @@ struct nvkm_volt {
 	u8 max0_id;
 	u8 max1_id;
 	u8 max2_id;
+
+	int speedo;
 };
 
 int nvkm_volt_map(struct nvkm_volt *volt, u8 id, u8 temperature);
