@@ -693,8 +693,17 @@ static bool vgic_its_check_device_id(struct kvm *kvm, struct vgic_its *its,
 	gfn_t gfn;
 
 
-	if (!(r & GITS_BASER_INDIRECT))
-		return device_id < (l1_tbl_size / GITS_BASER_ENTRY_SIZE(r));
+	if (!(r & GITS_BASER_INDIRECT)) {
+		phys_addr_t addr;
+
+		if (device_id >= (l1_tbl_size / GITS_BASER_ENTRY_SIZE(r)))
+			return false;
+
+		addr = BASER_ADDRESS(r) + device_id * GITS_BASER_ENTRY_SIZE(r);
+		gfn = addr >> PAGE_SHIFT;
+
+		return kvm_is_visible_gfn(kvm, gfn);
+	}
 
 	/* calculate and check the index into the 1st level */
 	index = device_id / (SZ_64K / GITS_BASER_ENTRY_SIZE(r));
