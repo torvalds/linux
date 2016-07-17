@@ -601,6 +601,7 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 		dprintk(1, "cec_transmit_msg: can't reply for poll msg\n");
 		return -EINVAL;
 	}
+	memset(msg->msg + msg->len, 0, sizeof(msg->msg) - msg->len);
 	if (msg->len == 1) {
 		if (cec_msg_initiator(msg) != 0xf ||
 		    cec_msg_destination(msg) == 0xf) {
@@ -771,6 +772,7 @@ void cec_received_msg(struct cec_adapter *adap, struct cec_msg *msg)
 	msg->tx_status = 0;
 	msg->tx_ts = 0;
 	msg->flags = 0;
+	memset(msg->msg + msg->len, 0, sizeof(msg->msg) - msg->len);
 
 	mutex_lock(&adap->lock);
 	dprintk(2, "cec_received_msg: %*ph\n", msg->len, msg->msg);
