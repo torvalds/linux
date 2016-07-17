@@ -24,4 +24,5 @@ License".
 	cpia2
 	cx18
 	cx88
+	davinci-vpbe
 	zr364xx
