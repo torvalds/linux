@@ -27,4 +27,5 @@ License".
 	faq
 	lmedm04
 	opera-firmware
+	technisat
 	contributors
