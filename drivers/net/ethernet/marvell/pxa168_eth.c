@@ -274,8 +274,8 @@ enum hash_table_entry {
 	HASH_ENTRY_RECEIVE_DISCARD_BIT = 2
 };
 
-static int pxa168_get_settings(struct net_device *dev, struct ethtool_cmd *cmd);
-static int pxa168_set_settings(struct net_device *dev, struct ethtool_cmd *cmd);
+static int pxa168_get_link_ksettings(struct net_device *dev,
+				     struct ethtool_link_ksettings *cmd);
 static int pxa168_init_hw(struct pxa168_eth_private *pep);
 static int pxa168_init_phy(struct net_device *dev);
 static void eth_port_reset(struct net_device *dev);
@@ -971,7 +971,7 @@ static void pxa168_eth_adjust_link(struct net_device *dev)
 static int pxa168_init_phy(struct net_device *dev)
 {
 	struct pxa168_eth_private *pep = netdev_priv(dev);
-	struct ethtool_cmd cmd;
+	struct ethtool_link_ksettings cmd;
 	struct phy_device *phy = NULL;
 	int err;
 
@@ -987,20 +987,21 @@ static int pxa168_init_phy(struct net_device *dev)
 	if (err)
 		return err;
 
-	err = pxa168_get_settings(dev, &cmd);
+	err = pxa168_get_link_ksettings(dev, &cmd);
 	if (err)
 		return err;
 
-	cmd.phy_address = pep->phy_addr;
-	cmd.speed = pep->phy_speed;
-	cmd.duplex = pep->phy_duplex;
-	cmd.advertising = PHY_BASIC_FEATURES;
-	cmd.autoneg = AUTONEG_ENABLE;
+	cmd.base.phy_address = pep->phy_addr;
+	cmd.base.speed = pep->phy_speed;
+	cmd.base.duplex = pep->phy_duplex;
+	ethtool_convert_legacy_u32_to_link_mode(cmd.link_modes.advertising,
+						PHY_BASIC_FEATURES);
+	cmd.base.autoneg = AUTONEG_ENABLE;
 
-	if (cmd.speed != 0)
-		cmd.autoneg = AUTONEG_DISABLE;
+	if (cmd.base.speed != 0)
+		cmd.base.autoneg = AUTONEG_DISABLE;
 
-	return pxa168_set_settings(dev, &cmd);
+	return phy_ethtool_set_link_ksettings(dev, &cmd);
 }
 
 static int pxa168_init_hw(struct pxa168_eth_private *pep)
@@ -1372,20 +1373,16 @@ static int pxa168_eth_do_ioctl(struct net_device *dev, struct ifreq *ifr,
 	return -EOPNOTSUPP;
 }
 
-static int pxa168_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int pxa168_get_link_ksettings(struct net_device *dev,
+				     struct ethtool_link_ksettings *cmd)
 {
 	int err;
 
 	err = phy_read_status(dev->phydev);
 	if (err == 0)
-		err = phy_ethtool_gset(dev->phydev, cmd);
+		err = phy_ethtool_ksettings_get(dev->phydev, cmd);
 
 	return err;
-}
-
-static int pxa168_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
-{
-	return phy_ethtool_sset(dev->phydev, cmd);
 }
 
 static void pxa168_get_drvinfo(struct net_device *dev,
@@ -1398,11 +1395,11 @@ static void pxa168_get_drvinfo(struct net_device *dev,
 }
 
 static const struct ethtool_ops pxa168_ethtool_ops = {
-	.get_settings	= pxa168_get_settings,
-	.set_settings	= pxa168_set_settings,
 	.get_drvinfo	= pxa168_get_drvinfo,
 	.get_link	= ethtool_op_get_link,
 	.get_ts_info	= ethtool_op_get_ts_info,
+	.get_link_ksettings = pxa168_get_link_ksettings,
+	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
 
 static const struct net_device_ops pxa168_eth_netdev_ops = {
