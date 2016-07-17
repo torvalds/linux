@@ -32,4 +32,5 @@ License".
 	omap4_camera
 	pvrusb2
 	pxa_camera
+	radiotrack
 	zr364xx
