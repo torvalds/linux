@@ -1000,33 +1000,43 @@ static int __clone_blkaddrs(struct inode *src_inode, struct inode *dst_inode,
 
 static int __exchange_data_block(struct inode *src_inode,
 			struct inode *dst_inode, pgoff_t src, pgoff_t dst,
-			int len, bool full)
+			pgoff_t len, bool full)
 {
 	block_t *src_blkaddr;
 	int *do_replace;
+	pgoff_t olen;
 	int ret;
 
-	src_blkaddr = f2fs_kvzalloc(sizeof(block_t) * len, GFP_KERNEL);
-	if (!src_blkaddr)
-		return -ENOMEM;
+	while (len) {
+		olen = min((pgoff_t)4 * ADDRS_PER_BLOCK, len);
 
-	do_replace = f2fs_kvzalloc(sizeof(int) * len, GFP_KERNEL);
-	if (!do_replace) {
+		src_blkaddr = f2fs_kvzalloc(sizeof(block_t) * olen, GFP_KERNEL);
+		if (!src_blkaddr)
+			return -ENOMEM;
+
+		do_replace = f2fs_kvzalloc(sizeof(int) * olen, GFP_KERNEL);
+		if (!do_replace) {
+			kvfree(src_blkaddr);
+			return -ENOMEM;
+		}
+
+		ret = __read_out_blkaddrs(src_inode, src_blkaddr,
+					do_replace, src, olen);
+		if (ret)
+			goto roll_back;
+
+		ret = __clone_blkaddrs(src_inode, dst_inode, src_blkaddr,
+					do_replace, src, dst, olen, full);
+		if (ret)
+			goto roll_back;
+
+		src += olen;
+		dst += olen;
+		len -= olen;
+
 		kvfree(src_blkaddr);
-		return -ENOMEM;
+		kvfree(do_replace);
 	}
-
-	ret = __read_out_blkaddrs(src_inode, src_blkaddr, do_replace, src, len);
-	if (ret)
-		goto roll_back;
-
-	ret = __clone_blkaddrs(src_inode, dst_inode, src_blkaddr,
-					do_replace, src, dst, len, full);
-	if (ret)
-		goto roll_back;
-
-	kvfree(src_blkaddr);
-	kvfree(do_replace);
 	return 0;
 
 roll_back:
