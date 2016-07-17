@@ -27,4 +27,5 @@ License".
 	davinci-vpbe
 	fimc
 	ivtv
+	meye
 	zr364xx
