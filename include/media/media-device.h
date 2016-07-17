@@ -242,13 +242,11 @@ void media_device_cleanup(struct media_device *mdev);
  *    without breaking binary compatibility. The version major must be
  *    incremented when binary compatibility is broken.
  *
- * Notes:
+ * .. note::
  *
- * Upon successful registration a character device named media[0-9]+ is created.
- * The device major and minor numbers are dynamic. The model name is exported as
- * a sysfs attribute.
+ *    #) Upon successful registration a character device named media[0-9]+ is created. The device major and minor numbers are dynamic. The model name is exported as a sysfs attribute.
  *
- * Unregistering a media device that hasn't been registered is *NOT* safe.
+ *    #) Unregistering a media device that hasn't been registered is **NOT** safe.
  *
  * Return: returns zero on success or a negative error code.
  */
@@ -296,14 +294,16 @@ void media_device_unregister(struct media_device *mdev);
  *	This can be used to report the default audio and video devices or the
  *	default camera sensor.
  *
- * NOTE: Drivers should set the entity function before calling this function.
- * Please notice that the values %MEDIA_ENT_F_V4L2_SUBDEV_UNKNOWN and
- * %MEDIA_ENT_F_UNKNOWN should not be used by the drivers.
+ * .. note::
+ *
+ *    Drivers should set the entity function before calling this function.
+ *    Please notice that the values %MEDIA_ENT_F_V4L2_SUBDEV_UNKNOWN and
+ *    %MEDIA_ENT_F_UNKNOWN should not be used by the drivers.
  */
 int __must_check media_device_register_entity(struct media_device *mdev,
 					      struct media_entity *entity);
 
-/*
+/**
  * media_device_unregister_entity() - unregisters a media entity.
  *
  * @entity:	pointer to struct &media_entity to be unregistered
@@ -317,8 +317,10 @@ int __must_check media_device_register_entity(struct media_device *mdev,
  * When a media device is unregistered, all its entities are unregistered
  * automatically. No manual entities unregistration is then required.
  *
- * Note: the media_entity instance itself must be freed explicitly by
- * the driver if required.
+ * .. note::
+ *
+ *    The media_entity instance itself must be freed explicitly by
+ *    the driver if required.
  */
 void media_device_unregister_entity(struct media_entity *entity);
 
