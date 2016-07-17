@@ -25,4 +25,5 @@ License".
 	ci
 	dvb-usb
 	faq
+	lmedm04
 	contributors
