@@ -35,4 +35,5 @@ License".
 	radiotrack
 	saa7134
 	sh_mobile_ceu_camera
+	si470x
 	zr364xx
