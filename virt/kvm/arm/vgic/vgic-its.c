@@ -687,18 +687,18 @@ static bool vgic_its_check_device_id(struct kvm *kvm, struct vgic_its *its,
 				     int device_id)
 {
 	u64 r = its->baser_device_table;
-	int nr_entries = GITS_BASER_NR_PAGES(r) * SZ_64K;
+	int l1_tbl_size = GITS_BASER_NR_PAGES(r) * SZ_64K;
 	int index;
 	u64 indirect_ptr;
 	gfn_t gfn;
 
 
 	if (!(r & GITS_BASER_INDIRECT))
-		return device_id < (nr_entries / GITS_BASER_ENTRY_SIZE(r));
+		return device_id < (l1_tbl_size / GITS_BASER_ENTRY_SIZE(r));
 
 	/* calculate and check the index into the 1st level */
 	index = device_id / (SZ_64K / GITS_BASER_ENTRY_SIZE(r));
-	if (index >= (nr_entries / sizeof(u64)))
+	if (index >= (l1_tbl_size / sizeof(u64)))
 		return false;
 
 	/* Each 1st level entry is represented by a 64-bit value. */
