@@ -19,6 +19,7 @@ License".
 
     kapi/v4l2-framework
     kapi/v4l2-controls
+    kapi/videobuf
     kapi/v4l2-core
     kapi/dtv-core
     kapi/rc-core
