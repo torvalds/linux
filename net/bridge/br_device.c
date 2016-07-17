@@ -61,11 +61,11 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (!br_allowed_ingress(br, br_vlan_group_rcu(br), skb, &vid))
 		goto out;
 
-	if (is_broadcast_ether_addr(dest))
-		br_flood_deliver(br, skb, false);
-	else if (is_multicast_ether_addr(dest)) {
+	if (is_broadcast_ether_addr(dest)) {
+		br_flood(br, skb, false, false, true);
+	} else if (is_multicast_ether_addr(dest)) {
 		if (unlikely(netpoll_tx_running(dev))) {
-			br_flood_deliver(br, skb, false);
+			br_flood(br, skb, false, false, true);
 			goto out;
 		}
 		if (br_multicast_rcv(br, NULL, skb, vid)) {
@@ -76,14 +76,14 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 		mdst = br_mdb_get(br, skb, vid);
 		if ((mdst || BR_INPUT_SKB_CB_MROUTERS_ONLY(skb)) &&
 		    br_multicast_querier_exists(br, eth_hdr(skb)))
-			br_multicast_deliver(mdst, skb);
+			br_multicast_flood(mdst, skb, false, true);
 		else
-			br_flood_deliver(br, skb, false);
-	} else if ((dst = __br_fdb_get(br, dest, vid)) != NULL)
-		br_deliver(dst->dst, skb);
-	else
-		br_flood_deliver(br, skb, true);
-
+			br_flood(br, skb, false, false, true);
+	} else if ((dst = __br_fdb_get(br, dest, vid)) != NULL) {
+		br_forward(dst->dst, skb, false, true);
+	} else {
+		br_flood(br, skb, true, false, true);
+	}
 out:
 	rcu_read_unlock();
 	return NETDEV_TX_OK;
