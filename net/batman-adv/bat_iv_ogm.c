@@ -1823,17 +1823,18 @@ static int batadv_iv_ogm_receive(struct sk_buff *skb,
 	struct batadv_ogm_packet *ogm_packet;
 	u8 *packet_pos;
 	int ogm_offset;
-	bool ret;
+	bool res;
+	int ret = NET_RX_DROP;
 
-	ret = batadv_check_management_packet(skb, if_incoming, BATADV_OGM_HLEN);
-	if (!ret)
-		return NET_RX_DROP;
+	res = batadv_check_management_packet(skb, if_incoming, BATADV_OGM_HLEN);
+	if (!res)
+		goto free_skb;
 
 	/* did we receive a B.A.T.M.A.N. IV OGM packet on an interface
 	 * that does not have B.A.T.M.A.N. IV enabled ?
 	 */
 	if (bat_priv->algo_ops->iface.enable != batadv_iv_ogm_iface_enable)
-		return NET_RX_DROP;
+		goto free_skb;
 
 	batadv_inc_counter(bat_priv, BATADV_CNT_MGMT_RX);
 	batadv_add_counter(bat_priv, BATADV_CNT_MGMT_RX_BYTES,
@@ -1854,8 +1855,15 @@ static int batadv_iv_ogm_receive(struct sk_buff *skb,
 		ogm_packet = (struct batadv_ogm_packet *)packet_pos;
 	}
 
-	consume_skb(skb);
-	return NET_RX_SUCCESS;
+	ret = NET_RX_SUCCESS;
+
+free_skb:
+	if (ret == NET_RX_SUCCESS)
+		consume_skb(skb);
+	else
+		kfree_skb(skb);
+
+	return ret;
 }
 
 #ifdef CONFIG_BATMAN_ADV_DEBUGFS

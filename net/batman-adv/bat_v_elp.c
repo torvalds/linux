@@ -492,20 +492,21 @@ int batadv_v_elp_packet_recv(struct sk_buff *skb,
 	struct batadv_elp_packet *elp_packet;
 	struct batadv_hard_iface *primary_if;
 	struct ethhdr *ethhdr = (struct ethhdr *)skb_mac_header(skb);
-	bool ret;
+	bool res;
+	int ret = NET_RX_DROP;
 
-	ret = batadv_check_management_packet(skb, if_incoming, BATADV_ELP_HLEN);
-	if (!ret)
-		return NET_RX_DROP;
+	res = batadv_check_management_packet(skb, if_incoming, BATADV_ELP_HLEN);
+	if (!res)
+		goto free_skb;
 
 	if (batadv_is_my_mac(bat_priv, ethhdr->h_source))
-		return NET_RX_DROP;
+		goto free_skb;
 
 	/* did we receive a B.A.T.M.A.N. V ELP packet on an interface
 	 * that does not have B.A.T.M.A.N. V ELP enabled ?
 	 */
 	if (strcmp(bat_priv->algo_ops->name, "BATMAN_V") != 0)
-		return NET_RX_DROP;
+		goto free_skb;
 
 	elp_packet = (struct batadv_elp_packet *)skb->data;
 
@@ -516,14 +517,19 @@ int batadv_v_elp_packet_recv(struct sk_buff *skb,
 
 	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (!primary_if)
-		goto out;
+		goto free_skb;
 
 	batadv_v_elp_neigh_update(bat_priv, ethhdr->h_source, if_incoming,
 				  elp_packet);
 
-out:
-	if (primary_if)
-		batadv_hardif_put(primary_if);
-	consume_skb(skb);
-	return NET_RX_SUCCESS;
+	ret = NET_RX_SUCCESS;
+	batadv_hardif_put(primary_if);
+
+free_skb:
+	if (ret == NET_RX_SUCCESS)
+		consume_skb(skb);
+	else
+		kfree_skb(skb);
+
+	return ret;
 }

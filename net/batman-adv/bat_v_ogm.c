@@ -810,18 +810,18 @@ int batadv_v_ogm_packet_recv(struct sk_buff *skb,
 	 * B.A.T.M.A.N. V enabled ?
 	 */
 	if (strcmp(bat_priv->algo_ops->name, "BATMAN_V") != 0)
-		return NET_RX_DROP;
+		goto free_skb;
 
 	if (!batadv_check_management_packet(skb, if_incoming, BATADV_OGM2_HLEN))
-		return NET_RX_DROP;
+		goto free_skb;
 
 	if (batadv_is_my_mac(bat_priv, ethhdr->h_source))
-		return NET_RX_DROP;
+		goto free_skb;
 
 	ogm_packet = (struct batadv_ogm2_packet *)skb->data;
 
 	if (batadv_is_my_mac(bat_priv, ogm_packet->orig))
-		return NET_RX_DROP;
+		goto free_skb;
 
 	batadv_inc_counter(bat_priv, BATADV_CNT_MGMT_RX);
 	batadv_add_counter(bat_priv, BATADV_CNT_MGMT_RX_BYTES,
@@ -842,7 +842,12 @@ int batadv_v_ogm_packet_recv(struct sk_buff *skb,
 	}
 
 	ret = NET_RX_SUCCESS;
-	consume_skb(skb);
+
+free_skb:
+	if (ret == NET_RX_SUCCESS)
+		consume_skb(skb);
+	else
+		kfree_skb(skb);
 
 	return ret;
 }
