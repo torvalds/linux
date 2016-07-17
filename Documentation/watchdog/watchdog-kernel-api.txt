@@ -167,6 +167,10 @@ they are supported. These optional routines/operations are:
   info structure).
 * status: this routine checks the status of the watchdog timer device. The
   status of the device is reported with watchdog WDIOF_* status flags/bits.
+  WDIOF_MAGICCLOSE and WDIOF_KEEPALIVEPING are reported by the watchdog core;
+  it is not necessary to report those bits from the driver. Also, if no status
+  function is provided by the driver, the watchdog core reports the status bits
+  provided in the bootstatus variable of struct watchdog_device.
 * set_timeout: this routine checks and changes the timeout of the watchdog
   timer device. It returns 0 on success, -EINVAL for "parameter out of range"
   and -EIO for "could not write value to the watchdog". On success this
