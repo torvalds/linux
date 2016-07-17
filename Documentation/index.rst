@@ -17,6 +17,7 @@ Contents:
    media/media_uapi
    media/media_drivers
    media/dvb-drivers/index
+   media/v4l-drivers/index
 
 Indices and tables
 ==================
