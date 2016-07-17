@@ -7,41 +7,41 @@
 
 #define DIFF_1601_TO_1970_IN_100NS (11644473600L * 10000000L)
 
-struct lkl_mutex_t {
+struct lkl_mutex {
 	HANDLE mutex;
 };
 
-struct lkl_sem_t {
+struct lkl_sem {
 	HANDLE sem;
 };
 
-static struct lkl_sem_t *sem_alloc(int count)
+static struct lkl_sem *sem_alloc(int count)
 {
-	struct lkl_sem_t *sem = malloc(sizeof(struct lkl_sem_t));
+	struct lkl_sem *sem = malloc(sizeof(struct lkl_sem));
 
 	sem->sem = CreateSemaphore(NULL, count, 100, NULL);
 	return sem;
 }
 
-static void sem_up(struct lkl_sem_t *sem)
+static void sem_up(struct lkl_sem *sem)
 {
 	ReleaseSemaphore(sem->sem, 1, NULL);
 }
 
-static void sem_down(struct lkl_sem_t *sem)
+static void sem_down(struct lkl_sem *sem)
 {
 	WaitForSingleObject(sem->sem, INFINITE);
 }
 
-static void sem_free(struct lkl_sem_t *sem)
+static void sem_free(struct lkl_sem *sem)
 {
 	CloseHandle(sem->sem);
 	free(sem);
 }
 
-static struct lkl_mutex_t *mutex_alloc(void)
+static struct lkl_mutex *mutex_alloc(void)
 {
-	struct lkl_mutex_t *_mutex = malloc(sizeof(struct lkl_mutex_t));
+	struct lkl_mutex *_mutex = malloc(sizeof(struct lkl_mutex));
 	if (!_mutex)
 		return NULL;
 
@@ -49,17 +49,17 @@ static struct lkl_mutex_t *mutex_alloc(void)
 	return _mutex;
 }
 
-static void mutex_lock(struct lkl_mutex_t *mutex)
+static void mutex_lock(struct lkl_mutex *mutex)
 {
 	WaitForSingleObject(mutex->mutex, INFINITE);
 }
 
-static void mutex_unlock(struct lkl_mutex_t *_mutex)
+static void mutex_unlock(struct lkl_mutex *_mutex)
 {
 	ReleaseMutex(_mutex->mutex);
 }
 
-static void mutex_free(struct lkl_mutex_t *_mutex)
+static void mutex_free(struct lkl_mutex *_mutex)
 {
 	CloseHandle(_mutex->mutex);
 	free(_mutex);

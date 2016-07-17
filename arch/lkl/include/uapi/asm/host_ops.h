@@ -2,8 +2,8 @@
 #define _ASM_UAPI_LKL_HOST_OPS_H
 
 /* Defined in {posix,nt}-host.c */
-struct lkl_mutex_t;
-struct lkl_sem_t;
+struct lkl_mutex;
+struct lkl_sem;
 typedef unsigned long lkl_thread_t;
 
 /**
@@ -69,16 +69,16 @@ struct lkl_host_operations {
 	void (*print)(const char *str, int len);
 	void (*panic)(void);
 
-	struct lkl_sem_t* (*sem_alloc)(int count);
-	void (*sem_free)(struct lkl_sem_t *sem);
-	void (*sem_up)(struct lkl_sem_t *sem);
-	void (*sem_down)(struct lkl_sem_t *sem);
-	int (*sem_get)(struct lkl_sem_t *sem);
+	struct lkl_sem* (*sem_alloc)(int count);
+	void (*sem_free)(struct lkl_sem *sem);
+	void (*sem_up)(struct lkl_sem *sem);
+	void (*sem_down)(struct lkl_sem *sem);
+	int (*sem_get)(struct lkl_sem *sem);
 
-	struct lkl_mutex_t *(*mutex_alloc)(void);
-	void (*mutex_free)(struct lkl_mutex_t *mutex);
-	void (*mutex_lock)(struct lkl_mutex_t *mutex);
-	void (*mutex_unlock)(struct lkl_mutex_t *mutex);
+	struct lkl_mutex *(*mutex_alloc)(void);
+	void (*mutex_free)(struct lkl_mutex *mutex);
+	void (*mutex_lock)(struct lkl_mutex *mutex);
+	void (*mutex_unlock)(struct lkl_mutex *mutex);
 
 	lkl_thread_t (*thread_create)(void (*f)(void *), void *arg);
 	void (*thread_detach)(void);

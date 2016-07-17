@@ -38,7 +38,7 @@ struct virtio_net_dev {
 	struct lkl_dev_net_ops *ops;
 	struct lkl_netdev *nd;
 	struct virtio_net_poll rx_poll, tx_poll;
-	struct lkl_mutex_t **queue_locks;
+	struct lkl_mutex **queue_locks;
 };
 
 static int net_check_features(struct virtio_dev *dev)
@@ -143,7 +143,7 @@ static int dev_register(struct virtio_net_dev *dev)
 	}
 }
 
-static void free_queue_locks(struct lkl_mutex_t **queues, int num_queues)
+static void free_queue_locks(struct lkl_mutex **queues, int num_queues)
 {
 	int i = 0;
 	if (!queues)
@@ -155,11 +155,11 @@ static void free_queue_locks(struct lkl_mutex_t **queues, int num_queues)
 	lkl_host_ops.mem_free(queues);
 }
 
-static struct lkl_mutex_t **init_queue_locks(int num_queues)
+static struct lkl_mutex **init_queue_locks(int num_queues)
 {
 	int i;
-	struct lkl_mutex_t **ret = lkl_host_ops.mem_alloc(
-		sizeof(struct lkl_mutex_t*) * num_queues);
+	struct lkl_mutex **ret = lkl_host_ops.mem_alloc(
+		sizeof(struct lkl_mutex*) * num_queues);
 	if (!ret)
 		return NULL;
 
