@@ -22,3 +22,4 @@ License".
 	avermedia
 	bt8xx
 	cards
+	ci
