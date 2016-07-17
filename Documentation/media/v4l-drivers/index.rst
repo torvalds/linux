@@ -36,4 +36,6 @@ License".
 	saa7134
 	sh_mobile_ceu_camera
 	si470x
+	si4713
+	si476x
 	zr364xx
