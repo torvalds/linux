@@ -39,4 +39,5 @@ License".
 	si4713
 	si476x
 	soc-camera
+	uvcvideo
 	zr364xx
