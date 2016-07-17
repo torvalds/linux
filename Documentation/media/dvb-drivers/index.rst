@@ -28,4 +28,5 @@ License".
 	lmedm04
 	opera-firmware
 	technisat
+	ttusb-dec
 	contributors
