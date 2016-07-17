@@ -354,8 +354,7 @@ void cec_delete_adapter(struct cec_adapter *adap)
 	if (adap->kthread_config)
 		kthread_stop(adap->kthread_config);
 #if IS_REACHABLE(CONFIG_RC_CORE)
-	if (adap->rc)
-		rc_free_device(adap->rc);
+	rc_free_device(adap->rc);
 #endif
 	kfree(adap);
 }
