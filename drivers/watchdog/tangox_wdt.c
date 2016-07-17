@@ -149,7 +149,7 @@ static int tangox_wdt_probe(struct platform_device *pdev)
 	dev->wdt.ops = &tangox_wdt_ops;
 	dev->wdt.timeout = DEFAULT_TIMEOUT;
 	dev->wdt.min_timeout = 1;
-	dev->wdt.max_timeout = (U32_MAX - 1) / dev->clk_rate;
+	dev->wdt.max_hw_heartbeat_ms = (U32_MAX - 1) / dev->clk_rate;
 
 	watchdog_init_timeout(&dev->wdt, timeout, &pdev->dev);
 	watchdog_set_nowayout(&dev->wdt, nowayout);
