@@ -30,4 +30,5 @@ License".
 	meye
 	omap3isp
 	omap4_camera
+	pvrusb2
 	zr364xx
