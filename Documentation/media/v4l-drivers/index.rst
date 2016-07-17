@@ -26,4 +26,5 @@ License".
 	cx88
 	davinci-vpbe
 	fimc
+	ivtv
 	zr364xx
