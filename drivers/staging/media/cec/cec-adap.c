@@ -156,10 +156,10 @@ static void cec_queue_msg_fh(struct cec_fh *fh, const struct cec_msg *msg)
 	list_add_tail(&entry->list, &fh->msgs);
 
 	/*
-	 * if the queue now has more than CEC_MAX_MSG_QUEUE_SZ
+	 * if the queue now has more than CEC_MAX_MSG_RX_QUEUE_SZ
 	 * messages, drop the oldest one and send a lost message event.
 	 */
-	if (fh->queued_msgs == CEC_MAX_MSG_QUEUE_SZ) {
+	if (fh->queued_msgs == CEC_MAX_MSG_RX_QUEUE_SZ) {
 		list_del(&entry->list);
 		goto lost_msgs;
 	}
@@ -278,10 +278,13 @@ static void cec_data_cancel(struct cec_data *data)
 	 * It's either the current transmit, or it is a pending
 	 * transmit. Take the appropriate action to clear it.
 	 */
-	if (data->adap->transmitting == data)
+	if (data->adap->transmitting == data) {
 		data->adap->transmitting = NULL;
-	else
+	} else {
 		list_del_init(&data->list);
+		if (!(data->msg.tx_status & CEC_TX_STATUS_OK))
+			data->adap->transmit_queue_sz--;
+	}
 
 	/* Mark it as an error */
 	data->msg.tx_ts = ktime_get_ns();
@@ -405,6 +408,7 @@ int cec_thread_func(void *_adap)
 		data = list_first_entry(&adap->transmit_queue,
 					struct cec_data, list);
 		list_del_init(&data->list);
+		adap->transmit_queue_sz--;
 		/* Make this the current transmitting message */
 		adap->transmitting = data;
 
@@ -498,6 +502,7 @@ void cec_transmit_done(struct cec_adapter *adap, u8 status, u8 arb_lost_cnt,
 		data->attempts--;
 		/* Add the message in front of the transmit queue */
 		list_add(&data->list, &adap->transmit_queue);
+		adap->transmit_queue_sz++;
 		goto wake_thread;
 	}
 
@@ -638,6 +643,9 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 	if (!adap->is_configured && !adap->is_configuring)
 		return -ENONET;
 
+	if (adap->transmit_queue_sz >= CEC_MAX_MSG_TX_QUEUE_SZ)
+		return -EBUSY;
+
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
@@ -682,6 +690,7 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 	if (fh)
 		list_add_tail(&data->xfer_list, &fh->xfer_list);
 	list_add_tail(&data->list, &adap->transmit_queue);
+	adap->transmit_queue_sz++;
 	if (!adap->transmitting)
 		wake_up_interruptible(&adap->kthread_waitq);
 
@@ -1621,15 +1630,19 @@ int cec_adap_status(struct seq_file *file, void *priv)
 			   adap->monitor_all_cnt);
 	data = adap->transmitting;
 	if (data)
-		seq_printf(file, "transmitting message: %*ph (reply: %02x)\n",
-			   data->msg.len, data->msg.msg, data->msg.reply);
+		seq_printf(file, "transmitting message: %*ph (reply: %02x, timeout: %ums)\n",
+			   data->msg.len, data->msg.msg, data->msg.reply,
+			   data->msg.timeout);
+	seq_printf(file, "pending transmits: %u\n", adap->transmit_queue_sz);
 	list_for_each_entry(data, &adap->transmit_queue, list) {
-		seq_printf(file, "queued tx message: %*ph (reply: %02x)\n",
-			   data->msg.len, data->msg.msg, data->msg.reply);
+		seq_printf(file, "queued tx message: %*ph (reply: %02x, timeout: %ums)\n",
+			   data->msg.len, data->msg.msg, data->msg.reply,
+			   data->msg.timeout);
 	}
 	list_for_each_entry(data, &adap->wait_queue, list) {
-		seq_printf(file, "message waiting for reply: %*ph (reply: %02x)\n",
-			   data->msg.len, data->msg.msg, data->msg.reply);
+		seq_printf(file, "message waiting for reply: %*ph (reply: %02x, timeout: %ums)\n",
+			   data->msg.len, data->msg.msg, data->msg.reply,
+			   data->msg.timeout);
 	}
 
 	call_void_op(adap, adap_status, file);
