@@ -1,3 +1,11 @@
+FAQ
+===
+
+.. note::
+
+   This documentation is outdated. Please check at the DVB wiki
+   at https://linuxtv.org/wiki for more updated info.
+
 Some very frequently asked questions about linuxtv-dvb
 
 1. The signal seems to die a few seconds after tuning.
@@ -71,8 +79,7 @@ Some very frequently asked questions about linuxtv-dvb
 	http://www.dbox2.info/
 		LinuxDVB on the dBox2
 
-	http://www.tuxbox.org/
-	http://cvs.tuxbox.org/
+	http://www.tuxbox.org/ and http://cvs.tuxbox.org/
 		the TuxBox CVS many interesting DVB applications and the dBox2
 		DVB source
 
@@ -85,8 +92,7 @@ Some very frequently asked questions about linuxtv-dvb
 	http://mplayerhq.hu/
 		mplayer
 
-	http://xine.sourceforge.net/
-	http://xinehq.de/
+	http://xine.sourceforge.net/ and http://xinehq.de/
 		xine
 
 	http://www.mythtv.org/
@@ -125,6 +131,9 @@ Some very frequently asked questions about linuxtv-dvb
 	Check your routes if they include the multicast address range.
 	Additionally make sure that "source validation by reversed path
 	lookup" is disabled:
+
+.. code-block:: none
+
 	  $ "echo 0 > /proc/sys/net/ipv4/conf/dvb0/rp_filter"
 
 7. What the hell are all those modules that need to be loaded?
@@ -156,4 +165,3 @@ Some very frequently asked questions about linuxtv-dvb
 	- dvb-ttpci: The main driver for AV7110 based, full-featured
 	  DVB-S/C/T cards
 
-eof

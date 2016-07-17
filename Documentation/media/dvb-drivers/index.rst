@@ -24,4 +24,5 @@ License".
 	cards
 	ci
 	dvb-usb
+	faq
 	contributors
