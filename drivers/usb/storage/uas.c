@@ -811,6 +811,7 @@ static int uas_slave_configure(struct scsi_device *sdev)
 	if (devinfo->flags & US_FL_BROKEN_FUA)
 		sdev->broken_fua = 1;
 
+	scsi_change_queue_depth(sdev, devinfo->qdepth - 2);
 	return 0;
 }
 
