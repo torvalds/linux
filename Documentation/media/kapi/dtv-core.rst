@@ -11,6 +11,15 @@ Digital TV Common functions
 .. kernel-doc:: drivers/media/dvb-core/dvbdev.h
 
 
+
+.. kernel-doc:: drivers/media/dvb-core/dvb_math.h
+   :export: drivers/media/dvb-core/dvb_math.c
+
+.. kernel-doc:: drivers/media/dvb-core/dvbdev.h
+   :export: drivers/media/dvb-core/dvbdev.c
+
+
+
 Digital TV Frontend kABI
 ------------------------
 
@@ -24,17 +33,20 @@ The header file for this API is named dvb_frontend.h and located in
 drivers/media/dvb-core.
 
 Before using the Digital TV frontend core, the bridge driver should attach
-the frontend demod, tuner and SEC devices and call dvb_register_frontend(),
+the frontend demod, tuner and SEC devices and call
+:cpp:func:`dvb_register_frontend()`,
 in order to register the new frontend at the subsystem. At device
-detach/removal, the bridge driver should call dvb_unregister_frontend() to
-remove the frontend from the core and then dvb_frontend_detach() to free the
-memory allocated by the frontend drivers.
+detach/removal, the bridge driver should call
+:cpp:func:`dvb_unregister_frontend()` to
+remove the frontend from the core and then :cpp:func:`dvb_frontend_detach()`
+to free the memory allocated by the frontend drivers.
 
-The drivers should also call dvb_frontend_suspend() as part of their
-handler for the &device_driver.suspend(), and dvb_frontend_resume() as
-part of their handler for &device_driver.resume().
+The drivers should also call :cpp:func:`dvb_frontend_suspend()` as part of
+their handler for the :c:type:`device_driver`.\ ``suspend()``, and
+:cpp:func:`dvb_frontend_resume()` as
+part of their handler for :c:type:`device_driver`.\ ``resume()``.
 
-few other optional functions are provided to handle some special cases.
+A few other optional functions are provided to handle some special cases.
 
 .. kernel-doc:: drivers/media/dvb-core/dvb_frontend.h
 
@@ -70,7 +82,7 @@ static or module private and registered to the Demux core for external
 access. It is not necessary to implement every function in the struct
 &dmx_demux. For example, a demux interface might support Section filtering,
 but not PES filtering. The kABI client is expected to check the value of any
-function pointer before calling the function: the value of NULL means
+function pointer before calling the function: the value of ``NULL`` means
 that the function is not available.
 
 Whenever the functions of the demux API modify shared data, the
@@ -78,7 +90,7 @@ possibilities of lost update and race condition problems should be
 addressed, e.g. by protecting parts of code with mutexes.
 
 Note that functions called from a bottom half context must not sleep.
-Even a simple memory allocation without using %GFP_ATOMIC can result in a
+Even a simple memory allocation without using ``GFP_ATOMIC`` can result in a
 kernel thread being put to sleep if swapping is needed. For example, the
 Linux Kernel calls the functions of a network device interface from a
 bottom half context. Thus, if a demux kABI function is called from network
@@ -109,14 +121,16 @@ triggered by a hardware interrupt, it is recommended to use the Linux
 bottom half mechanism or start a tasklet instead of making the callback
 function call directly from a hardware interrupt.
 
-This mechanism is implemented by dmx_ts_cb() and dmx_section_cb()
+This mechanism is implemented by :cpp:func:`dmx_ts_cb()` and :cpp:func:`dmx_section_cb()`
 callbacks.
 
-
 .. kernel-doc:: drivers/media/dvb-core/demux.h
-
 
 Digital TV Conditional Access kABI
 ----------------------------------
 
 .. kernel-doc:: drivers/media/dvb-core/dvb_ca_en50221.h
+
+
+.. kernel-doc:: drivers/media/dvb-core/dvb_ca_en50221.h
+   :export: drivers/media/dvb-core/dvb_ca_en50221.c

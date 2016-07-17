@@ -379,10 +379,10 @@ enum dmx_demux_caps {
  *	@open is called and decrement it when @close is called.
  *	The @demux function parameter contains a pointer to the demux API and
  *	instance data.
- *	It returns
- *		0 on success;
- *		-EUSERS, if maximum usage count was reached;
- *		-EINVAL, on bad parameter.
+ *	It returns:
+ *	0 on success;
+ *	-EUSERS, if maximum usage count was reached;
+ *	-EINVAL, on bad parameter.
  *
  * @close: This function reserves the demux for use by the caller and, if
  *	necessary, initializes the demux. When the demux is no longer needed,
@@ -392,10 +392,10 @@ enum dmx_demux_caps {
  *	@open is called and decrement it when @close is called.
  *	The @demux function parameter contains a pointer to the demux API and
  *	instance data.
- *	It returns
- *		0 on success;
- *		-ENODEV, if demux was not in use (e. g. no users);
- *		-EINVAL, on bad parameter.
+ *	It returns:
+ *	0 on success;
+ *	-ENODEV, if demux was not in use (e. g. no users);
+ *	-EINVAL, on bad parameter.
  *
  * @write: This function provides the demux driver with a memory buffer
  *	containing TS packets. Instead of receiving TS packets from the DVB
@@ -410,12 +410,12 @@ enum dmx_demux_caps {
  *	The @buf function parameter contains a pointer to the TS data in
  *	kernel-space memory.
  *	The @count function parameter contains the length of the TS data.
- *	It returns
- *		0 on success;
- *		-ERESTARTSYS, if mutex lock was interrupted;
- *		-EINTR, if a signal handling is pending;
- *		-ENODEV, if demux was removed;
- *		-EINVAL, on bad parameter.
+ *	It returns:
+ *	0 on success;
+ *	-ERESTARTSYS, if mutex lock was interrupted;
+ *	-EINTR, if a signal handling is pending;
+ *	-ENODEV, if demux was removed;
+ *	-EINVAL, on bad parameter.
  *
  * @allocate_ts_feed: Allocates a new TS feed, which is used to filter the TS
  *	packets carrying a certain PID. The TS feed normally corresponds to a
@@ -426,11 +426,11 @@ enum dmx_demux_caps {
  *	instance data.
  *	The @callback function parameter contains a pointer to the callback
  *	function for passing received TS packet.
- *	It returns
- *		0 on success;
- *		-ERESTARTSYS, if mutex lock was interrupted;
- *		-EBUSY, if no more TS feeds is available;
- *		-EINVAL, on bad parameter.
+ *	It returns:
+ *	0 on success;
+ *	-ERESTARTSYS, if mutex lock was interrupted;
+ *	-EBUSY, if no more TS feeds is available;
+ *	-EINVAL, on bad parameter.
  *
  * @release_ts_feed: Releases the resources allocated with @allocate_ts_feed.
  *	Any filtering in progress on the TS feed should be stopped before
@@ -439,9 +439,9 @@ enum dmx_demux_caps {
  *	instance data.
  *	The @feed function parameter contains a pointer to the TS feed API and
  *	instance data.
- *	It returns
- *		0 on success;
- *		-EINVAL on bad parameter.
+ *	It returns:
+ *	0 on success;
+ *	-EINVAL on bad parameter.
  *
  * @allocate_section_feed: Allocates a new section feed, i.e. a demux resource
  *	for filtering and receiving sections. On platforms with hardware
@@ -457,10 +457,10 @@ enum dmx_demux_caps {
  *	instance data.
  *	The @callback function parameter contains a pointer to the callback
  *	function for passing received TS packet.
- *	It returns
- *		0 on success;
- *		-EBUSY, if no more TS feeds is available;
- *		-EINVAL, on bad parameter.
+ *	It returns:
+ *	0 on success;
+ *	-EBUSY, if no more TS feeds is available;
+ *	-EINVAL, on bad parameter.
  *
  * @release_section_feed: Releases the resources allocated with
  *	@allocate_section_feed, including allocated filters. Any filtering in
@@ -470,9 +470,9 @@ enum dmx_demux_caps {
  *	instance data.
  *	The @feed function parameter contains a pointer to the TS feed API and
  *	instance data.
- *	It returns
- *		0 on success;
- *		-EINVAL, on bad parameter.
+ *	It returns:
+ *	0 on success;
+ *	-EINVAL, on bad parameter.
  *
  * @add_frontend: Registers a connectivity between a demux and a front-end,
  *	i.e., indicates that the demux can be connected via a call to
@@ -486,9 +486,9 @@ enum dmx_demux_caps {
  *	instance data.
  *	The @frontend function parameter contains a pointer to the front-end
  *	instance data.
- *	It returns
- *		0 on success;
- *		-EINVAL, on bad parameter.
+ *	It returns:
+ *	0 on success;
+ *	-EINVAL, on bad parameter.
  *
  * @remove_frontend: Indicates that the given front-end, registered by a call
  *	to @add_frontend, can no longer be connected as a TS source by this
@@ -502,10 +502,10 @@ enum dmx_demux_caps {
  *	instance data.
  *	The @frontend function parameter contains a pointer to the front-end
  *	instance data.
- *	It returns
- *		0 on success;
- *		-ENODEV, if the front-end was not found,
- *		-EINVAL, on bad parameter.
+ *	It returns:
+ *	0 on success;
+ *	-ENODEV, if the front-end was not found,
+ *	-EINVAL, on bad parameter.
  *
  * @get_frontends: Provides the APIs of the front-ends that have been
  *	registered for this demux. Any of the front-ends obtained with this
@@ -529,17 +529,17 @@ enum dmx_demux_caps {
  *	instance data.
  *	The @frontend function parameter contains a pointer to the front-end
  *	instance data.
- *	It returns
- *		0 on success;
- *		-EINVAL, on bad parameter.
+ *	It returns:
+ *	0 on success;
+ *	-EINVAL, on bad parameter.
  *
  * @disconnect_frontend: Disconnects the demux and a front-end previously
  *	connected by a @connect_frontend call.
  *	The @demux function parameter contains a pointer to the demux API and
  *	instance data.
- *	It returns
- *		0 on success;
- *		-EINVAL on bad parameter.
+ *	It returns:
+ *	0 on success;
+ *	-EINVAL on bad parameter.
  *
  * @get_pes_pids: Get the PIDs for DMX_PES_AUDIO0, DMX_PES_VIDEO0,
  *	DMX_PES_TELETEXT0, DMX_PES_SUBTITLE0 and DMX_PES_PCR0.
@@ -547,9 +547,9 @@ enum dmx_demux_caps {
  *	instance data.
  *	The @pids function parameter contains an array with five u16 elements
  *	where the PIDs will be stored.
- *	It returns
- *		0 on success;
- *		-EINVAL on bad parameter.
+ *	It returns:
+ *	0 on success;
+ *	-EINVAL on bad parameter.
  */
 
 struct dmx_demux {
