@@ -33,4 +33,5 @@ License".
 	pvrusb2
 	pxa_camera
 	radiotrack
+	saa7134
 	zr364xx
