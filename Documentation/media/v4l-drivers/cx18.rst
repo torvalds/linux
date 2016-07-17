@@ -1,3 +1,10 @@
+The cx18 driver
+===============
+
+.. note::
+
+   This documentation is outdated.
+
 Some notes regarding the cx18 driver for the Conexant CX23418 MPEG
 encoder chip:
 

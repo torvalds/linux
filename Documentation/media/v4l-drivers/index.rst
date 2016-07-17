@@ -21,4 +21,6 @@ License".
 	fourcc
 	cardlist
 	cafe_ccic
+	cpia2
+	cx18
 	zr364xx
