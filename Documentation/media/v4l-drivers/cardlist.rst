@@ -15,3 +15,4 @@ Cards List
 	tm6000-cardlist
 	tuner-cardlist
 	usbvision-cardlist
+	gspca-cardlist

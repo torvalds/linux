@@ -1,11 +1,14 @@
-List of the webcams known by gspca.
+The gspca cards list
+====================
 
-The modules are:
-	gspca_main	main driver
-	gspca_xxxx	subdriver module with xxxx as follows
+The modules for the gspca webcam drivers are:
 
-xxxx		vend:prod
-----
+- gspca_main: main driver
+- gspca\_\ *driver*: subdriver module with *driver* as follows
+
+=========	=========	====================================================================
+*driver*	vend:prod	Device
+=========	=========	====================================================================
 spca501		0000:0000	MystFromOri Unknown Camera
 spca508		0130:0130	Clone Digital Webcam 11043
 zc3xx		03f0:1b07	HP Premium Starter Cam
@@ -406,3 +409,4 @@ sn9c20x		a168:0614	Dino-Lite Digital Microscope (SN9C201 + MT9M111)
 sn9c20x		a168:0615	Dino-Lite Digital Microscope (SN9C201 + MT9M111)
 sn9c20x		a168:0617	Dino-Lite Digital Microscope (SN9C201 + MT9M111)
 spca561		abcd:cdee	Petcam
+=========	=========	====================================================================
