@@ -165,11 +165,9 @@ int batadv_send_unicast_skb(struct sk_buff *skb,
  * host, NULL can be passed as recv_if and no interface alternating is
  * attempted.
  *
- * Return: -1 on failure (and the skb is not consumed), -EINPROGRESS if the
- * skb is buffered for later transmit or the NET_XMIT status returned by the
+ * Return: negative errno code on a failure, -EINPROGRESS if the skb is
+ * buffered for later transmit or the NET_XMIT status returned by the
  * lower routine if the packet has been passed down.
- *
- * If the returning value is not -1 the skb has been consumed.
  */
 int batadv_send_skb_to_orig(struct sk_buff *skb,
 			    struct batadv_orig_node *orig_node,
@@ -177,12 +175,14 @@ int batadv_send_skb_to_orig(struct sk_buff *skb,
 {
 	struct batadv_priv *bat_priv = orig_node->bat_priv;
 	struct batadv_neigh_node *neigh_node;
-	int ret = -1;
+	int ret;
 
 	/* batadv_find_router() increases neigh_nodes refcount if found. */
 	neigh_node = batadv_find_router(bat_priv, orig_node, recv_if);
-	if (!neigh_node)
-		goto out;
+	if (!neigh_node) {
+		ret = -EINVAL;
+		goto free_skb;
+	}
 
 	/* Check if the skb is too large to send in one piece and fragment
 	 * it if needed.
@@ -191,8 +191,10 @@ int batadv_send_skb_to_orig(struct sk_buff *skb,
 	    skb->len > neigh_node->if_incoming->net_dev->mtu) {
 		/* Fragment and send packet. */
 		ret = batadv_frag_send_packet(skb, orig_node, neigh_node);
+		/* skb was consumed */
+		skb = NULL;
 
-		goto out;
+		goto put_neigh_node;
 	}
 
 	/* try to network code the packet, if it is received on an interface
@@ -204,9 +206,13 @@ int batadv_send_skb_to_orig(struct sk_buff *skb,
 	else
 		ret = batadv_send_unicast_skb(skb, neigh_node);
 
-out:
-	if (neigh_node)
-		batadv_neigh_node_put(neigh_node);
+	/* skb was consumed */
+	skb = NULL;
+
+put_neigh_node:
+	batadv_neigh_node_put(neigh_node);
+free_skb:
+	kfree_skb(skb);
 
 	return ret;
 }
@@ -327,7 +333,7 @@ int batadv_send_skb_unicast(struct batadv_priv *bat_priv,
 {
 	struct batadv_unicast_packet *unicast_packet;
 	struct ethhdr *ethhdr;
-	int res, ret = NET_XMIT_DROP;
+	int ret = NET_XMIT_DROP;
 
 	if (!orig_node)
 		goto out;
@@ -364,13 +370,12 @@ int batadv_send_skb_unicast(struct batadv_priv *bat_priv,
 	if (batadv_tt_global_client_is_roaming(bat_priv, ethhdr->h_dest, vid))
 		unicast_packet->ttvn = unicast_packet->ttvn - 1;
 
-	res = batadv_send_skb_to_orig(skb, orig_node, NULL);
-	if (res != -1)
-		ret = NET_XMIT_SUCCESS;
+	ret = batadv_send_skb_to_orig(skb, orig_node, NULL);
+	 /* skb was consumed */
+	skb = NULL;
 
 out:
-	if (ret == NET_XMIT_DROP)
-		kfree_skb(skb);
+	kfree_skb(skb);
 	return ret;
 }
 
