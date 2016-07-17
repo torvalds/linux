@@ -29,4 +29,5 @@ License".
 	opera-firmware
 	technisat
 	ttusb-dec
+	udev
 	contributors
