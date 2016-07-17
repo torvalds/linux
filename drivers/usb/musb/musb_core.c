@@ -2401,7 +2401,8 @@ static void musb_restore_context(struct musb *musb)
 	musb_writew(musb_base, MUSB_INTRTXE, musb->intrtxe);
 	musb_writew(musb_base, MUSB_INTRRXE, musb->intrrxe);
 	musb_writeb(musb_base, MUSB_INTRUSBE, musb->context.intrusbe);
-	musb_writeb(musb_base, MUSB_DEVCTL, musb->context.devctl);
+	if (musb->context.devctl & MUSB_DEVCTL_SESSION)
+		musb_writeb(musb_base, MUSB_DEVCTL, musb->context.devctl);
 
 	for (i = 0; i < musb->config->num_eps; ++i) {
 		struct musb_hw_ep	*hw_ep;
