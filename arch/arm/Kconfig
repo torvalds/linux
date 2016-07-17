@@ -899,7 +899,7 @@ config MACH_STM32F429
 	default y
 
 config ARCH_MPS2
-	bool "ARM MPS2 paltform"
+	bool "ARM MPS2 platform"
 	depends on ARM_SINGLE_ARMV7M
 	select ARM_AMBA
 	select CLKSRC_MPS2
