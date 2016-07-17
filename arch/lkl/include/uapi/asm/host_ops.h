@@ -24,7 +24,8 @@ typedef unsigned long lkl_thread_t;
  * @sem_free - free a host semaphore
  * @sem_up - perform an up operation on the semaphore
  * @sem_down - perform a down operation on the semaphore
- * @sem_get - return the current value of semahpore. To be used only for sanity checking
+ * @sem_get - return the current value of semahpore. To be used only for sanity
+ * checking
  *
  * @mutex_alloc - allocate and initialize a host mutex
  * @mutex_free - free a host mutex
@@ -41,8 +42,10 @@ typedef unsigned long lkl_thread_t;
  *
  * @tls_alloc - allocate a thread local storage key; returns 0 if succesful
  * @tls_free - frees a thread local storage key; returns 0 if succesful
- * @tls_set - associate data to the thread local storage key; returns 0 if succesful
- * @tls_get - return data associated with the thread local storage key or NULL on error
+ * @tls_set - associate data to the thread local storage key; returns 0 if
+ * succesful
+ * @tls_get - return data associated with the thread local storage key or NULL
+ * on error
  *
  * @mem_alloc - allocate memory
  * @mem_free - free memory
