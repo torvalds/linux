@@ -707,6 +707,8 @@ static bool vgic_its_check_device_id(struct kvm *kvm, struct vgic_its *its,
 			   &indirect_ptr, sizeof(indirect_ptr)))
 		return false;
 
+	indirect_ptr = le64_to_cpu(indirect_ptr);
+
 	/* check the valid bit of the first level entry */
 	if (!(indirect_ptr & BIT_ULL(63)))
 		return false;
