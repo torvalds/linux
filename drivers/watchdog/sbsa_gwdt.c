@@ -180,15 +180,6 @@ static int sbsa_gwdt_keepalive(struct watchdog_device *wdd)
 	return 0;
 }
 
-static unsigned int sbsa_gwdt_status(struct watchdog_device *wdd)
-{
-	struct sbsa_gwdt *gwdt = watchdog_get_drvdata(wdd);
-	u32 status = readl(gwdt->control_base + SBSA_GWDT_WCS);
-
-	/* is the watchdog timer running? */
-	return (status & SBSA_GWDT_WCS_EN) << WDOG_ACTIVE;
-}
-
 static int sbsa_gwdt_start(struct watchdog_device *wdd)
 {
 	struct sbsa_gwdt *gwdt = watchdog_get_drvdata(wdd);
@@ -228,7 +219,6 @@ static struct watchdog_ops sbsa_gwdt_ops = {
 	.owner		= THIS_MODULE,
 	.start		= sbsa_gwdt_start,
 	.stop		= sbsa_gwdt_stop,
-	.status		= sbsa_gwdt_status,
 	.ping		= sbsa_gwdt_keepalive,
 	.set_timeout	= sbsa_gwdt_set_timeout,
 	.get_timeleft	= sbsa_gwdt_get_timeleft,
