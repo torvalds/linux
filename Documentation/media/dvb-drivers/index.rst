@@ -26,4 +26,5 @@ License".
 	dvb-usb
 	faq
 	lmedm04
+	opera-firmware
 	contributors
