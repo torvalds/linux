@@ -132,7 +132,7 @@ static void sem_down(struct lkl_sem *sem)
 #endif /* _POSIX_SEMAPHORES */
 }
 
-static struct lkl_mutex *mutex_alloc(void)
+static struct lkl_mutex *mutex_alloc(int recursive)
 {
 	struct lkl_mutex *_mutex = malloc(sizeof(struct lkl_mutex));
 	pthread_mutex_t *mutex = NULL;
@@ -148,8 +148,12 @@ static struct lkl_mutex *mutex_alloc(void)
 	 * but has some overhead, so we provide an option to turn it
 	 * off. */
 #ifdef DEBUG
-	WARN_PTHREAD(pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ERRORCHECK));
+	if (!recursive)
+		WARN_PTHREAD(pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ERRORCHECK));
 #endif /* DEBUG */
+
+	if (recursive)
+		WARN_PTHREAD(pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE));
 
 	WARN_PTHREAD(pthread_mutex_init(mutex, &attr));
 

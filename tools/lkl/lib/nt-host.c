@@ -8,7 +8,8 @@
 #define DIFF_1601_TO_1970_IN_100NS (11644473600L * 10000000L)
 
 struct lkl_mutex {
-	HANDLE mutex;
+	int recursive;
+	HANDLE handle;
 };
 
 struct lkl_sem {
@@ -39,29 +40,36 @@ static void sem_free(struct lkl_sem *sem)
 	free(sem);
 }
 
-static struct lkl_mutex *mutex_alloc(void)
+static struct lkl_mutex *mutex_alloc(int recursive)
 {
 	struct lkl_mutex *_mutex = malloc(sizeof(struct lkl_mutex));
 	if (!_mutex)
 		return NULL;
 
-	_mutex->mutex = CreateMutex(0, FALSE, 0);
+	if (recursive)
+		_mutex->handle = CreateMutex(0, FALSE, 0);
+	else
+		_mutex->handle = CreateSemaphore(NULL, 1, 100, NULL);
+	_mutex->recursive = recursive;
 	return _mutex;
 }
 
 static void mutex_lock(struct lkl_mutex *mutex)
 {
-	WaitForSingleObject(mutex->mutex, INFINITE);
+	WaitForSingleObject(mutex->handle, INFINITE);
 }
 
 static void mutex_unlock(struct lkl_mutex *_mutex)
 {
-	ReleaseMutex(_mutex->mutex);
+	if (_mutex->recursive)
+		ReleaseMutex(_mutex->handle);
+	else
+		ReleaseSemaphore(_mutex->handle, 1, NULL);
 }
 
 static void mutex_free(struct lkl_mutex *_mutex)
 {
-	CloseHandle(_mutex->mutex);
+	CloseHandle(_mutex->handle);
 	free(_mutex);
 }
 
