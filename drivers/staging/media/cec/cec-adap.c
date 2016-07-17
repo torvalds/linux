@@ -332,7 +332,7 @@ int cec_thread_func(void *_adap)
 			 */
 			err = wait_event_interruptible_timeout(adap->kthread_waitq,
 				kthread_should_stop() ||
-				adap->phys_addr == CEC_PHYS_ADDR_INVALID ||
+				(!adap->is_configured && !adap->is_configuring) ||
 				(!adap->transmitting &&
 				 !list_empty(&adap->transmit_queue)),
 				msecs_to_jiffies(CEC_XFER_TIMEOUT_MS));
@@ -347,7 +347,7 @@ int cec_thread_func(void *_adap)
 
 		mutex_lock(&adap->lock);
 
-		if (adap->phys_addr == CEC_PHYS_ADDR_INVALID ||
+		if ((!adap->is_configured && !adap->is_configuring) ||
 		    kthread_should_stop()) {
 			/*
 			 * If the adapter is disabled, or we're asked to stop,
