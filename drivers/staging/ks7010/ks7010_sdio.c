@@ -297,11 +297,10 @@ static int enqueue_txdev(struct ks_wlan_private *priv, unsigned char *p,
 static int write_to_device(struct ks_wlan_private *priv, unsigned char *buffer,
 			   unsigned long size)
 {
-	int rc, retval;
+	int retval;
 	unsigned char rw_data;
 	struct hostif_hdr *hdr;
 	hdr = (struct hostif_hdr *)buffer;
-	rc = 0;
 
 	DPRINTK(4, "size=%d\n", hdr->size);
 	if (hdr->event < HIF_DATA_REQ || HIF_REQ_MAX < hdr->event) {
