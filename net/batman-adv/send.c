@@ -451,13 +451,19 @@ int batadv_send_skb_via_gw(struct batadv_priv *bat_priv, struct sk_buff *skb,
 /**
  * batadv_forw_packet_free - free a forwarding packet
  * @forw_packet: The packet to free
+ * @dropped: whether the packet is freed because is is dropped
  *
  * This frees a forwarding packet and releases any resources it might
  * have claimed.
  */
-void batadv_forw_packet_free(struct batadv_forw_packet *forw_packet)
+void batadv_forw_packet_free(struct batadv_forw_packet *forw_packet,
+			     bool dropped)
 {
-	kfree_skb(forw_packet->skb);
+	if (dropped)
+		kfree_skb(forw_packet->skb);
+	else
+		consume_skb(forw_packet->skb);
+
 	if (forw_packet->if_incoming)
 		batadv_hardif_put(forw_packet->if_incoming);
 	if (forw_packet->if_outgoing)
@@ -598,7 +604,7 @@ int batadv_add_bcast_packet_to_list(struct batadv_priv *bat_priv,
 	return NETDEV_TX_OK;
 
 err_packet_free:
-	batadv_forw_packet_free(forw_packet);
+	batadv_forw_packet_free(forw_packet, true);
 err:
 	return NETDEV_TX_BUSY;
 }
@@ -613,6 +619,7 @@ static void batadv_send_outstanding_bcast_packet(struct work_struct *work)
 	struct sk_buff *skb1;
 	struct net_device *soft_iface;
 	struct batadv_priv *bat_priv;
+	bool dropped = false;
 	u8 *neigh_addr;
 	u8 *orig_neigh;
 	int ret = 0;
@@ -627,11 +634,15 @@ static void batadv_send_outstanding_bcast_packet(struct work_struct *work)
 	hlist_del(&forw_packet->list);
 	spin_unlock_bh(&bat_priv->forw_bcast_list_lock);
 
-	if (atomic_read(&bat_priv->mesh_state) == BATADV_MESH_DEACTIVATING)
+	if (atomic_read(&bat_priv->mesh_state) == BATADV_MESH_DEACTIVATING) {
+		dropped = true;
 		goto out;
+	}
 
-	if (batadv_dat_drop_broadcast_packet(bat_priv, forw_packet))
+	if (batadv_dat_drop_broadcast_packet(bat_priv, forw_packet)) {
+		dropped = true;
 		goto out;
+	}
 
 	bcast_packet = (struct batadv_bcast_packet *)forw_packet->skb->data;
 
@@ -709,7 +720,7 @@ static void batadv_send_outstanding_bcast_packet(struct work_struct *work)
 	}
 
 out:
-	batadv_forw_packet_free(forw_packet);
+	batadv_forw_packet_free(forw_packet, dropped);
 }
 
 void
@@ -750,7 +761,7 @@ batadv_purge_outstanding_packets(struct batadv_priv *bat_priv,
 
 		if (pending) {
 			hlist_del(&forw_packet->list);
-			batadv_forw_packet_free(forw_packet);
+			batadv_forw_packet_free(forw_packet, true);
 		}
 	}
 	spin_unlock_bh(&bat_priv->forw_bcast_list_lock);
@@ -777,7 +788,7 @@ batadv_purge_outstanding_packets(struct batadv_priv *bat_priv,
 
 		if (pending) {
 			hlist_del(&forw_packet->list);
-			batadv_forw_packet_free(forw_packet);
+			batadv_forw_packet_free(forw_packet, true);
 		}
 	}
 	spin_unlock_bh(&bat_priv->forw_bat_list_lock);

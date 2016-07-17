@@ -260,10 +260,16 @@ static void batadv_nc_path_put(struct batadv_nc_path *nc_path)
 /**
  * batadv_nc_packet_free - frees nc packet
  * @nc_packet: the nc packet to free
+ * @dropped: whether the packet is freed because is is dropped
  */
-static void batadv_nc_packet_free(struct batadv_nc_packet *nc_packet)
+static void batadv_nc_packet_free(struct batadv_nc_packet *nc_packet,
+				  bool dropped)
 {
-	kfree_skb(nc_packet->skb);
+	if (dropped)
+		kfree_skb(nc_packet->skb);
+	else
+		consume_skb(nc_packet->skb);
+
 	batadv_nc_path_put(nc_packet->nc_path);
 	kfree(nc_packet);
 }
@@ -576,7 +582,7 @@ static void batadv_nc_send_packet(struct batadv_nc_packet *nc_packet)
 {
 	batadv_send_unicast_skb(nc_packet->skb, nc_packet->neigh_node);
 	nc_packet->skb = NULL;
-	batadv_nc_packet_free(nc_packet);
+	batadv_nc_packet_free(nc_packet, false);
 }
 
 /**
@@ -610,7 +616,7 @@ static bool batadv_nc_sniffed_purge(struct batadv_priv *bat_priv,
 
 	/* purge nc packet */
 	list_del(&nc_packet->list);
-	batadv_nc_packet_free(nc_packet);
+	batadv_nc_packet_free(nc_packet, true);
 
 	res = true;
 
@@ -1208,11 +1214,11 @@ static bool batadv_nc_code_packets(struct batadv_priv *bat_priv,
 	}
 
 	/* skb_src is now coded into skb_dest, so free it */
-	kfree_skb(skb_src);
+	consume_skb(skb_src);
 
 	/* avoid duplicate free of skb from nc_packet */
 	nc_packet->skb = NULL;
-	batadv_nc_packet_free(nc_packet);
+	batadv_nc_packet_free(nc_packet, false);
 
 	/* Send the coded packet and return true */
 	batadv_send_unicast_skb(skb_dest, first_dest);
@@ -1399,7 +1405,7 @@ static void batadv_nc_skb_store_before_coding(struct batadv_priv *bat_priv,
 	/* batadv_nc_skb_store_for_decoding() clones the skb, so we must free
 	 * our ref
 	 */
-	kfree_skb(skb);
+	consume_skb(skb);
 }
 
 /**
@@ -1723,7 +1729,7 @@ batadv_nc_skb_decode_packet(struct batadv_priv *bat_priv, struct sk_buff *skb,
 	ether_addr_copy(unicast_packet->dest, orig_dest);
 	unicast_packet->ttvn = ttvn;
 
-	batadv_nc_packet_free(nc_packet);
+	batadv_nc_packet_free(nc_packet, false);
 	return unicast_packet;
 }
 
@@ -1860,7 +1866,7 @@ static int batadv_nc_recv_coded_packet(struct sk_buff *skb,
 	return batadv_recv_unicast_packet(skb, recv_if);
 
 free_nc_packet:
-	batadv_nc_packet_free(nc_packet);
+	batadv_nc_packet_free(nc_packet, true);
 	return NET_RX_DROP;
 }
 

@@ -362,7 +362,7 @@ send:
 		/* a copy is stored in the bcast list, therefore removing
 		 * the original skb.
 		 */
-		kfree_skb(skb);
+		consume_skb(skb);
 
 	/* unicast packet */
 	} else {

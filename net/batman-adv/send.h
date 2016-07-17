@@ -27,7 +27,8 @@
 
 struct sk_buff;
 
-void batadv_forw_packet_free(struct batadv_forw_packet *forw_packet);
+void batadv_forw_packet_free(struct batadv_forw_packet *forw_packet,
+			     bool dropped);
 struct batadv_forw_packet *
 batadv_forw_packet_alloc(struct batadv_hard_iface *if_incoming,
 			 struct batadv_hard_iface *if_outgoing,

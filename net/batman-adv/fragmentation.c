@@ -42,17 +42,23 @@
 /**
  * batadv_frag_clear_chain - delete entries in the fragment buffer chain
  * @head: head of chain with entries.
+ * @dropped: whether the chain is cleared because all fragments are dropped
  *
  * Free fragments in the passed hlist. Should be called with appropriate lock.
  */
-static void batadv_frag_clear_chain(struct hlist_head *head)
+static void batadv_frag_clear_chain(struct hlist_head *head, bool dropped)
 {
 	struct batadv_frag_list_entry *entry;
 	struct hlist_node *node;
 
 	hlist_for_each_entry_safe(entry, node, head, list) {
 		hlist_del(&entry->list);
-		kfree_skb(entry->skb);
+
+		if (dropped)
+			kfree_skb(entry->skb);
+		else
+			consume_skb(entry->skb);
+
 		kfree(entry);
 	}
 }
@@ -73,7 +79,7 @@ void batadv_frag_purge_orig(struct batadv_orig_node *orig_node,
 		spin_lock_bh(&chain->lock);
 
 		if (!check_cb || check_cb(chain)) {
-			batadv_frag_clear_chain(&chain->fragment_list);
+			batadv_frag_clear_chain(&chain->fragment_list, true);
 			chain->size = 0;
 		}
 
@@ -118,7 +124,7 @@ static bool batadv_frag_init_chain(struct batadv_frag_table_entry *chain,
 		return false;
 
 	if (!hlist_empty(&chain->fragment_list))
-		batadv_frag_clear_chain(&chain->fragment_list);
+		batadv_frag_clear_chain(&chain->fragment_list, true);
 
 	chain->size = 0;
 	chain->seqno = seqno;
@@ -220,7 +226,7 @@ out:
 		 * exceeds the maximum size of one merged packet. Don't allow
 		 * packets to have different total_size.
 		 */
-		batadv_frag_clear_chain(&chain->fragment_list);
+		batadv_frag_clear_chain(&chain->fragment_list, true);
 		chain->size = 0;
 	} else if (ntohs(frag_packet->total_size) == chain->size) {
 		/* All fragments received. Hand over chain to caller. */
@@ -254,6 +260,7 @@ batadv_frag_merge_packets(struct hlist_head *chain)
 	struct batadv_frag_list_entry *entry;
 	struct sk_buff *skb_out;
 	int size, hdr_size = sizeof(struct batadv_frag_packet);
+	bool dropped = false;
 
 	/* Remove first entry, as this is the destination for the rest of the
 	 * fragments.
@@ -270,6 +277,7 @@ batadv_frag_merge_packets(struct hlist_head *chain)
 	if (pskb_expand_head(skb_out, 0, size - skb_out->len, GFP_ATOMIC) < 0) {
 		kfree_skb(skb_out);
 		skb_out = NULL;
+		dropped = true;
 		goto free;
 	}
 
@@ -291,7 +299,7 @@ batadv_frag_merge_packets(struct hlist_head *chain)
 
 free:
 	/* Locking is not needed, because 'chain' is not part of any orig. */
-	batadv_frag_clear_chain(chain);
+	batadv_frag_clear_chain(chain, dropped);
 	return skb_out;
 }
 
