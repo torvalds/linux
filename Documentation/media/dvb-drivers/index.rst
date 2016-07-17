@@ -21,3 +21,4 @@ License".
 	intro
 	avermedia
 	bt8xx
+	cards
