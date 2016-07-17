@@ -160,7 +160,7 @@ static struct lkl_mutex *mutex_alloc(void)
 	 * but has some overhead, so we provide an option to turn it
 	 * off. */
 #ifdef DEBUG
-	WARN_PTHREAD(pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ERRORCHECK_NP));
+	WARN_PTHREAD(pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ERRORCHECK));
 #endif /* DEBUG */
 
 	WARN_PTHREAD(pthread_mutex_init(mutex, &attr));
