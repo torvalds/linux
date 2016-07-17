@@ -23,4 +23,5 @@ License".
 	cafe_ccic
 	cpia2
 	cx18
+	cx88
 	zr364xx

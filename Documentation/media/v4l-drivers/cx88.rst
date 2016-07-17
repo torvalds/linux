@@ -1,11 +1,18 @@
+The cx88 driver
+===============
+
+.. note::
+
+   This documentation is outdated.
+
 cx8800 release notes
-====================
+--------------------
 
 This is a v4l2 device driver for the cx2388x chip.
 
 
 current status
-==============
+--------------
 
 video
 	- Basically works.
@@ -30,13 +37,15 @@ vbi
 
 
 how to add support for new cards
-================================
+--------------------------------
 
 The driver needs some config info for the TV cards.  This stuff is in
 cx88-cards.c.  If the driver doesn't work well you likely need a new
 entry for your card in that file.  Check the kernel log (using dmesg)
 to see whenever the driver knows your card or not.  There is a line
 like this one:
+
+.. code-block:: none
 
 	cx8800[0]: subsystem: 0070:3400, board: Hauppauge WinTV \
 		34xxx models [card=1,autodetected]
