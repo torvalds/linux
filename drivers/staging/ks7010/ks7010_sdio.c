@@ -732,8 +732,7 @@ static int ks7010_sdio_update_index(struct ks_wlan_private *priv, u32 index)
 		goto error_out;
 	}
  error_out:
-	if (data_buf)
-		kfree(data_buf);
+	kfree(data_buf);
 	return rc;
 }
 
@@ -763,8 +762,7 @@ static int ks7010_sdio_data_compare(struct ks_wlan_private *priv, u32 address,
 		goto error_out;
 	}
  error_out:
-	if (read_buf)
-		kfree(read_buf);
+	kfree(read_buf);
 	return rc;
 }
 
@@ -879,8 +877,7 @@ static int ks7010_upload_firmware(struct ks_wlan_private *priv,
 	release_firmware(fw_entry);
  error_out0:
 	sdio_release_host(card->func);
-	if (rom_buf)
-		kfree(rom_buf);
+	kfree(rom_buf);
 	return rc;
 }
 
@@ -1199,9 +1196,7 @@ static void ks7010_sdio_remove(struct sdio_func *func)
 		unregister_netdev(netdev);
 
 		trx_device_exit(priv);
-		if (priv->ks_wlan_hw.read_buf) {
-			kfree(priv->ks_wlan_hw.read_buf);
-		}
+		kfree(priv->ks_wlan_hw.read_buf);
 		free_netdev(priv->net_dev);
 		card->priv = NULL;
 	}
