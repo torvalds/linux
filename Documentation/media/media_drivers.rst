@@ -17,6 +17,8 @@ License".
 .. toctree::
     :maxdepth: 5
 
+    kapi/v4l2-framework
+    kapi/v4l2-controls
     kapi/v4l2-core
     kapi/dtv-core
     kapi/rc-core
