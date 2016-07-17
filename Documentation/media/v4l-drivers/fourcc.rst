@@ -8,24 +8,22 @@ other three characters depends on the first one.
 
 Existing 4CCs may not obey these guidelines.
 
-Formats
-=======
-
 Raw bayer
 ---------
 
 The following first characters are used by raw bayer formats:
 
-	B: raw bayer, uncompressed
-	b: raw bayer, DPCM compressed
-	a: A-law compressed
-	u: u-law compressed
+- B: raw bayer, uncompressed
+- b: raw bayer, DPCM compressed
+- a: A-law compressed
+- u: u-law compressed
 
 2nd character: pixel order
-	B: BGGR
-	G: GBRG
-	g: GRBG
-	R: RGGB
+
+- B: BGGR
+- G: GBRG
+- g: GRBG
+- R: RGGB
 
 3rd character: uncompressed bits-per-pixel 0--9, A--
 

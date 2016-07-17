@@ -18,4 +18,5 @@ License".
 .. toctree::
 	:maxdepth: 5
 
+	fourcc
 	cardlist
