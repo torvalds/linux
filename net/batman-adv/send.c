@@ -64,8 +64,11 @@ static void batadv_send_outstanding_bcast_packet(struct work_struct *work);
  * If neigh_node is NULL, then the packet is broadcasted using hard_iface,
  * otherwise it is sent as unicast to the given neighbor.
  *
- * Return: NET_TX_DROP in case of error or the result of dev_queue_xmit(skb)
- * otherwise
+ * Regardless of the return value, the skb is consumed.
+ *
+ * Return: A negative errno code is returned on a failure. A success does not
+ * guarantee the frame will be transmitted as it may be dropped due
+ * to congestion or traffic shaping.
  */
 int batadv_send_skb_packet(struct sk_buff *skb,
 			   struct batadv_hard_iface *hard_iface,
@@ -73,7 +76,6 @@ int batadv_send_skb_packet(struct sk_buff *skb,
 {
 	struct batadv_priv *bat_priv;
 	struct ethhdr *ethhdr;
-	int ret;
 
 	bat_priv = netdev_priv(hard_iface->soft_iface);
 
@@ -111,15 +113,8 @@ int batadv_send_skb_packet(struct sk_buff *skb,
 	/* dev_queue_xmit() returns a negative result on error.	 However on
 	 * congestion and traffic shaping, it drops and returns NET_XMIT_DROP
 	 * (which is > 0). This will not be treated as an error.
-	 *
-	 * a negative value cannot be returned because it could be interepreted
-	 * as not consumed skb by callers of batadv_send_skb_to_orig.
 	 */
-	ret = dev_queue_xmit(skb);
-	if (ret < 0)
-		ret = NET_XMIT_DROP;
-
-	return ret;
+	return dev_queue_xmit(skb);
 send_skb_err:
 	kfree_skb(skb);
 	return NET_XMIT_DROP;
