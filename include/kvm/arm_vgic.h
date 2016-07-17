@@ -138,6 +138,7 @@ struct vgic_its {
 	bool			enabled;
 	bool			initialized;
 	struct vgic_io_device	iodev;
+	struct kvm_device	*dev;
 
 	/* These registers correspond to GITS_BASER{0,1} */
 	u64			baser_device_table;

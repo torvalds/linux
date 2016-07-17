@@ -1368,6 +1368,7 @@ static int vgic_its_create(struct kvm_device *dev, u32 type)
 	dev->kvm->arch.vgic.has_its = true;
 	its->initialized = false;
 	its->enabled = false;
+	its->dev = dev;
 
 	its->baser_device_table = INITIAL_BASER_VALUE			|
 		((u64)GITS_BASER_TYPE_DEVICE << GITS_BASER_TYPE_SHIFT);
