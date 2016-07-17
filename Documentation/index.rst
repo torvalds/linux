@@ -16,6 +16,7 @@ Contents:
    kernel-documentation
    media/media_uapi
    media/media_drivers
+   media/dvb-drivers/index
 
 Indices and tables
 ==================
