@@ -19,3 +19,4 @@ License".
 	:maxdepth: 5
 
 	intro
+	avermedia
