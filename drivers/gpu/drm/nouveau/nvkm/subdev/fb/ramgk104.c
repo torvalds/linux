@@ -1538,6 +1538,12 @@ gk104_ram_func = {
 int
 gk104_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 {
+	return gk104_ram_ctor(fb, pram, 0x022554);
+}
+
+int
+gk104_ram_ctor(struct nvkm_fb *fb, struct nvkm_ram **pram, u32 maskaddr)
+{
 	struct nvkm_subdev *subdev = &fb->subdev;
 	struct nvkm_device *device = subdev->device;
 	struct nvkm_bios *bios = device->bios;
@@ -1552,7 +1558,7 @@ gk104_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 		return -ENOMEM;
 	*pram = &ram->base;
 
-	ret = gf100_ram_ctor(&gk104_ram_func, fb, 0x022554, &ram->base);
+	ret = gf100_ram_ctor(&gk104_ram_func, fb, maskaddr, &ram->base);
 	if (ret)
 		return ret;
 

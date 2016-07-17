@@ -24,6 +24,7 @@ int  gf100_ram_ctor(const struct nvkm_ram_func *, struct nvkm_fb *,
 int  gf100_ram_get(struct nvkm_ram *, u64, u32, u32, u32, struct nvkm_mem **);
 void gf100_ram_put(struct nvkm_ram *, struct nvkm_mem **);
 
+int  gk104_ram_ctor(struct nvkm_fb *, struct nvkm_ram **, u32);
 int  gk104_ram_init(struct nvkm_ram *ram);
 
 /* RAM type-specific MR calculation routines */
