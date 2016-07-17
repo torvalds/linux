@@ -247,7 +247,6 @@ struct pxa168_eth_private {
 	 */
 	struct timer_list timeout;
 	struct mii_bus *smi_bus;
-	struct phy_device *phy;
 
 	/* clock */
 	struct clk *clk;
@@ -644,7 +643,7 @@ static void eth_port_start(struct net_device *dev)
 	struct pxa168_eth_private *pep = netdev_priv(dev);
 	int tx_curr_desc, rx_curr_desc;
 
-	phy_start(pep->phy);
+	phy_start(dev->phydev);
 
 	/* Assignment of Tx CTRP of given queue */
 	tx_curr_desc = pep->tx_curr_desc_q;
@@ -700,7 +699,7 @@ static void eth_port_reset(struct net_device *dev)
 	val &= ~PCR_EN;
 	wrl(pep, PORT_CONFIG, val);
 
-	phy_stop(pep->phy);
+	phy_stop(dev->phydev);
 }
 
 /*
@@ -943,7 +942,7 @@ static int set_port_config_ext(struct pxa168_eth_private *pep)
 static void pxa168_eth_adjust_link(struct net_device *dev)
 {
 	struct pxa168_eth_private *pep = netdev_priv(dev);
-	struct phy_device *phy = pep->phy;
+	struct phy_device *phy = dev->phydev;
 	u32 cfg, cfg_o = rdl(pep, PORT_CONFIG);
 	u32 cfgext, cfgext_o = rdl(pep, PORT_CONFIG_EXT);
 
@@ -973,16 +972,17 @@ static int pxa168_init_phy(struct net_device *dev)
 {
 	struct pxa168_eth_private *pep = netdev_priv(dev);
 	struct ethtool_cmd cmd;
+	struct phy_device *phy = NULL;
 	int err;
 
-	if (pep->phy)
+	if (dev->phydev)
 		return 0;
 
-	pep->phy = mdiobus_scan(pep->smi_bus, pep->phy_addr);
-	if (IS_ERR(pep->phy))
-		return PTR_ERR(pep->phy);
+	phy = mdiobus_scan(pep->smi_bus, pep->phy_addr);
+	if (IS_ERR(phy))
+		return PTR_ERR(phy);
 
-	err = phy_connect_direct(dev, pep->phy, pxa168_eth_adjust_link,
+	err = phy_connect_direct(dev, phy, pxa168_eth_adjust_link,
 				 pep->phy_intf);
 	if (err)
 		return err;
@@ -1366,30 +1366,26 @@ static int pxa168_smi_write(struct mii_bus *bus, int phy_addr, int regnum,
 static int pxa168_eth_do_ioctl(struct net_device *dev, struct ifreq *ifr,
 			       int cmd)
 {
-	struct pxa168_eth_private *pep = netdev_priv(dev);
-	if (pep->phy != NULL)
-		return phy_mii_ioctl(pep->phy, ifr, cmd);
+	if (dev->phydev != NULL)
+		return phy_mii_ioctl(dev->phydev, ifr, cmd);
 
 	return -EOPNOTSUPP;
 }
 
 static int pxa168_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
-	struct pxa168_eth_private *pep = netdev_priv(dev);
 	int err;
 
-	err = phy_read_status(pep->phy);
+	err = phy_read_status(dev->phydev);
 	if (err == 0)
-		err = phy_ethtool_gset(pep->phy, cmd);
+		err = phy_ethtool_gset(dev->phydev, cmd);
 
 	return err;
 }
 
 static int pxa168_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
-	struct pxa168_eth_private *pep = netdev_priv(dev);
-
-	return phy_ethtool_sset(pep->phy, cmd);
+	return phy_ethtool_sset(dev->phydev, cmd);
 }
 
 static void pxa168_get_drvinfo(struct net_device *dev,
@@ -1569,8 +1565,8 @@ static int pxa168_eth_remove(struct platform_device *pdev)
 				  pep->htpr, pep->htpr_dma);
 		pep->htpr = NULL;
 	}
-	if (pep->phy)
-		phy_disconnect(pep->phy);
+	if (dev->phydev)
+		phy_disconnect(dev->phydev);
 	if (pep->clk) {
 		clk_disable_unprepare(pep->clk);
 	}
