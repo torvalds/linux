@@ -225,7 +225,7 @@ struct v4l2_subdev_core_ops {
  *
  * @g_frequency: callback for VIDIOC_G_FREQUENCY ioctl handler code.
  *		 freq->type must be filled in. Normally done by video_ioctl2
- *		or the bridge driver.
+ *		 or the bridge driver.
  *
  * @enum_freq_bands: callback for VIDIOC_ENUM_FREQ_BANDS ioctl handler code.
  *
@@ -233,7 +233,7 @@ struct v4l2_subdev_core_ops {
  *
  * @s_tuner: callback for VIDIOC_S_TUNER ioctl handler code. vt->type must be
  *	     filled in. Normally done by video_ioctl2 or the
- *	bridge driver.
+ *	     bridge driver.
  *
  * @g_modulator: callback for VIDIOC_G_MODULATOR ioctl handler code.
  *
