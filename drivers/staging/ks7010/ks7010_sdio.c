@@ -711,7 +711,6 @@ static int ks7010_sdio_update_index(struct ks_wlan_private *priv, u32 index)
 	int rc = 0;
 	int retval;
 	unsigned char *data_buf;
-	data_buf = NULL;
 
 	data_buf = kmalloc(sizeof(u32), GFP_KERNEL);
 	if (!data_buf) {
@@ -743,7 +742,7 @@ static int ks7010_sdio_data_compare(struct ks_wlan_private *priv, u32 address,
 	int rc = 0;
 	int retval;
 	unsigned char *read_buf;
-	read_buf = NULL;
+
 	read_buf = kmalloc(ROM_BUFF_SIZE, GFP_KERNEL);
 	if (!read_buf) {
 		rc = 1;
@@ -775,8 +774,6 @@ static int ks7010_upload_firmware(struct ks_wlan_private *priv,
 	int retval, rc = 0;
 	int length;
 	const struct firmware *fw_entry = NULL;
-
-	rom_buf = NULL;
 
 	/* buffer allocate */
 	rom_buf = kmalloc(ROM_BUFF_SIZE, GFP_KERNEL);
