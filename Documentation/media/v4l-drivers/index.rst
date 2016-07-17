@@ -38,4 +38,5 @@ License".
 	si470x
 	si4713
 	si476x
+	soc-camera
 	zr364xx

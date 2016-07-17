@@ -1,9 +1,13 @@
-SI476x Driver Readme
-------------------------------------------------
-	Copyright (C) 2013 Andrey Smirnov <andrew.smirnov@gmail.com>
+.. include:: <isonum.txt>
+
+
+The SI476x Driver
+=================
+
+Copyright |copy| 2013 Andrey Smirnov <andrew.smirnov@gmail.com>
 
 TODO for the driver
-------------------------------
+-------------------
 
 - According to the SiLabs' datasheet it is possible to update the
   firmware of the radio chip in the run-time, thus bringing it to the

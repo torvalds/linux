@@ -1,5 +1,7 @@
-			Soc-Camera Subsystem
-			====================
+The Soc-Camera Drivers
+======================
+
+Author: Guennadi Liakhovetski <g.liakhovetski@gmx.de>
 
 Terminology
 -----------
@@ -45,9 +47,13 @@ Camera host API
 
 A host camera driver is registered using the
 
-soc_camera_host_register(struct soc_camera_host *);
+.. code-block:: none
+
+	soc_camera_host_register(struct soc_camera_host *);
 
 function. The host object can be initialized as follows:
+
+.. code-block:: none
 
 	struct soc_camera_host	*ici;
 	ici->drv_name		= DRV_NAME;
@@ -58,18 +64,20 @@ function. The host object can be initialized as follows:
 
 All camera host methods are passed in a struct soc_camera_host_ops:
 
-static struct soc_camera_host_ops camera_host_ops = {
-	.owner		= THIS_MODULE,
-	.add		= camera_add_device,
-	.remove		= camera_remove_device,
-	.set_fmt	= camera_set_fmt_cap,
-	.try_fmt	= camera_try_fmt_cap,
-	.init_videobuf2	= camera_init_videobuf2,
-	.poll		= camera_poll,
-	.querycap	= camera_querycap,
-	.set_bus_param	= camera_set_bus_param,
-	/* The rest of host operations are optional */
-};
+.. code-block:: none
+
+	static struct soc_camera_host_ops camera_host_ops = {
+		.owner		= THIS_MODULE,
+		.add		= camera_add_device,
+		.remove		= camera_remove_device,
+		.set_fmt	= camera_set_fmt_cap,
+		.try_fmt	= camera_try_fmt_cap,
+		.init_videobuf2	= camera_init_videobuf2,
+		.poll		= camera_poll,
+		.querycap	= camera_querycap,
+		.set_bus_param	= camera_set_bus_param,
+		/* The rest of host operations are optional */
+	};
 
 .add and .remove methods are called when a sensor is attached to or detached
 from the host. .set_bus_param is used to configure physical connection
@@ -159,6 +167,3 @@ configure camera drivers to produce the FOURCC format, requested by the user,
 using the VIDIOC_S_FMT ioctl(). Apart from those standard format conversions,
 host drivers can also provide their own conversion rules by implementing a
 .get_formats and, if required, a .put_formats methods.
-
---
-Author: Guennadi Liakhovetski <g.liakhovetski@gmx.de>
