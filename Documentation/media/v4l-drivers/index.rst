@@ -31,4 +31,5 @@ License".
 	omap3isp
 	omap4_camera
 	pvrusb2
+	pxa_camera
 	zr364xx
