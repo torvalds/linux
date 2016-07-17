@@ -581,11 +581,72 @@ static int vgic_its_cmd_handle_movi(struct kvm *kvm, struct vgic_its *its,
 	return 0;
 }
 
+/*
+ * Check whether an ID can be stored into the corresponding guest table.
+ * For a direct table this is pretty easy, but gets a bit nasty for
+ * indirect tables. We check whether the resulting guest physical address
+ * is actually valid (covered by a memslot and guest accessbible).
+ * For this we have to read the respective first level entry.
+ */
+static bool vgic_its_check_id(struct vgic_its *its, u64 baser, int id)
+{
+	int l1_tbl_size = GITS_BASER_NR_PAGES(baser) * SZ_64K;
+	int index;
+	u64 indirect_ptr;
+	gfn_t gfn;
+
+	if (!(baser & GITS_BASER_INDIRECT)) {
+		phys_addr_t addr;
+
+		if (id >= (l1_tbl_size / GITS_BASER_ENTRY_SIZE(baser)))
+			return false;
+
+		addr = BASER_ADDRESS(baser) + id * GITS_BASER_ENTRY_SIZE(baser);
+		gfn = addr >> PAGE_SHIFT;
+
+		return kvm_is_visible_gfn(its->dev->kvm, gfn);
+	}
+
+	/* calculate and check the index into the 1st level */
+	index = id / (SZ_64K / GITS_BASER_ENTRY_SIZE(baser));
+	if (index >= (l1_tbl_size / sizeof(u64)))
+		return false;
+
+	/* Each 1st level entry is represented by a 64-bit value. */
+	if (kvm_read_guest(its->dev->kvm,
+			   BASER_ADDRESS(baser) + index * sizeof(indirect_ptr),
+			   &indirect_ptr, sizeof(indirect_ptr)))
+		return false;
+
+	indirect_ptr = le64_to_cpu(indirect_ptr);
+
+	/* check the valid bit of the first level entry */
+	if (!(indirect_ptr & BIT_ULL(63)))
+		return false;
+
+	/*
+	 * Mask the guest physical address and calculate the frame number.
+	 * Any address beyond our supported 48 bits of PA will be caught
+	 * by the actual check in the final step.
+	 */
+	indirect_ptr &= GENMASK_ULL(51, 16);
+
+	/* Find the address of the actual entry */
+	index = id % (SZ_64K / GITS_BASER_ENTRY_SIZE(baser));
+	indirect_ptr += index * GITS_BASER_ENTRY_SIZE(baser);
+	gfn = indirect_ptr >> PAGE_SHIFT;
+
+	return kvm_is_visible_gfn(its->dev->kvm, gfn);
+}
+
 static int vgic_its_alloc_collection(struct vgic_its *its,
 				     struct its_collection **colp,
 				     u32 coll_id)
 {
 	struct its_collection *collection;
+
+	if (!vgic_its_check_id(its, its->baser_coll_table, coll_id))
+		return E_ITS_MAPC_COLLECTION_OOR;
 
 	collection = kzalloc(sizeof(*collection), GFP_KERNEL);
 
@@ -709,67 +770,6 @@ static void vgic_its_unmap_device(struct kvm *kvm, struct its_device *device)
 }
 
 /*
- * Check whether a device ID can be stored into the guest device tables.
- * For a direct table this is pretty easy, but gets a bit nasty for
- * indirect tables. We check whether the resulting guest physical address
- * is actually valid (covered by a memslot and guest accessbible).
- * For this we have to read the respective first level entry.
- */
-static bool vgic_its_check_device_id(struct kvm *kvm, struct vgic_its *its,
-				     int device_id)
-{
-	u64 r = its->baser_device_table;
-	int l1_tbl_size = GITS_BASER_NR_PAGES(r) * SZ_64K;
-	int index;
-	u64 indirect_ptr;
-	gfn_t gfn;
-
-
-	if (!(r & GITS_BASER_INDIRECT)) {
-		phys_addr_t addr;
-
-		if (device_id >= (l1_tbl_size / GITS_BASER_ENTRY_SIZE(r)))
-			return false;
-
-		addr = BASER_ADDRESS(r) + device_id * GITS_BASER_ENTRY_SIZE(r);
-		gfn = addr >> PAGE_SHIFT;
-
-		return kvm_is_visible_gfn(kvm, gfn);
-	}
-
-	/* calculate and check the index into the 1st level */
-	index = device_id / (SZ_64K / GITS_BASER_ENTRY_SIZE(r));
-	if (index >= (l1_tbl_size / sizeof(u64)))
-		return false;
-
-	/* Each 1st level entry is represented by a 64-bit value. */
-	if (kvm_read_guest(kvm,
-			   BASER_ADDRESS(r) + index * sizeof(indirect_ptr),
-			   &indirect_ptr, sizeof(indirect_ptr)))
-		return false;
-
-	indirect_ptr = le64_to_cpu(indirect_ptr);
-
-	/* check the valid bit of the first level entry */
-	if (!(indirect_ptr & BIT_ULL(63)))
-		return false;
-
-	/*
-	 * Mask the guest physical address and calculate the frame number.
-	 * Any address beyond our supported 48 bits of PA will be caught
-	 * by the actual check in the final step.
-	 */
-	indirect_ptr &= GENMASK_ULL(51, 16);
-
-	/* Find the address of the actual entry */
-	index = device_id % (SZ_64K / GITS_BASER_ENTRY_SIZE(r));
-	indirect_ptr += index * GITS_BASER_ENTRY_SIZE(r);
-	gfn = indirect_ptr >> PAGE_SHIFT;
-
-	return kvm_is_visible_gfn(kvm, gfn);
-}
-
-/*
  * MAPD maps or unmaps a device ID to Interrupt Translation Tables (ITTs).
  * Must be called with the its_lock mutex held.
  */
@@ -780,7 +780,7 @@ static int vgic_its_cmd_handle_mapd(struct kvm *kvm, struct vgic_its *its,
 	bool valid = its_cmd_get_validbit(its_cmd);
 	struct its_device *device;
 
-	if (!vgic_its_check_device_id(kvm, its, device_id))
+	if (!vgic_its_check_id(its, its->baser_device_table, device_id))
 		return E_ITS_MAPD_DEVICE_OOR;
 
 	device = find_its_device(its, device_id);
@@ -812,13 +812,6 @@ static int vgic_its_cmd_handle_mapd(struct kvm *kvm, struct vgic_its *its,
 	return 0;
 }
 
-static int vgic_its_nr_collection_ids(struct vgic_its *its)
-{
-	u64 r = its->baser_coll_table;
-
-	return (GITS_BASER_NR_PAGES(r) * SZ_64K) / GITS_BASER_ENTRY_SIZE(r);
-}
-
 /*
  * The MAPC command maps collection IDs to redistributors.
  * Must be called with the its_lock mutex held.
@@ -837,9 +830,6 @@ static int vgic_its_cmd_handle_mapc(struct kvm *kvm, struct vgic_its *its,
 
 	if (target_addr >= atomic_read(&kvm->online_vcpus))
 		return E_ITS_MAPC_PROCNUM_OOR;
-
-	if (coll_id >= vgic_its_nr_collection_ids(its))
-		return E_ITS_MAPC_COLLECTION_OOR;
 
 	if (!valid) {
 		vgic_its_free_collection(its, coll_id);
