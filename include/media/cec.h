@@ -126,12 +126,20 @@ struct cec_adap_ops {
  * With a transfer rate of at most 36 bytes per second this makes 18 messages
  * per second worst case.
  *
- * We queue at most 3 seconds worth of messages. The CEC specification requires
- * that messages are replied to within a second, so 3 seconds should give more
- * than enough margin. Since most messages are actually more than 2 bytes, this
- * is in practice a lot more than 3 seconds.
+ * We queue at most 3 seconds worth of received messages. The CEC specification
+ * requires that messages are replied to within a second, so 3 seconds should
+ * give more than enough margin. Since most messages are actually more than 2
+ * bytes, this is in practice a lot more than 3 seconds.
  */
-#define CEC_MAX_MSG_QUEUE_SZ		(18 * 3)
+#define CEC_MAX_MSG_RX_QUEUE_SZ		(18 * 3)
+
+/*
+ * The transmit queue is limited to 1 second worth of messages (worst case).
+ * Messages can be transmitted by userspace and kernel space. But for both it
+ * makes no sense to have a lot of messages queued up. One second seems
+ * reasonable.
+ */
+#define CEC_MAX_MSG_TX_QUEUE_SZ		(18 * 1)
 
 struct cec_adapter {
 	struct module *owner;
@@ -141,6 +149,7 @@ struct cec_adapter {
 	struct rc_dev *rc;
 
 	struct list_head transmit_queue;
+	unsigned int transmit_queue_sz;
 	struct list_head wait_queue;
 	struct cec_data *transmitting;
 
