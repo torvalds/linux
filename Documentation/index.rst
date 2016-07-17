@@ -15,6 +15,7 @@ Contents:
 
    kernel-documentation
    media/media_uapi
+   media/media_drivers
 
 Indices and tables
 ==================
