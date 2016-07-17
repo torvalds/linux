@@ -727,7 +727,12 @@ static bool vgic_its_check_device_id(struct kvm *kvm, struct vgic_its *its,
 	 * Any address beyond our supported 48 bits of PA will be caught
 	 * by the actual check in the final step.
 	 */
-	gfn = (indirect_ptr & GENMASK_ULL(51, 16)) >> PAGE_SHIFT;
+	indirect_ptr &= GENMASK_ULL(51, 16);
+
+	/* Find the address of the actual entry */
+	index = device_id % (SZ_64K / GITS_BASER_ENTRY_SIZE(r));
+	indirect_ptr += index * GITS_BASER_ENTRY_SIZE(r);
+	gfn = indirect_ptr >> PAGE_SHIFT;
 
 	return kvm_is_visible_gfn(kvm, gfn);
 }
