@@ -688,7 +688,7 @@ static void vgic_its_free_collection(struct vgic_its *its, u32 coll_id)
  * Must be called with its_lock mutex held.
  */
 static int vgic_its_cmd_handle_mapi(struct kvm *kvm, struct vgic_its *its,
-				    u64 *its_cmd, u8 subcmd)
+				    u64 *its_cmd)
 {
 	u32 device_id = its_cmd_get_deviceid(its_cmd);
 	u32 event_id = its_cmd_get_id(its_cmd);
@@ -711,7 +711,7 @@ static int vgic_its_cmd_handle_mapi(struct kvm *kvm, struct vgic_its *its,
 		new_coll = collection;
 	}
 
-	if (subcmd == GITS_CMD_MAPTI)
+	if (its_cmd_get_command(its_cmd) == GITS_CMD_MAPTI)
 		lpi_nr = its_cmd_get_physical_id(its_cmd);
 	else
 		lpi_nr = event_id;
@@ -999,11 +999,10 @@ static int vgic_its_cmd_handle_int(struct kvm *kvm, struct vgic_its *its,
 static int vgic_its_handle_command(struct kvm *kvm, struct vgic_its *its,
 				   u64 *its_cmd)
 {
-	u8 cmd = its_cmd_get_command(its_cmd);
 	int ret = -ENODEV;
 
 	mutex_lock(&its->its_lock);
-	switch (cmd) {
+	switch (its_cmd_get_command(its_cmd)) {
 	case GITS_CMD_MAPD:
 		ret = vgic_its_cmd_handle_mapd(kvm, its, its_cmd);
 		break;
@@ -1011,10 +1010,10 @@ static int vgic_its_handle_command(struct kvm *kvm, struct vgic_its *its,
 		ret = vgic_its_cmd_handle_mapc(kvm, its, its_cmd);
 		break;
 	case GITS_CMD_MAPI:
-		ret = vgic_its_cmd_handle_mapi(kvm, its, its_cmd, cmd);
+		ret = vgic_its_cmd_handle_mapi(kvm, its, its_cmd);
 		break;
 	case GITS_CMD_MAPTI:
-		ret = vgic_its_cmd_handle_mapi(kvm, its, its_cmd, cmd);
+		ret = vgic_its_cmd_handle_mapi(kvm, its, its_cmd);
 		break;
 	case GITS_CMD_MOVI:
 		ret = vgic_its_cmd_handle_movi(kvm, its, its_cmd);
