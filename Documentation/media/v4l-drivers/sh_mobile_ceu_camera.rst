@@ -1,5 +1,7 @@
-	Cropping and Scaling algorithm, used in the sh_mobile_ceu_camera driver
-	=======================================================================
+Cropping and Scaling algorithm, used in the sh_mobile_ceu_camera driver
+=======================================================================
+
+Author: Guennadi Liakhovetski <g.liakhovetski@gmx.de>
 
 Terminology
 -----------
@@ -12,29 +14,31 @@ combined scales: sensor_scale * host_scale
 Generic scaling / cropping scheme
 ---------------------------------
 
--1--
-|
--2-- -\
-|      --\
-|         --\
-+-5-- .      -- -3-- -\
-|      `...            -\
-|          `... -4-- .   - -7..
-|                     `.
-|                       `. .6--
-|
-|                        . .6'-
-|                      .´
-|           ... -4'- .´
-|       ...´             - -7'.
-+-5'- .´               -/
-|            -- -3'- -/
-|         --/
-|      --/
--2'- -/
-|
-|
--1'-
+.. code-block:: none
+
+	-1--
+	|
+	-2-- -\
+	|      --\
+	|         --\
+	+-5-- .      -- -3-- -\
+	|      `...            -\
+	|          `... -4-- .   - -7..
+	|                     `.
+	|                       `. .6--
+	|
+	|                        . .6'-
+	|                      .´
+	|           ... -4'- .´
+	|       ...´             - -7'.
+	+-5'- .´               -/
+	|            -- -3'- -/
+	|         --/
+	|      --/
+	-2'- -/
+	|
+	|
+	-1'-
 
 In the above chart minuses and slashes represent "real" data amounts, points and
 accents represent "useful" data, basically, CEU scaled and cropped output,
@@ -134,6 +138,3 @@ Cropping is performed in the following 6 steps:
 5. Calculate and apply host scale = (6' - 6) / (4' - 4)
 
 6. Calculate and apply host crop: 6 - 7 = (5 - 2) * (6' - 6) / (5' - 5)
-
---
-Author: Guennadi Liakhovetski <g.liakhovetski@gmx.de>

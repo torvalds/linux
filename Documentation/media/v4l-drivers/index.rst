@@ -34,4 +34,5 @@ License".
 	pxa_camera
 	radiotrack
 	saa7134
+	sh_mobile_ceu_camera
 	zr364xx
