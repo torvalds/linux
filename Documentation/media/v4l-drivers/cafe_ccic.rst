@@ -1,3 +1,11 @@
+The cafe_ccic driver
+====================
+
+Author: Jonathan Corbet <corbet@lwn.net>
+
+Introdution
+-----------
+
 "cafe_ccic" is a driver for the Marvell 88ALP01 "cafe" CMOS camera
 controller.  This is the controller found in first-generation OLPC systems,
 and this driver was written with support from the OLPC project.
@@ -10,10 +18,15 @@ sensor is known to work with this controller at this time.
 
 To try it out: either of these commands will work:
 
-     mplayer tv:// -tv driver=v4l2:width=640:height=480 -nosound
-     mplayer tv:// -tv driver=v4l2:width=640:height=480:outfmt=bgr16 -nosound
+.. code-block:: none
+
+     $ mplayer tv:// -tv driver=v4l2:width=640:height=480 -nosound
+     $ mplayer tv:// -tv driver=v4l2:width=640:height=480:outfmt=bgr16 -nosound
 
 The "xawtv" utility also works; gqcam does not, for unknown reasons.
+
+Load time options
+-----------------
 
 There are a few load-time options, most of which can be changed after
 loading via sysfs as well:
@@ -45,10 +58,3 @@ loading via sysfs as well:
  - flip: If this boolean parameter is set, the sensor will be instructed to
    invert the video image.  Whether it makes sense is determined by how
    your particular camera is mounted.
-
-Work is ongoing with this driver, stay tuned.
-
-jon
-
-Jonathan Corbet
-corbet@lwn.net
