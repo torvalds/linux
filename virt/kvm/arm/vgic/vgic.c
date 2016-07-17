@@ -71,7 +71,7 @@ static struct vgic_irq *vgic_get_lpi(struct kvm *kvm, u32 intid)
 		 * This increases the refcount, the caller is expected to
 		 * call vgic_put_irq() later once it's finished with the IRQ.
 		 */
-		kref_get(&irq->refcount);
+		vgic_get_irq_kref(irq);
 		goto out_unlock;
 	}
 	irq = NULL;
@@ -104,14 +104,6 @@ struct vgic_irq *vgic_get_irq(struct kvm *kvm, struct kvm_vcpu *vcpu,
 
 	WARN(1, "Looking up struct vgic_irq for reserved INTID");
 	return NULL;
-}
-
-static void vgic_get_irq_kref(struct vgic_irq *irq)
-{
-	if (irq->intid < VGIC_MIN_LPI)
-		return;
-
-	kref_get(&irq->refcount);
 }
 
 /*

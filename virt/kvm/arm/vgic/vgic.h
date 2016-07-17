@@ -64,6 +64,14 @@ int vgic_v2_map_resources(struct kvm *kvm);
 int vgic_register_dist_iodev(struct kvm *kvm, gpa_t dist_base_address,
 			     enum vgic_type);
 
+static inline void vgic_get_irq_kref(struct vgic_irq *irq)
+{
+	if (irq->intid < VGIC_MIN_LPI)
+		return;
+
+	kref_get(&irq->refcount);
+}
+
 #ifdef CONFIG_KVM_ARM_VGIC_V3
 void vgic_v3_process_maintenance(struct kvm_vcpu *vcpu);
 void vgic_v3_fold_lr_state(struct kvm_vcpu *vcpu);

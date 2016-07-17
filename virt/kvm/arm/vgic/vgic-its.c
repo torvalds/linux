@@ -80,7 +80,7 @@ static struct vgic_irq *vgic_add_lpi(struct kvm *kvm, u32 intid)
 		 * call vgic_put_irq() on the returned pointer once it's
 		 * finished with the IRQ.
 		 */
-		kref_get(&irq->refcount);
+		vgic_get_irq_kref(irq);
 
 		goto out_unlock;
 	}
