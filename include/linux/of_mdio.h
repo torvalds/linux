@@ -19,6 +19,9 @@ extern struct phy_device *of_phy_connect(struct net_device *dev,
 					 struct device_node *phy_np,
 					 void (*hndlr)(struct net_device *),
 					 u32 flags, phy_interface_t iface);
+extern struct phy_device *
+of_phy_get_and_connect(struct net_device *dev, struct device_node *np,
+		       void (*hndlr)(struct net_device *));
 struct phy_device *of_phy_attach(struct net_device *dev,
 				 struct device_node *phy_np, u32 flags,
 				 phy_interface_t iface);
@@ -48,6 +51,13 @@ static inline struct phy_device *of_phy_connect(struct net_device *dev,
 						struct device_node *phy_np,
 						void (*hndlr)(struct net_device *),
 						u32 flags, phy_interface_t iface)
+{
+	return NULL;
+}
+
+static inline struct phy_device *
+of_phy_get_and_connect(struct net_device *dev, struct device_node *np,
+		       void (*hndlr)(struct net_device *))
 {
 	return NULL;
 }

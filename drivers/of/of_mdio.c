@@ -19,6 +19,7 @@
 #include <linux/of_gpio.h>
 #include <linux/of_irq.h>
 #include <linux/of_mdio.h>
+#include <linux/of_net.h>
 #include <linux/module.h>
 
 MODULE_AUTHOR("Grant Likely <grant.likely@secretlab.ca>");
@@ -330,6 +331,41 @@ struct phy_device *of_phy_connect(struct net_device *dev,
 	return ret ? NULL : phy;
 }
 EXPORT_SYMBOL(of_phy_connect);
+
+/**
+ * of_phy_get_and_connect
+ * - Get phy node and connect to the phy described in the device tree
+ * @dev: pointer to net_device claiming the phy
+ * @np: Pointer to device tree node for the net_device claiming the phy
+ * @hndlr: Link state callback for the network device
+ *
+ * If successful, returns a pointer to the phy_device with the embedded
+ * struct device refcount incremented by one, or NULL on failure. The
+ * refcount must be dropped by calling phy_disconnect() or phy_detach().
+ */
+struct phy_device *of_phy_get_and_connect(struct net_device *dev,
+					  struct device_node *np,
+					  void (*hndlr)(struct net_device *))
+{
+	phy_interface_t iface;
+	struct device_node *phy_np;
+	struct phy_device *phy;
+
+	iface = of_get_phy_mode(np);
+	if (iface < 0)
+		return NULL;
+
+	phy_np = of_parse_phandle(np, "phy-handle", 0);
+	if (!phy_np)
+		return NULL;
+
+	phy = of_phy_connect(dev, phy_np, hndlr, 0, iface);
+
+	of_node_put(phy_np);
+
+	return phy;
+}
+EXPORT_SYMBOL(of_phy_get_and_connect);
 
 /**
  * of_phy_attach - Attach to a PHY without starting the state machine
