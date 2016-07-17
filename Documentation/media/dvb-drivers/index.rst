@@ -23,3 +23,4 @@ License".
 	bt8xx
 	cards
 	ci
+	contributors
