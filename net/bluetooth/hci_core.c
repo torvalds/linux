@@ -3163,6 +3163,8 @@ void hci_unregister_dev(struct hci_dev *hdev)
 	device_del(&hdev->dev);
 
 	debugfs_remove_recursive(hdev->debugfs);
+	kfree_const(hdev->hw_info);
+	kfree_const(hdev->fw_info);
 
 	destroy_workqueue(hdev->workqueue);
 	destroy_workqueue(hdev->req_workqueue);
@@ -3265,6 +3267,28 @@ int hci_recv_diag(struct hci_dev *hdev, struct sk_buff *skb)
 	return 0;
 }
 EXPORT_SYMBOL(hci_recv_diag);
+
+void hci_set_hw_info(struct hci_dev *hdev, const char *fmt, ...)
+{
+	va_list vargs;
+
+	va_start(vargs, fmt);
+	kfree_const(hdev->hw_info);
+	hdev->hw_info = kvasprintf_const(GFP_KERNEL, fmt, vargs);
+	va_end(vargs);
+}
+EXPORT_SYMBOL(hci_set_hw_info);
+
+void hci_set_fw_info(struct hci_dev *hdev, const char *fmt, ...)
+{
+	va_list vargs;
+
+	va_start(vargs, fmt);
+	kfree_const(hdev->fw_info);
+	hdev->fw_info = kvasprintf_const(GFP_KERNEL, fmt, vargs);
+	va_end(vargs);
+}
+EXPORT_SYMBOL(hci_set_fw_info);
 
 /* ---- Interface to upper protocols ---- */
 
