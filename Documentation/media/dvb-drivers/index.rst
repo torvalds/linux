@@ -23,4 +23,5 @@ License".
 	bt8xx
 	cards
 	ci
+	dvb-usb
 	contributors
