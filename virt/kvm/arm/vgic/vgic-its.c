@@ -581,14 +581,45 @@ static int vgic_its_cmd_handle_movi(struct kvm *kvm, struct vgic_its *its,
 	return 0;
 }
 
-static void vgic_its_init_collection(struct vgic_its *its,
-				     struct its_collection *collection,
+static int vgic_its_alloc_collection(struct vgic_its *its,
+				     struct its_collection **colp,
 				     u32 coll_id)
 {
+	struct its_collection *collection;
+
+	collection = kzalloc(sizeof(*collection), GFP_KERNEL);
+
 	collection->collection_id = coll_id;
 	collection->target_addr = COLLECTION_NOT_MAPPED;
 
 	list_add_tail(&collection->coll_list, &its->collection_list);
+	*colp = collection;
+
+	return 0;
+}
+
+static void vgic_its_free_collection(struct vgic_its *its, u32 coll_id)
+{
+	struct its_collection *collection;
+	struct its_device *device;
+	struct its_itte *itte;
+
+	/*
+	 * Clearing the mapping for that collection ID removes the
+	 * entry from the list. If there wasn't any before, we can
+	 * go home early.
+	 */
+	collection = find_collection(its, coll_id);
+	if (!collection)
+		return;
+
+	for_each_lpi_its(device, itte, its)
+		if (itte->collection &&
+		    itte->collection->collection_id == coll_id)
+			itte->collection = NULL;
+
+	list_del(&collection->coll_list);
+	kfree(collection);
 }
 
 /*
@@ -605,6 +636,7 @@ static int vgic_its_cmd_handle_mapi(struct kvm *kvm, struct vgic_its *its,
 	struct its_device *device;
 	struct its_collection *collection, *new_coll = NULL;
 	int lpi_nr;
+	int ret;
 
 	device = find_its_device(its, device_id);
 	if (!device)
@@ -612,9 +644,10 @@ static int vgic_its_cmd_handle_mapi(struct kvm *kvm, struct vgic_its *its,
 
 	collection = find_collection(its, coll_id);
 	if (!collection) {
-		new_coll = kzalloc(sizeof(struct its_collection), GFP_KERNEL);
-		if (!new_coll)
-			return -ENOMEM;
+		ret = vgic_its_alloc_collection(its, &collection, coll_id);
+		if (ret)
+			return ret;
+		new_coll = collection;
 	}
 
 	if (subcmd == GITS_CMD_MAPTI)
@@ -623,25 +656,20 @@ static int vgic_its_cmd_handle_mapi(struct kvm *kvm, struct vgic_its *its,
 		lpi_nr = event_id;
 	if (lpi_nr < GIC_LPI_OFFSET ||
 	    lpi_nr >= max_lpis_propbaser(kvm->arch.vgic.propbaser)) {
-		kfree(new_coll);
-		return E_ITS_MAPTI_PHYSICALID_OOR;
+		ret = E_ITS_MAPTI_PHYSICALID_OOR;
+		goto err;
 	}
 
 	itte = find_itte(its, device_id, event_id);
 	if (!itte) {
 		itte = kzalloc(sizeof(struct its_itte), GFP_KERNEL);
 		if (!itte) {
-			kfree(new_coll);
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto err;
 		}
 
 		itte->event_id	= event_id;
 		list_add_tail(&itte->itte_list, &device->itt_head);
-	}
-
-	if (!collection) {
-		collection = new_coll;
-		vgic_its_init_collection(its, collection, coll_id);
 	}
 
 	itte->collection = collection;
@@ -657,6 +685,10 @@ static int vgic_its_cmd_handle_mapi(struct kvm *kvm, struct vgic_its *its,
 	update_lpi_config(kvm, itte->irq, NULL);
 
 	return 0;
+err:
+	if (new_coll)
+		vgic_its_free_collection(its, coll_id);
+	return ret;
 }
 
 /* Requires the its_lock to be held. */
@@ -809,34 +841,18 @@ static int vgic_its_cmd_handle_mapc(struct kvm *kvm, struct vgic_its *its,
 	if (coll_id >= vgic_its_nr_collection_ids(its))
 		return E_ITS_MAPC_COLLECTION_OOR;
 
-	collection = find_collection(its, coll_id);
-
 	if (!valid) {
-		struct its_device *device;
-		struct its_itte *itte;
-		/*
-		 * Clearing the mapping for that collection ID removes the
-		 * entry from the list. If there wasn't any before, we can
-		 * go home early.
-		 */
-		if (!collection)
-			return 0;
-
-		for_each_lpi_its(device, itte, its)
-			if (itte->collection &&
-			    itte->collection->collection_id == coll_id)
-				itte->collection = NULL;
-
-		list_del(&collection->coll_list);
-		kfree(collection);
+		vgic_its_free_collection(its, coll_id);
 	} else {
-		if (!collection) {
-			collection = kzalloc(sizeof(struct its_collection),
-					     GFP_KERNEL);
-			if (!collection)
-				return -ENOMEM;
+		collection = find_collection(its, coll_id);
 
-			vgic_its_init_collection(its, collection, coll_id);
+		if (!collection) {
+			int ret;
+
+			ret = vgic_its_alloc_collection(its, &collection,
+							coll_id);
+			if (ret)
+				return ret;
 			collection->target_addr = target_addr;
 		} else {
 			collection->target_addr = target_addr;
