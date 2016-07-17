@@ -29,4 +29,5 @@ License".
 	ivtv
 	meye
 	omap3isp
+	omap4_camera
 	zr364xx
