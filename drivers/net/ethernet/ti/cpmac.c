@@ -1006,8 +1006,10 @@ fail_desc:
 			kfree_skb(priv->rx_head[i].skb);
 		}
 	}
+	dma_free_coherent(&dev->dev, sizeof(struct cpmac_desc) * size,
+			  priv->desc_ring, priv->dma_ring);
+
 fail_alloc:
-	kfree(priv->desc_ring);
 	iounmap(priv->regs);
 
 fail_remap:
