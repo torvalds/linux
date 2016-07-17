@@ -25,4 +25,5 @@ License".
 	cx18
 	cx88
 	davinci-vpbe
+	fimc
 	zr364xx
