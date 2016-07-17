@@ -1908,7 +1908,6 @@ static int ravb_probe(struct platform_device *pdev)
 
 	/* The Ether-specific entries in the device structure. */
 	ndev->base_addr = res->start;
-	ndev->dma = -1;
 
 	chip_id = (enum ravb_chip_id)of_device_get_match_data(&pdev->dev);
 
