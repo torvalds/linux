@@ -55,10 +55,6 @@ static int pcf85063_stop_clock(struct i2c_client *client, u8 *ctrl1)
 	return 0;
 }
 
-/*
- * In the routines that deal directly with the pcf85063 hardware, we use
- * rtc_time -- month 0-11, hour 0-23, yr = calendar year-epoch.
- */
 static int pcf85063_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 {
 	int rc;
@@ -90,8 +86,7 @@ static int pcf85063_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 	tm->tm_wday = regs[4] & 0x07;
 	tm->tm_mon = bcd2bin(regs[5] & 0x1F) - 1; /* rtc mn 1-12 */
 	tm->tm_year = bcd2bin(regs[6]);
-	if (tm->tm_year < 70)
-		tm->tm_year += 100;	/* assume we are in 1970...2069 */
+	tm->tm_year += 100;
 
 	return rtc_valid_tm(tm);
 }
@@ -100,6 +95,9 @@ static int pcf85063_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 {
 	int rc;
 	u8 regs[8];
+
+	if ((tm->tm_year < 100) || (tm->tm_year > 199))
+		return -EINVAL;
 
 	/*
 	 * to accurately set the time, reset the divider chain and keep it in
@@ -125,7 +123,7 @@ static int pcf85063_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 	regs[5] = bin2bcd(tm->tm_mon + 1);
 
 	/* year and century */
-	regs[6] = bin2bcd(tm->tm_year % 100);
+	regs[6] = bin2bcd(tm->tm_year - 100);
 
 	/*
 	 * after all time/date registers are written, let the 'address auto
