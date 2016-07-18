@@ -13,8 +13,6 @@ struct drm_plane;
 struct imx_drm_crtc;
 struct platform_device;
 
-unsigned int imx_drm_crtc_id(struct imx_drm_crtc *crtc);
-
 struct imx_crtc_state {
 	struct drm_crtc_state			base;
 	u32					bus_format;

@@ -58,12 +58,6 @@ static int legacyfb_depth = 16;
 module_param(legacyfb_depth, int, 0444);
 #endif
 
-unsigned int imx_drm_crtc_id(struct imx_drm_crtc *crtc)
-{
-	return drm_crtc_index(crtc->crtc);
-}
-EXPORT_SYMBOL_GPL(imx_drm_crtc_id);
-
 static void imx_drm_driver_lastclose(struct drm_device *drm)
 {
 	struct imx_drm_device *imxdrm = drm->dev_private;
