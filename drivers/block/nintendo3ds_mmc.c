@@ -3,7 +3,6 @@
  *
  *  Copyright (C) 2016 Sergi Granell <xerpi.g.12@gmail.com>
  *
- *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -18,6 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
+
 #include <linux/sched.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
@@ -30,6 +30,8 @@
 #include <linux/genhd.h>
 #include <linux/blkdev.h>
 #include <linux/errno.h>
+
+#include <mach/pxi.h>
 
 #define NINTENDO3DS_MMC_BLOCKSIZE 512
 #define NINTENDO3DS_MMC_FIRST_MINOR 0
@@ -49,14 +51,73 @@ struct nintendo3ds_mmc {
 	struct gendisk *disk;
 };
 
-static void nintendo3ds_mmc_transfer(struct nintendo3ds_mmc *mmc, struct request *req)
+static void nintendo3ds_pxi_mmc_write_sectors(struct nintendo3ds_mmc *mmc,
+	sector_t sector_off, u8 *buffer, unsigned int sectors)
 {
+	/*memcpy(dev_data + sector_off * NINTENDO3DS_MMC_BLOCKSIZE, buffer,
+		sectors * NINTENDO3DS_MMC_BLOCKSIZE);*/
+}
 
-	printk("nintendo3ds_mmc_transfer, dir: %d sec: %lld, nr: %d\n",
-			rq_data_dir(req), blk_rq_pos(req),
-			blk_rq_cur_sectors(req));
+static void nintendo3ds_pxi_mmc_read_sectors(struct nintendo3ds_mmc *mmc,
+	sector_t sector_off, const u8 *buffer, unsigned int sectors)
+{
+	unsigned int i;
+	size_t j;
+	uint32_t data;
 
+	for (i = 0; i < sectors; i++) {
+		while (pxi_send_fifo_is_full())
+			;
+		pxi_send_fifo_push(sector_off + i);
+		for (j = 0; j < NINTENDO3DS_MMC_BLOCKSIZE; j += 4) {
+			while (pxi_recv_fifo_is_empty())
+				;
 
+			data = pxi_recv_fifo_pop();
+			*(uint32_t *)&buffer[i * NINTENDO3DS_MMC_BLOCKSIZE + j] = data;
+		}
+	}
+}
+
+static int nintendo3ds_mmc_xfer_request(struct nintendo3ds_mmc *mmc, struct request *req)
+{
+	struct bio_vec bvec;
+	struct req_iterator iter;
+	sector_t sector_offset;
+	unsigned int sectors;
+	u8 *buffer;
+	int ret = 0;
+	const int dir = rq_data_dir(req);
+	const sector_t start_sector = blk_rq_pos(req);
+	const unsigned int sector_cnt = blk_rq_sectors(req);
+
+	sector_offset = 0;
+
+	rq_for_each_segment(bvec, req, iter) {
+		buffer = page_address(bvec.bv_page) + bvec.bv_offset;
+		sectors = bvec.bv_len / NINTENDO3DS_MMC_BLOCKSIZE;
+
+		/*printk("n3ds MMC: start sect: %lld, sect off: %lld; buffer: %p; num sects: %u\n",
+			start_sector, sector_offset, buffer, sectors);*/
+
+		if (dir == READ)
+			nintendo3ds_pxi_mmc_read_sectors(mmc,
+				start_sector + sector_offset, buffer,
+				sectors);
+		else
+			nintendo3ds_pxi_mmc_write_sectors(mmc,
+				start_sector + sector_offset, buffer,
+				sectors);
+
+		sector_offset += sectors;
+	}
+
+	if (sector_offset != sector_cnt) {
+		printk(KERN_ERR "n3ds MMC: bio info doesn't match with the request info");
+		ret = -EIO;
+	}
+
+	return ret;
 }
 
 static void nintendo3ds_mmc_request(struct request_queue *q)
@@ -70,13 +131,12 @@ static void nintendo3ds_mmc_request(struct request_queue *q)
 
 		if (req->cmd_type != REQ_TYPE_FS) {
 			printk(KERN_NOTICE "Skip non-fs request\n");
-			__blk_end_request_cur(req, -EIO);
+			__blk_end_request_all(req, -EIO);
 			continue;
 		}
 
-		nintendo3ds_mmc_transfer(mmc, req);
-
-		__blk_end_request_cur(req, 0);
+		ret = nintendo3ds_mmc_xfer_request(mmc, req);
+		__blk_end_request_all(req, ret);
 	}
 
 }
@@ -138,16 +198,16 @@ static int nintendo3ds_mmc_probe(struct platform_device *pdev)
 	mmc->disk->fops = &nintendo3ds_mmc_fops;
 	mmc->disk->private_data = mmc;
 	mmc->disk->queue = mmc->queue;
+	mmc->disk->driverfs_dev = &pdev->dev;
+	sprintf(mmc->disk->disk_name, "nintendo3ds_mmc");
 
 	//mmc->size = pxi_...
-	mmc->size = 16*1024;
+	mmc->size = 31586304; /* 16GB SD card */
 
 	platform_set_drvdata(pdev, mmc);
 
-	sprintf(mmc->disk->disk_name, "nintendo3ds_mmc");
-
-	set_capacity(mmc->disk, 0);
 	add_disk(mmc->disk);
+
 	set_capacity(mmc->disk, mmc->size);
 
 	dev_info(&pdev->dev, "Nintendo 3ds PXI SD/MMC %d\n",
@@ -164,7 +224,6 @@ error_reg_blkdev:
 
 	return error;
 }
-
 
 static int __exit nintendo3ds_mmc_remove(struct platform_device *pdev)
 {

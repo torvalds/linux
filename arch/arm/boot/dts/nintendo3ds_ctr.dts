@@ -11,7 +11,7 @@
 	chosen {
 		/* No FB: bootargs = "earlyprintk keep_bootcon fbcon=rotate:1 init=/init"; */
 
-		bootargs = "keep_bootcon fbcon=rotate:1 root=/dev/ram0 rootfstype=ramfs init=init console=tty0";
+		bootargs = "nr_cpus=2 keep_bootcon fbcon=rotate:1 root=/dev/ram0 init=init console=tty0";
 
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -47,11 +47,18 @@
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
+		enable-method = "nintendo3ds,smp";
 
 		cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,arm11mpcore";
 			reg = <0>;
+		};
+
+		cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,arm11mpcore";
+			reg = <1>;
 		};
 	};
 
@@ -118,14 +125,13 @@
 			<GIC_SPI 0x57 IRQ_TYPE_EDGE_RISING>;
 		interrupt-parent = <&gic>;
 
-		touchscreen@3 {
-			compatible = "nintendo3ds,spi-touchscreen";
+		codec-hid@3 {
+			compatible = "nintendo3ds,codec-hid";
 			spi-max-frequency = <4000000>;
 			reg = <3>;
 
 			touchscreen-size-x = <4096>;
 			touchscreen-size-y = <4096>;
-
 			touchscreen-inverted-y;
 			touchscreen-swapped-x-y;
 		};
@@ -174,4 +180,34 @@
 		reg = <0x17E01000 0x1000>, //GIC distributor register
 		      <0x17E00100 0x100>;  //GIC cpu interface register
 	};
-} ;
+
+	scu@17E00000 {
+		compatible = "arm,arm11mp-scu";
+		reg = <0x17E00000 0x100>;
+	};
+
+	amba {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "arm,amba-bus";
+		interrupt-parent = <&gic>;
+		ranges;
+
+		dma@10200000 {
+			compatible = "arm,pl330", "arm,primecell";
+			reg = <0x10200000 0x1000>;
+
+			clocks = <&nintendo3ds_refclk144mhz>;
+			clock-names = "apb_pclk";
+
+			interrupts =
+				<GIC_SPI 0x39 IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 0x3A IRQ_TYPE_EDGE_RISING>,
+				<GIC_SPI 0x3B IRQ_TYPE_EDGE_RISING>;
+
+			#dma-cells = <1>;
+			#dma-channels = <8>;
+			#dma-requests = <32>;
+		};
+	};
+};

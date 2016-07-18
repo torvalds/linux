@@ -20,6 +20,7 @@
 #include <mach/platform.h>
 
 #include <mach/bottom_lcd.h>
+#include <mach/pxi.h>
 
 static void __init nintendo3ds_pdn_set_spi_new(void)
 {
@@ -28,25 +29,18 @@ static void __init nintendo3ds_pdn_set_spi_new(void)
 
 	pdn_spi_cnt = ioremap(NINTENDO3DS_REG_PDN_SPI_CNT, 4);
 
-	val = readw(pdn_spi_cnt);
+	val = ioread16(pdn_spi_cnt);
 	val |= 0b111;
-	writew(val, pdn_spi_cnt);
+	iowrite16(val, pdn_spi_cnt);
 
 	iounmap(pdn_spi_cnt);
-}
-
-static void __init nintendo3ds_ctr_map_io(void)
-{
-	printk("nintendo3ds_ctr_map_io\n");
-}
-
-static void __init nintendo3ds_ctr_init_early(void)
-{
 }
 
 static void __init nintendo3ds_ctr_dt_init_machine(void)
 {
 	printk("nintendo3ds_ctr_dt_init_machine\n");
+
+	pxi_init();
 
 	nintendo3ds_bottom_setup_fb();
 	nintendo3ds_bottom_lcd_map_fb();
@@ -60,6 +54,7 @@ static void __init nintendo3ds_ctr_restart(enum reboot_mode mode, const char *cm
 	printk("nintendo3ds_ctr_restart\n");
 
 	nintendo3ds_bottom_lcd_unmap_fb();
+	pxi_deinit();
 }
 
 
@@ -69,8 +64,6 @@ static const char *nintendo3ds_ctr_dt_platform_compat[] __initconst = {
 };
 
 DT_MACHINE_START(NINTENDO3DS_DT, "Nintendo 3DS (CTR) (Device Tree)")
-	.map_io		= nintendo3ds_ctr_map_io,
-	.init_early	= nintendo3ds_ctr_init_early,
 	.init_machine	= nintendo3ds_ctr_dt_init_machine,
 	.dt_compat	= nintendo3ds_ctr_dt_platform_compat,
 	.restart	= nintendo3ds_ctr_restart,
