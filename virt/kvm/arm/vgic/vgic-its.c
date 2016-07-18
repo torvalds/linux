@@ -702,9 +702,9 @@ static bool vgic_its_check_device_id(struct kvm *kvm, struct vgic_its *its,
 		return false;
 
 	/* Each 1st level entry is represented by a 64-bit value. */
-	if (!kvm_read_guest(kvm,
-			    BASER_ADDRESS(r) + index * sizeof(indirect_ptr),
-			    &indirect_ptr, sizeof(indirect_ptr)))
+	if (kvm_read_guest(kvm,
+			   BASER_ADDRESS(r) + index * sizeof(indirect_ptr),
+			   &indirect_ptr, sizeof(indirect_ptr)))
 		return false;
 
 	/* check the valid bit of the first level entry */
