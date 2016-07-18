@@ -1111,7 +1111,8 @@ void ath6kl_cfg80211_ch_switch_notify(struct ath6kl_vif *vif, int freq,
 
 	cfg80211_chandef_create(&chandef,
 				ieee80211_get_channel(vif->ar->wiphy, freq),
-				(mode == WMI_11G_HT20) ?
+				(mode == WMI_11G_HT20 &&
+				 ath6kl_band_2ghz.ht_cap.ht_supported) ?
 					NL80211_CHAN_HT20 : NL80211_CHAN_NO_HT);
 
 	mutex_lock(&vif->wdev.mtx);
