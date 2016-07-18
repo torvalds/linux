@@ -312,6 +312,9 @@ int map__load(struct map *map, symbol_filter_t filter)
 			pr_warning("%.*s was updated (is prelink enabled?). "
 				"Restart the long running apps that use it!\n",
 				   (int)real_len, name);
+		} else if (filter) {
+			pr_warning("no symbols passed the given filter.\n");
+			return -2;	/* Empty but maybe by the filter */
 		} else {
 			pr_warning("no symbols found in %s, maybe install "
 				   "a debug package?\n", name);
