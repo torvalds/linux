@@ -6620,15 +6620,6 @@ got_name:
 }
 
 /*
- * Whether this @filter depends on a dynamic object which is not loaded
- * yet or its load addresses are not known.
- */
-static bool perf_addr_filter_needs_mmap(struct perf_addr_filter *filter)
-{
-	return filter->filter && filter->inode;
-}
-
-/*
  * Check whether inode and address range match filter criteria.
  */
 static bool perf_addr_filter_match(struct perf_addr_filter *filter,
@@ -7848,7 +7839,11 @@ static void perf_event_addr_filters_apply(struct perf_event *event)
 	list_for_each_entry(filter, &ifh->list, entry) {
 		event->addr_filters_offs[count] = 0;
 
-		if (perf_addr_filter_needs_mmap(filter))
+		/*
+		 * Adjust base offset if the filter is associated to a binary
+		 * that needs to be mapped:
+		 */
+		if (filter->inode)
 			event->addr_filters_offs[count] =
 				perf_addr_filter_apply(filter, mm);
 
