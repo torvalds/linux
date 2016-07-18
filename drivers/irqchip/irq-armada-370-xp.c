@@ -344,7 +344,6 @@ static void armada_mpic_send_doorbell(const struct cpumask *mask,
 	writel((map << 8) | irq, main_int_base +
 		ARMADA_370_XP_SW_TRIG_INT_OFFS);
 }
-#endif
 
 static int armada_xp_mpic_starting_cpu(unsigned int cpu)
 {
@@ -359,6 +358,7 @@ static int mpic_cascaded_starting_cpu(unsigned int cpu)
 	enable_percpu_irq(parent_irq, IRQ_TYPE_NONE);
 	return 0;
 }
+#endif
 
 static const struct irq_domain_ops armada_370_xp_mpic_irq_ops = {
 	.map = armada_370_xp_mpic_irq_map,
