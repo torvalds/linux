@@ -22,6 +22,9 @@ static void BITSFUNC(go)(void *raw_addr, size_t raw_len,
 
 	ELF(Phdr) *pt = (ELF(Phdr) *)(raw_addr + GET_LE(&hdr->e_phoff));
 
+	if (hdr->e_type != ET_DYN)
+		fail("input is not a shared object\n");
+
 	/* Walk the segment table. */
 	for (i = 0; i < GET_LE(&hdr->e_phnum); i++) {
 		if (GET_LE(&pt[i].p_type) == PT_LOAD) {
@@ -48,6 +51,9 @@ static void BITSFUNC(go)(void *raw_addr, size_t raw_len,
 
 	if (stripped_len < load_size)
 		fail("stripped input is too short\n");
+
+	if (!dyn)
+		fail("input has no PT_DYNAMIC section -- your toolchain is buggy\n");
 
 	/* Walk the dynamic table */
 	for (i = 0; dyn + i < dyn_end &&
