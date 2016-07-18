@@ -4477,7 +4477,7 @@ S:	Orphan
 F:	fs/efs/
 
 EHEA (IBM pSeries eHEA 10Gb ethernet adapter) DRIVER
-M:	Thadeu Lima de Souza Cascardo <cascardo@linux.vnet.ibm.com>
+M:	Douglas Miller <dougmill@linux.vnet.ibm.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/ibm/ehea/
