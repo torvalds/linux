@@ -40,4 +40,5 @@ License".
 	si476x
 	soc-camera
 	uvcvideo
+	zoran
 	zr364xx
