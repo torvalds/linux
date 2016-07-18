@@ -146,9 +146,7 @@ static void ttm_bo_release_list(struct kref *list_kref)
 	BUG_ON(bo->mem.mm_node != NULL);
 	BUG_ON(!list_empty(&bo->lru));
 	BUG_ON(!list_empty(&bo->ddestroy));
-
-	if (bo->ttm)
-		ttm_tt_destroy(bo->ttm);
+	ttm_tt_destroy(bo->ttm);
 	atomic_dec(&bo->glob->bo_count);
 	if (bo->resv == &bo->ttm_resv)
 		reservation_object_fini(&bo->ttm_resv);
