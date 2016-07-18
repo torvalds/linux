@@ -25,6 +25,7 @@
 #include <linux/mman.h>
 #include <linux/nodemask.h>
 #include <linux/mm.h>
+#include <linux/of_fdt.h>
 
 #include <asm/bootparam.h>
 #include <asm/page.h>
@@ -48,6 +49,7 @@ void __init bootmem_init(void)
 	else
 		memblock_reserve(0, 1);
 
+	early_init_fdt_scan_reserved_mem();
 
 	if (!memblock_phys_mem_size())
 		panic("No memory found!\n");
