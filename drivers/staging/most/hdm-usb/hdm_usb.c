@@ -663,15 +663,11 @@ static int hdm_enqueue(struct most_interface *iface, int channel,
 	init_completion(&anchor->urb_compl);
 	mbo->priv = anchor;
 
-	spin_lock_irqsave(&mdev->anchor_list_lock[channel], flags);
-	list_add_tail(&anchor->list, &mdev->anchor_list[channel]);
-	spin_unlock_irqrestore(&mdev->anchor_list_lock[channel], flags);
-
 	if ((mdev->padding_active[channel]) &&
 	    (conf->direction & MOST_CH_TX))
 		if (hdm_add_padding(mdev, channel, mbo)) {
 			retval = -EIO;
-			goto _error_1;
+			goto _error;
 		}
 
 	urb->transfer_dma = mbo->bus_address;
@@ -698,6 +694,10 @@ static int hdm_enqueue(struct most_interface *iface, int channel,
 				  mbo);
 	}
 	urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+
+	spin_lock_irqsave(&mdev->anchor_list_lock[channel], flags);
+	list_add_tail(&anchor->list, &mdev->anchor_list[channel]);
+	spin_unlock_irqrestore(&mdev->anchor_list_lock[channel], flags);
 
 	retval = usb_submit_urb(urb, GFP_KERNEL);
 	if (retval) {
