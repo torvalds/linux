@@ -697,36 +697,34 @@ static int vgic_its_cmd_handle_mapi(struct kvm *kvm, struct vgic_its *its,
 	struct its_device *device;
 	struct its_collection *collection, *new_coll = NULL;
 	int lpi_nr;
-	int ret;
 
 	device = find_its_device(its, device_id);
 	if (!device)
 		return E_ITS_MAPTI_UNMAPPED_DEVICE;
-
-	collection = find_collection(its, coll_id);
-	if (!collection) {
-		ret = vgic_its_alloc_collection(its, &collection, coll_id);
-		if (ret)
-			return ret;
-		new_coll = collection;
-	}
 
 	if (its_cmd_get_command(its_cmd) == GITS_CMD_MAPTI)
 		lpi_nr = its_cmd_get_physical_id(its_cmd);
 	else
 		lpi_nr = event_id;
 	if (lpi_nr < GIC_LPI_OFFSET ||
-	    lpi_nr >= max_lpis_propbaser(kvm->arch.vgic.propbaser)) {
-		ret = E_ITS_MAPTI_PHYSICALID_OOR;
-		goto err;
+	    lpi_nr >= max_lpis_propbaser(kvm->arch.vgic.propbaser))
+		return E_ITS_MAPTI_PHYSICALID_OOR;
+
+	collection = find_collection(its, coll_id);
+	if (!collection) {
+		int ret = vgic_its_alloc_collection(its, &collection, coll_id);
+		if (ret)
+			return ret;
+		new_coll = collection;
 	}
 
 	itte = find_itte(its, device_id, event_id);
 	if (!itte) {
 		itte = kzalloc(sizeof(struct its_itte), GFP_KERNEL);
 		if (!itte) {
-			ret = -ENOMEM;
-			goto err;
+			if (new_coll)
+				vgic_its_free_collection(its, coll_id);
+			return -ENOMEM;
 		}
 
 		itte->event_id	= event_id;
@@ -746,10 +744,6 @@ static int vgic_its_cmd_handle_mapi(struct kvm *kvm, struct vgic_its *its,
 	update_lpi_config(kvm, itte->irq, NULL);
 
 	return 0;
-err:
-	if (new_coll)
-		vgic_its_free_collection(its, coll_id);
-	return ret;
 }
 
 /* Requires the its_lock to be held. */
