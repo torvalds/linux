@@ -1955,6 +1955,23 @@ static bool amdgpu_check_soft_reset(struct amdgpu_device *adev)
 	return asic_hang;
 }
 
+int amdgpu_pre_soft_reset(struct amdgpu_device *adev)
+{
+	int i, r = 0;
+
+	for (i = 0; i < adev->num_ip_blocks; i++) {
+		if (!adev->ip_block_status[i].valid)
+			continue;
+		if (adev->ip_blocks[i].funcs->pre_soft_reset) {
+			r = adev->ip_blocks[i].funcs->pre_soft_reset(adev);
+			if (r)
+				return r;
+		}
+	}
+
+	return 0;
+}
+
 /**
  * amdgpu_gpu_reset - reset the asic
  *

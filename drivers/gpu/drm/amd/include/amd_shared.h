@@ -161,6 +161,8 @@ struct amd_ip_funcs {
 	int (*wait_for_idle)(void *handle);
 	/* check soft reset the IP block */
 	int (*check_soft_reset)(void *handle);
+	/* pre soft reset the IP block */
+	int (*pre_soft_reset)(void *handle);
 	/* soft reset the IP block */
 	int (*soft_reset)(void *handle);
 	/* enable/disable cg for the IP block */
