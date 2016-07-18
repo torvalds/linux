@@ -7972,8 +7972,10 @@ perf_event_parse_addr_filter(struct perf_event *event, char *fstr,
 					goto fail;
 			}
 
-			if (token == IF_SRC_FILE) {
-				filename = match_strdup(&args[2]);
+			if (token == IF_SRC_FILE || token == IF_SRC_FILEADDR) {
+				int fpos = filter->range ? 2 : 1;
+
+				filename = match_strdup(&args[fpos]);
 				if (!filename) {
 					ret = -ENOMEM;
 					goto fail;
