@@ -782,6 +782,14 @@ FlyVideo A2 (Elta 8680)= LR90 Rev.F (w/Remote, w/o FM, stereo TV by tda9821) {Ge
 
 Lifeview 3000 (Elta 8681) as sold by Plus(April 2002), Germany = LR138 w/ saa7134
 
+lifeview config coding on gpio pins 0-9
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+- LR50 rev. Q ("PARTS: 7031505116), Tuner wurde als Nr. 5 erkannt, Eingänge
+  SVideo, TV, Composite, Audio, Remote:
+
+ - CP9..1=100001001 (1: 0-Ohm-Widerstand gegen GND unbestückt; 0: bestückt)
+
 
 Typhoon TV card series:
 ~~~~~~~~~~~~~~~~~~~~~~~
