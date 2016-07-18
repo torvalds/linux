@@ -1716,6 +1716,7 @@ struct amdgpu_vce {
 	struct amdgpu_irq_src	irq;
 	unsigned		harvest_config;
 	struct amd_sched_entity	entity;
+	uint32_t                srbm_soft_reset;
 };
 
 /*

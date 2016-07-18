@@ -37,6 +37,9 @@
 #include "gca/gfx_8_0_d.h"
 #include "smu/smu_7_1_2_d.h"
 #include "smu/smu_7_1_2_sh_mask.h"
+#include "gca/gfx_8_0_d.h"
+#include "gca/gfx_8_0_sh_mask.h"
+
 
 #define GRBM_GFX_INDEX__VCE_INSTANCE__SHIFT	0x04
 #define GRBM_GFX_INDEX__VCE_INSTANCE_MASK	0x10
@@ -601,20 +604,115 @@ static int vce_v3_0_wait_for_idle(void *handle)
 	return -ETIMEDOUT;
 }
 
+#define AMDGPU_VCE_STATUS_BUSY_MASK    0x78
+
+static int vce_v3_0_check_soft_reset(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	u32 srbm_soft_reset = 0;
+	u32 tmp;
+
+	/* VCE BUG: it is always busy, so skip its checking now */
+	return 0;
+
+	/* According to VCE team , we should use VCE_STATUS instead
+	 * SRBM_STATUS.VCE_BUSY bit for busy status checking.
+	 * GRBM_GFX_INDEX.INSTANCE_INDEX is used to specify which VCE
+	 * instance's registers are accessed
+	 * (0 for 1st instance, 10 for 2nd instance).
+	 *
+	 *VCE_STATUS
+	 *|UENC|ACPI|AUTO ACTIVE|RB1 |RB0 |RB2 |          |FW_LOADED|JOB |
+	 *|----+----+-----------+----+----+----+----------+---------+----|
+	 *|bit8|bit7|    bit6   |bit5|bit4|bit3|   bit2   |  bit1   |bit0|
+	 *
+	 * VCE team suggest use bit 3--bit 6 for busy status check
+	 */
+	tmp = RREG32(mmGRBM_GFX_INDEX);
+	tmp = REG_SET_FIELD(tmp, GRBM_GFX_INDEX, INSTANCE_INDEX, 0);
+	WREG32(mmGRBM_GFX_INDEX, tmp);
+	if (RREG32(mmVCE_STATUS) & AMDGPU_VCE_STATUS_BUSY_MASK) {
+		srbm_soft_reset = REG_SET_FIELD(srbm_soft_reset, SRBM_SOFT_RESET, SOFT_RESET_VCE0, 1);
+		srbm_soft_reset = REG_SET_FIELD(srbm_soft_reset, SRBM_SOFT_RESET, SOFT_RESET_VCE1, 1);
+	}
+	tmp = RREG32(mmGRBM_GFX_INDEX);
+	tmp = REG_SET_FIELD(tmp, GRBM_GFX_INDEX, INSTANCE_INDEX, 0x10);
+	WREG32(mmGRBM_GFX_INDEX, tmp);
+	if (RREG32(mmVCE_STATUS) & AMDGPU_VCE_STATUS_BUSY_MASK) {
+		srbm_soft_reset = REG_SET_FIELD(srbm_soft_reset, SRBM_SOFT_RESET, SOFT_RESET_VCE0, 1);
+		srbm_soft_reset = REG_SET_FIELD(srbm_soft_reset, SRBM_SOFT_RESET, SOFT_RESET_VCE1, 1);
+	}
+	tmp = RREG32(mmGRBM_GFX_INDEX);
+	tmp = REG_SET_FIELD(tmp, GRBM_GFX_INDEX, INSTANCE_INDEX, 0);
+	WREG32(mmGRBM_GFX_INDEX, tmp);
+
+	if (adev->vce.harvest_config & (AMDGPU_VCE_HARVEST_VCE0 | AMDGPU_VCE_HARVEST_VCE1))
+		srbm_soft_reset = 0;
+
+	if (srbm_soft_reset) {
+		adev->ip_block_status[AMD_IP_BLOCK_TYPE_VCE].hang = true;
+		adev->vce.srbm_soft_reset = srbm_soft_reset;
+	} else {
+		adev->ip_block_status[AMD_IP_BLOCK_TYPE_VCE].hang = false;
+		adev->vce.srbm_soft_reset = 0;
+	}
+	return 0;
+}
+
 static int vce_v3_0_soft_reset(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	u32 mask = 0;
+	u32 srbm_soft_reset;
 
-	mask |= (adev->vce.harvest_config & AMDGPU_VCE_HARVEST_VCE0) ? 0 : SRBM_SOFT_RESET__SOFT_RESET_VCE0_MASK;
-	mask |= (adev->vce.harvest_config & AMDGPU_VCE_HARVEST_VCE1) ? 0 : SRBM_SOFT_RESET__SOFT_RESET_VCE1_MASK;
+	if (!adev->ip_block_status[AMD_IP_BLOCK_TYPE_VCE].hang)
+		return 0;
+	srbm_soft_reset = adev->vce.srbm_soft_reset;
 
-	WREG32_P(mmSRBM_SOFT_RESET, mask,
-		 ~(SRBM_SOFT_RESET__SOFT_RESET_VCE0_MASK |
-		   SRBM_SOFT_RESET__SOFT_RESET_VCE1_MASK));
+	if (srbm_soft_reset) {
+		u32 tmp;
+
+		tmp = RREG32(mmSRBM_SOFT_RESET);
+		tmp |= srbm_soft_reset;
+		dev_info(adev->dev, "SRBM_SOFT_RESET=0x%08X\n", tmp);
+		WREG32(mmSRBM_SOFT_RESET, tmp);
+		tmp = RREG32(mmSRBM_SOFT_RESET);
+
+		udelay(50);
+
+		tmp &= ~srbm_soft_reset;
+		WREG32(mmSRBM_SOFT_RESET, tmp);
+		tmp = RREG32(mmSRBM_SOFT_RESET);
+
+		/* Wait a little for things to settle down */
+		udelay(50);
+	}
+
+	return 0;
+}
+
+static int vce_v3_0_pre_soft_reset(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (!adev->ip_block_status[AMD_IP_BLOCK_TYPE_VCE].hang)
+		return 0;
+
 	mdelay(5);
 
-	return vce_v3_0_start(adev);
+	return vce_v3_0_suspend(adev);
+}
+
+
+static int vce_v3_0_post_soft_reset(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (!adev->ip_block_status[AMD_IP_BLOCK_TYPE_VCE].hang)
+		return 0;
+
+	mdelay(5);
+
+	return vce_v3_0_resume(adev);
 }
 
 static int vce_v3_0_set_interrupt_state(struct amdgpu_device *adev,
@@ -751,7 +849,10 @@ const struct amd_ip_funcs vce_v3_0_ip_funcs = {
 	.resume = vce_v3_0_resume,
 	.is_idle = vce_v3_0_is_idle,
 	.wait_for_idle = vce_v3_0_wait_for_idle,
+	.check_soft_reset = vce_v3_0_check_soft_reset,
+	.pre_soft_reset = vce_v3_0_pre_soft_reset,
 	.soft_reset = vce_v3_0_soft_reset,
+	.post_soft_reset = vce_v3_0_post_soft_reset,
 	.set_clockgating_state = vce_v3_0_set_clockgating_state,
 	.set_powergating_state = vce_v3_0_set_powergating_state,
 };
