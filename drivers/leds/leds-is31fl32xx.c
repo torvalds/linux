@@ -482,10 +482,16 @@ static int is31fl32xx_remove(struct i2c_client *client)
 }
 
 /*
- * i2c-core requires that id_table be non-NULL, even though
- * it is not used for DeviceTree based instantiation.
+ * i2c-core (and modalias) requires that id_table be properly filled,
+ * even though it is not used for DeviceTree based instantiation.
  */
 static const struct i2c_device_id is31fl32xx_id[] = {
+	{ "is31fl3236" },
+	{ "is31fl3235" },
+	{ "is31fl3218" },
+	{ "sn3218" },
+	{ "is31fl3216" },
+	{ "sn3216" },
 	{},
 };
 
