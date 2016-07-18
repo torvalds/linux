@@ -1185,7 +1185,15 @@ static int handle_sckpf(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+static int handle_ptff(struct kvm_vcpu *vcpu)
+{
+	/* we don't emulate any control instructions yet */
+	kvm_s390_set_psw_cc(vcpu, 3);
+	return 0;
+}
+
 static const intercept_handler_t x01_handlers[256] = {
+	[0x04] = handle_ptff,
 	[0x07] = handle_sckpf,
 };
 
