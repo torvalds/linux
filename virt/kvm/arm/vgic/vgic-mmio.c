@@ -484,7 +484,8 @@ static int dispatch_mmio_read(struct kvm_vcpu *vcpu, struct kvm_io_device *dev,
 
 	switch (iodev->iodev_type) {
 	case IODEV_CPUIF:
-		return 1;
+		data = region->read(vcpu, addr, len);
+		break;
 	case IODEV_DIST:
 		data = region->read(vcpu, addr, len);
 		break;
@@ -517,6 +518,7 @@ static int dispatch_mmio_write(struct kvm_vcpu *vcpu, struct kvm_io_device *dev,
 
 	switch (iodev->iodev_type) {
 	case IODEV_CPUIF:
+		region->write(vcpu, addr, len, data);
 		break;
 	case IODEV_DIST:
 		region->write(vcpu, addr, len, data);
