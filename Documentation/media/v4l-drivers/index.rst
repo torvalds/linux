@@ -17,6 +17,7 @@ License".
 
 .. toctree::
 	:maxdepth: 5
+	:numbered:
 
 	fourcc
 	cardlist
@@ -40,5 +41,6 @@ License".
 	si476x
 	soc-camera
 	uvcvideo
+	vivid
 	zoran
 	zr364xx
