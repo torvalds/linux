@@ -22,6 +22,7 @@ License".
 	fourcc
 	v4l-with-ir
 	cardlist
+	bttv
 	cafe_ccic
 	cpia2
 	cx18
