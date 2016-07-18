@@ -79,6 +79,11 @@ static int nft_log_init(const struct nft_ctx *ctx,
 		} else {
 			li->u.log.level = LOGLEVEL_WARNING;
 		}
+		if (li->u.log.level > LOGLEVEL_DEBUG) {
+			err = -EINVAL;
+			goto err1;
+		}
+
 		if (tb[NFTA_LOG_FLAGS] != NULL) {
 			li->u.log.logflags =
 				ntohl(nla_get_be32(tb[NFTA_LOG_FLAGS]));
