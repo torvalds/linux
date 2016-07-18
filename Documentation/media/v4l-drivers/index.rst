@@ -27,6 +27,7 @@ License".
 	cafe_ccic
 	cpia2
 	cx18
+	cx2341x
 	cx88
 	davinci-vpbe
 	fimc

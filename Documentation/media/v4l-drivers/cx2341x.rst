@@ -1,0 +1,564 @@
+The cx2341x driver
+==================
+
+Decoder firmware API description
+--------------------------------
+
+.. note:: this API is part of the decoder firmware, so it's cx23415 only.
+
+
+
+CX2341X_DEC_PING_FW
+-------------------
+
+Enum: 0/0x00
+
+Description
+~~~~~~~~~~~
+
+This API call does nothing. It may be used to check if the firmware
+is responding.
+
+
+
+CX2341X_DEC_START_PLAYBACK
+--------------------------
+
+Enum: 1/0x01
+
+Description
+~~~~~~~~~~~
+
+Begin or resume playback.
+
+Param[0]
+~~~~~~~~
+
+0 based frame number in GOP to begin playback from.
+
+Param[1]
+~~~~~~~~
+
+Specifies the number of muted audio frames to play before normal
+audio resumes. (This is not implemented in the firmware, leave at 0)
+
+
+
+CX2341X_DEC_STOP_PLAYBACK
+-------------------------
+
+Enum: 2/0x02
+
+Description
+~~~~~~~~~~~
+
+Ends playback and clears all decoder buffers. If PTS is not zero,
+playback stops at specified PTS.
+
+Param[0]
+~~~~~~~~
+
+Display 0=last frame, 1=black
+
+.. note::
+
+	this takes effect immediately, so if you want to wait for a PTS,
+	then use '0', otherwise the screen goes to black at once.
+	You can call this later (even if there is no playback) with a 1 value
+	to set the screen to black.
+
+Param[1]
+~~~~~~~~
+
+PTS low
+
+Param[2]
+~~~~~~~~
+
+PTS high
+
+
+
+CX2341X_DEC_SET_PLAYBACK_SPEED
+------------------------------
+
+Enum: 3/0x03
+
+Description
+~~~~~~~~~~~
+
+Playback stream at speed other than normal. There are two modes of
+operation:
+
+	- Smooth: host transfers entire stream and firmware drops unused
+	  frames.
+	- Coarse: host drops frames based on indexing as required to achieve
+	  desired speed.
+
+Param[0]
+~~~~~~~~
+
+.. code-block:: none
+
+	Bitmap:
+	    0:7  0 normal
+		 1 fast only "1.5 times"
+		 n nX fast, 1/nX slow
+	    30   Framedrop:
+		     '0' during 1.5 times play, every other B frame is dropped
+		     '1' during 1.5 times play, stream is unchanged (bitrate
+			 must not exceed 8mbps)
+	    31   Speed:
+		     '0' slow
+		     '1' fast
+
+.. note::
+
+	n is limited to 2. Anything higher does not result in
+	faster playback. Instead the host should start dropping frames.
+
+Param[1]
+~~~~~~~~
+
+Direction: 0=forward, 1=reverse
+
+.. note::
+
+	to make reverse playback work you have to write full GOPs in
+	reverse order.
+
+Param[2]
+~~~~~~~~
+
+.. code-block:: none
+
+	Picture mask:
+	    1=I frames
+	    3=I, P frames
+	    7=I, P, B frames
+
+Param[3]
+~~~~~~~~
+
+B frames per GOP (for reverse play only)
+
+.. note::
+
+	for reverse playback the Picture Mask should be set to I or I, P.
+	Adding B frames to the mask will result in corrupt video. This field
+	has to be set to the correct value in order to keep the timing correct.
+
+Param[4]
+~~~~~~~~
+
+Mute audio: 0=disable, 1=enable
+
+Param[5]
+~~~~~~~~
+
+Display 0=frame, 1=field
+
+Param[6]
+~~~~~~~~
+
+Specifies the number of muted audio frames to play before normal audio
+resumes. (Not implemented in the firmware, leave at 0)
+
+
+
+CX2341X_DEC_STEP_VIDEO
+----------------------
+
+Enum: 5/0x05
+
+Description
+~~~~~~~~~~~
+
+Each call to this API steps the playback to the next unit defined below
+in the current playback direction.
+
+Param[0]
+~~~~~~~~
+
+0=frame, 1=top field, 2=bottom field
+
+
+
+CX2341X_DEC_SET_DMA_BLOCK_SIZE
+------------------------------
+
+Enum: 8/0x08
+
+Description
+~~~~~~~~~~~
+
+Set DMA transfer block size. Counterpart to API 0xC9
+
+Param[0]
+~~~~~~~~
+
+DMA transfer block size in bytes. A different size may be specified
+when issuing the DMA transfer command.
+
+
+
+CX2341X_DEC_GET_XFER_INFO
+-------------------------
+
+Enum: 9/0x09
+
+Description
+~~~~~~~~~~~
+
+This API call may be used to detect an end of stream condition.
+
+Result[0]
+~~~~~~~~~
+
+Stream type
+
+Result[1]
+~~~~~~~~~
+
+Address offset
+
+Result[2]
+~~~~~~~~~
+
+Maximum bytes to transfer
+
+Result[3]
+~~~~~~~~~
+
+Buffer fullness
+
+
+
+CX2341X_DEC_GET_DMA_STATUS
+--------------------------
+
+Enum: 10/0x0A
+
+Description
+~~~~~~~~~~~
+
+Status of the last DMA transfer
+
+Result[0]
+~~~~~~~~~
+
+Bit 1 set means transfer complete
+Bit 2 set means DMA error
+Bit 3 set means linked list error
+
+Result[1]
+~~~~~~~~~
+
+DMA type: 0=MPEG, 1=OSD, 2=YUV
+
+
+
+CX2341X_DEC_SCHED_DMA_FROM_HOST
+-------------------------------
+
+Enum: 11/0x0B
+
+Description
+~~~~~~~~~~~
+
+Setup DMA from host operation. Counterpart to API 0xCC
+
+Param[0]
+~~~~~~~~
+
+Memory address of link list
+
+Param[1]
+~~~~~~~~
+
+Total # of bytes to transfer
+
+Param[2]
+~~~~~~~~
+
+DMA type (0=MPEG, 1=OSD, 2=YUV)
+
+
+
+CX2341X_DEC_PAUSE_PLAYBACK
+--------------------------
+
+Enum: 13/0x0D
+
+Description
+~~~~~~~~~~~
+
+Freeze playback immediately. In this mode, when internal buffers are
+full, no more data will be accepted and data request IRQs will be
+masked.
+
+Param[0]
+~~~~~~~~
+
+Display: 0=last frame, 1=black
+
+
+
+CX2341X_DEC_HALT_FW
+-------------------
+
+Enum: 14/0x0E
+
+Description
+~~~~~~~~~~~
+
+The firmware is halted and no further API calls are serviced until
+the firmware is uploaded again.
+
+
+
+CX2341X_DEC_SET_STANDARD
+------------------------
+
+Enum: 16/0x10
+
+Description
+~~~~~~~~~~~
+
+Selects display standard
+
+Param[0]
+~~~~~~~~
+
+0=NTSC, 1=PAL
+
+
+
+CX2341X_DEC_GET_VERSION
+-----------------------
+
+Enum: 17/0x11
+
+Description
+~~~~~~~~~~~
+
+Returns decoder firmware version information
+
+Result[0]
+~~~~~~~~~
+
+Version bitmask:
+	- Bits  0:15 build
+	- Bits 16:23 minor
+	- Bits 24:31 major
+
+
+
+CX2341X_DEC_SET_STREAM_INPUT
+----------------------------
+
+Enum: 20/0x14
+
+Description
+~~~~~~~~~~~
+
+Select decoder stream input port
+
+Param[0]
+~~~~~~~~
+
+0=memory (default), 1=streaming
+
+
+
+CX2341X_DEC_GET_TIMING_INFO
+---------------------------
+
+Enum: 21/0x15
+
+Description
+~~~~~~~~~~~
+
+Returns timing information from start of playback
+
+Result[0]
+~~~~~~~~~
+
+Frame count by decode order
+
+Result[1]
+~~~~~~~~~
+
+Video PTS bits 0:31 by display order
+
+Result[2]
+~~~~~~~~~
+
+Video PTS bit 32 by display order
+
+Result[3]
+~~~~~~~~~
+
+SCR bits 0:31 by display order
+
+Result[4]
+~~~~~~~~~
+
+SCR bit 32 by display order
+
+
+
+CX2341X_DEC_SET_AUDIO_MODE
+--------------------------
+
+Enum: 22/0x16
+
+Description
+~~~~~~~~~~~
+
+Select audio mode
+
+Param[0]
+~~~~~~~~
+
+Dual mono mode action
+	0=Stereo, 1=Left, 2=Right, 3=Mono, 4=Swap, -1=Unchanged
+
+Param[1]
+~~~~~~~~
+
+Stereo mode action:
+	0=Stereo, 1=Left, 2=Right, 3=Mono, 4=Swap, -1=Unchanged
+
+
+
+CX2341X_DEC_SET_EVENT_NOTIFICATION
+----------------------------------
+
+Enum: 23/0x17
+
+Description
+~~~~~~~~~~~
+
+Setup firmware to notify the host about a particular event.
+Counterpart to API 0xD5
+
+Param[0]
+~~~~~~~~
+
+Event:
+	- 0=Audio mode change between mono, (joint) stereo and dual channel.
+	- 3=Decoder started
+	- 4=Unknown: goes off 10-15 times per second while decoding.
+	- 5=Some sync event: goes off once per frame.
+
+Param[1]
+~~~~~~~~
+
+Notification 0=disabled, 1=enabled
+
+Param[2]
+~~~~~~~~
+
+Interrupt bit
+
+Param[3]
+~~~~~~~~
+
+Mailbox slot, -1 if no mailbox required.
+
+
+
+CX2341X_DEC_SET_DISPLAY_BUFFERS
+-------------------------------
+
+Enum: 24/0x18
+
+Description
+~~~~~~~~~~~
+
+Number of display buffers. To decode all frames in reverse playback you
+must use nine buffers.
+
+Param[0]
+~~~~~~~~
+
+0=six buffers, 1=nine buffers
+
+
+
+CX2341X_DEC_EXTRACT_VBI
+-----------------------
+
+Enum: 25/0x19
+
+Description
+~~~~~~~~~~~
+
+Extracts VBI data
+
+Param[0]
+~~~~~~~~
+
+0=extract from extension & user data, 1=extract from private packets
+
+Result[0]
+~~~~~~~~~
+
+VBI table location
+
+Result[1]
+~~~~~~~~~
+
+VBI table size
+
+
+
+CX2341X_DEC_SET_DECODER_SOURCE
+------------------------------
+
+Enum: 26/0x1A
+
+Description
+~~~~~~~~~~~
+
+Selects decoder source. Ensure that the parameters passed to this
+API match the encoder settings.
+
+Param[0]
+~~~~~~~~
+
+Mode: 0=MPEG from host, 1=YUV from encoder, 2=YUV from host
+
+Param[1]
+~~~~~~~~
+
+YUV picture width
+
+Param[2]
+~~~~~~~~
+
+YUV picture height
+
+Param[3]
+~~~~~~~~
+
+Bitmap: see Param[0] of API 0xBD
+
+
+
+CX2341X_DEC_SET_PREBUFFERING
+----------------------------
+
+Enum: 30/0x1E
+
+Description
+~~~~~~~~~~~
+
+Decoder prebuffering, when enabled up to 128KB are buffered for
+streams <8mpbs or 640KB for streams >8mbps
+
+Param[0]
+~~~~~~~~
+
+0=off, 1=on
