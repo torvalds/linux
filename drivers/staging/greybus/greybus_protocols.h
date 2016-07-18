@@ -272,7 +272,7 @@ struct gb_control_intf_pm_response {
 #define APBA_REQUEST_ARPC_RUN			0x12
 
 struct gb_apb_request_cport_flags {
-	u32	flags;
+	__le32	flags;
 #define GB_APB_CPORT_FLAG_CONTROL		0x01
 #define GB_APB_CPORT_FLAG_HIGH_PRIO		0x02
 } __packed;

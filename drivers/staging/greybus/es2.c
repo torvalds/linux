@@ -690,19 +690,23 @@ static int cport_enable(struct gb_host_device *hd, u16 cport_id,
 	struct es2_ap_dev *es2 = hd_to_es2(hd);
 	struct usb_device *udev = es2->usb_dev;
 	struct gb_apb_request_cport_flags *req;
+	u32 connection_flags;
 	int ret;
 
 	req = kzalloc(sizeof(*req), GFP_KERNEL);
 	if (!req)
 		return -ENOMEM;
 
+	connection_flags = 0;
 	if (flags & GB_CONNECTION_FLAG_CONTROL)
-		req->flags |= GB_APB_CPORT_FLAG_CONTROL;
+		connection_flags |= GB_APB_CPORT_FLAG_CONTROL;
 	if (flags & GB_CONNECTION_FLAG_HIGH_PRIO)
-		req->flags |= GB_APB_CPORT_FLAG_HIGH_PRIO;
+		connection_flags |= GB_APB_CPORT_FLAG_HIGH_PRIO;
+
+	req->flags = cpu_to_le32(connection_flags);
 
 	dev_dbg(&hd->dev, "%s - cport = %u, flags = %02x\n", __func__,
-			cport_id, req->flags);
+			cport_id, connection_flags);
 
 	ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 				GB_APB_REQUEST_CPORT_FLAGS,
