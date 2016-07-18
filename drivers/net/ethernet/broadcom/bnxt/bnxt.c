@@ -1668,6 +1668,76 @@ static int bnxt_poll_work(struct bnxt *bp, struct bnxt_napi *bnapi, int budget)
 	return rx_pkts;
 }
 
+static int bnxt_poll_nitroa0(struct napi_struct *napi, int budget)
+{
+	struct bnxt_napi *bnapi = container_of(napi, struct bnxt_napi, napi);
+	struct bnxt *bp = bnapi->bp;
+	struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
+	struct bnxt_rx_ring_info *rxr = bnapi->rx_ring;
+	struct tx_cmp *txcmp;
+	struct rx_cmp_ext *rxcmp1;
+	u32 cp_cons, tmp_raw_cons;
+	u32 raw_cons = cpr->cp_raw_cons;
+	u32 rx_pkts = 0;
+	bool agg_event = false;
+
+	while (1) {
+		int rc;
+
+		cp_cons = RING_CMP(raw_cons);
+		txcmp = &cpr->cp_desc_ring[CP_RING(cp_cons)][CP_IDX(cp_cons)];
+
+		if (!TX_CMP_VALID(txcmp, raw_cons))
+			break;
+
+		if ((TX_CMP_TYPE(txcmp) & 0x30) == 0x10) {
+			tmp_raw_cons = NEXT_RAW_CMP(raw_cons);
+			cp_cons = RING_CMP(tmp_raw_cons);
+			rxcmp1 = (struct rx_cmp_ext *)
+			  &cpr->cp_desc_ring[CP_RING(cp_cons)][CP_IDX(cp_cons)];
+
+			if (!RX_CMP_VALID(rxcmp1, tmp_raw_cons))
+				break;
+
+			/* force an error to recycle the buffer */
+			rxcmp1->rx_cmp_cfa_code_errors_v2 |=
+				cpu_to_le32(RX_CMPL_ERRORS_CRC_ERROR);
+
+			rc = bnxt_rx_pkt(bp, bnapi, &raw_cons, &agg_event);
+			if (likely(rc == -EIO))
+				rx_pkts++;
+			else if (rc == -EBUSY)	/* partial completion */
+				break;
+		} else if (unlikely(TX_CMP_TYPE(txcmp) ==
+				    CMPL_BASE_TYPE_HWRM_DONE)) {
+			bnxt_hwrm_handler(bp, txcmp);
+		} else {
+			netdev_err(bp->dev,
+				   "Invalid completion received on special ring\n");
+		}
+		raw_cons = NEXT_RAW_CMP(raw_cons);
+
+		if (rx_pkts == budget)
+			break;
+	}
+
+	cpr->cp_raw_cons = raw_cons;
+	BNXT_CP_DB(cpr->cp_doorbell, cpr->cp_raw_cons);
+	writel(DB_KEY_RX | rxr->rx_prod, rxr->rx_doorbell);
+	writel(DB_KEY_RX | rxr->rx_prod, rxr->rx_doorbell);
+
+	if (agg_event) {
+		writel(DB_KEY_RX | rxr->rx_agg_prod, rxr->rx_agg_doorbell);
+		writel(DB_KEY_RX | rxr->rx_agg_prod, rxr->rx_agg_doorbell);
+	}
+
+	if (!bnxt_has_work(bp, cpr) && rx_pkts < budget) {
+		napi_complete(napi);
+		BNXT_CP_DB_REARM(cpr->cp_doorbell, cpr->cp_raw_cons);
+	}
+	return rx_pkts;
+}
+
 static int bnxt_poll(struct napi_struct *napi, int budget)
 {
 	struct bnxt_napi *bnapi = container_of(napi, struct bnxt_napi, napi);
@@ -4758,13 +4828,22 @@ static void bnxt_del_napi(struct bnxt *bp)
 static void bnxt_init_napi(struct bnxt *bp)
 {
 	int i;
+	unsigned int cp_nr_rings = bp->cp_nr_rings;
 	struct bnxt_napi *bnapi;
 
 	if (bp->flags & BNXT_FLAG_USING_MSIX) {
-		for (i = 0; i < bp->cp_nr_rings; i++) {
+		if (BNXT_CHIP_TYPE_NITRO_A0(bp))
+			cp_nr_rings--;
+		for (i = 0; i < cp_nr_rings; i++) {
 			bnapi = bp->bnapi[i];
 			netif_napi_add(bp->dev, &bnapi->napi,
 				       bnxt_poll, 64);
+		}
+		if (BNXT_CHIP_TYPE_NITRO_A0(bp)) {
+			bnapi = bp->bnapi[cp_nr_rings];
+			netif_napi_add(bp->dev, &bnapi->napi,
+				       bnxt_poll_nitroa0, 64);
+			napi_hash_add(&bnapi->napi);
 		}
 	} else {
 		bnapi = bp->bnapi[0];
