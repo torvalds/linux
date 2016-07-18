@@ -504,6 +504,7 @@ static void color_to_hsv(struct tpg_data *tpg, int r, int g, int b,
 	int max_rgb, min_rgb, diff_rgb;
 	int aux;
 	int third;
+	int third_size;
 
 	r >>= 4;
 	g >>= 4;
@@ -530,30 +531,36 @@ static void color_to_hsv(struct tpg_data *tpg, int r, int g, int b,
 		return;
 	}
 
+	third_size = (tpg->real_hsv_enc == V4L2_HSV_ENC_180) ? 60 : 85;
+
 	/* Hue */
 	if (max_rgb == r) {
 		aux =  g - b;
 		third = 0;
 	} else if (max_rgb == g) {
 		aux =  b - r;
-		third = 60;
+		third = third_size;
 	} else {
 		aux =  r - g;
-		third = 120;
+		third = third_size * 2;
 	}
 
-	aux *= 30;
+	aux *= third_size / 2;
 	aux += diff_rgb / 2;
 	aux /= diff_rgb;
 	aux += third;
 
 	/* Clamp Hue */
-	if (aux < 0)
-		aux += 180;
-	else if (aux > 180)
-		aux -= 180;
-	*h = aux;
+	if (tpg->real_hsv_enc == V4L2_HSV_ENC_180) {
+		if (aux < 0)
+			aux += 180;
+		else if (aux > 180)
+			aux -= 180;
+	} else {
+		aux = aux & 0xff;
+	}
 
+	*h = aux;
 }
 
 static void rgb2ycbcr(const int m[3][3], int r, int g, int b,
@@ -1928,6 +1935,7 @@ static void tpg_recalc(struct tpg_data *tpg)
 		tpg->recalc_lines = true;
 		tpg->real_xfer_func = tpg->xfer_func;
 		tpg->real_ycbcr_enc = tpg->ycbcr_enc;
+		tpg->real_hsv_enc = tpg->hsv_enc;
 		tpg->real_quantization = tpg->quantization;
 
 		if (tpg->xfer_func == V4L2_XFER_FUNC_DEFAULT)
@@ -2018,6 +2026,7 @@ void tpg_log_status(struct tpg_data *tpg)
 	pr_info("tpg colorspace: %d\n", tpg->colorspace);
 	pr_info("tpg transfer function: %d/%d\n", tpg->xfer_func, tpg->real_xfer_func);
 	pr_info("tpg Y'CbCr encoding: %d/%d\n", tpg->ycbcr_enc, tpg->real_ycbcr_enc);
+	pr_info("tpg HSV encoding: %d/%d\n", tpg->hsv_enc, tpg->real_hsv_enc);
 	pr_info("tpg quantization: %d/%d\n", tpg->quantization, tpg->real_quantization);
 	pr_info("tpg RGB range: %d/%d\n", tpg->rgb_range, tpg->real_rgb_range);
 }

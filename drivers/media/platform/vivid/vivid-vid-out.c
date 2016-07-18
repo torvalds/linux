@@ -256,6 +256,7 @@ void vivid_update_format_out(struct vivid_dev *dev)
 	}
 	dev->xfer_func_out = V4L2_XFER_FUNC_DEFAULT;
 	dev->ycbcr_enc_out = V4L2_YCBCR_ENC_DEFAULT;
+	dev->hsv_enc_out = V4L2_HSV_ENC_180;
 	dev->quantization_out = V4L2_QUANTIZATION_DEFAULT;
 	dev->compose_out = dev->sink_rect;
 	dev->compose_bounds_out = dev->sink_rect;
