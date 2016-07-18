@@ -1210,13 +1210,8 @@ int __cec_s_log_addrs(struct cec_adapter *adap,
 				return -EINVAL;
 			}
 
-	if (log_addrs->cec_version < CEC_OP_CEC_VERSION_2_0) {
-		memset(log_addrs->all_device_types, 0,
-		       sizeof(log_addrs->all_device_types));
-		memset(log_addrs->features, 0, sizeof(log_addrs->features));
-	}
-
 	for (i = 0; i < log_addrs->num_log_addrs; i++) {
+		const u8 feature_sz = ARRAY_SIZE(log_addrs->features[0]);
 		u8 *features = log_addrs->features[i];
 		bool op_is_dev_features = false;
 
@@ -1245,21 +1240,19 @@ int __cec_s_log_addrs(struct cec_adapter *adap,
 			dprintk(1, "unknown logical address type\n");
 			return -EINVAL;
 		}
-		if (log_addrs->cec_version < CEC_OP_CEC_VERSION_2_0)
-			continue;
-
-		for (i = 0; i < ARRAY_SIZE(log_addrs->features[0]); i++) {
+		for (i = 0; i < feature_sz; i++) {
 			if ((features[i] & 0x80) == 0) {
 				if (op_is_dev_features)
 					break;
 				op_is_dev_features = true;
 			}
 		}
-		if (!op_is_dev_features ||
-		    i == ARRAY_SIZE(log_addrs->features[0])) {
+		if (!op_is_dev_features || i == feature_sz) {
 			dprintk(1, "malformed features\n");
 			return -EINVAL;
 		}
+		/* Zero unused part of the feature array */
+		memset(features + i, 0, feature_sz - i);
 	}
 
 	if (log_addrs->cec_version >= CEC_OP_CEC_VERSION_2_0) {
@@ -1279,6 +1272,15 @@ int __cec_s_log_addrs(struct cec_adapter *adap,
 				return -EINVAL;
 			}
 		}
+	}
+
+	/* Zero unused LAs */
+	for (i = log_addrs->num_log_addrs; i < CEC_MAX_LOG_ADDRS; i++) {
+		log_addrs->primary_device_type[i] = 0;
+		log_addrs->log_addr_type[i] = 0;
+		log_addrs->all_device_types[i] = 0;
+		memset(log_addrs->features[i], 0,
+		       sizeof(log_addrs->features[i]));
 	}
 
 	log_addrs->log_addr_mask = adap->log_addrs.log_addr_mask;
