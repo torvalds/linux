@@ -112,6 +112,59 @@ int test_getpid(char *str, int len)
 	return TEST_FAILURE;
 }
 
+void check_latency(long (*f)(void), long *min, long *max, long *avg)
+{
+	int i;
+	unsigned long long start, stop, sum = 0;
+	static const int count = 1000;
+	long delta;
+
+	*min = 1000000000;
+	*max = -1;
+
+	for (i = 0; i < count; i++) {
+		start = lkl_host_ops.time();
+		f();
+		stop = lkl_host_ops.time();
+		delta = stop - start;
+		if (*min > delta)
+			*min = delta;
+		if (*max < delta)
+			*max = delta;
+		sum += delta;
+	}
+	*avg = sum / count;
+}
+
+static long native_getpid(void)
+{
+#ifdef __MINGW32__
+	GetCurrentProcessId();
+#else
+	getpid();
+#endif
+	return 0;
+}
+
+int test_syscall_latency(char *str, int len)
+{
+	long min, max, avg;
+	int tmp;
+
+	check_latency(lkl_sys_getpid, &min, &max, &avg);
+
+	tmp = snprintf(str, len, "avg/min/max lkl: %ld/%ld/%ld ",
+		       avg, min, max);
+	str += tmp;
+	len -= tmp;
+
+	check_latency(native_getpid, &min, &max, &avg);
+
+	snprintf(str, len, "native: %ld/%ld/%ld", avg, min, max);
+
+	return TEST_SUCCESS;
+}
+
 #define access_rights 0721
 
 int test_creat(char *str, int len)
@@ -818,9 +871,10 @@ int main(int argc, char **argv)
 	if (cla.tap_ifname)
 		TEST(netdev_add);
 #endif /* __MINGW32__ */
-	lkl_start_kernel(&lkl_host_ops, 16 * 1024 * 1024, "");
+	lkl_start_kernel(&lkl_host_ops, 16 * 1024 * 1024, "loglevel=8");
 
 	TEST(getpid);
+	TEST(syscall_latency);
 	TEST(umask);
 	TEST(creat);
 	TEST(close);
