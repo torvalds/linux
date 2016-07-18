@@ -629,6 +629,13 @@ pnfs_sync_inode(struct inode *inode, bool datasync)
 }
 
 static inline bool
+pnfs_layoutcommit_outstanding(struct inode *inode)
+{
+	return false;
+}
+
+
+static inline bool
 pnfs_roc(struct inode *ino)
 {
 	return false;
