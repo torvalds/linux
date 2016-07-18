@@ -100,8 +100,4 @@ struct asyc_intr_info {
 #define SCAN_HOST	0x04
 };
 
-#ifndef CONFIG_CXL_EEH
-#define cxl_perst_reloads_same_image(_a, _b) do { } while (0)
-#endif
-
 #endif /* _CXLFLASH_MAIN_H */

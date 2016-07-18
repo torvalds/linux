@@ -7,14 +7,6 @@ config CXL_BASE
 	default n
 	select PPC_COPRO_BASE
 
-config CXL_KERNEL_API
-	bool
-	default n
-
-config CXL_EEH
-	bool
-	default n
-
 config CXL_AFU_DRIVER_OPS
 	bool
 	default n
@@ -23,8 +15,6 @@ config CXL
 	tristate "Support for IBM Coherent Accelerators (CXL)"
 	depends on PPC_POWERNV && PCI_MSI && EEH
 	select CXL_BASE
-	select CXL_KERNEL_API
-	select CXL_EEH
 	select CXL_AFU_DRIVER_OPS
 	default m
 	help
