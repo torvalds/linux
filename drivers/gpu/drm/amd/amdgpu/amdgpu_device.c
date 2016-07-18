@@ -1976,7 +1976,6 @@ int amdgpu_pre_soft_reset(struct amdgpu_device *adev)
 static bool amdgpu_need_full_reset(struct amdgpu_device *adev)
 {
 	if (adev->ip_block_status[AMD_IP_BLOCK_TYPE_GMC].hang ||
-	    adev->ip_block_status[AMD_IP_BLOCK_TYPE_IH].hang ||
 	    adev->ip_block_status[AMD_IP_BLOCK_TYPE_SMC].hang ||
 	    adev->ip_block_status[AMD_IP_BLOCK_TYPE_UVD].hang ||
 	    adev->ip_block_status[AMD_IP_BLOCK_TYPE_VCE].hang ||
