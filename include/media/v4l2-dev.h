@@ -25,7 +25,8 @@
 #define VFL_TYPE_RADIO		2
 #define VFL_TYPE_SUBDEV		3
 #define VFL_TYPE_SDR		4
-#define VFL_TYPE_MAX		5
+#define VFL_TYPE_TOUCH		5
+#define VFL_TYPE_MAX		6
 
 /* Is this a receiver, transmitter or mem-to-mem? */
 /* Ignored for VFL_TYPE_SUBDEV. */
@@ -294,6 +295,7 @@ struct video_device
  *	- %VFL_TYPE_RADIO - A radio card
  *	- %VFL_TYPE_SUBDEV - A subdevice
  *	- %VFL_TYPE_SDR - Software Defined Radio
+ *	- %VFL_TYPE_TOUCH - A touch sensor
  *
  * .. note::
  *

@@ -200,6 +200,7 @@ types exist:
 - ``VFL_TYPE_VBI``: ``/dev/vbiX`` for vertical blank data (i.e. closed captions, teletext)
 - ``VFL_TYPE_RADIO``: ``/dev/radioX`` for radio tuners
 - ``VFL_TYPE_SDR``: ``/dev/swradioX`` for Software Defined Radio tuners
+- ``VFL_TYPE_TOUCH``: ``/dev/v4l-touchX`` for touch sensors
 
 The last argument gives you a certain amount of control over the device
 device node number used (i.e. the X in ``videoX``). Normally you will pass -1
