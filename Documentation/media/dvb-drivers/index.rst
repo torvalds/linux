@@ -2,9 +2,9 @@
 
 .. include:: <isonum.txt>
 
-#############################################
-Linux Digital Video Broadcast (DVB) subsystem
-#############################################
+##############################################
+Linux Digital TV driver-specific documentation
+##############################################
 
 **Copyright** |copy| 2001-2016 : LinuxTV Developers
 
@@ -17,6 +17,9 @@ License".
 
 .. toctree::
 	:maxdepth: 5
+	:numbered:
+	:caption: Table of Contents
+	:name: dvb_mastertoc
 
 	intro
 	avermedia

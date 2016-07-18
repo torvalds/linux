@@ -2,9 +2,9 @@
 
 .. include:: <isonum.txt>
 
-=========================
-Media subsystem core kAPI
-=========================
+===================================
+Media subsystem kernel internal API
+===================================
 
 **Copyright** |copy| 2009-2016 : LinuxTV Developers
 
@@ -16,6 +16,9 @@ License".
 
 .. toctree::
     :maxdepth: 5
+    :numbered:
+    :caption: Table of Contents
+    :name: kapi_mastertoc
 
     kapi/v4l2-framework
     kapi/v4l2-controls

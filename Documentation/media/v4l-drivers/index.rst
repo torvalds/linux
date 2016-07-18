@@ -2,9 +2,9 @@
 
 .. include:: <isonum.txt>
 
-###########################
-Video4Linux (V4L) subsystem
-###########################
+################################################
+Video4Linux (V4L)  driver-specific documentation
+################################################
 
 **Copyright** |copy| 1999-2016 : LinuxTV Developers
 
@@ -18,6 +18,8 @@ License".
 .. toctree::
 	:maxdepth: 5
 	:numbered:
+	:caption: Table of Contents
+	:name: v4l_mastertoc
 
 	fourcc
 	v4l-with-ir
