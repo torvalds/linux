@@ -644,8 +644,9 @@ static bool bq27xxx_battery_dead(struct bq27xxx_device_info *di, u16 flags)
 static int bq27xxx_battery_read_health(struct bq27xxx_device_info *di)
 {
 	int flags;
+	bool has_singe_flag = di->chip == BQ27000 || di->chip == BQ27010;
 
-	flags = bq27xxx_read(di, BQ27XXX_REG_FLAGS, false);
+	flags = bq27xxx_read(di, BQ27XXX_REG_FLAGS, has_singe_flag);
 	if (flags < 0) {
 		dev_err(di->dev, "error reading flag register:%d\n", flags);
 		return flags;
@@ -745,7 +746,7 @@ static int bq27xxx_battery_current(struct bq27xxx_device_info *di,
 	}
 
 	if (di->chip == BQ27000 || di->chip == BQ27010) {
-		flags = bq27xxx_read(di, BQ27XXX_REG_FLAGS, false);
+		flags = bq27xxx_read(di, BQ27XXX_REG_FLAGS, true);
 		if (flags & BQ27000_FLAG_CHGS) {
 			dev_dbg(di->dev, "negative current!\n");
 			curr = -curr;
