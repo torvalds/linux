@@ -88,4 +88,3 @@ arch/*/include/asm/unistd*.h
 arch/*/include/uapi/asm/unistd*.h
 tools/arch/*/include/uapi/asm/perf_regs.h
 include/linux/poison.h
-include/uapi/linux/const.h
