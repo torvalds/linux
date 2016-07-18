@@ -52,6 +52,14 @@ static int nft_log_init(const struct nft_ctx *ctx,
 	struct nft_log *priv = nft_expr_priv(expr);
 	struct nf_loginfo *li = &priv->loginfo;
 	const struct nlattr *nla;
+	int err;
+
+	li->type = NF_LOG_TYPE_LOG;
+	if (tb[NFTA_LOG_LEVEL] != NULL &&
+	    tb[NFTA_LOG_GROUP] != NULL)
+		return -EINVAL;
+	if (tb[NFTA_LOG_GROUP] != NULL)
+		li->type = NF_LOG_TYPE_ULOG;
 
 	nla = tb[NFTA_LOG_PREFIX];
 	if (nla != NULL) {
@@ -62,13 +70,6 @@ static int nft_log_init(const struct nft_ctx *ctx,
 	} else {
 		priv->prefix = (char *)nft_log_null_prefix;
 	}
-
-	li->type = NF_LOG_TYPE_LOG;
-	if (tb[NFTA_LOG_LEVEL] != NULL &&
-	    tb[NFTA_LOG_GROUP] != NULL)
-		return -EINVAL;
-	if (tb[NFTA_LOG_GROUP] != NULL)
-		li->type = NF_LOG_TYPE_ULOG;
 
 	switch (li->type) {
 	case NF_LOG_TYPE_LOG:
@@ -96,7 +97,16 @@ static int nft_log_init(const struct nft_ctx *ctx,
 		break;
 	}
 
-	return nf_logger_find_get(ctx->afi->family, li->type);
+	err = nf_logger_find_get(ctx->afi->family, li->type);
+	if (err < 0)
+		goto err1;
+
+	return 0;
+
+err1:
+	if (priv->prefix != nft_log_null_prefix)
+		kfree(priv->prefix);
+	return err;
 }
 
 static void nft_log_destroy(const struct nft_ctx *ctx,
