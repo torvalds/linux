@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <sys/syscall.h>
 #include <linux/types.h>
+#include <linux/compiler.h>
 #include <linux/perf_event.h>
 #include <asm/barrier.h>
 
