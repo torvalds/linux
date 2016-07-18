@@ -21,6 +21,7 @@ License".
 
 	fourcc
 	v4l-with-ir
+	tuners
 	cardlist
 	bttv
 	cafe_ccic
