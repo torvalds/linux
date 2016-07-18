@@ -2661,7 +2661,7 @@ static int bnxt_alloc_stats(struct bnxt *bp)
 		cpr->hw_stats_ctx_id = INVALID_STATS_CTX_ID;
 	}
 
-	if (BNXT_PF(bp)) {
+	if (BNXT_PF(bp) && bp->chip_num != CHIP_NUM_58700) {
 		bp->hw_port_stats_size = sizeof(struct rx_port_stats) +
 					 sizeof(struct tx_port_stats) + 1024;
 
@@ -3922,6 +3922,9 @@ static int bnxt_hwrm_stat_ctx_free(struct bnxt *bp)
 	if (!bp->bnapi)
 		return 0;
 
+	if (BNXT_CHIP_TYPE_NITRO_A0(bp))
+		return 0;
+
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_STAT_CTX_FREE, -1, -1);
 
 	mutex_lock(&bp->hwrm_cmd_lock);
@@ -3949,6 +3952,9 @@ static int bnxt_hwrm_stat_ctx_alloc(struct bnxt *bp)
 	int rc = 0, i;
 	struct hwrm_stat_ctx_alloc_input req = {0};
 	struct hwrm_stat_ctx_alloc_output *resp = bp->hwrm_cmd_resp_addr;
+
+	if (BNXT_CHIP_TYPE_NITRO_A0(bp))
+		return 0;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_STAT_CTX_ALLOC, -1, -1);
 
@@ -4163,6 +4169,9 @@ static int bnxt_hwrm_ver_get(struct bnxt *bp)
 		bp->hwrm_max_req_len = le16_to_cpu(resp->max_req_win_len);
 
 	bp->chip_num = le16_to_cpu(resp->chip_num);
+	if (bp->chip_num == CHIP_NUM_58700 && !resp->chip_rev &&
+	    !resp->chip_metal)
+		bp->flags |= BNXT_FLAG_CHIP_NITRO_A0;
 
 hwrm_ver_get_exit:
 	mutex_unlock(&bp->hwrm_cmd_lock);
@@ -5681,7 +5690,7 @@ static int bnxt_set_features(struct net_device *dev, netdev_features_t features)
 	bool update_tpa = false;
 
 	flags &= ~BNXT_FLAG_ALL_CONFIG_FEATS;
-	if ((features & NETIF_F_GRO) && (bp->pdev->revision > 0))
+	if ((features & NETIF_F_GRO) && !BNXT_CHIP_TYPE_NITRO_A0(bp))
 		flags |= BNXT_FLAG_GRO;
 	if (features & NETIF_F_LRO)
 		flags |= BNXT_FLAG_LRO;
@@ -6576,13 +6585,25 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_drvdata(pdev, dev);
 
+	rc = bnxt_alloc_hwrm_resources(bp);
+	if (rc)
+		goto init_err;
+
+	mutex_init(&bp->hwrm_cmd_lock);
+	rc = bnxt_hwrm_ver_get(bp);
+	if (rc)
+		goto init_err;
+
 	dev->hw_features = NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_SG |
 			   NETIF_F_TSO | NETIF_F_TSO6 |
 			   NETIF_F_GSO_UDP_TUNNEL | NETIF_F_GSO_GRE |
 			   NETIF_F_GSO_IPXIP4 |
 			   NETIF_F_GSO_UDP_TUNNEL_CSUM | NETIF_F_GSO_GRE_CSUM |
 			   NETIF_F_GSO_PARTIAL | NETIF_F_RXHASH |
-			   NETIF_F_RXCSUM | NETIF_F_LRO | NETIF_F_GRO;
+			   NETIF_F_RXCSUM | NETIF_F_GRO;
+
+	if (!BNXT_CHIP_TYPE_NITRO_A0(bp))
+		dev->hw_features |= NETIF_F_LRO;
 
 	dev->hw_enc_features =
 			NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_SG |
@@ -6601,15 +6622,6 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 #ifdef CONFIG_BNXT_SRIOV
 	init_waitqueue_head(&bp->sriov_cfg_wait);
 #endif
-	rc = bnxt_alloc_hwrm_resources(bp);
-	if (rc)
-		goto init_err;
-
-	mutex_init(&bp->hwrm_cmd_lock);
-	rc = bnxt_hwrm_ver_get(bp);
-	if (rc)
-		goto init_err;
-
 	bp->gro_func = bnxt_gro_func_5730x;
 	if (BNXT_CHIP_NUM_57X1X(bp->chip_num))
 		bp->gro_func = bnxt_gro_func_5731x;
@@ -6647,7 +6659,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 #endif
 	bnxt_set_dflt_rings(bp);
 
-	if (BNXT_PF(bp)) {
+	if (BNXT_PF(bp) && !BNXT_CHIP_TYPE_NITRO_A0(bp)) {
 		dev->hw_features |= NETIF_F_NTUPLE;
 		if (bnxt_rfs_capable(bp)) {
 			bp->flags |= BNXT_FLAG_RFS;

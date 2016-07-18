@@ -893,6 +893,7 @@ struct bnxt {
 #define CHIP_NUM_57301		0x16c8
 #define CHIP_NUM_57302		0x16c9
 #define CHIP_NUM_57304		0x16ca
+#define CHIP_NUM_58700		0x16cd
 #define CHIP_NUM_57402		0x16d0
 #define CHIP_NUM_57404		0x16d1
 #define CHIP_NUM_57406		0x16d2
@@ -954,6 +955,7 @@ struct bnxt {
 	#define BNXT_FLAG_SHARED_RINGS	0x200
 	#define BNXT_FLAG_PORT_STATS	0x400
 	#define BNXT_FLAG_EEE_CAP	0x1000
+	#define BNXT_FLAG_CHIP_NITRO_A0	0x1000000
 
 	#define BNXT_FLAG_ALL_CONFIG_FEATS (BNXT_FLAG_TPA |		\
 					    BNXT_FLAG_RFS |		\
@@ -963,6 +965,7 @@ struct bnxt {
 #define BNXT_VF(bp)		((bp)->flags & BNXT_FLAG_VF)
 #define BNXT_NPAR(bp)		((bp)->port_partition_type)
 #define BNXT_SINGLE_PF(bp)	(BNXT_PF(bp) && !BNXT_NPAR(bp))
+#define BNXT_CHIP_TYPE_NITRO_A0(bp) ((bp)->flags & BNXT_FLAG_CHIP_NITRO_A0)
 
 	struct bnxt_napi	**bnapi;
 
