@@ -591,6 +591,20 @@
 				allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
 			};
 
+			spi2_pins_a: spi2@0 {
+				allwinner,pins = "PE1", "PE2", "PE3";
+				allwinner,function = "spi2";
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+			};
+
+			spi2_cs0_pins_a: spi2-cs0@0 {
+				allwinner,pins = "PE0";
+				allwinner,function = "spi2";
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+			};
+
 			uart3_pins_a: uart3@0 {
 				allwinner,pins = "PG9", "PG10";
 				allwinner,function = "uart3";
