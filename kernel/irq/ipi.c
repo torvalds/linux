@@ -83,7 +83,7 @@ int irq_reserve_ipi(struct irq_domain *domain,
 	}
 
 	virq = __irq_domain_alloc_irqs(domain, virq, nr_irqs, NUMA_NO_NODE,
-				       (void *) dest, true);
+				       (void *) dest, true, NULL);
 
 	if (virq <= 0) {
 		pr_warn("Can't reserve IPI, failed to alloc hw irqs\n");
