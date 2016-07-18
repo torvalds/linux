@@ -1689,6 +1689,7 @@ struct amdgpu_uvd {
 	bool			address_64_bit;
 	bool			use_ctx_buf;
 	struct amd_sched_entity entity;
+	uint32_t                srbm_soft_reset;
 };
 
 /*
