@@ -375,9 +375,18 @@ config INPUT_KXTJ9_POLLED_MODE
 
 config INPUT_NINTENDO3DS_INPUT
 	bool "Enable Nintendo 3DS input"
+	depends on ARCH_NINTENDO3DS
 	select INPUT_POLLDEV
 	help
 	  Say Y here to enable the Nintendo 3DS input.
+
+config INPUT_NINTENDO3DS_CODEC_HID
+	bool "Enable Nintendo 3DS CODEC HID input"
+	depends on ARCH_NINTENDO3DS
+	select INPUT_POLLDEV
+	help
+	  Say Y here to enable the Nintendo 3DS CODEC HID input
+	  (touchscreen and circle pad).
 
 config INPUT_POWERMATE
 	tristate "Griffin PowerMate and Contour Jog support"
