@@ -20,6 +20,7 @@ License".
 	:numbered:
 
 	fourcc
+	v4l-with-ir
 	cardlist
 	cafe_ccic
 	cpia2
