@@ -44,8 +44,6 @@ int imx_drm_init_drm(struct platform_device *pdev,
 		int preferred_bpp);
 int imx_drm_exit_drm(void);
 
-int imx_drm_crtc_vblank_get(struct imx_drm_crtc *imx_drm_crtc);
-void imx_drm_crtc_vblank_put(struct imx_drm_crtc *imx_drm_crtc);
 void imx_drm_handle_vblank(struct imx_drm_crtc *imx_drm_crtc);
 
 void imx_drm_mode_config_init(struct drm_device *drm);

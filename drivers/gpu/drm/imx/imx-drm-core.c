@@ -90,18 +90,6 @@ static int imx_drm_driver_unload(struct drm_device *drm)
 	return 0;
 }
 
-int imx_drm_crtc_vblank_get(struct imx_drm_crtc *imx_drm_crtc)
-{
-	return drm_crtc_vblank_get(imx_drm_crtc->crtc);
-}
-EXPORT_SYMBOL_GPL(imx_drm_crtc_vblank_get);
-
-void imx_drm_crtc_vblank_put(struct imx_drm_crtc *imx_drm_crtc)
-{
-	drm_crtc_vblank_put(imx_drm_crtc->crtc);
-}
-EXPORT_SYMBOL_GPL(imx_drm_crtc_vblank_put);
-
 void imx_drm_handle_vblank(struct imx_drm_crtc *imx_drm_crtc)
 {
 	drm_crtc_handle_vblank(imx_drm_crtc->crtc);
