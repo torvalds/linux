@@ -117,9 +117,11 @@ config TOUCHSCREEN_ATMEL_MXT
 
 config TOUCHSCREEN_ATMEL_MXT_T37
 	bool "Support T37 Diagnostic Data"
-	depends on TOUCHSCREEN_ATMEL_MXT
+	depends on TOUCHSCREEN_ATMEL_MXT && VIDEO_V4L2
+	select VIDEOBUF2_VMALLOC
 	help
-	  Say Y here if you want support for the T37 Diagnostic Data object.
+	  Say Y here if you want support to output data from the T37
+	  Diagnostic Data object using a V4L device.
 
 config TOUCHSCREEN_AUO_PIXCIR
 	tristate "AUO in-cell touchscreen using Pixcir ICs"
