@@ -362,9 +362,13 @@ static void bnxt_get_channels(struct net_device *dev,
 	channel->max_other = 0;
 	if (bp->flags & BNXT_FLAG_SHARED_RINGS) {
 		channel->combined_count = bp->rx_nr_rings;
+		if (BNXT_CHIP_TYPE_NITRO_A0(bp))
+			channel->combined_count--;
 	} else {
-		channel->rx_count = bp->rx_nr_rings;
-		channel->tx_count = bp->tx_nr_rings_per_tc;
+		if (!BNXT_CHIP_TYPE_NITRO_A0(bp)) {
+			channel->rx_count = bp->rx_nr_rings;
+			channel->tx_count = bp->tx_nr_rings_per_tc;
+		}
 	}
 }
 
@@ -385,6 +389,10 @@ static int bnxt_set_channels(struct net_device *dev,
 
 	if (channel->combined_count &&
 	    (channel->rx_count || channel->tx_count))
+		return -EINVAL;
+
+	if (BNXT_CHIP_TYPE_NITRO_A0(bp) && (channel->rx_count ||
+					    channel->tx_count))
 		return -EINVAL;
 
 	if (channel->combined_count)

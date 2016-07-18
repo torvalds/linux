@@ -3433,6 +3433,8 @@ static int bnxt_hwrm_vnic_cfg(struct bnxt *bp, u16 vnic_id)
 		ring = 0;
 	else if (vnic->flags & BNXT_VNIC_RFS_FLAG)
 		ring = vnic_id - 1;
+	else if ((vnic_id == 1) && BNXT_CHIP_TYPE_NITRO_A0(bp))
+		ring = bp->rx_nr_rings - 1;
 
 	grp_idx = bp->rx_ring[ring].bnapi->index;
 	req.vnic_id = cpu_to_le16(vnic->fw_vnic_id);
@@ -4365,6 +4367,7 @@ static int bnxt_init_chip(struct bnxt *bp, bool irq_re_init)
 {
 	struct bnxt_vnic_info *vnic = &bp->vnic_info[0];
 	int rc = 0;
+	unsigned int rx_nr_rings = bp->rx_nr_rings;
 
 	if (irq_re_init) {
 		rc = bnxt_hwrm_stat_ctx_alloc(bp);
@@ -4387,8 +4390,11 @@ static int bnxt_init_chip(struct bnxt *bp, bool irq_re_init)
 		goto err_out;
 	}
 
+	if (BNXT_CHIP_TYPE_NITRO_A0(bp))
+		rx_nr_rings--;
+
 	/* default vnic 0 */
-	rc = bnxt_hwrm_vnic_alloc(bp, 0, 0, bp->rx_nr_rings);
+	rc = bnxt_hwrm_vnic_alloc(bp, 0, 0, rx_nr_rings);
 	if (rc) {
 		netdev_err(bp->dev, "hwrm vnic alloc failure rc: %x\n", rc);
 		goto err_out;
@@ -6519,7 +6525,10 @@ static void _bnxt_get_max_rings(struct bnxt *bp, int *max_rx, int *max_tx,
 		*max_cp = min_t(int, *max_cp, bp->pf.max_stat_ctxs);
 		max_ring_grps = bp->pf.max_hw_ring_grps;
 	}
-
+	if (BNXT_CHIP_TYPE_NITRO_A0(bp) && BNXT_PF(bp)) {
+		*max_cp -= 1;
+		*max_rx -= 2;
+	}
 	if (bp->flags & BNXT_FLAG_AGG_RINGS)
 		*max_rx >>= 1;
 	*max_rx = min_t(int, *max_rx, max_ring_grps);
@@ -6555,6 +6564,10 @@ static int bnxt_set_dflt_rings(struct bnxt *bp)
 	bp->cp_nr_rings = sh ? max_t(int, bp->tx_nr_rings, bp->rx_nr_rings) :
 			       bp->tx_nr_rings + bp->rx_nr_rings;
 	bp->num_stat_ctxs = bp->cp_nr_rings;
+	if (BNXT_CHIP_TYPE_NITRO_A0(bp)) {
+		bp->rx_nr_rings++;
+		bp->cp_nr_rings++;
+	}
 	return rc;
 }
 
