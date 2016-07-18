@@ -351,6 +351,9 @@ $(PERF_IN): prepare FORCE
 	@(test -f ../../include/uapi/linux/perf_event.h && ( \
         (diff -B ../include/uapi/linux/perf_event.h ../../include/uapi/linux/perf_event.h >/dev/null) \
         || echo "Warning: tools/include/uapi/linux/perf_event.h differs from kernel" >&2 )) || true
+	@(test -f ../../include/linux/hash.h && ( \
+        (diff -B ../include/linux/hash.h ../../include/linux/hash.h >/dev/null) \
+        || echo "Warning: tools/include/linux/hash.h differs from kernel" >&2 )) || true
 	@(test -f ../../include/uapi/linux/hw_breakpoint.h && ( \
         (diff -B ../include/uapi/linux/hw_breakpoint.h ../../include/uapi/linux/hw_breakpoint.h >/dev/null) \
         || echo "Warning: tools/include/uapi/linux/hw_breakpoint.h differs from kernel" >&2 )) || true
