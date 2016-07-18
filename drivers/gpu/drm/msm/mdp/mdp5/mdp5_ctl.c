@@ -118,31 +118,31 @@ static void set_display_intf(struct mdp5_kms *mdp5_kms,
 	u32 intf_sel;
 
 	spin_lock_irqsave(&mdp5_kms->resource_lock, flags);
-	intf_sel = mdp5_read(mdp5_kms, REG_MDP5_MDP_DISP_INTF_SEL(0));
+	intf_sel = mdp5_read(mdp5_kms, REG_MDP5_DISP_INTF_SEL);
 
 	switch (intf->num) {
 	case 0:
-		intf_sel &= ~MDP5_MDP_DISP_INTF_SEL_INTF0__MASK;
-		intf_sel |= MDP5_MDP_DISP_INTF_SEL_INTF0(intf->type);
+		intf_sel &= ~MDP5_DISP_INTF_SEL_INTF0__MASK;
+		intf_sel |= MDP5_DISP_INTF_SEL_INTF0(intf->type);
 		break;
 	case 1:
-		intf_sel &= ~MDP5_MDP_DISP_INTF_SEL_INTF1__MASK;
-		intf_sel |= MDP5_MDP_DISP_INTF_SEL_INTF1(intf->type);
+		intf_sel &= ~MDP5_DISP_INTF_SEL_INTF1__MASK;
+		intf_sel |= MDP5_DISP_INTF_SEL_INTF1(intf->type);
 		break;
 	case 2:
-		intf_sel &= ~MDP5_MDP_DISP_INTF_SEL_INTF2__MASK;
-		intf_sel |= MDP5_MDP_DISP_INTF_SEL_INTF2(intf->type);
+		intf_sel &= ~MDP5_DISP_INTF_SEL_INTF2__MASK;
+		intf_sel |= MDP5_DISP_INTF_SEL_INTF2(intf->type);
 		break;
 	case 3:
-		intf_sel &= ~MDP5_MDP_DISP_INTF_SEL_INTF3__MASK;
-		intf_sel |= MDP5_MDP_DISP_INTF_SEL_INTF3(intf->type);
+		intf_sel &= ~MDP5_DISP_INTF_SEL_INTF3__MASK;
+		intf_sel |= MDP5_DISP_INTF_SEL_INTF3(intf->type);
 		break;
 	default:
 		BUG();
 		break;
 	}
 
-	mdp5_write(mdp5_kms, REG_MDP5_MDP_DISP_INTF_SEL(0), intf_sel);
+	mdp5_write(mdp5_kms, REG_MDP5_DISP_INTF_SEL, intf_sel);
 	spin_unlock_irqrestore(&mdp5_kms->resource_lock, flags);
 }
 
@@ -557,7 +557,7 @@ int mdp5_ctl_pair(struct mdp5_ctl *ctlx, struct mdp5_ctl *ctly, bool enable)
 	if (!enable) {
 		ctlx->pair = NULL;
 		ctly->pair = NULL;
-		mdp5_write(mdp5_kms, REG_MDP5_MDP_SPARE_0(0), 0);
+		mdp5_write(mdp5_kms, REG_MDP5_SPARE_0, 0);
 		return 0;
 	} else if ((ctlx->pair != NULL) || (ctly->pair != NULL)) {
 		dev_err(ctl_mgr->dev->dev, "CTLs already paired\n");
@@ -570,8 +570,8 @@ int mdp5_ctl_pair(struct mdp5_ctl *ctlx, struct mdp5_ctl *ctly, bool enable)
 	ctlx->pair = ctly;
 	ctly->pair = ctlx;
 
-	mdp5_write(mdp5_kms, REG_MDP5_MDP_SPARE_0(0),
-		MDP5_MDP_SPARE_0_SPLIT_DPL_SINGLE_FLUSH_EN);
+	mdp5_write(mdp5_kms, REG_MDP5_SPARE_0,
+		   MDP5_SPARE_0_SPLIT_DPL_SINGLE_FLUSH_EN);
 
 	return 0;
 }

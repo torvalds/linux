@@ -49,8 +49,8 @@ static void msm_framebuffer_destroy(struct drm_framebuffer *fb)
 
 	for (i = 0; i < n; i++) {
 		struct drm_gem_object *bo = msm_fb->planes[i];
-		if (bo)
-			drm_gem_object_unreference_unlocked(bo);
+
+		drm_gem_object_unreference_unlocked(bo);
 	}
 
 	kfree(msm_fb);

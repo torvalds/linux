@@ -158,6 +158,7 @@ static const char * const iommu_ports[] = {
 static void mdp4_destroy(struct msm_kms *kms)
 {
 	struct mdp4_kms *mdp4_kms = to_mdp4_kms(to_mdp_kms(kms));
+	struct device *dev = mdp4_kms->dev->dev;
 	struct msm_mmu *mmu = mdp4_kms->mmu;
 
 	if (mmu) {
@@ -167,8 +168,11 @@ static void mdp4_destroy(struct msm_kms *kms)
 
 	if (mdp4_kms->blank_cursor_iova)
 		msm_gem_put_iova(mdp4_kms->blank_cursor_bo, mdp4_kms->id);
-	if (mdp4_kms->blank_cursor_bo)
-		drm_gem_object_unreference_unlocked(mdp4_kms->blank_cursor_bo);
+	drm_gem_object_unreference_unlocked(mdp4_kms->blank_cursor_bo);
+
+	if (mdp4_kms->rpm_enabled)
+		pm_runtime_disable(dev);
+
 	kfree(mdp4_kms);
 }
 
@@ -436,7 +440,7 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 	struct mdp4_kms *mdp4_kms;
 	struct msm_kms *kms = NULL;
 	struct msm_mmu *mmu;
-	int ret;
+	int irq, ret;
 
 	mdp4_kms = kzalloc(sizeof(*mdp4_kms), GFP_KERNEL);
 	if (!mdp4_kms) {
@@ -456,6 +460,15 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 		ret = PTR_ERR(mdp4_kms->mmio);
 		goto fail;
 	}
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		ret = irq;
+		dev_err(dev->dev, "failed to get irq: %d\n", ret);
+		goto fail;
+	}
+
+	kms->irq = irq;
 
 	/* NOTE: driver for this regulator still missing upstream.. use
 	 * _get_exclusive() and ignore the error if it does not exist
@@ -492,7 +505,7 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 		goto fail;
 	}
 
-	mdp4_kms->axi_clk = devm_clk_get(&pdev->dev, "mdp_axi_clk");
+	mdp4_kms->axi_clk = devm_clk_get(&pdev->dev, "bus_clk");
 	if (IS_ERR(mdp4_kms->axi_clk)) {
 		dev_err(dev->dev, "failed to get axi_clk\n");
 		ret = PTR_ERR(mdp4_kms->axi_clk);
@@ -501,6 +514,9 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 
 	clk_set_rate(mdp4_kms->clk, config->max_clk);
 	clk_set_rate(mdp4_kms->lut_clk, config->max_clk);
+
+	pm_runtime_enable(dev->dev);
+	mdp4_kms->rpm_enabled = true;
 
 	/* make sure things are off before attaching iommu (bootloader could
 	 * have left things on, in which case we'll start getting faults if

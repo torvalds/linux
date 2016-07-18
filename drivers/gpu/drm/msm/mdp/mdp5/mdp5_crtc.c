@@ -490,8 +490,7 @@ static int mdp5_crtc_cursor_set(struct drm_crtc *crtc,
 	struct mdp5_kms *mdp5_kms = get_kms(crtc);
 	struct drm_gem_object *cursor_bo, *old_bo = NULL;
 	uint32_t blendcfg, cursor_addr, stride;
-	int ret, bpp, lm;
-	unsigned int depth;
+	int ret, lm;
 	enum mdp5_cursor_alpha cur_alpha = CURSOR_ALPHA_PER_PIXEL;
 	uint32_t flush_mask = mdp_ctl_flush_mask_cursor(0);
 	uint32_t roi_w, roi_h;
@@ -521,8 +520,7 @@ static int mdp5_crtc_cursor_set(struct drm_crtc *crtc,
 		return -EINVAL;
 
 	lm = mdp5_crtc->lm;
-	drm_fb_get_bpp_depth(DRM_FORMAT_ARGB8888, &depth, &bpp);
-	stride = width * (bpp >> 3);
+	stride = width * drm_format_plane_cpp(DRM_FORMAT_ARGB8888, 0);
 
 	spin_lock_irqsave(&mdp5_crtc->cursor.lock, flags);
 	old_bo = mdp5_crtc->cursor.scanout_bo;
