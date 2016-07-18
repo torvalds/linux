@@ -695,7 +695,8 @@ struct bnxt_ring_grp_info {
 
 struct bnxt_vnic_info {
 	u16		fw_vnic_id; /* returned by Chimp during alloc */
-	u16		fw_rss_cos_lb_ctx;
+#define BNXT_MAX_CTX_PER_VNIC	2
+	u16		fw_rss_cos_lb_ctx[BNXT_MAX_CTX_PER_VNIC];
 	u16		fw_l2_ctx_id;
 #define BNXT_MAX_UC_ADDRS	4
 	__le64		fw_l2_filter_id[BNXT_MAX_UC_ADDRS];
