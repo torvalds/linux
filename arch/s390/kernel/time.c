@@ -278,13 +278,8 @@ extern struct timezone sys_tz;
 
 void update_vsyscall_tz(void)
 {
-	/* Make userspace gettimeofday spin until we're done. */
-	++vdso_data->tb_update_count;
-	smp_wmb();
 	vdso_data->tz_minuteswest = sys_tz.tz_minuteswest;
 	vdso_data->tz_dsttime = sys_tz.tz_dsttime;
-	smp_wmb();
-	++vdso_data->tb_update_count;
 }
 
 /*
