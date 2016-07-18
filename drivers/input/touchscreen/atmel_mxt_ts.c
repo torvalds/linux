@@ -125,6 +125,8 @@ struct t9_range {
 
 /* MXT_TOUCH_MULTI_T9 orient */
 #define MXT_T9_ORIENT_SWITCH	(1 << 0)
+#define MXT_T9_ORIENT_INVERTX	(1 << 1)
+#define MXT_T9_ORIENT_INVERTY	(1 << 2)
 
 /* MXT_SPT_COMMSCONFIG_T18 */
 #define MXT_COMMS_CTRL		0
@@ -158,6 +160,8 @@ struct t37_debug {
 #define MXT_T100_YRANGE		24
 
 #define MXT_T100_CFG_SWITCHXY	BIT(5)
+#define MXT_T100_CFG_INVERTY	BIT(6)
+#define MXT_T100_CFG_INVERTX	BIT(7)
 
 #define MXT_T100_TCHAUX_VECT	BIT(0)
 #define MXT_T100_TCHAUX_AMPL	BIT(1)
@@ -262,6 +266,8 @@ struct mxt_data {
 	unsigned int irq;
 	unsigned int max_x;
 	unsigned int max_y;
+	bool invertx;
+	bool inverty;
 	bool xy_switch;
 	u8 xsize;
 	u8 ysize;
@@ -1747,6 +1753,8 @@ static int mxt_read_t9_resolution(struct mxt_data *data)
 		return error;
 
 	data->xy_switch = orient & MXT_T9_ORIENT_SWITCH;
+	data->invertx = orient & MXT_T9_ORIENT_INVERTX;
+	data->inverty = orient & MXT_T9_ORIENT_INVERTY;
 
 	return 0;
 }
@@ -1801,6 +1809,8 @@ static int mxt_read_t100_config(struct mxt_data *data)
 		return error;
 
 	data->xy_switch = cfg & MXT_T100_CFG_SWITCHXY;
+	data->invertx = cfg & MXT_T100_CFG_INVERTX;
+	data->inverty = cfg & MXT_T100_CFG_INVERTY;
 
 	/* allocate aux bytes */
 	error =  __mxt_read_reg(client,
@@ -2145,13 +2155,19 @@ static int mxt_convert_debug_pages(struct mxt_data *data, u16 *outbuf)
 	struct mxt_dbg *dbg = &data->dbg;
 	unsigned int x = 0;
 	unsigned int y = 0;
-	unsigned int i;
+	unsigned int i, rx, ry;
 
 	for (i = 0; i < dbg->t37_nodes; i++) {
-		outbuf[i] = mxt_get_debug_value(data, x, y);
+		/* Handle orientation */
+		rx = data->xy_switch ? y : x;
+		ry = data->xy_switch ? x : y;
+		rx = data->invertx ? (data->xsize - 1 - rx) : rx;
+		ry = data->inverty ? (data->ysize - 1 - ry) : ry;
+
+		outbuf[i] = mxt_get_debug_value(data, rx, ry);
 
 		/* Next value */
-		if (++x >= data->xsize) {
+		if (++x >= (data->xy_switch ? data->ysize : data->xsize)) {
 			x = 0;
 			y++;
 		}
@@ -2306,8 +2322,8 @@ static int mxt_set_input(struct mxt_data *data, unsigned int i)
 	if (i > 0)
 		return -EINVAL;
 
-	f->width = data->xsize;
-	f->height = data->ysize;
+	f->width = data->xy_switch ? data->ysize : data->xsize;
+	f->height = data->xy_switch ? data->xsize : data->ysize;
 	f->pixelformat = V4L2_TCH_FMT_DELTA_TD16;
 	f->field = V4L2_FIELD_NONE;
 	f->colorspace = V4L2_COLORSPACE_RAW;
