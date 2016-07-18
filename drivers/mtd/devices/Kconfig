@@ -113,12 +113,12 @@ config MTD_SST25L
 	  if you want to specify device partitioning.
 
 config MTD_BCM47XXSFLASH
-	tristate "R/O support for serial flash on BCMA bus"
+	tristate "Support for serial flash on BCMA bus"
 	depends on BCMA_SFLASH
 	help
 	  BCMA bus can have various flash memories attached, they are
 	  registered by bcma as platform devices. This enables driver for
-	  serial flash memories (only read-only mode is implemented).
+	  serial flash memories.
 
 config MTD_SLRAM
 	tristate "Uncached system RAM"
