@@ -271,9 +271,6 @@ static int timer_set_oneshot(void *_timer, unsigned long ns)
 		},
 	};
 
-	if (!ts.it_value.tv_nsec)
-		ts.it_value.tv_nsec++;
-
 	return timer_settime(timer, 0, &ts, NULL);
 }
 

@@ -79,11 +79,9 @@ static irqreturn_t timer_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int clockevent_next_event(unsigned long hz,
+static int clockevent_next_event(unsigned long ns,
 				 struct clock_event_device *evt)
 {
-	unsigned long ns = 1000000000 * hz / HZ;
-
 	return lkl_ops->timer_set_oneshot(timer, ns);
 }
 
@@ -121,7 +119,7 @@ void __init time_init(void)
 	if (ret)
 		pr_err("lkl: unable to register clocksource\n");
 
-	clockevents_config_and_register(&clockevent, HZ, 0, 0xffffffff);
+	clockevents_config_and_register(&clockevent, NSEC_PER_SEC, 1, ULONG_MAX);
 
 	time = lkl_ops->time();
 	ts.tv_sec = time / NSEC_PER_SEC;
