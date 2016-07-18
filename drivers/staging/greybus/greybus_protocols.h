@@ -2161,10 +2161,10 @@ struct gb_audio_topology {
 	__u8	num_controls;
 	__u8	num_widgets;
 	__u8	num_routes;
-	__u32	size_dais;
-	__u32	size_controls;
-	__u32	size_widgets;
-	__u32	size_routes;
+	__le32	size_dais;
+	__le32	size_controls;
+	__le32	size_widgets;
+	__le32	size_routes;
 	/*
 	 * struct gb_audio_dai		dai[num_dais];
 	 * struct gb_audio_control	controls[num_controls];
