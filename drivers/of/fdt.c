@@ -472,7 +472,8 @@ static int unflatten_dt_nodes(const void *blob,
 static void *__unflatten_device_tree(const void *blob,
 				     struct device_node *dad,
 				     struct device_node **mynodes,
-				     void *(*dt_alloc)(u64 size, u64 align))
+				     void *(*dt_alloc)(u64 size, u64 align),
+				     bool detached)
 {
 	int size;
 	void *mem;
@@ -516,6 +517,11 @@ static void *__unflatten_device_tree(const void *blob,
 		pr_warning("End of tree marker overwritten: %08x\n",
 			   be32_to_cpup(mem + size));
 
+	if (detached) {
+		of_node_set_flag(*mynodes, OF_DETACHED);
+		pr_debug("unflattened tree is detached\n");
+	}
+
 	pr_debug(" <- unflatten_device_tree()\n");
 	return mem;
 }
@@ -548,7 +554,8 @@ void *of_fdt_unflatten_tree(const unsigned long *blob,
 	void *mem;
 
 	mutex_lock(&of_fdt_unflatten_mutex);
-	mem = __unflatten_device_tree(blob, dad, mynodes, &kernel_tree_alloc);
+	mem = __unflatten_device_tree(blob, dad, mynodes, &kernel_tree_alloc,
+				      true);
 	mutex_unlock(&of_fdt_unflatten_mutex);
 
 	return mem;
@@ -1224,7 +1231,7 @@ bool __init early_init_dt_scan(void *params)
 void __init unflatten_device_tree(void)
 {
 	__unflatten_device_tree(initial_boot_params, NULL, &of_root,
-				early_init_dt_alloc_memory_arch);
+				early_init_dt_alloc_memory_arch, false);
 
 	/* Get pointer to "/chosen" and "/aliases" nodes for use everywhere */
 	of_alias_scan(early_init_dt_alloc_memory_arch);
