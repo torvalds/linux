@@ -221,7 +221,7 @@ int mv_cesa_dma_add_iv_op(struct mv_cesa_tdma_chain *chain, dma_addr_t src,
 	if (IS_ERR(tdma))
 		return PTR_ERR(tdma);
 
-	iv = dma_pool_alloc(cesa_dev->dma->iv_pool, flags, &dma_handle);
+	iv = dma_pool_alloc(cesa_dev->dma->iv_pool, gfp_flags, &dma_handle);
 	if (!iv)
 		return -ENOMEM;
 
