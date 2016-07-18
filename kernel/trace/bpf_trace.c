@@ -309,7 +309,9 @@ u64 bpf_event_output(struct bpf_map *map, u64 flags, void *meta, u64 meta_size,
 	};
 	struct perf_raw_record raw = {
 		.frag = {
-			.next	= ctx_size ? &frag : NULL,
+			{
+				.next	= ctx_size ? &frag : NULL,
+			},
 			.size	= meta_size,
 			.data	= meta,
 		},
