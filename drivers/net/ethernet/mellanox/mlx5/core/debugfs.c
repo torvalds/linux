@@ -277,24 +277,28 @@ void mlx5_cq_debugfs_cleanup(struct mlx5_core_dev *dev)
 static u64 qp_read_field(struct mlx5_core_dev *dev, struct mlx5_core_qp *qp,
 			 int index, int *is_str)
 {
-	struct mlx5_query_qp_mbox_out *out;
+	int outlen = MLX5_ST_SZ_BYTES(query_qp_out);
 	struct mlx5_qp_context *ctx;
 	u64 param = 0;
+	u32 *out;
 	int err;
 	int no_sq;
 
-	out = kzalloc(sizeof(*out), GFP_KERNEL);
+	out = kzalloc(outlen, GFP_KERNEL);
 	if (!out)
 		return param;
 
-	err = mlx5_core_qp_query(dev, qp, out, sizeof(*out));
+	err = mlx5_core_qp_query(dev, qp, out, outlen);
 	if (err) {
-		mlx5_core_warn(dev, "failed to query qp\n");
+		mlx5_core_warn(dev, "failed to query qp err=%d\n", err);
 		goto out;
 	}
 
 	*is_str = 0;
-	ctx = &out->ctx;
+
+	/* FIXME: use MLX5_GET rather than mlx5_qp_context manual struct */
+	ctx = (struct mlx5_qp_context *)MLX5_ADDR_OF(query_qp_out, out, qpc);
+
 	switch (index) {
 	case QP_PID:
 		param = qp->pid;

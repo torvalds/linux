@@ -1966,7 +1966,10 @@ struct mlx5_ifc_qpc_bits {
 	u8         reserved_at_3e0[0x8];
 	u8         cqn_snd[0x18];
 
-	u8         reserved_at_400[0x40];
+	u8         reserved_at_400[0x8];
+	u8         deth_sqpn[0x18];
+
+	u8         reserved_at_420[0x20];
 
 	u8         reserved_at_440[0x8];
 	u8         last_acked_psn[0x18];
