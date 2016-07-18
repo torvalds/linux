@@ -21,6 +21,7 @@
 #include <linux/gpio.h>
 #include <asm/irq.h>
 #include <linux/slab.h>
+#include <linux/uaccess.h>
 #include <linux/workqueue.h>
 #include <linux/proc_fs.h>
 #include <linux/input/mt.h>
