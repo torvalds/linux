@@ -1092,9 +1092,8 @@ static int gmc_v8_0_wait_for_idle(void *handle)
 
 }
 
-static int gmc_v8_0_soft_reset(void *handle)
+static int gmc_v8_0_check_soft_reset(void *handle)
 {
-	struct amdgpu_mode_mc_save save;
 	u32 srbm_soft_reset = 0;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	u32 tmp = RREG32(mmSRBM_STATUS);
@@ -1109,13 +1108,42 @@ static int gmc_v8_0_soft_reset(void *handle)
 			srbm_soft_reset = REG_SET_FIELD(srbm_soft_reset,
 							SRBM_SOFT_RESET, SOFT_RESET_MC, 1);
 	}
+	if (srbm_soft_reset) {
+		adev->ip_block_status[AMD_IP_BLOCK_TYPE_GMC].hang = true;
+		adev->mc.srbm_soft_reset = srbm_soft_reset;
+	} else {
+		adev->ip_block_status[AMD_IP_BLOCK_TYPE_GMC].hang = false;
+		adev->mc.srbm_soft_reset = 0;
+	}
+	return 0;
+}
+
+static int gmc_v8_0_pre_soft_reset(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (!adev->ip_block_status[AMD_IP_BLOCK_TYPE_GMC].hang)
+		return 0;
+
+	gmc_v8_0_mc_stop(adev, &adev->mc.save);
+	if (gmc_v8_0_wait_for_idle(adev)) {
+		dev_warn(adev->dev, "Wait for GMC idle timed out !\n");
+	}
+
+	return 0;
+}
+
+static int gmc_v8_0_soft_reset(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	u32 srbm_soft_reset;
+
+	if (!adev->ip_block_status[AMD_IP_BLOCK_TYPE_GMC].hang)
+		return 0;
+	srbm_soft_reset = adev->mc.srbm_soft_reset;
 
 	if (srbm_soft_reset) {
-		gmc_v8_0_mc_stop(adev, &save);
-		if (gmc_v8_0_wait_for_idle((void *)adev)) {
-			dev_warn(adev->dev, "Wait for GMC idle timed out !\n");
-		}
-
+		u32 tmp;
 
 		tmp = RREG32(mmSRBM_SOFT_RESET);
 		tmp |= srbm_soft_reset;
@@ -1131,11 +1159,19 @@ static int gmc_v8_0_soft_reset(void *handle)
 
 		/* Wait a little for things to settle down */
 		udelay(50);
-
-		gmc_v8_0_mc_resume(adev, &save);
-		udelay(50);
 	}
 
+	return 0;
+}
+
+static int gmc_v8_0_post_soft_reset(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (!adev->ip_block_status[AMD_IP_BLOCK_TYPE_GMC].hang)
+		return 0;
+
+	gmc_v8_0_mc_resume(adev, &adev->mc.save);
 	return 0;
 }
 
@@ -1406,7 +1442,10 @@ const struct amd_ip_funcs gmc_v8_0_ip_funcs = {
 	.resume = gmc_v8_0_resume,
 	.is_idle = gmc_v8_0_is_idle,
 	.wait_for_idle = gmc_v8_0_wait_for_idle,
+	.check_soft_reset = gmc_v8_0_check_soft_reset,
+	.pre_soft_reset = gmc_v8_0_pre_soft_reset,
 	.soft_reset = gmc_v8_0_soft_reset,
+	.post_soft_reset = gmc_v8_0_post_soft_reset,
 	.set_clockgating_state = gmc_v8_0_set_clockgating_state,
 	.set_powergating_state = gmc_v8_0_set_powergating_state,
 };

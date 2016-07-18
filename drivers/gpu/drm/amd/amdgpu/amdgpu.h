@@ -677,6 +677,8 @@ struct amdgpu_mc {
 	uint32_t                fw_version;
 	struct amdgpu_irq_src	vm_fault;
 	uint32_t		vram_type;
+	uint32_t                srbm_soft_reset;
+	struct amdgpu_mode_mc_save save;
 };
 
 /*
