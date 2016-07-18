@@ -550,8 +550,13 @@ static void vcodec_exit_mode(struct vpu_subdev_data *data)
 	if (data->mmu_dev && test_bit(MMU_ACTIVATED, &data->state)) {
 		clear_bit(MMU_ACTIVATED, &data->state);
 		rockchip_iovmm_deactivate(data->dev);
-		data->pservice->curr_mode = VCODEC_RUNNING_MODE_NONE;
 	}
+	/*
+	 * In case of VPU Combo, it require HW switch its running mode
+	 * before the other HW component start work. set current HW running
+	 * mode to none, can ensure HW switch to its reqired mode properly.
+	 */
+	data->pservice->curr_mode = VCODEC_RUNNING_MODE_NONE;
 }
 
 static int vpu_get_clk(struct vpu_service_info *pservice)
