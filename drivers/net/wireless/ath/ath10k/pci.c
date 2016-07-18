@@ -56,6 +56,7 @@ static const struct pci_device_id ath10k_pci_id_table[] = {
 	{ PCI_VDEVICE(ATHEROS, QCA6164_2_1_DEVICE_ID) }, /* PCI-E QCA6164 V2.1 */
 	{ PCI_VDEVICE(ATHEROS, QCA6174_2_1_DEVICE_ID) }, /* PCI-E QCA6174 V2.1 */
 	{ PCI_VDEVICE(ATHEROS, QCA99X0_2_0_DEVICE_ID) }, /* PCI-E QCA99X0 V2 */
+	{ PCI_VDEVICE(ATHEROS, QCA9888_2_0_DEVICE_ID) }, /* PCI-E QCA9888 V2 */
 	{ PCI_VDEVICE(ATHEROS, QCA9984_1_0_DEVICE_ID) }, /* PCI-E QCA9984 V1 */
 	{ PCI_VDEVICE(ATHEROS, QCA9377_1_0_DEVICE_ID) }, /* PCI-E QCA9377 V1 */
 	{ PCI_VDEVICE(ATHEROS, QCA9887_1_0_DEVICE_ID) }, /* PCI-E QCA9887 */
@@ -84,6 +85,8 @@ static const struct ath10k_pci_supp_chip ath10k_pci_supp_chips[] = {
 	{ QCA99X0_2_0_DEVICE_ID, QCA99X0_HW_2_0_CHIP_ID_REV },
 
 	{ QCA9984_1_0_DEVICE_ID, QCA9984_HW_1_0_CHIP_ID_REV },
+
+	{ QCA9888_2_0_DEVICE_ID, QCA9888_HW_2_0_CHIP_ID_REV },
 
 	{ QCA9377_1_0_DEVICE_ID, QCA9377_HW_1_0_CHIP_ID_REV },
 	{ QCA9377_1_0_DEVICE_ID, QCA9377_HW_1_1_CHIP_ID_REV },
@@ -850,6 +853,7 @@ static u32 ath10k_pci_targ_cpu_to_ce_addr(struct ath10k *ar, u32 addr)
 					  CORE_CTRL_ADDRESS) &
 		       0x7ff) << 21;
 		break;
+	case ATH10K_HW_QCA9888:
 	case ATH10K_HW_QCA99X0:
 	case ATH10K_HW_QCA9984:
 	case ATH10K_HW_QCA4019:
@@ -1583,6 +1587,7 @@ static void ath10k_pci_irq_msi_fw_mask(struct ath10k *ar)
 		break;
 	case ATH10K_HW_QCA99X0:
 	case ATH10K_HW_QCA9984:
+	case ATH10K_HW_QCA9888:
 	case ATH10K_HW_QCA4019:
 		/* TODO: Find appropriate register configuration for QCA99X0
 		 *  to mask irq/MSI.
@@ -1608,6 +1613,7 @@ static void ath10k_pci_irq_msi_fw_unmask(struct ath10k *ar)
 		break;
 	case ATH10K_HW_QCA99X0:
 	case ATH10K_HW_QCA9984:
+	case ATH10K_HW_QCA9888:
 	case ATH10K_HW_QCA4019:
 		/* TODO: Find appropriate register configuration for QCA99X0
 		 *  to unmask irq/MSI.
@@ -1948,6 +1954,7 @@ static int ath10k_pci_get_num_banks(struct ath10k *ar)
 	switch (ar_pci->pdev->device) {
 	case QCA988X_2_0_DEVICE_ID:
 	case QCA99X0_2_0_DEVICE_ID:
+	case QCA9888_2_0_DEVICE_ID:
 	case QCA9984_1_0_DEVICE_ID:
 	case QCA9887_1_0_DEVICE_ID:
 		return 1;
@@ -2214,6 +2221,14 @@ static void ath10k_pci_fw_crashed_clear(struct ath10k *ar)
 	val = ath10k_pci_read32(ar, FW_INDICATOR_ADDRESS);
 	val &= ~FW_IND_EVENT_PENDING;
 	ath10k_pci_write32(ar, FW_INDICATOR_ADDRESS, val);
+}
+
+static bool ath10k_pci_has_device_gone(struct ath10k *ar)
+{
+	u32 val;
+
+	val = ath10k_pci_read32(ar, FW_INDICATOR_ADDRESS);
+	return (val == 0xffffffff);
 }
 
 /* this function effectively clears target memory controller assert line */
@@ -2748,6 +2763,9 @@ static irqreturn_t ath10k_pci_interrupt_handler(int irq, void *arg)
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	int ret;
 
+	if (ath10k_pci_has_device_gone(ar))
+		return IRQ_NONE;
+
 	ret = ath10k_pci_force_wake(ar);
 	if (ret) {
 		ath10k_warn(ar, "failed to wake device up on irq: %d\n", ret);
@@ -3165,6 +3183,12 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 		break;
 	case QCA9984_1_0_DEVICE_ID:
 		hw_rev = ATH10K_HW_QCA9984;
+		pci_ps = false;
+		pci_soft_reset = ath10k_pci_qca99x0_soft_chip_reset;
+		pci_hard_reset = ath10k_pci_qca99x0_chip_reset;
+		break;
+	case QCA9888_2_0_DEVICE_ID:
+		hw_rev = ATH10K_HW_QCA9888;
 		pci_ps = false;
 		pci_soft_reset = ath10k_pci_qca99x0_soft_chip_reset;
 		pci_hard_reset = ath10k_pci_qca99x0_chip_reset;

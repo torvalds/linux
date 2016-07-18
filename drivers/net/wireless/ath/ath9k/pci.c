@@ -794,6 +794,8 @@ static bool ath_pci_eeprom_read(struct ath_common *common, u32 off, u16 *data)
 			ath_err(common,
 				"%s: eeprom read failed, offset %08x is out of range\n",
 				__func__, off);
+
+			return false;
 		}
 
 		*data = pdata->eeprom_data[off];
