@@ -29,7 +29,7 @@
 #define DEFAULT_GAMMA	"02 03 2 5 7 7 4 2 4 2\n" \
 			"02 03 2 5 7 5 4 2 4 2"
 
-static unsigned reg11 = 0x6040;
+static unsigned int reg11 = 0x6040;
 module_param(reg11, uint, 0);
 MODULE_PARM_DESC(reg11, "Register 11h value");
 

@@ -66,7 +66,7 @@ static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 
 static int set_var(struct fbtft_par *par)
 {
-	unsigned remap;
+	unsigned int remap;
 
 	if (par->fbtftops.init_display != init_display) {
 		/* don't risk messing up register A0h */

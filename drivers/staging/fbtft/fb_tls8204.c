@@ -35,7 +35,7 @@
 /* gamma is used to control contrast in this driver */
 #define DEFAULT_GAMMA	"40"
 
-static unsigned bs = 4;
+static unsigned int bs = 4;
 module_param(bs, uint, 0);
 MODULE_PARM_DESC(bs, "BS[2:0] Bias voltage level: 0-7 (default: 4)");
 
