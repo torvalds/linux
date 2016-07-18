@@ -174,26 +174,7 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 
 	return count;
 }
-
-static ssize_t state_store(struct device *dev, struct device_attribute *attr,
-			   const char *buf, size_t count)
-{
-	u32 state;
-	ssize_t ret = 0;
-	struct extcon_dev *edev = dev_get_drvdata(dev);
-
-	ret = sscanf(buf, "0x%x", &state);
-	if (ret == 0)
-		ret = -EINVAL;
-	else
-		ret = extcon_set_state(edev, state);
-
-	if (ret < 0)
-		return ret;
-
-	return count;
-}
-static DEVICE_ATTR_RW(state);
+static DEVICE_ATTR_RO(state);
 
 static ssize_t name_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
