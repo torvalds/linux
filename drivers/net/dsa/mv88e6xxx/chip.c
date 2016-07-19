@@ -283,68 +283,6 @@ static int mv88e6xxx_reg_write(struct mv88e6xxx_chip *chip, int addr,
 	return ret;
 }
 
-static int mv88e6xxx_set_addr_direct(struct dsa_switch *ds, u8 *addr)
-{
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
-	int err;
-
-	err = mv88e6xxx_reg_write(chip, REG_GLOBAL, GLOBAL_MAC_01,
-				  (addr[0] << 8) | addr[1]);
-	if (err)
-		return err;
-
-	err = mv88e6xxx_reg_write(chip, REG_GLOBAL, GLOBAL_MAC_23,
-				  (addr[2] << 8) | addr[3]);
-	if (err)
-		return err;
-
-	return mv88e6xxx_reg_write(chip, REG_GLOBAL, GLOBAL_MAC_45,
-				   (addr[4] << 8) | addr[5]);
-}
-
-static int mv88e6xxx_set_addr_indirect(struct dsa_switch *ds, u8 *addr)
-{
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
-	int ret;
-	int i;
-
-	for (i = 0; i < 6; i++) {
-		int j;
-
-		/* Write the MAC address byte. */
-		ret = mv88e6xxx_reg_write(chip, REG_GLOBAL2, GLOBAL2_SWITCH_MAC,
-					  GLOBAL2_SWITCH_MAC_BUSY |
-					  (i << 8) | addr[i]);
-		if (ret)
-			return ret;
-
-		/* Wait for the write to complete. */
-		for (j = 0; j < 16; j++) {
-			ret = mv88e6xxx_reg_read(chip, REG_GLOBAL2,
-						 GLOBAL2_SWITCH_MAC);
-			if (ret < 0)
-				return ret;
-
-			if ((ret & GLOBAL2_SWITCH_MAC_BUSY) == 0)
-				break;
-		}
-		if (j == 16)
-			return -ETIMEDOUT;
-	}
-
-	return 0;
-}
-
-static int mv88e6xxx_set_addr(struct dsa_switch *ds, u8 *addr)
-{
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
-
-	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_SWITCH_MAC))
-		return mv88e6xxx_set_addr_indirect(ds, addr);
-	else
-		return mv88e6xxx_set_addr_direct(ds, addr);
-}
-
 static int mv88e6xxx_mdio_read_direct(struct mv88e6xxx_chip *chip,
 				      int addr, int regnum)
 {
@@ -3019,6 +2957,24 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 	return 0;
 }
 
+static int mv88e6xxx_g1_set_switch_mac(struct mv88e6xxx_chip *chip, u8 *addr)
+{
+	int err;
+
+	err = mv88e6xxx_write(chip, REG_GLOBAL, GLOBAL_MAC_01,
+			      (addr[0] << 8) | addr[1]);
+	if (err)
+		return err;
+
+	err = mv88e6xxx_write(chip, REG_GLOBAL, GLOBAL_MAC_23,
+			      (addr[2] << 8) | addr[3]);
+	if (err)
+		return err;
+
+	return mv88e6xxx_write(chip, REG_GLOBAL, GLOBAL_MAC_45,
+			       (addr[4] << 8) | addr[5]);
+}
+
 static int mv88e6xxx_g1_setup(struct mv88e6xxx_chip *chip)
 {
 	struct dsa_switch *ds = chip->ds;
@@ -3194,6 +3150,28 @@ static int mv88e6xxx_g2_clear_trunk(struct mv88e6xxx_chip *chip)
 	return 0;
 }
 
+/* Indirect write to the Switch MAC/WoL/WoF register */
+static int mv88e6xxx_g2_switch_mac_write(struct mv88e6xxx_chip *chip,
+					 unsigned int pointer, u8 data)
+{
+	u16 val = (pointer << 8) | data;
+
+	return mv88e6xxx_update(chip, REG_GLOBAL2, GLOBAL2_SWITCH_MAC, val);
+}
+
+static int mv88e6xxx_g2_set_switch_mac(struct mv88e6xxx_chip *chip, u8 *addr)
+{
+	int i, err;
+
+	for (i = 0; i < 6; i++) {
+		err = mv88e6xxx_g2_switch_mac_write(chip, i, addr[i]);
+		if (err)
+			break;
+	}
+
+	return err;
+}
+
 static int mv88e6xxx_g2_setup(struct mv88e6xxx_chip *chip)
 {
 	u16 reg;
@@ -3322,6 +3300,24 @@ static int mv88e6xxx_setup(struct dsa_switch *ds)
 	}
 
 unlock:
+	mutex_unlock(&chip->reg_lock);
+
+	return err;
+}
+
+static int mv88e6xxx_set_addr(struct dsa_switch *ds, u8 *addr)
+{
+	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+	int err;
+
+	mutex_lock(&chip->reg_lock);
+
+	/* Has an indirect Switch MAC/WoL/WoF register in Global 2? */
+	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_SWITCH_MAC))
+		err = mv88e6xxx_g2_set_switch_mac(chip, addr);
+	else
+		err = mv88e6xxx_g1_set_switch_mac(chip, addr);
+
 	mutex_unlock(&chip->reg_lock);
 
 	return err;
