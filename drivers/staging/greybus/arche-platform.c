@@ -672,8 +672,7 @@ static int arche_platform_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to request wake detect IRQ %d\n", ret);
 		return ret;
 	}
-
-	gpio_direction_input(arche_pdata->wake_detect_gpio);
+	disable_irq(arche_pdata->wake_detect_irq);
 
 	ret = device_create_file(dev, &dev_attr_state);
 	if (ret) {
@@ -681,38 +680,41 @@ static int arche_platform_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	mutex_lock(&arche_pdata->platform_state_mutex);
-	ret = arche_platform_coldboot_seq(arche_pdata);
-	if (ret) {
-		dev_err(dev, "Failed to cold boot svc %d\n", ret);
-		goto err_coldboot;
-	}
-
 	ret = of_platform_populate(np, NULL, NULL, dev);
 	if (ret) {
 		dev_err(dev, "failed to populate child nodes %d\n", ret);
-		goto err_populate;
+		goto err_device_remove;
 	}
 
 	arche_pdata->pm_notifier.notifier_call = arche_platform_pm_notifier;
 	ret = register_pm_notifier(&arche_pdata->pm_notifier);
-	mutex_unlock(&arche_pdata->platform_state_mutex);
 
 	if (ret) {
 		dev_err(dev, "failed to register pm notifier %d\n", ret);
-		goto err_populate;
+		goto err_device_remove;
 	}
 
 	/* Register callback pointer */
 	arche_platform_change_state_cb = arche_platform_change_state;
 
+	/* Explicitly power off if requested */
+	if (!of_property_read_bool(pdev->dev.of_node, "arche,init-off")) {
+		mutex_lock(&arche_pdata->platform_state_mutex);
+		ret = arche_platform_coldboot_seq(arche_pdata);
+		if (ret) {
+			dev_err(dev, "Failed to cold boot svc %d\n", ret);
+			goto err_coldboot;
+		}
+		arche_platform_wd_irq_en(arche_pdata);
+		mutex_unlock(&arche_pdata->platform_state_mutex);
+	}
+
 	dev_info(dev, "Device registered successfully\n");
 	return 0;
 
-err_populate:
-	arche_platform_poweroff_seq(arche_pdata);
 err_coldboot:
 	mutex_unlock(&arche_pdata->platform_state_mutex);
+err_device_remove:
 	device_remove_file(&pdev->dev, &dev_attr_state);
 	return ret;
 }
