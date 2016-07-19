@@ -213,6 +213,10 @@ config ACPI_CPU_FREQ_PSS
 	bool
 	select THERMAL
 
+config ACPI_PROCESSOR_CSTATE
+	def_bool y
+	depends on IA64 || X86
+
 config ACPI_PROCESSOR_IDLE
 	bool
 	select CPU_IDLE

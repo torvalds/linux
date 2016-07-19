@@ -59,6 +59,12 @@ module_param(latency_factor, uint, 0644);
 
 static DEFINE_PER_CPU(struct cpuidle_device *, acpi_cpuidle_device);
 
+struct cpuidle_driver acpi_idle_driver = {
+	.name =		"acpi_idle",
+	.owner =	THIS_MODULE,
+};
+
+#ifdef CONFIG_ACPI_PROCESSOR_CSTATE
 static
 DEFINE_PER_CPU(struct acpi_processor_cx * [CPUIDLE_STATE_MAX], acpi_cstate);
 
@@ -804,11 +810,6 @@ static void acpi_idle_enter_freeze(struct cpuidle_device *dev,
 	acpi_idle_do_entry(cx);
 }
 
-struct cpuidle_driver acpi_idle_driver = {
-	.name =		"acpi_idle",
-	.owner =	THIS_MODULE,
-};
-
 /**
  * acpi_processor_setup_cpuidle_cx - prepares and configures CPUIDLE
  * device i.e. per-cpu data
@@ -925,6 +926,50 @@ static int acpi_processor_setup_cpuidle_states(struct acpi_processor *pr)
 	return 0;
 }
 
+static inline void acpi_processor_cstate_first_run_checks(void)
+{
+	acpi_status status;
+	static int first_run;
+
+	if (first_run)
+		return;
+	dmi_check_system(processor_power_dmi_table);
+	max_cstate = acpi_processor_cstate_check(max_cstate);
+	if (max_cstate < ACPI_C_STATES_MAX)
+		pr_notice("ACPI: processor limited to max C-state %d\n",
+			  max_cstate);
+	first_run++;
+
+	if (acpi_gbl_FADT.cst_control && !nocst) {
+		status = acpi_os_write_port(acpi_gbl_FADT.smi_command,
+					    acpi_gbl_FADT.cst_control, 8);
+		if (ACPI_FAILURE(status))
+			ACPI_EXCEPTION((AE_INFO, status,
+					"Notifying BIOS of _CST ability failed"));
+	}
+}
+#else
+
+static inline int disabled_by_idle_boot_param(void) { return 0; }
+static inline void acpi_processor_cstate_first_run_checks(void) { }
+static int acpi_processor_get_power_info(struct acpi_processor *pr)
+{
+	return -ENODEV;
+}
+
+static int acpi_processor_setup_cpuidle_cx(struct acpi_processor *pr,
+					   struct cpuidle_device *dev)
+{
+	return -EINVAL;
+}
+
+static int acpi_processor_setup_cpuidle_states(struct acpi_processor *pr)
+{
+	return -EINVAL;
+}
+
+#endif /* CONFIG_ACPI_PROCESSOR_CSTATE */
+
 int acpi_processor_hotplug(struct acpi_processor *pr)
 {
 	int ret = 0;
@@ -1015,35 +1060,16 @@ static int acpi_processor_registered;
 
 int acpi_processor_power_init(struct acpi_processor *pr)
 {
-	acpi_status status;
 	int retval;
 	struct cpuidle_device *dev;
-	static int first_run;
 
 	if (disabled_by_idle_boot_param())
 		return 0;
 
-	if (!first_run) {
-		dmi_check_system(processor_power_dmi_table);
-		max_cstate = acpi_processor_cstate_check(max_cstate);
-		if (max_cstate < ACPI_C_STATES_MAX)
-			printk(KERN_NOTICE
-			       "ACPI: processor limited to max C-state %d\n",
-			       max_cstate);
-		first_run++;
-	}
+	acpi_processor_cstate_first_run_checks();
 
-	if (acpi_gbl_FADT.cst_control && !nocst) {
-		status =
-		    acpi_os_write_port(acpi_gbl_FADT.smi_command, acpi_gbl_FADT.cst_control, 8);
-		if (ACPI_FAILURE(status)) {
-			ACPI_EXCEPTION((AE_INFO, status,
-					"Notifying BIOS of _CST ability failed"));
-		}
-	}
-
-	acpi_processor_get_power_info(pr);
-	pr->flags.power_setup_done = 1;
+	if (!acpi_processor_get_power_info(pr))
+		pr->flags.power_setup_done = 1;
 
 	/*
 	 * Install the idle handler if processor power management is supported.
