@@ -673,6 +673,12 @@ static int fcoe_netdev_config(struct fc_lport *lport, struct net_device *netdev)
 	fcoe = port->priv;
 	ctlr = fcoe_to_ctlr(fcoe);
 
+	/* Figure out the VLAN ID, if any */
+	if (netdev->priv_flags & IFF_802_1Q_VLAN)
+		lport->vlan = vlan_dev_vlan_id(netdev);
+	else
+		lport->vlan = 0;
+
 	/*
 	 * Determine max frame size based on underlying device and optional
 	 * user-configured limit.  If the MFS is too low, fcoe_link_ok()

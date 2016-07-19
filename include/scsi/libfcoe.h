@@ -110,8 +110,10 @@ enum fip_mode {
  * @flogi_req_send: send of FLOGI requested
  * @flogi_count:   number of FLOGI attempts in AUTO mode.
  * @map_dest:	   use the FC_MAP mode for destination MAC addresses.
+ * @fip_resp:	   start FIP VLAN discovery responder
  * @spma:	   supports SPMA server-provided MACs mode
  * @probe_tries:   number of FC_IDs probed
+ * @priority:      DCBx FCoE APP priority
  * @dest_addr:	   MAC address of the selected FC forwarder.
  * @ctl_src_addr:  the native MAC address of our local port.
  * @send:	   LLD-supplied function to handle sending FIP Ethernet frames
@@ -149,7 +151,8 @@ struct fcoe_ctlr {
 	u16 flogi_oxid;
 	u8 flogi_req_send;
 	u8 flogi_count;
-	u8 map_dest;
+	bool map_dest;
+	bool fip_resp;
 	u8 spma;
 	u8 probe_tries;
 	u8 priority;

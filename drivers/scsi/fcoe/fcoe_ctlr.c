@@ -59,6 +59,8 @@ static int fcoe_ctlr_vn_recv(struct fcoe_ctlr *, struct sk_buff *);
 static void fcoe_ctlr_vn_timeout(struct fcoe_ctlr *);
 static int fcoe_ctlr_vn_lookup(struct fcoe_ctlr *, u32, u8 *);
 
+static int fcoe_ctlr_vlan_recv(struct fcoe_ctlr *, struct sk_buff *);
+
 static u8 fcoe_all_fcfs[ETH_ALEN] = FIP_ALL_FCF_MACS;
 static u8 fcoe_all_enode[ETH_ALEN] = FIP_ALL_ENODE_MACS;
 static u8 fcoe_all_vn2vn[ETH_ALEN] = FIP_ALL_VN2VN_MACS;
@@ -149,6 +151,7 @@ void fcoe_ctlr_init(struct fcoe_ctlr *fip, enum fip_state mode)
 {
 	fcoe_ctlr_set_state(fip, FIP_ST_LINK_WAIT);
 	fip->mode = mode;
+	fip->fip_resp = false;
 	INIT_LIST_HEAD(&fip->fcfs);
 	mutex_init(&fip->ctlr_mutex);
 	spin_lock_init(&fip->ctlr_lock);
@@ -1513,6 +1516,7 @@ static int fcoe_ctlr_recv_handler(struct fcoe_ctlr *fip, struct sk_buff *skb)
 	struct fip_header *fiph;
 	struct ethhdr *eh;
 	enum fip_state state;
+	bool fip_vlan_resp = false;
 	u16 op;
 	u8 sub;
 
@@ -1546,10 +1550,16 @@ static int fcoe_ctlr_recv_handler(struct fcoe_ctlr *fip, struct sk_buff *skb)
 		state = FIP_ST_ENABLED;
 		LIBFCOE_FIP_DBG(fip, "Using FIP mode\n");
 	}
+	fip_vlan_resp = fip->fip_resp;
 	mutex_unlock(&fip->ctlr_mutex);
 
 	if (fip->mode == FIP_MODE_VN2VN && op == FIP_OP_VN2VN)
 		return fcoe_ctlr_vn_recv(fip, skb);
+
+	if (fip_vlan_resp && op == FIP_OP_VLAN) {
+		LIBFCOE_FIP_DBG(fip, "fip vlan discovery\n");
+		return fcoe_ctlr_vlan_recv(fip, skb);
+	}
 
 	if (state != FIP_ST_ENABLED && state != FIP_ST_VNMP_UP &&
 	    state != FIP_ST_VNMP_CLAIM)
@@ -2700,6 +2710,220 @@ static int fcoe_ctlr_vn_recv(struct fcoe_ctlr *fip, struct sk_buff *skb)
 	mutex_unlock(&fip->ctlr_mutex);
 drop:
 	kfree_skb(skb);
+	return rc;
+}
+
+/**
+ * fcoe_ctlr_vlan_parse - parse vlan discovery request or response
+ * @fip: The FCoE controller
+ * @skb: incoming packet
+ * @rdata: buffer for resulting parsed VLAN entry plus fcoe_rport
+ *
+ * Returns non-zero error number on error.
+ * Does not consume the packet.
+ */
+static int fcoe_ctlr_vlan_parse(struct fcoe_ctlr *fip,
+			      struct sk_buff *skb,
+			      struct fc_rport_priv *rdata)
+{
+	struct fip_header *fiph;
+	struct fip_desc *desc = NULL;
+	struct fip_mac_desc *macd = NULL;
+	struct fip_wwn_desc *wwn = NULL;
+	struct fcoe_rport *frport;
+	size_t rlen;
+	size_t dlen;
+	u32 desc_mask = 0;
+	u32 dtype;
+	u8 sub;
+
+	memset(rdata, 0, sizeof(*rdata) + sizeof(*frport));
+	frport = fcoe_ctlr_rport(rdata);
+
+	fiph = (struct fip_header *)skb->data;
+	frport->flags = ntohs(fiph->fip_flags);
+
+	sub = fiph->fip_subcode;
+	switch (sub) {
+	case FIP_SC_VL_REQ:
+		desc_mask = BIT(FIP_DT_MAC) | BIT(FIP_DT_NAME);
+		break;
+	default:
+		LIBFCOE_FIP_DBG(fip, "vn_parse unknown subcode %u\n", sub);
+		return -EINVAL;
+	}
+
+	rlen = ntohs(fiph->fip_dl_len) * 4;
+	if (rlen + sizeof(*fiph) > skb->len)
+		return -EINVAL;
+
+	desc = (struct fip_desc *)(fiph + 1);
+	while (rlen > 0) {
+		dlen = desc->fip_dlen * FIP_BPW;
+		if (dlen < sizeof(*desc) || dlen > rlen)
+			return -EINVAL;
+
+		dtype = desc->fip_dtype;
+		if (dtype < 32) {
+			if (!(desc_mask & BIT(dtype))) {
+				LIBFCOE_FIP_DBG(fip,
+						"unexpected or duplicated desc "
+						"desc type %u in "
+						"FIP VN2VN subtype %u\n",
+						dtype, sub);
+				return -EINVAL;
+			}
+			desc_mask &= ~BIT(dtype);
+		}
+
+		switch (dtype) {
+		case FIP_DT_MAC:
+			if (dlen != sizeof(struct fip_mac_desc))
+				goto len_err;
+			macd = (struct fip_mac_desc *)desc;
+			if (!is_valid_ether_addr(macd->fd_mac)) {
+				LIBFCOE_FIP_DBG(fip,
+					"Invalid MAC addr %pM in FIP VN2VN\n",
+					 macd->fd_mac);
+				return -EINVAL;
+			}
+			memcpy(frport->enode_mac, macd->fd_mac, ETH_ALEN);
+			break;
+		case FIP_DT_NAME:
+			if (dlen != sizeof(struct fip_wwn_desc))
+				goto len_err;
+			wwn = (struct fip_wwn_desc *)desc;
+			rdata->ids.node_name = get_unaligned_be64(&wwn->fd_wwn);
+			break;
+		default:
+			LIBFCOE_FIP_DBG(fip, "unexpected descriptor type %x "
+					"in FIP probe\n", dtype);
+			/* standard says ignore unknown descriptors >= 128 */
+			if (dtype < FIP_DT_NON_CRITICAL)
+				return -EINVAL;
+			break;
+		}
+		desc = (struct fip_desc *)((char *)desc + dlen);
+		rlen -= dlen;
+	}
+	return 0;
+
+len_err:
+	LIBFCOE_FIP_DBG(fip, "FIP length error in descriptor type %x len %zu\n",
+			dtype, dlen);
+	return -EINVAL;
+}
+
+/**
+ * fcoe_ctlr_vlan_send() - Send a FIP VLAN Notification
+ * @fip: The FCoE controller
+ * @sub: sub-opcode for vlan notification or vn2vn vlan notification
+ * @dest: The destination Ethernet MAC address
+ * @min_len: minimum size of the Ethernet payload to be sent
+ */
+static void fcoe_ctlr_vlan_send(struct fcoe_ctlr *fip,
+			      enum fip_vlan_subcode sub,
+			      const u8 *dest)
+{
+	struct sk_buff *skb;
+	struct fip_vlan_notify_frame {
+		struct ethhdr eth;
+		struct fip_header fip;
+		struct fip_mac_desc mac;
+		struct fip_vlan_desc vlan;
+	} __packed * frame;
+	size_t len;
+	size_t dlen;
+
+	len = sizeof(*frame);
+	dlen = sizeof(frame->mac) + sizeof(frame->vlan);
+	len = max(len, sizeof(struct ethhdr));
+
+	skb = dev_alloc_skb(len);
+	if (!skb)
+		return;
+
+	LIBFCOE_FIP_DBG(fip, "fip %s vlan notification, vlan %d\n",
+			fip->mode == FIP_MODE_VN2VN ? "vn2vn" : "fcf",
+			fip->lp->vlan);
+
+	frame = (struct fip_vlan_notify_frame *)skb->data;
+	memset(frame, 0, len);
+	memcpy(frame->eth.h_dest, dest, ETH_ALEN);
+
+	memcpy(frame->eth.h_source, fip->ctl_src_addr, ETH_ALEN);
+	frame->eth.h_proto = htons(ETH_P_FIP);
+
+	frame->fip.fip_ver = FIP_VER_ENCAPS(FIP_VER);
+	frame->fip.fip_op = htons(FIP_OP_VLAN);
+	frame->fip.fip_subcode = sub;
+	frame->fip.fip_dl_len = htons(dlen / FIP_BPW);
+
+	frame->mac.fd_desc.fip_dtype = FIP_DT_MAC;
+	frame->mac.fd_desc.fip_dlen = sizeof(frame->mac) / FIP_BPW;
+	memcpy(frame->mac.fd_mac, fip->ctl_src_addr, ETH_ALEN);
+
+	frame->vlan.fd_desc.fip_dtype = FIP_DT_VLAN;
+	frame->vlan.fd_desc.fip_dlen = sizeof(frame->vlan) / FIP_BPW;
+	put_unaligned_be16(fip->lp->vlan, &frame->vlan.fd_vlan);
+
+	skb_put(skb, len);
+	skb->protocol = htons(ETH_P_FIP);
+	skb->priority = fip->priority;
+	skb_reset_mac_header(skb);
+	skb_reset_network_header(skb);
+
+	fip->send(fip, skb);
+}
+
+/**
+ * fcoe_ctlr_vlan_disk_reply() - send FIP VLAN Discovery Notification.
+ * @fip: The FCoE controller
+ *
+ * Called with ctlr_mutex held.
+ */
+static void fcoe_ctlr_vlan_disc_reply(struct fcoe_ctlr *fip,
+				      struct fc_rport_priv *rdata)
+{
+	struct fcoe_rport *frport = fcoe_ctlr_rport(rdata);
+	enum fip_vlan_subcode sub = FIP_SC_VL_NOTE;
+
+	if (fip->mode == FIP_MODE_VN2VN)
+		sub = FIP_SC_VL_VN2VN_NOTE;
+
+	fcoe_ctlr_vlan_send(fip, sub, frport->enode_mac);
+}
+
+/**
+ * fcoe_ctlr_vlan_recv - vlan request receive handler for VN2VN mode.
+ * @lport: The local port
+ * @fp: The received frame
+ *
+ */
+static int fcoe_ctlr_vlan_recv(struct fcoe_ctlr *fip, struct sk_buff *skb)
+{
+	struct fip_header *fiph;
+	enum fip_vlan_subcode sub;
+	struct {
+		struct fc_rport_priv rdata;
+		struct fcoe_rport frport;
+	} buf;
+	int rc;
+
+	fiph = (struct fip_header *)skb->data;
+	sub = fiph->fip_subcode;
+	rc = fcoe_ctlr_vlan_parse(fip, skb, &buf.rdata);
+	if (rc) {
+		LIBFCOE_FIP_DBG(fip, "vlan_recv vlan_parse error %d\n", rc);
+		goto drop;
+	}
+	mutex_lock(&fip->ctlr_mutex);
+	if (sub == FIP_SC_VL_REQ)
+		fcoe_ctlr_vlan_disc_reply(fip, &buf.rdata);
+	mutex_unlock(&fip->ctlr_mutex);
+
+drop:
+	kfree(skb);
 	return rc;
 }
 
