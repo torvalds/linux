@@ -13,6 +13,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/acpi.h>
 #include <linux/iommu.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -47,6 +48,27 @@ static vfio_platform_reset_fn_t vfio_platform_lookup_reset(const char *compat,
 	}
 	mutex_unlock(&driver_lock);
 	return reset_fn;
+}
+
+static int vfio_platform_acpi_probe(struct vfio_platform_device *vdev,
+				    struct device *dev)
+{
+	struct acpi_device *adev;
+
+	if (acpi_disabled)
+		return -ENOENT;
+
+	adev = ACPI_COMPANION(dev);
+	if (!adev) {
+		pr_err("VFIO: ACPI companion device not found for %s\n",
+			vdev->name);
+		return -ENODEV;
+	}
+
+#ifdef CONFIG_ACPI
+	vdev->acpihid = acpi_device_hid(adev);
+#endif
+	return WARN_ON(!vdev->acpihid) ? -EINVAL : 0;
 }
 
 static bool vfio_platform_has_reset(struct vfio_platform_device *vdev)
@@ -547,6 +569,37 @@ static const struct vfio_device_ops vfio_platform_ops = {
 	.mmap		= vfio_platform_mmap,
 };
 
+int vfio_platform_of_probe(struct vfio_platform_device *vdev,
+			   struct device *dev)
+{
+	int ret;
+
+	ret = device_property_read_string(dev, "compatible",
+					  &vdev->compat);
+	if (ret)
+		pr_err("VFIO: cannot retrieve compat for %s\n",
+			vdev->name);
+
+	return ret;
+}
+
+/*
+ * There can be two kernel build combinations. One build where
+ * ACPI is not selected in Kconfig and another one with the ACPI Kconfig.
+ *
+ * In the first case, vfio_platform_acpi_probe will return since
+ * acpi_disabled is 1. DT user will not see any kind of messages from
+ * ACPI.
+ *
+ * In the second case, both DT and ACPI is compiled in but the system is
+ * booting with any of these combinations.
+ *
+ * If the firmware is DT type, then acpi_disabled is 1. The ACPI probe routine
+ * terminates immediately without any messages.
+ *
+ * If the firmware is ACPI type, then acpi_disabled is 0. All other checks are
+ * valid checks. We cannot claim that this system is DT.
+ */
 int vfio_platform_probe_common(struct vfio_platform_device *vdev,
 			       struct device *dev)
 {
@@ -556,11 +609,12 @@ int vfio_platform_probe_common(struct vfio_platform_device *vdev,
 	if (!vdev)
 		return -EINVAL;
 
-	ret = device_property_read_string(dev, "compatible", &vdev->compat);
-	if (ret) {
-		pr_err("VFIO: cannot retrieve compat for %s\n", vdev->name);
-		return -EINVAL;
-	}
+	ret = vfio_platform_acpi_probe(vdev, dev);
+	if (ret)
+		ret = vfio_platform_of_probe(vdev, dev);
+
+	if (ret)
+		return ret;
 
 	vdev->device = dev;
 

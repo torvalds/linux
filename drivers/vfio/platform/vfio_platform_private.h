@@ -58,6 +58,7 @@ struct vfio_platform_device {
 	struct mutex			igate;
 	struct module			*parent_module;
 	const char			*compat;
+	const char			*acpihid;
 	struct module			*reset_module;
 	struct device			*device;
 
