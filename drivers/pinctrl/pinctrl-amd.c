@@ -13,7 +13,7 @@
 #include <linux/err.h>
 #include <linux/bug.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
+#include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/compiler.h>
 #include <linux/types.h>
@@ -828,18 +828,35 @@ out2:
 	return ret;
 }
 
+static int amd_gpio_remove(struct platform_device *pdev)
+{
+	struct amd_gpio *gpio_dev;
+
+	gpio_dev = platform_get_drvdata(pdev);
+
+	gpiochip_remove(&gpio_dev->gc);
+
+	return 0;
+}
+
 static const struct acpi_device_id amd_gpio_acpi_match[] = {
 	{ "AMD0030", 0 },
 	{ "AMDI0030", 0},
 	{ },
 };
+MODULE_DEVICE_TABLE(acpi, amd_gpio_acpi_match);
 
 static struct platform_driver amd_gpio_driver = {
 	.driver		= {
 		.name	= "amd_gpio",
-		.suppress_bind_attrs = true,
 		.acpi_match_table = ACPI_PTR(amd_gpio_acpi_match),
 	},
 	.probe		= amd_gpio_probe,
+	.remove		= amd_gpio_remove,
 };
-builtin_platform_driver(amd_gpio_driver);
+
+module_platform_driver(amd_gpio_driver);
+
+MODULE_LICENSE("GPL v2");
+MODULE_AUTHOR("Ken Xue <Ken.Xue@amd.com>, Jeff Wu <Jeff.Wu@amd.com>");
+MODULE_DESCRIPTION("AMD GPIO pinctrl driver");
