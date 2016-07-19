@@ -408,41 +408,78 @@ static int get_mclk_voltage_dependency_table(
 static int get_sclk_voltage_dependency_table(
 		struct pp_hwmgr *hwmgr,
 		phm_ppt_v1_clock_voltage_dependency_table **pp_tonga_sclk_dep_table,
-		const ATOM_Tonga_SCLK_Dependency_Table * sclk_dep_table
+		const PPTable_Generic_SubTable_Header *sclk_dep_table
 		)
 {
 	uint32_t table_size, i;
 	phm_ppt_v1_clock_voltage_dependency_table *sclk_table;
 
-	PP_ASSERT_WITH_CODE((0 != sclk_dep_table->ucNumEntries),
-		"Invalid PowerPlay Table!", return -1);
+	if (sclk_dep_table->ucRevId < 1) {
+		const ATOM_Tonga_SCLK_Dependency_Table *tonga_table =
+			    (ATOM_Tonga_SCLK_Dependency_Table *)sclk_dep_table;
 
-	table_size = sizeof(uint32_t) + sizeof(phm_ppt_v1_clock_voltage_dependency_record)
-		* sclk_dep_table->ucNumEntries;
+		PP_ASSERT_WITH_CODE((0 != tonga_table->ucNumEntries),
+			"Invalid PowerPlay Table!", return -1);
 
-	sclk_table = (phm_ppt_v1_clock_voltage_dependency_table *)
-		kzalloc(table_size, GFP_KERNEL);
+		table_size = sizeof(uint32_t) + sizeof(phm_ppt_v1_clock_voltage_dependency_record)
+			* tonga_table->ucNumEntries;
 
-	if (NULL == sclk_table)
-		return -ENOMEM;
+		sclk_table = (phm_ppt_v1_clock_voltage_dependency_table *)
+			kzalloc(table_size, GFP_KERNEL);
 
-	memset(sclk_table, 0x00, table_size);
+		if (NULL == sclk_table)
+			return -ENOMEM;
 
-	sclk_table->count = (uint32_t)sclk_dep_table->ucNumEntries;
+		memset(sclk_table, 0x00, table_size);
 
-	for (i = 0; i < sclk_dep_table->ucNumEntries; i++) {
-		sclk_table->entries[i].vddInd =
-			sclk_dep_table->entries[i].ucVddInd;
-		sclk_table->entries[i].vdd_offset =
-			sclk_dep_table->entries[i].usVddcOffset;
-		sclk_table->entries[i].clk =
-			sclk_dep_table->entries[i].ulSclk;
-		sclk_table->entries[i].cks_enable =
-			(((sclk_dep_table->entries[i].ucCKSVOffsetandDisable & 0x80) >> 7) == 0) ? 1 : 0;
-		sclk_table->entries[i].cks_voffset =
-			(sclk_dep_table->entries[i].ucCKSVOffsetandDisable & 0x7F);
+		sclk_table->count = (uint32_t)tonga_table->ucNumEntries;
+
+		for (i = 0; i < tonga_table->ucNumEntries; i++) {
+			sclk_table->entries[i].vddInd =
+				tonga_table->entries[i].ucVddInd;
+			sclk_table->entries[i].vdd_offset =
+				tonga_table->entries[i].usVddcOffset;
+			sclk_table->entries[i].clk =
+				tonga_table->entries[i].ulSclk;
+			sclk_table->entries[i].cks_enable =
+				(((tonga_table->entries[i].ucCKSVOffsetandDisable & 0x80) >> 7) == 0) ? 1 : 0;
+			sclk_table->entries[i].cks_voffset =
+				(tonga_table->entries[i].ucCKSVOffsetandDisable & 0x7F);
+		}
+	} else {
+		const ATOM_Polaris_SCLK_Dependency_Table *polaris_table =
+			    (ATOM_Polaris_SCLK_Dependency_Table *)sclk_dep_table;
+
+		PP_ASSERT_WITH_CODE((0 != polaris_table->ucNumEntries),
+			"Invalid PowerPlay Table!", return -1);
+
+		table_size = sizeof(uint32_t) + sizeof(phm_ppt_v1_clock_voltage_dependency_record)
+			* polaris_table->ucNumEntries;
+
+		sclk_table = (phm_ppt_v1_clock_voltage_dependency_table *)
+			kzalloc(table_size, GFP_KERNEL);
+
+		if (NULL == sclk_table)
+			return -ENOMEM;
+
+		memset(sclk_table, 0x00, table_size);
+
+		sclk_table->count = (uint32_t)polaris_table->ucNumEntries;
+
+		for (i = 0; i < polaris_table->ucNumEntries; i++) {
+			sclk_table->entries[i].vddInd =
+				polaris_table->entries[i].ucVddInd;
+			sclk_table->entries[i].vdd_offset =
+				polaris_table->entries[i].usVddcOffset;
+			sclk_table->entries[i].clk =
+				polaris_table->entries[i].ulSclk;
+			sclk_table->entries[i].cks_enable =
+				(((polaris_table->entries[i].ucCKSVOffsetandDisable & 0x80) >> 7) == 0) ? 1 : 0;
+			sclk_table->entries[i].cks_voffset =
+				(polaris_table->entries[i].ucCKSVOffsetandDisable & 0x7F);
+			sclk_table->entries[i].sclk_offset = polaris_table->entries[i].ulSclkOffset;
+		}
 	}
-
 	*pp_tonga_sclk_dep_table = sclk_table;
 
 	return 0;
@@ -708,8 +745,8 @@ static int init_clock_voltage_dependency(
 	const ATOM_Tonga_MCLK_Dependency_Table *mclk_dep_table =
 		(const ATOM_Tonga_MCLK_Dependency_Table *)(((unsigned long) powerplay_table) +
 		le16_to_cpu(powerplay_table->usMclkDependencyTableOffset));
-	const ATOM_Tonga_SCLK_Dependency_Table *sclk_dep_table =
-		(const ATOM_Tonga_SCLK_Dependency_Table *)(((unsigned long) powerplay_table) +
+	const PPTable_Generic_SubTable_Header *sclk_dep_table =
+		(const PPTable_Generic_SubTable_Header *)(((unsigned long) powerplay_table) +
 		le16_to_cpu(powerplay_table->usSclkDependencyTableOffset));
 	const ATOM_Tonga_Hard_Limit_Table *pHardLimits =
 		(const ATOM_Tonga_Hard_Limit_Table *)(((unsigned long) powerplay_table) +
@@ -1040,48 +1077,41 @@ int tonga_pp_tables_uninitialize(struct pp_hwmgr *hwmgr)
 	struct phm_ppt_v1_information *pp_table_information =
 		(struct phm_ppt_v1_information *)(hwmgr->pptable);
 
-	if (NULL != hwmgr->soft_pp_table) {
-		kfree(hwmgr->soft_pp_table);
-		hwmgr->soft_pp_table = NULL;
-	}
+	kfree(pp_table_information->vdd_dep_on_sclk);
+	pp_table_information->vdd_dep_on_sclk = NULL;
 
-	if (NULL != pp_table_information->vdd_dep_on_sclk)
-		pp_table_information->vdd_dep_on_sclk = NULL;
+	kfree(pp_table_information->vdd_dep_on_mclk);
+	pp_table_information->vdd_dep_on_mclk = NULL;
 
-	if (NULL != pp_table_information->vdd_dep_on_mclk)
-		pp_table_information->vdd_dep_on_mclk = NULL;
+	kfree(pp_table_information->valid_mclk_values);
+	pp_table_information->valid_mclk_values = NULL;
 
-	if (NULL != pp_table_information->valid_mclk_values)
-		pp_table_information->valid_mclk_values = NULL;
+	kfree(pp_table_information->valid_sclk_values);
+	pp_table_information->valid_sclk_values = NULL;
 
-	if (NULL != pp_table_information->valid_sclk_values)
-		pp_table_information->valid_sclk_values = NULL;
+	kfree(pp_table_information->vddc_lookup_table);
+	pp_table_information->vddc_lookup_table = NULL;
 
-	if (NULL != pp_table_information->vddc_lookup_table)
-		pp_table_information->vddc_lookup_table = NULL;
+	kfree(pp_table_information->vddgfx_lookup_table);
+	pp_table_information->vddgfx_lookup_table = NULL;
 
-	if (NULL != pp_table_information->vddgfx_lookup_table)
-		pp_table_information->vddgfx_lookup_table = NULL;
+	kfree(pp_table_information->mm_dep_table);
+	pp_table_information->mm_dep_table = NULL;
 
-	if (NULL != pp_table_information->mm_dep_table)
-		pp_table_information->mm_dep_table = NULL;
+	kfree(pp_table_information->cac_dtp_table);
+	pp_table_information->cac_dtp_table = NULL;
 
-	if (NULL != pp_table_information->cac_dtp_table)
-		pp_table_information->cac_dtp_table = NULL;
+	kfree(hwmgr->dyn_state.cac_dtp_table);
+	hwmgr->dyn_state.cac_dtp_table = NULL;
 
-	if (NULL != hwmgr->dyn_state.cac_dtp_table)
-		hwmgr->dyn_state.cac_dtp_table = NULL;
+	kfree(pp_table_information->ppm_parameter_table);
+	pp_table_information->ppm_parameter_table = NULL;
 
-	if (NULL != pp_table_information->ppm_parameter_table)
-		pp_table_information->ppm_parameter_table = NULL;
+	kfree(pp_table_information->pcie_table);
+	pp_table_information->pcie_table = NULL;
 
-	if (NULL != pp_table_information->pcie_table)
-		pp_table_information->pcie_table = NULL;
-
-	if (NULL != hwmgr->pptable) {
-		kfree(hwmgr->pptable);
-		hwmgr->pptable = NULL;
-	}
+	kfree(hwmgr->pptable);
+	hwmgr->pptable = NULL;
 
 	return result;
 }

@@ -28,21 +28,15 @@
 #include "amdgpu.h"
 #include "amdgpu_trace.h"
 
-static void amdgpu_job_free_handler(struct work_struct *ws)
+static void amdgpu_job_timedout(struct amd_sched_job *s_job)
 {
-	struct amdgpu_job *job = container_of(ws, struct amdgpu_job, base.work_free_job);
-	amd_sched_job_put(&job->base);
-}
+	struct amdgpu_job *job = container_of(s_job, struct amdgpu_job, base);
 
-void amdgpu_job_timeout_func(struct work_struct *work)
-{
-	struct amdgpu_job *job = container_of(work, struct amdgpu_job, base.work_tdr.work);
 	DRM_ERROR("ring %s timeout, last signaled seq=%u, last emitted seq=%u\n",
-				job->base.sched->name,
-				(uint32_t)atomic_read(&job->ring->fence_drv.last_seq),
-				job->ring->fence_drv.sync_seq);
-
-	amd_sched_job_put(&job->base);
+		  job->base.sched->name,
+		  atomic_read(&job->ring->fence_drv.last_seq),
+		  job->ring->fence_drv.sync_seq);
+	amdgpu_gpu_reset(job->adev);
 }
 
 int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
@@ -63,7 +57,6 @@ int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
 	(*job)->vm = vm;
 	(*job)->ibs = (void *)&(*job)[1];
 	(*job)->num_ibs = num_ibs;
-	INIT_WORK(&(*job)->base.work_free_job, amdgpu_job_free_handler);
 
 	amdgpu_sync_create(&(*job)->sync);
 
@@ -86,27 +79,33 @@ int amdgpu_job_alloc_with_ib(struct amdgpu_device *adev, unsigned size,
 	return r;
 }
 
-void amdgpu_job_free(struct amdgpu_job *job)
+void amdgpu_job_free_resources(struct amdgpu_job *job)
 {
-	unsigned i;
 	struct fence *f;
+	unsigned i;
+
 	/* use sched fence if available */
-	f = (job->base.s_fence)? &job->base.s_fence->base : job->fence;
+	f = job->base.s_fence ? &job->base.s_fence->finished : job->fence;
 
 	for (i = 0; i < job->num_ibs; ++i)
-		amdgpu_sa_bo_free(job->adev, &job->ibs[i].sa_bo, f);
-	fence_put(job->fence);
-
-	amdgpu_bo_unref(&job->uf_bo);
-	amdgpu_sync_free(&job->sync);
-
-	if (!job->base.use_sched)
-		kfree(job);
+		amdgpu_ib_free(job->adev, &job->ibs[i], f);
 }
 
-void amdgpu_job_free_func(struct kref *refcount)
+void amdgpu_job_free_cb(struct amd_sched_job *s_job)
 {
-	struct amdgpu_job *job = container_of(refcount, struct amdgpu_job, base.refcount);
+	struct amdgpu_job *job = container_of(s_job, struct amdgpu_job, base);
+
+	fence_put(job->fence);
+	amdgpu_sync_free(&job->sync);
+	kfree(job);
+}
+
+void amdgpu_job_free(struct amdgpu_job *job)
+{
+	amdgpu_job_free_resources(job);
+
+	fence_put(job->fence);
+	amdgpu_sync_free(&job->sync);
 	kfree(job);
 }
 
@@ -114,22 +113,20 @@ int amdgpu_job_submit(struct amdgpu_job *job, struct amdgpu_ring *ring,
 		      struct amd_sched_entity *entity, void *owner,
 		      struct fence **f)
 {
-	struct fence *fence;
 	int r;
 	job->ring = ring;
 
 	if (!f)
 		return -EINVAL;
 
-	r = amd_sched_job_init(&job->base, &ring->sched,
-			       entity, amdgpu_job_timeout_func,
-			       amdgpu_job_free_func, owner, &fence);
+	r = amd_sched_job_init(&job->base, &ring->sched, entity, owner);
 	if (r)
 		return r;
 
 	job->owner = owner;
 	job->ctx = entity->fence_context;
-	*f = fence_get(fence);
+	*f = fence_get(&job->base.s_fence->finished);
+	amdgpu_job_free_resources(job);
 	amd_sched_entity_push_job(&job->base);
 
 	return 0;
@@ -147,8 +144,8 @@ static struct fence *amdgpu_job_dependency(struct amd_sched_job *sched_job)
 		int r;
 
 		r = amdgpu_vm_grab_id(vm, ring, &job->sync,
-				      &job->base.s_fence->base,
-				      &job->vm_id, &job->vm_pd_addr);
+				      &job->base.s_fence->finished,
+				      job);
 		if (r)
 			DRM_ERROR("Error getting VM ID (%d)\n", r);
 
@@ -170,11 +167,7 @@ static struct fence *amdgpu_job_run(struct amd_sched_job *sched_job)
 	}
 	job = to_amdgpu_job(sched_job);
 
-	r = amdgpu_sync_wait(&job->sync);
-	if (r) {
-		DRM_ERROR("failed to sync wait (%d)\n", r);
-		return NULL;
-	}
+	BUG_ON(amdgpu_sync_peek_fence(&job->sync, NULL));
 
 	trace_amdgpu_sched_run_job(job);
 	r = amdgpu_ib_schedule(job->ring, job->num_ibs, job->ibs,
@@ -185,14 +178,15 @@ static struct fence *amdgpu_job_run(struct amd_sched_job *sched_job)
 	}
 
 err:
+	/* if gpu reset, hw fence will be replaced here */
+	fence_put(job->fence);
 	job->fence = fence;
-	amdgpu_job_free(job);
 	return fence;
 }
 
 const struct amd_sched_backend_ops amdgpu_sched_ops = {
 	.dependency = amdgpu_job_dependency,
 	.run_job = amdgpu_job_run,
-	.begin_job = amd_sched_job_begin,
-	.finish_job = amd_sched_job_finish,
+	.timedout_job = amdgpu_job_timedout,
+	.free_job = amdgpu_job_free_cb
 };

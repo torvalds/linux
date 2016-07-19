@@ -967,21 +967,21 @@ static int ade_dts_parse(struct platform_device *pdev, struct ade_hw_ctx *ctx)
 	}
 
 	ctx->ade_core_clk = devm_clk_get(dev, "clk_ade_core");
-	if (!ctx->ade_core_clk) {
+	if (IS_ERR(ctx->ade_core_clk)) {
 		DRM_ERROR("failed to parse clk ADE_CORE\n");
-		return -ENODEV;
+		return PTR_ERR(ctx->ade_core_clk);
 	}
 
 	ctx->media_noc_clk = devm_clk_get(dev, "clk_codec_jpeg");
-	if (!ctx->media_noc_clk) {
+	if (IS_ERR(ctx->media_noc_clk)) {
 		DRM_ERROR("failed to parse clk CODEC_JPEG\n");
-	    return -ENODEV;
+		return PTR_ERR(ctx->media_noc_clk);
 	}
 
 	ctx->ade_pix_clk = devm_clk_get(dev, "clk_ade_pix");
-	if (!ctx->ade_pix_clk) {
+	if (IS_ERR(ctx->ade_pix_clk)) {
 		DRM_ERROR("failed to parse clk ADE_PIX\n");
-	    return -ENODEV;
+		return PTR_ERR(ctx->ade_pix_clk);
 	}
 
 	return 0;

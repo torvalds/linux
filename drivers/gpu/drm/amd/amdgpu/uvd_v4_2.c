@@ -34,6 +34,8 @@
 #include "oss/oss_2_0_d.h"
 #include "oss/oss_2_0_sh_mask.h"
 
+#include "bif/bif_4_1_d.h"
+
 static void uvd_v4_2_mc_resume(struct amdgpu_device *adev);
 static void uvd_v4_2_init_cg(struct amdgpu_device *adev);
 static void uvd_v4_2_set_ring_funcs(struct amdgpu_device *adev);
@@ -439,6 +441,32 @@ static void uvd_v4_2_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64 seq
 }
 
 /**
+ * uvd_v4_2_ring_emit_hdp_flush - emit an hdp flush
+ *
+ * @ring: amdgpu_ring pointer
+ *
+ * Emits an hdp flush.
+ */
+static void uvd_v4_2_ring_emit_hdp_flush(struct amdgpu_ring *ring)
+{
+	amdgpu_ring_write(ring, PACKET0(mmHDP_MEM_COHERENCY_FLUSH_CNTL, 0));
+	amdgpu_ring_write(ring, 0);
+}
+
+/**
+ * uvd_v4_2_ring_hdp_invalidate - emit an hdp invalidate
+ *
+ * @ring: amdgpu_ring pointer
+ *
+ * Emits an hdp invalidate.
+ */
+static void uvd_v4_2_ring_emit_hdp_invalidate(struct amdgpu_ring *ring)
+{
+	amdgpu_ring_write(ring, PACKET0(mmHDP_DEBUG0, 0));
+	amdgpu_ring_write(ring, 1);
+}
+
+/**
  * uvd_v4_2_ring_test_ring - register write test
  *
  * @ring: amdgpu_ring pointer
@@ -763,6 +791,8 @@ static const struct amdgpu_ring_funcs uvd_v4_2_ring_funcs = {
 	.parse_cs = amdgpu_uvd_ring_parse_cs,
 	.emit_ib = uvd_v4_2_ring_emit_ib,
 	.emit_fence = uvd_v4_2_ring_emit_fence,
+	.emit_hdp_flush = uvd_v4_2_ring_emit_hdp_flush,
+	.emit_hdp_invalidate = uvd_v4_2_ring_emit_hdp_invalidate,
 	.test_ring = uvd_v4_2_ring_test_ring,
 	.test_ib = uvd_v4_2_ring_test_ib,
 	.insert_nop = amdgpu_ring_insert_nop,

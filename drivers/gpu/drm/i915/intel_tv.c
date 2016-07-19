@@ -826,7 +826,7 @@ static bool
 intel_tv_get_hw_state(struct intel_encoder *encoder, enum pipe *pipe)
 {
 	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	u32 tmp = I915_READ(TV_CTL);
 
 	if (!(tmp & TV_ENC_ENABLE))
@@ -841,7 +841,7 @@ static void
 intel_enable_tv(struct intel_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	/* Prevents vblank waits from timing out in intel_tv_detect_type() */
 	intel_wait_for_vblank(encoder->base.dev,
@@ -854,7 +854,7 @@ static void
 intel_disable_tv(struct intel_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	I915_WRITE(TV_CTL, I915_READ(TV_CTL) & ~TV_ENC_ENABLE);
 }
@@ -1013,7 +1013,7 @@ static void set_color_conversion(struct drm_i915_private *dev_priv,
 static void intel_tv_pre_enable(struct intel_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
 	struct intel_tv *intel_tv = enc_to_tv(encoder);
 	const struct tv_mode *tv_mode = intel_tv_mode_find(intel_tv);
@@ -1173,7 +1173,7 @@ intel_tv_detect_type(struct intel_tv *intel_tv,
 	struct drm_crtc *crtc = connector->state->crtc;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct drm_device *dev = connector->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	u32 tv_ctl, save_tv_ctl;
 	u32 tv_dac, save_tv_dac;
 	int type;
@@ -1501,6 +1501,7 @@ out:
 static const struct drm_connector_funcs intel_tv_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.detect = intel_tv_detect,
+	.late_register = intel_connector_register,
 	.early_unregister = intel_connector_unregister,
 	.destroy = intel_tv_destroy,
 	.set_property = intel_tv_set_property,
@@ -1522,7 +1523,7 @@ static const struct drm_encoder_funcs intel_tv_enc_funcs = {
 void
 intel_tv_init(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_connector *connector;
 	struct intel_tv *intel_tv;
 	struct intel_encoder *intel_encoder;
@@ -1641,5 +1642,4 @@ intel_tv_init(struct drm_device *dev)
 	drm_object_attach_property(&connector->base,
 				   dev->mode_config.tv_bottom_margin_property,
 				   intel_tv->margin[TV_MARGIN_BOTTOM]);
-	drm_connector_register(connector);
 }

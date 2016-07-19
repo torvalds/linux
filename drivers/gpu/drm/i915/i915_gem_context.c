@@ -154,7 +154,7 @@ void i915_gem_context_free(struct kref *ctx_ref)
 	struct i915_gem_context *ctx = container_of(ctx_ref, typeof(*ctx), ref);
 	int i;
 
-	lockdep_assert_held(&ctx->i915->dev->struct_mutex);
+	lockdep_assert_held(&ctx->i915->drm.struct_mutex);
 	trace_i915_context_free(ctx);
 
 	/*
@@ -250,7 +250,7 @@ static struct i915_gem_context *
 __create_hw_context(struct drm_device *dev,
 		    struct drm_i915_file_private *file_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct i915_gem_context *ctx;
 	int ret;
 
@@ -267,6 +267,8 @@ __create_hw_context(struct drm_device *dev,
 	kref_init(&ctx->ref);
 	list_add_tail(&ctx->link, &dev_priv->context_list);
 	ctx->i915 = dev_priv;
+
+	ctx->ggtt_alignment = get_context_alignment(dev_priv);
 
 	if (dev_priv->hw_context_size) {
 		struct drm_i915_gem_object *obj =
@@ -394,7 +396,7 @@ static void i915_gem_context_unpin(struct i915_gem_context *ctx,
 
 void i915_gem_context_reset(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	lockdep_assert_held(&dev->struct_mutex);
 
@@ -410,7 +412,7 @@ void i915_gem_context_reset(struct drm_device *dev)
 
 int i915_gem_context_init(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct i915_gem_context *ctx;
 
 	/* Init should only be called once per module load. Eventually the
@@ -451,26 +453,6 @@ int i915_gem_context_init(struct drm_device *dev)
 		return PTR_ERR(ctx);
 	}
 
-	if (!i915.enable_execlists && ctx->engine[RCS].state) {
-		int ret;
-
-		/* We may need to do things with the shrinker which
-		 * require us to immediately switch back to the default
-		 * context. This can cause a problem as pinning the
-		 * default context also requires GTT space which may not
-		 * be available. To avoid this we always pin the default
-		 * context.
-		 */
-		ret = i915_gem_obj_ggtt_pin(ctx->engine[RCS].state,
-					    get_context_alignment(dev_priv), 0);
-		if (ret) {
-			DRM_ERROR("Failed to pinned default global context (error %d)\n",
-				  ret);
-			i915_gem_context_unreference(ctx);
-			return ret;
-		}
-	}
-
 	dev_priv->kernel_context = ctx;
 
 	DRM_DEBUG_DRIVER("%s context support initialized\n",
@@ -483,32 +465,44 @@ void i915_gem_context_lost(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
 
-	lockdep_assert_held(&dev_priv->dev->struct_mutex);
+	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
 	for_each_engine(engine, dev_priv) {
 		if (engine->last_context) {
 			i915_gem_context_unpin(engine->last_context, engine);
 			engine->last_context = NULL;
 		}
-
-		/* Force the GPU state to be reinitialised on enabling */
-		dev_priv->kernel_context->engine[engine->id].initialised =
-			engine->init_context == NULL;
 	}
 
-	/* Force the GPU state to be reinitialised on enabling */
-	dev_priv->kernel_context->remap_slice = ALL_L3_SLICES(dev_priv);
+	/* Force the GPU state to be restored on enabling */
+	if (!i915.enable_execlists) {
+		struct i915_gem_context *ctx;
+
+		list_for_each_entry(ctx, &dev_priv->context_list, link) {
+			if (!i915_gem_context_is_default(ctx))
+				continue;
+
+			for_each_engine(engine, dev_priv)
+				ctx->engine[engine->id].initialised = false;
+
+			ctx->remap_slice = ALL_L3_SLICES(dev_priv);
+		}
+
+		for_each_engine(engine, dev_priv) {
+			struct intel_context *kce =
+				&dev_priv->kernel_context->engine[engine->id];
+
+			kce->initialised = true;
+		}
+	}
 }
 
 void i915_gem_context_fini(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct i915_gem_context *dctx = dev_priv->kernel_context;
 
 	lockdep_assert_held(&dev->struct_mutex);
-
-	if (!i915.enable_execlists && dctx->engine[RCS].state)
-		i915_gem_object_ggtt_unpin(dctx->engine[RCS].state);
 
 	i915_gem_context_unreference(dctx);
 	dev_priv->kernel_context = NULL;
@@ -759,7 +753,7 @@ static int do_rcs_switch(struct drm_i915_gem_request *req)
 
 	/* Trying to pin first makes error handling easier. */
 	ret = i915_gem_obj_ggtt_pin(to->engine[RCS].state,
-				    get_context_alignment(engine->i915),
+				    to->ggtt_alignment,
 				    0);
 	if (ret)
 		return ret;
@@ -901,7 +895,7 @@ int i915_switch_context(struct drm_i915_gem_request *req)
 	struct intel_engine_cs *engine = req->engine;
 
 	WARN_ON(i915.enable_execlists);
-	lockdep_assert_held(&req->i915->dev->struct_mutex);
+	lockdep_assert_held(&req->i915->drm.struct_mutex);
 
 	if (!req->ctx->engine[engine->id].state) {
 		struct i915_gem_context *to = req->ctx;
@@ -1032,6 +1026,9 @@ int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
 		else
 			args->value = to_i915(dev)->ggtt.base.total;
 		break;
+	case I915_CONTEXT_PARAM_NO_ERROR_CAPTURE:
+		args->value = !!(ctx->flags & CONTEXT_NO_ERROR_CAPTURE);
+		break;
 	default:
 		ret = -EINVAL;
 		break;
@@ -1077,6 +1074,16 @@ int i915_gem_context_setparam_ioctl(struct drm_device *dev, void *data,
 			ctx->flags |= args->value ? CONTEXT_NO_ZEROMAP : 0;
 		}
 		break;
+	case I915_CONTEXT_PARAM_NO_ERROR_CAPTURE:
+		if (args->size) {
+			ret = -EINVAL;
+		} else {
+			if (args->value)
+				ctx->flags |= CONTEXT_NO_ERROR_CAPTURE;
+			else
+				ctx->flags &= ~CONTEXT_NO_ERROR_CAPTURE;
+		}
+		break;
 	default:
 		ret = -EINVAL;
 		break;
@@ -1089,7 +1096,7 @@ int i915_gem_context_setparam_ioctl(struct drm_device *dev, void *data,
 int i915_gem_context_reset_stats_ioctl(struct drm_device *dev,
 				       void *data, struct drm_file *file)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_reset_stats *args = data;
 	struct i915_ctx_hang_stats *hs;
 	struct i915_gem_context *ctx;

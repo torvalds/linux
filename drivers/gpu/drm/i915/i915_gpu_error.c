@@ -332,7 +332,7 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 			    const struct i915_error_state_file_priv *error_priv)
 {
 	struct drm_device *dev = error_priv->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_error_state *error = error_priv->error;
 	struct drm_i915_error_object *obj;
 	int i, j, offset, elt;
@@ -463,6 +463,18 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 			}
 		}
 
+		if (error->ring[i].num_waiters) {
+			err_printf(m, "%s --- %d waiters\n",
+				   dev_priv->engine[i].name,
+				   error->ring[i].num_waiters);
+			for (j = 0; j < error->ring[i].num_waiters; j++) {
+				err_printf(m, " seqno 0x%08x for %s [%d]\n",
+					   error->ring[i].waiters[j].seqno,
+					   error->ring[i].waiters[j].comm,
+					   error->ring[i].waiters[j].pid);
+			}
+		}
+
 		if ((obj = error->ring[i].ringbuffer)) {
 			err_printf(m, "%s --- ringbuffer = 0x%08x\n",
 				   dev_priv->engine[i].name,
@@ -488,7 +500,7 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 					   hws_page[elt+1],
 					   hws_page[elt+2],
 					   hws_page[elt+3]);
-					offset += 16;
+				offset += 16;
 			}
 		}
 
@@ -605,8 +617,9 @@ static void i915_error_state_free(struct kref *error_ref)
 		i915_error_object_free(error->ring[i].ringbuffer);
 		i915_error_object_free(error->ring[i].hws_page);
 		i915_error_object_free(error->ring[i].ctx);
-		kfree(error->ring[i].requests);
 		i915_error_object_free(error->ring[i].wa_ctx);
+		kfree(error->ring[i].requests);
+		kfree(error->ring[i].waiters);
 	}
 
 	i915_error_object_free(error->semaphore_obj);
@@ -892,6 +905,48 @@ static void gen6_record_semaphore_state(struct drm_i915_private *dev_priv,
 	}
 }
 
+static void engine_record_waiters(struct intel_engine_cs *engine,
+				  struct drm_i915_error_ring *ering)
+{
+	struct intel_breadcrumbs *b = &engine->breadcrumbs;
+	struct drm_i915_error_waiter *waiter;
+	struct rb_node *rb;
+	int count;
+
+	ering->num_waiters = 0;
+	ering->waiters = NULL;
+
+	spin_lock(&b->lock);
+	count = 0;
+	for (rb = rb_first(&b->waiters); rb != NULL; rb = rb_next(rb))
+		count++;
+	spin_unlock(&b->lock);
+
+	waiter = NULL;
+	if (count)
+		waiter = kmalloc_array(count,
+				       sizeof(struct drm_i915_error_waiter),
+				       GFP_ATOMIC);
+	if (!waiter)
+		return;
+
+	ering->waiters = waiter;
+
+	spin_lock(&b->lock);
+	for (rb = rb_first(&b->waiters); rb; rb = rb_next(rb)) {
+		struct intel_wait *w = container_of(rb, typeof(*w), node);
+
+		strcpy(waiter->comm, w->tsk->comm);
+		waiter->pid = w->tsk->pid;
+		waiter->seqno = w->seqno;
+		waiter++;
+
+		if (++ering->num_waiters == count)
+			break;
+	}
+	spin_unlock(&b->lock);
+}
+
 static void i915_record_ring_state(struct drm_i915_private *dev_priv,
 				   struct drm_i915_error_state *error,
 				   struct intel_engine_cs *engine,
@@ -926,10 +981,10 @@ static void i915_record_ring_state(struct drm_i915_private *dev_priv,
 		ering->instdone = I915_READ(GEN2_INSTDONE);
 	}
 
-	ering->waiting = waitqueue_active(&engine->irq_queue);
+	ering->waiting = intel_engine_has_waiter(engine);
 	ering->instpm = I915_READ(RING_INSTPM(engine->mmio_base));
 	ering->acthd = intel_ring_get_active_head(engine);
-	ering->seqno = engine->get_seqno(engine);
+	ering->seqno = intel_engine_get_seqno(engine);
 	ering->last_seqno = engine->last_submitted_seqno;
 	ering->start = I915_READ_START(engine);
 	ering->head = I915_READ_HEAD(engine);
@@ -1022,7 +1077,6 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 
 	for (i = 0; i < I915_NUM_ENGINES; i++) {
 		struct intel_engine_cs *engine = &dev_priv->engine[i];
-		struct intel_ringbuffer *rbuf;
 
 		error->ring[i].pid = -1;
 
@@ -1032,14 +1086,15 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 		error->ring[i].valid = true;
 
 		i915_record_ring_state(dev_priv, error, engine, &error->ring[i]);
+		engine_record_waiters(engine, &error->ring[i]);
 
 		request = i915_gem_find_active_request(engine);
 		if (request) {
 			struct i915_address_space *vm;
+			struct intel_ringbuffer *rb;
 
-			vm = request->ctx && request->ctx->ppgtt ?
-				&request->ctx->ppgtt->base :
-				&ggtt->base;
+			vm = request->ctx->ppgtt ?
+				&request->ctx->ppgtt->base : &ggtt->base;
 
 			/* We need to copy these to an anonymous buffer
 			 * as the simplest method to avoid being overwritten
@@ -1066,26 +1121,17 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 				}
 				rcu_read_unlock();
 			}
+
+			error->simulated |=
+				request->ctx->flags & CONTEXT_NO_ERROR_CAPTURE;
+
+			rb = request->ringbuf;
+			error->ring[i].cpu_ring_head = rb->head;
+			error->ring[i].cpu_ring_tail = rb->tail;
+			error->ring[i].ringbuffer =
+				i915_error_ggtt_object_create(dev_priv,
+							      rb->obj);
 		}
-
-		if (i915.enable_execlists) {
-			/* TODO: This is only a small fix to keep basic error
-			 * capture working, but we need to add more information
-			 * for it to be useful (e.g. dump the context being
-			 * executed).
-			 */
-			if (request)
-				rbuf = request->ctx->engine[engine->id].ringbuf;
-			else
-				rbuf = dev_priv->kernel_context->engine[engine->id].ringbuf;
-		} else
-			rbuf = engine->buffer;
-
-		error->ring[i].cpu_ring_head = rbuf->head;
-		error->ring[i].cpu_ring_tail = rbuf->tail;
-
-		error->ring[i].ringbuffer =
-			i915_error_ggtt_object_create(dev_priv, rbuf->obj);
 
 		error->ring[i].hws_page =
 			i915_error_ggtt_object_create(dev_priv,
@@ -1230,7 +1276,7 @@ static void i915_gem_capture_buffers(struct drm_i915_private *dev_priv,
 static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 				   struct drm_i915_error_state *error)
 {
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	int i;
 
 	/* General organization
@@ -1355,6 +1401,9 @@ void i915_capture_error_state(struct drm_i915_private *dev_priv,
 	struct drm_i915_error_state *error;
 	unsigned long flags;
 
+	if (READ_ONCE(dev_priv->gpu_error.first_error))
+		return;
+
 	/* Account for pipe specific data like PIPE*STAT */
 	error = kzalloc(sizeof(*error), GFP_ATOMIC);
 	if (!error) {
@@ -1378,12 +1427,14 @@ void i915_capture_error_state(struct drm_i915_private *dev_priv,
 	i915_error_capture_msg(dev_priv, error, engine_mask, error_msg);
 	DRM_INFO("%s\n", error->error_msg);
 
-	spin_lock_irqsave(&dev_priv->gpu_error.lock, flags);
-	if (dev_priv->gpu_error.first_error == NULL) {
-		dev_priv->gpu_error.first_error = error;
-		error = NULL;
+	if (!error->simulated) {
+		spin_lock_irqsave(&dev_priv->gpu_error.lock, flags);
+		if (!dev_priv->gpu_error.first_error) {
+			dev_priv->gpu_error.first_error = error;
+			error = NULL;
+		}
+		spin_unlock_irqrestore(&dev_priv->gpu_error.lock, flags);
 	}
-	spin_unlock_irqrestore(&dev_priv->gpu_error.lock, flags);
 
 	if (error) {
 		i915_error_state_free(&error->ref);
@@ -1395,7 +1446,8 @@ void i915_capture_error_state(struct drm_i915_private *dev_priv,
 		DRM_INFO("Please file a _new_ bug report on bugs.freedesktop.org against DRI -> DRM/Intel\n");
 		DRM_INFO("drm/i915 developers can then reassign to the right component if it's not a kernel issue.\n");
 		DRM_INFO("The gpu crash dump is required to analyze gpu hangs, so please always attach it.\n");
-		DRM_INFO("GPU crash dump saved to /sys/class/drm/card%d/error\n", dev_priv->dev->primary->index);
+		DRM_INFO("GPU crash dump saved to /sys/class/drm/card%d/error\n",
+			 dev_priv->drm.primary->index);
 		warned = true;
 	}
 }
@@ -1403,7 +1455,7 @@ void i915_capture_error_state(struct drm_i915_private *dev_priv,
 void i915_error_state_get(struct drm_device *dev,
 			  struct i915_error_state_file_priv *error_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	spin_lock_irq(&dev_priv->gpu_error.lock);
 	error_priv->error = dev_priv->gpu_error.first_error;
@@ -1421,7 +1473,7 @@ void i915_error_state_put(struct i915_error_state_file_priv *error_priv)
 
 void i915_destroy_error_state(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_error_state *error;
 
 	spin_lock_irq(&dev_priv->gpu_error.lock);

@@ -312,6 +312,8 @@ static uint32_t amdgpu_cgs_read_ind_register(struct cgs_device *cgs_device,
 		return RREG32_UVD_CTX(index);
 	case CGS_IND_REG__DIDT:
 		return RREG32_DIDT(index);
+	case CGS_IND_REG_GC_CAC:
+		return RREG32_GC_CAC(index);
 	case CGS_IND_REG__AUDIO_ENDPT:
 		DRM_ERROR("audio endpt register access not implemented.\n");
 		return 0;
@@ -336,6 +338,8 @@ static void amdgpu_cgs_write_ind_register(struct cgs_device *cgs_device,
 		return WREG32_UVD_CTX(index, value);
 	case CGS_IND_REG__DIDT:
 		return WREG32_DIDT(index, value);
+	case CGS_IND_REG_GC_CAC:
+		return WREG32_GC_CAC(index, value);
 	case CGS_IND_REG__AUDIO_ENDPT:
 		DRM_ERROR("audio endpt register access not implemented.\n");
 		return;
@@ -696,6 +700,17 @@ static uint32_t fw_type_convert(struct cgs_device *cgs_device, uint32_t fw_type)
 	return result;
 }
 
+static int amdgpu_cgs_rel_firmware(struct cgs_device *cgs_device, enum cgs_ucode_id type)
+{
+	CGS_FUNC_ADEV;
+	if ((CGS_UCODE_ID_SMU == type) || (CGS_UCODE_ID_SMU_SK == type)) {
+		release_firmware(adev->pm.fw);
+		return 0;
+	}
+	/* cannot release other firmware because they are not created by cgs */
+	return -EINVAL;
+}
+
 static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 					enum cgs_ucode_id type,
 					struct cgs_firmware_info *info)
@@ -776,6 +791,7 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 		}
 
 		hdr = (const struct smc_firmware_header_v1_0 *)	adev->pm.fw->data;
+		amdgpu_ucode_print_smc_hdr(&hdr->header);
 		adev->pm.fw_version = le32_to_cpu(hdr->header.ucode_version);
 		ucode_size = le32_to_cpu(hdr->header.ucode_size_bytes);
 		ucode_start_address = le32_to_cpu(hdr->ucode_start_addr);
@@ -818,6 +834,9 @@ static int amdgpu_cgs_query_system_info(struct cgs_device *cgs_device,
 		break;
 	case CGS_SYSTEM_INFO_GFX_CU_INFO:
 		sys_info->value = adev->gfx.cu_info.number;
+		break;
+	case CGS_SYSTEM_INFO_GFX_SE_INFO:
+		sys_info->value = adev->gfx.config.max_shader_engines;
 		break;
 	default:
 		return -ENODEV;
@@ -898,7 +917,7 @@ static int amdgpu_cgs_acpi_eval_object(struct cgs_device *cgs_device,
 	struct cgs_acpi_method_argument *argument = NULL;
 	uint32_t i, count;
 	acpi_status status;
-	int result;
+	int result = 0;
 	uint32_t func_no = 0xFFFFFFFF;
 
 	handle = ACPI_HANDLE(&adev->pdev->dev);
@@ -961,11 +980,11 @@ static int amdgpu_cgs_acpi_eval_object(struct cgs_device *cgs_device,
 				params->integer.value = argument->value;
 				break;
 			case ACPI_TYPE_STRING:
-				params->string.length = argument->method_length;
+				params->string.length = argument->data_length;
 				params->string.pointer = argument->pointer;
 				break;
 			case ACPI_TYPE_BUFFER:
-				params->buffer.length = argument->method_length;
+				params->buffer.length = argument->data_length;
 				params->buffer.pointer = argument->pointer;
 				break;
 			default:
@@ -1068,17 +1087,14 @@ int amdgpu_cgs_call_acpi_method(struct cgs_device *cgs_device,
 	struct cgs_acpi_method_info info = {0};
 
 	acpi_input[0].type = CGS_ACPI_TYPE_INTEGER;
-	acpi_input[0].method_length = sizeof(uint32_t);
 	acpi_input[0].data_length = sizeof(uint32_t);
 	acpi_input[0].value = acpi_function;
 
 	acpi_input[1].type = CGS_ACPI_TYPE_BUFFER;
-	acpi_input[1].method_length = CGS_ACPI_MAX_BUFFER_SIZE;
 	acpi_input[1].data_length = input_size;
 	acpi_input[1].pointer = pinput;
 
 	acpi_output.type = CGS_ACPI_TYPE_BUFFER;
-	acpi_output.method_length = CGS_ACPI_MAX_BUFFER_SIZE;
 	acpi_output.data_length = output_size;
 	acpi_output.pointer = poutput;
 
@@ -1125,6 +1141,7 @@ static const struct cgs_ops amdgpu_cgs_ops = {
 	amdgpu_cgs_pm_query_clock_limits,
 	amdgpu_cgs_set_camera_voltages,
 	amdgpu_cgs_get_firmware_info,
+	amdgpu_cgs_rel_firmware,
 	amdgpu_cgs_set_powergating_state,
 	amdgpu_cgs_set_clockgating_state,
 	amdgpu_cgs_get_active_displays_info,

@@ -34,7 +34,10 @@ static struct opp_table *_managed_opp(const struct device_node *np)
 			 * But the OPPs will be considered as shared only if the
 			 * OPP table contains a "opp-shared" property.
 			 */
-			return opp_table->shared_opp ? opp_table : NULL;
+			if (opp_table->shared_opp == OPP_TABLE_ACCESS_SHARED)
+				return opp_table;
+
+			return NULL;
 		}
 	}
 
@@ -353,7 +356,10 @@ static int _of_add_opp_table_v2(struct device *dev, struct device_node *opp_np)
 	}
 
 	opp_table->np = opp_np;
-	opp_table->shared_opp = of_property_read_bool(opp_np, "opp-shared");
+	if (of_property_read_bool(opp_np, "opp-shared"))
+		opp_table->shared_opp = OPP_TABLE_ACCESS_SHARED;
+	else
+		opp_table->shared_opp = OPP_TABLE_ACCESS_EXCLUSIVE;
 
 	mutex_unlock(&opp_table_lock);
 

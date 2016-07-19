@@ -224,6 +224,6 @@ module_param_named(enable_dpcd_backlight, i915.enable_dpcd_backlight, bool, 0600
 MODULE_PARM_DESC(enable_dpcd_backlight,
 	"Enable support for DPCD backlight control (default:false)");
 
-module_param_named(enable_gvt, i915.enable_gvt, bool, 0600);
+module_param_named(enable_gvt, i915.enable_gvt, bool, 0400);
 MODULE_PARM_DESC(enable_gvt,
 	"Enable support for Intel GVT-g graphics virtualization host support(default:false)");

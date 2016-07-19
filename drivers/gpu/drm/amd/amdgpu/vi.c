@@ -203,6 +203,29 @@ static void vi_didt_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
 	spin_unlock_irqrestore(&adev->didt_idx_lock, flags);
 }
 
+static u32 vi_gc_cac_rreg(struct amdgpu_device *adev, u32 reg)
+{
+	unsigned long flags;
+	u32 r;
+
+	spin_lock_irqsave(&adev->gc_cac_idx_lock, flags);
+	WREG32(mmGC_CAC_IND_INDEX, (reg));
+	r = RREG32(mmGC_CAC_IND_DATA);
+	spin_unlock_irqrestore(&adev->gc_cac_idx_lock, flags);
+	return r;
+}
+
+static void vi_gc_cac_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&adev->gc_cac_idx_lock, flags);
+	WREG32(mmGC_CAC_IND_INDEX, (reg));
+	WREG32(mmGC_CAC_IND_DATA, (v));
+	spin_unlock_irqrestore(&adev->gc_cac_idx_lock, flags);
+}
+
+
 static const u32 tonga_mgcg_cgcg_init[] =
 {
 	mmCGTT_DRM_CLK_CTRL0, 0xffffffff, 0x00600100,
@@ -421,6 +444,20 @@ static bool vi_read_bios_from_rom(struct amdgpu_device *adev,
 	return true;
 }
 
+static u32 vi_get_virtual_caps(struct amdgpu_device *adev)
+{
+	u32 caps = 0;
+	u32 reg = RREG32(mmBIF_IOV_FUNC_IDENTIFIER);
+
+	if (REG_GET_FIELD(reg, BIF_IOV_FUNC_IDENTIFIER, IOV_ENABLE))
+		caps |= AMDGPU_VIRT_CAPS_SRIOV_EN;
+
+	if (REG_GET_FIELD(reg, BIF_IOV_FUNC_IDENTIFIER, FUNC_IDENTIFIER))
+		caps |= AMDGPU_VIRT_CAPS_IS_VF;
+
+	return caps;
+}
+
 static const struct amdgpu_allowed_register_entry tonga_allowed_read_registers[] = {
 	{mmGB_MACROTILE_MODE7, true},
 };
@@ -519,12 +556,12 @@ static uint32_t vi_read_indexed_register(struct amdgpu_device *adev, u32 se_num,
 
 	mutex_lock(&adev->grbm_idx_mutex);
 	if (se_num != 0xffffffff || sh_num != 0xffffffff)
-		gfx_v8_0_select_se_sh(adev, se_num, sh_num);
+		amdgpu_gfx_select_se_sh(adev, se_num, sh_num, 0xffffffff);
 
 	val = RREG32(reg_offset);
 
 	if (se_num != 0xffffffff || sh_num != 0xffffffff)
-		gfx_v8_0_select_se_sh(adev, 0xffffffff, 0xffffffff);
+		amdgpu_gfx_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
 	mutex_unlock(&adev->grbm_idx_mutex);
 	return val;
 }
@@ -583,7 +620,7 @@ static int vi_read_register(struct amdgpu_device *adev, u32 se_num,
 	return -EINVAL;
 }
 
-static void vi_gpu_pci_config_reset(struct amdgpu_device *adev)
+static int vi_gpu_pci_config_reset(struct amdgpu_device *adev)
 {
 	u32 i;
 
@@ -598,11 +635,14 @@ static void vi_gpu_pci_config_reset(struct amdgpu_device *adev)
 
 	/* wait for asic to come out of reset */
 	for (i = 0; i < adev->usec_timeout; i++) {
-		if (RREG32(mmCONFIG_MEMSIZE) != 0xffffffff)
-			break;
+		if (RREG32(mmCONFIG_MEMSIZE) != 0xffffffff) {
+			/* enable BM */
+			pci_set_master(adev->pdev);
+			return 0;
+		}
 		udelay(1);
 	}
-
+	return -EINVAL;
 }
 
 static void vi_set_bios_scratch_engine_hung(struct amdgpu_device *adev, bool hung)
@@ -628,13 +668,15 @@ static void vi_set_bios_scratch_engine_hung(struct amdgpu_device *adev, bool hun
  */
 static int vi_asic_reset(struct amdgpu_device *adev)
 {
+	int r;
+
 	vi_set_bios_scratch_engine_hung(adev, true);
 
-	vi_gpu_pci_config_reset(adev);
+	r = vi_gpu_pci_config_reset(adev);
 
 	vi_set_bios_scratch_engine_hung(adev, false);
 
-	return 0;
+	return r;
 }
 
 static int vi_set_uvd_clock(struct amdgpu_device *adev, u32 clock,
@@ -1118,9 +1160,7 @@ static const struct amdgpu_asic_funcs vi_asic_funcs =
 	.get_xclk = &vi_get_xclk,
 	.set_uvd_clocks = &vi_set_uvd_clocks,
 	.set_vce_clocks = &vi_set_vce_clocks,
-	/* these should be moved to their own ip modules */
-	.get_gpu_clock_counter = &gfx_v8_0_get_gpu_clock_counter,
-	.wait_for_mc_idle = &gmc_v8_0_mc_wait_for_idle,
+	.get_virtual_caps = &vi_get_virtual_caps,
 };
 
 static int vi_common_early_init(void *handle)
@@ -1141,6 +1181,8 @@ static int vi_common_early_init(void *handle)
 	adev->uvd_ctx_wreg = &vi_uvd_ctx_wreg;
 	adev->didt_rreg = &vi_didt_rreg;
 	adev->didt_wreg = &vi_didt_wreg;
+	adev->gc_cac_rreg = &vi_gc_cac_rreg;
+	adev->gc_cac_wreg = &vi_gc_cac_wreg;
 
 	adev->asic_funcs = &vi_asic_funcs;
 
@@ -1207,19 +1249,39 @@ static int vi_common_early_init(void *handle)
 			AMD_CG_SUPPORT_HDP_LS |
 			AMD_CG_SUPPORT_SDMA_MGCG |
 			AMD_CG_SUPPORT_SDMA_LS;
+		/* rev0 hardware doesn't support PG */
 		adev->pg_flags = 0;
+		if (adev->rev_id != 0x00)
+			adev->pg_flags |= AMD_PG_SUPPORT_GFX_PG |
+				AMD_PG_SUPPORT_GFX_SMG |
+				AMD_PG_SUPPORT_GFX_DMG |
+				AMD_PG_SUPPORT_CP |
+				AMD_PG_SUPPORT_RLC_SMU_HS |
+				AMD_PG_SUPPORT_GFX_PIPELINE;
 		adev->external_rev_id = adev->rev_id + 0x1;
 		break;
 	case CHIP_STONEY:
 		adev->cg_flags = AMD_CG_SUPPORT_UVD_MGCG |
 			AMD_CG_SUPPORT_GFX_MGCG |
 			AMD_CG_SUPPORT_GFX_MGLS |
+			AMD_CG_SUPPORT_GFX_RLC_LS |
+			AMD_CG_SUPPORT_GFX_CP_LS |
+			AMD_CG_SUPPORT_GFX_CGTS |
+			AMD_CG_SUPPORT_GFX_MGLS |
+			AMD_CG_SUPPORT_GFX_CGTS_LS |
+			AMD_CG_SUPPORT_GFX_CGCG |
+			AMD_CG_SUPPORT_GFX_CGLS |
 			AMD_CG_SUPPORT_BIF_LS |
 			AMD_CG_SUPPORT_HDP_MGCG |
 			AMD_CG_SUPPORT_HDP_LS |
 			AMD_CG_SUPPORT_SDMA_MGCG |
 			AMD_CG_SUPPORT_SDMA_LS;
-		adev->pg_flags = 0;
+		adev->pg_flags = AMD_PG_SUPPORT_GFX_PG |
+			AMD_PG_SUPPORT_GFX_SMG |
+			AMD_PG_SUPPORT_GFX_DMG |
+			AMD_PG_SUPPORT_GFX_PIPELINE |
+			AMD_PG_SUPPORT_CP |
+			AMD_PG_SUPPORT_RLC_SMU_HS;
 		adev->external_rev_id = adev->rev_id + 0x1;
 		break;
 	default:

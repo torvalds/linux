@@ -11,7 +11,7 @@ if DRM_EXYNOS
 
 config DRM_EXYNOS_IOMMU
 	bool
-	depends on EXYNOS_IOMMU && ARM_DMA_USE_IOMMU
+	depends on EXYNOS_IOMMU
 	default y
 
 comment "CRTCs"

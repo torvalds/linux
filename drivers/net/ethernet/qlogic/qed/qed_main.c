@@ -1105,6 +1105,39 @@ static int qed_get_port_type(u32 media_type)
 	return port_type;
 }
 
+static int qed_get_link_data(struct qed_hwfn *hwfn,
+			     struct qed_mcp_link_params *params,
+			     struct qed_mcp_link_state *link,
+			     struct qed_mcp_link_capabilities *link_caps)
+{
+	void *p;
+
+	if (!IS_PF(hwfn->cdev)) {
+		qed_vf_get_link_params(hwfn, params);
+		qed_vf_get_link_state(hwfn, link);
+		qed_vf_get_link_caps(hwfn, link_caps);
+
+		return 0;
+	}
+
+	p = qed_mcp_get_link_params(hwfn);
+	if (!p)
+		return -ENXIO;
+	memcpy(params, p, sizeof(*params));
+
+	p = qed_mcp_get_link_state(hwfn);
+	if (!p)
+		return -ENXIO;
+	memcpy(link, p, sizeof(*link));
+
+	p = qed_mcp_get_link_capabilities(hwfn);
+	if (!p)
+		return -ENXIO;
+	memcpy(link_caps, p, sizeof(*link_caps));
+
+	return 0;
+}
+
 static void qed_fill_link(struct qed_hwfn *hwfn,
 			  struct qed_link_output *if_link)
 {
@@ -1116,15 +1149,9 @@ static void qed_fill_link(struct qed_hwfn *hwfn,
 	memset(if_link, 0, sizeof(*if_link));
 
 	/* Prepare source inputs */
-	if (IS_PF(hwfn->cdev)) {
-		memcpy(&params, qed_mcp_get_link_params(hwfn), sizeof(params));
-		memcpy(&link, qed_mcp_get_link_state(hwfn), sizeof(link));
-		memcpy(&link_caps, qed_mcp_get_link_capabilities(hwfn),
-		       sizeof(link_caps));
-	} else {
-		qed_vf_get_link_params(hwfn, &params);
-		qed_vf_get_link_state(hwfn, &link);
-		qed_vf_get_link_caps(hwfn, &link_caps);
+	if (qed_get_link_data(hwfn, &params, &link, &link_caps)) {
+		dev_warn(&hwfn->cdev->pdev->dev, "no link data available\n");
+		return;
 	}
 
 	/* Set the link parameters to pass to protocol driver */

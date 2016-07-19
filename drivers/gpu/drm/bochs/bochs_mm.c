@@ -165,15 +165,6 @@ static void bochs_ttm_io_mem_free(struct ttm_bo_device *bdev,
 {
 }
 
-static int bochs_bo_move(struct ttm_buffer_object *bo,
-			 bool evict, bool interruptible,
-			 bool no_wait_gpu,
-			 struct ttm_mem_reg *new_mem)
-{
-	return ttm_bo_move_memcpy(bo, evict, no_wait_gpu, new_mem);
-}
-
-
 static void bochs_ttm_backend_destroy(struct ttm_tt *tt)
 {
 	ttm_tt_fini(tt);
@@ -208,7 +199,7 @@ struct ttm_bo_driver bochs_bo_driver = {
 	.ttm_tt_unpopulate = ttm_pool_unpopulate,
 	.init_mem_type = bochs_bo_init_mem_type,
 	.evict_flags = bochs_bo_evict_flags,
-	.move = bochs_bo_move,
+	.move = NULL,
 	.verify_access = bochs_bo_verify_access,
 	.io_mem_reserve = &bochs_ttm_io_mem_reserve,
 	.io_mem_free = &bochs_ttm_io_mem_free,

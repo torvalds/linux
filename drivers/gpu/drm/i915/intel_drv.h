@@ -69,39 +69,63 @@
 })
 
 #define wait_for(COND, MS)	  	_wait_for((COND), (MS) * 1000, 1000)
-#define wait_for_us(COND, US)	  	_wait_for((COND), (US), 1)
 
 /* If CONFIG_PREEMPT_COUNT is disabled, in_atomic() always reports false. */
 #if defined(CONFIG_DRM_I915_DEBUG) && defined(CONFIG_PREEMPT_COUNT)
-# define _WAIT_FOR_ATOMIC_CHECK WARN_ON_ONCE(!in_atomic())
+# define _WAIT_FOR_ATOMIC_CHECK(ATOMIC) WARN_ON_ONCE((ATOMIC) && !in_atomic())
 #else
-# define _WAIT_FOR_ATOMIC_CHECK do { } while (0)
+# define _WAIT_FOR_ATOMIC_CHECK(ATOMIC) do { } while (0)
 #endif
 
-#define _wait_for_atomic(COND, US) ({ \
-	unsigned long end__; \
-	int ret__ = 0; \
-	_WAIT_FOR_ATOMIC_CHECK; \
+#define _wait_for_atomic(COND, US, ATOMIC) \
+({ \
+	int cpu, ret, timeout = (US) * 1000; \
+	u64 base; \
+	_WAIT_FOR_ATOMIC_CHECK(ATOMIC); \
 	BUILD_BUG_ON((US) > 50000); \
-	end__ = (local_clock() >> 10) + (US) + 1; \
-	while (!(COND)) { \
-		if (time_after((unsigned long)(local_clock() >> 10), end__)) { \
-			/* Unlike the regular wait_for(), this atomic variant \
-			 * cannot be preempted (and we'll just ignore the issue\
-			 * of irq interruptions) and so we know that no time \
-			 * has passed since the last check of COND and can \
-			 * immediately report the timeout. \
-			 */ \
-			ret__ = -ETIMEDOUT; \
+	if (!(ATOMIC)) { \
+		preempt_disable(); \
+		cpu = smp_processor_id(); \
+	} \
+	base = local_clock(); \
+	for (;;) { \
+		u64 now = local_clock(); \
+		if (!(ATOMIC)) \
+			preempt_enable(); \
+		if (COND) { \
+			ret = 0; \
+			break; \
+		} \
+		if (now - base >= timeout) { \
+			ret = -ETIMEDOUT; \
 			break; \
 		} \
 		cpu_relax(); \
+		if (!(ATOMIC)) { \
+			preempt_disable(); \
+			if (unlikely(cpu != smp_processor_id())) { \
+				timeout -= now - base; \
+				cpu = smp_processor_id(); \
+				base = local_clock(); \
+			} \
+		} \
 	} \
+	ret; \
+})
+
+#define wait_for_us(COND, US) \
+({ \
+	int ret__; \
+	BUILD_BUG_ON(!__builtin_constant_p(US)); \
+	if ((US) > 10) \
+		ret__ = _wait_for((COND), (US), 10); \
+	else \
+		ret__ = _wait_for_atomic((COND), (US), 0); \
 	ret__; \
 })
 
-#define wait_for_atomic(COND, MS)	_wait_for_atomic((COND), (MS) * 1000)
-#define wait_for_atomic_us(COND, US)	_wait_for_atomic((COND), (US))
+#define wait_for_atomic(COND, MS)	_wait_for_atomic((COND), (MS) * 1000, 1)
+#define wait_for_atomic_us(COND, US)	_wait_for_atomic((COND), (US), 1)
 
 #define KHz(x) (1000 * (x))
 #define MHz(x) KHz(1000 * (x))
@@ -135,7 +159,7 @@ enum intel_output_type {
 	INTEL_OUTPUT_LVDS = 4,
 	INTEL_OUTPUT_TVOUT = 5,
 	INTEL_OUTPUT_HDMI = 6,
-	INTEL_OUTPUT_DISPLAYPORT = 7,
+	INTEL_OUTPUT_DP = 7,
 	INTEL_OUTPUT_EDP = 8,
 	INTEL_OUTPUT_DSI = 9,
 	INTEL_OUTPUT_UNKNOWN = 10,
@@ -159,6 +183,7 @@ struct intel_framebuffer {
 struct intel_fbdev {
 	struct drm_fb_helper helper;
 	struct intel_framebuffer *fb;
+	async_cookie_t cookie;
 	int preferred_bpp;
 };
 
@@ -497,12 +522,10 @@ struct intel_crtc_state {
 	 */
 	bool limited_color_range;
 
-	/* DP has a bunch of special case unfortunately, so mark the pipe
-	 * accordingly. */
-	bool has_dp_encoder;
-
-	/* DSI has special cases */
-	bool has_dsi_encoder;
+	/* Bitmask of encoder types (enum intel_output_type)
+	 * driven by the pipe.
+	 */
+	unsigned int output_types;
 
 	/* Whether we should send NULL infoframes. Required for audio. */
 	bool has_hdmi_sink;
@@ -861,6 +884,11 @@ struct intel_dp {
 	 * this port. Only relevant on VLV/CHV.
 	 */
 	enum pipe pps_pipe;
+	/*
+	 * Set if the sequencer may be reset due to a power transition,
+	 * requiring a reinitialization. Only relevant on BXT.
+	 */
+	bool pps_reset;
 	struct edp_power_seq pps_delays;
 
 	bool can_mst; /* this port supports mst */
@@ -885,8 +913,6 @@ struct intel_dp {
 
 	/* This is called before a link training is starterd */
 	void (*prepare_link_retrain)(struct intel_dp *intel_dp);
-
-	bool train_set_valid;
 
 	/* Displayport compliance testing */
 	unsigned long compliance_test_type;
@@ -959,14 +985,14 @@ vlv_pipe_to_channel(enum pipe pipe)
 static inline struct drm_crtc *
 intel_get_crtc_for_pipe(struct drm_device *dev, int pipe)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	return dev_priv->pipe_to_crtc_mapping[pipe];
 }
 
 static inline struct drm_crtc *
 intel_get_crtc_for_plane(struct drm_device *dev, int plane)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	return dev_priv->plane_to_crtc_mapping[plane];
 }
 
@@ -1159,7 +1185,20 @@ int intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
 enum transcoder intel_pipe_to_cpu_transcoder(struct drm_i915_private *dev_priv,
 					     enum pipe pipe);
-bool intel_pipe_has_type(struct intel_crtc *crtc, enum intel_output_type type);
+static inline bool
+intel_crtc_has_type(const struct intel_crtc_state *crtc_state,
+		    enum intel_output_type type)
+{
+	return crtc_state->output_types & (1 << type);
+}
+static inline bool
+intel_crtc_has_dp_encoder(const struct intel_crtc_state *crtc_state)
+{
+	return crtc_state->output_types &
+		((1 << INTEL_OUTPUT_DP) |
+		 (1 << INTEL_OUTPUT_DP_MST) |
+		 (1 << INTEL_OUTPUT_EDP));
+}
 static inline void
 intel_wait_for_vblank(struct drm_device *dev, int pipe)
 {
@@ -1340,7 +1379,7 @@ void intel_dp_mst_resume(struct drm_device *dev);
 int intel_dp_max_link_rate(struct intel_dp *intel_dp);
 int intel_dp_rate_select(struct intel_dp *intel_dp, int rate);
 void intel_dp_hot_plug(struct intel_encoder *intel_encoder);
-void vlv_power_sequencer_reset(struct drm_i915_private *dev_priv);
+void intel_power_sequencer_reset(struct drm_i915_private *dev_priv);
 uint32_t intel_dp_pack_aux(const uint8_t *src, int src_bytes);
 void intel_plane_destroy(struct drm_plane *plane);
 void intel_edp_drrs_enable(struct intel_dp *intel_dp);
@@ -1453,6 +1492,7 @@ void intel_dp_dual_mode_set_tmds_output(struct intel_hdmi *hdmi, bool enable);
 
 /* intel_lvds.c */
 void intel_lvds_init(struct drm_device *dev);
+struct intel_encoder *intel_get_lvds_encoder(struct drm_device *dev);
 bool intel_is_dual_link_lvds(struct drm_device *dev);
 
 
@@ -1491,7 +1531,8 @@ void intel_gmch_panel_fitting(struct intel_crtc *crtc,
 			      int fitting_mode);
 void intel_panel_set_backlight_acpi(struct intel_connector *connector,
 				    u32 level, u32 max);
-int intel_panel_setup_backlight(struct drm_connector *connector, enum pipe pipe);
+int intel_panel_setup_backlight(struct drm_connector *connector,
+				enum pipe pipe);
 void intel_panel_enable_backlight(struct intel_connector *connector);
 void intel_panel_disable_backlight(struct intel_connector *connector);
 void intel_panel_destroy_backlight(struct drm_connector *connector);
@@ -1500,11 +1541,15 @@ extern struct drm_display_mode *intel_find_panel_downclock(
 				struct drm_device *dev,
 				struct drm_display_mode *fixed_mode,
 				struct drm_connector *connector);
-void intel_backlight_register(struct drm_device *dev);
 
 #if IS_ENABLED(CONFIG_BACKLIGHT_CLASS_DEVICE)
+int intel_backlight_device_register(struct intel_connector *connector);
 void intel_backlight_device_unregister(struct intel_connector *connector);
 #else /* CONFIG_BACKLIGHT_CLASS_DEVICE */
+static int intel_backlight_device_register(struct intel_connector *connector)
+{
+	return 0;
+}
 static inline void intel_backlight_device_unregister(struct intel_connector *connector)
 {
 }

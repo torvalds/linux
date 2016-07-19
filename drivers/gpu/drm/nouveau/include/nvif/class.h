@@ -39,6 +39,7 @@
 #define KEPLER_CHANNEL_GPFIFO_A                       /* cla06f.h */ 0x0000a06f
 #define KEPLER_CHANNEL_GPFIFO_B                       /* cla06f.h */ 0x0000a16f
 #define MAXWELL_CHANNEL_GPFIFO_A                      /* cla06f.h */ 0x0000b06f
+#define PASCAL_CHANNEL_GPFIFO_A                       /* cla06f.h */ 0x0000c06f
 
 #define NV50_DISP                                     /* cl5070.h */ 0x00005070
 #define G82_DISP                                      /* cl5070.h */ 0x00008270
@@ -50,6 +51,8 @@
 #define GK110_DISP                                    /* cl5070.h */ 0x00009270
 #define GM107_DISP                                    /* cl5070.h */ 0x00009470
 #define GM200_DISP                                    /* cl5070.h */ 0x00009570
+#define GP100_DISP                                    /* cl5070.h */ 0x00009770
+#define GP104_DISP                                    /* cl5070.h */ 0x00009870
 
 #define NV31_MPEG                                                    0x00003174
 #define G82_MPEG                                                     0x00008274
@@ -86,6 +89,8 @@
 #define GK110_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000927d
 #define GM107_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000947d
 #define GM200_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000957d
+#define GP100_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000977d
+#define GP104_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000987d
 
 #define NV50_DISP_OVERLAY_CHANNEL_DMA                 /* cl507e.h */ 0x0000507e
 #define G82_DISP_OVERLAY_CHANNEL_DMA                  /* cl507e.h */ 0x0000827e
@@ -104,6 +109,8 @@
 
 #define MAXWELL_A                                     /* cl9097.h */ 0x0000b097
 #define MAXWELL_B                                     /* cl9097.h */ 0x0000b197
+
+#define PASCAL_A                                      /* cl9097.h */ 0x0000c097
 
 #define NV74_BSP                                                     0x000074b0
 
@@ -128,6 +135,8 @@
 #define FERMI_DMA                                                    0x000090b5
 #define KEPLER_DMA_COPY_A                                            0x0000a0b5
 #define MAXWELL_DMA_COPY_A                                           0x0000b0b5
+#define PASCAL_DMA_COPY_A                                            0x0000c0b5
+#define PASCAL_DMA_COPY_B                                            0x0000c1b5
 
 #define FERMI_DECOMPRESS                                             0x000090b8
 
@@ -137,6 +146,7 @@
 #define KEPLER_COMPUTE_B                                             0x0000a1c0
 #define MAXWELL_COMPUTE_A                                            0x0000b0c0
 #define MAXWELL_COMPUTE_B                                            0x0000b1c0
+#define PASCAL_COMPUTE_A                                             0x0000c0c0
 
 #define NV74_CIPHER                                                  0x000074c1
 #endif

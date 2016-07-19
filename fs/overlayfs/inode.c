@@ -238,39 +238,25 @@ out:
 	return err;
 }
 
-static bool ovl_need_xattr_filter(struct dentry *dentry,
-				  enum ovl_path_type type)
-{
-	if ((type & (__OVL_PATH_PURE | __OVL_PATH_UPPER)) == __OVL_PATH_UPPER)
-		return S_ISDIR(dentry->d_inode->i_mode);
-	else
-		return false;
-}
-
 ssize_t ovl_getxattr(struct dentry *dentry, struct inode *inode,
 		     const char *name, void *value, size_t size)
 {
-	struct path realpath;
-	enum ovl_path_type type = ovl_path_real(dentry, &realpath);
+	struct dentry *realdentry = ovl_dentry_real(dentry);
 
-	if (ovl_need_xattr_filter(dentry, type) && ovl_is_private_xattr(name))
+	if (ovl_is_private_xattr(name))
 		return -ENODATA;
 
-	return vfs_getxattr(realpath.dentry, name, value, size);
+	return vfs_getxattr(realdentry, name, value, size);
 }
 
 ssize_t ovl_listxattr(struct dentry *dentry, char *list, size_t size)
 {
-	struct path realpath;
-	enum ovl_path_type type = ovl_path_real(dentry, &realpath);
+	struct dentry *realdentry = ovl_dentry_real(dentry);
 	ssize_t res;
 	int off;
 
-	res = vfs_listxattr(realpath.dentry, list, size);
+	res = vfs_listxattr(realdentry, list, size);
 	if (res <= 0 || size == 0)
-		return res;
-
-	if (!ovl_need_xattr_filter(dentry, type))
 		return res;
 
 	/* filter out private xattrs */
@@ -302,7 +288,7 @@ int ovl_removexattr(struct dentry *dentry, const char *name)
 		goto out;
 
 	err = -ENODATA;
-	if (ovl_need_xattr_filter(dentry, type) && ovl_is_private_xattr(name))
+	if (ovl_is_private_xattr(name))
 		goto out_drop_write;
 
 	if (!OVL_TYPE_UPPER(type)) {

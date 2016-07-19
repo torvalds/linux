@@ -2847,27 +2847,6 @@ static int tonga_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 		}
 	}
 
-	/* Initialize Vddc DPM table based on allow Vddc values.  And populate corresponding std values. */
-	for (i = 0; i < allowed_vdd_sclk_table->count; i++) {
-		data->dpm_table.vddc_table.dpm_levels[i].value = allowed_vdd_mclk_table->entries[i].vddc;
-		/* tonga_hwmgr->dpm_table.VddcTable.dpm_levels[i].param1 = stdVoltageTable->entries[i].Leakage; */
-		/* param1 is for corresponding std voltage */
-		data->dpm_table.vddc_table.dpm_levels[i].enabled = 1;
-	}
-	data->dpm_table.vddc_table.count = allowed_vdd_sclk_table->count;
-
-	if (NULL != allowed_vdd_mclk_table) {
-		/* Initialize Vddci DPM table based on allow Mclk values */
-		for (i = 0; i < allowed_vdd_mclk_table->count; i++) {
-			data->dpm_table.vdd_ci_table.dpm_levels[i].value = allowed_vdd_mclk_table->entries[i].vddci;
-			data->dpm_table.vdd_ci_table.dpm_levels[i].enabled = 1;
-			data->dpm_table.mvdd_table.dpm_levels[i].value = allowed_vdd_mclk_table->entries[i].mvdd;
-			data->dpm_table.mvdd_table.dpm_levels[i].enabled = 1;
-		}
-		data->dpm_table.vdd_ci_table.count = allowed_vdd_mclk_table->count;
-		data->dpm_table.mvdd_table.count = allowed_vdd_mclk_table->count;
-	}
-
 	/* setup PCIE gen speed levels*/
 	tonga_setup_default_pcie_tables(hwmgr);
 
@@ -3047,8 +3026,8 @@ int tonga_init_smc_table(struct pp_hwmgr *hwmgr)
 
 	reg_value = 0;
 	if ((0 == reg_value) &&
-		(0 == atomctrl_get_pp_assign_pin(hwmgr,
-			VDDC_VRHOT_GPIO_PINID, &gpio_pin_assignment))) {
+		(atomctrl_get_pp_assign_pin(hwmgr, VDDC_VRHOT_GPIO_PINID,
+						&gpio_pin_assignment))) {
 		table->VRHotGpio = gpio_pin_assignment.uc_gpio_pin_bit_shift;
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_RegulatorHot);
@@ -3061,8 +3040,8 @@ int tonga_init_smc_table(struct pp_hwmgr *hwmgr)
 	/* ACDC Switch GPIO */
 	reg_value = 0;
 	if ((0 == reg_value) &&
-		(0 == atomctrl_get_pp_assign_pin(hwmgr,
-			PP_AC_DC_SWITCH_GPIO_PINID, &gpio_pin_assignment))) {
+		(atomctrl_get_pp_assign_pin(hwmgr, PP_AC_DC_SWITCH_GPIO_PINID,
+						&gpio_pin_assignment))) {
 		table->AcDcGpio = gpio_pin_assignment.uc_gpio_pin_bit_shift;
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_AutomaticDCTransition);
@@ -3084,8 +3063,7 @@ int tonga_init_smc_table(struct pp_hwmgr *hwmgr)
 	}
 
 	reg_value = 0;
-	if ((0 == reg_value) &&
-		(0 == atomctrl_get_pp_assign_pin(hwmgr,
+	if ((0 == reg_value) && (atomctrl_get_pp_assign_pin(hwmgr,
 			THERMAL_INT_OUTPUT_GPIO_PINID, &gpio_pin_assignment))) {
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_ThermalOutGPIO);
@@ -4443,13 +4421,6 @@ int tonga_reset_asic_tasks(struct pp_hwmgr *hwmgr)
 
 int tonga_hwmgr_backend_fini(struct pp_hwmgr *hwmgr)
 {
-	struct tonga_hwmgr *data = (struct tonga_hwmgr *)(hwmgr->backend);
-
-	if (data->soft_pp_table) {
-		kfree(data->soft_pp_table);
-		data->soft_pp_table = NULL;
-	}
-
 	return phm_hwmgr_backend_fini(hwmgr);
 }
 
@@ -4463,7 +4434,7 @@ int tonga_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 {
 	int result = 0;
 	SMU72_Discrete_DpmTable  *table = NULL;
-	tonga_hwmgr *data = (struct tonga_hwmgr *)(hwmgr->backend);
+	tonga_hwmgr *data;
 	pp_atomctrl_gpio_pin_assignment gpio_pin_assignment;
 	struct phm_ppt_v1_information *pptable_info = (struct phm_ppt_v1_information *)(hwmgr->pptable);
 	phw_tonga_ulv_parm *ulv;
@@ -4471,6 +4442,12 @@ int tonga_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 
 	PP_ASSERT_WITH_CODE((NULL != hwmgr),
 		"Invalid Parameter!", return -1;);
+
+	data = kzalloc(sizeof(struct tonga_hwmgr), GFP_KERNEL);
+	if (data == NULL)
+		return -ENOMEM;
+
+	hwmgr->backend = data;
 
 	data->dll_defaule_on = 0;
 	data->sram_end = SMC_RAM_END;
@@ -4510,6 +4487,7 @@ int tonga_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	data->vdd_ci_control = TONGA_VOLTAGE_CONTROL_NONE;
 	data->vdd_gfx_control = TONGA_VOLTAGE_CONTROL_NONE;
 	data->mvdd_control = TONGA_VOLTAGE_CONTROL_NONE;
+	data->force_pcie_gen = PP_PCIEGenInvalid;
 
 	if (atomctrl_is_voltage_controled_by_gpio_v3(hwmgr,
 				VOLTAGE_TYPE_VDDC, VOLTAGE_OBJ_SVID2)) {
@@ -4591,7 +4569,7 @@ int tonga_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	* if ucGPIO_ID=VDDC_PCC_GPIO_PINID in GPIO_LUTable,
 	* Peak Current Control feature is enabled and we should program PCC HW register
 	*/
-	if (0 == atomctrl_get_pp_assign_pin(hwmgr, VDDC_PCC_GPIO_PINID, &gpio_pin_assignment)) {
+	if (atomctrl_get_pp_assign_pin(hwmgr, VDDC_PCC_GPIO_PINID, &gpio_pin_assignment)) {
 		uint32_t temp_reg = cgs_read_ind_register(hwmgr->device,
 										CGS_IND_REG__SMC, ixCNB_PWRMGT_CNTL);
 
@@ -4659,7 +4637,7 @@ int tonga_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 		sys_info.info_id = CGS_SYSTEM_INFO_PCIE_GEN_INFO;
 		result = cgs_query_system_info(hwmgr->device, &sys_info);
 		if (result)
-			data->pcie_gen_cap = 0x30007;
+			data->pcie_gen_cap = AMDGPU_DEFAULT_PCIE_GEN_MASK;
 		else
 			data->pcie_gen_cap = (uint32_t)sys_info.value;
 		if (data->pcie_gen_cap & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3)
@@ -4668,7 +4646,7 @@ int tonga_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 		sys_info.info_id = CGS_SYSTEM_INFO_PCIE_MLW;
 		result = cgs_query_system_info(hwmgr->device, &sys_info);
 		if (result)
-			data->pcie_lane_cap = 0x2f0000;
+			data->pcie_lane_cap = AMDGPU_DEFAULT_PCIE_MLW_MASK;
 		else
 			data->pcie_lane_cap = (uint32_t)sys_info.value;
 	} else {
@@ -6051,42 +6029,6 @@ static int tonga_get_fan_control_mode(struct pp_hwmgr *hwmgr)
 				CG_FDO_CTRL2, FDO_PWM_MODE);
 }
 
-static int tonga_get_pp_table(struct pp_hwmgr *hwmgr, char **table)
-{
-	struct tonga_hwmgr *data = (struct tonga_hwmgr *)(hwmgr->backend);
-
-	if (!data->soft_pp_table) {
-		data->soft_pp_table = kmemdup(hwmgr->soft_pp_table,
-					      hwmgr->soft_pp_table_size,
-					      GFP_KERNEL);
-		if (!data->soft_pp_table)
-			return -ENOMEM;
-	}
-
-	*table = (char *)&data->soft_pp_table;
-
-	return hwmgr->soft_pp_table_size;
-}
-
-static int tonga_set_pp_table(struct pp_hwmgr *hwmgr, const char *buf, size_t size)
-{
-	struct tonga_hwmgr *data = (struct tonga_hwmgr *)(hwmgr->backend);
-
-	if (!data->soft_pp_table) {
-		data->soft_pp_table = kzalloc(hwmgr->soft_pp_table_size, GFP_KERNEL);
-		if (!data->soft_pp_table)
-			return -ENOMEM;
-	}
-
-	memcpy(data->soft_pp_table, buf, size);
-
-	hwmgr->soft_pp_table = data->soft_pp_table;
-
-	/* TODO: re-init powerplay to implement modified pptable */
-
-	return 0;
-}
-
 static int tonga_force_clock_level(struct pp_hwmgr *hwmgr,
 		enum pp_clock_type type, uint32_t mask)
 {
@@ -6194,11 +6136,96 @@ static int tonga_print_clock_levels(struct pp_hwmgr *hwmgr,
 	return size;
 }
 
+static int tonga_get_sclk_od(struct pp_hwmgr *hwmgr)
+{
+	struct tonga_hwmgr *data = (struct tonga_hwmgr *)(hwmgr->backend);
+	struct tonga_single_dpm_table *sclk_table = &(data->dpm_table.sclk_table);
+	struct tonga_single_dpm_table *golden_sclk_table =
+			&(data->golden_dpm_table.sclk_table);
+	int value;
+
+	value = (sclk_table->dpm_levels[sclk_table->count - 1].value -
+			golden_sclk_table->dpm_levels[golden_sclk_table->count - 1].value) *
+			100 /
+			golden_sclk_table->dpm_levels[golden_sclk_table->count - 1].value;
+
+	return value;
+}
+
+static int tonga_set_sclk_od(struct pp_hwmgr *hwmgr, uint32_t value)
+{
+	struct tonga_hwmgr *data = (struct tonga_hwmgr *)(hwmgr->backend);
+	struct tonga_single_dpm_table *golden_sclk_table =
+			&(data->golden_dpm_table.sclk_table);
+	struct pp_power_state  *ps;
+	struct tonga_power_state  *tonga_ps;
+
+	if (value > 20)
+		value = 20;
+
+	ps = hwmgr->request_ps;
+
+	if (ps == NULL)
+		return -EINVAL;
+
+	tonga_ps = cast_phw_tonga_power_state(&ps->hardware);
+
+	tonga_ps->performance_levels[tonga_ps->performance_level_count - 1].engine_clock =
+			golden_sclk_table->dpm_levels[golden_sclk_table->count - 1].value *
+			value / 100 +
+			golden_sclk_table->dpm_levels[golden_sclk_table->count - 1].value;
+
+	return 0;
+}
+
+static int tonga_get_mclk_od(struct pp_hwmgr *hwmgr)
+{
+	struct tonga_hwmgr *data = (struct tonga_hwmgr *)(hwmgr->backend);
+	struct tonga_single_dpm_table *mclk_table = &(data->dpm_table.mclk_table);
+	struct tonga_single_dpm_table *golden_mclk_table =
+			&(data->golden_dpm_table.mclk_table);
+	int value;
+
+	value = (mclk_table->dpm_levels[mclk_table->count - 1].value -
+			golden_mclk_table->dpm_levels[golden_mclk_table->count - 1].value) *
+			100 /
+			golden_mclk_table->dpm_levels[golden_mclk_table->count - 1].value;
+
+	return value;
+}
+
+static int tonga_set_mclk_od(struct pp_hwmgr *hwmgr, uint32_t value)
+{
+	struct tonga_hwmgr *data = (struct tonga_hwmgr *)(hwmgr->backend);
+	struct tonga_single_dpm_table *golden_mclk_table =
+			&(data->golden_dpm_table.mclk_table);
+	struct pp_power_state  *ps;
+	struct tonga_power_state  *tonga_ps;
+
+	if (value > 20)
+		value = 20;
+
+	ps = hwmgr->request_ps;
+
+	if (ps == NULL)
+		return -EINVAL;
+
+	tonga_ps = cast_phw_tonga_power_state(&ps->hardware);
+
+	tonga_ps->performance_levels[tonga_ps->performance_level_count - 1].memory_clock =
+			golden_mclk_table->dpm_levels[golden_mclk_table->count - 1].value *
+			value / 100 +
+			golden_mclk_table->dpm_levels[golden_mclk_table->count - 1].value;
+
+	return 0;
+}
+
 static const struct pp_hwmgr_func tonga_hwmgr_funcs = {
 	.backend_init = &tonga_hwmgr_backend_init,
 	.backend_fini = &tonga_hwmgr_backend_fini,
 	.asic_setup = &tonga_setup_asic_task,
 	.dynamic_state_management_enable = &tonga_enable_dpm_tasks,
+	.dynamic_state_management_disable = &tonga_disable_dpm_tasks,
 	.apply_state_adjust_rules = tonga_apply_state_adjust_rules,
 	.force_dpm_level = &tonga_force_dpm_level,
 	.power_state_set = tonga_set_power_state_tasks,
@@ -6232,22 +6259,16 @@ static const struct pp_hwmgr_func tonga_hwmgr_funcs = {
 	.check_states_equal = tonga_check_states_equal,
 	.set_fan_control_mode = tonga_set_fan_control_mode,
 	.get_fan_control_mode = tonga_get_fan_control_mode,
-	.get_pp_table = tonga_get_pp_table,
-	.set_pp_table = tonga_set_pp_table,
 	.force_clock_level = tonga_force_clock_level,
 	.print_clock_levels = tonga_print_clock_levels,
+	.get_sclk_od = tonga_get_sclk_od,
+	.set_sclk_od = tonga_set_sclk_od,
+	.get_mclk_od = tonga_get_mclk_od,
+	.set_mclk_od = tonga_set_mclk_od,
 };
 
 int tonga_hwmgr_init(struct pp_hwmgr *hwmgr)
 {
-	tonga_hwmgr  *data;
-
-	data = kzalloc (sizeof(tonga_hwmgr), GFP_KERNEL);
-	if (data == NULL)
-		return -ENOMEM;
-	memset(data, 0x00, sizeof(tonga_hwmgr));
-
-	hwmgr->backend = data;
 	hwmgr->hwmgr_func = &tonga_hwmgr_funcs;
 	hwmgr->pptable_func = &tonga_pptable_funcs;
 	pp_tonga_thermal_initialize(hwmgr);

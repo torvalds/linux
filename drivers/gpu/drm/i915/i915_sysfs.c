@@ -38,7 +38,7 @@
 static u32 calc_residency(struct drm_device *dev,
 			  i915_reg_t reg)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	u64 raw_time; /* 32b value may overflow during fixed point math */
 	u64 units = 128ULL, div = 100000ULL;
 	u32 ret;
@@ -166,7 +166,7 @@ i915_l3_read(struct file *filp, struct kobject *kobj,
 	struct device *dev = kobj_to_dev(kobj);
 	struct drm_minor *dminor = dev_to_drm_minor(dev);
 	struct drm_device *drm_dev = dminor->dev;
-	struct drm_i915_private *dev_priv = drm_dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(drm_dev);
 	int slice = (int)(uintptr_t)attr->private;
 	int ret;
 
@@ -202,7 +202,7 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 	struct device *dev = kobj_to_dev(kobj);
 	struct drm_minor *dminor = dev_to_drm_minor(dev);
 	struct drm_device *drm_dev = dminor->dev;
-	struct drm_i915_private *dev_priv = drm_dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(drm_dev);
 	struct i915_gem_context *ctx;
 	u32 *temp = NULL; /* Just here to make handling failures easy */
 	int slice = (int)(uintptr_t)attr->private;
@@ -225,13 +225,6 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 			mutex_unlock(&drm_dev->struct_mutex);
 			return -ENOMEM;
 		}
-	}
-
-	ret = i915_gpu_idle(drm_dev);
-	if (ret) {
-		kfree(temp);
-		mutex_unlock(&drm_dev->struct_mutex);
-		return ret;
 	}
 
 	/* TODO: Ideally we really want a GPU reset here to make sure errors
@@ -275,7 +268,7 @@ static ssize_t gt_act_freq_mhz_show(struct device *kdev,
 {
 	struct drm_minor *minor = dev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	int ret;
 
 	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
@@ -309,7 +302,7 @@ static ssize_t gt_cur_freq_mhz_show(struct device *kdev,
 {
 	struct drm_minor *minor = dev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	int ret;
 
 	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
@@ -330,7 +323,7 @@ static ssize_t vlv_rpe_freq_mhz_show(struct device *kdev,
 {
 	struct drm_minor *minor = dev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	return snprintf(buf, PAGE_SIZE,
 			"%d\n",
@@ -341,7 +334,7 @@ static ssize_t gt_max_freq_mhz_show(struct device *kdev, struct device_attribute
 {
 	struct drm_minor *minor = dev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	int ret;
 
 	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
@@ -359,7 +352,7 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 {
 	struct drm_minor *minor = dev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	u32 val;
 	ssize_t ret;
 
@@ -409,7 +402,7 @@ static ssize_t gt_min_freq_mhz_show(struct device *kdev, struct device_attribute
 {
 	struct drm_minor *minor = dev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	int ret;
 
 	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
@@ -427,7 +420,7 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 {
 	struct drm_minor *minor = dev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	u32 val;
 	ssize_t ret;
 
@@ -487,7 +480,7 @@ static ssize_t gt_rp_mhz_show(struct device *kdev, struct device_attribute *attr
 {
 	struct drm_minor *minor = dev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	u32 val;
 
 	if (attr == &dev_attr_gt_RP0_freq_mhz)

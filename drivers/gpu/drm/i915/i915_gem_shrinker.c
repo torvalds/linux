@@ -257,13 +257,15 @@ i915_gem_shrinker_count(struct shrinker *shrinker, struct shrink_control *sc)
 {
 	struct drm_i915_private *dev_priv =
 		container_of(shrinker, struct drm_i915_private, mm.shrinker);
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	struct drm_i915_gem_object *obj;
 	unsigned long count;
 	bool unlock;
 
 	if (!i915_gem_shrinker_lock(dev, &unlock))
 		return 0;
+
+	i915_gem_retire_requests(dev_priv);
 
 	count = 0;
 	list_for_each_entry(obj, &dev_priv->mm.unbound_list, global_list)
@@ -286,7 +288,7 @@ i915_gem_shrinker_scan(struct shrinker *shrinker, struct shrink_control *sc)
 {
 	struct drm_i915_private *dev_priv =
 		container_of(shrinker, struct drm_i915_private, mm.shrinker);
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	unsigned long freed;
 	bool unlock;
 
@@ -321,7 +323,7 @@ i915_gem_shrinker_lock_uninterruptible(struct drm_i915_private *dev_priv,
 {
 	unsigned long timeout = msecs_to_jiffies(timeout_ms) + 1;
 
-	while (!i915_gem_shrinker_lock(dev_priv->dev, &slu->unlock)) {
+	while (!i915_gem_shrinker_lock(&dev_priv->drm, &slu->unlock)) {
 		schedule_timeout_killable(1);
 		if (fatal_signal_pending(current))
 			return false;
@@ -342,7 +344,7 @@ i915_gem_shrinker_unlock_uninterruptible(struct drm_i915_private *dev_priv,
 {
 	dev_priv->mm.interruptible = slu->was_interruptible;
 	if (slu->unlock)
-		mutex_unlock(&dev_priv->dev->struct_mutex);
+		mutex_unlock(&dev_priv->drm.struct_mutex);
 }
 
 static int
@@ -408,7 +410,7 @@ i915_gem_shrinker_vmap(struct notifier_block *nb, unsigned long event, void *ptr
 		return NOTIFY_DONE;
 
 	/* Force everything onto the inactive lists */
-	ret = i915_gpu_idle(dev_priv->dev);
+	ret = i915_gem_wait_for_idle(dev_priv);
 	if (ret)
 		goto out;
 

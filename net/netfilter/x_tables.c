@@ -612,7 +612,7 @@ int xt_compat_check_entry_offsets(const void *base, const char *elems,
 		return -EINVAL;
 
 	if (strcmp(t->u.user.name, XT_STANDARD_TARGET) == 0 &&
-	    target_offset + sizeof(struct compat_xt_standard_target) != next_offset)
+	    COMPAT_XT_ALIGN(target_offset + sizeof(struct compat_xt_standard_target)) != next_offset)
 		return -EINVAL;
 
 	/* compat_xt_entry match has less strict aligment requirements,
@@ -694,7 +694,7 @@ int xt_check_entry_offsets(const void *base,
 		return -EINVAL;
 
 	if (strcmp(t->u.user.name, XT_STANDARD_TARGET) == 0 &&
-	    target_offset + sizeof(struct xt_standard_target) != next_offset)
+	    XT_ALIGN(target_offset + sizeof(struct xt_standard_target)) != next_offset)
 		return -EINVAL;
 
 	return xt_check_entry_match(elems, base + target_offset,

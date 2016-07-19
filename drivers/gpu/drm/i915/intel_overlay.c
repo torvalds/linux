@@ -409,7 +409,7 @@ static int intel_overlay_release_old_vid(struct intel_overlay *overlay)
 	struct intel_engine_cs *engine = &dev_priv->engine[RCS];
 	int ret;
 
-	lockdep_assert_held(&dev_priv->dev->struct_mutex);
+	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
 	/* Only wait if there is actually an old frame to release to
 	 * guarantee forward progress.
@@ -741,8 +741,8 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	u32 swidth, swidthsw, sheight, ostride;
 	enum pipe pipe = overlay->crtc->pipe;
 
-	lockdep_assert_held(&dev_priv->dev->struct_mutex);
-	WARN_ON(!drm_modeset_is_locked(&dev_priv->dev->mode_config.connection_mutex));
+	lockdep_assert_held(&dev_priv->drm.struct_mutex);
+	WARN_ON(!drm_modeset_is_locked(&dev_priv->drm.mode_config.connection_mutex));
 
 	ret = intel_overlay_release_old_vid(overlay);
 	if (ret != 0)
@@ -836,7 +836,8 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	overlay->old_vid_bo = overlay->vid_bo;
 	overlay->vid_bo = new_bo;
 
-	intel_frontbuffer_flip(dev_priv->dev, INTEL_FRONTBUFFER_OVERLAY(pipe));
+	intel_frontbuffer_flip(&dev_priv->drm,
+			       INTEL_FRONTBUFFER_OVERLAY(pipe));
 
 	return 0;
 
@@ -851,8 +852,8 @@ int intel_overlay_switch_off(struct intel_overlay *overlay)
 	struct overlay_registers __iomem *regs;
 	int ret;
 
-	lockdep_assert_held(&dev_priv->dev->struct_mutex);
-	WARN_ON(!drm_modeset_is_locked(&dev_priv->dev->mode_config.connection_mutex));
+	lockdep_assert_held(&dev_priv->drm.struct_mutex);
+	WARN_ON(!drm_modeset_is_locked(&dev_priv->drm.mode_config.connection_mutex));
 
 	ret = intel_overlay_recover_from_interrupt(overlay);
 	if (ret != 0)
@@ -1084,7 +1085,7 @@ int intel_overlay_put_image_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *file_priv)
 {
 	struct drm_intel_overlay_put_image *put_image_rec = data;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_overlay *overlay;
 	struct drm_crtc *drmmode_crtc;
 	struct intel_crtc *crtc;
@@ -1282,7 +1283,7 @@ int intel_overlay_attrs_ioctl(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv)
 {
 	struct drm_intel_overlay_attrs *attrs = data;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_overlay *overlay;
 	struct overlay_registers __iomem *regs;
 	int ret;
@@ -1379,7 +1380,7 @@ void intel_setup_overlay(struct drm_i915_private *dev_priv)
 	if (!overlay)
 		return;
 
-	mutex_lock(&dev_priv->dev->struct_mutex);
+	mutex_lock(&dev_priv->drm.struct_mutex);
 	if (WARN_ON(dev_priv->overlay))
 		goto out_free;
 
@@ -1387,9 +1388,10 @@ void intel_setup_overlay(struct drm_i915_private *dev_priv)
 
 	reg_bo = NULL;
 	if (!OVERLAY_NEEDS_PHYSICAL(dev_priv))
-		reg_bo = i915_gem_object_create_stolen(dev_priv->dev, PAGE_SIZE);
+		reg_bo = i915_gem_object_create_stolen(&dev_priv->drm,
+						       PAGE_SIZE);
 	if (reg_bo == NULL)
-		reg_bo = i915_gem_object_create(dev_priv->dev, PAGE_SIZE);
+		reg_bo = i915_gem_object_create(&dev_priv->drm, PAGE_SIZE);
 	if (IS_ERR(reg_bo))
 		goto out_free;
 	overlay->reg_bo = reg_bo;
@@ -1434,7 +1436,7 @@ void intel_setup_overlay(struct drm_i915_private *dev_priv)
 	intel_overlay_unmap_regs(overlay, regs);
 
 	dev_priv->overlay = overlay;
-	mutex_unlock(&dev_priv->dev->struct_mutex);
+	mutex_unlock(&dev_priv->drm.struct_mutex);
 	DRM_INFO("initialized overlay support\n");
 	return;
 
@@ -1444,7 +1446,7 @@ out_unpin_bo:
 out_free_bo:
 	drm_gem_object_unreference(&reg_bo->base);
 out_free:
-	mutex_unlock(&dev_priv->dev->struct_mutex);
+	mutex_unlock(&dev_priv->drm.struct_mutex);
 	kfree(overlay);
 	return;
 }

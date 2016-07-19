@@ -24,6 +24,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <drm/amdgpu_drm.h>
 #include "cgs_common.h"
 #include "power_state.h"
 #include "hwmgr.h"
@@ -58,12 +59,13 @@ int hwmgr_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 	hwmgr->hw_revision = pp_init->rev_id;
 	hwmgr->usec_timeout = AMD_MAX_USEC_TIMEOUT;
 	hwmgr->power_source = PP_PowerSource_AC;
+	hwmgr->powercontainment_enabled = pp_init->powercontainment_enabled;
 
 	switch (hwmgr->chip_family) {
-	case AMD_FAMILY_CZ:
+	case AMDGPU_FAMILY_CZ:
 		cz_hwmgr_init(hwmgr);
 		break;
-	case AMD_FAMILY_VI:
+	case AMDGPU_FAMILY_VI:
 		switch (hwmgr->chip_id) {
 		case CHIP_TONGA:
 			tonga_hwmgr_init(hwmgr);
@@ -92,6 +94,15 @@ int hwmgr_fini(struct pp_hwmgr *hwmgr)
 {
 	if (hwmgr == NULL || hwmgr->ps == NULL)
 		return -EINVAL;
+
+	/* do hwmgr finish*/
+	kfree(hwmgr->hardcode_pp_table);
+
+	kfree(hwmgr->backend);
+
+	kfree(hwmgr->start_thermal_controller.function_list);
+
+	kfree(hwmgr->set_temperature_range.function_list);
 
 	kfree(hwmgr->ps);
 	kfree(hwmgr);
@@ -462,7 +473,7 @@ uint16_t phm_find_closest_vddci(struct pp_atomctrl_voltage_table *vddci_table, u
 
 	PP_ASSERT_WITH_CODE(false,
 			"VDDCI is larger than max VDDCI in VDDCI Voltage Table!",
-			return vddci_table->entries[i].value);
+			return vddci_table->entries[i-1].value);
 }
 
 int phm_find_boot_level(void *table,

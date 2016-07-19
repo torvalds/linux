@@ -105,6 +105,15 @@ static void sdma_v2_4_init_golden_registers(struct amdgpu_device *adev)
 	}
 }
 
+static void sdma_v2_4_free_microcode(struct amdgpu_device *adev)
+{
+	int i;
+	for (i = 0; i < adev->sdma.num_instances; i++) {
+		release_firmware(adev->sdma.instance[i].fw);
+		adev->sdma.instance[i].fw = NULL;
+	}
+}
+
 /**
  * sdma_v2_4_init_microcode - load ucode images from disk
  *
@@ -246,19 +255,6 @@ static void sdma_v2_4_ring_emit_ib(struct amdgpu_ring *ring,
 				   unsigned vm_id, bool ctx_switch)
 {
 	u32 vmid = vm_id & 0xf;
-	u32 next_rptr = ring->wptr + 5;
-
-	while ((next_rptr & 7) != 2)
-		next_rptr++;
-
-	next_rptr += 6;
-
-	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_WRITE) |
-			  SDMA_PKT_HEADER_SUB_OP(SDMA_SUBOP_WRITE_LINEAR));
-	amdgpu_ring_write(ring, lower_32_bits(ring->next_rptr_gpu_addr) & 0xfffffffc);
-	amdgpu_ring_write(ring, upper_32_bits(ring->next_rptr_gpu_addr));
-	amdgpu_ring_write(ring, SDMA_PKT_WRITE_UNTILED_DW_3_COUNT(1));
-	amdgpu_ring_write(ring, next_rptr);
 
 	/* IB packet must end on a 8 DW boundary */
 	sdma_v2_4_ring_insert_nop(ring, (10 - (ring->wptr & 7)) % 8);
@@ -461,6 +457,8 @@ static int sdma_v2_4_gfx_resume(struct amdgpu_device *adev)
 		/* Initialize the ring buffer's read and write pointers */
 		WREG32(mmSDMA0_GFX_RB_RPTR + sdma_offsets[i], 0);
 		WREG32(mmSDMA0_GFX_RB_WPTR + sdma_offsets[i], 0);
+		WREG32(mmSDMA0_GFX_IB_RPTR + sdma_offsets[i], 0);
+		WREG32(mmSDMA0_GFX_IB_OFFSET + sdma_offsets[i], 0);
 
 		/* set the wb address whether it's enabled or not */
 		WREG32(mmSDMA0_GFX_RB_RPTR_ADDR_HI + sdma_offsets[i],
@@ -489,7 +487,11 @@ static int sdma_v2_4_gfx_resume(struct amdgpu_device *adev)
 		WREG32(mmSDMA0_GFX_IB_CNTL + sdma_offsets[i], ib_cntl);
 
 		ring->ready = true;
+	}
 
+	sdma_v2_4_enable(adev, true);
+	for (i = 0; i < adev->sdma.num_instances; i++) {
+		ring = &adev->sdma.instance[i].ring;
 		r = amdgpu_ring_test_ring(ring);
 		if (r) {
 			ring->ready = false;
@@ -580,8 +582,8 @@ static int sdma_v2_4_start(struct amdgpu_device *adev)
 			return -EINVAL;
 	}
 
-	/* unhalt the MEs */
-	sdma_v2_4_enable(adev, true);
+	/* halt the engine before programing */
+	sdma_v2_4_enable(adev, false);
 
 	/* start the gfx rings and rlc compute queues */
 	r = sdma_v2_4_gfx_resume(adev);
@@ -1012,6 +1014,7 @@ static int sdma_v2_4_sw_fini(void *handle)
 	for (i = 0; i < adev->sdma.num_instances; i++)
 		amdgpu_ring_fini(&adev->sdma.instance[i].ring);
 
+	sdma_v2_4_free_microcode(adev);
 	return 0;
 }
 

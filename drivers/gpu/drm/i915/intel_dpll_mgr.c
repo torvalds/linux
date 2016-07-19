@@ -83,7 +83,7 @@ void assert_shared_dpll(struct drm_i915_private *dev_priv,
 void intel_prepare_shared_dpll(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_shared_dpll *pll = crtc->config->shared_dpll;
 
 	if (WARN_ON(pll == NULL))
@@ -112,7 +112,7 @@ void intel_prepare_shared_dpll(struct intel_crtc *crtc)
 void intel_enable_shared_dpll(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_shared_dpll *pll = crtc->config->shared_dpll;
 	unsigned crtc_mask = 1 << drm_crtc_index(&crtc->base);
 	unsigned old_mask;
@@ -151,7 +151,7 @@ out:
 void intel_disable_shared_dpll(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_shared_dpll *pll = crtc->config->shared_dpll;
 	unsigned crtc_mask = 1 << drm_crtc_index(&crtc->base);
 
@@ -191,7 +191,7 @@ intel_find_shared_dpll(struct intel_crtc *crtc,
 		       enum intel_dpll_id range_min,
 		       enum intel_dpll_id range_max)
 {
-	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_shared_dpll *pll;
 	struct intel_shared_dpll_config *shared_dpll;
 	enum intel_dpll_id i;
@@ -331,7 +331,7 @@ static void ibx_pch_dpll_enable(struct drm_i915_private *dev_priv,
 static void ibx_pch_dpll_disable(struct drm_i915_private *dev_priv,
 				 struct intel_shared_dpll *pll)
 {
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	struct intel_crtc *crtc;
 
 	/* Make sure no transcoder isn't still depending on us. */
@@ -713,7 +713,7 @@ hsw_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 		pll = intel_find_shared_dpll(crtc, crtc_state,
 					     DPLL_ID_WRPLL1, DPLL_ID_WRPLL2);
 
-	} else if (encoder->type == INTEL_OUTPUT_DISPLAYPORT ||
+	} else if (encoder->type == INTEL_OUTPUT_DP ||
 		   encoder->type == INTEL_OUTPUT_DP_MST ||
 		   encoder->type == INTEL_OUTPUT_EDP) {
 		enum intel_dpll_id pll_id;
@@ -856,7 +856,11 @@ static void skl_ddi_pll_enable(struct drm_i915_private *dev_priv,
 	I915_WRITE(regs[pll->id].ctl,
 		   I915_READ(regs[pll->id].ctl) | LCPLL_PLL_ENABLE);
 
-	if (wait_for(I915_READ(DPLL_STATUS) & DPLL_LOCK(pll->id), 5))
+	if (intel_wait_for_register(dev_priv,
+				    DPLL_STATUS,
+				    DPLL_LOCK(pll->id),
+				    DPLL_LOCK(pll->id),
+				    5))
 		DRM_ERROR("DPLL %d not locked\n", pll->id);
 }
 
@@ -1222,7 +1226,7 @@ skl_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 			 DPLL_CFGCR2_KDIV(wrpll_params.kdiv) |
 			 DPLL_CFGCR2_PDIV(wrpll_params.pdiv) |
 			 wrpll_params.central_freq;
-	} else if (encoder->type == INTEL_OUTPUT_DISPLAYPORT ||
+	} else if (encoder->type == INTEL_OUTPUT_DP ||
 		   encoder->type == INTEL_OUTPUT_DP_MST ||
 		   encoder->type == INTEL_OUTPUT_EDP) {
 		switch (crtc_state->port_clock / 2) {
@@ -1374,8 +1378,8 @@ static void bxt_ddi_pll_enable(struct drm_i915_private *dev_priv,
 	I915_WRITE(BXT_PORT_PLL_ENABLE(port), temp);
 	POSTING_READ(BXT_PORT_PLL_ENABLE(port));
 
-	if (wait_for_atomic_us((I915_READ(BXT_PORT_PLL_ENABLE(port)) &
-			PORT_PLL_LOCK), 200))
+	if (wait_for_us((I915_READ(BXT_PORT_PLL_ENABLE(port)) & PORT_PLL_LOCK),
+			200))
 		DRM_ERROR("PLL %d not locked\n", port);
 
 	/*
@@ -1530,7 +1534,7 @@ bxt_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 		clk_div.m2_frac_en = clk_div.m2_frac != 0;
 
 		vco = best_clock.vco;
-	} else if (encoder->type == INTEL_OUTPUT_DISPLAYPORT ||
+	} else if (encoder->type == INTEL_OUTPUT_DP ||
 		   encoder->type == INTEL_OUTPUT_EDP) {
 		int i;
 
@@ -1632,7 +1636,7 @@ static const struct intel_shared_dpll_funcs bxt_ddi_pll_funcs = {
 
 static void intel_ddi_pll_init(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	if (INTEL_GEN(dev_priv) < 9) {
 		uint32_t val = I915_READ(LCPLL_CTL);
@@ -1719,7 +1723,7 @@ static const struct intel_dpll_mgr bxt_pll_mgr = {
 
 void intel_shared_dpll_init(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	const struct intel_dpll_mgr *dpll_mgr = NULL;
 	const struct dpll_info *dpll_info;
 	int i;

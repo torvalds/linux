@@ -271,6 +271,7 @@ static int __init nf_conntrack_irc_init(void)
 		if (ret) {
 			pr_err("failed to register helper for pf: %u port: %u\n",
 			       irc[i].tuple.src.l3num, ports[i]);
+			ports_c = i;
 			nf_conntrack_irc_fini();
 			return ret;
 		}

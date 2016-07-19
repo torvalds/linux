@@ -124,7 +124,9 @@ static void i8xx_fbc_deactivate(struct drm_i915_private *dev_priv)
 	I915_WRITE(FBC_CONTROL, fbc_ctl);
 
 	/* Wait for compressing bit to clear */
-	if (wait_for((I915_READ(FBC_STATUS) & FBC_STAT_COMPRESSING) == 0, 10)) {
+	if (intel_wait_for_register(dev_priv,
+				    FBC_STATUS, FBC_STAT_COMPRESSING, 0,
+				    10)) {
 		DRM_DEBUG_KMS("FBC idle timed out\n");
 		return;
 	}
@@ -390,7 +392,7 @@ static void intel_fbc_work_fn(struct work_struct *__work)
 	struct intel_fbc *fbc = &dev_priv->fbc;
 	struct intel_fbc_work *work = &fbc->work;
 	struct intel_crtc *crtc = fbc->crtc;
-	struct drm_vblank_crtc *vblank = &dev_priv->dev->vblank[crtc->pipe];
+	struct drm_vblank_crtc *vblank = &dev_priv->drm.vblank[crtc->pipe];
 
 	if (drm_crtc_vblank_get(&crtc->base)) {
 		DRM_ERROR("vblank not available for FBC on pipe %c\n",
@@ -443,7 +445,7 @@ out:
 
 static void intel_fbc_schedule_activation(struct intel_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_fbc *fbc = &dev_priv->fbc;
 	struct intel_fbc_work *work = &fbc->work;
 
@@ -553,7 +555,7 @@ again:
 
 static int intel_fbc_alloc_cfb(struct intel_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_fbc *fbc = &dev_priv->fbc;
 	struct drm_mm_node *uninitialized_var(compressed_llb);
 	int size, fb_cpp, ret;
@@ -684,7 +686,7 @@ static bool pixel_format_is_valid(struct drm_i915_private *dev_priv,
  */
 static bool intel_fbc_hw_tracking_covers_screen(struct intel_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_fbc *fbc = &dev_priv->fbc;
 	unsigned int effective_w, effective_h, max_w, max_h;
 
@@ -711,7 +713,7 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 					 struct intel_crtc_state *crtc_state,
 					 struct intel_plane_state *plane_state)
 {
-	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_fbc *fbc = &dev_priv->fbc;
 	struct intel_fbc_state_cache *cache = &fbc->state_cache;
 	struct drm_framebuffer *fb = plane_state->base.fb;
@@ -744,7 +746,7 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 
 static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_fbc *fbc = &dev_priv->fbc;
 	struct intel_fbc_state_cache *cache = &fbc->state_cache;
 
@@ -816,23 +818,16 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 
 static bool intel_fbc_can_choose(struct intel_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_fbc *fbc = &dev_priv->fbc;
-	bool enable_by_default = IS_HASWELL(dev_priv) ||
-				 IS_BROADWELL(dev_priv);
 
 	if (intel_vgpu_active(dev_priv)) {
 		fbc->no_fbc_reason = "VGPU is active";
 		return false;
 	}
 
-	if (i915.enable_fbc < 0 && !enable_by_default) {
-		fbc->no_fbc_reason = "disabled per chip default";
-		return false;
-	}
-
 	if (!i915.enable_fbc) {
-		fbc->no_fbc_reason = "disabled per module param";
+		fbc->no_fbc_reason = "disabled per module param or by default";
 		return false;
 	}
 
@@ -852,7 +847,7 @@ static bool intel_fbc_can_choose(struct intel_crtc *crtc)
 static void intel_fbc_get_reg_params(struct intel_crtc *crtc,
 				     struct intel_fbc_reg_params *params)
 {
-	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_fbc *fbc = &dev_priv->fbc;
 	struct intel_fbc_state_cache *cache = &fbc->state_cache;
 
@@ -885,7 +880,7 @@ void intel_fbc_pre_update(struct intel_crtc *crtc,
 			  struct intel_crtc_state *crtc_state,
 			  struct intel_plane_state *plane_state)
 {
-	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_fbc *fbc = &dev_priv->fbc;
 
 	if (!fbc_supported(dev_priv))
@@ -911,7 +906,7 @@ unlock:
 
 static void __intel_fbc_post_update(struct intel_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_fbc *fbc = &dev_priv->fbc;
 	struct intel_fbc_reg_params old_params;
 
@@ -944,7 +939,7 @@ static void __intel_fbc_post_update(struct intel_crtc *crtc)
 
 void intel_fbc_post_update(struct intel_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_fbc *fbc = &dev_priv->fbc;
 
 	if (!fbc_supported(dev_priv))
@@ -993,12 +988,12 @@ void intel_fbc_flush(struct drm_i915_private *dev_priv,
 	if (!fbc_supported(dev_priv))
 		return;
 
-	if (origin == ORIGIN_GTT || origin == ORIGIN_FLIP)
-		return;
-
 	mutex_lock(&fbc->lock);
 
 	fbc->busy_bits &= ~frontbuffer_bits;
+
+	if (origin == ORIGIN_GTT || origin == ORIGIN_FLIP)
+		goto out;
 
 	if (!fbc->busy_bits && fbc->enabled &&
 	    (frontbuffer_bits & intel_fbc_get_frontbuffer_bit(fbc))) {
@@ -1008,6 +1003,7 @@ void intel_fbc_flush(struct drm_i915_private *dev_priv,
 			__intel_fbc_post_update(fbc->crtc);
 	}
 
+out:
 	mutex_unlock(&fbc->lock);
 }
 
@@ -1089,7 +1085,7 @@ void intel_fbc_enable(struct intel_crtc *crtc,
 		      struct intel_crtc_state *crtc_state,
 		      struct intel_plane_state *plane_state)
 {
-	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_fbc *fbc = &dev_priv->fbc;
 
 	if (!fbc_supported(dev_priv))
@@ -1160,7 +1156,7 @@ static void __intel_fbc_disable(struct drm_i915_private *dev_priv)
  */
 void intel_fbc_disable(struct intel_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_fbc *fbc = &dev_priv->fbc;
 
 	if (!fbc_supported(dev_priv))
@@ -1214,10 +1210,30 @@ void intel_fbc_init_pipe_state(struct drm_i915_private *dev_priv)
 	if (!no_fbc_on_multiple_pipes(dev_priv))
 		return;
 
-	for_each_intel_crtc(dev_priv->dev, crtc)
+	for_each_intel_crtc(&dev_priv->drm, crtc)
 		if (intel_crtc_active(&crtc->base) &&
 		    to_intel_plane_state(crtc->base.primary->state)->visible)
 			dev_priv->fbc.visible_pipes_mask |= (1 << crtc->pipe);
+}
+
+/*
+ * The DDX driver changes its behavior depending on the value it reads from
+ * i915.enable_fbc, so sanitize it by translating the default value into either
+ * 0 or 1 in order to allow it to know what's going on.
+ *
+ * Notice that this is done at driver initialization and we still allow user
+ * space to change the value during runtime without sanitizing it again. IGT
+ * relies on being able to change i915.enable_fbc at runtime.
+ */
+static int intel_sanitize_fbc_option(struct drm_i915_private *dev_priv)
+{
+	if (i915.enable_fbc >= 0)
+		return !!i915.enable_fbc;
+
+	if (IS_BROADWELL(dev_priv))
+		return 1;
+
+	return 0;
 }
 
 /**
@@ -1236,6 +1252,9 @@ void intel_fbc_init(struct drm_i915_private *dev_priv)
 	fbc->enabled = false;
 	fbc->active = false;
 	fbc->work.scheduled = false;
+
+	i915.enable_fbc = intel_sanitize_fbc_option(dev_priv);
+	DRM_DEBUG_KMS("Sanitized enable_fbc value: %d\n", i915.enable_fbc);
 
 	if (!HAS_FBC(dev_priv)) {
 		fbc->no_fbc_reason = "unsupported by this chipset";

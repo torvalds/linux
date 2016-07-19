@@ -232,11 +232,28 @@ struct opregion_asle_ext {
 #define SWSCI_SBCB_POST_VBE_PM		SWSCI_FUNCTION_CODE(SWSCI_SBCB, 19)
 #define SWSCI_SBCB_ENABLE_DISABLE_AUDIO	SWSCI_FUNCTION_CODE(SWSCI_SBCB, 21)
 
-#define ACPI_OTHER_OUTPUT (0<<8)
-#define ACPI_VGA_OUTPUT (1<<8)
-#define ACPI_TV_OUTPUT (2<<8)
-#define ACPI_DIGITAL_OUTPUT (3<<8)
-#define ACPI_LVDS_OUTPUT (4<<8)
+/*
+ * ACPI Specification, Revision 5.0, Appendix B.3.2 _DOD (Enumerate All Devices
+ * Attached to the Display Adapter).
+ */
+#define ACPI_DISPLAY_INDEX_SHIFT		0
+#define ACPI_DISPLAY_INDEX_MASK			(0xf << 0)
+#define ACPI_DISPLAY_PORT_ATTACHMENT_SHIFT	4
+#define ACPI_DISPLAY_PORT_ATTACHMENT_MASK	(0xf << 4)
+#define ACPI_DISPLAY_TYPE_SHIFT			8
+#define ACPI_DISPLAY_TYPE_MASK			(0xf << 8)
+#define ACPI_DISPLAY_TYPE_OTHER			(0 << 8)
+#define ACPI_DISPLAY_TYPE_VGA			(1 << 8)
+#define ACPI_DISPLAY_TYPE_TV			(2 << 8)
+#define ACPI_DISPLAY_TYPE_EXTERNAL_DIGITAL	(3 << 8)
+#define ACPI_DISPLAY_TYPE_INTERNAL_DIGITAL	(4 << 8)
+#define ACPI_VENDOR_SPECIFIC_SHIFT		12
+#define ACPI_VENDOR_SPECIFIC_MASK		(0xf << 12)
+#define ACPI_BIOS_CAN_DETECT			(1 << 16)
+#define ACPI_DEPENDS_ON_VGA			(1 << 17)
+#define ACPI_PIPE_ID_SHIFT			18
+#define ACPI_PIPE_ID_MASK			(7 << 18)
+#define ACPI_DEVICE_ID_SCHEME			(1 << 31)
 
 #define MAX_DSLP	1500
 
@@ -244,7 +261,7 @@ static int swsci(struct drm_i915_private *dev_priv,
 		 u32 function, u32 parm, u32 *parm_out)
 {
 	struct opregion_swsci *swsci = dev_priv->opregion.swsci;
-	struct pci_dev *pdev = dev_priv->dev->pdev;
+	struct pci_dev *pdev = dev_priv->drm.pdev;
 	u32 main_function, sub_function, scic;
 	u16 swsci_val;
 	u32 dslp;
@@ -366,7 +383,7 @@ int intel_opregion_notify_encoder(struct intel_encoder *intel_encoder,
 		type = DISPLAY_TYPE_CRT;
 		break;
 	case INTEL_OUTPUT_UNKNOWN:
-	case INTEL_OUTPUT_DISPLAYPORT:
+	case INTEL_OUTPUT_DP:
 	case INTEL_OUTPUT_HDMI:
 	case INTEL_OUTPUT_DP_MST:
 		type = DISPLAY_TYPE_EXTERNAL_FLAT_PANEL;
@@ -418,7 +435,7 @@ static u32 asle_set_backlight(struct drm_i915_private *dev_priv, u32 bclp)
 {
 	struct intel_connector *connector;
 	struct opregion_asle *asle = dev_priv->opregion.asle;
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 
 	DRM_DEBUG_DRIVER("bclp = 0x%08x\n", bclp);
 
@@ -657,10 +674,51 @@ static void set_did(struct intel_opregion *opregion, int i, u32 val)
 	}
 }
 
+static u32 acpi_display_type(struct drm_connector *connector)
+{
+	u32 display_type;
+
+	switch (connector->connector_type) {
+	case DRM_MODE_CONNECTOR_VGA:
+	case DRM_MODE_CONNECTOR_DVIA:
+		display_type = ACPI_DISPLAY_TYPE_VGA;
+		break;
+	case DRM_MODE_CONNECTOR_Composite:
+	case DRM_MODE_CONNECTOR_SVIDEO:
+	case DRM_MODE_CONNECTOR_Component:
+	case DRM_MODE_CONNECTOR_9PinDIN:
+	case DRM_MODE_CONNECTOR_TV:
+		display_type = ACPI_DISPLAY_TYPE_TV;
+		break;
+	case DRM_MODE_CONNECTOR_DVII:
+	case DRM_MODE_CONNECTOR_DVID:
+	case DRM_MODE_CONNECTOR_DisplayPort:
+	case DRM_MODE_CONNECTOR_HDMIA:
+	case DRM_MODE_CONNECTOR_HDMIB:
+		display_type = ACPI_DISPLAY_TYPE_EXTERNAL_DIGITAL;
+		break;
+	case DRM_MODE_CONNECTOR_LVDS:
+	case DRM_MODE_CONNECTOR_eDP:
+	case DRM_MODE_CONNECTOR_DSI:
+		display_type = ACPI_DISPLAY_TYPE_INTERNAL_DIGITAL;
+		break;
+	case DRM_MODE_CONNECTOR_Unknown:
+	case DRM_MODE_CONNECTOR_VIRTUAL:
+		display_type = ACPI_DISPLAY_TYPE_OTHER;
+		break;
+	default:
+		MISSING_CASE(connector->connector_type);
+		display_type = ACPI_DISPLAY_TYPE_OTHER;
+		break;
+	}
+
+	return display_type;
+}
+
 static void intel_didl_outputs(struct drm_i915_private *dev_priv)
 {
 	struct intel_opregion *opregion = &dev_priv->opregion;
-	struct pci_dev *pdev = dev_priv->dev->pdev;
+	struct pci_dev *pdev = dev_priv->drm.pdev;
 	struct drm_connector *connector;
 	acpi_handle handle;
 	struct acpi_device *acpi_dev, *acpi_cdev, *acpi_video_bus = NULL;
@@ -724,37 +782,18 @@ end:
 
 blind_set:
 	i = 0;
-	list_for_each_entry(connector, &dev_priv->dev->mode_config.connector_list, head) {
-		int output_type = ACPI_OTHER_OUTPUT;
+	list_for_each_entry(connector,
+			    &dev_priv->drm.mode_config.connector_list, head) {
+		int display_type = acpi_display_type(connector);
+
 		if (i >= max_outputs) {
 			DRM_DEBUG_KMS("More than %u outputs in connector list\n",
 				      max_outputs);
 			return;
 		}
-		switch (connector->connector_type) {
-		case DRM_MODE_CONNECTOR_VGA:
-		case DRM_MODE_CONNECTOR_DVIA:
-			output_type = ACPI_VGA_OUTPUT;
-			break;
-		case DRM_MODE_CONNECTOR_Composite:
-		case DRM_MODE_CONNECTOR_SVIDEO:
-		case DRM_MODE_CONNECTOR_Component:
-		case DRM_MODE_CONNECTOR_9PinDIN:
-			output_type = ACPI_TV_OUTPUT;
-			break;
-		case DRM_MODE_CONNECTOR_DVII:
-		case DRM_MODE_CONNECTOR_DVID:
-		case DRM_MODE_CONNECTOR_DisplayPort:
-		case DRM_MODE_CONNECTOR_HDMIA:
-		case DRM_MODE_CONNECTOR_HDMIB:
-			output_type = ACPI_DIGITAL_OUTPUT;
-			break;
-		case DRM_MODE_CONNECTOR_LVDS:
-			output_type = ACPI_LVDS_OUTPUT;
-			break;
-		}
+
 		temp = get_did(opregion, i);
-		set_did(opregion, i, temp | (1 << 31) | output_type | i);
+		set_did(opregion, i, temp | (1 << 31) | display_type | i);
 		i++;
 	}
 	goto end;
@@ -916,7 +955,7 @@ static const struct dmi_system_id intel_no_opregion_vbt[] = {
 int intel_opregion_setup(struct drm_i915_private *dev_priv)
 {
 	struct intel_opregion *opregion = &dev_priv->opregion;
-	struct pci_dev *pdev = dev_priv->dev->pdev;
+	struct pci_dev *pdev = dev_priv->drm.pdev;
 	u32 asls, mboxes;
 	char buf[sizeof(OPREGION_SIGNATURE)];
 	int err = 0;

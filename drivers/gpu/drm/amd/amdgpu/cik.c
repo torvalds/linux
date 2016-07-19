@@ -962,6 +962,12 @@ static bool cik_read_bios_from_rom(struct amdgpu_device *adev,
 	return true;
 }
 
+static u32 cik_get_virtual_caps(struct amdgpu_device *adev)
+{
+	/* CIK does not support SR-IOV */
+	return 0;
+}
+
 static const struct amdgpu_allowed_register_entry cik_allowed_read_registers[] = {
 	{mmGRBM_STATUS, false},
 	{mmGB_ADDR_CONFIG, false},
@@ -1029,12 +1035,12 @@ static uint32_t cik_read_indexed_register(struct amdgpu_device *adev,
 
 	mutex_lock(&adev->grbm_idx_mutex);
 	if (se_num != 0xffffffff || sh_num != 0xffffffff)
-		gfx_v7_0_select_se_sh(adev, se_num, sh_num);
+		amdgpu_gfx_select_se_sh(adev, se_num, sh_num, 0xffffffff);
 
 	val = RREG32(reg_offset);
 
 	if (se_num != 0xffffffff || sh_num != 0xffffffff)
-		gfx_v7_0_select_se_sh(adev, 0xffffffff, 0xffffffff);
+		amdgpu_gfx_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
 	mutex_unlock(&adev->grbm_idx_mutex);
 	return val;
 }
@@ -1152,10 +1158,11 @@ static void kv_restore_regs_for_reset(struct amdgpu_device *adev,
 	WREG32(mmGMCON_RENG_EXECUTE, save->gmcon_reng_execute);
 }
 
-static void cik_gpu_pci_config_reset(struct amdgpu_device *adev)
+static int cik_gpu_pci_config_reset(struct amdgpu_device *adev)
 {
 	struct kv_reset_save_regs kv_save = { 0 };
 	u32 i;
+	int r = -EINVAL;
 
 	dev_info(adev->dev, "GPU pci config reset\n");
 
@@ -1171,14 +1178,20 @@ static void cik_gpu_pci_config_reset(struct amdgpu_device *adev)
 
 	/* wait for asic to come out of reset */
 	for (i = 0; i < adev->usec_timeout; i++) {
-		if (RREG32(mmCONFIG_MEMSIZE) != 0xffffffff)
+		if (RREG32(mmCONFIG_MEMSIZE) != 0xffffffff) {
+			/* enable BM */
+			pci_set_master(adev->pdev);
+			r = 0;
 			break;
+		}
 		udelay(1);
 	}
 
 	/* does asic init need to be run first??? */
 	if (adev->flags & AMD_IS_APU)
 		kv_restore_regs_for_reset(adev, &kv_save);
+
+	return r;
 }
 
 static void cik_set_bios_scratch_engine_hung(struct amdgpu_device *adev, bool hung)
@@ -1204,13 +1217,14 @@ static void cik_set_bios_scratch_engine_hung(struct amdgpu_device *adev, bool hu
  */
 static int cik_asic_reset(struct amdgpu_device *adev)
 {
+	int r;
 	cik_set_bios_scratch_engine_hung(adev, true);
 
-	cik_gpu_pci_config_reset(adev);
+	r = cik_gpu_pci_config_reset(adev);
 
 	cik_set_bios_scratch_engine_hung(adev, false);
 
-	return 0;
+	return r;
 }
 
 static int cik_set_uvd_clock(struct amdgpu_device *adev, u32 clock,
@@ -2007,9 +2021,7 @@ static const struct amdgpu_asic_funcs cik_asic_funcs =
 	.get_xclk = &cik_get_xclk,
 	.set_uvd_clocks = &cik_set_uvd_clocks,
 	.set_vce_clocks = &cik_set_vce_clocks,
-	/* these should be moved to their own ip modules */
-	.get_gpu_clock_counter = &gfx_v7_0_get_gpu_clock_counter,
-	.wait_for_mc_idle = &gmc_v7_0_mc_wait_for_idle,
+	.get_virtual_caps = &cik_get_virtual_caps,
 };
 
 static int cik_common_early_init(void *handle)

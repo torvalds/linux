@@ -254,9 +254,10 @@ int atmel_hlcdc_create_outputs(struct drm_device *dev)
 		if (!ret)
 			ret = atmel_hlcdc_check_endpoint(dev, &ep);
 
-		of_node_put(ep_np);
-		if (ret)
+		if (ret) {
+			of_node_put(ep_np);
 			return ret;
+		}
 	}
 
 	for_each_endpoint_of_node(dev->dev->of_node, ep_np) {
@@ -264,9 +265,10 @@ int atmel_hlcdc_create_outputs(struct drm_device *dev)
 		if (!ret)
 			ret = atmel_hlcdc_attach_endpoint(dev, &ep);
 
-		of_node_put(ep_np);
-		if (ret)
+		if (ret) {
+			of_node_put(ep_np);
 			return ret;
+		}
 	}
 
 	return 0;

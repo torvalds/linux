@@ -1535,7 +1535,7 @@ static int mtk_hdmi_dt_parse_pdata(struct mtk_hdmi *hdmi,
  * HDMI audio codec callbacks
  */
 
-static int mtk_hdmi_audio_hw_params(struct device *dev,
+static int mtk_hdmi_audio_hw_params(struct device *dev, void *data,
 				    struct hdmi_codec_daifmt *daifmt,
 				    struct hdmi_codec_params *params)
 {
@@ -1604,7 +1604,7 @@ static int mtk_hdmi_audio_hw_params(struct device *dev,
 	return 0;
 }
 
-static int mtk_hdmi_audio_startup(struct device *dev)
+static int mtk_hdmi_audio_startup(struct device *dev, void *data)
 {
 	struct mtk_hdmi *hdmi = dev_get_drvdata(dev);
 
@@ -1615,7 +1615,7 @@ static int mtk_hdmi_audio_startup(struct device *dev)
 	return 0;
 }
 
-static void mtk_hdmi_audio_shutdown(struct device *dev)
+static void mtk_hdmi_audio_shutdown(struct device *dev, void *data)
 {
 	struct mtk_hdmi *hdmi = dev_get_drvdata(dev);
 
@@ -1624,7 +1624,7 @@ static void mtk_hdmi_audio_shutdown(struct device *dev)
 	mtk_hdmi_audio_disable(hdmi);
 }
 
-int mtk_hdmi_audio_digital_mute(struct device *dev, bool enable)
+int mtk_hdmi_audio_digital_mute(struct device *dev, void *data, bool enable)
 {
 	struct mtk_hdmi *hdmi = dev_get_drvdata(dev);
 
@@ -1638,7 +1638,7 @@ int mtk_hdmi_audio_digital_mute(struct device *dev, bool enable)
 	return 0;
 }
 
-static int mtk_hdmi_audio_get_eld(struct device *dev, uint8_t *buf, size_t len)
+static int mtk_hdmi_audio_get_eld(struct device *dev, void *data, uint8_t *buf, size_t len)
 {
 	struct mtk_hdmi *hdmi = dev_get_drvdata(dev);
 

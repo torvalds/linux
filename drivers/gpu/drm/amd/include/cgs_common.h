@@ -49,6 +49,7 @@ enum cgs_ind_reg {
 	CGS_IND_REG__SMC,
 	CGS_IND_REG__UVD_CTX,
 	CGS_IND_REG__DIDT,
+	CGS_IND_REG_GC_CAC,
 	CGS_IND_REG__AUDIO_ENDPT
 };
 
@@ -115,6 +116,7 @@ enum cgs_system_info_id {
 	CGS_SYSTEM_INFO_CG_FLAGS,
 	CGS_SYSTEM_INFO_PG_FLAGS,
 	CGS_SYSTEM_INFO_GFX_CU_INFO,
+	CGS_SYSTEM_INFO_GFX_SE_INFO,
 	CGS_SYSTEM_INFO_ID_MAXIMUM,
 };
 
@@ -189,7 +191,6 @@ typedef unsigned long cgs_handle_t;
 
 struct cgs_acpi_method_argument {
 	uint32_t type;
-	uint32_t method_length;
 	uint32_t data_length;
 	union{
 		uint32_t value;
@@ -581,6 +582,9 @@ typedef int (*cgs_get_firmware_info)(struct cgs_device *cgs_device,
 				     enum cgs_ucode_id type,
 				     struct cgs_firmware_info *info);
 
+typedef int (*cgs_rel_firmware)(struct cgs_device *cgs_device,
+					 enum cgs_ucode_id type);
+
 typedef int(*cgs_set_powergating_state)(struct cgs_device *cgs_device,
 				  enum amd_ip_block_type block_type,
 				  enum amd_powergating_state state);
@@ -645,6 +649,7 @@ struct cgs_ops {
 	cgs_set_camera_voltages_t set_camera_voltages;
 	/* Firmware Info */
 	cgs_get_firmware_info get_firmware_info;
+	cgs_rel_firmware rel_firmware;
 	/* cg pg interface*/
 	cgs_set_powergating_state set_powergating_state;
 	cgs_set_clockgating_state set_clockgating_state;
@@ -738,6 +743,8 @@ struct cgs_device
 	CGS_CALL(set_camera_voltages,dev,mask,voltages)
 #define cgs_get_firmware_info(dev, type, info)	\
 	CGS_CALL(get_firmware_info, dev, type, info)
+#define cgs_rel_firmware(dev, type)	\
+	CGS_CALL(rel_firmware, dev, type)
 #define cgs_set_powergating_state(dev, block_type, state)	\
 	CGS_CALL(set_powergating_state, dev, block_type, state)
 #define cgs_set_clockgating_state(dev, block_type, state)	\

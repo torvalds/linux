@@ -1235,8 +1235,10 @@ static int qfq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 			 cl->agg->lmax, qdisc_pkt_len(skb), cl->common.classid);
 		err = qfq_change_agg(sch, cl, cl->agg->class_weight,
 				     qdisc_pkt_len(skb));
-		if (err)
-			return err;
+		if (err) {
+			cl->qstats.drops++;
+			return qdisc_drop(skb, sch);
+		}
 	}
 
 	err = qdisc_enqueue(skb, cl->qdisc);

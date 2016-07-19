@@ -65,7 +65,7 @@
 #define HDMI_DELAY          (5)
 
 /* Delay introduced by the DVO in nb of pixel */
-#define DVO_DELAY           (2)
+#define DVO_DELAY           (7)
 
 /* delay introduced by the Arbitrary Waveform Generator in nb of pixels */
 #define AWG_DELAY_HD        (-9)
