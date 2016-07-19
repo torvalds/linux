@@ -3172,6 +3172,28 @@ static int mv88e6xxx_g2_set_switch_mac(struct mv88e6xxx_chip *chip, u8 *addr)
 	return err;
 }
 
+static int mv88e6xxx_g2_pot_write(struct mv88e6xxx_chip *chip, int pointer,
+				  u8 data)
+{
+	u16 val = (pointer << 8) | (data & 0x7);
+
+	return mv88e6xxx_update(chip, REG_GLOBAL2, GLOBAL2_PRIO_OVERRIDE, val);
+}
+
+static int mv88e6xxx_g2_clear_pot(struct mv88e6xxx_chip *chip)
+{
+	int i, err;
+
+	/* Clear all sixteen possible Priority Override entries */
+	for (i = 0; i < 16; i++) {
+		err = mv88e6xxx_g2_pot_write(chip, i, 0);
+		if (err)
+			break;
+	}
+
+	return err;
+}
+
 static int mv88e6xxx_g2_setup(struct mv88e6xxx_chip *chip)
 {
 	u16 reg;
@@ -3229,17 +3251,11 @@ static int mv88e6xxx_g2_setup(struct mv88e6xxx_chip *chip)
 			return err;
 	}
 
-	if (mv88e6xxx_6352_family(chip) || mv88e6xxx_6351_family(chip) ||
-	    mv88e6xxx_6165_family(chip) || mv88e6xxx_6097_family(chip) ||
-	    mv88e6xxx_6320_family(chip)) {
+	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_POT)) {
 		/* Clear the priority override table. */
-		for (i = 0; i < 16; i++) {
-			err = _mv88e6xxx_reg_write(chip, REG_GLOBAL2,
-						   GLOBAL2_PRIO_OVERRIDE,
-						   0x8000 | (i << 8));
-			if (err)
-				return err;
-		}
+		err = mv88e6xxx_g2_clear_pot(chip);
+		if (err)
+			return err;
 	}
 
 	if (mv88e6xxx_6352_family(chip) || mv88e6xxx_6351_family(chip) ||
