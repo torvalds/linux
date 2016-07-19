@@ -491,6 +491,27 @@ static ssize_t power_now_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(power_now);
 
+static const char *gb_interface_type_string(struct gb_interface *intf)
+{
+	static const char * const types[] = {
+		[GB_SVC_INTF_TYPE_UNKNOWN] = "unknown",
+		[GB_SVC_INTF_TYPE_DUMMY] = "dummy",
+		[GB_SVC_INTF_TYPE_UNIPRO] = "unipro",
+		[GB_SVC_INTF_TYPE_GREYBUS] = "greybus",
+	};
+
+	return types[intf->type];
+}
+
+static ssize_t interface_type_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct gb_interface *intf = to_gb_interface(dev);
+
+	return sprintf(buf, "%s\n", gb_interface_type_string(intf));
+}
+static DEVICE_ATTR_RO(interface_type);
+
 static struct attribute *interface_attrs[] = {
 	&dev_attr_ddbl1_manufacturer_id.attr,
 	&dev_attr_ddbl1_product_id.attr,
@@ -501,6 +522,7 @@ static struct attribute *interface_attrs[] = {
 	&dev_attr_voltage_now.attr,
 	&dev_attr_current_now.attr,
 	&dev_attr_power_now.attr,
+	&dev_attr_interface_type.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(interface);
@@ -721,6 +743,8 @@ static int gb_interface_activate_operation(struct gb_interface *intf)
 		return ret;
 	}
 
+	intf->type = type;
+
 	switch (type) {
 	case GB_SVC_INTF_TYPE_DUMMY:
 		dev_info(&intf->dev, "dummy interface detected\n");
@@ -734,6 +758,7 @@ static int gb_interface_activate_operation(struct gb_interface *intf)
 		break;
 	default:
 		dev_err(&intf->dev, "unknown interface type: %u\n", type);
+		intf->type = GB_SVC_INTF_TYPE_UNKNOWN;
 		return -ENODEV;
 	}
 

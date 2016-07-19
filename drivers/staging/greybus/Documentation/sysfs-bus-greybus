@@ -82,6 +82,14 @@ Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		The ID of a Greybus interface.
 
+What:		/sys/bus/greybus/devices/N-M.I/interface_type
+Date:		June 2016
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		The type of a Greybus interface; "dummy", "unipro", "greybus",
+		or "unknown".
+
 What:		/sys/bus/greybus/devices/N-M.I/power_now
 Date:		March 2016
 KernelVersion:	4.XX
