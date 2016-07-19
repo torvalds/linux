@@ -37,19 +37,38 @@ Description
    and is currently only available as a staging kernel module.
 
 To receive a CEC message the application has to fill in the
-:c:type:`struct cec_msg` and pass it to :ref:`ioctl CEC_RECEIVE <CEC_RECEIVE>`.
-The :ref:`ioctl CEC_RECEIVE <CEC_RECEIVE>` is only available if ``CEC_CAP_RECEIVE`` is set.
+``timeout`` field of :c:type:`struct cec_msg` and pass it to :ref:`ioctl CEC_RECEIVE <CEC_RECEIVE>`.
 If the file descriptor is in non-blocking mode and there are no received
-messages pending, then it will return -1 and set errno to the EAGAIN
+messages pending, then it will return -1 and set errno to the ``EAGAIN``
 error code. If the file descriptor is in blocking mode and ``timeout``
 is non-zero and no message arrived within ``timeout`` milliseconds, then
-it will return -1 and set errno to the ETIMEDOUT error code.
+it will return -1 and set errno to the ``ETIMEDOUT`` error code.
+
+A received message can be:
+
+1. a message received from another CEC device (the ``sequence`` field will
+   be 0).
+2. the result of an earlier non-blocking transmit (the ``sequence`` field will
+   be non-zero).
 
 To send a CEC message the application has to fill in the
 :c:type:`struct cec_msg` and pass it to
 :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>`. The :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>` is only available if
 ``CEC_CAP_TRANSMIT`` is set. If there is no more room in the transmit
-queue, then it will return -1 and set errno to the EBUSY error code.
+queue, then it will return -1 and set errno to the ``EBUSY`` error code.
+The transmit queue has enough room for 18 messages (about 1 second worth
+of 2-byte messages). Note that the CEC kernel framework will also reply
+to core messages (see :ref:cec-core-processing), so it is not a good
+idea to fully fill up the transmit queue.
+
+If the file descriptor is in non-blocking mode then the transmit will
+return 0 and the result of the transmit will be available via
+:ref:`ioctl CEC_RECEIVE <CEC_RECEIVE>` once the transmit has finished
+(including waiting for a reply, if requested).
+
+The ``sequence`` field is filled in for every transmit and this can be
+checked against the received messages to find the corresponding transmit
+result.
 
 
 .. _cec-msg:
@@ -67,6 +86,8 @@ queue, then it will return -1 and set errno to the EBUSY error code.
        -  ``tx_ts``
 
        -  Timestamp in ns of when the last byte of the message was transmitted.
+	  The timestamp has been taken from the ``CLOCK_MONOTONIC`` clock. To access
+	  the same clock from userspace use :c:func:`clock_gettime(2)`.
 
     -  .. row 2
 
@@ -75,6 +96,8 @@ queue, then it will return -1 and set errno to the EBUSY error code.
        -  ``rx_ts``
 
        -  Timestamp in ns of when the last byte of the message was received.
+	  The timestamp has been taken from the ``CLOCK_MONOTONIC`` clock. To access
+	  the same clock from userspace use :c:func:`clock_gettime(2)`.
 
     -  .. row 3
 
@@ -106,10 +129,11 @@ queue, then it will return -1 and set errno to the EBUSY error code.
 
        -  ``sequence``
 
-       -  The sequence number is automatically assigned by the CEC framework
-	  for all transmitted messages. It can be later used by the
-	  framework to generate an event if a reply for a message was
-	  requested and the message was transmitted in a non-blocking mode.
+       -  A non-zero sequence number is automatically assigned by the CEC framework
+	  for all transmitted messages. It is used by the CEC framework when it queues
+	  the transmit result (when transmit was called in non-blocking mode). This
+	  allows the application to associate the received message with the original
+	  transmit.
 
     -  .. row 6
 
@@ -133,7 +157,7 @@ queue, then it will return -1 and set errno to the EBUSY error code.
 
        -  __u8
 
-       -  ``msg``\ [16]
+       -  ``msg[16]``
 
        -  The message payload. For :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>` this is filled in by the
 	  application. The driver will fill this in for :ref:`ioctl CEC_RECEIVE <CEC_RECEIVE>`.
@@ -148,14 +172,13 @@ queue, then it will return -1 and set errno to the EBUSY error code.
 
        -  Wait until this message is replied. If ``reply`` is 0 and the
 	  ``timeout`` is 0, then don't wait for a reply but return after
-	  transmitting the message. If there was an error as indicated by the
-	  ``tx_status`` field, then ``reply`` and ``timeout`` are
-	  both set to 0 by the driver. Ignored by :ref:`ioctl CEC_RECEIVE <CEC_RECEIVE>`. The case
-	  where ``reply`` is 0 (this is the opcode for the Feature Abort
-	  message) and ``timeout`` is non-zero is specifically allowed to
-	  send a message and wait up to ``timeout`` milliseconds for a
+	  transmitting the message. Ignored by :ref:`ioctl CEC_RECEIVE <CEC_RECEIVE>`.
+	  The case where ``reply`` is 0 (this is the opcode for the Feature Abort
+	  message) and ``timeout`` is non-zero is specifically allowed to make it
+	  possible to send a message and wait up to ``timeout`` milliseconds for a
 	  Feature Abort reply. In this case ``rx_status`` will either be set
-	  to :ref:`CEC_RX_STATUS_TIMEOUT <CEC-RX-STATUS-TIMEOUT>` or :ref:`CEC_RX_STATUS_FEATURE_ABORT <CEC-RX-STATUS-FEATURE-ABORT>`.
+	  to :ref:`CEC_RX_STATUS_TIMEOUT <CEC-RX-STATUS-TIMEOUT>` or
+	  :ref:`CEC_RX_STATUS_FEATURE_ABORT <CEC-RX-STATUS-FEATURE-ABORT>`.
 
     -  .. row 9
 

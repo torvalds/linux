@@ -45,10 +45,24 @@ To query the current CEC logical addresses, applications call
 To set new logical addresses, applications fill in
 :c:type:`struct cec_log_addrs` and call :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`
 with a pointer to this struct. The :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`
-is only available if ``CEC_CAP_LOG_ADDRS`` is set (ENOTTY error code is
-returned otherwise). This ioctl will block until all requested logical
-addresses have been claimed. The :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>` can only be called
-by a file handle in initiator mode (see :ref:`CEC_S_MODE`).
+is only available if ``CEC_CAP_LOG_ADDRS`` is set (the ``ENOTTY`` error code is
+returned otherwise). The :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`
+can only be called by a file descriptor in initiator mode (see :ref:`CEC_S_MODE`), if not
+the ``EBUSY`` error code will be returned.
+
+To clear existing logical addresses set ``num_log_addrs`` to 0. All other fields
+will be ignored in that case. The adapter will go to the unconfigured state.
+
+If the physical address is valid (see :ref:`ioctl CEC_ADAP_S_PHYS_ADDR <CEC_ADAP_S_PHYS_ADDR>`),
+then this ioctl will block until all requested logical
+addresses have been claimed. If the file descriptor is in non-blocking mode then it will
+not wait for the logical addresses to be claimed, instead it just returns 0.
+
+A :ref:`CEC_EVENT_STATE_CHANGE <CEC-EVENT-STATE-CHANGE>` event is sent when the
+logical addresses are claimed or cleared.
+
+Attempting to call :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>` when
+logical address types are already defined will return with error ``EBUSY``.
 
 
 .. _cec-log-addrs:
@@ -63,7 +77,7 @@ by a file handle in initiator mode (see :ref:`CEC_S_MODE`).
 
        -  __u8
 
-       -  ``log_addr`` [CEC_MAX_LOG_ADDRS]
+       -  ``log_addr[CEC_MAX_LOG_ADDRS]``
 
        -  The actual logical addresses that were claimed. This is set by the
 	  driver. If no logical address could be claimed, then it is set to
@@ -136,7 +150,7 @@ by a file handle in initiator mode (see :ref:`CEC_S_MODE`).
 
        -  char
 
-       -  ``osd_name``\ [15]
+       -  ``osd_name[15]``
 
        -  The On-Screen Display name as is returned by the
 	  ``CEC_MSG_SET_OSD_NAME`` message.
@@ -145,7 +159,7 @@ by a file handle in initiator mode (see :ref:`CEC_S_MODE`).
 
        -  __u8
 
-       -  ``primary_device_type`` [CEC_MAX_LOG_ADDRS]
+       -  ``primary_device_type[CEC_MAX_LOG_ADDRS]``
 
        -  Primary device type for each logical address. See
 	  :ref:`cec-prim-dev-types` for possible types.
@@ -154,7 +168,7 @@ by a file handle in initiator mode (see :ref:`CEC_S_MODE`).
 
        -  __u8
 
-       -  ``log_addr_type`` [CEC_MAX_LOG_ADDRS]
+       -  ``log_addr_type[CEC_MAX_LOG_ADDRS]``
 
        -  Logical address types. See :ref:`cec-log-addr-types` for
 	  possible types. The driver will update this with the actual
@@ -165,25 +179,27 @@ by a file handle in initiator mode (see :ref:`CEC_S_MODE`).
 
        -  __u8
 
-       -  ``all_device_types`` [CEC_MAX_LOG_ADDRS]
+       -  ``all_device_types[CEC_MAX_LOG_ADDRS]``
 
-       -  CEC 2.0 specific: all device types. See
-	  :ref:`cec-all-dev-types-flags`. Used to implement the
-	  ``CEC_MSG_REPORT_FEATURES`` message. This field is ignored if
-	  ``cec_version`` < :ref:`CEC_OP_CEC_VERSION_2_0 <CEC-OP-CEC-VERSION-2-0>`.
+       -  CEC 2.0 specific: the bit mask of all device types. See
+	  :ref:`cec-all-dev-types-flags`. It is used in the CEC 2.0
+	  ``CEC_MSG_REPORT_FEATURES`` message. For CEC 1.4 you can either leave
+	  this field to 0, or fill it in according to the CEC 2.0 guidelines to
+	  give the CEC framework more information about the device type, even
+	  though the framework won't use it directly in the CEC message.
 
     -  .. row 11
 
        -  __u8
 
-       -  ``features`` [CEC_MAX_LOG_ADDRS][12]
+       -  ``features[CEC_MAX_LOG_ADDRS][12]``
 
-       -  Features for each logical address. Used to implement the
+       -  Features for each logical address. It is used in the CEC 2.0
 	  ``CEC_MSG_REPORT_FEATURES`` message. The 12 bytes include both the
-	  RC Profile and the Device Features. This field is ignored if
-	  ``cec_version`` < :ref:`CEC_OP_CEC_VERSION_2_0 <CEC-OP-CEC-VERSION-2-0>`.
-
-
+	  RC Profile and the Device Features. For CEC 1.4 you can either leave
+          this field to all 0, or fill it in according to the CEC 2.0 guidelines to
+          give the CEC framework more information about the device type, even
+          though the framework won't use it directly in the CEC message.
 
 .. _cec-versions:
 

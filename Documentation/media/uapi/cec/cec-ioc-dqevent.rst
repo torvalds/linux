@@ -38,7 +38,7 @@ Description
 CEC devices can send asynchronous events. These can be retrieved by
 calling :ref:`ioctl CEC_DQEVENT <CEC_DQEVENT>`. If the file descriptor is in
 non-blocking mode and no event is pending, then it will return -1 and
-set errno to the EAGAIN error code.
+set errno to the ``EAGAIN`` error code.
 
 The internal event queues are per-filehandle and per-event type. If
 there is no more room in a queue then the last event is overwritten with
@@ -117,6 +117,8 @@ it is guaranteed that the state did change in between the two events.
        -  ``ts``
 
        -  Timestamp of the event in ns.
+	  The timestamp has been taken from the ``CLOCK_MONOTONIC`` clock. To access
+	  the same clock from userspace use :c:func:`clock_gettime(2)`.
 
        -
 

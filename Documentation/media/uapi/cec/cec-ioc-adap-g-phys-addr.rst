@@ -44,10 +44,21 @@ driver stores the physical address.
 To set a new physical address applications store the physical address in
 a __u16 and call :ref:`ioctl CEC_ADAP_S_PHYS_ADDR <CEC_ADAP_S_PHYS_ADDR>` with a pointer to
 this integer. The :ref:`ioctl CEC_ADAP_S_PHYS_ADDR <CEC_ADAP_S_PHYS_ADDR>` is only available if
-``CEC_CAP_PHYS_ADDR`` is set (ENOTTY error code will be returned
-otherwise). The :ref:`ioctl CEC_ADAP_S_PHYS_ADDR <CEC_ADAP_S_PHYS_ADDR>` can only be called by a file handle
-in initiator mode (see :ref:`CEC_S_MODE`), if not
-EBUSY error code will be returned.
+``CEC_CAP_PHYS_ADDR`` is set (the ``ENOTTY`` error code will be returned
+otherwise). The :ref:`ioctl CEC_ADAP_S_PHYS_ADDR <CEC_ADAP_S_PHYS_ADDR>` can only be called
+by a file descriptor in initiator mode (see :ref:`CEC_S_MODE`), if not
+the ``EBUSY`` error code will be returned.
+
+To clear an existing physical address use ``CEC_PHYS_ADDR_INVALID``.
+The adapter will go to the unconfigured state.
+
+If logical address types have been defined (see :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`),
+then this ioctl will block until all
+requested logical addresses have been claimed. If the file descriptor is in non-blocking mode
+then it will not wait for the logical addresses to be claimed, instead it just returns 0.
+
+A :ref:`CEC_EVENT_STATE_CHANGE <CEC-EVENT-STATE-CHANGE>` event is sent when the physical address
+changes.
 
 The physical address is a 16-bit number where each group of 4 bits
 represent a digit of the physical address a.b.c.d where the most

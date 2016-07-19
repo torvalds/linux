@@ -108,7 +108,7 @@ Available initiator modes are:
        -  This is an exclusive initiator and this file descriptor is the
 	  only one that can transmit CEC messages and make changes to the
 	  CEC adapter. If someone else is already the exclusive initiator
-	  then an attempt to become one will return the EBUSY error code
+	  then an attempt to become one will return the ``EBUSY`` error code
 	  error.
 
 
@@ -140,7 +140,7 @@ Available follower modes are:
        -  This is a follower and it will receive CEC messages unless there
 	  is an exclusive follower. You cannot become a follower if
 	  :ref:`CEC_CAP_TRANSMIT <CEC-CAP-TRANSMIT>` is not set or if :ref:`CEC_MODE_NO_INITIATOR <CEC-MODE-NO-INITIATOR>`
-	  was specified, EINVAL error code is returned in that case.
+	  was specified, the ``EINVAL`` error code is returned in that case.
 
     -  .. _`CEC-MODE-EXCL-FOLLOWER`:
 
@@ -151,9 +151,9 @@ Available follower modes are:
        -  This is an exclusive follower and only this file descriptor will
 	  receive CEC messages for processing. If someone else is already
 	  the exclusive follower then an attempt to become one will return
-	  the EBUSY error code error. You cannot become a follower if
+	  the ``EBUSY`` error code. You cannot become a follower if
 	  :ref:`CEC_CAP_TRANSMIT <CEC-CAP-TRANSMIT>` is not set or if :ref:`CEC_MODE_NO_INITIATOR <CEC-MODE-NO-INITIATOR>`
-	  was specified, EINVAL error code is returned in that case.
+	  was specified, the ``EINVAL`` error code is returned in that case.
 
     -  .. _`CEC-MODE-EXCL-FOLLOWER-PASSTHRU`:
 
@@ -166,10 +166,10 @@ Available follower modes are:
 	  CEC device into passthrough mode, allowing the exclusive follower
 	  to handle most core messages instead of relying on the CEC
 	  framework for that. If someone else is already the exclusive
-	  follower then an attempt to become one will return the EBUSY error
-	  code error. You cannot become a follower if :ref:`CEC_CAP_TRANSMIT <CEC-CAP-TRANSMIT>`
-	  is not set or if :ref:`CEC_MODE_NO_INITIATOR <CEC-MODE-NO-INITIATOR>` was specified, EINVAL
-	  error code is returned in that case.
+	  follower then an attempt to become one will return the ``EBUSY`` error
+	  code. You cannot become a follower if :ref:`CEC_CAP_TRANSMIT <CEC-CAP-TRANSMIT>`
+	  is not set or if :ref:`CEC_MODE_NO_INITIATOR <CEC-MODE-NO-INITIATOR>` was specified,
+	  the ``EINVAL`` error code is returned in that case.
 
     -  .. _`CEC-MODE-MONITOR`:
 
@@ -184,7 +184,7 @@ Available follower modes are:
 	  messages and directed messages for one its logical addresses) will
 	  be reported. This is very useful for debugging. This is only
 	  allowed if the process has the ``CAP_NET_ADMIN`` capability. If
-	  that is not set, then EPERM error code is returned.
+	  that is not set, then the ``EPERM`` error code is returned.
 
     -  .. _`CEC-MODE-MONITOR-ALL`:
 
@@ -193,15 +193,15 @@ Available follower modes are:
        -  0xf0
 
        -  Put the file descriptor into 'monitor all' mode. Can only be used
-	  in combination with :ref:`CEC_MODE_NO_INITIATOR <CEC-MODE-NO-INITIATOR>`, otherwise EINVAL
-	  error code will be returned. In 'monitor all' mode all messages
+	  in combination with :ref:`CEC_MODE_NO_INITIATOR <CEC-MODE-NO-INITIATOR>`, otherwise
+	  the ``EINVAL`` error code will be returned. In 'monitor all' mode all messages
 	  this CEC device transmits and all messages it receives, including
 	  directed messages for other CEC devices will be reported. This is
 	  very useful for debugging, but not all devices support this. This
 	  mode requires that the :ref:`CEC_CAP_MONITOR_ALL <CEC-CAP-MONITOR-ALL>` capability is set,
-	  otherwise EINVAL error code is returned. This is only allowed if
+	  otherwise the ``EINVAL`` error code is returned. This is only allowed if
 	  the process has the ``CAP_NET_ADMIN`` capability. If that is not
-	  set, then EPERM error code is returned.
+	  set, then the ``EPERM`` error code is returned.
 
 
 Core message processing details:
