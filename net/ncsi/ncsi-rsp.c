@@ -980,8 +980,12 @@ int ncsi_rcv_rsp(struct sk_buff *skb, struct net_device *dev,
 	if (!ndp)
 		return -ENODEV;
 
-	/* Find the handler */
+	/* Check if it is AEN packet */
 	hdr = (struct ncsi_pkt_hdr *)skb_network_header(skb);
+	if (hdr->type == NCSI_PKT_AEN)
+		return ncsi_aen_handler(ndp, skb);
+
+	/* Find the handler */
 	for (i = 0; i < ARRAY_SIZE(ncsi_rsp_handlers); i++) {
 		if (ncsi_rsp_handlers[i].type == hdr->type) {
 			if (ncsi_rsp_handlers[i].handler)

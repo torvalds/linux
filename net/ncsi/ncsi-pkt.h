@@ -31,6 +31,12 @@ struct ncsi_rsp_pkt_hdr {
 	__be16              reason; /* Response reason           */
 };
 
+struct ncsi_aen_pkt_hdr {
+	struct ncsi_pkt_hdr common;       /* Common NCSI packet header */
+	unsigned char       reserved2[3]; /* Reserved                  */
+	unsigned char       type;         /* AEN packet type           */
+};
+
 /* NCSI common command packet */
 struct ncsi_cmd_pkt {
 	struct ncsi_cmd_pkt_hdr cmd;      /* Command header */
@@ -296,6 +302,30 @@ struct ncsi_rsp_gpuuid_pkt {
 	__be32                  checksum;
 };
 
+/* AEN: Link State Change */
+struct ncsi_aen_lsc_pkt {
+	struct ncsi_aen_pkt_hdr aen;        /* AEN header      */
+	__be32                  status;     /* Link status     */
+	__be32                  oem_status; /* OEM link status */
+	__be32                  checksum;   /* Checksum        */
+	unsigned char           pad[14];
+};
+
+/* AEN: Configuration Required */
+struct ncsi_aen_cr_pkt {
+	struct ncsi_aen_pkt_hdr aen;      /* AEN header */
+	__be32                  checksum; /* Checksum   */
+	unsigned char           pad[22];
+};
+
+/* AEN: Host Network Controller Driver Status Change */
+struct ncsi_aen_hncdsc_pkt {
+	struct ncsi_aen_pkt_hdr aen;      /* AEN header */
+	__be32                  status;   /* Status     */
+	__be32                  checksum; /* Checksum   */
+	unsigned char           pad[18];
+};
+
 /* NCSI packet revision */
 #define NCSI_PKT_REVISION	0x01
 
@@ -375,5 +405,11 @@ struct ncsi_rsp_gpuuid_pkt {
 #define NCSI_PKT_RSP_R_PACKAGE		0x0004 /* Package not Ready        */
 #define NCSI_PKT_RSP_R_LENGTH		0x0005 /* Invalid payload length   */
 #define NCSI_PKT_RSP_R_UNKNOWN		0x7fff /* Command type unsupported */
+
+/* NCSI AEN packet type */
+#define NCSI_PKT_AEN		0xFF /* AEN Packet               */
+#define NCSI_PKT_AEN_LSC	0x00 /* Link status change       */
+#define NCSI_PKT_AEN_CR		0x01 /* Configuration required   */
+#define NCSI_PKT_AEN_HNCDSC	0x02 /* HNC driver status change */
 
 #endif /* __NCSI_PKT_H__ */
