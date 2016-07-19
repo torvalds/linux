@@ -254,6 +254,8 @@ static void __kprobes setup_singlestep(struct kprobe *p,
 
 		if (kcb->kprobe_status == KPROBE_REENTER)
 			spsr_set_debug_flag(regs, 0);
+		else
+			WARN_ON(regs->pstate & PSR_D_BIT);
 
 		/* IRQs and single stepping do not mix well. */
 		kprobes_save_local_irqflag(kcb, regs);
