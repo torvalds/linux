@@ -512,20 +512,55 @@ static ssize_t interface_type_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(interface_type);
 
-static struct attribute *interface_attrs[] = {
+static struct attribute *interface_unipro_attrs[] = {
 	&dev_attr_ddbl1_manufacturer_id.attr,
 	&dev_attr_ddbl1_product_id.attr,
+	NULL
+};
+
+static struct attribute *interface_greybus_attrs[] = {
 	&dev_attr_interface_id.attr,
 	&dev_attr_vendor_id.attr,
 	&dev_attr_product_id.attr,
 	&dev_attr_serial_number.attr,
+	NULL
+};
+
+static struct attribute *interface_power_attrs[] = {
 	&dev_attr_voltage_now.attr,
 	&dev_attr_current_now.attr,
 	&dev_attr_power_now.attr,
-	&dev_attr_interface_type.attr,
-	NULL,
+	NULL
 };
-ATTRIBUTE_GROUPS(interface);
+
+static struct attribute *interface_common_attrs[] = {
+	&dev_attr_interface_type.attr,
+	NULL
+};
+
+static const struct attribute_group interface_unipro_group = {
+	.attrs		= interface_unipro_attrs,
+};
+
+static const struct attribute_group interface_greybus_group = {
+	.attrs		= interface_greybus_attrs,
+};
+
+static const struct attribute_group interface_power_group = {
+	.attrs		= interface_power_attrs,
+};
+
+static const struct attribute_group interface_common_group = {
+	.attrs		= interface_common_attrs,
+};
+
+static const struct attribute_group *interface_groups[] = {
+	&interface_unipro_group,
+	&interface_greybus_group,
+	&interface_power_group,
+	&interface_common_group,
+	NULL
+};
 
 static void gb_interface_release(struct device *dev)
 {
