@@ -1120,8 +1120,7 @@ void tw686x_video_free(struct tw686x_dev *dev)
 	for (ch = 0; ch < max_channels(dev); ch++) {
 		struct tw686x_video_channel *vc = &dev->video_channels[ch];
 
-		if (vc->device)
-			video_unregister_device(vc->device);
+		video_unregister_device(vc->device);
 
 		if (dev->dma_ops->free)
 			for (pb = 0; pb < 2; pb++)
