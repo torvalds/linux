@@ -103,18 +103,41 @@
 		};
 	};
 
-	hdmi-sound {
+	sound {
 		compatible = "simple-audio-card";
 		simple-audio-card,format = "i2s";
-		simple-audio-card,name = "DW-HDMI";
+		simple-audio-card,name = "rockchip,rt5640-codec";
 		simple-audio-card,mclk-fs = <512>;
+		simple-audio-card,widgets =
+			"Microphone", "Microphone Jack",
+			"Headphone", "Headphone Jack";
+		simple-audio-card,routing =
+			"MIC1", "Microphone Jack",
+			"MIC2", "Microphone Jack",
+			"Microphone Jack", "micbias1",
+			"Headphone Jack", "HPOL",
+			"Headphone Jack", "HPOR";
 
-		simple-audio-card,cpu {
-			sound-dai = <&i2s>;
+		simple-audio-card,dai-link@0 {
+			format = "i2s";
+			cpu {
+				sound-dai = <&i2s>;
+			};
+
+			codec {
+				sound-dai = <&rt5640>;
+			};
 		};
 
-		simple-audio-card,codec {
-			sound-dai = <&hdmi>;
+		simple-audio-card,dai-link@1 {
+			format = "i2s";
+			cpu {
+				sound-dai = <&i2s>;
+			};
+
+			codec {
+				sound-dai = <&hdmi>;
+			};
 		};
 	};
 
@@ -297,6 +320,20 @@
 
 &i2c0 {
 	status = "okay";
+};
+
+&i2c2 {
+	status = "okay";
+
+	rt5640: rt5640@1c {
+		#sound-dai-cells = <0>;
+		compatible = "realtek,rt5640";
+		reg = <0x1c>;
+		clocks = <&cru SCLK_I2S0_OUT>;
+		clock-names = "mclk";
+		interrupt-parent = <&gpio6>;
+		interrupts = <7 IRQ_TYPE_EDGE_FALLING>;
+	};
 };
 
 &i2c5 {
