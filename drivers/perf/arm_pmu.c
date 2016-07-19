@@ -967,11 +967,12 @@ static int of_pmu_irq_cfg(struct arm_pmu *pmu)
 
 	/* If we didn't manage to parse anything, try the interrupt affinity */
 	if (cpumask_weight(&pmu->supported_cpus) == 0) {
-		if (!using_spi) {
-			/* If using PPIs, check the affinity of the partition */
-			int ret, irq;
+		int irq = platform_get_irq(pdev, 0);
 
-			irq = platform_get_irq(pdev, 0);
+		if (irq_is_percpu(irq)) {
+			/* If using PPIs, check the affinity of the partition */
+			int ret;
+
 			ret = irq_get_percpu_devid_partition(irq, &pmu->supported_cpus);
 			if (ret) {
 				kfree(irqs);
