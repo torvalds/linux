@@ -2993,13 +2993,12 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 	return 0;
 }
 
-static int mv88e6xxx_setup_global(struct mv88e6xxx_chip *chip)
+static int mv88e6xxx_g1_setup(struct mv88e6xxx_chip *chip)
 {
 	struct dsa_switch *ds = chip->ds;
 	u32 upstream_port = dsa_upstream_port(ds);
 	u16 reg;
 	int err;
-	int i;
 
 	/* Enable the PHY Polling Unit if present, don't discard any packets,
 	 * and mask all interrupt sources.
@@ -3040,6 +3039,16 @@ static int mv88e6xxx_setup_global(struct mv88e6xxx_chip *chip)
 	if (err)
 		return err;
 
+	/* Clear all the VTU and STU entries */
+	err = _mv88e6xxx_vtu_stu_flush(chip);
+	if (err < 0)
+		return err;
+
+	/* Clear all ATU entries */
+	err = _mv88e6xxx_atu_flush(chip, 0, true);
+	if (err)
+		return err;
+
 	/* Configure the IP ToS mapping registers. */
 	err = _mv88e6xxx_reg_write(chip, REG_GLOBAL, GLOBAL_IP_PRI_0, 0x0000);
 	if (err)
@@ -3070,6 +3079,26 @@ static int mv88e6xxx_setup_global(struct mv88e6xxx_chip *chip)
 	err = _mv88e6xxx_reg_write(chip, REG_GLOBAL, GLOBAL_IEEE_PRI, 0xfa41);
 	if (err)
 		return err;
+
+	/* Clear the statistics counters for all ports */
+	err = _mv88e6xxx_reg_write(chip, REG_GLOBAL, GLOBAL_STATS_OP,
+				   GLOBAL_STATS_OP_FLUSH_ALL);
+	if (err)
+		return err;
+
+	/* Wait for the flush to complete. */
+	err = _mv88e6xxx_stats_wait(chip);
+	if (err)
+		return err;
+
+	return 0;
+}
+
+static int mv88e6xxx_g2_setup(struct mv88e6xxx_chip *chip)
+{
+	struct dsa_switch *ds = chip->ds;
+	int err;
+	int i;
 
 	/* Send all frames with destination addresses matching
 	 * 01:80:c2:00:00:0x to the CPU port.
@@ -3174,28 +3203,7 @@ static int mv88e6xxx_setup_global(struct mv88e6xxx_chip *chip)
 		}
 	}
 
-	/* Clear the statistics counters for all ports */
-	err = _mv88e6xxx_reg_write(chip, REG_GLOBAL, GLOBAL_STATS_OP,
-				   GLOBAL_STATS_OP_FLUSH_ALL);
-	if (err)
-		return err;
-
-	/* Wait for the flush to complete. */
-	err = _mv88e6xxx_stats_wait(chip);
-	if (err)
-		return err;
-
-	/* Clear all ATU entries */
-	err = _mv88e6xxx_atu_flush(chip, 0, true);
-	if (err)
-		return err;
-
-	/* Clear all the VTU and STU entries */
-	err = _mv88e6xxx_vtu_stu_flush(chip);
-	if (err < 0)
-		return err;
-
-	return err;
+	return 0;
 }
 
 static int mv88e6xxx_setup(struct dsa_switch *ds)
@@ -3216,12 +3224,21 @@ static int mv88e6xxx_setup(struct dsa_switch *ds)
 	if (err)
 		goto unlock;
 
-	err = mv88e6xxx_setup_global(chip);
+	/* Setup Switch Port Registers */
+	for (i = 0; i < chip->info->num_ports; i++) {
+		err = mv88e6xxx_setup_port(chip, i);
+		if (err)
+			goto unlock;
+	}
+
+	/* Setup Switch Global 1 Registers */
+	err = mv88e6xxx_g1_setup(chip);
 	if (err)
 		goto unlock;
 
-	for (i = 0; i < chip->info->num_ports; i++) {
-		err = mv88e6xxx_setup_port(chip, i);
+	/* Setup Switch Global 2 Registers */
+	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_GLOBAL2)) {
+		err = mv88e6xxx_g2_setup(chip);
 		if (err)
 			goto unlock;
 	}
