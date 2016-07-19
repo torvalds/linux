@@ -37,7 +37,7 @@ enum cfg_task_t {
 
 /* Map for pending configure tasks. */
 static enum cfg_task_t chp_cfg_task[__MAX_CSSID + 1][__MAX_CHPID + 1];
-static DEFINE_MUTEX(cfg_lock);
+static DEFINE_SPINLOCK(cfg_lock);
 static int cfg_busy;
 
 /* Map for channel-path status. */
@@ -674,7 +674,7 @@ static void cfg_func(struct work_struct *work)
 	enum cfg_task_t t;
 	int rc;
 
-	mutex_lock(&cfg_lock);
+	spin_lock(&cfg_lock);
 	t = cfg_none;
 	chp_id_for_each(&chpid) {
 		t = cfg_get_task(chpid);
@@ -683,7 +683,7 @@ static void cfg_func(struct work_struct *work)
 			break;
 		}
 	}
-	mutex_unlock(&cfg_lock);
+	spin_unlock(&cfg_lock);
 
 	switch (t) {
 	case cfg_configure:
@@ -709,9 +709,9 @@ static void cfg_func(struct work_struct *work)
 	case cfg_none:
 		/* Get updated information after last change. */
 		info_update();
-		mutex_lock(&cfg_lock);
+		spin_lock(&cfg_lock);
 		cfg_busy = 0;
-		mutex_unlock(&cfg_lock);
+		spin_unlock(&cfg_lock);
 		wake_up_interruptible(&cfg_wait_queue);
 		return;
 	}
@@ -729,10 +729,10 @@ void chp_cfg_schedule(struct chp_id chpid, int configure)
 {
 	CIO_MSG_EVENT(2, "chp_cfg_sched%x.%02x=%d\n", chpid.cssid, chpid.id,
 		      configure);
-	mutex_lock(&cfg_lock);
+	spin_lock(&cfg_lock);
 	cfg_set_task(chpid, configure ? cfg_configure : cfg_deconfigure);
 	cfg_busy = 1;
-	mutex_unlock(&cfg_lock);
+	spin_unlock(&cfg_lock);
 	schedule_work(&cfg_work);
 }
 
@@ -746,10 +746,10 @@ void chp_cfg_schedule(struct chp_id chpid, int configure)
 void chp_cfg_cancel_deconfigure(struct chp_id chpid)
 {
 	CIO_MSG_EVENT(2, "chp_cfg_cancel:%x.%02x\n", chpid.cssid, chpid.id);
-	mutex_lock(&cfg_lock);
+	spin_lock(&cfg_lock);
 	if (cfg_get_task(chpid) == cfg_deconfigure)
 		cfg_set_task(chpid, cfg_none);
-	mutex_unlock(&cfg_lock);
+	spin_unlock(&cfg_lock);
 }
 
 static int cfg_wait_idle(void)
