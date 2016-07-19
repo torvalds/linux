@@ -73,23 +73,8 @@ struct smbus_host_notify {
 	u8			addr;
 };
 
-#if IS_ENABLED(CONFIG_I2C_SMBUS)
 struct smbus_host_notify *i2c_setup_smbus_host_notify(struct i2c_adapter *adap);
 int i2c_handle_smbus_host_notify(struct smbus_host_notify *host_notify,
 				 unsigned short addr, unsigned int data);
-#else
-static inline struct smbus_host_notify *
-i2c_setup_smbus_host_notify(struct i2c_adapter *adap)
-{
-	return NULL;
-}
-
-static inline int
-i2c_handle_smbus_host_notify(struct smbus_host_notify *host_notify,
-			     unsigned short addr, unsigned int data)
-{
-	return 0;
-}
-#endif /* I2C_SMBUS */
 
 #endif /* _LINUX_I2C_SMBUS_H */
