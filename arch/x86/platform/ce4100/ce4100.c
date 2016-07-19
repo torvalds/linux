@@ -11,11 +11,9 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/irq.h>
-#include <linux/init.h>
 #include <linux/reboot.h>
 #include <linux/serial_reg.h>
 #include <linux/serial_8250.h>
-#include <linux/reboot.h>
 
 #include <asm/ce4100.h>
 #include <asm/prom.h>
