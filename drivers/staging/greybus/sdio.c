@@ -43,6 +43,9 @@ struct gb_sdio_host {
 #define GB_SDIO_RSP_R1B		(GB_SDIO_RSP_PRESENT | GB_SDIO_RSP_CRC | \
 				 GB_SDIO_RSP_OPCODE | GB_SDIO_RSP_BUSY)
 
+/* kernel vdd starts at 0x80 and we need to translate to greybus ones 0x01 */
+#define GB_SDIO_VDD_SHIFT	8
+
 static inline bool single_op(struct mmc_command *cmd)
 {
 	uint32_t opcode = cmd->opcode;
@@ -574,10 +577,14 @@ static void gb_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	u8 timing;
 	u8 signal_voltage;
 	u8 drv_type;
+	u32 vdd = 0;
 
 	mutex_lock(&host->lock);
 	request.clock = cpu_to_le32(ios->clock);
-	request.vdd = cpu_to_le32(1 << ios->vdd);
+
+	if (ios->vdd)
+		vdd = 1 << (ios->vdd - GB_SDIO_VDD_SHIFT);
+	request.vdd = cpu_to_le32(vdd);
 
 	request.bus_mode = (ios->bus_mode == MMC_BUSMODE_OPENDRAIN ?
 			    GB_SDIO_BUSMODE_OPENDRAIN :
