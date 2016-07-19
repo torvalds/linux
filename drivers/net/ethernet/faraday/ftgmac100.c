@@ -141,6 +141,64 @@ static void ftgmac100_set_mac(struct ftgmac100 *priv, const unsigned char *mac)
 	iowrite32(laddr, priv->base + FTGMAC100_OFFSET_MAC_LADR);
 }
 
+static void ftgmac100_setup_mac(struct ftgmac100 *priv)
+{
+	u8 mac[ETH_ALEN];
+	unsigned int m;
+	unsigned int l;
+	void *addr;
+
+	addr = device_get_mac_address(priv->dev, mac, ETH_ALEN);
+	if (addr) {
+		ether_addr_copy(priv->netdev->dev_addr, mac);
+		dev_info(priv->dev, "Read MAC address %pM from device tree\n",
+			 mac);
+		return;
+	}
+
+	m = ioread32(priv->base + FTGMAC100_OFFSET_MAC_MADR);
+	l = ioread32(priv->base + FTGMAC100_OFFSET_MAC_LADR);
+
+	mac[0] = (m >> 8) & 0xff;
+	mac[1] = m & 0xff;
+	mac[2] = (l >> 24) & 0xff;
+	mac[3] = (l >> 16) & 0xff;
+	mac[4] = (l >> 8) & 0xff;
+	mac[5] = l & 0xff;
+
+	if (!is_valid_ether_addr(mac)) {
+		mac[5] = (m >> 8) & 0xff;
+		mac[4] = m & 0xff;
+		mac[3] = (l >> 24) & 0xff;
+		mac[2] = (l >> 16) & 0xff;
+		mac[1] = (l >>  8) & 0xff;
+		mac[0] = l & 0xff;
+	}
+
+	if (is_valid_ether_addr(mac)) {
+		ether_addr_copy(priv->netdev->dev_addr, mac);
+		dev_info(priv->dev, "Read MAC address %pM from chip\n", mac);
+	} else {
+		eth_hw_addr_random(priv->netdev);
+		dev_info(priv->dev, "Generated random MAC address %pM\n",
+			 priv->netdev->dev_addr);
+	}
+}
+
+static int ftgmac100_set_mac_addr(struct net_device *dev, void *p)
+{
+	int ret;
+
+	ret = eth_prepare_mac_addr_change(dev, p);
+	if (ret < 0)
+		return ret;
+
+	eth_commit_mac_addr_change(dev, p);
+	ftgmac100_set_mac(netdev_priv(dev), dev->dev_addr);
+
+	return 0;
+}
+
 static void ftgmac100_init_hw(struct ftgmac100 *priv)
 {
 	/* setup ring buffer base registers */
@@ -1141,7 +1199,7 @@ static const struct net_device_ops ftgmac100_netdev_ops = {
 	.ndo_open		= ftgmac100_open,
 	.ndo_stop		= ftgmac100_stop,
 	.ndo_start_xmit		= ftgmac100_hard_start_xmit,
-	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_set_mac_address	= ftgmac100_set_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_do_ioctl		= ftgmac100_do_ioctl,
 };
@@ -1265,6 +1323,9 @@ static int ftgmac100_probe(struct platform_device *pdev)
 
 	priv->irq = irq;
 
+	/* MAC address from chip or random one */
+	ftgmac100_setup_mac(priv);
+
 	err = ftgmac100_setup_mdio(netdev);
 	if (err)
 		goto err_setup_mdio;
@@ -1277,12 +1338,6 @@ static int ftgmac100_probe(struct platform_device *pdev)
 	}
 
 	netdev_info(netdev, "irq %d, mapped at %p\n", priv->irq, priv->base);
-
-	if (!is_valid_ether_addr(netdev->dev_addr)) {
-		eth_hw_addr_random(netdev);
-		netdev_info(netdev, "generated random MAC address %pM\n",
-			    netdev->dev_addr);
-	}
 
 	return 0;
 
