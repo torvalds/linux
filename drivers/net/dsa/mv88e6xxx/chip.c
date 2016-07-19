@@ -3150,6 +3150,29 @@ static int mv88e6xxx_g2_clear_trunk(struct mv88e6xxx_chip *chip)
 	return 0;
 }
 
+static int mv88e6xxx_g2_clear_irl(struct mv88e6xxx_chip *chip)
+{
+	int port, err;
+
+	/* Init all Ingress Rate Limit resources of all ports */
+	for (port = 0; port < chip->info->num_ports; ++port) {
+		/* XXX newer chips (like 88E6390) have different 2-bit ops */
+		err = mv88e6xxx_write(chip, REG_GLOBAL2, GLOBAL2_IRL_CMD,
+				      GLOBAL2_IRL_CMD_OP_INIT_ALL |
+				      (port << 8));
+		if (err)
+			break;
+
+		/* Wait for the operation to complete */
+		err = _mv88e6xxx_wait(chip, REG_GLOBAL2, GLOBAL2_IRL_CMD,
+				      GLOBAL2_IRL_CMD_BUSY);
+		if (err)
+			break;
+	}
+
+	return err;
+}
+
 /* Indirect write to the Switch MAC/WoL/WoF register */
 static int mv88e6xxx_g2_switch_mac_write(struct mv88e6xxx_chip *chip,
 					 unsigned int pointer, u8 data)
@@ -3198,7 +3221,6 @@ static int mv88e6xxx_g2_setup(struct mv88e6xxx_chip *chip)
 {
 	u16 reg;
 	int err;
-	int i;
 
 	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_MGMT_EN_2X)) {
 		/* Consider the frames with reserved multicast destination
@@ -3243,6 +3265,15 @@ static int mv88e6xxx_g2_setup(struct mv88e6xxx_chip *chip)
 	if (err)
 		return err;
 
+	if (mv88e6xxx_has(chip, MV88E6XXX_FLAGS_IRL)) {
+		/* Disable ingress rate limiting by resetting all per port
+		 * ingress rate limit resources to their initial state.
+		 */
+		err = mv88e6xxx_g2_clear_irl(chip);
+			if (err)
+				return err;
+	}
+
 	if (mv88e6xxx_has(chip, MV88E6XXX_FLAGS_PVT)) {
 		/* Initialize Cross-chip Port VLAN Table to reset defaults */
 		err = mv88e6xxx_write(chip, REG_GLOBAL2, GLOBAL2_PVT_ADDR,
@@ -3256,23 +3287,6 @@ static int mv88e6xxx_g2_setup(struct mv88e6xxx_chip *chip)
 		err = mv88e6xxx_g2_clear_pot(chip);
 		if (err)
 			return err;
-	}
-
-	if (mv88e6xxx_6352_family(chip) || mv88e6xxx_6351_family(chip) ||
-	    mv88e6xxx_6165_family(chip) || mv88e6xxx_6097_family(chip) ||
-	    mv88e6xxx_6185_family(chip) || mv88e6xxx_6095_family(chip) ||
-	    mv88e6xxx_6320_family(chip)) {
-		/* Disable ingress rate limiting by resetting all
-		 * ingress rate limit registers to their initial
-		 * state.
-		 */
-		for (i = 0; i < chip->info->num_ports; i++) {
-			err = _mv88e6xxx_reg_write(chip, REG_GLOBAL2,
-						   GLOBAL2_INGRESS_OP,
-						   0x9000 | (i << 8));
-			if (err)
-				return err;
-		}
 	}
 
 	return 0;
