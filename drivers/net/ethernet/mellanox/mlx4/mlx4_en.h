@@ -164,6 +164,10 @@ enum {
 #define MLX4_LOOPBACK_TEST_PAYLOAD (HEADER_COPY_SIZE - ETH_HLEN)
 
 #define MLX4_EN_MIN_MTU		46
+/* VLAN_HLEN is added twice,to support skb vlan tagged with multiple
+ * headers. (For example: ETH_P_8021Q and ETH_P_8021AD).
+ */
+#define MLX4_EN_EFF_MTU(mtu)	((mtu) + ETH_HLEN + (2 * VLAN_HLEN))
 #define ETH_BCAST		0xffffffffffffULL
 
 #define MLX4_EN_LOOPBACK_RETRIES	5
@@ -319,6 +323,7 @@ struct mlx4_en_rx_ring {
 	u8  fcs_del;
 	void *buf;
 	void *rx_info;
+	struct bpf_prog *xdp_prog;
 	unsigned long bytes;
 	unsigned long packets;
 	unsigned long csum_ok;
@@ -558,6 +563,7 @@ struct mlx4_en_priv {
 	struct mlx4_en_frag_info frag_info[MLX4_EN_MAX_RX_FRAGS];
 	u16 num_frags;
 	u16 log_rx_info;
+	int xdp_ring_num;
 
 	struct mlx4_en_tx_ring **tx_ring;
 	struct mlx4_en_rx_ring *rx_ring[MAX_RX_RINGS];

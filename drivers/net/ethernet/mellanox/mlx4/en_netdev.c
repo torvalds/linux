@@ -31,6 +31,7 @@
  *
  */
 
+#include <linux/bpf.h>
 #include <linux/etherdevice.h>
 #include <linux/tcp.h>
 #include <linux/if_vlan.h>
@@ -2112,6 +2113,11 @@ static int mlx4_en_change_mtu(struct net_device *dev, int new_mtu)
 		en_err(priv, "Bad MTU size:%d.\n", new_mtu);
 		return -EPERM;
 	}
+	if (priv->xdp_ring_num && MLX4_EN_EFF_MTU(new_mtu) > FRAG_SZ0) {
+		en_err(priv, "MTU size:%d requires frags but XDP running\n",
+		       new_mtu);
+		return -EOPNOTSUPP;
+	}
 	dev->mtu = new_mtu;
 
 	if (netif_running(dev)) {
@@ -2520,6 +2526,58 @@ static int mlx4_en_set_tx_maxrate(struct net_device *dev, int queue_index, u32 m
 	return err;
 }
 
+static int mlx4_xdp_set(struct net_device *dev, struct bpf_prog *prog)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct bpf_prog *old_prog;
+	int xdp_ring_num;
+	int i;
+
+	xdp_ring_num = prog ? ALIGN(priv->rx_ring_num, MLX4_EN_NUM_UP) : 0;
+
+	if (priv->num_frags > 1) {
+		en_err(priv, "Cannot set XDP if MTU requires multiple frags\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (prog) {
+		prog = bpf_prog_add(prog, priv->rx_ring_num - 1);
+		if (IS_ERR(prog))
+			return PTR_ERR(prog);
+	}
+
+	priv->xdp_ring_num = xdp_ring_num;
+
+	/* This xchg is paired with READ_ONCE in the fast path */
+	for (i = 0; i < priv->rx_ring_num; i++) {
+		old_prog = xchg(&priv->rx_ring[i]->xdp_prog, prog);
+		if (old_prog)
+			bpf_prog_put(old_prog);
+	}
+
+	return 0;
+}
+
+static bool mlx4_xdp_attached(struct net_device *dev)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+
+	return !!priv->xdp_ring_num;
+}
+
+static int mlx4_xdp(struct net_device *dev, struct netdev_xdp *xdp)
+{
+	switch (xdp->command) {
+	case XDP_SETUP_PROG:
+		return mlx4_xdp_set(dev, xdp->prog);
+	case XDP_QUERY_PROG:
+		xdp->prog_attached = mlx4_xdp_attached(dev);
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
 static const struct net_device_ops mlx4_netdev_ops = {
 	.ndo_open		= mlx4_en_open,
 	.ndo_stop		= mlx4_en_close,
@@ -2548,6 +2606,7 @@ static const struct net_device_ops mlx4_netdev_ops = {
 	.ndo_udp_tunnel_del	= mlx4_en_del_vxlan_port,
 	.ndo_features_check	= mlx4_en_features_check,
 	.ndo_set_tx_maxrate	= mlx4_en_set_tx_maxrate,
+	.ndo_xdp		= mlx4_xdp,
 };
 
 static const struct net_device_ops mlx4_netdev_ops_master = {
@@ -2584,6 +2643,7 @@ static const struct net_device_ops mlx4_netdev_ops_master = {
 	.ndo_udp_tunnel_del	= mlx4_en_del_vxlan_port,
 	.ndo_features_check	= mlx4_en_features_check,
 	.ndo_set_tx_maxrate	= mlx4_en_set_tx_maxrate,
+	.ndo_xdp		= mlx4_xdp,
 };
 
 struct mlx4_en_bond {

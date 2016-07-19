@@ -32,6 +32,7 @@
  */
 
 #include <net/busy_poll.h>
+#include <linux/bpf.h>
 #include <linux/mlx4/cq.h>
 #include <linux/slab.h>
 #include <linux/mlx4/qp.h>
@@ -509,6 +510,8 @@ void mlx4_en_destroy_rx_ring(struct mlx4_en_priv *priv,
 	struct mlx4_en_dev *mdev = priv->mdev;
 	struct mlx4_en_rx_ring *ring = *pring;
 
+	if (ring->xdp_prog)
+		bpf_prog_put(ring->xdp_prog);
 	mlx4_free_hwq_res(mdev->dev, &ring->wqres, size * stride + TXBB_SIZE);
 	vfree(ring->rx_info);
 	ring->rx_info = NULL;
@@ -743,6 +746,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 	struct mlx4_en_rx_ring *ring = priv->rx_ring[cq->ring];
 	struct mlx4_en_rx_alloc *frags;
 	struct mlx4_en_rx_desc *rx_desc;
+	struct bpf_prog *xdp_prog;
 	struct sk_buff *skb;
 	int index;
 	int nr;
@@ -758,6 +762,8 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 
 	if (budget <= 0)
 		return polled;
+
+	xdp_prog = READ_ONCE(ring->xdp_prog);
 
 	/* We assume a 1:1 mapping between CQEs and Rx descriptors, so Rx
 	 * descriptor offset can be deduced from the CQE index instead of
@@ -834,6 +840,35 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 		ring->packets++;
 		l2_tunnel = (dev->hw_enc_features & NETIF_F_RXCSUM) &&
 			(cqe->vlan_my_qpn & cpu_to_be32(MLX4_CQE_L2_TUNNEL));
+
+		/* A bpf program gets first chance to drop the packet. It may
+		 * read bytes but not past the end of the frag.
+		 */
+		if (xdp_prog) {
+			struct xdp_buff xdp;
+			dma_addr_t dma;
+			u32 act;
+
+			dma = be64_to_cpu(rx_desc->data[0].addr);
+			dma_sync_single_for_cpu(priv->ddev, dma,
+						priv->frag_info[0].frag_size,
+						DMA_FROM_DEVICE);
+
+			xdp.data = page_address(frags[0].page) +
+							frags[0].page_offset;
+			xdp.data_end = xdp.data + length;
+
+			act = bpf_prog_run_xdp(xdp_prog, &xdp);
+			switch (act) {
+			case XDP_PASS:
+				break;
+			default:
+				bpf_warn_invalid_xdp_action(act);
+			case XDP_ABORTED:
+			case XDP_DROP:
+				goto next;
+			}
+		}
 
 		if (likely(dev->features & NETIF_F_RXCSUM)) {
 			if (cqe->status & cpu_to_be16(MLX4_CQE_STATUS_TCP |
@@ -1062,10 +1097,7 @@ static const int frag_sizes[] = {
 void mlx4_en_calc_rx_buf(struct net_device *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
-	/* VLAN_HLEN is added twice,to support skb vlan tagged with multiple
-	 * headers. (For example: ETH_P_8021Q and ETH_P_8021AD).
-	 */
-	int eff_mtu = dev->mtu + ETH_HLEN + (2 * VLAN_HLEN);
+	int eff_mtu = MLX4_EN_EFF_MTU(dev->mtu);
 	int buf_size = 0;
 	int i = 0;
 
