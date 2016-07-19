@@ -1294,10 +1294,15 @@ static struct request *blk_old_get_request(struct request_queue *q, int rw,
 
 	spin_lock_irq(q->queue_lock);
 	rq = get_request(q, rw, 0, NULL, gfp_mask);
-	if (IS_ERR(rq))
+	if (IS_ERR(rq)) {
 		spin_unlock_irq(q->queue_lock);
-	/* q->queue_lock is unlocked at this point */
+		return rq;
+	}
 
+	/* q->queue_lock is unlocked at this point */
+	rq->__data_len = 0;
+	rq->__sector = (sector_t) -1;
+	rq->bio = rq->biotail = NULL;
 	return rq;
 }
 
@@ -1377,9 +1382,6 @@ EXPORT_SYMBOL(blk_make_request);
 void blk_rq_set_block_pc(struct request *rq)
 {
 	rq->cmd_type = REQ_TYPE_BLOCK_PC;
-	rq->__data_len = 0;
-	rq->__sector = (sector_t) -1;
-	rq->bio = rq->biotail = NULL;
 	memset(rq->__cmd, 0, sizeof(rq->__cmd));
 }
 EXPORT_SYMBOL(blk_rq_set_block_pc);

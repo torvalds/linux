@@ -263,6 +263,10 @@ struct request *blk_mq_alloc_request(struct request_queue *q, int rw,
 		blk_queue_exit(q);
 		return ERR_PTR(-EWOULDBLOCK);
 	}
+
+	rq->__data_len = 0;
+	rq->__sector = (sector_t) -1;
+	rq->bio = rq->biotail = NULL;
 	return rq;
 }
 EXPORT_SYMBOL(blk_mq_alloc_request);

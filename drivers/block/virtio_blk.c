@@ -243,7 +243,6 @@ static int virtblk_get_id(struct gendisk *disk, char *id_str)
 	req = blk_get_request(q, READ, GFP_KERNEL);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
-	blk_rq_set_block_pc(req);
 	req->cmd_type = REQ_TYPE_DRV_PRIV;
 
 	err = blk_rq_map_kern(q, req, id_str, VIRTIO_BLK_ID_BYTES, GFP_KERNEL);
