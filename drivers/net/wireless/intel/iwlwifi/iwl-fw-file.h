@@ -256,6 +256,10 @@ typedef unsigned int __bitwise__ iwl_ucode_tlv_api_t;
  *	instead of 3.
  * @IWL_UCODE_TLV_API_TX_POWER_CHAIN: TX power API has larger command size
  *	(command version 3) that supports per-chain limits
+ * @IWL_UCODE_TLV_API_SCAN_TSF_REPORT: Scan start time reported in scan
+ *	iteration complete notification, and the timestamp reported for RX
+ *	received during scan, are reported in TSF of the mac specified in the
+ *	scan request.
  *
  * @NUM_IWL_UCODE_TLV_API: number of bits used
  */
@@ -267,6 +271,7 @@ enum iwl_ucode_tlv_api {
 	IWL_UCODE_TLV_API_NEW_VERSION           = (__force iwl_ucode_tlv_api_t)20,
 	IWL_UCODE_TLV_API_EXT_SCAN_PRIORITY	= (__force iwl_ucode_tlv_api_t)24,
 	IWL_UCODE_TLV_API_TX_POWER_CHAIN	= (__force iwl_ucode_tlv_api_t)27,
+	IWL_UCODE_TLV_API_SCAN_TSF_REPORT	= (__force iwl_ucode_tlv_api_t)28,
 
 	NUM_IWL_UCODE_TLV_API
 #ifdef __CHECKER__

@@ -653,6 +653,16 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 			IWL_UCODE_TLV_CAPA_WFA_TPC_REP_IE_SUPPORT))
 		hw->wiphy->features |= NL80211_FEATURE_WFA_TPC_IE_IN_PROBES;
 
+	if (fw_has_api(&mvm->fw->ucode_capa,
+		       IWL_UCODE_TLV_API_SCAN_TSF_REPORT)) {
+		wiphy_ext_feature_set(hw->wiphy,
+				      NL80211_EXT_FEATURE_SCAN_START_TIME);
+		wiphy_ext_feature_set(hw->wiphy,
+				      NL80211_EXT_FEATURE_BSS_PARENT_TSF);
+		wiphy_ext_feature_set(hw->wiphy,
+				      NL80211_EXT_FEATURE_SET_SCAN_DWELL);
+	}
+
 	mvm->rts_threshold = IEEE80211_MAX_RTS_THRESHOLD;
 
 #ifdef CONFIG_PM_SLEEP

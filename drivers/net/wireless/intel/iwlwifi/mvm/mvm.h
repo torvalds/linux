@@ -821,6 +821,12 @@ struct iwl_mvm {
 	/* UMAC scan tracking */
 	u32 scan_uid_status[IWL_MVM_MAX_UMAC_SCANS];
 
+	/* start time of last scan in TSF of the mac that requested the scan */
+	u64 scan_start;
+
+	/* the vif that requested the current scan */
+	struct iwl_mvm_vif *scan_vif;
+
 	/* rx chain antennas set through debugfs for the scan command */
 	u8 scan_rx_ant;
 
