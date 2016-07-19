@@ -120,8 +120,7 @@ nla_put_failure:
 
 static int ila_encap_nlsize(struct lwtunnel_state *lwtstate)
 {
-	/* No encapsulation overhead */
-	return 0;
+	return nla_total_size(sizeof(u64)); /* ILA_ATTR_LOCATOR */
 }
 
 static int ila_encap_cmp(struct lwtunnel_state *a, struct lwtunnel_state *b)

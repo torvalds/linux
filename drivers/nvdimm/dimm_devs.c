@@ -75,7 +75,7 @@ int nvdimm_init_nsarea(struct nvdimm_drvdata *ndd)
 	memset(cmd, 0, sizeof(*cmd));
 	nd_desc = nvdimm_bus->nd_desc;
 	return nd_desc->ndctl(nd_desc, to_nvdimm(ndd->dev),
-			ND_CMD_GET_CONFIG_SIZE, cmd, sizeof(*cmd));
+			ND_CMD_GET_CONFIG_SIZE, cmd, sizeof(*cmd), NULL);
 }
 
 int nvdimm_init_config_data(struct nvdimm_drvdata *ndd)
@@ -120,7 +120,7 @@ int nvdimm_init_config_data(struct nvdimm_drvdata *ndd)
 		cmd->in_offset = offset;
 		rc = nd_desc->ndctl(nd_desc, to_nvdimm(ndd->dev),
 				ND_CMD_GET_CONFIG_DATA, cmd,
-				cmd->in_length + sizeof(*cmd));
+				cmd->in_length + sizeof(*cmd), NULL);
 		if (rc || cmd->status) {
 			rc = -ENXIO;
 			break;
@@ -171,7 +171,7 @@ int nvdimm_set_config_data(struct nvdimm_drvdata *ndd, size_t offset,
 		status = ((void *) cmd) + cmd_size - sizeof(u32);
 
 		rc = nd_desc->ndctl(nd_desc, to_nvdimm(ndd->dev),
-				ND_CMD_SET_CONFIG_DATA, cmd, cmd_size);
+				ND_CMD_SET_CONFIG_DATA, cmd, cmd_size, NULL);
 		if (rc || *status) {
 			rc = rc ? rc : -ENXIO;
 			break;

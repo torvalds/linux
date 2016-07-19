@@ -97,6 +97,85 @@ void ath10k_htt_tx_free_msdu_id(struct ath10k_htt *htt, u16 msdu_id)
 	idr_remove(&htt->pending_tx, msdu_id);
 }
 
+static void ath10k_htt_tx_free_cont_frag_desc(struct ath10k_htt *htt)
+{
+	size_t size;
+
+	if (!htt->frag_desc.vaddr)
+		return;
+
+	size = htt->max_num_pending_tx * sizeof(struct htt_msdu_ext_desc);
+
+	dma_free_coherent(htt->ar->dev,
+			  size,
+			  htt->frag_desc.vaddr,
+			  htt->frag_desc.paddr);
+}
+
+static int ath10k_htt_tx_alloc_cont_frag_desc(struct ath10k_htt *htt)
+{
+	struct ath10k *ar = htt->ar;
+	size_t size;
+
+	if (!ar->hw_params.continuous_frag_desc)
+		return 0;
+
+	size = htt->max_num_pending_tx * sizeof(struct htt_msdu_ext_desc);
+	htt->frag_desc.vaddr = dma_alloc_coherent(ar->dev, size,
+						  &htt->frag_desc.paddr,
+						  GFP_KERNEL);
+	if (!htt->frag_desc.vaddr) {
+		ath10k_err(ar, "failed to alloc fragment desc memory\n");
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static void ath10k_htt_tx_free_txq(struct ath10k_htt *htt)
+{
+	struct ath10k *ar = htt->ar;
+	size_t size;
+
+	if (!test_bit(ATH10K_FW_FEATURE_PEER_FLOW_CONTROL, ar->fw_features))
+		return;
+
+	size = sizeof(*htt->tx_q_state.vaddr);
+
+	dma_unmap_single(ar->dev, htt->tx_q_state.paddr, size, DMA_TO_DEVICE);
+	kfree(htt->tx_q_state.vaddr);
+}
+
+static int ath10k_htt_tx_alloc_txq(struct ath10k_htt *htt)
+{
+	struct ath10k *ar = htt->ar;
+	size_t size;
+	int ret;
+
+	if (!test_bit(ATH10K_FW_FEATURE_PEER_FLOW_CONTROL, ar->fw_features))
+		return 0;
+
+	htt->tx_q_state.num_peers = HTT_TX_Q_STATE_NUM_PEERS;
+	htt->tx_q_state.num_tids = HTT_TX_Q_STATE_NUM_TIDS;
+	htt->tx_q_state.type = HTT_Q_DEPTH_TYPE_BYTES;
+
+	size = sizeof(*htt->tx_q_state.vaddr);
+	htt->tx_q_state.vaddr = kzalloc(size, GFP_KERNEL);
+	if (!htt->tx_q_state.vaddr)
+		return -ENOMEM;
+
+	htt->tx_q_state.paddr = dma_map_single(ar->dev, htt->tx_q_state.vaddr,
+					       size, DMA_TO_DEVICE);
+	ret = dma_mapping_error(ar->dev, htt->tx_q_state.paddr);
+	if (ret) {
+		ath10k_warn(ar, "failed to dma map tx_q_state: %d\n", ret);
+		kfree(htt->tx_q_state.vaddr);
+		return -EIO;
+	}
+
+	return 0;
+}
+
 int ath10k_htt_tx_alloc(struct ath10k_htt *htt)
 {
 	struct ath10k *ar = htt->ar;
@@ -118,29 +197,32 @@ int ath10k_htt_tx_alloc(struct ath10k_htt *htt)
 		goto free_idr_pending_tx;
 	}
 
-	if (!ar->hw_params.continuous_frag_desc)
-		goto skip_frag_desc_alloc;
-
-	size = htt->max_num_pending_tx * sizeof(struct htt_msdu_ext_desc);
-	htt->frag_desc.vaddr = dma_alloc_coherent(ar->dev, size,
-						  &htt->frag_desc.paddr,
-						  GFP_KERNEL);
-	if (!htt->frag_desc.vaddr) {
-		ath10k_warn(ar, "failed to alloc fragment desc memory\n");
-		ret = -ENOMEM;
+	ret = ath10k_htt_tx_alloc_cont_frag_desc(htt);
+	if (ret) {
+		ath10k_err(ar, "failed to alloc cont frag desc: %d\n", ret);
 		goto free_txbuf;
 	}
 
-skip_frag_desc_alloc:
+	ret = ath10k_htt_tx_alloc_txq(htt);
+	if (ret) {
+		ath10k_err(ar, "failed to alloc txq: %d\n", ret);
+		goto free_frag_desc;
+	}
+
 	return 0;
+
+free_frag_desc:
+	ath10k_htt_tx_free_cont_frag_desc(htt);
 
 free_txbuf:
 	size = htt->max_num_pending_tx *
 			  sizeof(struct ath10k_htt_txbuf);
 	dma_free_coherent(htt->ar->dev, size, htt->txbuf.vaddr,
 			  htt->txbuf.paddr);
+
 free_idr_pending_tx:
 	idr_destroy(&htt->pending_tx);
+
 	return ret;
 }
 
@@ -174,12 +256,8 @@ void ath10k_htt_tx_free(struct ath10k_htt *htt)
 				  htt->txbuf.paddr);
 	}
 
-	if (htt->frag_desc.vaddr) {
-		size = htt->max_num_pending_tx *
-				  sizeof(struct htt_msdu_ext_desc);
-		dma_free_coherent(htt->ar->dev, size, htt->frag_desc.vaddr,
-				  htt->frag_desc.paddr);
-	}
+	ath10k_htt_tx_free_txq(htt);
+	ath10k_htt_tx_free_cont_frag_desc(htt);
 }
 
 void ath10k_htt_htc_tx_complete(struct ath10k *ar, struct sk_buff *skb)
@@ -268,7 +346,9 @@ int ath10k_htt_send_frag_desc_bank_cfg(struct ath10k_htt *htt)
 	struct ath10k *ar = htt->ar;
 	struct sk_buff *skb;
 	struct htt_cmd *cmd;
+	struct htt_frag_desc_bank_cfg *cfg;
 	int ret, size;
+	u8 info;
 
 	if (!ar->hw_params.continuous_frag_desc)
 		return 0;
@@ -286,14 +366,30 @@ int ath10k_htt_send_frag_desc_bank_cfg(struct ath10k_htt *htt)
 	skb_put(skb, size);
 	cmd = (struct htt_cmd *)skb->data;
 	cmd->hdr.msg_type = HTT_H2T_MSG_TYPE_FRAG_DESC_BANK_CFG;
-	cmd->frag_desc_bank_cfg.info = 0;
-	cmd->frag_desc_bank_cfg.num_banks = 1;
-	cmd->frag_desc_bank_cfg.desc_size = sizeof(struct htt_msdu_ext_desc);
-	cmd->frag_desc_bank_cfg.bank_base_addrs[0] =
-				__cpu_to_le32(htt->frag_desc.paddr);
-	cmd->frag_desc_bank_cfg.bank_id[0].bank_min_id = 0;
-	cmd->frag_desc_bank_cfg.bank_id[0].bank_max_id =
-				__cpu_to_le16(htt->max_num_pending_tx - 1);
+
+	info = 0;
+	info |= SM(htt->tx_q_state.type,
+		   HTT_FRAG_DESC_BANK_CFG_INFO_Q_STATE_DEPTH_TYPE);
+
+	if (test_bit(ATH10K_FW_FEATURE_PEER_FLOW_CONTROL, ar->fw_features))
+		info |= HTT_FRAG_DESC_BANK_CFG_INFO_Q_STATE_VALID;
+
+	cfg = &cmd->frag_desc_bank_cfg;
+	cfg->info = info;
+	cfg->num_banks = 1;
+	cfg->desc_size = sizeof(struct htt_msdu_ext_desc);
+	cfg->bank_base_addrs[0] = __cpu_to_le32(htt->frag_desc.paddr);
+	cfg->bank_id[0].bank_min_id = 0;
+	cfg->bank_id[0].bank_max_id = __cpu_to_le16(htt->max_num_pending_tx -
+						    1);
+
+	cfg->q_state.paddr = cpu_to_le32(htt->tx_q_state.paddr);
+	cfg->q_state.num_peers = cpu_to_le16(htt->tx_q_state.num_peers);
+	cfg->q_state.num_tids = cpu_to_le16(htt->tx_q_state.num_tids);
+	cfg->q_state.record_size = HTT_TX_Q_STATE_ENTRY_SIZE;
+	cfg->q_state.record_multiplier = HTT_TX_Q_STATE_ENTRY_MULTIPLIER;
+
+	ath10k_dbg(ar, ATH10K_DBG_HTT, "htt frag desc bank cmd\n");
 
 	ret = ath10k_htc_send(&htt->ar->htc, htt->eid, skb);
 	if (ret) {

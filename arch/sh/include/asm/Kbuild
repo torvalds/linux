@@ -1,5 +1,6 @@
 
 generic-y += bitsperlong.h
+generic-y += clkdev.h
 generic-y += cputime.h
 generic-y += current.h
 generic-y += delay.h

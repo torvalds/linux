@@ -383,7 +383,7 @@ static int __hw_perf_event_init(struct perf_event *event)
 
 	/* Validate the counter that is assigned to this event.
 	 * Because the counter facility can use numerous counters at the
-	 * same time without constraints, it is not necessary to explicity
+	 * same time without constraints, it is not necessary to explicitly
 	 * validate event groups (event->group_leader != event).
 	 */
 	err = validate_event(hwc);
@@ -670,6 +670,7 @@ static int cpumf_pmu_notifier(struct notifier_block *self, unsigned long action,
 
 	switch (action & ~CPU_TASKS_FROZEN) {
 	case CPU_ONLINE:
+	case CPU_DOWN_FAILED:
 		flags = PMC_INIT;
 		smp_call_function_single(cpu, setup_pmc_cpu, &flags, 1);
 		break;

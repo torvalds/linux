@@ -195,9 +195,7 @@ struct iommu_ops {
 	/* Get the number of windows per domain */
 	u32 (*domain_get_windows)(struct iommu_domain *domain);
 
-#ifdef CONFIG_OF_IOMMU
 	int (*of_xlate)(struct device *dev, struct of_phandle_args *args);
-#endif
 
 	unsigned long pgsize_bitmap;
 	void *priv;

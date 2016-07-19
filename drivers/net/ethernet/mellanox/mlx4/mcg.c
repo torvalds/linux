@@ -39,8 +39,6 @@
 
 #include "mlx4.h"
 
-static const u8 zero_gid[16];	/* automatically initialized to 0 */
-
 int mlx4_get_mgm_entry_size(struct mlx4_dev *dev)
 {
 	return 1 << dev->oper_log_mgm_entry_size;
@@ -752,8 +750,10 @@ static const u8 __promisc_mode[] = {
 	[MLX4_FS_REGULAR]   = 0x0,
 	[MLX4_FS_ALL_DEFAULT] = 0x1,
 	[MLX4_FS_MC_DEFAULT] = 0x3,
-	[MLX4_FS_UC_SNIFFER] = 0x4,
-	[MLX4_FS_MC_SNIFFER] = 0x5,
+	[MLX4_FS_MIRROR_RX_PORT] = 0x4,
+	[MLX4_FS_MIRROR_SX_PORT] = 0x5,
+	[MLX4_FS_UC_SNIFFER] = 0x6,
+	[MLX4_FS_MC_SNIFFER] = 0x7,
 };
 
 int mlx4_map_sw_to_hw_steering_mode(struct mlx4_dev *dev,

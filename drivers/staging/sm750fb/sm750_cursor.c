@@ -16,45 +16,34 @@
 #include <linux/screen_info.h>
 
 #include "sm750.h"
-#include "sm750_help.h"
 #include "sm750_cursor.h"
 
 
-#define PEEK32(addr) \
-readl(cursor->mmio + (addr))
 
 #define POKE32(addr, data) \
 writel((data), cursor->mmio + (addr))
 
 /* cursor control for voyager and 718/750*/
 #define HWC_ADDRESS                         0x0
-#define HWC_ADDRESS_ENABLE                  31:31
-#define HWC_ADDRESS_ENABLE_DISABLE          0
-#define HWC_ADDRESS_ENABLE_ENABLE           1
-#define HWC_ADDRESS_EXT                     27:27
-#define HWC_ADDRESS_EXT_LOCAL               0
-#define HWC_ADDRESS_EXT_EXTERNAL            1
-#define HWC_ADDRESS_CS                      26:26
-#define HWC_ADDRESS_CS_0                    0
-#define HWC_ADDRESS_CS_1                    1
-#define HWC_ADDRESS_ADDRESS                 25:0
+#define HWC_ADDRESS_ENABLE                  BIT(31)
+#define HWC_ADDRESS_EXT                     BIT(27)
+#define HWC_ADDRESS_CS                      BIT(26)
+#define HWC_ADDRESS_ADDRESS_MASK            0x3ffffff
 
 #define HWC_LOCATION                        0x4
-#define HWC_LOCATION_TOP                    27:27
-#define HWC_LOCATION_TOP_INSIDE             0
-#define HWC_LOCATION_TOP_OUTSIDE            1
-#define HWC_LOCATION_Y                      26:16
-#define HWC_LOCATION_LEFT                   11:11
-#define HWC_LOCATION_LEFT_INSIDE            0
-#define HWC_LOCATION_LEFT_OUTSIDE           1
-#define HWC_LOCATION_X                      10:0
+#define HWC_LOCATION_TOP                    BIT(27)
+#define HWC_LOCATION_Y_SHIFT                16
+#define HWC_LOCATION_Y_MASK                 (0x7ff << 16)
+#define HWC_LOCATION_LEFT                   BIT(11)
+#define HWC_LOCATION_X_MASK                 0x7ff
 
 #define HWC_COLOR_12                        0x8
-#define HWC_COLOR_12_2_RGB565               31:16
-#define HWC_COLOR_12_1_RGB565               15:0
+#define HWC_COLOR_12_2_RGB565_SHIFT         16
+#define HWC_COLOR_12_2_RGB565_MASK          (0xffff << 16)
+#define HWC_COLOR_12_1_RGB565_MASK          0xffff
 
 #define HWC_COLOR_3                         0xC
-#define HWC_COLOR_3_RGB565                  15:0
+#define HWC_COLOR_3_RGB565_MASK             0xffff
 
 
 /* hw_cursor_xxx works for voyager,718 and 750 */
@@ -62,9 +51,7 @@ void hw_cursor_enable(struct lynx_cursor *cursor)
 {
 	u32 reg;
 
-	reg = FIELD_VALUE(0, HWC_ADDRESS, ADDRESS, cursor->offset)|
-			FIELD_SET(0, HWC_ADDRESS, EXT, LOCAL)|
-			FIELD_SET(0, HWC_ADDRESS, ENABLE, ENABLE);
+	reg = (cursor->offset & HWC_ADDRESS_ADDRESS_MASK) | HWC_ADDRESS_ENABLE;
 	POKE32(HWC_ADDRESS, reg);
 }
 void hw_cursor_disable(struct lynx_cursor *cursor)
@@ -83,14 +70,17 @@ void hw_cursor_setPos(struct lynx_cursor *cursor,
 {
 	u32 reg;
 
-	reg = FIELD_VALUE(0, HWC_LOCATION, Y, y)|
-			FIELD_VALUE(0, HWC_LOCATION, X, x);
+	reg = (((y << HWC_LOCATION_Y_SHIFT) & HWC_LOCATION_Y_MASK) |
+		(x & HWC_LOCATION_X_MASK));
 	POKE32(HWC_LOCATION, reg);
 }
 void hw_cursor_setColor(struct lynx_cursor *cursor,
 						u32 fg, u32 bg)
 {
-	POKE32(HWC_COLOR_12, (fg<<16)|(bg&0xffff));
+	u32 reg = (fg << HWC_COLOR_12_2_RGB565_SHIFT) &
+		HWC_COLOR_12_2_RGB565_MASK;
+
+	POKE32(HWC_COLOR_12, reg | (bg & HWC_COLOR_12_1_RGB565_MASK));
 	POKE32(HWC_COLOR_3, 0xffe0);
 }
 
@@ -115,15 +105,6 @@ void hw_cursor_setData(struct lynx_cursor *cursor,
 	pstart = cursor->vstart;
 	pbuffer = pstart;
 
-/*
-	if(odd &1){
-		hw_cursor_setData2(cursor,rop,pcol,pmsk);
-	}
-	odd++;
-	if(odd > 0xfffffff0)
-		odd=0;
-*/
-
 	for (i = 0; i < count; i++) {
 		color = *pcol++;
 		mask = *pmsk++;
@@ -143,8 +124,7 @@ void hw_cursor_setData(struct lynx_cursor *cursor,
 		iowrite16(data, pbuffer);
 
 		/* assume pitch is 1,2,4,8,...*/
-		if ((i+1) % pitch == 0)
-		{
+		if ((i + 1) % pitch == 0) {
 			/* need a return */
 			pstart += offset;
 			pbuffer = pstart;

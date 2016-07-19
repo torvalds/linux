@@ -31,26 +31,25 @@ struct memcons {
 	__be32 in_cons;
 };
 
-static ssize_t opal_msglog_read(struct file *file, struct kobject *kobj,
-				struct bin_attribute *bin_attr, char *to,
-				loff_t pos, size_t count)
+static struct memcons *opal_memcons = NULL;
+
+ssize_t opal_msglog_copy(char *to, loff_t pos, size_t count)
 {
-	struct memcons *mc = bin_attr->private;
 	const char *conbuf;
 	ssize_t ret;
 	size_t first_read = 0;
 	uint32_t out_pos, avail;
 
-	if (!mc)
+	if (!opal_memcons)
 		return -ENODEV;
 
-	out_pos = be32_to_cpu(ACCESS_ONCE(mc->out_pos));
+	out_pos = be32_to_cpu(ACCESS_ONCE(opal_memcons->out_pos));
 
 	/* Now we've read out_pos, put a barrier in before reading the new
 	 * data it points to in conbuf. */
 	smp_rmb();
 
-	conbuf = phys_to_virt(be64_to_cpu(mc->obuf_phys));
+	conbuf = phys_to_virt(be64_to_cpu(opal_memcons->obuf_phys));
 
 	/* When the buffer has wrapped, read from the out_pos marker to the end
 	 * of the buffer, and then read the remaining data as in the un-wrapped
@@ -58,7 +57,7 @@ static ssize_t opal_msglog_read(struct file *file, struct kobject *kobj,
 	if (out_pos & MEMCONS_OUT_POS_WRAP) {
 
 		out_pos &= MEMCONS_OUT_POS_MASK;
-		avail = be32_to_cpu(mc->obuf_size) - out_pos;
+		avail = be32_to_cpu(opal_memcons->obuf_size) - out_pos;
 
 		ret = memory_read_from_buffer(to, count, &pos,
 				conbuf + out_pos, avail);
@@ -76,7 +75,7 @@ static ssize_t opal_msglog_read(struct file *file, struct kobject *kobj,
 	}
 
 	/* Sanity check. The firmware should not do this to us. */
-	if (out_pos > be32_to_cpu(mc->obuf_size)) {
+	if (out_pos > be32_to_cpu(opal_memcons->obuf_size)) {
 		pr_err("OPAL: memory console corruption. Aborting read.\n");
 		return -EINVAL;
 	}
@@ -89,6 +88,13 @@ static ssize_t opal_msglog_read(struct file *file, struct kobject *kobj,
 	ret += first_read;
 out:
 	return ret;
+}
+
+static ssize_t opal_msglog_read(struct file *file, struct kobject *kobj,
+				struct bin_attribute *bin_attr, char *to,
+				loff_t pos, size_t count)
+{
+	return opal_msglog_copy(to, pos, count);
 }
 
 static struct bin_attribute opal_msglog_attr = {
@@ -117,7 +123,15 @@ void __init opal_msglog_init(void)
 		return;
 	}
 
-	opal_msglog_attr.private = mc;
+	opal_memcons = mc;
+}
+
+void __init opal_msglog_sysfs_init(void)
+{
+	if (!opal_memcons) {
+		pr_warn("OPAL: message log initialisation failed, not creating sysfs entry\n");
+		return;
+	}
 
 	if (sysfs_create_bin_file(opal_kobj, &opal_msglog_attr) != 0)
 		pr_warn("OPAL: sysfs file creation failed\n");

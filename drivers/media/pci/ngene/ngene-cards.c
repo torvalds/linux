@@ -57,7 +57,7 @@ static int tuner_attach_stv6110(struct ngene_channel *chan)
 		chan->dev->card_info->fe_config[chan->number];
 	struct stv6110x_config *tunerconf = (struct stv6110x_config *)
 		chan->dev->card_info->tuner_config[chan->number];
-	struct stv6110x_devctl *ctl;
+	const struct stv6110x_devctl *ctl;
 
 	/* tuner 1+2: i2c adapter #0, tuner 3+4: i2c adapter #1 */
 	if (chan->number < 2)

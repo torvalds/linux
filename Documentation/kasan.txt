@@ -12,8 +12,7 @@ KASAN uses compile-time instrumentation for checking every memory access,
 therefore you will need a GCC version 4.9.2 or later. GCC 5.0 or later is
 required for detection of out-of-bounds accesses to stack or global variables.
 
-Currently KASAN is supported only for x86_64 architecture and requires the
-kernel to be built with the SLUB allocator.
+Currently KASAN is supported only for x86_64 architecture.
 
 1. Usage
 ========
@@ -27,7 +26,7 @@ inline are compiler instrumentation types. The former produces smaller binary
 the latter is 1.1 - 2 times faster. Inline instrumentation requires a GCC
 version 5.0 or later.
 
-Currently KASAN works only with the SLUB memory allocator.
+KASAN works with both SLUB and SLAB memory allocators.
 For better bug detection and nicer reporting, enable CONFIG_STACKTRACE.
 
 To disable instrumentation for specific files or directories, add a line

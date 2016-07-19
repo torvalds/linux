@@ -530,7 +530,7 @@ static void mipspmu_enable(struct pmu *pmu)
 
 /*
  * MIPS performance counters can be per-TC. The control registers can
- * not be directly accessed accross CPUs. Hence if we want to do global
+ * not be directly accessed across CPUs. Hence if we want to do global
  * control, we need cross CPU calls. on_each_cpu() can help us, but we
  * can not make sure this function is called with interrupts enabled. So
  * here we pause local counters and then grab a rwlock and leave the

@@ -20,14 +20,6 @@
 #include <linux/spi/spi.h>
 #include <linux/platform_device.h>
 
-#define FBTFT_NOP		0x00
-#define FBTFT_SWRESET	0x01
-#define FBTFT_RDDID		0x04
-#define FBTFT_RDDST		0x09
-#define FBTFT_CASET		0x2A
-#define FBTFT_RASET		0x2B
-#define FBTFT_RAMWR		0x2C
-
 #define FBTFT_ONBOARD_BACKLIGHT 2
 
 #define FBTFT_GPIO_NO_MATCH		0xFFFF

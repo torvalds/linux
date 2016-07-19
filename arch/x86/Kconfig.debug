@@ -74,28 +74,16 @@ config EFI_PGT_DUMP
 	  issues with the mapping of the EFI runtime regions into that
 	  table.
 
-config DEBUG_RODATA
-	bool "Write protect kernel read-only data structures"
-	default y
-	depends on DEBUG_KERNEL
-	---help---
-	  Mark the kernel read-only data as write-protected in the pagetables,
-	  in order to catch accidental (and incorrect) writes to such const
-	  data. This is recommended so that we can catch kernel bugs sooner.
-	  If in doubt, say "Y".
-
 config DEBUG_RODATA_TEST
-	bool "Testcase for the DEBUG_RODATA feature"
-	depends on DEBUG_RODATA
+	bool "Testcase for the marking rodata read-only"
 	default y
 	---help---
-	  This option enables a testcase for the DEBUG_RODATA
-	  feature as well as for the change_page_attr() infrastructure.
+	  This option enables a testcase for the setting rodata read-only
+	  as well as for the change_page_attr() infrastructure.
 	  If in doubt, say "N"
 
 config DEBUG_WX
 	bool "Warn on W+X mappings at boot"
-	depends on DEBUG_RODATA
 	select X86_PTDUMP_CORE
 	---help---
 	  Generate a warning if any W+X mappings are found at boot.
@@ -349,16 +337,6 @@ config DEBUG_IMR_SELFTEST
 	  test your changes.
 
 	  If unsure say N here.
-
-config X86_DEBUG_STATIC_CPU_HAS
-	bool "Debug alternatives"
-	depends on DEBUG_KERNEL
-	---help---
-	  This option causes additional code to be generated which
-	  fails if static_cpu_has() is used before alternatives have
-	  run.
-
-	  If unsure, say N.
 
 config X86_DEBUG_FPU
 	bool "Debug the x86 FPU code"

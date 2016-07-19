@@ -925,9 +925,9 @@ static int s5h1409_read_ber(struct dvb_frontend *fe, u32 *ber)
 	return s5h1409_read_ucblocks(fe, ber);
 }
 
-static int s5h1409_get_frontend(struct dvb_frontend *fe)
+static int s5h1409_get_frontend(struct dvb_frontend *fe,
+				struct dtv_frontend_properties *p)
 {
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct s5h1409_state *state = fe->demodulator_priv;
 
 	p->frequency = state->current_frequency;

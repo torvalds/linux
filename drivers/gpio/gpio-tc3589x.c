@@ -272,7 +272,8 @@ static int tc3589x_gpio_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = gpiochip_add_data(&tc3589x_gpio->chip, tc3589x_gpio);
+	ret = devm_gpiochip_add_data(&pdev->dev, &tc3589x_gpio->chip,
+				     tc3589x_gpio);
 	if (ret) {
 		dev_err(&pdev->dev, "unable to add gpiochip: %d\n", ret);
 		return ret;
@@ -299,20 +300,10 @@ static int tc3589x_gpio_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int tc3589x_gpio_remove(struct platform_device *pdev)
-{
-	struct tc3589x_gpio *tc3589x_gpio = platform_get_drvdata(pdev);
-
-	gpiochip_remove(&tc3589x_gpio->chip);
-
-	return 0;
-}
-
 static struct platform_driver tc3589x_gpio_driver = {
 	.driver.name	= "tc3589x-gpio",
 	.driver.owner	= THIS_MODULE,
 	.probe		= tc3589x_gpio_probe,
-	.remove		= tc3589x_gpio_remove,
 };
 
 static int __init tc3589x_gpio_init(void)

@@ -179,7 +179,7 @@ int spk_synth_is_alive_restart(struct spk_synth *synth)
 {
 	if (synth->alive)
 		return 1;
-	if (!synth->alive && spk_wait_for_xmitr() > 0) {
+	if (spk_wait_for_xmitr() > 0) {
 		/* restart */
 		synth->alive = 1;
 		synth_printf("%s", synth->init);

@@ -1520,12 +1520,6 @@ __init void lguest_init(void)
 	 */
 	reserve_top_address(lguest_data.reserve_mem);
 
-	/*
-	 * If we don't initialize the lock dependency checker now, it crashes
-	 * atomic_notifier_chain_register, then paravirt_disable_iospace.
-	 */
-	lockdep_init();
-
 	/* Hook in our special panic hypercall code. */
 	atomic_notifier_chain_register(&panic_notifier_list, &paniced);
 
@@ -1535,7 +1529,7 @@ __init void lguest_init(void)
 	 */
 	cpu_detect(&new_cpu_data);
 	/* head.S usually sets up the first capability word, so do it here. */
-	new_cpu_data.x86_capability[0] = cpuid_edx(1);
+	new_cpu_data.x86_capability[CPUID_1_EDX] = cpuid_edx(1);
 
 	/* Math is always hard! */
 	set_cpu_cap(&new_cpu_data, X86_FEATURE_FPU);

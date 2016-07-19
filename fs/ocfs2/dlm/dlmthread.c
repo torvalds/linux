@@ -106,7 +106,8 @@ int __dlm_lockres_unused(struct dlm_lock_resource *res)
 	if (!list_empty(&res->dirty) || res->state & DLM_LOCK_RES_DIRTY)
 		return 0;
 
-	if (res->state & DLM_LOCK_RES_RECOVERING)
+	if (res->state & (DLM_LOCK_RES_RECOVERING|
+			DLM_LOCK_RES_RECOVERY_WAITING))
 		return 0;
 
 	/* Another node has this resource with this node as the master */
@@ -200,6 +201,13 @@ static void dlm_purge_lockres(struct dlm_ctxt *dlm,
 		list_del_init(&res->purge);
 		dlm_lockres_put(res);
 		dlm->purge_count--;
+	}
+
+	if (!master && ret != 0) {
+		mlog(0, "%s: deref %.*s in progress or master goes down\n",
+			dlm->name, res->lockname.len, res->lockname.name);
+		spin_unlock(&res->spinlock);
+		return;
 	}
 
 	if (!__dlm_lockres_unused(res)) {
@@ -700,7 +708,8 @@ static int dlm_thread(void *data)
 			 * dirty for a short while. */
 			BUG_ON(res->state & DLM_LOCK_RES_MIGRATING);
 			if (res->state & (DLM_LOCK_RES_IN_PROGRESS |
-					  DLM_LOCK_RES_RECOVERING)) {
+					  DLM_LOCK_RES_RECOVERING |
+					  DLM_LOCK_RES_RECOVERY_WAITING)) {
 				/* move it to the tail and keep going */
 				res->state &= ~DLM_LOCK_RES_DIRTY;
 				spin_unlock(&res->spinlock);

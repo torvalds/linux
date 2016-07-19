@@ -38,7 +38,7 @@
 
 int wlcore_event_fw_logger(struct wl1271 *wl)
 {
-	u32 ret;
+	int ret;
 	struct fw_logger_information fw_log;
 	u8  *buffer;
 	u32 internal_fw_addrbase = WL18XX_DATA_RAM_BASE_ADDRESS;

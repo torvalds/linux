@@ -346,7 +346,6 @@ void lustre_swab_lustre_cfg(struct lustre_cfg *lcfg)
 		__swab32s(&lcfg->lcfg_buflens[i]);
 
 	print_lustre_cfg(lcfg);
-	return;
 }
 EXPORT_SYMBOL(lustre_swab_lustre_cfg);
 
@@ -387,7 +386,8 @@ void lustre_swab_cfg_marker(struct cfg_marker *marker, int swab, int size)
 		 *
 		 * Overwrite fields from the end first, so they are not
 		 * clobbered, and use memmove() instead of memcpy() because
-		 * the source and target buffers overlap.  bug 16771 */
+		 * the source and target buffers overlap.  bug 16771
+		 */
 		createtime = cm32->cm_createtime;
 		canceltime = cm32->cm_canceltime;
 		memmove(marker->cm_comment, cm32->cm_comment, MTI_NAMELEN32);
@@ -406,7 +406,5 @@ void lustre_swab_cfg_marker(struct cfg_marker *marker, int swab, int size)
 		__swab64s(&marker->cm_createtime);
 		__swab64s(&marker->cm_canceltime);
 	}
-
-	return;
 }
 EXPORT_SYMBOL(lustre_swab_cfg_marker);

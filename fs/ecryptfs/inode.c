@@ -29,7 +29,6 @@
 #include <linux/dcache.h>
 #include <linux/namei.h>
 #include <linux/mount.h>
-#include <linux/crypto.h>
 #include <linux/fs_stack.h>
 #include <linux/slab.h>
 #include <linux/xattr.h>
@@ -397,11 +396,9 @@ static struct dentry *ecryptfs_lookup(struct inode *ecryptfs_dir_inode,
 	int rc = 0;
 
 	lower_dir_dentry = ecryptfs_dentry_to_lower(ecryptfs_dentry->d_parent);
-	inode_lock(d_inode(lower_dir_dentry));
-	lower_dentry = lookup_one_len(ecryptfs_dentry->d_name.name,
+	lower_dentry = lookup_one_len_unlocked(ecryptfs_dentry->d_name.name,
 				      lower_dir_dentry,
 				      ecryptfs_dentry->d_name.len);
-	inode_unlock(d_inode(lower_dir_dentry));
 	if (IS_ERR(lower_dentry)) {
 		rc = PTR_ERR(lower_dentry);
 		ecryptfs_printk(KERN_DEBUG, "%s: lookup_one_len() returned "
@@ -419,18 +416,16 @@ static struct dentry *ecryptfs_lookup(struct inode *ecryptfs_dir_inode,
 	dput(lower_dentry);
 	rc = ecryptfs_encrypt_and_encode_filename(
 		&encrypted_and_encoded_name, &encrypted_and_encoded_name_size,
-		NULL, mount_crypt_stat, ecryptfs_dentry->d_name.name,
+		mount_crypt_stat, ecryptfs_dentry->d_name.name,
 		ecryptfs_dentry->d_name.len);
 	if (rc) {
 		printk(KERN_ERR "%s: Error attempting to encrypt and encode "
 		       "filename; rc = [%d]\n", __func__, rc);
 		goto out;
 	}
-	inode_lock(d_inode(lower_dir_dentry));
-	lower_dentry = lookup_one_len(encrypted_and_encoded_name,
+	lower_dentry = lookup_one_len_unlocked(encrypted_and_encoded_name,
 				      lower_dir_dentry,
 				      encrypted_and_encoded_name_size);
-	inode_unlock(d_inode(lower_dir_dentry));
 	if (IS_ERR(lower_dentry)) {
 		rc = PTR_ERR(lower_dentry);
 		ecryptfs_printk(KERN_DEBUG, "%s: lookup_one_len() returned "
@@ -502,7 +497,6 @@ static int ecryptfs_symlink(struct inode *dir, struct dentry *dentry,
 		dir->i_sb)->mount_crypt_stat;
 	rc = ecryptfs_encrypt_and_encode_filename(&encoded_symname,
 						  &encoded_symlen,
-						  NULL,
 						  mount_crypt_stat, symname,
 						  strlen(symname));
 	if (rc)
@@ -769,10 +763,10 @@ static int truncate_upper(struct dentry *dentry, struct iattr *ia,
 	} else { /* ia->ia_size < i_size_read(inode) */
 		/* We're chopping off all the pages down to the page
 		 * in which ia->ia_size is located. Fill in the end of
-		 * that page from (ia->ia_size & ~PAGE_CACHE_MASK) to
-		 * PAGE_CACHE_SIZE with zeros. */
-		size_t num_zeros = (PAGE_CACHE_SIZE
-				    - (ia->ia_size & ~PAGE_CACHE_MASK));
+		 * that page from (ia->ia_size & ~PAGE_MASK) to
+		 * PAGE_SIZE with zeros. */
+		size_t num_zeros = (PAGE_SIZE
+				    - (ia->ia_size & ~PAGE_MASK));
 
 		if (!(crypt_stat->flags & ECRYPTFS_ENCRYPTED)) {
 			truncate_setsize(inode, ia->ia_size);

@@ -1,7 +1,7 @@
 /* DVB USB framework compliant Linux driver for the Hauppauge WinTV-NOVA-T usb2
  * DVB-T receiver.
  *
- * Copyright (C) 2004-5 Patrick Boettcher (patrick.boettcher@desy.de)
+ * Copyright (C) 2004-5 Patrick Boettcher (patrick.boettcher@posteo.de)
  *
  *	This program is free software; you can redistribute it and/or modify it
  *	under the terms of the GNU General Public License as published by the Free
@@ -227,7 +227,7 @@ static struct usb_driver nova_t_driver = {
 
 module_usb_driver(nova_t_driver);
 
-MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@desy.de>");
+MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@posteo.de>");
 MODULE_DESCRIPTION("Hauppauge WinTV-NOVA-T usb2");
 MODULE_VERSION("1.0");
 MODULE_LICENSE("GPL");

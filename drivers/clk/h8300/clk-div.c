@@ -13,7 +13,7 @@ static DEFINE_SPINLOCK(clklock);
 
 static void __init h8300_div_clk_setup(struct device_node *node)
 {
-	int num_parents;
+	unsigned int num_parents;
 	struct clk *clk;
 	const char *clk_name = node->name;
 	const char *parent_name;
@@ -22,7 +22,7 @@ static void __init h8300_div_clk_setup(struct device_node *node)
 	int offset;
 
 	num_parents = of_clk_get_parent_count(node);
-	if (num_parents < 1) {
+	if (!num_parents) {
 		pr_err("%s: no parent found", clk_name);
 		return;
 	}
@@ -34,7 +34,7 @@ static void __init h8300_div_clk_setup(struct device_node *node)
 	}
 	offset = (unsigned long)divcr & 3;
 	offset = (3 - offset) * 8;
-	divcr = (void *)((unsigned long)divcr & ~3);
+	divcr = (void __iomem *)((unsigned long)divcr & ~3);
 
 	parent_name = of_clk_get_parent_name(node, 0);
 	of_property_read_u32(node, "renesas,width", &width);

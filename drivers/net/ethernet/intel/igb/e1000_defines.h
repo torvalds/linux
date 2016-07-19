@@ -356,7 +356,8 @@
 /* Ethertype field values */
 #define ETHERNET_IEEE_VLAN_TYPE 0x8100  /* 802.3ac packet */
 
-#define MAX_JUMBO_FRAME_SIZE    0x3F00
+/* As per the EAS the maximum supported size is 9.5KB (9728 bytes) */
+#define MAX_JUMBO_FRAME_SIZE	0x2600
 
 /* PBA constants */
 #define E1000_PBA_34K 0x0022

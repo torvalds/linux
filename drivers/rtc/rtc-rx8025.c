@@ -7,7 +7,7 @@
  * All rights reserved.
  *
  * Modified by fengjh at rising.com.cn
- * <http://lists.lm-sensors.org/mailman/listinfo/lm-sensors>
+ * <lm-sensors@lm-sensors.org>
  * 2006.11
  *
  * Code cleanup by Sergei Poselenov, <sposelenov@emcraft.com>
@@ -65,7 +65,6 @@
 
 static const struct i2c_device_id rx8025_id[] = {
 	{ "rx8025", 0 },
-	{ "rv8803", 1 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rx8025_id);
@@ -147,8 +146,10 @@ static irqreturn_t rx8025_handle_irq(int irq, void *dev_id)
 {
 	struct i2c_client *client = dev_id;
 	struct rx8025_data *rx8025 = i2c_get_clientdata(client);
+	struct mutex *lock = &rx8025->rtc->ops_lock;
 	int status;
 
+	mutex_lock(lock);
 	status = rx8025_read_reg(client, RX8025_REG_CTRL2);
 	if (status < 0)
 		goto out;
@@ -173,6 +174,8 @@ static irqreturn_t rx8025_handle_irq(int irq, void *dev_id)
 	}
 
 out:
+	mutex_unlock(lock);
+
 	return IRQ_HANDLED;
 }
 
@@ -341,7 +344,17 @@ static int rx8025_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	if (client->irq <= 0)
 		return -EINVAL;
 
-	/* Hardware alarm precision is 1 minute! */
+	/*
+	 * Hardware alarm precision is 1 minute!
+	 * round up to nearest minute
+	 */
+	if (t->time.tm_sec) {
+		time64_t alarm_time = rtc_tm_to_time64(&t->time);
+
+		alarm_time += 60 - t->time.tm_sec;
+		rtc_time64_to_tm(alarm_time, &t->time);
+	}
+
 	ald[0] = bin2bcd(t->time.tm_min);
 	if (rx8025->ctrl1 & RX8025_BIT_CTRL1_1224)
 		ald[1] = bin2bcd(t->time.tm_hour);
@@ -539,8 +552,9 @@ static int rx8025_probe(struct i2c_client *client,
 	if (client->irq > 0) {
 		dev_info(&client->dev, "IRQ %d supplied\n", client->irq);
 		err = devm_request_threaded_irq(&client->dev, client->irq, NULL,
-						rx8025_handle_irq, 0, "rx8025",
-						client);
+						rx8025_handle_irq,
+						IRQF_ONESHOT,
+						"rx8025", client);
 		if (err) {
 			dev_err(&client->dev, "unable to request IRQ, alarms disabled\n");
 			client->irq = 0;
@@ -548,6 +562,9 @@ static int rx8025_probe(struct i2c_client *client,
 	}
 
 	rx8025->rtc->max_user_freq = 1;
+
+	/* the rx8025 alarm only supports a minute accuracy */
+	rx8025->rtc->uie_unsupported = 1;
 
 	err = rx8025_sysfs_register(&client->dev);
 	return err;

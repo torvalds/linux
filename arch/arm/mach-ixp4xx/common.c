@@ -27,7 +27,7 @@
 #include <linux/clockchips.h>
 #include <linux/io.h>
 #include <linux/export.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/cpu.h>
 #include <linux/pci.h>
 #include <linux/sched_clock.h>
@@ -461,7 +461,7 @@ void __init ixp4xx_sys_init(void)
 
 	platform_add_devices(ixp4xx_devices, ARRAY_SIZE(ixp4xx_devices));
 
-	gpiochip_add(&ixp4xx_gpio_chip);
+	gpiochip_add_data(&ixp4xx_gpio_chip, NULL);
 
 	if (cpu_is_ixp46x()) {
 		int region;

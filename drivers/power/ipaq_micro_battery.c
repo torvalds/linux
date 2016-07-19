@@ -281,7 +281,7 @@ static int micro_batt_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int micro_batt_suspend(struct device *dev)
+static int __maybe_unused micro_batt_suspend(struct device *dev)
 {
 	struct micro_battery *mb = dev_get_drvdata(dev);
 
@@ -289,7 +289,7 @@ static int micro_batt_suspend(struct device *dev)
 	return 0;
 }
 
-static int micro_batt_resume(struct device *dev)
+static int __maybe_unused micro_batt_resume(struct device *dev)
 {
 	struct micro_battery *mb = dev_get_drvdata(dev);
 

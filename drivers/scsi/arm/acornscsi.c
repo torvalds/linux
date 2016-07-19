@@ -677,7 +677,8 @@ int round_period(unsigned int period)
  * Copyright: Copyright (c) 1996 John Shifflett, GeoLog Consulting
  */
 static
-unsigned char calc_sync_xfer(unsigned int period, unsigned int offset)
+unsigned char __maybe_unused calc_sync_xfer(unsigned int period,
+					    unsigned int offset)
 {
     return sync_xfer_table[round_period(period)].reg_value |
 		((offset < SDTR_SIZE) ? offset : SDTR_SIZE);

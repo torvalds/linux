@@ -142,8 +142,6 @@ struct phy_status_rpt_8195 {
 };
 
 
-void odm_Init_RSSIForDM23a(struct dm_odm_t *pDM_Odm);
-
 void
 ODM_PhyStatusQuery23a(
 	struct dm_odm_t *pDM_Odm,

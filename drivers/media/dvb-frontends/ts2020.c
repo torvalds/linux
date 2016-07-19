@@ -712,6 +712,10 @@ static int ts2020_remove(struct i2c_client *client)
 
 	dev_dbg(&client->dev, "\n");
 
+	/* stop statistics polling */
+	if (!dev->dont_poll)
+		cancel_delayed_work_sync(&dev->stat_work);
+
 	regmap_exit(dev->regmap);
 	kfree(dev);
 	return 0;

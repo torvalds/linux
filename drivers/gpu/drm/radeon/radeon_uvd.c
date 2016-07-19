@@ -722,9 +722,11 @@ static int radeon_uvd_send_msg(struct radeon_device *rdev,
 	return r;
 }
 
-/* multiple fence commands without any stream commands in between can
-   crash the vcpu so just try to emmit a dummy create/destroy msg to
-   avoid this */
+/*
+ * multiple fence commands without any stream commands in between can
+ * crash the vcpu so just try to emmit a dummy create/destroy msg to
+ * avoid this
+ */
 int radeon_uvd_get_create_msg(struct radeon_device *rdev, int ring,
 			      uint32_t handle, struct radeon_fence **fence)
 {

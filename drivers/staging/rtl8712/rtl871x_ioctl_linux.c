@@ -137,7 +137,7 @@ static inline void handle_group_key(struct ieee_param *param,
 	}
 }
 
-static inline char *translate_scan(struct _adapter *padapter,
+static noinline_for_stack char *translate_scan(struct _adapter *padapter,
 				   struct iw_request_info *info,
 				   struct wlan_network *pnetwork,
 				   char *start, char *stop)
@@ -398,12 +398,9 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param,
 			wep_key_idx = 0;
 		if (wep_key_len > 0) {
 			wep_key_len = wep_key_len <= 5 ? 5 : 13;
-			pwep = kmalloc((u32)(wep_key_len +
-				FIELD_OFFSET(struct NDIS_802_11_WEP,
-				KeyMaterial)), GFP_ATOMIC);
+			pwep = kzalloc(sizeof(*pwep), GFP_ATOMIC);
 			if (pwep == NULL)
 				return -ENOMEM;
-			memset(pwep, 0, sizeof(struct NDIS_802_11_WEP));
 			pwep->KeyLength = wep_key_len;
 			pwep->Length = wep_key_len +
 				 FIELD_OFFSET(struct NDIS_802_11_WEP,
@@ -1964,7 +1961,7 @@ static int r871x_get_ap_info(struct net_device *dev,
 	struct list_head *plist, *phead;
 	unsigned char *pbuf;
 	u8 bssid[ETH_ALEN];
-	char data[32];
+	char data[33];
 
 	if (padapter->bDriverStopped || (pdata == NULL))
 		return -EINVAL;
@@ -1979,6 +1976,7 @@ static int r871x_get_ap_info(struct net_device *dev,
 	if (pdata->length >= 32) {
 		if (copy_from_user(data, pdata->pointer, 32))
 			return -EINVAL;
+                data[32] = 0;
 	} else {
 		 return -EINVAL;
 	}

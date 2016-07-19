@@ -72,21 +72,100 @@ static inline int calc_bandwidth(int width, int height, unsigned int vref)
 int ipu_plane_set_base(struct ipu_plane *ipu_plane, struct drm_framebuffer *fb,
 		       int x, int y)
 {
-	struct drm_gem_cma_object *cma_obj;
-	unsigned long eba;
-	int active;
+	struct drm_gem_cma_object *cma_obj[3];
+	unsigned long eba, ubo, vbo;
+	int active, i;
 
-	cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
-	if (!cma_obj) {
-		DRM_DEBUG_KMS("entry is null.\n");
-		return -EFAULT;
+	for (i = 0; i < drm_format_num_planes(fb->pixel_format); i++) {
+		cma_obj[i] = drm_fb_cma_get_gem_obj(fb, i);
+		if (!cma_obj[i]) {
+			DRM_DEBUG_KMS("plane %d entry is null.\n", i);
+			return -EFAULT;
+		}
 	}
 
-	dev_dbg(ipu_plane->base.dev->dev, "phys = %pad, x = %d, y = %d",
-		&cma_obj->paddr, x, y);
-
-	eba = cma_obj->paddr + fb->offsets[0] +
+	eba = cma_obj[0]->paddr + fb->offsets[0] +
 	      fb->pitches[0] * y + (fb->bits_per_pixel >> 3) * x;
+
+	if (eba & 0x7) {
+		DRM_DEBUG_KMS("base address must be a multiple of 8.\n");
+		return -EINVAL;
+	}
+
+	if (fb->pitches[0] < 1 || fb->pitches[0] > 16384) {
+		DRM_DEBUG_KMS("pitches out of range.\n");
+		return -EINVAL;
+	}
+
+	if (ipu_plane->enabled && fb->pitches[0] != ipu_plane->stride[0]) {
+		DRM_DEBUG_KMS("pitches must not change while plane is enabled.\n");
+		return -EINVAL;
+	}
+
+	ipu_plane->stride[0] = fb->pitches[0];
+
+	switch (fb->pixel_format) {
+	case DRM_FORMAT_YUV420:
+	case DRM_FORMAT_YVU420:
+		/*
+		 * Multiplanar formats have to meet the following restrictions:
+		 * - The (up to) three plane addresses are EBA, EBA+UBO, EBA+VBO
+		 * - EBA, UBO and VBO are a multiple of 8
+		 * - UBO and VBO are unsigned and not larger than 0xfffff8
+		 * - Only EBA may be changed while scanout is active
+		 * - The strides of U and V planes must be identical.
+		 */
+		ubo = cma_obj[1]->paddr + fb->offsets[1] +
+		      fb->pitches[1] * y / 2 + x / 2 - eba;
+		vbo = cma_obj[2]->paddr + fb->offsets[2] +
+		      fb->pitches[2] * y / 2 + x / 2 - eba;
+
+		if ((ubo & 0x7) || (vbo & 0x7)) {
+			DRM_DEBUG_KMS("U/V buffer offsets must be a multiple of 8.\n");
+			return -EINVAL;
+		}
+
+		if ((ubo > 0xfffff8) || (vbo > 0xfffff8)) {
+			DRM_DEBUG_KMS("U/V buffer offsets must be positive and not larger than 0xfffff8.\n");
+			return -EINVAL;
+		}
+
+		if (ipu_plane->enabled && ((ipu_plane->u_offset != ubo) ||
+					   (ipu_plane->v_offset != vbo))) {
+			DRM_DEBUG_KMS("U/V buffer offsets must not change while plane is enabled.\n");
+			return -EINVAL;
+		}
+
+		if (fb->pitches[1] != fb->pitches[2]) {
+			DRM_DEBUG_KMS("U/V pitches must be identical.\n");
+			return -EINVAL;
+		}
+
+		if (fb->pitches[1] < 1 || fb->pitches[1] > 16384) {
+			DRM_DEBUG_KMS("U/V pitches out of range.\n");
+			return -EINVAL;
+		}
+
+		if (ipu_plane->enabled &&
+		    (ipu_plane->stride[1] != fb->pitches[1])) {
+			DRM_DEBUG_KMS("U/V pitches must not change while plane is enabled.\n");
+			return -EINVAL;
+		}
+
+		ipu_plane->u_offset = ubo;
+		ipu_plane->v_offset = vbo;
+		ipu_plane->stride[1] = fb->pitches[1];
+
+		dev_dbg(ipu_plane->base.dev->dev,
+			"phys = %pad %pad %pad, x = %d, y = %d",
+			&cma_obj[0]->paddr, &cma_obj[1]->paddr,
+			&cma_obj[2]->paddr, x, y);
+		break;
+	default:
+		dev_dbg(ipu_plane->base.dev->dev, "phys = %pad, x = %d, y = %d",
+			&cma_obj[0]->paddr, x, y);
+		break;
+	}
 
 	if (ipu_plane->enabled) {
 		active = ipu_idmac_get_current_buffer(ipu_plane->ipu_ch);
@@ -201,12 +280,6 @@ int ipu_plane_mode_set(struct ipu_plane *ipu_plane, struct drm_crtc *crtc,
 		}
 	}
 
-	ret = ipu_dmfc_init_channel(ipu_plane->dmfc, crtc_w);
-	if (ret) {
-		dev_err(dev, "initializing dmfc channel failed with %d\n", ret);
-		return ret;
-	}
-
 	ret = ipu_dmfc_alloc_bandwidth(ipu_plane->dmfc,
 			calc_bandwidth(crtc_w, crtc_h,
 				       calc_vref(mode)), 64);
@@ -214,6 +287,8 @@ int ipu_plane_mode_set(struct ipu_plane *ipu_plane, struct drm_crtc *crtc,
 		dev_err(dev, "allocating dmfc bandwidth failed with %d\n", ret);
 		return ret;
 	}
+
+	ipu_dmfc_config_wait4eot(ipu_plane->dmfc, crtc_w);
 
 	ipu_cpmem_zero(ipu_plane->ipu_ch);
 	ipu_cpmem_set_resolution(ipu_plane->ipu_ch, src_w, src_h);
@@ -232,6 +307,18 @@ int ipu_plane_mode_set(struct ipu_plane *ipu_plane, struct drm_crtc *crtc,
 		return ret;
 	if (interlaced)
 		ipu_cpmem_interlaced_scan(ipu_plane->ipu_ch, fb->pitches[0]);
+
+	if (fb->pixel_format == DRM_FORMAT_YUV420) {
+		ipu_cpmem_set_yuv_planar_full(ipu_plane->ipu_ch,
+					      ipu_plane->stride[1],
+					      ipu_plane->u_offset,
+					      ipu_plane->v_offset);
+	} else if (fb->pixel_format == DRM_FORMAT_YVU420) {
+		ipu_cpmem_set_yuv_planar_full(ipu_plane->ipu_ch,
+					      ipu_plane->stride[1],
+					      ipu_plane->v_offset,
+					      ipu_plane->u_offset);
+	}
 
 	ipu_plane->w = src_w;
 	ipu_plane->h = src_h;
@@ -339,7 +426,7 @@ static int ipu_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	}
 
 	if (crtc != plane->crtc)
-		dev_info(plane->dev->dev, "crtc change: %p -> %p\n",
+		dev_dbg(plane->dev->dev, "crtc change: %p -> %p\n",
 				plane->crtc, crtc);
 	plane->crtc = crtc;
 

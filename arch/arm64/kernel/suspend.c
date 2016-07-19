@@ -60,7 +60,6 @@ void __init cpu_suspend_set_dbg_restorer(void (*hw_bp_restore)(void *))
  */
 int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 {
-	struct mm_struct *mm = current->active_mm;
 	int ret;
 	unsigned long flags;
 
@@ -87,22 +86,11 @@ int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 	ret = __cpu_suspend_enter(arg, fn);
 	if (ret == 0) {
 		/*
-		 * We are resuming from reset with TTBR0_EL1 set to the
-		 * idmap to enable the MMU; set the TTBR0 to the reserved
-		 * page tables to prevent speculative TLB allocations, flush
-		 * the local tlb and set the default tcr_el1.t0sz so that
-		 * the TTBR0 address space set-up is properly restored.
-		 * If the current active_mm != &init_mm we entered cpu_suspend
-		 * with mappings in TTBR0 that must be restored, so we switch
-		 * them back to complete the address space configuration
-		 * restoration before returning.
+		 * We are resuming from reset with the idmap active in TTBR0_EL1.
+		 * We must uninstall the idmap and restore the expected MMU
+		 * state before we can possibly return to userspace.
 		 */
-		cpu_set_reserved_ttbr0();
-		local_flush_tlb_all();
-		cpu_set_default_tcr_t0sz();
-
-		if (mm != &init_mm)
-			cpu_switch_mm(mm->pgd, mm);
+		cpu_uninstall_idmap();
 
 		/*
 		 * Restore per-cpu offset before any kernel

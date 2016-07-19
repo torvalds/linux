@@ -820,10 +820,13 @@ static const struct acpi_device_id bcm_acpi_match[] = {
 	{ "BCM2E3D", 0 },
 	{ "BCM2E3F", 0 },
 	{ "BCM2E40", 0 },
+	{ "BCM2E54", 0 },
+	{ "BCM2E55", 0 },
 	{ "BCM2E64", 0 },
 	{ "BCM2E65", 0 },
 	{ "BCM2E67", 0 },
 	{ "BCM2E7B", 0 },
+	{ "BCM2E7C", 0 },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, bcm_acpi_match);

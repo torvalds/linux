@@ -1198,7 +1198,7 @@ static int create_map(void)
 	int map_fd;
 
 	map_fd = bpf_create_map(BPF_MAP_TYPE_HASH,
-				sizeof(long long), sizeof(long long), 1024);
+				sizeof(long long), sizeof(long long), 1024, 0);
 	if (map_fd < 0)
 		printf("failed to create map '%s'\n", strerror(errno));
 
@@ -1210,7 +1210,7 @@ static int create_prog_array(void)
 	int map_fd;
 
 	map_fd = bpf_create_map(BPF_MAP_TYPE_PROG_ARRAY,
-				sizeof(int), sizeof(int), 4);
+				sizeof(int), sizeof(int), 4, 0);
 	if (map_fd < 0)
 		printf("failed to create prog_array '%s'\n", strerror(errno));
 

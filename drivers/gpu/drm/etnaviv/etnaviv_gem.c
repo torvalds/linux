@@ -260,8 +260,32 @@ etnaviv_gem_get_vram_mapping(struct etnaviv_gem_object *obj,
 	return NULL;
 }
 
-int etnaviv_gem_get_iova(struct etnaviv_gpu *gpu,
-	struct drm_gem_object *obj, u32 *iova)
+void etnaviv_gem_mapping_reference(struct etnaviv_vram_mapping *mapping)
+{
+	struct etnaviv_gem_object *etnaviv_obj = mapping->object;
+
+	drm_gem_object_reference(&etnaviv_obj->base);
+
+	mutex_lock(&etnaviv_obj->lock);
+	WARN_ON(mapping->use == 0);
+	mapping->use += 1;
+	mutex_unlock(&etnaviv_obj->lock);
+}
+
+void etnaviv_gem_mapping_unreference(struct etnaviv_vram_mapping *mapping)
+{
+	struct etnaviv_gem_object *etnaviv_obj = mapping->object;
+
+	mutex_lock(&etnaviv_obj->lock);
+	WARN_ON(mapping->use == 0);
+	mapping->use -= 1;
+	mutex_unlock(&etnaviv_obj->lock);
+
+	drm_gem_object_unreference_unlocked(&etnaviv_obj->base);
+}
+
+struct etnaviv_vram_mapping *etnaviv_gem_mapping_get(
+	struct drm_gem_object *obj, struct etnaviv_gpu *gpu)
 {
 	struct etnaviv_gem_object *etnaviv_obj = to_etnaviv_bo(obj);
 	struct etnaviv_vram_mapping *mapping;
@@ -329,28 +353,12 @@ int etnaviv_gem_get_iova(struct etnaviv_gpu *gpu,
 out:
 	mutex_unlock(&etnaviv_obj->lock);
 
-	if (!ret) {
-		/* Take a reference on the object */
-		drm_gem_object_reference(obj);
-		*iova = mapping->iova;
-	}
+	if (ret)
+		return ERR_PTR(ret);
 
-	return ret;
-}
-
-void etnaviv_gem_put_iova(struct etnaviv_gpu *gpu, struct drm_gem_object *obj)
-{
-	struct etnaviv_gem_object *etnaviv_obj = to_etnaviv_bo(obj);
-	struct etnaviv_vram_mapping *mapping;
-
-	mutex_lock(&etnaviv_obj->lock);
-	mapping = etnaviv_gem_get_vram_mapping(etnaviv_obj, gpu->mmu);
-
-	WARN_ON(mapping->use == 0);
-	mapping->use -= 1;
-	mutex_unlock(&etnaviv_obj->lock);
-
-	drm_gem_object_unreference_unlocked(obj);
+	/* Take a reference on the object */
+	drm_gem_object_reference(obj);
+	return mapping;
 }
 
 void *etnaviv_gem_vmap(struct drm_gem_object *obj)
@@ -753,9 +761,9 @@ static struct page **etnaviv_gem_userptr_do_get_pages(
 
 	down_read(&mm->mmap_sem);
 	while (pinned < npages) {
-		ret = get_user_pages(task, mm, ptr, npages - pinned,
-				     !etnaviv_obj->userptr.ro, 0,
-				     pvec + pinned, NULL);
+		ret = get_user_pages_remote(task, mm, ptr, npages - pinned,
+					    !etnaviv_obj->userptr.ro, 0,
+					    pvec + pinned, NULL);
 		if (ret < 0)
 			break;
 

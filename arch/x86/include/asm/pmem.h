@@ -47,6 +47,15 @@ static inline void arch_memcpy_to_pmem(void __pmem *dst, const void *src,
 		BUG();
 }
 
+static inline int arch_memcpy_from_pmem(void *dst, const void __pmem *src,
+		size_t n)
+{
+	if (static_cpu_has(X86_FEATURE_MCE_RECOVERY))
+		return memcpy_mcsafe(dst, (void __force *) src, n);
+	memcpy(dst, (void __force *) src, n);
+	return 0;
+}
+
 /**
  * arch_wmb_pmem - synchronize writes to persistent memory
  *
@@ -135,6 +144,11 @@ static inline void arch_clear_pmem(void __pmem *addr, size_t size)
 
 	memset(vaddr, 0, size);
 	arch_wb_cache_pmem(addr, size);
+}
+
+static inline void arch_invalidate_pmem(void __pmem *addr, size_t size)
+{
+	clflush_cache_range((void __force *) addr, size);
 }
 
 static inline bool __arch_has_wmb_pmem(void)

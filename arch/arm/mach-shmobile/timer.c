@@ -18,6 +18,8 @@
 #include <linux/delay.h>
 #include <linux/of_address.h>
 
+#include "common.h"
+
 static void __init shmobile_setup_delay_hz(unsigned int max_cpu_core_hz,
 					   unsigned int mult, unsigned int div)
 {
@@ -38,8 +40,7 @@ static void __init shmobile_setup_delay_hz(unsigned int max_cpu_core_hz,
 void __init shmobile_init_delay(void)
 {
 	struct device_node *np, *cpus;
-	bool is_a7_a8_a9 = false;
-	bool is_a15 = false;
+	unsigned int div = 0;
 	bool has_arch_timer = false;
 	u32 max_freq = 0;
 
@@ -53,27 +54,22 @@ void __init shmobile_init_delay(void)
 		if (!of_property_read_u32(np, "clock-frequency", &freq))
 			max_freq = max(max_freq, freq);
 
-		if (of_device_is_compatible(np, "arm,cortex-a8") ||
-		    of_device_is_compatible(np, "arm,cortex-a9")) {
-			is_a7_a8_a9 = true;
-		} else if (of_device_is_compatible(np, "arm,cortex-a7")) {
-			is_a7_a8_a9 = true;
-			has_arch_timer = true;
-		} else if (of_device_is_compatible(np, "arm,cortex-a15")) {
-			is_a15 = true;
+		if (of_device_is_compatible(np, "arm,cortex-a8")) {
+			div = 2;
+		} else if (of_device_is_compatible(np, "arm,cortex-a9")) {
+			div = 1;
+		} else if (of_device_is_compatible(np, "arm,cortex-a7") ||
+			 of_device_is_compatible(np, "arm,cortex-a15")) {
+			div = 1;
 			has_arch_timer = true;
 		}
 	}
 
 	of_node_put(cpus);
 
-	if (!max_freq)
+	if (!max_freq || !div)
 		return;
 
-	if (!has_arch_timer || !IS_ENABLED(CONFIG_ARM_ARCH_TIMER)) {
-		if (is_a7_a8_a9)
-			shmobile_setup_delay_hz(max_freq, 1, 3);
-		else if (is_a15)
-			shmobile_setup_delay_hz(max_freq, 2, 4);
-	}
+	if (!has_arch_timer || !IS_ENABLED(CONFIG_ARM_ARCH_TIMER))
+		shmobile_setup_delay_hz(max_freq, 1, div);
 }

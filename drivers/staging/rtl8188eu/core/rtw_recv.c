@@ -116,9 +116,7 @@ void _rtw_free_recv_priv(struct recv_priv *precvpriv)
 
 	rtw_free_uc_swdec_pending_queue(padapter);
 
-	if (precvpriv->pallocated_frame_buf) {
-		vfree(precvpriv->pallocated_frame_buf);
-	}
+	vfree(precvpriv->pallocated_frame_buf);
 
 	rtw_hal_free_recv_priv(padapter);
 
@@ -127,29 +125,22 @@ void _rtw_free_recv_priv(struct recv_priv *precvpriv)
 struct recv_frame *_rtw_alloc_recvframe(struct __queue *pfree_recv_queue)
 {
 	struct recv_frame *hdr;
-	struct list_head *plist, *phead;
 	struct adapter *padapter;
 	struct recv_priv *precvpriv;
 
-	if (list_empty(&pfree_recv_queue->queue)) {
-		hdr = NULL;
-	} else {
-		phead = get_list_head(pfree_recv_queue);
-
-		plist = phead->next;
-
-		hdr = container_of(plist, struct recv_frame, list);
-
+	hdr = list_first_entry_or_null(&pfree_recv_queue->queue,
+				       struct recv_frame, list);
+	if (hdr) {
 		list_del_init(&hdr->list);
 		padapter = hdr->adapter;
-		if (padapter != NULL) {
+		if (padapter) {
 			precvpriv = &padapter->recvpriv;
 			if (pfree_recv_queue == &precvpriv->free_recv_queue)
 				precvpriv->free_recvframe_cnt--;
 		}
 	}
 
-	return (struct recv_frame *)hdr;
+	return hdr;
 }
 
 struct recv_frame *rtw_alloc_recvframe(struct __queue *pfree_recv_queue)
@@ -248,7 +239,7 @@ void rtw_free_recvframe_queue(struct __queue *pframequeue,  struct __queue *pfre
 
 		plist = plist->next;
 
-		rtw_free_recvframe((struct recv_frame *)hdr, pfree_recv_queue);
+		rtw_free_recvframe(hdr, pfree_recv_queue);
 	}
 
 	spin_unlock(&pframequeue->lock);
@@ -917,9 +908,8 @@ static int sta2ap_data_frame(struct adapter *adapter,
 
 		process_pwrbit_data(adapter, precv_frame);
 
-		if ((GetFrameSubType(ptr) & WIFI_QOS_DATA_TYPE) == WIFI_QOS_DATA_TYPE) {
+		if ((GetFrameSubType(ptr) & WIFI_QOS_DATA_TYPE) == WIFI_QOS_DATA_TYPE)
 			process_wmmps_data(adapter, precv_frame);
-		}
 
 		if (GetFrameSubType(ptr) & BIT(6)) {
 			/* No data, will not indicate to upper layer, temporily count it here */
@@ -1274,32 +1264,25 @@ static int validate_recv_frame(struct adapter *adapter,
 	/* Dump rx packets */
 	rtw_hal_get_def_var(adapter, HAL_DEF_DBG_DUMP_RXPKT, &(bDumpRxPkt));
 	if (bDumpRxPkt == 1) {/* dump all rx packets */
-		int i;
-		DBG_88E("#############################\n");
-
-		for (i = 0; i < 64; i += 8)
-			DBG_88E("%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:\n", *(ptr+i),
-				*(ptr+i+1), *(ptr+i+2), *(ptr+i+3), *(ptr+i+4), *(ptr+i+5), *(ptr+i+6), *(ptr+i+7));
-		DBG_88E("#############################\n");
+		if (_drv_err_ <= GlobalDebugLevel) {
+			pr_info(DRIVER_PREFIX "#############################\n");
+			print_hex_dump(KERN_INFO, DRIVER_PREFIX, DUMP_PREFIX_NONE,
+					16, 1, ptr, 64, false);
+			pr_info(DRIVER_PREFIX "#############################\n");
+		}
 	} else if (bDumpRxPkt == 2) {
-		if (type == WIFI_MGT_TYPE) {
-			int i;
-			DBG_88E("#############################\n");
-
-			for (i = 0; i < 64; i += 8)
-				DBG_88E("%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:\n", *(ptr+i),
-					*(ptr+i+1), *(ptr+i+2), *(ptr+i+3), *(ptr+i+4), *(ptr+i+5), *(ptr+i+6), *(ptr+i+7));
-			DBG_88E("#############################\n");
+		if ((_drv_err_ <= GlobalDebugLevel) && (type == WIFI_MGT_TYPE)) {
+			pr_info(DRIVER_PREFIX "#############################\n");
+			print_hex_dump(KERN_INFO, DRIVER_PREFIX, DUMP_PREFIX_NONE,
+					16, 1, ptr, 64, false);
+			pr_info(DRIVER_PREFIX "#############################\n");
 		}
 	} else if (bDumpRxPkt == 3) {
-		if (type == WIFI_DATA_TYPE) {
-			int i;
-			DBG_88E("#############################\n");
-
-			for (i = 0; i < 64; i += 8)
-				DBG_88E("%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:\n", *(ptr+i),
-					*(ptr+i+1), *(ptr+i+2), *(ptr+i+3), *(ptr+i+4), *(ptr+i+5), *(ptr+i+6), *(ptr+i+7));
-			DBG_88E("#############################\n");
+		if ((_drv_err_ <= GlobalDebugLevel) && (type == WIFI_DATA_TYPE)) {
+			pr_info(DRIVER_PREFIX "#############################\n");
+			print_hex_dump(KERN_INFO, DRIVER_PREFIX, DUMP_PREFIX_NONE,
+					16, 1, ptr, 64, false);
+			pr_info(DRIVER_PREFIX "#############################\n");
 		}
 	}
 	switch (type) {
@@ -1433,7 +1416,7 @@ static struct recv_frame *recvframe_defrag(struct adapter *adapter,
 	phead = get_list_head(defrag_q);
 	plist = phead->next;
 	pfhdr = container_of(plist, struct recv_frame, list);
-	prframe = (struct recv_frame *)pfhdr;
+	prframe = pfhdr;
 	list_del_init(&(prframe->list));
 
 	if (curfragnum != pfhdr->attrib.frag_num) {
@@ -1453,7 +1436,7 @@ static struct recv_frame *recvframe_defrag(struct adapter *adapter,
 
 	while (phead != plist) {
 		pnfhdr = container_of(plist, struct recv_frame, list);
-		pnextrframe = (struct recv_frame *)pnfhdr;
+		pnextrframe = pnfhdr;
 
 		/* check the fragment sequence  (2nd ~n fragment frame) */
 
@@ -1541,10 +1524,9 @@ struct recv_frame *recvframe_chk_defrag(struct adapter *padapter,
 		if (pdefrag_q != NULL) {
 			if (fragnum == 0) {
 				/* the first fragment */
-				if (!list_empty(&pdefrag_q->queue)) {
+				if (!list_empty(&pdefrag_q->queue))
 					/* free current defrag_q */
 					rtw_free_recvframe_queue(pdefrag_q, pfree_recv_queue);
-				}
 			}
 
 			/* Then enqueue the 0~(n-1) fragment into the defrag_q */
@@ -1660,9 +1642,8 @@ static int amsdu_to_msdu(struct adapter *padapter, struct recv_frame *prframe)
 		a_len -= nSubframe_Length;
 		if (a_len != 0) {
 			padding_len = 4 - ((nSubframe_Length + ETH_HLEN) & (4-1));
-			if (padding_len == 4) {
+			if (padding_len == 4)
 				padding_len = 0;
-			}
 
 			if (a_len < padding_len) {
 				goto exit;
@@ -1798,7 +1779,7 @@ static int recv_indicatepkts_in_order(struct adapter *padapter, struct recv_reor
 	/*  Check if there is any packet need indicate. */
 	while (!list_empty(phead)) {
 		prhdr = container_of(plist, struct recv_frame, list);
-		prframe = (struct recv_frame *)prhdr;
+		prframe = prhdr;
 		pattrib = &prframe->attrib;
 
 		if (!SN_LESS(preorder_ctrl->indicate_seq, pattrib->seq_num)) {

@@ -13,8 +13,6 @@
 #include <linux/vmalloc.h>
 #include <linux/pagemap.h>
 #include <linux/screen_info.h>
-#include <linux/vmalloc.h>
-#include <linux/pagemap.h>
 #include <linux/console.h>
 #include <asm/fb.h>
 #include "sm750.h"
@@ -189,7 +187,7 @@ static void lynxfb_ops_fillrect(struct fb_info *info,
 	 * If not use spin_lock,system will die if user load driver
 	 * and immediately unload driver frequently (dual)
 	 */
-	if (sm750_dev->dual)
+	if (sm750_dev->fb_count > 1)
 		spin_lock(&sm750_dev->slock);
 
 	sm750_dev->accel.de_fillrect(&sm750_dev->accel,
@@ -197,7 +195,7 @@ static void lynxfb_ops_fillrect(struct fb_info *info,
 				     region->dx, region->dy,
 				     region->width, region->height,
 				     color, rop);
-	if (sm750_dev->dual)
+	if (sm750_dev->fb_count > 1)
 		spin_unlock(&sm750_dev->slock);
 }
 
@@ -223,7 +221,7 @@ static void lynxfb_ops_copyarea(struct fb_info *info,
 	 * If not use spin_lock, system will die if user load driver
 	 * and immediately unload driver frequently (dual)
 	 */
-	if (sm750_dev->dual)
+	if (sm750_dev->fb_count > 1)
 		spin_lock(&sm750_dev->slock);
 
 	sm750_dev->accel.de_copyarea(&sm750_dev->accel,
@@ -231,7 +229,7 @@ static void lynxfb_ops_copyarea(struct fb_info *info,
 				     base, pitch, Bpp, region->dx, region->dy,
 				     region->width, region->height,
 				     HW_ROP2_COPY);
-	if (sm750_dev->dual)
+	if (sm750_dev->fb_count > 1)
 		spin_unlock(&sm750_dev->slock);
 }
 
@@ -272,7 +270,7 @@ static void lynxfb_ops_imageblit(struct fb_info *info,
 	 * If not use spin_lock, system will die if user load driver
 	 * and immediately unload driver frequently (dual)
 	 */
-	if (sm750_dev->dual)
+	if (sm750_dev->fb_count > 1)
 		spin_lock(&sm750_dev->slock);
 
 	sm750_dev->accel.de_imageblit(&sm750_dev->accel,
@@ -281,7 +279,7 @@ static void lynxfb_ops_imageblit(struct fb_info *info,
 				      image->dx, image->dy,
 				      image->width, image->height,
 				      fgcol, bgcol, HW_ROP2_COPY);
-	if (sm750_dev->dual)
+	if (sm750_dev->fb_count > 1)
 		spin_unlock(&sm750_dev->slock);
 }
 
@@ -319,7 +317,7 @@ static int lynxfb_ops_set_par(struct fb_info *info)
 	var = &info->var;
 	fix = &info->fix;
 
-	/* fix structur is not so FIX ... */
+	/* fix structure is not so FIX ... */
 	line_length = var->xres_virtual * var->bits_per_pixel / 8;
 	line_length = ALIGN(line_length, crtc->line_pad);
 	fix->line_length = line_length;
@@ -420,14 +418,16 @@ static int lynxfb_suspend(struct pci_dev *pdev, pm_message_t mesg)
 
 		ret = pci_save_state(pdev);
 		if (ret) {
-			pr_err("error:%d occurred in pci_save_state\n", ret);
+			dev_err(&pdev->dev,
+				"error:%d occurred in pci_save_state\n", ret);
 			return ret;
 		}
 
-		pci_disable_device(pdev);
 		ret = pci_set_power_state(pdev, pci_choose_state(pdev, mesg));
 		if (ret) {
-			pr_err("error:%d occurred in pci_set_power_state\n", ret);
+			dev_err(&pdev->dev,
+				"error:%d occurred in pci_set_power_state\n",
+				ret);
 			return ret;
 		}
 	}
@@ -455,7 +455,8 @@ static int lynxfb_resume(struct pci_dev *pdev)
 
 	ret = pci_set_power_state(pdev, PCI_D0);
 	if (ret) {
-		pr_err("error:%d occurred in pci_set_power_state\n", ret);
+		dev_err(&pdev->dev,
+			"error:%d occurred in pci_set_power_state\n", ret);
 		return ret;
 	}
 
@@ -463,7 +464,9 @@ static int lynxfb_resume(struct pci_dev *pdev)
 		pci_restore_state(pdev);
 		ret = pci_enable_device(pdev);
 		if (ret) {
-			pr_err("error:%d occurred in pci_enable_device\n", ret);
+			dev_err(&pdev->dev,
+				"error:%d occurred in pci_enable_device\n",
+				ret);
 			return ret;
 		}
 		pci_set_master(pdev);
@@ -650,8 +653,10 @@ static int sm750fb_set_drv(struct lynxfb_par *par)
 	output = &par->output;
 	crtc = &par->crtc;
 
-	crtc->vidmem_size = (sm750_dev->dual) ? sm750_dev->vidmem_size >> 1 :
-			     sm750_dev->vidmem_size;
+	crtc->vidmem_size = sm750_dev->vidmem_size;
+	if (sm750_dev->fb_count > 1)
+		crtc->vidmem_size >>= 1;
+
 	/* setup crtc and output member */
 	sm750_dev->hwCursor = g_hwcursor;
 
@@ -981,7 +986,7 @@ static void sm750fb_setup(struct sm750_dev *sm750_dev, char *src)
 
 NO_PARAM:
 	if (sm750_dev->revid != SM750LE_REVISION_ID) {
-		if (sm750_dev->dual) {
+		if (sm750_dev->fb_count > 1) {
 			if (swap)
 				sm750_dev->dataflow = sm750_dual_swap;
 			else
@@ -1000,35 +1005,75 @@ NO_PARAM:
 	}
 }
 
+static void sm750fb_frambuffer_release(struct sm750_dev *sm750_dev)
+{
+	struct fb_info *fb_info;
+
+	while (sm750_dev->fb_count) {
+		fb_info = sm750_dev->fbinfo[sm750_dev->fb_count - 1];
+		unregister_framebuffer(fb_info);
+		framebuffer_release(fb_info);
+		sm750_dev->fb_count--;
+	}
+}
+
+static int sm750fb_frambuffer_alloc(struct sm750_dev *sm750_dev, int fbidx)
+{
+	struct fb_info *fb_info;
+	struct lynxfb_par *par;
+	int err;
+
+	fb_info = framebuffer_alloc(sizeof(struct lynxfb_par),
+				    &sm750_dev->pdev->dev);
+	if (!fb_info)
+		return -ENOMEM;
+
+	sm750_dev->fbinfo[fbidx] = fb_info;
+	par = fb_info->par;
+	par->dev = sm750_dev;
+
+	err = lynxfb_set_fbinfo(fb_info, fbidx);
+	if (err)
+		goto release_fb;
+
+	err = register_framebuffer(fb_info);
+	if (err < 0)
+		goto release_fb;
+
+	sm750_dev->fb_count++;
+
+	return 0;
+
+release_fb:
+	framebuffer_release(fb_info);
+	return err;
+}
+
 static int lynxfb_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *ent)
 {
-	struct fb_info *info[] = {NULL, NULL};
 	struct sm750_dev *sm750_dev = NULL;
+	int max_fb;
 	int fbidx;
+	int err;
 
 	/* enable device */
-	if (pci_enable_device(pdev)) {
-		pr_err("can not enable device.\n");
-		goto err_enable;
-	}
+	err = pcim_enable_device(pdev);
+	if (err)
+		return err;
 
-	sm750_dev = kzalloc(sizeof(*sm750_dev), GFP_KERNEL);
-	if (!sm750_dev) {
-		pr_err("Could not allocate memory for share.\n");
-		goto err_share;
-	}
+	err = -ENOMEM;
+	sm750_dev = devm_kzalloc(&pdev->dev, sizeof(*sm750_dev), GFP_KERNEL);
+	if (!sm750_dev)
+		return err;
 
 	sm750_dev->fbinfo[0] = sm750_dev->fbinfo[1] = NULL;
 	sm750_dev->devid = pdev->device;
 	sm750_dev->revid = pdev->revision;
-
-	pr_info("share->revid = %02x\n", sm750_dev->revid);
 	sm750_dev->pdev = pdev;
 	sm750_dev->mtrr_off = g_nomtrr;
 	sm750_dev->mtrr.vram = 0;
 	sm750_dev->accel_off = g_noaccel;
-	sm750_dev->dual = g_dualview;
 	spin_lock_init(&sm750_dev->slock);
 
 	if (!sm750_dev->accel_off) {
@@ -1042,19 +1087,15 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 		sm750_dev->accel.de_fillrect = hw_fillrect;
 		sm750_dev->accel.de_copyarea = hw_copyarea;
 		sm750_dev->accel.de_imageblit = hw_imageblit;
-		pr_info("enable 2d acceleration\n");
-	} else {
-		pr_info("disable 2d acceleration\n");
 	}
 
 	/* call chip specific setup routine  */
 	sm750fb_setup(sm750_dev, g_settings);
 
 	/* call chip specific mmap routine */
-	if (hw_sm750_map(sm750_dev, pdev)) {
-		pr_err("Memory map failed\n");
-		goto err_map;
-	}
+	err = hw_sm750_map(sm750_dev, pdev);
+	if (err)
+		return err;
 
 	if (!sm750_dev->mtrr_off)
 		sm750_dev->mtrr.vram = arch_phys_wc_add(sm750_dev->vidmem_start,
@@ -1062,107 +1103,38 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 
 	memset_io(sm750_dev->pvMem, 0, sm750_dev->vidmem_size);
 
-	pr_info("sm%3x mmio address = %p\n", sm750_dev->devid,
-		sm750_dev->pvReg);
-
 	pci_set_drvdata(pdev, sm750_dev);
 
 	/* call chipInit routine */
 	hw_sm750_inithw(sm750_dev, pdev);
 
-	/* allocate frame buffer info structor according to g_dualview */
-	fbidx = 0;
-ALLOC_FB:
-	info[fbidx] = framebuffer_alloc(sizeof(struct lynxfb_par), &pdev->dev);
-	if (!info[fbidx]) {
-		pr_err("Could not allocate framebuffer #%d.\n", fbidx);
-		if (fbidx == 0)
-			goto err_info0_alloc;
-		else
-			goto err_info1_alloc;
-	} else {
-		struct lynxfb_par *par;
-		int errno;
-
-		pr_info("framebuffer #%d alloc okay\n", fbidx);
-		sm750_dev->fbinfo[fbidx] = info[fbidx];
-		par = info[fbidx]->par;
-		par->dev = sm750_dev;
-
-		/* set fb_info structure */
-		if (lynxfb_set_fbinfo(info[fbidx], fbidx)) {
-			pr_err("Failed to initial fb_info #%d.\n", fbidx);
-			if (fbidx == 0)
-				goto err_info0_set;
-			else
-				goto err_info1_set;
-		}
-
-		/* register frame buffer */
-		pr_info("Ready to register framebuffer #%d.\n", fbidx);
-		errno = register_framebuffer(info[fbidx]);
-		if (errno < 0) {
-			pr_err("Failed to register fb_info #%d. err %d\n",
-			       fbidx,
-			       errno);
-			if (fbidx == 0)
-				goto err_register0;
-			else
-				goto err_register1;
-		}
-		pr_info("Accomplished register framebuffer #%d.\n", fbidx);
+	/* allocate frame buffer info structures according to g_dualview */
+	max_fb = g_dualview ? 2 : 1;
+	for (fbidx = 0; fbidx < max_fb; fbidx++) {
+		err = sm750fb_frambuffer_alloc(sm750_dev, fbidx);
+		if (err)
+			goto release_fb;
 	}
-
-	/* no dual view by far */
-	fbidx++;
-	if (sm750_dev->dual && fbidx < 2)
-		goto ALLOC_FB;
 
 	return 0;
 
-err_register1:
-err_info1_set:
-	framebuffer_release(info[1]);
-err_info1_alloc:
-	unregister_framebuffer(info[0]);
-err_register0:
-err_info0_set:
-	framebuffer_release(info[0]);
-err_info0_alloc:
-err_map:
-	kfree(sm750_dev);
-err_share:
-err_enable:
-	return -ENODEV;
+release_fb:
+	sm750fb_frambuffer_release(sm750_dev);
+	return err;
 }
 
 static void lynxfb_pci_remove(struct pci_dev *pdev)
 {
-	struct fb_info *info;
 	struct sm750_dev *sm750_dev;
-	struct lynxfb_par *par;
-	int cnt;
 
-	cnt = 2;
 	sm750_dev = pci_get_drvdata(pdev);
 
-	while (cnt-- > 0) {
-		info = sm750_dev->fbinfo[cnt];
-		if (!info)
-			continue;
-		par = info->par;
-
-		unregister_framebuffer(info);
-		/* release frame buffer */
-		framebuffer_release(info);
-	}
+	sm750fb_frambuffer_release(sm750_dev);
 	arch_phys_wc_del(sm750_dev->mtrr.vram);
 
 	iounmap(sm750_dev->pvReg);
 	iounmap(sm750_dev->pvMem);
 	kfree(g_settings);
-	kfree(sm750_dev);
-	pci_set_drvdata(pdev, NULL);
 }
 
 static int __init lynxfb_setup(char *options)

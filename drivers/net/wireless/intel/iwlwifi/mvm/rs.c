@@ -556,6 +556,7 @@ static char *rs_pretty_rate(const struct rs_rate *rate)
 	if (is_type_legacy(rate->type) && (rate->index <= IWL_RATE_54M_INDEX))
 		rate_str = legacy_rates[rate->index];
 	else if ((is_type_ht(rate->type) || is_type_vht(rate->type)) &&
+		 (rate->index >= IWL_RATE_MCS_0_INDEX) &&
 		 (rate->index <= IWL_RATE_MCS_9_INDEX))
 		rate_str = ht_vht_rates[rate->index];
 	else
@@ -1672,6 +1673,20 @@ static void rs_stay_in_table(struct iwl_lq_sta *lq_sta, bool force_search)
 	}
 }
 
+static void rs_set_amsdu_len(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
+			     struct iwl_scale_tbl_info *tbl,
+			     enum rs_action scale_action)
+{
+	struct iwl_mvm_sta *sta_priv = iwl_mvm_sta_from_mac80211(sta);
+
+	if ((!is_vht(&tbl->rate) && !is_ht(&tbl->rate)) ||
+	    tbl->rate.index < IWL_RATE_MCS_5_INDEX ||
+	    scale_action == RS_ACTION_DOWNSCALE)
+		sta_priv->tlc_amsdu = false;
+	else
+		sta_priv->tlc_amsdu = true;
+}
+
 /*
  * setup rate table in uCode
  */
@@ -2062,7 +2077,8 @@ static enum tpc_action rs_get_tpc_action(struct iwl_mvm *mvm,
 	}
 
 	/* try decreasing first if applicable */
-	if (weak != TPC_INVALID) {
+	if (sr >= RS_PERCENT(IWL_MVM_RS_TPC_SR_NO_INCREASE) &&
+	    weak != TPC_INVALID) {
 		if (weak_tpt == IWL_INVALID_VALUE &&
 		    (strong_tpt == IWL_INVALID_VALUE ||
 		     current_tpt >= strong_tpt)) {
@@ -2414,6 +2430,7 @@ lq_update:
 		tbl->rate.index = index;
 		if (IWL_MVM_RS_80_20_FAR_RANGE_TWEAK)
 			rs_tweak_rate_tbl(mvm, sta, lq_sta, tbl, scale_action);
+		rs_set_amsdu_len(mvm, sta, tbl, scale_action);
 		rs_update_rate_tbl(mvm, sta, lq_sta, tbl);
 	}
 
@@ -3097,6 +3114,7 @@ void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	sband = hw->wiphy->bands[band];
 
 	lq_sta->lq.sta_id = sta_priv->sta_id;
+	sta_priv->tlc_amsdu = false;
 
 	for (j = 0; j < LQ_SIZE; j++)
 		rs_rate_scale_clear_tbl_windows(mvm, &lq_sta->lq_info[j]);
@@ -3656,10 +3674,13 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 	ssize_t ret;
 
 	struct iwl_lq_sta *lq_sta = file->private_data;
+	struct iwl_mvm_sta *mvmsta =
+		container_of(lq_sta, struct iwl_mvm_sta, lq_sta);
 	struct iwl_mvm *mvm;
 	struct iwl_scale_tbl_info *tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
 	struct rs_rate *rate = &tbl->rate;
 	u32 ss_params;
+
 	mvm = lq_sta->pers.drv;
 	buff = kmalloc(2048, GFP_KERNEL);
 	if (!buff)
@@ -3685,10 +3706,11 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 				(is_ht20(rate)) ? "20MHz" :
 				(is_ht40(rate)) ? "40MHz" :
 				(is_ht80(rate)) ? "80Mhz" : "BAD BW");
-		desc += sprintf(buff + desc, " %s %s %s\n",
+		desc += sprintf(buff + desc, " %s %s %s %s\n",
 				(rate->sgi) ? "SGI" : "NGI",
 				(rate->ldpc) ? "LDPC" : "BCC",
-				(lq_sta->is_agg) ? "AGG on" : "");
+				(lq_sta->is_agg) ? "AGG on" : "",
+				(mvmsta->tlc_amsdu) ? "AMSDU on" : "");
 	}
 	desc += sprintf(buff+desc, "last tx rate=0x%X\n",
 			lq_sta->last_rate_n_flags);

@@ -66,7 +66,7 @@ void dm_cache_metadata_close(struct dm_cache_metadata *cmd);
  * origin blocks to map to.
  */
 int dm_cache_resize(struct dm_cache_metadata *cmd, dm_cblock_t new_cache_size);
-dm_cblock_t dm_cache_size(struct dm_cache_metadata *cmd);
+int dm_cache_size(struct dm_cache_metadata *cmd, dm_cblock_t *result);
 
 int dm_cache_discard_bitset_resize(struct dm_cache_metadata *cmd,
 				   sector_t discard_block_size,
@@ -137,7 +137,7 @@ int dm_cache_write_hints(struct dm_cache_metadata *cmd, struct dm_cache_policy *
  */
 int dm_cache_metadata_all_clean(struct dm_cache_metadata *cmd, bool *result);
 
-bool dm_cache_metadata_needs_check(struct dm_cache_metadata *cmd);
+int dm_cache_metadata_needs_check(struct dm_cache_metadata *cmd, bool *result);
 int dm_cache_metadata_set_needs_check(struct dm_cache_metadata *cmd);
 void dm_cache_metadata_set_read_only(struct dm_cache_metadata *cmd);
 void dm_cache_metadata_set_read_write(struct dm_cache_metadata *cmd);

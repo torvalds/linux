@@ -21,13 +21,16 @@
 #include <sound/hdaudio.h>
 #include <sound/hda_regmap.h>
 
-#ifdef CONFIG_PM
-#define codec_is_running(codec)				\
-	(atomic_read(&(codec)->in_pm) ||		\
-	 !pm_runtime_suspended(&(codec)->dev))
-#else
-#define codec_is_running(codec)		true
-#endif
+static int codec_pm_lock(struct hdac_device *codec)
+{
+	return snd_hdac_keep_power_up(codec);
+}
+
+static void codec_pm_unlock(struct hdac_device *codec, int lock)
+{
+	if (lock == 1)
+		snd_hdac_power_down_pm(codec);
+}
 
 #define get_verb(reg)	(((reg) >> 8) & 0xfff)
 
@@ -238,20 +241,28 @@ static int hda_reg_read(void *context, unsigned int reg, unsigned int *val)
 	struct hdac_device *codec = context;
 	int verb = get_verb(reg);
 	int err;
+	int pm_lock = 0;
 
-	if (!codec_is_running(codec) && verb != AC_VERB_GET_POWER_STATE)
-		return -EAGAIN;
+	if (verb != AC_VERB_GET_POWER_STATE) {
+		pm_lock = codec_pm_lock(codec);
+		if (pm_lock < 0)
+			return -EAGAIN;
+	}
 	reg |= (codec->addr << 28);
-	if (is_stereo_amp_verb(reg))
-		return hda_reg_read_stereo_amp(codec, reg, val);
-	if (verb == AC_VERB_GET_PROC_COEF)
-		return hda_reg_read_coef(codec, reg, val);
+	if (is_stereo_amp_verb(reg)) {
+		err = hda_reg_read_stereo_amp(codec, reg, val);
+		goto out;
+	}
+	if (verb == AC_VERB_GET_PROC_COEF) {
+		err = hda_reg_read_coef(codec, reg, val);
+		goto out;
+	}
 	if ((verb & 0x700) == AC_VERB_SET_AMP_GAIN_MUTE)
 		reg &= ~AC_AMP_FAKE_MUTE;
 
 	err = snd_hdac_exec_verb(codec, reg, 0, val);
 	if (err < 0)
-		return err;
+		goto out;
 	/* special handling for asymmetric reads */
 	if (verb == AC_VERB_GET_POWER_STATE) {
 		if (*val & AC_PWRST_ERROR)
@@ -259,7 +270,9 @@ static int hda_reg_read(void *context, unsigned int reg, unsigned int *val)
 		else /* take only the actual state */
 			*val = (*val >> 4) & 0x0f;
 	}
-	return 0;
+ out:
+	codec_pm_unlock(codec, pm_lock);
+	return err;
 }
 
 static int hda_reg_write(void *context, unsigned int reg, unsigned int val)
@@ -267,6 +280,7 @@ static int hda_reg_write(void *context, unsigned int reg, unsigned int val)
 	struct hdac_device *codec = context;
 	unsigned int verb;
 	int i, bytes, err;
+	int pm_lock = 0;
 
 	if (codec->caps_overwriting)
 		return 0;
@@ -275,14 +289,21 @@ static int hda_reg_write(void *context, unsigned int reg, unsigned int val)
 	reg |= (codec->addr << 28);
 	verb = get_verb(reg);
 
-	if (!codec_is_running(codec) && verb != AC_VERB_SET_POWER_STATE)
-		return codec->lazy_cache ? 0 : -EAGAIN;
+	if (verb != AC_VERB_SET_POWER_STATE) {
+		pm_lock = codec_pm_lock(codec);
+		if (pm_lock < 0)
+			return codec->lazy_cache ? 0 : -EAGAIN;
+	}
 
-	if (is_stereo_amp_verb(reg))
-		return hda_reg_write_stereo_amp(codec, reg, val);
+	if (is_stereo_amp_verb(reg)) {
+		err = hda_reg_write_stereo_amp(codec, reg, val);
+		goto out;
+	}
 
-	if (verb == AC_VERB_SET_PROC_COEF)
-		return hda_reg_write_coef(codec, reg, val);
+	if (verb == AC_VERB_SET_PROC_COEF) {
+		err = hda_reg_write_coef(codec, reg, val);
+		goto out;
+	}
 
 	switch (verb & 0xf00) {
 	case AC_VERB_SET_AMP_GAIN_MUTE:
@@ -319,10 +340,12 @@ static int hda_reg_write(void *context, unsigned int reg, unsigned int val)
 		reg |= (verb + i) << 8 | ((val >> (8 * i)) & 0xff);
 		err = snd_hdac_exec_verb(codec, reg, 0, NULL);
 		if (err < 0)
-			return err;
+			goto out;
 	}
 
-	return 0;
+ out:
+	codec_pm_unlock(codec, pm_lock);
+	return err;
 }
 
 static const struct regmap_config hda_regmap_cfg = {
@@ -430,12 +453,28 @@ int snd_hdac_regmap_write_raw(struct hdac_device *codec, unsigned int reg,
 EXPORT_SYMBOL_GPL(snd_hdac_regmap_write_raw);
 
 static int reg_raw_read(struct hdac_device *codec, unsigned int reg,
-			unsigned int *val)
+			unsigned int *val, bool uncached)
 {
-	if (!codec->regmap)
+	if (uncached || !codec->regmap)
 		return hda_reg_read(codec, reg, val);
 	else
 		return regmap_read(codec->regmap, reg, val);
+}
+
+static int __snd_hdac_regmap_read_raw(struct hdac_device *codec,
+				      unsigned int reg, unsigned int *val,
+				      bool uncached)
+{
+	int err;
+
+	err = reg_raw_read(codec, reg, val, uncached);
+	if (err == -EAGAIN) {
+		err = snd_hdac_power_up_pm(codec);
+		if (!err)
+			err = reg_raw_read(codec, reg, val, uncached);
+		snd_hdac_power_down_pm(codec);
+	}
+	return err;
 }
 
 /**
@@ -449,18 +488,18 @@ static int reg_raw_read(struct hdac_device *codec, unsigned int reg,
 int snd_hdac_regmap_read_raw(struct hdac_device *codec, unsigned int reg,
 			     unsigned int *val)
 {
-	int err;
-
-	err = reg_raw_read(codec, reg, val);
-	if (err == -EAGAIN) {
-		err = snd_hdac_power_up_pm(codec);
-		if (!err)
-			err = reg_raw_read(codec, reg, val);
-		snd_hdac_power_down_pm(codec);
-	}
-	return err;
+	return __snd_hdac_regmap_read_raw(codec, reg, val, false);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_regmap_read_raw);
+
+/* Works like snd_hdac_regmap_read_raw(), but this doesn't read from the
+ * cache but always via hda verbs.
+ */
+int snd_hdac_regmap_read_raw_uncached(struct hdac_device *codec,
+				      unsigned int reg, unsigned int *val)
+{
+	return __snd_hdac_regmap_read_raw(codec, reg, val, true);
+}
 
 /**
  * snd_hdac_regmap_update_raw - update a pseudo register with power mgmt

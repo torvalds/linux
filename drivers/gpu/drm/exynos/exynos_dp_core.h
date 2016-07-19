@@ -16,6 +16,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_dp_helper.h>
 #include <drm/exynos_drm.h>
+#include <video/videomode.h>
 
 #include "exynos_drm_drv.h"
 
@@ -164,8 +165,7 @@ struct exynos_dp_device {
 	struct phy		*phy;
 	int			dpms_mode;
 	int			hpd_gpio;
-
-	struct exynos_drm_panel_info priv;
+	struct videomode	vm;
 };
 
 /* exynos_dp_reg.c */

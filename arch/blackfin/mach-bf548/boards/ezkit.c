@@ -20,9 +20,9 @@
 #include <linux/pinctrl/machine.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/platform_data/pinctrl-adi2.h>
+#include <linux/gpio.h>
 #include <asm/bfin5xx_spi.h>
 #include <asm/dma.h>
-#include <asm/gpio.h>
 #include <asm/nand.h>
 #include <asm/dpmc.h>
 #include <asm/bfin_sport.h>

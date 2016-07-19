@@ -67,6 +67,16 @@ struct stm_device;
  * description. That is, the lowest master that can be allocated to software
  * writers is @sw_start and data from this writer will appear is @sw_start
  * master in the STP stream.
+ *
+ * The @packet callback should adhere to the following rules:
+ *   1) it must return the number of bytes it consumed from the payload;
+ *   2) therefore, if it sent a packet that does not have payload (like FLAG),
+ *      it must return zero;
+ *   3) if it does not support the requested packet type/flag combination,
+ *      it must return -ENOTSUPP.
+ *
+ * The @unlink callback is called when there are no more active writers so
+ * that the master/channel can be quiesced.
  */
 struct stm_data {
 	const char		*name;

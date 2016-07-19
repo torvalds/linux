@@ -274,6 +274,9 @@ void ar5008_hw_cmn_spur_mitigate(struct ath_hw *ah,
 	};
 	static const int inc[4] = { 0, 100, 0, 0 };
 
+	memset(&mask_m, 0, sizeof(int8_t) * 123);
+	memset(&mask_p, 0, sizeof(int8_t) * 123);
+
 	cur_bin = -6000;
 	upper = bin + 100;
 	lower = bin - 100;
@@ -424,13 +427,8 @@ static void ar5008_hw_spur_mitigate(struct ath_hw *ah,
 	int tmp, new;
 	int i;
 
-	int8_t mask_m[123];
-	int8_t mask_p[123];
 	int cur_bb_spur;
 	bool is2GHz = IS_CHAN_2GHZ(chan);
-
-	memset(&mask_m, 0, sizeof(int8_t) * 123);
-	memset(&mask_p, 0, sizeof(int8_t) * 123);
 
 	for (i = 0; i < AR_EEPROM_MODAL_SPURS; i++) {
 		cur_bb_spur = ah->eep_ops->get_spur_channel(ah, i, is2GHz);

@@ -87,8 +87,8 @@ host_to_adap(uint8_t *src, uint8_t *dst, uint32_t bsize)
 	__le32 *odest = (__le32 *) dst;
 	uint32_t iter = bsize >> 2;
 
-	for (; iter ; iter--)
-		*odest++ = cpu_to_le32(*isrc++);
+	for ( ; iter--; isrc++)
+		*odest++ = cpu_to_le32(*isrc);
 }
 
 static inline void

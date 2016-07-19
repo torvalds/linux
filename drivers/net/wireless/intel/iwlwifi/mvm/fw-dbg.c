@@ -435,6 +435,10 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	bool monitor_dump_only = false;
 	int i;
 
+	if (!IWL_MVM_COLLECT_FW_ERR_DUMP &&
+	    !mvm->trans->dbg_dest_tlv)
+		return;
+
 	lockdep_assert_held(&mvm->mutex);
 
 	/* there's no point in fw dump if the bus is dead */
@@ -522,7 +526,8 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 		file_len += sizeof(*dump_data) + sizeof(*dump_mem) + sram2_len;
 
 	/* Make room for fw's virtual image pages, if it exists */
-	if (mvm->fw->img[mvm->cur_ucode].paging_mem_size)
+	if (mvm->fw->img[mvm->cur_ucode].paging_mem_size &&
+	    mvm->fw_paging_db[0].fw_paging_block)
 		file_len += mvm->num_of_paging_blk *
 			(sizeof(*dump_data) +
 			 sizeof(struct iwl_fw_error_dump_paging) +
@@ -639,9 +644,8 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	}
 
 	/* Dump fw's virtual image */
-	if (mvm->fw->img[mvm->cur_ucode].paging_mem_size) {
-		u32 i;
-
+	if (mvm->fw->img[mvm->cur_ucode].paging_mem_size &&
+	    mvm->fw_paging_db[0].fw_paging_block) {
 		for (i = 1; i < mvm->num_of_paging_blk + 1; i++) {
 			struct iwl_fw_error_dump_paging *paging;
 			struct page *pages =

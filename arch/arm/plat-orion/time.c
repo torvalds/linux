@@ -18,6 +18,7 @@
 #include <linux/irq.h>
 #include <linux/sched_clock.h>
 #include <plat/time.h>
+#include <asm/delay.h>
 
 /*
  * MBus bridge block registers.
@@ -188,6 +189,15 @@ orion_time_set_base(void __iomem *_timer_base)
 	timer_base = _timer_base;
 }
 
+static unsigned long orion_delay_timer_read(void)
+{
+	return ~readl(timer_base + TIMER0_VAL_OFF);
+}
+
+static struct delay_timer orion_delay_timer = {
+	.read_current_timer = orion_delay_timer_read,
+};
+
 void __init
 orion_time_init(void __iomem *_bridge_base, u32 _bridge_timer1_clr_mask,
 		unsigned int irq, unsigned int tclk)
@@ -201,6 +211,9 @@ orion_time_init(void __iomem *_bridge_base, u32 _bridge_timer1_clr_mask,
 	bridge_timer1_clr_mask = _bridge_timer1_clr_mask;
 
 	ticks_per_jiffy = (tclk + HZ/2) / HZ;
+
+	orion_delay_timer.freq = tclk;
+	register_current_timer_delay(&orion_delay_timer);
 
 	/*
 	 * Set scale and timer for sched_clock.

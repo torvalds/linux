@@ -1688,9 +1688,9 @@ static int dst_get_tuning_algo(struct dvb_frontend *fe)
 	return dst_algo ? DVBFE_ALGO_HW : DVBFE_ALGO_SW;
 }
 
-static int dst_get_frontend(struct dvb_frontend *fe)
+static int dst_get_frontend(struct dvb_frontend *fe,
+			    struct dtv_frontend_properties *p)
 {
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct dst_state *state = fe->demodulator_priv;
 
 	p->frequency = state->decode_freq;

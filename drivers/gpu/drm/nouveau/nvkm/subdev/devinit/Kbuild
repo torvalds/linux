@@ -11,4 +11,4 @@ nvkm-y += nvkm/subdev/devinit/gt215.o
 nvkm-y += nvkm/subdev/devinit/mcp89.o
 nvkm-y += nvkm/subdev/devinit/gf100.o
 nvkm-y += nvkm/subdev/devinit/gm107.o
-nvkm-y += nvkm/subdev/devinit/gm204.o
+nvkm-y += nvkm/subdev/devinit/gm200.o

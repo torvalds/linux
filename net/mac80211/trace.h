@@ -80,7 +80,23 @@
 #define KEY_PR_FMT	" cipher:0x%x, flags=%#x, keyidx=%d, hw_key_idx=%d"
 #define KEY_PR_ARG	__entry->cipher, __entry->flags, __entry->keyidx, __entry->hw_key_idx
 
-
+#define AMPDU_ACTION_ENTRY	__field(enum ieee80211_ampdu_mlme_action,		\
+					ieee80211_ampdu_mlme_action)			\
+				STA_ENTRY						\
+				__field(u16, tid)					\
+				__field(u16, ssn)					\
+				__field(u8, buf_size)					\
+				__field(bool, amsdu)					\
+				__field(u16, timeout)
+#define AMPDU_ACTION_ASSIGN	STA_NAMED_ASSIGN(params->sta);				\
+				__entry->tid = params->tid;				\
+				__entry->ssn = params->ssn;				\
+				__entry->buf_size = params->buf_size;			\
+				__entry->amsdu = params->amsdu;				\
+				__entry->timeout = params->timeout;
+#define AMPDU_ACTION_PR_FMT	STA_PR_FMT " tid %d, ssn %d, buf_size %u, amsdu %d, timeout %d"
+#define AMPDU_ACTION_PR_ARG	STA_PR_ARG, __entry->tid, __entry->ssn,			\
+				__entry->buf_size, __entry->amsdu, __entry->timeout
 
 /*
  * Tracing for driver callbacks.
@@ -970,38 +986,25 @@ DEFINE_EVENT(local_only_evt, drv_tx_last_beacon,
 TRACE_EVENT(drv_ampdu_action,
 	TP_PROTO(struct ieee80211_local *local,
 		 struct ieee80211_sub_if_data *sdata,
-		 enum ieee80211_ampdu_mlme_action action,
-		 struct ieee80211_sta *sta, u16 tid,
-		 u16 *ssn, u8 buf_size, bool amsdu),
+		 struct ieee80211_ampdu_params *params),
 
-	TP_ARGS(local, sdata, action, sta, tid, ssn, buf_size, amsdu),
+	TP_ARGS(local, sdata, params),
 
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
-		STA_ENTRY
-		__field(u32, action)
-		__field(u16, tid)
-		__field(u16, ssn)
-		__field(u8, buf_size)
-		__field(bool, amsdu)
 		VIF_ENTRY
+		AMPDU_ACTION_ENTRY
 	),
 
 	TP_fast_assign(
 		LOCAL_ASSIGN;
 		VIF_ASSIGN;
-		STA_ASSIGN;
-		__entry->action = action;
-		__entry->tid = tid;
-		__entry->ssn = ssn ? *ssn : 0;
-		__entry->buf_size = buf_size;
-		__entry->amsdu = amsdu;
+		AMPDU_ACTION_ASSIGN;
 	),
 
 	TP_printk(
-		LOCAL_PR_FMT VIF_PR_FMT STA_PR_FMT " action:%d tid:%d buf:%d amsdu:%d",
-		LOCAL_PR_ARG, VIF_PR_ARG, STA_PR_ARG, __entry->action,
-		__entry->tid, __entry->buf_size, __entry->amsdu
+		LOCAL_PR_FMT VIF_PR_FMT AMPDU_ACTION_PR_FMT,
+		LOCAL_PR_ARG, VIF_PR_ARG, AMPDU_ACTION_PR_ARG
 	)
 );
 

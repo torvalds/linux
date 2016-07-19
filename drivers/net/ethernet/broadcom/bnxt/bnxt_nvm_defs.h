@@ -50,10 +50,24 @@ enum bnxt_nvm_directory_type {
 
 #define BNX_DIR_ORDINAL_FIRST			0
 
+#define BNX_DIR_EXT_NONE			0
 #define BNX_DIR_EXT_INACTIVE			(1 << 0)
 #define BNX_DIR_EXT_UPDATE			(1 << 1)
 
+#define BNX_DIR_ATTR_NONE			0
 #define BNX_DIR_ATTR_NO_CHKSUM			(1 << 0)
 #define BNX_DIR_ATTR_PROP_STREAM		(1 << 1)
+
+#define BNX_PKG_LOG_MAX_LENGTH			4096
+
+enum bnxnvm_pkglog_field_index {
+	BNX_PKG_LOG_FIELD_IDX_INSTALLED_TIMESTAMP	= 0,
+	BNX_PKG_LOG_FIELD_IDX_PKG_DESCRIPTION		= 1,
+	BNX_PKG_LOG_FIELD_IDX_PKG_VERSION		= 2,
+	BNX_PKG_LOG_FIELD_IDX_PKG_TIMESTAMP		= 3,
+	BNX_PKG_LOG_FIELD_IDX_PKG_CHECKSUM		= 4,
+	BNX_PKG_LOG_FIELD_IDX_INSTALLED_ITEMS		= 5,
+	BNX_PKG_LOG_FIELD_IDX_INSTALLED_MASK		= 6
+};
 
 #endif				/* Don't add anything after this line */

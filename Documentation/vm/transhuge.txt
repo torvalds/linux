@@ -113,8 +113,25 @@ guaranteed, but it may be more likely in case the allocation is for a
 MADV_HUGEPAGE region.
 
 echo always >/sys/kernel/mm/transparent_hugepage/defrag
+echo defer >/sys/kernel/mm/transparent_hugepage/defrag
 echo madvise >/sys/kernel/mm/transparent_hugepage/defrag
 echo never >/sys/kernel/mm/transparent_hugepage/defrag
+
+"always" means that an application requesting THP will stall on allocation
+failure and directly reclaim pages and compact memory in an effort to
+allocate a THP immediately. This may be desirable for virtual machines
+that benefit heavily from THP use and are willing to delay the VM start
+to utilise them.
+
+"defer" means that an application will wake kswapd in the background
+to reclaim pages and wake kcompact to compact memory so that THP is
+available in the near future. It's the responsibility of khugepaged
+to then install the THP pages later.
+
+"madvise" will enter direct reclaim like "always" but only for regions
+that are have used madvise(MADV_HUGEPAGE). This is the default behaviour.
+
+"never" should be self-explanatory.
 
 By default kernel tries to use huge zero page on read page fault.
 It's possible to disable huge zero page by writing 0 or enable it
@@ -228,6 +245,11 @@ thp_split_page is incremented every time a huge page is split into base
 
 thp_split_page_failed is is incremented if kernel fails to split huge
 	page. This can happen if the page was pinned by somebody.
+
+thp_deferred_split_page is incremented when a huge page is put onto split
+	queue. This happens when a huge page is partially unmapped and
+	splitting it would free up some memory. Pages on split queue are
+	going to be split under memory pressure.
 
 thp_split_pmd is incremented every time a PMD split into table of PTEs.
 	This can happen, for instance, when application calls mprotect() or

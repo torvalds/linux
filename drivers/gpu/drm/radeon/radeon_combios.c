@@ -34,7 +34,6 @@
 #include <asm/machdep.h>
 #include <asm/pmac_feature.h>
 #include <asm/prom.h>
-#include <asm/pci-bridge.h>
 #endif /* CONFIG_PPC_PMAC */
 
 /* from radeon_legacy_encoder.c */

@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright(c) 2015 Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -34,7 +34,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright(c) 2015 Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -744,7 +744,7 @@ static void iwl_mvm_mac_ctxt_cmd_common(struct iwl_mvm *mvm,
 		 * wake-ups.
 		 */
 		cmd->filter_flags |= cpu_to_le32(MAC_FILTER_IN_PROBE_REQUEST);
-		if (mvmvif->ap_assoc_sta_count) {
+		if (mvmvif->ap_assoc_sta_count || !mvm->drop_bcn_ap_mode) {
 			cmd->filter_flags |= cpu_to_le32(MAC_FILTER_IN_BEACON);
 			IWL_DEBUG_HC(mvm, "Asking FW to pass beacons\n");
 		} else {
@@ -1461,4 +1461,43 @@ void iwl_mvm_rx_missed_beacons_notif(struct iwl_mvm *mvm,
 						   IEEE80211_IFACE_ITER_NORMAL,
 						   iwl_mvm_beacon_loss_iterator,
 						   mb);
+}
+
+void iwl_mvm_rx_stored_beacon_notif(struct iwl_mvm *mvm,
+				    struct iwl_rx_cmd_buffer *rxb)
+{
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct iwl_stored_beacon_notif *sb = (void *)pkt->data;
+	struct ieee80211_rx_status rx_status;
+	struct sk_buff *skb;
+	u32 size = le32_to_cpu(sb->byte_count);
+
+	if (size == 0)
+		return;
+
+	skb = alloc_skb(size, GFP_ATOMIC);
+	if (!skb) {
+		IWL_ERR(mvm, "alloc_skb failed\n");
+		return;
+	}
+
+	/* update rx_status according to the notification's metadata */
+	memset(&rx_status, 0, sizeof(rx_status));
+	rx_status.mactime = le64_to_cpu(sb->tsf);
+	/* TSF as indicated by the firmware  is at INA time */
+	rx_status.flag |= RX_FLAG_MACTIME_PLCP_START;
+	rx_status.device_timestamp = le32_to_cpu(sb->system_time);
+	rx_status.band =
+		(sb->phy_flags & cpu_to_le16(RX_RES_PHY_FLAGS_BAND_24)) ?
+				IEEE80211_BAND_2GHZ : IEEE80211_BAND_5GHZ;
+	rx_status.freq =
+		ieee80211_channel_to_frequency(le16_to_cpu(sb->channel),
+					       rx_status.band);
+
+	/* copy the data */
+	memcpy(skb_put(skb, size), sb->data, size);
+	memcpy(IEEE80211_SKB_RXCB(skb), &rx_status, sizeof(rx_status));
+
+	/* pass it as regular rx to mac80211 */
+	ieee80211_rx_napi(mvm->hw, skb, NULL);
 }

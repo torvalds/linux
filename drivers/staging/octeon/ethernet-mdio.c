@@ -118,13 +118,20 @@ void cvm_oct_adjust_link(struct net_device *dev)
 	struct octeon_ethernet *priv = netdev_priv(dev);
 	cvmx_helper_link_info_t link_info;
 
+	link_info.u64		= 0;
+	link_info.s.link_up	= priv->phydev->link ? 1 : 0;
+	link_info.s.full_duplex = priv->phydev->duplex ? 1 : 0;
+	link_info.s.speed	= priv->phydev->speed;
+	priv->link_info		= link_info.u64;
+
+	/*
+	 * The polling task need to know about link status changes.
+	 */
+	if (priv->poll)
+		priv->poll(dev);
+
 	if (priv->last_link != priv->phydev->link) {
 		priv->last_link = priv->phydev->link;
-		link_info.u64 = 0;
-		link_info.s.link_up = priv->last_link ? 1 : 0;
-		link_info.s.full_duplex = priv->phydev->duplex ? 1 : 0;
-		link_info.s.speed = priv->phydev->speed;
-
 		cvmx_helper_link_set(priv->port, link_info);
 		cvm_oct_note_carrier(priv, link_info);
 	}
@@ -174,13 +181,22 @@ int cvm_oct_phy_setup_device(struct net_device *dev)
 		goto no_phy;
 
 	phy_node = of_parse_phandle(priv->of_node, "phy-handle", 0);
+	if (!phy_node && of_phy_is_fixed_link(priv->of_node)) {
+		int rc;
+
+		rc = of_phy_register_fixed_link(priv->of_node);
+		if (rc)
+			return rc;
+
+		phy_node = of_node_get(priv->of_node);
+	}
 	if (!phy_node)
 		goto no_phy;
 
 	priv->phydev = of_phy_connect(dev, phy_node, cvm_oct_adjust_link, 0,
 				      PHY_INTERFACE_MODE_GMII);
 
-	if (priv->phydev == NULL)
+	if (!priv->phydev)
 		return -ENODEV;
 
 	priv->last_link = 0;

@@ -5,6 +5,7 @@
 #include "../util/util.h"
 #include "../util/sort.h"
 #include "../util/evsel.h"
+#include "../util/evlist.h"
 
 /* hist period print (hpp) functions */
 
@@ -371,7 +372,20 @@ static int64_t hpp__nop_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
 	return 0;
 }
 
-#define HPP__COLOR_PRINT_FNS(_name, _fn)		\
+static bool perf_hpp__is_hpp_entry(struct perf_hpp_fmt *a)
+{
+	return a->header == hpp__header_fn;
+}
+
+static bool hpp__equal(struct perf_hpp_fmt *a, struct perf_hpp_fmt *b)
+{
+	if (!perf_hpp__is_hpp_entry(a) || !perf_hpp__is_hpp_entry(b))
+		return false;
+
+	return a->idx == b->idx;
+}
+
+#define HPP__COLOR_PRINT_FNS(_name, _fn, _idx)		\
 	{						\
 		.name   = _name,			\
 		.header	= hpp__header_fn,		\
@@ -381,9 +395,11 @@ static int64_t hpp__nop_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
 		.cmp	= hpp__nop_cmp,			\
 		.collapse = hpp__nop_cmp,		\
 		.sort	= hpp__sort_ ## _fn,		\
+		.idx	= PERF_HPP__ ## _idx,		\
+		.equal	= hpp__equal,			\
 	}
 
-#define HPP__COLOR_ACC_PRINT_FNS(_name, _fn)		\
+#define HPP__COLOR_ACC_PRINT_FNS(_name, _fn, _idx)	\
 	{						\
 		.name   = _name,			\
 		.header	= hpp__header_fn,		\
@@ -393,9 +409,11 @@ static int64_t hpp__nop_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
 		.cmp	= hpp__nop_cmp,			\
 		.collapse = hpp__nop_cmp,		\
 		.sort	= hpp__sort_ ## _fn,		\
+		.idx	= PERF_HPP__ ## _idx,		\
+		.equal	= hpp__equal,			\
 	}
 
-#define HPP__PRINT_FNS(_name, _fn)			\
+#define HPP__PRINT_FNS(_name, _fn, _idx)		\
 	{						\
 		.name   = _name,			\
 		.header	= hpp__header_fn,		\
@@ -404,22 +422,25 @@ static int64_t hpp__nop_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
 		.cmp	= hpp__nop_cmp,			\
 		.collapse = hpp__nop_cmp,		\
 		.sort	= hpp__sort_ ## _fn,		\
+		.idx	= PERF_HPP__ ## _idx,		\
+		.equal	= hpp__equal,			\
 	}
 
 struct perf_hpp_fmt perf_hpp__format[] = {
-	HPP__COLOR_PRINT_FNS("Overhead", overhead),
-	HPP__COLOR_PRINT_FNS("sys", overhead_sys),
-	HPP__COLOR_PRINT_FNS("usr", overhead_us),
-	HPP__COLOR_PRINT_FNS("guest sys", overhead_guest_sys),
-	HPP__COLOR_PRINT_FNS("guest usr", overhead_guest_us),
-	HPP__COLOR_ACC_PRINT_FNS("Children", overhead_acc),
-	HPP__PRINT_FNS("Samples", samples),
-	HPP__PRINT_FNS("Period", period)
+	HPP__COLOR_PRINT_FNS("Overhead", overhead, OVERHEAD),
+	HPP__COLOR_PRINT_FNS("sys", overhead_sys, OVERHEAD_SYS),
+	HPP__COLOR_PRINT_FNS("usr", overhead_us, OVERHEAD_US),
+	HPP__COLOR_PRINT_FNS("guest sys", overhead_guest_sys, OVERHEAD_GUEST_SYS),
+	HPP__COLOR_PRINT_FNS("guest usr", overhead_guest_us, OVERHEAD_GUEST_US),
+	HPP__COLOR_ACC_PRINT_FNS("Children", overhead_acc, OVERHEAD_ACC),
+	HPP__PRINT_FNS("Samples", samples, SAMPLES),
+	HPP__PRINT_FNS("Period", period, PERIOD)
 };
 
-LIST_HEAD(perf_hpp__list);
-LIST_HEAD(perf_hpp__sort_list);
-
+struct perf_hpp_list perf_hpp_list = {
+	.fields	= LIST_HEAD_INIT(perf_hpp_list.fields),
+	.sorts	= LIST_HEAD_INIT(perf_hpp_list.sorts),
+};
 
 #undef HPP__COLOR_PRINT_FNS
 #undef HPP__COLOR_ACC_PRINT_FNS
@@ -485,9 +506,16 @@ void perf_hpp__init(void)
 		hpp_dimension__add_output(PERF_HPP__PERIOD);
 }
 
-void perf_hpp__column_register(struct perf_hpp_fmt *format)
+void perf_hpp_list__column_register(struct perf_hpp_list *list,
+				    struct perf_hpp_fmt *format)
 {
-	list_add_tail(&format->list, &perf_hpp__list);
+	list_add_tail(&format->list, &list->fields);
+}
+
+void perf_hpp_list__register_sort_field(struct perf_hpp_list *list,
+					struct perf_hpp_fmt *format)
+{
+	list_add_tail(&format->sort_list, &list->sorts);
 }
 
 void perf_hpp__column_unregister(struct perf_hpp_fmt *format)
@@ -495,53 +523,43 @@ void perf_hpp__column_unregister(struct perf_hpp_fmt *format)
 	list_del(&format->list);
 }
 
-void perf_hpp__register_sort_field(struct perf_hpp_fmt *format)
-{
-	list_add_tail(&format->sort_list, &perf_hpp__sort_list);
-}
-
-void perf_hpp__column_enable(unsigned col)
-{
-	BUG_ON(col >= PERF_HPP__MAX_INDEX);
-	perf_hpp__column_register(&perf_hpp__format[col]);
-}
-
-void perf_hpp__column_disable(unsigned col)
-{
-	BUG_ON(col >= PERF_HPP__MAX_INDEX);
-	perf_hpp__column_unregister(&perf_hpp__format[col]);
-}
-
 void perf_hpp__cancel_cumulate(void)
 {
+	struct perf_hpp_fmt *fmt, *acc, *ovh, *tmp;
+
 	if (is_strict_order(field_order))
 		return;
 
-	perf_hpp__column_disable(PERF_HPP__OVERHEAD_ACC);
-	perf_hpp__format[PERF_HPP__OVERHEAD].name = "Overhead";
+	ovh = &perf_hpp__format[PERF_HPP__OVERHEAD];
+	acc = &perf_hpp__format[PERF_HPP__OVERHEAD_ACC];
+
+	perf_hpp_list__for_each_format_safe(&perf_hpp_list, fmt, tmp) {
+		if (acc->equal(acc, fmt)) {
+			perf_hpp__column_unregister(fmt);
+			continue;
+		}
+
+		if (ovh->equal(ovh, fmt))
+			fmt->name = "Overhead";
+	}
 }
 
-void perf_hpp__setup_output_field(void)
+static bool fmt_equal(struct perf_hpp_fmt *a, struct perf_hpp_fmt *b)
+{
+	return a->equal && a->equal(a, b);
+}
+
+void perf_hpp__setup_output_field(struct perf_hpp_list *list)
 {
 	struct perf_hpp_fmt *fmt;
 
 	/* append sort keys to output field */
-	perf_hpp__for_each_sort_list(fmt) {
-		if (!list_empty(&fmt->list))
-			continue;
+	perf_hpp_list__for_each_sort_list(list, fmt) {
+		struct perf_hpp_fmt *pos;
 
-		/*
-		 * sort entry fields are dynamically created,
-		 * so they can share a same sort key even though
-		 * the list is empty.
-		 */
-		if (perf_hpp__is_sort_entry(fmt)) {
-			struct perf_hpp_fmt *pos;
-
-			perf_hpp__for_each_format(pos) {
-				if (perf_hpp__same_sort_entry(pos, fmt))
-					goto next;
-			}
+		perf_hpp_list__for_each_format(list, pos) {
+			if (fmt_equal(fmt, pos))
+				goto next;
 		}
 
 		perf_hpp__column_register(fmt);
@@ -550,27 +568,17 @@ next:
 	}
 }
 
-void perf_hpp__append_sort_keys(void)
+void perf_hpp__append_sort_keys(struct perf_hpp_list *list)
 {
 	struct perf_hpp_fmt *fmt;
 
 	/* append output fields to sort keys */
-	perf_hpp__for_each_format(fmt) {
-		if (!list_empty(&fmt->sort_list))
-			continue;
+	perf_hpp_list__for_each_format(list, fmt) {
+		struct perf_hpp_fmt *pos;
 
-		/*
-		 * sort entry fields are dynamically created,
-		 * so they can share a same sort key even though
-		 * the list is empty.
-		 */
-		if (perf_hpp__is_sort_entry(fmt)) {
-			struct perf_hpp_fmt *pos;
-
-			perf_hpp__for_each_sort_list(pos) {
-				if (perf_hpp__same_sort_entry(pos, fmt))
-					goto next;
-			}
+		perf_hpp_list__for_each_sort_list(list, pos) {
+			if (fmt_equal(fmt, pos))
+				goto next;
 		}
 
 		perf_hpp__register_sort_field(fmt);
@@ -579,20 +587,29 @@ next:
 	}
 }
 
-void perf_hpp__reset_output_field(void)
+
+static void fmt_free(struct perf_hpp_fmt *fmt)
+{
+	if (fmt->free)
+		fmt->free(fmt);
+}
+
+void perf_hpp__reset_output_field(struct perf_hpp_list *list)
 {
 	struct perf_hpp_fmt *fmt, *tmp;
 
 	/* reset output fields */
-	perf_hpp__for_each_format_safe(fmt, tmp) {
+	perf_hpp_list__for_each_format_safe(list, fmt, tmp) {
 		list_del_init(&fmt->list);
 		list_del_init(&fmt->sort_list);
+		fmt_free(fmt);
 	}
 
 	/* reset sort keys */
-	perf_hpp__for_each_sort_list_safe(fmt, tmp) {
+	perf_hpp_list__for_each_sort_list_safe(list, fmt, tmp) {
 		list_del_init(&fmt->list);
 		list_del_init(&fmt->sort_list);
+		fmt_free(fmt);
 	}
 }
 
@@ -606,7 +623,7 @@ unsigned int hists__sort_list_width(struct hists *hists)
 	bool first = true;
 	struct perf_hpp dummy_hpp;
 
-	perf_hpp__for_each_format(fmt) {
+	hists__for_each_format(hists, fmt) {
 		if (perf_hpp__should_skip(fmt, hists))
 			continue;
 
@@ -624,22 +641,39 @@ unsigned int hists__sort_list_width(struct hists *hists)
 	return ret;
 }
 
+unsigned int hists__overhead_width(struct hists *hists)
+{
+	struct perf_hpp_fmt *fmt;
+	int ret = 0;
+	bool first = true;
+	struct perf_hpp dummy_hpp;
+
+	hists__for_each_format(hists, fmt) {
+		if (perf_hpp__is_sort_entry(fmt) || perf_hpp__is_dynamic_entry(fmt))
+			break;
+
+		if (first)
+			first = false;
+		else
+			ret += 2;
+
+		ret += fmt->width(fmt, &dummy_hpp, hists_to_evsel(hists));
+	}
+
+	return ret;
+}
+
 void perf_hpp__reset_width(struct perf_hpp_fmt *fmt, struct hists *hists)
 {
-	int idx;
-
 	if (perf_hpp__is_sort_entry(fmt))
 		return perf_hpp__reset_sort_width(fmt, hists);
 
-	for (idx = 0; idx < PERF_HPP__MAX_INDEX; idx++) {
-		if (fmt == &perf_hpp__format[idx])
-			break;
-	}
-
-	if (idx == PERF_HPP__MAX_INDEX)
+	if (perf_hpp__is_dynamic_entry(fmt))
 		return;
 
-	switch (idx) {
+	BUG_ON(fmt->idx >= PERF_HPP__MAX_INDEX);
+
+	switch (fmt->idx) {
 	case PERF_HPP__OVERHEAD:
 	case PERF_HPP__OVERHEAD_SYS:
 	case PERF_HPP__OVERHEAD_US:
@@ -667,7 +701,7 @@ void perf_hpp__set_user_width(const char *width_list_str)
 	struct perf_hpp_fmt *fmt;
 	const char *ptr = width_list_str;
 
-	perf_hpp__for_each_format(fmt) {
+	perf_hpp_list__for_each_format(&perf_hpp_list, fmt) {
 		char *p;
 
 		int len = strtol(ptr, &p, 10);
@@ -678,4 +712,72 @@ void perf_hpp__set_user_width(const char *width_list_str)
 		else
 			break;
 	}
+}
+
+static int add_hierarchy_fmt(struct hists *hists, struct perf_hpp_fmt *fmt)
+{
+	struct perf_hpp_list_node *node = NULL;
+	struct perf_hpp_fmt *fmt_copy;
+	bool found = false;
+	bool skip = perf_hpp__should_skip(fmt, hists);
+
+	list_for_each_entry(node, &hists->hpp_formats, list) {
+		if (node->level == fmt->level) {
+			found = true;
+			break;
+		}
+	}
+
+	if (!found) {
+		node = malloc(sizeof(*node));
+		if (node == NULL)
+			return -1;
+
+		node->skip = skip;
+		node->level = fmt->level;
+		perf_hpp_list__init(&node->hpp);
+
+		hists->nr_hpp_node++;
+		list_add_tail(&node->list, &hists->hpp_formats);
+	}
+
+	fmt_copy = perf_hpp_fmt__dup(fmt);
+	if (fmt_copy == NULL)
+		return -1;
+
+	if (!skip)
+		node->skip = false;
+
+	list_add_tail(&fmt_copy->list, &node->hpp.fields);
+	list_add_tail(&fmt_copy->sort_list, &node->hpp.sorts);
+
+	return 0;
+}
+
+int perf_hpp__setup_hists_formats(struct perf_hpp_list *list,
+				  struct perf_evlist *evlist)
+{
+	struct perf_evsel *evsel;
+	struct perf_hpp_fmt *fmt;
+	struct hists *hists;
+	int ret;
+
+	if (!symbol_conf.report_hierarchy)
+		return 0;
+
+	evlist__for_each(evlist, evsel) {
+		hists = evsel__hists(evsel);
+
+		perf_hpp_list__for_each_sort_list(list, fmt) {
+			if (perf_hpp__is_dynamic_entry(fmt) &&
+			    !perf_hpp__defined_dynamic_entry(fmt, hists))
+				continue;
+
+			ret = add_hierarchy_fmt(hists, fmt);
+			if (ret < 0)
+				return ret;
+		}
+	}
+
+	return 0;
 }

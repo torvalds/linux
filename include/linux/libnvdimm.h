@@ -48,7 +48,7 @@ struct nvdimm;
 struct nvdimm_bus_descriptor;
 typedef int (*ndctl_fn)(struct nvdimm_bus_descriptor *nd_desc,
 		struct nvdimm *nvdimm, unsigned int cmd, void *buf,
-		unsigned int buf_len);
+		unsigned int buf_len, int *cmd_rc);
 
 struct nd_namespace_label;
 struct nvdimm_drvdata;
@@ -71,6 +71,9 @@ struct nvdimm_bus_descriptor {
 	unsigned long dsm_mask;
 	char *provider_name;
 	ndctl_fn ndctl;
+	int (*flush_probe)(struct nvdimm_bus_descriptor *nd_desc);
+	int (*clear_to_send)(struct nvdimm_bus_descriptor *nd_desc,
+			struct nvdimm *nvdimm, unsigned int cmd);
 };
 
 struct nd_cmd_desc {

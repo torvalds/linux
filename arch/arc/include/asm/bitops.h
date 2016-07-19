@@ -35,21 +35,6 @@ static inline void op##_bit(unsigned long nr, volatile unsigned long *m)\
 									\
 	m += nr >> 5;							\
 									\
-	/*								\
-	 * ARC ISA micro-optimization:					\
-	 *								\
-	 * Instructions dealing with bitpos only consider lower 5 bits	\
-	 * e.g (x << 33) is handled like (x << 1) by ASL instruction	\
-	 *  (mem pointer still needs adjustment to point to next word)	\
-	 *								\
-	 * Hence the masking to clamp @nr arg can be elided in general.	\
-	 *								\
-	 * However if @nr is a constant (above assumed in a register),	\
-	 * and greater than 31, gcc can optimize away (x << 33) to 0,	\
-	 * as overflow, given the 32-bit ISA. Thus masking needs to be	\
-	 * done for const @nr, but no code is generated due to gcc	\
-	 * const prop.							\
-	 */								\
 	nr &= 0x1f;							\
 									\
 	__asm__ __volatile__(						\

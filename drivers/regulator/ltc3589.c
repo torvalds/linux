@@ -520,12 +520,15 @@ static int ltc3589_probe(struct i2c_client *client,
 		}
 	}
 
-	ret = devm_request_threaded_irq(dev, client->irq, NULL, ltc3589_isr,
-					IRQF_TRIGGER_LOW | IRQF_ONESHOT,
-					client->name, ltc3589);
-	if (ret) {
-		dev_err(dev, "Failed to request IRQ: %d\n", ret);
-		return ret;
+	if (client->irq) {
+		ret = devm_request_threaded_irq(dev, client->irq, NULL,
+						ltc3589_isr,
+						IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+						client->name, ltc3589);
+		if (ret) {
+			dev_err(dev, "Failed to request IRQ: %d\n", ret);
+			return ret;
+		}
 	}
 
 	return 0;

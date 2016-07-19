@@ -610,7 +610,7 @@ static char *ocrdma_driver_dbg_stats(struct ocrdma_dev *dev)
 static void ocrdma_update_stats(struct ocrdma_dev *dev)
 {
 	ulong now = jiffies, secs;
-	int status = 0;
+	int status;
 	struct ocrdma_rdma_stats_resp *rdma_stats =
 		      (struct ocrdma_rdma_stats_resp *)dev->stats_mem.va;
 	struct ocrdma_rsrc_stats *rsrc_stats = &rdma_stats->act_rsrc_stats;
@@ -641,7 +641,7 @@ static ssize_t ocrdma_dbgfs_ops_write(struct file *filp,
 {
 	char tmp_str[32];
 	long reset;
-	int status = 0;
+	int status;
 	struct ocrdma_stats *pstats = filp->private_data;
 	struct ocrdma_dev *dev = pstats->dev;
 

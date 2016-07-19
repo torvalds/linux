@@ -418,6 +418,8 @@ static inline void tpg_s_bytesperline(struct tpg_data *tpg, unsigned plane, unsi
 
 		tpg->bytesperline[p] = plane_w / tpg->hdownsampling[p];
 	}
+	if (tpg_g_interleaved(tpg))
+		tpg->bytesperline[1] = tpg->bytesperline[0];
 }
 
 

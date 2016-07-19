@@ -28,7 +28,6 @@
 
 #ifdef CONFIG_PPC_PMAC
 #include <asm/prom.h>
-#include <asm/pci-bridge.h>
 #endif
 
 #define DRV_NAME "pdc202xx_new"

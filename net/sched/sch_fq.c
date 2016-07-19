@@ -662,6 +662,7 @@ static int fq_change(struct Qdisc *sch, struct nlattr *opt)
 	struct fq_sched_data *q = qdisc_priv(sch);
 	struct nlattr *tb[TCA_FQ_MAX + 1];
 	int err, drop_count = 0;
+	unsigned drop_len = 0;
 	u32 fq_log;
 
 	if (!opt)
@@ -736,10 +737,11 @@ static int fq_change(struct Qdisc *sch, struct nlattr *opt)
 
 		if (!skb)
 			break;
+		drop_len += qdisc_pkt_len(skb);
 		kfree_skb(skb);
 		drop_count++;
 	}
-	qdisc_tree_decrease_qlen(sch, drop_count);
+	qdisc_tree_reduce_backlog(sch, drop_count, drop_len);
 
 	sch_tree_unlock(sch);
 	return err;

@@ -275,22 +275,10 @@ static int tegra_ictlr_domain_alloc(struct irq_domain *domain,
 					    &parent_fwspec);
 }
 
-static void tegra_ictlr_domain_free(struct irq_domain *domain,
-				    unsigned int virq,
-				    unsigned int nr_irqs)
-{
-	unsigned int i;
-
-	for (i = 0; i < nr_irqs; i++) {
-		struct irq_data *d = irq_domain_get_irq_data(domain, virq + i);
-		irq_domain_reset_irq_data(d);
-	}
-}
-
 static const struct irq_domain_ops tegra_ictlr_domain_ops = {
 	.translate	= tegra_ictlr_domain_translate,
 	.alloc		= tegra_ictlr_domain_alloc,
-	.free		= tegra_ictlr_domain_free,
+	.free		= irq_domain_free_irqs_common,
 };
 
 static int __init tegra_ictlr_init(struct device_node *node,

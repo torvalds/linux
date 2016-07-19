@@ -509,7 +509,7 @@ static int xilly_setupchannels(struct xilly_endpoint *ep,
 			channel->log2_element_size = ((format > 2) ?
 						      2 : format);
 
-			bytebufsize = channel->rd_buf_size = bufsize *
+			bytebufsize = bufsize *
 				(1 << channel->log2_element_size);
 
 			buffers = devm_kcalloc(dev, bufnum,
@@ -523,6 +523,7 @@ static int xilly_setupchannels(struct xilly_endpoint *ep,
 
 		if (!is_writebuf) {
 			channel->num_rd_buffers = bufnum;
+			channel->rd_buf_size = bytebufsize;
 			channel->rd_allow_partial = allowpartial;
 			channel->rd_synchronous = synchronous;
 			channel->rd_exclusive_open = exclusive_open;
@@ -533,6 +534,7 @@ static int xilly_setupchannels(struct xilly_endpoint *ep,
 						   bufnum, bytebufsize);
 		} else if (channelnum > 0) {
 			channel->num_wr_buffers = bufnum;
+			channel->wr_buf_size = bytebufsize;
 
 			channel->seekable = seekable;
 			channel->wr_supports_nonempty = supports_nonempty;

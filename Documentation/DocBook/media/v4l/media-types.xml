@@ -80,7 +80,46 @@
 	  </row>
 	  <row>
 	    <entry><constant>MEDIA_ENT_F_TUNER</constant></entry>
-	    <entry>Digital TV, analog TV, radio and/or software radio tuner.</entry>
+	    <entry>Digital TV, analog TV, radio and/or software radio tuner,
+		   with consists on a PLL tuning stage that converts radio
+		   frequency (RF) signal into an Intermediate Frequency (IF).
+		   Modern tuners have internally IF-PLL decoders for audio
+		   and video, but older models have those stages implemented
+		   on separate entities.
+	    </entry>
+	  </row>
+	  <row>
+	    <entry><constant>MEDIA_ENT_F_IF_VID_DECODER</constant></entry>
+	    <entry>IF-PLL video decoder. It receives the IF from a PLL
+		   and decodes the analog TV video signal. This is commonly
+		   found on some very old analog tuners, like Philips MK3
+		   designs. They all contain a tda9887 (or some software
+		   compatible similar chip, like tda9885). Those devices
+		   use a different I2C address than the tuner PLL.
+	    </entry>
+	  </row>
+	  <row>
+	    <entry><constant>MEDIA_ENT_F_IF_AUD_DECODER</constant></entry>
+	    <entry>IF-PLL sound decoder. It receives the IF from a PLL
+		   and decodes the analog TV audio signal. This is commonly
+		   found on some very old analog hardware, like Micronas
+		   msp3400, Philips tda9840, tda985x, etc. Those devices
+		   use a different I2C address than the tuner PLL and
+		   should be controlled together with the IF-PLL video
+		   decoder.
+	    </entry>
+	  </row>
+	  <row>
+	    <entry><constant>MEDIA_ENT_F_AUDIO_CAPTURE</constant></entry>
+	    <entry>Audio Capture Function Entity.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>MEDIA_ENT_F_AUDIO_PLAYBACK</constant></entry>
+	    <entry>Audio Playback Function Entity.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>MEDIA_ENT_F_AUDIO_MIXER</constant></entry>
+	    <entry>Audio Mixer Function Entity.</entry>
 	  </row>
 	</tbody>
       </tgroup>
@@ -161,6 +200,46 @@
 	    <entry><constant>MEDIA_INTF_T_V4L_SWRADIO</constant></entry>
 	    <entry>Device node interface for Software Defined Radio (V4L)</entry>
 	    <entry>typically, /dev/swradio?</entry>
+	  </row>
+	  <row>
+	    <entry><constant>MEDIA_INTF_T_ALSA_PCM_CAPTURE</constant></entry>
+	    <entry>Device node interface for ALSA PCM Capture</entry>
+	    <entry>typically, /dev/snd/pcmC?D?c</entry>
+	  </row>
+	  <row>
+	    <entry><constant>MEDIA_INTF_T_ALSA_PCM_PLAYBACK</constant></entry>
+	    <entry>Device node interface for ALSA PCM Playback</entry>
+	    <entry>typically, /dev/snd/pcmC?D?p</entry>
+	  </row>
+	  <row>
+	    <entry><constant>MEDIA_INTF_T_ALSA_CONTROL</constant></entry>
+	    <entry>Device node interface for ALSA Control</entry>
+	    <entry>typically, /dev/snd/controlC?</entry>
+	  </row>
+	  <row>
+	    <entry><constant>MEDIA_INTF_T_ALSA_COMPRESS</constant></entry>
+	    <entry>Device node interface for ALSA Compress</entry>
+	    <entry>typically, /dev/snd/compr?</entry>
+	  </row>
+	  <row>
+	    <entry><constant>MEDIA_INTF_T_ALSA_RAWMIDI</constant></entry>
+	    <entry>Device node interface for ALSA Raw MIDI</entry>
+	    <entry>typically, /dev/snd/midi?</entry>
+	  </row>
+	  <row>
+	    <entry><constant>MEDIA_INTF_T_ALSA_HWDEP</constant></entry>
+	    <entry>Device node interface for ALSA Hardware Dependent</entry>
+	    <entry>typically, /dev/snd/hwC?D?</entry>
+	  </row>
+	  <row>
+	    <entry><constant>MEDIA_INTF_T_ALSA_SEQUENCER</constant></entry>
+	    <entry>Device node interface for ALSA Sequencer</entry>
+	    <entry>typically, /dev/snd/seq</entry>
+	  </row>
+	  <row>
+	    <entry><constant>MEDIA_INTF_T_ALSA_TIMER</constant></entry>
+	    <entry>Device node interface for ALSA Timer</entry>
+	    <entry>typically, /dev/snd/timer</entry>
 	  </row>
 	</tbody>
       </tgroup>

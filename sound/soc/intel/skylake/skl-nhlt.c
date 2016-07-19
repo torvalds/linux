@@ -145,3 +145,37 @@ struct nhlt_specific_cfg
 
 	return NULL;
 }
+
+static void skl_nhlt_trim_space(struct skl *skl)
+{
+	char *s = skl->tplg_name;
+	int cnt;
+	int i;
+
+	cnt = 0;
+	for (i = 0; s[i]; i++) {
+		if (!isspace(s[i]))
+			s[cnt++] = s[i];
+	}
+
+	s[cnt] = '\0';
+}
+
+int skl_nhlt_update_topology_bin(struct skl *skl)
+{
+	struct nhlt_acpi_table *nhlt = (struct nhlt_acpi_table *)skl->nhlt;
+	struct hdac_bus *bus = ebus_to_hbus(&skl->ebus);
+	struct device *dev = bus->dev;
+
+	dev_dbg(dev, "oem_id %.6s, oem_table_id %8s oem_revision %d\n",
+		nhlt->header.oem_id, nhlt->header.oem_table_id,
+		nhlt->header.oem_revision);
+
+	snprintf(skl->tplg_name, sizeof(skl->tplg_name), "%x-%.6s-%.8s-%d%s",
+		skl->pci_id, nhlt->header.oem_id, nhlt->header.oem_table_id,
+		nhlt->header.oem_revision, "-tplg.bin");
+
+	skl_nhlt_trim_space(skl);
+
+	return 0;
+}

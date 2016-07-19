@@ -1265,7 +1265,7 @@ static
 int ti_bandgap_probe(struct platform_device *pdev)
 {
 	struct ti_bandgap *bgp;
-	int clk_rate, ret = 0, i;
+	int clk_rate, ret, i;
 
 	bgp = ti_bandgap_build(pdev);
 	if (IS_ERR(bgp)) {
@@ -1288,16 +1288,14 @@ int ti_bandgap_probe(struct platform_device *pdev)
 	}
 
 	bgp->fclock = clk_get(NULL, bgp->conf->fclock_name);
-	ret = IS_ERR(bgp->fclock);
-	if (ret) {
+	if (IS_ERR(bgp->fclock)) {
 		dev_err(&pdev->dev, "failed to request fclock reference\n");
 		ret = PTR_ERR(bgp->fclock);
 		goto free_irqs;
 	}
 
 	bgp->div_clk = clk_get(NULL, bgp->conf->div_ck_name);
-	ret = IS_ERR(bgp->div_clk);
-	if (ret) {
+	if (IS_ERR(bgp->div_clk)) {
 		dev_err(&pdev->dev, "failed to request div_ts_ck clock ref\n");
 		ret = PTR_ERR(bgp->div_clk);
 		goto free_irqs;
@@ -1314,7 +1312,7 @@ int ti_bandgap_probe(struct platform_device *pdev)
 		 * may not be accurate
 		 */
 		val = ti_bandgap_readl(bgp, tsr->bgap_efuse);
-		if (ret || !val)
+		if (!val)
 			dev_info(&pdev->dev,
 				 "Non-trimmed BGAP, Temp not accurate\n");
 	}

@@ -12,8 +12,22 @@ config BATMAN_ADV
           B.A.T.M.A.N. (better approach to mobile ad-hoc networking) is
           a routing protocol for multi-hop ad-hoc mesh networks. The
           networks may be wired or wireless. See
-          http://www.open-mesh.org/ for more information and user space
+          https://www.open-mesh.org/ for more information and user space
           tools.
+
+config BATMAN_ADV_BATMAN_V
+	bool "B.A.T.M.A.N. V protocol (experimental)"
+	depends on BATMAN_ADV && CFG80211=y || (CFG80211=m && BATMAN_ADV=m)
+	default n
+	help
+	  This option enables the B.A.T.M.A.N. V protocol, the successor
+	  of the currently used B.A.T.M.A.N. IV protocol. The main
+	  changes include splitting of the OGM protocol into a neighbor
+	  discovery protocol (Echo Location Protocol, ELP) and a new OGM
+	  Protocol OGMv2 for flooding protocol information through the
+	  network, as well as a throughput based metric.
+	  B.A.T.M.A.N. V is currently considered experimental and not
+	  compatible to B.A.T.M.A.N. IV networks.
 
 config BATMAN_ADV_BLA
 	bool "Bridge Loop Avoidance"

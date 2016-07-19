@@ -10,23 +10,10 @@
 static int (*led_set_func)(int, bool);
 static void (*old_vmaster_hook)(void *, int);
 
-static acpi_status acpi_check_cb(acpi_handle handle, u32 lvl, void *context,
-				 void **rv)
-{
-	bool *found = context;
-	*found = true;
-	return AE_OK;
-}
-
 static bool is_thinkpad(struct hda_codec *codec)
 {
-	bool found = false;
-	if (codec->core.subsystem_id >> 16 != 0x17aa)
-		return false;
-	if (ACPI_SUCCESS(acpi_get_devices("LEN0068", acpi_check_cb, &found, NULL)) && found)
-		return true;
-	found = false;
-	return ACPI_SUCCESS(acpi_get_devices("IBM0068", acpi_check_cb, &found, NULL)) && found;
+	return (codec->core.subsystem_id >> 16 == 0x17aa) &&
+	       (acpi_dev_present("LEN0068") || acpi_dev_present("IBM0068"));
 }
 
 static void update_tpacpi_mute_led(void *private_data, int enabled)

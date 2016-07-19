@@ -5,7 +5,7 @@
 	interrupt-parent = <&pic>;
 
 	chosen {
-		bootargs = "earlycon=uart8250,mmio32,0xfd050020,115200n8 console=ttyS0,115200n8 ip=dhcp root=/dev/nfs rw debug";
+		bootargs = "earlycon=uart8250,mmio32native,0xfd050020,115200n8 console=ttyS0,115200n8 ip=dhcp root=/dev/nfs rw debug";
 	};
 
 	memory@0 {
@@ -60,6 +60,8 @@
 			no-loopback-test;
 			reg = <0x0d050020 0x20>;
 			reg-shift = <2>;
+			reg-io-width = <4>;
+			native-endian;
 			interrupts = <0 1>; /* external irq 0 */
 			clocks = <&osc>;
 		};
@@ -67,6 +69,7 @@
 		enet0: ethoc@0d030000 {
 			compatible = "opencores,ethoc";
 			reg = <0x0d030000 0x4000 0x0d800000 0x4000>;
+			native-endian;
 			interrupts = <1 1>; /* external irq 1 */
 			local-mac-address = [00 50 c2 13 6f 00];
 			clocks = <&osc>;
@@ -86,7 +89,8 @@
 			#size-cells = <0>;
 			reg = <0x0d090000 0x20>;
 			reg-shift = <2>;
-			reg-io-width = <1>;
+			reg-io-width = <4>;
+			native-endian;
 			interrupts = <4 1>;
 			clocks = <&osc>;
 

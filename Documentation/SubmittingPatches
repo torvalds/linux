@@ -722,7 +722,7 @@ references.
 --------------------------------
 
 It can be helpful to manually add In-Reply-To: headers to a patch
-(e.g., when using "git send email") to associate the patch with
+(e.g., when using "git send-email") to associate the patch with
 previous relevant discussion, e.g. to link a bug fix to the email with
 the bug report.  However, for a multi-patch series, it is generally
 best to avoid using In-Reply-To: to link to older versions of the

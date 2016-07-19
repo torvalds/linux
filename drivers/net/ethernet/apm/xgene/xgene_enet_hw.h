@@ -54,6 +54,11 @@ enum xgene_enet_rm {
 #define IS_BUFFER_POOL		BIT(20)
 #define PREFETCH_BUF_EN		BIT(21)
 #define CSR_RING_ID_BUF		0x000c
+#define CSR_PBM_COAL		0x0014
+#define CSR_PBM_CTICK1		0x001c
+#define CSR_PBM_CTICK2		0x0020
+#define CSR_THRESHOLD0_SET1	0x0030
+#define CSR_THRESHOLD1_SET1	0x0034
 #define CSR_RING_NE_INT_MODE	0x017c
 #define CSR_RING_CONFIG		0x006c
 #define CSR_RING_WR_BASE	0x0070
@@ -81,7 +86,7 @@ enum xgene_enet_rm {
 #define RINGADDRL_POS		5
 #define RINGADDRL_LEN		27
 #define RINGADDRH_POS		0
-#define RINGADDRH_LEN		6
+#define RINGADDRH_LEN		7
 #define RINGSIZE_POS		23
 #define RINGSIZE_LEN		3
 #define RINGTYPE_POS		19
@@ -89,9 +94,9 @@ enum xgene_enet_rm {
 #define RINGMODE_POS		20
 #define RINGMODE_LEN		3
 #define RECOMTIMEOUTL_POS	28
-#define RECOMTIMEOUTL_LEN	3
+#define RECOMTIMEOUTL_LEN	4
 #define RECOMTIMEOUTH_POS	0
-#define RECOMTIMEOUTH_LEN	2
+#define RECOMTIMEOUTH_LEN	3
 #define NUMMSGSINQ_POS		1
 #define NUMMSGSINQ_LEN		16
 #define ACCEPTLERR		BIT(19)
@@ -101,6 +106,7 @@ enum xgene_enet_rm {
 #define MAC_OFFSET			0x30
 
 #define BLOCK_ETH_CSR_OFFSET		0x2000
+#define BLOCK_ETH_CLE_CSR_OFFSET	0x6000
 #define BLOCK_ETH_RING_IF_OFFSET	0x9000
 #define BLOCK_ETH_CLKRST_CSR_OFFSET	0xc000
 #define BLOCK_ETH_DIAG_CSR_OFFSET	0xD000
@@ -195,6 +201,8 @@ enum xgene_enet_rm {
 #define USERINFO_LEN			32
 #define FPQNUM_POS			32
 #define FPQNUM_LEN			12
+#define ELERR_POS                       46
+#define ELERR_LEN                       2
 #define NV_POS				50
 #define NV_LEN				1
 #define LL_POS				51

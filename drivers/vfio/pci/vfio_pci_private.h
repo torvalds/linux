@@ -14,6 +14,7 @@
 #include <linux/mutex.h>
 #include <linux/pci.h>
 #include <linux/irqbypass.h>
+#include <linux/types.h>
 
 #ifndef VFIO_PCI_PRIVATE_H
 #define VFIO_PCI_PRIVATE_H
@@ -24,6 +25,10 @@
 #define VFIO_PCI_INDEX_TO_OFFSET(index)	((u64)(index) << VFIO_PCI_OFFSET_SHIFT)
 #define VFIO_PCI_OFFSET_MASK	(((u64)(1) << VFIO_PCI_OFFSET_SHIFT) - 1)
 
+/* Special capability IDs predefined access */
+#define PCI_CAP_ID_INVALID		0xFF	/* default raw access */
+#define PCI_CAP_ID_INVALID_VIRT		0xFE	/* default virt access */
+
 struct vfio_pci_irq_ctx {
 	struct eventfd_ctx	*trigger;
 	struct virqfd		*unmask;
@@ -31,6 +36,25 @@ struct vfio_pci_irq_ctx {
 	char			*name;
 	bool			masked;
 	struct irq_bypass_producer	producer;
+};
+
+struct vfio_pci_device;
+struct vfio_pci_region;
+
+struct vfio_pci_regops {
+	size_t	(*rw)(struct vfio_pci_device *vdev, char __user *buf,
+		      size_t count, loff_t *ppos, bool iswrite);
+	void	(*release)(struct vfio_pci_device *vdev,
+			   struct vfio_pci_region *region);
+};
+
+struct vfio_pci_region {
+	u32				type;
+	u32				subtype;
+	const struct vfio_pci_regops	*ops;
+	void				*data;
+	size_t				size;
+	u32				flags;
 };
 
 struct vfio_pci_device {
@@ -45,6 +69,8 @@ struct vfio_pci_device {
 	struct vfio_pci_irq_ctx	*ctx;
 	int			num_ctx;
 	int			irq_type;
+	int			num_regions;
+	struct vfio_pci_region	*region;
 	u8			msi_qmax;
 	u8			msix_bar;
 	u16			msix_size;
@@ -91,4 +117,17 @@ extern void vfio_pci_uninit_perm_bits(void);
 
 extern int vfio_config_init(struct vfio_pci_device *vdev);
 extern void vfio_config_free(struct vfio_pci_device *vdev);
+
+extern int vfio_pci_register_dev_region(struct vfio_pci_device *vdev,
+					unsigned int type, unsigned int subtype,
+					const struct vfio_pci_regops *ops,
+					size_t size, u32 flags, void *data);
+#ifdef CONFIG_VFIO_PCI_IGD
+extern int vfio_pci_igd_init(struct vfio_pci_device *vdev);
+#else
+static inline int vfio_pci_igd_init(struct vfio_pci_device *vdev)
+{
+	return -ENODEV;
+}
+#endif
 #endif /* VFIO_PCI_PRIVATE_H */

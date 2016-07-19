@@ -439,7 +439,7 @@ struct drm_encoder_helper_funcs {
 	 * can be modified by this callback and does not need to match mode.
 	 *
 	 * This function is used by both legacy CRTC helpers and atomic helpers.
-	 * With atomic helpers it is optional.
+	 * This hook is optional.
 	 *
 	 * NOTE:
 	 *

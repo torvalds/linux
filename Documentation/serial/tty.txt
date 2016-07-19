@@ -72,9 +72,6 @@ flush_buffer()	-	(optional) May be called at any point between
 			open and close, and instructs the line discipline
 			to empty its input buffer.
 
-chars_in_buffer() -	(optional) Report the number of bytes in the input
-			buffer.
-
 set_termios()	-	(optional) Called on termios structure changes.
 			The caller passes the old termios data and the
 			current data is in the tty. Called under the

@@ -145,6 +145,14 @@ static uint32_t get_linear_addr(struct plane *plane,
 	return plane->paddr + offset;
 }
 
+bool omap_framebuffer_supports_rotation(struct drm_framebuffer *fb)
+{
+	struct omap_framebuffer *omap_fb = to_omap_framebuffer(fb);
+	struct plane *plane = &omap_fb->planes[0];
+
+	return omap_gem_flags(plane->bo) & OMAP_BO_TILED;
+}
+
 /* update ovl info for scanout, handles cases of multi-planar fb's, etc.
  */
 void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
@@ -445,6 +453,14 @@ struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 		if (size > (omap_gem_mmap_size(bos[i]) - mode_cmd->offsets[i])) {
 			dev_err(dev->dev, "provided buffer object is too small! %d < %d\n",
 					bos[i]->size - mode_cmd->offsets[i], size);
+			ret = -EINVAL;
+			goto fail;
+		}
+
+		if (i > 0 && pitch != mode_cmd->pitches[i - 1]) {
+			dev_err(dev->dev,
+				"pitches are not the same between framebuffer planes %d != %d\n",
+				pitch, mode_cmd->pitches[i - 1]);
 			ret = -EINVAL;
 			goto fail;
 		}

@@ -1,5 +1,6 @@
 config INTEL_TH
 	tristate "Intel(R) Trace Hub controller"
+	depends on HAS_DMA && HAS_IOMEM
 	help
 	  Intel(R) Trace Hub (TH) is a set of hardware blocks (subdevices) that
 	  produce, switch and output trace data from multiple hardware and

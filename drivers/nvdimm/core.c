@@ -298,6 +298,15 @@ static int flush_regions_dimms(struct device *dev, void *data)
 static ssize_t wait_probe_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
+	struct nvdimm_bus *nvdimm_bus = to_nvdimm_bus(dev);
+	struct nvdimm_bus_descriptor *nd_desc = nvdimm_bus->nd_desc;
+	int rc;
+
+	if (nd_desc->flush_probe) {
+		rc = nd_desc->flush_probe(nd_desc);
+		if (rc)
+			return rc;
+	}
 	nd_synchronize();
 	device_for_each_child(dev, NULL, flush_regions_dimms);
 	return sprintf(buf, "1\n");
@@ -408,33 +417,11 @@ static void __add_badblock_range(struct badblocks *bb, u64 ns_offset, u64 len)
 		set_badblock(bb, start_sector, num_sectors);
 }
 
-/**
- * nvdimm_namespace_add_poison() - Convert a list of poison ranges to badblocks
- * @ndns:	the namespace containing poison ranges
- * @bb:		badblocks instance to populate
- * @offset:	offset at the start of the namespace before 'sector 0'
- *
- * The poison list generated during NFIT initialization may contain multiple,
- * possibly overlapping ranges in the SPA (System Physical Address) space.
- * Compare each of these ranges to the namespace currently being initialized,
- * and add badblocks to the gendisk for all matching sub-ranges
- */
-void nvdimm_namespace_add_poison(struct nd_namespace_common *ndns,
-		struct badblocks *bb, resource_size_t offset)
+static void badblocks_populate(struct list_head *poison_list,
+		struct badblocks *bb, const struct resource *res)
 {
-	struct nd_namespace_io *nsio = to_nd_namespace_io(&ndns->dev);
-	struct nd_region *nd_region = to_nd_region(ndns->dev.parent);
-	struct nvdimm_bus *nvdimm_bus;
-	struct list_head *poison_list;
-	u64 ns_start, ns_end, ns_size;
 	struct nd_poison *pl;
 
-	ns_size = nvdimm_namespace_capacity(ndns) - offset;
-	ns_start = nsio->res.start + offset;
-	ns_end = nsio->res.end;
-
-	nvdimm_bus = to_nvdimm_bus(nd_region->dev.parent);
-	poison_list = &nvdimm_bus->poison_list;
 	if (list_empty(poison_list))
 		return;
 
@@ -442,37 +429,68 @@ void nvdimm_namespace_add_poison(struct nd_namespace_common *ndns,
 		u64 pl_end = pl->start + pl->length - 1;
 
 		/* Discard intervals with no intersection */
-		if (pl_end < ns_start)
+		if (pl_end < res->start)
 			continue;
-		if (pl->start > ns_end)
+		if (pl->start >  res->end)
 			continue;
 		/* Deal with any overlap after start of the namespace */
-		if (pl->start >= ns_start) {
+		if (pl->start >= res->start) {
 			u64 start = pl->start;
 			u64 len;
 
-			if (pl_end <= ns_end)
+			if (pl_end <= res->end)
 				len = pl->length;
 			else
-				len = ns_start + ns_size - pl->start;
-			__add_badblock_range(bb, start - ns_start, len);
+				len = res->start + resource_size(res)
+					- pl->start;
+			__add_badblock_range(bb, start - res->start, len);
 			continue;
 		}
 		/* Deal with overlap for poison starting before the namespace */
-		if (pl->start < ns_start) {
+		if (pl->start < res->start) {
 			u64 len;
 
-			if (pl_end < ns_end)
-				len = pl->start + pl->length - ns_start;
+			if (pl_end < res->end)
+				len = pl->start + pl->length - res->start;
 			else
-				len = ns_size;
+				len = resource_size(res);
 			__add_badblock_range(bb, 0, len);
 		}
 	}
 }
-EXPORT_SYMBOL_GPL(nvdimm_namespace_add_poison);
 
-static int __add_poison(struct nvdimm_bus *nvdimm_bus, u64 addr, u64 length)
+/**
+ * nvdimm_badblocks_populate() - Convert a list of poison ranges to badblocks
+ * @region: parent region of the range to interrogate
+ * @bb: badblocks instance to populate
+ * @res: resource range to consider
+ *
+ * The poison list generated during bus initialization may contain
+ * multiple, possibly overlapping physical address ranges.  Compare each
+ * of these ranges to the resource range currently being initialized,
+ * and add badblocks entries for all matching sub-ranges
+ */
+void nvdimm_badblocks_populate(struct nd_region *nd_region,
+		struct badblocks *bb, const struct resource *res)
+{
+	struct nvdimm_bus *nvdimm_bus;
+	struct list_head *poison_list;
+
+	if (!is_nd_pmem(&nd_region->dev)) {
+		dev_WARN_ONCE(&nd_region->dev, 1,
+				"%s only valid for pmem regions\n", __func__);
+		return;
+	}
+	nvdimm_bus = walk_to_nvdimm_bus(&nd_region->dev);
+	poison_list = &nvdimm_bus->poison_list;
+
+	nvdimm_bus_lock(&nvdimm_bus->dev);
+	badblocks_populate(poison_list, bb, res);
+	nvdimm_bus_unlock(&nvdimm_bus->dev);
+}
+EXPORT_SYMBOL_GPL(nvdimm_badblocks_populate);
+
+static int add_poison(struct nvdimm_bus *nvdimm_bus, u64 addr, u64 length)
 {
 	struct nd_poison *pl;
 
@@ -487,12 +505,12 @@ static int __add_poison(struct nvdimm_bus *nvdimm_bus, u64 addr, u64 length)
 	return 0;
 }
 
-int nvdimm_bus_add_poison(struct nvdimm_bus *nvdimm_bus, u64 addr, u64 length)
+static int bus_add_poison(struct nvdimm_bus *nvdimm_bus, u64 addr, u64 length)
 {
 	struct nd_poison *pl;
 
 	if (list_empty(&nvdimm_bus->poison_list))
-		return __add_poison(nvdimm_bus, addr, length);
+		return add_poison(nvdimm_bus, addr, length);
 
 	/*
 	 * There is a chance this is a duplicate, check for those first.
@@ -512,7 +530,18 @@ int nvdimm_bus_add_poison(struct nvdimm_bus *nvdimm_bus, u64 addr, u64 length)
 	 * as any overlapping ranges will get resolved when the list is consumed
 	 * and converted to badblocks
 	 */
-	return __add_poison(nvdimm_bus, addr, length);
+	return add_poison(nvdimm_bus, addr, length);
+}
+
+int nvdimm_bus_add_poison(struct nvdimm_bus *nvdimm_bus, u64 addr, u64 length)
+{
+	int rc;
+
+	nvdimm_bus_lock(&nvdimm_bus->dev);
+	rc = bus_add_poison(nvdimm_bus, addr, length);
+	nvdimm_bus_unlock(&nvdimm_bus->dev);
+
+	return rc;
 }
 EXPORT_SYMBOL_GPL(nvdimm_bus_add_poison);
 
@@ -553,7 +582,11 @@ void nvdimm_bus_unregister(struct nvdimm_bus *nvdimm_bus)
 
 	nd_synchronize();
 	device_for_each_child(&nvdimm_bus->dev, NULL, child_unregister);
+
+	nvdimm_bus_lock(&nvdimm_bus->dev);
 	free_poison_list(&nvdimm_bus->poison_list);
+	nvdimm_bus_unlock(&nvdimm_bus->dev);
+
 	nvdimm_bus_destroy_ndctl(nvdimm_bus);
 
 	device_unregister(&nvdimm_bus->dev);

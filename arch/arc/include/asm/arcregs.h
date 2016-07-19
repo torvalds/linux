@@ -381,12 +381,6 @@ static inline int is_isa_arcompact(void)
 	return IS_ENABLED(CONFIG_ISA_ARCOMPACT);
 }
 
-#if defined(CONFIG_ISA_ARCOMPACT) && !defined(_CPU_DEFAULT_A7)
-#error "Toolchain not configured for ARCompact builds"
-#elif defined(CONFIG_ISA_ARCV2) && !defined(_CPU_DEFAULT_HS)
-#error "Toolchain not configured for ARCv2 builds"
-#endif
-
 #endif /* __ASEMBLY__ */
 
 #endif /* _ASM_ARC_ARCREGS_H */

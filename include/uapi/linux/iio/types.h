@@ -37,6 +37,7 @@ enum iio_chan_type {
 	IIO_VELOCITY,
 	IIO_CONCENTRATION,
 	IIO_RESISTANCE,
+	IIO_PH,
 };
 
 enum iio_modifier {

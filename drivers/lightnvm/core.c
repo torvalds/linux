@@ -250,7 +250,7 @@ int nvm_set_rqd_ppalist(struct nvm_dev *dev, struct nvm_rq *rqd,
 		return 0;
 	}
 
-	plane_cnt = (1 << dev->plane_mode);
+	plane_cnt = dev->plane_mode;
 	rqd->nr_pages = plane_cnt * nr_ppas;
 
 	if (dev->ops->max_phys_sect < rqd->nr_pages)
@@ -463,13 +463,14 @@ static int nvm_core_init(struct nvm_dev *dev)
 	dev->sec_per_lun = dev->sec_per_blk * dev->blks_per_lun;
 	dev->nr_luns = dev->luns_per_chnl * dev->nr_chnls;
 
-	dev->total_blocks = dev->nr_planes *
-				dev->blks_per_lun *
-				dev->luns_per_chnl *
-				dev->nr_chnls;
-	dev->total_pages = dev->total_blocks * dev->pgs_per_blk;
+	dev->total_secs = dev->nr_luns * dev->sec_per_lun;
+	dev->lun_map = kcalloc(BITS_TO_LONGS(dev->nr_luns),
+					sizeof(unsigned long), GFP_KERNEL);
+	if (!dev->lun_map)
+		return -ENOMEM;
 	INIT_LIST_HEAD(&dev->online_targets);
 	mutex_init(&dev->mlock);
+	spin_lock_init(&dev->lock);
 
 	return 0;
 }
@@ -589,6 +590,7 @@ int nvm_register(struct request_queue *q, char *disk_name,
 
 	return 0;
 err_init:
+	kfree(dev->lun_map);
 	kfree(dev);
 	return ret;
 }
@@ -611,6 +613,7 @@ void nvm_unregister(char *disk_name)
 	up_write(&nvm_lock);
 
 	nvm_exit(dev);
+	kfree(dev->lun_map);
 	kfree(dev);
 }
 EXPORT_SYMBOL(nvm_unregister);
@@ -872,20 +875,19 @@ static int nvm_configure_by_str_event(const char *val,
 
 static int nvm_configure_get(char *buf, const struct kernel_param *kp)
 {
-	int sz = 0;
-	char *buf_start = buf;
+	int sz;
 	struct nvm_dev *dev;
 
-	buf += sprintf(buf, "available devices:\n");
+	sz = sprintf(buf, "available devices:\n");
 	down_write(&nvm_lock);
 	list_for_each_entry(dev, &nvm_devices, devices) {
-		if (sz > 4095 - DISK_NAME_LEN)
+		if (sz > 4095 - DISK_NAME_LEN - 2)
 			break;
-		buf += sprintf(buf, " %32s\n", dev->name);
+		sz += sprintf(buf + sz, " %32s\n", dev->name);
 	}
 	up_write(&nvm_lock);
 
-	return buf - buf_start - 1;
+	return sz;
 }
 
 static const struct kernel_param_ops nvm_configure_by_str_event_param_ops = {

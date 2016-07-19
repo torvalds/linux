@@ -63,6 +63,6 @@ int gf119_sor_dp_new(struct nvkm_disp *, int, struct dcb_output *,
 		     struct nvkm_output **);
 int gf119_sor_dp_lnk_ctl(struct nvkm_output_dp *, int, int, bool);
 
-int  gm204_sor_dp_new(struct nvkm_disp *, int, struct dcb_output *,
+int  gm200_sor_dp_new(struct nvkm_disp *, int, struct dcb_output *,
 		      struct nvkm_output **);
 #endif

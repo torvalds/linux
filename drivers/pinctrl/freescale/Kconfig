@@ -2,6 +2,7 @@ config PINCTRL_IMX
 	bool
 	select PINMUX
 	select PINCONF
+	select REGMAP
 
 config PINCTRL_IMX1_CORE
 	bool

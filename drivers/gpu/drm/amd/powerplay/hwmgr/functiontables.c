@@ -34,6 +34,11 @@ static int phm_run_table(struct pp_hwmgr *hwmgr,
 	int result = 0;
 	phm_table_function *function;
 
+	if (rt_table->function_list == NULL) {
+		printk(KERN_INFO "[ powerplay ] this function not implement!\n");
+		return 0;
+	}
+
 	for (function = rt_table->function_list; NULL != *function; function++) {
 		int tmp = (*function)(hwmgr, input, output, temp_storage, result);
 
@@ -57,9 +62,9 @@ int phm_dispatch_table(struct pp_hwmgr *hwmgr,
 	int result = 0;
 	void *temp_storage = NULL;
 
-	if (hwmgr == NULL || rt_table == NULL || rt_table->function_list == NULL) {
+	if (hwmgr == NULL || rt_table == NULL) {
 		printk(KERN_ERR "[ powerplay ] Invalid Parameter!\n");
-		return 0; /*temp return ture because some function not implement on some asic */
+		return -EINVAL;
 	}
 
 	if (0 != rt_table->storage_size) {

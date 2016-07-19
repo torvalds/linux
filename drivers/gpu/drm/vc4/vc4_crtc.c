@@ -49,20 +49,25 @@ struct vc4_crtc {
 	/* Which HVS channel we're using for our CRTC. */
 	int channel;
 
-	/* Pointer to the actual hardware display list memory for the
-	 * crtc.
-	 */
-	u32 __iomem *dlist;
-
-	u32 dlist_size; /* in dwords */
-
 	struct drm_pending_vblank_event *event;
+};
+
+struct vc4_crtc_state {
+	struct drm_crtc_state base;
+	/* Dlist area for this CRTC configuration. */
+	struct drm_mm_node mm;
 };
 
 static inline struct vc4_crtc *
 to_vc4_crtc(struct drm_crtc *crtc)
 {
 	return (struct vc4_crtc *)crtc;
+}
+
+static inline struct vc4_crtc_state *
+to_vc4_crtc_state(struct drm_crtc_state *crtc_state)
+{
+	return (struct vc4_crtc_state *)crtc_state;
 }
 
 struct vc4_crtc_data {
@@ -83,7 +88,7 @@ static const struct {
 } crtc_regs[] = {
 	CRTC_REG(PV_CONTROL),
 	CRTC_REG(PV_V_CONTROL),
-	CRTC_REG(PV_VSYNCD),
+	CRTC_REG(PV_VSYNCD_EVEN),
 	CRTC_REG(PV_HORZA),
 	CRTC_REG(PV_HORZB),
 	CRTC_REG(PV_VERTA),
@@ -183,6 +188,8 @@ static int vc4_get_clock_select(struct drm_crtc *crtc)
 
 static void vc4_crtc_mode_set_nofb(struct drm_crtc *crtc)
 {
+	struct drm_device *dev = crtc->dev;
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 	struct drm_crtc_state *state = crtc->state;
 	struct drm_display_mode *mode = &state->adjusted_mode;
@@ -212,6 +219,16 @@ static void vc4_crtc_mode_set_nofb(struct drm_crtc *crtc)
 				 PV_HORZB_HFP) |
 		   VC4_SET_FIELD(mode->hdisplay, PV_HORZB_HACTIVE));
 
+	CRTC_WRITE(PV_VERTA,
+		   VC4_SET_FIELD(mode->vtotal - mode->vsync_end,
+				 PV_VERTA_VBP) |
+		   VC4_SET_FIELD(mode->vsync_end - mode->vsync_start,
+				 PV_VERTA_VSYNC));
+	CRTC_WRITE(PV_VERTB,
+		   VC4_SET_FIELD(mode->vsync_start - mode->vdisplay,
+				 PV_VERTB_VFP) |
+		   VC4_SET_FIELD(vactive, PV_VERTB_VACTIVE));
+
 	if (interlace) {
 		CRTC_WRITE(PV_VERTA_EVEN,
 			   VC4_SET_FIELD(mode->vtotal - mode->vsync_end - 1,
@@ -240,6 +257,10 @@ static void vc4_crtc_mode_set_nofb(struct drm_crtc *crtc)
 		   VC4_SET_FIELD(clock_select, PV_CONTROL_CLK_SELECT) |
 		   PV_CONTROL_FIFO_CLR |
 		   PV_CONTROL_EN);
+
+	HVS_WRITE(SCALER_DISPBKGNDX(vc4_crtc->channel),
+		  SCALER_DISPBKGND_AUTOHS |
+		  (interlace ? SCALER_DISPBKGND_INTERLACE : 0));
 
 	if (debug_dump_regs) {
 		DRM_INFO("CRTC %d regs after:\n", drm_crtc_index(crtc));
@@ -319,11 +340,13 @@ static void vc4_crtc_enable(struct drm_crtc *crtc)
 static int vc4_crtc_atomic_check(struct drm_crtc *crtc,
 				 struct drm_crtc_state *state)
 {
+	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(state);
 	struct drm_device *dev = crtc->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct drm_plane *plane;
-	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
+	unsigned long flags;
 	u32 dlist_count = 0;
+	int ret;
 
 	/* The pixelvalve can only feed one encoder (and encoders are
 	 * 1:1 with connectors.)
@@ -346,18 +369,12 @@ static int vc4_crtc_atomic_check(struct drm_crtc *crtc,
 
 	dlist_count++; /* Account for SCALER_CTL0_END. */
 
-	if (!vc4_crtc->dlist || dlist_count > vc4_crtc->dlist_size) {
-		vc4_crtc->dlist = ((u32 __iomem *)vc4->hvs->dlist +
-				   HVS_BOOTLOADER_DLIST_END);
-		vc4_crtc->dlist_size = ((SCALER_DLIST_SIZE >> 2) -
-					HVS_BOOTLOADER_DLIST_END);
-
-		if (dlist_count > vc4_crtc->dlist_size) {
-			DRM_DEBUG_KMS("dlist too large for CRTC (%d > %d).\n",
-				      dlist_count, vc4_crtc->dlist_size);
-			return -EINVAL;
-		}
-	}
+	spin_lock_irqsave(&vc4->hvs->mm_lock, flags);
+	ret = drm_mm_insert_node(&vc4->hvs->dlist_mm, &vc4_state->mm,
+				 dlist_count, 1, 0);
+	spin_unlock_irqrestore(&vc4->hvs->mm_lock, flags);
+	if (ret)
+		return ret;
 
 	return 0;
 }
@@ -368,47 +385,29 @@ static void vc4_crtc_atomic_flush(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
+	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
 	struct drm_plane *plane;
 	bool debug_dump_regs = false;
-	u32 __iomem *dlist_next = vc4_crtc->dlist;
+	u32 __iomem *dlist_start = vc4->hvs->dlist + vc4_state->mm.start;
+	u32 __iomem *dlist_next = dlist_start;
 
 	if (debug_dump_regs) {
 		DRM_INFO("CRTC %d HVS before:\n", drm_crtc_index(crtc));
 		vc4_hvs_dump_state(dev);
 	}
 
-	/* Copy all the active planes' dlist contents to the hardware dlist.
-	 *
-	 * XXX: If the new display list was large enough that it
-	 * overlapped a currently-read display list, we need to do
-	 * something like disable scanout before putting in the new
-	 * list.  For now, we're safe because we only have the two
-	 * planes.
-	 */
+	/* Copy all the active planes' dlist contents to the hardware dlist. */
 	drm_atomic_crtc_for_each_plane(plane, crtc) {
 		dlist_next += vc4_plane_write_dlist(plane, dlist_next);
 	}
 
-	if (dlist_next == vc4_crtc->dlist) {
-		/* If no planes were enabled, use the SCALER_CTL0_END
-		 * at the start of the display list memory (in the
-		 * bootloader section).  We'll rewrite that
-		 * SCALER_CTL0_END, just in case, though.
-		 */
-		writel(SCALER_CTL0_END, vc4->hvs->dlist);
-		HVS_WRITE(SCALER_DISPLISTX(vc4_crtc->channel), 0);
-	} else {
-		writel(SCALER_CTL0_END, dlist_next);
-		dlist_next++;
+	writel(SCALER_CTL0_END, dlist_next);
+	dlist_next++;
 
-		HVS_WRITE(SCALER_DISPLISTX(vc4_crtc->channel),
-			  (u32 __iomem *)vc4_crtc->dlist -
-			  (u32 __iomem *)vc4->hvs->dlist);
+	WARN_ON_ONCE(dlist_next - dlist_start != vc4_state->mm.size);
 
-		/* Make the next display list start after ours. */
-		vc4_crtc->dlist_size -= (dlist_next - vc4_crtc->dlist);
-		vc4_crtc->dlist = dlist_next;
-	}
+	HVS_WRITE(SCALER_DISPLISTX(vc4_crtc->channel),
+		  vc4_state->mm.start);
 
 	if (debug_dump_regs) {
 		DRM_INFO("CRTC %d HVS after:\n", drm_crtc_index(crtc));
@@ -544,6 +543,7 @@ static int vc4_async_page_flip(struct drm_crtc *crtc,
 	/* Make sure all other async modesetes have landed. */
 	ret = down_interruptible(&vc4->async_modeset);
 	if (ret) {
+		drm_framebuffer_unreference(fb);
 		kfree(flip_state);
 		return ret;
 	}
@@ -573,6 +573,36 @@ static int vc4_page_flip(struct drm_crtc *crtc,
 		return drm_atomic_helper_page_flip(crtc, fb, event, flags);
 }
 
+static struct drm_crtc_state *vc4_crtc_duplicate_state(struct drm_crtc *crtc)
+{
+	struct vc4_crtc_state *vc4_state;
+
+	vc4_state = kzalloc(sizeof(*vc4_state), GFP_KERNEL);
+	if (!vc4_state)
+		return NULL;
+
+	__drm_atomic_helper_crtc_duplicate_state(crtc, &vc4_state->base);
+	return &vc4_state->base;
+}
+
+static void vc4_crtc_destroy_state(struct drm_crtc *crtc,
+				   struct drm_crtc_state *state)
+{
+	struct vc4_dev *vc4 = to_vc4_dev(crtc->dev);
+	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(state);
+
+	if (vc4_state->mm.allocated) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&vc4->hvs->mm_lock, flags);
+		drm_mm_remove_node(&vc4_state->mm);
+		spin_unlock_irqrestore(&vc4->hvs->mm_lock, flags);
+
+	}
+
+	__drm_atomic_helper_crtc_destroy_state(crtc, state);
+}
+
 static const struct drm_crtc_funcs vc4_crtc_funcs = {
 	.set_config = drm_atomic_helper_set_config,
 	.destroy = vc4_crtc_destroy,
@@ -581,8 +611,8 @@ static const struct drm_crtc_funcs vc4_crtc_funcs = {
 	.cursor_set = NULL, /* handled by drm_mode_cursor_universal */
 	.cursor_move = NULL, /* handled by drm_mode_cursor_universal */
 	.reset = drm_atomic_helper_crtc_reset,
-	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+	.atomic_duplicate_state = vc4_crtc_duplicate_state,
+	.atomic_destroy_state = vc4_crtc_destroy_state,
 };
 
 static const struct drm_crtc_helper_funcs vc4_crtc_helper_funcs = {
@@ -592,26 +622,6 @@ static const struct drm_crtc_helper_funcs vc4_crtc_helper_funcs = {
 	.atomic_check = vc4_crtc_atomic_check,
 	.atomic_flush = vc4_crtc_atomic_flush,
 };
-
-/* Frees the page flip event when the DRM device is closed with the
- * event still outstanding.
- */
-void vc4_cancel_page_flip(struct drm_crtc *crtc, struct drm_file *file)
-{
-	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
-	struct drm_device *dev = crtc->dev;
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev->event_lock, flags);
-
-	if (vc4_crtc->event && vc4_crtc->event->base.file_priv == file) {
-		vc4_crtc->event->base.destroy(&vc4_crtc->event->base);
-		drm_crtc_vblank_put(crtc);
-		vc4_crtc->event = NULL;
-	}
-
-	spin_unlock_irqrestore(&dev->event_lock, flags);
-}
 
 static const struct vc4_crtc_data pv0_data = {
 	.hvs_channel = 0,
@@ -664,9 +674,9 @@ static int vc4_crtc_bind(struct device *dev, struct device *master, void *data)
 	struct vc4_dev *vc4 = to_vc4_dev(drm);
 	struct vc4_crtc *vc4_crtc;
 	struct drm_crtc *crtc;
-	struct drm_plane *primary_plane, *cursor_plane;
+	struct drm_plane *primary_plane, *cursor_plane, *destroy_plane, *temp;
 	const struct of_device_id *match;
-	int ret;
+	int ret, i;
 
 	vc4_crtc = devm_kzalloc(dev, sizeof(*vc4_crtc), GFP_KERNEL);
 	if (!vc4_crtc)
@@ -695,27 +705,49 @@ static int vc4_crtc_bind(struct device *dev, struct device *master, void *data)
 		goto err;
 	}
 
-	cursor_plane = vc4_plane_init(drm, DRM_PLANE_TYPE_CURSOR);
-	if (IS_ERR(cursor_plane)) {
-		dev_err(dev, "failed to construct cursor plane\n");
-		ret = PTR_ERR(cursor_plane);
-		goto err_primary;
-	}
-
-	drm_crtc_init_with_planes(drm, crtc, primary_plane, cursor_plane,
+	drm_crtc_init_with_planes(drm, crtc, primary_plane, NULL,
 				  &vc4_crtc_funcs, NULL);
 	drm_crtc_helper_add(crtc, &vc4_crtc_helper_funcs);
 	primary_plane->crtc = crtc;
-	cursor_plane->crtc = crtc;
 	vc4->crtc[drm_crtc_index(crtc)] = vc4_crtc;
 	vc4_crtc->channel = vc4_crtc->data->hvs_channel;
+
+	/* Set up some arbitrary number of planes.  We're not limited
+	 * by a set number of physical registers, just the space in
+	 * the HVS (16k) and how small an plane can be (28 bytes).
+	 * However, each plane we set up takes up some memory, and
+	 * increases the cost of looping over planes, which atomic
+	 * modesetting does quite a bit.  As a result, we pick a
+	 * modest number of planes to expose, that should hopefully
+	 * still cover any sane usecase.
+	 */
+	for (i = 0; i < 8; i++) {
+		struct drm_plane *plane =
+			vc4_plane_init(drm, DRM_PLANE_TYPE_OVERLAY);
+
+		if (IS_ERR(plane))
+			continue;
+
+		plane->possible_crtcs = 1 << drm_crtc_index(crtc);
+	}
+
+	/* Set up the legacy cursor after overlay initialization,
+	 * since we overlay planes on the CRTC in the order they were
+	 * initialized.
+	 */
+	cursor_plane = vc4_plane_init(drm, DRM_PLANE_TYPE_CURSOR);
+	if (!IS_ERR(cursor_plane)) {
+		cursor_plane->possible_crtcs = 1 << drm_crtc_index(crtc);
+		cursor_plane->crtc = crtc;
+		crtc->cursor = cursor_plane;
+	}
 
 	CRTC_WRITE(PV_INTEN, 0);
 	CRTC_WRITE(PV_INTSTAT, PV_INT_VFP_START);
 	ret = devm_request_irq(dev, platform_get_irq(pdev, 0),
 			       vc4_crtc_irq_handler, 0, "vc4 crtc", vc4_crtc);
 	if (ret)
-		goto err_cursor;
+		goto err_destroy_planes;
 
 	vc4_set_crtc_possible_masks(drm, crtc);
 
@@ -723,10 +755,12 @@ static int vc4_crtc_bind(struct device *dev, struct device *master, void *data)
 
 	return 0;
 
-err_cursor:
-	cursor_plane->funcs->destroy(cursor_plane);
-err_primary:
-	primary_plane->funcs->destroy(primary_plane);
+err_destroy_planes:
+	list_for_each_entry_safe(destroy_plane, temp,
+				 &drm->mode_config.plane_list, head) {
+		if (destroy_plane->possible_crtcs == 1 << drm_crtc_index(crtc))
+		    destroy_plane->funcs->destroy(destroy_plane);
+	}
 err:
 	return ret;
 }

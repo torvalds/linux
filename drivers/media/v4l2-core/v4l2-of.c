@@ -146,7 +146,7 @@ static void v4l2_of_parse_parallel_bus(const struct device_node *node,
  * variable without a low fixed limit. Please use
  * v4l2_of_alloc_parse_endpoint() in new drivers instead.
  *
- * Return: 0.
+ * Return: 0 on success or a negative error code on failure.
  */
 int v4l2_of_parse_endpoint(const struct device_node *node,
 			   struct v4l2_of_endpoint *endpoint)

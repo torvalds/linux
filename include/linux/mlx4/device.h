@@ -219,6 +219,7 @@ enum {
 	MLX4_DEV_CAP_FLAG2_UPDATE_QP_SRC_CHECK_LB = 1ULL << 31,
 	MLX4_DEV_CAP_FLAG2_LB_SRC_CHK           = 1ULL << 32,
 	MLX4_DEV_CAP_FLAG2_ROCE_V1_V2		= 1ULL <<  33,
+	MLX4_DEV_CAP_FLAG2_DMFS_UC_MC_SNIFFER   = 1ULL <<  34,
 };
 
 enum {
@@ -827,6 +828,11 @@ struct mlx4_vf_dev {
 	u8			n_ports;
 };
 
+enum mlx4_pci_status {
+	MLX4_PCI_STATUS_DISABLED,
+	MLX4_PCI_STATUS_ENABLED,
+};
+
 struct mlx4_dev_persistent {
 	struct pci_dev	       *pdev;
 	struct mlx4_dev	       *dev;
@@ -840,6 +846,8 @@ struct mlx4_dev_persistent {
 	u8		state;
 	struct mutex	interface_state_mutex; /* protect SW state */
 	u8	interface_state;
+	struct mutex		pci_status_mutex; /* sync pci state */
+	enum mlx4_pci_status	pci_status;
 };
 
 struct mlx4_dev {
@@ -1160,6 +1168,8 @@ enum mlx4_net_trans_promisc_mode {
 	MLX4_FS_REGULAR = 1,
 	MLX4_FS_ALL_DEFAULT,
 	MLX4_FS_MC_DEFAULT,
+	MLX4_FS_MIRROR_RX_PORT,
+	MLX4_FS_MIRROR_SX_PORT,
 	MLX4_FS_UC_SNIFFER,
 	MLX4_FS_MC_SNIFFER,
 	MLX4_FS_MODE_NUM, /* should be last */

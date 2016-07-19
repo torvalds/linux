@@ -2481,9 +2481,7 @@ static int at76_probe(struct usb_interface *interface,
 			dev_err(&interface->dev,
 				"error %d downloading internal firmware\n",
 				ret);
-			goto exit;
 		}
-		usb_put_dev(udev);
 		goto exit;
 	}
 

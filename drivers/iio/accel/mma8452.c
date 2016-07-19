@@ -1,6 +1,7 @@
 /*
  * mma8452.c - Support for following Freescale 3-axis accelerometers:
  *
+ * MMA8451Q (14 bit)
  * MMA8452Q (12 bit)
  * MMA8453Q (10 bit)
  * MMA8652FC (12 bit)
@@ -15,7 +16,7 @@
  *
  * 7-bit I2C slave address 0x1c/0x1d (pin selectable)
  *
- * TODO: orientation / freefall events, autosleep
+ * TODO: orientation events, autosleep
  */
 
 #include <linux/module.h>
@@ -85,8 +86,9 @@
 #define  MMA8452_INT_FF_MT			BIT(2)
 #define  MMA8452_INT_TRANS			BIT(5)
 
-#define  MMA8452_DEVICE_ID			0x2a
-#define  MMA8453_DEVICE_ID			0x3a
+#define MMA8451_DEVICE_ID			0x1a
+#define MMA8452_DEVICE_ID			0x2a
+#define MMA8453_DEVICE_ID			0x3a
 #define MMA8652_DEVICE_ID			0x4a
 #define MMA8653_DEVICE_ID			0x5a
 
@@ -416,6 +418,51 @@ fail:
 	return ret;
 }
 
+/* returns >0 if in freefall mode, 0 if not or <0 if an error occured */
+static int mma8452_freefall_mode_enabled(struct mma8452_data *data)
+{
+	int val;
+	const struct mma_chip_info *chip = data->chip_info;
+
+	val = i2c_smbus_read_byte_data(data->client, chip->ev_cfg);
+	if (val < 0)
+		return val;
+
+	return !(val & MMA8452_FF_MT_CFG_OAE);
+}
+
+static int mma8452_set_freefall_mode(struct mma8452_data *data, bool state)
+{
+	int val;
+	const struct mma_chip_info *chip = data->chip_info;
+
+	if ((state && mma8452_freefall_mode_enabled(data)) ||
+	    (!state && !(mma8452_freefall_mode_enabled(data))))
+		return 0;
+
+	val = i2c_smbus_read_byte_data(data->client, chip->ev_cfg);
+	if (val < 0)
+		return val;
+
+	if (state) {
+		val |= BIT(idx_x + chip->ev_cfg_chan_shift);
+		val |= BIT(idx_y + chip->ev_cfg_chan_shift);
+		val |= BIT(idx_z + chip->ev_cfg_chan_shift);
+		val &= ~MMA8452_FF_MT_CFG_OAE;
+	} else {
+		val &= ~BIT(idx_x + chip->ev_cfg_chan_shift);
+		val &= ~BIT(idx_y + chip->ev_cfg_chan_shift);
+		val &= ~BIT(idx_z + chip->ev_cfg_chan_shift);
+		val |= MMA8452_FF_MT_CFG_OAE;
+	}
+
+	val = mma8452_change_config(data, chip->ev_cfg, val);
+	if (val)
+		return val;
+
+	return 0;
+}
+
 static int mma8452_set_hp_filter_frequency(struct mma8452_data *data,
 					   int val, int val2)
 {
@@ -609,12 +656,22 @@ static int mma8452_read_event_config(struct iio_dev *indio_dev,
 	const struct mma_chip_info *chip = data->chip_info;
 	int ret;
 
-	ret = i2c_smbus_read_byte_data(data->client,
-				       data->chip_info->ev_cfg);
-	if (ret < 0)
-		return ret;
+	switch (dir) {
+	case IIO_EV_DIR_FALLING:
+		return mma8452_freefall_mode_enabled(data);
+	case IIO_EV_DIR_RISING:
+		if (mma8452_freefall_mode_enabled(data))
+			return 0;
 
-	return !!(ret & BIT(chan->scan_index + chip->ev_cfg_chan_shift));
+		ret = i2c_smbus_read_byte_data(data->client,
+					       data->chip_info->ev_cfg);
+		if (ret < 0)
+			return ret;
+
+		return !!(ret & BIT(chan->scan_index + chip->ev_cfg_chan_shift));
+	default:
+		return -EINVAL;
+	}
 }
 
 static int mma8452_write_event_config(struct iio_dev *indio_dev,
@@ -627,19 +684,35 @@ static int mma8452_write_event_config(struct iio_dev *indio_dev,
 	const struct mma_chip_info *chip = data->chip_info;
 	int val;
 
-	val = i2c_smbus_read_byte_data(data->client, chip->ev_cfg);
-	if (val < 0)
-		return val;
+	switch (dir) {
+	case IIO_EV_DIR_FALLING:
+		return mma8452_set_freefall_mode(data, state);
+	case IIO_EV_DIR_RISING:
+		val = i2c_smbus_read_byte_data(data->client, chip->ev_cfg);
+		if (val < 0)
+			return val;
 
-	if (state)
-		val |= BIT(chan->scan_index + chip->ev_cfg_chan_shift);
-	else
-		val &= ~BIT(chan->scan_index + chip->ev_cfg_chan_shift);
+		if (state) {
+			if (mma8452_freefall_mode_enabled(data)) {
+				val &= ~BIT(idx_x + chip->ev_cfg_chan_shift);
+				val &= ~BIT(idx_y + chip->ev_cfg_chan_shift);
+				val &= ~BIT(idx_z + chip->ev_cfg_chan_shift);
+				val |= MMA8452_FF_MT_CFG_OAE;
+			}
+			val |= BIT(chan->scan_index + chip->ev_cfg_chan_shift);
+		} else {
+			if (mma8452_freefall_mode_enabled(data))
+				return 0;
 
-	val |= chip->ev_cfg_ele;
-	val |= MMA8452_FF_MT_CFG_OAE;
+			val &= ~BIT(chan->scan_index + chip->ev_cfg_chan_shift);
+		}
 
-	return mma8452_change_config(data, chip->ev_cfg, val);
+		val |= chip->ev_cfg_ele;
+
+		return mma8452_change_config(data, chip->ev_cfg, val);
+	default:
+		return -EINVAL;
+	}
 }
 
 static void mma8452_transient_interrupt(struct iio_dev *indio_dev)
@@ -651,6 +724,16 @@ static void mma8452_transient_interrupt(struct iio_dev *indio_dev)
 	src = i2c_smbus_read_byte_data(data->client, data->chip_info->ev_src);
 	if (src < 0)
 		return;
+
+	if (mma8452_freefall_mode_enabled(data)) {
+		iio_push_event(indio_dev,
+			       IIO_MOD_EVENT_CODE(IIO_ACCEL, 0,
+						  IIO_MOD_X_AND_Y_AND_Z,
+						  IIO_EV_TYPE_MAG,
+						  IIO_EV_DIR_FALLING),
+			       ts);
+		return;
+	}
 
 	if (src & data->chip_info->ev_src_xe)
 		iio_push_event(indio_dev,
@@ -745,6 +828,27 @@ static int mma8452_reg_access_dbg(struct iio_dev *indio_dev,
 	return 0;
 }
 
+static const struct iio_event_spec mma8452_freefall_event[] = {
+	{
+		.type = IIO_EV_TYPE_MAG,
+		.dir = IIO_EV_DIR_FALLING,
+		.mask_separate = BIT(IIO_EV_INFO_ENABLE),
+		.mask_shared_by_type = BIT(IIO_EV_INFO_VALUE) |
+					BIT(IIO_EV_INFO_PERIOD) |
+					BIT(IIO_EV_INFO_HIGH_PASS_FILTER_3DB)
+	},
+};
+
+static const struct iio_event_spec mma8652_freefall_event[] = {
+	{
+		.type = IIO_EV_TYPE_MAG,
+		.dir = IIO_EV_DIR_FALLING,
+		.mask_separate = BIT(IIO_EV_INFO_ENABLE),
+		.mask_shared_by_type = BIT(IIO_EV_INFO_VALUE) |
+					BIT(IIO_EV_INFO_PERIOD)
+	},
+};
+
 static const struct iio_event_spec mma8452_transient_event[] = {
 	{
 		.type = IIO_EV_TYPE_MAG,
@@ -780,6 +884,24 @@ static struct attribute *mma8452_event_attributes[] = {
 static struct attribute_group mma8452_event_attribute_group = {
 	.attrs = mma8452_event_attributes,
 };
+
+#define MMA8452_FREEFALL_CHANNEL(modifier) { \
+	.type = IIO_ACCEL, \
+	.modified = 1, \
+	.channel2 = modifier, \
+	.scan_index = -1, \
+	.event_spec = mma8452_freefall_event, \
+	.num_event_specs = ARRAY_SIZE(mma8452_freefall_event), \
+}
+
+#define MMA8652_FREEFALL_CHANNEL(modifier) { \
+	.type = IIO_ACCEL, \
+	.modified = 1, \
+	.channel2 = modifier, \
+	.scan_index = -1, \
+	.event_spec = mma8652_freefall_event, \
+	.num_event_specs = ARRAY_SIZE(mma8652_freefall_event), \
+}
 
 #define MMA8452_CHANNEL(axis, idx, bits) { \
 	.type = IIO_ACCEL, \
@@ -822,11 +944,20 @@ static struct attribute_group mma8452_event_attribute_group = {
 	.num_event_specs = ARRAY_SIZE(mma8452_motion_event), \
 }
 
+static const struct iio_chan_spec mma8451_channels[] = {
+	MMA8452_CHANNEL(X, idx_x, 14),
+	MMA8452_CHANNEL(Y, idx_y, 14),
+	MMA8452_CHANNEL(Z, idx_z, 14),
+	IIO_CHAN_SOFT_TIMESTAMP(idx_ts),
+	MMA8452_FREEFALL_CHANNEL(IIO_MOD_X_AND_Y_AND_Z),
+};
+
 static const struct iio_chan_spec mma8452_channels[] = {
 	MMA8452_CHANNEL(X, idx_x, 12),
 	MMA8452_CHANNEL(Y, idx_y, 12),
 	MMA8452_CHANNEL(Z, idx_z, 12),
 	IIO_CHAN_SOFT_TIMESTAMP(idx_ts),
+	MMA8452_FREEFALL_CHANNEL(IIO_MOD_X_AND_Y_AND_Z),
 };
 
 static const struct iio_chan_spec mma8453_channels[] = {
@@ -834,6 +965,7 @@ static const struct iio_chan_spec mma8453_channels[] = {
 	MMA8452_CHANNEL(Y, idx_y, 10),
 	MMA8452_CHANNEL(Z, idx_z, 10),
 	IIO_CHAN_SOFT_TIMESTAMP(idx_ts),
+	MMA8452_FREEFALL_CHANNEL(IIO_MOD_X_AND_Y_AND_Z),
 };
 
 static const struct iio_chan_spec mma8652_channels[] = {
@@ -841,6 +973,7 @@ static const struct iio_chan_spec mma8652_channels[] = {
 	MMA8652_CHANNEL(Y, idx_y, 12),
 	MMA8652_CHANNEL(Z, idx_z, 12),
 	IIO_CHAN_SOFT_TIMESTAMP(idx_ts),
+	MMA8652_FREEFALL_CHANNEL(IIO_MOD_X_AND_Y_AND_Z),
 };
 
 static const struct iio_chan_spec mma8653_channels[] = {
@@ -848,9 +981,11 @@ static const struct iio_chan_spec mma8653_channels[] = {
 	MMA8652_CHANNEL(Y, idx_y, 10),
 	MMA8652_CHANNEL(Z, idx_z, 10),
 	IIO_CHAN_SOFT_TIMESTAMP(idx_ts),
+	MMA8652_FREEFALL_CHANNEL(IIO_MOD_X_AND_Y_AND_Z),
 };
 
 enum {
+	mma8451,
 	mma8452,
 	mma8453,
 	mma8652,
@@ -858,17 +993,34 @@ enum {
 };
 
 static const struct mma_chip_info mma_chip_info_table[] = {
+	[mma8451] = {
+		.chip_id = MMA8451_DEVICE_ID,
+		.channels = mma8451_channels,
+		.num_channels = ARRAY_SIZE(mma8451_channels),
+		/*
+		 * Hardware has fullscale of -2G, -4G, -8G corresponding to
+		 * raw value -8192 for 14 bit, -2048 for 12 bit or -512 for 10
+		 * bit.
+		 * The userspace interface uses m/s^2 and we declare micro units
+		 * So scale factor for 12 bit here is given by:
+		 * 	g * N * 1000000 / 2048 for N = 2, 4, 8 and g=9.80665
+		 */
+		.mma_scales = { {0, 2394}, {0, 4788}, {0, 9577} },
+		.ev_cfg = MMA8452_TRANSIENT_CFG,
+		.ev_cfg_ele = MMA8452_TRANSIENT_CFG_ELE,
+		.ev_cfg_chan_shift = 1,
+		.ev_src = MMA8452_TRANSIENT_SRC,
+		.ev_src_xe = MMA8452_TRANSIENT_SRC_XTRANSE,
+		.ev_src_ye = MMA8452_TRANSIENT_SRC_YTRANSE,
+		.ev_src_ze = MMA8452_TRANSIENT_SRC_ZTRANSE,
+		.ev_ths = MMA8452_TRANSIENT_THS,
+		.ev_ths_mask = MMA8452_TRANSIENT_THS_MASK,
+		.ev_count = MMA8452_TRANSIENT_COUNT,
+	},
 	[mma8452] = {
 		.chip_id = MMA8452_DEVICE_ID,
 		.channels = mma8452_channels,
 		.num_channels = ARRAY_SIZE(mma8452_channels),
-		/*
-		 * Hardware has fullscale of -2G, -4G, -8G corresponding to
-		 * raw value -2048 for 12 bit or -512 for 10 bit.
-		 * The userspace interface uses m/s^2 and we declare micro units
-		 * So scale factor for 12 bit here is given by:
-		 *	g * N * 1000000 / 2048 for N = 2, 4, 8 and g=9.80665
-		 */
 		.mma_scales = { {0, 9577}, {0, 19154}, {0, 38307} },
 		.ev_cfg = MMA8452_TRANSIENT_CFG,
 		.ev_cfg_ele = MMA8452_TRANSIENT_CFG_ELE,
@@ -1049,6 +1201,7 @@ static int mma8452_reset(struct i2c_client *client)
 }
 
 static const struct of_device_id mma8452_dt_ids[] = {
+	{ .compatible = "fsl,mma8451", .data = &mma_chip_info_table[mma8451] },
 	{ .compatible = "fsl,mma8452", .data = &mma_chip_info_table[mma8452] },
 	{ .compatible = "fsl,mma8453", .data = &mma_chip_info_table[mma8453] },
 	{ .compatible = "fsl,mma8652", .data = &mma_chip_info_table[mma8652] },
@@ -1085,6 +1238,7 @@ static int mma8452_probe(struct i2c_client *client,
 		return ret;
 
 	switch (ret) {
+	case MMA8451_DEVICE_ID:
 	case MMA8452_DEVICE_ID:
 	case MMA8453_DEVICE_ID:
 	case MMA8652_DEVICE_ID:
@@ -1189,6 +1343,10 @@ static int mma8452_probe(struct i2c_client *client,
 	ret = iio_device_register(indio_dev);
 	if (ret < 0)
 		goto buffer_cleanup;
+
+	ret = mma8452_set_freefall_mode(data, false);
+	if (ret)
+		return ret;
 
 	return 0;
 

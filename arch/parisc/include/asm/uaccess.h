@@ -44,30 +44,29 @@ static inline long access_ok(int type, const void __user * addr,
 #define LDD_USER(ptr)		BUILD_BUG()
 #define STD_KERNEL(x, ptr)	__put_kernel_asm64(x, ptr)
 #define STD_USER(x, ptr)	__put_user_asm64(x, ptr)
-#define ASM_WORD_INSN		".word\t"
 #else
 #define LDD_KERNEL(ptr)		__get_kernel_asm("ldd", ptr)
 #define LDD_USER(ptr)		__get_user_asm("ldd", ptr)
 #define STD_KERNEL(x, ptr)	__put_kernel_asm("std", x, ptr)
 #define STD_USER(x, ptr)	__put_user_asm("std", x, ptr)
-#define ASM_WORD_INSN		".dword\t"
 #endif
 
 /*
- * The exception table contains two values: the first is an address
- * for an instruction that is allowed to fault, and the second is
- * the address to the fixup routine. Even on a 64bit kernel we could
- * use a 32bit (unsigned int) address here.
+ * The exception table contains two values: the first is the relative offset to
+ * the address of the instruction that is allowed to fault, and the second is
+ * the relative offset to the address of the fixup routine. Since relative
+ * addresses are used, 32bit values are sufficient even on 64bit kernel.
  */
 
+#define ARCH_HAS_RELATIVE_EXTABLE
 struct exception_table_entry {
-	unsigned long insn;	/* address of insn that is allowed to fault. */
-	unsigned long fixup;	/* fixup routine */
+	int insn;	/* relative address of insn that is allowed to fault. */
+	int fixup;	/* relative address of fixup routine */
 };
 
 #define ASM_EXCEPTIONTABLE_ENTRY( fault_addr, except_addr )\
 	".section __ex_table,\"aw\"\n"			   \
-	ASM_WORD_INSN #fault_addr ", " #except_addr "\n\t" \
+	".word (" #fault_addr " - .), (" #except_addr " - .)\n\t" \
 	".previous\n"
 
 /*
@@ -76,6 +75,7 @@ struct exception_table_entry {
  */
 struct exception_data {
 	unsigned long fault_ip;
+	unsigned long fault_gp;
 	unsigned long fault_space;
 	unsigned long fault_addr;
 };

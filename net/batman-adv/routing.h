@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2015 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2016  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -52,6 +52,7 @@ batadv_find_router(struct batadv_priv *bat_priv,
 		   struct batadv_orig_node *orig_node,
 		   struct batadv_hard_iface *recv_if);
 int batadv_window_protected(struct batadv_priv *bat_priv, s32 seq_num_diff,
-			    unsigned long *last_reset);
+			    s32 seq_old_max_diff, unsigned long *last_reset,
+			    bool *protection_started);
 
 #endif /* _NET_BATMAN_ADV_ROUTING_H_ */

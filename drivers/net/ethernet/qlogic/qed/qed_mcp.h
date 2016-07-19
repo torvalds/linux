@@ -11,8 +11,8 @@
 
 #include <linux/types.h>
 #include <linux/delay.h>
-#include <linux/mutex.h>
 #include <linux/slab.h>
+#include <linux/spinlock.h>
 #include "qed_hsi.h"
 
 struct qed_mcp_link_speed_params {
@@ -255,7 +255,8 @@ int qed_mcp_set_led(struct qed_hwfn *p_hwfn,
 #define MFW_PORT(_p_hwfn)       ((_p_hwfn)->abs_pf_id %	\
 				 ((_p_hwfn)->cdev->num_ports_in_engines * 2))
 struct qed_mcp_info {
-	struct mutex				mutex; /* MCP access lock */
+	spinlock_t				lock;
+	bool					block_mb_sending;
 	u32					public_base;
 	u32					drv_mb_addr;
 	u32					mfw_mb_addr;
@@ -270,6 +271,15 @@ struct qed_mcp_info {
 	u8					*mfw_mb_shadow;
 	u16					mfw_mb_length;
 	u16					mcp_hist;
+};
+
+struct qed_mcp_mb_params {
+	u32			cmd;
+	u32			param;
+	union drv_union_data	*p_data_src;
+	union drv_union_data	*p_data_dst;
+	u32			mcp_resp;
+	u32			mcp_param;
 };
 
 /**

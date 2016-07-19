@@ -181,7 +181,7 @@ static int mwifiex_sdio_resume(struct device *dev)
 
 	/* Disable Host Sleep */
 	mwifiex_cancel_hs(mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA),
-			  MWIFIEX_ASYNC_CMD);
+			  MWIFIEX_SYNC_CMD);
 
 	return 0;
 }
@@ -1039,19 +1039,14 @@ done:
 
 /*
  * This function checks the firmware status in card.
- *
- * The winner interface is also determined by this function.
  */
 static int mwifiex_check_fw_status(struct mwifiex_adapter *adapter,
 				   u32 poll_num)
 {
-	struct sdio_mmc_card *card = adapter->card;
 	int ret = 0;
 	u16 firmware_stat;
 	u32 tries;
-	u8 winner_status;
 
-	/* Wait for firmware initialization event */
 	for (tries = 0; tries < poll_num; tries++) {
 		ret = mwifiex_sdio_read_fw_status(adapter, &firmware_stat);
 		if (ret)
@@ -1065,16 +1060,25 @@ static int mwifiex_check_fw_status(struct mwifiex_adapter *adapter,
 		}
 	}
 
-	if (ret) {
-		if (mwifiex_read_reg
-		    (adapter, card->reg->status_reg_0, &winner_status))
-			winner_status = 0;
+	return ret;
+}
 
-		if (winner_status)
-			adapter->winner = 0;
-		else
-			adapter->winner = 1;
-	}
+/* This function checks if WLAN is the winner.
+ */
+static int mwifiex_check_winner_status(struct mwifiex_adapter *adapter)
+{
+	int ret = 0;
+	u8 winner = 0;
+	struct sdio_mmc_card *card = adapter->card;
+
+	if (mwifiex_read_reg(adapter, card->reg->status_reg_0, &winner))
+		return -1;
+
+	if (winner)
+		adapter->winner = 0;
+	else
+		adapter->winner = 1;
+
 	return ret;
 }
 
@@ -1350,6 +1354,9 @@ static int mwifiex_sdio_card_to_host_mp_aggr(struct mwifiex_adapter *adapter,
 				 (card->mpa_rx.ports << 4)) +
 				 card->mpa_rx.start_port;
 		}
+
+		if (card->mpa_rx.pkt_cnt == 1)
+			mport = adapter->ioport + port;
 
 		if (mwifiex_read_data_sync(adapter, card->mpa_rx.buf,
 					   card->mpa_rx.buf_len, mport, 1))
@@ -1680,6 +1687,7 @@ static int mwifiex_host_to_card_mp_aggr(struct mwifiex_adapter *adapter,
 	s32 f_precopy_cur_buf = 0;
 	s32 f_postcopy_cur_buf = 0;
 	u32 mport;
+	int index;
 
 	if (!card->mpa_tx.enabled ||
 	    (card->has_control_mask && (port == CTRL_PORT)) ||
@@ -1781,8 +1789,20 @@ static int mwifiex_host_to_card_mp_aggr(struct mwifiex_adapter *adapter,
 				 card->mpa_tx.start_port;
 		}
 
+		if (card->mpa_tx.pkt_cnt == 1)
+			mport = adapter->ioport + port;
+
 		ret = mwifiex_write_data_to_card(adapter, card->mpa_tx.buf,
 						 card->mpa_tx.buf_len, mport);
+
+		/* Save the last multi port tx aggreagation info to debug log */
+		index = adapter->dbg.last_sdio_mp_index;
+		index = (index + 1) % MWIFIEX_DBG_SDIO_MP_NUM;
+		adapter->dbg.last_sdio_mp_index = index;
+		adapter->dbg.last_mp_wr_ports[index] = mport;
+		adapter->dbg.last_mp_wr_bitmap[index] = card->mp_wr_bitmap;
+		adapter->dbg.last_mp_wr_len[index] = card->mpa_tx.buf_len;
+		adapter->dbg.last_mp_curr_wr_port[index] = card->curr_wr_port;
 
 		MP_TX_AGGR_BUF_RESET(card);
 	}
@@ -2620,6 +2640,7 @@ static struct mwifiex_if_ops sdio_ops = {
 	.init_if = mwifiex_init_sdio,
 	.cleanup_if = mwifiex_cleanup_sdio,
 	.check_fw_status = mwifiex_check_fw_status,
+	.check_winner_status = mwifiex_check_winner_status,
 	.prog_fw = mwifiex_prog_fw_w_helper,
 	.register_dev = mwifiex_register_dev,
 	.unregister_dev = mwifiex_unregister_dev,

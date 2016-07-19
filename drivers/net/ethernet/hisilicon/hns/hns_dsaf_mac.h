@@ -26,7 +26,9 @@ struct dsaf_device;
 
 #define MAC_DEFAULT_MTU	(ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN + ETH_DATA_LEN)
 #define MAC_MAX_MTU		9600
+#define MAC_MAX_MTU_V2		9728
 #define MAC_MIN_MTU		68
+#define MAC_MAX_MTU_DBG		MAC_DEFAULT_MTU
 
 #define MAC_DEFAULT_PAUSE_TIME 0xff
 
@@ -365,7 +367,7 @@ struct mac_driver {
 	/*config rx pause enable*/
 	void (*set_rx_ignore_pause_frames)(void *mac_drv, u32 enable);
 	/* config rx mode for promiscuous*/
-	int (*set_promiscuous)(void *mac_drv, u8 enable);
+	void (*set_promiscuous)(void *mac_drv, u8 enable);
 	/* get mac id */
 	void (*mac_get_id)(void *mac_drv, u8 *mac_id);
 	void (*mac_pausefrm_cfg)(void *mac_drv, u32 rx_en, u32 tx_en);
@@ -453,4 +455,6 @@ int hns_mac_get_regs_count(struct hns_mac_cb *mac_cb);
 void hns_set_led_opt(struct hns_mac_cb *mac_cb);
 int hns_cpld_led_set_id(struct hns_mac_cb *mac_cb,
 			enum hnae_led_state status);
+void hns_mac_set_promisc(struct hns_mac_cb *mac_cb, u8 en);
+
 #endif /* _HNS_DSAF_MAC_H */

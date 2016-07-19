@@ -39,7 +39,8 @@ void comedi_pcmcia_driver_unregister(struct comedi_driver *,
 				     struct pcmcia_driver *);
 
 /**
- * module_comedi_pcmcia_driver() - Helper macro for registering a comedi PCMCIA driver
+ * module_comedi_pcmcia_driver() - Helper macro for registering a comedi
+ * PCMCIA driver
  * @__comedi_driver: comedi_driver struct
  * @__pcmcia_driver: pcmcia_driver struct
  *

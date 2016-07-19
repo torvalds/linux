@@ -56,28 +56,28 @@ void u8540_clk_init(void)
 	/* Clock sources. */
 	/* Fixed ClockGen */
 	clk = clk_reg_prcmu_gate("soc0_pll", NULL, PRCMU_PLLSOC0,
-				CLK_IS_ROOT|CLK_IGNORE_UNUSED);
+				CLK_IGNORE_UNUSED);
 	clk_register_clkdev(clk, "soc0_pll", NULL);
 
 	clk = clk_reg_prcmu_gate("soc1_pll", NULL, PRCMU_PLLSOC1,
-				CLK_IS_ROOT|CLK_IGNORE_UNUSED);
+				CLK_IGNORE_UNUSED);
 	clk_register_clkdev(clk, "soc1_pll", NULL);
 
 	clk = clk_reg_prcmu_gate("ddr_pll", NULL, PRCMU_PLLDDR,
-				CLK_IS_ROOT|CLK_IGNORE_UNUSED);
+				CLK_IGNORE_UNUSED);
 	clk_register_clkdev(clk, "ddr_pll", NULL);
 
 	clk = clk_register_fixed_rate(NULL, "rtc32k", NULL,
-				CLK_IS_ROOT|CLK_IGNORE_UNUSED,
+				CLK_IGNORE_UNUSED,
 				32768);
 	clk_register_clkdev(clk, "clk32k", NULL);
 	clk_register_clkdev(clk, "apb_pclk", "rtc-pl031");
 
 	clk = clk_register_fixed_rate(NULL, "ulp38m4", NULL,
-				CLK_IS_ROOT|CLK_IGNORE_UNUSED,
+				CLK_IGNORE_UNUSED,
 				38400000);
 
-	clk = clk_reg_prcmu_gate("uartclk", NULL, PRCMU_UARTCLK, CLK_IS_ROOT);
+	clk = clk_reg_prcmu_gate("uartclk", NULL, PRCMU_UARTCLK, 0);
 	clk_register_clkdev(clk, NULL, "UART");
 
 	/* msp02clk needs a abx500 clk as parent. Handle by abx500 clk driver */
@@ -85,120 +85,116 @@ void u8540_clk_init(void)
 			PRCMU_MSP02CLK, 0);
 	clk_register_clkdev(clk, NULL, "MSP02");
 
-	clk = clk_reg_prcmu_gate("msp1clk", NULL, PRCMU_MSP1CLK, CLK_IS_ROOT);
+	clk = clk_reg_prcmu_gate("msp1clk", NULL, PRCMU_MSP1CLK, 0);
 	clk_register_clkdev(clk, NULL, "MSP1");
 
-	clk = clk_reg_prcmu_gate("i2cclk", NULL, PRCMU_I2CCLK, CLK_IS_ROOT);
+	clk = clk_reg_prcmu_gate("i2cclk", NULL, PRCMU_I2CCLK, 0);
 	clk_register_clkdev(clk, NULL, "I2C");
 
-	clk = clk_reg_prcmu_gate("slimclk", NULL, PRCMU_SLIMCLK, CLK_IS_ROOT);
+	clk = clk_reg_prcmu_gate("slimclk", NULL, PRCMU_SLIMCLK, 0);
 	clk_register_clkdev(clk, NULL, "slim");
 
-	clk = clk_reg_prcmu_gate("per1clk", NULL, PRCMU_PER1CLK, CLK_IS_ROOT);
+	clk = clk_reg_prcmu_gate("per1clk", NULL, PRCMU_PER1CLK, 0);
 	clk_register_clkdev(clk, NULL, "PERIPH1");
 
-	clk = clk_reg_prcmu_gate("per2clk", NULL, PRCMU_PER2CLK, CLK_IS_ROOT);
+	clk = clk_reg_prcmu_gate("per2clk", NULL, PRCMU_PER2CLK, 0);
 	clk_register_clkdev(clk, NULL, "PERIPH2");
 
-	clk = clk_reg_prcmu_gate("per3clk", NULL, PRCMU_PER3CLK, CLK_IS_ROOT);
+	clk = clk_reg_prcmu_gate("per3clk", NULL, PRCMU_PER3CLK, 0);
 	clk_register_clkdev(clk, NULL, "PERIPH3");
 
-	clk = clk_reg_prcmu_gate("per5clk", NULL, PRCMU_PER5CLK, CLK_IS_ROOT);
+	clk = clk_reg_prcmu_gate("per5clk", NULL, PRCMU_PER5CLK, 0);
 	clk_register_clkdev(clk, NULL, "PERIPH5");
 
-	clk = clk_reg_prcmu_gate("per6clk", NULL, PRCMU_PER6CLK, CLK_IS_ROOT);
+	clk = clk_reg_prcmu_gate("per6clk", NULL, PRCMU_PER6CLK, 0);
 	clk_register_clkdev(clk, NULL, "PERIPH6");
 
-	clk = clk_reg_prcmu_gate("per7clk", NULL, PRCMU_PER7CLK, CLK_IS_ROOT);
+	clk = clk_reg_prcmu_gate("per7clk", NULL, PRCMU_PER7CLK, 0);
 	clk_register_clkdev(clk, NULL, "PERIPH7");
 
 	clk = clk_reg_prcmu_scalable("lcdclk", NULL, PRCMU_LCDCLK, 0,
-				CLK_IS_ROOT|CLK_SET_RATE_GATE);
+				CLK_SET_RATE_GATE);
 	clk_register_clkdev(clk, NULL, "lcd");
 	clk_register_clkdev(clk, "lcd", "mcde");
 
-	clk = clk_reg_prcmu_opp_gate("bmlclk", NULL, PRCMU_BMLCLK,
-				CLK_IS_ROOT);
+	clk = clk_reg_prcmu_opp_gate("bmlclk", NULL, PRCMU_BMLCLK, 0);
 	clk_register_clkdev(clk, NULL, "bml");
 
 	clk = clk_reg_prcmu_scalable("hsitxclk", NULL, PRCMU_HSITXCLK, 0,
-				CLK_IS_ROOT|CLK_SET_RATE_GATE);
+				     CLK_SET_RATE_GATE);
 
 	clk = clk_reg_prcmu_scalable("hsirxclk", NULL, PRCMU_HSIRXCLK, 0,
-				CLK_IS_ROOT|CLK_SET_RATE_GATE);
+				     CLK_SET_RATE_GATE);
 
 	clk = clk_reg_prcmu_scalable("hdmiclk", NULL, PRCMU_HDMICLK, 0,
-				CLK_IS_ROOT|CLK_SET_RATE_GATE);
+				     CLK_SET_RATE_GATE);
 	clk_register_clkdev(clk, NULL, "hdmi");
 	clk_register_clkdev(clk, "hdmi", "mcde");
 
-	clk = clk_reg_prcmu_gate("apeatclk", NULL, PRCMU_APEATCLK, CLK_IS_ROOT);
+	clk = clk_reg_prcmu_gate("apeatclk", NULL, PRCMU_APEATCLK, 0);
 	clk_register_clkdev(clk, NULL, "apeat");
 
-	clk = clk_reg_prcmu_gate("apetraceclk", NULL, PRCMU_APETRACECLK,
-				CLK_IS_ROOT);
+	clk = clk_reg_prcmu_gate("apetraceclk", NULL, PRCMU_APETRACECLK, 0);
 	clk_register_clkdev(clk, NULL, "apetrace");
 
-	clk = clk_reg_prcmu_gate("mcdeclk", NULL, PRCMU_MCDECLK, CLK_IS_ROOT);
+	clk = clk_reg_prcmu_gate("mcdeclk", NULL, PRCMU_MCDECLK, 0);
 	clk_register_clkdev(clk, NULL, "mcde");
 	clk_register_clkdev(clk, "mcde", "mcde");
 	clk_register_clkdev(clk, NULL, "dsilink.0");
 	clk_register_clkdev(clk, NULL, "dsilink.1");
 	clk_register_clkdev(clk, NULL, "dsilink.2");
 
-	clk = clk_reg_prcmu_opp_gate("ipi2cclk", NULL, PRCMU_IPI2CCLK,
-				CLK_IS_ROOT);
+	clk = clk_reg_prcmu_opp_gate("ipi2cclk", NULL, PRCMU_IPI2CCLK, 0);
 	clk_register_clkdev(clk, NULL, "ipi2");
 
-	clk = clk_reg_prcmu_gate("dsialtclk", NULL, PRCMU_DSIALTCLK,
-				CLK_IS_ROOT);
+	clk = clk_reg_prcmu_gate("dsialtclk", NULL, PRCMU_DSIALTCLK, 0);
 	clk_register_clkdev(clk, NULL, "dsialt");
 
-	clk = clk_reg_prcmu_gate("dmaclk", NULL, PRCMU_DMACLK, CLK_IS_ROOT);
+	clk = clk_reg_prcmu_gate("dmaclk", NULL, PRCMU_DMACLK, 0);
 	clk_register_clkdev(clk, NULL, "dma40.0");
 
-	clk = clk_reg_prcmu_gate("b2r2clk", NULL, PRCMU_B2R2CLK, CLK_IS_ROOT);
+	clk = clk_reg_prcmu_gate("b2r2clk", NULL, PRCMU_B2R2CLK, 0);
 	clk_register_clkdev(clk, NULL, "b2r2");
 	clk_register_clkdev(clk, NULL, "b2r2_core");
 	clk_register_clkdev(clk, NULL, "U8500-B2R2.0");
 	clk_register_clkdev(clk, NULL, "b2r2_1_core");
 
 	clk = clk_reg_prcmu_scalable("tvclk", NULL, PRCMU_TVCLK, 0,
-				CLK_IS_ROOT|CLK_SET_RATE_GATE);
+				     CLK_SET_RATE_GATE);
 	clk_register_clkdev(clk, NULL, "tv");
 	clk_register_clkdev(clk, "tv", "mcde");
 
-	clk = clk_reg_prcmu_gate("sspclk", NULL, PRCMU_SSPCLK, CLK_IS_ROOT);
+	clk = clk_reg_prcmu_gate("sspclk", NULL, PRCMU_SSPCLK, 0);
 	clk_register_clkdev(clk, NULL, "SSP");
 
-	clk = clk_reg_prcmu_gate("rngclk", NULL, PRCMU_RNGCLK, CLK_IS_ROOT);
+	clk = clk_reg_prcmu_gate("rngclk", NULL, PRCMU_RNGCLK, 0);
 	clk_register_clkdev(clk, NULL, "rngclk");
 
-	clk = clk_reg_prcmu_gate("uiccclk", NULL, PRCMU_UICCCLK, CLK_IS_ROOT);
+	clk = clk_reg_prcmu_gate("uiccclk", NULL, PRCMU_UICCCLK, 0);
 	clk_register_clkdev(clk, NULL, "uicc");
 
-	clk = clk_reg_prcmu_gate("timclk", NULL, PRCMU_TIMCLK, CLK_IS_ROOT);
+	clk = clk_reg_prcmu_gate("timclk", NULL, PRCMU_TIMCLK, 0);
 	clk_register_clkdev(clk, NULL, "mtu0");
 	clk_register_clkdev(clk, NULL, "mtu1");
 
 	clk = clk_reg_prcmu_opp_volt_scalable("sdmmcclk", NULL,
 					PRCMU_SDMMCCLK, 100000000,
-					CLK_IS_ROOT|CLK_SET_RATE_GATE);
+					CLK_SET_RATE_GATE);
 	clk_register_clkdev(clk, NULL, "sdmmc");
 
 	clk = clk_reg_prcmu_opp_volt_scalable("sdmmchclk", NULL,
 					PRCMU_SDMMCHCLK, 400000000,
-					CLK_IS_ROOT|CLK_SET_RATE_GATE);
+					CLK_SET_RATE_GATE);
 	clk_register_clkdev(clk, NULL, "sdmmchclk");
 
-	clk = clk_reg_prcmu_gate("hvaclk", NULL, PRCMU_HVACLK, CLK_IS_ROOT);
+	clk = clk_reg_prcmu_gate("hvaclk", NULL, PRCMU_HVACLK, 0);
 	clk_register_clkdev(clk, NULL, "hva");
 
-	clk = clk_reg_prcmu_gate("g1clk", NULL, PRCMU_G1CLK, CLK_IS_ROOT);
+	clk = clk_reg_prcmu_gate("g1clk", NULL, PRCMU_G1CLK, 0);
 	clk_register_clkdev(clk, NULL, "g1");
 
 	clk = clk_reg_prcmu_scalable("spare1clk", NULL, PRCMU_SPARE1CLK, 0,
-				CLK_IS_ROOT|CLK_SET_RATE_GATE);
+				     CLK_SET_RATE_GATE);
 	clk_register_clkdev(clk, "dsilcd", "mcde");
 
 	clk = clk_reg_prcmu_scalable("dsi_pll", "hdmiclk",
@@ -244,7 +240,7 @@ void u8540_clk_init(void)
 	clk_register_clkdev(clk, "dsilp2", "mcde");
 
 	clk = clk_reg_prcmu_scalable_rate("armss", NULL,
-				PRCMU_ARMSS, 0, CLK_IS_ROOT|CLK_IGNORE_UNUSED);
+				PRCMU_ARMSS, 0, CLK_IGNORE_UNUSED);
 	clk_register_clkdev(clk, "armss", NULL);
 
 	clk = clk_register_fixed_factor(NULL, "smp_twd", "armss",

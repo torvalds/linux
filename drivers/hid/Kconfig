@@ -196,6 +196,12 @@ config HID_PRODIKEYS
 	  multimedia keyboard, but will lack support for the musical keyboard
 	  and some additional multimedia keys.
 
+config HID_CMEDIA
+	tristate "CMedia CM6533 HID audio jack controls"
+	depends on HID
+	---help---
+	Support for CMedia CM6533 HID audio jack controls.
+
 config HID_CP2112
 	tristate "Silicon Labs CP2112 HID USB-to-SMBus Bridge support"
 	depends on USB_HID && I2C && GPIOLIB

@@ -68,9 +68,6 @@ void (*mach_power_off)(void);
 #define CPU_NAME	"MC68000"
 #endif
 #endif /* CONFIG_M68000 */
-#ifdef CONFIG_M68360
-#define CPU_NAME	"MC68360"
-#endif
 #ifndef CPU_NAME
 #define	CPU_NAME	"UNKNOWN"
 #endif
@@ -208,10 +205,6 @@ void __init setup_arch(char **cmdline_p)
 #endif
 #if defined( CONFIG_PILOT ) && defined( CONFIG_M68EZ328 )
 	printk(KERN_INFO "PalmV support by Lineo Inc. <jeff@uclinux.com>\n");
-#endif
-#if defined (CONFIG_M68360)
-	printk(KERN_INFO "QUICC port done by SED Systems <hamilton@sedsystems.ca>,\n");
-	printk(KERN_INFO "based on 2.0.38 port by Lineo Inc. <mleslie@lineo.com>.\n");
 #endif
 #ifdef CONFIG_DRAGEN2
 	printk(KERN_INFO "DragonEngine II board support by Georges Menie\n");

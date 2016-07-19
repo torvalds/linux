@@ -499,8 +499,7 @@ static void etr_reset(void)
 		if (etr_port0_online && etr_port1_online)
 			set_bit(CLOCK_SYNC_ETR, &clock_sync_flags);
 	} else if (etr_port0_online || etr_port1_online) {
-		pr_warning("The real or virtual hardware system does "
-			   "not provide an ETR interface\n");
+		pr_warn("The real or virtual hardware system does not provide an ETR interface\n");
 		etr_port0_online = etr_port1_online = 0;
 	}
 }
@@ -1433,7 +1432,7 @@ device_initcall(etr_init_sysfs);
 /*
  * Server Time Protocol (STP) code.
  */
-static int stp_online;
+static bool stp_online;
 static struct stp_sstpi stp_info;
 static void *stp_page;
 
@@ -1444,11 +1443,7 @@ static struct timer_list stp_timer;
 
 static int __init early_parse_stp(char *p)
 {
-	if (strncmp(p, "off", 3) == 0)
-		stp_online = 0;
-	else if (strncmp(p, "on", 2) == 0)
-		stp_online = 1;
-	return 0;
+	return kstrtobool(p, &stp_online);
 }
 early_param("stp", early_parse_stp);
 
@@ -1464,8 +1459,7 @@ static void __init stp_reset(void)
 	if (rc == 0)
 		set_bit(CLOCK_SYNC_HAS_STP, &clock_sync_flags);
 	else if (stp_online) {
-		pr_warning("The real or virtual hardware system does "
-			   "not provide an STP interface\n");
+		pr_warn("The real or virtual hardware system does not provide an STP interface\n");
 		free_page((unsigned long) stp_page);
 		stp_page = NULL;
 		stp_online = 0;

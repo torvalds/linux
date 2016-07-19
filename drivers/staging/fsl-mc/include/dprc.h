@@ -176,7 +176,7 @@ int dprc_reset_container(struct fsl_mc_io *mc_io,
  * @user_irq_id: A user defined number associated with this IRQ
  */
 struct dprc_irq_cfg {
-	     u64		paddr;
+	     phys_addr_t	paddr;
 	     u32		val;
 	     int		user_irq_id;
 };

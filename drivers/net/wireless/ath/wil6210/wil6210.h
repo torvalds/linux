@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2016 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -51,7 +51,7 @@ static inline u32 WIL_GET_BITS(u32 x, int b0, int b1)
 
 #define WIL_TX_Q_LEN_DEFAULT		(4000)
 #define WIL_RX_RING_SIZE_ORDER_DEFAULT	(10)
-#define WIL_TX_RING_SIZE_ORDER_DEFAULT	(10)
+#define WIL_TX_RING_SIZE_ORDER_DEFAULT	(12)
 #define WIL_BCAST_RING_SIZE_ORDER_DEFAULT	(7)
 #define WIL_BCAST_MCS0_LIMIT		(1024) /* limit for MCS0 frame size */
 /* limit ring size in range [32..32k] */
@@ -92,6 +92,7 @@ static inline u32 wil_mtu2macbuf(u32 mtu)
 #define WIL6210_FW_RECOVERY_RETRIES	(5) /* try to recover this many times */
 #define WIL6210_FW_RECOVERY_TO	msecs_to_jiffies(5000)
 #define WIL6210_SCAN_TO		msecs_to_jiffies(10000)
+#define WIL6210_DISCONNECT_TO_MS (2000)
 #define WIL6210_RX_HIGH_TRSH_INIT		(0)
 #define WIL6210_RX_HIGH_TRSH_DEFAULT \
 				(1 << (WIL_RX_RING_SIZE_ORDER_DEFAULT - 3))
@@ -581,12 +582,10 @@ struct wil6210_priv {
 	struct workqueue_struct *wmi_wq; /* for deferred calls */
 	struct work_struct wmi_event_worker;
 	struct workqueue_struct *wq_service;
-	struct work_struct connect_worker;
 	struct work_struct disconnect_worker;
 	struct work_struct fw_error_worker;	/* for FW error recovery */
 	struct timer_list connect_timer;
 	struct timer_list scan_timer; /* detect scan timeout */
-	int pending_connect_cid;
 	struct list_head pending_wmi_ev;
 	/*
 	 * protect pending_wmi_ev
@@ -756,7 +755,8 @@ int wmi_rx_chain_add(struct wil6210_priv *wil, struct vring *vring);
 int wmi_p2p_cfg(struct wil6210_priv *wil, int channel);
 int wmi_rxon(struct wil6210_priv *wil, bool on);
 int wmi_get_temperature(struct wil6210_priv *wil, u32 *t_m, u32 *t_r);
-int wmi_disconnect_sta(struct wil6210_priv *wil, const u8 *mac, u16 reason);
+int wmi_disconnect_sta(struct wil6210_priv *wil, const u8 *mac, u16 reason,
+		       bool full_disconnect);
 int wmi_addba(struct wil6210_priv *wil, u8 ringid, u8 size, u16 timeout);
 int wmi_delba_tx(struct wil6210_priv *wil, u8 ringid, u16 reason);
 int wmi_delba_rx(struct wil6210_priv *wil, u8 cidxtid, u16 reason);
@@ -807,6 +807,7 @@ void wil_rx_fini(struct wil6210_priv *wil);
 int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 		      int cid, int tid);
 void wil_vring_fini_tx(struct wil6210_priv *wil, int id);
+int wil_tx_init(struct wil6210_priv *wil, int cid);
 int wil_vring_init_bcast(struct wil6210_priv *wil, int id, int size);
 int wil_bcast_init(struct wil6210_priv *wil);
 void wil_bcast_fini(struct wil6210_priv *wil);

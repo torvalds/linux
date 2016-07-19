@@ -119,6 +119,8 @@ struct st_sensor_bdu {
  * @addr: address of the register.
  * @mask_int1: mask to enable/disable IRQ on INT1 pin.
  * @mask_int2: mask to enable/disable IRQ on INT2 pin.
+ * @addr_ihl: address to enable/disable active low on the INT lines.
+ * @mask_ihl: mask to enable/disable active low on the INT lines.
  * struct ig1 - represents the Interrupt Generator 1 of sensors.
  * @en_addr: address of the enable ig1 register.
  * @en_mask: mask to write the on/off value for enable.
@@ -127,6 +129,8 @@ struct st_sensor_data_ready_irq {
 	u8 addr;
 	u8 mask_int1;
 	u8 mask_int2;
+	u8 addr_ihl;
+	u8 mask_ihl;
 	struct {
 		u8 en_addr;
 		u8 en_mask;

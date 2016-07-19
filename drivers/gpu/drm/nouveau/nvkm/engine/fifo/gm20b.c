@@ -32,7 +32,7 @@ gm20b_fifo = {
 	.uevent_init = gk104_fifo_uevent_init,
 	.uevent_fini = gk104_fifo_uevent_fini,
 	.chan = {
-		&gm204_fifo_gpfifo_oclass,
+		&gm200_fifo_gpfifo_oclass,
 		NULL
 	},
 };

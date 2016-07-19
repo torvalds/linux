@@ -37,23 +37,30 @@ config XEN_BALLOON_MEMORY_HOTPLUG
 
 	  Memory could be hotplugged in following steps:
 
-	    1) dom0: xl mem-max <domU> <maxmem>
+	    1) target domain: ensure that memory auto online policy is in
+	       effect by checking /sys/devices/system/memory/auto_online_blocks
+	       file (should be 'online').
+
+	    2) control domain: xl mem-max <target-domain> <maxmem>
 	       where <maxmem> is >= requested memory size,
 
-	    2) dom0: xl mem-set <domU> <memory>
+	    3) control domain: xl mem-set <target-domain> <memory>
 	       where <memory> is requested memory size; alternatively memory
 	       could be added by writing proper value to
 	       /sys/devices/system/xen_memory/xen_memory0/target or
-	       /sys/devices/system/xen_memory/xen_memory0/target_kb on dumU,
+	       /sys/devices/system/xen_memory/xen_memory0/target_kb on the
+	       target domain.
 
-	    3) domU: for i in /sys/devices/system/memory/memory*/state; do \
-	               [ "`cat "$i"`" = offline ] && echo online > "$i"; done
+	  Alternatively, if memory auto onlining was not requested at step 1
+	  the newly added memory can be manually onlined in the target domain
+	  by doing the following:
 
-	  Memory could be onlined automatically on domU by adding following line to udev rules:
+		for i in /sys/devices/system/memory/memory*/state; do \
+		  [ "`cat "$i"`" = offline ] && echo online > "$i"; done
+
+	  or by adding the following line to udev rules:
 
 	  SUBSYSTEM=="memory", ACTION=="add", RUN+="/bin/sh -c '[ -f /sys$devpath/state ] && echo online > /sys$devpath/state'"
-
-	  In that case step 3 should be omitted.
 
 config XEN_BALLOON_MEMORY_HOTPLUG_LIMIT
 	int "Hotplugged memory limit (in GiB) for a PV guest"

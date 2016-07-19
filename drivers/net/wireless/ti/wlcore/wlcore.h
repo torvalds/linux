@@ -463,6 +463,7 @@ struct wl1271 {
 
 	/* the current dfs region */
 	enum nl80211_dfs_regions dfs_region;
+	bool radar_debug_mode;
 
 	/* size of the private FW status data */
 	size_t fw_status_len;

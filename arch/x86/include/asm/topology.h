@@ -119,12 +119,23 @@ static inline void setup_node_to_cpumask_map(void) { }
 
 extern const struct cpumask *cpu_coregroup_mask(int cpu);
 
+#define topology_logical_package_id(cpu)	(cpu_data(cpu).logical_proc_id)
 #define topology_physical_package_id(cpu)	(cpu_data(cpu).phys_proc_id)
 #define topology_core_id(cpu)			(cpu_data(cpu).cpu_core_id)
 
 #ifdef ENABLE_TOPO_DEFINES
 #define topology_core_cpumask(cpu)		(per_cpu(cpu_core_map, cpu))
 #define topology_sibling_cpumask(cpu)		(per_cpu(cpu_sibling_map, cpu))
+
+extern unsigned int __max_logical_packages;
+#define topology_max_packages()			(__max_logical_packages)
+int topology_update_package_map(unsigned int apicid, unsigned int cpu);
+extern int topology_phys_to_logical_pkg(unsigned int pkg);
+#else
+#define topology_max_packages()			(1)
+static inline int
+topology_update_package_map(unsigned int apicid, unsigned int cpu) { return 0; }
+static inline int topology_phys_to_logical_pkg(unsigned int pkg) { return 0; }
 #endif
 
 static inline void arch_fix_phys_package_id(int num, u32 slot)

@@ -26,14 +26,9 @@
  * Device Access
  */
 
-static inline u32 vsp1_lif_read(struct vsp1_lif *lif, u32 reg)
-{
-	return vsp1_read(lif->entity.vsp1, reg);
-}
-
 static inline void vsp1_lif_write(struct vsp1_lif *lif, u32 reg, u32 data)
 {
-	vsp1_write(lif->entity.vsp1, reg, data);
+	vsp1_mod_write(&lif->entity, reg, data);
 }
 
 /* -----------------------------------------------------------------------------
@@ -49,7 +44,7 @@ static int lif_s_stream(struct v4l2_subdev *subdev, int enable)
 	unsigned int lbth = 200;
 
 	if (!enable) {
-		vsp1_lif_write(lif, VI6_LIF_CTRL, 0);
+		vsp1_write(lif->entity.vsp1, VI6_LIF_CTRL, 0);
 		return 0;
 	}
 
@@ -228,7 +223,7 @@ struct vsp1_lif *vsp1_lif_create(struct vsp1_device *vsp1)
 	subdev = &lif->entity.subdev;
 	v4l2_subdev_init(subdev, &lif_ops);
 
-	subdev->entity.ops = &vsp1_media_ops;
+	subdev->entity.ops = &vsp1->media_ops;
 	subdev->internal_ops = &vsp1_subdev_internal_ops;
 	snprintf(subdev->name, sizeof(subdev->name), "%s lif",
 		 dev_name(vsp1->dev));

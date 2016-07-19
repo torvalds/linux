@@ -588,6 +588,7 @@ struct mv_cesa_ahash_dma_req {
 	struct mv_cesa_tdma_req base;
 	u8 *padding;
 	dma_addr_t padding_dma;
+	u8 *cache;
 	dma_addr_t cache_dma;
 };
 
@@ -609,7 +610,7 @@ struct mv_cesa_ahash_req {
 		struct mv_cesa_ahash_std_req std;
 	} req;
 	struct mv_cesa_op_ctx op_tmpl;
-	u8 *cache;
+	u8 cache[CESA_MAX_HASH_BLOCK_SIZE];
 	unsigned int cache_ptr;
 	u64 len;
 	int src_nents;

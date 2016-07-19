@@ -431,10 +431,6 @@ int __init save_microcode_in_initrd_amd(void)
 	else
 		container = cont_va;
 
-	if (ucode_new_rev)
-		pr_info("microcode: updated early to new patch_level=0x%08x\n",
-			ucode_new_rev);
-
 	eax   = cpuid_eax(0x00000001);
 	eax   = ((eax >> 8) & 0xf) + ((eax >> 20) & 0xff);
 
@@ -469,8 +465,7 @@ void reload_ucode_amd(void)
 	if (mc && rev < mc->hdr.patch_id) {
 		if (!__apply_microcode_amd(mc)) {
 			ucode_new_rev = mc->hdr.patch_id;
-			pr_info("microcode: reload patch_level=0x%08x\n",
-				ucode_new_rev);
+			pr_info("reload patch_level=0x%08x\n", ucode_new_rev);
 		}
 	}
 }
@@ -793,15 +788,13 @@ static int verify_and_add_patch(u8 family, u8 *fw, unsigned int leftover)
 		return -EINVAL;
 	}
 
-	patch->data = kzalloc(patch_size, GFP_KERNEL);
+	patch->data = kmemdup(fw + SECTION_HDR_SIZE, patch_size, GFP_KERNEL);
 	if (!patch->data) {
 		pr_err("Patch data allocation failure.\n");
 		kfree(patch);
 		return -EINVAL;
 	}
 
-	/* All looks ok, copy patch... */
-	memcpy(patch->data, fw + SECTION_HDR_SIZE, patch_size);
 	INIT_LIST_HEAD(&patch->plist);
 	patch->patch_id  = mc_hdr->patch_id;
 	patch->equiv_cpu = proc_id;
@@ -953,9 +946,13 @@ struct microcode_ops * __init init_amd_microcode(void)
 	struct cpuinfo_x86 *c = &boot_cpu_data;
 
 	if (c->x86_vendor != X86_VENDOR_AMD || c->x86 < 0x10) {
-		pr_warning("AMD CPU family 0x%x not supported\n", c->x86);
+		pr_warn("AMD CPU family 0x%x not supported\n", c->x86);
 		return NULL;
 	}
+
+	if (ucode_new_rev)
+		pr_info_once("microcode updated early to new patch_level=0x%08x\n",
+			     ucode_new_rev);
 
 	return &microcode_amd_ops;
 }

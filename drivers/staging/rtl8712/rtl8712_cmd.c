@@ -293,7 +293,7 @@ u8 r8712_fw_cmd(struct _adapter *pAdapter, u32 cmd)
 
 	r8712_write32(pAdapter, IOCMD_CTRL_REG, cmd);
 	msleep(100);
-	while ((0 != r8712_read32(pAdapter, IOCMD_CTRL_REG)) &&
+	while ((r8712_read32(pAdapter, IOCMD_CTRL_REG != 0)) &&
 	       (pollingcnts > 0)) {
 		pollingcnts--;
 		msleep(20);
@@ -317,7 +317,7 @@ int r8712_cmd_thread(void *context)
 	unsigned int cmdsz, wr_sz, *pcmdbuf;
 	struct tx_desc *pdesc;
 	void (*pcmd_callback)(struct _adapter *dev, struct cmd_obj *pcmd);
-	struct _adapter *padapter = (struct _adapter *)context;
+	struct _adapter *padapter = context;
 	struct	cmd_priv	*pcmdpriv = &(padapter->cmdpriv);
 
 	allow_signal(SIGTERM);

@@ -55,10 +55,14 @@ struct tc_police_compat {
 
 /* Each policer is serialized by its individual spinlock */
 
-static int tcf_act_police_walker(struct sk_buff *skb, struct netlink_callback *cb,
-			      int type, struct tc_action *a)
+static int police_net_id;
+
+static int tcf_act_police_walker(struct net *net, struct sk_buff *skb,
+				 struct netlink_callback *cb, int type,
+				 struct tc_action *a)
 {
-	struct tcf_hashinfo *hinfo = a->ops->hinfo;
+	struct tc_action_net *tn = net_generic(net, police_net_id);
+	struct tcf_hashinfo *hinfo = tn->hinfo;
 	struct hlist_head *head;
 	struct tcf_common *p;
 	int err = 0, index = -1, i = 0, s_i = 0, n_i = 0;
@@ -121,7 +125,8 @@ static int tcf_act_police_locate(struct net *net, struct nlattr *nla,
 	struct tc_police *parm;
 	struct tcf_police *police;
 	struct qdisc_rate_table *R_tab = NULL, *P_tab = NULL;
-	struct tcf_hashinfo *hinfo = a->ops->hinfo;
+	struct tc_action_net *tn = net_generic(net, police_net_id);
+	struct tcf_hashinfo *hinfo = tn->hinfo;
 	int size;
 
 	if (nla == NULL)
@@ -139,7 +144,7 @@ static int tcf_act_police_locate(struct net *net, struct nlattr *nla,
 	parm = nla_data(tb[TCA_POLICE_TBF]);
 
 	if (parm->index) {
-		if (tcf_hash_search(a, parm->index)) {
+		if (tcf_hash_search(tn, a, parm->index)) {
 			police = to_police(a->priv);
 			if (bind) {
 				police->tcf_bindcnt += 1;
@@ -233,7 +238,7 @@ override:
 
 	police->tcfp_t_c = ktime_get_ns();
 	police->tcf_index = parm->index ? parm->index :
-		tcf_hash_new_index(hinfo);
+		tcf_hash_new_index(tn);
 	h = tcf_hash(police->tcf_index, POL_TAB_MASK);
 	spin_lock_bh(&hinfo->lock);
 	hlist_add_head(&police->tcf_head, &hinfo->htab[h]);
@@ -342,6 +347,13 @@ nla_put_failure:
 	return -1;
 }
 
+static int tcf_police_search(struct net *net, struct tc_action *a, u32 index)
+{
+	struct tc_action_net *tn = net_generic(net, police_net_id);
+
+	return tcf_hash_search(tn, a, index);
+}
+
 MODULE_AUTHOR("Alexey Kuznetsov");
 MODULE_DESCRIPTION("Policing actions");
 MODULE_LICENSE("GPL");
@@ -353,19 +365,41 @@ static struct tc_action_ops act_police_ops = {
 	.act		=	tcf_act_police,
 	.dump		=	tcf_act_police_dump,
 	.init		=	tcf_act_police_locate,
-	.walk		=	tcf_act_police_walker
+	.walk		=	tcf_act_police_walker,
+	.lookup		=	tcf_police_search,
+};
+
+static __net_init int police_init_net(struct net *net)
+{
+	struct tc_action_net *tn = net_generic(net, police_net_id);
+
+	return tc_action_net_init(tn, &act_police_ops, POL_TAB_MASK);
+}
+
+static void __net_exit police_exit_net(struct net *net)
+{
+	struct tc_action_net *tn = net_generic(net, police_net_id);
+
+	tc_action_net_exit(tn);
+}
+
+static struct pernet_operations police_net_ops = {
+	.init = police_init_net,
+	.exit = police_exit_net,
+	.id   = &police_net_id,
+	.size = sizeof(struct tc_action_net),
 };
 
 static int __init
 police_init_module(void)
 {
-	return tcf_register_action(&act_police_ops, POL_TAB_MASK);
+	return tcf_register_action(&act_police_ops, &police_net_ops);
 }
 
 static void __exit
 police_cleanup_module(void)
 {
-	tcf_unregister_action(&act_police_ops);
+	tcf_unregister_action(&act_police_ops, &police_net_ops);
 }
 
 module_init(police_init_module);

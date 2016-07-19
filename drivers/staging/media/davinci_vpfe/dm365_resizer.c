@@ -404,7 +404,7 @@ resizer_calculate_down_scale_f_div_param(struct device *dev,
 	param->f_div.pass[0].src_hsz = upper_h1 + o;
 	param->f_div.pass[1].o_hsz = h2 - 1;
 	param->f_div.pass[1].i_hps = 10 + (val1 * two_power);
-	param->f_div.pass[1].h_phs = (val - (val1 << 8));
+	param->f_div.pass[1].h_phs = val - (val1 << 8);
 	param->f_div.pass[1].src_hps = upper_h1 - o;
 	param->f_div.pass[1].src_hsz = upper_h2 + o;
 
@@ -425,8 +425,8 @@ resizer_configure_common_in_params(struct vpfe_resizer_device *resizer)
 	param->rsz_common.hps = param->user_config.hst;
 
 	if (vpfe_ipipeif_decimation_enabled(vpfe_dev))
-		param->rsz_common.hsz = (((informat->width - 1) *
-			IPIPEIF_RSZ_CONST) / vpfe_ipipeif_get_rsz(vpfe_dev));
+		param->rsz_common.hsz = ((informat->width - 1) *
+			IPIPEIF_RSZ_CONST) / vpfe_ipipeif_get_rsz(vpfe_dev);
 	else
 		param->rsz_common.hsz = informat->width - 1;
 
@@ -650,7 +650,7 @@ resizer_calculate_normal_f_div_param(struct device *dev, int input_width,
 	param->f_div.pass[0].src_hsz = (input_width >> 2) + o;
 	param->f_div.pass[1].o_hsz = h2 - 1;
 	param->f_div.pass[1].i_hps = val1;
-	param->f_div.pass[1].h_phs = (val - (val1 << 8));
+	param->f_div.pass[1].h_phs = val - (val1 << 8);
 	param->f_div.pass[1].src_hps = (input_width >> 2) - o;
 	param->f_div.pass[1].src_hsz = (input_width >> 2) + o;
 
@@ -1387,8 +1387,9 @@ resizer_try_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
  * @fmt: pointer to v4l2 subdev format structure
  * return -EINVAL or zero on success
  */
-static int resizer_set_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
-			   struct v4l2_subdev_format *fmt)
+static int resizer_set_format(struct v4l2_subdev *sd,
+			      struct v4l2_subdev_pad_config *cfg,
+			      struct v4l2_subdev_format *fmt)
 {
 	struct vpfe_resizer_device *resizer = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
@@ -1447,8 +1448,9 @@ static int resizer_set_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_con
  * @fmt: pointer to v4l2 subdev format structure
  * return -EINVAL or zero on success
  */
-static int resizer_get_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
-			   struct v4l2_subdev_format *fmt)
+static int resizer_get_format(struct v4l2_subdev *sd,
+			      struct v4l2_subdev_pad_config *cfg,
+			      struct v4l2_subdev_format *fmt)
 {
 	struct v4l2_mbus_framefmt *format;
 
@@ -1670,7 +1672,7 @@ static int resizer_link_setup(struct media_entity *entity,
 				resizer->crop_resizer.input =
 						RESIZER_CROP_INPUT_IPIPEIF;
 			else if (ipipe_source == IPIPE_OUTPUT_RESIZER)
-					resizer->crop_resizer.input =
+				resizer->crop_resizer.input =
 						RESIZER_CROP_INPUT_IPIPE;
 			else
 				return -EINVAL;

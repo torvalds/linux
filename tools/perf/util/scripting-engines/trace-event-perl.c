@@ -187,6 +187,9 @@ static void define_event_symbols(struct event_format *event,
 				 const char *ev_name,
 				 struct print_arg *args)
 {
+	if (args == NULL)
+		return;
+
 	switch (args->type) {
 	case PRINT_NULL:
 		break;

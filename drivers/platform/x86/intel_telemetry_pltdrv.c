@@ -659,7 +659,7 @@ static int telemetry_plt_update_events(struct telemetry_evtconfig pss_evtconfig,
 static int telemetry_plt_set_sampling_period(u8 pss_period, u8 ioss_period)
 {
 	u32 telem_ctrl = 0;
-	int ret;
+	int ret = 0;
 
 	mutex_lock(&(telm_conf->telem_lock));
 	if (ioss_period) {
@@ -1030,8 +1030,19 @@ static int telemetry_plt_set_trace_verbosity(enum telemetry_unit telem_unit,
 	switch (telem_unit) {
 	case TELEM_PSS:
 		ret = intel_punit_ipc_command(
+				IPC_PUNIT_BIOS_READ_TELE_TRACE_CTRL,
+				0, 0, NULL, &temp);
+		if (ret) {
+			pr_err("PSS TRACE_CTRL Read Failed\n");
+			goto out;
+		}
+
+		TELEM_CLEAR_VERBOSITY_BITS(temp);
+		TELEM_SET_VERBOSITY_BITS(temp, verbosity);
+
+		ret = intel_punit_ipc_command(
 				IPC_PUNIT_BIOS_WRITE_TELE_TRACE_CTRL,
-				0, 0, &verbosity, NULL);
+				0, 0, &temp, NULL);
 		if (ret) {
 			pr_err("PSS TRACE_CTRL Verbosity Set Failed\n");
 			goto out;

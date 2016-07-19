@@ -3,6 +3,7 @@ FILES=					\
 	test-backtrace.bin		\
 	test-bionic.bin			\
 	test-dwarf.bin			\
+	test-dwarf_getlocations.bin	\
 	test-fortify-source.bin		\
 	test-sync-compare-and-swap.bin	\
 	test-glibc.bin			\
@@ -23,6 +24,7 @@ FILES=					\
 	test-libpython.bin		\
 	test-libpython-version.bin	\
 	test-libslang.bin		\
+	test-libcrypto.bin		\
 	test-libunwind.bin		\
 	test-libunwind-debug-frame.bin	\
 	test-pthread-attr-setaffinity-np.bin	\
@@ -81,6 +83,9 @@ endif
 $(OUTPUT)test-dwarf.bin:
 	$(BUILD) $(DWARFLIBS)
 
+$(OUTPUT)test-dwarf_getlocations.bin:
+	$(BUILD) $(DWARFLIBS)
+
 $(OUTPUT)test-libelf-mmap.bin:
 	$(BUILD) -lelf
 
@@ -104,6 +109,9 @@ $(OUTPUT)test-libaudit.bin:
 
 $(OUTPUT)test-libslang.bin:
 	$(BUILD) -I/usr/include/slang -lslang
+
+$(OUTPUT)test-libcrypto.bin:
+	$(BUILD) -lcrypto
 
 $(OUTPUT)test-gtk2.bin:
 	$(BUILD) $(shell $(PKG_CONFIG) --libs --cflags gtk+-2.0 2>/dev/null)

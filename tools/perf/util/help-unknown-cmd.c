@@ -6,7 +6,8 @@
 static int autocorrect;
 static struct cmdnames aliases;
 
-static int perf_unknown_cmd_config(const char *var, const char *value, void *cb)
+static int perf_unknown_cmd_config(const char *var, const char *value,
+				   void *cb __maybe_unused)
 {
 	if (!strcmp(var, "help.autocorrect"))
 		autocorrect = perf_config_int(var,value);
@@ -14,7 +15,7 @@ static int perf_unknown_cmd_config(const char *var, const char *value, void *cb)
 	if (!prefixcmp(var, "alias."))
 		add_cmdname(&aliases, var + 6, strlen(var + 6));
 
-	return perf_default_config(var, value, cb);
+	return 0;
 }
 
 static int levenshtein_compare(const void *p1, const void *p2)

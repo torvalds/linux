@@ -16,11 +16,16 @@
 #include <linux/ndctl.h>
 #include <linux/device.h>
 
+enum nvdimm_event {
+	NVDIMM_REVALIDATE_POISON,
+};
+
 struct nd_device_driver {
 	struct device_driver drv;
 	unsigned long type;
 	int (*probe)(struct device *dev);
 	int (*remove)(struct device *dev);
+	void (*notify)(struct device *dev, enum nvdimm_event event);
 };
 
 static inline struct nd_device_driver *to_nd_device_driver(
@@ -144,6 +149,8 @@ static inline int nvdimm_write_bytes(struct nd_namespace_common *ndns,
 	MODULE_ALIAS("nd:t" __stringify(type) "*")
 #define ND_DEVICE_MODALIAS_FMT "nd:t%d"
 
+struct nd_region;
+void nvdimm_region_notify(struct nd_region *nd_region, enum nvdimm_event event);
 int __must_check __nd_driver_register(struct nd_device_driver *nd_drv,
 		struct module *module, const char *mod_name);
 #define nd_driver_register(driver) \

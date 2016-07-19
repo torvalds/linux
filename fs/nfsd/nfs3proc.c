@@ -147,6 +147,7 @@ nfsd3_proc_read(struct svc_rqst *rqstp, struct nfsd3_readargs *argp,
 {
 	__be32	nfserr;
 	u32	max_blocksize = svc_max_payload(rqstp);
+	unsigned long cnt = min(argp->count, max_blocksize);
 
 	dprintk("nfsd: READ(3) %s %lu bytes at %Lu\n",
 				SVCFH_fmt(&argp->fh),
@@ -157,7 +158,7 @@ nfsd3_proc_read(struct svc_rqst *rqstp, struct nfsd3_readargs *argp,
 	 * 1 (status) + 22 (post_op_attr) + 1 (count) + 1 (eof)
 	 * + 1 (xdr opaque byte count) = 26
 	 */
-	resp->count = min(argp->count, max_blocksize);
+	resp->count = cnt;
 	svc_reserve_auth(rqstp, ((1 + NFS3_POST_OP_ATTR_WORDS + 3)<<2) + resp->count +4);
 
 	fh_copy(&resp->fh, &argp->fh);
@@ -167,8 +168,8 @@ nfsd3_proc_read(struct svc_rqst *rqstp, struct nfsd3_readargs *argp,
 				  &resp->count);
 	if (nfserr == 0) {
 		struct inode	*inode = d_inode(resp->fh.fh_dentry);
-
-		resp->eof = (argp->offset + resp->count) >= inode->i_size;
+		resp->eof = nfsd_eof_on_read(cnt, resp->count, argp->offset,
+							inode->i_size);
 	}
 
 	RETURN_STATUS(nfserr);

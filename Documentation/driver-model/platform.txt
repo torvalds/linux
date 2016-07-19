@@ -75,7 +75,7 @@ If one of the drivers fails to register, all drivers registered up to that
 point will be unregistered in reverse order. Note that there is a convenience
 macro that passes THIS_MODULE as owner parameter:
 
-	#define platform_register_driver(drivers, count)
+	#define platform_register_drivers(drivers, count)
 
 
 Device Enumeration

@@ -362,6 +362,7 @@ struct sbridge_pvt {
 
 	/* Memory type detection */
 	bool			is_mirrored, is_lockstep, is_close_pg;
+	bool			is_chan_hash;
 
 	/* Fifo double buffers */
 	struct mce		mce_entry[MCE_LOG_LEN];
@@ -1060,6 +1061,20 @@ static inline u8 sad_pkg_ha(u8 pkg)
 	return (pkg >> 2) & 0x1;
 }
 
+static int haswell_chan_hash(int idx, u64 addr)
+{
+	int i;
+
+	/*
+	 * XOR even bits from 12:26 to bit0 of idx,
+	 *     odd bits from 13:27 to bit1
+	 */
+	for (i = 12; i < 28; i += 2)
+		idx ^= (addr >> i) & 3;
+
+	return idx;
+}
+
 /****************************************************************************
 			Memory check routines
  ****************************************************************************/
@@ -1616,6 +1631,10 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 		KNL_MAX_CHANNELS : NUM_CHANNELS;
 	u64 knl_mc_sizes[KNL_MAX_CHANNELS];
 
+	if (pvt->info.type == HASWELL || pvt->info.type == BROADWELL) {
+		pci_read_config_dword(pvt->pci_ha0, HASWELL_HASYSDEFEATURE2, &reg);
+		pvt->is_chan_hash = GET_BITFIELD(reg, 21, 21);
+	}
 	if (pvt->info.type == HASWELL || pvt->info.type == BROADWELL ||
 			pvt->info.type == KNIGHTS_LANDING)
 		pci_read_config_dword(pvt->pci_sad1, SAD_TARGET, &reg);
@@ -1839,8 +1858,8 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 		edac_dbg(0, "TAD#%d: up to %u.%03u GB (0x%016Lx), socket interleave %d, memory interleave %d, TGT: %d, %d, %d, %d, reg=0x%08x\n",
 			 n_tads, gb, (mb*1000)/1024,
 			 ((u64)tmp_mb) << 20L,
-			 (u32)TAD_SOCK(reg),
-			 (u32)TAD_CH(reg),
+			 (u32)(1 << TAD_SOCK(reg)),
+			 (u32)TAD_CH(reg) + 1,
 			 (u32)TAD_TGT0(reg),
 			 (u32)TAD_TGT1(reg),
 			 (u32)TAD_TGT2(reg),
@@ -2118,12 +2137,15 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 	}
 
 	ch_way = TAD_CH(reg) + 1;
-	sck_way = TAD_SOCK(reg) + 1;
+	sck_way = TAD_SOCK(reg);
 
 	if (ch_way == 3)
 		idx = addr >> 6;
-	else
+	else {
 		idx = (addr >> (6 + sck_way + shiftup)) & 0x3;
+		if (pvt->is_chan_hash)
+			idx = haswell_chan_hash(idx, addr);
+	}
 	idx = idx % ch_way;
 
 	/*
@@ -2157,7 +2179,7 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 		switch(ch_way) {
 		case 2:
 		case 4:
-			sck_xch = 1 << sck_way * (ch_way >> 1);
+			sck_xch = (1 << sck_way) * (ch_way >> 1);
 			break;
 		default:
 			sprintf(msg, "Invalid mirror set. Can't decode addr");
@@ -2175,7 +2197,7 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 		 n_tads,
 		 addr,
 		 limit,
-		 (u32)TAD_SOCK(reg),
+		 sck_way,
 		 ch_way,
 		 offset,
 		 idx,
@@ -2190,18 +2212,12 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 			offset, addr);
 		return -EINVAL;
 	}
-	addr -= offset;
-	/* Store the low bits [0:6] of the addr */
-	ch_addr = addr & 0x7f;
-	/* Remove socket wayness and remove 6 bits */
-	addr >>= 6;
-	addr = div_u64(addr, sck_xch);
-#if 0
-	/* Divide by channel way */
-	addr = addr / ch_way;
-#endif
-	/* Recover the last 6 bits */
-	ch_addr |= addr << 6;
+
+	ch_addr = addr - offset;
+	ch_addr >>= (6 + shiftup);
+	ch_addr /= sck_xch;
+	ch_addr <<= (6 + shiftup);
+	ch_addr |= addr & ((1 << (6 + shiftup)) - 1);
 
 	/*
 	 * Step 3) Decode rank
@@ -3152,7 +3168,7 @@ static int sbridge_mce_check_error(struct notifier_block *nb, unsigned long val,
 
 	mci = get_mci_for_node_id(mce->socketid);
 	if (!mci)
-		return NOTIFY_BAD;
+		return NOTIFY_DONE;
 	pvt = mci->pvt_info;
 
 	/*

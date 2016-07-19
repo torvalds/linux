@@ -277,5 +277,17 @@ struct scsi_lun {
 	__u8 scsi_lun[8];
 };
 
+/* SPC asymmetric access states */
+#define SCSI_ACCESS_STATE_OPTIMAL     0x00
+#define SCSI_ACCESS_STATE_ACTIVE      0x01
+#define SCSI_ACCESS_STATE_STANDBY     0x02
+#define SCSI_ACCESS_STATE_UNAVAILABLE 0x03
+#define SCSI_ACCESS_STATE_LBA         0x04
+#define SCSI_ACCESS_STATE_OFFLINE     0x0e
+#define SCSI_ACCESS_STATE_TRANSITIONING 0x0f
+
+/* Values for REPORT TARGET GROUP STATES */
+#define SCSI_ACCESS_STATE_MASK        0x0f
+#define SCSI_ACCESS_STATE_PREFERRED   0x80
 
 #endif /* _SCSI_PROTO_H_ */

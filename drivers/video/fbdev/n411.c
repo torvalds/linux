@@ -165,16 +165,22 @@ static int __init n411_init(void)
 	if (!n411_device)
 		return -ENOMEM;
 
-	platform_device_add_data(n411_device, &n411_board, sizeof(n411_board));
+	ret = platform_device_add_data(n411_device, &n411_board,
+				       sizeof(n411_board));
+	if (ret)
+		goto put_plat_device;
 
 	/* this _add binds hecubafb to n411. hecubafb refcounts n411 */
 	ret = platform_device_add(n411_device);
 
 	if (ret)
-		platform_device_put(n411_device);
+		goto put_plat_device;
 
+	return 0;
+
+put_plat_device:
+	platform_device_put(n411_device);
 	return ret;
-
 }
 
 static void __exit n411_exit(void)

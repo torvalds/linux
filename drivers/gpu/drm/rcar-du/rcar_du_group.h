@@ -32,6 +32,7 @@ struct rcar_du_device;
  * @dptsr_planes: bitmask of planes driven by dot-clock and timing generator 1
  * @num_planes: number of planes in the group
  * @planes: planes handled by the group
+ * @need_restart: the group needs to be restarted due to a configuration change
  */
 struct rcar_du_group {
 	struct rcar_du_device *dev;
@@ -47,6 +48,7 @@ struct rcar_du_group {
 
 	unsigned int num_planes;
 	struct rcar_du_plane planes[RCAR_DU_NUM_KMS_PLANES];
+	bool need_restart;
 };
 
 u32 rcar_du_group_read(struct rcar_du_group *rgrp, u32 reg);
@@ -57,5 +59,7 @@ void rcar_du_group_put(struct rcar_du_group *rgrp);
 void rcar_du_group_start_stop(struct rcar_du_group *rgrp, bool start);
 void rcar_du_group_restart(struct rcar_du_group *rgrp);
 int rcar_du_group_set_routing(struct rcar_du_group *rgrp);
+
+int rcar_du_set_dpad0_vsp1_routing(struct rcar_du_device *rcdu);
 
 #endif /* __RCAR_DU_GROUP_H__ */

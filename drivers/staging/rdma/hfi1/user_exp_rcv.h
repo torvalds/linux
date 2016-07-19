@@ -1,13 +1,12 @@
 #ifndef _HFI1_USER_EXP_RCV_H
 #define _HFI1_USER_EXP_RCV_H
 /*
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
  * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -19,8 +18,6 @@
  * General Public License for more details.
  *
  * BSD LICENSE
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -50,6 +47,8 @@
  *
  */
 
+#include "hfi.h"
+
 #define EXP_TID_TIDLEN_MASK   0x7FFULL
 #define EXP_TID_TIDLEN_SHIFT  0
 #define EXP_TID_TIDCTRL_MASK  0x3ULL
@@ -70,5 +69,11 @@
 		EXP_TID_CLEAR(tid, field);				\
 		(tid) |= EXP_TID_SET(field, (value));			\
 	} while (0)
+
+int hfi1_user_exp_rcv_init(struct file *);
+int hfi1_user_exp_rcv_free(struct hfi1_filedata *);
+int hfi1_user_exp_rcv_setup(struct file *, struct hfi1_tid_info *);
+int hfi1_user_exp_rcv_clear(struct file *, struct hfi1_tid_info *);
+int hfi1_user_exp_rcv_invalid(struct file *, struct hfi1_tid_info *);
 
 #endif /* _HFI1_USER_EXP_RCV_H */

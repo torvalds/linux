@@ -677,7 +677,7 @@ static u32 brcmf_msgbuf_flowring_create(struct brcmf_msgbuf *msgbuf, int ifidx,
 }
 
 
-static void brcmf_msgbuf_txflow(struct brcmf_msgbuf *msgbuf, u8 flowid)
+static void brcmf_msgbuf_txflow(struct brcmf_msgbuf *msgbuf, u16 flowid)
 {
 	struct brcmf_flowring *flow = msgbuf->flow;
 	struct brcmf_commonring *commonring;
@@ -1310,7 +1310,7 @@ int brcmf_proto_msgbuf_rx_trigger(struct device *dev)
 }
 
 
-void brcmf_msgbuf_delete_flowring(struct brcmf_pub *drvr, u8 flowid)
+void brcmf_msgbuf_delete_flowring(struct brcmf_pub *drvr, u16 flowid)
 {
 	struct brcmf_msgbuf *msgbuf = (struct brcmf_msgbuf *)drvr->proto->pd;
 	struct msgbuf_tx_flowring_delete_req *delete;
@@ -1415,6 +1415,13 @@ int brcmf_proto_msgbuf_attach(struct brcmf_pub *drvr)
 	u32 count;
 
 	if_msgbuf = drvr->bus_if->msgbuf;
+
+	if (if_msgbuf->nrof_flowrings >= BRCMF_FLOWRING_HASHSIZE) {
+		brcmf_err("driver not configured for this many flowrings %d\n",
+			  if_msgbuf->nrof_flowrings);
+		if_msgbuf->nrof_flowrings = BRCMF_FLOWRING_HASHSIZE - 1;
+	}
+
 	msgbuf = kzalloc(sizeof(*msgbuf), GFP_KERNEL);
 	if (!msgbuf)
 		goto fail;

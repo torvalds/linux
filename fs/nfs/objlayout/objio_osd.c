@@ -486,7 +486,7 @@ static void __r4w_put_page(void *priv, struct page *page)
 	dprintk("%s: index=0x%lx\n", __func__,
 		(page == ZERO_PAGE(0)) ? -1UL : page->index);
 	if (ZERO_PAGE(0) != page)
-		page_cache_release(page);
+		put_page(page);
 	return;
 }
 

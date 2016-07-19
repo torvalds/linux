@@ -76,7 +76,7 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 		if (old_pte & _PAGE_F_SECOND)
 			hash = ~hash;
 		slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
-		slot += (old_pte & _PAGE_F_GIX) >> 12;
+		slot += (old_pte & _PAGE_F_GIX) >> _PAGE_F_GIX_SHIFT;
 
 		if (ppc_md.hpte_updatepp(slot, rflags, vpn, mmu_psize,
 					 mmu_psize, ssize, flags) == -1)
@@ -105,7 +105,8 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 			return -1;
 		}
 
-		new_pte |= (slot << 12) & (_PAGE_F_SECOND | _PAGE_F_GIX);
+		new_pte |= (slot << _PAGE_F_GIX_SHIFT) &
+			(_PAGE_F_SECOND | _PAGE_F_GIX);
 	}
 
 	/*

@@ -455,7 +455,8 @@ struct caam_ctrl {
 #define MCFGR_AXIPIPE_MASK	(0xf << MCFGR_AXIPIPE_SHIFT)
 
 #define MCFGR_AXIPRI		0x00000008 /* Assert AXI priority sideband */
-#define MCFGR_BURST_64		0x00000001 /* Max burst size */
+#define MCFGR_LARGE_BURST	0x00000004 /* 128/256-byte burst size */
+#define MCFGR_BURST_64		0x00000001 /* 64-byte burst size */
 
 /* JRSTART register offsets */
 #define JRSTART_JR0_START       0x00000001 /* Start Job ring 0 */

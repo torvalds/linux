@@ -64,7 +64,7 @@ const char *usnic_ib_qp_grp_state_to_string(enum ib_qp_state state)
 	case IB_QPS_ERR:
 		return "ERR";
 	default:
-		return "UNKOWN STATE";
+		return "UNKNOWN STATE";
 
 	}
 }

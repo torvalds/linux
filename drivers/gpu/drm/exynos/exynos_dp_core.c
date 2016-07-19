@@ -977,9 +977,7 @@ static int exynos_dp_get_modes(struct drm_connector *connector)
 		return 0;
 	}
 
-	drm_display_mode_from_videomode(&dp->priv.vm, mode);
-	mode->width_mm = dp->priv.width_mm;
-	mode->height_mm = dp->priv.height_mm;
+	drm_display_mode_from_videomode(&dp->vm, mode);
 	connector->display_info.width_mm = mode->width_mm;
 	connector->display_info.height_mm = mode->height_mm;
 
@@ -1155,13 +1153,6 @@ static int exynos_dp_create_connector(struct drm_encoder *encoder)
 	return 0;
 }
 
-static bool exynos_dp_mode_fixup(struct drm_encoder *encoder,
-				 const struct drm_display_mode *mode,
-				 struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
 static void exynos_dp_mode_set(struct drm_encoder *encoder,
 			       struct drm_display_mode *mode,
 			       struct drm_display_mode *adjusted_mode)
@@ -1177,7 +1168,6 @@ static void exynos_dp_disable(struct drm_encoder *encoder)
 }
 
 static const struct drm_encoder_helper_funcs exynos_dp_encoder_helper_funcs = {
-	.mode_fixup = exynos_dp_mode_fixup,
 	.mode_set = exynos_dp_mode_set,
 	.enable = exynos_dp_enable,
 	.disable = exynos_dp_disable,
@@ -1249,8 +1239,7 @@ static int exynos_dp_dt_parse_panel(struct exynos_dp_device *dp)
 {
 	int ret;
 
-	ret = of_get_videomode(dp->dev->of_node, &dp->priv.vm,
-			OF_USE_NATIVE_MODE);
+	ret = of_get_videomode(dp->dev->of_node, &dp->vm, OF_USE_NATIVE_MODE);
 	if (ret) {
 		DRM_ERROR("failed: of_get_videomode() : %d\n", ret);
 		return ret;

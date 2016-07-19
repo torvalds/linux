@@ -12,6 +12,9 @@ Required properties:
 
 Optional properties:
 
+- clocks: The phandle of the master clock to the CODEC
+- clock-names: Should be "mclk"
+
 - realtek,in1-differential
 - realtek,in2-differential
 - realtek,in3-differential

@@ -55,16 +55,21 @@ int mpp_paths_generation;
 static DEFINE_RWLOCK(pathtbl_resize_lock);
 
 
+static inline struct mesh_table *resize_dereference_paths(
+	struct mesh_table __rcu *table)
+{
+	return rcu_dereference_protected(table,
+					lockdep_is_held(&pathtbl_resize_lock));
+}
+
 static inline struct mesh_table *resize_dereference_mesh_paths(void)
 {
-	return rcu_dereference_protected(mesh_paths,
-		lockdep_is_held(&pathtbl_resize_lock));
+	return resize_dereference_paths(mesh_paths);
 }
 
 static inline struct mesh_table *resize_dereference_mpp_paths(void)
 {
-	return rcu_dereference_protected(mpp_paths,
-		lockdep_is_held(&pathtbl_resize_lock));
+	return resize_dereference_paths(mpp_paths);
 }
 
 /*
@@ -160,11 +165,10 @@ static int mesh_table_grow(struct mesh_table *oldtbl,
 	int i;
 
 	if (atomic_read(&oldtbl->entries)
-			< oldtbl->mean_chain_len * (oldtbl->hash_mask + 1))
+			< MEAN_CHAIN_LEN * (oldtbl->hash_mask + 1))
 		return -EAGAIN;
 
 	newtbl->free_node = oldtbl->free_node;
-	newtbl->mean_chain_len = oldtbl->mean_chain_len;
 	newtbl->copy_node = oldtbl->copy_node;
 	newtbl->known_gates = oldtbl->known_gates;
 	atomic_set(&newtbl->entries, atomic_read(&oldtbl->entries));
@@ -585,7 +589,7 @@ struct mesh_path *mesh_path_add(struct ieee80211_sub_if_data *sdata,
 
 	hlist_add_head_rcu(&new_node->list, bucket);
 	if (atomic_inc_return(&tbl->entries) >=
-	    tbl->mean_chain_len * (tbl->hash_mask + 1))
+	    MEAN_CHAIN_LEN * (tbl->hash_mask + 1))
 		grow = 1;
 
 	mesh_paths_generation++;
@@ -714,7 +718,7 @@ int mpp_path_add(struct ieee80211_sub_if_data *sdata,
 
 	hlist_add_head_rcu(&new_node->list, bucket);
 	if (atomic_inc_return(&tbl->entries) >=
-	    tbl->mean_chain_len * (tbl->hash_mask + 1))
+	    MEAN_CHAIN_LEN * (tbl->hash_mask + 1))
 		grow = 1;
 
 	spin_unlock(&tbl->hashwlock[hash_idx]);
@@ -835,6 +839,29 @@ void mesh_path_flush_by_nexthop(struct sta_info *sta)
 	rcu_read_unlock();
 }
 
+static void mpp_flush_by_proxy(struct ieee80211_sub_if_data *sdata,
+			       const u8 *proxy)
+{
+	struct mesh_table *tbl;
+	struct mesh_path *mpp;
+	struct mpath_node *node;
+	int i;
+
+	rcu_read_lock();
+	read_lock_bh(&pathtbl_resize_lock);
+	tbl = resize_dereference_mpp_paths();
+	for_each_mesh_entry(tbl, node, i) {
+		mpp = node->mpath;
+		if (ether_addr_equal(mpp->mpp, proxy)) {
+			spin_lock(&tbl->hashwlock[i]);
+			__mesh_path_del(tbl, node);
+			spin_unlock(&tbl->hashwlock[i]);
+		}
+	}
+	read_unlock_bh(&pathtbl_resize_lock);
+	rcu_read_unlock();
+}
+
 static void table_flush_by_iface(struct mesh_table *tbl,
 				 struct ieee80211_sub_if_data *sdata)
 {
@@ -876,14 +903,17 @@ void mesh_path_flush_by_iface(struct ieee80211_sub_if_data *sdata)
 }
 
 /**
- * mesh_path_del - delete a mesh path from the table
+ * table_path_del - delete a path from the mesh or mpp table
  *
- * @addr: dst address (ETH_ALEN length)
+ * @tbl: mesh or mpp path table
  * @sdata: local subif
+ * @addr: dst address (ETH_ALEN length)
  *
  * Returns: 0 if successful
  */
-int mesh_path_del(struct ieee80211_sub_if_data *sdata, const u8 *addr)
+static int table_path_del(struct mesh_table __rcu *rcu_tbl,
+			  struct ieee80211_sub_if_data *sdata,
+			  const u8 *addr)
 {
 	struct mesh_table *tbl;
 	struct mesh_path *mpath;
@@ -892,8 +922,7 @@ int mesh_path_del(struct ieee80211_sub_if_data *sdata, const u8 *addr)
 	int hash_idx;
 	int err = 0;
 
-	read_lock_bh(&pathtbl_resize_lock);
-	tbl = resize_dereference_mesh_paths();
+	tbl = resize_dereference_paths(rcu_tbl);
 	hash_idx = mesh_table_hash(addr, sdata, tbl);
 	bucket = &tbl->hash_buckets[hash_idx];
 
@@ -909,9 +938,50 @@ int mesh_path_del(struct ieee80211_sub_if_data *sdata, const u8 *addr)
 
 	err = -ENXIO;
 enddel:
-	mesh_paths_generation++;
 	spin_unlock(&tbl->hashwlock[hash_idx]);
+	return err;
+}
+
+/**
+ * mesh_path_del - delete a mesh path from the table
+ *
+ * @addr: dst address (ETH_ALEN length)
+ * @sdata: local subif
+ *
+ * Returns: 0 if successful
+ */
+int mesh_path_del(struct ieee80211_sub_if_data *sdata, const u8 *addr)
+{
+	int err = 0;
+
+	/* flush relevant mpp entries first */
+	mpp_flush_by_proxy(sdata, addr);
+
+	read_lock_bh(&pathtbl_resize_lock);
+	err = table_path_del(mesh_paths, sdata, addr);
+	mesh_paths_generation++;
 	read_unlock_bh(&pathtbl_resize_lock);
+
+	return err;
+}
+
+/**
+ * mpp_path_del - delete a mesh proxy path from the table
+ *
+ * @addr: addr address (ETH_ALEN length)
+ * @sdata: local subif
+ *
+ * Returns: 0 if successful
+ */
+static int mpp_path_del(struct ieee80211_sub_if_data *sdata, const u8 *addr)
+{
+	int err = 0;
+
+	read_lock_bh(&pathtbl_resize_lock);
+	err = table_path_del(mpp_paths, sdata, addr);
+	mpp_paths_generation++;
+	read_unlock_bh(&pathtbl_resize_lock);
+
 	return err;
 }
 
@@ -1076,7 +1146,6 @@ int mesh_pathtbl_init(void)
 		return -ENOMEM;
 	tbl_path->free_node = &mesh_path_node_free;
 	tbl_path->copy_node = &mesh_path_node_copy;
-	tbl_path->mean_chain_len = MEAN_CHAIN_LEN;
 	tbl_path->known_gates = kzalloc(sizeof(struct hlist_head), GFP_ATOMIC);
 	if (!tbl_path->known_gates) {
 		ret = -ENOMEM;
@@ -1092,7 +1161,6 @@ int mesh_pathtbl_init(void)
 	}
 	tbl_mpp->free_node = &mesh_path_node_free;
 	tbl_mpp->copy_node = &mesh_path_node_copy;
-	tbl_mpp->mean_chain_len = MEAN_CHAIN_LEN;
 	tbl_mpp->known_gates = kzalloc(sizeof(struct hlist_head), GFP_ATOMIC);
 	if (!tbl_mpp->known_gates) {
 		ret = -ENOMEM;
@@ -1131,6 +1199,17 @@ void mesh_path_expire(struct ieee80211_sub_if_data *sdata)
 		     time_after(jiffies, mpath->exp_time + MESH_PATH_EXPIRE))
 			mesh_path_del(mpath->sdata, mpath->dst);
 	}
+
+	tbl = rcu_dereference(mpp_paths);
+	for_each_mesh_entry(tbl, node, i) {
+		if (node->mpath->sdata != sdata)
+			continue;
+		mpath = node->mpath;
+		if ((!(mpath->flags & MESH_PATH_FIXED)) &&
+		    time_after(jiffies, mpath->exp_time + MESH_PATH_EXPIRE))
+			mpp_path_del(mpath->sdata, mpath->dst);
+	}
+
 	rcu_read_unlock();
 }
 

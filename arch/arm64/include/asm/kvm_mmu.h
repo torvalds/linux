@@ -23,13 +23,16 @@
 #include <asm/cpufeature.h>
 
 /*
- * As we only have the TTBR0_EL2 register, we cannot express
+ * As ARMv8.0 only has the TTBR0_EL2 register, we cannot express
  * "negative" addresses. This makes it impossible to directly share
  * mappings with the kernel.
  *
  * Instead, give the HYP mode its own VA region at a fixed offset from
  * the kernel by just masking the top bits (which are all ones for a
  * kernel address).
+ *
+ * ARMv8.1 (using VHE) does have a TTBR1_EL2, and doesn't use these
+ * macros (the entire kernel runs at EL2).
  */
 #define HYP_PAGE_OFFSET_SHIFT	VA_BITS
 #define HYP_PAGE_OFFSET_MASK	((UL(1) << HYP_PAGE_OFFSET_SHIFT) - 1)
@@ -56,12 +59,19 @@
 
 #ifdef __ASSEMBLY__
 
+#include <asm/alternative.h>
+#include <asm/cpufeature.h>
+
 /*
  * Convert a kernel VA into a HYP VA.
  * reg: VA to be converted.
  */
 .macro kern_hyp_va	reg
+alternative_if_not ARM64_HAS_VIRT_HOST_EXTN	
 	and	\reg, \reg, #HYP_PAGE_OFFSET_MASK
+alternative_else
+	nop
+alternative_endif
 .endm
 
 #else
@@ -307,7 +317,7 @@ static inline unsigned int kvm_get_vmid_bits(void)
 {
 	int reg = read_system_reg(SYS_ID_AA64MMFR1_EL1);
 
-	return (cpuid_feature_extract_field(reg, ID_AA64MMFR1_VMIDBITS_SHIFT) == 2) ? 16 : 8;
+	return (cpuid_feature_extract_unsigned_field(reg, ID_AA64MMFR1_VMIDBITS_SHIFT) == 2) ? 16 : 8;
 }
 
 #endif /* __ASSEMBLY__ */

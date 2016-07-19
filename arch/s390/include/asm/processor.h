@@ -175,7 +175,7 @@ extern __vector128 init_task_fpu_regs[__NUM_VXRS];
 	regs->psw.mask	= PSW_USER_BITS | PSW_MASK_BA;			\
 	regs->psw.addr	= new_psw;					\
 	regs->gprs[15]	= new_stackp;					\
-	crst_table_downgrade(current->mm, 1UL << 31);			\
+	crst_table_downgrade(current->mm);				\
 	execve_tail();							\
 } while (0)
 
@@ -183,6 +183,10 @@ extern __vector128 init_task_fpu_regs[__NUM_VXRS];
 struct task_struct;
 struct mm_struct;
 struct seq_file;
+
+typedef int (*dump_trace_func_t)(void *data, unsigned long address);
+void dump_trace(dump_trace_func_t func, void *data,
+		struct task_struct *task, unsigned long sp);
 
 void show_cacheinfo(struct seq_file *m);
 
@@ -202,6 +206,14 @@ unsigned long get_wchan(struct task_struct *p);
 
 /* Has task runtime instrumentation enabled ? */
 #define is_ri_task(tsk) (!!(tsk)->thread.ri_cb)
+
+static inline unsigned long current_stack_pointer(void)
+{
+	unsigned long sp;
+
+	asm volatile("la %0,0(15)" : "=a" (sp));
+	return sp;
+}
 
 static inline unsigned short stap(void)
 {

@@ -108,11 +108,14 @@ enum iwl_amsdu_size {
  * @power_level: power level, default = 1
  * @debug_level: levels are IWL_DL_*
  * @ant_coupling: antenna coupling in dB, default = 0
+ * @nvm_file: specifies a external NVM file
+ * @uapsd_disable: disable U-APSD, default = 1
  * @d0i3_disable: disable d0i3, default = 1,
  * @d0i3_entry_delay: time to wait after no refs are taken before
  *	entering D0i3 (in msecs)
  * @lar_disable: disable LAR (regulatory), default = 0
  * @fw_monitor: allow to use firmware monitor
+ * @disable_11ac: disable VHT capabilities, default = false.
  */
 struct iwl_mod_params {
 	int sw_crypto;
@@ -133,6 +136,7 @@ struct iwl_mod_params {
 	unsigned int d0i3_entry_delay;
 	bool lar_disable;
 	bool fw_monitor;
+	bool disable_11ac;
 };
 
 #endif /* #__iwl_modparams_h__ */

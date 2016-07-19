@@ -109,7 +109,8 @@ int cl_glimpse_lock(const struct lu_env *env, struct cl_io *io,
 			 *       if there were no conflicting locks. If there
 			 *       were conflicting locks, enqueuing or waiting
 			 *       fails with -ENAVAIL, but valid inode
-			 *       attributes are returned anyway. */
+			 *       attributes are returned anyway.
+			 */
 			*descr = whole_file;
 			descr->cld_obj   = clob;
 			descr->cld_mode  = CLM_PHANTOM;

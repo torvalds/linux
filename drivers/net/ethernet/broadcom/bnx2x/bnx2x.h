@@ -1277,8 +1277,7 @@ enum sp_rtnl_flag {
 	BNX2X_SP_RTNL_HYPERVISOR_VLAN,
 	BNX2X_SP_RTNL_TX_STOP,
 	BNX2X_SP_RTNL_GET_DRV_VERSION,
-	BNX2X_SP_RTNL_ADD_VXLAN_PORT,
-	BNX2X_SP_RTNL_DEL_VXLAN_PORT,
+	BNX2X_SP_RTNL_CHANGE_UDP_PORT,
 };
 
 enum bnx2x_iov_flag {
@@ -1325,6 +1324,17 @@ struct bnx2x_vlan_entry {
 	struct list_head link;
 	u16 vid;
 	bool hw;
+};
+
+enum bnx2x_udp_port_type {
+	BNX2X_UDP_PORT_VXLAN,
+	BNX2X_UDP_PORT_GENEVE,
+	BNX2X_UDP_PORT_MAX,
+};
+
+struct bnx2x_udp_tunnel {
+	u16 dst_port;
+	u8 count;
 };
 
 struct bnx2x {
@@ -1830,9 +1840,10 @@ struct bnx2x {
 	struct list_head vlan_reg;
 	u16 vlan_cnt;
 	u16 vlan_credit;
-	u16 vxlan_dst_port;
-	u8 vxlan_dst_port_count;
 	bool accept_any_vlan;
+
+	/* Vxlan/Geneve related information */
+	struct bnx2x_udp_tunnel udp_tunnel_ports[BNX2X_UDP_PORT_MAX];
 };
 
 /* Tx queues may be less or equal to Rx queues */

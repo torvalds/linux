@@ -137,8 +137,6 @@ static inline void set_mems_allowed(nodemask_t nodemask)
 	task_unlock(current);
 }
 
-extern void cpuset_post_attach_flush(void);
-
 #else /* !CONFIG_CPUSETS */
 
 static inline bool cpusets_enabled(void) { return false; }
@@ -243,10 +241,6 @@ static inline unsigned int read_mems_allowed_begin(void)
 static inline bool read_mems_allowed_retry(unsigned int seq)
 {
 	return false;
-}
-
-static inline void cpuset_post_attach_flush(void)
-{
 }
 
 #endif /* !CONFIG_CPUSETS */

@@ -161,12 +161,12 @@ void qed_int_sp_dpc(unsigned long hwfn_cookie);
  *        blocks configured for this funciton in the igu.
  *
  * @param p_hwfn
- * @param p_iov_blks - configured free blks for vfs
+ * @param p_sb_cnt_info
  *
  * @return int - number of status blocks configured
  */
-int qed_int_get_num_sbs(struct qed_hwfn *p_hwfn,
-			int *p_iov_blks);
+void qed_int_get_num_sbs(struct qed_hwfn	*p_hwfn,
+			 struct qed_sb_cnt_info *p_sb_cnt_info);
 
 /**
  * @brief qed_int_disable_post_isr_release - performs the cleanup post ISR

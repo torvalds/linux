@@ -121,4 +121,5 @@ int gt215_clk_new(struct nvkm_device *, int, struct nvkm_clk **);
 int gf100_clk_new(struct nvkm_device *, int, struct nvkm_clk **);
 int gk104_clk_new(struct nvkm_device *, int, struct nvkm_clk **);
 int gk20a_clk_new(struct nvkm_device *, int, struct nvkm_clk **);
+int gm20b_clk_new(struct nvkm_device *, int, struct nvkm_clk **);
 #endif

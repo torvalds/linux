@@ -120,31 +120,60 @@ static int lpass_cpu_daiops_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	switch (channels) {
-	case 1:
-		regval |= LPAIF_I2SCTL_SPKMODE_SD0;
-		regval |= LPAIF_I2SCTL_SPKMONO_MONO;
-		break;
-	case 2:
-		regval |= LPAIF_I2SCTL_SPKMODE_SD0;
-		regval |= LPAIF_I2SCTL_SPKMONO_STEREO;
-		break;
-	case 4:
-		regval |= LPAIF_I2SCTL_SPKMODE_QUAD01;
-		regval |= LPAIF_I2SCTL_SPKMONO_STEREO;
-		break;
-	case 6:
-		regval |= LPAIF_I2SCTL_SPKMODE_6CH;
-		regval |= LPAIF_I2SCTL_SPKMONO_STEREO;
-		break;
-	case 8:
-		regval |= LPAIF_I2SCTL_SPKMODE_8CH;
-		regval |= LPAIF_I2SCTL_SPKMONO_STEREO;
-		break;
-	default:
-		dev_err(dai->dev, "%s() invalid channels given: %u\n",
-				__func__, channels);
-		return -EINVAL;
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		switch (channels) {
+		case 1:
+			regval |= LPAIF_I2SCTL_SPKMODE_SD0;
+			regval |= LPAIF_I2SCTL_SPKMONO_MONO;
+			break;
+		case 2:
+			regval |= LPAIF_I2SCTL_SPKMODE_SD0;
+			regval |= LPAIF_I2SCTL_SPKMONO_STEREO;
+			break;
+		case 4:
+			regval |= LPAIF_I2SCTL_SPKMODE_QUAD01;
+			regval |= LPAIF_I2SCTL_SPKMONO_STEREO;
+			break;
+		case 6:
+			regval |= LPAIF_I2SCTL_SPKMODE_6CH;
+			regval |= LPAIF_I2SCTL_SPKMONO_STEREO;
+			break;
+		case 8:
+			regval |= LPAIF_I2SCTL_SPKMODE_8CH;
+			regval |= LPAIF_I2SCTL_SPKMONO_STEREO;
+			break;
+		default:
+			dev_err(dai->dev, "%s() invalid channels given: %u\n",
+					__func__, channels);
+			return -EINVAL;
+		}
+	} else {
+		switch (channels) {
+		case 1:
+			regval |= LPAIF_I2SCTL_MICMODE_SD0;
+			regval |= LPAIF_I2SCTL_MICMONO_MONO;
+			break;
+		case 2:
+			regval |= LPAIF_I2SCTL_MICMODE_SD0;
+			regval |= LPAIF_I2SCTL_MICMONO_STEREO;
+			break;
+		case 4:
+			regval |= LPAIF_I2SCTL_MICMODE_QUAD01;
+			regval |= LPAIF_I2SCTL_MICMONO_STEREO;
+			break;
+		case 6:
+			regval |= LPAIF_I2SCTL_MICMODE_6CH;
+			regval |= LPAIF_I2SCTL_MICMONO_STEREO;
+			break;
+		case 8:
+			regval |= LPAIF_I2SCTL_MICMODE_8CH;
+			regval |= LPAIF_I2SCTL_MICMONO_STEREO;
+			break;
+		default:
+			dev_err(dai->dev, "%s() invalid channels given: %u\n",
+					__func__, channels);
+			return -EINVAL;
+		}
 	}
 
 	ret = regmap_write(drvdata->lpaif_map,
@@ -188,10 +217,19 @@ static int lpass_cpu_daiops_prepare(struct snd_pcm_substream *substream,
 {
 	struct lpass_data *drvdata = snd_soc_dai_get_drvdata(dai);
 	int ret;
+	unsigned int val, mask;
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		val = LPAIF_I2SCTL_SPKEN_ENABLE;
+		mask = LPAIF_I2SCTL_SPKEN_MASK;
+	} else  {
+		val = LPAIF_I2SCTL_MICEN_ENABLE;
+		mask = LPAIF_I2SCTL_MICEN_MASK;
+	}
 
 	ret = regmap_update_bits(drvdata->lpaif_map,
 			LPAIF_I2SCTL_REG(drvdata->variant, dai->driver->id),
-			LPAIF_I2SCTL_SPKEN_MASK, LPAIF_I2SCTL_SPKEN_ENABLE);
+			mask, val);
 	if (ret)
 		dev_err(dai->dev, "%s() error writing to i2sctl reg: %d\n",
 				__func__, ret);
@@ -204,16 +242,24 @@ static int lpass_cpu_daiops_trigger(struct snd_pcm_substream *substream,
 {
 	struct lpass_data *drvdata = snd_soc_dai_get_drvdata(dai);
 	int ret = -EINVAL;
+	unsigned int val, mask;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+			val = LPAIF_I2SCTL_SPKEN_ENABLE;
+			mask = LPAIF_I2SCTL_SPKEN_MASK;
+		} else  {
+			val = LPAIF_I2SCTL_MICEN_ENABLE;
+			mask = LPAIF_I2SCTL_MICEN_MASK;
+		}
+
 		ret = regmap_update_bits(drvdata->lpaif_map,
 				LPAIF_I2SCTL_REG(drvdata->variant,
 						dai->driver->id),
-				LPAIF_I2SCTL_SPKEN_MASK,
-				LPAIF_I2SCTL_SPKEN_ENABLE);
+				mask, val);
 		if (ret)
 			dev_err(dai->dev, "%s() error writing to i2sctl reg: %d\n",
 					__func__, ret);
@@ -221,11 +267,18 @@ static int lpass_cpu_daiops_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+			val = LPAIF_I2SCTL_SPKEN_DISABLE;
+			mask = LPAIF_I2SCTL_SPKEN_MASK;
+		} else  {
+			val = LPAIF_I2SCTL_MICEN_DISABLE;
+			mask = LPAIF_I2SCTL_MICEN_MASK;
+		}
+
 		ret = regmap_update_bits(drvdata->lpaif_map,
 				LPAIF_I2SCTL_REG(drvdata->variant,
 						dai->driver->id),
-				LPAIF_I2SCTL_SPKEN_MASK,
-				LPAIF_I2SCTL_SPKEN_DISABLE);
+				mask, val);
 		if (ret)
 			dev_err(dai->dev, "%s() error writing to i2sctl reg: %d\n",
 					__func__, ret);
@@ -294,6 +347,17 @@ static bool lpass_cpu_regmap_writeable(struct device *dev, unsigned int reg)
 			return true;
 	}
 
+	for (i = 0; i < v->wrdma_channels; ++i) {
+		if (reg == LPAIF_WRDMACTL_REG(v, i + v->wrdma_channel_start))
+			return true;
+		if (reg == LPAIF_WRDMABASE_REG(v, i + v->wrdma_channel_start))
+			return true;
+		if (reg == LPAIF_WRDMABUFF_REG(v, i + v->wrdma_channel_start))
+			return true;
+		if (reg == LPAIF_WRDMAPER_REG(v, i + v->wrdma_channel_start))
+			return true;
+	}
+
 	return false;
 }
 
@@ -327,6 +391,19 @@ static bool lpass_cpu_regmap_readable(struct device *dev, unsigned int reg)
 			return true;
 	}
 
+	for (i = 0; i < v->wrdma_channels; ++i) {
+		if (reg == LPAIF_WRDMACTL_REG(v, i + v->wrdma_channel_start))
+			return true;
+		if (reg == LPAIF_WRDMABASE_REG(v, i + v->wrdma_channel_start))
+			return true;
+		if (reg == LPAIF_WRDMABUFF_REG(v, i + v->wrdma_channel_start))
+			return true;
+		if (reg == LPAIF_WRDMACURR_REG(v, i + v->wrdma_channel_start))
+			return true;
+		if (reg == LPAIF_WRDMAPER_REG(v, i + v->wrdma_channel_start))
+			return true;
+	}
+
 	return false;
 }
 
@@ -342,6 +419,10 @@ static bool lpass_cpu_regmap_volatile(struct device *dev, unsigned int reg)
 
 	for (i = 0; i < v->rdma_channels; ++i)
 		if (reg == LPAIF_RDMACURR_REG(v, i))
+			return true;
+
+	for (i = 0; i < v->wrdma_channels; ++i)
+		if (reg == LPAIF_WRDMACURR_REG(v, i + v->wrdma_channel_start))
 			return true;
 
 	return false;
@@ -398,8 +479,9 @@ int asoc_qcom_lpass_cpu_platform_probe(struct platform_device *pdev)
 		return PTR_ERR((void const __force *)drvdata->lpaif);
 	}
 
-	lpass_cpu_regmap_config.max_register = LPAIF_RDMAPER_REG(variant,
-						variant->rdma_channels);
+	lpass_cpu_regmap_config.max_register = LPAIF_WRDMAPER_REG(variant,
+						variant->wrdma_channels +
+						variant->wrdma_channel_start);
 
 	drvdata->lpaif_map = devm_regmap_init_mmio(&pdev->dev, drvdata->lpaif,
 			&lpass_cpu_regmap_config);

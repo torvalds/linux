@@ -326,6 +326,7 @@ static const struct of_device_id sunxi_ir_match[] = {
 	{ .compatible = "allwinner,sun5i-a13-ir", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, sunxi_ir_match);
 
 static struct platform_driver sunxi_ir_driver = {
 	.probe          = sunxi_ir_probe,

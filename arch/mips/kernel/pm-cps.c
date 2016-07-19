@@ -472,7 +472,7 @@ static void * __init cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 	/*
 	 * Disable all but self interventions. The load from COHCTL is defined
 	 * by the interAptiv & proAptiv SUMs as ensuring that the operation
-	 * resulting from the preceeding store is complete.
+	 * resulting from the preceding store is complete.
 	 */
 	uasm_i_addiu(&p, t0, zero, 1 << cpu_data[cpu].core);
 	uasm_i_sw(&p, t0, 0, r_pcohctl);

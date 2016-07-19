@@ -13,7 +13,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
- * TODO: allow LED current and pulse length controls via device tree properties
+ * TODO: enable pulse length controls via device tree properties
  */
 
 #include <linux/module.h>
@@ -24,6 +24,7 @@
 #include <linux/irq.h>
 #include <linux/i2c.h>
 #include <linux/mutex.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
@@ -65,6 +66,7 @@
 #define MAX30100_REG_SPO2_CONFIG_1600US		0x3
 
 #define MAX30100_REG_LED_CONFIG			0x09
+#define MAX30100_REG_LED_CONFIG_LED_MASK	0x0f
 #define MAX30100_REG_LED_CONFIG_RED_LED_SHIFT	4
 
 #define MAX30100_REG_LED_CONFIG_24MA		0x07
@@ -109,6 +111,12 @@ static const struct regmap_config max30100_regmap_config = {
 	.cache_type = REGCACHE_FLAT,
 
 	.volatile_reg = max30100_is_volatile_reg,
+};
+
+static const unsigned int max30100_led_current_mapping[] = {
+	4400, 7600, 11000, 14200, 17400,
+	20800, 24000, 27100, 30600, 33800,
+	37000, 40200, 43600, 46800, 50000
 };
 
 static const unsigned long max30100_scan_masks[] = {0x3, 0};
@@ -230,12 +238,13 @@ static irqreturn_t max30100_interrupt_handler(int irq, void *private)
 
 	mutex_lock(&data->lock);
 
-	while (cnt-- || (cnt = max30100_fifo_count(data) > 0)) {
+	while (cnt || (cnt = max30100_fifo_count(data) > 0)) {
 		ret = max30100_read_measurement(data);
 		if (ret)
 			break;
 
 		iio_push_to_buffers(data->indio_dev, data->buffer);
+		cnt--;
 	}
 
 	mutex_unlock(&data->lock);
@@ -243,15 +252,76 @@ static irqreturn_t max30100_interrupt_handler(int irq, void *private)
 	return IRQ_HANDLED;
 }
 
+static int max30100_get_current_idx(unsigned int val, int *reg)
+{
+	int idx;
+
+	/* LED turned off */
+	if (val == 0) {
+		*reg = 0;
+		return 0;
+	}
+
+	for (idx = 0; idx < ARRAY_SIZE(max30100_led_current_mapping); idx++) {
+		if (max30100_led_current_mapping[idx] == val) {
+			*reg = idx + 1;
+			return 0;
+		}
+	}
+
+	return -EINVAL;
+}
+
+static int max30100_led_init(struct max30100_data *data)
+{
+	struct device *dev = &data->client->dev;
+	struct device_node *np = dev->of_node;
+	unsigned int val[2];
+	int reg, ret;
+
+	ret = of_property_read_u32_array(np, "maxim,led-current-microamp",
+					(unsigned int *) &val, 2);
+	if (ret) {
+		/* Default to 24 mA RED LED, 50 mA IR LED */
+		reg = (MAX30100_REG_LED_CONFIG_24MA <<
+			MAX30100_REG_LED_CONFIG_RED_LED_SHIFT) |
+			MAX30100_REG_LED_CONFIG_50MA;
+		dev_warn(dev, "no led-current-microamp set");
+
+		return regmap_write(data->regmap, MAX30100_REG_LED_CONFIG, reg);
+	}
+
+	/* RED LED current */
+	ret = max30100_get_current_idx(val[0], &reg);
+	if (ret) {
+		dev_err(dev, "invalid RED current setting %d", val[0]);
+		return ret;
+	}
+
+	ret = regmap_update_bits(data->regmap, MAX30100_REG_LED_CONFIG,
+		MAX30100_REG_LED_CONFIG_LED_MASK <<
+		MAX30100_REG_LED_CONFIG_RED_LED_SHIFT,
+		reg << MAX30100_REG_LED_CONFIG_RED_LED_SHIFT);
+	if (ret)
+		return ret;
+
+	/* IR LED current */
+	ret = max30100_get_current_idx(val[1], &reg);
+	if (ret) {
+		dev_err(dev, "invalid IR current setting %d", val[1]);
+		return ret;
+	}
+
+	return regmap_update_bits(data->regmap, MAX30100_REG_LED_CONFIG,
+		MAX30100_REG_LED_CONFIG_LED_MASK, reg);
+}
+
 static int max30100_chip_init(struct max30100_data *data)
 {
 	int ret;
 
-	/* RED IR LED = 24mA, IR LED = 50mA */
-	ret = regmap_write(data->regmap, MAX30100_REG_LED_CONFIG,
-				(MAX30100_REG_LED_CONFIG_24MA <<
-				 MAX30100_REG_LED_CONFIG_RED_LED_SHIFT) |
-				 MAX30100_REG_LED_CONFIG_50MA);
+	/* setup LED current settings */
+	ret = max30100_led_init(data);
 	if (ret)
 		return ret;
 

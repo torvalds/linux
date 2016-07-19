@@ -66,7 +66,7 @@ u##bits btrfs_get_token_##bits(struct extent_buffer *eb, void *ptr,	\
 									\
 	if (token && token->kaddr && token->offset <= offset &&		\
 	    token->eb == eb &&						\
-	   (token->offset + PAGE_CACHE_SIZE >= offset + size)) {	\
+	   (token->offset + PAGE_SIZE >= offset + size)) {	\
 		kaddr = token->kaddr;					\
 		p = kaddr + part_offset - token->offset;		\
 		res = get_unaligned_le##bits(p + off);			\
@@ -104,7 +104,7 @@ void btrfs_set_token_##bits(struct extent_buffer *eb,			\
 									\
 	if (token && token->kaddr && token->offset <= offset &&		\
 	    token->eb == eb &&						\
-	   (token->offset + PAGE_CACHE_SIZE >= offset + size)) {	\
+	   (token->offset + PAGE_SIZE >= offset + size)) {	\
 		kaddr = token->kaddr;					\
 		p = kaddr + part_offset - token->offset;		\
 		put_unaligned_le##bits(val, p + off);			\

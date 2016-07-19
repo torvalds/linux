@@ -76,7 +76,9 @@ int rds_tcp_accept_one(struct socket *sock)
 	struct rds_connection *conn;
 	int ret;
 	struct inet_sock *inet;
-	struct rds_tcp_connection *rs_tcp;
+	struct rds_tcp_connection *rs_tcp = NULL;
+	int conn_state;
+	struct sock *nsk;
 
 	ret = sock_create_kern(sock_net(sock->sk), sock->sk->sk_family,
 			       sock->sk->sk_type, sock->sk->sk_protocol,
@@ -115,28 +117,44 @@ int rds_tcp_accept_one(struct socket *sock)
 	 * rds_tcp_state_change() will do that cleanup
 	 */
 	rs_tcp = (struct rds_tcp_connection *)conn->c_transport_data;
-	if (rs_tcp->t_sock &&
-	    ntohl(inet->inet_saddr) < ntohl(inet->inet_daddr)) {
-		struct sock *nsk = new_sock->sk;
-
-		nsk->sk_user_data = NULL;
-		nsk->sk_prot->disconnect(nsk, 0);
-		tcp_done(nsk);
-		new_sock = NULL;
-		ret = 0;
-		goto out;
-	} else if (rs_tcp->t_sock) {
-		rds_tcp_restore_callbacks(rs_tcp->t_sock, rs_tcp);
-		conn->c_outgoing = 0;
-	}
-
 	rds_conn_transition(conn, RDS_CONN_DOWN, RDS_CONN_CONNECTING);
+	mutex_lock(&rs_tcp->t_conn_lock);
+	conn_state = rds_conn_state(conn);
+	if (conn_state != RDS_CONN_CONNECTING && conn_state != RDS_CONN_UP)
+		goto rst_nsk;
+	if (rs_tcp->t_sock) {
+		/* Need to resolve a duelling SYN between peers.
+		 * We have an outstanding SYN to this peer, which may
+		 * potentially have transitioned to the RDS_CONN_UP state,
+		 * so we must quiesce any send threads before resetting
+		 * c_transport_data.
+		 */
+		wait_event(conn->c_waitq,
+			   !test_bit(RDS_IN_XMIT, &conn->c_flags));
+		if (ntohl(inet->inet_saddr) < ntohl(inet->inet_daddr)) {
+			goto rst_nsk;
+		} else if (rs_tcp->t_sock) {
+			rds_tcp_restore_callbacks(rs_tcp->t_sock, rs_tcp);
+			conn->c_outgoing = 0;
+		}
+	}
 	rds_tcp_set_callbacks(new_sock, conn);
-	rds_connect_complete(conn);
+	rds_connect_complete(conn); /* marks RDS_CONN_UP */
 	new_sock = NULL;
 	ret = 0;
-
+	goto out;
+rst_nsk:
+	/* reset the newly returned accept sock and bail */
+	nsk = new_sock->sk;
+	rds_tcp_stats_inc(s_tcp_listen_closed_stale);
+	nsk->sk_user_data = NULL;
+	nsk->sk_prot->disconnect(nsk, 0);
+	tcp_done(nsk);
+	new_sock = NULL;
+	ret = 0;
 out:
+	if (rs_tcp)
+		mutex_unlock(&rs_tcp->t_conn_lock);
 	if (new_sock)
 		sock_release(new_sock);
 	return ret;

@@ -86,25 +86,25 @@ int mscode_note_digest_algo(void *context, size_t hdrlen,
 	oid = look_up_OID(value, vlen);
 	switch (oid) {
 	case OID_md4:
-		ctx->digest_algo = HASH_ALGO_MD4;
+		ctx->digest_algo = "md4";
 		break;
 	case OID_md5:
-		ctx->digest_algo = HASH_ALGO_MD5;
+		ctx->digest_algo = "md5";
 		break;
 	case OID_sha1:
-		ctx->digest_algo = HASH_ALGO_SHA1;
+		ctx->digest_algo = "sha1";
 		break;
 	case OID_sha256:
-		ctx->digest_algo = HASH_ALGO_SHA256;
+		ctx->digest_algo = "sha256";
 		break;
 	case OID_sha384:
-		ctx->digest_algo = HASH_ALGO_SHA384;
+		ctx->digest_algo = "sha384";
 		break;
 	case OID_sha512:
-		ctx->digest_algo = HASH_ALGO_SHA512;
+		ctx->digest_algo = "sha512";
 		break;
 	case OID_sha224:
-		ctx->digest_algo = HASH_ALGO_SHA224;
+		ctx->digest_algo = "sha224";
 		break;
 
 	case OID__NR:

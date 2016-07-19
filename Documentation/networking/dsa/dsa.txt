@@ -521,20 +521,17 @@ See Documentation/hwmon/sysfs-interface for details.
 Bridge layer
 ------------
 
-- port_join_bridge: bridge layer function invoked when a given switch port is
+- port_bridge_join: bridge layer function invoked when a given switch port is
   added to a bridge, this function should be doing the necessary at the switch
   level to permit the joining port from being added to the relevant logical
-  domain for it to ingress/egress traffic with other members of the bridge. DSA
-  does nothing but calculate a bitmask of switch ports currently members of the
-  specified bridge being requested the join
+  domain for it to ingress/egress traffic with other members of the bridge.
 
-- port_leave_bridge: bridge layer function invoked when a given switch port is
+- port_bridge_leave: bridge layer function invoked when a given switch port is
   removed from a bridge, this function should be doing the necessary at the
   switch level to deny the leaving port from ingress/egress traffic from the
   remaining bridge members. When the port leaves the bridge, it should be aged
   out at the switch hardware for the switch to (re) learn MAC addresses behind
-  this port. DSA calculates the bitmask of ports still members of the bridge
-  being left
+  this port.
 
 - port_stp_update: bridge layer function invoked when a given switch port STP
   state is computed by the bridge layer and should be propagated to switch
@@ -545,20 +542,15 @@ Bridge layer
 Bridge VLAN filtering
 ---------------------
 
-- port_pvid_get: bridge layer function invoked when a Port-based VLAN ID is
-  queried for the given switch port
-
-- port_pvid_set: bridge layer function invoked when a Port-based VLAN ID needs
-  to be configured on the given switch port
-
 - port_vlan_add: bridge layer function invoked when a VLAN is configured
   (tagged or untagged) for the given switch port
 
 - port_vlan_del: bridge layer function invoked when a VLAN is removed from the
   given switch port
 
-- vlan_getnext: bridge layer function invoked to query the next configured VLAN
-  in the switch, i.e. returns the bitmaps of members and untagged ports
+- port_vlan_dump: bridge layer function invoked with a switchdev callback
+  function that the driver has to call for each VLAN the given port is a member
+  of. A switchdev object is used to carry the VID and bridge flags.
 
 - port_fdb_add: bridge layer function invoked when the bridge wants to install a
   Forwarding Database entry, the switch hardware should be programmed with the

@@ -29,6 +29,7 @@
 #include "amd_shared.h"
 #include "cgs_common.h"
 
+
 enum amd_pp_event {
 	AMD_PP_EVENT_INITIALIZE = 0,
 	AMD_PP_EVENT_UNINITIALIZE,
@@ -123,6 +124,7 @@ enum amd_dpm_forced_level {
 	AMD_DPM_FORCED_LEVEL_AUTO = 0,
 	AMD_DPM_FORCED_LEVEL_LOW = 1,
 	AMD_DPM_FORCED_LEVEL_HIGH = 2,
+	AMD_DPM_FORCED_LEVEL_MANUAL = 3,
 };
 
 struct amd_pp_init {
@@ -212,17 +214,71 @@ struct amd_pp_display_configuration {
 	uint32_t dce_tolerable_mclk_in_active_latency;
 };
 
-struct amd_pp_dal_clock_info {
+struct amd_pp_simple_clock_info {
 	uint32_t	engine_max_clock;
 	uint32_t	memory_max_clock;
 	uint32_t	level;
 };
+
+enum PP_DAL_POWERLEVEL {
+	PP_DAL_POWERLEVEL_INVALID = 0,
+	PP_DAL_POWERLEVEL_ULTRALOW,
+	PP_DAL_POWERLEVEL_LOW,
+	PP_DAL_POWERLEVEL_NOMINAL,
+	PP_DAL_POWERLEVEL_PERFORMANCE,
+
+	PP_DAL_POWERLEVEL_0 = PP_DAL_POWERLEVEL_ULTRALOW,
+	PP_DAL_POWERLEVEL_1 = PP_DAL_POWERLEVEL_LOW,
+	PP_DAL_POWERLEVEL_2 = PP_DAL_POWERLEVEL_NOMINAL,
+	PP_DAL_POWERLEVEL_3 = PP_DAL_POWERLEVEL_PERFORMANCE,
+	PP_DAL_POWERLEVEL_4 = PP_DAL_POWERLEVEL_3+1,
+	PP_DAL_POWERLEVEL_5 = PP_DAL_POWERLEVEL_4+1,
+	PP_DAL_POWERLEVEL_6 = PP_DAL_POWERLEVEL_5+1,
+	PP_DAL_POWERLEVEL_7 = PP_DAL_POWERLEVEL_6+1,
+};
+
+struct amd_pp_clock_info {
+	uint32_t min_engine_clock;
+	uint32_t max_engine_clock;
+	uint32_t min_memory_clock;
+	uint32_t max_memory_clock;
+	uint32_t min_bus_bandwidth;
+	uint32_t max_bus_bandwidth;
+	uint32_t max_engine_clock_in_sr;
+	uint32_t min_engine_clock_in_sr;
+	enum PP_DAL_POWERLEVEL max_clocks_state;
+};
+
+enum amd_pp_clock_type {
+	amd_pp_disp_clock = 1,
+	amd_pp_sys_clock,
+	amd_pp_mem_clock
+};
+
+#define MAX_NUM_CLOCKS 16
+
+struct amd_pp_clocks {
+	uint32_t count;
+	uint32_t clock[MAX_NUM_CLOCKS];
+};
+
 
 enum {
 	PP_GROUP_UNKNOWN = 0,
 	PP_GROUP_GFX = 1,
 	PP_GROUP_SYS,
 	PP_GROUP_MAX
+};
+
+enum pp_clock_type {
+	PP_SCLK,
+	PP_MCLK,
+	PP_PCIE,
+};
+
+struct pp_states_info {
+	uint32_t nums;
+	uint32_t states[16];
 };
 
 #define PP_GROUP_MASK        0xF0000000
@@ -278,6 +334,11 @@ struct amd_powerplay_funcs {
 	int (*get_fan_control_mode)(void *handle);
 	int (*set_fan_speed_percent)(void *handle, uint32_t percent);
 	int (*get_fan_speed_percent)(void *handle, uint32_t *speed);
+	int (*get_pp_num_states)(void *handle, struct pp_states_info *data);
+	int (*get_pp_table)(void *handle, char **table);
+	int (*set_pp_table)(void *handle, const char *buf, size_t size);
+	int (*force_clock_level)(void *handle, enum pp_clock_type type, int level);
+	int (*print_clock_levels)(void *handle, enum pp_clock_type type, char *buf);
 };
 
 struct amd_powerplay {
@@ -288,12 +349,23 @@ struct amd_powerplay {
 
 int amd_powerplay_init(struct amd_pp_init *pp_init,
 		       struct amd_powerplay *amd_pp);
+
 int amd_powerplay_fini(void *handle);
 
-int amd_powerplay_display_configuration_change(void *handle, const void *input);
+int amd_powerplay_display_configuration_change(void *handle,
+		const struct amd_pp_display_configuration *input);
 
 int amd_powerplay_get_display_power_level(void *handle,
-		struct amd_pp_dal_clock_info *output);
+		struct amd_pp_simple_clock_info *output);
 
+int amd_powerplay_get_current_clocks(void *handle,
+		struct amd_pp_clock_info *output);
+
+int amd_powerplay_get_clock_by_type(void *handle,
+		enum amd_pp_clock_type type,
+		struct amd_pp_clocks *clocks);
+
+int amd_powerplay_get_display_mode_validation_clocks(void *handle,
+		struct amd_pp_simple_clock_info *output);
 
 #endif /* _AMD_POWERPLAY_H_ */

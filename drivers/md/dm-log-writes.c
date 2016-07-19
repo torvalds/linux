@@ -475,7 +475,7 @@ static int log_writes_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	ti->flush_supported = true;
 	ti->num_discard_bios = 1;
 	ti->discards_supported = true;
-	ti->per_bio_data_size = sizeof(struct per_bio_data);
+	ti->per_io_data_size = sizeof(struct per_bio_data);
 	ti->private = lc;
 	return 0;
 

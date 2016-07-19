@@ -41,7 +41,6 @@ static void nvec_led_brightness_set(struct led_classdev *led_cdev,
 	nvec_write_async(led->nvec, buf, sizeof(buf));
 
 	led->cdev.brightness = value;
-
 }
 
 static int nvec_paz00_probe(struct platform_device *pdev)
@@ -63,7 +62,7 @@ static int nvec_paz00_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, led);
 
-	ret = led_classdev_register(&pdev->dev, &led->cdev);
+	ret = devm_led_classdev_register(&pdev->dev, &led->cdev);
 	if (ret < 0)
 		return ret;
 
@@ -73,18 +72,8 @@ static int nvec_paz00_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int nvec_paz00_remove(struct platform_device *pdev)
-{
-	struct nvec_led *led = platform_get_drvdata(pdev);
-
-	led_classdev_unregister(&led->cdev);
-
-	return 0;
-}
-
 static struct platform_driver nvec_paz00_driver = {
 	.probe  = nvec_paz00_probe,
-	.remove = nvec_paz00_remove,
 	.driver = {
 		.name  = "nvec-paz00",
 	},

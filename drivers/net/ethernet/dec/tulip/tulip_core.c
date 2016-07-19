@@ -505,9 +505,7 @@ media_picked:
 	tp->timer.expires = RUN_AT(next_tick);
 	add_timer(&tp->timer);
 #ifdef CONFIG_TULIP_NAPI
-	init_timer(&tp->oom_timer);
-        tp->oom_timer.data = (unsigned long)dev;
-        tp->oom_timer.function = oom_timer;
+	setup_timer(&tp->oom_timer, oom_timer, (unsigned long)dev);
 #endif
 }
 
@@ -782,9 +780,8 @@ static void tulip_down (struct net_device *dev)
 
 	spin_unlock_irqrestore (&tp->lock, flags);
 
-	init_timer(&tp->timer);
-	tp->timer.data = (unsigned long)dev;
-	tp->timer.function = tulip_tbl[tp->chip_id].media_timer;
+	setup_timer(&tp->timer, tulip_tbl[tp->chip_id].media_timer,
+		    (unsigned long)dev);
 
 	dev->if_port = tp->saved_if_port;
 
@@ -1475,9 +1472,8 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	tp->csr0 = csr0;
 	spin_lock_init(&tp->lock);
 	spin_lock_init(&tp->mii_lock);
-	init_timer(&tp->timer);
-	tp->timer.data = (unsigned long)dev;
-	tp->timer.function = tulip_tbl[tp->chip_id].media_timer;
+	setup_timer(&tp->timer, tulip_tbl[tp->chip_id].media_timer,
+		    (unsigned long)dev);
 
 	INIT_WORK(&tp->media_work, tulip_tbl[tp->chip_id].media_task);
 

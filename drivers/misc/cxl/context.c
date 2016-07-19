@@ -95,7 +95,12 @@ int cxl_context_init(struct cxl_context *ctx, struct cxl_afu *afu, bool master,
 		return i;
 
 	ctx->pe = i;
-	ctx->elem = &ctx->afu->spa[i];
+	if (cpu_has_feature(CPU_FTR_HVMODE)) {
+		ctx->elem = &ctx->afu->native->spa[i];
+		ctx->external_pe = ctx->pe;
+	} else {
+		ctx->external_pe = -1; /* assigned when attaching */
+	}
 	ctx->pe_inserted = false;
 
 	/*
@@ -214,9 +219,16 @@ int __detach_context(struct cxl_context *ctx)
 	/* Only warn if we detached while the link was OK.
 	 * If detach fails when hw is down, we don't care.
 	 */
-	WARN_ON(cxl_detach_process(ctx) &&
-		cxl_adapter_link_ok(ctx->afu->adapter));
+	WARN_ON(cxl_ops->detach_process(ctx) &&
+		cxl_ops->link_ok(ctx->afu->adapter, ctx->afu));
 	flush_work(&ctx->fault_work); /* Only needed for dedicated process */
+
+	/*
+	 * Wait until no further interrupts are presented by the PSL
+	 * for this context.
+	 */
+	if (cxl_ops->irq_wait)
+		cxl_ops->irq_wait(ctx);
 
 	/* release the reference to the group leader and mm handling pid */
 	put_pid(ctx->pid);

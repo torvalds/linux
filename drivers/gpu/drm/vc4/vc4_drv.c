@@ -43,14 +43,6 @@ void __iomem *vc4_ioremap_regs(struct platform_device *dev, int index)
 	return map;
 }
 
-static void vc4_drm_preclose(struct drm_device *dev, struct drm_file *file)
-{
-	struct drm_crtc *crtc;
-
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
-		vc4_cancel_page_flip(crtc, file);
-}
-
 static void vc4_lastclose(struct drm_device *dev)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
@@ -91,8 +83,6 @@ static struct drm_driver vc4_drm_driver = {
 			    DRIVER_HAVE_IRQ |
 			    DRIVER_PRIME),
 	.lastclose = vc4_lastclose,
-	.preclose = vc4_drm_preclose,
-
 	.irq_handler = vc4_irq,
 	.irq_preinstall = vc4_irq_preinstall,
 	.irq_postinstall = vc4_irq_postinstall,

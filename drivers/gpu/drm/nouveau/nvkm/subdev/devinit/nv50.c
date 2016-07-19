@@ -93,28 +93,27 @@ nv50_devinit_disable(struct nvkm_devinit *init)
 void
 nv50_devinit_preinit(struct nvkm_devinit *base)
 {
-	struct nv50_devinit *init = nv50_devinit(base);
-	struct nvkm_subdev *subdev = &init->base.subdev;
+	struct nvkm_subdev *subdev = &base->subdev;
 	struct nvkm_device *device = subdev->device;
 
 	/* our heuristics can't detect whether the board has had its
 	 * devinit scripts executed or not if the display engine is
 	 * missing, assume it's a secondary gpu which requires post
 	 */
-	if (!init->base.post) {
-		u64 disable = nvkm_devinit_disable(&init->base);
+	if (!base->post) {
+		u64 disable = nvkm_devinit_disable(base);
 		if (disable & (1ULL << NVKM_ENGINE_DISP))
-			init->base.post = true;
+			base->post = true;
 	}
 
 	/* magic to detect whether or not x86 vbios code has executed
 	 * the devinit scripts to initialise the board
 	 */
-	if (!init->base.post) {
+	if (!base->post) {
 		if (!nvkm_rdvgac(device, 0, 0x00) &&
 		    !nvkm_rdvgac(device, 0, 0x1a)) {
 			nvkm_debug(subdev, "adaptor not initialised\n");
-			init->base.post = true;
+			base->post = true;
 		}
 	}
 }

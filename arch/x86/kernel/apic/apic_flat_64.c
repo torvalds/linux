@@ -53,7 +53,7 @@ void flat_init_apic_ldr(void)
 	apic_write(APIC_LDR, val);
 }
 
-static inline void _flat_send_IPI_mask(unsigned long mask, int vector)
+static void _flat_send_IPI_mask(unsigned long mask, int vector)
 {
 	unsigned long flags;
 

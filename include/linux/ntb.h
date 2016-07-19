@@ -284,7 +284,7 @@ static inline int ntb_dev_ops_is_valid(const struct ntb_dev_ops *ops)
 		/* ops->db_read_mask			&& */
 		ops->db_set_mask			&&
 		ops->db_clear_mask			&&
-		ops->peer_db_addr			&&
+		/* ops->peer_db_addr			&& */
 		/* ops->peer_db_read			&& */
 		ops->peer_db_set			&&
 		/* ops->peer_db_clear			&& */
@@ -295,7 +295,7 @@ static inline int ntb_dev_ops_is_valid(const struct ntb_dev_ops *ops)
 		ops->spad_count				&&
 		ops->spad_read				&&
 		ops->spad_write				&&
-		ops->peer_spad_addr			&&
+		/* ops->peer_spad_addr			&& */
 		/* ops->peer_spad_read			&& */
 		ops->peer_spad_write			&&
 		1;
@@ -757,6 +757,9 @@ static inline int ntb_peer_db_addr(struct ntb_dev *ntb,
 				   phys_addr_t *db_addr,
 				   resource_size_t *db_size)
 {
+	if (!ntb->ops->peer_db_addr)
+		return -EINVAL;
+
 	return ntb->ops->peer_db_addr(ntb, db_addr, db_size);
 }
 
@@ -948,6 +951,9 @@ static inline int ntb_spad_write(struct ntb_dev *ntb, int idx, u32 val)
 static inline int ntb_peer_spad_addr(struct ntb_dev *ntb, int idx,
 				     phys_addr_t *spad_addr)
 {
+	if (!ntb->ops->peer_spad_addr)
+		return -EINVAL;
+
 	return ntb->ops->peer_spad_addr(ntb, idx, spad_addr);
 }
 

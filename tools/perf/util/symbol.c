@@ -1466,7 +1466,8 @@ int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter)
 	 * Read the build id if possible. This is required for
 	 * DSO_BINARY_TYPE__BUILDID_DEBUGINFO to work
 	 */
-	if (filename__read_build_id(dso->long_name, build_id, BUILD_ID_SIZE) > 0)
+	if (is_regular_file(name) &&
+	    filename__read_build_id(dso->long_name, build_id, BUILD_ID_SIZE) > 0)
 		dso__set_build_id(dso, build_id);
 
 	/*
@@ -1485,6 +1486,9 @@ int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter)
 
 		if (dso__read_binary_type_filename(dso, symtab_type,
 						   root_dir, name, PATH_MAX))
+			continue;
+
+		if (!is_regular_file(name))
 			continue;
 
 		/* Name is now the name of the next image to try */
@@ -1524,6 +1528,10 @@ int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter)
 	/* We'll have to hope for the best */
 	if (!runtime_ss && syms_ss)
 		runtime_ss = syms_ss;
+
+	if (syms_ss && syms_ss->type == DSO_BINARY_TYPE__BUILD_ID_CACHE)
+		if (dso__build_id_is_kmod(dso, name, PATH_MAX))
+			kmod = true;
 
 	if (syms_ss)
 		ret = dso__load_sym(dso, map, syms_ss, runtime_ss, filter, kmod);

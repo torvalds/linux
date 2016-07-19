@@ -126,7 +126,7 @@ static int gpio_extcon_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&data->work, gpio_extcon_work);
 
 	/*
-	 * Request the interrput of gpio to detect whether external connector
+	 * Request the interrupt of gpio to detect whether external connector
 	 * is attached or detached.
 	 */
 	ret = devm_request_any_context_irq(&pdev->dev, data->irq,

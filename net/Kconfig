@@ -253,6 +253,9 @@ config XPS
 	depends on SMP
 	default y
 
+config HWBM
+       bool
+
 config SOCK_CGROUP_DATA
 	bool
 	default n
@@ -360,6 +363,7 @@ source "net/can/Kconfig"
 source "net/irda/Kconfig"
 source "net/bluetooth/Kconfig"
 source "net/rxrpc/Kconfig"
+source "net/kcm/Kconfig"
 
 config FIB_RULES
 	bool
@@ -391,6 +395,26 @@ config LWTUNNEL
 	  tunnels like mpls. There is no netdevice associated with a light
 	  weight tunnel endpoint. Tunnel encapsulation parameters are stored
 	  with light weight tunnel state associated with fib routes.
+
+config DST_CACHE
+	bool
+	default n
+
+config NET_DEVLINK
+	tristate "Network physical/parent device Netlink interface"
+	help
+	  Network physical/parent device Netlink interface provides
+	  infrastructure to support access to physical chip-wide config and
+	  monitoring.
+
+config MAY_USE_DEVLINK
+	tristate
+	default m if NET_DEVLINK=m
+	default y if NET_DEVLINK=y || NET_DEVLINK=n
+	help
+	  Drivers using the devlink infrastructure should have a dependency
+	  on MAY_USE_DEVLINK to ensure they do not cause link errors when
+	  devlink is a loadable module and the driver using it is built-in.
 
 endif   # if NET
 

@@ -21,7 +21,7 @@
 
 static inline bool is_pset_node(struct fwnode_handle *fwnode)
 {
-	return fwnode && fwnode->type == FWNODE_PDATA;
+	return !IS_ERR_OR_NULL(fwnode) && fwnode->type == FWNODE_PDATA;
 }
 
 static inline struct property_set *to_pset_node(struct fwnode_handle *fwnode)
@@ -218,7 +218,8 @@ bool fwnode_property_present(struct fwnode_handle *fwnode, const char *propname)
 	bool ret;
 
 	ret = __fwnode_property_present(fwnode, propname);
-	if (ret == false && fwnode && !IS_ERR_OR_NULL(fwnode->secondary))
+	if (ret == false && !IS_ERR_OR_NULL(fwnode) &&
+	    !IS_ERR_OR_NULL(fwnode->secondary))
 		ret = __fwnode_property_present(fwnode->secondary, propname);
 	return ret;
 }
@@ -423,7 +424,8 @@ EXPORT_SYMBOL_GPL(device_property_match_string);
 	int _ret_;									\
 	_ret_ = FWNODE_PROP_READ(_fwnode_, _propname_, _type_, _proptype_,		\
 				 _val_, _nval_);					\
-	if (_ret_ == -EINVAL && _fwnode_ && !IS_ERR_OR_NULL(_fwnode_->secondary))	\
+	if (_ret_ == -EINVAL && !IS_ERR_OR_NULL(_fwnode_) &&				\
+	    !IS_ERR_OR_NULL(_fwnode_->secondary))					\
 		_ret_ = FWNODE_PROP_READ(_fwnode_->secondary, _propname_, _type_,	\
 				_proptype_, _val_, _nval_);				\
 	_ret_;										\
@@ -593,7 +595,8 @@ int fwnode_property_read_string_array(struct fwnode_handle *fwnode,
 	int ret;
 
 	ret = __fwnode_property_read_string_array(fwnode, propname, val, nval);
-	if (ret == -EINVAL && fwnode && !IS_ERR_OR_NULL(fwnode->secondary))
+	if (ret == -EINVAL && !IS_ERR_OR_NULL(fwnode) &&
+	    !IS_ERR_OR_NULL(fwnode->secondary))
 		ret = __fwnode_property_read_string_array(fwnode->secondary,
 							  propname, val, nval);
 	return ret;
@@ -621,7 +624,8 @@ int fwnode_property_read_string(struct fwnode_handle *fwnode,
 	int ret;
 
 	ret = __fwnode_property_read_string(fwnode, propname, val);
-	if (ret == -EINVAL && fwnode && !IS_ERR_OR_NULL(fwnode->secondary))
+	if (ret == -EINVAL && !IS_ERR_OR_NULL(fwnode) &&
+	    !IS_ERR_OR_NULL(fwnode->secondary))
 		ret = __fwnode_property_read_string(fwnode->secondary,
 						    propname, val);
 	return ret;
@@ -647,7 +651,7 @@ int fwnode_property_match_string(struct fwnode_handle *fwnode,
 	const char *propname, const char *string)
 {
 	const char **values;
-	int nval, ret, i;
+	int nval, ret;
 
 	nval = fwnode_property_read_string_array(fwnode, propname, NULL, 0);
 	if (nval < 0)
@@ -664,13 +668,9 @@ int fwnode_property_match_string(struct fwnode_handle *fwnode,
 	if (ret < 0)
 		goto out;
 
-	ret = -ENODATA;
-	for (i = 0; i < nval; i++) {
-		if (!strcmp(values[i], string)) {
-			ret = i;
-			break;
-		}
-	}
+	ret = match_string(values, nval, string);
+	if (ret < 0)
+		ret = -ENODATA;
 out:
 	kfree(values);
 	return ret;
@@ -820,11 +820,16 @@ void device_remove_property_set(struct device *dev)
 	 * the pset. If there is no real firmware node (ACPI/DT) primary
 	 * will hold the pset.
 	 */
-	if (!is_pset_node(fwnode))
-		fwnode = fwnode->secondary;
-	if (!IS_ERR(fwnode) && is_pset_node(fwnode))
+	if (is_pset_node(fwnode)) {
+		set_primary_fwnode(dev, NULL);
 		pset_free_set(to_pset_node(fwnode));
-	set_secondary_fwnode(dev, NULL);
+	} else {
+		fwnode = fwnode->secondary;
+		if (!IS_ERR(fwnode) && is_pset_node(fwnode)) {
+			set_secondary_fwnode(dev, NULL);
+			pset_free_set(to_pset_node(fwnode));
+		}
+	}
 }
 EXPORT_SYMBOL_GPL(device_remove_property_set);
 

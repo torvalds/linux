@@ -70,6 +70,11 @@ config BCMA_DRIVER_MIPS
 
 	  If unsure, say N
 
+config BCMA_PFLASH
+	bool
+	depends on BCMA_DRIVER_MIPS
+	default y
+
 config BCMA_SFLASH
 	bool
 	depends on BCMA_DRIVER_MIPS

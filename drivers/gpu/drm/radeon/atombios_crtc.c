@@ -275,13 +275,15 @@ void atombios_crtc_dpms(struct drm_crtc *crtc, int mode)
 		if (ASIC_IS_DCE3(rdev) && !ASIC_IS_DCE6(rdev))
 			atombios_enable_crtc_memreq(crtc, ATOM_ENABLE);
 		atombios_blank_crtc(crtc, ATOM_DISABLE);
-		drm_vblank_post_modeset(dev, radeon_crtc->crtc_id);
+		if (dev->num_crtcs > radeon_crtc->crtc_id)
+			drm_vblank_on(dev, radeon_crtc->crtc_id);
 		radeon_crtc_load_lut(crtc);
 		break;
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
 	case DRM_MODE_DPMS_OFF:
-		drm_vblank_pre_modeset(dev, radeon_crtc->crtc_id);
+		if (dev->num_crtcs > radeon_crtc->crtc_id)
+			drm_vblank_off(dev, radeon_crtc->crtc_id);
 		if (radeon_crtc->enabled)
 			atombios_blank_crtc(crtc, ATOM_ENABLE);
 		if (ASIC_IS_DCE3(rdev) && !ASIC_IS_DCE6(rdev))
@@ -1665,11 +1667,11 @@ int atombios_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 }
 
 int atombios_crtc_set_base_atomic(struct drm_crtc *crtc,
-                                  struct drm_framebuffer *fb,
+				  struct drm_framebuffer *fb,
 				  int x, int y, enum mode_set_atomic state)
 {
-       struct drm_device *dev = crtc->dev;
-       struct radeon_device *rdev = dev->dev_private;
+	struct drm_device *dev = crtc->dev;
+	struct radeon_device *rdev = dev->dev_private;
 
 	if (ASIC_IS_DCE4(rdev))
 		return dce4_crtc_do_set_base(crtc, fb, x, y, 1);
@@ -1740,6 +1742,7 @@ static u32 radeon_get_pll_use_mask(struct drm_crtc *crtc)
 static int radeon_get_shared_dp_ppll(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
+	struct radeon_device *rdev = dev->dev_private;
 	struct drm_crtc *test_crtc;
 	struct radeon_crtc *test_radeon_crtc;
 
@@ -1749,6 +1752,10 @@ static int radeon_get_shared_dp_ppll(struct drm_crtc *crtc)
 		test_radeon_crtc = to_radeon_crtc(test_crtc);
 		if (test_radeon_crtc->encoder &&
 		    ENCODER_MODE_IS_DP(atombios_get_encoder_mode(test_radeon_crtc->encoder))) {
+			/* PPLL2 is exclusive to UNIPHYA on DCE61 */
+			if (ASIC_IS_DCE61(rdev) && !ASIC_IS_DCE8(rdev) &&
+			    test_radeon_crtc->pll_id == ATOM_PPLL2)
+				continue;
 			/* for DP use the same PLL for all */
 			if (test_radeon_crtc->pll_id != ATOM_PPLL_INVALID)
 				return test_radeon_crtc->pll_id;
@@ -1770,6 +1777,7 @@ static int radeon_get_shared_nondp_ppll(struct drm_crtc *crtc)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
+	struct radeon_device *rdev = dev->dev_private;
 	struct drm_crtc *test_crtc;
 	struct radeon_crtc *test_radeon_crtc;
 	u32 adjusted_clock, test_adjusted_clock;
@@ -1785,6 +1793,10 @@ static int radeon_get_shared_nondp_ppll(struct drm_crtc *crtc)
 		test_radeon_crtc = to_radeon_crtc(test_crtc);
 		if (test_radeon_crtc->encoder &&
 		    !ENCODER_MODE_IS_DP(atombios_get_encoder_mode(test_radeon_crtc->encoder))) {
+			/* PPLL2 is exclusive to UNIPHYA on DCE61 */
+			if (ASIC_IS_DCE61(rdev) && !ASIC_IS_DCE8(rdev) &&
+			    test_radeon_crtc->pll_id == ATOM_PPLL2)
+				continue;
 			/* check if we are already driving this connector with another crtc */
 			if (test_radeon_crtc->connector == radeon_crtc->connector) {
 				/* if we are, return that pll */

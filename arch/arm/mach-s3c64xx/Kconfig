@@ -3,7 +3,8 @@
 #
 # Licensed under GPLv2
 menuconfig ARCH_S3C64XX
-	bool "Samsung S3C64XX" if ARCH_MULTI_V6
+	bool "Samsung S3C64XX"
+	depends on ARCH_MULTI_V6
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_AMBA
 	select ARM_VIC

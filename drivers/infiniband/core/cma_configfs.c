@@ -49,8 +49,6 @@ struct cma_dev_group {
 	char				name[IB_DEVICE_NAME_MAX];
 	struct config_group		device_group;
 	struct config_group		ports_group;
-	struct config_group		*default_dev_group[2];
-	struct config_group		**default_ports_group;
 	struct cma_dev_port_group	*ports;
 };
 
@@ -158,7 +156,6 @@ static int make_cma_ports(struct cma_dev_group *cma_dev_group,
 	unsigned int i;
 	unsigned int ports_num;
 	struct cma_dev_port_group *ports;
-	struct config_group **ports_group;
 	int err;
 
 	ibdev = cma_get_ib_dev(cma_dev);
@@ -169,9 +166,8 @@ static int make_cma_ports(struct cma_dev_group *cma_dev_group,
 	ports_num = ibdev->phys_port_cnt;
 	ports = kcalloc(ports_num, sizeof(*cma_dev_group->ports),
 			GFP_KERNEL);
-	ports_group = kcalloc(ports_num + 1, sizeof(*ports_group), GFP_KERNEL);
 
-	if (!ports || !ports_group) {
+	if (!ports) {
 		err = -ENOMEM;
 		goto free;
 	}
@@ -185,18 +181,16 @@ static int make_cma_ports(struct cma_dev_group *cma_dev_group,
 		config_group_init_type_name(&ports[i].group,
 					    port_str,
 					    &cma_port_group_type);
-		ports_group[i] = &ports[i].group;
+		configfs_add_default_group(&ports[i].group,
+				&cma_dev_group->ports_group);
+
 	}
-	ports_group[i] = NULL;
-	cma_dev_group->default_ports_group = ports_group;
 	cma_dev_group->ports = ports;
 
 	return 0;
 free:
 	kfree(ports);
-	kfree(ports_group);
 	cma_dev_group->ports = NULL;
-	cma_dev_group->default_ports_group = NULL;
 	return err;
 }
 
@@ -220,9 +214,7 @@ static void release_cma_ports_group(struct config_item  *item)
 							   ports_group);
 
 	kfree(cma_dev_group->ports);
-	kfree(cma_dev_group->default_ports_group);
 	cma_dev_group->ports = NULL;
-	cma_dev_group->default_ports_group = NULL;
 };
 
 static struct configfs_item_operations cma_ports_item_ops = {
@@ -263,22 +255,17 @@ static struct config_group *make_cma_dev(struct config_group *group,
 
 	strncpy(cma_dev_group->name, name, sizeof(cma_dev_group->name));
 
+	config_group_init_type_name(&cma_dev_group->ports_group, "ports",
+				    &cma_ports_group_type);
+
 	err = make_cma_ports(cma_dev_group, cma_dev);
 	if (err)
 		goto fail;
 
-	cma_dev_group->ports_group.default_groups =
-		cma_dev_group->default_ports_group;
-	config_group_init_type_name(&cma_dev_group->ports_group, "ports",
-				    &cma_ports_group_type);
-
-	cma_dev_group->device_group.default_groups
-		= cma_dev_group->default_dev_group;
-	cma_dev_group->default_dev_group[0] = &cma_dev_group->ports_group;
-	cma_dev_group->default_dev_group[1] = NULL;
-
 	config_group_init_type_name(&cma_dev_group->device_group, name,
 				    &cma_device_group_type);
+	configfs_add_default_group(&cma_dev_group->ports_group,
+			&cma_dev_group->device_group);
 
 	cma_deref_dev(cma_dev);
 	return &cma_dev_group->device_group;

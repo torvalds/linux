@@ -286,13 +286,6 @@ static void imx_tve_encoder_dpms(struct drm_encoder *encoder, int mode)
 		dev_err(tve->dev, "failed to disable TVOUT: %d\n", ret);
 }
 
-static bool imx_tve_encoder_mode_fixup(struct drm_encoder *encoder,
-				       const struct drm_display_mode *mode,
-				       struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
 static void imx_tve_encoder_prepare(struct drm_encoder *encoder)
 {
 	struct imx_tve *tve = enc_to_tve(encoder);
@@ -379,7 +372,6 @@ static const struct drm_encoder_funcs imx_tve_encoder_funcs = {
 
 static const struct drm_encoder_helper_funcs imx_tve_encoder_helper_funcs = {
 	.dpms = imx_tve_encoder_dpms,
-	.mode_fixup = imx_tve_encoder_mode_fixup,
 	.prepare = imx_tve_encoder_prepare,
 	.mode_set = imx_tve_encoder_mode_set,
 	.commit = imx_tve_encoder_commit,

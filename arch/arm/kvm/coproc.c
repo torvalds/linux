@@ -16,6 +16,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+
+#include <linux/bsearch.h>
 #include <linux/mm.h>
 #include <linux/kvm_host.h>
 #include <linux/uaccess.h>
@@ -54,8 +56,8 @@ static inline void vcpu_cp15_reg64_set(struct kvm_vcpu *vcpu,
 				       const struct coproc_reg *r,
 				       u64 val)
 {
-	vcpu->arch.cp15[r->reg] = val & 0xffffffff;
-	vcpu->arch.cp15[r->reg + 1] = val >> 32;
+	vcpu_cp15(vcpu, r->reg) = val & 0xffffffff;
+	vcpu_cp15(vcpu, r->reg + 1) = val >> 32;
 }
 
 static inline u64 vcpu_cp15_reg64_get(struct kvm_vcpu *vcpu,
@@ -63,9 +65,9 @@ static inline u64 vcpu_cp15_reg64_get(struct kvm_vcpu *vcpu,
 {
 	u64 val;
 
-	val = vcpu->arch.cp15[r->reg + 1];
+	val = vcpu_cp15(vcpu, r->reg + 1);
 	val = val << 32;
-	val = val | vcpu->arch.cp15[r->reg];
+	val = val | vcpu_cp15(vcpu, r->reg);
 	return val;
 }
 
@@ -104,7 +106,7 @@ static void reset_mpidr(struct kvm_vcpu *vcpu, const struct coproc_reg *r)
 	 * vcpu_id, but we read the 'U' bit from the underlying
 	 * hardware directly.
 	 */
-	vcpu->arch.cp15[c0_MPIDR] = ((read_cpuid_mpidr() & MPIDR_SMP_BITMASK) |
+	vcpu_cp15(vcpu, c0_MPIDR) = ((read_cpuid_mpidr() & MPIDR_SMP_BITMASK) |
 				     ((vcpu->vcpu_id >> 2) << MPIDR_LEVEL_BITS) |
 				     (vcpu->vcpu_id & 3));
 }
@@ -117,7 +119,7 @@ static bool access_actlr(struct kvm_vcpu *vcpu,
 	if (p->is_write)
 		return ignore_write(vcpu, p);
 
-	*vcpu_reg(vcpu, p->Rt1) = vcpu->arch.cp15[c1_ACTLR];
+	*vcpu_reg(vcpu, p->Rt1) = vcpu_cp15(vcpu, c1_ACTLR);
 	return true;
 }
 
@@ -139,7 +141,7 @@ static bool access_l2ctlr(struct kvm_vcpu *vcpu,
 	if (p->is_write)
 		return ignore_write(vcpu, p);
 
-	*vcpu_reg(vcpu, p->Rt1) = vcpu->arch.cp15[c9_L2CTLR];
+	*vcpu_reg(vcpu, p->Rt1) = vcpu_cp15(vcpu, c9_L2CTLR);
 	return true;
 }
 
@@ -156,7 +158,7 @@ static void reset_l2ctlr(struct kvm_vcpu *vcpu, const struct coproc_reg *r)
 	ncores = min(ncores, 3U);
 	l2ctlr |= (ncores & 3) << 24;
 
-	vcpu->arch.cp15[c9_L2CTLR] = l2ctlr;
+	vcpu_cp15(vcpu, c9_L2CTLR) = l2ctlr;
 }
 
 static void reset_actlr(struct kvm_vcpu *vcpu, const struct coproc_reg *r)
@@ -171,7 +173,7 @@ static void reset_actlr(struct kvm_vcpu *vcpu, const struct coproc_reg *r)
 	else
 		actlr &= ~(1U << 6);
 
-	vcpu->arch.cp15[c1_ACTLR] = actlr;
+	vcpu_cp15(vcpu, c1_ACTLR) = actlr;
 }
 
 /*
@@ -218,9 +220,9 @@ bool access_vm_reg(struct kvm_vcpu *vcpu,
 
 	BUG_ON(!p->is_write);
 
-	vcpu->arch.cp15[r->reg] = *vcpu_reg(vcpu, p->Rt1);
+	vcpu_cp15(vcpu, r->reg) = *vcpu_reg(vcpu, p->Rt1);
 	if (p->is_64bit)
-		vcpu->arch.cp15[r->reg + 1] = *vcpu_reg(vcpu, p->Rt2);
+		vcpu_cp15(vcpu, r->reg + 1) = *vcpu_reg(vcpu, p->Rt2);
 
 	kvm_toggle_cache(vcpu, was_enabled);
 	return true;
@@ -381,17 +383,26 @@ static const struct coproc_reg cp15_regs[] = {
 	{ CRn(15), CRm( 0), Op1( 4), Op2( 0), is32, access_cbar},
 };
 
+static int check_reg_table(const struct coproc_reg *table, unsigned int n)
+{
+	unsigned int i;
+
+	for (i = 1; i < n; i++) {
+		if (cmp_reg(&table[i-1], &table[i]) >= 0) {
+			kvm_err("reg table %p out of order (%d)\n", table, i - 1);
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
 /* Target specific emulation tables */
 static struct kvm_coproc_target_table *target_tables[KVM_ARM_NUM_TARGETS];
 
 void kvm_register_target_coproc_table(struct kvm_coproc_target_table *table)
 {
-	unsigned int i;
-
-	for (i = 1; i < table->num; i++)
-		BUG_ON(cmp_reg(&table->table[i-1],
-			       &table->table[i]) >= 0);
-
+	BUG_ON(check_reg_table(table->table, table->num));
 	target_tables[table->target] = table;
 }
 
@@ -405,29 +416,32 @@ static const struct coproc_reg *get_target_table(unsigned target, size_t *num)
 	return table->table;
 }
 
+#define reg_to_match_value(x)						\
+	({								\
+		unsigned long val;					\
+		val  = (x)->CRn << 11;					\
+		val |= (x)->CRm << 7;					\
+		val |= (x)->Op1 << 4;					\
+		val |= (x)->Op2 << 1;					\
+		val |= !(x)->is_64bit;					\
+		val;							\
+	 })
+
+static int match_reg(const void *key, const void *elt)
+{
+	const unsigned long pval = (unsigned long)key;
+	const struct coproc_reg *r = elt;
+
+	return pval - reg_to_match_value(r);
+}
+
 static const struct coproc_reg *find_reg(const struct coproc_params *params,
 					 const struct coproc_reg table[],
 					 unsigned int num)
 {
-	unsigned int i;
+	unsigned long pval = reg_to_match_value(params);
 
-	for (i = 0; i < num; i++) {
-		const struct coproc_reg *r = &table[i];
-
-		if (params->is_64bit != r->is_64)
-			continue;
-		if (params->CRn != r->CRn)
-			continue;
-		if (params->CRm != r->CRm)
-			continue;
-		if (params->Op1 != r->Op1)
-			continue;
-		if (params->Op2 != r->Op2)
-			continue;
-
-		return r;
-	}
-	return NULL;
+	return bsearch((void *)pval, table, num, sizeof(table[0]), match_reg);
 }
 
 static int emulate_cp15(struct kvm_vcpu *vcpu,
@@ -645,6 +659,9 @@ static struct coproc_reg invariant_cp15[] = {
 	{ CRn( 0), CRm( 0), Op1( 0), Op2( 3), is32, NULL, get_TLBTR },
 	{ CRn( 0), CRm( 0), Op1( 0), Op2( 6), is32, NULL, get_REVIDR },
 
+	{ CRn( 0), CRm( 0), Op1( 1), Op2( 1), is32, NULL, get_CLIDR },
+	{ CRn( 0), CRm( 0), Op1( 1), Op2( 7), is32, NULL, get_AIDR },
+
 	{ CRn( 0), CRm( 1), Op1( 0), Op2( 0), is32, NULL, get_ID_PFR0 },
 	{ CRn( 0), CRm( 1), Op1( 0), Op2( 1), is32, NULL, get_ID_PFR1 },
 	{ CRn( 0), CRm( 1), Op1( 0), Op2( 2), is32, NULL, get_ID_DFR0 },
@@ -660,9 +677,6 @@ static struct coproc_reg invariant_cp15[] = {
 	{ CRn( 0), CRm( 2), Op1( 0), Op2( 3), is32, NULL, get_ID_ISAR3 },
 	{ CRn( 0), CRm( 2), Op1( 0), Op2( 4), is32, NULL, get_ID_ISAR4 },
 	{ CRn( 0), CRm( 2), Op1( 0), Op2( 5), is32, NULL, get_ID_ISAR5 },
-
-	{ CRn( 0), CRm( 0), Op1( 1), Op2( 1), is32, NULL, get_CLIDR },
-	{ CRn( 0), CRm( 0), Op1( 1), Op2( 7), is32, NULL, get_AIDR },
 };
 
 /*
@@ -901,7 +915,7 @@ static int vfp_get_reg(const struct kvm_vcpu *vcpu, u64 id, void __user *uaddr)
 	if (vfpid < num_fp_regs()) {
 		if (KVM_REG_SIZE(id) != 8)
 			return -ENOENT;
-		return reg_to_user(uaddr, &vcpu->arch.vfp_guest.fpregs[vfpid],
+		return reg_to_user(uaddr, &vcpu->arch.ctxt.vfp.fpregs[vfpid],
 				   id);
 	}
 
@@ -911,13 +925,13 @@ static int vfp_get_reg(const struct kvm_vcpu *vcpu, u64 id, void __user *uaddr)
 
 	switch (vfpid) {
 	case KVM_REG_ARM_VFP_FPEXC:
-		return reg_to_user(uaddr, &vcpu->arch.vfp_guest.fpexc, id);
+		return reg_to_user(uaddr, &vcpu->arch.ctxt.vfp.fpexc, id);
 	case KVM_REG_ARM_VFP_FPSCR:
-		return reg_to_user(uaddr, &vcpu->arch.vfp_guest.fpscr, id);
+		return reg_to_user(uaddr, &vcpu->arch.ctxt.vfp.fpscr, id);
 	case KVM_REG_ARM_VFP_FPINST:
-		return reg_to_user(uaddr, &vcpu->arch.vfp_guest.fpinst, id);
+		return reg_to_user(uaddr, &vcpu->arch.ctxt.vfp.fpinst, id);
 	case KVM_REG_ARM_VFP_FPINST2:
-		return reg_to_user(uaddr, &vcpu->arch.vfp_guest.fpinst2, id);
+		return reg_to_user(uaddr, &vcpu->arch.ctxt.vfp.fpinst2, id);
 	case KVM_REG_ARM_VFP_MVFR0:
 		val = fmrx(MVFR0);
 		return reg_to_user(uaddr, &val, id);
@@ -945,7 +959,7 @@ static int vfp_set_reg(struct kvm_vcpu *vcpu, u64 id, const void __user *uaddr)
 	if (vfpid < num_fp_regs()) {
 		if (KVM_REG_SIZE(id) != 8)
 			return -ENOENT;
-		return reg_from_user(&vcpu->arch.vfp_guest.fpregs[vfpid],
+		return reg_from_user(&vcpu->arch.ctxt.vfp.fpregs[vfpid],
 				     uaddr, id);
 	}
 
@@ -955,13 +969,13 @@ static int vfp_set_reg(struct kvm_vcpu *vcpu, u64 id, const void __user *uaddr)
 
 	switch (vfpid) {
 	case KVM_REG_ARM_VFP_FPEXC:
-		return reg_from_user(&vcpu->arch.vfp_guest.fpexc, uaddr, id);
+		return reg_from_user(&vcpu->arch.ctxt.vfp.fpexc, uaddr, id);
 	case KVM_REG_ARM_VFP_FPSCR:
-		return reg_from_user(&vcpu->arch.vfp_guest.fpscr, uaddr, id);
+		return reg_from_user(&vcpu->arch.ctxt.vfp.fpscr, uaddr, id);
 	case KVM_REG_ARM_VFP_FPINST:
-		return reg_from_user(&vcpu->arch.vfp_guest.fpinst, uaddr, id);
+		return reg_from_user(&vcpu->arch.ctxt.vfp.fpinst, uaddr, id);
 	case KVM_REG_ARM_VFP_FPINST2:
-		return reg_from_user(&vcpu->arch.vfp_guest.fpinst2, uaddr, id);
+		return reg_from_user(&vcpu->arch.ctxt.vfp.fpinst2, uaddr, id);
 	/* These are invariant. */
 	case KVM_REG_ARM_VFP_MVFR0:
 		if (reg_from_user(&val, uaddr, id))
@@ -1030,7 +1044,7 @@ int kvm_arm_coproc_get_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 		val = vcpu_cp15_reg64_get(vcpu, r);
 		ret = reg_to_user(uaddr, &val, reg->id);
 	} else if (KVM_REG_SIZE(reg->id) == 4) {
-		ret = reg_to_user(uaddr, &vcpu->arch.cp15[r->reg], reg->id);
+		ret = reg_to_user(uaddr, &vcpu_cp15(vcpu, r->reg), reg->id);
 	}
 
 	return ret;
@@ -1060,7 +1074,7 @@ int kvm_arm_coproc_set_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 		if (!ret)
 			vcpu_cp15_reg64_set(vcpu, r, val);
 	} else if (KVM_REG_SIZE(reg->id) == 4) {
-		ret = reg_from_user(&vcpu->arch.cp15[r->reg], uaddr, reg->id);
+		ret = reg_from_user(&vcpu_cp15(vcpu, r->reg), uaddr, reg->id);
 	}
 
 	return ret;
@@ -1096,7 +1110,7 @@ static int write_demux_regids(u64 __user *uindices)
 static u64 cp15_to_index(const struct coproc_reg *reg)
 {
 	u64 val = KVM_REG_ARM | (15 << KVM_REG_ARM_COPROC_SHIFT);
-	if (reg->is_64) {
+	if (reg->is_64bit) {
 		val |= KVM_REG_SIZE_U64;
 		val |= (reg->Op1 << KVM_REG_ARM_OPC1_SHIFT);
 		/*
@@ -1210,8 +1224,8 @@ void kvm_coproc_table_init(void)
 	unsigned int i;
 
 	/* Make sure tables are unique and in order. */
-	for (i = 1; i < ARRAY_SIZE(cp15_regs); i++)
-		BUG_ON(cmp_reg(&cp15_regs[i-1], &cp15_regs[i]) >= 0);
+	BUG_ON(check_reg_table(cp15_regs, ARRAY_SIZE(cp15_regs)));
+	BUG_ON(check_reg_table(invariant_cp15, ARRAY_SIZE(invariant_cp15)));
 
 	/* We abuse the reset function to overwrite the table itself. */
 	for (i = 0; i < ARRAY_SIZE(invariant_cp15); i++)
@@ -1248,7 +1262,7 @@ void kvm_reset_coprocs(struct kvm_vcpu *vcpu)
 	const struct coproc_reg *table;
 
 	/* Catch someone adding a register without putting in reset entry. */
-	memset(vcpu->arch.cp15, 0x42, sizeof(vcpu->arch.cp15));
+	memset(vcpu->arch.ctxt.cp15, 0x42, sizeof(vcpu->arch.ctxt.cp15));
 
 	/* Generic chip reset first (so target could override). */
 	reset_coproc_regs(vcpu, cp15_regs, ARRAY_SIZE(cp15_regs));
@@ -1257,6 +1271,6 @@ void kvm_reset_coprocs(struct kvm_vcpu *vcpu)
 	reset_coproc_regs(vcpu, table, num);
 
 	for (num = 1; num < NR_CP15_REGS; num++)
-		if (vcpu->arch.cp15[num] == 0x42424242)
-			panic("Didn't reset vcpu->arch.cp15[%zi]", num);
+		if (vcpu_cp15(vcpu, num) == 0x42424242)
+			panic("Didn't reset vcpu_cp15(vcpu, %zi)", num);
 }

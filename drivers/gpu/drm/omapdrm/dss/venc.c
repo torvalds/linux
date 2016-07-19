@@ -443,7 +443,7 @@ static const struct venc_config *venc_timings_to_config(
 
 static int venc_power_on(struct omap_dss_device *dssdev)
 {
-	struct omap_overlay_manager *mgr = venc.output.manager;
+	enum omap_channel channel = dssdev->dispc_channel;
 	u32 l;
 	int r;
 
@@ -469,13 +469,13 @@ static int venc_power_on(struct omap_dss_device *dssdev)
 
 	venc_write_reg(VENC_OUTPUT_CONTROL, l);
 
-	dss_mgr_set_timings(mgr, &venc.timings);
+	dss_mgr_set_timings(channel, &venc.timings);
 
 	r = regulator_enable(venc.vdda_dac_reg);
 	if (r)
 		goto err1;
 
-	r = dss_mgr_enable(mgr);
+	r = dss_mgr_enable(channel);
 	if (r)
 		goto err2;
 
@@ -494,12 +494,12 @@ err0:
 
 static void venc_power_off(struct omap_dss_device *dssdev)
 {
-	struct omap_overlay_manager *mgr = venc.output.manager;
+	enum omap_channel channel = dssdev->dispc_channel;
 
 	venc_write_reg(VENC_OUTPUT_CONTROL, 0);
 	dss_set_dac_pwrdn_bgz(0);
 
-	dss_mgr_disable(mgr);
+	dss_mgr_disable(channel);
 
 	regulator_disable(venc.vdda_dac_reg);
 
@@ -515,7 +515,7 @@ static int venc_display_enable(struct omap_dss_device *dssdev)
 
 	mutex_lock(&venc.venc_lock);
 
-	if (out->manager == NULL) {
+	if (!out->dispc_channel_connected) {
 		DSSERR("Failed to enable display: no output/manager\n");
 		r = -ENODEV;
 		goto err0;
@@ -742,18 +742,14 @@ static int venc_get_clocks(struct platform_device *pdev)
 static int venc_connect(struct omap_dss_device *dssdev,
 		struct omap_dss_device *dst)
 {
-	struct omap_overlay_manager *mgr;
+	enum omap_channel channel = dssdev->dispc_channel;
 	int r;
 
 	r = venc_init_regulator();
 	if (r)
 		return r;
 
-	mgr = omap_dss_get_overlay_manager(dssdev->dispc_channel);
-	if (!mgr)
-		return -ENODEV;
-
-	r = dss_mgr_connect(mgr, dssdev);
+	r = dss_mgr_connect(channel, dssdev);
 	if (r)
 		return r;
 
@@ -761,7 +757,7 @@ static int venc_connect(struct omap_dss_device *dssdev,
 	if (r) {
 		DSSERR("failed to connect output to new device: %s\n",
 				dst->name);
-		dss_mgr_disconnect(mgr, dssdev);
+		dss_mgr_disconnect(channel, dssdev);
 		return r;
 	}
 
@@ -771,6 +767,8 @@ static int venc_connect(struct omap_dss_device *dssdev,
 static void venc_disconnect(struct omap_dss_device *dssdev,
 		struct omap_dss_device *dst)
 {
+	enum omap_channel channel = dssdev->dispc_channel;
+
 	WARN_ON(dst != dssdev->dst);
 
 	if (dst != dssdev->dst)
@@ -778,8 +776,7 @@ static void venc_disconnect(struct omap_dss_device *dssdev,
 
 	omapdss_output_unset_device(dssdev);
 
-	if (dssdev->manager)
-		dss_mgr_disconnect(dssdev->manager, dssdev);
+	dss_mgr_disconnect(channel, dssdev);
 }
 
 static const struct omapdss_atv_ops venc_ops = {

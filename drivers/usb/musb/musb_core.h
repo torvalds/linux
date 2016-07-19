@@ -438,7 +438,7 @@ struct musb {
 	 */
 	unsigned                double_buffer_not_ok:1;
 
-	struct musb_hdrc_config	*config;
+	const struct musb_hdrc_config *config;
 
 	int			xceiv_old_state;
 #ifdef CONFIG_DEBUG_FS

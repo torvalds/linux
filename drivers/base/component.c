@@ -267,7 +267,7 @@ void component_match_add_release(struct device *master,
 	}
 
 	if (match->num == match->alloc) {
-		size_t new_size = match ? match->alloc + 16 : 15;
+		size_t new_size = match->alloc + 16;
 		int ret;
 
 		ret = component_match_realloc(master, match, new_size);

@@ -185,8 +185,7 @@ static int ehci_atmel_drv_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int ehci_atmel_drv_suspend(struct device *dev)
+static int __maybe_unused ehci_atmel_drv_suspend(struct device *dev)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
 	struct atmel_ehci_priv *atmel_ehci = hcd_to_atmel_ehci_priv(hcd);
@@ -200,7 +199,7 @@ static int ehci_atmel_drv_suspend(struct device *dev)
 	return 0;
 }
 
-static int ehci_atmel_drv_resume(struct device *dev)
+static int __maybe_unused ehci_atmel_drv_resume(struct device *dev)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
 	struct atmel_ehci_priv *atmel_ehci = hcd_to_atmel_ehci_priv(hcd);
@@ -208,7 +207,6 @@ static int ehci_atmel_drv_resume(struct device *dev)
 	atmel_start_clock(atmel_ehci);
 	return ehci_resume(hcd, false);
 }
-#endif
 
 #ifdef CONFIG_OF
 static const struct of_device_id atmel_ehci_dt_ids[] = {

@@ -59,7 +59,6 @@
 #include <linux/fs.h>
 #include <linux/slab.h>
 #include <linux/xattr.h>
-#include <linux/posix_acl_xattr.h>
 
 /*
  * Limit the number of extended attributes per inode so that the total size

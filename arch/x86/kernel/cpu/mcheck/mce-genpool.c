@@ -29,7 +29,7 @@ static char gen_pool_buf[MCE_POOLSZ];
 void mce_gen_pool_process(void)
 {
 	struct llist_node *head;
-	struct mce_evt_llist *node;
+	struct mce_evt_llist *node, *tmp;
 	struct mce *mce;
 
 	head = llist_del_all(&mce_event_llist);
@@ -37,7 +37,7 @@ void mce_gen_pool_process(void)
 		return;
 
 	head = llist_reverse_order(head);
-	llist_for_each_entry(node, head, llnode) {
+	llist_for_each_entry_safe(node, tmp, head, llnode) {
 		mce = &node->mce;
 		atomic_notifier_call_chain(&x86_mce_decoder_chain, 0, mce);
 		gen_pool_free(mce_evt_pool, (unsigned long)node, sizeof(*node));

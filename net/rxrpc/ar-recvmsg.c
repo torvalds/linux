@@ -33,7 +33,7 @@ void rxrpc_remove_user_ID(struct rxrpc_sock *rx, struct rxrpc_call *call)
 
 	read_lock_bh(&call->state_lock);
 	if (!test_bit(RXRPC_CALL_RELEASED, &call->flags) &&
-	    !test_and_set_bit(RXRPC_CALL_RELEASE, &call->events))
+	    !test_and_set_bit(RXRPC_CALL_EV_RELEASE, &call->events))
 		rxrpc_queue_call(call);
 	read_unlock_bh(&call->state_lock);
 }
@@ -158,7 +158,7 @@ int rxrpc_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 			goto receive_non_data_message;
 
 		_debug("recvmsg DATA #%u { %d, %d }",
-		       ntohl(sp->hdr.seq), skb->len, sp->offset);
+		       sp->hdr.seq, skb->len, sp->offset);
 
 		if (!continue_call) {
 			/* only set the control data once per recvmsg() */
@@ -169,11 +169,11 @@ int rxrpc_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 			ASSERT(test_bit(RXRPC_CALL_HAS_USERID, &call->flags));
 		}
 
-		ASSERTCMP(ntohl(sp->hdr.seq), >=, call->rx_data_recv);
-		ASSERTCMP(ntohl(sp->hdr.seq), <=, call->rx_data_recv + 1);
-		call->rx_data_recv = ntohl(sp->hdr.seq);
+		ASSERTCMP(sp->hdr.seq, >=, call->rx_data_recv);
+		ASSERTCMP(sp->hdr.seq, <=, call->rx_data_recv + 1);
+		call->rx_data_recv = sp->hdr.seq;
 
-		ASSERTCMP(ntohl(sp->hdr.seq), >, call->rx_data_eaten);
+		ASSERTCMP(sp->hdr.seq, >, call->rx_data_eaten);
 
 		offset = sp->offset;
 		copy = skb->len - offset;
@@ -364,11 +364,11 @@ void rxrpc_kernel_data_delivered(struct sk_buff *skb)
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	struct rxrpc_call *call = sp->call;
 
-	ASSERTCMP(ntohl(sp->hdr.seq), >=, call->rx_data_recv);
-	ASSERTCMP(ntohl(sp->hdr.seq), <=, call->rx_data_recv + 1);
-	call->rx_data_recv = ntohl(sp->hdr.seq);
+	ASSERTCMP(sp->hdr.seq, >=, call->rx_data_recv);
+	ASSERTCMP(sp->hdr.seq, <=, call->rx_data_recv + 1);
+	call->rx_data_recv = sp->hdr.seq;
 
-	ASSERTCMP(ntohl(sp->hdr.seq), >, call->rx_data_eaten);
+	ASSERTCMP(sp->hdr.seq, >, call->rx_data_eaten);
 	rxrpc_free_skb(skb);
 }
 

@@ -154,6 +154,7 @@ struct kvm_guest_debug_arch {
 #define KVM_SYNC_PFAULT (1UL << 5)
 #define KVM_SYNC_VRS    (1UL << 6)
 #define KVM_SYNC_RICCB  (1UL << 7)
+#define KVM_SYNC_FPRS   (1UL << 8)
 /* definition of registers in kvm_run */
 struct kvm_sync_regs {
 	__u64 prefix;	/* prefix register */
@@ -168,9 +169,12 @@ struct kvm_sync_regs {
 	__u64 pft;	/* pfault token [PFAULT] */
 	__u64 pfs;	/* pfault select [PFAULT] */
 	__u64 pfc;	/* pfault compare [PFAULT] */
-	__u64 vrs[32][2];	/* vector registers */
+	union {
+		__u64 vrs[32][2];	/* vector registers (KVM_SYNC_VRS) */
+		__u64 fprs[16];		/* fp registers (KVM_SYNC_FPRS) */
+	};
 	__u8  reserved[512];	/* for future vector expansion */
-	__u32 fpc;	/* only valid with vector registers */
+	__u32 fpc;		/* valid on KVM_SYNC_VRS or KVM_SYNC_FPRS */
 	__u8 padding[52];	/* riccb needs to be 64byte aligned */
 	__u8 riccb[64];		/* runtime instrumentation controls block */
 };

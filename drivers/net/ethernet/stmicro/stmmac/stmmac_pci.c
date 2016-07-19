@@ -81,7 +81,7 @@ static void stmmac_default_data(struct plat_stmmacenet_data *plat)
 	plat->mdio_bus_data->phy_mask = 0;
 
 	plat->dma_cfg->pbl = 32;
-	plat->dma_cfg->burst_len = DMA_AXI_BLEN_256;
+	/* TODO: AXI */
 
 	/* Set default value for multicast hash bins */
 	plat->multicast_filter_bins = HASH_TABLE_SIZE;
@@ -115,8 +115,8 @@ static int quark_default_data(struct plat_stmmacenet_data *plat,
 	plat->mdio_bus_data->phy_mask = 0;
 
 	plat->dma_cfg->pbl = 16;
-	plat->dma_cfg->burst_len = DMA_AXI_BLEN_256;
 	plat->dma_cfg->fixed_burst = 1;
+	/* AXI (TODO) */
 
 	/* Set default value for multicast hash bins */
 	plat->multicast_filter_bins = HASH_TABLE_SIZE;

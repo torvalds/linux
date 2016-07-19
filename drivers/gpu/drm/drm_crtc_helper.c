@@ -73,9 +73,6 @@
  * &drm_crtc_helper_funcs, struct &drm_encoder_helper_funcs and struct
  * &drm_connector_helper_funcs.
  */
-MODULE_AUTHOR("David Airlie, Jesse Barnes");
-MODULE_DESCRIPTION("DRM KMS helper");
-MODULE_LICENSE("GPL and additional rights");
 
 /**
  * drm_helper_move_panel_connectors_to_head() - move panels to the front in the
@@ -220,6 +217,15 @@ static void __drm_helper_disable_unused_functions(struct drm_device *dev)
  * disconnected connectors. Then it will disable all unused encoders and CRTCs
  * either by calling their disable callback if available or by calling their
  * dpms callback with DRM_MODE_DPMS_OFF.
+ *
+ * NOTE:
+ *
+ * This function is part of the legacy modeset helper library and will cause
+ * major confusion with atomic drivers. This is because atomic helpers guarantee
+ * to never call ->disable() hooks on a disabled function, or ->enable() hooks
+ * on an enabled functions. drm_helper_disable_unused_functions() on the other
+ * hand throws such guarantees into the wind and calls disable hooks
+ * unconditionally on unused functions.
  */
 void drm_helper_disable_unused_functions(struct drm_device *dev)
 {
@@ -328,16 +334,21 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 		}
 
 		encoder_funcs = encoder->helper_private;
-		if (!(ret = encoder_funcs->mode_fixup(encoder, mode,
-						      adjusted_mode))) {
-			DRM_DEBUG_KMS("Encoder fixup failed\n");
-			goto done;
+		if (encoder_funcs->mode_fixup) {
+			if (!(ret = encoder_funcs->mode_fixup(encoder, mode,
+							      adjusted_mode))) {
+				DRM_DEBUG_KMS("Encoder fixup failed\n");
+				goto done;
+			}
 		}
 	}
 
-	if (!(ret = crtc_funcs->mode_fixup(crtc, mode, adjusted_mode))) {
-		DRM_DEBUG_KMS("CRTC fixup failed\n");
-		goto done;
+	if (crtc_funcs->mode_fixup) {
+		if (!(ret = crtc_funcs->mode_fixup(crtc, mode,
+						adjusted_mode))) {
+			DRM_DEBUG_KMS("CRTC fixup failed\n");
+			goto done;
+		}
 	}
 	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
 
@@ -578,8 +589,6 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 		if (set->crtc->primary->fb == NULL) {
 			DRM_DEBUG_KMS("crtc has no fb, full mode set\n");
 			mode_changed = true;
-		} else if (set->fb == NULL) {
-			mode_changed = true;
 		} else if (set->fb->pixel_format !=
 			   set->crtc->primary->fb->pixel_format) {
 			mode_changed = true;
@@ -590,7 +599,7 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 	if (set->x != set->crtc->x || set->y != set->crtc->y)
 		fb_changed = true;
 
-	if (set->mode && !drm_mode_equal(set->mode, &set->crtc->mode)) {
+	if (!drm_mode_equal(set->mode, &set->crtc->mode)) {
 		DRM_DEBUG_KMS("modes are different, full mode set\n");
 		drm_mode_debug_printmodeline(&set->crtc->mode);
 		drm_mode_debug_printmodeline(set->mode);
@@ -1066,3 +1075,36 @@ int drm_helper_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	return drm_plane_helper_commit(plane, plane_state, old_fb);
 }
 EXPORT_SYMBOL(drm_helper_crtc_mode_set_base);
+
+/**
+ * drm_helper_crtc_enable_color_mgmt - enable color management properties
+ * @crtc: DRM CRTC
+ * @degamma_lut_size: the size of the degamma lut (before CSC)
+ * @gamma_lut_size: the size of the gamma lut (after CSC)
+ *
+ * This function lets the driver enable the color correction properties on a
+ * CRTC. This includes 3 degamma, csc and gamma properties that userspace can
+ * set and 2 size properties to inform the userspace of the lut sizes.
+ */
+void drm_helper_crtc_enable_color_mgmt(struct drm_crtc *crtc,
+				       int degamma_lut_size,
+				       int gamma_lut_size)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_mode_config *config = &dev->mode_config;
+
+	drm_object_attach_property(&crtc->base,
+				   config->degamma_lut_property, 0);
+	drm_object_attach_property(&crtc->base,
+				   config->ctm_property, 0);
+	drm_object_attach_property(&crtc->base,
+				   config->gamma_lut_property, 0);
+
+	drm_object_attach_property(&crtc->base,
+				   config->degamma_lut_size_property,
+				   degamma_lut_size);
+	drm_object_attach_property(&crtc->base,
+				   config->gamma_lut_size_property,
+				   gamma_lut_size);
+}
+EXPORT_SYMBOL(drm_helper_crtc_enable_color_mgmt);

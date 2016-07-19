@@ -182,7 +182,7 @@ int kvmppc_core_check_processor_compat(void)
 		r = 0;
 #ifdef CONFIG_ALTIVEC
 	/*
-	 * Since guests have the priviledge to enable AltiVec, we need AltiVec
+	 * Since guests have the privilege to enable AltiVec, we need AltiVec
 	 * support in the host to save/restore their context.
 	 * Don't use CPU_FTR_ALTIVEC to identify cores with AltiVec unit
 	 * because it's cleared in the absence of CONFIG_ALTIVEC!

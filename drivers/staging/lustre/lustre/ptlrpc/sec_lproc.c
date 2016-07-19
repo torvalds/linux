@@ -82,7 +82,7 @@ static int sptlrpc_info_lprocfs_seq_show(struct seq_file *seq, void *v)
 
 	if (cli->cl_import)
 		sec = sptlrpc_import_sec_ref(cli->cl_import);
-	if (sec == NULL)
+	if (!sec)
 		goto out;
 
 	sec_flags2str(sec->ps_flvr.sf_flags, str, sizeof(str));
@@ -121,7 +121,7 @@ static int sptlrpc_ctxs_lprocfs_seq_show(struct seq_file *seq, void *v)
 
 	if (cli->cl_import)
 		sec = sptlrpc_import_sec_ref(cli->cl_import);
-	if (sec == NULL)
+	if (!sec)
 		goto out;
 
 	if (sec->ps_policy->sp_cops->display)
@@ -178,7 +178,7 @@ int sptlrpc_lproc_init(void)
 {
 	int rc;
 
-	LASSERT(sptlrpc_debugfs_dir == NULL);
+	LASSERT(!sptlrpc_debugfs_dir);
 
 	sptlrpc_debugfs_dir = ldebugfs_register("sptlrpc", debugfs_lustre_root,
 						sptlrpc_lprocfs_vars, NULL);

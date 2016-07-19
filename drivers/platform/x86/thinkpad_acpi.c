@@ -6653,18 +6653,16 @@ static void __init tpacpi_detect_brightness_capabilities(void)
 	switch (b) {
 	case 16:
 		bright_maxlvl = 15;
-		pr_info("detected a 16-level brightness capable ThinkPad\n");
 		break;
 	case 8:
 	case 0:
 		bright_maxlvl = 7;
-		pr_info("detected a 8-level brightness capable ThinkPad\n");
 		break;
 	default:
-		pr_info("Unsupported brightness interface\n");
 		tp_features.bright_unkfw = 1;
 		bright_maxlvl = b - 1;
 	}
+	pr_debug("detected %u brightness levels\n", bright_maxlvl + 1);
 }
 
 static int __init brightness_init(struct ibm_init_struct *iibm)
@@ -7974,10 +7972,12 @@ static int fan_get_status_safe(u8 *status)
 		fan_update_desired_level(s);
 	mutex_unlock(&fan_mutex);
 
+	if (rc)
+		return rc;
 	if (status)
 		*status = s;
 
-	return rc;
+	return 0;
 }
 
 static int fan_get_speed(unsigned int *speed)

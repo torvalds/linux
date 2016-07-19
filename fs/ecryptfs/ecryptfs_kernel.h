@@ -28,6 +28,7 @@
 #ifndef ECRYPTFS_KERNEL_H
 #define ECRYPTFS_KERNEL_H
 
+#include <crypto/skcipher.h>
 #include <keys/user-type.h>
 #include <keys/encrypted-type.h>
 #include <linux/fs.h>
@@ -38,7 +39,6 @@
 #include <linux/nsproxy.h>
 #include <linux/backing-dev.h>
 #include <linux/ecryptfs.h>
-#include <linux/crypto.h>
 
 #define ECRYPTFS_DEFAULT_IV_BYTES 16
 #define ECRYPTFS_DEFAULT_EXTENT_SIZE 4096
@@ -233,9 +233,9 @@ struct ecryptfs_crypt_stat {
 	size_t extent_shift;
 	unsigned int extent_mask;
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat;
-	struct crypto_ablkcipher *tfm;
-	struct crypto_hash *hash_tfm; /* Crypto context for generating
-				       * the initialization vectors */
+	struct crypto_skcipher *tfm;
+	struct crypto_shash *hash_tfm; /* Crypto context for generating
+					* the initialization vectors */
 	unsigned char cipher[ECRYPTFS_MAX_CIPHER_NAME_SIZE + 1];
 	unsigned char key[ECRYPTFS_MAX_KEY_BYTES];
 	unsigned char root_iv[ECRYPTFS_MAX_IV_BYTES];
@@ -309,7 +309,7 @@ struct ecryptfs_global_auth_tok {
  * keeps a list of crypto API contexts around to use when needed.
  */
 struct ecryptfs_key_tfm {
-	struct crypto_blkcipher *key_tfm;
+	struct crypto_skcipher *key_tfm;
 	size_t key_size;
 	struct mutex key_tfm_mutex;
 	struct list_head key_tfm_list;
@@ -569,7 +569,6 @@ int ecryptfs_fill_zeros(struct file *file, loff_t new_length);
 int ecryptfs_encrypt_and_encode_filename(
 	char **encoded_name,
 	size_t *encoded_name_size,
-	struct ecryptfs_crypt_stat *crypt_stat,
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat,
 	const char *name, size_t name_size);
 struct dentry *ecryptfs_lower_dentry(struct dentry *this_dentry);
@@ -659,7 +658,7 @@ ecryptfs_add_new_key_tfm(struct ecryptfs_key_tfm **key_tfm, char *cipher_name,
 int ecryptfs_init_crypto(void);
 int ecryptfs_destroy_crypto(void);
 int ecryptfs_tfm_exists(char *cipher_name, struct ecryptfs_key_tfm **key_tfm);
-int ecryptfs_get_tfm_and_mutex_for_cipher_name(struct crypto_blkcipher **tfm,
+int ecryptfs_get_tfm_and_mutex_for_cipher_name(struct crypto_skcipher **tfm,
 					       struct mutex **tfm_mutex,
 					       char *cipher_name);
 int ecryptfs_keyring_auth_tok_for_sig(struct key **auth_tok_key,

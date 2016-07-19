@@ -26,7 +26,7 @@ static int
 nfs4_file_open(struct inode *inode, struct file *filp)
 {
 	struct nfs_open_context *ctx;
-	struct dentry *dentry = filp->f_path.dentry;
+	struct dentry *dentry = file_dentry(filp);
 	struct dentry *parent = NULL;
 	struct inode *dir;
 	unsigned openflags = filp->f_flags;
@@ -57,7 +57,7 @@ nfs4_file_open(struct inode *inode, struct file *filp)
 	parent = dget_parent(dentry);
 	dir = d_inode(parent);
 
-	ctx = alloc_nfs_open_context(filp->f_path.dentry, filp->f_mode);
+	ctx = alloc_nfs_open_context(file_dentry(filp), filp->f_mode);
 	err = PTR_ERR(ctx);
 	if (IS_ERR(ctx))
 		goto out;
@@ -126,37 +126,6 @@ nfs4_file_flush(struct file *file, fl_owner_t id)
 
 	/* Flush writes to the server and return any errors */
 	return vfs_fsync(file, 0);
-}
-
-static int
-nfs4_file_fsync(struct file *file, loff_t start, loff_t end, int datasync)
-{
-	int ret;
-	struct inode *inode = file_inode(file);
-
-	trace_nfs_fsync_enter(inode);
-
-	nfs_inode_dio_wait(inode);
-	do {
-		ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
-		if (ret != 0)
-			break;
-		inode_lock(inode);
-		ret = nfs_file_fsync_commit(file, start, end, datasync);
-		if (!ret)
-			ret = pnfs_sync_inode(inode, !!datasync);
-		inode_unlock(inode);
-		/*
-		 * If nfs_file_fsync_commit detected a server reboot, then
-		 * resend all dirty pages that might have been covered by
-		 * the NFS_CONTEXT_RESEND_WRITES flag
-		 */
-		start = 0;
-		end = LLONG_MAX;
-	} while (ret == -EAGAIN);
-
-	trace_nfs_fsync_exit(inode, ret);
-	return ret;
 }
 
 #ifdef CONFIG_NFS_V4_2
@@ -266,7 +235,7 @@ const struct file_operations nfs4_file_operations = {
 	.open		= nfs4_file_open,
 	.flush		= nfs4_file_flush,
 	.release	= nfs_file_release,
-	.fsync		= nfs4_file_fsync,
+	.fsync		= nfs_file_fsync,
 	.lock		= nfs_lock,
 	.flock		= nfs_flock,
 	.splice_read	= nfs_file_splice_read,

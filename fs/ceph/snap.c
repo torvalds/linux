@@ -296,8 +296,6 @@ static int cmpu64_rev(const void *a, const void *b)
 }
 
 
-struct ceph_snap_context *ceph_empty_snapc;
-
 /*
  * build the snap context for a given realm.
  */
@@ -986,18 +984,4 @@ out:
 	if (locked_rwsem)
 		up_write(&mdsc->snap_rwsem);
 	return;
-}
-
-int __init ceph_snap_init(void)
-{
-	ceph_empty_snapc = ceph_create_snap_context(0, GFP_NOFS);
-	if (!ceph_empty_snapc)
-		return -ENOMEM;
-	ceph_empty_snapc->seq = 1;
-	return 0;
-}
-
-void ceph_snap_exit(void)
-{
-	ceph_put_snap_context(ceph_empty_snapc);
 }

@@ -37,11 +37,6 @@ static inline struct igmpv3_query *
 	return (struct igmpv3_query *)skb_transport_header(skb);
 }
 
-extern int sysctl_igmp_llm_reports;
-extern int sysctl_igmp_max_memberships;
-extern int sysctl_igmp_max_msf;
-extern int sysctl_igmp_qrv;
-
 struct ip_sf_socklist {
 	unsigned int		sl_max;
 	unsigned int		sl_count;

@@ -75,13 +75,13 @@ static int sti_compositor_bind(struct device *dev,
 		switch (desc[i].type) {
 		case STI_VID_SUBDEV:
 			compo->vid[vid_id++] =
-			    sti_vid_create(compo->dev, desc[i].id,
+			    sti_vid_create(compo->dev, drm_dev, desc[i].id,
 					   compo->regs + desc[i].offset);
 			break;
 		case STI_MIXER_MAIN_SUBDEV:
 		case STI_MIXER_AUX_SUBDEV:
 			compo->mixer[mixer_id++] =
-			    sti_mixer_create(compo->dev, desc[i].id,
+			    sti_mixer_create(compo->dev, drm_dev, desc[i].id,
 					     compo->regs + desc[i].offset);
 			break;
 		case STI_GPD_SUBDEV:

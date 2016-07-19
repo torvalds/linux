@@ -472,7 +472,6 @@ static void klsi_105_set_termios(struct tty_struct *tty,
 		/* maybe this should be simulated by sending read
 		 * disable and read enable messages?
 		 */
-		;
 #if 0
 		priv->control_state &= ~(TIOCM_DTR | TIOCM_RTS);
 		mct_u232_set_modem_ctrl(serial, priv->control_state);
@@ -527,7 +526,6 @@ static void klsi_105_set_termios(struct tty_struct *tty,
 
 		mct_u232_set_line_ctrl(serial, priv->last_lcr);
 #endif
-		;
 	}
 	/*
 	 * Set flow control: well, I do not really now how to handle DTR/RTS.
@@ -546,7 +544,6 @@ static void klsi_105_set_termios(struct tty_struct *tty,
 			priv->control_state &= ~(TIOCM_DTR | TIOCM_RTS);
 		mct_u232_set_modem_ctrl(serial, priv->control_state);
 #endif
-		;
 	}
 	memcpy(cfg, &priv->cfg, sizeof(*cfg));
 	spin_unlock_irqrestore(&priv->lock, flags);

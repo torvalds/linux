@@ -45,21 +45,6 @@ struct encoder_tfp410_platform_data {
 	int data_lines;
 };
 
-/**
- * encoder_tpd12s015 platform data
- * @name: name for this display entity
- * @ct_cp_hpd_gpio: CT_CP_HPD gpio number
- * @ls_oe_gpio: LS_OE gpio number
- * @hpd_gpio: HPD gpio number
- */
-struct encoder_tpd12s015_platform_data {
-	const char *name;
-	const char *source;
-
-	int ct_cp_hpd_gpio;
-	int ls_oe_gpio;
-	int hpd_gpio;
-};
 
 /**
  * connector_dvi platform data

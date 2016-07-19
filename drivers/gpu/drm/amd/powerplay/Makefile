@@ -1,17 +1,17 @@
 
 subdir-ccflags-y += -Iinclude/drm  \
-		-Idrivers/gpu/drm/amd/powerplay/inc/  \
-		-Idrivers/gpu/drm/amd/include/asic_reg  \
-		-Idrivers/gpu/drm/amd/include  \
-		-Idrivers/gpu/drm/amd/powerplay/smumgr\
-		-Idrivers/gpu/drm/amd/powerplay/hwmgr \
-		-Idrivers/gpu/drm/amd/powerplay/eventmgr
+		-I$(FULL_AMD_PATH)/powerplay/inc/  \
+		-I$(FULL_AMD_PATH)/include/asic_reg  \
+		-I$(FULL_AMD_PATH)/include  \
+		-I$(FULL_AMD_PATH)/powerplay/smumgr\
+		-I$(FULL_AMD_PATH)/powerplay/hwmgr \
+		-I$(FULL_AMD_PATH)/powerplay/eventmgr
 
 AMD_PP_PATH = ../powerplay
 
 PP_LIBS = smumgr hwmgr eventmgr
 
-AMD_POWERPLAY = $(addsuffix /Makefile,$(addprefix drivers/gpu/drm/amd/powerplay/,$(PP_LIBS)))
+AMD_POWERPLAY = $(addsuffix /Makefile,$(addprefix $(FULL_AMD_PATH)/powerplay/,$(PP_LIBS)))
 
 include $(AMD_POWERPLAY)
 

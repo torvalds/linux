@@ -369,12 +369,6 @@ static inline size_t atmel_aes_padlen(size_t len, size_t block_size)
 	return len ? block_size - len : 0;
 }
 
-static inline struct aead_request *
-aead_request_cast(struct crypto_async_request *req)
-{
-	return container_of(req, struct aead_request, base);
-}
-
 static struct atmel_aes_dev *atmel_aes_find_dev(struct atmel_aes_base_ctx *ctx)
 {
 	struct atmel_aes_dev *aes_dd = NULL;
@@ -2085,9 +2079,9 @@ static int atmel_aes_probe(struct platform_device *pdev)
 	}
 
 	aes_dd->io_base = devm_ioremap_resource(&pdev->dev, aes_res);
-	if (!aes_dd->io_base) {
+	if (IS_ERR(aes_dd->io_base)) {
 		dev_err(dev, "can't ioremap\n");
-		err = -ENOMEM;
+		err = PTR_ERR(aes_dd->io_base);
 		goto res_err;
 	}
 

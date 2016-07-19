@@ -78,8 +78,6 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 		return false;
 	}
 
-	if (drm_dp_mst_port_has_audio(&intel_dp->mst_mgr, found->port))
-		pipe_config->has_audio = true;
 	mst_pbn = drm_dp_calc_pbn_mode(adjusted_mode->crtc_clock, bpp);
 
 	pipe_config->pbn = mst_pbn;
@@ -104,11 +102,6 @@ static void intel_mst_disable_dp(struct intel_encoder *encoder)
 	struct intel_dp_mst_encoder *intel_mst = enc_to_mst(&encoder->base);
 	struct intel_digital_port *intel_dig_port = intel_mst->primary;
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
-	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_crtc *crtc = encoder->base.crtc;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-
 	int ret;
 
 	DRM_DEBUG_KMS("%d\n", intel_dp->active_mst_links);
@@ -118,10 +111,6 @@ static void intel_mst_disable_dp(struct intel_encoder *encoder)
 	ret = drm_dp_update_payload_part1(&intel_dp->mst_mgr);
 	if (ret) {
 		DRM_ERROR("failed to update payload %d\n", ret);
-	}
-	if (intel_crtc->config->has_audio) {
-		intel_audio_codec_disable(encoder);
-		intel_display_power_put(dev_priv, POWER_DOMAIN_AUDIO);
 	}
 }
 
@@ -184,7 +173,9 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder)
 	intel_mst->port = found->port;
 
 	if (intel_dp->active_mst_links == 0) {
-		intel_ddi_clk_select(encoder, intel_crtc->config);
+		intel_prepare_ddi_buffer(&intel_dig_port->base);
+
+		intel_ddi_clk_select(&intel_dig_port->base, intel_crtc->config);
 
 		intel_dp_set_link_params(intel_dp, intel_crtc->config);
 
@@ -219,7 +210,6 @@ static void intel_mst_enable_dp(struct intel_encoder *encoder)
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
 	enum port port = intel_dig_port->port;
 	int ret;
 
@@ -232,13 +222,6 @@ static void intel_mst_enable_dp(struct intel_encoder *encoder)
 	ret = drm_dp_check_act_status(&intel_dp->mst_mgr);
 
 	ret = drm_dp_update_payload_part2(&intel_dp->mst_mgr);
-
-	if (crtc->config->has_audio) {
-		DRM_DEBUG_DRIVER("Enabling DP audio on pipe %c\n",
-				 pipe_name(crtc->pipe));
-		intel_display_power_get(dev_priv, POWER_DOMAIN_AUDIO);
-		intel_audio_codec_enable(encoder);
-	}
 }
 
 static bool intel_dp_mst_enc_get_hw_state(struct intel_encoder *encoder,
@@ -263,9 +246,6 @@ static void intel_dp_mst_enc_get_config(struct intel_encoder *encoder,
 	u32 temp, flags = 0;
 
 	pipe_config->has_dp_encoder = true;
-
-	pipe_config->has_audio =
-		intel_ddi_is_audio_enabled(dev_priv, crtc);
 
 	temp = I915_READ(TRANS_DDI_FUNC_CTL(cpu_transcoder));
 	if (temp & TRANS_DDI_PHSYNC)
@@ -369,12 +349,17 @@ static enum drm_mode_status
 intel_dp_mst_mode_valid(struct drm_connector *connector,
 			struct drm_display_mode *mode)
 {
+	int max_dotclk = to_i915(connector->dev)->max_dotclk_freq;
+
 	/* TODO - validate mode against available PBN for link */
 	if (mode->clock < 10000)
 		return MODE_CLOCK_LOW;
 
 	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
 		return MODE_H_ILLEGAL;
+
+	if (mode->clock > max_dotclk)
+		return MODE_CLOCK_HIGH;
 
 	return MODE_OK;
 }
@@ -499,6 +484,8 @@ static void intel_dp_destroy_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 	struct drm_device *dev = connector->dev;
 
+	intel_connector->unregister(intel_connector);
+
 	/* need to nuke the connector */
 	drm_modeset_lock_all(dev);
 	if (connector->state->crtc) {
@@ -512,11 +499,7 @@ static void intel_dp_destroy_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 
 		WARN(ret, "Disabling mst crtc failed with %i\n", ret);
 	}
-	drm_modeset_unlock_all(dev);
 
-	intel_connector->unregister(intel_connector);
-
-	drm_modeset_lock_all(dev);
 	intel_connector_remove_from_fbdev(intel_connector);
 	drm_connector_cleanup(connector);
 	drm_modeset_unlock_all(dev);

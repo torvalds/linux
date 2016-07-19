@@ -90,7 +90,7 @@
 		};
 	};
 
-	amba {
+	amba: amba {
 		compatible = "simple-bus";
 		#address-cells = <2>;
 		#size-cells = <1>;
@@ -99,7 +99,6 @@
 		can0: can@ff060000 {
 			compatible = "xlnx,zynq-can-1.0";
 			status = "disabled";
-			clocks = <&misc_clk &misc_clk>;
 			clock-names = "can_clk", "pclk";
 			reg = <0x0 0xff060000 0x1000>;
 			interrupts = <0 23 4>;
@@ -111,31 +110,12 @@
 		can1: can@ff070000 {
 			compatible = "xlnx,zynq-can-1.0";
 			status = "disabled";
-			clocks = <&misc_clk &misc_clk>;
 			clock-names = "can_clk", "pclk";
 			reg = <0x0 0xff070000 0x1000>;
 			interrupts = <0 24 4>;
 			interrupt-parent = <&gic>;
 			tx-fifo-depth = <0x40>;
 			rx-fifo-depth = <0x40>;
-		};
-
-		misc_clk: misc_clk {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <25000000>;
-		};
-
-		gpio: gpio@ff0a0000 {
-			compatible = "xlnx,zynqmp-gpio-1.0";
-			status = "disabled";
-			#gpio-cells = <0x2>;
-			clocks = <&misc_clk>;
-			interrupt-parent = <&gic>;
-			interrupts = <0 16 4>;
-			interrupt-controller;
-			#interrupt-cells = <2>;
-			reg = <0x0 0xff0a0000 0x1000>;
 		};
 
 		gem0: ethernet@ff0b0000 {
@@ -145,7 +125,6 @@
 			interrupts = <0 57 4>, <0 57 4>;
 			reg = <0x0 0xff0b0000 0x1000>;
 			clock-names = "pclk", "hclk", "tx_clk";
-			clocks = <&misc_clk>, <&misc_clk>, <&misc_clk>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 		};
@@ -157,7 +136,6 @@
 			interrupts = <0 59 4>, <0 59 4>;
 			reg = <0x0 0xff0c0000 0x1000>;
 			clock-names = "pclk", "hclk", "tx_clk";
-			clocks = <&misc_clk>, <&misc_clk>, <&misc_clk>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 		};
@@ -169,7 +147,6 @@
 			interrupts = <0 61 4>, <0 61 4>;
 			reg = <0x0 0xff0d0000 0x1000>;
 			clock-names = "pclk", "hclk", "tx_clk";
-			clocks = <&misc_clk>, <&misc_clk>, <&misc_clk>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 		};
@@ -181,15 +158,19 @@
 			interrupts = <0 63 4>, <0 63 4>;
 			reg = <0x0 0xff0e0000 0x1000>;
 			clock-names = "pclk", "hclk", "tx_clk";
-			clocks = <&misc_clk>, <&misc_clk>, <&misc_clk>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 		};
 
-		i2c_clk: i2c_clk {
-			compatible = "fixed-clock";
-			#clock-cells = <0x0>;
-			clock-frequency = <111111111>;
+		gpio: gpio@ff0a0000 {
+			compatible = "xlnx,zynqmp-gpio-1.0";
+			status = "disabled";
+			#gpio-cells = <0x2>;
+			interrupt-parent = <&gic>;
+			interrupts = <0 16 4>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			reg = <0x0 0xff0a0000 0x1000>;
 		};
 
 		i2c0: i2c@ff020000 {
@@ -198,7 +179,6 @@
 			interrupt-parent = <&gic>;
 			interrupts = <0 17 4>;
 			reg = <0x0 0xff020000 0x1000>;
-			clocks = <&i2c_clk>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 		};
@@ -209,15 +189,8 @@
 			interrupt-parent = <&gic>;
 			interrupts = <0 18 4>;
 			reg = <0x0 0xff030000 0x1000>;
-			clocks = <&i2c_clk>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-		};
-
-		sata_clk: sata_clk {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <75000000>;
 		};
 
 		sata: ahci@fd0c0000 {
@@ -226,7 +199,6 @@
 			reg = <0x0 0xfd0c0000 0x2000>;
 			interrupt-parent = <&gic>;
 			interrupts = <0 133 4>;
-			clocks = <&sata_clk>;
 		};
 
 		sdhci0: sdhci@ff160000 {
@@ -236,7 +208,6 @@
 			interrupts = <0 48 4>;
 			reg = <0x0 0xff160000 0x1000>;
 			clock-names = "clk_xin", "clk_ahb";
-			clocks = <&misc_clk>, <&misc_clk>;
 		};
 
 		sdhci1: sdhci@ff170000 {
@@ -246,7 +217,6 @@
 			interrupts = <0 49 4>;
 			reg = <0x0 0xff170000 0x1000>;
 			clock-names = "clk_xin", "clk_ahb";
-			clocks = <&misc_clk>, <&misc_clk>;
 		};
 
 		smmu: smmu@fd800000 {
@@ -268,7 +238,6 @@
 			interrupts = <0 19 4>;
 			reg = <0x0 0xff040000 0x1000>;
 			clock-names = "ref_clk", "pclk";
-			clocks = <&misc_clk &misc_clk>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 		};
@@ -280,7 +249,6 @@
 			interrupts = <0 20 4>;
 			reg = <0x0 0xff050000 0x1000>;
 			clock-names = "ref_clk", "pclk";
-			clocks = <&misc_clk &misc_clk>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 		};
@@ -291,7 +259,6 @@
 			interrupt-parent = <&gic>;
 			interrupts = <0 36 4>, <0 37 4>, <0 38 4>;
 			reg = <0x0 0xff110000 0x1000>;
-			clocks = <&misc_clk>;
 			timer-width = <32>;
 		};
 
@@ -301,7 +268,6 @@
 			interrupt-parent = <&gic>;
 			interrupts = <0 39 4>, <0 40 4>, <0 41 4>;
 			reg = <0x0 0xff120000 0x1000>;
-			clocks = <&misc_clk>;
 			timer-width = <32>;
 		};
 
@@ -311,7 +277,6 @@
 			interrupt-parent = <&gic>;
 			interrupts = <0 42 4>, <0 43 4>, <0 44 4>;
 			reg = <0x0 0xff130000 0x1000>;
-			clocks = <&misc_clk>;
 			timer-width = <32>;
 		};
 
@@ -321,7 +286,6 @@
 			interrupt-parent = <&gic>;
 			interrupts = <0 45 4>, <0 46 4>, <0 47 4>;
 			reg = <0x0 0xff140000 0x1000>;
-			clocks = <&misc_clk>;
 			timer-width = <32>;
 		};
 
@@ -332,7 +296,6 @@
 			interrupts = <0 21 4>;
 			reg = <0x0 0xff000000 0x1000>;
 			clock-names = "uart_clk", "pclk";
-			clocks = <&misc_clk &misc_clk>;
 		};
 
 		uart1: serial@ff010000 {
@@ -342,7 +305,6 @@
 			interrupts = <0 22 4>;
 			reg = <0x0 0xff010000 0x1000>;
 			clock-names = "uart_clk", "pclk";
-			clocks = <&misc_clk &misc_clk>;
 		};
 
 		usb0: usb@fe200000 {
@@ -352,7 +314,6 @@
 			interrupts = <0 65 4>;
 			reg = <0x0 0xfe200000 0x40000>;
 			clock-names = "clk_xin", "clk_ahb";
-			clocks = <&misc_clk>, <&misc_clk>;
 		};
 
 		usb1: usb@fe300000 {
@@ -362,13 +323,11 @@
 			interrupts = <0 70 4>;
 			reg = <0x0 0xfe300000 0x40000>;
 			clock-names = "clk_xin", "clk_ahb";
-			clocks = <&misc_clk>, <&misc_clk>;
 		};
 
 		watchdog0: watchdog@fd4d0000 {
 			compatible = "cdns,wdt-r1p2";
 			status = "disabled";
-			clocks= <&misc_clk>;
 			interrupt-parent = <&gic>;
 			interrupts = <0 52 1>;
 			reg = <0x0 0xfd4d0000 0x1000>;

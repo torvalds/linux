@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2015        Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -29,7 +29,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2015        Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -156,7 +156,14 @@ static void iwl_mvm_create_skb(struct sk_buff *skb, struct ieee80211_hdr *hdr,
 			       u16 len, u8 crypt_len,
 			       struct iwl_rx_cmd_buffer *rxb)
 {
-	unsigned int hdrlen, fraglen;
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct iwl_rx_mpdu_desc *desc = (void *)pkt->data;
+	unsigned int headlen, fraglen, pad_len = 0;
+	unsigned int hdrlen = ieee80211_hdrlen(hdr->frame_control);
+
+	if (desc->mac_flags2 & IWL_RX_MPDU_MFLG2_PAD)
+		pad_len = 2;
+	len -= pad_len;
 
 	/* If frame is small enough to fit in skb->head, pull it completely.
 	 * If not, only pull ieee80211_hdr (including crypto if present, and
@@ -170,14 +177,23 @@ static void iwl_mvm_create_skb(struct sk_buff *skb, struct ieee80211_hdr *hdr,
 	 * If the latter changes (there are efforts in the standards group
 	 * to do so) we should revisit this and ieee80211_data_to_8023().
 	 */
-	hdrlen = (len <= skb_tailroom(skb)) ? len :
-					      sizeof(*hdr) + crypt_len + 8;
+	headlen = (len <= skb_tailroom(skb)) ? len :
+					       hdrlen + crypt_len + 8;
 
+	/* The firmware may align the packet to DWORD.
+	 * The padding is inserted after the IV.
+	 * After copying the header + IV skip the padding if
+	 * present before copying packet data.
+	 */
+	hdrlen += crypt_len;
 	memcpy(skb_put(skb, hdrlen), hdr, hdrlen);
-	fraglen = len - hdrlen;
+	memcpy(skb_put(skb, headlen - hdrlen), (u8 *)hdr + hdrlen + pad_len,
+	       headlen - hdrlen);
+
+	fraglen = len - headlen;
 
 	if (fraglen) {
-		int offset = (void *)hdr + hdrlen -
+		int offset = (void *)hdr + headlen + pad_len -
 			     rxb_addr(rxb) + rxb_offset(rxb);
 
 		skb_add_rx_frag(skb, 0, rxb_steal_page(rxb), offset,
@@ -201,25 +217,22 @@ static void iwl_mvm_get_signal_strength(struct iwl_mvm *mvm,
 					struct iwl_rx_mpdu_desc *desc,
 					struct ieee80211_rx_status *rx_status)
 {
-	int energy_a, energy_b, energy_c, max_energy;
+	int energy_a, energy_b, max_energy;
 
 	energy_a = desc->energy_a;
 	energy_a = energy_a ? -energy_a : S8_MIN;
 	energy_b = desc->energy_b;
 	energy_b = energy_b ? -energy_b : S8_MIN;
-	energy_c = desc->energy_c;
-	energy_c = energy_c ? -energy_c : S8_MIN;
 	max_energy = max(energy_a, energy_b);
-	max_energy = max(max_energy, energy_c);
 
-	IWL_DEBUG_STATS(mvm, "energy In A %d B %d C %d , and max %d\n",
-			energy_a, energy_b, energy_c, max_energy);
+	IWL_DEBUG_STATS(mvm, "energy In A %d B %d, and max %d\n",
+			energy_a, energy_b, max_energy);
 
 	rx_status->signal = max_energy;
 	rx_status->chains = 0; /* TODO: phy info */
 	rx_status->chain_signal[0] = energy_a;
 	rx_status->chain_signal[1] = energy_b;
-	rx_status->chain_signal[2] = energy_c;
+	rx_status->chain_signal[2] = S8_MIN;
 }
 
 static int iwl_mvm_rx_crypto(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
@@ -288,13 +301,121 @@ static void iwl_mvm_rx_csum(struct ieee80211_sta *sta,
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 }
 
+/*
+ * returns true if a packet outside BA session is a duplicate and
+ * should be dropped
+ */
+static bool iwl_mvm_is_nonagg_dup(struct ieee80211_sta *sta, int queue,
+				  struct ieee80211_rx_status *rx_status,
+				  struct ieee80211_hdr *hdr,
+				  struct iwl_rx_mpdu_desc *desc)
+{
+	struct iwl_mvm_sta *mvm_sta;
+	struct iwl_mvm_rxq_dup_data *dup_data;
+	u8 baid, tid, sub_frame_idx;
+
+	if (WARN_ON(IS_ERR_OR_NULL(sta)))
+		return false;
+
+	baid = (le32_to_cpu(desc->reorder_data) &
+		IWL_RX_MPDU_REORDER_BAID_MASK) >>
+		IWL_RX_MPDU_REORDER_BAID_SHIFT;
+
+	if (baid != IWL_RX_REORDER_DATA_INVALID_BAID)
+		return false;
+
+	mvm_sta = iwl_mvm_sta_from_mac80211(sta);
+	dup_data = &mvm_sta->dup_data[queue];
+
+	/*
+	 * Drop duplicate 802.11 retransmissions
+	 * (IEEE 802.11-2012: 9.3.2.10 "Duplicate detection and recovery")
+	 */
+	if (ieee80211_is_ctl(hdr->frame_control) ||
+	    ieee80211_is_qos_nullfunc(hdr->frame_control) ||
+	    is_multicast_ether_addr(hdr->addr1)) {
+		rx_status->flag |= RX_FLAG_DUP_VALIDATED;
+		return false;
+	}
+
+	if (ieee80211_is_data_qos(hdr->frame_control))
+		/* frame has qos control */
+		tid = *ieee80211_get_qos_ctl(hdr) &
+			IEEE80211_QOS_CTL_TID_MASK;
+	else
+		tid = IWL_MAX_TID_COUNT;
+
+	/* If this wasn't a part of an A-MSDU the sub-frame index will be 0 */
+	sub_frame_idx = desc->amsdu_info & IWL_RX_MPDU_AMSDU_SUBFRAME_IDX_MASK;
+
+	if (unlikely(ieee80211_has_retry(hdr->frame_control) &&
+		     dup_data->last_seq[tid] == hdr->seq_ctrl &&
+		     dup_data->last_sub_frame[tid] >= sub_frame_idx))
+		return true;
+
+	dup_data->last_seq[tid] = hdr->seq_ctrl;
+	dup_data->last_sub_frame[tid] = sub_frame_idx;
+
+	rx_status->flag |= RX_FLAG_DUP_VALIDATED;
+
+	return false;
+}
+
+int iwl_mvm_notify_rx_queue(struct iwl_mvm *mvm, u32 rxq_mask,
+			    const u8 *data, u32 count)
+{
+	struct iwl_rxq_sync_cmd *cmd;
+	u32 data_size = sizeof(*cmd) + count;
+	int ret;
+
+	/* should be DWORD aligned */
+	if (WARN_ON(count & 3 || count > IWL_MULTI_QUEUE_SYNC_MSG_MAX_SIZE))
+		return -EINVAL;
+
+	cmd = kzalloc(data_size, GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+
+	cmd->rxq_mask = cpu_to_le32(rxq_mask);
+	cmd->count =  cpu_to_le32(count);
+	cmd->flags = 0;
+	memcpy(cmd->payload, data, count);
+
+	ret = iwl_mvm_send_cmd_pdu(mvm,
+				   WIDE_ID(DATA_PATH_GROUP,
+					   TRIGGER_RX_QUEUES_NOTIF_CMD),
+				   0, data_size, cmd);
+
+	kfree(cmd);
+	return ret;
+}
+
+void iwl_mvm_rx_queue_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
+			    int queue)
+{
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct iwl_rxq_sync_notification *notif;
+	struct iwl_mvm_internal_rxq_notif *internal_notif;
+
+	notif = (void *)pkt->data;
+	internal_notif = (void *)notif->payload;
+
+	switch (internal_notif->type) {
+	case IWL_MVM_RXQ_NOTIF_DEL_BA:
+		/* TODO */
+		break;
+	default:
+		WARN_ONCE(1, "Invalid identifier %d", internal_notif->type);
+	}
+}
+
 void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 			struct iwl_rx_cmd_buffer *rxb, int queue)
 {
 	struct ieee80211_rx_status *rx_status;
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_rx_mpdu_desc *desc = (void *)pkt->data;
-	struct ieee80211_hdr *hdr = (void *)(desc + 1);
+	struct ieee80211_hdr *hdr = (void *)(pkt->data + sizeof(*desc));
 	u32 len = le16_to_cpu(desc->mpdu_len);
 	u32 rate_n_flags = le32_to_cpu(desc->rate_n_flags);
 	struct ieee80211_sta *sta = NULL;
@@ -335,6 +456,8 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 	rx_status->freq = ieee80211_channel_to_frequency(desc->channel,
 							 rx_status->band);
 	iwl_mvm_get_signal_strength(mvm, desc, rx_status);
+	/* TSF as indicated by the firmware is at INA time */
+	rx_status->flag |= RX_FLAG_MACTIME_PLCP_START;
 
 	rcu_read_lock();
 
@@ -390,6 +513,24 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 
 		if (ieee80211_is_data(hdr->frame_control))
 			iwl_mvm_rx_csum(sta, skb, desc);
+
+		if (iwl_mvm_is_nonagg_dup(sta, queue, rx_status, hdr, desc)) {
+			kfree_skb(skb);
+			rcu_read_unlock();
+			return;
+		}
+
+		/*
+		 * Our hardware de-aggregates AMSDUs but copies the mac header
+		 * as it to the de-aggregated MPDUs. We need to turn off the
+		 * AMSDU bit in the QoS control ourselves.
+		 */
+		if ((desc->mac_flags2 & IWL_RX_MPDU_MFLG2_AMSDU) &&
+		    !WARN_ON(!ieee80211_is_data_qos(hdr->frame_control))) {
+			u8 *qc = ieee80211_get_qos_ctl(hdr);
+
+			*qc &= ~IEEE80211_QOS_CTL_A_MSDU_PRESENT;
+		}
 	}
 
 	/*

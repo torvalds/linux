@@ -30,15 +30,7 @@
 #include "i915_drv.h"
 #include "intel_dsi.h"
 
-#define DSI_HSS_PACKET_SIZE		4
-#define DSI_HSE_PACKET_SIZE		4
-#define DSI_HSA_PACKET_EXTRA_SIZE	6
-#define DSI_HBP_PACKET_EXTRA_SIZE	6
-#define DSI_HACTIVE_PACKET_EXTRA_SIZE	6
-#define DSI_HFP_PACKET_EXTRA_SIZE	6
-#define DSI_EOTP_PACKET_SIZE		4
-
-static int dsi_pixel_format_bpp(int pixel_format)
+int dsi_pixel_format_bpp(int pixel_format)
 {
 	int bpp;
 
@@ -71,77 +63,6 @@ static const u32 lfsr_converts[] = {
 	71, 35, 273, 136, 324, 418, 465, 488, 500, 506		/* 91 - 100 */
 };
 
-#ifdef DSI_CLK_FROM_RR
-
-static u32 dsi_rr_formula(const struct drm_display_mode *mode,
-			  int pixel_format, int video_mode_format,
-			  int lane_count, bool eotp)
-{
-	u32 bpp;
-	u32 hactive, vactive, hfp, hsync, hbp, vfp, vsync, vbp;
-	u32 hsync_bytes, hbp_bytes, hactive_bytes, hfp_bytes;
-	u32 bytes_per_line, bytes_per_frame;
-	u32 num_frames;
-	u32 bytes_per_x_frames, bytes_per_x_frames_x_lanes;
-	u32 dsi_bit_clock_hz;
-	u32 dsi_clk;
-
-	bpp = dsi_pixel_format_bpp(pixel_format);
-
-	hactive = mode->hdisplay;
-	vactive = mode->vdisplay;
-	hfp = mode->hsync_start - mode->hdisplay;
-	hsync = mode->hsync_end - mode->hsync_start;
-	hbp = mode->htotal - mode->hsync_end;
-
-	vfp = mode->vsync_start - mode->vdisplay;
-	vsync = mode->vsync_end - mode->vsync_start;
-	vbp = mode->vtotal - mode->vsync_end;
-
-	hsync_bytes = DIV_ROUND_UP(hsync * bpp, 8);
-	hbp_bytes = DIV_ROUND_UP(hbp * bpp, 8);
-	hactive_bytes = DIV_ROUND_UP(hactive * bpp, 8);
-	hfp_bytes = DIV_ROUND_UP(hfp * bpp, 8);
-
-	bytes_per_line = DSI_HSS_PACKET_SIZE + hsync_bytes +
-		DSI_HSA_PACKET_EXTRA_SIZE + DSI_HSE_PACKET_SIZE +
-		hbp_bytes + DSI_HBP_PACKET_EXTRA_SIZE +
-		hactive_bytes + DSI_HACTIVE_PACKET_EXTRA_SIZE +
-		hfp_bytes + DSI_HFP_PACKET_EXTRA_SIZE;
-
-	/*
-	 * XXX: Need to accurately calculate LP to HS transition timeout and add
-	 * it to bytes_per_line/bytes_per_frame.
-	 */
-
-	if (eotp && video_mode_format == VIDEO_MODE_BURST)
-		bytes_per_line += DSI_EOTP_PACKET_SIZE;
-
-	bytes_per_frame = vsync * bytes_per_line + vbp * bytes_per_line +
-		vactive * bytes_per_line + vfp * bytes_per_line;
-
-	if (eotp &&
-	    (video_mode_format == VIDEO_MODE_NON_BURST_WITH_SYNC_PULSE ||
-	     video_mode_format == VIDEO_MODE_NON_BURST_WITH_SYNC_EVENTS))
-		bytes_per_frame += DSI_EOTP_PACKET_SIZE;
-
-	num_frames = drm_mode_vrefresh(mode);
-	bytes_per_x_frames = num_frames * bytes_per_frame;
-
-	bytes_per_x_frames_x_lanes = bytes_per_x_frames / lane_count;
-
-	/* the dsi clock is divided by 2 in the hardware to get dsi ddr clock */
-	dsi_bit_clock_hz = bytes_per_x_frames_x_lanes * 8;
-	dsi_clk = dsi_bit_clock_hz / 1000;
-
-	if (eotp && video_mode_format == VIDEO_MODE_BURST)
-		dsi_clk *= 2;
-
-	return dsi_clk;
-}
-
-#else
-
 /* Get DSI clock from pixel clock */
 static u32 dsi_clk_from_pclk(u32 pclk, int pixel_format, int lane_count)
 {
@@ -154,8 +75,6 @@ static u32 dsi_clk_from_pclk(u32 pclk, int pixel_format, int lane_count)
 
 	return dsi_clk_khz;
 }
-
-#endif
 
 static int dsi_calc_mnp(struct drm_i915_private *dev_priv,
 			struct dsi_mnp *dsi_mnp, int target_dsi_clk)
@@ -322,7 +241,7 @@ static void assert_bpp_mismatch(int pixel_format, int pipe_bpp)
 	     bpp, pipe_bpp);
 }
 
-u32 vlv_get_dsi_pclk(struct intel_encoder *encoder, int pipe_bpp)
+static u32 vlv_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
@@ -384,7 +303,7 @@ u32 vlv_get_dsi_pclk(struct intel_encoder *encoder, int pipe_bpp)
 	return pclk;
 }
 
-u32 bxt_get_dsi_pclk(struct intel_encoder *encoder, int pipe_bpp)
+static u32 bxt_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp)
 {
 	u32 pclk;
 	u32 dsi_clk;
@@ -417,6 +336,14 @@ u32 bxt_get_dsi_pclk(struct intel_encoder *encoder, int pipe_bpp)
 
 	DRM_DEBUG_DRIVER("Calculated pclk=%u\n", pclk);
 	return pclk;
+}
+
+u32 intel_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp)
+{
+	if (IS_BROXTON(encoder->base.dev))
+		return bxt_dsi_get_pclk(encoder, pipe_bpp);
+	else
+		return vlv_dsi_get_pclk(encoder, pipe_bpp);
 }
 
 static void vlv_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)

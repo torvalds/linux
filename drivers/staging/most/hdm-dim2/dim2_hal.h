@@ -16,6 +16,7 @@
 #define _DIM2_HAL_H
 
 #include <linux/types.h>
+#include "dim2_reg.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -65,7 +66,7 @@ struct dim_channel {
 	u16 done_sw_buffers_number; /*< Done software buffers number. */
 };
 
-u8 dim_startup(void *dim_base_address, u32 mlb_clock);
+u8 dim_startup(struct dim2_regs __iomem *dim_base_address, u32 mlb_clock);
 
 void dim_shutdown(void);
 
@@ -103,9 +104,9 @@ bool dim_enqueue_buffer(struct dim_channel *ch, u32 buffer_addr,
 
 bool dim_detach_buffers(struct dim_channel *ch, u16 buffers_number);
 
-u32 dimcb_io_read(u32 *ptr32);
+u32 dimcb_io_read(u32 __iomem *ptr32);
 
-void dimcb_io_write(u32 *ptr32, u32 value);
+void dimcb_io_write(u32 __iomem *ptr32, u32 value);
 
 void dimcb_on_error(u8 error_id, const char *error_message);
 

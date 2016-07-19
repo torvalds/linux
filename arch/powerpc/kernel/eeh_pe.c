@@ -299,7 +299,10 @@ static struct eeh_pe *eeh_pe_get_parent(struct eeh_dev *edev)
 	 * EEH device already having associated PE, but
 	 * the direct parent EEH device doesn't have yet.
 	 */
-	pdn = pdn ? pdn->parent : NULL;
+	if (edev->physfn)
+		pdn = pci_get_pdn(edev->physfn);
+	else
+		pdn = pdn ? pdn->parent : NULL;
 	while (pdn) {
 		/* We're poking out of PCI territory */
 		parent = pdn_to_eeh_dev(pdn);
@@ -382,7 +385,10 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 	}
 
 	/* Create a new EEH PE */
-	pe = eeh_pe_alloc(edev->phb, EEH_PE_DEVICE);
+	if (edev->physfn)
+		pe = eeh_pe_alloc(edev->phb, EEH_PE_VF);
+	else
+		pe = eeh_pe_alloc(edev->phb, EEH_PE_DEVICE);
 	if (!pe) {
 		pr_err("%s: out of memory!\n", __func__);
 		return -ENOMEM;
@@ -920,25 +926,21 @@ const char *eeh_pe_loc_get(struct eeh_pe *pe)
  */
 struct pci_bus *eeh_pe_bus_get(struct eeh_pe *pe)
 {
-	struct pci_bus *bus = NULL;
 	struct eeh_dev *edev;
 	struct pci_dev *pdev;
 
-	if (pe->type & EEH_PE_PHB) {
-		bus = pe->phb->bus;
-	} else if (pe->type & EEH_PE_BUS ||
-		   pe->type & EEH_PE_DEVICE) {
-		if (pe->state & EEH_PE_PRI_BUS) {
-			bus = pe->bus;
-			goto out;
-		}
+	if (pe->type & EEH_PE_PHB)
+		return pe->phb->bus;
 
-		edev = list_first_entry(&pe->edevs, struct eeh_dev, list);
-		pdev = eeh_dev_to_pci_dev(edev);
-		if (pdev)
-			bus = pdev->bus;
-	}
+	/* The primary bus might be cached during probe time */
+	if (pe->state & EEH_PE_PRI_BUS)
+		return pe->bus;
 
-out:
-	return bus;
+	/* Retrieve the parent PCI bus of first (top) PCI device */
+	edev = list_first_entry_or_null(&pe->edevs, struct eeh_dev, list);
+	pdev = eeh_dev_to_pci_dev(edev);
+	if (pdev)
+		return pdev->bus;
+
+	return NULL;
 }

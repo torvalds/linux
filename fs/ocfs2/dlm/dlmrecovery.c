@@ -1403,12 +1403,24 @@ int dlm_mig_lockres_handler(struct o2net_msg *msg, u32 len, void *data,
 	 * and RECOVERY flag changed when it completes. */
 	hash = dlm_lockid_hash(mres->lockname, mres->lockname_len);
 	spin_lock(&dlm->spinlock);
-	res = __dlm_lookup_lockres(dlm, mres->lockname, mres->lockname_len,
+	res = __dlm_lookup_lockres_full(dlm, mres->lockname, mres->lockname_len,
 			hash);
 	if (res) {
 	 	/* this will get a ref on res */
 		/* mark it as recovering/migrating and hash it */
 		spin_lock(&res->spinlock);
+		if (res->state & DLM_LOCK_RES_DROPPING_REF) {
+			mlog(0, "%s: node is attempting to migrate "
+				"lockres %.*s, but marked as dropping "
+				" ref!\n", dlm->name,
+				mres->lockname_len, mres->lockname);
+			ret = -EINVAL;
+			spin_unlock(&res->spinlock);
+			spin_unlock(&dlm->spinlock);
+			dlm_lockres_put(res);
+			goto leave;
+		}
+
 		if (mres->flags & DLM_MRES_RECOVERY) {
 			res->state |= DLM_LOCK_RES_RECOVERING;
 		} else {
@@ -2071,7 +2083,6 @@ void dlm_move_lockres_to_recovery_list(struct dlm_ctxt *dlm,
 			dlm_lock_get(lock);
 			if (lock->convert_pending) {
 				/* move converting lock back to granted */
-				BUG_ON(i != DLM_CONVERTING_LIST);
 				mlog(0, "node died with convert pending "
 				     "on %.*s. move back to granted list.\n",
 				     res->lockname.len, res->lockname.name);
@@ -2163,6 +2174,13 @@ static void dlm_finish_local_lockres_recovery(struct dlm_ctxt *dlm,
 	for (i = 0; i < DLM_HASH_BUCKETS; i++) {
 		bucket = dlm_lockres_hash(dlm, i);
 		hlist_for_each_entry(res, bucket, hash_node) {
+			if (res->state & DLM_LOCK_RES_RECOVERY_WAITING) {
+				spin_lock(&res->spinlock);
+				res->state &= ~DLM_LOCK_RES_RECOVERY_WAITING;
+				spin_unlock(&res->spinlock);
+				wake_up(&res->wq);
+			}
+
 			if (!(res->state & DLM_LOCK_RES_RECOVERING))
 				continue;
 
@@ -2300,6 +2318,7 @@ static void dlm_free_dead_locks(struct dlm_ctxt *dlm,
 			     res->lockname.len, res->lockname.name, freed, dead_node);
 			__dlm_print_one_lock_resource(res);
 		}
+		res->state |= DLM_LOCK_RES_RECOVERY_WAITING;
 		dlm_lockres_clear_refmap_bit(dlm, res, dead_node);
 	} else if (test_bit(dead_node, res->refmap)) {
 		mlog(0, "%s:%.*s: dead node %u had a ref, but had "
@@ -2377,14 +2396,16 @@ static void dlm_do_local_recovery_cleanup(struct dlm_ctxt *dlm, u8 dead_node)
 			dlm_revalidate_lvb(dlm, res, dead_node);
 			if (res->owner == dead_node) {
 				if (res->state & DLM_LOCK_RES_DROPPING_REF) {
-					mlog(ML_NOTICE, "%s: res %.*s, Skip "
-					     "recovery as it is being freed\n",
-					     dlm->name, res->lockname.len,
-					     res->lockname.name);
-				} else
-					dlm_move_lockres_to_recovery_list(dlm,
-									  res);
-
+					mlog(0, "%s:%.*s: owned by "
+						"dead node %u, this node was "
+						"dropping its ref when it died. "
+						"continue, dropping the flag.\n",
+						dlm->name, res->lockname.len,
+						res->lockname.name, dead_node);
+				}
+				res->state &= ~DLM_LOCK_RES_DROPPING_REF;
+				dlm_move_lockres_to_recovery_list(dlm,
+						res);
 			} else if (res->owner == dlm->node_num) {
 				dlm_free_dead_locks(dlm, res, dead_node);
 				__dlm_lockres_calc_usage(dlm, res);

@@ -17,6 +17,7 @@ config ARC
 	select GENERIC_FIND_FIRST_BIT
 	# for now, we don't need GENERIC_IRQ_PROBE, CONFIG_GENERIC_IRQ_CHIP
 	select GENERIC_IRQ_SHOW
+	select GENERIC_PCI_IOMAP
 	select GENERIC_PENDING_IRQ if SMP
 	select GENERIC_SMP_IDLE_THREAD
 	select HAVE_ARCH_KGDB
@@ -34,8 +35,13 @@ config ARC
 	select NO_BOOTMEM
 	select OF
 	select OF_EARLY_FLATTREE
+	select OF_RESERVED_MEM
 	select PERF_USE_VMALLOC
 	select HAVE_DEBUG_STACKOVERFLOW
+	select HAVE_GENERIC_DMA_COHERENT
+
+config MIGHT_HAVE_PCI
+	bool
 
 config TRACE_IRQFLAGS_SUPPORT
 	def_bool y
@@ -50,6 +56,9 @@ config GENERIC_CSUM
 	def_bool y
 
 config RWSEM_GENERIC_SPINLOCK
+	def_bool y
+
+config ARCH_DISCONTIGMEM_ENABLE
 	def_bool y
 
 config ARCH_FLATMEM_ENABLE
@@ -341,6 +350,15 @@ config ARC_HUGEPAGE_16M
 
 endchoice
 
+config NODES_SHIFT
+	int "Maximum NUMA Nodes (as a power of 2)"
+	default "1" if !DISCONTIGMEM
+	default "2" if DISCONTIGMEM
+	depends on NEED_MULTIPLE_NODES
+	---help---
+	  Accessing memory beyond 1GB (with or w/o PAE) requires 2 memory
+	  zones.
+
 if ISA_ARCOMPACT
 
 config ARC_COMPACT_IRQ_LEVELS
@@ -387,7 +405,7 @@ config ARC_HAS_LLSC
 
 config ARC_STAR_9000923308
 	bool "Workaround for llock/scond livelock"
-	default y
+	default n
 	depends on ISA_ARCV2 && SMP && ARC_HAS_LLSC
 
 config ARC_HAS_SWAPE
@@ -449,6 +467,7 @@ config LINUX_LINK_BASE
 
 config HIGHMEM
 	bool "High Memory Support"
+	select DISCONTIGMEM
 	help
 	  With ARC 2G:2G address split, only upper 2G is directly addressable by
 	  kernel. Enable this to potentially allow access to rest of 2G and PAE
@@ -458,7 +477,6 @@ config ARC_HAS_PAE40
 	bool "Support for the 40-bit Physical Address Extension"
 	default n
 	depends on ISA_ARCV2
-	select HIGHMEM
 	help
 	  Enable access to physical memory beyond 4G, only supported on
 	  ARC cores with 40 bit Physical Addressing support
@@ -467,6 +485,9 @@ config ARCH_PHYS_ADDR_T_64BIT
 	def_bool ARC_HAS_PAE40
 
 config ARCH_DMA_ADDR_T_64BIT
+	bool
+
+config ARC_PLAT_NEEDS_PHYS_TO_DMA
 	bool
 
 config ARC_CURR_IN_REG
@@ -569,6 +590,27 @@ config FORCE_MAX_ZONEORDER
 
 source "net/Kconfig"
 source "drivers/Kconfig"
+
+menu "Bus Support"
+
+config PCI
+	bool "PCI support" if MIGHT_HAVE_PCI
+	help
+	  PCI is the name of a bus system, i.e., the way the CPU talks to
+	  the other stuff inside your box.  Find out if your board/platform
+	  has PCI.
+
+	  Note: PCIe support for Synopsys Device will be available only
+	  when HAPS DX is configured with PCIe RC bitmap. If you have PCI,
+	  say Y, otherwise N.
+
+config PCI_SYSCALL
+	def_bool PCI
+
+source "drivers/pci/Kconfig"
+
+endmenu
+
 source "fs/Kconfig"
 source "arch/arc/Kconfig.debug"
 source "security/Kconfig"

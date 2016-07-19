@@ -1,12 +1,11 @@
 #ifdef CONFIG_DEBUG_FS
 /*
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
  * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -18,8 +17,6 @@
  * General Public License for more details.
  *
  * BSD LICENSE
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -52,6 +49,7 @@
 #include <linux/seq_file.h>
 #include <linux/kernel.h>
 #include <linux/export.h>
+#include <linux/module.h>
 
 #include "hfi.h"
 #include "debugfs.h"
@@ -71,6 +69,7 @@ static const struct seq_operations _##name##_seq_ops = { \
 	.stop  = _##name##_seq_stop, \
 	.show  = _##name##_seq_show \
 }
+
 #define DEBUGFS_SEQ_FILE_OPEN(name) \
 static int _##name##_open(struct inode *inode, struct file *s) \
 { \
@@ -102,7 +101,6 @@ do { \
 		pr_warn("create of %s failed\n", name); \
 } while (0)
 
-
 #define DEBUGFS_SEQ_FILE_CREATE(name, parent, data) \
 	DEBUGFS_FILE_CREATE(#name, parent, data, &_##name##_file_ops, S_IRUGO)
 
@@ -127,7 +125,6 @@ static void *_opcode_stats_seq_next(struct seq_file *s, void *v, loff_t *pos)
 	return pos;
 }
 
-
 static void _opcode_stats_seq_stop(struct seq_file *s, void *v)
 __releases(RCU)
 {
@@ -151,8 +148,8 @@ static int _opcode_stats_seq_show(struct seq_file *s, void *v)
 	if (!n_packets && !n_bytes)
 		return SEQ_SKIP;
 	seq_printf(s, "%02llx %llu/%llu\n", i,
-		(unsigned long long) n_packets,
-		(unsigned long long) n_bytes);
+		   (unsigned long long)n_packets,
+		   (unsigned long long)n_bytes);
 
 	return 0;
 }
@@ -247,7 +244,7 @@ __acquires(RCU)
 }
 
 static void *_qp_stats_seq_next(struct seq_file *s, void *iter_ptr,
-				   loff_t *pos)
+				loff_t *pos)
 {
 	struct qp_iter *iter = iter_ptr;
 
@@ -308,7 +305,6 @@ static void *_sdes_seq_next(struct seq_file *s, void *v, loff_t *pos)
 	return pos;
 }
 
-
 static void _sdes_seq_stop(struct seq_file *s, void *v)
 __releases(RCU)
 {
@@ -341,7 +337,7 @@ static ssize_t dev_counters_read(struct file *file, char __user *buf,
 
 	rcu_read_lock();
 	dd = private2dd(file);
-	avail = hfi1_read_cntrs(dd, *ppos, NULL, &counters);
+	avail = hfi1_read_cntrs(dd, NULL, &counters);
 	rval =  simple_read_from_buffer(buf, count, ppos, counters, avail);
 	rcu_read_unlock();
 	return rval;
@@ -358,7 +354,7 @@ static ssize_t dev_names_read(struct file *file, char __user *buf,
 
 	rcu_read_lock();
 	dd = private2dd(file);
-	avail = hfi1_read_cntrs(dd, *ppos, &names, NULL);
+	avail = hfi1_read_cntrs(dd, &names, NULL);
 	rval =  simple_read_from_buffer(buf, count, ppos, names, avail);
 	rcu_read_unlock();
 	return rval;
@@ -385,8 +381,7 @@ static ssize_t portnames_read(struct file *file, char __user *buf,
 
 	rcu_read_lock();
 	dd = private2dd(file);
-	/* port number n/a here since names are constant */
-	avail = hfi1_read_portcntrs(dd, *ppos, 0, &names, NULL);
+	avail = hfi1_read_portcntrs(dd->pport, &names, NULL);
 	rval = simple_read_from_buffer(buf, count, ppos, names, avail);
 	rcu_read_unlock();
 	return rval;
@@ -394,28 +389,150 @@ static ssize_t portnames_read(struct file *file, char __user *buf,
 
 /* read the per-port counters */
 static ssize_t portcntrs_debugfs_read(struct file *file, char __user *buf,
-				size_t count, loff_t *ppos)
+				      size_t count, loff_t *ppos)
 {
 	u64 *counters;
 	size_t avail;
-	struct hfi1_devdata *dd;
 	struct hfi1_pportdata *ppd;
 	ssize_t rval;
 
 	rcu_read_lock();
 	ppd = private2ppd(file);
-	dd = ppd->dd;
-	avail = hfi1_read_portcntrs(dd, *ppos, ppd->port - 1, NULL, &counters);
+	avail = hfi1_read_portcntrs(ppd, NULL, &counters);
 	rval = simple_read_from_buffer(buf, count, ppos, counters, avail);
 	rcu_read_unlock();
 	return rval;
+}
+
+static void check_dyn_flag(u64 scratch0, char *p, int size, int *used,
+			   int this_hfi, int hfi, u32 flag, const char *what)
+{
+	u32 mask;
+
+	mask = flag << (hfi ? CR_DYN_SHIFT : 0);
+	if (scratch0 & mask) {
+		*used += scnprintf(p + *used, size - *used,
+				   "  0x%08x - HFI%d %s in use, %s device\n",
+				   mask, hfi, what,
+				   this_hfi == hfi ? "this" : "other");
+	}
+}
+
+static ssize_t asic_flags_read(struct file *file, char __user *buf,
+			       size_t count, loff_t *ppos)
+{
+	struct hfi1_pportdata *ppd;
+	struct hfi1_devdata *dd;
+	u64 scratch0;
+	char *tmp;
+	int ret = 0;
+	int size;
+	int used;
+	int i;
+
+	rcu_read_lock();
+	ppd = private2ppd(file);
+	dd = ppd->dd;
+	size = PAGE_SIZE;
+	used = 0;
+	tmp = kmalloc(size, GFP_KERNEL);
+	if (!tmp) {
+		rcu_read_unlock();
+		return -ENOMEM;
+	}
+
+	scratch0 = read_csr(dd, ASIC_CFG_SCRATCH);
+	used += scnprintf(tmp + used, size - used,
+			  "Resource flags: 0x%016llx\n", scratch0);
+
+	/* check permanent flag */
+	if (scratch0 & CR_THERM_INIT) {
+		used += scnprintf(tmp + used, size - used,
+				  "  0x%08x - thermal monitoring initialized\n",
+				  (u32)CR_THERM_INIT);
+	}
+
+	/* check each dynamic flag on each HFI */
+	for (i = 0; i < 2; i++) {
+		check_dyn_flag(scratch0, tmp, size, &used, dd->hfi1_id, i,
+			       CR_SBUS, "SBus");
+		check_dyn_flag(scratch0, tmp, size, &used, dd->hfi1_id, i,
+			       CR_EPROM, "EPROM");
+		check_dyn_flag(scratch0, tmp, size, &used, dd->hfi1_id, i,
+			       CR_I2C1, "i2c chain 1");
+		check_dyn_flag(scratch0, tmp, size, &used, dd->hfi1_id, i,
+			       CR_I2C2, "i2c chain 2");
+	}
+	used += scnprintf(tmp + used, size - used, "Write bits to clear\n");
+
+	ret = simple_read_from_buffer(buf, count, ppos, tmp, used);
+	rcu_read_unlock();
+	kfree(tmp);
+	return ret;
+}
+
+static ssize_t asic_flags_write(struct file *file, const char __user *buf,
+				size_t count, loff_t *ppos)
+{
+	struct hfi1_pportdata *ppd;
+	struct hfi1_devdata *dd;
+	char *buff;
+	int ret;
+	unsigned long long value;
+	u64 scratch0;
+	u64 clear;
+
+	rcu_read_lock();
+	ppd = private2ppd(file);
+	dd = ppd->dd;
+
+	buff = kmalloc(count + 1, GFP_KERNEL);
+	if (!buff) {
+		ret = -ENOMEM;
+		goto do_return;
+	}
+
+	ret = copy_from_user(buff, buf, count);
+	if (ret > 0) {
+		ret = -EFAULT;
+		goto do_free;
+	}
+
+	/* zero terminate and read the expected integer */
+	buff[count] = 0;
+	ret = kstrtoull(buff, 0, &value);
+	if (ret)
+		goto do_free;
+	clear = value;
+
+	/* obtain exclusive access */
+	mutex_lock(&dd->asic_data->asic_resource_mutex);
+	acquire_hw_mutex(dd);
+
+	scratch0 = read_csr(dd, ASIC_CFG_SCRATCH);
+	scratch0 &= ~clear;
+	write_csr(dd, ASIC_CFG_SCRATCH, scratch0);
+	/* force write to be visible to other HFI on another OS */
+	(void)read_csr(dd, ASIC_CFG_SCRATCH);
+
+	release_hw_mutex(dd);
+	mutex_unlock(&dd->asic_data->asic_resource_mutex);
+
+	/* return the number of bytes written */
+	ret = count;
+
+ do_free:
+	kfree(buff);
+ do_return:
+	rcu_read_unlock();
+	return ret;
 }
 
 /*
  * read the per-port QSFP data for ppd
  */
 static ssize_t qsfp_debugfs_dump(struct file *file, char __user *buf,
-			   size_t count, loff_t *ppos)
+				 size_t count, loff_t *ppos)
 {
 	struct hfi1_pportdata *ppd;
 	char *tmp;
@@ -439,7 +556,7 @@ static ssize_t qsfp_debugfs_dump(struct file *file, char __user *buf,
 
 /* Do an i2c write operation on the chain for the given HFI. */
 static ssize_t __i2c_debugfs_write(struct file *file, const char __user *buf,
-			   size_t count, loff_t *ppos, u32 target)
+				   size_t count, loff_t *ppos, u32 target)
 {
 	struct hfi1_pportdata *ppd;
 	char *buff;
@@ -450,6 +567,16 @@ static ssize_t __i2c_debugfs_write(struct file *file, const char __user *buf,
 
 	rcu_read_lock();
 	ppd = private2ppd(file);
+
+	/* byte offset format: [offsetSize][i2cAddr][offsetHigh][offsetLow] */
+	i2c_addr = (*ppos >> 16) & 0xffff;
+	offset = *ppos & 0xffff;
+
+	/* explicitly reject invalid address 0 to catch cp and cat */
+	if (i2c_addr == 0) {
+		ret = -EINVAL;
+		goto _return;
+	}
 
 	buff = kmalloc(count, GFP_KERNEL);
 	if (!buff) {
@@ -462,9 +589,6 @@ static ssize_t __i2c_debugfs_write(struct file *file, const char __user *buf,
 		ret = -EFAULT;
 		goto _free;
 	}
-
-	i2c_addr = (*ppos >> 16) & 0xff;
-	offset = *ppos & 0xffff;
 
 	total_written = i2c_write(ppd, target, i2c_addr, offset, buff, count);
 	if (total_written < 0) {
@@ -485,21 +609,21 @@ static ssize_t __i2c_debugfs_write(struct file *file, const char __user *buf,
 
 /* Do an i2c write operation on chain for HFI 0. */
 static ssize_t i2c1_debugfs_write(struct file *file, const char __user *buf,
-			   size_t count, loff_t *ppos)
+				  size_t count, loff_t *ppos)
 {
 	return __i2c_debugfs_write(file, buf, count, ppos, 0);
 }
 
 /* Do an i2c write operation on chain for HFI 1. */
 static ssize_t i2c2_debugfs_write(struct file *file, const char __user *buf,
-			   size_t count, loff_t *ppos)
+				  size_t count, loff_t *ppos)
 {
 	return __i2c_debugfs_write(file, buf, count, ppos, 1);
 }
 
 /* Do an i2c read operation on the chain for the given HFI. */
 static ssize_t __i2c_debugfs_read(struct file *file, char __user *buf,
-			size_t count, loff_t *ppos, u32 target)
+				  size_t count, loff_t *ppos, u32 target)
 {
 	struct hfi1_pportdata *ppd;
 	char *buff;
@@ -511,14 +635,21 @@ static ssize_t __i2c_debugfs_read(struct file *file, char __user *buf,
 	rcu_read_lock();
 	ppd = private2ppd(file);
 
+	/* byte offset format: [offsetSize][i2cAddr][offsetHigh][offsetLow] */
+	i2c_addr = (*ppos >> 16) & 0xffff;
+	offset = *ppos & 0xffff;
+
+	/* explicitly reject invalid address 0 to catch cp and cat */
+	if (i2c_addr == 0) {
+		ret = -EINVAL;
+		goto _return;
+	}
+
 	buff = kmalloc(count, GFP_KERNEL);
 	if (!buff) {
 		ret = -ENOMEM;
 		goto _return;
 	}
-
-	i2c_addr = (*ppos >> 16) & 0xff;
-	offset = *ppos & 0xffff;
 
 	total_read = i2c_read(ppd, target, i2c_addr, offset, buff, count);
 	if (total_read < 0) {
@@ -545,21 +676,21 @@ static ssize_t __i2c_debugfs_read(struct file *file, char __user *buf,
 
 /* Do an i2c read operation on chain for HFI 0. */
 static ssize_t i2c1_debugfs_read(struct file *file, char __user *buf,
-			size_t count, loff_t *ppos)
+				 size_t count, loff_t *ppos)
 {
 	return __i2c_debugfs_read(file, buf, count, ppos, 0);
 }
 
 /* Do an i2c read operation on chain for HFI 1. */
 static ssize_t i2c2_debugfs_read(struct file *file, char __user *buf,
-			size_t count, loff_t *ppos)
+				 size_t count, loff_t *ppos)
 {
 	return __i2c_debugfs_read(file, buf, count, ppos, 1);
 }
 
 /* Do a QSFP write operation on the i2c chain for the given HFI. */
 static ssize_t __qsfp_debugfs_write(struct file *file, const char __user *buf,
-			   size_t count, loff_t *ppos, u32 target)
+				    size_t count, loff_t *ppos, u32 target)
 {
 	struct hfi1_pportdata *ppd;
 	char *buff;
@@ -605,21 +736,21 @@ static ssize_t __qsfp_debugfs_write(struct file *file, const char __user *buf,
 
 /* Do a QSFP write operation on i2c chain for HFI 0. */
 static ssize_t qsfp1_debugfs_write(struct file *file, const char __user *buf,
-			   size_t count, loff_t *ppos)
+				   size_t count, loff_t *ppos)
 {
 	return __qsfp_debugfs_write(file, buf, count, ppos, 0);
 }
 
 /* Do a QSFP write operation on i2c chain for HFI 1. */
 static ssize_t qsfp2_debugfs_write(struct file *file, const char __user *buf,
-			   size_t count, loff_t *ppos)
+				   size_t count, loff_t *ppos)
 {
 	return __qsfp_debugfs_write(file, buf, count, ppos, 1);
 }
 
 /* Do a QSFP read operation on the i2c chain for the given HFI. */
 static ssize_t __qsfp_debugfs_read(struct file *file, char __user *buf,
-			size_t count, loff_t *ppos, u32 target)
+				   size_t count, loff_t *ppos, u32 target)
 {
 	struct hfi1_pportdata *ppd;
 	char *buff;
@@ -665,16 +796,114 @@ static ssize_t __qsfp_debugfs_read(struct file *file, char __user *buf,
 
 /* Do a QSFP read operation on i2c chain for HFI 0. */
 static ssize_t qsfp1_debugfs_read(struct file *file, char __user *buf,
-			size_t count, loff_t *ppos)
+				  size_t count, loff_t *ppos)
 {
 	return __qsfp_debugfs_read(file, buf, count, ppos, 0);
 }
 
 /* Do a QSFP read operation on i2c chain for HFI 1. */
 static ssize_t qsfp2_debugfs_read(struct file *file, char __user *buf,
-			size_t count, loff_t *ppos)
+				  size_t count, loff_t *ppos)
 {
 	return __qsfp_debugfs_read(file, buf, count, ppos, 1);
+}
+
+static int __i2c_debugfs_open(struct inode *in, struct file *fp, u32 target)
+{
+	struct hfi1_pportdata *ppd;
+	int ret;
+
+	if (!try_module_get(THIS_MODULE))
+		return -ENODEV;
+
+	ppd = private2ppd(fp);
+
+	ret = acquire_chip_resource(ppd->dd, i2c_target(target), 0);
+	if (ret) /* failed - release the module */
+		module_put(THIS_MODULE);
+
+	return ret;
+}
+
+static int i2c1_debugfs_open(struct inode *in, struct file *fp)
+{
+	return __i2c_debugfs_open(in, fp, 0);
+}
+
+static int i2c2_debugfs_open(struct inode *in, struct file *fp)
+{
+	return __i2c_debugfs_open(in, fp, 1);
+}
+
+static int __i2c_debugfs_release(struct inode *in, struct file *fp, u32 target)
+{
+	struct hfi1_pportdata *ppd;
+
+	ppd = private2ppd(fp);
+
+	release_chip_resource(ppd->dd, i2c_target(target));
+	module_put(THIS_MODULE);
+
+	return 0;
+}
+
+static int i2c1_debugfs_release(struct inode *in, struct file *fp)
+{
+	return __i2c_debugfs_release(in, fp, 0);
+}
+
+static int i2c2_debugfs_release(struct inode *in, struct file *fp)
+{
+	return __i2c_debugfs_release(in, fp, 1);
+}
+
+static int __qsfp_debugfs_open(struct inode *in, struct file *fp, u32 target)
+{
+	struct hfi1_pportdata *ppd;
+	int ret;
+
+	if (!try_module_get(THIS_MODULE))
+		return -ENODEV;
+
+	ppd = private2ppd(fp);
+
+	ret = acquire_chip_resource(ppd->dd, i2c_target(target), 0);
+	if (ret) /* failed - release the module */
+		module_put(THIS_MODULE);
+
+	return ret;
+}
+
+static int qsfp1_debugfs_open(struct inode *in, struct file *fp)
+{
+	return __qsfp_debugfs_open(in, fp, 0);
+}
+
+static int qsfp2_debugfs_open(struct inode *in, struct file *fp)
+{
+	return __qsfp_debugfs_open(in, fp, 1);
+}
+
+static int __qsfp_debugfs_release(struct inode *in, struct file *fp, u32 target)
+{
+	struct hfi1_pportdata *ppd;
+
+	ppd = private2ppd(fp);
+
+	release_chip_resource(ppd->dd, i2c_target(target));
+	module_put(THIS_MODULE);
+
+	return 0;
+}
+
+static int qsfp1_debugfs_release(struct inode *in, struct file *fp)
+{
+	return __qsfp_debugfs_release(in, fp, 0);
+}
+
+static int qsfp2_debugfs_release(struct inode *in, struct file *fp)
+{
+	return __qsfp_debugfs_release(in, fp, 1);
 }
 
 #define DEBUGFS_OPS(nm, readroutine, writeroutine)	\
@@ -687,6 +916,18 @@ static ssize_t qsfp2_debugfs_read(struct file *file, char __user *buf,
 	}, \
 }
 
+#define DEBUGFS_XOPS(nm, readf, writef, openf, releasef) \
+{ \
+	.name = nm, \
+	.ops = { \
+		.read = readf, \
+		.write = writef, \
+		.llseek = generic_file_llseek, \
+		.open = openf, \
+		.release = releasef \
+	}, \
+}
+
 static const struct counter_info cntr_ops[] = {
 	DEBUGFS_OPS("counter_names", dev_names_read, NULL),
 	DEBUGFS_OPS("counters", dev_counters_read, NULL),
@@ -695,11 +936,16 @@ static const struct counter_info cntr_ops[] = {
 
 static const struct counter_info port_cntr_ops[] = {
 	DEBUGFS_OPS("port%dcounters", portcntrs_debugfs_read, NULL),
-	DEBUGFS_OPS("i2c1", i2c1_debugfs_read, i2c1_debugfs_write),
-	DEBUGFS_OPS("i2c2", i2c2_debugfs_read, i2c2_debugfs_write),
+	DEBUGFS_XOPS("i2c1", i2c1_debugfs_read, i2c1_debugfs_write,
+		     i2c1_debugfs_open, i2c1_debugfs_release),
+	DEBUGFS_XOPS("i2c2", i2c2_debugfs_read, i2c2_debugfs_write,
+		     i2c2_debugfs_open, i2c2_debugfs_release),
 	DEBUGFS_OPS("qsfp_dump%d", qsfp_debugfs_dump, NULL),
-	DEBUGFS_OPS("qsfp1", qsfp1_debugfs_read, qsfp1_debugfs_write),
-	DEBUGFS_OPS("qsfp2", qsfp2_debugfs_read, qsfp2_debugfs_write),
+	DEBUGFS_XOPS("qsfp1", qsfp1_debugfs_read, qsfp1_debugfs_write,
+		     qsfp1_debugfs_open, qsfp1_debugfs_release),
+	DEBUGFS_XOPS("qsfp2", qsfp2_debugfs_read, qsfp2_debugfs_write,
+		     qsfp2_debugfs_open, qsfp2_debugfs_release),
+	DEBUGFS_OPS("asic_flags", asic_flags_read, asic_flags_write),
 };
 
 void hfi1_dbg_ibdev_init(struct hfi1_ibdev *ibd)
@@ -747,8 +993,8 @@ void hfi1_dbg_ibdev_init(struct hfi1_ibdev *ibd)
 					    ibd->hfi1_ibdev_dbg,
 					    ppd,
 					    &port_cntr_ops[i].ops,
-					    port_cntr_ops[i].ops.write == NULL ?
-					    S_IRUGO : S_IRUGO|S_IWUSR);
+					    !port_cntr_ops[i].ops.write ?
+					    S_IRUGO : S_IRUGO | S_IWUSR);
 		}
 }
 

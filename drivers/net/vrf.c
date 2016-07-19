@@ -32,7 +32,6 @@
 #include <net/ip_fib.h>
 #include <net/ip6_fib.h>
 #include <net/ip6_route.h>
-#include <net/rtnetlink.h>
 #include <net/route.h>
 #include <net/addrconf.h>
 #include <net/l3mdev.h>
@@ -59,41 +58,6 @@ struct pcpu_dstats {
 	u64			rx_pkts;
 	u64			rx_bytes;
 	struct u64_stats_sync	syncp;
-};
-
-static struct dst_entry *vrf_ip_check(struct dst_entry *dst, u32 cookie)
-{
-	return dst;
-}
-
-static int vrf_ip_local_out(struct net *net, struct sock *sk, struct sk_buff *skb)
-{
-	return ip_local_out(net, sk, skb);
-}
-
-static unsigned int vrf_v4_mtu(const struct dst_entry *dst)
-{
-	/* TO-DO: return max ethernet size? */
-	return dst->dev->mtu;
-}
-
-static void vrf_dst_destroy(struct dst_entry *dst)
-{
-	/* our dst lives forever - or until the device is closed */
-}
-
-static unsigned int vrf_default_advmss(const struct dst_entry *dst)
-{
-	return 65535 - 40;
-}
-
-static struct dst_ops vrf_dst_ops = {
-	.family		= AF_INET,
-	.local_out	= vrf_ip_local_out,
-	.check		= vrf_ip_check,
-	.mtu		= vrf_v4_mtu,
-	.destroy	= vrf_dst_destroy,
-	.default_advmss	= vrf_default_advmss,
 };
 
 /* neighbor handling is done with actual device; do not want
@@ -350,46 +314,6 @@ static netdev_tx_t vrf_xmit(struct sk_buff *skb, struct net_device *dev)
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
-static struct dst_entry *vrf_ip6_check(struct dst_entry *dst, u32 cookie)
-{
-	return dst;
-}
-
-static struct dst_ops vrf_dst_ops6 = {
-	.family		= AF_INET6,
-	.local_out	= ip6_local_out,
-	.check		= vrf_ip6_check,
-	.mtu		= vrf_v4_mtu,
-	.destroy	= vrf_dst_destroy,
-	.default_advmss	= vrf_default_advmss,
-};
-
-static int init_dst_ops6_kmem_cachep(void)
-{
-	vrf_dst_ops6.kmem_cachep = kmem_cache_create("vrf_ip6_dst_cache",
-						     sizeof(struct rt6_info),
-						     0,
-						     SLAB_HWCACHE_ALIGN,
-						     NULL);
-
-	if (!vrf_dst_ops6.kmem_cachep)
-		return -ENOMEM;
-
-	return 0;
-}
-
-static void free_dst_ops6_kmem_cachep(void)
-{
-	kmem_cache_destroy(vrf_dst_ops6.kmem_cachep);
-}
-
-static int vrf_input6(struct sk_buff *skb)
-{
-	skb->dev->stats.rx_errors++;
-	kfree_skb(skb);
-	return 0;
-}
-
 /* modelled after ip6_finish_output2 */
 static int vrf_finish_output6(struct net *net, struct sock *sk,
 			      struct sk_buff *skb)
@@ -430,67 +354,34 @@ static int vrf_output6(struct net *net, struct sock *sk, struct sk_buff *skb)
 			    !(IP6CB(skb)->flags & IP6SKB_REROUTED));
 }
 
-static void vrf_rt6_destroy(struct net_vrf *vrf)
+static void vrf_rt6_release(struct net_vrf *vrf)
 {
-	dst_destroy(&vrf->rt6->dst);
-	free_percpu(vrf->rt6->rt6i_pcpu);
+	dst_release(&vrf->rt6->dst);
 	vrf->rt6 = NULL;
 }
 
 static int vrf_rt6_create(struct net_device *dev)
 {
 	struct net_vrf *vrf = netdev_priv(dev);
-	struct dst_entry *dst;
+	struct net *net = dev_net(dev);
 	struct rt6_info *rt6;
-	int cpu;
 	int rc = -ENOMEM;
 
-	rt6 = dst_alloc(&vrf_dst_ops6, dev, 0,
-			DST_OBSOLETE_NONE,
-			(DST_HOST | DST_NOPOLICY | DST_NOXFRM));
+	rt6 = ip6_dst_alloc(net, dev,
+			    DST_HOST | DST_NOPOLICY | DST_NOXFRM | DST_NOCACHE);
 	if (!rt6)
 		goto out;
 
-	dst = &rt6->dst;
-
-	rt6->rt6i_pcpu = alloc_percpu_gfp(struct rt6_info *, GFP_KERNEL);
-	if (!rt6->rt6i_pcpu) {
-		dst_destroy(dst);
-		goto out;
-	}
-	for_each_possible_cpu(cpu) {
-		struct rt6_info **p = per_cpu_ptr(rt6->rt6i_pcpu, cpu);
-		*p =  NULL;
-	}
-
-	memset(dst + 1, 0, sizeof(*rt6) - sizeof(*dst));
-
-	INIT_LIST_HEAD(&rt6->rt6i_siblings);
-	INIT_LIST_HEAD(&rt6->rt6i_uncached);
-
-	rt6->dst.input	= vrf_input6;
 	rt6->dst.output	= vrf_output6;
-
-	rt6->rt6i_table = fib6_get_table(dev_net(dev), vrf->tb_id);
-
-	atomic_set(&rt6->dst.__refcnt, 2);
-
+	rt6->rt6i_table = fib6_get_table(net, vrf->tb_id);
+	dst_hold(&rt6->dst);
 	vrf->rt6 = rt6;
 	rc = 0;
 out:
 	return rc;
 }
 #else
-static int init_dst_ops6_kmem_cachep(void)
-{
-	return 0;
-}
-
-static void free_dst_ops6_kmem_cachep(void)
-{
-}
-
-static void vrf_rt6_destroy(struct net_vrf *vrf)
+static void vrf_rt6_release(struct net_vrf *vrf)
 {
 }
 
@@ -558,11 +449,11 @@ static int vrf_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 			    !(IPCB(skb)->flags & IPSKB_REROUTED));
 }
 
-static void vrf_rtable_destroy(struct net_vrf *vrf)
+static void vrf_rtable_release(struct net_vrf *vrf)
 {
 	struct dst_entry *dst = (struct dst_entry *)vrf->rth;
 
-	dst_destroy(dst);
+	dst_release(dst);
 	vrf->rth = NULL;
 }
 
@@ -571,22 +462,10 @@ static struct rtable *vrf_rtable_create(struct net_device *dev)
 	struct net_vrf *vrf = netdev_priv(dev);
 	struct rtable *rth;
 
-	rth = dst_alloc(&vrf_dst_ops, dev, 2,
-			DST_OBSOLETE_NONE,
-			(DST_HOST | DST_NOPOLICY | DST_NOXFRM));
+	rth = rt_dst_alloc(dev, 0, RTN_UNICAST, 1, 1, 0);
 	if (rth) {
 		rth->dst.output	= vrf_output;
-		rth->rt_genid	= rt_genid_ipv4(dev_net(dev));
-		rth->rt_flags	= 0;
-		rth->rt_type	= RTN_UNICAST;
-		rth->rt_is_input = 0;
-		rth->rt_iif	= 0;
-		rth->rt_pmtu	= 0;
-		rth->rt_gateway	= 0;
-		rth->rt_uses_gateway = 0;
 		rth->rt_table_id = vrf->tb_id;
-		INIT_LIST_HEAD(&rth->rt_uncached);
-		rth->rt_uncached_list = NULL;
 	}
 
 	return rth;
@@ -674,8 +553,8 @@ static void vrf_dev_uninit(struct net_device *dev)
 	struct net_device *port_dev;
 	struct list_head *iter;
 
-	vrf_rtable_destroy(vrf);
-	vrf_rt6_destroy(vrf);
+	vrf_rtable_release(vrf);
+	vrf_rt6_release(vrf);
 
 	netdev_for_each_lower_dev(dev, port_dev, iter)
 		vrf_del_slave(dev, port_dev);
@@ -705,7 +584,7 @@ static int vrf_dev_init(struct net_device *dev)
 	return 0;
 
 out_rth:
-	vrf_rtable_destroy(vrf);
+	vrf_rtable_release(vrf);
 out_stats:
 	free_percpu(dev->dstats);
 	dev->dstats = NULL;
@@ -738,7 +617,7 @@ static struct rtable *vrf_get_rtable(const struct net_device *dev,
 		struct net_vrf *vrf = netdev_priv(dev);
 
 		rth = vrf->rth;
-		atomic_inc(&rth->dst.__refcnt);
+		dst_hold(&rth->dst);
 	}
 
 	return rth;
@@ -789,7 +668,7 @@ static struct dst_entry *vrf_get_rt6_dst(const struct net_device *dev,
 		struct net_vrf *vrf = netdev_priv(dev);
 
 		rt = vrf->rt6;
-		atomic_inc(&rt->dst.__refcnt);
+		dst_hold(&rt->dst);
 	}
 
 	return (struct dst_entry *)rt;
@@ -880,6 +759,24 @@ static int vrf_fillinfo(struct sk_buff *skb,
 	return nla_put_u32(skb, IFLA_VRF_TABLE, vrf->tb_id);
 }
 
+static size_t vrf_get_slave_size(const struct net_device *bond_dev,
+				 const struct net_device *slave_dev)
+{
+	return nla_total_size(sizeof(u32));  /* IFLA_VRF_PORT_TABLE */
+}
+
+static int vrf_fill_slave_info(struct sk_buff *skb,
+			       const struct net_device *vrf_dev,
+			       const struct net_device *slave_dev)
+{
+	struct net_vrf *vrf = netdev_priv(vrf_dev);
+
+	if (nla_put_u32(skb, IFLA_VRF_PORT_TABLE, vrf->tb_id))
+		return -EMSGSIZE;
+
+	return 0;
+}
+
 static const struct nla_policy vrf_nl_policy[IFLA_VRF_MAX + 1] = {
 	[IFLA_VRF_TABLE] = { .type = NLA_U32 },
 };
@@ -892,6 +789,9 @@ static struct rtnl_link_ops vrf_link_ops __read_mostly = {
 	.policy		= vrf_nl_policy,
 	.validate	= vrf_validate,
 	.fill_info	= vrf_fillinfo,
+
+	.get_slave_size  = vrf_get_slave_size,
+	.fill_slave_info = vrf_fill_slave_info,
 
 	.newlink	= vrf_newlink,
 	.dellink	= vrf_dellink,
@@ -926,19 +826,6 @@ static int __init vrf_init_module(void)
 {
 	int rc;
 
-	vrf_dst_ops.kmem_cachep =
-		kmem_cache_create("vrf_ip_dst_cache",
-				  sizeof(struct rtable), 0,
-				  SLAB_HWCACHE_ALIGN,
-				  NULL);
-
-	if (!vrf_dst_ops.kmem_cachep)
-		return -ENOMEM;
-
-	rc = init_dst_ops6_kmem_cachep();
-	if (rc != 0)
-		goto error2;
-
 	register_netdevice_notifier(&vrf_notifier_block);
 
 	rc = rtnl_link_register(&vrf_link_ops);
@@ -949,22 +836,10 @@ static int __init vrf_init_module(void)
 
 error:
 	unregister_netdevice_notifier(&vrf_notifier_block);
-	free_dst_ops6_kmem_cachep();
-error2:
-	kmem_cache_destroy(vrf_dst_ops.kmem_cachep);
 	return rc;
 }
 
-static void __exit vrf_cleanup_module(void)
-{
-	rtnl_link_unregister(&vrf_link_ops);
-	unregister_netdevice_notifier(&vrf_notifier_block);
-	kmem_cache_destroy(vrf_dst_ops.kmem_cachep);
-	free_dst_ops6_kmem_cachep();
-}
-
 module_init(vrf_init_module);
-module_exit(vrf_cleanup_module);
 MODULE_AUTHOR("Shrijeet Mukherjee, David Ahern");
 MODULE_DESCRIPTION("Device driver to instantiate VRF domains");
 MODULE_LICENSE("GPL");

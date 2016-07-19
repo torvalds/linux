@@ -1739,7 +1739,7 @@ static int alps_tdlb7_request_firmware(struct dvb_frontend* fe, const struct fir
 #endif
 }
 
-static struct sp8870_config alps_tdlb7_config = {
+static const struct sp8870_config alps_tdlb7_config = {
 
 	.demod_address = 0x71,
 	.request_firmware = alps_tdlb7_request_firmware,
@@ -2198,13 +2198,18 @@ static int frontend_init(struct av7110 *av7110)
 			break;
 
 		case 0x0001: // Hauppauge/TT Nexus-T premium rev1.X
+		{
+			struct dvb_frontend *fe;
+
 			// try ALPS TDLB7 first, then Grundig 29504-401
-			av7110->fe = dvb_attach(sp8870_attach, &alps_tdlb7_config, &av7110->i2c_adap);
-			if (av7110->fe) {
-				av7110->fe->ops.tuner_ops.set_params = alps_tdlb7_tuner_set_params;
+			fe = dvb_attach(sp8870_attach, &alps_tdlb7_config, &av7110->i2c_adap);
+			if (fe) {
+				fe->ops.tuner_ops.set_params = alps_tdlb7_tuner_set_params;
+				av7110->fe = fe;
 				break;
 			}
-			/* fall-thru */
+		}
+		/* fall-thru */
 
 		case 0x0008: // Hauppauge/TT DVB-T
 			// Grundig 29504-401

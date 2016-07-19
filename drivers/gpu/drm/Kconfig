@@ -25,6 +25,14 @@ config DRM_MIPI_DSI
 	bool
 	depends on DRM
 
+config DRM_DP_AUX_CHARDEV
+	bool "DRM DP AUX Interface"
+	depends on DRM
+	help
+	  Choose this option to enable a /dev/drm_dp_auxN node that allows to
+	  read and write values to arbitrary DPCD registers on the DP aux
+	  channel.
+
 config DRM_KMS_HELPER
 	tristate
 	depends on DRM
@@ -106,6 +114,8 @@ config DRM_TDFX
 	  Choose this option if you have a 3dfx Banshee or Voodoo3 (or later),
 	  graphics card.  If M is selected, the module will be called tdfx.
 
+source "drivers/gpu/drm/arm/Kconfig"
+
 config DRM_R128
 	tristate "ATI Rage 128"
 	depends on DRM && PCI
@@ -161,6 +171,8 @@ config DRM_AMDGPU
 
 source "drivers/gpu/drm/amd/amdgpu/Kconfig"
 source "drivers/gpu/drm/amd/powerplay/Kconfig"
+
+source "drivers/gpu/drm/amd/acp/Kconfig"
 
 source "drivers/gpu/drm/nouveau/Kconfig"
 

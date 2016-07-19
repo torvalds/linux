@@ -640,7 +640,7 @@ Things to avoid when using macros:
 		do {					\
 			if (blah(x) < 0)		\
 				return -EBUGGERED;	\
-		} while(0)
+		} while (0)
 
 is a _very_ bad idea.  It looks like a function call but exits the "calling"
 function; don't break the internal parsers of those who will read the code.

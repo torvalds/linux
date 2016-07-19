@@ -128,7 +128,7 @@ extern struct qnx6_super_block *qnx6_mmi_fill_super(struct super_block *s,
 static inline void qnx6_put_page(struct page *page)
 {
 	kunmap(page);
-	page_cache_release(page);
+	put_page(page);
 }
 
 extern unsigned qnx6_find_entry(int len, struct inode *dir, const char *name,

@@ -1,0 +1,25 @@
+EEPROMs (SPI) compatible with Microchip Technology 93xx46 family.
+
+Required properties:
+- compatible : shall be one of:
+    "atmel,at93c46d"
+    "eeprom-93xx46"
+- data-size : number of data bits per word (either 8 or 16)
+
+Optional properties:
+- read-only : parameter-less property which disables writes to the EEPROM
+- select-gpios : if present, specifies the GPIO that will be asserted prior to
+  each access to the EEPROM (e.g. for SPI bus multiplexing)
+
+Property rules described in Documentation/devicetree/bindings/spi/spi-bus.txt
+apply.  In particular, "reg" and "spi-max-frequency" properties must be given.
+
+Example:
+	eeprom@0 {
+		compatible = "eeprom-93xx46";
+		reg = <0>;
+		spi-max-frequency = <1000000>;
+		spi-cs-high;
+		data-size = <8>;
+		select-gpios = <&gpio4 4 GPIO_ACTIVE_HIGH>;
+	};

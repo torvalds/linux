@@ -41,5 +41,4 @@ config RFKILL_GPIO
 	default n
 	help
 	  If you say yes here you get support of a generic gpio RFKILL
-	  driver. The platform should fill in the appropriate fields in the
-	  rfkill_gpio_platform_data structure and pass that to the driver.
+	  driver.

@@ -58,9 +58,9 @@
 #define DEBUG_MICROCODE                 1
 #define DBG                             1
 #define SLIC_INTERRUPT_PROCESS_LIMIT	1
-#define SLIC_OFFLOAD_IP_CHECKSUM		1
-#define STATS_TIMER_INTERVAL			2
-#define PING_TIMER_INTERVAL			    1
+#define SLIC_OFFLOAD_IP_CHECKSUM	1
+#define STATS_TIMER_INTERVAL		2
+#define PING_TIMER_INTERVAL		1
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
@@ -102,8 +102,7 @@ static char *slic_banner = "Alacritech SLIC Technology(tm) Server and Storage Ac
 static char *slic_proc_version = "2.0.351  2006/07/14 12:26:00";
 
 static struct base_driver slic_global = { {}, 0, 0, 0, 1, NULL, NULL };
-static int intagg_delay = 100;
-static u32 dynamic_intagg;
+#define DEFAULT_INTAGG_DELAY 100
 static unsigned int rcv_count;
 
 #define DRV_NAME          "slicoss"
@@ -119,16 +118,13 @@ MODULE_AUTHOR(DRV_AUTHOR);
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
 MODULE_LICENSE("Dual BSD/GPL");
 
-module_param(dynamic_intagg, int, 0);
-MODULE_PARM_DESC(dynamic_intagg, "Dynamic Interrupt Aggregation Setting");
-module_param(intagg_delay, int, 0);
-MODULE_PARM_DESC(intagg_delay, "uSec Interrupt Aggregation Delay");
-
 static const struct pci_device_id slic_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ALACRITECH, SLIC_1GB_DEVICE_ID) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_ALACRITECH, SLIC_2GB_DEVICE_ID) },
 	{ 0 }
 };
+
+static struct ethtool_ops slic_ethtool_ops;
 
 MODULE_DEVICE_TABLE(pci, slic_pci_tbl);
 
@@ -549,14 +545,6 @@ static int slic_card_download(struct adapter *adapter)
 			instruction = *(u32 *)(fw->data + index);
 			index += 4;
 
-			/* Check SRAM location zero. If it is non-zero. Abort.*/
-		     /*
-		      * failure = readl((u32 __iomem *)&slic_regs->slic_reset);
-		      * if (failure) {
-		      *	release_firmware(fw);
-		      *	return -EIO;
-		      * }
-		      */
 		}
 	}
 	release_firmware(fw);
@@ -796,7 +784,6 @@ static bool slic_mac_filter(struct adapter *adapter,
 		return true;
 	}
 	return false;
-
 }
 
 static int slic_mac_set_address(struct net_device *dev, void *ptr)
@@ -884,7 +871,7 @@ static int slic_upr_queue_request(struct adapter *adapter,
 	struct slic_upr *upr;
 	struct slic_upr *uprqueue;
 
-	upr = kmalloc(sizeof(struct slic_upr), GFP_ATOMIC);
+	upr = kmalloc(sizeof(*upr), GFP_ATOMIC);
 	if (!upr)
 		return -ENOMEM;
 
@@ -911,11 +898,6 @@ static void slic_upr_start(struct adapter *adapter)
 {
 	struct slic_upr *upr;
 	__iomem struct slic_regs *slic_regs = adapter->slic_regs;
-/*
- *  char * ptr1;
- *  char * ptr2;
- *  uint cmdoffset;
- */
 	upr = adapter->upr_list;
 	if (!upr)
 		return;
@@ -1773,7 +1755,6 @@ static void slic_init_cleanup(struct adapter *adapter)
 	if (adapter->intrregistered) {
 		adapter->intrregistered = 0;
 		free_irq(adapter->netdev->irq, adapter->netdev);
-
 	}
 	if (adapter->pshmem) {
 		pci_free_consistent(adapter->pcidev,
@@ -1810,8 +1791,8 @@ static int slic_mcast_add_list(struct adapter *adapter, char *address)
 	}
 
 	/* Doesn't already exist.  Allocate a structure to hold it */
-	mcaddr = kmalloc(sizeof(struct mcast_address), GFP_ATOMIC);
-	if (mcaddr == NULL)
+	mcaddr = kmalloc(sizeof(*mcaddr), GFP_ATOMIC);
+	if (!mcaddr)
 		return 1;
 
 	ether_addr_copy(mcaddr->address, address);
@@ -1892,7 +1873,7 @@ static void slic_xmit_fail(struct adapter *adapter,
 {
 	if (adapter->xmitq_full)
 		netif_stop_queue(adapter->netdev);
-	if ((cmd == NULL) && (status <= XMIT_FAIL_HOSTCMD_FAIL)) {
+	if ((!cmd) && (status <= XMIT_FAIL_HOSTCMD_FAIL)) {
 		switch (status) {
 		case XMIT_FAIL_LINK_STATE:
 			dev_err(&adapter->netdev->dev,
@@ -2860,7 +2841,7 @@ static int slic_card_init(struct sliccard *card, struct adapter *adapter)
 	if (slic_global.dynamic_intagg)
 		slic_intagg_set(adapter, 0);
 	else
-		slic_intagg_set(adapter, intagg_delay);
+		slic_intagg_set(adapter, adapter->intagg_delay);
 
 	/*
 	 *  Initialize ping status to "ok"
@@ -2879,6 +2860,26 @@ card_init_err:
 	pci_free_consistent(adapter->pcidev, sizeof(struct slic_eeprom),
 			    peeprom, phys_config);
 	return status;
+}
+
+static int slic_get_coalesce(struct net_device *dev,
+			     struct ethtool_coalesce *coalesce)
+{
+	struct adapter *adapter = netdev_priv(dev);
+
+	adapter->intagg_delay = coalesce->rx_coalesce_usecs;
+	adapter->dynamic_intagg = coalesce->use_adaptive_rx_coalesce;
+	return 0;
+}
+
+static int slic_set_coalesce(struct net_device *dev,
+			     struct ethtool_coalesce *coalesce)
+{
+	struct adapter *adapter = netdev_priv(dev);
+
+	coalesce->rx_coalesce_usecs = adapter->intagg_delay;
+	coalesce->use_adaptive_rx_coalesce = adapter->dynamic_intagg;
+	return 0;
 }
 
 static void slic_init_driver(void)
@@ -2907,9 +2908,8 @@ static void slic_init_adapter(struct net_device *netdev,
 	adapter->functionnumber = (pcidev->devfn & 0x7);
 	adapter->slic_regs = memaddr;
 	adapter->irq = pcidev->irq;
-/*	adapter->netdev = netdev;*/
 	adapter->chipid = chip_idx;
-	adapter->port = 0;	/*adapter->functionnumber;*/
+	adapter->port = 0;
 	adapter->cardindex = adapter->port;
 	spin_lock_init(&adapter->upr_lock);
 	spin_lock_init(&adapter->bit64reglock);
@@ -2982,8 +2982,8 @@ static u32 slic_card_locate(struct adapter *adapter)
 
 	/* Initialize a new card structure if need be */
 	if (card_hostid == SLIC_HOSTID_DEFAULT) {
-		card = kzalloc(sizeof(struct sliccard), GFP_KERNEL);
-		if (card == NULL)
+		card = kzalloc(sizeof(*card), GFP_KERNEL);
+		if (!card)
 			return -ENOMEM;
 
 		card->next = slic_global.slic_card;
@@ -3033,7 +3033,7 @@ static u32 slic_card_locate(struct adapter *adapter)
 	}
 	if (!physcard) {
 		/* no structure allocated for this physical card yet */
-		physcard = kzalloc(sizeof(struct physcard), GFP_ATOMIC);
+		physcard = kzalloc(sizeof(*physcard), GFP_ATOMIC);
 		if (!physcard) {
 			if (card_hostid == SLIC_HOSTID_DEFAULT)
 				kfree(card);
@@ -3068,8 +3068,6 @@ static int slic_entry_probe(struct pci_dev *pcidev,
 	ulong mmio_len = 0;
 	struct sliccard *card = NULL;
 	int pci_using_dac = 0;
-
-	slic_global.dynamic_intagg = dynamic_intagg;
 
 	err = pci_enable_device(pcidev);
 
@@ -3112,19 +3110,20 @@ static int slic_entry_probe(struct pci_dev *pcidev,
 		goto err_out_exit_slic_probe;
 	}
 
+	netdev->ethtool_ops = &slic_ethtool_ops;
 	SET_NETDEV_DEV(netdev, &pcidev->dev);
 
 	pci_set_drvdata(pcidev, netdev);
 	adapter = netdev_priv(netdev);
 	adapter->netdev = netdev;
 	adapter->pcidev = pcidev;
+	slic_global.dynamic_intagg = adapter->dynamic_intagg;
 	if (pci_using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
 
 	mmio_start = pci_resource_start(pcidev, 0);
 	mmio_len = pci_resource_len(pcidev, 0);
 
-/*	memmapped_ioaddr =  (u32)ioremap_nocache(mmio_start, mmio_len);*/
 	memmapped_ioaddr = ioremap(mmio_start, mmio_len);
 	if (!memmapped_ioaddr) {
 		dev_err(&pcidev->dev, "cannot remap MMIO region %lx @ %lx\n",
@@ -3203,6 +3202,11 @@ static void __exit slic_module_cleanup(void)
 {
 	pci_unregister_driver(&slic_driver);
 }
+
+static struct ethtool_ops slic_ethtool_ops = {
+	.get_coalesce = slic_get_coalesce,
+	.set_coalesce = slic_set_coalesce
+};
 
 module_init(slic_module_init);
 module_exit(slic_module_cleanup);

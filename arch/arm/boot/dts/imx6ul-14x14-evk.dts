@@ -8,7 +8,6 @@
 
 /dts-v1/;
 
-#include <dt-bindings/input/input.h>
 #include "imx6ul.dtsi"
 
 / {
@@ -131,7 +130,7 @@
 	pinctrl-2 = <&pinctrl_usdhc1_200mhz>;
 	cd-gpios = <&gpio1 19 GPIO_ACTIVE_LOW>;
 	keep-power-in-suspend;
-	enable-sdio-wakeup;
+	wakeup-source;
 	vmmc-supply = <&reg_sd1_vmmc>;
 	status = "okay";
 };
@@ -141,7 +140,7 @@
 	pinctrl-0 = <&pinctrl_usdhc2>;
 	no-1-8-v;
 	keep-power-in-suspend;
-	enable-sdio-wakeup;
+	wakeup-source;
 	status = "okay";
 };
 

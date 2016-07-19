@@ -52,9 +52,8 @@ void vvp_write_pending(struct ccc_object *club, struct ccc_page *page)
 
 	spin_lock(&lli->lli_lock);
 	lli->lli_flags |= LLIF_SOM_DIRTY;
-	if (page != NULL && list_empty(&page->cpg_pending_linkage))
-		list_add(&page->cpg_pending_linkage,
-			     &club->cob_pending_list);
+	if (page && list_empty(&page->cpg_pending_linkage))
+		list_add(&page->cpg_pending_linkage, &club->cob_pending_list);
 	spin_unlock(&lli->lli_lock);
 }
 
@@ -65,7 +64,7 @@ void vvp_write_complete(struct ccc_object *club, struct ccc_page *page)
 	int rc = 0;
 
 	spin_lock(&lli->lli_lock);
-	if (page != NULL && !list_empty(&page->cpg_pending_linkage)) {
+	if (page && !list_empty(&page->cpg_pending_linkage)) {
 		list_del_init(&page->cpg_pending_linkage);
 		rc = 1;
 	}
@@ -76,7 +75,8 @@ void vvp_write_complete(struct ccc_object *club, struct ccc_page *page)
 
 /** Queues DONE_WRITING if
  * - done writing is allowed;
- * - inode has no no dirty pages; */
+ * - inode has no no dirty pages;
+ */
 void ll_queue_done_writing(struct inode *inode, unsigned long flags)
 {
 	struct ll_inode_info *lli = ll_i2info(inode);
@@ -106,7 +106,8 @@ void ll_queue_done_writing(struct inode *inode, unsigned long flags)
 		 * close() happen, epoch is closed as the inode is marked as
 		 * LLIF_EPOCH_PENDING. When pages are written inode should not
 		 * be inserted into the queue again, clear this flag to avoid
-		 * it. */
+		 * it.
+		 */
 		lli->lli_flags &= ~LLIF_DONE_WRITING;
 
 		wake_up(&lcq->lcq_waitq);
@@ -144,10 +145,11 @@ void ll_ioepoch_close(struct inode *inode, struct md_op_data *op_data,
 	spin_lock(&lli->lli_lock);
 	if (!(list_empty(&club->cob_pending_list))) {
 		if (!(lli->lli_flags & LLIF_EPOCH_PENDING)) {
-			LASSERT(*och != NULL);
-			LASSERT(lli->lli_pending_och == NULL);
+			LASSERT(*och);
+			LASSERT(!lli->lli_pending_och);
 			/* Inode is dirty and there is no pending write done
-			 * request yet, DONE_WRITE is to be sent later. */
+			 * request yet, DONE_WRITE is to be sent later.
+			 */
 			lli->lli_flags |= LLIF_EPOCH_PENDING;
 			lli->lli_pending_och = *och;
 			spin_unlock(&lli->lli_lock);
@@ -159,7 +161,8 @@ void ll_ioepoch_close(struct inode *inode, struct md_op_data *op_data,
 		if (flags & LLIF_DONE_WRITING) {
 			/* Some pages are still dirty, it is early to send
 			 * DONE_WRITE. Wait until all pages will be flushed
-			 * and try DONE_WRITE again later. */
+			 * and try DONE_WRITE again later.
+			 */
 			LASSERT(!(lli->lli_flags & LLIF_DONE_WRITING));
 			lli->lli_flags |= LLIF_DONE_WRITING;
 			spin_unlock(&lli->lli_lock);
@@ -187,7 +190,8 @@ void ll_ioepoch_close(struct inode *inode, struct md_op_data *op_data,
 		}
 
 		/* There is a pending DONE_WRITE -- close epoch with no
-		 * attribute change. */
+		 * attribute change.
+		 */
 		if (lli->lli_flags & LLIF_EPOCH_PENDING) {
 			spin_unlock(&lli->lli_lock);
 			goto out;
@@ -215,13 +219,13 @@ int ll_som_update(struct inode *inode, struct md_op_data *op_data)
 	struct obdo *oa;
 	int rc;
 
-	LASSERT(op_data != NULL);
+	LASSERT(op_data);
 	if (lli->lli_flags & LLIF_MDS_SIZE_LOCK)
 		CERROR("ino %lu/%u(flags %u) som valid it just after recovery\n",
 		       inode->i_ino, inode->i_generation,
 		       lli->lli_flags);
 
-	oa = kmem_cache_alloc(obdo_cachep, GFP_NOFS | __GFP_ZERO);
+	oa = kmem_cache_zalloc(obdo_cachep, GFP_NOFS);
 	if (!oa) {
 		CERROR("can't allocate memory for Size-on-MDS update.\n");
 		return -ENOMEM;
@@ -266,7 +270,7 @@ static void ll_prepare_done_writing(struct inode *inode,
 {
 	ll_ioepoch_close(inode, op_data, och, LLIF_DONE_WRITING);
 	/* If there is no @och, we do not do D_W yet. */
-	if (*och == NULL)
+	if (!*och)
 		return;
 
 	ll_pack_inode2opdata(inode, op_data, &(*och)->och_fh);
@@ -289,13 +293,14 @@ static void ll_done_writing(struct inode *inode)
 
 	ll_prepare_done_writing(inode, op_data, &och);
 	/* If there is no @och, we do not do D_W yet. */
-	if (och == NULL)
+	if (!och)
 		goto out;
 
 	rc = md_done_writing(ll_i2sbi(inode)->ll_md_exp, op_data, NULL);
 	if (rc == -EAGAIN)
 		/* MDS has instructed us to obtain Size-on-MDS attribute from
-		 * OSTs and send setattr to back to MDS. */
+		 * OSTs and send setattr to back to MDS.
+		 */
 		rc = ll_som_update(inode, op_data);
 	else if (rc)
 		CERROR("inode %lu mdc done_writing failed: rc = %d\n",
@@ -316,7 +321,7 @@ static struct ll_inode_info *ll_close_next_lli(struct ll_close_queue *lcq)
 
 	if (!list_empty(&lcq->lcq_head)) {
 		lli = list_entry(lcq->lcq_head.next, struct ll_inode_info,
-				     lli_close_list);
+				 lli_close_list);
 		list_del_init(&lli->lli_close_list);
 	} else if (atomic_read(&lcq->lcq_stop))
 		lli = ERR_PTR(-EALREADY);

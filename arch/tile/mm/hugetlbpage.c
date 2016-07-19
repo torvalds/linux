@@ -77,7 +77,7 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
 		else {
 			if (sz != PAGE_SIZE << huge_shift[HUGE_SHIFT_PAGE])
 				panic("Unexpected page size %#lx\n", sz);
-			return pte_alloc_map(mm, NULL, pmd, addr);
+			return pte_alloc_map(mm, pmd, addr);
 		}
 	}
 #else

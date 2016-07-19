@@ -251,7 +251,8 @@ static inline void lu_local_name_obj_fid(struct lu_fid *fid, __u32 oid)
 
 /* For new FS (>= 2.4), the root FID will be changed to
  * [FID_SEQ_ROOT:1:0], for existing FS, (upgraded to 2.4),
- * the root FID will still be IGIF */
+ * the root FID will still be IGIF
+ */
 static inline int fid_is_root(const struct lu_fid *fid)
 {
 	return unlikely((fid_seq(fid) == FID_SEQ_ROOT &&
@@ -294,7 +295,8 @@ static inline int fid_is_namespace_visible(const struct lu_fid *fid)
 	const __u64 seq = fid_seq(fid);
 
 	/* Here, we cannot distinguish whether the normal FID is for OST
-	 * object or not. It is caller's duty to check more if needed. */
+	 * object or not. It is caller's duty to check more if needed.
+	 */
 	return (!fid_is_last_id(fid) &&
 		(fid_seq_is_norm(seq) || fid_seq_is_igif(seq))) ||
 	       fid_is_root(fid) || fid_is_dot_lustre(fid);
@@ -433,7 +435,7 @@ fid_extract_from_res_name(struct lu_fid *fid, const struct ldlm_res_id *res)
  */
 static inline struct ldlm_res_id *
 fid_build_quota_res_name(const struct lu_fid *glb_fid, union lquota_id *qid,
-		      struct ldlm_res_id *res)
+			 struct ldlm_res_id *res)
 {
 	fid_build_reg_res_name(glb_fid, res);
 	res->name[LUSTRE_RES_ID_QUOTA_SEQ_OFF] = fid_seq(&qid->qid_fid);
@@ -516,7 +518,8 @@ static inline int ostid_res_name_eq(struct ost_id *oi,
 				    struct ldlm_res_id *name)
 {
 	/* Note: it is just a trick here to save some effort, probably the
-	 * correct way would be turn them into the FID and compare */
+	 * correct way would be turn them into the FID and compare
+	 */
 	if (fid_seq_is_mdt0(ostid_seq(oi))) {
 		return name->name[LUSTRE_RES_ID_SEQ_OFF] == ostid_id(oi) &&
 		       name->name[LUSTRE_RES_ID_VER_OID_OFF] == ostid_seq(oi);
@@ -589,12 +592,14 @@ static inline __u64 fid_flatten(const struct lu_fid *fid)
 static inline __u32 fid_hash(const struct lu_fid *f, int bits)
 {
 	/* all objects with same id and different versions will belong to same
-	 * collisions list. */
+	 * collisions list.
+	 */
 	return hash_long(fid_flatten(f), bits);
 }
 
 /**
- * map fid to 32 bit value for ino on 32bit systems. */
+ * map fid to 32 bit value for ino on 32bit systems.
+ */
 static inline __u32 fid_flatten32(const struct lu_fid *fid)
 {
 	__u32 ino;
@@ -611,7 +616,8 @@ static inline __u32 fid_flatten32(const struct lu_fid *fid)
 	 * that inodes generated at about the same time have a reduced chance
 	 * of collisions. This will give a period of 2^12 = 1024 unique clients
 	 * (from SEQ) and up to min(LUSTRE_SEQ_MAX_WIDTH, 2^20) = 128k objects
-	 * (from OID), or up to 128M inodes without collisions for new files. */
+	 * (from OID), or up to 128M inodes without collisions for new files.
+	 */
 	ino = ((seq & 0x000fffffULL) << 12) + ((seq >> 8) & 0xfffff000) +
 	       (seq >> (64 - (40-8)) & 0xffffff00) +
 	       (fid_oid(fid) & 0xff000fff) + ((fid_oid(fid) & 0x00fff000) << 8);

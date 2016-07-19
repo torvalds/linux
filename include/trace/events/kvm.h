@@ -359,14 +359,15 @@ TRACE_EVENT(
 #endif
 
 TRACE_EVENT(kvm_halt_poll_ns,
-	TP_PROTO(bool grow, unsigned int vcpu_id, int new, int old),
+	TP_PROTO(bool grow, unsigned int vcpu_id, unsigned int new,
+		 unsigned int old),
 	TP_ARGS(grow, vcpu_id, new, old),
 
 	TP_STRUCT__entry(
 		__field(bool, grow)
 		__field(unsigned int, vcpu_id)
-		__field(int, new)
-		__field(int, old)
+		__field(unsigned int, new)
+		__field(unsigned int, old)
 	),
 
 	TP_fast_assign(
@@ -376,7 +377,7 @@ TRACE_EVENT(kvm_halt_poll_ns,
 		__entry->old            = old;
 	),
 
-	TP_printk("vcpu %u: halt_poll_ns %d (%s %d)",
+	TP_printk("vcpu %u: halt_poll_ns %u (%s %u)",
 			__entry->vcpu_id,
 			__entry->new,
 			__entry->grow ? "grow" : "shrink",

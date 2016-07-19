@@ -93,7 +93,7 @@ int afs_mntpt_check_symlink(struct afs_vnode *vnode, struct key *key)
 
 	kunmap(page);
 out_free:
-	page_cache_release(page);
+	put_page(page);
 out:
 	_leave(" = %d", ret);
 	return ret;
@@ -189,7 +189,7 @@ static struct vfsmount *afs_mntpt_do_automount(struct dentry *mntpt)
 		buf = kmap_atomic(page);
 		memcpy(devname, buf, size);
 		kunmap_atomic(buf);
-		page_cache_release(page);
+		put_page(page);
 		page = NULL;
 	}
 
@@ -211,7 +211,7 @@ static struct vfsmount *afs_mntpt_do_automount(struct dentry *mntpt)
 	return mnt;
 
 error:
-	page_cache_release(page);
+	put_page(page);
 error_no_page:
 	free_page((unsigned long) options);
 error_no_options:

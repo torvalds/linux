@@ -43,7 +43,7 @@ int vnic_cq_alloc(struct vnic_dev *vdev, struct vnic_cq *cq, unsigned int index,
 
 	cq->ctrl = vnic_dev_get_res(vdev, RES_TYPE_CQ, index);
 	if (!cq->ctrl) {
-		vdev_err("Failed to hook CQ[%d] resource\n", index);
+		vdev_err(vdev, "Failed to hook CQ[%d] resource\n", index);
 		return -EINVAL;
 	}
 

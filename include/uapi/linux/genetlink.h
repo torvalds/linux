@@ -21,6 +21,7 @@ struct genlmsghdr {
 #define GENL_CMD_CAP_DO		0x02
 #define GENL_CMD_CAP_DUMP	0x04
 #define GENL_CMD_CAP_HASPOL	0x08
+#define GENL_UNS_ADMIN_PERM	0x10
 
 /*
  * List of reserved static generic netlink identifiers:

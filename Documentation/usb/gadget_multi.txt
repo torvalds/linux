@@ -43,7 +43,7 @@ For the gadget two work under Windows two conditions have to be met:
 First of all, Windows need to detect the gadget as an USB composite
 gadget which on its own have some conditions[4].  If they are met,
 Windows lets USB Generic Parent Driver[5] handle the device which then
-tries to much drivers for each individual interface (sort of, don't
+tries to match drivers for each individual interface (sort of, don't
 get into too many details).
 
 The good news is: you do not have to worry about most of the

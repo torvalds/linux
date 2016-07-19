@@ -196,14 +196,14 @@
 						  * or (IO6)
 						  * - only on 75x/76x
 						  */
-#define SC16IS7XX_MSR_CTS_BIT		(1 << 0) /* CTS */
-#define SC16IS7XX_MSR_DSR_BIT		(1 << 1) /* DSR (IO4)
+#define SC16IS7XX_MSR_CTS_BIT		(1 << 4) /* CTS */
+#define SC16IS7XX_MSR_DSR_BIT		(1 << 5) /* DSR (IO4)
 						  * - only on 75x/76x
 						  */
-#define SC16IS7XX_MSR_RI_BIT		(1 << 2) /* RI (IO7)
+#define SC16IS7XX_MSR_RI_BIT		(1 << 6) /* RI (IO7)
 						  * - only on 75x/76x
 						  */
-#define SC16IS7XX_MSR_CD_BIT		(1 << 3) /* CD (IO6)
+#define SC16IS7XX_MSR_CD_BIT		(1 << 7) /* CD (IO6)
 						  * - only on 75x/76x
 						  */
 #define SC16IS7XX_MSR_DELTA_MASK	0x0F     /* Any of the delta bits! */
@@ -240,7 +240,7 @@
 
 /* IOControl register bits (Only 750/760) */
 #define SC16IS7XX_IOCONTROL_LATCH_BIT	(1 << 0) /* Enable input latching */
-#define SC16IS7XX_IOCONTROL_GPIO_BIT	(1 << 1) /* Enable GPIO[7:4] */
+#define SC16IS7XX_IOCONTROL_MODEM_BIT	(1 << 1) /* Enable GPIO[7:4] as modem pins */
 #define SC16IS7XX_IOCONTROL_SRESET_BIT	(1 << 3) /* Software Reset */
 
 /* EFCR register bits */
@@ -687,7 +687,7 @@ static void sc16is7xx_port_irq(struct sc16is7xx_port *s, int portno)
 		case SC16IS7XX_IIR_CTSRTS_SRC:
 			msr = sc16is7xx_port_read(port, SC16IS7XX_MSR_REG);
 			uart_handle_cts_change(port,
-					       !!(msr & SC16IS7XX_MSR_CTS_BIT));
+					       !!(msr & SC16IS7XX_MSR_DCTS_BIT));
 			break;
 		case SC16IS7XX_IIR_THRI_SRC:
 			sc16is7xx_handle_tx(port);
@@ -761,12 +761,20 @@ static void sc16is7xx_reg_proc(struct kthread_work *ws)
 	memset(&one->config, 0, sizeof(one->config));
 	spin_unlock_irqrestore(&one->port.lock, irqflags);
 
-	if (config.flags & SC16IS7XX_RECONF_MD)
+	if (config.flags & SC16IS7XX_RECONF_MD) {
 		sc16is7xx_port_update(&one->port, SC16IS7XX_MCR_REG,
 				      SC16IS7XX_MCR_LOOP_BIT,
 				      (one->port.mctrl & TIOCM_LOOP) ?
 				      SC16IS7XX_MCR_LOOP_BIT : 0);
-
+		sc16is7xx_port_update(&one->port, SC16IS7XX_MCR_REG,
+				      SC16IS7XX_MCR_RTS_BIT,
+				      (one->port.mctrl & TIOCM_RTS) ?
+				      SC16IS7XX_MCR_RTS_BIT : 0);
+		sc16is7xx_port_update(&one->port, SC16IS7XX_MCR_REG,
+				      SC16IS7XX_MCR_DTR_BIT,
+				      (one->port.mctrl & TIOCM_DTR) ?
+				      SC16IS7XX_MCR_DTR_BIT : 0);
+	}
 	if (config.flags & SC16IS7XX_RECONF_IER)
 		sc16is7xx_port_update(&one->port, SC16IS7XX_IER_REG,
 				      config.ier_clear, 0);

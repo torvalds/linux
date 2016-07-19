@@ -67,6 +67,9 @@ void generic_cpu_die(unsigned int cpu);
 void generic_set_cpu_dead(unsigned int cpu);
 void generic_set_cpu_up(unsigned int cpu);
 int generic_check_cpu_restart(unsigned int cpu);
+int is_cpu_dead(unsigned int cpu);
+#else
+#define generic_set_cpu_up(i)	do { } while (0)
 #endif
 
 #ifdef CONFIG_PPC64
@@ -114,6 +117,9 @@ extern int cpu_to_core_id(int cpu);
 #define PPC_MSG_TICK_BROADCAST	2
 #define PPC_MSG_DEBUGGER_BREAK  3
 
+/* This is only used by the powernv kernel */
+#define PPC_MSG_RM_HOST_ACTION	4
+
 /* for irq controllers that have dedicated ipis per message (4) */
 extern int smp_request_message_ipi(int virq, int message);
 extern const char *smp_ipi_name[];
@@ -121,6 +127,7 @@ extern const char *smp_ipi_name[];
 /* for irq controllers with only a single ipi */
 extern void smp_muxed_ipi_set_data(int cpu, unsigned long data);
 extern void smp_muxed_ipi_message_pass(int cpu, int msg);
+extern void smp_muxed_ipi_set_message(int cpu, int msg);
 extern irqreturn_t smp_ipi_demux(void);
 
 void smp_init_pSeries(void);
@@ -197,6 +204,7 @@ extern void generic_secondary_thread_init(void);
 extern unsigned long __secondary_hold_spinloop;
 extern unsigned long __secondary_hold_acknowledge;
 extern char __secondary_hold;
+extern unsigned int booting_thread_hwid;
 
 extern void __early_start(void);
 #endif /* __ASSEMBLY__ */

@@ -123,7 +123,7 @@ replicas continue to be exactly same.
 
 2d) A unbindable mount is a unbindable private mount
 
-	let's say we have a mount at /mnt and we make is unbindable
+	let's say we have a mount at /mnt and we make it unbindable
 
 	# mount --make-unbindable /mnt
 
@@ -197,13 +197,13 @@ replicas continue to be exactly same.
 		namespaces are made first class objects with user API to
 		associate/disassociate a namespace with userid, then each user
 		could have his/her own namespace and tailor it to his/her
-		requirements. Offcourse its needs support from PAM.
+		requirements. This needs to be supported in PAM.
 
 	D)  Versioned files
 
 		If the entire mount tree is visible at multiple locations, then
-		a underlying versioning file system can return different
-		version of the file depending on the path used to access that
+		an underlying versioning file system can return different
+		versions of the file depending on the path used to access that
 		file.
 
 		An example is:

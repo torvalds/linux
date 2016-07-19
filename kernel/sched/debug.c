@@ -16,6 +16,7 @@
 #include <linux/kallsyms.h>
 #include <linux/utsname.h>
 #include <linux/mempolicy.h>
+#include <linux/debugfs.h>
 
 #include "sched.h"
 
@@ -58,6 +59,309 @@ static unsigned long nsec_low(unsigned long long nsec)
 
 #define SPLIT_NS(x) nsec_high(x), nsec_low(x)
 
+#define SCHED_FEAT(name, enabled)	\
+	#name ,
+
+static const char * const sched_feat_names[] = {
+#include "features.h"
+};
+
+#undef SCHED_FEAT
+
+static int sched_feat_show(struct seq_file *m, void *v)
+{
+	int i;
+
+	for (i = 0; i < __SCHED_FEAT_NR; i++) {
+		if (!(sysctl_sched_features & (1UL << i)))
+			seq_puts(m, "NO_");
+		seq_printf(m, "%s ", sched_feat_names[i]);
+	}
+	seq_puts(m, "\n");
+
+	return 0;
+}
+
+#ifdef HAVE_JUMP_LABEL
+
+#define jump_label_key__true  STATIC_KEY_INIT_TRUE
+#define jump_label_key__false STATIC_KEY_INIT_FALSE
+
+#define SCHED_FEAT(name, enabled)	\
+	jump_label_key__##enabled ,
+
+struct static_key sched_feat_keys[__SCHED_FEAT_NR] = {
+#include "features.h"
+};
+
+#undef SCHED_FEAT
+
+static void sched_feat_disable(int i)
+{
+	static_key_disable(&sched_feat_keys[i]);
+}
+
+static void sched_feat_enable(int i)
+{
+	static_key_enable(&sched_feat_keys[i]);
+}
+#else
+static void sched_feat_disable(int i) { };
+static void sched_feat_enable(int i) { };
+#endif /* HAVE_JUMP_LABEL */
+
+static int sched_feat_set(char *cmp)
+{
+	int i;
+	int neg = 0;
+
+	if (strncmp(cmp, "NO_", 3) == 0) {
+		neg = 1;
+		cmp += 3;
+	}
+
+	for (i = 0; i < __SCHED_FEAT_NR; i++) {
+		if (strcmp(cmp, sched_feat_names[i]) == 0) {
+			if (neg) {
+				sysctl_sched_features &= ~(1UL << i);
+				sched_feat_disable(i);
+			} else {
+				sysctl_sched_features |= (1UL << i);
+				sched_feat_enable(i);
+			}
+			break;
+		}
+	}
+
+	return i;
+}
+
+static ssize_t
+sched_feat_write(struct file *filp, const char __user *ubuf,
+		size_t cnt, loff_t *ppos)
+{
+	char buf[64];
+	char *cmp;
+	int i;
+	struct inode *inode;
+
+	if (cnt > 63)
+		cnt = 63;
+
+	if (copy_from_user(&buf, ubuf, cnt))
+		return -EFAULT;
+
+	buf[cnt] = 0;
+	cmp = strstrip(buf);
+
+	/* Ensure the static_key remains in a consistent state */
+	inode = file_inode(filp);
+	inode_lock(inode);
+	i = sched_feat_set(cmp);
+	inode_unlock(inode);
+	if (i == __SCHED_FEAT_NR)
+		return -EINVAL;
+
+	*ppos += cnt;
+
+	return cnt;
+}
+
+static int sched_feat_open(struct inode *inode, struct file *filp)
+{
+	return single_open(filp, sched_feat_show, NULL);
+}
+
+static const struct file_operations sched_feat_fops = {
+	.open		= sched_feat_open,
+	.write		= sched_feat_write,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static __init int sched_init_debug(void)
+{
+	debugfs_create_file("sched_features", 0644, NULL, NULL,
+			&sched_feat_fops);
+
+	return 0;
+}
+late_initcall(sched_init_debug);
+
+#ifdef CONFIG_SMP
+
+#ifdef CONFIG_SYSCTL
+
+static struct ctl_table sd_ctl_dir[] = {
+	{
+		.procname	= "sched_domain",
+		.mode		= 0555,
+	},
+	{}
+};
+
+static struct ctl_table sd_ctl_root[] = {
+	{
+		.procname	= "kernel",
+		.mode		= 0555,
+		.child		= sd_ctl_dir,
+	},
+	{}
+};
+
+static struct ctl_table *sd_alloc_ctl_entry(int n)
+{
+	struct ctl_table *entry =
+		kcalloc(n, sizeof(struct ctl_table), GFP_KERNEL);
+
+	return entry;
+}
+
+static void sd_free_ctl_entry(struct ctl_table **tablep)
+{
+	struct ctl_table *entry;
+
+	/*
+	 * In the intermediate directories, both the child directory and
+	 * procname are dynamically allocated and could fail but the mode
+	 * will always be set. In the lowest directory the names are
+	 * static strings and all have proc handlers.
+	 */
+	for (entry = *tablep; entry->mode; entry++) {
+		if (entry->child)
+			sd_free_ctl_entry(&entry->child);
+		if (entry->proc_handler == NULL)
+			kfree(entry->procname);
+	}
+
+	kfree(*tablep);
+	*tablep = NULL;
+}
+
+static int min_load_idx = 0;
+static int max_load_idx = CPU_LOAD_IDX_MAX-1;
+
+static void
+set_table_entry(struct ctl_table *entry,
+		const char *procname, void *data, int maxlen,
+		umode_t mode, proc_handler *proc_handler,
+		bool load_idx)
+{
+	entry->procname = procname;
+	entry->data = data;
+	entry->maxlen = maxlen;
+	entry->mode = mode;
+	entry->proc_handler = proc_handler;
+
+	if (load_idx) {
+		entry->extra1 = &min_load_idx;
+		entry->extra2 = &max_load_idx;
+	}
+}
+
+static struct ctl_table *
+sd_alloc_ctl_domain_table(struct sched_domain *sd)
+{
+	struct ctl_table *table = sd_alloc_ctl_entry(14);
+
+	if (table == NULL)
+		return NULL;
+
+	set_table_entry(&table[0], "min_interval", &sd->min_interval,
+		sizeof(long), 0644, proc_doulongvec_minmax, false);
+	set_table_entry(&table[1], "max_interval", &sd->max_interval,
+		sizeof(long), 0644, proc_doulongvec_minmax, false);
+	set_table_entry(&table[2], "busy_idx", &sd->busy_idx,
+		sizeof(int), 0644, proc_dointvec_minmax, true);
+	set_table_entry(&table[3], "idle_idx", &sd->idle_idx,
+		sizeof(int), 0644, proc_dointvec_minmax, true);
+	set_table_entry(&table[4], "newidle_idx", &sd->newidle_idx,
+		sizeof(int), 0644, proc_dointvec_minmax, true);
+	set_table_entry(&table[5], "wake_idx", &sd->wake_idx,
+		sizeof(int), 0644, proc_dointvec_minmax, true);
+	set_table_entry(&table[6], "forkexec_idx", &sd->forkexec_idx,
+		sizeof(int), 0644, proc_dointvec_minmax, true);
+	set_table_entry(&table[7], "busy_factor", &sd->busy_factor,
+		sizeof(int), 0644, proc_dointvec_minmax, false);
+	set_table_entry(&table[8], "imbalance_pct", &sd->imbalance_pct,
+		sizeof(int), 0644, proc_dointvec_minmax, false);
+	set_table_entry(&table[9], "cache_nice_tries",
+		&sd->cache_nice_tries,
+		sizeof(int), 0644, proc_dointvec_minmax, false);
+	set_table_entry(&table[10], "flags", &sd->flags,
+		sizeof(int), 0644, proc_dointvec_minmax, false);
+	set_table_entry(&table[11], "max_newidle_lb_cost",
+		&sd->max_newidle_lb_cost,
+		sizeof(long), 0644, proc_doulongvec_minmax, false);
+	set_table_entry(&table[12], "name", sd->name,
+		CORENAME_MAX_SIZE, 0444, proc_dostring, false);
+	/* &table[13] is terminator */
+
+	return table;
+}
+
+static struct ctl_table *sd_alloc_ctl_cpu_table(int cpu)
+{
+	struct ctl_table *entry, *table;
+	struct sched_domain *sd;
+	int domain_num = 0, i;
+	char buf[32];
+
+	for_each_domain(cpu, sd)
+		domain_num++;
+	entry = table = sd_alloc_ctl_entry(domain_num + 1);
+	if (table == NULL)
+		return NULL;
+
+	i = 0;
+	for_each_domain(cpu, sd) {
+		snprintf(buf, 32, "domain%d", i);
+		entry->procname = kstrdup(buf, GFP_KERNEL);
+		entry->mode = 0555;
+		entry->child = sd_alloc_ctl_domain_table(sd);
+		entry++;
+		i++;
+	}
+	return table;
+}
+
+static struct ctl_table_header *sd_sysctl_header;
+void register_sched_domain_sysctl(void)
+{
+	int i, cpu_num = num_possible_cpus();
+	struct ctl_table *entry = sd_alloc_ctl_entry(cpu_num + 1);
+	char buf[32];
+
+	WARN_ON(sd_ctl_dir[0].child);
+	sd_ctl_dir[0].child = entry;
+
+	if (entry == NULL)
+		return;
+
+	for_each_possible_cpu(i) {
+		snprintf(buf, 32, "cpu%d", i);
+		entry->procname = kstrdup(buf, GFP_KERNEL);
+		entry->mode = 0555;
+		entry->child = sd_alloc_ctl_cpu_table(i);
+		entry++;
+	}
+
+	WARN_ON(sd_sysctl_header);
+	sd_sysctl_header = register_sysctl_table(sd_ctl_root);
+}
+
+/* may be called multiple times per register */
+void unregister_sched_domain_sysctl(void)
+{
+	unregister_sysctl_table(sd_sysctl_header);
+	sd_sysctl_header = NULL;
+	if (sd_ctl_dir[0].child)
+		sd_free_ctl_entry(&sd_ctl_dir[0].child);
+}
+#endif /* CONFIG_SYSCTL */
+#endif /* CONFIG_SMP */
+
 #ifdef CONFIG_FAIR_GROUP_SCHED
 static void print_cfs_group_stats(struct seq_file *m, int cpu, struct task_group *tg)
 {
@@ -75,16 +379,18 @@ static void print_cfs_group_stats(struct seq_file *m, int cpu, struct task_group
 	PN(se->vruntime);
 	PN(se->sum_exec_runtime);
 #ifdef CONFIG_SCHEDSTATS
-	PN(se->statistics.wait_start);
-	PN(se->statistics.sleep_start);
-	PN(se->statistics.block_start);
-	PN(se->statistics.sleep_max);
-	PN(se->statistics.block_max);
-	PN(se->statistics.exec_max);
-	PN(se->statistics.slice_max);
-	PN(se->statistics.wait_max);
-	PN(se->statistics.wait_sum);
-	P(se->statistics.wait_count);
+	if (schedstat_enabled()) {
+		PN(se->statistics.wait_start);
+		PN(se->statistics.sleep_start);
+		PN(se->statistics.block_start);
+		PN(se->statistics.sleep_max);
+		PN(se->statistics.block_max);
+		PN(se->statistics.exec_max);
+		PN(se->statistics.slice_max);
+		PN(se->statistics.wait_max);
+		PN(se->statistics.wait_sum);
+		P(se->statistics.wait_count);
+	}
 #endif
 	P(se->load.weight);
 #ifdef CONFIG_SMP
@@ -122,10 +428,12 @@ print_task(struct seq_file *m, struct rq *rq, struct task_struct *p)
 		(long long)(p->nvcsw + p->nivcsw),
 		p->prio);
 #ifdef CONFIG_SCHEDSTATS
-	SEQ_printf(m, "%9Ld.%06ld %9Ld.%06ld %9Ld.%06ld",
-		SPLIT_NS(p->se.statistics.wait_sum),
-		SPLIT_NS(p->se.sum_exec_runtime),
-		SPLIT_NS(p->se.statistics.sum_sleep_runtime));
+	if (schedstat_enabled()) {
+		SEQ_printf(m, "%9Ld.%06ld %9Ld.%06ld %9Ld.%06ld",
+			SPLIT_NS(p->se.statistics.wait_sum),
+			SPLIT_NS(p->se.sum_exec_runtime),
+			SPLIT_NS(p->se.statistics.sum_sleep_runtime));
+	}
 #else
 	SEQ_printf(m, "%9Ld.%06ld %9Ld.%06ld %9Ld.%06ld",
 		0LL, 0L,
@@ -258,8 +566,17 @@ void print_rt_rq(struct seq_file *m, int cpu, struct rt_rq *rt_rq)
 
 void print_dl_rq(struct seq_file *m, int cpu, struct dl_rq *dl_rq)
 {
+	struct dl_bw *dl_bw;
+
 	SEQ_printf(m, "\ndl_rq[%d]:\n", cpu);
 	SEQ_printf(m, "  .%-30s: %ld\n", "dl_nr_running", dl_rq->dl_nr_running);
+#ifdef CONFIG_SMP
+	dl_bw = &cpu_rq(cpu)->rd->dl_bw;
+#else
+	dl_bw = &dl_rq->dl_bw;
+#endif
+	SEQ_printf(m, "  .%-30s: %lld\n", "dl_bw->bw", dl_bw->bw);
+	SEQ_printf(m, "  .%-30s: %lld\n", "dl_bw->total_bw", dl_bw->total_bw);
 }
 
 extern __read_mostly int sched_clock_running;
@@ -313,17 +630,18 @@ do {									\
 #define P(n) SEQ_printf(m, "  .%-30s: %d\n", #n, rq->n);
 #define P64(n) SEQ_printf(m, "  .%-30s: %Ld\n", #n, rq->n);
 
-	P(yld_count);
-
-	P(sched_count);
-	P(sched_goidle);
 #ifdef CONFIG_SMP
 	P64(avg_idle);
 	P64(max_idle_balance_cost);
 #endif
 
-	P(ttwu_count);
-	P(ttwu_local);
+	if (schedstat_enabled()) {
+		P(yld_count);
+		P(sched_count);
+		P(sched_goidle);
+		P(ttwu_count);
+		P(ttwu_local);
+	}
 
 #undef P
 #undef P64
@@ -569,37 +887,38 @@ void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
 	nr_switches = p->nvcsw + p->nivcsw;
 
 #ifdef CONFIG_SCHEDSTATS
-	PN(se.statistics.sum_sleep_runtime);
-	PN(se.statistics.wait_start);
-	PN(se.statistics.sleep_start);
-	PN(se.statistics.block_start);
-	PN(se.statistics.sleep_max);
-	PN(se.statistics.block_max);
-	PN(se.statistics.exec_max);
-	PN(se.statistics.slice_max);
-	PN(se.statistics.wait_max);
-	PN(se.statistics.wait_sum);
-	P(se.statistics.wait_count);
-	PN(se.statistics.iowait_sum);
-	P(se.statistics.iowait_count);
 	P(se.nr_migrations);
-	P(se.statistics.nr_migrations_cold);
-	P(se.statistics.nr_failed_migrations_affine);
-	P(se.statistics.nr_failed_migrations_running);
-	P(se.statistics.nr_failed_migrations_hot);
-	P(se.statistics.nr_forced_migrations);
-	P(se.statistics.nr_wakeups);
-	P(se.statistics.nr_wakeups_sync);
-	P(se.statistics.nr_wakeups_migrate);
-	P(se.statistics.nr_wakeups_local);
-	P(se.statistics.nr_wakeups_remote);
-	P(se.statistics.nr_wakeups_affine);
-	P(se.statistics.nr_wakeups_affine_attempts);
-	P(se.statistics.nr_wakeups_passive);
-	P(se.statistics.nr_wakeups_idle);
 
-	{
+	if (schedstat_enabled()) {
 		u64 avg_atom, avg_per_cpu;
+
+		PN(se.statistics.sum_sleep_runtime);
+		PN(se.statistics.wait_start);
+		PN(se.statistics.sleep_start);
+		PN(se.statistics.block_start);
+		PN(se.statistics.sleep_max);
+		PN(se.statistics.block_max);
+		PN(se.statistics.exec_max);
+		PN(se.statistics.slice_max);
+		PN(se.statistics.wait_max);
+		PN(se.statistics.wait_sum);
+		P(se.statistics.wait_count);
+		PN(se.statistics.iowait_sum);
+		P(se.statistics.iowait_count);
+		P(se.statistics.nr_migrations_cold);
+		P(se.statistics.nr_failed_migrations_affine);
+		P(se.statistics.nr_failed_migrations_running);
+		P(se.statistics.nr_failed_migrations_hot);
+		P(se.statistics.nr_forced_migrations);
+		P(se.statistics.nr_wakeups);
+		P(se.statistics.nr_wakeups_sync);
+		P(se.statistics.nr_wakeups_migrate);
+		P(se.statistics.nr_wakeups_local);
+		P(se.statistics.nr_wakeups_remote);
+		P(se.statistics.nr_wakeups_affine);
+		P(se.statistics.nr_wakeups_affine_attempts);
+		P(se.statistics.nr_wakeups_passive);
+		P(se.statistics.nr_wakeups_idle);
 
 		avg_atom = p->se.sum_exec_runtime;
 		if (nr_switches)

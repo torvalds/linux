@@ -21,8 +21,8 @@
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/platform_data/pinctrl-adi2.h>
 #include <linux/spi/adi_spi3.h>
+#include <linux/gpio.h>
 #include <asm/dma.h>
-#include <asm/gpio.h>
 #include <asm/nand.h>
 #include <asm/dpmc.h>
 #include <asm/portmux.h>

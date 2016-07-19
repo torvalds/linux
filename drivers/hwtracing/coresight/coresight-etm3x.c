@@ -1,5 +1,7 @@
 /* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
  *
+ * Description: CoreSight Program Flow Trace driver
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
  * only version 2 as published by the Free Software Foundation.
@@ -11,7 +13,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/device.h>
@@ -27,14 +29,21 @@
 #include <linux/cpu.h>
 #include <linux/of.h>
 #include <linux/coresight.h>
+#include <linux/coresight-pmu.h>
 #include <linux/amba/bus.h>
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
 #include <linux/clk.h>
+#include <linux/perf_event.h>
 #include <asm/sections.h>
 
 #include "coresight-etm.h"
+#include "coresight-etm-perf.h"
 
+/*
+ * Not really modular but using module_param is the easiest way to
+ * remain consistent with existing use cases for now.
+ */
 static int boot_enable;
 module_param_named(boot_enable, boot_enable, int, S_IRUGO);
 
@@ -42,45 +51,16 @@ module_param_named(boot_enable, boot_enable, int, S_IRUGO);
 static int etm_count;
 static struct etm_drvdata *etmdrvdata[NR_CPUS];
 
-static inline void etm_writel(struct etm_drvdata *drvdata,
-			      u32 val, u32 off)
-{
-	if (drvdata->use_cp14) {
-		if (etm_writel_cp14(off, val)) {
-			dev_err(drvdata->dev,
-				"invalid CP14 access to ETM reg: %#x", off);
-		}
-	} else {
-		writel_relaxed(val, drvdata->base + off);
-	}
-}
-
-static inline unsigned int etm_readl(struct etm_drvdata *drvdata, u32 off)
-{
-	u32 val;
-
-	if (drvdata->use_cp14) {
-		if (etm_readl_cp14(off, &val)) {
-			dev_err(drvdata->dev,
-				"invalid CP14 access to ETM reg: %#x", off);
-		}
-	} else {
-		val = readl_relaxed(drvdata->base + off);
-	}
-
-	return val;
-}
-
 /*
  * Memory mapped writes to clear os lock are not supported on some processors
  * and OS lock must be unlocked before any memory mapped access on such
  * processors, otherwise memory mapped reads/writes will be invalid.
  */
-static void etm_os_unlock(void *info)
+static void etm_os_unlock(struct etm_drvdata *drvdata)
 {
-	struct etm_drvdata *drvdata = (struct etm_drvdata *)info;
 	/* Writing any value to ETMOSLAR unlocks the trace registers */
 	etm_writel(drvdata, 0x0, ETMOSLAR);
+	drvdata->os_unlock = true;
 	isb();
 }
 
@@ -215,36 +195,156 @@ static void etm_clr_prog(struct etm_drvdata *drvdata)
 	}
 }
 
-static void etm_set_default(struct etm_drvdata *drvdata)
+void etm_set_default(struct etm_config *config)
 {
 	int i;
 
-	drvdata->trigger_event = ETM_DEFAULT_EVENT_VAL;
-	drvdata->enable_event = ETM_HARD_WIRE_RES_A;
+	if (WARN_ON_ONCE(!config))
+		return;
 
-	drvdata->seq_12_event = ETM_DEFAULT_EVENT_VAL;
-	drvdata->seq_21_event = ETM_DEFAULT_EVENT_VAL;
-	drvdata->seq_23_event = ETM_DEFAULT_EVENT_VAL;
-	drvdata->seq_31_event = ETM_DEFAULT_EVENT_VAL;
-	drvdata->seq_32_event = ETM_DEFAULT_EVENT_VAL;
-	drvdata->seq_13_event = ETM_DEFAULT_EVENT_VAL;
-	drvdata->timestamp_event = ETM_DEFAULT_EVENT_VAL;
+	/*
+	 * Taken verbatim from the TRM:
+	 *
+	 * To trace all memory:
+	 *  set bit [24] in register 0x009, the ETMTECR1, to 1
+	 *  set all other bits in register 0x009, the ETMTECR1, to 0
+	 *  set all bits in register 0x007, the ETMTECR2, to 0
+	 *  set register 0x008, the ETMTEEVR, to 0x6F (TRUE).
+	 */
+	config->enable_ctrl1 = BIT(24);
+	config->enable_ctrl2 = 0x0;
+	config->enable_event = ETM_HARD_WIRE_RES_A;
 
-	for (i = 0; i < drvdata->nr_cntr; i++) {
-		drvdata->cntr_rld_val[i] = 0x0;
-		drvdata->cntr_event[i] = ETM_DEFAULT_EVENT_VAL;
-		drvdata->cntr_rld_event[i] = ETM_DEFAULT_EVENT_VAL;
-		drvdata->cntr_val[i] = 0x0;
+	config->trigger_event = ETM_DEFAULT_EVENT_VAL;
+	config->enable_event = ETM_HARD_WIRE_RES_A;
+
+	config->seq_12_event = ETM_DEFAULT_EVENT_VAL;
+	config->seq_21_event = ETM_DEFAULT_EVENT_VAL;
+	config->seq_23_event = ETM_DEFAULT_EVENT_VAL;
+	config->seq_31_event = ETM_DEFAULT_EVENT_VAL;
+	config->seq_32_event = ETM_DEFAULT_EVENT_VAL;
+	config->seq_13_event = ETM_DEFAULT_EVENT_VAL;
+	config->timestamp_event = ETM_DEFAULT_EVENT_VAL;
+
+	for (i = 0; i < ETM_MAX_CNTR; i++) {
+		config->cntr_rld_val[i] = 0x0;
+		config->cntr_event[i] = ETM_DEFAULT_EVENT_VAL;
+		config->cntr_rld_event[i] = ETM_DEFAULT_EVENT_VAL;
+		config->cntr_val[i] = 0x0;
 	}
 
-	drvdata->seq_curr_state = 0x0;
-	drvdata->ctxid_idx = 0x0;
-	for (i = 0; i < drvdata->nr_ctxid_cmp; i++) {
-		drvdata->ctxid_pid[i] = 0x0;
-		drvdata->ctxid_vpid[i] = 0x0;
+	config->seq_curr_state = 0x0;
+	config->ctxid_idx = 0x0;
+	for (i = 0; i < ETM_MAX_CTXID_CMP; i++) {
+		config->ctxid_pid[i] = 0x0;
+		config->ctxid_vpid[i] = 0x0;
 	}
 
-	drvdata->ctxid_mask = 0x0;
+	config->ctxid_mask = 0x0;
+}
+
+void etm_config_trace_mode(struct etm_config *config)
+{
+	u32 flags, mode;
+
+	mode = config->mode;
+
+	mode &= (ETM_MODE_EXCL_KERN | ETM_MODE_EXCL_USER);
+
+	/* excluding kernel AND user space doesn't make sense */
+	if (mode == (ETM_MODE_EXCL_KERN | ETM_MODE_EXCL_USER))
+		return;
+
+	/* nothing to do if neither flags are set */
+	if (!(mode & ETM_MODE_EXCL_KERN) && !(mode & ETM_MODE_EXCL_USER))
+		return;
+
+	flags = (1 << 0 |	/* instruction execute */
+		 3 << 3 |	/* ARM instruction */
+		 0 << 5 |	/* No data value comparison */
+		 0 << 7 |	/* No exact mach */
+		 0 << 8);	/* Ignore context ID */
+
+	/* No need to worry about single address comparators. */
+	config->enable_ctrl2 = 0x0;
+
+	/* Bit 0 is address range comparator 1 */
+	config->enable_ctrl1 = ETMTECR1_ADDR_COMP_1;
+
+	/*
+	 * On ETMv3.5:
+	 * ETMACTRn[13,11] == Non-secure state comparison control
+	 * ETMACTRn[12,10] == Secure state comparison control
+	 *
+	 * b00 == Match in all modes in this state
+	 * b01 == Do not match in any more in this state
+	 * b10 == Match in all modes excepts user mode in this state
+	 * b11 == Match only in user mode in this state
+	 */
+
+	/* Tracing in secure mode is not supported at this time */
+	flags |= (0 << 12 | 1 << 10);
+
+	if (mode & ETM_MODE_EXCL_USER) {
+		/* exclude user, match all modes except user mode */
+		flags |= (1 << 13 | 0 << 11);
+	} else {
+		/* exclude kernel, match only in user mode */
+		flags |= (1 << 13 | 1 << 11);
+	}
+
+	/*
+	 * The ETMEEVR register is already set to "hard wire A".  As such
+	 * all there is to do is setup an address comparator that spans
+	 * the entire address range and configure the state and mode bits.
+	 */
+	config->addr_val[0] = (u32) 0x0;
+	config->addr_val[1] = (u32) ~0x0;
+	config->addr_acctype[0] = flags;
+	config->addr_acctype[1] = flags;
+	config->addr_type[0] = ETM_ADDR_TYPE_RANGE;
+	config->addr_type[1] = ETM_ADDR_TYPE_RANGE;
+}
+
+#define ETM3X_SUPPORTED_OPTIONS (ETMCR_CYC_ACC | ETMCR_TIMESTAMP_EN)
+
+static int etm_parse_event_config(struct etm_drvdata *drvdata,
+				  struct perf_event_attr *attr)
+{
+	struct etm_config *config = &drvdata->config;
+
+	if (!attr)
+		return -EINVAL;
+
+	/* Clear configuration from previous run */
+	memset(config, 0, sizeof(struct etm_config));
+
+	if (attr->exclude_kernel)
+		config->mode = ETM_MODE_EXCL_KERN;
+
+	if (attr->exclude_user)
+		config->mode = ETM_MODE_EXCL_USER;
+
+	/* Always start from the default config */
+	etm_set_default(config);
+
+	/*
+	 * By default the tracers are configured to trace the whole address
+	 * range.  Narrow the field only if requested by user space.
+	 */
+	if (config->mode)
+		etm_config_trace_mode(config);
+
+	/*
+	 * At this time only cycle accurate and timestamp options are
+	 * available.
+	 */
+	if (attr->config & ~ETM3X_SUPPORTED_OPTIONS)
+		return -EINVAL;
+
+	config->ctrl = attr->config;
+
+	return 0;
 }
 
 static void etm_enable_hw(void *info)
@@ -252,6 +352,7 @@ static void etm_enable_hw(void *info)
 	int i;
 	u32 etmcr;
 	struct etm_drvdata *drvdata = info;
+	struct etm_config *config = &drvdata->config;
 
 	CS_UNLOCK(drvdata->base);
 
@@ -265,49 +366,48 @@ static void etm_enable_hw(void *info)
 	etm_set_prog(drvdata);
 
 	etmcr = etm_readl(drvdata, ETMCR);
-	etmcr &= (ETMCR_PWD_DWN | ETMCR_ETM_PRG);
+	/* Clear setting from a previous run if need be */
+	etmcr &= ~ETM3X_SUPPORTED_OPTIONS;
 	etmcr |= drvdata->port_size;
-	etm_writel(drvdata, drvdata->ctrl | etmcr, ETMCR);
-	etm_writel(drvdata, drvdata->trigger_event, ETMTRIGGER);
-	etm_writel(drvdata, drvdata->startstop_ctrl, ETMTSSCR);
-	etm_writel(drvdata, drvdata->enable_event, ETMTEEVR);
-	etm_writel(drvdata, drvdata->enable_ctrl1, ETMTECR1);
-	etm_writel(drvdata, drvdata->fifofull_level, ETMFFLR);
+	etmcr |= ETMCR_ETM_EN;
+	etm_writel(drvdata, config->ctrl | etmcr, ETMCR);
+	etm_writel(drvdata, config->trigger_event, ETMTRIGGER);
+	etm_writel(drvdata, config->startstop_ctrl, ETMTSSCR);
+	etm_writel(drvdata, config->enable_event, ETMTEEVR);
+	etm_writel(drvdata, config->enable_ctrl1, ETMTECR1);
+	etm_writel(drvdata, config->fifofull_level, ETMFFLR);
 	for (i = 0; i < drvdata->nr_addr_cmp; i++) {
-		etm_writel(drvdata, drvdata->addr_val[i], ETMACVRn(i));
-		etm_writel(drvdata, drvdata->addr_acctype[i], ETMACTRn(i));
+		etm_writel(drvdata, config->addr_val[i], ETMACVRn(i));
+		etm_writel(drvdata, config->addr_acctype[i], ETMACTRn(i));
 	}
 	for (i = 0; i < drvdata->nr_cntr; i++) {
-		etm_writel(drvdata, drvdata->cntr_rld_val[i], ETMCNTRLDVRn(i));
-		etm_writel(drvdata, drvdata->cntr_event[i], ETMCNTENRn(i));
-		etm_writel(drvdata, drvdata->cntr_rld_event[i],
+		etm_writel(drvdata, config->cntr_rld_val[i], ETMCNTRLDVRn(i));
+		etm_writel(drvdata, config->cntr_event[i], ETMCNTENRn(i));
+		etm_writel(drvdata, config->cntr_rld_event[i],
 			   ETMCNTRLDEVRn(i));
-		etm_writel(drvdata, drvdata->cntr_val[i], ETMCNTVRn(i));
+		etm_writel(drvdata, config->cntr_val[i], ETMCNTVRn(i));
 	}
-	etm_writel(drvdata, drvdata->seq_12_event, ETMSQ12EVR);
-	etm_writel(drvdata, drvdata->seq_21_event, ETMSQ21EVR);
-	etm_writel(drvdata, drvdata->seq_23_event, ETMSQ23EVR);
-	etm_writel(drvdata, drvdata->seq_31_event, ETMSQ31EVR);
-	etm_writel(drvdata, drvdata->seq_32_event, ETMSQ32EVR);
-	etm_writel(drvdata, drvdata->seq_13_event, ETMSQ13EVR);
-	etm_writel(drvdata, drvdata->seq_curr_state, ETMSQR);
+	etm_writel(drvdata, config->seq_12_event, ETMSQ12EVR);
+	etm_writel(drvdata, config->seq_21_event, ETMSQ21EVR);
+	etm_writel(drvdata, config->seq_23_event, ETMSQ23EVR);
+	etm_writel(drvdata, config->seq_31_event, ETMSQ31EVR);
+	etm_writel(drvdata, config->seq_32_event, ETMSQ32EVR);
+	etm_writel(drvdata, config->seq_13_event, ETMSQ13EVR);
+	etm_writel(drvdata, config->seq_curr_state, ETMSQR);
 	for (i = 0; i < drvdata->nr_ext_out; i++)
 		etm_writel(drvdata, ETM_DEFAULT_EVENT_VAL, ETMEXTOUTEVRn(i));
 	for (i = 0; i < drvdata->nr_ctxid_cmp; i++)
-		etm_writel(drvdata, drvdata->ctxid_pid[i], ETMCIDCVRn(i));
-	etm_writel(drvdata, drvdata->ctxid_mask, ETMCIDCMR);
-	etm_writel(drvdata, drvdata->sync_freq, ETMSYNCFR);
+		etm_writel(drvdata, config->ctxid_pid[i], ETMCIDCVRn(i));
+	etm_writel(drvdata, config->ctxid_mask, ETMCIDCMR);
+	etm_writel(drvdata, config->sync_freq, ETMSYNCFR);
 	/* No external input selected */
 	etm_writel(drvdata, 0x0, ETMEXTINSELR);
-	etm_writel(drvdata, drvdata->timestamp_event, ETMTSEVR);
+	etm_writel(drvdata, config->timestamp_event, ETMTSEVR);
 	/* No auxiliary control selected */
 	etm_writel(drvdata, 0x0, ETMAUXCR);
 	etm_writel(drvdata, drvdata->traceid, ETMTRACEIDR);
 	/* No VMID comparator value selected */
 	etm_writel(drvdata, 0x0, ETMVMIDCVR);
-
-	/* Ensures trace output is enabled from this ETM */
-	etm_writel(drvdata, drvdata->ctrl | ETMCR_ETM_EN | etmcr, ETMCR);
 
 	etm_clr_prog(drvdata);
 	CS_LOCK(drvdata->base);
@@ -315,15 +415,25 @@ static void etm_enable_hw(void *info)
 	dev_dbg(drvdata->dev, "cpu: %d enable smp call done\n", drvdata->cpu);
 }
 
-static int etm_trace_id(struct coresight_device *csdev)
+static int etm_cpu_id(struct coresight_device *csdev)
 {
 	struct etm_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
+
+	return drvdata->cpu;
+}
+
+int etm_get_trace_id(struct etm_drvdata *drvdata)
+{
 	unsigned long flags;
 	int trace_id = -1;
 
-	if (!drvdata->enable)
+	if (!drvdata)
+		goto out;
+
+	if (!local_read(&drvdata->mode))
 		return drvdata->traceid;
-	pm_runtime_get_sync(csdev->dev.parent);
+
+	pm_runtime_get_sync(drvdata->dev);
 
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 
@@ -332,17 +442,41 @@ static int etm_trace_id(struct coresight_device *csdev)
 	CS_LOCK(drvdata->base);
 
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
-	pm_runtime_put(csdev->dev.parent);
+	pm_runtime_put(drvdata->dev);
 
+out:
 	return trace_id;
+
 }
 
-static int etm_enable(struct coresight_device *csdev)
+static int etm_trace_id(struct coresight_device *csdev)
+{
+	struct etm_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
+
+	return etm_get_trace_id(drvdata);
+}
+
+static int etm_enable_perf(struct coresight_device *csdev,
+			   struct perf_event_attr *attr)
+{
+	struct etm_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
+
+	if (WARN_ON_ONCE(drvdata->cpu != smp_processor_id()))
+		return -EINVAL;
+
+	/* Configure the tracer based on the session's specifics */
+	etm_parse_event_config(drvdata, attr);
+	/* And enable it */
+	etm_enable_hw(drvdata);
+
+	return 0;
+}
+
+static int etm_enable_sysfs(struct coresight_device *csdev)
 {
 	struct etm_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 	int ret;
 
-	pm_runtime_get_sync(csdev->dev.parent);
 	spin_lock(&drvdata->spinlock);
 
 	/*
@@ -357,16 +491,45 @@ static int etm_enable(struct coresight_device *csdev)
 			goto err;
 	}
 
-	drvdata->enable = true;
 	drvdata->sticky_enable = true;
-
 	spin_unlock(&drvdata->spinlock);
 
 	dev_info(drvdata->dev, "ETM tracing enabled\n");
 	return 0;
+
 err:
 	spin_unlock(&drvdata->spinlock);
-	pm_runtime_put(csdev->dev.parent);
+	return ret;
+}
+
+static int etm_enable(struct coresight_device *csdev,
+		      struct perf_event_attr *attr, u32 mode)
+{
+	int ret;
+	u32 val;
+	struct etm_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
+
+	val = local_cmpxchg(&drvdata->mode, CS_MODE_DISABLED, mode);
+
+	/* Someone is already using the tracer */
+	if (val)
+		return -EBUSY;
+
+	switch (mode) {
+	case CS_MODE_SYSFS:
+		ret = etm_enable_sysfs(csdev);
+		break;
+	case CS_MODE_PERF:
+		ret = etm_enable_perf(csdev, attr);
+		break;
+	default:
+		ret = -EINVAL;
+	}
+
+	/* The tracer didn't start */
+	if (ret)
+		local_set(&drvdata->mode, CS_MODE_DISABLED);
+
 	return ret;
 }
 
@@ -374,18 +537,16 @@ static void etm_disable_hw(void *info)
 {
 	int i;
 	struct etm_drvdata *drvdata = info;
+	struct etm_config *config = &drvdata->config;
 
 	CS_UNLOCK(drvdata->base);
 	etm_set_prog(drvdata);
 
-	/* Program trace enable to low by using always false event */
-	etm_writel(drvdata, ETM_HARD_WIRE_RES_A | ETM_EVENT_NOT_A, ETMTEEVR);
-
 	/* Read back sequencer and counters for post trace analysis */
-	drvdata->seq_curr_state = (etm_readl(drvdata, ETMSQR) & ETM_SQR_MASK);
+	config->seq_curr_state = (etm_readl(drvdata, ETMSQR) & ETM_SQR_MASK);
 
 	for (i = 0; i < drvdata->nr_cntr; i++)
-		drvdata->cntr_val[i] = etm_readl(drvdata, ETMCNTVRn(i));
+		config->cntr_val[i] = etm_readl(drvdata, ETMCNTVRn(i));
 
 	etm_set_pwrdwn(drvdata);
 	CS_LOCK(drvdata->base);
@@ -393,7 +554,28 @@ static void etm_disable_hw(void *info)
 	dev_dbg(drvdata->dev, "cpu: %d disable smp call done\n", drvdata->cpu);
 }
 
-static void etm_disable(struct coresight_device *csdev)
+static void etm_disable_perf(struct coresight_device *csdev)
+{
+	struct etm_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
+
+	if (WARN_ON_ONCE(drvdata->cpu != smp_processor_id()))
+		return;
+
+	CS_UNLOCK(drvdata->base);
+
+	/* Setting the prog bit disables tracing immediately */
+	etm_set_prog(drvdata);
+
+	/*
+	 * There is no way to know when the tracer will be used again so
+	 * power down the tracer.
+	 */
+	etm_set_pwrdwn(drvdata);
+
+	CS_LOCK(drvdata->base);
+}
+
+static void etm_disable_sysfs(struct coresight_device *csdev)
 {
 	struct etm_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 
@@ -411,16 +593,45 @@ static void etm_disable(struct coresight_device *csdev)
 	 * ensures that register writes occur when cpu is powered.
 	 */
 	smp_call_function_single(drvdata->cpu, etm_disable_hw, drvdata, 1);
-	drvdata->enable = false;
 
 	spin_unlock(&drvdata->spinlock);
 	put_online_cpus();
-	pm_runtime_put(csdev->dev.parent);
 
 	dev_info(drvdata->dev, "ETM tracing disabled\n");
 }
 
+static void etm_disable(struct coresight_device *csdev)
+{
+	u32 mode;
+	struct etm_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
+
+	/*
+	 * For as long as the tracer isn't disabled another entity can't
+	 * change its status.  As such we can read the status here without
+	 * fearing it will change under us.
+	 */
+	mode = local_read(&drvdata->mode);
+
+	switch (mode) {
+	case CS_MODE_DISABLED:
+		break;
+	case CS_MODE_SYSFS:
+		etm_disable_sysfs(csdev);
+		break;
+	case CS_MODE_PERF:
+		etm_disable_perf(csdev);
+		break;
+	default:
+		WARN_ON_ONCE(mode);
+		return;
+	}
+
+	if (mode)
+		local_set(&drvdata->mode, CS_MODE_DISABLED);
+}
+
 static const struct coresight_ops_source etm_source_ops = {
+	.cpu_id		= etm_cpu_id,
 	.trace_id	= etm_trace_id,
 	.enable		= etm_enable,
 	.disable	= etm_disable,
@@ -428,1218 +639,6 @@ static const struct coresight_ops_source etm_source_ops = {
 
 static const struct coresight_ops etm_cs_ops = {
 	.source_ops	= &etm_source_ops,
-};
-
-static ssize_t nr_addr_cmp_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	val = drvdata->nr_addr_cmp;
-	return sprintf(buf, "%#lx\n", val);
-}
-static DEVICE_ATTR_RO(nr_addr_cmp);
-
-static ssize_t nr_cntr_show(struct device *dev,
-			    struct device_attribute *attr, char *buf)
-{	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	val = drvdata->nr_cntr;
-	return sprintf(buf, "%#lx\n", val);
-}
-static DEVICE_ATTR_RO(nr_cntr);
-
-static ssize_t nr_ctxid_cmp_show(struct device *dev,
-				 struct device_attribute *attr, char *buf)
-{
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	val = drvdata->nr_ctxid_cmp;
-	return sprintf(buf, "%#lx\n", val);
-}
-static DEVICE_ATTR_RO(nr_ctxid_cmp);
-
-static ssize_t etmsr_show(struct device *dev,
-			  struct device_attribute *attr, char *buf)
-{
-	unsigned long flags, val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	pm_runtime_get_sync(drvdata->dev);
-	spin_lock_irqsave(&drvdata->spinlock, flags);
-	CS_UNLOCK(drvdata->base);
-
-	val = etm_readl(drvdata, ETMSR);
-
-	CS_LOCK(drvdata->base);
-	spin_unlock_irqrestore(&drvdata->spinlock, flags);
-	pm_runtime_put(drvdata->dev);
-
-	return sprintf(buf, "%#lx\n", val);
-}
-static DEVICE_ATTR_RO(etmsr);
-
-static ssize_t reset_store(struct device *dev,
-			   struct device_attribute *attr,
-			   const char *buf, size_t size)
-{
-	int i, ret;
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	ret = kstrtoul(buf, 16, &val);
-	if (ret)
-		return ret;
-
-	if (val) {
-		spin_lock(&drvdata->spinlock);
-		drvdata->mode = ETM_MODE_EXCLUDE;
-		drvdata->ctrl = 0x0;
-		drvdata->trigger_event = ETM_DEFAULT_EVENT_VAL;
-		drvdata->startstop_ctrl = 0x0;
-		drvdata->addr_idx = 0x0;
-		for (i = 0; i < drvdata->nr_addr_cmp; i++) {
-			drvdata->addr_val[i] = 0x0;
-			drvdata->addr_acctype[i] = 0x0;
-			drvdata->addr_type[i] = ETM_ADDR_TYPE_NONE;
-		}
-		drvdata->cntr_idx = 0x0;
-
-		etm_set_default(drvdata);
-		spin_unlock(&drvdata->spinlock);
-	}
-
-	return size;
-}
-static DEVICE_ATTR_WO(reset);
-
-static ssize_t mode_show(struct device *dev,
-			 struct device_attribute *attr, char *buf)
-{
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	val = drvdata->mode;
-	return sprintf(buf, "%#lx\n", val);
-}
-
-static ssize_t mode_store(struct device *dev,
-			  struct device_attribute *attr,
-			  const char *buf, size_t size)
-{
-	int ret;
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	ret = kstrtoul(buf, 16, &val);
-	if (ret)
-		return ret;
-
-	spin_lock(&drvdata->spinlock);
-	drvdata->mode = val & ETM_MODE_ALL;
-
-	if (drvdata->mode & ETM_MODE_EXCLUDE)
-		drvdata->enable_ctrl1 |= ETMTECR1_INC_EXC;
-	else
-		drvdata->enable_ctrl1 &= ~ETMTECR1_INC_EXC;
-
-	if (drvdata->mode & ETM_MODE_CYCACC)
-		drvdata->ctrl |= ETMCR_CYC_ACC;
-	else
-		drvdata->ctrl &= ~ETMCR_CYC_ACC;
-
-	if (drvdata->mode & ETM_MODE_STALL) {
-		if (!(drvdata->etmccr & ETMCCR_FIFOFULL)) {
-			dev_warn(drvdata->dev, "stall mode not supported\n");
-			ret = -EINVAL;
-			goto err_unlock;
-		}
-		drvdata->ctrl |= ETMCR_STALL_MODE;
-	 } else
-		drvdata->ctrl &= ~ETMCR_STALL_MODE;
-
-	if (drvdata->mode & ETM_MODE_TIMESTAMP) {
-		if (!(drvdata->etmccer & ETMCCER_TIMESTAMP)) {
-			dev_warn(drvdata->dev, "timestamp not supported\n");
-			ret = -EINVAL;
-			goto err_unlock;
-		}
-		drvdata->ctrl |= ETMCR_TIMESTAMP_EN;
-	} else
-		drvdata->ctrl &= ~ETMCR_TIMESTAMP_EN;
-
-	if (drvdata->mode & ETM_MODE_CTXID)
-		drvdata->ctrl |= ETMCR_CTXID_SIZE;
-	else
-		drvdata->ctrl &= ~ETMCR_CTXID_SIZE;
-	spin_unlock(&drvdata->spinlock);
-
-	return size;
-
-err_unlock:
-	spin_unlock(&drvdata->spinlock);
-	return ret;
-}
-static DEVICE_ATTR_RW(mode);
-
-static ssize_t trigger_event_show(struct device *dev,
-				  struct device_attribute *attr, char *buf)
-{
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	val = drvdata->trigger_event;
-	return sprintf(buf, "%#lx\n", val);
-}
-
-static ssize_t trigger_event_store(struct device *dev,
-				   struct device_attribute *attr,
-				   const char *buf, size_t size)
-{
-	int ret;
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	ret = kstrtoul(buf, 16, &val);
-	if (ret)
-		return ret;
-
-	drvdata->trigger_event = val & ETM_EVENT_MASK;
-
-	return size;
-}
-static DEVICE_ATTR_RW(trigger_event);
-
-static ssize_t enable_event_show(struct device *dev,
-				 struct device_attribute *attr, char *buf)
-{
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	val = drvdata->enable_event;
-	return sprintf(buf, "%#lx\n", val);
-}
-
-static ssize_t enable_event_store(struct device *dev,
-				  struct device_attribute *attr,
-				  const char *buf, size_t size)
-{
-	int ret;
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	ret = kstrtoul(buf, 16, &val);
-	if (ret)
-		return ret;
-
-	drvdata->enable_event = val & ETM_EVENT_MASK;
-
-	return size;
-}
-static DEVICE_ATTR_RW(enable_event);
-
-static ssize_t fifofull_level_show(struct device *dev,
-				   struct device_attribute *attr, char *buf)
-{
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	val = drvdata->fifofull_level;
-	return sprintf(buf, "%#lx\n", val);
-}
-
-static ssize_t fifofull_level_store(struct device *dev,
-				    struct device_attribute *attr,
-				    const char *buf, size_t size)
-{
-	int ret;
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	ret = kstrtoul(buf, 16, &val);
-	if (ret)
-		return ret;
-
-	drvdata->fifofull_level = val;
-
-	return size;
-}
-static DEVICE_ATTR_RW(fifofull_level);
-
-static ssize_t addr_idx_show(struct device *dev,
-			     struct device_attribute *attr, char *buf)
-{
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	val = drvdata->addr_idx;
-	return sprintf(buf, "%#lx\n", val);
-}
-
-static ssize_t addr_idx_store(struct device *dev,
-			      struct device_attribute *attr,
-			      const char *buf, size_t size)
-{
-	int ret;
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	ret = kstrtoul(buf, 16, &val);
-	if (ret)
-		return ret;
-
-	if (val >= drvdata->nr_addr_cmp)
-		return -EINVAL;
-
-	/*
-	 * Use spinlock to ensure index doesn't change while it gets
-	 * dereferenced multiple times within a spinlock block elsewhere.
-	 */
-	spin_lock(&drvdata->spinlock);
-	drvdata->addr_idx = val;
-	spin_unlock(&drvdata->spinlock);
-
-	return size;
-}
-static DEVICE_ATTR_RW(addr_idx);
-
-static ssize_t addr_single_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	u8 idx;
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	spin_lock(&drvdata->spinlock);
-	idx = drvdata->addr_idx;
-	if (!(drvdata->addr_type[idx] == ETM_ADDR_TYPE_NONE ||
-	      drvdata->addr_type[idx] == ETM_ADDR_TYPE_SINGLE)) {
-		spin_unlock(&drvdata->spinlock);
-		return -EINVAL;
-	}
-
-	val = drvdata->addr_val[idx];
-	spin_unlock(&drvdata->spinlock);
-
-	return sprintf(buf, "%#lx\n", val);
-}
-
-static ssize_t addr_single_store(struct device *dev,
-				 struct device_attribute *attr,
-				 const char *buf, size_t size)
-{
-	u8 idx;
-	int ret;
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	ret = kstrtoul(buf, 16, &val);
-	if (ret)
-		return ret;
-
-	spin_lock(&drvdata->spinlock);
-	idx = drvdata->addr_idx;
-	if (!(drvdata->addr_type[idx] == ETM_ADDR_TYPE_NONE ||
-	      drvdata->addr_type[idx] == ETM_ADDR_TYPE_SINGLE)) {
-		spin_unlock(&drvdata->spinlock);
-		return -EINVAL;
-	}
-
-	drvdata->addr_val[idx] = val;
-	drvdata->addr_type[idx] = ETM_ADDR_TYPE_SINGLE;
-	spin_unlock(&drvdata->spinlock);
-
-	return size;
-}
-static DEVICE_ATTR_RW(addr_single);
-
-static ssize_t addr_range_show(struct device *dev,
-			       struct device_attribute *attr, char *buf)
-{
-	u8 idx;
-	unsigned long val1, val2;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	spin_lock(&drvdata->spinlock);
-	idx = drvdata->addr_idx;
-	if (idx % 2 != 0) {
-		spin_unlock(&drvdata->spinlock);
-		return -EPERM;
-	}
-	if (!((drvdata->addr_type[idx] == ETM_ADDR_TYPE_NONE &&
-	       drvdata->addr_type[idx + 1] == ETM_ADDR_TYPE_NONE) ||
-	      (drvdata->addr_type[idx] == ETM_ADDR_TYPE_RANGE &&
-	       drvdata->addr_type[idx + 1] == ETM_ADDR_TYPE_RANGE))) {
-		spin_unlock(&drvdata->spinlock);
-		return -EPERM;
-	}
-
-	val1 = drvdata->addr_val[idx];
-	val2 = drvdata->addr_val[idx + 1];
-	spin_unlock(&drvdata->spinlock);
-
-	return sprintf(buf, "%#lx %#lx\n", val1, val2);
-}
-
-static ssize_t addr_range_store(struct device *dev,
-			      struct device_attribute *attr,
-			      const char *buf, size_t size)
-{
-	u8 idx;
-	unsigned long val1, val2;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	if (sscanf(buf, "%lx %lx", &val1, &val2) != 2)
-		return -EINVAL;
-	/* Lower address comparator cannot have a higher address value */
-	if (val1 > val2)
-		return -EINVAL;
-
-	spin_lock(&drvdata->spinlock);
-	idx = drvdata->addr_idx;
-	if (idx % 2 != 0) {
-		spin_unlock(&drvdata->spinlock);
-		return -EPERM;
-	}
-	if (!((drvdata->addr_type[idx] == ETM_ADDR_TYPE_NONE &&
-	       drvdata->addr_type[idx + 1] == ETM_ADDR_TYPE_NONE) ||
-	      (drvdata->addr_type[idx] == ETM_ADDR_TYPE_RANGE &&
-	       drvdata->addr_type[idx + 1] == ETM_ADDR_TYPE_RANGE))) {
-		spin_unlock(&drvdata->spinlock);
-		return -EPERM;
-	}
-
-	drvdata->addr_val[idx] = val1;
-	drvdata->addr_type[idx] = ETM_ADDR_TYPE_RANGE;
-	drvdata->addr_val[idx + 1] = val2;
-	drvdata->addr_type[idx + 1] = ETM_ADDR_TYPE_RANGE;
-	drvdata->enable_ctrl1 |= (1 << (idx/2));
-	spin_unlock(&drvdata->spinlock);
-
-	return size;
-}
-static DEVICE_ATTR_RW(addr_range);
-
-static ssize_t addr_start_show(struct device *dev,
-			       struct device_attribute *attr, char *buf)
-{
-	u8 idx;
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	spin_lock(&drvdata->spinlock);
-	idx = drvdata->addr_idx;
-	if (!(drvdata->addr_type[idx] == ETM_ADDR_TYPE_NONE ||
-	      drvdata->addr_type[idx] == ETM_ADDR_TYPE_START)) {
-		spin_unlock(&drvdata->spinlock);
-		return -EPERM;
-	}
-
-	val = drvdata->addr_val[idx];
-	spin_unlock(&drvdata->spinlock);
-
-	return sprintf(buf, "%#lx\n", val);
-}
-
-static ssize_t addr_start_store(struct device *dev,
-				struct device_attribute *attr,
-				const char *buf, size_t size)
-{
-	u8 idx;
-	int ret;
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	ret = kstrtoul(buf, 16, &val);
-	if (ret)
-		return ret;
-
-	spin_lock(&drvdata->spinlock);
-	idx = drvdata->addr_idx;
-	if (!(drvdata->addr_type[idx] == ETM_ADDR_TYPE_NONE ||
-	      drvdata->addr_type[idx] == ETM_ADDR_TYPE_START)) {
-		spin_unlock(&drvdata->spinlock);
-		return -EPERM;
-	}
-
-	drvdata->addr_val[idx] = val;
-	drvdata->addr_type[idx] = ETM_ADDR_TYPE_START;
-	drvdata->startstop_ctrl |= (1 << idx);
-	drvdata->enable_ctrl1 |= BIT(25);
-	spin_unlock(&drvdata->spinlock);
-
-	return size;
-}
-static DEVICE_ATTR_RW(addr_start);
-
-static ssize_t addr_stop_show(struct device *dev,
-			      struct device_attribute *attr, char *buf)
-{
-	u8 idx;
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	spin_lock(&drvdata->spinlock);
-	idx = drvdata->addr_idx;
-	if (!(drvdata->addr_type[idx] == ETM_ADDR_TYPE_NONE ||
-	      drvdata->addr_type[idx] == ETM_ADDR_TYPE_STOP)) {
-		spin_unlock(&drvdata->spinlock);
-		return -EPERM;
-	}
-
-	val = drvdata->addr_val[idx];
-	spin_unlock(&drvdata->spinlock);
-
-	return sprintf(buf, "%#lx\n", val);
-}
-
-static ssize_t addr_stop_store(struct device *dev,
-			       struct device_attribute *attr,
-			       const char *buf, size_t size)
-{
-	u8 idx;
-	int ret;
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	ret = kstrtoul(buf, 16, &val);
-	if (ret)
-		return ret;
-
-	spin_lock(&drvdata->spinlock);
-	idx = drvdata->addr_idx;
-	if (!(drvdata->addr_type[idx] == ETM_ADDR_TYPE_NONE ||
-	      drvdata->addr_type[idx] == ETM_ADDR_TYPE_STOP)) {
-		spin_unlock(&drvdata->spinlock);
-		return -EPERM;
-	}
-
-	drvdata->addr_val[idx] = val;
-	drvdata->addr_type[idx] = ETM_ADDR_TYPE_STOP;
-	drvdata->startstop_ctrl |= (1 << (idx + 16));
-	drvdata->enable_ctrl1 |= ETMTECR1_START_STOP;
-	spin_unlock(&drvdata->spinlock);
-
-	return size;
-}
-static DEVICE_ATTR_RW(addr_stop);
-
-static ssize_t addr_acctype_show(struct device *dev,
-				 struct device_attribute *attr, char *buf)
-{
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	spin_lock(&drvdata->spinlock);
-	val = drvdata->addr_acctype[drvdata->addr_idx];
-	spin_unlock(&drvdata->spinlock);
-
-	return sprintf(buf, "%#lx\n", val);
-}
-
-static ssize_t addr_acctype_store(struct device *dev,
-				  struct device_attribute *attr,
-				  const char *buf, size_t size)
-{
-	int ret;
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	ret = kstrtoul(buf, 16, &val);
-	if (ret)
-		return ret;
-
-	spin_lock(&drvdata->spinlock);
-	drvdata->addr_acctype[drvdata->addr_idx] = val;
-	spin_unlock(&drvdata->spinlock);
-
-	return size;
-}
-static DEVICE_ATTR_RW(addr_acctype);
-
-static ssize_t cntr_idx_show(struct device *dev,
-			     struct device_attribute *attr, char *buf)
-{
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	val = drvdata->cntr_idx;
-	return sprintf(buf, "%#lx\n", val);
-}
-
-static ssize_t cntr_idx_store(struct device *dev,
-			      struct device_attribute *attr,
-			      const char *buf, size_t size)
-{
-	int ret;
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	ret = kstrtoul(buf, 16, &val);
-	if (ret)
-		return ret;
-
-	if (val >= drvdata->nr_cntr)
-		return -EINVAL;
-	/*
-	 * Use spinlock to ensure index doesn't change while it gets
-	 * dereferenced multiple times within a spinlock block elsewhere.
-	 */
-	spin_lock(&drvdata->spinlock);
-	drvdata->cntr_idx = val;
-	spin_unlock(&drvdata->spinlock);
-
-	return size;
-}
-static DEVICE_ATTR_RW(cntr_idx);
-
-static ssize_t cntr_rld_val_show(struct device *dev,
-				 struct device_attribute *attr, char *buf)
-{
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	spin_lock(&drvdata->spinlock);
-	val = drvdata->cntr_rld_val[drvdata->cntr_idx];
-	spin_unlock(&drvdata->spinlock);
-
-	return sprintf(buf, "%#lx\n", val);
-}
-
-static ssize_t cntr_rld_val_store(struct device *dev,
-				  struct device_attribute *attr,
-				  const char *buf, size_t size)
-{
-	int ret;
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	ret = kstrtoul(buf, 16, &val);
-	if (ret)
-		return ret;
-
-	spin_lock(&drvdata->spinlock);
-	drvdata->cntr_rld_val[drvdata->cntr_idx] = val;
-	spin_unlock(&drvdata->spinlock);
-
-	return size;
-}
-static DEVICE_ATTR_RW(cntr_rld_val);
-
-static ssize_t cntr_event_show(struct device *dev,
-			       struct device_attribute *attr, char *buf)
-{
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	spin_lock(&drvdata->spinlock);
-	val = drvdata->cntr_event[drvdata->cntr_idx];
-	spin_unlock(&drvdata->spinlock);
-
-	return sprintf(buf, "%#lx\n", val);
-}
-
-static ssize_t cntr_event_store(struct device *dev,
-				struct device_attribute *attr,
-				const char *buf, size_t size)
-{
-	int ret;
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	ret = kstrtoul(buf, 16, &val);
-	if (ret)
-		return ret;
-
-	spin_lock(&drvdata->spinlock);
-	drvdata->cntr_event[drvdata->cntr_idx] = val & ETM_EVENT_MASK;
-	spin_unlock(&drvdata->spinlock);
-
-	return size;
-}
-static DEVICE_ATTR_RW(cntr_event);
-
-static ssize_t cntr_rld_event_show(struct device *dev,
-				   struct device_attribute *attr, char *buf)
-{
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	spin_lock(&drvdata->spinlock);
-	val = drvdata->cntr_rld_event[drvdata->cntr_idx];
-	spin_unlock(&drvdata->spinlock);
-
-	return sprintf(buf, "%#lx\n", val);
-}
-
-static ssize_t cntr_rld_event_store(struct device *dev,
-				    struct device_attribute *attr,
-				    const char *buf, size_t size)
-{
-	int ret;
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	ret = kstrtoul(buf, 16, &val);
-	if (ret)
-		return ret;
-
-	spin_lock(&drvdata->spinlock);
-	drvdata->cntr_rld_event[drvdata->cntr_idx] = val & ETM_EVENT_MASK;
-	spin_unlock(&drvdata->spinlock);
-
-	return size;
-}
-static DEVICE_ATTR_RW(cntr_rld_event);
-
-static ssize_t cntr_val_show(struct device *dev,
-			     struct device_attribute *attr, char *buf)
-{
-	int i, ret = 0;
-	u32 val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	if (!drvdata->enable) {
-		spin_lock(&drvdata->spinlock);
-		for (i = 0; i < drvdata->nr_cntr; i++)
-			ret += sprintf(buf, "counter %d: %x\n",
-				       i, drvdata->cntr_val[i]);
-		spin_unlock(&drvdata->spinlock);
-		return ret;
-	}
-
-	for (i = 0; i < drvdata->nr_cntr; i++) {
-		val = etm_readl(drvdata, ETMCNTVRn(i));
-		ret += sprintf(buf, "counter %d: %x\n", i, val);
-	}
-
-	return ret;
-}
-
-static ssize_t cntr_val_store(struct device *dev,
-			      struct device_attribute *attr,
-			      const char *buf, size_t size)
-{
-	int ret;
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	ret = kstrtoul(buf, 16, &val);
-	if (ret)
-		return ret;
-
-	spin_lock(&drvdata->spinlock);
-	drvdata->cntr_val[drvdata->cntr_idx] = val;
-	spin_unlock(&drvdata->spinlock);
-
-	return size;
-}
-static DEVICE_ATTR_RW(cntr_val);
-
-static ssize_t seq_12_event_show(struct device *dev,
-				 struct device_attribute *attr, char *buf)
-{
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	val = drvdata->seq_12_event;
-	return sprintf(buf, "%#lx\n", val);
-}
-
-static ssize_t seq_12_event_store(struct device *dev,
-				  struct device_attribute *attr,
-				  const char *buf, size_t size)
-{
-	int ret;
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	ret = kstrtoul(buf, 16, &val);
-	if (ret)
-		return ret;
-
-	drvdata->seq_12_event = val & ETM_EVENT_MASK;
-	return size;
-}
-static DEVICE_ATTR_RW(seq_12_event);
-
-static ssize_t seq_21_event_show(struct device *dev,
-				 struct device_attribute *attr, char *buf)
-{
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	val = drvdata->seq_21_event;
-	return sprintf(buf, "%#lx\n", val);
-}
-
-static ssize_t seq_21_event_store(struct device *dev,
-				  struct device_attribute *attr,
-				  const char *buf, size_t size)
-{
-	int ret;
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	ret = kstrtoul(buf, 16, &val);
-	if (ret)
-		return ret;
-
-	drvdata->seq_21_event = val & ETM_EVENT_MASK;
-	return size;
-}
-static DEVICE_ATTR_RW(seq_21_event);
-
-static ssize_t seq_23_event_show(struct device *dev,
-				 struct device_attribute *attr, char *buf)
-{
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	val = drvdata->seq_23_event;
-	return sprintf(buf, "%#lx\n", val);
-}
-
-static ssize_t seq_23_event_store(struct device *dev,
-				  struct device_attribute *attr,
-				  const char *buf, size_t size)
-{
-	int ret;
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	ret = kstrtoul(buf, 16, &val);
-	if (ret)
-		return ret;
-
-	drvdata->seq_23_event = val & ETM_EVENT_MASK;
-	return size;
-}
-static DEVICE_ATTR_RW(seq_23_event);
-
-static ssize_t seq_31_event_show(struct device *dev,
-				 struct device_attribute *attr, char *buf)
-{
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	val = drvdata->seq_31_event;
-	return sprintf(buf, "%#lx\n", val);
-}
-
-static ssize_t seq_31_event_store(struct device *dev,
-				  struct device_attribute *attr,
-				  const char *buf, size_t size)
-{
-	int ret;
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	ret = kstrtoul(buf, 16, &val);
-	if (ret)
-		return ret;
-
-	drvdata->seq_31_event = val & ETM_EVENT_MASK;
-	return size;
-}
-static DEVICE_ATTR_RW(seq_31_event);
-
-static ssize_t seq_32_event_show(struct device *dev,
-				 struct device_attribute *attr, char *buf)
-{
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	val = drvdata->seq_32_event;
-	return sprintf(buf, "%#lx\n", val);
-}
-
-static ssize_t seq_32_event_store(struct device *dev,
-				  struct device_attribute *attr,
-				  const char *buf, size_t size)
-{
-	int ret;
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	ret = kstrtoul(buf, 16, &val);
-	if (ret)
-		return ret;
-
-	drvdata->seq_32_event = val & ETM_EVENT_MASK;
-	return size;
-}
-static DEVICE_ATTR_RW(seq_32_event);
-
-static ssize_t seq_13_event_show(struct device *dev,
-				 struct device_attribute *attr, char *buf)
-{
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	val = drvdata->seq_13_event;
-	return sprintf(buf, "%#lx\n", val);
-}
-
-static ssize_t seq_13_event_store(struct device *dev,
-				  struct device_attribute *attr,
-				  const char *buf, size_t size)
-{
-	int ret;
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	ret = kstrtoul(buf, 16, &val);
-	if (ret)
-		return ret;
-
-	drvdata->seq_13_event = val & ETM_EVENT_MASK;
-	return size;
-}
-static DEVICE_ATTR_RW(seq_13_event);
-
-static ssize_t seq_curr_state_show(struct device *dev,
-				   struct device_attribute *attr, char *buf)
-{
-	unsigned long val, flags;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	if (!drvdata->enable) {
-		val = drvdata->seq_curr_state;
-		goto out;
-	}
-
-	pm_runtime_get_sync(drvdata->dev);
-	spin_lock_irqsave(&drvdata->spinlock, flags);
-
-	CS_UNLOCK(drvdata->base);
-	val = (etm_readl(drvdata, ETMSQR) & ETM_SQR_MASK);
-	CS_LOCK(drvdata->base);
-
-	spin_unlock_irqrestore(&drvdata->spinlock, flags);
-	pm_runtime_put(drvdata->dev);
-out:
-	return sprintf(buf, "%#lx\n", val);
-}
-
-static ssize_t seq_curr_state_store(struct device *dev,
-				    struct device_attribute *attr,
-				    const char *buf, size_t size)
-{
-	int ret;
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	ret = kstrtoul(buf, 16, &val);
-	if (ret)
-		return ret;
-
-	if (val > ETM_SEQ_STATE_MAX_VAL)
-		return -EINVAL;
-
-	drvdata->seq_curr_state = val;
-
-	return size;
-}
-static DEVICE_ATTR_RW(seq_curr_state);
-
-static ssize_t ctxid_idx_show(struct device *dev,
-			      struct device_attribute *attr, char *buf)
-{
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	val = drvdata->ctxid_idx;
-	return sprintf(buf, "%#lx\n", val);
-}
-
-static ssize_t ctxid_idx_store(struct device *dev,
-				struct device_attribute *attr,
-				const char *buf, size_t size)
-{
-	int ret;
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	ret = kstrtoul(buf, 16, &val);
-	if (ret)
-		return ret;
-
-	if (val >= drvdata->nr_ctxid_cmp)
-		return -EINVAL;
-
-	/*
-	 * Use spinlock to ensure index doesn't change while it gets
-	 * dereferenced multiple times within a spinlock block elsewhere.
-	 */
-	spin_lock(&drvdata->spinlock);
-	drvdata->ctxid_idx = val;
-	spin_unlock(&drvdata->spinlock);
-
-	return size;
-}
-static DEVICE_ATTR_RW(ctxid_idx);
-
-static ssize_t ctxid_pid_show(struct device *dev,
-			      struct device_attribute *attr, char *buf)
-{
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	spin_lock(&drvdata->spinlock);
-	val = drvdata->ctxid_vpid[drvdata->ctxid_idx];
-	spin_unlock(&drvdata->spinlock);
-
-	return sprintf(buf, "%#lx\n", val);
-}
-
-static ssize_t ctxid_pid_store(struct device *dev,
-			       struct device_attribute *attr,
-			       const char *buf, size_t size)
-{
-	int ret;
-	unsigned long vpid, pid;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	ret = kstrtoul(buf, 16, &vpid);
-	if (ret)
-		return ret;
-
-	pid = coresight_vpid_to_pid(vpid);
-
-	spin_lock(&drvdata->spinlock);
-	drvdata->ctxid_pid[drvdata->ctxid_idx] = pid;
-	drvdata->ctxid_vpid[drvdata->ctxid_idx] = vpid;
-	spin_unlock(&drvdata->spinlock);
-
-	return size;
-}
-static DEVICE_ATTR_RW(ctxid_pid);
-
-static ssize_t ctxid_mask_show(struct device *dev,
-			       struct device_attribute *attr, char *buf)
-{
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	val = drvdata->ctxid_mask;
-	return sprintf(buf, "%#lx\n", val);
-}
-
-static ssize_t ctxid_mask_store(struct device *dev,
-				struct device_attribute *attr,
-				const char *buf, size_t size)
-{
-	int ret;
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	ret = kstrtoul(buf, 16, &val);
-	if (ret)
-		return ret;
-
-	drvdata->ctxid_mask = val;
-	return size;
-}
-static DEVICE_ATTR_RW(ctxid_mask);
-
-static ssize_t sync_freq_show(struct device *dev,
-			      struct device_attribute *attr, char *buf)
-{
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	val = drvdata->sync_freq;
-	return sprintf(buf, "%#lx\n", val);
-}
-
-static ssize_t sync_freq_store(struct device *dev,
-			       struct device_attribute *attr,
-			       const char *buf, size_t size)
-{
-	int ret;
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	ret = kstrtoul(buf, 16, &val);
-	if (ret)
-		return ret;
-
-	drvdata->sync_freq = val & ETM_SYNC_MASK;
-	return size;
-}
-static DEVICE_ATTR_RW(sync_freq);
-
-static ssize_t timestamp_event_show(struct device *dev,
-				    struct device_attribute *attr, char *buf)
-{
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	val = drvdata->timestamp_event;
-	return sprintf(buf, "%#lx\n", val);
-}
-
-static ssize_t timestamp_event_store(struct device *dev,
-				     struct device_attribute *attr,
-				     const char *buf, size_t size)
-{
-	int ret;
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	ret = kstrtoul(buf, 16, &val);
-	if (ret)
-		return ret;
-
-	drvdata->timestamp_event = val & ETM_EVENT_MASK;
-	return size;
-}
-static DEVICE_ATTR_RW(timestamp_event);
-
-static ssize_t cpu_show(struct device *dev,
-			struct device_attribute *attr, char *buf)
-{
-	int val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	val = drvdata->cpu;
-	return scnprintf(buf, PAGE_SIZE, "%d\n", val);
-
-}
-static DEVICE_ATTR_RO(cpu);
-
-static ssize_t traceid_show(struct device *dev,
-			    struct device_attribute *attr, char *buf)
-{
-	unsigned long val, flags;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	if (!drvdata->enable) {
-		val = drvdata->traceid;
-		goto out;
-	}
-
-	pm_runtime_get_sync(drvdata->dev);
-	spin_lock_irqsave(&drvdata->spinlock, flags);
-	CS_UNLOCK(drvdata->base);
-
-	val = (etm_readl(drvdata, ETMTRACEIDR) & ETM_TRACEID_MASK);
-
-	CS_LOCK(drvdata->base);
-	spin_unlock_irqrestore(&drvdata->spinlock, flags);
-	pm_runtime_put(drvdata->dev);
-out:
-	return sprintf(buf, "%#lx\n", val);
-}
-
-static ssize_t traceid_store(struct device *dev,
-			     struct device_attribute *attr,
-			     const char *buf, size_t size)
-{
-	int ret;
-	unsigned long val;
-	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
-
-	ret = kstrtoul(buf, 16, &val);
-	if (ret)
-		return ret;
-
-	drvdata->traceid = val & ETM_TRACEID_MASK;
-	return size;
-}
-static DEVICE_ATTR_RW(traceid);
-
-static struct attribute *coresight_etm_attrs[] = {
-	&dev_attr_nr_addr_cmp.attr,
-	&dev_attr_nr_cntr.attr,
-	&dev_attr_nr_ctxid_cmp.attr,
-	&dev_attr_etmsr.attr,
-	&dev_attr_reset.attr,
-	&dev_attr_mode.attr,
-	&dev_attr_trigger_event.attr,
-	&dev_attr_enable_event.attr,
-	&dev_attr_fifofull_level.attr,
-	&dev_attr_addr_idx.attr,
-	&dev_attr_addr_single.attr,
-	&dev_attr_addr_range.attr,
-	&dev_attr_addr_start.attr,
-	&dev_attr_addr_stop.attr,
-	&dev_attr_addr_acctype.attr,
-	&dev_attr_cntr_idx.attr,
-	&dev_attr_cntr_rld_val.attr,
-	&dev_attr_cntr_event.attr,
-	&dev_attr_cntr_rld_event.attr,
-	&dev_attr_cntr_val.attr,
-	&dev_attr_seq_12_event.attr,
-	&dev_attr_seq_21_event.attr,
-	&dev_attr_seq_23_event.attr,
-	&dev_attr_seq_31_event.attr,
-	&dev_attr_seq_32_event.attr,
-	&dev_attr_seq_13_event.attr,
-	&dev_attr_seq_curr_state.attr,
-	&dev_attr_ctxid_idx.attr,
-	&dev_attr_ctxid_pid.attr,
-	&dev_attr_ctxid_mask.attr,
-	&dev_attr_sync_freq.attr,
-	&dev_attr_timestamp_event.attr,
-	&dev_attr_traceid.attr,
-	&dev_attr_cpu.attr,
-	NULL,
-};
-
-#define coresight_simple_func(name, offset)                             \
-static ssize_t name##_show(struct device *_dev,                         \
-			   struct device_attribute *attr, char *buf)    \
-{                                                                       \
-	struct etm_drvdata *drvdata = dev_get_drvdata(_dev->parent);    \
-	return scnprintf(buf, PAGE_SIZE, "0x%x\n",                      \
-			 readl_relaxed(drvdata->base + offset));        \
-}                                                                       \
-DEVICE_ATTR_RO(name)
-
-coresight_simple_func(etmccr, ETMCCR);
-coresight_simple_func(etmccer, ETMCCER);
-coresight_simple_func(etmscr, ETMSCR);
-coresight_simple_func(etmidr, ETMIDR);
-coresight_simple_func(etmcr, ETMCR);
-coresight_simple_func(etmtraceidr, ETMTRACEIDR);
-coresight_simple_func(etmteevr, ETMTEEVR);
-coresight_simple_func(etmtssvr, ETMTSSCR);
-coresight_simple_func(etmtecr1, ETMTECR1);
-coresight_simple_func(etmtecr2, ETMTECR2);
-
-static struct attribute *coresight_etm_mgmt_attrs[] = {
-	&dev_attr_etmccr.attr,
-	&dev_attr_etmccer.attr,
-	&dev_attr_etmscr.attr,
-	&dev_attr_etmidr.attr,
-	&dev_attr_etmcr.attr,
-	&dev_attr_etmtraceidr.attr,
-	&dev_attr_etmteevr.attr,
-	&dev_attr_etmtssvr.attr,
-	&dev_attr_etmtecr1.attr,
-	&dev_attr_etmtecr2.attr,
-	NULL,
-};
-
-static const struct attribute_group coresight_etm_group = {
-	.attrs = coresight_etm_attrs,
-};
-
-
-static const struct attribute_group coresight_etm_mgmt_group = {
-	.attrs = coresight_etm_mgmt_attrs,
-	.name = "mgmt",
-};
-
-static const struct attribute_group *coresight_etm_groups[] = {
-	&coresight_etm_group,
-	&coresight_etm_mgmt_group,
-	NULL,
 };
 
 static int etm_cpu_callback(struct notifier_block *nfb, unsigned long action,
@@ -1658,7 +657,7 @@ static int etm_cpu_callback(struct notifier_block *nfb, unsigned long action,
 			etmdrvdata[cpu]->os_unlock = true;
 		}
 
-		if (etmdrvdata[cpu]->enable)
+		if (local_read(&etmdrvdata[cpu]->mode))
 			etm_enable_hw(etmdrvdata[cpu]);
 		spin_unlock(&etmdrvdata[cpu]->spinlock);
 		break;
@@ -1671,7 +670,7 @@ static int etm_cpu_callback(struct notifier_block *nfb, unsigned long action,
 
 	case CPU_DYING:
 		spin_lock(&etmdrvdata[cpu]->spinlock);
-		if (etmdrvdata[cpu]->enable)
+		if (local_read(&etmdrvdata[cpu]->mode))
 			etm_disable_hw(etmdrvdata[cpu]);
 		spin_unlock(&etmdrvdata[cpu]->spinlock);
 		break;
@@ -1706,6 +705,9 @@ static void etm_init_arch_data(void *info)
 	u32 etmidr;
 	u32 etmccr;
 	struct etm_drvdata *drvdata = info;
+
+	/* Make sure all registers are accessible */
+	etm_os_unlock(drvdata);
 
 	CS_UNLOCK(drvdata->base);
 
@@ -1743,40 +745,9 @@ static void etm_init_arch_data(void *info)
 	CS_LOCK(drvdata->base);
 }
 
-static void etm_init_default_data(struct etm_drvdata *drvdata)
+static void etm_init_trace_id(struct etm_drvdata *drvdata)
 {
-	/*
-	 * A trace ID of value 0 is invalid, so let's start at some
-	 * random value that fits in 7 bits and will be just as good.
-	 */
-	static int etm3x_traceid = 0x10;
-
-	u32 flags = (1 << 0 | /* instruction execute*/
-		     3 << 3 | /* ARM instruction */
-		     0 << 5 | /* No data value comparison */
-		     0 << 7 | /* No exact mach */
-		     0 << 8 | /* Ignore context ID */
-		     0 << 10); /* Security ignored */
-
-	/*
-	 * Initial configuration only - guarantees sources handled by
-	 * this driver have a unique ID at startup time but not between
-	 * all other types of sources.  For that we lean on the core
-	 * framework.
-	 */
-	drvdata->traceid = etm3x_traceid++;
-	drvdata->ctrl = (ETMCR_CYC_ACC | ETMCR_TIMESTAMP_EN);
-	drvdata->enable_ctrl1 = ETMTECR1_ADDR_COMP_1;
-	if (drvdata->nr_addr_cmp >= 2) {
-		drvdata->addr_val[0] = (u32) _stext;
-		drvdata->addr_val[1] = (u32) _etext;
-		drvdata->addr_acctype[0] = flags;
-		drvdata->addr_acctype[1] = flags;
-		drvdata->addr_type[0] = ETM_ADDR_TYPE_RANGE;
-		drvdata->addr_type[1] = ETM_ADDR_TYPE_RANGE;
-	}
-
-	etm_set_default(drvdata);
+	drvdata->traceid = coresight_get_trace_id(drvdata->cpu);
 }
 
 static int etm_probe(struct amba_device *adev, const struct amba_id *id)
@@ -1831,9 +802,6 @@ static int etm_probe(struct amba_device *adev, const struct amba_id *id)
 	get_online_cpus();
 	etmdrvdata[drvdata->cpu] = drvdata;
 
-	if (!smp_call_function_single(drvdata->cpu, etm_os_unlock, drvdata, 1))
-		drvdata->os_unlock = true;
-
 	if (smp_call_function_single(drvdata->cpu,
 				     etm_init_arch_data,  drvdata, 1))
 		dev_err(dev, "ETM arch init failed\n");
@@ -1847,7 +815,9 @@ static int etm_probe(struct amba_device *adev, const struct amba_id *id)
 		ret = -EINVAL;
 		goto err_arch_supported;
 	}
-	etm_init_default_data(drvdata);
+
+	etm_init_trace_id(drvdata);
+	etm_set_default(&drvdata->config);
 
 	desc->type = CORESIGHT_DEV_TYPE_SOURCE;
 	desc->subtype.source_subtype = CORESIGHT_DEV_SUBTYPE_SOURCE_PROC;
@@ -1858,6 +828,12 @@ static int etm_probe(struct amba_device *adev, const struct amba_id *id)
 	drvdata->csdev = coresight_register(desc);
 	if (IS_ERR(drvdata->csdev)) {
 		ret = PTR_ERR(drvdata->csdev);
+		goto err_arch_supported;
+	}
+
+	ret = etm_perf_symlink(drvdata->csdev, true);
+	if (ret) {
+		coresight_unregister(drvdata->csdev);
 		goto err_arch_supported;
 	}
 
@@ -1875,17 +851,6 @@ err_arch_supported:
 	if (--etm_count == 0)
 		unregister_hotcpu_notifier(&etm_cpu_notifier);
 	return ret;
-}
-
-static int etm_remove(struct amba_device *adev)
-{
-	struct etm_drvdata *drvdata = amba_get_drvdata(adev);
-
-	coresight_unregister(drvdata->csdev);
-	if (--etm_count == 0)
-		unregister_hotcpu_notifier(&etm_cpu_notifier);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -1948,13 +913,9 @@ static struct amba_driver etm_driver = {
 		.name	= "coresight-etm3x",
 		.owner	= THIS_MODULE,
 		.pm	= &etm_dev_pm_ops,
+		.suppress_bind_attrs = true,
 	},
 	.probe		= etm_probe,
-	.remove		= etm_remove,
 	.id_table	= etm_ids,
 };
-
-module_amba_driver(etm_driver);
-
-MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("CoreSight Program Flow Trace driver");
+builtin_amba_driver(etm_driver);

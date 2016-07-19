@@ -615,7 +615,7 @@ int mips_set_process_fp_mode(struct task_struct *task, unsigned int value)
 	 * allows us to only worry about whether an FP mode switch is in
 	 * progress when FP is first used in a tasks time slice. Pretty much all
 	 * of the mode switch overhead can thus be confined to cases where mode
-	 * switches are actually occuring. That is, to here. However for the
+	 * switches are actually occurring. That is, to here. However for the
 	 * thread performing the mode switch it may take a while...
 	 */
 	if (num_online_cpus() > 1) {

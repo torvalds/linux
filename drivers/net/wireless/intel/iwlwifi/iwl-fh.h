@@ -6,6 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,6 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -312,6 +314,81 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(unsigned int chnl)
 #define FH_MEM_TFDIB_REG1_ADDR_BITSHIFT	28
 #define FH_MEM_TB_MAX_LENGTH			(0x00020000)
 
+/* 9000 rx series registers */
+
+#define RFH_Q0_FRBDCB_BA_LSB 0xA08000 /* 64 bit address */
+#define RFH_Q_FRBDCB_BA_LSB(q) (RFH_Q0_FRBDCB_BA_LSB + (q) * 8)
+/* Write index table */
+#define RFH_Q0_FRBDCB_WIDX 0xA08080
+#define RFH_Q_FRBDCB_WIDX(q) (RFH_Q0_FRBDCB_WIDX + (q) * 4)
+/* Read index table */
+#define RFH_Q0_FRBDCB_RIDX 0xA080C0
+#define RFH_Q_FRBDCB_RIDX(q) (RFH_Q0_FRBDCB_RIDX + (q) * 4)
+/* Used list table */
+#define RFH_Q0_URBDCB_BA_LSB 0xA08100 /* 64 bit address */
+#define RFH_Q_URBDCB_BA_LSB(q) (RFH_Q0_URBDCB_BA_LSB + (q) * 8)
+/* Write index table */
+#define RFH_Q0_URBDCB_WIDX 0xA08180
+#define RFH_Q_URBDCB_WIDX(q) (RFH_Q0_URBDCB_WIDX + (q) * 4)
+#define RFH_Q0_URBDCB_VAID 0xA081C0
+#define RFH_Q_URBDCB_VAID(q) (RFH_Q0_URBDCB_VAID + (q) * 4)
+/* stts */
+#define RFH_Q0_URBD_STTS_WPTR_LSB 0xA08200 /*64 bits address */
+#define RFH_Q_URBD_STTS_WPTR_LSB(q) (RFH_Q0_URBD_STTS_WPTR_LSB + (q) * 8)
+
+#define RFH_Q0_ORB_WPTR_LSB 0xA08280
+#define RFH_Q_ORB_WPTR_LSB(q) (RFH_Q0_ORB_WPTR_LSB + (q) * 8)
+#define RFH_RBDBUF_RBD0_LSB 0xA08300
+#define RFH_RBDBUF_RBD_LSB(q) (RFH_RBDBUF_RBD0_LSB + (q) * 8)
+
+/* DMA configuration */
+#define RFH_RXF_DMA_CFG 0xA09820
+/* RB size */
+#define RFH_RXF_DMA_RB_SIZE_MASK (0x000F0000) /* bits 16-19 */
+#define RFH_RXF_DMA_RB_SIZE_POS 16
+#define RFH_RXF_DMA_RB_SIZE_1K	(0x1 << RFH_RXF_DMA_RB_SIZE_POS)
+#define RFH_RXF_DMA_RB_SIZE_2K	(0x2 << RFH_RXF_DMA_RB_SIZE_POS)
+#define RFH_RXF_DMA_RB_SIZE_4K	(0x4 << RFH_RXF_DMA_RB_SIZE_POS)
+#define RFH_RXF_DMA_RB_SIZE_8K	(0x8 << RFH_RXF_DMA_RB_SIZE_POS)
+#define RFH_RXF_DMA_RB_SIZE_12K	(0x9 << RFH_RXF_DMA_RB_SIZE_POS)
+#define RFH_RXF_DMA_RB_SIZE_16K	(0xA << RFH_RXF_DMA_RB_SIZE_POS)
+#define RFH_RXF_DMA_RB_SIZE_20K	(0xB << RFH_RXF_DMA_RB_SIZE_POS)
+#define RFH_RXF_DMA_RB_SIZE_24K	(0xC << RFH_RXF_DMA_RB_SIZE_POS)
+#define RFH_RXF_DMA_RB_SIZE_28K	(0xD << RFH_RXF_DMA_RB_SIZE_POS)
+#define RFH_RXF_DMA_RB_SIZE_32K	(0xE << RFH_RXF_DMA_RB_SIZE_POS)
+/* RB Circular Buffer size:defines the table sizes in RBD units */
+#define RFH_RXF_DMA_RBDCB_SIZE_MASK (0x00F00000) /* bits 20-23 */
+#define RFH_RXF_DMA_RBDCB_SIZE_POS 20
+#define RFH_RXF_DMA_RBDCB_SIZE_8	(0x3 << RFH_RXF_DMA_RBDCB_SIZE_POS)
+#define RFH_RXF_DMA_RBDCB_SIZE_16	(0x4 << RFH_RXF_DMA_RBDCB_SIZE_POS)
+#define RFH_RXF_DMA_RBDCB_SIZE_32	(0x5 << RFH_RXF_DMA_RBDCB_SIZE_POS)
+#define RFH_RXF_DMA_RBDCB_SIZE_64	(0x7 << RFH_RXF_DMA_RBDCB_SIZE_POS)
+#define RFH_RXF_DMA_RBDCB_SIZE_128	(0x7 << RFH_RXF_DMA_RBDCB_SIZE_POS)
+#define RFH_RXF_DMA_RBDCB_SIZE_256	(0x8 << RFH_RXF_DMA_RBDCB_SIZE_POS)
+#define RFH_RXF_DMA_RBDCB_SIZE_512	(0x9 << RFH_RXF_DMA_RBDCB_SIZE_POS)
+#define RFH_RXF_DMA_RBDCB_SIZE_1024	(0xA << RFH_RXF_DMA_RBDCB_SIZE_POS)
+#define RFH_RXF_DMA_RBDCB_SIZE_2048	(0xB << RFH_RXF_DMA_RBDCB_SIZE_POS)
+#define RFH_RXF_DMA_MIN_RB_SIZE_MASK	(0x03000000) /* bit 24-25 */
+#define RFH_RXF_DMA_MIN_RB_SIZE_POS	24
+#define RFH_RXF_DMA_MIN_RB_4_8		(3 << RFH_RXF_DMA_MIN_RB_SIZE_POS)
+#define RFH_RXF_DMA_DROP_TOO_LARGE_MASK	(0x04000000) /* bit 26 */
+#define RFH_RXF_DMA_SINGLE_FRAME_MASK	(0x20000000) /* bit 29 */
+#define RFH_DMA_EN_MASK			(0xC0000000) /* bits 30-31*/
+#define RFH_DMA_EN_ENABLE_VAL		BIT(31)
+
+#define RFH_RXF_RXQ_ACTIVE 0xA0980C
+
+#define RFH_GEN_CFG	0xA09800
+#define RFH_GEN_CFG_SERVICE_DMA_SNOOP	BIT(0)
+#define RFH_GEN_CFG_RFH_DMA_SNOOP	BIT(1)
+#define RFH_GEN_CFG_RB_CHUNK_SIZE	BIT(4) /* 0 - 64B, 1- 128B */
+#define RFH_GEN_CFG_DEFAULT_RXQ_NUM_MASK 0xF00
+#define RFH_GEN_CFG_DEFAULT_RXQ_NUM_POS 8
+
+#define DEFAULT_RXQ_NUM			0
+
+/* end of 9000 rx series registers */
+
 /* TFDB  Area - TFDs buffer table */
 #define FH_MEM_TFDIB_DRAM_ADDR_LSB_MSK      (0xFFFFFFFF)
 #define FH_TFDIB_LOWER_BOUND       (FH_MEM_LOWER_BOUND + 0x900)
@@ -433,6 +510,13 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(unsigned int chnl)
  * it is brought from the memory to TX-FIFO
  */
 #define FH_TX_CHICKEN_BITS_SCD_AUTO_RETRY_EN	(0x00000002)
+
+#define MQ_RX_TABLE_SIZE	512
+#define MQ_RX_TABLE_MASK	(MQ_RX_TABLE_SIZE - 1)
+#define MQ_RX_NUM_RBDS		(MQ_RX_TABLE_SIZE - 1)
+#define RX_POOL_SIZE		(MQ_RX_NUM_RBDS +	\
+				 IWL_MAX_RX_HW_QUEUES *	\
+				 (RX_CLAIM_REQ_ALLOC - RX_POST_REQ_ALLOC))
 
 #define RX_QUEUE_SIZE                         256
 #define RX_QUEUE_MASK                         255

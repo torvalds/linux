@@ -175,6 +175,8 @@
 #define ST_MAGN_3_BDU_MASK			0x10
 #define ST_MAGN_3_DRDY_IRQ_ADDR			0x62
 #define ST_MAGN_3_DRDY_INT_MASK			0x01
+#define ST_MAGN_3_IHL_IRQ_ADDR			0x63
+#define ST_MAGN_3_IHL_IRQ_MASK			0x04
 #define ST_MAGN_3_FS_AVL_15000_GAIN		1500
 #define ST_MAGN_3_MULTIREAD_BIT			false
 #define ST_MAGN_3_OUT_X_L_ADDR			0x68
@@ -480,6 +482,8 @@ static const struct st_sensor_settings st_magn_sensors_settings[] = {
 		.drdy_irq = {
 			.addr = ST_MAGN_3_DRDY_IRQ_ADDR,
 			.mask_int1 = ST_MAGN_3_DRDY_INT_MASK,
+			.addr_ihl = ST_MAGN_3_IHL_IRQ_ADDR,
+			.mask_ihl = ST_MAGN_3_IHL_IRQ_MASK,
 		},
 		.multi_read_bit = ST_MAGN_3_MULTIREAD_BIT,
 		.bootime = 2,

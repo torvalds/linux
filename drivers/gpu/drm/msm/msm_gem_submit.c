@@ -323,9 +323,12 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	struct drm_msm_gem_submit *args = data;
 	struct msm_file_private *ctx = file->driver_priv;
 	struct msm_gem_submit *submit;
-	struct msm_gpu *gpu;
+	struct msm_gpu *gpu = priv->gpu;
 	unsigned i;
 	int ret;
+
+	if (!gpu)
+		return -ENXIO;
 
 	/* for now, we just have 3d pipe.. eventually this would need to
 	 * be more clever to dispatch to appropriate gpu module:
@@ -333,18 +336,14 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	if (args->pipe != MSM_PIPE_3D0)
 		return -EINVAL;
 
-	gpu = priv->gpu;
-
 	if (args->nr_cmds > MAX_CMDS)
 		return -EINVAL;
 
-	mutex_lock(&dev->struct_mutex);
-
 	submit = submit_create(dev, gpu, args->nr_bos);
-	if (!submit) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!submit)
+		return -ENOMEM;
+
+	mutex_lock(&dev->struct_mutex);
 
 	ret = submit_lookup_objects(submit, args, file);
 	if (ret)
@@ -419,8 +418,7 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	args->fence = submit->fence;
 
 out:
-	if (submit)
-		submit_cleanup(submit, !!ret);
+	submit_cleanup(submit, !!ret);
 	mutex_unlock(&dev->struct_mutex);
 	return ret;
 }

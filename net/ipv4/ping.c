@@ -145,10 +145,12 @@ fail:
 }
 EXPORT_SYMBOL_GPL(ping_get_port);
 
-void ping_hash(struct sock *sk)
+int ping_hash(struct sock *sk)
 {
 	pr_debug("ping_hash(sk->port=%u)\n", inet_sk(sk)->inet_num);
 	BUG(); /* "Please do not press this button again." */
+
+	return 0;
 }
 
 void ping_unhash(struct sock *sk)
@@ -1139,13 +1141,6 @@ static int ping_v4_seq_show(struct seq_file *seq, void *v)
 	seq_pad(seq, '\n');
 	return 0;
 }
-
-static const struct seq_operations ping_v4_seq_ops = {
-	.show		= ping_v4_seq_show,
-	.start		= ping_v4_seq_start,
-	.next		= ping_seq_next,
-	.stop		= ping_seq_stop,
-};
 
 static int ping_seq_open(struct inode *inode, struct file *file)
 {

@@ -33,7 +33,7 @@
 #define LINK_STATUS			BIT(2)
 #define LINK_UP				BIT(15)
 #define MPA_IDLE_WITH_QMI_EMPTY		BIT(12)
-#define SG_RX_DV_GATE_REG_0_ADDR	0x0dfc
+#define SG_RX_DV_GATE_REG_0_ADDR	0x05fc
 
 extern const struct xgene_mac_ops xgene_sgmac_ops;
 extern const struct xgene_port_ops xgene_sgport_ops;

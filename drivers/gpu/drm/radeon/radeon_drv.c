@@ -34,9 +34,11 @@
 #include "radeon_drv.h"
 
 #include <drm/drm_pciids.h>
+#include <linux/apple-gmux.h>
 #include <linux/console.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
+#include <linux/vgaarb.h>
 #include <linux/vga_switcheroo.h>
 #include <drm/drm_gem.h>
 
@@ -319,6 +321,23 @@ static int radeon_pci_probe(struct pci_dev *pdev,
 {
 	int ret;
 
+	/*
+	 * Initialize amdkfd before starting radeon. If it was not loaded yet,
+	 * defer radeon probing
+	 */
+	ret = radeon_kfd_init();
+	if (ret == -EPROBE_DEFER)
+		return ret;
+
+	/*
+	 * apple-gmux is needed on dual GPU MacBook Pro
+	 * to probe the panel if we're the inactive GPU.
+	 */
+	if (IS_ENABLED(CONFIG_VGA_ARB) && IS_ENABLED(CONFIG_VGA_SWITCHEROO) &&
+	    apple_gmux_present() && pdev != vga_default_device() &&
+	    !vga_switcheroo_handler_flags())
+		return -EPROBE_DEFER;
+
 	/* Get rid of things like offb */
 	ret = radeon_kick_out_firmware_fb(pdev);
 	if (ret)
@@ -569,8 +588,6 @@ static int __init radeon_init(void)
 		DRM_ERROR("No UMS support in radeon module!\n");
 		return -EINVAL;
 	}
-
-	radeon_kfd_init();
 
 	/* let modprobe override vga console setting */
 	return drm_pci_init(driver, pdriver);

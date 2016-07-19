@@ -109,7 +109,13 @@ Header notes:
 			1 - 4K
 			2 - 16K
 			3 - 64K
-  Bits 3-63:	Reserved.
+  Bit 3:	Kernel physical placement
+			0 - 2MB aligned base should be as close as possible
+			    to the base of DRAM, since memory below it is not
+			    accessible via the linear mapping
+			1 - 2MB aligned base may be anywhere in physical
+			    memory
+  Bits 4-63:	Reserved.
 
 - When image_size is zero, a bootloader should attempt to keep as much
   memory as possible free for use by the kernel immediately after the
@@ -117,14 +123,14 @@ Header notes:
   depending on selected features, and is effectively unbound.
 
 The Image must be placed text_offset bytes from a 2MB aligned base
-address near the start of usable system RAM and called there. Memory
-below that base address is currently unusable by Linux, and therefore it
-is strongly recommended that this location is the start of system RAM.
-The region between the 2 MB aligned base address and the start of the
-image has no special significance to the kernel, and may be used for
-other purposes.
+address anywhere in usable system RAM and called there. The region
+between the 2 MB aligned base address and the start of the image has no
+special significance to the kernel, and may be used for other purposes.
 At least image_size bytes from the start of the image must be free for
 use by the kernel.
+NOTE: versions prior to v4.6 cannot make use of memory below the
+physical offset of the Image so it is recommended that the Image be
+placed as close as possible to the start of system RAM.
 
 Any memory described to the kernel (even that below the start of the
 image) which is not marked as reserved from the kernel (e.g., with a

@@ -595,6 +595,9 @@ static int corsair_input_mapping(struct hid_device *dev,
 {
 	int gkey;
 
+	if ((usage->hid & HID_USAGE_PAGE) != HID_UP_KEYBOARD)
+		return 0;
+
 	gkey = corsair_usage_to_gkey(usage->hid & HID_USAGE);
 	if (gkey != 0) {
 		hid_map_usage_clear(input, usage, bit, max, EV_KEY,
