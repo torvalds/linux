@@ -178,7 +178,7 @@ int blkdev_issue_write_same(struct block_device *bdev, sector_t sector,
 
 	if (bio)
 		ret = submit_bio_wait(bio);
-	return ret != -EOPNOTSUPP ? ret : 0;
+	return ret;
 }
 EXPORT_SYMBOL(blkdev_issue_write_same);
 
