@@ -3312,8 +3312,16 @@ int show_available_funcs(const char *target, struct strfilter *_filter,
 
 	/* Load symbols with given filter */
 	available_func_filter = _filter;
-	if (map__load(map, filter_available_functions)) {
-		pr_err("Failed to load symbols in %s\n", (target) ? : "kernel");
+	ret = map__load(map, filter_available_functions);
+	if (ret) {
+		if (ret == -2) {
+			char *str = strfilter__string(_filter);
+			pr_err("Failed to find symbols matched to \"%s\"\n",
+			       str);
+			free(str);
+		} else
+			pr_err("Failed to load symbols in %s\n",
+			       (target) ? : "kernel");
 		goto end;
 	}
 	if (!dso__sorted_by_name(map->dso, map->type))

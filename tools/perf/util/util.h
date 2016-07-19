@@ -364,4 +364,5 @@ void print_binary(unsigned char *data, size_t len,
 extern int sched_getcpu(void);
 #endif
 
+int is_printable_array(char *p, unsigned int len);
 #endif /* GIT_COMPAT_UTIL_H */

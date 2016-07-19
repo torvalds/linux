@@ -77,17 +77,4 @@ tools/include/linux/stringify.h
 tools/include/linux/types.h
 tools/include/linux/err.h
 tools/include/linux/bitmap.h
-include/asm-generic/bitops/arch_hweight.h
-include/asm-generic/bitops/const_hweight.h
-include/asm-generic/bitops/fls64.h
-include/asm-generic/bitops/__fls.h
-include/asm-generic/bitops/fls.h
-include/linux/list.h
-include/linux/hash.h
-include/linux/swab.h
-arch/*/include/asm/unistd*.h
-arch/*/include/uapi/asm/unistd*.h
 tools/arch/*/include/uapi/asm/perf_regs.h
-include/linux/poison.h
-include/uapi/linux/const.h
-include/uapi/linux/swab.h

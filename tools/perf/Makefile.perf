@@ -351,6 +351,9 @@ $(PERF_IN): prepare FORCE
 	@(test -f ../../include/uapi/linux/perf_event.h && ( \
         (diff -B ../include/uapi/linux/perf_event.h ../../include/uapi/linux/perf_event.h >/dev/null) \
         || echo "Warning: tools/include/uapi/linux/perf_event.h differs from kernel" >&2 )) || true
+	@(test -f ../../include/linux/hash.h && ( \
+        (diff -B ../include/linux/hash.h ../../include/linux/hash.h >/dev/null) \
+        || echo "Warning: tools/include/linux/hash.h differs from kernel" >&2 )) || true
 	@(test -f ../../include/uapi/linux/hw_breakpoint.h && ( \
         (diff -B ../include/uapi/linux/hw_breakpoint.h ../../include/uapi/linux/hw_breakpoint.h >/dev/null) \
         || echo "Warning: tools/include/uapi/linux/hw_breakpoint.h differs from kernel" >&2 )) || true
@@ -411,6 +414,21 @@ $(PERF_IN): prepare FORCE
 	@(test -f ../../arch/arm64/include/uapi/asm/kvm.h && ( \
         (diff -B ../arch/arm64/include/uapi/asm/kvm.h ../../arch/arm64/include/uapi/asm/kvm.h >/dev/null) \
         || echo "Warning: tools/arch/arm64/include/uapi/asm/kvm.h differs from kernel" >&2 )) || true
+	@(test -f ../../include/asm-generic/bitops/arch_hweight.h && ( \
+        (diff -B ../include/asm-generic/bitops/arch_hweight.h ../../include/asm-generic/bitops/arch_hweight.h >/dev/null) \
+        || echo "Warning: tools/include/asm-generic/bitops/arch_hweight.h differs from kernel" >&2 )) || true
+	@(test -f ../../include/asm-generic/bitops/const_hweight.h && ( \
+        (diff -B ../include/asm-generic/bitops/const_hweight.h ../../include/asm-generic/bitops/const_hweight.h >/dev/null) \
+        || echo "Warning: tools/include/asm-generic/bitops/const_hweight.h differs from kernel" >&2 )) || true
+	@(test -f ../../include/asm-generic/bitops/__fls.h && ( \
+        (diff -B ../include/asm-generic/bitops/__fls.h ../../include/asm-generic/bitops/__fls.h >/dev/null) \
+        || echo "Warning: tools/include/asm-generic/bitops/__fls.h differs from kernel" >&2 )) || true
+	@(test -f ../../include/asm-generic/bitops/fls.h && ( \
+        (diff -B ../include/asm-generic/bitops/fls.h ../../include/asm-generic/bitops/fls.h >/dev/null) \
+        || echo "Warning: tools/include/asm-generic/bitops/fls.h differs from kernel" >&2 )) || true
+	@(test -f ../../include/asm-generic/bitops/fls64.h && ( \
+        (diff -B ../include/asm-generic/bitops/fls64.h ../../include/asm-generic/bitops/fls64.h >/dev/null) \
+        || echo "Warning: tools/include/asm-generic/bitops/fls64.h differs from kernel" >&2 )) || true
 	$(Q)$(MAKE) $(build)=perf
 
 $(OUTPUT)perf: $(PERFLIBS) $(PERF_IN) $(LIBTRACEEVENT_DYNAMIC_LIST)

@@ -222,6 +222,10 @@ static struct test generic_tests[] = {
 		.func = test__sdt_event,
 	},
 	{
+		.desc = "Test is_printable_array function",
+		.func = test__is_printable_array,
+	},
+	{
 		.func = NULL,
 	},
 };
