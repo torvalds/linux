@@ -71,7 +71,7 @@ struct vfio_platform_device {
 	struct resource*
 		(*get_resource)(struct vfio_platform_device *vdev, int i);
 	int	(*get_irq)(struct vfio_platform_device *vdev, int i);
-	int	(*reset)(struct vfio_platform_device *vdev);
+	int	(*of_reset)(struct vfio_platform_device *vdev);
 };
 
 typedef int (*vfio_platform_reset_fn_t)(struct vfio_platform_device *vdev);
@@ -80,7 +80,7 @@ struct vfio_platform_reset_node {
 	struct list_head link;
 	char *compat;
 	struct module *owner;
-	vfio_platform_reset_fn_t reset;
+	vfio_platform_reset_fn_t of_reset;
 };
 
 extern int vfio_platform_probe_common(struct vfio_platform_device *vdev,
@@ -103,7 +103,7 @@ extern void vfio_platform_unregister_reset(const char *compat,
 static struct vfio_platform_reset_node __reset ## _node = {	\
 	.owner = THIS_MODULE,					\
 	.compat = __compat,					\
-	.reset = __reset,					\
+	.of_reset = __reset,					\
 };								\
 __vfio_platform_register_reset(&__reset ## _node)
 

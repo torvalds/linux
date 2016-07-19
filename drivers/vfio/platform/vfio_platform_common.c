@@ -41,7 +41,7 @@ static vfio_platform_reset_fn_t vfio_platform_lookup_reset(const char *compat,
 		if (!strcmp(iter->compat, compat) &&
 			try_module_get(iter->owner)) {
 			*module = iter->owner;
-			reset_fn = iter->reset;
+			reset_fn = iter->of_reset;
 			break;
 		}
 	}
@@ -51,18 +51,18 @@ static vfio_platform_reset_fn_t vfio_platform_lookup_reset(const char *compat,
 
 static void vfio_platform_get_reset(struct vfio_platform_device *vdev)
 {
-	vdev->reset = vfio_platform_lookup_reset(vdev->compat,
-						&vdev->reset_module);
-	if (!vdev->reset) {
+	vdev->of_reset = vfio_platform_lookup_reset(vdev->compat,
+						    &vdev->reset_module);
+	if (!vdev->of_reset) {
 		request_module("vfio-reset:%s", vdev->compat);
-		vdev->reset = vfio_platform_lookup_reset(vdev->compat,
-							 &vdev->reset_module);
+		vdev->of_reset = vfio_platform_lookup_reset(vdev->compat,
+							&vdev->reset_module);
 	}
 }
 
 static void vfio_platform_put_reset(struct vfio_platform_device *vdev)
 {
-	if (vdev->reset)
+	if (vdev->of_reset)
 		module_put(vdev->reset_module);
 }
 
@@ -141,9 +141,9 @@ static void vfio_platform_release(void *device_data)
 	mutex_lock(&driver_lock);
 
 	if (!(--vdev->refcnt)) {
-		if (vdev->reset) {
+		if (vdev->of_reset) {
 			dev_info(vdev->device, "reset\n");
-			vdev->reset(vdev);
+			vdev->of_reset(vdev);
 		} else {
 			dev_warn(vdev->device, "no reset function found!\n");
 		}
@@ -175,9 +175,9 @@ static int vfio_platform_open(void *device_data)
 		if (ret)
 			goto err_irq;
 
-		if (vdev->reset) {
+		if (vdev->of_reset) {
 			dev_info(vdev->device, "reset\n");
-			vdev->reset(vdev);
+			vdev->of_reset(vdev);
 		} else {
 			dev_warn(vdev->device, "no reset function found!\n");
 		}
@@ -213,7 +213,7 @@ static long vfio_platform_ioctl(void *device_data,
 		if (info.argsz < minsz)
 			return -EINVAL;
 
-		if (vdev->reset)
+		if (vdev->of_reset)
 			vdev->flags |= VFIO_DEVICE_FLAGS_RESET;
 		info.flags = vdev->flags;
 		info.num_regions = vdev->num_regions;
@@ -312,8 +312,8 @@ static long vfio_platform_ioctl(void *device_data,
 		return ret;
 
 	} else if (cmd == VFIO_DEVICE_RESET) {
-		if (vdev->reset)
-			return vdev->reset(vdev);
+		if (vdev->of_reset)
+			return vdev->of_reset(vdev);
 		else
 			return -EINVAL;
 	}
@@ -611,7 +611,7 @@ void vfio_platform_unregister_reset(const char *compat,
 
 	mutex_lock(&driver_lock);
 	list_for_each_entry_safe(iter, temp, &reset_list, link) {
-		if (!strcmp(iter->compat, compat) && (iter->reset == fn)) {
+		if (!strcmp(iter->compat, compat) && (iter->of_reset == fn)) {
 			list_del(&iter->link);
 			break;
 		}
