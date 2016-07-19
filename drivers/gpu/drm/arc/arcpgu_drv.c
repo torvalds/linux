@@ -48,7 +48,7 @@ static void arcpgu_setup_mode_config(struct drm_device *drm)
 	drm->mode_config.funcs = &arcpgu_drm_modecfg_funcs;
 }
 
-int arcpgu_gem_mmap(struct file *filp, struct vm_area_struct *vma)
+static int arcpgu_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	int ret;
 
@@ -130,7 +130,7 @@ static int arcpgu_load(struct drm_device *drm)
 		if (ret < 0)
 			return ret;
 	} else {
-		ret = arcpgu_drm_sim_init(drm, 0);
+		ret = arcpgu_drm_sim_init(drm, NULL);
 		if (ret < 0)
 			return ret;
 	}
@@ -151,7 +151,7 @@ static int arcpgu_load(struct drm_device *drm)
 	return 0;
 }
 
-int arcpgu_unload(struct drm_device *drm)
+static int arcpgu_unload(struct drm_device *drm)
 {
 	struct arcpgu_drm_private *arcpgu = drm->dev_private;
 
