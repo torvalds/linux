@@ -180,10 +180,8 @@ static void mlx5e_update_vport_counters(struct mlx5e_priv *priv)
 {
 	int outlen = MLX5_ST_SZ_BYTES(query_vport_counter_out);
 	u32 *out = (u32 *)priv->stats.vport.query_vport_out;
-	u32 in[MLX5_ST_SZ_DW(query_vport_counter_in)];
+	u32 in[MLX5_ST_SZ_DW(query_vport_counter_in)] = {0};
 	struct mlx5_core_dev *mdev = priv->mdev;
-
-	memset(in, 0, sizeof(in));
 
 	MLX5_SET(query_vport_counter_in, in, opcode,
 		 MLX5_CMD_OP_QUERY_VPORT_COUNTER);
@@ -191,7 +189,6 @@ static void mlx5e_update_vport_counters(struct mlx5e_priv *priv)
 	MLX5_SET(query_vport_counter_in, in, other_vport, 0);
 
 	memset(out, 0, outlen);
-
 	mlx5_cmd_exec(mdev, in, sizeof(in), out, outlen);
 }
 
@@ -2022,14 +2019,11 @@ static void mlx5e_close_drop_rq(struct mlx5e_priv *priv)
 static int mlx5e_create_tis(struct mlx5e_priv *priv, int tc)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
-	u32 in[MLX5_ST_SZ_DW(create_tis_in)];
+	u32 in[MLX5_ST_SZ_DW(create_tis_in)] = {0};
 	void *tisc = MLX5_ADDR_OF(create_tis_in, in, ctx);
-
-	memset(in, 0, sizeof(in));
 
 	MLX5_SET(tisc, tisc, prio, tc << 1);
 	MLX5_SET(tisc, tisc, transport_domain, mdev->mlx5e_res.td.tdn);
-
 	return mlx5_core_create_tis(mdev, in, sizeof(in), &priv->tisn[tc]);
 }
 

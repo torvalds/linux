@@ -87,13 +87,9 @@ void esw_offloads_cleanup(struct mlx5_eswitch *esw, int nvports);
 static int arm_vport_context_events_cmd(struct mlx5_core_dev *dev, u16 vport,
 					u32 events_mask)
 {
-	int in[MLX5_ST_SZ_DW(modify_nic_vport_context_in)];
-	int out[MLX5_ST_SZ_DW(modify_nic_vport_context_out)];
+	int in[MLX5_ST_SZ_DW(modify_nic_vport_context_in)]   = {0};
+	int out[MLX5_ST_SZ_DW(modify_nic_vport_context_out)] = {0};
 	void *nic_vport_ctx;
-	int err;
-
-	memset(out, 0, sizeof(out));
-	memset(in, 0, sizeof(in));
 
 	MLX5_SET(modify_nic_vport_context_in, in,
 		 opcode, MLX5_CMD_OP_MODIFY_NIC_VPORT_CONTEXT);
@@ -116,44 +112,30 @@ static int arm_vport_context_events_cmd(struct mlx5_core_dev *dev, u16 vport,
 		MLX5_SET(nic_vport_context, nic_vport_ctx,
 			 event_on_promisc_change, 1);
 
-	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
-	if (err)
-		goto ex;
-	err = mlx5_cmd_status_to_err_v2(out);
-	if (err)
-		goto ex;
-	return 0;
-ex:
-	return err;
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 
 /* E-Switch vport context HW commands */
 static int query_esw_vport_context_cmd(struct mlx5_core_dev *mdev, u32 vport,
 				       u32 *out, int outlen)
 {
-	u32 in[MLX5_ST_SZ_DW(query_esw_vport_context_in)];
-
-	memset(in, 0, sizeof(in));
+	u32 in[MLX5_ST_SZ_DW(query_esw_vport_context_in)] = {0};
 
 	MLX5_SET(query_nic_vport_context_in, in, opcode,
 		 MLX5_CMD_OP_QUERY_ESW_VPORT_CONTEXT);
-
 	MLX5_SET(query_esw_vport_context_in, in, vport_number, vport);
 	if (vport)
 		MLX5_SET(query_esw_vport_context_in, in, other_vport, 1);
-
-	return mlx5_cmd_exec_check_status(mdev, in, sizeof(in), out, outlen);
+	return mlx5_cmd_exec(mdev, in, sizeof(in), out, outlen);
 }
 
 static int query_esw_vport_cvlan(struct mlx5_core_dev *dev, u32 vport,
 				 u16 *vlan, u8 *qos)
 {
-	u32 out[MLX5_ST_SZ_DW(query_esw_vport_context_out)];
+	u32 out[MLX5_ST_SZ_DW(query_esw_vport_context_out)] = {0};
 	int err;
 	bool cvlan_strip;
 	bool cvlan_insert;
-
-	memset(out, 0, sizeof(out));
 
 	*vlan = 0;
 	*qos = 0;
@@ -188,27 +170,20 @@ out:
 static int modify_esw_vport_context_cmd(struct mlx5_core_dev *dev, u16 vport,
 					void *in, int inlen)
 {
-	u32 out[MLX5_ST_SZ_DW(modify_esw_vport_context_out)];
-
-	memset(out, 0, sizeof(out));
-
-	MLX5_SET(modify_esw_vport_context_in, in, vport_number, vport);
-	if (vport)
-		MLX5_SET(modify_esw_vport_context_in, in, other_vport, 1);
+	u32 out[MLX5_ST_SZ_DW(modify_esw_vport_context_out)] = {0};
 
 	MLX5_SET(modify_esw_vport_context_in, in, opcode,
 		 MLX5_CMD_OP_MODIFY_ESW_VPORT_CONTEXT);
-
-	return mlx5_cmd_exec_check_status(dev, in, inlen,
-					  out, sizeof(out));
+	MLX5_SET(modify_esw_vport_context_in, in, vport_number, vport);
+	if (vport)
+		MLX5_SET(modify_esw_vport_context_in, in, other_vport, 1);
+	return mlx5_cmd_exec(dev, in, inlen, out, sizeof(out));
 }
 
 static int modify_esw_vport_cvlan(struct mlx5_core_dev *dev, u32 vport,
 				  u16 vlan, u8 qos, bool set)
 {
-	u32 in[MLX5_ST_SZ_DW(modify_esw_vport_context_in)];
-
-	memset(in, 0, sizeof(in));
+	u32 in[MLX5_ST_SZ_DW(modify_esw_vport_context_in)] = {0};
 
 	if (!MLX5_CAP_ESW(dev, vport_cvlan_strip) ||
 	    !MLX5_CAP_ESW(dev, vport_cvlan_insert_if_not_exist))
@@ -216,7 +191,6 @@ static int modify_esw_vport_cvlan(struct mlx5_core_dev *dev, u32 vport,
 
 	esw_debug(dev, "Set Vport[%d] VLAN %d qos %d set=%d\n",
 		  vport, vlan, qos, set);
-
 	if (set) {
 		MLX5_SET(modify_esw_vport_context_in, in,
 			 esw_vport_context.vport_cvlan_strip, 1);
@@ -241,12 +215,9 @@ static int modify_esw_vport_cvlan(struct mlx5_core_dev *dev, u32 vport,
 static int set_l2_table_entry_cmd(struct mlx5_core_dev *dev, u32 index,
 				  u8 *mac, u8 vlan_valid, u16 vlan)
 {
-	u32 in[MLX5_ST_SZ_DW(set_l2_table_entry_in)];
-	u32 out[MLX5_ST_SZ_DW(set_l2_table_entry_out)];
+	u32 in[MLX5_ST_SZ_DW(set_l2_table_entry_in)]   = {0};
+	u32 out[MLX5_ST_SZ_DW(set_l2_table_entry_out)] = {0};
 	u8 *in_mac_addr;
-
-	memset(in, 0, sizeof(in));
-	memset(out, 0, sizeof(out));
 
 	MLX5_SET(set_l2_table_entry_in, in, opcode,
 		 MLX5_CMD_OP_SET_L2_TABLE_ENTRY);
@@ -257,23 +228,18 @@ static int set_l2_table_entry_cmd(struct mlx5_core_dev *dev, u32 index,
 	in_mac_addr = MLX5_ADDR_OF(set_l2_table_entry_in, in, mac_address);
 	ether_addr_copy(&in_mac_addr[2], mac);
 
-	return mlx5_cmd_exec_check_status(dev, in, sizeof(in),
-					  out, sizeof(out));
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 
 static int del_l2_table_entry_cmd(struct mlx5_core_dev *dev, u32 index)
 {
-	u32 in[MLX5_ST_SZ_DW(delete_l2_table_entry_in)];
-	u32 out[MLX5_ST_SZ_DW(delete_l2_table_entry_out)];
-
-	memset(in, 0, sizeof(in));
-	memset(out, 0, sizeof(out));
+	u32 in[MLX5_ST_SZ_DW(delete_l2_table_entry_in)]   = {0};
+	u32 out[MLX5_ST_SZ_DW(delete_l2_table_entry_out)] = {0};
 
 	MLX5_SET(delete_l2_table_entry_in, in, opcode,
 		 MLX5_CMD_OP_DELETE_L2_TABLE_ENTRY);
 	MLX5_SET(delete_l2_table_entry_in, in, table_index, index);
-	return mlx5_cmd_exec_check_status(dev, in, sizeof(in),
-					  out, sizeof(out));
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 
 static int alloc_l2_table_index(struct mlx5_l2_table *l2_table, u32 *ix)
@@ -1903,7 +1869,7 @@ int mlx5_eswitch_get_vport_stats(struct mlx5_eswitch *esw,
 				 struct ifla_vf_stats *vf_stats)
 {
 	int outlen = MLX5_ST_SZ_BYTES(query_vport_counter_out);
-	u32 in[MLX5_ST_SZ_DW(query_vport_counter_in)];
+	u32 in[MLX5_ST_SZ_DW(query_vport_counter_in)] = {0};
 	int err = 0;
 	u32 *out;
 
@@ -1915,8 +1881,6 @@ int mlx5_eswitch_get_vport_stats(struct mlx5_eswitch *esw,
 	out = mlx5_vzalloc(outlen);
 	if (!out)
 		return -ENOMEM;
-
-	memset(in, 0, sizeof(in));
 
 	MLX5_SET(query_vport_counter_in, in, opcode,
 		 MLX5_CMD_OP_QUERY_VPORT_COUNTER);

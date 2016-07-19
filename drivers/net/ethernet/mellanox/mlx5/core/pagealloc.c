@@ -144,7 +144,6 @@ static int mlx5_cmd_query_pages(struct mlx5_core_dev *dev, u16 *func_id,
 		 MLX5_QUERY_PAGES_IN_OP_MOD_INIT_PAGES);
 
 	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
-	err = err ? : mlx5_cmd_status_to_err_v2(out);
 	if (err)
 		return err;
 
@@ -252,8 +251,8 @@ static void page_notify_fail(struct mlx5_core_dev *dev, u16 func_id)
 	MLX5_SET(manage_pages_in, in, opcode, MLX5_CMD_OP_MANAGE_PAGES);
 	MLX5_SET(manage_pages_in, in, op_mod, MLX5_PAGES_CANT_GIVE);
 	MLX5_SET(manage_pages_in, in, function_id, func_id);
+
 	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
-	err = err ? : mlx5_cmd_status_to_err_v2(out);
 	if (err)
 		mlx5_core_warn(dev, "page notify failed func_id(%d) err(%d)\n",
 			       func_id, err);
@@ -297,7 +296,6 @@ retry:
 	MLX5_SET(manage_pages_in, in, input_num_entries, npages);
 
 	err = mlx5_cmd_exec(dev, in, inlen, out, sizeof(out));
-	err = err ? : mlx5_cmd_status_to_err_v2(out);
 	if (err) {
 		mlx5_core_warn(dev, "func_id 0x%x, npages %d, err %d\n",
 			       func_id, npages, err);
@@ -331,11 +329,8 @@ static int reclaim_pages_cmd(struct mlx5_core_dev *dev,
 	u32 npages;
 	u32 i = 0;
 
-	if (dev->state != MLX5_DEVICE_STATE_INTERNAL_ERROR) {
-		int err = mlx5_cmd_exec(dev, in, in_size, out, out_size);
-
-		return err ? : mlx5_cmd_status_to_err_v2(out);
-	}
+	if (dev->state != MLX5_DEVICE_STATE_INTERNAL_ERROR)
+		return mlx5_cmd_exec(dev, in, in_size, out, out_size);
 
 	/* No hard feelings, we want our pages back! */
 	npages = MLX5_GET(manage_pages_in, in, input_num_entries);

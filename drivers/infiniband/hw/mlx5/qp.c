@@ -1007,13 +1007,10 @@ static int is_connected(enum ib_qp_type qp_type)
 static int create_raw_packet_qp_tis(struct mlx5_ib_dev *dev,
 				    struct mlx5_ib_sq *sq, u32 tdn)
 {
-	u32 in[MLX5_ST_SZ_DW(create_tis_in)];
+	u32 in[MLX5_ST_SZ_DW(create_tis_in)] = {0};
 	void *tisc = MLX5_ADDR_OF(create_tis_in, in, ctx);
 
-	memset(in, 0, sizeof(in));
-
 	MLX5_SET(tisc, tisc, transport_domain, tdn);
-
 	return mlx5_core_create_tis(dev->mdev, in, sizeof(in), &sq->tisn);
 }
 

@@ -44,11 +44,8 @@ int mlx5_core_alloc_pd(struct mlx5_core_dev *dev, u32 *pdn)
 
 	MLX5_SET(alloc_pd_in, in, opcode, MLX5_CMD_OP_ALLOC_PD);
 	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
-	err = err ? : mlx5_cmd_status_to_err_v2(out);
-	if (err)
-		return err;
-
-	*pdn = MLX5_GET(alloc_pd_out, out, pd);
+	if (!err)
+		*pdn = MLX5_GET(alloc_pd_out, out, pd);
 	return err;
 }
 EXPORT_SYMBOL(mlx5_core_alloc_pd);
@@ -57,11 +54,9 @@ int mlx5_core_dealloc_pd(struct mlx5_core_dev *dev, u32 pdn)
 {
 	u32 out[MLX5_ST_SZ_DW(dealloc_pd_out)] = {0};
 	u32 in[MLX5_ST_SZ_DW(dealloc_pd_in)]   = {0};
-	int err;
 
 	MLX5_SET(dealloc_pd_in, in, opcode, MLX5_CMD_OP_DEALLOC_PD);
 	MLX5_SET(dealloc_pd_in, in, pd, pdn);
-	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
-	return err ? : mlx5_cmd_status_to_err_v2(out);
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 EXPORT_SYMBOL(mlx5_core_dealloc_pd);

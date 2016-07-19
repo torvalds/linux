@@ -75,7 +75,6 @@ int mlx5_core_create_mkey_cb(struct mlx5_core_dev *dev,
 					callback, context);
 
 	err = mlx5_cmd_exec(dev, in, inlen, lout, sizeof(lout));
-	err = err ? : mlx5_cmd_status_to_err_v2(lout);
 	if (err)
 		return err;
 
@@ -119,7 +118,6 @@ int mlx5_core_destroy_mkey(struct mlx5_core_dev *dev,
 	u32 in[MLX5_ST_SZ_DW(destroy_mkey_in)]   = {0};
 	struct mlx5_core_mkey *deleted_mkey;
 	unsigned long flags;
-	int err;
 
 	write_lock_irqsave(&table->lock, flags);
 	deleted_mkey = radix_tree_delete(&table->tree, mlx5_base_mkey(mkey->key));
@@ -132,9 +130,7 @@ int mlx5_core_destroy_mkey(struct mlx5_core_dev *dev,
 
 	MLX5_SET(destroy_mkey_in, in, opcode, MLX5_CMD_OP_DESTROY_MKEY);
 	MLX5_SET(destroy_mkey_in, in, mkey_index, mlx5_mkey_to_idx(mkey->key));
-
-	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
-	return err ? : mlx5_cmd_status_to_err_v2(out);
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 EXPORT_SYMBOL(mlx5_core_destroy_mkey);
 
@@ -142,14 +138,11 @@ int mlx5_core_query_mkey(struct mlx5_core_dev *dev, struct mlx5_core_mkey *mkey,
 			 u32 *out, int outlen)
 {
 	u32 in[MLX5_ST_SZ_DW(query_mkey_in)] = {0};
-	int err;
 
 	memset(out, 0, outlen);
 	MLX5_SET(query_mkey_in, in, opcode, MLX5_CMD_OP_QUERY_MKEY);
 	MLX5_SET(query_mkey_in, in, mkey_index, mlx5_mkey_to_idx(mkey->key));
-
-	err = mlx5_cmd_exec(dev, in, sizeof(in), out, outlen);
-	return err ? : mlx5_cmd_status_to_err_v2(out);
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, outlen);
 }
 EXPORT_SYMBOL(mlx5_core_query_mkey);
 
@@ -163,11 +156,9 @@ int mlx5_core_dump_fill_mkey(struct mlx5_core_dev *dev, struct mlx5_core_mkey *_
 	MLX5_SET(query_special_contexts_in, in, opcode,
 		 MLX5_CMD_OP_QUERY_SPECIAL_CONTEXTS);
 	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
-	err = err ? : mlx5_cmd_status_to_err_v2(out);
-	if (err)
-		return err;
-
-	*mkey = MLX5_GET(query_special_contexts_out, out, dump_fill_mkey);
+	if (!err)
+		*mkey = MLX5_GET(query_special_contexts_out, out,
+				 dump_fill_mkey);
 	return err;
 }
 EXPORT_SYMBOL(mlx5_core_dump_fill_mkey);
@@ -197,11 +188,8 @@ int mlx5_core_create_psv(struct mlx5_core_dev *dev, u32 pdn,
 	MLX5_SET(create_psv_in, in, num_psv, npsvs);
 
 	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
-	err = err ? : mlx5_cmd_status_to_err_v2(out);
-	if (err) {
-		mlx5_core_err(dev, "create_psv cmd exec failed %d\n", err);
+	if (err)
 		return err;
-	}
 
 	for (i = 0; i < npsvs; i++)
 		sig_index[i] = mlx5_get_psv(out, i);
@@ -214,11 +202,9 @@ int mlx5_core_destroy_psv(struct mlx5_core_dev *dev, int psv_num)
 {
 	u32 out[MLX5_ST_SZ_DW(destroy_psv_out)] = {0};
 	u32 in[MLX5_ST_SZ_DW(destroy_psv_in)]   = {0};
-	int err;
 
 	MLX5_SET(destroy_psv_in, in, opcode, MLX5_CMD_OP_DESTROY_PSV);
 	MLX5_SET(destroy_psv_in, in, psvn, psv_num);
-	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
-	return err ? : mlx5_cmd_status_to_err_v2(out);
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 EXPORT_SYMBOL(mlx5_core_destroy_psv);

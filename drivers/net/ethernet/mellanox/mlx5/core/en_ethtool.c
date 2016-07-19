@@ -726,7 +726,7 @@ static int mlx5e_get_link_ksettings(struct net_device *netdev,
 {
 	struct mlx5e_priv *priv    = netdev_priv(netdev);
 	struct mlx5_core_dev *mdev = priv->mdev;
-	u32 out[MLX5_ST_SZ_DW(ptys_reg)];
+	u32 out[MLX5_ST_SZ_DW(ptys_reg)] = {0};
 	u32 eth_proto_cap;
 	u32 eth_proto_admin;
 	u32 eth_proto_lp;
@@ -736,7 +736,6 @@ static int mlx5e_get_link_ksettings(struct net_device *netdev,
 	int err;
 
 	err = mlx5_query_port_ptys(mdev, out, sizeof(out), MLX5_PTYS_EN, 1);
-
 	if (err) {
 		netdev_err(netdev, "%s: query port ptys failed: %d\n",
 			   __func__, err);

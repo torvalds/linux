@@ -398,33 +398,6 @@ enum {
 	MLX5_MAX_SGE_RD	= (512 - 16 - 16) / 16
 };
 
-struct mlx5_inbox_hdr {
-	__be16		opcode;
-	u8		rsvd[4];
-	__be16		opmod;
-};
-
-struct mlx5_outbox_hdr {
-	u8		status;
-	u8		rsvd[3];
-	__be32		syndrome;
-};
-
-struct mlx5_cmd_query_adapter_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	u8			rsvd[8];
-};
-
-struct mlx5_cmd_query_adapter_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	u8			rsvd0[24];
-	u8			intapin;
-	u8			rsvd1[13];
-	__be16			vsd_vendor_id;
-	u8			vsd[208];
-	u8			vsd_psid[16];
-};
-
 enum mlx5_odp_transport_cap_bits {
 	MLX5_ODP_SUPPORT_SEND	 = 1 << 31,
 	MLX5_ODP_SUPPORT_RECV	 = 1 << 30,
@@ -456,7 +429,6 @@ struct mlx5_cmd_layout {
 	u8		rsvd1;
 	u8		status_own;
 };
-
 
 struct health_buffer {
 	__be32		assert_var[5];
@@ -817,93 +789,6 @@ union mlx5_ext_cqe {
 struct mlx5_cqe128 {
 	union mlx5_ext_cqe	inl_grh;
 	struct mlx5_cqe64	cqe64;
-};
-
-struct mlx5_srq_ctx {
-	u8			state_log_sz;
-	u8			rsvd0[3];
-	__be32			flags_xrcd;
-	__be32			pgoff_cqn;
-	u8			rsvd1[4];
-	u8			log_pg_sz;
-	u8			rsvd2[7];
-	__be32			pd;
-	__be16			lwm;
-	__be16			wqe_cnt;
-	u8			rsvd3[8];
-	__be64			db_record;
-};
-
-struct mlx5_create_srq_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	__be32			input_srqn;
-	u8			rsvd0[4];
-	struct mlx5_srq_ctx	ctx;
-	u8			rsvd1[208];
-	__be64			pas[0];
-};
-
-struct mlx5_create_srq_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	__be32			srqn;
-	u8			rsvd[4];
-};
-
-struct mlx5_destroy_srq_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	__be32			srqn;
-	u8			rsvd[4];
-};
-
-struct mlx5_destroy_srq_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	u8			rsvd[8];
-};
-
-struct mlx5_query_srq_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	__be32			srqn;
-	u8			rsvd0[4];
-};
-
-struct mlx5_query_srq_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	u8			rsvd0[8];
-	struct mlx5_srq_ctx	ctx;
-	u8			rsvd1[32];
-	__be64			pas[0];
-};
-
-struct mlx5_arm_srq_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	__be32			srqn;
-	__be16			rsvd;
-	__be16			lwm;
-};
-
-struct mlx5_arm_srq_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	u8			rsvd[8];
-};
-
-struct mlx5_enable_hca_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	u8			rsvd[8];
-};
-
-struct mlx5_enable_hca_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	u8			rsvd[8];
-};
-
-struct mlx5_disable_hca_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	u8			rsvd[8];
-};
-
-struct mlx5_disable_hca_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	u8			rsvd[8];
 };
 
 enum {

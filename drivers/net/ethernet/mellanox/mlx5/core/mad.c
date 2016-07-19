@@ -60,7 +60,6 @@ int mlx5_core_mad_ifc(struct mlx5_core_dev *dev, const void *inb, void *outb,
 	memcpy(data, inb, MLX5_FLD_SZ_BYTES(mad_ifc_in, mad));
 
 	err = mlx5_cmd_exec(dev, in, inlen, out, outlen);
-	err = err ? : mlx5_cmd_status_to_err_v2(out);
 	if (err)
 		goto out;
 

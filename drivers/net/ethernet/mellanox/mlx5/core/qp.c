@@ -281,7 +281,6 @@ int mlx5_core_create_qp(struct mlx5_core_dev *dev,
 	MLX5_SET(create_qp_in, in, opcode, MLX5_CMD_OP_CREATE_QP);
 
 	err = mlx5_cmd_exec(dev, in, inlen, out, sizeof(out));
-	err = err ? : mlx5_cmd_status_to_err_v2(out);
 	if (err)
 		return err;
 
@@ -307,7 +306,6 @@ err_cmd:
 	MLX5_SET(destroy_qp_in, in, opcode, MLX5_CMD_OP_DESTROY_QP);
 	MLX5_SET(destroy_qp_in, in, qpn, qp->qpn);
 	mlx5_cmd_exec(dev, din, sizeof(din), dout, sizeof(dout));
-	mlx5_cmd_status_to_err_v2(dout);
 	return err;
 }
 EXPORT_SYMBOL_GPL(mlx5_core_create_qp);
@@ -326,7 +324,6 @@ int mlx5_core_destroy_qp(struct mlx5_core_dev *dev,
 	MLX5_SET(destroy_qp_in, in, opcode, MLX5_CMD_OP_DESTROY_QP);
 	MLX5_SET(destroy_qp_in, in, qpn, qp->qpn);
 	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
-	err = err ? : mlx5_cmd_status_to_err_v2(out);
 	if (err)
 		return err;
 
@@ -453,7 +450,6 @@ int mlx5_core_qp_modify(struct mlx5_core_dev *dev, u16 opcode,
 		return err;
 
 	err = mlx5_cmd_exec(dev, mbox.in, mbox.inlen, mbox.out, mbox.outlen);
-	err = err ? : mlx5_cmd_status_to_err_v2(mbox.out);
 	mbox_free(&mbox);
 	return err;
 }
@@ -478,13 +474,10 @@ int mlx5_core_qp_query(struct mlx5_core_dev *dev, struct mlx5_core_qp *qp,
 		       u32 *out, int outlen)
 {
 	u32 in[MLX5_ST_SZ_DW(query_qp_in)] = {0};
-	int err;
 
 	MLX5_SET(query_qp_in, in, opcode, MLX5_CMD_OP_QUERY_QP);
 	MLX5_SET(query_qp_in, in, qpn, qp->qpn);
-
-	err = mlx5_cmd_exec(dev, in, sizeof(in), out, outlen);
-	return err ? : mlx5_cmd_status_to_err_v2(out);
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, outlen);
 }
 EXPORT_SYMBOL_GPL(mlx5_core_qp_query);
 
@@ -496,7 +489,6 @@ int mlx5_core_xrcd_alloc(struct mlx5_core_dev *dev, u32 *xrcdn)
 
 	MLX5_SET(alloc_xrcd_in, in, opcode, MLX5_CMD_OP_ALLOC_XRCD);
 	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
-	err = err ? : mlx5_cmd_status_to_err_v2(out);
 	if (!err)
 		*xrcdn = MLX5_GET(alloc_xrcd_out, out, xrcd);
 	return err;
@@ -507,12 +499,10 @@ int mlx5_core_xrcd_dealloc(struct mlx5_core_dev *dev, u32 xrcdn)
 {
 	u32 out[MLX5_ST_SZ_DW(dealloc_xrcd_out)] = {0};
 	u32 in[MLX5_ST_SZ_DW(dealloc_xrcd_in)]   = {0};
-	int err;
 
 	MLX5_SET(dealloc_xrcd_in, in, opcode, MLX5_CMD_OP_DEALLOC_XRCD);
 	MLX5_SET(dealloc_xrcd_in, in, xrcd, xrcdn);
-	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
-	return err ? : mlx5_cmd_status_to_err_v2(out);
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 EXPORT_SYMBOL_GPL(mlx5_core_xrcd_dealloc);
 
@@ -522,11 +512,9 @@ int mlx5_core_page_fault_resume(struct mlx5_core_dev *dev, u32 qpn,
 {
 	u32 out[MLX5_ST_SZ_DW(page_fault_resume_out)] = {0};
 	u32 in[MLX5_ST_SZ_DW(page_fault_resume_in)]   = {0};
-	int err;
 
 	MLX5_SET(page_fault_resume_in, in, opcode,
 		 MLX5_CMD_OP_PAGE_FAULT_RESUME);
-
 	MLX5_SET(page_fault_resume_in, in, qpn, qpn);
 
 	if (flags & MLX5_PAGE_FAULT_RESUME_REQUESTOR)
@@ -538,8 +526,7 @@ int mlx5_core_page_fault_resume(struct mlx5_core_dev *dev, u32 qpn,
 	if (error)
 		MLX5_SET(page_fault_resume_in, in, error, 1);
 
-	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
-	return err ? : mlx5_cmd_status_to_err_v2(out);
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 EXPORT_SYMBOL_GPL(mlx5_core_page_fault_resume);
 #endif
@@ -615,7 +602,7 @@ int mlx5_core_alloc_q_counter(struct mlx5_core_dev *dev, u16 *counter_id)
 	int err;
 
 	MLX5_SET(alloc_q_counter_in, in, opcode, MLX5_CMD_OP_ALLOC_Q_COUNTER);
-	err = mlx5_cmd_exec_check_status(dev, in, sizeof(in), out, sizeof(out));
+	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 	if (!err)
 		*counter_id = MLX5_GET(alloc_q_counter_out, out,
 				       counter_set_id);
@@ -631,8 +618,7 @@ int mlx5_core_dealloc_q_counter(struct mlx5_core_dev *dev, u16 counter_id)
 	MLX5_SET(dealloc_q_counter_in, in, opcode,
 		 MLX5_CMD_OP_DEALLOC_Q_COUNTER);
 	MLX5_SET(dealloc_q_counter_in, in, counter_set_id, counter_id);
-	return mlx5_cmd_exec_check_status(dev, in, sizeof(in), out,
-					  sizeof(out));
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 EXPORT_SYMBOL_GPL(mlx5_core_dealloc_q_counter);
 
@@ -644,7 +630,7 @@ int mlx5_core_query_q_counter(struct mlx5_core_dev *dev, u16 counter_id,
 	MLX5_SET(query_q_counter_in, in, opcode, MLX5_CMD_OP_QUERY_Q_COUNTER);
 	MLX5_SET(query_q_counter_in, in, clear, reset);
 	MLX5_SET(query_q_counter_in, in, counter_set_id, counter_id);
-	return mlx5_cmd_exec_check_status(dev, in, sizeof(in), out, out_size);
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, out_size);
 }
 EXPORT_SYMBOL_GPL(mlx5_core_query_q_counter);
 
