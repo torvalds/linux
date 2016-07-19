@@ -28,6 +28,8 @@
 #define DRIVER_AUTHOR   "Antonios Motakis <a.motakis@virtualopensystems.com>"
 #define DRIVER_DESC     "VFIO platform base module"
 
+#define VFIO_PLATFORM_IS_ACPI(vdev) ((vdev)->acpihid != NULL)
+
 static LIST_HEAD(reset_list);
 static DEFINE_MUTEX(driver_lock);
 
@@ -71,13 +73,53 @@ static int vfio_platform_acpi_probe(struct vfio_platform_device *vdev,
 	return WARN_ON(!vdev->acpihid) ? -EINVAL : 0;
 }
 
+int vfio_platform_acpi_call_reset(struct vfio_platform_device *vdev,
+				  const char **extra_dbg)
+{
+#ifdef CONFIG_ACPI
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
+	struct device *dev = vdev->device;
+	acpi_handle handle = ACPI_HANDLE(dev);
+	acpi_status acpi_ret;
+
+	acpi_ret = acpi_evaluate_object(handle, "_RST", NULL, &buffer);
+	if (ACPI_FAILURE(acpi_ret)) {
+		if (extra_dbg)
+			*extra_dbg = acpi_format_exception(acpi_ret);
+		return -EINVAL;
+	}
+
+	return 0;
+#else
+	return -ENOENT;
+#endif
+}
+
+bool vfio_platform_acpi_has_reset(struct vfio_platform_device *vdev)
+{
+#ifdef CONFIG_ACPI
+	struct device *dev = vdev->device;
+	acpi_handle handle = ACPI_HANDLE(dev);
+
+	return acpi_has_method(handle, "_RST");
+#else
+	return false;
+#endif
+}
+
 static bool vfio_platform_has_reset(struct vfio_platform_device *vdev)
 {
+	if (VFIO_PLATFORM_IS_ACPI(vdev))
+		return vfio_platform_acpi_has_reset(vdev);
+
 	return vdev->of_reset ? true : false;
 }
 
 static void vfio_platform_get_reset(struct vfio_platform_device *vdev)
 {
+	if (VFIO_PLATFORM_IS_ACPI(vdev))
+		return;
+
 	vdev->of_reset = vfio_platform_lookup_reset(vdev->compat,
 						    &vdev->reset_module);
 	if (!vdev->of_reset) {
@@ -89,6 +131,9 @@ static void vfio_platform_get_reset(struct vfio_platform_device *vdev)
 
 static void vfio_platform_put_reset(struct vfio_platform_device *vdev)
 {
+	if (VFIO_PLATFORM_IS_ACPI(vdev))
+		return;
+
 	if (vdev->of_reset)
 		module_put(vdev->reset_module);
 }
@@ -164,7 +209,10 @@ static void vfio_platform_regions_cleanup(struct vfio_platform_device *vdev)
 static int vfio_platform_call_reset(struct vfio_platform_device *vdev,
 				    const char **extra_dbg)
 {
-	if (vdev->of_reset) {
+	if (VFIO_PLATFORM_IS_ACPI(vdev)) {
+		dev_info(vdev->device, "reset\n");
+		return vfio_platform_acpi_call_reset(vdev, extra_dbg);
+	} else if (vdev->of_reset) {
 		dev_info(vdev->device, "reset\n");
 		return vdev->of_reset(vdev);
 	}
