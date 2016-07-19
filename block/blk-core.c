@@ -1363,7 +1363,7 @@ struct request *blk_make_request(struct request_queue *q, struct bio *bio,
 		int ret;
 
 		blk_queue_bounce(q, &bounce_bio);
-		ret = blk_rq_append_bio(q, rq, bounce_bio);
+		ret = blk_rq_append_bio(rq, bounce_bio);
 		if (unlikely(ret)) {
 			blk_put_request(rq);
 			return ERR_PTR(ret);
