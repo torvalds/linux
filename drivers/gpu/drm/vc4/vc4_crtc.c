@@ -536,6 +536,13 @@ static bool vc4_crtc_mode_fixup(struct drm_crtc *crtc,
 				const struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode)
 {
+	/* Do not allow doublescan modes from user space */
+	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN) {
+		DRM_DEBUG_KMS("[CRTC:%d] Doublescan mode rejected.\n",
+			      crtc->base.id);
+		return false;
+	}
+
 	/*
 	 * Interlaced video modes got CRTC_INTERLACE_HALVE_V applied when
 	 * coming from user space. We don't want this, as it screws up
