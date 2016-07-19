@@ -259,6 +259,12 @@ struct mlx4_en_rx_alloc {
 	u32		page_size;
 };
 
+#define MLX4_EN_CACHE_SIZE (2 * NAPI_POLL_WEIGHT)
+struct mlx4_en_page_cache {
+	u32 index;
+	struct mlx4_en_rx_alloc buf[MLX4_EN_CACHE_SIZE];
+};
+
 struct mlx4_en_tx_ring {
 	/* cache line used and dirtied in tx completion
 	 * (mlx4_en_free_tx_buf())
@@ -324,6 +330,7 @@ struct mlx4_en_rx_ring {
 	void *buf;
 	void *rx_info;
 	struct bpf_prog *xdp_prog;
+	struct mlx4_en_page_cache page_cache;
 	unsigned long bytes;
 	unsigned long packets;
 	unsigned long csum_ok;
@@ -443,7 +450,9 @@ struct mlx4_en_mc_list {
 struct mlx4_en_frag_info {
 	u16 frag_size;
 	u16 frag_prefix_size;
-	u16 frag_stride;
+	u32 frag_stride;
+	enum dma_data_direction dma_dir;
+	int order;
 };
 
 #ifdef CONFIG_MLX4_EN_DCB

@@ -2529,11 +2529,32 @@ static int mlx4_en_set_tx_maxrate(struct net_device *dev, int queue_index, u32 m
 static int mlx4_xdp_set(struct net_device *dev, struct bpf_prog *prog)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_dev *mdev = priv->mdev;
 	struct bpf_prog *old_prog;
 	int xdp_ring_num;
+	int port_up = 0;
+	int err;
 	int i;
 
 	xdp_ring_num = prog ? ALIGN(priv->rx_ring_num, MLX4_EN_NUM_UP) : 0;
+
+	/* No need to reconfigure buffers when simply swapping the
+	 * program for a new one.
+	 */
+	if (priv->xdp_ring_num == xdp_ring_num) {
+		if (prog) {
+			prog = bpf_prog_add(prog, priv->rx_ring_num - 1);
+			if (IS_ERR(prog))
+				return PTR_ERR(prog);
+		}
+		for (i = 0; i < priv->rx_ring_num; i++) {
+			/* This xchg is paired with READ_ONCE in the fastpath */
+			old_prog = xchg(&priv->rx_ring[i]->xdp_prog, prog);
+			if (old_prog)
+				bpf_prog_put(old_prog);
+		}
+		return 0;
+	}
 
 	if (priv->num_frags > 1) {
 		en_err(priv, "Cannot set XDP if MTU requires multiple frags\n");
@@ -2546,15 +2567,30 @@ static int mlx4_xdp_set(struct net_device *dev, struct bpf_prog *prog)
 			return PTR_ERR(prog);
 	}
 
+	mutex_lock(&mdev->state_lock);
+	if (priv->port_up) {
+		port_up = 1;
+		mlx4_en_stop_port(dev, 1);
+	}
+
 	priv->xdp_ring_num = xdp_ring_num;
 
-	/* This xchg is paired with READ_ONCE in the fast path */
 	for (i = 0; i < priv->rx_ring_num; i++) {
 		old_prog = xchg(&priv->rx_ring[i]->xdp_prog, prog);
 		if (old_prog)
 			bpf_prog_put(old_prog);
 	}
 
+	if (port_up) {
+		err = mlx4_en_start_port(dev);
+		if (err) {
+			en_err(priv, "Failed starting port %d for XDP change\n",
+			       priv->port);
+			queue_work(mdev->workqueue, &priv->watchdog_task);
+		}
+	}
+
+	mutex_unlock(&mdev->state_lock);
 	return 0;
 }
 
