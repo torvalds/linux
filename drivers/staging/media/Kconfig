@@ -16,7 +16,7 @@ menuconfig STAGING_MEDIA
           If in doubt, say N here.
 
 
-if STAGING_MEDIA
+if STAGING_MEDIA && MEDIA_SUPPORT
 
 # Please keep them in alphabetic order
 source "drivers/staging/media/bcm2048/Kconfig"
