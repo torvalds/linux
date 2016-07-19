@@ -44,6 +44,7 @@ config DVB_USB_DIBUSB_MB
 	depends on DVB_USB
 	select DVB_PLL if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_DIB3000MB
+	depends on DVB_DIB3000MC || !DVB_DIB3000MC
 	select MEDIA_TUNER_MT2060 if MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Support for USB 1.1 and 2.0 DVB-T receivers based on reference designs made by
