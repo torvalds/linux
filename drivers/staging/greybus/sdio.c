@@ -734,11 +734,17 @@ static int gb_mmc_get_cd(struct mmc_host *mmc)
 	return host->card_present;
 }
 
+static int gb_mmc_switch_voltage(struct mmc_host *mmc, struct mmc_ios *ios)
+{
+	return 0;
+}
+
 static const struct mmc_host_ops gb_sdio_ops = {
 	.request	= gb_mmc_request,
 	.set_ios	= gb_mmc_set_ios,
 	.get_ro		= gb_mmc_get_ro,
 	.get_cd		= gb_mmc_get_cd,
+	.start_signal_voltage_switch	= gb_mmc_switch_voltage,
 };
 
 static int gb_sdio_probe(struct gbphy_device *gbphy_dev,
