@@ -210,11 +210,11 @@ static void vce_v3_0_set_vce_sw_clock_gating(struct amdgpu_device *adev,
 static int vce_v3_0_firmware_loaded(struct amdgpu_device *adev)
 {
 	int i, j;
-	uint32_t status = 0;
 
 	for (i = 0; i < 10; ++i) {
 		for (j = 0; j < 100; ++j) {
-			status = RREG32(mmVCE_STATUS);
+			uint32_t status = RREG32(mmVCE_STATUS);
+
 			if (status & VCE_STATUS_VCPU_REPORT_FW_LOADED_MASK)
 				return 0;
 			mdelay(10);
