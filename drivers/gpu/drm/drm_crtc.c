@@ -928,11 +928,11 @@ int drm_connector_init(struct drm_device *dev,
 	connector->dev = dev;
 	connector->funcs = funcs;
 
-	connector->connector_id = ida_simple_get(&config->connector_ida, 0, 0, GFP_KERNEL);
-	if (connector->connector_id < 0) {
-		ret = connector->connector_id;
+	ret = ida_simple_get(&config->connector_ida, 0, 0, GFP_KERNEL);
+	if (ret < 0)
 		goto out_put;
-	}
+	connector->index = ret;
+	ret = 0;
 
 	connector->connector_type = connector_type;
 	connector->connector_type_id =
@@ -980,7 +980,7 @@ out_put_type_id:
 		ida_remove(connector_ida, connector->connector_type_id);
 out_put_id:
 	if (ret)
-		ida_remove(&config->connector_ida, connector->connector_id);
+		ida_remove(&config->connector_ida, connector->index);
 out_put:
 	if (ret)
 		drm_mode_object_unregister(dev, &connector->base);
@@ -1024,7 +1024,7 @@ void drm_connector_cleanup(struct drm_connector *connector)
 		   connector->connector_type_id);
 
 	ida_remove(&dev->mode_config.connector_ida,
-		   connector->connector_id);
+		   connector->index);
 
 	kfree(connector->display_info.bus_formats);
 	drm_mode_object_unregister(dev, &connector->base);
