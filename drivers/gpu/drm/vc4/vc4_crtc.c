@@ -532,6 +532,23 @@ static void vc4_crtc_enable(struct drm_crtc *crtc)
 		   CRTC_READ(PV_V_CONTROL) | PV_VCONTROL_VIDEN);
 }
 
+static bool vc4_crtc_mode_fixup(struct drm_crtc *crtc,
+				const struct drm_display_mode *mode,
+				struct drm_display_mode *adjusted_mode)
+{
+	/*
+	 * Interlaced video modes got CRTC_INTERLACE_HALVE_V applied when
+	 * coming from user space. We don't want this, as it screws up
+	 * vblank timestamping, so fix it up.
+	 */
+	drm_mode_set_crtcinfo(adjusted_mode, 0);
+
+	DRM_DEBUG_KMS("[CRTC:%d] adjusted_mode :\n", crtc->base.id);
+	drm_mode_debug_printmodeline(adjusted_mode);
+
+	return true;
+}
+
 static int vc4_crtc_atomic_check(struct drm_crtc *crtc,
 				 struct drm_crtc_state *state)
 {
@@ -819,6 +836,7 @@ static const struct drm_crtc_helper_funcs vc4_crtc_helper_funcs = {
 	.mode_set_nofb = vc4_crtc_mode_set_nofb,
 	.disable = vc4_crtc_disable,
 	.enable = vc4_crtc_enable,
+	.mode_fixup = vc4_crtc_mode_fixup,
 	.atomic_check = vc4_crtc_atomic_check,
 	.atomic_flush = vc4_crtc_atomic_flush,
 };
