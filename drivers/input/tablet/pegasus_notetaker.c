@@ -410,7 +410,19 @@ static int pegasus_resume(struct usb_interface *intf)
 
 static int pegasus_reset_resume(struct usb_interface *intf)
 {
-	return pegasus_resume(intf);
+	struct pegasus *pegasus = usb_get_intfdata(intf);
+	int retval = 0;
+
+	mutex_lock(&pegasus->dev->mutex);
+	if (pegasus->dev->users) {
+		retval = pegasus_set_mode(pegasus, PEN_MODE_XY,
+					  NOTETAKER_LED_MOUSE);
+		if (!retval && usb_submit_urb(pegasus->irq, GFP_NOIO) < 0)
+			retval = -EIO;
+	}
+	mutex_unlock(&pegasus->dev->mutex);
+
+	return retval;
 }
 
 static const struct usb_device_id pegasus_ids[] = {
