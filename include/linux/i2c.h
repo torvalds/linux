@@ -766,13 +766,4 @@ static inline struct i2c_adapter *of_get_i2c_adapter_by_node(struct device_node 
 }
 #endif /* CONFIG_OF */
 
-#if IS_ENABLED(CONFIG_ACPI)
-u32 i2c_acpi_find_bus_speed(struct device *dev);
-#else
-static inline u32 i2c_acpi_find_bus_speed(struct device *dev)
-{
-	return 0;
-}
-#endif /* CONFIG_ACPI */
-
 #endif /* _LINUX_I2C_H */
