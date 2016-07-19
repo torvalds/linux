@@ -757,7 +757,7 @@ static int k3_dma_probe(struct platform_device *op)
 
 	ret = dma_async_device_register(&d->slave);
 	if (ret)
-		return ret;
+		goto dma_async_register_fail;
 
 	ret = of_dma_controller_register((&op->dev)->of_node,
 					k3_of_dma_simple_xlate, d);
@@ -774,6 +774,8 @@ static int k3_dma_probe(struct platform_device *op)
 
 of_dma_register_fail:
 	dma_async_device_unregister(&d->slave);
+dma_async_register_fail:
+	clk_disable_unprepare(d->clk);
 	return ret;
 }
 
