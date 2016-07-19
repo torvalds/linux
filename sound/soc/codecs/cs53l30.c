@@ -809,8 +809,8 @@ static int cs53l30_set_dai_tdm_slot(struct snd_soc_dai *dai,
 		return -EINVAL;
 	}
 
-	/* Validate the last CS53L30 slot */
-	slot_next = loc[CS53L30_TDM_SLOT_MAX - 1] + slot_step - 1;
+	/* Validate the last active CS53L30 slot */
+	slot_next = loc[i - 1] + slot_step - 1;
 	if (slot_next > 47) {
 		dev_err(dai->dev, "slot selection out of bounds: %u\n",
 			slot_next);
