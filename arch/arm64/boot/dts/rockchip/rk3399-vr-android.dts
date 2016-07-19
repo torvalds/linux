@@ -576,6 +576,47 @@
 	status = "okay";
 };
 
+&saradc {
+	status = "okay";
+};
+
+&rk_key {
+	compatible = "rockchip,key";
+	status = "okay";
+	io-channels = <&saradc 1>;
+
+	vol-up-key {
+		linux,code = <115>;
+		label = "volume up";
+		rockchip,adc_value = <340>;
+	};
+
+	vol-down-key {
+		linux,code = <114>;
+		label = "volume down";
+		rockchip,adc_value = <170>;
+	};
+
+	power-key {
+		gpios = <&gpio0 5 GPIO_ACTIVE_LOW>;
+		linux,code = <116>;
+		label = "power";
+		gpio-key,wakeup;
+	};
+
+	back-key {
+		linux,code = <158>;
+		label = "back";
+		rockchip,adc_value = <620>;
+	};
+
+	brightness-key {
+		linux,code = <244>;
+		label = "brightness";
+		rockchip,adc_value = <700>;
+	};
+};
+
 &uart0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_xfer &uart0_cts>;
