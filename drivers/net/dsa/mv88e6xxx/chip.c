@@ -3196,25 +3196,40 @@ static int mv88e6xxx_g2_clear_trunk(struct mv88e6xxx_chip *chip)
 
 static int mv88e6xxx_g2_setup(struct mv88e6xxx_chip *chip)
 {
+	u16 reg;
 	int err;
 	int i;
 
-	/* Send all frames with destination addresses matching
-	 * 01:80:c2:00:00:0x to the CPU port.
-	 */
-	err = _mv88e6xxx_reg_write(chip, REG_GLOBAL2, GLOBAL2_MGMT_EN_0X,
-				   0xffff);
-	if (err)
-		return err;
+	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_MGMT_EN_2X)) {
+		/* Consider the frames with reserved multicast destination
+		 * addresses matching 01:80:c2:00:00:2x as MGMT.
+		 */
+		err = mv88e6xxx_write(chip, REG_GLOBAL2, GLOBAL2_MGMT_EN_2X,
+				      0xffff);
+		if (err)
+			return err;
+	}
+
+	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_MGMT_EN_0X)) {
+		/* Consider the frames with reserved multicast destination
+		 * addresses matching 01:80:c2:00:00:0x as MGMT.
+		 */
+		err = mv88e6xxx_write(chip, REG_GLOBAL2, GLOBAL2_MGMT_EN_0X,
+				      0xffff);
+		if (err)
+			return err;
+	}
 
 	/* Ignore removed tag data on doubly tagged packets, disable
 	 * flow control messages, force flow control priority to the
 	 * highest, and send all special multicast frames to the CPU
 	 * port at the highest priority.
 	 */
-	err = _mv88e6xxx_reg_write(chip, REG_GLOBAL2, GLOBAL2_SWITCH_MGMT,
-				   0x7 | GLOBAL2_SWITCH_MGMT_RSVD2CPU | 0x70 |
-				   GLOBAL2_SWITCH_MGMT_FORCE_FLOW_CTRL_PRI);
+	reg = GLOBAL2_SWITCH_MGMT_FORCE_FLOW_CTRL_PRI | (0x7 << 4);
+	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_MGMT_EN_0X) ||
+	    mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_MGMT_EN_2X))
+		reg |= GLOBAL2_SWITCH_MGMT_RSVD2CPU | 0x7;
+	err = mv88e6xxx_write(chip, REG_GLOBAL2, GLOBAL2_SWITCH_MGMT, reg);
 	if (err)
 		return err;
 
@@ -3231,14 +3246,6 @@ static int mv88e6xxx_g2_setup(struct mv88e6xxx_chip *chip)
 	if (mv88e6xxx_6352_family(chip) || mv88e6xxx_6351_family(chip) ||
 	    mv88e6xxx_6165_family(chip) || mv88e6xxx_6097_family(chip) ||
 	    mv88e6xxx_6320_family(chip)) {
-		/* Send all frames with destination addresses matching
-		 * 01:80:c2:00:00:2x to the CPU port.
-		 */
-		err = _mv88e6xxx_reg_write(chip, REG_GLOBAL2,
-					   GLOBAL2_MGMT_EN_2X, 0xffff);
-		if (err)
-			return err;
-
 		/* Initialise cross-chip port VLAN table to reset
 		 * defaults.
 		 */
