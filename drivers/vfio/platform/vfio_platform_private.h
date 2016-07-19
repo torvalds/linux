@@ -73,6 +73,8 @@ struct vfio_platform_device {
 		(*get_resource)(struct vfio_platform_device *vdev, int i);
 	int	(*get_irq)(struct vfio_platform_device *vdev, int i);
 	int	(*of_reset)(struct vfio_platform_device *vdev);
+
+	bool				reset_required;
 };
 
 typedef int (*vfio_platform_reset_fn_t)(struct vfio_platform_device *vdev);
