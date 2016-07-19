@@ -1017,8 +1017,29 @@ static struct mlxsw_sp_port_hw_stats mlxsw_sp_port_hw_prio_stats[] = {
 
 #define MLXSW_SP_PORT_HW_PRIO_STATS_LEN ARRAY_SIZE(mlxsw_sp_port_hw_prio_stats)
 
+static u64 mlxsw_reg_ppcnt_tc_transmit_queue_bytes_get(char *ppcnt_pl)
+{
+	u64 transmit_queue = mlxsw_reg_ppcnt_tc_transmit_queue_get(ppcnt_pl);
+
+	return MLXSW_SP_CELLS_TO_BYTES(transmit_queue);
+}
+
+static struct mlxsw_sp_port_hw_stats mlxsw_sp_port_hw_tc_stats[] = {
+	{
+		.str = "tc_transmit_queue_tc",
+		.getter = mlxsw_reg_ppcnt_tc_transmit_queue_bytes_get,
+	},
+	{
+		.str = "tc_no_buffer_discard_uc_tc",
+		.getter = mlxsw_reg_ppcnt_tc_no_buffer_discard_uc_get,
+	},
+};
+
+#define MLXSW_SP_PORT_HW_TC_STATS_LEN ARRAY_SIZE(mlxsw_sp_port_hw_tc_stats)
+
 #define MLXSW_SP_PORT_ETHTOOL_STATS_LEN (MLXSW_SP_PORT_HW_STATS_LEN + \
-					 MLXSW_SP_PORT_HW_PRIO_STATS_LEN * \
+					 (MLXSW_SP_PORT_HW_PRIO_STATS_LEN + \
+					  MLXSW_SP_PORT_HW_TC_STATS_LEN) * \
 					 IEEE_8021QAZ_MAX_TCS)
 
 static void mlxsw_sp_port_get_prio_strings(u8 **p, int prio)
@@ -1028,6 +1049,17 @@ static void mlxsw_sp_port_get_prio_strings(u8 **p, int prio)
 	for (i = 0; i < MLXSW_SP_PORT_HW_PRIO_STATS_LEN; i++) {
 		snprintf(*p, ETH_GSTRING_LEN, "%s_%d",
 			 mlxsw_sp_port_hw_prio_stats[i].str, prio);
+		*p += ETH_GSTRING_LEN;
+	}
+}
+
+static void mlxsw_sp_port_get_tc_strings(u8 **p, int tc)
+{
+	int i;
+
+	for (i = 0; i < MLXSW_SP_PORT_HW_TC_STATS_LEN; i++) {
+		snprintf(*p, ETH_GSTRING_LEN, "%s_%d",
+			 mlxsw_sp_port_hw_tc_stats[i].str, tc);
 		*p += ETH_GSTRING_LEN;
 	}
 }
@@ -1048,6 +1080,9 @@ static void mlxsw_sp_port_get_strings(struct net_device *dev,
 
 		for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++)
 			mlxsw_sp_port_get_prio_strings(&p, i);
+
+		for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++)
+			mlxsw_sp_port_get_tc_strings(&p, i);
 
 		break;
 	}
@@ -1088,6 +1123,10 @@ mlxsw_sp_get_hw_stats_by_group(struct mlxsw_sp_port_hw_stats **p_hw_stats,
 	case MLXSW_REG_PPCNT_PRIO_CNT:
 		*p_hw_stats = mlxsw_sp_port_hw_prio_stats;
 		*p_len = MLXSW_SP_PORT_HW_PRIO_STATS_LEN;
+		break;
+	case MLXSW_REG_PPCNT_TC_CNT:
+		*p_hw_stats = mlxsw_sp_port_hw_tc_stats;
+		*p_len = MLXSW_SP_PORT_HW_TC_STATS_LEN;
 		break;
 	default:
 		WARN_ON(1);
@@ -1131,6 +1170,13 @@ static void mlxsw_sp_port_get_stats(struct net_device *dev,
 		__mlxsw_sp_port_get_stats(dev, MLXSW_REG_PPCNT_PRIO_CNT, i,
 					  data, data_index);
 		data_index += MLXSW_SP_PORT_HW_PRIO_STATS_LEN;
+	}
+
+	/* Per-TC Counters */
+	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
+		__mlxsw_sp_port_get_stats(dev, MLXSW_REG_PPCNT_TC_CNT, i,
+					  data, data_index);
+		data_index += MLXSW_SP_PORT_HW_TC_STATS_LEN;
 	}
 }
 
