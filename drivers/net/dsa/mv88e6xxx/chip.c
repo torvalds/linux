@@ -3221,17 +3221,17 @@ static int mv88e6xxx_g2_setup(struct mv88e6xxx_chip *chip)
 	if (err)
 		return err;
 
+	if (mv88e6xxx_has(chip, MV88E6XXX_FLAGS_PVT)) {
+		/* Initialize Cross-chip Port VLAN Table to reset defaults */
+		err = mv88e6xxx_write(chip, REG_GLOBAL2, GLOBAL2_PVT_ADDR,
+				      GLOBAL2_PVT_ADDR_OP_INIT_ONES);
+		if (err)
+			return err;
+	}
+
 	if (mv88e6xxx_6352_family(chip) || mv88e6xxx_6351_family(chip) ||
 	    mv88e6xxx_6165_family(chip) || mv88e6xxx_6097_family(chip) ||
 	    mv88e6xxx_6320_family(chip)) {
-		/* Initialise cross-chip port VLAN table to reset
-		 * defaults.
-		 */
-		err = _mv88e6xxx_reg_write(chip, REG_GLOBAL2,
-					   GLOBAL2_PVT_ADDR, 0x9000);
-		if (err)
-			return err;
-
 		/* Clear the priority override table. */
 		for (i = 0; i < 16; i++) {
 			err = _mv88e6xxx_reg_write(chip, REG_GLOBAL2,
