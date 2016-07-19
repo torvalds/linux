@@ -2,6 +2,7 @@
  * Watchdog Driver Test Program
  */
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -35,9 +36,13 @@ static void keep_alive(void)
 
 static void term(int sig)
 {
-    write(fd, &v, 1);
+    int ret = write(fd, &v, 1);
+
     close(fd);
-    printf("\nStopping watchdog ticks...\n");
+    if (ret < 0)
+	printf("\nStopping watchdog ticks failed (%d)...\n", errno);
+    else
+	printf("\nStopping watchdog ticks...\n");
     exit(0);
 }
 
@@ -45,6 +50,7 @@ int main(int argc, char *argv[])
 {
     int flags;
     unsigned int ping_rate = 1;
+    int ret;
 
     setbuf(stdout, NULL);
 
@@ -91,7 +97,9 @@ int main(int argc, char *argv[])
 	sleep(ping_rate);
     }
 end:
-    write(fd, &v, 1);
+    ret = write(fd, &v, 1);
+    if (ret < 0)
+	printf("Stopping watchdog ticks failed (%d)...\n", errno);
     close(fd);
     return 0;
 }
