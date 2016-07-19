@@ -271,5 +271,7 @@ struct ncsi_dev *ncsi_find_dev(struct net_device *dev);
 /* Packet handlers */
 u32 ncsi_calculate_checksum(unsigned char *data, int len);
 int ncsi_xmit_cmd(struct ncsi_cmd_arg *nca);
+int ncsi_rcv_rsp(struct sk_buff *skb, struct net_device *dev,
+		 struct packet_type *pt, struct net_device *orig_dev);
 
 #endif /* __NCSI_INTERNAL_H__ */
