@@ -1418,7 +1418,7 @@ static int nb8800_probe(struct platform_device *pdev)
 	if (ops && ops->reset) {
 		ret = ops->reset(dev);
 		if (ret)
-			goto err_free_dev;
+			goto err_disable_clk;
 	}
 
 	bus = devm_mdiobus_alloc(&pdev->dev);
