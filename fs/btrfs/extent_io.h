@@ -413,7 +413,7 @@ int map_private_extent_buffer(struct extent_buffer *eb, unsigned long offset,
 void extent_range_clear_dirty_for_io(struct inode *inode, u64 start, u64 end);
 void extent_range_redirty_for_io(struct inode *inode, u64 start, u64 end);
 void extent_clear_unlock_delalloc(struct inode *inode, u64 start, u64 end,
-				 struct page *locked_page,
+				 u64 delalloc_end, struct page *locked_page,
 				 unsigned bits_to_clear,
 				 unsigned long page_ops);
 struct bio *

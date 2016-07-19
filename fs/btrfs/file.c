@@ -503,7 +503,7 @@ int btrfs_dirty_pages(struct btrfs_root *root, struct inode *inode,
 
 	end_of_last_block = start_pos + num_bytes - 1;
 	err = btrfs_set_extent_delalloc(inode, start_pos, end_of_last_block,
-					cached);
+					cached, 0);
 	if (err)
 		return err;
 
