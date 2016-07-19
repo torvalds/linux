@@ -1989,7 +1989,7 @@ static void fcoe_ctlr_vn_send(struct fcoe_ctlr *fip,
 			      const u8 *dest, size_t min_len)
 {
 	struct sk_buff *skb;
-	struct fip_frame {
+	struct fip_vn2vn_probe_frame {
 		struct ethhdr eth;
 		struct fip_header fip;
 		struct fip_mac_desc mac;
@@ -2016,7 +2016,7 @@ static void fcoe_ctlr_vn_send(struct fcoe_ctlr *fip,
 	if (!skb)
 		return;
 
-	frame = (struct fip_frame *)skb->data;
+	frame = (struct fip_vn2vn_probe_frame *)skb->data;
 	memset(frame, 0, len);
 	memcpy(frame->eth.h_dest, dest, ETH_ALEN);
 
