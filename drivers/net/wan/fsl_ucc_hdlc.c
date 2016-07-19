@@ -1168,7 +1168,6 @@ static struct platform_driver ucc_hdlc_driver = {
 	.probe	= ucc_hdlc_probe,
 	.remove	= ucc_hdlc_remove,
 	.driver	= {
-		.owner		= THIS_MODULE,
 		.name		= DRV_NAME,
 		.pm		= HDLC_PM_OPS,
 		.of_match_table	= fsl_ucc_hdlc_of_match,
