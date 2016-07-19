@@ -220,6 +220,21 @@ struct ncsi_dev_priv {
 	struct list_head    node;            /* Form NCSI device list      */
 };
 
+struct ncsi_cmd_arg {
+	struct ncsi_dev_priv *ndp;        /* Associated NCSI device        */
+	unsigned char        type;        /* Command in the NCSI packet    */
+	unsigned char        id;          /* Request ID (sequence number)  */
+	unsigned char        package;     /* Destination package ID        */
+	unsigned char        channel;     /* Detination channel ID or 0x1f */
+	unsigned short       payload;     /* Command packet payload length */
+	bool                 driven;      /* Drive the state machine?      */
+	union {
+		unsigned char  bytes[16]; /* Command packet specific data  */
+		unsigned short words[8];
+		unsigned int   dwords[4];
+	};
+};
+
 extern struct list_head ncsi_dev_list;
 extern spinlock_t ncsi_dev_lock;
 
@@ -252,5 +267,9 @@ void ncsi_find_package_and_channel(struct ncsi_dev_priv *ndp,
 struct ncsi_request *ncsi_alloc_request(struct ncsi_dev_priv *ndp, bool driven);
 void ncsi_free_request(struct ncsi_request *nr);
 struct ncsi_dev *ncsi_find_dev(struct net_device *dev);
+
+/* Packet handlers */
+u32 ncsi_calculate_checksum(unsigned char *data, int len);
+int ncsi_xmit_cmd(struct ncsi_cmd_arg *nca);
 
 #endif /* __NCSI_INTERNAL_H__ */
