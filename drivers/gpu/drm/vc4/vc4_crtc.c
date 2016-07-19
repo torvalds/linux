@@ -475,6 +475,9 @@ static void vc4_crtc_disable(struct drm_crtc *crtc)
 	int ret;
 	require_hvs_enabled(dev);
 
+	/* Disable vblank irq handling before crtc is disabled. */
+	drm_crtc_vblank_off(crtc);
+
 	CRTC_WRITE(PV_V_CONTROL,
 		   CRTC_READ(PV_V_CONTROL) & ~PV_VCONTROL_VIDEN);
 	ret = wait_for(!(CRTC_READ(PV_V_CONTROL) & PV_VCONTROL_VIDEN), 1);
@@ -525,6 +528,9 @@ static void vc4_crtc_enable(struct drm_crtc *crtc)
 	/* Turn on the pixel valve, which will emit the vstart signal. */
 	CRTC_WRITE(PV_V_CONTROL,
 		   CRTC_READ(PV_V_CONTROL) | PV_VCONTROL_VIDEN);
+
+	/* Enable vblank irq handling after crtc is started. */
+	drm_crtc_vblank_on(crtc);
 }
 
 static bool vc4_crtc_mode_fixup(struct drm_crtc *crtc,
