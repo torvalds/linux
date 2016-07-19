@@ -206,6 +206,9 @@ static const struct cxd2841er_cnr_data s2_cn_data[] = {
 		(u32)(((iffreq)/48.0)*16777216.0 + 0.5) : \
 		(u32)(((iffreq)/41.0)*16777216.0 + 0.5))
 
+static int cxd2841er_freeze_regs(struct cxd2841er_priv *priv);
+static int cxd2841er_unfreeze_regs(struct cxd2841er_priv *priv);
+
 static void cxd2841er_i2c_debug(struct cxd2841er_priv *priv,
 				u8 addr, u8 reg, u8 write,
 				const u8 *data, u32 len)
@@ -1401,6 +1404,41 @@ static int cxd2841er_read_ber_c(struct cxd2841er_priv *priv,
 	return 0;
 }
 
+static int cxd2841er_read_ber_i(struct cxd2841er_priv *priv,
+		u32 *bit_error, u32 *bit_count)
+{
+	u8 data[3];
+	u8 pktnum[2];
+
+	dev_dbg(&priv->i2c->dev, "%s()\n", __func__);
+	if (priv->state != STATE_ACTIVE_TC) {
+		dev_dbg(&priv->i2c->dev, "%s(): invalid state %d\n",
+				__func__, priv->state);
+		return -EINVAL;
+	}
+
+	cxd2841er_freeze_regs(priv);
+	cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x60);
+	cxd2841er_read_regs(priv, I2C_SLVT, 0x5B, pktnum, sizeof(pktnum));
+	cxd2841er_read_regs(priv, I2C_SLVT, 0x16, data, sizeof(data));
+
+	if (!pktnum[0] && !pktnum[1]) {
+		dev_dbg(&priv->i2c->dev,
+				"%s(): no valid BER data\n", __func__);
+		cxd2841er_unfreeze_regs(priv);
+		return -EINVAL;
+	}
+
+	*bit_error = ((u32)(data[0] & 0x7F) << 16) |
+		((u32)data[1] << 8) | data[2];
+	*bit_count = ((((u32)pktnum[0] << 8) | pktnum[1]) * 204 * 8);
+	dev_dbg(&priv->i2c->dev, "%s(): bit_error=%u bit_count=%u\n",
+			__func__, *bit_error, *bit_count);
+
+	cxd2841er_unfreeze_regs(priv);
+	return 0;
+}
+
 static int cxd2841er_mon_read_ber_s(struct cxd2841er_priv *priv,
 				    u32 *bit_error, u32 *bit_count)
 {
@@ -1798,9 +1836,7 @@ static int cxd2841er_read_snr_i(struct cxd2841er_priv *priv, u32 *snr)
 		cxd2841er_unfreeze_regs(priv);
 		return 0;
 	}
-	if (reg > 4996)
-		reg = 4996;
-	*snr = 100 * intlog10(reg) - 9031;
+	*snr = 10000 * (intlog10(reg) >> 24) - 9031;
 	cxd2841er_unfreeze_regs(priv);
 	return 0;
 }
@@ -1878,6 +1914,9 @@ static void cxd2841er_read_ber(struct dvb_frontend *fe)
 	case SYS_DVBC_ANNEX_B:
 	case SYS_DVBC_ANNEX_C:
 		ret = cxd2841er_read_ber_c(priv, &bit_error, &bit_count);
+		break;
+	case SYS_ISDBT:
+		ret = cxd2841er_read_ber_i(priv, &bit_error, &bit_count);
 		break;
 	case SYS_DVBS:
 		ret = cxd2841er_mon_read_ber_s(priv, &bit_error, &bit_count);
@@ -1991,6 +2030,9 @@ static void cxd2841er_read_snr(struct dvb_frontend *fe)
 		p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 		return;
 	}
+
+	dev_dbg(&priv->i2c->dev, "%s(): snr=%d\n",
+			__func__, (int32_t)tmp);
 
 	if (!ret) {
 		p->cnr.stat[0].scale = FE_SCALE_DECIBEL;
