@@ -36,11 +36,16 @@ int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 		return -ENXIO;
 
 	if (flags & BLKDEV_DISCARD_SECURE) {
+		if (flags & BLKDEV_DISCARD_ZERO)
+			return -EOPNOTSUPP;
 		if (!blk_queue_secure_erase(q))
 			return -EOPNOTSUPP;
 		op = REQ_OP_SECURE_ERASE;
 	} else {
 		if (!blk_queue_discard(q))
+			return -EOPNOTSUPP;
+		if ((flags & BLKDEV_DISCARD_ZERO) &&
+		    !q->limits.discard_zeroes_data)
 			return -EOPNOTSUPP;
 		op = REQ_OP_DISCARD;
 	}
@@ -116,7 +121,7 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 			&bio);
 	if (!ret && bio) {
 		ret = submit_bio_wait(bio);
-		if (ret == -EOPNOTSUPP)
+		if (ret == -EOPNOTSUPP && !(flags & BLKDEV_DISCARD_ZERO))
 			ret = 0;
 	}
 	blk_finish_plug(&plug);
@@ -241,11 +246,11 @@ static int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 int blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 			 sector_t nr_sects, gfp_t gfp_mask, bool discard)
 {
-	struct request_queue *q = bdev_get_queue(bdev);
-
-	if (discard && blk_queue_discard(q) && q->limits.discard_zeroes_data &&
-	    blkdev_issue_discard(bdev, sector, nr_sects, gfp_mask, 0) == 0)
-		return 0;
+	if (discard) {
+		if (!blkdev_issue_discard(bdev, sector, nr_sects, gfp_mask,
+				BLKDEV_DISCARD_ZERO))
+			return 0;
+	}
 
 	if (bdev_write_same(bdev) &&
 	    blkdev_issue_write_same(bdev, sector, nr_sects, gfp_mask,
