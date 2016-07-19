@@ -1629,13 +1629,11 @@ again:
 		 * managed to copy.
 		 */
 		if (num_sectors > dirty_sectors) {
-			/*
-			 * we round down because we don't want to count
-			 * any partial blocks actually sent through the
-			 * IO machines
-			 */
-			release_bytes = round_down(release_bytes - copied,
-				      root->sectorsize);
+
+			/* release everything except the sectors we dirtied */
+			release_bytes -= dirty_sectors <<
+				root->fs_info->sb->s_blocksize_bits;
+
 			if (copied > 0) {
 				spin_lock(&BTRFS_I(inode)->lock);
 				BTRFS_I(inode)->outstanding_extents++;
