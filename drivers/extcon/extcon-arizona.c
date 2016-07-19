@@ -183,7 +183,7 @@ static void arizona_extcon_hp_clamp(struct arizona_extcon_info *info,
 		if (clamp)
 			val = ARIZONA_RMV_SHRT_HP1L;
 		break;
-	};
+	}
 
 	snd_soc_dapm_mutex_lock(arizona->dapm);
 
