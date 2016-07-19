@@ -1169,9 +1169,6 @@ nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	dentry = fhp->fh_dentry;
 	dirp = d_inode(dentry);
 
-	err = nfserr_notdir;
-	if (!dirp->i_op->lookup)
-		goto out;
 	/*
 	 * Check whether the response file handle has been verified yet.
 	 * If it has, the parent directory should already be locked.
@@ -1309,12 +1306,6 @@ do_nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 
 	dentry = fhp->fh_dentry;
 	dirp = d_inode(dentry);
-
-	/* Get all the sanity checks out of the way before
-	 * we lock the parent. */
-	err = nfserr_notdir;
-	if (!dirp->i_op->lookup)
-		goto out;
 
 	host_err = fh_want_write(fhp);
 	if (host_err)
