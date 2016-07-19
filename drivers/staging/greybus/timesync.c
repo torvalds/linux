@@ -28,7 +28,7 @@
 #define GB_TIMESYNC_DEFAULT_OFFSET_US		1000
 
 /* Work queue timers long, short and SVC strobe timeout */
-#define GB_TIMESYNC_DELAYED_WORK_LONG		msecs_to_jiffies(1000)
+#define GB_TIMESYNC_DELAYED_WORK_LONG		msecs_to_jiffies(10)
 #define GB_TIMESYNC_DELAYED_WORK_SHORT		msecs_to_jiffies(1)
 #define GB_TIMESYNC_MAX_WAIT_SVC		msecs_to_jiffies(5000)
 #define GB_TIMESYNC_KTIME_UPDATE		msecs_to_jiffies(1000)
