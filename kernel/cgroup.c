@@ -61,7 +61,6 @@
 #include <linux/cpuset.h>
 #include <linux/proc_ns.h>
 #include <linux/nsproxy.h>
-#include <linux/proc_ns.h>
 #include <net/sock.h>
 
 /*
