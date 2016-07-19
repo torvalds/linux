@@ -568,6 +568,7 @@ struct mv88e6xxx_info {
 	unsigned int num_databases;
 	unsigned int num_ports;
 	unsigned int port_base_addr;
+	unsigned int age_time_coeff;
 	unsigned long flags;
 };
 
