@@ -1460,9 +1460,6 @@ static void mv88e6xxx_port_stp_state_set(struct dsa_switch *ds, int port,
 	int stp_state;
 	int err;
 
-	if (!mv88e6xxx_has(chip, MV88E6XXX_FLAG_PORTSTATE))
-		return;
-
 	switch (state) {
 	case BR_STATE_DISABLED:
 		stp_state = PORT_CONTROL_STATE_DISABLED;
@@ -2398,11 +2395,6 @@ static int mv88e6xxx_port_fdb_prepare(struct dsa_switch *ds, int port,
 				      const struct switchdev_obj_port_fdb *fdb,
 				      struct switchdev_trans *trans)
 {
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
-
-	if (!mv88e6xxx_has(chip, MV88E6XXX_FLAG_ATU))
-		return -EOPNOTSUPP;
-
 	/* We don't need any dynamic resource from the kernel (yet),
 	 * so skip the prepare phase.
 	 */
@@ -2418,9 +2410,6 @@ static void mv88e6xxx_port_fdb_add(struct dsa_switch *ds, int port,
 		GLOBAL_ATU_DATA_STATE_UC_STATIC;
 	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
 
-	if (!mv88e6xxx_has(chip, MV88E6XXX_FLAG_ATU))
-		return;
-
 	mutex_lock(&chip->reg_lock);
 	if (_mv88e6xxx_port_fdb_load(chip, port, fdb->addr, fdb->vid, state))
 		netdev_err(ds->ports[port].netdev,
@@ -2433,9 +2422,6 @@ static int mv88e6xxx_port_fdb_del(struct dsa_switch *ds, int port,
 {
 	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
 	int ret;
-
-	if (!mv88e6xxx_has(chip, MV88E6XXX_FLAG_ATU))
-		return -EOPNOTSUPP;
 
 	mutex_lock(&chip->reg_lock);
 	ret = _mv88e6xxx_port_fdb_load(chip, port, fdb->addr, fdb->vid,
@@ -2542,9 +2528,6 @@ static int mv88e6xxx_port_fdb_dump(struct dsa_switch *ds, int port,
 	u16 fid;
 	int err;
 
-	if (!mv88e6xxx_has(chip, MV88E6XXX_FLAG_ATU))
-		return -EOPNOTSUPP;
-
 	mutex_lock(&chip->reg_lock);
 
 	/* Dump port's default Filtering Information Database (VLAN ID 0) */
@@ -2587,9 +2570,6 @@ static int mv88e6xxx_port_bridge_join(struct dsa_switch *ds, int port,
 	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
 	int i, err = 0;
 
-	if (!mv88e6xxx_has(chip, MV88E6XXX_FLAG_VLANTABLE))
-		return -EOPNOTSUPP;
-
 	mutex_lock(&chip->reg_lock);
 
 	/* Assign the bridge and remap each port's VLANTable */
@@ -2613,9 +2593,6 @@ static void mv88e6xxx_port_bridge_leave(struct dsa_switch *ds, int port)
 	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
 	struct net_device *bridge = chip->ports[port].bridge_dev;
 	int i;
-
-	if (!mv88e6xxx_has(chip, MV88E6XXX_FLAG_VLANTABLE))
-		return;
 
 	mutex_lock(&chip->reg_lock);
 
