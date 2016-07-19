@@ -134,6 +134,17 @@ static void vfio_platform_regions_cleanup(struct vfio_platform_device *vdev)
 	kfree(vdev->regions);
 }
 
+static int vfio_platform_call_reset(struct vfio_platform_device *vdev)
+{
+	if (vdev->of_reset) {
+		dev_info(vdev->device, "reset\n");
+		return vdev->of_reset(vdev);
+	}
+
+	dev_warn(vdev->device, "no reset function found!\n");
+	return -EINVAL;
+}
+
 static void vfio_platform_release(void *device_data)
 {
 	struct vfio_platform_device *vdev = device_data;
@@ -141,12 +152,7 @@ static void vfio_platform_release(void *device_data)
 	mutex_lock(&driver_lock);
 
 	if (!(--vdev->refcnt)) {
-		if (vdev->of_reset) {
-			dev_info(vdev->device, "reset\n");
-			vdev->of_reset(vdev);
-		} else {
-			dev_warn(vdev->device, "no reset function found!\n");
-		}
+		vfio_platform_call_reset(vdev);
 		vfio_platform_regions_cleanup(vdev);
 		vfio_platform_irq_cleanup(vdev);
 	}
@@ -175,12 +181,7 @@ static int vfio_platform_open(void *device_data)
 		if (ret)
 			goto err_irq;
 
-		if (vdev->of_reset) {
-			dev_info(vdev->device, "reset\n");
-			vdev->of_reset(vdev);
-		} else {
-			dev_warn(vdev->device, "no reset function found!\n");
-		}
+		vfio_platform_call_reset(vdev);
 	}
 
 	vdev->refcnt++;
@@ -312,10 +313,7 @@ static long vfio_platform_ioctl(void *device_data,
 		return ret;
 
 	} else if (cmd == VFIO_DEVICE_RESET) {
-		if (vdev->of_reset)
-			return vdev->of_reset(vdev);
-		else
-			return -EINVAL;
+		return vfio_platform_call_reset(vdev);
 	}
 
 	return -ENOTTY;
