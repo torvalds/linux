@@ -46,11 +46,11 @@ struct bvec_iter {
 struct bio {
 	struct bio		*bi_next;	/* request queue link */
 	struct block_device	*bi_bdev;
-	unsigned int		bi_flags;	/* status, command, etc */
 	int			bi_error;
 	unsigned int		bi_rw;		/* bottom bits req flags,
 						 * top bits REQ_OP
 						 */
+	unsigned short		bi_flags;	/* status, command, etc */
 	unsigned short		bi_ioprio;
 
 	struct bvec_iter	bi_iter;
@@ -136,7 +136,7 @@ struct bio {
  * Flags starting here get preserved by bio_reset() - this includes
  * BVEC_POOL_IDX()
  */
-#define BIO_RESET_BITS	13
+#define BIO_RESET_BITS	10
 
 /*
  * We support 6 different bvec pools, the last one is magic in that it
@@ -151,7 +151,7 @@ struct bio {
  * freed.
  */
 #define BVEC_POOL_BITS		(4)
-#define BVEC_POOL_OFFSET	(32 - BVEC_POOL_BITS)
+#define BVEC_POOL_OFFSET	(16 - BVEC_POOL_BITS)
 #define BVEC_POOL_IDX(bio)	((bio)->bi_flags >> BVEC_POOL_OFFSET)
 
 #endif /* CONFIG_BLOCK */
