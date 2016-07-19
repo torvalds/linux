@@ -163,14 +163,6 @@ int vc4_crtc_get_scanoutpos(struct drm_device *dev, unsigned int crtc_id,
 	int vblank_lines;
 	int ret = 0;
 
-	/*
-	 * XXX Doesn't work well in interlaced mode yet, partially due
-	 * to problems in vc4 kms or drm core interlaced mode handling,
-	 * so disable for now in interlaced mode.
-	 */
-	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-		return ret;
-
 	/* preempt_disable_rt() should go right here in PREEMPT_RT patchset. */
 
 	/* Get optional system timestamp before query. */
@@ -191,10 +183,15 @@ int vc4_crtc_get_scanoutpos(struct drm_device *dev, unsigned int crtc_id,
 
 	/* Vertical position of hvs composed scanline. */
 	*vpos = VC4_GET_FIELD(val, SCALER_DISPSTATX_LINE);
+	*hpos = 0;
 
-	/* No hpos info available. */
-	if (hpos)
-		*hpos = 0;
+	if (mode->flags & DRM_MODE_FLAG_INTERLACE) {
+		*vpos /= 2;
+
+		/* Use hpos to correct for field offset in interlaced mode. */
+		if (VC4_GET_FIELD(val, SCALER_DISPSTATX_FRAME_COUNT) % 2)
+			*hpos += mode->crtc_htotal / 2;
+	}
 
 	/* This is the offset we need for translating hvs -> pv scanout pos. */
 	fifo_lines = vc4_crtc->cob_size / mode->crtc_hdisplay;
@@ -217,8 +214,6 @@ int vc4_crtc_get_scanoutpos(struct drm_device *dev, unsigned int crtc_id,
 		 * position of the PV.
 		 */
 		*vpos -= fifo_lines + 1;
-		if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-			*vpos /= 2;
 
 		ret |= DRM_SCANOUTPOS_ACCURATE;
 		return ret;
