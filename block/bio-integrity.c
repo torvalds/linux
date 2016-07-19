@@ -53,7 +53,6 @@ struct bio_integrity_payload *bio_integrity_alloc(struct bio *bio,
 {
 	struct bio_integrity_payload *bip;
 	struct bio_set *bs = bio->bi_pool;
-	unsigned long idx = BIO_POOL_NONE;
 	unsigned inline_vecs;
 
 	if (!bs || !bs->bio_integrity_pool) {
@@ -71,17 +70,19 @@ struct bio_integrity_payload *bio_integrity_alloc(struct bio *bio,
 	memset(bip, 0, sizeof(*bip));
 
 	if (nr_vecs > inline_vecs) {
+		unsigned long idx = 0;
+
 		bip->bip_vec = bvec_alloc(gfp_mask, nr_vecs, &idx,
 					  bs->bvec_integrity_pool);
 		if (!bip->bip_vec)
 			goto err;
 		bip->bip_max_vcnt = bvec_nr_vecs(idx);
+		bip->bip_slab = idx;
 	} else {
 		bip->bip_vec = bip->bip_inline_vecs;
 		bip->bip_max_vcnt = inline_vecs;
 	}
 
-	bip->bip_slab = idx;
 	bip->bip_bio = bio;
 	bio->bi_integrity = bip;
 	bio->bi_rw |= REQ_INTEGRITY;
@@ -110,9 +111,7 @@ void bio_integrity_free(struct bio *bio)
 		      bip->bip_vec->bv_offset);
 
 	if (bs && bs->bio_integrity_pool) {
-		if (bip->bip_slab != BIO_POOL_NONE)
-			bvec_free(bs->bvec_integrity_pool, bip->bip_vec,
-				  bip->bip_slab);
+		bvec_free(bs->bvec_integrity_pool, bip->bip_vec, bip->bip_slab);
 
 		mempool_free(bip, bs->bio_integrity_pool);
 	} else {

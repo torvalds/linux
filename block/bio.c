@@ -43,7 +43,7 @@
  * unsigned short
  */
 #define BV(x) { .nr_vecs = x, .name = "biovec-"__stringify(x) }
-static struct biovec_slab bvec_slabs[BIOVEC_NR_POOLS] __read_mostly = {
+static struct biovec_slab bvec_slabs[BVEC_POOL_NR] __read_mostly = {
 	BV(1), BV(4), BV(16), BV(64), BV(128), BV(BIO_MAX_PAGES),
 };
 #undef BV
@@ -160,11 +160,15 @@ unsigned int bvec_nr_vecs(unsigned short idx)
 
 void bvec_free(mempool_t *pool, struct bio_vec *bv, unsigned int idx)
 {
-	BIO_BUG_ON(idx >= BIOVEC_NR_POOLS);
+	if (!idx)
+		return;
+	idx--;
 
-	if (idx == BIOVEC_MAX_IDX)
+	BIO_BUG_ON(idx >= BVEC_POOL_NR);
+
+	if (idx == BVEC_POOL_MAX) {
 		mempool_free(bv, pool);
-	else {
+	} else {
 		struct biovec_slab *bvs = bvec_slabs + idx;
 
 		kmem_cache_free(bvs->slab, bv);
@@ -206,7 +210,7 @@ struct bio_vec *bvec_alloc(gfp_t gfp_mask, int nr, unsigned long *idx,
 	 * idx now points to the pool we want to allocate from. only the
 	 * 1-vec entry pool is mempool backed.
 	 */
-	if (*idx == BIOVEC_MAX_IDX) {
+	if (*idx == BVEC_POOL_MAX) {
 fallback:
 		bvl = mempool_alloc(pool, gfp_mask);
 	} else {
@@ -226,11 +230,12 @@ fallback:
 		 */
 		bvl = kmem_cache_alloc(bvs->slab, __gfp_mask);
 		if (unlikely(!bvl && (gfp_mask & __GFP_DIRECT_RECLAIM))) {
-			*idx = BIOVEC_MAX_IDX;
+			*idx = BVEC_POOL_MAX;
 			goto fallback;
 		}
 	}
 
+	(*idx)++;
 	return bvl;
 }
 
@@ -250,8 +255,7 @@ static void bio_free(struct bio *bio)
 	__bio_free(bio);
 
 	if (bs) {
-		if (bio_flagged(bio, BIO_OWNS_VEC))
-			bvec_free(bs->bvec_pool, bio->bi_io_vec, BIO_POOL_IDX(bio));
+		bvec_free(bs->bvec_pool, bio->bi_io_vec, BVEC_POOL_IDX(bio));
 
 		/*
 		 * If we have front padding, adjust the bio pointer before freeing
@@ -420,7 +424,6 @@ struct bio *bio_alloc_bioset(gfp_t gfp_mask, int nr_iovecs, struct bio_set *bs)
 	gfp_t saved_gfp = gfp_mask;
 	unsigned front_pad;
 	unsigned inline_vecs;
-	unsigned long idx = BIO_POOL_NONE;
 	struct bio_vec *bvl = NULL;
 	struct bio *bio;
 	void *p;
@@ -480,6 +483,8 @@ struct bio *bio_alloc_bioset(gfp_t gfp_mask, int nr_iovecs, struct bio_set *bs)
 	bio_init(bio);
 
 	if (nr_iovecs > inline_vecs) {
+		unsigned long idx = 0;
+
 		bvl = bvec_alloc(gfp_mask, nr_iovecs, &idx, bs->bvec_pool);
 		if (!bvl && gfp_mask != saved_gfp) {
 			punt_bios_to_rescuer(bs);
@@ -490,13 +495,12 @@ struct bio *bio_alloc_bioset(gfp_t gfp_mask, int nr_iovecs, struct bio_set *bs)
 		if (unlikely(!bvl))
 			goto err_free;
 
-		bio_set_flag(bio, BIO_OWNS_VEC);
+		bio->bi_flags |= idx << BVEC_POOL_OFFSET;
 	} else if (nr_iovecs) {
 		bvl = bio->bi_inline_vecs;
 	}
 
 	bio->bi_pool = bs;
-	bio->bi_flags |= idx << BIO_POOL_OFFSET;
 	bio->bi_max_vecs = nr_iovecs;
 	bio->bi_io_vec = bvl;
 	return bio;
@@ -568,7 +572,7 @@ EXPORT_SYMBOL(bio_phys_segments);
  */
 void __bio_clone_fast(struct bio *bio, struct bio *bio_src)
 {
-	BUG_ON(bio->bi_pool && BIO_POOL_IDX(bio) != BIO_POOL_NONE);
+	BUG_ON(bio->bi_pool && BVEC_POOL_IDX(bio));
 
 	/*
 	 * most users will be overriding ->bi_bdev with a new target,
@@ -1832,7 +1836,7 @@ EXPORT_SYMBOL_GPL(bio_trim);
  */
 mempool_t *biovec_create_pool(int pool_entries)
 {
-	struct biovec_slab *bp = bvec_slabs + BIOVEC_MAX_IDX;
+	struct biovec_slab *bp = bvec_slabs + BVEC_POOL_MAX;
 
 	return mempool_create_slab_pool(pool_entries, bp->slab);
 }
@@ -2009,7 +2013,7 @@ static void __init biovec_init_slabs(void)
 {
 	int i;
 
-	for (i = 0; i < BIOVEC_NR_POOLS; i++) {
+	for (i = 0; i < BVEC_POOL_NR; i++) {
 		int size;
 		struct biovec_slab *bvs = bvec_slabs + i;
 

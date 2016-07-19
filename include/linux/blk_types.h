@@ -134,19 +134,25 @@ struct bio {
 
 /*
  * Flags starting here get preserved by bio_reset() - this includes
- * BIO_POOL_IDX()
+ * BVEC_POOL_IDX()
  */
 #define BIO_RESET_BITS	13
-#define BIO_OWNS_VEC	13	/* bio_free() should free bvec */
 
 /*
- * top 4 bits of bio flags indicate the pool this bio came from
+ * We support 6 different bvec pools, the last one is magic in that it
+ * is backed by a mempool.
  */
-#define BIO_POOL_BITS		(4)
-#define BIO_POOL_NONE		((1UL << BIO_POOL_BITS) - 1)
-#define BIO_POOL_OFFSET		(32 - BIO_POOL_BITS)
-#define BIO_POOL_MASK		(1UL << BIO_POOL_OFFSET)
-#define BIO_POOL_IDX(bio)	((bio)->bi_flags >> BIO_POOL_OFFSET)
+#define BVEC_POOL_NR		6
+#define BVEC_POOL_MAX		(BVEC_POOL_NR - 1)
+
+/*
+ * Top 4 bits of bio flags indicate the pool the bvecs came from.  We add
+ * 1 to the actual index so that 0 indicates that there are no bvecs to be
+ * freed.
+ */
+#define BVEC_POOL_BITS		(4)
+#define BVEC_POOL_OFFSET	(32 - BVEC_POOL_BITS)
+#define BVEC_POOL_IDX(bio)	((bio)->bi_flags >> BVEC_POOL_OFFSET)
 
 #endif /* CONFIG_BLOCK */
 
