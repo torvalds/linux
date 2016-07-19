@@ -103,10 +103,8 @@ static int arcpgu_load(struct drm_device *drm)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	arcpgu->regs = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(arcpgu->regs)) {
-		dev_err(drm->dev, "Could not remap IO mem\n");
+	if (IS_ERR(arcpgu->regs))
 		return PTR_ERR(arcpgu->regs);
-	}
 
 	dev_info(drm->dev, "arc_pgu ID: 0x%x\n",
 		 arc_pgu_read(arcpgu, ARCPGU_REG_ID));
