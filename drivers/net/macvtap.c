@@ -536,7 +536,7 @@ static void macvtap_sock_destruct(struct sock *sk)
 	struct sk_buff *skb;
 
 	while ((skb = skb_array_consume(&q->skb_array)) != NULL)
-		kfree(skb);
+		kfree_skb(skb);
 }
 
 static int macvtap_open(struct inode *inode, struct file *file)
