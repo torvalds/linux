@@ -483,9 +483,8 @@ static void lpuart_dma_rx_complete(void *arg)
 	spin_unlock_irqrestore(&sport->port.lock, flags);
 }
 
-static void lpuart_timer_func(unsigned long data)
+static void lpuart_dma_rx_terminate(struct lpuart_port *sport)
 {
-	struct lpuart_port *sport = (struct lpuart_port *)data;
 	struct tty_port *port = &sport->port.state->port;
 	struct dma_tx_state state;
 	unsigned long flags;
@@ -508,6 +507,11 @@ static void lpuart_timer_func(unsigned long data)
 	writeb(temp & ~UARTCR5_RDMAS, sport->port.membase + UARTCR5);
 
 	spin_unlock_irqrestore(&sport->port.lock, flags);
+}
+
+static void lpuart_timer_func(unsigned long data)
+{
+	lpuart_dma_rx_terminate((struct lpuart_port *)data);
 }
 
 static inline void lpuart_prepare_rx(struct lpuart_port *sport)
@@ -1931,7 +1935,12 @@ static int lpuart_suspend(struct device *dev)
 		writeb(temp, sport->port.membase + UARTCR2);
 	}
 
+	if (sport->dma_rx_in_progress)
+		lpuart_dma_rx_terminate(sport);
+
 	uart_suspend_port(&lpuart_reg, &sport->port);
+	if (sport->port.suspended && !sport->port.irq_wake)
+		clk_disable_unprepare(sport->clk);
 
 	return 0;
 }
@@ -1940,6 +1949,9 @@ static int lpuart_resume(struct device *dev)
 {
 	struct lpuart_port *sport = dev_get_drvdata(dev);
 	unsigned long temp;
+
+	if (sport->port.suspended && !sport->port.irq_wake)
+		clk_prepare_enable(sport->clk);
 
 	if (sport->lpuart32) {
 		lpuart32_setup_watermark(sport);
