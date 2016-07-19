@@ -62,8 +62,6 @@ int gb_svc_route_create(struct gb_svc *svc, u8 intf1_id, u8 dev1_id,
 void gb_svc_route_destroy(struct gb_svc *svc, u8 intf1_id, u8 intf2_id);
 int gb_svc_connection_create(struct gb_svc *svc, u8 intf1_id, u16 cport1_id,
 			     u8 intf2_id, u16 cport2_id, u8 cport_flags);
-void gb_svc_connection_quiescing(struct gb_svc *svc, u8 intf1_id, u16 cport1_id,
-					u8 intf2_id, u16 cport2_id);
 void gb_svc_connection_destroy(struct gb_svc *svc, u8 intf1_id, u16 cport1_id,
 			       u8 intf2_id, u16 cport2_id);
 int gb_svc_intf_eject(struct gb_svc *svc, u8 intf_id);

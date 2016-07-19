@@ -470,37 +470,6 @@ int gb_svc_connection_create(struct gb_svc *svc,
 }
 EXPORT_SYMBOL_GPL(gb_svc_connection_create);
 
-void gb_svc_connection_quiescing(struct gb_svc *svc, u8 intf1_id, u16 cport1_id,
-					u8 intf2_id, u16 cport2_id)
-{
-	struct gb_svc_conn_quiescing_request request;
-	struct gb_svc_conn_quiescing_response response;
-	int ret;
-
-	dev_dbg(&svc->dev, "%s - (%u:%u %u:%u)\n", __func__,
-				intf1_id, cport1_id, intf2_id, cport2_id);
-
-	request.intf1_id = intf1_id;
-	request.cport1_id = cpu_to_le16(cport1_id);
-	request.intf2_id = intf2_id;
-	request.cport2_id = cpu_to_le16(cport2_id);
-
-	ret = gb_operation_sync(svc->connection, GB_SVC_TYPE_CONN_QUIESCING,
-				 &request, sizeof(request),
-				 &response, sizeof(response));
-	if (ret < 0)
-		return;
-	if (response.status != GB_SVC_OP_SUCCESS) {
-		dev_err(&svc->dev, "quiescing connection failed (%u:%u %u:%u): %u\n",
-				intf1_id, cport1_id, intf2_id, cport2_id,
-				response.status);
-		return;
-	}
-
-	return;
-}
-EXPORT_SYMBOL_GPL(gb_svc_connection_quiescing);
-
 void gb_svc_connection_destroy(struct gb_svc *svc, u8 intf1_id, u16 cport1_id,
 			       u8 intf2_id, u16 cport2_id)
 {

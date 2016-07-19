@@ -417,21 +417,6 @@ gb_connection_svc_connection_destroy(struct gb_connection *connection)
 				  connection->intf_cport_id);
 }
 
-static void
-gb_connection_svc_connection_quiescing(struct gb_connection *connection)
-{
-	struct gb_host_device *hd = connection->hd;
-
-	if (gb_connection_is_static(connection))
-		return;
-
-	gb_svc_connection_quiescing(hd->svc,
-					hd->svc->ap_intf_id,
-					connection->hd_cport_id,
-					connection->intf->interface_id,
-					connection->intf_cport_id);
-}
-
 /* Inform Interface about active CPorts */
 static int gb_connection_control_connected(struct gb_connection *connection)
 {
@@ -686,8 +671,6 @@ err_control_disconnecting:
 
 	gb_connection_ping(connection);
 	gb_connection_hd_cport_features_disable(connection);
-	gb_connection_svc_connection_quiescing(connection);
-	gb_connection_ping(connection);
 	gb_connection_control_disconnected(connection);
 	connection->state = GB_CONNECTION_STATE_DISABLED;
 err_svc_connection_destroy:
@@ -795,8 +778,6 @@ void gb_connection_disable(struct gb_connection *connection)
 
 	gb_connection_ping(connection);
 	gb_connection_hd_cport_features_disable(connection);
-	gb_connection_svc_connection_quiescing(connection);
-	gb_connection_ping(connection);
 
 	gb_connection_control_disconnected(connection);
 

@@ -1036,7 +1036,6 @@ struct gb_spi_transfer_response {
 #define GB_SVC_TYPE_TIMESYNC_WAKE_PINS_ACQUIRE	0x18
 #define GB_SVC_TYPE_TIMESYNC_WAKE_PINS_RELEASE	0x19
 #define GB_SVC_TYPE_TIMESYNC_PING		0x1a
-#define GB_SVC_TYPE_CONN_QUIESCING		0x1e
 #define GB_SVC_TYPE_MODULE_INSERTED		0x1f
 #define GB_SVC_TYPE_MODULE_REMOVED		0x20
 #define GB_SVC_TYPE_INTF_VSYS_ENABLE		0x21
@@ -1385,17 +1384,6 @@ struct gb_svc_intf_mailbox_event_request {
 	__le32	mailbox;
 } __packed;
 /* intf_mailbox_event response has no payload */
-
-struct gb_svc_conn_quiescing_request {
-	__u8	intf1_id;
-	__le16	cport1_id;
-	__u8	intf2_id;
-	__le16	cport2_id;
-} __packed;
-
-struct gb_svc_conn_quiescing_response {
-	__u8	status;
-} __packed;
 
 
 /* RAW */
