@@ -333,6 +333,44 @@ static int dsa_slave_vlan_filtering(struct net_device *dev,
 	return 0;
 }
 
+static int dsa_fastest_ageing_time(struct dsa_switch *ds,
+				   unsigned int ageing_time)
+{
+	int i;
+
+	for (i = 0; i < DSA_MAX_PORTS; ++i) {
+		struct dsa_port *dp = &ds->ports[i];
+
+		if (dp && dp->ageing_time && dp->ageing_time < ageing_time)
+			ageing_time = dp->ageing_time;
+	}
+
+	return ageing_time;
+}
+
+static int dsa_slave_ageing_time(struct net_device *dev,
+				 const struct switchdev_attr *attr,
+				 struct switchdev_trans *trans)
+{
+	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct dsa_switch *ds = p->parent;
+	unsigned long ageing_jiffies = clock_t_to_jiffies(attr->u.ageing_time);
+	unsigned int ageing_time = jiffies_to_msecs(ageing_jiffies);
+
+	/* bridge skips -EOPNOTSUPP, so skip the prepare phase */
+	if (switchdev_trans_ph_prepare(trans))
+		return 0;
+
+	/* Keep the fastest ageing time in case of multiple bridges */
+	ds->ports[p->port].ageing_time = ageing_time;
+	ageing_time = dsa_fastest_ageing_time(ds, ageing_time);
+
+	if (ds->drv->set_ageing_time)
+		return ds->drv->set_ageing_time(ds, ageing_time);
+
+	return 0;
+}
+
 static int dsa_slave_port_attr_set(struct net_device *dev,
 				   const struct switchdev_attr *attr,
 				   struct switchdev_trans *trans)
@@ -345,6 +383,9 @@ static int dsa_slave_port_attr_set(struct net_device *dev,
 		break;
 	case SWITCHDEV_ATTR_ID_BRIDGE_VLAN_FILTERING:
 		ret = dsa_slave_vlan_filtering(dev, attr, trans);
+		break;
+	case SWITCHDEV_ATTR_ID_BRIDGE_AGEING_TIME:
+		ret = dsa_slave_ageing_time(dev, attr, trans);
 		break;
 	default:
 		ret = -EOPNOTSUPP;

@@ -141,6 +141,7 @@ struct dsa_switch_tree {
 struct dsa_port {
 	struct net_device	*netdev;
 	struct device_node	*dn;
+	unsigned int		ageing_time;
 };
 
 struct dsa_switch {
@@ -329,6 +330,7 @@ struct dsa_switch_driver {
 	/*
 	 * Bridge integration
 	 */
+	int	(*set_ageing_time)(struct dsa_switch *ds, unsigned int msecs);
 	int	(*port_bridge_join)(struct dsa_switch *ds, int port,
 				    struct net_device *bridge);
 	void	(*port_bridge_leave)(struct dsa_switch *ds, int port);
