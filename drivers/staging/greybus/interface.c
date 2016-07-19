@@ -538,15 +538,62 @@ static struct attribute *interface_common_attrs[] = {
 	NULL
 };
 
+static umode_t interface_unipro_is_visible(struct kobject *kobj,
+						struct attribute *attr, int n)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct gb_interface *intf = to_gb_interface(dev);
+
+	switch (intf->type) {
+	case GB_SVC_INTF_TYPE_UNIPRO:
+	case GB_SVC_INTF_TYPE_GREYBUS:
+		return attr->mode;
+	default:
+		return 0;
+	}
+}
+
+static umode_t interface_greybus_is_visible(struct kobject *kobj,
+						struct attribute *attr, int n)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct gb_interface *intf = to_gb_interface(dev);
+
+	switch (intf->type) {
+	case GB_SVC_INTF_TYPE_GREYBUS:
+		return attr->mode;
+	default:
+		return 0;
+	}
+}
+
+static umode_t interface_power_is_visible(struct kobject *kobj,
+						struct attribute *attr, int n)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct gb_interface *intf = to_gb_interface(dev);
+
+	switch (intf->type) {
+	case GB_SVC_INTF_TYPE_UNIPRO:
+	case GB_SVC_INTF_TYPE_GREYBUS:
+		return attr->mode;
+	default:
+		return 0;
+	}
+}
+
 static const struct attribute_group interface_unipro_group = {
+	.is_visible	= interface_unipro_is_visible,
 	.attrs		= interface_unipro_attrs,
 };
 
 static const struct attribute_group interface_greybus_group = {
+	.is_visible	= interface_greybus_is_visible,
 	.attrs		= interface_greybus_attrs,
 };
 
 static const struct attribute_group interface_power_group = {
+	.is_visible	= interface_power_is_visible,
 	.attrs		= interface_power_attrs,
 };
 
