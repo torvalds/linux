@@ -494,9 +494,10 @@ static bool is_early_mcount_callsite(u32 *instruction)
    restore r2. */
 static int restore_r2(u32 *instruction, struct module *me)
 {
+	if (is_early_mcount_callsite(instruction - 1))
+		return 1;
+
 	if (*instruction != PPC_INST_NOP) {
-		if (is_early_mcount_callsite(instruction - 1))
-			return 1;
 		pr_err("%s: Expect noop after relocate, got %08x\n",
 		       me->name, *instruction);
 		return 0;
