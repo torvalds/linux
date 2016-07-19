@@ -1541,9 +1541,9 @@ static int axienet_probe(struct platform_device *pdev)
 
 	/* Find the DMA node, map the DMA registers, and decode the DMA IRQs */
 	np = of_parse_phandle(pdev->dev.of_node, "axistream-connected", 0);
-	if (IS_ERR(np)) {
+	if (!np) {
 		dev_err(&pdev->dev, "could not find DMA node\n");
-		ret = PTR_ERR(np);
+		ret = -ENODEV;
 		goto free_netdev;
 	}
 	ret = of_address_to_resource(np, 0, &dmares);
