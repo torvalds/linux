@@ -547,6 +547,20 @@
 	};
 };
 
+&i2c5 {
+	status = "okay";
+
+	touch@40 {
+		compatible = "gslX680";
+		reg = <0x40>;
+		touch-gpio = <&gpio1 20 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpio = <&gpio4 22 GPIO_ACTIVE_LOW>;
+		max-x = <1280>;
+		max-y = <600>;
+		status = "okay";
+	};
+};
+
 &spi1 {
 	status = "okay";
 	max-freq = <50000000>;
