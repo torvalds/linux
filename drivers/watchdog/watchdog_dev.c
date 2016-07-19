@@ -972,17 +972,22 @@ int __init watchdog_dev_init(void)
 	err = class_register(&watchdog_class);
 	if (err < 0) {
 		pr_err("couldn't register class\n");
-		return err;
+		goto err_register;
 	}
 
 	err = alloc_chrdev_region(&watchdog_devt, 0, MAX_DOGS, "watchdog");
 	if (err < 0) {
 		pr_err("watchdog: unable to allocate char dev region\n");
-		class_unregister(&watchdog_class);
-		return err;
+		goto err_alloc;
 	}
 
 	return 0;
+
+err_alloc:
+	class_unregister(&watchdog_class);
+err_register:
+	destroy_workqueue(watchdog_wq);
+	return err;
 }
 
 /*
