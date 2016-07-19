@@ -670,13 +670,19 @@ static struct bpf_prog *____bpf_prog_get(struct fd f)
 	return f.file->private_data;
 }
 
-struct bpf_prog *bpf_prog_inc(struct bpf_prog *prog)
+struct bpf_prog *bpf_prog_add(struct bpf_prog *prog, int i)
 {
-	if (atomic_inc_return(&prog->aux->refcnt) > BPF_MAX_REFCNT) {
-		atomic_dec(&prog->aux->refcnt);
+	if (atomic_add_return(i, &prog->aux->refcnt) > BPF_MAX_REFCNT) {
+		atomic_sub(i, &prog->aux->refcnt);
 		return ERR_PTR(-EBUSY);
 	}
 	return prog;
+}
+EXPORT_SYMBOL_GPL(bpf_prog_add);
+
+struct bpf_prog *bpf_prog_inc(struct bpf_prog *prog)
+{
+	return bpf_prog_add(prog, 1);
 }
 
 static struct bpf_prog *__bpf_prog_get(u32 ufd, enum bpf_prog_type *type)
