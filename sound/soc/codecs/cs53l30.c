@@ -592,8 +592,12 @@ static int cs53l30_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		aspctl1 |= CS53L30_ASP_TDM_PDN;
 		break;
 	case SND_SOC_DAIFMT_DSP_A:
-		/* Clear TDM_PDN and SHIFT_LEFT, invert SCLK */
-		aspcfg |= CS53L30_ASP_SCLK_INV;
+		/*
+		 * Clear TDM_PDN to turn on TDM mode; Use ASP_SCLK_INV = 0
+		 * with SHIFT_LEFT = 1 combination as Figure 4-13 shows in
+		 * the CS53L30 datasheet
+		 */
+		aspctl1 |= CS53L30_SHIFT_LEFT;
 		break;
 	default:
 		return -EINVAL;
