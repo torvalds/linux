@@ -29,6 +29,7 @@ All attributes are read-only.
 	raw_rpmb_size_mult	RPMB partition size
 	rel_sectors		Reliable write sector count
 	ocr 			Operation Conditions Register
+	dsr			Driver Stage Register
 
 Note on Erase Size and Preferred Erase Size:
 
