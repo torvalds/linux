@@ -132,6 +132,7 @@ enum {
 					 MLX4_EN_NUM_UP)
 
 #define MLX4_EN_DEFAULT_TX_WORK		256
+#define MLX4_EN_DOORBELL_BUDGET		8
 
 /* Target number of packets to coalesce with interrupt moderation */
 #define MLX4_EN_RX_COAL_TARGET	44
@@ -219,7 +220,10 @@ enum cq_type {
 
 
 struct mlx4_en_tx_info {
-	struct sk_buff *skb;
+	union {
+		struct sk_buff *skb;
+		struct page *page;
+	};
 	dma_addr_t	map0_dma;
 	u32		map0_byte_count;
 	u32		nr_txbb;
@@ -265,6 +269,8 @@ struct mlx4_en_page_cache {
 	struct mlx4_en_rx_alloc buf[MLX4_EN_CACHE_SIZE];
 };
 
+struct mlx4_en_priv;
+
 struct mlx4_en_tx_ring {
 	/* cache line used and dirtied in tx completion
 	 * (mlx4_en_free_tx_buf())
@@ -298,6 +304,11 @@ struct mlx4_en_tx_ring {
 	__be32			mr_key;
 	void			*buf;
 	struct mlx4_en_tx_info	*tx_info;
+	struct mlx4_en_rx_ring	*recycle_ring;
+	u32			(*free_tx_desc)(struct mlx4_en_priv *priv,
+						struct mlx4_en_tx_ring *ring,
+						int index, u8 owner,
+						u64 timestamp, int napi_mode);
 	u8			*bounce_buf;
 	struct mlx4_qp_context	context;
 	int			qpn;
@@ -678,6 +689,12 @@ void mlx4_en_tx_irq(struct mlx4_cq *mcq);
 u16 mlx4_en_select_queue(struct net_device *dev, struct sk_buff *skb,
 			 void *accel_priv, select_queue_fallback_t fallback);
 netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev);
+netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_alloc *frame,
+			       struct net_device *dev, unsigned int length,
+			       int tx_ind, int *doorbell_pending);
+void mlx4_en_xmit_doorbell(struct mlx4_en_tx_ring *ring);
+bool mlx4_en_rx_recycle(struct mlx4_en_rx_ring *ring,
+			struct mlx4_en_rx_alloc *frame);
 
 int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 			   struct mlx4_en_tx_ring **pring,
@@ -706,6 +723,14 @@ int mlx4_en_process_rx_cq(struct net_device *dev,
 			  int budget);
 int mlx4_en_poll_rx_cq(struct napi_struct *napi, int budget);
 int mlx4_en_poll_tx_cq(struct napi_struct *napi, int budget);
+u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
+			 struct mlx4_en_tx_ring *ring,
+			 int index, u8 owner, u64 timestamp,
+			 int napi_mode);
+u32 mlx4_en_recycle_tx_desc(struct mlx4_en_priv *priv,
+			    struct mlx4_en_tx_ring *ring,
+			    int index, u8 owner, u64 timestamp,
+			    int napi_mode);
 void mlx4_en_fill_qp_context(struct mlx4_en_priv *priv, int size, int stride,
 		int is_tx, int rss, int qpn, int cqn, int user_prio,
 		struct mlx4_qp_context *context);

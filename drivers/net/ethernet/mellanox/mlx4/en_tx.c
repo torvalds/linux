@@ -196,6 +196,7 @@ int mlx4_en_activate_tx_ring(struct mlx4_en_priv *priv,
 	ring->last_nr_txbb = 1;
 	memset(ring->tx_info, 0, ring->size * sizeof(struct mlx4_en_tx_info));
 	memset(ring->buf, 0, ring->buf_size);
+	ring->free_tx_desc = mlx4_en_free_tx_desc;
 
 	ring->qp_state = MLX4_QP_STATE_RST;
 	ring->doorbell_qpn = cpu_to_be32(ring->qp.qpn << 8);
@@ -265,10 +266,10 @@ static void mlx4_en_stamp_wqe(struct mlx4_en_priv *priv,
 }
 
 
-static u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
-				struct mlx4_en_tx_ring *ring,
-				int index, u8 owner, u64 timestamp,
-				int napi_mode)
+u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
+			 struct mlx4_en_tx_ring *ring,
+			 int index, u8 owner, u64 timestamp,
+			 int napi_mode)
 {
 	struct mlx4_en_tx_info *tx_info = &ring->tx_info[index];
 	struct mlx4_en_tx_desc *tx_desc = ring->buf + index * TXBB_SIZE;
@@ -344,6 +345,27 @@ static u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 	return tx_info->nr_txbb;
 }
 
+u32 mlx4_en_recycle_tx_desc(struct mlx4_en_priv *priv,
+			    struct mlx4_en_tx_ring *ring,
+			    int index, u8 owner, u64 timestamp,
+			    int napi_mode)
+{
+	struct mlx4_en_tx_info *tx_info = &ring->tx_info[index];
+	struct mlx4_en_rx_alloc frame = {
+		.page = tx_info->page,
+		.dma = tx_info->map0_dma,
+		.page_offset = 0,
+		.page_size = PAGE_SIZE,
+	};
+
+	if (!mlx4_en_rx_recycle(ring->recycle_ring, &frame)) {
+		dma_unmap_page(priv->ddev, tx_info->map0_dma,
+			       PAGE_SIZE, priv->frag_info[0].dma_dir);
+		put_page(tx_info->page);
+	}
+
+	return tx_info->nr_txbb;
+}
 
 int mlx4_en_free_tx_buf(struct net_device *dev, struct mlx4_en_tx_ring *ring)
 {
@@ -362,7 +384,7 @@ int mlx4_en_free_tx_buf(struct net_device *dev, struct mlx4_en_tx_ring *ring)
 	}
 
 	while (ring->cons != ring->prod) {
-		ring->last_nr_txbb = mlx4_en_free_tx_desc(priv, ring,
+		ring->last_nr_txbb = ring->free_tx_desc(priv, ring,
 						ring->cons & ring->size_mask,
 						!!(ring->cons & ring->size), 0,
 						0 /* Non-NAPI caller */);
@@ -444,7 +466,7 @@ static bool mlx4_en_process_tx_cq(struct net_device *dev,
 				timestamp = mlx4_en_get_cqe_ts(cqe);
 
 			/* free next descriptor */
-			last_nr_txbb = mlx4_en_free_tx_desc(
+			last_nr_txbb = ring->free_tx_desc(
 					priv, ring, ring_index,
 					!!((ring_cons + txbbs_skipped) &
 					ring->size), timestamp, napi_budget);
@@ -475,6 +497,9 @@ static bool mlx4_en_process_tx_cq(struct net_device *dev,
 	/* we want to dirty this cache line once */
 	ACCESS_ONCE(ring->last_nr_txbb) = last_nr_txbb;
 	ACCESS_ONCE(ring->cons) = ring_cons + txbbs_skipped;
+
+	if (ring->free_tx_desc == mlx4_en_recycle_tx_desc)
+		return done < budget;
 
 	netdev_tx_completed_queue(ring->tx_queue, packets, bytes);
 
@@ -1052,3 +1077,106 @@ tx_drop:
 	return NETDEV_TX_OK;
 }
 
+netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_alloc *frame,
+			       struct net_device *dev, unsigned int length,
+			       int tx_ind, int *doorbell_pending)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	union mlx4_wqe_qpn_vlan	qpn_vlan = {};
+	struct mlx4_en_tx_ring *ring;
+	struct mlx4_en_tx_desc *tx_desc;
+	struct mlx4_wqe_data_seg *data;
+	struct mlx4_en_tx_info *tx_info;
+	int index, bf_index;
+	bool send_doorbell;
+	int nr_txbb = 1;
+	bool stop_queue;
+	dma_addr_t dma;
+	int real_size;
+	__be32 op_own;
+	u32 ring_cons;
+	bool bf_ok;
+
+	BUILD_BUG_ON_MSG(ALIGN(CTRL_SIZE + DS_SIZE, TXBB_SIZE) != TXBB_SIZE,
+			 "mlx4_en_xmit_frame requires minimum size tx desc");
+
+	ring = priv->tx_ring[tx_ind];
+
+	if (!priv->port_up)
+		goto tx_drop;
+
+	if (mlx4_en_is_tx_ring_full(ring))
+		goto tx_drop;
+
+	/* fetch ring->cons far ahead before needing it to avoid stall */
+	ring_cons = READ_ONCE(ring->cons);
+
+	index = ring->prod & ring->size_mask;
+	tx_info = &ring->tx_info[index];
+
+	bf_ok = ring->bf_enabled;
+
+	/* Track current inflight packets for performance analysis */
+	AVG_PERF_COUNTER(priv->pstats.inflight_avg,
+			 (u32)(ring->prod - ring_cons - 1));
+
+	bf_index = ring->prod;
+	tx_desc = ring->buf + index * TXBB_SIZE;
+	data = &tx_desc->data;
+
+	dma = frame->dma;
+
+	tx_info->page = frame->page;
+	frame->page = NULL;
+	tx_info->map0_dma = dma;
+	tx_info->map0_byte_count = length;
+	tx_info->nr_txbb = nr_txbb;
+	tx_info->nr_bytes = max_t(unsigned int, length, ETH_ZLEN);
+	tx_info->data_offset = (void *)data - (void *)tx_desc;
+	tx_info->ts_requested = 0;
+	tx_info->nr_maps = 1;
+	tx_info->linear = 1;
+	tx_info->inl = 0;
+
+	dma_sync_single_for_device(priv->ddev, dma, length, PCI_DMA_TODEVICE);
+
+	data->addr = cpu_to_be64(dma);
+	data->lkey = ring->mr_key;
+	dma_wmb();
+	data->byte_count = cpu_to_be32(length);
+
+	/* tx completion can avoid cache line miss for common cases */
+	tx_desc->ctrl.srcrb_flags = priv->ctrl_flags;
+
+	op_own = cpu_to_be32(MLX4_OPCODE_SEND) |
+		((ring->prod & ring->size) ?
+		 cpu_to_be32(MLX4_EN_BIT_DESC_OWN) : 0);
+
+	ring->packets++;
+	ring->bytes += tx_info->nr_bytes;
+	AVG_PERF_COUNTER(priv->pstats.tx_pktsz_avg, length);
+
+	ring->prod += nr_txbb;
+
+	stop_queue = mlx4_en_is_tx_ring_full(ring);
+	send_doorbell = stop_queue ||
+				*doorbell_pending > MLX4_EN_DOORBELL_BUDGET;
+	bf_ok &= send_doorbell;
+
+	real_size = ((CTRL_SIZE + nr_txbb * DS_SIZE) / 16) & 0x3f;
+
+	if (bf_ok)
+		qpn_vlan.bf_qpn = ring->doorbell_qpn | cpu_to_be32(real_size);
+	else
+		qpn_vlan.fence_size = real_size;
+
+	mlx4_en_tx_write_desc(ring, tx_desc, qpn_vlan, TXBB_SIZE, bf_index,
+			      op_own, bf_ok, send_doorbell);
+	*doorbell_pending = send_doorbell ? 0 : *doorbell_pending + 1;
+
+	return NETDEV_TX_OK;
+
+tx_drop:
+	ring->tx_dropped++;
+	return NETDEV_TX_BUSY;
+}

@@ -1522,6 +1522,24 @@ static void mlx4_en_free_affinity_hint(struct mlx4_en_priv *priv, int ring_idx)
 	free_cpumask_var(priv->rx_ring[ring_idx]->affinity_mask);
 }
 
+static void mlx4_en_init_recycle_ring(struct mlx4_en_priv *priv,
+				      int tx_ring_idx)
+{
+	struct mlx4_en_tx_ring *tx_ring = priv->tx_ring[tx_ring_idx];
+	int rr_index;
+
+	rr_index = (priv->xdp_ring_num - priv->tx_ring_num) + tx_ring_idx;
+	if (rr_index >= 0) {
+		tx_ring->free_tx_desc = mlx4_en_recycle_tx_desc;
+		tx_ring->recycle_ring = priv->rx_ring[rr_index];
+		en_dbg(DRV, priv,
+		       "Set tx_ring[%d]->recycle_ring = rx_ring[%d]\n",
+		       tx_ring_idx, rr_index);
+	} else {
+		tx_ring->recycle_ring = NULL;
+	}
+}
+
 int mlx4_en_start_port(struct net_device *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
@@ -1643,6 +1661,8 @@ int mlx4_en_start_port(struct net_device *dev)
 			goto tx_err;
 		}
 		tx_ring->tx_queue = netdev_get_tx_queue(dev, i);
+
+		mlx4_en_init_recycle_ring(priv, i);
 
 		/* Arm CQ for TX completions */
 		mlx4_en_arm_cq(priv, cq);
@@ -2561,6 +2581,13 @@ static int mlx4_xdp_set(struct net_device *dev, struct bpf_prog *prog)
 		return -EOPNOTSUPP;
 	}
 
+	if (priv->tx_ring_num < xdp_ring_num + MLX4_EN_NUM_UP) {
+		en_err(priv,
+		       "Minimum %d tx channels required to run XDP\n",
+		       (xdp_ring_num + MLX4_EN_NUM_UP) / MLX4_EN_NUM_UP);
+		return -EINVAL;
+	}
+
 	if (prog) {
 		prog = bpf_prog_add(prog, priv->rx_ring_num - 1);
 		if (IS_ERR(prog))
@@ -2574,6 +2601,8 @@ static int mlx4_xdp_set(struct net_device *dev, struct bpf_prog *prog)
 	}
 
 	priv->xdp_ring_num = xdp_ring_num;
+	netif_set_real_num_tx_queues(dev, priv->tx_ring_num -
+							priv->xdp_ring_num);
 
 	for (i = 0; i < priv->rx_ring_num; i++) {
 		old_prog = xchg(&priv->rx_ring[i]->xdp_prog, prog);

@@ -783,7 +783,9 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 	struct mlx4_en_rx_alloc *frags;
 	struct mlx4_en_rx_desc *rx_desc;
 	struct bpf_prog *xdp_prog;
+	int doorbell_pending;
 	struct sk_buff *skb;
+	int tx_index;
 	int index;
 	int nr;
 	unsigned int length;
@@ -800,6 +802,8 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 		return polled;
 
 	xdp_prog = READ_ONCE(ring->xdp_prog);
+	doorbell_pending = 0;
+	tx_index = (priv->tx_ring_num - priv->xdp_ring_num) + cq->ring;
 
 	/* We assume a 1:1 mapping between CQEs and Rx descriptors, so Rx
 	 * descriptor offset can be deduced from the CQE index instead of
@@ -897,6 +901,12 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 			act = bpf_prog_run_xdp(xdp_prog, &xdp);
 			switch (act) {
 			case XDP_PASS:
+				break;
+			case XDP_TX:
+				if (!mlx4_en_xmit_frame(frags, dev,
+							length, tx_index,
+							&doorbell_pending))
+					goto consumed;
 				break;
 			default:
 				bpf_warn_invalid_xdp_action(act);
@@ -1068,6 +1078,9 @@ consumed:
 	}
 
 out:
+	if (doorbell_pending)
+		mlx4_en_xmit_doorbell(priv->tx_ring[tx_index]);
+
 	AVG_PERF_COUNTER(priv->pstats.rx_coal_avg, polled);
 	mlx4_cq_set_ci(&cq->mcq);
 	wmb(); /* ensure HW sees CQ consumer before we post new buffers */
@@ -1147,6 +1160,7 @@ void mlx4_en_calc_rx_buf(struct net_device *dev)
 	 * This only works when num_frags == 1.
 	 */
 	if (priv->xdp_ring_num) {
+		dma_dir = PCI_DMA_BIDIRECTIONAL;
 		/* This will gain efficient xdp frame recycling at the expense
 		 * of more costly truesize accounting
 		 */
