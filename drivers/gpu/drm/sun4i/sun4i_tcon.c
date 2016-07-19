@@ -446,6 +446,7 @@ static int sun4i_tcon_bind(struct device *dev, struct device *master,
 	dev_set_drvdata(dev, tcon);
 	drv->tcon = tcon;
 	tcon->drm = drm;
+	tcon->dev = dev;
 
 	if (of_device_is_compatible(dev->of_node, "allwinner,sun5i-a13-tcon"))
 		tcon->has_mux = true;

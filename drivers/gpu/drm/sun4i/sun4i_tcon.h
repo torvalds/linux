@@ -143,6 +143,7 @@
 #define SUN4I_TCON_MAX_CHANNELS		2
 
 struct sun4i_tcon {
+	struct device			*dev;
 	struct drm_device		*drm;
 	struct regmap			*regs;
 
