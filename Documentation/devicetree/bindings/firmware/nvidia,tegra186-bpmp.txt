@@ -17,6 +17,7 @@ Required properties:
 - shmem : List of the phandle of the TX and RX shared memory area that
 	  the IPC between CPU and BPMP is based on.
 - #clock-cells : Should be 1.
+- #power-domain-cells : Should be 1.
 - #reset-cells : Should be 1.
 
 This node is a mailbox consumer. See the following files for details of
@@ -26,12 +27,14 @@ provider(s):
 - .../mailbox/mailbox.txt
 - .../mailbox/nvidia,tegra186-hsp.txt
 
-This node is a clock and reset provider. See the following files for
-general documentation of those features, and the specifiers implemented
-by this node:
+This node is a clock, power domain, and reset provider. See the following
+files for general documentation of those features, and the specifiers
+implemented by this node:
 
 - .../clock/clock-bindings.txt
 - <dt-bindings/clock/tegra186-clock.h>
+- ../power/power_domain.txt
+- <dt-bindings/power/tegra186-powergate.h>
 - .../reset/reset.txt
 - <dt-bindings/reset/tegra186-reset.h>
 
@@ -77,5 +80,6 @@ bpmp {
 	mboxes = <&hsp_top0 TEGRA_HSP_MBOX_TYPE_DB TEGRA_HSP_DB_MASTER_BPMP>;
 	shmem = <&cpu_bpmp_tx &cpu_bpmp_rx>;
 	#clock-cells = <1>;
+	#power-domain-cells = <1>;
 	#reset-cells = <1>;
 };
