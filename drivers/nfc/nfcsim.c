@@ -54,6 +54,8 @@ struct nfcsim {
 
 	nfc_digital_cmd_complete_t cb;
 	void *arg;
+
+	u8 dropframe;
 };
 
 struct nfcsim_link {
@@ -223,6 +225,14 @@ static int nfcsim_send(struct nfc_digital_dev *ddev, struct sk_buff *skb,
 
 	schedule_work(&dev->recv_work);
 
+	if (dev->dropframe) {
+		NFCSIM_DBG(dev, "dropping frame (out of %d)\n", dev->dropframe);
+		dev_kfree_skb(skb);
+		dev->dropframe--;
+
+		return 0;
+	}
+
 	if (skb) {
 		nfcsim_link_set_skb(dev->link_out, skb, dev->rf_tech,
 				    dev->mode);
@@ -372,6 +382,8 @@ static void nfcsim_debugfs_init_dev(struct nfcsim *dev)
 			   idx);
 		return;
 	}
+
+	debugfs_create_u8("dropframe", 0664, dev_dir, &dev->dropframe);
 }
 
 static struct nfcsim *nfcsim_device_new(struct nfcsim_link *link_in,
