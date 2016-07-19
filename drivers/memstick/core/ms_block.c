@@ -2002,8 +2002,7 @@ static int msb_bd_getgeo(struct block_device *bdev,
 
 static int msb_prepare_req(struct request_queue *q, struct request *req)
 {
-	if (req->cmd_type != REQ_TYPE_FS &&
-				req->cmd_type != REQ_TYPE_BLOCK_PC) {
+	if (req->cmd_type != REQ_TYPE_FS) {
 		blk_dump_rq_flags(req, "MS unsupported request");
 		return BLKPREP_KILL;
 	}
