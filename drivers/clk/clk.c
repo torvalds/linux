@@ -2499,7 +2499,7 @@ struct clk *__clk_create_clk(struct clk_hw *hw, const char *dev_id,
 
 	/* This is to allow this function to be chained to others */
 	if (IS_ERR_OR_NULL(hw))
-		return (struct clk *) hw;
+		return ERR_CAST(hw);
 
 	clk = kzalloc(sizeof(*clk), GFP_KERNEL);
 	if (!clk)
