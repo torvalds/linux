@@ -72,7 +72,7 @@ static void vgem_fence_timeline_value_str(struct fence *fence, char *str,
 	snprintf(str, size, "%u", fence_is_signaled(fence) ? fence->seqno : 0);
 }
 
-const struct fence_ops vgem_fence_ops = {
+static const struct fence_ops vgem_fence_ops = {
 	.get_driver_name = vgem_fence_get_driver_name,
 	.get_timeline_name = vgem_fence_get_timeline_name,
 	.enable_signaling = vgem_fence_enable_signaling,
