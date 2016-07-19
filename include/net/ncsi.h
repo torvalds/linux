@@ -30,12 +30,18 @@ struct ncsi_dev {
 #ifdef CONFIG_NET_NCSI
 struct ncsi_dev *ncsi_register_dev(struct net_device *dev,
 				   void (*notifier)(struct ncsi_dev *nd));
+int ncsi_start_dev(struct ncsi_dev *nd);
 void ncsi_unregister_dev(struct ncsi_dev *nd);
 #else /* !CONFIG_NET_NCSI */
 static inline struct ncsi_dev *ncsi_register_dev(struct net_device *dev,
 					void (*notifier)(struct ncsi_dev *nd))
 {
 	return NULL;
+}
+
+static inline int ncsi_start_dev(struct ncsi_dev *nd)
+{
+	return -ENOTTY;
 }
 
 static inline void ncsi_unregister_dev(struct ncsi_dev *nd)

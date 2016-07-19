@@ -178,6 +178,7 @@ struct ncsi_channel {
 	int                         state;
 #define NCSI_CHANNEL_INACTIVE		1
 #define NCSI_CHANNEL_ACTIVE		2
+#define NCSI_CHANNEL_INVISIBLE		3
 	spinlock_t                  lock;	/* Protect filters etc */
 	struct ncsi_package         *package;
 	struct ncsi_channel_version version;
@@ -185,7 +186,11 @@ struct ncsi_channel {
 	struct ncsi_channel_mode    modes[NCSI_MODE_MAX];
 	struct ncsi_channel_filter  *filters[NCSI_FILTER_MAX];
 	struct ncsi_channel_stats   stats;
+	struct timer_list           timer;	/* Link monitor timer  */
+	bool                        enabled;	/* Timer is enabled    */
+	unsigned int                timeout;	/* Times of timeout    */
 	struct list_head            node;
+	struct list_head            link;
 };
 
 struct ncsi_package {
@@ -209,14 +214,56 @@ struct ncsi_request {
 	bool                 enabled; /* Time has been enabled or not    */
 };
 
+enum {
+	ncsi_dev_state_major		= 0xff00,
+	ncsi_dev_state_minor		= 0x00ff,
+	ncsi_dev_state_probe_deselect	= 0x0201,
+	ncsi_dev_state_probe_package,
+	ncsi_dev_state_probe_channel,
+	ncsi_dev_state_probe_cis,
+	ncsi_dev_state_probe_gvi,
+	ncsi_dev_state_probe_gc,
+	ncsi_dev_state_probe_gls,
+	ncsi_dev_state_probe_dp,
+	ncsi_dev_state_config_sp	= 0x0301,
+	ncsi_dev_state_config_cis,
+	ncsi_dev_state_config_sma,
+	ncsi_dev_state_config_ebf,
+#if IS_ENABLED(CONFIG_IPV6)
+	ncsi_dev_state_config_egmf,
+#endif
+	ncsi_dev_state_config_ecnt,
+	ncsi_dev_state_config_ec,
+	ncsi_dev_state_config_ae,
+	ncsi_dev_state_config_gls,
+	ncsi_dev_state_config_done,
+	ncsi_dev_state_suspend_select	= 0x0401,
+	ncsi_dev_state_suspend_dcnt,
+	ncsi_dev_state_suspend_dc,
+	ncsi_dev_state_suspend_deselect,
+	ncsi_dev_state_suspend_done
+};
+
 struct ncsi_dev_priv {
 	struct ncsi_dev     ndev;            /* Associated NCSI device     */
 	unsigned int        flags;           /* NCSI device flags          */
+#define NCSI_DEV_PROBED		1            /* Finalized NCSI topology    */
+#define NCSI_DEV_HWA		2            /* Enabled HW arbitration     */
+#define NCSI_DEV_RESHUFFLE	4
 	spinlock_t          lock;            /* Protect the NCSI device    */
+#if IS_ENABLED(CONFIG_IPV6)
+	unsigned int        inet6_addr_num;  /* Number of IPv6 addresses   */
+#endif
 	unsigned int        package_num;     /* Number of packages         */
 	struct list_head    packages;        /* List of packages           */
 	struct ncsi_request requests[256];   /* Request table              */
 	unsigned int        request_id;      /* Last used request ID       */
+	unsigned int        pending_req_num; /* Number of pending requests */
+	struct ncsi_package *active_package; /* Currently handled package  */
+	struct ncsi_channel *active_channel; /* Currently handled channel  */
+	struct list_head    channel_queue;   /* Config queue of channels   */
+	struct work_struct  work;            /* For channel management     */
+	struct packet_type  ptype;           /* NCSI packet Rx handler     */
 	struct list_head    node;            /* Form NCSI device list      */
 };
 
@@ -251,6 +298,8 @@ extern spinlock_t ncsi_dev_lock;
 int ncsi_find_filter(struct ncsi_channel *nc, int table, void *data);
 int ncsi_add_filter(struct ncsi_channel *nc, int table, void *data);
 int ncsi_remove_filter(struct ncsi_channel *nc, int table, int index);
+void ncsi_start_channel_monitor(struct ncsi_channel *nc);
+void ncsi_stop_channel_monitor(struct ncsi_channel *nc);
 struct ncsi_channel *ncsi_find_channel(struct ncsi_package *np,
 				       unsigned char id);
 struct ncsi_channel *ncsi_add_channel(struct ncsi_package *np,
@@ -267,6 +316,7 @@ void ncsi_find_package_and_channel(struct ncsi_dev_priv *ndp,
 struct ncsi_request *ncsi_alloc_request(struct ncsi_dev_priv *ndp, bool driven);
 void ncsi_free_request(struct ncsi_request *nr);
 struct ncsi_dev *ncsi_find_dev(struct net_device *dev);
+int ncsi_process_next_channel(struct ncsi_dev_priv *ndp);
 
 /* Packet handlers */
 u32 ncsi_calculate_checksum(unsigned char *data, int len);

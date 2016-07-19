@@ -69,6 +69,9 @@ static int ncsi_rsp_handler_cis(struct ncsi_request *nr)
 	rsp = (struct ncsi_rsp_pkt *)skb_network_header(nr->rsp);
 	ncsi_find_package_and_channel(ndp, rsp->rsp.common.channel, &np, &nc);
 	if (!nc) {
+		if (ndp->flags & NCSI_DEV_PROBED)
+			return -ENXIO;
+
 		id = NCSI_CHANNEL_INDEX(rsp->rsp.common.channel);
 		nc = ncsi_add_channel(np, id);
 	}
@@ -90,6 +93,9 @@ static int ncsi_rsp_handler_sp(struct ncsi_request *nr)
 	ncsi_find_package_and_channel(ndp, rsp->rsp.common.channel,
 				      &np, NULL);
 	if (!np) {
+		if (ndp->flags & NCSI_DEV_PROBED)
+			return -ENXIO;
+
 		id = NCSI_PACKAGE_INDEX(rsp->rsp.common.channel);
 		np = ncsi_add_package(ndp, id);
 		if (!np)
@@ -297,6 +303,7 @@ static int ncsi_rsp_handler_gls(struct ncsi_request *nr)
 	struct ncsi_dev_priv *ndp = nr->ndp;
 	struct ncsi_channel *nc;
 	struct ncsi_channel_mode *ncm;
+	unsigned long flags;
 
 	/* Find the package and channel */
 	rsp = (struct ncsi_rsp_gls_pkt *)skb_network_header(nr->rsp);
@@ -309,6 +316,14 @@ static int ncsi_rsp_handler_gls(struct ncsi_request *nr)
 	ncm->data[2] = ntohl(rsp->status);
 	ncm->data[3] = ntohl(rsp->other);
 	ncm->data[4] = ntohl(rsp->oem_status);
+
+	if (nr->driven)
+		return 0;
+
+	/* Reset the channel monitor if it has been enabled */
+	spin_lock_irqsave(&nc->lock, flags);
+	nc->timeout = 0;
+	spin_unlock_irqrestore(&nc->lock, flags);
 
 	return 0;
 }
