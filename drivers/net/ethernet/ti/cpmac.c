@@ -1119,7 +1119,7 @@ static int cpmac_probe(struct platform_device *pdev)
 	mem = platform_get_resource_byname(pdev, IORESOURCE_MEM, "regs");
 	if (!mem) {
 		rc = -ENODEV;
-		goto out;
+		goto fail;
 	}
 
 	dev->irq = platform_get_irq_byname(pdev, "irq");
@@ -1147,7 +1147,7 @@ static int cpmac_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "Could not attach to PHY\n");
 
 		rc = PTR_ERR(phydev);
-		goto out;
+		goto fail;
 	}
 
 	rc = register_netdev(dev);
@@ -1166,7 +1166,6 @@ static int cpmac_probe(struct platform_device *pdev)
 
 fail:
 	free_netdev(dev);
-out:
 	return rc;
 }
 
