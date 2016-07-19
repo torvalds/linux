@@ -904,7 +904,7 @@ static int validate_region_size(struct raid_set *rs, unsigned long region_size)
 	/*
 	 * Convert sectors to bytes.
 	 */
-	rs->md.bitmap_info.chunksize = (region_size << 9);
+	rs->md.bitmap_info.chunksize = to_bytes(region_size);
 
 	return 0;
 }
@@ -3368,11 +3368,10 @@ static int raid_iterate_devices(struct dm_target *ti,
 static void raid_io_hints(struct dm_target *ti, struct queue_limits *limits)
 {
 	struct raid_set *rs = ti->private;
-	unsigned int chunk_size = rs->md.chunk_sectors << 9;
-	struct r5conf *conf = rs->md.private;
+	unsigned int chunk_size = to_bytes(rs->md.chunk_sectors);
 
 	blk_limits_io_min(limits, chunk_size);
-	blk_limits_io_opt(limits, chunk_size * (conf->raid_disks - conf->max_degraded));
+	blk_limits_io_opt(limits, chunk_size * mddev_data_stripes(rs));
 }
 
 static void raid_presuspend(struct dm_target *ti)
