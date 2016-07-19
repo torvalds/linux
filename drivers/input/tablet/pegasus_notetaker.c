@@ -209,34 +209,39 @@ static void pegasus_init(struct work_struct *work)
 static int pegasus_open(struct input_dev *dev)
 {
 	struct pegasus *pegasus = input_get_drvdata(dev);
-	int retval;
+	int error;
 
-	retval = usb_autopm_get_interface(pegasus->intf);
-	if (retval)
-		return retval;
+	error = usb_autopm_get_interface(pegasus->intf);
+	if (error)
+		return error;
 
 	pegasus->irq->dev = pegasus->usbdev;
-	if (usb_submit_urb(pegasus->irq, GFP_KERNEL))
-		retval = -EIO;
+	if (usb_submit_urb(pegasus->irq, GFP_KERNEL)) {
+		error = -EIO;
+		goto err_autopm_put;
+	}
 
-	retval = pegasus_set_mode(pegasus, PEN_MODE_XY, NOTETAKER_LED_MOUSE);
+	error = pegasus_set_mode(pegasus, PEN_MODE_XY, NOTETAKER_LED_MOUSE);
+	if (error)
+		goto err_kill_urb;
 
+	return 0;
+
+err_kill_urb:
+	usb_kill_urb(pegasus->irq);
+	cancel_work_sync(&pegasus->init);
+err_autopm_put:
 	usb_autopm_put_interface(pegasus->intf);
-
-	return retval;
+	return error;
 }
 
 static void pegasus_close(struct input_dev *dev)
 {
 	struct pegasus *pegasus = input_get_drvdata(dev);
-	int autopm_error;
 
-	autopm_error = usb_autopm_get_interface(pegasus->intf);
 	usb_kill_urb(pegasus->irq);
 	cancel_work_sync(&pegasus->init);
-
-	if (!autopm_error)
-		usb_autopm_put_interface(pegasus->intf);
+	usb_autopm_put_interface(pegasus->intf);
 }
 
 static int pegasus_probe(struct usb_interface *intf,
