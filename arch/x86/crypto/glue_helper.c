@@ -25,7 +25,7 @@
  *
  */
 
-#include <linux/export.h>
+#include <linux/module.h>
 #include <crypto/b128ops.h>
 #include <crypto/lrw.h>
 #include <crypto/xts.h>
@@ -397,3 +397,5 @@ void glue_xts_crypt_128bit_one(void *ctx, u128 *dst, const u128 *src, le128 *iv,
 	u128_xor(dst, dst, (u128 *)&ivblk);
 }
 EXPORT_SYMBOL_GPL(glue_xts_crypt_128bit_one);
+
+MODULE_LICENSE("GPL");
