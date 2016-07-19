@@ -1207,6 +1207,68 @@ error_free:
 	return r;
 }
 
+int amdgpu_fill_buffer(struct amdgpu_bo *bo,
+		uint32_t src_data,
+		struct reservation_object *resv,
+		struct fence **fence)
+{
+	struct amdgpu_device *adev = bo->adev;
+	struct amdgpu_job *job;
+	struct amdgpu_ring *ring = adev->mman.buffer_funcs_ring;
+
+	uint32_t max_bytes, byte_count;
+	uint64_t dst_offset;
+	unsigned int num_loops, num_dw;
+	unsigned int i;
+	int r;
+
+	byte_count = bo->tbo.num_pages << PAGE_SHIFT;
+	max_bytes = adev->mman.buffer_funcs->fill_max_bytes;
+	num_loops = DIV_ROUND_UP(byte_count, max_bytes);
+	num_dw = num_loops * adev->mman.buffer_funcs->fill_num_dw;
+
+	/* for IB padding */
+	while (num_dw & 0x7)
+		num_dw++;
+
+	r = amdgpu_job_alloc_with_ib(adev, num_dw * 4, &job);
+	if (r)
+		return r;
+
+	if (resv) {
+		r = amdgpu_sync_resv(adev, &job->sync, resv,
+				AMDGPU_FENCE_OWNER_UNDEFINED);
+		if (r) {
+			DRM_ERROR("sync failed (%d).\n", r);
+			goto error_free;
+		}
+	}
+
+	dst_offset = bo->tbo.mem.start << PAGE_SHIFT;
+	for (i = 0; i < num_loops; i++) {
+		uint32_t cur_size_in_bytes = min(byte_count, max_bytes);
+
+		amdgpu_emit_fill_buffer(adev, &job->ibs[0], src_data,
+				dst_offset, cur_size_in_bytes);
+
+		dst_offset += cur_size_in_bytes;
+		byte_count -= cur_size_in_bytes;
+	}
+
+	amdgpu_ring_pad_ib(ring, &job->ibs[0]);
+	WARN_ON(job->ibs[0].length_dw > num_dw);
+	r = amdgpu_job_submit(job, ring, &adev->mman.entity,
+			AMDGPU_FENCE_OWNER_UNDEFINED, fence);
+	if (r)
+		goto error_free;
+
+	return 0;
+
+error_free:
+	amdgpu_job_free(job);
+	return r;
+}
+
 #if defined(CONFIG_DEBUG_FS)
 
 static int amdgpu_mm_dump_table(struct seq_file *m, void *data)
