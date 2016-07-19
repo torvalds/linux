@@ -2429,10 +2429,12 @@ static void modecpy(u8 *dest, const u8 *src, int n, bool changeable)
 static unsigned int ata_msense_caching(u16 *id, u8 *buf, bool changeable)
 {
 	modecpy(buf, def_cache_mpage, sizeof(def_cache_mpage), changeable);
-	if (changeable || ata_id_wcache_enabled(id))
-		buf[2] |= (1 << 2);	/* write cache enable */
-	if (!changeable && !ata_id_rahead_enabled(id))
-		buf[12] |= (1 << 5);	/* disable read ahead */
+	if (changeable) {
+		buf[2] |= (1 << 2);	/* ata_mselect_caching() */
+	} else {
+		buf[2] |= (ata_id_wcache_enabled(id) << 2);	/* write cache enable */
+		buf[12] |= (!ata_id_rahead_enabled(id) << 5);	/* disable read ahead */
+	}
 	return sizeof(def_cache_mpage);
 }
 
@@ -2451,8 +2453,13 @@ static unsigned int ata_msense_control(struct ata_device *dev, u8 *buf,
 					bool changeable)
 {
 	modecpy(buf, def_control_mpage, sizeof(def_control_mpage), changeable);
-	if (changeable || (dev->flags & ATA_DFLAG_D_SENSE))
-		buf[2] |= (1 << 2);	/* Descriptor sense requested */
+	if (changeable) {
+		buf[2] |= (1 << 2);	/* ata_mselect_control() */
+	} else {
+		bool d_sense = (dev->flags & ATA_DFLAG_D_SENSE);
+
+		buf[2] |= (d_sense << 2);	/* descriptor format sense data */
+	}
 	return sizeof(def_control_mpage);
 }
 
