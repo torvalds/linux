@@ -23,6 +23,7 @@
 #include <linux/moduleparam.h>
 #include <linux/types.h>
 #include <linux/err.h>
+#include <linux/cpufeature.h>
 #include <linux/crypto.h>
 #include <asm/cputable.h>
 #include <crypto/internal/hash.h>
@@ -42,9 +43,6 @@ int __init p8_init(void)
 {
 	int ret = 0;
 	struct crypto_alg **alg_it;
-
-	if (!(cur_cpu_spec->cpu_user_features2 & PPC_FEATURE2_VEC_CRYPTO))
-		return -ENODEV;
 
 	for (alg_it = algs; *alg_it; alg_it++) {
 		ret = crypto_register_alg(*alg_it);
@@ -78,7 +76,7 @@ void __exit p8_exit(void)
 	crypto_unregister_shash(&p8_ghash_alg);
 }
 
-module_init(p8_init);
+module_cpu_feature_match(PPC_MODULE_FEATURE_VEC_CRYPTO, p8_init);
 module_exit(p8_exit);
 
 MODULE_AUTHOR("Marcelo Cerri<mhcerri@br.ibm.com>");
