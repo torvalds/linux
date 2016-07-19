@@ -285,7 +285,8 @@ static void gfs2_metapath_ra(struct gfs2_glock *gl,
 		if (trylock_buffer(rabh)) {
 			if (!buffer_uptodate(rabh)) {
 				rabh->b_end_io = end_buffer_read_sync;
-				submit_bh(REQ_OP_READ, READA | REQ_META, rabh);
+				submit_bh(REQ_OP_READ, REQ_RAHEAD | REQ_META,
+						rabh);
 				continue;
 			}
 			unlock_buffer(rabh);

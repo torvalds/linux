@@ -853,14 +853,14 @@ static int rrpc_setup_rq(struct rrpc *rrpc, struct bio *bio,
 			return NVM_IO_ERR;
 		}
 
-		if (bio_rw(bio) == WRITE)
+		if (bio_op(bio) == REQ_OP_WRITE)
 			return rrpc_write_ppalist_rq(rrpc, bio, rqd, flags,
 									npages);
 
 		return rrpc_read_ppalist_rq(rrpc, bio, rqd, flags, npages);
 	}
 
-	if (bio_rw(bio) == WRITE)
+	if (bio_op(bio) == REQ_OP_WRITE)
 		return rrpc_write_rq(rrpc, bio, rqd, flags);
 
 	return rrpc_read_rq(rrpc, bio, rqd, flags);

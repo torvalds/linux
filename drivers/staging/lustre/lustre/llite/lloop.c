@@ -336,7 +336,6 @@ static unsigned int loop_get_bio(struct lloop_device *lo, struct bio **req)
 static blk_qc_t loop_make_request(struct request_queue *q, struct bio *old_bio)
 {
 	struct lloop_device *lo = q->queuedata;
-	int rw = bio_rw(old_bio);
 	int inactive;
 
 	blk_queue_split(q, &old_bio, q->bio_split);
@@ -354,13 +353,15 @@ static blk_qc_t loop_make_request(struct request_queue *q, struct bio *old_bio)
 	if (inactive)
 		goto err;
 
-	if (rw == WRITE) {
+	switch (bio_op(old_bio)) {
+	case REQ_OP_WRITE:
 		if (lo->lo_flags & LO_FLAGS_READ_ONLY)
 			goto err;
-	} else if (rw == READA) {
-		rw = READ;
-	} else if (rw != READ) {
-		CERROR("lloop: unknown command (%x)\n", rw);
+		break;
+	case REQ_OP_READ:
+		break;
+	default:
+		CERROR("lloop: unknown command (%x)\n", bio_op(old_bio));
 		goto err;
 	}
 	loop_add_bio(lo, old_bio);

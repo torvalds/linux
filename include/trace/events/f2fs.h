@@ -55,7 +55,7 @@ TRACE_DEFINE_ENUM(CP_DISCARD);
 		{ IPU,		"IN-PLACE" },				\
 		{ OPU,		"OUT-OF-PLACE" })
 
-#define F2FS_BIO_FLAG_MASK(t)	(t & (READA | WRITE_FLUSH_FUA))
+#define F2FS_BIO_FLAG_MASK(t)	(t & (REQ_RAHEAD | WRITE_FLUSH_FUA))
 #define F2FS_BIO_EXTRA_MASK(t)	(t & (REQ_META | REQ_PRIO))
 
 #define show_bio_type(op, op_flags) show_bio_op(op),			\
@@ -68,7 +68,7 @@ TRACE_DEFINE_ENUM(CP_DISCARD);
 
 #define show_bio_op_flags(flags)					\
 	__print_symbolic(F2FS_BIO_FLAG_MASK(flags),			\
-		{ READA, 		"READAHEAD" },			\
+		{ REQ_RAHEAD, 		"READAHEAD" },			\
 		{ READ_SYNC, 		"READ_SYNC" },			\
 		{ WRITE_SYNC, 		"WRITE_SYNC" },			\
 		{ WRITE_FLUSH,		"WRITE_FLUSH" },		\
