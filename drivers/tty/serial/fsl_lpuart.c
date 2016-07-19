@@ -810,8 +810,18 @@ static irqreturn_t lpuart32_int(int irq, void *dev_id)
 /* return TIOCSER_TEMT when transmitter is not busy */
 static unsigned int lpuart_tx_empty(struct uart_port *port)
 {
-	return (readb(port->membase + UARTSR1) & UARTSR1_TC) ?
-		TIOCSER_TEMT : 0;
+	struct lpuart_port *sport = container_of(port,
+			struct lpuart_port, port);
+	unsigned char sr1 = readb(port->membase + UARTSR1);
+	unsigned char sfifo = readb(port->membase + UARTSFIFO);
+
+	if (sport->dma_tx_in_progress)
+		return 0;
+
+	if (sr1 & UARTSR1_TC && sfifo & UARTSFIFO_TXEMPT)
+		return TIOCSER_TEMT;
+
+	return 0;
 }
 
 static unsigned int lpuart32_tx_empty(struct uart_port *port)
