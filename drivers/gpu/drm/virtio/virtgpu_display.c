@@ -346,7 +346,7 @@ static void vgdev_atomic_commit_tail(struct drm_atomic_state *state)
 	drm_atomic_helper_cleanup_planes(dev, state);
 }
 
-struct drm_mode_config_helper_funcs virtio_mode_config_helpers = {
+static struct drm_mode_config_helper_funcs virtio_mode_config_helpers = {
 	.atomic_commit_tail = vgdev_atomic_commit_tail,
 };
 
