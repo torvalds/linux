@@ -5625,7 +5625,6 @@ static int ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	struct pci_dev *pdev = adapter->pdev;
 	unsigned int rss, fdir;
 	u32 fwsm;
-	u16 device_caps;
 	int i;
 
 	/* PCI config space info */
@@ -5770,22 +5769,6 @@ static int ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	/* set default ring sizes */
 	adapter->tx_ring_count = IXGBE_DEFAULT_TXD;
 	adapter->rx_ring_count = IXGBE_DEFAULT_RXD;
-
-	/* Cache bit indicating need for crosstalk fix */
-	switch (hw->mac.type) {
-	case ixgbe_mac_82599EB:
-	case ixgbe_mac_X550EM_x:
-	case ixgbe_mac_x550em_a:
-		hw->mac.ops.get_device_caps(hw, &device_caps);
-		if (device_caps & IXGBE_DEVICE_CAPS_NO_CROSSTALK_WR)
-			adapter->need_crosstalk_fix = false;
-		else
-			adapter->need_crosstalk_fix = true;
-		break;
-	default:
-		adapter->need_crosstalk_fix = false;
-		break;
-	}
 
 	/* set default work limits */
 	adapter->tx_work_limit = IXGBE_DEFAULT_TX_WORK;
@@ -6707,18 +6690,6 @@ static void ixgbe_watchdog_update_link(struct ixgbe_adapter *adapter)
 		link_up = true;
 	}
 
-	/* If Crosstalk fix enabled do the sanity check of making sure
-	 * the SFP+ cage is empty.
-	 */
-	if (adapter->need_crosstalk_fix) {
-		u32 sfp_cage_full;
-
-		sfp_cage_full = IXGBE_READ_REG(hw, IXGBE_ESDP) &
-				IXGBE_ESDP_SDP2;
-		if (ixgbe_is_sfp(hw) && link_up && !sfp_cage_full)
-			link_up = false;
-	}
-
 	if (adapter->ixgbe_ieee_pfc)
 		pfc_en |= !!(adapter->ixgbe_ieee_pfc->pfc_en);
 
@@ -7064,16 +7035,6 @@ static void ixgbe_sfp_detection_subtask(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	s32 err;
-
-	/* If crosstalk fix enabled verify the SFP+ cage is full */
-	if (adapter->need_crosstalk_fix) {
-		u32 sfp_cage_full;
-
-		sfp_cage_full = IXGBE_READ_REG(hw, IXGBE_ESDP) &
-				IXGBE_ESDP_SDP2;
-		if (!sfp_cage_full)
-			return;
-	}
 
 	/* not searching for SFP so there is nothing to do here */
 	if (!(adapter->flags2 & IXGBE_FLAG2_SEARCH_FOR_SFP) &&
