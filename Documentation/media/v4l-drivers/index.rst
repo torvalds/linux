@@ -14,12 +14,13 @@ any later version published by the Free Software Foundation. A copy of
 the license is included in the chapter entitled "GNU Free Documentation
 License".
 
+.. class:: toc-title
+
+        Table of Contents
 
 .. toctree::
 	:maxdepth: 5
 	:numbered:
-	:caption: Table of Contents
-	:name: v4l_mastertoc
 
 	fourcc
 	v4l-with-ir
