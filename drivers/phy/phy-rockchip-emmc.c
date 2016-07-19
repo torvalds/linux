@@ -79,6 +79,9 @@
 #define PHYCTRL_OTAPDLYENA_SHIFT	11
 #define PHYCTRL_OTAPDLYSEL_MASK		0xf
 #define PHYCTRL_OTAPDLYSEL_SHIFT	7
+#define PHYCTRL_REN_STRB_ENABLE		0x1
+#define PHYCTRL_REN_STRB_MASK		0x1
+#define PHYCTRL_REN_STRB_SHIFT		9
 
 struct rockchip_emmc_phy {
 	unsigned int	reg_offset;
@@ -202,6 +205,12 @@ static int rockchip_emmc_phy_init(struct phy *phy)
 		     HIWORD_UPDATE(PHYCTRL_OTAPDLYENA,
 				   PHYCTRL_OTAPDLYENA_MASK,
 				   PHYCTRL_OTAPDLYENA_SHIFT));
+
+	regmap_write(rk_phy->reg_base,
+		     rk_phy->reg_offset + GRF_EMMCPHY_CON2,
+		     HIWORD_UPDATE(PHYCTRL_REN_STRB_ENABLE,
+				   PHYCTRL_REN_STRB_MASK,
+				   PHYCTRL_REN_STRB_SHIFT));
 
 	regmap_write(rk_phy->reg_base,
 		     rk_phy->reg_offset + GRF_EMMCPHY_CON0,
