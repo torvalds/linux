@@ -389,6 +389,7 @@ static int pegasus_suspend(struct usb_interface *intf, pm_message_t message)
 
 	mutex_lock(&pegasus->dev->mutex);
 	usb_kill_urb(pegasus->irq);
+	cancel_work_sync(&pegasus->init);
 	mutex_unlock(&pegasus->dev->mutex);
 
 	return 0;
