@@ -245,7 +245,6 @@ static struct platform_driver pic32_dmt_driver = {
 	.remove		= pic32_dmt_remove,
 	.driver		= {
 		.name		= "pic32-dmt",
-		.owner		= THIS_MODULE,
 		.of_match_table = of_match_ptr(pic32_dmt_of_ids),
 	}
 };
