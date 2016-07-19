@@ -1154,9 +1154,6 @@ nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	__be32		err2;
 	int		host_err;
 
-	err = nfserr_perm;
-	if (!flen)
-		goto out;
 	err = nfserr_exist;
 	if (isdotent(fname, flen))
 		goto out;

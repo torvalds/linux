@@ -251,9 +251,6 @@ nfsd_proc_create(struct svc_rqst *rqstp, struct nfsd_createargs *argp,
 
 	/* Check for NFSD_MAY_WRITE in nfsd_create if necessary */
 
-	nfserr = nfserr_acces;
-	if (!argp->len)
-		goto done;
 	nfserr = nfserr_exist;
 	if (isdotent(argp->name, argp->len))
 		goto done;
