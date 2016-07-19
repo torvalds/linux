@@ -829,7 +829,6 @@ static int gb_interface_activate_operation(struct gb_interface *intf)
 
 	switch (type) {
 	case GB_SVC_INTF_TYPE_DUMMY:
-		dev_info(&intf->dev, "dummy interface detected\n");
 		/* FIXME: handle as an error for now */
 		return -ENODEV;
 	case GB_SVC_INTF_TYPE_UNIPRO:
@@ -1131,10 +1130,20 @@ int gb_interface_add(struct gb_interface *intf)
 
 	trace_gb_interface_add(intf);
 
-	dev_info(&intf->dev, "Interface added: VID=0x%08x, PID=0x%08x\n",
-		 intf->vendor_id, intf->product_id);
-	dev_info(&intf->dev, "DDBL1 Manufacturer=0x%08x, Product=0x%08x\n",
-		 intf->ddbl1_manufacturer_id, intf->ddbl1_product_id);
+	dev_info(&intf->dev, "Interface added (%s)\n",
+			gb_interface_type_string(intf));
+
+	switch (intf->type) {
+	case GB_SVC_INTF_TYPE_GREYBUS:
+		dev_info(&intf->dev, "Ara VID=0x%08x, PID=0x%08x\n",
+				intf->vendor_id, intf->product_id);
+		/* fall-through */
+	case GB_SVC_INTF_TYPE_UNIPRO:
+		dev_info(&intf->dev, "DDBL1 Manufacturer=0x%08x, Product=0x%08x\n",
+				intf->ddbl1_manufacturer_id,
+				intf->ddbl1_product_id);
+		break;
+	}
 
 	return 0;
 }
