@@ -206,8 +206,11 @@ struct dax_region *alloc_dax_region(struct device *parent, int region_id,
 {
 	struct dax_region *dax_region;
 
-	dax_region = kzalloc(sizeof(*dax_region), GFP_KERNEL);
+	if (!IS_ALIGNED(res->start, align)
+			|| !IS_ALIGNED(resource_size(res), align))
+		return NULL;
 
+	dax_region = kzalloc(sizeof(*dax_region), GFP_KERNEL);
 	if (!dax_region)
 		return NULL;
 
@@ -560,14 +563,28 @@ int devm_create_dax_dev(struct dax_region *dax_region, struct resource *res,
 {
 	struct device *parent = dax_region->dev;
 	struct dax_dev *dax_dev;
+	int rc = 0, minor, i;
 	struct device *dev;
 	struct cdev *cdev;
-	int rc, minor;
 	dev_t dev_t;
 
 	dax_dev = kzalloc(sizeof(*dax_dev) + sizeof(*res) * count, GFP_KERNEL);
 	if (!dax_dev)
 		return -ENOMEM;
+
+	for (i = 0; i < count; i++) {
+		if (!IS_ALIGNED(res[i].start, dax_region->align)
+				|| !IS_ALIGNED(resource_size(&res[i]),
+					dax_region->align)) {
+			rc = -EINVAL;
+			break;
+		}
+		dax_dev->res[i].start = res[i].start;
+		dax_dev->res[i].end = res[i].end;
+	}
+
+	if (i < count)
+		goto err_id;
 
 	dax_dev->id = ida_simple_get(&dax_region->ida, 0, 0, GFP_KERNEL);
 	if (dax_dev->id < 0) {
@@ -601,7 +618,6 @@ int devm_create_dax_dev(struct dax_region *dax_region, struct resource *res,
 		goto err_cdev;
 
 	/* from here on we're committed to teardown via dax_dev_release() */
-	memcpy(dax_dev->res, res, sizeof(*res) * count);
 	dax_dev->num_resources = count;
 	dax_dev->alive = true;
 	dax_dev->region = dax_region;
