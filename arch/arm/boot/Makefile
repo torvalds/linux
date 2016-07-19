@@ -11,6 +11,8 @@
 # Copyright (C) 1995-2002 Russell King
 #
 
+OBJCOPYFLAGS	:=-O binary -R .comment -S
+
 ifneq ($(MACHINE),)
 include $(MACHINE)/Makefile.boot
 endif
