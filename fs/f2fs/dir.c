@@ -272,17 +272,17 @@ struct f2fs_dir_entry *f2fs_parent_dir(struct inode *dir, struct page **p)
 	return f2fs_find_entry(dir, &dotdot, p);
 }
 
-ino_t f2fs_inode_by_name(struct inode *dir, struct qstr *qstr)
+ino_t f2fs_inode_by_name(struct inode *dir, struct qstr *qstr,
+							struct page **page)
 {
 	ino_t res = 0;
 	struct f2fs_dir_entry *de;
-	struct page *page;
 
-	de = f2fs_find_entry(dir, qstr, &page);
+	de = f2fs_find_entry(dir, qstr, page);
 	if (de) {
 		res = le32_to_cpu(de->ino);
-		f2fs_dentry_kunmap(dir, page);
-		f2fs_put_page(page, 0);
+		f2fs_dentry_kunmap(dir, *page);
+		f2fs_put_page(*page, 0);
 	}
 
 	return res;
