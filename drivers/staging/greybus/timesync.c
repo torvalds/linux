@@ -462,9 +462,9 @@ static int __gb_timesync_get_status(struct gb_timesync_svc *timesync_svc)
 	case GB_TIMESYNC_STATE_INIT:
 	case GB_TIMESYNC_STATE_WAIT_SVC:
 	case GB_TIMESYNC_STATE_AUTHORITATIVE:
-	case GB_TIMESYNC_STATE_PING:
 		ret = -EAGAIN;
 		break;
+	case GB_TIMESYNC_STATE_PING:
 	case GB_TIMESYNC_STATE_ACTIVE:
 		ret = 0;
 		break;
