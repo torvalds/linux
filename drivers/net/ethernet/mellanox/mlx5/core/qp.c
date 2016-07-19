@@ -335,21 +335,127 @@ int mlx5_core_destroy_qp(struct mlx5_core_dev *dev,
 }
 EXPORT_SYMBOL_GPL(mlx5_core_destroy_qp);
 
-int mlx5_core_qp_modify(struct mlx5_core_dev *dev, u16 operation,
-			struct mlx5_modify_qp_mbox_in *in, int sqd_event,
+struct mbox_info {
+	u32 *in;
+	u32 *out;
+	int inlen;
+	int outlen;
+};
+
+static int mbox_alloc(struct mbox_info *mbox, int inlen, int outlen)
+{
+	mbox->inlen  = inlen;
+	mbox->outlen = outlen;
+	mbox->in = kzalloc(mbox->inlen, GFP_KERNEL);
+	mbox->out = kzalloc(mbox->outlen, GFP_KERNEL);
+	if (!mbox->in || !mbox->out) {
+		kfree(mbox->in);
+		kfree(mbox->out);
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static void mbox_free(struct mbox_info *mbox)
+{
+	kfree(mbox->in);
+	kfree(mbox->out);
+}
+
+static int modify_qp_mbox_alloc(struct mlx5_core_dev *dev, u16 opcode, int qpn,
+				u32 opt_param_mask, void *qpc,
+				struct mbox_info *mbox)
+{
+	mbox->out = NULL;
+	mbox->in = NULL;
+
+#define MBOX_ALLOC(mbox, typ)  \
+	mbox_alloc(mbox, MLX5_ST_SZ_BYTES(typ##_in), MLX5_ST_SZ_BYTES(typ##_out))
+
+#define MOD_QP_IN_SET(typ, in, _opcode, _qpn) \
+	MLX5_SET(typ##_in, in, opcode, _opcode); \
+	MLX5_SET(typ##_in, in, qpn, _qpn)
+
+#define MOD_QP_IN_SET_QPC(typ, in, _opcode, _qpn, _opt_p, _qpc) \
+	MOD_QP_IN_SET(typ, in, _opcode, _qpn); \
+	MLX5_SET(typ##_in, in, opt_param_mask, _opt_p); \
+	memcpy(MLX5_ADDR_OF(typ##_in, in, qpc), _qpc, MLX5_ST_SZ_BYTES(qpc))
+
+	switch (opcode) {
+	/* 2RST & 2ERR */
+	case MLX5_CMD_OP_2RST_QP:
+		if (MBOX_ALLOC(mbox, qp_2rst))
+			return -ENOMEM;
+		MOD_QP_IN_SET(qp_2rst, mbox->in, opcode, qpn);
+		break;
+	case MLX5_CMD_OP_2ERR_QP:
+		if (MBOX_ALLOC(mbox, qp_2err))
+			return -ENOMEM;
+		MOD_QP_IN_SET(qp_2err, mbox->in, opcode, qpn);
+		break;
+
+	/* MODIFY with QPC */
+	case MLX5_CMD_OP_RST2INIT_QP:
+		if (MBOX_ALLOC(mbox, rst2init_qp))
+			return -ENOMEM;
+		 MOD_QP_IN_SET_QPC(rst2init_qp, mbox->in, opcode, qpn,
+				   opt_param_mask, qpc);
+		 break;
+	case MLX5_CMD_OP_INIT2RTR_QP:
+		if (MBOX_ALLOC(mbox, init2rtr_qp))
+			return -ENOMEM;
+		 MOD_QP_IN_SET_QPC(init2rtr_qp, mbox->in, opcode, qpn,
+				   opt_param_mask, qpc);
+		 break;
+	case MLX5_CMD_OP_RTR2RTS_QP:
+		if (MBOX_ALLOC(mbox, rtr2rts_qp))
+			return -ENOMEM;
+		 MOD_QP_IN_SET_QPC(rtr2rts_qp, mbox->in, opcode, qpn,
+				   opt_param_mask, qpc);
+		 break;
+	case MLX5_CMD_OP_RTS2RTS_QP:
+		if (MBOX_ALLOC(mbox, rts2rts_qp))
+			return -ENOMEM;
+		MOD_QP_IN_SET_QPC(rts2rts_qp, mbox->in, opcode, qpn,
+				  opt_param_mask, qpc);
+		break;
+	case MLX5_CMD_OP_SQERR2RTS_QP:
+		if (MBOX_ALLOC(mbox, sqerr2rts_qp))
+			return -ENOMEM;
+		MOD_QP_IN_SET_QPC(sqerr2rts_qp, mbox->in, opcode, qpn,
+				  opt_param_mask, qpc);
+		break;
+	case MLX5_CMD_OP_INIT2INIT_QP:
+		if (MBOX_ALLOC(mbox, init2init_qp))
+			return -ENOMEM;
+		MOD_QP_IN_SET_QPC(init2init_qp, mbox->in, opcode, qpn,
+				  opt_param_mask, qpc);
+		break;
+	default:
+		mlx5_core_err(dev, "Unknown transition for modify QP: OP(0x%x) QPN(0x%x)\n",
+			      opcode, qpn);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+int mlx5_core_qp_modify(struct mlx5_core_dev *dev, u16 opcode,
+			u32 opt_param_mask, void *qpc,
 			struct mlx5_core_qp *qp)
 {
-	struct mlx5_modify_qp_mbox_out out;
-	int err = 0;
+	struct mbox_info mbox;
+	int err;
 
-	memset(&out, 0, sizeof(out));
-	in->hdr.opcode = cpu_to_be16(operation);
-	in->qpn = cpu_to_be32(qp->qpn);
-	err = mlx5_cmd_exec(dev, in, sizeof(*in), &out, sizeof(out));
+	err = modify_qp_mbox_alloc(dev, opcode, qp->qpn,
+				   opt_param_mask, qpc, &mbox);
 	if (err)
 		return err;
 
-	return mlx5_cmd_status_to_err(&out.hdr);
+	err = mlx5_cmd_exec(dev, mbox.in, mbox.inlen, mbox.out, mbox.outlen);
+	err = err ? : mlx5_cmd_status_to_err_v2(mbox.out);
+	mbox_free(&mbox);
+	return err;
 }
 EXPORT_SYMBOL_GPL(mlx5_core_qp_modify);
 

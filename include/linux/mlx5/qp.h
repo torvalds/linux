@@ -479,6 +479,7 @@ struct mlx5_qp_path {
 	u8			rmac[6];
 };
 
+/* FIXME: use mlx5_ifc.h qpc */
 struct mlx5_qp_context {
 	__be32			flags;
 	__be32			flags_pd;
@@ -520,21 +521,6 @@ struct mlx5_qp_context {
 	u8			rsvd1[24];
 };
 
-struct mlx5_modify_qp_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	__be32			qpn;
-	u8			rsvd0[4];
-	__be32			optparam;
-	u8			rsvd1[4];
-	struct mlx5_qp_context	ctx;
-	u8			rsvd2[16];
-};
-
-struct mlx5_modify_qp_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	u8			rsvd0[8];
-};
-
 static inline struct mlx5_core_qp *__mlx5_qp_lookup(struct mlx5_core_dev *dev, u32 qpn)
 {
 	return radix_tree_lookup(&dev->priv.qp_table.tree, qpn);
@@ -549,8 +535,8 @@ int mlx5_core_create_qp(struct mlx5_core_dev *dev,
 			struct mlx5_core_qp *qp,
 			u32 *in,
 			int inlen);
-int mlx5_core_qp_modify(struct mlx5_core_dev *dev, u16 operation,
-			struct mlx5_modify_qp_mbox_in *in, int sqd_event,
+int mlx5_core_qp_modify(struct mlx5_core_dev *dev, u16 opcode,
+			u32 opt_param_mask, void *qpc,
 			struct mlx5_core_qp *qp);
 int mlx5_core_destroy_qp(struct mlx5_core_dev *dev,
 			 struct mlx5_core_qp *qp);
