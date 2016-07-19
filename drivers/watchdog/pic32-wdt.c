@@ -251,7 +251,6 @@ static struct platform_driver pic32_wdt_driver = {
 	.remove		= pic32_wdt_drv_remove,
 	.driver		= {
 		.name		= "pic32-wdt",
-		.owner		= THIS_MODULE,
 		.of_match_table = of_match_ptr(pic32_wdt_dt_ids),
 	}
 };
