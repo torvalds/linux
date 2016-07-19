@@ -20,15 +20,21 @@
 #define getUInt32( A, B ) 	(uint32_t)(A[B+0] << 0) + (A[B+1] << 8) + (A[B+2] << 16) + (A[B+3] << 24)
 
 // Convert from UInt32 to Byte[] in a portable way
-#define putUInt32( A, B, C ) 	A[B+0] = (uint8_t) (C & 0xff);		\
-				A[B+1] = (uint8_t) ((C>>8) & 0xff);	\
-				A[B+2] = (uint8_t) ((C>>16) & 0xff);	\
-				A[B+3] = (uint8_t) ((C>>24) & 0xff)
+#define putUInt32(A, B, C)					\
+do {								\
+	A[B + 0] = (uint8_t)(C & 0xff);				\
+	A[B + 1] = (uint8_t)((C >> 8) & 0xff);			\
+	A[B + 2] = (uint8_t)((C >> 16) & 0xff);			\
+	A[B + 3] = (uint8_t)((C >> 24) & 0xff);			\
+} while (0)
 
 // Reset the state to the empty message.
-#define MichaelClear( A ) 	A->L = A->K0; \
-				A->R = A->K1; \
-				A->nBytesInM = 0;
+#define MichaelClear(A)			\
+do {					\
+	A->L = A->K0;			\
+	A->R = A->K1;			\
+	A->nBytesInM = 0;		\
+} while (0)
 
 static
 void MichaelInitializeFunction(struct michel_mic_t *Mic, uint8_t * key)
