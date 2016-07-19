@@ -1740,10 +1740,7 @@ static int init_ingress_acl_root_ns(struct mlx5_flow_steering *steering)
 	/* create 1 prio*/
 	prio = fs_create_prio(&steering->esw_egress_root_ns->ns, 0,
 			      MLX5_TOTAL_VPORTS(steering->dev));
-	if (IS_ERR(prio))
-		return PTR_ERR(prio);
-	else
-		return 0;
+	return PTR_ERR_OR_ZERO(prio);
 }
 
 static int init_egress_acl_root_ns(struct mlx5_flow_steering *steering)
@@ -1757,10 +1754,7 @@ static int init_egress_acl_root_ns(struct mlx5_flow_steering *steering)
 	/* create 1 prio*/
 	prio = fs_create_prio(&steering->esw_ingress_root_ns->ns, 0,
 			      MLX5_TOTAL_VPORTS(steering->dev));
-	if (IS_ERR(prio))
-		return PTR_ERR(prio);
-	else
-		return 0;
+	return PTR_ERR_OR_ZERO(prio);
 }
 
 int mlx5_init_fs(struct mlx5_core_dev *dev)
