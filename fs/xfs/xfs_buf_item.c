@@ -1073,6 +1073,8 @@ xfs_buf_iodone_callback_error(
 	trace_xfs_buf_item_iodone_async(bp, _RET_IP_);
 	ASSERT(bp->b_iodone != NULL);
 
+	cfg = xfs_error_get_cfg(mp, XFS_ERR_METADATA, bp->b_error);
+
 	/*
 	 * If the write was asynchronous then no one will be looking for the
 	 * error.  If this is the first failure of this type, clear the error
@@ -1084,8 +1086,8 @@ xfs_buf_iodone_callback_error(
 	     bp->b_last_error != bp->b_error) {
 		bp->b_flags |= (XBF_WRITE | XBF_DONE | XBF_WRITE_FAIL);
 		bp->b_last_error = bp->b_error;
-		bp->b_retries = 0;
-		bp->b_first_retry_time = jiffies;
+		if (cfg->retry_timeout && !bp->b_first_retry_time)
+			bp->b_first_retry_time = jiffies;
 
 		xfs_buf_ioerror(bp, 0);
 		xfs_buf_submit(bp);
@@ -1096,7 +1098,6 @@ xfs_buf_iodone_callback_error(
 	 * Repeated failure on an async write. Take action according to the
 	 * error configuration we have been set up to use.
 	 */
-	cfg = xfs_error_get_cfg(mp, XFS_ERR_METADATA, bp->b_error);
 
 	if (cfg->max_retries != XFS_ERR_RETRY_FOREVER &&
 	    ++bp->b_retries > cfg->max_retries)
