@@ -63,6 +63,7 @@ typedef enum {
 #define _XBF_KMEM	 (1 << 21)/* backed by heap memory */
 #define _XBF_DELWRI_Q	 (1 << 22)/* buffer on a delwri queue */
 #define _XBF_COMPOUND	 (1 << 23)/* compound buffer */
+#define _XBF_IN_FLIGHT	 (1 << 25) /* I/O in flight, for accounting purposes */
 
 typedef unsigned int xfs_buf_flags_t;
 
@@ -82,7 +83,8 @@ typedef unsigned int xfs_buf_flags_t;
 	{ _XBF_PAGES,		"PAGES" }, \
 	{ _XBF_KMEM,		"KMEM" }, \
 	{ _XBF_DELWRI_Q,	"DELWRI_Q" }, \
-	{ _XBF_COMPOUND,	"COMPOUND" }
+	{ _XBF_COMPOUND,	"COMPOUND" }, \
+	{ _XBF_IN_FLIGHT,	"IN_FLIGHT" }
 
 
 /*
@@ -116,6 +118,8 @@ typedef struct xfs_buftarg {
 	/* LRU control structures */
 	struct shrinker		bt_shrinker;
 	struct list_lru		bt_lru;
+
+	struct percpu_counter	bt_io_count;
 } xfs_buftarg_t;
 
 struct xfs_buf;
