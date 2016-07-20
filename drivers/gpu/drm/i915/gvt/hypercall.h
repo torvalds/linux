@@ -33,6 +33,15 @@
 #ifndef _GVT_HYPERCALL_H_
 #define _GVT_HYPERCALL_H_
 
+struct intel_gvt_io_emulation_ops {
+	int (*emulate_cfg_read)(void *, unsigned int,
+				void *, unsigned int);
+	int (*emulate_cfg_write)(void *, unsigned int,
+				 void *, unsigned int);
+};
+
+extern struct intel_gvt_io_emulation_ops *gvt_io_emulation_ops;
+
 /*
  * Specific GVT-g MPT modules function collections. Currently GVT-g supports
  * both Xen and KVM by providing dedicated hypervisor-related MPT modules.
@@ -50,6 +59,11 @@ struct intel_gvt_mpt {
 	int (*write_gpa)(unsigned long handle, unsigned long gpa, void *buf,
 			 unsigned long len);
 	unsigned long (*gfn_to_mfn)(unsigned long handle, unsigned long gfn);
+	int (*map_gfn_to_mfn)(unsigned long handle, unsigned long gfn,
+			      unsigned long mfn, unsigned int nr, bool map,
+			      int type);
+	int (*set_trap_area)(unsigned long handle, u64 start, u64 end,
+			     bool map);
 };
 
 extern struct intel_gvt_mpt xengt_mpt;

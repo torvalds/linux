@@ -108,6 +108,14 @@ struct intel_vgpu_irq {
 	bool irq_warn_once[INTEL_GVT_EVENT_MAX];
 };
 
+struct intel_vgpu_opregion {
+	void *va;
+	u32 gfn[INTEL_GVT_OPREGION_PAGES];
+	struct page *pages[INTEL_GVT_OPREGION_PAGES];
+};
+
+#define vgpu_opregion(vgpu) (&(vgpu->opregion))
+
 struct intel_vgpu {
 	struct intel_gvt *gvt;
 	int id;
@@ -121,6 +129,7 @@ struct intel_vgpu {
 	struct intel_vgpu_mmio mmio;
 	struct intel_vgpu_irq irq;
 	struct intel_vgpu_gtt gtt;
+	struct intel_vgpu_opregion opregion;
 };
 
 struct intel_gvt_gm {
@@ -145,6 +154,11 @@ struct intel_gvt_firmware {
 	bool firmware_loaded;
 };
 
+struct intel_gvt_opregion {
+	void *opregion_va;
+	u32 opregion_pa;
+};
+
 struct intel_gvt {
 	struct mutex lock;
 	bool initialized;
@@ -159,6 +173,7 @@ struct intel_gvt {
 	struct intel_gvt_firmware firmware;
 	struct intel_gvt_irq irq;
 	struct intel_gvt_gtt gtt;
+	struct intel_gvt_opregion opregion;
 };
 
 void intel_gvt_free_firmware(struct intel_gvt *gvt);
@@ -300,6 +315,21 @@ int intel_gvt_ggtt_index_g2h(struct intel_vgpu *vgpu, unsigned long g_index,
 			     unsigned long *h_index);
 int intel_gvt_ggtt_h2g_index(struct intel_vgpu *vgpu, unsigned long h_index,
 			     unsigned long *g_index);
+
+int intel_vgpu_emulate_cfg_read(void *__vgpu, unsigned int offset,
+		void *p_data, unsigned int bytes);
+
+int intel_vgpu_emulate_cfg_write(void *__vgpu, unsigned int offset,
+		void *p_data, unsigned int bytes);
+
+void intel_gvt_clean_opregion(struct intel_gvt *gvt);
+int intel_gvt_init_opregion(struct intel_gvt *gvt);
+
+void intel_vgpu_clean_opregion(struct intel_vgpu *vgpu);
+int intel_vgpu_init_opregion(struct intel_vgpu *vgpu, u32 gpa);
+
+int intel_vgpu_emulate_opregion_request(struct intel_vgpu *vgpu, u32 swsci);
+
 #include "mpt.h"
 
 #endif

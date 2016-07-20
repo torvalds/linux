@@ -42,6 +42,11 @@ static const char * const supported_hypervisors[] = {
 	[INTEL_GVT_HYPERVISOR_KVM] = "KVM",
 };
 
+struct intel_gvt_io_emulation_ops intel_gvt_io_emulation_ops = {
+	.emulate_cfg_read = intel_vgpu_emulate_cfg_read,
+	.emulate_cfg_write = intel_vgpu_emulate_cfg_write,
+};
+
 /**
  * intel_gvt_init_host - Load MPT modules and detect if we're running in host
  * @gvt: intel gvt device
@@ -122,6 +127,7 @@ void intel_gvt_clean_device(struct drm_i915_private *dev_priv)
 	if (WARN_ON(!gvt->initialized))
 		return;
 
+	intel_gvt_clean_opregion(gvt);
 	intel_gvt_clean_gtt(gvt);
 	intel_gvt_clean_irq(gvt);
 	intel_gvt_clean_mmio_info(gvt);
@@ -179,10 +185,16 @@ int intel_gvt_init_device(struct drm_i915_private *dev_priv)
 	if (ret)
 		goto out_clean_irq;
 
+	ret = intel_gvt_init_opregion(gvt);
+	if (ret)
+		goto out_clean_gtt;
+
 	gvt_dbg_core("gvt device creation is done\n");
 	gvt->initialized = true;
 	return 0;
 
+out_clean_gtt:
+	intel_gvt_clean_gtt(gvt);
 out_clean_irq:
 	intel_gvt_clean_irq(gvt);
 out_free_firmware:

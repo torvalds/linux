@@ -224,4 +224,46 @@ static inline unsigned long intel_gvt_hypervisor_gfn_to_mfn(
 	return intel_gvt_host.mpt->gfn_to_mfn(vgpu->handle, gfn);
 }
 
+enum {
+	GVT_MAP_APERTURE = 0,
+	GVT_MAP_OPREGION,
+};
+
+/**
+ * intel_gvt_hypervisor_map_gfn_to_mfn - map a GFN region to MFN
+ * @vgpu: a vGPU
+ * @gfn: guest PFN
+ * @mfn: host PFN
+ * @nr: amount of PFNs
+ * @map: map or unmap
+ * @type: map type
+ *
+ * Returns:
+ * Zero on success, negative error code if failed.
+ */
+static inline int intel_gvt_hypervisor_map_gfn_to_mfn(
+		struct intel_vgpu *vgpu, unsigned long gfn,
+		unsigned long mfn, unsigned int nr,
+		bool map, int type)
+{
+	return intel_gvt_host.mpt->map_gfn_to_mfn(vgpu->handle, gfn, mfn, nr,
+						  map, type);
+}
+
+/**
+ * intel_gvt_hypervisor_set_trap_area - Trap a guest PA region
+ * @vgpu: a vGPU
+ * @start: the beginning of the guest physical address region
+ * @end: the end of the guest physical address region
+ * @map: map or unmap
+ *
+ * Returns:
+ * Zero on success, negative error code if failed.
+ */
+static inline int intel_gvt_hypervisor_set_trap_area(
+		struct intel_vgpu *vgpu, u64 start, u64 end, bool map)
+{
+	return intel_gvt_host.mpt->set_trap_area(vgpu->handle, start, end, map);
+}
+
 #endif /* _GVT_MPT_H_ */
