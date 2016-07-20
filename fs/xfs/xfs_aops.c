@@ -1303,7 +1303,7 @@ xfs_get_blocks_dax_fault(
  * whereas if we have flags set we will always be called in task context
  * (i.e. from a workqueue).
  */
-STATIC int
+int
 xfs_end_io_direct_write(
 	struct kiocb		*iocb,
 	loff_t			offset,
@@ -1374,24 +1374,10 @@ xfs_vm_direct_IO(
 	struct kiocb		*iocb,
 	struct iov_iter		*iter)
 {
-	struct inode		*inode = iocb->ki_filp->f_mapping->host;
-	dio_iodone_t		*endio = NULL;
-	int			flags = 0;
-	struct block_device	*bdev;
-
-	if (iov_iter_rw(iter) == WRITE) {
-		endio = xfs_end_io_direct_write;
-		flags = DIO_ASYNC_EXTEND;
-	}
-
-	if (IS_DAX(inode)) {
-		return dax_do_io(iocb, inode, iter,
-				 xfs_get_blocks_direct, endio, 0);
-	}
-
-	bdev = xfs_find_bdev_for_inode(inode);
-	return  __blockdev_direct_IO(iocb, inode, bdev, iter,
-			xfs_get_blocks_direct, endio, NULL, flags);
+	/*
+	 * We just need the method present so that open/fcntl allow direct I/O.
+	 */
+	return -EINVAL;
 }
 
 STATIC sector_t
