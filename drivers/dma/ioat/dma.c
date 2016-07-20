@@ -38,7 +38,53 @@
 
 #include "../dmaengine.h"
 
+static char *chanerr_str[] = {
+	"DMA Transfer Destination Address Error",
+	"Next Descriptor Address Error",
+	"Descriptor Error",
+	"Chan Address Value Error",
+	"CHANCMD Error",
+	"Chipset Uncorrectable Data Integrity Error",
+	"DMA Uncorrectable Data Integrity Error",
+	"Read Data Error",
+	"Write Data Error",
+	"Descriptor Control Error",
+	"Descriptor Transfer Size Error",
+	"Completion Address Error",
+	"Interrupt Configuration Error",
+	"Super extended descriptor Address Error",
+	"Unaffiliated Error",
+	"CRC or XOR P Error",
+	"XOR Q Error",
+	"Descriptor Count Error",
+	"DIF All F detect Error",
+	"Guard Tag verification Error",
+	"Application Tag verification Error",
+	"Reference Tag verification Error",
+	"Bundle Bit Error",
+	"Result DIF All F detect Error",
+	"Result Guard Tag verification Error",
+	"Result Application Tag verification Error",
+	"Result Reference Tag verification Error",
+	NULL
+};
+
 static void ioat_eh(struct ioatdma_chan *ioat_chan);
+
+static void ioat_print_chanerrs(struct ioatdma_chan *ioat_chan, u32 chanerr)
+{
+	int i;
+
+	for (i = 0; i < 32; i++) {
+		if ((chanerr >> i) & 1) {
+			if (chanerr_str[i]) {
+				dev_err(to_dev(ioat_chan), "Err(%d): %s\n",
+					i, chanerr_str[i]);
+			} else
+				break;
+		}
+	}
+}
 
 /**
  * ioat_dma_do_interrupt - handler used for single vector interrupt mode
@@ -774,6 +820,11 @@ static void ioat_eh(struct ioatdma_chan *ioat_chan)
 	if (chanerr ^ err_handled || chanerr == 0) {
 		dev_err(to_dev(ioat_chan), "%s: fatal error (%x:%x)\n",
 			__func__, chanerr, err_handled);
+		dev_err(to_dev(ioat_chan), "Errors handled:\n");
+		ioat_print_chanerrs(ioat_chan, err_handled);
+		dev_err(to_dev(ioat_chan), "Errors not handled:\n");
+		ioat_print_chanerrs(ioat_chan, (chanerr & ~err_handled));
+
 		BUG();
 	}
 
@@ -833,6 +884,9 @@ void ioat_timer_event(unsigned long data)
 		chanerr = readl(ioat_chan->reg_base + IOAT_CHANERR_OFFSET);
 		dev_err(to_dev(ioat_chan), "%s: Channel halted (%x)\n",
 			__func__, chanerr);
+		dev_err(to_dev(ioat_chan), "Errors:\n");
+		ioat_print_chanerrs(ioat_chan, chanerr);
+
 		if (test_bit(IOAT_RUN, &ioat_chan->state)) {
 			spin_lock_bh(&ioat_chan->cleanup_lock);
 			spin_lock_bh(&ioat_chan->prep_lock);
@@ -875,10 +929,13 @@ void ioat_timer_event(unsigned long data)
 		u32 chanerr;
 
 		chanerr = readl(ioat_chan->reg_base + IOAT_CHANERR_OFFSET);
-		dev_warn(to_dev(ioat_chan), "CHANSTS: %#Lx CHANERR: %#x\n",
-			 status, chanerr);
-		dev_warn(to_dev(ioat_chan), "Active descriptors: %d\n",
-			 ioat_ring_active(ioat_chan));
+		dev_err(to_dev(ioat_chan), "CHANSTS: %#Lx CHANERR: %#x\n",
+			status, chanerr);
+		dev_err(to_dev(ioat_chan), "Errors:\n");
+		ioat_print_chanerrs(ioat_chan, chanerr);
+
+		dev_dbg(to_dev(ioat_chan), "Active descriptors: %d\n",
+			ioat_ring_active(ioat_chan));
 
 		spin_lock_bh(&ioat_chan->prep_lock);
 		set_bit(IOAT_CHAN_DOWN, &ioat_chan->state);
