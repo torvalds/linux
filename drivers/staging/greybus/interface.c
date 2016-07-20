@@ -95,6 +95,10 @@ static int gb_interface_read_dme(struct gb_interface *intf)
 {
 	int ret;
 
+	/* DME attributes have already been read */
+	if (intf->dme_read)
+		return 0;
+
 	ret = gb_interface_dme_attr_get(intf, DME_DDBL1_MANUFACTURERID,
 					&intf->ddbl1_manufacturer_id);
 	if (ret)
@@ -111,7 +115,13 @@ static int gb_interface_read_dme(struct gb_interface *intf)
 		intf->quirks |= GB_INTERFACE_QUIRK_NO_INIT_STATUS;
 	}
 
-	return gb_interface_read_ara_dme(intf);
+	ret = gb_interface_read_ara_dme(intf);
+	if (ret)
+		return ret;
+
+	intf->dme_read = true;
+
+	return 0;
 }
 
 static int gb_interface_route_create(struct gb_interface *intf)

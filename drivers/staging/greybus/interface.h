@@ -56,6 +56,7 @@ struct gb_interface {
 	bool active;
 	bool enabled;
 	bool mode_switch;
+	bool dme_read;
 
 	struct work_struct mode_switch_work;
 	struct completion mode_switch_completion;
