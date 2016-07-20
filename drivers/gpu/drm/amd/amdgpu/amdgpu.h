@@ -313,6 +313,9 @@ struct amdgpu_ring_funcs {
 	void (*pad_ib)(struct amdgpu_ring *ring, struct amdgpu_ib *ib);
 	unsigned (*init_cond_exec)(struct amdgpu_ring *ring);
 	void (*patch_cond_exec)(struct amdgpu_ring *ring, unsigned offset);
+	/* note usage for clock and power gating */
+	void (*begin_use)(struct amdgpu_ring *ring);
+	void (*end_use)(struct amdgpu_ring *ring);
 };
 
 /*

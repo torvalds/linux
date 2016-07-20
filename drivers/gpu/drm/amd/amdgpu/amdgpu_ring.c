@@ -75,6 +75,10 @@ int amdgpu_ring_alloc(struct amdgpu_ring *ring, unsigned ndw)
 
 	ring->count_dw = ndw;
 	ring->wptr_old = ring->wptr;
+
+	if (ring->funcs->begin_use)
+		ring->funcs->begin_use(ring);
+
 	return 0;
 }
 
@@ -127,6 +131,9 @@ void amdgpu_ring_commit(struct amdgpu_ring *ring)
 
 	mb();
 	amdgpu_ring_set_wptr(ring);
+
+	if (ring->funcs->end_use)
+		ring->funcs->end_use(ring);
 }
 
 /**
@@ -139,6 +146,9 @@ void amdgpu_ring_commit(struct amdgpu_ring *ring)
 void amdgpu_ring_undo(struct amdgpu_ring *ring)
 {
 	ring->wptr = ring->wptr_old;
+
+	if (ring->funcs->end_use)
+		ring->funcs->end_use(ring);
 }
 
 /**
