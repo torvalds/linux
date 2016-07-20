@@ -219,7 +219,7 @@ static int greybus_probe(struct device *dev)
 		return retval;
 	}
 
-	gb_timesync_schedule_asynchronous(bundle->intf);
+	gb_timesync_schedule_synchronous(bundle->intf);
 
 	pm_runtime_put(&bundle->intf->dev);
 
