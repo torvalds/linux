@@ -292,18 +292,12 @@ xfs_file_read_iter(
 	struct xfs_mount	*mp = ip->i_mount;
 	size_t			size = iov_iter_count(to);
 	ssize_t			ret = 0;
-	int			ioflags = 0;
 	xfs_fsize_t		n;
 	loff_t			pos = iocb->ki_pos;
 
 	XFS_STATS_INC(mp, xs_read_calls);
 
-	if (unlikely(iocb->ki_flags & IOCB_DIRECT))
-		ioflags |= XFS_IO_ISDIRECT;
-	if (file->f_mode & FMODE_NOCMTIME)
-		ioflags |= XFS_IO_INVIS;
-
-	if ((ioflags & XFS_IO_ISDIRECT) && !IS_DAX(inode)) {
+	if ((iocb->ki_flags & IOCB_DIRECT) && !IS_DAX(inode)) {
 		xfs_buftarg_t	*target =
 			XFS_IS_REALTIME_INODE(ip) ?
 				mp->m_rtdev_targp : mp->m_ddev_targp;
@@ -336,7 +330,7 @@ xfs_file_read_iter(
 	 * serialisation.
 	 */
 	xfs_rw_ilock(ip, XFS_IOLOCK_SHARED);
-	if ((ioflags & XFS_IO_ISDIRECT) && inode->i_mapping->nrpages) {
+	if ((iocb->ki_flags & IOCB_DIRECT) && inode->i_mapping->nrpages) {
 		xfs_rw_iunlock(ip, XFS_IOLOCK_SHARED);
 		xfs_rw_ilock(ip, XFS_IOLOCK_EXCL);
 
@@ -370,7 +364,10 @@ xfs_file_read_iter(
 		xfs_rw_ilock_demote(ip, XFS_IOLOCK_EXCL);
 	}
 
-	trace_xfs_file_read(ip, size, pos, ioflags);
+	if (iocb->ki_flags & IOCB_DIRECT)
+		trace_xfs_file_direct_read(ip, size, pos);
+	else
+		trace_xfs_file_buffered_read(ip, size, pos);
 
 	ret = generic_file_read_iter(iocb, to);
 	if (ret > 0)
@@ -389,18 +386,14 @@ xfs_file_splice_read(
 	unsigned int		flags)
 {
 	struct xfs_inode	*ip = XFS_I(infilp->f_mapping->host);
-	int			ioflags = 0;
 	ssize_t			ret;
 
 	XFS_STATS_INC(ip->i_mount, xs_read_calls);
 
-	if (infilp->f_mode & FMODE_NOCMTIME)
-		ioflags |= XFS_IO_INVIS;
-
 	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
 		return -EIO;
 
-	trace_xfs_file_splice_read(ip, count, *ppos, ioflags);
+	trace_xfs_file_splice_read(ip, count, *ppos);
 
 	/*
 	 * DAX inodes cannot ues the page cache for splice, so we have to push
@@ -789,7 +782,7 @@ xfs_file_dio_aio_write(
 		iolock = XFS_IOLOCK_SHARED;
 	}
 
-	trace_xfs_file_direct_write(ip, count, iocb->ki_pos, 0);
+	trace_xfs_file_direct_write(ip, count, iocb->ki_pos);
 
 	data = *from;
 	ret = mapping->a_ops->direct_IO(iocb, &data);
@@ -839,8 +832,7 @@ xfs_file_buffered_aio_write(
 	current->backing_dev_info = inode_to_bdi(inode);
 
 write_retry:
-	trace_xfs_file_buffered_write(ip, iov_iter_count(from),
-				      iocb->ki_pos, 0);
+	trace_xfs_file_buffered_write(ip, iov_iter_count(from), iocb->ki_pos);
 	ret = generic_perform_write(file, from, iocb->ki_pos);
 	if (likely(ret >= 0))
 		iocb->ki_pos += ret;
