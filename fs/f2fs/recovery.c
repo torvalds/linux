@@ -482,6 +482,8 @@ static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 #endif
 				/* We should not get -ENOSPC */
 				f2fs_bug_on(sbi, err);
+				if (err)
+					goto err;
 			}
 
 			/* Check the previous node page having this index */
