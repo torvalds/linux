@@ -27,7 +27,6 @@
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/uaccess.h>
-#include <linux/version.h>
 #include <linux/watchdog.h>
 
 #define FTS_DEVICE_ID_REG		0x0000
