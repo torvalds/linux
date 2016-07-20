@@ -650,8 +650,7 @@ static void sdma_event_disable(struct sdma_channel *sdmac, unsigned int event)
 
 static void sdma_handle_channel_loop(struct sdma_channel *sdmac)
 {
-	if (sdmac->desc.callback)
-		sdmac->desc.callback(sdmac->desc.callback_param);
+	dmaengine_desc_get_callback_invoke(&sdmac->desc, NULL);
 }
 
 static void sdma_update_channel_loop(struct sdma_channel *sdmac)
@@ -701,8 +700,8 @@ static void mxc_sdma_handle_channel_normal(struct sdma_channel *sdmac)
 		sdmac->status = DMA_COMPLETE;
 
 	dma_cookie_complete(&sdmac->desc);
-	if (sdmac->desc.callback)
-		sdmac->desc.callback(sdmac->desc.callback_param);
+
+	dmaengine_desc_get_callback_invoke(&sdmac->desc, NULL);
 }
 
 static void sdma_tasklet(unsigned long data)
