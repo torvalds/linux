@@ -2503,6 +2503,7 @@ MLXSW_ITEM32(reg, ppcnt, pnat, 0x00, 14, 2);
 enum mlxsw_reg_ppcnt_grp {
 	MLXSW_REG_PPCNT_IEEE_8023_CNT = 0x0,
 	MLXSW_REG_PPCNT_PRIO_CNT = 0x10,
+	MLXSW_REG_PPCNT_TC_CNT = 0x11,
 };
 
 /* reg_ppcnt_grp
@@ -2702,6 +2703,23 @@ MLXSW_ITEM64(reg, ppcnt, tx_pause_duration, 0x08 + 0x68, 0, 64);
  * Access: RO
  */
 MLXSW_ITEM64(reg, ppcnt, tx_pause_transition, 0x08 + 0x70, 0, 64);
+
+/* Ethernet Per Traffic Group Counters */
+
+/* reg_ppcnt_tc_transmit_queue
+ * Contains the transmit queue depth in cells of traffic class
+ * selected by prio_tc and the port selected by local_port.
+ * The field cannot be cleared.
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, tc_transmit_queue, 0x08 + 0x00, 0, 64);
+
+/* reg_ppcnt_tc_no_buffer_discard_uc
+ * The number of unicast packets dropped due to lack of shared
+ * buffer resources.
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, tc_no_buffer_discard_uc, 0x08 + 0x08, 0, 64);
 
 static inline void mlxsw_reg_ppcnt_pack(char *payload, u8 local_port,
 					enum mlxsw_reg_ppcnt_grp grp,
