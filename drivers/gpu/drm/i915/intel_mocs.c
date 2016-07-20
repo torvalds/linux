@@ -204,9 +204,9 @@ static bool get_mocs_settings(struct drm_i915_private *dev_priv,
 	return result;
 }
 
-static i915_reg_t mocs_register(enum intel_engine_id ring, int index)
+static i915_reg_t mocs_register(enum intel_engine_id engine_id, int index)
 {
-	switch (ring) {
+	switch (engine_id) {
 	case RCS:
 		return GEN9_GFX_MOCS(index);
 	case VCS:
@@ -218,7 +218,7 @@ static i915_reg_t mocs_register(enum intel_engine_id ring, int index)
 	case VCS2:
 		return GEN9_MFX1_MOCS(index);
 	default:
-		MISSING_CASE(ring);
+		MISSING_CASE(engine_id);
 		return INVALID_MMIO_REG;
 	}
 }

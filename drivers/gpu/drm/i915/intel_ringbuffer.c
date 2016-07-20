@@ -1595,7 +1595,7 @@ gen6_ring_sync(struct drm_i915_gem_request *waiter_req,
 }
 
 static void
-gen5_seqno_barrier(struct intel_engine_cs *ring)
+gen5_seqno_barrier(struct intel_engine_cs *engine)
 {
 	/* MI_STORE are internally buffered by the GPU and not flushed
 	 * either by MI_FLUSH or SyncFlush or any other combination of

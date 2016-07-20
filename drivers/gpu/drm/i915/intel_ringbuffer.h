@@ -197,14 +197,14 @@ struct intel_engine_cs {
 
 	u32             irq_keep_mask; /* always keep these interrupts */
 	u32		irq_enable_mask; /* bitmask to enable ring interrupt */
-	void		(*irq_enable)(struct intel_engine_cs *ring);
-	void		(*irq_disable)(struct intel_engine_cs *ring);
+	void		(*irq_enable)(struct intel_engine_cs *engine);
+	void		(*irq_disable)(struct intel_engine_cs *engine);
 
-	int		(*init_hw)(struct intel_engine_cs *ring);
+	int		(*init_hw)(struct intel_engine_cs *engine);
 
 	int		(*init_context)(struct drm_i915_gem_request *req);
 
-	void		(*write_tail)(struct intel_engine_cs *ring,
+	void		(*write_tail)(struct intel_engine_cs *engine,
 				      u32 value);
 	int __must_check (*flush)(struct drm_i915_gem_request *req,
 				  u32	invalidate_domains,
@@ -216,14 +216,14 @@ struct intel_engine_cs {
 	 * seen value is good enough. Note that the seqno will always be
 	 * monotonic, even if not coherent.
 	 */
-	void		(*irq_seqno_barrier)(struct intel_engine_cs *ring);
+	void		(*irq_seqno_barrier)(struct intel_engine_cs *engine);
 	int		(*dispatch_execbuffer)(struct drm_i915_gem_request *req,
 					       u64 offset, u32 length,
 					       unsigned dispatch_flags);
 #define I915_DISPATCH_SECURE 0x1
 #define I915_DISPATCH_PINNED 0x2
 #define I915_DISPATCH_RS     0x4
-	void		(*cleanup)(struct intel_engine_cs *ring);
+	void		(*cleanup)(struct intel_engine_cs *engine);
 
 	/* GEN8 signal/wait table - never trust comments!
 	 *	  signal to	signal to    signal to   signal to      signal to
