@@ -70,7 +70,7 @@ static signed long i915_fence_wait(struct fence *fence,
 
 	ret = __i915_wait_request(to_request(fence),
 				  interruptible, timeout,
-				  NULL);
+				  NO_WAITBOOST);
 	if (ret == -ETIME)
 		return 0;
 
@@ -642,7 +642,7 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 	 * forcing the clocks too high for the whole system, we only allow
 	 * each client to waitboost once in a busy period.
 	 */
-	if (INTEL_GEN(req->i915) >= 6)
+	if (IS_RPS_CLIENT(rps) && INTEL_GEN(req->i915) >= 6)
 		gen6_rps_boost(req->i915, rps, req->emitted_jiffies);
 
 	/* Optimistic spin for the next ~jiffie before touching IRQs */
@@ -713,7 +713,8 @@ complete:
 			*timeout = 0;
 	}
 
-	if (rps && req->fence.seqno == req->engine->last_submitted_seqno) {
+	if (IS_RPS_USER(rps) &&
+	    req->fence.seqno == req->engine->last_submitted_seqno) {
 		/* The GPU is now idle and this client has stalled.
 		 * Since no other client has submitted a request in the
 		 * meantime, assume that this client is the only one

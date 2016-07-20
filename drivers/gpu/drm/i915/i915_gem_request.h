@@ -206,6 +206,9 @@ void __i915_add_request(struct drm_i915_gem_request *req,
 	__i915_add_request(req, NULL, false)
 
 struct intel_rps_client;
+#define NO_WAITBOOST ERR_PTR(-1)
+#define IS_RPS_CLIENT(p) (!IS_ERR(p))
+#define IS_RPS_USER(p) (!IS_ERR_OR_NULL(p))
 
 int __i915_wait_request(struct drm_i915_gem_request *req,
 			bool interruptible,
