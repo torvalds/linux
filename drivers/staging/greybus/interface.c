@@ -822,7 +822,8 @@ static int gb_interface_unipro_set(struct gb_interface *intf, bool enable)
 	return 0;
 }
 
-static int gb_interface_activate_operation(struct gb_interface *intf)
+static int gb_interface_activate_operation(struct gb_interface *intf,
+					   enum gb_interface_type *intf_type)
 {
 	struct gb_svc *svc = intf->hd->svc;
 	u8 type;
@@ -838,20 +839,20 @@ static int gb_interface_activate_operation(struct gb_interface *intf)
 
 	switch (type) {
 	case GB_SVC_INTF_TYPE_DUMMY:
-		intf->type = GB_INTERFACE_TYPE_DUMMY;
+		*intf_type = GB_INTERFACE_TYPE_DUMMY;
 		/* FIXME: handle as an error for now */
 		return -ENODEV;
 	case GB_SVC_INTF_TYPE_UNIPRO:
-		intf->type = GB_INTERFACE_TYPE_UNIPRO;
+		*intf_type = GB_INTERFACE_TYPE_UNIPRO;
 		dev_err(&intf->dev, "interface type UniPro not supported\n");
 		/* FIXME: handle as an error for now */
 		return -ENODEV;
 	case GB_SVC_INTF_TYPE_GREYBUS:
-		intf->type = GB_INTERFACE_TYPE_GREYBUS;
+		*intf_type = GB_INTERFACE_TYPE_GREYBUS;
 		break;
 	default:
 		dev_err(&intf->dev, "unknown interface type: %u\n", type);
-		intf->type = GB_INTERFACE_TYPE_UNKNOWN;
+		*intf_type = GB_INTERFACE_TYPE_UNKNOWN;
 		return -ENODEV;
 	}
 
@@ -865,9 +866,12 @@ static int gb_interface_hibernate_link(struct gb_interface *intf)
 	return gb_svc_intf_set_power_mode_hibernate(svc, intf->interface_id);
 }
 
-static int _gb_interface_activate(struct gb_interface *intf)
+static int _gb_interface_activate(struct gb_interface *intf,
+				  enum gb_interface_type *type)
 {
 	int ret;
+
+	*type = GB_INTERFACE_TYPE_UNKNOWN;
 
 	if (intf->ejected)
 		return -ENODEV;
@@ -884,7 +888,7 @@ static int _gb_interface_activate(struct gb_interface *intf)
 	if (ret)
 		goto err_refclk_disable;
 
-	ret = gb_interface_activate_operation(intf);
+	ret = gb_interface_activate_operation(intf, type);
 	if (ret)
 		goto err_unipro_disable;
 
@@ -915,29 +919,60 @@ err_vsys_disable:
 }
 
 /*
+ * At present, we assume a UniPro-only module to be a Greybus module that
+ * failed to send its mailbox poke. There is some reason to believe that this
+ * is because of a bug in the ES3 bootrom.
+ *
+ * FIXME: Check if this is a Toshiba bridge before retrying?
+ */
+static int _gb_interface_activate_es3_hack(struct gb_interface *intf,
+					   enum gb_interface_type *type)
+{
+	int retries = 3;
+	int ret;
+
+	while (retries--) {
+		ret = _gb_interface_activate(intf, type);
+		if (ret == -ENODEV && *type == GB_INTERFACE_TYPE_UNIPRO)
+			continue;
+
+		break;
+	}
+
+	return ret;
+}
+
+/*
  * Activate an interface.
  *
  * Locking: Caller holds the interface mutex.
  */
 int gb_interface_activate(struct gb_interface *intf)
 {
-	int retries = 3;
+	enum gb_interface_type type;
 	int ret;
 
-	/*
-	 * At present, we assume a UniPro-only module
-	 * to be a Greybus module that failed to send its mailbox
-	 * poke. There is some reason to believe that this is
-	 * because of a bug in the ES3 bootrom.
-	 *
-	 * FIXME: Check if this is a Toshiba bridge before retrying?
-	 */
-	while (retries--) {
-		ret = _gb_interface_activate(intf);
-		if (ret == -ENODEV && intf->type == GB_SVC_INTF_TYPE_UNIPRO)
-			continue;
-
+	switch (intf->type) {
+	case GB_INTERFACE_TYPE_INVALID:
+	case GB_INTERFACE_TYPE_GREYBUS:
+		ret = _gb_interface_activate_es3_hack(intf, &type);
 		break;
+	default:
+		ret = _gb_interface_activate(intf, &type);
+	}
+
+	/* Make sure type is detected correctly during reactivation. */
+	if (intf->type != GB_INTERFACE_TYPE_INVALID) {
+		if (type != intf->type) {
+			dev_err(&intf->dev, "failed to detect interface type\n");
+
+			if (!ret)
+				gb_interface_deactivate(intf);
+
+			return -EIO;
+		}
+	} else {
+		intf->type = type;
 	}
 
 	return ret;
