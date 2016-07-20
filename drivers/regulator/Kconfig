@@ -645,10 +645,11 @@ config REGULATOR_RK808
 	  outputs which can be controlled by i2c communication.
 
 config REGULATOR_RN5T618
-	tristate "Ricoh RN5T618 voltage regulators"
+	tristate "Ricoh RN5T567/618 voltage regulators"
 	depends on MFD_RN5T618
 	help
-	  Say y here to support the regulators found on Ricoh RN5T618 PMIC.
+	  Say y here to support the regulators found on Ricoh RN5T567 or
+	  RN5T618 PMIC.
 
 config REGULATOR_RT5033
 	tristate "Richtek RT5033 Regulators"
