@@ -2039,14 +2039,12 @@ static void pl330_tasklet(unsigned long data)
 	}
 
 	while (!list_empty(&pch->completed_list)) {
-		dma_async_tx_callback callback;
-		void *callback_param;
+		struct dmaengine_desc_callback cb;
 
 		desc = list_first_entry(&pch->completed_list,
 					struct dma_pl330_desc, node);
 
-		callback = desc->txd.callback;
-		callback_param = desc->txd.callback_param;
+		dmaengine_desc_get_callback(&desc->txd, &cb);
 
 		if (pch->cyclic) {
 			desc->status = PREP;
@@ -2064,9 +2062,9 @@ static void pl330_tasklet(unsigned long data)
 
 		dma_descriptor_unmap(&desc->txd);
 
-		if (callback) {
+		if (dmaengine_desc_callback_valid(&cb)) {
 			spin_unlock_irqrestore(&pch->lock, flags);
-			callback(callback_param);
+			dmaengine_desc_callback_invoke(&cb, NULL);
 			spin_lock_irqsave(&pch->lock, flags);
 		}
 	}
