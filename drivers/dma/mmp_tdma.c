@@ -349,9 +349,7 @@ static void dma_do_tasklet(unsigned long data)
 {
 	struct mmp_tdma_chan *tdmac = (struct mmp_tdma_chan *)data;
 
-	if (tdmac->desc.callback)
-		tdmac->desc.callback(tdmac->desc.callback_param);
-
+	dmaengine_desc_get_callback_invoke(&tdmac->desc, NULL);
 }
 
 static void mmp_tdma_free_descriptor(struct mmp_tdma_chan *tdmac)
