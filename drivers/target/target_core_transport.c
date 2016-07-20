@@ -754,7 +754,15 @@ EXPORT_SYMBOL(target_complete_cmd);
 
 void target_complete_cmd_with_length(struct se_cmd *cmd, u8 scsi_status, int length)
 {
-	if (scsi_status == SAM_STAT_GOOD && length < cmd->data_length) {
+	if (scsi_status != SAM_STAT_GOOD) {
+		return;
+	}
+
+	/*
+	 * Calculate new residual count based upon length of SCSI data
+	 * transferred.
+	 */
+	if (length < cmd->data_length) {
 		if (cmd->se_cmd_flags & SCF_UNDERFLOW_BIT) {
 			cmd->residual_count += cmd->data_length - length;
 		} else {
@@ -763,6 +771,12 @@ void target_complete_cmd_with_length(struct se_cmd *cmd, u8 scsi_status, int len
 		}
 
 		cmd->data_length = length;
+	} else if (length > cmd->data_length) {
+		cmd->se_cmd_flags |= SCF_OVERFLOW_BIT;
+		cmd->residual_count = length - cmd->data_length;
+	} else {
+		cmd->se_cmd_flags &= ~(SCF_OVERFLOW_BIT | SCF_UNDERFLOW_BIT);
+		cmd->residual_count = 0;
 	}
 
 	target_complete_cmd(cmd, scsi_status);
