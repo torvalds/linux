@@ -174,6 +174,11 @@ struct mem_cgroup_thresholds {
 	struct mem_cgroup_threshold_ary *spare;
 };
 
+struct mem_cgroup_id {
+	int id;
+	atomic_t ref;
+};
+
 /*
  * The memory controller data structure. The memory controller controls both
  * page cache and RSS per cgroup. We would eventually like to provide
@@ -182,6 +187,9 @@ struct mem_cgroup_thresholds {
  */
 struct mem_cgroup {
 	struct cgroup_subsys_state css;
+
+	/* Private memcg ID. Used to ID objects that outlive the cgroup */
+	struct mem_cgroup_id id;
 
 	/* Accounted resources */
 	struct page_counter memory;
