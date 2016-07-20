@@ -848,6 +848,8 @@ static const struct amdgpu_ring_funcs uvd_v5_0_ring_funcs = {
 	.test_ib = uvd_v5_0_ring_test_ib,
 	.insert_nop = amdgpu_ring_insert_nop,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
+	.begin_use = amdgpu_uvd_ring_begin_use,
+	.end_use = amdgpu_uvd_ring_end_use,
 };
 
 static void uvd_v5_0_set_ring_funcs(struct amdgpu_device *adev)

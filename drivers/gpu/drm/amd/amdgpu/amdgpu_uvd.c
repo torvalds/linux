@@ -92,7 +92,6 @@ MODULE_FIRMWARE(FIRMWARE_STONEY);
 MODULE_FIRMWARE(FIRMWARE_POLARIS10);
 MODULE_FIRMWARE(FIRMWARE_POLARIS11);
 
-static void amdgpu_uvd_note_usage(struct amdgpu_device *adev);
 static void amdgpu_uvd_idle_work_handler(struct work_struct *work);
 
 int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
@@ -345,8 +344,6 @@ void amdgpu_uvd_free_handles(struct amdgpu_device *adev, struct drm_file *filp)
 		uint32_t handle = atomic_read(&adev->uvd.handles[i]);
 		if (handle != 0 && adev->uvd.filp[i] == filp) {
 			struct fence *fence;
-
-			amdgpu_uvd_note_usage(adev);
 
 			r = amdgpu_uvd_get_destroy_msg(ring, handle,
 						       false, &fence);
@@ -913,8 +910,6 @@ int amdgpu_uvd_ring_parse_cs(struct amdgpu_cs_parser *parser, uint32_t ib_idx)
 		return -EINVAL;
 	}
 
-	amdgpu_uvd_note_usage(ctx.parser->adev);
-
 	return 0;
 }
 
@@ -1114,11 +1109,10 @@ static void amdgpu_uvd_idle_work_handler(struct work_struct *work)
 	}
 }
 
-static void amdgpu_uvd_note_usage(struct amdgpu_device *adev)
+void amdgpu_uvd_ring_begin_use(struct amdgpu_ring *ring)
 {
+	struct amdgpu_device *adev = ring->adev;
 	bool set_clocks = !cancel_delayed_work_sync(&adev->uvd.idle_work);
-	set_clocks &= schedule_delayed_work(&adev->uvd.idle_work,
-					    UVD_IDLE_TIMEOUT);
 
 	if (set_clocks) {
 		if (adev->pm.dpm_enabled) {
@@ -1127,4 +1121,9 @@ static void amdgpu_uvd_note_usage(struct amdgpu_device *adev)
 			amdgpu_asic_set_uvd_clocks(adev, 53300, 40000);
 		}
 	}
+}
+
+void amdgpu_uvd_ring_end_use(struct amdgpu_ring *ring)
+{
+	schedule_delayed_work(&ring->adev->uvd.idle_work, UVD_IDLE_TIMEOUT);
 }
