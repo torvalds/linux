@@ -326,8 +326,7 @@ static void mxs_dma_tasklet(unsigned long data)
 {
 	struct mxs_dma_chan *mxs_chan = (struct mxs_dma_chan *) data;
 
-	if (mxs_chan->desc.callback)
-		mxs_chan->desc.callback(mxs_chan->desc.callback_param);
+	dmaengine_desc_get_callback_invoke(&mxs_chan->desc, NULL);
 }
 
 static int mxs_dma_irq_to_chan(struct mxs_dma_engine *mxs_dma, int irq)
