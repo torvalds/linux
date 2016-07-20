@@ -78,7 +78,7 @@ static void wait_rendering(struct drm_i915_gem_object *obj)
 		if (req == NULL)
 			continue;
 
-		requests[n++] = i915_gem_request_reference(req);
+		requests[n++] = i915_gem_request_get(req);
 	}
 
 	mutex_unlock(&dev->struct_mutex);
@@ -89,7 +89,7 @@ static void wait_rendering(struct drm_i915_gem_object *obj)
 	mutex_lock(&dev->struct_mutex);
 
 	for (i = 0; i < n; i++)
-		i915_gem_request_unreference(requests[i]);
+		i915_gem_request_put(requests[i]);
 }
 
 static void cancel_userptr(struct work_struct *work)

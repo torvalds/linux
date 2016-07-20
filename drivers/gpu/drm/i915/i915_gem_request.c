@@ -181,7 +181,7 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 	}
 
 	i915_gem_context_unreference(request->ctx);
-	i915_gem_request_unreference(request);
+	i915_gem_request_put(request);
 }
 
 void i915_gem_request_retire_upto(struct drm_i915_gem_request *req)

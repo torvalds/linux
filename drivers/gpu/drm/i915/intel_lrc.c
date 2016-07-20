@@ -441,7 +441,7 @@ static void execlists_context_unqueue(struct intel_engine_cs *engine)
 			 * will update tail past first request's workload */
 			cursor->elsp_submitted = req0->elsp_submitted;
 			list_del(&req0->execlist_link);
-			i915_gem_request_unreference(req0);
+			i915_gem_request_put(req0);
 			req0 = cursor;
 		} else {
 			if (IS_ENABLED(CONFIG_DRM_I915_GVT)) {
@@ -514,7 +514,7 @@ execlists_check_remove_request(struct intel_engine_cs *engine, u32 ctx_id)
 	execlists_context_status_change(head_req, INTEL_CONTEXT_SCHEDULE_OUT);
 
 	list_del(&head_req->execlist_link);
-	i915_gem_request_unreference(head_req);
+	i915_gem_request_put(head_req);
 
 	return 1;
 }
@@ -632,11 +632,11 @@ static void execlists_context_queue(struct drm_i915_gem_request *request)
 			WARN(tail_req->elsp_submitted != 0,
 				"More than 2 already-submitted reqs queued\n");
 			list_del(&tail_req->execlist_link);
-			i915_gem_request_unreference(tail_req);
+			i915_gem_request_put(tail_req);
 		}
 	}
 
-	i915_gem_request_reference(request);
+	i915_gem_request_get(request);
 	list_add_tail(&request->execlist_link, &engine->execlist_queue);
 	request->ctx_hw_id = request->ctx->hw_id;
 	if (num_elements == 0)
@@ -904,7 +904,7 @@ void intel_execlists_cancel_requests(struct intel_engine_cs *engine)
 
 	list_for_each_entry_safe(req, tmp, &cancel_list, execlist_link) {
 		list_del(&req->execlist_link);
-		i915_gem_request_unreference(req);
+		i915_gem_request_put(req);
 	}
 }
 

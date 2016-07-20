@@ -453,7 +453,7 @@ static int intel_breadcrumbs_signaler(void *arg)
 			rb_erase(&request->signaling.node, &b->signals);
 			spin_unlock(&b->lock);
 
-			i915_gem_request_unreference(request);
+			i915_gem_request_put(request);
 		} else {
 			if (kthread_should_stop())
 				break;
@@ -484,7 +484,7 @@ void intel_engine_enable_signaling(struct drm_i915_gem_request *request)
 
 	request->signaling.wait.tsk = b->signaler;
 	request->signaling.wait.seqno = request->fence.seqno;
-	i915_gem_request_reference(request);
+	i915_gem_request_get(request);
 
 	/* First add ourselves into the list of waiters, but register our
 	 * bottom-half as the signaller thread. As per usual, only the oldest

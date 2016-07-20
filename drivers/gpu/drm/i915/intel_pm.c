@@ -7775,7 +7775,7 @@ static void __intel_rps_boost_work(struct work_struct *work)
 	if (!i915_gem_request_completed(req))
 		gen6_rps_boost(req->i915, NULL, req->emitted_jiffies);
 
-	i915_gem_request_unreference(req);
+	i915_gem_request_put(req);
 	kfree(boost);
 }
 
@@ -7793,8 +7793,7 @@ void intel_queue_rps_boost_for_request(struct drm_i915_gem_request *req)
 	if (boost == NULL)
 		return;
 
-	i915_gem_request_reference(req);
-	boost->req = req;
+	boost->req = i915_gem_request_get(req);
 
 	INIT_WORK(&boost->work, __intel_rps_boost_work);
 	queue_work(req->i915->wq, &boost->work);

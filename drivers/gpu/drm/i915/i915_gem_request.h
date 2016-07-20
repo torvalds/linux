@@ -174,13 +174,13 @@ to_request(struct fence *fence)
 }
 
 static inline struct drm_i915_gem_request *
-i915_gem_request_reference(struct drm_i915_gem_request *req)
+i915_gem_request_get(struct drm_i915_gem_request *req)
 {
 	return to_request(fence_get(&req->fence));
 }
 
 static inline void
-i915_gem_request_unreference(struct drm_i915_gem_request *req)
+i915_gem_request_put(struct drm_i915_gem_request *req)
 {
 	fence_put(&req->fence);
 }
@@ -189,10 +189,10 @@ static inline void i915_gem_request_assign(struct drm_i915_gem_request **pdst,
 					   struct drm_i915_gem_request *src)
 {
 	if (src)
-		i915_gem_request_reference(src);
+		i915_gem_request_get(src);
 
 	if (*pdst)
-		i915_gem_request_unreference(*pdst);
+		i915_gem_request_put(*pdst);
 
 	*pdst = src;
 }

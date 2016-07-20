@@ -1422,7 +1422,7 @@ i915_gem_object_wait_rendering__nonblocking(struct drm_i915_gem_object *obj,
 		if (req == NULL)
 			return 0;
 
-		requests[n++] = i915_gem_request_reference(req);
+		requests[n++] = i915_gem_request_get(req);
 	} else {
 		for (i = 0; i < I915_NUM_ENGINES; i++) {
 			struct drm_i915_gem_request *req;
@@ -1431,7 +1431,7 @@ i915_gem_object_wait_rendering__nonblocking(struct drm_i915_gem_object *obj,
 			if (req == NULL)
 				continue;
 
-			requests[n++] = i915_gem_request_reference(req);
+			requests[n++] = i915_gem_request_get(req);
 		}
 	}
 
@@ -1444,7 +1444,7 @@ i915_gem_object_wait_rendering__nonblocking(struct drm_i915_gem_object *obj,
 	for (i = 0; i < n; i++) {
 		if (ret == 0)
 			i915_gem_object_retire_request(obj, requests[i]);
-		i915_gem_request_unreference(requests[i]);
+		i915_gem_request_put(requests[i]);
 	}
 
 	return ret;
@@ -2820,7 +2820,7 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 		if (obj->last_read_req[i] == NULL)
 			continue;
 
-		req[n++] = i915_gem_request_reference(obj->last_read_req[i]);
+		req[n++] = i915_gem_request_get(obj->last_read_req[i]);
 	}
 
 	mutex_unlock(&dev->struct_mutex);
@@ -2830,7 +2830,7 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 			ret = __i915_wait_request(req[i], true,
 						  args->timeout_ns > 0 ? &args->timeout_ns : NULL,
 						  to_rps_client(file));
-		i915_gem_request_unreference(req[i]);
+		i915_gem_request_put(req[i]);
 	}
 	return ret;
 
@@ -3845,14 +3845,14 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 		target = request;
 	}
 	if (target)
-		i915_gem_request_reference(target);
+		i915_gem_request_get(target);
 	spin_unlock(&file_priv->mm.lock);
 
 	if (target == NULL)
 		return 0;
 
 	ret = __i915_wait_request(target, true, NULL, NULL);
-	i915_gem_request_unreference(target);
+	i915_gem_request_put(target);
 
 	return ret;
 }

@@ -10954,10 +10954,9 @@ static void intel_unpin_work_fn(struct work_struct *__work)
 	mutex_lock(&dev->struct_mutex);
 	intel_unpin_fb_obj(work->old_fb, primary->state->rotation);
 	drm_gem_object_unreference(&work->pending_flip_obj->base);
-
-	if (work->flip_queued_req)
-		i915_gem_request_assign(&work->flip_queued_req, NULL);
 	mutex_unlock(&dev->struct_mutex);
+
+	i915_gem_request_put(work->flip_queued_req);
 
 	intel_frontbuffer_flip_complete(dev, to_intel_plane(primary)->frontbuffer_bit);
 	intel_fbc_post_update(crtc);
