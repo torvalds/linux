@@ -1982,7 +1982,7 @@ void rtl92e_update_rx_statistics(struct r8192_priv *priv,
 					weighting) / 6;
 }
 
-u8 rtl92e_rx_db_to_percent(char antpower)
+u8 rtl92e_rx_db_to_percent(s8 antpower)
 {
 	if ((antpower <= -100) || (antpower >= 20))
 		return	0;
@@ -1993,9 +1993,9 @@ u8 rtl92e_rx_db_to_percent(char antpower)
 
 }	/* QueryRxPwrPercentage */
 
-u8 rtl92e_evm_db_to_percent(char value)
+u8 rtl92e_evm_db_to_percent(s8 value)
 {
-	char ret_val;
+	s8 ret_val;
 
 	ret_val = value;
 
