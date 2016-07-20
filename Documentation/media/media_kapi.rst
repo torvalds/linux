@@ -28,9 +28,6 @@ For more details see the file COPYING in the source distribution of Linux.
     :maxdepth: 5
     :numbered:
 
-    kapi/v4l2-framework
-    kapi/v4l2-controls
-    kapi/videobuf
     kapi/v4l2-core
     kapi/dtv-core
     kapi/rc-core

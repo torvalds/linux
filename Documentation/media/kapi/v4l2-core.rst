@@ -1,38 +1,23 @@
 Video2Linux devices
 -------------------
 
-.. kernel-doc:: include/media/tuner.h
+.. toctree::
+    :maxdepth: 1
 
-.. kernel-doc:: include/media/tuner-types.h
-
-.. kernel-doc:: include/media/tveeprom.h
-
-.. kernel-doc:: include/media/v4l2-async.h
-
-.. kernel-doc:: include/media/v4l2-ctrls.h
-
-.. kernel-doc:: include/media/v4l2-device.h
-
-.. kernel-doc:: include/media/v4l2-dv-timings.h
-
-.. kernel-doc:: include/media/v4l2-event.h
-
-.. kernel-doc:: include/media/v4l2-flash-led-class.h
-
-.. kernel-doc:: include/media/v4l2-mc.h
-
-.. kernel-doc:: include/media/v4l2-mediabus.h
-
-.. kernel-doc:: include/media/v4l2-mem2mem.h
-
-.. kernel-doc:: include/media/v4l2-of.h
-
-.. kernel-doc:: include/media/v4l2-rect.h
-
-.. kernel-doc:: include/media/v4l2-subdev.h
-
-.. kernel-doc:: include/media/videobuf2-core.h
-
-.. kernel-doc:: include/media/videobuf2-v4l2.h
-
-.. kernel-doc:: include/media/videobuf2-memops.h
+    v4l2-framework
+    v4l2-async
+    v4l2-controls
+    v4l2-device
+    v4l2-dv-timings
+    v4l2-event
+    v4l2-flash-led-class
+    v4l2-mc
+    v4l2-mediabus
+    v4l2-mem2mem
+    v4l2-of
+    v4l2-rect
+    v4l2-subdev
+    v4l2-tuner
+    v4l2-tveeprom
+    v4l2-videobuf2
+    v4l2-videobuf
