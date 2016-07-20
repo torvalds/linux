@@ -2125,8 +2125,6 @@ Lxts_enc_ret:
 .size	.${prefix}_xts_encrypt,.-.${prefix}_xts_encrypt
 
 .globl	.${prefix}_xts_decrypt
-.align	5
-.${prefix}_xts_decrypt:
 	mr		$inp,r3				# reassign
 	li		r3,-1
 	${UCMP}i	$len,16
