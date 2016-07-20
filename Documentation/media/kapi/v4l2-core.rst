@@ -11,6 +11,8 @@ Video2Linux devices
 
 .. kernel-doc:: include/media/v4l2-ctrls.h
 
+.. kernel-doc:: include/media/v4l2-device.h
+
 .. kernel-doc:: include/media/v4l2-dv-timings.h
 
 .. kernel-doc:: include/media/v4l2-event.h
