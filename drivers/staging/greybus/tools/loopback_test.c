@@ -91,6 +91,7 @@ struct loopback_test {
 	int async_outstanding_operations;
 	int us_wait;
 	int file_output;
+	int stop_all;
 	int poll_count;
 	char test_name[MAX_STR_LEN];
 	char sysfs_prefix[MAX_SYSFS_PATH];
@@ -207,6 +208,7 @@ void usage(void)
 	"   -c     Max number of outstanding operations for async operations\n"
 	"   -w     Wait in uSec between operations\n"
 	"   -z     Enable output to a CSV file (incompatible with -p)\n"
+	"   -f     When starting new loopback test, stop currently running tests on all devices\n"
 	"Examples:\n"
 	"  Send 10000 transfers with a packet size of 128 bytes to all active connections\n"
 	"  loopback_test -t transfer -s 128 -i 10000 -S /sys/bus/greybus/devices/ -D /sys/kernel/debug/gb_loopback/\n"
@@ -778,9 +780,11 @@ static void prepare_devices(struct loopback_test *t)
 {
 	int i;
 
-	/* Cancel any running tests */
+	/* Cancel any running tests on enabled devices. If
+	 * stop_all option is given, stop test on all devices.
+	 */
 	for (i = 0; i < t->device_count; i++)
-		if (device_enabled(t, i))
+		if (t->stop_all || device_enabled(t, i))
 			write_sysfs_val(t->devices[i].sysfs_entry, "type", 0);
 
 
@@ -901,7 +905,7 @@ int main(int argc, char *argv[])
 	memset(&t, 0, sizeof(t));
 
 	while ((o = getopt(argc, argv,
-			   "t:s:i:S:D:m:v::d::r::p::a::l::x::o:O:c:w:z::")) != -1) {
+			   "t:s:i:S:D:m:v::d::r::p::a::l::x::o:O:c:w:z::f::")) != -1) {
 		switch (o) {
 		case 't':
 			snprintf(t.test_name, MAX_STR_LEN, "%s", optarg);
@@ -956,6 +960,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'z':
 			t.file_output = 1;
+			break;
+		case 'f':
+			t.stop_all = 1;
 			break;
 		default:
 			usage();
