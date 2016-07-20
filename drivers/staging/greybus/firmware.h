@@ -12,6 +12,11 @@
 
 #include "greybus.h"
 
+#define FW_NAME_PREFIX	"ara_"
+
+/* Length of the string in format: "FW_NAME_PREFIX""%08x_%08x_%08x_%08x_%s.tftf" */
+#define FW_NAME_LEN		56
+
 /* Firmware Management Protocol specific functions */
 int fw_mgmt_init(void);
 void fw_mgmt_exit(void);

@@ -14,8 +14,6 @@
 #include "firmware.h"
 #include "greybus.h"
 
-/* Length of the string in format: ara_%08x_%08x_%08x_%08x_%s.tftf */
-#define FW_NAME_LEN		56
 /* Estimated minimum buffer size, actual size can be smaller than this */
 #define MIN_FETCH_SIZE		512
 /* Timeout, in jiffies, within which fetch or release firmware must be called */
@@ -182,7 +180,7 @@ static struct fw_request *find_firmware(struct fw_download *fw_download,
 	fw_req->firmware_id = ret;
 
 	snprintf(fw_req->name, sizeof(fw_req->name),
-		 "ara_%08x_%08x_%08x_%08x_%s.tftf",
+		 FW_NAME_PREFIX "%08x_%08x_%08x_%08x_%s.tftf",
 		 intf->ddbl1_manufacturer_id, intf->ddbl1_product_id,
 		 intf->vendor_id, intf->product_id, tag);
 

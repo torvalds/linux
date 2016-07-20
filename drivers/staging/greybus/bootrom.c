@@ -13,6 +13,7 @@
 #include <linux/workqueue.h>
 
 #include "greybus.h"
+#include "firmware.h"
 
 /* Timeout, in jiffies, within which the next request must be received */
 #define NEXT_REQ_TIMEOUT_MS	1000
@@ -157,7 +158,7 @@ static int download_firmware(struct gb_bootrom *bootrom, u8 stage)
 	 * XXX Name it properly..
 	 */
 	snprintf(firmware_name, sizeof(firmware_name),
-		 "ara_%08x_%08x_%08x_%08x_s2l.tftf",
+		 FW_NAME_PREFIX "%08x_%08x_%08x_%08x_s2l.tftf",
 		 intf->ddbl1_manufacturer_id, intf->ddbl1_product_id,
 		 intf->vendor_id, intf->product_id);
 
