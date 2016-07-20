@@ -162,7 +162,7 @@ static int nfs_call_unlink(struct dentry *dentry, struct nfs_unlinkdata *data)
  * @dentry: dentry to unlink
  */
 static int
-nfs_async_unlink(struct dentry *dentry, struct qstr *name)
+nfs_async_unlink(struct dentry *dentry, const struct qstr *name)
 {
 	struct nfs_unlinkdata *data;
 	int status = -ENOMEM;
