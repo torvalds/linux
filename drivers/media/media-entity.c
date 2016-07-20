@@ -469,8 +469,8 @@ error:
 	media_entity_graph_walk_start(graph, entity_err);
 
 	while ((entity_err = media_entity_graph_walk_next(graph))) {
-		/* don't let the stream_count go negative */
-		if (entity_err->stream_count > 0) {
+		/* Sanity check for negative stream_count */
+		if (!WARN_ON_ONCE(entity_err->stream_count <= 0)) {
 			entity_err->stream_count--;
 			if (entity_err->stream_count == 0)
 				entity_err->pipe = NULL;
@@ -515,8 +515,8 @@ void __media_entity_pipeline_stop(struct media_entity *entity)
 	media_entity_graph_walk_start(graph, entity);
 
 	while ((entity = media_entity_graph_walk_next(graph))) {
-		/* don't let the stream_count go negative */
-		if (entity->stream_count > 0) {
+		/* Sanity check for negative stream_count */
+		if (!WARN_ON_ONCE(entity->stream_count <= 0)) {
 			entity->stream_count--;
 			if (entity->stream_count == 0)
 				entity->pipe = NULL;
