@@ -289,11 +289,16 @@ xfs_file_dio_aio_read(
 	struct address_space	*mapping = iocb->ki_filp->f_mapping;
 	struct inode		*inode = mapping->host;
 	struct xfs_inode	*ip = XFS_I(inode);
+	loff_t			isize = i_size_read(inode);
 	size_t			count = iov_iter_count(to);
+	struct iov_iter		data;
 	struct xfs_buftarg	*target;
 	ssize_t			ret = 0;
 
 	trace_xfs_file_direct_read(ip, count, iocb->ki_pos);
+
+	if (!count)
+		return 0; /* skip atime */
 
 	if (XFS_IS_REALTIME_INODE(ip))
 		target = ip->i_mount->m_rtdev_targp;
@@ -303,7 +308,7 @@ xfs_file_dio_aio_read(
 	if (!IS_DAX(inode)) {
 		/* DIO must be aligned to device logical sector size */
 		if ((iocb->ki_pos | count) & target->bt_logical_sectormask) {
-			if (iocb->ki_pos == i_size_read(inode))
+			if (iocb->ki_pos == isize)
 				return 0;
 			return -EINVAL;
 		}
@@ -354,9 +359,15 @@ xfs_file_dio_aio_read(
 		xfs_rw_ilock_demote(ip, XFS_IOLOCK_EXCL);
 	}
 
-	ret = generic_file_read_iter(iocb, to);
+	data = *to;
+	ret = mapping->a_ops->direct_IO(iocb, &data);
+	if (ret > 0) {
+		iocb->ki_pos += ret;
+		iov_iter_advance(to, ret);
+	}
 	xfs_rw_iunlock(ip, XFS_IOLOCK_SHARED);
 
+	file_accessed(iocb->ki_filp);
 	return ret;
 }
 
