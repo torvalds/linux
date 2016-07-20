@@ -865,7 +865,7 @@ static void rpmsg_recv_done(struct virtqueue *rvq)
 		msgs_received++;
 
 		msg = virtqueue_get_buf(rvq, &len);
-	};
+	}
 
 	dev_dbg(dev, "Received %u messages\n", msgs_received);
 
