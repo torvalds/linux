@@ -1273,9 +1273,10 @@ static int __qbuf_dmabuf(struct vb2_buffer *vb, const void *pb)
 		vb->planes[plane].mem_priv = mem_priv;
 	}
 
-	/* TODO: This pins the buffer(s) with  dma_buf_map_attachment()).. but
-	 * really we want to do this just before the DMA, not while queueing
-	 * the buffer(s)..
+	/*
+	 * This pins the buffer(s) with dma_buf_map_attachment()). It's done
+	 * here instead just before the DMA, while queueing the buffer(s) so
+	 * userspace knows sooner rather than later if the dma-buf map fails.
 	 */
 	for (plane = 0; plane < vb->num_planes; ++plane) {
 		ret = call_memop(vb, map_dmabuf, vb->planes[plane].mem_priv);
