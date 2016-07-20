@@ -714,8 +714,13 @@ void __init fpu__init_system_xstate(void)
 	xfeatures_mask = eax + ((u64)edx << 32);
 
 	if ((xfeatures_mask & XFEATURE_MASK_FPSSE) != XFEATURE_MASK_FPSSE) {
+		/*
+		 * This indicates that something really unexpected happened
+		 * with the enumeration.  Disable XSAVE and try to continue
+		 * booting without it.  This is too early to BUG().
+		 */
 		pr_err("x86/fpu: FP/SSE not present amongst the CPU's xstate features: 0x%llx.\n", xfeatures_mask);
-		BUG();
+		goto out_disable;
 	}
 
 	xfeatures_mask &= fpu__get_supported_xfeatures_mask();
@@ -723,11 +728,8 @@ void __init fpu__init_system_xstate(void)
 	/* Enable xstate instructions to be able to continue with initialization: */
 	fpu__init_cpu_xstate();
 	err = init_xstate_size();
-	if (err) {
-		/* something went wrong, boot without any XSAVE support */
-		fpu__init_disable_system_xstate();
-		return;
-	}
+	if (err)
+		goto out_disable;
 
 	/*
 	 * Update info used for ptrace frames; use standard-format size and no
@@ -744,6 +746,11 @@ void __init fpu__init_system_xstate(void)
 		xfeatures_mask,
 		fpu_kernel_xstate_size,
 		boot_cpu_has(X86_FEATURE_XSAVES) ? "compacted" : "standard");
+	return;
+
+out_disable:
+	/* something went wrong, try to boot without any XSAVE support */
+	fpu__init_disable_system_xstate();
 }
 
 /*
