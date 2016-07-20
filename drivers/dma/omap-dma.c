@@ -35,7 +35,7 @@ struct omap_dmadev {
 	unsigned dma_requests;
 	spinlock_t irq_lock;
 	uint32_t irq_enable_mask;
-	struct omap_chan *lch_map[OMAP_SDMA_CHANNELS];
+	struct omap_chan **lch_map;
 };
 
 struct omap_chan {
@@ -1223,16 +1223,24 @@ static int omap_dma_probe(struct platform_device *pdev)
 	spin_lock_init(&od->lock);
 	spin_lock_init(&od->irq_lock);
 
-	od->dma_requests = OMAP_SDMA_REQUESTS;
-	if (pdev->dev.of_node && of_property_read_u32(pdev->dev.of_node,
-						      "dma-requests",
-						      &od->dma_requests)) {
+	if (!pdev->dev.of_node) {
+		od->dma_requests = od->plat->dma_attr->lch_count;
+		if (unlikely(!od->dma_requests))
+			od->dma_requests = OMAP_SDMA_REQUESTS;
+	} else if (of_property_read_u32(pdev->dev.of_node, "dma-requests",
+					&od->dma_requests)) {
 		dev_info(&pdev->dev,
 			 "Missing dma-requests property, using %u.\n",
 			 OMAP_SDMA_REQUESTS);
+		od->dma_requests = OMAP_SDMA_REQUESTS;
 	}
 
-	for (i = 0; i < OMAP_SDMA_CHANNELS; i++) {
+	od->lch_map = devm_kcalloc(&pdev->dev, od->dma_requests,
+				   sizeof(*od->lch_map), GFP_KERNEL);
+	if (!od->lch_map)
+		return -ENOMEM;
+
+	for (i = 0; i < od->dma_requests; i++) {
 		rc = omap_dma_chan_init(od);
 		if (rc) {
 			omap_dma_free(od);
