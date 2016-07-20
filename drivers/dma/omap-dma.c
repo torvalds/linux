@@ -819,9 +819,11 @@ static struct dma_async_tx_descriptor *omap_dma_prep_slave_sg(
 	en = burst;
 	frame_bytes = es_bytes[es] * en;
 	for_each_sg(sgl, sgent, sglen, i) {
-		d->sg[i].addr = sg_dma_address(sgent);
-		d->sg[i].en = en;
-		d->sg[i].fn = sg_dma_len(sgent) / frame_bytes;
+		struct omap_sg *osg = &d->sg[i];
+
+		osg->addr = sg_dma_address(sgent);
+		osg->en = en;
+		osg->fn = sg_dma_len(sgent) / frame_bytes;
 	}
 
 	d->sglen = sglen;
