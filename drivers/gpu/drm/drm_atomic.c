@@ -404,8 +404,7 @@ drm_atomic_replace_property_blob(struct drm_property_blob **blob,
 	if (old_blob == new_blob)
 		return;
 
-	if (old_blob)
-		drm_property_unreference_blob(old_blob);
+	drm_property_unreference_blob(old_blob);
 	if (new_blob)
 		drm_property_reference_blob(new_blob);
 	*blob = new_blob;
