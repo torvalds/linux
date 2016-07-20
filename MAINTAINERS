@@ -11839,6 +11839,14 @@ T:	git git://linuxtv.org/media_tree.git
 S:	Odd fixes
 F:	drivers/media/usb/tm6000/
 
+TW5864 VIDEO4LINUX DRIVER
+M:	Bluecherry Maintainers <maintainers@bluecherrydvr.com>
+M:	Andrey Utkin <andrey.utkin@corp.bluecherry.net>
+M:	Andrey Utkin <andrey_utkin@fastmail.com>
+L:	linux-media@vger.kernel.org
+S:	Supported
+F:	drivers/media/pci/tw5864/
+
 TW68 VIDEO4LINUX DRIVER
 M:	Hans Verkuil <hverkuil@xs4all.nl>
 L:	linux-media@vger.kernel.org
