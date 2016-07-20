@@ -5480,7 +5480,7 @@ static int ni_E_init(struct comedi_device *dev,
 		s->maxdata	= (devpriv->is_m_series) ? 0xffffffff
 							 : 0x00ffffff;
 		s->insn_read	= ni_tio_insn_read;
-		s->insn_write	= ni_tio_insn_read;
+		s->insn_write	= ni_tio_insn_write;
 		s->insn_config	= ni_tio_insn_config;
 #ifdef PCIDMA
 		if (dev->irq && devpriv->mite) {
