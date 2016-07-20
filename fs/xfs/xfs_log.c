@@ -1415,7 +1415,7 @@ xlog_alloc_log(
 	 */
 	error = -ENOMEM;
 	bp = xfs_buf_alloc(mp->m_logdev_targp, XFS_BUF_DADDR_NULL,
-			   BTOBB(log->l_iclog_size), 0);
+			   BTOBB(log->l_iclog_size), XBF_NO_IOACCT);
 	if (!bp)
 		goto out_free_log;
 
@@ -1454,7 +1454,8 @@ xlog_alloc_log(
 		prev_iclog = iclog;
 
 		bp = xfs_buf_get_uncached(mp->m_logdev_targp,
-						BTOBB(log->l_iclog_size), 0);
+					  BTOBB(log->l_iclog_size),
+					  XBF_NO_IOACCT);
 		if (!bp)
 			goto out_free_iclog;
 
