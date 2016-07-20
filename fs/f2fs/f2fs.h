@@ -1147,24 +1147,33 @@ static inline void f2fs_i_blocks_write(struct inode *, blkcnt_t, bool);
 static inline bool inc_valid_block_count(struct f2fs_sb_info *sbi,
 				 struct inode *inode, blkcnt_t *count)
 {
+	blkcnt_t diff;
+
 #ifdef CONFIG_F2FS_FAULT_INJECTION
 	if (time_to_inject(FAULT_BLOCK))
 		return false;
 #endif
+	/*
+	 * let's increase this in prior to actual block count change in order
+	 * for f2fs_sync_file to avoid data races when deciding checkpoint.
+	 */
+	percpu_counter_add(&sbi->alloc_valid_block_count, (*count));
+
 	spin_lock(&sbi->stat_lock);
 	sbi->total_valid_block_count += (block_t)(*count);
 	if (unlikely(sbi->total_valid_block_count > sbi->user_block_count)) {
-		*count -= sbi->total_valid_block_count - sbi->user_block_count;
+		diff = sbi->total_valid_block_count - sbi->user_block_count;
+		*count -= diff;
 		sbi->total_valid_block_count = sbi->user_block_count;
 		if (!*count) {
 			spin_unlock(&sbi->stat_lock);
+			percpu_counter_sub(&sbi->alloc_valid_block_count, diff);
 			return false;
 		}
 	}
 	spin_unlock(&sbi->stat_lock);
 
 	f2fs_i_blocks_write(inode, *count, true);
-	percpu_counter_add(&sbi->alloc_valid_block_count, (*count));
 	return true;
 }
 
