@@ -104,10 +104,8 @@ static void mic_dma_cleanup(struct mic_dma_chan *ch)
 		tx = &ch->tx_array[last_tail];
 		if (tx->cookie) {
 			dma_cookie_complete(tx);
-			if (tx->callback) {
-				tx->callback(tx->callback_param);
-				tx->callback = NULL;
-			}
+			dmaengine_desc_get_callback_invoke(tx, NULL);
+			tx->callback = NULL;
 		}
 		last_tail = mic_dma_hw_ring_inc(last_tail);
 	}
