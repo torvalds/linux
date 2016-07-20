@@ -88,6 +88,7 @@ static inline void dma_set_residue(struct dma_tx_state *state, u32 residue)
 
 struct dmaengine_desc_callback {
 	dma_async_tx_callback callback;
+	dma_async_tx_callback_result callback_result;
 	void *callback_param;
 };
 
@@ -105,13 +106,14 @@ dmaengine_desc_get_callback(struct dma_async_tx_descriptor *tx,
 			    struct dmaengine_desc_callback *cb)
 {
 	cb->callback = tx->callback;
+	cb->callback_result = tx->callback_result;
 	cb->callback_param = tx->callback_param;
 }
 
 /**
  * dmaengine_desc_callback_invoke - call the callback function in cb struct
  * @cb: temp struct that is holding the callback info
- * @result: dummy pointer for now
+ * @result: transaction result
  *
  * Call the callback function provided in the cb struct with the parameter
  * in the cb struct.
@@ -119,17 +121,27 @@ dmaengine_desc_get_callback(struct dma_async_tx_descriptor *tx,
  */
 static inline void
 dmaengine_desc_callback_invoke(struct dmaengine_desc_callback *cb,
-			       const void *result)
+			       const struct dmaengine_result *result)
 {
-	if (cb->callback)
+	struct dmaengine_result dummy_result = {
+		.result = DMA_TRANS_NOERROR,
+		.residue = 0
+	};
+
+	if (cb->callback_result) {
+		if (!result)
+			result = &dummy_result;
+		cb->callback_result(cb->callback_param, result);
+	} else if (cb->callback) {
 		cb->callback(cb->callback_param);
+	}
 }
 
 /**
  * dmaengine_desc_get_callback_invoke - get the callback in tx descriptor and
  * 					then immediately call the callback.
  * @tx: dma async tx descriptor
- * @result: dummy pointer for now
+ * @result: transaction result
  *
  * Call dmaengine_desc_get_callback() and dmaengine_desc_callback_invoke()
  * in a single function since no work is necessary in between for the driver.
@@ -137,7 +149,7 @@ dmaengine_desc_callback_invoke(struct dmaengine_desc_callback *cb,
  */
 static inline void
 dmaengine_desc_get_callback_invoke(struct dma_async_tx_descriptor *tx,
-				   const void *result)
+				   const struct dmaengine_result *result)
 {
 	struct dmaengine_desc_callback cb;
 
