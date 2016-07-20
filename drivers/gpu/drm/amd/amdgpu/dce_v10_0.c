@@ -3141,10 +3141,25 @@ static int dce_v10_0_wait_for_idle(void *handle)
 	return 0;
 }
 
+static int dce_v10_0_check_soft_reset(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (dce_v10_0_is_display_hung(adev))
+		adev->ip_block_status[AMD_IP_BLOCK_TYPE_DCE].hang = true;
+	else
+		adev->ip_block_status[AMD_IP_BLOCK_TYPE_DCE].hang = false;
+
+	return 0;
+}
+
 static int dce_v10_0_soft_reset(void *handle)
 {
 	u32 srbm_soft_reset = 0, tmp;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (!adev->ip_block_status[AMD_IP_BLOCK_TYPE_DCE].hang)
+		return 0;
 
 	if (dce_v10_0_is_display_hung(adev))
 		srbm_soft_reset |= SRBM_SOFT_RESET__SOFT_RESET_DC_MASK;
@@ -3512,6 +3527,7 @@ const struct amd_ip_funcs dce_v10_0_ip_funcs = {
 	.resume = dce_v10_0_resume,
 	.is_idle = dce_v10_0_is_idle,
 	.wait_for_idle = dce_v10_0_wait_for_idle,
+	.check_soft_reset = dce_v10_0_check_soft_reset,
 	.soft_reset = dce_v10_0_soft_reset,
 	.set_clockgating_state = dce_v10_0_set_clockgating_state,
 	.set_powergating_state = dce_v10_0_set_powergating_state,
