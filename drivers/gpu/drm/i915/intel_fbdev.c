@@ -189,7 +189,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	struct i915_vma *vma;
 	struct drm_i915_gem_object *obj;
 	bool prealloc = false;
-	void *vaddr;
+	void __iomem *vaddr;
 	int ret;
 
 	if (intel_fb &&

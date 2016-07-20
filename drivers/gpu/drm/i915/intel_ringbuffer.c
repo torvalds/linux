@@ -2021,7 +2021,8 @@ int intel_pin_and_map_ringbuffer_obj(struct drm_i915_private *dev_priv,
 		/* Access through the GTT requires the device to be awake. */
 		assert_rpm_wakelock_held(dev_priv);
 
-		addr = i915_vma_pin_iomap(i915_gem_obj_to_ggtt(obj));
+		addr = (void __force *)
+			i915_vma_pin_iomap(i915_gem_obj_to_ggtt(obj));
 		if (IS_ERR(addr)) {
 			ret = PTR_ERR(addr);
 			goto err_unpin;

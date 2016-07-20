@@ -580,6 +580,7 @@ i915_ggtt_view_size(struct drm_i915_gem_object *obj,
  * Returns a valid iomapped pointer or ERR_PTR.
  */
 void __iomem *i915_vma_pin_iomap(struct i915_vma *vma);
+#define IO_ERR_PTR(x) ((void __iomem *)ERR_PTR(x))
 
 /**
  * i915_vma_unpin_iomap - unpins the mapping returned from i915_vma_iomap

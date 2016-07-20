@@ -81,8 +81,9 @@ int logical_ring_flush_all_caches(struct drm_i915_gem_request *req);
  */
 static inline void intel_logical_ring_advance(struct intel_ringbuffer *ringbuf)
 {
-	ringbuf->tail &= ringbuf->size - 1;
+	__intel_ringbuffer_advance(ringbuf);
 }
+
 /**
  * intel_logical_ring_emit() - write a DWORD to the ringbuffer.
  * @ringbuf: Ringbuffer to write to.
@@ -91,8 +92,7 @@ static inline void intel_logical_ring_advance(struct intel_ringbuffer *ringbuf)
 static inline void intel_logical_ring_emit(struct intel_ringbuffer *ringbuf,
 					   u32 data)
 {
-	iowrite32(data, ringbuf->virtual_start + ringbuf->tail);
-	ringbuf->tail += 4;
+	__intel_ringbuffer_emit(ringbuf, data);
 }
 static inline void intel_logical_ring_emit_reg(struct intel_ringbuffer *ringbuf,
 					       i915_reg_t reg)

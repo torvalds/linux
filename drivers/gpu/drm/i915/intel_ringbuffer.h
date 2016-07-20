@@ -84,7 +84,7 @@ struct intel_ring_hangcheck {
 
 struct intel_ringbuffer {
 	struct drm_i915_gem_object *obj;
-	void __iomem *virtual_start;
+	void *virtual_start;
 	struct i915_vma *vma;
 
 	struct intel_engine_cs *engine;
@@ -453,23 +453,35 @@ int intel_ring_alloc_request_extras(struct drm_i915_gem_request *request);
 
 int __must_check intel_ring_begin(struct drm_i915_gem_request *req, int n);
 int __must_check intel_ring_cacheline_align(struct drm_i915_gem_request *req);
-static inline void intel_ring_emit(struct intel_engine_cs *engine,
-				   u32 data)
+
+static inline void __intel_ringbuffer_emit(struct intel_ringbuffer *rb,
+					   u32 data)
 {
-	struct intel_ringbuffer *ringbuf = engine->buffer;
-	iowrite32(data, ringbuf->virtual_start + ringbuf->tail);
-	ringbuf->tail += 4;
+	*(uint32_t *)(rb->virtual_start + rb->tail) = data;
+	rb->tail += 4;
 }
+
+static inline void __intel_ringbuffer_advance(struct intel_ringbuffer *rb)
+{
+	rb->tail &= rb->size - 1;
+}
+
+static inline void intel_ring_emit(struct intel_engine_cs *engine, u32 data)
+{
+	__intel_ringbuffer_emit(engine->buffer, data);
+}
+
 static inline void intel_ring_emit_reg(struct intel_engine_cs *engine,
 				       i915_reg_t reg)
 {
 	intel_ring_emit(engine, i915_mmio_reg_offset(reg));
 }
+
 static inline void intel_ring_advance(struct intel_engine_cs *engine)
 {
-	struct intel_ringbuffer *ringbuf = engine->buffer;
-	ringbuf->tail &= ringbuf->size - 1;
+	__intel_ringbuffer_advance(engine->buffer);
 }
+
 int __intel_ring_space(int head, int tail, int size);
 void intel_ring_update_space(struct intel_ringbuffer *ringbuf);
 

@@ -3681,7 +3681,7 @@ void __iomem *i915_vma_pin_iomap(struct i915_vma *vma)
 
 	lockdep_assert_held(&vma->vm->dev->struct_mutex);
 	if (WARN_ON(!vma->obj->map_and_fenceable))
-		return ERR_PTR(-ENODEV);
+		return IO_ERR_PTR(-ENODEV);
 
 	GEM_BUG_ON(!vma->is_ggtt);
 	GEM_BUG_ON((vma->bound & GLOBAL_BIND) == 0);
@@ -3692,7 +3692,7 @@ void __iomem *i915_vma_pin_iomap(struct i915_vma *vma)
 					vma->node.start,
 					vma->node.size);
 		if (ptr == NULL)
-			return ERR_PTR(-ENOMEM);
+			return IO_ERR_PTR(-ENOMEM);
 
 		vma->iomap = ptr;
 	}
