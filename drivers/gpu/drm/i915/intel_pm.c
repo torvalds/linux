@@ -7810,8 +7810,6 @@ void intel_pm_setup(struct drm_device *dev)
 	INIT_DELAYED_WORK(&dev_priv->rps.autoenable_work,
 			  __intel_autoenable_gt_powersave);
 	INIT_LIST_HEAD(&dev_priv->rps.clients);
-	INIT_LIST_HEAD(&dev_priv->rps.semaphores.link);
-	INIT_LIST_HEAD(&dev_priv->rps.mmioflips.link);
 
 	dev_priv->pm.suspended = false;
 	atomic_set(&dev_priv->pm.wakeref_count, 0);

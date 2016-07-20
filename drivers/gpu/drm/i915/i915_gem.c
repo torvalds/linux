@@ -2849,7 +2849,7 @@ __i915_gem_object_sync(struct drm_i915_gem_object *obj,
 		ret = __i915_wait_request(from_req,
 					  i915->mm.interruptible,
 					  NULL,
-					  &i915->rps.semaphores);
+					  NO_WAITBOOST);
 		if (ret)
 			return ret;
 

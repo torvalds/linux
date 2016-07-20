@@ -1195,8 +1195,6 @@ struct intel_gen6_power_mgmt {
 	struct delayed_work autoenable_work;
 	unsigned boosts;
 
-	struct intel_rps_client semaphores, mmioflips;
-
 	/* manual wa residency calculations */
 	struct intel_rps_ei up_ei, down_ei;
 

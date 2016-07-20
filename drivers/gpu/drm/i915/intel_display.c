@@ -11473,7 +11473,7 @@ static void intel_mmio_flip_work_func(struct work_struct *w)
 	if (work->flip_queued_req)
 		WARN_ON(__i915_wait_request(work->flip_queued_req,
 					    false, NULL,
-					    &dev_priv->rps.mmioflips));
+					    NO_WAITBOOST));
 
 	/* For framebuffer backed by dmabuf, wait for fence */
 	resv = i915_gem_object_get_dmabuf_resv(obj);
