@@ -543,12 +543,12 @@ xfs_btree_ptr_addr(
  */
 STATIC struct xfs_btree_block *
 xfs_btree_get_iroot(
-       struct xfs_btree_cur    *cur)
+	struct xfs_btree_cur	*cur)
 {
-       struct xfs_ifork        *ifp;
+	struct xfs_ifork	*ifp;
 
-       ifp = XFS_IFORK_PTR(cur->bc_private.b.ip, cur->bc_private.b.whichfork);
-       return (struct xfs_btree_block *)ifp->if_broot;
+	ifp = XFS_IFORK_PTR(cur->bc_private.b.ip, cur->bc_private.b.whichfork);
+	return (struct xfs_btree_block *)ifp->if_broot;
 }
 
 /*
