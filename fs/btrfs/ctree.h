@@ -439,6 +439,8 @@ struct btrfs_space_info {
 	struct list_head list;
 	/* Protected by the spinlock 'lock'. */
 	struct list_head ro_bgs;
+	struct list_head priority_tickets;
+	struct list_head tickets;
 
 	struct rw_semaphore groups_sem;
 	/* for block groups in our same type */
@@ -2624,6 +2626,15 @@ enum btrfs_reserve_flush_enum {
 	BTRFS_RESERVE_FLUSH_ALL,
 };
 
+enum btrfs_flush_state {
+	FLUSH_DELAYED_ITEMS_NR	=	1,
+	FLUSH_DELAYED_ITEMS	=	2,
+	FLUSH_DELALLOC		=	3,
+	FLUSH_DELALLOC_WAIT	=	4,
+	ALLOC_CHUNK		=	5,
+	COMMIT_TRANS		=	6,
+};
+
 int btrfs_check_data_free_space(struct inode *inode, u64 start, u64 len);
 int btrfs_alloc_data_chunk_ondemand(struct inode *inode, u64 bytes);
 void btrfs_free_reserved_data_space(struct inode *inode, u64 start, u64 len);
@@ -2661,8 +2672,8 @@ int btrfs_block_rsv_refill(struct btrfs_root *root,
 			   struct btrfs_block_rsv *block_rsv, u64 min_reserved,
 			   enum btrfs_reserve_flush_enum flush);
 int btrfs_block_rsv_migrate(struct btrfs_block_rsv *src_rsv,
-			    struct btrfs_block_rsv *dst_rsv,
-			    u64 num_bytes);
+			    struct btrfs_block_rsv *dst_rsv, u64 num_bytes,
+			    int update_size);
 int btrfs_cond_migrate_bytes(struct btrfs_fs_info *fs_info,
 			     struct btrfs_block_rsv *dest, u64 num_bytes,
 			     int min_factor);
