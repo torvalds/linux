@@ -270,20 +270,19 @@ static void
 dwc_descriptor_complete(struct dw_dma_chan *dwc, struct dw_desc *desc,
 		bool callback_required)
 {
-	dma_async_tx_callback		callback = NULL;
-	void				*param = NULL;
 	struct dma_async_tx_descriptor	*txd = &desc->txd;
 	struct dw_desc			*child;
 	unsigned long			flags;
+	struct dmaengine_desc_callback	cb;
 
 	dev_vdbg(chan2dev(&dwc->chan), "descriptor %u complete\n", txd->cookie);
 
 	spin_lock_irqsave(&dwc->lock, flags);
 	dma_cookie_complete(txd);
-	if (callback_required) {
-		callback = txd->callback;
-		param = txd->callback_param;
-	}
+	if (callback_required)
+		dmaengine_desc_get_callback(txd, &cb);
+	else
+		memset(&cb, 0, sizeof(cb));
 
 	/* async_tx_ack */
 	list_for_each_entry(child, &desc->tx_list, desc_node)
@@ -292,8 +291,7 @@ dwc_descriptor_complete(struct dw_dma_chan *dwc, struct dw_desc *desc,
 	dwc_desc_put(dwc, desc);
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
-	if (callback)
-		callback(param);
+	dmaengine_desc_callback_invoke(&cb, NULL);
 }
 
 static void dwc_complete_all(struct dw_dma *dw, struct dw_dma_chan *dwc)
