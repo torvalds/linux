@@ -60,44 +60,29 @@
 
 #include "../../greybus_firmware.h"
 
-static const char *firmware_tag = "03";	/* S3 firmware */
+#define FW_DEV_DEFAULT		"/dev/gb-fw-mgmt-0"
+#define FW_TAG_INT_DEFAULT	"s3f"
+#define FW_TAG_BCND_DEFAULT	"bf_01"
+#define FW_UPDATE_TYPE_DEFAULT	0
+#define FW_TIMEOUT_DEFAULT	10000;
+
+static const char *firmware_tag;
+static const char *fwdev = FW_DEV_DEFAULT;
+static int fw_update_type = FW_UPDATE_TYPE_DEFAULT;
+static int fw_timeout = FW_TIMEOUT_DEFAULT;
 
 static struct fw_mgmt_ioc_get_fw fw_info;
 static struct fw_mgmt_ioc_intf_load_and_validate intf_load;
 static struct fw_mgmt_ioc_backend_fw_update backend_update;
 
-int main(int argc, char *argv[])
+static void usage(void)
 {
-	unsigned int timeout = 10000;
-	char *fwdev;
-	int fd, ret;
+	printf("\nUsage: ./firmware <gb-fw-mgmt-X (default: gb-fw-mgmt-0)> <interface: 0, backend: 1 (default: 0)> <firmware-tag> (default: \"s3f\"/\"bf_01\") <timeout (default: 10000 ms)>\n");
+}
 
-	/* Make sure arguments are correct */
-	if (argc != 2) {
-		printf("\nUsage: ./firmware <Path of the gb-fw-mgmt-X dev>\n");
-		return 0;
-	}
-
-	fwdev = argv[1];
-
-	printf("Opening %s firmware management device\n", fwdev);
-
-	fd = open(fwdev, O_RDWR);
-	if (fd < 0) {
-		printf("Failed to open: %s\n", fwdev);
-		ret = -1;
-		goto close_fd;
-	}
-
-	/* Set Timeout */
-	printf("Setting timeout to %u ms\n", timeout);
-
-	ret = ioctl(fd, FW_MGMT_IOC_SET_TIMEOUT_MS, &timeout);
-	if (ret < 0) {
-		printf("Failed to set timeout: %s (%d)\n", fwdev, ret);
-		ret = -1;
-		goto close_fd;
-	}
+static int update_intf_firmware(int fd)
+{
+	int ret;
 
 	/* Get Interface Firmware Version */
 	printf("Get Interface Firmware Version\n");
@@ -106,8 +91,7 @@ int main(int argc, char *argv[])
 	if (ret < 0) {
 		printf("Failed to get interface firmware version: %s (%d)\n",
 			fwdev, ret);
-		ret = -1;
-		goto close_fd;
+		return -1;
 	}
 
 	printf("Interface Firmware tag (%s), major (%d), minor (%d)\n",
@@ -120,6 +104,7 @@ int main(int argc, char *argv[])
 	intf_load.status = 0;
 	intf_load.major = 0;
 	intf_load.minor = 0;
+
 	strncpy((char *)&intf_load.firmware_tag, firmware_tag,
 		GB_FIRMWARE_U_TAG_MAX_LEN);
 
@@ -127,35 +112,47 @@ int main(int argc, char *argv[])
 	if (ret < 0) {
 		printf("Failed to load interface firmware: %s (%d)\n", fwdev,
 			ret);
-		ret = -1;
-		goto close_fd;
+		return -1;
 	}
 
 	if (intf_load.status != GB_FW_U_LOAD_STATUS_VALIDATED &&
 	    intf_load.status != GB_FW_U_LOAD_STATUS_UNVALIDATED) {
 		printf("Load status says loading failed: %d\n",
 			intf_load.status);
-		ret = -1;
-		goto close_fd;
+		return -1;
 	}
 
 	printf("Interface Firmware (%s) Load done: major: %d, minor: %d, status: %d\n",
 		firmware_tag, intf_load.major, intf_load.minor,
 		intf_load.status);
 
+	/* Initiate Mode-switch to the newly loaded firmware */
+	printf("Initiate Mode switch\n");
+
+	ret = ioctl(fd, FW_MGMT_IOC_MODE_SWITCH);
+	if (ret < 0)
+		printf("Failed to initiate mode-switch (%d)\n", ret);
+
+	return ret;
+}
+
+static int update_backend_firmware(int fd)
+{
+	int ret;
+
 	/* Get Backend Firmware Version */
 	printf("Getting Backend Firmware Version\n");
 
-	strncpy((char *)&fw_info.firmware_tag, firmware_tag,
-		GB_FIRMWARE_U_TAG_MAX_LEN);
 	fw_info.major = 0;
 	fw_info.minor = 0;
+	strncpy((char *)&fw_info.firmware_tag, firmware_tag,
+		GB_FIRMWARE_U_TAG_MAX_LEN);
 
 	ret = ioctl(fd, FW_MGMT_IOC_GET_BACKEND_FW, &fw_info);
 	if (ret < 0) {
 		printf("Failed to get backend firmware version: %s (%d)\n",
 			fwdev, ret);
-		goto mode_switch;
+		return -1;
 	}
 
 	printf("Backend Firmware tag (%s), major (%d), minor (%d)\n",
@@ -171,24 +168,73 @@ int main(int argc, char *argv[])
 	ret = ioctl(fd, FW_MGMT_IOC_INTF_BACKEND_FW_UPDATE, &backend_update);
 	if (ret < 0) {
 		printf("Failed to load backend firmware: %s (%d)\n", fwdev, ret);
-		goto mode_switch;
+		return -1;
 	}
-
-	printf("Backend Firmware (%s) Load done: status: %d\n",
-		firmware_tag, backend_update.status);
 
 	if (backend_update.status != GB_FW_U_BACKEND_FW_STATUS_SUCCESS) {
 		printf("Load status says loading failed: %d\n",
 			backend_update.status);
+	} else {
+		printf("Backend Firmware (%s) Load done: status: %d\n",
+				firmware_tag, backend_update.status);
 	}
 
-mode_switch:
-	/* Initiate Mode-switch to the newly loaded firmware */
-	printf("Initiate Mode switch\n");
+	return 0;
+}
 
-	ret = ioctl(fd, FW_MGMT_IOC_MODE_SWITCH);
-	if (ret < 0)
-		printf("Failed to initiate mode-switch (%d)\n", ret);
+int main(int argc, char *argv[])
+{
+	int fd, ret;
+
+	if (argc > 1 &&
+	    (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help"))) {
+		usage();
+		return -1;
+	}
+
+	if (argc > 1)
+		fwdev = argv[1];
+
+	if (argc > 2)
+		sscanf(argv[2], "%u", &fw_update_type);
+
+	if (argc > 3) {
+		firmware_tag = argv[3];
+	} else if (!fw_update_type) {
+		firmware_tag = FW_TAG_INT_DEFAULT;
+	} else {
+		firmware_tag = FW_TAG_BCND_DEFAULT;
+	}
+
+	if (argc > 4)
+		sscanf(argv[4], "%u", &fw_timeout);
+
+	printf("Trying Firmware update: fwdev: %s, type: %s, tag: %s, timeout: %d\n",
+		fwdev, fw_update_type == 0 ? "interface" : "backend",
+		firmware_tag, fw_timeout);
+
+	printf("Opening %s firmware management device\n", fwdev);
+
+	fd = open(fwdev, O_RDWR);
+	if (fd < 0) {
+		printf("Failed to open: %s\n", fwdev);
+		return -1;
+	}
+
+	/* Set Timeout */
+	printf("Setting timeout to %u ms\n", fw_timeout);
+
+	ret = ioctl(fd, FW_MGMT_IOC_SET_TIMEOUT_MS, &fw_timeout);
+	if (ret < 0) {
+		printf("Failed to set timeout: %s (%d)\n", fwdev, ret);
+		ret = -1;
+		goto close_fd;
+	}
+
+	if (!fw_update_type)
+		ret = update_intf_firmware(fd);
+	else
+		ret = update_backend_firmware(fd);
 
 close_fd:
 	close(fd);
