@@ -22,6 +22,11 @@
 #include <linux/regmap.h>
 #include "tsc200x-core.h"
 
+static const struct input_id tsc2004_input_id = {
+	.bustype = BUS_I2C,
+	.product = 2004,
+};
+
 static int tsc2004_cmd(struct device *dev, u8 cmd)
 {
 	u8 tx = TSC200X_CMD | TSC200X_CMD_12BIT | cmd;
@@ -42,7 +47,7 @@ static int tsc2004_probe(struct i2c_client *i2c,
 			 const struct i2c_device_id *id)
 
 {
-	return tsc200x_probe(&i2c->dev, i2c->irq, BUS_I2C,
+	return tsc200x_probe(&i2c->dev, i2c->irq, &tsc2004_input_id,
 			     devm_regmap_init_i2c(i2c, &tsc200x_regmap_config),
 			     tsc2004_cmd);
 }
