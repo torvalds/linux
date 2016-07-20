@@ -1702,6 +1702,7 @@ struct amdgpu_vce {
 	struct drm_file		*filp[AMDGPU_MAX_VCE_HANDLES];
 	uint32_t		img_size[AMDGPU_MAX_VCE_HANDLES];
 	struct delayed_work	idle_work;
+	struct mutex		idle_mutex;
 	const struct firmware	*fw;	/* VCE firmware */
 	struct amdgpu_ring	ring[AMDGPU_MAX_VCE_RINGS];
 	struct amdgpu_irq_src	irq;

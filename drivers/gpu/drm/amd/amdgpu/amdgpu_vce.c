@@ -85,8 +85,6 @@ int amdgpu_vce_sw_init(struct amdgpu_device *adev, unsigned long size)
 	unsigned ucode_version, version_major, version_minor, binary_id;
 	int i, r;
 
-	INIT_DELAYED_WORK(&adev->vce.idle_work, amdgpu_vce_idle_work_handler);
-
 	switch (adev->asic_type) {
 #ifdef CONFIG_DRM_AMDGPU_CIK
 	case CHIP_BONAIRE:
@@ -197,6 +195,9 @@ int amdgpu_vce_sw_init(struct amdgpu_device *adev, unsigned long size)
 		adev->vce.filp[i] = NULL;
 	}
 
+	INIT_DELAYED_WORK(&adev->vce.idle_work, amdgpu_vce_idle_work_handler);
+	mutex_init(&adev->vce.idle_mutex);
+
 	return 0;
 }
 
@@ -220,6 +221,7 @@ int amdgpu_vce_sw_fini(struct amdgpu_device *adev)
 	amdgpu_ring_fini(&adev->vce.ring[1]);
 
 	release_firmware(adev->vce.fw);
+	mutex_destroy(&adev->vce.idle_mutex);
 
 	return 0;
 }
@@ -315,19 +317,19 @@ static void amdgpu_vce_idle_work_handler(struct work_struct *work)
 }
 
 /**
- * amdgpu_vce_note_usage - power up VCE
+ * amdgpu_vce_ring_begin_use - power up VCE
  *
- * @adev: amdgpu_device pointer
+ * @ring: amdgpu ring
  *
  * Make sure VCE is powerd up when we want to use it
  */
-static void amdgpu_vce_note_usage(struct amdgpu_device *adev)
+void amdgpu_vce_ring_begin_use(struct amdgpu_ring *ring)
 {
-	bool set_clocks = !cancel_delayed_work_sync(&adev->vce.idle_work);
+	struct amdgpu_device *adev = ring->adev;
+	bool set_clocks;
 
-	set_clocks &= schedule_delayed_work(&adev->vce.idle_work,
-					    VCE_IDLE_TIMEOUT);
-
+	mutex_lock(&adev->vce.idle_mutex);
+	set_clocks = !cancel_delayed_work_sync(&adev->vce.idle_work);
 	if (set_clocks) {
 		if (adev->pm.dpm_enabled) {
 			amdgpu_dpm_enable_vce(adev, true);
@@ -335,6 +337,19 @@ static void amdgpu_vce_note_usage(struct amdgpu_device *adev)
 			amdgpu_asic_set_vce_clocks(adev, 53300, 40000);
 		}
 	}
+	mutex_unlock(&adev->vce.idle_mutex);
+}
+
+/**
+ * amdgpu_vce_ring_end_use - power VCE down
+ *
+ * @ring: amdgpu ring
+ *
+ * Schedule work to power VCE down again
+ */
+void amdgpu_vce_ring_end_use(struct amdgpu_ring *ring)
+{
+	schedule_delayed_work(&ring->adev->vce.idle_work, VCE_IDLE_TIMEOUT);
 }
 
 /**
@@ -354,8 +369,6 @@ void amdgpu_vce_free_handles(struct amdgpu_device *adev, struct drm_file *filp)
 
 		if (!handle || adev->vce.filp[i] != filp)
 			continue;
-
-		amdgpu_vce_note_usage(adev);
 
 		r = amdgpu_vce_get_destroy_msg(ring, handle, false, NULL);
 		if (r)
@@ -621,8 +634,6 @@ int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p, uint32_t ib_idx)
 	uint32_t tmp, handle = 0;
 	uint32_t *size = &tmp;
 	int i, r = 0, idx = 0;
-
-	amdgpu_vce_note_usage(p->adev);
 
 	while (idx < ib->length_dw) {
 		uint32_t len = amdgpu_get_ib_value(p, ib_idx, idx);

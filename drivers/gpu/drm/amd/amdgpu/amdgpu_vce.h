@@ -40,5 +40,7 @@ void amdgpu_vce_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64 seq,
 				unsigned flags);
 int amdgpu_vce_ring_test_ring(struct amdgpu_ring *ring);
 int amdgpu_vce_ring_test_ib(struct amdgpu_ring *ring);
+void amdgpu_vce_ring_begin_use(struct amdgpu_ring *ring);
+void amdgpu_vce_ring_end_use(struct amdgpu_ring *ring);
 
 #endif
