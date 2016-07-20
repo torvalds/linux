@@ -292,7 +292,6 @@ xfs_file_read_iter(
 	struct xfs_mount	*mp = ip->i_mount;
 	size_t			size = iov_iter_count(to);
 	ssize_t			ret = 0;
-	xfs_fsize_t		n;
 	loff_t			pos = iocb->ki_pos;
 
 	XFS_STATS_INC(mp, xs_read_calls);
@@ -308,13 +307,6 @@ xfs_file_read_iter(
 			return -EINVAL;
 		}
 	}
-
-	n = mp->m_super->s_maxbytes - pos;
-	if (n <= 0 || size == 0)
-		return 0;
-
-	if (n < size)
-		size = n;
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
