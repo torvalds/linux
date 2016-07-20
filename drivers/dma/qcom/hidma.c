@@ -132,8 +132,8 @@ static void hidma_process_completed(struct hidma_chan *mchan)
 		spin_unlock_irqrestore(&mchan->lock, irqflags);
 
 		llstat = hidma_ll_status(mdma->lldev, mdesc->tre_ch);
-		if (desc->callback && (llstat == DMA_COMPLETE))
-			desc->callback(desc->callback_param);
+		if (llstat == DMA_COMPLETE)
+			dmaengine_desc_get_callback_invoke(desc, NULL);
 
 		last_cookie = desc->cookie;
 		dma_run_dependencies(desc);
@@ -413,14 +413,9 @@ static int hidma_terminate_channel(struct dma_chan *chan)
 	/* return all user requests */
 	list_for_each_entry_safe(mdesc, tmp, &list, node) {
 		struct dma_async_tx_descriptor *txd = &mdesc->desc;
-		dma_async_tx_callback callback = mdesc->desc.callback;
-		void *param = mdesc->desc.callback_param;
 
 		dma_descriptor_unmap(txd);
-
-		if (callback)
-			callback(param);
-
+		dmaengine_desc_get_callback_invoke(txd, NULL);
 		dma_run_dependencies(txd);
 
 		/* move myself to free_list */
