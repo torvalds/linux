@@ -685,6 +685,9 @@ static int cpu_pmu_request_irq(struct arm_pmu *cpu_pmu, irq_handler_t handler)
 	return 0;
 }
 
+static DEFINE_MUTEX(arm_pmu_mutex);
+static LIST_HEAD(arm_pmu_list);
+
 /*
  * PMU hardware loses all context when a CPU goes offline.
  * When a CPU is hotplugged back in, since some hardware registers are
@@ -693,12 +696,17 @@ static int cpu_pmu_request_irq(struct arm_pmu *cpu_pmu, irq_handler_t handler)
  */
 static int arm_perf_starting_cpu(unsigned int cpu)
 {
-	if (!__oprofile_cpu_pmu)
-		return 0;
-	if (!cpumask_test_cpu(cpu, &__oprofile_cpu_pmu->supported_cpus))
-		return 0;
-	if (__oprofile_cpu_pmu->reset)
-		__oprofile_cpu_pmu->reset(__oprofile_cpu_pmu);
+	struct arm_pmu *pmu;
+
+	mutex_lock(&arm_pmu_mutex);
+	list_for_each_entry(pmu, &arm_pmu_list, entry) {
+
+		if (!cpumask_test_cpu(cpu, &pmu->supported_cpus))
+			continue;
+		if (pmu->reset)
+			pmu->reset(pmu);
+	}
+	mutex_unlock(&arm_pmu_mutex);
 	return 0;
 }
 
@@ -810,11 +818,9 @@ static int cpu_pmu_init(struct arm_pmu *cpu_pmu)
 	if (!cpu_hw_events)
 		return -ENOMEM;
 
-	err = cpuhp_setup_state_nocalls(CPUHP_AP_PERF_ARM_STARTING,
-					"AP_PERF_ARM_STARTING",
-					arm_perf_starting_cpu, NULL);
-	if (err)
-		goto out_hw_events;
+	mutex_lock(&arm_pmu_mutex);
+	list_add_tail(&cpu_pmu->entry, &arm_pmu_list);
+	mutex_unlock(&arm_pmu_mutex);
 
 	err = cpu_pm_pmu_register(cpu_pmu);
 	if (err)
@@ -850,8 +856,9 @@ static int cpu_pmu_init(struct arm_pmu *cpu_pmu)
 	return 0;
 
 out_unregister:
-	cpuhp_remove_state_nocalls(CPUHP_AP_PERF_ARM_STARTING);
-out_hw_events:
+	mutex_lock(&arm_pmu_mutex);
+	list_del(&cpu_pmu->entry);
+	mutex_unlock(&arm_pmu_mutex);
 	free_percpu(cpu_hw_events);
 	return err;
 }
@@ -859,7 +866,9 @@ out_hw_events:
 static void cpu_pmu_destroy(struct arm_pmu *cpu_pmu)
 {
 	cpu_pm_pmu_unregister(cpu_pmu);
-	cpuhp_remove_state_nocalls(CPUHP_AP_PERF_ARM_STARTING);
+	mutex_lock(&arm_pmu_mutex);
+	list_del(&cpu_pmu->entry);
+	mutex_unlock(&arm_pmu_mutex);
 	free_percpu(cpu_pmu->hw_events);
 }
 
@@ -1019,8 +1028,6 @@ int arm_pmu_device_probe(struct platform_device *pdev,
 	if (ret)
 		goto out_destroy;
 
-	WARN(__oprofile_cpu_pmu, "%s(): missing PMU strucure for CPU-hotplug\n",
-	     __func__);
 	if (!__oprofile_cpu_pmu)
 		__oprofile_cpu_pmu = pmu;
 
@@ -1038,3 +1045,17 @@ out_free:
 	kfree(pmu);
 	return ret;
 }
+
+static int arm_pmu_hp_init(void)
+{
+	int ret;
+
+	ret = cpuhp_setup_state_nocalls(CPUHP_AP_PERF_ARM_STARTING,
+					"AP_PERF_ARM_STARTING",
+					arm_perf_starting_cpu, NULL);
+	if (ret)
+		pr_err("CPU hotplug notifier for ARM PMU could not be registered: %d\n",
+		       ret);
+	return ret;
+}
+subsys_initcall(arm_pmu_hp_init);
