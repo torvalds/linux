@@ -116,7 +116,7 @@ int polaris10_phm_powergate_uvd(struct pp_hwmgr *hwmgr, bool bgate)
 		polaris10_update_uvd_dpm(hwmgr, false);
 		cgs_set_clockgating_state(hwmgr->device,
 				AMD_IP_BLOCK_TYPE_UVD,
-				AMD_PG_STATE_UNGATE);
+				AMD_CG_STATE_UNGATE);
 	}
 
 	return 0;
