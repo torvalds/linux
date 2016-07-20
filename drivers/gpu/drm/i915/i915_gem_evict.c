@@ -191,17 +191,18 @@ found:
 
 	/* Unbinding will emit any required flushes */
 	while (!list_empty(&eviction_list)) {
-		struct drm_gem_object *obj;
+		struct drm_i915_gem_object *obj;
+
 		vma = list_first_entry(&eviction_list,
 				       struct i915_vma,
 				       exec_list);
 
-		obj =  &vma->obj->base;
+		obj =  vma->obj;
 		list_del_init(&vma->exec_list);
 		if (ret == 0)
 			ret = i915_vma_unbind(vma);
 
-		drm_gem_object_unreference(obj);
+		i915_gem_object_put(obj);
 	}
 
 	return ret;

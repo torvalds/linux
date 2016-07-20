@@ -70,7 +70,7 @@ static int render_state_init(struct render_state *so,
 	return 0;
 
 free_gem:
-	drm_gem_object_unreference(&so->obj->base);
+	i915_gem_object_put(so->obj);
 	return ret;
 }
 
@@ -195,7 +195,7 @@ err_out:
 void i915_gem_render_state_fini(struct render_state *so)
 {
 	i915_gem_object_ggtt_unpin(so->obj);
-	drm_gem_object_unreference(&so->obj->base);
+	i915_gem_object_put(so->obj);
 }
 
 int i915_gem_render_state_prepare(struct intel_engine_cs *engine,

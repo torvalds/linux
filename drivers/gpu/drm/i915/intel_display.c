@@ -2488,7 +2488,7 @@ intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
 	return true;
 
 out_unref_obj:
-	drm_gem_object_unreference(&obj->base);
+	i915_gem_object_put(obj);
 	mutex_unlock(&dev->struct_mutex);
 	return false;
 }
@@ -10953,7 +10953,7 @@ static void intel_unpin_work_fn(struct work_struct *__work)
 
 	mutex_lock(&dev->struct_mutex);
 	intel_unpin_fb_obj(work->old_fb, primary->state->rotation);
-	drm_gem_object_unreference(&work->pending_flip_obj->base);
+	i915_gem_object_put(work->pending_flip_obj);
 	mutex_unlock(&dev->struct_mutex);
 
 	i915_gem_request_put(work->flip_queued_req);
@@ -14851,7 +14851,7 @@ static void intel_user_framebuffer_destroy(struct drm_framebuffer *fb)
 	drm_framebuffer_cleanup(fb);
 	mutex_lock(&dev->struct_mutex);
 	WARN_ON(!intel_fb->obj->framebuffer_references--);
-	drm_gem_object_unreference(&intel_fb->obj->base);
+	i915_gem_object_put(intel_fb->obj);
 	mutex_unlock(&dev->struct_mutex);
 	kfree(intel_fb);
 }

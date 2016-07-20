@@ -295,7 +295,7 @@ drop_pages(struct drm_i915_gem_object *obj)
 			break;
 
 	ret = i915_gem_object_put_pages(obj);
-	drm_gem_object_unreference(&obj->base);
+	i915_gem_object_put(obj);
 
 	return ret;
 }
@@ -887,7 +887,7 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 					args->offset, args->data_ptr);
 
 out:
-	drm_gem_object_unreference(&obj->base);
+	i915_gem_object_put(obj);
 unlock:
 	mutex_unlock(&dev->struct_mutex);
 	return ret;
@@ -1320,7 +1320,7 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 	}
 
 out:
-	drm_gem_object_unreference(&obj->base);
+	i915_gem_object_put(obj);
 unlock:
 	mutex_unlock(&dev->struct_mutex);
 put_rpm:
@@ -1522,7 +1522,7 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 		intel_fb_obj_invalidate(obj, write_origin(obj, write_domain));
 
 unref:
-	drm_gem_object_unreference(&obj->base);
+	i915_gem_object_put(obj);
 unlock:
 	mutex_unlock(&dev->struct_mutex);
 	return ret;
@@ -1556,7 +1556,7 @@ i915_gem_sw_finish_ioctl(struct drm_device *dev, void *data,
 	if (obj->pin_display)
 		i915_gem_object_flush_cpu_write_domain(obj);
 
-	drm_gem_object_unreference(&obj->base);
+	i915_gem_object_put(obj);
 unlock:
 	mutex_unlock(&dev->struct_mutex);
 	return ret;
@@ -1987,7 +1987,7 @@ i915_gem_mmap_gtt(struct drm_file *file,
 	*offset = drm_vma_node_offset_addr(&obj->base.vma_node);
 
 out:
-	drm_gem_object_unreference(&obj->base);
+	i915_gem_object_put(obj);
 unlock:
 	mutex_unlock(&dev->struct_mutex);
 	return ret;
@@ -2411,7 +2411,7 @@ i915_gem_object_retire__read(struct drm_i915_gem_object *obj, int ring)
 	}
 
 	i915_gem_request_assign(&obj->last_fenced_req, NULL);
-	drm_gem_object_unreference(&obj->base);
+	i915_gem_object_put(obj);
 }
 
 static bool i915_context_is_banned(const struct i915_gem_context *ctx)
@@ -2814,7 +2814,7 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 		goto out;
 	}
 
-	drm_gem_object_unreference(&obj->base);
+	i915_gem_object_put(obj);
 
 	for (i = 0; i < I915_NUM_ENGINES; i++) {
 		if (obj->last_read_req[i] == NULL)
@@ -2835,7 +2835,7 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	return ret;
 
 out:
-	drm_gem_object_unreference(&obj->base);
+	i915_gem_object_put(obj);
 	mutex_unlock(&dev->struct_mutex);
 	return ret;
 }
@@ -3665,7 +3665,7 @@ int i915_gem_set_caching_ioctl(struct drm_device *dev, void *data,
 
 	ret = i915_gem_object_set_cache_level(obj, level);
 
-	drm_gem_object_unreference(&obj->base);
+	i915_gem_object_put(obj);
 unlock:
 	mutex_unlock(&dev->struct_mutex);
 rpm_put:
@@ -4057,7 +4057,7 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 	}
 
 unref:
-	drm_gem_object_unreference(&obj->base);
+	i915_gem_object_put(obj);
 unlock:
 	mutex_unlock(&dev->struct_mutex);
 	return ret;
@@ -4121,7 +4121,7 @@ i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 	args->retained = obj->madv != __I915_MADV_PURGED;
 
 out:
-	drm_gem_object_unreference(&obj->base);
+	i915_gem_object_put(obj);
 unlock:
 	mutex_unlock(&dev->struct_mutex);
 	return ret;
@@ -4952,6 +4952,6 @@ i915_gem_object_create_from_data(struct drm_device *dev,
 	return obj;
 
 fail:
-	drm_gem_object_unreference(&obj->base);
+	i915_gem_object_put(obj);
 	return ERR_PTR(ret);
 }

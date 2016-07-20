@@ -308,7 +308,7 @@ static void intel_overlay_release_old_vid_tail(struct intel_overlay *overlay)
 	struct drm_i915_gem_object *obj = overlay->old_vid_bo;
 
 	i915_gem_object_ggtt_unpin(obj);
-	drm_gem_object_unreference(&obj->base);
+	i915_gem_object_put(obj);
 
 	overlay->old_vid_bo = NULL;
 }
@@ -322,7 +322,7 @@ static void intel_overlay_off_tail(struct intel_overlay *overlay)
 		return;
 
 	i915_gem_object_ggtt_unpin(obj);
-	drm_gem_object_unreference(&obj->base);
+	i915_gem_object_put(obj);
 	overlay->vid_bo = NULL;
 
 	overlay->crtc->overlay = NULL;
@@ -1219,7 +1219,7 @@ int intel_overlay_put_image_ioctl(struct drm_device *dev, void *data,
 out_unlock:
 	mutex_unlock(&dev->struct_mutex);
 	drm_modeset_unlock_all(dev);
-	drm_gem_object_unreference_unlocked(&new_bo->base);
+	i915_gem_object_put(new_bo);
 out_free:
 	kfree(params);
 
@@ -1443,7 +1443,7 @@ out_unpin_bo:
 	if (!OVERLAY_NEEDS_PHYSICAL(dev_priv))
 		i915_gem_object_ggtt_unpin(reg_bo);
 out_free_bo:
-	drm_gem_object_unreference(&reg_bo->base);
+	i915_gem_object_put(reg_bo);
 out_free:
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 	kfree(overlay);

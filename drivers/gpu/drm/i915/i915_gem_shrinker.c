@@ -201,7 +201,7 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 			if (i915_gem_object_put_pages(obj) == 0)
 				count += obj->base.size >> PAGE_SHIFT;
 
-			drm_gem_object_unreference(&obj->base);
+			i915_gem_object_put(obj);
 		}
 		list_splice(&still_in_list, phase->list);
 	}

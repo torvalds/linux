@@ -119,7 +119,7 @@ static void cancel_userptr(struct work_struct *work)
 		dev_priv->mm.interruptible = was_interruptible;
 	}
 
-	drm_gem_object_unreference(&obj->base);
+	i915_gem_object_put(obj);
 	mutex_unlock(&dev->struct_mutex);
 }
 
@@ -577,7 +577,7 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 	}
 
 	obj->userptr.workers--;
-	drm_gem_object_unreference(&obj->base);
+	i915_gem_object_put(obj);
 	mutex_unlock(&dev->struct_mutex);
 
 	release_pages(pvec, pinned, 0);

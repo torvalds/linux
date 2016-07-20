@@ -75,7 +75,7 @@ void i915_gem_batch_pool_fini(struct i915_gem_batch_pool *pool)
 						 batch_pool_link);
 
 			list_del(&obj->batch_pool_link);
-			drm_gem_object_unreference(&obj->base);
+			i915_gem_object_put(obj);
 		}
 	}
 }
@@ -121,7 +121,7 @@ i915_gem_batch_pool_get(struct i915_gem_batch_pool *pool,
 		/* While we're looping, do some clean up */
 		if (tmp->madv == __I915_MADV_PURGED) {
 			list_del(&tmp->batch_pool_link);
-			drm_gem_object_unreference(&tmp->base);
+			i915_gem_object_put(tmp);
 			continue;
 		}
 

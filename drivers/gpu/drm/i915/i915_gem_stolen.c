@@ -716,6 +716,6 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 	return obj;
 
 err:
-	drm_gem_object_unreference(&obj->base);
+	i915_gem_object_put(obj);
 	return NULL;
 }

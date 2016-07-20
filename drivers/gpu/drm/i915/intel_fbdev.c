@@ -159,7 +159,7 @@ static int intelfb_alloc(struct drm_fb_helper *helper,
 
 	fb = __intel_framebuffer_create(dev, &mode_cmd, obj);
 	if (IS_ERR(fb)) {
-		drm_gem_object_unreference(&obj->base);
+		i915_gem_object_put(obj);
 		ret = PTR_ERR(fb);
 		goto out;
 	}

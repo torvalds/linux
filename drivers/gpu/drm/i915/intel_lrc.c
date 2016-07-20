@@ -1367,7 +1367,7 @@ static int lrc_setup_wa_ctx_obj(struct intel_engine_cs *engine, u32 size)
 	if (ret) {
 		DRM_DEBUG_DRIVER("pin LRC WA ctx backing obj failed: %d\n",
 				 ret);
-		drm_gem_object_unreference(&engine->wa_ctx.obj->base);
+		i915_gem_object_put(engine->wa_ctx.obj);
 		return ret;
 	}
 
@@ -1378,7 +1378,7 @@ static void lrc_destroy_wa_ctx_obj(struct intel_engine_cs *engine)
 {
 	if (engine->wa_ctx.obj) {
 		i915_gem_object_ggtt_unpin(engine->wa_ctx.obj);
-		drm_gem_object_unreference(&engine->wa_ctx.obj->base);
+		i915_gem_object_put(engine->wa_ctx.obj);
 		engine->wa_ctx.obj = NULL;
 	}
 }
@@ -2382,7 +2382,7 @@ static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 error_ringbuf:
 	intel_ringbuffer_free(ringbuf);
 error_deref_obj:
-	drm_gem_object_unreference(&ctx_obj->base);
+	i915_gem_object_put(ctx_obj);
 	ce->ringbuf = NULL;
 	ce->state = NULL;
 	return ret;

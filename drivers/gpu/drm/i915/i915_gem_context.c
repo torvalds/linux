@@ -176,7 +176,7 @@ void i915_gem_context_free(struct kref *ctx_ref)
 		if (ce->ringbuf)
 			intel_ringbuffer_free(ce->ringbuf);
 
-		drm_gem_object_unreference(&ce->state->base);
+		i915_gem_object_put(ce->state);
 	}
 
 	list_del(&ctx->link);
@@ -216,7 +216,7 @@ i915_gem_alloc_context_obj(struct drm_device *dev, size_t size)
 		ret = i915_gem_object_set_cache_level(obj, I915_CACHE_L3_LLC);
 		/* Failure shouldn't ever happen this early */
 		if (WARN_ON(ret)) {
-			drm_gem_object_unreference(&obj->base);
+			i915_gem_object_put(obj);
 			return ERR_PTR(ret);
 		}
 	}

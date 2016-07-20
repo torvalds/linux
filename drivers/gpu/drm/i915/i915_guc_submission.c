@@ -633,13 +633,13 @@ gem_allocate_guc_obj(struct drm_i915_private *dev_priv, u32 size)
 		return NULL;
 
 	if (i915_gem_object_get_pages(obj)) {
-		drm_gem_object_unreference(&obj->base);
+		i915_gem_object_put(obj);
 		return NULL;
 	}
 
 	if (i915_gem_obj_ggtt_pin(obj, PAGE_SIZE,
 			PIN_OFFSET_BIAS | GUC_WOPCM_TOP)) {
-		drm_gem_object_unreference(&obj->base);
+		i915_gem_object_put(obj);
 		return NULL;
 	}
 
@@ -661,7 +661,7 @@ static void gem_release_guc_obj(struct drm_i915_gem_object *obj)
 	if (i915_gem_obj_is_pinned(obj))
 		i915_gem_object_ggtt_unpin(obj);
 
-	drm_gem_object_unreference(&obj->base);
+	i915_gem_object_put(obj);
 }
 
 static void

@@ -641,7 +641,7 @@ void intel_fini_pipe_control(struct intel_engine_cs *engine)
 		return;
 
 	i915_gem_object_ggtt_unpin(engine->scratch.obj);
-	drm_gem_object_unreference(&engine->scratch.obj->base);
+	i915_gem_object_put(engine->scratch.obj);
 	engine->scratch.obj = NULL;
 }
 
@@ -672,7 +672,7 @@ int intel_init_pipe_control(struct intel_engine_cs *engine, int size)
 	return 0;
 
 err_unref:
-	drm_gem_object_unreference(&engine->scratch.obj->base);
+	i915_gem_object_put(engine->scratch.obj);
 err:
 	return ret;
 }
@@ -1312,7 +1312,7 @@ static void render_ring_cleanup(struct intel_engine_cs *engine)
 
 	if (dev_priv->semaphore_obj) {
 		i915_gem_object_ggtt_unpin(dev_priv->semaphore_obj);
-		drm_gem_object_unreference(&dev_priv->semaphore_obj->base);
+		i915_gem_object_put(dev_priv->semaphore_obj);
 		dev_priv->semaphore_obj = NULL;
 	}
 
@@ -1898,7 +1898,7 @@ static void cleanup_status_page(struct intel_engine_cs *engine)
 
 	kunmap(sg_page(obj->pages->sgl));
 	i915_gem_object_ggtt_unpin(obj);
-	drm_gem_object_unreference(&obj->base);
+	i915_gem_object_put(obj);
 	engine->status_page.obj = NULL;
 }
 
@@ -1936,7 +1936,7 @@ static int init_status_page(struct intel_engine_cs *engine)
 		ret = i915_gem_obj_ggtt_pin(obj, 4096, flags);
 		if (ret) {
 err_unref:
-			drm_gem_object_unreference(&obj->base);
+			i915_gem_object_put(obj);
 			return ret;
 		}
 
@@ -2039,7 +2039,7 @@ err_unpin:
 
 static void intel_destroy_ringbuffer_obj(struct intel_ringbuffer *ringbuf)
 {
-	drm_gem_object_unreference(&ringbuf->obj->base);
+	i915_gem_object_put(ringbuf->obj);
 	ringbuf->obj = NULL;
 }
 
@@ -2691,7 +2691,7 @@ static void intel_ring_init_semaphores(struct drm_i915_private *dev_priv,
 			i915_gem_object_set_cache_level(obj, I915_CACHE_LLC);
 			ret = i915_gem_obj_ggtt_pin(obj, 0, PIN_NONBLOCK);
 			if (ret != 0) {
-				drm_gem_object_unreference(&obj->base);
+				i915_gem_object_put(obj);
 				DRM_ERROR("Failed to pin semaphore bo. Disabling semaphores\n");
 				i915.semaphores = 0;
 			} else {

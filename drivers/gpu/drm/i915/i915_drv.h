@@ -2317,6 +2317,16 @@ i915_gem_object_get(struct drm_i915_gem_object *obj)
 __deprecated
 extern void drm_gem_object_reference(struct drm_gem_object *);
 
+__attribute__((nonnull))
+static inline void
+i915_gem_object_put(struct drm_i915_gem_object *obj)
+{
+	drm_gem_object_unreference(&obj->base);
+}
+
+__deprecated
+extern void drm_gem_object_unreference(struct drm_gem_object *);
+
 static inline bool
 i915_gem_object_has_struct_page(const struct drm_i915_gem_object *obj)
 {
