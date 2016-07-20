@@ -186,6 +186,7 @@ static void gb_module_deregister_interface(struct gb_interface *intf)
 		intf->disconnected = true;
 
 	mutex_lock(&intf->mutex);
+	intf->removed = true;
 	gb_interface_disable(intf);
 	gb_interface_deactivate(intf);
 	mutex_unlock(&intf->mutex);

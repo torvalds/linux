@@ -873,7 +873,7 @@ static int _gb_interface_activate(struct gb_interface *intf,
 
 	*type = GB_INTERFACE_TYPE_UNKNOWN;
 
-	if (intf->ejected)
+	if (intf->ejected || intf->removed)
 		return -ENODEV;
 
 	ret = gb_interface_vsys_set(intf, true);

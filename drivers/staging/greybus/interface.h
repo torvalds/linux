@@ -53,6 +53,7 @@ struct gb_interface {
 	bool disconnected;
 
 	bool ejected;
+	bool removed;
 	bool active;
 	bool enabled;
 	bool mode_switch;
