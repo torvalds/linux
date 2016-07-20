@@ -869,6 +869,7 @@ struct kvm_ppc_smmu_info {
 #define KVM_CAP_X2APIC_API 129
 #define KVM_CAP_S390_USER_INSTR0 130
 #define KVM_CAP_MSI_DEVID 131
+#define KVM_CAP_PPC_HTM 132
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
