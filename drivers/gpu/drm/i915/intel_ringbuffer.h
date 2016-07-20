@@ -84,7 +84,7 @@ struct intel_ring_hangcheck {
 
 struct intel_ringbuffer {
 	struct drm_i915_gem_object *obj;
-	void *virtual_start;
+	void *vaddr;
 	struct i915_vma *vma;
 
 	struct intel_engine_cs *engine;
@@ -457,7 +457,7 @@ int __must_check intel_ring_cacheline_align(struct drm_i915_gem_request *req);
 static inline void __intel_ringbuffer_emit(struct intel_ringbuffer *rb,
 					   u32 data)
 {
-	*(uint32_t *)(rb->virtual_start + rb->tail) = data;
+	*(uint32_t *)(rb->vaddr + rb->tail) = data;
 	rb->tail += 4;
 }
 

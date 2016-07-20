@@ -1972,14 +1972,14 @@ static int init_phys_status_page(struct intel_engine_cs *engine)
 
 void intel_unpin_ringbuffer_obj(struct intel_ringbuffer *ringbuf)
 {
-	GEM_BUG_ON(ringbuf->vma == NULL);
-	GEM_BUG_ON(ringbuf->virtual_start == NULL);
+	GEM_BUG_ON(!ringbuf->vma);
+	GEM_BUG_ON(!ringbuf->vaddr);
 
 	if (HAS_LLC(ringbuf->obj->base.dev) && !ringbuf->obj->stolen)
 		i915_gem_object_unpin_map(ringbuf->obj);
 	else
 		i915_vma_unpin_iomap(ringbuf->vma);
-	ringbuf->virtual_start = NULL;
+	ringbuf->vaddr = NULL;
 
 	i915_gem_object_ggtt_unpin(ringbuf->obj);
 	ringbuf->vma = NULL;
@@ -2029,7 +2029,7 @@ int intel_pin_and_map_ringbuffer_obj(struct drm_i915_private *dev_priv,
 		}
 	}
 
-	ringbuf->virtual_start = addr;
+	ringbuf->vaddr = addr;
 	ringbuf->vma = i915_gem_obj_to_ggtt(obj);
 	return 0;
 
@@ -2391,8 +2391,7 @@ int intel_ring_begin(struct drm_i915_gem_request *req, int num_dwords)
 		GEM_BUG_ON(ringbuf->tail + remain_actual > ringbuf->size);
 
 		/* Fill the tail with MI_NOOP */
-		memset(ringbuf->virtual_start + ringbuf->tail,
-		       0, remain_actual);
+		memset(ringbuf->vaddr + ringbuf->tail, 0, remain_actual);
 		ringbuf->tail = 0;
 		ringbuf->space -= remain_actual;
 	}

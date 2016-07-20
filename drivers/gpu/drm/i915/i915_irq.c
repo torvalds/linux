@@ -2899,7 +2899,7 @@ semaphore_waits_for(struct intel_engine_cs *engine, u32 *seqno)
 	 */
 	head = I915_READ_HEAD(engine) & HEAD_ADDR;
 	backwards = (INTEL_GEN(dev_priv) >= 8) ? 5 : 4;
-	vaddr = (void __iomem *)engine->buffer->virtual_start;
+	vaddr = (void __iomem *)engine->buffer->vaddr;
 
 	for (i = backwards; i; --i) {
 		/*
