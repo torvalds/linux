@@ -119,6 +119,7 @@ GPIO 16(I believe) is tied to the IR port (if present).
 From the data sheet:
 
 - Register 24'h20004  PCI Interrupt Status
+
  - bit [18]  IR_SMP_INT Set when 32 input samples have been collected over
  - gpio[16] pin into GP_SAMPLE register.
 

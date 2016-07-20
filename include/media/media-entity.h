@@ -180,8 +180,10 @@ struct media_pad {
  *			view. The media_entity_pipeline_start() function
  *			validates all links by calling this operation. Optional.
  *
- * .. note:: Those these callbacks are called with struct media_device.@graph_mutex
- * mutex held.
+ * .. note::
+ *
+ *    Those these callbacks are called with struct media_device.@graph_mutex
+ *    mutex held.
  */
 struct media_entity_operations {
 	int (*link_setup)(struct media_entity *entity,
