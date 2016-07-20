@@ -271,18 +271,6 @@ static int _mv88e6xxx_reg_write(struct mv88e6xxx_chip *chip, int addr,
 	return mv88e6xxx_write(chip, addr, reg, val);
 }
 
-static int mv88e6xxx_reg_write(struct mv88e6xxx_chip *chip, int addr,
-			       int reg, u16 val)
-{
-	int ret;
-
-	mutex_lock(&chip->reg_lock);
-	ret = _mv88e6xxx_reg_write(chip, addr, reg, val);
-	mutex_unlock(&chip->reg_lock);
-
-	return ret;
-}
-
 static int mv88e6xxx_mdio_read_direct(struct mv88e6xxx_chip *chip,
 				      int addr, int regnum)
 {
@@ -861,257 +849,10 @@ static int _mv88e6xxx_wait(struct mv88e6xxx_chip *chip, int reg, int offset,
 	return -ETIMEDOUT;
 }
 
-static int mv88e6xxx_wait(struct mv88e6xxx_chip *chip, int reg,
-			  int offset, u16 mask)
-{
-	int ret;
-
-	mutex_lock(&chip->reg_lock);
-	ret = _mv88e6xxx_wait(chip, reg, offset, mask);
-	mutex_unlock(&chip->reg_lock);
-
-	return ret;
-}
-
 static int mv88e6xxx_mdio_wait(struct mv88e6xxx_chip *chip)
 {
 	return _mv88e6xxx_wait(chip, REG_GLOBAL2, GLOBAL2_SMI_OP,
 			       GLOBAL2_SMI_OP_BUSY);
-}
-
-static int mv88e6xxx_eeprom_load_wait(struct dsa_switch *ds)
-{
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
-
-	return mv88e6xxx_wait(chip, REG_GLOBAL2, GLOBAL2_EEPROM_OP,
-			      GLOBAL2_EEPROM_OP_LOAD);
-}
-
-static int mv88e6xxx_eeprom_busy_wait(struct dsa_switch *ds)
-{
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
-
-	return mv88e6xxx_wait(chip, REG_GLOBAL2, GLOBAL2_EEPROM_OP,
-			      GLOBAL2_EEPROM_OP_BUSY);
-}
-
-static int mv88e6xxx_read_eeprom_word(struct dsa_switch *ds, int addr)
-{
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
-	int ret;
-
-	mutex_lock(&chip->eeprom_mutex);
-
-	ret = mv88e6xxx_reg_write(chip, REG_GLOBAL2, GLOBAL2_EEPROM_OP,
-				  GLOBAL2_EEPROM_OP_READ |
-				  (addr & GLOBAL2_EEPROM_OP_ADDR_MASK));
-	if (ret < 0)
-		goto error;
-
-	ret = mv88e6xxx_eeprom_busy_wait(ds);
-	if (ret < 0)
-		goto error;
-
-	ret = mv88e6xxx_reg_read(chip, REG_GLOBAL2, GLOBAL2_EEPROM_DATA);
-error:
-	mutex_unlock(&chip->eeprom_mutex);
-	return ret;
-}
-
-static int mv88e6xxx_get_eeprom_len(struct dsa_switch *ds)
-{
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
-
-	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_EEPROM))
-		return chip->eeprom_len;
-
-	return 0;
-}
-
-static int mv88e6xxx_get_eeprom(struct dsa_switch *ds,
-				struct ethtool_eeprom *eeprom, u8 *data)
-{
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
-	int offset;
-	int len;
-	int ret;
-
-	if (!mv88e6xxx_has(chip, MV88E6XXX_FLAG_EEPROM))
-		return -EOPNOTSUPP;
-
-	offset = eeprom->offset;
-	len = eeprom->len;
-	eeprom->len = 0;
-
-	eeprom->magic = 0xc3ec4951;
-
-	ret = mv88e6xxx_eeprom_load_wait(ds);
-	if (ret < 0)
-		return ret;
-
-	if (offset & 1) {
-		int word;
-
-		word = mv88e6xxx_read_eeprom_word(ds, offset >> 1);
-		if (word < 0)
-			return word;
-
-		*data++ = (word >> 8) & 0xff;
-
-		offset++;
-		len--;
-		eeprom->len++;
-	}
-
-	while (len >= 2) {
-		int word;
-
-		word = mv88e6xxx_read_eeprom_word(ds, offset >> 1);
-		if (word < 0)
-			return word;
-
-		*data++ = word & 0xff;
-		*data++ = (word >> 8) & 0xff;
-
-		offset += 2;
-		len -= 2;
-		eeprom->len += 2;
-	}
-
-	if (len) {
-		int word;
-
-		word = mv88e6xxx_read_eeprom_word(ds, offset >> 1);
-		if (word < 0)
-			return word;
-
-		*data++ = word & 0xff;
-
-		offset++;
-		len--;
-		eeprom->len++;
-	}
-
-	return 0;
-}
-
-static int mv88e6xxx_eeprom_is_readonly(struct dsa_switch *ds)
-{
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
-	int ret;
-
-	ret = mv88e6xxx_reg_read(chip, REG_GLOBAL2, GLOBAL2_EEPROM_OP);
-	if (ret < 0)
-		return ret;
-
-	if (!(ret & GLOBAL2_EEPROM_OP_WRITE_EN))
-		return -EROFS;
-
-	return 0;
-}
-
-static int mv88e6xxx_write_eeprom_word(struct dsa_switch *ds, int addr,
-				       u16 data)
-{
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
-	int ret;
-
-	mutex_lock(&chip->eeprom_mutex);
-
-	ret = mv88e6xxx_reg_write(chip, REG_GLOBAL2, GLOBAL2_EEPROM_DATA, data);
-	if (ret < 0)
-		goto error;
-
-	ret = mv88e6xxx_reg_write(chip, REG_GLOBAL2, GLOBAL2_EEPROM_OP,
-				  GLOBAL2_EEPROM_OP_WRITE |
-				  (addr & GLOBAL2_EEPROM_OP_ADDR_MASK));
-	if (ret < 0)
-		goto error;
-
-	ret = mv88e6xxx_eeprom_busy_wait(ds);
-error:
-	mutex_unlock(&chip->eeprom_mutex);
-	return ret;
-}
-
-static int mv88e6xxx_set_eeprom(struct dsa_switch *ds,
-				struct ethtool_eeprom *eeprom, u8 *data)
-{
-	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
-	int offset;
-	int ret;
-	int len;
-
-	if (!mv88e6xxx_has(chip, MV88E6XXX_FLAG_EEPROM))
-		return -EOPNOTSUPP;
-
-	if (eeprom->magic != 0xc3ec4951)
-		return -EINVAL;
-
-	ret = mv88e6xxx_eeprom_is_readonly(ds);
-	if (ret)
-		return ret;
-
-	offset = eeprom->offset;
-	len = eeprom->len;
-	eeprom->len = 0;
-
-	ret = mv88e6xxx_eeprom_load_wait(ds);
-	if (ret < 0)
-		return ret;
-
-	if (offset & 1) {
-		int word;
-
-		word = mv88e6xxx_read_eeprom_word(ds, offset >> 1);
-		if (word < 0)
-			return word;
-
-		word = (*data++ << 8) | (word & 0xff);
-
-		ret = mv88e6xxx_write_eeprom_word(ds, offset >> 1, word);
-		if (ret < 0)
-			return ret;
-
-		offset++;
-		len--;
-		eeprom->len++;
-	}
-
-	while (len >= 2) {
-		int word;
-
-		word = *data++;
-		word |= *data++ << 8;
-
-		ret = mv88e6xxx_write_eeprom_word(ds, offset >> 1, word);
-		if (ret < 0)
-			return ret;
-
-		offset += 2;
-		len -= 2;
-		eeprom->len += 2;
-	}
-
-	if (len) {
-		int word;
-
-		word = mv88e6xxx_read_eeprom_word(ds, offset >> 1);
-		if (word < 0)
-			return word;
-
-		word = (word & 0xff00) | *data++;
-
-		ret = mv88e6xxx_write_eeprom_word(ds, offset >> 1, word);
-		if (ret < 0)
-			return ret;
-
-		offset++;
-		len--;
-		eeprom->len++;
-	}
-
-	return 0;
 }
 
 static int _mv88e6xxx_atu_wait(struct mv88e6xxx_chip *chip)
@@ -3261,6 +3002,58 @@ static int mv88e6xxx_g2_clear_pot(struct mv88e6xxx_chip *chip)
 	return err;
 }
 
+static int mv88e6xxx_g2_eeprom_wait(struct mv88e6xxx_chip *chip)
+{
+	return _mv88e6xxx_wait(chip, REG_GLOBAL2, GLOBAL2_EEPROM_CMD,
+			       GLOBAL2_EEPROM_CMD_BUSY |
+			       GLOBAL2_EEPROM_CMD_RUNNING);
+}
+
+static int mv88e6xxx_g2_eeprom_cmd(struct mv88e6xxx_chip *chip, u16 cmd)
+{
+	int err;
+
+	err = mv88e6xxx_write(chip, REG_GLOBAL2, GLOBAL2_EEPROM_CMD, cmd);
+	if (err)
+		return err;
+
+	return mv88e6xxx_g2_eeprom_wait(chip);
+}
+
+static int mv88e6xxx_g2_eeprom_read16(struct mv88e6xxx_chip *chip,
+				      u8 addr, u16 *data)
+{
+	u16 cmd = GLOBAL2_EEPROM_CMD_OP_READ | addr;
+	int err;
+
+	err = mv88e6xxx_g2_eeprom_wait(chip);
+	if (err)
+		return err;
+
+	err = mv88e6xxx_g2_eeprom_cmd(chip, cmd);
+	if (err)
+		return err;
+
+	return mv88e6xxx_read(chip, REG_GLOBAL2, GLOBAL2_EEPROM_DATA, data);
+}
+
+static int mv88e6xxx_g2_eeprom_write16(struct mv88e6xxx_chip *chip,
+				       u8 addr, u16 data)
+{
+	u16 cmd = GLOBAL2_EEPROM_CMD_OP_WRITE | addr;
+	int err;
+
+	err = mv88e6xxx_g2_eeprom_wait(chip);
+	if (err)
+		return err;
+
+	err = mv88e6xxx_write(chip, REG_GLOBAL2, GLOBAL2_EEPROM_DATA, data);
+	if (err)
+		return err;
+
+	return mv88e6xxx_g2_eeprom_cmd(chip, cmd);
+}
+
 static int mv88e6xxx_g2_setup(struct mv88e6xxx_chip *chip)
 {
 	u16 reg;
@@ -3344,9 +3137,6 @@ static int mv88e6xxx_setup(struct dsa_switch *ds)
 
 	chip->ds = ds;
 	ds->slave_mii_bus = chip->mdio_bus;
-
-	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_EEPROM))
-		mutex_init(&chip->eeprom_mutex);
 
 	mutex_lock(&chip->reg_lock);
 
@@ -3669,6 +3459,173 @@ static int mv88e6xxx_get_temp_alarm(struct dsa_switch *ds, bool *alarm)
 	return 0;
 }
 #endif /* CONFIG_NET_DSA_HWMON */
+
+static int mv88e6xxx_get_eeprom_len(struct dsa_switch *ds)
+{
+	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+
+	return chip->eeprom_len;
+}
+
+static int mv88e6xxx_get_eeprom16(struct mv88e6xxx_chip *chip,
+				  struct ethtool_eeprom *eeprom, u8 *data)
+{
+	unsigned int offset = eeprom->offset;
+	unsigned int len = eeprom->len;
+	u16 val;
+	int err;
+
+	eeprom->len = 0;
+
+	if (offset & 1) {
+		err = mv88e6xxx_g2_eeprom_read16(chip, offset >> 1, &val);
+		if (err)
+			return err;
+
+		*data++ = (val >> 8) & 0xff;
+
+		offset++;
+		len--;
+		eeprom->len++;
+	}
+
+	while (len >= 2) {
+		err = mv88e6xxx_g2_eeprom_read16(chip, offset >> 1, &val);
+		if (err)
+			return err;
+
+		*data++ = val & 0xff;
+		*data++ = (val >> 8) & 0xff;
+
+		offset += 2;
+		len -= 2;
+		eeprom->len += 2;
+	}
+
+	if (len) {
+		err = mv88e6xxx_g2_eeprom_read16(chip, offset >> 1, &val);
+		if (err)
+			return err;
+
+		*data++ = val & 0xff;
+
+		offset++;
+		len--;
+		eeprom->len++;
+	}
+
+	return 0;
+}
+
+static int mv88e6xxx_get_eeprom(struct dsa_switch *ds,
+				struct ethtool_eeprom *eeprom, u8 *data)
+{
+	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+	int err;
+
+	mutex_lock(&chip->reg_lock);
+
+	if (mv88e6xxx_has(chip, MV88E6XXX_FLAGS_EEPROM16))
+		err = mv88e6xxx_get_eeprom16(chip, eeprom, data);
+	else
+		err = -EOPNOTSUPP;
+
+	mutex_unlock(&chip->reg_lock);
+
+	if (err)
+		return err;
+
+	eeprom->magic = 0xc3ec4951;
+
+	return 0;
+}
+
+static int mv88e6xxx_set_eeprom16(struct mv88e6xxx_chip *chip,
+				  struct ethtool_eeprom *eeprom, u8 *data)
+{
+	unsigned int offset = eeprom->offset;
+	unsigned int len = eeprom->len;
+	u16 val;
+	int err;
+
+	/* Ensure the RO WriteEn bit is set */
+	err = mv88e6xxx_read(chip, REG_GLOBAL2, GLOBAL2_EEPROM_CMD, &val);
+	if (err)
+		return err;
+
+	if (!(val & GLOBAL2_EEPROM_CMD_WRITE_EN))
+		return -EROFS;
+
+	eeprom->len = 0;
+
+	if (offset & 1) {
+		err = mv88e6xxx_g2_eeprom_read16(chip, offset >> 1, &val);
+		if (err)
+			return err;
+
+		val = (*data++ << 8) | (val & 0xff);
+
+		err = mv88e6xxx_g2_eeprom_write16(chip, offset >> 1, val);
+		if (err)
+			return err;
+
+		offset++;
+		len--;
+		eeprom->len++;
+	}
+
+	while (len >= 2) {
+		val = *data++;
+		val |= *data++ << 8;
+
+		err = mv88e6xxx_g2_eeprom_write16(chip, offset >> 1, val);
+		if (err)
+			return err;
+
+		offset += 2;
+		len -= 2;
+		eeprom->len += 2;
+	}
+
+	if (len) {
+		err = mv88e6xxx_g2_eeprom_read16(chip, offset >> 1, &val);
+		if (err)
+			return err;
+
+		val = (val & 0xff00) | *data++;
+
+		err = mv88e6xxx_g2_eeprom_write16(chip, offset >> 1, val);
+		if (err)
+			return err;
+
+		offset++;
+		len--;
+		eeprom->len++;
+	}
+
+	return 0;
+}
+
+static int mv88e6xxx_set_eeprom(struct dsa_switch *ds,
+				struct ethtool_eeprom *eeprom, u8 *data)
+{
+	struct mv88e6xxx_chip *chip = ds_to_priv(ds);
+	int err;
+
+	if (eeprom->magic != 0xc3ec4951)
+		return -EINVAL;
+
+	mutex_lock(&chip->reg_lock);
+
+	if (mv88e6xxx_has(chip, MV88E6XXX_FLAGS_EEPROM16))
+		err = mv88e6xxx_set_eeprom16(chip, eeprom, data);
+	else
+		err = -EOPNOTSUPP;
+
+	mutex_unlock(&chip->reg_lock);
+
+	return err;
+}
 
 static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 	[MV88E6085] = {
@@ -4063,7 +4020,7 @@ static int mv88e6xxx_probe(struct mdio_device *mdiodev)
 	if (IS_ERR(chip->reset))
 		return PTR_ERR(chip->reset);
 
-	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_EEPROM) &&
+	if (mv88e6xxx_has(chip, MV88E6XXX_FLAGS_EEPROM16) &&
 	    !of_property_read_u32(np, "eeprom-length", &eeprom_len))
 		chip->eeprom_len = eeprom_len;
 
