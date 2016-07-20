@@ -468,7 +468,7 @@ error:
 
 	while ((entity_err = media_entity_graph_walk_next(graph))) {
 		/* don't let the stream_count go negative */
-		if (entity->stream_count > 0) {
+		if (entity_err->stream_count > 0) {
 			entity_err->stream_count--;
 			if (entity_err->stream_count == 0)
 				entity_err->pipe = NULL;
