@@ -501,6 +501,63 @@ static ssize_t power_now_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(power_now);
 
+static ssize_t power_state_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct gb_interface *intf = to_gb_interface(dev);
+
+	if (intf->active)
+		return scnprintf(buf, PAGE_SIZE, "on\n");
+	else
+		return scnprintf(buf, PAGE_SIZE, "off\n");
+}
+
+static ssize_t power_state_store(struct device *dev,
+				 struct device_attribute *attr, const char *buf,
+				 size_t len)
+{
+	struct gb_interface *intf = to_gb_interface(dev);
+	bool activate;
+	int ret = 0;
+
+	if (kstrtobool(buf, &activate))
+		return -EINVAL;
+
+	mutex_lock(&intf->mutex);
+
+	if (activate == intf->active)
+		goto unlock;
+
+	if (activate) {
+		ret = gb_interface_activate(intf);
+		if (ret) {
+			dev_err(&intf->dev,
+				"failed to activate interface: %d\n", ret);
+			goto unlock;
+		}
+
+		ret = gb_interface_enable(intf);
+		if (ret) {
+			dev_err(&intf->dev,
+				"failed to enable interface: %d\n", ret);
+			gb_interface_deactivate(intf);
+			goto unlock;
+		}
+	} else {
+		gb_interface_disable(intf);
+		gb_interface_deactivate(intf);
+	}
+
+unlock:
+	mutex_unlock(&intf->mutex);
+
+	if (ret)
+		return ret;
+
+	return len;
+}
+static DEVICE_ATTR_RW(power_state);
+
 static const char *gb_interface_type_string(struct gb_interface *intf)
 {
 	static const char * const types[] = {
@@ -541,6 +598,7 @@ static struct attribute *interface_power_attrs[] = {
 	&dev_attr_voltage_now.attr,
 	&dev_attr_current_now.attr,
 	&dev_attr_power_now.attr,
+	&dev_attr_power_state.attr,
 	NULL
 };
 
