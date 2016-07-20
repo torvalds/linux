@@ -595,6 +595,10 @@ S:	Odd Fixes
 L:	linux-alpha@vger.kernel.org
 F:	arch/alpha/
 
+ALPS PS/2 TOUCHPAD DRIVER
+R:	Pali Rohár <pali.rohar@gmail.com>
+F:	drivers/input/mouse/alps.*
+
 ALTERA MAILBOX DRIVER
 M:	Ley Foon Tan <lftan@altera.com>
 L:	nios2-dev@lists.rocketboards.org (moderated for non-subscribers)
@@ -1159,6 +1163,7 @@ F:	arch/arm/mach-footbridge/
 ARM/FREESCALE IMX / MXC ARM ARCHITECTURE
 M:	Shawn Guo <shawnguo@kernel.org>
 M:	Sascha Hauer <kernel@pengutronix.de>
+R:	Fabio Estevam <fabio.estevam@nxp.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux.git
@@ -2242,7 +2247,8 @@ F:	include/net/ax25.h
 F:	net/ax25/
 
 AZ6007 DVB DRIVER
-M:	Mauro Carvalho Chehab <mchehab@osg.samsung.com>
+M:	Mauro Carvalho Chehab <mchehab@s-opensource.com>
+M:	Mauro Carvalho Chehab <mchehab@kernel.org>
 L:	linux-media@vger.kernel.org
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
@@ -2709,7 +2715,8 @@ F:	Documentation/filesystems/btrfs.txt
 F:	fs/btrfs/
 
 BTTV VIDEO4LINUX DRIVER
-M:	Mauro Carvalho Chehab <mchehab@osg.samsung.com>
+M:	Mauro Carvalho Chehab <mchehab@s-opensource.com>
+M:	Mauro Carvalho Chehab <mchehab@kernel.org>
 L:	linux-media@vger.kernel.org
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
@@ -3344,7 +3351,8 @@ S:	Maintained
 F:	drivers/media/dvb-frontends/cx24120*
 
 CX88 VIDEO4LINUX DRIVER
-M:	Mauro Carvalho Chehab <mchehab@osg.samsung.com>
+M:	Mauro Carvalho Chehab <mchehab@s-opensource.com>
+M:	Mauro Carvalho Chehab <mchehab@kernel.org>
 L:	linux-media@vger.kernel.org
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
@@ -3774,6 +3782,7 @@ Q:	https://patchwork.kernel.org/project/linux-dmaengine/list/
 S:	Maintained
 F:	drivers/dma/
 F:	include/linux/dmaengine.h
+F:	Documentation/devicetree/bindings/dma/
 F:	Documentation/dmaengine/
 T:	git git://git.infradead.org/users/vkoul/slave-dma.git
 
@@ -4291,7 +4300,8 @@ F:	fs/ecryptfs/
 EDAC-CORE
 M:	Doug Thompson <dougthompson@xmission.com>
 M:	Borislav Petkov <bp@alien8.de>
-M:	Mauro Carvalho Chehab <mchehab@osg.samsung.com>
+M:	Mauro Carvalho Chehab <mchehab@s-opensource.com>
+M:	Mauro Carvalho Chehab <mchehab@kernel.org>
 L:	linux-edac@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bp/bp.git for-next
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-edac.git linux_next
@@ -4336,7 +4346,8 @@ S:	Maintained
 F:	drivers/edac/e7xxx_edac.c
 
 EDAC-GHES
-M:	Mauro Carvalho Chehab <mchehab@osg.samsung.com>
+M:	Mauro Carvalho Chehab <mchehab@s-opensource.com>
+M:	Mauro Carvalho Chehab <mchehab@kernel.org>
 L:	linux-edac@vger.kernel.org
 S:	Maintained
 F:	drivers/edac/ghes_edac.c
@@ -4360,19 +4371,22 @@ S:	Maintained
 F:	drivers/edac/i5000_edac.c
 
 EDAC-I5400
-M:	Mauro Carvalho Chehab <mchehab@osg.samsung.com>
+M:	Mauro Carvalho Chehab <mchehab@s-opensource.com>
+M:	Mauro Carvalho Chehab <mchehab@kernel.org>
 L:	linux-edac@vger.kernel.org
 S:	Maintained
 F:	drivers/edac/i5400_edac.c
 
 EDAC-I7300
-M:	Mauro Carvalho Chehab <mchehab@osg.samsung.com>
+M:	Mauro Carvalho Chehab <mchehab@s-opensource.com>
+M:	Mauro Carvalho Chehab <mchehab@kernel.org>
 L:	linux-edac@vger.kernel.org
 S:	Maintained
 F:	drivers/edac/i7300_edac.c
 
 EDAC-I7CORE
-M:	Mauro Carvalho Chehab <mchehab@osg.samsung.com>
+M:	Mauro Carvalho Chehab <mchehab@s-opensource.com>
+M:	Mauro Carvalho Chehab <mchehab@kernel.org>
 L:	linux-edac@vger.kernel.org
 S:	Maintained
 F:	drivers/edac/i7core_edac.c
@@ -4409,7 +4423,8 @@ S:	Maintained
 F:	drivers/edac/r82600_edac.c
 
 EDAC-SBRIDGE
-M:	Mauro Carvalho Chehab <mchehab@osg.samsung.com>
+M:	Mauro Carvalho Chehab <mchehab@s-opensource.com>
+M:	Mauro Carvalho Chehab <mchehab@kernel.org>
 L:	linux-edac@vger.kernel.org
 S:	Maintained
 F:	drivers/edac/sb_edac.c
@@ -4468,7 +4483,8 @@ S:	Maintained
 F:	drivers/net/ethernet/ibm/ehea/
 
 EM28XX VIDEO4LINUX DRIVER
-M:	Mauro Carvalho Chehab <mchehab@osg.samsung.com>
+M:	Mauro Carvalho Chehab <mchehab@s-opensource.com>
+M:	Mauro Carvalho Chehab <mchehab@kernel.org>
 L:	linux-media@vger.kernel.org
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
@@ -6487,6 +6503,7 @@ F:	include/uapi/linux/sunrpc/
 
 KERNEL SELFTEST FRAMEWORK
 M:	Shuah Khan <shuahkh@osg.samsung.com>
+M:	Shuah Khan <shuah@kernel.org>
 L:	linux-kselftest@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/shuah/linux-kselftest
 S:	Maintained
@@ -7358,7 +7375,8 @@ S:	Supported
 F:	drivers/media/pci/netup_unidvb/*
 
 MEDIA INPUT INFRASTRUCTURE (V4L/DVB)
-M:	Mauro Carvalho Chehab <mchehab@osg.samsung.com>
+M:	Mauro Carvalho Chehab <mchehab@s-opensource.com>
+M:	Mauro Carvalho Chehab <mchehab@kernel.org>
 P:	LinuxTV.org Project
 L:	linux-media@vger.kernel.org
 W:	https://linuxtv.org
@@ -7406,7 +7424,7 @@ F:	drivers/scsi/megaraid.*
 F:	drivers/scsi/megaraid/
 
 MELLANOX ETHERNET DRIVER (mlx4_en)
-M: 	Eugenia Emantayev <eugenia@mellanox.com>
+M:	Tariq Toukan <tariqt@mellanox.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 W:	http://www.mellanox.com
@@ -7458,6 +7476,7 @@ Q:	http://patchwork.ozlabs.org/project/linux-mtd/list/
 T:	git git://git.infradead.org/linux-mtd.git
 T:	git git://git.infradead.org/l2-mtd.git
 S:	Maintained
+F:	Documentation/devicetree/bindings/mtd/
 F:	drivers/mtd/
 F:	include/linux/mtd/
 F:	include/uapi/mtd/
@@ -8945,6 +8964,7 @@ L:	linux-gpio@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linusw/linux-pinctrl.git
 S:	Maintained
 F:	Documentation/devicetree/bindings/pinctrl/
+F:	Documentation/pinctrl.txt
 F:	drivers/pinctrl/
 F:	include/linux/pinctrl/
 
@@ -9852,7 +9872,8 @@ S:	Odd Fixes
 F:	drivers/media/i2c/saa6588*
 
 SAA7134 VIDEO4LINUX DRIVER
-M:	Mauro Carvalho Chehab <mchehab@osg.samsung.com>
+M:	Mauro Carvalho Chehab <mchehab@s-opensource.com>
+M:	Mauro Carvalho Chehab <mchehab@kernel.org>
 L:	linux-media@vger.kernel.org
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
@@ -10371,7 +10392,8 @@ S:	Maintained
 F:	drivers/media/radio/si4713/radio-usb-si4713.c
 
 SIANO DVB DRIVER
-M:	Mauro Carvalho Chehab <mchehab@osg.samsung.com>
+M:	Mauro Carvalho Chehab <mchehab@s-opensource.com>
+M:	Mauro Carvalho Chehab <mchehab@kernel.org>
 L:	linux-media@vger.kernel.org
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
@@ -11137,7 +11159,8 @@ S:	Maintained
 F:	drivers/media/i2c/tda9840*
 
 TEA5761 TUNER DRIVER
-M:	Mauro Carvalho Chehab <mchehab@osg.samsung.com>
+M:	Mauro Carvalho Chehab <mchehab@s-opensource.com>
+M:	Mauro Carvalho Chehab <mchehab@kernel.org>
 L:	linux-media@vger.kernel.org
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
@@ -11145,7 +11168,8 @@ S:	Odd fixes
 F:	drivers/media/tuners/tea5761.*
 
 TEA5767 TUNER DRIVER
-M:	Mauro Carvalho Chehab <mchehab@osg.samsung.com>
+M:	Mauro Carvalho Chehab <mchehab@s-opensource.com>
+M:	Mauro Carvalho Chehab <mchehab@kernel.org>
 L:	linux-media@vger.kernel.org
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
@@ -11532,7 +11556,8 @@ F:	include/linux/shmem_fs.h
 F:	mm/shmem.c
 
 TM6000 VIDEO4LINUX DRIVER
-M:	Mauro Carvalho Chehab <mchehab@osg.samsung.com>
+M:	Mauro Carvalho Chehab <mchehab@s-opensource.com>
+M:	Mauro Carvalho Chehab <mchehab@kernel.org>
 L:	linux-media@vger.kernel.org
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
@@ -11886,7 +11911,8 @@ F:	drivers/usb/common/usb-otg-fsm.c
 
 USB OVER IP DRIVER
 M:	Valentina Manea <valentina.manea.m@gmail.com>
-M:	Shuah Khan <shuah.kh@samsung.com>
+M:	Shuah Khan <shuahkh@osg.samsung.com>
+M:	Shuah Khan <shuah@kernel.org>
 L:	linux-usb@vger.kernel.org
 S:	Maintained
 F:	Documentation/usb/usbip_protocol.txt
@@ -11957,6 +11983,7 @@ L:	linux-usb@vger.kernel.org
 W:	http://www.linux-usb.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/usb.git
 S:	Supported
+F:	Documentation/devicetree/bindings/usb/
 F:	Documentation/usb/
 F:	drivers/usb/
 F:	include/linux/usb.h
@@ -12130,6 +12157,7 @@ VIRTIO CORE, NET AND BLOCK DRIVERS
 M:	"Michael S. Tsirkin" <mst@redhat.com>
 L:	virtualization@lists.linux-foundation.org
 S:	Maintained
+F:	Documentation/devicetree/bindings/virtio/
 F:	drivers/virtio/
 F:	tools/virtio/
 F:	drivers/net/virtio_net.c
@@ -12518,7 +12546,8 @@ S:	Maintained
 F:	arch/x86/entry/vdso/
 
 XC2028/3028 TUNER DRIVER
-M:	Mauro Carvalho Chehab <mchehab@osg.samsung.com>
+M:	Mauro Carvalho Chehab <mchehab@s-opensource.com>
+M:	Mauro Carvalho Chehab <mchehab@kernel.org>
 L:	linux-media@vger.kernel.org
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git

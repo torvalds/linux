@@ -799,7 +799,6 @@ struct amdgpu_ring {
 	unsigned		cond_exe_offs;
 	u64				cond_exe_gpu_addr;
 	volatile u32	*cond_exe_cpu_addr;
-	int                     vmid;
 };
 
 /*
@@ -937,8 +936,7 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring,
 		    unsigned vm_id, uint64_t pd_addr,
 		    uint32_t gds_base, uint32_t gds_size,
 		    uint32_t gws_base, uint32_t gws_size,
-		    uint32_t oa_base, uint32_t oa_size,
-		    bool vmid_switch);
+		    uint32_t oa_base, uint32_t oa_size);
 void amdgpu_vm_reset_id(struct amdgpu_device *adev, unsigned vm_id);
 uint64_t amdgpu_vm_map_gart(const dma_addr_t *pages_addr, uint64_t addr);
 int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
@@ -1822,6 +1820,8 @@ struct amdgpu_asic_funcs {
 	/* MM block clocks */
 	int (*set_uvd_clocks)(struct amdgpu_device *adev, u32 vclk, u32 dclk);
 	int (*set_vce_clocks)(struct amdgpu_device *adev, u32 evclk, u32 ecclk);
+	/* query virtual capabilities */
+	u32 (*get_virtual_caps)(struct amdgpu_device *adev);
 };
 
 /*
@@ -1916,8 +1916,12 @@ void amdgpu_cgs_destroy_device(struct cgs_device *cgs_device);
 
 
 /* GPU virtualization */
+#define AMDGPU_VIRT_CAPS_SRIOV_EN       (1 << 0)
+#define AMDGPU_VIRT_CAPS_IS_VF          (1 << 1)
 struct amdgpu_virtualization {
 	bool supports_sr_iov;
+	bool is_virtual;
+	u32 caps;
 };
 
 /*
@@ -2206,6 +2210,7 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 #define amdgpu_asic_get_xclk(adev) (adev)->asic_funcs->get_xclk((adev))
 #define amdgpu_asic_set_uvd_clocks(adev, v, d) (adev)->asic_funcs->set_uvd_clocks((adev), (v), (d))
 #define amdgpu_asic_set_vce_clocks(adev, ev, ec) (adev)->asic_funcs->set_vce_clocks((adev), (ev), (ec))
+#define amdgpu_asic_get_virtual_caps(adev) ((adev)->asic_funcs->get_virtual_caps((adev)))
 #define amdgpu_asic_get_gpu_clock_counter(adev) (adev)->asic_funcs->get_gpu_clock_counter((adev))
 #define amdgpu_asic_read_disabled_bios(adev) (adev)->asic_funcs->read_disabled_bios((adev))
 #define amdgpu_asic_read_bios_from_rom(adev, b, l) (adev)->asic_funcs->read_bios_from_rom((adev), (b), (l))

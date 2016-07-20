@@ -1010,8 +1010,8 @@ int arm_pmu_device_probe(struct platform_device *pdev,
 		if (!ret)
 			ret = init_fn(pmu);
 	} else {
-		ret = probe_current_pmu(pmu, probe_table);
 		cpumask_setall(&pmu->supported_cpus);
+		ret = probe_current_pmu(pmu, probe_table);
 	}
 
 	if (ret) {

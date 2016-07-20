@@ -298,8 +298,7 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring,
 		    unsigned vm_id, uint64_t pd_addr,
 		    uint32_t gds_base, uint32_t gds_size,
 		    uint32_t gws_base, uint32_t gws_size,
-		    uint32_t oa_base, uint32_t oa_size,
-		    bool vmid_switch)
+		    uint32_t oa_base, uint32_t oa_size)
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_vm_id *id = &adev->vm_manager.ids[vm_id];
@@ -313,7 +312,8 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring,
 	int r;
 
 	if (ring->funcs->emit_pipeline_sync && (
-	    pd_addr != AMDGPU_VM_NO_FLUSH || gds_switch_needed || vmid_switch))
+	    pd_addr != AMDGPU_VM_NO_FLUSH || gds_switch_needed ||
+		    ring->type == AMDGPU_RING_TYPE_COMPUTE))
 		amdgpu_ring_emit_pipeline_sync(ring);
 
 	if (ring->funcs->emit_vm_flush &&

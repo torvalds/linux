@@ -411,7 +411,9 @@ int ib_cache_gid_del_all_netdev_gids(struct ib_device *ib_dev, u8 port,
 
 	for (ix = 0; ix < table->sz; ix++)
 		if (table->data_vec[ix].attr.ndev == ndev)
-			if (!del_gid(ib_dev, port, table, ix, false))
+			if (!del_gid(ib_dev, port, table, ix,
+				     !!(table->data_vec[ix].props &
+					GID_TABLE_ENTRY_DEFAULT)))
 				deleted = true;
 
 	write_unlock_irq(&table->rwlock);

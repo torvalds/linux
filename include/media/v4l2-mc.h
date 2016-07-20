@@ -1,7 +1,7 @@
 /*
  * v4l2-mc.h - Media Controller V4L2 types and prototypes
  *
- * Copyright (C) 2016 Mauro Carvalho Chehab <mchehab@osg.samsung.com>
+ * Copyright (C) 2016 Mauro Carvalho Chehab <mchehab@kernel.org>
  * Copyright (C) 2006-2010 Nokia Corporation
  * Copyright (c) 2016 Intel Corporation.
  *

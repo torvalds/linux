@@ -1030,6 +1030,7 @@ static void destroy_compound_gigantic_page(struct page *page,
 	int nr_pages = 1 << order;
 	struct page *p = page + 1;
 
+	atomic_set(compound_mapcount_ptr(page), 0);
 	for (i = 1; i < nr_pages; i++, p = mem_map_next(p, page, i)) {
 		clear_compound_head(p);
 		set_page_refcounted(p);
@@ -3382,7 +3383,7 @@ retry_avoidcopy:
 	/* If no-one else is actually using this page, avoid the copy
 	 * and just make the page writable */
 	if (page_mapcount(old_page) == 1 && PageAnon(old_page)) {
-		page_move_anon_rmap(old_page, vma, address);
+		page_move_anon_rmap(old_page, vma);
 		set_huge_ptep_writable(vma, address, ptep);
 		return 0;
 	}
@@ -4228,7 +4229,6 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
 		if (saddr) {
 			spte = huge_pte_offset(svma->vm_mm, saddr);
 			if (spte) {
-				mm_inc_nr_pmds(mm);
 				get_page(virt_to_page(spte));
 				break;
 			}
@@ -4243,9 +4243,9 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
 	if (pud_none(*pud)) {
 		pud_populate(mm, pud,
 				(pmd_t *)((unsigned long)spte & PAGE_MASK));
+		mm_inc_nr_pmds(mm);
 	} else {
 		put_page(virt_to_page(spte));
-		mm_inc_nr_pmds(mm);
 	}
 	spin_unlock(ptl);
 out:

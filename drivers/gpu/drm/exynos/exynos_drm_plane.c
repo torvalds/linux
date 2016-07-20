@@ -242,7 +242,7 @@ exynos_drm_plane_check_size(const struct exynos_drm_plane_config *config,
 	    state->v_ratio == (1 << 15))
 		height_ok = true;
 
-	if (width_ok & height_ok)
+	if (width_ok && height_ok)
 		return 0;
 
 	DRM_DEBUG_KMS("scaling mode is not supported");

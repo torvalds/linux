@@ -1536,7 +1536,9 @@ static int select_fallback_rq(int cpu, struct task_struct *p)
 	for (;;) {
 		/* Any allowed, online CPU? */
 		for_each_cpu(dest_cpu, tsk_cpus_allowed(p)) {
-			if (!cpu_active(dest_cpu))
+			if (!(p->flags & PF_KTHREAD) && !cpu_active(dest_cpu))
+				continue;
+			if (!cpu_online(dest_cpu))
 				continue;
 			goto out;
 		}
@@ -2535,10 +2537,9 @@ void wake_up_new_task(struct task_struct *p)
 	 */
 	set_task_cpu(p, select_task_rq(p, task_cpu(p), SD_BALANCE_FORK, 0));
 #endif
-	/* Post initialize new task's util average when its cfs_rq is set */
+	rq = __task_rq_lock(p, &rf);
 	post_init_entity_util_avg(&p->se);
 
-	rq = __task_rq_lock(p, &rf);
 	activate_task(rq, p, 0);
 	p->on_rq = TASK_ON_RQ_QUEUED;
 	trace_sched_wakeup_new(p);
@@ -5148,13 +5149,15 @@ void show_state_filter(unsigned long state_filter)
 		/*
 		 * reset the NMI-timeout, listing all files on a slow
 		 * console might take a lot of time:
+		 * Also, reset softlockup watchdogs on all CPUs, because
+		 * another CPU might be blocked waiting for us to process
+		 * an IPI.
 		 */
 		touch_nmi_watchdog();
+		touch_all_softlockup_watchdogs();
 		if (!state_filter || (p->state & state_filter))
 			sched_show_task(p);
 	}
-
-	touch_all_softlockup_watchdogs();
 
 #ifdef CONFIG_SCHED_DEBUG
 	if (!state_filter)
@@ -5391,13 +5394,15 @@ void idle_task_exit(void)
 /*
  * Since this CPU is going 'away' for a while, fold any nr_active delta
  * we might have. Assumes we're called after migrate_tasks() so that the
- * nr_active count is stable.
+ * nr_active count is stable. We need to take the teardown thread which
+ * is calling this into account, so we hand in adjust = 1 to the load
+ * calculation.
  *
  * Also see the comment "Global load-average calculations".
  */
 static void calc_load_migrate(struct rq *rq)
 {
-	long delta = calc_load_fold_active(rq);
+	long delta = calc_load_fold_active(rq, 1);
 	if (delta)
 		atomic_long_add(delta, &calc_load_tasks);
 }

@@ -1782,7 +1782,7 @@ static struct rt6_info *ip6_nh_lookup_table(struct net *net,
 	};
 	struct fib6_table *table;
 	struct rt6_info *rt;
-	int flags = 0;
+	int flags = RT6_LOOKUP_F_IFACE;
 
 	table = fib6_get_table(net, cfg->fc_table);
 	if (!table)

@@ -105,6 +105,9 @@
  *
  *  7.24
  *  - add FUSE_LSEEK for SEEK_HOLE and SEEK_DATA support
+ *
+ *  7.25
+ *  - add FUSE_PARALLEL_DIROPS
  */
 
 #ifndef _LINUX_FUSE_H
@@ -140,7 +143,7 @@
 #define FUSE_KERNEL_VERSION 7
 
 /** Minor version number of this interface */
-#define FUSE_KERNEL_MINOR_VERSION 24
+#define FUSE_KERNEL_MINOR_VERSION 25
 
 /** The node ID of the root inode */
 #define FUSE_ROOT_ID 1
@@ -234,6 +237,7 @@ struct fuse_file_lock {
  * FUSE_ASYNC_DIO: asynchronous direct I/O submission
  * FUSE_WRITEBACK_CACHE: use writeback cache for buffered writes
  * FUSE_NO_OPEN_SUPPORT: kernel supports zero-message opens
+ * FUSE_PARALLEL_DIROPS: allow parallel lookups and readdir
  */
 #define FUSE_ASYNC_READ		(1 << 0)
 #define FUSE_POSIX_LOCKS	(1 << 1)
@@ -253,6 +257,7 @@ struct fuse_file_lock {
 #define FUSE_ASYNC_DIO		(1 << 15)
 #define FUSE_WRITEBACK_CACHE	(1 << 16)
 #define FUSE_NO_OPEN_SUPPORT	(1 << 17)
+#define FUSE_PARALLEL_DIROPS    (1 << 18)
 
 /**
  * CUSE INIT request/reply flags

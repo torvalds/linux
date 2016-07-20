@@ -267,15 +267,16 @@ static void bgmac_dma_tx_free(struct bgmac *bgmac, struct bgmac_dma_ring *ring)
 	while (ring->start != ring->end) {
 		int slot_idx = ring->start % BGMAC_TX_RING_SLOTS;
 		struct bgmac_slot_info *slot = &ring->slots[slot_idx];
-		u32 ctl1;
+		u32 ctl0, ctl1;
 		int len;
 
 		if (slot_idx == empty_slot)
 			break;
 
+		ctl0 = le32_to_cpu(ring->cpu_base[slot_idx].ctl0);
 		ctl1 = le32_to_cpu(ring->cpu_base[slot_idx].ctl1);
 		len = ctl1 & BGMAC_DESC_CTL1_LEN;
-		if (ctl1 & BGMAC_DESC_CTL0_SOF)
+		if (ctl0 & BGMAC_DESC_CTL0_SOF)
 			/* Unmap no longer used buffer */
 			dma_unmap_single(dma_dev, slot->dma_addr, len,
 					 DMA_TO_DEVICE);
@@ -1312,7 +1313,8 @@ static int bgmac_open(struct net_device *net_dev)
 
 	phy_start(bgmac->phy_dev);
 
-	netif_carrier_on(net_dev);
+	netif_start_queue(net_dev);
+
 	return 0;
 }
 

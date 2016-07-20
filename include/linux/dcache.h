@@ -212,6 +212,7 @@ struct dentry_operations {
 #define DCACHE_OP_REAL			0x08000000
 
 #define DCACHE_PAR_LOOKUP		0x10000000 /* being looked up (with parent locked shared) */
+#define DCACHE_DENTRY_CURSOR		0x20000000
 
 extern seqlock_t rename_lock;
 
@@ -573,6 +574,18 @@ static inline struct inode *vfs_select_inode(struct dentry *dentry,
 		inode = dentry->d_op->d_select_inode(dentry, open_flags);
 
 	return inode;
+}
+
+/**
+ * d_real_inode - Return the real inode
+ * @dentry: The dentry to query
+ *
+ * If dentry is on an union/overlay, then return the underlying, real inode.
+ * Otherwise return d_inode().
+ */
+static inline struct inode *d_real_inode(struct dentry *dentry)
+{
+	return d_backing_inode(d_real(dentry));
 }
 
 

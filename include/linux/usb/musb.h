@@ -142,10 +142,11 @@ enum musb_vbus_id_status {
 };
 
 #if IS_ENABLED(CONFIG_USB_MUSB_HDRC)
-void musb_mailbox(enum musb_vbus_id_status status);
+int musb_mailbox(enum musb_vbus_id_status status);
 #else
-static inline void musb_mailbox(enum musb_vbus_id_status status)
+static inline int musb_mailbox(enum musb_vbus_id_status status)
 {
+	return 0;
 }
 #endif
 

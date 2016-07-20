@@ -1098,7 +1098,7 @@ void readahead_tree_block(struct btrfs_root *root, u64 bytenr)
 	struct inode *btree_inode = root->fs_info->btree_inode;
 
 	buf = btrfs_find_create_tree_block(root, bytenr);
-	if (!buf)
+	if (IS_ERR(buf))
 		return;
 	read_extent_buffer_pages(&BTRFS_I(btree_inode)->io_tree,
 				 buf, 0, WAIT_NONE, btree_get_extent, 0);
@@ -1114,7 +1114,7 @@ int reada_tree_block_flagged(struct btrfs_root *root, u64 bytenr,
 	int ret;
 
 	buf = btrfs_find_create_tree_block(root, bytenr);
-	if (!buf)
+	if (IS_ERR(buf))
 		return 0;
 
 	set_bit(EXTENT_BUFFER_READAHEAD, &buf->bflags);
@@ -1172,8 +1172,8 @@ struct extent_buffer *read_tree_block(struct btrfs_root *root, u64 bytenr,
 	int ret;
 
 	buf = btrfs_find_create_tree_block(root, bytenr);
-	if (!buf)
-		return ERR_PTR(-ENOMEM);
+	if (IS_ERR(buf))
+		return buf;
 
 	ret = btree_read_extent_buffer_pages(root, buf, 0, parent_transid);
 	if (ret) {
@@ -1804,6 +1804,13 @@ static int cleaner_kthread(void *arg)
 
 		/* Make the cleaner go to sleep early. */
 		if (btrfs_need_cleaner_sleep(root))
+			goto sleep;
+
+		/*
+		 * Do not do anything if we might cause open_ctree() to block
+		 * before we have finished mounting the filesystem.
+		 */
+		if (!root->fs_info->open)
 			goto sleep;
 
 		if (!mutex_trylock(&root->fs_info->cleaner_mutex))
@@ -2520,7 +2527,6 @@ int open_ctree(struct super_block *sb,
 	int num_backups_tried = 0;
 	int backup_index = 0;
 	int max_active;
-	bool cleaner_mutex_locked = false;
 
 	tree_root = fs_info->tree_root = btrfs_alloc_root(fs_info, GFP_KERNEL);
 	chunk_root = fs_info->chunk_root = btrfs_alloc_root(fs_info, GFP_KERNEL);
@@ -2800,7 +2806,7 @@ int open_ctree(struct super_block *sb,
 
 	nodesize = btrfs_super_nodesize(disk_super);
 	sectorsize = btrfs_super_sectorsize(disk_super);
-	stripesize = btrfs_super_stripesize(disk_super);
+	stripesize = sectorsize;
 	fs_info->dirty_metadata_batch = nodesize * (1 + ilog2(nr_cpu_ids));
 	fs_info->delalloc_batch = sectorsize * 512 * (1 + ilog2(nr_cpu_ids));
 
@@ -2999,13 +3005,6 @@ retry_root_backup:
 		goto fail_sysfs;
 	}
 
-	/*
-	 * Hold the cleaner_mutex thread here so that we don't block
-	 * for a long time on btrfs_recover_relocation.  cleaner_kthread
-	 * will wait for us to finish mounting the filesystem.
-	 */
-	mutex_lock(&fs_info->cleaner_mutex);
-	cleaner_mutex_locked = true;
 	fs_info->cleaner_kthread = kthread_run(cleaner_kthread, tree_root,
 					       "btrfs-cleaner");
 	if (IS_ERR(fs_info->cleaner_kthread))
@@ -3065,8 +3064,10 @@ retry_root_backup:
 		ret = btrfs_cleanup_fs_roots(fs_info);
 		if (ret)
 			goto fail_qgroup;
-		/* We locked cleaner_mutex before creating cleaner_kthread. */
+
+		mutex_lock(&fs_info->cleaner_mutex);
 		ret = btrfs_recover_relocation(tree_root);
+		mutex_unlock(&fs_info->cleaner_mutex);
 		if (ret < 0) {
 			btrfs_warn(fs_info, "failed to recover relocation: %d",
 					ret);
@@ -3074,8 +3075,6 @@ retry_root_backup:
 			goto fail_qgroup;
 		}
 	}
-	mutex_unlock(&fs_info->cleaner_mutex);
-	cleaner_mutex_locked = false;
 
 	location.objectid = BTRFS_FS_TREE_OBJECTID;
 	location.type = BTRFS_ROOT_ITEM_KEY;
@@ -3189,10 +3188,6 @@ fail_cleaner:
 	filemap_write_and_wait(fs_info->btree_inode->i_mapping);
 
 fail_sysfs:
-	if (cleaner_mutex_locked) {
-		mutex_unlock(&fs_info->cleaner_mutex);
-		cleaner_mutex_locked = false;
-	}
 	btrfs_sysfs_remove_mounted(fs_info);
 
 fail_fsdev_sysfs:
@@ -4138,8 +4133,7 @@ static int btrfs_check_super_valid(struct btrfs_fs_info *fs_info,
 		       btrfs_super_bytes_used(sb));
 		ret = -EINVAL;
 	}
-	if (!is_power_of_2(btrfs_super_stripesize(sb)) ||
-	    btrfs_super_stripesize(sb) != sectorsize) {
+	if (!is_power_of_2(btrfs_super_stripesize(sb))) {
 		btrfs_err(fs_info, "invalid stripesize %u",
 		       btrfs_super_stripesize(sb));
 		ret = -EINVAL;

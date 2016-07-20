@@ -30,7 +30,6 @@
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_fb.h"
-#include "exynos_drm_fbdev.h"
 #include "exynos_drm_crtc.h"
 #include "exynos_drm_plane.h"
 #include "exynos_drm_iommu.h"
@@ -120,7 +119,6 @@ static struct fimd_driver_data s3c64xx_fimd_driver_data = {
 	.timing_base = 0x0,
 	.has_clksel = 1,
 	.has_limited_fmt = 1,
-	.has_hw_trigger = 1,
 };
 
 static struct fimd_driver_data exynos3_fimd_driver_data = {
@@ -171,14 +169,11 @@ static struct fimd_driver_data exynos5420_fimd_driver_data = {
 	.lcdblk_vt_shift = 24,
 	.lcdblk_bypass_shift = 15,
 	.lcdblk_mic_bypass_shift = 11,
-	.trg_type = I80_HW_TRG,
 	.has_shadowcon = 1,
 	.has_vidoutcon = 1,
 	.has_vtsel = 1,
 	.has_mic_bypass = 1,
 	.has_dp_clk = 1,
-	.has_hw_trigger = 1,
-	.has_trigger_per_te = 1,
 };
 
 struct fimd_context {
