@@ -77,6 +77,8 @@ extern "C" {
 #define AMDGPU_GEM_CREATE_NO_CPU_ACCESS		(1 << 1)
 /* Flag that USWC attributes should be used for GTT */
 #define AMDGPU_GEM_CREATE_CPU_GTT_USWC		(1 << 2)
+/* Flag that the memory should be in VRAM and cleared */
+#define AMDGPU_GEM_CREATE_VRAM_CLEARED		(1 << 3)
 
 struct drm_amdgpu_gem_create_in  {
 	/** the requested memory size */

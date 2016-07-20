@@ -340,11 +340,44 @@ int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
 	if (unlikely(r != 0)) {
 		return r;
 	}
+
+	if (flags & AMDGPU_GEM_CREATE_VRAM_CLEARED &&
+	    bo->tbo.mem.placement & TTM_PL_FLAG_VRAM) {
+		struct fence *fence;
+
+		if (adev->mman.buffer_funcs_ring == NULL ||
+		   !adev->mman.buffer_funcs_ring->ready) {
+			r = -EBUSY;
+			goto fail_free;
+		}
+
+		r = amdgpu_bo_reserve(bo, false);
+		if (unlikely(r != 0))
+			goto fail_free;
+
+		amdgpu_ttm_placement_from_domain(bo, AMDGPU_GEM_DOMAIN_VRAM);
+		r = ttm_bo_validate(&bo->tbo, &bo->placement, false, false);
+		if (unlikely(r != 0))
+			goto fail_unreserve;
+
+		amdgpu_fill_buffer(bo, 0, bo->tbo.resv, &fence);
+		amdgpu_bo_fence(bo, fence, false);
+		amdgpu_bo_unreserve(bo);
+		fence_put(bo->tbo.moving);
+		bo->tbo.moving = fence_get(fence);
+		fence_put(fence);
+	}
 	*bo_ptr = bo;
 
 	trace_amdgpu_bo_create(bo);
 
 	return 0;
+
+fail_unreserve:
+	amdgpu_bo_unreserve(bo);
+fail_free:
+	amdgpu_bo_unref(&bo);
+	return r;
 }
 
 int amdgpu_bo_create(struct amdgpu_device *adev,
