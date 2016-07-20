@@ -192,12 +192,6 @@ typedef	__uint16_t	xfs_dir2_data_off_t;
 typedef uint		xfs_dir2_data_aoff_t;	/* argument form */
 
 /*
- * Normalized offset (in a data block) of the entry, really xfs_dir2_data_off_t.
- * Only need 16 bits, this is the byte offset into the single block form.
- */
-typedef struct { __uint8_t i[2]; } __arch_pack xfs_dir2_sf_off_t;
-
-/*
  * Offset in data space of a data entry.
  */
 typedef	__uint32_t	xfs_dir2_dataptr_t;
@@ -251,7 +245,7 @@ typedef struct xfs_dir2_sf_hdr {
 
 typedef struct xfs_dir2_sf_entry {
 	__u8			namelen;	/* actual name length */
-	xfs_dir2_sf_off_t	offset;		/* saved offset */
+	__u8			offset[2];	/* saved offset */
 	__u8			name[];		/* name, variable size */
 	/*
 	 * A single byte containing the file type field follows the inode
@@ -260,7 +254,7 @@ typedef struct xfs_dir2_sf_entry {
 	 * A xfs_dir2_ino8_t or xfs_dir2_ino4_t follows here, at a
 	 * variable offset after the name.
 	 */
-} __arch_pack xfs_dir2_sf_entry_t;
+} xfs_dir2_sf_entry_t;
 
 static inline int xfs_dir2_sf_hdr_size(int i8count)
 {
@@ -272,13 +266,13 @@ static inline int xfs_dir2_sf_hdr_size(int i8count)
 static inline xfs_dir2_data_aoff_t
 xfs_dir2_sf_get_offset(xfs_dir2_sf_entry_t *sfep)
 {
-	return get_unaligned_be16(&sfep->offset.i);
+	return get_unaligned_be16(sfep->offset);
 }
 
 static inline void
 xfs_dir2_sf_put_offset(xfs_dir2_sf_entry_t *sfep, xfs_dir2_data_aoff_t off)
 {
-	put_unaligned_be16(off, &sfep->offset.i);
+	put_unaligned_be16(off, sfep->offset);
 }
 
 static inline struct xfs_dir2_sf_entry *

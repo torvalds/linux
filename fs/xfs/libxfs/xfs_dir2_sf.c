@@ -126,11 +126,10 @@ xfs_dir2_block_sfsize(
 		/*
 		 * Calculate the new size, see if we should give up yet.
 		 */
-		size = xfs_dir2_sf_hdr_size(i8count) +		/* header */
-		       count +					/* namelen */
-		       count * (uint)sizeof(xfs_dir2_sf_off_t) + /* offset */
-		       namelen +				/* name */
-		       (i8count ?				/* inumber */
+		size = xfs_dir2_sf_hdr_size(i8count) +	/* header */
+		       count * 3 * sizeof(u8) +		/* namelen + offset */
+		       namelen +			/* name */
+		       (i8count ?			/* inumber */
 				(uint)sizeof(xfs_dir2_ino8_t) * count :
 				(uint)sizeof(xfs_dir2_ino4_t) * count);
 		if (size > XFS_IFORK_DSIZE(dp))
@@ -1048,7 +1047,7 @@ xfs_dir2_sf_toino4(
 	     i++, sfep = dp->d_ops->sf_nextentry(sfp, sfep),
 		  oldsfep = dp->d_ops->sf_nextentry(oldsfp, oldsfep)) {
 		sfep->namelen = oldsfep->namelen;
-		sfep->offset = oldsfep->offset;
+		memcpy(sfep->offset, oldsfep->offset, sizeof(sfep->offset));
 		memcpy(sfep->name, oldsfep->name, sfep->namelen);
 		dp->d_ops->sf_put_ino(sfp, sfep,
 				      dp->d_ops->sf_get_ino(oldsfp, oldsfep));
@@ -1124,7 +1123,7 @@ xfs_dir2_sf_toino8(
 	     i++, sfep = dp->d_ops->sf_nextentry(sfp, sfep),
 		  oldsfep = dp->d_ops->sf_nextentry(oldsfp, oldsfep)) {
 		sfep->namelen = oldsfep->namelen;
-		sfep->offset = oldsfep->offset;
+		memcpy(sfep->offset, oldsfep->offset, sizeof(sfep->offset));
 		memcpy(sfep->name, oldsfep->name, sfep->namelen);
 		dp->d_ops->sf_put_ino(sfp, sfep,
 				      dp->d_ops->sf_get_ino(oldsfp, oldsfep));
