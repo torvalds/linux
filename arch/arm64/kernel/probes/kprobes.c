@@ -34,12 +34,6 @@
 
 #include "decode-insn.h"
 
-#define MIN_STACK_SIZE(addr)	(on_irq_stack(addr, raw_smp_processor_id()) ? \
-	min((unsigned long)IRQ_STACK_SIZE,	\
-	IRQ_STACK_PTR(raw_smp_processor_id()) - (addr)) : \
-	min((unsigned long)MAX_STACK_SIZE,	\
-	(unsigned long)current_thread_info() + THREAD_START_SP - (addr)))
-
 void jprobe_return_break(void);
 
 DEFINE_PER_CPU(struct kprobe *, current_kprobe) = NULL;
@@ -47,6 +41,18 @@ DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
 
 static void __kprobes
 post_kprobe_handler(struct kprobe_ctlblk *, struct pt_regs *);
+
+static inline unsigned long min_stack_size(unsigned long addr)
+{
+	unsigned long size;
+
+	if (on_irq_stack(addr, raw_smp_processor_id()))
+		size = IRQ_STACK_PTR(raw_smp_processor_id()) - addr;
+	else
+		size = (unsigned long)current_thread_info() + THREAD_START_SP - addr;
+
+	return min(size, FIELD_SIZEOF(struct kprobe_ctlblk, jprobes_stack));
+}
 
 static void __kprobes arch_prepare_ss_slot(struct kprobe *p)
 {
@@ -495,7 +501,7 @@ int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 	 * the argument area.
 	 */
 	memcpy(kcb->jprobes_stack, (void *)stack_ptr,
-	       MIN_STACK_SIZE(stack_ptr));
+	       min_stack_size(stack_ptr));
 
 	instruction_pointer_set(regs, (unsigned long) jp->entry);
 	preempt_disable();
@@ -548,7 +554,7 @@ int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 	unpause_graph_tracing();
 	*regs = kcb->jprobe_saved_regs;
 	memcpy((void *)stack_addr, kcb->jprobes_stack,
-	       MIN_STACK_SIZE(stack_addr));
+	       min_stack_size(stack_addr));
 	preempt_enable_no_resched();
 	return 1;
 }
