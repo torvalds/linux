@@ -167,3 +167,6 @@ appropriately. The generic error codes are described at the
 EINVAL
     The struct :ref:`v4l2_cropcap <v4l2-cropcap>` ``type`` is
     invalid.
+
+ENODATA
+    Cropping is not supported for this input or output.

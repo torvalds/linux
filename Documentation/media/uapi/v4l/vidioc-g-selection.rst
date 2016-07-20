@@ -211,6 +211,9 @@ ERANGE
     ``r`` rectangle to satisfy all constraints given in the ``flags``
     argument.
 
+ENODATA
+    Selection is not supported for this input or output.
+
 EBUSY
     It is not possible to apply change of the selection rectangle at the
     moment. Usually because streaming is in progress.
