@@ -436,6 +436,7 @@ static int intel_breadcrumbs_signaler(void *arg)
 			 */
 			intel_engine_remove_wait(engine,
 						 &request->signaling.wait);
+			fence_signal(&request->fence);
 
 			/* Find the next oldest signal. Note that as we have
 			 * not been holding the lock, another client may
@@ -482,7 +483,7 @@ void intel_engine_enable_signaling(struct drm_i915_gem_request *request)
 	}
 
 	request->signaling.wait.tsk = b->signaler;
-	request->signaling.wait.seqno = request->seqno;
+	request->signaling.wait.seqno = request->fence.seqno;
 	i915_gem_request_reference(request);
 
 	/* First add ourselves into the list of waiters, but register our
@@ -504,8 +505,8 @@ void intel_engine_enable_signaling(struct drm_i915_gem_request *request)
 	p = &b->signals.rb_node;
 	while (*p) {
 		parent = *p;
-		if (i915_seqno_passed(request->seqno,
-				      to_signaler(parent)->seqno)) {
+		if (i915_seqno_passed(request->fence.seqno,
+				      to_signaler(parent)->fence.seqno)) {
 			p = &parent->rb_right;
 			first = false;
 		} else {

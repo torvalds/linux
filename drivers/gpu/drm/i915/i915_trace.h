@@ -465,7 +465,7 @@ TRACE_EVENT(i915_gem_ring_sync_to,
 			   __entry->dev = from->i915->drm.primary->index;
 			   __entry->sync_from = from->id;
 			   __entry->sync_to = to_req->engine->id;
-			   __entry->seqno = i915_gem_request_get_seqno(req);
+			   __entry->seqno = req->fence.seqno;
 			   ),
 
 	    TP_printk("dev=%u, sync-from=%u, sync-to=%u, seqno=%u",
@@ -488,9 +488,9 @@ TRACE_EVENT(i915_gem_ring_dispatch,
 	    TP_fast_assign(
 			   __entry->dev = req->i915->drm.primary->index;
 			   __entry->ring = req->engine->id;
-			   __entry->seqno = req->seqno;
+			   __entry->seqno = req->fence.seqno;
 			   __entry->flags = flags;
-			   intel_engine_enable_signaling(req);
+			   fence_enable_sw_signaling(&req->fence);
 			   ),
 
 	    TP_printk("dev=%u, ring=%u, seqno=%u, flags=%x",
@@ -533,7 +533,7 @@ DECLARE_EVENT_CLASS(i915_gem_request,
 	    TP_fast_assign(
 			   __entry->dev = req->i915->drm.primary->index;
 			   __entry->ring = req->engine->id;
-			   __entry->seqno = req->seqno;
+			   __entry->seqno = req->fence.seqno;
 			   ),
 
 	    TP_printk("dev=%u, ring=%u, seqno=%u",
@@ -595,7 +595,7 @@ TRACE_EVENT(i915_gem_request_wait_begin,
 	    TP_fast_assign(
 			   __entry->dev = req->i915->drm.primary->index;
 			   __entry->ring = req->engine->id;
-			   __entry->seqno = req->seqno;
+			   __entry->seqno = req->fence.seqno;
 			   __entry->blocking =
 				     mutex_is_locked(&req->i915->drm.struct_mutex);
 			   ),

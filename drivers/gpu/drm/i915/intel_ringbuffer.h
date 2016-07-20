@@ -146,6 +146,7 @@ struct intel_engine_cs {
 	unsigned int exec_id;
 	unsigned int hw_id;
 	unsigned int guc_id; /* XXX same as hw_id? */
+	u64 fence_context;
 	u32		mmio_base;
 	unsigned int irq_shift;
 	struct intel_ringbuffer *buffer;

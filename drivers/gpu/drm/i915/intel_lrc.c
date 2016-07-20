@@ -1803,7 +1803,7 @@ static int gen8_emit_request(struct drm_i915_gem_request *request)
 				intel_hws_seqno_address(request->engine) |
 				MI_FLUSH_DW_USE_GTT);
 	intel_logical_ring_emit(ringbuf, 0);
-	intel_logical_ring_emit(ringbuf, request->seqno);
+	intel_logical_ring_emit(ringbuf, request->fence.seqno);
 	intel_logical_ring_emit(ringbuf, MI_USER_INTERRUPT);
 	intel_logical_ring_emit(ringbuf, MI_NOOP);
 	return intel_logical_ring_advance_and_submit(request);

@@ -506,7 +506,7 @@ static void guc_add_workqueue_item(struct i915_guc_client *gc,
 							     rq->engine);
 
 	wqi->ring_tail = tail << WQ_RING_TAIL_SHIFT;
-	wqi->fence_id = rq->seqno;
+	wqi->fence_id = rq->fence.seqno;
 
 	kunmap_atomic(base);
 }
@@ -601,7 +601,7 @@ int i915_guc_submit(struct drm_i915_gem_request *rq)
 		client->b_fail += 1;
 
 	guc->submissions[engine_id] += 1;
-	guc->last_seqno[engine_id] = rq->seqno;
+	guc->last_seqno[engine_id] = rq->fence.seqno;
 
 	return b_ret;
 }

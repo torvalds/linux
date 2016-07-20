@@ -25,6 +25,10 @@
 #ifndef I915_GEM_REQUEST_H
 #define I915_GEM_REQUEST_H
 
+#include <linux/fence.h>
+
+#include "i915_gem.h"
+
 /**
  * Request queue structure.
  *
@@ -36,11 +40,11 @@
  * emission time to be associated with the request for tracking how far ahead
  * of the GPU the submission is.
  *
- * The requests are reference counted, so upon creation they should have an
- * initial reference taken using kref_init
+ * The requests are reference counted.
  */
 struct drm_i915_gem_request {
-	struct kref ref;
+	struct fence fence;
+	spinlock_t lock;
 
 	/** On Which ring this request was generated */
 	struct drm_i915_private *i915;
@@ -65,12 +69,6 @@ struct drm_i915_gem_request {
 	 * this request.
 	 */
 	u32 previous_seqno;
-
-	/** GEM sequence number associated with this request,
-	 * when the HWS breadcrumb is equal or greater than this the GPU
-	 * has finished processing this request.
-	 */
-	u32 seqno;
 
 	/** Position in the ringbuffer of the start of the request */
 	u32 head;
@@ -140,10 +138,16 @@ struct drm_i915_gem_request {
 	unsigned int ctx_hw_id;
 };
 
+extern const struct fence_ops i915_fence_ops;
+
+static inline bool fence_is_i915(struct fence *fence)
+{
+	return fence->ops == &i915_fence_ops;
+}
+
 struct drm_i915_gem_request * __must_check
 i915_gem_request_alloc(struct intel_engine_cs *engine,
 		       struct i915_gem_context *ctx);
-void i915_gem_request_free(struct kref *req_ref);
 int i915_gem_request_add_to_client(struct drm_i915_gem_request *req,
 				   struct drm_file *file);
 void i915_gem_request_retire_upto(struct drm_i915_gem_request *req);
@@ -151,7 +155,7 @@ void i915_gem_request_retire_upto(struct drm_i915_gem_request *req);
 static inline u32
 i915_gem_request_get_seqno(struct drm_i915_gem_request *req)
 {
-	return req ? req->seqno : 0;
+	return req ? req->fence.seqno : 0;
 }
 
 static inline struct intel_engine_cs *
@@ -161,17 +165,24 @@ i915_gem_request_get_engine(struct drm_i915_gem_request *req)
 }
 
 static inline struct drm_i915_gem_request *
+to_request(struct fence *fence)
+{
+	/* We assume that NULL fence/request are interoperable */
+	BUILD_BUG_ON(offsetof(struct drm_i915_gem_request, fence) != 0);
+	GEM_BUG_ON(fence && !fence_is_i915(fence));
+	return container_of(fence, struct drm_i915_gem_request, fence);
+}
+
+static inline struct drm_i915_gem_request *
 i915_gem_request_reference(struct drm_i915_gem_request *req)
 {
-	if (req)
-		kref_get(&req->ref);
-	return req;
+	return to_request(fence_get(&req->fence));
 }
 
 static inline void
 i915_gem_request_unreference(struct drm_i915_gem_request *req)
 {
-	kref_put(&req->ref, i915_gem_request_free);
+	fence_put(&req->fence);
 }
 
 static inline void i915_gem_request_assign(struct drm_i915_gem_request **pdst,
@@ -223,7 +234,7 @@ static inline bool
 i915_gem_request_completed(const struct drm_i915_gem_request *req)
 {
 	return i915_seqno_passed(intel_engine_get_seqno(req->engine),
-				 req->seqno);
+				 req->fence.seqno);
 }
 
 bool __i915_spin_request(const struct drm_i915_gem_request *request,

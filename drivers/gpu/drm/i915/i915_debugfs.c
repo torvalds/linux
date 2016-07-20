@@ -768,7 +768,7 @@ static int i915_gem_request_info(struct seq_file *m, void *data)
 			if (req->pid)
 				task = pid_task(req->pid, PIDTYPE_PID);
 			seq_printf(m, "    %x @ %d: %s [%d]\n",
-				   req->seqno,
+				   req->fence.seqno,
 				   (int) (jiffies - req->emitted_jiffies),
 				   task ? task->comm : "<unknown>",
 				   task ? task->pid : -1);

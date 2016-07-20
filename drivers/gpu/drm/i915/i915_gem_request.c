@@ -24,6 +24,95 @@
 
 #include "i915_drv.h"
 
+static const char *i915_fence_get_driver_name(struct fence *fence)
+{
+	return "i915";
+}
+
+static const char *i915_fence_get_timeline_name(struct fence *fence)
+{
+	/* Timelines are bound by eviction to a VM. However, since
+	 * we only have a global seqno at the moment, we only have
+	 * a single timeline. Note that each timeline will have
+	 * multiple execution contexts (fence contexts) as we allow
+	 * engines within a single timeline to execute in parallel.
+	 */
+	return "global";
+}
+
+static bool i915_fence_signaled(struct fence *fence)
+{
+	return i915_gem_request_completed(to_request(fence));
+}
+
+static bool i915_fence_enable_signaling(struct fence *fence)
+{
+	if (i915_fence_signaled(fence))
+		return false;
+
+	intel_engine_enable_signaling(to_request(fence));
+	return true;
+}
+
+static signed long i915_fence_wait(struct fence *fence,
+				   bool interruptible,
+				   signed long timeout_jiffies)
+{
+	s64 timeout_ns, *timeout;
+	int ret;
+
+	if (timeout_jiffies != MAX_SCHEDULE_TIMEOUT) {
+		timeout_ns = jiffies_to_nsecs(timeout_jiffies);
+		timeout = &timeout_ns;
+	} else {
+		timeout = NULL;
+	}
+
+	ret = __i915_wait_request(to_request(fence),
+				  interruptible, timeout,
+				  NULL);
+	if (ret == -ETIME)
+		return 0;
+
+	if (ret < 0)
+		return ret;
+
+	if (timeout_jiffies != MAX_SCHEDULE_TIMEOUT)
+		timeout_jiffies = nsecs_to_jiffies(timeout_ns);
+
+	return timeout_jiffies;
+}
+
+static void i915_fence_value_str(struct fence *fence, char *str, int size)
+{
+	snprintf(str, size, "%u", fence->seqno);
+}
+
+static void i915_fence_timeline_value_str(struct fence *fence, char *str,
+					  int size)
+{
+	snprintf(str, size, "%u",
+		 intel_engine_get_seqno(to_request(fence)->engine));
+}
+
+static void i915_fence_release(struct fence *fence)
+{
+	struct drm_i915_gem_request *req = to_request(fence);
+
+	kmem_cache_free(req->i915->requests, req);
+}
+
+const struct fence_ops i915_fence_ops = {
+	.get_driver_name = i915_fence_get_driver_name,
+	.get_timeline_name = i915_fence_get_timeline_name,
+	.enable_signaling = i915_fence_enable_signaling,
+	.signaled = i915_fence_signaled,
+	.wait = i915_fence_wait,
+	.release = i915_fence_release,
+	.fence_value_str = i915_fence_value_str,
+	.timeline_value_str = i915_fence_timeline_value_str,
+};
+
 int i915_gem_request_add_to_client(struct drm_i915_gem_request *req,
 				   struct drm_file *file)
 {
@@ -211,6 +300,7 @@ __i915_gem_request_alloc(struct intel_engine_cs *engine,
 	struct drm_i915_private *dev_priv = engine->i915;
 	unsigned int reset_counter = i915_reset_counter(&dev_priv->gpu_error);
 	struct drm_i915_gem_request *req;
+	u32 seqno;
 	int ret;
 
 	if (!req_out)
@@ -238,11 +328,17 @@ __i915_gem_request_alloc(struct intel_engine_cs *engine,
 	if (!req)
 		return -ENOMEM;
 
-	ret = i915_gem_get_seqno(dev_priv, &req->seqno);
+	ret = i915_gem_get_seqno(dev_priv, &seqno);
 	if (ret)
 		goto err;
 
-	kref_init(&req->ref);
+	spin_lock_init(&req->lock);
+	fence_init(&req->fence,
+		   &i915_fence_ops,
+		   &req->lock,
+		   engine->fence_context,
+		   seqno);
+
 	req->i915 = dev_priv;
 	req->engine = engine;
 	req->ctx = ctx;
@@ -385,7 +481,7 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 	 */
 	request->emitted_jiffies = jiffies;
 	request->previous_seqno = engine->last_submitted_seqno;
-	smp_store_mb(engine->last_submitted_seqno, request->seqno);
+	smp_store_mb(engine->last_submitted_seqno, request->fence.seqno);
 	list_add_tail(&request->list, &engine->request_list);
 
 	/* Record the position of the start of the request so that
@@ -556,7 +652,7 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 	set_current_state(state);
 	add_wait_queue(&req->i915->gpu_error.wait_queue, &reset);
 
-	intel_wait_init(&wait, req->seqno);
+	intel_wait_init(&wait, req->fence.seqno);
 	if (intel_engine_add_wait(req->engine, &wait))
 		/* In order to check that we haven't missed the interrupt
 		 * as we enabled it, we need to kick ourselves to do a
@@ -617,7 +713,7 @@ complete:
 			*timeout = 0;
 	}
 
-	if (rps && req->seqno == req->engine->last_submitted_seqno) {
+	if (rps && req->fence.seqno == req->engine->last_submitted_seqno) {
 		/* The GPU is now idle and this client has stalled.
 		 * Since no other client has submitted a request in the
 		 * meantime, assume that this client is the only one
@@ -656,11 +752,4 @@ int i915_wait_request(struct drm_i915_gem_request *req)
 		i915_gem_request_retire_upto(req);
 
 	return 0;
-}
-
-void i915_gem_request_free(struct kref *req_ref)
-{
-	struct drm_i915_gem_request *req =
-		container_of(req_ref, typeof(*req), ref);
-	kmem_cache_free(req->i915->requests, req);
 }
