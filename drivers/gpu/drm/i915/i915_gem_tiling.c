@@ -172,7 +172,7 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 
 	if (!i915_tiling_ok(dev,
 			    args->stride, obj->base.size, args->tiling_mode)) {
-		drm_gem_object_unreference_unlocked(&obj->base);
+		i915_gem_object_put_unlocked(obj);
 		return -EINVAL;
 	}
 

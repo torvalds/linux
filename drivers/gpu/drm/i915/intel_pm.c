@@ -5709,7 +5709,7 @@ static void valleyview_cleanup_pctx(struct drm_i915_private *dev_priv)
 	if (WARN_ON(!dev_priv->vlv_pctx))
 		return;
 
-	drm_gem_object_unreference_unlocked(&dev_priv->vlv_pctx->base);
+	i915_gem_object_put_unlocked(dev_priv->vlv_pctx);
 	dev_priv->vlv_pctx = NULL;
 }
 

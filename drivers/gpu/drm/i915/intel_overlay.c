@@ -1460,7 +1460,7 @@ void intel_cleanup_overlay(struct drm_i915_private *dev_priv)
 	 * hardware should be off already */
 	WARN_ON(dev_priv->overlay->active);
 
-	drm_gem_object_unreference_unlocked(&dev_priv->overlay->reg_bo->base);
+	i915_gem_object_put_unlocked(dev_priv->overlay->reg_bo);
 	kfree(dev_priv->overlay);
 }
 
