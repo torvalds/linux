@@ -5939,10 +5939,15 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 	 * the middle of a transaction commit.  We also don't need the delalloc
 	 * mutex since we won't race with anybody.  We need this mostly to make
 	 * lockdep shut its filthy mouth.
+	 *
+	 * If we have a transaction open (can happen if we call truncate_block
+	 * from truncate), then we need FLUSH_LIMIT so we don't deadlock.
 	 */
 	if (btrfs_is_free_space_inode(inode)) {
 		flush = BTRFS_RESERVE_NO_FLUSH;
 		delalloc_lock = false;
+	} else if (current->journal_info) {
+		flush = BTRFS_RESERVE_FLUSH_LIMIT;
 	}
 
 	if (flush != BTRFS_RESERVE_NO_FLUSH &&
