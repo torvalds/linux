@@ -31,23 +31,23 @@ struct  intel_hw_status_page {
 	struct		drm_i915_gem_object *obj;
 };
 
-#define I915_READ_TAIL(ring) I915_READ(RING_TAIL((ring)->mmio_base))
-#define I915_WRITE_TAIL(ring, val) I915_WRITE(RING_TAIL((ring)->mmio_base), val)
+#define I915_READ_TAIL(engine) I915_READ(RING_TAIL((engine)->mmio_base))
+#define I915_WRITE_TAIL(engine, val) I915_WRITE(RING_TAIL((engine)->mmio_base), val)
 
-#define I915_READ_START(ring) I915_READ(RING_START((ring)->mmio_base))
-#define I915_WRITE_START(ring, val) I915_WRITE(RING_START((ring)->mmio_base), val)
+#define I915_READ_START(engine) I915_READ(RING_START((engine)->mmio_base))
+#define I915_WRITE_START(engine, val) I915_WRITE(RING_START((engine)->mmio_base), val)
 
-#define I915_READ_HEAD(ring)  I915_READ(RING_HEAD((ring)->mmio_base))
-#define I915_WRITE_HEAD(ring, val) I915_WRITE(RING_HEAD((ring)->mmio_base), val)
+#define I915_READ_HEAD(engine)  I915_READ(RING_HEAD((engine)->mmio_base))
+#define I915_WRITE_HEAD(engine, val) I915_WRITE(RING_HEAD((engine)->mmio_base), val)
 
-#define I915_READ_CTL(ring) I915_READ(RING_CTL((ring)->mmio_base))
-#define I915_WRITE_CTL(ring, val) I915_WRITE(RING_CTL((ring)->mmio_base), val)
+#define I915_READ_CTL(engine) I915_READ(RING_CTL((engine)->mmio_base))
+#define I915_WRITE_CTL(engine, val) I915_WRITE(RING_CTL((engine)->mmio_base), val)
 
-#define I915_READ_IMR(ring) I915_READ(RING_IMR((ring)->mmio_base))
-#define I915_WRITE_IMR(ring, val) I915_WRITE(RING_IMR((ring)->mmio_base), val)
+#define I915_READ_IMR(engine) I915_READ(RING_IMR((engine)->mmio_base))
+#define I915_WRITE_IMR(engine, val) I915_WRITE(RING_IMR((engine)->mmio_base), val)
 
-#define I915_READ_MODE(ring) I915_READ(RING_MI_MODE((ring)->mmio_base))
-#define I915_WRITE_MODE(ring, val) I915_WRITE(RING_MI_MODE((ring)->mmio_base), val)
+#define I915_READ_MODE(engine) I915_READ(RING_MI_MODE((engine)->mmio_base))
+#define I915_WRITE_MODE(engine, val) I915_WRITE(RING_MI_MODE((engine)->mmio_base), val)
 
 /* seqno size is actually only a uint32, but since we plan to use MI_FLUSH_DW to
  * do the writes, and that must have qw aligned offsets, simply pretend it's 8b.

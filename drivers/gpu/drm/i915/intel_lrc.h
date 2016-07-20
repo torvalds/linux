@@ -29,17 +29,17 @@
 #define GEN8_LR_CONTEXT_ALIGN 4096
 
 /* Execlists regs */
-#define RING_ELSP(ring)				_MMIO((ring)->mmio_base + 0x230)
-#define RING_EXECLIST_STATUS_LO(ring)		_MMIO((ring)->mmio_base + 0x234)
-#define RING_EXECLIST_STATUS_HI(ring)		_MMIO((ring)->mmio_base + 0x234 + 4)
-#define RING_CONTEXT_CONTROL(ring)		_MMIO((ring)->mmio_base + 0x244)
+#define RING_ELSP(engine)			_MMIO((engine)->mmio_base + 0x230)
+#define RING_EXECLIST_STATUS_LO(engine)		_MMIO((engine)->mmio_base + 0x234)
+#define RING_EXECLIST_STATUS_HI(engine)		_MMIO((engine)->mmio_base + 0x234 + 4)
+#define RING_CONTEXT_CONTROL(engine)		_MMIO((engine)->mmio_base + 0x244)
 #define	  CTX_CTRL_INHIBIT_SYN_CTX_SWITCH	(1 << 3)
 #define	  CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT	(1 << 0)
 #define   CTX_CTRL_RS_CTX_ENABLE                (1 << 1)
-#define RING_CONTEXT_STATUS_BUF_BASE(ring)	_MMIO((ring)->mmio_base + 0x370)
-#define RING_CONTEXT_STATUS_BUF_LO(ring, i)	_MMIO((ring)->mmio_base + 0x370 + (i) * 8)
-#define RING_CONTEXT_STATUS_BUF_HI(ring, i)	_MMIO((ring)->mmio_base + 0x370 + (i) * 8 + 4)
-#define RING_CONTEXT_STATUS_PTR(ring)		_MMIO((ring)->mmio_base + 0x3a0)
+#define RING_CONTEXT_STATUS_BUF_BASE(engine)	_MMIO((engine)->mmio_base + 0x370)
+#define RING_CONTEXT_STATUS_BUF_LO(engine, i)	_MMIO((engine)->mmio_base + 0x370 + (i) * 8)
+#define RING_CONTEXT_STATUS_BUF_HI(engine, i)	_MMIO((engine)->mmio_base + 0x370 + (i) * 8 + 4)
+#define RING_CONTEXT_STATUS_PTR(engine)		_MMIO((engine)->mmio_base + 0x3a0)
 
 /* The docs specify that the write pointer wraps around after 5h, "After status
  * is written out to the last available status QW at offset 5h, this pointer
