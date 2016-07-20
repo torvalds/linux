@@ -188,9 +188,6 @@ struct redrat3_dev {
 	/* usb dma */
 	dma_addr_t dma_in;
 
-	/* rx signal timeout */
-	u32 hw_timeout;
-
 	/* Is the device currently transmitting?*/
 	bool transmitting;
 
@@ -372,7 +369,7 @@ static void redrat3_process_ir_data(struct redrat3_dev *rr3)
 	/* add a trailing space */
 	rawir.pulse = false;
 	rawir.timeout = true;
-	rawir.duration = US_TO_NS(rr3->hw_timeout);
+	rawir.duration = rr3->rc->timeout;
 	dev_dbg(dev, "storing trailing timeout with duration %d\n",
 							rawir.duration);
 	ir_raw_event_store_with_filter(rr3->rc, &rawir);
@@ -495,10 +492,9 @@ static int redrat3_set_timeout(struct rc_dev *rc_dev, unsigned int timeoutns)
 	dev_dbg(dev, "set ir parm timeout %d ret 0x%02x\n",
 						be32_to_cpu(*timeout), ret);
 
-	if (ret == sizeof(*timeout)) {
-		rr3->hw_timeout = timeoutns / 1000;
+	if (ret == sizeof(*timeout))
 		ret = 0;
-	} else if (ret >= 0)
+	else if (ret >= 0)
 		ret = -EIO;
 
 	kfree(timeout);
@@ -889,7 +885,7 @@ static struct rc_dev *redrat3_init_rc_dev(struct redrat3_dev *rr3)
 	rc->allowed_protocols = RC_BIT_ALL;
 	rc->min_timeout = MS_TO_NS(RR3_RX_MIN_TIMEOUT);
 	rc->max_timeout = MS_TO_NS(RR3_RX_MAX_TIMEOUT);
-	rc->timeout = US_TO_NS(rr3->hw_timeout);
+	rc->timeout = US_TO_NS(redrat3_get_timeout(rr3));
 	rc->s_timeout = redrat3_set_timeout;
 	rc->tx_ir = redrat3_transmit_ir;
 	rc->s_tx_carrier = redrat3_set_tx_carrier;
@@ -997,9 +993,6 @@ static int redrat3_dev_probe(struct usb_interface *intf,
 	retval = redrat3_enable_detector(rr3);
 	if (retval < 0)
 		goto error;
-
-	/* store current hardware timeout, in µs */
-	rr3->hw_timeout = redrat3_get_timeout(rr3);
 
 	/* default.. will get overridden by any sends with a freq defined */
 	rr3->carrier = 38000;
