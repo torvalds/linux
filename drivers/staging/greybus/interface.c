@@ -947,8 +947,15 @@ static int _gb_interface_activate(struct gb_interface *intf,
 		goto err_refclk_disable;
 
 	ret = gb_interface_activate_operation(intf, type);
-	if (ret)
-		goto err_unipro_disable;
+	if (ret) {
+		switch (*type) {
+		case GB_INTERFACE_TYPE_UNIPRO:
+		case GB_INTERFACE_TYPE_GREYBUS:
+			goto err_hibernate_link;
+		default:
+			goto err_unipro_disable;
+		}
+	}
 
 	ret = gb_interface_read_dme(intf);
 	if (ret)
