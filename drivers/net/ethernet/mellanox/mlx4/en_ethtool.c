@@ -1722,6 +1722,12 @@ static int mlx4_en_set_channels(struct net_device *dev,
 	    !channel->tx_count || !channel->rx_count)
 		return -EINVAL;
 
+	if (channel->tx_count * MLX4_EN_NUM_UP <= priv->xdp_ring_num) {
+		en_err(priv, "Minimum %d tx channels required with XDP on\n",
+		       priv->xdp_ring_num / MLX4_EN_NUM_UP + 1);
+		return -EINVAL;
+	}
+
 	mutex_lock(&mdev->state_lock);
 	if (priv->port_up) {
 		port_up = 1;
@@ -1740,7 +1746,8 @@ static int mlx4_en_set_channels(struct net_device *dev,
 		goto out;
 	}
 
-	netif_set_real_num_tx_queues(dev, priv->tx_ring_num);
+	netif_set_real_num_tx_queues(dev, priv->tx_ring_num -
+							priv->xdp_ring_num);
 	netif_set_real_num_rx_queues(dev, priv->rx_ring_num);
 
 	if (dev->num_tc)
