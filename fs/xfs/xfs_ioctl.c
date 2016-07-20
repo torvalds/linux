@@ -1575,6 +1575,17 @@ xfs_ioc_swapext(
 		goto out_put_tmp_file;
 	}
 
+	/*
+	 * We need to ensure that the fds passed in point to XFS inodes
+	 * before we cast and access them as XFS structures as we have no
+	 * control over what the user passes us here.
+	 */
+	if (f.file->f_op != &xfs_file_operations ||
+	    tmp.file->f_op != &xfs_file_operations) {
+		error = -EINVAL;
+		goto out_put_tmp_file;
+	}
+
 	ip = XFS_I(file_inode(f.file));
 	tip = XFS_I(file_inode(tmp.file));
 
