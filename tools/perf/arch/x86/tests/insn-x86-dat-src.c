@@ -19,6 +19,10 @@ int main(void)
 	/* Following line is a marker for the awk script - do not change */
 	asm volatile("rdtsc"); /* Start here */
 
+	/* Test fix for vcvtph2ps in x86-opcode-map.txt */
+
+	asm volatile("vcvtph2ps %xmm3,%ymm5");
+
 #ifdef __x86_64__
 
 	/* bndmk m64, bnd */

@@ -629,7 +629,7 @@ AVXcode: 2
 10: pblendvb Vdq,Wdq (66)
 11:
 12:
-13: vcvtph2ps Vx,Wx,Ib (66),(v)
+13: vcvtph2ps Vx,Wx (66),(v)
 14: blendvps Vdq,Wdq (66)
 15: blendvpd Vdq,Wdq (66)
 16: vpermps Vqq,Hqq,Wqq (66),(v)
