@@ -901,7 +901,7 @@ int main(int argc, char *argv[])
 	memset(&t, 0, sizeof(t));
 
 	while ((o = getopt(argc, argv,
-			   "t:s:i:S:D:m:v::d::r::p::a::l::x::o:c:w:O:")) != -1) {
+			   "t:s:i:S:D:m:v::d::r::p::a::l::x::o:O:c:w:z::")) != -1) {
 		switch (o) {
 		case 't':
 			snprintf(t.test_name, MAX_STR_LEN, "%s", optarg);
@@ -956,6 +956,7 @@ int main(int argc, char *argv[])
 			break;
 		case 'z':
 			t.file_output = 1;
+			break;
 		default:
 			usage();
 			return -EINVAL;
