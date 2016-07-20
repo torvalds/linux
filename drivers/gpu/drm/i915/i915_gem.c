@@ -29,10 +29,12 @@
 #include <drm/drm_vma_manager.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
+#include "i915_gem_dmabuf.h"
 #include "i915_vgpu.h"
 #include "i915_trace.h"
 #include "intel_drv.h"
 #include "intel_mocs.h"
+#include <linux/reservation.h>
 #include <linux/shmem_fs.h>
 #include <linux/slab.h>
 #include <linux/swap.h>
@@ -511,6 +513,10 @@ int i915_gem_obj_prepare_shmem_read(struct drm_i915_gem_object *obj,
 	if (WARN_ON(!i915_gem_object_has_struct_page(obj)))
 		return -EINVAL;
 
+	ret = i915_gem_object_wait_rendering(obj, true);
+	if (ret)
+		return ret;
+
 	if (!(obj->base.read_domains & I915_GEM_DOMAIN_CPU)) {
 		/* If we're not in the cpu read domain, set ourself into the gtt
 		 * read domain and manually flush cachelines (if required). This
@@ -518,9 +524,6 @@ int i915_gem_obj_prepare_shmem_read(struct drm_i915_gem_object *obj,
 		 * anyway again before the next pread happens. */
 		*needs_clflush = !cpu_cache_is_coherent(obj->base.dev,
 							obj->cache_level);
-		ret = i915_gem_object_wait_rendering(obj, true);
-		if (ret)
-			return ret;
 	}
 
 	ret = i915_gem_object_get_pages(obj);
@@ -1132,15 +1135,16 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 
 	obj_do_bit17_swizzling = i915_gem_object_needs_bit17_swizzle(obj);
 
+	ret = i915_gem_object_wait_rendering(obj, false);
+	if (ret)
+		return ret;
+
 	if (obj->base.write_domain != I915_GEM_DOMAIN_CPU) {
 		/* If we're not in the cpu write domain, set ourself into the gtt
 		 * write domain and manually flush cachelines (if required). This
 		 * optimizes for the case when the gpu will use the data
 		 * right away and we therefore have to clflush anyway. */
 		needs_clflush_after = cpu_write_needs_clflush(obj);
-		ret = i915_gem_object_wait_rendering(obj, false);
-		if (ret)
-			return ret;
 	}
 	/* Same trick applies to invalidate partially written cachelines read
 	 * before writing. */
@@ -1335,10 +1339,8 @@ int
 i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj,
 			       bool readonly)
 {
+	struct reservation_object *resv;
 	int ret, i;
-
-	if (!obj->active)
-		return 0;
 
 	if (readonly) {
 		if (obj->last_write_req != NULL) {
@@ -1364,6 +1366,16 @@ i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj,
 			i915_gem_object_retire__read(obj, i);
 		}
 		GEM_BUG_ON(obj->active);
+	}
+
+	resv = i915_gem_object_get_dmabuf_resv(obj);
+	if (resv) {
+		long err;
+
+		err = reservation_object_wait_timeout_rcu(resv, !readonly, true,
+							  MAX_SCHEDULE_TIMEOUT);
+		if (err < 0)
+			return err;
 	}
 
 	return 0;
@@ -3402,12 +3414,12 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 	struct i915_vma *vma;
 	int ret;
 
-	if (obj->base.write_domain == I915_GEM_DOMAIN_GTT)
-		return 0;
-
 	ret = i915_gem_object_wait_rendering(obj, !write);
 	if (ret)
 		return ret;
+
+	if (obj->base.write_domain == I915_GEM_DOMAIN_GTT)
+		return 0;
 
 	/* Flush and acquire obj->pages so that we are coherent through
 	 * direct access in memory with previous cached writes through
@@ -3752,12 +3764,12 @@ i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write)
 	uint32_t old_write_domain, old_read_domains;
 	int ret;
 
-	if (obj->base.write_domain == I915_GEM_DOMAIN_CPU)
-		return 0;
-
 	ret = i915_gem_object_wait_rendering(obj, !write);
 	if (ret)
 		return ret;
+
+	if (obj->base.write_domain == I915_GEM_DOMAIN_CPU)
+		return 0;
 
 	i915_gem_object_flush_gtt_write_domain(obj);
 
@@ -4238,7 +4250,7 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 		int ret;
 
 		vma->pin_count = 0;
-		ret = i915_vma_unbind(vma);
+		ret = __i915_vma_unbind_no_wait(vma);
 		if (WARN_ON(ret == -ERESTARTSYS)) {
 			bool was_interruptible;
 
