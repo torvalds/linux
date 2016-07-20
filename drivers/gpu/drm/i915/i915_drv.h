@@ -2286,7 +2286,25 @@ struct drm_i915_gem_object {
 		} userptr;
 	};
 };
-#define to_intel_bo(x) container_of(x, struct drm_i915_gem_object, base)
+
+static inline struct drm_i915_gem_object *
+to_intel_bo(struct drm_gem_object *gem)
+{
+	/* Assert that to_intel_bo(NULL) == NULL */
+	BUILD_BUG_ON(offsetof(struct drm_i915_gem_object, base));
+
+	return container_of(gem, struct drm_i915_gem_object, base);
+}
+
+static inline struct drm_i915_gem_object *
+i915_gem_object_lookup(struct drm_file *file, u32 handle)
+{
+	return to_intel_bo(drm_gem_object_lookup(file, handle));
+}
+
+__deprecated
+extern struct drm_gem_object *
+drm_gem_object_lookup(struct drm_file *file, u32 handle);
 
 static inline bool
 i915_gem_object_has_struct_page(const struct drm_i915_gem_object *obj)
