@@ -1080,10 +1080,9 @@ xfs_buf_iodone_callback_error(
 	 * async write failure at least once, but we also need to set the buffer
 	 * up to behave correctly now for repeated failures.
 	 */
-	if (!(bp->b_flags & (XBF_STALE|XBF_WRITE_FAIL)) ||
+	if (!(bp->b_flags & (XBF_STALE | XBF_WRITE_FAIL)) ||
 	     bp->b_last_error != bp->b_error) {
-		bp->b_flags |= (XBF_WRITE | XBF_ASYNC |
-			        XBF_DONE | XBF_WRITE_FAIL);
+		bp->b_flags |= (XBF_WRITE | XBF_DONE | XBF_WRITE_FAIL);
 		bp->b_last_error = bp->b_error;
 		bp->b_retries = 0;
 		bp->b_first_retry_time = jiffies;

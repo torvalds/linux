@@ -1816,7 +1816,7 @@ __xfs_buf_delwri_submit(
 
 	blk_start_plug(&plug);
 	list_for_each_entry_safe(bp, n, io_list, b_list) {
-		bp->b_flags &= ~(_XBF_DELWRI_Q | XBF_ASYNC | XBF_WRITE_FAIL);
+		bp->b_flags &= ~(_XBF_DELWRI_Q | XBF_WRITE_FAIL);
 		bp->b_flags |= XBF_WRITE | XBF_ASYNC;
 
 		/*
