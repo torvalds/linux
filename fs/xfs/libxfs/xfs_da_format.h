@@ -229,7 +229,7 @@ typedef struct xfs_dir2_sf_hdr {
 	__uint8_t		count;		/* count of entries */
 	__uint8_t		i8count;	/* count of 8-byte inode #s */
 	__uint8_t		parent[8];	/* parent dir inode number */
-} __arch_pack xfs_dir2_sf_hdr_t;
+} __packed xfs_dir2_sf_hdr_t;
 
 typedef struct xfs_dir2_sf_entry {
 	__u8			namelen;	/* actual name length */
