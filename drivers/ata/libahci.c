@@ -2392,12 +2392,20 @@ static int ahci_port_start(struct ata_port *ap)
 static void ahci_port_stop(struct ata_port *ap)
 {
 	const char *emsg = NULL;
+	struct ahci_host_priv *hpriv = ap->host->private_data;
+	void __iomem *host_mmio = hpriv->mmio;
 	int rc;
 
 	/* de-initialize port */
 	rc = ahci_deinit_port(ap, &emsg);
 	if (rc)
 		ata_port_warn(ap, "%s (%d)\n", emsg, rc);
+
+	/*
+	 * Clear GHC.IS to prevent stuck INTx after disabling MSI and
+	 * re-enabling INTx.
+	 */
+	writel(1 << ap->port_no, host_mmio + HOST_IRQ_STAT);
 }
 
 void ahci_print_info(struct ata_host *host, const char *scc_s)
