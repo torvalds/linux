@@ -13,12 +13,17 @@
 # opcode: escape # escaped-name
 # EndTable
 #
+# mnemonics that begin with lowercase 'v' accept a VEX or EVEX prefix
+# mnemonics that begin with lowercase 'k' accept a VEX prefix
+#
 #<group maps>
 # GrpTable: GrpXXX
 # reg:  mnemonic [operand1[,operand2...]] [(extra1)[,(extra2)...] [| 2nd-mnemonic ...]
 # EndTable
 #
 # AVX Superscripts
+#  (ev): this opcode requires EVEX prefix.
+#  (evo): this opcode is changed by EVEX prefix (EVEX opcode)
 #  (v): this opcode requires VEX prefix.
 #  (v1): this opcode only supports 128bit VEX.
 #
@@ -137,7 +142,7 @@ AVXcode:
 # 0x60 - 0x6f
 60: PUSHA/PUSHAD (i64)
 61: POPA/POPAD (i64)
-62: BOUND Gv,Ma (i64)
+62: BOUND Gv,Ma (i64) | EVEX (Prefix)
 63: ARPL Ew,Gw (i64) | MOVSXD Gv,Ev (o64)
 64: SEG=FS (Prefix)
 65: SEG=GS (Prefix)
@@ -399,17 +404,17 @@ AVXcode: 1
 3f:
 # 0x0f 0x40-0x4f
 40: CMOVO Gv,Ev
-41: CMOVNO Gv,Ev
-42: CMOVB/C/NAE Gv,Ev
+41: CMOVNO Gv,Ev | kandw/q Vk,Hk,Uk | kandb/d Vk,Hk,Uk (66)
+42: CMOVB/C/NAE Gv,Ev | kandnw/q Vk,Hk,Uk | kandnb/d Vk,Hk,Uk (66)
 43: CMOVAE/NB/NC Gv,Ev
-44: CMOVE/Z Gv,Ev
-45: CMOVNE/NZ Gv,Ev
-46: CMOVBE/NA Gv,Ev
-47: CMOVA/NBE Gv,Ev
+44: CMOVE/Z Gv,Ev | knotw/q Vk,Uk | knotb/d Vk,Uk (66)
+45: CMOVNE/NZ Gv,Ev | korw/q Vk,Hk,Uk | korb/d Vk,Hk,Uk (66)
+46: CMOVBE/NA Gv,Ev | kxnorw/q Vk,Hk,Uk | kxnorb/d Vk,Hk,Uk (66)
+47: CMOVA/NBE Gv,Ev | kxorw/q Vk,Hk,Uk | kxorb/d Vk,Hk,Uk (66)
 48: CMOVS Gv,Ev
 49: CMOVNS Gv,Ev
-4a: CMOVP/PE Gv,Ev
-4b: CMOVNP/PO Gv,Ev
+4a: CMOVP/PE Gv,Ev | kaddw/q Vk,Hk,Uk | kaddb/d Vk,Hk,Uk (66)
+4b: CMOVNP/PO Gv,Ev | kunpckbw Vk,Hk,Uk (66) | kunpckwd/dq Vk,Hk,Uk
 4c: CMOVL/NGE Gv,Ev
 4d: CMOVNL/GE Gv,Ev
 4e: CMOVLE/NG Gv,Ev
@@ -426,7 +431,7 @@ AVXcode: 1
 58: vaddps Vps,Hps,Wps | vaddpd Vpd,Hpd,Wpd (66) | vaddss Vss,Hss,Wss (F3),(v1) | vaddsd Vsd,Hsd,Wsd (F2),(v1)
 59: vmulps Vps,Hps,Wps | vmulpd Vpd,Hpd,Wpd (66) | vmulss Vss,Hss,Wss (F3),(v1) | vmulsd Vsd,Hsd,Wsd (F2),(v1)
 5a: vcvtps2pd Vpd,Wps | vcvtpd2ps Vps,Wpd (66) | vcvtss2sd Vsd,Hx,Wss (F3),(v1) | vcvtsd2ss Vss,Hx,Wsd (F2),(v1)
-5b: vcvtdq2ps Vps,Wdq | vcvtps2dq Vdq,Wps (66) | vcvttps2dq Vdq,Wps (F3)
+5b: vcvtdq2ps Vps,Wdq | vcvtqq2ps Vps,Wqq (evo) | vcvtps2dq Vdq,Wps (66) | vcvttps2dq Vdq,Wps (F3)
 5c: vsubps Vps,Hps,Wps | vsubpd Vpd,Hpd,Wpd (66) | vsubss Vss,Hss,Wss (F3),(v1) | vsubsd Vsd,Hsd,Wsd (F2),(v1)
 5d: vminps Vps,Hps,Wps | vminpd Vpd,Hpd,Wpd (66) | vminss Vss,Hss,Wss (F3),(v1) | vminsd Vsd,Hsd,Wsd (F2),(v1)
 5e: vdivps Vps,Hps,Wps | vdivpd Vpd,Hpd,Wpd (66) | vdivss Vss,Hss,Wss (F3),(v1) | vdivsd Vsd,Hsd,Wsd (F2),(v1)
@@ -447,7 +452,7 @@ AVXcode: 1
 6c: vpunpcklqdq Vx,Hx,Wx (66),(v1)
 6d: vpunpckhqdq Vx,Hx,Wx (66),(v1)
 6e: movd/q Pd,Ey | vmovd/q Vy,Ey (66),(v1)
-6f: movq Pq,Qq | vmovdqa Vx,Wx (66) | vmovdqu Vx,Wx (F3)
+6f: movq Pq,Qq | vmovdqa Vx,Wx (66) | vmovdqa32/64 Vx,Wx (66),(evo) | vmovdqu Vx,Wx (F3) | vmovdqu32/64 Vx,Wx (F3),(evo) | vmovdqu8/16 Vx,Wx (F2),(ev)
 # 0x0f 0x70-0x7f
 70: pshufw Pq,Qq,Ib | vpshufd Vx,Wx,Ib (66),(v1) | vpshufhw Vx,Wx,Ib (F3),(v1) | vpshuflw Vx,Wx,Ib (F2),(v1)
 71: Grp12 (1A)
@@ -458,14 +463,14 @@ AVXcode: 1
 76: pcmpeqd Pq,Qq | vpcmpeqd Vx,Hx,Wx (66),(v1)
 # Note: Remove (v), because vzeroall and vzeroupper becomes emms without VEX.
 77: emms | vzeroupper | vzeroall
-78: VMREAD Ey,Gy
-79: VMWRITE Gy,Ey
-7a:
-7b:
+78: VMREAD Ey,Gy | vcvttps2udq/pd2udq Vx,Wpd (evo) | vcvttsd2usi Gv,Wx (F2),(ev) | vcvttss2usi Gv,Wx (F3),(ev) | vcvttps2uqq/pd2uqq Vx,Wx (66),(ev)
+79: VMWRITE Gy,Ey | vcvtps2udq/pd2udq Vx,Wpd (evo) | vcvtsd2usi Gv,Wx (F2),(ev) | vcvtss2usi Gv,Wx (F3),(ev) | vcvtps2uqq/pd2uqq Vx,Wx (66),(ev)
+7a: vcvtudq2pd/uqq2pd Vpd,Wx (F3),(ev) | vcvtudq2ps/uqq2ps Vpd,Wx (F2),(ev) | vcvttps2qq/pd2qq Vx,Wx (66),(ev)
+7b: vcvtusi2sd Vpd,Hpd,Ev (F2),(ev) | vcvtusi2ss Vps,Hps,Ev (F3),(ev) | vcvtps2qq/pd2qq Vx,Wx (66),(ev)
 7c: vhaddpd Vpd,Hpd,Wpd (66) | vhaddps Vps,Hps,Wps (F2)
 7d: vhsubpd Vpd,Hpd,Wpd (66) | vhsubps Vps,Hps,Wps (F2)
 7e: movd/q Ey,Pd | vmovd/q Ey,Vy (66),(v1) | vmovq Vq,Wq (F3),(v1)
-7f: movq Qq,Pq | vmovdqa Wx,Vx (66) | vmovdqu Wx,Vx (F3)
+7f: movq Qq,Pq | vmovdqa Wx,Vx (66) | vmovdqa32/64 Wx,Vx (66),(evo) | vmovdqu Wx,Vx (F3) | vmovdqu32/64 Wx,Vx (F3),(evo) | vmovdqu8/16 Wx,Vx (F2),(ev)
 # 0x0f 0x80-0x8f
 # Note: "forced64" is Intel CPU behavior (see comment about CALL insn).
 80: JO Jz (f64)
@@ -485,16 +490,16 @@ AVXcode: 1
 8e: JLE/JNG Jz (f64)
 8f: JNLE/JG Jz (f64)
 # 0x0f 0x90-0x9f
-90: SETO Eb
-91: SETNO Eb
-92: SETB/C/NAE Eb
-93: SETAE/NB/NC Eb
+90: SETO Eb | kmovw/q Vk,Wk | kmovb/d Vk,Wk (66)
+91: SETNO Eb | kmovw/q Mv,Vk | kmovb/d Mv,Vk (66)
+92: SETB/C/NAE Eb | kmovw Vk,Rv | kmovb Vk,Rv (66) | kmovq/d Vk,Rv (F2)
+93: SETAE/NB/NC Eb | kmovw Gv,Uk | kmovb Gv,Uk (66) | kmovq/d Gv,Uk (F2)
 94: SETE/Z Eb
 95: SETNE/NZ Eb
 96: SETBE/NA Eb
 97: SETA/NBE Eb
-98: SETS Eb
-99: SETNS Eb
+98: SETS Eb | kortestw/q Vk,Uk | kortestb/d Vk,Uk (66)
+99: SETNS Eb | ktestw/q Vk,Uk | ktestb/d Vk,Uk (66)
 9a: SETP/PE Eb
 9b: SETNP/PO Eb
 9c: SETL/NGE Eb
@@ -564,11 +569,11 @@ d7: pmovmskb Gd,Nq | vpmovmskb Gd,Ux (66),(v1)
 d8: psubusb Pq,Qq | vpsubusb Vx,Hx,Wx (66),(v1)
 d9: psubusw Pq,Qq | vpsubusw Vx,Hx,Wx (66),(v1)
 da: pminub Pq,Qq | vpminub Vx,Hx,Wx (66),(v1)
-db: pand Pq,Qq | vpand Vx,Hx,Wx (66),(v1)
+db: pand Pq,Qq | vpand Vx,Hx,Wx (66),(v1) | vpandd/q Vx,Hx,Wx (66),(evo)
 dc: paddusb Pq,Qq | vpaddusb Vx,Hx,Wx (66),(v1)
 dd: paddusw Pq,Qq | vpaddusw Vx,Hx,Wx (66),(v1)
 de: pmaxub Pq,Qq | vpmaxub Vx,Hx,Wx (66),(v1)
-df: pandn Pq,Qq | vpandn Vx,Hx,Wx (66),(v1)
+df: pandn Pq,Qq | vpandn Vx,Hx,Wx (66),(v1) | vpandnd/q Vx,Hx,Wx (66),(evo)
 # 0x0f 0xe0-0xef
 e0: pavgb Pq,Qq | vpavgb Vx,Hx,Wx (66),(v1)
 e1: psraw Pq,Qq | vpsraw Vx,Hx,Wx (66),(v1)
@@ -576,16 +581,16 @@ e2: psrad Pq,Qq | vpsrad Vx,Hx,Wx (66),(v1)
 e3: pavgw Pq,Qq | vpavgw Vx,Hx,Wx (66),(v1)
 e4: pmulhuw Pq,Qq | vpmulhuw Vx,Hx,Wx (66),(v1)
 e5: pmulhw Pq,Qq | vpmulhw Vx,Hx,Wx (66),(v1)
-e6: vcvttpd2dq Vx,Wpd (66) | vcvtdq2pd Vx,Wdq (F3) | vcvtpd2dq Vx,Wpd (F2)
+e6: vcvttpd2dq Vx,Wpd (66) | vcvtdq2pd Vx,Wdq (F3) | vcvtdq2pd/qq2pd Vx,Wdq (F3),(evo) | vcvtpd2dq Vx,Wpd (F2)
 e7: movntq Mq,Pq | vmovntdq Mx,Vx (66)
 e8: psubsb Pq,Qq | vpsubsb Vx,Hx,Wx (66),(v1)
 e9: psubsw Pq,Qq | vpsubsw Vx,Hx,Wx (66),(v1)
 ea: pminsw Pq,Qq | vpminsw Vx,Hx,Wx (66),(v1)
-eb: por Pq,Qq | vpor Vx,Hx,Wx (66),(v1)
+eb: por Pq,Qq | vpor Vx,Hx,Wx (66),(v1) | vpord/q Vx,Hx,Wx (66),(evo)
 ec: paddsb Pq,Qq | vpaddsb Vx,Hx,Wx (66),(v1)
 ed: paddsw Pq,Qq | vpaddsw Vx,Hx,Wx (66),(v1)
 ee: pmaxsw Pq,Qq | vpmaxsw Vx,Hx,Wx (66),(v1)
-ef: pxor Pq,Qq | vpxor Vx,Hx,Wx (66),(v1)
+ef: pxor Pq,Qq | vpxor Vx,Hx,Wx (66),(v1) | vpxord/q Vx,Hx,Wx (66),(evo)
 # 0x0f 0xf0-0xff
 f0: vlddqu Vx,Mx (F2)
 f1: psllw Pq,Qq | vpsllw Vx,Hx,Wx (66),(v1)
@@ -626,81 +631,105 @@ AVXcode: 2
 0e: vtestps Vx,Wx (66),(v)
 0f: vtestpd Vx,Wx (66),(v)
 # 0x0f 0x38 0x10-0x1f
-10: pblendvb Vdq,Wdq (66)
-11:
-12:
-13: vcvtph2ps Vx,Wx (66),(v)
-14: blendvps Vdq,Wdq (66)
-15: blendvpd Vdq,Wdq (66)
-16: vpermps Vqq,Hqq,Wqq (66),(v)
+10: pblendvb Vdq,Wdq (66) | vpsrlvw Vx,Hx,Wx (66),(evo) | vpmovuswb Wx,Vx (F3),(ev)
+11: vpmovusdb Wx,Vd (F3),(ev) | vpsravw Vx,Hx,Wx (66),(ev)
+12: vpmovusqb Wx,Vq (F3),(ev) | vpsllvw Vx,Hx,Wx (66),(ev)
+13: vcvtph2ps Vx,Wx (66),(v) | vpmovusdw Wx,Vd (F3),(ev)
+14: blendvps Vdq,Wdq (66) | vpmovusqw Wx,Vq (F3),(ev) | vprorvd/q Vx,Hx,Wx (66),(evo)
+15: blendvpd Vdq,Wdq (66) | vpmovusqd Wx,Vq (F3),(ev) | vprolvd/q Vx,Hx,Wx (66),(evo)
+16: vpermps Vqq,Hqq,Wqq (66),(v) | vpermps/d Vqq,Hqq,Wqq (66),(evo)
 17: vptest Vx,Wx (66)
 18: vbroadcastss Vx,Wd (66),(v)
-19: vbroadcastsd Vqq,Wq (66),(v)
-1a: vbroadcastf128 Vqq,Mdq (66),(v)
-1b:
+19: vbroadcastsd Vqq,Wq (66),(v) | vbroadcastf32x2 Vqq,Wq (66),(evo)
+1a: vbroadcastf128 Vqq,Mdq (66),(v) | vbroadcastf32x4/64x2 Vqq,Wq (66),(evo)
+1b: vbroadcastf32x8/64x4 Vqq,Mdq (66),(ev)
 1c: pabsb Pq,Qq | vpabsb Vx,Wx (66),(v1)
 1d: pabsw Pq,Qq | vpabsw Vx,Wx (66),(v1)
 1e: pabsd Pq,Qq | vpabsd Vx,Wx (66),(v1)
-1f:
+1f: vpabsq Vx,Wx (66),(ev)
 # 0x0f 0x38 0x20-0x2f
-20: vpmovsxbw Vx,Ux/Mq (66),(v1)
-21: vpmovsxbd Vx,Ux/Md (66),(v1)
-22: vpmovsxbq Vx,Ux/Mw (66),(v1)
-23: vpmovsxwd Vx,Ux/Mq (66),(v1)
-24: vpmovsxwq Vx,Ux/Md (66),(v1)
-25: vpmovsxdq Vx,Ux/Mq (66),(v1)
-26:
-27:
-28: vpmuldq Vx,Hx,Wx (66),(v1)
-29: vpcmpeqq Vx,Hx,Wx (66),(v1)
-2a: vmovntdqa Vx,Mx (66),(v1)
+20: vpmovsxbw Vx,Ux/Mq (66),(v1) | vpmovswb Wx,Vx (F3),(ev)
+21: vpmovsxbd Vx,Ux/Md (66),(v1) | vpmovsdb Wx,Vd (F3),(ev)
+22: vpmovsxbq Vx,Ux/Mw (66),(v1) | vpmovsqb Wx,Vq (F3),(ev)
+23: vpmovsxwd Vx,Ux/Mq (66),(v1) | vpmovsdw Wx,Vd (F3),(ev)
+24: vpmovsxwq Vx,Ux/Md (66),(v1) | vpmovsqw Wx,Vq (F3),(ev)
+25: vpmovsxdq Vx,Ux/Mq (66),(v1) | vpmovsqd Wx,Vq (F3),(ev)
+26: vptestmb/w Vk,Hx,Wx (66),(ev) | vptestnmb/w Vk,Hx,Wx (F3),(ev)
+27: vptestmd/q Vk,Hx,Wx (66),(ev) | vptestnmd/q Vk,Hx,Wx (F3),(ev)
+28: vpmuldq Vx,Hx,Wx (66),(v1) | vpmovm2b/w Vx,Uk (F3),(ev)
+29: vpcmpeqq Vx,Hx,Wx (66),(v1) | vpmovb2m/w2m Vk,Ux (F3),(ev)
+2a: vmovntdqa Vx,Mx (66),(v1) | vpbroadcastmb2q Vx,Uk (F3),(ev)
 2b: vpackusdw Vx,Hx,Wx (66),(v1)
-2c: vmaskmovps Vx,Hx,Mx (66),(v)
-2d: vmaskmovpd Vx,Hx,Mx (66),(v)
+2c: vmaskmovps Vx,Hx,Mx (66),(v) | vscalefps/d Vx,Hx,Wx (66),(evo)
+2d: vmaskmovpd Vx,Hx,Mx (66),(v) | vscalefss/d Vx,Hx,Wx (66),(evo)
 2e: vmaskmovps Mx,Hx,Vx (66),(v)
 2f: vmaskmovpd Mx,Hx,Vx (66),(v)
 # 0x0f 0x38 0x30-0x3f
-30: vpmovzxbw Vx,Ux/Mq (66),(v1)
-31: vpmovzxbd Vx,Ux/Md (66),(v1)
-32: vpmovzxbq Vx,Ux/Mw (66),(v1)
-33: vpmovzxwd Vx,Ux/Mq (66),(v1)
-34: vpmovzxwq Vx,Ux/Md (66),(v1)
-35: vpmovzxdq Vx,Ux/Mq (66),(v1)
-36: vpermd Vqq,Hqq,Wqq (66),(v)
+30: vpmovzxbw Vx,Ux/Mq (66),(v1) | vpmovwb Wx,Vx (F3),(ev)
+31: vpmovzxbd Vx,Ux/Md (66),(v1) | vpmovdb Wx,Vd (F3),(ev)
+32: vpmovzxbq Vx,Ux/Mw (66),(v1) | vpmovqb Wx,Vq (F3),(ev)
+33: vpmovzxwd Vx,Ux/Mq (66),(v1) | vpmovdw Wx,Vd (F3),(ev)
+34: vpmovzxwq Vx,Ux/Md (66),(v1) | vpmovqw Wx,Vq (F3),(ev)
+35: vpmovzxdq Vx,Ux/Mq (66),(v1) | vpmovqd Wx,Vq (F3),(ev)
+36: vpermd Vqq,Hqq,Wqq (66),(v) | vpermd/q Vqq,Hqq,Wqq (66),(evo)
 37: vpcmpgtq Vx,Hx,Wx (66),(v1)
-38: vpminsb Vx,Hx,Wx (66),(v1)
-39: vpminsd Vx,Hx,Wx (66),(v1)
-3a: vpminuw Vx,Hx,Wx (66),(v1)
-3b: vpminud Vx,Hx,Wx (66),(v1)
+38: vpminsb Vx,Hx,Wx (66),(v1) | vpmovm2d/q Vx,Uk (F3),(ev)
+39: vpminsd Vx,Hx,Wx (66),(v1) | vpminsd/q Vx,Hx,Wx (66),(evo) | vpmovd2m/q2m Vk,Ux (F3),(ev)
+3a: vpminuw Vx,Hx,Wx (66),(v1) | vpbroadcastmw2d Vx,Uk (F3),(ev)
+3b: vpminud Vx,Hx,Wx (66),(v1) | vpminud/q Vx,Hx,Wx (66),(evo)
 3c: vpmaxsb Vx,Hx,Wx (66),(v1)
-3d: vpmaxsd Vx,Hx,Wx (66),(v1)
+3d: vpmaxsd Vx,Hx,Wx (66),(v1) | vpmaxsd/q Vx,Hx,Wx (66),(evo)
 3e: vpmaxuw Vx,Hx,Wx (66),(v1)
-3f: vpmaxud Vx,Hx,Wx (66),(v1)
+3f: vpmaxud Vx,Hx,Wx (66),(v1) | vpmaxud/q Vx,Hx,Wx (66),(evo)
 # 0x0f 0x38 0x40-0x8f
-40: vpmulld Vx,Hx,Wx (66),(v1)
+40: vpmulld Vx,Hx,Wx (66),(v1) | vpmulld/q Vx,Hx,Wx (66),(evo)
 41: vphminposuw Vdq,Wdq (66),(v1)
-42:
-43:
-44:
+42: vgetexpps/d Vx,Wx (66),(ev)
+43: vgetexpss/d Vx,Hx,Wx (66),(ev)
+44: vplzcntd/q Vx,Wx (66),(ev)
 45: vpsrlvd/q Vx,Hx,Wx (66),(v)
-46: vpsravd Vx,Hx,Wx (66),(v)
+46: vpsravd Vx,Hx,Wx (66),(v) | vpsravd/q Vx,Hx,Wx (66),(evo)
 47: vpsllvd/q Vx,Hx,Wx (66),(v)
-# Skip 0x48-0x57
+# Skip 0x48-0x4b
+4c: vrcp14ps/d Vpd,Wpd (66),(ev)
+4d: vrcp14ss/d Vsd,Hpd,Wsd (66),(ev)
+4e: vrsqrt14ps/d Vpd,Wpd (66),(ev)
+4f: vrsqrt14ss/d Vsd,Hsd,Wsd (66),(ev)
+# Skip 0x50-0x57
 58: vpbroadcastd Vx,Wx (66),(v)
-59: vpbroadcastq Vx,Wx (66),(v)
-5a: vbroadcasti128 Vqq,Mdq (66),(v)
-# Skip 0x5b-0x77
+59: vpbroadcastq Vx,Wx (66),(v) | vbroadcasti32x2 Vx,Wx (66),(evo)
+5a: vbroadcasti128 Vqq,Mdq (66),(v) | vbroadcasti32x4/64x2 Vx,Wx (66),(evo)
+5b: vbroadcasti32x8/64x4 Vqq,Mdq (66),(ev)
+# Skip 0x5c-0x63
+64: vpblendmd/q Vx,Hx,Wx (66),(ev)
+65: vblendmps/d Vx,Hx,Wx (66),(ev)
+66: vpblendmb/w Vx,Hx,Wx (66),(ev)
+# Skip 0x67-0x74
+75: vpermi2b/w Vx,Hx,Wx (66),(ev)
+76: vpermi2d/q Vx,Hx,Wx (66),(ev)
+77: vpermi2ps/d Vx,Hx,Wx (66),(ev)
 78: vpbroadcastb Vx,Wx (66),(v)
 79: vpbroadcastw Vx,Wx (66),(v)
-# Skip 0x7a-0x7f
+7a: vpbroadcastb Vx,Rv (66),(ev)
+7b: vpbroadcastw Vx,Rv (66),(ev)
+7c: vpbroadcastd/q Vx,Rv (66),(ev)
+7d: vpermt2b/w Vx,Hx,Wx (66),(ev)
+7e: vpermt2d/q Vx,Hx,Wx (66),(ev)
+7f: vpermt2ps/d Vx,Hx,Wx (66),(ev)
 80: INVEPT Gy,Mdq (66)
 81: INVPID Gy,Mdq (66)
 82: INVPCID Gy,Mdq (66)
+83: vpmultishiftqb Vx,Hx,Wx (66),(ev)
+88: vexpandps/d Vpd,Wpd (66),(ev)
+89: vpexpandd/q Vx,Wx (66),(ev)
+8a: vcompressps/d Wx,Vx (66),(ev)
+8b: vpcompressd/q Wx,Vx (66),(ev)
 8c: vpmaskmovd/q Vx,Hx,Mx (66),(v)
+8d: vpermb/w Vx,Hx,Wx (66),(ev)
 8e: vpmaskmovd/q Mx,Vx,Hx (66),(v)
 # 0x0f 0x38 0x90-0xbf (FMA)
-90: vgatherdd/q Vx,Hx,Wx (66),(v)
-91: vgatherqd/q Vx,Hx,Wx (66),(v)
+90: vgatherdd/q Vx,Hx,Wx (66),(v) | vpgatherdd/q Vx,Wx (66),(evo)
+91: vgatherqd/q Vx,Hx,Wx (66),(v) | vpgatherqd/q Vx,Wx (66),(evo)
 92: vgatherdps/d Vx,Hx,Wx (66),(v)
 93: vgatherqps/d Vx,Hx,Wx (66),(v)
 94:
@@ -715,6 +744,10 @@ AVXcode: 2
 9d: vfnmadd132ss/d Vx,Hx,Wx (66),(v),(v1)
 9e: vfnmsub132ps/d Vx,Hx,Wx (66),(v)
 9f: vfnmsub132ss/d Vx,Hx,Wx (66),(v),(v1)
+a0: vpscatterdd/q Wx,Vx (66),(ev)
+a1: vpscatterqd/q Wx,Vx (66),(ev)
+a2: vscatterdps/d Wx,Vx (66),(ev)
+a3: vscatterqps/d Wx,Vx (66),(ev)
 a6: vfmaddsub213ps/d Vx,Hx,Wx (66),(v)
 a7: vfmsubadd213ps/d Vx,Hx,Wx (66),(v)
 a8: vfmadd213ps/d Vx,Hx,Wx (66),(v)
@@ -725,6 +758,8 @@ ac: vfnmadd213ps/d Vx,Hx,Wx (66),(v)
 ad: vfnmadd213ss/d Vx,Hx,Wx (66),(v),(v1)
 ae: vfnmsub213ps/d Vx,Hx,Wx (66),(v)
 af: vfnmsub213ss/d Vx,Hx,Wx (66),(v),(v1)
+b4: vpmadd52luq Vx,Hx,Wx (66),(ev)
+b5: vpmadd52huq Vx,Hx,Wx (66),(ev)
 b6: vfmaddsub231ps/d Vx,Hx,Wx (66),(v)
 b7: vfmsubadd231ps/d Vx,Hx,Wx (66),(v)
 b8: vfmadd231ps/d Vx,Hx,Wx (66),(v)
@@ -736,12 +771,15 @@ bd: vfnmadd231ss/d Vx,Hx,Wx (66),(v),(v1)
 be: vfnmsub231ps/d Vx,Hx,Wx (66),(v)
 bf: vfnmsub231ss/d Vx,Hx,Wx (66),(v),(v1)
 # 0x0f 0x38 0xc0-0xff
-c8: sha1nexte Vdq,Wdq
+c4: vpconflictd/q Vx,Wx (66),(ev)
+c6: Grp18 (1A)
+c7: Grp19 (1A)
+c8: sha1nexte Vdq,Wdq | vexp2ps/d Vx,Wx (66),(ev)
 c9: sha1msg1 Vdq,Wdq
-ca: sha1msg2 Vdq,Wdq
-cb: sha256rnds2 Vdq,Wdq
-cc: sha256msg1 Vdq,Wdq
-cd: sha256msg2 Vdq,Wdq
+ca: sha1msg2 Vdq,Wdq | vrcp28ps/d Vx,Wx (66),(ev)
+cb: sha256rnds2 Vdq,Wdq | vrcp28ss/d Vx,Hx,Wx (66),(ev)
+cc: sha256msg1 Vdq,Wdq | vrsqrt28ps/d Vx,Wx (66),(ev)
+cd: sha256msg2 Vdq,Wdq | vrsqrt28ss/d Vx,Hx,Wx (66),(ev)
 db: VAESIMC Vdq,Wdq (66),(v1)
 dc: VAESENC Vdq,Hdq,Wdq (66),(v1)
 dd: VAESENCLAST Vdq,Hdq,Wdq (66),(v1)
@@ -763,15 +801,15 @@ AVXcode: 3
 00: vpermq Vqq,Wqq,Ib (66),(v)
 01: vpermpd Vqq,Wqq,Ib (66),(v)
 02: vpblendd Vx,Hx,Wx,Ib (66),(v)
-03:
+03: valignd/q Vx,Hx,Wx,Ib (66),(ev)
 04: vpermilps Vx,Wx,Ib (66),(v)
 05: vpermilpd Vx,Wx,Ib (66),(v)
 06: vperm2f128 Vqq,Hqq,Wqq,Ib (66),(v)
 07:
-08: vroundps Vx,Wx,Ib (66)
-09: vroundpd Vx,Wx,Ib (66)
-0a: vroundss Vss,Wss,Ib (66),(v1)
-0b: vroundsd Vsd,Wsd,Ib (66),(v1)
+08: vroundps Vx,Wx,Ib (66) | vrndscaleps Vx,Wx,Ib (66),(evo)
+09: vroundpd Vx,Wx,Ib (66) | vrndscalepd Vx,Wx,Ib (66),(evo)
+0a: vroundss Vss,Wss,Ib (66),(v1) | vrndscaless Vx,Hx,Wx,Ib (66),(evo)
+0b: vroundsd Vsd,Wsd,Ib (66),(v1) | vrndscalesd Vx,Hx,Wx,Ib (66),(evo)
 0c: vblendps Vx,Hx,Wx,Ib (66)
 0d: vblendpd Vx,Hx,Wx,Ib (66)
 0e: vpblendw Vx,Hx,Wx,Ib (66),(v1)
@@ -780,26 +818,51 @@ AVXcode: 3
 15: vpextrw Rd/Mw,Vdq,Ib (66),(v1)
 16: vpextrd/q Ey,Vdq,Ib (66),(v1)
 17: vextractps Ed,Vdq,Ib (66),(v1)
-18: vinsertf128 Vqq,Hqq,Wqq,Ib (66),(v)
-19: vextractf128 Wdq,Vqq,Ib (66),(v)
+18: vinsertf128 Vqq,Hqq,Wqq,Ib (66),(v) | vinsertf32x4/64x2 Vqq,Hqq,Wqq,Ib (66),(evo)
+19: vextractf128 Wdq,Vqq,Ib (66),(v) | vextractf32x4/64x2 Wdq,Vqq,Ib (66),(evo)
+1a: vinsertf32x8/64x4 Vqq,Hqq,Wqq,Ib (66),(ev)
+1b: vextractf32x8/64x4 Wdq,Vqq,Ib (66),(ev)
 1d: vcvtps2ph Wx,Vx,Ib (66),(v)
+1e: vpcmpud/q Vk,Hd,Wd,Ib (66),(ev)
+1f: vpcmpd/q Vk,Hd,Wd,Ib (66),(ev)
 20: vpinsrb Vdq,Hdq,Ry/Mb,Ib (66),(v1)
 21: vinsertps Vdq,Hdq,Udq/Md,Ib (66),(v1)
 22: vpinsrd/q Vdq,Hdq,Ey,Ib (66),(v1)
-38: vinserti128 Vqq,Hqq,Wqq,Ib (66),(v)
-39: vextracti128 Wdq,Vqq,Ib (66),(v)
+23: vshuff32x4/64x2 Vx,Hx,Wx,Ib (66),(ev)
+25: vpternlogd/q Vx,Hx,Wx,Ib (66),(ev)
+26: vgetmantps/d Vx,Wx,Ib (66),(ev)
+27: vgetmantss/d Vx,Hx,Wx,Ib (66),(ev)
+30: kshiftrb/w Vk,Uk,Ib (66),(v)
+31: kshiftrd/q Vk,Uk,Ib (66),(v)
+32: kshiftlb/w Vk,Uk,Ib (66),(v)
+33: kshiftld/q Vk,Uk,Ib (66),(v)
+38: vinserti128 Vqq,Hqq,Wqq,Ib (66),(v) | vinserti32x4/64x2 Vqq,Hqq,Wqq,Ib (66),(evo)
+39: vextracti128 Wdq,Vqq,Ib (66),(v) | vextracti32x4/64x2 Wdq,Vqq,Ib (66),(evo)
+3a: vinserti32x8/64x4 Vqq,Hqq,Wqq,Ib (66),(ev)
+3b: vextracti32x8/64x4 Wdq,Vqq,Ib (66),(ev)
+3e: vpcmpub/w Vk,Hk,Wx,Ib (66),(ev)
+3f: vpcmpb/w Vk,Hk,Wx,Ib (66),(ev)
 40: vdpps Vx,Hx,Wx,Ib (66)
 41: vdppd Vdq,Hdq,Wdq,Ib (66),(v1)
-42: vmpsadbw Vx,Hx,Wx,Ib (66),(v1)
+42: vmpsadbw Vx,Hx,Wx,Ib (66),(v1) | vdbpsadbw Vx,Hx,Wx,Ib (66),(evo)
+43: vshufi32x4/64x2 Vx,Hx,Wx,Ib (66),(ev)
 44: vpclmulqdq Vdq,Hdq,Wdq,Ib (66),(v1)
 46: vperm2i128 Vqq,Hqq,Wqq,Ib (66),(v)
 4a: vblendvps Vx,Hx,Wx,Lx (66),(v)
 4b: vblendvpd Vx,Hx,Wx,Lx (66),(v)
 4c: vpblendvb Vx,Hx,Wx,Lx (66),(v1)
+50: vrangeps/d Vx,Hx,Wx,Ib (66),(ev)
+51: vrangess/d Vx,Hx,Wx,Ib (66),(ev)
+54: vfixupimmps/d Vx,Hx,Wx,Ib (66),(ev)
+55: vfixupimmss/d Vx,Hx,Wx,Ib (66),(ev)
+56: vreduceps/d Vx,Wx,Ib (66),(ev)
+57: vreducess/d Vx,Hx,Wx,Ib (66),(ev)
 60: vpcmpestrm Vdq,Wdq,Ib (66),(v1)
 61: vpcmpestri Vdq,Wdq,Ib (66),(v1)
 62: vpcmpistrm Vdq,Wdq,Ib (66),(v1)
 63: vpcmpistri Vdq,Wdq,Ib (66),(v1)
+66: vfpclassps/d Vk,Wx,Ib (66),(ev)
+67: vfpclassss/d Vk,Wx,Ib (66),(ev)
 cc: sha1rnds4 Vdq,Wdq,Ib
 df: VAESKEYGEN Vdq,Wdq,Ib (66),(v1)
 f0: RORX Gy,Ey,Ib (F2),(v)
@@ -927,8 +990,10 @@ GrpTable: Grp12
 EndTable
 
 GrpTable: Grp13
+0: vprord/q Hx,Wx,Ib (66),(ev)
+1: vprold/q Hx,Wx,Ib (66),(ev)
 2: psrld Nq,Ib (11B) | vpsrld Hx,Ux,Ib (66),(11B),(v1)
-4: psrad Nq,Ib (11B) | vpsrad Hx,Ux,Ib (66),(11B),(v1)
+4: psrad Nq,Ib (11B) | vpsrad Hx,Ux,Ib (66),(11B),(v1) | vpsrad/q Hx,Ux,Ib (66),(evo)
 6: pslld Nq,Ib (11B) | vpslld Hx,Ux,Ib (66),(11B),(v1)
 EndTable
 
@@ -961,6 +1026,20 @@ GrpTable: Grp17
 1: BLSR By,Ey (v)
 2: BLSMSK By,Ey (v)
 3: BLSI By,Ey (v)
+EndTable
+
+GrpTable: Grp18
+1: vgatherpf0dps/d Wx (66),(ev)
+2: vgatherpf1dps/d Wx (66),(ev)
+5: vscatterpf0dps/d Wx (66),(ev)
+6: vscatterpf1dps/d Wx (66),(ev)
+EndTable
+
+GrpTable: Grp19
+1: vgatherpf0qps/d Wx (66),(ev)
+2: vgatherpf1qps/d Wx (66),(ev)
+5: vscatterpf0qps/d Wx (66),(ev)
+6: vscatterpf1qps/d Wx (66),(ev)
 EndTable
 
 # AMD's Prefetch Group
