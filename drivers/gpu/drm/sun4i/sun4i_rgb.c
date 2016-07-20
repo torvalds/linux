@@ -206,14 +206,16 @@ int sun4i_rgb_init(struct drm_device *drm)
 	struct sun4i_rgb *rgb;
 	int ret;
 
-	/* If we don't have a panel, there's no point in going on */
-	if (IS_ERR(tcon->panel))
-		return -ENODEV;
-
 	rgb = devm_kzalloc(drm->dev, sizeof(*rgb), GFP_KERNEL);
 	if (!rgb)
 		return -ENOMEM;
 	rgb->drv = drv;
+
+	tcon->panel = sun4i_tcon_find_panel(tcon->dev->of_node);
+	if (IS_ERR(tcon->panel)) {
+		dev_info(drm->dev, "No panel found... RGB output disabled\n");
+		return 0;
+	}
 
 	drm_encoder_helper_add(&rgb->encoder,
 			       &sun4i_rgb_enc_helper_funcs);

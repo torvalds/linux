@@ -166,6 +166,8 @@ struct sun4i_tcon {
 	struct drm_panel		*panel;
 };
 
+struct drm_panel *sun4i_tcon_find_panel(struct device_node *node);
+
 /* Global Control */
 void sun4i_tcon_disable(struct sun4i_tcon *tcon);
 void sun4i_tcon_enable(struct sun4i_tcon *tcon);

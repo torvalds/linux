@@ -398,7 +398,7 @@ static int sun4i_tcon_init_regmap(struct device *dev,
 	return 0;
 }
 
-static struct drm_panel *sun4i_tcon_find_panel(struct device_node *node)
+struct drm_panel *sun4i_tcon_find_panel(struct device_node *node)
 {
 	struct device_node *port, *remote, *child;
 	struct device_node *end_node = NULL;
@@ -483,12 +483,6 @@ static int sun4i_tcon_bind(struct device *dev, struct device *master,
 	if (ret) {
 		dev_err(dev, "Couldn't init our TCON interrupts\n");
 		goto err_free_clocks;
-	}
-
-	tcon->panel = sun4i_tcon_find_panel(dev->of_node);
-	if (IS_ERR(tcon->panel)) {
-		dev_info(dev, "No panel found... RGB output disabled\n");
-		return 0;
 	}
 
 	ret = sun4i_rgb_init(drm);
