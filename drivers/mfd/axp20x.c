@@ -566,6 +566,9 @@ static const struct regmap_irq_chip axp809_regmap_irq_chip = {
 
 static struct mfd_cell axp20x_cells[] = {
 	{
+		.name		= "axp20x-gpio",
+		.of_compatible	= "x-powers,axp209-gpio",
+	}, {
 		.name		= "axp20x-pek",
 		.num_resources	= ARRAY_SIZE(axp20x_pek_resources),
 		.resources	= axp20x_pek_resources,
