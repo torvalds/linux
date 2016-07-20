@@ -629,12 +629,6 @@ struct mv88e6xxx_chip {
 	 */
 	struct mutex	stats_mutex;
 
-	/* This mutex serializes phy access for chips with
-	 * indirect phy addressing. It is unused for chips
-	 * with direct phy access.
-	 */
-	struct mutex	phy_mutex;
-
 	/* This mutex serializes eeprom access for chips with
 	 * eeprom support.
 	 */
