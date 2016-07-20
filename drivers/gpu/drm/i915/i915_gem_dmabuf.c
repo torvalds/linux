@@ -278,8 +278,7 @@ struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 			 * Importing dmabuf exported from out own gem increases
 			 * refcount on gem itself instead of f_count of dmabuf.
 			 */
-			drm_gem_object_reference(&obj->base);
-			return &obj->base;
+			return &i915_gem_object_get(obj)->base;
 		}
 	}
 

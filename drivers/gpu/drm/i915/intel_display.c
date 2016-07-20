@@ -11649,7 +11649,6 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 
 	/* Reference the objects for the scheduled work. */
 	drm_framebuffer_reference(work->old_fb);
-	drm_gem_object_reference(&obj->base);
 
 	crtc->primary->fb = fb;
 	update_state_fb(crtc->primary);
@@ -11657,7 +11656,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	intel_fbc_pre_update(intel_crtc, intel_crtc->config,
 			     to_intel_plane_state(primary->state));
 
-	work->pending_flip_obj = obj;
+	work->pending_flip_obj = i915_gem_object_get(obj);
 
 	ret = i915_mutex_lock_interruptible(dev);
 	if (ret)

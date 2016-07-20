@@ -183,7 +183,7 @@ found:
 				       exec_list);
 		if (drm_mm_scan_remove_block(&vma->node)) {
 			list_move(&vma->exec_list, &eviction_list);
-			drm_gem_object_reference(&vma->obj->base);
+			i915_gem_object_get(vma->obj);
 			continue;
 		}
 		list_del_init(&vma->exec_list);

@@ -289,7 +289,7 @@ drop_pages(struct drm_i915_gem_object *obj)
 	struct i915_vma *vma, *next;
 	int ret;
 
-	drm_gem_object_reference(&obj->base);
+	i915_gem_object_get(obj);
 	list_for_each_entry_safe(vma, next, &obj->vma_list, obj_link)
 		if (i915_vma_unbind(vma))
 			break;
@@ -2361,7 +2361,7 @@ void i915_vma_move_to_active(struct i915_vma *vma,
 
 	/* Add a reference if we're newly entering the active list. */
 	if (obj->active == 0)
-		drm_gem_object_reference(&obj->base);
+		i915_gem_object_get(obj);
 	obj->active |= intel_engine_flag(engine);
 
 	list_move_tail(&obj->engine_list[engine->id], &engine->active_list);

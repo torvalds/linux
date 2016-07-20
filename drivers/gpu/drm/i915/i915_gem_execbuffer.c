@@ -123,7 +123,7 @@ eb_lookup_vmas(struct eb_vmas *eb,
 			goto err;
 		}
 
-		drm_gem_object_reference(&obj->base);
+		i915_gem_object_get(obj);
 		list_add_tail(&obj->obj_exec_link, &objects);
 	}
 	spin_unlock(&file->table_lock);
@@ -1236,7 +1236,7 @@ i915_gem_execbuffer_parse(struct intel_engine_cs *engine,
 	vma = i915_gem_obj_to_ggtt(shadow_batch_obj);
 	vma->exec_entry = shadow_exec_entry;
 	vma->exec_entry->flags = __EXEC_OBJECT_HAS_PIN;
-	drm_gem_object_reference(&shadow_batch_obj->base);
+	i915_gem_object_get(shadow_batch_obj);
 	list_add_tail(&vma->exec_list, &eb->vmas);
 
 	shadow_batch_obj->base.pending_read_domains = I915_GEM_DOMAIN_COMMAND;

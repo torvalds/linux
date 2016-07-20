@@ -190,7 +190,7 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 			if (!can_release_pages(obj))
 				continue;
 
-			drm_gem_object_reference(&obj->base);
+			i915_gem_object_get(obj);
 
 			/* For the unbound phase, this should be a no-op! */
 			list_for_each_entry_safe(vma, v,

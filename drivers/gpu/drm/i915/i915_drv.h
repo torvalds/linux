@@ -2306,6 +2306,17 @@ __deprecated
 extern struct drm_gem_object *
 drm_gem_object_lookup(struct drm_file *file, u32 handle);
 
+__attribute__((nonnull))
+static inline struct drm_i915_gem_object *
+i915_gem_object_get(struct drm_i915_gem_object *obj)
+{
+	drm_gem_object_reference(&obj->base);
+	return obj;
+}
+
+__deprecated
+extern void drm_gem_object_reference(struct drm_gem_object *);
+
 static inline bool
 i915_gem_object_has_struct_page(const struct drm_i915_gem_object *obj)
 {
