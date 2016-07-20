@@ -331,7 +331,7 @@ static irqreturn_t cppi41_irq(int irq, void *data)
 
 			c->residue = pd_trans_len(c->desc->pd6) - len;
 			dma_cookie_complete(&c->txd);
-			c->txd.callback(c->txd.callback_param);
+			dmaengine_desc_get_callback_invoke(&c->txd, NULL);
 		}
 	}
 	return IRQ_HANDLED;
