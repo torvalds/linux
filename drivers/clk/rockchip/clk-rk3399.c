@@ -1575,6 +1575,37 @@ static const char *const rk3399_pmucru_critical_clocks[] __initconst = {
 	"pclk_rkpwm_pmu",
 };
 
+static void __iomem *rk3399_cru_base;
+static void __iomem *rk3399_pmucru_base;
+
+void rk3399_dump_cru(void)
+{
+	if (rk3399_cru_base) {
+		pr_warn("CRU:\n");
+		print_hex_dump(KERN_WARNING, "", DUMP_PREFIX_OFFSET,
+			       32, 4, rk3399_cru_base,
+			       0x594, false);
+	}
+	if (rk3399_pmucru_base) {
+		pr_warn("PMU CRU:\n");
+		print_hex_dump(KERN_WARNING, "", DUMP_PREFIX_OFFSET,
+			       32, 4, rk3399_pmucru_base,
+			       0x134, false);
+	}
+}
+EXPORT_SYMBOL_GPL(rk3399_dump_cru);
+
+static int rk3399_clk_panic(struct notifier_block *this,
+			    unsigned long ev, void *ptr)
+{
+	rk3399_dump_cru();
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block rk3399_clk_panic_block = {
+	.notifier_call = rk3399_clk_panic,
+};
+
 static void __init rk3399_clk_init(struct device_node *np)
 {
 	struct rockchip_clk_provider *ctx;
@@ -1586,6 +1617,8 @@ static void __init rk3399_clk_init(struct device_node *np)
 		pr_err("%s: could not map cru region\n", __func__);
 		return;
 	}
+
+	rk3399_cru_base = reg_base;
 
 	ctx = rockchip_clk_init(np, reg_base, CLK_NR_CLKS);
 	if (IS_ERR(ctx)) {
@@ -1640,6 +1673,8 @@ static void __init rk3399_pmu_clk_init(struct device_node *np)
 		return;
 	}
 
+	rk3399_pmucru_base = reg_base;
+
 	ctx = rockchip_clk_init(np, reg_base, CLKPMU_NR_CLKS);
 	if (IS_ERR(ctx)) {
 		pr_err("%s: rockchip pmu clk init failed\n", __func__);
@@ -1659,5 +1694,8 @@ static void __init rk3399_pmu_clk_init(struct device_node *np)
 				  ROCKCHIP_SOFTRST_HIWORD_MASK);
 
 	rockchip_clk_of_add_provider(np, ctx);
+
+	atomic_notifier_chain_register(&panic_notifier_list,
+				       &rk3399_clk_panic_block);
 }
 CLK_OF_DECLARE(rk3399_cru_pmu, "rockchip,rk3399-pmucru", rk3399_pmu_clk_init);
