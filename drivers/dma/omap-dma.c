@@ -365,10 +365,9 @@ static void omap_dma_stop(struct omap_chan *c)
 	c->running = false;
 }
 
-static void omap_dma_start_sg(struct omap_chan *c, struct omap_desc *d,
-	unsigned idx)
+static void omap_dma_start_sg(struct omap_chan *c, struct omap_desc *d)
 {
-	struct omap_sg *sg = d->sg + idx;
+	struct omap_sg *sg = d->sg + c->sgidx;
 	unsigned cxsa, cxei, cxfi;
 
 	if (d->dir == DMA_DEV_TO_MEM || d->dir == DMA_MEM_TO_MEM) {
@@ -388,6 +387,7 @@ static void omap_dma_start_sg(struct omap_chan *c, struct omap_desc *d,
 	omap_dma_chan_write(c, CFN, sg->fn);
 
 	omap_dma_start(c, d);
+	c->sgidx++;
 }
 
 static void omap_dma_start_desc(struct omap_chan *c)
@@ -433,7 +433,7 @@ static void omap_dma_start_desc(struct omap_chan *c)
 	omap_dma_chan_write(c, CSDP, d->csdp);
 	omap_dma_chan_write(c, CLNK_CTRL, d->clnk_ctrl);
 
-	omap_dma_start_sg(c, d, 0);
+	omap_dma_start_sg(c, d);
 }
 
 static void omap_dma_callback(int ch, u16 status, void *data)
@@ -446,8 +446,8 @@ static void omap_dma_callback(int ch, u16 status, void *data)
 	d = c->desc;
 	if (d) {
 		if (!c->cyclic) {
-			if (++c->sgidx < d->sglen) {
-				omap_dma_start_sg(c, d, c->sgidx);
+			if (c->sgidx < d->sglen) {
+				omap_dma_start_sg(c, d);
 			} else {
 				omap_dma_start_desc(c);
 				vchan_cookie_complete(&d->vd);
