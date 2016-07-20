@@ -780,7 +780,8 @@ static void prepare_devices(struct loopback_test *t)
 
 	/* Cancel any running tests */
 	for (i = 0; i < t->device_count; i++)
-		write_sysfs_val(t->devices[i].sysfs_entry, "type", 0);
+		if (device_enabled(t, i))
+			write_sysfs_val(t->devices[i].sysfs_entry, "type", 0);
 
 
 	for (i = 0; i < t->device_count; i++) {
