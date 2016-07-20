@@ -454,7 +454,6 @@ static int wlcore_probe_of(struct spi_device *spi, struct wl12xx_spi_glue *glue,
 			   struct wlcore_platdev_data *pdev_data)
 {
 	struct device_node *dt_node = spi->dev.of_node;
-	int ret;
 	const struct of_device_id *of_id;
 
 	of_id = of_match_node(wlcore_spi_of_match_table, dt_node);
