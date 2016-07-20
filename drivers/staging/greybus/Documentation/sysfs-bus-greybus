@@ -102,17 +102,18 @@ Date:		March 2016
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
-		This reflects the power state of a Greybus Interface. If the
-		value read from it is "on", then power is currently supplied to
-		the Interface. Otherwise this will read "off" and the power is
-		currently not supplied to the Interface.
+		This file reflects the power state of a Greybus interface. If
+		the value read from it is "on", then power is currently
+		supplied to the interface. Otherwise it will read "off" and
+		power is currently not supplied to the interface.
 
 		If the value read is "off", then writing "on" (or '1', 'y',
-		'Y') to it will enable power to the Interface. If the value
-		read is "on", then writing "off" (or '0', 'n', 'N') to it will
-		disable power to the Interface.
+		'Y') to this file will enable power to the interface and an
+		attempt to boot and possibly enumerate it will be made. Note
+		that on errors, the interface will again be powered down.
 
-		Writing the currently read value to it has no effect.
+		If the value read is "on", then writing "off" (or '0', 'n',
+		'N') to this file will power down the interface.
 
 What:		/sys/bus/greybus/devices/N-M.I/product_id
 Date:		October 2015
