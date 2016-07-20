@@ -1,0 +1,30 @@
+AXP209 GPIO controller
+
+This driver follows the usual GPIO bindings found in
+Documentation/devicetree/bindings/gpio/gpio.txt
+
+Required properties:
+- compatible: Should be "x-powers,axp209-gpio"
+- #gpio-cells: Should be two. The first cell is the pin number and the
+  second is the GPIO flags.
+- gpio-controller: Marks the device node as a GPIO controller.
+
+This node must be a subnode of the axp20x PMIC, documented in
+Documentation/devicetree/bindings/mfd/axp20x.txt
+
+Example:
+
+axp209: pmic@34 {
+	compatible = "x-powers,axp209";
+	reg = <0x34>;
+	interrupt-parent = <&nmi_intc>;
+	interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+	interrupt-controller;
+	#interrupt-cells = <1>;
+
+	axp_gpio: gpio {
+		compatible = "x-powers,axp209-gpio";
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+};
