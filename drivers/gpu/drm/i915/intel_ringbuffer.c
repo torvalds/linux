@@ -2679,7 +2679,7 @@ static void intel_ring_init_semaphores(struct drm_i915_private *dev_priv,
 	struct drm_i915_gem_object *obj;
 	int ret, i;
 
-	if (!i915_semaphore_is_enabled(dev_priv))
+	if (!i915.semaphores)
 		return;
 
 	if (INTEL_GEN(dev_priv) >= 8 && !dev_priv->semaphore_obj) {
@@ -2700,7 +2700,7 @@ static void intel_ring_init_semaphores(struct drm_i915_private *dev_priv,
 		}
 	}
 
-	if (!i915_semaphore_is_enabled(dev_priv))
+	if (!i915.semaphores)
 		return;
 
 	if (INTEL_GEN(dev_priv) >= 8) {
@@ -2838,7 +2838,7 @@ int intel_init_render_ring_buffer(struct intel_engine_cs *engine)
 		engine->init_context = intel_rcs_ctx_init;
 		engine->add_request = gen8_render_add_request;
 		engine->flush = gen8_render_ring_flush;
-		if (i915_semaphore_is_enabled(dev_priv))
+		if (i915.semaphores)
 			engine->semaphore.signal = gen8_rcs_signal;
 	} else if (INTEL_GEN(dev_priv) >= 6) {
 		engine->init_context = intel_rcs_ctx_init;

@@ -2856,7 +2856,7 @@ __i915_gem_object_sync(struct drm_i915_gem_object *obj,
 	if (i915_gem_request_completed(from_req))
 		return 0;
 
-	if (!i915_semaphore_is_enabled(to_i915(obj->base.dev))) {
+	if (!i915.semaphores) {
 		struct drm_i915_private *i915 = to_i915(obj->base.dev);
 		ret = __i915_wait_request(from_req,
 					  i915->mm.interruptible,
@@ -4535,6 +4535,27 @@ i915_gem_init_hw(struct drm_device *dev)
 out:
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 	return ret;
+}
+
+bool intel_sanitize_semaphores(struct drm_i915_private *dev_priv, int value)
+{
+	if (INTEL_INFO(dev_priv)->gen < 6)
+		return false;
+
+	/* TODO: make semaphores and Execlists play nicely together */
+	if (i915.enable_execlists)
+		return false;
+
+	if (value >= 0)
+		return value;
+
+#ifdef CONFIG_INTEL_IOMMU
+	/* Enable semaphores on SNB when IO remapping is off */
+	if (INTEL_INFO(dev_priv)->gen == 6 && intel_iommu_gfx_mapped)
+		return false;
+#endif
+
+	return true;
 }
 
 int i915_gem_init(struct drm_device *dev)

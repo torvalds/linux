@@ -556,7 +556,7 @@ mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 	u32 flags = hw_flags | MI_MM_SPACE_GTT;
 	const int num_rings =
 		/* Use an extended w/a on ivb+ if signalling from other rings */
-		i915_semaphore_is_enabled(dev_priv) ?
+		i915.semaphores ?
 		hweight32(INTEL_INFO(dev_priv)->ring_mask) - 1 :
 		0;
 	int len, ret;

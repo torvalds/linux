@@ -228,27 +228,6 @@ static void intel_detect_pch(struct drm_device *dev)
 	pci_dev_put(pch);
 }
 
-bool i915_semaphore_is_enabled(struct drm_i915_private *dev_priv)
-{
-	if (INTEL_GEN(dev_priv) < 6)
-		return false;
-
-	if (i915.semaphores >= 0)
-		return i915.semaphores;
-
-	/* TODO: make semaphores and Execlists play nicely together */
-	if (i915.enable_execlists)
-		return false;
-
-#ifdef CONFIG_INTEL_IOMMU
-	/* Enable semaphores on SNB when IO remapping is off */
-	if (IS_GEN6(dev_priv) && intel_iommu_gfx_mapped)
-		return false;
-#endif
-
-	return true;
-}
-
 static int i915_getparam(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv)
 {
@@ -324,7 +303,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		value = 1;
 		break;
 	case I915_PARAM_HAS_SEMAPHORES:
-		value = i915_semaphore_is_enabled(dev_priv);
+		value = i915.semaphores;
 		break;
 	case I915_PARAM_HAS_PRIME_VMAP_FLUSH:
 		value = 1;
@@ -999,6 +978,9 @@ static void intel_sanitize_options(struct drm_i915_private *dev_priv)
 	i915.enable_ppgtt =
 		intel_sanitize_enable_ppgtt(dev_priv, i915.enable_ppgtt);
 	DRM_DEBUG_DRIVER("ppgtt mode: %i\n", i915.enable_ppgtt);
+
+	i915.semaphores = intel_sanitize_semaphores(dev_priv, i915.semaphores);
+	DRM_DEBUG_DRIVER("use GPU sempahores? %s\n", yesno(i915.semaphores));
 }
 
 /**

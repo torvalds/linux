@@ -3220,7 +3220,7 @@ static int i915_semaphore_status(struct seq_file *m, void *unused)
 	enum intel_engine_id id;
 	int j, ret;
 
-	if (!i915_semaphore_is_enabled(dev_priv)) {
+	if (!i915.semaphores) {
 		seq_puts(m, "Semaphores are disabled\n");
 		return 0;
 	}
