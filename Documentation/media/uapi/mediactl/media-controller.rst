@@ -2,21 +2,18 @@
 
 .. include:: <isonum.txt>
 
-.. _media_common:
-
-####################
-Media Controller API
-####################
-
 .. _media_controller:
 
-****************
-Media Controller
-****************
+##############################
+Part IV - Media Controller API
+##############################
 
+.. class:: toc-title
+
+        Table of Contents
 
 .. toctree::
-    :maxdepth: 1
+    :maxdepth: 5
     :numbered:
 
     media-controller-intro

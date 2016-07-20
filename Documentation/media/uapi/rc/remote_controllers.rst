@@ -2,21 +2,18 @@
 
 .. include:: <isonum.txt>
 
-.. _remotes:
-
-#####################
-Remote Controller API
-#####################
-
 .. _remote_controllers:
 
-******************
-Remote Controllers
-******************
+################################
+Part III - Remote Controller API
+################################
 
+.. class:: toc-title
+
+        Table of Contents
 
 .. toctree::
-    :maxdepth: 1
+    :maxdepth: 5
     :numbered:
 
     rc-intro

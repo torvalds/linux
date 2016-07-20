@@ -4,17 +4,21 @@
 
 .. _dvbapi:
 
-##############
-Digital TV API
-##############
+########################
+Part II - Digital TV API
+########################
 
 .. note:: This API is also known as **DVB API**, although it is generic
    enough to support all digital TV standards.
 
 **Version 5.10**
 
+.. class:: toc-title
+
+        Table of Contents
+
 .. toctree::
-    :maxdepth: 1
+    :maxdepth: 5
     :numbered:
 
     intro

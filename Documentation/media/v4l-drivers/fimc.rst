@@ -62,8 +62,7 @@ User space interfaces
 Media device interface
 ~~~~~~~~~~~~~~~~~~~~~~
 
-The driver supports Media Controller API as defined at
-https://linuxtv.org/downloads/v4l-dvb-apis/media_common.html
+The driver supports Media Controller API as defined at :ref:`media_controller`.
 The media device driver name is "SAMSUNG S5P FIMC".
 
 The purpose of this interface is to allow changing assignment of FIMC instances
@@ -89,12 +88,11 @@ undefined behaviour.
 Capture video node
 ~~~~~~~~~~~~~~~~~~
 
-The driver supports V4L2 Video Capture Interface as defined at:
-https://linuxtv.org/downloads/v4l-dvb-apis/devices.html
+The driver supports V4L2 Video Capture Interface as defined at
+:ref:`devices`.
 
 At the capture and mem-to-mem video nodes only the multi-planar API is
-supported. For more details see:
-https://linuxtv.org/downloads/v4l-dvb-apis/planar-apis.html
+supported. For more details see: :ref:`planar-apis`.
 
 Camera capture subdevs
 ~~~~~~~~~~~~~~~~~~~~~~

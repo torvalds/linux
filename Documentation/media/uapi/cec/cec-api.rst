@@ -4,16 +4,18 @@
 
 .. _cec:
 
-#######
-CEC API
-#######
-
-.. _cec-api:
+#########################################
+Part V - Consumer Electronics Control API
+#########################################
 
 This part describes the CEC: Consumer Electronics Control
 
+.. class:: toc-title
+
+        Table of Contents
+
 .. toctree::
-    :maxdepth: 1
+    :maxdepth: 5
     :numbered:
 
     cec-intro

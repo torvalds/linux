@@ -3,17 +3,21 @@
 .. include:: <isonum.txt>
 .. _v4l2spec:
 
-###################
-Video for Linux API
-###################
+############################
+Part I - Video for Linux API
+############################
 
 This part describes the Video for Linux API version 2 (V4L2 API) specification.
 
 **Revision 4.5**
 
+.. class:: toc-title
+
+        Table of Contents
+
 .. toctree::
     :numbered:
-    :maxdepth: 1
+    :maxdepth: 5
 
     common
     pixfmt

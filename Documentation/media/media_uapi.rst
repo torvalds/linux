@@ -19,7 +19,7 @@ License".
         Table of Contents
 
 .. toctree::
-    :maxdepth: 5
+    :maxdepth: 1
 
     intro
     uapi/v4l/v4l2

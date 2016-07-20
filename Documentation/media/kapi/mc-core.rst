@@ -5,7 +5,7 @@ Media Controller
 ~~~~~~~~~~~~~~~~
 
 The media controller userspace API is documented in
-:ref:`the Media Controller uAPI book <media_common>`. This document focus
+:ref:`the Media Controller uAPI book <media_controller>`. This document focus
 on the kernel-side implementation of the media framework.
 
 Abstract media device model
