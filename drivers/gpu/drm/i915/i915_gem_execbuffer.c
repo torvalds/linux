@@ -1380,24 +1380,24 @@ static const enum intel_engine_id user_ring_map[I915_USER_RINGS + 1] = {
 	[I915_EXEC_VEBOX]	= VECS
 };
 
-static int
-eb_select_ring(struct drm_i915_private *dev_priv,
-	       struct drm_file *file,
-	       struct drm_i915_gem_execbuffer2 *args,
-	       struct intel_engine_cs **ring)
+static struct intel_engine_cs *
+eb_select_engine(struct drm_i915_private *dev_priv,
+		 struct drm_file *file,
+		 struct drm_i915_gem_execbuffer2 *args)
 {
 	unsigned int user_ring_id = args->flags & I915_EXEC_RING_MASK;
+	struct intel_engine_cs *engine;
 
 	if (user_ring_id > I915_USER_RINGS) {
 		DRM_DEBUG("execbuf with unknown ring: %u\n", user_ring_id);
-		return -EINVAL;
+		return NULL;
 	}
 
 	if ((user_ring_id != I915_EXEC_BSD) &&
 	    ((args->flags & I915_EXEC_BSD_MASK) != 0)) {
 		DRM_DEBUG("execbuf with non bsd ring but with invalid "
 			  "bsd dispatch flags: %d\n", (int)(args->flags));
-		return -EINVAL;
+		return NULL;
 	}
 
 	if (user_ring_id == I915_EXEC_BSD && HAS_BSD2(dev_priv)) {
@@ -1412,20 +1412,20 @@ eb_select_ring(struct drm_i915_private *dev_priv,
 		} else {
 			DRM_DEBUG("execbuf with unknown bsd ring: %u\n",
 				  bsd_idx);
-			return -EINVAL;
+			return NULL;
 		}
 
-		*ring = &dev_priv->engine[_VCS(bsd_idx)];
+		engine = &dev_priv->engine[_VCS(bsd_idx)];
 	} else {
-		*ring = &dev_priv->engine[user_ring_map[user_ring_id]];
+		engine = &dev_priv->engine[user_ring_map[user_ring_id]];
 	}
 
-	if (!intel_engine_initialized(*ring)) {
+	if (!intel_engine_initialized(engine)) {
 		DRM_DEBUG("execbuf with invalid ring: %u\n", user_ring_id);
-		return -EINVAL;
+		return NULL;
 	}
 
-	return 0;
+	return engine;
 }
 
 static int
@@ -1467,9 +1467,9 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	if (args->flags & I915_EXEC_IS_PINNED)
 		dispatch_flags |= I915_DISPATCH_PINNED;
 
-	ret = eb_select_ring(dev_priv, file, args, &engine);
-	if (ret)
-		return ret;
+	engine = eb_select_engine(dev_priv, file, args);
+	if (!engine)
+		return -EINVAL;
 
 	if (args->buffer_count < 1) {
 		DRM_DEBUG("execbuf with %d buffers\n", args->buffer_count);
