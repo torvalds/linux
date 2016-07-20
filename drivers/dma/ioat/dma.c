@@ -570,10 +570,8 @@ static void __cleanup(struct ioatdma_chan *ioat_chan, dma_addr_t phys_complete)
 		if (tx->cookie) {
 			dma_cookie_complete(tx);
 			dma_descriptor_unmap(tx);
-			if (tx->callback) {
-				tx->callback(tx->callback_param);
-				tx->callback = NULL;
-			}
+			dmaengine_desc_get_callback_invoke(tx, NULL);
+			tx->callback = NULL;
 		}
 
 		if (tx->phys == phys_complete)
@@ -707,10 +705,8 @@ static void ioat_eh(struct ioatdma_chan *ioat_chan)
 		if (tx->cookie) {
 			dma_cookie_complete(tx);
 			dma_descriptor_unmap(tx);
-			if (tx->callback) {
-				tx->callback(tx->callback_param);
-				tx->callback = NULL;
-			}
+			dmaengine_desc_get_callback_invoke(tx, NULL);
+			tx->callback = NULL;
 		}
 	}
 
