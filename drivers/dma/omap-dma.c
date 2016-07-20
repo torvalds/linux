@@ -445,15 +445,13 @@ static void omap_dma_callback(int ch, u16 status, void *data)
 	spin_lock_irqsave(&c->vc.lock, flags);
 	d = c->desc;
 	if (d) {
-		if (!c->cyclic) {
-			if (c->sgidx < d->sglen) {
-				omap_dma_start_sg(c, d);
-			} else {
-				omap_dma_start_desc(c);
-				vchan_cookie_complete(&d->vd);
-			}
-		} else {
+		if (c->cyclic) {
 			vchan_cyclic_callback(&d->vd);
+		} else if (c->sgidx == d->sglen) {
+			omap_dma_start_desc(c);
+			vchan_cookie_complete(&d->vd);
+		} else {
+			omap_dma_start_sg(c, d);
 		}
 	}
 	spin_unlock_irqrestore(&c->vc.lock, flags);
