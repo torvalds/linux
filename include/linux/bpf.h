@@ -289,6 +289,10 @@ static inline struct bpf_prog *bpf_prog_get_type(u32 ufd,
 {
 	return ERR_PTR(-EOPNOTSUPP);
 }
+static inline struct bpf_prog *bpf_prog_add(struct bpf_prog *prog, int i)
+{
+	return ERR_PTR(-EOPNOTSUPP);
+}
 
 static inline void bpf_prog_put(struct bpf_prog *prog)
 {
