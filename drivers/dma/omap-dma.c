@@ -568,7 +568,8 @@ static void omap_dma_free_chan_resources(struct dma_chan *chan)
 	vchan_free_chan_resources(&c->vc);
 	omap_free_dma(c->dma_ch);
 
-	dev_dbg(od->ddev.dev, "freeing channel for %u\n", c->dma_sig);
+	dev_dbg(od->ddev.dev, "freeing channel %u used for %u\n", c->dma_ch,
+		c->dma_sig);
 	c->dma_sig = 0;
 }
 
