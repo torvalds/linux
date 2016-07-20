@@ -578,7 +578,7 @@ setup_uga32(void **uga_handle, unsigned long size, u32 *width, u32 *height)
 	efi_guid_t uga_proto = EFI_UGA_PROTOCOL_GUID;
 	unsigned long nr_ugas;
 	u32 *handles = (u32 *)uga_handle;;
-	efi_status_t status;
+	efi_status_t status = EFI_INVALID_PARAMETER;
 	int i;
 
 	first_uga = NULL;
@@ -623,7 +623,7 @@ setup_uga64(void **uga_handle, unsigned long size, u32 *width, u32 *height)
 	efi_guid_t uga_proto = EFI_UGA_PROTOCOL_GUID;
 	unsigned long nr_ugas;
 	u64 *handles = (u64 *)uga_handle;;
-	efi_status_t status;
+	efi_status_t status = EFI_INVALID_PARAMETER;
 	int i;
 
 	first_uga = NULL;
