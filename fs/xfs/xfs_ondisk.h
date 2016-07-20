@@ -106,9 +106,6 @@ xfs_check_ondisk_structs(void)
 	XFS_CHECK_OFFSET(xfs_dir2_data_unused_t, length,	2);
 	XFS_CHECK_STRUCT_SIZE(xfs_dir2_free_hdr_t,		16);
 	XFS_CHECK_STRUCT_SIZE(xfs_dir2_free_t,			16);
-	XFS_CHECK_STRUCT_SIZE(xfs_dir2_ino4_t,			4);
-	XFS_CHECK_STRUCT_SIZE(xfs_dir2_ino8_t,			8);
-	XFS_CHECK_STRUCT_SIZE(xfs_dir2_inou_t,			8);
 	XFS_CHECK_STRUCT_SIZE(xfs_dir2_leaf_entry_t,		8);
 	XFS_CHECK_STRUCT_SIZE(xfs_dir2_leaf_hdr_t,		16);
 	XFS_CHECK_STRUCT_SIZE(xfs_dir2_leaf_t,			16);
@@ -118,7 +115,6 @@ xfs_check_ondisk_structs(void)
 	XFS_CHECK_OFFSET(xfs_dir2_sf_entry_t, offset,		1);
 	XFS_CHECK_OFFSET(xfs_dir2_sf_entry_t, name,		3);
 	XFS_CHECK_STRUCT_SIZE(xfs_dir2_sf_hdr_t,		10);
-	XFS_CHECK_STRUCT_SIZE(xfs_dir2_sf_off_t,		2);
 
 	/* log structures */
 	XFS_CHECK_STRUCT_SIZE(struct xfs_dq_logformat,		24);
