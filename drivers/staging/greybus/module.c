@@ -153,7 +153,7 @@ static void gb_module_register_interface(struct gb_interface *intf)
 			break;
 	}
 	if (ret) {
-		if (intf->type != GB_SVC_INTF_TYPE_DUMMY) {
+		if (intf->type != GB_INTERFACE_TYPE_DUMMY) {
 			dev_err(&module->dev,
 					"failed to activate interface %u: %d\n",
 					intf_id, ret);

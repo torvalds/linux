@@ -10,6 +10,14 @@
 #ifndef __INTERFACE_H
 #define __INTERFACE_H
 
+enum gb_interface_type {
+	GB_INTERFACE_TYPE_INVALID = 0,
+	GB_INTERFACE_TYPE_UNKNOWN,
+	GB_INTERFACE_TYPE_DUMMY,
+	GB_INTERFACE_TYPE_UNIPRO,
+	GB_INTERFACE_TYPE_GREYBUS,
+};
+
 #define GB_INTERFACE_QUIRK_NO_CPORT_FEATURES		BIT(0)
 #define GB_INTERFACE_QUIRK_NO_INIT_STATUS		BIT(1)
 #define GB_INTERFACE_QUIRK_NO_ARA_IDS			BIT(2)
@@ -26,7 +34,8 @@ struct gb_interface {
 	u8 interface_id;	/* Physical location within the Endo */
 	u8 device_id;
 	u8 features;		/* Feature flags set in the manifest */
-	u8 type;
+
+	enum gb_interface_type type;
 
 	u32 ddbl1_manufacturer_id;
 	u32 ddbl1_product_id;

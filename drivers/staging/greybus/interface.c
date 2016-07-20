@@ -494,10 +494,11 @@ static DEVICE_ATTR_RO(power_now);
 static const char *gb_interface_type_string(struct gb_interface *intf)
 {
 	static const char * const types[] = {
-		[GB_SVC_INTF_TYPE_UNKNOWN] = "unknown",
-		[GB_SVC_INTF_TYPE_DUMMY] = "dummy",
-		[GB_SVC_INTF_TYPE_UNIPRO] = "unipro",
-		[GB_SVC_INTF_TYPE_GREYBUS] = "greybus",
+		[GB_INTERFACE_TYPE_INVALID] = "invalid",
+		[GB_INTERFACE_TYPE_UNKNOWN] = "unknown",
+		[GB_INTERFACE_TYPE_DUMMY] = "dummy",
+		[GB_INTERFACE_TYPE_UNIPRO] = "unipro",
+		[GB_INTERFACE_TYPE_GREYBUS] = "greybus",
 	};
 
 	return types[intf->type];
@@ -545,8 +546,8 @@ static umode_t interface_unipro_is_visible(struct kobject *kobj,
 	struct gb_interface *intf = to_gb_interface(dev);
 
 	switch (intf->type) {
-	case GB_SVC_INTF_TYPE_UNIPRO:
-	case GB_SVC_INTF_TYPE_GREYBUS:
+	case GB_INTERFACE_TYPE_UNIPRO:
+	case GB_INTERFACE_TYPE_GREYBUS:
 		return attr->mode;
 	default:
 		return 0;
@@ -560,7 +561,7 @@ static umode_t interface_greybus_is_visible(struct kobject *kobj,
 	struct gb_interface *intf = to_gb_interface(dev);
 
 	switch (intf->type) {
-	case GB_SVC_INTF_TYPE_GREYBUS:
+	case GB_INTERFACE_TYPE_GREYBUS:
 		return attr->mode;
 	default:
 		return 0;
@@ -574,8 +575,8 @@ static umode_t interface_power_is_visible(struct kobject *kobj,
 	struct gb_interface *intf = to_gb_interface(dev);
 
 	switch (intf->type) {
-	case GB_SVC_INTF_TYPE_UNIPRO:
-	case GB_SVC_INTF_TYPE_GREYBUS:
+	case GB_INTERFACE_TYPE_UNIPRO:
+	case GB_INTERFACE_TYPE_GREYBUS:
 		return attr->mode;
 	default:
 		return 0;
@@ -825,21 +826,22 @@ static int gb_interface_activate_operation(struct gb_interface *intf)
 		return ret;
 	}
 
-	intf->type = type;
-
 	switch (type) {
 	case GB_SVC_INTF_TYPE_DUMMY:
+		intf->type = GB_INTERFACE_TYPE_DUMMY;
 		/* FIXME: handle as an error for now */
 		return -ENODEV;
 	case GB_SVC_INTF_TYPE_UNIPRO:
+		intf->type = GB_INTERFACE_TYPE_UNIPRO;
 		dev_err(&intf->dev, "interface type UniPro not supported\n");
 		/* FIXME: check if this is a Toshiba bridge before retrying? */
 		return -EAGAIN;
 	case GB_SVC_INTF_TYPE_GREYBUS:
+		intf->type = GB_INTERFACE_TYPE_GREYBUS;
 		break;
 	default:
 		dev_err(&intf->dev, "unknown interface type: %u\n", type);
-		intf->type = GB_SVC_INTF_TYPE_UNKNOWN;
+		intf->type = GB_INTERFACE_TYPE_UNKNOWN;
 		return -ENODEV;
 	}
 
@@ -1134,14 +1136,16 @@ int gb_interface_add(struct gb_interface *intf)
 			gb_interface_type_string(intf));
 
 	switch (intf->type) {
-	case GB_SVC_INTF_TYPE_GREYBUS:
+	case GB_INTERFACE_TYPE_GREYBUS:
 		dev_info(&intf->dev, "Ara VID=0x%08x, PID=0x%08x\n",
 				intf->vendor_id, intf->product_id);
 		/* fall-through */
-	case GB_SVC_INTF_TYPE_UNIPRO:
+	case GB_INTERFACE_TYPE_UNIPRO:
 		dev_info(&intf->dev, "DDBL1 Manufacturer=0x%08x, Product=0x%08x\n",
 				intf->ddbl1_manufacturer_id,
 				intf->ddbl1_product_id);
+		break;
+	default:
 		break;
 	}
 
