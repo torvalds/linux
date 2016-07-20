@@ -399,7 +399,7 @@ C是一个简朴的语言，你的命名也应该这样。和 Modula-2 和 Pasca
 些事情的原因。
 
 当注释内核API函数时，请使用 kernel-doc 格式。请看
-Documentation/kernel-doc-nano-HOWTO.txt和scripts/kernel-doc 以获得详细信息。
+Documentation/kernel-documentation.rst和scripts/kernel-doc 以获得详细信息。
 
 Linux的注释风格是 C89 “/* ... */” 风格。不要使用 C99 风格 “// ...” 注释。
 
