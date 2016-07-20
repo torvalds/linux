@@ -208,22 +208,10 @@ typedef	xfs_off_t	xfs_dir2_off_t;
  */
 typedef	__uint32_t	xfs_dir2_db_t;
 
-/*
- * Inode number stored as 8 8-bit values.
- */
-typedef	struct { __uint8_t i[8]; } xfs_dir2_ino8_t;
+#define XFS_INO32_SIZE	4
+#define XFS_INO64_SIZE	8
+#define XFS_INO64_DIFF	(XFS_INO64_SIZE - XFS_INO32_SIZE)
 
-/*
- * Inode number stored as 4 8-bit values.
- * Works a lot of the time, when all the inode numbers in a directory
- * fit in 32 bits.
- */
-typedef struct { __uint8_t i[4]; } xfs_dir2_ino4_t;
-
-typedef union {
-	xfs_dir2_ino8_t	i8;
-	xfs_dir2_ino4_t	i4;
-} xfs_dir2_inou_t;
 #define	XFS_DIR2_MAX_SHORT_INUM	((xfs_ino_t)0xffffffffULL)
 
 /*
@@ -240,7 +228,7 @@ typedef union {
 typedef struct xfs_dir2_sf_hdr {
 	__uint8_t		count;		/* count of entries */
 	__uint8_t		i8count;	/* count of 8-byte inode #s */
-	xfs_dir2_inou_t		parent;		/* parent dir inode number */
+	__uint8_t		parent[8];	/* parent dir inode number */
 } __arch_pack xfs_dir2_sf_hdr_t;
 
 typedef struct xfs_dir2_sf_entry {
@@ -251,16 +239,15 @@ typedef struct xfs_dir2_sf_entry {
 	 * A single byte containing the file type field follows the inode
 	 * number for version 3 directory entries.
 	 *
-	 * A xfs_dir2_ino8_t or xfs_dir2_ino4_t follows here, at a
-	 * variable offset after the name.
+	 * A 64-bit or 32-bit inode number follows here, at a variable offset
+	 * after the name.
 	 */
 } xfs_dir2_sf_entry_t;
 
 static inline int xfs_dir2_sf_hdr_size(int i8count)
 {
 	return sizeof(struct xfs_dir2_sf_hdr) -
-		(i8count == 0) *
-		(sizeof(xfs_dir2_ino8_t) - sizeof(xfs_dir2_ino4_t));
+		(i8count == 0) * XFS_INO64_DIFF;
 }
 
 static inline xfs_dir2_data_aoff_t

@@ -130,8 +130,8 @@ xfs_dir2_block_sfsize(
 		       count * 3 * sizeof(u8) +		/* namelen + offset */
 		       namelen +			/* name */
 		       (i8count ?			/* inumber */
-				(uint)sizeof(xfs_dir2_ino8_t) * count :
-				(uint)sizeof(xfs_dir2_ino4_t) * count);
+				count * XFS_INO64_SIZE :
+				count * XFS_INO32_SIZE);
 		if (size > XFS_IFORK_DSIZE(dp))
 			return size;		/* size value is a failure */
 	}
@@ -318,10 +318,7 @@ xfs_dir2_sf_addname(
 		/*
 		 * Yes, adjust the inode size.  old count + (parent + new)
 		 */
-		incr_isize +=
-			(sfp->count + 2) *
-			((uint)sizeof(xfs_dir2_ino8_t) -
-			 (uint)sizeof(xfs_dir2_ino4_t));
+		incr_isize += (sfp->count + 2) * XFS_INO64_DIFF;
 		objchange = 1;
 	}
 
@@ -896,11 +893,7 @@ xfs_dir2_sf_replace(
 		int	error;			/* error return value */
 		int	newsize;		/* new inode size */
 
-		newsize =
-			dp->i_df.if_bytes +
-			(sfp->count + 1) *
-			((uint)sizeof(xfs_dir2_ino8_t) -
-			 (uint)sizeof(xfs_dir2_ino4_t));
+		newsize = dp->i_df.if_bytes + (sfp->count + 1) * XFS_INO64_DIFF;
 		/*
 		 * Won't fit as shortform, convert to block then do replace.
 		 */
@@ -1021,10 +1014,7 @@ xfs_dir2_sf_toino4(
 	/*
 	 * Compute the new inode size.
 	 */
-	newsize =
-		oldsize -
-		(oldsfp->count + 1) *
-		((uint)sizeof(xfs_dir2_ino8_t) - (uint)sizeof(xfs_dir2_ino4_t));
+	newsize = oldsize - (oldsfp->count + 1) * XFS_INO64_DIFF;
 	xfs_idata_realloc(dp, -oldsize, XFS_DATA_FORK);
 	xfs_idata_realloc(dp, newsize, XFS_DATA_FORK);
 	/*
@@ -1097,10 +1087,7 @@ xfs_dir2_sf_toino8(
 	/*
 	 * Compute the new inode size (nb: entry count + 1 for parent)
 	 */
-	newsize =
-		oldsize +
-		(oldsfp->count + 1) *
-		((uint)sizeof(xfs_dir2_ino8_t) - (uint)sizeof(xfs_dir2_ino4_t));
+	newsize = oldsize + (oldsfp->count + 1) * XFS_INO64_DIFF;
 	xfs_idata_realloc(dp, -oldsize, XFS_DATA_FORK);
 	xfs_idata_realloc(dp, newsize, XFS_DATA_FORK);
 	/*
