@@ -844,8 +844,8 @@ static int gb_interface_activate_operation(struct gb_interface *intf)
 	case GB_SVC_INTF_TYPE_UNIPRO:
 		intf->type = GB_INTERFACE_TYPE_UNIPRO;
 		dev_err(&intf->dev, "interface type UniPro not supported\n");
-		/* FIXME: check if this is a Toshiba bridge before retrying? */
-		return -EAGAIN;
+		/* FIXME: handle as an error for now */
+		return -ENODEV;
 	case GB_SVC_INTF_TYPE_GREYBUS:
 		intf->type = GB_INTERFACE_TYPE_GREYBUS;
 		break;
@@ -865,12 +865,7 @@ static int gb_interface_hibernate_link(struct gb_interface *intf)
 	return gb_svc_intf_set_power_mode_hibernate(svc, intf->interface_id);
 }
 
-/*
- * Activate an interface.
- *
- * Locking: Caller holds the interface mutex.
- */
-int gb_interface_activate(struct gb_interface *intf)
+static int _gb_interface_activate(struct gb_interface *intf)
 {
 	int ret;
 
@@ -915,6 +910,35 @@ err_refclk_disable:
 	gb_interface_refclk_set(intf, false);
 err_vsys_disable:
 	gb_interface_vsys_set(intf, false);
+
+	return ret;
+}
+
+/*
+ * Activate an interface.
+ *
+ * Locking: Caller holds the interface mutex.
+ */
+int gb_interface_activate(struct gb_interface *intf)
+{
+	int retries = 3;
+	int ret;
+
+	/*
+	 * At present, we assume a UniPro-only module
+	 * to be a Greybus module that failed to send its mailbox
+	 * poke. There is some reason to believe that this is
+	 * because of a bug in the ES3 bootrom.
+	 *
+	 * FIXME: Check if this is a Toshiba bridge before retrying?
+	 */
+	while (retries--) {
+		ret = _gb_interface_activate(intf);
+		if (ret == -ENODEV && intf->type == GB_SVC_INTF_TYPE_UNIPRO)
+			continue;
+
+		break;
+	}
 
 	return ret;
 }

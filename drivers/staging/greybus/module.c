@@ -143,34 +143,16 @@ static void gb_module_register_interface(struct gb_interface *intf)
 	struct gb_module *module = intf->module;
 	u8 intf_id = intf->interface_id;
 	int ret;
-	int retries = 3;
 
 	mutex_lock(&intf->mutex);
 
-	while (retries--) {
-		ret = gb_interface_activate(intf);
-		if (ret != -EAGAIN)
-			break;
-	}
+	ret = gb_interface_activate(intf);
 	if (ret) {
 		if (intf->type != GB_INTERFACE_TYPE_DUMMY) {
 			dev_err(&module->dev,
 					"failed to activate interface %u: %d\n",
 					intf_id, ret);
 		}
-
-		/*
-		 * -EAGAIN indicates that the Greybus operation
-		 * interface_activate determined the remote interface to be
-		 * UniPro-only.  At present, we assume a UniPro-only module
-		 * to be a Greybus module that failed to send its mailbox
-		 * poke.  There is some reason to believe that this is
-		 * because of a bug in the ES3 bootrom.  If we exhause our
-		 * retries trying to activate such an interface, convert
-		 * the error code back into a "no device" error.
-		 */
-		if (ret == -EAGAIN)
-			ret = -ENODEV;
 
 		gb_interface_add(intf);
 		goto err_unlock;
