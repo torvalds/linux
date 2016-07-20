@@ -1389,21 +1389,18 @@ static irqreturn_t rcar_dmac_isr_channel_thread(int irq, void *dev)
 {
 	struct rcar_dmac_chan *chan = dev;
 	struct rcar_dmac_desc *desc;
+	struct dmaengine_desc_callback cb;
 
 	spin_lock_irq(&chan->lock);
 
 	/* For cyclic transfers notify the user after every chunk. */
 	if (chan->desc.running && chan->desc.running->cyclic) {
-		dma_async_tx_callback callback;
-		void *callback_param;
-
 		desc = chan->desc.running;
-		callback = desc->async_tx.callback;
-		callback_param = desc->async_tx.callback_param;
+		dmaengine_desc_get_callback(&desc->async_tx, &cb);
 
-		if (callback) {
+		if (dmaengine_desc_callback_valid(&cb)) {
 			spin_unlock_irq(&chan->lock);
-			callback(callback_param);
+			dmaengine_desc_callback_invoke(&cb, NULL);
 			spin_lock_irq(&chan->lock);
 		}
 	}
@@ -1418,14 +1415,15 @@ static irqreturn_t rcar_dmac_isr_channel_thread(int irq, void *dev)
 		dma_cookie_complete(&desc->async_tx);
 		list_del(&desc->node);
 
-		if (desc->async_tx.callback) {
+		dmaengine_desc_get_callback(&desc->async_tx, &cb);
+		if (dmaengine_desc_callback_valid(&cb)) {
 			spin_unlock_irq(&chan->lock);
 			/*
 			 * We own the only reference to this descriptor, we can
 			 * safely dereference it without holding the channel
 			 * lock.
 			 */
-			desc->async_tx.callback(desc->async_tx.callback_param);
+			dmaengine_desc_callback_invoke(&cb, NULL);
 			spin_lock_irq(&chan->lock);
 		}
 
