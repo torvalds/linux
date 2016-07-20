@@ -324,6 +324,34 @@ void media_graph_walk_start(struct media_graph *graph,
 }
 EXPORT_SYMBOL_GPL(media_graph_walk_start);
 
+static void media_graph_walk_iter(struct media_graph *graph)
+{
+	struct media_entity *entity = stack_top(graph);
+	struct media_link *link;
+	struct media_entity *next;
+
+	link = list_entry(link_top(graph), typeof(*link), list);
+
+	/* The link is not enabled so we do not follow. */
+	if (!(link->flags & MEDIA_LNK_FL_ENABLED)) {
+		link_top(graph) = link_top(graph)->next;
+		return;
+	}
+
+	/* Get the entity in the other end of the link . */
+	next = media_entity_other(entity, link);
+
+	/* Has the entity already been visited? */
+	if (media_entity_enum_test_and_set(&graph->ent_enum, next)) {
+		link_top(graph) = link_top(graph)->next;
+		return;
+	}
+
+	/* Push the new entity to stack and start over. */
+	link_top(graph) = link_top(graph)->next;
+	stack_push(graph, next);
+}
+
 struct media_entity *media_graph_walk_next(struct media_graph *graph)
 {
 	if (stack_top(graph) == NULL)
@@ -334,32 +362,8 @@ struct media_entity *media_graph_walk_next(struct media_graph *graph)
 	 * top of the stack until no more entities on the level can be
 	 * found.
 	 */
-	while (link_top(graph) != &stack_top(graph)->links) {
-		struct media_entity *entity = stack_top(graph);
-		struct media_link *link;
-		struct media_entity *next;
-
-		link = list_entry(link_top(graph), typeof(*link), list);
-
-		/* The link is not enabled so we do not follow. */
-		if (!(link->flags & MEDIA_LNK_FL_ENABLED)) {
-			link_top(graph) = link_top(graph)->next;
-			continue;
-		}
-
-		/* Get the entity in the other end of the link . */
-		next = media_entity_other(entity, link);
-
-		/* Has the entity already been visited? */
-		if (media_entity_enum_test_and_set(&graph->ent_enum, next)) {
-			link_top(graph) = link_top(graph)->next;
-			continue;
-		}
-
-		/* Push the new entity to stack and start over. */
-		link_top(graph) = link_top(graph)->next;
-		stack_push(graph, next);
-	}
+	while (link_top(graph) != &stack_top(graph)->links)
+		media_graph_walk_iter(graph);
 
 	return stack_pop(graph);
 }
