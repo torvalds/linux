@@ -2139,7 +2139,7 @@ static int intel_ring_context_pin(struct i915_gem_context *ctx,
 	if (ctx == ctx->i915->kernel_context)
 		ce->initialised = true;
 
-	i915_gem_context_reference(ctx);
+	i915_gem_context_get(ctx);
 	return 0;
 
 error:
@@ -2160,7 +2160,7 @@ static void intel_ring_context_unpin(struct i915_gem_context *ctx,
 	if (ce->state)
 		i915_gem_object_ggtt_unpin(ce->state);
 
-	i915_gem_context_unreference(ctx);
+	i915_gem_context_put(ctx);
 }
 
 static int intel_init_ring_buffer(struct intel_engine_cs *engine)

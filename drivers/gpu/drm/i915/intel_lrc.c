@@ -980,7 +980,6 @@ static int intel_lr_context_pin(struct i915_gem_context *ctx,
 	if (ret)
 		goto unpin_map;
 
-	i915_gem_context_reference(ctx);
 	ce->lrc_vma = i915_gem_obj_to_ggtt(ce->state);
 	intel_lr_context_descriptor_update(ctx, engine);
 
@@ -992,6 +991,7 @@ static int intel_lr_context_pin(struct i915_gem_context *ctx,
 	if (i915.enable_guc_submission)
 		I915_WRITE(GEN8_GTCR, GEN8_GTCR_INVALIDATE);
 
+	i915_gem_context_get(ctx);
 	return 0;
 
 unpin_map:
@@ -1023,7 +1023,7 @@ void intel_lr_context_unpin(struct i915_gem_context *ctx,
 	ce->lrc_desc = 0;
 	ce->lrc_reg_state = NULL;
 
-	i915_gem_context_unreference(ctx);
+	i915_gem_context_put(ctx);
 }
 
 static int intel_logical_ring_workarounds_emit(struct drm_i915_gem_request *req)

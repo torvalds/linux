@@ -1509,7 +1509,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		goto pre_mutex_err;
 	}
 
-	i915_gem_context_reference(ctx);
+	i915_gem_context_get(ctx);
 
 	if (ctx->ppgtt)
 		vm = &ctx->ppgtt->base;
@@ -1520,7 +1520,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 
 	eb = eb_create(args);
 	if (eb == NULL) {
-		i915_gem_context_unreference(ctx);
+		i915_gem_context_put(ctx);
 		mutex_unlock(&dev->struct_mutex);
 		ret = -ENOMEM;
 		goto pre_mutex_err;
@@ -1664,7 +1664,7 @@ err_batch_unpin:
 
 err:
 	/* the request owns the ref now */
-	i915_gem_context_unreference(ctx);
+	i915_gem_context_put(ctx);
 	eb_destroy(eb);
 
 	mutex_unlock(&dev->struct_mutex);

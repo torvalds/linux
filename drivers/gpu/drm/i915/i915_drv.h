@@ -3338,12 +3338,14 @@ i915_gem_context_lookup(struct drm_i915_file_private *file_priv, u32 id)
 	return ctx;
 }
 
-static inline void i915_gem_context_reference(struct i915_gem_context *ctx)
+static inline struct i915_gem_context *
+i915_gem_context_get(struct i915_gem_context *ctx)
 {
 	kref_get(&ctx->ref);
+	return ctx;
 }
 
-static inline void i915_gem_context_unreference(struct i915_gem_context *ctx)
+static inline void i915_gem_context_put(struct i915_gem_context *ctx)
 {
 	lockdep_assert_held(&ctx->i915->drm.struct_mutex);
 	kref_put(&ctx->ref, i915_gem_context_free);

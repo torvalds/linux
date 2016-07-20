@@ -180,7 +180,7 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 					       request->engine);
 	}
 
-	i915_gem_context_unreference(request->ctx);
+	i915_gem_context_put(request->ctx);
 	i915_gem_request_put(request);
 }
 
@@ -341,8 +341,7 @@ __i915_gem_request_alloc(struct intel_engine_cs *engine,
 
 	req->i915 = dev_priv;
 	req->engine = engine;
-	req->ctx = ctx;
-	i915_gem_context_reference(ctx);
+	req->ctx = i915_gem_context_get(ctx);
 
 	/*
 	 * Reserve space in the ring buffer for all the commands required to
@@ -364,7 +363,7 @@ __i915_gem_request_alloc(struct intel_engine_cs *engine,
 	return 0;
 
 err_ctx:
-	i915_gem_context_unreference(ctx);
+	i915_gem_context_put(ctx);
 err:
 	kmem_cache_free(dev_priv->requests, req);
 	return ret;
