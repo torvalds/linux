@@ -127,12 +127,13 @@ static void trace_note_tsk(struct task_struct *tsk)
 
 static void trace_note_time(struct blk_trace *bt)
 {
-	struct timespec now;
+	struct timespec64 now;
 	unsigned long flags;
 	u32 words[2];
 
-	getnstimeofday(&now);
-	words[0] = now.tv_sec;
+	/* need to check user space to see if this breaks in y2038 or y2106 */
+	ktime_get_real_ts64(&now);
+	words[0] = (u32)now.tv_sec;
 	words[1] = now.tv_nsec;
 
 	local_irq_save(flags);

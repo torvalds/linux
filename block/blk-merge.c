@@ -744,6 +744,12 @@ int attempt_front_merge(struct request_queue *q, struct request *rq)
 int blk_attempt_req_merge(struct request_queue *q, struct request *rq,
 			  struct request *next)
 {
+	struct elevator_queue *e = q->elevator;
+
+	if (e->type->ops.elevator_allow_rq_merge_fn)
+		if (!e->type->ops.elevator_allow_rq_merge_fn(q, rq, next))
+			return 0;
+
 	return attempt_merge(q, rq, next);
 }
 

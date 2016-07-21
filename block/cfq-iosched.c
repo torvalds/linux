@@ -132,7 +132,7 @@ struct cfq_queue {
 	/* time when first request from queue completed and slice started. */
 	u64 slice_start;
 	u64 slice_end;
-	u64 slice_resid;
+	s64 slice_resid;
 
 	/* pending priority requests */
 	int prio_pending;
@@ -1463,7 +1463,8 @@ static inline u64 cfq_cfqq_slice_usage(struct cfq_queue *cfqq,
 		 * a single request on seeky media and cause lots of seek time
 		 * and group will never know it.
 		 */
-		slice_used = max_t(u64, (now - cfqq->dispatch_start), 1);
+		slice_used = max_t(u64, (now - cfqq->dispatch_start),
+					jiffies_to_nsecs(1));
 	} else {
 		slice_used = now - cfqq->slice_start;
 		if (slice_used > cfqq->allocated_slice) {
@@ -2543,7 +2544,7 @@ static int cfq_merge(struct request_queue *q, struct request **req,
 	struct request *__rq;
 
 	__rq = cfq_find_rq_fmerge(cfqd, bio);
-	if (__rq && elv_rq_merge_ok(__rq, bio)) {
+	if (__rq && elv_bio_merge_ok(__rq, bio)) {
 		*req = __rq;
 		return ELEVATOR_FRONT_MERGE;
 	}
@@ -2600,8 +2601,8 @@ cfq_merged_requests(struct request_queue *q, struct request *rq,
 		cfq_del_cfqq_rr(cfqd, cfqq);
 }
 
-static int cfq_allow_merge(struct request_queue *q, struct request *rq,
-			   struct bio *bio)
+static int cfq_allow_bio_merge(struct request_queue *q, struct request *rq,
+			       struct bio *bio)
 {
 	struct cfq_data *cfqd = q->elevator->elevator_data;
 	struct cfq_io_cq *cic;
@@ -2623,6 +2624,12 @@ static int cfq_allow_merge(struct request_queue *q, struct request *rq,
 
 	cfqq = cic_to_cfqq(cic, cfq_bio_sync(bio));
 	return cfqq == RQ_CFQQ(rq);
+}
+
+static int cfq_allow_rq_merge(struct request_queue *q, struct request *rq,
+			      struct request *next)
+{
+	return RQ_CFQQ(rq) == RQ_CFQQ(next);
 }
 
 static inline void cfq_del_timer(struct cfq_data *cfqd, struct cfq_queue *cfqq)
@@ -2689,7 +2696,7 @@ __cfq_slice_expired(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 			cfqq->slice_resid = cfq_scaled_cfqq_slice(cfqd, cfqq);
 		else
 			cfqq->slice_resid = cfqq->slice_end - ktime_get_ns();
-		cfq_log_cfqq(cfqd, cfqq, "resid=%llu", cfqq->slice_resid);
+		cfq_log_cfqq(cfqd, cfqq, "resid=%lld", cfqq->slice_resid);
 	}
 
 	cfq_group_served(cfqd, cfqq->cfqg, cfqq);
@@ -4243,7 +4250,16 @@ static void cfq_completed_request(struct request_queue *q, struct request *rq)
 					cfqq_type(cfqq));
 
 		st->ttime.last_end_request = now;
-		if (!(rq->start_time + cfqd->cfq_fifo_expire[1] > now))
+		/*
+		 * We have to do this check in jiffies since start_time is in
+		 * jiffies and it is not trivial to convert to ns. If
+		 * cfq_fifo_expire[1] ever comes close to 1 jiffie, this test
+		 * will become problematic but so far we are fine (the default
+		 * is 128 ms).
+		 */
+		if (!time_after(rq->start_time +
+				  nsecs_to_jiffies(cfqd->cfq_fifo_expire[1]),
+				jiffies))
 			cfqd->last_delayed_sync = now;
 	}
 
@@ -4811,7 +4827,8 @@ static struct elevator_type iosched_cfq = {
 		.elevator_merge_fn = 		cfq_merge,
 		.elevator_merged_fn =		cfq_merged_request,
 		.elevator_merge_req_fn =	cfq_merged_requests,
-		.elevator_allow_merge_fn =	cfq_allow_merge,
+		.elevator_allow_bio_merge_fn =	cfq_allow_bio_merge,
+		.elevator_allow_rq_merge_fn =	cfq_allow_rq_merge,
 		.elevator_bio_merged_fn =	cfq_bio_merged,
 		.elevator_dispatch_fn =		cfq_dispatch_requests,
 		.elevator_add_req_fn =		cfq_insert_request,
