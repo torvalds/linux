@@ -105,6 +105,7 @@ enum mlxsw_cmd_opcode {
 	MLXSW_CMD_OPCODE_SW2HW_EQ		= 0x013,
 	MLXSW_CMD_OPCODE_HW2SW_EQ		= 0x014,
 	MLXSW_CMD_OPCODE_QUERY_EQ		= 0x015,
+	MLXSW_CMD_OPCODE_QUERY_RESOURCES	= 0x101,
 };
 
 static inline const char *mlxsw_cmd_opcode_str(u16 opcode)
@@ -144,6 +145,8 @@ static inline const char *mlxsw_cmd_opcode_str(u16 opcode)
 		return "HW2SW_EQ";
 	case MLXSW_CMD_OPCODE_QUERY_EQ:
 		return "QUERY_EQ";
+	case MLXSW_CMD_OPCODE_QUERY_RESOURCES:
+		return "QUERY_RESOURCES";
 	default:
 		return "*UNKNOWN*";
 	}
@@ -499,6 +502,35 @@ static inline int mlxsw_cmd_unmap_fa(struct mlxsw_core *mlxsw_core)
 {
 	return mlxsw_cmd_exec_none(mlxsw_core, MLXSW_CMD_OPCODE_UNMAP_FA, 0, 0);
 }
+
+/* QUERY_RESOURCES - Query chip resources
+ * --------------------------------------
+ * OpMod == 0 (N/A) , INMmod is index
+ * ----------------------------------
+ * The QUERY_RESOURCES command retrieves information related to chip resources
+ * by resource ID. Every command returns 32 entries. INmod is being use as base.
+ * for example, index 1 will return entries 32-63. When the tables end and there
+ * are no more sources in the table, will return resource id 0xFFF to indicate
+ * it.
+ */
+static inline int mlxsw_cmd_query_resources(struct mlxsw_core *mlxsw_core,
+					    char *out_mbox, int index)
+{
+	return mlxsw_cmd_exec_out(mlxsw_core, MLXSW_CMD_OPCODE_QUERY_RESOURCES,
+				  0, index, false, out_mbox,
+				  MLXSW_CMD_MBOX_SIZE);
+}
+
+/* cmd_mbox_query_resource_id
+ * The resource id. 0xFFFF indicates table's end.
+ */
+MLXSW_ITEM32_INDEXED(cmd_mbox, query_resource, id, 0x00, 16, 16, 0x8, 0, false);
+
+/* cmd_mbox_query_resource_data
+ * The resource
+ */
+MLXSW_ITEM64_INDEXED(cmd_mbox, query_resource, data,
+		     0x00, 0, 40, 0x8, 0, false);
 
 /* CONFIG_PROFILE (Set) - Configure Switch Profile
  * ------------------------------
