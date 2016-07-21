@@ -1384,6 +1384,11 @@ static const struct panel_desc sharp_lq123p1jx31 = {
 		.width = 259,
 		.height = 173,
 	},
+	.delay = {
+		.prepare = 110,
+		.enable = 50,
+		.unprepare = 550,
+	},
 };
 
 static const struct drm_display_mode shelly_sca07010_bfn_lnn_mode = {
