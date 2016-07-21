@@ -13,6 +13,27 @@
 #include "gbphy.h"
 #include "spilib.h"
 
+#ifndef SPI_CORE_SUPPORT_PM
+static int gbphy_spi_prepare_transfer_hardware(struct device *dev)
+{
+	return gbphy_runtime_get_sync(to_gbphy_dev(dev));
+}
+
+static void gbphy_spi_unprepare_transfer_hardware(struct device *dev)
+{
+	gbphy_runtime_put_autosuspend(to_gbphy_dev(dev));
+}
+
+static struct spilib_ops __spilib_ops = {
+	.prepare_transfer_hardware = gbphy_spi_prepare_transfer_hardware,
+	.unprepare_transfer_hardware = gbphy_spi_unprepare_transfer_hardware,
+};
+
+static struct spilib_ops *spilib_ops = &__spilib_ops;
+#else
+static struct spilib_ops *spilib_ops = NULL;
+#endif
+
 static int gb_spi_probe(struct gbphy_device *gbphy_dev,
 			const struct gbphy_device_id *id)
 {
@@ -29,7 +50,7 @@ static int gb_spi_probe(struct gbphy_device *gbphy_dev,
 	if (ret)
 		goto exit_connection_destroy;
 
-	ret = gb_spilib_master_init(connection, &gbphy_dev->dev);
+	ret = gb_spilib_master_init(connection, &gbphy_dev->dev, spilib_ops);
 	if (ret)
 		goto exit_connection_disable;
 

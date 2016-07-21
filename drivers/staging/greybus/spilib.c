@@ -15,13 +15,13 @@
 
 #include "greybus.h"
 #include "spilib.h"
-#include "gbphy.h"
 
 struct gb_spilib {
 	struct gb_connection	*connection;
 	struct device		*parent;
 	struct spi_transfer	*first_xfer;
 	struct spi_transfer	*last_xfer;
+	struct spilib_ops	*ops;
 	u32			rx_xfer_offset;
 	u32			tx_xfer_offset;
 	u32			last_xfer_size;
@@ -373,25 +373,21 @@ out:
 	return ret;
 }
 
-#ifndef SPI_CORE_SUPPORT_PM
 static int gb_spi_prepare_transfer_hardware(struct spi_master *master)
 {
 	struct gb_spilib *spi = spi_master_get_devdata(master);
-	struct gbphy_device *gbphy_dev = to_gbphy_dev(spi->parent);
 
-	return gbphy_runtime_get_sync(gbphy_dev);
+	return spi->ops->prepare_transfer_hardware(spi->parent);
 }
 
 static int gb_spi_unprepare_transfer_hardware(struct spi_master *master)
 {
 	struct gb_spilib *spi = spi_master_get_devdata(master);
-	struct gbphy_device *gbphy_dev = to_gbphy_dev(spi->parent);
 
-	gbphy_runtime_put_autosuspend(gbphy_dev);
+	spi->ops->unprepare_transfer_hardware(spi->parent);
 
 	return 0;
 }
-#endif
 
 static int gb_spi_setup(struct spi_device *spi)
 {
@@ -483,7 +479,8 @@ static int gb_spi_setup_device(struct gb_spilib *spi, u8 cs)
 	return 0;
 }
 
-int gb_spilib_master_init(struct gb_connection *connection, struct device *dev)
+int gb_spilib_master_init(struct gb_connection *connection, struct device *dev,
+			  struct spilib_ops *ops)
 {
 	struct gb_spilib *spi;
 	struct spi_master *master;
@@ -501,6 +498,7 @@ int gb_spilib_master_init(struct gb_connection *connection, struct device *dev)
 	spi->connection = connection;
 	gb_connection_set_data(connection, master);
 	spi->parent = dev;
+	spi->ops = ops;
 
 	/* get master configuration */
 	ret = gb_spi_get_master_config(spi);
@@ -518,11 +516,17 @@ int gb_spilib_master_init(struct gb_connection *connection, struct device *dev)
 	master->setup = gb_spi_setup;
 	master->transfer_one_message = gb_spi_transfer_one_message;
 
-#ifndef SPI_CORE_SUPPORT_PM
-	master->prepare_transfer_hardware = gb_spi_prepare_transfer_hardware;
-	master->unprepare_transfer_hardware =
+	if (ops && ops->prepare_transfer_hardware) {
+		master->prepare_transfer_hardware =
+			gb_spi_prepare_transfer_hardware;
+	}
+
+	if (ops && ops->unprepare_transfer_hardware) {
+		master->unprepare_transfer_hardware =
 			gb_spi_unprepare_transfer_hardware;
-#else
+	}
+
+#ifdef SPI_CORE_SUPPORT_PM
 	master->auto_runtime_pm = true;
 #endif
 

@@ -38,7 +38,7 @@ static int gb_fw_spi_connection_init(struct gb_connection *connection)
 	if (ret)
 		return ret;
 
-	ret = gb_spilib_master_init(connection, &connection->bundle->dev);
+	ret = gb_spilib_master_init(connection, &connection->bundle->dev, NULL);
 	if (ret) {
 		gb_connection_disable(connection);
 		return ret;
