@@ -168,14 +168,14 @@ struct x86_legacy_devices {
  * struct x86_legacy_features - legacy x86 features
  *
  * @rtc: this device has a CMOS real-time clock present
- * @ebda_search: it's safe to search for the EBDA signature in the hardware's
+ * @reserve_bios_regions: it's safe to search for the EBDA signature in the hardware's
  * 	low RAM
  * @devices: legacy x86 devices, refer to struct x86_legacy_devices
  * 	documentation for further details.
  */
 struct x86_legacy_features {
 	int rtc;
-	int ebda_search;
+	int reserve_bios_regions;
 	struct x86_legacy_devices devices;
 };
 
