@@ -13,6 +13,7 @@
 
 #include <linux/bcd.h>
 #include <linux/bitops.h>
+#include <linux/log2.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -145,7 +146,7 @@ static int rv8803_get_time(struct device *dev, struct rtc_time *tm)
 	tm->tm_sec  = bcd2bin(date[RV8803_SEC] & 0x7f);
 	tm->tm_min  = bcd2bin(date[RV8803_MIN] & 0x7f);
 	tm->tm_hour = bcd2bin(date[RV8803_HOUR] & 0x3f);
-	tm->tm_wday = ffs(date[RV8803_WEEK] & 0x7f);
+	tm->tm_wday = ilog2(date[RV8803_WEEK] & 0x7f);
 	tm->tm_mday = bcd2bin(date[RV8803_DAY] & 0x3f);
 	tm->tm_mon  = bcd2bin(date[RV8803_MONTH] & 0x1f) - 1;
 	tm->tm_year = bcd2bin(date[RV8803_YEAR]) + 100;
