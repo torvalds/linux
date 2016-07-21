@@ -185,7 +185,6 @@ enum batadv_uev_type {
 
 #include <linux/bitops.h> /* for packet.h */
 #include <linux/compiler.h>
-#include <linux/cpumask.h>
 #include <linux/etherdevice.h>
 #include <linux/if_ether.h> /* for packet.h */
 #include <linux/if_vlan.h>
@@ -283,26 +282,6 @@ static inline void batadv_add_counter(struct batadv_priv *bat_priv, size_t idx,
 }
 
 #define batadv_inc_counter(b, i) batadv_add_counter(b, i, 1)
-
-/**
- * batadv_sum_counter - Sum the cpu-local counters for index 'idx'
- * @bat_priv: the bat priv with all the soft interface information
- * @idx: index of counter to sum up
- *
- * Return: sum of all cpu-local counters
- */
-static inline u64 batadv_sum_counter(struct batadv_priv *bat_priv,  size_t idx)
-{
-	u64 *counters, sum = 0;
-	int cpu;
-
-	for_each_possible_cpu(cpu) {
-		counters = per_cpu_ptr(bat_priv->bat_counters, cpu);
-		sum += counters[idx];
-	}
-
-	return sum;
-}
 
 /* Define a macro to reach the control buffer of the skb. The members of the
  * control buffer are defined in struct batadv_skb_cb in types.h.
