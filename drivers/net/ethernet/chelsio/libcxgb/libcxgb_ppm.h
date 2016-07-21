@@ -1,17 +1,41 @@
 /*
- * cxgb4_ppm.h: Chelsio common library for T4/T5 iSCSI ddp operation
+ * libcxgb_ppm.h: Chelsio common library for T3/T4/T5 iSCSI ddp operation
  *
  * Copyright (c) 2016 Chelsio Communications, Inc. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and/or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  *
  * Written by: Karen Xie (kxie@chelsio.com)
  */
 
-#ifndef	__CXGB4PPM_H__
-#define	__CXGB4PPM_H__
+#ifndef	__LIBCXGB_PPM_H__
+#define	__LIBCXGB_PPM_H__
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -307,4 +331,4 @@ int cxgbi_ppm_release(struct cxgbi_ppm *ppm);
 void cxgbi_tagmask_check(unsigned int tagmask, struct cxgbi_tag_format *);
 unsigned int cxgbi_tagmask_set(unsigned int ppmax);
 
-#endif	/*__CXGB4PPM_H__*/
+#endif	/*__LIBCXGB_PPM_H__*/

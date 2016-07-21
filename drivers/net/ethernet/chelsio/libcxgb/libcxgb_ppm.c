@@ -1,14 +1,42 @@
 /*
- * cxgb4_ppm.c: Chelsio common library for T4/T5 iSCSI PagePod Manager
+ * libcxgb_ppm.c: Chelsio common library for T3/T4/T5 iSCSI PagePod Manager
  *
  * Copyright (c) 2016 Chelsio Communications, Inc. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and/or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  *
  * Written by: Karen Xie (kxie@chelsio.com)
  */
+
+#define DRV_NAME "libcxgb"
+#define DRV_VERSION "1.0.0-ko"
+#define pr_fmt(fmt) DRV_NAME ": " fmt
 
 #include <linux/kernel.h>
 #include <linux/version.h>
@@ -22,7 +50,7 @@
 #include <linux/pci.h>
 #include <linux/scatterlist.h>
 
-#include "cxgb4_ppm.h"
+#include "libcxgb_ppm.h"
 
 /* Direct Data Placement -
  * Directly place the iSCSI Data-In or Data-Out PDU's payload into
@@ -462,3 +490,8 @@ unsigned int cxgbi_tagmask_set(unsigned int ppmax)
 
 	return 1 << (bits + PPOD_IDX_SHIFT);
 }
+
+MODULE_AUTHOR("Chelsio Communications");
+MODULE_DESCRIPTION("Chelsio common library");
+MODULE_VERSION(DRV_VERSION);
+MODULE_LICENSE("Dual BSD/GPL");
