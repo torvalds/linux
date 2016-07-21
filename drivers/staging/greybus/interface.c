@@ -587,7 +587,6 @@ static struct attribute *interface_unipro_attrs[] = {
 };
 
 static struct attribute *interface_greybus_attrs[] = {
-	&dev_attr_interface_id.attr,
 	&dev_attr_vendor_id.attr,
 	&dev_attr_product_id.attr,
 	&dev_attr_serial_number.attr,
@@ -603,6 +602,7 @@ static struct attribute *interface_power_attrs[] = {
 };
 
 static struct attribute *interface_common_attrs[] = {
+	&dev_attr_interface_id.attr,
 	&dev_attr_interface_type.attr,
 	NULL
 };
