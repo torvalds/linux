@@ -3857,6 +3857,19 @@ as a broadcast even in x2APIC mode in order to support physical x2APIC
 without interrupt remapping.  This is undesirable in logical mode,
 where 0xff represents CPUs 0-7 in cluster 0.
 
+7.8 KVM_CAP_S390_USER_INSTR0
+
+Architectures: s390
+Parameters: none
+
+With this capability enabled, all illegal instructions 0x0000 (2 bytes) will
+be intercepted and forwarded to user space. User space can use this
+mechanism e.g. to realize 2-byte software breakpoints. The kernel will
+not inject an operating exception for these instructions, user space has
+to take care of that.
+
+This capability can be enabled dynamically even if VCPUs were already
+created and are running.
 
 8. Other capabilities.
 ----------------------

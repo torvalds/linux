@@ -359,6 +359,9 @@ static int handle_operexc(struct kvm_vcpu *vcpu)
 	    test_kvm_facility(vcpu->kvm, 74))
 		return handle_sthyi(vcpu);
 
+	if (vcpu->arch.sie_block->ipa == 0 && vcpu->kvm->arch.user_instr0)
+		return -EOPNOTSUPP;
+
 	return kvm_s390_inject_program_int(vcpu, PGM_OPERATION);
 }
 
