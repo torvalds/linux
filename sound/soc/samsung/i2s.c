@@ -1107,6 +1107,11 @@ static struct i2s_dai *i2s_alloc_dai(struct platform_device *pdev, bool sec)
 	return i2s;
 }
 
+static void i2s_free_sec_dai(struct i2s_dai *i2s)
+{
+	platform_device_del(i2s->pdev);
+}
+
 #ifdef CONFIG_PM
 static int i2s_runtime_suspend(struct device *dev)
 {
@@ -1340,17 +1345,27 @@ static int samsung_i2s_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	devm_snd_soc_register_component(&pri_dai->pdev->dev,
+	ret = devm_snd_soc_register_component(&pri_dai->pdev->dev,
 					&samsung_i2s_component,
 					&pri_dai->i2s_dai_drv, 1);
+	if (ret < 0)
+		goto err_free_dai;
+
+	ret = samsung_asoc_dma_platform_register(&pdev->dev, pri_dai->filter);
+	if (ret < 0)
+		goto err_free_dai;
 
 	pm_runtime_enable(&pdev->dev);
 
-	ret = samsung_asoc_dma_platform_register(&pdev->dev, pri_dai->filter);
-	if (ret != 0)
-		return ret;
+	ret = i2s_register_clock_provider(pdev);
+	if (!ret)
+		return 0;
 
-	return i2s_register_clock_provider(pdev);
+	pm_runtime_disable(&pdev->dev);
+err_free_dai:
+	if (sec_dai)
+		i2s_free_sec_dai(sec_dai);
+	return ret;
 }
 
 static int samsung_i2s_remove(struct platform_device *pdev)
