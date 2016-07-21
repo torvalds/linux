@@ -56,6 +56,23 @@
 #define MOXART_TIMER1_ENABLE	(MOXART_CR_2_ENABLE | MOXART_CR_1_ENABLE)
 #define MOXART_TIMER1_DISABLE	(MOXART_CR_2_ENABLE)
 
+/*
+ * The ASpeed variant of the IP block has a different layout
+ * for the control register
+ */
+#define ASPEED_CR_1_ENABLE	BIT(0)
+#define ASPEED_CR_1_CLOCK	BIT(1)
+#define ASPEED_CR_1_INT		BIT(2)
+#define ASPEED_CR_2_ENABLE	BIT(4)
+#define ASPEED_CR_2_CLOCK	BIT(5)
+#define ASPEED_CR_2_INT		BIT(6)
+#define ASPEED_CR_3_ENABLE	BIT(8)
+#define ASPEED_CR_3_CLOCK	BIT(9)
+#define ASPEED_CR_3_INT		BIT(10)
+
+#define ASPEED_TIMER1_ENABLE   (ASPEED_CR_2_ENABLE | ASPEED_CR_1_ENABLE)
+#define ASPEED_TIMER1_DISABLE  (ASPEED_CR_2_ENABLE)
+
 struct moxart_timer {
 	void __iomem *base;
 	unsigned int t1_disable_val;
@@ -165,6 +182,9 @@ static int __init moxart_timer_init(struct device_node *node)
 	if (of_device_is_compatible(node, "moxa,moxart-timer")) {
 		timer->t1_enable_val = MOXART_TIMER1_ENABLE;
 		timer->t1_disable_val = MOXART_TIMER1_DISABLE;
+	} else if (of_device_is_compatible(node, "aspeed,ast2400-timer")) {
+		timer->t1_enable_val = ASPEED_TIMER1_ENABLE;
+		timer->t1_disable_val = ASPEED_TIMER1_DISABLE;
 	} else
 		panic("%s: unknown platform\n", node->full_name);
 
@@ -200,6 +220,17 @@ static int __init moxart_timer_init(struct device_node *node)
 		return ret;
 	}
 
+	/* Clear match registers */
+	writel(0, timer->base + TIMER1_BASE + REG_MATCH1);
+	writel(0, timer->base + TIMER1_BASE + REG_MATCH2);
+	writel(0, timer->base + TIMER2_BASE + REG_MATCH1);
+	writel(0, timer->base + TIMER2_BASE + REG_MATCH2);
+
+	/*
+	 * Start timer 2 rolling as our main wall clock source, keep timer 1
+	 * disabled
+	 */
+	writel(0, timer->base + TIMER_CR);
 	writel(~0, timer->base + TIMER2_BASE + REG_LOAD);
 	writel(timer->t1_disable_val, timer->base + TIMER_CR);
 
@@ -214,3 +245,4 @@ static int __init moxart_timer_init(struct device_node *node)
 	return 0;
 }
 CLOCKSOURCE_OF_DECLARE(moxart, "moxa,moxart-timer", moxart_timer_init);
+CLOCKSOURCE_OF_DECLARE(aspeed, "aspeed,ast2400-timer", moxart_timer_init);
