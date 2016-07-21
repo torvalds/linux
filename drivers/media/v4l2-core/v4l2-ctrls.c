@@ -2801,6 +2801,7 @@ static int prepare_ext_ctrls(struct v4l2_ctrl_handler *hdl,
 			     struct v4l2_ctrl_helper *helpers,
 			     bool get)
 {
+	u32 which = V4L2_CTRL_ID2WHICH(cs->which);
 	unsigned store = cs->config_store & 0xffff;
 	struct v4l2_ctrl_helper *h;
 	bool have_clusters = false;
@@ -2814,7 +2815,7 @@ static int prepare_ext_ctrls(struct v4l2_ctrl_handler *hdl,
 
 		cs->error_idx = i;
 
-		if (cs->which && V4L2_CTRL_ID2WHICH(id) != cs->which)
+		if (which && V4L2_CTRL_ID2WHICH(id) != cs->which)
 			return -EINVAL;
 
 		/* Old-style private controls are not allowed for
