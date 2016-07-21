@@ -4140,6 +4140,15 @@ int nand_scan_ident(struct mtd_info *mtd, int maxchips,
 	if (!mtd->name && mtd->dev.parent)
 		mtd->name = dev_name(mtd->dev.parent);
 
+	if ((!chip->cmdfunc || !chip->select_chip) && !chip->cmd_ctrl) {
+		/*
+		 * Default functions assigned for chip_select() and
+		 * cmdfunc() both expect cmd_ctrl() to be populated,
+		 * so we need to check that that's the case
+		 */
+		pr_err("chip.cmd_ctrl() callback is not provided");
+		return -EINVAL;
+	}
 	/* Set the default functions */
 	nand_set_defaults(chip, chip->options & NAND_BUSWIDTH_16);
 
