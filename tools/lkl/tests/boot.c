@@ -594,7 +594,7 @@ static int test_mutex(char *str, int len)
 	 * Valgrind warn us on CI if we've made bad memory
 	 * accesses. */
 
-	struct lkl_mutex_t *mutex = lkl_host_ops.mutex_alloc();
+	struct lkl_mutex *mutex = lkl_host_ops.mutex_alloc();
 	lkl_host_ops.mutex_lock(mutex);
 	lkl_host_ops.mutex_unlock(mutex);
 	lkl_host_ops.mutex_free(mutex);
@@ -611,7 +611,7 @@ static int test_semaphore(char *str, int len)
 	 * Valgrind warn us on CI if we've made bad memory
 	 * accesses. */
 
-	struct lkl_sem_t *sem = lkl_host_ops.sem_alloc(1);
+	struct lkl_sem *sem = lkl_host_ops.sem_alloc(1);
 	lkl_host_ops.sem_down(sem);
 	lkl_host_ops.sem_up(sem);
 	lkl_host_ops.sem_free(sem);

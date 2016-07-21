@@ -2,8 +2,8 @@
 #define _ASM_UAPI_LKL_HOST_OPS_H
 
 /* Defined in {posix,nt}-host.c */
-struct lkl_mutex_t;
-struct lkl_sem_t;
+struct lkl_mutex;
+struct lkl_sem;
 typedef unsigned long lkl_thread_t;
 
 /**
@@ -24,7 +24,8 @@ typedef unsigned long lkl_thread_t;
  * @sem_free - free a host semaphore
  * @sem_up - perform an up operation on the semaphore
  * @sem_down - perform a down operation on the semaphore
- * @sem_get - return the current value of semahpore. To be used only for sanity checking
+ * @sem_get - return the current value of semahpore. To be used only for sanity
+ * checking
  *
  * @mutex_alloc - allocate and initialize a host mutex
  * @mutex_free - free a host mutex
@@ -41,8 +42,10 @@ typedef unsigned long lkl_thread_t;
  *
  * @tls_alloc - allocate a thread local storage key; returns 0 if succesful
  * @tls_free - frees a thread local storage key; returns 0 if succesful
- * @tls_set - associate data to the thread local storage key; returns 0 if succesful
- * @tls_get - return data associated with the thread local storage key or NULL on error
+ * @tls_set - associate data to the thread local storage key; returns 0 if
+ * succesful
+ * @tls_get - return data associated with the thread local storage key or NULL
+ * on error
  *
  * @mem_alloc - allocate memory
  * @mem_free - free memory
@@ -69,16 +72,16 @@ struct lkl_host_operations {
 	void (*print)(const char *str, int len);
 	void (*panic)(void);
 
-	struct lkl_sem_t* (*sem_alloc)(int count);
-	void (*sem_free)(struct lkl_sem_t *sem);
-	void (*sem_up)(struct lkl_sem_t *sem);
-	void (*sem_down)(struct lkl_sem_t *sem);
-	int (*sem_get)(struct lkl_sem_t *sem);
+	struct lkl_sem* (*sem_alloc)(int count);
+	void (*sem_free)(struct lkl_sem *sem);
+	void (*sem_up)(struct lkl_sem *sem);
+	void (*sem_down)(struct lkl_sem *sem);
+	int (*sem_get)(struct lkl_sem *sem);
 
-	struct lkl_mutex_t *(*mutex_alloc)(void);
-	void (*mutex_free)(struct lkl_mutex_t *mutex);
-	void (*mutex_lock)(struct lkl_mutex_t *mutex);
-	void (*mutex_unlock)(struct lkl_mutex_t *mutex);
+	struct lkl_mutex *(*mutex_alloc)(void);
+	void (*mutex_free)(struct lkl_mutex *mutex);
+	void (*mutex_lock)(struct lkl_mutex *mutex);
+	void (*mutex_unlock)(struct lkl_mutex *mutex);
 
 	lkl_thread_t (*thread_create)(void (*f)(void *), void *arg);
 	void (*thread_detach)(void);

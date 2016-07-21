@@ -34,11 +34,11 @@ static void print(const char *str, int len)
 	ret = write(STDOUT_FILENO, str, len);
 }
 
-struct lkl_mutex_t {
+struct lkl_mutex {
 	pthread_mutex_t mutex;
 };
 
-struct lkl_sem_t {
+struct lkl_sem {
 #ifdef _POSIX_SEMAPHORES
 	sem_t sem;
 #else
@@ -65,9 +65,9 @@ static int _warn_pthread(int ret, char *str_exp)
 /* pthread_* functions use the reverse convention */
 #define WARN_PTHREAD(exp) _warn_pthread(exp, #exp)
 
-static struct lkl_sem_t *sem_alloc(int count)
+static struct lkl_sem *sem_alloc(int count)
 {
-	struct lkl_sem_t *sem;
+	struct lkl_sem *sem;
 
 	sem = malloc(sizeof(*sem));
 	if (!sem)
@@ -88,7 +88,7 @@ static struct lkl_sem_t *sem_alloc(int count)
 	return sem;
 }
 
-static void sem_free(struct lkl_sem_t *sem)
+static void sem_free(struct lkl_sem *sem)
 {
 #ifdef _POSIX_SEMAPHORES
 	WARN_UNLESS(sem_destroy(&sem->sem));
@@ -99,7 +99,7 @@ static void sem_free(struct lkl_sem_t *sem)
 	free(sem);
 }
 
-static void sem_up(struct lkl_sem_t *sem)
+static void sem_up(struct lkl_sem *sem)
 {
 #ifdef _POSIX_SEMAPHORES
 	WARN_UNLESS(sem_post(&sem->sem));
@@ -113,7 +113,7 @@ static void sem_up(struct lkl_sem_t *sem)
 
 }
 
-static void sem_down(struct lkl_sem_t *sem)
+static void sem_down(struct lkl_sem *sem)
 {
 #ifdef _POSIX_SEMAPHORES
 	int err;
@@ -132,7 +132,7 @@ static void sem_down(struct lkl_sem_t *sem)
 #endif /* _POSIX_SEMAPHORES */
 }
 
-static int sem_get(struct lkl_sem_t *sem) {
+static int sem_get(struct lkl_sem *sem) {
 	int v = 0;
 #ifdef _POSIX_SEMAPHORES
 	WARN_UNLESS(sem_getvalue(&sem->sem, &v));
@@ -144,9 +144,9 @@ static int sem_get(struct lkl_sem_t *sem) {
 	return v;
 }
 
-static struct lkl_mutex_t *mutex_alloc(void)
+static struct lkl_mutex *mutex_alloc(void)
 {
-	struct lkl_mutex_t *_mutex = malloc(sizeof(struct lkl_mutex_t));
+	struct lkl_mutex *_mutex = malloc(sizeof(struct lkl_mutex));
 	pthread_mutex_t *mutex = NULL;
 	pthread_mutexattr_t attr;
 
@@ -160,7 +160,7 @@ static struct lkl_mutex_t *mutex_alloc(void)
 	 * but has some overhead, so we provide an option to turn it
 	 * off. */
 #ifdef DEBUG
-	WARN_PTHREAD(pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ERRORCHECK_NP));
+	WARN_PTHREAD(pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ERRORCHECK));
 #endif /* DEBUG */
 
 	WARN_PTHREAD(pthread_mutex_init(mutex, &attr));
@@ -168,18 +168,18 @@ static struct lkl_mutex_t *mutex_alloc(void)
 	return _mutex;
 }
 
-static void mutex_lock(struct lkl_mutex_t *mutex)
+static void mutex_lock(struct lkl_mutex *mutex)
 {
 	WARN_PTHREAD(pthread_mutex_lock(&mutex->mutex));
 }
 
-static void mutex_unlock(struct lkl_mutex_t *_mutex)
+static void mutex_unlock(struct lkl_mutex *_mutex)
 {
 	pthread_mutex_t *mutex = &_mutex->mutex;
 	WARN_PTHREAD(pthread_mutex_unlock(mutex));
 }
 
-static void mutex_free(struct lkl_mutex_t *_mutex)
+static void mutex_free(struct lkl_mutex *_mutex)
 {
 	pthread_mutex_t *mutex = &_mutex->mutex;
 	WARN_PTHREAD(pthread_mutex_destroy(mutex));
@@ -270,9 +270,6 @@ static int timer_set_oneshot(void *_timer, unsigned long ns)
 			.tv_nsec = ns % 1000000000,
 		},
 	};
-
-	if (!ts.it_value.tv_nsec)
-		ts.it_value.tv_nsec++;
 
 	return timer_settime(timer, 0, &ts, NULL);
 }
