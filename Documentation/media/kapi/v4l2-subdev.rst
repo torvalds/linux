@@ -449,3 +449,9 @@ V4L2 sub-device asynchronous kAPI
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. kernel-doc:: include/media/v4l2-async.h
+
+
+V4L2 common kAPI
+^^^^^^^^^^^^^^^^
+
+.. kernel-doc:: include/media/v4l2-common.h
