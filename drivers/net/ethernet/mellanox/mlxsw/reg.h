@@ -4633,6 +4633,58 @@ static inline void mlxsw_reg_mtmp_unpack(char *payload, unsigned int *p_temp,
 		mlxsw_reg_mtmp_sensor_name_memcpy_from(payload, sensor_name);
 }
 
+/* MPAT - Monitoring Port Analyzer Table
+ * -------------------------------------
+ * MPAT Register is used to query and configure the Switch PortAnalyzer Table.
+ * For an enabled analyzer, all fields except e (enable) cannot be modified.
+ */
+#define MLXSW_REG_MPAT_ID 0x901A
+#define MLXSW_REG_MPAT_LEN 0x78
+
+static const struct mlxsw_reg_info mlxsw_reg_mpat = {
+	.id = MLXSW_REG_MPAT_ID,
+	.len = MLXSW_REG_MPAT_LEN,
+};
+
+/* reg_mpat_pa_id
+ * Port Analyzer ID.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, mpat, pa_id, 0x00, 28, 4);
+
+/* reg_mpat_system_port
+ * A unique port identifier for the final destination of the packet.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mpat, system_port, 0x00, 0, 16);
+
+/* reg_mpat_e
+ * Enable. Indicating the Port Analyzer is enabled.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mpat, e, 0x04, 31, 1);
+
+/* reg_mpat_qos
+ * Quality Of Service Mode.
+ * 0: CONFIGURED - QoS parameters (Switch Priority, and encapsulation
+ * PCP, DEI, DSCP or VL) are configured.
+ * 1: MAINTAIN - QoS parameters (Switch Priority, Color) are the
+ * same as in the original packet that has triggered the mirroring. For
+ * SPAN also the pcp,dei are maintained.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mpat, qos, 0x04, 26, 1);
+
+static inline void mlxsw_reg_mpat_pack(char *payload, u8 pa_id,
+				       u16 system_port, bool e)
+{
+	MLXSW_REG_ZERO(mpat, payload);
+	mlxsw_reg_mpat_pa_id_set(payload, pa_id);
+	mlxsw_reg_mpat_system_port_set(payload, system_port);
+	mlxsw_reg_mpat_e_set(payload, e);
+	mlxsw_reg_mpat_qos_set(payload, 1);
+}
+
 /* MLCR - Management LED Control Register
  * --------------------------------------
  * Controls the system LEDs.
@@ -5204,6 +5256,8 @@ static inline const char *mlxsw_reg_id_str(u16 reg_id)
 		return "MFSM";
 	case MLXSW_REG_MTCAP_ID:
 		return "MTCAP";
+	case MLXSW_REG_MPAT_ID:
+		return "MPAT";
 	case MLXSW_REG_MTMP_ID:
 		return "MTMP";
 	case MLXSW_REG_MLCR_ID:
