@@ -328,6 +328,7 @@ int t4vf_wr_mbox_core(struct adapter *adapter, const void *cmd, int size,
 static void init_link_config(struct link_config *lc, unsigned int caps)
 {
 	lc->supported = caps;
+	lc->lp_advertising = 0;
 	lc->requested_speed = 0;
 	lc->speed = 0;
 	lc->requested_fc = lc->fc = PAUSE_RX | PAUSE_TX;
@@ -1743,6 +1744,8 @@ int t4vf_handle_fw_rpl(struct adapter *adapter, const __be64 *rpl)
 				lc->fc = fc;
 				lc->supported =
 					be16_to_cpu(port_cmd->u.info.pcap);
+				lc->lp_advertising =
+					be16_to_cpu(port_cmd->u.info.lpacap);
 				t4vf_os_link_changed(adapter, pidx, link_ok);
 			}
 		}
