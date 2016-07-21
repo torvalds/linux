@@ -53,6 +53,7 @@ int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
 	int ret;
 
 	if (old_mem->mem_type != TTM_PL_SYSTEM) {
+		ttm_tt_unbind(ttm);
 		ttm_bo_free_old_node(bo);
 		ttm_flag_masked(&old_mem->placement, TTM_PL_FLAG_SYSTEM,
 				TTM_PL_MASK_MEM);

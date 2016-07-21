@@ -166,16 +166,10 @@ EXPORT_SYMBOL(ttm_tt_set_placement_caching);
 
 void ttm_tt_destroy(struct ttm_tt *ttm)
 {
-	int ret;
-
 	if (ttm == NULL)
 		return;
 
-	if (ttm->state == tt_bound) {
-		ret = ttm->func->unbind(ttm);
-		BUG_ON(ret);
-		ttm->state = tt_unbound;
-	}
+	ttm_tt_unbind(ttm);
 
 	if (ttm->state == tt_unbound)
 		ttm_tt_unpopulate(ttm);
@@ -254,6 +248,17 @@ void ttm_dma_tt_fini(struct ttm_dma_tt *ttm_dma)
 	ttm_dma->dma_address = NULL;
 }
 EXPORT_SYMBOL(ttm_dma_tt_fini);
+
+void ttm_tt_unbind(struct ttm_tt *ttm)
+{
+	int ret;
+
+	if (ttm->state == tt_bound) {
+		ret = ttm->func->unbind(ttm);
+		BUG_ON(ret);
+		ttm->state = tt_unbound;
+	}
+}
 
 int ttm_tt_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem)
 {
