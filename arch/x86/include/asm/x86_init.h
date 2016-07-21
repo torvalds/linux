@@ -168,8 +168,9 @@ struct x86_legacy_devices {
  * struct x86_legacy_features - legacy x86 features
  *
  * @rtc: this device has a CMOS real-time clock present
- * @reserve_bios_regions: it's safe to search for the EBDA signature in the hardware's
- * 	low RAM
+ * @reserve_bios_regions: boot code will search for the EBDA address and the
+ * 	start of the 640k - 1M BIOS region.  If false, the platform must
+ * 	ensure that its memory map correctly reserves sub-1MB regions as needed.
  * @devices: legacy x86 devices, refer to struct x86_legacy_devices
  * 	documentation for further details.
  */
