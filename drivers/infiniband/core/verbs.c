@@ -814,6 +814,15 @@ struct ib_qp *ib_create_qp(struct ib_pd *pd,
 		}
 	}
 
+	/*
+	 * Note: all hw drivers guarantee that max_send_sge is lower than
+	 * the device RDMA WRITE SGE limit but not all hw drivers ensure that
+	 * max_send_sge <= max_sge_rd.
+	 */
+	qp->max_write_sge = qp_init_attr->cap.max_send_sge;
+	qp->max_read_sge = min_t(u32, qp_init_attr->cap.max_send_sge,
+				 device->attrs.max_sge_rd);
+
 	return qp;
 }
 EXPORT_SYMBOL(ib_create_qp);
