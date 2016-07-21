@@ -1234,6 +1234,7 @@ static int cxgb3i_ddp_init(struct cxgbi_device *cdev)
 	}
 
 	ppmax = (uinfo.ulimit - uinfo.llimit + 1) >> PPOD_SIZE_SHIFT;
+	tagmask = cxgbi_tagmask_set(ppmax);
 
 	pr_info("T3 %s: 0x%x~0x%x, 0x%x, tagmask 0x%x -> 0x%x.\n",
 		ndev->name, uinfo.llimit, uinfo.ulimit, ppmax, uinfo.tagmask,

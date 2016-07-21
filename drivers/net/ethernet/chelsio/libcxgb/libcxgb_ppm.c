@@ -337,6 +337,7 @@ int cxgbi_ppm_release(struct cxgbi_ppm *ppm)
 	}
 	return 1;
 }
+EXPORT_SYMBOL(cxgbi_ppm_release);
 
 static struct cxgbi_ppm_pool *ppm_alloc_cpu_pool(unsigned int *total,
 						 unsigned int *pcpu_ppmax)
@@ -490,6 +491,7 @@ unsigned int cxgbi_tagmask_set(unsigned int ppmax)
 
 	return 1 << (bits + PPOD_IDX_SHIFT);
 }
+EXPORT_SYMBOL(cxgbi_tagmask_set);
 
 MODULE_AUTHOR("Chelsio Communications");
 MODULE_DESCRIPTION("Chelsio common library");
