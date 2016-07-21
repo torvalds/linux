@@ -157,6 +157,11 @@ struct __extcon_info {
 		.id = EXTCON_DISP_VGA,
 		.name = "VGA",
 	},
+	[EXTCON_DISP_DP] = {
+		.type = EXTCON_TYPE_DISP | EXTCON_TYPE_USB,
+		.id = EXTCON_DISP_DP,
+		.name = "DP",
+	},
 
 	/* Miscellaneous external connector */
 	[EXTCON_DOCK] = {
