@@ -101,7 +101,7 @@ out:
 }
 
 static int
-adfs_match(struct qstr *name, struct object_info *obj)
+adfs_match(const struct qstr *name, struct object_info *obj)
 {
 	int i;
 
@@ -126,7 +126,7 @@ adfs_match(struct qstr *name, struct object_info *obj)
 }
 
 static int
-adfs_dir_lookup_byname(struct inode *inode, struct qstr *name, struct object_info *obj)
+adfs_dir_lookup_byname(struct inode *inode, const struct qstr *name, struct object_info *obj)
 {
 	struct super_block *sb = inode->i_sb;
 	const struct adfs_dir_ops *ops = ADFS_SB(sb)->s_dir;
