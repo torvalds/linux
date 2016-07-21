@@ -2060,6 +2060,35 @@ bool amdgpu_need_backup(struct amdgpu_device *adev)
 	return amdgpu_lockup_timeout > 0 ? true : false;
 }
 
+static int amdgpu_recover_vram_from_shadow(struct amdgpu_device *adev,
+					   struct amdgpu_ring *ring,
+					   struct amdgpu_bo *bo,
+					   struct fence **fence)
+{
+	uint32_t domain;
+	int r;
+
+       if (!bo->shadow)
+               return 0;
+
+       r = amdgpu_bo_reserve(bo, false);
+       if (r)
+               return r;
+       domain = amdgpu_mem_type_to_domain(bo->tbo.mem.mem_type);
+       /* if bo has been evicted, then no need to recover */
+       if (domain == AMDGPU_GEM_DOMAIN_VRAM) {
+               r = amdgpu_bo_restore_from_shadow(adev, ring, bo,
+						 NULL, fence, true);
+               if (r) {
+                       DRM_ERROR("recover page table failed!\n");
+                       goto err;
+               }
+       }
+err:
+       amdgpu_bo_unreserve(bo);
+       return r;
+}
+
 /**
  * amdgpu_gpu_reset - reset the asic
  *
@@ -2138,13 +2167,46 @@ retry:
 		if (r) {
 			dev_err(adev->dev, "ib ring test failed (%d).\n", r);
 			r = amdgpu_suspend(adev);
+			need_full_reset = true;
 			goto retry;
 		}
+		/**
+		 * recovery vm page tables, since we cannot depend on VRAM is
+		 * consistent after gpu full reset.
+		 */
+		if (need_full_reset && amdgpu_need_backup(adev)) {
+			struct amdgpu_ring *ring = adev->mman.buffer_funcs_ring;
+			struct amdgpu_bo *bo, *tmp;
+			struct fence *fence = NULL, *next = NULL;
 
+			DRM_INFO("recover vram bo from shadow\n");
+			mutex_lock(&adev->shadow_list_lock);
+			list_for_each_entry_safe(bo, tmp, &adev->shadow_list, shadow_list) {
+				amdgpu_recover_vram_from_shadow(adev, ring, bo, &next);
+				if (fence) {
+					r = fence_wait(fence, false);
+					if (r) {
+						WARN(r, "recovery from shadow isn't comleted\n");
+						break;
+					}
+				}
+
+				fence_put(fence);
+				fence = next;
+			}
+			mutex_unlock(&adev->shadow_list_lock);
+			if (fence) {
+				r = fence_wait(fence, false);
+				if (r)
+					WARN(r, "recovery from shadow isn't comleted\n");
+			}
+			fence_put(fence);
+		}
 		for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
 			struct amdgpu_ring *ring = adev->rings[i];
 			if (!ring)
 				continue;
+
 			amd_sched_job_recovery(&ring->sched);
 			kthread_unpark(ring->sched.thread);
 		}
