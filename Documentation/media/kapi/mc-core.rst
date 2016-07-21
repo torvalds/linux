@@ -50,7 +50,7 @@ Entities
 Entities are represented by a :c:type:`struct media_entity <media_entity>`
 instance, defined in ``include/media/media-entity.h``. The structure is usually
 embedded into a higher-level structure, such as
-:ref:`v4l2_subdev` or :ref:`video_device`
+:c:type:`v4l2_subdev` or :c:type:`video_device`
 instances, although drivers can allocate entities directly.
 
 Drivers initialize entity pads by calling
