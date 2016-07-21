@@ -16,6 +16,7 @@
  * General Public License for more details.
  *
  */
+#include <linux/kasan.h>
 #include <linux/kernel.h>
 #include <linux/kprobes.h>
 #include <linux/module.h>
@@ -498,8 +499,10 @@ int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 	 * we also save and restore enough stack bytes to cover
 	 * the argument area.
 	 */
+	kasan_disable_current();
 	memcpy(kcb->jprobes_stack, (void *)stack_ptr,
 	       min_stack_size(stack_ptr));
+	kasan_enable_current();
 
 	instruction_pointer_set(regs, (unsigned long) jp->entry);
 	preempt_disable();
@@ -551,8 +554,10 @@ int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 	}
 	unpause_graph_tracing();
 	*regs = kcb->jprobe_saved_regs;
+	kasan_disable_current();
 	memcpy((void *)stack_addr, kcb->jprobes_stack,
 	       min_stack_size(stack_addr));
+	kasan_enable_current();
 	preempt_enable_no_resched();
 	return 1;
 }
