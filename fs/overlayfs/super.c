@@ -421,7 +421,7 @@ static bool ovl_dentry_weird(struct dentry *dentry)
 
 static inline struct dentry *ovl_lookup_real(struct super_block *ovl_sb,
 					     struct dentry *dir,
-					     struct qstr *name)
+					     const struct qstr *name)
 {
 	const struct cred *old_cred;
 	struct dentry *dentry;
