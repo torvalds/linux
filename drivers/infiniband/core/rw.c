@@ -71,6 +71,7 @@ static inline u32 rdma_rw_fr_page_list_len(struct ib_device *dev)
 	return min_t(u32, dev->attrs.max_fast_reg_page_list_len, 256);
 }
 
+/* Caller must have zero-initialized *reg. */
 static int rdma_rw_init_one_mr(struct ib_qp *qp, u8 port_num,
 		struct rdma_rw_reg_ctx *reg, struct scatterlist *sg,
 		u32 sg_cnt, u32 offset)
@@ -114,6 +115,7 @@ static int rdma_rw_init_mr_wrs(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
 		u8 port_num, struct scatterlist *sg, u32 sg_cnt, u32 offset,
 		u64 remote_addr, u32 rkey, enum dma_data_direction dir)
 {
+	struct rdma_rw_reg_ctx *prev = NULL;
 	u32 pages_per_mr = rdma_rw_fr_page_list_len(qp->pd->device);
 	int i, j, ret = 0, count = 0;
 
@@ -125,7 +127,6 @@ static int rdma_rw_init_mr_wrs(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
 	}
 
 	for (i = 0; i < ctx->nr_ops; i++) {
-		struct rdma_rw_reg_ctx *prev = i ? &ctx->reg[i - 1] : NULL;
 		struct rdma_rw_reg_ctx *reg = &ctx->reg[i];
 		u32 nents = min(sg_cnt, pages_per_mr);
 
@@ -162,8 +163,12 @@ static int rdma_rw_init_mr_wrs(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
 		sg_cnt -= nents;
 		for (j = 0; j < nents; j++)
 			sg = sg_next(sg);
+		prev = reg;
 		offset = 0;
 	}
+
+	if (prev)
+		prev->wr.wr.next = NULL;
 
 	ctx->type = RDMA_RW_MR;
 	return count;
@@ -205,11 +210,10 @@ static int rdma_rw_init_map_wrs(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
 			rdma_wr->wr.opcode = IB_WR_RDMA_READ;
 		rdma_wr->remote_addr = remote_addr + total_len;
 		rdma_wr->rkey = rkey;
+		rdma_wr->wr.num_sge = nr_sge;
 		rdma_wr->wr.sg_list = sge;
 
 		for (j = 0; j < nr_sge; j++, sg = sg_next(sg)) {
-			rdma_wr->wr.num_sge++;
-
 			sge->addr = ib_sg_dma_address(dev, sg) + offset;
 			sge->length = ib_sg_dma_len(dev, sg) - offset;
 			sge->lkey = qp->pd->local_dma_lkey;
@@ -220,8 +224,8 @@ static int rdma_rw_init_map_wrs(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
 			offset = 0;
 		}
 
-		if (i + 1 < ctx->nr_ops)
-			rdma_wr->wr.next = &ctx->map.wrs[i + 1].wr;
+		rdma_wr->wr.next = i + 1 < ctx->nr_ops ?
+			&ctx->map.wrs[i + 1].wr : NULL;
 	}
 
 	ctx->type = RDMA_RW_MULTI_WR;
