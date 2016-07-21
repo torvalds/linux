@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2015 Freescale Semiconductor, Inc.
+ * Copyright (C) 2014-2016 Freescale Semiconductor, Inc.
  *
  * The code contained herein is licensed under the GNU General Public
  * License. You may obtain a copy of the GNU General Public License
@@ -597,6 +597,9 @@ static void __init imx6sx_clocks_init(struct device_node *ccm_node)
 	/* set parent clock for LCDIF1 pixel clock */
 	imx_clk_set_parent(clks[IMX6SX_CLK_LCDIF1_PRE_SEL], clks[IMX6SX_CLK_PLL5_VIDEO_DIV]);
 	imx_clk_set_parent(clks[IMX6SX_CLK_LCDIF1_SEL], clks[IMX6SX_CLK_LCDIF1_PODF]);
+
+	/* set parent clock for LCDIF2  */
+	imx_clk_set_parent(clks[IMX6SX_CLK_LCDIF2_SEL], clks[IMX6SX_CLK_LDB_DI0]);
 
 	/* Set the parent clks of PCIe lvds1 and pcie_axi to be pcie ref, axi */
 	imx_clk_set_parent(clks[IMX6SX_CLK_LVDS1_SEL], clks[IMX6SX_CLK_PCIE_REF_125M]);
