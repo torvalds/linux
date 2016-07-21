@@ -65,22 +65,6 @@ void __init reserve_bios_regions(void)
 	if (!x86_platform.legacy.reserve_bios_regions)
 		return;
 
-	/* Get the start address of the EBDA page: */
-	ebda_start = get_bios_ebda();
-
-	/*
-	 * Quirk: some old Dells seem to have a 4k EBDA without
-	 * reporting so in their BIOS RAM size value, so just
-	 * consider the memory above 640K to be off limits
-	 * (bugzilla 2990).
-	 *
-	 * We detect this case by filtering for nonsensical EBDA
-	 * addresses below 128K, where we can assume that they
-	 * are bogus and bump it up to a fixed 640K value:
-	 */
-	if (ebda_start < BIOS_START_MIN)
-		ebda_start = BIOS_START_MAX;
-
 	/*
 	 * BIOS RAM size is encoded in kilobytes, convert it
 	 * to bytes to get a first guess at where the BIOS
@@ -91,18 +75,22 @@ void __init reserve_bios_regions(void)
 
 	/*
 	 * If bios_start is less than 128K, assume it is bogus
-	 * and bump it up to 640K:
+	 * and bump it up to 640K.  Similarly, if bios_start is above 640K,
+	 * don't trust it.
 	 */
-	if (bios_start < BIOS_START_MIN)
+	if (bios_start < BIOS_START_MIN || bios_start > BIOS_START_MAX)
 		bios_start = BIOS_START_MAX;
 
+	/* Get the start address of the EBDA page: */
+	ebda_start = get_bios_ebda();
+
 	/*
-	 * Use the lower of the bios_start and ebda_start
-	 * as the starting point, but don't allow it to
-	 * go beyond 640K:
+	 * If the EBDA start address is sane and is below the BIOS region,
+	 * then also reserve everything from the EBDA start address up to
+	 * the BIOS region.
 	 */
-	bios_start = min(bios_start, ebda_start);
-	bios_start = min(bios_start, BIOS_START_MAX);
+	if (ebda_start >= BIOS_START_MIN && ebda_start < bios_start)
+		bios_start = ebda_start;
 
 	/* Reserve all memory between bios_start and the 1MB mark: */
 	memblock_reserve(bios_start, 0x100000 - bios_start);
