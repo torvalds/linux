@@ -42,6 +42,7 @@ static int malidp_set_and_wait_config_valid(struct drm_device *drm)
 	struct malidp_hw_device *hwdev = malidp->dev;
 	int ret;
 
+	atomic_set(&malidp->config_valid, 0);
 	hwdev->set_config_valid(hwdev);
 	/* don't wait for config_valid flag if we are in config mode */
 	if (hwdev->in_config_mode(hwdev))
