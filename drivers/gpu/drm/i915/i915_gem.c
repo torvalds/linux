@@ -4355,8 +4355,6 @@ i915_gem_suspend(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	int ret = 0;
 
-	intel_suspend_gt_powersave(dev_priv);
-
 	mutex_lock(&dev->struct_mutex);
 
 	/* We have to flush all the executing contexts to main memory so

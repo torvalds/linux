@@ -6526,8 +6526,6 @@ void intel_init_gt_powersave(struct drm_i915_private *dev_priv)
 	dev_priv->rps.boost_freq = dev_priv->rps.max_freq;
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
-
-	intel_autoenable_gt_powersave(dev_priv);
 }
 
 void intel_cleanup_gt_powersave(struct drm_i915_private *dev_priv)
@@ -6541,31 +6539,10 @@ void intel_cleanup_gt_powersave(struct drm_i915_private *dev_priv)
 		intel_runtime_pm_put(dev_priv);
 }
 
-/**
- * intel_suspend_gt_powersave - suspend PM work and helper threads
- * @dev_priv: i915 device
- *
- * We don't want to disable RC6 or other features here, we just want
- * to make sure any work we've queued has finished and won't bother
- * us while we're suspended.
- */
-void intel_suspend_gt_powersave(struct drm_i915_private *dev_priv)
-{
-	if (INTEL_GEN(dev_priv) < 6)
-		return;
-
-	if (cancel_delayed_work_sync(&dev_priv->rps.autoenable_work))
-		intel_runtime_pm_put(dev_priv);
-
-	/* gen6_rps_idle() will be called later to disable interrupts */
-}
-
 void intel_sanitize_gt_powersave(struct drm_i915_private *dev_priv)
 {
 	dev_priv->rps.enabled = true; /* force disabling */
 	intel_disable_gt_powersave(dev_priv);
-
-	gen6_reset_rps_interrupts(dev_priv);
 }
 
 void intel_disable_gt_powersave(struct drm_i915_private *dev_priv)
@@ -6590,13 +6567,12 @@ void intel_disable_gt_powersave(struct drm_i915_private *dev_priv)
 
 	dev_priv->rps.enabled = false;
 	mutex_unlock(&dev_priv->rps.hw_lock);
+
+	gen6_reset_rps_interrupts(dev_priv);
 }
 
 void intel_enable_gt_powersave(struct drm_i915_private *dev_priv)
 {
-	/* We shouldn't be disabling as we submit, so this should be less
-	 * racy than it appears!
-	 */
 	if (READ_ONCE(dev_priv->rps.enabled))
 		return;
 
@@ -6632,73 +6608,7 @@ void intel_enable_gt_powersave(struct drm_i915_private *dev_priv)
 	WARN_ON(dev_priv->rps.efficient_freq < dev_priv->rps.min_freq);
 	WARN_ON(dev_priv->rps.efficient_freq > dev_priv->rps.max_freq);
 
-	dev_priv->rps.enabled = true;
 	mutex_unlock(&dev_priv->rps.hw_lock);
-}
-
-static void __intel_autoenable_gt_powersave(struct work_struct *work)
-{
-	struct drm_i915_private *dev_priv =
-		container_of(work, typeof(*dev_priv), rps.autoenable_work.work);
-	struct intel_engine_cs *rcs;
-	struct drm_i915_gem_request *req;
-
-	if (READ_ONCE(dev_priv->rps.enabled))
-		goto out;
-
-	rcs = &dev_priv->engine[RCS];
-	if (rcs->last_context)
-		goto out;
-
-	if (!rcs->init_context)
-		goto out;
-
-	mutex_lock(&dev_priv->drm.struct_mutex);
-
-	req = i915_gem_request_alloc(rcs, dev_priv->kernel_context);
-	if (IS_ERR(req))
-		goto unlock;
-
-	if (!i915.enable_execlists && i915_switch_context(req) == 0)
-		rcs->init_context(req);
-
-	/* Mark the device busy, calling intel_enable_gt_powersave() */
-	i915_add_request_no_flush(req);
-
-unlock:
-	mutex_unlock(&dev_priv->drm.struct_mutex);
-out:
-	intel_runtime_pm_put(dev_priv);
-}
-
-void intel_autoenable_gt_powersave(struct drm_i915_private *dev_priv)
-{
-	if (READ_ONCE(dev_priv->rps.enabled))
-		return;
-
-	if (IS_IRONLAKE_M(dev_priv)) {
-		ironlake_enable_drps(dev_priv);
-		mutex_lock(&dev_priv->drm.struct_mutex);
-		intel_init_emon(dev_priv);
-		mutex_unlock(&dev_priv->drm.struct_mutex);
-	} else if (INTEL_INFO(dev_priv)->gen >= 6) {
-		/*
-		 * PCU communication is slow and this doesn't need to be
-		 * done at any specific time, so do this out of our fast path
-		 * to make resume and init faster.
-		 *
-		 * We depend on the HW RC6 power context save/restore
-		 * mechanism when entering D3 through runtime PM suspend. So
-		 * disable RPM until RPS/RC6 is properly setup. We can only
-		 * get here via the driver load/system resume/runtime resume
-		 * paths, so the _noresume version is enough (and in case of
-		 * runtime resume it's necessary).
-		 */
-		if (queue_delayed_work(dev_priv->wq,
-				       &dev_priv->rps.autoenable_work,
-				       round_jiffies_up_relative(HZ)))
-			intel_runtime_pm_get_noresume(dev_priv);
-	}
 }
 
 static void ibx_init_clock_gating(struct drm_device *dev)
@@ -7806,8 +7716,6 @@ void intel_pm_setup(struct drm_device *dev)
 	mutex_init(&dev_priv->rps.hw_lock);
 	spin_lock_init(&dev_priv->rps.client_lock);
 
-	INIT_DELAYED_WORK(&dev_priv->rps.autoenable_work,
-			  __intel_autoenable_gt_powersave);
 	INIT_LIST_HEAD(&dev_priv->rps.clients);
 
 	dev_priv->pm.suspended = false;

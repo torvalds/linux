@@ -1630,7 +1630,6 @@ static int i915_drm_resume(struct drm_device *dev)
 
 	intel_opregion_notify_adapter(dev_priv, PCI_D0);
 
-	intel_autoenable_gt_powersave(dev_priv);
 	drm_kms_helper_poll_enable(dev);
 
 	enable_rpm_wakeref_asserts(dev_priv);
@@ -1812,7 +1811,8 @@ int i915_reset(struct drm_i915_private *dev_priv)
 	 * previous concerns that it doesn't respond well to some forms
 	 * of re-init after reset.
 	 */
-	intel_autoenable_gt_powersave(dev_priv);
+	if (INTEL_GEN(dev_priv) > 5)
+		intel_enable_gt_powersave(dev_priv);
 
 	return 0;
 
@@ -2440,6 +2440,7 @@ static int intel_runtime_resume(struct device *device)
 	i915_gem_init_swizzling(dev);
 
 	intel_runtime_pm_enable_interrupts(dev_priv);
+	intel_enable_gt_powersave(dev_priv);
 
 	/*
 	 * On VLV/CHV display interrupts are part of the display
