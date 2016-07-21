@@ -49,7 +49,7 @@ static void gpio_extcon_work(struct work_struct *work)
 	state = gpiod_get_value_cansleep(data->id_gpiod);
 	if (data->pdata->gpio_active_low)
 		state = !state;
-	extcon_set_state(data->edev, state);
+	extcon_set_cable_state_(data->edev, data->pdata->extcon_id, state);
 }
 
 static irqreturn_t gpio_irq_handler(int irq, void *dev_id)
