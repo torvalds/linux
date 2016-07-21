@@ -1236,11 +1236,7 @@ nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	if (isdotent(fname, flen))
 		return nfserr_exist;
 
-	/*
-	 * Even though it is a create, first let's see if we are even allowed
-	 * to peek inside the parent
-	 */
-	err = fh_verify(rqstp, fhp, S_IFDIR, NFSD_MAY_EXEC);
+	err = fh_verify(rqstp, fhp, S_IFDIR, NFSD_MAY_NOP);
 	if (err)
 		return err;
 
