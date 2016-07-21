@@ -535,9 +535,11 @@ void mlx4_en_destroy_rx_ring(struct mlx4_en_priv *priv,
 {
 	struct mlx4_en_dev *mdev = priv->mdev;
 	struct mlx4_en_rx_ring *ring = *pring;
+	struct bpf_prog *old_prog;
 
-	if (ring->xdp_prog)
-		bpf_prog_put(ring->xdp_prog);
+	old_prog = READ_ONCE(ring->xdp_prog);
+	if (old_prog)
+		bpf_prog_put(old_prog);
 	mlx4_free_hwq_res(mdev->dev, &ring->wqres, size * stride + TXBB_SIZE);
 	vfree(ring->rx_info);
 	ring->rx_info = NULL;
