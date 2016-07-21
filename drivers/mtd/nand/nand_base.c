@@ -2162,7 +2162,7 @@ static int nand_do_read_oob(struct mtd_info *mtd, loff_t from,
 static int nand_read_oob(struct mtd_info *mtd, loff_t from,
 			 struct mtd_oob_ops *ops)
 {
-	int ret = -ENOTSUPP;
+	int ret;
 
 	ops->retlen = 0;
 
@@ -2173,24 +2173,18 @@ static int nand_read_oob(struct mtd_info *mtd, loff_t from,
 		return -EINVAL;
 	}
 
+	if (ops->mode != MTD_OPS_PLACE_OOB &&
+	    ops->mode != MTD_OPS_AUTO_OOB &&
+	    ops->mode != MTD_OPS_RAW)
+		return -ENOTSUPP;
+
 	nand_get_device(mtd, FL_READING);
-
-	switch (ops->mode) {
-	case MTD_OPS_PLACE_OOB:
-	case MTD_OPS_AUTO_OOB:
-	case MTD_OPS_RAW:
-		break;
-
-	default:
-		goto out;
-	}
 
 	if (!ops->datbuf)
 		ret = nand_do_read_oob(mtd, from, ops);
 	else
 		ret = nand_do_read_ops(mtd, from, ops);
 
-out:
 	nand_release_device(mtd);
 	return ret;
 }
