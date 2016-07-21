@@ -1513,57 +1513,57 @@ static void iwl_pcie_set_interrupt_capa(struct pci_dev *pdev,
 					struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	int max_vector, nvec, i;
+	int max_irqs, num_irqs, i, ret;
 	u16 pci_cmd;
 
-	if (trans->cfg->mq_rx_supported) {
-		max_vector = min_t(u32, (num_possible_cpus() + 2),
-				   IWL_MAX_RX_HW_QUEUES);
-		for (i = 0; i < max_vector; i++)
-			trans_pcie->msix_entries[i].entry = i;
+	if (!trans->cfg->mq_rx_supported)
+		goto enable_msi;
 
-		nvec = pci_enable_msix_range(pdev, trans_pcie->msix_entries,
-					     MSIX_MIN_INTERRUPT_VECTORS,
-					     max_vector);
-		if (nvec < 0) {
-			IWL_DEBUG_INFO(trans,
-				       "ret = %d failed to enable msi-x mode move to msi mode\n",
-				       nvec);
-			goto msi;
-		}
+	max_irqs = min_t(u32, num_possible_cpus() + 2, IWL_MAX_RX_HW_QUEUES);
+	for (i = 0; i < max_irqs; i++)
+		trans_pcie->msix_entries[i].entry = i;
 
+	num_irqs = pci_enable_msix_range(pdev, trans_pcie->msix_entries,
+					 MSIX_MIN_INTERRUPT_VECTORS,
+					 max_irqs);
+	if (num_irqs < 0) {
 		IWL_DEBUG_INFO(trans,
-			       "Enable MSI-X allocate %d interrupt vector\n",
-			       nvec);
-		trans_pcie->def_irq = (nvec == max_vector) ? nvec - 1 : 0;
-		/*
-		 * In case the OS provides fewer interrupts than requested,
-		 * different causes will share the same interrupt vector
-		 * as follow:
-		 * One interrupt less: non rx causes shared with FBQ.
-		 * Two interrupts less: non rx causes shared with FBQ and RSS.
-		 * More than two interrupts: we will use fewer RSS queues.
-		 */
-		if (nvec <= num_online_cpus()) {
-			trans_pcie->trans->num_rx_queues = nvec + 1;
-			trans_pcie->shared_vec_mask = IWL_SHARED_IRQ_NON_RX |
-				IWL_SHARED_IRQ_FIRST_RSS;
-		} else if (nvec == num_online_cpus() + 1) {
-			trans_pcie->trans->num_rx_queues = nvec;
-			trans_pcie->shared_vec_mask = IWL_SHARED_IRQ_NON_RX;
-		} else {
-			trans_pcie->trans->num_rx_queues = nvec - 1;
-		}
-
-		trans_pcie->alloc_vecs = nvec;
-		trans_pcie->msix_enabled = true;
-		return;
+			       "Failed to enable msi-x mode (ret %d). Moving to msi mode.\n",
+			       num_irqs);
+		goto enable_msi;
 	}
-msi:
+	trans_pcie->def_irq = (num_irqs == max_irqs) ? num_irqs - 1 : 0;
 
-	nvec = pci_enable_msi(pdev);
-	if (nvec) {
-		dev_err(&pdev->dev, "pci_enable_msi failed - %d\n", nvec);
+	IWL_DEBUG_INFO(trans,
+		       "MSI-X enabled. %d interrupt vectors were allocated\n",
+		       num_irqs);
+
+	/*
+	 * In case the OS provides fewer interrupts than requested, different
+	 * causes will share the same interrupt vector as follows:
+	 * One interrupt less: non rx causes shared with FBQ.
+	 * Two interrupts less: non rx causes shared with FBQ and RSS.
+	 * More than two interrupts: we will use fewer RSS queues.
+	 */
+	if (num_irqs <= num_online_cpus()) {
+		trans_pcie->trans->num_rx_queues = num_irqs + 1;
+		trans_pcie->shared_vec_mask = IWL_SHARED_IRQ_NON_RX |
+			IWL_SHARED_IRQ_FIRST_RSS;
+	} else if (num_irqs == num_online_cpus() + 1) {
+		trans_pcie->trans->num_rx_queues = num_irqs;
+		trans_pcie->shared_vec_mask = IWL_SHARED_IRQ_NON_RX;
+	} else {
+		trans_pcie->trans->num_rx_queues = num_irqs - 1;
+	}
+
+	trans_pcie->alloc_vecs = num_irqs;
+	trans_pcie->msix_enabled = true;
+	return;
+
+enable_msi:
+	ret = pci_enable_msi(pdev);
+	if (ret) {
+		dev_err(&pdev->dev, "pci_enable_msi failed - %d\n", ret);
 		/* enable rfkill interrupt: hw bug w/a */
 		pci_read_config_word(pdev, PCI_COMMAND, &pci_cmd);
 		if (pci_cmd & PCI_COMMAND_INTX_DISABLE) {
