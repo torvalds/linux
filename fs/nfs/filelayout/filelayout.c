@@ -357,6 +357,12 @@ static int filelayout_write_done_cb(struct rpc_task *task,
 	}
 
 	filelayout_set_layoutcommit(hdr);
+
+	/* zero out the fattr */
+	hdr->fattr.valid = 0;
+	if (task->tk_status >= 0)
+		nfs_writeback_update_inode(hdr);
+
 	return 0;
 }
 
