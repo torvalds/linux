@@ -58,15 +58,25 @@
 static void __iomem *base;
 static unsigned int clock_count_per_tick;
 
-static int moxart_shutdown(struct clock_event_device *evt)
+static inline void moxart_disable(struct clock_event_device *evt)
 {
 	writel(TIMER1_DISABLE, base + TIMER_CR);
+}
+
+static inline void moxart_enable(struct clock_event_device *evt)
+{
+	writel(TIMER1_ENABLE, base + TIMER_CR);
+}
+
+static int moxart_shutdown(struct clock_event_device *evt)
+{
+	moxart_disable(evt);
 	return 0;
 }
 
 static int moxart_set_oneshot(struct clock_event_device *evt)
 {
-	writel(TIMER1_DISABLE, base + TIMER_CR);
+	moxart_disable(evt);
 	writel(~0, base + TIMER1_BASE + REG_LOAD);
 	return 0;
 }
@@ -74,21 +84,21 @@ static int moxart_set_oneshot(struct clock_event_device *evt)
 static int moxart_set_periodic(struct clock_event_device *evt)
 {
 	writel(clock_count_per_tick, base + TIMER1_BASE + REG_LOAD);
-	writel(TIMER1_ENABLE, base + TIMER_CR);
+	moxart_enable(evt);
 	return 0;
 }
 
 static int moxart_clkevt_next_event(unsigned long cycles,
-				    struct clock_event_device *unused)
+				    struct clock_event_device *evt)
 {
 	u32 u;
 
-	writel(TIMER1_DISABLE, base + TIMER_CR);
+	moxart_disable(evt);
 
 	u = readl(base + TIMER1_BASE + REG_COUNT) - cycles;
 	writel(u, base + TIMER1_BASE + REG_MATCH1);
 
-	writel(TIMER1_ENABLE, base + TIMER_CR);
+	moxart_enable(evt);
 
 	return 0;
 }
