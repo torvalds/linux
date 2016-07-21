@@ -1,3 +1,5 @@
+.. _vb_framework:
+
 Videobuf Framework
 ==================
 

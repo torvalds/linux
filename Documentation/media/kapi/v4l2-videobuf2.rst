@@ -1,3 +1,5 @@
+.. _vb2_framework:
+
 V4L2 videobuf2 kAPI
 ^^^^^^^^^^^^^^^^^^^
 
