@@ -2109,6 +2109,10 @@ static int do_setlink(const struct sk_buff *skb,
 		if (err < 0)
 			goto errout;
 
+		if (xdp[IFLA_XDP_ATTACHED]) {
+			err = -EINVAL;
+			goto errout;
+		}
 		if (xdp[IFLA_XDP_FD]) {
 			err = dev_change_xdp_fd(dev,
 						nla_get_s32(xdp[IFLA_XDP_FD]));

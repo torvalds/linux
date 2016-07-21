@@ -14,7 +14,7 @@
 #include <linux/ipv6.h>
 #include "bpf_helpers.h"
 
-struct bpf_map_def SEC("maps") dropcnt = {
+struct bpf_map_def SEC("maps") rxcnt = {
 	.type = BPF_MAP_TYPE_PERCPU_ARRAY,
 	.key_size = sizeof(u32),
 	.value_size = sizeof(long),
@@ -49,7 +49,7 @@ int xdp_prog1(struct xdp_md *ctx)
 	long *value;
 	u16 h_proto;
 	u64 nh_off;
-	u32 index;
+	u32 ipproto;
 
 	nh_off = sizeof(*eth);
 	if (data + nh_off > data_end)
@@ -77,13 +77,13 @@ int xdp_prog1(struct xdp_md *ctx)
 	}
 
 	if (h_proto == htons(ETH_P_IP))
-		index = parse_ipv4(data, nh_off, data_end);
+		ipproto = parse_ipv4(data, nh_off, data_end);
 	else if (h_proto == htons(ETH_P_IPV6))
-		index = parse_ipv6(data, nh_off, data_end);
+		ipproto = parse_ipv6(data, nh_off, data_end);
 	else
-		index = 0;
+		ipproto = 0;
 
-	value = bpf_map_lookup_elem(&dropcnt, &index);
+	value = bpf_map_lookup_elem(&rxcnt, &ipproto);
 	if (value)
 		*value += 1;
 
