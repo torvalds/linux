@@ -746,7 +746,7 @@ static void gb_timesync_log_ping_time(struct gb_timesync_svc *timesync_svc)
 	buf = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (buf) {
 		gb_timesync_log_frame_time(timesync_svc, buf, PAGE_SIZE);
-		pr_info("%s", buf);
+		dev_dbg(&timesync_svc->svc->dev, "%s", buf);
 		kfree(buf);
 	}
 }
