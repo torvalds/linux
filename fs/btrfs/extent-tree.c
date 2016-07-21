@@ -9942,6 +9942,7 @@ void btrfs_put_block_group_cache(struct btrfs_fs_info *info)
 		block_group->iref = 0;
 		block_group->inode = NULL;
 		spin_unlock(&block_group->lock);
+		ASSERT(block_group->io_ctl.inode == NULL);
 		iput(inode);
 		last = block_group->key.objectid + block_group->key.offset;
 		btrfs_put_block_group(block_group);
@@ -9999,6 +10000,10 @@ int btrfs_free_block_groups(struct btrfs_fs_info *info)
 			free_excluded_extents(info->extent_root, block_group);
 
 		btrfs_remove_free_space_cache(block_group);
+		ASSERT(list_empty(&block_group->dirty_list));
+		ASSERT(list_empty(&block_group->io_list));
+		ASSERT(list_empty(&block_group->bg_list));
+		ASSERT(atomic_read(&block_group->count) == 1);
 		btrfs_put_block_group(block_group);
 
 		spin_lock(&info->block_group_cache_lock);
