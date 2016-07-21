@@ -419,6 +419,7 @@ static ssize_t ad5933_store(struct device *dev,
 	mutex_lock(&indio_dev->mlock);
 	switch ((u32)this_attr->address) {
 	case AD5933_OUT_RANGE:
+		ret = -EINVAL;
 		for (i = 0; i < 4; i++)
 			if (val == st->range_avail[i]) {
 				st->ctrl_hb &= ~AD5933_CTRL_RANGE(0x3);
@@ -426,7 +427,6 @@ static ssize_t ad5933_store(struct device *dev,
 				ret = ad5933_cmd(st, 0);
 				break;
 			}
-		ret = -EINVAL;
 		break;
 	case AD5933_IN_PGA_GAIN:
 		if (sysfs_streq(buf, "1")) {
