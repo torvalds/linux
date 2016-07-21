@@ -5,6 +5,7 @@ Video2Linux devices
     :maxdepth: 1
 
     v4l2-framework
+    v4l2-dev
     v4l2-controls
     v4l2-device
     v4l2-dv-timings
