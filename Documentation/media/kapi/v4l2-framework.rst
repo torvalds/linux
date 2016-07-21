@@ -699,3 +699,8 @@ methods.
 
 It is expected that once the CCF becomes available on all relevant
 architectures this API will be removed.
+
+video_device kAPI
+^^^^^^^^^^^^^^^^^
+
+.. kernel-doc:: include/media/v4l2-dev.h
