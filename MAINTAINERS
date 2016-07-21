@@ -3434,6 +3434,7 @@ F:	Documentation/ABI/testing/sysfs-class-cxl
 CXLFLASH (IBM Coherent Accelerator Processor Interface CAPI Flash) SCSI DRIVER
 M:	Manoj N. Kumar <manoj@linux.vnet.ibm.com>
 M:	Matthew R. Ochs <mrochs@linux.vnet.ibm.com>
+M:	Uma Krishnan <ukrishn@linux.vnet.ibm.com>
 L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	drivers/scsi/cxlflash/
