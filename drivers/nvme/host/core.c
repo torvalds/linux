@@ -842,6 +842,7 @@ static void nvme_init_integrity(struct nvme_ns *ns)
 {
 	struct blk_integrity integrity;
 
+	memset(&integrity, 0, sizeof(integrity));
 	switch (ns->pi_type) {
 	case NVME_NS_DPS_PI_TYPE3:
 		integrity.profile = &t10_pi_type3_crc;
