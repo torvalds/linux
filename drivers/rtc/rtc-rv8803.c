@@ -150,7 +150,7 @@ static int rv8803_get_time(struct device *dev, struct rtc_time *tm)
 	tm->tm_mon  = bcd2bin(date[RV8803_MONTH] & 0x1f) - 1;
 	tm->tm_year = bcd2bin(date[RV8803_YEAR]) + 100;
 
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int rv8803_set_time(struct device *dev, struct rtc_time *tm)
