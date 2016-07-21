@@ -211,7 +211,7 @@ bool bpf_prog_array_compatible(struct bpf_array *array, const struct bpf_prog *f
 const struct bpf_func_proto *bpf_get_trace_printk_proto(void);
 
 typedef unsigned long (*bpf_ctx_copy_t)(void *dst, const void *src,
-					unsigned long len);
+					unsigned long off, unsigned long len);
 
 u64 bpf_event_output(struct bpf_map *map, u64 flags, void *meta, u64 meta_size,
 		     void *ctx, u64 ctx_size, bpf_ctx_copy_t ctx_copy);
