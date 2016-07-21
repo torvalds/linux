@@ -1076,65 +1076,6 @@ static inline void ulp_mem_io_set_hdr(struct sk_buff *skb, unsigned int addr)
 	req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_BYPASS));
 	req->cmd_lock_addr = htonl(V_ULP_MEMIO_ADDR(addr >> 5) |
 				   V_ULPTX_CMD(ULP_MEM_WRITE));
-	req->len = htonl(V_ULP_MEMIO_DATA_LEN(PPOD_SIZE >> 5) |
-			 V_ULPTX_NFLITS((PPOD_SIZE >> 3) + 1));
-}
-
-static int ddp_set_map(struct cxgbi_sock *csk, struct cxgbi_pagepod_hdr *hdr,
-			unsigned int idx, unsigned int npods,
-				struct cxgbi_gather_list *gl)
-{
-	struct cxgbi_device *cdev = csk->cdev;
-	struct cxgbi_ddp_info *ddp = cdev->ddp;
-	unsigned int pm_addr = (idx << PPOD_SIZE_SHIFT) + ddp->llimit;
-	int i;
-
-	log_debug(1 << CXGBI_DBG_DDP,
-		"csk 0x%p, idx %u, npods %u, gl 0x%p.\n",
-		csk, idx, npods, gl);
-
-	for (i = 0; i < npods; i++, idx++, pm_addr += PPOD_SIZE) {
-		struct sk_buff *skb = alloc_wr(sizeof(struct ulp_mem_io) +
-						PPOD_SIZE, 0, GFP_ATOMIC);
-
-		if (!skb)
-			return -ENOMEM;
-
-		ulp_mem_io_set_hdr(skb, pm_addr);
-		cxgbi_ddp_ppod_set((struct cxgbi_pagepod *)(skb->head +
-					sizeof(struct ulp_mem_io)),
-				   hdr, gl, i * PPOD_PAGES_MAX);
-		skb->priority = CPL_PRIORITY_CONTROL;
-		cxgb3_ofld_send(cdev->lldev, skb);
-	}
-	return 0;
-}
-
-static void ddp_clear_map(struct cxgbi_hba *chba, unsigned int tag,
-			  unsigned int idx, unsigned int npods)
-{
-	struct cxgbi_device *cdev = chba->cdev;
-	struct cxgbi_ddp_info *ddp = cdev->ddp;
-	unsigned int pm_addr = (idx << PPOD_SIZE_SHIFT) + ddp->llimit;
-	int i;
-
-	log_debug(1 << CXGBI_DBG_DDP,
-		"cdev 0x%p, idx %u, npods %u, tag 0x%x.\n",
-		cdev, idx, npods, tag);
-
-	for (i = 0; i < npods; i++, idx++, pm_addr += PPOD_SIZE) {
-		struct sk_buff *skb = alloc_wr(sizeof(struct ulp_mem_io) +
-						PPOD_SIZE, 0, GFP_ATOMIC);
-
-		if (!skb) {
-			pr_err("tag 0x%x, 0x%x, %d/%u, skb OOM.\n",
-				tag, idx, i, npods);
-			continue;
-		}
-		ulp_mem_io_set_hdr(skb, pm_addr);
-		skb->priority = CPL_PRIORITY_CONTROL;
-		cxgb3_ofld_send(cdev->lldev, skb);
-	}
 }
 
 static int ddp_setup_conn_pgidx(struct cxgbi_sock *csk,
@@ -1203,82 +1144,14 @@ static int ddp_setup_conn_digest(struct cxgbi_sock *csk, unsigned int tid,
 }
 
 /**
- * t3_ddp_cleanup - release the cxgb3 adapter's ddp resource
- * @cdev: cxgb3i adapter
- * release all the resource held by the ddp pagepod manager for a given
- * adapter if needed
- */
-
-static void t3_ddp_cleanup(struct cxgbi_device *cdev)
-{
-	struct t3cdev *tdev = (struct t3cdev *)cdev->lldev;
-
-	if (cxgbi_ddp_cleanup(cdev)) {
-		pr_info("t3dev 0x%p, ulp_iscsi no more user.\n", tdev);
-		tdev->ulp_iscsi = NULL;
-	}
-}
-
-/**
  * ddp_init - initialize the cxgb3 adapter's ddp resource
  * @cdev: cxgb3i adapter
  * initialize the ddp pagepod manager for a given adapter
  */
 static int cxgb3i_ddp_init(struct cxgbi_device *cdev)
 {
-	struct t3cdev *tdev = (struct t3cdev *)cdev->lldev;
-	struct cxgbi_ddp_info *ddp = tdev->ulp_iscsi;
-	struct ulp_iscsi_info uinfo;
-	unsigned int pgsz_factor[4];
-	int i, err;
-
-	if (ddp) {
-		kref_get(&ddp->refcnt);
-		pr_warn("t3dev 0x%p, ddp 0x%p already set up.\n",
-			tdev, tdev->ulp_iscsi);
-		cdev->ddp = ddp;
-		return -EALREADY;
-	}
-
-	err = tdev->ctl(tdev, ULP_ISCSI_GET_PARAMS, &uinfo);
-	if (err < 0) {
-		pr_err("%s, failed to get iscsi param err=%d.\n",
-			 tdev->name, err);
-		return err;
-	}
-
-	err = cxgbi_ddp_init(cdev, uinfo.llimit, uinfo.ulimit,
-			uinfo.max_txsz, uinfo.max_rxsz);
-	if (err < 0)
-		return err;
-
-	ddp = cdev->ddp;
-
-	uinfo.tagmask = ddp->idx_mask << PPOD_IDX_SHIFT;
-	cxgbi_ddp_page_size_factor(pgsz_factor);
-	for (i = 0; i < 4; i++)
-		uinfo.pgsz_factor[i] = pgsz_factor[i];
-	uinfo.ulimit = uinfo.llimit + (ddp->nppods << PPOD_SIZE_SHIFT);
-
-	err = tdev->ctl(tdev, ULP_ISCSI_SET_PARAMS, &uinfo);
-	if (err < 0) {
-		pr_warn("%s unable to set iscsi param err=%d, ddp disabled.\n",
-			tdev->name, err);
-		cxgbi_ddp_cleanup(cdev);
-		return err;
-	}
-	tdev->ulp_iscsi = ddp;
-
 	cdev->csk_ddp_setup_digest = ddp_setup_conn_digest;
 	cdev->csk_ddp_setup_pgidx = ddp_setup_conn_pgidx;
-	cdev->csk_ddp_set = ddp_set_map;
-	cdev->csk_ddp_clear = ddp_clear_map;
-
-	pr_info("tdev 0x%p, nppods %u, bits %u, mask 0x%x,0x%x pkt %u/%u, "
-		"%u/%u.\n",
-		tdev, ddp->nppods, ddp->idx_bits, ddp->idx_mask,
-		ddp->rsvd_tag_mask, ddp->max_txsz, uinfo.max_txsz,
-		ddp->max_rxsz, uinfo.max_rxsz);
 	return 0;
 }
 
@@ -1325,7 +1198,6 @@ static void cxgb3i_dev_open(struct t3cdev *t3dev)
 	cdev->rx_credit_thres = cxgb3i_rx_credit_thres;
 	cdev->skb_tx_rsvd = CXGB3I_TX_HEADER_LEN;
 	cdev->skb_rx_extra = sizeof(struct cpl_iscsi_hdr_norss);
-	cdev->dev_ddp_cleanup = t3_ddp_cleanup;
 	cdev->itp = &cxgb3i_iscsi_transport;
 
 	err = cxgb3i_ddp_init(cdev);

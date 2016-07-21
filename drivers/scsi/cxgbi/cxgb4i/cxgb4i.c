@@ -1543,110 +1543,6 @@ int cxgb4i_ofld_init(struct cxgbi_device *cdev)
 	return 0;
 }
 
-/*
- * functions to program the pagepod in h/w
- */
-#define ULPMEM_IDATA_MAX_NPPODS	4 /* 256/PPOD_SIZE */
-static inline void ulp_mem_io_set_hdr(struct cxgb4_lld_info *lldi,
-				struct ulp_mem_io *req,
-				unsigned int wr_len, unsigned int dlen,
-				unsigned int pm_addr)
-{
-	struct ulptx_idata *idata = (struct ulptx_idata *)(req + 1);
-
-	INIT_ULPTX_WR(req, wr_len, 0, 0);
-	if (is_t4(lldi->adapter_type))
-		req->cmd = htonl(ULPTX_CMD_V(ULP_TX_MEM_WRITE) |
-					(ULP_MEMIO_ORDER_F));
-	else
-		req->cmd = htonl(ULPTX_CMD_V(ULP_TX_MEM_WRITE) |
-					(T5_ULP_MEMIO_IMM_F));
-	req->dlen = htonl(ULP_MEMIO_DATA_LEN_V(dlen >> 5));
-	req->lock_addr = htonl(ULP_MEMIO_ADDR_V(pm_addr >> 5));
-	req->len16 = htonl(DIV_ROUND_UP(wr_len - sizeof(req->wr), 16));
-
-	idata->cmd_more = htonl(ULPTX_CMD_V(ULP_TX_SC_IMM));
-	idata->len = htonl(dlen);
-}
-
-static int ddp_ppod_write_idata(struct cxgbi_device *cdev, unsigned int port_id,
-				struct cxgbi_pagepod_hdr *hdr, unsigned int idx,
-				unsigned int npods,
-				struct cxgbi_gather_list *gl,
-				unsigned int gl_pidx)
-{
-	struct cxgbi_ddp_info *ddp = cdev->ddp;
-	struct cxgb4_lld_info *lldi = cxgbi_cdev_priv(cdev);
-	struct sk_buff *skb;
-	struct ulp_mem_io *req;
-	struct ulptx_idata *idata;
-	struct cxgbi_pagepod *ppod;
-	unsigned int pm_addr = idx * PPOD_SIZE + ddp->llimit;
-	unsigned int dlen = PPOD_SIZE * npods;
-	unsigned int wr_len = roundup(sizeof(struct ulp_mem_io) +
-				sizeof(struct ulptx_idata) + dlen, 16);
-	unsigned int i;
-
-	skb = alloc_wr(wr_len, 0, GFP_ATOMIC);
-	if (!skb) {
-		pr_err("cdev 0x%p, idx %u, npods %u, OOM.\n",
-			cdev, idx, npods);
-		return -ENOMEM;
-	}
-	req = (struct ulp_mem_io *)skb->head;
-	set_wr_txq(skb, CPL_PRIORITY_CONTROL, 0);
-
-	ulp_mem_io_set_hdr(lldi, req, wr_len, dlen, pm_addr);
-	idata = (struct ulptx_idata *)(req + 1);
-	ppod = (struct cxgbi_pagepod *)(idata + 1);
-
-	for (i = 0; i < npods; i++, ppod++, gl_pidx += PPOD_PAGES_MAX) {
-		if (!hdr && !gl)
-			cxgbi_ddp_ppod_clear(ppod);
-		else
-			cxgbi_ddp_ppod_set(ppod, hdr, gl, gl_pidx);
-	}
-
-	cxgb4_ofld_send(cdev->ports[port_id], skb);
-	return 0;
-}
-
-static int ddp_set_map(struct cxgbi_sock *csk, struct cxgbi_pagepod_hdr *hdr,
-			unsigned int idx, unsigned int npods,
-			struct cxgbi_gather_list *gl)
-{
-	unsigned int i, cnt;
-	int err = 0;
-
-	for (i = 0; i < npods; i += cnt, idx += cnt) {
-		cnt = npods - i;
-		if (cnt > ULPMEM_IDATA_MAX_NPPODS)
-			cnt = ULPMEM_IDATA_MAX_NPPODS;
-		err = ddp_ppod_write_idata(csk->cdev, csk->port_id, hdr,
-					idx, cnt, gl, 4 * i);
-		if (err < 0)
-			break;
-	}
-	return err;
-}
-
-static void ddp_clear_map(struct cxgbi_hba *chba, unsigned int tag,
-			  unsigned int idx, unsigned int npods)
-{
-	unsigned int i, cnt;
-	int err;
-
-	for (i = 0; i < npods; i += cnt, idx += cnt) {
-		cnt = npods - i;
-		if (cnt > ULPMEM_IDATA_MAX_NPPODS)
-			cnt = ULPMEM_IDATA_MAX_NPPODS;
-		err = ddp_ppod_write_idata(chba->cdev, chba->port_id, NULL,
-					idx, cnt, NULL, 0);
-		if (err < 0)
-			break;
-	}
-}
-
 static int ddp_setup_conn_pgidx(struct cxgbi_sock *csk, unsigned int tid,
 				int pg_idx, bool reply)
 {
@@ -1712,46 +1608,8 @@ static int ddp_setup_conn_digest(struct cxgbi_sock *csk, unsigned int tid,
 
 static int cxgb4i_ddp_init(struct cxgbi_device *cdev)
 {
-	struct cxgb4_lld_info *lldi = cxgbi_cdev_priv(cdev);
-	struct cxgbi_ddp_info *ddp = cdev->ddp;
-	unsigned int tagmask, pgsz_factor[4];
-	int err;
-
-	if (ddp) {
-		kref_get(&ddp->refcnt);
-		pr_warn("cdev 0x%p, ddp 0x%p already set up.\n",
-			cdev, cdev->ddp);
-		return -EALREADY;
-	}
-
-	err = cxgbi_ddp_init(cdev, lldi->vr->iscsi.start,
-			lldi->vr->iscsi.start + lldi->vr->iscsi.size - 1,
-			lldi->iscsi_iolen, lldi->iscsi_iolen);
-	if (err < 0)
-		return err;
-
-	ddp = cdev->ddp;
-
-	tagmask = ddp->idx_mask << PPOD_IDX_SHIFT;
-	cxgbi_ddp_page_size_factor(pgsz_factor);
-	cxgb4_iscsi_init(lldi->ports[0], tagmask, pgsz_factor);
-
 	cdev->csk_ddp_setup_digest = ddp_setup_conn_digest;
 	cdev->csk_ddp_setup_pgidx = ddp_setup_conn_pgidx;
-	cdev->csk_ddp_set = ddp_set_map;
-	cdev->csk_ddp_clear = ddp_clear_map;
-
-	pr_info("cxgb4i 0x%p tag: sw %u, rsvd %u,%u, mask 0x%x.\n",
-		cdev, cdev->tag_format.sw_bits, cdev->tag_format.rsvd_bits,
-		cdev->tag_format.rsvd_shift, cdev->tag_format.rsvd_mask);
-	pr_info("cxgb4i 0x%p, nppods %u, bits %u, mask 0x%x,0x%x pkt %u/%u, "
-		" %u/%u.\n",
-		cdev, ddp->nppods, ddp->idx_bits, ddp->idx_mask,
-		ddp->rsvd_tag_mask, ddp->max_txsz, lldi->iscsi_iolen,
-		ddp->max_rxsz, lldi->iscsi_iolen);
-	pr_info("cxgb4i 0x%p max payload size: %u/%u, %u/%u.\n",
-		cdev, cdev->tx_max_size, ddp->max_txsz, cdev->rx_max_size,
-		ddp->max_rxsz);
 	return 0;
 }
 
