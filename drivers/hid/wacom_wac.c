@@ -1544,13 +1544,11 @@ static void wacom_wac_finger_usage_mapping(struct hid_device *hdev,
 {
 	struct wacom *wacom = hid_get_drvdata(hdev);
 	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
-	struct wacom_features *features = &wacom_wac->features;
 	struct input_dev *input = wacom_wac->touch_input;
 	unsigned touch_max = wacom_wac->features.touch_max;
 
 	switch (usage->hid) {
 	case HID_GD_X:
-		features->last_slot_field = usage->hid;
 		if (touch_max == 1)
 			wacom_map_usage(input, usage, field, EV_ABS, ABS_X, 4);
 		else
@@ -1558,7 +1556,6 @@ static void wacom_wac_finger_usage_mapping(struct hid_device *hdev,
 					ABS_MT_POSITION_X, 4);
 		break;
 	case HID_GD_Y:
-		features->last_slot_field = usage->hid;
 		if (touch_max == 1)
 			wacom_map_usage(input, usage, field, EV_ABS, ABS_Y, 4);
 		else
@@ -1567,22 +1564,11 @@ static void wacom_wac_finger_usage_mapping(struct hid_device *hdev,
 		break;
 	case HID_DG_WIDTH:
 	case HID_DG_HEIGHT:
-		features->last_slot_field = usage->hid;
 		wacom_map_usage(input, usage, field, EV_ABS, ABS_MT_TOUCH_MAJOR, 0);
 		wacom_map_usage(input, usage, field, EV_ABS, ABS_MT_TOUCH_MINOR, 0);
 		input_set_abs_params(input, ABS_MT_ORIENTATION, 0, 1, 0, 0);
 		break;
-	case HID_DG_CONTACTID:
-		features->last_slot_field = usage->hid;
-		break;
-	case HID_DG_INRANGE:
-		features->last_slot_field = usage->hid;
-		break;
-	case HID_DG_INVERT:
-		features->last_slot_field = usage->hid;
-		break;
 	case HID_DG_TIPSWITCH:
-		features->last_slot_field = usage->hid;
 		wacom_map_usage(input, usage, field, EV_KEY, BTN_TOUCH, 0);
 		break;
 	case HID_DG_CONTACTCOUNT:
@@ -1660,7 +1646,7 @@ static int wacom_wac_finger_event(struct hid_device *hdev,
 
 
 	if (usage->usage_index + 1 == field->report_count) {
-		if (usage->hid == wacom_wac->features.last_slot_field)
+		if (usage->hid == wacom_wac->hid_data.last_slot_field)
 			wacom_wac_finger_slot(wacom_wac, wacom_wac->touch_input);
 	}
 
@@ -1673,31 +1659,35 @@ static void wacom_wac_finger_pre_report(struct hid_device *hdev,
 	struct wacom *wacom = hid_get_drvdata(hdev);
 	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
 	struct hid_data* hid_data = &wacom_wac->hid_data;
+	int i;
 
-	if (hid_data->cc_report != 0 &&
-	    hid_data->cc_report != report->id) {
-		int i;
+	for (i = 0; i < report->maxfield; i++) {
+		struct hid_field *field = report->field[i];
+		int j;
 
-		hid_data->cc_report = report->id;
-		hid_data->cc_index = -1;
-		hid_data->cc_value_index = -1;
+		for (j = 0; j < field->maxusage; j++) {
+			struct hid_usage *usage = &field->usage[j];
 
-		for (i = 0; i < report->maxfield; i++) {
-			struct hid_field *field = report->field[i];
-			int j;
-
-			for (j = 0; j < field->maxusage; j++) {
-				if (field->usage[j].hid == HID_DG_CONTACTCOUNT) {
-					hid_data->cc_index = i;
-					hid_data->cc_value_index = j;
-
-					/* break */
-					i = report->maxfield;
-					j = field->maxusage;
-				}
+			switch (usage->hid) {
+			case HID_GD_X:
+			case HID_GD_Y:
+			case HID_DG_WIDTH:
+			case HID_DG_HEIGHT:
+			case HID_DG_CONTACTID:
+			case HID_DG_INRANGE:
+			case HID_DG_INVERT:
+			case HID_DG_TIPSWITCH:
+				hid_data->last_slot_field = usage->hid;
+				break;
+			case HID_DG_CONTACTCOUNT:
+				hid_data->cc_report = report->id;
+				hid_data->cc_index = i;
+				hid_data->cc_value_index = j;
+				break;
 			}
 		}
 	}
+
 	if (hid_data->cc_report != 0 &&
 	    hid_data->cc_index >= 0) {
 		struct hid_field *field = report->field[hid_data->cc_index];
