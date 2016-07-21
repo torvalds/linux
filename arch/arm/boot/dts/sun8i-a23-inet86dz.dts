@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Hans de Goede <hdegoede@redhat.com>
+ * Copyright 2016 Hans de Goede <hdegoede@redhat.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -39,11 +39,18 @@
  *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "sunxi-reference-design-tablet.dtsi"
+
+/dts-v1/;
+#include "sun8i-a23.dtsi"
 #include "sun8i-reference-design-tablet.dtsi"
 
+/ {
+	model = "INet-86DZ Rev 01";
+	compatible = "primux,inet86dz", "allwinner,sun8i-a23";
+};
+
 &ehci0 {
-	status  = "okay";
+	status = "okay";
 };
 
 &usbphy {
