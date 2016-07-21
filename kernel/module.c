@@ -3168,6 +3168,27 @@ int __weak module_frob_arch_sections(Elf_Ehdr *hdr,
 	return 0;
 }
 
+/* module_blacklist is a comma-separated list of module names */
+static char *module_blacklist;
+static bool blacklisted(char *module_name)
+{
+	const char *p;
+	size_t len;
+
+	if (!module_blacklist)
+		return false;
+
+	for (p = module_blacklist; *p; p += len) {
+		len = strcspn(p, ",");
+		if (strlen(module_name) == len && !memcmp(module_name, p, len))
+			return true;
+		if (p[len] == ',')
+			len++;
+	}
+	return false;
+}
+core_param(module_blacklist, module_blacklist, charp, 0400);
+
 static struct module *layout_and_allocate(struct load_info *info, int flags)
 {
 	/* Module within temporary copy. */
@@ -3177,6 +3198,9 @@ static struct module *layout_and_allocate(struct load_info *info, int flags)
 	mod = setup_load_info(info, flags);
 	if (IS_ERR(mod))
 		return mod;
+
+	if (blacklisted(mod->name))
+		return ERR_PTR(-EPERM);
 
 	err = check_modinfo(mod, info, flags);
 	if (err)
