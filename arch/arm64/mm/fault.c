@@ -41,6 +41,28 @@
 
 static const char *fault_name(unsigned int esr);
 
+#ifdef CONFIG_KPROBES
+static inline int notify_page_fault(struct pt_regs *regs, unsigned int esr)
+{
+	int ret = 0;
+
+	/* kprobe_running() needs smp_processor_id() */
+	if (!user_mode(regs)) {
+		preempt_disable();
+		if (kprobe_running() && kprobe_fault_handler(regs, esr))
+			ret = 1;
+		preempt_enable();
+	}
+
+	return ret;
+}
+#else
+static inline int notify_page_fault(struct pt_regs *regs, unsigned int esr)
+{
+	return 0;
+}
+#endif
+
 /*
  * Dump out the page tables associated with 'addr' in mm 'mm'.
  */
@@ -261,6 +283,9 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
 	int fault, sig, code;
 	unsigned long vm_flags = VM_READ | VM_WRITE | VM_EXEC;
 	unsigned int mm_flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
+
+	if (notify_page_fault(regs, esr))
+		return 0;
 
 	tsk = current;
 	mm  = tsk->mm;
@@ -632,6 +657,7 @@ asmlinkage int __exception do_debug_exception(unsigned long addr,
 
 	return rv;
 }
+NOKPROBE_SYMBOL(do_debug_exception);
 
 #ifdef CONFIG_ARM64_PAN
 void cpu_enable_pan(void *__unused)

@@ -344,6 +344,21 @@ static int emulate_swpX(unsigned int address, unsigned int *data,
 	return res;
 }
 
+#define	ARM_OPCODE_CONDITION_UNCOND	0xf
+
+static unsigned int __kprobes aarch32_check_condition(u32 opcode, u32 psr)
+{
+	u32 cc_bits  = opcode >> 28;
+
+	if (cc_bits != ARM_OPCODE_CONDITION_UNCOND) {
+		if ((*aarch32_opcode_cond_checks[cc_bits])(psr))
+			return ARM_OPCODE_CONDTEST_PASS;
+		else
+			return ARM_OPCODE_CONDTEST_FAIL;
+	}
+	return ARM_OPCODE_CONDTEST_UNCOND;
+}
+
 /*
  * swp_handler logs the id of calling process, dissects the instruction, sanity
  * checks the memory location, calls emulate_swpX for the actual operation and
@@ -358,7 +373,7 @@ static int swp_handler(struct pt_regs *regs, u32 instr)
 
 	type = instr & TYPE_SWPB;
 
-	switch (arm_check_condition(instr, regs->pstate)) {
+	switch (aarch32_check_condition(instr, regs->pstate)) {
 	case ARM_OPCODE_CONDTEST_PASS:
 		break;
 	case ARM_OPCODE_CONDTEST_FAIL:
@@ -440,7 +455,7 @@ static int cp15barrier_handler(struct pt_regs *regs, u32 instr)
 {
 	perf_sw_event(PERF_COUNT_SW_EMULATION_FAULTS, 1, regs, regs->pc);
 
-	switch (arm_check_condition(instr, regs->pstate)) {
+	switch (aarch32_check_condition(instr, regs->pstate)) {
 	case ARM_OPCODE_CONDTEST_PASS:
 		break;
 	case ARM_OPCODE_CONDTEST_FAIL:
