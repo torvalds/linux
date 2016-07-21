@@ -444,8 +444,12 @@ acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context);
 #define OSC_SB_HOTPLUG_OST_SUPPORT		0x00000008
 #define OSC_SB_APEI_SUPPORT			0x00000010
 #define OSC_SB_CPC_SUPPORT			0x00000020
+#define OSC_SB_CPCV2_SUPPORT			0x00000040
+#define OSC_SB_PCLPI_SUPPORT			0x00000080
+#define OSC_SB_OSLPI_SUPPORT			0x00000100
 
 extern bool osc_sb_apei_support_acked;
+extern bool osc_pc_lpi_support_confirmed;
 
 /* PCI Host Bridge _OSC: Capabilities DWORD 2: Support Field */
 #define OSC_PCI_EXT_CONFIG_SUPPORT		0x00000001
