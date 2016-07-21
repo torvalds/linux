@@ -268,6 +268,8 @@ struct mlxsw_driver {
 };
 
 struct mlxsw_resources {
+	u8	max_span_valid:1;
+	u8      max_span;
 };
 
 struct mlxsw_resources *mlxsw_core_resources_get(struct mlxsw_core *mlxsw_core);
