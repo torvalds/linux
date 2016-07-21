@@ -34,8 +34,6 @@
 
 #include "decode-insn.h"
 
-void jprobe_return_break(void);
-
 DEFINE_PER_CPU(struct kprobe *, current_kprobe) = NULL;
 DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
 
@@ -516,18 +514,17 @@ void __kprobes jprobe_return(void)
 	/*
 	 * Jprobe handler return by entering break exception,
 	 * encoded same as kprobe, but with following conditions
-	 * -a magic number in x0 to identify from rest of other kprobes.
+	 * -a special PC to identify it from the other kprobes.
 	 * -restore stack addr to original saved pt_regs
 	 */
-	asm volatile ("ldr x0, [%0]\n\t"
-		      "mov sp, x0\n\t"
-		      ".globl jprobe_return_break\n\t"
-		      "jprobe_return_break:\n\t"
-		      "brk %1\n\t"
-		      :
-		      : "r"(&kcb->jprobe_saved_regs.sp),
-		      "I"(BRK64_ESR_KPROBES)
-		      : "memory");
+	asm volatile("				mov sp, %0	\n"
+		     "jprobe_return_break:	brk %1		\n"
+		     :
+		     : "r" (kcb->jprobe_saved_regs.sp),
+		       "I" (BRK64_ESR_KPROBES)
+		     : "memory");
+
+	unreachable();
 }
 
 int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
@@ -536,6 +533,7 @@ int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 	long stack_addr = kcb->jprobe_saved_regs.sp;
 	long orig_sp = kernel_stack_pointer(regs);
 	struct jprobe *jp = container_of(p, struct jprobe, kp);
+	extern const char jprobe_return_break[];
 
 	if (instruction_pointer(regs) != (u64) jprobe_return_break)
 		return 0;
