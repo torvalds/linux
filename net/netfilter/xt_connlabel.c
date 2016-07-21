@@ -25,7 +25,7 @@ static bool connlabel_match(const struct nf_conn *ct, u16 bit)
 	if (!labels)
 		return false;
 
-	return BIT_WORD(bit) < labels->words && test_bit(bit, labels->bits);
+	return test_bit(bit, labels->bits);
 }
 
 static bool

@@ -113,18 +113,11 @@ static void nft_ct_get_eval(const struct nft_expr *expr,
 #ifdef CONFIG_NF_CONNTRACK_LABELS
 	case NFT_CT_LABELS: {
 		struct nf_conn_labels *labels = nf_ct_labels_find(ct);
-		unsigned int size;
 
-		if (!labels) {
+		if (labels)
+			memcpy(dest, labels->bits, NF_CT_LABELS_MAX_SIZE);
+		else
 			memset(dest, 0, NF_CT_LABELS_MAX_SIZE);
-			return;
-		}
-
-		size = labels->words * sizeof(long);
-		memcpy(dest, labels->bits, size);
-		if (size < NF_CT_LABELS_MAX_SIZE)
-			memset(((char *) dest) + size, 0,
-			       NF_CT_LABELS_MAX_SIZE - size);
 		return;
 	}
 #endif
