@@ -370,7 +370,7 @@ xfs_file_dio_aio_read(
 	return ret;
 }
 
-STATIC ssize_t
+static noinline ssize_t
 xfs_file_dax_read(
 	struct kiocb		*iocb,
 	struct iov_iter		*to)
@@ -875,7 +875,7 @@ out:
 	return ret;
 }
 
-STATIC ssize_t
+static noinline ssize_t
 xfs_file_dax_write(
 	struct kiocb		*iocb,
 	struct iov_iter		*from)
