@@ -982,23 +982,18 @@ int ncsi_process_next_channel(struct ncsi_dev_priv *ndp)
 	spin_lock_irqsave(&ndp->lock, flags);
 	nc = list_first_or_null_rcu(&ndp->channel_queue,
 				    struct ncsi_channel, link);
-	if (nc) {
-		old_state = xchg(&nc->state, NCSI_CHANNEL_INVISIBLE);
-		list_del_init(&nc->link);
+	if (!nc) {
+		spin_unlock_irqrestore(&ndp->lock, flags);
+		goto out;
 	}
+
+	old_state = xchg(&nc->state, NCSI_CHANNEL_INVISIBLE);
+	list_del_init(&nc->link);
+
 	spin_unlock_irqrestore(&ndp->lock, flags);
 
 	ndp->active_channel = nc;
-	ndp->active_package = nc ? nc->package : NULL;
-	if (!nc) {
-		if (ndp->flags & NCSI_DEV_RESHUFFLE) {
-			ndp->flags &= ~NCSI_DEV_RESHUFFLE;
-			return ncsi_choose_active_channel(ndp);
-		}
-
-		ncsi_report_link(ndp, false);
-		return -ENODEV;
-	}
+	ndp->active_package = nc->package;
 
 	switch (old_state) {
 	case NCSI_CHANNEL_INACTIVE:
@@ -1017,6 +1012,17 @@ int ncsi_process_next_channel(struct ncsi_dev_priv *ndp)
 	}
 
 	return 0;
+
+out:
+	ndp->active_channel = NULL;
+	ndp->active_package = NULL;
+	if (ndp->flags & NCSI_DEV_RESHUFFLE) {
+		ndp->flags &= ~NCSI_DEV_RESHUFFLE;
+		return ncsi_choose_active_channel(ndp);
+	}
+
+	ncsi_report_link(ndp, false);
+	return -ENODEV;
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
