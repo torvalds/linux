@@ -21,6 +21,7 @@ struct cls_mall_filter {
 	struct tcf_result res;
 	u32 handle;
 	struct rcu_head	rcu;
+	u32 flags;
 };
 
 struct cls_mall_head {
@@ -33,6 +34,9 @@ static int mall_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 {
 	struct cls_mall_head *head = rcu_dereference_bh(tp->root);
 	struct cls_mall_filter *f = head->filter;
+
+	if (tc_skip_sw(f->flags))
+		return -1;
 
 	return tcf_exts_exec(skb, &f->exts, res);
 }
@@ -55,18 +59,61 @@ static void mall_destroy_filter(struct rcu_head *head)
 	struct cls_mall_filter *f = container_of(head, struct cls_mall_filter, rcu);
 
 	tcf_exts_destroy(&f->exts);
+
 	kfree(f);
+}
+
+static int mall_replace_hw_filter(struct tcf_proto *tp,
+				  struct cls_mall_filter *f,
+				  unsigned long cookie)
+{
+	struct net_device *dev = tp->q->dev_queue->dev;
+	struct tc_to_netdev offload;
+	struct tc_cls_matchall_offload mall_offload = {0};
+
+	offload.type = TC_SETUP_MATCHALL;
+	offload.cls_mall = &mall_offload;
+	offload.cls_mall->command = TC_CLSMATCHALL_REPLACE;
+	offload.cls_mall->exts = &f->exts;
+	offload.cls_mall->cookie = cookie;
+
+	return dev->netdev_ops->ndo_setup_tc(dev, tp->q->handle, tp->protocol,
+					     &offload);
+}
+
+static void mall_destroy_hw_filter(struct tcf_proto *tp,
+				   struct cls_mall_filter *f,
+				   unsigned long cookie)
+{
+	struct net_device *dev = tp->q->dev_queue->dev;
+	struct tc_to_netdev offload;
+	struct tc_cls_matchall_offload mall_offload = {0};
+
+	offload.type = TC_SETUP_MATCHALL;
+	offload.cls_mall = &mall_offload;
+	offload.cls_mall->command = TC_CLSMATCHALL_DESTROY;
+	offload.cls_mall->exts = NULL;
+	offload.cls_mall->cookie = cookie;
+
+	dev->netdev_ops->ndo_setup_tc(dev, tp->q->handle, tp->protocol,
+					     &offload);
 }
 
 static bool mall_destroy(struct tcf_proto *tp, bool force)
 {
 	struct cls_mall_head *head = rtnl_dereference(tp->root);
+	struct net_device *dev = tp->q->dev_queue->dev;
+	struct cls_mall_filter *f = head->filter;
 
-	if (!force && head->filter)
+	if (!force && f)
 		return false;
 
-	if (head->filter)
-		call_rcu(&head->filter->rcu, mall_destroy_filter);
+	if (f) {
+		if (tc_should_offload(dev, tp, f->flags))
+			mall_destroy_hw_filter(tp, f, (unsigned long) f);
+
+		call_rcu(&f->rcu, mall_destroy_filter);
+	}
 	RCU_INIT_POINTER(tp->root, NULL);
 	kfree_rcu(head, rcu);
 	return true;
@@ -117,8 +164,10 @@ static int mall_change(struct net *net, struct sk_buff *in_skb,
 {
 	struct cls_mall_head *head = rtnl_dereference(tp->root);
 	struct cls_mall_filter *fold = (struct cls_mall_filter *) *arg;
+	struct net_device *dev = tp->q->dev_queue->dev;
 	struct cls_mall_filter *f;
 	struct nlattr *tb[TCA_MATCHALL_MAX + 1];
+	u32 flags = 0;
 	int err;
 
 	if (!tca[TCA_OPTIONS])
@@ -135,6 +184,12 @@ static int mall_change(struct net *net, struct sk_buff *in_skb,
 	if (err < 0)
 		return err;
 
+	if (tb[TCA_MATCHALL_FLAGS]) {
+		flags = nla_get_u32(tb[TCA_MATCHALL_FLAGS]);
+		if (!tc_flags_valid(flags))
+			return -EINVAL;
+	}
+
 	f = kzalloc(sizeof(*f), GFP_KERNEL);
 	if (!f)
 		return -ENOBUFS;
@@ -144,10 +199,21 @@ static int mall_change(struct net *net, struct sk_buff *in_skb,
 	if (!handle)
 		handle = 1;
 	f->handle = handle;
+	f->flags = flags;
 
 	err = mall_set_parms(net, tp, f, base, tb, tca[TCA_RATE], ovr);
 	if (err)
 		goto errout;
+
+	if (tc_should_offload(dev, tp, flags)) {
+		err = mall_replace_hw_filter(tp, f, (unsigned long) f);
+		if (err) {
+			if (tc_skip_sw(flags))
+				goto errout;
+			else
+				err = 0;
+		}
+	}
 
 	*arg = (unsigned long) f;
 	rcu_assign_pointer(head->filter, f);
@@ -163,6 +229,10 @@ static int mall_delete(struct tcf_proto *tp, unsigned long arg)
 {
 	struct cls_mall_head *head = rtnl_dereference(tp->root);
 	struct cls_mall_filter *f = (struct cls_mall_filter *) arg;
+	struct net_device *dev = tp->q->dev_queue->dev;
+
+	if (tc_should_offload(dev, tp, f->flags))
+		mall_destroy_hw_filter(tp, f, (unsigned long) f);
 
 	RCU_INIT_POINTER(head->filter, NULL);
 	tcf_unbind_filter(tp, &f->res);
