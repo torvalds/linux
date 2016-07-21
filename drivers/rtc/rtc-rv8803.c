@@ -223,10 +223,20 @@ static int rv8803_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct rv8803_data *rv8803 = dev_get_drvdata(dev);
 	u8 date[7];
-	int flags, ret;
+	int ctrl, flags, ret;
 
 	if ((tm->tm_year < 100) || (tm->tm_year > 199))
 		return -EINVAL;
+
+	ctrl = rv8803_read_reg(rv8803->client, RV8803_CTRL);
+	if (ctrl < 0)
+		return ctrl;
+
+	/* Stop the clock */
+	ret = rv8803_write_reg(rv8803->client, RV8803_CTRL,
+			       ctrl | RV8803_CTRL_RESET);
+	if (ret)
+		return ret;
 
 	date[RV8803_SEC]   = bin2bcd(tm->tm_sec);
 	date[RV8803_MIN]   = bin2bcd(tm->tm_min);
@@ -237,6 +247,12 @@ static int rv8803_set_time(struct device *dev, struct rtc_time *tm)
 	date[RV8803_YEAR]  = bin2bcd(tm->tm_year - 100);
 
 	ret = rv8803_write_regs(rv8803->client, RV8803_SEC, 7, date);
+	if (ret)
+		return ret;
+
+	/* Restart the clock */
+	ret = rv8803_write_reg(rv8803->client, RV8803_CTRL,
+			       ctrl & ~RV8803_CTRL_RESET);
 	if (ret)
 		return ret;
 
