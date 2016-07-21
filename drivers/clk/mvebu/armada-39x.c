@@ -142,6 +142,8 @@ static const struct clk_gating_soc_desc armada_39x_gating_desc[] __initconst = {
 	{ "pex3", NULL, 7 },
 	{ "pex0", NULL, 8 },
 	{ "usb3h0", NULL, 9 },
+	{ "usb3h1", NULL, 10 },
+	{ "sata0", NULL, 15 },
 	{ "sdio", NULL, 17 },
 	{ "xor0", NULL, 22 },
 	{ "xor1", NULL, 28 },
