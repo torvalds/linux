@@ -98,8 +98,7 @@
 #include <linux/platform_data/itco_wdt.h>
 #include <linux/pm_runtime.h>
 
-#if (defined CONFIG_I2C_MUX_GPIO || defined CONFIG_I2C_MUX_GPIO_MODULE) && \
-		defined CONFIG_DMI
+#if IS_ENABLED(CONFIG_I2C_MUX_GPIO) && defined CONFIG_DMI
 #include <linux/gpio.h>
 #include <linux/i2c-mux-gpio.h>
 #endif
@@ -255,8 +254,7 @@ struct i801_priv {
 	int len;
 	u8 *data;
 
-#if (defined CONFIG_I2C_MUX_GPIO || defined CONFIG_I2C_MUX_GPIO_MODULE) && \
-		defined CONFIG_DMI
+#if IS_ENABLED(CONFIG_I2C_MUX_GPIO) && defined CONFIG_DMI
 	const struct i801_mux_config *mux_drvdata;
 	struct platform_device *mux_pdev;
 #endif
@@ -1133,8 +1131,7 @@ static void __init input_apanel_init(void) {}
 static void i801_probe_optional_slaves(struct i801_priv *priv) {}
 #endif	/* CONFIG_X86 && CONFIG_DMI */
 
-#if (defined CONFIG_I2C_MUX_GPIO || defined CONFIG_I2C_MUX_GPIO_MODULE) && \
-		defined CONFIG_DMI
+#if IS_ENABLED(CONFIG_I2C_MUX_GPIO) && defined CONFIG_DMI
 static struct i801_mux_config i801_mux_config_asus_z8_d12 = {
 	.gpio_chip = "gpio_ich",
 	.values = { 0x02, 0x03 },
