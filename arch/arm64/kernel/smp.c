@@ -436,9 +436,9 @@ void __init smp_cpus_done(unsigned int max_cpus)
 
 void __init smp_prepare_boot_cpu(void)
 {
+	set_my_cpu_offset(per_cpu_offset(smp_processor_id()));
 	cpuinfo_store_boot_cpu();
 	save_boot_cpu_run_el();
-	set_my_cpu_offset(per_cpu_offset(smp_processor_id()));
 }
 
 static u64 __init of_get_cpu_mpidr(struct device_node *dn)
