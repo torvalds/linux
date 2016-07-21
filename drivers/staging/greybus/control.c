@@ -329,6 +329,9 @@ int gb_control_bundle_activate(struct gb_control *control, u8 bundle_id)
 	struct gb_control_bundle_pm_response response;
 	int ret;
 
+	if (!control->has_bundle_activate)
+		return 0;
+
 	request.bundle_id = bundle_id;
 	ret = gb_operation_sync(control->connection,
 				GB_CONTROL_TYPE_BUNDLE_ACTIVATE, &request,
@@ -527,6 +530,10 @@ int gb_control_enable(struct gb_control *control)
 
 	if (control->protocol_major > 0 || control->protocol_minor > 1)
 		control->has_bundle_version = true;
+
+	/* FIXME: use protocol version instead */
+	if (!(control->intf->quirks & GB_INTERFACE_QUIRK_NO_PM))
+		control->has_bundle_activate = true;
 
 	return 0;
 

@@ -411,7 +411,8 @@ static int gb_interface_read_and_clear_init_status(struct gb_interface *intf)
 	 */
 	bootrom_quirks = GB_INTERFACE_QUIRK_NO_CPORT_FEATURES |
 				GB_INTERFACE_QUIRK_FORCED_DISABLE |
-				GB_INTERFACE_QUIRK_LEGACY_MODE_SWITCH;
+				GB_INTERFACE_QUIRK_LEGACY_MODE_SWITCH |
+				GB_INTERFACE_QUIRK_NO_PM;
 	switch (init_status) {
 	case GB_INIT_BOOTROM_UNIPRO_BOOT_STARTED:
 	case GB_INIT_BOOTROM_FALLBACK_UNIPRO_BOOT_STARTED:

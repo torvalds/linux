@@ -23,6 +23,7 @@ enum gb_interface_type {
 #define GB_INTERFACE_QUIRK_NO_ARA_IDS			BIT(2)
 #define GB_INTERFACE_QUIRK_FORCED_DISABLE		BIT(3)
 #define GB_INTERFACE_QUIRK_LEGACY_MODE_SWITCH		BIT(4)
+#define GB_INTERFACE_QUIRK_NO_PM			BIT(5)
 
 struct gb_interface {
 	struct device dev;

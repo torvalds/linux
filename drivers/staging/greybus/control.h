@@ -19,6 +19,7 @@ struct gb_control {
 	u8 protocol_major;
 	u8 protocol_minor;
 
+	bool has_bundle_activate;
 	bool has_bundle_version;
 
 	char *vendor_string;
