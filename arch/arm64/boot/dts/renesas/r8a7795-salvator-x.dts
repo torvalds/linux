@@ -431,6 +431,10 @@
 	status = "okay";
 };
 
+&hsusb {
+	status = "okay";
+};
+
 &pcie_bus_clk {
 	clock-frequency = <100000000>;
 	status = "okay";
