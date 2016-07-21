@@ -507,12 +507,20 @@ unsigned int cpufreq_driver_resolve_freq(struct cpufreq_policy *policy,
 {
 	target_freq = clamp_val(target_freq, policy->min, policy->max);
 	policy->cached_target_freq = target_freq;
+
+	if (cpufreq_driver->target_index) {
+		int idx;
+
+		idx = cpufreq_frequency_table_target(policy, target_freq,
+						     CPUFREQ_RELATION_L);
+		policy->cached_resolved_idx = idx;
+		return policy->freq_table[idx].frequency;
+	}
+
 	if (cpufreq_driver->resolve_freq)
 		return cpufreq_driver->resolve_freq(policy, target_freq);
-	policy->cached_resolved_idx =
-		cpufreq_frequency_table_target(policy, target_freq,
-					       CPUFREQ_RELATION_L);
-	return policy->freq_table[policy->cached_resolved_idx].frequency;
+
+	return target_freq;
 }
 
 /*********************************************************************
