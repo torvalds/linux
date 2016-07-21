@@ -265,7 +265,7 @@ static int rv8803_set_time(struct device *dev, struct rtc_time *tm)
 	}
 
 	ret = rv8803_write_reg(rv8803->client, RV8803_FLAG,
-			       flags & ~RV8803_FLAG_V2F);
+			       flags & ~(RV8803_FLAG_V1F | RV8803_FLAG_V2F));
 
 	mutex_unlock(&rv8803->flags_lock);
 
