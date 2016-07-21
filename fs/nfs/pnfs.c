@@ -1808,14 +1808,14 @@ static void
 pnfs_set_plh_return_info(struct pnfs_layout_hdr *lo, enum pnfs_iomode iomode,
 			 u32 seq)
 {
-	if (lo->plh_return_iomode == iomode)
-		return;
-	if (lo->plh_return_iomode != 0)
+	if (lo->plh_return_iomode != 0 && lo->plh_return_iomode != iomode)
 		iomode = IOMODE_ANY;
 	lo->plh_return_iomode = iomode;
 	set_bit(NFS_LAYOUT_RETURN_REQUESTED, &lo->plh_flags);
-	if (!lo->plh_return_seq || pnfs_seqid_is_newer(seq, lo->plh_return_seq))
+	if (seq != 0) {
+		WARN_ON_ONCE(lo->plh_return_seq != 0 && lo->plh_return_seq != seq);
 		lo->plh_return_seq = seq;
+	}
 }
 
 /**
@@ -1876,14 +1876,13 @@ void pnfs_error_mark_layout_for_return(struct inode *inode,
 	bool return_now = false;
 
 	spin_lock(&inode->i_lock);
-	pnfs_set_plh_return_info(lo, range.iomode, lseg->pls_seq);
+	pnfs_set_plh_return_info(lo, range.iomode, 0);
 	/*
 	 * mark all matching lsegs so that we are sure to have no live
 	 * segments at hand when sending layoutreturn. See pnfs_put_lseg()
 	 * for how it works.
 	 */
-	if (!pnfs_mark_matching_lsegs_return(lo, &free_me,
-						&range, lseg->pls_seq)) {
+	if (!pnfs_mark_matching_lsegs_return(lo, &free_me, &range, 0)) {
 		nfs4_stateid stateid;
 		enum pnfs_iomode iomode;
 
