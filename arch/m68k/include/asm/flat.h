@@ -18,4 +18,10 @@ static inline int flat_set_persistent(unsigned long relval,
 	return 0;
 }
 
+#define FLAT_PLAT_INIT(regs) \
+	do { \
+		if (current->mm) \
+			(regs)->d5 = current->mm->start_data; \
+	} while (0)
+
 #endif /* __M68KNOMMU_FLAT_H__ */

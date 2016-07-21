@@ -131,8 +131,6 @@ extern int handle_kernel_fault(struct pt_regs *regs);
 do {                                                    \
 	(_regs)->pc = (_pc);                            \
 	setframeformat(_regs);                          \
-	if (current->mm)                                \
-		(_regs)->d5 = current->mm->start_data;  \
 	(_regs)->sr &= ~0x2000;                         \
 	wrusp(_usp);                                    \
 } while(0)
