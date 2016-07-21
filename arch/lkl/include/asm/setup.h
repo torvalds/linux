@@ -3,8 +3,4 @@
 
 #define COMMAND_LINE_SIZE 4096
 
-#ifndef __ASSEMBLY__
-void wakeup_cpu(void);
-#endif
-
 #endif
