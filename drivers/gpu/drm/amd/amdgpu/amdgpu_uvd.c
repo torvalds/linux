@@ -1106,6 +1106,10 @@ static void amdgpu_uvd_idle_work_handler(struct work_struct *work)
 	if (fences == 0 && handles == 0) {
 		if (adev->pm.dpm_enabled) {
 			amdgpu_dpm_enable_uvd(adev, false);
+			/* just work around for uvd clock remain high even
+			 * when uvd dpm disabled on Polaris10 */
+			if (adev->asic_type == CHIP_POLARIS10)
+				amdgpu_asic_set_uvd_clocks(adev, 0, 0);
 		} else {
 			amdgpu_asic_set_uvd_clocks(adev, 0, 0);
 		}

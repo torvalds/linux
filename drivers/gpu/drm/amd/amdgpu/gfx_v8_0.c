@@ -47,6 +47,8 @@
 #include "dce/dce_10_0_d.h"
 #include "dce/dce_10_0_sh_mask.h"
 
+#include "smu/smu_7_1_3_d.h"
+
 #define GFX8_NUM_GFX_RINGS     1
 #define GFX8_NUM_COMPUTE_RINGS 8
 
@@ -693,6 +695,7 @@ static void gfx_v8_0_init_golden_registers(struct amdgpu_device *adev)
 		amdgpu_program_register_sequence(adev,
 						 polaris10_golden_common_all,
 						 (const u32)ARRAY_SIZE(polaris10_golden_common_all));
+		WREG32_SMC(ixCG_ACLK_CNTL, 0x0000001C);
 		break;
 	case CHIP_CARRIZO:
 		amdgpu_program_register_sequence(adev,

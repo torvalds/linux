@@ -2085,7 +2085,8 @@ static bool __is_valid_access(int off, int size, enum bpf_access_type type)
 }
 
 static bool sk_filter_is_valid_access(int off, int size,
-				      enum bpf_access_type type)
+				      enum bpf_access_type type,
+				      enum bpf_reg_type *reg_type)
 {
 	switch (off) {
 	case offsetof(struct __sk_buff, tc_classid):
@@ -2108,7 +2109,8 @@ static bool sk_filter_is_valid_access(int off, int size,
 }
 
 static bool tc_cls_act_is_valid_access(int off, int size,
-				       enum bpf_access_type type)
+				       enum bpf_access_type type,
+				       enum bpf_reg_type *reg_type)
 {
 	if (type == BPF_WRITE) {
 		switch (off) {
@@ -2123,6 +2125,16 @@ static bool tc_cls_act_is_valid_access(int off, int size,
 			return false;
 		}
 	}
+
+	switch (off) {
+	case offsetof(struct __sk_buff, data):
+		*reg_type = PTR_TO_PACKET;
+		break;
+	case offsetof(struct __sk_buff, data_end):
+		*reg_type = PTR_TO_PACKET_END;
+		break;
+	}
+
 	return __is_valid_access(off, size, type);
 }
 

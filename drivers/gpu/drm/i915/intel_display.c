@@ -8447,16 +8447,16 @@ static void lpt_reset_fdi_mphy(struct drm_i915_private *dev_priv)
 	tmp |= FDI_MPHY_IOSFSB_RESET_CTL;
 	I915_WRITE(SOUTH_CHICKEN2, tmp);
 
-	if (wait_for_atomic_us(I915_READ(SOUTH_CHICKEN2) &
-			       FDI_MPHY_IOSFSB_RESET_STATUS, 100))
+	if (wait_for_us(I915_READ(SOUTH_CHICKEN2) &
+			FDI_MPHY_IOSFSB_RESET_STATUS, 100))
 		DRM_ERROR("FDI mPHY reset assert timeout\n");
 
 	tmp = I915_READ(SOUTH_CHICKEN2);
 	tmp &= ~FDI_MPHY_IOSFSB_RESET_CTL;
 	I915_WRITE(SOUTH_CHICKEN2, tmp);
 
-	if (wait_for_atomic_us((I915_READ(SOUTH_CHICKEN2) &
-				FDI_MPHY_IOSFSB_RESET_STATUS) == 0, 100))
+	if (wait_for_us((I915_READ(SOUTH_CHICKEN2) &
+			 FDI_MPHY_IOSFSB_RESET_STATUS) == 0, 100))
 		DRM_ERROR("FDI mPHY reset de-assert timeout\n");
 }
 
@@ -9440,8 +9440,8 @@ static void hsw_disable_lcpll(struct drm_i915_private *dev_priv,
 		val |= LCPLL_CD_SOURCE_FCLK;
 		I915_WRITE(LCPLL_CTL, val);
 
-		if (wait_for_atomic_us(I915_READ(LCPLL_CTL) &
-				       LCPLL_CD_SOURCE_FCLK_DONE, 1))
+		if (wait_for_us(I915_READ(LCPLL_CTL) &
+				LCPLL_CD_SOURCE_FCLK_DONE, 1))
 			DRM_ERROR("Switching to FCLK failed\n");
 
 		val = I915_READ(LCPLL_CTL);
@@ -9514,8 +9514,8 @@ static void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
 		val &= ~LCPLL_CD_SOURCE_FCLK;
 		I915_WRITE(LCPLL_CTL, val);
 
-		if (wait_for_atomic_us((I915_READ(LCPLL_CTL) &
-					LCPLL_CD_SOURCE_FCLK_DONE) == 0, 1))
+		if (wait_for_us((I915_READ(LCPLL_CTL) &
+				 LCPLL_CD_SOURCE_FCLK_DONE) == 0, 1))
 			DRM_ERROR("Switching back to LCPLL failed\n");
 	}
 
