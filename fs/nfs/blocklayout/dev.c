@@ -235,18 +235,20 @@ bl_parse_simple(struct nfs_server *server, struct pnfs_block_dev *d,
 		struct pnfs_block_volume *volumes, int idx, gfp_t gfp_mask)
 {
 	struct pnfs_block_volume *v = &volumes[idx];
+	struct block_device *bdev;
 	dev_t dev;
 
 	dev = bl_resolve_deviceid(server, v, gfp_mask);
 	if (!dev)
 		return -EIO;
 
-	d->bdev = blkdev_get_by_dev(dev, FMODE_READ | FMODE_WRITE, NULL);
-	if (IS_ERR(d->bdev)) {
+	bdev = blkdev_get_by_dev(dev, FMODE_READ | FMODE_WRITE, NULL);
+	if (IS_ERR(bdev)) {
 		printk(KERN_WARNING "pNFS: failed to open device %d:%d (%ld)\n",
-			MAJOR(dev), MINOR(dev), PTR_ERR(d->bdev));
-		return PTR_ERR(d->bdev);
+			MAJOR(dev), MINOR(dev), PTR_ERR(bdev));
+		return PTR_ERR(bdev);
 	}
+	d->bdev = bdev;
 
 
 	d->len = i_size_read(d->bdev->bd_inode);
@@ -350,17 +352,19 @@ bl_parse_scsi(struct nfs_server *server, struct pnfs_block_dev *d,
 		struct pnfs_block_volume *volumes, int idx, gfp_t gfp_mask)
 {
 	struct pnfs_block_volume *v = &volumes[idx];
+	struct block_device *bdev;
 	const struct pr_ops *ops;
 	int error;
 
 	if (!bl_validate_designator(v))
 		return -EINVAL;
 
-	d->bdev = bl_open_dm_mpath_udev_path(v);
-	if (IS_ERR(d->bdev))
-		d->bdev = bl_open_udev_path(v);
-	if (IS_ERR(d->bdev))
-		return PTR_ERR(d->bdev);
+	bdev = bl_open_dm_mpath_udev_path(v);
+	if (IS_ERR(bdev))
+		bdev = bl_open_udev_path(v);
+	if (IS_ERR(bdev))
+		return PTR_ERR(bdev);
+	d->bdev = bdev;
 
 	d->len = i_size_read(d->bdev->bd_inode);
 	d->map = bl_map_simple;
