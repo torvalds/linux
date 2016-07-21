@@ -873,15 +873,21 @@ void pnfs_clear_layoutreturn_waitbit(struct pnfs_layout_hdr *lo)
 	rpc_wake_up(&NFS_SERVER(lo->plh_inode)->roc_rpcwaitq);
 }
 
+static void
+pnfs_clear_layoutreturn_info(struct pnfs_layout_hdr *lo)
+{
+	lo->plh_return_iomode = 0;
+	lo->plh_return_seq = 0;
+	clear_bit(NFS_LAYOUT_RETURN_REQUESTED, &lo->plh_flags);
+}
+
 static bool
 pnfs_prepare_layoutreturn(struct pnfs_layout_hdr *lo)
 {
 	if (test_and_set_bit(NFS_LAYOUT_RETURN, &lo->plh_flags))
 		return false;
-	lo->plh_return_iomode = 0;
-	lo->plh_return_seq = 0;
 	pnfs_get_layout_hdr(lo);
-	clear_bit(NFS_LAYOUT_RETURN_REQUESTED, &lo->plh_flags);
+	pnfs_clear_layoutreturn_info(lo);
 	return true;
 }
 
@@ -1764,10 +1770,13 @@ pnfs_layout_process(struct nfs4_layoutget *lgp)
 		lo->plh_barrier = be32_to_cpu(res->stateid.seqid);
 	}
 
-	clear_bit(NFS_LAYOUT_INVALID_STID, &lo->plh_flags);
-
 	pnfs_get_lseg(lseg);
 	pnfs_layout_insert_lseg(lo, lseg, &free_me);
+	if (!pnfs_layout_is_valid(lo)) {
+		pnfs_clear_layoutreturn_info(lo);
+		clear_bit(NFS_LAYOUT_INVALID_STID, &lo->plh_flags);
+	}
+
 
 	if (res->return_on_close)
 		set_bit(NFS_LSEG_ROC, &lseg->pls_flags);
