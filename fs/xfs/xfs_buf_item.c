@@ -949,6 +949,7 @@ xfs_buf_item_free(
 	xfs_buf_log_item_t	*bip)
 {
 	xfs_buf_item_free_format(bip);
+	kmem_free(bip->bli_item.li_lv_shadow);
 	kmem_zone_free(xfs_buf_item_zone, bip);
 }
 
