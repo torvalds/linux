@@ -69,6 +69,7 @@
 #define EXTCON_DISP_MHL		41	/* Mobile High-Definition Link */
 #define EXTCON_DISP_DVI		42	/* Digital Visual Interface */
 #define EXTCON_DISP_VGA		43	/* Video Graphics Array */
+#define EXTCON_DISP_DP		44	/* Display Port */
 
 /* Miscellaneous external connector */
 #define EXTCON_DOCK		60
@@ -106,12 +107,17 @@
  * @type:	integer (intval)
  * @value:	0 (low) or 1 (high)
  * @default:	0 (low)
+ * - EXTCON_PROP_USB_TYPEC_POLARITY
+ * @type:	integer (intval)
+ * @value:	0 (normal) or 1 (flip)
+ * @default:	0 (normal)
  */
 #define EXTCON_PROP_USB_ID		0
 #define EXTCON_PROP_USB_VBUS		1
+#define EXTCON_PROP_USB_TYPEC_POLARITY	2
 
 #define EXTCON_PROP_USB_MIN		0
-#define EXTCON_PROP_USB_MAX		1
+#define EXTCON_PROP_USB_MAX		2
 #define EXTCON_PROP_USB_CNT	(EXTCON_PROP_USB_MAX - EXTCON_PROP_USB_MIN + 1)
 
 /* Properties of EXTCON_TYPE_CHG. */
