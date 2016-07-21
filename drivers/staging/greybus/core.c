@@ -181,12 +181,11 @@ static int greybus_probe(struct device *dev)
 		return retval;
 	}
 
-	/*
-	 * FIXME: We need to perform error handling on bundle activate call
-	 * below when firmware is ready. We just allow the activate operation to
-	 * fail for now since bundle may be in active already.
-	 */
-	gb_control_bundle_activate(bundle->intf->control, bundle->id);
+	retval = gb_control_bundle_activate(bundle->intf->control, bundle->id);
+	if (retval) {
+		pm_runtime_put(&bundle->intf->dev);
+		return retval;
+	}
 
 	/*
 	 * Unbound bundle devices are always deactivated. During probe, the
