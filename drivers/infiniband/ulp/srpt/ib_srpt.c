@@ -2262,7 +2262,7 @@ static void srpt_queue_response(struct se_cmd *cmd)
 		container_of(cmd, struct srpt_send_ioctx, cmd);
 	struct srpt_rdma_ch *ch = ioctx->ch;
 	struct srpt_device *sdev = ch->sport->sdev;
-	struct ib_send_wr send_wr, *first_wr = NULL, *bad_wr;
+	struct ib_send_wr send_wr, *first_wr = &send_wr, *bad_wr;
 	struct ib_sge sge;
 	enum srpt_command_state state;
 	unsigned long flags;
@@ -2303,11 +2303,8 @@ static void srpt_queue_response(struct se_cmd *cmd)
 			struct srpt_rw_ctx *ctx = &ioctx->rw_ctxs[i];
 
 			first_wr = rdma_rw_ctx_wrs(&ctx->rw, ch->qp,
-					ch->sport->port, NULL,
-					first_wr ? first_wr : &send_wr);
+					ch->sport->port, NULL, first_wr);
 		}
-	} else {
-		first_wr = &send_wr;
 	}
 
 	if (state != SRPT_STATE_MGMT)
