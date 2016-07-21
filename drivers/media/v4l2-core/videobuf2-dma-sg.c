@@ -225,6 +225,9 @@ static void *vb2_dma_sg_get_userptr(struct device *dev, unsigned long vaddr,
 	struct sg_table *sgt;
 	struct frame_vector *vec;
 
+	if (WARN_ON(!dev))
+		return ERR_PTR(-EINVAL);
+
 	buf = kzalloc(sizeof *buf, GFP_KERNEL);
 	if (!buf)
 		return ERR_PTR(-ENOMEM);
@@ -606,6 +609,9 @@ static void *vb2_dma_sg_attach_dmabuf(struct device *dev, struct dma_buf *dbuf,
 {
 	struct vb2_dma_sg_buf *buf;
 	struct dma_buf_attachment *dba;
+
+	if (WARN_ON(!dev))
+		return ERR_PTR(-EINVAL);
 
 	if (dbuf->size < size)
 		return ERR_PTR(-EFAULT);
