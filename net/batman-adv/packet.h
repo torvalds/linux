@@ -252,16 +252,6 @@ struct batadv_elp_packet {
 #define BATADV_ELP_HLEN sizeof(struct batadv_elp_packet)
 
 /**
- * enum batadv_icmp_user_cmd_type - types for batman-adv icmp cmd modes
- * @BATADV_TP_START: start a throughput meter run
- * @BATADV_TP_STOP: stop a throughput meter run
- */
-enum batadv_icmp_user_cmd_type {
-	BATADV_TP_START		= 0,
-	BATADV_TP_STOP		= 2,
-};
-
-/**
  * struct batadv_icmp_header - common members among all the ICMP packets
  * @packet_type: batman-adv packet type, part of the general header
  * @version: batman-adv protocol version, part of the genereal header
