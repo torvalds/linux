@@ -318,13 +318,14 @@
 #define GLOBAL2_PRIO_OVERRIDE_SNOOP_SHIFT	4
 #define GLOBAL2_PRIO_OVERRIDE_FORCE_ARP		BIT(3)
 #define GLOBAL2_PRIO_OVERRIDE_ARP_SHIFT		0
-#define GLOBAL2_EEPROM_OP	0x14
-#define GLOBAL2_EEPROM_OP_BUSY		BIT(15)
-#define GLOBAL2_EEPROM_OP_WRITE		((3 << 12) | GLOBAL2_EEPROM_OP_BUSY)
-#define GLOBAL2_EEPROM_OP_READ		((4 << 12) | GLOBAL2_EEPROM_OP_BUSY)
-#define GLOBAL2_EEPROM_OP_LOAD		BIT(11)
-#define GLOBAL2_EEPROM_OP_WRITE_EN	BIT(10)
-#define GLOBAL2_EEPROM_OP_ADDR_MASK	0xff
+#define GLOBAL2_EEPROM_CMD		0x14
+#define GLOBAL2_EEPROM_CMD_BUSY		BIT(15)
+#define GLOBAL2_EEPROM_CMD_OP_WRITE	((0x3 << 12) | GLOBAL2_EEPROM_CMD_BUSY)
+#define GLOBAL2_EEPROM_CMD_OP_READ	((0x4 << 12) | GLOBAL2_EEPROM_CMD_BUSY)
+#define GLOBAL2_EEPROM_CMD_OP_LOAD	((0x6 << 12) | GLOBAL2_EEPROM_CMD_BUSY)
+#define GLOBAL2_EEPROM_CMD_RUNNING	BIT(11)
+#define GLOBAL2_EEPROM_CMD_WRITE_EN	BIT(10)
+#define GLOBAL2_EEPROM_CMD_ADDR_MASK	0xff
 #define GLOBAL2_EEPROM_DATA	0x15
 #define GLOBAL2_PTP_AVB_OP	0x16
 #define GLOBAL2_PTP_AVB_DATA	0x17
@@ -387,11 +388,6 @@ enum mv88e6xxx_cap {
 	 */
 	MV88E6XXX_CAP_EEE,
 
-	/* EEPROM Command and Data registers.
-	 * See GLOBAL2_EEPROM_OP and GLOBAL2_EEPROM_DATA.
-	 */
-	MV88E6XXX_CAP_EEPROM,
-
 	/* Switch Global 2 Registers.
 	 * The device contains a second set of global 16-bit registers.
 	 */
@@ -404,6 +400,8 @@ enum mv88e6xxx_cap {
 	MV88E6XXX_CAP_G2_PVT_DATA,	/* (0x0c) Cross Chip Port VLAN Data */
 	MV88E6XXX_CAP_G2_SWITCH_MAC,	/* (0x0d) Switch MAC/WoL/WoF */
 	MV88E6XXX_CAP_G2_POT,		/* (0x0f) Priority Override Table */
+	MV88E6XXX_CAP_G2_EEPROM_CMD,	/* (0x14) EEPROM Command */
+	MV88E6XXX_CAP_G2_EEPROM_DATA,	/* (0x15) EEPROM Data */
 
 	/* Multi-chip Addressing Mode.
 	 * Some chips require an indirect SMI access when their SMI device
@@ -443,7 +441,6 @@ enum mv88e6xxx_cap {
 
 /* Bitmask of capabilities */
 #define MV88E6XXX_FLAG_EEE		BIT(MV88E6XXX_CAP_EEE)
-#define MV88E6XXX_FLAG_EEPROM		BIT(MV88E6XXX_CAP_EEPROM)
 #define MV88E6XXX_FLAG_GLOBAL2		BIT(MV88E6XXX_CAP_GLOBAL2)
 #define MV88E6XXX_FLAG_G2_MGMT_EN_2X	BIT(MV88E6XXX_CAP_G2_MGMT_EN_2X)
 #define MV88E6XXX_FLAG_G2_MGMT_EN_0X	BIT(MV88E6XXX_CAP_G2_MGMT_EN_0X)
@@ -453,6 +450,8 @@ enum mv88e6xxx_cap {
 #define MV88E6XXX_FLAG_G2_PVT_DATA	BIT(MV88E6XXX_CAP_G2_PVT_DATA)
 #define MV88E6XXX_FLAG_G2_SWITCH_MAC	BIT(MV88E6XXX_CAP_G2_SWITCH_MAC)
 #define MV88E6XXX_FLAG_G2_POT		BIT(MV88E6XXX_CAP_G2_POT)
+#define MV88E6XXX_FLAG_G2_EEPROM_CMD	BIT(MV88E6XXX_CAP_G2_EEPROM_CMD)
+#define MV88E6XXX_FLAG_G2_EEPROM_DATA	BIT(MV88E6XXX_CAP_G2_EEPROM_DATA)
 #define MV88E6XXX_FLAG_MULTI_CHIP	BIT(MV88E6XXX_CAP_MULTI_CHIP)
 #define MV88E6XXX_FLAG_PPU		BIT(MV88E6XXX_CAP_PPU)
 #define MV88E6XXX_FLAG_PPU_ACTIVE	BIT(MV88E6XXX_CAP_PPU_ACTIVE)
@@ -461,6 +460,11 @@ enum mv88e6xxx_cap {
 #define MV88E6XXX_FLAG_TEMP		BIT(MV88E6XXX_CAP_TEMP)
 #define MV88E6XXX_FLAG_TEMP_LIMIT	BIT(MV88E6XXX_CAP_TEMP_LIMIT)
 #define MV88E6XXX_FLAG_VTU		BIT(MV88E6XXX_CAP_VTU)
+
+/* EEPROM Programming via Global2 with 16-bit data */
+#define MV88E6XXX_FLAGS_EEPROM16	\
+	(MV88E6XXX_FLAG_G2_EEPROM_CMD |	\
+	 MV88E6XXX_FLAG_G2_EEPROM_DATA)
 
 /* Ingress Rate Limit unit */
 #define MV88E6XXX_FLAGS_IRL		\
@@ -513,7 +517,6 @@ enum mv88e6xxx_cap {
 
 #define MV88E6XXX_FLAGS_FAMILY_6320	\
 	(MV88E6XXX_FLAG_EEE |		\
-	 MV88E6XXX_FLAG_EEPROM |	\
 	 MV88E6XXX_FLAG_GLOBAL2 |	\
 	 MV88E6XXX_FLAG_G2_MGMT_EN_2X |	\
 	 MV88E6XXX_FLAG_G2_MGMT_EN_0X |	\
@@ -525,6 +528,7 @@ enum mv88e6xxx_cap {
 	 MV88E6XXX_FLAG_TEMP |		\
 	 MV88E6XXX_FLAG_TEMP_LIMIT |	\
 	 MV88E6XXX_FLAG_VTU |		\
+	 MV88E6XXX_FLAGS_EEPROM16 |	\
 	 MV88E6XXX_FLAGS_IRL |		\
 	 MV88E6XXX_FLAGS_PVT)
 
@@ -545,7 +549,6 @@ enum mv88e6xxx_cap {
 
 #define MV88E6XXX_FLAGS_FAMILY_6352	\
 	(MV88E6XXX_FLAG_EEE |		\
-	 MV88E6XXX_FLAG_EEPROM |	\
 	 MV88E6XXX_FLAG_GLOBAL2 |	\
 	 MV88E6XXX_FLAG_G2_MGMT_EN_2X |	\
 	 MV88E6XXX_FLAG_G2_MGMT_EN_0X |	\
@@ -558,6 +561,7 @@ enum mv88e6xxx_cap {
 	 MV88E6XXX_FLAG_TEMP |		\
 	 MV88E6XXX_FLAG_TEMP_LIMIT |	\
 	 MV88E6XXX_FLAG_VTU |		\
+	 MV88E6XXX_FLAGS_EEPROM16 |	\
 	 MV88E6XXX_FLAGS_IRL |		\
 	 MV88E6XXX_FLAGS_PVT)
 
@@ -628,17 +632,6 @@ struct mv88e6xxx_chip {
 	 * Hold this mutex over snapshot + dump sequences.
 	 */
 	struct mutex	stats_mutex;
-
-	/* This mutex serializes phy access for chips with
-	 * indirect phy addressing. It is unused for chips
-	 * with direct phy access.
-	 */
-	struct mutex	phy_mutex;
-
-	/* This mutex serializes eeprom access for chips with
-	 * eeprom support.
-	 */
-	struct mutex eeprom_mutex;
 
 	struct mv88e6xxx_priv_port	ports[DSA_MAX_PORTS];
 
