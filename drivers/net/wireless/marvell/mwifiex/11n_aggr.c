@@ -205,7 +205,8 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 
 	do {
 		/* Check if AMSDU can accommodate this MSDU */
-		if (skb_tailroom(skb_aggr) < (skb_src->len + LLC_SNAP_LEN))
+		if ((skb_aggr->len + skb_src->len + LLC_SNAP_LEN) >
+		    adapter->tx_buf_size)
 			break;
 
 		skb_src = skb_dequeue(&pra_list->skb_head);
