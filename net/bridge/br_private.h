@@ -975,7 +975,7 @@ void __br_set_forward_delay(struct net_bridge *br, unsigned long t);
 int br_set_forward_delay(struct net_bridge *br, unsigned long x);
 int br_set_hello_time(struct net_bridge *br, unsigned long x);
 int br_set_max_age(struct net_bridge *br, unsigned long x);
-int br_set_ageing_time(struct net_bridge *br, u32 ageing_time);
+int br_set_ageing_time(struct net_bridge *br, clock_t ageing_time);
 
 
 /* br_stp_if.c */
