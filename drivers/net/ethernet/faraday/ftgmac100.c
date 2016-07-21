@@ -163,15 +163,6 @@ static void ftgmac100_setup_mac(struct ftgmac100 *priv)
 	mac[4] = (l >> 8) & 0xff;
 	mac[5] = l & 0xff;
 
-	if (!is_valid_ether_addr(mac)) {
-		mac[5] = (m >> 8) & 0xff;
-		mac[4] = m & 0xff;
-		mac[3] = (l >> 24) & 0xff;
-		mac[2] = (l >> 16) & 0xff;
-		mac[1] = (l >>  8) & 0xff;
-		mac[0] = l & 0xff;
-	}
-
 	if (is_valid_ether_addr(mac)) {
 		ether_addr_copy(priv->netdev->dev_addr, mac);
 		dev_info(priv->dev, "Read MAC address %pM from chip\n", mac);
