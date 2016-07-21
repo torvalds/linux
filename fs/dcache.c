@@ -2708,7 +2708,7 @@ EXPORT_SYMBOL(d_exact_alias);
  * Parent inode i_mutex must be held over d_lookup and into this call (to
  * keep renames and concurrent inserts, and readdir(2) away).
  */
-void dentry_update_name_case(struct dentry *dentry, struct qstr *name)
+void dentry_update_name_case(struct dentry *dentry, const struct qstr *name)
 {
 	BUG_ON(!inode_is_locked(dentry->d_parent->d_inode));
 	BUG_ON(dentry->d_name.len != name->len); /* d_lookup gives this */
@@ -3111,7 +3111,7 @@ static int prepend(char **buffer, int *buflen, const char *str, int namelen)
  * Data dependency barrier is needed to make sure that we see that terminating
  * NUL.  Alpha strikes again, film at 11...
  */
-static int prepend_name(char **buffer, int *buflen, struct qstr *name)
+static int prepend_name(char **buffer, int *buflen, const struct qstr *name)
 {
 	const char *dname = ACCESS_ONCE(name->name);
 	u32 dlen = ACCESS_ONCE(name->len);
