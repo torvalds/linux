@@ -37,34 +37,55 @@
 #include "rockchip_drm_fb.h"
 #include "rockchip_drm_vop.h"
 
-#define __REG_SET_RELAXED(x, off, mask, shift, v, write_mask) \
-		vop_mask_write(x, off, mask, shift, v, write_mask, true)
+#define VOP_REG_SUPPORT(vop, reg) \
+		(!reg.major || (reg.major == VOP_MAJOR(vop->data->version) && \
+		reg.begin_minor <= VOP_MINOR(vop->data->version) && \
+		reg.end_minor >= VOP_MINOR(vop->data->version) && \
+		reg.mask))
 
-#define __REG_SET_NORMAL(x, off, mask, shift, v, write_mask) \
-		vop_mask_write(x, off, mask, shift, v, write_mask, false)
+#define VOP_WIN_SUPPORT(vop, win, name) \
+		VOP_REG_SUPPORT(vop, win->phy->name)
 
-#define REG_SET(x, off, reg, v, mode) \
-		__REG_SET_##mode(x, off + reg.offset, \
-				 reg.mask, reg.shift, v, reg.write_mask)
-#define REG_SET_MASK(x, off, reg, mask, v, mode) \
-		__REG_SET_##mode(x, off + reg.offset, \
-				 mask, reg.shift, v, reg.write_mask)
+#define VOP_CTRL_SUPPORT(vop, win, name) \
+		VOP_REG_SUPPORT(vop, vop->data->ctrl->name)
+
+#define VOP_INTR_SUPPORT(vop, win, name) \
+		VOP_REG_SUPPORT(vop, vop->data->intr->name)
+
+#define __REG_SET(x, off, mask, shift, v, write_mask, relaxed) \
+		vop_mask_write(x, off, mask, shift, v, write_mask, relaxed)
+
+#define _REG_SET(vop, name, off, reg, mask, v, relaxed) \
+	do { \
+		if (VOP_REG_SUPPORT(vop, reg)) \
+			__REG_SET(vop, off + reg.offset, mask, reg.shift, \
+				  v, reg.write_mask, relaxed); \
+		else \
+			dev_dbg(vop->dev, "Warning: not support "#name"\n"); \
+	} while(0)
+
+#define REG_SET(x, name, off, reg, v, relaxed) \
+		_REG_SET(x, name, off, reg, reg.mask, v, relaxed)
+#define REG_SET_MASK(x, name, off, reg, mask, v, relaxed) \
+		_REG_SET(x, name, off, reg, reg.mask & mask, v, relaxed)
 
 #define VOP_WIN_SET(x, win, name, v) \
-		REG_SET(x, win->offset, VOP_WIN_NAME(win, name), v, RELAXED)
+		REG_SET(x, name, win->offset, VOP_WIN_NAME(win, name), v, true)
 #define VOP_SCL_SET(x, win, name, v) \
-		REG_SET(x, win->offset, win->phy->scl->name, v, RELAXED)
+		REG_SET(x, name, win->offset, win->phy->scl->name, v, true)
 #define VOP_SCL_SET_EXT(x, win, name, v) \
-		REG_SET(x, win->offset, win->phy->scl->ext->name, v, RELAXED)
+		REG_SET(x, name, win->offset, win->phy->scl->ext->name, v, true)
 
 #define VOP_CTRL_SET(x, name, v) \
-		REG_SET(x, 0, (x)->data->ctrl->name, v, NORMAL)
+		REG_SET(x, name, 0, (x)->data->ctrl->name, v, false)
 
 #define VOP_INTR_GET(vop, name) \
 		vop_read_reg(vop, 0, &vop->data->ctrl->name)
 
 #define VOP_INTR_SET(vop, name, mask, v) \
-		REG_SET_MASK(vop, 0, vop->data->intr->name, mask, v, NORMAL)
+		REG_SET_MASK(vop, name, 0, vop->data->intr->name, \
+			     mask, v, false)
+
 #define VOP_INTR_SET_TYPE(vop, name, type, v) \
 	do { \
 		int i, reg = 0, mask = 0; \
@@ -79,6 +100,9 @@
 #define VOP_INTR_GET_TYPE(vop, name, type) \
 		vop_get_intr_type(vop, &vop->data->intr->name, type)
 
+#define VOP_CTRL_GET(x, name) \
+		vop_read_reg(x, 0, vop->data->ctrl->name)
+
 #define VOP_WIN_GET(x, win, name) \
 		vop_read_reg(x, win->offset, &VOP_WIN_NAME(win, name))
 
@@ -87,9 +111,6 @@
 
 #define VOP_WIN_GET_YRGBADDR(vop, win) \
 		vop_readl(vop, win->offset + VOP_WIN_NAME(win, yrgb_mst).offset)
-
-#define VOP_WIN_SUPPORT(win, name) \
-		(win->phy->name.mask ? true : false)
 
 #define to_vop(x) container_of(x, struct vop, crtc)
 #define to_vop_win(x) container_of(x, struct vop_win, base)
@@ -1376,10 +1397,10 @@ static int vop_plane_init(struct vop *vop, struct vop_win *win,
 	drm_object_attach_property(&win->base.base,
 				   vop->plane_zpos_prop, win->win_id);
 
-	if (VOP_WIN_SUPPORT(win, xmirror))
+	if (VOP_WIN_SUPPORT(vop, win, xmirror))
 		rotations |= BIT(DRM_REFLECT_X);
 
-	if (VOP_WIN_SUPPORT(win, ymirror))
+	if (VOP_WIN_SUPPORT(vop, win, ymirror))
 		rotations |= BIT(DRM_REFLECT_Y);
 
 	if (rotations) {
@@ -1509,8 +1530,6 @@ static void vop_destroy_crtc(struct vop *vop)
 
 static int vop_initial(struct vop *vop)
 {
-	const struct vop_data *vop_data = vop->data;
-	const struct vop_reg_data *init_table = vop_data->init_table;
 	struct reset_control *ahb_rst;
 	int i, ret;
 
@@ -1564,13 +1583,12 @@ static int vop_initial(struct vop *vop)
 
 	memcpy(vop->regsbak, vop->regs, vop->len);
 
-	for (i = 0; i < vop_data->table_size; i++)
-		vop_writel(vop, init_table[i].offset, init_table[i].value);
+	VOP_CTRL_SET(vop, global_regdone_en, 1);
 
 	for (i = 0; i < vop->num_wins; i++) {
 		struct vop_win *win = &vop->win[i];
 
-		VOP_WIN_SET(vop, win, enable, 0);
+		VOP_WIN_SET(vop, win, gate, 1);
 	}
 
 	vop_cfg_done(vop);

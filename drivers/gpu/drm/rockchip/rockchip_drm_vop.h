@@ -15,6 +15,14 @@
 #ifndef _ROCKCHIP_DRM_VOP_H
 #define _ROCKCHIP_DRM_VOP_H
 
+/*
+ * major: IP major vertion, used for IP structure
+ * minor: big feature change under same structure
+ */
+#define VOP_VERSION(major, minor)	((major) << 8 | (minor))
+#define VOP_MAJOR(version) 	((version) >> 8)
+#define VOP_MINOR(version) 	((version) & 0xff)
+
 enum vop_data_format {
 	VOP_FMT_ARGB8888 = 0,
 	VOP_FMT_RGB888,
@@ -30,37 +38,58 @@ struct vop_reg_data {
 };
 
 struct vop_reg {
-	uint32_t offset;
-	uint32_t shift;
 	uint32_t mask;
-	bool write_mask;
+	uint32_t offset:12;
+	uint32_t shift:5;
+	uint32_t begin_minor:4;
+	uint32_t end_minor:4;
+	uint32_t major:3;
+	uint32_t write_mask:1;
 };
 
 struct vop_ctrl {
 	struct vop_reg standby;
-	struct vop_reg data_blank;
-	struct vop_reg gate_en;
-	struct vop_reg mmu_en;
+	struct vop_reg htotal_pw;
+	struct vop_reg hact_st_end;
+	struct vop_reg vtotal_pw;
+	struct vop_reg vact_st_end;
+	struct vop_reg vact_st_end_f1;
+	struct vop_reg hpost_st_end;
+	struct vop_reg vpost_st_end;
+	struct vop_reg vpost_st_end_f1;
+	struct vop_reg dsp_interlace;
+	struct vop_reg global_regdone_en;
+	struct vop_reg auto_gate_en;
+	struct vop_reg post_lb_mode;
+	struct vop_reg dsp_layer_sel;
+	struct vop_reg overlay_mode;
+	struct vop_reg core_dclk_div;
+	struct vop_reg p2i_en;
 	struct vop_reg rgb_en;
 	struct vop_reg edp_en;
 	struct vop_reg hdmi_en;
 	struct vop_reg mipi_en;
-	struct vop_reg out_mode;
-	struct vop_reg dsp_layer_sel;
-	struct vop_reg dither_down;
-	struct vop_reg dither_up;
 	struct vop_reg pin_pol;
 	struct vop_reg rgb_pin_pol;
 	struct vop_reg hdmi_pin_pol;
 	struct vop_reg edp_pin_pol;
 	struct vop_reg mipi_pin_pol;
 
-	struct vop_reg htotal_pw;
-	struct vop_reg hact_st_end;
-	struct vop_reg vtotal_pw;
-	struct vop_reg vact_st_end;
-	struct vop_reg hpost_st_end;
-	struct vop_reg vpost_st_end;
+	struct vop_reg dither_up;
+	struct vop_reg dither_down;
+
+	struct vop_reg dsp_data_swap;
+	struct vop_reg dsp_ccir656_avg;
+	struct vop_reg dsp_black;
+	struct vop_reg dsp_blank;
+	struct vop_reg dsp_outzero;
+	struct vop_reg dsp_lut_en;
+
+	struct vop_reg out_mode;
+
+	struct vop_reg xmirror;
+	struct vop_reg ymirror;
+	struct vop_reg dsp_background;
 
 	struct vop_reg cfg_done;
 };
@@ -68,6 +97,7 @@ struct vop_ctrl {
 struct vop_intr {
 	const int *intrs;
 	uint32_t nintrs;
+	struct vop_reg line_flag_num;
 	struct vop_reg enable;
 	struct vop_reg clear;
 	struct vop_reg status;
@@ -111,6 +141,7 @@ struct vop_win_phy {
 	const uint32_t *data_formats;
 	uint32_t nformats;
 
+	struct vop_reg gate;
 	struct vop_reg enable;
 	struct vop_reg format;
 	struct vop_reg xmirror;
@@ -128,6 +159,8 @@ struct vop_win_phy {
 	struct vop_reg src_alpha_ctl;
 	struct vop_reg alpha_mode;
 	struct vop_reg alpha_en;
+	struct vop_reg key_color;
+	struct vop_reg key_en;
 };
 
 struct vop_win_data {
@@ -147,6 +180,7 @@ struct vop_data {
 	const struct vop_intr *intr;
 	const struct vop_win_data *win;
 	unsigned int win_size;
+	uint32_t version;
 	u64 feature;
 };
 
@@ -155,9 +189,23 @@ struct vop_data {
 #define FS_INTR				(1 << 1)
 #define LINE_FLAG_INTR			(1 << 2)
 #define BUS_ERROR_INTR			(1 << 3)
+#define FS_NEW_INTR			(1 << 4)
+#define ADDR_SAME_INTR 			(1 << 5)
+#define LINE_FLAG1_INTR			(1 << 6)
+#define WIN0_EMPTY_INTR			(1 << 7)
+#define WIN1_EMPTY_INTR			(1 << 8)
+#define WIN2_EMPTY_INTR			(1 << 9)
+#define WIN3_EMPTY_INTR			(1 << 10)
+#define HWC_EMPTY_INTR			(1 << 11)
+#define POST_BUF_EMPTY_INTR		(1 << 12)
+#define PWM_GEN_INTR			(1 << 13)
 
 #define INTR_MASK			(DSP_HOLD_VALID_INTR | FS_INTR | \
-					 LINE_FLAG_INTR | BUS_ERROR_INTR)
+					 LINE_FLAG_INTR | BUS_ERROR_INTR | \
+					 FS_NEW_INTR | LINE_FLAG1_INTR | \
+					 WIN0_EMPTY_INTR | WIN1_EMPTY_INTR | \
+					 WIN2_EMPTY_INTR | WIN3_EMPTY_INTR | \
+					 HWC_EMPTY_INTR | POST_BUF_EMPTY_INTR)
 
 #define DSP_HOLD_VALID_INTR_EN(x)	((x) << 4)
 #define FS_INTR_EN(x)			((x) << 5)
