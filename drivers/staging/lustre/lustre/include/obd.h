@@ -1031,7 +1031,7 @@ enum {
 struct lustre_md {
 	struct mdt_body	 *body;
 	struct lov_stripe_md    *lsm;
-	struct lmv_stripe_md    *mea;
+	struct lmv_stripe_md    *lmv;
 #ifdef CONFIG_FS_POSIX_ACL
 	struct posix_acl	*posix_acl;
 #endif
