@@ -562,37 +562,38 @@ int ll_dir_read(struct inode *inode, struct md_op_data *op_data,
 					 namelen, ino, type);
 		}
 
-		if (!done) {
-			next = le64_to_cpu(dp->ldp_hash_end);
-			pos = next;
-			if (pos == MDS_DIR_END_OFF) {
-				/*
-				 * End of directory reached.
-				 */
-				done = 1;
-				ll_release_page(page, 0);
-			} else if (1 /* chain is exhausted*/) {
-				/*
-				 * Normal case: continue to the next
-				 * page.
-				 */
-				ll_release_page(page,
-						le32_to_cpu(dp->ldp_flags) &
-						LDF_COLLIDE);
-				next = pos;
-				page = ll_get_dir_page(inode, pos,
-						       &chain);
-			} else {
-				/*
-				 * go into overflow page.
-				 */
-				LASSERT(le32_to_cpu(dp->ldp_flags) &
-					LDF_COLLIDE);
-				ll_release_page(page, 1);
-			}
-		} else {
+		if (done) {
 			pos = hash;
 			ll_release_page(page, 0);
+			break;
+		}
+
+		next = le64_to_cpu(dp->ldp_hash_end);
+		pos = next;
+		if (pos == MDS_DIR_END_OFF) {
+			/*
+			 * End of directory reached.
+			 */
+			done = 1;
+			ll_release_page(page, 0);
+		} else if (1 /* chain is exhausted*/) {
+			/*
+			 * Normal case: continue to the next
+			 * page.
+			 */
+			ll_release_page(page,
+					le32_to_cpu(dp->ldp_flags) &
+					LDF_COLLIDE);
+			next = pos;
+			page = ll_get_dir_page(inode, pos,
+					       &chain);
+		} else {
+			/*
+			 * go into overflow page.
+			 */
+			LASSERT(le32_to_cpu(dp->ldp_flags) &
+				LDF_COLLIDE);
+			ll_release_page(page, 1);
 		}
 	}
 
