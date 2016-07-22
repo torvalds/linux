@@ -523,10 +523,39 @@ struct drm_encoder_helper_funcs {
 	 *
 	 * This callback is used both by the legacy CRTC helpers and the atomic
 	 * modeset helpers. It is optional in the atomic helpers.
+	 *
+	 * NOTE:
+	 *
+	 * If the driver uses the atomic modeset helpers and needs to inspect
+	 * the connector state or connector display info during mode setting,
+	 * @atomic_mode_set can be used instead.
 	 */
 	void (*mode_set)(struct drm_encoder *encoder,
 			 struct drm_display_mode *mode,
 			 struct drm_display_mode *adjusted_mode);
+
+	/**
+	 * @atomic_mode_set:
+	 *
+	 * This callback is used to update the display mode of an encoder.
+	 *
+	 * Note that the display pipe is completely off when this function is
+	 * called. Drivers which need hardware to be running before they program
+	 * the new display mode (because they implement runtime PM) should not
+	 * use this hook, because the helper library calls it only once and not
+	 * every time the display pipeline is suspended using either DPMS or the
+	 * new "ACTIVE" property. Such drivers should instead move all their
+	 * encoder setup into the ->enable() callback.
+	 *
+	 * This callback is used by the atomic modeset helpers in place of the
+	 * @mode_set callback, if set by the driver. It is optional and should
+	 * be used instead of @mode_set if the driver needs to inspect the
+	 * connector state or display info, since there is no direct way to
+	 * go from the encoder to the current connector.
+	 */
+	void (*atomic_mode_set)(struct drm_encoder *encoder,
+				struct drm_crtc_state *crtc_state,
+				struct drm_connector_state *conn_state);
 
 	/**
 	 * @get_crtc:
