@@ -171,10 +171,11 @@ static int download_firmware(struct gb_bootrom *bootrom, u8 stage)
 
 	rc = request_firmware(&bootrom->fw, firmware_name,
 		&connection->bundle->dev);
-	if (rc)
-		dev_err(&connection->bundle->dev,
-			"Firmware request for %s has failed : %d",
+	if (rc) {
+		dev_err(&connection->bundle->dev, "failed to download %s firmware (%d)\n",
 			firmware_name, rc);
+	}
+
 	return rc;
 }
 
@@ -200,11 +201,8 @@ static int gb_bootrom_firmware_size_request(struct gb_operation *op)
 	mutex_lock(&bootrom->mutex);
 
 	ret = download_firmware(bootrom, size_request->stage);
-	if (ret) {
-		dev_err(dev, "%s: failed to download firmware (%d)\n", __func__,
-			ret);
+	if (ret)
 		goto unlock;
-	}
 
 	if (!gb_operation_response_alloc(op, sizeof(*size_response),
 					 GFP_KERNEL)) {
