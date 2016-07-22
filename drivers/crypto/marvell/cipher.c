@@ -320,7 +320,6 @@ static int mv_cesa_ablkcipher_dma_req_init(struct ablkcipher_request *req,
 		      GFP_KERNEL : GFP_ATOMIC;
 	struct mv_cesa_req *basereq = &creq->base;
 	struct mv_cesa_ablkcipher_dma_iter iter;
-	struct mv_cesa_tdma_chain chain;
 	bool skip_ctx = false;
 	int ret;
 	unsigned int ivsize;
@@ -347,13 +346,13 @@ static int mv_cesa_ablkcipher_dma_req_init(struct ablkcipher_request *req,
 			return -ENOMEM;
 	}
 
-	mv_cesa_tdma_desc_iter_init(&chain);
+	mv_cesa_tdma_desc_iter_init(&basereq->chain);
 	mv_cesa_ablkcipher_req_iter_init(&iter, req);
 
 	do {
 		struct mv_cesa_op_ctx *op;
 
-		op = mv_cesa_dma_add_op(&chain, op_templ, skip_ctx, flags);
+		op = mv_cesa_dma_add_op(&basereq->chain, op_templ, skip_ctx, flags);
 		if (IS_ERR(op)) {
 			ret = PTR_ERR(op);
 			goto err_free_tdma;
@@ -363,18 +362,18 @@ static int mv_cesa_ablkcipher_dma_req_init(struct ablkcipher_request *req,
 		mv_cesa_set_crypt_op_len(op, iter.base.op_len);
 
 		/* Add input transfers */
-		ret = mv_cesa_dma_add_op_transfers(&chain, &iter.base,
+		ret = mv_cesa_dma_add_op_transfers(&basereq->chain, &iter.base,
 						   &iter.src, flags);
 		if (ret)
 			goto err_free_tdma;
 
 		/* Add dummy desc to launch the crypto operation */
-		ret = mv_cesa_dma_add_dummy_launch(&chain, flags);
+		ret = mv_cesa_dma_add_dummy_launch(&basereq->chain, flags);
 		if (ret)
 			goto err_free_tdma;
 
 		/* Add output transfers */
-		ret = mv_cesa_dma_add_op_transfers(&chain, &iter.base,
+		ret = mv_cesa_dma_add_op_transfers(&basereq->chain, &iter.base,
 						   &iter.dst, flags);
 		if (ret)
 			goto err_free_tdma;
@@ -383,13 +382,12 @@ static int mv_cesa_ablkcipher_dma_req_init(struct ablkcipher_request *req,
 
 	/* Add output data for IV */
 	ivsize = crypto_ablkcipher_ivsize(crypto_ablkcipher_reqtfm(req));
-	ret = mv_cesa_dma_add_iv_op(&chain, CESA_SA_CRYPT_IV_SRAM_OFFSET,
+	ret = mv_cesa_dma_add_iv_op(&basereq->chain, CESA_SA_CRYPT_IV_SRAM_OFFSET,
 				    ivsize, CESA_TDMA_SRC_IN_SRAM, flags);
 
 	if (ret)
 		goto err_free_tdma;
 
-	basereq->chain = chain;
 	basereq->chain.last->flags |= CESA_TDMA_END_OF_REQ;
 
 	return 0;
