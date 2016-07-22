@@ -1465,16 +1465,11 @@ static int nfit_test_probe(struct platform_device *pdev)
 	nd_desc->provider_name = NULL;
 	nd_desc->module = THIS_MODULE;
 	nd_desc->ndctl = nfit_test_ctl;
-	acpi_desc->nvdimm_bus = nvdimm_bus_register(&pdev->dev, nd_desc);
-	if (!acpi_desc->nvdimm_bus)
-		return -ENXIO;
 
 	rc = acpi_nfit_init(acpi_desc, nfit_test->nfit_buf,
 			nfit_test->nfit_size);
-	if (rc) {
-		nvdimm_bus_unregister(acpi_desc->nvdimm_bus);
+	if (rc)
 		return rc;
-	}
 
 	if (nfit_test->setup != nfit_test0_setup)
 		return 0;
@@ -1484,21 +1479,14 @@ static int nfit_test_probe(struct platform_device *pdev)
 
 	rc = acpi_nfit_init(acpi_desc, nfit_test->nfit_buf,
 			nfit_test->nfit_size);
-	if (rc) {
-		nvdimm_bus_unregister(acpi_desc->nvdimm_bus);
+	if (rc)
 		return rc;
-	}
 
 	return 0;
 }
 
 static int nfit_test_remove(struct platform_device *pdev)
 {
-	struct nfit_test *nfit_test = to_nfit_test(&pdev->dev);
-	struct acpi_nfit_desc *acpi_desc = &nfit_test->acpi_desc;
-
-	nvdimm_bus_unregister(acpi_desc->nvdimm_bus);
-
 	return 0;
 }
 

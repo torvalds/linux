@@ -2291,12 +2291,33 @@ static int acpi_nfit_check_deletions(struct acpi_nfit_desc *acpi_desc,
 	return 0;
 }
 
+static void acpi_nfit_destruct(void *data)
+{
+	struct acpi_nfit_desc *acpi_desc = data;
+
+	acpi_desc->cancel = 1;
+	flush_workqueue(nfit_wq);
+	nvdimm_bus_unregister(acpi_desc->nvdimm_bus);
+	acpi_desc->nvdimm_bus = NULL;
+}
+
 int acpi_nfit_init(struct acpi_nfit_desc *acpi_desc, void *data, acpi_size sz)
 {
 	struct device *dev = acpi_desc->dev;
 	struct nfit_table_prev prev;
 	const void *end;
 	int rc;
+
+	if (!acpi_desc->nvdimm_bus) {
+		acpi_desc->nvdimm_bus = nvdimm_bus_register(dev,
+				&acpi_desc->nd_desc);
+		if (!acpi_desc->nvdimm_bus)
+			return -ENOMEM;
+		rc = devm_add_action_or_reset(dev, acpi_nfit_destruct,
+				acpi_desc);
+		if (rc)
+			return rc;
+	}
 
 	mutex_lock(&acpi_desc->init_mutex);
 
@@ -2456,9 +2477,6 @@ static int acpi_nfit_add(struct acpi_device *adev)
 	if (!acpi_desc)
 		return -ENOMEM;
 	acpi_nfit_desc_init(acpi_desc, &adev->dev);
-	acpi_desc->nvdimm_bus = nvdimm_bus_register(dev, &acpi_desc->nd_desc);
-	if (!acpi_desc->nvdimm_bus)
-		return -ENOMEM;
 
 	/* Save the acpi header for exporting the revision via sysfs */
 	acpi_desc->acpi_header = *tbl;
@@ -2480,19 +2498,12 @@ static int acpi_nfit_add(struct acpi_device *adev)
 		rc = acpi_nfit_init(acpi_desc, (void *) tbl
 				+ sizeof(struct acpi_table_nfit),
 				sz - sizeof(struct acpi_table_nfit));
-
-	if (rc)
-		nvdimm_bus_unregister(acpi_desc->nvdimm_bus);
 	return rc;
 }
 
 static int acpi_nfit_remove(struct acpi_device *adev)
 {
-	struct acpi_nfit_desc *acpi_desc = dev_get_drvdata(&adev->dev);
-
-	acpi_desc->cancel = 1;
-	flush_workqueue(nfit_wq);
-	nvdimm_bus_unregister(acpi_desc->nvdimm_bus);
+	/* see acpi_nfit_destruct */
 	return 0;
 }
 
@@ -2519,9 +2530,6 @@ static void acpi_nfit_notify(struct acpi_device *adev, u32 event)
 		if (!acpi_desc)
 			goto out_unlock;
 		acpi_nfit_desc_init(acpi_desc, &adev->dev);
-		acpi_desc->nvdimm_bus = nvdimm_bus_register(dev, &acpi_desc->nd_desc);
-		if (!acpi_desc->nvdimm_bus)
-			goto out_unlock;
 	} else {
 		/*
 		 * Finish previous registration before considering new
