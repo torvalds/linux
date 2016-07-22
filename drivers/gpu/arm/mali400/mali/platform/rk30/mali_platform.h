@@ -21,6 +21,7 @@
 #include <linux/mali/mali_utgard.h>
 #include <linux/rockchip/dvfs.h>
 #include <linux/cpufreq.h>
+#include <linux/regulator/consumer.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -113,6 +114,15 @@ struct mali_platform_drv_data {
 	bool power_state;
 
 	_mali_osk_mutex_t *clock_set_lock;
+
+	/*-------------------------------------------------------*/
+	
+	/**
+	 * clk_mali.
+	 */
+	struct clk *clock;
+	
+	struct regulator *regulator;
 };
 
 /** @brief Platform specific setup and initialisation of MALI

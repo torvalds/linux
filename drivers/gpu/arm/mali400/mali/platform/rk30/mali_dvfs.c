@@ -41,7 +41,7 @@
 	container_of(dvfs, struct mali_platform_drv_data, dvfs)
 
 /*---------------------------------------------------------------------------*/
-
+#if 0
 static bool mali_dvfs_should_jump_up(const struct mali_dvfs *p_dvfs)
 {
 	return (p_dvfs->m_count_of_requests_to_jump_up
@@ -53,12 +53,13 @@ static bool mali_dvfs_should_jump_down(const struct mali_dvfs *p_dvfs)
 	return (p_dvfs->m_count_of_requests_to_jump_down
 		>= NUM_OF_CONTINUOUS_REQUESTS_TO_TRIGGER_REAL_JUMPING_DOWN);
 }
-
+#endif
 /**
  * .KP :
  * work_to_handle_mali_utilization_event 的实现主体,
  * 将根据 current_mali_utilization_data, 改变 current_dvfs_level.
  */
+ #if 0
 static void mali_dvfs_event_proc(struct work_struct *w)
 {
 	struct mali_dvfs *dvfs = work_to_dvfs(w);/* mali_dvfs_context. */
@@ -151,7 +152,7 @@ MAKE_DVFS_LEVEL_UPDATE_EFFECTIVE:
 		return;
 	}
 }
-
+#endif
 /**
  * 返回 mali_dvfs_facility 当前是否被使能.
  */
@@ -213,15 +214,17 @@ int mali_dvfs_event(struct device *dev, u32 utilisation)
 	dvfs->utilisation = utilisation;
 	V("mali_utilization_in_percentage : %d", utilisation * 100 / 256);
 
+#if 0
 	if (dvfs->enabled) {
 		/* 将 work_to_handle_mali_utilization_event,
 		 * 放置到 kernel_global_workqueue, 待执行. */
 		schedule_work(&dvfs->work);
 	}
+#endif
 
 	return MALI_TRUE;
 }
-
+#if 0
 static void mali_dvfs_threshold(u32 div,
 				struct mali_platform_drv_data *drv_data)
 {
@@ -262,11 +265,12 @@ static void mali_dvfs_threshold(u32 div,
 			 drv_data->fv_info[level].max);
 	}
 }
-
+#endif
 /*---------------------------------------------------------------------------*/
 
 int mali_dvfs_init(struct device *dev)
 {
+#if 0
 	struct mali_platform_drv_data *drv_data = dev_get_drvdata(dev);
 	/*mali_dvfs_context. */
 	struct mali_dvfs *dvfs = &drv_data->dvfs;
@@ -320,11 +324,13 @@ int mali_dvfs_init(struct device *dev)
 	dvfs->m_count_of_requests_to_jump_up = 0;
 	dvfs->m_count_of_requests_to_jump_down = 0;
 
+#endif
 	return 0;
 }
 
 void mali_dvfs_term(struct device *dev)
 {
+#if 0
 	struct mali_platform_drv_data *drv_data = dev_get_drvdata(dev);
 	struct mali_dvfs *dvfs = &drv_data->dvfs;
 
@@ -333,5 +339,6 @@ void mali_dvfs_term(struct device *dev)
 
 	dvfs->enabled = false;
 	cancel_work_sync(&dvfs->work);
+#endif
 }
 

@@ -21,7 +21,7 @@
  *	.DP : common_parts : ARM 实现的通用的部分.
  */
 
-/* #define ENABLE_DEBUG_LOG */
+#define ENABLE_DEBUG_LOG
 #include "custom_log.h"
 
 #include <linux/platform_device.h>
@@ -32,6 +32,7 @@
 #endif
 #include <linux/workqueue.h>
 #include <linux/dma-mapping.h>
+#include <linux/pm_runtime.h>
 #include <linux/rockchip/cpu.h>
 
 #include <linux/mali/mali_utgard.h>
@@ -217,27 +218,35 @@ static void mali_platform_device_add_config(struct platform_device *pdev)
  */
 int mali_platform_device_init(struct platform_device *pdev)
 {
+// error
 	int err = 0;
 	int num_pp_cores = 0;
 
-	MALI_DEBUG_PRINT(2, ("mali_platform_device_register() called\n"));
+	D("mali_platform_device_register() called\n");
 
+	/*
 	if (cpu_is_rk312x())
 		num_pp_cores = 2;
 	else if (cpu_is_rk3036())
+	*/
 		num_pp_cores = 1;
+	/*
 	else if (cpu_is_rk3188())
 		num_pp_cores = 4;
 	else if (cpu_is_rk3228())
 		num_pp_cores = 2;
+	*/
 
+	D("to add config.");
 	mali_platform_device_add_config(pdev);
 
+	D("to add data to platform_device..");
 	/* 将 platform_specific_data 添加到 platform_device_of_mali_gpu.
 	 * 这里的 platform_specific_data 的类型由 common_part 定义. */
 	err = platform_device_add_data(pdev, &mali_gpu_data,
 				       sizeof(mali_gpu_data));
 	if (err == 0) {
+		D("to init internal_platform_specific_code.");
 		/* .KP : 初始化 platform_device_of_mali_gpu 中,
 		 * 仅和 platform_dependent_part 相关的部分. */
 		err = mali_platform_init(pdev);

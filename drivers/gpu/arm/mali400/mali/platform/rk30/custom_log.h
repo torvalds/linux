@@ -58,7 +58,7 @@ extern "C" {
 #ifdef ENABLE_VERBOSE_LOG
 /** Verbose log. */
 #define V(fmt, args...) \
-	pr_debug("V : [File] : %s; [Line] : %d; [Func] : %s(); " fmt \
+	pr_info("V : [File] : %s; [Line] : %d; [Func] : %s(); " fmt \
 			"\n",	\
 		__FILE__,	\
 		__LINE__,	\
@@ -72,7 +72,7 @@ extern "C" {
 #ifdef ENABLE_DEBUG_LOG
 /** Debug log. */
 #define D(fmt, args...) \
-	pr_debug("D : [File] : %s; [Line] : %d; [Func] : %s(); " fmt \
+	pr_info("D : [File] : %s; [Line] : %d; [Func] : %s(); " fmt \
 			"\n",	\
 		__FILE__,	\
 		__LINE__,	\
