@@ -801,9 +801,11 @@ static inline int it_to_lock_mode(struct lookup_intent *it)
 	/* CREAT needs to be tested before open (both could be set) */
 	if (it->it_op & IT_CREAT)
 		return LCK_CW;
-	else if (it->it_op & (IT_READDIR | IT_GETATTR | IT_OPEN | IT_LOOKUP |
+	else if (it->it_op & (IT_GETATTR | IT_OPEN | IT_LOOKUP |
 			      IT_LAYOUT))
 		return LCK_CR;
+	else if (it->it_op & IT_READDIR)
+		return LCK_PR;
 	else if (it->it_op &  IT_GETXATTR)
 		return LCK_PR;
 	else if (it->it_op &  IT_SETXATTR)
