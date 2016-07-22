@@ -2090,11 +2090,22 @@ struct md_op_data *ll_prep_md_op_data(struct md_op_data *op_data,
 
 	ll_i2gids(op_data->op_suppgids, i1, i2);
 	op_data->op_fid1 = *ll_inode2fid(i1);
+	if (S_ISDIR(i1->i_mode))
+		op_data->op_mea1 = ll_i2info(i1)->lli_lmv_md;
 
-	if (i2)
+	if (i2) {
 		op_data->op_fid2 = *ll_inode2fid(i2);
-	else
+		if (S_ISDIR(i2->i_mode))
+			op_data->op_mea2 = ll_i2info(i2)->lli_lmv_md;
+	} else {
 		fid_zero(&op_data->op_fid2);
+	}
+
+	if (ll_i2sbi(i1)->ll_flags & LL_SBI_64BIT_HASH)
+		op_data->op_cli_flags |= CLI_HASH64;
+
+	if (ll_need_32bit_api(ll_i2sbi(i1)))
+		op_data->op_cli_flags |= CLI_API32;
 
 	op_data->op_name = name;
 	op_data->op_namelen = namelen;

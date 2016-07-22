@@ -173,6 +173,8 @@ struct ll_inode_info {
 			 * -- I am the owner of dir statahead.
 			 */
 			pid_t			   d_opendir_pid;
+			/* directory stripe information */
+			struct lmv_stripe_md		*d_lmv_md;
 		} d;
 
 #define lli_readdir_mutex       u.d.d_readdir_mutex
@@ -180,6 +182,7 @@ struct ll_inode_info {
 #define lli_sai		 u.d.d_sai
 #define lli_sa_lock	     u.d.d_sa_lock
 #define lli_opendir_pid	 u.d.d_opendir_pid
+#define lli_lmv_md		u.d.d_lmv_md
 
 		/* for non-directory */
 		struct {
