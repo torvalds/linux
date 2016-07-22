@@ -913,15 +913,12 @@ int etnaviv_gem_new_userptr(struct drm_device *dev, struct drm_file *file,
 	get_task_struct(current);
 
 	ret = etnaviv_gem_obj_add(dev, &etnaviv_obj->base);
-	if (ret) {
-		drm_gem_object_unreference_unlocked(&etnaviv_obj->base);
-		return ret;
-	}
+	if (ret)
+		goto unreference;
 
 	ret = drm_gem_handle_create(file, &etnaviv_obj->base, handle);
-
+unreference:
 	/* drop reference from allocate - handle holds it now */
 	drm_gem_object_unreference_unlocked(&etnaviv_obj->base);
-
 	return ret;
 }
