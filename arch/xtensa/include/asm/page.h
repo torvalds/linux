@@ -31,10 +31,9 @@
 #define MAX_LOW_PFN	(PHYS_PFN(XCHAL_KSEG_PADDR) + \
 			 PHYS_PFN(XCHAL_KSEG_SIZE))
 #else
-#define PAGE_OFFSET	__XTENSA_UL_CONST(0)
-#define PHYS_OFFSET	__XTENSA_UL_CONST(0)
-#define MAX_LOW_PFN	(PHYS_PFN(PLATFORM_DEFAULT_MEM_START) + \
-			 PHYS_PFN(PLATFORM_DEFAULT_MEM_SIZE))
+#define PAGE_OFFSET	PLATFORM_DEFAULT_MEM_START
+#define PHYS_OFFSET	PLATFORM_DEFAULT_MEM_START
+#define MAX_LOW_PFN	PHYS_PFN(0xfffffffful)
 #endif
 
 #define PGTABLE_START	0x80000000
@@ -163,7 +162,7 @@ void copy_user_highpage(struct page *to, struct page *from,
  * addresses.
  */
 
-#define ARCH_PFN_OFFSET		(PLATFORM_DEFAULT_MEM_START >> PAGE_SHIFT)
+#define ARCH_PFN_OFFSET		(PHYS_OFFSET >> PAGE_SHIFT)
 
 #define __pa(x)	\
 	((unsigned long) (x) - PAGE_OFFSET + PHYS_OFFSET)

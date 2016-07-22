@@ -188,7 +188,6 @@ static int __init parse_bootparam(const bp_tag_t* tag)
 }
 
 #ifdef CONFIG_OF
-bool __initdata dt_memory_scan = false;
 
 #if !XCHAL_HAVE_PTP_MMU || XCHAL_HAVE_SPANNING_WAY
 unsigned long xtensa_kio_paddr = XCHAL_KIO_DEFAULT_PADDR;
@@ -228,9 +227,6 @@ static int __init xtensa_dt_io_area(unsigned long node, const char *uname,
 
 void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 {
-	if (!dt_memory_scan)
-		return;
-
 	size &= PAGE_MASK;
 	add_sysmem_bank(base, base + size);
 }
@@ -242,9 +238,6 @@ void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
 
 void __init early_init_devtree(void *params)
 {
-	if (sysmem.nr_banks == 0)
-		dt_memory_scan = true;
-
 	early_init_dt_scan(params);
 	of_scan_flat_dt(xtensa_dt_io_area, NULL);
 
@@ -277,12 +270,6 @@ void __init init_arch(bp_tag_t *bp_start)
 #ifdef CONFIG_OF
 	early_init_devtree(dtb_start);
 #endif
-
-	if (sysmem.nr_banks == 0) {
-		add_sysmem_bank(PLATFORM_DEFAULT_MEM_START,
-				PLATFORM_DEFAULT_MEM_START +
-				PLATFORM_DEFAULT_MEM_SIZE);
-	}
 
 #ifdef CONFIG_CMDLINE_BOOL
 	if (!command_line[0])
