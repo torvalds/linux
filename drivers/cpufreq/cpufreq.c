@@ -522,6 +522,7 @@ unsigned int cpufreq_driver_resolve_freq(struct cpufreq_policy *policy,
 
 	return target_freq;
 }
+EXPORT_SYMBOL_GPL(cpufreq_driver_resolve_freq);
 
 /*********************************************************************
  *                          SYSFS INTERFACE                          *
