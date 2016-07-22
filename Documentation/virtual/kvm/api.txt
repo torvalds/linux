@@ -2381,6 +2381,9 @@ On arm/arm64, gsi routing being supported, the following can happen:
 - in case no routing entry is associated to this gsi, injection fails
 - in case the gsi is associated to an irqchip routing entry,
   irqchip.pin + 32 corresponds to the injected SPI ID.
+- in case the gsi is associated to an MSI routing entry, the MSI
+  message and device ID are translated into an LPI (support restricted
+  to GICv3 ITS in-kernel emulation).
 
 4.76 KVM_PPC_ALLOCATE_HTAB
 

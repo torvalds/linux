@@ -178,6 +178,7 @@ int kvm_set_irq_routing(struct kvm *kvm,
 			unsigned flags)
 {
 	struct kvm_irq_routing_table *new, *old;
+	struct kvm_kernel_irq_routing_entry *e;
 	u32 i, j, nr_rt_entries = 0;
 	int r;
 
@@ -201,23 +202,25 @@ int kvm_set_irq_routing(struct kvm *kvm,
 			new->chip[i][j] = -1;
 
 	for (i = 0; i < nr; ++i) {
-		struct kvm_kernel_irq_routing_entry *e;
-
 		r = -ENOMEM;
 		e = kzalloc(sizeof(*e), GFP_KERNEL);
 		if (!e)
 			goto out;
 
 		r = -EINVAL;
-		if (ue->flags) {
-			kfree(e);
-			goto out;
+		switch (ue->type) {
+		case KVM_IRQ_ROUTING_MSI:
+			if (ue->flags & ~KVM_MSI_VALID_DEVID)
+				goto free_entry;
+			break;
+		default:
+			if (ue->flags)
+				goto free_entry;
+			break;
 		}
 		r = setup_routing_entry(new, e, ue);
-		if (r) {
-			kfree(e);
-			goto out;
-		}
+		if (r)
+			goto free_entry;
 		++ue;
 	}
 
@@ -234,7 +237,10 @@ int kvm_set_irq_routing(struct kvm *kvm,
 
 	new = old;
 	r = 0;
+	goto out;
 
+free_entry:
+	kfree(e);
 out:
 	free_irq_routing_table(new);
 
