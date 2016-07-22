@@ -18,6 +18,7 @@ struct ipu_plane {
 
 	struct ipu_soc		*ipu;
 	struct ipuv3_channel	*ipu_ch;
+	struct ipuv3_channel	*alpha_ch;
 	struct dmfc_channel	*dmfc;
 	struct ipu_dp		*dp;
 

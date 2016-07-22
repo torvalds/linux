@@ -57,6 +57,12 @@ static const uint32_t ipu_plane_formats[] = {
 	DRM_FORMAT_NV12,
 	DRM_FORMAT_NV16,
 	DRM_FORMAT_RGB565,
+	DRM_FORMAT_RGB565_A8,
+	DRM_FORMAT_BGR565_A8,
+	DRM_FORMAT_RGB888_A8,
+	DRM_FORMAT_BGR888_A8,
+	DRM_FORMAT_RGBX8888_A8,
+	DRM_FORMAT_BGRX8888_A8,
 };
 
 int ipu_plane_irq(struct ipu_plane *ipu_plane)
@@ -126,17 +132,31 @@ void ipu_plane_put_resources(struct ipu_plane *ipu_plane)
 		ipu_dmfc_put(ipu_plane->dmfc);
 	if (!IS_ERR_OR_NULL(ipu_plane->ipu_ch))
 		ipu_idmac_put(ipu_plane->ipu_ch);
+	if (!IS_ERR_OR_NULL(ipu_plane->alpha_ch))
+		ipu_idmac_put(ipu_plane->alpha_ch);
 }
 
 int ipu_plane_get_resources(struct ipu_plane *ipu_plane)
 {
 	int ret;
+	int alpha_ch;
 
 	ipu_plane->ipu_ch = ipu_idmac_get(ipu_plane->ipu, ipu_plane->dma);
 	if (IS_ERR(ipu_plane->ipu_ch)) {
 		ret = PTR_ERR(ipu_plane->ipu_ch);
 		DRM_ERROR("failed to get idmac channel: %d\n", ret);
 		return ret;
+	}
+
+	alpha_ch = ipu_channel_alpha_channel(ipu_plane->dma);
+	if (alpha_ch >= 0) {
+		ipu_plane->alpha_ch = ipu_idmac_get(ipu_plane->ipu, alpha_ch);
+		if (IS_ERR(ipu_plane->alpha_ch)) {
+			ret = PTR_ERR(ipu_plane->alpha_ch);
+			DRM_ERROR("failed to get alpha idmac channel %d: %d\n",
+				  alpha_ch, ret);
+			return ret;
+		}
 	}
 
 	ipu_plane->dmfc = ipu_dmfc_get(ipu_plane->ipu, ipu_plane->dma);
@@ -162,12 +182,29 @@ err_out:
 	return ret;
 }
 
+static bool ipu_plane_separate_alpha(struct ipu_plane *ipu_plane)
+{
+	switch (ipu_plane->base.state->fb->format->format) {
+	case DRM_FORMAT_RGB565_A8:
+	case DRM_FORMAT_BGR565_A8:
+	case DRM_FORMAT_RGB888_A8:
+	case DRM_FORMAT_BGR888_A8:
+	case DRM_FORMAT_RGBX8888_A8:
+	case DRM_FORMAT_BGRX8888_A8:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static void ipu_plane_enable(struct ipu_plane *ipu_plane)
 {
 	if (ipu_plane->dp)
 		ipu_dp_enable(ipu_plane->ipu);
 	ipu_dmfc_enable_channel(ipu_plane->dmfc);
 	ipu_idmac_enable_channel(ipu_plane->ipu_ch);
+	if (ipu_plane_separate_alpha(ipu_plane))
+		ipu_idmac_enable_channel(ipu_plane->alpha_ch);
 	if (ipu_plane->dp)
 		ipu_dp_enable_channel(ipu_plane->dp);
 }
@@ -181,6 +218,8 @@ void ipu_plane_disable(struct ipu_plane *ipu_plane, bool disable_dp_channel)
 	if (ipu_plane->dp && disable_dp_channel)
 		ipu_dp_disable_channel(ipu_plane->dp, false);
 	ipu_idmac_disable_channel(ipu_plane->ipu_ch);
+	if (ipu_plane->alpha_ch)
+		ipu_idmac_disable_channel(ipu_plane->alpha_ch);
 	ipu_dmfc_disable_channel(ipu_plane->dmfc);
 	if (ipu_plane->dp)
 		ipu_dp_disable(ipu_plane->ipu);
@@ -224,7 +263,7 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 	struct device *dev = plane->dev->dev;
 	struct drm_framebuffer *fb = state->fb;
 	struct drm_framebuffer *old_fb = old_state->fb;
-	unsigned long eba, ubo, vbo, old_ubo, old_vbo;
+	unsigned long eba, ubo, vbo, old_ubo, old_vbo, alpha_eba;
 	bool can_position = (plane->type == DRM_PLANE_TYPE_OVERLAY);
 	struct drm_rect clip;
 	int hsub, vsub;
@@ -355,6 +394,23 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 		if (((state->src.x1 >> 16) & (hsub - 1)) ||
 		    ((state->src.y1 >> 16) & (vsub - 1)))
 			return -EINVAL;
+		break;
+	case DRM_FORMAT_RGB565_A8:
+	case DRM_FORMAT_BGR565_A8:
+	case DRM_FORMAT_RGB888_A8:
+	case DRM_FORMAT_BGR888_A8:
+	case DRM_FORMAT_RGBX8888_A8:
+	case DRM_FORMAT_BGRX8888_A8:
+		alpha_eba = drm_plane_state_to_eba(state, 1);
+		if (alpha_eba & 0x7)
+			return -EINVAL;
+
+		if (fb->pitches[1] < 1 || fb->pitches[1] > 16384)
+			return -EINVAL;
+
+		if (old_fb && old_fb->pitches[1] != fb->pitches[1])
+			crtc_state->mode_changed = true;
+		break;
 	}
 
 	return 0;
@@ -379,6 +435,7 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 	struct drm_framebuffer *fb = state->fb;
 	struct drm_rect *dst = &state->dst;
 	unsigned long eba, ubo, vbo;
+	unsigned long alpha_eba = 0;
 	enum ipu_color_space ics;
 	int active;
 
@@ -391,6 +448,12 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 		active = ipu_idmac_get_current_buffer(ipu_plane->ipu_ch);
 		ipu_cpmem_set_buffer(ipu_plane->ipu_ch, !active, eba);
 		ipu_idmac_select_buffer(ipu_plane->ipu_ch, !active);
+		if (ipu_plane_separate_alpha(ipu_plane)) {
+			active = ipu_idmac_get_current_buffer(ipu_plane->alpha_ch);
+			ipu_cpmem_set_buffer(ipu_plane->alpha_ch, !active,
+					     alpha_eba);
+			ipu_idmac_select_buffer(ipu_plane->alpha_ch, !active);
+		}
 		return;
 	}
 
@@ -416,6 +479,12 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 		case DRM_FORMAT_ABGR8888:
 		case DRM_FORMAT_RGBA8888:
 		case DRM_FORMAT_BGRA8888:
+		case DRM_FORMAT_RGB565_A8:
+		case DRM_FORMAT_BGR565_A8:
+		case DRM_FORMAT_RGB888_A8:
+		case DRM_FORMAT_BGR888_A8:
+		case DRM_FORMAT_RGBX8888_A8:
+		case DRM_FORMAT_BGRX8888_A8:
 			ipu_dp_set_global_alpha(ipu_plane->dp, false, 0, false);
 			break;
 		default:
@@ -465,6 +534,32 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 		dev_dbg(ipu_plane->base.dev->dev,
 			"phy = %lu %lu, x = %d, y = %d", eba, ubo,
 			state->src.x1 >> 16, state->src.y1 >> 16);
+		break;
+	case DRM_FORMAT_RGB565_A8:
+	case DRM_FORMAT_BGR565_A8:
+	case DRM_FORMAT_RGB888_A8:
+	case DRM_FORMAT_BGR888_A8:
+	case DRM_FORMAT_RGBX8888_A8:
+	case DRM_FORMAT_BGRX8888_A8:
+		alpha_eba = drm_plane_state_to_eba(state, 1);
+
+		dev_dbg(ipu_plane->base.dev->dev, "phys = %lu %lu, x = %d, y = %d",
+			eba, alpha_eba, state->src.x1 >> 16, state->src.y1 >> 16);
+
+		ipu_cpmem_set_burstsize(ipu_plane->ipu_ch, 16);
+
+		ipu_cpmem_zero(ipu_plane->alpha_ch);
+		ipu_cpmem_set_resolution(ipu_plane->alpha_ch,
+					 drm_rect_width(&state->src) >> 16,
+					 drm_rect_height(&state->src) >> 16);
+		ipu_cpmem_set_format_passthrough(ipu_plane->alpha_ch, 8);
+		ipu_cpmem_set_high_priority(ipu_plane->alpha_ch);
+		ipu_idmac_set_double_buffer(ipu_plane->alpha_ch, 1);
+		ipu_cpmem_set_stride(ipu_plane->alpha_ch,
+				     state->fb->pitches[1]);
+		ipu_cpmem_set_burstsize(ipu_plane->alpha_ch, 16);
+		ipu_cpmem_set_buffer(ipu_plane->alpha_ch, 0, alpha_eba);
+		ipu_cpmem_set_buffer(ipu_plane->alpha_ch, 1, alpha_eba);
 		break;
 	default:
 		dev_dbg(ipu_plane->base.dev->dev, "phys = %lu, x = %d, y = %d",
