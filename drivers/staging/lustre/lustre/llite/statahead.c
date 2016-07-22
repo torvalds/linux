@@ -1075,9 +1075,9 @@ static int ll_statahead_thread(void *arg)
 
 		if (IS_ERR(page)) {
 			rc = PTR_ERR(page);
-			CDEBUG(D_READA, "error reading dir "DFID" at %llu/%llu: [rc %d] [parent %u]\n",
+			CDEBUG(D_READA, "error reading dir "DFID" at %llu/%llu: opendir_pid = %u: rc = %d\n",
 			       PFID(ll_inode2fid(dir)), pos, sai->sai_index,
-			       rc, plli->lli_opendir_pid);
+			       plli->lli_opendir_pid, rc);
 			goto out;
 		}
 
@@ -1364,9 +1364,10 @@ static int is_first_dirent(struct inode *dir, struct dentry *dentry)
 			struct ll_inode_info *lli = ll_i2info(dir);
 
 			rc = PTR_ERR(page);
-			CERROR("error reading dir "DFID" at %llu: [rc %d] [parent %u]\n",
+			CERROR("%s: error reading dir "DFID" at %llu: opendir_pid = %u : rc = %d\n",
+			       ll_get_fsname(dir->i_sb, NULL, 0),
 			       PFID(ll_inode2fid(dir)), pos,
-			       rc, lli->lli_opendir_pid);
+			       lli->lli_opendir_pid, rc);
 			break;
 		}
 
