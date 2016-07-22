@@ -135,6 +135,7 @@
 		compatible ="boe,tv080wum-nl0";
 		reg = <0>;
 		backlight = <&backlight>;
+		enable-gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 };
