@@ -447,9 +447,8 @@ static int init_ixp_crypto(struct device *dev)
 
 	if (!npe_running(npe_c)) {
 		ret = npe_load_firmware(npe_c, npe_name(npe_c), dev);
-		if (ret) {
+		if (ret)
 			return ret;
-		}
 		if (npe_recv_message(npe_c, msg, "STATUS_MSG"))
 			goto npe_error;
 	} else {
