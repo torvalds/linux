@@ -133,7 +133,7 @@ static void fm10k_detach_subtask(struct fm10k_intfc *interface)
 	/* check the real address space to see if we've recovered */
 	hw_addr = READ_ONCE(interface->uc_addr);
 	value = readl(hw_addr);
-	if ((~value)) {
+	if (~value) {
 		interface->hw.hw_addr = interface->uc_addr;
 		netif_device_attach(netdev);
 		interface->flags |= FM10K_FLAG_RESET_REQUESTED;
