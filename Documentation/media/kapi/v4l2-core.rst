@@ -4,7 +4,7 @@ Video2Linux devices
 .. toctree::
     :maxdepth: 1
 
-    v4l2-framework
+    v4l2-intro
     v4l2-dev
     v4l2-controls
     v4l2-device
