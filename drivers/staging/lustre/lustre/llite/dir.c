@@ -489,11 +489,11 @@ static __u16 ll_dirent_type_get(struct lu_dirent *ent)
 	return type;
 }
 
-int ll_dir_read(struct inode *inode, struct md_op_data *op_data,
+int ll_dir_read(struct inode *inode, __u64 *ppos, struct md_op_data *op_data,
 		struct dir_context *ctx)
 {
 	struct ll_sb_info    *sbi	= ll_i2sbi(inode);
-	__u64		   pos		= ctx->pos;
+	__u64		   pos		= *ppos;
 	int		   is_api32 = ll_need_32bit_api(sbi);
 	int		   is_hash64 = sbi->ll_flags & LL_SBI_64BIT_HASH;
 	struct page	  *page;
@@ -626,18 +626,21 @@ static int ll_readdir(struct file *filp, struct dir_context *ctx)
 	}
 
 	ctx->pos = pos;
-	rc = ll_dir_read(inode, op_data, ctx);
+	rc = ll_dir_read(inode, &pos, op_data, ctx);
+	pos = ctx->pos;
 	if (lfd)
-		lfd->lfd_pos = ctx->pos;
-	if (ctx->pos == MDS_DIR_END_OFF) {
+		lfd->lfd_pos = pos;
+
+	if (pos == MDS_DIR_END_OFF) {
 		if (api32)
-			ctx->pos = LL_DIR_END_OFF_32BIT;
+			pos = LL_DIR_END_OFF_32BIT;
 		else
-			ctx->pos = LL_DIR_END_OFF;
+			pos = LL_DIR_END_OFF;
 	} else {
 		if (api32 && hash64)
-			ctx->pos >>= 32;
+			pos >>= 32;
 	}
+	ctx->pos = pos;
 	ll_finish_md_op_data(op_data);
 	filp->f_version = inode->i_version;
 

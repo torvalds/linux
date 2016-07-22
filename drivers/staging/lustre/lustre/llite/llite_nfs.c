@@ -256,6 +256,7 @@ static int ll_get_name(struct dentry *dentry, char *name,
 		.ctx.actor = ll_nfs_get_name_filldir,
 	};
 	struct md_op_data *op_data;
+	__u64 pos = 0;
 
 	if (!dir || !S_ISDIR(dir->i_mode)) {
 		rc = -ENOTDIR;
@@ -275,7 +276,7 @@ static int ll_get_name(struct dentry *dentry, char *name,
 	}
 
 	inode_lock(dir);
-	rc = ll_dir_read(dir, op_data, &lgd.ctx);
+	rc = ll_dir_read(dir, &pos, op_data, &lgd.ctx);
 	inode_unlock(dir);
 	ll_finish_md_op_data(op_data);
 	if (!rc && !lgd.lgd_found)
