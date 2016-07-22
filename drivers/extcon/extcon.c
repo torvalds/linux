@@ -279,14 +279,11 @@ static bool is_extcon_attached(struct extcon_dev *edev, unsigned int index)
 	return !!(edev->state & BIT(index));
 }
 
-static bool is_extcon_changed(u32 prev, u32 new, int idx, bool *attached)
+static bool is_extcon_changed(struct extcon_dev *edev, int index,
+				bool new_state)
 {
-	if (((prev >> idx) & 0x1) != ((new >> idx) & 0x1)) {
-		*attached = ((new >> idx) & 0x1) ? true : false;
-		return true;
-	}
-
-	return false;
+	int state = !!(edev->state & BIT(index));
+	return (state != new_state);
 }
 
 static bool is_extcon_property_supported(unsigned int id, unsigned int prop)
@@ -402,21 +399,13 @@ static ssize_t cable_state_show(struct device *dev,
 }
 
 /**
- * extcon_update_state() - Update the cable attach states of the extcon device
- *			   only for the masked bits.
- * @edev:	the extcon device
- * @mask:	the bit mask to designate updated bits.
- * @state:	new cable attach status for @edev
+ * extcon_sync()	- Synchronize the states for both the attached/detached
+ * @edev:		the extcon device that has the cable.
  *
- * Changing the state sends uevent with environment variable containing
- * the name of extcon device (envp[0]) and the state output (envp[1]).
- * Tizen uses this format for extcon device to get events from ports.
- * Android uses this format as well.
- *
- * Note that the notifier provides which bits are changed in the state
- * variable with the val parameter (second) to the callback.
+ * This function send a notification to synchronize the all states of a
+ * specific external connector
  */
-static int extcon_update_state(struct extcon_dev *edev, u32 mask, u32 state)
+int extcon_sync(struct extcon_dev *edev, unsigned int id)
 {
 	char name_buf[120];
 	char state_buf[120];
@@ -425,73 +414,58 @@ static int extcon_update_state(struct extcon_dev *edev, u32 mask, u32 state)
 	int env_offset = 0;
 	int length;
 	int index;
+	int state;
 	unsigned long flags;
-	bool attached;
 
 	if (!edev)
 		return -EINVAL;
 
+	index = find_cable_index_by_id(edev, id);
+	if (index < 0)
+		return index;
+
 	spin_lock_irqsave(&edev->lock, flags);
 
-	if (edev->state != ((edev->state & ~mask) | (state & mask))) {
-		u32 old_state;
+	state = !!(edev->state & BIT(index));
+	raw_notifier_call_chain(&edev->nh[index], state, edev);
 
-		if (check_mutually_exclusive(edev, (edev->state & ~mask) |
-						   (state & mask))) {
-			spin_unlock_irqrestore(&edev->lock, flags);
-			return -EPERM;
-		}
-
-		old_state = edev->state;
-		edev->state &= ~mask;
-		edev->state |= state & mask;
-
-		for (index = 0; index < edev->max_supported; index++) {
-			if (is_extcon_changed(old_state, edev->state, index,
-					      &attached))
-				raw_notifier_call_chain(&edev->nh[index],
-							attached, edev);
-		}
-
-		/* This could be in interrupt handler */
-		prop_buf = (char *)get_zeroed_page(GFP_ATOMIC);
-		if (prop_buf) {
-			length = name_show(&edev->dev, NULL, prop_buf);
-			if (length > 0) {
-				if (prop_buf[length - 1] == '\n')
-					prop_buf[length - 1] = 0;
-				snprintf(name_buf, sizeof(name_buf),
-					"NAME=%s", prop_buf);
-				envp[env_offset++] = name_buf;
-			}
-			length = state_show(&edev->dev, NULL, prop_buf);
-			if (length > 0) {
-				if (prop_buf[length - 1] == '\n')
-					prop_buf[length - 1] = 0;
-				snprintf(state_buf, sizeof(state_buf),
-					"STATE=%s", prop_buf);
-				envp[env_offset++] = state_buf;
-			}
-			envp[env_offset] = NULL;
-			/* Unlock early before uevent */
-			spin_unlock_irqrestore(&edev->lock, flags);
-
-			kobject_uevent_env(&edev->dev.kobj, KOBJ_CHANGE, envp);
-			free_page((unsigned long)prop_buf);
-		} else {
-			/* Unlock early before uevent */
-			spin_unlock_irqrestore(&edev->lock, flags);
-
-			dev_err(&edev->dev, "out of memory in extcon_set_state\n");
-			kobject_uevent(&edev->dev.kobj, KOBJ_CHANGE);
-		}
-	} else {
-		/* No changes */
+	/* This could be in interrupt handler */
+	prop_buf = (char *)get_zeroed_page(GFP_ATOMIC);
+	if (!prop_buf) {
+		/* Unlock early before uevent */
 		spin_unlock_irqrestore(&edev->lock, flags);
+
+		dev_err(&edev->dev, "out of memory in extcon_set_state\n");
+		kobject_uevent(&edev->dev.kobj, KOBJ_CHANGE);
+
+		return 0;
 	}
+
+	length = name_show(&edev->dev, NULL, prop_buf);
+	if (length > 0) {
+		if (prop_buf[length - 1] == '\n')
+			prop_buf[length - 1] = 0;
+		snprintf(name_buf, sizeof(name_buf), "NAME=%s", prop_buf);
+		envp[env_offset++] = name_buf;
+	}
+
+	length = state_show(&edev->dev, NULL, prop_buf);
+	if (length > 0) {
+		if (prop_buf[length - 1] == '\n')
+			prop_buf[length - 1] = 0;
+		snprintf(state_buf, sizeof(state_buf), "STATE=%s", prop_buf);
+		envp[env_offset++] = state_buf;
+	}
+	envp[env_offset] = NULL;
+
+	/* Unlock early before uevent */
+	spin_unlock_irqrestore(&edev->lock, flags);
+	kobject_uevent_env(&edev->dev.kobj, KOBJ_CHANGE, envp);
+	free_page((unsigned long)prop_buf);
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(extcon_sync);
 
 /**
  * extcon_get_state() - Get the state of a external connector.
@@ -520,17 +494,22 @@ EXPORT_SYMBOL_GPL(extcon_get_state);
 
 /**
  * extcon_set_state() - Set the state of a external connector.
+ *			without a notification.
  * @edev:		the extcon device that has the cable.
  * @id:			the unique id of each external connector
  *			in extcon enumeration.
  * @state:		the new cable status. The default semantics is
  *			true: attached / false: detached.
+ *
+ * This function only set the state of a external connector without
+ * a notification. To synchronize the data of a external connector,
+ * use extcon_set_state_sync() and extcon_sync().
  */
 int extcon_set_state(struct extcon_dev *edev, unsigned int id,
 				bool cable_state)
 {
-	u32 state;
-	int index;
+	unsigned long flags;
+	int index, ret = 0;
 
 	if (!edev)
 		return -EINVAL;
@@ -539,6 +518,18 @@ int extcon_set_state(struct extcon_dev *edev, unsigned int id,
 	if (index < 0)
 		return index;
 
+	spin_lock_irqsave(&edev->lock, flags);
+
+	/* Check whether the external connector's state is changed. */
+	if (!is_extcon_changed(edev, index, cable_state))
+		goto out;
+
+	if (check_mutually_exclusive(edev,
+		(edev->state & ~BIT(index)) | (cable_state & BIT(index)))) {
+		ret = -EPERM;
+		goto out;
+	}
+
 	/*
 	 * Initialize the value of extcon property before setting
 	 * the detached state for an external connector.
@@ -546,10 +537,54 @@ int extcon_set_state(struct extcon_dev *edev, unsigned int id,
 	if (!cable_state)
 		init_property(edev, id, index);
 
-	state = cable_state ? (1 << index) : 0;
-	return extcon_update_state(edev, 1 << index, state);
+	/* Update the state for a external connector. */
+	if (cable_state)
+		edev->state |= BIT(index);
+	else
+		edev->state &= ~(BIT(index));
+out:
+	spin_unlock_irqrestore(&edev->lock, flags);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(extcon_set_state);
+
+/**
+ * extcon_set_state_sync() - Set the state of a external connector
+ *			with a notification.
+ * @edev:		the extcon device that has the cable.
+ * @id:			the unique id of each external connector
+ *			in extcon enumeration.
+ * @state:		the new cable status. The default semantics is
+ *			true: attached / false: detached.
+ *
+ * This function set the state of external connector and synchronize the data
+ * by usning a notification.
+ */
+int extcon_set_state_sync(struct extcon_dev *edev, unsigned int id,
+				bool cable_state)
+{
+	int ret, index;
+	unsigned long flags;
+
+	index = find_cable_index_by_id(edev, id);
+	if (index < 0)
+		return index;
+
+	/* Check whether the external connector's state is changed. */
+	spin_lock_irqsave(&edev->lock, flags);
+	ret = is_extcon_changed(edev, index, cable_state);
+	spin_unlock_irqrestore(&edev->lock, flags);
+	if (!ret)
+		return 0;
+
+	ret = extcon_set_state(edev, id, cable_state);
+	if (ret < 0)
+		return ret;
+
+	return extcon_sync(edev, id);
+}
+EXPORT_SYMBOL_GPL(extcon_set_state_sync);
 
 /**
  * extcon_get_property() - Get the property value of a specific cable.
@@ -700,6 +735,31 @@ int extcon_set_property(struct extcon_dev *edev, unsigned int id,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(extcon_set_property);
+
+/**
+ * extcon_set_property_sync() - Set the property value of a specific cable
+			with a notification.
+ * @prop_val:		the pointer including the new value of property.
+ *
+ * When setting the property value of external connector, the external connector
+ * should be attached. The each property should be included in the list of
+ * supported properties according to the type of external connectors.
+ *
+ * Returns 0 if success or error number if fail
+ */
+int extcon_set_property_sync(struct extcon_dev *edev, unsigned int id,
+				unsigned int prop,
+				union extcon_property_value prop_val)
+{
+	int ret;
+
+	ret = extcon_set_property(edev, id, prop, prop_val);
+	if (ret < 0)
+		return ret;
+
+	return extcon_sync(edev, id);
+}
+EXPORT_SYMBOL_GPL(extcon_set_property_sync);
 
 /**
  * extcon_get_property_capability() - Get the capability of property

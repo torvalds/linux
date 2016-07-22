@@ -222,6 +222,13 @@ extern void devm_extcon_dev_free(struct device *dev, struct extcon_dev *edev);
 extern int extcon_get_state(struct extcon_dev *edev, unsigned int id);
 extern int extcon_set_state(struct extcon_dev *edev, unsigned int id,
 				   bool cable_state);
+extern int extcon_set_state_sync(struct extcon_dev *edev, unsigned int id,
+				bool cable_state);
+
+/*
+ * Synchronize the state and property data for a specific external connector.
+ */
+extern int extcon_sync(struct extcon_dev *edev, unsigned int id);
 
 /*
  * get/set_property access the property value of each external connector.
@@ -231,6 +238,9 @@ extern int extcon_get_property(struct extcon_dev *edev, unsigned int id,
 				unsigned int prop,
 				union extcon_property_value *prop_val);
 extern int extcon_set_property(struct extcon_dev *edev, unsigned int id,
+				unsigned int prop,
+				union extcon_property_value prop_val);
+extern int extcon_set_property_sync(struct extcon_dev *edev, unsigned int id,
 				unsigned int prop,
 				union extcon_property_value prop_val);
 
@@ -317,6 +327,17 @@ static inline int extcon_set_state(struct extcon_dev *edev, unsigned int id,
 	return 0;
 }
 
+static inline int extcon_set_state_sync(struct extcon_dev *edev, unsigned int id,
+				bool cable_state)
+{
+	return 0;
+}
+
+static inline int extcon_sync(struct extcon_dev *edev, unsigned int id)
+{
+	return 0;
+}
+
 static inline int extcon_get_property(struct extcon_dev *edev, unsigned int id,
 					unsigned int prop,
 					union extcon_property_value *prop_val)
@@ -325,6 +346,13 @@ static inline int extcon_get_property(struct extcon_dev *edev, unsigned int id,
 }
 static inline int extcon_set_property(struct extcon_dev *edev, unsigned int id,
 					unsigned int prop,
+					union extcon_property_value prop_val)
+{
+	return 0;
+}
+
+static inline int extcon_set_property_sync(struct extcon_dev *edev,
+					unsigned int id, unsigned int prop,
 					union extcon_property_value prop_val)
 {
 	return 0;
@@ -411,6 +439,6 @@ static inline int extcon_get_cable_state_(struct extcon_dev *edev, unsigned int 
 static inline int extcon_set_cable_state_(struct extcon_dev *edev, unsigned int id,
 				   bool cable_state)
 {
-	return extcon_set_state(edev, id, cable_state);
+	return extcon_set_state_sync(edev, id, cable_state);
 }
 #endif /* __LINUX_EXTCON_H__ */
