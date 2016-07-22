@@ -216,11 +216,11 @@ extern struct extcon_dev *devm_extcon_dev_allocate(struct device *dev,
 extern void devm_extcon_dev_free(struct device *dev, struct extcon_dev *edev);
 
 /*
- * get/set_cable_state access each bit of the 32b encoded state value.
+ * get/set_state access each bit of the 32b encoded state value.
  * They are used to access the status of each cable based on the cable id.
  */
-extern int extcon_get_cable_state_(struct extcon_dev *edev, unsigned int id);
-extern int extcon_set_cable_state_(struct extcon_dev *edev, unsigned int id,
+extern int extcon_get_state(struct extcon_dev *edev, unsigned int id);
+extern int extcon_set_state(struct extcon_dev *edev, unsigned int id,
 				   bool cable_state);
 
 /*
@@ -305,14 +305,14 @@ static inline struct extcon_dev *devm_extcon_dev_allocate(struct device *dev,
 
 static inline void devm_extcon_dev_free(struct extcon_dev *edev) { }
 
-static inline int extcon_get_cable_state_(struct extcon_dev *edev,
-					  unsigned int id)
+
+static inline int extcon_get_state(struct extcon_dev *edev, unsigned int id)
 {
 	return 0;
 }
 
-static inline int extcon_set_cable_state_(struct extcon_dev *edev,
-					  unsigned int id, bool cable_state)
+static inline int extcon_set_state(struct extcon_dev *edev, unsigned int id,
+				bool cable_state)
 {
 	return 0;
 }
@@ -401,5 +401,16 @@ static inline int extcon_unregister_interest(struct extcon_specific_cable_nb
 						    *obj)
 {
 	return -EINVAL;
+}
+
+static inline int extcon_get_cable_state_(struct extcon_dev *edev, unsigned int id)
+{
+	return extcon_get_state(edev, id);
+}
+
+static inline int extcon_set_cable_state_(struct extcon_dev *edev, unsigned int id,
+				   bool cable_state)
+{
+	return extcon_set_state(edev, id, cable_state);
 }
 #endif /* __LINUX_EXTCON_H__ */
