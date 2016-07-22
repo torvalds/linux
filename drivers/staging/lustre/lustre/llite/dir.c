@@ -492,7 +492,6 @@ static __u16 ll_dirent_type_get(struct lu_dirent *ent)
 int ll_dir_read(struct inode *inode, struct md_op_data *op_data,
 		struct dir_context *ctx)
 {
-	struct ll_inode_info *info       = ll_i2info(inode);
 	struct ll_sb_info    *sbi	= ll_i2sbi(inode);
 	__u64		   pos		= ctx->pos;
 	int		   api32      = ll_need_32bit_api(sbi);
@@ -596,8 +595,6 @@ int ll_dir_read(struct inode *inode, struct md_op_data *op_data,
 			}
 		} else {
 			rc = PTR_ERR(page);
-			CERROR("error reading dir "DFID" at %lu: rc %d\n",
-			       PFID(&info->lli_fid), (unsigned long)pos, rc);
 		}
 	}
 
