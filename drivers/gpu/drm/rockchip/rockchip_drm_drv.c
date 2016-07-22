@@ -79,7 +79,7 @@ int rockchip_register_crtc_funcs(struct drm_crtc *crtc,
 	int pipe = drm_crtc_index(crtc);
 	struct rockchip_drm_private *priv = crtc->dev->dev_private;
 
-	if (pipe > ROCKCHIP_MAX_CRTC)
+	if (pipe >= ROCKCHIP_MAX_CRTC)
 		return -EINVAL;
 
 	priv->crtc_funcs[pipe] = crtc_funcs;
@@ -92,7 +92,7 @@ void rockchip_unregister_crtc_funcs(struct drm_crtc *crtc)
 	int pipe = drm_crtc_index(crtc);
 	struct rockchip_drm_private *priv = crtc->dev->dev_private;
 
-	if (pipe > ROCKCHIP_MAX_CRTC)
+	if (pipe >= ROCKCHIP_MAX_CRTC)
 		return;
 
 	priv->crtc_funcs[pipe] = NULL;
@@ -257,7 +257,7 @@ static void rockchip_drm_unbind(struct device *dev)
 	dev_set_drvdata(dev, NULL);
 }
 
-void rockchip_drm_lastclose(struct drm_device *dev)
+static void rockchip_drm_lastclose(struct drm_device *dev)
 {
 	struct rockchip_drm_private *priv = dev->dev_private;
 
