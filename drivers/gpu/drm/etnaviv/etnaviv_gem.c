@@ -535,8 +535,7 @@ void etnaviv_gem_describe_objects(struct etnaviv_drm_private *priv,
 
 static void etnaviv_gem_shmem_release(struct etnaviv_gem_object *etnaviv_obj)
 {
-	if (etnaviv_obj->vaddr)
-		vunmap(etnaviv_obj->vaddr);
+	vunmap(etnaviv_obj->vaddr);
 	put_pages(etnaviv_obj);
 }
 
@@ -670,9 +669,7 @@ static struct drm_gem_object *__etnaviv_gem_new(struct drm_device *dev,
 	return obj;
 
 fail:
-	if (obj)
-		drm_gem_object_unreference_unlocked(obj);
-
+	drm_gem_object_unreference_unlocked(obj);
 	return ERR_PTR(ret);
 }
 
