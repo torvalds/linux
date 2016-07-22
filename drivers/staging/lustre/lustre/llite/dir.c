@@ -498,7 +498,7 @@ int ll_dir_read(struct inode *inode, struct md_op_data *op_data,
 	int		   hash64     = sbi->ll_flags & LL_SBI_64BIT_HASH;
 	struct page	  *page;
 	struct ll_dir_chain   chain;
-	int		   done = 0;
+	bool		   done = false;
 	int		   rc = 0;
 
 	ll_dir_chain_init(&chain);
