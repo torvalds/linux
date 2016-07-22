@@ -9,6 +9,7 @@ Video2Linux devices
     v4l2-controls
     v4l2-device
     v4l2-fh
+    v4l2-clocks
     v4l2-dv-timings
     v4l2-event
     v4l2-flash-led-class
