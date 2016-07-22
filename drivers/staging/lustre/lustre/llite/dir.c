@@ -494,8 +494,8 @@ int ll_dir_read(struct inode *inode, struct md_op_data *op_data,
 {
 	struct ll_sb_info    *sbi	= ll_i2sbi(inode);
 	__u64		   pos		= ctx->pos;
-	int		   api32      = ll_need_32bit_api(sbi);
-	int		   hash64     = sbi->ll_flags & LL_SBI_64BIT_HASH;
+	int		   is_api32 = ll_need_32bit_api(sbi);
+	int		   is_hash64 = sbi->ll_flags & LL_SBI_64BIT_HASH;
 	struct page	  *page;
 	struct ll_dir_chain   chain;
 	bool		   done = false;
@@ -545,12 +545,12 @@ int ll_dir_read(struct inode *inode, struct md_op_data *op_data,
 				 */
 				continue;
 
-			if (api32 && hash64)
+			if (is_api32 && is_hash64)
 				lhash = hash >> 32;
 			else
 				lhash = hash;
 			fid_le_to_cpu(&fid, &ent->lde_fid);
-			ino = cl_fid_build_ino(&fid, api32);
+			ino = cl_fid_build_ino(&fid, is_api32);
 			type = ll_dirent_type_get(ent);
 			ctx->pos = lhash;
 			/* For 'll_nfs_get_name_filldir()', it will try
