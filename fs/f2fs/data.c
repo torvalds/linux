@@ -1731,7 +1731,7 @@ static ssize_t f2fs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 	if (test_opt(F2FS_I_SB(inode), LFS))
 		return 0;
 
-	trace_f2fs_direct_IO_enter(inode, offset, count, iov_iter_rw(iter));
+	trace_f2fs_direct_IO_enter(inode, offset, count, rw);
 
 	down_read(&F2FS_I(inode)->dio_rwsem[rw]);
 	err = blockdev_direct_IO(iocb, inode, iter, get_data_block_dio);
@@ -1744,7 +1744,7 @@ static ssize_t f2fs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 			f2fs_write_failed(mapping, offset + count);
 	}
 
-	trace_f2fs_direct_IO_exit(inode, offset, count, iov_iter_rw(iter), err);
+	trace_f2fs_direct_IO_exit(inode, offset, count, rw, err);
 
 	return err;
 }
