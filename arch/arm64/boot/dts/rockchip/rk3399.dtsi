@@ -13,6 +13,8 @@
 #include <dt-bindings/soc/rockchip-system-status.h>
 #include <dt-bindings/thermal/thermal.h>
 
+#include "rk3399-dram-default-timing.dtsi"
+
 / {
 	compatible = "rockchip,rk3399";
 
@@ -1258,6 +1260,25 @@
 		pinctrl-0 = <&pwm3a_pin>;
 		clocks = <&pmucru PCLK_RKPWM_PMU>;
 		clock-names = "pwm";
+		status = "disabled";
+	};
+
+	dfi: dfi@ff630000 {
+		reg = <0x00 0xff630000 0x00 0x4000>;
+		compatible = "rockchip,rk3399-dfi";
+		rockchip,pmu = <&pmugrf>;
+		clocks = <&cru PCLK_DDR_MON>;
+		clock-names = "pclk_ddr_mon";
+		status = "disabled";
+	};
+
+	dmc: dmc {
+		compatible = "rockchip,rk3399-dmc";
+		devfreq-events = <&dfi>;
+		interrupts = <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH 0>;
+		clocks = <&cru SCLK_DDRC>;
+		clock-names = "dmc_clk";
+		ddr_timing = <&ddr_timing>;
 		status = "disabled";
 	};
 
