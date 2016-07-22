@@ -3136,7 +3136,7 @@ static int slic_entry_probe(struct pci_dev *pcidev,
 	mmio_start = pci_resource_start(pcidev, 0);
 	mmio_len = pci_resource_len(pcidev, 0);
 
-	memmapped_ioaddr = ioremap(mmio_start, mmio_len);
+	memmapped_ioaddr = ioremap_nocache(mmio_start, mmio_len);
 	if (!memmapped_ioaddr) {
 		dev_err(&pcidev->dev, "cannot remap MMIO region %lx @ %lx\n",
 			mmio_len, mmio_start);
