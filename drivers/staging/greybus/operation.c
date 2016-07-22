@@ -1128,8 +1128,8 @@ int gb_operation_sync_timeout(struct gb_connection *connection, int type,
 	ret = gb_operation_request_send_sync_timeout(operation, timeout);
 	if (ret) {
 		dev_err(&connection->hd->dev,
-			"%s: synchronous operation of type 0x%02x failed: %d\n",
-			connection->name, type, ret);
+			"%s: synchronous operation id 0x%04x of type 0x%02x failed: %d\n",
+			connection->name, operation->id, type, ret);
 	} else {
 		if (response_size) {
 			memcpy(response, operation->response->payload,
