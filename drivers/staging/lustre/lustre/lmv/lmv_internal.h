@@ -35,6 +35,7 @@
 
 #include "../include/lustre/lustre_idl.h"
 #include "../include/obd.h"
+#include "../include/lustre_lmv.h"
 
 #define LMV_MAX_TGT_COUNT 128
 

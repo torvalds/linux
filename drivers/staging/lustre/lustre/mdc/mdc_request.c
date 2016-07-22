@@ -40,6 +40,7 @@
 
 #include "../include/lustre_acl.h"
 #include "../include/obd_class.h"
+#include "../include/lustre_lmv.h"
 #include "../include/lustre_fid.h"
 #include "../include/lprocfs_status.h"
 #include "../include/lustre_param.h"

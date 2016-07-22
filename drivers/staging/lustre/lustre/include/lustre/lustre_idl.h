@@ -2482,16 +2482,6 @@ struct lmv_desc {
 	struct obd_uuid ld_uuid;
 };
 
-/* TODO: lmv_stripe_md should contain mds capabilities for all slave fids */
-struct lmv_stripe_md {
-	__u32	 mea_magic;
-	__u32	 mea_count;
-	__u32	 mea_master;
-	__u32	 mea_padding;
-	char	  mea_pool_name[LOV_MAXPOOLNAME];
-	struct lu_fid mea_ids[0];
-};
-
 #define MEA_MAGIC_LAST_CHAR      0xb2221ca1
 #define MEA_MAGIC_ALL_CHARS      0xb222a11c
 #define MEA_MAGIC_HASH_SEGMENT   0xb222a11b
@@ -2499,6 +2489,77 @@ struct lmv_stripe_md {
 #define MAX_HASH_SIZE_32	 0x7fffffffUL
 #define MAX_HASH_SIZE	    0x7fffffffffffffffULL
 #define MAX_HASH_HIGHEST_BIT     0x1000000000000000ULL
+
+/* lmv structures */
+#define LMV_MAGIC_V1	0x0CD10CD0	/* normal stripe lmv magic */
+#define LMV_USER_MAGIC	0x0CD20CD0	/* default lmv magic*/
+#define LMV_MAGIC	LMV_MAGIC_V1
+struct lmv_mds_md_v1 {
+	__u32 lmv_magic;
+	__u32 lmv_stripe_count;		/* stripe count */
+	__u32 lmv_master_mdt_index;	/* master MDT index */
+	__u32 lmv_hash_type;		/* dir stripe policy, i.e. indicate
+					 * which hash function to be used
+					 */
+	__u32 lmv_layout_version;	/* Used for directory restriping */
+	__u32 lmv_padding;
+	char lmv_pool_name[LOV_MAXPOOLNAME];	/* pool name */
+	struct lu_fid lmv_stripe_fids[0];	/* FIDs for each stripe */
+};
+
+union lmv_mds_md {
+	__u32			lmv_magic;
+	struct lmv_mds_md_v1	lmv_md_v1;
+	struct lmv_user_md	lmv_user_md;
+};
+
+static inline ssize_t lmv_mds_md_size(int stripe_count, unsigned int lmm_magic)
+{
+	ssize_t len = -EINVAL;
+
+	switch (lmm_magic) {
+	case LMV_MAGIC_V1: {
+		struct lmv_mds_md_v1 *lmm1;
+
+		len = sizeof(*lmm1);
+		len += stripe_count * sizeof(lmm1->lmv_stripe_fids[0]);
+		break; }
+	default:
+		break;
+	}
+	return len;
+}
+
+static inline int lmv_mds_md_stripe_count_get(const union lmv_mds_md *lmm)
+{
+	switch (le32_to_cpu(lmm->lmv_magic)) {
+	case LMV_MAGIC_V1:
+		return le32_to_cpu(lmm->lmv_md_v1.lmv_stripe_count);
+	case LMV_USER_MAGIC:
+		return le32_to_cpu(lmm->lmv_user_md.lum_stripe_count);
+	default:
+		return -EINVAL;
+	}
+}
+
+static inline int lmv_mds_md_stripe_count_set(union lmv_mds_md *lmm,
+					      unsigned int stripe_count)
+{
+	int rc = 0;
+
+	switch (le32_to_cpu(lmm->lmv_magic)) {
+	case LMV_MAGIC_V1:
+		lmm->lmv_md_v1.lmv_stripe_count = cpu_to_le32(stripe_count);
+		break;
+	case LMV_USER_MAGIC:
+		lmm->lmv_user_md.lum_stripe_count = cpu_to_le32(stripe_count);
+		break;
+	default:
+		rc = -EINVAL;
+		break;
+	}
+	return rc;
+}
 
 enum fld_rpc_opc {
 	FLD_QUERY	= 900,
