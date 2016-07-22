@@ -393,6 +393,7 @@ void amd_sched_hw_job_reset(struct amd_gpu_scheduler *sched)
 			s_job->s_fence->parent = NULL;
 		}
 	}
+	atomic_set(&sched->hw_rq_count, 0);
 	spin_unlock(&sched->job_list_lock);
 }
 
@@ -410,6 +411,8 @@ void amd_sched_job_recovery(struct amd_gpu_scheduler *sched)
 	list_for_each_entry(s_job, &sched->ring_mirror_list, node) {
 		struct amd_sched_fence *s_fence = s_job->s_fence;
 		struct fence *fence = sched->ops->run_job(s_job);
+
+		atomic_inc(&sched->hw_rq_count);
 		if (fence) {
 			s_fence->parent = fence_get(fence);
 			r = fence_add_callback(fence, &s_fence->cb,
