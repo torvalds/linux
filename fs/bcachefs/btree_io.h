@@ -146,19 +146,10 @@ ssize_t bch2_dirty_btree_nodes_print(struct bch_fs *, char *);
 /* Sorting */
 
 struct btree_node_iter_large {
-	u8		is_extents;
 	u16		used;
 
 	struct btree_node_iter_set data[MAX_BSETS];
 };
-
-static inline void
-__bch2_btree_node_iter_large_init(struct btree_node_iter_large *iter,
-				  bool is_extents)
-{
-	iter->used = 0;
-	iter->is_extents = is_extents;
-}
 
 void bch2_btree_node_iter_large_advance(struct btree_node_iter_large *,
 					struct btree *);

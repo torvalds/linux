@@ -176,8 +176,6 @@ struct btree_cache {
 };
 
 struct btree_node_iter {
-	u8		is_extents;
-
 	struct btree_node_iter_set {
 		u16	k, end;
 	} data[MAX_BSETS];
@@ -458,9 +456,6 @@ struct btree_root {
  * Optional hook that will be called just prior to a btree node update, when
  * we're holding the write lock and we know what key is about to be overwritten:
  */
-
-struct btree_iter;
-struct btree_node_iter;
 
 enum btree_insert_ret {
 	BTREE_INSERT_OK,

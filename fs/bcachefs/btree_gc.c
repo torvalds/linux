@@ -217,7 +217,6 @@ static unsigned btree_gc_mark_node(struct bch_fs *c, struct btree *b)
 
 	if (btree_node_has_ptrs(b))
 		for_each_btree_node_key_unpack(b, k, &iter,
-					       btree_node_is_extents(b),
 					       &unpacked) {
 			bch2_bkey_debugcheck(c, b, k);
 			stale = max(stale, bch2_gc_mark_key(c, type, k, 0));
@@ -1044,7 +1043,6 @@ static int bch2_initial_gc_btree(struct bch_fs *c, enum btree_id id)
 			struct bkey_s_c k;
 
 			for_each_btree_node_key_unpack(b, k, &node_iter,
-						       btree_node_is_extents(b),
 						       &unpacked) {
 				ret = bch2_btree_mark_key_initial(c,
 							btree_node_type(b), k);

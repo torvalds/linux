@@ -64,7 +64,8 @@ bool bch2_btree_bset_insert_key(struct btree_iter *iter,
 			if (bkey_whiteout(&insert->k) && !k->needs_whiteout) {
 				bch2_bset_delete(b, k, clobber_u64s);
 				bch2_btree_node_iter_fix(iter, b, node_iter, t,
-							k, clobber_u64s, 0);
+							 k, clobber_u64s, 0);
+				bch2_btree_iter_verify(iter, b);
 				return true;
 			}
 
@@ -73,7 +74,8 @@ bool bch2_btree_bset_insert_key(struct btree_iter *iter,
 
 		k->type = KEY_TYPE_DELETED;
 		bch2_btree_node_iter_fix(iter, b, node_iter, t, k,
-					k->u64s, k->u64s);
+					 k->u64s, k->u64s);
+		bch2_btree_iter_verify(iter, b);
 
 		if (bkey_whiteout(&insert->k)) {
 			reserve_whiteout(b, k);
@@ -98,7 +100,8 @@ overwrite:
 	bch2_bset_insert(b, node_iter, k, insert, clobber_u64s);
 	if (k->u64s != clobber_u64s || bkey_whiteout(&insert->k))
 		bch2_btree_node_iter_fix(iter, b, node_iter, t, k,
-					clobber_u64s, k->u64s);
+					 clobber_u64s, k->u64s);
+	bch2_btree_iter_verify(iter, b);
 	return true;
 }
 

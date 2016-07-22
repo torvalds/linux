@@ -35,7 +35,7 @@ static void btree_node_interior_verify(struct btree *b)
 
 	BUG_ON(!b->level);
 
-	bch2_btree_node_iter_init(&iter, b, b->key.k.p, false, false);
+	bch2_btree_node_iter_init(&iter, b, b->key.k.p, false);
 #if 1
 	BUG_ON(!(k = bch2_btree_node_iter_peek(&iter, b)) ||
 	       bkey_cmp_left_packed(b, k, &b->key.k.p));
@@ -1322,7 +1322,7 @@ static void btree_split_insert_keys(struct btree_update *as, struct btree *b,
 
 	BUG_ON(btree_node_type(b) != BKEY_TYPE_BTREE);
 
-	bch2_btree_node_iter_init(&node_iter, b, k->k.p, false, false);
+	bch2_btree_node_iter_init(&node_iter, b, k->k.p, false);
 
 	while (!bch2_keylist_empty(keys)) {
 		k = bch2_keylist_front(keys);

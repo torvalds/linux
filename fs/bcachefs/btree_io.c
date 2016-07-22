@@ -22,7 +22,7 @@
 /* btree_node_iter_large: */
 
 #define btree_node_iter_cmp_heap(h, _l, _r)				\
-	__btree_node_iter_cmp((iter)->is_extents, b,			\
+	__btree_node_iter_cmp(b,					\
 			       __btree_node_offset_to_key(b, (_l).k),	\
 			       __btree_node_offset_to_key(b, (_r).k))
 
@@ -248,6 +248,9 @@ static unsigned sort_extent_whiteouts(struct bkey_packed *dst,
 	sort_iter_sort(iter, sort_extent_whiteouts_cmp);
 
 	while ((in = sort_iter_next(iter, sort_extent_whiteouts_cmp))) {
+		if (bkey_deleted(in))
+			continue;
+
 		EBUG_ON(bkeyp_val_u64s(f, in));
 		EBUG_ON(in->type != KEY_TYPE_DISCARD);
 
@@ -785,8 +788,7 @@ void bch2_btree_sort_into(struct bch_fs *c,
 
 	bch2_bset_set_no_aux_tree(dst, dst->set);
 
-	bch2_btree_node_iter_init_from_start(&src_iter, src,
-					    btree_node_is_extents(src));
+	bch2_btree_node_iter_init_from_start(&src_iter, src);
 
 	if (btree_node_ops(src)->key_normalize ||
 	    btree_node_ops(src)->key_merge)
@@ -1171,7 +1173,7 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct btree *b, bool have_retry
 	int ret, retry_read = 0, write = READ;
 
 	iter = mempool_alloc(&c->fill_iter, GFP_NOIO);
-	__bch2_btree_node_iter_large_init(iter, btree_node_is_extents(b));
+	iter->used = 0;
 
 	if (bch2_meta_read_fault("btree"))
 		btree_err(BTREE_ERR_MUST_RETRY, c, b, NULL,
