@@ -259,14 +259,14 @@ int gb_control_bundle_suspend(struct gb_control *control, u8 bundle_id)
 				GB_CONTROL_TYPE_BUNDLE_SUSPEND, &request,
 				sizeof(request), &response, sizeof(response));
 	if (ret) {
-		dev_err(&control->dev,
-			"failed to send bundle suspend: %d\n", ret);
+		dev_err(&control->dev, "failed to send bundle %u suspend: %d\n",
+			bundle_id, ret);
 		return ret;
 	}
 
 	if (response.status != GB_CONTROL_BUNDLE_PM_OK) {
-		dev_err(&control->dev,
-			"bundle error while suspending: %d\n", response.status);
+		dev_err(&control->dev, "failed to suspend bundle %u: %d\n",
+			bundle_id, response.status);
 		return gb_control_bundle_pm_status_map(response.status);
 	}
 
@@ -284,14 +284,14 @@ int gb_control_bundle_resume(struct gb_control *control, u8 bundle_id)
 				GB_CONTROL_TYPE_BUNDLE_RESUME, &request,
 				sizeof(request), &response, sizeof(response));
 	if (ret) {
-		dev_err(&control->dev,
-			"failed to send bundle resume: %d\n", ret);
+		dev_err(&control->dev, "failed to send bundle %u resume: %d\n",
+			bundle_id, ret);
 		return ret;
 	}
 
 	if (response.status != GB_CONTROL_BUNDLE_PM_OK) {
-		dev_err(&control->dev,
-			"bundle error while resuming: %d\n", response.status);
+		dev_err(&control->dev, "failed to resume bundle %u: %d\n",
+			bundle_id, response.status);
 		return gb_control_bundle_pm_status_map(response.status);
 	}
 
@@ -310,13 +310,14 @@ int gb_control_bundle_deactivate(struct gb_control *control, u8 bundle_id)
 				sizeof(request), &response, sizeof(response));
 	if (ret) {
 		dev_err(&control->dev,
-			"failed to send bundle deactivate: %d\n", ret);
+			"failed to send bundle %u deactivate: %d\n", bundle_id,
+			ret);
 		return ret;
 	}
 
 	if (response.status != GB_CONTROL_BUNDLE_PM_OK) {
-		dev_err(&control->dev,
-			"bundle error while deactivating: %d\n", response.status);
+		dev_err(&control->dev, "failed to deactivate bundle %u: %d\n",
+			bundle_id, response.status);
 		return gb_control_bundle_pm_status_map(response.status);
 	}
 
@@ -338,13 +339,14 @@ int gb_control_bundle_activate(struct gb_control *control, u8 bundle_id)
 				sizeof(request), &response, sizeof(response));
 	if (ret) {
 		dev_err(&control->dev,
-			"failed to send bundle activate: %d\n", ret);
+			"failed to send bundle %u activate: %d\n", bundle_id,
+			ret);
 		return ret;
 	}
 
 	if (response.status != GB_CONTROL_BUNDLE_PM_OK) {
-		dev_err(&control->dev,
-			"bundle error while activating: %d\n", response.status);
+		dev_err(&control->dev, "failed to activate bundle %u: %d\n",
+			bundle_id, response.status);
 		return gb_control_bundle_pm_status_map(response.status);
 	}
 
