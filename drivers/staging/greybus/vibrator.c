@@ -13,6 +13,8 @@
 #include <linux/device.h>
 #include <linux/kdev_t.h>
 #include <linux/idr.h>
+#include <linux/pm_runtime.h>
+
 #include "greybus.h"
 
 struct gb_vibrator_device {
@@ -32,16 +34,37 @@ struct gb_vibrator_on_request {
 static int turn_on(struct gb_vibrator_device *vib, u16 timeout_ms)
 {
 	struct gb_vibrator_on_request request;
+	struct gb_bundle *bundle = vib->connection->bundle;
+	int ret;
+
+	ret = gb_pm_runtime_get_sync(bundle);
+	if (ret)
+		return ret;
 
 	request.timeout_ms = cpu_to_le16(timeout_ms);
-	return gb_operation_sync(vib->connection, GB_VIBRATOR_TYPE_ON,
-				 &request, sizeof(request), NULL, 0);
+	ret = gb_operation_sync(vib->connection, GB_VIBRATOR_TYPE_ON,
+			&request, sizeof(request), NULL, 0);
+
+	gb_pm_runtime_put_autosuspend(bundle);
+
+	return ret;
 }
 
 static int turn_off(struct gb_vibrator_device *vib)
 {
-	return gb_operation_sync(vib->connection, GB_VIBRATOR_TYPE_OFF,
-				 NULL, 0, NULL, 0);
+	struct gb_bundle *bundle = vib->connection->bundle;
+	int ret;
+
+	ret = gb_pm_runtime_get_sync(bundle);
+	if (ret)
+		return ret;
+
+	ret = gb_operation_sync(vib->connection, GB_VIBRATOR_TYPE_OFF,
+			NULL, 0, NULL, 0);
+
+	gb_pm_runtime_put_autosuspend(bundle);
+
+	return ret;
 }
 
 static ssize_t timeout_store(struct device *dev, struct device_attribute *attr,
@@ -151,6 +174,8 @@ static int gb_vibrator_probe(struct gb_bundle *bundle,
 	}
 #endif
 
+	gb_pm_runtime_put_autosuspend(bundle);
+
 	return 0;
 
 err_ida_remove:
@@ -168,6 +193,11 @@ err_free_vib:
 static void gb_vibrator_disconnect(struct gb_bundle *bundle)
 {
 	struct gb_vibrator_device *vib = greybus_get_drvdata(bundle);
+	int ret;
+
+	ret = gb_pm_runtime_get_sync(bundle);
+	if (ret)
+		gb_pm_runtime_get_noresume(bundle);
 
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(3,11,0)
 	sysfs_remove_group(&vib->dev->kobj, vibrator_groups[0]);
