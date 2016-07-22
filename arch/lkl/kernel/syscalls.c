@@ -288,13 +288,17 @@ static int __lkl_stop_syscall_thread(struct syscall_thread_data *data,
 int lkl_stop_syscall_thread(void)
 {
 	struct syscall_thread_data *data = NULL;
+	int ret;
 
 	if (lkl_ops->tls_get)
 		data = lkl_ops->tls_get(syscall_thread_data_key);
 	if (!data)
 		return -EINVAL;
 
-	return __lkl_stop_syscall_thread(data, true);
+	ret = __lkl_stop_syscall_thread(data, true);
+	if (!ret && lkl_ops->tls_free)
+		lkl_ops->tls_free(syscall_thread_data_key);
+	return ret;
 }
 
 static int auto_syscall_threads = true;
