@@ -52,8 +52,8 @@ enum rockchip_usb2phy_port_id {
 enum rockchip_usb2phy_host_state {
 	PHY_STATE_HS_ONLINE	= 0,
 	PHY_STATE_DISCONNECT	= 1,
-	PHY_STATE_HS_CONNECT	= 2,
-	PHY_STATE_FS_CONNECT	= 4,
+	PHY_STATE_CONNECT	= 2,
+	PHY_STATE_FS_LS_ONLINE	= 4,
 };
 
 /**
@@ -309,9 +309,6 @@ static void rockchip_usb2phy_clk480m_unregister(void *data)
 
 	of_clk_del_provider(rphy->dev->of_node);
 	clk_unregister(rphy->clk480m);
-
-	if (rphy->clk)
-		clk_put(rphy->clk);
 }
 
 static int
@@ -329,16 +326,13 @@ rockchip_usb2phy_clk480m_register(struct rockchip_usb2phy *rphy)
 	/* optional override of the clockname */
 	of_property_read_string(node, "clock-output-names", &init.name);
 
-	rphy->clk = of_clk_get_by_name(node, "phyclk");
-	if (IS_ERR(rphy->clk)) {
-		rphy->clk = NULL;
-		init.parent_names = NULL;
-		init.num_parents = 0;
-	} else {
+	if (rphy->clk) {
 		clk_name = __clk_get_name(rphy->clk);
 		init.parent_names = &clk_name;
 		init.num_parents = 1;
-		clk_prepare_enable(rphy->clk);
+	} else {
+		init.parent_names = NULL;
+		init.num_parents = 0;
 	}
 
 	rphy->clk480m_hw.init = &init;
@@ -347,7 +341,7 @@ rockchip_usb2phy_clk480m_register(struct rockchip_usb2phy *rphy)
 	rphy->clk480m = clk_register(rphy->dev, &rphy->clk480m_hw);
 	if (IS_ERR(rphy->clk480m)) {
 		ret = PTR_ERR(rphy->clk480m);
-		goto err_register;
+		goto err_ret;
 	}
 
 	ret = of_clk_add_provider(node, of_clk_src_simple_get, rphy->clk480m);
@@ -365,9 +359,7 @@ err_unreg_action:
 	of_clk_del_provider(node);
 err_clk_provider:
 	clk_unregister(rphy->clk480m);
-err_register:
-	if (rphy->clk)
-		clk_put(rphy->clk);
+err_ret:
 	return ret;
 }
 
@@ -472,7 +464,6 @@ static int rockchip_usb2phy_power_on(struct phy *phy)
 		return ret;
 
 	rport->suspended = false;
-
 	return 0;
 }
 
@@ -773,7 +764,7 @@ static void rockchip_chg_detect_work(struct work_struct *work)
  * to save power.
  *
  * we rely on utmi_linestate and utmi_hostdisconnect to identify whether
- * FS/HS is disconnect or not. Besides, we do not need care it is FS
+ * devices is disconnect or not. Besides, we do not need care it is FS/LS
  * disconnected or HS disconnected, actually, we just only need get the
  * device is disconnected at last through rearm the delayed work,
  * to suspend the phy port in _PHY_STATE_DISCONNECT_ case.
@@ -816,27 +807,35 @@ static void rockchip_usb2phy_sm_work(struct work_struct *work)
 	case PHY_STATE_HS_ONLINE:
 		dev_dbg(&rport->phy->dev, "HS online\n");
 		break;
-	case PHY_STATE_FS_CONNECT:
+	case PHY_STATE_FS_LS_ONLINE:
 		/*
-		 * For FS device, the online state share with connect state
+		 * For FS/LS device, the online state share with connect state
 		 * from utmi_ls and utmi_hstdet register, so we distinguish
 		 * them via suspended flag.
+		 *
+		 * Plus, there are two cases, one is D- Line pull-up, and D+
+		 * line pull-down, the state is 4; another is D+ line pull-up,
+		 * and D- line pull-down, the state is 2.
 		 */
 		if (!rport->suspended) {
-			dev_dbg(&rport->phy->dev, "FS online\n");
+			/* D- line pull-up, D+ line pull-down */
+			dev_dbg(&rport->phy->dev, "FS/LS online\n");
 			break;
 		}
 		/* fall through */
-	case PHY_STATE_HS_CONNECT:
+	case PHY_STATE_CONNECT:
 		if (rport->suspended) {
-			dev_dbg(&rport->phy->dev, "HS/FS connected\n");
+			dev_dbg(&rport->phy->dev, "Connected\n");
 			rockchip_usb2phy_power_on(rport->phy);
 			rport->suspended = false;
+		} else {
+			/* D+ line pull-up, D- line pull-down */
+			dev_dbg(&rport->phy->dev, "FS/LS online\n");
 		}
 		break;
 	case PHY_STATE_DISCONNECT:
 		if (!rport->suspended) {
-			dev_dbg(&rport->phy->dev, "HS/FS disconnected\n");
+			dev_dbg(&rport->phy->dev, "Disconnected\n");
 			rockchip_usb2phy_power_off(rport->phy);
 			rport->suspended = true;
 		}
@@ -1067,16 +1066,24 @@ static int rockchip_usb2phy_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	rphy->clk = of_clk_get_by_name(np, "phyclk");
+	if (!IS_ERR(rphy->clk)) {
+		clk_prepare_enable(rphy->clk);
+	} else {
+		dev_info(&pdev->dev, "no phyclk specified\n");
+		rphy->clk = NULL;
+	}
+
 	ret = rockchip_usb2phy_clk480m_register(rphy);
 	if (ret) {
 		dev_err(dev, "failed to register 480m output clock\n");
-		return ret;
+		goto disable_clks;
 	}
 
 	if (rphy->phy_cfg->phy_tuning) {
 		ret = rphy->phy_cfg->phy_tuning(rphy);
 		if (ret)
-			return ret;
+			goto disable_clks;
 	}
 
 	index = 0;
@@ -1123,6 +1130,11 @@ next_child:
 
 put_child:
 	of_node_put(child_np);
+disable_clks:
+	if (rphy->clk) {
+		clk_disable_unprepare(rphy->clk);
+		clk_put(rphy->clk);
+	}
 	return ret;
 }
 
@@ -1178,6 +1190,14 @@ static const struct rockchip_usb2phy_cfg rk3399_phy_cfgs[] = {
 				.bvalid_det_clr	= { 0xe3d0, 3, 3, 0, 1 },
 				.utmi_bvalid	= { 0xe2ac, 7, 7, 0, 1 },
 			},
+			[USB2PHY_PORT_HOST] = {
+				.phy_sus	= { 0xe458, 1, 0, 0x2, 0x1 },
+				.ls_det_en	= { 0xe3c0, 6, 6, 0, 1 },
+				.ls_det_st	= { 0xe3e0, 6, 6, 0, 1 },
+				.ls_det_clr	= { 0xe3d0, 6, 6, 0, 1 },
+				.utmi_ls	= { 0xe2ac, 22, 21, 0, 1 },
+				.utmi_hstdet	= { 0xe2ac, 23, 23, 0, 1 }
+			}
 		},
 		.chg_det = {
 			.opmode		= { 0xe454, 3, 0, 5, 1 },
@@ -1190,6 +1210,21 @@ static const struct rockchip_usb2phy_cfg rk3399_phy_cfgs[] = {
 			.rdm_pdwn_en	= { 0xe450, 10, 10, 0, 1 },
 			.vdm_src_en	= { 0xe450, 12, 12, 0, 1 },
 			.vdp_src_en	= { 0xe450, 11, 11, 0, 1 },
+		},
+	},
+	{
+		.reg		= 0xe460,
+		.num_ports	= 2,
+		.clkout_ctl	= { 0xe460, 4, 4, 1, 0 },
+		.port_cfgs	= {
+			[USB2PHY_PORT_HOST] = {
+				.phy_sus	= { 0xe468, 1, 0, 0x2, 0x1 },
+				.ls_det_en	= { 0xe3c0, 11, 11, 0, 1 },
+				.ls_det_st	= { 0xe3e0, 11, 11, 0, 1 },
+				.ls_det_clr	= { 0xe3d0, 11, 11, 0, 1 },
+				.utmi_ls	= { 0xe2ac, 26, 25, 0, 1 },
+				.utmi_hstdet	= { 0xe2ac, 27, 27, 0, 1 }
+			}
 		},
 	},
 	{ /* sentinel */ }
