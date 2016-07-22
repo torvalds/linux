@@ -1,10 +1,8 @@
 include ../scripts/Makefile.include
+include ../scripts/Makefile.arch
 
-ifndef ($(ARCH))
-ARCH ?= $(shell uname -m)
 ifeq ($(ARCH),x86_64)
 ARCH := x86
-endif
 endif
 
 # always use the host compiler
