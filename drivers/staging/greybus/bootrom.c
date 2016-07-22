@@ -140,7 +140,7 @@ static void bootrom_es2_fixup_vid_pid(struct gb_bootrom *bootrom)
 }
 
 /* This returns path of the firmware blob on the disk */
-static int download_firmware(struct gb_bootrom *bootrom, u8 stage)
+static int find_firmware(struct gb_bootrom *bootrom, u8 stage)
 {
 	struct gb_connection *connection = bootrom->connection;
 	struct gb_interface *intf = connection->bundle->intf;
@@ -177,8 +177,8 @@ static int download_firmware(struct gb_bootrom *bootrom, u8 stage)
 	rc = request_firmware(&bootrom->fw, firmware_name,
 		&connection->bundle->dev);
 	if (rc) {
-		dev_err(&connection->bundle->dev, "failed to download %s firmware (%d)\n",
-			firmware_name, rc);
+		dev_err(&connection->bundle->dev,
+			"failed to find %s firmware (%d)\n", firmware_name, rc);
 	}
 
 	return rc;
@@ -205,7 +205,7 @@ static int gb_bootrom_firmware_size_request(struct gb_operation *op)
 
 	mutex_lock(&bootrom->mutex);
 
-	ret = download_firmware(bootrom, size_request->stage);
+	ret = find_firmware(bootrom, size_request->stage);
 	if (ret)
 		goto unlock;
 
