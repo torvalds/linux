@@ -3224,8 +3224,20 @@ static int macsec_validate_attr(struct nlattr *tb[], struct nlattr *data[])
 	if (data[IFLA_MACSEC_CIPHER_SUITE])
 		csid = nla_get_u64(data[IFLA_MACSEC_CIPHER_SUITE]);
 
-	if (data[IFLA_MACSEC_ICV_LEN])
+	if (data[IFLA_MACSEC_ICV_LEN]) {
 		icv_len = nla_get_u8(data[IFLA_MACSEC_ICV_LEN]);
+		if (icv_len != DEFAULT_ICV_LEN) {
+			char dummy_key[DEFAULT_SAK_LEN] = { 0 };
+			struct crypto_aead *dummy_tfm;
+
+			dummy_tfm = macsec_alloc_tfm(dummy_key,
+						     DEFAULT_SAK_LEN,
+						     icv_len);
+			if (IS_ERR(dummy_tfm))
+				return PTR_ERR(dummy_tfm);
+			crypto_free_aead(dummy_tfm);
+		}
+	}
 
 	switch (csid) {
 	case MACSEC_DEFAULT_CIPHER_ID:
