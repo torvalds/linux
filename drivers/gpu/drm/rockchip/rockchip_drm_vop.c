@@ -488,24 +488,24 @@ static void vop_dsp_hold_valid_irq_disable(struct vop *vop)
 static void vop_enable(struct drm_crtc *crtc)
 {
 	struct vop *vop = to_vop(crtc);
-	int ret;
+	int ret, i;
 
 	if (vop->is_enabled)
 		return;
 
-	ret = clk_enable(vop->hclk);
+	ret = clk_prepare_enable(vop->hclk);
 	if (ret < 0) {
 		dev_err(vop->dev, "failed to enable hclk - %d\n", ret);
 		return;
 	}
 
-	ret = clk_enable(vop->dclk);
+	ret = clk_prepare_enable(vop->dclk);
 	if (ret < 0) {
 		dev_err(vop->dev, "failed to enable dclk - %d\n", ret);
 		goto err_disable_hclk;
 	}
 
-	ret = clk_enable(vop->aclk);
+	ret = clk_prepare_enable(vop->aclk);
 	if (ret < 0) {
 		dev_err(vop->dev, "failed to enable aclk - %d\n", ret);
 		goto err_disable_dclk;
@@ -529,7 +529,16 @@ static void vop_enable(struct drm_crtc *crtc)
 		goto err_disable_aclk;
 	}
 
-	memcpy(vop->regs, vop->regsbak, vop->len);
+	memcpy(vop->regsbak, vop->regs, vop->len);
+
+	VOP_CTRL_SET(vop, global_regdone_en, 1);
+
+	for (i = 0; i < vop->num_wins; i++) {
+		struct vop_win *win = &vop->win[i];
+
+		VOP_WIN_SET(vop, win, gate, 1);
+	}
+
 	/*
 	 * At here, vop clock & iommu is enable, R/W vop regs would be safe.
 	 */
@@ -548,11 +557,11 @@ static void vop_enable(struct drm_crtc *crtc)
 	return;
 
 err_disable_aclk:
-	clk_disable(vop->aclk);
+	clk_disable_unprepare(vop->aclk);
 err_disable_dclk:
-	clk_disable(vop->dclk);
+	clk_disable_unprepare(vop->dclk);
 err_disable_hclk:
-	clk_disable(vop->hclk);
+	clk_disable_unprepare(vop->hclk);
 }
 
 static void vop_crtc_disable(struct drm_crtc *crtc)
@@ -608,9 +617,9 @@ static void vop_crtc_disable(struct drm_crtc *crtc)
 	rockchip_drm_dma_detach_device(vop->drm_dev, vop->dev);
 
 	pm_runtime_put(vop->dev);
-	clk_disable(vop->dclk);
-	clk_disable(vop->aclk);
-	clk_disable(vop->hclk);
+	clk_disable_unprepare(vop->dclk);
+	clk_disable_unprepare(vop->aclk);
+	clk_disable_unprepare(vop->hclk);
 }
 
 static void vop_plane_destroy(struct drm_plane *plane)
@@ -1528,100 +1537,6 @@ static void vop_destroy_crtc(struct vop *vop)
 	drm_crtc_cleanup(crtc);
 }
 
-static int vop_initial(struct vop *vop)
-{
-	struct reset_control *ahb_rst;
-	int i, ret;
-
-	vop->hclk = devm_clk_get(vop->dev, "hclk_vop");
-	if (IS_ERR(vop->hclk)) {
-		dev_err(vop->dev, "failed to get hclk source\n");
-		return PTR_ERR(vop->hclk);
-	}
-	vop->aclk = devm_clk_get(vop->dev, "aclk_vop");
-	if (IS_ERR(vop->aclk)) {
-		dev_err(vop->dev, "failed to get aclk source\n");
-		return PTR_ERR(vop->aclk);
-	}
-	vop->dclk = devm_clk_get(vop->dev, "dclk_vop");
-	if (IS_ERR(vop->dclk)) {
-		dev_err(vop->dev, "failed to get dclk source\n");
-		return PTR_ERR(vop->dclk);
-	}
-
-	ret = clk_prepare(vop->dclk);
-	if (ret < 0) {
-		dev_err(vop->dev, "failed to prepare dclk\n");
-		return ret;
-	}
-
-	/* Enable both the hclk and aclk to setup the vop */
-	ret = clk_prepare_enable(vop->hclk);
-	if (ret < 0) {
-		dev_err(vop->dev, "failed to prepare/enable hclk\n");
-		goto err_unprepare_dclk;
-	}
-
-	ret = clk_prepare_enable(vop->aclk);
-	if (ret < 0) {
-		dev_err(vop->dev, "failed to prepare/enable aclk\n");
-		goto err_disable_hclk;
-	}
-
-	/*
-	 * do hclk_reset, reset all vop registers.
-	 */
-	ahb_rst = devm_reset_control_get(vop->dev, "ahb");
-	if (IS_ERR(ahb_rst)) {
-		dev_err(vop->dev, "failed to get ahb reset\n");
-		ret = PTR_ERR(ahb_rst);
-		goto err_disable_aclk;
-	}
-	reset_control_assert(ahb_rst);
-	usleep_range(10, 20);
-	reset_control_deassert(ahb_rst);
-
-	memcpy(vop->regsbak, vop->regs, vop->len);
-
-	VOP_CTRL_SET(vop, global_regdone_en, 1);
-
-	for (i = 0; i < vop->num_wins; i++) {
-		struct vop_win *win = &vop->win[i];
-
-		VOP_WIN_SET(vop, win, gate, 1);
-	}
-
-	vop_cfg_done(vop);
-
-	/*
-	 * do dclk_reset, let all config take affect.
-	 */
-	vop->dclk_rst = devm_reset_control_get(vop->dev, "dclk");
-	if (IS_ERR(vop->dclk_rst)) {
-		dev_err(vop->dev, "failed to get dclk reset\n");
-		ret = PTR_ERR(vop->dclk_rst);
-		goto err_disable_aclk;
-	}
-	reset_control_assert(vop->dclk_rst);
-	usleep_range(10, 20);
-	reset_control_deassert(vop->dclk_rst);
-
-	clk_disable(vop->hclk);
-	clk_disable(vop->aclk);
-
-	vop->is_enabled = false;
-
-	return 0;
-
-err_disable_aclk:
-	clk_disable_unprepare(vop->aclk);
-err_disable_hclk:
-	clk_disable_unprepare(vop->hclk);
-err_unprepare_dclk:
-	clk_unprepare(vop->dclk);
-	return ret;
-}
-
 /*
  * Initialize the vop->win array elements.
  */
@@ -1726,10 +1641,20 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 	if (!vop->regsbak)
 		return -ENOMEM;
 
-	ret = vop_initial(vop);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "cannot initial vop dev - err %d\n", ret);
-		return ret;
+	vop->hclk = devm_clk_get(vop->dev, "hclk_vop");
+	if (IS_ERR(vop->hclk)) {
+		dev_err(vop->dev, "failed to get hclk source\n");
+		return PTR_ERR(vop->hclk);
+	}
+	vop->aclk = devm_clk_get(vop->dev, "aclk_vop");
+	if (IS_ERR(vop->aclk)) {
+		dev_err(vop->dev, "failed to get aclk source\n");
+		return PTR_ERR(vop->aclk);
+	}
+	vop->dclk = devm_clk_get(vop->dev, "dclk_vop");
+	if (IS_ERR(vop->dclk)) {
+		dev_err(vop->dev, "failed to get dclk source\n");
+		return PTR_ERR(vop->dclk);
 	}
 
 	irq = platform_get_irq(pdev, 0);
