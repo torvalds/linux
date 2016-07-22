@@ -450,23 +450,25 @@ static int gb_bootrom_probe(struct gb_bundle *bundle,
 	if (ret)
 		goto err_connection_disable;
 
+	/* Refresh timeout */
+	gb_bootrom_set_timeout(bootrom, NEXT_REQ_FIRMWARE_SIZE,
+			       NEXT_REQ_TIMEOUT_MS);
+
 	/* Tell bootrom we're ready. */
 	ret = gb_operation_sync(connection, GB_BOOTROM_TYPE_AP_READY, NULL, 0,
 				NULL, 0);
 	if (ret) {
 		dev_err(&connection->bundle->dev,
 				"failed to send AP READY: %d\n", ret);
-		goto err_connection_disable;
+		goto err_cancel_timeout;
 	}
-
-	/* Refresh timeout */
-	gb_bootrom_set_timeout(bootrom, NEXT_REQ_FIRMWARE_SIZE,
-			       NEXT_REQ_TIMEOUT_MS);
 
 	dev_dbg(&bundle->dev, "AP_READY sent\n");
 
 	return 0;
 
+err_cancel_timeout:
+	cancel_delayed_work_sync(&bootrom->dwork);
 err_connection_disable:
 	gb_connection_disable(connection);
 err_connection_destroy:
