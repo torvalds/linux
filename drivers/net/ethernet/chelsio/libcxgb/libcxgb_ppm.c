@@ -39,7 +39,6 @@
 #define pr_fmt(fmt) DRV_NAME ": " fmt
 
 #include <linux/kernel.h>
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/types.h>
