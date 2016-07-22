@@ -584,6 +584,9 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 
 	amdgpu_ctx_mgr_fini(&fpriv->ctx_mgr);
 
+	amdgpu_uvd_free_handles(adev, file_priv);
+	amdgpu_vce_free_handles(adev, file_priv);
+
 	amdgpu_vm_fini(adev, &fpriv->vm);
 
 	idr_for_each_entry(&fpriv->bo_list_handles, list, handle)
@@ -608,10 +611,6 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 void amdgpu_driver_preclose_kms(struct drm_device *dev,
 				struct drm_file *file_priv)
 {
-	struct amdgpu_device *adev = dev->dev_private;
-
-	amdgpu_uvd_free_handles(adev, file_priv);
-	amdgpu_vce_free_handles(adev, file_priv);
 }
 
 /*
