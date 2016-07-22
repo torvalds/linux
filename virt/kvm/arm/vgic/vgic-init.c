@@ -264,6 +264,10 @@ int vgic_init(struct kvm *kvm)
 	kvm_for_each_vcpu(i, vcpu, kvm)
 		kvm_vgic_vcpu_init(vcpu);
 
+	ret = kvm_vgic_setup_default_irq_routing(kvm);
+	if (ret)
+		goto out;
+
 	dist->initialized = true;
 out:
 	return ret;
