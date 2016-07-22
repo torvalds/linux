@@ -2920,6 +2920,7 @@ static int slic_init_adapter(struct net_device *netdev,
 	adapter->slotnumber = ((pcidev->devfn >> 3) & 0x1F);
 	adapter->functionnumber = (pcidev->devfn & 0x7);
 	adapter->slic_regs = memaddr;
+	adapter->regs = memaddr;
 	adapter->irq = pcidev->irq;
 	adapter->chipid = chip_idx;
 	adapter->port = 0;
