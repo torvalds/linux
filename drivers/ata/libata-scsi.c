@@ -3610,7 +3610,7 @@ static int ata_mselect_caching(struct ata_queued_cmd *qc,
 {
 	struct ata_taskfile *tf = &qc->tf;
 	struct ata_device *dev = qc->dev;
-	char mpage[CACHE_MPAGE_LEN];
+	u8 mpage[CACHE_MPAGE_LEN];
 	u8 wce;
 	int i;
 
@@ -3666,7 +3666,7 @@ static int ata_mselect_control(struct ata_queued_cmd *qc,
 			       const u8 *buf, int len, u16 *fp)
 {
 	struct ata_device *dev = qc->dev;
-	char mpage[CONTROL_MPAGE_LEN];
+	u8 mpage[CONTROL_MPAGE_LEN];
 	u8 d_sense;
 	int i;
 
