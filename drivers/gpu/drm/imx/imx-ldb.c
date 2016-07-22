@@ -252,11 +252,13 @@ static void imx_ldb_encoder_enable(struct drm_encoder *encoder)
 	drm_panel_enable(imx_ldb_ch->panel);
 }
 
-static void imx_ldb_encoder_mode_set(struct drm_encoder *encoder,
-			 struct drm_display_mode *orig_mode,
-			 struct drm_display_mode *mode)
+static void
+imx_ldb_encoder_atomic_mode_set(struct drm_encoder *encoder,
+				struct drm_crtc_state *crtc_state,
+				struct drm_connector_state *connector_state)
 {
 	struct imx_ldb_channel *imx_ldb_ch = enc_to_imx_ldb_ch(encoder);
+	struct drm_display_mode *mode = &crtc_state->adjusted_mode;
 	struct imx_ldb *ldb = imx_ldb_ch->ldb;
 	int dual = ldb->ldb_ctrl & LDB_SPLIT_MODE_EN;
 	unsigned long serial_clk;
@@ -298,17 +300,11 @@ static void imx_ldb_encoder_mode_set(struct drm_encoder *encoder,
 	}
 
 	if (!bus_format) {
-		struct drm_connector *connector;
+		struct drm_connector *connector = connector_state->connector;
+		struct drm_display_info *di = &connector->display_info;
 
-		drm_for_each_connector(connector, encoder->dev) {
-			struct drm_display_info *di = &connector->display_info;
-
-			if (connector->encoder == encoder &&
-			    di->num_bus_formats) {
-				bus_format = di->bus_formats[0];
-				break;
-			}
-		}
+		if (di->num_bus_formats)
+			bus_format = di->bus_formats[0];
 	}
 	imx_ldb_ch_set_bus_format(imx_ldb_ch, bus_format);
 }
@@ -426,7 +422,7 @@ static const struct drm_encoder_funcs imx_ldb_encoder_funcs = {
 };
 
 static const struct drm_encoder_helper_funcs imx_ldb_encoder_helper_funcs = {
-	.mode_set = imx_ldb_encoder_mode_set,
+	.atomic_mode_set = imx_ldb_encoder_atomic_mode_set,
 	.enable = imx_ldb_encoder_enable,
 	.disable = imx_ldb_encoder_disable,
 	.atomic_check = imx_ldb_encoder_atomic_check,
