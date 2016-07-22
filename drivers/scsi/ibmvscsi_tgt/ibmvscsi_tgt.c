@@ -3697,8 +3697,7 @@ static void ibmvscsis_release_cmd(struct se_cmd *se_cmd)
 
 	spin_lock_bh(&vscsi->intr_lock);
 	/* Remove from active_q */
-	list_del(&cmd->list);
-	list_add_tail(&cmd->list, &vscsi->waiting_rsp);
+	list_move_tail(&cmd->list, &vscsi->waiting_rsp);
 	ibmvscsis_send_messages(vscsi);
 	spin_unlock_bh(&vscsi->intr_lock);
 }
