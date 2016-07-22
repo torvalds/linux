@@ -37,7 +37,7 @@ static inline unsigned long test_and_clear_irq_status(int index)
 	return __sync_fetch_and_and(&irq_status[index], 0);
 }
 
-static inline void set_irq_status(int irq)
+void set_irq_pending(int irq)
 {
 	int index = irq / IRQ_STATUS_BITS;
 	int bit = irq % IRQ_STATUS_BITS;
@@ -46,24 +46,54 @@ static inline void set_irq_status(int irq)
 	__sync_fetch_and_or(&irq_index_status, BIT(index));
 }
 
-
 static struct irq_info {
 	const char *user;
 } irqs[NR_IRQS];
 
+static bool irqs_enabled;
+
+static void run_irq(int irq)
+{
+	unsigned long flags;
+
+	/* interrupt handlers need to run with interrupts disabled */
+	local_irq_save(flags);
+	irq_enter();
+	generic_handle_irq(irq);
+	irq_exit();
+	local_irq_restore(flags);
+}
 
 /**
- * DO NOT run any linux calls (e.g. printk) here as they may race with the
- * existing linux threads.
+ * This function can be called from arbitrary host threads, so do not
+ * issue any Linux calls (e.g. prink) if lkl_cpu_get() was not issued
+ * before.
  */
 int lkl_trigger_irq(int irq)
 {
+	int ret;
+
 	if (!irq || irq > NR_IRQS)
 		return -EINVAL;
 
-	set_irq_status(irq);
+	ret = lkl_cpu_try_run_irq(irq);
+	if (ret <= 0)
+		return ret;
 
-	lkl_cpu_wakeup();
+	/*
+	 * Since this can be called from Linux context (e.g. lkl_trigger_irq ->
+	 * IRQ -> softirq -> lkl_trigger_irq) make sure we are actually allowed
+	 * to run irqs at this point
+	 */
+	if (!irqs_enabled) {
+		set_irq_pending(irq);
+		lkl_cpu_put();
+		return 0;
+	}
+
+	run_irq(irq);
+
+	lkl_cpu_put();
 
 	return 0;
 }
@@ -82,9 +112,7 @@ static inline void for_each_bit(unsigned long word, void (*f)(int, int), int j)
 
 static inline void deliver_irq(int bit, int index)
 {
-	irq_enter();
-	generic_handle_irq(index * IRQ_STATUS_BITS + bit);
-	irq_exit();
+	run_irq(index * IRQ_STATUS_BITS + bit);
 }
 
 static inline void check_irq_status(int i, int unused)
@@ -92,7 +120,7 @@ static inline void check_irq_status(int i, int unused)
 	for_each_bit(test_and_clear_irq_status(i), deliver_irq, i);
 }
 
-static void run_irqs(void)
+void run_irqs(void)
 {
 	for_each_bit(test_and_clear_irq_index_status(), check_irq_status, 0);
 }
@@ -128,8 +156,6 @@ void lkl_put_irq(int i, const char *user)
 
 	irqs[i].user = NULL;
 }
-
-static bool irqs_enabled;
 
 unsigned long arch_local_save_flags(void)
 {

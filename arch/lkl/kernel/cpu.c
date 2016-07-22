@@ -39,6 +39,7 @@ struct lkl_cpu {
 	 */
 	#define MAX_THREADS 1000000
 	unsigned int shutdown_gate;
+	bool irqs_pending;
 	/* no of threads waiting the CPU */
 	unsigned int sleepers;
 	/* no of times the current thread got the CPU */
@@ -118,6 +119,16 @@ void lkl_cpu_put(void)
 	    !lkl_ops->thread_equal(cpu.owner, lkl_ops->thread_self()))
 		lkl_bug("%s: unbalanced put\n", __func__);
 
+	while (cpu.irqs_pending && !irqs_disabled()) {
+		cpu.irqs_pending = false;
+		lkl_ops->mutex_unlock(cpu.lock);
+		run_irqs();
+		lkl_ops->mutex_lock(cpu.lock);
+	}
+
+	if (need_resched())
+		lkl_cpu_wakeup();
+
 	if (--cpu.count > 0) {
 		lkl_ops->mutex_unlock(cpu.lock);
 		return;
@@ -131,6 +142,20 @@ void lkl_cpu_put(void)
 	cpu.owner = 0;
 
 	lkl_ops->mutex_unlock(cpu.lock);
+}
+
+int lkl_cpu_try_run_irq(int irq)
+{
+	int ret;
+
+	ret = __cpu_try_get_lock(1);
+	if (!ret) {
+		set_irq_pending(irq);
+		cpu.irqs_pending = true;
+	}
+	__cpu_try_get_unlock(ret, 1);
+
+	return ret;
 }
 
 void lkl_cpu_shutdown(void)
@@ -175,13 +200,16 @@ void arch_cpu_idle(void)
 		lkl_ops->thread_exit();
 	}
 
+	/* enable irqs now to allow direct irqs to run */
+	local_irq_enable();
+
 	lkl_cpu_put();
 
 	lkl_ops->sem_down(cpu.idle_sem);
 
 	lkl_cpu_get();
 
-	local_irq_enable();
+	run_irqs();
 }
 
 void lkl_cpu_wakeup(void)
