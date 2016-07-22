@@ -1028,7 +1028,6 @@ static void slic_link_upr_complete(struct adapter *adapter, u32 isr)
 		/* setup the mac */
 		slic_config_set(adapter, true);
 		adapter->linkstate = LINK_UP;
-		netif_start_queue(adapter->netdev);
 		netif_carrier_on(adapter->netdev);
 	}
 }
@@ -2419,7 +2418,6 @@ static int slic_entry_open(struct net_device *dev)
 	unsigned long flags;
 	int status;
 
-	netif_stop_queue(adapter->netdev);
 	netif_carrier_off(dev);
 
 	spin_lock_irqsave(&slic_global.driver_lock, flags);
@@ -2443,6 +2441,9 @@ static int slic_entry_open(struct net_device *dev)
 
 spin_unlock:
 	spin_unlock_irqrestore(&slic_global.driver_lock, flags);
+
+	netif_start_queue(adapter->netdev);
+
 	return status;
 }
 
