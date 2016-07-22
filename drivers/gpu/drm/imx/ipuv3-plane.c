@@ -66,18 +66,18 @@ int ipu_plane_irq(struct ipu_plane *ipu_plane)
 }
 
 static inline unsigned long
-drm_plane_state_to_eba(struct drm_plane_state *state)
+drm_plane_state_to_eba(struct drm_plane_state *state, int plane)
 {
 	struct drm_framebuffer *fb = state->fb;
 	struct drm_gem_cma_object *cma_obj;
 	int x = state->src.x1 >> 16;
 	int y = state->src.y1 >> 16;
 
-	cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
+	cma_obj = drm_fb_cma_get_gem_obj(fb, plane);
 	BUG_ON(!cma_obj);
 
-	return cma_obj->paddr + fb->offsets[0] + fb->pitches[0] * y +
-	       fb->format->cpp[0] * x;
+	return cma_obj->paddr + fb->offsets[plane] + fb->pitches[plane] * y +
+	       fb->format->cpp[plane] * x;
 }
 
 static inline unsigned long
@@ -85,7 +85,7 @@ drm_plane_state_to_ubo(struct drm_plane_state *state)
 {
 	struct drm_framebuffer *fb = state->fb;
 	struct drm_gem_cma_object *cma_obj;
-	unsigned long eba = drm_plane_state_to_eba(state);
+	unsigned long eba = drm_plane_state_to_eba(state, 0);
 	int x = state->src.x1 >> 16;
 	int y = state->src.y1 >> 16;
 
@@ -104,7 +104,7 @@ drm_plane_state_to_vbo(struct drm_plane_state *state)
 {
 	struct drm_framebuffer *fb = state->fb;
 	struct drm_gem_cma_object *cma_obj;
-	unsigned long eba = drm_plane_state_to_eba(state);
+	unsigned long eba = drm_plane_state_to_eba(state, 0);
 	int x = state->src.x1 >> 16;
 	int y = state->src.y1 >> 16;
 
@@ -286,7 +286,7 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 	     fb->format != old_fb->format))
 		crtc_state->mode_changed = true;
 
-	eba = drm_plane_state_to_eba(state);
+	eba = drm_plane_state_to_eba(state, 0);
 
 	if (eba & 0x7)
 		return -EINVAL;
@@ -385,7 +385,7 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 	if (ipu_plane->dp_flow == IPU_DP_FLOW_SYNC_FG)
 		ipu_dp_set_window_pos(ipu_plane->dp, dst->x1, dst->y1);
 
-	eba = drm_plane_state_to_eba(state);
+	eba = drm_plane_state_to_eba(state, 0);
 
 	if (old_state->fb && !drm_atomic_crtc_needs_modeset(crtc_state)) {
 		active = ipu_idmac_get_current_buffer(ipu_plane->ipu_ch);
