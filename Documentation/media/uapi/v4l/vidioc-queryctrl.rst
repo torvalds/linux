@@ -754,10 +754,12 @@ See also the examples in :ref:`control`.
 
 	  .. note::
 
-	     Setting a new value for a volatile control will have no
-	     effect and no ``V4L2_EVENT_CTRL_CH_VALUE`` will be sent, unless
-	     the ``V4L2_CTRL_FLAG_EXECUTE_ON_WRITE`` flag (see below) is
-	     also set. Otherwise the new value will just be ignored.
+	     Setting a new value for a volatile control will be ignored
+	     unless
+	     :ref:`V4L2_CTRL_FLAG_EXECUTE_ON_WRITE <FLAG_EXECUTE_ON_WRITE>`
+	     is also set.
+	     Setting a new value for a volatile control will *never* trigger a
+	     :ref:`V4L2_EVENT_CTRL_CH_VALUE <ctrl-changes-flags>` event.
 
     -  .. row 9
 
@@ -773,6 +775,7 @@ See also the examples in :ref:`control`.
 	  payload of the control.
 
     -  .. row 10
+       .. _FLAG_EXECUTE_ON_WRITE:
 
        -  ``V4L2_CTRL_FLAG_EXECUTE_ON_WRITE``
 
