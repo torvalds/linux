@@ -576,7 +576,7 @@ int ll_dir_read(struct inode *inode, struct md_op_data *op_data,
 			 */
 			done = 1;
 			ll_release_page(page, 0);
-		} else if (1 /* chain is exhausted*/) {
+		} else {
 			/*
 			 * Normal case: continue to the next
 			 * page.
@@ -587,13 +587,6 @@ int ll_dir_read(struct inode *inode, struct md_op_data *op_data,
 			next = pos;
 			page = ll_get_dir_page(inode, pos,
 					       &chain);
-		} else {
-			/*
-			 * go into overflow page.
-			 */
-			LASSERT(le32_to_cpu(dp->ldp_flags) &
-				LDF_COLLIDE);
-			ll_release_page(page, 1);
 		}
 	}
 

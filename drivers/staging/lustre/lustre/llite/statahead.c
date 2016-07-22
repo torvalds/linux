@@ -1224,7 +1224,7 @@ do_it:
 
 			rc = 0;
 			goto out;
-		} else if (1) {
+		} else {
 			/*
 			 * chain is exhausted.
 			 * Normal case: continue to the next page.
@@ -1232,12 +1232,6 @@ do_it:
 			ll_release_page(page, le32_to_cpu(dp->ldp_flags) &
 					      LDF_COLLIDE);
 			page = ll_get_dir_page(dir, pos, &chain);
-		} else {
-			LASSERT(le32_to_cpu(dp->ldp_flags) & LDF_COLLIDE);
-			ll_release_page(page, 1);
-			/*
-			 * go into overflow page.
-			 */
 		}
 	}
 
@@ -1434,8 +1428,8 @@ static int is_first_dirent(struct inode *dir, struct dentry *dentry)
 			 * End of directory reached.
 			 */
 			ll_release_page(page, 0);
-			break;
-		} else if (1) {
+			goto out;
+		} else {
 			/*
 			 * chain is exhausted
 			 * Normal case: continue to the next page.
@@ -1443,12 +1437,6 @@ static int is_first_dirent(struct inode *dir, struct dentry *dentry)
 			ll_release_page(page, le32_to_cpu(dp->ldp_flags) &
 					      LDF_COLLIDE);
 			page = ll_get_dir_page(dir, pos, &chain);
-		} else {
-			/*
-			 * go into overflow page.
-			 */
-			LASSERT(le32_to_cpu(dp->ldp_flags) & LDF_COLLIDE);
-			ll_release_page(page, 1);
 		}
 	}
 
