@@ -18,6 +18,7 @@
 
 /* Greybus HID device's structure */
 struct gb_hid {
+	struct gb_bundle *bundle;
 	struct gb_connection		*connection;
 
 	struct hid_device		*hid;
@@ -44,26 +45,55 @@ static int gb_hid_get_desc(struct gb_hid *ghid)
 
 static int gb_hid_get_report_desc(struct gb_hid *ghid, char *rdesc)
 {
-	return gb_operation_sync(ghid->connection, GB_HID_TYPE_GET_REPORT_DESC,
+	int ret;
+
+	ret = gb_pm_runtime_get_sync(ghid->bundle);
+	if (ret)
+		return ret;
+
+	ret = gb_operation_sync(ghid->connection, GB_HID_TYPE_GET_REPORT_DESC,
 				 NULL, 0, rdesc,
 				 le16_to_cpu(ghid->hdesc.wReportDescLength));
+
+	gb_pm_runtime_put_autosuspend(ghid->bundle);
+
+	return ret;
 }
 
 static int gb_hid_set_power(struct gb_hid *ghid, int type)
 {
-	return gb_operation_sync(ghid->connection, type, NULL, 0, NULL, 0);
+	int ret;
+
+	ret = gb_pm_runtime_get_sync(ghid->bundle);
+	if (ret)
+		return ret;
+
+	ret = gb_operation_sync(ghid->connection, type, NULL, 0, NULL, 0);
+
+	gb_pm_runtime_put_autosuspend(ghid->bundle);
+
+	return ret;
 }
 
 static int gb_hid_get_report(struct gb_hid *ghid, u8 report_type, u8 report_id,
 			     unsigned char *buf, int len)
 {
 	struct gb_hid_get_report_request request;
+	int ret;
+
+	ret = gb_pm_runtime_get_sync(ghid->bundle);
+	if (ret)
+		return ret;
 
 	request.report_type = report_type;
 	request.report_id = report_id;
 
-	return gb_operation_sync(ghid->connection, GB_HID_TYPE_GET_REPORT,
+	ret = gb_operation_sync(ghid->connection, GB_HID_TYPE_GET_REPORT,
 				 &request, sizeof(request), buf, len);
+
+	gb_pm_runtime_put_autosuspend(ghid->bundle);
+
+	return ret;
 }
 
 static int gb_hid_set_report(struct gb_hid *ghid, u8 report_type, u8 report_id,
@@ -73,11 +103,17 @@ static int gb_hid_set_report(struct gb_hid *ghid, u8 report_type, u8 report_id,
 	struct gb_operation *operation;
 	int ret, size = sizeof(*request) + len - 1;
 
+	ret = gb_pm_runtime_get_sync(ghid->bundle);
+	if (ret)
+		return ret;
+
 	operation = gb_operation_create(ghid->connection,
 					GB_HID_TYPE_SET_REPORT, size, 0,
 					GFP_KERNEL);
-	if (!operation)
+	if (!operation) {
+		gb_pm_runtime_put_autosuspend(ghid->bundle);
 		return -ENOMEM;
+	}
 
 	request = operation->request->payload;
 	request->report_type = report_type;
@@ -93,6 +129,7 @@ static int gb_hid_set_report(struct gb_hid *ghid, u8 report_type, u8 report_id,
 	}
 
 	gb_operation_put(operation);
+	gb_pm_runtime_put_autosuspend(ghid->bundle);
 
 	return ret;
 }
@@ -458,6 +495,7 @@ static int gb_hid_probe(struct gb_bundle *bundle,
 	}
 
 	ghid->hid = hid;
+	ghid->bundle = bundle;
 
 	greybus_set_drvdata(bundle, ghid);
 
@@ -474,6 +512,8 @@ static int gb_hid_probe(struct gb_bundle *bundle,
 		hid_err(hid, "can't add hid device: %d\n", ret);
 		goto err_connection_disable;
 	}
+
+	gb_pm_runtime_put_autosuspend(bundle);
 
 	return 0;
 
@@ -492,6 +532,9 @@ err_free_ghid:
 static void gb_hid_disconnect(struct gb_bundle *bundle)
 {
 	struct gb_hid *ghid = greybus_get_drvdata(bundle);
+
+	if (gb_pm_runtime_get_sync(bundle))
+		gb_pm_runtime_get_noresume(bundle);
 
 	hid_destroy_device(ghid->hid);
 	gb_connection_disable(ghid->connection);
