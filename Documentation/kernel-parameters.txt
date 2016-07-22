@@ -3016,6 +3016,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 		hpmemsize=nn[KMG]	The fixed amount of bus space which is
 				reserved for hotplug bridge's memory window.
 				Default size is 2 megabytes.
+		hpbussize=nn	The minimum amount of additional bus numbers
+				reserved for buses below a hotplug bridge.
+				Default is 1.
 		realloc=	Enable/disable reallocating PCI bridge resources
 				if allocations done by BIOS are too small to
 				accommodate resources required by all child

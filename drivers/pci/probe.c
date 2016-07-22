@@ -2077,6 +2077,15 @@ unsigned int pci_scan_child_bus(struct pci_bus *bus)
 		}
 
 	/*
+	 * Make sure a hotplug bridge has at least the minimum requested
+	 * number of buses.
+	 */
+	if (bus->self && bus->self->is_hotplug_bridge && pci_hotplug_bus_size) {
+		if (max - bus->busn_res.start < pci_hotplug_bus_size - 1)
+			max = bus->busn_res.start + pci_hotplug_bus_size - 1;
+	}
+
+	/*
 	 * We've scanned the bus and so we know all about what's on
 	 * the other side of any bridges that may be on this bus plus
 	 * any devices.
