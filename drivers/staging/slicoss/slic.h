@@ -351,10 +351,17 @@ struct base_driver {
 	uint                 cardnuminuse[SLIC_MAX_CARDS];
 };
 
-struct slic_shmem {
-	volatile u32          isr;
-	volatile u32          linkstatus;
-	volatile struct slic_stats     inicstats;
+struct slic_shmem_data {
+	u32 isr;
+	u32 lnkstatus;
+	struct slic_stats stats;
+};
+
+struct slic_shmemory {
+	dma_addr_t isr_phaddr;
+	dma_addr_t lnkstatus_phaddr;
+	dma_addr_t stats_phaddr;
+	struct slic_shmem_data __iomem *shmem_data;
 };
 
 struct slic_upr {
@@ -414,9 +421,8 @@ struct adapter {
 	u32             intrregistered;
 	uint                isp_initialized;
 	uint                gennumber;
-	struct slic_shmem      *pshmem;
+	struct slic_shmemory shmem;
 	dma_addr_t          phys_shmem;
-	u32             isrcopy;
 	void __iomem *regs;
 	unsigned char               state;
 	unsigned char               linkstate;
