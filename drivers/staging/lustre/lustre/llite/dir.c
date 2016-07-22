@@ -561,8 +561,9 @@ int ll_dir_read(struct inode *inode, struct md_op_data *op_data,
 			done = !dir_emit(ctx, ent->lde_name,
 					 namelen, ino, type);
 		}
-		next = le64_to_cpu(dp->ldp_hash_end);
+
 		if (!done) {
+			next = le64_to_cpu(dp->ldp_hash_end);
 			pos = next;
 			if (pos == MDS_DIR_END_OFF) {
 				/*
