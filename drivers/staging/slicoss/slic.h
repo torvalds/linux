@@ -417,7 +417,6 @@ struct adapter {
 	struct slic_shmem      *pshmem;
 	dma_addr_t          phys_shmem;
 	u32             isrcopy;
-	__iomem struct slic_regs       *slic_regs;
 	void __iomem *regs;
 	unsigned char               state;
 	unsigned char               linkstate;
