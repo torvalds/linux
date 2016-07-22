@@ -1039,12 +1039,18 @@ static int ll_statahead_thread(void *arg)
 	__u64		     pos    = 0;
 	int		       first  = 0;
 	int		       rc     = 0;
+	struct md_op_data *op_data;
 	struct ll_dir_chain       chain;
 	struct l_wait_info	lwi    = { 0 };
 
 	thread->t_pid = current_pid();
 	CDEBUG(D_READA, "statahead thread starting: sai %p, parent %pd\n",
 	       sai, parent);
+
+	op_data = ll_prep_md_op_data(NULL, dir, dir, NULL, 0, 0,
+				     LUSTRE_OPC_ANY, dir);
+	if (IS_ERR(op_data))
+		return PTR_ERR(op_data);
 
 	if (sbi->ll_flags & LL_SBI_AGL_ENABLED)
 		ll_start_agl(parent, sai);
@@ -1236,6 +1242,7 @@ do_it:
 	}
 
 out:
+	ll_finish_md_op_data(op_data);
 	if (sai->sai_agl_valid) {
 		spin_lock(&plli->lli_agl_lock);
 		thread_set_flags(agl_thread, SVC_STOPPING);

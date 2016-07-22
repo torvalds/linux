@@ -255,6 +255,7 @@ static int ll_get_name(struct dentry *dentry, char *name,
 		.lgd_fid = ll_i2info(d_inode(child))->lli_fid,
 		.ctx.actor = ll_nfs_get_name_filldir,
 	};
+	struct md_op_data *op_data;
 
 	if (!dir || !S_ISDIR(dir->i_mode)) {
 		rc = -ENOTDIR;
@@ -266,9 +267,17 @@ static int ll_get_name(struct dentry *dentry, char *name,
 		goto out;
 	}
 
+	op_data = ll_prep_md_op_data(NULL, dir, dir, NULL, 0, 0,
+				     LUSTRE_OPC_ANY, dir);
+	if (IS_ERR(op_data)) {
+		rc = PTR_ERR(op_data);
+		goto out;
+	}
+
 	inode_lock(dir);
-	rc = ll_dir_read(dir, &lgd.ctx);
+	rc = ll_dir_read(dir, op_data, &lgd.ctx);
 	inode_unlock(dir);
+	ll_finish_md_op_data(op_data);
 	if (!rc && !lgd.lgd_found)
 		rc = -ENOENT;
 out:

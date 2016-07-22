@@ -489,7 +489,8 @@ static __u16 ll_dirent_type_get(struct lu_dirent *ent)
 	return type;
 }
 
-int ll_dir_read(struct inode *inode, struct dir_context *ctx)
+int ll_dir_read(struct inode *inode, struct md_op_data *op_data,
+		struct dir_context *ctx)
 {
 	struct ll_inode_info *info       = ll_i2info(inode);
 	struct ll_sb_info    *sbi	= ll_i2sbi(inode);
@@ -613,6 +614,7 @@ static int ll_readdir(struct file *filp, struct dir_context *ctx)
 	__u64 pos = lfd ? lfd->lfd_pos : 0;
 	int			hash64	= sbi->ll_flags & LL_SBI_64BIT_HASH;
 	int			api32	= ll_need_32bit_api(sbi);
+	struct md_op_data *op_data;
 	int			rc;
 
 	CDEBUG(D_VFSTRACE, "VFS Op:inode="DFID"(%p) pos/size %lu/%llu 32bit_api %d\n",
@@ -627,8 +629,15 @@ static int ll_readdir(struct file *filp, struct dir_context *ctx)
 		goto out;
 	}
 
+	op_data = ll_prep_md_op_data(NULL, inode, inode, NULL, 0, 0,
+				     LUSTRE_OPC_ANY, inode);
+	if (IS_ERR(op_data)) {
+		rc = PTR_ERR(op_data);
+		goto out;
+	}
+
 	ctx->pos = pos;
-	rc = ll_dir_read(inode, ctx);
+	rc = ll_dir_read(inode, op_data, ctx);
 	if (lfd)
 		lfd->lfd_pos = ctx->pos;
 	if (ctx->pos == MDS_DIR_END_OFF) {
@@ -640,6 +649,7 @@ static int ll_readdir(struct file *filp, struct dir_context *ctx)
 		if (api32 && hash64)
 			ctx->pos >>= 32;
 	}
+	ll_finish_md_op_data(op_data);
 	filp->f_version = inode->i_version;
 
 out:
