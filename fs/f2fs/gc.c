@@ -908,10 +908,13 @@ gc_more:
 		 * enough free sections, we should flush dent/node blocks and do
 		 * garbage collections.
 		 */
-		if (__get_victim(sbi, &segno, gc_type) || prefree_segments(sbi))
+		if (__get_victim(sbi, &segno, gc_type) ||
+						prefree_segments(sbi)) {
 			write_checkpoint(sbi, &cpc);
-		else if (has_not_enough_free_secs(sbi, 0))
+			segno = NULL_SEGNO;
+		} else if (has_not_enough_free_secs(sbi, 0)) {
 			write_checkpoint(sbi, &cpc);
+		}
 	}
 
 	if (segno == NULL_SEGNO && !__get_victim(sbi, &segno, gc_type))
