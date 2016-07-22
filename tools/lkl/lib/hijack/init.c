@@ -30,6 +30,9 @@
 #define __USE_GNU
 #include <dlfcn.h>
 
+#define _GNU_SOURCE
+#include <sched.h>
+
 /* Mount points are named after filesystem types so they should never
  * be longer than ~6 characters. */
 #define MAX_FSTYPE_LEN 50
@@ -177,6 +180,28 @@ void fixup_netdev_linux_fdnet_ops(void)
 	lkl_netdev_linux_fdnet_ops.eventfd = dlsym(RTLD_NEXT, "eventfd");
 }
 
+static void PinToCpus(const cpu_set_t* cpus)
+{
+	if (sched_setaffinity(0, sizeof(cpu_set_t), cpus)) {
+		perror("sched_setaffinity");
+	}
+}
+
+static void PinToFirstCpu(const cpu_set_t* cpus)
+{
+	int j;
+	cpu_set_t pinto;
+	CPU_ZERO(&pinto);
+	for (j = 0; j < CPU_SETSIZE; j++) {
+		if (CPU_ISSET(j, cpus)) {
+			lkl_printf("LKL: Pin To CPU %d\n", j);
+			CPU_SET(j, &pinto);
+			PinToCpus(&pinto);
+			return;
+		}
+	}
+}
+
 void __attribute__((constructor(102)))
 hijack_init(void)
 {
@@ -195,6 +220,51 @@ hijack_init(void)
 	char *mount = getenv("LKL_HIJACK_MOUNT");
 	struct lkl_netdev *nd = NULL;
 	char *arp_entries = getenv("LKL_HIJACK_NET_ARP");
+	/* single_cpu mode:
+	 * 0: Don't pin to single CPU (default).
+	 * 1: Pin only LKL kernel threads to single CPU.
+	 * 2: Pin all LKL threads to single CPU including all LKL kernel threads
+	 * and device polling threads. Avoid this mode if having busy polling
+	 * threads.
+	 *
+	 * mode 2 can achieve better TCP_RR but worse TCP_STREAM than mode 1.
+	 * You should choose the best for your application and virtio device
+	 * type.
+	 */
+	char *single_cpu= getenv("LKL_HIJACK_SINGLE_CPU");
+	int single_cpu_mode = 0;
+	cpu_set_t ori_cpu;
+
+	if (!debug)
+		lkl_host_ops.print = NULL;
+	else
+		lkl_register_dbg_handler();
+
+	if (single_cpu) {
+		single_cpu_mode = atoi(single_cpu);
+		switch (single_cpu_mode) {
+			case 0:
+			case 1:
+			case 2: break;
+			default:
+				fprintf(stderr, "single cpu mode must be 0~2.\n");
+				single_cpu_mode = 0;
+				break;
+		}
+	}
+
+	if (single_cpu_mode) {
+		if (sched_getaffinity(0, sizeof(cpu_set_t), &ori_cpu)) {
+			perror("sched_getaffinity");
+			single_cpu_mode = 0;
+		}
+	}
+
+	/* Pin to a single cpu.
+	 * Any children thread created after it are pinned to the same CPU.
+	 */
+	if (single_cpu_mode == 2)
+		PinToFirstCpu(&ori_cpu);
 
 	/* Must be run before lkl_netdev_tap_create */
 	fixup_netdev_linux_fdnet_ops();
@@ -238,16 +308,18 @@ hijack_init(void)
 		nd_id = ret;
 	}
 
-	if (!debug)
-		lkl_host_ops.print = NULL;
-	else
-		lkl_register_dbg_handler();
+	if (single_cpu_mode == 1)
+		PinToFirstCpu(&ori_cpu);
 
 	ret = lkl_start_kernel(&lkl_host_ops, 64 * 1024 * 1024, "");
 	if (ret) {
 		fprintf(stderr, "can't start kernel: %s\n", lkl_strerror(ret));
 		return;
 	}
+
+	/* restore cpu affinity */
+	if (single_cpu_mode)
+		PinToCpus(&ori_cpu);
 
 	/* fillup FDs up to LKL_FD_OFFSET */
 	ret = lkl_sys_mknod("/dev_null", LKL_S_IFCHR | 0600, LKL_MKDEV(1, 3));

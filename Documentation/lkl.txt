@@ -202,7 +202,14 @@ are the list of those variable for your environment.
 ```
      $ LKL_HIJACK_DEBUG=1 lkl-hijack.sh ip address show
 ```
+* LKL_HIJACK_SINGLE_CPU
 
+  Pin LKL kernel threads on to a single host cpu. LKL_HIJACK_SINGLE_CPU=1 pins
+  only LKL kernel threads while LKL_HIJACK_SINGLE_CPU=2 also pins polling
+  threads.
+```
+     $ LKL_HIJACK_SINGLE_CPU=1 lkl-hijack.sh ip address show
+```
 FAQ
 ===
 
