@@ -1,10 +1,3 @@
-Overview of the V4L2 driver framework
-=====================================
-
-This text documents the various structures provided by the V4L2 framework and
-their relationships.
-
-
 Introduction
 ------------
 
@@ -39,8 +32,8 @@ source that is available in samples/v4l/. It is a skeleton driver for
 a PCI capture card, and demonstrates how to use the V4L2 driver
 framework. It can be used as a template for real PCI video capture driver.
 
-Structure of a driver
----------------------
+Structure of a V4L driver
+-------------------------
 
 All drivers have the following structure:
 
@@ -68,8 +61,8 @@ This is a rough schematic of how it all relates:
 	  \-filehandle instances
 
 
-Structure of the framework
---------------------------
+Structure of the V4L2 framework
+-------------------------------
 
 The framework closely resembles the driver structure: it has a v4l2_device
 struct for the device instance data, a v4l2_subdev struct to refer to

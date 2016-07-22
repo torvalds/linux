@@ -1,5 +1,5 @@
-Video device creation
-=====================
+Video device' s internal representation
+=======================================
 
 The actual device nodes in the ``/dev`` directory are created using the
 :c:type:`video_device` struct (``v4l2-dev.h``). This struct can either be
@@ -309,8 +309,8 @@ it has been initialized:
 This can be done from the release callback.
 
 
-video_device helper functions
------------------------------
+helper functions
+----------------
 
 There are a few useful helper functions:
 
@@ -357,7 +357,7 @@ The name is used as a hint by userspace tools such as udev. The function
 should be used where possible instead of accessing the video_device::num and
 video_device::minor fields.
 
-video_device kAPI
------------------
+video_device functions and data structures
+------------------------------------------
 
 .. kernel-doc:: include/media/v4l2-dev.h

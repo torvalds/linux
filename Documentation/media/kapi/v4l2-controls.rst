@@ -808,7 +808,7 @@ notify function is called.
 There can be only one notify function per control handler. Any attempt
 to set another notify function will cause a WARN_ON.
 
-V4L2 control kAPI
------------------
+v4l2_ctrl functions and data structures
+---------------------------------------
 
 .. kernel-doc:: include/media/v4l2-ctrls.h

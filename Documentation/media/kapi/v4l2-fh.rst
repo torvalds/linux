@@ -133,6 +133,7 @@ associated device node:
 - Same, but it calls v4l2_fh_is_singular with filp->private_data.
 
 
-V4L2 File Handler kAPI
-^^^^^^^^^^^^^^^^^^^^^^
+V4L2 fh functions and data structures
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 .. kernel-doc:: include/media/v4l2-fh.h

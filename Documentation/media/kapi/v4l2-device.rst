@@ -1,5 +1,5 @@
-V4L2 Device register logic
---------------------------
+V4L2 device instance
+--------------------
 
 Each device instance is represented by a struct :c:type:`v4l2_device`.
 Very simple devices can just allocate this struct, but most of the time you
@@ -138,7 +138,7 @@ Since the initial refcount is 1 you also need to call
 or in the ``remove()`` callback (for e.g. PCI devices), otherwise the refcount
 will never reach 0.
 
-V4L2 device kAPI
-^^^^^^^^^^^^^^^^
+v4l2_device functions and data structures
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. kernel-doc:: include/media/v4l2-device.h

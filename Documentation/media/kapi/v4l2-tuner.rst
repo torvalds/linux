@@ -1,5 +1,5 @@
-Tuner kAPI
-^^^^^^^^^^
+Tuner functions and data structures
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. kernel-doc:: include/media/tuner.h
 

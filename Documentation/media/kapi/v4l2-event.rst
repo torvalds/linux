@@ -130,7 +130,8 @@ function with ``V4L2_DEVICE_NOTIFY_EVENT``. This allows the bridge to map
 the subdev that sends the event to the video node(s) associated with the
 subdev that need to be informed about such an event.
 
-V4L2 event kAPI
-^^^^^^^^^^^^^^^
+V4L2 event functions and data structures
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. kernel-doc:: include/media/v4l2-event.h
+

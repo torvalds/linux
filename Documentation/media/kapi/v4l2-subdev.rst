@@ -440,18 +440,6 @@ well, but with irq set to 0 and platform_data set to ``NULL``.
 V4L2 sub-device functions and data structures
 ---------------------------------------------
 
-V4L2 sub-device kAPI
-^^^^^^^^^^^^^^^^^^^^
-
 .. kernel-doc:: include/media/v4l2-subdev.h
 
-V4L2 sub-device asynchronous kAPI
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
 .. kernel-doc:: include/media/v4l2-async.h
-
-
-V4L2 common kAPI
-^^^^^^^^^^^^^^^^
-
-.. kernel-doc:: include/media/v4l2-common.h

@@ -1,7 +1,7 @@
 .. _vb2_framework:
 
-V4L2 videobuf2 kAPI
-^^^^^^^^^^^^^^^^^^^
+V4L2 videobuf2 functions and data structures
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. kernel-doc:: include/media/videobuf2-core.h
 
