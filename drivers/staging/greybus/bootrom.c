@@ -92,6 +92,11 @@ static void gb_bootrom_set_timeout(struct gb_bootrom *bootrom,
 	schedule_delayed_work(&bootrom->dwork, msecs_to_jiffies(timeout));
 }
 
+static void gb_bootrom_cancel_timeout(struct gb_bootrom *bootrom)
+{
+	cancel_delayed_work_sync(&bootrom->dwork);
+}
+
 /*
  * The es2 chip doesn't have VID/PID programmed into the hardware and we need to
  * hack that up to distinguish different modules and their firmware blobs.
@@ -188,7 +193,7 @@ static int gb_bootrom_firmware_size_request(struct gb_operation *op)
 	int ret;
 
 	/* Disable timeouts */
-	cancel_delayed_work_sync(&bootrom->dwork);
+	gb_bootrom_cancel_timeout(bootrom);
 
 	if (op->request->payload_size != sizeof(*size_request)) {
 		dev_err(dev, "%s: illegal size of firmware size request (%zu != %zu)\n",
@@ -242,7 +247,7 @@ static int gb_bootrom_get_firmware(struct gb_operation *op)
 	int ret = 0;
 
 	/* Disable timeouts */
-	cancel_delayed_work_sync(&bootrom->dwork);
+	gb_bootrom_cancel_timeout(bootrom);
 
 	if (op->request->payload_size != sizeof(*firmware_request)) {
 		dev_err(dev, "%s: Illegal size of get firmware request (%zu %zu)\n",
@@ -310,7 +315,7 @@ static int gb_bootrom_ready_to_boot(struct gb_operation *op)
 	int ret = 0;
 
 	/* Disable timeouts */
-	cancel_delayed_work_sync(&bootrom->dwork);
+	gb_bootrom_cancel_timeout(bootrom);
 
 	if (op->request->payload_size != sizeof(*rtb_request)) {
 		dev_err(dev, "%s: Illegal size of ready to boot request (%zu %zu)\n",
@@ -468,7 +473,7 @@ static int gb_bootrom_probe(struct gb_bundle *bundle,
 	return 0;
 
 err_cancel_timeout:
-	cancel_delayed_work_sync(&bootrom->dwork);
+	gb_bootrom_cancel_timeout(bootrom);
 err_connection_disable:
 	gb_connection_disable(connection);
 err_connection_destroy:
@@ -488,7 +493,7 @@ static void gb_bootrom_disconnect(struct gb_bundle *bundle)
 	gb_connection_disable(bootrom->connection);
 
 	/* Disable timeouts */
-	cancel_delayed_work_sync(&bootrom->dwork);
+	gb_bootrom_cancel_timeout(bootrom);
 
 	/*
 	 * Release firmware:
