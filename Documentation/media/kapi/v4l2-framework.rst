@@ -80,22 +80,6 @@ The V4L2 framework also optionally integrates with the media framework. If a
 driver sets the struct v4l2_device mdev field, sub-devices and video nodes
 will automatically appear in the media framework as entities.
 
-
-
-video buffer helper functions
------------------------------
-
-The v4l2 core API provides a set of standard methods (called "videobuf")
-for dealing with video buffers. Those methods allow a driver to implement
-read(), mmap() and overlay() in a consistent way.  There are currently
-methods for using video buffers on devices that supports DMA with
-scatter/gather method (videobuf-dma-sg), DMA with linear access
-(videobuf-dma-contig), and vmalloced buffers, mostly used on USB drivers
-(videobuf-vmalloc).
-
-Please see Documentation/video4linux/videobuf for more information on how
-to use the videobuf layer.
-
 struct v4l2_fh
 --------------
 
