@@ -510,7 +510,7 @@ static bool macsec_validate_skb(struct sk_buff *skb, u16 icv_len)
 }
 
 #define MACSEC_NEEDED_HEADROOM (macsec_extra_len(true))
-#define MACSEC_NEEDED_TAILROOM MACSEC_MAX_ICV_LEN
+#define MACSEC_NEEDED_TAILROOM MACSEC_STD_ICV_LEN
 
 static void macsec_fill_iv(unsigned char *iv, sci_t sci, u32 pn)
 {
@@ -3217,7 +3217,7 @@ static int macsec_validate_attr(struct nlattr *tb[], struct nlattr *data[])
 	case MACSEC_DEFAULT_CIPHER_ID:
 	case MACSEC_DEFAULT_CIPHER_ALT:
 		if (icv_len < MACSEC_MIN_ICV_LEN ||
-		    icv_len > MACSEC_MAX_ICV_LEN)
+		    icv_len > MACSEC_STD_ICV_LEN)
 			return -EINVAL;
 		break;
 	default:
