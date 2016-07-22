@@ -144,6 +144,12 @@ static void hdmi_wq_set_video(struct hdmi *hdmi)
 	} else {
 		video->vic = hdmi->vic & HDMI_VIC_MASK;
 	}
+
+	if (hdmi->uboot) {
+		if ((uboot_vic & HDMI_UBOOT_VIC_MASK) != hdmi->vic)
+			hdmi->uboot = 0;
+	}
+
 	hdmi_set_lcdc(hdmi);
 	if (hdmi->ops->setvideo)
 		hdmi->ops->setvideo(hdmi, video);
