@@ -268,10 +268,11 @@ static void __create_pgd_mapping(pgd_t *pgdir, phys_addr_t phys,
 	} while (pgd++, addr = next, addr != end);
 }
 
-static phys_addr_t late_pgtable_alloc(void)
+static phys_addr_t pgd_pgtable_alloc(void)
 {
 	void *ptr = (void *)__get_free_page(PGALLOC_GFP);
-	BUG_ON(!ptr);
+	if (!ptr || !pgtable_page_ctor(virt_to_page(ptr)))
+		BUG();
 
 	/* Ensure the zeroed page is visible to the page table walker */
 	dsb(ishst);
@@ -298,8 +299,10 @@ void __init create_pgd_mapping(struct mm_struct *mm, phys_addr_t phys,
 			       unsigned long virt, phys_addr_t size,
 			       pgprot_t prot, bool allow_block_mappings)
 {
+	BUG_ON(mm == &init_mm);
+
 	__create_pgd_mapping(mm->pgd, phys, virt, size, prot,
-			     late_pgtable_alloc, allow_block_mappings);
+			     pgd_pgtable_alloc, allow_block_mappings);
 }
 
 static void create_mapping_late(phys_addr_t phys, unsigned long virt,
