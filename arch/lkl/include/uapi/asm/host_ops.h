@@ -24,8 +24,6 @@ typedef unsigned long lkl_thread_t;
  * @sem_free - free a host semaphore
  * @sem_up - perform an up operation on the semaphore
  * @sem_down - perform a down operation on the semaphore
- * @sem_get - return the current value of semahpore. To be used only for sanity
- * checking
  *
  * @mutex_alloc - allocate and initialize a host mutex
  * @mutex_free - free a host mutex
@@ -76,7 +74,6 @@ struct lkl_host_operations {
 	void (*sem_free)(struct lkl_sem *sem);
 	void (*sem_up)(struct lkl_sem *sem);
 	void (*sem_down)(struct lkl_sem *sem);
-	int (*sem_get)(struct lkl_sem *sem);
 
 	struct lkl_mutex *(*mutex_alloc)(void);
 	void (*mutex_free)(struct lkl_mutex *mutex);

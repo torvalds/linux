@@ -180,14 +180,6 @@ static int syscall_thread_data_init(struct syscall_thread_data *data,
 	return 0;
 }
 
-static int lkl_syscall_wouldblock(struct syscall_thread_data *data)
-{
-	if (!lkl_ops->sem_get)
-		return 0;
-
-	return !lkl_ops->sem_get(data->mutex);
-}
-
 static long __lkl_syscall(struct syscall_thread_data *data, long no,
 			  long *params)
 {
@@ -195,9 +187,6 @@ static long __lkl_syscall(struct syscall_thread_data *data, long no,
 
 	s.no = no;
 	s.params = params;
-
-	if (lkl_syscall_wouldblock(data))
-		lkl_puts("syscall would block");
 
 	lkl_ops->sem_down(data->mutex);
 	data->s = &s;
