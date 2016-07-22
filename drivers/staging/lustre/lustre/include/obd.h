@@ -867,6 +867,8 @@ struct md_op_data {
 enum op_cli_flags {
 	CLI_SET_MEA	= 1 << 0,
 	CLI_RM_ENTRY	= 1 << 1,
+	CLI_HASH64	= BIT(2),
+	CLI_API32	= BIT(3),
 };
 
 struct md_enqueue_info;
