@@ -1,5 +1,5 @@
 /*
- * audio codec driver
+ * APBridge ALSA SoC dummy codec driver
  * Copyright 2016 Google Inc.
  * Copyright 2016 Linaro Ltd.
  *
@@ -1203,13 +1203,13 @@ static int gbaudio_codec_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id greybus_asoc_machine_of_match[]  = {
-	{ .compatible = "qcom,ara-codec", },
+	{ .compatible = "toshiba,apb-dummy-codec", },
 	{},
 };
 
 static struct platform_driver gbaudio_codec_driver = {
 	.driver = {
-		.name = "gb-codec",
+		.name = "apb-dummy-codec",
 		.owner = THIS_MODULE,
 #ifdef CONFIG_PM
 		.pm = &gbaudio_codec_pm_ops,
@@ -1221,7 +1221,7 @@ static struct platform_driver gbaudio_codec_driver = {
 };
 module_platform_driver(gbaudio_codec_driver);
 
-MODULE_DESCRIPTION("Greybus codec driver");
+MODULE_DESCRIPTION("APBridge ALSA SoC dummy codec driver");
 MODULE_AUTHOR("Vaibhav Agarwal <vaibhav.agarwal@linaro.org>");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:gbaudio-codec");
+MODULE_ALIAS("platform:apb-dummy-codec");
