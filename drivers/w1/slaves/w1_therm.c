@@ -81,7 +81,7 @@ static int w1_therm_add_slave(struct w1_slave *sl)
 static void w1_therm_remove_slave(struct w1_slave *sl)
 {
 	int refcnt = atomic_sub_return(1, THERM_REFCNT(sl->family_data));
-	while(refcnt) {
+	while (refcnt) {
 		msleep(1000);
 		refcnt = atomic_read(THERM_REFCNT(sl->family_data));
 	}
@@ -151,8 +151,7 @@ static struct w1_family w1_therm_family_DS1825 = {
 	.fops = &w1_therm_fops,
 };
 
-struct w1_therm_family_converter
-{
+struct w1_therm_family_converter {
 	u8			broken;
 	u16			reserved;
 	struct w1_family	*f;
@@ -293,7 +292,7 @@ static inline int w1_DS18B20_precision(struct device *device, int val)
 	uint8_t precision_bits;
 	uint8_t mask = 0x60;
 
-	if(val > 12 || val < 9) {
+	if (val > 12 || val < 9) {
 		pr_warn("Unsupported precision\n");
 		return -1;
 	}
@@ -439,8 +438,7 @@ static ssize_t w1_slave_show(struct device *device,
 	if (ret != 0)
 		goto post_unlock;
 
-	if(!sl->family_data)
-	{
+	if (!sl->family_data) {
 		ret = -ENODEV;
 		goto pre_unlock;
 	}
