@@ -1647,7 +1647,7 @@ static struct pinctrl_xway_soc danube_pinctrl = {
 	.funcs = danube_funcs,
 	.num_funcs = ARRAY_SIZE(danube_funcs),
 	.exin = danube_exin_pin_map,
-	.num-exin = 3
+	.num_exin = 3
 };
 
 /* XWAY xRX100 Family */
