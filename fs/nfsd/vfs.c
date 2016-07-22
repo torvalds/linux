@@ -1166,13 +1166,6 @@ nfsd_create_locked(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		iap->ia_mode = 0;
 	iap->ia_mode = (iap->ia_mode & S_IALLUGO) | type;
 
-	err = nfserr_inval;
-	if (!S_ISREG(type) && !S_ISDIR(type) && !special_file(type)) {
-		printk(KERN_WARNING "nfsd: bad file type %o in nfsd_create\n",
-		       type);
-		goto out;
-	}
-
 	err = 0;
 	host_err = 0;
 	switch (type) {
@@ -1190,6 +1183,10 @@ nfsd_create_locked(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	case S_IFSOCK:
 		host_err = vfs_mknod(dirp, dchild, iap->ia_mode, rdev);
 		break;
+	default:
+		printk(KERN_WARNING "nfsd: bad file type %o in nfsd_create\n",
+		       type);
+		host_err = -EINVAL;
 	}
 	if (host_err < 0)
 		goto out_nfserr;
