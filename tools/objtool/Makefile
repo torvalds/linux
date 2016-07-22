@@ -24,7 +24,7 @@ OBJTOOL_IN := $(OBJTOOL)-in.o
 
 all: $(OBJTOOL)
 
-INCLUDES := -I$(srctree)/tools/include -I$(srctree)/tools/arch/$(ARCH)/include/uapi
+INCLUDES := -I$(srctree)/tools/include -I$(srctree)/tools/arch/$(HOSTARCH)/include/uapi
 CFLAGS   += -Wall -Werror $(EXTRA_WARNINGS) -fomit-frame-pointer -O2 -g $(INCLUDES)
 LDFLAGS  += -lelf $(LIBSUBCMD)
 
