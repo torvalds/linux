@@ -221,6 +221,71 @@ static int cpu_is_waiting_on_io(struct rq *rq)
 	return atomic_read(&rq->nr_iowait);
 }
 
+void walt_account_irqtime(int cpu, struct task_struct *curr,
+				 u64 delta, u64 wallclock)
+{
+	struct rq *rq = cpu_rq(cpu);
+	unsigned long flags, nr_windows;
+	u64 cur_jiffies_ts;
+
+	raw_spin_lock_irqsave(&rq->lock, flags);
+
+	/*
+	 * cputime (wallclock) uses sched_clock so use the same here for
+	 * consistency.
+	 */
+	delta += sched_clock() - wallclock;
+	cur_jiffies_ts = get_jiffies_64();
+
+	if (is_idle_task(curr))
+		walt_update_task_ravg(curr, rq, IRQ_UPDATE, walt_ktime_clock(),
+				 delta);
+
+	nr_windows = cur_jiffies_ts - rq->irqload_ts;
+
+	if (nr_windows) {
+		if (nr_windows < 10) {
+			/* Decay CPU's irqload by 3/4 for each window. */
+			rq->avg_irqload *= (3 * nr_windows);
+			rq->avg_irqload = div64_u64(rq->avg_irqload,
+						    4 * nr_windows);
+		} else {
+			rq->avg_irqload = 0;
+		}
+		rq->avg_irqload += rq->cur_irqload;
+		rq->cur_irqload = 0;
+	}
+
+	rq->cur_irqload += delta;
+	rq->irqload_ts = cur_jiffies_ts;
+	raw_spin_unlock_irqrestore(&rq->lock, flags);
+}
+
+
+#define WALT_HIGH_IRQ_TIMEOUT 3
+
+u64 walt_irqload(int cpu) {
+	struct rq *rq = cpu_rq(cpu);
+	s64 delta;
+	delta = get_jiffies_64() - rq->irqload_ts;
+
+        /*
+	 * Current context can be preempted by irq and rq->irqload_ts can be
+	 * updated by irq context so that delta can be negative.
+	 * But this is okay and we can safely return as this means there
+	 * was recent irq occurrence.
+	 */
+
+        if (delta < WALT_HIGH_IRQ_TIMEOUT)
+		return rq->avg_irqload;
+        else
+		return 0;
+}
+
+int walt_cpu_high_irqload(int cpu) {
+	return walt_irqload(cpu) >= sysctl_sched_walt_cpu_high_irqload;
+}
+
 static int account_busy_for_cpu_time(struct rq *rq, struct task_struct *p,
 				     u64 irqtime, int event)
 {
