@@ -26,7 +26,6 @@ extern int nvdimm_major;
 struct nvdimm_bus {
 	struct nvdimm_bus_descriptor *nd_desc;
 	wait_queue_head_t probe_wait;
-	struct module *module;
 	struct list_head list;
 	struct device dev;
 	int id, probe_active;

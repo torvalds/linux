@@ -447,8 +447,8 @@ struct attribute_group nvdimm_bus_attribute_group = {
 };
 EXPORT_SYMBOL_GPL(nvdimm_bus_attribute_group);
 
-struct nvdimm_bus *__nvdimm_bus_register(struct device *parent,
-		struct nvdimm_bus_descriptor *nd_desc, struct module *module)
+struct nvdimm_bus *nvdimm_bus_register(struct device *parent,
+		struct nvdimm_bus_descriptor *nd_desc)
 {
 	struct nvdimm_bus *nvdimm_bus;
 	int rc;
@@ -467,7 +467,6 @@ struct nvdimm_bus *__nvdimm_bus_register(struct device *parent,
 		return NULL;
 	}
 	nvdimm_bus->nd_desc = nd_desc;
-	nvdimm_bus->module = module;
 	nvdimm_bus->dev.parent = parent;
 	nvdimm_bus->dev.release = nvdimm_bus_release;
 	nvdimm_bus->dev.groups = nd_desc->attr_groups;
@@ -491,7 +490,7 @@ struct nvdimm_bus *__nvdimm_bus_register(struct device *parent,
 	put_device(&nvdimm_bus->dev);
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(__nvdimm_bus_register);
+EXPORT_SYMBOL_GPL(nvdimm_bus_register);
 
 static void set_badblock(struct badblocks *bb, sector_t s, int num)
 {

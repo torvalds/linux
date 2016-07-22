@@ -1463,6 +1463,7 @@ static int nfit_test_probe(struct platform_device *pdev)
 	acpi_desc->blk_do_io = nfit_test_blk_do_io;
 	nd_desc = &acpi_desc->nd_desc;
 	nd_desc->provider_name = NULL;
+	nd_desc->module = THIS_MODULE;
 	nd_desc->ndctl = nfit_test_ctl;
 	acpi_desc->nvdimm_bus = nvdimm_bus_register(&pdev->dev, nd_desc);
 	if (!acpi_desc->nvdimm_bus)

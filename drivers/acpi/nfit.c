@@ -2417,6 +2417,7 @@ void acpi_nfit_desc_init(struct acpi_nfit_desc *acpi_desc, struct device *dev)
 	acpi_desc->blk_do_io = acpi_nfit_blk_region_do_io;
 	nd_desc = &acpi_desc->nd_desc;
 	nd_desc->provider_name = "ACPI.NFIT";
+	nd_desc->module = THIS_MODULE;
 	nd_desc->ndctl = acpi_nfit_ctl;
 	nd_desc->flush_probe = acpi_nfit_flush_probe;
 	nd_desc->clear_to_send = acpi_nfit_clear_to_send;

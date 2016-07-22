@@ -70,6 +70,7 @@ struct nd_mapping {
 struct nvdimm_bus_descriptor {
 	const struct attribute_group **attr_groups;
 	unsigned long cmd_mask;
+	struct module *module;
 	char *provider_name;
 	ndctl_fn ndctl;
 	int (*flush_probe)(struct nvdimm_bus_descriptor *nd_desc);
@@ -128,10 +129,8 @@ static inline struct nd_blk_region_desc *to_blk_region_desc(
 }
 
 int nvdimm_bus_add_poison(struct nvdimm_bus *nvdimm_bus, u64 addr, u64 length);
-struct nvdimm_bus *__nvdimm_bus_register(struct device *parent,
-		struct nvdimm_bus_descriptor *nfit_desc, struct module *module);
-#define nvdimm_bus_register(parent, desc) \
-	__nvdimm_bus_register(parent, desc, THIS_MODULE)
+struct nvdimm_bus *nvdimm_bus_register(struct device *parent,
+		struct nvdimm_bus_descriptor *nfit_desc);
 void nvdimm_bus_unregister(struct nvdimm_bus *nvdimm_bus);
 struct nvdimm_bus *to_nvdimm_bus(struct device *dev);
 struct nvdimm *to_nvdimm(struct device *dev);
