@@ -534,6 +534,8 @@ struct v4l2_ctrl *v4l2_ctrl_new_int_menu(struct v4l2_ctrl_handler *hdl,
 			const struct v4l2_ctrl_ops *ops,
 			u32 id, u8 max, u8 def, const s64 *qmenu_int);
 
+typedef bool (*v4l2_ctrl_filter)(const struct v4l2_ctrl *ctrl);
+
 /**
  * v4l2_ctrl_add_handler() - Add all controls from handler @add to
  * handler @hdl.
@@ -550,7 +552,7 @@ struct v4l2_ctrl *v4l2_ctrl_new_int_menu(struct v4l2_ctrl_handler *hdl,
  */
 int v4l2_ctrl_add_handler(struct v4l2_ctrl_handler *hdl,
 			  struct v4l2_ctrl_handler *add,
-			  bool (*filter)(const struct v4l2_ctrl *ctrl));
+			  v4l2_ctrl_filter filter);
 
 /**
  * v4l2_ctrl_radio_filter() - Standard filter for radio controls.
