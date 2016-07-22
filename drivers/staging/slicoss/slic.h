@@ -351,6 +351,24 @@ struct base_driver {
 	uint                 cardnuminuse[SLIC_MAX_CARDS];
 };
 
+struct slic_stats {
+	/* xmit stats */
+	u64 xmit_tcp_bytes;
+	u64 xmit_tcp_segs;
+	u64 xmit_bytes;
+	u64 xmit_collisions;
+	u64 xmit_unicasts;
+	u64 xmit_other_error;
+	u64 xmit_excess_collisions;
+	/* rcv stats */
+	u64 rcv_tcp_bytes;
+	u64 rcv_tcp_segs;
+	u64 rcv_bytes;
+	u64 rcv_unicasts;
+	u64 rcv_other_error;
+	u64 rcv_drops;
+};
+
 struct slic_shmem_data {
 	u32 isr;
 	u32 lnkstatus;
