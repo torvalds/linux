@@ -81,6 +81,22 @@ struct tlp_rp_regpair_t {
 	u32 reg1;
 };
 
+static inline void cra_writel(struct altera_pcie *pcie, const u32 value,
+			      const u32 reg)
+{
+	writel_relaxed(value, pcie->cra_base + reg);
+}
+
+static inline u32 cra_readl(struct altera_pcie *pcie, const u32 reg)
+{
+	return readl_relaxed(pcie->cra_base + reg);
+}
+
+static bool altera_pcie_link_is_up(struct altera_pcie *pcie)
+{
+	return !!((cra_readl(pcie, RP_LTSSM) & RP_LTSSM_MASK) == LTSSM_L0);
+}
+
 static void altera_pcie_retrain(struct pci_dev *dev)
 {
 	u16 linkcap, linkstat;
@@ -120,28 +136,12 @@ static bool altera_pcie_hide_rc_bar(struct pci_bus *bus, unsigned int  devfn,
 	return false;
 }
 
-static inline void cra_writel(struct altera_pcie *pcie, const u32 value,
-			      const u32 reg)
-{
-	writel_relaxed(value, pcie->cra_base + reg);
-}
-
-static inline u32 cra_readl(struct altera_pcie *pcie, const u32 reg)
-{
-	return readl_relaxed(pcie->cra_base + reg);
-}
-
 static void tlp_write_tx(struct altera_pcie *pcie,
 			 struct tlp_rp_regpair_t *tlp_rp_regdata)
 {
 	cra_writel(pcie, tlp_rp_regdata->reg0, RP_TX_REG0);
 	cra_writel(pcie, tlp_rp_regdata->reg1, RP_TX_REG1);
 	cra_writel(pcie, tlp_rp_regdata->ctrl, RP_TX_CNTRL);
-}
-
-static bool altera_pcie_link_is_up(struct altera_pcie *pcie)
-{
-	return !!((cra_readl(pcie, RP_LTSSM) & RP_LTSSM_MASK) == LTSSM_L0);
 }
 
 static bool altera_pcie_valid_config(struct altera_pcie *pcie,
