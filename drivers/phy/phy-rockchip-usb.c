@@ -390,8 +390,6 @@ static const struct of_device_id rockchip_usb_phy_dt_ids[] = {
 	{ .compatible = "rockchip,rk3066a-usb-phy", .data = &rk3066a_pdata },
 	{ .compatible = "rockchip,rk3188-usb-phy", .data = &rk3188_pdata },
 	{ .compatible = "rockchip,rk3288-usb-phy", .data = &rk3288_pdata },
-	{ .compatible = "rockchip,rk336x-usb-phy", .data = &rk336x_pdata },
-	{ .compatible = "rockchip,rk3399-usb-phy", .data = &rk3399_pdata },
 	{}
 };
 
