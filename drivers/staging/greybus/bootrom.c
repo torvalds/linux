@@ -223,9 +223,11 @@ unlock:
 	mutex_unlock(&bootrom->mutex);
 
 queue_work:
-	/* Refresh timeout */
-	gb_bootrom_set_timeout(bootrom, NEXT_REQ_GET_FIRMWARE,
-			       NEXT_REQ_TIMEOUT_MS);
+	if (!ret) {
+		/* Refresh timeout */
+		gb_bootrom_set_timeout(bootrom, NEXT_REQ_GET_FIRMWARE,
+				       NEXT_REQ_TIMEOUT_MS);
+	}
 
 	return ret;
 }
