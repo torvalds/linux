@@ -87,6 +87,12 @@ xfs_find_bdev_for_inode(
  * We're now finished for good with this page.  Update the page state via the
  * associated buffer_heads, paying attention to the start and end offsets that
  * we need to process on the page.
+ *
+ * Landmine Warning: bh->b_end_io() will call end_page_writeback() on the last
+ * buffer in the IO. Once it does this, it is unsafe to access the bufferhead or
+ * the page at all, as we may be racing with memory reclaim and it can free both
+ * the bufferhead chain and the page as it will see the page as clean and
+ * unused.
  */
 static void
 xfs_finish_page_writeback(
@@ -95,8 +101,9 @@ xfs_finish_page_writeback(
 	int			error)
 {
 	unsigned int		end = bvec->bv_offset + bvec->bv_len - 1;
-	struct buffer_head	*head, *bh;
+	struct buffer_head	*head, *bh, *next;
 	unsigned int		off = 0;
+	unsigned int		bsize;
 
 	ASSERT(bvec->bv_offset < PAGE_SIZE);
 	ASSERT((bvec->bv_offset & ((1 << inode->i_blkbits) - 1)) == 0);
@@ -105,15 +112,17 @@ xfs_finish_page_writeback(
 
 	bh = head = page_buffers(bvec->bv_page);
 
+	bsize = bh->b_size;
 	do {
+		next = bh->b_this_page;
 		if (off < bvec->bv_offset)
 			goto next_bh;
 		if (off > end)
 			break;
 		bh->b_end_io(bh, !error);
 next_bh:
-		off += bh->b_size;
-	} while ((bh = bh->b_this_page) != head);
+		off += bsize;
+	} while ((bh = next) != head);
 }
 
 /*
@@ -1039,6 +1048,20 @@ xfs_vm_releasepage(
 	int			delalloc, unwritten;
 
 	trace_xfs_releasepage(page->mapping->host, page, 0, 0);
+
+	/*
+	 * mm accommodates an old ext3 case where clean pages might not have had
+	 * the dirty bit cleared. Thus, it can send actual dirty pages to
+	 * ->releasepage() via shrink_active_list(). Conversely,
+	 * block_invalidatepage() can send pages that are still marked dirty
+	 * but otherwise have invalidated buffers.
+	 *
+	 * We've historically freed buffers on the latter. Instead, quietly
+	 * filter out all dirty pages to avoid spurious buffer state warnings.
+	 * This can likely be removed once shrink_active_list() is fixed.
+	 */
+	if (PageDirty(page))
+		return 0;
 
 	xfs_count_page_state(page, &delalloc, &unwritten);
 
