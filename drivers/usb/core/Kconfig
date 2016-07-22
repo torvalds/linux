@@ -85,7 +85,6 @@ config USB_OTG_FSM
 
 config USB_ULPI_BUS
 	tristate "USB ULPI PHY interface support"
-	depends on USB_SUPPORT
 	help
 	  UTMI+ Low Pin Interface (ULPI) is specification for a commonly used
 	  USB 2.0 PHY interface. The ULPI specification defines a standard set
