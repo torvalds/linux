@@ -1157,17 +1157,7 @@ nfsd_create_locked(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		err = nfserr_io;
 		goto out;
 	}
-	/*
-	 * Make sure the child dentry is still negative ...
-	 */
-	err = nfserr_exist;
-	if (d_really_is_positive(dchild)) {
-		dprintk("nfsd_create: dentry %pd/%pd not negative!\n",
-			dentry, dchild);
-		goto out; 
-	}
 
-	/* Now let's see if we actually have permissions to create */
 	err = nfsd_permission(rqstp, fhp->fh_export, dentry, NFSD_MAY_CREATE);
 	if (err)
 		goto out;
