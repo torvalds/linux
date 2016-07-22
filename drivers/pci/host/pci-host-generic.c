@@ -20,7 +20,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of_address.h>
 #include <linux/of_pci.h>
 #include <linux/platform_device.h>
@@ -46,8 +46,6 @@ static const struct of_device_id gen_pci_of_match[] = {
 	{ },
 };
 
-MODULE_DEVICE_TABLE(of, gen_pci_of_match);
-
 static int gen_pci_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id;
@@ -66,8 +64,4 @@ static struct platform_driver gen_pci_driver = {
 	},
 	.probe = gen_pci_probe,
 };
-module_platform_driver(gen_pci_driver);
-
-MODULE_DESCRIPTION("Generic PCI host driver");
-MODULE_AUTHOR("Will Deacon <will.deacon@arm.com>");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver(gen_pci_driver);
