@@ -511,6 +511,11 @@ static inline void slic_write64(struct adapter *adapter, unsigned int reg,
 	spin_unlock_irqrestore(&adapter->bit64reglock, flags);
 }
 
+static inline void slic_flush_write(struct adapter *adapter)
+{
+	ioread32(adapter->regs + SLIC_REG_HOSTID);
+}
+
 #define UPDATE_STATS(largestat, newstat, oldstat)                        \
 {                                                                        \
 	if ((newstat) < (oldstat))                                       \
