@@ -15,7 +15,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of_address.h>
 #include <linux/of_pci.h>
 #include <linux/platform_device.h>
@@ -346,7 +346,6 @@ static const struct of_device_id thunder_pem_of_match[] = {
 	{ .compatible = "cavium,pci-host-thunder-pem" },
 	{ },
 };
-MODULE_DEVICE_TABLE(of, thunder_pem_of_match);
 
 static int thunder_pem_probe(struct platform_device *pdev)
 {
@@ -360,7 +359,4 @@ static struct platform_driver thunder_pem_driver = {
 	},
 	.probe = thunder_pem_probe,
 };
-module_platform_driver(thunder_pem_driver);
-
-MODULE_DESCRIPTION("Thunder PEM PCIe host driver");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver(thunder_pem_driver);
