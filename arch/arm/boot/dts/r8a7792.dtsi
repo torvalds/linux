@@ -535,6 +535,13 @@
 			clock-div = <8>;
 			clock-mult = <1>;
 		};
+		sd_clk: sd {
+			compatible = "fixed-factor-clock";
+			clocks = <&pll1_div2_clk>;
+			#clock-cells = <0>;
+			clock-div = <8>;
+			clock-mult = <1>;
+		};
 		rcan_clk: rcan {
 			compatible = "fixed-factor-clock";
 			clocks = <&pll1_div2_clk>;
@@ -563,6 +570,15 @@
 				R8A7792_CLK_SYS_DMAC1 R8A7792_CLK_SYS_DMAC0
 			>;
 			clock-output-names = "sys-dmac1", "sys-dmac0";
+		};
+		mstp3_clks: mstp3_clks@e615013c {
+			compatible = "renesas,r8a7792-mstp-clocks",
+				     "renesas,cpg-mstp-clocks";
+			reg = <0 0xe615013c 0 4>, <0 0xe6150048 0 4>;
+			clocks = <&sd_clk>;
+			#clock-cells = <1>;
+			renesas,clock-indices = <R8A7792_CLK_SDHI0>;
+			clock-output-names = "sdhi0";
 		};
 		mstp4_clks: mstp4_clks@e6150140 {
 			compatible = "renesas,r8a7792-mstp-clocks",
