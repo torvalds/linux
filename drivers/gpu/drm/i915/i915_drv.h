@@ -990,6 +990,7 @@ enum intel_pch {
 	PCH_CPT,	/* Cougarpoint PCH */
 	PCH_LPT,	/* Lynxpoint PCH */
 	PCH_SPT,        /* Sunrisepoint PCH */
+	PCH_KBP,        /* Kabypoint PCH */
 	PCH_NOP,
 };
 
@@ -2600,6 +2601,15 @@ struct drm_i915_cmd_table {
 
 #define IS_BXT_REVID(p, since, until) (IS_BROXTON(p) && IS_REVID(p, since, until))
 
+#define KBL_REVID_A0		0x0
+#define KBL_REVID_B0		0x1
+#define KBL_REVID_C0		0x2
+#define KBL_REVID_D0		0x3
+#define KBL_REVID_E0		0x4
+
+#define IS_KBL_REVID(p, since, until) \
+	(IS_KABYLAKE(p) && IS_REVID(p, since, until))
+
 /*
  * The genX designation typically refers to the render engine, so render
  * capability related checks should use IS_GEN, while display and other checks
@@ -2708,11 +2718,13 @@ struct drm_i915_cmd_table {
 #define INTEL_PCH_LPT_LP_DEVICE_ID_TYPE		0x9c00
 #define INTEL_PCH_SPT_DEVICE_ID_TYPE		0xA100
 #define INTEL_PCH_SPT_LP_DEVICE_ID_TYPE		0x9D00
+#define INTEL_PCH_KBP_DEVICE_ID_TYPE		0xA200
 #define INTEL_PCH_P2X_DEVICE_ID_TYPE		0x7100
 #define INTEL_PCH_P3X_DEVICE_ID_TYPE		0x7000
 #define INTEL_PCH_QEMU_DEVICE_ID_TYPE		0x2900 /* qemu q35 has 2918 */
 
 #define INTEL_PCH_TYPE(dev) (__I915__(dev)->pch_type)
+#define HAS_PCH_KBP(dev) (INTEL_PCH_TYPE(dev) == PCH_KBP)
 #define HAS_PCH_SPT(dev) (INTEL_PCH_TYPE(dev) == PCH_SPT)
 #define HAS_PCH_LPT(dev) (INTEL_PCH_TYPE(dev) == PCH_LPT)
 #define HAS_PCH_LPT_LP(dev) (__I915__(dev)->pch_id == INTEL_PCH_LPT_LP_DEVICE_ID_TYPE)
