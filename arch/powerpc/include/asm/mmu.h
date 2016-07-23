@@ -112,6 +112,7 @@
 #define MMU_FTRS_PA6T		MMU_FTRS_DEFAULT_HPTE_ARCH_V2 | \
 				MMU_FTR_CI_LARGE_PAGE | MMU_FTR_NO_SLBIE_B
 #ifndef __ASSEMBLY__
+#include <linux/bug.h>
 #include <asm/cputable.h>
 
 #ifdef CONFIG_PPC_FSL_BOOK3E

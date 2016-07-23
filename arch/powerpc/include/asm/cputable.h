@@ -123,6 +123,12 @@ extern void do_feature_fixups(unsigned long value, void *fixup_start,
 
 extern const char *powerpc_base_platform;
 
+#ifdef CONFIG_JUMP_LABEL_FEATURE_CHECKS
+extern void cpu_feature_keys_init(void);
+#else
+static inline void cpu_feature_keys_init(void) { }
+#endif
+
 /* TLB flush actions. Used as argument to cpu_spec.flush_tlb() hook */
 enum {
 	TLB_INVAL_SCOPE_GLOBAL = 0,	/* invalidate all TLBs */
