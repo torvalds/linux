@@ -436,10 +436,9 @@ befs_init_inodecache(void)
 					      0, (SLAB_RECLAIM_ACCOUNT|
 						SLAB_MEM_SPREAD|SLAB_ACCOUNT),
 					      init_once);
-	if (befs_inode_cachep == NULL) {
-		pr_err("%s: Couldn't initialize inode slabcache\n", __func__);
+	if (befs_inode_cachep == NULL)
 		return -ENOMEM;
-	}
+
 	return 0;
 }
 
@@ -524,7 +523,6 @@ befs_utf2nls(struct super_block *sb, const char *in,
 
 	*out = result = kmalloc(maxlen, GFP_NOFS);
 	if (!*out) {
-		*out_len = 0;
 		return -ENOMEM;
 	}
 
