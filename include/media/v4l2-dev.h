@@ -374,13 +374,13 @@ struct video_device * __must_check video_device_alloc(void);
  *
  * @vdev: pointer to &struct video_device
  *
- * Can also be used for video_device->release().
+ * Can also be used for video_device->release\(\).
  */
 void video_device_release(struct video_device *vdev);
 
 /**
  * video_device_release_empty - helper function to implement the
- * 	video_device->release() callback.
+ * 	video_device->release\(\) callback.
  *
  * @vdev: pointer to &struct video_device
  *

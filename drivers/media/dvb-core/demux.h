@@ -65,7 +65,7 @@
  */
 
 /**
- * enum ts_filter_type - filter type bitmap for dmx_ts_feed.set()
+ * enum ts_filter_type - filter type bitmap for dmx_ts_feed.set\(\)
  *
  * @TS_PACKET:		Send TS packets (188 bytes) to callback (default).
  * @TS_PAYLOAD_ONLY:	In case TS_PACKET is set, only send the TS payload
@@ -339,7 +339,7 @@ struct dmx_frontend {
  * @DMX_SECTION_FILTERING:	set if section filtering is supported;
  * @DMX_MEMORY_BASED_FILTERING:	set if write() available.
  *
- * Those flags are OR'ed in the &dmx_demux.&capabilities field
+ * Those flags are OR'ed in the &dmx_demux.capabilities field
  */
 enum dmx_demux_caps {
 	DMX_TS_FILTERING = 1,

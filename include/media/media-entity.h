@@ -540,7 +540,7 @@ static inline bool media_entity_enum_intersects(
  * @gobj:	Pointer to the graph object
  *
  * This routine initializes the embedded struct media_gobj inside a
- * media graph object. It is called automatically if media_*_create()
+ * media graph object. It is called automatically if media_*_create\(\)
  * calls are used. However, if the object (entity, link, pad, interface)
  * is embedded on some other object, this function should be called before
  * registering the object at the media controller.
