@@ -756,6 +756,7 @@ befs_fill_super(struct super_block *sb, void *data, int silent)
 	long ret = -EINVAL;
 	const unsigned long sb_block = 0;
 	const off_t x86_sb_off = 512;
+	int blocksize;
 
 	save_mount_options(sb, data);
 
@@ -788,7 +789,11 @@ befs_fill_super(struct super_block *sb, void *data, int silent)
 	 * least 1k to get the second 512 bytes of the volume.
 	 * -WD 10-26-01
 	 */ 
-	sb_min_blocksize(sb, 1024);
+	blocksize = sb_min_blocksize(sb, 1024);
+	if (!blocksize) {
+		befs_error(sb, "unable to set blocksize");
+		goto unacquire_priv_sbp;
+	}
 
 	if (!(bh = sb_bread(sb, sb_block))) {
 		if (!silent)
