@@ -41,8 +41,8 @@ embedding the :c:type:`media_device` instance in a larger driver-specific
 structure.
 
 Drivers register media device instances by calling
-:cpp:func:`__media_device_register()` via the macro ``media_device_register()``
-and unregistered by calling :cpp:func:`media_device_unregister()`.
+:c:func:`__media_device_register()` via the macro ``media_device_register()``
+and unregistered by calling :c:func:`media_device_unregister()`.
 
 Entities
 ^^^^^^^^
@@ -54,12 +54,12 @@ embedded into a higher-level structure, such as
 instances, although drivers can allocate entities directly.
 
 Drivers initialize entity pads by calling
-:cpp:func:`media_entity_pads_init()`.
+:c:func:`media_entity_pads_init()`.
 
 Drivers register entities with a media device by calling
-:cpp:func:`media_device_register_entity()`
+:c:func:`media_device_register_entity()`
 and unregistred by calling
-:cpp:func:`media_device_unregister_entity()`.
+:c:func:`media_device_unregister_entity()`.
 
 Interfaces
 ^^^^^^^^^^
@@ -71,9 +71,9 @@ defined: a device node. Such interfaces are represented by a
 :c:type:`struct media_intf_devnode <media_intf_devnode>`.
 
 Drivers initialize and create device node interfaces by calling
-:cpp:func:`media_devnode_create()`
+:c:func:`media_devnode_create()`
 and remove them by calling:
-:cpp:func:`media_devnode_remove()`.
+:c:func:`media_devnode_remove()`.
 
 Pads
 ^^^^
@@ -112,24 +112,24 @@ A given link is thus stored twice, once in the source entity and once in
 the target entity.
 
 Drivers create pad to pad links by calling:
-:cpp:func:`media_create_pad_link()` and remove with
-:cpp:func:`media_entity_remove_links()`.
+:c:func:`media_create_pad_link()` and remove with
+:c:func:`media_entity_remove_links()`.
 
 **2. interface to entity links**:
 
 Associate one interface to a Link.
 
 Drivers create interface to entity links by calling:
-:cpp:func:`media_create_intf_link()` and remove with
-:cpp:func:`media_remove_intf_links()`.
+:c:func:`media_create_intf_link()` and remove with
+:c:func:`media_remove_intf_links()`.
 
 .. note::
 
    Links can only be created after having both ends already created.
 
 Links have flags that describe the link capabilities and state. The
-valid values are described at :cpp:func:`media_create_pad_link()` and
-:cpp:func:`media_create_intf_link()`.
+valid values are described at :c:func:`media_create_pad_link()` and
+:c:func:`media_create_intf_link()`.
 
 Graph traversal
 ^^^^^^^^^^^^^^^
@@ -161,13 +161,13 @@ framework provides a depth-first graph traversal API for that purpose.
    currently defined as 16.
 
 Drivers initiate a graph traversal by calling
-:cpp:func:`media_entity_graph_walk_start()`
+:c:func:`media_entity_graph_walk_start()`
 
 The graph structure, provided by the caller, is initialized to start graph
 traversal at the given entity.
 
 Drivers can then retrieve the next entity by calling
-:cpp:func:`media_entity_graph_walk_next()`
+:c:func:`media_entity_graph_walk_next()`
 
 When the graph traversal is complete the function will return ``NULL``.
 
@@ -176,8 +176,8 @@ is required and the graph structure can be freed normally.
 
 Helper functions can be used to find a link between two given pads, or a pad
 connected to another pad through an enabled link
-:cpp:func:`media_entity_find_link()` and
-:cpp:func:`media_entity_remote_pad()`.
+:c:func:`media_entity_find_link()` and
+:c:func:`media_entity_remote_pad()`.
 
 Use count and power handling
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -198,14 +198,14 @@ Links setup
 ^^^^^^^^^^^
 
 Link properties can be modified at runtime by calling
-:cpp:func:`media_entity_setup_link()`.
+:c:func:`media_entity_setup_link()`.
 
 Pipelines and media streams
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 When starting streaming, drivers must notify all entities in the pipeline to
 prevent link states from being modified during streaming by calling
-:cpp:func:`media_entity_pipeline_start()`.
+:c:func:`media_entity_pipeline_start()`.
 
 The function will mark all entities connected to the given entity through
 enabled links, either directly or indirectly, as streaming.
@@ -217,17 +217,17 @@ in higher-level pipeline structures and can then access the
 pipeline through the :c:type:`struct media_entity <media_entity>`
 pipe field.
 
-Calls to :cpp:func:`media_entity_pipeline_start()` can be nested.
+Calls to :c:func:`media_entity_pipeline_start()` can be nested.
 The pipeline pointer must be identical for all nested calls to the function.
 
-:cpp:func:`media_entity_pipeline_start()` may return an error. In that case,
+:c:func:`media_entity_pipeline_start()` may return an error. In that case,
 it will clean up any of the changes it did by itself.
 
 When stopping the stream, drivers must notify the entities with
-:cpp:func:`media_entity_pipeline_stop()`.
+:c:func:`media_entity_pipeline_stop()`.
 
-If multiple calls to :cpp:func:`media_entity_pipeline_start()` have been
-made the same number of :cpp:func:`media_entity_pipeline_stop()` calls
+If multiple calls to :c:func:`media_entity_pipeline_start()` have been
+made the same number of :c:func:`media_entity_pipeline_stop()` calls
 are required to stop streaming.
 The :c:type:`media_entity`.\ ``pipe`` field is reset to ``NULL`` on the last
 nested stop call.
@@ -244,7 +244,7 @@ operation must be done with the media_device graph_mutex held.
 Link validation
 ^^^^^^^^^^^^^^^
 
-Link validation is performed by :cpp:func:`media_entity_pipeline_start()`
+Link validation is performed by :c:func:`media_entity_pipeline_start()`
 for any entity which has sink pads in the pipeline. The
 :c:type:`media_entity`.\ ``link_validate()`` callback is used for that
 purpose. In ``link_validate()`` callback, entity driver should check

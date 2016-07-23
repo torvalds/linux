@@ -5,7 +5,7 @@ The actual device nodes in the ``/dev`` directory are created using the
 :c:type:`video_device` struct (``v4l2-dev.h``). This struct can either be
 allocated dynamically or embedded in a larger struct.
 
-To allocate it dynamically use :cpp:func:`video_device_alloc`:
+To allocate it dynamically use :c:func:`video_device_alloc`:
 
 .. code-block:: c
 
@@ -28,10 +28,10 @@ callback to your own function:
 The ``release()`` callback must be set and it is called when the last user
 of the video device exits.
 
-The default :cpp:func:`video_device_release` callback currently
+The default :c:func:`video_device_release` callback currently
 just calls ``kfree`` to free the allocated memory.
 
-There is also a ::cpp:func:`video_device_release_empty` function that does
+There is also a ::c:func:`video_device_release_empty` function that does
 nothing (is empty) and should be used if the struct is embedded and there
 is nothing to do when it is released.
 
@@ -97,14 +97,14 @@ You should also set these fields of :c:type:`video_device`:
   PCI device to use and so you set ``dev_device`` to the correct PCI device.
 
 If you use :c:type:`v4l2_ioctl_ops`, then you should set
-:c:type:`video_device`->unlocked_ioctl to :cpp:func:`video_ioctl2` in your
+:c:type:`video_device`->unlocked_ioctl to :c:func:`video_ioctl2` in your
 :c:type:`v4l2_file_operations` struct.
 
 In some cases you want to tell the core that a function you had specified in
 your :c:type:`v4l2_ioctl_ops` should be ignored. You can mark such ioctls by
-calling this function before :cpp:func:`video_register_device` is called:
+calling this function before :c:func:`video_register_device` is called:
 
-	:cpp:func:`v4l2_disable_ioctl <v4l2_disable_ioctl>`
+	:c:func:`v4l2_disable_ioctl <v4l2_disable_ioctl>`
 	(:c:type:`vdev <video_device>`, cmd).
 
 This tends to be needed if based on external factors (e.g. which card is
@@ -117,7 +117,7 @@ used.
 
 If integration with the media framework is needed, you must initialize the
 :c:type:`media_entity` struct embedded in the :c:type:`video_device` struct
-(entity field) by calling :cpp:func:`media_entity_pads_init`:
+(entity field) by calling :c:func:`media_entity_pads_init`:
 
 .. code-block:: c
 
@@ -166,7 +166,7 @@ something.
 In the case of :ref:`videobuf2 <vb2_framework>` you will need to implement the
 ``wait_prepare()`` and ``wait_finish()`` callbacks to unlock/lock if applicable.
 If you use the ``queue->lock`` pointer, then you can use the helper functions
-:cpp:func:`vb2_ops_wait_prepare` and :cpp:func:`vb2_ops_wait_finish`.
+:c:func:`vb2_ops_wait_prepare` and :cpp:func:`vb2_ops_wait_finish`.
 
 The implementation of a hotplug disconnect should also take the lock from
 :c:type:`video_device` before calling v4l2_device_disconnect. If you are also
@@ -178,7 +178,7 @@ That way you can be sure no ioctl is running when you call
 Video device registration
 -------------------------
 
-Next you register the video device with :cpp:func:`video_register_device`.
+Next you register the video device with :c:func:`video_register_device`.
 This will create the character device for you.
 
 .. code-block:: c
@@ -221,7 +221,7 @@ first free number.
 
 Since in this case you do not care about a warning about not being able
 to select the specified device node number, you can call the function
-:cpp:func:`video_register_device_no_warn` instead.
+:c:func:`video_register_device_no_warn` instead.
 
 Whenever a device node is created some attributes are also created for you.
 If you look in ``/sys/class/video4linux`` you see the devices. Go into e.g.
@@ -231,7 +231,7 @@ If you look in ``/sys/class/video4linux`` you see the devices. Go into e.g.
 section for more detailed information on this.
 
 The 'index' attribute is the index of the device node: for each call to
-:cpp:func:`video_register_device()` the index is just increased by 1. The
+:c:func:`video_register_device()` the index is just increased by 1. The
 first video device node you register always starts with index 0.
 
 Users can setup udev rules that utilize the index attribute to make fancy
@@ -240,14 +240,14 @@ device names (e.g. '``mpegX``' for MPEG video capture device nodes).
 After the device was successfully registered, then you can use these fields:
 
 - :c:type:`video_device`->vfl_type: the device type passed to
-  :cpp:func:`video_register_device`.
+  :c:func:`video_register_device`.
 - :c:type:`video_device`->minor: the assigned device minor number.
 - :c:type:`video_device`->num: the device node number (i.e. the X in
   ``videoX``).
 - :c:type:`video_device`->index: the device index number.
 
 If the registration failed, then you need to call
-:cpp:func:`video_device_release` to free the allocated :c:type:`video_device`
+:c:func:`video_device_release` to free the allocated :c:type:`video_device`
 struct, or free your own struct if the :c:type:`video_device` was embedded in
 it. The ``vdev->release()`` callback will never be called if the registration
 failed, nor should you ever attempt to unregister the device if the
@@ -286,13 +286,13 @@ When the video device nodes have to be removed, either during the unload
 of the driver or because the USB device was disconnected, then you should
 unregister them with:
 
-	:cpp:func:`video_unregister_device`
+	:c:func:`video_unregister_device`
 	(:c:type:`vdev <video_device>`);
 
 This will remove the device nodes from sysfs (causing udev to remove them
 from ``/dev``).
 
-After :cpp:func:`video_unregister_device` returns no new opens can be done.
+After :c:func:`video_unregister_device` returns no new opens can be done.
 However, in the case of USB devices some application might still have one of
 these device nodes open. So after the unregister all file operations (except
 release, of course) will return an error as well.
@@ -303,7 +303,7 @@ callback is called and you can do the final cleanup there.
 Don't forget to cleanup the media entity associated with the video device if
 it has been initialized:
 
-	:cpp:func:`media_entity_cleanup <media_entity_cleanup>`
+	:c:func:`media_entity_cleanup <media_entity_cleanup>`
 	(&vdev->entity);
 
 This can be done from the release callback.
@@ -318,26 +318,26 @@ There are a few useful helper functions:
 
 You can set/get driver private data in the video_device struct using:
 
-	:cpp:func:`video_get_drvdata <video_get_drvdata>`
+	:c:func:`video_get_drvdata <video_get_drvdata>`
 	(:c:type:`vdev <video_device>`);
 
-	:cpp:func:`video_set_drvdata <video_set_drvdata>`
+	:c:func:`video_set_drvdata <video_set_drvdata>`
 	(:c:type:`vdev <video_device>`);
 
-Note that you can safely call :cpp:func:`video_set_drvdata` before calling
-:cpp:func:`video_register_device`.
+Note that you can safely call :c:func:`video_set_drvdata` before calling
+:c:func:`video_register_device`.
 
 And this function:
 
-	:cpp:func:`video_devdata <video_devdata>`
+	:c:func:`video_devdata <video_devdata>`
 	(struct file \*file);
 
 returns the video_device belonging to the file struct.
 
-The :cpp:func:`video_devdata` function combines :cpp:func:`video_get_drvdata`
-with :cpp:func:`video_devdata`:
+The :c:func:`video_devdata` function combines :cpp:func:`video_get_drvdata`
+with :c:func:`video_devdata`:
 
-	:cpp:func:`video_drvdata <video_drvdata>`
+	:c:func:`video_drvdata <video_drvdata>`
 	(struct file \*file);
 
 You can go from a :c:type:`video_device` struct to the v4l2_device struct using:
@@ -350,7 +350,7 @@ You can go from a :c:type:`video_device` struct to the v4l2_device struct using:
 
 The :c:type:`video_device` node kernel name can be retrieved using:
 
-	:cpp:func:`video_device_node_name <video_device_node_name>`
+	:c:func:`video_device_node_name <video_device_node_name>`
 	(:c:type:`vdev <video_device>`);
 
 The name is used as a hint by userspace tools such as udev. The function

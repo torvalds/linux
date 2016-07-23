@@ -34,16 +34,16 @@ drivers/media/dvb-core.
 
 Before using the Digital TV frontend core, the bridge driver should attach
 the frontend demod, tuner and SEC devices and call
-:cpp:func:`dvb_register_frontend()`,
+:c:func:`dvb_register_frontend()`,
 in order to register the new frontend at the subsystem. At device
 detach/removal, the bridge driver should call
-:cpp:func:`dvb_unregister_frontend()` to
-remove the frontend from the core and then :cpp:func:`dvb_frontend_detach()`
+:c:func:`dvb_unregister_frontend()` to
+remove the frontend from the core and then :c:func:`dvb_frontend_detach()`
 to free the memory allocated by the frontend drivers.
 
-The drivers should also call :cpp:func:`dvb_frontend_suspend()` as part of
+The drivers should also call :c:func:`dvb_frontend_suspend()` as part of
 their handler for the :c:type:`device_driver`.\ ``suspend()``, and
-:cpp:func:`dvb_frontend_resume()` as
+:c:func:`dvb_frontend_resume()` as
 part of their handler for :c:type:`device_driver`.\ ``resume()``.
 
 A few other optional functions are provided to handle some special cases.
@@ -121,7 +121,7 @@ triggered by a hardware interrupt, it is recommended to use the Linux
 bottom half mechanism or start a tasklet instead of making the callback
 function call directly from a hardware interrupt.
 
-This mechanism is implemented by :cpp:func:`dmx_ts_cb()` and :cpp:func:`dmx_section_cb()`
+This mechanism is implemented by :c:func:`dmx_ts_cb()` and :cpp:func:`dmx_section_cb()`
 callbacks.
 
 .. kernel-doc:: drivers/media/dvb-core/demux.h

@@ -39,7 +39,7 @@ A good example of these ``replace``/``merge`` callbacks is in v4l2-event.c:
 
 In order to queue events to video device, drivers should call:
 
-	:cpp:func:`v4l2_event_queue <v4l2_event_queue>`
+	:c:func:`v4l2_event_queue <v4l2_event_queue>`
 	(:c:type:`vdev <video_device>`, :ref:`ev <v4l2-event>`)
 
 The driver's only responsibility is to fill in the type and the data fields.
@@ -50,7 +50,7 @@ Event subscription
 
 Subscribing to an event is via:
 
-	:cpp:func:`v4l2_event_subscribe <v4l2_event_subscribe>`
+	:c:func:`v4l2_event_subscribe <v4l2_event_subscribe>`
 	(:c:type:`fh <v4l2_fh>`, :ref:`sub <v4l2-event-subscription>` ,
 	elems, :c:type:`ops <v4l2_subscribed_event_ops>`)
 
@@ -59,7 +59,7 @@ This function is used to implement :c:type:`video_device`->
 :c:type:`ioctl_ops <v4l2_ioctl_ops>`-> ``vidioc_subscribe_event``,
 but the driver must check first if the driver is able to produce events
 with specified event id, and then should call
-:cpp:func:`v4l2_event_subscribe` to subscribe the event.
+:c:func:`v4l2_event_subscribe` to subscribe the event.
 
 The elems argument is the size of the event queue for this event. If it is 0,
 then the framework will fill in a default value (this depends on the event
@@ -85,12 +85,12 @@ Unsubscribing an event
 
 Unsubscribing to an event is via:
 
-	:cpp:func:`v4l2_event_unsubscribe <v4l2_event_unsubscribe>`
+	:c:func:`v4l2_event_unsubscribe <v4l2_event_unsubscribe>`
 	(:c:type:`fh <v4l2_fh>`, :ref:`sub <v4l2-event-subscription>`)
 
 This function is used to implement :c:type:`video_device`->
 :c:type:`ioctl_ops <v4l2_ioctl_ops>`-> ``vidioc_unsubscribe_event``.
-A driver may call :cpp:func:`v4l2_event_unsubscribe` directly unless it
+A driver may call :c:func:`v4l2_event_unsubscribe` directly unless it
 wants to be involved in unsubscription process.
 
 The special type ``V4L2_EVENT_ALL`` may be used to unsubscribe all events. The
@@ -101,7 +101,7 @@ Check if there's a pending event
 
 Checking if there's a pending event is via:
 
-	:cpp:func:`v4l2_event_pending <v4l2_event_pending>`
+	:c:func:`v4l2_event_pending <v4l2_event_pending>`
 	(:c:type:`fh <v4l2_fh>`)
 
 

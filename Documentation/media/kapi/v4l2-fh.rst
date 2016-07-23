@@ -12,7 +12,7 @@ data that is used by the V4L2 framework.
 The users of :c:type:`v4l2_fh` (in the V4L2 framework, not the driver) know
 whether a driver uses :c:type:`v4l2_fh` as its ``file->private_data`` pointer
 by testing the ``V4L2_FL_USES_V4L2_FH`` bit in :c:type:`video_device`->flags.
-This bit is set whenever :cpp:func:`v4l2_fh_init` is called.
+This bit is set whenever :c:func:`v4l2_fh_init` is called.
 
 struct :c:type:`v4l2_fh` is allocated as a part of the driver's own file handle
 structure and ``file->private_data`` is set to it in the driver's ``open()``
@@ -21,8 +21,8 @@ function by the driver.
 In many cases the struct :c:type:`v4l2_fh` will be embedded in a larger
 structure. In that case you should call:
 
-#) :cpp:func:`v4l2_fh_init` and :cpp:func:`v4l2_fh_add` in ``open()``
-#) :cpp:func:`v4l2_fh_del` and :cpp:func:`v4l2_fh_exit` in ``release()``
+#) :c:func:`v4l2_fh_init` and :cpp:func:`v4l2_fh_add` in ``open()``
+#) :c:func:`v4l2_fh_del` and :cpp:func:`v4l2_fh_exit` in ``release()``
 
 Drivers can extract their own file handle structure by using the container_of
 macro.
@@ -73,7 +73,7 @@ Example:
 
 Below is a short description of the :c:type:`v4l2_fh` functions used:
 
-:cpp:func:`v4l2_fh_init <v4l2_fh_init>`
+:c:func:`v4l2_fh_init <v4l2_fh_init>`
 (:c:type:`fh <v4l2_fh>`, :c:type:`vdev <video_device>`)
 
 
@@ -81,19 +81,19 @@ Below is a short description of the :c:type:`v4l2_fh` functions used:
   :c:type:`v4l2_file_operations`->open() handler.
 
 
-:cpp:func:`v4l2_fh_add <v4l2_fh_add>`
+:c:func:`v4l2_fh_add <v4l2_fh_add>`
 (:c:type:`fh <v4l2_fh>`)
 
 - Add a :c:type:`v4l2_fh` to :c:type:`video_device` file handle list.
   Must be called once the file handle is completely initialized.
 
-:cpp:func:`v4l2_fh_del <v4l2_fh_del>`
+:c:func:`v4l2_fh_del <v4l2_fh_del>`
 (:c:type:`fh <v4l2_fh>`)
 
 - Unassociate the file handle from :c:type:`video_device`. The file handle
   exit function may now be called.
 
-:cpp:func:`v4l2_fh_exit <v4l2_fh_exit>`
+:c:func:`v4l2_fh_exit <v4l2_fh_exit>`
 (:c:type:`fh <v4l2_fh>`)
 
 - Uninitialise the file handle. After uninitialisation the :c:type:`v4l2_fh`
@@ -102,13 +102,13 @@ Below is a short description of the :c:type:`v4l2_fh` functions used:
 
 If struct :c:type:`v4l2_fh` is not embedded, then you can use these helper functions:
 
-:cpp:func:`v4l2_fh_open <v4l2_fh_open>`
+:c:func:`v4l2_fh_open <v4l2_fh_open>`
 (struct file \*filp)
 
 - This allocates a struct :c:type:`v4l2_fh`, initializes it and adds it to
   the struct :c:type:`video_device` associated with the file struct.
 
-:cpp:func:`v4l2_fh_release <v4l2_fh_release>`
+:c:func:`v4l2_fh_release <v4l2_fh_release>`
 (struct file \*filp)
 
 - This deletes it from the struct :c:type:`video_device` associated with the
@@ -122,12 +122,12 @@ when the last file handle closes. Two helper functions were added to check
 whether the :c:type:`v4l2_fh` struct is the only open filehandle of the
 associated device node:
 
-:cpp:func:`v4l2_fh_is_singular <v4l2_fh_is_singular>`
+:c:func:`v4l2_fh_is_singular <v4l2_fh_is_singular>`
 (:c:type:`fh <v4l2_fh>`)
 
 -  Returns 1 if the file handle is the only open file handle, else 0.
 
-:cpp:func:`v4l2_fh_is_singular_file <v4l2_fh_is_singular_file>`
+:c:func:`v4l2_fh_is_singular_file <v4l2_fh_is_singular_file>`
 (struct file \*filp)
 
 - Same, but it calls v4l2_fh_is_singular with filp->private_data.

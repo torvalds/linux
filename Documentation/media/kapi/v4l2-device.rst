@@ -7,7 +7,7 @@ would embed this struct inside a larger struct.
 
 You must register the device instance by calling:
 
-	:cpp:func:`v4l2_device_register <v4l2_device_register>`
+	:c:func:`v4l2_device_register <v4l2_device_register>`
 	(dev, :c:type:`v4l2_dev <v4l2_device>`).
 
 Registration will initialize the :c:type:`v4l2_device` struct. If the
@@ -23,12 +23,12 @@ properly initialized and registered :c:type:`media_device` instance.
 
 If :c:type:`v4l2_dev <v4l2_device>`\ ->name is empty then it will be set to a
 value derived from dev (driver name followed by the bus_id, to be precise).
-If you set it up before  calling :cpp:func:`v4l2_device_register` then it will
+If you set it up before  calling :c:func:`v4l2_device_register` then it will
 be untouched. If dev is ``NULL``, then you **must** setup
 :c:type:`v4l2_dev <v4l2_device>`\ ->name before calling
-:cpp:func:`v4l2_device_register`.
+:c:func:`v4l2_device_register`.
 
-You can use :cpp:func:`v4l2_device_set_name` to set the name based on a driver
+You can use :c:func:`v4l2_device_set_name` to set the name based on a driver
 name and a driver-global atomic_t instance. This will generate names like
 ``ivtv0``, ``ivtv1``, etc. If the name ends with a digit, then it will insert
 a dash: ``cx18-0``, ``cx18-1``, etc. This function returns the instance number.
@@ -46,7 +46,7 @@ in ``include/media/subdevice.h``.
 
 V4L2 devices are unregistered by calling:
 
-	:cpp:func:`v4l2_device_unregister`
+	:c:func:`v4l2_device_unregister`
 	(:c:type:`v4l2_dev <v4l2_device>`).
 
 If the dev->driver_data field points to :c:type:`v4l2_dev <v4l2_device>`,
@@ -58,12 +58,12 @@ happens the parent device becomes invalid. Since :c:type:`v4l2_device` has a
 pointer to that parent device it has to be cleared as well to mark that the
 parent is gone. To do this call:
 
-	:cpp:func:`v4l2_device_disconnect`
+	:c:func:`v4l2_device_disconnect`
 	(:c:type:`v4l2_dev <v4l2_device>`).
 
 This does *not* unregister the subdevs, so you still need to call the
-:cpp:func:`v4l2_device_unregister` function for that. If your driver is not
-hotpluggable, then there is no need to call :cpp:func:`v4l2_device_disconnect`.
+:c:func:`v4l2_device_unregister` function for that. If your driver is not
+hotpluggable, then there is no need to call :c:func:`v4l2_device_disconnect`.
 
 Sometimes you need to iterate over all devices registered by a specific
 driver. This is usually the case if multiple device drivers use the same
@@ -117,7 +117,7 @@ The recommended approach is as follows:
 If you have multiple device nodes then it can be difficult to know when it is
 safe to unregister :c:type:`v4l2_device` for hotpluggable devices. For this
 purpose :c:type:`v4l2_device` has refcounting support. The refcount is
-increased whenever :cpp:func:`video_register_device` is called and it is
+increased whenever :c:func:`video_register_device` is called and it is
 decreased whenever that device node is released. When the refcount reaches
 zero, then the :c:type:`v4l2_device` release() callback is called. You can
 do your final cleanup there.
@@ -125,16 +125,16 @@ do your final cleanup there.
 If other device nodes (e.g. ALSA) are created, then you can increase and
 decrease the refcount manually as well by calling:
 
-	:cpp:func:`v4l2_device_get`
+	:c:func:`v4l2_device_get`
 	(:c:type:`v4l2_dev <v4l2_device>`).
 
 or:
 
-	:cpp:func:`v4l2_device_put`
+	:c:func:`v4l2_device_put`
 	(:c:type:`v4l2_dev <v4l2_device>`).
 
 Since the initial refcount is 1 you also need to call
-:cpp:func:`v4l2_device_put` in the ``disconnect()`` callback (for USB devices)
+:c:func:`v4l2_device_put` in the ``disconnect()`` callback (for USB devices)
 or in the ``remove()`` callback (for e.g. PCI devices), otherwise the refcount
 will never reach 0.
 
