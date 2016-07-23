@@ -15,7 +15,8 @@
 #include <linux/of.h>
 
 #include <asm/octeon/octeon.h>
-#include <asm/octeon/cvmx-mpi-defs.h>
+
+#include "spi-cavium.h"
 
 #define OCTEON_SPI_MAX_BYTES 9
 
