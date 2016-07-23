@@ -974,12 +974,11 @@ static void return_all_buffers(struct rvin_dev *vin,
 
 static int rvin_queue_setup(struct vb2_queue *vq, unsigned int *nbuffers,
 			    unsigned int *nplanes, unsigned int sizes[],
-			    void *alloc_ctxs[])
+			    struct device *alloc_devs[])
 
 {
 	struct rvin_dev *vin = vb2_get_drv_priv(vq);
 
-	alloc_ctxs[0] = vin->alloc_ctx;
 	/* Make sure the image size is large enough. */
 	if (*nplanes)
 		return sizes[0] < vin->format.sizeimage ? -EINVAL : 0;
@@ -1129,9 +1128,6 @@ static struct vb2_ops rvin_qops = {
 
 void rvin_dma_remove(struct rvin_dev *vin)
 {
-	if (!IS_ERR_OR_NULL(vin->alloc_ctx))
-		vb2_dma_contig_cleanup_ctx(vin->alloc_ctx);
-
 	mutex_destroy(&vin->lock);
 
 	v4l2_device_unregister(&vin->v4l2_dev);
@@ -1158,12 +1154,6 @@ int rvin_dma_probe(struct rvin_dev *vin, int irq)
 		vin->queue_buf[i] = NULL;
 
 	/* buffer queue */
-	vin->alloc_ctx = vb2_dma_contig_init_ctx(vin->dev);
-	if (IS_ERR(vin->alloc_ctx)) {
-		ret = PTR_ERR(vin->alloc_ctx);
-		goto error;
-	}
-
 	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	q->io_modes = VB2_MMAP | VB2_READ | VB2_DMABUF;
 	q->lock = &vin->lock;
@@ -1173,6 +1163,7 @@ int rvin_dma_probe(struct rvin_dev *vin, int irq)
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->min_buffers_needed = 2;
+	q->dev = vin->dev;
 
 	ret = vb2_queue_init(q);
 	if (ret < 0) {

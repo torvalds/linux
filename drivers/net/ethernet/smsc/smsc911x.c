@@ -116,7 +116,6 @@ struct smsc911x_data {
 
 	struct phy_device *phy_dev;
 	struct mii_bus *mii_bus;
-	int phy_irq[PHY_MAX_ADDR];
 	unsigned int using_extphy;
 	int last_duplex;
 	int last_carrier;
@@ -1073,7 +1072,6 @@ static int smsc911x_mii_init(struct platform_device *pdev,
 	pdata->mii_bus->priv = pdata;
 	pdata->mii_bus->read = smsc911x_mii_read;
 	pdata->mii_bus->write = smsc911x_mii_write;
-	memcpy(pdata->mii_bus->irq, pdata->phy_irq, sizeof(pdata->mii_bus));
 
 	pdata->mii_bus->parent = &pdev->dev;
 

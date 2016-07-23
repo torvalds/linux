@@ -3,12 +3,6 @@
 #include <linux/sock_diag.h>
 #include <net/sctp/sctp.h>
 
-extern void inet_diag_msg_common_fill(struct inet_diag_msg *r,
-				      struct sock *sk);
-extern int inet_diag_msg_attrs_fill(struct sock *sk, struct sk_buff *skb,
-				    struct inet_diag_msg *r, int ext,
-				    struct user_namespace *user_ns);
-
 static void sctp_diag_get_info(struct sock *sk, struct inet_diag_msg *r,
 			       void *info);
 
@@ -354,6 +348,9 @@ static int sctp_ep_dump(struct sctp_endpoint *ep, void *p)
 		goto out;
 
 	if (cb->args[4] < cb->args[1])
+		goto next;
+
+	if ((r->idiag_states & ~TCPF_LISTEN) && !list_empty(&ep->asocs))
 		goto next;
 
 	if (r->sdiag_family != AF_UNSPEC &&

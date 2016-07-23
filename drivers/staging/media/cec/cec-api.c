@@ -52,7 +52,8 @@ static unsigned int cec_poll(struct file *filp,
 	if (!devnode->registered)
 		return POLLERR | POLLHUP;
 	mutex_lock(&adap->lock);
-	if (adap->is_configured)
+	if (adap->is_configured &&
+	    adap->transmit_queue_sz < CEC_MAX_MSG_TX_QUEUE_SZ)
 		res |= POLLOUT | POLLWRNORM;
 	if (fh->queued_msgs)
 		res |= POLLIN | POLLRDNORM;
@@ -189,15 +190,12 @@ static long cec_transmit(struct cec_adapter *adap, struct cec_fh *fh,
 	if (copy_from_user(&msg, parg, sizeof(msg)))
 		return -EFAULT;
 	mutex_lock(&adap->lock);
-	if (!adap->is_configured) {
+	if (!adap->is_configured)
 		err = -ENONET;
-	} else if (cec_is_busy(adap, fh)) {
+	else if (cec_is_busy(adap, fh))
 		err = -EBUSY;
-	} else {
-		if (!block || !msg.reply)
-			fh = NULL;
+	else
 		err = cec_transmit_msg_fh(adap, &msg, fh, block);
-	}
 	mutex_unlock(&adap->lock);
 	if (err)
 		return err;
@@ -209,6 +207,7 @@ static long cec_transmit(struct cec_adapter *adap, struct cec_fh *fh,
 /* Called by CEC_RECEIVE: wait for a message to arrive */
 static int cec_receive_msg(struct cec_fh *fh, struct cec_msg *msg, bool block)
 {
+	u32 timeout = msg->timeout;
 	int res;
 
 	do {
@@ -225,6 +224,8 @@ static int cec_receive_msg(struct cec_fh *fh, struct cec_msg *msg, bool block)
 			kfree(entry);
 			fh->queued_msgs--;
 			mutex_unlock(&fh->lock);
+			/* restore original timeout value */
+			msg->timeout = timeout;
 			return 0;
 		}
 
@@ -263,7 +264,7 @@ static long cec_receive(struct cec_adapter *adap, struct cec_fh *fh,
 	if (copy_from_user(&msg, parg, sizeof(msg)))
 		return -EFAULT;
 	mutex_lock(&adap->lock);
-	if (!adap->is_configured)
+	if (!adap->is_configured && fh->mode_follower < CEC_MODE_MONITOR)
 		err = -ENONET;
 	mutex_unlock(&adap->lock);
 	if (err)

@@ -125,7 +125,7 @@
 		#size-cells = <1>;
 		#interrupts-cells = <3>;
 
-		compatible = "arm,amba-bus";
+		compatible = "simple-bus";
 		interrupt-parent = <&gic>;
 		ranges;
 

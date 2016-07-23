@@ -5,4 +5,5 @@ obj-$(CONFIG_DVB_CXD2099)	+= cxd2099/
 obj-$(CONFIG_LIRC_STAGING)	+= lirc/
 obj-$(CONFIG_VIDEO_DM365_VPFE)	+= davinci_vpfe/
 obj-$(CONFIG_VIDEO_OMAP4)	+= omap4iss/
+obj-$(CONFIG_USB_PULSE8_CEC)    += pulse8-cec/
 obj-$(CONFIG_VIDEO_TW686X_KH)	+= tw686x-kh/

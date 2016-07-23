@@ -45,6 +45,14 @@
 	phy-mode = "rgmii";
 };
 
+&mmc1 {
+	status = "disabled";
+};
+
+&mmc2 {
+	status = "disabled";
+};
+
 &mmc3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&sd2_pins>;
@@ -53,6 +61,7 @@
 	dmas = <&edma_xbar 8 0 1	/* use SDTXEVT1 instead of MCASP0TX */
 		&edma_xbar 9 0 2>;	/* use SDRXEVT1 instead of MCASP0RX */
 	dma-names = "tx", "rx";
+	non-removable;
 };
 
 &pincntl {

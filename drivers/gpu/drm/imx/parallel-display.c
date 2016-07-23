@@ -35,7 +35,6 @@ struct imx_parallel_display {
 	void *edid;
 	int edid_len;
 	u32 bus_format;
-	int mode_valid;
 	struct drm_display_mode mode;
 	struct drm_panel *panel;
 };
@@ -66,17 +65,6 @@ static int imx_pd_connector_get_modes(struct drm_connector *connector)
 	if (imxpd->edid) {
 		drm_mode_connector_update_edid_property(connector, imxpd->edid);
 		num_modes = drm_add_edid_modes(connector, imxpd->edid);
-	}
-
-	if (imxpd->mode_valid) {
-		struct drm_display_mode *mode = drm_mode_create(connector->dev);
-
-		if (!mode)
-			return -EINVAL;
-		drm_mode_copy(mode, &imxpd->mode);
-		mode->type |= DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED,
-		drm_mode_probed_add(connector, mode);
-		num_modes++;
 	}
 
 	if (np) {
@@ -115,8 +103,8 @@ static void imx_pd_encoder_dpms(struct drm_encoder *encoder, int mode)
 static void imx_pd_encoder_prepare(struct drm_encoder *encoder)
 {
 	struct imx_parallel_display *imxpd = enc_to_imxpd(encoder);
-
-	imx_drm_set_bus_format(encoder, imxpd->bus_format);
+	imx_drm_set_bus_config(encoder, imxpd->bus_format, 2, 3,
+			       imxpd->connector.display_info.bus_flags);
 }
 
 static void imx_pd_encoder_commit(struct drm_encoder *encoder)
@@ -203,7 +191,7 @@ static int imx_pd_bind(struct device *dev, struct device *master, void *data)
 {
 	struct drm_device *drm = data;
 	struct device_node *np = dev->of_node;
-	struct device_node *port;
+	struct device_node *ep;
 	const u8 *edidp;
 	struct imx_parallel_display *imxpd;
 	int ret;
@@ -230,18 +218,18 @@ static int imx_pd_bind(struct device *dev, struct device *master, void *data)
 	}
 
 	/* port@1 is the output port */
-	port = of_graph_get_port_by_id(np, 1);
-	if (port) {
-		struct device_node *endpoint, *remote;
+	ep = of_graph_get_endpoint_by_regs(np, 1, -1);
+	if (ep) {
+		struct device_node *remote;
 
-		endpoint = of_get_child_by_name(port, "endpoint");
-		if (endpoint) {
-			remote = of_graph_get_remote_port_parent(endpoint);
-			if (remote)
-				imxpd->panel = of_drm_find_panel(remote);
-			if (!imxpd->panel)
-				return -EPROBE_DEFER;
+		remote = of_graph_get_remote_port_parent(ep);
+		of_node_put(ep);
+		if (remote) {
+			imxpd->panel = of_drm_find_panel(remote);
+			of_node_put(remote);
 		}
+		if (!imxpd->panel)
+			return -EPROBE_DEFER;
 	}
 
 	imxpd->dev = dev;

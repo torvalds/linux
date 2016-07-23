@@ -6221,6 +6221,9 @@ static int ci_dpm_sw_fini(void *handle)
 	ci_dpm_fini(adev);
 	mutex_unlock(&adev->pm.mutex);
 
+	release_firmware(adev->pm.fw);
+	adev->pm.fw = NULL;
+
 	return 0;
 }
 

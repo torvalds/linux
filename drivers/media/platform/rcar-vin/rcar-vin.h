@@ -94,7 +94,6 @@ struct rvin_graph_entity {
  *
  * @lock:		protects @queue
  * @queue:		vb2 buffers queue
- * @alloc_ctx:		allocation context for the vb2 @queue
  *
  * @qlock:		protects @queue_buf, @buf_list, @continuous, @sequence
  *			@state
@@ -125,7 +124,6 @@ struct rvin_dev {
 
 	struct mutex lock;
 	struct vb2_queue queue;
-	struct vb2_alloc_ctx *alloc_ctx;
 
 	spinlock_t qlock;
 	struct vb2_v4l2_buffer *queue_buf[HW_BUFFER_NUM];

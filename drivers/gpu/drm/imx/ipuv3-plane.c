@@ -38,6 +38,8 @@ static const uint32_t ipu_plane_formats[] = {
 	DRM_FORMAT_RGBX8888,
 	DRM_FORMAT_BGRA8888,
 	DRM_FORMAT_BGRA8888,
+	DRM_FORMAT_UYVY,
+	DRM_FORMAT_VYUY,
 	DRM_FORMAT_YUYV,
 	DRM_FORMAT_YVYU,
 	DRM_FORMAT_YUV420,
@@ -428,7 +430,6 @@ static int ipu_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	if (crtc != plane->crtc)
 		dev_dbg(plane->dev->dev, "crtc change: %p -> %p\n",
 				plane->crtc, crtc);
-	plane->crtc = crtc;
 
 	if (!ipu_plane->enabled)
 		ipu_plane_enable(ipu_plane);
@@ -461,7 +462,7 @@ static void ipu_plane_destroy(struct drm_plane *plane)
 	kfree(ipu_plane);
 }
 
-static struct drm_plane_funcs ipu_plane_funcs = {
+static const struct drm_plane_funcs ipu_plane_funcs = {
 	.update_plane	= ipu_update_plane,
 	.disable_plane	= ipu_disable_plane,
 	.destroy	= ipu_plane_destroy,

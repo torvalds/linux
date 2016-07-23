@@ -157,7 +157,7 @@ on working with the default settings initially.</para>
   <varlistentry>
     <term>LIRC_SET_{SEND,REC}_CARRIER</term>
     <listitem>
-      <para>Set send/receive carrier (in Hz).</para>
+      <para>Set send/receive carrier (in Hz). Return 0 on success.</para>
     </listitem>
   </varlistentry>
   <varlistentry>

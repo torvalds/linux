@@ -711,7 +711,7 @@ static const struct v4l2_ioctl_ops vim2m_ioctl_ops = {
 
 static int vim2m_queue_setup(struct vb2_queue *vq,
 				unsigned int *nbuffers, unsigned int *nplanes,
-				unsigned int sizes[], void *alloc_ctxs[])
+				unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct vim2m_ctx *ctx = vb2_get_drv_priv(vq);
 	struct vim2m_q_data *q_data;
@@ -730,11 +730,6 @@ static int vim2m_queue_setup(struct vb2_queue *vq,
 
 	*nplanes = 1;
 	sizes[0] = size;
-
-	/*
-	 * videobuf2-vmalloc allocator is context-less so no need to set
-	 * alloc_ctxs array.
-	 */
 
 	dprintk(ctx->dev, "get %d buffer(s) of size %d each.\n", count, size);
 

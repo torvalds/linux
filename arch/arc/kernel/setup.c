@@ -392,7 +392,7 @@ void __init setup_arch(char **cmdline_p)
 		/*
 		 * If we are here, it is established that @uboot_arg didn't
 		 * point to DT blob. Instead if u-boot says it is cmdline,
-		 * Appent to embedded DT cmdline.
+		 * append to embedded DT cmdline.
 		 * setup_machine_fdt() would have populated @boot_command_line
 		 */
 		if (uboot_tag == 1) {

@@ -107,23 +107,6 @@ Those are now no longer needed.
 
 Where foo->sd is of type struct v4l2_subdev.
 
-And set all core control ops in your struct v4l2_subdev_core_ops to these
-helpers:
-
-.. code-block:: none
-
-	.queryctrl = v4l2_subdev_queryctrl,
-	.querymenu = v4l2_subdev_querymenu,
-	.g_ctrl = v4l2_subdev_g_ctrl,
-	.s_ctrl = v4l2_subdev_s_ctrl,
-	.g_ext_ctrls = v4l2_subdev_g_ext_ctrls,
-	.try_ext_ctrls = v4l2_subdev_try_ext_ctrls,
-	.s_ext_ctrls = v4l2_subdev_s_ext_ctrls,
-
-Note: this is a temporary solution only. Once all V4L2 drivers that depend
-on subdev drivers are converted to the control framework these helpers will
-no longer be needed.
-
 1.4) Clean up the handler at the end:
 
 .. code-block:: none

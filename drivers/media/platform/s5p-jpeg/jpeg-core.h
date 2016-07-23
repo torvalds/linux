@@ -110,7 +110,6 @@ enum  exynos4_jpeg_img_quality_level {
  * @irq:		JPEG IP irq
  * @clocks:		JPEG IP clock(s)
  * @dev:		JPEG IP struct device
- * @alloc_ctx:		videobuf2 memory allocator's context
  * @variant:		driver variant to be used
  * @irq_status		interrupt flags set during single encode/decode
 			operation
@@ -130,7 +129,6 @@ struct s5p_jpeg {
 	enum exynos4_jpeg_result irq_ret;
 	struct clk		*clocks[JPEG_MAX_CLOCKS];
 	struct device		*dev;
-	void			*alloc_ctx;
 	struct s5p_jpeg_variant *variant;
 	u32			irq_status;
 };

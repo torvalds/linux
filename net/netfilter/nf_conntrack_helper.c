@@ -361,9 +361,10 @@ EXPORT_SYMBOL_GPL(nf_ct_helper_log);
 
 int nf_conntrack_helper_register(struct nf_conntrack_helper *me)
 {
-	int ret = 0;
-	struct nf_conntrack_helper *cur;
+	struct nf_conntrack_tuple_mask mask = { .src.u.all = htons(0xFFFF) };
 	unsigned int h = helper_hash(&me->tuple);
+	struct nf_conntrack_helper *cur;
+	int ret = 0;
 
 	BUG_ON(me->expect_policy == NULL);
 	BUG_ON(me->expect_class_max >= NF_CT_MAX_EXPECT_CLASSES);
@@ -371,9 +372,7 @@ int nf_conntrack_helper_register(struct nf_conntrack_helper *me)
 
 	mutex_lock(&nf_ct_helper_mutex);
 	hlist_for_each_entry(cur, &nf_ct_helper_hash[h], hnode) {
-		if (strncmp(cur->name, me->name, NF_CT_HELPER_NAME_LEN) == 0 &&
-		    cur->tuple.src.l3num == me->tuple.src.l3num &&
-		    cur->tuple.dst.protonum == me->tuple.dst.protonum) {
+		if (nf_ct_tuple_src_mask_cmp(&cur->tuple, &me->tuple, &mask)) {
 			ret = -EEXIST;
 			goto out;
 		}

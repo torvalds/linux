@@ -47,6 +47,7 @@ nla_put_failure:
  * @xstats_type: TLV type for backward compatibility xstats TLV
  * @lock: statistics lock
  * @d: dumping handle
+ * @padattr: padding attribute
  *
  * Initializes the dumping handle, grabs the statistic lock and appends
  * an empty TLV header to the socket buffer for use a container for all
@@ -87,6 +88,7 @@ EXPORT_SYMBOL(gnet_stats_start_copy_compat);
  * @type: TLV type for top level statistic TLV
  * @lock: statistics lock
  * @d: dumping handle
+ * @padattr: padding attribute
  *
  * Initializes the dumping handle, grabs the statistic lock and appends
  * an empty TLV header to the socket buffer for use a container for all

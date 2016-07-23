@@ -69,29 +69,22 @@ static inline u64 pvclock_scale_delta(u64 delta, u32 mul_frac, int shift)
 }
 
 static __always_inline
-u64 pvclock_get_nsec_offset(const struct pvclock_vcpu_time_info *src)
-{
-	u64 delta = rdtsc_ordered() - src->tsc_timestamp;
-	return pvclock_scale_delta(delta, src->tsc_to_system_mul,
-				   src->tsc_shift);
-}
-
-static __always_inline
 unsigned __pvclock_read_cycles(const struct pvclock_vcpu_time_info *src,
 			       cycle_t *cycles, u8 *flags)
 {
 	unsigned version;
-	cycle_t ret, offset;
-	u8 ret_flags;
+	cycle_t offset;
+	u64 delta;
 
 	version = src->version;
+	/* Make the latest version visible */
+	smp_rmb();
 
-	offset = pvclock_get_nsec_offset(src);
-	ret = src->system_time + offset;
-	ret_flags = src->flags;
-
-	*cycles = ret;
-	*flags = ret_flags;
+	delta = rdtsc_ordered() - src->tsc_timestamp;
+	offset = pvclock_scale_delta(delta, src->tsc_to_system_mul,
+				   src->tsc_shift);
+	*cycles = src->system_time + offset;
+	*flags = src->flags;
 	return version;
 }
 

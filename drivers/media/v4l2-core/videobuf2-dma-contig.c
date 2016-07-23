@@ -21,11 +21,6 @@
 #include <media/videobuf2-dma-contig.h>
 #include <media/videobuf2-memops.h>
 
-struct vb2_dc_conf {
-	struct device		*dev;
-	struct dma_attrs	attrs;
-};
-
 struct vb2_dc_buf {
 	struct device			*dev;
 	void				*vaddr;
@@ -140,18 +135,18 @@ static void vb2_dc_put(void *buf_priv)
 	kfree(buf);
 }
 
-static void *vb2_dc_alloc(void *alloc_ctx, unsigned long size,
-			  enum dma_data_direction dma_dir, gfp_t gfp_flags)
+static void *vb2_dc_alloc(struct device *dev, const struct dma_attrs *attrs,
+			  unsigned long size, enum dma_data_direction dma_dir,
+			  gfp_t gfp_flags)
 {
-	struct vb2_dc_conf *conf = alloc_ctx;
-	struct device *dev = conf->dev;
 	struct vb2_dc_buf *buf;
 
 	buf = kzalloc(sizeof *buf, GFP_KERNEL);
 	if (!buf)
 		return ERR_PTR(-ENOMEM);
 
-	buf->attrs = conf->attrs;
+	if (attrs)
+		buf->attrs = *attrs;
 	buf->cookie = dma_alloc_attrs(dev, size, &buf->dma_addr,
 					GFP_KERNEL | gfp_flags, &buf->attrs);
 	if (!buf->cookie) {
@@ -478,10 +473,9 @@ static inline dma_addr_t vb2_dc_pfn_to_dma(struct device *dev, unsigned long pfn
 }
 #endif
 
-static void *vb2_dc_get_userptr(void *alloc_ctx, unsigned long vaddr,
+static void *vb2_dc_get_userptr(struct device *dev, unsigned long vaddr,
 	unsigned long size, enum dma_data_direction dma_dir)
 {
-	struct vb2_dc_conf *conf = alloc_ctx;
 	struct vb2_dc_buf *buf;
 	struct frame_vector *vec;
 	unsigned long offset;
@@ -509,7 +503,7 @@ static void *vb2_dc_get_userptr(void *alloc_ctx, unsigned long vaddr,
 	if (!buf)
 		return ERR_PTR(-ENOMEM);
 
-	buf->dev = conf->dev;
+	buf->dev = dev;
 	buf->dma_dir = dma_dir;
 
 	offset = vaddr & ~PAGE_MASK;
@@ -676,10 +670,9 @@ static void vb2_dc_detach_dmabuf(void *mem_priv)
 	kfree(buf);
 }
 
-static void *vb2_dc_attach_dmabuf(void *alloc_ctx, struct dma_buf *dbuf,
+static void *vb2_dc_attach_dmabuf(struct device *dev, struct dma_buf *dbuf,
 	unsigned long size, enum dma_data_direction dma_dir)
 {
-	struct vb2_dc_conf *conf = alloc_ctx;
 	struct vb2_dc_buf *buf;
 	struct dma_buf_attachment *dba;
 
@@ -690,7 +683,7 @@ static void *vb2_dc_attach_dmabuf(void *alloc_ctx, struct dma_buf *dbuf,
 	if (!buf)
 		return ERR_PTR(-ENOMEM);
 
-	buf->dev = conf->dev;
+	buf->dev = dev;
 	/* create attachment for the dmabuf with the user device */
 	dba = dma_buf_attach(dbuf, buf->dev);
 	if (IS_ERR(dba)) {
@@ -728,30 +721,6 @@ const struct vb2_mem_ops vb2_dma_contig_memops = {
 	.num_users	= vb2_dc_num_users,
 };
 EXPORT_SYMBOL_GPL(vb2_dma_contig_memops);
-
-void *vb2_dma_contig_init_ctx_attrs(struct device *dev,
-				    struct dma_attrs *attrs)
-{
-	struct vb2_dc_conf *conf;
-
-	conf = kzalloc(sizeof *conf, GFP_KERNEL);
-	if (!conf)
-		return ERR_PTR(-ENOMEM);
-
-	conf->dev = dev;
-	if (attrs)
-		conf->attrs = *attrs;
-
-	return conf;
-}
-EXPORT_SYMBOL_GPL(vb2_dma_contig_init_ctx_attrs);
-
-void vb2_dma_contig_cleanup_ctx(void *alloc_ctx)
-{
-	if (!IS_ERR_OR_NULL(alloc_ctx))
-		kfree(alloc_ctx);
-}
-EXPORT_SYMBOL_GPL(vb2_dma_contig_cleanup_ctx);
 
 /**
  * vb2_dma_contig_set_max_seg_size() - configure DMA max segment size

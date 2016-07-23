@@ -874,8 +874,12 @@ static int blkif_queue_rq(struct blk_mq_hw_ctx *hctx,
 			  const struct blk_mq_queue_data *qd)
 {
 	unsigned long flags;
-	struct blkfront_ring_info *rinfo = (struct blkfront_ring_info *)hctx->driver_data;
+	int qid = hctx->queue_num;
+	struct blkfront_info *info = hctx->queue->queuedata;
+	struct blkfront_ring_info *rinfo = NULL;
 
+	BUG_ON(info->nr_rings <= qid);
+	rinfo = &info->rinfo[qid];
 	blk_mq_start_request(qd->rq);
 	spin_lock_irqsave(&rinfo->ring_lock, flags);
 	if (RING_FULL(&rinfo->ring))
@@ -901,20 +905,9 @@ out_busy:
 	return BLK_MQ_RQ_QUEUE_BUSY;
 }
 
-static int blk_mq_init_hctx(struct blk_mq_hw_ctx *hctx, void *data,
-			    unsigned int index)
-{
-	struct blkfront_info *info = (struct blkfront_info *)data;
-
-	BUG_ON(info->nr_rings <= index);
-	hctx->driver_data = &info->rinfo[index];
-	return 0;
-}
-
 static struct blk_mq_ops blkfront_mq_ops = {
 	.queue_rq = blkif_queue_rq,
 	.map_queue = blk_mq_map_queue,
-	.init_hctx = blk_mq_init_hctx,
 };
 
 static int xlvbd_init_blk_queue(struct gendisk *gd, u16 sector_size,
@@ -950,6 +943,7 @@ static int xlvbd_init_blk_queue(struct gendisk *gd, u16 sector_size,
 		return PTR_ERR(rq);
 	}
 
+	rq->queuedata = info;
 	queue_flag_set_unlocked(QUEUE_FLAG_VIRT, rq);
 
 	if (info->feature_discard) {
@@ -2149,6 +2143,8 @@ static int blkfront_resume(struct xenbus_device *dev)
 		return err;
 
 	err = talk_to_blkback(dev, info);
+	if (!err)
+		blk_mq_update_nr_hw_queues(&info->tag_set, info->nr_rings);
 
 	/*
 	 * We have to wait for the backend to switch to
@@ -2485,10 +2481,23 @@ static void blkback_changed(struct xenbus_device *dev,
 		break;
 
 	case XenbusStateConnected:
-		if (dev->state != XenbusStateInitialised) {
+		/*
+		 * talk_to_blkback sets state to XenbusStateInitialised
+		 * and blkfront_connect sets it to XenbusStateConnected
+		 * (if connection went OK).
+		 *
+		 * If the backend (or toolstack) decides to poke at backend
+		 * state (and re-trigger the watch by setting the state repeatedly
+		 * to XenbusStateConnected (4)) we need to deal with this.
+		 * This is allowed as this is used to communicate to the guest
+		 * that the size of disk has changed!
+		 */
+		if ((dev->state != XenbusStateInitialised) &&
+		    (dev->state != XenbusStateConnected)) {
 			if (talk_to_blkback(dev, info))
 				break;
 		}
+
 		blkfront_connect(info);
 		break;
 

@@ -136,7 +136,6 @@ struct deinterlace_dev {
 	struct dma_chan		*dma_chan;
 
 	struct v4l2_m2m_dev	*m2m_dev;
-	struct vb2_alloc_ctx	*alloc_ctx;
 };
 
 struct deinterlace_ctx {
@@ -799,7 +798,7 @@ struct vb2_dc_conf {
 
 static int deinterlace_queue_setup(struct vb2_queue *vq,
 				unsigned int *nbuffers, unsigned int *nplanes,
-				unsigned int sizes[], void *alloc_ctxs[])
+				unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct deinterlace_ctx *ctx = vb2_get_drv_priv(vq);
 	struct deinterlace_q_data *q_data;
@@ -819,8 +818,6 @@ static int deinterlace_queue_setup(struct vb2_queue *vq,
 	*nplanes = 1;
 	*nbuffers = count;
 	sizes[0] = size;
-
-	alloc_ctxs[0] = ctx->dev->alloc_ctx;
 
 	dprintk(ctx->dev, "get %d buffer(s) of size %d each.\n", count, size);
 
@@ -874,6 +871,7 @@ static int queue_init(void *priv, struct vb2_queue *src_vq,
 	src_vq->ops = &deinterlace_qops;
 	src_vq->mem_ops = &vb2_dma_contig_memops;
 	src_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
+	src_vq->dev = ctx->dev->v4l2_dev.dev;
 	q_data[V4L2_M2M_SRC].fmt = &formats[0];
 	q_data[V4L2_M2M_SRC].width = 640;
 	q_data[V4L2_M2M_SRC].height = 480;
@@ -891,6 +889,7 @@ static int queue_init(void *priv, struct vb2_queue *src_vq,
 	dst_vq->ops = &deinterlace_qops;
 	dst_vq->mem_ops = &vb2_dma_contig_memops;
 	dst_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
+	dst_vq->dev = ctx->dev->v4l2_dev.dev;
 	q_data[V4L2_M2M_DST].fmt = &formats[0];
 	q_data[V4L2_M2M_DST].width = 640;
 	q_data[V4L2_M2M_DST].height = 480;
@@ -1046,13 +1045,6 @@ static int deinterlace_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, pcdev);
 
-	pcdev->alloc_ctx = vb2_dma_contig_init_ctx(&pdev->dev);
-	if (IS_ERR(pcdev->alloc_ctx)) {
-		v4l2_err(&pcdev->v4l2_dev, "Failed to alloc vb2 context\n");
-		ret = PTR_ERR(pcdev->alloc_ctx);
-		goto err_ctx;
-	}
-
 	pcdev->m2m_dev = v4l2_m2m_init(&m2m_ops);
 	if (IS_ERR(pcdev->m2m_dev)) {
 		v4l2_err(&pcdev->v4l2_dev, "Failed to init mem2mem device\n");
@@ -1064,8 +1056,6 @@ static int deinterlace_probe(struct platform_device *pdev)
 
 err_m2m:
 	video_unregister_device(&pcdev->vfd);
-err_ctx:
-	vb2_dma_contig_cleanup_ctx(pcdev->alloc_ctx);
 unreg_dev:
 	v4l2_device_unregister(&pcdev->v4l2_dev);
 rel_dma:
@@ -1082,7 +1072,6 @@ static int deinterlace_remove(struct platform_device *pdev)
 	v4l2_m2m_release(pcdev->m2m_dev);
 	video_unregister_device(&pcdev->vfd);
 	v4l2_device_unregister(&pcdev->v4l2_dev);
-	vb2_dma_contig_cleanup_ctx(pcdev->alloc_ctx);
 	dma_release_channel(pcdev->dma_chan);
 
 	return 0;

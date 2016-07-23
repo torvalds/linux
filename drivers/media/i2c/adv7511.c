@@ -382,28 +382,20 @@ static void adv7511_csc_rgb_full2limit(struct v4l2_subdev *sd, bool enable)
 	}
 }
 
-static void adv7511_set_IT_content_AVI_InfoFrame(struct v4l2_subdev *sd)
+static void adv7511_set_rgb_quantization_mode(struct v4l2_subdev *sd, struct v4l2_ctrl *ctrl)
 {
 	struct adv7511_state *state = get_adv7511_state(sd);
-	if (state->dv_timings.bt.flags & V4L2_DV_FL_IS_CE_VIDEO) {
-		/* CE format, not IT  */
-		adv7511_wr_and_or(sd, 0x57, 0x7f, 0x00);
-	} else {
-		/* IT format */
-		adv7511_wr_and_or(sd, 0x57, 0x7f, 0x80);
+
+	/* Only makes sense for RGB formats */
+	if (state->fmt_code != MEDIA_BUS_FMT_RGB888_1X24) {
+		/* so just keep quantization */
+		adv7511_csc_rgb_full2limit(sd, false);
+		return;
 	}
-}
 
-static int adv7511_set_rgb_quantization_mode(struct v4l2_subdev *sd, struct v4l2_ctrl *ctrl)
-{
 	switch (ctrl->val) {
-	default:
-		return -EINVAL;
-		break;
-	case V4L2_DV_RGB_RANGE_AUTO: {
+	case V4L2_DV_RGB_RANGE_AUTO:
 		/* automatic */
-		struct adv7511_state *state = get_adv7511_state(sd);
-
 		if (state->dv_timings.bt.flags & V4L2_DV_FL_IS_CE_VIDEO) {
 			/* CE format, RGB limited range (16-235) */
 			adv7511_csc_rgb_full2limit(sd, true);
@@ -411,7 +403,6 @@ static int adv7511_set_rgb_quantization_mode(struct v4l2_subdev *sd, struct v4l2
 			/* not CE format, RGB full range (0-255) */
 			adv7511_csc_rgb_full2limit(sd, false);
 		}
-	}
 		break;
 	case V4L2_DV_RGB_RANGE_LIMITED:
 		/* RGB limited range (16-235) */
@@ -422,7 +413,6 @@ static int adv7511_set_rgb_quantization_mode(struct v4l2_subdev *sd, struct v4l2
 		adv7511_csc_rgb_full2limit(sd, false);
 		break;
 	}
-	return 0;
 }
 
 /* ------------------------------ CTRL OPS ------------------------------ */
@@ -439,8 +429,10 @@ static int adv7511_s_ctrl(struct v4l2_ctrl *ctrl)
 		adv7511_wr_and_or(sd, 0xaf, 0xfd, ctrl->val == V4L2_DV_TX_MODE_HDMI ? 0x02 : 0x00);
 		return 0;
 	}
-	if (state->rgb_quantization_range_ctrl == ctrl)
-		return adv7511_set_rgb_quantization_mode(sd, ctrl);
+	if (state->rgb_quantization_range_ctrl == ctrl) {
+		adv7511_set_rgb_quantization_mode(sd, ctrl);
+		return 0;
+	}
 	if (state->content_type_ctrl == ctrl) {
 		u8 itc, cn;
 
@@ -1065,11 +1057,13 @@ static int adv7511_s_dv_timings(struct v4l2_subdev *sd,
 	/* save timings */
 	state->dv_timings = *timings;
 
+	/* set h/vsync polarities */
+	adv7511_wr_and_or(sd, 0x17, 0x9f,
+		((timings->bt.polarities & V4L2_DV_VSYNC_POS_POL) ? 0 : 0x40) |
+		((timings->bt.polarities & V4L2_DV_HSYNC_POS_POL) ? 0 : 0x20));
+
 	/* update quantization range based on new dv_timings */
 	adv7511_set_rgb_quantization_mode(sd, state->rgb_quantization_range_ctrl);
-
-	/* update AVI infoframe */
-	adv7511_set_IT_content_AVI_InfoFrame(sd);
 
 	return 0;
 }
@@ -1250,8 +1244,6 @@ static int adv7511_enum_mbus_code(struct v4l2_subdev *sd,
 static void adv7511_fill_format(struct adv7511_state *state,
 				struct v4l2_mbus_framefmt *format)
 {
-	memset(format, 0, sizeof(*format));
-
 	format->width = state->dv_timings.bt.width;
 	format->height = state->dv_timings.bt.height;
 	format->field = V4L2_FIELD_NONE;
@@ -1266,6 +1258,7 @@ static int adv7511_get_fmt(struct v4l2_subdev *sd,
 	if (format->pad != 0)
 		return -EINVAL;
 
+	memset(&format->format, 0, sizeof(format->format));
 	adv7511_fill_format(state, &format->format);
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
@@ -1426,6 +1419,7 @@ static int adv7511_set_fmt(struct v4l2_subdev *sd,
 	adv7511_wr_and_or(sd, 0x57, 0x83, (ec << 4) | (q << 2) | (itc << 7));
 	adv7511_wr_and_or(sd, 0x59, 0x0f, (yq << 6) | (cn << 4));
 	adv7511_wr_and_or(sd, 0x4a, 0xff, 1);
+	adv7511_set_rgb_quantization_mode(sd, state->rgb_quantization_range_ctrl);
 
 	return 0;
 }

@@ -7,6 +7,22 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; version 2 of the License.
  *
+ * Alternatively you can redistribute this file under the terms of the
+ * BSD license as stated below:
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ * 3. The names of its contributors may not be used to endorse or promote
+ *    products derived from this software without specific prior written
+ *    permission.
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -404,7 +420,7 @@ static inline void cec_msg_timer_status(struct cec_msg *msg,
 	}
 }
 
-static inline void cec_ops_timer_status(struct cec_msg *msg,
+static inline void cec_ops_timer_status(const struct cec_msg *msg,
 					__u8 *timer_overlap_warning,
 					__u8 *media_info,
 					__u8 *prog_info,
@@ -439,7 +455,7 @@ static inline void cec_msg_timer_cleared_status(struct cec_msg *msg,
 	msg->msg[2] = timer_cleared_status;
 }
 
-static inline void cec_ops_timer_cleared_status(struct cec_msg *msg,
+static inline void cec_ops_timer_cleared_status(const struct cec_msg *msg,
 						__u8 *timer_cleared_status)
 {
 	*timer_cleared_status = msg->msg[2];
@@ -475,7 +491,7 @@ static inline void cec_msg_clear_analogue_timer(struct cec_msg *msg,
 	msg->reply = reply ? CEC_MSG_TIMER_CLEARED_STATUS : 0;
 }
 
-static inline void cec_ops_clear_analogue_timer(struct cec_msg *msg,
+static inline void cec_ops_clear_analogue_timer(const struct cec_msg *msg,
 						__u8 *day,
 						__u8 *month,
 						__u8 *start_hr,
@@ -525,7 +541,7 @@ static inline void cec_msg_clear_digital_timer(struct cec_msg *msg,
 	cec_set_digital_service_id(msg->msg + 9, digital);
 }
 
-static inline void cec_ops_clear_digital_timer(struct cec_msg *msg,
+static inline void cec_ops_clear_digital_timer(const struct cec_msg *msg,
 				__u8 *day,
 				__u8 *month,
 				__u8 *start_hr,
@@ -576,7 +592,7 @@ static inline void cec_msg_clear_ext_timer(struct cec_msg *msg,
 	msg->reply = reply ? CEC_MSG_TIMER_CLEARED_STATUS : 0;
 }
 
-static inline void cec_ops_clear_ext_timer(struct cec_msg *msg,
+static inline void cec_ops_clear_ext_timer(const struct cec_msg *msg,
 					   __u8 *day,
 					   __u8 *month,
 					   __u8 *start_hr,
@@ -631,7 +647,7 @@ static inline void cec_msg_set_analogue_timer(struct cec_msg *msg,
 	msg->reply = reply ? CEC_MSG_TIMER_STATUS : 0;
 }
 
-static inline void cec_ops_set_analogue_timer(struct cec_msg *msg,
+static inline void cec_ops_set_analogue_timer(const struct cec_msg *msg,
 					      __u8 *day,
 					      __u8 *month,
 					      __u8 *start_hr,
@@ -681,7 +697,7 @@ static inline void cec_msg_set_digital_timer(struct cec_msg *msg,
 	cec_set_digital_service_id(msg->msg + 9, digital);
 }
 
-static inline void cec_ops_set_digital_timer(struct cec_msg *msg,
+static inline void cec_ops_set_digital_timer(const struct cec_msg *msg,
 			__u8 *day,
 			__u8 *month,
 			__u8 *start_hr,
@@ -732,7 +748,7 @@ static inline void cec_msg_set_ext_timer(struct cec_msg *msg,
 	msg->reply = reply ? CEC_MSG_TIMER_STATUS : 0;
 }
 
-static inline void cec_ops_set_ext_timer(struct cec_msg *msg,
+static inline void cec_ops_set_ext_timer(const struct cec_msg *msg,
 					 __u8 *day,
 					 __u8 *month,
 					 __u8 *start_hr,
@@ -772,7 +788,7 @@ static inline void cec_msg_set_timer_program_title(struct cec_msg *msg,
 static inline void cec_ops_set_timer_program_title(const struct cec_msg *msg,
 						   char *prog_title)
 {
-	unsigned int len = msg->len - 2;
+	unsigned int len = msg->len > 2 ? msg->len - 2 : 0;
 
 	if (len > 14)
 		len = 14;
@@ -837,7 +853,7 @@ static inline void cec_msg_set_menu_language(struct cec_msg *msg,
 	memcpy(msg->msg + 2, language, 3);
 }
 
-static inline void cec_ops_set_menu_language(struct cec_msg *msg,
+static inline void cec_ops_set_menu_language(const struct cec_msg *msg,
 					     char *language)
 {
 	memcpy(language, msg->msg + 2, 3);
@@ -910,7 +926,7 @@ static inline void cec_msg_deck_control(struct cec_msg *msg,
 	msg->msg[2] = deck_control_mode;
 }
 
-static inline void cec_ops_deck_control(struct cec_msg *msg,
+static inline void cec_ops_deck_control(const struct cec_msg *msg,
 					__u8 *deck_control_mode)
 {
 	*deck_control_mode = msg->msg[2];
@@ -924,7 +940,7 @@ static inline void cec_msg_deck_status(struct cec_msg *msg,
 	msg->msg[2] = deck_info;
 }
 
-static inline void cec_ops_deck_status(struct cec_msg *msg,
+static inline void cec_ops_deck_status(const struct cec_msg *msg,
 				       __u8 *deck_info)
 {
 	*deck_info = msg->msg[2];
@@ -940,7 +956,7 @@ static inline void cec_msg_give_deck_status(struct cec_msg *msg,
 	msg->reply = reply ? CEC_MSG_DECK_STATUS : 0;
 }
 
-static inline void cec_ops_give_deck_status(struct cec_msg *msg,
+static inline void cec_ops_give_deck_status(const struct cec_msg *msg,
 					    __u8 *status_req)
 {
 	*status_req = msg->msg[2];
@@ -954,7 +970,7 @@ static inline void cec_msg_play(struct cec_msg *msg,
 	msg->msg[2] = play_mode;
 }
 
-static inline void cec_ops_play(struct cec_msg *msg,
+static inline void cec_ops_play(const struct cec_msg *msg,
 				__u8 *play_mode)
 {
 	*play_mode = msg->msg[2];
@@ -1019,7 +1035,7 @@ static inline void cec_msg_tuner_device_status(struct cec_msg *msg,
 			&tuner_dev_info->digital);
 }
 
-static inline void cec_ops_tuner_device_status(struct cec_msg *msg,
+static inline void cec_ops_tuner_device_status(const struct cec_msg *msg,
 				struct cec_op_tuner_device_info *tuner_dev_info)
 {
 	tuner_dev_info->is_analog = msg->len < 10;
@@ -1044,7 +1060,7 @@ static inline void cec_msg_give_tuner_device_status(struct cec_msg *msg,
 	msg->reply = reply ? CEC_MSG_TUNER_DEVICE_STATUS : 0;
 }
 
-static inline void cec_ops_give_tuner_device_status(struct cec_msg *msg,
+static inline void cec_ops_give_tuner_device_status(const struct cec_msg *msg,
 						    __u8 *status_req)
 {
 	*status_req = msg->msg[2];
@@ -1063,7 +1079,7 @@ static inline void cec_msg_select_analogue_service(struct cec_msg *msg,
 	msg->msg[5] = bcast_system;
 }
 
-static inline void cec_ops_select_analogue_service(struct cec_msg *msg,
+static inline void cec_ops_select_analogue_service(const struct cec_msg *msg,
 						   __u8 *ana_bcast_type,
 						   __u16 *ana_freq,
 						   __u8 *bcast_system)
@@ -1081,7 +1097,7 @@ static inline void cec_msg_select_digital_service(struct cec_msg *msg,
 	cec_set_digital_service_id(msg->msg + 2, digital);
 }
 
-static inline void cec_ops_select_digital_service(struct cec_msg *msg,
+static inline void cec_ops_select_digital_service(const struct cec_msg *msg,
 				struct cec_op_digital_service_id *digital)
 {
 	cec_get_digital_service_id(msg->msg + 2, digital);
@@ -1151,7 +1167,7 @@ static inline void cec_ops_set_osd_string(const struct cec_msg *msg,
 					  __u8 *disp_ctl,
 					  char *osd)
 {
-	unsigned int len = msg->len - 3;
+	unsigned int len = msg->len > 3 ? msg->len - 3 : 0;
 
 	*disp_ctl = msg->msg[2];
 	if (len > 13)
@@ -1176,7 +1192,7 @@ static inline void cec_msg_set_osd_name(struct cec_msg *msg, const char *name)
 static inline void cec_ops_set_osd_name(const struct cec_msg *msg,
 					char *name)
 {
-	unsigned int len = msg->len - 2;
+	unsigned int len = msg->len > 2 ? msg->len - 2 : 0;
 
 	if (len > 14)
 		len = 14;
@@ -1202,7 +1218,7 @@ static inline void cec_msg_menu_status(struct cec_msg *msg,
 	msg->msg[2] = menu_state;
 }
 
-static inline void cec_ops_menu_status(struct cec_msg *msg,
+static inline void cec_ops_menu_status(const struct cec_msg *msg,
 				       __u8 *menu_state)
 {
 	*menu_state = msg->msg[2];
@@ -1218,7 +1234,7 @@ static inline void cec_msg_menu_request(struct cec_msg *msg,
 	msg->reply = reply ? CEC_MSG_MENU_STATUS : 0;
 }
 
-static inline void cec_ops_menu_request(struct cec_msg *msg,
+static inline void cec_ops_menu_request(const struct cec_msg *msg,
 					__u8 *menu_req)
 {
 	*menu_req = msg->msg[2];
@@ -1268,7 +1284,7 @@ static inline void cec_msg_user_control_pressed(struct cec_msg *msg,
 	}
 }
 
-static inline void cec_ops_user_control_pressed(struct cec_msg *msg,
+static inline void cec_ops_user_control_pressed(const struct cec_msg *msg,
 						struct cec_op_ui_command *ui_cmd)
 {
 	ui_cmd->ui_cmd = msg->msg[2];
@@ -1478,6 +1494,7 @@ static inline void cec_ops_report_short_audio_descriptor(const struct cec_msg *m
 }
 
 static inline void cec_msg_request_short_audio_descriptor(struct cec_msg *msg,
+					bool reply,
 					__u8 num_descriptors,
 					const __u8 *audio_format_id,
 					const __u8 *audio_format_code)
@@ -1488,6 +1505,7 @@ static inline void cec_msg_request_short_audio_descriptor(struct cec_msg *msg,
 		num_descriptors = 4;
 	msg->len = 2 + num_descriptors;
 	msg->msg[1] = CEC_MSG_REQUEST_SHORT_AUDIO_DESCRIPTOR;
+	msg->reply = reply ? CEC_MSG_REPORT_SHORT_AUDIO_DESCRIPTOR : 0;
 	for (i = 0; i < num_descriptors; i++)
 		msg->msg[2 + i] = (audio_format_id[i] << 6) |
 				  (audio_format_code[i] & 0x3f);

@@ -818,8 +818,18 @@ static int ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 		 */
 		state = OVS_CS_F_TRACKED | OVS_CS_F_NEW | OVS_CS_F_RELATED;
 		__ovs_ct_update_key(key, state, &info->zone, exp->master);
-	} else
-		return __ovs_ct_lookup(net, key, info, skb);
+	} else {
+		struct nf_conn *ct;
+		int err;
+
+		err = __ovs_ct_lookup(net, key, info, skb);
+		if (err)
+			return err;
+
+		ct = (struct nf_conn *)skb->nfct;
+		if (ct)
+			nf_ct_deliver_cached_events(ct);
+	}
 
 	return 0;
 }

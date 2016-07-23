@@ -156,7 +156,7 @@ static void dwmac4_set_filter(struct mac_device_info *hw,
 		struct netdev_hw_addr *ha;
 
 		netdev_for_each_uc_addr(ha, dev) {
-			dwmac4_set_umac_addr(ioaddr, ha->addr, reg);
+			dwmac4_set_umac_addr(hw, ha->addr, reg);
 			reg++;
 		}
 	}

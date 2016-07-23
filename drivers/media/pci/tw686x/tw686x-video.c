@@ -28,6 +28,7 @@
 #define TW686X_INPUTS_PER_CH		4
 #define TW686X_VIDEO_WIDTH		720
 #define TW686X_VIDEO_HEIGHT(id)		((id & V4L2_STD_525_60) ? 480 : 576)
+#define TW686X_MAX_FPS(id)		((id & V4L2_STD_525_60) ? 30 : 25)
 
 #define TW686X_MAX_SG_ENTRY_SIZE	4096
 #define TW686X_MAX_SG_DESC_COUNT	256 /* PAL 720x576 needs 203 4-KB pages */
@@ -145,7 +146,7 @@ static void tw686x_memcpy_buf_refill(struct tw686x_video_channel *vc,
 	vc->curr_bufs[pb] = NULL;
 }
 
-const struct tw686x_dma_ops memcpy_dma_ops = {
+static const struct tw686x_dma_ops memcpy_dma_ops = {
 	.alloc		= tw686x_memcpy_dma_alloc,
 	.free		= tw686x_memcpy_dma_free,
 	.buf_refill	= tw686x_memcpy_buf_refill,
@@ -177,24 +178,7 @@ static void tw686x_contig_buf_refill(struct tw686x_video_channel *vc,
 	vc->curr_bufs[pb] = NULL;
 }
 
-static void tw686x_contig_cleanup(struct tw686x_dev *dev)
-{
-	vb2_dma_contig_cleanup_ctx(dev->alloc_ctx);
-}
-
-static int tw686x_contig_setup(struct tw686x_dev *dev)
-{
-	dev->alloc_ctx = vb2_dma_contig_init_ctx(&dev->pci_dev->dev);
-	if (IS_ERR(dev->alloc_ctx)) {
-		dev_err(&dev->pci_dev->dev, "unable to init DMA context\n");
-		return PTR_ERR(dev->alloc_ctx);
-	}
-	return 0;
-}
-
-const struct tw686x_dma_ops contig_dma_ops = {
-	.setup		= tw686x_contig_setup,
-	.cleanup	= tw686x_contig_cleanup,
+static const struct tw686x_dma_ops contig_dma_ops = {
 	.buf_refill	= tw686x_contig_buf_refill,
 	.mem_ops	= &vb2_dma_contig_memops,
 	.hw_dma_mode	= TW686X_FRAME_MODE,
@@ -316,20 +300,9 @@ static int tw686x_sg_dma_alloc(struct tw686x_video_channel *vc,
 	return 0;
 }
 
-static void tw686x_sg_cleanup(struct tw686x_dev *dev)
-{
-	vb2_dma_sg_cleanup_ctx(dev->alloc_ctx);
-}
-
 static int tw686x_sg_setup(struct tw686x_dev *dev)
 {
 	unsigned int sg_table_size, pb, ch, channels;
-
-	dev->alloc_ctx = vb2_dma_sg_init_ctx(&dev->pci_dev->dev);
-	if (IS_ERR(dev->alloc_ctx)) {
-		dev_err(&dev->pci_dev->dev, "unable to init DMA context\n");
-		return PTR_ERR(dev->alloc_ctx);
-	}
 
 	if (is_second_gen(dev)) {
 		/*
@@ -358,9 +331,8 @@ static int tw686x_sg_setup(struct tw686x_dev *dev)
 	return 0;
 }
 
-const struct tw686x_dma_ops sg_dma_ops = {
+static const struct tw686x_dma_ops sg_dma_ops = {
 	.setup		= tw686x_sg_setup,
-	.cleanup	= tw686x_sg_cleanup,
 	.alloc		= tw686x_sg_dma_alloc,
 	.free		= tw686x_sg_dma_free,
 	.buf_refill	= tw686x_sg_buf_refill,
@@ -369,53 +341,76 @@ const struct tw686x_dma_ops sg_dma_ops = {
 	.field		= V4L2_FIELD_SEQ_TB,
 };
 
-static unsigned int tw686x_fields_map(v4l2_std_id std, unsigned int fps)
+static const unsigned int fps_map[15] = {
+	/*
+	 * bit 31 enables selecting the field control register
+	 * bits 0-29 are a bitmask with fields that will be output.
+	 * For NTSC (and PAL-M, PAL-60), all 30 bits are used.
+	 * For other PAL standards, only the first 25 bits are used.
+	 */
+	0x00000000, /* output all fields */
+	0x80000006, /* 2 fps (60Hz), 2 fps (50Hz) */
+	0x80018006, /* 4 fps (60Hz), 4 fps (50Hz) */
+	0x80618006, /* 6 fps (60Hz), 6 fps (50Hz) */
+	0x81818186, /* 8 fps (60Hz), 8 fps (50Hz) */
+	0x86186186, /* 10 fps (60Hz), 8 fps (50Hz) */
+	0x86619866, /* 12 fps (60Hz), 10 fps (50Hz) */
+	0x86666666, /* 14 fps (60Hz), 12 fps (50Hz) */
+	0x9999999e, /* 16 fps (60Hz), 14 fps (50Hz) */
+	0x99e6799e, /* 18 fps (60Hz), 16 fps (50Hz) */
+	0x9e79e79e, /* 20 fps (60Hz), 16 fps (50Hz) */
+	0x9e7e7e7e, /* 22 fps (60Hz), 18 fps (50Hz) */
+	0x9fe7f9fe, /* 24 fps (60Hz), 20 fps (50Hz) */
+	0x9ffe7ffe, /* 26 fps (60Hz), 22 fps (50Hz) */
+	0x9ffffffe, /* 28 fps (60Hz), 24 fps (50Hz) */
+};
+
+static unsigned int tw686x_real_fps(unsigned int index, unsigned int max_fps)
 {
-	static const unsigned int map[15] = {
-		0x00000000, 0x00000001, 0x00004001, 0x00104001, 0x00404041,
-		0x01041041, 0x01104411, 0x01111111, 0x04444445, 0x04511445,
-		0x05145145, 0x05151515, 0x05515455, 0x05551555, 0x05555555
-	};
+	unsigned long mask;
 
-	static const unsigned int std_625_50[26] = {
-		0, 1, 1, 2,  3,  3,  4,  4,  5,  5,  6,  7,  7,
-		   8, 8, 9, 10, 10, 11, 11, 12, 13, 13, 14, 14, 0
-	};
+	if (!index || index >= ARRAY_SIZE(fps_map))
+		return max_fps;
 
-	static const unsigned int std_525_60[31] = {
-		0, 1, 1, 1, 2,  2,  3,  3,  4,  4,  5,  5,  6,  6, 7, 7,
-		   8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 0, 0
-	};
+	mask = GENMASK(max_fps - 1, 0);
+	return hweight_long(fps_map[index] & mask);
+}
 
-	unsigned int i;
+static unsigned int tw686x_fps_idx(unsigned int fps, unsigned int max_fps)
+{
+	unsigned int idx, real_fps;
+	int delta;
 
-	if (std & V4L2_STD_525_60) {
-		if (fps >= ARRAY_SIZE(std_525_60))
-			fps = 30;
-		i = std_525_60[fps];
-	} else {
-		if (fps >= ARRAY_SIZE(std_625_50))
-			fps = 25;
-		i = std_625_50[fps];
-	}
+	/* First guess */
+	idx = (12 + 15 * fps) / max_fps;
 
-	return map[i];
+	/* Minimal possible framerate is 2 frames per second */
+	if (!idx)
+		return 1;
+
+	/* Check if the difference is bigger than abs(1) and adjust */
+	real_fps = tw686x_real_fps(idx, max_fps);
+	delta = real_fps - fps;
+	if (delta < -1)
+		idx++;
+	else if (delta > 1)
+		idx--;
+
+	/* Max framerate */
+	if (idx >= 15)
+		return 0;
+
+	return idx;
 }
 
 static void tw686x_set_framerate(struct tw686x_video_channel *vc,
 				 unsigned int fps)
 {
-	unsigned int map;
+	unsigned int i;
 
-	if (vc->fps == fps)
-		return;
-
-	map = tw686x_fields_map(vc->video_standard, fps) << 1;
-	map |= map << 1;
-	if (map > 0)
-		map |= BIT(31);
-	reg_write(vc->dev, VIDEO_FIELD_CTRL[vc->ch], map);
-	vc->fps = fps;
+	i = tw686x_fps_idx(fps, TW686X_MAX_FPS(vc->video_standard));
+	reg_write(vc->dev, VIDEO_FIELD_CTRL[vc->ch], fps_map[i]);
+	vc->fps = tw686x_real_fps(i, TW686X_MAX_FPS(vc->video_standard));
 }
 
 static const struct tw686x_format *format_by_fourcc(unsigned int fourcc)
@@ -430,7 +425,7 @@ static const struct tw686x_format *format_by_fourcc(unsigned int fourcc)
 
 static int tw686x_queue_setup(struct vb2_queue *vq,
 			      unsigned int *nbuffers, unsigned int *nplanes,
-			      unsigned int sizes[], void *alloc_ctxs[])
+			      unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct tw686x_video_channel *vc = vb2_get_drv_priv(vq);
 	unsigned int szimage =
@@ -449,7 +444,6 @@ static int tw686x_queue_setup(struct vb2_queue *vq,
 		return 0;
 	}
 
-	alloc_ctxs[0] = vc->dev->alloc_ctx;
 	sizes[0] = szimage;
 	*nplanes = 1;
 	return 0;
@@ -816,6 +810,12 @@ static int tw686x_s_std(struct file *file, void *priv, v4l2_std_id id)
 	ret = tw686x_g_fmt_vid_cap(file, priv, &f);
 	if (!ret)
 		tw686x_s_fmt_vid_cap(file, priv, &f);
+
+	/*
+	 * Frame decimation depends on the chosen standard,
+	 * so reset it to the current value.
+	 */
+	tw686x_set_framerate(vc, vc->fps);
 	return 0;
 }
 
@@ -883,6 +883,40 @@ static int tw686x_g_std(struct file *file, void *priv, v4l2_std_id *id)
 
 	*id = vc->video_standard;
 	return 0;
+}
+
+static int tw686x_g_parm(struct file *file, void *priv,
+			 struct v4l2_streamparm *sp)
+{
+	struct tw686x_video_channel *vc = video_drvdata(file);
+	struct v4l2_captureparm *cp = &sp->parm.capture;
+
+	if (sp->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+	sp->parm.capture.readbuffers = 3;
+
+	cp->capability = V4L2_CAP_TIMEPERFRAME;
+	cp->timeperframe.numerator = 1;
+	cp->timeperframe.denominator = vc->fps;
+	return 0;
+}
+
+static int tw686x_s_parm(struct file *file, void *priv,
+			 struct v4l2_streamparm *sp)
+{
+	struct tw686x_video_channel *vc = video_drvdata(file);
+	struct v4l2_captureparm *cp = &sp->parm.capture;
+	unsigned int denominator = cp->timeperframe.denominator;
+	unsigned int numerator = cp->timeperframe.numerator;
+	unsigned int fps;
+
+	if (vb2_is_busy(&vc->vidq))
+		return -EBUSY;
+
+	fps = (!numerator || !denominator) ? 0 : denominator / numerator;
+	if (vc->fps != fps)
+		tw686x_set_framerate(vc, fps);
+	return tw686x_g_parm(file, priv, sp);
 }
 
 static int tw686x_enum_fmt_vid_cap(struct file *file, void *priv,
@@ -970,6 +1004,9 @@ static const struct v4l2_ioctl_ops tw686x_video_ioctl_ops = {
 	.vidioc_querystd		= tw686x_querystd,
 	.vidioc_g_std			= tw686x_g_std,
 	.vidioc_s_std			= tw686x_s_std,
+
+	.vidioc_g_parm			= tw686x_g_parm,
+	.vidioc_s_parm			= tw686x_s_parm,
 
 	.vidioc_enum_input		= tw686x_enum_input,
 	.vidioc_g_input			= tw686x_g_input,
@@ -1063,9 +1100,6 @@ void tw686x_video_free(struct tw686x_dev *dev)
 			for (pb = 0; pb < 2; pb++)
 				dev->dma_ops->free(vc, pb);
 	}
-
-	if (dev->dma_ops->cleanup)
-		dev->dma_ops->cleanup(dev);
 }
 
 int tw686x_video_init(struct tw686x_dev *dev)
@@ -1135,6 +1169,7 @@ int tw686x_video_init(struct tw686x_dev *dev)
 		vc->vidq.min_buffers_needed = 2;
 		vc->vidq.lock = &vc->vb_mutex;
 		vc->vidq.gfp_flags = GFP_DMA32;
+		vc->vidq.dev = &dev->pci_dev->dev;
 
 		err = vb2_queue_init(&vc->vidq);
 		if (err) {

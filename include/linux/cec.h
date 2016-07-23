@@ -7,6 +7,22 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; version 2 of the License.
  *
+ * Alternatively you can redistribute this file under the terms of the
+ * BSD license as stated below:
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ * 3. The names of its contributors may not be used to endorse or promote
+ *    products derived from this software without specific prior written
+ *    permission.
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -32,9 +48,10 @@
 
 /**
  * struct cec_msg - CEC message structure.
- * @ts:		Timestamp in nanoseconds using CLOCK_MONOTONIC. Set by the
- *		driver. It is set when the message transmission has finished
- *		and it is set when a message was received.
+ * @tx_ts:	Timestamp in nanoseconds using CLOCK_MONOTONIC. Set by the
+ *		driver when the message transmission has finished.
+ * @rx_ts:	Timestamp in nanoseconds using CLOCK_MONOTONIC. Set by the
+ *		driver when the message was received.
  * @len:	Length in bytes of the message.
  * @timeout:	The timeout (in ms) that is used to timeout CEC_RECEIVE.
  *		Set to 0 if you want to wait forever. This timeout can also be
@@ -45,8 +62,6 @@
  *		sent. This can be used to track replies to previously sent
  *		messages.
  * @flags:	Set to 0.
- * @rx_status:	The message receive status bits. Set by the driver.
- * @tx_status:	The message transmit status bits. Set by the driver.
  * @msg:	The message payload.
  * @reply:	This field is ignored with CEC_RECEIVE and is only used by
  *		CEC_TRANSMIT. If non-zero, then wait for a reply with this
@@ -64,6 +79,8 @@
  *		broadcast, then -EINVAL is returned.
  *		if reply is non-zero, then timeout is set to 1000 (the required
  *		maximum response time).
+ * @rx_status:	The message receive status bits. Set by the driver.
+ * @tx_status:	The message transmit status bits. Set by the driver.
  * @tx_arb_lost_cnt: The number of 'Arbitration Lost' events. Set by the driver.
  * @tx_nack_cnt: The number of 'Not Acknowledged' events. Set by the driver.
  * @tx_low_drive_cnt: The number of 'Low Drive Detected' events. Set by the
@@ -71,15 +88,16 @@
  * @tx_error_cnt: The number of 'Error' events. Set by the driver.
  */
 struct cec_msg {
-	__u64 ts;
+	__u64 tx_ts;
+	__u64 rx_ts;
 	__u32 len;
 	__u32 timeout;
 	__u32 sequence;
 	__u32 flags;
-	__u8 rx_status;
-	__u8 tx_status;
 	__u8 msg[CEC_MAX_MSG_SIZE];
 	__u8 reply;
+	__u8 rx_status;
+	__u8 tx_status;
 	__u8 tx_arb_lost_cnt;
 	__u8 tx_nack_cnt;
 	__u8 tx_low_drive_cnt;

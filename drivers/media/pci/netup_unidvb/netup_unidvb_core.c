@@ -293,7 +293,7 @@ static int netup_unidvb_queue_setup(struct vb2_queue *vq,
 				    unsigned int *nbuffers,
 				    unsigned int *nplanes,
 				    unsigned int sizes[],
-				    void *alloc_ctxs[])
+				    struct device *alloc_devs[])
 {
 	struct netup_dma *dma = vb2_get_drv_priv(vq);
 
@@ -975,7 +975,7 @@ wq_create_err:
 	kfree(ndev);
 dev_alloc_err:
 	dev_err(&pci_dev->dev,
-		"%s(): failed to initizalize device\n", __func__);
+		"%s(): failed to initialize device\n", __func__);
 	return -EIO;
 }
 
