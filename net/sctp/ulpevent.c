@@ -91,6 +91,7 @@ int sctp_ulpevent_is_notification(const struct sctp_ulpevent *event)
 static inline void sctp_ulpevent_set_owner(struct sctp_ulpevent *event,
 					   const struct sctp_association *asoc)
 {
+	struct sctp_chunk *chunk = event->chunk;
 	struct sk_buff *skb;
 
 	/* Cast away the const, as we are just wanting to
@@ -101,6 +102,8 @@ static inline void sctp_ulpevent_set_owner(struct sctp_ulpevent *event,
 	event->asoc = (struct sctp_association *)asoc;
 	atomic_add(event->rmem_len, &event->asoc->rmem_alloc);
 	sctp_skb_set_owner_r(skb, asoc->base.sk);
+	if (chunk && chunk->head_skb && !chunk->head_skb->sk)
+		chunk->head_skb->sk = asoc->base.sk;
 }
 
 /* A simple destructor to give up the reference to the association. */
