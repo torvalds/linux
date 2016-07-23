@@ -227,8 +227,8 @@ static void __init configure_exceptions(void)
 			opal_configure_cores();
 
 		/* Enable AIL if supported, and we are in hypervisor mode */
-		if (cpu_has_feature(CPU_FTR_HVMODE) &&
-		    cpu_has_feature(CPU_FTR_ARCH_207S)) {
+		if (early_cpu_has_feature(CPU_FTR_HVMODE) &&
+		    early_cpu_has_feature(CPU_FTR_ARCH_207S)) {
 			unsigned long lpcr = mfspr(SPRN_LPCR);
 			mtspr(SPRN_LPCR, lpcr | LPCR_AIL_3);
 		}

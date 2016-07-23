@@ -549,7 +549,7 @@ static void __init htab_scan_page_sizes(void)
 	 * Try to find the available page sizes in the device-tree
 	 */
 	rc = of_scan_flat_dt(htab_dt_scan_page_sizes, NULL);
-	if (rc == 0 && mmu_has_feature(MMU_FTR_16M_PAGE)) {
+	if (rc == 0 && early_mmu_has_feature(MMU_FTR_16M_PAGE)) {
 		/*
 		 * Nothing in the device-tree, but the CPU supports 16M pages,
 		 * so let's fallback on a known size list for 16M capable CPUs.
