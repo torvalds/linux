@@ -1091,6 +1091,11 @@ static int populate_pgd(struct cpa_data *cpa, unsigned long addr)
 
 	ret = populate_pud(cpa, addr, pgd_entry, pgprot);
 	if (ret < 0) {
+		/*
+		 * Leave the PUD page in place in case some other CPU or thread
+		 * already found it, but remove any useless entries we just
+		 * added to it.
+		 */
 		unmap_pud_range(pgd_entry, addr,
 				addr + (cpa->numpages << PAGE_SHIFT));
 		return ret;
