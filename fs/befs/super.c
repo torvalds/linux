@@ -14,7 +14,7 @@
 #include "super.h"
 
 /**
- * load_befs_sb -- Read from disk and properly byteswap all the fields
+ * befs_load_sb -- Read from disk and properly byteswap all the fields
  * of the befs superblock
  *
  *
