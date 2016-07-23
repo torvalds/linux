@@ -402,9 +402,12 @@ config GPIO_TB10X
 	select OF_GPIO
 
 config GPIO_TEGRA
-	bool
-	default y
+	bool "NVIDIA Tegra GPIO support"
+	default ARCH_TEGRA
 	depends on ARCH_TEGRA || COMPILE_TEST
+	depends on OF
+	help
+	  Say yes here to support GPIO pins on NVIDIA Tegra SoCs.
 
 config GPIO_TS4800
 	tristate "TS-4800 DIO blocks and compatibles"
