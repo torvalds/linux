@@ -37,6 +37,7 @@
 #include <asm/serial.h>
 #include <asm/udbg.h>
 #include <asm/code-patching.h>
+#include <asm/cpu_has_feature.h>
 
 #define DBG(fmt...)
 

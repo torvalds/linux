@@ -577,17 +577,6 @@ enum {
 };
 #endif /* __powerpc64__ */
 
-static inline bool early_cpu_has_feature(unsigned long feature)
-{
-	return !!((CPU_FTRS_ALWAYS & feature) ||
-		  (CPU_FTRS_POSSIBLE & cur_cpu_spec->cpu_features & feature));
-}
-
-static inline bool cpu_has_feature(unsigned long feature)
-{
-	return early_cpu_has_feature(feature);
-}
-
 #define HBP_NUM 1
 
 #endif /* !__ASSEMBLY__ */
