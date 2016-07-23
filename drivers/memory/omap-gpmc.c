@@ -2143,9 +2143,7 @@ err_child_fail:
 	ret = -ENODEV;
 
 err_cs:
-	if (waitpin_desc)
-		gpiochip_free_own_desc(waitpin_desc);
-
+	gpiochip_free_own_desc(waitpin_desc);
 err:
 	gpmc_cs_free(cs);
 
