@@ -288,7 +288,7 @@ _clear_bss:
 #endif
 
 	/*
-	 *	Assember start up done, start code proper.
+	 *	Assembler start up done, start code proper.
 	 */
 	jsr	start_kernel			/* start Linux kernel */
 
