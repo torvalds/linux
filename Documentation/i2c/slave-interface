@@ -139,9 +139,9 @@ If you want to add slave support to the bus driver:
 * implement calls to register/unregister the slave and add those to the
   struct i2c_algorithm. When registering, you probably need to set the i2c
   slave address and enable slave specific interrupts. If you use runtime pm, you
-  should use pm_runtime_forbid() because your device usually needs to be powered
-  on always to be able to detect its slave address. When unregistering, do the
-  inverse of the above.
+  should use pm_runtime_get_sync() because your device usually needs to be
+  powered on always to be able to detect its slave address. When unregistering,
+  do the inverse of the above.
 
 * Catch the slave interrupts and send appropriate i2c_slave_events to the backend.
 
