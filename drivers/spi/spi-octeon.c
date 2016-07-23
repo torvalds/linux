@@ -17,21 +17,29 @@
 #include <asm/octeon/octeon.h>
 #include <asm/octeon/cvmx-mpi-defs.h>
 
-#define OCTEON_SPI_CFG 0
-#define OCTEON_SPI_STS 0x08
-#define OCTEON_SPI_TX 0x10
-#define OCTEON_SPI_DAT0 0x80
-
 #define OCTEON_SPI_MAX_BYTES 9
 
 #define OCTEON_SPI_MAX_CLOCK_HZ 16000000
+
+struct octeon_spi_regs {
+	int config;
+	int status;
+	int tx;
+	int data;
+};
 
 struct octeon_spi {
 	void __iomem *register_base;
 	u64 last_cfg;
 	u64 cs_enax;
 	int sys_freq;
+	struct octeon_spi_regs regs;
 };
+
+#define OCTEON_SPI_CFG(x)	(x->regs.config)
+#define OCTEON_SPI_STS(x)	(x->regs.status)
+#define OCTEON_SPI_TX(x)	(x->regs.tx)
+#define OCTEON_SPI_DAT0(x)	(x->regs.data)
 
 static void octeon_spi_wait_ready(struct octeon_spi *p)
 {
@@ -41,7 +49,7 @@ static void octeon_spi_wait_ready(struct octeon_spi *p)
 	do {
 		if (loops++)
 			__delay(500);
-		mpi_sts.u64 = readq(p->register_base + OCTEON_SPI_STS);
+		mpi_sts.u64 = readq(p->register_base + OCTEON_SPI_STS(p));
 	} while (mpi_sts.s.busy);
 }
 
@@ -83,7 +91,7 @@ static int octeon_spi_do_transfer(struct octeon_spi *p,
 
 	if (mpi_cfg.u64 != p->last_cfg) {
 		p->last_cfg = mpi_cfg.u64;
-		writeq(mpi_cfg.u64, p->register_base + OCTEON_SPI_CFG);
+		writeq(mpi_cfg.u64, p->register_base + OCTEON_SPI_CFG(p));
 	}
 	tx_buf = xfer->tx_buf;
 	rx_buf = xfer->rx_buf;
@@ -95,19 +103,19 @@ static int octeon_spi_do_transfer(struct octeon_spi *p,
 				d = *tx_buf++;
 			else
 				d = 0;
-			writeq(d, p->register_base + OCTEON_SPI_DAT0 + (8 * i));
+			writeq(d, p->register_base + OCTEON_SPI_DAT0(p) + (8 * i));
 		}
 		mpi_tx.u64 = 0;
 		mpi_tx.s.csid = spi->chip_select;
 		mpi_tx.s.leavecs = 1;
 		mpi_tx.s.txnum = tx_buf ? OCTEON_SPI_MAX_BYTES : 0;
 		mpi_tx.s.totnum = OCTEON_SPI_MAX_BYTES;
-		writeq(mpi_tx.u64, p->register_base + OCTEON_SPI_TX);
+		writeq(mpi_tx.u64, p->register_base + OCTEON_SPI_TX(p));
 
 		octeon_spi_wait_ready(p);
 		if (rx_buf)
 			for (i = 0; i < OCTEON_SPI_MAX_BYTES; i++) {
-				u64 v = readq(p->register_base + OCTEON_SPI_DAT0 + (8 * i));
+				u64 v = readq(p->register_base + OCTEON_SPI_DAT0(p) + (8 * i));
 				*rx_buf++ = (u8)v;
 			}
 		len -= OCTEON_SPI_MAX_BYTES;
@@ -119,7 +127,7 @@ static int octeon_spi_do_transfer(struct octeon_spi *p,
 			d = *tx_buf++;
 		else
 			d = 0;
-		writeq(d, p->register_base + OCTEON_SPI_DAT0 + (8 * i));
+		writeq(d, p->register_base + OCTEON_SPI_DAT0(p) + (8 * i));
 	}
 
 	mpi_tx.u64 = 0;
@@ -130,12 +138,12 @@ static int octeon_spi_do_transfer(struct octeon_spi *p,
 		mpi_tx.s.leavecs = !xfer->cs_change;
 	mpi_tx.s.txnum = tx_buf ? len : 0;
 	mpi_tx.s.totnum = len;
-	writeq(mpi_tx.u64, p->register_base + OCTEON_SPI_TX);
+	writeq(mpi_tx.u64, p->register_base + OCTEON_SPI_TX(p));
 
 	octeon_spi_wait_ready(p);
 	if (rx_buf)
 		for (i = 0; i < len; i++) {
-			u64 v = readq(p->register_base + OCTEON_SPI_DAT0 + (8 * i));
+			u64 v = readq(p->register_base + OCTEON_SPI_DAT0(p) + (8 * i));
 			*rx_buf++ = (u8)v;
 		}
 
@@ -194,6 +202,11 @@ static int octeon_spi_probe(struct platform_device *pdev)
 	p->register_base = reg_base;
 	p->sys_freq = octeon_get_io_clock_rate();
 
+	p->regs.config = 0;
+	p->regs.status = 0x08;
+	p->regs.tx = 0x10;
+	p->regs.data = 0x80;
+
 	master->num_chipselect = 4;
 	master->mode_bits = SPI_CPHA |
 			    SPI_CPOL |
@@ -226,7 +239,7 @@ static int octeon_spi_remove(struct platform_device *pdev)
 	struct octeon_spi *p = spi_master_get_devdata(master);
 
 	/* Clear the CSENA* and put everything in a known state. */
-	writeq(0, p->register_base + OCTEON_SPI_CFG);
+	writeq(0, p->register_base + OCTEON_SPI_CFG(p));
 
 	return 0;
 }
