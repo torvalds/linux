@@ -13,6 +13,7 @@
  */
 
 #include <linux/types.h>
+#include <linux/jump_label.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/init.h>
@@ -187,6 +188,13 @@ void __init apply_feature_fixups(void)
 			  &__start___fw_ftr_fixup, &__stop___fw_ftr_fixup);
 #endif
 	do_final_fixups();
+
+	/*
+	 * Initialise jump label. This causes all the cpu/mmu_has_feature()
+	 * checks to take on their correct polarity based on the current set of
+	 * CPU/MMU features.
+	 */
+	jump_label_init();
 }
 
 static int __init check_features(void)
