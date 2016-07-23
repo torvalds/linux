@@ -1464,6 +1464,11 @@ static int mlx5e_open_channels(struct mlx5e_priv *priv)
 			goto err_close_channels;
 	}
 
+	/* FIXME: This is a W/A for tx timeout watch dog false alarm when
+	 * polling for inactive tx queues.
+	 */
+	netif_tx_start_all_queues(priv->netdev);
+
 	kfree(cparam);
 	return 0;
 
@@ -1482,6 +1487,12 @@ err_free_txq_to_sq_map:
 static void mlx5e_close_channels(struct mlx5e_priv *priv)
 {
 	int i;
+
+	/* FIXME: This is a W/A only for tx timeout watch dog false alarm when
+	 * polling for inactive tx queues.
+	 */
+	netif_tx_stop_all_queues(priv->netdev);
+	netif_tx_disable(priv->netdev);
 
 	for (i = 0; i < priv->params.num_channels; i++)
 		mlx5e_close_channel(priv->channel[i]);
@@ -2774,7 +2785,7 @@ static void mlx5e_tx_timeout(struct net_device *dev)
 	for (i = 0; i < priv->params.num_channels * priv->params.num_tc; i++) {
 		struct mlx5e_sq *sq = priv->txq_to_sq_map[i];
 
-		if (!netif_tx_queue_stopped(netdev_get_tx_queue(dev, i)))
+		if (!netif_xmit_stopped(netdev_get_tx_queue(dev, i)))
 			continue;
 		sched_work = true;
 		set_bit(MLX5E_SQ_STATE_TX_TIMEOUT, &sq->state);

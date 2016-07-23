@@ -1122,8 +1122,10 @@ htb_dump_class_stats(struct Qdisc *sch, unsigned long arg, struct gnet_dump *d)
 		qlen = cl->un.leaf.q->q.qlen;
 		qs.backlog = cl->un.leaf.q->qstats.backlog;
 	}
-	cl->xstats.tokens = PSCHED_NS2TICKS(cl->tokens);
-	cl->xstats.ctokens = PSCHED_NS2TICKS(cl->ctokens);
+	cl->xstats.tokens = clamp_t(s64, PSCHED_NS2TICKS(cl->tokens),
+				    INT_MIN, INT_MAX);
+	cl->xstats.ctokens = clamp_t(s64, PSCHED_NS2TICKS(cl->ctokens),
+				     INT_MIN, INT_MAX);
 
 	if (gnet_stats_copy_basic(qdisc_root_sleeping_running(sch),
 				  d, NULL, &cl->bstats) < 0 ||

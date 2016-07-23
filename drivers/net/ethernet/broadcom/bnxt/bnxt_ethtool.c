@@ -1692,7 +1692,7 @@ static int bnxt_get_module_eeprom(struct net_device *dev,
 {
 	struct bnxt *bp = netdev_priv(dev);
 	u16  start = eeprom->offset, length = eeprom->len;
-	int rc;
+	int rc = 0;
 
 	memset(data, 0, eeprom->len);
 
