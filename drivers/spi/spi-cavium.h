@@ -1,3 +1,32 @@
+#ifndef __SPI_CAVIUM_H
+#define __SPI_CAVIUM_H
+
+#define OCTEON_SPI_MAX_BYTES 9
+#define OCTEON_SPI_MAX_CLOCK_HZ 16000000
+
+struct octeon_spi_regs {
+	int config;
+	int status;
+	int tx;
+	int data;
+};
+
+struct octeon_spi {
+	void __iomem *register_base;
+	u64 last_cfg;
+	u64 cs_enax;
+	int sys_freq;
+	struct octeon_spi_regs regs;
+};
+
+#define OCTEON_SPI_CFG(x)	(x->regs.config)
+#define OCTEON_SPI_STS(x)	(x->regs.status)
+#define OCTEON_SPI_TX(x)	(x->regs.tx)
+#define OCTEON_SPI_DAT0(x)	(x->regs.data)
+
+int octeon_spi_transfer_one_message(struct spi_master *master,
+				    struct spi_message *msg);
+
 /* MPI register descriptions */
 
 #define CVMX_MPI_CFG (CVMX_ADD_IO_SEG(0x0001070000001000ull))
@@ -296,3 +325,5 @@ union cvmx_mpi_tx {
 	struct cvmx_mpi_tx_s cn66xx;
 	struct cvmx_mpi_tx_cn61xx cnf71xx;
 };
+
+#endif /* __SPI_CAVIUM_H */
