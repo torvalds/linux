@@ -1833,7 +1833,7 @@ sub output_function_rst(%) {
     my $oldprefix = $lineprefix;
     my $start;
 
-    print ".. cpp:function:: ";
+    print ".. c:function:: ";
     if ($args{'functiontype'} ne "") {
 	$start = $args{'functiontype'} . " " . $args{'function'} . " (";
     } else {
