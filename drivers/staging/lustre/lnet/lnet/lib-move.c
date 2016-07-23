@@ -280,7 +280,7 @@ lnet_kiov_nob(unsigned int niov, lnet_kiov_t *kiov)
 
 	LASSERT(!niov || kiov);
 	while (niov-- > 0)
-		nob += (kiov++)->kiov_len;
+		nob += (kiov++)->bv_len;
 
 	return nob;
 }
@@ -302,16 +302,16 @@ lnet_copy_kiov2kiov(unsigned int ndiov, lnet_kiov_t *diov, unsigned int doffset,
 	LASSERT(!in_interrupt());
 
 	LASSERT(ndiov > 0);
-	while (doffset >= diov->kiov_len) {
-		doffset -= diov->kiov_len;
+	while (doffset >= diov->bv_len) {
+		doffset -= diov->bv_len;
 		diov++;
 		ndiov--;
 		LASSERT(ndiov > 0);
 	}
 
 	LASSERT(nsiov > 0);
-	while (soffset >= siov->kiov_len) {
-		soffset -= siov->kiov_len;
+	while (soffset >= siov->bv_len) {
+		soffset -= siov->bv_len;
 		siov++;
 		nsiov--;
 		LASSERT(nsiov > 0);
@@ -320,16 +320,16 @@ lnet_copy_kiov2kiov(unsigned int ndiov, lnet_kiov_t *diov, unsigned int doffset,
 	do {
 		LASSERT(ndiov > 0);
 		LASSERT(nsiov > 0);
-		this_nob = min(diov->kiov_len - doffset,
-			       siov->kiov_len - soffset);
+		this_nob = min(diov->bv_len - doffset,
+			       siov->bv_len - soffset);
 		this_nob = min(this_nob, nob);
 
 		if (!daddr)
-			daddr = ((char *)kmap(diov->kiov_page)) +
-				diov->kiov_offset + doffset;
+			daddr = ((char *)kmap(diov->bv_page)) +
+				diov->bv_offset + doffset;
 		if (!saddr)
-			saddr = ((char *)kmap(siov->kiov_page)) +
-				siov->kiov_offset + soffset;
+			saddr = ((char *)kmap(siov->bv_page)) +
+				siov->bv_offset + soffset;
 
 		/*
 		 * Vanishing risk of kmap deadlock when mapping 2 pages.
@@ -339,22 +339,22 @@ lnet_copy_kiov2kiov(unsigned int ndiov, lnet_kiov_t *diov, unsigned int doffset,
 		memcpy(daddr, saddr, this_nob);
 		nob -= this_nob;
 
-		if (diov->kiov_len > doffset + this_nob) {
+		if (diov->bv_len > doffset + this_nob) {
 			daddr += this_nob;
 			doffset += this_nob;
 		} else {
-			kunmap(diov->kiov_page);
+			kunmap(diov->bv_page);
 			daddr = NULL;
 			diov++;
 			ndiov--;
 			doffset = 0;
 		}
 
-		if (siov->kiov_len > soffset + this_nob) {
+		if (siov->bv_len > soffset + this_nob) {
 			saddr += this_nob;
 			soffset += this_nob;
 		} else {
-			kunmap(siov->kiov_page);
+			kunmap(siov->bv_page);
 			saddr = NULL;
 			siov++;
 			nsiov--;
@@ -363,9 +363,9 @@ lnet_copy_kiov2kiov(unsigned int ndiov, lnet_kiov_t *diov, unsigned int doffset,
 	} while (nob > 0);
 
 	if (daddr)
-		kunmap(diov->kiov_page);
+		kunmap(diov->bv_page);
 	if (saddr)
-		kunmap(siov->kiov_page);
+		kunmap(siov->bv_page);
 }
 EXPORT_SYMBOL(lnet_copy_kiov2kiov);
 
@@ -392,8 +392,8 @@ lnet_copy_kiov2iov(unsigned int niov, struct kvec *iov, unsigned int iovoffset,
 	}
 
 	LASSERT(nkiov > 0);
-	while (kiovoffset >= kiov->kiov_len) {
-		kiovoffset -= kiov->kiov_len;
+	while (kiovoffset >= kiov->bv_len) {
+		kiovoffset -= kiov->bv_len;
 		kiov++;
 		nkiov--;
 		LASSERT(nkiov > 0);
@@ -403,12 +403,12 @@ lnet_copy_kiov2iov(unsigned int niov, struct kvec *iov, unsigned int iovoffset,
 		LASSERT(niov > 0);
 		LASSERT(nkiov > 0);
 		this_nob = min(iov->iov_len - iovoffset,
-			       (__kernel_size_t)kiov->kiov_len - kiovoffset);
+			       (__kernel_size_t)kiov->bv_len - kiovoffset);
 		this_nob = min(this_nob, nob);
 
 		if (!addr)
-			addr = ((char *)kmap(kiov->kiov_page)) +
-				kiov->kiov_offset + kiovoffset;
+			addr = ((char *)kmap(kiov->bv_page)) +
+				kiov->bv_offset + kiovoffset;
 
 		memcpy((char *)iov->iov_base + iovoffset, addr, this_nob);
 		nob -= this_nob;
@@ -421,11 +421,11 @@ lnet_copy_kiov2iov(unsigned int niov, struct kvec *iov, unsigned int iovoffset,
 			iovoffset = 0;
 		}
 
-		if (kiov->kiov_len > kiovoffset + this_nob) {
+		if (kiov->bv_len > kiovoffset + this_nob) {
 			addr += this_nob;
 			kiovoffset += this_nob;
 		} else {
-			kunmap(kiov->kiov_page);
+			kunmap(kiov->bv_page);
 			addr = NULL;
 			kiov++;
 			nkiov--;
@@ -435,7 +435,7 @@ lnet_copy_kiov2iov(unsigned int niov, struct kvec *iov, unsigned int iovoffset,
 	} while (nob > 0);
 
 	if (addr)
-		kunmap(kiov->kiov_page);
+		kunmap(kiov->bv_page);
 }
 EXPORT_SYMBOL(lnet_copy_kiov2iov);
 
@@ -455,8 +455,8 @@ lnet_copy_iov2kiov(unsigned int nkiov, lnet_kiov_t *kiov,
 	LASSERT(!in_interrupt());
 
 	LASSERT(nkiov > 0);
-	while (kiovoffset >= kiov->kiov_len) {
-		kiovoffset -= kiov->kiov_len;
+	while (kiovoffset >= kiov->bv_len) {
+		kiovoffset -= kiov->bv_len;
 		kiov++;
 		nkiov--;
 		LASSERT(nkiov > 0);
@@ -473,22 +473,22 @@ lnet_copy_iov2kiov(unsigned int nkiov, lnet_kiov_t *kiov,
 	do {
 		LASSERT(nkiov > 0);
 		LASSERT(niov > 0);
-		this_nob = min((__kernel_size_t)kiov->kiov_len - kiovoffset,
+		this_nob = min((__kernel_size_t)kiov->bv_len - kiovoffset,
 			       iov->iov_len - iovoffset);
 		this_nob = min(this_nob, nob);
 
 		if (!addr)
-			addr = ((char *)kmap(kiov->kiov_page)) +
-				kiov->kiov_offset + kiovoffset;
+			addr = ((char *)kmap(kiov->bv_page)) +
+				kiov->bv_offset + kiovoffset;
 
 		memcpy(addr, (char *)iov->iov_base + iovoffset, this_nob);
 		nob -= this_nob;
 
-		if (kiov->kiov_len > kiovoffset + this_nob) {
+		if (kiov->bv_len > kiovoffset + this_nob) {
 			addr += this_nob;
 			kiovoffset += this_nob;
 		} else {
-			kunmap(kiov->kiov_page);
+			kunmap(kiov->bv_page);
 			addr = NULL;
 			kiov++;
 			nkiov--;
@@ -505,7 +505,7 @@ lnet_copy_iov2kiov(unsigned int nkiov, lnet_kiov_t *kiov,
 	} while (nob > 0);
 
 	if (addr)
-		kunmap(kiov->kiov_page);
+		kunmap(kiov->bv_page);
 }
 EXPORT_SYMBOL(lnet_copy_iov2kiov);
 
@@ -526,8 +526,8 @@ lnet_extract_kiov(int dst_niov, lnet_kiov_t *dst,
 		return 0;		     /* no frags */
 
 	LASSERT(src_niov > 0);
-	while (offset >= src->kiov_len) {      /* skip initial frags */
-		offset -= src->kiov_len;
+	while (offset >= src->bv_len) {      /* skip initial frags */
+		offset -= src->bv_len;
 		src_niov--;
 		src++;
 		LASSERT(src_niov > 0);
@@ -538,19 +538,19 @@ lnet_extract_kiov(int dst_niov, lnet_kiov_t *dst,
 		LASSERT(src_niov > 0);
 		LASSERT((int)niov <= dst_niov);
 
-		frag_len = src->kiov_len - offset;
-		dst->kiov_page = src->kiov_page;
-		dst->kiov_offset = src->kiov_offset + offset;
+		frag_len = src->bv_len - offset;
+		dst->bv_page = src->bv_page;
+		dst->bv_offset = src->bv_offset + offset;
 
 		if (len <= frag_len) {
-			dst->kiov_len = len;
-			LASSERT(dst->kiov_offset + dst->kiov_len
+			dst->bv_len = len;
+			LASSERT(dst->bv_offset + dst->bv_len
 					<= PAGE_SIZE);
 			return niov;
 		}
 
-		dst->kiov_len = frag_len;
-		LASSERT(dst->kiov_offset + dst->kiov_len <= PAGE_SIZE);
+		dst->bv_len = frag_len;
+		LASSERT(dst->bv_offset + dst->bv_len <= PAGE_SIZE);
 
 		len -= frag_len;
 		dst++;

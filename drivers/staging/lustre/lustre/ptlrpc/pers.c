@@ -64,9 +64,9 @@ void ptlrpc_add_bulk_page(struct ptlrpc_bulk_desc *desc, struct page *page,
 {
 	lnet_kiov_t *kiov = &desc->bd_iov[desc->bd_iov_count];
 
-	kiov->kiov_page = page;
-	kiov->kiov_offset = pageoffset;
-	kiov->kiov_len = len;
+	kiov->bv_page = page;
+	kiov->bv_offset = pageoffset;
+	kiov->bv_len = len;
 
 	desc->bd_iov_count++;
 }

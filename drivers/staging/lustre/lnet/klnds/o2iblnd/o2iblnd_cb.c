@@ -717,8 +717,8 @@ kiblnd_setup_rd_kiov(lnet_ni_t *ni, struct kib_tx *tx, struct kib_rdma_desc *rd,
 	LASSERT(nkiov > 0);
 	LASSERT(net);
 
-	while (offset >= kiov->kiov_len) {
-		offset -= kiov->kiov_len;
+	while (offset >= kiov->bv_len) {
+		offset -= kiov->bv_len;
 		nkiov--;
 		kiov++;
 		LASSERT(nkiov > 0);
@@ -728,10 +728,10 @@ kiblnd_setup_rd_kiov(lnet_ni_t *ni, struct kib_tx *tx, struct kib_rdma_desc *rd,
 	do {
 		LASSERT(nkiov > 0);
 
-		fragnob = min((int)(kiov->kiov_len - offset), nob);
+		fragnob = min((int)(kiov->bv_len - offset), nob);
 
-		sg_set_page(sg, kiov->kiov_page, fragnob,
-			    kiov->kiov_offset + offset);
+		sg_set_page(sg, kiov->bv_page, fragnob,
+			    kiov->bv_offset + offset);
 		sg = sg_next(sg);
 		if (!sg) {
 			CERROR("lacking enough sg entries to map tx\n");
