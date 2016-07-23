@@ -26,7 +26,6 @@
 
 LIST_HEAD(nvdimm_bus_list);
 DEFINE_MUTEX(nvdimm_bus_list_mutex);
-static DEFINE_IDA(nd_ida);
 
 void nvdimm_bus_lock(struct device *dev)
 {
@@ -195,44 +194,12 @@ u64 nd_fletcher64(void *addr, size_t len, bool le)
 }
 EXPORT_SYMBOL_GPL(nd_fletcher64);
 
-static void nvdimm_bus_release(struct device *dev)
-{
-	struct nvdimm_bus *nvdimm_bus;
-
-	nvdimm_bus = container_of(dev, struct nvdimm_bus, dev);
-	ida_simple_remove(&nd_ida, nvdimm_bus->id);
-	kfree(nvdimm_bus);
-}
-
-struct nvdimm_bus *to_nvdimm_bus(struct device *dev)
-{
-	struct nvdimm_bus *nvdimm_bus;
-
-	nvdimm_bus = container_of(dev, struct nvdimm_bus, dev);
-	WARN_ON(nvdimm_bus->dev.release != nvdimm_bus_release);
-	return nvdimm_bus;
-}
-EXPORT_SYMBOL_GPL(to_nvdimm_bus);
-
 struct nvdimm_bus_descriptor *to_nd_desc(struct nvdimm_bus *nvdimm_bus)
 {
 	/* struct nvdimm_bus definition is private to libnvdimm */
 	return nvdimm_bus->nd_desc;
 }
 EXPORT_SYMBOL_GPL(to_nd_desc);
-
-struct nvdimm_bus *walk_to_nvdimm_bus(struct device *nd_dev)
-{
-	struct device *dev;
-
-	for (dev = nd_dev; dev; dev = dev->parent)
-		if (dev->release == nvdimm_bus_release)
-			break;
-	dev_WARN_ONCE(nd_dev, !dev, "invalid dev, not on nd bus\n");
-	if (dev)
-		return to_nvdimm_bus(dev);
-	return NULL;
-}
 
 static bool is_uuid_sep(char sep)
 {
@@ -447,51 +414,6 @@ struct attribute_group nvdimm_bus_attribute_group = {
 };
 EXPORT_SYMBOL_GPL(nvdimm_bus_attribute_group);
 
-struct nvdimm_bus *nvdimm_bus_register(struct device *parent,
-		struct nvdimm_bus_descriptor *nd_desc)
-{
-	struct nvdimm_bus *nvdimm_bus;
-	int rc;
-
-	nvdimm_bus = kzalloc(sizeof(*nvdimm_bus), GFP_KERNEL);
-	if (!nvdimm_bus)
-		return NULL;
-	INIT_LIST_HEAD(&nvdimm_bus->list);
-	INIT_LIST_HEAD(&nvdimm_bus->mapping_list);
-	INIT_LIST_HEAD(&nvdimm_bus->poison_list);
-	init_waitqueue_head(&nvdimm_bus->probe_wait);
-	nvdimm_bus->id = ida_simple_get(&nd_ida, 0, 0, GFP_KERNEL);
-	mutex_init(&nvdimm_bus->reconfig_mutex);
-	if (nvdimm_bus->id < 0) {
-		kfree(nvdimm_bus);
-		return NULL;
-	}
-	nvdimm_bus->nd_desc = nd_desc;
-	nvdimm_bus->dev.parent = parent;
-	nvdimm_bus->dev.release = nvdimm_bus_release;
-	nvdimm_bus->dev.groups = nd_desc->attr_groups;
-	dev_set_name(&nvdimm_bus->dev, "ndbus%d", nvdimm_bus->id);
-	rc = device_register(&nvdimm_bus->dev);
-	if (rc) {
-		dev_dbg(&nvdimm_bus->dev, "registration failed: %d\n", rc);
-		goto err;
-	}
-
-	rc = nvdimm_bus_create_ndctl(nvdimm_bus);
-	if (rc)
-		goto err;
-
-	mutex_lock(&nvdimm_bus_list_mutex);
-	list_add_tail(&nvdimm_bus->list, &nvdimm_bus_list);
-	mutex_unlock(&nvdimm_bus_list_mutex);
-
-	return nvdimm_bus;
- err:
-	put_device(&nvdimm_bus->dev);
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(nvdimm_bus_register);
-
 static void set_badblock(struct badblocks *bb, sector_t s, int num)
 {
 	dev_dbg(bb->dev, "Found a poison range (0x%llx, 0x%llx)\n",
@@ -667,54 +589,6 @@ int nvdimm_bus_add_poison(struct nvdimm_bus *nvdimm_bus, u64 addr, u64 length)
 }
 EXPORT_SYMBOL_GPL(nvdimm_bus_add_poison);
 
-static void free_poison_list(struct list_head *poison_list)
-{
-	struct nd_poison *pl, *next;
-
-	list_for_each_entry_safe(pl, next, poison_list, list) {
-		list_del(&pl->list);
-		kfree(pl);
-	}
-	list_del_init(poison_list);
-}
-
-static int child_unregister(struct device *dev, void *data)
-{
-	/*
-	 * the singular ndctl class device per bus needs to be
-	 * "device_destroy"ed, so skip it here
-	 *
-	 * i.e. remove classless children
-	 */
-	if (dev->class)
-		/* pass */;
-	else
-		nd_device_unregister(dev, ND_SYNC);
-	return 0;
-}
-
-void nvdimm_bus_unregister(struct nvdimm_bus *nvdimm_bus)
-{
-	if (!nvdimm_bus)
-		return;
-
-	mutex_lock(&nvdimm_bus_list_mutex);
-	list_del_init(&nvdimm_bus->list);
-	mutex_unlock(&nvdimm_bus_list_mutex);
-
-	nd_synchronize();
-	device_for_each_child(&nvdimm_bus->dev, NULL, child_unregister);
-
-	nvdimm_bus_lock(&nvdimm_bus->dev);
-	free_poison_list(&nvdimm_bus->poison_list);
-	nvdimm_bus_unlock(&nvdimm_bus->dev);
-
-	nvdimm_bus_destroy_ndctl(nvdimm_bus);
-
-	device_unregister(&nvdimm_bus->dev);
-}
-EXPORT_SYMBOL_GPL(nvdimm_bus_unregister);
-
 #ifdef CONFIG_BLK_DEV_INTEGRITY
 int nd_integrity_init(struct gendisk *disk, unsigned long meta_size)
 {
@@ -773,7 +647,6 @@ static __exit void libnvdimm_exit(void)
 	nvdimm_bus_exit();
 	nd_region_devs_exit();
 	nvdimm_devs_exit();
-	ida_destroy(&nd_ida);
 }
 
 MODULE_LICENSE("GPL v2");
