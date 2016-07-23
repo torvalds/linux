@@ -12,7 +12,8 @@
 #include <linux/sched.h>
 #include <linux/tty.h>
 #include <linux/vt_kern.h>		/* For unblank_screen() */
-#include <linux/module.h>       /* for EXPORT_SYMBOL */
+#include <linux/export.h>
+#include <linux/extable.h>
 #include <linux/hardirq.h>
 #include <linux/kprobes.h>
 #include <linux/delay.h>		/* for ssleep() */

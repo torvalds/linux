@@ -19,7 +19,6 @@ struct exception_table_entry;
 
 extern void ia64_handle_exception(struct pt_regs *regs,
 				  const struct exception_table_entry *e);
-extern const struct exception_table_entry *search_exception_tables(unsigned long addr);
 
 #define ia64_done_with_exception(regs)					  \
 ({									  \

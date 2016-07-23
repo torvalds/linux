@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/tty.h>
+#include <linux/extable.h>
 #include <linux/ratelimit.h>
 #include <linux/uaccess.h>
 

@@ -28,7 +28,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/preempt.h>
-#include <linux/moduleloader.h>
+#include <linux/extable.h>
 #include <linux/kdebug.h>
 
 #include <asm/pgtable.h>
