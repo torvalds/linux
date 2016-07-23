@@ -140,18 +140,6 @@ befs_iaddrs_per_block(struct super_block *sb)
 	return BEFS_SB(sb)->block_size / sizeof (befs_disk_inode_addr);
 }
 
-static inline int
-befs_iaddr_is_empty(const befs_inode_addr *iaddr)
-{
-	return (!iaddr->allocation_group) && (!iaddr->start) && (!iaddr->len);
-}
-
-static inline size_t
-befs_brun_size(struct super_block *sb, befs_block_run run)
-{
-	return BEFS_SB(sb)->block_size * run.len;
-}
-
 #include "endian.h"
 
 #endif				/* _LINUX_BEFS_H */
