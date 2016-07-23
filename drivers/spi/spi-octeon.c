@@ -30,6 +30,7 @@ struct octeon_spi {
 	void __iomem *register_base;
 	u64 last_cfg;
 	u64 cs_enax;
+	int sys_freq;
 };
 
 static void octeon_spi_wait_ready(struct octeon_spi *p)
@@ -53,7 +54,6 @@ static int octeon_spi_do_transfer(struct octeon_spi *p,
 	union cvmx_mpi_cfg mpi_cfg;
 	union cvmx_mpi_tx mpi_tx;
 	unsigned int clkdiv;
-	unsigned int speed_hz;
 	int mode;
 	bool cpha, cpol;
 	const u8 *tx_buf;
@@ -65,9 +65,7 @@ static int octeon_spi_do_transfer(struct octeon_spi *p,
 	cpha = mode & SPI_CPHA;
 	cpol = mode & SPI_CPOL;
 
-	speed_hz = xfer->speed_hz;
-
-	clkdiv = octeon_get_io_clock_rate() / (2 * speed_hz);
+	clkdiv = p->sys_freq / (2 * xfer->speed_hz);
 
 	mpi_cfg.u64 = 0;
 
@@ -194,6 +192,7 @@ static int octeon_spi_probe(struct platform_device *pdev)
 	}
 
 	p->register_base = reg_base;
+	p->sys_freq = octeon_get_io_clock_rate();
 
 	master->num_chipselect = 4;
 	master->mode_bits = SPI_CPHA |
