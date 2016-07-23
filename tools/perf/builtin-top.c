@@ -260,6 +260,7 @@ static void perf_top__print_sym_table(struct perf_top *top)
 
 	perf_top__header_snprintf(top, bf, sizeof(bf));
 	printf("%s\n", bf);
+	if(top && top->output_log) fprintf(top->output_log, "\n%s\n", bf);
 
 	perf_top__reset_sample_counters(top);
 
@@ -295,7 +296,7 @@ static void perf_top__print_sym_table(struct perf_top *top)
 	hists__output_recalc_col_len(hists, top->print_entries - printed);
 	putchar('\n');
 	hists__fprintf(hists, false, top->print_entries - printed, win_width,
-		       top->min_percent, stdout);
+		       top->min_percent, top->output_log ? top->output_log : stdout);
 }
 
 static void prompt_integer(int *target, const char *msg)
@@ -1213,6 +1214,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "Show raw trace event output (do not use print fmt or plugins)"),
 	OPT_BOOLEAN(0, "hierarchy", &symbol_conf.report_hierarchy,
 		    "Show entries in a hierarchy"),
+	OPT_STRING('o', "output", &top.output_name, "log", "Output to a file (tee-like way)"),
 	OPT_END()
 	};
 	const char * const top_usage[] = {
@@ -1337,7 +1339,9 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 		sigaction(SIGWINCH, &act, NULL);
 	}
 
+	top.output_log = top.output_name ? fopen(top.output_name, "w") : NULL;
 	status = __cmd_top(&top);
+	if(top.output_log) fclose(top.output_log);
 
 out_delete_evlist:
 	perf_evlist__delete(top.evlist);
