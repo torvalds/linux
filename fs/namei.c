@@ -36,6 +36,7 @@
 #include <linux/posix_acl.h>
 #include <linux/hash.h>
 #include <linux/bitops.h>
+#include <linux/init_task.h>
 #include <asm/uaccess.h>
 
 #include "internal.h"
@@ -1099,6 +1100,7 @@ static int follow_automount(struct path *path, struct nameidata *nd,
 			    bool *need_mntput)
 {
 	struct vfsmount *mnt;
+	const struct cred *old_cred;
 	int err;
 
 	if (!path->dentry->d_op || !path->dentry->d_op->d_automount)
@@ -1120,11 +1122,16 @@ static int follow_automount(struct path *path, struct nameidata *nd,
 	    path->dentry->d_inode)
 		return -EISDIR;
 
+	if (path->dentry->d_sb->s_user_ns != &init_user_ns)
+		return -EACCES;
+
 	nd->total_link_count++;
 	if (nd->total_link_count >= 40)
 		return -ELOOP;
 
+	old_cred = override_creds(&init_cred);
 	mnt = path->dentry->d_op->d_automount(path);
+	revert_creds(old_cred);
 	if (IS_ERR(mnt)) {
 		/*
 		 * The filesystem is allowed to return -EISDIR here to indicate
