@@ -69,6 +69,16 @@ config JUMP_LABEL_FEATURE_CHECKS
 	  feature checks. This should generate more optimal code for those
 	  checks.
 
+config JUMP_LABEL_FEATURE_CHECK_DEBUG
+	bool "Do extra check on feature fixup calls"
+	depends on DEBUG_KERNEL && JUMP_LABEL_FEATURE_CHECKS
+	default n
+	help
+	  This tries to catch incorrect usage of cpu_has_feature() and
+	  mmu_has_feature() in the code.
+
+	  If you don't know what this means, say N.
+
 config FTR_FIXUP_SELFTEST
 	bool "Run self-tests of the feature-fixup code"
 	depends on DEBUG_KERNEL

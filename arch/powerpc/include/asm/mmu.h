@@ -156,6 +156,14 @@ static __always_inline bool mmu_has_feature(unsigned long feature)
 
 	BUILD_BUG_ON(!__builtin_constant_p(feature));
 
+#ifdef CONFIG_JUMP_LABEL_FEATURE_CHECK_DEBUG
+	if (!static_key_initialized) {
+		printk("Warning! mmu_has_feature() used prior to jump label init!\n");
+		dump_stack();
+		return early_mmu_has_feature(feature);
+	}
+#endif
+
 	if (!(MMU_FTRS_POSSIBLE & feature))
 		return false;
 

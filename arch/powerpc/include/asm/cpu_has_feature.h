@@ -25,6 +25,14 @@ static __always_inline bool cpu_has_feature(unsigned long feature)
 
 	BUILD_BUG_ON(!__builtin_constant_p(feature));
 
+#ifdef CONFIG_JUMP_LABEL_FEATURE_CHECK_DEBUG
+	if (!static_key_initialized) {
+		printk("Warning! cpu_has_feature() used prior to jump label init!\n");
+		dump_stack();
+		return early_cpu_has_feature(feature);
+	}
+#endif
+
 	if (CPU_FTRS_ALWAYS & feature)
 		return true;
 
