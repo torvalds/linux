@@ -326,7 +326,7 @@ befs_find_brun_indirect(struct super_block *sb,
 
 	/* Examine blocks of the indirect run one at a time */
 	for (i = 0; i < indirect.len; i++) {
-		indirblock = befs_bread(sb, indirblockno + i);
+		indirblock = sb_bread(sb, indirblockno + i);
 		if (indirblock == NULL) {
 			befs_debug(sb, "---> %s failed to read "
 				   "disk block %lu from the indirect brun",
@@ -471,7 +471,7 @@ befs_find_brun_dblindirect(struct super_block *sb,
 	}
 
 	dbl_indir_block =
-	    befs_bread(sb, iaddr2blockno(sb, &data->double_indirect) +
+	    sb_bread(sb, iaddr2blockno(sb, &data->double_indirect) +
 					dbl_which_block);
 	if (dbl_indir_block == NULL) {
 		befs_error(sb, "%s couldn't read the "
@@ -499,7 +499,7 @@ befs_find_brun_dblindirect(struct super_block *sb,
 	}
 
 	indir_block =
-	    befs_bread(sb, iaddr2blockno(sb, &indir_run) + which_block);
+	    sb_bread(sb, iaddr2blockno(sb, &indir_run) + which_block);
 	if (indir_block == NULL) {
 		befs_error(sb, "%s couldn't read the indirect block "
 			   "at blockno %lu", __func__, (unsigned long)
