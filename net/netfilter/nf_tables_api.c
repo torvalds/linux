@@ -1724,9 +1724,11 @@ struct nft_expr *nft_expr_init(const struct nft_ctx *ctx,
 
 	err = nf_tables_newexpr(ctx, &info, expr);
 	if (err < 0)
-		goto err2;
+		goto err3;
 
 	return expr;
+err3:
+	kfree(expr);
 err2:
 	module_put(info.ops->type->owner);
 err1:

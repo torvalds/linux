@@ -26,6 +26,7 @@
 #include <linux/mdio.h>
 #include <linux/usb/cdc.h>
 #include <linux/suspend.h>
+#include <linux/acpi.h>
 
 /* Information for net-next */
 #define NETNEXT_VERSION		"08"
@@ -459,6 +460,11 @@
 
 /* SRAM_IMPEDANCE */
 #define RX_DRIVING_MASK		0x6000
+
+/* MAC PASSTHRU */
+#define AD_MASK			0xfee0
+#define EFUSE			0xcfdb
+#define PASS_THRU_MASK		0x1
 
 enum rtl_register_content {
 	_1000bps	= 0x10,
@@ -1036,6 +1042,65 @@ out1:
 	return ret;
 }
 
+/* Devices containing RTL8153-AD can support a persistent
+ * host system provided MAC address.
+ * Examples of this are Dell TB15 and Dell WD15 docks
+ */
+static int vendor_mac_passthru_addr_read(struct r8152 *tp, struct sockaddr *sa)
+{
+	acpi_status status;
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
+	union acpi_object *obj;
+	int ret = -EINVAL;
+	u32 ocp_data;
+	unsigned char buf[6];
+
+	/* test for -AD variant of RTL8153 */
+	ocp_data = ocp_read_word(tp, MCU_TYPE_USB, USB_MISC_0);
+	if ((ocp_data & AD_MASK) != 0x1000)
+		return -ENODEV;
+
+	/* test for MAC address pass-through bit */
+	ocp_data = ocp_read_byte(tp, MCU_TYPE_USB, EFUSE);
+	if ((ocp_data & PASS_THRU_MASK) != 1)
+		return -ENODEV;
+
+	/* returns _AUXMAC_#AABBCCDDEEFF# */
+	status = acpi_evaluate_object(NULL, "\\_SB.AMAC", NULL, &buffer);
+	obj = (union acpi_object *)buffer.pointer;
+	if (!ACPI_SUCCESS(status))
+		return -ENODEV;
+	if (obj->type != ACPI_TYPE_BUFFER || obj->string.length != 0x17) {
+		netif_warn(tp, probe, tp->netdev,
+			   "Invalid buffer when reading pass-thru MAC addr: "
+			   "(%d, %d)\n",
+			   obj->type, obj->string.length);
+		goto amacout;
+	}
+	if (strncmp(obj->string.pointer, "_AUXMAC_#", 9) != 0 ||
+	    strncmp(obj->string.pointer + 0x15, "#", 1) != 0) {
+		netif_warn(tp, probe, tp->netdev,
+			   "Invalid header when reading pass-thru MAC addr\n");
+		goto amacout;
+	}
+	ret = hex2bin(buf, obj->string.pointer + 9, 6);
+	if (!(ret == 0 && is_valid_ether_addr(buf))) {
+		netif_warn(tp, probe, tp->netdev,
+			   "Invalid MAC when reading pass-thru MAC addr: "
+			   "%d, %pM\n", ret, buf);
+		ret = -EINVAL;
+		goto amacout;
+	}
+	memcpy(sa->sa_data, buf, 6);
+	ether_addr_copy(tp->netdev->dev_addr, sa->sa_data);
+	netif_info(tp, probe, tp->netdev,
+		   "Using pass-thru MAC addr %pM\n", sa->sa_data);
+
+amacout:
+	kfree(obj);
+	return ret;
+}
+
 static int set_ethernet_addr(struct r8152 *tp)
 {
 	struct net_device *dev = tp->netdev;
@@ -1044,8 +1109,15 @@ static int set_ethernet_addr(struct r8152 *tp)
 
 	if (tp->version == RTL_VER_01)
 		ret = pla_ocp_read(tp, PLA_IDR, 8, sa.sa_data);
-	else
-		ret = pla_ocp_read(tp, PLA_BACKUP, 8, sa.sa_data);
+	else {
+		/* if this is not an RTL8153-AD, no eFuse mac pass thru set,
+		 * or system doesn't provide valid _SB.AMAC this will be
+		 * be expected to non-zero
+		 */
+		ret = vendor_mac_passthru_addr_read(tp, &sa);
+		if (ret < 0)
+			ret = pla_ocp_read(tp, PLA_BACKUP, 8, sa.sa_data);
+	}
 
 	if (ret < 0) {
 		netif_err(tp, probe, dev, "Get ether addr fail\n");
@@ -2296,10 +2368,6 @@ static u32 __rtl_get_wol(struct r8152 *tp)
 	u32 ocp_data;
 	u32 wolopts = 0;
 
-	ocp_data = ocp_read_byte(tp, MCU_TYPE_PLA, PLA_CONFIG5);
-	if (!(ocp_data & LAN_WAKE_EN))
-		return 0;
-
 	ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_CONFIG34);
 	if (ocp_data & LINK_ON_WAKE_EN)
 		wolopts |= WAKE_PHY;
@@ -2332,15 +2400,13 @@ static void __rtl_set_wol(struct r8152 *tp, u32 wolopts)
 	ocp_write_word(tp, MCU_TYPE_PLA, PLA_CONFIG34, ocp_data);
 
 	ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_CONFIG5);
-	ocp_data &= ~(UWF_EN | BWF_EN | MWF_EN | LAN_WAKE_EN);
+	ocp_data &= ~(UWF_EN | BWF_EN | MWF_EN);
 	if (wolopts & WAKE_UCAST)
 		ocp_data |= UWF_EN;
 	if (wolopts & WAKE_BCAST)
 		ocp_data |= BWF_EN;
 	if (wolopts & WAKE_MCAST)
 		ocp_data |= MWF_EN;
-	if (wolopts & WAKE_ANY)
-		ocp_data |= LAN_WAKE_EN;
 	ocp_write_word(tp, MCU_TYPE_PLA, PLA_CONFIG5, ocp_data);
 
 	ocp_write_byte(tp, MCU_TYPE_PLA, PLA_CRWECR, CRWECR_NORAML);
@@ -4359,3 +4425,4 @@ module_usb_driver(rtl8152_driver);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
+MODULE_VERSION(DRIVER_VERSION);
