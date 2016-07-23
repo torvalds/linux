@@ -279,8 +279,7 @@ good:
 	}
 
 out:
-	if (bridge)
-		pci_dev_put(bridge);
+	pci_dev_put(bridge);
 	kfree(bridge_header);
 	kfree(hca_header);
 
