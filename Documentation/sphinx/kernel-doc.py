@@ -37,6 +37,7 @@ from docutils import nodes, statemachine
 from docutils.statemachine import ViewList
 from docutils.parsers.rst import directives
 from sphinx.util.compat import Directive
+from sphinx.ext.autodoc import AutodocReporter
 
 class KernelDocDirective(Directive):
     """Extract kernel-doc comments from the specified file"""
@@ -117,12 +118,17 @@ class KernelDocDirective(Directive):
                     lineoffset += 1
 
             node = nodes.section()
-            node.document = self.state.document
-            self.state.nested_parse(result, self.content_offset, node)
+            buf = self.state.memo.title_styles, self.state.memo.section_level, self.state.memo.reporter
+            self.state.memo.reporter = AutodocReporter(result, self.state.memo.reporter)
+            self.state.memo.title_styles, self.state.memo.section_level = [], 0
+            try:
+                self.state.nested_parse(result, 0, node, match_titles=1)
+            finally:
+                self.state.memo.title_styles, self.state.memo.section_level, self.state.memo.reporter = buf
 
             return node.children
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=W0703
             env.app.warn('kernel-doc \'%s\' processing failed with: %s' %
                          (" ".join(cmd), str(e)))
             return [nodes.error(None, nodes.paragraph(text = "kernel-doc missing"))]

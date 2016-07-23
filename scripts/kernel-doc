@@ -1848,6 +1848,10 @@ sub output_function_rst(%) {
 	}
 	$count++;
 	$type = $args{'parametertypes'}{$parameter};
+
+	# RST doesn't like address_space tags at function prototypes
+	$type =~ s/__(user|kernel|iomem|percpu|pmem|rcu)\s*//;
+
 	if ($type =~ m/([^\(]*\(\*)\s*\)\s*\(([^\)]*)\)/) {
 	    # pointer-to-function
 	    print $1 . $parameter . ") (" . $2;
@@ -2994,7 +2998,7 @@ sub process_file($) {
 		    }
 		} elsif ($inline_doc_state == STATE_INLINE_NAME) {
 		    $inline_doc_state = STATE_INLINE_ERROR;
-		    print STDERR "Warning(${file}:$.): ";
+		    print STDERR "${file}:$.: warning: ";
 		    print STDERR "Incorrect use of kernel-doc format: $_";
 		    ++$warnings;
 		}
