@@ -196,6 +196,7 @@ void __init apply_feature_fixups(void)
 	 */
 	jump_label_init();
 	cpu_feature_keys_init();
+	mmu_feature_keys_init();
 }
 
 static int __init check_features(void)

@@ -2243,4 +2243,21 @@ void __init cpu_feature_keys_init(void)
 			static_branch_disable(&cpu_feature_keys[i]);
 	}
 }
+
+struct static_key_true mmu_feature_keys[NUM_MMU_FTR_KEYS] = {
+			[0 ... NUM_MMU_FTR_KEYS - 1] = STATIC_KEY_TRUE_INIT
+};
+EXPORT_SYMBOL_GPL(mmu_feature_keys);
+
+void __init mmu_feature_keys_init(void)
+{
+	int i;
+
+	for (i = 0; i < NUM_MMU_FTR_KEYS; i++) {
+		unsigned long f = 1ul << i;
+
+		if (!(cur_cpu_spec->mmu_features & f))
+			static_branch_disable(&mmu_feature_keys[i]);
+	}
+}
 #endif

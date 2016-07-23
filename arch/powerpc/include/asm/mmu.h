@@ -141,6 +141,43 @@ static inline bool early_mmu_has_feature(unsigned long feature)
 	return !!(MMU_FTRS_POSSIBLE & cur_cpu_spec->mmu_features & feature);
 }
 
+#ifdef CONFIG_JUMP_LABEL_FEATURE_CHECKS
+#include <linux/jump_label.h>
+
+#define NUM_MMU_FTR_KEYS	32
+
+extern struct static_key_true mmu_feature_keys[NUM_MMU_FTR_KEYS];
+
+extern void mmu_feature_keys_init(void);
+
+static __always_inline bool mmu_has_feature(unsigned long feature)
+{
+	int i;
+
+	BUILD_BUG_ON(!__builtin_constant_p(feature));
+
+	if (!(MMU_FTRS_POSSIBLE & feature))
+		return false;
+
+	i = __builtin_ctzl(feature);
+	return static_branch_likely(&mmu_feature_keys[i]);
+}
+
+static inline void mmu_clear_feature(unsigned long feature)
+{
+	int i;
+
+	i = __builtin_ctzl(feature);
+	cur_cpu_spec->mmu_features &= ~feature;
+	static_branch_disable(&mmu_feature_keys[i]);
+}
+#else
+
+static inline void mmu_feature_keys_init(void)
+{
+
+}
+
 static inline bool mmu_has_feature(unsigned long feature)
 {
 	return early_mmu_has_feature(feature);
@@ -150,6 +187,7 @@ static inline void mmu_clear_feature(unsigned long feature)
 {
 	cur_cpu_spec->mmu_features &= ~feature;
 }
+#endif /* CONFIG_JUMP_LABEL */
 
 extern unsigned int __start___mmu_ftr_fixup, __stop___mmu_ftr_fixup;
 

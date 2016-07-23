@@ -3,6 +3,7 @@
 
 #ifndef __ASSEMBLY__
 
+#include <linux/bug.h>
 #include <asm/cputable.h>
 
 static inline bool early_cpu_has_feature(unsigned long feature)
