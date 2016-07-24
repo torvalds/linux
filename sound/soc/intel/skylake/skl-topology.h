@@ -319,6 +319,7 @@ struct skl_algo_data {
 	u32 param_id;
 	u32 set_params;
 	u32 max;
+	u32 size;
 	char *params;
 };
 

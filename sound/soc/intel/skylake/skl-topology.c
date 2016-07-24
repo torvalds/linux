@@ -448,7 +448,7 @@ static int skl_tplg_set_module_params(struct snd_soc_dapm_widget *w,
 
 			if (bc->set_params == SKL_PARAM_SET) {
 				ret = skl_set_module_params(ctx,
-						(u32 *)bc->params, bc->max,
+						(u32 *)bc->params, bc->size,
 						bc->param_id, mconfig);
 				if (ret < 0)
 					return ret;
@@ -483,7 +483,7 @@ static int skl_tplg_set_module_init_data(struct snd_soc_dapm_widget *w)
 				continue;
 
 			mconfig->formats_config.caps = (u32 *)&bc->params;
-			mconfig->formats_config.caps_size = bc->max;
+			mconfig->formats_config.caps_size = bc->size;
 
 			break;
 		}
@@ -1102,7 +1102,7 @@ static int skl_tplg_tlv_control_get(struct snd_kcontrol *kcontrol,
 
 	if (w->power)
 		skl_get_module_params(skl->skl_sst, (u32 *)bc->params,
-				      bc->max, bc->param_id, mconfig);
+				      bc->size, bc->param_id, mconfig);
 
 	/* decrement size for TLV header */
 	size -= 2 * sizeof(u32);
@@ -1136,6 +1136,10 @@ static int skl_tplg_tlv_control_set(struct snd_kcontrol *kcontrol,
 	struct skl *skl = get_skl_ctx(w->dapm->dev);
 
 	if (ac->params) {
+		if (size > ac->max)
+			return -EINVAL;
+
+		ac->size = size;
 		/*
 		 * if the param_is is of type Vendor, firmware expects actual
 		 * parameter id and size from the control.
@@ -1151,7 +1155,7 @@ static int skl_tplg_tlv_control_set(struct snd_kcontrol *kcontrol,
 
 		if (w->power)
 			return skl_set_module_params(skl->skl_sst,
-						(u32 *)ac->params, ac->max,
+						(u32 *)ac->params, ac->size,
 						ac->param_id, mconfig);
 	}
 
@@ -1683,6 +1687,7 @@ static int skl_init_algo_data(struct device *dev, struct soc_bytes_ext *be,
 	ac->max = dfw_ac->max;
 	ac->param_id = dfw_ac->param_id;
 	ac->set_params = dfw_ac->set_params;
+	ac->size = dfw_ac->max;
 
 	if (ac->max) {
 		ac->params = (char *) devm_kzalloc(dev, ac->max, GFP_KERNEL);
