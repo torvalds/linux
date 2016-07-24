@@ -762,7 +762,7 @@ pnfs_set_layout_stateid(struct pnfs_layout_hdr *lo, const nfs4_stateid *new,
 			bool update_barrier)
 {
 	u32 oldseq, newseq, new_barrier;
-	int empty = list_empty(&lo->plh_segs);
+	bool empty = !pnfs_layout_is_valid(lo);
 
 	oldseq = be32_to_cpu(lo->plh_stateid.seqid);
 	newseq = be32_to_cpu(new->seqid);
