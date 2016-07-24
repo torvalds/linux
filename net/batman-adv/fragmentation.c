@@ -252,7 +252,7 @@ batadv_frag_merge_packets(struct hlist_head *chain)
 {
 	struct batadv_frag_packet *packet;
 	struct batadv_frag_list_entry *entry;
-	struct sk_buff *skb_out = NULL;
+	struct sk_buff *skb_out;
 	int size, hdr_size = sizeof(struct batadv_frag_packet);
 
 	/* Remove first entry, as this is the destination for the rest of the
@@ -352,7 +352,7 @@ bool batadv_frag_skb_fwd(struct sk_buff *skb,
 			 struct batadv_orig_node *orig_node_src)
 {
 	struct batadv_priv *bat_priv = netdev_priv(recv_if->soft_iface);
-	struct batadv_orig_node *orig_node_dst = NULL;
+	struct batadv_orig_node *orig_node_dst;
 	struct batadv_neigh_node *neigh_node = NULL;
 	struct batadv_frag_packet *packet;
 	u16 total_size;
