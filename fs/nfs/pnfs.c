@@ -2393,7 +2393,10 @@ pnfs_layoutcommit_inode(struct inode *inode, bool sync)
 	nfs_fattr_init(&data->fattr);
 	data->args.bitmask = NFS_SERVER(inode)->cache_consistency_bitmask;
 	data->res.fattr = &data->fattr;
-	data->args.lastbytewritten = end_pos - 1;
+	if (end_pos != 0)
+		data->args.lastbytewritten = end_pos - 1;
+	else
+		data->args.lastbytewritten = U64_MAX;
 	data->res.server = NFS_SERVER(inode);
 
 	if (ld->prepare_layoutcommit) {

@@ -629,6 +629,13 @@ pnfs_sync_inode(struct inode *inode, bool datasync)
 }
 
 static inline bool
+pnfs_layoutcommit_outstanding(struct inode *inode)
+{
+	return false;
+}
+
+
+static inline bool
 pnfs_roc(struct inode *ino)
 {
 	return false;
@@ -715,13 +722,6 @@ pnfs_use_threshold(struct nfs4_threshold **dst, struct nfs4_threshold *src,
 {
 	return false;
 }
-
-static inline bool
-pnfs_layoutcommit_outstanding(struct inode *inode)
-{
-	return false;
-}
-
 
 static inline struct nfs4_threshold *pnfs_mdsthreshold_alloc(void)
 {
