@@ -334,7 +334,9 @@ pnfs_layout_io_test_failed(struct pnfs_layout_hdr *lo, u32 iomode)
 }
 
 static void
-init_lseg(struct pnfs_layout_hdr *lo, struct pnfs_layout_segment *lseg)
+pnfs_init_lseg(struct pnfs_layout_hdr *lo, struct pnfs_layout_segment *lseg,
+		const struct pnfs_layout_range *range,
+		const nfs4_stateid *stateid)
 {
 	INIT_LIST_HEAD(&lseg->pls_list);
 	INIT_LIST_HEAD(&lseg->pls_lc_list);
@@ -342,6 +344,8 @@ init_lseg(struct pnfs_layout_hdr *lo, struct pnfs_layout_segment *lseg)
 	smp_mb();
 	set_bit(NFS_LSEG_VALID, &lseg->pls_flags);
 	lseg->pls_layout = lo;
+	lseg->pls_range = *range;
+	lseg->pls_seq = be32_to_cpu(stateid->seqid);
 }
 
 static void pnfs_free_lseg(struct pnfs_layout_segment *lseg)
@@ -1760,9 +1764,7 @@ pnfs_layout_process(struct nfs4_layoutget *lgp)
 		return lseg;
 	}
 
-	init_lseg(lo, lseg);
-	lseg->pls_range = res->range;
-	lseg->pls_seq = be32_to_cpu(res->stateid.seqid);
+	pnfs_init_lseg(lo, lseg, &res->range, &res->stateid);
 
 	spin_lock(&ino->i_lock);
 	if (pnfs_layoutgets_blocked(lo)) {
