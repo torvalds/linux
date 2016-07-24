@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -51,13 +47,6 @@ static int osc_lru_reserve(const struct lu_env *env, struct osc_object *obj,
 /** \addtogroup osc
  *  @{
  */
-
-static int osc_page_protected(const struct lu_env *env,
-			      const struct osc_page *opg,
-			      enum cl_lock_mode mode, int unref)
-{
-	return 1;
-}
 
 /*****************************************************************************
  *
@@ -109,8 +98,6 @@ int osc_page_cache_add(const struct lu_env *env,
 {
 	struct osc_page *opg = cl2osc_page(slice);
 	int result;
-
-	LINVRNT(osc_page_protected(env, opg, CLM_WRITE, 0));
 
 	osc_page_transfer_get(opg, "transfer\0cache");
 	result = osc_queue_async_io(env, io, opg);
@@ -214,8 +201,6 @@ static void osc_page_delete(const struct lu_env *env,
 	struct osc_object *obj = cl2osc(opg->ops_cl.cpl_obj);
 	int rc;
 
-	LINVRNT(opg->ops_temp || osc_page_protected(env, opg, CLM_READ, 1));
-
 	CDEBUG(D_TRACE, "%p\n", opg);
 	osc_page_transfer_put(env, opg);
 	rc = osc_teardown_async_page(env, obj, opg);
@@ -254,8 +239,6 @@ static void osc_page_clip(const struct lu_env *env,
 	struct osc_page *opg = cl2osc_page(slice);
 	struct osc_async_page *oap = &opg->ops_oap;
 
-	LINVRNT(osc_page_protected(env, opg, CLM_READ, 0));
-
 	opg->ops_from = from;
 	opg->ops_to = to;
 	spin_lock(&oap->oap_lock);
@@ -268,8 +251,6 @@ static int osc_page_cancel(const struct lu_env *env,
 {
 	struct osc_page *opg = cl2osc_page(slice);
 	int rc = 0;
-
-	LINVRNT(osc_page_protected(env, opg, CLM_READ, 0));
 
 	/* Check if the transferring against this page
 	 * is completed, or not even queued.
@@ -320,10 +301,6 @@ int osc_page_init(const struct lu_env *env, struct cl_object *obj,
 		cl_page_slice_add(page, &opg->ops_cl, obj, index,
 				  &osc_page_ops);
 	}
-	/*
-	 * Cannot assert osc_page_protected() here as read-ahead
-	 * creates temporary pages outside of a lock.
-	 */
 	/* ops_inflight and ops_lru are the same field, but it doesn't
 	 * hurt to initialize it twice :-)
 	 */
@@ -380,10 +357,6 @@ void osc_page_submit(const struct lu_env *env, struct osc_page *opg,
 		     enum cl_req_type crt, int brw_flags)
 {
 	struct osc_async_page *oap = &opg->ops_oap;
-	struct osc_object *obj = oap->oap_obj;
-
-	LINVRNT(osc_page_protected(env, opg,
-				   crt == CRT_WRITE ? CLM_WRITE : CLM_READ, 1));
 
 	LASSERTF(oap->oap_magic == OAP_MAGIC, "Bad oap magic: oap %p, magic 0x%x\n",
 		 oap, oap->oap_magic);
@@ -398,8 +371,7 @@ void osc_page_submit(const struct lu_env *env, struct osc_page *opg,
 	if (osc_over_unstable_soft_limit(oap->oap_cli))
 		oap->oap_brw_flags |= OBD_BRW_SOFT_SYNC;
 
-	if (!client_is_remote(osc_export(obj)) &&
-	    capable(CFS_CAP_SYS_RESOURCE)) {
+	if (capable(CFS_CAP_SYS_RESOURCE)) {
 		oap->oap_brw_flags |= OBD_BRW_NOQUOTA;
 		oap->oap_cmd |= OBD_BRW_NOQUOTA;
 	}
@@ -440,7 +412,7 @@ static int osc_cache_too_much(struct client_obd *cli)
 	int pages = atomic_read(&cli->cl_lru_in_list);
 	unsigned long budget;
 
-	budget = cache->ccc_lru_max / atomic_read(&cache->ccc_users);
+	budget = cache->ccc_lru_max / (atomic_read(&cache->ccc_users) - 2);
 
 	/* if it's going to run out LRU slots, we should free some, but not
 	 * too much to maintain fairness among OSCs.
@@ -740,7 +712,7 @@ int osc_lru_reclaim(struct client_obd *cli)
 	cache->ccc_lru_shrinkers++;
 	list_move_tail(&cli->cl_lru_osc, &cache->ccc_lru);
 
-	max_scans = atomic_read(&cache->ccc_users);
+	max_scans = atomic_read(&cache->ccc_users) - 2;
 	while (--max_scans > 0 && !list_empty(&cache->ccc_lru)) {
 		cli = list_entry(cache->ccc_lru.next, struct client_obd,
 				 cl_lru_osc);

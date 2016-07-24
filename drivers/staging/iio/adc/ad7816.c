@@ -253,7 +253,8 @@ static const struct attribute_group ad7816_attribute_group = {
 
 static irqreturn_t ad7816_event_handler(int irq, void *private)
 {
-	iio_push_event(private, IIO_EVENT_CODE_AD7816_OTI, iio_get_time_ns());
+	iio_push_event(private, IIO_EVENT_CODE_AD7816_OTI,
+		       iio_get_time_ns((struct iio_dev *)private));
 	return IRQ_HANDLED;
 }
 

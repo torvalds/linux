@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -340,7 +336,7 @@ int ldlm_cli_enqueue_fini(struct obd_export *exp, struct ptlrpc_request *req,
 			  enum ldlm_type type, __u8 with_policy,
 			  enum ldlm_mode mode,
 			  __u64 *flags, void *lvb, __u32 lvb_len,
-			  struct lustre_handle *lockh, int rc)
+			  const struct lustre_handle *lockh, int rc)
 {
 	struct ldlm_namespace *ns = exp->exp_obd->obd_namespace;
 	int is_replay = *flags & LDLM_FL_REPLAY;
@@ -715,7 +711,7 @@ int ldlm_cli_enqueue(struct obd_export *exp, struct ptlrpc_request **reqp,
 
 			lock->l_req_extent = policy->l_extent;
 		}
-		LDLM_DEBUG(lock, "client-side enqueue START, flags %llx\n",
+		LDLM_DEBUG(lock, "client-side enqueue START, flags %llx",
 			   *flags);
 	}
 
@@ -1027,7 +1023,7 @@ EXPORT_SYMBOL(ldlm_cli_update_pool);
  *
  * Lock must not have any readers or writers by this time.
  */
-int ldlm_cli_cancel(struct lustre_handle *lockh,
+int ldlm_cli_cancel(const struct lustre_handle *lockh,
 		    enum ldlm_cancel_flags cancel_flags)
 {
 	struct obd_export *exp;

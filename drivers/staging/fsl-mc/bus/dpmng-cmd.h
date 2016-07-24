@@ -1,4 +1,4 @@
-/* Copyright 2013-2014 Freescale Semiconductor Inc.
+/* Copyright 2013-2016 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -43,5 +43,15 @@
 /* Command IDs */
 #define DPMNG_CMDID_GET_CONT_ID			0x830
 #define DPMNG_CMDID_GET_VERSION			0x831
+
+struct dpmng_rsp_get_container_id {
+	__le32 container_id;
+};
+
+struct dpmng_rsp_get_version {
+	__le32 revision;
+	__le32 version_major;
+	__le32 version_minor;
+};
 
 #endif /* __FSL_DPMNG_CMD_H */

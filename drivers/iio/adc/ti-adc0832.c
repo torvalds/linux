@@ -194,6 +194,7 @@ static int adc0832_probe(struct spi_device *spi)
 
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->dev.parent = &spi->dev;
+	indio_dev->dev.of_node = spi->dev.of_node;
 	indio_dev->info = &adc0832_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 

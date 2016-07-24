@@ -465,7 +465,7 @@ static int ina2xx_work_buffer(struct iio_dev *indio_dev)
 	s64 time_a, time_b;
 	unsigned int alert;
 
-	time_a = iio_get_time_ns();
+	time_a = iio_get_time_ns(indio_dev);
 
 	/*
 	 * Because the timer thread and the chip conversion clock
@@ -504,7 +504,7 @@ static int ina2xx_work_buffer(struct iio_dev *indio_dev)
 		data[i++] = val;
 	}
 
-	time_b = iio_get_time_ns();
+	time_b = iio_get_time_ns(indio_dev);
 
 	iio_push_to_buffers_with_timestamp(indio_dev,
 					   (unsigned int *)data, time_a);
@@ -554,7 +554,7 @@ static int ina2xx_buffer_enable(struct iio_dev *indio_dev)
 	dev_dbg(&indio_dev->dev, "Async readout mode: %d\n",
 		chip->allow_async_readout);
 
-	chip->prev_ns = iio_get_time_ns();
+	chip->prev_ns = iio_get_time_ns(indio_dev);
 
 	chip->task = kthread_run(ina2xx_capture_thread, (void *)indio_dev,
 				 "%s:%d-%uus", indio_dev->name, indio_dev->id,
@@ -691,6 +691,7 @@ static int ina2xx_probe(struct i2c_client *client,
 
 	indio_dev->modes = INDIO_DIRECT_MODE | INDIO_BUFFER_SOFTWARE;
 	indio_dev->dev.parent = &client->dev;
+	indio_dev->dev.of_node = client->dev.of_node;
 	indio_dev->channels = ina2xx_channels;
 	indio_dev->num_channels = ARRAY_SIZE(ina2xx_channels);
 	indio_dev->name = id->name;

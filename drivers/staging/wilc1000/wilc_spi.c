@@ -1082,7 +1082,7 @@ static int wilc_spi_sync_ext(struct wilc *wilc, int nint)
 	int ret, i;
 
 	if (nint > MAX_NUM_INT) {
-		dev_err(&spi->dev, "Too many interupts (%d)...\n", nint);
+		dev_err(&spi->dev, "Too many interrupts (%d)...\n", nint);
 		return 0;
 	}
 

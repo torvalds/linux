@@ -1,20 +1,20 @@
 /*
-  comedi/drivers/jr3_pci.c
-  hardware driver for JR3/PCI force sensor board
-
-  COMEDI - Linux Control and Measurement Device Interface
-  Copyright (C) 2007 Anders Blomdell <anders.blomdell@control.lth.se>
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-*/
+ * comedi/drivers/jr3_pci.c
+ * hardware driver for JR3/PCI force sensor board
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 2007 Anders Blomdell <anders.blomdell@control.lth.se>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 /*
  * Driver: jr3_pci
  * Description: JR3/PCI force sensor board
@@ -231,7 +231,7 @@ static unsigned int jr3_pci_ai_read_chan(struct comedi_device *dev,
 
 	if (chan < 56) {
 		unsigned int axis = chan % 8;
-		unsigned filter = chan / 8;
+		unsigned int filter = chan / 8;
 
 		switch (axis) {
 		case 0:
@@ -690,7 +690,7 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 	if (sizeof(struct jr3_channel) != 0xc00) {
 		dev_err(dev->class_dev,
 			"sizeof(struct jr3_channel) = %x [expected %x]\n",
-			(unsigned)sizeof(struct jr3_channel), 0xc00);
+			(unsigned int)sizeof(struct jr3_channel), 0xc00);
 		return -EINVAL;
 	}
 
