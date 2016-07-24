@@ -761,24 +761,25 @@ void
 pnfs_set_layout_stateid(struct pnfs_layout_hdr *lo, const nfs4_stateid *new,
 			bool update_barrier)
 {
-	u32 oldseq, newseq, new_barrier;
-	bool empty = !pnfs_layout_is_valid(lo);
+	u32 oldseq, newseq, new_barrier = 0;
+	bool invalid = !pnfs_layout_is_valid(lo);
 
 	oldseq = be32_to_cpu(lo->plh_stateid.seqid);
 	newseq = be32_to_cpu(new->seqid);
-	if (empty || pnfs_seqid_is_newer(newseq, oldseq)) {
+	if (invalid || pnfs_seqid_is_newer(newseq, oldseq)) {
 		nfs4_stateid_copy(&lo->plh_stateid, new);
-		if (update_barrier) {
-			new_barrier = be32_to_cpu(new->seqid);
-		} else {
-			/* Because of wraparound, we want to keep the barrier
-			 * "close" to the current seqids.
-			 */
-			new_barrier = newseq - atomic_read(&lo->plh_outstanding);
-		}
-		if (empty || pnfs_seqid_is_newer(new_barrier, lo->plh_barrier))
-			lo->plh_barrier = new_barrier;
+		/*
+		 * Because of wraparound, we want to keep the barrier
+		 * "close" to the current seqids.
+		 */
+		new_barrier = newseq - atomic_read(&lo->plh_outstanding);
 	}
+	if (update_barrier)
+		new_barrier = be32_to_cpu(new->seqid);
+	else if (new_barrier == 0)
+		return;
+	if (invalid || pnfs_seqid_is_newer(new_barrier, lo->plh_barrier))
+		lo->plh_barrier = new_barrier;
 }
 
 static bool
