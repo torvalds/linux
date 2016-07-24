@@ -156,6 +156,9 @@ static int rockchip_drm_bind(struct device *dev)
 
 	drm_dev->dev_private = private;
 
+	INIT_LIST_HEAD(&private->psr_list);
+	mutex_init(&private->psr_list_mutex);
+
 	drm_mode_config_init(drm_dev);
 
 	rockchip_drm_mode_config_init(drm_dev);

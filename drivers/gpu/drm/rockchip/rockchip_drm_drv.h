@@ -61,6 +61,9 @@ struct rockchip_drm_private {
 	struct drm_gem_object *fbdev_bo;
 	const struct rockchip_crtc_funcs *crtc_funcs[ROCKCHIP_MAX_CRTC];
 	struct drm_atomic_state *state;
+
+	struct list_head psr_list;
+	struct mutex psr_list_mutex;
 };
 
 int rockchip_register_crtc_funcs(struct drm_crtc *crtc,
