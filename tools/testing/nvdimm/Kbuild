@@ -16,7 +16,7 @@ ldflags-y += --wrap=remove_resource
 
 DRIVERS := ../../../drivers
 NVDIMM_SRC := $(DRIVERS)/nvdimm
-ACPI_SRC := $(DRIVERS)/acpi
+ACPI_SRC := $(DRIVERS)/acpi/nfit
 DAX_SRC := $(DRIVERS)/dax
 ccflags-y := -I$(src)/$(NVDIMM_SRC)/
 
@@ -29,7 +29,7 @@ obj-$(CONFIG_ACPI_NFIT) += nfit.o
 obj-$(CONFIG_DEV_DAX) += dax.o
 obj-$(CONFIG_DEV_DAX_PMEM) += dax_pmem.o
 
-nfit-y := $(ACPI_SRC)/nfit.o
+nfit-y := $(ACPI_SRC)/core.o
 nfit-y += config_check.o
 
 nd_pmem-y := $(NVDIMM_SRC)/pmem.o
