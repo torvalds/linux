@@ -557,6 +557,10 @@ config SND_SOC_MAX98357A
 config SND_SOC_MAX98371
        tristate
 
+config SND_SOC_MAX98504
+	tristate "Maxim MAX98504 speaker amplifier"
+	depends on I2C
+
 config SND_SOC_MAX9867
 	tristate
 
