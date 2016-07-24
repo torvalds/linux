@@ -16,6 +16,7 @@
 #define __NFIT_H__
 #include <linux/workqueue.h>
 #include <linux/libnvdimm.h>
+#include <linux/ndctl.h>
 #include <linux/types.h>
 #include <linux/uuid.h>
 #include <linux/acpi.h>
@@ -31,6 +32,9 @@
 #define UUID_NFIT_DIMM_N_HPE1 "9002c334-acf3-4c0e-9642-a235f0d53bc6"
 #define UUID_NFIT_DIMM_N_HPE2 "5008664b-b758-41a0-a03c-27c2f2d04f7e"
 
+/* https://msdn.microsoft.com/library/windows/hardware/mt604741 */
+#define UUID_NFIT_DIMM_N_MSFT "1ee68b36-d4bd-4a1a-9a16-4f8e53d46e05"
+
 #define ACPI_NFIT_MEM_FAILED_MASK (ACPI_NFIT_MEM_SAVE_FAILED \
 		| ACPI_NFIT_MEM_RESTORE_FAILED | ACPI_NFIT_MEM_FLUSH_FAILED \
 		| ACPI_NFIT_MEM_NOT_ARMED)
@@ -40,6 +44,7 @@ enum nfit_uuids {
 	NFIT_DEV_DIMM = NVDIMM_FAMILY_INTEL,
 	NFIT_DEV_DIMM_N_HPE1 = NVDIMM_FAMILY_HPE1,
 	NFIT_DEV_DIMM_N_HPE2 = NVDIMM_FAMILY_HPE2,
+	NFIT_DEV_DIMM_N_MSFT = NVDIMM_FAMILY_MSFT,
 	NFIT_SPA_VOLATILE,
 	NFIT_SPA_PM,
 	NFIT_SPA_DCR,
@@ -74,37 +79,37 @@ enum {
 };
 
 struct nfit_spa {
-	struct acpi_nfit_system_address *spa;
 	struct list_head list;
 	struct nd_region *nd_region;
-	unsigned int ars_done:1;
+	unsigned int ars_required:1;
 	u32 clear_err_unit;
 	u32 max_ars;
+	struct acpi_nfit_system_address spa[0];
 };
 
 struct nfit_dcr {
-	struct acpi_nfit_control_region *dcr;
 	struct list_head list;
+	struct acpi_nfit_control_region dcr[0];
 };
 
 struct nfit_bdw {
-	struct acpi_nfit_data_region *bdw;
 	struct list_head list;
+	struct acpi_nfit_data_region bdw[0];
 };
 
 struct nfit_idt {
-	struct acpi_nfit_interleave *idt;
 	struct list_head list;
+	struct acpi_nfit_interleave idt[0];
 };
 
 struct nfit_flush {
-	struct acpi_nfit_flush_address *flush;
 	struct list_head list;
+	struct acpi_nfit_flush_address flush[0];
 };
 
 struct nfit_memdev {
-	struct acpi_nfit_memory_map *memdev;
 	struct list_head list;
+	struct acpi_nfit_memory_map memdev[0];
 };
 
 /* assembled tables for a given dimm/memory-device */
@@ -123,6 +128,7 @@ struct nfit_mem {
 	struct list_head list;
 	struct acpi_device *adev;
 	struct acpi_nfit_desc *acpi_desc;
+	struct resource *flush_wpq;
 	unsigned long dsm_mask;
 	int family;
 };
@@ -130,10 +136,7 @@ struct nfit_mem {
 struct acpi_nfit_desc {
 	struct nvdimm_bus_descriptor nd_desc;
 	struct acpi_table_header acpi_header;
-	struct acpi_nfit_header *nfit;
-	struct mutex spa_map_mutex;
 	struct mutex init_mutex;
-	struct list_head spa_maps;
 	struct list_head memdevs;
 	struct list_head flushes;
 	struct list_head dimms;
@@ -146,6 +149,9 @@ struct acpi_nfit_desc {
 	struct nd_cmd_ars_status *ars_status;
 	size_t ars_status_size;
 	struct work_struct work;
+	struct list_head list;
+	struct kernfs_node *scrub_count_state;
+	unsigned int scrub_count;
 	unsigned int cancel:1;
 	unsigned long dimm_cmd_force_en;
 	unsigned long bus_cmd_force_en;
@@ -161,7 +167,7 @@ enum nd_blk_mmio_selector {
 struct nd_blk_addr {
 	union {
 		void __iomem *base;
-		void __pmem  *aperture;
+		void *aperture;
 	};
 };
 
@@ -180,28 +186,26 @@ struct nfit_blk {
 	u64 bdw_offset; /* post interleave offset */
 	u64 stat_offset;
 	u64 cmd_offset;
-	void __iomem *nvdimm_flush;
 	u32 dimm_flags;
 };
 
-enum spa_map_type {
-	SPA_MAP_CONTROL,
-	SPA_MAP_APERTURE,
-};
+extern struct list_head acpi_descs;
+extern struct mutex acpi_desc_lock;
+int acpi_nfit_ars_rescan(struct acpi_nfit_desc *acpi_desc);
 
-struct nfit_spa_mapping {
-	struct acpi_nfit_desc *acpi_desc;
-	struct acpi_nfit_system_address *spa;
-	struct list_head list;
-	struct kref kref;
-	enum spa_map_type type;
-	struct nd_blk_addr addr;
-};
-
-static inline struct nfit_spa_mapping *to_spa_map(struct kref *kref)
+#ifdef CONFIG_X86_MCE
+void nfit_mce_register(void);
+void nfit_mce_unregister(void);
+#else
+static inline void nfit_mce_register(void)
 {
-	return container_of(kref, struct nfit_spa_mapping, kref);
 }
+static inline void nfit_mce_unregister(void)
+{
+}
+#endif
+
+int nfit_spa_type(struct acpi_nfit_system_address *spa);
 
 static inline struct acpi_nfit_memory_map *__to_nfit_memdev(
 		struct nfit_mem *nfit_mem)
@@ -218,6 +222,6 @@ static inline struct acpi_nfit_desc *to_acpi_desc(
 }
 
 const u8 *to_nfit_uuid(enum nfit_uuids id);
-int acpi_nfit_init(struct acpi_nfit_desc *nfit, acpi_size sz);
+int acpi_nfit_init(struct acpi_nfit_desc *acpi_desc, void *nfit, acpi_size sz);
 void acpi_nfit_desc_init(struct acpi_nfit_desc *acpi_desc, struct device *dev);
 #endif /* __NFIT_H__ */
