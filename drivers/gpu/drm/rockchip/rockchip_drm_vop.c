@@ -119,6 +119,8 @@ struct vop {
 	/* protected by dev->event_lock */
 	struct drm_pending_vblank_event *event;
 
+	struct completion line_flag_completion;
+
 	const struct vop_data *data;
 
 	uint32_t *regsbak;
@@ -425,6 +427,71 @@ static void vop_dsp_hold_valid_irq_disable(struct vop *vop)
 	spin_lock_irqsave(&vop->irq_lock, flags);
 
 	VOP_INTR_SET_TYPE(vop, enable, DSP_HOLD_VALID_INTR, 0);
+
+	spin_unlock_irqrestore(&vop->irq_lock, flags);
+}
+
+/*
+ * (1) each frame starts at the start of the Vsync pulse which is signaled by
+ *     the "FRAME_SYNC" interrupt.
+ * (2) the active data region of each frame ends at dsp_vact_end
+ * (3) we should program this same number (dsp_vact_end) into dsp_line_frag_num,
+ *      to get "LINE_FLAG" interrupt at the end of the active on screen data.
+ *
+ * VOP_INTR_CTRL0.dsp_line_frag_num = VOP_DSP_VACT_ST_END.dsp_vact_end
+ * Interrupts
+ * LINE_FLAG -------------------------------+
+ * FRAME_SYNC ----+                         |
+ *                |                         |
+ *                v                         v
+ *                | Vsync | Vbp |  Vactive  | Vfp |
+ *                        ^     ^           ^     ^
+ *                        |     |           |     |
+ *                        |     |           |     |
+ * dsp_vs_end ------------+     |           |     |   VOP_DSP_VTOTAL_VS_END
+ * dsp_vact_start --------------+           |     |   VOP_DSP_VACT_ST_END
+ * dsp_vact_end ----------------------------+     |   VOP_DSP_VACT_ST_END
+ * dsp_total -------------------------------------+   VOP_DSP_VTOTAL_VS_END
+ */
+static bool vop_line_flag_irq_is_enabled(struct vop *vop)
+{
+	uint32_t line_flag_irq;
+	unsigned long flags;
+
+	spin_lock_irqsave(&vop->irq_lock, flags);
+
+	line_flag_irq = VOP_INTR_GET_TYPE(vop, enable, LINE_FLAG_INTR);
+
+	spin_unlock_irqrestore(&vop->irq_lock, flags);
+
+	return !!line_flag_irq;
+}
+
+static void vop_line_flag_irq_enable(struct vop *vop, int line_num)
+{
+	unsigned long flags;
+
+	if (WARN_ON(!vop->is_enabled))
+		return;
+
+	spin_lock_irqsave(&vop->irq_lock, flags);
+
+	VOP_CTRL_SET(vop, line_flag_num[0], line_num);
+	VOP_INTR_SET_TYPE(vop, enable, LINE_FLAG_INTR, 1);
+
+	spin_unlock_irqrestore(&vop->irq_lock, flags);
+}
+
+static void vop_line_flag_irq_disable(struct vop *vop)
+{
+	unsigned long flags;
+
+	if (WARN_ON(!vop->is_enabled))
+		return;
+
+	spin_lock_irqsave(&vop->irq_lock, flags);
+
+	VOP_INTR_SET_TYPE(vop, enable, LINE_FLAG_INTR, 0);
 
 	spin_unlock_irqrestore(&vop->irq_lock, flags);
 }
@@ -1151,6 +1218,12 @@ static irqreturn_t vop_isr(int irq, void *data)
 		ret = IRQ_HANDLED;
 	}
 
+	if (active_irqs & LINE_FLAG_INTR) {
+		complete(&vop->line_flag_completion);
+		active_irqs &= ~LINE_FLAG_INTR;
+		ret = IRQ_HANDLED;
+	}
+
 	if (active_irqs & FS_INTR) {
 		drm_crtc_handle_vblank(crtc);
 		vop_handle_vblank(vop);
@@ -1249,6 +1322,7 @@ static int vop_create_crtc(struct vop *vop)
 
 	init_completion(&vop->dsp_hold_completion);
 	init_completion(&vop->wait_update_complete);
+	init_completion(&vop->line_flag_completion);
 	crtc->port = port;
 	rockchip_register_crtc_funcs(crtc, &private_crtc_funcs);
 
@@ -1404,6 +1478,49 @@ static void vop_win_init(struct vop *vop)
 		vop_win->vop = vop;
 	}
 }
+
+/**
+ * rockchip_drm_wait_line_flag - acqiure the give line flag event
+ * @crtc: CRTC to enable line flag
+ * @line_num: interested line number
+ * @mstimeout: millisecond for timeout
+ *
+ * Driver would hold here until the interested line flag interrupt have
+ * happened or timeout to wait.
+ *
+ * Returns:
+ * Zero on success, negative errno on failure.
+ */
+int rockchip_drm_wait_line_flag(struct drm_crtc *crtc, unsigned int line_num,
+				unsigned int mstimeout)
+{
+	struct vop *vop = to_vop(crtc);
+	unsigned long jiffies_left;
+
+	if (!crtc || !vop->is_enabled)
+		return -ENODEV;
+
+	if (line_num > crtc->mode.vtotal || mstimeout <= 0)
+		return -EINVAL;
+
+	if (vop_line_flag_irq_is_enabled(vop))
+		return -EBUSY;
+
+	reinit_completion(&vop->line_flag_completion);
+	vop_line_flag_irq_enable(vop, line_num);
+
+	jiffies_left = wait_for_completion_timeout(&vop->line_flag_completion,
+						   msecs_to_jiffies(mstimeout));
+	vop_line_flag_irq_disable(vop);
+
+	if (jiffies_left == 0) {
+		dev_err(vop->dev, "Timeout waiting for IRQ\n");
+		return -ETIMEDOUT;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(rockchip_drm_wait_line_flag);
 
 static int vop_bind(struct device *dev, struct device *master, void *data)
 {

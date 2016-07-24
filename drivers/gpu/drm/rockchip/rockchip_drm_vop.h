@@ -61,6 +61,8 @@ struct vop_ctrl {
 	struct vop_reg hpost_st_end;
 	struct vop_reg vpost_st_end;
 
+	struct vop_reg line_flag_num[2];
+
 	struct vop_reg cfg_done;
 };
 

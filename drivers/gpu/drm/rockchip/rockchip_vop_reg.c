@@ -123,6 +123,7 @@ static const struct vop_ctrl rk3036_ctrl_data = {
 	.hact_st_end = VOP_REG(RK3036_DSP_HACT_ST_END, 0x1fff1fff, 0),
 	.vtotal_pw = VOP_REG(RK3036_DSP_VTOTAL_VS_END, 0x1fff1fff, 0),
 	.vact_st_end = VOP_REG(RK3036_DSP_VACT_ST_END, 0x1fff1fff, 0),
+	.line_flag_num[0] = VOP_REG(RK3036_INT_STATUS, 0xfff, 12),
 	.cfg_done = VOP_REG(RK3036_REG_CFG_DONE, 0x1, 0),
 };
 
@@ -222,6 +223,7 @@ static const struct vop_ctrl rk3288_ctrl_data = {
 	.vact_st_end = VOP_REG(RK3288_DSP_VACT_ST_END, 0x1fff1fff, 0),
 	.hpost_st_end = VOP_REG(RK3288_POST_DSP_HACT_INFO, 0x1fff1fff, 0),
 	.vpost_st_end = VOP_REG(RK3288_POST_DSP_VACT_INFO, 0x1fff1fff, 0),
+	.line_flag_num[0] = VOP_REG(RK3288_INTR_CTRL0, 0x1fff, 12),
 	.cfg_done = VOP_REG(RK3288_REG_CFG_DONE, 0x1, 0),
 };
 
@@ -300,6 +302,8 @@ static const struct vop_ctrl rk3399_ctrl_data = {
 	.vact_st_end = VOP_REG(RK3399_DSP_VACT_ST_END, 0x1fff1fff, 0),
 	.hpost_st_end = VOP_REG(RK3399_POST_DSP_HACT_INFO, 0x1fff1fff, 0),
 	.vpost_st_end = VOP_REG(RK3399_POST_DSP_VACT_INFO, 0x1fff1fff, 0),
+	.line_flag_num[0] = VOP_REG(RK3399_LINE_FLAG, 0xffff, 0),
+	.line_flag_num[1] = VOP_REG(RK3399_LINE_FLAG, 0xffff, 16),
 	.cfg_done = VOP_REG_MASK(RK3399_REG_CFG_DONE, 0x1, 0),
 };
 
