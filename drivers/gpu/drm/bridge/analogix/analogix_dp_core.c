@@ -97,6 +97,83 @@ static int analogix_dp_detect_hpd(struct analogix_dp_device *dp)
 	return 0;
 }
 
+int analogix_dp_enable_psr(struct device *dev)
+{
+	struct analogix_dp_device *dp = dev_get_drvdata(dev);
+	struct edp_vsc_psr psr_vsc;
+
+	if (!dp->psr_support)
+		return -EINVAL;
+
+	/* Prepare VSC packet as per EDP 1.4 spec, Table 6.9 */
+	memset(&psr_vsc, 0, sizeof(psr_vsc));
+	psr_vsc.sdp_header.HB0 = 0;
+	psr_vsc.sdp_header.HB1 = 0x7;
+	psr_vsc.sdp_header.HB2 = 0x2;
+	psr_vsc.sdp_header.HB3 = 0x8;
+
+	psr_vsc.DB0 = 0;
+	psr_vsc.DB1 = EDP_VSC_PSR_STATE_ACTIVE | EDP_VSC_PSR_CRC_VALUES_VALID;
+
+	analogix_dp_send_psr_spd(dp, &psr_vsc);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(analogix_dp_enable_psr);
+
+int analogix_dp_disable_psr(struct device *dev)
+{
+	struct analogix_dp_device *dp = dev_get_drvdata(dev);
+	struct edp_vsc_psr psr_vsc;
+
+	if (!dp->psr_support)
+		return -EINVAL;
+
+	/* Prepare VSC packet as per EDP 1.4 spec, Table 6.9 */
+	memset(&psr_vsc, 0, sizeof(psr_vsc));
+	psr_vsc.sdp_header.HB0 = 0;
+	psr_vsc.sdp_header.HB1 = 0x7;
+	psr_vsc.sdp_header.HB2 = 0x2;
+	psr_vsc.sdp_header.HB3 = 0x8;
+
+	psr_vsc.DB0 = 0;
+	psr_vsc.DB1 = 0;
+
+	analogix_dp_send_psr_spd(dp, &psr_vsc);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(analogix_dp_disable_psr);
+
+static bool analogix_dp_detect_sink_psr(struct analogix_dp_device *dp)
+{
+	unsigned char psr_version;
+
+	analogix_dp_read_byte_from_dpcd(dp, DP_PSR_SUPPORT, &psr_version);
+	dev_dbg(dp->dev, "Panel PSR version : %x\n", psr_version);
+
+	return (psr_version & DP_PSR_IS_SUPPORTED) ? true : false;
+}
+
+static void analogix_dp_enable_sink_psr(struct analogix_dp_device *dp)
+{
+	unsigned char psr_en;
+
+	/* Disable psr function */
+	analogix_dp_read_byte_from_dpcd(dp, DP_PSR_EN_CFG, &psr_en);
+	psr_en &= ~DP_PSR_ENABLE;
+	analogix_dp_write_byte_to_dpcd(dp, DP_PSR_EN_CFG, psr_en);
+
+	/* Main-Link transmitter remains active during PSR active states */
+	psr_en = DP_PSR_MAIN_LINK_ACTIVE | DP_PSR_CRC_VERIFICATION;
+	analogix_dp_write_byte_to_dpcd(dp, DP_PSR_EN_CFG, psr_en);
+
+	/* Enable psr function */
+	psr_en = DP_PSR_ENABLE | DP_PSR_MAIN_LINK_ACTIVE |
+		 DP_PSR_CRC_VERIFICATION;
+	analogix_dp_write_byte_to_dpcd(dp, DP_PSR_EN_CFG, psr_en);
+
+	analogix_dp_enable_psr_crc(dp);
+}
+
 static unsigned char analogix_dp_calc_edid_check_sum(unsigned char *edid_data)
 {
 	int i;
@@ -921,6 +998,10 @@ static void analogix_dp_commit(struct analogix_dp_device *dp)
 
 	/* Enable video */
 	analogix_dp_start_video(dp);
+
+	dp->psr_support = analogix_dp_detect_sink_psr(dp);
+	if (dp->psr_support)
+		analogix_dp_enable_sink_psr(dp);
 }
 
 /*

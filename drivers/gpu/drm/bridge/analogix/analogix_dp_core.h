@@ -177,6 +177,7 @@ struct analogix_dp_device {
 	int			hpd_gpio;
 	bool                    force_hpd;
 	unsigned char           edid[EDID_BLOCK_LENGTH * 2];
+	bool			psr_support;
 
 	struct mutex		panel_lock;
 	bool			panel_is_modeset;
@@ -281,4 +282,8 @@ int analogix_dp_is_video_stream_on(struct analogix_dp_device *dp);
 void analogix_dp_config_video_slave_mode(struct analogix_dp_device *dp);
 void analogix_dp_enable_scrambling(struct analogix_dp_device *dp);
 void analogix_dp_disable_scrambling(struct analogix_dp_device *dp);
+void analogix_dp_enable_psr_crc(struct analogix_dp_device *dp);
+void analogix_dp_send_psr_spd(struct analogix_dp_device *dp,
+			      struct edp_vsc_psr *vsc);
+
 #endif /* _ANALOGIX_DP_CORE_H */
