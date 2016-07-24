@@ -51,6 +51,13 @@ static void irq_enable(struct intel_engine_cs *engine)
 	 */
 	engine->breadcrumbs.irq_posted = true;
 
+	/* Make sure the current hangcheck doesn't falsely accuse a just
+	 * started irq handler from missing an interrupt (because the
+	 * interrupt count still matches the stale value from when
+	 * the irq handler was disabled, many hangchecks ago).
+	 */
+	engine->breadcrumbs.irq_wakeups++;
+
 	spin_lock_irq(&engine->i915->irq_lock);
 	engine->irq_enable(engine);
 	spin_unlock_irq(&engine->i915->irq_lock);
