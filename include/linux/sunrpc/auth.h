@@ -109,6 +109,9 @@ struct rpc_auth {
 	/* per-flavor data */
 };
 
+/* rpc_auth au_flags */
+#define RPCAUTH_AUTH_DATATOUCH	0x00000002
+
 struct rpc_auth_create_args {
 	rpc_authflavor_t pseudoflavor;
 	const char *target_name;

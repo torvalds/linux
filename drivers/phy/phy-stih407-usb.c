@@ -111,7 +111,7 @@ static int stih407_usb2_picophy_probe(struct platform_device *pdev)
 		return PTR_ERR(phy_dev->rstc);
 	}
 
-	phy_dev->rstport = devm_reset_control_get(dev, "port");
+	phy_dev->rstport = devm_reset_control_get_exclusive(dev, "port");
 	if (IS_ERR(phy_dev->rstport)) {
 		dev_err(dev, "failed to ctrl picoPHY reset\n");
 		return PTR_ERR(phy_dev->rstport);

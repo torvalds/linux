@@ -1302,7 +1302,7 @@ static int tonga_populate_smc_mvdd_table(struct pp_hwmgr *hwmgr,
 			table->Smio[count] |=
 				data->mvdd_voltage_table.entries[count].smio_low;
 		}
-		table->SmioMask2 = data->vddci_voltage_table.mask_low;
+		table->SmioMask2 = data->mvdd_voltage_table.mask_low;
 
 		CONVERT_FROM_HOST_TO_SMC_UL(table->MvddLevelCount);
 	}
