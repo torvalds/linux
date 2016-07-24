@@ -90,9 +90,6 @@ struct arizona_priv {
 	unsigned int out_down_pending;
 	unsigned int out_down_delay;
 
-	unsigned int spk_ena:2;
-	unsigned int spk_ena_pending:1;
-
 	unsigned int dvfs_reqs;
 	struct mutex dvfs_lock;
 	bool dvfs_cached;
@@ -254,6 +251,8 @@ extern const struct snd_kcontrol_new arizona_adsp2_rate_controls[];
 extern const struct soc_enum arizona_anc_input_src[];
 extern const struct soc_enum arizona_anc_ng_enum;
 extern const struct soc_enum arizona_output_anc_src[];
+
+extern const struct snd_kcontrol_new arizona_voice_trigger_switch[];
 
 extern int arizona_in_ev(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol,
