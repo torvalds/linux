@@ -128,6 +128,50 @@ u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 	return priv->channeltc_to_txq_map[channel_ix][up];
 }
 
+static inline int mlx5e_skb_l2_header_offset(struct sk_buff *skb)
+{
+#define MLX5E_MIN_INLINE (ETH_HLEN + VLAN_HLEN)
+
+	return max(skb_network_offset(skb), MLX5E_MIN_INLINE);
+}
+
+static inline int mlx5e_skb_l3_header_offset(struct sk_buff *skb)
+{
+	struct flow_keys keys;
+
+	if (skb_transport_header_was_set(skb))
+		return skb_transport_offset(skb);
+	else if (skb_flow_dissect_flow_keys(skb, &keys, 0))
+		return keys.control.thoff;
+	else
+		return mlx5e_skb_l2_header_offset(skb);
+}
+
+static inline unsigned int mlx5e_calc_min_inline(enum mlx5_inline_modes mode,
+						 struct sk_buff *skb)
+{
+	int hlen;
+
+	switch (mode) {
+	case MLX5_INLINE_MODE_TCP_UDP:
+		hlen = eth_get_headlen(skb->data, skb_headlen(skb));
+		if (hlen == ETH_HLEN && !skb_vlan_tag_present(skb))
+			hlen += VLAN_HLEN;
+		return hlen;
+	case MLX5_INLINE_MODE_IP:
+		/* When transport header is set to zero, it means no transport
+		 * header. When transport header is set to 0xff's, it means
+		 * transport header wasn't set.
+		 */
+		if (skb_transport_offset(skb))
+			return mlx5e_skb_l3_header_offset(skb);
+		/* fall through */
+	case MLX5_INLINE_MODE_L2:
+	default:
+		return mlx5e_skb_l2_header_offset(skb);
+	}
+}
+
 static inline u16 mlx5e_get_inline_hdr_size(struct mlx5e_sq *sq,
 					    struct sk_buff *skb, bool bf)
 {
@@ -135,8 +179,6 @@ static inline u16 mlx5e_get_inline_hdr_size(struct mlx5e_sq *sq,
 	 * headers and occur before the data gather.
 	 * Therefore these headers must be copied into the WQE
 	 */
-#define MLX5E_MIN_INLINE (ETH_HLEN + VLAN_HLEN)
-
 	if (bf) {
 		u16 ihs = skb_headlen(skb);
 
@@ -146,8 +188,7 @@ static inline u16 mlx5e_get_inline_hdr_size(struct mlx5e_sq *sq,
 		if (ihs <= sq->max_inline)
 			return skb_headlen(skb);
 	}
-
-	return max(skb_network_offset(skb), MLX5E_MIN_INLINE);
+	return mlx5e_calc_min_inline(sq->min_inline_mode, skb);
 }
 
 static inline void mlx5e_tx_skb_pull_inline(unsigned char **skb_data,

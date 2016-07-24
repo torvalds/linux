@@ -398,6 +398,7 @@ struct mlx5e_sq {
 	u32                        sqn;
 	u16                        bf_buf_size;
 	u16                        max_inline;
+	u8                         min_inline_mode;
 	u16                        edge;
 	struct device             *pdev;
 	struct mlx5e_tstamp       *tstamp;
