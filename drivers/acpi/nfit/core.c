@@ -51,6 +51,9 @@ module_param(disable_vendor_specific, bool, S_IRUGO);
 MODULE_PARM_DESC(disable_vendor_specific,
 		"Limit commands to the publicly specified set\n");
 
+LIST_HEAD(acpi_descs);
+DEFINE_MUTEX(acpi_desc_lock);
+
 static struct workqueue_struct *nfit_wq;
 
 struct nfit_table_prev {
@@ -361,7 +364,7 @@ static const char *spa_type_name(u16 type)
 	return to_name[type];
 }
 
-static int nfit_spa_type(struct acpi_nfit_system_address *spa)
+int nfit_spa_type(struct acpi_nfit_system_address *spa)
 {
 	int i;
 
@@ -897,8 +900,6 @@ static ssize_t scrub_show(struct device *dev,
 	device_unlock(dev);
 	return rc;
 }
-
-static int acpi_nfit_ars_rescan(struct acpi_nfit_desc *acpi_desc);
 
 static ssize_t scrub_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
@@ -2400,6 +2401,11 @@ static void acpi_nfit_destruct(void *data)
 	struct acpi_nfit_desc *acpi_desc = data;
 	struct device *bus_dev = to_nvdimm_bus_dev(acpi_desc->nvdimm_bus);
 
+	/*
+	 * Destruct under acpi_desc_lock so that nfit_handle_mce does not
+	 * race teardown
+	 */
+	mutex_lock(&acpi_desc_lock);
 	acpi_desc->cancel = 1;
 	/*
 	 * Bounce the nvdimm bus lock to make sure any in-flight
@@ -2414,6 +2420,8 @@ static void acpi_nfit_destruct(void *data)
 		sysfs_put(acpi_desc->scrub_count_state);
 	nvdimm_bus_unregister(acpi_desc->nvdimm_bus);
 	acpi_desc->nvdimm_bus = NULL;
+	list_del(&acpi_desc->list);
+	mutex_unlock(&acpi_desc_lock);
 }
 
 int acpi_nfit_init(struct acpi_nfit_desc *acpi_desc, void *data, acpi_size sz)
@@ -2439,6 +2447,11 @@ int acpi_nfit_init(struct acpi_nfit_desc *acpi_desc, void *data, acpi_size sz)
 		rc = acpi_nfit_desc_init_scrub_attr(acpi_desc);
 		if (rc)
 			return rc;
+
+		/* register this acpi_desc for mce notifications */
+		mutex_lock(&acpi_desc_lock);
+		list_add_tail(&acpi_desc->list, &acpi_descs);
+		mutex_unlock(&acpi_desc_lock);
 	}
 
 	mutex_lock(&acpi_desc->init_mutex);
@@ -2549,7 +2562,7 @@ static int acpi_nfit_clear_to_send(struct nvdimm_bus_descriptor *nd_desc,
 	return 0;
 }
 
-static int acpi_nfit_ars_rescan(struct acpi_nfit_desc *acpi_desc)
+int acpi_nfit_ars_rescan(struct acpi_nfit_desc *acpi_desc)
 {
 	struct device *dev = acpi_desc->dev;
 	struct nfit_spa *nfit_spa;
@@ -2598,6 +2611,7 @@ void acpi_nfit_desc_init(struct acpi_nfit_desc *acpi_desc, struct device *dev)
 	INIT_LIST_HEAD(&acpi_desc->flushes);
 	INIT_LIST_HEAD(&acpi_desc->memdevs);
 	INIT_LIST_HEAD(&acpi_desc->dimms);
+	INIT_LIST_HEAD(&acpi_desc->list);
 	mutex_init(&acpi_desc->init_mutex);
 	INIT_WORK(&acpi_desc->work, acpi_nfit_scrub);
 }
@@ -2750,13 +2764,17 @@ static __init int nfit_init(void)
 	if (!nfit_wq)
 		return -ENOMEM;
 
+	nfit_mce_register();
+
 	return acpi_bus_register_driver(&acpi_nfit_driver);
 }
 
 static __exit void nfit_exit(void)
 {
+	nfit_mce_unregister();
 	acpi_bus_unregister_driver(&acpi_nfit_driver);
 	destroy_workqueue(nfit_wq);
+	WARN_ON(!list_empty(&acpi_descs));
 }
 
 module_init(nfit_init);

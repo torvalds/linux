@@ -16,6 +16,7 @@
 #define __NFIT_H__
 #include <linux/workqueue.h>
 #include <linux/libnvdimm.h>
+#include <linux/ndctl.h>
 #include <linux/types.h>
 #include <linux/uuid.h>
 #include <linux/acpi.h>
@@ -148,6 +149,7 @@ struct acpi_nfit_desc {
 	struct nd_cmd_ars_status *ars_status;
 	size_t ars_status_size;
 	struct work_struct work;
+	struct list_head list;
 	struct kernfs_node *scrub_count_state;
 	unsigned int scrub_count;
 	unsigned int cancel:1;
@@ -186,6 +188,24 @@ struct nfit_blk {
 	u64 cmd_offset;
 	u32 dimm_flags;
 };
+
+extern struct list_head acpi_descs;
+extern struct mutex acpi_desc_lock;
+int acpi_nfit_ars_rescan(struct acpi_nfit_desc *acpi_desc);
+
+#ifdef CONFIG_X86_MCE
+void nfit_mce_register(void);
+void nfit_mce_unregister(void);
+#else
+static inline void nfit_mce_register(void)
+{
+}
+static inline void nfit_mce_unregister(void)
+{
+}
+#endif
+
+int nfit_spa_type(struct acpi_nfit_system_address *spa);
 
 static inline struct acpi_nfit_memory_map *__to_nfit_memdev(
 		struct nfit_mem *nfit_mem)

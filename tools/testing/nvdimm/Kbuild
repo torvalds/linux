@@ -30,6 +30,7 @@ obj-$(CONFIG_DEV_DAX) += dax.o
 obj-$(CONFIG_DEV_DAX_PMEM) += dax_pmem.o
 
 nfit-y := $(ACPI_SRC)/core.o
+nfit-$(CONFIG_X86_MCE) += $(ACPI_SRC)/mce.o
 nfit-y += config_check.o
 
 nd_pmem-y := $(NVDIMM_SRC)/pmem.o
