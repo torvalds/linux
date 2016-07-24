@@ -32,6 +32,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_ADAU1977_SPI if SPI_MASTER
 	select SND_SOC_ADAU1977_I2C if I2C
 	select SND_SOC_ADAU1701 if I2C
+	select SND_SOC_ADAU7002
 	select SND_SOC_ADS117X
 	select SND_SOC_AK4104 if SPI_MASTER
 	select SND_SOC_AK4535 if I2C
@@ -269,8 +270,12 @@ config SND_SOC_AD1980
 config SND_SOC_AD73311
 	tristate
 
+config SND_SOC_ADAU_UTILS
+	tristate
+
 config SND_SOC_ADAU1373
 	tristate
+	select SND_SOC_ADAU_UTILS
 
 config SND_SOC_ADAU1701
 	tristate "Analog Devices ADAU1701 CODEC"
@@ -280,6 +285,7 @@ config SND_SOC_ADAU1701
 config SND_SOC_ADAU17X1
 	tristate
 	select SND_SOC_SIGMADSP_REGMAP
+	select SND_SOC_ADAU_UTILS
 
 config SND_SOC_ADAU1761
 	tristate
@@ -321,6 +327,9 @@ config SND_SOC_ADAU1977_I2C
 	tristate
 	select SND_SOC_ADAU1977
 	select REGMAP_I2C
+
+config SND_SOC_ADAU7002
+	tristate "Analog Devices ADAU7002 Stereo PDM-to-I2S/TDM Converter"
 
 config SND_SOC_ADAV80X
 	tristate

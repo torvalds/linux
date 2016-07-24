@@ -324,6 +324,17 @@ int arizona_init_gpio(struct snd_soc_codec *codec)
 }
 EXPORT_SYMBOL_GPL(arizona_init_gpio);
 
+int arizona_init_notifiers(struct snd_soc_codec *codec)
+{
+	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct arizona *arizona = priv->arizona;
+
+	BLOCKING_INIT_NOTIFIER_HEAD(&arizona->notifier);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(arizona_init_notifiers);
+
 const char * const arizona_mixer_texts[ARIZONA_NUM_MIXER_INPUTS] = {
 	"None",
 	"Tone Generator 1",
@@ -2572,6 +2583,30 @@ int arizona_lhpf_coeff_put(struct snd_kcontrol *kcontrol,
 	return snd_soc_bytes_put(kcontrol, ucontrol);
 }
 EXPORT_SYMBOL_GPL(arizona_lhpf_coeff_put);
+
+int arizona_register_notifier(struct snd_soc_codec *codec,
+			      struct notifier_block *nb,
+			      int (*notify)(struct notifier_block *nb,
+					    unsigned long action, void *data))
+{
+	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct arizona *arizona = priv->arizona;
+
+	nb->notifier_call = notify;
+
+	return blocking_notifier_chain_register(&arizona->notifier, nb);
+}
+EXPORT_SYMBOL_GPL(arizona_register_notifier);
+
+int arizona_unregister_notifier(struct snd_soc_codec *codec,
+				struct notifier_block *nb)
+{
+	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct arizona *arizona = priv->arizona;
+
+	return blocking_notifier_chain_unregister(&arizona->notifier, nb);
+}
+EXPORT_SYMBOL_GPL(arizona_unregister_notifier);
 
 MODULE_DESCRIPTION("ASoC Wolfson Arizona class device support");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");
