@@ -894,12 +894,19 @@ static int load_flat_binary(struct linux_binprm *bprm)
 		return res;
 
 	/* Update data segment pointers for all libraries */
-	for (i = 0; i < MAX_SHARED_LIBS; i++)
-		if (libinfo.lib_list[i].loaded)
-			for (j = 0; j < MAX_SHARED_LIBS; j++)
-				(-(j+1))[(unsigned long *)(libinfo.lib_list[i].start_data)] =
-					(libinfo.lib_list[j].loaded) ?
-						libinfo.lib_list[j].start_data : UNLOADED_LIB;
+	for (i = 0; i < MAX_SHARED_LIBS; i++) {
+		if (!libinfo.lib_list[i].loaded)
+			continue;
+		for (j = 0; j < MAX_SHARED_LIBS; j++) {
+			unsigned long val = libinfo.lib_list[j].loaded ?
+				libinfo.lib_list[j].start_data : UNLOADED_LIB;
+			unsigned long __user *p = (unsigned long __user *)
+				libinfo.lib_list[i].start_data;
+			p -= j + 1;
+			if (put_user(val, p))
+				return -EFAULT;
+		}
+	}
 
 	install_exec_creds(bprm);
 
