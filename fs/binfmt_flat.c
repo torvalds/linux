@@ -466,6 +466,17 @@ static int load_flat_file(struct linux_binprm *bprm,
 	}
 
 	/*
+	 * Make sure the header params are sane.
+	 * 28 bits (256 MB) is way more than reasonable in this case.
+	 * If some top bits are set we have probable binary corruption.
+	*/
+	if ((text_len | data_len | bss_len | stack_len | full_data) >> 28) {
+		pr_err("bad header\n");
+		ret = -ENOEXEC;
+		goto err;
+	}
+
+	/*
 	 * fix up the flags for the older format,  there were all kinds
 	 * of endian hacks,  this only works for the simple cases
 	 */
