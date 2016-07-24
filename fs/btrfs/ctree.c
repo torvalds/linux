@@ -1554,6 +1554,7 @@ noinline int btrfs_cow_block(struct btrfs_trans_handle *trans,
 		       trans->transid, root->fs_info->generation);
 
 	if (!should_cow_block(trans, root, buf)) {
+		trans->dirty = true;
 		*cow_ret = buf;
 		return 0;
 	}
@@ -1785,10 +1786,12 @@ static noinline int generic_bin_search(struct extent_buffer *eb,
 			if (!err) {
 				tmp = (struct btrfs_disk_key *)(kaddr + offset -
 							map_start);
-			} else {
+			} else if (err == 1) {
 				read_extent_buffer(eb, &unaligned,
 						   offset, sizeof(unaligned));
 				tmp = &unaligned;
+			} else {
+				return err;
 			}
 
 		} else {
@@ -2512,6 +2515,8 @@ read_block_for_search(struct btrfs_trans_handle *trans,
 		if (!btrfs_buffer_uptodate(tmp, 0, 0))
 			ret = -EIO;
 		free_extent_buffer(tmp);
+	} else {
+		ret = PTR_ERR(tmp);
 	}
 	return ret;
 }
@@ -2775,8 +2780,10 @@ again:
 			 * then we don't want to set the path blocking,
 			 * so we test it here
 			 */
-			if (!should_cow_block(trans, root, b))
+			if (!should_cow_block(trans, root, b)) {
+				trans->dirty = true;
 				goto cow_done;
+			}
 
 			/*
 			 * must have write locks on this node and the
@@ -2825,6 +2832,8 @@ cow_done:
 		}
 
 		ret = key_search(b, key, level, &prev_cmp, &slot);
+		if (ret < 0)
+			goto done;
 
 		if (level != 0) {
 			int dec = 0;

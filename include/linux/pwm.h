@@ -235,6 +235,9 @@ static inline int pwm_config(struct pwm_device *pwm, int duty_ns,
 	if (!pwm)
 		return -EINVAL;
 
+	if (duty_ns < 0 || period_ns < 0)
+		return -EINVAL;
+
 	pwm_get_state(pwm, &state);
 	if (state.duty_cycle == duty_ns && state.period == period_ns)
 		return 0;

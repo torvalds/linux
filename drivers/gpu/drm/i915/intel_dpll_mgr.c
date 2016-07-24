@@ -366,6 +366,9 @@ ibx_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 					     DPLL_ID_PCH_PLL_B);
 	}
 
+	if (!pll)
+		return NULL;
+
 	/* reference the pll */
 	intel_reference_shared_dpll(pll, crtc_state);
 

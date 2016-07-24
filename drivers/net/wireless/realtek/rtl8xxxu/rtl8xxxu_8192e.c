@@ -1149,7 +1149,7 @@ static void rtl8192eu_phy_iqcalibrate(struct rtl8xxxu_priv *priv,
 
 		for (i = 0; i < retry; i++) {
 			path_b_ok = rtl8192eu_rx_iqk_path_b(priv);
-			if (path_a_ok == 0x03) {
+			if (path_b_ok == 0x03) {
 				val32 = rtl8xxxu_read32(priv,
 							REG_RX_POWER_BEFORE_IQK_B_2);
 				result[t][6] = (val32 >> 16) & 0x3ff;

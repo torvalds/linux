@@ -3332,10 +3332,11 @@ static u8 get_fence(u8 fence, struct ib_send_wr *wr)
 			return MLX5_FENCE_MODE_SMALL_AND_FENCE;
 		else
 			return fence;
-
-	} else {
-		return 0;
+	} else if (unlikely(wr->send_flags & IB_SEND_FENCE)) {
+		return MLX5_FENCE_MODE_FENCE;
 	}
+
+	return 0;
 }
 
 static int begin_wqe(struct mlx5_ib_qp *qp, void **seg,

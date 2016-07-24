@@ -4977,9 +4977,6 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 	intel_display_power_get(dev_priv, power_domain);
 
 	if (long_hpd) {
-		/* indicate that we need to restart link training */
-		intel_dp->train_set_valid = false;
-
 		intel_dp_long_pulse(intel_dp->attached_connector);
 		if (intel_dp->is_mst)
 			ret = IRQ_HANDLED;
@@ -5725,8 +5722,11 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	if (!fixed_mode && dev_priv->vbt.lfp_lvds_vbt_mode) {
 		fixed_mode = drm_mode_duplicate(dev,
 					dev_priv->vbt.lfp_lvds_vbt_mode);
-		if (fixed_mode)
+		if (fixed_mode) {
 			fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
+			connector->display_info.width_mm = fixed_mode->width_mm;
+			connector->display_info.height_mm = fixed_mode->height_mm;
+		}
 	}
 	mutex_unlock(&dev->mode_config.mutex);
 
@@ -5923,9 +5923,9 @@ fail:
 	return false;
 }
 
-void
-intel_dp_init(struct drm_device *dev,
-	      i915_reg_t output_reg, enum port port)
+bool intel_dp_init(struct drm_device *dev,
+		   i915_reg_t output_reg,
+		   enum port port)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_digital_port *intel_dig_port;
@@ -5935,7 +5935,7 @@ intel_dp_init(struct drm_device *dev,
 
 	intel_dig_port = kzalloc(sizeof(*intel_dig_port), GFP_KERNEL);
 	if (!intel_dig_port)
-		return;
+		return false;
 
 	intel_connector = intel_connector_alloc();
 	if (!intel_connector)
@@ -5992,7 +5992,7 @@ intel_dp_init(struct drm_device *dev,
 	if (!intel_dp_init_connector(intel_dig_port, intel_connector))
 		goto err_init_connector;
 
-	return;
+	return true;
 
 err_init_connector:
 	drm_encoder_cleanup(encoder);
@@ -6000,8 +6000,7 @@ err_encoder_init:
 	kfree(intel_connector);
 err_connector_alloc:
 	kfree(intel_dig_port);
-
-	return;
+	return false;
 }
 
 void intel_dp_mst_suspend(struct drm_device *dev)

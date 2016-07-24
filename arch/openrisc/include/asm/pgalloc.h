@@ -77,7 +77,7 @@ static inline struct page *pte_alloc_one(struct mm_struct *mm,
 					 unsigned long address)
 {
 	struct page *pte;
-	pte = alloc_pages(GFP_KERNEL|__GFP_REPEAT, 0);
+	pte = alloc_pages(GFP_KERNEL, 0);
 	if (!pte)
 		return NULL;
 	clear_page(page_address(pte));
