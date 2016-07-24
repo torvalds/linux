@@ -419,7 +419,7 @@ static int load_flat_file(struct linux_binprm *bprm,
 	unsigned long textpos, datapos, realdatastart;
 	unsigned long text_len, data_len, bss_len, stack_len, full_data, flags;
 	unsigned long len, memp, memp_size, extra, rlim;
-	unsigned long *reloc, *rp;
+	unsigned long __user *reloc, *rp;
 	struct inode *inode;
 	int i, rev, relocs;
 	loff_t fpos;
@@ -591,7 +591,7 @@ static int load_flat_file(struct linux_binprm *bprm,
 			goto err;
 		}
 
-		reloc = (unsigned long *)
+		reloc = (unsigned long __user *)
 			(datapos + (ntohl(hdr->reloc_start) - text_len));
 		memp = realdatastart;
 		memp_size = len;
@@ -616,7 +616,7 @@ static int load_flat_file(struct linux_binprm *bprm,
 				MAX_SHARED_LIBS * sizeof(unsigned long),
 				FLAT_DATA_ALIGN);
 
-		reloc = (unsigned long *)
+		reloc = (unsigned long __user *)
 			(datapos + (ntohl(hdr->reloc_start) - text_len));
 		memp = textpos;
 		memp_size = len;
@@ -708,15 +708,20 @@ static int load_flat_file(struct linux_binprm *bprm,
 	 * image.
 	 */
 	if (flags & FLAT_FLAG_GOTPIC) {
-		for (rp = (unsigned long *)datapos; *rp != 0xffffffff; rp++) {
-			unsigned long addr;
-			if (*rp) {
-				addr = calc_reloc(*rp, libinfo, id, 0);
+		for (rp = (unsigned long __user *)datapos; ; rp++) {
+			unsigned long addr, rp_val;
+			if (get_user(rp_val, rp))
+				return -EFAULT;
+			if (rp_val == 0xffffffff)
+				break;
+			if (rp_val) {
+				addr = calc_reloc(rp_val, libinfo, id, 0);
 				if (addr == RELOC_FAILED) {
 					ret = -ENOEXEC;
 					goto err;
 				}
-				*rp = addr;
+				if (put_user(addr, rp))
+					return -EFAULT;
 			}
 		}
 	}
@@ -733,7 +738,7 @@ static int load_flat_file(struct linux_binprm *bprm,
 	 * __start to address 4 so that is okay).
 	 */
 	if (rev > OLD_FLAT_VERSION) {
-		unsigned long persistent = 0;
+		unsigned long __maybe_unused persistent = 0;
 		for (i = 0; i < relocs; i++) {
 			unsigned long addr, relval;
 
@@ -742,12 +747,14 @@ static int load_flat_file(struct linux_binprm *bprm,
 			 * relocated (of course, the address has to be
 			 * relocated first).
 			 */
-			relval = ntohl(reloc[i]);
+			if (get_user(relval, reloc + i))
+				return -EFAULT;
+			relval = ntohl(relval);
 			if (flat_set_persistent(relval, &persistent))
 				continue;
 			addr = flat_get_relocate_addr(relval);
-			rp = (unsigned long *) calc_reloc(addr, libinfo, id, 1);
-			if (rp == (unsigned long *)RELOC_FAILED) {
+			rp = (unsigned long __user *)calc_reloc(addr, libinfo, id, 1);
+			if (rp == (unsigned long __user *)RELOC_FAILED) {
 				ret = -ENOEXEC;
 				goto err;
 			}
