@@ -55,6 +55,7 @@ static const struct reg_sequence init_list[] = {
 	{ RT5670_PR_BASE + 0x14, 0x9a8a },
 	{ RT5670_PR_BASE + 0x38, 0x3ba1 },
 	{ RT5670_PR_BASE + 0x3d, 0x3640 },
+	{ 0x8a, 0x0123 },
 };
 
 static const struct reg_default rt5670_reg[] = {
@@ -131,7 +132,7 @@ static const struct reg_default rt5670_reg[] = {
 	{ 0x87, 0x0000 },
 	{ 0x88, 0x0000 },
 	{ 0x89, 0x0000 },
-	{ 0x8a, 0x0000 },
+	{ 0x8a, 0x0123 },
 	{ 0x8b, 0x0000 },
 	{ 0x8c, 0x0003 },
 	{ 0x8d, 0x0000 },

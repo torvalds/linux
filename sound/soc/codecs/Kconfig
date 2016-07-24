@@ -674,6 +674,9 @@ config SND_SOC_RT298
 config SND_SOC_RT5514
 	tristate
 
+config SND_SOC_RT5514_SPI
+	tristate
+
 config SND_SOC_RT5616
 	tristate "Realtek RT5616 CODEC"
 	depends on I2C
