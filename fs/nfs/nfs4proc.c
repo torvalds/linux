@@ -8848,7 +8848,7 @@ const struct nfs4_minor_version_ops *nfs_v4_minor_ops[] = {
 #endif
 };
 
-ssize_t nfs4_listxattr(struct dentry *dentry, char *list, size_t size)
+static ssize_t nfs4_listxattr(struct dentry *dentry, char *list, size_t size)
 {
 	ssize_t error, error2;
 
