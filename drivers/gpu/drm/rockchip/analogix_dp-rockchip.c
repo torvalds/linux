@@ -32,6 +32,7 @@
 #include <drm/bridge/analogix_dp.h>
 
 #include "rockchip_drm_drv.h"
+#include "rockchip_drm_psr.h"
 #include "rockchip_drm_vop.h"
 
 #define RK3288_GRF_SOC_CON6		0x25c
@@ -40,6 +41,9 @@
 #define RK3399_EDP_LCDC_SEL		BIT(5)
 
 #define HIWORD_UPDATE(val, mask)	(val | (mask) << 16)
+
+#define PSR_SET_DELAY_TIME		msecs_to_jiffies(10)
+#define PSR_WAIT_LINE_FLAG_TIMEOUT_MS	100
 
 #define to_dp(nm)	container_of(nm, struct rockchip_dp_device, nm)
 
@@ -68,10 +72,54 @@ struct rockchip_dp_device {
 	struct regmap            *grf;
 	struct reset_control     *rst;
 
+	struct delayed_work      psr_work;
+	unsigned int             psr_state;
+
 	const struct rockchip_dp_chip_data *data;
 
 	struct analogix_dp_plat_data plat_data;
 };
+
+static void analogix_dp_psr_set(struct drm_encoder *encoder, bool enabled)
+{
+	struct rockchip_dp_device *dp = to_dp(encoder);
+
+	dev_dbg(dp->dev, "%s PSR...\n", enabled ? "Entry" : "Exit");
+
+	if (enabled)
+		dp->psr_state = EDP_VSC_PSR_STATE_ACTIVE;
+	else
+		dp->psr_state = ~EDP_VSC_PSR_STATE_ACTIVE;
+
+	schedule_delayed_work(&dp->psr_work, PSR_SET_DELAY_TIME);
+}
+
+static void analogix_dp_psr_work(struct work_struct *work)
+{
+	struct rockchip_dp_device *dp =
+				container_of(work, typeof(*dp), psr_work.work);
+	struct drm_crtc *crtc = dp->encoder.crtc;
+	int psr_state = dp->psr_state;
+	int vact_end;
+	int ret;
+
+	if (!crtc)
+		return;
+
+	vact_end = crtc->mode.vtotal - crtc->mode.vsync_start + crtc->mode.vdisplay;
+
+	ret = rockchip_drm_wait_line_flag(dp->encoder.crtc, vact_end,
+					  PSR_WAIT_LINE_FLAG_TIMEOUT_MS);
+	if (ret) {
+		dev_err(dp->dev, "line flag interrupt did not arrive\n");
+		return;
+	}
+
+	if (psr_state == EDP_VSC_PSR_STATE_ACTIVE)
+		analogix_dp_enable_psr(dp->dev);
+	else
+		analogix_dp_disable_psr(dp->dev);
+}
 
 static int rockchip_dp_pre_init(struct rockchip_dp_device *dp)
 {
@@ -342,12 +390,21 @@ static int rockchip_dp_bind(struct device *dev, struct device *master,
 	dp->plat_data.power_off = rockchip_dp_powerdown;
 	dp->plat_data.get_modes = rockchip_dp_get_modes;
 
+	dp->psr_state = ~EDP_VSC_PSR_STATE_ACTIVE;
+	INIT_DELAYED_WORK(&dp->psr_work, analogix_dp_psr_work);
+
+	rockchip_drm_psr_register(&dp->encoder, analogix_dp_psr_set);
+
 	return analogix_dp_bind(dev, dp->drm_dev, &dp->plat_data);
 }
 
 static void rockchip_dp_unbind(struct device *dev, struct device *master,
 			       void *data)
 {
+	struct rockchip_dp_device *dp = dev_get_drvdata(dev);
+
+	rockchip_drm_psr_unregister(&dp->encoder);
+
 	return analogix_dp_unbind(dev, master, data);
 }
 
