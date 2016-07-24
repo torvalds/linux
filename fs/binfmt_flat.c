@@ -795,10 +795,11 @@ static int load_flat_file(struct linux_binprm *bprm,
 	flush_icache_range(start_code, end_code);
 
 	/* zero the BSS,  BRK and stack areas */
-	memset((void *)(datapos + data_len), 0, bss_len +
-			(memp + memp_size - stack_len -		/* end brk */
-			libinfo->lib_list[id].start_brk) +	/* start brk */
-			stack_len);
+	if (clear_user((void __user *)(datapos + data_len), bss_len +
+		       (memp + memp_size - stack_len -		/* end brk */
+		       libinfo->lib_list[id].start_brk) +	/* start brk */
+		       stack_len))
+		return -EFAULT;
 
 	return 0;
 err:
