@@ -375,6 +375,11 @@ static inline bool nfs_have_layout(struct inode *inode)
 	return NFS_I(inode)->layout != NULL;
 }
 
+static inline bool pnfs_layout_is_valid(const struct pnfs_layout_hdr *lo)
+{
+	return test_bit(NFS_LAYOUT_INVALID_STID, &lo->plh_flags) == 0;
+}
+
 static inline struct nfs4_deviceid_node *
 nfs4_get_deviceid(struct nfs4_deviceid_node *d)
 {
