@@ -23,6 +23,7 @@
 #include <linux/kernel.h>
 #include <linux/percpu.h>
 #include <linux/cpu.h>
+#include <linux/of.h>
 #include <linux/of_fdt.h>
 
 #if defined(CONFIG_VGA_CONSOLE) || defined(CONFIG_DUMMY_CONSOLE)
