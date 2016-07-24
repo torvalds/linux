@@ -201,6 +201,13 @@ struct nvdimm_bus_descriptor *to_nd_desc(struct nvdimm_bus *nvdimm_bus)
 }
 EXPORT_SYMBOL_GPL(to_nd_desc);
 
+struct device *to_nvdimm_bus_dev(struct nvdimm_bus *nvdimm_bus)
+{
+	/* struct nvdimm_bus definition is private to libnvdimm */
+	return &nvdimm_bus->dev;
+}
+EXPORT_SYMBOL_GPL(to_nvdimm_bus_dev);
+
 static bool is_uuid_sep(char sep)
 {
 	if (sep == '\n' || sep == '-' || sep == ':' || sep == '\0')

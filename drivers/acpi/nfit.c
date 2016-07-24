@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/ndctl.h>
+#include <linux/sysfs.h>
 #include <linux/delay.h>
 #include <linux/list.h>
 #include <linux/acpi.h>
@@ -874,14 +875,87 @@ static ssize_t revision_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(revision);
 
+/*
+ * This shows the number of full Address Range Scrubs that have been
+ * completed since driver load time. Userspace can wait on this using
+ * select/poll etc. A '+' at the end indicates an ARS is in progress
+ */
+static ssize_t scrub_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct nvdimm_bus_descriptor *nd_desc;
+	ssize_t rc = -ENXIO;
+
+	device_lock(dev);
+	nd_desc = dev_get_drvdata(dev);
+	if (nd_desc) {
+		struct acpi_nfit_desc *acpi_desc = to_acpi_desc(nd_desc);
+
+		rc = sprintf(buf, "%d%s", acpi_desc->scrub_count,
+				(work_busy(&acpi_desc->work)) ? "+\n" : "\n");
+	}
+	device_unlock(dev);
+	return rc;
+}
+
+static int acpi_nfit_ars_rescan(struct acpi_nfit_desc *acpi_desc);
+
+static ssize_t scrub_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct nvdimm_bus_descriptor *nd_desc;
+	ssize_t rc;
+	long val;
+
+	rc = kstrtol(buf, 0, &val);
+	if (rc)
+		return rc;
+	if (val != 1)
+		return -EINVAL;
+
+	device_lock(dev);
+	nd_desc = dev_get_drvdata(dev);
+	if (nd_desc) {
+		struct acpi_nfit_desc *acpi_desc = to_acpi_desc(nd_desc);
+
+		rc = acpi_nfit_ars_rescan(acpi_desc);
+	}
+	device_unlock(dev);
+	if (rc)
+		return rc;
+	return size;
+}
+static DEVICE_ATTR_RW(scrub);
+
+static bool ars_supported(struct nvdimm_bus *nvdimm_bus)
+{
+	struct nvdimm_bus_descriptor *nd_desc = to_nd_desc(nvdimm_bus);
+	const unsigned long mask = 1 << ND_CMD_ARS_CAP | 1 << ND_CMD_ARS_START
+		| 1 << ND_CMD_ARS_STATUS;
+
+	return (nd_desc->cmd_mask & mask) == mask;
+}
+
+static umode_t nfit_visible(struct kobject *kobj, struct attribute *a, int n)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct nvdimm_bus *nvdimm_bus = to_nvdimm_bus(dev);
+
+	if (a == &dev_attr_scrub.attr && !ars_supported(nvdimm_bus))
+		return 0;
+	return a->mode;
+}
+
 static struct attribute *acpi_nfit_attributes[] = {
 	&dev_attr_revision.attr,
+	&dev_attr_scrub.attr,
 	NULL,
 };
 
 static struct attribute_group acpi_nfit_attribute_group = {
 	.name = "nfit",
 	.attrs = acpi_nfit_attributes,
+	.is_visible = nfit_visible,
 };
 
 static const struct attribute_group *acpi_nfit_attribute_groups[] = {
@@ -2054,7 +2128,7 @@ static void acpi_nfit_async_scrub(struct acpi_nfit_desc *acpi_desc,
 	unsigned int tmo = scrub_timeout;
 	int rc;
 
-	if (nfit_spa->ars_done || !nfit_spa->nd_region)
+	if (!nfit_spa->ars_required || !nfit_spa->nd_region)
 		return;
 
 	rc = ars_start(acpi_desc, nfit_spa);
@@ -2143,7 +2217,9 @@ static void acpi_nfit_scrub(struct work_struct *work)
 	 * firmware initiated scrubs to complete and then we go search for the
 	 * affected spa regions to mark them scanned.  In the second phase we
 	 * initiate a directed scrub for every range that was not scrubbed in
-	 * phase 1.
+	 * phase 1. If we're called for a 'rescan', we harmlessly pass through
+	 * the first phase, but really only care about running phase 2, where
+	 * regions can be notified of new poison.
 	 */
 
 	/* process platform firmware initiated scrubs */
@@ -2246,14 +2322,17 @@ static void acpi_nfit_scrub(struct work_struct *work)
 		 * Flag all the ranges that still need scrubbing, but
 		 * register them now to make data available.
 		 */
-		if (nfit_spa->nd_region)
-			nfit_spa->ars_done = 1;
-		else
+		if (!nfit_spa->nd_region) {
+			nfit_spa->ars_required = 1;
 			acpi_nfit_register_region(acpi_desc, nfit_spa);
+		}
 	}
 
 	list_for_each_entry(nfit_spa, &acpi_desc->spas, list)
 		acpi_nfit_async_scrub(acpi_desc, nfit_spa);
+	acpi_desc->scrub_count++;
+	if (acpi_desc->scrub_count_state)
+		sysfs_notify_dirent(acpi_desc->scrub_count_state);
 	mutex_unlock(&acpi_desc->init_mutex);
 }
 
@@ -2291,12 +2370,48 @@ static int acpi_nfit_check_deletions(struct acpi_nfit_desc *acpi_desc,
 	return 0;
 }
 
+static int acpi_nfit_desc_init_scrub_attr(struct acpi_nfit_desc *acpi_desc)
+{
+	struct device *dev = acpi_desc->dev;
+	struct kernfs_node *nfit;
+	struct device *bus_dev;
+
+	if (!ars_supported(acpi_desc->nvdimm_bus))
+		return 0;
+
+	bus_dev = to_nvdimm_bus_dev(acpi_desc->nvdimm_bus);
+	nfit = sysfs_get_dirent(bus_dev->kobj.sd, "nfit");
+	if (!nfit) {
+		dev_err(dev, "sysfs_get_dirent 'nfit' failed\n");
+		return -ENODEV;
+	}
+	acpi_desc->scrub_count_state = sysfs_get_dirent(nfit, "scrub");
+	sysfs_put(nfit);
+	if (!acpi_desc->scrub_count_state) {
+		dev_err(dev, "sysfs_get_dirent 'scrub' failed\n");
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
 static void acpi_nfit_destruct(void *data)
 {
 	struct acpi_nfit_desc *acpi_desc = data;
+	struct device *bus_dev = to_nvdimm_bus_dev(acpi_desc->nvdimm_bus);
 
 	acpi_desc->cancel = 1;
+	/*
+	 * Bounce the nvdimm bus lock to make sure any in-flight
+	 * acpi_nfit_ars_rescan() submissions have had a chance to
+	 * either submit or see ->cancel set.
+	 */
+	device_lock(bus_dev);
+	device_unlock(bus_dev);
+
 	flush_workqueue(nfit_wq);
+	if (acpi_desc->scrub_count_state)
+		sysfs_put(acpi_desc->scrub_count_state);
 	nvdimm_bus_unregister(acpi_desc->nvdimm_bus);
 	acpi_desc->nvdimm_bus = NULL;
 }
@@ -2309,12 +2424,19 @@ int acpi_nfit_init(struct acpi_nfit_desc *acpi_desc, void *data, acpi_size sz)
 	int rc;
 
 	if (!acpi_desc->nvdimm_bus) {
+		acpi_nfit_init_dsms(acpi_desc);
+
 		acpi_desc->nvdimm_bus = nvdimm_bus_register(dev,
 				&acpi_desc->nd_desc);
 		if (!acpi_desc->nvdimm_bus)
 			return -ENOMEM;
+
 		rc = devm_add_action_or_reset(dev, acpi_nfit_destruct,
 				acpi_desc);
+		if (rc)
+			return rc;
+
+		rc = acpi_nfit_desc_init_scrub_attr(acpi_desc);
 		if (rc)
 			return rc;
 	}
@@ -2359,8 +2481,6 @@ int acpi_nfit_init(struct acpi_nfit_desc *acpi_desc, void *data, acpi_size sz)
 	rc = nfit_mem_init(acpi_desc);
 	if (rc)
 		goto out_unlock;
-
-	acpi_nfit_init_dsms(acpi_desc);
 
 	rc = acpi_nfit_register_dimms(acpi_desc);
 	if (rc)
@@ -2425,6 +2545,33 @@ static int acpi_nfit_clear_to_send(struct nvdimm_bus_descriptor *nd_desc,
 	 */
 	if (work_busy(&acpi_desc->work))
 		return -EBUSY;
+
+	return 0;
+}
+
+static int acpi_nfit_ars_rescan(struct acpi_nfit_desc *acpi_desc)
+{
+	struct device *dev = acpi_desc->dev;
+	struct nfit_spa *nfit_spa;
+
+	if (work_busy(&acpi_desc->work))
+		return -EBUSY;
+
+	if (acpi_desc->cancel)
+		return 0;
+
+	mutex_lock(&acpi_desc->init_mutex);
+	list_for_each_entry(nfit_spa, &acpi_desc->spas, list) {
+		struct acpi_nfit_system_address *spa = nfit_spa->spa;
+
+		if (nfit_spa_type(spa) != NFIT_SPA_PM)
+			continue;
+
+		nfit_spa->ars_required = 1;
+	}
+	queue_work(nfit_wq, &acpi_desc->work);
+	dev_dbg(dev, "%s: ars_scan triggered\n", __func__);
+	mutex_unlock(&acpi_desc->init_mutex);
 
 	return 0;
 }
