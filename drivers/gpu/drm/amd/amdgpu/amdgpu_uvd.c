@@ -201,38 +201,13 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 	bo_size = AMDGPU_GPU_PAGE_ALIGN(le32_to_cpu(hdr->ucode_size_bytes) + 8)
 		  +  AMDGPU_UVD_STACK_SIZE + AMDGPU_UVD_HEAP_SIZE
 		  +  AMDGPU_UVD_SESSION_SIZE * adev->uvd.max_handles;
-	r = amdgpu_bo_create(adev, bo_size, PAGE_SIZE, true,
-			     AMDGPU_GEM_DOMAIN_VRAM,
-			     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
-			     NULL, NULL, &adev->uvd.vcpu_bo);
+	r = amdgpu_bo_create_kernel(adev, bo_size, PAGE_SIZE,
+				    AMDGPU_GEM_DOMAIN_VRAM, &adev->uvd.vcpu_bo,
+				    &adev->uvd.gpu_addr, &adev->uvd.cpu_addr);
 	if (r) {
 		dev_err(adev->dev, "(%d) failed to allocate UVD bo\n", r);
 		return r;
 	}
-
-	r = amdgpu_bo_reserve(adev->uvd.vcpu_bo, false);
-	if (r) {
-		amdgpu_bo_unref(&adev->uvd.vcpu_bo);
-		dev_err(adev->dev, "(%d) failed to reserve UVD bo\n", r);
-		return r;
-	}
-
-	r = amdgpu_bo_pin(adev->uvd.vcpu_bo, AMDGPU_GEM_DOMAIN_VRAM,
-			  &adev->uvd.gpu_addr);
-	if (r) {
-		amdgpu_bo_unreserve(adev->uvd.vcpu_bo);
-		amdgpu_bo_unref(&adev->uvd.vcpu_bo);
-		dev_err(adev->dev, "(%d) UVD bo pin failed\n", r);
-		return r;
-	}
-
-	r = amdgpu_bo_kmap(adev->uvd.vcpu_bo, &adev->uvd.cpu_addr);
-	if (r) {
-		dev_err(adev->dev, "(%d) UVD map failed\n", r);
-		return r;
-	}
-
-	amdgpu_bo_unreserve(adev->uvd.vcpu_bo);
 
 	ring = &adev->uvd.ring;
 	rq = &ring->sched.sched_rq[AMD_SCHED_PRIORITY_NORMAL];
