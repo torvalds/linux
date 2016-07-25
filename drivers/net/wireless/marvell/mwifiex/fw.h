@@ -210,6 +210,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 
 #define MWIFIEX_TX_DATA_BUF_SIZE_4K        4096
 #define MWIFIEX_TX_DATA_BUF_SIZE_8K        8192
+#define MWIFIEX_TX_DATA_BUF_SIZE_12K       12288
 
 #define ISSUPP_11NENABLED(FwCapInfo) (FwCapInfo & BIT(11))
 #define ISSUPP_TDLS_ENABLED(FwCapInfo) (FwCapInfo & BIT(14))
@@ -506,6 +507,8 @@ enum P2P_MODES {
 #define EVENT_RSSI_HIGH                 0x0000001c
 #define EVENT_SNR_HIGH                  0x0000001d
 #define EVENT_IBSS_COALESCED            0x0000001e
+#define EVENT_IBSS_STA_CONNECT          0x00000020
+#define EVENT_IBSS_STA_DISCONNECT       0x00000021
 #define EVENT_DATA_RSSI_LOW             0x00000024
 #define EVENT_DATA_SNR_LOW              0x00000025
 #define EVENT_DATA_RSSI_HIGH            0x00000026
@@ -1684,6 +1687,12 @@ struct mwifiex_ie_types_local_pwr_constraint {
 struct mwifiex_ie_types_wmm_param_set {
 	struct mwifiex_ie_types_header header;
 	u8 wmm_ie[1];
+};
+
+struct mwifiex_ie_types_mgmt_frame {
+	struct mwifiex_ie_types_header header;
+	__le16 frame_control;
+	u8 frame_contents[0];
 };
 
 struct mwifiex_ie_types_wmm_queue_status {
