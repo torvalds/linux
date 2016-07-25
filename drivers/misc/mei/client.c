@@ -734,8 +734,8 @@ void mei_cl_set_disconnected(struct mei_cl *cl)
 	mei_io_list_flush(&dev->ctrl_rd_list, cl);
 	mei_io_list_flush(&dev->ctrl_wr_list, cl);
 	mei_cl_wake_all(cl);
-	cl->mei_flow_ctrl_creds = 0;
 	cl->rx_flow_ctrl_creds = 0;
+	cl->tx_flow_ctrl_creds = 0;
 	cl->timer_count = 0;
 
 	if (!cl->me_cl)
@@ -745,7 +745,7 @@ void mei_cl_set_disconnected(struct mei_cl *cl)
 		cl->me_cl->connect_count--;
 
 	if (cl->me_cl->connect_count == 0)
-		cl->me_cl->mei_flow_ctrl_creds = 0;
+		cl->me_cl->tx_flow_ctrl_creds = 0;
 
 	mei_me_cl_put(cl->me_cl);
 	cl->me_cl = NULL;
@@ -1140,43 +1140,42 @@ err:
 	return ERR_PTR(ret);
 }
 
-
-
 /**
- * mei_cl_flow_ctrl_creds - checks flow_control credits for cl.
+ * mei_cl_tx_flow_ctrl_creds - checks flow_control credits for cl.
  *
  * @cl: host client
  *
- * Return: 1 if mei_flow_ctrl_creds >0, 0 - otherwise.
+ * Return: 1 if tx_flow_ctrl_creds >0, 0 - otherwise.
  */
-static int mei_cl_flow_ctrl_creds(struct mei_cl *cl)
+static int mei_cl_tx_flow_ctrl_creds(struct mei_cl *cl)
 {
 	if (WARN_ON(!cl || !cl->me_cl))
 		return -EINVAL;
 
-	if (cl->mei_flow_ctrl_creds > 0)
+	if (cl->tx_flow_ctrl_creds > 0)
 		return 1;
 
 	if (mei_cl_is_fixed_address(cl))
 		return 1;
 
 	if (mei_cl_is_single_recv_buf(cl)) {
-		if (cl->me_cl->mei_flow_ctrl_creds > 0)
+		if (cl->me_cl->tx_flow_ctrl_creds > 0)
 			return 1;
 	}
 	return 0;
 }
 
 /**
- * mei_cl_flow_ctrl_reduce - reduces flow_control.
+ * mei_cl_tx_flow_ctrl_creds_reduce - reduces transmit flow control credits
+ *   for a client
  *
- * @cl: private data of the file object
+ * @cl: host client
  *
  * Return:
  *	0 on success
  *	-EINVAL when ctrl credits are <= 0
  */
-static int mei_cl_flow_ctrl_reduce(struct mei_cl *cl)
+static int mei_cl_tx_flow_ctrl_creds_reduce(struct mei_cl *cl)
 {
 	if (WARN_ON(!cl || !cl->me_cl))
 		return -EINVAL;
@@ -1185,13 +1184,13 @@ static int mei_cl_flow_ctrl_reduce(struct mei_cl *cl)
 		return 0;
 
 	if (mei_cl_is_single_recv_buf(cl)) {
-		if (WARN_ON(cl->me_cl->mei_flow_ctrl_creds <= 0))
+		if (WARN_ON(cl->me_cl->tx_flow_ctrl_creds <= 0))
 			return -EINVAL;
-		cl->me_cl->mei_flow_ctrl_creds--;
+		cl->me_cl->tx_flow_ctrl_creds--;
 	} else {
-		if (WARN_ON(cl->mei_flow_ctrl_creds <= 0))
+		if (WARN_ON(cl->tx_flow_ctrl_creds <= 0))
 			return -EINVAL;
-		cl->mei_flow_ctrl_creds--;
+		cl->tx_flow_ctrl_creds--;
 	}
 	return 0;
 }
@@ -1511,7 +1510,7 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 
 	first_chunk = cb->buf_idx == 0;
 
-	rets = first_chunk ? mei_cl_flow_ctrl_creds(cl) : 1;
+	rets = first_chunk ? mei_cl_tx_flow_ctrl_creds(cl) : 1;
 	if (rets < 0)
 		return rets;
 
@@ -1559,7 +1558,7 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 	cb->completed = mei_hdr.msg_complete == 1;
 
 	if (first_chunk) {
-		if (mei_cl_flow_ctrl_reduce(cl))
+		if (mei_cl_tx_flow_ctrl_creds_reduce(cl))
 			return -EIO;
 	}
 
@@ -1617,7 +1616,7 @@ int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb, bool blocking)
 	mei_hdr.msg_complete = 0;
 	mei_hdr.internal = cb->internal;
 
-	rets = mei_cl_flow_ctrl_creds(cl);
+	rets = mei_cl_tx_flow_ctrl_creds(cl);
 	if (rets < 0)
 		goto err;
 
@@ -1645,7 +1644,7 @@ int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb, bool blocking)
 	if (rets)
 		goto err;
 
-	rets = mei_cl_flow_ctrl_reduce(cl);
+	rets = mei_cl_tx_flow_ctrl_creds_reduce(cl);
 	if (rets)
 		goto err;
 

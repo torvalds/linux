@@ -144,7 +144,7 @@ struct mei_fw_status {
  * @refcnt: struct reference count
  * @props: client properties
  * @client_id: me client id
- * @mei_flow_ctrl_creds: flow control credits
+ * @tx_flow_ctrl_creds: flow control credits
  * @connect_count: number connections to this client
  * @bus_added: added to bus
  */
@@ -153,7 +153,7 @@ struct mei_me_client {
 	struct kref refcnt;
 	struct mei_client_properties props;
 	u8 client_id;
-	u8 mei_flow_ctrl_creds;
+	u8 tx_flow_ctrl_creds;
 	u8 connect_count;
 	u8 bus_added;
 };
@@ -202,7 +202,7 @@ struct mei_cl_cb {
  * @me_cl: fw client connected
  * @fp: file associated with client
  * @host_client_id: host id
- * @mei_flow_ctrl_creds: transmit flow credentials
+ * @tx_flow_ctrl_creds: transmit flow credentials
  * @rx_flow_ctrl_creds: receive flow credentials
  * @timer_count:  watchdog timer for operation completion
  * @notify_en: notification - enabled/disabled
@@ -226,7 +226,7 @@ struct mei_cl {
 	struct mei_me_client *me_cl;
 	const struct file *fp;
 	u8 host_client_id;
-	u8 mei_flow_ctrl_creds;
+	u8 tx_flow_ctrl_creds;
 	u8 rx_flow_ctrl_creds;
 	u8 timer_count;
 	u8 notify_en;

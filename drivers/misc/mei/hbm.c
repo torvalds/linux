@@ -340,7 +340,7 @@ static int mei_hbm_me_cl_add(struct mei_device *dev,
 
 	me_cl->props = res->client_properties;
 	me_cl->client_id = res->me_addr;
-	me_cl->mei_flow_ctrl_creds = 0;
+	me_cl->tx_flow_ctrl_creds = 0;
 
 	mei_me_cl_add(dev, me_cl);
 
@@ -637,23 +637,22 @@ int mei_hbm_cl_flow_control_req(struct mei_device *dev, struct mei_cl *cl)
 }
 
 /**
- * mei_hbm_add_single_flow_creds - adds single buffer credentials.
+ * mei_hbm_add_single_tx_flow_ctrl_creds - adds single buffer credentials.
  *
  * @dev: the device structure
- * @flow: flow control.
+ * @fctrl: flow control response bus message
  *
  * Return: 0 on success, < 0 otherwise
  */
-static int mei_hbm_add_single_flow_creds(struct mei_device *dev,
-				  struct hbm_flow_control *flow)
+static int mei_hbm_add_single_tx_flow_ctrl_creds(struct mei_device *dev,
+						 struct hbm_flow_control *fctrl)
 {
 	struct mei_me_client *me_cl;
 	int rets;
 
-	me_cl = mei_me_cl_by_id(dev, flow->me_addr);
+	me_cl = mei_me_cl_by_id(dev, fctrl->me_addr);
 	if (!me_cl) {
-		dev_err(dev->dev, "no such me client %d\n",
-			flow->me_addr);
+		dev_err(dev->dev, "no such me client %d\n", fctrl->me_addr);
 		return -ENOENT;
 	}
 
@@ -662,9 +661,9 @@ static int mei_hbm_add_single_flow_creds(struct mei_device *dev,
 		goto out;
 	}
 
-	me_cl->mei_flow_ctrl_creds++;
+	me_cl->tx_flow_ctrl_creds++;
 	dev_dbg(dev->dev, "recv flow ctrl msg ME %d (single) creds = %d.\n",
-	    flow->me_addr, me_cl->mei_flow_ctrl_creds);
+		fctrl->me_addr, me_cl->tx_flow_ctrl_creds);
 
 	rets = 0;
 out:
@@ -676,24 +675,24 @@ out:
  * mei_hbm_cl_flow_control_res - flow control response from me
  *
  * @dev: the device structure
- * @flow_control: flow control response bus message
+ * @fctrl: flow control response bus message
  */
-static void mei_hbm_cl_flow_control_res(struct mei_device *dev,
-					struct hbm_flow_control *flow_control)
+static void mei_hbm_cl_tx_flow_ctrl_creds_res(struct mei_device *dev,
+					       struct hbm_flow_control *fctrl)
 {
 	struct mei_cl *cl;
 
-	if (!flow_control->host_addr) {
+	if (!fctrl->host_addr) {
 		/* single receive buffer */
-		mei_hbm_add_single_flow_creds(dev, flow_control);
+		mei_hbm_add_single_tx_flow_ctrl_creds(dev, fctrl);
 		return;
 	}
 
-	cl = mei_hbm_cl_find_by_cmd(dev, flow_control);
+	cl = mei_hbm_cl_find_by_cmd(dev, fctrl);
 	if (cl) {
-		cl->mei_flow_ctrl_creds++;
+		cl->tx_flow_ctrl_creds++;
 		cl_dbg(dev, cl, "flow control creds = %d.\n",
-				cl->mei_flow_ctrl_creds);
+				cl->tx_flow_ctrl_creds);
 	}
 }
 
@@ -1023,7 +1022,7 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 
 	struct mei_hbm_cl_cmd *cl_cmd;
 	struct hbm_client_connect_request *disconnect_req;
-	struct hbm_flow_control *flow_control;
+	struct hbm_flow_control *fctrl;
 
 	/* read the message to our buffer */
 	BUG_ON(hdr->length >= sizeof(dev->rd_msg_buf));
@@ -1103,8 +1102,8 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 	case MEI_FLOW_CONTROL_CMD:
 		dev_dbg(dev->dev, "hbm: client flow control response: message received.\n");
 
-		flow_control = (struct hbm_flow_control *) mei_msg;
-		mei_hbm_cl_flow_control_res(dev, flow_control);
+		fctrl = (struct hbm_flow_control *)mei_msg;
+		mei_hbm_cl_tx_flow_ctrl_creds_res(dev, fctrl);
 		break;
 
 	case MEI_PG_ISOLATION_ENTRY_RES_CMD:
