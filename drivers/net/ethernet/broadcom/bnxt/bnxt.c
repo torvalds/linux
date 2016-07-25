@@ -5790,8 +5790,12 @@ static bool bnxt_rfs_capable(struct bnxt *bp)
 		return false;
 
 	vnics = 1 + bp->rx_nr_rings;
-	if (vnics > pf->max_rsscos_ctxs || vnics > pf->max_vnics)
+	if (vnics > pf->max_rsscos_ctxs || vnics > pf->max_vnics) {
+		netdev_warn(bp->dev,
+			    "Not enough resources to support NTUPLE filters, enough resources for up to %d rx rings\n",
+			    min(pf->max_rsscos_ctxs - 1, pf->max_vnics - 1));
 		return false;
+	}
 
 	return true;
 #else
@@ -5804,7 +5808,7 @@ static netdev_features_t bnxt_fix_features(struct net_device *dev,
 {
 	struct bnxt *bp = netdev_priv(dev);
 
-	if (!bnxt_rfs_capable(bp))
+	if ((features & NETIF_F_NTUPLE) && !bnxt_rfs_capable(bp))
 		features &= ~NETIF_F_NTUPLE;
 
 	/* Both CTAG and STAG VLAN accelaration on the RX side have to be
