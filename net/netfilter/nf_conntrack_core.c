@@ -460,6 +460,23 @@ nf_ct_key_equal(struct nf_conntrack_tuple_hash *h,
 	       net_eq(net, nf_ct_net(ct));
 }
 
+/* must be called with rcu read lock held */
+void nf_conntrack_get_ht(struct hlist_nulls_head **hash, unsigned int *hsize)
+{
+	struct hlist_nulls_head *hptr;
+	unsigned int sequence, hsz;
+
+	do {
+		sequence = read_seqcount_begin(&nf_conntrack_generation);
+		hsz = nf_conntrack_htable_size;
+		hptr = nf_conntrack_hash;
+	} while (read_seqcount_retry(&nf_conntrack_generation, sequence));
+
+	*hash = hptr;
+	*hsize = hsz;
+}
+EXPORT_SYMBOL_GPL(nf_conntrack_get_ht);
+
 /*
  * Warning :
  * - Caller must take a reference on returned object
@@ -818,67 +835,69 @@ EXPORT_SYMBOL_GPL(nf_conntrack_tuple_taken);
 
 /* There's a small race here where we may free a just-assured
    connection.  Too bad: we're in trouble anyway. */
+static unsigned int early_drop_list(struct net *net,
+				    struct hlist_nulls_head *head)
+{
+	struct nf_conntrack_tuple_hash *h;
+	struct hlist_nulls_node *n;
+	unsigned int drops = 0;
+	struct nf_conn *tmp;
+
+	hlist_nulls_for_each_entry_rcu(h, n, head, hnnode) {
+		tmp = nf_ct_tuplehash_to_ctrack(h);
+
+		if (test_bit(IPS_ASSURED_BIT, &tmp->status) ||
+		    !net_eq(nf_ct_net(tmp), net) ||
+		    nf_ct_is_dying(tmp))
+			continue;
+
+		if (!atomic_inc_not_zero(&tmp->ct_general.use))
+			continue;
+
+		/* kill only if still in same netns -- might have moved due to
+		 * SLAB_DESTROY_BY_RCU rules.
+		 *
+		 * We steal the timer reference.  If that fails timer has
+		 * already fired or someone else deleted it. Just drop ref
+		 * and move to next entry.
+		 */
+		if (net_eq(nf_ct_net(tmp), net) &&
+		    nf_ct_is_confirmed(tmp) &&
+		    del_timer(&tmp->timeout) &&
+		    nf_ct_delete(tmp, 0, 0))
+			drops++;
+
+		nf_ct_put(tmp);
+	}
+
+	return drops;
+}
+
 static noinline int early_drop(struct net *net, unsigned int _hash)
 {
-	/* Use oldest entry, which is roughly LRU */
-	struct nf_conntrack_tuple_hash *h;
-	struct nf_conn *tmp;
-	struct hlist_nulls_node *n;
-	unsigned int i, hash, sequence;
-	struct nf_conn *ct = NULL;
-	spinlock_t *lockp;
-	bool ret = false;
+	unsigned int i;
 
-	i = 0;
+	for (i = 0; i < NF_CT_EVICTION_RANGE; i++) {
+		struct hlist_nulls_head *ct_hash;
+		unsigned hash, sequence, drops;
 
-	local_bh_disable();
-restart:
-	sequence = read_seqcount_begin(&nf_conntrack_generation);
-	for (; i < NF_CT_EVICTION_RANGE; i++) {
-		hash = scale_hash(_hash++);
-		lockp = &nf_conntrack_locks[hash % CONNTRACK_LOCKS];
-		nf_conntrack_lock(lockp);
-		if (read_seqcount_retry(&nf_conntrack_generation, sequence)) {
-			spin_unlock(lockp);
-			goto restart;
-		}
-		hlist_nulls_for_each_entry_rcu(h, n, &nf_conntrack_hash[hash],
-					       hnnode) {
-			tmp = nf_ct_tuplehash_to_ctrack(h);
+		rcu_read_lock();
+		do {
+			sequence = read_seqcount_begin(&nf_conntrack_generation);
+			hash = scale_hash(_hash++);
+			ct_hash = nf_conntrack_hash;
+		} while (read_seqcount_retry(&nf_conntrack_generation, sequence));
 
-			if (test_bit(IPS_ASSURED_BIT, &tmp->status) ||
-			    !net_eq(nf_ct_net(tmp), net) ||
-			    nf_ct_is_dying(tmp))
-				continue;
+		drops = early_drop_list(net, &ct_hash[hash]);
+		rcu_read_unlock();
 
-			if (atomic_inc_not_zero(&tmp->ct_general.use)) {
-				ct = tmp;
-				break;
-			}
-		}
-
-		spin_unlock(lockp);
-		if (ct)
-			break;
-	}
-
-	local_bh_enable();
-
-	if (!ct)
-		return false;
-
-	/* kill only if in same netns -- might have moved due to
-	 * SLAB_DESTROY_BY_RCU rules
-	 */
-	if (net_eq(nf_ct_net(ct), net) && del_timer(&ct->timeout)) {
-		if (nf_ct_delete(ct, 0, 0)) {
-			NF_CT_STAT_INC_ATOMIC(net, early_drop);
-			ret = true;
+		if (drops) {
+			NF_CT_STAT_ADD_ATOMIC(net, early_drop, drops);
+			return true;
 		}
 	}
 
-	nf_ct_put(ct);
-	return ret;
+	return false;
 }
 
 static struct nf_conn *

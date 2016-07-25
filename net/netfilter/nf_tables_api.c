@@ -1405,7 +1405,6 @@ static int nf_tables_newchain(struct net *net, struct sock *nlsk,
 			rcu_assign_pointer(basechain->stats, stats);
 		}
 
-		write_pnet(&basechain->pnet, net);
 		basechain->type = type;
 		chain = &basechain->chain;
 
@@ -1860,10 +1859,16 @@ err:
 	return err;
 }
 
+struct nft_rule_dump_ctx {
+	char table[NFT_TABLE_MAXNAMELEN];
+	char chain[NFT_CHAIN_MAXNAMELEN];
+};
+
 static int nf_tables_dump_rules(struct sk_buff *skb,
 				struct netlink_callback *cb)
 {
 	const struct nfgenmsg *nfmsg = nlmsg_data(cb->nlh);
+	const struct nft_rule_dump_ctx *ctx = cb->data;
 	const struct nft_af_info *afi;
 	const struct nft_table *table;
 	const struct nft_chain *chain;
@@ -1880,7 +1885,15 @@ static int nf_tables_dump_rules(struct sk_buff *skb,
 			continue;
 
 		list_for_each_entry_rcu(table, &afi->tables, list) {
+			if (ctx && ctx->table[0] &&
+			    strcmp(ctx->table, table->name) != 0)
+				continue;
+
 			list_for_each_entry_rcu(chain, &table->chains, list) {
+				if (ctx && ctx->chain[0] &&
+				    strcmp(ctx->chain, chain->name) != 0)
+					continue;
+
 				list_for_each_entry_rcu(rule, &chain->rules, list) {
 					if (!nft_is_active(net, rule))
 						goto cont;
@@ -1910,6 +1923,12 @@ done:
 	return skb->len;
 }
 
+static int nf_tables_dump_rules_done(struct netlink_callback *cb)
+{
+	kfree(cb->data);
+	return 0;
+}
+
 static int nf_tables_getrule(struct net *net, struct sock *nlsk,
 			     struct sk_buff *skb, const struct nlmsghdr *nlh,
 			     const struct nlattr * const nla[])
@@ -1927,7 +1946,25 @@ static int nf_tables_getrule(struct net *net, struct sock *nlsk,
 	if (nlh->nlmsg_flags & NLM_F_DUMP) {
 		struct netlink_dump_control c = {
 			.dump = nf_tables_dump_rules,
+			.done = nf_tables_dump_rules_done,
 		};
+
+		if (nla[NFTA_RULE_TABLE] || nla[NFTA_RULE_CHAIN]) {
+			struct nft_rule_dump_ctx *ctx;
+
+			ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+			if (!ctx)
+				return -ENOMEM;
+
+			if (nla[NFTA_RULE_TABLE])
+				nla_strlcpy(ctx->table, nla[NFTA_RULE_TABLE],
+					    sizeof(ctx->table));
+			if (nla[NFTA_RULE_CHAIN])
+				nla_strlcpy(ctx->chain, nla[NFTA_RULE_CHAIN],
+					    sizeof(ctx->chain));
+			c.data = ctx;
+		}
+
 		return netlink_dump_start(nlsk, skb, nlh, &c);
 	}
 
@@ -2843,7 +2880,6 @@ static int nf_tables_newset(struct net *net, struct sock *nlsk,
 	}
 
 	INIT_LIST_HEAD(&set->bindings);
-	write_pnet(&set->pnet, net);
 	set->ops   = ops;
 	set->ktype = ktype;
 	set->klen  = desc.klen;
@@ -3522,7 +3558,7 @@ static int nft_add_set_elem(struct nft_ctx *ctx, struct nft_set *set,
 		goto err4;
 
 	ext->genmask = nft_genmask_cur(ctx->net) | NFT_SET_ELEM_BUSY_MASK;
-	err = set->ops->insert(set, &elem);
+	err = set->ops->insert(ctx->net, set, &elem);
 	if (err < 0)
 		goto err5;
 
@@ -3646,7 +3682,7 @@ static int nft_del_setelem(struct nft_ctx *ctx, struct nft_set *set,
 		goto err3;
 	}
 
-	priv = set->ops->deactivate(set, &elem);
+	priv = set->ops->deactivate(ctx->net, set, &elem);
 	if (priv == NULL) {
 		err = -ENOENT;
 		goto err4;
@@ -4020,7 +4056,7 @@ static int nf_tables_commit(struct net *net, struct sk_buff *skb)
 		case NFT_MSG_NEWSETELEM:
 			te = (struct nft_trans_elem *)trans->data;
 
-			te->set->ops->activate(te->set, &te->elem);
+			te->set->ops->activate(net, te->set, &te->elem);
 			nf_tables_setelem_notify(&trans->ctx, te->set,
 						 &te->elem,
 						 NFT_MSG_NEWSETELEM, 0);
@@ -4145,7 +4181,7 @@ static int nf_tables_abort(struct net *net, struct sk_buff *skb)
 		case NFT_MSG_DELSETELEM:
 			te = (struct nft_trans_elem *)trans->data;
 
-			te->set->ops->activate(te->set, &te->elem);
+			te->set->ops->activate(net, te->set, &te->elem);
 			te->set->ndeact--;
 
 			nft_trans_destroy(trans);
