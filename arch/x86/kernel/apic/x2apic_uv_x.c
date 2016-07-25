@@ -582,7 +582,6 @@ static struct apic __refdata apic_x2apic_uv_x = {
 
 	.get_apic_id			= x2apic_get_apic_id,
 	.set_apic_id			= set_apic_id,
-	.apic_id_mask			= 0xFFFFFFFFu,
 
 	.cpu_mask_to_apicid_and		= uv_cpu_mask_to_apicid_and,
 
