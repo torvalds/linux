@@ -188,6 +188,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define TLV_BTCOEX_WL_AGGR_WINSIZE  (PROPRIETARY_TLV_BASE_ID + 202)
 #define TLV_BTCOEX_WL_SCANTIME      (PROPRIETARY_TLV_BASE_ID + 203)
 #define TLV_TYPE_BSS_MODE           (PROPRIETARY_TLV_BASE_ID + 206)
+#define TLV_TYPE_RANDOM_MAC         (PROPRIETARY_TLV_BASE_ID + 236)
 
 #define MWIFIEX_TX_DATA_BUF_SIZE_2K        2048
 
@@ -778,6 +779,11 @@ struct mwifiex_ie_types_scan_chan_gap {
 	struct mwifiex_ie_types_header header;
 	/* time gap in TUs to be used between two consecutive channels scan */
 	__le16 chan_gap;
+} __packed;
+
+struct mwifiex_ie_types_random_mac {
+	struct mwifiex_ie_types_header header;
+	u8 mac[ETH_ALEN];
 } __packed;
 
 struct mwifiex_ietypes_chanstats {
@@ -1464,6 +1470,7 @@ struct mwifiex_user_scan_cfg {
 	/* Variable number (fixed maximum) of channels to scan up */
 	struct mwifiex_user_scan_chan chan_list[MWIFIEX_USER_SCAN_CHAN_MAX];
 	u16 scan_chan_gap;
+	u8 random_mac[ETH_ALEN];
 } __packed;
 
 #define MWIFIEX_BG_SCAN_CHAN_MAX 38
