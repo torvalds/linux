@@ -735,7 +735,6 @@ static inline void build_ahg(struct rvt_qp *qp, u32 npsn)
 			qp->s_ahgpsn = npsn;
 			priv->s_hdr->tx_flags |= SDMA_TXREQ_F_AHG_COPY;
 			/* save to protect a change in another thread */
-			priv->s_hdr->sde = priv->s_sde;
 			priv->s_hdr->ahgidx = qp->s_ahgidx;
 			qp->s_flags |= RVT_S_AHG_VALID;
 		}
@@ -804,7 +803,6 @@ void hfi1_make_ruc_header(struct rvt_qp *qp, struct hfi1_other_headers *ohdr,
 	priv->s_hdr->tx_flags = 0;
 	priv->s_hdr->ahgcount = 0;
 	priv->s_hdr->ahgidx = 0;
-	priv->s_hdr->sde = NULL;
 	if (qp->s_mig_state == IB_MIG_MIGRATED)
 		bth0 |= IB_BTH_MIG_REQ;
 	else

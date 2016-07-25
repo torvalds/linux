@@ -179,12 +179,10 @@ struct hfi1_ib_header {
 } __packed;
 
 struct ahg_ib_header {
-	struct sdma_engine *sde;
 	u32 ahgdesc[2];
 	u16 tx_flags;
 	u8 ahgcount;
 	u8 ahgidx;
-	struct hfi1_ib_header ibh;
 };
 
 struct hfi1_pio_header {

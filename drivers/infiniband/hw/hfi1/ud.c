@@ -433,7 +433,6 @@ int hfi1_make_ud_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 	priv->s_hdr->ahgcount = 0;
 	priv->s_hdr->ahgidx = 0;
 	priv->s_hdr->tx_flags = 0;
-	priv->s_hdr->sde = NULL;
 	/* pbc */
 	ps->s_txreq->hdr_dwords = qp->s_hdrwords + 2;
 
