@@ -1583,6 +1583,22 @@ static inline struct hfi1_ibport *to_iport(struct ib_device *ibdev, u8 port)
 	return &dd->pport[pidx].ibport_data;
 }
 
+void hfi1_process_ecn_slowpath(struct rvt_qp *qp, struct hfi1_packet *pkt,
+			       bool do_cnp);
+static inline bool process_ecn(struct rvt_qp *qp, struct hfi1_packet *pkt,
+			       bool do_cnp)
+{
+	struct hfi1_other_headers *ohdr = pkt->ohdr;
+	u32 bth1;
+
+	bth1 = be32_to_cpu(ohdr->bth[1]);
+	if (unlikely(bth1 & (HFI1_BECN_SMASK | HFI1_FECN_SMASK))) {
+		hfi1_process_ecn_slowpath(qp, pkt, do_cnp);
+		return bth1 & HFI1_FECN_SMASK;
+	}
+	return false;
+}
+
 /*
  * Return the indexed PKEY from the port PKEY table.
  */

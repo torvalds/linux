@@ -2086,7 +2086,6 @@ void hfi1_rc_rcv(struct hfi1_packet *packet)
 	u32 tlen = packet->tlen;
 	struct rvt_qp *qp = packet->qp;
 	struct hfi1_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
-	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
 	struct hfi1_other_headers *ohdr = packet->ohdr;
 	u32 bth0, opcode;
 	u32 hdrsize = packet->hlen;
@@ -2097,7 +2096,6 @@ void hfi1_rc_rcv(struct hfi1_packet *packet)
 	int diff;
 	struct ib_reth *reth;
 	unsigned long flags;
-	u32 bth1;
 	int ret, is_fecn = 0;
 	int copy_last = 0;
 
@@ -2105,22 +2103,7 @@ void hfi1_rc_rcv(struct hfi1_packet *packet)
 	if (hfi1_ruc_check_hdr(ibp, hdr, rcv_flags & HFI1_HAS_GRH, qp, bth0))
 		return;
 
-	bth1 = be32_to_cpu(ohdr->bth[1]);
-	if (unlikely(bth1 & (HFI1_BECN_SMASK | HFI1_FECN_SMASK))) {
-		if (bth1 & HFI1_BECN_SMASK) {
-			u16 rlid = qp->remote_ah_attr.dlid;
-			u32 lqpn, rqpn;
-
-			lqpn = qp->ibqp.qp_num;
-			rqpn = qp->remote_qpn;
-			process_becn(
-				ppd,
-				qp->remote_ah_attr.sl,
-				rlid, lqpn, rqpn,
-				IB_CC_SVCTYPE_RC);
-		}
-		is_fecn = bth1 & HFI1_FECN_SMASK;
-	}
+	is_fecn = process_ecn(qp, packet, false);
 
 	psn = be32_to_cpu(ohdr->bth[2]);
 	opcode = (bth0 >> 24) & 0xff;

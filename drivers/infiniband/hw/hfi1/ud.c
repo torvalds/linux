@@ -679,29 +679,10 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 	struct rvt_qp *qp = packet->qp;
 	bool has_grh = rcv_flags & HFI1_HAS_GRH;
 	u8 sc5 = hdr2sc((struct hfi1_message_header *)hdr, packet->rhf);
-	u32 bth1;
-	int is_mcast;
-	struct ib_grh *grh = NULL;
 
 	qkey = be32_to_cpu(ohdr->u.ud.deth[0]);
 	src_qp = be32_to_cpu(ohdr->u.ud.deth[1]) & RVT_QPN_MASK;
 	dlid = be16_to_cpu(hdr->lrh[1]);
-	is_mcast = (dlid > be16_to_cpu(IB_MULTICAST_LID_BASE)) &&
-			(dlid != be16_to_cpu(IB_LID_PERMISSIVE));
-	bth1 = be32_to_cpu(ohdr->bth[1]);
-	if (unlikely(bth1 & HFI1_BECN_SMASK)) {
-		/*
-		 * In pre-B0 h/w the CNP_OPCODE is handled via an
-		 * error path.
-		 */
-		struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
-		u32 lqpn =  be32_to_cpu(ohdr->bth[1]) & RVT_QPN_MASK;
-		u8 sl;
-
-		sl = ibp->sc_to_sl[sc5];
-
-		process_becn(ppd, sl, 0, lqpn, 0, IB_CC_SVCTYPE_UD);
-	}
 
 	/*
 	 * The opcode is in the low byte when its in network order
@@ -712,11 +693,8 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 
 	pkey = (u16)be32_to_cpu(ohdr->bth[0]);
 
-	if (!is_mcast && (opcode != IB_OPCODE_CNP) && bth1 & HFI1_FECN_SMASK) {
-		u16 slid = be16_to_cpu(hdr->lrh[3]);
+	process_ecn(qp, packet, (opcode != IB_OPCODE_CNP));
 
-		return_cnp(ibp, qp, src_qp, pkey, dlid, slid, sc5, grh);
-	}
 	/*
 	 * Get the number of bytes the message was padded by
 	 * and drop incomplete packets.

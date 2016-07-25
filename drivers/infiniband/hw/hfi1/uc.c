@@ -294,46 +294,12 @@ void hfi1_uc_rcv(struct hfi1_packet *packet)
 	struct ib_reth *reth;
 	int has_grh = rcv_flags & HFI1_HAS_GRH;
 	int ret;
-	u32 bth1;
 
 	bth0 = be32_to_cpu(ohdr->bth[0]);
 	if (hfi1_ruc_check_hdr(ibp, hdr, has_grh, qp, bth0))
 		return;
 
-	bth1 = be32_to_cpu(ohdr->bth[1]);
-	if (unlikely(bth1 & (HFI1_BECN_SMASK | HFI1_FECN_SMASK))) {
-		if (bth1 & HFI1_BECN_SMASK) {
-			struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
-			u32 rqpn, lqpn;
-			u16 rlid = be16_to_cpu(hdr->lrh[3]);
-			u8 sl, sc5;
-
-			lqpn = bth1 & RVT_QPN_MASK;
-			rqpn = qp->remote_qpn;
-
-			sc5 = ibp->sl_to_sc[qp->remote_ah_attr.sl];
-			sl = ibp->sc_to_sl[sc5];
-
-			process_becn(ppd, sl, rlid, lqpn, rqpn,
-				     IB_CC_SVCTYPE_UC);
-		}
-
-		if (bth1 & HFI1_FECN_SMASK) {
-			struct ib_grh *grh = NULL;
-			u16 pkey = (u16)be32_to_cpu(ohdr->bth[0]);
-			u16 slid = be16_to_cpu(hdr->lrh[3]);
-			u16 dlid = be16_to_cpu(hdr->lrh[1]);
-			u32 src_qp = qp->remote_qpn;
-			u8 sc5;
-
-			sc5 = ibp->sl_to_sc[qp->remote_ah_attr.sl];
-			if (has_grh)
-				grh = &hdr->u.l.grh;
-
-			return_cnp(ibp, qp, src_qp, pkey, dlid, slid, sc5,
-				   grh);
-		}
-	}
+	process_ecn(qp, packet, true);
 
 	psn = be32_to_cpu(ohdr->bth[2]);
 	opcode = (bth0 >> 24) & 0xff;
