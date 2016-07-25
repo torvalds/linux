@@ -10003,6 +10003,7 @@ SERIAL DRIVERS
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 L:	linux-serial@vger.kernel.org
 S:	Maintained
+F:	Documentation/devicetree/bindings/serial/
 F:	drivers/tty/serial/
 
 SYNOPSYS DESIGNWARE DMAC DRIVER
