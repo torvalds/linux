@@ -23,6 +23,7 @@
 #include <linux/seq_file.h>
 #include <linux/io.h>
 #include <asm/cpu_device_id.h>
+#include <asm/intel-family.h>
 #include <asm/iosf_mbi.h>
 
 /* Power gate status reg */
@@ -143,8 +144,8 @@ static void punit_dbgfs_unregister(void)
 	  (kernel_ulong_t)&drv_data }
 
 static const struct x86_cpu_id intel_punit_cpu_ids[] = {
-	ICPU(55, punit_device_byt), /* Valleyview, Bay Trail */
-	ICPU(76, punit_device_cht), /* Braswell, Cherry Trail */
+	ICPU(INTEL_FAM6_ATOM_SILVERMONT1, punit_device_byt),
+	ICPU(INTEL_FAM6_ATOM_AIRMONT,	  punit_device_cht),
 	{}
 };
 
