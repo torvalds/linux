@@ -3281,13 +3281,6 @@ static int nfs4_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
 	return status;
 }
 
-static int nfs4_do_find_root_sec(struct nfs_server *server,
-		struct nfs_fh *fhandle, struct nfs_fsinfo *info)
-{
-	int mv = server->nfs_client->cl_minorversion;
-	return nfs_v4_minor_ops[mv]->find_root_sec(server, fhandle, info);
-}
-
 /**
  * nfs4_proc_get_rootfh - get file handle for server's pseudoroot
  * @server: initialized nfs_server handle
@@ -3307,7 +3300,8 @@ int nfs4_proc_get_rootfh(struct nfs_server *server, struct nfs_fh *fhandle,
 		status = nfs4_lookup_root(server, fhandle, info);
 
 	if (auth_probe || status == NFS4ERR_WRONGSEC)
-		status = nfs4_do_find_root_sec(server, fhandle, info);
+		status = server->nfs_client->cl_mvops->find_root_sec(server,
+				fhandle, info);
 
 	if (status == 0)
 		status = nfs4_server_capabilities(server, fhandle);
