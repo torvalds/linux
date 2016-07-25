@@ -1459,16 +1459,14 @@ int mei_cl_read_start(struct mei_cl *cl, size_t length, const struct file *fp)
 		return  -ENOTTY;
 	}
 
+	if (mei_cl_is_fixed_address(cl))
+		return 0;
+
 	/* always allocate at least client max message */
 	length = max_t(size_t, length, mei_cl_mtu(cl));
 	cb = mei_cl_alloc_cb(cl, length, MEI_FOP_READ, fp);
 	if (!cb)
 		return -ENOMEM;
-
-	if (mei_cl_is_fixed_address(cl)) {
-		list_add_tail(&cb->list, &cl->rd_pending);
-		return 0;
-	}
 
 	rets = pm_runtime_get(dev->dev);
 	if (rets < 0 && rets != -EINPROGRESS) {
