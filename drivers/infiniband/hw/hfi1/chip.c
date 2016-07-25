@@ -9191,17 +9191,24 @@ static void wait_for_qsfp_init(struct hfi1_pportdata *ppd)
 	unsigned long timeout;
 
 	/*
-	 * Check for QSFP interrupt for t_init (SFF 8679)
+	 * Some QSFP cables have a quirk that asserts the IntN line as a side
+	 * effect of power up on plug-in. We ignore this false positive
+	 * interrupt until the module has finished powering up by waiting for
+	 * a minimum timeout of the module inrush initialization time of
+	 * 500 ms (SFF 8679 Table 5-6) to ensure the voltage rails in the
+	 * module have stabilized.
+	 */
+	msleep(500);
+
+	/*
+	 * Check for QSFP interrupt for t_init (SFF 8679 Table 8-1)
 	 */
 	timeout = jiffies + msecs_to_jiffies(2000);
 	while (1) {
 		mask = read_csr(dd, dd->hfi1_id ?
 				ASIC_QSFP2_IN : ASIC_QSFP1_IN);
-		if (!(mask & QSFP_HFI0_INT_N)) {
-			write_csr(dd, dd->hfi1_id ? ASIC_QSFP2_CLEAR :
-				  ASIC_QSFP1_CLEAR, QSFP_HFI0_INT_N);
+		if (!(mask & QSFP_HFI0_INT_N))
 			break;
-		}
 		if (time_after(jiffies, timeout)) {
 			dd_dev_info(dd, "%s: No IntN detected, reset complete\n",
 				    __func__);
@@ -9217,10 +9224,17 @@ static void set_qsfp_int_n(struct hfi1_pportdata *ppd, u8 enable)
 	u64 mask;
 
 	mask = read_csr(dd, dd->hfi1_id ? ASIC_QSFP2_MASK : ASIC_QSFP1_MASK);
-	if (enable)
+	if (enable) {
+		/*
+		 * Clear the status register to avoid an immediate interrupt
+		 * when we re-enable the IntN pin
+		 */
+		write_csr(dd, dd->hfi1_id ? ASIC_QSFP2_CLEAR : ASIC_QSFP1_CLEAR,
+			  QSFP_HFI0_INT_N);
 		mask |= (u64)QSFP_HFI0_INT_N;
-	else
+	} else {
 		mask &= ~(u64)QSFP_HFI0_INT_N;
+	}
 	write_csr(dd, dd->hfi1_id ? ASIC_QSFP2_MASK : ASIC_QSFP1_MASK, mask);
 }
 
