@@ -1162,7 +1162,7 @@ static int init_one(struct pci_dev *, const struct pci_device_id *);
 #define DRIVER_LOAD_MSG "Intel " DRIVER_NAME " loaded: "
 #define PFX DRIVER_NAME ": "
 
-static const struct pci_device_id hfi1_pci_tbl[] = {
+const struct pci_device_id hfi1_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL0) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL1) },
 	{ 0, }
@@ -1198,7 +1198,9 @@ static int __init hfi1_mod_init(void)
 	if (ret)
 		goto bail;
 
-	node_affinity_init();
+	ret = node_affinity_init();
+	if (ret)
+		goto bail;
 
 	/* validate max MTU before any devices start */
 	if (!valid_opa_max_mtu(hfi1_max_mtu)) {
