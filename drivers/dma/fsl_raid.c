@@ -135,8 +135,8 @@ static void fsl_re_issue_pending(struct dma_chan *chan)
 static void fsl_re_desc_done(struct fsl_re_desc *desc)
 {
 	dma_cookie_complete(&desc->async_tx);
-	dmaengine_desc_get_callback_invoke(&desc->async_tx, NULL);
 	dma_descriptor_unmap(&desc->async_tx);
+	dmaengine_desc_get_callback_invoke(&desc->async_tx, NULL);
 }
 
 static void fsl_re_cleanup_descs(struct fsl_re_chan *re_chan)
