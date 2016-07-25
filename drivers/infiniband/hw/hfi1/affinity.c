@@ -47,6 +47,7 @@
 #include <linux/topology.h>
 #include <linux/cpumask.h>
 #include <linux/module.h>
+#include <linux/cpumask.h>
 
 #include "hfi.h"
 #include "affinity.h"
@@ -672,4 +673,71 @@ void hfi1_put_proc_affinity(int cpu)
 		cpumask_copy(&set->used, &set->mask);
 	}
 	spin_unlock(&affinity->lock);
+}
+
+/* Prevents concurrent reads and writes of the sdma_affinity attrib */
+static DEFINE_MUTEX(sdma_affinity_mutex);
+
+int hfi1_set_sdma_affinity(struct hfi1_devdata *dd, const char *buf,
+			   size_t count)
+{
+	struct hfi1_affinity_node *entry;
+	struct cpumask mask;
+	int ret, i;
+
+	spin_lock(&node_affinity.lock);
+	entry = node_affinity_lookup(dd->node);
+	spin_unlock(&node_affinity.lock);
+
+	if (!entry)
+		return -EINVAL;
+
+	ret = cpulist_parse(buf, &mask);
+	if (ret)
+		return ret;
+
+	if (!cpumask_subset(&mask, cpu_online_mask) || cpumask_empty(&mask)) {
+		dd_dev_warn(dd, "Invalid CPU mask\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&sdma_affinity_mutex);
+	/* reset the SDMA interrupt affinity details */
+	init_cpu_mask_set(&entry->def_intr);
+	cpumask_copy(&entry->def_intr.mask, &mask);
+	/*
+	 * Reassign the affinity for each SDMA interrupt.
+	 */
+	for (i = 0; i < dd->num_msix_entries; i++) {
+		struct hfi1_msix_entry *msix;
+
+		msix = &dd->msix_entries[i];
+		if (msix->type != IRQ_SDMA)
+			continue;
+
+		ret = hfi1_get_irq_affinity(dd, msix);
+
+		if (ret)
+			break;
+	}
+
+	mutex_unlock(&sdma_affinity_mutex);
+	return ret ? ret : strnlen(buf, PAGE_SIZE);
+}
+
+int hfi1_get_sdma_affinity(struct hfi1_devdata *dd, char *buf)
+{
+	struct hfi1_affinity_node *entry;
+
+	spin_lock(&node_affinity.lock);
+	entry = node_affinity_lookup(dd->node);
+	spin_unlock(&node_affinity.lock);
+
+	if (!entry)
+		return -EINVAL;
+
+	mutex_lock(&sdma_affinity_mutex);
+	cpumap_print_to_pagebuf(true, buf, &entry->def_intr.mask);
+	mutex_unlock(&sdma_affinity_mutex);
+	return strnlen(buf, PAGE_SIZE);
 }
