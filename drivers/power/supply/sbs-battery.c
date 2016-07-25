@@ -162,7 +162,6 @@ struct sbs_info {
 	bool				is_present;
 	bool				gpio_detect;
 	bool				enable_detection;
-	int				irq;
 	int				last_state;
 	int				poll_time;
 	struct delayed_work		work;
@@ -661,7 +660,8 @@ done:
 
 static irqreturn_t sbs_irq(int irq, void *devid)
 {
-	struct power_supply *battery = devid;
+	struct sbs_info *chip = devid;
+	struct power_supply *battery = chip->power_supply;
 
 	power_supply_changed(battery);
 
@@ -869,17 +869,15 @@ static int sbs_probe(struct i2c_client *client,
 		goto skip_gpio;
 	}
 
-	rc = request_irq(irq, sbs_irq,
+	rc = devm_request_threaded_irq(&client->dev, irq, NULL, sbs_irq,
 		IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
-		dev_name(&client->dev), chip->power_supply);
+		dev_name(&client->dev), chip);
 	if (rc) {
 		dev_warn(&client->dev, "Failed to request irq: %d\n", rc);
 		gpio_free(pdata->battery_detect);
 		chip->gpio_detect = false;
 		goto skip_gpio;
 	}
-
-	chip->irq = irq;
 
 skip_gpio:
 	/*
@@ -915,8 +913,6 @@ skip_gpio:
 	return 0;
 
 exit_psupply:
-	if (chip->irq)
-		free_irq(chip->irq, chip->power_supply);
 	if (chip->gpio_detect)
 		gpio_free(pdata->battery_detect);
 
@@ -927,8 +923,6 @@ static int sbs_remove(struct i2c_client *client)
 {
 	struct sbs_info *chip = i2c_get_clientdata(client);
 
-	if (chip->irq)
-		free_irq(chip->irq, chip->power_supply);
 	if (chip->gpio_detect)
 		gpio_free(chip->pdata->battery_detect);
 
