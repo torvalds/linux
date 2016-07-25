@@ -304,23 +304,6 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
 	__u.__val;					\
 })
 
-/**
- * smp_cond_acquire() - Spin wait for cond with ACQUIRE ordering
- * @cond: boolean expression to wait for
- *
- * Equivalent to using smp_load_acquire() on the condition variable but employs
- * the control dependency of the wait to reduce the barrier on many platforms.
- *
- * The control dependency provides a LOAD->STORE order, the additional RMB
- * provides LOAD->LOAD order, together they provide LOAD->{LOAD,STORE} order,
- * aka. ACQUIRE.
- */
-#define smp_cond_acquire(cond)	do {		\
-	while (!(cond))				\
-		cpu_relax();			\
-	smp_rmb(); /* ctrl + rmb := acquire */	\
-} while (0)
-
 #endif /* __KERNEL__ */
 
 #endif /* __ASSEMBLY__ */
@@ -545,10 +528,14 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
  * Similar to rcu_dereference(), but for situations where the pointed-to
  * object's lifetime is managed by something other than RCU.  That
  * "something other" might be reference counting or simple immortality.
+ *
+ * The seemingly unused void * variable is to validate @p is indeed a pointer
+ * type. All pointer types silently cast to void *.
  */
 #define lockless_dereference(p) \
 ({ \
 	typeof(p) _________p1 = READ_ONCE(p); \
+	__maybe_unused const void * const _________p2 = _________p1; \
 	smp_read_barrier_depends(); /* Dependency order vs. p above. */ \
 	(_________p1); \
 })

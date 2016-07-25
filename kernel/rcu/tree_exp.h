@@ -253,7 +253,6 @@ static bool exp_funnel_lock(struct rcu_state *rsp, unsigned long s)
 	if (ULONG_CMP_LT(READ_ONCE(rnp->exp_seq_rq), s) &&
 	    (rnp == rnp_root ||
 	     ULONG_CMP_LT(READ_ONCE(rnp_root->exp_seq_rq), s)) &&
-	    !mutex_is_locked(&rsp->exp_mutex) &&
 	    mutex_trylock(&rsp->exp_mutex))
 		goto fastpath;
 

@@ -7024,15 +7024,23 @@ Q:	http://patchwork.linuxtv.org/project/linux-media/list/
 S:	Maintained
 F:	drivers/media/usb/dvb-usb-v2/lmedm04*
 
-LOCKDEP AND LOCKSTAT
+LOCKING PRIMITIVES
 M:	Peter Zijlstra <peterz@infradead.org>
 M:	Ingo Molnar <mingo@redhat.com>
 L:	linux-kernel@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git core/locking
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git locking/core
 S:	Maintained
-F:	Documentation/locking/lockdep*.txt
-F:	Documentation/locking/lockstat.txt
+F:	Documentation/locking/
 F:	include/linux/lockdep.h
+F:	include/linux/spinlock*.h
+F:	arch/*/include/asm/spinlock*.h
+F:	include/linux/rwlock*.h
+F:	include/linux/mutex*.h
+F:	arch/*/include/asm/mutex*.h
+F:	include/linux/rwsem*.h
+F:	arch/*/include/asm/rwsem.h
+F:	include/linux/seqlock.h
+F:	lib/locking*.[ch]
 F:	kernel/locking/
 
 LOGICAL DISK MANAGER SUPPORT (LDM, Windows 2000/XP/Vista Dynamic Disks)

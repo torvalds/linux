@@ -172,15 +172,20 @@ STD_ENTRY_SECTION(__atomic\name, .text.atomic)
 	.endif
 	.endm
 
-atomic_op _cmpxchg, 32, "seq r26, r22, r2; { bbns r26, 3f; move r24, r3 }"
-atomic_op _xchg, 32, "move r24, r2"
-atomic_op _xchg_add, 32, "add r24, r22, r2"
-atomic_op _xchg_add_unless, 32, \
+
+/*
+ * Use __atomic32 prefix to avoid collisions with GCC builtin __atomic functions.
+ */
+
+atomic_op 32_cmpxchg, 32, "seq r26, r22, r2; { bbns r26, 3f; move r24, r3 }"
+atomic_op 32_xchg, 32, "move r24, r2"
+atomic_op 32_xchg_add, 32, "add r24, r22, r2"
+atomic_op 32_xchg_add_unless, 32, \
 	"sne r26, r22, r2; { bbns r26, 3f; add r24, r22, r3 }"
-atomic_op _or, 32, "or r24, r22, r2"
-atomic_op _and, 32, "and r24, r22, r2"
-atomic_op _andn, 32, "nor r2, r2, zero; and r24, r22, r2"
-atomic_op _xor, 32, "xor r24, r22, r2"
+atomic_op 32_fetch_or, 32, "or r24, r22, r2"
+atomic_op 32_fetch_and, 32, "and r24, r22, r2"
+atomic_op 32_fetch_andn, 32, "nor r2, r2, zero; and r24, r22, r2"
+atomic_op 32_fetch_xor, 32, "xor r24, r22, r2"
 
 atomic_op 64_cmpxchg, 64, "{ seq r26, r22, r2; seq r27, r23, r3 }; \
 	{ bbns r26, 3f; move r24, r4 }; { bbns r27, 3f; move r25, r5 }"
@@ -192,9 +197,9 @@ atomic_op 64_xchg_add_unless, 64, \
 	{ bbns r26, 3f; add r24, r22, r4 }; \
 	{ bbns r27, 3f; add r25, r23, r5 }; \
 	slt_u r26, r24, r22; add r25, r25, r26"
-atomic_op 64_or, 64, "{ or r24, r22, r2; or r25, r23, r3 }"
-atomic_op 64_and, 64, "{ and r24, r22, r2; and r25, r23, r3 }"
-atomic_op 64_xor, 64, "{ xor r24, r22, r2; xor r25, r23, r3 }"
+atomic_op 64_fetch_or, 64, "{ or r24, r22, r2; or r25, r23, r3 }"
+atomic_op 64_fetch_and, 64, "{ and r24, r22, r2; and r25, r23, r3 }"
+atomic_op 64_fetch_xor, 64, "{ xor r24, r22, r2; xor r25, r23, r3 }"
 
 	jrp     lr              /* happy backtracer */
 
