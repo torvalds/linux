@@ -1646,7 +1646,7 @@ struct mwifiex_ie_types_sta_info {
 };
 
 struct host_cmd_ds_sta_list {
-	u16 sta_count;
+	__le16 sta_count;
 	u8 tlv[0];
 } __packed;
 
@@ -2034,26 +2034,26 @@ struct host_cmd_ds_set_bss_mode {
 
 struct host_cmd_ds_pcie_details {
 	/* TX buffer descriptor ring address */
-	u32 txbd_addr_lo;
-	u32 txbd_addr_hi;
+	__le32 txbd_addr_lo;
+	__le32 txbd_addr_hi;
 	/* TX buffer descriptor ring count */
-	u32 txbd_count;
+	__le32 txbd_count;
 
 	/* RX buffer descriptor ring address */
-	u32 rxbd_addr_lo;
-	u32 rxbd_addr_hi;
+	__le32 rxbd_addr_lo;
+	__le32 rxbd_addr_hi;
 	/* RX buffer descriptor ring count */
-	u32 rxbd_count;
+	__le32 rxbd_count;
 
 	/* Event buffer descriptor ring address */
-	u32 evtbd_addr_lo;
-	u32 evtbd_addr_hi;
+	__le32 evtbd_addr_lo;
+	__le32 evtbd_addr_hi;
 	/* Event buffer descriptor ring count */
-	u32 evtbd_count;
+	__le32 evtbd_count;
 
 	/* Sleep cookie buffer physical address */
-	u32 sleep_cookie_addr_lo;
-	u32 sleep_cookie_addr_hi;
+	__le32 sleep_cookie_addr_lo;
+	__le32 sleep_cookie_addr_hi;
 } __packed;
 
 struct mwifiex_ie_types_rssi_threshold {
@@ -2093,8 +2093,8 @@ struct mwifiex_ie_types_mc_group_info {
 	u8 chan_buf_weight;
 	u8 band_config;
 	u8 chan_num;
-	u32 chan_time;
-	u32 reserved;
+	__le32 chan_time;
+	__le32 reserved;
 	union {
 		u8 sdio_func_num;
 		u8 usb_ep_num;
@@ -2185,7 +2185,7 @@ struct host_cmd_ds_robust_coex {
 } __packed;
 
 struct host_cmd_ds_wakeup_reason {
-	u16  wakeup_reason;
+	__le16  wakeup_reason;
 } __packed;
 
 struct host_cmd_ds_gtk_rekey_params {

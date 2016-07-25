@@ -962,7 +962,7 @@ static int mwifiex_ret_uap_sta_list(struct mwifiex_private *priv,
 	int i;
 	struct mwifiex_sta_node *sta_node;
 
-	for (i = 0; i < sta_list->sta_count; i++) {
+	for (i = 0; i < (le16_to_cpu(sta_list->sta_count)); i++) {
 		sta_node = mwifiex_get_sta_entry(priv, sta_info->mac);
 		if (unlikely(!sta_node))
 			continue;

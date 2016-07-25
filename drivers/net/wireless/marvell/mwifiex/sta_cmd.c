@@ -1244,20 +1244,23 @@ mwifiex_cmd_pcie_host_spec(struct mwifiex_private *priv,
 		return 0;
 
 	/* Send the ring base addresses and count to firmware */
-	host_spec->txbd_addr_lo = (u32)(card->txbd_ring_pbase);
-	host_spec->txbd_addr_hi = (u32)(((u64)card->txbd_ring_pbase)>>32);
-	host_spec->txbd_count = MWIFIEX_MAX_TXRX_BD;
-	host_spec->rxbd_addr_lo = (u32)(card->rxbd_ring_pbase);
-	host_spec->rxbd_addr_hi = (u32)(((u64)card->rxbd_ring_pbase)>>32);
-	host_spec->rxbd_count = MWIFIEX_MAX_TXRX_BD;
-	host_spec->evtbd_addr_lo = (u32)(card->evtbd_ring_pbase);
-	host_spec->evtbd_addr_hi = (u32)(((u64)card->evtbd_ring_pbase)>>32);
-	host_spec->evtbd_count = MWIFIEX_MAX_EVT_BD;
+	host_spec->txbd_addr_lo = cpu_to_le32((u32)(card->txbd_ring_pbase));
+	host_spec->txbd_addr_hi =
+			cpu_to_le32((u32)(((u64)card->txbd_ring_pbase) >> 32));
+	host_spec->txbd_count = cpu_to_le32(MWIFIEX_MAX_TXRX_BD);
+	host_spec->rxbd_addr_lo = cpu_to_le32((u32)(card->rxbd_ring_pbase));
+	host_spec->rxbd_addr_hi =
+			cpu_to_le32((u32)(((u64)card->rxbd_ring_pbase) >> 32));
+	host_spec->rxbd_count = cpu_to_le32(MWIFIEX_MAX_TXRX_BD);
+	host_spec->evtbd_addr_lo = cpu_to_le32((u32)(card->evtbd_ring_pbase));
+	host_spec->evtbd_addr_hi =
+			cpu_to_le32((u32)(((u64)card->evtbd_ring_pbase) >> 32));
+	host_spec->evtbd_count = cpu_to_le32(MWIFIEX_MAX_EVT_BD);
 	if (card->sleep_cookie_vbase) {
 		host_spec->sleep_cookie_addr_lo =
-						(u32)(card->sleep_cookie_pbase);
-		host_spec->sleep_cookie_addr_hi =
-				 (u32)(((u64)(card->sleep_cookie_pbase)) >> 32);
+				cpu_to_le32((u32)(card->sleep_cookie_pbase));
+		host_spec->sleep_cookie_addr_hi = cpu_to_le32((u32)(((u64)
+					(card->sleep_cookie_pbase)) >> 32));
 		mwifiex_dbg(priv->adapter, INFO,
 			    "sleep_cook_lo phy addr: 0x%x\n",
 			    host_spec->sleep_cookie_addr_lo);
