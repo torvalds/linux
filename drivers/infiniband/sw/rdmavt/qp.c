@@ -1579,6 +1579,7 @@ static int rvt_post_one_wr(struct rvt_qp *qp,
 	int ret;
 	size_t cplen;
 	bool reserved_op;
+	int local_ops_delayed = 0;
 
 	BUILD_BUG_ON(IB_QPT_MAX >= (sizeof(u32) * BITS_PER_BYTE));
 
@@ -1592,25 +1593,37 @@ static int rvt_post_one_wr(struct rvt_qp *qp,
 	cplen = ret;
 
 	/*
-	 * Local operations including fast register and local invalidate
-	 * can be processed immediately w/o being posted to the send queue
-	 * if neither fencing nor completion generation is needed. However,
-	 * once fencing or completion is requested, direct processing of
-	 * following local operations must be disabled until all the local
-	 * operations posted to the send queue have completed. This is
-	 * necessary to ensure the correct ordering.
+	 * Local operations include fast register and local invalidate.
+	 * Fast register needs to be processed immediately because the
+	 * registered lkey may be used by following work requests and the
+	 * lkey needs to be valid at the time those requests are posted.
+	 * Local invalidate can be processed immediately if fencing is
+	 * not required and no previous local invalidate ops are pending.
+	 * Signaled local operations that have been processed immediately
+	 * need to have requests with "completion only" flags set posted
+	 * to the send queue in order to generate completions.
 	 */
-	if ((rdi->post_parms[wr->opcode].flags & RVT_OPERATION_LOCAL) &&
-	    !(wr->send_flags & (IB_SEND_FENCE | IB_SEND_SIGNALED)) &&
-	    !atomic_read(&qp->local_ops_pending)) {
-		struct ib_reg_wr *reg = reg_wr(wr);
-
+	if ((rdi->post_parms[wr->opcode].flags & RVT_OPERATION_LOCAL)) {
 		switch (wr->opcode) {
 		case IB_WR_REG_MR:
-			return rvt_fast_reg_mr(qp, reg->mr, reg->key,
-					       reg->access);
+			ret = rvt_fast_reg_mr(qp,
+					      reg_wr(wr)->mr,
+					      reg_wr(wr)->key,
+					      reg_wr(wr)->access);
+			if (ret || !(wr->send_flags & IB_SEND_SIGNALED))
+				return ret;
+			break;
 		case IB_WR_LOCAL_INV:
-			return rvt_invalidate_rkey(qp, wr->ex.invalidate_rkey);
+			if ((wr->send_flags & IB_SEND_FENCE) ||
+			    atomic_read(&qp->local_ops_pending)) {
+				local_ops_delayed = 1;
+			} else {
+				ret = rvt_invalidate_rkey(
+					qp, wr->ex.invalidate_rkey);
+				if (ret || !(wr->send_flags & IB_SEND_SIGNALED))
+					return ret;
+			}
+			break;
 		default:
 			return -EINVAL;
 		}
@@ -1675,7 +1688,10 @@ static int rvt_post_one_wr(struct rvt_qp *qp,
 	}
 
 	if (rdi->post_parms[wr->opcode].flags & RVT_OPERATION_LOCAL) {
-		atomic_inc(&qp->local_ops_pending);
+		if (local_ops_delayed)
+			atomic_inc(&qp->local_ops_pending);
+		else
+			wqe->wr.send_flags |= RVT_SEND_COMPLETION_ONLY;
 		wqe->ssn = 0;
 		wqe->psn = 0;
 		wqe->lpsn = 0;

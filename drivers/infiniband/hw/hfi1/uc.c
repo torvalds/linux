@@ -77,7 +77,6 @@ int hfi1_make_uc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 	u32 len;
 	u32 pmtu = qp->pmtu;
 	int middle = 0;
-	int err;
 
 	ps->s_txreq = get_txreq(ps->dev, qp);
 	if (IS_ERR(ps->s_txreq))
@@ -125,20 +124,22 @@ int hfi1_make_uc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 		 */
 		if (wqe->wr.opcode == IB_WR_REG_MR ||
 		    wqe->wr.opcode == IB_WR_LOCAL_INV) {
+			int local_ops = 0;
+			int err = 0;
+
 			if (qp->s_last != qp->s_cur)
 				goto bail;
 			if (++qp->s_cur == qp->s_size)
 				qp->s_cur = 0;
-			if (wqe->wr.opcode == IB_WR_REG_MR)
-				err = rvt_fast_reg_mr(qp, wqe->reg_wr.mr,
-						      wqe->reg_wr.key,
-						      wqe->reg_wr.access);
-			else
+			if (!(wqe->wr.send_flags & RVT_SEND_COMPLETION_ONLY)) {
 				err = rvt_invalidate_rkey(
 					qp, wqe->wr.ex.invalidate_rkey);
+				local_ops = 1;
+			}
 			hfi1_send_complete(qp, wqe, err ? IB_WC_LOC_PROT_ERR
 							: IB_WC_SUCCESS);
-			atomic_dec(&qp->local_ops_pending);
+			if (local_ops)
+				atomic_dec(&qp->local_ops_pending);
 			qp->s_hdrwords = 0;
 			goto done_free_tx;
 		}

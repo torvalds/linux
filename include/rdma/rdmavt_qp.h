@@ -148,6 +148,7 @@
  * Internal send flags
  */
 #define RVT_SEND_RESERVE_USED           IB_SEND_RESERVED_START
+#define RVT_SEND_COMPLETION_ONLY	(IB_SEND_RESERVED_START << 1)
 
 /*
  * Send work request queue entry.

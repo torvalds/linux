@@ -442,16 +442,15 @@ again:
 	sqp->s_len = wqe->length;
 	switch (wqe->wr.opcode) {
 	case IB_WR_REG_MR:
-		if (rvt_fast_reg_mr(sqp, wqe->reg_wr.mr, wqe->reg_wr.key,
-				    wqe->reg_wr.access))
-			send_status = IB_WC_LOC_PROT_ERR;
-		local_ops = 1;
 		goto send_comp;
 
 	case IB_WR_LOCAL_INV:
-		if (rvt_invalidate_rkey(sqp, wqe->wr.ex.invalidate_rkey))
-			send_status = IB_WC_LOC_PROT_ERR;
-		local_ops = 1;
+		if (!(wqe->wr.send_flags & RVT_SEND_COMPLETION_ONLY)) {
+			if (rvt_invalidate_rkey(sqp,
+						wqe->wr.ex.invalidate_rkey))
+				send_status = IB_WC_LOC_PROT_ERR;
+			local_ops = 1;
+		}
 		goto send_comp;
 
 	case IB_WR_SEND_WITH_INV:
