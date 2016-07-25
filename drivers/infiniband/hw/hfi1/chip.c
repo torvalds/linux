@@ -8826,30 +8826,6 @@ static int write_tx_settings(struct hfi1_devdata *dd,
 	return load_8051_config(dd, TX_SETTINGS, GENERAL_CONFIG, frame);
 }
 
-static void check_fabric_firmware_versions(struct hfi1_devdata *dd)
-{
-	u32 frame, version, prod_id;
-	int ret, lane;
-
-	/* 4 lanes */
-	for (lane = 0; lane < 4; lane++) {
-		ret = read_8051_config(dd, SPICO_FW_VERSION, lane, &frame);
-		if (ret) {
-			dd_dev_err(dd,
-				   "Unable to read lane %d firmware details\n",
-				   lane);
-			continue;
-		}
-		version = (frame >> SPICO_ROM_VERSION_SHIFT)
-					& SPICO_ROM_VERSION_MASK;
-		prod_id = (frame >> SPICO_ROM_PROD_ID_SHIFT)
-					& SPICO_ROM_PROD_ID_MASK;
-		dd_dev_info(dd,
-			    "Lane %d firmware: version 0x%04x, prod_id 0x%04x\n",
-			    lane, version, prod_id);
-	}
-}
-
 /*
  * Read an idle LCB message.
  *
@@ -14621,7 +14597,6 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 	ret = load_firmware(dd); /* asymmetric with dispose_firmware() */
 	if (ret)
 		goto bail_clear_intr;
-	check_fabric_firmware_versions(dd);
 
 	thermal_init(dd);
 
