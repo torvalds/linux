@@ -235,6 +235,16 @@ extern int extcon_set_property(struct extcon_dev *edev, unsigned int id,
 				union extcon_property_value prop_val);
 
 /*
+ * get/set_property_capability set the capability of the property for each
+ * external connector. They are used to set the capability of the property
+ * of each external connector based on the id and property.
+ */
+extern int extcon_get_property_capability(struct extcon_dev *edev,
+				unsigned int id, unsigned int prop);
+extern int extcon_set_property_capability(struct extcon_dev *edev,
+				unsigned int id, unsigned int prop);
+
+/*
  * Following APIs are to monitor every action of a notifier.
  * Registrar gets notified for every external port of a connection device.
  * Probably this could be used to debug an action of notifier; however,
@@ -316,6 +326,18 @@ static inline int extcon_get_property(struct extcon_dev *edev, unsigned int id,
 static inline int extcon_set_property(struct extcon_dev *edev, unsigned int id,
 					unsigned int prop,
 					union extcon_property_value prop_val)
+{
+	return 0;
+}
+
+static inline int extcon_get_property_capability(struct extcon_dev *edev,
+					unsigned int id, unsigned int prop)
+{
+	return 0;
+}
+
+static inline int extcon_set_property_capability(struct extcon_dev *edev,
+					unsigned int id, unsigned int prop)
 {
 	return 0;
 }
