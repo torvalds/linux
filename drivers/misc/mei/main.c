@@ -139,9 +139,8 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 	struct mei_cl *cl = file->private_data;
 	struct mei_device *dev;
 	struct mei_cl_cb *cb = NULL;
+	bool nonblock = !!(file->f_flags & O_NONBLOCK);
 	int rets;
-	int err;
-
 
 	if (WARN_ON(!cl || !cl->dev))
 		return -ENODEV;
@@ -177,25 +176,29 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 	if (*offset > 0)
 		*offset = 0;
 
-	err = mei_cl_read_start(cl, length, file);
-	if (err && err != -EBUSY) {
-		cl_dbg(dev, cl, "mei start read failure status = %d\n", err);
-		rets = err;
+	rets = mei_cl_read_start(cl, length, file);
+	if (rets && rets != -EBUSY) {
+		cl_dbg(dev, cl, "mei start read failure status = %d\n", rets);
 		goto out;
 	}
 
-	/* synchronized under device mutex */
-	if (!waitqueue_active(&cl->rx_wait)) {
-		if (file->f_flags & O_NONBLOCK) {
-			rets = -EAGAIN;
-			goto out;
-		}
+	if (nonblock) {
+		rets = -EAGAIN;
+		goto out;
+	}
 
+	if (rets == -EBUSY &&
+	    !mei_cl_enqueue_ctrl_wr_cb(cl, length, MEI_FOP_READ, file)) {
+		rets = -ENOMEM;
+		goto out;
+	}
+
+	do {
 		mutex_unlock(&dev->device_lock);
 
 		if (wait_event_interruptible(cl->rx_wait,
-				(!list_empty(&cl->rd_completed)) ||
-				(!mei_cl_is_connected(cl)))) {
+					     (!list_empty(&cl->rd_completed)) ||
+					     (!mei_cl_is_connected(cl)))) {
 
 			if (signal_pending(current))
 				return -EINTR;
@@ -207,13 +210,9 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 			rets = -ENODEV;
 			goto out;
 		}
-	}
 
-	cb = mei_cl_read_cb(cl, file);
-	if (!cb) {
-		rets = 0;
-		goto out;
-	}
+		cb = mei_cl_read_cb(cl, file);
+	} while (!cb);
 
 copy_buffer:
 	/* now copy the data to user space */

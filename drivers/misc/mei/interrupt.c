@@ -209,6 +209,9 @@ static int mei_cl_irq_read(struct mei_cl *cl, struct mei_cl_cb *cb,
 	int slots;
 	int ret;
 
+	if (!list_empty(&cl->rd_pending))
+		return 0;
+
 	msg_slots = mei_data2slots(sizeof(struct hbm_flow_control));
 	slots = mei_hbuf_empty_slots(dev);
 
