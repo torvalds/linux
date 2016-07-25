@@ -379,97 +379,6 @@ static char *emac_rxhost_errcodes[16] = {
 #define emac_ctrl_write(reg, val) iowrite32(val, (priv->ctrl_base + (reg)))
 
 /**
- * emac_dump_regs - Dump important EMAC registers to debug terminal
- * @priv: The DaVinci EMAC private adapter structure
- *
- * Executes ethtool set cmd & sets phy mode
- *
- */
-static void emac_dump_regs(struct emac_priv *priv)
-{
-	struct device *emac_dev = &priv->ndev->dev;
-
-	/* Print important registers in EMAC */
-	dev_info(emac_dev, "EMAC Basic registers\n");
-	if (priv->version == EMAC_VERSION_1) {
-		dev_info(emac_dev, "EMAC: EWCTL: %08X, EWINTTCNT: %08X\n",
-			emac_ctrl_read(EMAC_CTRL_EWCTL),
-			emac_ctrl_read(EMAC_CTRL_EWINTTCNT));
-	}
-	dev_info(emac_dev, "EMAC: EmuControl:%08X, FifoControl: %08X\n",
-		emac_read(EMAC_EMCONTROL), emac_read(EMAC_FIFOCONTROL));
-	dev_info(emac_dev, "EMAC: MBPEnable:%08X, RXUnicastSet: %08X, "\
-		"RXMaxLen=%08X\n", emac_read(EMAC_RXMBPENABLE),
-		emac_read(EMAC_RXUNICASTSET), emac_read(EMAC_RXMAXLEN));
-	dev_info(emac_dev, "EMAC: MacControl:%08X, MacStatus: %08X, "\
-		"MacConfig=%08X\n", emac_read(EMAC_MACCONTROL),
-		emac_read(EMAC_MACSTATUS), emac_read(EMAC_MACCONFIG));
-	dev_info(emac_dev, "EMAC Statistics\n");
-	dev_info(emac_dev, "EMAC: rx_good_frames:%d\n",
-		emac_read(EMAC_RXGOODFRAMES));
-	dev_info(emac_dev, "EMAC: rx_broadcast_frames:%d\n",
-		emac_read(EMAC_RXBCASTFRAMES));
-	dev_info(emac_dev, "EMAC: rx_multicast_frames:%d\n",
-		emac_read(EMAC_RXMCASTFRAMES));
-	dev_info(emac_dev, "EMAC: rx_pause_frames:%d\n",
-		emac_read(EMAC_RXPAUSEFRAMES));
-	dev_info(emac_dev, "EMAC: rx_crcerrors:%d\n",
-		emac_read(EMAC_RXCRCERRORS));
-	dev_info(emac_dev, "EMAC: rx_align_code_errors:%d\n",
-		emac_read(EMAC_RXALIGNCODEERRORS));
-	dev_info(emac_dev, "EMAC: rx_oversized_frames:%d\n",
-		emac_read(EMAC_RXOVERSIZED));
-	dev_info(emac_dev, "EMAC: rx_jabber_frames:%d\n",
-		emac_read(EMAC_RXJABBER));
-	dev_info(emac_dev, "EMAC: rx_undersized_frames:%d\n",
-		emac_read(EMAC_RXUNDERSIZED));
-	dev_info(emac_dev, "EMAC: rx_fragments:%d\n",
-		emac_read(EMAC_RXFRAGMENTS));
-	dev_info(emac_dev, "EMAC: rx_filtered_frames:%d\n",
-		emac_read(EMAC_RXFILTERED));
-	dev_info(emac_dev, "EMAC: rx_qos_filtered_frames:%d\n",
-		emac_read(EMAC_RXQOSFILTERED));
-	dev_info(emac_dev, "EMAC: rx_octets:%d\n",
-		emac_read(EMAC_RXOCTETS));
-	dev_info(emac_dev, "EMAC: tx_goodframes:%d\n",
-		emac_read(EMAC_TXGOODFRAMES));
-	dev_info(emac_dev, "EMAC: tx_bcastframes:%d\n",
-		emac_read(EMAC_TXBCASTFRAMES));
-	dev_info(emac_dev, "EMAC: tx_mcastframes:%d\n",
-		emac_read(EMAC_TXMCASTFRAMES));
-	dev_info(emac_dev, "EMAC: tx_pause_frames:%d\n",
-		emac_read(EMAC_TXPAUSEFRAMES));
-	dev_info(emac_dev, "EMAC: tx_deferred_frames:%d\n",
-		emac_read(EMAC_TXDEFERRED));
-	dev_info(emac_dev, "EMAC: tx_collision_frames:%d\n",
-		emac_read(EMAC_TXCOLLISION));
-	dev_info(emac_dev, "EMAC: tx_single_coll_frames:%d\n",
-		emac_read(EMAC_TXSINGLECOLL));
-	dev_info(emac_dev, "EMAC: tx_mult_coll_frames:%d\n",
-		emac_read(EMAC_TXMULTICOLL));
-	dev_info(emac_dev, "EMAC: tx_excessive_collisions:%d\n",
-		emac_read(EMAC_TXEXCESSIVECOLL));
-	dev_info(emac_dev, "EMAC: tx_late_collisions:%d\n",
-		emac_read(EMAC_TXLATECOLL));
-	dev_info(emac_dev, "EMAC: tx_underrun:%d\n",
-		emac_read(EMAC_TXUNDERRUN));
-	dev_info(emac_dev, "EMAC: tx_carrier_sense_errors:%d\n",
-		emac_read(EMAC_TXCARRIERSENSE));
-	dev_info(emac_dev, "EMAC: tx_octets:%d\n",
-		emac_read(EMAC_TXOCTETS));
-	dev_info(emac_dev, "EMAC: net_octets:%d\n",
-		emac_read(EMAC_NETOCTETS));
-	dev_info(emac_dev, "EMAC: rx_sof_overruns:%d\n",
-		emac_read(EMAC_RXSOFOVERRUNS));
-	dev_info(emac_dev, "EMAC: rx_mof_overruns:%d\n",
-		emac_read(EMAC_RXMOFOVERRUNS));
-	dev_info(emac_dev, "EMAC: rx_dma_overruns:%d\n",
-		emac_read(EMAC_RXDMAOVERRUNS));
-
-	cpdma_ctlr_dump(priv->dma);
-}
-
-/**
  * emac_get_drvinfo - Get EMAC driver information
  * @ndev: The DaVinci EMAC network adapter
  * @info: ethtool info structure containing name and version
@@ -1096,8 +1005,6 @@ static void emac_dev_tx_timeout(struct net_device *ndev)
 	if (netif_msg_tx_err(priv))
 		dev_err(emac_dev, "DaVinci EMAC: xmit timeout, restarting TX");
 
-	emac_dump_regs(priv);
-
 	ndev->stats.tx_errors++;
 	emac_int_disable(priv);
 	cpdma_chan_stop(priv->txchan);
@@ -1616,9 +1523,6 @@ static int emac_dev_open(struct net_device *ndev)
 		priv->duplex = DUPLEX_FULL;
 		emac_update_phystatus(priv);
 	}
-
-	if (!netif_running(ndev)) /* debug only - to avoid compiler warning */
-		emac_dump_regs(priv);
 
 	if (netif_msg_drv(priv))
 		dev_notice(emac_dev, "DaVinci EMAC: Opened %s\n", ndev->name);
