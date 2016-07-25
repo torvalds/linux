@@ -1009,7 +1009,7 @@ static const struct amdgpu_ring_funcs uvd_v6_0_ring_vm_funcs = {
 
 static void uvd_v6_0_set_ring_funcs(struct amdgpu_device *adev)
 {
-	if (adev->asic_type >= CHIP_STONEY) {
+	if (adev->asic_type >= CHIP_POLARIS10) {
 		adev->uvd.ring.funcs = &uvd_v6_0_ring_vm_funcs;
 		DRM_INFO("UVD is enabled in VM mode\n");
 	} else {
