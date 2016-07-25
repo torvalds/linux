@@ -30,8 +30,7 @@ struct tcf_skbedit {
 	u16		queue_mapping;
 	u16		ptype;
 };
-#define to_skbedit(a) \
-	container_of(a->priv, struct tcf_skbedit, common)
+#define to_skbedit(a) ((struct tcf_skbedit *)a)
 
 /* Return true iff action is mark */
 static inline bool is_tcf_skbedit_mark(const struct tc_action *a)

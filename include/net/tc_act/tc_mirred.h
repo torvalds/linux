@@ -12,8 +12,7 @@ struct tcf_mirred {
 	struct net_device __rcu	*tcfm_dev;
 	struct list_head	tcfm_list;
 };
-#define to_mirred(a) \
-	container_of(a->priv, struct tcf_mirred, common)
+#define to_mirred(a) ((struct tcf_mirred *)a)
 
 static inline bool is_tcf_mirred_redirect(const struct tc_action *a)
 {

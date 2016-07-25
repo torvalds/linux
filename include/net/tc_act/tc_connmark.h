@@ -9,7 +9,6 @@ struct tcf_connmark_info {
 	u16 zone;
 };
 
-#define to_connmark(a) \
-	container_of(a->priv, struct tcf_connmark_info, common)
+#define to_connmark(a) ((struct tcf_connmark_info *)a)
 
 #endif /* __NET_TC_CONNMARK_H */

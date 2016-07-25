@@ -16,8 +16,7 @@ struct tcf_ife_info {
 	/* list of metaids allowed */
 	struct list_head metalist;
 };
-#define to_ife(a) \
-	container_of(a->priv, struct tcf_ife_info, common)
+#define to_ife(a) ((struct tcf_ife_info *)a)
 
 struct tcf_meta_info {
 	const struct tcf_meta_ops *ops;

@@ -26,6 +26,7 @@
 #define GACT_TAB_MASK	15
 
 static int gact_net_id;
+static struct tc_action_ops act_gact_ops;
 
 #ifdef CONFIG_GACT_PROB
 static int gact_net_rand(struct tcf_gact *gact)
@@ -56,7 +57,7 @@ static const struct nla_policy gact_policy[TCA_GACT_MAX + 1] = {
 };
 
 static int tcf_gact_init(struct net *net, struct nlattr *nla,
-			 struct nlattr *est, struct tc_action *a,
+			 struct nlattr *est, struct tc_action **a,
 			 int ovr, int bind)
 {
 	struct tc_action_net *tn = net_generic(net, gact_net_id);
@@ -93,19 +94,19 @@ static int tcf_gact_init(struct net *net, struct nlattr *nla,
 
 	if (!tcf_hash_check(tn, parm->index, a, bind)) {
 		ret = tcf_hash_create(tn, parm->index, est, a,
-				      sizeof(*gact), bind, true);
+				      &act_gact_ops, bind, true);
 		if (ret)
 			return ret;
 		ret = ACT_P_CREATED;
 	} else {
 		if (bind)/* dont override defaults */
 			return 0;
-		tcf_hash_release(a, bind);
+		tcf_hash_release(*a, bind);
 		if (!ovr)
 			return -EEXIST;
 	}
 
-	gact = to_gact(a);
+	gact = to_gact(*a);
 
 	ASSERT_RTNL();
 	gact->tcf_action = parm->action;
@@ -121,14 +122,14 @@ static int tcf_gact_init(struct net *net, struct nlattr *nla,
 	}
 #endif
 	if (ret == ACT_P_CREATED)
-		tcf_hash_insert(tn, a);
+		tcf_hash_insert(tn, *a);
 	return ret;
 }
 
 static int tcf_gact(struct sk_buff *skb, const struct tc_action *a,
 		    struct tcf_result *res)
 {
-	struct tcf_gact *gact = a->priv;
+	struct tcf_gact *gact = to_gact(a);
 	int action = READ_ONCE(gact->tcf_action);
 
 #ifdef CONFIG_GACT_PROB
@@ -151,7 +152,7 @@ static int tcf_gact(struct sk_buff *skb, const struct tc_action *a,
 static void tcf_gact_stats_update(struct tc_action *a, u64 bytes, u32 packets,
 				  u64 lastuse)
 {
-	struct tcf_gact *gact = a->priv;
+	struct tcf_gact *gact = to_gact(a);
 	int action = READ_ONCE(gact->tcf_action);
 	struct tcf_t *tm = &gact->tcf_tm;
 
@@ -166,7 +167,7 @@ static int tcf_gact_dump(struct sk_buff *skb, struct tc_action *a,
 			 int bind, int ref)
 {
 	unsigned char *b = skb_tail_pointer(skb);
-	struct tcf_gact *gact = a->priv;
+	struct tcf_gact *gact = to_gact(a);
 	struct tc_gact opt = {
 		.index   = gact->tcf_index,
 		.refcnt  = gact->tcf_refcnt - ref,
@@ -201,14 +202,14 @@ nla_put_failure:
 
 static int tcf_gact_walker(struct net *net, struct sk_buff *skb,
 			   struct netlink_callback *cb, int type,
-			   struct tc_action *a)
+			   const struct tc_action_ops *ops)
 {
 	struct tc_action_net *tn = net_generic(net, gact_net_id);
 
-	return tcf_generic_walker(tn, skb, cb, type, a);
+	return tcf_generic_walker(tn, skb, cb, type, ops);
 }
 
-static int tcf_gact_search(struct net *net, struct tc_action *a, u32 index)
+static int tcf_gact_search(struct net *net, struct tc_action **a, u32 index)
 {
 	struct tc_action_net *tn = net_generic(net, gact_net_id);
 
@@ -225,6 +226,7 @@ static struct tc_action_ops act_gact_ops = {
 	.init		=	tcf_gact_init,
 	.walk		=	tcf_gact_walker,
 	.lookup		=	tcf_gact_search,
+	.size		=	sizeof(struct tcf_gact),
 };
 
 static __net_init int gact_init_net(struct net *net)

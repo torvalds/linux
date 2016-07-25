@@ -9,7 +9,6 @@ struct tcf_csum {
 
 	u32 update_flags;
 };
-#define to_tcf_csum(a) \
-	container_of(a->priv,struct tcf_csum,common)
+#define to_tcf_csum(a) ((struct tcf_csum *)a)
 
 #endif /* __NET_TC_CSUM_H */
