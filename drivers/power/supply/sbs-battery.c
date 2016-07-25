@@ -819,7 +819,7 @@ static int sbs_probe(struct i2c_client *client,
 	if (!sbs_desc->name)
 		return -ENOMEM;
 
-	chip = kzalloc(sizeof(struct sbs_info), GFP_KERNEL);
+	chip = devm_kzalloc(&client->dev, sizeof(struct sbs_info), GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
 
@@ -920,8 +920,6 @@ exit_psupply:
 	if (chip->gpio_detect)
 		gpio_free(pdata->battery_detect);
 
-	kfree(chip);
-
 	return rc;
 }
 
@@ -937,9 +935,6 @@ static int sbs_remove(struct i2c_client *client)
 	power_supply_unregister(chip->power_supply);
 
 	cancel_delayed_work_sync(&chip->work);
-
-	kfree(chip);
-	chip = NULL;
 
 	return 0;
 }
