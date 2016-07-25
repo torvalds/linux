@@ -618,9 +618,7 @@ int udpv6_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	    udp_lib_checksum_complete(skb))
 		goto csum_error;
 
-	if (sk_filter(sk, skb))
-		goto drop;
-	if (unlikely(skb->len < sizeof(struct udphdr)))
+	if (sk_filter_trim_cap(sk, skb, sizeof(struct udphdr)))
 		goto drop;
 
 	udp_csum_pull_header(skb);
