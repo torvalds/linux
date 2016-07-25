@@ -331,7 +331,7 @@ ntc_thermistor_parse_dt(struct platform_device *pdev)
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
-	chan = iio_channel_get(&pdev->dev, NULL);
+	chan = devm_iio_channel_get(&pdev->dev, NULL);
 	if (IS_ERR(chan))
 		return ERR_CAST(chan);
 
@@ -359,11 +359,6 @@ ntc_thermistor_parse_dt(struct platform_device *pdev)
 
 	return pdata;
 }
-static void ntc_iio_channel_release(struct ntc_thermistor_platform_data *pdata)
-{
-	if (pdata->chan)
-		iio_channel_release(pdata->chan);
-}
 #else
 static struct ntc_thermistor_platform_data *
 ntc_thermistor_parse_dt(struct platform_device *pdev)
@@ -373,8 +368,6 @@ ntc_thermistor_parse_dt(struct platform_device *pdev)
 
 #define ntc_match	NULL
 
-static void ntc_iio_channel_release(struct ntc_thermistor_platform_data *pdata)
-{ }
 #endif
 
 static inline u64 div64_u64_safe(u64 dividend, u64 divisor)
@@ -685,18 +678,15 @@ static int ntc_thermistor_probe(struct platform_device *pdev)
 	return 0;
 err_after_sysfs:
 	sysfs_remove_group(&data->dev->kobj, &ntc_attr_group);
-	ntc_iio_channel_release(pdata);
 	return ret;
 }
 
 static int ntc_thermistor_remove(struct platform_device *pdev)
 {
 	struct ntc_data *data = platform_get_drvdata(pdev);
-	struct ntc_thermistor_platform_data *pdata = data->pdata;
 
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&data->dev->kobj, &ntc_attr_group);
-	ntc_iio_channel_release(pdata);
 
 	return 0;
 }
