@@ -1956,7 +1956,7 @@ int init_pervl_scs(struct hfi1_devdata *dd)
 	hfi1_init_ctxt(dd->vld[15].sc);
 	dd->vld[15].mtu = enum_to_mtu(OPA_MTU_2048);
 
-	dd->kernel_send_context = kmalloc_node(dd->num_send_contexts *
+	dd->kernel_send_context = kzalloc_node(dd->num_send_contexts *
 					sizeof(struct send_context *),
 					GFP_KERNEL, dd->node);
 	dd->kernel_send_context[0] = dd->vld[15].sc;
