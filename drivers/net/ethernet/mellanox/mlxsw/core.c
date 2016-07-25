@@ -111,6 +111,7 @@ struct mlxsw_core {
 	struct {
 		u8 *mapping; /* lag_id+port_index to local_port mapping */
 	} lag;
+	struct mlxsw_resources resources;
 	struct mlxsw_hwmon *hwmon;
 	unsigned long driver_priv[0];
 	/* driver_priv has to be always the last item */
@@ -1110,7 +1111,8 @@ int mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 		}
 	}
 
-	err = mlxsw_bus->init(bus_priv, mlxsw_core, mlxsw_driver->profile);
+	err = mlxsw_bus->init(bus_priv, mlxsw_core, mlxsw_driver->profile,
+			      &mlxsw_core->resources);
 	if (err)
 		goto err_bus_init;
 
@@ -1651,6 +1653,12 @@ void mlxsw_core_lag_mapping_clear(struct mlxsw_core *mlxsw_core,
 	}
 }
 EXPORT_SYMBOL(mlxsw_core_lag_mapping_clear);
+
+struct mlxsw_resources *mlxsw_core_resources_get(struct mlxsw_core *mlxsw_core)
+{
+	return &mlxsw_core->resources;
+}
+EXPORT_SYMBOL(mlxsw_core_resources_get);
 
 int mlxsw_core_port_init(struct mlxsw_core *mlxsw_core,
 			 struct mlxsw_core_port *mlxsw_core_port, u8 local_port,

@@ -214,6 +214,43 @@ struct mlxsw_sp_vr {
 	struct mlxsw_sp_fib *fib;
 };
 
+enum mlxsw_sp_span_type {
+	MLXSW_SP_SPAN_EGRESS,
+	MLXSW_SP_SPAN_INGRESS
+};
+
+struct mlxsw_sp_span_inspected_port {
+	struct list_head list;
+	enum mlxsw_sp_span_type type;
+	u8 local_port;
+};
+
+struct mlxsw_sp_span_entry {
+	u8 local_port;
+	bool used;
+	struct list_head bound_ports_list;
+	int ref_count;
+	int id;
+};
+
+enum mlxsw_sp_port_mall_action_type {
+	MLXSW_SP_PORT_MALL_MIRROR,
+};
+
+struct mlxsw_sp_port_mall_mirror_tc_entry {
+	u8 to_local_port;
+	bool ingress;
+};
+
+struct mlxsw_sp_port_mall_tc_entry {
+	struct list_head list;
+	unsigned long cookie;
+	enum mlxsw_sp_port_mall_action_type type;
+	union {
+		struct mlxsw_sp_port_mall_mirror_tc_entry mirror;
+	};
+};
+
 struct mlxsw_sp_router {
 	struct mlxsw_sp_lpm_tree lpm_trees[MLXSW_SP_LPM_TREE_COUNT];
 	struct mlxsw_sp_vr vrs[MLXSW_SP_VIRTUAL_ROUTER_MAX];
@@ -260,6 +297,11 @@ struct mlxsw_sp {
 	struct {
 		DECLARE_BITMAP(usage, MLXSW_SP_KVD_LINEAR_SIZE);
 	} kvdl;
+
+	struct {
+		struct mlxsw_sp_span_entry *entries;
+		int entries_count;
+	} span;
 };
 
 static inline struct mlxsw_sp_upper *
@@ -316,6 +358,8 @@ struct mlxsw_sp_port {
 	unsigned long *untagged_vlans;
 	/* VLAN interfaces */
 	struct list_head vports_list;
+	/* TC handles */
+	struct list_head mall_tc_list;
 };
 
 struct mlxsw_sp_port *mlxsw_sp_port_lower_dev_hold(struct net_device *dev);
