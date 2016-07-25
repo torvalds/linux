@@ -202,7 +202,6 @@ static int mwifiex_pcie_probe(struct pci_dev *pdev,
 	if (mwifiex_add_card(card, &add_remove_card_sem, &pcie_ops,
 			     MWIFIEX_PCIE)) {
 		pr_err("%s failed\n", __func__);
-		kfree(card);
 		return -1;
 	}
 
@@ -1617,6 +1616,7 @@ static int mwifiex_pcie_process_cmd_complete(struct mwifiex_adapter *adapter)
 
 	pkt_len = *((__le16 *)skb->data);
 	rx_len = le16_to_cpu(pkt_len);
+	skb_put(skb, MWIFIEX_UPLD_SIZE - skb->len);
 	skb_trim(skb, rx_len);
 	skb_pull(skb, INTF_HEADER_LEN);
 
@@ -2301,6 +2301,12 @@ static int mwifiex_process_pcie_int(struct mwifiex_adapter *adapter)
 			}
 
 		}
+		if (!card->msi_enable) {
+			spin_lock_irqsave(&adapter->int_lock, flags);
+			pcie_ireg |= adapter->int_status;
+			adapter->int_status = 0;
+			spin_unlock_irqrestore(&adapter->int_lock, flags);
+		}
 	}
 	mwifiex_dbg(adapter, INTR,
 		    "info: cmd_sent=%d data_sent=%d\n",
@@ -2843,7 +2849,6 @@ static int mwifiex_pcie_request_irq(struct mwifiex_adapter *adapter)
 			  "MRVL_PCIE", &card->share_irq_ctx);
 	if (ret) {
 		pr_err("request_irq failed: ret=%d\n", ret);
-		adapter->card = NULL;
 		return -1;
 	}
 

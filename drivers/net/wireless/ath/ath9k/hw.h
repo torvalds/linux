@@ -830,6 +830,7 @@ struct ath_hw {
 	/* Calibration */
 	u32 supp_cals;
 	struct ath9k_cal_list iq_caldata;
+	struct ath9k_cal_list temp_caldata;
 	struct ath9k_cal_list adcgain_caldata;
 	struct ath9k_cal_list adcdc_caldata;
 	struct ath9k_cal_list *cal_list;

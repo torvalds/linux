@@ -454,7 +454,7 @@ static void ath9k_hw_init_defaults(struct ath_hw *ah)
 	if (AR_SREV_9100(ah))
 		ah->sta_id1_defaults |= AR_STA_ID1_AR9100_BA_FIX;
 
-	ah->slottime = ATH9K_SLOT_TIME_9;
+	ah->slottime = 9;
 	ah->globaltxtimeout = (u32) -1;
 	ah->power_mode = ATH9K_PM_UNDEFINED;
 	ah->htc_reset_init = true;
@@ -471,33 +471,34 @@ static void ath9k_hw_init_defaults(struct ath_hw *ah)
 		ah->tx_trig_level = (AR_FTRIG_512B >> AR_FTRIG_S);
 }
 
-static int ath9k_hw_init_macaddr(struct ath_hw *ah)
+static void ath9k_hw_init_macaddr(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
-	u32 sum;
 	int i;
 	u16 eeval;
 	static const u32 EEP_MAC[] = { EEP_MAC_LSW, EEP_MAC_MID, EEP_MAC_MSW };
 
-	sum = 0;
+	/* MAC address may already be loaded via ath9k_platform_data */
+	if (is_valid_ether_addr(common->macaddr))
+		return;
+
 	for (i = 0; i < 3; i++) {
 		eeval = ah->eep_ops->get_eeprom(ah, EEP_MAC[i]);
-		sum += eeval;
 		common->macaddr[2 * i] = eeval >> 8;
 		common->macaddr[2 * i + 1] = eeval & 0xff;
 	}
-	if (!is_valid_ether_addr(common->macaddr)) {
-		ath_err(common,
-			"eeprom contains invalid mac address: %pM\n",
-			common->macaddr);
 
-		random_ether_addr(common->macaddr);
-		ath_err(common,
-			"random mac address will be used: %pM\n",
-			common->macaddr);
-	}
+	if (is_valid_ether_addr(common->macaddr))
+		return;
 
-	return 0;
+	ath_err(common, "eeprom contains invalid mac address: %pM\n",
+		common->macaddr);
+
+	random_ether_addr(common->macaddr);
+	ath_err(common, "random mac address will be used: %pM\n",
+		common->macaddr);
+
+	return;
 }
 
 static int ath9k_hw_post_init(struct ath_hw *ah)
@@ -636,12 +637,7 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 	if (r)
 		return r;
 
-	r = ath9k_hw_init_macaddr(ah);
-	if (r) {
-		ath_err(common, "Failed to initialize MAC address\n");
-		return r;
-	}
-
+	ath9k_hw_init_macaddr(ah);
 	ath9k_hw_init_hang_checks(ah);
 
 	common->state = ATH_HW_INITIALIZED;
@@ -1832,8 +1828,9 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	u32 saveLedState;
 	u32 saveDefAntenna;
 	u32 macStaId1;
+	struct timespec tsf_ts;
+	u32 tsf_offset;
 	u64 tsf = 0;
-	s64 usec = 0;
 	int r;
 	bool start_mci_reset = false;
 	bool save_fullsleep = ah->chip_fullsleep;
@@ -1877,8 +1874,8 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	macStaId1 = REG_READ(ah, AR_STA_ID1) & AR_STA_ID1_BASE_RATE_11B;
 
 	/* Save TSF before chip reset, a cold reset clears it */
+	getrawmonotonic(&tsf_ts);
 	tsf = ath9k_hw_gettsf64(ah);
-	usec = ktime_to_us(ktime_get_raw());
 
 	saveLedState = REG_READ(ah, AR_CFG_LED) &
 		(AR_CFG_LED_ASSOC_CTL | AR_CFG_LED_MODE_SEL |
@@ -1911,8 +1908,8 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	}
 
 	/* Restore TSF */
-	usec = ktime_to_us(ktime_get_raw()) - usec;
-	ath9k_hw_settsf64(ah, tsf + usec);
+	tsf_offset = ath9k_hw_get_tsf_offset(&tsf_ts, NULL);
+	ath9k_hw_settsf64(ah, tsf + tsf_offset);
 
 	if (AR_SREV_9280_20_OR_LATER(ah))
 		REG_SET_BIT(ah, AR_GPIO_INPUT_EN_VAL, AR_GPIO_JTAG_DISABLE);
@@ -1932,12 +1929,11 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	/*
 	 * Some AR91xx SoC devices frequently fail to accept TSF writes
 	 * right after the chip reset. When that happens, write a new
-	 * value after the initvals have been applied, with an offset
-	 * based on measured time difference
+	 * value after the initvals have been applied.
 	 */
 	if (AR_SREV_9100(ah) && (ath9k_hw_gettsf64(ah) < tsf)) {
-		tsf += 1500;
-		ath9k_hw_settsf64(ah, tsf);
+		tsf_offset = ath9k_hw_get_tsf_offset(&tsf_ts, NULL);
+		ath9k_hw_settsf64(ah, tsf + tsf_offset);
 	}
 
 	ath9k_hw_init_mfp(ah);

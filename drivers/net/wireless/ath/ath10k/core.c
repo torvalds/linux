@@ -207,6 +207,28 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		},
 	},
 	{
+		.id = QCA9888_HW_2_0_DEV_VERSION,
+		.dev_id = QCA9888_2_0_DEVICE_ID,
+		.name = "qca9888 hw2.0",
+		.patch_load_addr = QCA9888_HW_2_0_PATCH_LOAD_ADDR,
+		.uart_pin = 7,
+		.otp_exe_param = 0x00000700,
+		.continuous_frag_desc = true,
+		.channel_counters_freq_hz = 150000,
+		.max_probe_resp_desc_thres = 24,
+		.hw_4addr_pad = ATH10K_HW_4ADDR_PAD_BEFORE,
+		.tx_chain_mask = 3,
+		.rx_chain_mask = 3,
+		.max_spatial_stream = 2,
+		.cal_data_len = 12064,
+		.fw = {
+			.dir = QCA9888_HW_2_0_FW_DIR,
+			.board = QCA9888_HW_2_0_BOARD_DATA_FILE,
+			.board_size = QCA99X0_BOARD_DATA_SZ,
+			.board_ext_size = QCA99X0_BOARD_EXT_DATA_SZ,
+		},
+	},
+	{
 		.id = QCA9377_HW_1_0_DEV_VERSION,
 		.dev_id = QCA9377_1_0_DEVICE_ID,
 		.name = "qca9377 hw1.0",
@@ -1675,7 +1697,7 @@ static int ath10k_core_init_firmware_features(struct ath10k *ar)
 		case ATH10K_FW_WMI_OP_VERSION_10_4:
 		case ATH10K_FW_WMI_OP_VERSION_UNSET:
 		case ATH10K_FW_WMI_OP_VERSION_MAX:
-			WARN_ON(1);
+			ath10k_err(ar, "htt op version not found from fw meta data");
 			return -EINVAL;
 		}
 	}
@@ -2170,6 +2192,10 @@ struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 	case ATH10K_HW_QCA9984:
 		ar->regs = &qca99x0_regs;
 		ar->hw_values = &qca99x0_values;
+		break;
+	case ATH10K_HW_QCA9888:
+		ar->regs = &qca99x0_regs;
+		ar->hw_values = &qca9888_values;
 		break;
 	case ATH10K_HW_QCA4019:
 		ar->regs = &qca4019_regs;

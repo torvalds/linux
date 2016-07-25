@@ -343,16 +343,16 @@ enum {
 };
 
 struct mwifiex_ds_reg_rw {
-	__le32 type;
-	__le32 offset;
-	__le32 value;
+	u32 type;
+	u32 offset;
+	u32 value;
 };
 
 #define MAX_EEPROM_DATA 256
 
 struct mwifiex_ds_read_eeprom {
-	__le16 offset;
-	__le16 byte_count;
+	u16 offset;
+	u16 byte_count;
 	u8 value[MAX_EEPROM_DATA];
 };
 
