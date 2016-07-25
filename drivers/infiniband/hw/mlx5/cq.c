@@ -822,7 +822,8 @@ struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev,
 	int eqn;
 	int err;
 
-	if (entries < 0)
+	if (entries < 0 ||
+	    (entries > (1 << MLX5_CAP_GEN(dev->mdev, log_max_cq_sz))))
 		return ERR_PTR(-EINVAL);
 
 	if (check_cq_create_flags(attr->flags))
@@ -1168,11 +1169,16 @@ int mlx5_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 		return -ENOSYS;
 	}
 
-	if (entries < 1)
+	if (entries < 1 ||
+	    entries > (1 << MLX5_CAP_GEN(dev->mdev, log_max_cq_sz))) {
+		mlx5_ib_warn(dev, "wrong entries number %d, max %d\n",
+			     entries,
+			     1 << MLX5_CAP_GEN(dev->mdev, log_max_cq_sz));
 		return -EINVAL;
+	}
 
 	entries = roundup_pow_of_two(entries + 1);
-	if (entries >  (1 << MLX5_CAP_GEN(dev->mdev, log_max_cq_sz)) + 1)
+	if (entries > (1 << MLX5_CAP_GEN(dev->mdev, log_max_cq_sz)) + 1)
 		return -EINVAL;
 
 	if (entries == ibcq->cqe + 1)

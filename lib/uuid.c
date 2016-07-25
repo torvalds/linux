@@ -106,8 +106,8 @@ static int __uuid_to_bin(const char *uuid, __u8 b[16], const u8 ei[16])
 		return -EINVAL;
 
 	for (i = 0; i < 16; i++) {
-		int hi = hex_to_bin(uuid[si[i]] + 0);
-		int lo = hex_to_bin(uuid[si[i]] + 1);
+		int hi = hex_to_bin(uuid[si[i] + 0]);
+		int lo = hex_to_bin(uuid[si[i] + 1]);
 
 		b[ei[i]] = (hi << 4) | lo;
 	}

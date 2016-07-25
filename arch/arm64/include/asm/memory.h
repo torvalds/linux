@@ -55,8 +55,9 @@
 #define VMEMMAP_SIZE (UL(1) << (VA_BITS - PAGE_SHIFT - 1 + STRUCT_PAGE_MAX_SHIFT))
 
 /*
- * PAGE_OFFSET - the virtual address of the start of the kernel image (top
+ * PAGE_OFFSET - the virtual address of the start of the linear map (top
  *		 (VA_BITS - 1))
+ * KIMAGE_VADDR - the virtual address of the start of the kernel image
  * VA_BITS - the maximum number of bits for virtual addresses.
  * VA_START - the first kernel virtual address.
  * TASK_SIZE - the maximum size of a user space task.

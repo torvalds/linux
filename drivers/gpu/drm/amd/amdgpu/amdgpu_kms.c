@@ -447,7 +447,8 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			dev_info.max_memory_clock = adev->pm.default_mclk * 10;
 		}
 		dev_info.enabled_rb_pipes_mask = adev->gfx.config.backend_enable_mask;
-		dev_info.num_rb_pipes = adev->gfx.config.num_rbs;
+		dev_info.num_rb_pipes = adev->gfx.config.max_backends_per_se *
+			adev->gfx.config.max_shader_engines;
 		dev_info.num_hw_gfx_contexts = adev->gfx.config.max_hw_contexts;
 		dev_info._pad = 0;
 		dev_info.ids_flags = 0;

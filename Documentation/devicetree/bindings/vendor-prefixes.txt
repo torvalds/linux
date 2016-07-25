@@ -255,6 +255,7 @@ synology	Synology, Inc.
 SUNW	Sun Microsystems, Inc
 tbs	TBS Technologies
 tcl	Toby Churchill Ltd.
+technexion	TechNexion
 technologic	Technologic Systems
 thine	THine Electronics, Inc.
 ti	Texas Instruments
@@ -269,6 +270,7 @@ tronsmart	Tronsmart
 truly	Truly Semiconductors Limited
 tyan	Tyan Computer Corporation
 upisemi	uPI Semiconductor Corp.
+uniwest	United Western Technologies Corp (UniWest)
 urt	United Radiant Technology Corporation
 usi	Universal Scientific Industrial Co., Ltd.
 v3	V3 Semiconductor

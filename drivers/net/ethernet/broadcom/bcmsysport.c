@@ -392,7 +392,7 @@ static void bcm_sysport_get_stats(struct net_device *dev,
 		else
 			p = (char *)priv;
 		p += s->stat_offset;
-		data[i] = *(u32 *)p;
+		data[i] = *(unsigned long *)p;
 	}
 }
 

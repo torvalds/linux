@@ -2927,11 +2927,9 @@ static void drm_dp_destroy_connector_work(struct work_struct *work)
 		drm_dp_port_teardown_pdt(port, port->pdt);
 
 		if (!port->input && port->vcpi.vcpi > 0) {
-			if (mgr->mst_state) {
-				drm_dp_mst_reset_vcpi_slots(mgr, port);
-				drm_dp_update_payload_part1(mgr);
-				drm_dp_mst_put_payload_id(mgr, port->vcpi.vcpi);
-			}
+			drm_dp_mst_reset_vcpi_slots(mgr, port);
+			drm_dp_update_payload_part1(mgr);
+			drm_dp_mst_put_payload_id(mgr, port->vcpi.vcpi);
 		}
 
 		kref_put(&port->kref, drm_dp_free_mst_port);

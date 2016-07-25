@@ -72,8 +72,8 @@ static int mlx5e_vxlan_core_del_port_cmd(struct mlx5_core_dev *mdev, u16 port)
 	u32 in[MLX5_ST_SZ_DW(delete_vxlan_udp_dport_in)];
 	u32 out[MLX5_ST_SZ_DW(delete_vxlan_udp_dport_out)];
 
-	memset(&in, 0, sizeof(in));
-	memset(&out, 0, sizeof(out));
+	memset(in, 0, sizeof(in));
+	memset(out, 0, sizeof(out));
 
 	MLX5_SET(delete_vxlan_udp_dport_in, in, opcode,
 		 MLX5_CMD_OP_DELETE_VXLAN_UDP_DPORT);
@@ -104,6 +104,9 @@ static void mlx5e_vxlan_add_port(struct work_struct *work)
 	u16 port = vxlan_work->port;
 	struct mlx5e_vxlan *vxlan;
 	int err;
+
+	if (mlx5e_vxlan_lookup_port(priv, port))
+		goto free_work;
 
 	if (mlx5e_vxlan_core_add_port_cmd(priv->mdev, port))
 		goto free_work;

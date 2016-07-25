@@ -928,17 +928,10 @@ ok:
 		}
 	}
 	qdisc_qstats_overlimit(sch);
-	if (likely(next_event > q->now)) {
-		if (!test_bit(__QDISC_STATE_DEACTIVATED,
-			      &qdisc_root_sleeping(q->watchdog.qdisc)->state)) {
-			ktime_t time = ns_to_ktime(next_event);
-			qdisc_throttled(q->watchdog.qdisc);
-			hrtimer_start(&q->watchdog.timer, time,
-				      HRTIMER_MODE_ABS_PINNED);
-		}
-	} else {
+	if (likely(next_event > q->now))
+		qdisc_watchdog_schedule_ns(&q->watchdog, next_event, true);
+	else
 		schedule_work(&q->work);
-	}
 fin:
 	return skb;
 }
@@ -1014,7 +1007,9 @@ static void htb_work_func(struct work_struct *work)
 	struct htb_sched *q = container_of(work, struct htb_sched, work);
 	struct Qdisc *sch = q->watchdog.qdisc;
 
+	rcu_read_lock();
 	__netif_schedule(qdisc_root(sch));
+	rcu_read_unlock();
 }
 
 static int htb_init(struct Qdisc *sch, struct nlattr *opt)
@@ -1145,8 +1140,10 @@ htb_dump_class_stats(struct Qdisc *sch, unsigned long arg, struct gnet_dump *d)
 
 	if (!cl->level && cl->un.leaf.q)
 		qlen = cl->un.leaf.q->q.qlen;
-	cl->xstats.tokens = PSCHED_NS2TICKS(cl->tokens);
-	cl->xstats.ctokens = PSCHED_NS2TICKS(cl->ctokens);
+	cl->xstats.tokens = clamp_t(s64, PSCHED_NS2TICKS(cl->tokens),
+				    INT_MIN, INT_MAX);
+	cl->xstats.ctokens = clamp_t(s64, PSCHED_NS2TICKS(cl->ctokens),
+				     INT_MIN, INT_MAX);
 
 	if (gnet_stats_copy_basic(d, NULL, &cl->bstats) < 0 ||
 	    gnet_stats_copy_rate_est(d, NULL, &cl->rate_est) < 0 ||

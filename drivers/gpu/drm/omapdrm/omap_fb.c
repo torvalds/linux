@@ -17,6 +17,8 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/seq_file.h>
+
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 

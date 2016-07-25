@@ -205,8 +205,10 @@ static int nps_enet_poll(struct napi_struct *napi, int budget)
 		 * re-adding ourselves to the poll list.
 		 */
 
-		if (priv->tx_skb && !tx_ctrl_ct)
+		if (priv->tx_skb && !tx_ctrl_ct) {
+			nps_enet_reg_set(priv, NPS_ENET_REG_BUF_INT_ENABLE, 0);
 			napi_reschedule(napi);
+		}
 	}
 
 	return work_done;
@@ -283,6 +285,7 @@ static void nps_enet_hw_reset(struct net_device *ndev)
 	ge_rst_value |= NPS_ENET_ENABLE << RST_GMAC_0_SHIFT;
 	nps_enet_reg_set(priv, NPS_ENET_REG_GE_RST, ge_rst_value);
 	usleep_range(10, 20);
+	ge_rst_value = 0;
 	nps_enet_reg_set(priv, NPS_ENET_REG_GE_RST, ge_rst_value);
 
 	/* Tx fifo reset sequence */

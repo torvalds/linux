@@ -297,7 +297,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 		return -ENOMEM;
 
 	if (mdio_bus_data->irqs)
-		memcpy(new_bus->irq, mdio_bus_data, sizeof(new_bus->irq));
+		memcpy(new_bus->irq, mdio_bus_data->irqs, sizeof(new_bus->irq));
 
 #ifdef CONFIG_OF
 	if (priv->device->of_node)

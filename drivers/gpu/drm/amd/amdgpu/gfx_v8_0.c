@@ -28,6 +28,7 @@
 #include "vid.h"
 #include "amdgpu_ucode.h"
 #include "amdgpu_atombios.h"
+#include "atombios_i2c.h"
 #include "clearstate_vi.h"
 
 #include "gmc/gmc_8_2_d.h"
@@ -46,6 +47,8 @@
 
 #include "dce/dce_10_0_d.h"
 #include "dce/dce_10_0_sh_mask.h"
+
+#include "smu/smu_7_1_3_d.h"
 
 #define GFX8_NUM_GFX_RINGS     1
 #define GFX8_NUM_COMPUTE_RINGS 8
@@ -282,6 +285,7 @@ static const u32 golden_settings_polaris11_a11[] =
 	mmTCP_ADDR_CONFIG, 0x000003ff, 0x000000f3,
 	mmTCP_CHAN_STEER_HI, 0xffffffff, 0x00000000,
 	mmTCP_CHAN_STEER_LO, 0xffffffff, 0x00003210,
+	mmVGT_RESET_DEBUG, 0x00000004, 0x00000004,
 };
 
 static const u32 polaris11_golden_common_all[] =
@@ -297,7 +301,8 @@ static const u32 polaris11_golden_common_all[] =
 static const u32 golden_settings_polaris10_a11[] =
 {
 	mmATC_MISC_CG, 0x000c0fc0, 0x000c0200,
-	mmCB_HW_CONTROL, 0xfffdf3cf, 0x00006208,
+	mmCB_HW_CONTROL, 0xfffdf3cf, 0x00007208,
+	mmCB_HW_CONTROL_2, 0, 0x0f000000,
 	mmCB_HW_CONTROL_3, 0x000001ff, 0x00000040,
 	mmDB_DEBUG2, 0xf00fffff, 0x00000400,
 	mmPA_SC_ENHANCE, 0xffffffff, 0x20000001,
@@ -311,6 +316,7 @@ static const u32 golden_settings_polaris10_a11[] =
 	mmTCC_CTRL, 0x00100000, 0xf31fff7f,
 	mmTCP_ADDR_CONFIG, 0x000003ff, 0x000000f7,
 	mmTCP_CHAN_STEER_HI, 0xffffffff, 0x00000000,
+	mmVGT_RESET_DEBUG, 0x00000004, 0x00000004,
 };
 
 static const u32 polaris10_golden_common_all[] =
@@ -692,6 +698,11 @@ static void gfx_v8_0_init_golden_registers(struct amdgpu_device *adev)
 		amdgpu_program_register_sequence(adev,
 						 polaris10_golden_common_all,
 						 (const u32)ARRAY_SIZE(polaris10_golden_common_all));
+		WREG32_SMC(ixCG_ACLK_CNTL, 0x0000001C);
+		if (adev->pdev->revision == 0xc7) {
+			amdgpu_atombios_i2c_channel_trans(adev, 0x10, 0x96, 0x1E, 0xDD);
+			amdgpu_atombios_i2c_channel_trans(adev, 0x10, 0x96, 0x1F, 0xD0);
+		}
 		break;
 	case CHIP_CARRIZO:
 		amdgpu_program_register_sequence(adev,
@@ -834,6 +845,26 @@ err2:
 err1:
 	amdgpu_gfx_scratch_free(adev, scratch);
 	return r;
+}
+
+
+static void gfx_v8_0_free_microcode(struct amdgpu_device *adev) {
+	release_firmware(adev->gfx.pfp_fw);
+	adev->gfx.pfp_fw = NULL;
+	release_firmware(adev->gfx.me_fw);
+	adev->gfx.me_fw = NULL;
+	release_firmware(adev->gfx.ce_fw);
+	adev->gfx.ce_fw = NULL;
+	release_firmware(adev->gfx.rlc_fw);
+	adev->gfx.rlc_fw = NULL;
+	release_firmware(adev->gfx.mec_fw);
+	adev->gfx.mec_fw = NULL;
+	if ((adev->asic_type != CHIP_STONEY) &&
+	    (adev->asic_type != CHIP_TOPAZ))
+		release_firmware(adev->gfx.mec2_fw);
+	adev->gfx.mec2_fw = NULL;
+
+	kfree(adev->gfx.rlc.register_list_format);
 }
 
 static int gfx_v8_0_init_microcode(struct amdgpu_device *adev)
@@ -1983,7 +2014,7 @@ static int gfx_v8_0_sw_fini(void *handle)
 
 	gfx_v8_0_rlc_fini(adev);
 
-	kfree(adev->gfx.rlc.register_list_format);
+	gfx_v8_0_free_microcode(adev);
 
 	return 0;
 }
@@ -3974,9 +4005,13 @@ static int gfx_v8_0_cp_gfx_start(struct amdgpu_device *adev)
 		amdgpu_ring_write(ring, 0x3a00161a);
 		amdgpu_ring_write(ring, 0x0000002e);
 		break;
-	case CHIP_TOPAZ:
 	case CHIP_CARRIZO:
 		amdgpu_ring_write(ring, 0x00000002);
+		amdgpu_ring_write(ring, 0x00000000);
+		break;
+	case CHIP_TOPAZ:
+		amdgpu_ring_write(ring, adev->gfx.config.num_rbs == 1 ?
+				0x00000000 : 0x00000002);
 		amdgpu_ring_write(ring, 0x00000000);
 		break;
 	case CHIP_STONEY:
