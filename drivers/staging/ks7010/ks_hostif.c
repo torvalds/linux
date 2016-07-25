@@ -69,7 +69,7 @@ inline u32 get_DWORD(struct ks_wlan_private *priv)
 	return data;
 }
 
-void ks_wlan_hw_wakeup_task(struct work_struct *work)
+static void ks_wlan_hw_wakeup_task(struct work_struct *work)
 {
 	struct ks_wlan_private *priv =
 	    container_of(work, struct ks_wlan_private, ks_wlan_wakeup_task);
@@ -1509,7 +1509,7 @@ void hostif_infrastructure_set_request(struct ks_wlan_private *priv)
 	ks_wlan_hw_tx(priv, pp, hif_align_size(sizeof(*pp)), NULL, NULL, NULL);
 }
 
-void hostif_infrastructure_set2_request(struct ks_wlan_private *priv)
+static void hostif_infrastructure_set2_request(struct ks_wlan_private *priv)
 {
 	struct hostif_infrastructure_set2_request_t *pp;
 	uint16_t capability;
