@@ -206,11 +206,11 @@ mv_desc_run_tx_complete_actions(struct mv_xor_desc_slot *desc,
 	if (desc->async_tx.cookie > 0) {
 		cookie = desc->async_tx.cookie;
 
+		dma_descriptor_unmap(&desc->async_tx);
 		/* call the callback (must not sleep or submit new
 		 * operations to this channel)
 		 */
 		dmaengine_desc_get_callback_invoke(&desc->async_tx, NULL);
-		dma_descriptor_unmap(&desc->async_tx);
 	}
 
 	/* run dependent operations */
