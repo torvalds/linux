@@ -624,9 +624,13 @@ static int tune_active_qsfp(struct hfi1_pportdata *ppd, u32 *ptr_tx_preset,
 	if (ret)
 		return ret;
 
+	/*
+	 * We'll change the QSFP memory contents from here on out, thus we set a
+	 * flag here to remind ourselves to reset the QSFP module. This prevents
+	 * reuse of stale settings established in our previous pass through.
+	 */
 	if (ppd->qsfp_info.reset_needed) {
 		reset_qsfp(ppd);
-		ppd->qsfp_info.reset_needed = 0;
 		refresh_qsfp_cache(ppd, &ppd->qsfp_info);
 	} else {
 		ppd->qsfp_info.reset_needed = 1;
