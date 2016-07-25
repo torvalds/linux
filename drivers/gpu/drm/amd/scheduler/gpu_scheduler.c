@@ -399,7 +399,7 @@ void amd_sched_hw_job_reset(struct amd_gpu_scheduler *sched)
 
 void amd_sched_job_recovery(struct amd_gpu_scheduler *sched)
 {
-	struct amd_sched_job *s_job;
+	struct amd_sched_job *s_job, *tmp;
 	int r;
 
 	spin_lock(&sched->job_list_lock);
@@ -408,10 +408,12 @@ void amd_sched_job_recovery(struct amd_gpu_scheduler *sched)
 	if (s_job)
 		schedule_delayed_work(&s_job->work_tdr, sched->timeout);
 
-	list_for_each_entry(s_job, &sched->ring_mirror_list, node) {
+	list_for_each_entry_safe(s_job, tmp, &sched->ring_mirror_list, node) {
 		struct amd_sched_fence *s_fence = s_job->s_fence;
-		struct fence *fence = sched->ops->run_job(s_job);
+		struct fence *fence;
 
+		spin_unlock(&sched->job_list_lock);
+		fence = sched->ops->run_job(s_job);
 		atomic_inc(&sched->hw_rq_count);
 		if (fence) {
 			s_fence->parent = fence_get(fence);
@@ -427,6 +429,7 @@ void amd_sched_job_recovery(struct amd_gpu_scheduler *sched)
 			DRM_ERROR("Failed to run job!\n");
 			amd_sched_process_job(NULL, &s_fence->cb);
 		}
+		spin_lock(&sched->job_list_lock);
 	}
 	spin_unlock(&sched->job_list_lock);
 }
