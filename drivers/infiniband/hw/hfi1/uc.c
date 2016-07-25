@@ -77,6 +77,7 @@ int hfi1_make_uc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 	u32 len;
 	u32 pmtu = qp->pmtu;
 	int middle = 0;
+	int err;
 
 	ps->s_txreq = get_txreq(ps->dev, qp);
 	if (IS_ERR(ps->s_txreq))
@@ -117,6 +118,29 @@ int hfi1_make_uc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 		if (qp->s_cur == ACCESS_ONCE(qp->s_head)) {
 			clear_ahg(qp);
 			goto bail;
+		}
+		/*
+		 * Local operations are processed immediately
+		 * after all prior requests have completed.
+		 */
+		if (wqe->wr.opcode == IB_WR_REG_MR ||
+		    wqe->wr.opcode == IB_WR_LOCAL_INV) {
+			if (qp->s_last != qp->s_cur)
+				goto bail;
+			if (++qp->s_cur == qp->s_size)
+				qp->s_cur = 0;
+			if (wqe->wr.opcode == IB_WR_REG_MR)
+				err = rvt_fast_reg_mr(qp, wqe->reg_wr.mr,
+						      wqe->reg_wr.key,
+						      wqe->reg_wr.access);
+			else
+				err = rvt_invalidate_rkey(
+					qp, wqe->wr.ex.invalidate_rkey);
+			hfi1_send_complete(qp, wqe, err ? IB_WC_LOC_PROT_ERR
+							: IB_WC_SUCCESS);
+			atomic_dec(&qp->local_ops_pending);
+			qp->s_hdrwords = 0;
+			goto done_free_tx;
 		}
 		/*
 		 * Start a new request.

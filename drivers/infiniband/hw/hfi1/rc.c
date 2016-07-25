@@ -402,6 +402,7 @@ int hfi1_make_rc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 	char newreq;
 	int middle = 0;
 	int delta;
+	int err;
 
 	ps->s_txreq = get_txreq(ps->dev, qp);
 	if (IS_ERR(ps->s_txreq))
@@ -477,6 +478,35 @@ int hfi1_make_rc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 				qp->s_flags |= RVT_S_WAIT_FENCE;
 				goto bail;
 			}
+			/*
+			 * Local operations are processed immediately
+			 * after all prior requests have completed
+			 */
+			if (wqe->wr.opcode == IB_WR_REG_MR ||
+			    wqe->wr.opcode == IB_WR_LOCAL_INV) {
+				if (qp->s_last != qp->s_cur)
+					goto bail;
+				if (++qp->s_cur == qp->s_size)
+					qp->s_cur = 0;
+				if (++qp->s_tail == qp->s_size)
+					qp->s_tail = 0;
+				if (wqe->wr.opcode == IB_WR_REG_MR)
+					err = rvt_fast_reg_mr(
+						qp, wqe->reg_wr.mr,
+						wqe->reg_wr.key,
+						wqe->reg_wr.access);
+				else
+					err = rvt_invalidate_rkey(
+						qp,
+						wqe->wr.ex.invalidate_rkey);
+				hfi1_send_complete(qp, wqe,
+						   err ? IB_WC_LOC_PROT_ERR
+						       : IB_WC_SUCCESS);
+				atomic_dec(&qp->local_ops_pending);
+				qp->s_hdrwords = 0;
+				goto done_free_tx;
+			}
+
 			newreq = 1;
 			qp->s_psn = wqe->psn;
 		}
@@ -491,6 +521,7 @@ int hfi1_make_rc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 		switch (wqe->wr.opcode) {
 		case IB_WR_SEND:
 		case IB_WR_SEND_WITH_IMM:
+		case IB_WR_SEND_WITH_INV:
 			/* If no credit, return. */
 			if (!(qp->s_flags & RVT_S_UNLIMITED_CREDIT) &&
 			    cmp_msn(wqe->ssn, qp->s_lsn + 1) > 0) {
@@ -504,10 +535,16 @@ int hfi1_make_rc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 			}
 			if (wqe->wr.opcode == IB_WR_SEND) {
 				qp->s_state = OP(SEND_ONLY);
-			} else {
+			} else if (wqe->wr.opcode == IB_WR_SEND_WITH_IMM) {
 				qp->s_state = OP(SEND_ONLY_WITH_IMMEDIATE);
 				/* Immediate data comes after the BTH */
 				ohdr->u.imm_data = wqe->wr.ex.imm_data;
+				hwords += 1;
+			} else {
+				qp->s_state = OP(SEND_ONLY_WITH_INVALIDATE);
+				/* Invalidate rkey comes after the BTH */
+				ohdr->u.ieth = cpu_to_be32(
+						wqe->wr.ex.invalidate_rkey);
 				hwords += 1;
 			}
 			if (wqe->wr.send_flags & IB_SEND_SOLICITED)
@@ -671,10 +708,15 @@ int hfi1_make_rc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 		}
 		if (wqe->wr.opcode == IB_WR_SEND) {
 			qp->s_state = OP(SEND_LAST);
-		} else {
+		} else if (wqe->wr.opcode == IB_WR_SEND_WITH_IMM) {
 			qp->s_state = OP(SEND_LAST_WITH_IMMEDIATE);
 			/* Immediate data comes after the BTH */
 			ohdr->u.imm_data = wqe->wr.ex.imm_data;
+			hwords += 1;
+		} else {
+			qp->s_state = OP(SEND_LAST_WITH_INVALIDATE);
+			/* invalidate data comes after the BTH */
+			ohdr->u.ieth = cpu_to_be32(wqe->wr.ex.invalidate_rkey);
 			hwords += 1;
 		}
 		if (wqe->wr.send_flags & IB_SEND_SOLICITED)

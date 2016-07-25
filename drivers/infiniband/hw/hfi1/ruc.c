@@ -372,6 +372,7 @@ static void ruc_loopback(struct rvt_qp *sqp)
 	int ret;
 	int copy_last = 0;
 	u32 to;
+	int local_ops = 0;
 
 	rcu_read_lock();
 
@@ -440,11 +441,32 @@ again:
 	sqp->s_sge.num_sge = wqe->wr.num_sge;
 	sqp->s_len = wqe->length;
 	switch (wqe->wr.opcode) {
+	case IB_WR_REG_MR:
+		if (rvt_fast_reg_mr(sqp, wqe->reg_wr.mr, wqe->reg_wr.key,
+				    wqe->reg_wr.access))
+			send_status = IB_WC_LOC_PROT_ERR;
+		local_ops = 1;
+		goto send_comp;
+
+	case IB_WR_LOCAL_INV:
+		if (rvt_invalidate_rkey(sqp, wqe->wr.ex.invalidate_rkey))
+			send_status = IB_WC_LOC_PROT_ERR;
+		local_ops = 1;
+		goto send_comp;
+
+	case IB_WR_SEND_WITH_INV:
+		if (!rvt_invalidate_rkey(qp, wqe->wr.ex.invalidate_rkey)) {
+			wc.wc_flags = IB_WC_WITH_INVALIDATE;
+			wc.ex.invalidate_rkey = wqe->wr.ex.invalidate_rkey;
+		}
+		goto send;
+
 	case IB_WR_SEND_WITH_IMM:
 		wc.wc_flags = IB_WC_WITH_IMM;
 		wc.ex.imm_data = wqe->wr.ex.imm_data;
 		/* FALLTHROUGH */
 	case IB_WR_SEND:
+send:
 		ret = hfi1_rvt_get_rwqe(qp, 0);
 		if (ret < 0)
 			goto op_err;
@@ -583,6 +605,10 @@ send_comp:
 flush_send:
 	sqp->s_rnr_retry = sqp->s_rnr_retry_cnt;
 	hfi1_send_complete(sqp, wqe, send_status);
+	if (local_ops) {
+		atomic_dec(&sqp->local_ops_pending);
+		local_ops = 0;
+	}
 	goto again;
 
 rnr_nak:
