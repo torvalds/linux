@@ -820,7 +820,7 @@ static int build_verbs_tx_desc(
 	u64 pbc)
 {
 	int ret = 0;
-	struct hfi1_pio_header *phdr = &tx->phdr;
+	struct hfi1_sdma_header *phdr = &tx->phdr;
 	u16 hdrbytes = tx->hdr_dwords << 2;
 
 	if (!ahg_info->ahgcount) {
