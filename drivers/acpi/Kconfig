@@ -526,6 +526,12 @@ config XPOWER_PMIC_OPREGION
 	help
 	  This config adds ACPI operation region support for XPower AXP288 PMIC.
 
+config BXT_WC_PMIC_OPREGION
+	bool "ACPI operation region support for BXT WhiskeyCove PMIC"
+	depends on INTEL_SOC_PMIC
+	help
+	  This config adds ACPI operation region support for BXT WhiskeyCove PMIC.
+
 endif
 
 config ACPI_CONFIGFS
