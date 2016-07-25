@@ -242,7 +242,7 @@ void cx25821_stop_upstream_audio(struct cx25821_dev *dev)
 	dev->_audioframe_count = 0;
 	dev->_audiofile_status = END_OF_FILE;
 
-	kfree(dev->_irq_audio_queues);
+	destroy_workqueue(dev->_irq_audio_queues);
 	dev->_irq_audio_queues = NULL;
 
 	kfree(dev->_audiofilename);
