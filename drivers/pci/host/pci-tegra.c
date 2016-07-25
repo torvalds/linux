@@ -838,12 +838,6 @@ static int tegra_pcie_phy_enable(struct tegra_pcie *pcie)
 	value |= PADS_PLL_CTL_RST_B4SM;
 	pads_writel(pcie, value, soc->pads_pll_ctl);
 
-	/* Configure the reference clock driver */
-	value = PADS_REFCLK_CFG_VALUE | (PADS_REFCLK_CFG_VALUE << 16);
-	pads_writel(pcie, value, PADS_REFCLK_CFG0);
-	if (soc->num_ports > 2)
-		pads_writel(pcie, PADS_REFCLK_CFG_VALUE, PADS_REFCLK_CFG1);
-
 	/* wait for the PLL to lock */
 	err = tegra_pcie_pll_wait(pcie, 500);
 	if (err < 0) {
@@ -927,7 +921,9 @@ static int tegra_pcie_port_phy_power_off(struct tegra_pcie_port *port)
 
 static int tegra_pcie_phy_power_on(struct tegra_pcie *pcie)
 {
+	const struct tegra_pcie_soc_data *soc = pcie->soc_data;
 	struct tegra_pcie_port *port;
+	u32 value;
 	int err;
 
 	if (pcie->legacy_phy) {
@@ -951,6 +947,13 @@ static int tegra_pcie_phy_power_on(struct tegra_pcie *pcie)
 			return err;
 		}
 	}
+
+	/* Configure the reference clock driver */
+	value = PADS_REFCLK_CFG_VALUE | (PADS_REFCLK_CFG_VALUE << 16);
+	pads_writel(pcie, value, PADS_REFCLK_CFG0);
+
+	if (soc->num_ports > 2)
+		pads_writel(pcie, PADS_REFCLK_CFG_VALUE, PADS_REFCLK_CFG1);
 
 	return 0;
 }
