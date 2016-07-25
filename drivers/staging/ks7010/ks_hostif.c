@@ -74,11 +74,15 @@ void ks_wlan_hw_wakeup_task(struct work_struct *work)
 	struct ks_wlan_private *priv =
 	    container_of(work, struct ks_wlan_private, ks_wlan_wakeup_task);
 	int ps_status = atomic_read(&priv->psstatus.status);
+	long time_left;
 
 	if (ps_status == PS_SNOOZE) {
 		ks_wlan_hw_wakeup_request(priv);
-		if (!wait_for_completion_interruptible_timeout(&priv->psstatus.wakeup_wait, HZ / 50)) {	/* 20ms timeout */
-			DPRINTK(1, "wake up timeout !!!\n");
+		time_left = wait_for_completion_interruptible_timeout(
+				&priv->psstatus.wakeup_wait,
+				msecs_to_jiffies(20));
+		if (time_left <= 0) {
+			DPRINTK(1, "wake up timeout or interrupted !!!\n");
 			schedule_work(&priv->ks_wlan_wakeup_task);
 			return;
 		}
