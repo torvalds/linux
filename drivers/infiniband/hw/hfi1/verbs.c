@@ -378,6 +378,8 @@ static const opcode_handler opcode_handler_tbl[256] = {
 	[IB_OPCODE_RC_ATOMIC_ACKNOWLEDGE]             = &hfi1_rc_rcv,
 	[IB_OPCODE_RC_COMPARE_SWAP]                   = &hfi1_rc_rcv,
 	[IB_OPCODE_RC_FETCH_ADD]                      = &hfi1_rc_rcv,
+	[IB_OPCODE_RC_SEND_LAST_WITH_INVALIDATE]      = &hfi1_rc_rcv,
+	[IB_OPCODE_RC_SEND_ONLY_WITH_INVALIDATE]      = &hfi1_rc_rcv,
 	/* UC */
 	[IB_OPCODE_UC_SEND_FIRST]                     = &hfi1_uc_rcv,
 	[IB_OPCODE_UC_SEND_MIDDLE]                    = &hfi1_uc_rcv,

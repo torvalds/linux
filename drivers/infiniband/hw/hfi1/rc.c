@@ -2098,6 +2098,7 @@ void hfi1_rc_rcv(struct hfi1_packet *packet)
 	unsigned long flags;
 	int ret, is_fecn = 0;
 	int copy_last = 0;
+	u32 rkey;
 
 	bth0 = be32_to_cpu(ohdr->bth[0]);
 	if (hfi1_ruc_check_hdr(ibp, hdr, rcv_flags & HFI1_HAS_GRH, qp, bth0))
@@ -2137,7 +2138,8 @@ void hfi1_rc_rcv(struct hfi1_packet *packet)
 	case OP(SEND_MIDDLE):
 		if (opcode == OP(SEND_MIDDLE) ||
 		    opcode == OP(SEND_LAST) ||
-		    opcode == OP(SEND_LAST_WITH_IMMEDIATE))
+		    opcode == OP(SEND_LAST_WITH_IMMEDIATE) ||
+		    opcode == OP(SEND_LAST_WITH_INVALIDATE))
 			break;
 		goto nack_inv;
 
@@ -2153,6 +2155,7 @@ void hfi1_rc_rcv(struct hfi1_packet *packet)
 		if (opcode == OP(SEND_MIDDLE) ||
 		    opcode == OP(SEND_LAST) ||
 		    opcode == OP(SEND_LAST_WITH_IMMEDIATE) ||
+		    opcode == OP(SEND_LAST_WITH_INVALIDATE) ||
 		    opcode == OP(RDMA_WRITE_MIDDLE) ||
 		    opcode == OP(RDMA_WRITE_LAST) ||
 		    opcode == OP(RDMA_WRITE_LAST_WITH_IMMEDIATE))
@@ -2201,6 +2204,7 @@ send_middle:
 
 	case OP(SEND_ONLY):
 	case OP(SEND_ONLY_WITH_IMMEDIATE):
+	case OP(SEND_ONLY_WITH_INVALIDATE):
 		ret = hfi1_rvt_get_rwqe(qp, 0);
 		if (ret < 0)
 			goto nack_op_err;
@@ -2209,11 +2213,21 @@ send_middle:
 		qp->r_rcv_len = 0;
 		if (opcode == OP(SEND_ONLY))
 			goto no_immediate_data;
+		if (opcode == OP(SEND_ONLY_WITH_INVALIDATE))
+			goto send_last_inv;
 		/* FALLTHROUGH for SEND_ONLY_WITH_IMMEDIATE */
 	case OP(SEND_LAST_WITH_IMMEDIATE):
 send_last_imm:
 		wc.ex.imm_data = ohdr->u.imm_data;
 		wc.wc_flags = IB_WC_WITH_IMM;
+		goto send_last;
+	case OP(SEND_LAST_WITH_INVALIDATE):
+send_last_inv:
+		rkey = be32_to_cpu(ohdr->u.ieth);
+		if (rvt_invalidate_rkey(qp, rkey))
+			goto no_immediate_data;
+		wc.ex.invalidate_rkey = rkey;
+		wc.wc_flags = IB_WC_WITH_INVALIDATE;
 		goto send_last;
 	case OP(RDMA_WRITE_LAST):
 		copy_last = ibpd_to_rvtpd(qp->ibqp.pd)->user;
