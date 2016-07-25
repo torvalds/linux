@@ -972,7 +972,7 @@ static int core_get_turbo_pstate(void)
 	u64 value;
 	int nont, ret;
 
-	rdmsrl(MSR_NHM_TURBO_RATIO_LIMIT, value);
+	rdmsrl(MSR_TURBO_RATIO_LIMIT, value);
 	nont = core_get_max_pstate();
 	ret = (value) & 255;
 	if (ret <= nont)
@@ -1001,7 +1001,7 @@ static int knl_get_turbo_pstate(void)
 	u64 value;
 	int nont, ret;
 
-	rdmsrl(MSR_NHM_TURBO_RATIO_LIMIT, value);
+	rdmsrl(MSR_TURBO_RATIO_LIMIT, value);
 	nont = core_get_max_pstate();
 	ret = (((value) >> 8) & 0xFF);
 	if (ret <= nont)
