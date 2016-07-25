@@ -205,6 +205,8 @@ static void driver_bound(struct device *dev)
 
 	klist_add_tail(&dev->p->knode_driver, &dev->driver->p->klist_devices);
 
+	device_pm_check_callbacks(dev);
+
 	/*
 	 * Make sure the device is no longer in one of the deferred lists and
 	 * kick off retrying all pending devices
@@ -697,6 +699,7 @@ static void __device_release_driver(struct device *dev)
 			dev->pm_domain->dismiss(dev);
 
 		klist_remove(&dev->p->knode_driver);
+		device_pm_check_callbacks(dev);
 		if (dev->bus)
 			blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
 						     BUS_NOTIFY_UNBOUND_DRIVER,
