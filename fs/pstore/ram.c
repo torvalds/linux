@@ -643,11 +643,11 @@ fail_buf:
 	kfree(cxt->pstore.buf);
 fail_clear:
 	cxt->pstore.bufsize = 0;
-	kfree(cxt->mprz);
+	persistent_ram_free(cxt->mprz);
 fail_init_mprz:
-	kfree(cxt->fprz);
+	persistent_ram_free(cxt->fprz);
 fail_init_fprz:
-	kfree(cxt->cprz);
+	persistent_ram_free(cxt->cprz);
 fail_init_cprz:
 	ramoops_free_przs(cxt);
 fail_out:
