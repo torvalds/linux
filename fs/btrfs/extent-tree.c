@@ -60,21 +60,6 @@ enum {
 	CHUNK_ALLOC_FORCE = 2,
 };
 
-/*
- * Control how reservations are dealt with.
- *
- * RESERVE_FREE - freeing a reservation.
- * RESERVE_ALLOC - allocating space and we need to update bytes_may_use for
- *   ENOSPC accounting
- * RESERVE_ALLOC_NO_ACCOUNT - allocating space and we should not update
- *   bytes_may_use as the ENOSPC accounting is done elsewhere
- */
-enum {
-	RESERVE_FREE = 0,
-	RESERVE_ALLOC = 1,
-	RESERVE_ALLOC_NO_ACCOUNT = 2,
-};
-
 static int update_block_group(struct btrfs_trans_handle *trans,
 			      struct btrfs_root *root, u64 bytenr,
 			      u64 num_bytes, int alloc);
@@ -105,7 +90,7 @@ static int find_next_key(struct btrfs_path *path, int level,
 static void dump_space_info(struct btrfs_space_info *info, u64 bytes,
 			    int dump_block_groups);
 static int btrfs_add_reserved_bytes(struct btrfs_block_group_cache *cache,
-				    u64 num_bytes, int reserve, int delalloc);
+				    u64 ram_bytes, u64 num_bytes, int delalloc);
 static int btrfs_free_reserved_bytes(struct btrfs_block_group_cache *cache,
 				     u64 num_bytes, int delalloc);
 static int block_rsv_use_bytes(struct btrfs_block_rsv *block_rsv,
@@ -3502,7 +3487,6 @@ again:
 		dcs = BTRFS_DC_SETUP;
 	else if (ret == -ENOSPC)
 		set_bit(BTRFS_TRANS_CACHE_ENOSPC, &trans->transaction->flags);
-	btrfs_free_reserved_data_space(inode, 0, num_pages);
 
 out_put:
 	iput(inode);
@@ -6500,8 +6484,9 @@ void btrfs_wait_block_group_reservations(struct btrfs_block_group_cache *bg)
 /**
  * btrfs_add_reserved_bytes - update the block_group and space info counters
  * @cache:	The cache we are manipulating
+ * @ram_bytes:  The number of bytes of file content, and will be same to
+ *              @num_bytes except for the compress path.
  * @num_bytes:	The number of bytes in question
- * @reserve:	One of the reservation enums
  * @delalloc:   The blocks are allocated for the delalloc write
  *
  * This is called by the allocator when it reserves space. Metadata
@@ -6516,7 +6501,7 @@ void btrfs_wait_block_group_reservations(struct btrfs_block_group_cache *bg)
  * succeeds.
  */
 static int btrfs_add_reserved_bytes(struct btrfs_block_group_cache *cache,
-				    u64 num_bytes, int reserve, int delalloc)
+				    u64 ram_bytes, u64 num_bytes, int delalloc)
 {
 	struct btrfs_space_info *space_info = cache->space_info;
 	int ret = 0;
@@ -6528,13 +6513,11 @@ static int btrfs_add_reserved_bytes(struct btrfs_block_group_cache *cache,
 	} else {
 		cache->reserved += num_bytes;
 		space_info->bytes_reserved += num_bytes;
-		if (reserve == RESERVE_ALLOC) {
-			trace_btrfs_space_reservation(cache->fs_info,
-					"space_info", space_info->flags,
-					num_bytes, 0);
-			space_info->bytes_may_use -= num_bytes;
-		}
 
+		trace_btrfs_space_reservation(cache->fs_info,
+				"space_info", space_info->flags,
+				ram_bytes, 0);
+		space_info->bytes_may_use -= ram_bytes;
 		if (delalloc)
 			cache->delalloc_bytes += num_bytes;
 	}
@@ -7433,9 +7416,9 @@ btrfs_release_block_group(struct btrfs_block_group_cache *cache,
  * the free space extent currently.
  */
 static noinline int find_free_extent(struct btrfs_root *orig_root,
-				     u64 num_bytes, u64 empty_size,
-				     u64 hint_byte, struct btrfs_key *ins,
-				     u64 flags, int delalloc)
+				u64 ram_bytes, u64 num_bytes, u64 empty_size,
+				u64 hint_byte, struct btrfs_key *ins,
+				u64 flags, int delalloc)
 {
 	int ret = 0;
 	struct btrfs_root *root = orig_root->fs_info->extent_root;
@@ -7447,8 +7430,6 @@ static noinline int find_free_extent(struct btrfs_root *orig_root,
 	struct btrfs_space_info *space_info;
 	int loop = 0;
 	int index = __get_raid_index(flags);
-	int alloc_type = (flags & BTRFS_BLOCK_GROUP_DATA) ?
-		RESERVE_ALLOC_NO_ACCOUNT : RESERVE_ALLOC;
 	bool failed_cluster_refill = false;
 	bool failed_alloc = false;
 	bool use_cluster = true;
@@ -7780,8 +7761,8 @@ checks:
 					     search_start - offset);
 		BUG_ON(offset > search_start);
 
-		ret = btrfs_add_reserved_bytes(block_group, num_bytes,
-				alloc_type, delalloc);
+		ret = btrfs_add_reserved_bytes(block_group, ram_bytes,
+				num_bytes, delalloc);
 		if (ret == -EAGAIN) {
 			btrfs_add_free_space(block_group, offset, num_bytes);
 			goto loop;
@@ -7953,7 +7934,7 @@ again:
 	up_read(&info->groups_sem);
 }
 
-int btrfs_reserve_extent(struct btrfs_root *root,
+int btrfs_reserve_extent(struct btrfs_root *root, u64 ram_bytes,
 			 u64 num_bytes, u64 min_alloc_size,
 			 u64 empty_size, u64 hint_byte,
 			 struct btrfs_key *ins, int is_data, int delalloc)
@@ -7965,8 +7946,8 @@ int btrfs_reserve_extent(struct btrfs_root *root,
 	flags = btrfs_get_alloc_profile(root, is_data);
 again:
 	WARN_ON(num_bytes < root->sectorsize);
-	ret = find_free_extent(root, num_bytes, empty_size, hint_byte, ins,
-			       flags, delalloc);
+	ret = find_free_extent(root, ram_bytes, num_bytes, empty_size,
+			       hint_byte, ins, flags, delalloc);
 	if (!ret && !is_data) {
 		btrfs_dec_block_group_reservations(root->fs_info,
 						   ins->objectid);
@@ -7975,6 +7956,7 @@ again:
 			num_bytes = min(num_bytes >> 1, ins->offset);
 			num_bytes = round_down(num_bytes, root->sectorsize);
 			num_bytes = max(num_bytes, min_alloc_size);
+			ram_bytes = num_bytes;
 			if (num_bytes == min_alloc_size)
 				final_tried = true;
 			goto again;
@@ -8241,7 +8223,7 @@ int btrfs_alloc_logged_file_extent(struct btrfs_trans_handle *trans,
 		return -EINVAL;
 
 	ret = btrfs_add_reserved_bytes(block_group, ins->offset,
-			RESERVE_ALLOC_NO_ACCOUNT, 0);
+				       ins->offset, 0);
 	BUG_ON(ret); /* logic error */
 	ret = alloc_reserved_file_extent(trans, root, 0, root_objectid,
 					 0, owner, offset, ins, 1);
@@ -8385,7 +8367,7 @@ struct extent_buffer *btrfs_alloc_tree_block(struct btrfs_trans_handle *trans,
 	if (IS_ERR(block_rsv))
 		return ERR_CAST(block_rsv);
 
-	ret = btrfs_reserve_extent(root, blocksize, blocksize,
+	ret = btrfs_reserve_extent(root, blocksize, blocksize, blocksize,
 				   empty_size, hint, &ins, 0, 0);
 	if (ret)
 		goto out_unuse;
