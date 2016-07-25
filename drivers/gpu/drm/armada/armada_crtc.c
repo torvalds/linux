@@ -193,17 +193,18 @@ static unsigned armada_drm_crtc_calc_fb(struct drm_framebuffer *fb,
 }
 
 static void armada_drm_plane_work_run(struct armada_crtc *dcrtc,
-	struct armada_plane *plane)
+	struct drm_plane *plane)
 {
-	struct armada_plane_work *work = xchg(&plane->work, NULL);
+	struct armada_plane *dplane = drm_to_armada_plane(plane);
+	struct armada_plane_work *work = xchg(&dplane->work, NULL);
 
 	/* Handle any pending frame work. */
 	if (work) {
-		work->fn(dcrtc, plane, work);
+		work->fn(dcrtc, dplane, work);
 		drm_crtc_vblank_put(&dcrtc->crtc);
 	}
 
-	wake_up(&plane->frame_wait);
+	wake_up(&dplane->frame_wait);
 }
 
 int armada_drm_plane_work_queue(struct armada_crtc *dcrtc,
@@ -308,14 +309,12 @@ static void armada_drm_crtc_finish_fb(struct armada_crtc *dcrtc,
 
 static void armada_drm_vblank_off(struct armada_crtc *dcrtc)
 {
-	struct armada_plane *plane = drm_to_armada_plane(dcrtc->crtc.primary);
-
 	/*
 	 * Tell the DRM core that vblank IRQs aren't going to happen for
 	 * a while.  This cleans up any pending vblank events for us.
 	 */
 	drm_crtc_vblank_off(&dcrtc->crtc);
-	armada_drm_plane_work_run(dcrtc, plane);
+	armada_drm_plane_work_run(dcrtc, dcrtc->crtc.primary);
 }
 
 void armada_drm_crtc_gamma_set(struct drm_crtc *crtc, u16 r, u16 g, u16 b,
@@ -415,10 +414,8 @@ static void armada_drm_crtc_irq(struct armada_crtc *dcrtc, u32 stat)
 
 	spin_lock(&dcrtc->irq_lock);
 	ovl_plane = dcrtc->plane;
-	if (ovl_plane) {
-		struct armada_plane *plane = drm_to_armada_plane(ovl_plane);
-		armada_drm_plane_work_run(dcrtc, plane);
-	}
+	if (ovl_plane)
+		armada_drm_plane_work_run(dcrtc, ovl_plane);
 
 	if (stat & GRA_FRAME_IRQ && dcrtc->interlaced) {
 		int i = stat & GRA_FRAME_IRQ0 ? 0 : 1;
@@ -448,10 +445,8 @@ static void armada_drm_crtc_irq(struct armada_crtc *dcrtc, u32 stat)
 
 	spin_unlock(&dcrtc->irq_lock);
 
-	if (stat & GRA_FRAME_IRQ) {
-		struct armada_plane *plane = drm_to_armada_plane(dcrtc->crtc.primary);
-		armada_drm_plane_work_run(dcrtc, plane);
-	}
+	if (stat & GRA_FRAME_IRQ)
+		armada_drm_plane_work_run(dcrtc, dcrtc->crtc.primary);
 }
 
 static irqreturn_t armada_drm_irq(int irq, void *arg)
@@ -1039,7 +1034,7 @@ static int armada_drm_crtc_page_flip(struct drm_crtc *crtc,
 	 * interrupt, so complete it now.
 	 */
 	if (dpms_blanked(dcrtc->dpms))
-		armada_drm_plane_work_run(dcrtc, drm_to_armada_plane(dcrtc->crtc.primary));
+		armada_drm_plane_work_run(dcrtc, dcrtc->crtc.primary);
 
 	return 0;
 }
