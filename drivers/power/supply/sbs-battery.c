@@ -894,7 +894,7 @@ skip_gpio:
 		}
 	}
 
-	chip->power_supply = power_supply_register(&client->dev, sbs_desc,
+	chip->power_supply = devm_power_supply_register(&client->dev, sbs_desc,
 						   &psy_cfg);
 	if (IS_ERR(chip->power_supply)) {
 		dev_err(&client->dev,
@@ -925,8 +925,6 @@ static int sbs_remove(struct i2c_client *client)
 
 	if (chip->gpio_detect)
 		gpio_free(chip->pdata->battery_detect);
-
-	power_supply_unregister(chip->power_supply);
 
 	cancel_delayed_work_sync(&chip->work);
 
