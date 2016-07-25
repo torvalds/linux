@@ -368,11 +368,6 @@ struct hfi1_packet {
 	u8 etype;
 };
 
-static inline bool has_sc4_bit(struct hfi1_packet *p)
-{
-	return !!rhf_dc_info(p->rhf);
-}
-
 /*
  * Private data for snoop/capture support.
  */
@@ -1273,7 +1268,7 @@ void receive_interrupt_work(struct work_struct *work);
 static inline int hdr2sc(struct hfi1_message_header *hdr, u64 rhf)
 {
 	return ((be16_to_cpu(hdr->lrh[0]) >> 12) & 0xf) |
-	       ((!!(rhf & RHF_DC_INFO_SMASK)) << 4);
+	       ((!!(rhf_dc_info(rhf))) << 4);
 }
 
 static inline u16 generate_jkey(kuid_t uid)

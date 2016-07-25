@@ -1743,8 +1743,7 @@ void hfi1_cnp_rcv(struct hfi1_packet *packet)
 	struct rvt_qp *qp = packet->qp;
 	u32 lqpn, rqpn = 0;
 	u16 rlid = 0;
-	u8 sl, sc5, sc4_bit, svc_type;
-	bool sc4_set = has_sc4_bit(packet);
+	u8 sl, sc5, svc_type;
 
 	switch (packet->qp->ibqp.qp_type) {
 	case IB_QPT_UC:
@@ -1767,9 +1766,7 @@ void hfi1_cnp_rcv(struct hfi1_packet *packet)
 		return;
 	}
 
-	sc4_bit = sc4_set << 4;
-	sc5 = (be16_to_cpu(hdr->lrh[0]) >> 12) & 0xf;
-	sc5 |= sc4_bit;
+	sc5 = hdr2sc((struct hfi1_message_header *)hdr, packet->rhf);
 	sl = ibp->sc_to_sl[sc5];
 	lqpn = qp->ibqp.qp_num;
 

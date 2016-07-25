@@ -392,9 +392,7 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 			u16 rlid;
 			u8 svc_type, sl, sc5;
 
-			sc5  = (be16_to_cpu(rhdr->lrh[0]) >> 12) & 0xf;
-			if (rhf_dc_info(packet->rhf))
-				sc5 |= 0x10;
+			sc5 = hdr2sc(rhdr, packet->rhf);
 			sl = ibp->sc_to_sl[sc5];
 
 			lqpn = be32_to_cpu(bth[1]) & RVT_QPN_MASK;
