@@ -555,6 +555,7 @@ static int gbcodec_enum_ctl_get(struct snd_kcontrol *kcontrol,
 	struct gb_audio_ctl_elem_value gbvalue;
 	struct gbaudio_module_info *module;
 	struct gbaudio_codec_info *gb = snd_soc_codec_get_drvdata(codec);
+	struct gb_bundle *bundle;
 
 	module = find_gb_module(gb, kcontrol->id.name);
 	if (!module)
@@ -564,8 +565,17 @@ static int gbcodec_enum_ctl_get(struct snd_kcontrol *kcontrol,
 	if (ctl_id < 0)
 		return -EINVAL;
 
+	bundle = to_gb_bundle(module->dev);
+
+	ret = gb_pm_runtime_get_sync(bundle);
+	if (ret)
+		return ret;
+
 	ret = gb_audio_gb_get_control(module->mgmt_connection, ctl_id,
 				      GB_AUDIO_INVALID_INDEX, &gbvalue);
+
+	gb_pm_runtime_put_autosuspend(bundle);
+
 	if (ret) {
 		dev_err_ratelimited(codec->dev, "%d:Error in %s for %s\n", ret,
 				    __func__, kcontrol->id.name);
@@ -589,6 +599,7 @@ static int gbcodec_enum_ctl_put(struct snd_kcontrol *kcontrol,
 	struct gb_audio_ctl_elem_value gbvalue;
 	struct gbaudio_module_info *module;
 	struct gbaudio_codec_info *gb = snd_soc_codec_get_drvdata(codec);
+	struct gb_bundle *bundle;
 
 	module = find_gb_module(gb, kcontrol->id.name);
 	if (!module)
@@ -609,8 +620,17 @@ static int gbcodec_enum_ctl_put(struct snd_kcontrol *kcontrol,
 			ucontrol->value.enumerated.item[1];
 	}
 
+	bundle = to_gb_bundle(module->dev);
+
+	ret = gb_pm_runtime_get_sync(bundle);
+	if (ret)
+		return ret;
+
 	ret = gb_audio_gb_set_control(module->mgmt_connection, ctl_id,
 				      GB_AUDIO_INVALID_INDEX, &gbvalue);
+
+	gb_pm_runtime_put_autosuspend(bundle);
+
 	if (ret) {
 		dev_err_ratelimited(codec->dev, "%d:Error in %s for %s\n", ret,
 				    __func__, kcontrol->id.name);
@@ -698,6 +718,7 @@ static int gbcodec_enum_dapm_ctl_get(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = widget->codec;
 	struct gbaudio_codec_info *gb = snd_soc_codec_get_drvdata(codec);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	struct gb_bundle *bundle;
 
 	module = find_gb_module(gb, kcontrol->id.name);
 	if (!module)
@@ -707,8 +728,17 @@ static int gbcodec_enum_dapm_ctl_get(struct snd_kcontrol *kcontrol,
 	if (ctl_id < 0)
 		return -EINVAL;
 
+	bundle = to_gb_bundle(module->dev);
+
+	ret = gb_pm_runtime_get_sync(bundle);
+	if (ret)
+		return ret;
+
 	ret = gb_audio_gb_get_control(module->mgmt_connection, ctl_id,
 				      GB_AUDIO_INVALID_INDEX, &gbvalue);
+
+	gb_pm_runtime_put_autosuspend(bundle);
+
 	if (ret) {
 		dev_err_ratelimited(codec->dev, "%d:Error in %s for %s\n", ret,
 				    __func__, kcontrol->id.name);
@@ -736,6 +766,7 @@ static int gbcodec_enum_dapm_ctl_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = widget->codec;
 	struct gbaudio_codec_info *gb = snd_soc_codec_get_drvdata(codec);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	struct gb_bundle *bundle;
 
 	if (ucontrol->value.enumerated.item[0] > e->max - 1)
 		return -EINVAL;
@@ -749,8 +780,17 @@ static int gbcodec_enum_dapm_ctl_put(struct snd_kcontrol *kcontrol,
 		return -EINVAL;
 
 	change = 0;
+	bundle = to_gb_bundle(module->dev);
+
+	ret = gb_pm_runtime_get_sync(bundle);
+	if (ret)
+		return ret;
+
 	ret = gb_audio_gb_get_control(module->mgmt_connection, ctl_id,
 				      GB_AUDIO_INVALID_INDEX, &gbvalue);
+
+	gb_pm_runtime_put_autosuspend(bundle);
+
 	if (ret) {
 		dev_err_ratelimited(codec->dev, "%d:Error in %s for %s\n", ret,
 				    __func__, kcontrol->id.name);
@@ -782,8 +822,15 @@ static int gbcodec_enum_dapm_ctl_put(struct snd_kcontrol *kcontrol,
 	}
 
 	if (change) {
+		ret = gb_pm_runtime_get_sync(bundle);
+		if (ret)
+			return ret;
+
 		ret = gb_audio_gb_set_control(module->mgmt_connection, ctl_id,
 					      GB_AUDIO_INVALID_INDEX, &gbvalue);
+
+		gb_pm_runtime_put_autosuspend(bundle);
+
 		if (ret) {
 			dev_err_ratelimited(codec->dev,
 					    "%d:Error in %s for %s\n", ret,
