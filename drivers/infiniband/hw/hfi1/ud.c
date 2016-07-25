@@ -430,9 +430,9 @@ int hfi1_make_ud_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 					 qp->qkey : wqe->ud_wr.remote_qkey);
 	ohdr->u.ud.deth[1] = cpu_to_be32(qp->ibqp.qp_num);
 	/* disarm any ahg */
-	priv->s_hdr->ahgcount = 0;
-	priv->s_hdr->ahgidx = 0;
-	priv->s_hdr->tx_flags = 0;
+	priv->s_ahg->ahgcount = 0;
+	priv->s_ahg->ahgidx = 0;
+	priv->s_ahg->tx_flags = 0;
 	/* pbc */
 	ps->s_txreq->hdr_dwords = qp->s_hdrwords + 2;
 

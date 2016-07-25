@@ -711,7 +711,7 @@ u32 hfi1_make_grh(struct hfi1_ibport *ibp, struct ib_grh *hdr,
 #define BTH2_OFFSET (offsetof(struct hfi1_pio_header, hdr.u.oth.bth[2]) / 4)
 
 /**
- * build_ahg - create ahg in s_hdr
+ * build_ahg - create ahg in s_ahg
  * @qp: a pointer to QP
  * @npsn: the next PSN for the request/response
  *
@@ -733,18 +733,18 @@ static inline void build_ahg(struct rvt_qp *qp, u32 npsn)
 			qp->s_ahgidx = sdma_ahg_alloc(priv->s_sde);
 		if (qp->s_ahgidx >= 0) {
 			qp->s_ahgpsn = npsn;
-			priv->s_hdr->tx_flags |= SDMA_TXREQ_F_AHG_COPY;
+			priv->s_ahg->tx_flags |= SDMA_TXREQ_F_AHG_COPY;
 			/* save to protect a change in another thread */
-			priv->s_hdr->ahgidx = qp->s_ahgidx;
+			priv->s_ahg->ahgidx = qp->s_ahgidx;
 			qp->s_flags |= RVT_S_AHG_VALID;
 		}
 	} else {
 		/* subsequent middle after valid */
 		if (qp->s_ahgidx >= 0) {
-			priv->s_hdr->tx_flags |= SDMA_TXREQ_F_USE_AHG;
-			priv->s_hdr->ahgidx = qp->s_ahgidx;
-			priv->s_hdr->ahgcount++;
-			priv->s_hdr->ahgdesc[0] =
+			priv->s_ahg->tx_flags |= SDMA_TXREQ_F_USE_AHG;
+			priv->s_ahg->ahgidx = qp->s_ahgidx;
+			priv->s_ahg->ahgcount++;
+			priv->s_ahg->ahgdesc[0] =
 				sdma_build_ahg_descriptor(
 					(__force u16)cpu_to_be16((u16)npsn),
 					BTH2_OFFSET,
@@ -752,8 +752,8 @@ static inline void build_ahg(struct rvt_qp *qp, u32 npsn)
 					16);
 			if ((npsn & 0xffff0000) !=
 					(qp->s_ahgpsn & 0xffff0000)) {
-				priv->s_hdr->ahgcount++;
-				priv->s_hdr->ahgdesc[1] =
+				priv->s_ahg->ahgcount++;
+				priv->s_ahg->ahgdesc[1] =
 					sdma_build_ahg_descriptor(
 						(__force u16)cpu_to_be16(
 							(u16)(npsn >> 16)),
@@ -790,7 +790,7 @@ void hfi1_make_ruc_header(struct rvt_qp *qp, struct hfi1_other_headers *ohdr,
 	}
 	lrh0 |= (priv->s_sc & 0xf) << 12 | (qp->remote_ah_attr.sl & 0xf) << 4;
 	/*
-	 * reset s_hdr/AHG fields
+	 * reset s_ahg/AHG fields
 	 *
 	 * This insures that the ahgentry/ahgcount
 	 * are at a non-AHG default to protect
@@ -800,9 +800,9 @@ void hfi1_make_ruc_header(struct rvt_qp *qp, struct hfi1_other_headers *ohdr,
 	 * build_ahg() will modify as appropriate
 	 * to use the AHG feature.
 	 */
-	priv->s_hdr->tx_flags = 0;
-	priv->s_hdr->ahgcount = 0;
-	priv->s_hdr->ahgidx = 0;
+	priv->s_ahg->tx_flags = 0;
+	priv->s_ahg->ahgcount = 0;
+	priv->s_ahg->ahgidx = 0;
 	if (qp->s_mig_state == IB_MIG_MIGRATED)
 		bth0 |= IB_BTH_MIG_REQ;
 	else
@@ -913,7 +913,7 @@ void hfi1_do_send(struct rvt_qp *qp)
 			 */
 			if (hfi1_verbs_send(qp, &ps))
 				return;
-			/* Record that s_hdr is empty. */
+			/* Record that s_ahg is empty. */
 			qp->s_hdrwords = 0;
 			/* allow other tasks to run */
 			if (unlikely(time_after(jiffies, timeout))) {
