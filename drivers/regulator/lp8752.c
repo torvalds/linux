@@ -260,10 +260,10 @@ static int lp8752_probe(struct i2c_client *client,
 
 	ret = regmap_update_bits(pchip->regmap,
 				 LP8752_CTRL_BUCK0,
-				 (1 << 0), 0x1);
+				 (1 << 0), 0);
 	ret = regmap_update_bits(pchip->regmap,
 				 LP8752_CTRL_BUCK2,
-				 (1 << 0), 0x1);
+				 (1 << 0), 0);
 
 	if (!pdata) {
 		pchip->pdata = devm_kzalloc(pchip->dev,
