@@ -1148,23 +1148,22 @@ static int mlxsw_sp_port_add_cls_matchall(struct mlxsw_sp_port *mlxsw_sp_port,
 					  struct tc_cls_matchall_offload *cls,
 					  bool ingress)
 {
-	struct tcf_exts *exts = cls->exts;
 	const struct tc_action *a;
 	int err;
 
-	if (!list_is_singular(&exts->actions)) {
+	if (!tc_single_action(cls->exts)) {
 		netdev_err(mlxsw_sp_port->dev, "only singular actions are supported\n");
 		return -ENOTSUPP;
 	}
 
-	a = list_first_entry(&exts->actions, struct tc_action, list);
-	if (is_tcf_mirred_mirror(a) && protocol == htons(ETH_P_ALL)) {
+	tc_for_each_action(a, cls->exts) {
+		if (!is_tcf_mirred_mirror(a) || protocol != htons(ETH_P_ALL))
+			return -ENOTSUPP;
+
 		err = mlxsw_sp_port_add_cls_matchall_mirror(mlxsw_sp_port, cls,
 							    a, ingress);
 		if (err)
 			return err;
-	} else {
-		return -ENOTSUPP;
 	}
 
 	return 0;

@@ -192,6 +192,9 @@ int tcf_action_copy_stats(struct sk_buff *, struct tc_action *, int);
 #define tc_for_each_action(_a, _exts) \
 	list_for_each_entry(a, &(_exts)->actions, list)
 
+#define tc_single_action(_exts) \
+	(list_is_singular(&(_exts)->actions))
+
 static inline void tcf_action_stats_update(struct tc_action *a, u64 bytes,
 					   u64 packets, u64 lastuse)
 {
@@ -205,6 +208,7 @@ static inline void tcf_action_stats_update(struct tc_action *a, u64 bytes,
 
 #define tc_no_actions(_exts) true
 #define tc_for_each_action(_a, _exts) while ((void)(_a), 0)
+#define tc_single_action(_exts) false
 #define tcf_action_stats_update(a, bytes, packets, lastuse)
 
 #endif /* CONFIG_NET_CLS_ACT */
