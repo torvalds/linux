@@ -735,6 +735,7 @@ void mei_cl_set_disconnected(struct mei_cl *cl)
 	mei_io_list_flush(&dev->ctrl_wr_list, cl);
 	mei_cl_wake_all(cl);
 	cl->mei_flow_ctrl_creds = 0;
+	cl->rx_flow_ctrl_creds = 0;
 	cl->timer_count = 0;
 
 	if (!cl->me_cl)
@@ -1409,25 +1410,6 @@ out:
 }
 
 /**
- * mei_cl_is_read_fc_cb - check if read cb is waiting for flow control
- *                        for given host client
- *
- * @cl: host client
- *
- * Return: true, if found at least one cb.
- */
-static bool mei_cl_is_read_fc_cb(struct mei_cl *cl)
-{
-	struct mei_device *dev = cl->dev;
-	struct mei_cl_cb *cb;
-
-	list_for_each_entry(cb, &dev->ctrl_wr_list.list, list)
-		if (cb->fop_type == MEI_FOP_READ && cb->cl == cl)
-			return true;
-	return false;
-}
-
-/**
  * mei_cl_read_start - the start read client message function.
  *
  * @cl: host client
@@ -1450,10 +1432,6 @@ int mei_cl_read_start(struct mei_cl *cl, size_t length, const struct file *fp)
 	if (!mei_cl_is_connected(cl))
 		return -ENODEV;
 
-	/* HW currently supports only one pending read */
-	if (!list_empty(&cl->rd_pending) || mei_cl_is_read_fc_cb(cl))
-		return -EBUSY;
-
 	if (!mei_me_cl_is_active(cl->me_cl)) {
 		cl_err(dev, cl, "no such me client\n");
 		return  -ENOTTY;
@@ -1462,11 +1440,17 @@ int mei_cl_read_start(struct mei_cl *cl, size_t length, const struct file *fp)
 	if (mei_cl_is_fixed_address(cl))
 		return 0;
 
+	/* HW currently supports only one pending read */
+	if (cl->rx_flow_ctrl_creds)
+		return -EBUSY;
+
 	/* always allocate at least client max message */
 	length = max_t(size_t, length, mei_cl_mtu(cl));
 	cb = mei_cl_alloc_cb(cl, length, MEI_FOP_READ, fp);
 	if (!cb)
 		return -ENOMEM;
+
+	list_add_tail(&cb->list, &dev->ctrl_wr_list.list);
 
 	rets = pm_runtime_get(dev->dev);
 	if (rets < 0 && rets != -EINPROGRESS) {
@@ -1475,16 +1459,15 @@ int mei_cl_read_start(struct mei_cl *cl, size_t length, const struct file *fp)
 		goto nortpm;
 	}
 
+	rets = 0;
 	if (mei_hbuf_acquire(dev)) {
 		rets = mei_hbm_cl_flow_control_req(dev, cl);
 		if (rets < 0)
 			goto out;
 
-		list_add_tail(&cb->list, &cl->rd_pending);
-	} else {
-		rets = 0;
-		list_add_tail(&cb->list, &dev->ctrl_wr_list.list);
+		list_move_tail(&cb->list, &cl->rd_pending);
 	}
+	cl->rx_flow_ctrl_creds++;
 
 out:
 	cl_dbg(dev, cl, "rpm: autosuspend\n");
@@ -1732,6 +1715,9 @@ void mei_cl_complete(struct mei_cl *cl, struct mei_cl_cb *cb)
 
 	case MEI_FOP_READ:
 		list_add_tail(&cb->list, &cl->rd_completed);
+		if (!mei_cl_is_fixed_address(cl) &&
+		    !WARN_ON(!cl->rx_flow_ctrl_creds))
+			cl->rx_flow_ctrl_creds--;
 		if (!mei_cl_bus_rx_event(cl))
 			wake_up_interruptible(&cl->rx_wait);
 		break;

@@ -202,6 +202,7 @@ static int mei_amthif_read_start(struct mei_cl *cl, const struct file *file)
 		return -ENOMEM;
 
 	list_add_tail(&cb->list, &dev->ctrl_wr_list.list);
+	cl->rx_flow_ctrl_creds++;
 
 	dev->iamthif_state = MEI_IAMTHIF_READING;
 	cl->fp = cb->fp;

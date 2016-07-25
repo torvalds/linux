@@ -203,8 +203,8 @@ struct mei_cl_cb {
  * @fp: file associated with client
  * @host_client_id: host id
  * @mei_flow_ctrl_creds: transmit flow credentials
+ * @rx_flow_ctrl_creds: receive flow credentials
  * @timer_count:  watchdog timer for operation completion
- * @reserved: reserved for alignment
  * @notify_en: notification - enabled/disabled
  * @notify_ev: pending notification event
  * @writing_state: state of the tx
@@ -227,8 +227,8 @@ struct mei_cl {
 	const struct file *fp;
 	u8 host_client_id;
 	u8 mei_flow_ctrl_creds;
+	u8 rx_flow_ctrl_creds;
 	u8 timer_count;
-	u8 reserved;
 	u8 notify_en;
 	u8 notify_ev;
 	enum mei_file_transaction_states writing_state;
