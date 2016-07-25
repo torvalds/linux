@@ -57,7 +57,6 @@ static int bdc_submit_cmd(struct bdc *bdc, u32 cmd_sc,
 					u32 param0, u32 param1,	u32 param2)
 {
 	u32 temp, cmd_status;
-	int reset_bdc = 0;
 	int ret;
 
 	temp = bdc_readl(bdc->regs, BDC_CMDSC);
@@ -94,7 +93,6 @@ static int bdc_submit_cmd(struct bdc *bdc, u32 cmd_sc,
 
 	case BDC_CMDS_INTL:
 		dev_err(bdc->dev, "BDC Internal error\n");
-		reset_bdc = 1;
 		ret = -ECONNRESET;
 		break;
 
@@ -102,7 +100,6 @@ static int bdc_submit_cmd(struct bdc *bdc, u32 cmd_sc,
 		dev_err(bdc->dev,
 			"command timedout waited for %dusec\n",
 			BDC_CMD_TIMEOUT);
-		reset_bdc = 1;
 		ret = -ECONNRESET;
 		break;
 	default:
