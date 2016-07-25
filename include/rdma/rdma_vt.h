@@ -158,6 +158,7 @@ struct rvt_driver_params {
 	u32 max_mad_size;
 	u8 qos_shift;
 	u8 max_rdma_atomic;
+	u8 reserved_operations;
 };
 
 /* Protection domain */

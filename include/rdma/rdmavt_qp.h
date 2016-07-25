@@ -145,6 +145,11 @@
 	(RVT_PROCESS_SEND_OK | RVT_FLUSH_SEND)
 
 /*
+ * Internal send flags
+ */
+#define RVT_SEND_RESERVE_USED           IB_SEND_RESERVED_START
+
+/*
  * Send work request queue entry.
  * The size of the sg_list is determined when the QP is created and stored
  * in qp->s_max_sge.
@@ -232,6 +237,7 @@ struct rvt_ack_entry {
 #define RVT_OPERATION_ATOMIC      0x00000002
 #define RVT_OPERATION_ATOMIC_SGE  0x00000004
 #define RVT_OPERATION_LOCAL       0x00000008
+#define RVT_OPERATION_USE_RESERVE 0x00000010
 
 #define RVT_OPERATION_MAX (IB_WR_RESERVED10 + 1)
 
@@ -328,6 +334,7 @@ struct rvt_qp {
 	u32 s_next_psn;         /* PSN for next request */
 	u32 s_avail;            /* number of entries avail */
 	u32 s_ssn;              /* SSN of tail entry */
+	atomic_t s_reserved_used; /* reserved entries in use */
 
 	spinlock_t s_lock ____cacheline_aligned_in_smp;
 	u32 s_flags;
@@ -457,6 +464,49 @@ static inline struct rvt_rwqe *rvt_get_rwqe_ptr(struct rvt_rq *rq, unsigned n)
 		((char *)rq->wq->wq +
 		 (sizeof(struct rvt_rwqe) +
 		  rq->max_sge * sizeof(struct ib_sge)) * n);
+}
+
+/**
+ * rvt_qp_wqe_reserve - reserve operation
+ * @qp - the rvt qp
+ * @wqe - the send wqe
+ *
+ * This routine used in post send to record
+ * a wqe relative reserved operation use.
+ */
+static inline void rvt_qp_wqe_reserve(
+	struct rvt_qp *qp,
+	struct rvt_swqe *wqe)
+{
+	wqe->wr.send_flags |= RVT_SEND_RESERVE_USED;
+	atomic_inc(&qp->s_reserved_used);
+}
+
+/**
+ * rvt_qp_wqe_unreserve - clean reserved operation
+ * @qp - the rvt qp
+ * @wqe - the send wqe
+ *
+ * This decrements the reserve use count.
+ *
+ * This call MUST precede the change to
+ * s_last to insure that post send sees a stable
+ * s_avail.
+ *
+ * An smp_mp__after_atomic() is used to insure
+ * the compiler does not juggle the order of the s_last
+ * ring index and the decrementing of s_reserved_used.
+ */
+static inline void rvt_qp_wqe_unreserve(
+	struct rvt_qp *qp,
+	struct rvt_swqe *wqe)
+{
+	if (unlikely(wqe->wr.send_flags & RVT_SEND_RESERVE_USED)) {
+		wqe->wr.send_flags &= ~RVT_SEND_RESERVE_USED;
+		atomic_dec(&qp->s_reserved_used);
+		/* insure no compiler re-order up to s_last change */
+		smp_mb__after_atomic();
+	}
 }
 
 extern const int  ib_rvt_state_ops[];

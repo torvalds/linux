@@ -584,6 +584,7 @@ static void rvt_reset_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 		qp->r_rq.wq->tail = 0;
 	}
 	qp->r_sge.num_sge = 0;
+	atomic_set(&qp->s_reserved_used, 0);
 }
 
 /**
@@ -645,7 +646,8 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 			return ERR_PTR(-EINVAL);
 	}
 	sqsize =
-		init_attr->cap.max_send_wr + 1;
+		init_attr->cap.max_send_wr + 1 +
+		rdi->dparms.reserved_operations;
 	switch (init_attr->qp_type) {
 	case IB_QPT_SMI:
 	case IB_QPT_GSI:
@@ -1335,7 +1337,8 @@ int rvt_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	attr->sq_psn = qp->s_next_psn & rdi->dparms.psn_mask;
 	attr->dest_qp_num = qp->remote_qpn;
 	attr->qp_access_flags = qp->qp_access_flags;
-	attr->cap.max_send_wr = qp->s_size - 1;
+	attr->cap.max_send_wr = qp->s_size - 1 -
+		rdi->dparms.reserved_operations;
 	attr->cap.max_recv_wr = qp->ibqp.srq ? 0 : qp->r_rq.size - 1;
 	attr->cap.max_send_sge = qp->s_max_sge;
 	attr->cap.max_recv_sge = qp->r_rq.max_sge;
@@ -1494,27 +1497,65 @@ static inline int rvt_qp_valid_operation(
 }
 
 /**
- * qp_get_savail - return number of avail send entries
+ * rvt_qp_is_avail - determine queue capacity
  * @qp - the qp
+ * @rdi - the rdmavt device
+ * @reserved_op - is reserved operation
  *
  * This assumes the s_hlock is held but the s_last
  * qp variable is uncontrolled.
  *
- * The return is adjusted to not count device specific
- * reserved operations.
+ * For non reserved operations, the qp->s_avail
+ * may be changed.
+ *
+ * The return value is zero or a -ENOMEM.
  */
-static inline u32 qp_get_savail(struct rvt_qp *qp)
+static inline int rvt_qp_is_avail(
+	struct rvt_qp *qp,
+	struct rvt_dev_info *rdi,
+	bool reserved_op)
 {
 	u32 slast;
-	u32 ret;
+	u32 avail;
+	u32 reserved_used;
 
+	/* see rvt_qp_wqe_unreserve() */
+	smp_mb__before_atomic();
+	reserved_used = atomic_read(&qp->s_reserved_used);
+	if (unlikely(reserved_op)) {
+		/* see rvt_qp_wqe_unreserve() */
+		smp_mb__before_atomic();
+		if (reserved_used >= rdi->dparms.reserved_operations)
+			return -ENOMEM;
+		return 0;
+	}
+	/* non-reserved operations */
+	if (likely(qp->s_avail))
+		return 0;
 	smp_read_barrier_depends(); /* see rc.c */
 	slast = ACCESS_ONCE(qp->s_last);
 	if (qp->s_head >= slast)
-		ret = qp->s_size - (qp->s_head - slast);
+		avail = qp->s_size - (qp->s_head - slast);
 	else
-		ret = slast - qp->s_head;
-	return ret - 1;
+		avail = slast - qp->s_head;
+
+	/* see rvt_qp_wqe_unreserve() */
+	smp_mb__before_atomic();
+	reserved_used = atomic_read(&qp->s_reserved_used);
+	avail =  avail - 1 -
+		(rdi->dparms.reserved_operations - reserved_used);
+	/* insure we don't assign a negative s_avail */
+	if ((s32)avail <= 0)
+		return -ENOMEM;
+	qp->s_avail = avail;
+	if (WARN_ON(qp->s_avail >
+		    (qp->s_size - 1 - rdi->dparms.reserved_operations)))
+		rvt_pr_err(rdi,
+			   "More avail entries than QP RB size.\nQP: %u, size: %u, avail: %u\nhead: %u, tail: %u, cur: %u, acked: %u, last: %u",
+			   qp->ibqp.qp_num, qp->s_size, qp->s_avail,
+			   qp->s_head, qp->s_tail, qp->s_cur,
+			   qp->s_acked, qp->s_last);
+	return 0;
 }
 
 /**
@@ -1537,6 +1578,7 @@ static int rvt_post_one_wr(struct rvt_qp *qp,
 	u8 log_pmtu;
 	int ret;
 	size_t cplen;
+	bool reserved_op;
 
 	BUILD_BUG_ON(IB_QPT_MAX >= (sizeof(u32) * BITS_PER_BYTE));
 
@@ -1574,18 +1616,12 @@ static int rvt_post_one_wr(struct rvt_qp *qp,
 		}
 	}
 
+	reserved_op = rdi->post_parms[wr->opcode].flags &
+			RVT_OPERATION_USE_RESERVE;
 	/* check for avail */
-	if (unlikely(!qp->s_avail)) {
-		qp->s_avail = qp_get_savail(qp);
-		if (WARN_ON(qp->s_avail > (qp->s_size - 1)))
-			rvt_pr_err(rdi,
-				   "More avail entries than QP RB size.\nQP: %u, size: %u, avail: %u\nhead: %u, tail: %u, cur: %u, acked: %u, last: %u",
-				   qp->ibqp.qp_num, qp->s_size, qp->s_avail,
-				   qp->s_head, qp->s_tail, qp->s_cur,
-				   qp->s_acked, qp->s_last);
-		if (!qp->s_avail)
-			return -ENOMEM;
-	}
+	ret = rvt_qp_is_avail(qp, rdi, reserved_op);
+	if (ret)
+		return ret;
 	next = qp->s_head + 1;
 	if (next >= qp->s_size)
 		next = 0;
@@ -1653,8 +1689,11 @@ static int rvt_post_one_wr(struct rvt_qp *qp,
 		qp->s_next_psn = wqe->lpsn + 1;
 	}
 	trace_rvt_post_one_wr(qp, wqe);
+	if (unlikely(reserved_op))
+		rvt_qp_wqe_reserve(qp, wqe);
+	else
+		qp->s_avail--;
 	smp_wmb(); /* see request builders */
-	qp->s_avail--;
 	qp->s_head = next;
 
 	return 0;
