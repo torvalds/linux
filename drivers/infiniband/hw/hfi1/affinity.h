@@ -82,11 +82,9 @@ struct hfi1_affinity {
 struct hfi1_msix_entry;
 
 /* Initialize non-HT cpu cores mask */
-int init_real_cpu_mask(struct hfi1_devdata *);
+void init_real_cpu_mask(void);
 /* Initialize driver affinity data */
-void hfi1_dev_affinity_init(struct hfi1_devdata *);
-/* Free driver affinity data */
-void hfi1_dev_affinity_free(struct hfi1_devdata *);
+int hfi1_dev_affinity_init(struct hfi1_devdata *);
 /*
  * Set IRQ affinity to a CPU. The function will determine the
  * CPU and set the affinity to it.
@@ -104,5 +102,24 @@ void hfi1_put_irq_affinity(struct hfi1_devdata *, struct hfi1_msix_entry *);
 int hfi1_get_proc_affinity(struct hfi1_devdata *, int);
 /* Release a CPU used by a user process. */
 void hfi1_put_proc_affinity(struct hfi1_devdata *, int);
+
+struct hfi1_affinity_node {
+	int node;
+	struct cpu_mask_set def_intr;
+	struct cpu_mask_set rcv_intr;
+	struct list_head list;
+};
+
+struct hfi1_affinity_node_list {
+	struct list_head list;
+	struct cpumask real_cpu_mask;
+	struct cpu_mask_set proc;
+	/* protect affinity node list */
+	spinlock_t lock;
+};
+
+void node_affinity_init(void);
+void node_affinity_destroy(void);
+extern struct hfi1_affinity_node_list node_affinity;
 
 #endif /* _HFI1_AFFINITY_H */
