@@ -645,7 +645,7 @@ static int tegra_pcie_setup(int nr, struct pci_sys_data *sys)
 				sys->mem_offset);
 	pci_add_resource(&sys->resources, &pcie->busn);
 
-	pci_ioremap_io(pcie->pio.start, pcie->io.start);
+	pci_remap_iospace(&pcie->pio, pcie->io.start);
 
 	return 1;
 }
