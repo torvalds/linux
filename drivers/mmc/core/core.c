@@ -2067,7 +2067,8 @@ static int mmc_do_erase(struct mmc_card *card, unsigned int from,
 			unsigned int to, unsigned int arg)
 {
 	struct mmc_command cmd = {0};
-	unsigned int qty = 0;
+	unsigned int qty = 0, busy_timeout = 0;
+	bool use_r1b_resp = false;
 	unsigned long timeout;
 	int err;
 
@@ -2135,8 +2136,22 @@ static int mmc_do_erase(struct mmc_card *card, unsigned int from,
 	memset(&cmd, 0, sizeof(struct mmc_command));
 	cmd.opcode = MMC_ERASE;
 	cmd.arg = arg;
-	cmd.flags = MMC_RSP_SPI_R1B | MMC_RSP_R1B | MMC_CMD_AC;
-	cmd.busy_timeout = mmc_erase_timeout(card, arg, qty);
+	busy_timeout = mmc_erase_timeout(card, arg, qty);
+	/*
+	 * If the host controller supports busy signalling and the timeout for
+	 * the erase operation does not exceed the max_busy_timeout, we should
+	 * use R1B response. Or we need to prevent the host from doing hw busy
+	 * detection, which is done by converting to a R1 response instead.
+	 */
+	if (card->host->max_busy_timeout &&
+	    busy_timeout > card->host->max_busy_timeout) {
+		cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R1 | MMC_CMD_AC;
+	} else {
+		cmd.flags = MMC_RSP_SPI_R1B | MMC_RSP_R1B | MMC_CMD_AC;
+		cmd.busy_timeout = busy_timeout;
+		use_r1b_resp = true;
+	}
+
 	err = mmc_wait_for_cmd(card->host, &cmd, 0);
 	if (err) {
 		pr_err("mmc_erase: erase error %d, status %#x\n",
@@ -2148,7 +2163,14 @@ static int mmc_do_erase(struct mmc_card *card, unsigned int from,
 	if (mmc_host_is_spi(card->host))
 		goto out;
 
-	timeout = jiffies + msecs_to_jiffies(MMC_CORE_TIMEOUT_MS);
+	/*
+	 * In case of when R1B + MMC_CAP_WAIT_WHILE_BUSY is used, the polling
+	 * shall be avoided.
+	 */
+	if ((card->host->caps & MMC_CAP_WAIT_WHILE_BUSY) && use_r1b_resp)
+		goto out;
+
+	timeout = jiffies + msecs_to_jiffies(busy_timeout);
 	do {
 		memset(&cmd, 0, sizeof(struct mmc_command));
 		cmd.opcode = MMC_SEND_STATUS;
@@ -2328,23 +2350,41 @@ static unsigned int mmc_do_calc_max_discard(struct mmc_card *card,
 					    unsigned int arg)
 {
 	struct mmc_host *host = card->host;
-	unsigned int max_discard, x, y, qty = 0, max_qty, timeout;
+	unsigned int max_discard, x, y, qty = 0, max_qty, min_qty, timeout;
 	unsigned int last_timeout = 0;
 
-	if (card->erase_shift)
+	if (card->erase_shift) {
 		max_qty = UINT_MAX >> card->erase_shift;
-	else if (mmc_card_sd(card))
+		min_qty = card->pref_erase >> card->erase_shift;
+	} else if (mmc_card_sd(card)) {
 		max_qty = UINT_MAX;
-	else
+		min_qty = card->pref_erase;
+	} else {
 		max_qty = UINT_MAX / card->erase_size;
+		min_qty = card->pref_erase / card->erase_size;
+	}
 
-	/* Find the largest qty with an OK timeout */
+	/*
+	 * We should not only use 'host->max_busy_timeout' as the limitation
+	 * when deciding the max discard sectors. We should set a balance value
+	 * to improve the erase speed, and it can not get too long timeout at
+	 * the same time.
+	 *
+	 * Here we set 'card->pref_erase' as the minimal discard sectors no
+	 * matter what size of 'host->max_busy_timeout', but if the
+	 * 'host->max_busy_timeout' is large enough for more discard sectors,
+	 * then we can continue to increase the max discard sectors until we
+	 * get a balance value.
+	 */
 	do {
 		y = 0;
 		for (x = 1; x && x <= max_qty && max_qty - x >= qty; x <<= 1) {
 			timeout = mmc_erase_timeout(card, arg, qty + x);
-			if (timeout > host->max_busy_timeout)
+
+			if (qty + x > min_qty &&
+			    timeout > host->max_busy_timeout)
 				break;
+
 			if (timeout < last_timeout)
 				break;
 			last_timeout = timeout;
