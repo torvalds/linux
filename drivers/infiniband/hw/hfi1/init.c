@@ -1777,8 +1777,8 @@ int hfi1_setup_eagerbufs(struct hfi1_ctxtdata *rcd)
 
 	hfi1_cdbg(PROC,
 		  "ctxt%u: Alloced %u rcv tid entries @ %uKB, total %zuKB\n",
-		  rcd->ctxt, rcd->egrbufs.alloced, rcd->egrbufs.rcvtid_size,
-		  rcd->egrbufs.size);
+		  rcd->ctxt, rcd->egrbufs.alloced,
+		  rcd->egrbufs.rcvtid_size / 1024, rcd->egrbufs.size / 1024);
 
 	/*
 	 * Set the contexts rcv array head update threshold to the closest
