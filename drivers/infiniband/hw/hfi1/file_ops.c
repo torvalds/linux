@@ -715,7 +715,7 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 	hfi1_user_sdma_free_queues(fdata);
 
 	/* release the cpu */
-	hfi1_put_proc_affinity(dd, fdata->rec_cpu_num);
+	hfi1_put_proc_affinity(fdata->rec_cpu_num);
 
 	/*
 	 * Clear any left over, unhandled events so the next process that
@@ -815,9 +815,10 @@ static int assign_ctxt(struct file *fp, struct hfi1_user_info *uinfo)
 		ret = find_shared_ctxt(fp, uinfo);
 		if (ret < 0)
 			goto done_unlock;
-		if (ret)
-			fd->rec_cpu_num = hfi1_get_proc_affinity(
-				fd->uctxt->dd, fd->uctxt->numa_id);
+		if (ret) {
+			fd->rec_cpu_num =
+				hfi1_get_proc_affinity(fd->uctxt->numa_id);
+		}
 	}
 
 	/*
@@ -929,7 +930,11 @@ static int allocate_ctxt(struct file *fp, struct hfi1_devdata *dd,
 	if (ctxt == dd->num_rcv_contexts)
 		return -EBUSY;
 
-	fd->rec_cpu_num = hfi1_get_proc_affinity(dd, -1);
+	/*
+	 * If we don't have a NUMA node requested, preference is towards
+	 * device NUMA node.
+	 */
+	fd->rec_cpu_num = hfi1_get_proc_affinity(dd->node);
 	if (fd->rec_cpu_num != -1)
 		numa = cpu_to_node(fd->rec_cpu_num);
 	else
