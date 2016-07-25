@@ -164,11 +164,6 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 		goto out;
 	}
 
-	if (cl == &dev->iamthif_cl) {
-		rets = mei_amthif_read(dev, file, ubuf, length, offset);
-		goto out;
-	}
-
 	cb = mei_cl_read_cb(cl, file);
 	if (cb)
 		goto copy_buffer;

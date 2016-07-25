@@ -1462,7 +1462,7 @@ int mei_cl_read_start(struct mei_cl *cl, size_t length, const struct file *fp)
 		return  -ENOTTY;
 	}
 
-	if (mei_cl_is_fixed_address(cl))
+	if (mei_cl_is_fixed_address(cl) || cl == &dev->iamthif_cl)
 		return 0;
 
 	/* HW currently supports only one pending read */
