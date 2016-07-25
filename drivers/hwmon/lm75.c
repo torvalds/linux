@@ -220,7 +220,7 @@ lm75_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	struct device *dev = &client->dev;
 	struct device *hwmon_dev;
 	struct lm75_data *data;
-	int status;
+	int status, err;
 	u8 set_mask, clr_mask;
 	int new;
 	enum lm75_type kind = id->driver_data;
@@ -331,7 +331,9 @@ lm75_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (status != new)
 		i2c_smbus_write_byte_data(client, LM75_REG_CONF, new);
 
-	devm_add_action(dev, lm75_remove, data);
+	err = devm_add_action_or_reset(dev, lm75_remove, data);
+	if (err)
+		return err;
 
 	dev_dbg(dev, "Config %02x\n", new);
 
