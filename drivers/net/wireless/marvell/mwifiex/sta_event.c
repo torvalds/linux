@@ -708,7 +708,11 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 
 	case EVENT_EXT_SCAN_REPORT:
 		mwifiex_dbg(adapter, EVENT, "event: EXT_SCAN Report\n");
-		if (adapter->ext_scan && !priv->scan_aborting)
+		/* We intend to skip this event during suspend, but handle
+		 * it in interface disabled case
+		 */
+		if (adapter->ext_scan && (!priv->scan_aborting ||
+					  !netif_running(priv->netdev)))
 			ret = mwifiex_handle_event_ext_scan_report(priv,
 						adapter->event_skb->data);
 
