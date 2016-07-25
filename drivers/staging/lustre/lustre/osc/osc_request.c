@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -474,7 +470,8 @@ static int osc_real_create(struct obd_export *exp, struct obdo *oa,
 		DEBUG_REQ(D_HA, req,
 			  "delorphan from OST integration");
 		/* Don't resend the delorphan req */
-		req->rq_no_resend = req->rq_no_delay = 1;
+		req->rq_no_resend = 1;
+		req->rq_no_delay = 1;
 	}
 
 	rc = ptlrpc_queue_wait(req);
@@ -2249,7 +2246,7 @@ int osc_enqueue_base(struct obd_export *exp, struct ldlm_res_id *res_id,
 	struct lustre_handle lockh = { 0 };
 	struct ptlrpc_request *req = NULL;
 	int intent = *flags & LDLM_FL_HAS_INTENT;
-	__u64 match_lvb = agl ? 0 : LDLM_FL_LVB_READY;
+	__u64 match_flags = *flags;
 	enum ldlm_mode mode;
 	int rc;
 
@@ -2284,7 +2281,11 @@ int osc_enqueue_base(struct obd_export *exp, struct ldlm_res_id *res_id,
 	mode = einfo->ei_mode;
 	if (einfo->ei_mode == LCK_PR)
 		mode |= LCK_PW;
-	mode = ldlm_lock_match(obd->obd_namespace, *flags | match_lvb, res_id,
+	if (agl == 0)
+		match_flags |= LDLM_FL_LVB_READY;
+	if (intent != 0)
+		match_flags |= LDLM_FL_BLOCK_GRANTED;
+	mode = ldlm_lock_match(obd->obd_namespace, match_flags, res_id,
 			       einfo->ei_type, policy, mode, &lockh, 0);
 	if (mode) {
 		struct ldlm_lock *matched;
@@ -2775,7 +2776,8 @@ static int osc_get_info(const struct lu_env *env, struct obd_export *exp,
 		tmp = req_capsule_client_get(&req->rq_pill, &RMF_SETINFO_KEY);
 		memcpy(tmp, key, keylen);
 
-		req->rq_no_delay = req->rq_no_resend = 1;
+		req->rq_no_delay = 1;
+		req->rq_no_resend = 1;
 		ptlrpc_request_set_replen(req);
 		rc = ptlrpc_queue_wait(req);
 		if (rc)
@@ -2915,7 +2917,7 @@ static int osc_set_info_async(const struct lu_env *env, struct obd_export *exp,
 
 		LASSERT(!cli->cl_cache); /* only once */
 		cli->cl_cache = val;
-		atomic_inc(&cli->cl_cache->ccc_users);
+		cl_cache_incref(cli->cl_cache);
 		cli->cl_lru_left = &cli->cl_cache->ccc_lru_left;
 
 		/* add this osc into entity list */
@@ -3295,7 +3297,7 @@ static int osc_cleanup(struct obd_device *obd)
 		list_del_init(&cli->cl_lru_osc);
 		spin_unlock(&cli->cl_cache->ccc_lru_lock);
 		cli->cl_lru_left = NULL;
-		atomic_dec(&cli->cl_cache->ccc_users);
+		cl_cache_decref(cli->cl_cache);
 		cli->cl_cache = NULL;
 	}
 

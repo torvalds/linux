@@ -114,7 +114,7 @@ static irqreturn_t serial8250_interrupt(int irq, void *dev_id)
 	struct list_head *l, *end = NULL;
 	int pass_counter = 0, handled = 0;
 
-	DEBUG_INTR("serial8250_interrupt(%d)...", irq);
+	pr_debug("%s(%d): start\n", __func__, irq);
 
 	spin_lock(&i->lock);
 
@@ -144,7 +144,7 @@ static irqreturn_t serial8250_interrupt(int irq, void *dev_id)
 
 	spin_unlock(&i->lock);
 
-	DEBUG_INTR("end.\n");
+	pr_debug("%s(%d): end\n", __func__, irq);
 
 	return IRQ_RETVAL(handled);
 }
@@ -546,10 +546,10 @@ static void __init serial8250_isa_init_ports(void)
 
 		port->iobase   = old_serial_port[i].port;
 		port->irq      = irq_canonicalize(old_serial_port[i].irq);
-		port->irqflags = old_serial_port[i].irqflags;
+		port->irqflags = 0;
 		port->uartclk  = old_serial_port[i].baud_base * 16;
 		port->flags    = old_serial_port[i].flags;
-		port->hub6     = old_serial_port[i].hub6;
+		port->hub6     = 0;
 		port->membase  = old_serial_port[i].iomem_base;
 		port->iotype   = old_serial_port[i].io_type;
 		port->regshift = old_serial_port[i].iomem_reg_shift;
@@ -675,7 +675,7 @@ static struct console univ8250_console = {
 	.device		= uart_console_device,
 	.setup		= univ8250_console_setup,
 	.match		= univ8250_console_match,
-	.flags		= CON_PRINTBUFFER | CON_ANYTIME,
+	.flags		= CON_PRINTBUFFER | CON_ANYTIME | CON_CONSDEV,
 	.index		= -1,
 	.data		= &serial8250_reg,
 };
@@ -974,6 +974,8 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 
 	uart = serial8250_find_match_or_unused(&up->port);
 	if (uart && uart->port.type != PORT_8250_CIR) {
+		struct mctrl_gpios *gpios;
+
 		if (uart->port.dev)
 			uart_remove_one_port(&serial8250_reg, &uart->port);
 
@@ -1010,6 +1012,13 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 
 		if (up->port.flags & UPF_FIXED_TYPE)
 			uart->port.type = up->port.type;
+
+		gpios = mctrl_gpio_init(&uart->port, 0);
+		if (IS_ERR(gpios)) {
+			if (PTR_ERR(gpios) != -ENOSYS)
+				return PTR_ERR(gpios);
+		} else
+			uart->gpios = gpios;
 
 		serial8250_set_defaults(uart);
 

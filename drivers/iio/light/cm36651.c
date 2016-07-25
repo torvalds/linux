@@ -268,7 +268,7 @@ static irqreturn_t cm36651_irq_handler(int irq, void *data)
 				CM36651_CMD_READ_RAW_PROXIMITY,
 				IIO_EV_TYPE_THRESH, ev_dir);
 
-	iio_push_event(indio_dev, ev_code, iio_get_time_ns());
+	iio_push_event(indio_dev, ev_code, iio_get_time_ns(indio_dev));
 
 	return IRQ_HANDLED;
 }

@@ -1954,7 +1954,7 @@ static int mlx4_en_close(struct net_device *dev)
 	return 0;
 }
 
-void mlx4_en_free_resources(struct mlx4_en_priv *priv)
+static void mlx4_en_free_resources(struct mlx4_en_priv *priv)
 {
 	int i;
 
@@ -1979,7 +1979,7 @@ void mlx4_en_free_resources(struct mlx4_en_priv *priv)
 
 }
 
-int mlx4_en_alloc_resources(struct mlx4_en_priv *priv)
+static int mlx4_en_alloc_resources(struct mlx4_en_priv *priv)
 {
 	struct mlx4_en_port_profile *prof = priv->prof;
 	int i;
@@ -2044,6 +2044,77 @@ static void mlx4_en_shutdown(struct net_device *dev)
 	rtnl_unlock();
 }
 
+static int mlx4_en_copy_priv(struct mlx4_en_priv *dst,
+			     struct mlx4_en_priv *src,
+			     struct mlx4_en_port_profile *prof)
+{
+	memcpy(&dst->hwtstamp_config, &prof->hwtstamp_config,
+	       sizeof(dst->hwtstamp_config));
+	dst->num_tx_rings_p_up = src->mdev->profile.num_tx_rings_p_up;
+	dst->tx_ring_num = prof->tx_ring_num;
+	dst->rx_ring_num = prof->rx_ring_num;
+	dst->flags = prof->flags;
+	dst->mdev = src->mdev;
+	dst->port = src->port;
+	dst->dev = src->dev;
+	dst->prof = prof;
+	dst->stride = roundup_pow_of_two(sizeof(struct mlx4_en_rx_desc) +
+					 DS_SIZE * MLX4_EN_MAX_RX_FRAGS);
+
+	dst->tx_ring = kzalloc(sizeof(struct mlx4_en_tx_ring *) * MAX_TX_RINGS,
+				GFP_KERNEL);
+	if (!dst->tx_ring)
+		return -ENOMEM;
+
+	dst->tx_cq = kzalloc(sizeof(struct mlx4_en_cq *) * MAX_TX_RINGS,
+			      GFP_KERNEL);
+	if (!dst->tx_cq) {
+		kfree(dst->tx_ring);
+		return -ENOMEM;
+	}
+	return 0;
+}
+
+static void mlx4_en_update_priv(struct mlx4_en_priv *dst,
+				struct mlx4_en_priv *src)
+{
+	memcpy(dst->rx_ring, src->rx_ring,
+	       sizeof(struct mlx4_en_rx_ring *) * src->rx_ring_num);
+	memcpy(dst->rx_cq, src->rx_cq,
+	       sizeof(struct mlx4_en_cq *) * src->rx_ring_num);
+	memcpy(&dst->hwtstamp_config, &src->hwtstamp_config,
+	       sizeof(dst->hwtstamp_config));
+	dst->tx_ring_num = src->tx_ring_num;
+	dst->rx_ring_num = src->rx_ring_num;
+	dst->tx_ring = src->tx_ring;
+	dst->tx_cq = src->tx_cq;
+	memcpy(dst->prof, src->prof, sizeof(struct mlx4_en_port_profile));
+}
+
+int mlx4_en_try_alloc_resources(struct mlx4_en_priv *priv,
+				struct mlx4_en_priv *tmp,
+				struct mlx4_en_port_profile *prof)
+{
+	mlx4_en_copy_priv(tmp, priv, prof);
+
+	if (mlx4_en_alloc_resources(tmp)) {
+		en_warn(priv,
+			"%s: Resource allocation failed, using previous configuration\n",
+			__func__);
+		kfree(tmp->tx_ring);
+		kfree(tmp->tx_cq);
+		return -ENOMEM;
+	}
+	return 0;
+}
+
+void mlx4_en_safe_replace_resources(struct mlx4_en_priv *priv,
+				    struct mlx4_en_priv *tmp)
+{
+	mlx4_en_free_resources(priv);
+	mlx4_en_update_priv(priv, tmp);
+}
+
 void mlx4_en_destroy_netdev(struct net_device *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
@@ -2079,6 +2150,10 @@ void mlx4_en_destroy_netdev(struct net_device *dev)
 	mdev->pndev[priv->port] = NULL;
 	mdev->upper[priv->port] = NULL;
 	mutex_unlock(&mdev->state_lock);
+
+#ifdef CONFIG_RFS_ACCEL
+	mlx4_en_cleanup_filters(priv);
+#endif
 
 	mlx4_en_free_resources(priv);
 
@@ -3124,6 +3199,8 @@ int mlx4_en_reset_config(struct net_device *dev,
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
+	struct mlx4_en_port_profile new_prof;
+	struct mlx4_en_priv *tmp;
 	int port_up = 0;
 	int err = 0;
 
@@ -3140,19 +3217,29 @@ int mlx4_en_reset_config(struct net_device *dev,
 		return -EINVAL;
 	}
 
+	tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
+	if (!tmp)
+		return -ENOMEM;
+
 	mutex_lock(&mdev->state_lock);
+
+	memcpy(&new_prof, priv->prof, sizeof(struct mlx4_en_port_profile));
+	memcpy(&new_prof.hwtstamp_config, &ts_config, sizeof(ts_config));
+
+	err = mlx4_en_try_alloc_resources(priv, tmp, &new_prof);
+	if (err)
+		goto out;
+
 	if (priv->port_up) {
 		port_up = 1;
 		mlx4_en_stop_port(dev, 1);
 	}
 
-	mlx4_en_free_resources(priv);
-
 	en_warn(priv, "Changing device configuration rx filter(%x) rx vlan(%x)\n",
-		ts_config.rx_filter, !!(features & NETIF_F_HW_VLAN_CTAG_RX));
+		ts_config.rx_filter,
+		!!(features & NETIF_F_HW_VLAN_CTAG_RX));
 
-	priv->hwtstamp_config.tx_type = ts_config.tx_type;
-	priv->hwtstamp_config.rx_filter = ts_config.rx_filter;
+	mlx4_en_safe_replace_resources(priv, tmp);
 
 	if (DEV_FEATURE_CHANGED(dev, features, NETIF_F_HW_VLAN_CTAG_RX)) {
 		if (features & NETIF_F_HW_VLAN_CTAG_RX)
@@ -3186,11 +3273,6 @@ int mlx4_en_reset_config(struct net_device *dev,
 		dev->features &= ~NETIF_F_HW_VLAN_CTAG_RX;
 	}
 
-	err = mlx4_en_alloc_resources(priv);
-	if (err) {
-		en_err(priv, "Failed reallocating port resources\n");
-		goto out;
-	}
 	if (port_up) {
 		err = mlx4_en_start_port(dev);
 		if (err)
@@ -3199,6 +3281,8 @@ int mlx4_en_reset_config(struct net_device *dev,
 
 out:
 	mutex_unlock(&mdev->state_lock);
-	netdev_features_change(dev);
+	kfree(tmp);
+	if (!err)
+		netdev_features_change(dev);
 	return err;
 }

@@ -13,7 +13,7 @@
 
 #include <linux/console.h>
 #include <linux/errno.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/pci_regs.h>
 #include <linux/pci_ids.h>
 #include <linux/usb/ch9.h>
@@ -1093,5 +1093,5 @@ static int __init kgdbdbgp_start_thread(void)
 
 	return 0;
 }
-module_init(kgdbdbgp_start_thread);
+device_initcall(kgdbdbgp_start_thread);
 #endif /* CONFIG_KGDB */

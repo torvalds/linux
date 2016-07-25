@@ -1098,7 +1098,7 @@ static void do_unflock(struct file *file, struct file_lock *fl)
 
 	mutex_lock(&fp->f_fl_mutex);
 	locks_lock_file_wait(file, fl);
-	if (fl_gh->gh_gl) {
+	if (gfs2_holder_initialized(fl_gh)) {
 		gfs2_glock_dq(fl_gh);
 		gfs2_holder_uninit(fl_gh);
 	}

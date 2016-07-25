@@ -35,7 +35,7 @@
 #define MAX_NUM_SHOW_ENTRIES	32
 #define LNET_MAX_STR_LEN	128
 #define LNET_MAX_SHOW_NUM_CPT	128
-#define LNET_UNDEFINED_HOPS	((__u32) -1)
+#define LNET_UNDEFINED_HOPS	((__u32)(-1))
 
 struct lnet_ioctl_config_lnd_cmn_tunables {
 	__u32 lct_version;
