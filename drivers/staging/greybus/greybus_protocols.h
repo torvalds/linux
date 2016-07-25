@@ -367,6 +367,8 @@ struct gb_fw_download_release_firmware_request {
 #define GB_FW_BACKEND_FW_STATUS_FAIL_FETCH	0x03
 #define GB_FW_BACKEND_FW_STATUS_FAIL_WRITE	0x04
 #define GB_FW_BACKEND_FW_STATUS_INT		0x05
+#define GB_FW_BACKEND_FW_STATUS_RETRY		0x06
+#define GB_FW_BACKEND_FW_STATUS_NOT_SUPPORTED	0x07
 
 /* firmware management interface firmware version request has no payload */
 struct gb_fw_mgmt_interface_fw_version_response {
