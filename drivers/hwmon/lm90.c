@@ -529,7 +529,7 @@ static int lm90_update_limits(struct device *dev)
 		return val;
 	data->temp_hyst = val;
 
-	lm90_read_reg(client, LM90_REG_R_REMOTE_LOWH);
+	val = lm90_read_reg(client, LM90_REG_R_REMOTE_LOWH);
 	if (val < 0)
 		return val;
 	data->temp11[REMOTE_LOW] = val << 8;
