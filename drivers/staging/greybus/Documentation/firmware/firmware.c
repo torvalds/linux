@@ -71,7 +71,8 @@ static const char *fwdev = FW_DEV_DEFAULT;
 static int fw_update_type = FW_UPDATE_TYPE_DEFAULT;
 static int fw_timeout = FW_TIMEOUT_DEFAULT;
 
-static struct fw_mgmt_ioc_get_fw fw_info;
+static struct fw_mgmt_ioc_get_intf_version intf_fw_info;
+static struct fw_mgmt_ioc_get_backend_version backend_fw_info;
 static struct fw_mgmt_ioc_intf_load_and_validate intf_load;
 static struct fw_mgmt_ioc_backend_fw_update backend_update;
 
@@ -87,7 +88,7 @@ static int update_intf_firmware(int fd)
 	/* Get Interface Firmware Version */
 	printf("Get Interface Firmware Version\n");
 
-	ret = ioctl(fd, FW_MGMT_IOC_GET_INTF_FW, &fw_info);
+	ret = ioctl(fd, FW_MGMT_IOC_GET_INTF_FW, &intf_fw_info);
 	if (ret < 0) {
 		printf("Failed to get interface firmware version: %s (%d)\n",
 			fwdev, ret);
@@ -95,7 +96,8 @@ static int update_intf_firmware(int fd)
 	}
 
 	printf("Interface Firmware tag (%s), major (%d), minor (%d)\n",
-		fw_info.firmware_tag, fw_info.major, fw_info.minor);
+		intf_fw_info.firmware_tag, intf_fw_info.major,
+		intf_fw_info.minor);
 
 	/* Try Interface Firmware load over Unipro */
 	printf("Loading Interface Firmware\n");
@@ -143,32 +145,49 @@ static int update_backend_firmware(int fd)
 	/* Get Backend Firmware Version */
 	printf("Getting Backend Firmware Version\n");
 
-	fw_info.major = 0;
-	fw_info.minor = 0;
-	strncpy((char *)&fw_info.firmware_tag, firmware_tag,
+	strncpy((char *)&backend_fw_info.firmware_tag, firmware_tag,
 		GB_FIRMWARE_U_TAG_MAX_LEN);
 
-	ret = ioctl(fd, FW_MGMT_IOC_GET_BACKEND_FW, &fw_info);
+retry_fw_version:
+	ret = ioctl(fd, FW_MGMT_IOC_GET_BACKEND_FW, &backend_fw_info);
 	if (ret < 0) {
 		printf("Failed to get backend firmware version: %s (%d)\n",
 			fwdev, ret);
 		return -1;
 	}
 
-	printf("Backend Firmware tag (%s), major (%d), minor (%d)\n",
-		fw_info.firmware_tag, fw_info.major, fw_info.minor);
+	printf("Backend Firmware tag (%s), major (%d), minor (%d), status (%d)\n",
+		backend_fw_info.firmware_tag, backend_fw_info.major,
+		backend_fw_info.minor, backend_fw_info.status);
+
+	if (backend_fw_info.status == GB_FW_U_BACKEND_VERSION_STATUS_RETRY)
+		goto retry_fw_version;
+
+	if ((backend_fw_info.status != GB_FW_U_BACKEND_VERSION_STATUS_SUCCESS)
+	    && (backend_fw_info.status != GB_FW_U_BACKEND_VERSION_STATUS_NOT_AVAILABLE)) {
+		printf("Failed to get backend firmware version: %s (%d)\n",
+			fwdev, backend_fw_info.status);
+		return -1;
+	}
 
 	/* Try Backend Firmware Update over Unipro */
 	printf("Updating Backend Firmware\n");
 
-	backend_update.status = 0;
 	strncpy((char *)&backend_update.firmware_tag, firmware_tag,
 		GB_FIRMWARE_U_TAG_MAX_LEN);
+
+retry_fw_update:
+	backend_update.status = 0;
 
 	ret = ioctl(fd, FW_MGMT_IOC_INTF_BACKEND_FW_UPDATE, &backend_update);
 	if (ret < 0) {
 		printf("Failed to load backend firmware: %s (%d)\n", fwdev, ret);
 		return -1;
+	}
+
+	if (backend_update.status == GB_FW_U_BACKEND_FW_STATUS_RETRY) {
+		printf("Retrying firmware update: %d\n", backend_update.status);
+		goto retry_fw_update;
 	}
 
 	if (backend_update.status != GB_FW_U_BACKEND_FW_STATUS_SUCCESS) {
