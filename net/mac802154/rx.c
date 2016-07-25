@@ -109,8 +109,8 @@ ieee802154_subif_frame(struct ieee802154_sub_if_data *sdata,
 	case IEEE802154_FC_TYPE_DATA:
 		return ieee802154_deliver_skb(skb);
 	default:
-		pr_warn("ieee802154: bad frame received (type = %d)\n",
-			mac_cb(skb)->type);
+		pr_warn_ratelimited("ieee802154: bad frame received "
+				    "(type = %d)\n", mac_cb(skb)->type);
 		goto fail;
 	}
 
