@@ -74,6 +74,16 @@ config PWM_ATMEL_TCB
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-atmel-tcb.
 
+config PWM_BCM_IPROC
+	tristate "iProc PWM support"
+	depends on ARCH_BCM_IPROC
+	help
+	  Generic PWM framework driver for Broadcom iProc PWM block. This
+	  block is used in Broadcom iProc SoC's.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-bcm-iproc.
+
 config PWM_BCM_KONA
 	tristate "Kona PWM support"
 	depends on ARCH_BCM_MOBILE
@@ -136,6 +146,13 @@ config PWM_CRC
 	help
 	  Generic PWM framework driver for Crystalcove (CRC) PMIC based PWM
 	  control.
+
+config PWM_CROS_EC
+	tristate "ChromeOS EC PWM driver"
+	depends on MFD_CROS_EC
+	help
+	  PWM driver for exposing a PWM attached to the ChromeOS Embedded
+	  Controller.
 
 config PWM_EP93XX
 	tristate "Cirrus Logic EP93xx PWM support"
@@ -305,7 +322,7 @@ config PWM_PXA
 
 config PWM_RCAR
 	tristate "Renesas R-Car PWM support"
-	depends on ARCH_RCAR_GEN1 || ARCH_RCAR_GEN2 || COMPILE_TEST
+	depends on ARCH_RENESAS || COMPILE_TEST
 	depends on HAS_IOMEM
 	help
 	  This driver exposes the PWM Timer controller found in Renesas
@@ -361,6 +378,13 @@ config PWM_STI
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-sti.
+
+config PWM_STMPE
+	bool "STMPE expander PWM export"
+	depends on MFD_STMPE
+	help
+	  This enables support for the PWMs found in the STMPE I/O
+	  expanders.
 
 config PWM_SUN4I
 	tristate "Allwinner PWM support"
