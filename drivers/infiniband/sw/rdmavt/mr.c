@@ -480,6 +480,57 @@ struct ib_mr *rvt_alloc_mr(struct ib_pd *pd,
 }
 
 /**
+ * rvt_set_page - page assignment function called by ib_sg_to_pages
+ * @ibmr: memory region
+ * @addr: dma address of mapped page
+ *
+ * Return: 0 on success
+ */
+static int rvt_set_page(struct ib_mr *ibmr, u64 addr)
+{
+	struct rvt_mr *mr = to_imr(ibmr);
+	u32 ps = 1 << mr->mr.page_shift;
+	u32 mapped_segs = mr->mr.length >> mr->mr.page_shift;
+	int m, n;
+
+	if (unlikely(mapped_segs == mr->mr.max_segs))
+		return -ENOMEM;
+
+	if (mr->mr.length == 0) {
+		mr->mr.user_base = addr;
+		mr->mr.iova = addr;
+	}
+
+	m = mapped_segs / RVT_SEGSZ;
+	n = mapped_segs % RVT_SEGSZ;
+	mr->mr.map[m]->segs[n].vaddr = (void *)addr;
+	mr->mr.map[m]->segs[n].length = ps;
+	mr->mr.length += ps;
+
+	return 0;
+}
+
+/**
+ * rvt_map_mr_sg - map sg list and set it the memory region
+ * @ibmr: memory region
+ * @sg: dma mapped scatterlist
+ * @sg_nents: number of entries in sg
+ * @sg_offset: offset in bytes into sg
+ *
+ * Return: number of sg elements mapped to the memory region
+ */
+int rvt_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg,
+		  int sg_nents, unsigned int *sg_offset)
+{
+	struct rvt_mr *mr = to_imr(ibmr);
+
+	mr->mr.length = 0;
+	mr->mr.page_shift = PAGE_SHIFT;
+	return ib_sg_to_pages(ibmr, sg, sg_nents, sg_offset,
+			      rvt_set_page);
+}
+
+/**
  * rvt_alloc_fmr - allocate a fast memory region
  * @pd: the protection domain for this memory region
  * @mr_access_flags: access flags for this memory region
