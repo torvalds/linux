@@ -5,7 +5,7 @@
 #include <net/act_api.h>
 
 struct tcf_nat {
-	struct tcf_common common;
+	struct tc_action common;
 
 	__be32 old_addr;
 	__be32 new_addr;

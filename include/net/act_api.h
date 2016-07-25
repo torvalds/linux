@@ -22,42 +22,39 @@ struct tc_action_ops;
 
 struct tc_action {
 	const struct tc_action_ops	*ops;
-	__u32			type; /* for backward compat(TCA_OLD_COMPAT) */
-	__u32			order;
-	struct list_head	list;
-	struct tcf_hashinfo	*hinfo;
-};
+	__u32				type; /* for backward compat(TCA_OLD_COMPAT) */
+	__u32				order;
+	struct list_head		list;
+	struct tcf_hashinfo		*hinfo;
 
-struct tcf_common {
-	struct tc_action		tcfc_act;
-	struct hlist_node		tcfc_head;
-	u32				tcfc_index;
-	int				tcfc_refcnt;
-	int				tcfc_bindcnt;
-	u32				tcfc_capab;
-	int				tcfc_action;
-	struct tcf_t			tcfc_tm;
-	struct gnet_stats_basic_packed	tcfc_bstats;
-	struct gnet_stats_queue		tcfc_qstats;
-	struct gnet_stats_rate_est64	tcfc_rate_est;
-	spinlock_t			tcfc_lock;
-	struct rcu_head			tcfc_rcu;
+	struct hlist_node		tcfa_head;
+	u32				tcfa_index;
+	int				tcfa_refcnt;
+	int				tcfa_bindcnt;
+	u32				tcfa_capab;
+	int				tcfa_action;
+	struct tcf_t			tcfa_tm;
+	struct gnet_stats_basic_packed	tcfa_bstats;
+	struct gnet_stats_queue		tcfa_qstats;
+	struct gnet_stats_rate_est64	tcfa_rate_est;
+	spinlock_t			tcfa_lock;
+	struct rcu_head			tcfa_rcu;
 	struct gnet_stats_basic_cpu __percpu *cpu_bstats;
 	struct gnet_stats_queue __percpu *cpu_qstats;
 };
-#define tcf_act		common.tcfc_act
-#define tcf_head	common.tcfc_head
-#define tcf_index	common.tcfc_index
-#define tcf_refcnt	common.tcfc_refcnt
-#define tcf_bindcnt	common.tcfc_bindcnt
-#define tcf_capab	common.tcfc_capab
-#define tcf_action	common.tcfc_action
-#define tcf_tm		common.tcfc_tm
-#define tcf_bstats	common.tcfc_bstats
-#define tcf_qstats	common.tcfc_qstats
-#define tcf_rate_est	common.tcfc_rate_est
-#define tcf_lock	common.tcfc_lock
-#define tcf_rcu		common.tcfc_rcu
+#define tcf_act		common.tcfa_act
+#define tcf_head	common.tcfa_head
+#define tcf_index	common.tcfa_index
+#define tcf_refcnt	common.tcfa_refcnt
+#define tcf_bindcnt	common.tcfa_bindcnt
+#define tcf_capab	common.tcfa_capab
+#define tcf_action	common.tcfa_action
+#define tcf_tm		common.tcfa_tm
+#define tcf_bstats	common.tcfa_bstats
+#define tcf_qstats	common.tcfa_qstats
+#define tcf_rate_est	common.tcfa_rate_est
+#define tcf_lock	common.tcfa_lock
+#define tcf_rcu		common.tcfa_rcu
 
 static inline unsigned int tcf_hash(u32 index, unsigned int hmask)
 {

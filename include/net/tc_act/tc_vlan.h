@@ -16,7 +16,7 @@
 #define VLAN_F_PUSH		0x2
 
 struct tcf_vlan {
-	struct tcf_common	common;
+	struct tc_action	common;
 	int			tcfv_action;
 	u16			tcfv_push_vid;
 	__be16			tcfv_push_proto;

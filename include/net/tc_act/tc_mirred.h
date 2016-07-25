@@ -5,7 +5,7 @@
 #include <linux/tc_act/tc_mirred.h>
 
 struct tcf_mirred {
-	struct tcf_common	common;
+	struct tc_action	common;
 	int			tcfm_eaction;
 	int			tcfm_ifindex;
 	int			tcfm_ok_push;

@@ -5,7 +5,7 @@
 #include <net/act_api.h>
 
 struct tcf_csum {
-	struct tcf_common common;
+	struct tc_action common;
 
 	u32 update_flags;
 };

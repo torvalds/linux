@@ -5,7 +5,7 @@
 #include <linux/tc_act/tc_gact.h>
 
 struct tcf_gact {
-	struct tcf_common	common;
+	struct tc_action	common;
 #ifdef CONFIG_GACT_PROB
 	u16			tcfg_ptype;
 	u16			tcfg_pval;

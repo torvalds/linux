@@ -23,7 +23,7 @@
 #include <net/netlink.h>
 
 struct tcf_police {
-	struct tcf_common	common;
+	struct tc_action	common;
 	int			tcfp_result;
 	u32			tcfp_ewma_rate;
 	s64			tcfp_burst;
@@ -73,11 +73,11 @@ static int tcf_act_police_walker(struct net *net, struct sk_buff *skb,
 
 	for (i = 0; i < (POL_TAB_MASK + 1); i++) {
 		struct hlist_head *head;
-		struct tcf_common *p;
+		struct tc_action *p;
 
 		head = &hinfo->htab[tcf_hash(i, POL_TAB_MASK)];
 
-		hlist_for_each_entry_rcu(p, head, tcfc_head) {
+		hlist_for_each_entry_rcu(p, head, tcfa_head) {
 			index++;
 			if (index < s_i)
 				continue;
@@ -85,9 +85,9 @@ static int tcf_act_police_walker(struct net *net, struct sk_buff *skb,
 			if (nest == NULL)
 				goto nla_put_failure;
 			if (type == RTM_DELACTION)
-				err = tcf_action_dump_1(skb, (struct tc_action *)p, 0, 1);
+				err = tcf_action_dump_1(skb, p, 0, 1);
 			else
-				err = tcf_action_dump_1(skb, (struct tc_action *)p, 0, 0);
+				err = tcf_action_dump_1(skb, p, 0, 0);
 			if (err < 0) {
 				index--;
 				nla_nest_cancel(skb, nest);

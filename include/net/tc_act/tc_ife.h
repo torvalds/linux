@@ -8,7 +8,7 @@
 
 #define IFE_METAHDRLEN 2
 struct tcf_ife_info {
-	struct tcf_common common;
+	struct tc_action common;
 	u8 eth_dst[ETH_ALEN];
 	u8 eth_src[ETH_ALEN];
 	u16 eth_type;

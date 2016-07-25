@@ -23,7 +23,7 @@
 #include <linux/tc_act/tc_skbedit.h>
 
 struct tcf_skbedit {
-	struct tcf_common	common;
+	struct tc_action	common;
 	u32		flags;
 	u32		priority;
 	u32		mark;
