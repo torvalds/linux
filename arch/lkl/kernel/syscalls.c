@@ -285,8 +285,8 @@ int lkl_stop_syscall_thread(void)
 		return -EINVAL;
 
 	ret = __lkl_stop_syscall_thread(data, true);
-	if (!ret && lkl_ops->tls_free)
-		lkl_ops->tls_free(syscall_thread_data_key);
+	if (!ret && lkl_ops->tls_set)
+		lkl_ops->tls_set(syscall_thread_data_key, NULL);
 	return ret;
 }
 
