@@ -743,6 +743,7 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 		spin_lock_init(&qp->s_lock);
 		spin_lock_init(&qp->r_rq.lock);
 		atomic_set(&qp->refcount, 0);
+		atomic_set(&qp->local_ops_pending, 0);
 		init_waitqueue_head(&qp->wait);
 		init_timer(&qp->s_timer);
 		qp->s_timer.data = (unsigned long)qp;
@@ -1548,6 +1549,31 @@ static int rvt_post_one_wr(struct rvt_qp *qp,
 		return ret;
 	cplen = ret;
 
+	/*
+	 * Local operations including fast register and local invalidate
+	 * can be processed immediately w/o being posted to the send queue
+	 * if neither fencing nor completion generation is needed. However,
+	 * once fencing or completion is requested, direct processing of
+	 * following local operations must be disabled until all the local
+	 * operations posted to the send queue have completed. This is
+	 * necessary to ensure the correct ordering.
+	 */
+	if ((rdi->post_parms[wr->opcode].flags & RVT_OPERATION_LOCAL) &&
+	    !(wr->send_flags & (IB_SEND_FENCE | IB_SEND_SIGNALED)) &&
+	    !atomic_read(&qp->local_ops_pending)) {
+		struct ib_reg_wr *reg = reg_wr(wr);
+
+		switch (wr->opcode) {
+		case IB_WR_REG_MR:
+			return rvt_fast_reg_mr(qp, reg->mr, reg->key,
+					       reg->access);
+		case IB_WR_LOCAL_INV:
+			return rvt_invalidate_rkey(qp, wr->ex.invalidate_rkey);
+		default:
+			return -EINVAL;
+		}
+	}
+
 	/* check for avail */
 	if (unlikely(!qp->s_avail)) {
 		qp->s_avail = qp_get_savail(qp);
@@ -1612,11 +1638,20 @@ static int rvt_post_one_wr(struct rvt_qp *qp,
 		atomic_inc(&ibah_to_rvtah(ud_wr(wr)->ah)->refcount);
 	}
 
-	wqe->ssn = qp->s_ssn++;
-	wqe->psn = qp->s_next_psn;
-	wqe->lpsn = wqe->psn +
-			(wqe->length ? ((wqe->length - 1) >> log_pmtu) : 0);
-	qp->s_next_psn = wqe->lpsn + 1;
+	if (rdi->post_parms[wr->opcode].flags & RVT_OPERATION_LOCAL) {
+		atomic_inc(&qp->local_ops_pending);
+		wqe->ssn = 0;
+		wqe->psn = 0;
+		wqe->lpsn = 0;
+	} else {
+		wqe->ssn = qp->s_ssn++;
+		wqe->psn = qp->s_next_psn;
+		wqe->lpsn = wqe->psn +
+				(wqe->length ?
+					((wqe->length - 1) >> log_pmtu) :
+					0);
+		qp->s_next_psn = wqe->lpsn + 1;
+	}
 	trace_rvt_post_one_wr(qp, wqe);
 	smp_wmb(); /* see request builders */
 	qp->s_avail--;

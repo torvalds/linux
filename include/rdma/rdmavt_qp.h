@@ -231,6 +231,7 @@ struct rvt_ack_entry {
 #define RVT_OPERATION_PRIV        0x00000001
 #define RVT_OPERATION_ATOMIC      0x00000002
 #define RVT_OPERATION_ATOMIC_SGE  0x00000004
+#define RVT_OPERATION_LOCAL       0x00000008
 
 #define RVT_OPERATION_MAX (IB_WR_RESERVED10 + 1)
 
@@ -362,6 +363,8 @@ struct rvt_qp {
 
 	struct rvt_sge_state s_ack_rdma_sge;
 	struct timer_list s_timer;
+
+	atomic_t local_ops_pending; /* number of fast_reg/local_inv reqs */
 
 	/*
 	 * This sge list MUST be last. Do not add anything below here.
