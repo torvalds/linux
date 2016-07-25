@@ -548,6 +548,8 @@ extern struct mutex request_mutex;
 extern int debug;
 extern int op_timeout_secs;
 extern int slot_timeout_secs;
+extern int dcache_timeout_msecs;
+extern int getattr_timeout_msecs;
 extern struct list_head orangefs_superblocks;
 extern spinlock_t orangefs_superblocks_lock;
 extern struct list_head orangefs_request_list;

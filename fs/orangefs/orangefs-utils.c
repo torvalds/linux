@@ -347,7 +347,7 @@ int orangefs_inode_getattr(struct inode *inode, int new, int bypass)
 	inode->i_mode = type | (is_root_handle(inode) ? S_ISVTX : 0) |
 	    orangefs_inode_perms(&new_op->downcall.resp.getattr.attributes);
 
-	orangefs_inode->getattr_time = jiffies + HZ;
+	orangefs_inode->getattr_time = jiffies + getattr_timeout_msecs*HZ/1000;
 	ret = 0;
 out:
 	op_release(new_op);
