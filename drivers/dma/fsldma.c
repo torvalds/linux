@@ -516,9 +516,9 @@ static dma_cookie_t fsldma_run_tx_complete_actions(struct fsldma_chan *chan,
 	if (txd->cookie > 0) {
 		ret = txd->cookie;
 
+		dma_descriptor_unmap(txd);
 		/* Run the link descriptor callback function */
 		dmaengine_desc_get_callback_invoke(txd, NULL);
-		dma_descriptor_unmap(txd);
 	}
 
 	/* Run any dependencies */
