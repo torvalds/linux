@@ -6854,8 +6854,6 @@ struct sched_domain *build_sched_domain(struct sched_domain_topology_level *tl,
 		struct sched_domain *child, int cpu)
 {
 	struct sched_domain *sd = sd_init(tl, cpu);
-	if (!sd)
-		return child;
 
 	cpumask_and(sched_domain_span(sd), cpu_map, tl->mask(cpu));
 	if (child) {
