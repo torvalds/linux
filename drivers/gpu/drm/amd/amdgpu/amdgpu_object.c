@@ -737,3 +737,21 @@ void amdgpu_bo_fence(struct amdgpu_bo *bo, struct fence *fence,
 	else
 		reservation_object_add_excl_fence(resv, fence);
 }
+
+/**
+ * amdgpu_bo_gpu_offset - return GPU offset of bo
+ * @bo:	amdgpu object for which we query the offset
+ *
+ * Returns current GPU offset of the object.
+ *
+ * Note: object should either be pinned or reserved when calling this
+ * function, it might be useful to add check for this for debugging.
+ */
+u64 amdgpu_bo_gpu_offset(struct amdgpu_bo *bo)
+{
+	WARN_ON_ONCE(bo->tbo.mem.mem_type == TTM_PL_SYSTEM);
+	WARN_ON_ONCE(!ww_mutex_is_locked(&bo->tbo.resv->lock) &&
+		     !bo->pin_count);
+
+	return bo->tbo.offset;
+}

@@ -85,21 +85,6 @@ static inline void amdgpu_bo_unreserve(struct amdgpu_bo *bo)
 	ttm_bo_unreserve(&bo->tbo);
 }
 
-/**
- * amdgpu_bo_gpu_offset - return GPU offset of bo
- * @bo:	amdgpu object for which we query the offset
- *
- * Returns current GPU offset of the object.
- *
- * Note: object should either be pinned or reserved when calling this
- * function, it might be useful to add check for this for debugging.
- */
-static inline u64 amdgpu_bo_gpu_offset(struct amdgpu_bo *bo)
-{
-	WARN_ON_ONCE(bo->tbo.mem.mem_type == TTM_PL_SYSTEM);
-	return bo->tbo.offset;
-}
-
 static inline unsigned long amdgpu_bo_size(struct amdgpu_bo *bo)
 {
 	return bo->tbo.num_pages << PAGE_SHIFT;
@@ -169,6 +154,7 @@ void amdgpu_bo_move_notify(struct ttm_buffer_object *bo,
 int amdgpu_bo_fault_reserve_notify(struct ttm_buffer_object *bo);
 void amdgpu_bo_fence(struct amdgpu_bo *bo, struct fence *fence,
 		     bool shared);
+u64 amdgpu_bo_gpu_offset(struct amdgpu_bo *bo);
 
 /*
  * sub allocation
