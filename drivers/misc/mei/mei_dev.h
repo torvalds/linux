@@ -87,9 +87,6 @@ enum mei_file_transaction_states {
 	MEI_IDLE,
 	MEI_WRITING,
 	MEI_WRITE_COMPLETE,
-	MEI_FLOW_CONTROL,
-	MEI_READING,
-	MEI_READ_COMPLETE
 };
 
 /**
