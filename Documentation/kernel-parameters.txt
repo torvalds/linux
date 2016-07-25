@@ -582,6 +582,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	bootmem_debug	[KNL] Enable bootmem allocator debug messages.
 
+	bert_disable	[ACPI]
+			Disable BERT OS support on buggy BIOSes.
+
 	bttv.card=	[HW,V4L] bttv (bt848 + bt878 based grabber cards)
 	bttv.radio=	Most important insmod options are available as
 			kernel args too.
