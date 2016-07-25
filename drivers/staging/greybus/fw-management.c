@@ -103,7 +103,7 @@ unlock:
 }
 
 static int fw_mgmt_interface_fw_version_operation(struct fw_mgmt *fw_mgmt,
-		struct fw_mgmt_ioc_get_fw *fw_info)
+		struct fw_mgmt_ioc_get_intf_version *fw_info)
 {
 	struct gb_connection *connection = fw_mgmt->connection;
 	struct gb_fw_mgmt_interface_fw_version_response response;
@@ -241,7 +241,7 @@ static int fw_mgmt_interface_fw_loaded_operation(struct gb_operation *op)
 }
 
 static int fw_mgmt_backend_fw_version_operation(struct fw_mgmt *fw_mgmt,
-		struct fw_mgmt_ioc_get_fw *fw_info)
+		struct fw_mgmt_ioc_get_backend_version *fw_info)
 {
 	struct gb_connection *connection = fw_mgmt->connection;
 	struct gb_fw_mgmt_backend_fw_version_request request;
@@ -269,8 +269,29 @@ static int fw_mgmt_backend_fw_version_operation(struct fw_mgmt *fw_mgmt,
 		return ret;
 	}
 
-	fw_info->major = le16_to_cpu(response.major);
-	fw_info->minor = le16_to_cpu(response.minor);
+	fw_info->status = response.status;
+
+	/* Reset version as that should be non-zero only for success case */
+	fw_info->major = 0;
+	fw_info->minor = 0;
+
+	switch (fw_info->status) {
+	case GB_FW_BACKEND_VERSION_STATUS_SUCCESS:
+		fw_info->major = le16_to_cpu(response.major);
+		fw_info->minor = le16_to_cpu(response.minor);
+		break;
+	case GB_FW_BACKEND_VERSION_STATUS_NOT_AVAILABLE:
+	case GB_FW_BACKEND_VERSION_STATUS_RETRY:
+		break;
+	case GB_FW_BACKEND_VERSION_STATUS_NOT_SUPPORTED:
+		dev_err(fw_mgmt->parent,
+			"Firmware with tag %s is not supported by Interface\n",
+			fw_info->firmware_tag);
+		break;
+	default:
+		dev_err(fw_mgmt->parent, "Invalid status received: %u\n",
+			fw_info->status);
+	}
 
 	return 0;
 }
@@ -387,7 +408,8 @@ static int fw_mgmt_release(struct inode *inode, struct file *file)
 static int fw_mgmt_ioctl(struct fw_mgmt *fw_mgmt, unsigned int cmd,
 			 void __user *buf)
 {
-	struct fw_mgmt_ioc_get_fw fw_info;
+	struct fw_mgmt_ioc_get_intf_version intf_fw_info;
+	struct fw_mgmt_ioc_get_backend_version backend_fw_info;
 	struct fw_mgmt_ioc_intf_load_and_validate intf_load;
 	struct fw_mgmt_ioc_backend_fw_update backend_update;
 	unsigned int timeout;
@@ -399,23 +421,27 @@ static int fw_mgmt_ioctl(struct fw_mgmt *fw_mgmt, unsigned int cmd,
 
 	switch (cmd) {
 	case FW_MGMT_IOC_GET_INTF_FW:
-		ret = fw_mgmt_interface_fw_version_operation(fw_mgmt, &fw_info);
+		ret = fw_mgmt_interface_fw_version_operation(fw_mgmt,
+							     &intf_fw_info);
 		if (ret)
 			return ret;
 
-		if (copy_to_user(buf, &fw_info, sizeof(fw_info)))
+		if (copy_to_user(buf, &intf_fw_info, sizeof(intf_fw_info)))
 			return -EFAULT;
 
 		return 0;
 	case FW_MGMT_IOC_GET_BACKEND_FW:
-		if (copy_from_user(&fw_info, buf, sizeof(fw_info)))
+		if (copy_from_user(&backend_fw_info, buf,
+				   sizeof(backend_fw_info)))
 			return -EFAULT;
 
-		ret = fw_mgmt_backend_fw_version_operation(fw_mgmt, &fw_info);
+		ret = fw_mgmt_backend_fw_version_operation(fw_mgmt,
+							   &backend_fw_info);
 		if (ret)
 			return ret;
 
-		if (copy_to_user(buf, &fw_info, sizeof(fw_info)))
+		if (copy_to_user(buf, &backend_fw_info,
+				 sizeof(backend_fw_info)))
 			return -EFAULT;
 
 		return 0;

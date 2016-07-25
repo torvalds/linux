@@ -72,12 +72,27 @@
 #define GB_FW_U_BACKEND_FW_STATUS_FAIL_FETCH	0x03
 #define GB_FW_U_BACKEND_FW_STATUS_FAIL_WRITE	0x04
 #define GB_FW_U_BACKEND_FW_STATUS_INT		0x05
+#define GB_FW_U_BACKEND_FW_STATUS_RETRY		0x06
+#define GB_FW_U_BACKEND_FW_STATUS_NOT_SUPPORTED	0x07
+
+#define GB_FW_U_BACKEND_VERSION_STATUS_SUCCESS		0x01
+#define GB_FW_U_BACKEND_VERSION_STATUS_NOT_AVAILABLE	0x02
+#define GB_FW_U_BACKEND_VERSION_STATUS_NOT_SUPPORTED	0x03
+#define GB_FW_U_BACKEND_VERSION_STATUS_RETRY		0x04
+#define GB_FW_U_BACKEND_VERSION_STATUS_FAIL_INT		0x05
 
 /* IOCTL support */
-struct fw_mgmt_ioc_get_fw {
+struct fw_mgmt_ioc_get_intf_version {
 	__u8 firmware_tag[GB_FIRMWARE_U_TAG_MAX_LEN];
 	__u16 major;
 	__u16 minor;
+} __attribute__ ((__packed__));
+
+struct fw_mgmt_ioc_get_backend_version {
+	__u8 firmware_tag[GB_FIRMWARE_U_TAG_MAX_LEN];
+	__u16 major;
+	__u16 minor;
+	__u8 status;
 } __attribute__ ((__packed__));
 
 struct fw_mgmt_ioc_intf_load_and_validate {
@@ -94,8 +109,8 @@ struct fw_mgmt_ioc_backend_fw_update {
 } __attribute__ ((__packed__));
 
 #define FW_MGMT_IOCTL_BASE			'F'
-#define FW_MGMT_IOC_GET_INTF_FW			_IOR(FW_MGMT_IOCTL_BASE, 0, struct fw_mgmt_ioc_get_fw)
-#define FW_MGMT_IOC_GET_BACKEND_FW		_IOWR(FW_MGMT_IOCTL_BASE, 1, struct fw_mgmt_ioc_get_fw)
+#define FW_MGMT_IOC_GET_INTF_FW			_IOR(FW_MGMT_IOCTL_BASE, 0, struct fw_mgmt_ioc_get_intf_version)
+#define FW_MGMT_IOC_GET_BACKEND_FW		_IOWR(FW_MGMT_IOCTL_BASE, 1, struct fw_mgmt_ioc_get_backend_version)
 #define FW_MGMT_IOC_INTF_LOAD_AND_VALIDATE	_IOWR(FW_MGMT_IOCTL_BASE, 2, struct fw_mgmt_ioc_intf_load_and_validate)
 #define FW_MGMT_IOC_INTF_BACKEND_FW_UPDATE	_IOWR(FW_MGMT_IOCTL_BASE, 3, struct fw_mgmt_ioc_backend_fw_update)
 #define FW_MGMT_IOC_SET_TIMEOUT_MS		_IOW(FW_MGMT_IOCTL_BASE, 4, unsigned int)

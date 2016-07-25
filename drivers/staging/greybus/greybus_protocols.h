@@ -370,6 +370,12 @@ struct gb_fw_download_release_firmware_request {
 #define GB_FW_BACKEND_FW_STATUS_RETRY		0x06
 #define GB_FW_BACKEND_FW_STATUS_NOT_SUPPORTED	0x07
 
+#define GB_FW_BACKEND_VERSION_STATUS_SUCCESS		0x01
+#define GB_FW_BACKEND_VERSION_STATUS_NOT_AVAILABLE	0x02
+#define GB_FW_BACKEND_VERSION_STATUS_NOT_SUPPORTED	0x03
+#define GB_FW_BACKEND_VERSION_STATUS_RETRY		0x04
+#define GB_FW_BACKEND_VERSION_STATUS_FAIL_INT		0x05
+
 /* firmware management interface firmware version request has no payload */
 struct gb_fw_mgmt_interface_fw_version_response {
 	__u8			firmware_tag[GB_FIRMWARE_TAG_MAX_LEN];
@@ -402,6 +408,7 @@ struct gb_fw_mgmt_backend_fw_version_request {
 struct gb_fw_mgmt_backend_fw_version_response {
 	__le16			major;
 	__le16			minor;
+	__u8			status;
 } __packed;
 
 /* firmware management backend firmware update request */
