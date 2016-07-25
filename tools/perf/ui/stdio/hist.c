@@ -511,6 +511,7 @@ static int hist_entry__fprintf(struct hist_entry *he, size_t size,
 	hist_entry__snprintf(he, &hpp);
 
 	ret = fprintf(fp, "%s\n", bf);
+	if (fp != stdout) fprintf(stdout, "%s\n", bf); /* if fp is a file, print also to stdout */
 
 	if (symbol_conf.use_callchain)
 		ret += hist_entry_callchain__fprintf(he, total_period, 0, fp);

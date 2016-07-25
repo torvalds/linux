@@ -4,6 +4,7 @@
 #include "tool.h"
 #include <linux/types.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <stdbool.h>
 #include <termios.h>
 
@@ -37,6 +38,8 @@ struct perf_top {
 	int		   sym_pcnt_filter;
 	const char	   *sym_filter;
 	float		   min_percent;
+	const char	   *output_name;
+	FILE		   *output_log;
 };
 
 #define CONSOLE_CLEAR "[H[2J"
