@@ -1482,11 +1482,11 @@ static dma_cookie_t ppc440spe_adma_run_tx_complete_actions(
 		cookie = desc->async_tx.cookie;
 		desc->async_tx.cookie = 0;
 
+		dma_descriptor_unmap(&desc->async_tx);
 		/* call the callback (must not sleep or submit new
 		 * operations to this channel)
 		 */
 		dmaengine_desc_get_callback_invoke(&desc->async_tx, NULL);
-		dma_descriptor_unmap(&desc->async_tx);
 	}
 
 	/* run dependent operations */
