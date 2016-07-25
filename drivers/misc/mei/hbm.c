@@ -871,10 +871,10 @@ static int mei_hbm_fw_disconnect_req(struct mei_device *dev,
 		cl->state = MEI_FILE_DISCONNECTING;
 		cl->timer_count = 0;
 
-		cb = mei_io_cb_init(cl, MEI_FOP_DISCONNECT_RSP, NULL);
+		cb = mei_cl_enqueue_ctrl_wr_cb(cl, 0, MEI_FOP_DISCONNECT_RSP,
+					       NULL);
 		if (!cb)
 			return -ENOMEM;
-		list_add_tail(&cb->list, &dev->ctrl_wr_list.list);
 	}
 	return 0;
 }

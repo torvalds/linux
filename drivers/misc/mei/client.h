@@ -82,8 +82,6 @@ static inline u8 mei_me_cl_ver(const struct mei_me_client *me_cl)
 /*
  * MEI IO Functions
  */
-struct mei_cl_cb *mei_io_cb_init(struct mei_cl *cl, enum mei_cb_file_ops type,
-				 const struct file *fp);
 void mei_io_cb_free(struct mei_cl_cb *priv_cb);
 
 /**
@@ -116,6 +114,9 @@ void mei_cl_read_cb_flush(const struct mei_cl *cl, const struct file *fp);
 struct mei_cl_cb *mei_cl_alloc_cb(struct mei_cl *cl, size_t length,
 				  enum mei_cb_file_ops type,
 				  const struct file *fp);
+struct mei_cl_cb *mei_cl_enqueue_ctrl_wr_cb(struct mei_cl *cl, size_t length,
+					    enum mei_cb_file_ops type,
+					    const struct file *fp);
 int mei_cl_flush_queues(struct mei_cl *cl, const struct file *fp);
 
 /*

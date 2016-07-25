@@ -628,7 +628,7 @@ static unsigned int mei_poll(struct file *file, poll_table *wait)
 		if (!list_empty(&cl->rd_completed))
 			mask |= POLLIN | POLLRDNORM;
 		else
-			mei_cl_read_start(cl, 0, file);
+			mei_cl_read_start(cl, mei_cl_mtu(cl), file);
 	}
 
 out:

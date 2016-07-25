@@ -358,8 +358,9 @@ void mei_io_cb_free(struct mei_cl_cb *cb)
  *
  * Return: mei_cl_cb pointer or NULL;
  */
-struct mei_cl_cb *mei_io_cb_init(struct mei_cl *cl, enum mei_cb_file_ops type,
-				 const struct file *fp)
+static struct mei_cl_cb *mei_io_cb_init(struct mei_cl *cl,
+					enum mei_cb_file_ops type,
+					const struct file *fp)
 {
 	struct mei_cl_cb *cb;
 
@@ -430,12 +431,12 @@ static inline void mei_io_list_free(struct mei_cl_cb *list, struct mei_cl *cl)
  * Return: cb on success and NULL on failure
  */
 struct mei_cl_cb *mei_cl_alloc_cb(struct mei_cl *cl, size_t length,
-				  enum mei_cb_file_ops type,
+				  enum mei_cb_file_ops fop_type,
 				  const struct file *fp)
 {
 	struct mei_cl_cb *cb;
 
-	cb = mei_io_cb_init(cl, type, fp);
+	cb = mei_io_cb_init(cl, fop_type, fp);
 	if (!cb)
 		return NULL;
 
@@ -449,6 +450,36 @@ struct mei_cl_cb *mei_cl_alloc_cb(struct mei_cl *cl, size_t length,
 	}
 	cb->buf.size = length;
 
+	return cb;
+}
+
+/**
+ * mei_cl_enqueue_ctrl_wr_cb - a convenient wrapper for allocating
+ *     and enqueuing of the control commands cb
+ *
+ * @cl: host client
+ * @length: size of the buffer
+ * @type: operation type
+ * @fp: associated file pointer (might be NULL)
+ *
+ * Return: cb on success and NULL on failure
+ * Locking: called under "dev->device_lock" lock
+ */
+struct mei_cl_cb *mei_cl_enqueue_ctrl_wr_cb(struct mei_cl *cl, size_t length,
+					    enum mei_cb_file_ops fop_type,
+					    const struct file *fp)
+{
+	struct mei_cl_cb *cb;
+
+	/* for RX always allocate at least client's mtu */
+	if (length)
+		length = max_t(size_t, length, mei_cl_mtu(cl));
+
+	cb = mei_cl_alloc_cb(cl, length, fop_type, fp);
+	if (!cb)
+		return NULL;
+
+	list_add_tail(&cb->list, &cl->dev->ctrl_wr_list.list);
 	return cb;
 }
 
@@ -848,13 +879,11 @@ static int __mei_cl_disconnect(struct mei_cl *cl)
 
 	cl->state = MEI_FILE_DISCONNECTING;
 
-	cb = mei_io_cb_init(cl, MEI_FOP_DISCONNECT, NULL);
-	rets = cb ? 0 : -ENOMEM;
-	if (rets)
+	cb = mei_cl_enqueue_ctrl_wr_cb(cl, 0, MEI_FOP_DISCONNECT, NULL);
+	if (!cb) {
+		rets = -ENOMEM;
 		goto out;
-
-	cl_dbg(dev, cl, "add disconnect cb to control write list\n");
-	list_add_tail(&cb->list, &dev->ctrl_wr_list.list);
+	}
 
 	if (mei_hbuf_acquire(dev)) {
 		rets = mei_cl_send_disconnect(cl, cb);
@@ -1023,14 +1052,14 @@ int mei_cl_irq_connect(struct mei_cl *cl, struct mei_cl_cb *cb,
  *
  * @cl: host client
  * @me_cl: me client
- * @file: pointer to file structure
+ * @fp: pointer to file structure
  *
  * Locking: called under "dev->device_lock" lock
  *
  * Return: 0 on success, <0 on failure.
  */
 int mei_cl_connect(struct mei_cl *cl, struct mei_me_client *me_cl,
-		  const struct file *file)
+		   const struct file *fp)
 {
 	struct mei_device *dev;
 	struct mei_cl_cb *cb;
@@ -1057,12 +1086,11 @@ int mei_cl_connect(struct mei_cl *cl, struct mei_me_client *me_cl,
 		goto nortpm;
 	}
 
-	cb = mei_io_cb_init(cl, MEI_FOP_CONNECT, file);
-	rets = cb ? 0 : -ENOMEM;
-	if (rets)
+	cb = mei_cl_enqueue_ctrl_wr_cb(cl, 0, MEI_FOP_CONNECT, fp);
+	if (!cb) {
+		rets = -ENOMEM;
 		goto out;
-
-	list_add_tail(&cb->list, &dev->ctrl_wr_list.list);
+	}
 
 	/* run hbuf acquire last so we don't have to undo */
 	if (!mei_cl_is_other_connecting(cl) && mei_hbuf_acquire(dev)) {
@@ -1265,7 +1293,7 @@ int mei_cl_irq_notify(struct mei_cl *cl, struct mei_cl_cb *cb,
  * mei_cl_notify_request - send notification stop/start request
  *
  * @cl: host client
- * @file: associate request with file
+ * @fp: associate request with file
  * @request: 1 for start or 0 for stop
  *
  * Locking: called under "dev->device_lock" lock
@@ -1273,7 +1301,7 @@ int mei_cl_irq_notify(struct mei_cl *cl, struct mei_cl_cb *cb,
  * Return: 0 on such and error otherwise.
  */
 int mei_cl_notify_request(struct mei_cl *cl,
-			  const struct file *file, u8 request)
+			  const struct file *fp, u8 request)
 {
 	struct mei_device *dev;
 	struct mei_cl_cb *cb;
@@ -1298,7 +1326,7 @@ int mei_cl_notify_request(struct mei_cl *cl,
 	}
 
 	fop_type = mei_cl_notify_req2fop(request);
-	cb = mei_io_cb_init(cl, fop_type, file);
+	cb = mei_cl_enqueue_ctrl_wr_cb(cl, 0, fop_type, fp);
 	if (!cb) {
 		rets = -ENOMEM;
 		goto out;
@@ -1309,9 +1337,7 @@ int mei_cl_notify_request(struct mei_cl *cl,
 			rets = -ENODEV;
 			goto out;
 		}
-		list_add_tail(&cb->list, &dev->ctrl_rd_list.list);
-	} else {
-		list_add_tail(&cb->list, &dev->ctrl_wr_list.list);
+		list_move_tail(&cb->list, &dev->ctrl_rd_list.list);
 	}
 
 	mutex_unlock(&dev->device_lock);
@@ -1443,13 +1469,9 @@ int mei_cl_read_start(struct mei_cl *cl, size_t length, const struct file *fp)
 	if (cl->rx_flow_ctrl_creds)
 		return -EBUSY;
 
-	/* always allocate at least client max message */
-	length = max_t(size_t, length, mei_cl_mtu(cl));
-	cb = mei_cl_alloc_cb(cl, length, MEI_FOP_READ, fp);
+	cb = mei_cl_enqueue_ctrl_wr_cb(cl, length, MEI_FOP_READ, fp);
 	if (!cb)
 		return -ENOMEM;
-
-	list_add_tail(&cb->list, &dev->ctrl_wr_list.list);
 
 	rets = pm_runtime_get(dev->dev);
 	if (rets < 0 && rets != -EINPROGRESS) {

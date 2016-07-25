@@ -235,7 +235,7 @@ static void mei_cl_bus_event_work(struct work_struct *work)
 	/* Prepare for the next read */
 	if (cldev->events_mask & BIT(MEI_CL_EVENT_RX)) {
 		mutex_lock(&bus->device_lock);
-		mei_cl_read_start(cldev->cl, 0, NULL);
+		mei_cl_read_start(cldev->cl, mei_cl_mtu(cldev->cl), NULL);
 		mutex_unlock(&bus->device_lock);
 	}
 }
@@ -325,7 +325,7 @@ int mei_cldev_register_event_cb(struct mei_cl_device *cldev,
 
 	if (cldev->events_mask & BIT(MEI_CL_EVENT_RX)) {
 		mutex_lock(&bus->device_lock);
-		ret = mei_cl_read_start(cldev->cl, 0, NULL);
+		ret = mei_cl_read_start(cldev->cl, mei_cl_mtu(cldev->cl), NULL);
 		mutex_unlock(&bus->device_lock);
 		if (ret && ret != -EBUSY)
 			return ret;

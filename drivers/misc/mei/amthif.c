@@ -188,20 +188,19 @@ out:
  * mei_amthif_read_start - queue message for sending read credential
  *
  * @cl: host client
- * @file: file pointer of message recipient
+ * @fp: file pointer of message recipient
  *
  * Return: 0 on success, <0 on failure.
  */
-static int mei_amthif_read_start(struct mei_cl *cl, const struct file *file)
+static int mei_amthif_read_start(struct mei_cl *cl, const struct file *fp)
 {
 	struct mei_device *dev = cl->dev;
 	struct mei_cl_cb *cb;
 
-	cb = mei_cl_alloc_cb(cl, mei_cl_mtu(cl), MEI_FOP_READ, file);
+	cb = mei_cl_enqueue_ctrl_wr_cb(cl, mei_cl_mtu(cl), MEI_FOP_READ, fp);
 	if (!cb)
 		return -ENOMEM;
 
-	list_add_tail(&cb->list, &dev->ctrl_wr_list.list);
 	cl->rx_flow_ctrl_creds++;
 
 	dev->iamthif_state = MEI_IAMTHIF_READING;
