@@ -3375,7 +3375,7 @@ static void apply_cc_state(struct hfi1_pportdata *ppd)
 	 */
 	spin_lock(&ppd->cc_state_lock);
 
-	old_cc_state = get_cc_state(ppd);
+	old_cc_state = get_cc_state_protected(ppd);
 	if (!old_cc_state) {
 		/* never active, or shutting down */
 		spin_unlock(&ppd->cc_state_lock);

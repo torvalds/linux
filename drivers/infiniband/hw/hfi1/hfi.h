@@ -1616,12 +1616,21 @@ static inline u16 hfi1_get_pkey(struct hfi1_ibport *ibp, unsigned index)
 }
 
 /*
- * Readers of cc_state must call get_cc_state() under rcu_read_lock().
- * Writers of cc_state must call get_cc_state() under cc_state_lock.
+ * Called by readers of cc_state only, must call under rcu_read_lock().
  */
 static inline struct cc_state *get_cc_state(struct hfi1_pportdata *ppd)
 {
 	return rcu_dereference(ppd->cc_state);
+}
+
+/*
+ * Called by writers of cc_state only,  must call under cc_state_lock.
+ */
+static inline
+struct cc_state *get_cc_state_protected(struct hfi1_pportdata *ppd)
+{
+	return rcu_dereference_protected(ppd->cc_state,
+					 lockdep_is_held(&ppd->cc_state_lock));
 }
 
 /*

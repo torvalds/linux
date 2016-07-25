@@ -475,8 +475,9 @@ static enum hrtimer_restart cca_timer_fn(struct hrtimer *t)
 void hfi1_init_pportdata(struct pci_dev *pdev, struct hfi1_pportdata *ppd,
 			 struct hfi1_devdata *dd, u8 hw_pidx, u8 port)
 {
-	int i, size;
+	int i;
 	uint default_pkey_idx;
+	struct cc_state *cc_state;
 
 	ppd->dd = dd;
 	ppd->hw_pidx = hw_pidx;
@@ -527,9 +528,9 @@ void hfi1_init_pportdata(struct pci_dev *pdev, struct hfi1_pportdata *ppd,
 
 	spin_lock_init(&ppd->cc_state_lock);
 	spin_lock_init(&ppd->cc_log_lock);
-	size = sizeof(struct cc_state);
-	RCU_INIT_POINTER(ppd->cc_state, kzalloc(size, GFP_KERNEL));
-	if (!rcu_dereference(ppd->cc_state))
+	cc_state = kzalloc(sizeof(*cc_state), GFP_KERNEL);
+	RCU_INIT_POINTER(ppd->cc_state, cc_state);
+	if (!cc_state)
 		goto bail;
 	return;
 
@@ -1327,7 +1328,7 @@ static void cleanup_device_data(struct hfi1_devdata *dd)
 			hrtimer_cancel(&ppd->cca_timer[i].hrtimer);
 
 		spin_lock(&ppd->cc_state_lock);
-		cc_state = get_cc_state(ppd);
+		cc_state = get_cc_state_protected(ppd);
 		RCU_INIT_POINTER(ppd->cc_state, NULL);
 		spin_unlock(&ppd->cc_state_lock);
 
