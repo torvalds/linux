@@ -15,7 +15,7 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/init.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/stat.h>
 #include <linux/pm_opp.h>
@@ -707,10 +707,12 @@ struct devfreq *devfreq_get_devfreq_by_phandle(struct device *dev, int index)
 		if (devfreq->dev.parent
 			&& devfreq->dev.parent->of_node == node) {
 			mutex_unlock(&devfreq_list_lock);
+			of_node_put(node);
 			return devfreq;
 		}
 	}
 	mutex_unlock(&devfreq_list_lock);
+	of_node_put(node);
 
 	return ERR_PTR(-EPROBE_DEFER);
 }
@@ -1199,13 +1201,6 @@ static int __init devfreq_init(void)
 }
 subsys_initcall(devfreq_init);
 
-static void __exit devfreq_exit(void)
-{
-	class_destroy(devfreq_class);
-	destroy_workqueue(devfreq_wq);
-}
-module_exit(devfreq_exit);
-
 /*
  * The followings are helper functions for devfreq user device drivers with
  * OPP framework.
@@ -1471,7 +1466,3 @@ void devm_devfreq_unregister_notifier(struct device *dev,
 			       devm_devfreq_dev_match, devfreq));
 }
 EXPORT_SYMBOL(devm_devfreq_unregister_notifier);
-
-MODULE_AUTHOR("MyungJoo Ham <myungjoo.ham@samsung.com>");
-MODULE_DESCRIPTION("devfreq class support");
-MODULE_LICENSE("GPL");
