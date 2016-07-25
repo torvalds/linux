@@ -686,8 +686,8 @@ static int __init init_caches(void)
 	if (ceph_dentry_cachep == NULL)
 		goto bad_dentry;
 
-	ceph_file_cachep = KMEM_CACHE(ceph_file_info,
-				      SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD);
+	ceph_file_cachep = KMEM_CACHE(ceph_file_info, SLAB_MEM_SPREAD);
+
 	if (ceph_file_cachep == NULL)
 		goto bad_file;
 
