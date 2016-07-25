@@ -398,8 +398,6 @@ static inline void hpte_init_pseries(void) { }
 #endif
 
 extern void hpte_init_native(void);
-extern void hpte_init_beat(void);
-extern void hpte_init_beat_v3(void);
 
 extern void slb_initialize(void);
 extern void slb_flush_and_rebolt(void);
