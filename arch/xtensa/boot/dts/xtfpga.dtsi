@@ -36,11 +36,6 @@
 	};
 
 	clocks {
-		osc: main-oscillator {
-			#clock-cells = <0>;
-			compatible = "fixed-clock";
-		};
-
 		clk54: clk54 {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
@@ -53,6 +48,12 @@
 		#size-cells = <1>;
 		compatible = "simple-bus";
 		ranges = <0x00000000 0xf0000000 0x10000000>;
+
+		osc: main-oscillator {
+			#clock-cells = <0>;
+			compatible = "cdns,xtfpga-clock";
+			reg = <0x0d020004 0x4>;
+		};
 
 		serial0: serial@0d050020 {
 			device_type = "serial";

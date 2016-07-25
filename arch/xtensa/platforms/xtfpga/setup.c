@@ -26,6 +26,8 @@
 #include <linux/console.h>
 #include <linux/delay.h>
 #include <linux/of.h>
+#include <linux/clk-provider.h>
+#include <linux/of_address.h>
 
 #include <asm/timex.h>
 #include <asm/processor.h>
@@ -87,6 +89,33 @@ static void __init update_clock_frequency(struct device_node *node)
 	of_update_property(node, newfreq);
 }
 
+static void __init xtfpga_clk_setup(struct device_node *np)
+{
+	void __iomem *base = of_iomap(np, 0);
+	struct clk *clk;
+	u32 freq;
+
+	if (!base) {
+		pr_err("%s: invalid address\n", np->name);
+		return;
+	}
+
+	freq = __raw_readl(base);
+	iounmap(base);
+	clk = clk_register_fixed_rate(NULL, np->name, NULL, 0, freq);
+
+	if (IS_ERR(clk)) {
+		pr_err("%s: clk registration failed\n", np->name);
+		return;
+	}
+
+	if (of_clk_add_provider(np, of_clk_src_simple_get, clk)) {
+		pr_err("%s: clk provider registration failed\n", np->name);
+		return;
+	}
+}
+CLK_OF_DECLARE(xtfpga_clk, "cdns,xtfpga-clock", xtfpga_clk_setup);
+
 #define MAC_LEN 6
 static void __init update_local_mac(struct device_node *node)
 {
@@ -117,11 +146,7 @@ static void __init update_local_mac(struct device_node *node)
 
 static int __init machine_setup(void)
 {
-	struct device_node *clock;
 	struct device_node *eth = NULL;
-
-	for_each_node_by_name(clock, "main-oscillator")
-		update_clock_frequency(clock);
 
 	if ((eth = of_find_compatible_node(eth, NULL, "opencores,ethoc")))
 		update_local_mac(eth);
