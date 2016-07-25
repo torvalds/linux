@@ -778,8 +778,7 @@ int aa_unpack(void *udata, size_t size, struct list_head *lh, const char **ns)
 		if (error)
 			goto fail_profile;
 
-		if (aa_g_hash_policy)
-			error = aa_calc_profile_hash(profile, e.version, start,
+		error = aa_calc_profile_hash(profile, e.version, start,
 						     e.pos - start);
 		if (error)
 			goto fail_profile;
