@@ -172,12 +172,6 @@ extern int safe_smp_processor_id(void);
 #elif defined(CONFIG_X86_64_SMP)
 #define raw_smp_processor_id() (this_cpu_read(cpu_number))
 
-#define stack_smp_processor_id()					\
-({								\
-	struct thread_info *ti;						\
-	__asm__("andq %%rsp,%0; ":"=r" (ti) : "0" (CURRENT_MASK));	\
-	ti->cpu;							\
-})
 #define safe_smp_processor_id()		smp_processor_id()
 
 #endif

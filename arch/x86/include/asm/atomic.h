@@ -75,9 +75,9 @@ static __always_inline void atomic_sub(int i, atomic_t *v)
  * true if the result is zero, or false for all
  * other cases.
  */
-static __always_inline int atomic_sub_and_test(int i, atomic_t *v)
+static __always_inline bool atomic_sub_and_test(int i, atomic_t *v)
 {
-	GEN_BINARY_RMWcc(LOCK_PREFIX "subl", v->counter, "er", i, "%0", "e");
+	GEN_BINARY_RMWcc(LOCK_PREFIX "subl", v->counter, "er", i, "%0", e);
 }
 
 /**
@@ -112,9 +112,9 @@ static __always_inline void atomic_dec(atomic_t *v)
  * returns true if the result is 0, or false for all other
  * cases.
  */
-static __always_inline int atomic_dec_and_test(atomic_t *v)
+static __always_inline bool atomic_dec_and_test(atomic_t *v)
 {
-	GEN_UNARY_RMWcc(LOCK_PREFIX "decl", v->counter, "%0", "e");
+	GEN_UNARY_RMWcc(LOCK_PREFIX "decl", v->counter, "%0", e);
 }
 
 /**
@@ -125,9 +125,9 @@ static __always_inline int atomic_dec_and_test(atomic_t *v)
  * and returns true if the result is zero, or false for all
  * other cases.
  */
-static __always_inline int atomic_inc_and_test(atomic_t *v)
+static __always_inline bool atomic_inc_and_test(atomic_t *v)
 {
-	GEN_UNARY_RMWcc(LOCK_PREFIX "incl", v->counter, "%0", "e");
+	GEN_UNARY_RMWcc(LOCK_PREFIX "incl", v->counter, "%0", e);
 }
 
 /**
@@ -139,9 +139,9 @@ static __always_inline int atomic_inc_and_test(atomic_t *v)
  * if the result is negative, or false when
  * result is greater than or equal to zero.
  */
-static __always_inline int atomic_add_negative(int i, atomic_t *v)
+static __always_inline bool atomic_add_negative(int i, atomic_t *v)
 {
-	GEN_BINARY_RMWcc(LOCK_PREFIX "addl", v->counter, "er", i, "%0", "s");
+	GEN_BINARY_RMWcc(LOCK_PREFIX "addl", v->counter, "er", i, "%0", s);
 }
 
 /**

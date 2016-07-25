@@ -963,8 +963,6 @@ static void __init __efi_enter_virtual_mode(void)
 	 * EFI mixed mode we need all of memory to be accessible when
 	 * we pass parameters to the EFI runtime services in the
 	 * thunking code.
-	 *
-	 * efi_cleanup_page_tables(__pa(new_memmap), 1 << pg_shift);
 	 */
 	free_pages((unsigned long)new_memmap, pg_shift);
 

@@ -510,14 +510,15 @@ do {									\
 /* This is not atomic against other CPUs -- CPU preemption needs to be off */
 #define x86_test_and_clear_bit_percpu(bit, var)				\
 ({									\
-	int old__;							\
-	asm volatile("btr %2,"__percpu_arg(1)"\n\tsbbl %0,%0"		\
-		     : "=r" (old__), "+m" (var)				\
+	bool old__;							\
+	asm volatile("btr %2,"__percpu_arg(1)"\n\t"			\
+		     CC_SET(c)						\
+		     : CC_OUT(c) (old__), "+m" (var)			\
 		     : "dIr" (bit));					\
 	old__;								\
 })
 
-static __always_inline int x86_this_cpu_constant_test_bit(unsigned int nr,
+static __always_inline bool x86_this_cpu_constant_test_bit(unsigned int nr,
                         const unsigned long __percpu *addr)
 {
 	unsigned long __percpu *a = (unsigned long *)addr + nr / BITS_PER_LONG;
@@ -529,14 +530,14 @@ static __always_inline int x86_this_cpu_constant_test_bit(unsigned int nr,
 #endif
 }
 
-static inline int x86_this_cpu_variable_test_bit(int nr,
+static inline bool x86_this_cpu_variable_test_bit(int nr,
                         const unsigned long __percpu *addr)
 {
-	int oldbit;
+	bool oldbit;
 
 	asm volatile("bt "__percpu_arg(2)",%1\n\t"
-			"sbb %0,%0"
-			: "=r" (oldbit)
+			CC_SET(c)
+			: CC_OUT(c) (oldbit)
 			: "m" (*(unsigned long *)addr), "Ir" (nr));
 
 	return oldbit;
