@@ -26,6 +26,7 @@
 #include <linux/seq_file.h>
 
 #include <asm/cpu_device_id.h>
+#include <asm/intel-family.h>
 #include <asm/pmc_core.h>
 
 #include "intel_pmc_core.h"
@@ -138,10 +139,10 @@ static inline void pmc_core_dbgfs_unregister(struct pmc_dev *pmcdev)
 #endif /* CONFIG_DEBUG_FS */
 
 static const struct x86_cpu_id intel_pmc_core_ids[] = {
-	{ X86_VENDOR_INTEL, 6, 0x4e, X86_FEATURE_MWAIT,
-		(kernel_ulong_t)NULL}, /* Skylake CPUID Signature */
-	{ X86_VENDOR_INTEL, 6, 0x5e, X86_FEATURE_MWAIT,
-		(kernel_ulong_t)NULL}, /* Skylake CPUID Signature */
+	{ X86_VENDOR_INTEL, 6, INTEL_FAM6_SKYLAKE_MOBILE, X86_FEATURE_MWAIT,
+		(kernel_ulong_t)NULL},
+	{ X86_VENDOR_INTEL, 6, INTEL_FAM6_SKYLAKE_DESKTOP, X86_FEATURE_MWAIT,
+		(kernel_ulong_t)NULL},
 	{}
 };
 

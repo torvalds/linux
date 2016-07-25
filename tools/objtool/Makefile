@@ -26,7 +26,7 @@ OBJTOOL_IN := $(OBJTOOL)-in.o
 
 all: $(OBJTOOL)
 
-INCLUDES := -I$(srctree)/tools/include
+INCLUDES := -I$(srctree)/tools/include -I$(srctree)/tools/arch/$(ARCH)/include/uapi
 CFLAGS   += -Wall -Werror $(EXTRA_WARNINGS) -fomit-frame-pointer -O2 -g $(INCLUDES)
 LDFLAGS  += -lelf $(LIBSUBCMD)
 
@@ -41,8 +41,11 @@ include $(srctree)/tools/build/Makefile.include
 $(OBJTOOL_IN): fixdep FORCE
 	@$(MAKE) $(build)=objtool
 
+# Busybox's diff doesn't have -I, avoid warning in that case
+#
 $(OBJTOOL): $(LIBSUBCMD) $(OBJTOOL_IN)
-	@(test -d ../../kernel -a -d ../../tools -a -d ../objtool && (( \
+	@(diff -I 2>&1 | grep -q 'option requires an argument' && \
+	test -d ../../kernel -a -d ../../tools -a -d ../objtool && (( \
 	diff -I'^#include' arch/x86/insn/insn.c ../../arch/x86/lib/insn.c >/dev/null && \
 	diff -I'^#include' arch/x86/insn/inat.c ../../arch/x86/lib/inat.c >/dev/null && \
 	diff arch/x86/insn/x86-opcode-map.txt ../../arch/x86/lib/x86-opcode-map.txt >/dev/null && \

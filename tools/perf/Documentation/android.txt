@@ -12,14 +12,14 @@ Set the NDK variable to point to the path where you installed the NDK:
 
 2. Set cross-compiling environment variables for NDK toolchain and sysroot.
 For arm:
-  export NDK_TOOLCHAIN=${NDK}/toolchains/arm-linux-androideabi-4.6/prebuilt/linux-x86/bin/arm-linux-androideabi-
-  export NDK_SYSROOT=${NDK}/platforms/android-9/arch-arm
+  export NDK_TOOLCHAIN=${NDK}/toolchains/arm-linux-androideabi-4.9/prebuilt/linux-x86_64/bin/arm-linux-androideabi-
+  export NDK_SYSROOT=${NDK}/platforms/android-24/arch-arm
 For x86:
-  export NDK_TOOLCHAIN=${NDK}/toolchains/x86-4.6/prebuilt/linux-x86/bin/i686-linux-android-
-  export NDK_SYSROOT=${NDK}/platforms/android-9/arch-x86
+  export NDK_TOOLCHAIN=${NDK}/toolchains/x86-4.9/prebuilt/linux-x86_64/bin/i686-linux-android-
+  export NDK_SYSROOT=${NDK}/platforms/android-24/arch-x86
 
-This method is not working for Android NDK versions up to Revision 8b.
-perf uses some bionic enhancements that are not included in these NDK versions.
+This method is only tested for Android NDK versions Revision 11b and later.
+perf uses some bionic enhancements that are not included in prior NDK versions.
 You can use method (b) described below instead.
 
 (b). Use the Android source tree
@@ -49,9 +49,9 @@ II. Compile perf for Android
 ------------------------------------------------
 You need to run make with the NDK toolchain and sysroot defined above:
 For arm:
-  make ARCH=arm CROSS_COMPILE=${NDK_TOOLCHAIN} CFLAGS="--sysroot=${NDK_SYSROOT}"
+  make WERROR=0 ARCH=arm CROSS_COMPILE=${NDK_TOOLCHAIN} EXTRA_CFLAGS="-pie --sysroot=${NDK_SYSROOT}"
 For x86:
-  make ARCH=x86 CROSS_COMPILE=${NDK_TOOLCHAIN} CFLAGS="--sysroot=${NDK_SYSROOT}"
+  make WERROR=0 ARCH=x86 CROSS_COMPILE=${NDK_TOOLCHAIN} EXTRA_CFLAGS="-pie --sysroot=${NDK_SYSROOT}"
 
 III. Install perf
 -----------------------------------------------
