@@ -1542,10 +1542,6 @@ static int __init octeon_irq_init_ciu(
 			goto err;
 	}
 
-	r = octeon_irq_force_ciu_mapping(ciu_domain, OCTEON_IRQ_USB0, 0, 56);
-	if (r)
-		goto err;
-
 	r = octeon_irq_force_ciu_mapping(ciu_domain, OCTEON_IRQ_TWSI2, 0, 59);
 	if (r)
 		goto err;
@@ -1558,10 +1554,6 @@ static int __init octeon_irq_init_ciu(
 		if (r)
 			goto err;
 	}
-
-	r = octeon_irq_force_ciu_mapping(ciu_domain, OCTEON_IRQ_USB1, 1, 17);
-	if (r)
-		goto err;
 
 	/* Enable the CIU lines */
 	set_c0_status(STATUSF_IP3 | STATUSF_IP2);
@@ -2076,10 +2068,6 @@ static int __init octeon_irq_init_ciu2(
 		if (r)
 			goto err;
 	}
-
-	r = octeon_irq_force_ciu_mapping(ciu_domain, OCTEON_IRQ_USB0, 3, 44);
-	if (r)
-		goto err;
 
 	for (i = 0; i < 4; i++) {
 		r = octeon_irq_force_ciu_mapping(
