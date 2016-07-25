@@ -560,6 +560,8 @@ acpi_map_gic_cpu_interface(struct acpi_madt_generic_interrupt *processor)
 	 */
 	acpi_set_mailbox_entry(cpu_count, processor);
 
+	early_map_cpu_to_node(cpu_count, acpi_numa_get_nid(cpu_count, hwid));
+
 	cpu_count++;
 }
 
