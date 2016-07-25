@@ -565,16 +565,18 @@ static void dpaa_bps_free(struct dpaa_priv *priv)
 
 /* Use multiple WQs for FQ assignment:
  *	- Tx Confirmation queues go to WQ1.
- *	- Rx Error and Tx Error queues go to WQ2 (giving them a better chance
- *	  to be scheduled, in case there are many more FQs in WQ3).
- *	- Rx Default and Tx queues go to WQ3 (no differentiation between
- *	  Rx and Tx traffic).
+ *	- Rx Error and Tx Error queues go to WQ5 (giving them a better chance
+ *	  to be scheduled, in case there are many more FQs in WQ6).
+ *	- Rx Default goes to WQ6.
+ *	- Tx queues go to different WQs depending on their priority. Equal
+ *	  chunks of NR_CPUS queues go to WQ6 (lowest priority), WQ2, WQ1 and
+ *	  WQ0 (highest priority).
  * This ensures that Tx-confirmed buffers are timely released. In particular,
  * it avoids congestion on the Tx Confirm FQs, which can pile up PFDRs if they
  * are greatly outnumbered by other FQs in the system, while
  * dequeue scheduling is round-robin.
  */
-static inline void dpaa_assign_wq(struct dpaa_fq *fq)
+static inline void dpaa_assign_wq(struct dpaa_fq *fq, int idx)
 {
 	switch (fq->fq_type) {
 	case FQ_TYPE_TX_CONFIRM:
@@ -583,11 +585,33 @@ static inline void dpaa_assign_wq(struct dpaa_fq *fq)
 		break;
 	case FQ_TYPE_RX_ERROR:
 	case FQ_TYPE_TX_ERROR:
-		fq->wq = 2;
+		fq->wq = 5;
 		break;
 	case FQ_TYPE_RX_DEFAULT:
+		fq->wq = 6;
+		break;
 	case FQ_TYPE_TX:
-		fq->wq = 3;
+		switch (idx / DPAA_TC_TXQ_NUM) {
+		case 0:
+			/* Low priority (best effort) */
+			fq->wq = 6;
+			break;
+		case 1:
+			/* Medium priority */
+			fq->wq = 2;
+			break;
+		case 2:
+			/* High priority */
+			fq->wq = 1;
+			break;
+		case 3:
+			/* Very high priority */
+			fq->wq = 0;
+			break;
+		default:
+			WARN(1, "Too many TX FQs: more than %d!\n",
+			     DPAA_ETH_TXQ_NUM);
+		}
 		break;
 	default:
 		WARN(1, "Invalid FQ type %d for FQID %d!\n",
@@ -615,7 +639,7 @@ static struct dpaa_fq *dpaa_fq_alloc(struct device *dev,
 	}
 
 	for (i = 0; i < count; i++)
-		dpaa_assign_wq(dpaa_fq + i);
+		dpaa_assign_wq(dpaa_fq + i, i);
 
 	return dpaa_fq;
 }
@@ -2682,6 +2706,9 @@ static int dpaa_eth_probe(struct platform_device *pdev)
 		percpu_priv = per_cpu_ptr(priv->percpu_priv, i);
 		memset(percpu_priv, 0, sizeof(*percpu_priv));
 	}
+
+	priv->num_tc = 1;
+	netif_set_real_num_tx_queues(net_dev, priv->num_tc * DPAA_TC_TXQ_NUM);
 
 	/* Initialize NAPI */
 	err = dpaa_napi_add(net_dev);
