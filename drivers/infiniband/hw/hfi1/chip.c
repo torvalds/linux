@@ -9918,6 +9918,131 @@ static int wait_phy_linkstate(struct hfi1_devdata *dd, u32 state, u32 msecs)
 	return 0;
 }
 
+static const char *state_completed_string(u32 completed)
+{
+	static const char * const state_completed[] = {
+		"EstablishComm",
+		"OptimizeEQ",
+		"VerifyCap"
+	};
+
+	if (completed < ARRAY_SIZE(state_completed))
+		return state_completed[completed];
+
+	return "unknown";
+}
+
+static const char all_lanes_dead_timeout_expired[] =
+	"All lanes were inactive – was the interconnect media removed?";
+static const char tx_out_of_policy[] =
+	"Passing lanes on local port do not meet the local link width policy";
+static const char no_state_complete[] =
+	"State timeout occurred before link partner completed the state";
+static const char * const state_complete_reasons[] = {
+	[0x00] = "Reason unknown",
+	[0x01] = "Link was halted by driver, refer to LinkDownReason",
+	[0x02] = "Link partner reported failure",
+	[0x10] = "Unable to achieve frame sync on any lane",
+	[0x11] =
+	  "Unable to find a common bit rate with the link partner",
+	[0x12] =
+	  "Unable to achieve frame sync on sufficient lanes to meet the local link width policy",
+	[0x13] =
+	  "Unable to identify preset equalization on sufficient lanes to meet the local link width policy",
+	[0x14] = no_state_complete,
+	[0x15] =
+	  "State timeout occurred before link partner identified equalization presets",
+	[0x16] =
+	  "Link partner completed the EstablishComm state, but the passing lanes do not meet the local link width policy",
+	[0x17] = tx_out_of_policy,
+	[0x20] = all_lanes_dead_timeout_expired,
+	[0x21] =
+	  "Unable to achieve acceptable BER on sufficient lanes to meet the local link width policy",
+	[0x22] = no_state_complete,
+	[0x23] =
+	  "Link partner completed the OptimizeEq state, but the passing lanes do not meet the local link width policy",
+	[0x24] = tx_out_of_policy,
+	[0x30] = all_lanes_dead_timeout_expired,
+	[0x31] =
+	  "State timeout occurred waiting for host to process received frames",
+	[0x32] = no_state_complete,
+	[0x33] =
+	  "Link partner completed the VerifyCap state, but the passing lanes do not meet the local link width policy",
+	[0x34] = tx_out_of_policy,
+};
+
+static const char *state_complete_reason_code_string(struct hfi1_pportdata *ppd,
+						     u32 code)
+{
+	const char *str = NULL;
+
+	if (code < ARRAY_SIZE(state_complete_reasons))
+		str = state_complete_reasons[code];
+
+	if (str)
+		return str;
+	return "Reserved";
+}
+
+/* describe the given last state complete frame */
+static void decode_state_complete(struct hfi1_pportdata *ppd, u32 frame,
+				  const char *prefix)
+{
+	struct hfi1_devdata *dd = ppd->dd;
+	u32 success;
+	u32 state;
+	u32 reason;
+	u32 lanes;
+
+	/*
+	 * Decode frame:
+	 *  [ 0: 0] - success
+	 *  [ 3: 1] - state
+	 *  [ 7: 4] - next state timeout
+	 *  [15: 8] - reason code
+	 *  [31:16] - lanes
+	 */
+	success = frame & 0x1;
+	state = (frame >> 1) & 0x7;
+	reason = (frame >> 8) & 0xff;
+	lanes = (frame >> 16) & 0xffff;
+
+	dd_dev_err(dd, "Last %s LNI state complete frame 0x%08x:\n",
+		   prefix, frame);
+	dd_dev_err(dd, "    last reported state state: %s (0x%x)\n",
+		   state_completed_string(state), state);
+	dd_dev_err(dd, "    state successfully completed: %s\n",
+		   success ? "yes" : "no");
+	dd_dev_err(dd, "    fail reason 0x%x: %s\n",
+		   reason, state_complete_reason_code_string(ppd, reason));
+	dd_dev_err(dd, "    passing lane mask: 0x%x", lanes);
+}
+
+/*
+ * Read the last state complete frames and explain them.  This routine
+ * expects to be called if the link went down during link negotiation
+ * and initialization (LNI).  That is, anywhere between polling and link up.
+ */
+static void check_lni_states(struct hfi1_pportdata *ppd)
+{
+	u32 last_local_state;
+	u32 last_remote_state;
+
+	read_last_local_state(ppd->dd, &last_local_state);
+	read_last_remote_state(ppd->dd, &last_remote_state);
+
+	/*
+	 * Don't report anything if there is nothing to report.  A value of
+	 * 0 means the link was taken down while polling and there was no
+	 * training in-process.
+	 */
+	if (last_local_state == 0 && last_remote_state == 0)
+		return;
+
+	decode_state_complete(ppd, last_local_state, "transmitted");
+	decode_state_complete(ppd, last_remote_state, "received");
+}
+
 /*
  * Helper for set_link_state().  Do not call except from that routine.
  * Expects ppd->hls_mutex to be held.
@@ -9930,8 +10055,6 @@ static int goto_offline(struct hfi1_pportdata *ppd, u8 rem_reason)
 {
 	struct hfi1_devdata *dd = ppd->dd;
 	u32 pstate, previous_state;
-	u32 last_local_state;
-	u32 last_remote_state;
 	int ret;
 	int do_transition;
 	int do_wait;
@@ -10031,12 +10154,7 @@ static int goto_offline(struct hfi1_pportdata *ppd, u8 rem_reason)
 	} else if (previous_state
 			& (HLS_DN_POLL | HLS_VERIFY_CAP | HLS_GOING_UP)) {
 		/* went down while attempting link up */
-		/* byte 1 of last_*_state is the failure reason */
-		read_last_local_state(dd, &last_local_state);
-		read_last_remote_state(dd, &last_remote_state);
-		dd_dev_err(dd,
-			   "LNI failure last states: local 0x%08x, remote 0x%08x\n",
-			   last_local_state, last_remote_state);
+		check_lni_states(ppd);
 	}
 
 	/* the active link width (downgrade) is 0 on link down */
