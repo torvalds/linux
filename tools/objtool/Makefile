@@ -1,10 +1,8 @@
 include ../scripts/Makefile.include
+include ../scripts/Makefile.arch
 
-ifndef ($(ARCH))
-ARCH ?= $(shell uname -m)
 ifeq ($(ARCH),x86_64)
 ARCH := x86
-endif
 endif
 
 # always use the host compiler
@@ -26,7 +24,7 @@ OBJTOOL_IN := $(OBJTOOL)-in.o
 
 all: $(OBJTOOL)
 
-INCLUDES := -I$(srctree)/tools/include -I$(srctree)/tools/arch/$(ARCH)/include/uapi
+INCLUDES := -I$(srctree)/tools/include -I$(srctree)/tools/arch/$(HOSTARCH)/include/uapi
 CFLAGS   += -Wall -Werror $(EXTRA_WARNINGS) -fomit-frame-pointer -O2 -g $(INCLUDES)
 LDFLAGS  += -lelf $(LIBSUBCMD)
 
@@ -35,7 +33,7 @@ elfshdr := $(shell echo '\#include <libelf.h>' | $(CC) $(CFLAGS) -x c -E - | gre
 CFLAGS += $(if $(elfshdr),,-DLIBELF_USE_DEPRECATED)
 
 AWK = awk
-export srctree OUTPUT CFLAGS ARCH AWK
+export srctree OUTPUT CFLAGS SRCARCH AWK
 include $(srctree)/tools/build/Makefile.include
 
 $(OBJTOOL_IN): fixdep FORCE

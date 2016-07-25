@@ -1,4 +1,4 @@
-objtool-y += arch/$(ARCH)/
+objtool-y += arch/$(SRCARCH)/
 objtool-y += builtin-check.o
 objtool-y += elf.o
 objtool-y += special.o
