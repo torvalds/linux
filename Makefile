@@ -655,40 +655,25 @@ ifneq ($(CONFIG_FRAME_WARN),0)
 KBUILD_CFLAGS += $(call cc-option,-Wframe-larger-than=${CONFIG_FRAME_WARN})
 endif
 
-# Handle stack protector mode.
-#
-# Since kbuild can potentially perform two passes (first with the old
-# .config values and then with updated .config values), we cannot error out
-# if a desired compiler option is unsupported. If we were to error, kbuild
-# could never get to the second pass and actually notice that we changed
-# the option to something that was supported.
-#
-# Additionally, we don't want to fallback and/or silently change which compiler
-# flags will be used, since that leads to producing kernels with different
-# security feature characteristics depending on the compiler used. ("But I
-# selected CC_STACKPROTECTOR_STRONG! Why did it build with _REGULAR?!")
-#
-# The middle ground is to warn here so that the failed option is obvious, but
-# to let the build fail with bad compiler flags so that we can't produce a
-# kernel when there is a CONFIG and compiler mismatch.
-#
+# This selects the stack protector compiler flag. Testing it is delayed
+# until after .config has been reprocessed, in the prepare-compiler-check
+# target.
 ifdef CONFIG_CC_STACKPROTECTOR_REGULAR
   stackp-flag := -fstack-protector
-  ifeq ($(call cc-option, $(stackp-flag)),)
-    $(warning Cannot use CONFIG_CC_STACKPROTECTOR_REGULAR: \
-             -fstack-protector not supported by compiler)
-  endif
+  stackp-name := REGULAR
 else
 ifdef CONFIG_CC_STACKPROTECTOR_STRONG
   stackp-flag := -fstack-protector-strong
-  ifeq ($(call cc-option, $(stackp-flag)),)
-    $(warning Cannot use CONFIG_CC_STACKPROTECTOR_STRONG: \
-	      -fstack-protector-strong not supported by compiler)
-  endif
+  stackp-name := STRONG
 else
   # Force off for distro compilers that enable stack protector by default.
   stackp-flag := $(call cc-option, -fno-stack-protector)
 endif
+endif
+# Find arch-specific stack protector compiler sanity-checking script.
+ifdef CONFIG_CC_STACKPROTECTOR
+  stackp-path := $(srctree)/scripts/gcc-$(SRCARCH)_$(BITS)-has-stack-protector.sh
+  stackp-check := $(wildcard $(stackp-path))
 endif
 KBUILD_CFLAGS += $(stackp-flag)
 
@@ -1017,8 +1002,10 @@ ifneq ($(KBUILD_SRC),)
 	fi;
 endif
 
-# prepare2 creates a makefile if using a separate output directory
-prepare2: prepare3 outputmakefile asm-generic
+# prepare2 creates a makefile if using a separate output directory.
+# From this point forward, .config has been reprocessed, so any rules
+# that need to depend on updated CONFIG_* values can be checked here.
+prepare2: prepare3 prepare-compiler-check outputmakefile asm-generic
 
 prepare1: prepare2 $(version_h) include/generated/utsrelease.h \
                    include/config/auto.conf
@@ -1048,6 +1035,32 @@ endif
 
 PHONY += prepare-objtool
 prepare-objtool: $(objtool_target)
+
+# Check for CONFIG flags that require compiler support. Abort the build
+# after .config has been processed, but before the kernel build starts.
+#
+# For security-sensitive CONFIG options, we don't want to fallback and/or
+# silently change which compiler flags will be used, since that leads to
+# producing kernels with different security feature characteristics
+# depending on the compiler used. (For example, "But I selected
+# CC_STACKPROTECTOR_STRONG! Why did it build with _REGULAR?!")
+PHONY += prepare-compiler-check
+prepare-compiler-check: FORCE
+# Make sure compiler supports requested stack protector flag.
+ifdef stackp-name
+  ifeq ($(call cc-option, $(stackp-flag)),)
+	@echo Cannot use CONFIG_CC_STACKPROTECTOR_$(stackp-name): \
+		  $(stackp-flag) not supported by compiler >&2 && exit 1
+  endif
+endif
+# Make sure compiler does not have buggy stack-protector support.
+ifdef stackp-check
+  ifneq ($(shell $(CONFIG_SHELL) $(stackp-check) $(CC) $(KBUILD_CPPFLAGS) $(biarch)),y)
+	@echo Cannot use CONFIG_CC_STACKPROTECTOR_$(stackp-name): \
+                  $(stackp-flag) available but compiler is broken >&2 && exit 1
+  endif
+endif
+	@:
 
 # Generate some files
 # ---------------------------------------------------------------------------
