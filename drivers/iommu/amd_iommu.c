@@ -1673,7 +1673,7 @@ static struct dma_ops_domain *dma_ops_domain_alloc(void)
 	if (protection_domain_init(&dma_dom->domain))
 		goto free_dma_dom;
 
-	dma_dom->domain.mode = PAGE_MODE_2_LEVEL;
+	dma_dom->domain.mode = PAGE_MODE_3_LEVEL;
 	dma_dom->domain.pt_root = (void *)get_zeroed_page(GFP_KERNEL);
 	dma_dom->domain.flags = PD_DMA_OPS_MASK;
 	if (!dma_dom->domain.pt_root)
