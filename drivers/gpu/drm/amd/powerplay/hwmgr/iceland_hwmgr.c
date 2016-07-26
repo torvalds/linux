@@ -2970,13 +2970,11 @@ int iceland_start_dpm(struct pp_hwmgr *hwmgr)
 
 	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__PCIE, SWRST_COMMAND_1, RESETLC, 0x0);
 
-#if 0
 	PP_ASSERT_WITH_CODE(
 			(0 == smum_send_msg_to_smc(hwmgr->smumgr,
 					PPSMC_MSG_Voltage_Cntl_Enable)),
 			"Failed to enable voltage DPM during DPM Start Function!",
 			return -1);
-#endif
 
 	if (0 != iceland_enable_sclk_mclk_dpm(hwmgr)) {
 		PP_ASSERT_WITH_CODE(0, "Failed to enable Sclk DPM and Mclk DPM!", return -1);
