@@ -4745,21 +4745,15 @@ int i915_gem_freeze_late(struct drm_i915_private *dev_priv)
 void i915_gem_release(struct drm_device *dev, struct drm_file *file)
 {
 	struct drm_i915_file_private *file_priv = file->driver_priv;
+	struct drm_i915_gem_request *request;
 
 	/* Clean up our request list when the client is going away, so that
 	 * later retire_requests won't dereference our soon-to-be-gone
 	 * file_priv.
 	 */
 	spin_lock(&file_priv->mm.lock);
-	while (!list_empty(&file_priv->mm.request_list)) {
-		struct drm_i915_gem_request *request;
-
-		request = list_first_entry(&file_priv->mm.request_list,
-					   struct drm_i915_gem_request,
-					   client_list);
-		list_del(&request->client_list);
+	list_for_each_entry(request, &file_priv->mm.request_list, client_list)
 		request->file_priv = NULL;
-	}
 	spin_unlock(&file_priv->mm.lock);
 
 	if (!list_empty(&file_priv->rps.link)) {
