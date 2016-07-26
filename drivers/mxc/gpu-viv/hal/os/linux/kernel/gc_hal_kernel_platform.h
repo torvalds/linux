@@ -318,6 +318,19 @@ typedef struct _gcsPLATFORM_OPERATIONS
         IN gctCONST_STRING * Name
         );
 
+    /*******************************************************************************
+    **
+    ** getPolicyID
+    **
+    ** Get policyID for a specified surface type.
+    */
+    gceSTATUS
+    (*getPolicyID)(
+        IN gckPLATFORM Platform,
+        IN gceSURF_TYPE Type,
+        OUT gctUINT32_PTR PolicyID,
+        OUT gctUINT32_PTR AXIConfig
+        );
 }
 gcsPLATFORM_OPERATIONS;
 

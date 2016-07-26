@@ -60,10 +60,10 @@
 
 #define gcvVERSION_MINOR        1
 
-#define gcvVERSION_PATCH        0
+#define gcvVERSION_PATCH        1
 
-#define gcvVERSION_BUILD     60705
+#define gcvVERSION_BUILD     72587
 
-#define gcvVERSION_STRING    "6.1.0.60705"
+#define gcvVERSION_STRING    "6.1.1.72587"
 
 #endif /* __gc_hal_version_h_ */

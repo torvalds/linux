@@ -80,6 +80,7 @@ typedef enum _gceCHIPMODEL
     gcv520  = 0x0520,
     gcv530  = 0x0530,
     gcv600  = 0x0600,
+    gcv620  = 0x0620,
     gcv700  = 0x0700,
     gcv800  = 0x0800,
     gcv860  = 0x0860,
@@ -219,7 +220,8 @@ typedef enum _gceFEATURE
     gcvFEATURE_SUPPORT_GCREGTX,
     gcvFEATURE_2D_MIRROR_EXTENSION,
     gcvFEATURE_TEXTURE_ASTC,
-    gcvFEATURE_TEXTURE_ASTC_FIX,
+    gcvFEATURE_TEXTURE_ASTC_DECODE_FIX,
+    gcvFEATURE_TEXTURE_ASTC_BASE_LOD_FIX,
     gcvFEATURE_2D_SUPER_TILE_V1,
     gcvFEATURE_2D_SUPER_TILE_V2,
     gcvFEATURE_2D_SUPER_TILE_V3,
@@ -233,7 +235,10 @@ typedef enum _gceFEATURE
     gcvFEATURE_BRANCH_ON_IMMEDIATE_REG,
     gcvFEATURE_2D_COMPRESSION,
     gcvFEATURE_TPC_COMPRESSION,
+    gcvFEATURE_TPCV11_COMPRESSION,
     gcvFEATURE_DEC_COMPRESSION,
+    gcvFEATURE_DEC300_COMPRESSION,
+    gcvFEATURE_DEC400_COMPRESSION,
     gcvFEATURE_DEC_TPC_COMPRESSION,
     gcvFEATURE_DEC_COMPRESSION_TILE_NV12_8BIT,
     gcvFEATURE_DEC_COMPRESSION_TILE_NV12_10BIT,
@@ -246,6 +251,7 @@ typedef enum _gceFEATURE
     gcvFEATURE_VERTEX_INST_ID_AS_INTEGER,
     gcvFEATURE_2D_YUV_MODE,
     gcvFEATURE_2D_CACHE_128B256BPERLINE,
+    gcvFEATURE_2D_SEPARATE_CACHE,
     gcvFEATURE_2D_MAJOR_SUPER_TILE,
     gcvFEATURE_2D_V4COMPRESSION,
     gcvFEATURE_2D_VMSAA,
@@ -371,7 +377,7 @@ typedef enum _gceFEATURE
     gcvFEATURE_PE_B2B_PIXEL_FIX,
     gcvFEATURE_TEXTURE_GATHER_OFFSETS,
     gcvFEATURE_TEX_CACHE_FLUSH_FIX,
-    gcvFEATURE_WIDE_LINE_FIX,
+    gcvFEATURE_WIDELINE_HELPER_FIX,
     gcvFEATURE_LINE_DIAMOND_RULE_FIX,
     gcvFEATURE_MULTIGPU_SYNC_V2,
     gcvFEATURE_DRAW_ID,
@@ -473,11 +479,22 @@ typedef enum _gceFEATURE
     gcvFEATURE_PE_ENHANCEMENTS2,
     gcvFEATURE_PSIO_MSAA_CL_FIX,
     gcvFEATURE_FE_NEED_DUMMYDRAW,
-
+    gcvFEATURE_TX_ASTC_MULTISLICE_FIX,
+    gcvFEATURE_PSIO_DUAL16_32bpc_FIX,
+    gcvFEATURE_USC_DEFER_FILL_FIX,
     /* Insert features above this comment only. */
     gcvFEATURE_COUNT                /* Not a feature. */
 }
 gceFEATURE;
+
+/* dummy draw type.*/
+typedef enum _gceDUMMY_DRAW_TYPE
+{
+    gcvDUMMY_DRAW_INVALID = 0,
+    gcvDUMMY_DRAW_GC400,
+    gcvDUMMY_DRAW_V60,
+}
+gceDUMMY_DRAW_TYPE;
 
 /* Chip SWWA. */
 typedef enum _gceSWWA
@@ -754,6 +771,7 @@ typedef enum _gceSURF_FORMAT
     gcvSURF_R8G8B8G8,
     gcvSURF_X2R10G10B10,
     gcvSURF_A2R10G10B10,
+    gcvSURF_R10G10B10A2,
     gcvSURF_X12R12G12B12,
     gcvSURF_A12R12G12B12,
     gcvSURF_X16R16G16B16,
@@ -766,7 +784,6 @@ typedef enum _gceSURF_FORMAT
     gcvSURF_A16R16G16B16_2_A8R8G8B8,
     gcvSURF_A32R32G32B32_2_G32R32F,
     gcvSURF_A32R32G32B32_4_A8R8G8B8,
-    gcvSURF_R10G10B10A2,
     /* BGR formats. */
     gcvSURF_A4B4G4R4            = 300,
     gcvSURF_A1B5G5R5,
@@ -785,6 +802,7 @@ typedef enum _gceSURF_FORMAT
     gcvSURF_B5G5R5A1,
     gcvSURF_B8G8R8X8,
     gcvSURF_B8G8R8A8,
+    gcvSURF_B10G10R10A2,
     gcvSURF_X4B4G4R4,
     gcvSURF_X1B5G5R5,
     gcvSURF_B4G4R4X4,
@@ -794,7 +812,6 @@ typedef enum _gceSURF_FORMAT
     gcvSURF_X8B8G8R8_SNORM,
     gcvSURF_A8B8G8R8_SNORM,
     gcvSURF_A8B12G12R12_2_A8R8G8B8,
-    gcvSURF_B10G10R10A2,
 
     /* Compressed formats. */
     gcvSURF_DXT1                = 400,
@@ -830,15 +847,16 @@ typedef enum _gceSURF_FORMAT
     gcvSURF_YUV420_10_ST,
     gcvSURF_YUV420_TILE_ST,
     gcvSURF_YUV420_TILE_10_ST,
+    gcvSURF_NV12_10BIT,
+    gcvSURF_NV21_10BIT,
+    gcvSURF_NV16_10BIT,
+    gcvSURF_NV61_10BIT,
+    gcvSURF_P010,
 #if gcdVG_ONLY
     gcvSURF_AYUY2,
     gcvSURF_ANV12,
     gcvSURF_ANV16,
 #endif
-    gcvSURF_NV12_10BIT,
-    gcvSURF_NV21_10BIT,
-    gcvSURF_NV16_10BIT,
-    gcvSURF_NV61_10BIT,
 
     /* Depth formats. */
     gcvSURF_D16                 = 600,
@@ -1377,7 +1395,6 @@ typedef enum _gce2D_TILE_STATUS_CONFIG
     gcv2D_TSC_COMPRESSED    = 0x00000002,
     gcv2D_TSC_DOWN_SAMPLER  = 0x00000004,
     gcv2D_TSC_2D_COMPRESSED = 0x00000008,
-    gcv2D_TSC_TPC_COMPRESSED = 0x00000010,
 
     gcv2D_TSC_DEC_COMPRESSED = 0x00000020,
     gcv2D_TSC_DEC_TPC        = 0x00000040,
@@ -1388,6 +1405,10 @@ typedef enum _gce2D_TILE_STATUS_CONFIG
 
     gcv2D_TSC_DEC_TPC_TILED  = gcv2D_TSC_DEC_COMPRESSED | gcv2D_TSC_DEC_TPC,
     gcv2D_TSC_DEC_TPC_TILED_COMPRESSED = gcv2D_TSC_DEC_TPC_TILED | gcv2D_TSC_DEC_TPC_COMPRESSED,
+
+    gcv2D_TSC_TPC_COMPRESSED     = 0x00001000,
+    gcv2D_TSC_TPC_COMPRESSED_V10 = gcv2D_TSC_TPC_COMPRESSED | 0x00000400,
+    gcv2D_TSC_TPC_COMPRESSED_V11 = gcv2D_TSC_TPC_COMPRESSED | 0x00000800,
 }
 gce2D_TILE_STATUS_CONFIG;
 
@@ -1529,8 +1550,10 @@ typedef enum _gceTILING
     gcvMINORTILED  = 0x8,         /* 2x2   tiling. */
 
     /* Tiling special layouts. */
-    gcvTILING_SPLIT_BUFFER = 0x100,
-    gcvTILING_Y_MAJOR         = 0x200,
+    gcvTILING_SPLIT_BUFFER = 0x10,
+    gcvTILING_X_MAJOR      = 0x20,
+    gcvTILING_Y_MAJOR      = 0x40,
+    gcvTILING_SWAP         = 0x80,
 
     /* Tiling combination layouts. */
     gcvMULTI_TILED      = gcvTILED
@@ -1541,6 +1564,16 @@ typedef enum _gceTILING
 
     gcvYMAJOR_SUPERTILED = gcvSUPERTILED
                         | gcvTILING_Y_MAJOR,
+
+    gcvTILED_8X4           = 0x0100,
+    gcvTILED_4X8           = 0x0100 | gcvTILING_SWAP,
+    gcvTILED_8X8           = 0x0200,
+    gcvTILED_16X4          = 0x0400,
+    gcvTILED_32X4          = 0x0800,
+    gcvTILED_64X4          = 0x1000,
+
+    gcvTILED_8X8_XMAJOR    = gcvTILED_8X8 | gcvTILING_X_MAJOR,
+    gcvTILED_8X8_YMAJOR    = gcvTILED_8X8 | gcvTILING_Y_MAJOR,
 }
 gceTILING;
 
@@ -1966,7 +1999,7 @@ typedef enum _gceCORE
     gcvCORE_3D3,
     gcvCORE_2D,
     gcvCORE_VG,
-#if gcdENABLE_DEC_COMPRESSION
+#if gcdDEC_ENABLE_AHB
     gcvCORE_DEC,
 #endif
     gcvCORE_COUNT

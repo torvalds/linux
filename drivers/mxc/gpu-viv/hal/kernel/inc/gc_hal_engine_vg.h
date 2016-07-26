@@ -626,7 +626,8 @@ gcoHAL_FreeVideoMemory(
     IN gctUINT saveLayerTreeDepth,
     IN gctUINT varTreeDepth,
 #endif
-    IN gctUINT32 Node
+    IN gctUINT32 Node,
+    IN gctBOOL asynchroneous
     );
 
 /* Query command buffer attributes. */
@@ -1137,7 +1138,9 @@ gcoVG_TesselateImage(
     IN gctBOOL Mask,
 #if gcdMOVG
     IN gctBOOL SoftwareTesselation,
-    IN gceVG_BLEND BlendMode
+    IN gceVG_BLEND BlendMode,
+    IN gctINT Width,
+    IN gctINT Height
 #else
     IN gctBOOL SoftwareTesselation
 #endif

@@ -252,6 +252,67 @@ gceSTATUS gckVGKERNEL_Destroy(
 
 /*******************************************************************************
 **
+**  gckVGKERNEL_BottomHalfUnlockVideoMemory
+**
+**  Unlock video memory from gpu.
+**
+**  INPUT:
+**
+**      gckKERNEL Kernel
+**          Pointer to an gckKERNEL object.
+**
+**      gctUINT32 ProcessID
+**          Process ID owning this memory.
+**
+**      gctPOINTER Pointer
+**          Video memory to be unlock.
+*/
+gceSTATUS
+gckVGKERNEL_BottomHalfUnlockVideoMemory(
+    IN gckKERNEL Kernel,
+    IN gctUINT32 ProcessID,
+    IN gctUINT32 Node
+    )
+{
+    gceSTATUS status;
+    gckVIDMEM_NODE BottomHalfUnlockVideoMemory = gcvNULL;
+
+    do
+    {
+        /* Remove record from process db. */
+        gcmkVERIFY_OK(gckKERNEL_RemoveProcessDB(
+            Kernel,
+            ProcessID,
+            gcvDB_VIDEO_MEMORY_LOCKED,
+            gcmINT2PTR(Node)));
+
+        gcmkERR_BREAK(gckVIDMEM_HANDLE_Lookup(
+            Kernel,
+            ProcessID,
+            Node,
+            &BottomHalfUnlockVideoMemory));
+
+
+        gckVIDMEM_HANDLE_Dereference(Kernel, ProcessID, Node);
+
+        /* Unlock video memory. */
+        gcmkERR_BREAK(gckVIDMEM_Unlock(
+            Kernel,
+            BottomHalfUnlockVideoMemory,
+            gcvSURF_TYPE_UNKNOWN,
+            gcvNULL));
+
+        gcmkERR_BREAK(gckVIDMEM_NODE_Dereference(
+            Kernel,
+            BottomHalfUnlockVideoMemory));
+    }
+    while (gcvFALSE);
+
+    return gcvSTATUS_OK;
+}
+
+/*******************************************************************************
+**
 **  gckKERNEL_Dispatch
 **
 **  Dispatch a command received from the user HAL layer.
@@ -397,6 +458,11 @@ gceSTATUS gckVGKERNEL_Dispatch(
         gcmkERR_BREAK(gcvSTATUS_NOT_SUPPORTED);
         break;
 
+    case gcvHAL_BOTTOM_HALF_UNLOCK_VIDEO_MEMORY:
+        gcmkERR_BREAK(gckVGKERNEL_BottomHalfUnlockVideoMemory(Kernel, processID,
+                                              kernelInterface->u.BottomHalfUnlockVideoMemory.node));
+    break;
+
     case gcvHAL_MAP_MEMORY:
         /* Map memory. */
         gcmkERR_BREAK(gckKERNEL_MapMemory(
@@ -513,7 +579,7 @@ gceSTATUS gckVGKERNEL_Dispatch(
 
     default:
         /* Invalid command, try gckKERNEL_Dispatch */
-        status = gckKERNEL_Dispatch(Kernel, gcvTRUE, Interface);
+        status = gckKERNEL_Dispatch(Kernel, gcvNULL, gcvTRUE, Interface);
     }
 
 OnError:

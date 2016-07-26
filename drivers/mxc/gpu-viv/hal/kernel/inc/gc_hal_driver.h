@@ -233,11 +233,15 @@ typedef enum _gceHAL_COMMAND_CODES
     /* Wait until GPU finishes access to a resource. */
     gcvHAL_WAIT_FENCE,
 
-#if gcdENABLE_DEC_COMPRESSION && gcdDEC_ENABLE_AHB
+#if gcdDEC_ENABLE_AHB
     gcvHAL_DEC300_READ,
     gcvHAL_DEC300_WRITE,
     gcvHAL_DEC300_FLUSH,
     gcvHAL_DEC300_FLUSH_WAIT,
+#endif
+
+#if gcdENABLE_VG
+    gcvHAL_BOTTOM_HALF_UNLOCK_VIDEO_MEMORY
 #endif
 }
 gceHAL_COMMAND_CODES;
@@ -648,13 +652,13 @@ typedef struct _gcsHAL_INTERFACE
         struct _gcsHAL_COMMIT
         {
             /* Context buffer object gckCONTEXT. */
-            IN gctUINT64            context;
+            IN gctUINT64            contexts;
 
             /* Command buffer gcoCMDBUF. */
-            IN gctUINT64            commandBuffer;
+            IN gctUINT64            commandBuffers;
 
             /* State delta buffer in gcsSTATE_DELTA. */
-            gctUINT64               delta;
+            gctUINT64               deltas;
 
             /* Event queue in gcsQUEUE. */
             IN gctUINT64            queue;
@@ -667,6 +671,9 @@ typedef struct _gcsHAL_INTERFACE
 
             /* Index of command queue. */
             IN gctUINT32            index;
+
+            /* Count of gpu core. */
+            IN gctUINT32            count;
         }
         Commit;
 
@@ -1244,7 +1251,7 @@ typedef struct _gcsHAL_INTERFACE
         }
         CommitDone;
 
-#if gcdENABLE_DEC_COMPRESSION && gcdDEC_ENABLE_AHB
+#if gcdDEC_ENABLE_AHB
         struct _gcsHAL_DEC300_READ
         {
             gctUINT32      enable;
@@ -1283,6 +1290,19 @@ typedef struct _gcsHAL_INTERFACE
             IN gctUINT32    done;
         }
         DEC300FlushWait;
+#endif
+
+#if gcdENABLE_VG
+        /* gcvHAL_BOTTOM_HALF_UNLOCK_VIDEO_MEMORY: */
+        struct _gcsHAL_BOTTOM_HALF_UNLOCK_VIDEO_MEMORY
+        {
+            /* Allocated video memory. */
+            IN gctUINT32                node;
+
+            /* Type of surface. */
+            IN gceSURF_TYPE             type;
+        }
+        BottomHalfUnlockVideoMemory;
 #endif
     }
     u;

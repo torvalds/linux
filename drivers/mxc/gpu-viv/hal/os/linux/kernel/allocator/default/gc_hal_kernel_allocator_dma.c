@@ -455,7 +455,7 @@ _DmaAlloctorInit(
     )
 {
     gceSTATUS status;
-    gckALLOCATOR allocator;
+    gckALLOCATOR allocator = gcvNULL;
     gcsDMA_PRIV_PTR priv = gcvNULL;
 
     gcmkONERROR(gckALLOCATOR_Construct(Os, &DmaAllocatorOperations, &allocator));
@@ -483,6 +483,8 @@ _DmaAlloctorInit(
     return gcvSTATUS_OK;
 
 OnError:
+    if(allocator != gcvNULL)
+        gckOS_Free(Os, (gctPOINTER)allocator);
     return status;
 }
 

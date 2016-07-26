@@ -70,7 +70,7 @@ typedef struct _gcsDEVICE_CONSTRUCT_ARGS
     gctBOOL             mmu;
     gctBOOL             registerMemMapped;
     gctPOINTER             registerMemAddress;
-#if gcdENABLE_DEC_COMPRESSION
+#if gcdDEC_ENABLE_AHB
     gctUINT32           registerMemBaseDEC300;
     gctSIZE_T           registerMemSizeDEC300;
 #endif

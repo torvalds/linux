@@ -414,7 +414,8 @@ gckOS_MapPagesEx(
     IN gctSIZE_T PageCount,
     IN gctUINT32 Address,
     IN gctPOINTER PageTable,
-    IN gctBOOL Writable
+    IN gctBOOL Writable,
+    IN gceSURF_TYPE Type
     );
 
 gceSTATUS
@@ -1102,6 +1103,7 @@ gceSTATUS
 gckOS_WaitSignal(
     IN gckOS Os,
     IN gctSIGNAL Signal,
+    IN gctBOOL Interruptable,
     IN gctUINT32 Wait
     );
 
@@ -1166,6 +1168,14 @@ gckOS_WrapMemory(
     OUT gctSIZE_T *Bytes,
     OUT gctPHYS_ADDR * Physical,
     OUT gctBOOL *Contiguous
+    );
+
+gceSTATUS
+gckOS_GetPolicyID(
+    IN gckOS Os,
+    IN gceSURF_TYPE Type,
+    OUT gctUINT32_PTR PolicyID,
+    OUT gctUINT32_PTR AXIConfig
     );
 
 /******************************************************************************\
@@ -1779,6 +1789,7 @@ gckKERNEL_Destroy(
 gceSTATUS
 gckKERNEL_Dispatch(
     IN gckKERNEL Kernel,
+    IN gckDEVICE Device,
     IN gctBOOL FromUser,
     IN OUT struct _gcsHAL_INTERFACE * Interface
     );

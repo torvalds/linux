@@ -56,10 +56,8 @@
 #ifndef __gc_hal_eglplatform_h_
 #define __gc_hal_eglplatform_h_
 
-/* Include VDK types. */
 #include "gc_hal_types.h"
 #include "gc_hal_base.h"
-#include "gc_hal_eglplatform_type.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -84,10 +82,6 @@ typedef struct __BITFIELDINFO
 BITFIELDINFO;
 
 #elif /* defined(__APPLE__) || */ defined(__WINSCW__) || defined(__SYMBIAN32__)  /* Symbian */
-
-typedef int                             EGLNativeDisplayType;
-typedef void *                          EGLNativeWindowType;
-typedef void *                          EGLNativePixmapType;
 
 #elif defined(WL_EGL_PLATFORM) || defined(EGL_API_WL) /* Wayland */
 
@@ -135,7 +129,7 @@ typedef struct _gcsWL_EGL_BUFFER_INFO
    gceSURF_TYPE   type;
    gcuVIDMEM_NODE_PTR node;
    gcePOOL pool;
-   gctUINT bytes;
+   gctSIZE_T bytes;
    gcoSURF surface;
    gctINT32 invalidate;
    gctBOOL locked;
@@ -183,78 +177,24 @@ typedef void *                          HALNativePixmapType;
 
 #elif defined(__GBM__) /* GBM */
 
-typedef struct gbm_device *             HALNativeDisplayType;
-typedef struct gbm_bo *                 HALNativePixmapType;
-typedef void *                          HALNativeWindowType;
-
 #elif defined(__ANDROID__) || defined(ANDROID)
-
-#include <android/native_window.h>
-struct egl_native_pixmap_t;
-
-typedef struct ANativeWindow*           HALNativeWindowType;
-typedef struct egl_native_pixmap_t*     HALNativePixmapType;
-typedef void*                           HALNativeDisplayType;
 
 #elif defined(MIR_EGL_PLATFORM) /* Mir */
 
-#include <mir_toolkit/mir_client_library.h>
-typedef MirEGLNativeDisplayType         HALNativeDisplayType;
-typedef void                   *        HALNativePixmapType;
-typedef MirEGLNativeWindowType          HALNativeWindowType;
-
 #elif defined(__QNXNTO__)
-
-#include <screen/screen.h>
-typedef int                             HALNativeDisplayType;
-typedef screen_window_t                 HALNativeWindowType;
-typedef screen_pixmap_t                 HALNativePixmapType;
 
 #elif defined(__unix__) || defined(__APPLE__)
 
 #if defined(EGL_API_DFB)
 
-/* Vivante DFB. */
-#include <directfb.h>
-typedef struct _DFBDisplay *            HALNativeDisplayType;
-typedef struct _DFBWindow *             HALNativeWindowType;
-typedef struct _DFBPixmap *             HALNativePixmapType;
-
 #elif defined(EGL_API_FB)
 
-/* Vivante FBDEV */
-struct _FBDisplay;
-struct _FBWindow;
-struct _FBPixmap;
+#elif defined(EGL_API_NULLWS)
 
-typedef struct _FBDisplay *             HALNativeDisplayType;
-typedef struct _FBWindow *              HALNativeWindowType;
-typedef struct _FBPixmap *              HALNativePixmapType;
 
 #else
 
 /* X11 (tetative). */
-#include <X11/Xlib.h>
-#include <X11/Xutil.h>
-
-typedef Display *                       HALNativeDisplayType;
-typedef Window                          HALNativeWindowType;
-typedef Pixmap                          HALNativePixmapType;
-
-/* Rename some badly named X defines. */
-#ifdef Status
-#   define XStatus      int
-#   undef Status
-#endif
-#ifdef Always
-#   define XAlways      2
-#   undef Always
-#endif
-#ifdef CurrentTime
-#   undef CurrentTime
-#   define XCurrentTime 0
-#endif
-
 #endif
 
 #else
@@ -271,6 +211,10 @@ typedef Pixmap                          HALNativePixmapType;
 #else
 #   define EGL_DUMMY (31415926)
 #endif
+
+#if defined(_WIN32) || defined(__VC32__) && !defined(__CYGWIN__) && !defined(__SCITECH_SNAP__)
+
+#include "gc_hal_eglplatform_type.h"
 
 /*******************************************************************************
 ** Display. ********************************************************************
@@ -726,6 +670,15 @@ gcoOS_ResizeWindow(
     IN gctUINT Width,
     IN gctUINT Height
     );
+
+gceSTATUS
+gcoOS_RSForSwap(
+    IN gctPOINTER localDisplay,
+    IN HALNativeWindowType Drawable,
+    IN gctPOINTER resolve
+    );
+
+#endif
 
 #ifdef __cplusplus
 }

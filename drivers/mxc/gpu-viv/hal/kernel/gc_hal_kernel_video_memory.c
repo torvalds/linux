@@ -1351,6 +1351,11 @@ _NeedVirtualMapping(
 
                 *NeedMapping = (pool == gcvPOOL_VIRTUAL);
             }
+            /* no flat mapping for 4G above address */
+            else if (phys >> 32)
+            {
+                *NeedMapping = gcvTRUE;
+            }
             else
             {
                 gctBOOL flatMapped;
@@ -1724,7 +1729,8 @@ gckVIDMEM_Lock(
                                      node->Virtual.pageCount,
                                      node->Virtual.addresses[Kernel->core],
                                      node->Virtual.pageTables[Kernel->core],
-                                     gcvTRUE));
+                                     gcvTRUE,
+                                     node->Virtual.type));
                 }
 
 #if gcdENABLE_VG

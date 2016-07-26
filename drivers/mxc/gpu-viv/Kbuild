@@ -292,6 +292,10 @@ EXTRA_CFLAGS += -I$(AQROOT)/hal/os/linux/kernel
 EXTRA_CFLAGS += -I$(AQROOT)/$(ALLOCATOR_ARRAY_H_LOCATION)
 EXTRA_CFLAGS += -I$(AQROOT)/hal/security_v1/
 
+ifneq ($(CONFIG_ARM), )
+EXTRA_CFLAGS += -Iarch/arm/mm
+endif
+
 ifeq ($(VIVANTE_ENABLE_VG), 1)
 EXTRA_CFLAGS += -I$(AQROOT)/hal/kernel/archvg
 endif

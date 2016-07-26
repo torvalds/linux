@@ -92,6 +92,8 @@ typedef struct _gcsSURF_RESOLVE_ARGS
             gctBOOL   dump;       /* need dump for verify */
             gctBOOL   srcSwizzle;    /* src surface format swizzle infomation */
             gctBOOL   dstSwizzle;    /* dst surface format swizzle infomation */
+            gctBOOL   srcCompressed;   /* src compressed format*/
+            gctBOOL   dstCompressed;   /* dst compressed format*/
         } v2;
     } uArgs;
 }

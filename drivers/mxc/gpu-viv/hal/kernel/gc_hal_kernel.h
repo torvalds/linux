@@ -804,6 +804,8 @@ struct _gckCOMMAND
 
     /* For getting state from async command buffer. */
     gckASYNC_COMMAND            asyncCommand;
+
+    gctBOOL                     dummyDraw;
 };
 
 typedef struct _gcsEVENT *      gcsEVENT_PTR;
@@ -1280,6 +1282,8 @@ typedef struct _gcsADDRESS_AREA
     gctBOOL                     freeNodes;
 
     gctUINT32                   dynamicMappingStart;
+    gctUINT32                   dynamicMappingEnd;
+
     gctUINT32_PTR               mapLogical;
 }
 gcsADDRESS_AREA;

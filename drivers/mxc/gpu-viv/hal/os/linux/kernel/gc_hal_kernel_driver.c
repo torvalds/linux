@@ -113,7 +113,7 @@ static ulong registerMemSizeVG = 2 << 10;
 module_param(registerMemSizeVG, ulong, 0644);
 MODULE_PARM_DESC(registerMemSizeVG, "Size of bus address range of VG core");
 
-#if gcdENABLE_DEC_COMPRESSION
+#if gcdDEC_ENABLE_AHB
 static ulong registerMemBaseDEC300 = 0x00000000;
 module_param(registerMemBaseDEC300, ulong, 0644);
 
@@ -305,7 +305,7 @@ gckOS_DumpParam(
         printk("  registerMemSizeVG = 0x%08lX\n", registerMemSizeVG);
     }
 
-#if gcdENABLE_DEC_COMPRESSION
+#if gcdDEC_ENABLE_AHB
     printk("  registerMemBaseDEC300 = 0x%08lX\n", registerMemBaseDEC300);
     printk("  registerMemSizeDEC300 = 0x%08lX\n", registerMemSizeDEC300);
 #endif
@@ -682,6 +682,9 @@ long drv_ioctl(
             }
         }
 
+        if(i == gcvCORE_COUNT)
+            goto OnError;
+
         gckOS_GetProcessID(&processID);
 
         gcmkONERROR(gckVIDMEM_HANDLE_Lookup(device->kernels[i],
@@ -852,7 +855,7 @@ static int drv_init(void)
         .mmu                = mmu,
         .registerMemMapped = registerMemMapped,
         .registerMemAddress = registerMemAddress,
-#if gcdENABLE_DEC_COMPRESSION
+#if gcdDEC_ENABLE_AHB
         .registerMemBaseDEC300 = registerMemBaseDEC300,
         .registerMemSizeDEC300 = registerMemSizeDEC300,
 #endif

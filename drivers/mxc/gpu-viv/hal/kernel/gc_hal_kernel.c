@@ -55,7 +55,7 @@
 
 #include "gc_hal_kernel_precomp.h"
 
-#if gcdENABLE_DEC_COMPRESSION && gcdDEC_ENABLE_AHB
+#if gcdDEC_ENABLE_AHB
 #include "viv_dec300_main.h"
 #endif
 
@@ -150,6 +150,9 @@ gctCONST_STRING _DispatchText[] =
     gcmDEFINE2TEXT(gcvHAL_WRAP_USER_MEMORY),
     gcmDEFINE2TEXT(gcvHAL_WAIT_FENCE),
     gcmDEFINE2TEXT(gcvHAL_GET_VIDEO_MEMORY_FD),
+#if gcdENABLE_VG
+    gcmDEFINE2TEXT(gcvHAL_BOTTOM_HALF_UNLOCK_VIDEO_MEMORY)
+#endif
 };
 #endif
 
@@ -576,7 +579,7 @@ gckKERNEL_Construct(
         kernel->virtualCommandBuffer = gcvTRUE;
 #endif
 
-#if gcdSECURITY
+#if gcdSECURITY || gcdDISABLE_GPU_VIRTUAL_ADDRESS
         kernel->virtualCommandBuffer = gcvFALSE;
 #endif
 
@@ -1730,7 +1733,7 @@ gckKERNEL_WaitFence(
             gcmkVERIFY_OK(gckOS_ReleaseMutex(Kernel->os, &fence->mutex));
 
             /* Wait. */
-            status = gckOS_WaitSignal(Kernel->os, sync->signal, TimeOut);
+            status = gckOS_WaitSignal(Kernel->os, sync->signal, gcvTRUE, TimeOut);
 
             gcmkVERIFY_OK(gckOS_AcquireMutex(Kernel->os, &fence->mutex, gcvINFINITE));
 
@@ -1777,6 +1780,7 @@ OnError:
 gceSTATUS
 gckKERNEL_Dispatch(
     IN gckKERNEL Kernel,
+    IN gckDEVICE Device,
     IN gctBOOL FromUser,
     IN OUT gcsHAL_INTERFACE * Interface
     )
@@ -2050,26 +2054,6 @@ gckKERNEL_Dispatch(
             Kernel, processID,
             (gctUINT32)Interface->u.ReleaseVideoMemory.node
             ));
-
-#if gcdENABLE_VG
-        if (Kernel->vg != gcvNULL)
-        {
-            gckVIDMEM_NODE nodeObject;
-
-            /* Remove record from process db. */
-            gcmkERR_BREAK(
-                gckKERNEL_RemoveProcessDB(Kernel, processID,
-                gcvDB_VIDEO_MEMORY_LOCKED,
-                (gctPOINTER)Interface->u.ReleaseVideoMemory.node));
-
-            gcmkERR_BREAK(
-                gckVIDMEM_HANDLE_Lookup(Kernel, processID,
-                (gctUINT32)Interface->u.ReleaseVideoMemory.node, &nodeObject));
-
-            gckVIDMEM_HANDLE_Dereference(Kernel, processID,(gctUINT32)Interface->u.ReleaseVideoMemory.node);
-            gckVIDMEM_NODE_Dereference(Kernel, nodeObject);
-        }
-#endif
         break;
 
     case gcvHAL_LOCK_VIDEO_MEMORY:
@@ -2106,6 +2090,8 @@ gckKERNEL_Dispatch(
         /* Commit a command and context buffer. */
         if (Interface->u.Commit.engine == gcvENGINE_BLT)
         {
+            gctUINT64 *commandBuffers = gcmUINT64_TO_PTR(Interface->u.Commit.commandBuffers);
+
             if (!gckHARDWARE_IsFeatureAvailable(Kernel->hardware, gcvFEATURE_BLT_ENGINE))
             {
                 gcmkONERROR(gcvSTATUS_NOT_SUPPORTED);
@@ -2113,7 +2099,7 @@ gckKERNEL_Dispatch(
 
             gcmkONERROR(gckASYNC_COMMAND_Commit(
                 Kernel->asyncCommand,
-                gcmUINT64_TO_PTR(Interface->u.Commit.commandBuffer),
+                gcmUINT64_TO_PTR(commandBuffers[0]),
                 gcmUINT64_TO_PTR(Interface->u.Commit.queue)
                 ));
 
@@ -2124,16 +2110,72 @@ gckKERNEL_Dispatch(
         }
         else
         {
-            gcmkONERROR(gckCOMMAND_Commit(Kernel->command,
-                Interface->u.Commit.context ?
-                gcmNAME_TO_PTR(Interface->u.Commit.context) : gcvNULL,
-                gcmUINT64_TO_PTR(Interface->u.Commit.commandBuffer),
-                gcmUINT64_TO_PTR(Interface->u.Commit.delta),
+            gctUINT64 deltas[gcvCORE_COUNT];
+            gctUINT64 contexts[gcvCORE_COUNT];
+            gctUINT64 commandBuffers[gcvCORE_COUNT];;
+
+            gcmkONERROR(gckOS_CopyFromUserData(Kernel->os,
+                deltas,
+                gcmUINT64_TO_PTR(Interface->u.Commit.deltas),
+                Interface->u.Commit.count * sizeof(deltas[0])
+                ));
+
+            gcmkONERROR(gckOS_CopyFromUserData(Kernel->os,
+                contexts,
+                gcmUINT64_TO_PTR(Interface->u.Commit.contexts),
+                Interface->u.Commit.count * sizeof(contexts[0])
+                ));
+
+            gcmkONERROR(gckOS_CopyFromUserData(Kernel->os,
+                commandBuffers,
+                gcmUINT64_TO_PTR(Interface->u.Commit.commandBuffers),
+                Interface->u.Commit.count * sizeof(commandBuffers[0])
+                ));
+
+            status = gckCOMMAND_Commit(Kernel->command,
+                contexts[0] ?
+                gcmNAME_TO_PTR(contexts[0]) : gcvNULL,
+                gcmUINT64_TO_PTR(commandBuffers[0]),
+                gcmUINT64_TO_PTR(deltas[0]),
                 gcmUINT64_TO_PTR(Interface->u.Commit.queue),
                 processID,
                 Interface->u.Commit.shared,
                 Interface->u.Commit.index
-                ));
+                );
+
+            if (status != gcvSTATUS_INTERRUPTED)
+            {
+                gcmkONERROR(status);
+            }
+
+            if (Interface->u.Commit.count > 1 && Interface->u.Commit.engine == gcvENGINE_RENDER)
+            {
+                gctUINT32 i;
+
+                for (i = 1; i < Interface->u.Commit.count; i++)
+                {
+                    gceHARDWARE_TYPE type = Interface->hardwareType;
+                    gckKERNEL kernel = Device->map[type].kernels[i];
+
+                    status = gckCOMMAND_Commit(kernel->command,
+                        contexts[i] ?
+                        gcmNAME_TO_PTR(contexts[i]) : gcvNULL,
+                        commandBuffers[i] ?
+                        gcmUINT64_TO_PTR(commandBuffers[i]) : gcmUINT64_TO_PTR(commandBuffers[0]),
+                        gcmUINT64_TO_PTR(deltas[i]),
+                        gcvNULL,
+                        processID,
+                        Interface->u.Commit.shared,
+                        commandBuffers[i] ?
+                        Interface->u.Commit.index : i
+                    );
+
+                    if (status != gcvSTATUS_INTERRUPTED)
+                    {
+                        gcmkONERROR(status);
+                    }
+                }
+            }
         }
 
         break;
@@ -2925,7 +2967,7 @@ gckKERNEL_Dispatch(
             ));
         break;
 
-#if gcdENABLE_DEC_COMPRESSION && gcdDEC_ENABLE_AHB
+#if gcdDEC_ENABLE_AHB
     case gcvHAL_DEC300_READ:
         gcmkONERROR(viv_dec300_read(
             Interface->u.DEC300Read.enable,
@@ -4230,7 +4272,9 @@ gckKERNEL_AllocateVirtualMemory(
             pageCount,
             buffer->gpuAddress,
             buffer->pageTable,
-            gcvFALSE));
+            gcvFALSE,
+            gcvSURF_TYPE_UNKNOWN
+            ));
     }
 
     gcmkONERROR(gckMMU_Flush(mmu, gcvSURF_INDEX));
@@ -5819,7 +5863,7 @@ gckDEVICE_Dispatch(
         else
 #endif
         {
-            status = gckKERNEL_Dispatch(kernel, gcvTRUE, Interface);
+            status = gckKERNEL_Dispatch(kernel, Device, gcvTRUE, Interface);
         }
 
         /* Interface->status is handled in gckKERNEL_Dispatch(). */
@@ -5919,7 +5963,7 @@ gckKERNEL_MapInTrustApplicaiton(
     )
 {
     gceSTATUS status;
-    gctUINT32 * physicalArrayLogical;
+    gctUINT32 * physicalArrayLogical = gcvNULL;
     gctSIZE_T bytes;
     gctPOINTER logical = Logical;
     gctUINT32 i;
@@ -5984,6 +6028,11 @@ gckKERNEL_MapInTrustApplicaiton(
     return gcvSTATUS_OK;
 
 OnError:
+    if(physicalArrayLogical != gcvNULL)
+        gcmkVERIFY_OK(gckOS_Free(
+            Kernel->os,
+            (gctPOINTER)physicalArrayLogical
+            ));
     gcmkFOOTER();
     return status;
 }

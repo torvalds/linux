@@ -145,7 +145,7 @@ task_notify_func(struct notifier_block *self, unsigned long val, void *data)
     if (task == lowmem_deathpending)
         lowmem_deathpending = NULL;
 
-    return NOTIFY_OK;
+    return NOTIFY_DONE;
 }
 
 extern struct task_struct *lowmem_deathpending;
@@ -512,8 +512,17 @@ gckPLATFORM_AdjustParam(
     Args->gpu3DMinClock = initgpu3DMinClock;
 
     if(Args->physSize == 0)
+    {
+#if IMX8_PHYS_SIZE
+        Args->physSize = IMX8_PHYS_SIZE;
+#else
         Args->physSize = 0x80000000;
+#endif
+    }
 
+#if IMX8_DISABLE_PM
+ Args->powerManagement = 0;
+#endif
 
     return gcvSTATUS_OK;
 }
@@ -527,7 +536,7 @@ _AllocPriv(
 
 #ifdef CONFIG_GPU_LOW_MEMORY_KILLER
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4,1,0)
-     task_free_register(&task_nb);
+    task_free_register(&task_nb);
 #else
     task_handoff_register(&task_nb);
 #endif
@@ -920,7 +929,7 @@ _SetClock(
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
 #ifdef CONFIG_PM
-#ifndef CONFIG_ARM64
+#ifdef CONFIG_PM_RUNTIME
 static int gpu_runtime_suspend(struct device *dev)
 {
     release_bus_freq(BUS_FREQ_HIGH);
@@ -932,9 +941,9 @@ static int gpu_runtime_resume(struct device *dev)
     request_bus_freq(BUS_FREQ_HIGH);
     return 0;
 }
+#endif
 
 static struct dev_pm_ops gpu_pm_ops;
-#endif
 #endif
 #endif
 
@@ -954,20 +963,18 @@ _AdjustDriver(
 #ifdef CONFIG_PM
     /* Override PM callbacks to add runtime PM callbacks. */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
-#ifdef CONFIG_PM
-#ifndef CONFIG_ARM64
     /* Fill local structure with original value. */
     memcpy(&gpu_pm_ops, driver->driver.pm, sizeof(struct dev_pm_ops));
 
     /* Add runtime PM callback. */
+#ifdef CONFIG_PM_RUNTIME
     gpu_pm_ops.runtime_suspend = gpu_runtime_suspend;
     gpu_pm_ops.runtime_resume = gpu_runtime_resume;
     gpu_pm_ops.runtime_idle = NULL;
+#endif
 
     /* Replace callbacks. */
     driver->driver.pm = &gpu_pm_ops;
-#endif
-#endif
 #endif
 #endif
 

@@ -378,6 +378,14 @@ gckVGKERNEL_Destroy(
     IN gckVGKERNEL Kernel
     );
 
+/* Unlock video memory from gpu. */
+gceSTATUS
+gckVGKERNEL_BottomHalfUnlockVideoMemory(
+    IN gckKERNEL Kernel,
+    IN gctUINT32 ProcessID,
+    IN gctUINT32 Node
+    );
+
 /* Unmap memory. */
 gceSTATUS
 gckKERNEL_UnmapMemory(

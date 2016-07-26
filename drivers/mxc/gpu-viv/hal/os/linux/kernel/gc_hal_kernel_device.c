@@ -978,7 +978,7 @@ static irqreturn_t isrRoutine(int irq, void *ctxt)
 {
     gceSTATUS status;
     gckGALDEVICE device;
-    gceCORE Core = (gceCORE) ctxt;
+    gceCORE Core = (gceCORE) gcmPTR2INT32(ctxt);
 
     device = galDevice;
 
@@ -998,7 +998,7 @@ static irqreturn_t isrRoutine(int irq, void *ctxt)
 static int threadRoutine(void *ctxt)
 {
     gckGALDEVICE device = galDevice;
-    gceCORE core = (gceCORE) ctxt;
+    gceCORE core = (gceCORE) gcmPTR2INT32(ctxt);
     gctUINT i;
 
     gcmkTRACE_ZONE(gcvLEVEL_INFO, gcvZONE_DRIVER,
@@ -1221,7 +1221,7 @@ gckGALDEVICE_Construct(
         device->requestedRegisterMemBases[gcvCORE_VG] = RegisterMemBaseVG;
         device->requestedRegisterMemSizes[gcvCORE_VG] = RegisterMemSizeVG;
     }
-#if gcdENABLE_DEC_COMPRESSION
+#if gcdDEC_ENABLE_AHB
     {
         device->requestedRegisterMemBases[gcvCORE_DEC] = Args->registerMemBaseDEC300;
         device->requestedRegisterMemSizes[gcvCORE_DEC] = Args->registerMemSizeDEC300;

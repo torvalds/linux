@@ -456,7 +456,7 @@ _UserMemoryAttach(
     )
 {
     gceSTATUS status;
-    gcsUserMemory * userMemory;
+    gcsUserMemory * userMemory = gcvNULL;
 
     gckOS os = Allocator->os;
 
@@ -479,7 +479,8 @@ _UserMemoryAttach(
     return gcvSTATUS_OK;
 
 OnError:
-
+    if(userMemory != gcvNULL)
+        gckOS_Free(os,(gctPOINTER)userMemory);
     gcmkFOOTER();
     return status;
 }

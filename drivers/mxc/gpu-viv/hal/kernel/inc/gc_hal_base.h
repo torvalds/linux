@@ -636,6 +636,12 @@ gcoHAL_QuerySuperTileMode(
     OUT gctUINT32_PTR SuperTileMode
     );
 
+gceSTATUS
+gcoHAL_QueryMultiGPUAffinityConfig(
+    IN gceHARDWARE_TYPE Type,
+    OUT gceMULTI_GPU_MODE *Mode,
+    OUT gctUINT32_PTR CoreIndex
+    );
 
 #ifdef LINUX
 gctINT32
@@ -4301,7 +4307,7 @@ gceSTATUS gcfDumpApiData(IN gctCONST_POINTER Data, IN gctSIZE_T Size);
 gceSTATUS gcfDump2DCommand(IN gctUINT32_PTR Command, IN gctUINT32 Size);
 #if gcdDUMP_2D
 #   define gcmDUMP_2D_COMMAND(cmd, size) \
-        if (Hardware->newDump2DLevel > 0) \
+        if (Hardware->newDump2DLevel > 1) \
             gcfDump2DCommand(cmd, size)
 #elif gcdHAS_ELLIPSIS
 #   define gcmDUMP_2D_COMMAND(...)
@@ -4329,7 +4335,7 @@ gceSTATUS gcfDump2DCommand(IN gctUINT32_PTR Command, IN gctUINT32 Size);
 gceSTATUS gcfDump2DSurface(IN gctBOOL Src, IN gctUINT32 Address);
 #if gcdDUMP_2D
 #   define gcmDUMP_2D_SURFACE(src, addr) \
-        if (Hardware->newDump2DLevel > 1) \
+        if (Hardware->newDump2DLevel > 2) \
            gcfDump2DSurface(src, addr)
 #elif gcdHAS_ELLIPSIS
 #   define gcmDUMP_2D_SURFACE(...)
@@ -4394,11 +4400,6 @@ gceSTATUS gcfDelMemoryInfo(IN gctUINT32 Address);
     {
     }
 #   define gcmDUMP_DEL_MEMORY_INFO  __dummy_dump_del_memory_info
-#endif
-
-#if gcdDUMP_2D
-extern gctPOINTER dumpMemInfoListMutex;
-extern gctBOOL    dump2DFlag;
 #endif
 
 /*******************************************************************************

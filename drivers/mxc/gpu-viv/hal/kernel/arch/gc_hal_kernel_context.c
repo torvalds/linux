@@ -1462,7 +1462,7 @@ if (halti5){    vsConstBase  = 0xD000;
     index += _State(Context, index, 0x00C24 >> 2, 0x00000000, 1, gcvTRUE, gcvFALSE);
 
     /* Raster states. */
-    index += _State(Context, index, 0x00E00 >> 2, 0x00000001, 1, gcvFALSE, gcvFALSE);
+    index += _State(Context, index, 0x00E00 >> 2, 0x000000F1, 1, gcvFALSE, gcvFALSE);
     index += _State(Context, index, 0x00E10 >> 2, 0x00000000, 4, gcvFALSE, gcvFALSE);
     index += _State(Context, index, 0x00E04 >> 2, 0x00000000, 1, gcvFALSE, gcvFALSE);
     index += _State(Context, index, 0x00E40 >> 2, 0x00000000, 16, gcvFALSE, gcvFALSE);
@@ -2627,7 +2627,7 @@ gckCONTEXT_Update(
     /* Wait until the context buffer becomes available; this will
        also reset the signal and mark the buffer as busy. */
     gcmkONERROR(gckOS_WaitSignal(
-        Context->os, buffer->signal, gcvINFINITE
+        Context->os, buffer->signal, gcvFALSE, gcvINFINITE
         ));
 
 #if gcdSECURE_USER

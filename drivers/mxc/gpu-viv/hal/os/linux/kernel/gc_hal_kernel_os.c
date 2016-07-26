@@ -78,6 +78,10 @@
 #include "gc_hal_kernel_sync.h"
 #endif
 
+#if defined(CONFIG_ARM) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0)
+#include <dma.h>
+#endif
+
 #define _GC_OBJ_ZONE    gcvZONE_OS
 
 #include "gc_hal_kernel_allocator.h"
@@ -3566,7 +3570,8 @@ gckOS_MapPagesEx(
     IN gctSIZE_T PageCount,
     IN gctUINT32 Address,
     IN gctPOINTER PageTable,
-    IN gctBOOL Writable
+    IN gctBOOL Writable,
+    IN gceSURF_TYPE Type
     )
 {
     gceSTATUS status = gcvSTATUS_OK;
@@ -3585,6 +3590,11 @@ gckOS_MapPagesEx(
     gckMMU      mmu;
 #endif
     gckALLOCATOR allocator;
+
+    gctUINT32 policyID = 0;
+    gctUINT32 axiConfig = 0;
+
+    gcsPLATFORM * platform = Os->device->platform;
 
     gcmkHEADER_ARG("Os=0x%X Core=%d Physical=0x%X PageCount=%u PageTable=0x%X",
                    Os, Core, Physical, PageCount, PageTable);
@@ -3621,6 +3631,16 @@ gckOS_MapPagesEx(
     mmuMdl = (PLINUX_MDL)mmu->pageTablePhysical;
 #endif
 
+    if (platform && platform->ops->getPolicyID)
+    {
+        platform->ops->getPolicyID(platform, Type, &policyID, &axiConfig);
+
+        gcmkBUG_ON(policyID > 0x1F, __FUNCTION__, __LINE__);
+
+        /* ID[3:0] is used in STLB. */
+        policyID &= 0xF;
+    }
+
      /* Get all the physical addresses and store them in the page table. */
 
     offset = 0;
@@ -3635,6 +3655,15 @@ gckOS_MapPagesEx(
         allocator->ops->Physical(allocator, mdl, offset * PAGE_SIZE, &phys);
 
         gcmkVERIFY_OK(gckOS_CPUPhysicalToGPUPhysical(Os, phys, &phys));
+
+        if (policyID)
+        {
+            /* AxUSER must not used for address currently. */
+            gcmkBUG_ON((phys >> 32) & 0xF, __FUNCTION__, __LINE__);
+
+            /* Merge policyID to AxUSER[7:4].*/
+            phys |= ((gctPHYS_ADDR_T)policyID << 36);
+        }
 
 #ifdef CONFIG_IOMMU_SUPPORT
         if (Os->iommu)
@@ -4615,6 +4644,27 @@ gckOS_ZeroMemory(
 **      gctSIZE_T Bytes
 **          Size of the address range in bytes to flush.
 */
+
+/*
+
+Following patch can be applied to kernel in case cache API is not exported.
+
+diff --git a/arch/arm/mm/proc-syms.c b/arch/arm/mm/proc-syms.c
+index 054b491..e9e74ec 100644
+--- a/arch/arm/mm/proc-syms.c
++++ b/arch/arm/mm/proc-syms.c
+@@ -30,6 +30,9 @@ EXPORT_SYMBOL(__cpuc_flush_user_all);
+ EXPORT_SYMBOL(__cpuc_flush_user_range);
+ EXPORT_SYMBOL(__cpuc_coherent_kern_range);
+ EXPORT_SYMBOL(__cpuc_flush_dcache_area);
++EXPORT_SYMBOL(__glue(_CACHE,_dma_map_area));
++EXPORT_SYMBOL(__glue(_CACHE,_dma_unmap_area));
++EXPORT_SYMBOL(__glue(_CACHE,_dma_flush_range));
+ #else
+ EXPORT_SYMBOL(cpu_cache);
+ #endif
+
+*/
 gceSTATUS
 gckOS_CacheClean(
     IN gckOS Os,
@@ -4655,8 +4705,9 @@ gckOS_CacheClean(
     }
 
 #if !gcdCACHE_FUNCTION_UNIMPLEMENTED
-#ifdef CONFIG_ARM
+#if defined(CONFIG_ARM) || defined(CONFIG_ARM64)
 
+#if defined (CONFIG_ARM)
     /* Inner cache. */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,35)
     dmac_map_area(Logical, Bytes, DMA_TO_DEVICE);
@@ -4664,15 +4715,9 @@ gckOS_CacheClean(
     dmac_clean_range(Logical, Logical + Bytes);
 #      endif
 
-#if defined(CONFIG_OUTER_CACHE)
-    /* Outer cache. */
-    _HandleOuterCache(Os, Physical, Logical, Bytes, gcvCACHE_CLEAN);
-#endif
-
 #elif defined(CONFIG_ARM64)
-
-    /* Inner cache. */
     __dma_map_area(Logical, Bytes, DMA_TO_DEVICE);
+#endif
 
 #if defined(CONFIG_OUTER_CACHE)
     /* Outer cache. */
@@ -4765,24 +4810,18 @@ gckOS_CacheInvalidate(
     }
 
 #if !gcdCACHE_FUNCTION_UNIMPLEMENTED
-#ifdef CONFIG_ARM
+#if defined(CONFIG_ARM) || defined(CONFIG_ARM64)
 
+#if defined (CONFIG_ARM)
     /* Inner cache. */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,35)
     dmac_map_area(Logical, Bytes, DMA_FROM_DEVICE);
 #      else
     dmac_inv_range(Logical, Logical + Bytes);
 #      endif
-
-#if defined(CONFIG_OUTER_CACHE)
-    /* Outer cache. */
-    _HandleOuterCache(Os, Physical, Logical, Bytes, gcvCACHE_INVALIDATE);
-#endif
-
-#elif defined(CONFIG_MIPS)
-
-    /* Inner cache. */
+#elif defined(CONFIG_ARM64)
     __dma_map_area(Logical, Bytes, DMA_FROM_DEVICE);
+#endif
 
 #if defined(CONFIG_OUTER_CACHE)
     /* Outer cache. */
@@ -4871,18 +4910,13 @@ gckOS_CacheFlush(
     }
 
 #if !gcdCACHE_FUNCTION_UNIMPLEMENTED
-#ifdef CONFIG_ARM
+#if defined(CONFIG_ARM) || defined(CONFIG_ARM64)
+#if defined (CONFIG_ARM)
     /* Inner cache. */
     dmac_flush_range(Logical, Logical + Bytes);
-
-#if defined(CONFIG_OUTER_CACHE)
-    /* Outer cache. */
-    _HandleOuterCache(Os, Physical, Logical, Bytes, gcvCACHE_FLUSH);
-#endif
-
-#elif defined(CONFIG_ARM64)
-    /* Inner cache. */
+#elif defined (CONFIG_ARM64)
     __dma_flush_range(Logical, Logical + Bytes);
+#endif
 
 #if defined(CONFIG_OUTER_CACHE)
     /* Outer cache. */
@@ -5213,8 +5247,6 @@ gckOS_AcquireSemaphore(
     IN gctPOINTER Semaphore
     )
 {
-    gceSTATUS status;
-
     gcmkHEADER_ARG("Os=0x%08X Semaphore=0x%08X", Os, Semaphore);
 
     /* Verify the arguments. */
@@ -5222,19 +5254,11 @@ gckOS_AcquireSemaphore(
     gcmkVERIFY_ARGUMENT(Semaphore != gcvNULL);
 
     /* Acquire the semaphore. */
-    if (down_interruptible((struct semaphore *) Semaphore))
-    {
-        gcmkONERROR(gcvSTATUS_INTERRUPTED);
-    }
+    down((struct semaphore *) Semaphore);
 
     /* Success. */
     gcmkFOOTER_NO();
     return gcvSTATUS_OK;
-
-OnError:
-    /* Return the status. */
-    gcmkFOOTER();
-    return status;
 }
 
 /*******************************************************************************
@@ -6113,6 +6137,7 @@ gceSTATUS
 gckOS_WaitSignal(
     IN gckOS Os,
     IN gctSIGNAL Signal,
+    IN gctBOOL Interruptable,
     IN gctUINT32 Wait
     )
 {
@@ -6159,7 +6184,7 @@ gckOS_WaitSignal(
 
         while (gcvTRUE)
         {
-            if (signal_pending(current))
+            if (Interruptable && signal_pending(current))
             {
                 /* Interrupt received. */
                 status = gcvSTATUS_INTERRUPTED;
@@ -6376,7 +6401,7 @@ gckOS_WaitUserSignal(
     IN gctUINT32 Wait
     )
 {
-    return gckOS_WaitSignal(Os, (gctSIGNAL)(gctUINTPTR_T)SignalID, Wait);
+    return gckOS_WaitSignal(Os, (gctSIGNAL)(gctUINTPTR_T)SignalID, gcvTRUE, Wait);
 }
 
 /*******************************************************************************
@@ -7311,6 +7336,16 @@ OnError:
     return status;
 }
 
+static void
+_NativeFenceSignaled(
+    struct sync_fence *fence,
+    struct sync_fence_waiter *waiter
+    )
+{
+    kfree(waiter);
+    sync_fence_put(fence);
+}
+
 gceSTATUS
 gckOS_WaitNativeFence(
     IN gckOS Os,
@@ -7321,7 +7356,7 @@ gckOS_WaitNativeFence(
 {
     struct sync_timeline * timeline;
     struct sync_fence * fence;
-    gctBOOL wait = gcvFALSE;
+    gctBOOL wait;
     gceSTATUS status = gcvSTATUS_OK;
 
     gcmkHEADER_ARG("Os=0x%X Timeline=0x%X FenceFD=%d Timeout=%u",
@@ -7337,6 +7372,17 @@ gckOS_WaitNativeFence(
     {
         gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
     }
+
+    if (sync_fence_wait(fence, 0) == 0)
+    {
+        /* Already signaled. */
+        sync_fence_put(fence);
+
+        gcmkFOOTER_NO();
+        return gcvSTATUS_OK;
+    }
+
+    wait = gcvFALSE;
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,17,0)
     {
@@ -7379,6 +7425,9 @@ gckOS_WaitNativeFence(
         long timeout = (Timeout == gcvINFINITE) ? - 1 : (long) Timeout;
         err = sync_fence_wait(fence, timeout);
 
+        /* Put the fence. */
+        sync_fence_put(fence);
+
         switch (err)
         {
         case 0:
@@ -7387,13 +7436,45 @@ gckOS_WaitNativeFence(
             status = gcvSTATUS_TIMEOUT;
             break;
         default:
-            status = gcvSTATUS_GENERIC_IO;
+            gcmkONERROR(gcvSTATUS_GENERIC_IO);
+            break;
+        }
+    }
+    else
+    {
+        int err;
+        struct sync_fence_waiter *waiter;
+        waiter = (struct sync_fence_waiter *)kmalloc(
+                sizeof (struct sync_fence_waiter), gcdNOWARN | GFP_KERNEL);
+
+        if (!waiter)
+        {
+            sync_fence_put(fence);
+            gcmkONERROR(gcvSTATUS_OUT_OF_MEMORY);
+        }
+
+        /* Schedule a waiter callback. */
+        sync_fence_waiter_init(waiter, _NativeFenceSignaled);
+        err = sync_fence_wait_async(fence, waiter);
+
+        switch (err)
+        {
+        case 0:
+            /* Put fence in callback function. */
+            break;
+        case 1:
+            /* already signaled. */
+            sync_fence_put(fence);
+            break;
+        default:
+            sync_fence_put(fence);
+            gcmkONERROR(gcvSTATUS_GENERIC_IO);
             break;
         }
     }
 
-    /* Put the fence. */
-    sync_fence_put(fence);
+    gcmkFOOTER_NO();
+    return gcvSTATUS_OK;
 
 OnError:
     gcmkFOOTER();
@@ -7785,5 +7866,23 @@ OnError:
     /* Return the status. */
     gcmkFOOTER();
     return status;
+}
+
+gceSTATUS
+gckOS_GetPolicyID(
+    IN gckOS Os,
+    IN gceSURF_TYPE Type,
+    OUT gctUINT32_PTR PolicyID,
+    OUT gctUINT32_PTR AXIConfig
+    )
+{
+    gcsPLATFORM * platform = Os->device->platform;
+
+    if (platform && platform->ops->getPolicyID)
+    {
+        return platform->ops->getPolicyID(platform, Type, PolicyID, AXIConfig);
+    }
+
+    return gcvSTATUS_NOT_SUPPORTED;
 }
 

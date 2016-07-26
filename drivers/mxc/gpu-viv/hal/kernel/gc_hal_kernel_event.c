@@ -3063,7 +3063,7 @@ gckEVENT_Stop(
 #endif
 
     /* Wait for the signal. */
-    gcmkONERROR(gckOS_WaitSignal(Event->os, Signal, gcvINFINITE));
+    gcmkONERROR(gckOS_WaitSignal(Event->os, Signal, gcvFALSE, gcvINFINITE));
 
     /* Success. */
     gcmkFOOTER_NO();

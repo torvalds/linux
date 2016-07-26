@@ -101,6 +101,7 @@ _NewQueue(
     gcmkONERROR(gckOS_WaitSignal(
         Command->os,
         Command->queues[newIndex].signal,
+        gcvFALSE,
         gcvINFINITE
         ));
 
@@ -471,20 +472,35 @@ _DummyDraw(
     gctUINT32 bufferSize;
 
     gctUINT32 dummyDrawBytes;
+    gceDUMMY_DRAW_TYPE dummyDrawType = gcvDUMMY_DRAW_INVALID;
 
-    gckHARDWARE_DummyDraw(hardware, gcvNULL, Command->queues[0].address, &dummyDrawBytes);
+    if (gckHARDWARE_IsFeatureAvailable(hardware, gcvFEATURE_FE_NEED_DUMMYDRAW))
+    {
+        dummyDrawType = gcvDUMMY_DRAW_GC400;
+    }
 
-    /* Reserve space. */
-    gcmkONERROR(gckCOMMAND_Reserve(
-        Command,
-        dummyDrawBytes,
-        (gctPOINTER *)&pointer,
-        &bufferSize
-        ));
+    if (!gckHARDWARE_IsFeatureAvailable(hardware, gcvFEATURE_USC_DEFER_FILL_FIX) &&
+        gckHARDWARE_IsFeatureAvailable(hardware, gcvFEATURE_USC))
+    {
+        dummyDrawType = gcvDUMMY_DRAW_V60;
+    }
 
-    gckHARDWARE_DummyDraw(hardware, pointer, Command->queues[0].address, &dummyDrawBytes);
+    if (dummyDrawType != gcvDUMMY_DRAW_INVALID)
+    {
+        gckHARDWARE_DummyDraw(hardware, gcvNULL, Command->queues[0].address, dummyDrawType, &dummyDrawBytes);
 
-    gcmkONERROR(gckCOMMAND_Execute(Command, dummyDrawBytes));
+        /* Reserve space. */
+        gcmkONERROR(gckCOMMAND_Reserve(
+            Command,
+            dummyDrawBytes,
+            (gctPOINTER *)&pointer,
+            &bufferSize
+            ));
+
+        gckHARDWARE_DummyDraw(hardware, pointer, Command->queues[0].address, dummyDrawType, &dummyDrawBytes);
+
+        gcmkONERROR(gckCOMMAND_Execute(Command, dummyDrawBytes));
+    }
 
     return gcvSTATUS_OK;
 OnError:
@@ -890,6 +906,8 @@ gckCOMMAND_Construct(
 
     /* END event signal not created. */
     command->endEventSignal = gcvNULL;
+
+    command->dummyDraw = gcvTRUE;
 
     /* Return pointer to the gckCOMMAND object. */
     *Command = command;
@@ -1701,8 +1719,10 @@ gckCOMMAND_Commit(
         gcmkONERROR(_WaitForAsyncCommandStamp(Command, asyncCommandStamp));
     }
 
-    if (gckHARDWARE_IsFeatureAvailable(hardware, gcvFEATURE_FE_NEED_DUMMYDRAW) && Command->currContext == gcvNULL)
+    if (Command->dummyDraw == gcvTRUE &&
+        Context != gcvNULL)
     {
+        Command->dummyDraw = gcvFALSE;
         gcmkONERROR(_DummyDraw(Command));
     }
 
@@ -2760,7 +2780,7 @@ gckCOMMAND_Stall(
     do
     {
         /* Wait for the signal. */
-        status = gckOS_WaitSignal(os, signal, gcdGPU_ADVANCETIMER);
+        status = gckOS_WaitSignal(os, signal, gcvTRUE, gcdGPU_ADVANCETIMER);
 
         if (status == gcvSTATUS_TIMEOUT)
         {

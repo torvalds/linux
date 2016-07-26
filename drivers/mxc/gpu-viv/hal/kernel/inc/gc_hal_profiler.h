@@ -628,9 +628,25 @@ typedef struct _gcsPROFILER_COUNTERS
 }
 gcsPROFILER_COUNTERS;
 
-#if VIVANTE_PROFILER_PROBE
 #define NumOfDrawBuf 1024
-#endif
+
+typedef enum _gceCOUNTER_OPTYPE
+{
+    gcvCOUNTER_OP_DRAW = 0,
+    gcvCOUNTER_OP_BLT = 1,
+    gcvCOUNTER_OP_COMPUTE = 2,
+    gcvCOUNTER_OP_RS = 3,
+    gcvCOUNTER_OP_NONE = 4
+}
+gceCOUNTER_OPTYPE;
+
+typedef struct _gcsPROBEBUFFER
+{
+    gctHANDLE       newCounterBuf[NumOfDrawBuf];
+    gctUINT32       curBufId;
+    gceCOUNTER_OPTYPE  opType[NumOfDrawBuf];
+}
+gcsPROBEBUFFER;
 
 /* HAL profile information. */
 typedef struct _gcsPROFILER
@@ -686,11 +702,9 @@ typedef struct _gcsPROFILER
 #endif
 
 #if VIVANTE_PROFILER_PROBE
-    gctHANDLE       newCounterBuf[NumOfDrawBuf];
-    gctUINT32       curBufId;
+    gcsPROBEBUFFER  probeBuffer;
     gctFILE         probeFile;
 #endif
-
 }
 gcsPROFILER;
 
@@ -750,13 +764,14 @@ gcoPROFILER_EndFrame(
     );
 
 gceSTATUS
-gcoPROFILER_BeginDraw(
-IN gcoHAL Hal
-);
+    gcoPROFILER_Begin(
+    IN gcoHAL Hal,
+    IN gceCOUNTER_OPTYPE operationType
+    );
 
 /* Call to signal end of draw. */
 gceSTATUS
-gcoPROFILER_EndDraw(
+gcoPROFILER_End(
     IN gcoHAL Hal,
     IN gctBOOL FirstDraw
     );

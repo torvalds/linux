@@ -61,6 +61,10 @@
 #include <asm/atomic.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32)
+#include <linux/anon_inodes.h>
+#endif
+#include <linux/file.h>
 
 #include "gc_hal_kernel_allocator_array.h"
 #include "gc_hal_kernel_platform.h"
@@ -90,6 +94,14 @@ typedef struct _gcsDEFAULT_MDL_PRIV {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)
     gctBOOL                 exact;
 #endif
+
+    struct file *           file;
+
+    gctBOOL                 cacheable;
+
+    gcsPLATFORM *           platform;
+
+    gctBOOL                 contiguous;
 }
 gcsDEFAULT_MDL_PRIV;
 
@@ -393,6 +405,98 @@ _UnmapUserLogical(
 #endif
 }
 
+static gceSTATUS
+default_mmap_internal(
+    IN gcsDEFAULT_MDL_PRIV_PTR MdlPriv,
+    IN struct vm_area_struct *vma
+    )
+{
+    gcsPLATFORM * platform = MdlPriv->platform;
+    gctUINT32 numPages;
+    unsigned long start;
+    unsigned long pfn;
+    gctINT i;
+
+    gcmkHEADER();
+
+    vma->vm_flags |= gcdVM_FLAGS;
+
+    if (MdlPriv->cacheable == gcvFALSE)
+    {
+        /* Make this mapping non-cached. */
+        vma->vm_page_prot = gcmkPAGED_MEMROY_PROT(vma->vm_page_prot);
+    }
+
+    if (platform && platform->ops->adjustProt)
+    {
+        platform->ops->adjustProt(vma);
+    }
+
+    /* Now map all the vmalloc pages to this user address. */
+    if (MdlPriv->contiguous)
+    {
+        /* map kernel memory to user space.. */
+        if (remap_pfn_range(vma,
+                            vma->vm_start,
+                            page_to_pfn(MdlPriv->u.contiguousPages),
+                            vma->vm_end - vma->vm_start,
+                            vma->vm_page_prot) < 0)
+        {
+            gcmkTRACE_ZONE(
+                gcvLEVEL_INFO, gcvZONE_OS,
+                "%s(%d): unable to mmap ret",
+                __FUNCTION__, __LINE__
+                );
+
+            gcmkFOOTER_ARG("*status=%d", gcvSTATUS_OUT_OF_MEMORY);
+            return gcvSTATUS_OUT_OF_MEMORY;
+        }
+    }
+    else
+    {
+        numPages = (vma->vm_end - vma->vm_start) / PAGE_SIZE;
+        start = vma->vm_start;
+
+        for (i = 0; i < numPages; i++)
+        {
+            pfn = _NonContiguousToPfn(MdlPriv->u.nonContiguousPages, i);
+
+            if (remap_pfn_range(vma,
+                                start,
+                                pfn,
+                                PAGE_SIZE,
+                                vma->vm_page_prot) < 0)
+            {
+                gcmkFOOTER_ARG("*status=%d", gcvSTATUS_OUT_OF_MEMORY);
+                return gcvSTATUS_OUT_OF_MEMORY;
+            }
+
+            start += PAGE_SIZE;
+        }
+    }
+
+    gcmkFOOTER_NO();
+    return gcvSTATUS_OK;
+}
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32)
+static int default_mmap(struct file *file, struct vm_area_struct *vma)
+{
+    gcsDEFAULT_MDL_PRIV_PTR mdlPriv = file->private_data;
+
+    if (gcmIS_ERROR(default_mmap_internal(mdlPriv, vma)))
+    {
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
+static const struct file_operations default_fops = {
+    .mmap = default_mmap,
+};
+#endif
+
 /***************************************************************************\
 ************************ Default Allocator **********************************
 \***************************************************************************/
@@ -528,6 +632,18 @@ _DefaultAlloc(
         }
     }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32)
+    mdlPriv->file = anon_inode_getfile("default", &default_fops, mdlPriv, O_RDWR);
+
+    if (IS_ERR(mdlPriv->file))
+    {
+        gcmkONERROR(gcvSTATUS_OUT_OF_MEMORY);
+    }
+#endif
+
+    mdlPriv->platform = Allocator->os->device->platform;
+    mdlPriv->contiguous = contiguous;
+
     Mdl->priv = mdlPriv;
 
     gcmkFOOTER_NO();
@@ -596,6 +712,11 @@ _DefaultFree(
         _NonContiguousFree(mdlPriv->u.nonContiguousPages, Mdl->numPages);
     }
 
+    if (mdlPriv->file != gcvNULL)
+    {
+        fput(mdlPriv->file);
+    }
+
     gcmkOS_SAFE_FREE(Allocator->os, Mdl->priv);
 }
 
@@ -607,13 +728,7 @@ _DefaultMapUser(
     OUT gctPOINTER * UserLogical
     )
 {
-
-    gctSTRING       addr;
-    unsigned long   start;
-    unsigned long   pfn;
-    gctINT i;
     gckOS           os = Allocator->os;
-    gcsPLATFORM *   platform = os->device->platform;
 
     PLINUX_MDL      mdl = Mdl;
     gctPOINTER      userLogical = gcvNULL;
@@ -622,8 +737,11 @@ _DefaultMapUser(
 
     gcmkHEADER_ARG("Allocator=%p Mdl=%p gctBOOL=%d", Allocator, Mdl, Cacheable);
 
+    /* mdlPriv->cacheable must be used under protection of mdl->mapMutex. */
+    mdlPriv->cacheable = Cacheable;
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 4, 0)
-    userLogical = (gctSTRING)vm_mmap(gcvNULL,
+    userLogical = (gctSTRING)vm_mmap(mdlPriv->file,
                     0L,
                     mdl->numPages * PAGE_SIZE,
                     PROT_READ | PROT_WRITE,
@@ -632,7 +750,7 @@ _DefaultMapUser(
 #else
     down_write(&current->mm->mmap_sem);
 
-    userLogical = (gctSTRING)do_mmap_pgoff(gcvNULL,
+    userLogical = (gctSTRING)do_mmap_pgoff(mdlPriv->file,
                     0L,
                     mdl->numPages * PAGE_SIZE,
                     PROT_READ | PROT_WRITE,
@@ -664,87 +782,37 @@ _DefaultMapUser(
         return gcvSTATUS_OUT_OF_MEMORY;
     }
 
-    down_write(&current->mm->mmap_sem);
-
-    vma = find_vma(current->mm, (unsigned long)userLogical);
-
-    if (vma == gcvNULL)
+    if (mdlPriv->file == gcvNULL)
     {
-        up_write(&current->mm->mmap_sem);
+        /* Remap here since there is no file and ops->mmap(). */
+        down_write(&current->mm->mmap_sem);
 
-        gcmkTRACE_ZONE(
-            gcvLEVEL_INFO, gcvZONE_OS,
-            "%s(%d): find_vma error",
-            __FUNCTION__, __LINE__
-            );
+        vma = find_vma(current->mm, (unsigned long)userLogical);
 
-        gcmkFOOTER_ARG("*status=%d", gcvSTATUS_OUT_OF_RESOURCES);
-        return gcvSTATUS_OUT_OF_RESOURCES;
-    }
-
-    vma->vm_flags |= gcdVM_FLAGS;
-
-    if (Cacheable == gcvFALSE)
-    {
-        /* Make this mapping non-cached. */
-        vma->vm_page_prot = gcmkPAGED_MEMROY_PROT(vma->vm_page_prot);
-    }
-
-    if (platform && platform->ops->adjustProt)
-    {
-        platform->ops->adjustProt(vma);
-    }
-
-    addr = mdl->addr;
-
-    /* Now map all the vmalloc pages to this user address. */
-    if (mdl->contiguous)
-    {
-        /* map kernel memory to user space.. */
-        if (remap_pfn_range(vma,
-                            vma->vm_start,
-                            page_to_pfn(mdlPriv->u.contiguousPages),
-                            vma->vm_end - vma->vm_start,
-                            vma->vm_page_prot) < 0)
+        if (vma == gcvNULL)
         {
             up_write(&current->mm->mmap_sem);
 
             gcmkTRACE_ZONE(
                 gcvLEVEL_INFO, gcvZONE_OS,
-                "%s(%d): unable to mmap ret",
+                "%s(%d): find_vma error",
                 __FUNCTION__, __LINE__
                 );
+
+            gcmkFOOTER_ARG("*status=%d", gcvSTATUS_OUT_OF_RESOURCES);
+            return gcvSTATUS_OUT_OF_RESOURCES;
+        }
+
+        if (gcmIS_ERROR(default_mmap_internal(mdlPriv, vma)))
+        {
+            up_write(&current->mm->mmap_sem);
 
             gcmkFOOTER_ARG("*status=%d", gcvSTATUS_OUT_OF_MEMORY);
             return gcvSTATUS_OUT_OF_MEMORY;
         }
+
+        up_write(&current->mm->mmap_sem);
     }
-    else
-    {
-        start = vma->vm_start;
-
-        for (i = 0; i < mdl->numPages; i++)
-        {
-            pfn = _NonContiguousToPfn(mdlPriv->u.nonContiguousPages, i);
-
-            if (remap_pfn_range(vma,
-                                start,
-                                pfn,
-                                PAGE_SIZE,
-                                vma->vm_page_prot) < 0)
-            {
-                up_write(&current->mm->mmap_sem);
-
-                gcmkFOOTER_ARG("*status=%d", gcvSTATUS_OUT_OF_MEMORY);
-                return gcvSTATUS_OUT_OF_MEMORY;
-            }
-
-            start += PAGE_SIZE;
-            addr += PAGE_SIZE;
-        }
-    }
-
-    up_write(&current->mm->mmap_sem);
 
     gcmkVERIFY_OK(gckOS_CacheFlush(
         os,

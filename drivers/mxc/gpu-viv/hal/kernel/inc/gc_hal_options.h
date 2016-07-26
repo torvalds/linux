@@ -117,6 +117,7 @@ This define enables the use of VM for gckCommand and fence buffers.
 #endif
 
 #ifndef VIVANTE_PROFILER_PROBE
+#   define VIVANTE_PROFILER_PROBE_PERDRAW       0
 #   define VIVANTE_PROFILER_PROBE               0
 #endif
 
@@ -1224,24 +1225,11 @@ This define enables the use of VM for gckCommand and fence buffers.
 #endif
 
 /*
-    gcdENABLE_THIRD_PARTY_OPERATION
-        Enable third party operation like tpc or not.
-        This macro can only be enabled by special customer.
+    gcdDEC_ENABLE_AHB
+        Enable DEC300 compression AHB mode or not.
 */
-#ifndef gcdENABLE_THIRD_PARTY_OPERATION
-#   define gcdENABLE_THIRD_PARTY_OPERATION      0
-#endif
-
-/*
-    gcdENABLE_DEC_COMPRESSION
-        Enable DEC TPC compression or not.
-*/
-#ifndef gcdENABLE_DEC_COMPRESSION
-#   define gcdENABLE_DEC_COMPRESSION            0
 #ifndef gcdDEC_ENABLE_AHB
 #   define gcdDEC_ENABLE_AHB                    0
-#endif
-
 #endif
 
 /*
@@ -1414,4 +1402,12 @@ VIV:gcdUSE_MMU_EXCEPTION
 #   define gcdVX_OPTIMIZER                      0
 #endif
 
+/*
+    gcdDISABLE_GPU_VIRTUAL_ADDRESS
+
+        When enabled, disable MMU and all virtual allocated from MMU.
+*/
+#ifndef gcdDISABLE_GPU_VIRTUAL_ADDRESS
+#   define gcdDISABLE_GPU_VIRTUAL_ADDRESS       0
+#endif
 #endif /* __gc_hal_options_h_ */

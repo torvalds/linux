@@ -63,6 +63,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
+#include <linux/platform_device.h>
 
 #define _GC_OBJ_ZONE    gcvZONE_OS
 
@@ -143,7 +144,7 @@ _CMAFSLAlloc(
     gcmkONERROR(gckOS_Allocate(os, sizeof(struct mdl_cma_priv), (gctPOINTER *)&mdl_priv));
     mdl_priv->kvaddr = gcvNULL;
 
-    mdl_priv->kvaddr = dma_alloc_writecombine(gcvNULL,
+    mdl_priv->kvaddr = dma_alloc_writecombine(&os->device->platform->device->dev,
             NumPages * PAGE_SIZE,
             &mdl_priv->physical,
             GFP_KERNEL | gcdNOWARN);
@@ -175,7 +176,7 @@ _CMAFSLFree(
     gckOS os = Allocator->os;
     struct mdl_cma_priv *mdl_priv=(struct mdl_cma_priv *)Mdl->priv;
     gcsCMA_PRIV_PTR priv = (gcsCMA_PRIV_PTR)Allocator->privateData;
-    dma_free_writecombine(gcvNULL,
+    dma_free_writecombine(&os->device->platform->device->dev,
             Mdl->numPages * PAGE_SIZE,
             mdl_priv->kvaddr,
             mdl_priv->physical);
@@ -262,7 +263,7 @@ _CMAFSLMapUser(
     if (mdl->contiguous)
     {
         /* map kernel memory to user space.. */
-        if (dma_mmap_writecombine(gcvNULL,
+        if (dma_mmap_writecombine(&os->device->platform->device->dev,
                 vma,
                 mdl_priv->kvaddr,
                 mdl_priv->physical,
