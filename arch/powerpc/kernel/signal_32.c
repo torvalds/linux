@@ -699,6 +699,7 @@ static long restore_user_regs(struct pt_regs *regs,
 		if (__copy_from_user(&current->thread.vr_state, &sr->mc_vregs,
 				     sizeof(sr->mc_vregs)))
 			return 1;
+		current->thread.used_vr = true;
 	} else if (current->thread.used_vr)
 		memset(&current->thread.vr_state, 0,
 		       ELF_NVRREG * sizeof(vector128));
@@ -725,6 +726,7 @@ static long restore_user_regs(struct pt_regs *regs,
 		 */
 		if (copy_vsx_from_user(current, &sr->mc_vsregs))
 			return 1;
+		current->thread.used_vsr = true;
 	} else if (current->thread.used_vsr)
 		for (i = 0; i < 32 ; i++)
 			current->thread.fp_state.fpr[i][TS_VSRLOWOFFSET] = 0;
@@ -744,6 +746,7 @@ static long restore_user_regs(struct pt_regs *regs,
 		if (__copy_from_user(current->thread.evr, &sr->mc_vregs,
 				     ELF_NEVRREG * sizeof(u32)))
 			return 1;
+		current->thread.used_spe = true;
 	} else if (current->thread.used_spe)
 		memset(current->thread.evr, 0, ELF_NEVRREG * sizeof(u32));
 
@@ -800,6 +803,7 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 				     &tm_sr->mc_vregs,
 				     sizeof(sr->mc_vregs)))
 			return 1;
+		current->thread.used_vr = true;
 	} else if (current->thread.used_vr) {
 		memset(&current->thread.vr_state, 0,
 		       ELF_NVRREG * sizeof(vector128));
@@ -833,6 +837,7 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 		if (copy_vsx_from_user(current, &sr->mc_vsregs) ||
 		    copy_transact_vsx_from_user(current, &tm_sr->mc_vsregs))
 			return 1;
+		current->thread.used_vsr = true;
 	} else if (current->thread.used_vsr)
 		for (i = 0; i < 32 ; i++) {
 			current->thread.fp_state.fpr[i][TS_VSRLOWOFFSET] = 0;
@@ -849,6 +854,7 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 		if (__copy_from_user(current->thread.evr, &sr->mc_vregs,
 				     ELF_NEVRREG * sizeof(u32)))
 			return 1;
+		current->thread.used_spe = true;
 	} else if (current->thread.used_spe)
 		memset(current->thread.evr, 0, ELF_NEVRREG * sizeof(u32));
 

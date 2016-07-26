@@ -369,9 +369,11 @@ static long restore_sigcontext(struct pt_regs *regs, sigset_t *set, int sig,
 	if (v_regs && !access_ok(VERIFY_READ, v_regs, 34 * sizeof(vector128)))
 		return -EFAULT;
 	/* Copy 33 vec registers (vr0..31 and vscr) from the stack */
-	if (v_regs != NULL && (msr & MSR_VEC) != 0)
+	if (v_regs != NULL && (msr & MSR_VEC) != 0) {
 		err |= __copy_from_user(&current->thread.vr_state, v_regs,
 					33 * sizeof(vector128));
+		current->thread.used_vr = true;
+	}
 	else if (current->thread.used_vr)
 		memset(&current->thread.vr_state, 0, 33 * sizeof(vector128));
 	/* Always get VRSAVE back */
@@ -391,9 +393,10 @@ static long restore_sigcontext(struct pt_regs *regs, sigset_t *set, int sig,
 	 * buffer for formatting, then into the taskstruct.
 	 */
 	v_regs += ELF_NVRREG;
-	if ((msr & MSR_VSX) != 0)
+	if ((msr & MSR_VSX) != 0) {
 		err |= copy_vsx_from_user(current, v_regs);
-	else
+		current->thread.used_vsr = true;
+	} else
 		for (i = 0; i < 32 ; i++)
 			current->thread.fp_state.fpr[i][TS_VSRLOWOFFSET] = 0;
 #endif
@@ -488,6 +491,7 @@ static long restore_tm_sigcontexts(struct pt_regs *regs,
 					33 * sizeof(vector128));
 		err |= __copy_from_user(&current->thread.transact_vr, tm_v_regs,
 					33 * sizeof(vector128));
+		current->thread.used_vr = true;
 	}
 	else if (current->thread.used_vr) {
 		memset(&current->thread.vr_state, 0, 33 * sizeof(vector128));
@@ -521,6 +525,7 @@ static long restore_tm_sigcontexts(struct pt_regs *regs,
 		tm_v_regs += ELF_NVRREG;
 		err |= copy_vsx_from_user(current, v_regs);
 		err |= copy_transact_vsx_from_user(current, tm_v_regs);
+		current->thread.used_vsr = true;
 	} else {
 		for (i = 0; i < 32 ; i++) {
 			current->thread.fp_state.fpr[i][TS_VSRLOWOFFSET] = 0;
