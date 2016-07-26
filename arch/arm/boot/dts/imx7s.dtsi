@@ -292,10 +292,11 @@
 
 		intc: interrupt-controller@31001000 {
 			compatible = "arm,cortex-a7-gic";
+			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
 			#interrupt-cells = <3>;
 			interrupt-controller;
 			reg = <0x31001000 0x1000>,
-			      <0x31002000 0x1000>,
+			      <0x31002000 0x2000>,
 			      <0x31004000 0x2000>,
 			      <0x31006000 0x2000>;
 		};
