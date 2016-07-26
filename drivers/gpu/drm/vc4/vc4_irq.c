@@ -83,8 +83,10 @@ vc4_overflow_mem_work(struct work_struct *work)
 
 		spin_lock_irqsave(&vc4->job_lock, irqflags);
 		current_exec = vc4_first_bin_job(vc4);
+		if (!current_exec)
+			current_exec = vc4_last_render_job(vc4);
 		if (current_exec) {
-			vc4->overflow_mem->seqno = vc4->finished_seqno + 1;
+			vc4->overflow_mem->seqno = current_exec->seqno;
 			list_add_tail(&vc4->overflow_mem->unref_head,
 				      &current_exec->unref_list);
 			vc4->overflow_mem = NULL;
