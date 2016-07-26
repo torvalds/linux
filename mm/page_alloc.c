@@ -1016,7 +1016,7 @@ static __always_inline bool free_pages_prepare(struct page *page,
 			(page + i)->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
 		}
 	}
-	if (PageAnonHead(page))
+	if (PageMappingFlags(page))
 		page->mapping = NULL;
 	if (check_free)
 		bad += free_pages_check(page);
