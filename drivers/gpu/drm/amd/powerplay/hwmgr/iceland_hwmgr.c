@@ -3801,6 +3801,57 @@ static int iceland_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	stay_in_boot = phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 				       PHM_PlatformCaps_StayInBootState);
 
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_DynamicPowerManagement);
+
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_ActivityReporting);
+
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_GFXClockGatingSupport);
+
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_MemorySpreadSpectrumSupport);
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_EngineSpreadSpectrumSupport);
+
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_DynamicPCIEGen2Support);
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_SMC);
+
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_DisablePowerGating);
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_BACO);
+
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_ThermalAutoThrottling);
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_DisableLSClockGating);
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_SamuDPM);
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_AcpDPM);
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_OD6inACSupport);
+	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_EnablePlatformPowerManagement);
+
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_PauseMMSessions);
+
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_OD6PlusinACSupport);
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_PauseMMSessions);
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_GFXClockGatingManagedInCAIL);
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_IcelandULPSSWWorkAround);
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_PowerContainment);
+
 	/* iceland doesn't support UVD and VCE */
 	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 		      PHM_PlatformCaps_UVDPowerGating);
