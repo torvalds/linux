@@ -118,7 +118,7 @@ long long simple_strtoll(const char *cp, char **endp, unsigned int base)
 }
 EXPORT_SYMBOL(simple_strtoll);
 
-static noinline_for_stack __nocapture(1)
+static noinline_for_stack __nocapture(1) __unverified_nocapture(1)
 int skip_atoi(const char **s)
 {
 	int i = 0;
@@ -1570,7 +1570,7 @@ int kptr_restrict __read_mostly;
  * function pointers are really function descriptors, which contain a
  * pointer to the real address.
  */
-static noinline_for_stack __nocapture(1)
+static noinline_for_stack __nocapture(1) __unverified_nocapture(1)
 char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 	      struct printf_spec spec)
 {

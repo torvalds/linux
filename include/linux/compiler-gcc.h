@@ -204,9 +204,17 @@
  * been unmapped from memory. In order to identify functions that are confirmed
  * to not capture their arguments, the __nocapture() attribute is used so that
  * initify can better identify candidate variables.
+ *
+ * Arguments marked in this way are verified by the plugin, but sometimes
+ * code complexity and other limitiations will cause initify to not be able
+ * to check it correctly. For these cases, the __unverified_nocapture
+ * attribute can be added to disable this checking, overriding the plugin
+ * logic for cases that have been manually verified. This should not need
+ * to be used very often.
  */
 #ifdef INITIFY_PLUGIN
 #define __nocapture(...) __attribute__((nocapture(__VA_ARGS__)))
+#define __unverified_nocapture(...) __attribute__((unverified_nocapture(__VA_ARGS__)))
 #endif
 
 /*

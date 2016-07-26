@@ -76,7 +76,7 @@ static inline __must_check char *strstrip(char *str)
 extern char * strstr(const char *, const char *) __nocapture(-1, 2);
 #endif
 #ifndef __HAVE_ARCH_STRNSTR
-extern char * strnstr(const char *, const char *, size_t) __nocapture(-1, 2);
+extern char * strnstr(const char *, const char *, size_t) __nocapture(-1, 2) __unverified_nocapture(2);
 #endif
 #ifndef __HAVE_ARCH_STRLEN
 extern __kernel_size_t strlen(const char *) __nocapture(1);
