@@ -538,8 +538,7 @@ static void do_fault(struct work_struct *work)
 	if (access_error(vma, fault))
 		goto out;
 
-	ret = handle_mm_fault(mm, vma, address, flags);
-
+	ret = handle_mm_fault(vma, address, flags);
 out:
 	up_read(&mm->mmap_sem);
 
