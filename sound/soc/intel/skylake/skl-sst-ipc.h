@@ -66,7 +66,7 @@ struct skl_sst {
 
 	/* callback for miscbdge */
 	void (*enable_miscbdcge)(struct device *dev, bool enable);
-	/*Is CGCTL.MISCBDCGE disabled*/
+	/* Is CGCTL.MISCBDCGE disabled */
 	bool miscbdcg_disabled;
 
 	/* Populate module information */
