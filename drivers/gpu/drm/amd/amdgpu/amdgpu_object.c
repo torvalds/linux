@@ -380,6 +380,37 @@ fail_free:
 	return r;
 }
 
+static int amdgpu_bo_create_shadow(struct amdgpu_device *adev,
+				   unsigned long size, int byte_align,
+				   struct amdgpu_bo *bo)
+{
+	struct ttm_placement placement = {0};
+	struct ttm_place placements[AMDGPU_GEM_DOMAIN_MAX + 1];
+	int r;
+
+	if (bo->shadow)
+		return 0;
+
+	bo->flags |= AMDGPU_GEM_CREATE_SHADOW;
+	memset(&placements, 0,
+	       (AMDGPU_GEM_DOMAIN_MAX + 1) * sizeof(struct ttm_place));
+
+	amdgpu_ttm_placement_init(adev, &placement,
+				  placements, AMDGPU_GEM_DOMAIN_GTT,
+				  AMDGPU_GEM_CREATE_CPU_GTT_USWC);
+
+	r = amdgpu_bo_create_restricted(adev, size, byte_align, true,
+					AMDGPU_GEM_DOMAIN_GTT,
+					AMDGPU_GEM_CREATE_CPU_GTT_USWC,
+					NULL, &placement,
+					bo->tbo.resv,
+					&bo->shadow);
+	if (!r)
+		bo->shadow->parent = amdgpu_bo_ref(bo);
+
+	return r;
+}
+
 int amdgpu_bo_create(struct amdgpu_device *adev,
 		     unsigned long size, int byte_align,
 		     bool kernel, u32 domain, u64 flags,
@@ -389,6 +420,7 @@ int amdgpu_bo_create(struct amdgpu_device *adev,
 {
 	struct ttm_placement placement = {0};
 	struct ttm_place placements[AMDGPU_GEM_DOMAIN_MAX + 1];
+	int r;
 
 	memset(&placements, 0,
 	       (AMDGPU_GEM_DOMAIN_MAX + 1) * sizeof(struct ttm_place));
@@ -396,9 +428,19 @@ int amdgpu_bo_create(struct amdgpu_device *adev,
 	amdgpu_ttm_placement_init(adev, &placement,
 				  placements, domain, flags);
 
-	return amdgpu_bo_create_restricted(adev, size, byte_align, kernel,
-					   domain, flags, sg, &placement,
-					   resv, bo_ptr);
+	r = amdgpu_bo_create_restricted(adev, size, byte_align, kernel,
+					domain, flags, sg, &placement,
+					resv, bo_ptr);
+	if (r)
+		return r;
+
+	if (flags & AMDGPU_GEM_CREATE_SHADOW) {
+		r = amdgpu_bo_create_shadow(adev, size, byte_align, (*bo_ptr));
+		if (r)
+			amdgpu_bo_unref(bo_ptr);
+	}
+
+	return r;
 }
 
 int amdgpu_bo_kmap(struct amdgpu_bo *bo, void **ptr)
