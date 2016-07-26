@@ -17,10 +17,10 @@
 
 #include "internal.h"
 
-static inline int is_kernel_rodata(unsigned long addr)
+static inline int is_kernel_rodata(const void *addr)
 {
-	return addr >= (unsigned long)__start_rodata &&
-		addr < (unsigned long)__end_rodata;
+	return (unsigned long)addr >= (unsigned long)__start_rodata &&
+		(unsigned long)addr < (unsigned long)__end_rodata;
 }
 
 /**
@@ -31,7 +31,7 @@ static inline int is_kernel_rodata(unsigned long addr)
  */
 void kfree_const(const void *x)
 {
-	if (!is_kernel_rodata((unsigned long)x))
+	if (!is_kernel_rodata(x))
 		kfree(x);
 }
 EXPORT_SYMBOL(kfree_const);
@@ -68,7 +68,7 @@ EXPORT_SYMBOL(kstrdup);
  */
 const char *kstrdup_const(const char *s, gfp_t gfp)
 {
-	if (is_kernel_rodata((unsigned long)s))
+	if (is_kernel_rodata(s))
 		return s;
 
 	return kstrdup(s, gfp);
