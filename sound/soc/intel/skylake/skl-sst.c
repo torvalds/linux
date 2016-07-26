@@ -88,13 +88,15 @@ static int skl_load_base_firmware(struct sst_dsp *ctx)
 		}
 	}
 
-	ret = snd_skl_parse_uuids(ctx, ctx->fw, SKL_ADSP_FW_BIN_HDR_OFFSET, 0);
-	if (ret < 0) {
-		dev_err(ctx->dev,
-				"UUID parsing err: %d\n", ret);
-		release_firmware(ctx->fw);
-		skl_dsp_disable_core(ctx, SKL_DSP_CORE0_MASK);
-		return ret;
+	/* prase uuids on first boot */
+	if (skl->is_first_boot) {
+		ret = snd_skl_parse_uuids(ctx, ctx->fw, SKL_ADSP_FW_BIN_HDR_OFFSET, 0);
+		if (ret < 0) {
+			dev_err(ctx->dev, "UUID parsing err: %d\n", ret);
+			release_firmware(ctx->fw);
+			skl_dsp_disable_core(ctx, SKL_DSP_CORE0_MASK);
+			return ret;
+		}
 	}
 
 	/* check for extended manifest */
