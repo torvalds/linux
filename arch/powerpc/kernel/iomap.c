@@ -38,6 +38,18 @@ EXPORT_SYMBOL(ioread16);
 EXPORT_SYMBOL(ioread16be);
 EXPORT_SYMBOL(ioread32);
 EXPORT_SYMBOL(ioread32be);
+#ifdef __powerpc64__
+u64 ioread64(void __iomem *addr)
+{
+	return readq(addr);
+}
+u64 ioread64be(void __iomem *addr)
+{
+	return readq_be(addr);
+}
+EXPORT_SYMBOL(ioread64);
+EXPORT_SYMBOL(ioread64be);
+#endif /* __powerpc64__ */
 
 void iowrite8(u8 val, void __iomem *addr)
 {
@@ -64,6 +76,18 @@ EXPORT_SYMBOL(iowrite16);
 EXPORT_SYMBOL(iowrite16be);
 EXPORT_SYMBOL(iowrite32);
 EXPORT_SYMBOL(iowrite32be);
+#ifdef __powerpc64__
+void iowrite64(u64 val, void __iomem *addr)
+{
+	writeq(val, addr);
+}
+void iowrite64be(u64 val, void __iomem *addr)
+{
+	writeq_be(val, addr);
+}
+EXPORT_SYMBOL(iowrite64);
+EXPORT_SYMBOL(iowrite64be);
+#endif /* __powerpc64__ */
 
 /*
  * These are the "repeat read/write" functions. Note the

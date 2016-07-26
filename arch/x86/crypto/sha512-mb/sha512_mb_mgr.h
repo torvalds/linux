@@ -1,12 +1,12 @@
 /*
- * Initialization code for multi buffer SHA1 algorithm for AVX2
+ * Header file for multi buffer SHA512 algorithm manager
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
  * GPL LICENSE SUMMARY
  *
- *  Copyright(c) 2014 Intel Corporation.
+ *  Copyright(c) 2016 Intel Corporation.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of version 2 of the GNU General Public License as
@@ -18,11 +18,11 @@
  *  General Public License for more details.
  *
  *  Contact Information:
- *	Tim Chen <tim.c.chen@linux.intel.com>
+ *      Megha Dey <megha.dey@linux.intel.com>
  *
  *  BSD LICENSE
  *
- *  Copyright(c) 2014 Intel Corporation.
+ *  Copyright(c) 2016 Intel Corporation.
  *
  *  Redistribution and use in source and binary forms, with or without
  *  modification, are permitted provided that the following conditions
@@ -51,14 +51,54 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "sha_mb_mgr.h"
+#ifndef __SHA_MB_MGR_H
+#define __SHA_MB_MGR_H
 
-void sha1_mb_mgr_init_avx2(struct sha1_mb_mgr *state)
-{
-	unsigned int j;
-	state->unused_lanes = 0xF76543210ULL;
-	for (j = 0; j < 8; j++) {
-		state->lens[j] = 0xFFFFFFFF;
-		state->ldata[j].job_in_lane = NULL;
-	}
-}
+#include <linux/types.h>
+
+#define NUM_SHA512_DIGEST_WORDS 8
+
+enum job_sts {STS_UNKNOWN = 0,
+	STS_BEING_PROCESSED = 1,
+	STS_COMPLETED =       2,
+	STS_INTERNAL_ERROR = 3,
+	STS_ERROR = 4
+};
+
+struct job_sha512 {
+	u8  *buffer;
+	u64  len;
+	u64  result_digest[NUM_SHA512_DIGEST_WORDS] __aligned(32);
+	enum job_sts status;
+	void   *user_data;
+};
+
+struct sha512_args_x4 {
+	uint64_t        digest[8][4];
+	uint8_t         *data_ptr[4];
+};
+
+struct sha512_lane_data {
+	struct job_sha512 *job_in_lane;
+};
+
+struct sha512_mb_mgr {
+	struct sha512_args_x4 args;
+
+	uint64_t lens[4];
+
+	/* each byte is index (0...7) of unused lanes */
+	uint64_t unused_lanes;
+	/* byte 4 is set to FF as a flag */
+	struct sha512_lane_data ldata[4];
+};
+
+#define SHA512_MB_MGR_NUM_LANES_AVX2 4
+
+void sha512_mb_mgr_init_avx2(struct sha512_mb_mgr *state);
+struct job_sha512 *sha512_mb_mgr_submit_avx2(struct sha512_mb_mgr *state,
+						struct job_sha512 *job);
+struct job_sha512 *sha512_mb_mgr_flush_avx2(struct sha512_mb_mgr *state);
+struct job_sha512 *sha512_mb_mgr_get_comp_job_avx2(struct sha512_mb_mgr *state);
+
+#endif

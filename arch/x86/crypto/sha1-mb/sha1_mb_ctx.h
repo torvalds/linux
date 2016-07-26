@@ -54,7 +54,7 @@
 #ifndef _SHA_MB_CTX_INTERNAL_H
 #define _SHA_MB_CTX_INTERNAL_H
 
-#include "sha_mb_mgr.h"
+#include "sha1_mb_mgr.h"
 
 #define HASH_UPDATE          0x00
 #define HASH_FIRST           0x01

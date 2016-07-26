@@ -260,11 +260,12 @@ config USB_CHAOSKEY
 	tristate "ChaosKey random number generator driver support"
 	depends on HW_RANDOM
 	help
-	  Say Y here if you want to connect an AltusMetrum ChaosKey to
-	  your computer's USB port. The ChaosKey is a hardware random
-	  number generator which hooks into the kernel entropy pool to
-	  ensure a large supply of entropy for /dev/random and
-	  /dev/urandom and also provides direct access via /dev/chaoskeyX
+	  Say Y here if you want to connect an AltusMetrum ChaosKey or
+	  Araneus Alea I to your computer's USB port. These devices
+	  are hardware random number generators which hook into the
+	  kernel entropy pool to ensure a large supply of entropy for
+	  /dev/random and /dev/urandom and also provides direct access
+	  via /dev/chaoskeyX
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called chaoskey.
