@@ -1142,7 +1142,7 @@ again:
 				 * unmap shared but keep private pages.
 				 */
 				if (details->check_mapping &&
-				    details->check_mapping != page->mapping)
+				    details->check_mapping != page_rmapping(page))
 					continue;
 			}
 			ptent = ptep_get_and_clear_full(mm, addr, pte,

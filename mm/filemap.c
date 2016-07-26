@@ -219,8 +219,13 @@ void __delete_from_page_cache(struct page *page, void *shadow)
 	/* hugetlb pages do not participate in page cache accounting. */
 	if (!PageHuge(page))
 		__mod_zone_page_state(page_zone(page), NR_FILE_PAGES, -nr);
-	if (PageSwapBacked(page))
+	if (PageSwapBacked(page)) {
 		__mod_zone_page_state(page_zone(page), NR_SHMEM, -nr);
+		if (PageTransHuge(page))
+			__dec_zone_page_state(page, NR_SHMEM_THPS);
+	} else {
+		VM_BUG_ON_PAGE(PageTransHuge(page) && !PageHuge(page), page);
+	}
 
 	/*
 	 * At this point page must be either written or cleaned by truncate.

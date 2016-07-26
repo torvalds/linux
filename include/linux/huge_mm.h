@@ -156,6 +156,8 @@ void put_huge_zero_page(void);
 
 #define transparent_hugepage_enabled(__vma) 0
 
+static inline void prep_transhuge_page(struct page *page) {}
+
 #define transparent_hugepage_flags 0UL
 static inline int
 split_huge_page_to_list(struct page *page, struct list_head *list)
