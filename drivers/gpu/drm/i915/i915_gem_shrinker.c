@@ -163,17 +163,18 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 	 */
 	for (phase = phases; phase->list; phase++) {
 		struct list_head still_in_list;
+		struct drm_i915_gem_object *obj;
 
 		if ((flags & phase->bit) == 0)
 			continue;
 
 		INIT_LIST_HEAD(&still_in_list);
-		while (count < target && !list_empty(phase->list)) {
-			struct drm_i915_gem_object *obj;
+		while (count < target &&
+		       (obj = list_first_entry_or_null(phase->list,
+						       typeof(*obj),
+						       global_list))) {
 			struct i915_vma *vma, *v;
 
-			obj = list_first_entry(phase->list,
-					       typeof(*obj), global_list);
 			list_move_tail(&obj->global_list, &still_in_list);
 
 			if (flags & I915_SHRINK_PURGEABLE &&

@@ -317,12 +317,10 @@ __i915_gem_request_alloc(struct intel_engine_cs *engine,
 		return ret;
 
 	/* Move the oldest request to the slab-cache (if not in use!) */
-	if (!list_empty(&engine->request_list)) {
-		req = list_first_entry(&engine->request_list,
+	req = list_first_entry_or_null(&engine->request_list,
 				       typeof(*req), list);
-		if (i915_gem_request_completed(req))
-			i915_gem_request_retire(req);
-	}
+	if (req && i915_gem_request_completed(req))
+		i915_gem_request_retire(req);
 
 	req = kmem_cache_zalloc(dev_priv->requests, GFP_KERNEL);
 	if (!req)

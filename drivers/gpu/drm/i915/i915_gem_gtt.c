@@ -2736,13 +2736,11 @@ static void i915_gtt_color_adjust(struct drm_mm_node *node,
 	if (node->color != color)
 		*start += 4096;
 
-	if (!list_empty(&node->node_list)) {
-		node = list_entry(node->node_list.next,
-				  struct drm_mm_node,
-				  node_list);
-		if (node->allocated && node->color != color)
-			*end -= 4096;
-	}
+	node = list_first_entry_or_null(&node->node_list,
+					struct drm_mm_node,
+					node_list);
+	if (node && node->allocated && node->color != color)
+		*end -= 4096;
 }
 
 static int i915_gem_setup_global_gtt(struct drm_device *dev,
