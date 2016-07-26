@@ -751,6 +751,9 @@ static int si2165_set_oversamp(struct si2165_state *state, u32 dvb_rate)
 	u64 oversamp;
 	u32 reg_value;
 
+	if (!dvb_rate)
+		return -EINVAL;
+
 	oversamp = si2165_get_fe_clk(state);
 	oversamp <<= 23;
 	do_div(oversamp, dvb_rate);
@@ -774,6 +777,9 @@ static int si2165_set_if_freq_shift(struct si2165_state *state)
 			KBUILD_MODNAME);
 		return -EINVAL;
 	}
+
+	if (!fe_clk)
+		return -EINVAL;
 
 	fe->ops.tuner_ops.get_if_frequency(fe, &IF);
 	if_freq_shift = IF;
