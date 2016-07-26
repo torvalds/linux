@@ -226,6 +226,11 @@ static const struct genl_ops tipc_genl_v2_ops[] = {
 		.doit	= tipc_nl_node_set_monitor,
 		.policy = tipc_nl_policy,
 	},
+	{
+		.cmd	= TIPC_NL_MON_GET,
+		.doit	= tipc_nl_node_get_monitor,
+		.policy = tipc_nl_policy,
+	},
 };
 
 int tipc_nlmsg_parse(const struct nlmsghdr *nlh, struct nlattr ***attr)

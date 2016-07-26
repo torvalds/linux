@@ -79,4 +79,5 @@ int tipc_nl_node_get_link(struct sk_buff *skb, struct genl_info *info);
 int tipc_nl_node_set_link(struct sk_buff *skb, struct genl_info *info);
 
 int tipc_nl_node_set_monitor(struct sk_buff *skb, struct genl_info *info);
+int tipc_nl_node_get_monitor(struct sk_buff *skb, struct genl_info *info);
 #endif

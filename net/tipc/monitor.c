@@ -661,3 +661,10 @@ int tipc_nl_monitor_set_threshold(struct net *net, u32 cluster_size)
 
 	return 0;
 }
+
+int tipc_nl_monitor_get_threshold(struct net *net)
+{
+	struct tipc_net *tn = tipc_net(net);
+
+	return tn->mon_threshold;
+}
