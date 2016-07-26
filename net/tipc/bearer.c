@@ -171,6 +171,27 @@ struct tipc_bearer *tipc_bearer_find(struct net *net, const char *name)
 	return NULL;
 }
 
+/*     tipc_bearer_get_name - get the bearer name from its id.
+ *     @net: network namespace
+ *     @name: a pointer to the buffer where the name will be stored.
+ *     @bearer_id: the id to get the name from.
+ */
+int tipc_bearer_get_name(struct net *net, char *name, u32 bearer_id)
+{
+	struct tipc_net *tn = tipc_net(net);
+	struct tipc_bearer *b;
+
+	if (bearer_id >= MAX_BEARERS)
+		return -EINVAL;
+
+	b = rtnl_dereference(tn->bearer_list[bearer_id]);
+	if (!b)
+		return -EINVAL;
+
+	strcpy(name, b->name);
+	return 0;
+}
+
 void tipc_bearer_add_dest(struct net *net, u32 bearer_id, u32 dest)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
@@ -225,7 +246,7 @@ static int tipc_enable_bearer(struct net *net, const char *name,
 	if (tipc_addr_domain_valid(disc_domain) &&
 	    (disc_domain != tn->own_addr)) {
 		if (tipc_in_scope(disc_domain, tn->own_addr)) {
-			disc_domain = tn->own_addr & TIPC_CLUSTER_MASK;
+			disc_domain = tn->own_addr & TIPC_ZONE_CLUSTER_MASK;
 			res = 0;   /* accept any node in own cluster */
 		} else if (in_own_cluster_exact(net, disc_domain))
 			res = 0;   /* accept specified node in own cluster */
@@ -832,7 +853,7 @@ int tipc_nl_bearer_enable(struct sk_buff *skb, struct genl_info *info)
 	u32 prio;
 
 	prio = TIPC_MEDIA_LINK_PRI;
-	domain = tn->own_addr & TIPC_CLUSTER_MASK;
+	domain = tn->own_addr & TIPC_ZONE_CLUSTER_MASK;
 
 	if (!info->attrs[TIPC_NLA_BEARER])
 		return -EINVAL;

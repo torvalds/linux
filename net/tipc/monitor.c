@@ -33,9 +33,11 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <net/genetlink.h>
 #include "core.h"
 #include "addr.h"
 #include "monitor.h"
+#include "bearer.h"
 
 #define MAX_MON_DOMAIN       64
 #define MON_TIMEOUT          120000
@@ -648,4 +650,154 @@ void tipc_mon_delete(struct net *net, int bearer_id)
 	kfree(self->domain);
 	kfree(self);
 	kfree(mon);
+}
+
+int tipc_nl_monitor_set_threshold(struct net *net, u32 cluster_size)
+{
+	struct tipc_net *tn = tipc_net(net);
+
+	if (cluster_size > TIPC_CLUSTER_SIZE)
+		return -EINVAL;
+
+	tn->mon_threshold = cluster_size;
+
+	return 0;
+}
+
+int tipc_nl_monitor_get_threshold(struct net *net)
+{
+	struct tipc_net *tn = tipc_net(net);
+
+	return tn->mon_threshold;
+}
+
+int __tipc_nl_add_monitor_peer(struct tipc_peer *peer, struct tipc_nl_msg *msg)
+{
+	struct tipc_mon_domain *dom = peer->domain;
+	struct nlattr *attrs;
+	void *hdr;
+
+	hdr = genlmsg_put(msg->skb, msg->portid, msg->seq, &tipc_genl_family,
+			  NLM_F_MULTI, TIPC_NL_MON_PEER_GET);
+	if (!hdr)
+		return -EMSGSIZE;
+
+	attrs = nla_nest_start(msg->skb, TIPC_NLA_MON_PEER);
+	if (!attrs)
+		goto msg_full;
+
+	if (nla_put_u32(msg->skb, TIPC_NLA_MON_PEER_ADDR, peer->addr))
+		goto attr_msg_full;
+	if (nla_put_u32(msg->skb, TIPC_NLA_MON_PEER_APPLIED, peer->applied))
+		goto attr_msg_full;
+
+	if (peer->is_up)
+		if (nla_put_flag(msg->skb, TIPC_NLA_MON_PEER_UP))
+			goto attr_msg_full;
+	if (peer->is_local)
+		if (nla_put_flag(msg->skb, TIPC_NLA_MON_PEER_LOCAL))
+			goto attr_msg_full;
+	if (peer->is_head)
+		if (nla_put_flag(msg->skb, TIPC_NLA_MON_PEER_HEAD))
+			goto attr_msg_full;
+
+	if (dom) {
+		if (nla_put_u32(msg->skb, TIPC_NLA_MON_PEER_DOMGEN, dom->gen))
+			goto attr_msg_full;
+		if (nla_put_u64_64bit(msg->skb, TIPC_NLA_MON_PEER_UPMAP,
+				      dom->up_map, TIPC_NLA_MON_PEER_PAD))
+			goto attr_msg_full;
+		if (nla_put(msg->skb, TIPC_NLA_MON_PEER_MEMBERS,
+			    dom->member_cnt * sizeof(u32), &dom->members))
+			goto attr_msg_full;
+	}
+
+	nla_nest_end(msg->skb, attrs);
+	genlmsg_end(msg->skb, hdr);
+	return 0;
+
+attr_msg_full:
+	nla_nest_cancel(msg->skb, attrs);
+msg_full:
+	genlmsg_cancel(msg->skb, hdr);
+
+	return -EMSGSIZE;
+}
+
+int tipc_nl_add_monitor_peer(struct net *net, struct tipc_nl_msg *msg,
+			     u32 bearer_id, u32 *prev_node)
+{
+	struct tipc_monitor *mon = tipc_monitor(net, bearer_id);
+	struct tipc_peer *peer = mon->self;
+
+	if (!mon)
+		return -EINVAL;
+
+	read_lock_bh(&mon->lock);
+	do {
+		if (*prev_node) {
+			if (peer->addr == *prev_node)
+				*prev_node = 0;
+			else
+				continue;
+		}
+		if (__tipc_nl_add_monitor_peer(peer, msg)) {
+			*prev_node = peer->addr;
+			read_unlock_bh(&mon->lock);
+			return -EMSGSIZE;
+		}
+	} while ((peer = peer_nxt(peer)) != mon->self);
+	read_unlock_bh(&mon->lock);
+
+	return 0;
+}
+
+int __tipc_nl_add_monitor(struct net *net, struct tipc_nl_msg *msg,
+			  u32 bearer_id)
+{
+	struct tipc_monitor *mon = tipc_monitor(net, bearer_id);
+	char bearer_name[TIPC_MAX_BEARER_NAME];
+	struct nlattr *attrs;
+	void *hdr;
+	int ret;
+
+	ret = tipc_bearer_get_name(net, bearer_name, bearer_id);
+	if (ret || !mon)
+		return -EINVAL;
+
+	hdr = genlmsg_put(msg->skb, msg->portid, msg->seq, &tipc_genl_family,
+			  NLM_F_MULTI, TIPC_NL_MON_GET);
+	if (!hdr)
+		return -EMSGSIZE;
+
+	attrs = nla_nest_start(msg->skb, TIPC_NLA_MON);
+	if (!attrs)
+		goto msg_full;
+
+	read_lock_bh(&mon->lock);
+	if (nla_put_u32(msg->skb, TIPC_NLA_MON_REF, bearer_id))
+		goto attr_msg_full;
+	if (tipc_mon_is_active(net, mon))
+		if (nla_put_flag(msg->skb, TIPC_NLA_MON_ACTIVE))
+			goto attr_msg_full;
+	if (nla_put_string(msg->skb, TIPC_NLA_MON_BEARER_NAME, bearer_name))
+		goto attr_msg_full;
+	if (nla_put_u32(msg->skb, TIPC_NLA_MON_PEERCNT, mon->peer_cnt))
+		goto attr_msg_full;
+	if (nla_put_u32(msg->skb, TIPC_NLA_MON_LISTGEN, mon->list_gen))
+		goto attr_msg_full;
+
+	read_unlock_bh(&mon->lock);
+	nla_nest_end(msg->skb, attrs);
+	genlmsg_end(msg->skb, hdr);
+
+	return 0;
+
+attr_msg_full:
+	nla_nest_cancel(msg->skb, attrs);
+msg_full:
+	genlmsg_cancel(msg->skb, hdr);
+	read_unlock_bh(&mon->lock);
+
+	return -EMSGSIZE;
 }
