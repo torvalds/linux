@@ -22,6 +22,7 @@
 #include <linux/bootmem.h>
 #include <linux/kernel.h>
 #include <linux/percpu.h>
+#include <linux/clk-provider.h>
 #include <linux/cpu.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
@@ -250,6 +251,14 @@ void __init early_init_devtree(void *params)
 	if (!command_line[0])
 		strlcpy(command_line, boot_command_line, COMMAND_LINE_SIZE);
 }
+
+static int __init xtensa_device_probe(void)
+{
+	of_clk_init(NULL);
+	return 0;
+}
+
+device_initcall(xtensa_device_probe);
 
 #endif /* CONFIG_OF */
 

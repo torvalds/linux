@@ -15,7 +15,6 @@
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/time.h>
-#include <linux/clk-provider.h>
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
 #include <linux/interrupt.h>
@@ -149,7 +148,6 @@ void __init time_init(void)
 	local_timer_setup(0);
 	setup_irq(this_cpu_ptr(&ccount_timer)->evt.irq, &timer_irqaction);
 	sched_clock_register(ccount_sched_clock_read, 32, ccount_freq);
-	of_clk_init(NULL);
 	clocksource_probe();
 }
 
