@@ -16,8 +16,9 @@ struct shmem_inode_info {
 	unsigned long		flags;
 	unsigned long		alloced;	/* data pages alloced to file */
 	unsigned long		swapped;	/* subtotal assigned to swap */
-	struct shared_policy	policy;		/* NUMA memory alloc policy */
+	struct list_head        shrinklist;     /* shrinkable hpage inodes */
 	struct list_head	swaplist;	/* chain of maybes on swap */
+	struct shared_policy	policy;		/* NUMA memory alloc policy */
 	struct simple_xattrs	xattrs;		/* list of xattrs */
 	struct inode		vfs_inode;
 };
@@ -33,6 +34,9 @@ struct shmem_sb_info {
 	kuid_t uid;		    /* Mount uid for root directory */
 	kgid_t gid;		    /* Mount gid for root directory */
 	struct mempolicy *mpol;     /* default memory policy for mappings */
+	spinlock_t shrinklist_lock;   /* Protects shrinklist */
+	struct list_head shrinklist;  /* List of shinkable inodes */
+	unsigned long shrinklist_len; /* Length of shrinklist */
 };
 
 static inline struct shmem_inode_info *SHMEM_I(struct inode *inode)
