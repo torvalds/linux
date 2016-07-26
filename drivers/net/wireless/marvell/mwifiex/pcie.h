@@ -37,6 +37,7 @@
 #define PCIEUART8997_FW_NAME_V2 "mrvl/pcieuart8997_combo_v2.bin"
 #define PCIEUSB8997_FW_NAME_Z "mrvl/pcieusb8997_combo.bin"
 #define PCIEUSB8997_FW_NAME_V2 "mrvl/pcieusb8997_combo_v2.bin"
+#define PCIE8997_DEFAULT_WIFIFW_NAME "mrvl/pcie8997_wlan.bin"
 
 #define PCIE_VENDOR_ID_MARVELL              (0x11ab)
 #define PCIE_VENDOR_ID_V2_MARVELL           (0x1b4b)

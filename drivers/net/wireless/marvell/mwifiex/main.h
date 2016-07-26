@@ -829,6 +829,8 @@ struct mwifiex_if_ops {
 	void (*deaggr_pkt)(struct mwifiex_adapter *, struct sk_buff *);
 	void (*multi_port_resync)(struct mwifiex_adapter *);
 	bool (*is_port_ready)(struct mwifiex_private *);
+	void (*down_dev)(struct mwifiex_adapter *);
+	void (*up_dev)(struct mwifiex_adapter *);
 };
 
 struct mwifiex_adapter {
@@ -1629,4 +1631,5 @@ void mwifiex_debugfs_remove(void);
 void mwifiex_dev_debugfs_init(struct mwifiex_private *priv);
 void mwifiex_dev_debugfs_remove(struct mwifiex_private *priv);
 #endif
+void mwifiex_do_flr(struct mwifiex_adapter *adapter, bool prepare);
 #endif /* !_MWIFIEX_MAIN_H_ */
