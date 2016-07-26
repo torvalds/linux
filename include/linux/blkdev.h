@@ -496,7 +496,7 @@ struct request_queue {
 #define QUEUE_FLAG_DISCARD     14	/* supports DISCARD */
 #define QUEUE_FLAG_NOXMERGES   15	/* No extended merges */
 #define QUEUE_FLAG_ADD_RANDOM  16	/* Contributes to random pool */
-#define QUEUE_FLAG_SECDISCARD  17	/* supports SECDISCARD */
+#define QUEUE_FLAG_SECERASE    17	/* supports secure erase */
 #define QUEUE_FLAG_SAME_FORCE  18	/* force complete on same CPU */
 #define QUEUE_FLAG_DEAD        19	/* queue tear-down finished */
 #define QUEUE_FLAG_INIT_DONE   20	/* queue is initialized */
@@ -593,8 +593,8 @@ static inline void queue_flag_clear(unsigned int flag, struct request_queue *q)
 #define blk_queue_stackable(q)	\
 	test_bit(QUEUE_FLAG_STACKABLE, &(q)->queue_flags)
 #define blk_queue_discard(q)	test_bit(QUEUE_FLAG_DISCARD, &(q)->queue_flags)
-#define blk_queue_secdiscard(q)	(blk_queue_discard(q) && \
-	test_bit(QUEUE_FLAG_SECDISCARD, &(q)->queue_flags))
+#define blk_queue_secure_erase(q) \
+	(test_bit(QUEUE_FLAG_SECERASE, &(q)->queue_flags))
 #define blk_queue_dax(q)	test_bit(QUEUE_FLAG_DAX, &(q)->queue_flags)
 
 #define blk_noretry_request(rq) \
@@ -671,21 +671,6 @@ static inline bool rq_mergeable(struct request *rq)
 		return false;
 
 	if (rq->cmd_flags & REQ_NOMERGE_FLAGS)
-		return false;
-
-	return true;
-}
-
-static inline bool blk_check_merge_flags(unsigned int flags1, unsigned int op1,
-					 unsigned int flags2, unsigned int op2)
-{
-	if ((op1 == REQ_OP_DISCARD) != (op2 == REQ_OP_DISCARD))
-		return false;
-
-	if ((flags1 & REQ_SECURE) != (flags2 & REQ_SECURE))
-		return false;
-
-	if ((op1 == REQ_OP_WRITE_SAME) != (op2 == REQ_OP_WRITE_SAME))
 		return false;
 
 	return true;
@@ -804,8 +789,6 @@ extern void blk_rq_init(struct request_queue *q, struct request *rq);
 extern void blk_put_request(struct request *);
 extern void __blk_put_request(struct request_queue *, struct request *);
 extern struct request *blk_get_request(struct request_queue *, int, gfp_t);
-extern struct request *blk_make_request(struct request_queue *, struct bio *,
-					gfp_t);
 extern void blk_rq_set_block_pc(struct request *);
 extern void blk_requeue_request(struct request_queue *, struct request *);
 extern void blk_add_request_payload(struct request *rq, struct page *page,
@@ -818,6 +801,7 @@ extern int blk_rq_prep_clone(struct request *rq, struct request *rq_src,
 extern void blk_rq_unprep_clone(struct request *rq);
 extern int blk_insert_cloned_request(struct request_queue *q,
 				     struct request *rq);
+extern int blk_rq_append_bio(struct request *rq, struct bio *bio);
 extern void blk_delay_queue(struct request_queue *, unsigned long);
 extern void blk_queue_split(struct request_queue *, struct bio **,
 			    struct bio_set *);
@@ -1154,13 +1138,15 @@ static inline struct request *blk_map_queue_find_tag(struct blk_queue_tag *bqt,
 	return bqt->tag_index[tag];
 }
 
-#define BLKDEV_DISCARD_SECURE  0x01    /* secure discard */
+
+#define BLKDEV_DISCARD_SECURE	(1 << 0)	/* issue a secure erase */
+#define BLKDEV_DISCARD_ZERO	(1 << 1)	/* must reliably zero data */
 
 extern int blkdev_issue_flush(struct block_device *, gfp_t, sector_t *);
 extern int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 		sector_t nr_sects, gfp_t gfp_mask, unsigned long flags);
 extern int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
-		sector_t nr_sects, gfp_t gfp_mask, int op_flags,
+		sector_t nr_sects, gfp_t gfp_mask, int flags,
 		struct bio **biop);
 extern int blkdev_issue_write_same(struct block_device *bdev, sector_t sector,
 		sector_t nr_sects, gfp_t gfp_mask, struct page *page);

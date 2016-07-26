@@ -733,7 +733,8 @@ next_step:
 
 			start_bidx = start_bidx_of_node(nofs, inode);
 			data_page = get_read_data_page(inode,
-					start_bidx + ofs_in_node, READA, true);
+					start_bidx + ofs_in_node, REQ_RAHEAD,
+					true);
 			if (IS_ERR(data_page)) {
 				iput(inode);
 				continue;

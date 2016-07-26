@@ -649,8 +649,7 @@ static int attempt_merge(struct request_queue *q, struct request *req,
 	if (!rq_mergeable(req) || !rq_mergeable(next))
 		return 0;
 
-	if (!blk_check_merge_flags(req->cmd_flags, req_op(req), next->cmd_flags,
-				   req_op(next)))
+	if (req_op(req) != req_op(next))
 		return 0;
 
 	/*
@@ -758,8 +757,7 @@ bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
 	if (!rq_mergeable(rq) || !bio_mergeable(bio))
 		return false;
 
-	if (!blk_check_merge_flags(rq->cmd_flags, req_op(rq), bio->bi_rw,
-				   bio_op(bio)))
+	if (req_op(rq) != bio_op(bio))
 		return false;
 
 	/* different data direction or already started, don't merge */

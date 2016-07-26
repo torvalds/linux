@@ -1058,7 +1058,6 @@ static void raid1_make_request(struct mddev *mddev, struct bio * bio)
 	const unsigned long do_sync = (bio->bi_rw & REQ_SYNC);
 	const unsigned long do_flush_fua = (bio->bi_rw &
 						(REQ_PREFLUSH | REQ_FUA));
-	const unsigned long do_sec = (bio->bi_rw & REQ_SECURE);
 	struct md_rdev *blocked_rdev;
 	struct blk_plug_cb *cb;
 	struct raid1_plug_cb *plug = NULL;
@@ -1106,7 +1105,7 @@ static void raid1_make_request(struct mddev *mddev, struct bio * bio)
 	bitmap = mddev->bitmap;
 
 	/*
-	 * make_request() can abort the operation when READA is being
+	 * make_request() can abort the operation when read-ahead is being
 	 * used and no empty request is available.
 	 *
 	 */
@@ -1376,7 +1375,7 @@ read_again:
 				   conf->mirrors[i].rdev->data_offset);
 		mbio->bi_bdev = conf->mirrors[i].rdev->bdev;
 		mbio->bi_end_io	= raid1_end_write_request;
-		bio_set_op_attrs(mbio, op, do_flush_fua | do_sync | do_sec);
+		bio_set_op_attrs(mbio, op, do_flush_fua | do_sync);
 		mbio->bi_private = r1_bio;
 
 		atomic_inc(&r1_bio->remaining);

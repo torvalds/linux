@@ -528,7 +528,7 @@ static void read_callback(unsigned long error, void *context)
 		DMWARN_LIMIT("Read failure on mirror device %s.  "
 			     "Trying alternative device.",
 			     m->dev->name);
-		queue_bio(m->ms, bio, bio_rw(bio));
+		queue_bio(m->ms, bio, bio_data_dir(bio));
 		return;
 	}
 
@@ -1193,7 +1193,7 @@ static void mirror_dtr(struct dm_target *ti)
  */
 static int mirror_map(struct dm_target *ti, struct bio *bio)
 {
-	int r, rw = bio_rw(bio);
+	int r, rw = bio_data_dir(bio);
 	struct mirror *m;
 	struct mirror_set *ms = ti->private;
 	struct dm_dirty_log *log = dm_rh_dirty_log(ms->rh);
@@ -1217,7 +1217,7 @@ static int mirror_map(struct dm_target *ti, struct bio *bio)
 	 * If region is not in-sync queue the bio.
 	 */
 	if (!r || (r == -EWOULDBLOCK)) {
-		if (rw == READA)
+		if (bio->bi_rw & REQ_RAHEAD)
 			return -EWOULDBLOCK;
 
 		queue_bio(ms, bio, rw);
@@ -1242,7 +1242,7 @@ static int mirror_map(struct dm_target *ti, struct bio *bio)
 
 static int mirror_end_io(struct dm_target *ti, struct bio *bio, int error)
 {
-	int rw = bio_rw(bio);
+	int rw = bio_data_dir(bio);
 	struct mirror_set *ms = (struct mirror_set *) ti->private;
 	struct mirror *m = NULL;
 	struct dm_bio_details *bd = NULL;

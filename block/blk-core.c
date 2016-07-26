@@ -1294,10 +1294,15 @@ static struct request *blk_old_get_request(struct request_queue *q, int rw,
 
 	spin_lock_irq(q->queue_lock);
 	rq = get_request(q, rw, 0, NULL, gfp_mask);
-	if (IS_ERR(rq))
+	if (IS_ERR(rq)) {
 		spin_unlock_irq(q->queue_lock);
-	/* q->queue_lock is unlocked at this point */
+		return rq;
+	}
 
+	/* q->queue_lock is unlocked at this point */
+	rq->__data_len = 0;
+	rq->__sector = (sector_t) -1;
+	rq->bio = rq->biotail = NULL;
 	return rq;
 }
 
@@ -1313,63 +1318,6 @@ struct request *blk_get_request(struct request_queue *q, int rw, gfp_t gfp_mask)
 EXPORT_SYMBOL(blk_get_request);
 
 /**
- * blk_make_request - given a bio, allocate a corresponding struct request.
- * @q: target request queue
- * @bio:  The bio describing the memory mappings that will be submitted for IO.
- *        It may be a chained-bio properly constructed by block/bio layer.
- * @gfp_mask: gfp flags to be used for memory allocation
- *
- * blk_make_request is the parallel of generic_make_request for BLOCK_PC
- * type commands. Where the struct request needs to be farther initialized by
- * the caller. It is passed a &struct bio, which describes the memory info of
- * the I/O transfer.
- *
- * The caller of blk_make_request must make sure that bi_io_vec
- * are set to describe the memory buffers. That bio_data_dir() will return
- * the needed direction of the request. (And all bio's in the passed bio-chain
- * are properly set accordingly)
- *
- * If called under none-sleepable conditions, mapped bio buffers must not
- * need bouncing, by calling the appropriate masked or flagged allocator,
- * suitable for the target device. Otherwise the call to blk_queue_bounce will
- * BUG.
- *
- * WARNING: When allocating/cloning a bio-chain, careful consideration should be
- * given to how you allocate bios. In particular, you cannot use
- * __GFP_DIRECT_RECLAIM for anything but the first bio in the chain. Otherwise
- * you risk waiting for IO completion of a bio that hasn't been submitted yet,
- * thus resulting in a deadlock. Alternatively bios should be allocated using
- * bio_kmalloc() instead of bio_alloc(), as that avoids the mempool deadlock.
- * If possible a big IO should be split into smaller parts when allocation
- * fails. Partial allocation should not be an error, or you risk a live-lock.
- */
-struct request *blk_make_request(struct request_queue *q, struct bio *bio,
-				 gfp_t gfp_mask)
-{
-	struct request *rq = blk_get_request(q, bio_data_dir(bio), gfp_mask);
-
-	if (IS_ERR(rq))
-		return rq;
-
-	blk_rq_set_block_pc(rq);
-
-	for_each_bio(bio) {
-		struct bio *bounce_bio = bio;
-		int ret;
-
-		blk_queue_bounce(q, &bounce_bio);
-		ret = blk_rq_append_bio(q, rq, bounce_bio);
-		if (unlikely(ret)) {
-			blk_put_request(rq);
-			return ERR_PTR(ret);
-		}
-	}
-
-	return rq;
-}
-EXPORT_SYMBOL(blk_make_request);
-
-/**
  * blk_rq_set_block_pc - initialize a request to type BLOCK_PC
  * @rq:		request to be initialized
  *
@@ -1377,9 +1325,6 @@ EXPORT_SYMBOL(blk_make_request);
 void blk_rq_set_block_pc(struct request *rq)
 {
 	rq->cmd_type = REQ_TYPE_BLOCK_PC;
-	rq->__data_len = 0;
-	rq->__sector = (sector_t) -1;
-	rq->bio = rq->biotail = NULL;
 	memset(rq->__cmd, 0, sizeof(rq->__cmd));
 }
 EXPORT_SYMBOL(blk_rq_set_block_pc);
@@ -1982,16 +1927,21 @@ generic_make_request_checks(struct bio *bio)
 		}
 	}
 
-	if ((bio_op(bio) == REQ_OP_DISCARD) &&
-	    (!blk_queue_discard(q) ||
-	     ((bio->bi_rw & REQ_SECURE) && !blk_queue_secdiscard(q)))) {
-		err = -EOPNOTSUPP;
-		goto end_io;
-	}
-
-	if (bio_op(bio) == REQ_OP_WRITE_SAME && !bdev_write_same(bio->bi_bdev)) {
-		err = -EOPNOTSUPP;
-		goto end_io;
+	switch (bio_op(bio)) {
+	case REQ_OP_DISCARD:
+		if (!blk_queue_discard(q))
+			goto not_supported;
+		break;
+	case REQ_OP_SECURE_ERASE:
+		if (!blk_queue_secure_erase(q))
+			goto not_supported;
+		break;
+	case REQ_OP_WRITE_SAME:
+		if (!bdev_write_same(bio->bi_bdev))
+			goto not_supported;
+		break;
+	default:
+		break;
 	}
 
 	/*
@@ -2008,6 +1958,8 @@ generic_make_request_checks(struct bio *bio)
 	trace_block_bio_queue(q, bio);
 	return true;
 
+not_supported:
+	err = -EOPNOTSUPP;
 end_io:
 	bio->bi_error = err;
 	bio_endio(bio);
@@ -3383,6 +3335,7 @@ bool blk_poll(struct request_queue *q, blk_qc_t cookie)
 
 	return false;
 }
+EXPORT_SYMBOL_GPL(blk_poll);
 
 #ifdef CONFIG_PM
 /**

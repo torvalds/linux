@@ -615,7 +615,6 @@ dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char 
 	dev_info->dcssblk_queue = blk_alloc_queue(GFP_KERNEL);
 	dev_info->gd->queue = dev_info->dcssblk_queue;
 	dev_info->gd->private_data = dev_info;
-	dev_info->gd->driverfs_dev = &dev_info->dev;
 	blk_queue_make_request(dev_info->dcssblk_queue, dcssblk_make_request);
 	blk_queue_logical_block_size(dev_info->dcssblk_queue, 4096);
 	queue_flag_set_unlocked(QUEUE_FLAG_DAX, dev_info->dcssblk_queue);
@@ -656,7 +655,7 @@ dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char 
 		goto put_dev;
 
 	get_device(&dev_info->dev);
-	add_disk(dev_info->gd);
+	device_add_disk(&dev_info->dev, dev_info->gd);
 
 	switch (dev_info->segment_type) {
 		case SEG_TYPE_SR:

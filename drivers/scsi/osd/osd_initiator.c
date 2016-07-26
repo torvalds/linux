@@ -1558,18 +1558,25 @@ static int _osd_req_finalize_data_integrity(struct osd_request *or,
 static struct request *_make_request(struct request_queue *q, bool has_write,
 			      struct _osd_io_info *oii, gfp_t flags)
 {
-	if (oii->bio)
-		return blk_make_request(q, oii->bio, flags);
-	else {
-		struct request *req;
+	struct request *req;
+	struct bio *bio = oii->bio;
+	int ret;
 
-		req = blk_get_request(q, has_write ? WRITE : READ, flags);
-		if (IS_ERR(req))
-			return req;
-
-		blk_rq_set_block_pc(req);
+	req = blk_get_request(q, has_write ? WRITE : READ, flags);
+	if (IS_ERR(req))
 		return req;
+	blk_rq_set_block_pc(req);
+
+	for_each_bio(bio) {
+		struct bio *bounce_bio = bio;
+
+		blk_queue_bounce(req->q, &bounce_bio);
+		ret = blk_rq_append_bio(req, bounce_bio);
+		if (ret)
+			return ERR_PTR(ret);
 	}
+
+	return req;
 }
 
 static int _init_blk_request(struct osd_request *or,

@@ -93,6 +93,7 @@ static DEFINE_SPINLOCK(mmc_blk_lock);
  */
 struct mmc_blk_data {
 	spinlock_t	lock;
+	struct device	*parent;
 	struct gendisk	*disk;
 	struct mmc_queue queue;
 	struct list_head part;
@@ -2169,10 +2170,12 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 		/* complete ongoing async transfer before issuing discard */
 		if (card->host->areq)
 			mmc_blk_issue_rw_rq(mq, NULL);
-		if (req->cmd_flags & REQ_SECURE)
-			ret = mmc_blk_issue_secdiscard_rq(mq, req);
-		else
-			ret = mmc_blk_issue_discard_rq(mq, req);
+		ret = mmc_blk_issue_discard_rq(mq, req);
+	} else if (req && req_op(req) == REQ_OP_SECURE_ERASE) {
+		/* complete ongoing async transfer before issuing secure erase*/
+		if (card->host->areq)
+			mmc_blk_issue_rw_rq(mq, NULL);
+		ret = mmc_blk_issue_secdiscard_rq(mq, req);
 	} else if (req && req_op(req) == REQ_OP_FLUSH) {
 		/* complete ongoing async transfer before issuing flush */
 		if (card->host->areq)
@@ -2270,7 +2273,7 @@ again:
 	md->disk->fops = &mmc_bdops;
 	md->disk->private_data = md;
 	md->disk->queue = md->queue.queue;
-	md->disk->driverfs_dev = parent;
+	md->parent = parent;
 	set_disk_ro(md->disk, md->read_only || default_ro);
 	md->disk->flags = GENHD_FL_EXT_DEVT;
 	if (area_type & (MMC_BLK_DATA_AREA_RPMB | MMC_BLK_DATA_AREA_BOOT))
@@ -2458,7 +2461,7 @@ static int mmc_add_disk(struct mmc_blk_data *md)
 	int ret;
 	struct mmc_card *card = md->queue.card;
 
-	add_disk(md->disk);
+	device_add_disk(md->parent, md->disk);
 	md->force_ro.show = force_ro_show;
 	md->force_ro.store = force_ro_store;
 	sysfs_attr_init(&md->force_ro.attr);

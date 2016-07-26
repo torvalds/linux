@@ -237,14 +237,9 @@ static void seq_print_peer_request_flags(struct seq_file *m, struct drbd_peer_re
 	seq_print_rq_state_bit(m, f & EE_SEND_WRITE_ACK, &sep, "C");
 	seq_print_rq_state_bit(m, f & EE_MAY_SET_IN_SYNC, &sep, "set-in-sync");
 
-	if (f & EE_IS_TRIM) {
-		seq_putc(m, sep);
-		sep = '|';
-		if (f & EE_IS_TRIM_USE_ZEROOUT)
-			seq_puts(m, "zero-out");
-		else
-			seq_puts(m, "trim");
-	}
+	if (f & EE_IS_TRIM)
+		__seq_print_rq_state_bit(m, f & EE_IS_TRIM_USE_ZEROOUT, &sep, "zero-out", "trim");
+	seq_print_rq_state_bit(m, f & EE_WRITE_SAME, &sep, "write-same");
 	seq_putc(m, '\n');
 }
 
@@ -908,7 +903,7 @@ static int drbd_version_open(struct inode *inode, struct file *file)
 	return single_open(file, drbd_version_show, NULL);
 }
 
-static struct file_operations drbd_version_fops = {
+static const struct file_operations drbd_version_fops = {
 	.owner = THIS_MODULE,
 	.open = drbd_version_open,
 	.llseek = seq_lseek,

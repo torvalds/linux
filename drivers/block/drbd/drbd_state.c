@@ -814,7 +814,7 @@ is_valid_state(struct drbd_device *device, union drbd_state ns)
 	}
 
 	if (rv <= 0)
-		/* already found a reason to abort */;
+		goto out; /* already found a reason to abort */
 	else if (ns.role == R_SECONDARY && device->open_cnt)
 		rv = SS_DEVICE_IN_USE;
 
@@ -862,6 +862,7 @@ is_valid_state(struct drbd_device *device, union drbd_state ns)
 	else if (ns.conn >= C_CONNECTED && ns.pdsk == D_UNKNOWN)
 		rv = SS_CONNECTED_OUTDATES;
 
+out:
 	rcu_read_unlock();
 
 	return rv;
@@ -905,6 +906,15 @@ is_valid_soft_transition(union drbd_state os, union drbd_state ns, struct drbd_c
 	    !((ns.conn == C_WF_REPORT_PARAMS && os.conn == C_WF_CONNECTION) ||
 	      (ns.conn >= C_CONNECTED && os.conn == C_WF_REPORT_PARAMS)))
 		rv = SS_IN_TRANSIENT_STATE;
+
+	/* Do not promote during resync handshake triggered by "force primary".
+	 * This is a hack. It should really be rejected by the peer during the
+	 * cluster wide state change request. */
+	if (os.role != R_PRIMARY && ns.role == R_PRIMARY
+		&& ns.pdsk == D_UP_TO_DATE
+		&& ns.disk != D_UP_TO_DATE && ns.disk != D_DISKLESS
+		&& (ns.conn <= C_WF_SYNC_UUID || ns.conn != os.conn))
+			rv = SS_IN_TRANSIENT_STATE;
 
 	if ((ns.conn == C_VERIFY_S || ns.conn == C_VERIFY_T) && os.conn < C_CONNECTED)
 		rv = SS_NEED_CONNECTION;
@@ -1628,6 +1638,26 @@ static void broadcast_state_change(struct drbd_state_change *state_change)
 #undef REMEMBER_STATE_CHANGE
 }
 
+/* takes old and new peer disk state */
+static bool lost_contact_to_peer_data(enum drbd_disk_state os, enum drbd_disk_state ns)
+{
+	if ((os >= D_INCONSISTENT && os != D_UNKNOWN && os != D_OUTDATED)
+	&&  (ns < D_INCONSISTENT || ns == D_UNKNOWN || ns == D_OUTDATED))
+		return true;
+
+	/* Scenario, starting with normal operation
+	 * Connected Primary/Secondary UpToDate/UpToDate
+	 * NetworkFailure Primary/Unknown UpToDate/DUnknown (frozen)
+	 * ...
+	 * Connected Primary/Secondary UpToDate/Diskless (resumed; needs to bump uuid!)
+	 */
+	if (os == D_UNKNOWN
+	&&  (ns == D_DISKLESS || ns == D_FAILED || ns == D_OUTDATED))
+		return true;
+
+	return false;
+}
+
 /**
  * after_state_ch() - Perform after state change actions that may sleep
  * @device:	DRBD device.
@@ -1675,7 +1705,7 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 			what = RESEND;
 
 		if ((os.disk == D_ATTACHING || os.disk == D_NEGOTIATING) &&
-		    conn_lowest_disk(connection) > D_NEGOTIATING)
+		    conn_lowest_disk(connection) == D_UP_TO_DATE)
 			what = RESTART_FROZEN_DISK_IO;
 
 		if (resource->susp_nod && what != NOTHING) {
@@ -1699,6 +1729,13 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 			idr_for_each_entry(&connection->peer_devices, peer_device, vnr)
 				clear_bit(NEW_CUR_UUID, &peer_device->device->flags);
 			rcu_read_unlock();
+
+			/* We should actively create a new uuid, _before_
+			 * we resume/resent, if the peer is diskless
+			 * (recovery from a multiple error scenario).
+			 * Currently, this happens with a slight delay
+			 * below when checking lost_contact_to_peer_data() ...
+			 */
 			_tl_restart(connection, RESEND);
 			_conn_request_state(connection,
 					    (union drbd_state) { { .susp_fen = 1 } },
@@ -1742,12 +1779,7 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 				BM_LOCKED_TEST_ALLOWED);
 
 	/* Lost contact to peer's copy of the data */
-	if ((os.pdsk >= D_INCONSISTENT &&
-	     os.pdsk != D_UNKNOWN &&
-	     os.pdsk != D_OUTDATED)
-	&&  (ns.pdsk < D_INCONSISTENT ||
-	     ns.pdsk == D_UNKNOWN ||
-	     ns.pdsk == D_OUTDATED)) {
+	if (lost_contact_to_peer_data(os.pdsk, ns.pdsk)) {
 		if (get_ldev(device)) {
 			if ((ns.role == R_PRIMARY || ns.peer == R_PRIMARY) &&
 			    device->ldev->md.uuid[UI_BITMAP] == 0 && ns.disk >= D_UP_TO_DATE) {
@@ -1934,12 +1966,17 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 
 	/* This triggers bitmap writeout of potentially still unwritten pages
 	 * if the resync finished cleanly, or aborted because of peer disk
-	 * failure, or because of connection loss.
+	 * failure, or on transition from resync back to AHEAD/BEHIND.
+	 *
+	 * Connection loss is handled in drbd_disconnected() by the receiver.
+	 *
 	 * For resync aborted because of local disk failure, we cannot do
 	 * any bitmap writeout anymore.
+	 *
 	 * No harm done if some bits change during this phase.
 	 */
-	if (os.conn > C_CONNECTED && ns.conn <= C_CONNECTED && get_ldev(device)) {
+	if ((os.conn > C_CONNECTED && os.conn < C_AHEAD) &&
+	    (ns.conn == C_CONNECTED || ns.conn >= C_AHEAD) && get_ldev(device)) {
 		drbd_queue_bitmap_io(device, &drbd_bm_write_copy_pages, NULL,
 			"write from resync_finished", BM_LOCKED_CHANGE_ALLOWED);
 		put_ldev(device);
@@ -2160,9 +2197,7 @@ conn_set_state(struct drbd_connection *connection, union drbd_state mask, union 
 			ns.disk = os.disk;
 
 		rv = _drbd_set_state(device, ns, flags, NULL);
-		if (rv < SS_SUCCESS)
-			BUG();
-
+		BUG_ON(rv < SS_SUCCESS);
 		ns.i = device->state.i;
 		ns_max.role = max_role(ns.role, ns_max.role);
 		ns_max.peer = max_role(ns.peer, ns_max.peer);

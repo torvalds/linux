@@ -8184,6 +8184,13 @@ S:	Supported
 F:	drivers/nvme/host/
 F:	include/linux/nvme.h
 
+NVM EXPRESS TARGET DRIVER
+M:	Christoph Hellwig <hch@lst.de>
+M:	Sagi Grimberg <sagi@grimberg.me>
+L:	linux-nvme@lists.infradead.org
+S:	Supported
+F:	drivers/nvme/target/
+
 NVMEM FRAMEWORK
 M:	Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
 M:	Maxime Ripard <maxime.ripard@free-electrons.com>

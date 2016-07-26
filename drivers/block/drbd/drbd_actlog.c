@@ -258,7 +258,7 @@ bool drbd_al_begin_io_fastpath(struct drbd_device *device, struct drbd_interval 
 	unsigned first = i->sector >> (AL_EXTENT_SHIFT-9);
 	unsigned last = i->size == 0 ? first : (i->sector + (i->size >> 9) - 1) >> (AL_EXTENT_SHIFT-9);
 
-	D_ASSERT(device, (unsigned)(last - first) <= 1);
+	D_ASSERT(device, first <= last);
 	D_ASSERT(device, atomic_read(&device->local_cnt) > 0);
 
 	/* FIXME figure out a fast path for bios crossing AL extent boundaries */
@@ -340,6 +340,8 @@ static int __al_write_transaction(struct drbd_device *device, struct al_transact
 	buffer->tr_number = cpu_to_be32(device->al_tr_number);
 
 	i = 0;
+
+	drbd_bm_reset_al_hints(device);
 
 	/* Even though no one can start to change this list
 	 * once we set the LC_LOCKED -- from drbd_al_begin_io(),
@@ -770,10 +772,18 @@ static bool lazy_bitmap_update_due(struct drbd_device *device)
 
 static void maybe_schedule_on_disk_bitmap_update(struct drbd_device *device, bool rs_done)
 {
-	if (rs_done)
-		set_bit(RS_DONE, &device->flags);
-		/* and also set RS_PROGRESS below */
-	else if (!lazy_bitmap_update_due(device))
+	if (rs_done) {
+		struct drbd_connection *connection = first_peer_device(device)->connection;
+		if (connection->agreed_pro_version <= 95 ||
+		    is_sync_target_state(device->state.conn))
+			set_bit(RS_DONE, &device->flags);
+			/* and also set RS_PROGRESS below */
+
+		/* Else: rather wait for explicit notification via receive_state,
+		 * to avoid uuids-rotated-too-fast causing full resync
+		 * in next handshake, in case the replication link breaks
+		 * at the most unfortunate time... */
+	} else if (!lazy_bitmap_update_due(device))
 		return;
 
 	drbd_device_post_work(device, RS_PROGRESS);
@@ -832,6 +842,13 @@ static int update_sync_bits(struct drbd_device *device,
 	return count;
 }
 
+static bool plausible_request_size(int size)
+{
+	return size > 0
+		&& size <= DRBD_MAX_BATCH_BIO_SIZE
+		&& IS_ALIGNED(size, 512);
+}
+
 /* clear the bit corresponding to the piece of storage in question:
  * size byte of data starting from sector.  Only clear a bits of the affected
  * one ore more _aligned_ BM_BLOCK_SIZE blocks.
@@ -851,7 +868,7 @@ int __drbd_change_sync(struct drbd_device *device, sector_t sector, int size,
 	if ((mode == SET_OUT_OF_SYNC) && size == 0)
 		return 0;
 
-	if (size <= 0 || !IS_ALIGNED(size, 512) || size > DRBD_MAX_DISCARD_SIZE) {
+	if (!plausible_request_size(size)) {
 		drbd_err(device, "%s: sector=%llus size=%d nonsense!\n",
 				drbd_change_sync_fname[mode],
 				(unsigned long long)sector, size);

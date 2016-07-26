@@ -347,9 +347,7 @@ static blk_qc_t brd_make_request(struct request_queue *q, struct bio *bio)
 		goto out;
 	}
 
-	rw = bio_rw(bio);
-	if (rw == READA)
-		rw = READ;
+	rw = bio_data_dir(bio);
 
 	bio_for_each_segment(bvec, bio, iter) {
 		unsigned int len = bvec.bv_len;
