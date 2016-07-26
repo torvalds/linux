@@ -211,14 +211,14 @@ skl_update_plane(struct drm_plane *drm_plane,
 	u32 tile_height, plane_offset, plane_size;
 	unsigned int rotation = plane_state->base.rotation;
 	int x_offset, y_offset;
-	int crtc_x = plane_state->dst.x1;
-	int crtc_y = plane_state->dst.y1;
-	uint32_t crtc_w = drm_rect_width(&plane_state->dst);
-	uint32_t crtc_h = drm_rect_height(&plane_state->dst);
-	uint32_t x = plane_state->src.x1 >> 16;
-	uint32_t y = plane_state->src.y1 >> 16;
-	uint32_t src_w = drm_rect_width(&plane_state->src) >> 16;
-	uint32_t src_h = drm_rect_height(&plane_state->src) >> 16;
+	int crtc_x = plane_state->base.dst.x1;
+	int crtc_y = plane_state->base.dst.y1;
+	uint32_t crtc_w = drm_rect_width(&plane_state->base.dst);
+	uint32_t crtc_h = drm_rect_height(&plane_state->base.dst);
+	uint32_t x = plane_state->base.src.x1 >> 16;
+	uint32_t y = plane_state->base.src.y1 >> 16;
+	uint32_t src_w = drm_rect_width(&plane_state->base.src) >> 16;
+	uint32_t src_h = drm_rect_height(&plane_state->base.src) >> 16;
 
 	plane_ctl = PLANE_CTL_ENABLE |
 		PLANE_CTL_PIPE_GAMMA_ENABLE |
@@ -370,14 +370,14 @@ vlv_update_plane(struct drm_plane *dplane,
 	unsigned int rotation = dplane->state->rotation;
 	int cpp = drm_format_plane_cpp(fb->pixel_format, 0);
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
-	int crtc_x = plane_state->dst.x1;
-	int crtc_y = plane_state->dst.y1;
-	uint32_t crtc_w = drm_rect_width(&plane_state->dst);
-	uint32_t crtc_h = drm_rect_height(&plane_state->dst);
-	uint32_t x = plane_state->src.x1 >> 16;
-	uint32_t y = plane_state->src.y1 >> 16;
-	uint32_t src_w = drm_rect_width(&plane_state->src) >> 16;
-	uint32_t src_h = drm_rect_height(&plane_state->src) >> 16;
+	int crtc_x = plane_state->base.dst.x1;
+	int crtc_y = plane_state->base.dst.y1;
+	uint32_t crtc_w = drm_rect_width(&plane_state->base.dst);
+	uint32_t crtc_h = drm_rect_height(&plane_state->base.dst);
+	uint32_t x = plane_state->base.src.x1 >> 16;
+	uint32_t y = plane_state->base.src.y1 >> 16;
+	uint32_t src_w = drm_rect_width(&plane_state->base.src) >> 16;
+	uint32_t src_h = drm_rect_height(&plane_state->base.src) >> 16;
 
 	sprctl = SP_ENABLE;
 
@@ -512,14 +512,14 @@ ivb_update_plane(struct drm_plane *plane,
 	unsigned int rotation = plane_state->base.rotation;
 	int cpp = drm_format_plane_cpp(fb->pixel_format, 0);
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
-	int crtc_x = plane_state->dst.x1;
-	int crtc_y = plane_state->dst.y1;
-	uint32_t crtc_w = drm_rect_width(&plane_state->dst);
-	uint32_t crtc_h = drm_rect_height(&plane_state->dst);
-	uint32_t x = plane_state->src.x1 >> 16;
-	uint32_t y = plane_state->src.y1 >> 16;
-	uint32_t src_w = drm_rect_width(&plane_state->src) >> 16;
-	uint32_t src_h = drm_rect_height(&plane_state->src) >> 16;
+	int crtc_x = plane_state->base.dst.x1;
+	int crtc_y = plane_state->base.dst.y1;
+	uint32_t crtc_w = drm_rect_width(&plane_state->base.dst);
+	uint32_t crtc_h = drm_rect_height(&plane_state->base.dst);
+	uint32_t x = plane_state->base.src.x1 >> 16;
+	uint32_t y = plane_state->base.src.y1 >> 16;
+	uint32_t src_w = drm_rect_width(&plane_state->base.src) >> 16;
+	uint32_t src_h = drm_rect_height(&plane_state->base.src) >> 16;
 
 	sprctl = SPRITE_ENABLE;
 
@@ -653,14 +653,14 @@ ilk_update_plane(struct drm_plane *plane,
 	unsigned int rotation = plane_state->base.rotation;
 	int cpp = drm_format_plane_cpp(fb->pixel_format, 0);
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
-	int crtc_x = plane_state->dst.x1;
-	int crtc_y = plane_state->dst.y1;
-	uint32_t crtc_w = drm_rect_width(&plane_state->dst);
-	uint32_t crtc_h = drm_rect_height(&plane_state->dst);
-	uint32_t x = plane_state->src.x1 >> 16;
-	uint32_t y = plane_state->src.y1 >> 16;
-	uint32_t src_w = drm_rect_width(&plane_state->src) >> 16;
-	uint32_t src_h = drm_rect_height(&plane_state->src) >> 16;
+	int crtc_x = plane_state->base.dst.x1;
+	int crtc_y = plane_state->base.dst.y1;
+	uint32_t crtc_w = drm_rect_width(&plane_state->base.dst);
+	uint32_t crtc_h = drm_rect_height(&plane_state->base.dst);
+	uint32_t x = plane_state->base.src.x1 >> 16;
+	uint32_t y = plane_state->base.src.y1 >> 16;
+	uint32_t src_w = drm_rect_width(&plane_state->base.src) >> 16;
+	uint32_t src_h = drm_rect_height(&plane_state->base.src) >> 16;
 
 	dvscntr = DVS_ENABLE;
 
@@ -778,15 +778,15 @@ intel_check_sprite_plane(struct drm_plane *plane,
 	int crtc_x, crtc_y;
 	unsigned int crtc_w, crtc_h;
 	uint32_t src_x, src_y, src_w, src_h;
-	struct drm_rect *src = &state->src;
-	struct drm_rect *dst = &state->dst;
+	struct drm_rect *src = &state->base.src;
+	struct drm_rect *dst = &state->base.dst;
 	const struct drm_rect *clip = &state->clip;
 	int hscale, vscale;
 	int max_scale, min_scale;
 	bool can_scale;
 
 	if (!fb) {
-		state->visible = false;
+		state->base.visible = false;
 		return 0;
 	}
 
@@ -834,14 +834,14 @@ intel_check_sprite_plane(struct drm_plane *plane,
 	vscale = drm_rect_calc_vscale_relaxed(src, dst, min_scale, max_scale);
 	BUG_ON(vscale < 0);
 
-	state->visible = drm_rect_clip_scaled(src, dst, clip, hscale, vscale);
+	state->base.visible = drm_rect_clip_scaled(src, dst, clip, hscale, vscale);
 
 	crtc_x = dst->x1;
 	crtc_y = dst->y1;
 	crtc_w = drm_rect_width(dst);
 	crtc_h = drm_rect_height(dst);
 
-	if (state->visible) {
+	if (state->base.visible) {
 		/* check again in case clipping clamped the results */
 		hscale = drm_rect_calc_hscale(src, dst, min_scale, max_scale);
 		if (hscale < 0) {
@@ -898,12 +898,12 @@ intel_check_sprite_plane(struct drm_plane *plane,
 				crtc_w &= ~1;
 
 			if (crtc_w == 0)
-				state->visible = false;
+				state->base.visible = false;
 		}
 	}
 
 	/* Check size restrictions when scaling */
-	if (state->visible && (src_w != crtc_w || src_h != crtc_h)) {
+	if (state->base.visible && (src_w != crtc_w || src_h != crtc_h)) {
 		unsigned int width_bytes;
 		int cpp = drm_format_plane_cpp(fb->pixel_format, 0);
 
@@ -912,10 +912,10 @@ intel_check_sprite_plane(struct drm_plane *plane,
 		/* FIXME interlacing min height is 6 */
 
 		if (crtc_w < 3 || crtc_h < 3)
-			state->visible = false;
+			state->base.visible = false;
 
 		if (src_w < 3 || src_h < 3)
-			state->visible = false;
+			state->base.visible = false;
 
 		width_bytes = ((src_x * cpp) & 63) + src_w * cpp;
 
@@ -926,7 +926,7 @@ intel_check_sprite_plane(struct drm_plane *plane,
 		}
 	}
 
-	if (state->visible) {
+	if (state->base.visible) {
 		src->x1 = src_x << 16;
 		src->x2 = (src_x + src_w) << 16;
 		src->y1 = src_y << 16;

@@ -494,7 +494,7 @@ static bool multiple_pipes_ok(struct intel_crtc *crtc,
 	if (!no_fbc_on_multiple_pipes(dev_priv))
 		return true;
 
-	if (plane_state->visible)
+	if (plane_state->base.visible)
 		fbc->visible_pipes_mask |= (1 << pipe);
 	else
 		fbc->visible_pipes_mask &= ~(1 << pipe);
@@ -725,9 +725,9 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 			ilk_pipe_pixel_rate(crtc_state);
 
 	cache->plane.rotation = plane_state->base.rotation;
-	cache->plane.src_w = drm_rect_width(&plane_state->src) >> 16;
-	cache->plane.src_h = drm_rect_height(&plane_state->src) >> 16;
-	cache->plane.visible = plane_state->visible;
+	cache->plane.src_w = drm_rect_width(&plane_state->base.src) >> 16;
+	cache->plane.src_h = drm_rect_height(&plane_state->base.src) >> 16;
+	cache->plane.visible = plane_state->base.visible;
 
 	if (!cache->plane.visible)
 		return;
@@ -1050,7 +1050,7 @@ void intel_fbc_choose_crtc(struct drm_i915_private *dev_priv,
 		struct intel_plane_state *intel_plane_state =
 			to_intel_plane_state(plane_state);
 
-		if (!intel_plane_state->visible)
+		if (!intel_plane_state->base.visible)
 			continue;
 
 		for_each_crtc_in_state(state, crtc, crtc_state, j) {
@@ -1212,7 +1212,7 @@ void intel_fbc_init_pipe_state(struct drm_i915_private *dev_priv)
 
 	for_each_intel_crtc(&dev_priv->drm, crtc)
 		if (intel_crtc_active(&crtc->base) &&
-		    to_intel_plane_state(crtc->base.primary->state)->visible)
+		    to_intel_plane_state(crtc->base.primary->state)->base.visible)
 			dev_priv->fbc.visible_pipes_mask |= (1 << crtc->pipe);
 }
 

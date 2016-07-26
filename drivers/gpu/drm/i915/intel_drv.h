@@ -338,10 +338,7 @@ struct intel_atomic_state {
 
 struct intel_plane_state {
 	struct drm_plane_state base;
-	struct drm_rect src;
-	struct drm_rect dst;
 	struct drm_rect clip;
-	bool visible;
 
 	/*
 	 * scaler_id

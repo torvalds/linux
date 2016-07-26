@@ -2565,7 +2565,7 @@ intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 	 * simplest solution is to just disable the primary plane now and
 	 * pretend the BIOS never had it enabled.
 	 */
-	to_intel_plane_state(plane_state)->visible = false;
+	to_intel_plane_state(plane_state)->base.visible = false;
 	crtc_state->plane_mask &= ~(1 << drm_plane_index(primary));
 	intel_pre_disable_primary_noatomic(&intel_crtc->base);
 	intel_plane->disable_plane(primary, &intel_crtc->base);
@@ -2583,14 +2583,14 @@ valid_fb:
 	plane_state->crtc_w = fb->width;
 	plane_state->crtc_h = fb->height;
 
-	intel_state->src.x1 = plane_state->src_x;
-	intel_state->src.y1 = plane_state->src_y;
-	intel_state->src.x2 = plane_state->src_x + plane_state->src_w;
-	intel_state->src.y2 = plane_state->src_y + plane_state->src_h;
-	intel_state->dst.x1 = plane_state->crtc_x;
-	intel_state->dst.y1 = plane_state->crtc_y;
-	intel_state->dst.x2 = plane_state->crtc_x + plane_state->crtc_w;
-	intel_state->dst.y2 = plane_state->crtc_y + plane_state->crtc_h;
+	intel_state->base.src.x1 = plane_state->src_x;
+	intel_state->base.src.y1 = plane_state->src_y;
+	intel_state->base.src.x2 = plane_state->src_x + plane_state->src_w;
+	intel_state->base.src.y2 = plane_state->src_y + plane_state->src_h;
+	intel_state->base.dst.x1 = plane_state->crtc_x;
+	intel_state->base.dst.y1 = plane_state->crtc_y;
+	intel_state->base.dst.x2 = plane_state->crtc_x + plane_state->crtc_w;
+	intel_state->base.dst.y2 = plane_state->crtc_y + plane_state->crtc_h;
 
 	obj = intel_fb_obj(fb);
 	if (obj->tiling_mode != I915_TILING_NONE)
@@ -2618,8 +2618,8 @@ static void i9xx_update_primary_plane(struct drm_plane *primary,
 	i915_reg_t reg = DSPCNTR(plane);
 	unsigned int rotation = plane_state->base.rotation;
 	int cpp = drm_format_plane_cpp(fb->pixel_format, 0);
-	int x = plane_state->src.x1 >> 16;
-	int y = plane_state->src.y1 >> 16;
+	int x = plane_state->base.src.x1 >> 16;
+	int y = plane_state->base.src.y1 >> 16;
 
 	dspcntr = DISPPLANE_GAMMA_ENABLE;
 
@@ -2748,8 +2748,8 @@ static void ironlake_update_primary_plane(struct drm_plane *primary,
 	i915_reg_t reg = DSPCNTR(plane);
 	unsigned int rotation = plane_state->base.rotation;
 	int cpp = drm_format_plane_cpp(fb->pixel_format, 0);
-	int x = plane_state->src.x1 >> 16;
-	int y = plane_state->src.y1 >> 16;
+	int x = plane_state->base.src.x1 >> 16;
+	int y = plane_state->base.src.y1 >> 16;
 
 	dspcntr = DISPPLANE_GAMMA_ENABLE;
 	dspcntr |= DISPLAY_PLANE_ENABLE;
@@ -2987,14 +2987,14 @@ static void skylake_update_primary_plane(struct drm_plane *plane,
 	int x_offset, y_offset;
 	u32 surf_addr;
 	int scaler_id = plane_state->scaler_id;
-	int src_x = plane_state->src.x1 >> 16;
-	int src_y = plane_state->src.y1 >> 16;
-	int src_w = drm_rect_width(&plane_state->src) >> 16;
-	int src_h = drm_rect_height(&plane_state->src) >> 16;
-	int dst_x = plane_state->dst.x1;
-	int dst_y = plane_state->dst.y1;
-	int dst_w = drm_rect_width(&plane_state->dst);
-	int dst_h = drm_rect_height(&plane_state->dst);
+	int src_x = plane_state->base.src.x1 >> 16;
+	int src_y = plane_state->base.src.y1 >> 16;
+	int src_w = drm_rect_width(&plane_state->base.src) >> 16;
+	int src_h = drm_rect_height(&plane_state->base.src) >> 16;
+	int dst_x = plane_state->base.dst.x1;
+	int dst_y = plane_state->base.dst.y1;
+	int dst_w = drm_rect_width(&plane_state->base.dst);
+	int dst_h = drm_rect_height(&plane_state->base.dst);
 
 	plane_ctl = PLANE_CTL_ENABLE |
 		    PLANE_CTL_PIPE_GAMMA_ENABLE |
@@ -3009,7 +3009,7 @@ static void skylake_update_primary_plane(struct drm_plane *plane,
 					       fb->pixel_format);
 	surf_addr = intel_plane_obj_offset(to_intel_plane(plane), obj, 0);
 
-	WARN_ON(drm_rect_width(&plane_state->src) == 0);
+	WARN_ON(drm_rect_width(&plane_state->base.src) == 0);
 
 	if (intel_rotation_90_or_270(rotation)) {
 		int cpp = drm_format_plane_cpp(fb->pixel_format, 0);
@@ -3098,7 +3098,7 @@ static void intel_update_primary_planes(struct drm_device *dev)
 		drm_modeset_lock_crtc(crtc, &plane->base);
 		plane_state = to_intel_plane_state(plane->base.state);
 
-		if (plane_state->visible)
+		if (plane_state->base.visible)
 			plane->update_plane(&plane->base,
 					    to_intel_crtc_state(crtc->state),
 					    plane_state);
@@ -4273,7 +4273,7 @@ static int skl_update_scaler_plane(struct intel_crtc_state *crtc_state,
 	struct drm_framebuffer *fb = plane_state->base.fb;
 	int ret;
 
-	bool force_detach = !fb || !plane_state->visible;
+	bool force_detach = !fb || !plane_state->base.visible;
 
 	DRM_DEBUG_KMS("Updating scaler for [PLANE:%d:%s] scaler_user index %u.%u\n",
 		      intel_plane->base.base.id, intel_plane->base.name,
@@ -4283,10 +4283,10 @@ static int skl_update_scaler_plane(struct intel_crtc_state *crtc_state,
 				drm_plane_index(&intel_plane->base),
 				&plane_state->scaler_id,
 				plane_state->base.rotation,
-				drm_rect_width(&plane_state->src) >> 16,
-				drm_rect_height(&plane_state->src) >> 16,
-				drm_rect_width(&plane_state->dst),
-				drm_rect_height(&plane_state->dst));
+				drm_rect_width(&plane_state->base.src) >> 16,
+				drm_rect_height(&plane_state->base.src) >> 16,
+				drm_rect_width(&plane_state->base.dst),
+				drm_rect_height(&plane_state->base.dst));
 
 	if (ret || plane_state->scaler_id < 0)
 		return ret;
@@ -4584,9 +4584,9 @@ static void intel_post_plane_update(struct intel_crtc_state *old_crtc_state)
 
 		intel_fbc_post_update(crtc);
 
-		if (primary_state->visible &&
+		if (primary_state->base.visible &&
 		    (needs_modeset(&pipe_config->base) ||
-		     !old_primary_state->visible))
+		     !old_primary_state->base.visible))
 			intel_post_enable_primary(&crtc->base);
 	}
 }
@@ -4612,8 +4612,8 @@ static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state)
 
 		intel_fbc_pre_update(crtc, pipe_config, primary_state);
 
-		if (old_primary_state->visible &&
-		    (modeset || !primary_state->visible))
+		if (old_primary_state->base.visible &&
+		    (modeset || !primary_state->base.visible))
 			intel_pre_disable_primary(&crtc->base);
 	}
 
@@ -6298,13 +6298,13 @@ static void intel_crtc_disable_noatomic(struct drm_crtc *crtc)
 	if (!intel_crtc->active)
 		return;
 
-	if (to_intel_plane_state(crtc->primary->state)->visible) {
+	if (to_intel_plane_state(crtc->primary->state)->base.visible) {
 		WARN_ON(intel_crtc->flip_work);
 
 		intel_pre_disable_primary_noatomic(crtc);
 
 		intel_crtc_disable_planes(crtc, 1 << drm_plane_index(crtc->primary));
-		to_intel_plane_state(crtc->primary->state)->visible = false;
+		to_intel_plane_state(crtc->primary->state)->base.visible = false;
 	}
 
 	dev_priv->display.crtc_disable(crtc);
@@ -10178,7 +10178,7 @@ static void i845_update_cursor(struct drm_crtc *crtc, u32 base,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	uint32_t cntl = 0, size = 0;
 
-	if (plane_state && plane_state->visible) {
+	if (plane_state && plane_state->base.visible) {
 		unsigned int width = plane_state->base.crtc_w;
 		unsigned int height = plane_state->base.crtc_h;
 		unsigned int stride = roundup_pow_of_two(width) * 4;
@@ -10242,7 +10242,7 @@ static void i9xx_update_cursor(struct drm_crtc *crtc, u32 base,
 	int pipe = intel_crtc->pipe;
 	uint32_t cntl = 0;
 
-	if (plane_state && plane_state->visible) {
+	if (plane_state && plane_state->base.visible) {
 		cntl = MCURSOR_GAMMA_ENABLE;
 		switch (plane_state->base.crtc_w) {
 			case 64:
@@ -11826,7 +11826,7 @@ static bool intel_wm_need_update(struct drm_plane *plane,
 	struct intel_plane_state *cur = to_intel_plane_state(plane->state);
 
 	/* Update watermarks on tiling or size changes. */
-	if (new->visible != cur->visible)
+	if (new->base.visible != cur->base.visible)
 		return true;
 
 	if (!cur->base.fb || !new->base.fb)
@@ -11834,10 +11834,10 @@ static bool intel_wm_need_update(struct drm_plane *plane,
 
 	if (cur->base.fb->modifier[0] != new->base.fb->modifier[0] ||
 	    cur->base.rotation != new->base.rotation ||
-	    drm_rect_width(&new->src) != drm_rect_width(&cur->src) ||
-	    drm_rect_height(&new->src) != drm_rect_height(&cur->src) ||
-	    drm_rect_width(&new->dst) != drm_rect_width(&cur->dst) ||
-	    drm_rect_height(&new->dst) != drm_rect_height(&cur->dst))
+	    drm_rect_width(&new->base.src) != drm_rect_width(&cur->base.src) ||
+	    drm_rect_height(&new->base.src) != drm_rect_height(&cur->base.src) ||
+	    drm_rect_width(&new->base.dst) != drm_rect_width(&cur->base.dst) ||
+	    drm_rect_height(&new->base.dst) != drm_rect_height(&cur->base.dst))
 		return true;
 
 	return false;
@@ -11845,10 +11845,10 @@ static bool intel_wm_need_update(struct drm_plane *plane,
 
 static bool needs_scaling(struct intel_plane_state *state)
 {
-	int src_w = drm_rect_width(&state->src) >> 16;
-	int src_h = drm_rect_height(&state->src) >> 16;
-	int dst_w = drm_rect_width(&state->dst);
-	int dst_h = drm_rect_height(&state->dst);
+	int src_w = drm_rect_width(&state->base.src) >> 16;
+	int src_h = drm_rect_height(&state->base.src) >> 16;
+	int dst_w = drm_rect_width(&state->base.dst);
+	int dst_h = drm_rect_height(&state->base.dst);
 
 	return (src_w != dst_w || src_h != dst_h);
 }
@@ -11879,8 +11879,8 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 			return ret;
 	}
 
-	was_visible = old_plane_state->visible;
-	visible = to_intel_plane_state(plane_state)->visible;
+	was_visible = old_plane_state->base.visible;
+	visible = to_intel_plane_state(plane_state)->base.visible;
 
 	if (!was_crtc_enabled && WARN_ON(was_visible))
 		was_visible = false;
@@ -11896,7 +11896,7 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 	 * only combine the results from all planes in the current place?
 	 */
 	if (!is_crtc_enabled)
-		to_intel_plane_state(plane_state)->visible = visible = false;
+		to_intel_plane_state(plane_state)->base.visible = visible = false;
 
 	if (!was_visible && !visible)
 		return 0;
@@ -12301,12 +12301,13 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 			      drm_get_format_name(fb->pixel_format));
 		DRM_DEBUG_KMS("\tscaler:%d src %dx%d+%d+%d dst %dx%d+%d+%d\n",
 			      state->scaler_id,
-			      state->src.x1 >> 16, state->src.y1 >> 16,
-			      drm_rect_width(&state->src) >> 16,
-			      drm_rect_height(&state->src) >> 16,
-			      state->dst.x1, state->dst.y1,
-			      drm_rect_width(&state->dst),
-			      drm_rect_height(&state->dst));
+			      state->base.src.x1 >> 16,
+			      state->base.src.y1 >> 16,
+			      drm_rect_width(&state->base.src) >> 16,
+			      drm_rect_height(&state->base.src) >> 16,
+			      state->base.dst.x1, state->base.dst.y1,
+			      drm_rect_width(&state->base.dst),
+			      drm_rect_height(&state->base.dst));
 	}
 }
 
@@ -14141,12 +14142,14 @@ intel_check_primary_plane(struct drm_plane *plane,
 		can_position = true;
 	}
 
-	return drm_plane_helper_check_update(plane, crtc, fb, &state->src,
-					     &state->dst, &state->clip,
+	return drm_plane_helper_check_update(plane, crtc, fb,
+					     &state->base.src,
+					     &state->base.dst,
+					     &state->base.clip,
 					     state->base.rotation,
 					     min_scale, max_scale,
 					     can_position, true,
-					     &state->visible);
+					     &state->base.visible);
 }
 
 static void intel_begin_crtc_commit(struct drm_crtc *crtc,
@@ -14333,12 +14336,13 @@ intel_check_cursor_plane(struct drm_plane *plane,
 	unsigned stride;
 	int ret;
 
-	ret = drm_plane_helper_check_update(plane, crtc, fb, &state->src,
-					    &state->dst, &state->clip,
+	ret = drm_plane_helper_check_update(plane, crtc, fb, &state->base.src,
+					    &state->base.dst,
+					    &state->base.clip,
 					    state->base.rotation,
 					    DRM_PLANE_HELPER_NO_SCALING,
 					    DRM_PLANE_HELPER_NO_SCALING,
-					    true, true, &state->visible);
+					    true, true, &state->base.visible);
 	if (ret)
 		return ret;
 
@@ -14375,7 +14379,7 @@ intel_check_cursor_plane(struct drm_plane *plane,
 	 * Refuse the put the cursor into that compromised position.
 	 */
 	if (IS_CHERRYVIEW(plane->dev) && pipe == PIPE_C &&
-	    state->visible && state->base.crtc_x < 0) {
+	    state->base.visible && state->base.crtc_x < 0) {
 		DRM_DEBUG_KMS("CHV cursor C not allowed to straddle the left screen edge\n");
 		return -EINVAL;
 	}
@@ -15825,7 +15829,7 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 		 * Temporarily change the plane mapping and disable everything
 		 * ...  */
 		plane = crtc->plane;
-		to_intel_plane_state(crtc->base.primary->state)->visible = true;
+		to_intel_plane_state(crtc->base.primary->state)->base.visible = true;
 		crtc->plane = !plane;
 		intel_crtc_disable_noatomic(&crtc->base);
 		crtc->plane = plane;
@@ -15952,10 +15956,10 @@ static void readout_plane_state(struct intel_crtc *crtc)
 	struct intel_plane_state *plane_state =
 		to_intel_plane_state(primary->state);
 
-	plane_state->visible = crtc->active &&
+	plane_state->base.visible = crtc->active &&
 		primary_get_hw_state(to_intel_plane(primary));
 
-	if (plane_state->visible)
+	if (plane_state->base.visible)
 		crtc->base.state->plane_mask |= 1 << drm_plane_index(primary);
 }
 
