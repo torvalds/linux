@@ -225,7 +225,7 @@ static int tipc_enable_bearer(struct net *net, const char *name,
 	if (tipc_addr_domain_valid(disc_domain) &&
 	    (disc_domain != tn->own_addr)) {
 		if (tipc_in_scope(disc_domain, tn->own_addr)) {
-			disc_domain = tn->own_addr & TIPC_CLUSTER_MASK;
+			disc_domain = tn->own_addr & TIPC_ZONE_CLUSTER_MASK;
 			res = 0;   /* accept any node in own cluster */
 		} else if (in_own_cluster_exact(net, disc_domain))
 			res = 0;   /* accept specified node in own cluster */
@@ -832,7 +832,7 @@ int tipc_nl_bearer_enable(struct sk_buff *skb, struct genl_info *info)
 	u32 prio;
 
 	prio = TIPC_MEDIA_LINK_PRI;
-	domain = tn->own_addr & TIPC_CLUSTER_MASK;
+	domain = tn->own_addr & TIPC_ZONE_CLUSTER_MASK;
 
 	if (!info->attrs[TIPC_NLA_BEARER])
 		return -EINVAL;
