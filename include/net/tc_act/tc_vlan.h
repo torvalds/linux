@@ -16,12 +16,11 @@
 #define VLAN_F_PUSH		0x2
 
 struct tcf_vlan {
-	struct tcf_common	common;
+	struct tc_action	common;
 	int			tcfv_action;
 	u16			tcfv_push_vid;
 	__be16			tcfv_push_proto;
 };
-#define to_vlan(a) \
-	container_of(a->priv, struct tcf_vlan, common)
+#define to_vlan(a) ((struct tcf_vlan *)a)
 
 #endif /* __NET_TC_VLAN_H */

@@ -52,9 +52,10 @@ static const struct nla_policy mirred_policy[TCA_MIRRED_MAX + 1] = {
 };
 
 static int mirred_net_id;
+static struct tc_action_ops act_mirred_ops;
 
 static int tcf_mirred_init(struct net *net, struct nlattr *nla,
-			   struct nlattr *est, struct tc_action *a, int ovr,
+			   struct nlattr *est, struct tc_action **a, int ovr,
 			   int bind)
 {
 	struct tc_action_net *tn = net_generic(net, mirred_net_id);
@@ -84,14 +85,14 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 		break;
 	default:
 		if (exists)
-			tcf_hash_release(a, bind);
+			tcf_hash_release(*a, bind);
 		return -EINVAL;
 	}
 	if (parm->ifindex) {
 		dev = __dev_get_by_index(net, parm->ifindex);
 		if (dev == NULL) {
 			if (exists)
-				tcf_hash_release(a, bind);
+				tcf_hash_release(*a, bind);
 			return -ENODEV;
 		}
 		switch (dev->type) {
@@ -115,16 +116,16 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 		if (dev == NULL)
 			return -EINVAL;
 		ret = tcf_hash_create(tn, parm->index, est, a,
-				      sizeof(*m), bind, true);
+				      &act_mirred_ops, bind, true);
 		if (ret)
 			return ret;
 		ret = ACT_P_CREATED;
 	} else {
-		tcf_hash_release(a, bind);
+		tcf_hash_release(*a, bind);
 		if (!ovr)
 			return -EEXIST;
 	}
-	m = to_mirred(a);
+	m = to_mirred(*a);
 
 	ASSERT_RTNL();
 	m->tcf_action = parm->action;
@@ -142,7 +143,7 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 		spin_lock_bh(&mirred_list_lock);
 		list_add(&m->tcfm_list, &mirred_list);
 		spin_unlock_bh(&mirred_list_lock);
-		tcf_hash_insert(tn, a);
+		tcf_hash_insert(tn, *a);
 	}
 
 	return ret;
@@ -151,7 +152,7 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 static int tcf_mirred(struct sk_buff *skb, const struct tc_action *a,
 		      struct tcf_result *res)
 {
-	struct tcf_mirred *m = a->priv;
+	struct tcf_mirred *m = to_mirred(a);
 	struct net_device *dev;
 	struct sk_buff *skb2;
 	int retval, err;
@@ -206,7 +207,7 @@ out:
 static int tcf_mirred_dump(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 {
 	unsigned char *b = skb_tail_pointer(skb);
-	struct tcf_mirred *m = a->priv;
+	struct tcf_mirred *m = to_mirred(a);
 	struct tc_mirred opt = {
 		.index   = m->tcf_index,
 		.action  = m->tcf_action,
@@ -232,14 +233,14 @@ nla_put_failure:
 
 static int tcf_mirred_walker(struct net *net, struct sk_buff *skb,
 			     struct netlink_callback *cb, int type,
-			     struct tc_action *a)
+			     const struct tc_action_ops *ops)
 {
 	struct tc_action_net *tn = net_generic(net, mirred_net_id);
 
-	return tcf_generic_walker(tn, skb, cb, type, a);
+	return tcf_generic_walker(tn, skb, cb, type, ops);
 }
 
-static int tcf_mirred_search(struct net *net, struct tc_action *a, u32 index)
+static int tcf_mirred_search(struct net *net, struct tc_action **a, u32 index)
 {
 	struct tc_action_net *tn = net_generic(net, mirred_net_id);
 
@@ -284,6 +285,7 @@ static struct tc_action_ops act_mirred_ops = {
 	.init		=	tcf_mirred_init,
 	.walk		=	tcf_mirred_walker,
 	.lookup		=	tcf_mirred_search,
+	.size		=	sizeof(struct tcf_mirred),
 };
 
 static __net_init int mirred_init_net(struct net *net)

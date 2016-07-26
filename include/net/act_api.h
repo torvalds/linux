@@ -10,34 +10,6 @@
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
 
-struct tcf_common {
-	struct hlist_node		tcfc_head;
-	u32				tcfc_index;
-	int				tcfc_refcnt;
-	int				tcfc_bindcnt;
-	u32				tcfc_capab;
-	int				tcfc_action;
-	struct tcf_t			tcfc_tm;
-	struct gnet_stats_basic_packed	tcfc_bstats;
-	struct gnet_stats_queue		tcfc_qstats;
-	struct gnet_stats_rate_est64	tcfc_rate_est;
-	spinlock_t			tcfc_lock;
-	struct rcu_head			tcfc_rcu;
-	struct gnet_stats_basic_cpu __percpu *cpu_bstats;
-	struct gnet_stats_queue __percpu *cpu_qstats;
-};
-#define tcf_head	common.tcfc_head
-#define tcf_index	common.tcfc_index
-#define tcf_refcnt	common.tcfc_refcnt
-#define tcf_bindcnt	common.tcfc_bindcnt
-#define tcf_capab	common.tcfc_capab
-#define tcf_action	common.tcfc_action
-#define tcf_tm		common.tcfc_tm
-#define tcf_bstats	common.tcfc_bstats
-#define tcf_qstats	common.tcfc_qstats
-#define tcf_rate_est	common.tcfc_rate_est
-#define tcf_lock	common.tcfc_lock
-#define tcf_rcu		common.tcfc_rcu
 
 struct tcf_hashinfo {
 	struct hlist_head	*htab;
@@ -45,6 +17,44 @@ struct tcf_hashinfo {
 	spinlock_t		lock;
 	u32			index;
 };
+
+struct tc_action_ops;
+
+struct tc_action {
+	const struct tc_action_ops	*ops;
+	__u32				type; /* for backward compat(TCA_OLD_COMPAT) */
+	__u32				order;
+	struct list_head		list;
+	struct tcf_hashinfo		*hinfo;
+
+	struct hlist_node		tcfa_head;
+	u32				tcfa_index;
+	int				tcfa_refcnt;
+	int				tcfa_bindcnt;
+	u32				tcfa_capab;
+	int				tcfa_action;
+	struct tcf_t			tcfa_tm;
+	struct gnet_stats_basic_packed	tcfa_bstats;
+	struct gnet_stats_queue		tcfa_qstats;
+	struct gnet_stats_rate_est64	tcfa_rate_est;
+	spinlock_t			tcfa_lock;
+	struct rcu_head			tcfa_rcu;
+	struct gnet_stats_basic_cpu __percpu *cpu_bstats;
+	struct gnet_stats_queue __percpu *cpu_qstats;
+};
+#define tcf_act		common.tcfa_act
+#define tcf_head	common.tcfa_head
+#define tcf_index	common.tcfa_index
+#define tcf_refcnt	common.tcfa_refcnt
+#define tcf_bindcnt	common.tcfa_bindcnt
+#define tcf_capab	common.tcfa_capab
+#define tcf_action	common.tcfa_action
+#define tcf_tm		common.tcfa_tm
+#define tcf_bstats	common.tcfa_bstats
+#define tcf_qstats	common.tcfa_qstats
+#define tcf_rate_est	common.tcfa_rate_est
+#define tcf_lock	common.tcfa_lock
+#define tcf_rcu		common.tcfa_rcu
 
 static inline unsigned int tcf_hash(u32 index, unsigned int hmask)
 {
@@ -88,15 +98,6 @@ static inline void tcf_tm_dump(struct tcf_t *dtm, const struct tcf_t *stm)
 	dtm->expires = jiffies_to_clock_t(stm->expires);
 }
 
-struct tc_action {
-	void			*priv;
-	const struct tc_action_ops	*ops;
-	__u32			type; /* for backward compat(TCA_OLD_COMPAT) */
-	__u32			order;
-	struct list_head	list;
-	struct tcf_hashinfo	*hinfo;
-};
-
 #ifdef CONFIG_NET_CLS_ACT
 
 #define ACT_P_CREATED 1
@@ -106,17 +107,18 @@ struct tc_action_ops {
 	struct list_head head;
 	char    kind[IFNAMSIZ];
 	__u32   type; /* TBD to match kind */
+	size_t	size;
 	struct module		*owner;
 	int     (*act)(struct sk_buff *, const struct tc_action *,
 		       struct tcf_result *);
 	int     (*dump)(struct sk_buff *, struct tc_action *, int, int);
 	void	(*cleanup)(struct tc_action *, int bind);
-	int     (*lookup)(struct net *, struct tc_action *, u32);
+	int     (*lookup)(struct net *, struct tc_action **, u32);
 	int     (*init)(struct net *net, struct nlattr *nla,
-			struct nlattr *est, struct tc_action *act, int ovr,
+			struct nlattr *est, struct tc_action **act, int ovr,
 			int bind);
 	int     (*walk)(struct net *, struct sk_buff *,
-			struct netlink_callback *, int, struct tc_action *);
+			struct netlink_callback *, int, const struct tc_action_ops *);
 	void	(*stats_update)(struct tc_action *, u64, u32, u64);
 };
 
@@ -152,13 +154,14 @@ static inline void tc_action_net_exit(struct tc_action_net *tn)
 
 int tcf_generic_walker(struct tc_action_net *tn, struct sk_buff *skb,
 		       struct netlink_callback *cb, int type,
-		       struct tc_action *a);
-int tcf_hash_search(struct tc_action_net *tn, struct tc_action *a, u32 index);
+		       const struct tc_action_ops *ops);
+int tcf_hash_search(struct tc_action_net *tn, struct tc_action **a, u32 index);
 u32 tcf_hash_new_index(struct tc_action_net *tn);
-bool tcf_hash_check(struct tc_action_net *tn, u32 index, struct tc_action *a,
+bool tcf_hash_check(struct tc_action_net *tn, u32 index, struct tc_action **a,
 		    int bind);
 int tcf_hash_create(struct tc_action_net *tn, u32 index, struct nlattr *est,
-		    struct tc_action *a, int size, int bind, bool cpustats);
+		    struct tc_action **a, const struct tc_action_ops *ops, int bind,
+		    bool cpustats);
 void tcf_hash_cleanup(struct tc_action *a, struct nlattr *est);
 void tcf_hash_insert(struct tc_action_net *tn, struct tc_action *a);
 

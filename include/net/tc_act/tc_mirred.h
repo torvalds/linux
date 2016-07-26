@@ -5,15 +5,14 @@
 #include <linux/tc_act/tc_mirred.h>
 
 struct tcf_mirred {
-	struct tcf_common	common;
+	struct tc_action	common;
 	int			tcfm_eaction;
 	int			tcfm_ifindex;
 	int			tcfm_ok_push;
 	struct net_device __rcu	*tcfm_dev;
 	struct list_head	tcfm_list;
 };
-#define to_mirred(a) \
-	container_of(a->priv, struct tcf_mirred, common)
+#define to_mirred(a) ((struct tcf_mirred *)a)
 
 static inline bool is_tcf_mirred_redirect(const struct tc_action *a)
 {
