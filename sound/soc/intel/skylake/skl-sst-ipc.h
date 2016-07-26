@@ -75,6 +75,9 @@ struct skl_sst {
 	/* Is firmware loaded */
 	bool fw_loaded;
 
+	/* first boot ? */
+	bool is_first_boot;
+
 	/* multi-core */
 	struct skl_dsp_cores cores;
 };

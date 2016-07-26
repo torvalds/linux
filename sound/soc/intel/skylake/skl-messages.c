@@ -203,18 +203,21 @@ static const struct skl_dsp_ops dsp_ops[] = {
 		.id = 0x9d70,
 		.loader_ops = skl_get_loader_ops,
 		.init = skl_sst_dsp_init,
+		.init_fw = skl_sst_init_fw,
 		.cleanup = skl_sst_dsp_cleanup
 	},
 	{
 		.id = 0x9d71,
 		.loader_ops = skl_get_loader_ops,
 		.init = skl_sst_dsp_init,
+		.init_fw = skl_sst_init_fw,
 		.cleanup = skl_sst_dsp_cleanup
 	},
 	{
 		.id = 0x5a98,
 		.loader_ops = bxt_get_loader_ops,
 		.init = bxt_sst_dsp_init,
+		.init_fw = bxt_sst_init_fw,
 		.cleanup = bxt_sst_dsp_cleanup
 	},
 };
@@ -264,7 +267,6 @@ int skl_init_dsp(struct skl *skl)
 	if (ret < 0)
 		return ret;
 
-	skl_dsp_enable_notification(skl->skl_sst, false);
 	dev_dbg(bus->dev, "dsp registration status=%d\n", ret);
 
 	return ret;
@@ -324,6 +326,10 @@ int skl_resume_dsp(struct skl *skl)
 	/* enable ppcap interrupt */
 	snd_hdac_ext_bus_ppcap_enable(&skl->ebus, true);
 	snd_hdac_ext_bus_ppcap_int_enable(&skl->ebus, true);
+
+	/* check if DSP 1st boot is done */
+	if (skl->skl_sst->is_first_boot == true)
+		return 0;
 
 	ret = skl_dsp_wake(ctx->dsp);
 	if (ret < 0)
