@@ -367,7 +367,8 @@ DECLARE_PER_CPU(struct irq_stack *, hardirq_stack);
 DECLARE_PER_CPU(struct irq_stack *, softirq_stack);
 #endif	/* X86_64 */
 
-extern unsigned int xstate_size;
+extern unsigned int fpu_kernel_xstate_size;
+extern unsigned int fpu_user_xstate_size;
 
 struct perf_event;
 
