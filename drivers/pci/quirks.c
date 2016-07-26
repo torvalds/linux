@@ -3328,8 +3328,7 @@ static void quirk_apple_wait_for_thunderbolt(struct pci_dev *dev)
 		    || (nhi->device != PCI_DEVICE_ID_INTEL_LIGHT_RIDGE &&
 			nhi->device != PCI_DEVICE_ID_INTEL_CACTUS_RIDGE_4C &&
 			nhi->device != PCI_DEVICE_ID_INTEL_FALCON_RIDGE_4C_NHI)
-		    || nhi->subsystem_vendor != 0x2222
-		    || nhi->subsystem_device != 0x1111)
+		    || nhi->class != PCI_CLASS_SYSTEM_OTHER << 8)
 		goto out;
 	dev_info(&dev->dev, "quirk: waiting for thunderbolt to reestablish PCI tunnels...\n");
 	device_pm_wait_for_dev(&dev->dev, &nhi->dev);
