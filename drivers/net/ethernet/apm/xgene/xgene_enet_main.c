@@ -102,25 +102,13 @@ static u8 xgene_enet_hdr_len(const void *data)
 
 static void xgene_enet_delete_bufpool(struct xgene_enet_desc_ring *buf_pool)
 {
-	struct xgene_enet_pdata *pdata = netdev_priv(buf_pool->ndev);
-	struct xgene_enet_raw_desc16 *raw_desc;
-	u32 slots = buf_pool->slots - 1;
-	u32 tail = buf_pool->tail;
-	u32 userinfo;
-	int i, len;
+	int i;
 
-	len = pdata->ring_ops->len(buf_pool);
-	for (i = 0; i < len; i++) {
-		tail = (tail - 1) & slots;
-		raw_desc = &buf_pool->raw_desc16[tail];
-
-		/* Hardware stores descriptor in little endian format */
-		userinfo = GET_VAL(USERINFO, le64_to_cpu(raw_desc->m0));
-		dev_kfree_skb_any(buf_pool->rx_skb[userinfo]);
+	/* Free up the buffers held by hardware */
+	for (i = 0; i < buf_pool->slots; i++) {
+		if (buf_pool->rx_skb[i])
+			dev_kfree_skb_any(buf_pool->rx_skb[i]);
 	}
-
-	pdata->ring_ops->wr_cmd(buf_pool, -len);
-	buf_pool->tail = tail;
 }
 
 static irqreturn_t xgene_enet_rx_irq(const int irq, void *data)
@@ -481,6 +469,7 @@ static int xgene_enet_rx_frame(struct xgene_enet_desc_ring *rx_ring,
 			 XGENE_ENET_MAX_MTU, DMA_FROM_DEVICE);
 	skb_index = GET_VAL(USERINFO, le64_to_cpu(raw_desc->m0));
 	skb = buf_pool->rx_skb[skb_index];
+	buf_pool->rx_skb[skb_index] = NULL;
 
 	/* checking for error */
 	status = (GET_VAL(ELERR, le64_to_cpu(raw_desc->m0)) << LERR_LEN) ||
@@ -720,9 +709,6 @@ static int xgene_enet_open(struct net_device *ndev)
 	if (ret)
 		return ret;
 
-	mac_ops->tx_enable(pdata);
-	mac_ops->rx_enable(pdata);
-
 	xgene_enet_napi_enable(pdata);
 	ret = xgene_enet_register_irq(ndev);
 	if (ret)
@@ -735,6 +721,8 @@ static int xgene_enet_open(struct net_device *ndev)
 		netif_carrier_off(ndev);
 	}
 
+	mac_ops->tx_enable(pdata);
+	mac_ops->rx_enable(pdata);
 	netif_start_queue(ndev);
 
 	return ret;
@@ -747,14 +735,13 @@ static int xgene_enet_close(struct net_device *ndev)
 	int i;
 
 	netif_stop_queue(ndev);
+	mac_ops->tx_disable(pdata);
+	mac_ops->rx_disable(pdata);
 
 	if (pdata->phy_mode == PHY_INTERFACE_MODE_RGMII)
 		phy_stop(pdata->phy_dev);
 	else
 		cancel_delayed_work_sync(&pdata->link_work);
-
-	mac_ops->tx_disable(pdata);
-	mac_ops->rx_disable(pdata);
 
 	xgene_enet_free_irq(ndev);
 	xgene_enet_napi_disable(pdata);
@@ -785,6 +772,9 @@ static void xgene_enet_delete_desc_rings(struct xgene_enet_pdata *pdata)
 		ring = pdata->tx_ring[i];
 		if (ring) {
 			xgene_enet_delete_ring(ring);
+			pdata->port_ops->clear(pdata, ring);
+			if (pdata->cq_cnt)
+				xgene_enet_delete_ring(ring->cp_ring);
 			pdata->tx_ring[i] = NULL;
 		}
 	}
@@ -795,6 +785,7 @@ static void xgene_enet_delete_desc_rings(struct xgene_enet_pdata *pdata)
 			buf_pool = ring->buf_pool;
 			xgene_enet_delete_bufpool(buf_pool);
 			xgene_enet_delete_ring(buf_pool);
+			pdata->port_ops->clear(pdata, buf_pool);
 			xgene_enet_delete_ring(ring);
 			pdata->rx_ring[i] = NULL;
 		}
@@ -1682,8 +1673,8 @@ static int xgene_enet_remove(struct platform_device *pdev)
 	if (pdata->phy_mode == PHY_INTERFACE_MODE_RGMII)
 		xgene_enet_mdio_remove(pdata);
 	unregister_netdev(ndev);
-	xgene_enet_delete_desc_rings(pdata);
 	pdata->port_ops->shutdown(pdata);
+	xgene_enet_delete_desc_rings(pdata);
 	free_netdev(ndev);
 
 	return 0;

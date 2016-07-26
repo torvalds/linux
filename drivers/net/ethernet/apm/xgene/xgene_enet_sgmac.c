@@ -137,8 +137,16 @@ static u32 xgene_enet_rd_mac(struct xgene_enet_pdata *p, u32 rd_addr)
 static int xgene_enet_ecc_init(struct xgene_enet_pdata *p)
 {
 	struct net_device *ndev = p->ndev;
-	u32 data;
+	u32 data, shutdown;
 	int i = 0;
+
+	shutdown = xgene_enet_rd_diag_csr(p, ENET_CFG_MEM_RAM_SHUTDOWN_ADDR);
+	data = xgene_enet_rd_diag_csr(p, ENET_BLOCK_MEM_RDY_ADDR);
+
+	if (!shutdown && data == ~0U) {
+		netdev_dbg(ndev, "+ ecc_init done, skipping\n");
+		return 0;
+	}
 
 	xgene_enet_wr_diag_csr(p, ENET_CFG_MEM_RAM_SHUTDOWN_ADDR, 0);
 	do {
@@ -464,10 +472,47 @@ static void xgene_enet_cle_bypass(struct xgene_enet_pdata *p,
 	xgene_enet_wr_csr(p, cle_bypass_reg1 + offset, data);
 }
 
+static void xgene_enet_clear(struct xgene_enet_pdata *pdata,
+			     struct xgene_enet_desc_ring *ring)
+{
+	u32 addr, val, data;
+
+	val = xgene_enet_ring_bufnum(ring->id);
+
+	if (xgene_enet_is_bufpool(ring->id)) {
+		addr = ENET_CFGSSQMIFPRESET_ADDR;
+		data = BIT(val - 0x20);
+	} else {
+		addr = ENET_CFGSSQMIWQRESET_ADDR;
+		data = BIT(val);
+	}
+
+	xgene_enet_wr_ring_if(pdata, addr, data);
+}
+
 static void xgene_enet_shutdown(struct xgene_enet_pdata *p)
 {
-	if (!IS_ERR(p->clk))
-		clk_disable_unprepare(p->clk);
+	struct xgene_enet_desc_ring *ring;
+	u32 pb, val;
+	int i;
+
+	pb = 0;
+	for (i = 0; i < p->rxq_cnt; i++) {
+		ring = p->rx_ring[i]->buf_pool;
+
+		val = xgene_enet_ring_bufnum(ring->id);
+		pb |= BIT(val - 0x20);
+	}
+	xgene_enet_wr_ring_if(p, ENET_CFGSSQMIFPRESET_ADDR, pb);
+
+	pb = 0;
+	for (i = 0; i < p->txq_cnt; i++) {
+		ring = p->tx_ring[i];
+
+		val = xgene_enet_ring_bufnum(ring->id);
+		pb |= BIT(val);
+	}
+	xgene_enet_wr_ring_if(p, ENET_CFGSSQMIWQRESET_ADDR, pb);
 }
 
 static void xgene_enet_link_state(struct work_struct *work)
@@ -515,6 +560,7 @@ const struct xgene_mac_ops xgene_sgmac_ops = {
 
 const struct xgene_port_ops xgene_sgport_ops = {
 	.reset		= xgene_enet_reset,
+	.clear		= xgene_enet_clear,
 	.cle_bypass	= xgene_enet_cle_bypass,
 	.shutdown	= xgene_enet_shutdown
 };
