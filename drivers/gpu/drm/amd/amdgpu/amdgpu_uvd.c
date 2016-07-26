@@ -41,8 +41,15 @@
 
 /* 1 second timeout */
 #define UVD_IDLE_TIMEOUT	msecs_to_jiffies(1000)
+
+/* Firmware versions for VI */
+#define FW_1_65_10	((1 << 24) | (65 << 16) | (10 << 8))
+#define FW_1_87_11	((1 << 24) | (87 << 16) | (11 << 8))
+#define FW_1_87_12	((1 << 24) | (87 << 16) | (12 << 8))
+#define FW_1_37_15	((1 << 24) | (37 << 16) | (15 << 8))
+
 /* Polaris10/11 firmware version */
-#define FW_1_66_16 ((1 << 24) | (66 << 16) | (16 << 8))
+#define FW_1_66_16	((1 << 24) | (66 << 16) | (16 << 8))
 
 /* Firmware Names */
 #ifdef CONFIG_DRM_AMDGPU_CIK
@@ -244,6 +251,23 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 	/* from uvd v5.0 HW addressing capacity increased to 64 bits */
 	if (!amdgpu_ip_block_version_cmp(adev, AMD_IP_BLOCK_TYPE_UVD, 5, 0))
 		adev->uvd.address_64_bit = true;
+
+	switch (adev->asic_type) {
+	case CHIP_TONGA:
+		adev->uvd.use_ctx_buf = adev->uvd.fw_version >= FW_1_65_10;
+		break;
+	case CHIP_CARRIZO:
+		adev->uvd.use_ctx_buf = adev->uvd.fw_version >= FW_1_87_11;
+		break;
+	case CHIP_FIJI:
+		adev->uvd.use_ctx_buf = adev->uvd.fw_version >= FW_1_87_12;
+		break;
+	case CHIP_STONEY:
+		adev->uvd.use_ctx_buf = adev->uvd.fw_version >= FW_1_37_15;
+		break;
+	default:
+		adev->uvd.use_ctx_buf = adev->asic_type >= CHIP_POLARIS10;
+	}
 
 	return 0;
 }
@@ -554,7 +578,7 @@ static int amdgpu_uvd_cs_msg_decode(struct amdgpu_device *adev, uint32_t *msg,
 		/* reference picture buffer */
 		min_dpb_size = image_size * num_dpb_buffer;
 
-		if (adev->asic_type < CHIP_POLARIS10){
+		if (!adev->uvd.use_ctx_buf){
 			/* macroblock context buffer */
 			min_dpb_size +=
 				width_in_mb * height_in_mb * num_dpb_buffer * 192;
