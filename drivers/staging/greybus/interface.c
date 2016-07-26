@@ -363,6 +363,7 @@ static int gb_interface_read_and_clear_init_status(struct gb_interface *intf)
 {
 	struct gb_host_device *hd = intf->hd;
 	unsigned long bootrom_quirks;
+	unsigned long s2l_quirks;
 	int ret;
 	u32 value;
 	u16 attr;
@@ -413,13 +414,22 @@ static int gb_interface_read_and_clear_init_status(struct gb_interface *intf)
 				GB_INTERFACE_QUIRK_FORCED_DISABLE |
 				GB_INTERFACE_QUIRK_LEGACY_MODE_SWITCH |
 				GB_INTERFACE_QUIRK_NO_BUNDLE_ACTIVATE;
+
+	s2l_quirks = GB_INTERFACE_QUIRK_NO_PM;
+
 	switch (init_status) {
 	case GB_INIT_BOOTROM_UNIPRO_BOOT_STARTED:
 	case GB_INIT_BOOTROM_FALLBACK_UNIPRO_BOOT_STARTED:
 		intf->quirks |= bootrom_quirks;
 		break;
+	case GB_INIT_S2_LOADER_BOOT_STARTED:
+		/* S2 Loader doesn't support runtime PM */
+		intf->quirks &= ~bootrom_quirks;
+		intf->quirks |= s2l_quirks;
+		break;
 	default:
 		intf->quirks &= ~bootrom_quirks;
+		intf->quirks &= ~s2l_quirks;
 	}
 
 	/* Clear the init status. */

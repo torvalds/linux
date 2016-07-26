@@ -1145,6 +1145,7 @@ struct gb_svc_dme_peer_set_response {
 #define GB_INIT_UNTRUSTED_SPI_BOOT_FINISHED		0x04
 #define GB_INIT_BOOTROM_UNIPRO_BOOT_STARTED		0x06
 #define GB_INIT_BOOTROM_FALLBACK_UNIPRO_BOOT_STARTED	0x09
+#define GB_INIT_S2_LOADER_BOOT_STARTED			0x0D
 
 struct gb_svc_route_create_request {
 	__u8	intf1_id;

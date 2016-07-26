@@ -228,7 +228,9 @@ static int gb_fw_core_probe(struct gb_bundle *bundle,
 
 	greybus_set_drvdata(bundle, fw_core);
 
-	gb_pm_runtime_put_autosuspend(bundle);
+	/* FIXME: Remove this after S2 Loader gets runtime PM support */
+	if (!(bundle->intf->quirks & GB_INTERFACE_QUIRK_NO_PM))
+		gb_pm_runtime_put_autosuspend(bundle);
 
 	return 0;
 
@@ -251,9 +253,12 @@ static void gb_fw_core_disconnect(struct gb_bundle *bundle)
 	struct gb_fw_core *fw_core = greybus_get_drvdata(bundle);
 	int ret;
 
-	ret = gb_pm_runtime_get_sync(bundle);
-	if (ret)
-		gb_pm_runtime_get_noresume(bundle);
+	/* FIXME: Remove this after S2 Loader gets runtime PM support */
+	if (!(bundle->intf->quirks & GB_INTERFACE_QUIRK_NO_PM)) {
+		ret = gb_pm_runtime_get_sync(bundle);
+		if (ret)
+			gb_pm_runtime_get_noresume(bundle);
+	}
 
 	gb_fw_mgmt_connection_exit(fw_core->mgmt_connection);
 	gb_cap_connection_exit(fw_core->cap_connection);
