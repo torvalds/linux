@@ -16,24 +16,9 @@ struct zcomp_strm {
 	struct crypto_comp *tfm;
 };
 
-/* static compression backend */
-struct zcomp_backend {
-	int (*compress)(const unsigned char *src, unsigned char *dst,
-			size_t *dst_len, void *private);
-
-	int (*decompress)(const unsigned char *src, size_t src_len,
-			unsigned char *dst);
-
-	void *(*create)(gfp_t flags);
-	void (*destroy)(void *private);
-
-	const char *name;
-};
-
 /* dynamic per-device compression frontend */
 struct zcomp {
 	struct zcomp_strm * __percpu *stream;
-	struct zcomp_backend *backend;
 	struct notifier_block notifier;
 
 	const char *name;
