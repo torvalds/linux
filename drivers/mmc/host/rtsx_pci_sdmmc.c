@@ -38,7 +38,6 @@ struct realtek_pci_sdmmc {
 	struct rtsx_pcr		*pcr;
 	struct mmc_host		*mmc;
 	struct mmc_request	*mrq;
-	struct workqueue_struct *workq;
 #define SDMMC_WORKQ_NAME	"rtsx_pci_sdmmc_workq"
 
 	struct work_struct	work;
@@ -885,7 +884,7 @@ static void sdmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	if (sd_rw_cmd(mrq->cmd) || sdio_extblock_cmd(mrq->cmd, data))
 		host->using_cookie = sd_pre_dma_transfer(host, data, false);
 
-	queue_work(host->workq, &host->work);
+	schedule_work(&host->work);
 }
 
 static int sd_set_bus_width(struct realtek_pci_sdmmc *host,
@@ -1404,11 +1403,6 @@ static int rtsx_pci_sdmmc_drv_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	host = mmc_priv(mmc);
-	host->workq = create_singlethread_workqueue(SDMMC_WORKQ_NAME);
-	if (!host->workq) {
-		mmc_free_host(mmc);
-		return -ENOMEM;
-	}
 	host->pcr = pcr;
 	host->mmc = mmc;
 	host->pdev = pdev;
@@ -1462,9 +1456,7 @@ static int rtsx_pci_sdmmc_drv_remove(struct platform_device *pdev)
 	mmc_remove_host(mmc);
 	host->eject = true;
 
-	flush_workqueue(host->workq);
-	destroy_workqueue(host->workq);
-	host->workq = NULL;
+	flush_work(&host->work);
 
 	mmc_free_host(mmc);
 
