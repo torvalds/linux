@@ -473,6 +473,28 @@ skl_tplg_init_pipe_modules(struct skl *skl, struct skl_pipe *pipe)
 		w = w_module->w;
 		mconfig = w->priv;
 
+		/* check if module ids are populated */
+		if (mconfig->id.module_id < 0) {
+			struct skl_dfw_module *dfw_config;
+
+			dfw_config = kzalloc(sizeof(dfw_config), GFP_KERNEL);
+			if (!dfw_config)
+				return -ENOMEM;
+
+			ret = snd_skl_get_module_info(skl->skl_sst,
+				mconfig->guid, dfw_config);
+			if (ret < 0) {
+				dev_err(skl->skl_sst->dev,
+					"query module info failed: %d\n", ret);
+				kfree(dfw_config);
+				return ret;
+			}
+			mconfig->id.module_id = dfw_config->module_id;
+			mconfig->is_loadable = dfw_config->is_loadable;
+
+			kfree(dfw_config);
+		}
+
 		/* check resource available */
 		if (!skl_is_pipe_mcps_avail(skl, mconfig))
 			return -ENOMEM;
@@ -1621,11 +1643,11 @@ static int skl_tplg_widget_load(struct snd_soc_component *cmpnt,
 	w->priv = mconfig;
 	memcpy(&mconfig->guid, &dfw_config->uuid, 16);
 
-	ret = snd_skl_get_module_info(skl->skl_sst, mconfig->guid, dfw_config);
-	if (ret < 0)
-		return ret;
-
-	mconfig->id.module_id = dfw_config->module_id;
+	/*
+	 * module binary can be loaded later, so set it to query when
+	 * module is load for a use case
+	 */
+	mconfig->id.module_id = -1;
 	mconfig->id.instance_id = dfw_config->instance_id;
 	mconfig->mcps = dfw_config->max_mcps;
 	mconfig->ibs = dfw_config->ibs;

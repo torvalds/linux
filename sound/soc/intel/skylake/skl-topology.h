@@ -216,7 +216,7 @@ struct skl_module_fmt {
 struct skl_module_cfg;
 
 struct skl_module_inst_id {
-	u32 module_id;
+	int module_id;
 	u32 instance_id;
 };
 
