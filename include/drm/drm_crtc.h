@@ -35,6 +35,7 @@
 #include <uapi/drm/drm_mode.h>
 #include <uapi/drm/drm_fourcc.h>
 #include <drm/drm_modeset_lock.h>
+#include <drm/drm_rect.h>
 
 struct drm_device;
 struct drm_mode_set;
@@ -1415,6 +1416,9 @@ struct drm_connector {
  * @zpos: priority of the given plane on crtc (optional)
  * @normalized_zpos: normalized value of zpos: unique, range from 0 to N-1
  *	where N is the number of active planes for given crtc
+ * @src: clipped source coordinates of the plane (in 16.16)
+ * @dst: clipped destination coordinates of the plane
+ * @visible: visibility of the plane
  * @state: backpointer to global drm_atomic_state
  */
 struct drm_plane_state {
@@ -1438,6 +1442,15 @@ struct drm_plane_state {
 	/* Plane zpos */
 	unsigned int zpos;
 	unsigned int normalized_zpos;
+
+	/* Clipped coordinates */
+	struct drm_rect src, dst;
+
+	/*
+	 * Is the plane actually visible? Can be false even
+	 * if fb!=NULL and crtc!=NULL, due to clipping.
+	 */
+	bool visible;
 
 	struct drm_atomic_state *state;
 };
