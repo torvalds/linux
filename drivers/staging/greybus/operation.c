@@ -974,7 +974,6 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 			errno = -EMSGSIZE;
 		}
 	}
-	trace_gb_message_recv_response(operation->response);
 
 	/* We must ignore the payload if a bad status is returned */
 	if (errno)
@@ -983,6 +982,9 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 	/* The rest will be handled in work queue context */
 	if (gb_operation_result_set(operation, errno)) {
 		memcpy(message->buffer, data, size);
+
+		trace_gb_message_recv_response(message);
+
 		queue_work(gb_operation_completion_wq, &operation->work);
 	}
 
