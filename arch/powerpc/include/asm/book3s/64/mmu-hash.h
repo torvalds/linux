@@ -391,8 +391,13 @@ int htab_remove_mapping(unsigned long vstart, unsigned long vend,
 extern void add_gpage(u64 addr, u64 page_size, unsigned long number_of_pages);
 extern void demote_segment_4k(struct mm_struct *mm, unsigned long addr);
 
+#ifdef CONFIG_PPC_PSERIES
+void hpte_init_pseries(void);
+#else
+static inline void hpte_init_pseries(void) { }
+#endif
+
 extern void hpte_init_native(void);
-extern void hpte_init_lpar(void);
 extern void hpte_init_beat(void);
 extern void hpte_init_beat_v3(void);
 

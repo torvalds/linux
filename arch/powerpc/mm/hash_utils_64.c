@@ -885,11 +885,6 @@ static void __init htab_initialize(void)
 #undef KB
 #undef MB
 
-void __init __weak hpte_init_lpar(void)
-{
-	panic("FW_FEATURE_LPAR set but no LPAR support compiled\n");
-}
-
 void __init hash__early_init_mmu(void)
 {
 	/*
@@ -930,7 +925,7 @@ void __init hash__early_init_mmu(void)
 	if (firmware_has_feature(FW_FEATURE_PS3_LV1))
 		ps3_early_mm_init();
 	else if (firmware_has_feature(FW_FEATURE_LPAR))
-		hpte_init_lpar();
+		hpte_init_pseries();
 	else if IS_ENABLED(CONFIG_PPC_NATIVE)
 		hpte_init_native();
 
