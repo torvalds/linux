@@ -1,13 +1,14 @@
-* Broadcom SATA3 AHCI Controller for STB
+* Broadcom SATA3 AHCI Controller
 
 SATA nodes are defined to describe on-chip Serial ATA controllers.
 Each SATA controller should have its own node.
 
 Required properties:
 - compatible         : should be one or more of
-                       "brcm,bcm7425-ahci"
-                       "brcm,bcm7445-ahci"
-                       "brcm,sata3-ahci"
+			"brcm,bcm7425-ahci"
+			"brcm,bcm7445-ahci"
+			"brcm,bcm-nsp-ahci"
+			"brcm,sata3-ahci"
 - reg                : register mappings for AHCI and SATA_TOP_CTRL
 - reg-names          : "ahci" and "top-ctrl"
 - interrupts         : interrupt mapping for SATA IRQ

@@ -1238,7 +1238,7 @@ static int ata_read_native_max_address(struct ata_device *dev, u64 *max_sectors)
 	} else
 		tf.command = ATA_CMD_READ_NATIVE_MAX;
 
-	tf.protocol |= ATA_PROT_NODATA;
+	tf.protocol = ATA_PROT_NODATA;
 	tf.device |= ATA_LBA;
 
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, 0);
@@ -1297,7 +1297,7 @@ static int ata_set_max_sectors(struct ata_device *dev, u64 new_sectors)
 		tf.device |= (new_sectors >> 24) & 0xf;
 	}
 
-	tf.protocol |= ATA_PROT_NODATA;
+	tf.protocol = ATA_PROT_NODATA;
 	tf.device |= ATA_LBA;
 
 	tf.lbal = (new_sectors >> 0) & 0xff;
@@ -4848,7 +4848,7 @@ int ata_std_qc_defer(struct ata_queued_cmd *qc)
 {
 	struct ata_link *link = qc->dev->link;
 
-	if (qc->tf.protocol == ATA_PROT_NCQ) {
+	if (ata_is_ncq(qc->tf.protocol)) {
 		if (!ata_tag_valid(link->active_tag))
 			return 0;
 	} else {
@@ -5013,7 +5013,7 @@ void __ata_qc_complete(struct ata_queued_cmd *qc)
 		ata_sg_clean(qc);
 
 	/* command should be marked inactive atomically with qc completion */
-	if (qc->tf.protocol == ATA_PROT_NCQ) {
+	if (ata_is_ncq(qc->tf.protocol)) {
 		link->sactive &= ~(1 << qc->tag);
 		if (!link->sactive)
 			ap->nr_active_links--;
@@ -5050,7 +5050,7 @@ static void ata_verify_xfer(struct ata_queued_cmd *qc)
 {
 	struct ata_device *dev = qc->dev;
 
-	if (ata_is_nodata(qc->tf.protocol))
+	if (!ata_is_data(qc->tf.protocol))
 		return;
 
 	if ((dev->mwdma_mask || dev->udma_mask) && ata_is_pio(qc->tf.protocol))
@@ -5133,7 +5133,9 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 		switch (qc->tf.command) {
 		case ATA_CMD_SET_FEATURES:
 			if (qc->tf.feature != SETFEATURES_WC_ON &&
-			    qc->tf.feature != SETFEATURES_WC_OFF)
+			    qc->tf.feature != SETFEATURES_WC_OFF &&
+			    qc->tf.feature != SETFEATURES_RA_ON &&
+			    qc->tf.feature != SETFEATURES_RA_OFF)
 				break;
 			/* fall through */
 		case ATA_CMD_INIT_DEV_PARAMS: /* CHS translation changed */

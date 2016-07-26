@@ -71,6 +71,12 @@
 	(DATA_ENDIAN << DMADESC_ENDIAN_SHIFT) |		\
 	(MMIO_ENDIAN << MMIO_ENDIAN_SHIFT))
 
+enum brcm_ahci_version {
+	BRCM_SATA_BCM7425 = 1,
+	BRCM_SATA_BCM7445,
+	BRCM_SATA_NSP,
+};
+
 enum brcm_ahci_quirks {
 	BRCM_AHCI_QUIRK_NO_NCQ		= BIT(0),
 	BRCM_AHCI_QUIRK_SKIP_PHY_ENABLE	= BIT(1),
@@ -81,6 +87,7 @@ struct brcm_ahci_priv {
 	void __iomem *top_ctrl;
 	u32 port_mask;
 	u32 quirks;
+	enum brcm_ahci_version version;
 };
 
 static const struct ata_port_info ahci_brcm_port_info = {
@@ -247,9 +254,19 @@ static u32 brcm_ahci_get_portmask(struct platform_device *pdev,
 
 static void brcm_sata_init(struct brcm_ahci_priv *priv)
 {
+	void __iomem *ctrl = priv->top_ctrl + SATA_TOP_CTRL_BUS_CTRL;
+
 	/* Configure endianness */
-	brcm_sata_writereg(BUS_CTRL_ENDIAN_CONF,
-			   priv->top_ctrl + SATA_TOP_CTRL_BUS_CTRL);
+	if (priv->version ==  BRCM_SATA_NSP) {
+		u32 data = brcm_sata_readreg(ctrl);
+
+		data &= ~((0x03 << DMADATA_ENDIAN_SHIFT) |
+			(0x03 << DMADESC_ENDIAN_SHIFT));
+		data |= (0x02 << DMADATA_ENDIAN_SHIFT) |
+			(0x02 << DMADESC_ENDIAN_SHIFT);
+		brcm_sata_writereg(data, ctrl);
+	} else
+		brcm_sata_writereg(BUS_CTRL_ENDIAN_CONF, ctrl);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -282,8 +299,17 @@ static struct scsi_host_template ahci_platform_sht = {
 	AHCI_SHT(DRV_NAME),
 };
 
+static const struct of_device_id ahci_of_match[] = {
+	{.compatible = "brcm,bcm7425-ahci", .data = (void *)BRCM_SATA_BCM7425},
+	{.compatible = "brcm,bcm7445-ahci", .data = (void *)BRCM_SATA_BCM7445},
+	{.compatible = "brcm,bcm-nsp-ahci", .data = (void *)BRCM_SATA_NSP},
+	{},
+};
+MODULE_DEVICE_TABLE(of, ahci_of_match);
+
 static int brcm_ahci_probe(struct platform_device *pdev)
 {
+	const struct of_device_id *of_id;
 	struct device *dev = &pdev->dev;
 	struct brcm_ahci_priv *priv;
 	struct ahci_host_priv *hpriv;
@@ -293,6 +319,12 @@ static int brcm_ahci_probe(struct platform_device *pdev)
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
+
+	of_id = of_match_node(ahci_of_match, pdev->dev.of_node);
+	if (!of_id)
+		return -ENODEV;
+
+	priv->version = (enum brcm_ahci_version)of_id->data;
 	priv->dev = dev;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "top-ctrl");
@@ -300,7 +332,8 @@ static int brcm_ahci_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->top_ctrl))
 		return PTR_ERR(priv->top_ctrl);
 
-	if (of_device_is_compatible(dev->of_node, "brcm,bcm7425-ahci")) {
+	if ((priv->version == BRCM_SATA_BCM7425) ||
+		(priv->version == BRCM_SATA_NSP)) {
 		priv->quirks |= BRCM_AHCI_QUIRK_NO_NCQ;
 		priv->quirks |= BRCM_AHCI_QUIRK_SKIP_PHY_ENABLE;
 	}
@@ -353,13 +386,6 @@ static int brcm_ahci_remove(struct platform_device *pdev)
 
 	return 0;
 }
-
-static const struct of_device_id ahci_of_match[] = {
-	{.compatible = "brcm,bcm7425-ahci"},
-	{.compatible = "brcm,bcm7445-ahci"},
-	{},
-};
-MODULE_DEVICE_TABLE(of, ahci_of_match);
 
 static SIMPLE_DEV_PM_OPS(ahci_brcm_pm_ops, brcm_ahci_suspend, brcm_ahci_resume);
 
