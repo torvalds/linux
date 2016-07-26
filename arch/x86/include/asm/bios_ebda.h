@@ -17,7 +17,7 @@ static inline unsigned int get_bios_ebda(void)
 	return address;	/* 0 means none */
 }
 
-void reserve_ebda_region(void);
+void reserve_bios_regions(void);
 
 #ifdef CONFIG_X86_CHECK_BIOS_CORRUPTION
 /*

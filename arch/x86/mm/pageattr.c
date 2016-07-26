@@ -101,7 +101,8 @@ static inline unsigned long highmap_start_pfn(void)
 
 static inline unsigned long highmap_end_pfn(void)
 {
-	return __pa_symbol(roundup(_brk_end, PMD_SIZE)) >> PAGE_SHIFT;
+	/* Do not reference physical address outside the kernel. */
+	return __pa_symbol(roundup(_brk_end, PMD_SIZE) - 1) >> PAGE_SHIFT;
 }
 
 #endif
@@ -110,6 +111,12 @@ static inline int
 within(unsigned long addr, unsigned long start, unsigned long end)
 {
 	return addr >= start && addr < end;
+}
+
+static inline int
+within_inclusive(unsigned long addr, unsigned long start, unsigned long end)
+{
+	return addr >= start && addr <= end;
 }
 
 /*
@@ -1299,7 +1306,8 @@ static int cpa_process_alias(struct cpa_data *cpa)
 	 * to touch the high mapped kernel as well:
 	 */
 	if (!within(vaddr, (unsigned long)_text, _brk_end) &&
-	    within(cpa->pfn, highmap_start_pfn(), highmap_end_pfn())) {
+	    within_inclusive(cpa->pfn, highmap_start_pfn(),
+			     highmap_end_pfn())) {
 		unsigned long temp_cpa_vaddr = (cpa->pfn << PAGE_SHIFT) +
 					       __START_KERNEL_map - phys_base;
 		alias_cpa = *cpa;
