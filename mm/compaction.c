@@ -74,14 +74,8 @@ static void map_pages(struct list_head *list)
 
 		order = page_private(page);
 		nr_pages = 1 << order;
-		set_page_private(page, 0);
-		set_page_refcounted(page);
 
-		arch_alloc_page(page, order);
-		kernel_map_pages(page, nr_pages, 1);
-		kasan_alloc_pages(page, order);
-
-		set_page_owner(page, order, __GFP_MOVABLE);
+		post_alloc_hook(page, order, __GFP_MOVABLE);
 		if (order)
 			split_page(page, order);
 
