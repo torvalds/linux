@@ -73,22 +73,9 @@ static const struct drm_crtc_funcs drm_simple_kms_crtc_funcs = {
 static int drm_simple_kms_plane_atomic_check(struct drm_plane *plane,
 					struct drm_plane_state *plane_state)
 {
-	struct drm_rect src = {
-		.x1 = plane_state->src_x,
-		.y1 = plane_state->src_y,
-		.x2 = plane_state->src_x + plane_state->src_w,
-		.y2 = plane_state->src_y + plane_state->src_h,
-	};
-	struct drm_rect dest = {
-		.x1 = plane_state->crtc_x,
-		.y1 = plane_state->crtc_y,
-		.x2 = plane_state->crtc_x + plane_state->crtc_w,
-		.y2 = plane_state->crtc_y + plane_state->crtc_h,
-	};
 	struct drm_rect clip = { 0 };
 	struct drm_simple_display_pipe *pipe;
 	struct drm_crtc_state *crtc_state;
-	bool visible;
 	int ret;
 
 	pipe = container_of(plane, struct drm_simple_display_pipe, plane);
@@ -102,17 +89,15 @@ static int drm_simple_kms_plane_atomic_check(struct drm_plane *plane,
 
 	clip.x2 = crtc_state->adjusted_mode.hdisplay;
 	clip.y2 = crtc_state->adjusted_mode.vdisplay;
-	ret = drm_plane_helper_check_update(plane, &pipe->crtc,
-					    plane_state->fb,
-					    &src, &dest, &clip,
-					    plane_state->rotation,
-					    DRM_PLANE_HELPER_NO_SCALING,
-					    DRM_PLANE_HELPER_NO_SCALING,
-					    false, true, &visible);
+
+	ret = drm_plane_helper_check_state(plane_state, &clip,
+					   DRM_PLANE_HELPER_NO_SCALING,
+					   DRM_PLANE_HELPER_NO_SCALING,
+					   false, true);
 	if (ret)
 		return ret;
 
-	if (!visible)
+	if (!plane_state->visible)
 		return -EINVAL;
 
 	if (!pipe->funcs || !pipe->funcs->check)
