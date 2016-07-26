@@ -194,15 +194,17 @@ static struct clock_event_device clkevt = {
 /*
  * ST (system timer) module supports both clockevents and clocksource.
  */
-static void __init atmel_st_timer_init(struct device_node *node)
+static int __init atmel_st_timer_init(struct device_node *node)
 {
 	struct clk *sclk;
 	unsigned int sclk_rate, val;
 	int irq, ret;
 
 	regmap_st = syscon_node_to_regmap(node);
-	if (IS_ERR(regmap_st))
-		panic(pr_fmt("Unable to get regmap\n"));
+	if (IS_ERR(regmap_st)) {
+		pr_err("Unable to get regmap\n");
+		return PTR_ERR(regmap_st);
+	}
 
 	/* Disable all timer interrupts, and clear any pending ones */
 	regmap_write(regmap_st, AT91_ST_IDR,
@@ -211,27 +213,37 @@ static void __init atmel_st_timer_init(struct device_node *node)
 
 	/* Get the interrupts property */
 	irq  = irq_of_parse_and_map(node, 0);
-	if (!irq)
-		panic(pr_fmt("Unable to get IRQ from DT\n"));
+	if (!irq) {
+		pr_err("Unable to get IRQ from DT\n");
+		return -EINVAL;
+	}
 
 	/* Make IRQs happen for the system timer */
 	ret = request_irq(irq, at91rm9200_timer_interrupt,
 			  IRQF_SHARED | IRQF_TIMER | IRQF_IRQPOLL,
 			  "at91_tick", regmap_st);
-	if (ret)
-		panic(pr_fmt("Unable to setup IRQ\n"));
+	if (ret) {
+		pr_err("Unable to setup IRQ\n");
+		return ret;
+	}
 
 	sclk = of_clk_get(node, 0);
-	if (IS_ERR(sclk))
-		panic(pr_fmt("Unable to get slow clock\n"));
+	if (IS_ERR(sclk)) {
+		pr_err("Unable to get slow clock\n");
+		return PTR_ERR(sclk);
+	}
 
-	clk_prepare_enable(sclk);
-	if (ret)
-		panic(pr_fmt("Could not enable slow clock\n"));
+	ret = clk_prepare_enable(sclk);
+	if (ret) {
+		pr_err("Could not enable slow clock\n");
+		return ret;
+	}
 
 	sclk_rate = clk_get_rate(sclk);
-	if (!sclk_rate)
-		panic(pr_fmt("Invalid slow clock rate\n"));
+	if (!sclk_rate) {
+		pr_err("Invalid slow clock rate\n");
+		return -EINVAL;
+	}
 	timer_latch = (sclk_rate + HZ / 2) / HZ;
 
 	/* The 32KiHz "Slow Clock" (tick every 30517.58 nanoseconds) is used
@@ -246,7 +258,7 @@ static void __init atmel_st_timer_init(struct device_node *node)
 					2, AT91_ST_ALMV);
 
 	/* register clocksource */
-	clocksource_register_hz(&clk32k, sclk_rate);
+	return clocksource_register_hz(&clk32k, sclk_rate);
 }
 CLOCKSOURCE_OF_DECLARE(atmel_st_timer, "atmel,at91rm9200-st",
 		       atmel_st_timer_init);

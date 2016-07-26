@@ -178,7 +178,7 @@ static struct delay_timer msm_delay_timer = {
 	.read_current_timer = msm_read_current_timer,
 };
 
-static void __init msm_timer_init(u32 dgt_hz, int sched_bits, int irq,
+static int __init msm_timer_init(u32 dgt_hz, int sched_bits, int irq,
 				  bool percpu)
 {
 	struct clocksource *cs = &msm_clocksource;
@@ -218,12 +218,14 @@ err:
 	sched_clock_register(msm_sched_clock_read, sched_bits, dgt_hz);
 	msm_delay_timer.freq = dgt_hz;
 	register_current_timer_delay(&msm_delay_timer);
+
+	return res;
 }
 
-static void __init msm_dt_timer_init(struct device_node *np)
+static int __init msm_dt_timer_init(struct device_node *np)
 {
 	u32 freq;
-	int irq;
+	int irq, ret;
 	struct resource res;
 	u32 percpu_offset;
 	void __iomem *base;
@@ -232,34 +234,35 @@ static void __init msm_dt_timer_init(struct device_node *np)
 	base = of_iomap(np, 0);
 	if (!base) {
 		pr_err("Failed to map event base\n");
-		return;
+		return -ENXIO;
 	}
 
 	/* We use GPT0 for the clockevent */
 	irq = irq_of_parse_and_map(np, 1);
 	if (irq <= 0) {
 		pr_err("Can't get irq\n");
-		return;
+		return -EINVAL;
 	}
 
 	/* We use CPU0's DGT for the clocksource */
 	if (of_property_read_u32(np, "cpu-offset", &percpu_offset))
 		percpu_offset = 0;
 
-	if (of_address_to_resource(np, 0, &res)) {
+	ret = of_address_to_resource(np, 0, &res);
+	if (ret) {
 		pr_err("Failed to parse DGT resource\n");
-		return;
+		return ret;
 	}
 
 	cpu0_base = ioremap(res.start + percpu_offset, resource_size(&res));
 	if (!cpu0_base) {
 		pr_err("Failed to map source base\n");
-		return;
+		return -EINVAL;
 	}
 
 	if (of_property_read_u32(np, "clock-frequency", &freq)) {
 		pr_err("Unknown frequency\n");
-		return;
+		return -EINVAL;
 	}
 
 	event_base = base + 0x4;
@@ -268,7 +271,7 @@ static void __init msm_dt_timer_init(struct device_node *np)
 	freq /= 4;
 	writel_relaxed(DGT_CLK_CTL_DIV_4, source_base + DGT_CLK_CTL);
 
-	msm_timer_init(freq, 32, irq, !!percpu_offset);
+	return msm_timer_init(freq, 32, irq, !!percpu_offset);
 }
 CLOCKSOURCE_OF_DECLARE(kpss_timer, "qcom,kpss-timer", msm_dt_timer_init);
 CLOCKSOURCE_OF_DECLARE(scss_timer, "qcom,scss-timer", msm_dt_timer_init);
