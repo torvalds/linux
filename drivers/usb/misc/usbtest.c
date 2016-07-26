@@ -2602,7 +2602,7 @@ usbtest_ioctl(struct usb_interface *intf, unsigned int code, void *buf)
 	ktime_get_ts64(&start);
 
 	retval = usbtest_do_ioctl(intf, param_32);
-	if (retval)
+	if (retval < 0)
 		goto free_mutex;
 
 	ktime_get_ts64(&end);
