@@ -63,6 +63,8 @@
 #define DBG(fmt...)
 #endif
 
+#if IS_BUILTIN(CONFIG_PHYLIB)
+
 #define MV88E1111_SCR	0x10
 #define MV88E1111_SCR_125CLK	0x0010
 static int mpc8568_fixup_125_clock(struct phy_device *phydev)
@@ -151,6 +153,8 @@ static int mpc8568_mds_phy_fixups(struct phy_device *phydev)
 
 	return err;
 }
+
+#endif
 
 /* ************************************************************************
  *
@@ -313,6 +317,7 @@ static void __init mpc85xx_mds_setup_arch(void)
 	swiotlb_detect_4g();
 }
 
+#if IS_BUILTIN(CONFIG_PHYLIB)
 
 static int __init board_fixups(void)
 {
@@ -342,8 +347,11 @@ static int __init board_fixups(void)
 
 	return 0;
 }
+
 machine_arch_initcall(mpc8568_mds, board_fixups);
 machine_arch_initcall(mpc8569_mds, board_fixups);
+
+#endif
 
 static int __init mpc85xx_publish_devices(void)
 {
@@ -434,4 +442,3 @@ define_machine(p1021_mds) {
 	.pcibios_fixup_phb      = fsl_pcibios_fixup_phb,
 #endif
 };
-
