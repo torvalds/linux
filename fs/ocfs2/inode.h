@@ -145,22 +145,15 @@ int ocfs2_drop_inode(struct inode *inode);
 struct inode *ocfs2_ilookup(struct super_block *sb, u64 feoff);
 struct inode *ocfs2_iget(struct ocfs2_super *osb, u64 feoff, unsigned flags,
 			 int sysfile_type);
-int ocfs2_inode_init_private(struct inode *inode);
 int ocfs2_inode_revalidate(struct dentry *dentry);
 void ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 			  int create_ino);
-void ocfs2_read_inode(struct inode *inode);
-void ocfs2_read_inode2(struct inode *inode, void *opaque);
-ssize_t ocfs2_rw_direct(int rw, struct file *filp, char *buf,
-			size_t size, loff_t *offp);
 void ocfs2_sync_blockdev(struct super_block *sb);
 void ocfs2_refresh_inode(struct inode *inode,
 			 struct ocfs2_dinode *fe);
 int ocfs2_mark_inode_dirty(handle_t *handle,
 			   struct inode *inode,
 			   struct buffer_head *bh);
-struct buffer_head *ocfs2_bread(struct inode *inode,
-				int block, int *err, int reada);
 
 void ocfs2_set_inode_flags(struct inode *inode);
 void ocfs2_get_inode_flags(struct ocfs2_inode_info *oi);
