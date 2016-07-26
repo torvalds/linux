@@ -99,6 +99,11 @@ struct kmem_cache {
 	 */
 	int remote_node_defrag_ratio;
 #endif
+
+#ifdef CONFIG_SLAB_FREELIST_RANDOM
+	unsigned int *random_seq;
+#endif
+
 	struct kmem_cache_node *node[MAX_NUMNODES];
 };
 

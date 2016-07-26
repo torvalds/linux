@@ -1405,6 +1405,109 @@ static inline struct page *alloc_slab_page(struct kmem_cache *s,
 	return page;
 }
 
+#ifdef CONFIG_SLAB_FREELIST_RANDOM
+/* Pre-initialize the random sequence cache */
+static int init_cache_random_seq(struct kmem_cache *s)
+{
+	int err;
+	unsigned long i, count = oo_objects(s->oo);
+
+	err = cache_random_seq_create(s, count, GFP_KERNEL);
+	if (err) {
+		pr_err("SLUB: Unable to initialize free list for %s\n",
+			s->name);
+		return err;
+	}
+
+	/* Transform to an offset on the set of pages */
+	if (s->random_seq) {
+		for (i = 0; i < count; i++)
+			s->random_seq[i] *= s->size;
+	}
+	return 0;
+}
+
+/* Initialize each random sequence freelist per cache */
+static void __init init_freelist_randomization(void)
+{
+	struct kmem_cache *s;
+
+	mutex_lock(&slab_mutex);
+
+	list_for_each_entry(s, &slab_caches, list)
+		init_cache_random_seq(s);
+
+	mutex_unlock(&slab_mutex);
+}
+
+/* Get the next entry on the pre-computed freelist randomized */
+static void *next_freelist_entry(struct kmem_cache *s, struct page *page,
+				unsigned long *pos, void *start,
+				unsigned long page_limit,
+				unsigned long freelist_count)
+{
+	unsigned int idx;
+
+	/*
+	 * If the target page allocation failed, the number of objects on the
+	 * page might be smaller than the usual size defined by the cache.
+	 */
+	do {
+		idx = s->random_seq[*pos];
+		*pos += 1;
+		if (*pos >= freelist_count)
+			*pos = 0;
+	} while (unlikely(idx >= page_limit));
+
+	return (char *)start + idx;
+}
+
+/* Shuffle the single linked freelist based on a random pre-computed sequence */
+static bool shuffle_freelist(struct kmem_cache *s, struct page *page)
+{
+	void *start;
+	void *cur;
+	void *next;
+	unsigned long idx, pos, page_limit, freelist_count;
+
+	if (page->objects < 2 || !s->random_seq)
+		return false;
+
+	freelist_count = oo_objects(s->oo);
+	pos = get_random_int() % freelist_count;
+
+	page_limit = page->objects * s->size;
+	start = fixup_red_left(s, page_address(page));
+
+	/* First entry is used as the base of the freelist */
+	cur = next_freelist_entry(s, page, &pos, start, page_limit,
+				freelist_count);
+	page->freelist = cur;
+
+	for (idx = 1; idx < page->objects; idx++) {
+		setup_object(s, page, cur);
+		next = next_freelist_entry(s, page, &pos, start, page_limit,
+			freelist_count);
+		set_freepointer(s, cur, next);
+		cur = next;
+	}
+	setup_object(s, page, cur);
+	set_freepointer(s, cur, NULL);
+
+	return true;
+}
+#else
+static inline int init_cache_random_seq(struct kmem_cache *s)
+{
+	return 0;
+}
+static inline void init_freelist_randomization(void) { }
+static inline bool shuffle_freelist(struct kmem_cache *s, struct page *page)
+{
+	return false;
+}
+#endif /* CONFIG_SLAB_FREELIST_RANDOM */
+
 static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
 {
 	struct page *page;
@@ -1412,6 +1515,7 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
 	gfp_t alloc_gfp;
 	void *start, *p;
 	int idx, order;
+	bool shuffle;
 
 	flags &= gfp_allowed_mask;
 
@@ -1473,15 +1577,19 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
 
 	kasan_poison_slab(page);
 
-	for_each_object_idx(p, idx, s, start, page->objects) {
-		setup_object(s, page, p);
-		if (likely(idx < page->objects))
-			set_freepointer(s, p, p + s->size);
-		else
-			set_freepointer(s, p, NULL);
+	shuffle = shuffle_freelist(s, page);
+
+	if (!shuffle) {
+		for_each_object_idx(p, idx, s, start, page->objects) {
+			setup_object(s, page, p);
+			if (likely(idx < page->objects))
+				set_freepointer(s, p, p + s->size);
+			else
+				set_freepointer(s, p, NULL);
+		}
+		page->freelist = fixup_red_left(s, start);
 	}
 
-	page->freelist = fixup_red_left(s, start);
 	page->inuse = page->objects;
 	page->frozen = 1;
 
@@ -3207,6 +3315,7 @@ static void free_kmem_cache_nodes(struct kmem_cache *s)
 
 void __kmem_cache_release(struct kmem_cache *s)
 {
+	cache_random_seq_destroy(s);
 	free_percpu(s->cpu_slab);
 	free_kmem_cache_nodes(s);
 }
@@ -3431,6 +3540,13 @@ static int kmem_cache_open(struct kmem_cache *s, unsigned long flags)
 #ifdef CONFIG_NUMA
 	s->remote_node_defrag_ratio = 1000;
 #endif
+
+	/* Initialize the pre-computed randomized freelist if slab is up */
+	if (slab_state >= UP) {
+		if (init_cache_random_seq(s))
+			goto error;
+	}
+
 	if (!init_kmem_cache_nodes(s))
 		goto error;
 
@@ -3946,6 +4062,9 @@ void __init kmem_cache_init(void)
 	/* Now we can use the kmem_cache to allocate kmalloc slabs */
 	setup_kmalloc_cache_index_table();
 	create_kmalloc_caches(0);
+
+	/* Setup random freelists for each cache */
+	init_freelist_randomization();
 
 #ifdef CONFIG_SMP
 	register_cpu_notifier(&slab_notifier);
