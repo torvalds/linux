@@ -901,7 +901,7 @@ int xgene_enet_mdio_config(struct xgene_enet_pdata *pdata)
 		 ndev->name);
 
 	mdio_bus->priv = pdata;
-	mdio_bus->parent = &ndev->dev;
+	mdio_bus->parent = &pdata->pdev->dev;
 
 	ret = xgene_mdiobus_register(pdata, mdio_bus);
 	if (ret) {
