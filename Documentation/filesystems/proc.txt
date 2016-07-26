@@ -725,7 +725,7 @@ IRQ, you can set it by doing:
   > echo 1 > /proc/irq/10/smp_affinity
 
 This means that only the first CPU will handle the IRQ, but you can also echo
-5 which means that only the first and fourth CPU can handle the IRQ.
+5 which means that only the first and third CPU can handle the IRQ.
 
 The contents of each smp_affinity file is the same by default:
 

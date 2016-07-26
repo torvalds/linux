@@ -6235,7 +6235,6 @@ F:	Documentation/devicetree/bindings/interrupt-controller/
 F:	drivers/irqchip/
 
 IRQ DOMAINS (IRQ NUMBER MAPPING LIBRARY)
-M:	Jiang Liu <jiang.liu@linux.intel.com>
 M:	Marc Zyngier <marc.zyngier@arm.com>
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git irq/core
