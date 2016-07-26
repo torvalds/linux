@@ -130,7 +130,8 @@ struct rockchip_chg_det_reg {
  * @ls_det_en: linestate detection enable register.
  * @ls_det_st: linestate detection state register.
  * @ls_det_clr: linestate detection clear register.
- * @utmi_bvalid: utmi vbus valid status register.
+ * @utmi_avalid: utmi vbus avalid status register.
+ * @utmi_bvalid: utmi vbus bvalid status register.
  * @utmi_ls: utmi linestate state register.
  * @utmi_hstdet: utmi host disconnect register.
  */
@@ -142,6 +143,7 @@ struct rockchip_usb2phy_port_cfg {
 	struct usb2phy_reg	ls_det_en;
 	struct usb2phy_reg	ls_det_st;
 	struct usb2phy_reg	ls_det_clr;
+	struct usb2phy_reg	utmi_avalid;
 	struct usb2phy_reg	utmi_bvalid;
 	struct usb2phy_reg	utmi_ls;
 	struct usb2phy_reg	utmi_hstdet;
@@ -168,6 +170,9 @@ struct rockchip_usb2phy_cfg {
  * struct rockchip_usb2phy_port: usb-phy port data.
  * @port_id: flag for otg port or host port.
  * @suspended: phy suspended flag.
+ * @utmi_avalid: utmi avalid status usage flag.
+ *	true	- use avalid to get vbus status
+ *	flase	- use bvalid to get vbus status
  * @vbus_attached: otg device vbus status.
  * @bvalid_irq: IRQ number assigned for vbus valid rise detection.
  * @ls_irq: IRQ number assigned for linestate detection.
@@ -185,6 +190,7 @@ struct rockchip_usb2phy_port {
 	struct phy	*phy;
 	unsigned int	port_id;
 	bool		suspended;
+	bool		utmi_avalid;
 	bool		vbus_attached;
 	int		bvalid_irq;
 	int		ls_irq;
@@ -519,7 +525,13 @@ static void rockchip_usb2phy_otg_sm_work(struct work_struct *work)
 	unsigned long delay;
 	bool vbus_attach, sch_work, notify_charger;
 
-	vbus_attach = property_enabled(rphy, &rport->port_cfg->utmi_bvalid);
+	if (rport->utmi_avalid)
+		vbus_attach =
+			property_enabled(rphy, &rport->port_cfg->utmi_avalid);
+	else
+		vbus_attach =
+			property_enabled(rphy, &rport->port_cfg->utmi_bvalid);
+
 	sch_work = false;
 	notify_charger = false;
 	delay = OTG_SCHEDULE_DELAY;
@@ -975,6 +987,9 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 	INIT_DELAYED_WORK(&rport->chg_work, rockchip_chg_detect_work);
 	INIT_DELAYED_WORK(&rport->otg_sm_work, rockchip_usb2phy_otg_sm_work);
 
+	rport->utmi_avalid =
+		of_property_read_bool(child_np, "rockchip,utmi-avalid");
+
 	rport->bvalid_irq = of_irq_get_byname(child_np, "otg-bvalid");
 	if (rport->bvalid_irq < 0) {
 		dev_err(rphy->dev, "no vbus valid irq provided\n");
@@ -1188,7 +1203,8 @@ static const struct rockchip_usb2phy_cfg rk3399_phy_cfgs[] = {
 				.bvalid_det_en	= { 0xe3c0, 3, 3, 0, 1 },
 				.bvalid_det_st	= { 0xe3e0, 3, 3, 0, 1 },
 				.bvalid_det_clr	= { 0xe3d0, 3, 3, 0, 1 },
-				.utmi_bvalid	= { 0xe2ac, 7, 7, 0, 1 },
+				.utmi_avalid	= { 0xe2ac, 7, 7, 0, 1 },
+				.utmi_bvalid	= { 0xe2ac, 12, 12, 0, 1 },
 			},
 			[USB2PHY_PORT_HOST] = {
 				.phy_sus	= { 0xe458, 1, 0, 0x2, 0x1 },

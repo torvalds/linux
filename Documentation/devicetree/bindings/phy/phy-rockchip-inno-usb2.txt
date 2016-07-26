@@ -29,6 +29,9 @@ Required properties (port (child) node):
 Optional properties:
  - phy-supply : phandle to a regulator that provides power to VBUS.
 		See ./phy-bindings.txt for details.
+ - rockchip,utmi-avalid : when set, the usb2 phy will use avalid
+		status bit to get vbus status. If not, it will use
+		bvalid status bit to get vbus status by default.
 
 Example:
 
