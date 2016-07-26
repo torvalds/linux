@@ -80,6 +80,9 @@ struct skl_sst {
 
 	/* multi-core */
 	struct skl_dsp_cores cores;
+
+	/* tplg manifest */
+	struct skl_dfw_manifest manifest;
 };
 
 struct skl_ipc_init_instance_msg {
