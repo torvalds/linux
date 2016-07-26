@@ -435,7 +435,7 @@ static int amdgpu_uvd_cs_msg_decode(struct amdgpu_device *adev, uint32_t *msg,
 	unsigned fs_in_mb = width_in_mb * height_in_mb;
 
 	unsigned image_size, tmp, min_dpb_size, num_dpb_buffer;
-	unsigned min_ctx_size = 0;
+	unsigned min_ctx_size = ~0;
 
 	image_size = width * height;
 	image_size += image_size / 2;
