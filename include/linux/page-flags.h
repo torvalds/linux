@@ -641,6 +641,13 @@ PAGE_MAPCOUNT_OPS(Buddy, BUDDY)
 #define PAGE_BALLOON_MAPCOUNT_VALUE		(-256)
 PAGE_MAPCOUNT_OPS(Balloon, BALLOON)
 
+/*
+ * If kmemcg is enabled, the buddy allocator will set PageKmemcg() on
+ * pages allocated with __GFP_ACCOUNT. It gets cleared on page free.
+ */
+#define PAGE_KMEMCG_MAPCOUNT_VALUE		(-512)
+PAGE_MAPCOUNT_OPS(Kmemcg, KMEMCG)
+
 extern bool is_free_buddy_page(struct page *page);
 
 __PAGEFLAG(Isolated, isolated, PF_ANY);
