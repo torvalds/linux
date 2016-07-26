@@ -447,3 +447,7 @@
 		};
 	};
 };
+
+&u2phy0_otg {
+	rockchip,utmi-avalid;
+};

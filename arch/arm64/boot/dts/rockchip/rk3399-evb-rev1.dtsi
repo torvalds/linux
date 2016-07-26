@@ -296,3 +296,7 @@
 &pwm2 {
 	status = "okay";
 };
+
+&u2phy0_otg {
+	rockchip,utmi-avalid;
+};
