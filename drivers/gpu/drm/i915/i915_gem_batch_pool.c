@@ -68,15 +68,14 @@ void i915_gem_batch_pool_fini(struct i915_gem_batch_pool *pool)
 	WARN_ON(!mutex_is_locked(&pool->dev->struct_mutex));
 
 	for (n = 0; n < ARRAY_SIZE(pool->cache_list); n++) {
-		while (!list_empty(&pool->cache_list[n])) {
-			struct drm_i915_gem_object *obj =
-				list_first_entry(&pool->cache_list[n],
-						 struct drm_i915_gem_object,
-						 batch_pool_link);
+		struct drm_i915_gem_object *obj, *next;
 
-			list_del(&obj->batch_pool_link);
+		list_for_each_entry_safe(obj, next,
+					 &pool->cache_list[n],
+					 batch_pool_link)
 			i915_gem_object_put(obj);
-		}
+
+		INIT_LIST_HEAD(&pool->cache_list[n]);
 	}
 }
 
