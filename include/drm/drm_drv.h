@@ -407,7 +407,7 @@ struct drm_driver {
 	struct list_head legacy_dev_list;
 };
 
-extern __printf(6, 7)
+extern __printf(6, 7) __nocapture(4)
 void drm_dev_printk(const struct device *dev, const char *level,
 		    unsigned int category, const char *function_name,
 		    const char *prefix, const char *format, ...);

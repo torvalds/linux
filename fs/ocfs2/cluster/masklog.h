@@ -162,7 +162,7 @@ extern struct mlog_bits mlog_and_bits, mlog_not_bits;
 
 #endif
 
-__printf(4, 5)
+__printf(4, 5) __nocapture(2)
 void __mlog_printk(const u64 *m, const char *func, int line,
 		   const char *fmt, ...);
 

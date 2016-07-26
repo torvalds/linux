@@ -136,7 +136,7 @@ int is_hpet_enabled(void)
 }
 EXPORT_SYMBOL_GPL(is_hpet_enabled);
 
-static void _hpet_print_config(const char *function, int line)
+static void __nocapture(1) _hpet_print_config(const char *function, int line)
 {
 	u32 i, timers, l, h;
 	printk(KERN_INFO "hpet: %s(%d):\n", function, line);

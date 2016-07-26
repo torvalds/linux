@@ -70,7 +70,7 @@ void chrdev_show(struct seq_file *f, off_t offset)
  *
  * Returns a -ve errno on failure.
  */
-static struct char_device_struct *
+static __nocapture(4) struct char_device_struct *
 __register_chrdev_region(unsigned int major, unsigned int baseminor,
 			   int minorct, const char *name)
 {

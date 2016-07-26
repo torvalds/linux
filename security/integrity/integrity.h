@@ -177,7 +177,7 @@ static inline void evm_load_x509(void)
 
 #ifdef CONFIG_INTEGRITY_AUDIT
 /* declarations */
-void integrity_audit_msg(int audit_msgno, struct inode *inode,
+void __nocapture(4) integrity_audit_msg(int audit_msgno, struct inode *inode,
 			 const unsigned char *fname, const char *op,
 			 const char *cause, int result, int info);
 #else

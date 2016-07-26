@@ -291,7 +291,7 @@ void acpi_ut_init_stack_ptr_trace(void);
 
 void acpi_ut_track_stack_ptr(void);
 
-void
+__nocapture(2) void
 acpi_ut_trace(u32 line_number,
 	      const char *function_name,
 	      const char *module_name, u32 component_id);

@@ -870,7 +870,8 @@ void *memchr(const void *s, int c, size_t n)
 EXPORT_SYMBOL(memchr);
 #endif
 
-static void *check_bytes8(const u8 *start, u8 value, unsigned int bytes)
+static __nocapture(1)
+void *check_bytes8(const u8 *start, u8 value, unsigned int bytes)
 {
 	while (bytes) {
 		if (*start != value)

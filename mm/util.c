@@ -17,7 +17,7 @@
 
 #include "internal.h"
 
-static inline int is_kernel_rodata(const void *addr)
+static inline __nocapture(1) int is_kernel_rodata(const void *addr)
 {
 	return (unsigned long)addr >= (unsigned long)__start_rodata &&
 		(unsigned long)addr < (unsigned long)__end_rodata;
