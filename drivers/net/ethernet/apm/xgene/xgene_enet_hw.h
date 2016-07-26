@@ -104,6 +104,8 @@ enum xgene_enet_rm {
 #define RECOMBBUF		BIT(27)
 
 #define MAC_OFFSET			0x30
+#define OFFSET_4			0x04
+#define OFFSET_8			0x08
 
 #define BLOCK_ETH_CSR_OFFSET		0x2000
 #define BLOCK_ETH_CLE_CSR_OFFSET	0x6000

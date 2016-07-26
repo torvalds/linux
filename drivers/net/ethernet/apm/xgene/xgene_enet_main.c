@@ -730,8 +730,10 @@ static int xgene_enet_open(struct net_device *ndev)
 
 	if (pdata->phy_mode == PHY_INTERFACE_MODE_RGMII)
 		phy_start(pdata->phy_dev);
-	else
+	else {
 		schedule_delayed_work(&pdata->link_work, PHY_POLL_LINK_OFF);
+		netif_carrier_off(ndev);
+	}
 
 	netif_start_queue(ndev);
 
@@ -761,7 +763,6 @@ static int xgene_enet_close(struct net_device *ndev)
 
 	return 0;
 }
-
 static void xgene_enet_delete_ring(struct xgene_enet_desc_ring *ring)
 {
 	struct xgene_enet_pdata *pdata;
@@ -1447,6 +1448,7 @@ static int xgene_enet_init_hw(struct xgene_enet_pdata *pdata)
 		pdata->port_ops->cle_bypass(pdata, dst_ring_num, buf_pool->id);
 	}
 
+	pdata->phy_speed = SPEED_UNKNOWN;
 	pdata->mac_ops->init(pdata);
 
 	return ret;

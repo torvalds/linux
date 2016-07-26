@@ -512,14 +512,11 @@ static void xgene_enet_configure_clock(struct xgene_enet_pdata *pdata)
 #endif
 }
 
-static void xgene_gmac_init(struct xgene_enet_pdata *pdata)
+static void xgene_gmac_set_speed(struct xgene_enet_pdata *pdata)
 {
 	struct device *dev = &pdata->pdev->dev;
-	u32 value, mc2;
-	u32 intf_ctl, rgmii;
-	u32 icm0, icm2;
-
-	xgene_gmac_reset(pdata);
+	u32 icm0, icm2, mc2;
+	u32 intf_ctl, rgmii, value;
 
 	xgene_enet_rd_mcx_csr(pdata, ICM_CONFIG0_REG_0_ADDR, &icm0);
 	xgene_enet_rd_mcx_csr(pdata, ICM_CONFIG2_REG_0_ADDR, &icm2);
@@ -564,7 +561,19 @@ static void xgene_gmac_init(struct xgene_enet_pdata *pdata)
 	mc2 |= FULL_DUPLEX2 | PAD_CRC;
 	xgene_enet_wr_mcx_mac(pdata, MAC_CONFIG_2_ADDR, mc2);
 	xgene_enet_wr_mcx_mac(pdata, INTERFACE_CONTROL_ADDR, intf_ctl);
+	xgene_enet_wr_csr(pdata, RGMII_REG_0_ADDR, rgmii);
+	xgene_enet_configure_clock(pdata);
 
+	xgene_enet_wr_mcx_csr(pdata, ICM_CONFIG0_REG_0_ADDR, icm0);
+	xgene_enet_wr_mcx_csr(pdata, ICM_CONFIG2_REG_0_ADDR, icm2);
+}
+
+static void xgene_gmac_init(struct xgene_enet_pdata *pdata)
+{
+	u32 value;
+
+	xgene_gmac_reset(pdata);
+	xgene_gmac_set_speed(pdata);
 	xgene_gmac_set_mac_addr(pdata);
 
 	/* Adjust MDC clock frequency */
@@ -579,14 +588,9 @@ static void xgene_gmac_init(struct xgene_enet_pdata *pdata)
 
 	/* Rtype should be copied from FP */
 	xgene_enet_wr_csr(pdata, RSIF_RAM_DBG_REG0_ADDR, 0);
-	xgene_enet_wr_csr(pdata, RGMII_REG_0_ADDR, rgmii);
-	xgene_enet_configure_clock(pdata);
 
 	/* Rx-Tx traffic resume */
 	xgene_enet_wr_csr(pdata, CFG_LINK_AGGR_RESUME_0_ADDR, TX_PORT0);
-
-	xgene_enet_wr_mcx_csr(pdata, ICM_CONFIG0_REG_0_ADDR, icm0);
-	xgene_enet_wr_mcx_csr(pdata, ICM_CONFIG2_REG_0_ADDR, icm2);
 
 	xgene_enet_rd_mcx_csr(pdata, RX_DV_GATE_REG_0_ADDR, &value);
 	value &= ~TX_DV_GATE_EN0;
@@ -724,12 +728,13 @@ static int xgene_enet_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
 static void xgene_enet_adjust_link(struct net_device *ndev)
 {
 	struct xgene_enet_pdata *pdata = netdev_priv(ndev);
+	const struct xgene_mac_ops *mac_ops = pdata->mac_ops;
 	struct phy_device *phydev = pdata->phy_dev;
 
 	if (phydev->link) {
 		if (pdata->phy_speed != phydev->speed) {
 			pdata->phy_speed = phydev->speed;
-			xgene_gmac_init(pdata);
+			mac_ops->set_speed(pdata);
 			xgene_gmac_rx_enable(pdata);
 			xgene_gmac_tx_enable(pdata);
 			phy_print_status(phydev);
@@ -890,6 +895,7 @@ const struct xgene_mac_ops xgene_gmac_ops = {
 	.tx_enable = xgene_gmac_tx_enable,
 	.rx_disable = xgene_gmac_rx_disable,
 	.tx_disable = xgene_gmac_tx_disable,
+	.set_speed = xgene_gmac_set_speed,
 	.set_mac_addr = xgene_gmac_set_mac_addr,
 };
 
