@@ -81,7 +81,7 @@ static void unset_migratetype_isolate(struct page *page, unsigned migratetype)
 {
 	struct zone *zone;
 	unsigned long flags, nr_pages;
-	struct page *isolated_page = NULL;
+	bool isolated_page = false;
 	unsigned int order;
 	unsigned long page_idx, buddy_idx;
 	struct page *buddy;
@@ -109,7 +109,7 @@ static void unset_migratetype_isolate(struct page *page, unsigned migratetype)
 			if (pfn_valid_within(page_to_pfn(buddy)) &&
 			    !is_migrate_isolate_page(buddy)) {
 				__isolate_free_page(page, order);
-				isolated_page = page;
+				isolated_page = true;
 			}
 		}
 	}
@@ -129,7 +129,7 @@ out:
 	spin_unlock_irqrestore(&zone->lock, flags);
 	if (isolated_page) {
 		post_alloc_hook(page, order, __GFP_MOVABLE);
-		__free_pages(isolated_page, order);
+		__free_pages(page, order);
 	}
 }
 
