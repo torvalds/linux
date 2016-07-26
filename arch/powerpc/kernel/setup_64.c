@@ -298,11 +298,11 @@ void __init early_setup(unsigned long dt_ptr)
 	 */
 	configure_exceptions();
 
-	/* Initialize the hash table or TLB handling */
-	early_init_mmu();
-
 	/* Apply all the dynamic patching */
 	apply_feature_fixups();
+
+	/* Initialize the hash table or TLB handling */
+	early_init_mmu();
 
 	/*
 	 * At this point, we can let interrupts switch to virtual mode
