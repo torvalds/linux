@@ -548,13 +548,13 @@ subsequent truncate), and then return with VM_FAULT_LOCKED, and the page
 locked. The VM will unlock the page.
 
 	->map_pages() is called when VM asks to map easy accessible pages.
-Filesystem should find and map pages associated with offsets from "pgoff"
-till "max_pgoff". ->map_pages() is called with page table locked and must
+Filesystem should find and map pages associated with offsets from "start_pgoff"
+till "end_pgoff". ->map_pages() is called with page table locked and must
 not block.  If it's not possible to reach a page without blocking,
 filesystem should skip it. Filesystem should use do_set_pte() to setup
-page table entry. Pointer to entry associated with offset "pgoff" is
-passed in "pte" field in vm_fault structure. Pointers to entries for other
-offsets should be calculated relative to "pte".
+page table entry. Pointer to entry associated with the page is passed in
+"pte" field in fault_env structure. Pointers to entries for other offsets
+should be calculated relative to "pte".
 
 	->page_mkwrite() is called when a previously read-only pte is
 about to become writeable. The filesystem again must ensure that there are

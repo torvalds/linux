@@ -2128,22 +2128,27 @@ page_not_uptodate:
 }
 EXPORT_SYMBOL(filemap_fault);
 
-void filemap_map_pages(struct vm_area_struct *vma, struct vm_fault *vmf)
+void filemap_map_pages(struct fault_env *fe,
+		pgoff_t start_pgoff, pgoff_t end_pgoff)
 {
 	struct radix_tree_iter iter;
 	void **slot;
-	struct file *file = vma->vm_file;
+	struct file *file = fe->vma->vm_file;
 	struct address_space *mapping = file->f_mapping;
+	pgoff_t last_pgoff = start_pgoff;
 	loff_t size;
 	struct page *page;
-	unsigned long address = (unsigned long) vmf->virtual_address;
-	unsigned long addr;
-	pte_t *pte;
 
 	rcu_read_lock();
-	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, vmf->pgoff) {
-		if (iter.index > vmf->max_pgoff)
+	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter,
+			start_pgoff) {
+		if (iter.index > end_pgoff)
 			break;
+		fe->pte += iter.index - last_pgoff;
+		fe->address += (iter.index - last_pgoff) << PAGE_SHIFT;
+		last_pgoff = iter.index;
+		if (!pte_none(*fe->pte))
+			goto next;
 repeat:
 		page = radix_tree_deref_slot(slot);
 		if (unlikely(!page))
@@ -2179,14 +2184,9 @@ repeat:
 		if (page->index >= size >> PAGE_SHIFT)
 			goto unlock;
 
-		pte = vmf->pte + page->index - vmf->pgoff;
-		if (!pte_none(*pte))
-			goto unlock;
-
 		if (file->f_ra.mmap_miss > 0)
 			file->f_ra.mmap_miss--;
-		addr = address + (page->index - vmf->pgoff) * PAGE_SIZE;
-		do_set_pte(vma, addr, page, pte, false, false);
+		do_set_pte(fe, page);
 		unlock_page(page);
 		goto next;
 unlock:
@@ -2194,7 +2194,7 @@ unlock:
 skip:
 		put_page(page);
 next:
-		if (iter.index == vmf->max_pgoff)
+		if (iter.index == end_pgoff)
 			break;
 	}
 	rcu_read_unlock();
