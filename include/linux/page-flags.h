@@ -604,53 +604,44 @@ TESTPAGEFLAG_FALSE(DoubleMap)
 #endif
 
 /*
+ * For pages that are never mapped to userspace, page->mapcount may be
+ * used for storing extra information about page type. Any value used
+ * for this purpose must be <= -2, but it's better start not too close
+ * to -2 so that an underflow of the page_mapcount() won't be mistaken
+ * for a special page.
+ */
+#define PAGE_MAPCOUNT_OPS(uname, lname)					\
+static __always_inline int Page##uname(struct page *page)		\
+{									\
+	return atomic_read(&page->_mapcount) ==				\
+				PAGE_##lname##_MAPCOUNT_VALUE;		\
+}									\
+static __always_inline void __SetPage##uname(struct page *page)		\
+{									\
+	VM_BUG_ON_PAGE(atomic_read(&page->_mapcount) != -1, page);	\
+	atomic_set(&page->_mapcount, PAGE_##lname##_MAPCOUNT_VALUE);	\
+}									\
+static __always_inline void __ClearPage##uname(struct page *page)	\
+{									\
+	VM_BUG_ON_PAGE(!Page##uname(page), page);			\
+	atomic_set(&page->_mapcount, -1);				\
+}
+
+/*
  * PageBuddy() indicate that the page is free and in the buddy system
  * (see mm/page_alloc.c).
- *
- * PAGE_BUDDY_MAPCOUNT_VALUE must be <= -2 but better not too close to
- * -2 so that an underflow of the page_mapcount() won't be mistaken
- * for a genuine PAGE_BUDDY_MAPCOUNT_VALUE. -128 can be created very
- * efficiently by most CPU architectures.
  */
-#define PAGE_BUDDY_MAPCOUNT_VALUE (-128)
+#define PAGE_BUDDY_MAPCOUNT_VALUE		(-128)
+PAGE_MAPCOUNT_OPS(Buddy, BUDDY)
 
-static inline int PageBuddy(struct page *page)
-{
-	return atomic_read(&page->_mapcount) == PAGE_BUDDY_MAPCOUNT_VALUE;
-}
-
-static inline void __SetPageBuddy(struct page *page)
-{
-	VM_BUG_ON_PAGE(atomic_read(&page->_mapcount) != -1, page);
-	atomic_set(&page->_mapcount, PAGE_BUDDY_MAPCOUNT_VALUE);
-}
-
-static inline void __ClearPageBuddy(struct page *page)
-{
-	VM_BUG_ON_PAGE(!PageBuddy(page), page);
-	atomic_set(&page->_mapcount, -1);
-}
+/*
+ * PageBalloon() is set on pages that are on the balloon page list
+ * (see mm/balloon_compaction.c).
+ */
+#define PAGE_BALLOON_MAPCOUNT_VALUE		(-256)
+PAGE_MAPCOUNT_OPS(Balloon, BALLOON)
 
 extern bool is_free_buddy_page(struct page *page);
-
-#define PAGE_BALLOON_MAPCOUNT_VALUE (-256)
-
-static inline int PageBalloon(struct page *page)
-{
-	return atomic_read(&page->_mapcount) == PAGE_BALLOON_MAPCOUNT_VALUE;
-}
-
-static inline void __SetPageBalloon(struct page *page)
-{
-	VM_BUG_ON_PAGE(atomic_read(&page->_mapcount) != -1, page);
-	atomic_set(&page->_mapcount, PAGE_BALLOON_MAPCOUNT_VALUE);
-}
-
-static inline void __ClearPageBalloon(struct page *page)
-{
-	VM_BUG_ON_PAGE(!PageBalloon(page), page);
-	atomic_set(&page->_mapcount, -1);
-}
 
 __PAGEFLAG(Isolated, isolated, PF_ANY);
 
