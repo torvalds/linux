@@ -129,6 +129,12 @@ static inline int mlx5_max_log_rq_size(int wq_type)
 	}
 }
 
+enum {
+	MLX5E_INLINE_MODE_L2,
+	MLX5E_INLINE_MODE_VPORT_CONTEXT,
+	MLX5_INLINE_MODE_NOT_REQUIRED,
+};
+
 struct mlx5e_tx_wqe {
 	struct mlx5_wqe_ctrl_seg ctrl;
 	struct mlx5_wqe_eth_seg  eth;
@@ -188,6 +194,7 @@ struct mlx5e_params {
 	bool lro_en;
 	u32 lro_wqe_sz;
 	u16 tx_max_inline;
+	u8  tx_min_inline_mode;
 	u8  rss_hfunc;
 	u8  toeplitz_hash_key[40];
 	u32 indirection_rqt[MLX5E_INDIR_RQT_SIZE];
@@ -398,6 +405,7 @@ struct mlx5e_sq {
 	u32                        sqn;
 	u16                        bf_buf_size;
 	u16                        max_inline;
+	u8                         min_inline_mode;
 	u16                        edge;
 	struct device             *pdev;
 	struct mlx5e_tstamp       *tstamp;

@@ -536,7 +536,8 @@ struct mlx5_ifc_per_protocol_networking_offload_caps_bits {
 	u8         self_lb_en_modifiable[0x1];
 	u8         reserved_at_9[0x2];
 	u8         max_lso_cap[0x5];
-	u8         reserved_at_10[0x4];
+	u8         reserved_at_10[0x2];
+	u8	   wqe_inline_mode[0x2];
 	u8         rss_ind_tbl_cap[0x4];
 	u8         reg_umr_sq[0x1];
 	u8         scatter_fcs[0x1];
@@ -2270,7 +2271,8 @@ struct mlx5_ifc_sqc_bits {
 	u8         cd_master[0x1];
 	u8         fre[0x1];
 	u8         flush_in_error_en[0x1];
-	u8         reserved_at_4[0x4];
+	u8         reserved_at_4[0x1];
+	u8	   min_wqe_inline_mode[0x3];
 	u8         state[0x4];
 	u8         reg_umr[0x1];
 	u8         reserved_at_d[0x13];
@@ -2367,7 +2369,9 @@ struct mlx5_ifc_rmpc_bits {
 };
 
 struct mlx5_ifc_nic_vport_context_bits {
-	u8         reserved_at_0[0x1f];
+	u8         reserved_at_0[0x5];
+	u8         min_wqe_inline_mode[0x3];
+	u8         reserved_at_8[0x17];
 	u8         roce_en[0x1];
 
 	u8         arm_change_event[0x1];

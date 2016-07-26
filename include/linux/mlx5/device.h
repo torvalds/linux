@@ -129,6 +129,13 @@ __mlx5_mask(typ, fld))
 		tmp;							  \
 		})
 
+enum mlx5_inline_modes {
+	MLX5_INLINE_MODE_NONE,
+	MLX5_INLINE_MODE_L2,
+	MLX5_INLINE_MODE_IP,
+	MLX5_INLINE_MODE_TCP_UDP,
+};
+
 enum {
 	MLX5_MAX_COMMANDS		= 32,
 	MLX5_CMD_DATA_BLOCK_SIZE	= 512,
