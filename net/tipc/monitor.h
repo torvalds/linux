@@ -69,5 +69,6 @@ void tipc_mon_get_state(struct net *net, u32 addr,
 			int bearer_id);
 void tipc_mon_remove_peer(struct net *net, u32 addr, int bearer_id);
 
+int tipc_nl_monitor_set_threshold(struct net *net, u32 cluster_size);
 extern const int tipc_max_domain_size;
 #endif

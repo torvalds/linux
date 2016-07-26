@@ -649,3 +649,15 @@ void tipc_mon_delete(struct net *net, int bearer_id)
 	kfree(self);
 	kfree(mon);
 }
+
+int tipc_nl_monitor_set_threshold(struct net *net, u32 cluster_size)
+{
+	struct tipc_net *tn = tipc_net(net);
+
+	if (cluster_size > TIPC_CLUSTER_SIZE)
+		return -EINVAL;
+
+	tn->mon_threshold = cluster_size;
+
+	return 0;
+}

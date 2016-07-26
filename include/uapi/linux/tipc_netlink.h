@@ -56,6 +56,7 @@ enum {
 	TIPC_NL_NET_GET,
 	TIPC_NL_NET_SET,
 	TIPC_NL_NAME_TABLE_GET,
+	TIPC_NL_MON_SET,
 
 	__TIPC_NL_CMD_MAX,
 	TIPC_NL_CMD_MAX = __TIPC_NL_CMD_MAX - 1
@@ -72,6 +73,7 @@ enum {
 	TIPC_NLA_NODE,			/* nest */
 	TIPC_NLA_NET,			/* nest */
 	TIPC_NLA_NAME_TABLE,		/* nest */
+	TIPC_NLA_MON,			/* nest */
 
 	__TIPC_NLA_MAX,
 	TIPC_NLA_MAX = __TIPC_NLA_MAX - 1
@@ -164,6 +166,15 @@ enum {
 
 	__TIPC_NLA_NAME_TABLE_MAX,
 	TIPC_NLA_NAME_TABLE_MAX = __TIPC_NLA_NAME_TABLE_MAX - 1
+};
+
+/* Monitor info */
+enum {
+	TIPC_NLA_MON_UNSPEC,
+	TIPC_NLA_MON_ACTIVATION_THRESHOLD,	/* u32 */
+
+	__TIPC_NLA_MON_MAX,
+	TIPC_NLA_MON_MAX = __TIPC_NLA_MON_MAX - 1
 };
 
 /* Publication info */
