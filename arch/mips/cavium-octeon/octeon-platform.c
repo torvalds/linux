@@ -311,7 +311,11 @@ static struct usb_ehci_pdata octeon_ehci_pdata = {
 #ifdef __BIG_ENDIAN
 	.big_endian_mmio	= 1,
 #endif
-	.dma_mask_64	= 1,
+	/*
+	 * We can DMA from anywhere. But the descriptors must be in
+	 * the lower 4GB.
+	 */
+	.dma_mask_64	= 0,
 	.power_on	= octeon_ehci_power_on,
 	.power_off	= octeon_ehci_power_off,
 };
