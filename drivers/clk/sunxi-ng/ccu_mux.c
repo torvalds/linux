@@ -18,7 +18,7 @@ void ccu_mux_helper_adjust_parent_for_prediv(struct ccu_common *common,
 					     int parent_index,
 					     unsigned long *parent_rate)
 {
-	u8 prediv = 1;
+	u16 prediv = 1;
 	u32 reg;
 
 	if (!((common->features & CCU_FEATURE_FIXED_PREDIV) ||

@@ -11,7 +11,7 @@ struct ccu_mux_internal {
 
 	struct {
 		u8	index;
-		u8	div;
+		u16	div;
 	} fixed_prediv;
 
 	struct {
