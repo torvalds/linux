@@ -109,24 +109,24 @@ static int iio_hwmon_probe(struct platform_device *pdev)
 
 		switch (type) {
 		case IIO_VOLTAGE:
-			a->dev_attr.attr.name = kasprintf(GFP_KERNEL,
-							  "in%d_input",
-							  in_i++);
+			a->dev_attr.attr.name = devm_kasprintf(dev, GFP_KERNEL,
+							       "in%d_input",
+							       in_i++);
 			break;
 		case IIO_TEMP:
-			a->dev_attr.attr.name = kasprintf(GFP_KERNEL,
-							  "temp%d_input",
-							  temp_i++);
+			a->dev_attr.attr.name = devm_kasprintf(dev, GFP_KERNEL,
+							       "temp%d_input",
+							       temp_i++);
 			break;
 		case IIO_CURRENT:
-			a->dev_attr.attr.name = kasprintf(GFP_KERNEL,
-							  "curr%d_input",
-							  curr_i++);
+			a->dev_attr.attr.name = devm_kasprintf(dev, GFP_KERNEL,
+							       "curr%d_input",
+							       curr_i++);
 			break;
 		case IIO_HUMIDITYRELATIVE:
-			a->dev_attr.attr.name = kasprintf(GFP_KERNEL,
-							  "humidity%d_input",
-							  humidity_i++);
+			a->dev_attr.attr.name = devm_kasprintf(dev, GFP_KERNEL,
+							       "humidity%d_input",
+							       humidity_i++);
 			break;
 		default:
 			ret = -EINVAL;
