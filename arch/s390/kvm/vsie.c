@@ -349,6 +349,9 @@ static int shadow_scb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		scb_s->eca |= scb_o->eca & ECA_IB;
 	if (test_kvm_cpu_feat(vcpu->kvm, KVM_S390_VM_CPU_FEAT_CEI))
 		scb_s->eca |= scb_o->eca & ECA_CEI;
+	/* Epoch Extension */
+	if (test_kvm_facility(vcpu->kvm, 139))
+		scb_s->ecd |= scb_o->ecd & ECD_MEF;
 
 	prepare_ibc(vcpu, vsie_page);
 	rc = shadow_crycb(vcpu, vsie_page);
@@ -919,6 +922,13 @@ static void register_shadow_scb(struct kvm_vcpu *vcpu,
 	 */
 	preempt_disable();
 	scb_s->epoch += vcpu->kvm->arch.epoch;
+
+	if (scb_s->ecd & ECD_MEF) {
+		scb_s->epdx += vcpu->kvm->arch.epdx;
+		if (scb_s->epoch < vcpu->kvm->arch.epoch)
+			scb_s->epdx += 1;
+	}
+
 	preempt_enable();
 }
 

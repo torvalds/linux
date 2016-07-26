@@ -81,6 +81,7 @@ static struct facility_def facility_defs[] = {
 			130, /* instruction-execution-protection */
 			131, /* enhanced-SOP 2 and side-effect */
 			138, /* configuration z/architecture mode (czam) */
+			139, /* multiple epoch facility */
 			146, /* msa extension 8 */
 			-1  /* END */
 		}
