@@ -73,19 +73,28 @@ enum board_idx {
 	BCM57301,
 	BCM57302,
 	BCM57304,
+	BCM57417_NPAR,
 	BCM58700,
 	BCM57311,
 	BCM57312,
 	BCM57402,
 	BCM57404,
 	BCM57406,
-	BCM57404_NPAR,
+	BCM57402_NPAR,
+	BCM57407,
 	BCM57412,
 	BCM57414,
 	BCM57416,
 	BCM57417,
-	BCM57414_NPAR,
+	BCM57412_NPAR,
 	BCM57314,
+	BCM57417_SFP,
+	BCM57416_SFP,
+	BCM57404_NPAR,
+	BCM57406_NPAR,
+	BCM57407_SFP,
+	BCM57414_NPAR,
+	BCM57416_NPAR,
 	BCM57304_VF,
 	BCM57404_VF,
 	BCM57414_VF,
@@ -99,19 +108,28 @@ static const struct {
 	{ "Broadcom BCM57301 NetXtreme-C Single-port 10Gb Ethernet" },
 	{ "Broadcom BCM57302 NetXtreme-C Dual-port 10Gb/25Gb Ethernet" },
 	{ "Broadcom BCM57304 NetXtreme-C Dual-port 10Gb/25Gb/40Gb/50Gb Ethernet" },
+	{ "Broadcom BCM57417 NetXtreme-E Ethernet Partition" },
 	{ "Broadcom BCM58700 Nitro 4-port 1Gb/2.5Gb/10Gb Ethernet" },
 	{ "Broadcom BCM57311 NetXtreme-C Single-port 10Gb Ethernet" },
 	{ "Broadcom BCM57312 NetXtreme-C Dual-port 10Gb/25Gb Ethernet" },
 	{ "Broadcom BCM57402 NetXtreme-E Dual-port 10Gb Ethernet" },
 	{ "Broadcom BCM57404 NetXtreme-E Dual-port 10Gb/25Gb Ethernet" },
 	{ "Broadcom BCM57406 NetXtreme-E Dual-port 10GBase-T Ethernet" },
-	{ "Broadcom BCM57404 NetXtreme-E Ethernet Partition" },
+	{ "Broadcom BCM57402 NetXtreme-E Ethernet Partition" },
+	{ "Broadcom BCM57407 NetXtreme-E Dual-port 10GBase-T Ethernet" },
 	{ "Broadcom BCM57412 NetXtreme-E Dual-port 10Gb Ethernet" },
 	{ "Broadcom BCM57414 NetXtreme-E Dual-port 10Gb/25Gb Ethernet" },
 	{ "Broadcom BCM57416 NetXtreme-E Dual-port 10GBase-T Ethernet" },
 	{ "Broadcom BCM57417 NetXtreme-E Dual-port 10GBase-T Ethernet" },
-	{ "Broadcom BCM57414 NetXtreme-E Ethernet Partition" },
+	{ "Broadcom BCM57412 NetXtreme-E Ethernet Partition" },
 	{ "Broadcom BCM57314 NetXtreme-C Dual-port 10Gb/25Gb/40Gb/50Gb Ethernet" },
+	{ "Broadcom BCM57417 NetXtreme-E Dual-port 10Gb/25Gb Ethernet" },
+	{ "Broadcom BCM57416 NetXtreme-E Dual-port 10Gb Ethernet" },
+	{ "Broadcom BCM57404 NetXtreme-E Ethernet Partition" },
+	{ "Broadcom BCM57406 NetXtreme-E Ethernet Partition" },
+	{ "Broadcom BCM57407 NetXtreme-E Dual-port 25Gb Ethernet" },
+	{ "Broadcom BCM57414 NetXtreme-E Ethernet Partition" },
+	{ "Broadcom BCM57416 NetXtreme-E Ethernet Partition" },
 	{ "Broadcom BCM57304 NetXtreme-C Ethernet Virtual Function" },
 	{ "Broadcom BCM57404 NetXtreme-E Ethernet Virtual Function" },
 	{ "Broadcom BCM57414 NetXtreme-E Ethernet Virtual Function" },
@@ -122,19 +140,28 @@ static const struct pci_device_id bnxt_pci_tbl[] = {
 	{ PCI_VDEVICE(BROADCOM, 0x16c8), .driver_data = BCM57301 },
 	{ PCI_VDEVICE(BROADCOM, 0x16c9), .driver_data = BCM57302 },
 	{ PCI_VDEVICE(BROADCOM, 0x16ca), .driver_data = BCM57304 },
+	{ PCI_VDEVICE(BROADCOM, 0x16cc), .driver_data = BCM57417_NPAR },
 	{ PCI_VDEVICE(BROADCOM, 0x16cd), .driver_data = BCM58700 },
 	{ PCI_VDEVICE(BROADCOM, 0x16ce), .driver_data = BCM57311 },
 	{ PCI_VDEVICE(BROADCOM, 0x16cf), .driver_data = BCM57312 },
 	{ PCI_VDEVICE(BROADCOM, 0x16d0), .driver_data = BCM57402 },
 	{ PCI_VDEVICE(BROADCOM, 0x16d1), .driver_data = BCM57404 },
 	{ PCI_VDEVICE(BROADCOM, 0x16d2), .driver_data = BCM57406 },
-	{ PCI_VDEVICE(BROADCOM, 0x16d4), .driver_data = BCM57404_NPAR },
+	{ PCI_VDEVICE(BROADCOM, 0x16d4), .driver_data = BCM57402_NPAR },
+	{ PCI_VDEVICE(BROADCOM, 0x16d5), .driver_data = BCM57407 },
 	{ PCI_VDEVICE(BROADCOM, 0x16d6), .driver_data = BCM57412 },
 	{ PCI_VDEVICE(BROADCOM, 0x16d7), .driver_data = BCM57414 },
 	{ PCI_VDEVICE(BROADCOM, 0x16d8), .driver_data = BCM57416 },
 	{ PCI_VDEVICE(BROADCOM, 0x16d9), .driver_data = BCM57417 },
-	{ PCI_VDEVICE(BROADCOM, 0x16de), .driver_data = BCM57414_NPAR },
+	{ PCI_VDEVICE(BROADCOM, 0x16de), .driver_data = BCM57412_NPAR },
 	{ PCI_VDEVICE(BROADCOM, 0x16df), .driver_data = BCM57314 },
+	{ PCI_VDEVICE(BROADCOM, 0x16e2), .driver_data = BCM57417_SFP },
+	{ PCI_VDEVICE(BROADCOM, 0x16e3), .driver_data = BCM57416_SFP },
+	{ PCI_VDEVICE(BROADCOM, 0x16e7), .driver_data = BCM57404_NPAR },
+	{ PCI_VDEVICE(BROADCOM, 0x16e8), .driver_data = BCM57406_NPAR },
+	{ PCI_VDEVICE(BROADCOM, 0x16e9), .driver_data = BCM57407_SFP },
+	{ PCI_VDEVICE(BROADCOM, 0x16ec), .driver_data = BCM57414_NPAR },
+	{ PCI_VDEVICE(BROADCOM, 0x16ee), .driver_data = BCM57416_NPAR },
 #ifdef CONFIG_BNXT_SRIOV
 	{ PCI_VDEVICE(BROADCOM, 0x16cb), .driver_data = BCM57304_VF },
 	{ PCI_VDEVICE(BROADCOM, 0x16d3), .driver_data = BCM57404_VF },
@@ -3240,7 +3267,7 @@ static int bnxt_hwrm_cfa_ntuple_filter_alloc(struct bnxt *bp,
 	struct bnxt_vnic_info *vnic = &bp->vnic_info[fltr->rxq + 1];
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_CFA_NTUPLE_FILTER_ALLOC, -1, -1);
-	req.l2_filter_id = bp->vnic_info[0].fw_l2_filter_id[0];
+	req.l2_filter_id = bp->vnic_info[0].fw_l2_filter_id[fltr->l2_fltr_idx];
 
 	req.enables = cpu_to_le32(BNXT_NTP_FLTR_FLAGS);
 
@@ -5790,8 +5817,12 @@ static bool bnxt_rfs_capable(struct bnxt *bp)
 		return false;
 
 	vnics = 1 + bp->rx_nr_rings;
-	if (vnics > pf->max_rsscos_ctxs || vnics > pf->max_vnics)
+	if (vnics > pf->max_rsscos_ctxs || vnics > pf->max_vnics) {
+		netdev_warn(bp->dev,
+			    "Not enough resources to support NTUPLE filters, enough resources for up to %d rx rings\n",
+			    min(pf->max_rsscos_ctxs - 1, pf->max_vnics - 1));
 		return false;
+	}
 
 	return true;
 #else
@@ -5804,7 +5835,7 @@ static netdev_features_t bnxt_fix_features(struct net_device *dev,
 {
 	struct bnxt *bp = netdev_priv(dev);
 
-	if (!bnxt_rfs_capable(bp))
+	if ((features & NETIF_F_NTUPLE) && !bnxt_rfs_capable(bp))
 		features &= ~NETIF_F_NTUPLE;
 
 	/* Both CTAG and STAG VLAN accelaration on the RX side have to be
@@ -6299,7 +6330,8 @@ static bool bnxt_fltr_match(struct bnxt_ntuple_filter *f1,
 	    keys1->ports.ports == keys2->ports.ports &&
 	    keys1->basic.ip_proto == keys2->basic.ip_proto &&
 	    keys1->basic.n_proto == keys2->basic.n_proto &&
-	    ether_addr_equal(f1->src_mac_addr, f2->src_mac_addr))
+	    ether_addr_equal(f1->src_mac_addr, f2->src_mac_addr) &&
+	    ether_addr_equal(f1->dst_mac_addr, f2->dst_mac_addr))
 		return true;
 
 	return false;
@@ -6312,12 +6344,28 @@ static int bnxt_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 	struct bnxt_ntuple_filter *fltr, *new_fltr;
 	struct flow_keys *fkeys;
 	struct ethhdr *eth = (struct ethhdr *)skb_mac_header(skb);
-	int rc = 0, idx, bit_id;
+	int rc = 0, idx, bit_id, l2_idx = 0;
 	struct hlist_head *head;
 
 	if (skb->encapsulation)
 		return -EPROTONOSUPPORT;
 
+	if (!ether_addr_equal(dev->dev_addr, eth->h_dest)) {
+		struct bnxt_vnic_info *vnic = &bp->vnic_info[0];
+		int off = 0, j;
+
+		netif_addr_lock_bh(dev);
+		for (j = 0; j < vnic->uc_filter_count; j++, off += ETH_ALEN) {
+			if (ether_addr_equal(eth->h_dest,
+					     vnic->uc_list + off)) {
+				l2_idx = j + 1;
+				break;
+			}
+		}
+		netif_addr_unlock_bh(dev);
+		if (!l2_idx)
+			return -EINVAL;
+	}
 	new_fltr = kzalloc(sizeof(*new_fltr), GFP_ATOMIC);
 	if (!new_fltr)
 		return -ENOMEM;
@@ -6335,6 +6383,7 @@ static int bnxt_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 		goto err_free;
 	}
 
+	memcpy(new_fltr->dst_mac_addr, eth->h_dest, ETH_ALEN);
 	memcpy(new_fltr->src_mac_addr, eth->h_source, ETH_ALEN);
 
 	idx = skb_get_hash_raw(skb) & BNXT_NTP_FLTR_HASH_MASK;
@@ -6360,6 +6409,7 @@ static int bnxt_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 
 	new_fltr->sw_id = (u16)bit_id;
 	new_fltr->flow_id = flow_id;
+	new_fltr->l2_fltr_idx = l2_idx;
 	new_fltr->rxq = rxq_index;
 	hlist_add_head_rcu(&new_fltr->hash, head);
 	bp->ntp_fltr_count++;

@@ -785,10 +785,12 @@ struct bnxt_pf_info {
 
 struct bnxt_ntuple_filter {
 	struct hlist_node	hash;
+	u8			dst_mac_addr[ETH_ALEN];
 	u8			src_mac_addr[ETH_ALEN];
 	struct flow_keys	fkeys;
 	__le64			filter_id;
 	u16			sw_id;
+	u8			l2_fltr_idx;
 	u16			rxq;
 	u32			flow_id;
 	unsigned long		state;
