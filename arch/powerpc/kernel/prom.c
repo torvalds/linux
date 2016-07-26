@@ -750,6 +750,8 @@ void __init early_init_devtree(void *params)
 	if (disable_radix)
 		cur_cpu_spec->mmu_features &= ~MMU_FTR_RADIX;
 
+	mmu_early_init_devtree();
+
 #ifdef CONFIG_PPC_POWERNV
 	/* Scan and build the list of machine check recoverable ranges */
 	of_scan_flat_dt(early_init_dt_scan_recoverable_ranges, NULL);

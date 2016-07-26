@@ -210,6 +210,7 @@ extern void early_init_mmu(void);
 extern void early_init_mmu_secondary(void);
 extern void setup_initial_memory_limit(phys_addr_t first_memblock_base,
 				       phys_addr_t first_memblock_size);
+static inline void mmu_early_init_devtree(void) { }
 #endif /* __ASSEMBLY__ */
 #endif
 

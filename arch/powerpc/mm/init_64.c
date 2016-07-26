@@ -411,3 +411,9 @@ struct page *realmode_pfn_to_page(unsigned long pfn)
 EXPORT_SYMBOL_GPL(realmode_pfn_to_page);
 
 #endif /* CONFIG_SPARSEMEM_VMEMMAP/CONFIG_FLATMEM */
+
+#ifdef CONFIG_PPC_STD_MMU_64
+void __init mmu_early_init_devtree(void)
+{
+}
+#endif /* CONFIG_PPC_STD_MMU_64 */
