@@ -3069,6 +3069,36 @@ static int iceland_tf_start_smc(struct pp_hwmgr *hwmgr)
 	return ret;
 }
 
+/**
+* Programs the Deep Sleep registers
+*
+* @param    pHwMgr  the address of the powerplay hardware manager.
+* @param    pInput the pointer to input data (PhwEvergreen_DisplayConfiguration)
+* @param    pOutput the pointer to output data (unused)
+* @param    pStorage the pointer to temporary storage (unused)
+* @param    Result the last failure code (unused)
+* @return   always 0
+*/
+static int iceland_enable_deep_sleep_master_switch(struct pp_hwmgr *hwmgr)
+{
+	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+			    PHM_PlatformCaps_SclkDeepSleep)) {
+		if (smum_send_msg_to_smc(hwmgr->smumgr,
+					 PPSMC_MSG_MASTER_DeepSleep_ON) != 0)
+			PP_ASSERT_WITH_CODE(false,
+					    "Attempt to enable Master Deep Sleep switch failed!",
+					    return -EINVAL);
+	} else {
+		if (smum_send_msg_to_smc(hwmgr->smumgr,
+					 PPSMC_MSG_MASTER_DeepSleep_OFF) != 0)
+			PP_ASSERT_WITH_CODE(false,
+					    "Attempt to disable Master Deep Sleep switch failed!",
+					    return -EINVAL);
+	}
+
+	return 0;
+}
+
 static int iceland_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 {
 	int tmp_result, result = 0;
@@ -3132,6 +3162,10 @@ static int iceland_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	tmp_result = iceland_enable_sclk_control(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 		"Failed to enable SCLK control!", return tmp_result);
+
+	tmp_result = iceland_enable_deep_sleep_master_switch(hwmgr);
+	PP_ASSERT_WITH_CODE((tmp_result == 0),
+		"Failed to enable deep sleep!", return tmp_result);
 
 	/* enable DPM */
 	tmp_result = iceland_start_dpm(hwmgr);
