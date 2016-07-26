@@ -19,6 +19,7 @@
 #include <linux/kasan.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
+#include <linux/page_owner.h>
 #include "internal.h"
 
 #ifdef CONFIG_COMPACTION
@@ -79,6 +80,8 @@ static void map_pages(struct list_head *list)
 		arch_alloc_page(page, order);
 		kernel_map_pages(page, nr_pages, 1);
 		kasan_alloc_pages(page, order);
+
+		set_page_owner(page, order, __GFP_MOVABLE);
 		if (order)
 			split_page(page, order);
 
