@@ -25,6 +25,38 @@
 #include <asm/mmu_context.h>
 #include <asm/page-states.h>
 
+static inline void ptep_ipte_local(struct mm_struct *mm, unsigned long addr,
+				   pte_t *ptep)
+{
+	unsigned long opt, asce;
+
+	if (MACHINE_HAS_TLB_GUEST) {
+		opt = 0;
+		asce = READ_ONCE(mm->context.gmap_asce);
+		if (asce == 0UL)
+			opt |= IPTE_NODAT;
+		__ptep_ipte(addr, ptep, opt, IPTE_LOCAL);
+	} else {
+		__ptep_ipte(addr, ptep, 0, IPTE_LOCAL);
+	}
+}
+
+static inline void ptep_ipte_global(struct mm_struct *mm, unsigned long addr,
+				    pte_t *ptep)
+{
+	unsigned long opt, asce;
+
+	if (MACHINE_HAS_TLB_GUEST) {
+		opt = 0;
+		asce = READ_ONCE(mm->context.gmap_asce);
+		if (asce == 0UL)
+			opt |= IPTE_NODAT;
+		__ptep_ipte(addr, ptep, opt, IPTE_GLOBAL);
+	} else {
+		__ptep_ipte(addr, ptep, 0, IPTE_GLOBAL);
+	}
+}
+
 static inline pte_t ptep_flush_direct(struct mm_struct *mm,
 				      unsigned long addr, pte_t *ptep)
 {
@@ -36,9 +68,9 @@ static inline pte_t ptep_flush_direct(struct mm_struct *mm,
 	atomic_inc(&mm->context.flush_count);
 	if (MACHINE_HAS_TLB_LC &&
 	    cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id())))
-		__ptep_ipte(addr, ptep, IPTE_LOCAL);
+		ptep_ipte_local(mm, addr, ptep);
 	else
-		__ptep_ipte(addr, ptep, IPTE_GLOBAL);
+		ptep_ipte_global(mm, addr, ptep);
 	atomic_dec(&mm->context.flush_count);
 	return old;
 }
@@ -57,7 +89,7 @@ static inline pte_t ptep_flush_lazy(struct mm_struct *mm,
 		pte_val(*ptep) |= _PAGE_INVALID;
 		mm->context.flush_mm = 1;
 	} else
-		__ptep_ipte(addr, ptep, IPTE_GLOBAL);
+		ptep_ipte_global(mm, addr, ptep);
 	atomic_dec(&mm->context.flush_count);
 	return old;
 }
@@ -290,6 +322,26 @@ void ptep_modify_prot_commit(struct mm_struct *mm, unsigned long addr,
 }
 EXPORT_SYMBOL(ptep_modify_prot_commit);
 
+static inline void pmdp_idte_local(struct mm_struct *mm,
+				   unsigned long addr, pmd_t *pmdp)
+{
+	if (MACHINE_HAS_TLB_GUEST)
+		__pmdp_idte(addr, pmdp, IDTE_NODAT, IDTE_LOCAL);
+	else
+		__pmdp_idte(addr, pmdp, 0, IDTE_LOCAL);
+}
+
+static inline void pmdp_idte_global(struct mm_struct *mm,
+				    unsigned long addr, pmd_t *pmdp)
+{
+	if (MACHINE_HAS_TLB_GUEST)
+		__pmdp_idte(addr, pmdp, IDTE_NODAT, IDTE_GLOBAL);
+	else if (MACHINE_HAS_IDTE)
+		__pmdp_idte(addr, pmdp, 0, IDTE_GLOBAL);
+	else
+		__pmdp_csp(pmdp);
+}
+
 static inline pmd_t pmdp_flush_direct(struct mm_struct *mm,
 				      unsigned long addr, pmd_t *pmdp)
 {
@@ -298,16 +350,12 @@ static inline pmd_t pmdp_flush_direct(struct mm_struct *mm,
 	old = *pmdp;
 	if (pmd_val(old) & _SEGMENT_ENTRY_INVALID)
 		return old;
-	if (!MACHINE_HAS_IDTE) {
-		__pmdp_csp(pmdp);
-		return old;
-	}
 	atomic_inc(&mm->context.flush_count);
 	if (MACHINE_HAS_TLB_LC &&
 	    cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id())))
-		__pmdp_idte(addr, pmdp, IDTE_LOCAL);
+		pmdp_idte_local(mm, addr, pmdp);
 	else
-		__pmdp_idte(addr, pmdp, IDTE_GLOBAL);
+		pmdp_idte_global(mm, addr, pmdp);
 	atomic_dec(&mm->context.flush_count);
 	return old;
 }
@@ -325,10 +373,9 @@ static inline pmd_t pmdp_flush_lazy(struct mm_struct *mm,
 			  cpumask_of(smp_processor_id()))) {
 		pmd_val(*pmdp) |= _SEGMENT_ENTRY_INVALID;
 		mm->context.flush_mm = 1;
-	} else if (MACHINE_HAS_IDTE)
-		__pmdp_idte(addr, pmdp, IDTE_GLOBAL);
-	else
-		__pmdp_csp(pmdp);
+	} else {
+		pmdp_idte_global(mm, addr, pmdp);
+	}
 	atomic_dec(&mm->context.flush_count);
 	return old;
 }
@@ -359,6 +406,30 @@ pmd_t pmdp_xchg_lazy(struct mm_struct *mm, unsigned long addr,
 }
 EXPORT_SYMBOL(pmdp_xchg_lazy);
 
+static inline void pudp_idte_local(struct mm_struct *mm,
+				   unsigned long addr, pud_t *pudp)
+{
+	if (MACHINE_HAS_TLB_GUEST)
+		__pudp_idte(addr, pudp, IDTE_NODAT, IDTE_LOCAL);
+	else
+		__pudp_idte(addr, pudp, 0, IDTE_LOCAL);
+}
+
+static inline void pudp_idte_global(struct mm_struct *mm,
+				    unsigned long addr, pud_t *pudp)
+{
+	if (MACHINE_HAS_TLB_GUEST)
+		__pudp_idte(addr, pudp, IDTE_NODAT, IDTE_GLOBAL);
+	else if (MACHINE_HAS_IDTE)
+		__pudp_idte(addr, pudp, 0, IDTE_GLOBAL);
+	else
+		/*
+		 * Invalid bit position is the same for pmd and pud, so we can
+		 * re-use _pmd_csp() here
+		 */
+		__pmdp_csp((pmd_t *) pudp);
+}
+
 static inline pud_t pudp_flush_direct(struct mm_struct *mm,
 				      unsigned long addr, pud_t *pudp)
 {
@@ -367,20 +438,12 @@ static inline pud_t pudp_flush_direct(struct mm_struct *mm,
 	old = *pudp;
 	if (pud_val(old) & _REGION_ENTRY_INVALID)
 		return old;
-	if (!MACHINE_HAS_IDTE) {
-		/*
-		 * Invalid bit position is the same for pmd and pud, so we can
-		 * re-use _pmd_csp() here
-		 */
-		__pmdp_csp((pmd_t *) pudp);
-		return old;
-	}
 	atomic_inc(&mm->context.flush_count);
 	if (MACHINE_HAS_TLB_LC &&
 	    cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id())))
-		__pudp_idte(addr, pudp, IDTE_LOCAL);
+		pudp_idte_local(mm, addr, pudp);
 	else
-		__pudp_idte(addr, pudp, IDTE_GLOBAL);
+		pudp_idte_global(mm, addr, pudp);
 	atomic_dec(&mm->context.flush_count);
 	return old;
 }
@@ -645,7 +708,7 @@ bool test_and_clear_guest_dirty(struct mm_struct *mm, unsigned long addr)
 	pte = *ptep;
 	if (dirty && (pte_val(pte) & _PAGE_PRESENT)) {
 		pgste = pgste_pte_notify(mm, addr, ptep, pgste);
-		__ptep_ipte(addr, ptep, IPTE_GLOBAL);
+		ptep_ipte_global(mm, addr, ptep);
 		if (MACHINE_HAS_ESOP || !(pte_val(pte) & _PAGE_WRITE))
 			pte_val(pte) |= _PAGE_PROTECT;
 		else
