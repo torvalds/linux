@@ -35,6 +35,7 @@
 #define LINK_UP				BIT(15)
 #define MPA_IDLE_WITH_QMI_EMPTY		BIT(12)
 #define SG_RX_DV_GATE_REG_0_ADDR	0x05fc
+#define SGMII_EN			0x1
 
 enum xgene_phy_speed {
 	PHY_SPEED_10,

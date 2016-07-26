@@ -28,6 +28,12 @@ static void xgene_enet_wr_csr(struct xgene_enet_pdata *p, u32 offset, u32 val)
 	iowrite32(val, p->eth_csr_addr + offset);
 }
 
+static void xgene_enet_wr_clkrst_csr(struct xgene_enet_pdata *p, u32 offset,
+				     u32 val)
+{
+	iowrite32(val, p->base_addr + offset);
+}
+
 static void xgene_enet_wr_ring_if(struct xgene_enet_pdata *p,
 				  u32 offset, u32 val)
 {
@@ -434,17 +440,38 @@ static void xgene_sgmac_tx_disable(struct xgene_enet_pdata *p)
 
 static int xgene_enet_reset(struct xgene_enet_pdata *p)
 {
+	struct device *dev = &p->pdev->dev;
+
 	if (!xgene_ring_mgr_init(p))
 		return -ENODEV;
 
-	if (!IS_ERR(p->clk)) {
-		clk_prepare_enable(p->clk);
-		clk_disable_unprepare(p->clk);
-		clk_prepare_enable(p->clk);
+	if (p->enet_id == XGENE_ENET2)
+		xgene_enet_wr_clkrst_csr(p, XGENET_CONFIG_REG_ADDR, SGMII_EN);
+
+	if (dev->of_node) {
+		if (!IS_ERR(p->clk)) {
+			clk_prepare_enable(p->clk);
+			udelay(5);
+			clk_disable_unprepare(p->clk);
+			udelay(5);
+			clk_prepare_enable(p->clk);
+			udelay(5);
+		}
+	} else {
+#ifdef CONFIG_ACPI
+		if (acpi_has_method(ACPI_HANDLE(&p->pdev->dev), "_RST"))
+			acpi_evaluate_object(ACPI_HANDLE(&p->pdev->dev),
+					     "_RST", NULL, NULL);
+		else if (acpi_has_method(ACPI_HANDLE(&p->pdev->dev), "_INI"))
+			acpi_evaluate_object(ACPI_HANDLE(&p->pdev->dev),
+					     "_INI", NULL, NULL);
+#endif
 	}
 
-	xgene_enet_ecc_init(p);
-	xgene_enet_config_ring_if_assoc(p);
+	if (!p->port_id) {
+		xgene_enet_ecc_init(p);
+		xgene_enet_config_ring_if_assoc(p);
+	}
 
 	return 0;
 }
@@ -492,6 +519,7 @@ static void xgene_enet_clear(struct xgene_enet_pdata *pdata,
 
 static void xgene_enet_shutdown(struct xgene_enet_pdata *p)
 {
+	struct device *dev = &p->pdev->dev;
 	struct xgene_enet_desc_ring *ring;
 	u32 pb, val;
 	int i;
@@ -513,6 +541,11 @@ static void xgene_enet_shutdown(struct xgene_enet_pdata *p)
 		pb |= BIT(val);
 	}
 	xgene_enet_wr_ring_if(p, ENET_CFGSSQMIWQRESET_ADDR, pb);
+
+	if (dev->of_node) {
+		if (!IS_ERR(p->clk))
+			clk_disable_unprepare(p->clk);
+	}
 }
 
 static void xgene_enet_link_state(struct work_struct *work)
