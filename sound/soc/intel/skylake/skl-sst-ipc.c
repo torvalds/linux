@@ -190,6 +190,7 @@ enum skl_ipc_glb_type {
 	IPC_GLB_GET_PPL_CONTEXT_SIZE = 21,
 	IPC_GLB_SAVE_PPL = 22,
 	IPC_GLB_RESTORE_PPL = 23,
+	IPC_GLB_LOAD_LIBRARY = 24,
 	IPC_GLB_NOTIFY = 26,
 	IPC_GLB_MAX_IPC_MSG_NUMBER = 31 /* Maximum message number */
 };
@@ -902,3 +903,25 @@ int skl_ipc_get_large_config(struct sst_generic_ipc *ipc,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(skl_ipc_get_large_config);
+
+int skl_sst_ipc_load_library(struct sst_generic_ipc *ipc,
+				u8 dma_id, u8 table_id)
+{
+	struct skl_ipc_header header = {0};
+	u64 *ipc_header = (u64 *)(&header);
+	int ret = 0;
+
+	header.primary = IPC_MSG_TARGET(IPC_FW_GEN_MSG);
+	header.primary |= IPC_MSG_DIR(IPC_MSG_REQUEST);
+	header.primary |= IPC_GLB_TYPE(IPC_GLB_LOAD_LIBRARY);
+	header.primary |= IPC_MOD_INSTANCE_ID(table_id);
+	header.primary |= IPC_MOD_ID(dma_id);
+
+	ret = sst_ipc_tx_message_wait(ipc, *ipc_header, NULL, 0, NULL, 0);
+
+	if (ret < 0)
+		dev_err(ipc->dev, "ipc: load lib failed\n");
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(skl_sst_ipc_load_library);
