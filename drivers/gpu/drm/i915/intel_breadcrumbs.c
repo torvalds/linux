@@ -480,18 +480,14 @@ void intel_engine_enable_signaling(struct drm_i915_gem_request *request)
 	struct rb_node *parent, **p;
 	bool first, wakeup;
 
-	if (unlikely(READ_ONCE(request->signaling.wait.tsk)))
-		return;
-
-	spin_lock(&b->lock);
-	if (unlikely(request->signaling.wait.tsk)) {
-		wakeup = false;
-		goto unlock;
-	}
+	/* locked by fence_enable_sw_signaling() */
+	assert_spin_locked(&request->lock);
 
 	request->signaling.wait.tsk = b->signaler;
 	request->signaling.wait.seqno = request->fence.seqno;
 	i915_gem_request_get(request);
+
+	spin_lock(&b->lock);
 
 	/* First add ourselves into the list of waiters, but register our
 	 * bottom-half as the signaller thread. As per usual, only the oldest
@@ -525,7 +521,6 @@ void intel_engine_enable_signaling(struct drm_i915_gem_request *request)
 	if (first)
 		smp_store_mb(b->first_signal, request);
 
-unlock:
 	spin_unlock(&b->lock);
 
 	if (wakeup)
