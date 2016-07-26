@@ -179,23 +179,23 @@
 
 /* Config struct */
 struct ti_uart_config {
-	__u16	wBaudRate;
-	__u16	wFlags;
-	__u8	bDataBits;
-	__u8	bParity;
-	__u8	bStopBits;
+	__be16	wBaudRate;
+	__be16	wFlags;
+	u8	bDataBits;
+	u8	bParity;
+	u8	bStopBits;
 	char	cXon;
 	char	cXoff;
-	__u8	bUartMode;
+	u8	bUartMode;
 } __packed;
 
 /* Get port status */
 struct ti_port_status {
-	__u8	bCmdCode;
-	__u8	bModuleId;
-	__u8	bErrorCode;
-	__u8	bMSR;
-	__u8	bLSR;
+	u8 bCmdCode;
+	u8 bModuleId;
+	u8 bErrorCode;
+	u8 bMSR;
+	u8 bLSR;
 } __packed;
 
 /* Purge modes */
@@ -218,12 +218,12 @@ struct ti_port_status {
 #define TI_RW_DATA_DOUBLE_WORD		0x04
 
 struct ti_write_data_bytes {
-	__u8	bAddrType;
-	__u8	bDataType;
-	__u8	bDataCounter;
+	u8	bAddrType;
+	u8	bDataType;
+	u8	bDataCounter;
 	__be16	wBaseAddrHi;
 	__be16	wBaseAddrLo;
-	__u8	bData[0];
+	u8	bData[0];
 } __packed;
 
 struct ti_read_data_request {
@@ -258,7 +258,7 @@ struct ti_interrupt {
 /* Firmware image header */
 struct ti_firmware_header {
 	__le16	wLength;
-	__u8	bCheckSum;
+	u8	bCheckSum;
 } __packed;
 
 /* UART addresses */
@@ -288,9 +288,9 @@ struct ti_firmware_header {
 
 struct ti_port {
 	int			tp_is_open;
-	__u8			tp_msr;
-	__u8			tp_shadow_mcr;
-	__u8			tp_uart_mode;	/* 232 or 485 modes */
+	u8			tp_msr;
+	u8			tp_shadow_mcr;
+	u8			tp_uart_mode;	/* 232 or 485 modes */
 	unsigned int		tp_uart_base_addr;
 	int			tp_flags;
 	struct ti_device	*tp_tdev;
@@ -343,7 +343,7 @@ static int ti_get_serial_info(struct ti_port *tport,
 	struct serial_struct __user *ret_arg);
 static int ti_set_serial_info(struct tty_struct *tty, struct ti_port *tport,
 	struct serial_struct __user *new_arg);
-static void ti_handle_new_msr(struct ti_port *tport, __u8 msr);
+static void ti_handle_new_msr(struct ti_port *tport, u8 msr);
 
 static void ti_stop_read(struct ti_port *tport, struct tty_struct *tty);
 static int ti_restart_read(struct ti_port *tport, struct tty_struct *tty);
@@ -354,7 +354,7 @@ static int ti_command_in_sync(struct ti_device *tdev, __u8 command,
 	__u16 moduleid, __u16 value, __u8 *data, int size);
 
 static int ti_write_byte(struct usb_serial_port *port, struct ti_device *tdev,
-			 unsigned long addr, __u8 mask, __u8 byte);
+			 unsigned long addr, u8 mask, u8 byte);
 
 static int ti_download_firmware(struct ti_device *tdev);
 
@@ -647,9 +647,11 @@ static int ti_open(struct tty_struct *tty, struct usb_serial_port *port)
 	struct urb *urb;
 	int port_number;
 	int status;
-	__u16 open_settings = (__u8)(TI_PIPE_MODE_CONTINUOUS |
-			     TI_PIPE_TIMEOUT_ENABLE |
-			     (TI_TRANSFER_TIMEOUT << 2));
+	u16 open_settings;
+
+	open_settings = (TI_PIPE_MODE_CONTINUOUS |
+			 TI_PIPE_TIMEOUT_ENABLE |
+			 (TI_TRANSFER_TIMEOUT << 2));
 
 	if (tport == NULL)
 		return -ENODEV;
@@ -959,6 +961,8 @@ static void ti_set_termios(struct tty_struct *tty,
 	int status;
 	int port_number = port->port_number;
 	unsigned int mcr;
+	u16 wbaudrate;
+	u16 wflags = 0;
 
 	cflag = tty->termios.c_cflag;
 	iflag = tty->termios.c_iflag;
@@ -974,12 +978,10 @@ static void ti_set_termios(struct tty_struct *tty,
 	if (!config)
 		return;
 
-	config->wFlags = 0;
-
 	/* these flags must be set */
-	config->wFlags |= TI_UART_ENABLE_MS_INTS;
-	config->wFlags |= TI_UART_ENABLE_AUTO_START_DMA;
-	config->bUartMode = (__u8)(tport->tp_uart_mode);
+	wflags |= TI_UART_ENABLE_MS_INTS;
+	wflags |= TI_UART_ENABLE_AUTO_START_DMA;
+	config->bUartMode = tport->tp_uart_mode;
 
 	switch (cflag & CSIZE) {
 	case CS5:
@@ -1002,14 +1004,14 @@ static void ti_set_termios(struct tty_struct *tty,
 
 	if (cflag & PARENB) {
 		if (cflag & PARODD) {
-			config->wFlags |= TI_UART_ENABLE_PARITY_CHECKING;
+			wflags |= TI_UART_ENABLE_PARITY_CHECKING;
 			config->bParity = TI_UART_ODD_PARITY;
 		} else {
-			config->wFlags |= TI_UART_ENABLE_PARITY_CHECKING;
+			wflags |= TI_UART_ENABLE_PARITY_CHECKING;
 			config->bParity = TI_UART_EVEN_PARITY;
 		}
 	} else {
-		config->wFlags &= ~TI_UART_ENABLE_PARITY_CHECKING;
+		wflags &= ~TI_UART_ENABLE_PARITY_CHECKING;
 		config->bParity = TI_UART_NO_PARITY;
 	}
 
@@ -1021,8 +1023,8 @@ static void ti_set_termios(struct tty_struct *tty,
 	if (cflag & CRTSCTS) {
 		/* RTS flow control must be off to drop RTS for baud rate B0 */
 		if ((cflag & CBAUD) != B0)
-			config->wFlags |= TI_UART_ENABLE_RTS_IN;
-		config->wFlags |= TI_UART_ENABLE_CTS_OUT;
+			wflags |= TI_UART_ENABLE_RTS_IN;
+		wflags |= TI_UART_ENABLE_CTS_OUT;
 	} else {
 		ti_restart_read(tport, tty);
 	}
@@ -1032,21 +1034,21 @@ static void ti_set_termios(struct tty_struct *tty,
 		config->cXoff = STOP_CHAR(tty);
 
 		if (I_IXOFF(tty))
-			config->wFlags |= TI_UART_ENABLE_X_IN;
+			wflags |= TI_UART_ENABLE_X_IN;
 		else
 			ti_restart_read(tport, tty);
 
 		if (I_IXON(tty))
-			config->wFlags |= TI_UART_ENABLE_X_OUT;
+			wflags |= TI_UART_ENABLE_X_OUT;
 	}
 
 	baud = tty_get_baud_rate(tty);
 	if (!baud)
 		baud = 9600;
 	if (tport->tp_tdev->td_is_3410)
-		config->wBaudRate = (__u16)((923077 + baud/2) / baud);
+		wbaudrate = (923077 + baud/2) / baud;
 	else
-		config->wBaudRate = (__u16)((461538 + baud/2) / baud);
+		wbaudrate = (461538 + baud/2) / baud;
 
 	/* FIXME: Should calculate resulting baud here and report it back */
 	if ((cflag & CBAUD) != B0)
@@ -1054,12 +1056,12 @@ static void ti_set_termios(struct tty_struct *tty,
 
 	dev_dbg(&port->dev,
 		"%s - BaudRate=%d, wBaudRate=%d, wFlags=0x%04X, bDataBits=%d, bParity=%d, bStopBits=%d, cXon=%d, cXoff=%d, bUartMode=%d\n",
-		__func__, baud, config->wBaudRate, config->wFlags,
+		__func__, baud, wbaudrate, wflags,
 		config->bDataBits, config->bParity, config->bStopBits,
 		config->cXon, config->cXoff, config->bUartMode);
 
-	cpu_to_be16s(&config->wBaudRate);
-	cpu_to_be16s(&config->wFlags);
+	config->wBaudRate = cpu_to_be16(wbaudrate);
+	config->wFlags = cpu_to_be16(wflags);
 
 	status = ti_command_out_sync(tport->tp_tdev, TI_SET_CONFIG,
 		(__u8)(TI_UART1_PORT + port_number), 0, (__u8 *)config,
@@ -1189,7 +1191,7 @@ static void ti_interrupt_callback(struct urb *urb)
 	int function;
 	int status = urb->status;
 	int retval;
-	__u8 msr;
+	u8 msr;
 
 	switch (status) {
 	case 0:
@@ -1522,7 +1524,7 @@ static int ti_set_serial_info(struct tty_struct *tty, struct ti_port *tport,
 }
 
 
-static void ti_handle_new_msr(struct ti_port *tport, __u8 msr)
+static void ti_handle_new_msr(struct ti_port *tport, u8 msr)
 {
 	struct async_icount *icount;
 	struct tty_struct *tty;
@@ -1634,8 +1636,8 @@ static int ti_command_in_sync(struct ti_device *tdev, __u8 command,
 
 
 static int ti_write_byte(struct usb_serial_port *port,
-			struct ti_device *tdev, unsigned long addr,
-			__u8 mask, __u8 byte)
+			 struct ti_device *tdev, unsigned long addr,
+			 u8 mask, u8 byte)
 {
 	int status;
 	unsigned int size;
@@ -1679,11 +1681,10 @@ static int ti_do_download(struct usb_device *dev, int pipe,
 	int len;
 
 	for (pos = sizeof(struct ti_firmware_header); pos < size; pos++)
-		cs = (__u8)(cs + buffer[pos]);
+		cs = (u8)(cs + buffer[pos]);
 
 	header = (struct ti_firmware_header *)buffer;
-	header->wLength = cpu_to_le16((__u16)(size
-					- sizeof(struct ti_firmware_header)));
+	header->wLength = cpu_to_le16(size - sizeof(*header));
 	header->bCheckSum = cs;
 
 	dev_dbg(&dev->dev, "%s - downloading firmware\n", __func__);
@@ -1701,7 +1702,7 @@ static int ti_download_firmware(struct ti_device *tdev)
 {
 	int status;
 	int buffer_size;
-	__u8 *buffer;
+	u8 *buffer;
 	struct usb_device *dev = tdev->td_serial->dev;
 	unsigned int pipe = usb_sndbulkpipe(dev,
 		tdev->td_serial->port[0]->bulk_out_endpointAddress);
