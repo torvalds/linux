@@ -288,6 +288,8 @@ struct page *follow_page_mask(struct vm_area_struct *vma,
 			ret = split_huge_page(page);
 			unlock_page(page);
 			put_page(page);
+			if (pmd_none(*pmd))
+				return no_page_table(vma, flags);
 		}
 
 		return ret ? ERR_PTR(ret) :
