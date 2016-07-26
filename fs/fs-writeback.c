@@ -990,8 +990,10 @@ void sb_mark_inode_writeback(struct inode *inode)
 
 	if (list_empty(&inode->i_wb_list)) {
 		spin_lock_irqsave(&sb->s_inode_wblist_lock, flags);
-		if (list_empty(&inode->i_wb_list))
+		if (list_empty(&inode->i_wb_list)) {
 			list_add_tail(&inode->i_wb_list, &sb->s_inodes_wb);
+			trace_sb_mark_inode_writeback(inode);
+		}
 		spin_unlock_irqrestore(&sb->s_inode_wblist_lock, flags);
 	}
 }
@@ -1006,7 +1008,10 @@ void sb_clear_inode_writeback(struct inode *inode)
 
 	if (!list_empty(&inode->i_wb_list)) {
 		spin_lock_irqsave(&sb->s_inode_wblist_lock, flags);
-		list_del_init(&inode->i_wb_list);
+		if (!list_empty(&inode->i_wb_list)) {
+			list_del_init(&inode->i_wb_list);
+			trace_sb_clear_inode_writeback(inode);
+		}
 		spin_unlock_irqrestore(&sb->s_inode_wblist_lock, flags);
 	}
 }
