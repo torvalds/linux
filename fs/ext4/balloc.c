@@ -470,7 +470,7 @@ ext4_read_block_bitmap_nowait(struct super_block *sb, ext4_group_t block_group)
 	trace_ext4_read_block_bitmap_load(sb, block_group);
 	bh->b_end_io = ext4_end_bitmap_read;
 	get_bh(bh);
-	submit_bh(READ | REQ_META | REQ_PRIO, bh);
+	submit_bh(REQ_OP_READ, REQ_META | REQ_PRIO, bh);
 	return bh;
 verify:
 	err = ext4_validate_block_bitmap(sb, desc, block_group, bh);

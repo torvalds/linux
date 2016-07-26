@@ -342,7 +342,7 @@ try:
 
 		/* Perform read to do GC */
 		bio->bi_iter.bi_sector = rrpc_get_sector(rev->addr);
-		bio->bi_rw = READ;
+		bio_set_op_attrs(bio,  REQ_OP_READ, 0);
 		bio->bi_private = &wait;
 		bio->bi_end_io = rrpc_end_sync_bio;
 
@@ -364,7 +364,7 @@ try:
 		reinit_completion(&wait);
 
 		bio->bi_iter.bi_sector = rrpc_get_sector(rev->addr);
-		bio->bi_rw = WRITE;
+		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 		bio->bi_private = &wait;
 		bio->bi_end_io = rrpc_end_sync_bio;
 
@@ -908,7 +908,7 @@ static blk_qc_t rrpc_make_rq(struct request_queue *q, struct bio *bio)
 	struct nvm_rq *rqd;
 	int err;
 
-	if (bio->bi_rw & REQ_DISCARD) {
+	if (bio_op(bio) == REQ_OP_DISCARD) {
 		rrpc_discard(rrpc, bio);
 		return BLK_QC_T_NONE;
 	}

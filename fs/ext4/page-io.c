@@ -340,9 +340,10 @@ void ext4_io_submit(struct ext4_io_submit *io)
 	struct bio *bio = io->io_bio;
 
 	if (bio) {
-		int io_op = io->io_wbc->sync_mode == WB_SYNC_ALL ?
-			    WRITE_SYNC : WRITE;
-		submit_bio(io_op, io->io_bio);
+		int io_op_flags = io->io_wbc->sync_mode == WB_SYNC_ALL ?
+				  WRITE_SYNC : 0;
+		bio_set_op_attrs(io->io_bio, REQ_OP_WRITE, io_op_flags);
+		submit_bio(io->io_bio);
 	}
 	io->io_bio = NULL;
 }

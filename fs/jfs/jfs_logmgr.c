@@ -2002,12 +2002,13 @@ static int lbmRead(struct jfs_log * log, int pn, struct lbuf ** bpp)
 
 	bio->bi_end_io = lbmIODone;
 	bio->bi_private = bp;
+	bio_set_op_attrs(bio, REQ_OP_READ, READ_SYNC);
 	/*check if journaling to disk has been disabled*/
 	if (log->no_integrity) {
 		bio->bi_iter.bi_size = 0;
 		lbmIODone(bio);
 	} else {
-		submit_bio(READ_SYNC, bio);
+		submit_bio(bio);
 	}
 
 	wait_event(bp->l_ioevent, (bp->l_flag != lbmREAD));
@@ -2145,13 +2146,14 @@ static void lbmStartIO(struct lbuf * bp)
 
 	bio->bi_end_io = lbmIODone;
 	bio->bi_private = bp;
+	bio_set_op_attrs(bio, REQ_OP_WRITE, WRITE_SYNC);
 
 	/* check if journaling to disk has been disabled */
 	if (log->no_integrity) {
 		bio->bi_iter.bi_size = 0;
 		lbmIODone(bio);
 	} else {
-		submit_bio(WRITE_SYNC, bio);
+		submit_bio(bio);
 		INCREMENT(lmStat.submitted);
 	}
 }

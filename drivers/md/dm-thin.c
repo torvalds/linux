@@ -360,7 +360,7 @@ static int issue_discard(struct discard_op *op, dm_block_t data_b, dm_block_t da
 	sector_t len = block_to_sectors(tc->pool, data_e - data_b);
 
 	return __blkdev_issue_discard(tc->pool_dev->bdev, s, len,
-				      GFP_NOWAIT, REQ_WRITE | REQ_DISCARD, &op->bio);
+				      GFP_NOWAIT, 0, &op->bio);
 }
 
 static void end_discard(struct discard_op *op, int r)
@@ -371,7 +371,8 @@ static void end_discard(struct discard_op *op, int r)
 		 * need to wait for the chain to complete.
 		 */
 		bio_chain(op->bio, op->parent_bio);
-		submit_bio(REQ_WRITE | REQ_DISCARD, op->bio);
+		bio_set_op_attrs(op->bio, REQ_OP_DISCARD, 0);
+		submit_bio(op->bio);
 	}
 
 	blk_finish_plug(&op->plug);
@@ -696,7 +697,7 @@ static void remap_to_origin(struct thin_c *tc, struct bio *bio)
 
 static int bio_triggers_commit(struct thin_c *tc, struct bio *bio)
 {
-	return (bio->bi_rw & (REQ_FLUSH | REQ_FUA)) &&
+	return (bio->bi_rw & (REQ_PREFLUSH | REQ_FUA)) &&
 		dm_thin_changed_this_transaction(tc->td);
 }
 
@@ -704,7 +705,7 @@ static void inc_all_io_entry(struct pool *pool, struct bio *bio)
 {
 	struct dm_thin_endio_hook *h;
 
-	if (bio->bi_rw & REQ_DISCARD)
+	if (bio_op(bio) == REQ_OP_DISCARD)
 		return;
 
 	h = dm_per_bio_data(bio, sizeof(struct dm_thin_endio_hook));
@@ -867,7 +868,8 @@ static void __inc_remap_and_issue_cell(void *context,
 	struct bio *bio;
 
 	while ((bio = bio_list_pop(&cell->bios))) {
-		if (bio->bi_rw & (REQ_DISCARD | REQ_FLUSH | REQ_FUA))
+		if (bio->bi_rw & (REQ_PREFLUSH | REQ_FUA) ||
+		    bio_op(bio) == REQ_OP_DISCARD)
 			bio_list_add(&info->defer_bios, bio);
 		else {
 			inc_all_io_entry(info->tc->pool, bio);
@@ -1639,7 +1641,8 @@ static void __remap_and_issue_shared_cell(void *context,
 
 	while ((bio = bio_list_pop(&cell->bios))) {
 		if ((bio_data_dir(bio) == WRITE) ||
-		    (bio->bi_rw & (REQ_DISCARD | REQ_FLUSH | REQ_FUA)))
+		    (bio->bi_rw & (REQ_PREFLUSH | REQ_FUA) ||
+		     bio_op(bio) == REQ_OP_DISCARD))
 			bio_list_add(&info->defer_bios, bio);
 		else {
 			struct dm_thin_endio_hook *h = dm_per_bio_data(bio, sizeof(struct dm_thin_endio_hook));;
@@ -2028,7 +2031,7 @@ static void process_thin_deferred_bios(struct thin_c *tc)
 			break;
 		}
 
-		if (bio->bi_rw & REQ_DISCARD)
+		if (bio_op(bio) == REQ_OP_DISCARD)
 			pool->process_discard(tc, bio);
 		else
 			pool->process_bio(tc, bio);
@@ -2115,7 +2118,7 @@ static void process_thin_deferred_cells(struct thin_c *tc)
 				return;
 			}
 
-			if (cell->holder->bi_rw & REQ_DISCARD)
+			if (bio_op(cell->holder) == REQ_OP_DISCARD)
 				pool->process_discard_cell(tc, cell);
 			else
 				pool->process_cell(tc, cell);
@@ -2553,7 +2556,8 @@ static int thin_bio_map(struct dm_target *ti, struct bio *bio)
 		return DM_MAPIO_SUBMITTED;
 	}
 
-	if (bio->bi_rw & (REQ_DISCARD | REQ_FLUSH | REQ_FUA)) {
+	if (bio->bi_rw & (REQ_PREFLUSH | REQ_FUA) ||
+	    bio_op(bio) == REQ_OP_DISCARD) {
 		thin_defer_bio_with_throttle(tc, bio);
 		return DM_MAPIO_SUBMITTED;
 	}

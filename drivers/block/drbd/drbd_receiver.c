@@ -1398,7 +1398,8 @@ void drbd_bump_write_ordering(struct drbd_resource *resource, struct drbd_backin
 /* TODO allocate from our own bio_set. */
 int drbd_submit_peer_request(struct drbd_device *device,
 			     struct drbd_peer_request *peer_req,
-			     const unsigned rw, const int fault_type)
+			     const unsigned op, const unsigned op_flags,
+			     const int fault_type)
 {
 	struct bio *bios = NULL;
 	struct bio *bio;
@@ -1450,7 +1451,7 @@ next_bio:
 	/* > peer_req->i.sector, unless this is the first bio */
 	bio->bi_iter.bi_sector = sector;
 	bio->bi_bdev = device->ldev->backing_bdev;
-	bio->bi_rw = rw;
+	bio_set_op_attrs(bio, op, op_flags);
 	bio->bi_private = peer_req;
 	bio->bi_end_io = drbd_peer_request_endio;
 
@@ -1458,7 +1459,7 @@ next_bio:
 	bios = bio;
 	++n_bios;
 
-	if (rw & REQ_DISCARD) {
+	if (op == REQ_OP_DISCARD) {
 		bio->bi_iter.bi_size = data_size;
 		goto submit;
 	}
@@ -1830,7 +1831,8 @@ static int recv_resync_read(struct drbd_peer_device *peer_device, sector_t secto
 	spin_unlock_irq(&device->resource->req_lock);
 
 	atomic_add(pi->size >> 9, &device->rs_sect_ev);
-	if (drbd_submit_peer_request(device, peer_req, WRITE, DRBD_FAULT_RS_WR) == 0)
+	if (drbd_submit_peer_request(device, peer_req, REQ_OP_WRITE, 0,
+				     DRBD_FAULT_RS_WR) == 0)
 		return 0;
 
 	/* don't care for the reason here */
@@ -2152,12 +2154,19 @@ static int wait_for_and_update_peer_seq(struct drbd_peer_device *peer_device, co
 /* see also bio_flags_to_wire()
  * DRBD_REQ_*, because we need to semantically map the flags to data packet
  * flags and back. We may replicate to other kernel versions. */
-static unsigned long wire_flags_to_bio(u32 dpf)
+static unsigned long wire_flags_to_bio_flags(u32 dpf)
 {
 	return  (dpf & DP_RW_SYNC ? REQ_SYNC : 0) |
 		(dpf & DP_FUA ? REQ_FUA : 0) |
-		(dpf & DP_FLUSH ? REQ_FLUSH : 0) |
-		(dpf & DP_DISCARD ? REQ_DISCARD : 0);
+		(dpf & DP_FLUSH ? REQ_PREFLUSH : 0);
+}
+
+static unsigned long wire_flags_to_bio_op(u32 dpf)
+{
+	if (dpf & DP_DISCARD)
+		return REQ_OP_DISCARD;
+	else
+		return REQ_OP_WRITE;
 }
 
 static void fail_postponed_requests(struct drbd_device *device, sector_t sector,
@@ -2303,7 +2312,7 @@ static int receive_Data(struct drbd_connection *connection, struct packet_info *
 	struct drbd_peer_request *peer_req;
 	struct p_data *p = pi->data;
 	u32 peer_seq = be32_to_cpu(p->seq_num);
-	int rw = WRITE;
+	int op, op_flags;
 	u32 dp_flags;
 	int err, tp;
 
@@ -2342,14 +2351,15 @@ static int receive_Data(struct drbd_connection *connection, struct packet_info *
 	peer_req->flags |= EE_APPLICATION;
 
 	dp_flags = be32_to_cpu(p->dp_flags);
-	rw |= wire_flags_to_bio(dp_flags);
+	op = wire_flags_to_bio_op(dp_flags);
+	op_flags = wire_flags_to_bio_flags(dp_flags);
 	if (pi->cmd == P_TRIM) {
 		struct request_queue *q = bdev_get_queue(device->ldev->backing_bdev);
 		peer_req->flags |= EE_IS_TRIM;
 		if (!blk_queue_discard(q))
 			peer_req->flags |= EE_IS_TRIM_USE_ZEROOUT;
 		D_ASSERT(peer_device, peer_req->i.size > 0);
-		D_ASSERT(peer_device, rw & REQ_DISCARD);
+		D_ASSERT(peer_device, op == REQ_OP_DISCARD);
 		D_ASSERT(peer_device, peer_req->pages == NULL);
 	} else if (peer_req->pages == NULL) {
 		D_ASSERT(device, peer_req->i.size == 0);
@@ -2433,7 +2443,8 @@ static int receive_Data(struct drbd_connection *connection, struct packet_info *
 		peer_req->flags |= EE_CALL_AL_COMPLETE_IO;
 	}
 
-	err = drbd_submit_peer_request(device, peer_req, rw, DRBD_FAULT_DT_WR);
+	err = drbd_submit_peer_request(device, peer_req, op, op_flags,
+				       DRBD_FAULT_DT_WR);
 	if (!err)
 		return 0;
 
@@ -2723,7 +2734,8 @@ submit_for_resync:
 submit:
 	update_receiver_timing_details(connection, drbd_submit_peer_request);
 	inc_unacked(device);
-	if (drbd_submit_peer_request(device, peer_req, READ, fault_type) == 0)
+	if (drbd_submit_peer_request(device, peer_req, REQ_OP_READ, 0,
+				     fault_type) == 0)
 		return 0;
 
 	/* don't care for the reason here */

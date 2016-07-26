@@ -618,6 +618,7 @@ dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char 
 	dev_info->gd->driverfs_dev = &dev_info->dev;
 	blk_queue_make_request(dev_info->dcssblk_queue, dcssblk_make_request);
 	blk_queue_logical_block_size(dev_info->dcssblk_queue, 4096);
+	queue_flag_set_unlocked(QUEUE_FLAG_DAX, dev_info->dcssblk_queue);
 
 	seg_byte_size = (dev_info->end - dev_info->start + 1);
 	set_capacity(dev_info->gd, seg_byte_size >> 9); // size in sectors

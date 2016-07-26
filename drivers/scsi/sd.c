@@ -1012,7 +1012,8 @@ static int sd_setup_read_write_cmnd(struct scsi_cmnd *SCpnt)
 	} else if (rq_data_dir(rq) == READ) {
 		SCpnt->cmnd[0] = READ_6;
 	} else {
-		scmd_printk(KERN_ERR, SCpnt, "Unknown command %llx\n", (unsigned long long) rq->cmd_flags);
+		scmd_printk(KERN_ERR, SCpnt, "Unknown command %llu,%llx\n",
+			    req_op(rq), (unsigned long long) rq->cmd_flags);
 		goto out;
 	}
 
@@ -1137,21 +1138,26 @@ static int sd_init_command(struct scsi_cmnd *cmd)
 {
 	struct request *rq = cmd->request;
 
-	if (rq->cmd_flags & REQ_DISCARD)
+	switch (req_op(rq)) {
+	case REQ_OP_DISCARD:
 		return sd_setup_discard_cmnd(cmd);
-	else if (rq->cmd_flags & REQ_WRITE_SAME)
+	case REQ_OP_WRITE_SAME:
 		return sd_setup_write_same_cmnd(cmd);
-	else if (rq->cmd_flags & REQ_FLUSH)
+	case REQ_OP_FLUSH:
 		return sd_setup_flush_cmnd(cmd);
-	else
+	case REQ_OP_READ:
+	case REQ_OP_WRITE:
 		return sd_setup_read_write_cmnd(cmd);
+	default:
+		BUG();
+	}
 }
 
 static void sd_uninit_command(struct scsi_cmnd *SCpnt)
 {
 	struct request *rq = SCpnt->request;
 
-	if (rq->cmd_flags & REQ_DISCARD)
+	if (req_op(rq) == REQ_OP_DISCARD)
 		__free_page(rq->completion_data);
 
 	if (SCpnt->cmnd != rq->cmd) {
@@ -1774,7 +1780,7 @@ static int sd_done(struct scsi_cmnd *SCpnt)
 	unsigned char op = SCpnt->cmnd[0];
 	unsigned char unmap = SCpnt->cmnd[1] & 8;
 
-	if (req->cmd_flags & REQ_DISCARD || req->cmd_flags & REQ_WRITE_SAME) {
+	if (req_op(req) == REQ_OP_DISCARD || req_op(req) == REQ_OP_WRITE_SAME) {
 		if (!result) {
 			good_bytes = blk_rq_bytes(req);
 			scsi_set_resid(SCpnt, 0);

@@ -874,7 +874,7 @@ static void __zram_make_request(struct zram *zram, struct bio *bio)
 	offset = (bio->bi_iter.bi_sector &
 		  (SECTORS_PER_PAGE - 1)) << SECTOR_SHIFT;
 
-	if (unlikely(bio->bi_rw & REQ_DISCARD)) {
+	if (unlikely(bio_op(bio) == REQ_OP_DISCARD)) {
 		zram_bio_discard(zram, index, offset, bio);
 		bio_endio(bio);
 		return;

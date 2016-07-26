@@ -152,9 +152,10 @@ typedef int (dio_iodone_t)(struct kiocb *iocb, loff_t offset,
 #define CHECK_IOVEC_ONLY -1
 
 /*
- * The below are the various read and write types that we support. Some of
+ * The below are the various read and write flags that we support. Some of
  * them include behavioral modifiers that send information down to the
- * block layer and IO scheduler. Terminology:
+ * block layer and IO scheduler. They should be used along with a req_op.
+ * Terminology:
  *
  *	The block layer uses device plugging to defer IO a little bit, in
  *	the hope that we will see more IO very shortly. This increases
@@ -193,19 +194,19 @@ typedef int (dio_iodone_t)(struct kiocb *iocb, loff_t offset,
  *			non-volatile media on completion.
  *
  */
-#define RW_MASK			REQ_WRITE
+#define RW_MASK			REQ_OP_WRITE
 #define RWA_MASK		REQ_RAHEAD
 
-#define READ			0
+#define READ			REQ_OP_READ
 #define WRITE			RW_MASK
 #define READA			RWA_MASK
 
-#define READ_SYNC		(READ | REQ_SYNC)
-#define WRITE_SYNC		(WRITE | REQ_SYNC | REQ_NOIDLE)
-#define WRITE_ODIRECT		(WRITE | REQ_SYNC)
-#define WRITE_FLUSH		(WRITE | REQ_SYNC | REQ_NOIDLE | REQ_FLUSH)
-#define WRITE_FUA		(WRITE | REQ_SYNC | REQ_NOIDLE | REQ_FUA)
-#define WRITE_FLUSH_FUA		(WRITE | REQ_SYNC | REQ_NOIDLE | REQ_FLUSH | REQ_FUA)
+#define READ_SYNC		REQ_SYNC
+#define WRITE_SYNC		(REQ_SYNC | REQ_NOIDLE)
+#define WRITE_ODIRECT		REQ_SYNC
+#define WRITE_FLUSH		(REQ_SYNC | REQ_NOIDLE | REQ_PREFLUSH)
+#define WRITE_FUA		(REQ_SYNC | REQ_NOIDLE | REQ_FUA)
+#define WRITE_FLUSH_FUA		(REQ_SYNC | REQ_NOIDLE | REQ_PREFLUSH | REQ_FUA)
 
 /*
  * Attribute flags.  These should be or-ed together to figure out what
@@ -2464,15 +2465,29 @@ extern void make_bad_inode(struct inode *);
 extern bool is_bad_inode(struct inode *);
 
 #ifdef CONFIG_BLOCK
+static inline bool op_is_write(unsigned int op)
+{
+	return op == REQ_OP_READ ? false : true;
+}
+
 /*
  * return READ, READA, or WRITE
  */
-#define bio_rw(bio)		((bio)->bi_rw & (RW_MASK | RWA_MASK))
+static inline int bio_rw(struct bio *bio)
+{
+	if (op_is_write(bio_op(bio)))
+		return WRITE;
+
+	return bio->bi_rw & RWA_MASK;
+}
 
 /*
  * return data direction, READ or WRITE
  */
-#define bio_data_dir(bio)	((bio)->bi_rw & 1)
+static inline int bio_data_dir(struct bio *bio)
+{
+	return op_is_write(bio_op(bio)) ? WRITE : READ;
+}
 
 extern void check_disk_size_change(struct gendisk *disk,
 				   struct block_device *bdev);
@@ -2747,7 +2762,7 @@ static inline void remove_inode_hash(struct inode *inode)
 extern void inode_sb_list_add(struct inode *inode);
 
 #ifdef CONFIG_BLOCK
-extern blk_qc_t submit_bio(int, struct bio *);
+extern blk_qc_t submit_bio(struct bio *);
 extern int bdev_read_only(struct block_device *);
 #endif
 extern int set_blocksize(struct block_device *, int);
@@ -2802,7 +2817,7 @@ extern int generic_file_open(struct inode * inode, struct file * filp);
 extern int nonseekable_open(struct inode * inode, struct file * filp);
 
 #ifdef CONFIG_BLOCK
-typedef void (dio_submit_t)(int rw, struct bio *bio, struct inode *inode,
+typedef void (dio_submit_t)(struct bio *bio, struct inode *inode,
 			    loff_t file_offset);
 
 enum {

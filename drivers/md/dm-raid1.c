@@ -260,7 +260,8 @@ static int mirror_flush(struct dm_target *ti)
 	struct dm_io_region io[ms->nr_mirrors];
 	struct mirror *m;
 	struct dm_io_request io_req = {
-		.bi_rw = WRITE_FLUSH,
+		.bi_op = REQ_OP_WRITE,
+		.bi_op_flags = WRITE_FLUSH,
 		.mem.type = DM_IO_KMEM,
 		.mem.ptr.addr = NULL,
 		.client = ms->io_client,
@@ -541,7 +542,8 @@ static void read_async_bio(struct mirror *m, struct bio *bio)
 {
 	struct dm_io_region io;
 	struct dm_io_request io_req = {
-		.bi_rw = READ,
+		.bi_op = REQ_OP_READ,
+		.bi_op_flags = 0,
 		.mem.type = DM_IO_BIO,
 		.mem.ptr.bio = bio,
 		.notify.fn = read_callback,
@@ -624,7 +626,7 @@ static void write_callback(unsigned long error, void *context)
 	 * If the bio is discard, return an error, but do not
 	 * degrade the array.
 	 */
-	if (bio->bi_rw & REQ_DISCARD) {
+	if (bio_op(bio) == REQ_OP_DISCARD) {
 		bio->bi_error = -EOPNOTSUPP;
 		bio_endio(bio);
 		return;
@@ -654,7 +656,8 @@ static void do_write(struct mirror_set *ms, struct bio *bio)
 	struct dm_io_region io[ms->nr_mirrors], *dest = io;
 	struct mirror *m;
 	struct dm_io_request io_req = {
-		.bi_rw = WRITE | (bio->bi_rw & WRITE_FLUSH_FUA),
+		.bi_op = REQ_OP_WRITE,
+		.bi_op_flags = bio->bi_rw & WRITE_FLUSH_FUA,
 		.mem.type = DM_IO_BIO,
 		.mem.ptr.bio = bio,
 		.notify.fn = write_callback,
@@ -662,8 +665,8 @@ static void do_write(struct mirror_set *ms, struct bio *bio)
 		.client = ms->io_client,
 	};
 
-	if (bio->bi_rw & REQ_DISCARD) {
-		io_req.bi_rw |= REQ_DISCARD;
+	if (bio_op(bio) == REQ_OP_DISCARD) {
+		io_req.bi_op = REQ_OP_DISCARD;
 		io_req.mem.type = DM_IO_KMEM;
 		io_req.mem.ptr.addr = NULL;
 	}
@@ -701,8 +704,8 @@ static void do_writes(struct mirror_set *ms, struct bio_list *writes)
 	bio_list_init(&requeue);
 
 	while ((bio = bio_list_pop(writes))) {
-		if ((bio->bi_rw & REQ_FLUSH) ||
-		    (bio->bi_rw & REQ_DISCARD)) {
+		if ((bio->bi_rw & REQ_PREFLUSH) ||
+		    (bio_op(bio) == REQ_OP_DISCARD)) {
 			bio_list_add(&sync, bio);
 			continue;
 		}
@@ -1250,7 +1253,8 @@ static int mirror_end_io(struct dm_target *ti, struct bio *bio, int error)
 	 * We need to dec pending if this was a write.
 	 */
 	if (rw == WRITE) {
-		if (!(bio->bi_rw & (REQ_FLUSH | REQ_DISCARD)))
+		if (!(bio->bi_rw & REQ_PREFLUSH) &&
+		    bio_op(bio) != REQ_OP_DISCARD)
 			dm_rh_dec(ms->rh, bio_record->write_region);
 		return error;
 	}

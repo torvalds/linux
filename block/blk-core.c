@@ -959,10 +959,10 @@ static void __freed_request(struct request_list *rl, int sync)
  * A request has just been released.  Account for it, update the full and
  * congestion status, wake up any waiters.   Called under q->queue_lock.
  */
-static void freed_request(struct request_list *rl, unsigned int flags)
+static void freed_request(struct request_list *rl, int op, unsigned int flags)
 {
 	struct request_queue *q = rl->q;
-	int sync = rw_is_sync(flags);
+	int sync = rw_is_sync(op, flags);
 
 	q->nr_rqs[sync]--;
 	rl->count[sync]--;
@@ -1029,7 +1029,7 @@ static bool blk_rq_should_init_elevator(struct bio *bio)
 	 * Flush requests do not use the elevator so skip initialization.
 	 * This allows a request to share the flush and elevator data.
 	 */
-	if (bio->bi_rw & (REQ_FLUSH | REQ_FUA))
+	if (bio->bi_rw & (REQ_PREFLUSH | REQ_FUA))
 		return false;
 
 	return true;
@@ -1054,7 +1054,8 @@ static struct io_context *rq_ioc(struct bio *bio)
 /**
  * __get_request - get a free request
  * @rl: request list to allocate from
- * @rw_flags: RW and SYNC flags
+ * @op: REQ_OP_READ/REQ_OP_WRITE
+ * @op_flags: rq_flag_bits
  * @bio: bio to allocate request for (can be %NULL)
  * @gfp_mask: allocation mask
  *
@@ -1065,21 +1066,22 @@ static struct io_context *rq_ioc(struct bio *bio)
  * Returns ERR_PTR on failure, with @q->queue_lock held.
  * Returns request pointer on success, with @q->queue_lock *not held*.
  */
-static struct request *__get_request(struct request_list *rl, int rw_flags,
-				     struct bio *bio, gfp_t gfp_mask)
+static struct request *__get_request(struct request_list *rl, int op,
+				     int op_flags, struct bio *bio,
+				     gfp_t gfp_mask)
 {
 	struct request_queue *q = rl->q;
 	struct request *rq;
 	struct elevator_type *et = q->elevator->type;
 	struct io_context *ioc = rq_ioc(bio);
 	struct io_cq *icq = NULL;
-	const bool is_sync = rw_is_sync(rw_flags) != 0;
+	const bool is_sync = rw_is_sync(op, op_flags) != 0;
 	int may_queue;
 
 	if (unlikely(blk_queue_dying(q)))
 		return ERR_PTR(-ENODEV);
 
-	may_queue = elv_may_queue(q, rw_flags);
+	may_queue = elv_may_queue(q, op, op_flags);
 	if (may_queue == ELV_MQUEUE_NO)
 		goto rq_starved;
 
@@ -1123,7 +1125,7 @@ static struct request *__get_request(struct request_list *rl, int rw_flags,
 
 	/*
 	 * Decide whether the new request will be managed by elevator.  If
-	 * so, mark @rw_flags and increment elvpriv.  Non-zero elvpriv will
+	 * so, mark @op_flags and increment elvpriv.  Non-zero elvpriv will
 	 * prevent the current elevator from being destroyed until the new
 	 * request is freed.  This guarantees icq's won't be destroyed and
 	 * makes creating new ones safe.
@@ -1132,14 +1134,14 @@ static struct request *__get_request(struct request_list *rl, int rw_flags,
 	 * it will be created after releasing queue_lock.
 	 */
 	if (blk_rq_should_init_elevator(bio) && !blk_queue_bypass(q)) {
-		rw_flags |= REQ_ELVPRIV;
+		op_flags |= REQ_ELVPRIV;
 		q->nr_rqs_elvpriv++;
 		if (et->icq_cache && ioc)
 			icq = ioc_lookup_icq(ioc, q);
 	}
 
 	if (blk_queue_io_stat(q))
-		rw_flags |= REQ_IO_STAT;
+		op_flags |= REQ_IO_STAT;
 	spin_unlock_irq(q->queue_lock);
 
 	/* allocate and init request */
@@ -1149,10 +1151,10 @@ static struct request *__get_request(struct request_list *rl, int rw_flags,
 
 	blk_rq_init(q, rq);
 	blk_rq_set_rl(rq, rl);
-	rq->cmd_flags = rw_flags | REQ_ALLOCED;
+	req_set_op_attrs(rq, op, op_flags | REQ_ALLOCED);
 
 	/* init elvpriv */
-	if (rw_flags & REQ_ELVPRIV) {
+	if (op_flags & REQ_ELVPRIV) {
 		if (unlikely(et->icq_cache && !icq)) {
 			if (ioc)
 				icq = ioc_create_icq(ioc, q, gfp_mask);
@@ -1178,7 +1180,7 @@ out:
 	if (ioc_batching(q, ioc))
 		ioc->nr_batch_requests--;
 
-	trace_block_getrq(q, bio, rw_flags & 1);
+	trace_block_getrq(q, bio, op);
 	return rq;
 
 fail_elvpriv:
@@ -1208,7 +1210,7 @@ fail_alloc:
 	 * queue, but this is pretty rare.
 	 */
 	spin_lock_irq(q->queue_lock);
-	freed_request(rl, rw_flags);
+	freed_request(rl, op, op_flags);
 
 	/*
 	 * in the very unlikely event that allocation failed and no
@@ -1226,7 +1228,8 @@ rq_starved:
 /**
  * get_request - get a free request
  * @q: request_queue to allocate request from
- * @rw_flags: RW and SYNC flags
+ * @op: REQ_OP_READ/REQ_OP_WRITE
+ * @op_flags: rq_flag_bits
  * @bio: bio to allocate request for (can be %NULL)
  * @gfp_mask: allocation mask
  *
@@ -1237,17 +1240,18 @@ rq_starved:
  * Returns ERR_PTR on failure, with @q->queue_lock held.
  * Returns request pointer on success, with @q->queue_lock *not held*.
  */
-static struct request *get_request(struct request_queue *q, int rw_flags,
-				   struct bio *bio, gfp_t gfp_mask)
+static struct request *get_request(struct request_queue *q, int op,
+				   int op_flags, struct bio *bio,
+				   gfp_t gfp_mask)
 {
-	const bool is_sync = rw_is_sync(rw_flags) != 0;
+	const bool is_sync = rw_is_sync(op, op_flags) != 0;
 	DEFINE_WAIT(wait);
 	struct request_list *rl;
 	struct request *rq;
 
 	rl = blk_get_rl(q, bio);	/* transferred to @rq on success */
 retry:
-	rq = __get_request(rl, rw_flags, bio, gfp_mask);
+	rq = __get_request(rl, op, op_flags, bio, gfp_mask);
 	if (!IS_ERR(rq))
 		return rq;
 
@@ -1260,7 +1264,7 @@ retry:
 	prepare_to_wait_exclusive(&rl->wait[is_sync], &wait,
 				  TASK_UNINTERRUPTIBLE);
 
-	trace_block_sleeprq(q, bio, rw_flags & 1);
+	trace_block_sleeprq(q, bio, op);
 
 	spin_unlock_irq(q->queue_lock);
 	io_schedule();
@@ -1289,7 +1293,7 @@ static struct request *blk_old_get_request(struct request_queue *q, int rw,
 	create_io_context(gfp_mask, q->node);
 
 	spin_lock_irq(q->queue_lock);
-	rq = get_request(q, rw, NULL, gfp_mask);
+	rq = get_request(q, rw, 0, NULL, gfp_mask);
 	if (IS_ERR(rq))
 		spin_unlock_irq(q->queue_lock);
 	/* q->queue_lock is unlocked at this point */
@@ -1491,13 +1495,14 @@ void __blk_put_request(struct request_queue *q, struct request *req)
 	 */
 	if (req->cmd_flags & REQ_ALLOCED) {
 		unsigned int flags = req->cmd_flags;
+		int op = req_op(req);
 		struct request_list *rl = blk_rq_rl(req);
 
 		BUG_ON(!list_empty(&req->queuelist));
 		BUG_ON(ELV_ON_HASH(req));
 
 		blk_free_request(rl, req);
-		freed_request(rl, flags);
+		freed_request(rl, op, flags);
 		blk_put_rl(rl);
 	}
 }
@@ -1712,7 +1717,7 @@ static blk_qc_t blk_queue_bio(struct request_queue *q, struct bio *bio)
 {
 	const bool sync = !!(bio->bi_rw & REQ_SYNC);
 	struct blk_plug *plug;
-	int el_ret, rw_flags, where = ELEVATOR_INSERT_SORT;
+	int el_ret, rw_flags = 0, where = ELEVATOR_INSERT_SORT;
 	struct request *req;
 	unsigned int request_count = 0;
 
@@ -1731,7 +1736,7 @@ static blk_qc_t blk_queue_bio(struct request_queue *q, struct bio *bio)
 		return BLK_QC_T_NONE;
 	}
 
-	if (bio->bi_rw & (REQ_FLUSH | REQ_FUA)) {
+	if (bio->bi_rw & (REQ_PREFLUSH | REQ_FUA)) {
 		spin_lock_irq(q->queue_lock);
 		where = ELEVATOR_INSERT_FLUSH;
 		goto get_rq;
@@ -1772,15 +1777,19 @@ get_rq:
 	 * but we need to set it earlier to expose the sync flag to the
 	 * rq allocator and io schedulers.
 	 */
-	rw_flags = bio_data_dir(bio);
 	if (sync)
 		rw_flags |= REQ_SYNC;
+
+	/*
+	 * Add in META/PRIO flags, if set, before we get to the IO scheduler
+	 */
+	rw_flags |= (bio->bi_rw & (REQ_META | REQ_PRIO));
 
 	/*
 	 * Grab a free request. This is might sleep but can not fail.
 	 * Returns with the queue unlocked.
 	 */
-	req = get_request(q, rw_flags, bio, GFP_NOIO);
+	req = get_request(q, bio_data_dir(bio), rw_flags, bio, GFP_NOIO);
 	if (IS_ERR(req)) {
 		bio->bi_error = PTR_ERR(req);
 		bio_endio(bio);
@@ -1849,7 +1858,7 @@ static void handle_bad_sector(struct bio *bio)
 	char b[BDEVNAME_SIZE];
 
 	printk(KERN_INFO "attempt to access beyond end of device\n");
-	printk(KERN_INFO "%s: rw=%ld, want=%Lu, limit=%Lu\n",
+	printk(KERN_INFO "%s: rw=%d, want=%Lu, limit=%Lu\n",
 			bdevname(bio->bi_bdev, b),
 			bio->bi_rw,
 			(unsigned long long)bio_end_sector(bio),
@@ -1964,23 +1973,23 @@ generic_make_request_checks(struct bio *bio)
 	 * drivers without flush support don't have to worry
 	 * about them.
 	 */
-	if ((bio->bi_rw & (REQ_FLUSH | REQ_FUA)) &&
+	if ((bio->bi_rw & (REQ_PREFLUSH | REQ_FUA)) &&
 	    !test_bit(QUEUE_FLAG_WC, &q->queue_flags)) {
-		bio->bi_rw &= ~(REQ_FLUSH | REQ_FUA);
+		bio->bi_rw &= ~(REQ_PREFLUSH | REQ_FUA);
 		if (!nr_sectors) {
 			err = 0;
 			goto end_io;
 		}
 	}
 
-	if ((bio->bi_rw & REQ_DISCARD) &&
+	if ((bio_op(bio) == REQ_OP_DISCARD) &&
 	    (!blk_queue_discard(q) ||
 	     ((bio->bi_rw & REQ_SECURE) && !blk_queue_secdiscard(q)))) {
 		err = -EOPNOTSUPP;
 		goto end_io;
 	}
 
-	if (bio->bi_rw & REQ_WRITE_SAME && !bdev_write_same(bio->bi_bdev)) {
+	if (bio_op(bio) == REQ_OP_WRITE_SAME && !bdev_write_same(bio->bi_bdev)) {
 		err = -EOPNOTSUPP;
 		goto end_io;
 	}
@@ -2094,7 +2103,6 @@ EXPORT_SYMBOL(generic_make_request);
 
 /**
  * submit_bio - submit a bio to the block device layer for I/O
- * @rw: whether to %READ or %WRITE, or maybe to %READA (read ahead)
  * @bio: The &struct bio which describes the I/O
  *
  * submit_bio() is very similar in purpose to generic_make_request(), and
@@ -2102,10 +2110,8 @@ EXPORT_SYMBOL(generic_make_request);
  * interfaces; @bio must be presetup and ready for I/O.
  *
  */
-blk_qc_t submit_bio(int rw, struct bio *bio)
+blk_qc_t submit_bio(struct bio *bio)
 {
-	bio->bi_rw |= rw;
-
 	/*
 	 * If it's a regular read/write or a barrier with data attached,
 	 * go through the normal accounting stuff before submission.
@@ -2113,12 +2119,12 @@ blk_qc_t submit_bio(int rw, struct bio *bio)
 	if (bio_has_data(bio)) {
 		unsigned int count;
 
-		if (unlikely(rw & REQ_WRITE_SAME))
+		if (unlikely(bio_op(bio) == REQ_OP_WRITE_SAME))
 			count = bdev_logical_block_size(bio->bi_bdev) >> 9;
 		else
 			count = bio_sectors(bio);
 
-		if (rw & WRITE) {
+		if (op_is_write(bio_op(bio))) {
 			count_vm_events(PGPGOUT, count);
 		} else {
 			task_io_account_read(bio->bi_iter.bi_size);
@@ -2129,7 +2135,7 @@ blk_qc_t submit_bio(int rw, struct bio *bio)
 			char b[BDEVNAME_SIZE];
 			printk(KERN_DEBUG "%s(%d): %s block %Lu on %s (%u sectors)\n",
 			current->comm, task_pid_nr(current),
-				(rw & WRITE) ? "WRITE" : "READ",
+				op_is_write(bio_op(bio)) ? "WRITE" : "READ",
 				(unsigned long long)bio->bi_iter.bi_sector,
 				bdevname(bio->bi_bdev, b),
 				count);
@@ -2160,7 +2166,7 @@ EXPORT_SYMBOL(submit_bio);
 static int blk_cloned_rq_check_limits(struct request_queue *q,
 				      struct request *rq)
 {
-	if (blk_rq_sectors(rq) > blk_queue_get_max_sectors(q, rq->cmd_flags)) {
+	if (blk_rq_sectors(rq) > blk_queue_get_max_sectors(q, req_op(rq))) {
 		printk(KERN_ERR "%s: over max size limit.\n", __func__);
 		return -EIO;
 	}
@@ -2216,7 +2222,7 @@ int blk_insert_cloned_request(struct request_queue *q, struct request *rq)
 	 */
 	BUG_ON(blk_queued_rq(rq));
 
-	if (rq->cmd_flags & (REQ_FLUSH|REQ_FUA))
+	if (rq->cmd_flags & (REQ_PREFLUSH | REQ_FUA))
 		where = ELEVATOR_INSERT_FLUSH;
 
 	add_acct_request(q, rq, where);
@@ -2979,8 +2985,7 @@ EXPORT_SYMBOL_GPL(__blk_end_request_err);
 void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
 		     struct bio *bio)
 {
-	/* Bit 0 (R/W) is identical in rq->cmd_flags and bio->bi_rw */
-	rq->cmd_flags |= bio->bi_rw & REQ_WRITE;
+	req_set_op(rq, bio_op(bio));
 
 	if (bio_has_data(bio))
 		rq->nr_phys_segments = bio_phys_segments(q, bio);
@@ -3065,7 +3070,8 @@ EXPORT_SYMBOL_GPL(blk_rq_unprep_clone);
 static void __blk_rq_prep_clone(struct request *dst, struct request *src)
 {
 	dst->cpu = src->cpu;
-	dst->cmd_flags |= (src->cmd_flags & REQ_CLONE_MASK) | REQ_NOMERGE;
+	req_set_op_attrs(dst, req_op(src),
+			 (src->cmd_flags & REQ_CLONE_MASK) | REQ_NOMERGE);
 	dst->cmd_type = src->cmd_type;
 	dst->__sector = blk_rq_pos(src);
 	dst->__data_len = blk_rq_bytes(src);
@@ -3310,7 +3316,7 @@ void blk_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 		/*
 		 * rq is already accounted, so use raw insert
 		 */
-		if (rq->cmd_flags & (REQ_FLUSH | REQ_FUA))
+		if (rq->cmd_flags & (REQ_PREFLUSH | REQ_FUA))
 			__elv_add_request(q, rq, ELEVATOR_INSERT_FLUSH);
 		else
 			__elv_add_request(q, rq, ELEVATOR_INSERT_SORT_MERGE);

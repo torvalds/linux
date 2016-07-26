@@ -723,8 +723,9 @@ static void start_io_acct(struct dm_io *io)
 		atomic_inc_return(&md->pending[rw]));
 
 	if (unlikely(dm_stats_used(&md->stats)))
-		dm_stats_account_io(&md->stats, bio->bi_rw, bio->bi_iter.bi_sector,
-				    bio_sectors(bio), false, 0, &io->stats_aux);
+		dm_stats_account_io(&md->stats, bio_data_dir(bio),
+				    bio->bi_iter.bi_sector, bio_sectors(bio),
+				    false, 0, &io->stats_aux);
 }
 
 static void end_io_acct(struct dm_io *io)
@@ -738,8 +739,9 @@ static void end_io_acct(struct dm_io *io)
 	generic_end_io_acct(rw, &dm_disk(md)->part0, io->start_time);
 
 	if (unlikely(dm_stats_used(&md->stats)))
-		dm_stats_account_io(&md->stats, bio->bi_rw, bio->bi_iter.bi_sector,
-				    bio_sectors(bio), true, duration, &io->stats_aux);
+		dm_stats_account_io(&md->stats, bio_data_dir(bio),
+				    bio->bi_iter.bi_sector, bio_sectors(bio),
+				    true, duration, &io->stats_aux);
 
 	/*
 	 * After this is decremented the bio must not be touched if it is
@@ -1001,12 +1003,12 @@ static void dec_pending(struct dm_io *io, int error)
 		if (io_error == DM_ENDIO_REQUEUE)
 			return;
 
-		if ((bio->bi_rw & REQ_FLUSH) && bio->bi_iter.bi_size) {
+		if ((bio->bi_rw & REQ_PREFLUSH) && bio->bi_iter.bi_size) {
 			/*
 			 * Preflush done for flush with data, reissue
-			 * without REQ_FLUSH.
+			 * without REQ_PREFLUSH.
 			 */
-			bio->bi_rw &= ~REQ_FLUSH;
+			bio->bi_rw &= ~REQ_PREFLUSH;
 			queue_io(md, bio);
 		} else {
 			/* done with normal IO or empty flush */
@@ -1051,7 +1053,7 @@ static void clone_endio(struct bio *bio)
 		}
 	}
 
-	if (unlikely(r == -EREMOTEIO && (bio->bi_rw & REQ_WRITE_SAME) &&
+	if (unlikely(r == -EREMOTEIO && (bio_op(bio) == REQ_OP_WRITE_SAME) &&
 		     !bdev_get_queue(bio->bi_bdev)->limits.max_write_same_sectors))
 		disable_write_same(md);
 
@@ -1121,9 +1123,9 @@ static void rq_end_stats(struct mapped_device *md, struct request *orig)
 	if (unlikely(dm_stats_used(&md->stats))) {
 		struct dm_rq_target_io *tio = tio_from_request(orig);
 		tio->duration_jiffies = jiffies - tio->duration_jiffies;
-		dm_stats_account_io(&md->stats, orig->cmd_flags, blk_rq_pos(orig),
-				    tio->n_sectors, true, tio->duration_jiffies,
-				    &tio->stats_aux);
+		dm_stats_account_io(&md->stats, rq_data_dir(orig),
+				    blk_rq_pos(orig), tio->n_sectors, true,
+				    tio->duration_jiffies, &tio->stats_aux);
 	}
 }
 
@@ -1320,7 +1322,7 @@ static void dm_done(struct request *clone, int error, bool mapped)
 			r = rq_end_io(tio->ti, clone, error, &tio->info);
 	}
 
-	if (unlikely(r == -EREMOTEIO && (clone->cmd_flags & REQ_WRITE_SAME) &&
+	if (unlikely(r == -EREMOTEIO && (req_op(clone) == REQ_OP_WRITE_SAME) &&
 		     !clone->q->limits.max_write_same_sectors))
 		disable_write_same(tio->md);
 
@@ -1475,7 +1477,7 @@ EXPORT_SYMBOL_GPL(dm_set_target_max_io_len);
 
 /*
  * A target may call dm_accept_partial_bio only from the map routine.  It is
- * allowed for all bio types except REQ_FLUSH.
+ * allowed for all bio types except REQ_PREFLUSH.
  *
  * dm_accept_partial_bio informs the dm that the target only wants to process
  * additional n_sectors sectors of the bio and the rest of the data should be
@@ -1505,7 +1507,7 @@ void dm_accept_partial_bio(struct bio *bio, unsigned n_sectors)
 {
 	struct dm_target_io *tio = container_of(bio, struct dm_target_io, clone);
 	unsigned bi_size = bio->bi_iter.bi_size >> SECTOR_SHIFT;
-	BUG_ON(bio->bi_rw & REQ_FLUSH);
+	BUG_ON(bio->bi_rw & REQ_PREFLUSH);
 	BUG_ON(bi_size > *tio->len_ptr);
 	BUG_ON(n_sectors > bi_size);
 	*tio->len_ptr -= bi_size - n_sectors;
@@ -1746,9 +1748,9 @@ static int __split_and_process_non_flush(struct clone_info *ci)
 	unsigned len;
 	int r;
 
-	if (unlikely(bio->bi_rw & REQ_DISCARD))
+	if (unlikely(bio_op(bio) == REQ_OP_DISCARD))
 		return __send_discard(ci);
-	else if (unlikely(bio->bi_rw & REQ_WRITE_SAME))
+	else if (unlikely(bio_op(bio) == REQ_OP_WRITE_SAME))
 		return __send_write_same(ci);
 
 	ti = dm_table_find_target(ci->map, ci->sector);
@@ -1793,7 +1795,7 @@ static void __split_and_process_bio(struct mapped_device *md,
 
 	start_io_acct(ci.io);
 
-	if (bio->bi_rw & REQ_FLUSH) {
+	if (bio->bi_rw & REQ_PREFLUSH) {
 		ci.bio = &ci.md->flush_bio;
 		ci.sector_count = 0;
 		error = __send_empty_flush(&ci);
@@ -2082,8 +2084,9 @@ static void dm_start_request(struct mapped_device *md, struct request *orig)
 		struct dm_rq_target_io *tio = tio_from_request(orig);
 		tio->duration_jiffies = jiffies;
 		tio->n_sectors = blk_rq_sectors(orig);
-		dm_stats_account_io(&md->stats, orig->cmd_flags, blk_rq_pos(orig),
-				    tio->n_sectors, false, 0, &tio->stats_aux);
+		dm_stats_account_io(&md->stats, rq_data_dir(orig),
+				    blk_rq_pos(orig), tio->n_sectors, false, 0,
+				    &tio->stats_aux);
 	}
 
 	/*
@@ -2168,7 +2171,7 @@ static void dm_request_fn(struct request_queue *q)
 
 		/* always use block 0 to find the target for flushes for now */
 		pos = 0;
-		if (!(rq->cmd_flags & REQ_FLUSH))
+		if (req_op(rq) != REQ_OP_FLUSH)
 			pos = blk_rq_pos(rq);
 
 		if ((dm_request_peeked_before_merge_deadline(md) &&
@@ -2412,7 +2415,7 @@ static struct mapped_device *alloc_dev(int minor)
 
 	bio_init(&md->flush_bio);
 	md->flush_bio.bi_bdev = md->bdev;
-	md->flush_bio.bi_rw = WRITE_FLUSH;
+	bio_set_op_attrs(&md->flush_bio, REQ_OP_WRITE, WRITE_FLUSH);
 
 	dm_stats_init(&md->stats);
 

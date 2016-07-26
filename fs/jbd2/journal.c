@@ -1346,15 +1346,15 @@ static int journal_reset(journal_t *journal)
 	return jbd2_journal_start_thread(journal);
 }
 
-static int jbd2_write_superblock(journal_t *journal, int write_op)
+static int jbd2_write_superblock(journal_t *journal, int write_flags)
 {
 	struct buffer_head *bh = journal->j_sb_buffer;
 	journal_superblock_t *sb = journal->j_superblock;
 	int ret;
 
-	trace_jbd2_write_superblock(journal, write_op);
+	trace_jbd2_write_superblock(journal, write_flags);
 	if (!(journal->j_flags & JBD2_BARRIER))
-		write_op &= ~(REQ_FUA | REQ_FLUSH);
+		write_flags &= ~(REQ_FUA | REQ_PREFLUSH);
 	lock_buffer(bh);
 	if (buffer_write_io_error(bh)) {
 		/*
@@ -1374,7 +1374,7 @@ static int jbd2_write_superblock(journal_t *journal, int write_op)
 	jbd2_superblock_csum_set(journal, sb);
 	get_bh(bh);
 	bh->b_end_io = end_buffer_write_sync;
-	ret = submit_bh(write_op, bh);
+	ret = submit_bh(REQ_OP_WRITE, write_flags, bh);
 	wait_on_buffer(bh);
 	if (buffer_write_io_error(bh)) {
 		clear_buffer_write_io_error(bh);
@@ -1498,7 +1498,7 @@ static int journal_get_superblock(journal_t *journal)
 
 	J_ASSERT(bh != NULL);
 	if (!buffer_uptodate(bh)) {
-		ll_rw_block(READ, 1, &bh);
+		ll_rw_block(REQ_OP_READ, 0, 1, &bh);
 		wait_on_buffer(bh);
 		if (!buffer_uptodate(bh)) {
 			printk(KERN_ERR

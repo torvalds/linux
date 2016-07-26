@@ -3822,8 +3822,9 @@ static int __floppy_read_block_0(struct block_device *bdev, int drive)
 	bio.bi_flags |= (1 << BIO_QUIET);
 	bio.bi_private = &cbdata;
 	bio.bi_end_io = floppy_rb0_cb;
+	bio_set_op_attrs(&bio, REQ_OP_READ, 0);
 
-	submit_bio(READ, &bio);
+	submit_bio(&bio);
 	process_fd_request();
 
 	init_completion(&cbdata.complete);

@@ -1286,7 +1286,7 @@ static void do_ubd_request(struct request_queue *q)
 
 		req = dev->request;
 
-		if (req->cmd_flags & REQ_FLUSH) {
+		if (req_op(req) == REQ_OP_FLUSH) {
 			io_req = kmalloc(sizeof(struct io_thread_req),
 					 GFP_ATOMIC);
 			if (io_req == NULL) {

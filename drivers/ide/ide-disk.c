@@ -431,7 +431,7 @@ static int idedisk_prep_fn(struct request_queue *q, struct request *rq)
 	ide_drive_t *drive = q->queuedata;
 	struct ide_cmd *cmd;
 
-	if (!(rq->cmd_flags & REQ_FLUSH))
+	if (req_op(rq) != REQ_OP_FLUSH)
 		return BLKPREP_OK;
 
 	if (rq->special) {
