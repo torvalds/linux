@@ -49,7 +49,6 @@ config X86
 	select ARCH_WANTS_DYNAMIC_TASK_STRUCT
 	select ARCH_WANT_FRAME_POINTERS
 	select ARCH_WANT_IPC_PARSE_VERSION	if X86_32
-	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select BUILDTIME_EXTABLE_SORT
 	select CLKEVT_I8253
 	select CLKSRC_I8253			if X86_32
@@ -638,7 +637,7 @@ config STA2X11
 	select X86_DMA_REMAP
 	select SWIOTLB
 	select MFD_STA2X11
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	default n
 	---help---
 	  This adds support for boards based on the STA2X11 IO-Hub,
