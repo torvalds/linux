@@ -1052,7 +1052,7 @@ static void init_zspage(struct size_class *class, struct zspage *zspage)
 		link = (struct link_free *)vaddr + off / sizeof(*link);
 
 		while ((off += class->size) < PAGE_SIZE) {
-			link->next = freeobj++ << OBJ_ALLOCATED_TAG;
+			link->next = freeobj++ << OBJ_TAG_BITS;
 			link += class->size / sizeof(*link);
 		}
 
@@ -1063,13 +1063,13 @@ static void init_zspage(struct size_class *class, struct zspage *zspage)
 		 */
 		next_page = get_next_page(page);
 		if (next_page) {
-			link->next = freeobj++ << OBJ_ALLOCATED_TAG;
+			link->next = freeobj++ << OBJ_TAG_BITS;
 		} else {
 			/*
-			 * Reset OBJ_ALLOCATED_TAG bit to last link to tell
+			 * Reset OBJ_TAG_BITS bit to last link to tell
 			 * whether it's allocated object or not.
 			 */
-			link->next = -1 << OBJ_ALLOCATED_TAG;
+			link->next = -1 << OBJ_TAG_BITS;
 		}
 		kunmap_atomic(vaddr);
 		page = next_page;
@@ -1514,7 +1514,7 @@ static unsigned long obj_malloc(struct size_class *class,
 
 	vaddr = kmap_atomic(m_page);
 	link = (struct link_free *)vaddr + m_offset / sizeof(*link);
-	set_freeobj(zspage, link->next >> OBJ_ALLOCATED_TAG);
+	set_freeobj(zspage, link->next >> OBJ_TAG_BITS);
 	if (likely(!PageHugeObject(m_page)))
 		/* record handle in the header of allocated chunk */
 		link->handle = handle;
@@ -1616,7 +1616,7 @@ static void obj_free(struct size_class *class, unsigned long obj)
 
 	/* Insert this object in containing zspage's freelist */
 	link = (struct link_free *)(vaddr + f_offset);
-	link->next = get_freeobj(zspage) << OBJ_ALLOCATED_TAG;
+	link->next = get_freeobj(zspage) << OBJ_TAG_BITS;
 	kunmap_atomic(vaddr);
 	set_freeobj(zspage, f_objidx);
 	mod_zspage_inuse(zspage, -1);
