@@ -19,9 +19,23 @@
 #include <linux/of_gpio.h>
 #include <sound/soc.h>
 #include <sound/jack.h>
-#include "../codecs/rt5645.h"
+#include "../../codecs/rt5645.h"
 
 #define MCLK_FOR_CODECS		12288000
+
+enum mt8173_rt5650_mclk {
+	MT8173_RT5650_MCLK_EXTERNAL = 0,
+	MT8173_RT5650_MCLK_INTERNAL,
+};
+
+struct mt8173_rt5650_platform_data {
+	enum mt8173_rt5650_mclk pll_from;
+	/* 0 = external oscillator; 1 = internal source from mt8173 */
+};
+
+static struct mt8173_rt5650_platform_data mt8173_rt5650_priv = {
+	.pll_from = MT8173_RT5650_MCLK_EXTERNAL,
+};
 
 static const struct snd_soc_dapm_widget mt8173_rt5650_widgets[] = {
 	SND_SOC_DAPM_SPK("Speaker", NULL),
@@ -54,13 +68,29 @@ static int mt8173_rt5650_hw_params(struct snd_pcm_substream *substream,
 				   struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	unsigned int mclk_clock;
 	int i, ret;
+
+	switch (mt8173_rt5650_priv.pll_from) {
+	case MT8173_RT5650_MCLK_EXTERNAL:
+		/* mclk = 12.288M */
+		mclk_clock = MCLK_FOR_CODECS;
+		break;
+	case MT8173_RT5650_MCLK_INTERNAL:
+		/* mclk = sampling rate*256 */
+		mclk_clock = params_rate(params) * 256;
+		break;
+	default:
+		/* mclk = 12.288M */
+		mclk_clock = MCLK_FOR_CODECS;
+		break;
+	}
 
 	for (i = 0; i < rtd->num_codecs; i++) {
 		struct snd_soc_dai *codec_dai = rtd->codec_dais[i];
 
-		/* pll from mclk 12.288M */
-		ret = snd_soc_dai_set_pll(codec_dai, 0, 0, MCLK_FOR_CODECS,
+		/* pll from mclk */
+		ret = snd_soc_dai_set_pll(codec_dai, 0, 0, mclk_clock,
 					  params_rate(params) * 512);
 		if (ret)
 			return ret;
@@ -139,7 +169,9 @@ static struct snd_soc_dai_link_component mt8173_rt5650_codecs[] = {
 enum {
 	DAI_LINK_PLAYBACK,
 	DAI_LINK_CAPTURE,
+	DAI_LINK_HDMI,
 	DAI_LINK_CODEC_I2S,
+	DAI_LINK_HDMI_I2S,
 };
 
 /* Digital audio interface glue - connects codec <---> CPU */
@@ -165,6 +197,16 @@ static struct snd_soc_dai_link mt8173_rt5650_dais[] = {
 		.dynamic = 1,
 		.dpcm_capture = 1,
 	},
+	[DAI_LINK_HDMI] = {
+		.name = "HDMI",
+		.stream_name = "HDMI PCM",
+		.cpu_dai_name = "HDMI",
+		.codec_name = "snd-soc-dummy",
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_POST},
+		.dynamic = 1,
+		.dpcm_playback = 1,
+	},
 	/* Back End DAI links */
 	[DAI_LINK_CODEC_I2S] = {
 		.name = "Codec",
@@ -179,6 +221,13 @@ static struct snd_soc_dai_link mt8173_rt5650_dais[] = {
 		.ignore_pmdown_time = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
+	},
+	[DAI_LINK_HDMI_I2S] = {
+		.name = "HDMI BE",
+		.cpu_dai_name = "HDMIO",
+		.no_pcm = 1,
+		.codec_dai_name = "i2s-hifi",
+		.dpcm_playback = 1,
 	},
 };
 
@@ -243,6 +292,24 @@ static int mt8173_rt5650_dev_probe(struct platform_device *pdev)
 		mt8173_rt5650_codecs[1].dai_name = codec_capture_dai;
 	}
 
+	if (device_property_present(&pdev->dev, "mediatek,mclk")) {
+		ret = device_property_read_u32(&pdev->dev,
+					       "mediatek,mclk",
+					       &mt8173_rt5650_priv.pll_from);
+		if (ret) {
+			dev_err(&pdev->dev,
+				"%s snd_soc_register_card fail %d\n",
+				__func__, ret);
+		}
+	}
+
+	mt8173_rt5650_dais[DAI_LINK_HDMI_I2S].codec_of_node =
+		of_parse_phandle(pdev->dev.of_node, "mediatek,audio-codec", 1);
+	if (!mt8173_rt5650_dais[DAI_LINK_HDMI_I2S].codec_of_node) {
+		dev_err(&pdev->dev,
+			"Property 'audio-codec' missing or invalid\n");
+		return -EINVAL;
+	}
 	card->dev = &pdev->dev;
 	platform_set_drvdata(pdev, card);
 

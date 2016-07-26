@@ -144,9 +144,9 @@ static int oxnas_stdclk_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	regmap = syscon_node_to_regmap(of_get_parent(np));
-	if (!regmap) {
+	if (IS_ERR(regmap)) {
 		dev_err(&pdev->dev, "failed to have parent regmap\n");
-		return -EINVAL;
+		return PTR_ERR(regmap);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(clk_oxnas_init); i++) {
