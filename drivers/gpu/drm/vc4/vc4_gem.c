@@ -572,7 +572,7 @@ vc4_cl_lookup_bos(struct drm_device *dev,
 	spin_unlock(&file_priv->table_lock);
 
 fail:
-	kfree(handles);
+	drm_free_large(handles);
 	return 0;
 }
 
