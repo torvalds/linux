@@ -949,7 +949,7 @@ static void ti_set_termios(struct tty_struct *tty,
 	wflags |= TI_UART_ENABLE_AUTO_START_DMA;
 	config->bUartMode = tport->tp_uart_mode;
 
-	switch (cflag & CSIZE) {
+	switch (C_CSIZE(tty)) {
 	case CS5:
 		    config->bDataBits = TI_UART_5_DATA_BITS;
 		    break;
@@ -968,8 +968,8 @@ static void ti_set_termios(struct tty_struct *tty,
 	/* CMSPAR isn't supported by this driver */
 	tty->termios.c_cflag &= ~CMSPAR;
 
-	if (cflag & PARENB) {
-		if (cflag & PARODD) {
+	if (C_PARENB(tty)) {
+		if (C_PARODD(tty)) {
 			wflags |= TI_UART_ENABLE_PARITY_CHECKING;
 			config->bParity = TI_UART_ODD_PARITY;
 		} else {
@@ -981,14 +981,14 @@ static void ti_set_termios(struct tty_struct *tty,
 		config->bParity = TI_UART_NO_PARITY;
 	}
 
-	if (cflag & CSTOPB)
+	if (C_CSTOPB(tty))
 		config->bStopBits = TI_UART_2_STOP_BITS;
 	else
 		config->bStopBits = TI_UART_1_STOP_BITS;
 
-	if (cflag & CRTSCTS) {
+	if (C_CRTSCTS(tty)) {
 		/* RTS flow control must be off to drop RTS for baud rate B0 */
-		if ((cflag & CBAUD) != B0)
+		if ((C_BAUD(tty)) != B0)
 			wflags |= TI_UART_ENABLE_RTS_IN;
 		wflags |= TI_UART_ENABLE_CTS_OUT;
 	} else {
@@ -1017,7 +1017,7 @@ static void ti_set_termios(struct tty_struct *tty,
 		wbaudrate = (461538 + baud/2) / baud;
 
 	/* FIXME: Should calculate resulting baud here and report it back */
-	if ((cflag & CBAUD) != B0)
+	if ((C_BAUD(tty)) != B0)
 		tty_encode_baud_rate(tty, baud, baud);
 
 	dev_dbg(&port->dev,
@@ -1039,7 +1039,7 @@ static void ti_set_termios(struct tty_struct *tty,
 	/* SET_CONFIG asserts RTS and DTR, reset them correctly */
 	mcr = tport->tp_shadow_mcr;
 	/* if baud rate is B0, clear RTS and DTR */
-	if ((cflag & CBAUD) == B0)
+	if (C_BAUD(tty) == B0)
 		mcr &= ~(TI_MCR_DTR | TI_MCR_RTS);
 	status = ti_set_mcr(tport, mcr);
 	if (status)
