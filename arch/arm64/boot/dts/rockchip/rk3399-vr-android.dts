@@ -226,6 +226,111 @@
 	};
 };
 
+&cluster0_opp {
+	opp@408000000 {
+		opp-hz = /bits/ 64 <408000000>;
+		opp-microvolt = <800000>;
+		clock-latency-ns = <40000>;
+	};
+	opp@600000000 {
+		opp-hz = /bits/ 64 <600000000>;
+		opp-microvolt = <800000>;
+	};
+	opp@816000000 {
+		opp-hz = /bits/ 64 <816000000>;
+		opp-microvolt = <800000>;
+	};
+	opp@1008000000 {
+		opp-hz = /bits/ 64 <1008000000>;
+		opp-microvolt = <875000>;
+	};
+	opp@1200000000 {
+		opp-hz = /bits/ 64 <1200000000>;
+		opp-microvolt = <925000>;
+	};
+	opp@1416000000 {
+		opp-hz = /bits/ 64 <1416000000>;
+		opp-microvolt = <1050000>;
+	};
+	opp@1512000000 {
+		opp-hz = /bits/ 64 <1512000000>;
+		opp-microvolt = <1075000>;
+	};
+};
+
+&cluster1_opp {
+	opp@408000000 {
+		opp-hz = /bits/ 64 <408000000>;
+		opp-microvolt = <800000>;
+		clock-latency-ns = <40000>;
+	};
+	opp@600000000 {
+		opp-hz = /bits/ 64 <600000000>;
+		opp-microvolt = <800000>;
+	};
+	opp@816000000 {
+		opp-hz = /bits/ 64 <816000000>;
+		opp-microvolt = <825000>;
+	};
+	opp@1008000000 {
+		opp-hz = /bits/ 64 <1008000000>;
+		opp-microvolt = <875000>;
+	};
+	opp@1200000000 {
+		opp-hz = /bits/ 64 <1200000000>;
+		opp-microvolt = <950000>;
+	};
+	opp@1416000000 {
+		opp-hz = /bits/ 64 <1416000000>;
+		opp-microvolt = <1025000>;
+	};
+	opp@1608000000 {
+		opp-hz = /bits/ 64 <1608000000>;
+		opp-microvolt = <1100000>;
+	};
+	opp@1800000000 {
+		opp-hz = /bits/ 64 <1800000000>;
+		opp-microvolt = <1175000>;
+	};
+	opp@1992000000 {
+		opp-hz = /bits/ 64 <1992000000>;
+		opp-microvolt = <1250000>;
+	};
+};
+
+&gpu_opp_table {
+	compatible = "operating-points-v2";
+	opp-shared;
+	opp@200000000 {
+		opp-hz = /bits/ 64 <200000000>;
+		opp-microvolt = <800000>;
+	};
+	opp@300000000 {
+		opp-hz = /bits/ 64 <300000000>;
+		opp-microvolt = <800000>;
+	};
+	opp@400000000 {
+		opp-hz = /bits/ 64 <400000000>;
+		opp-microvolt = <800000>;
+	};
+	opp@500000000 {
+		opp-hz = /bits/ 64 <500000000>;
+		opp-microvolt = <850000>;
+	};
+	opp@600000000 {
+		opp-hz = /bits/ 64 <600000000>;
+		opp-microvolt = <900000>;
+	};
+	opp@700000000 {
+		opp-hz = /bits/ 64 <700000000>;
+		opp-microvolt = <950000>;
+	};
+	opp@800000000 {
+		opp-hz = /bits/ 64 <800000000>;
+		opp-microvolt = <975000>;
+	};
+};
+
 &sdmmc {
 	clock-frequency = <150000000>;
 	clock-freq-min-max = <400000 150000000>;
@@ -299,9 +404,9 @@
 	i2c-scl-falling-time-ns = <15>;
 	clock-frequency = <400000>;
 
-	vdd_cpu_b: syr828@41 {
-		compatible = "silergy,syr828";
-		reg = <0x41>;
+	vdd_cpu_b: syr827@40 {
+		compatible = "silergy,syr827";
+		reg = <0x40>;
 		vin-supply = <&vcc_sys>;
 		regulator-compatible = "fan53555-reg";
 		regulator-name = "vdd_cpu_b";
@@ -310,25 +415,27 @@
 		regulator-ramp-delay = <1000>;
 		fcs,suspend-voltage-selector = <1>;
 		regulator-always-on;
-		regulator-boot-on;
 		regulator-initial-state = <3>;
-		regulator-state-mem {
+			regulator-state-mem {
 			regulator-off-in-suspend;
 		};
 	};
 
-	lp8752: lp8752@60 {
-		compatible = "ti,lp8752";
-		reg = <0x60>;
-		vin0-supply = <&vcc_sys>;
-		regulators {
-			vdd_gpu: lp8752_buck0 {
-				regulator-name = "vdd_gpu";
-				regulator-min-microvolt = <735000>;
-				regulator-max-microvolt = <1400000>;
-				regulator-always-on;
-				regulator-boot-on;
-			};
+	vdd_gpu: syr828@41 {
+		compatible = "silergy,syr828";
+		reg = <0x41>;
+		vin-supply = <&vcc_sys>;
+		regulator-compatible = "fan53555-reg";
+		regulator-name = "vdd_gpu";
+		regulator-min-microvolt = <712500>;
+		regulator-max-microvolt = <1500000>;
+		regulator-ramp-delay = <1000>;
+		fcs,suspend-voltage-selector = <1>;
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-initial-state = <3>;
+			regulator-state-mem {
+			regulator-off-in-suspend;
 		};
 	};
 
@@ -515,6 +622,31 @@
 				};
 			};
 		};
+
+		battery {
+			compatible = "rk818-battery";
+			ocv_table = <
+				3400 3599 3671 3701 3728 3746 3762
+				3772 3781 3792 3816 3836 3866 3910
+				3942 3971 4002 4050 4088 4132 4183>;
+			design_capacity = <4000>;
+			design_qmax = <4100>;
+			bat_res = <100>;
+			max_input_current = <2000>;
+			max_chrg_current = <1800>;
+			max_chrg_voltage = <4200>;
+			sleep_enter_current = <300>;
+			sleep_exit_current = <300>;
+			power_off_thresd = <3400>;
+			zero_algorithm_vol = <3850>;
+			fb_temperature = <115>;
+			sample_res = <10>;
+			max_soc_offset = <60>;
+			energy_mode = <0>;
+			monitor_sec = <5>;
+			virtual_power = <0>;
+			power_dc2otg = <0>;
+		};
 	};
 };
 
@@ -538,22 +670,6 @@
 	status = "disabled";
 	i2c-scl-rising-time-ns = <600>;
 	i2c-scl-falling-time-ns = <20>;
-
-	mpu6500@68 {
-		status = "disabled";
-		compatible = "invensense,mpu6500";
-		pinctrl-names = "default";
-		pinctrl-0 = <&mpu6500_irq_gpio>;
-		reg = <0x68>;
-		irq-gpio = <&gpio1 4 IRQ_TYPE_EDGE_RISING>;
-		mpu-int_config = <0x10>;
-		mpu-level_shifter = <0>;
-		mpu-orientation = <0 1 0 1 0 0 0 0 1>;
-		orientation-x= <1>;
-		orientation-y= <1>;
-		orientation-z= <1>;
-		mpu-debug = <1>;
-	};
 };
 
 &i2c5 {
@@ -714,7 +830,13 @@
 };
 
 &rk_screen {
+	assigned-clocks = <&cru PLL_VPLL>;
+	assigned-clock-rates = <245000000>;
 	#include <dt-bindings/display/screen-timing/lcd-ls055r1sx04-mipi.dtsi>
+};
+
+&fb {
+	rockchip,uboot-logo-on = <1>;
 };
 
 &vopb_rk_fb {
