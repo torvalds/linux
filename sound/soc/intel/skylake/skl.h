@@ -123,4 +123,5 @@ int skl_free_dsp(struct skl *skl);
 int skl_suspend_dsp(struct skl *skl);
 int skl_resume_dsp(struct skl *skl);
 void skl_cleanup_resources(struct skl *skl);
+const struct skl_dsp_ops *skl_get_dsp_ops(int pci_id);
 #endif /* __SOUND_SOC_SKL_H */
