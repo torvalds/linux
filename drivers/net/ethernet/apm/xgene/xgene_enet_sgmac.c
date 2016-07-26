@@ -366,7 +366,9 @@ static void xgene_sgmac_init(struct xgene_enet_pdata *p)
 	u32 cfg_bypass_reg, rx_dv_gate_reg;
 	u32 data, offset;
 
-	xgene_sgmac_reset(p);
+	if (!(p->enet_id == XGENE_ENET2 && p->mdio_driver))
+		xgene_sgmac_reset(p);
+
 	xgene_sgmii_enable_autoneg(p);
 	xgene_sgmac_set_speed(p);
 	xgene_sgmac_set_mac_addr(p);
@@ -444,6 +446,11 @@ static int xgene_enet_reset(struct xgene_enet_pdata *p)
 
 	if (!xgene_ring_mgr_init(p))
 		return -ENODEV;
+
+	if (p->mdio_driver && p->enet_id == XGENE_ENET2) {
+		xgene_enet_config_ring_if_assoc(p);
+		return 0;
+	}
 
 	if (p->enet_id == XGENE_ENET2)
 		xgene_enet_wr_clkrst_csr(p, XGENET_CONFIG_REG_ADDR, SGMII_EN);

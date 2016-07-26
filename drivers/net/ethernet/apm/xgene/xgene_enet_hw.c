@@ -572,7 +572,9 @@ static void xgene_gmac_init(struct xgene_enet_pdata *pdata)
 {
 	u32 value;
 
-	xgene_gmac_reset(pdata);
+	if (!pdata->mdio_driver)
+		xgene_gmac_reset(pdata);
+
 	xgene_gmac_set_speed(pdata);
 	xgene_gmac_set_mac_addr(pdata);
 
@@ -679,6 +681,11 @@ static int xgene_enet_reset(struct xgene_enet_pdata *pdata)
 
 	if (!xgene_ring_mgr_init(pdata))
 		return -ENODEV;
+
+	if (pdata->mdio_driver) {
+		xgene_enet_config_ring_if_assoc(pdata);
+		return 0;
+	}
 
 	if (dev->of_node) {
 		clk_prepare_enable(pdata->clk);
@@ -799,21 +806,47 @@ static void xgene_enet_adjust_link(struct net_device *ndev)
 	}
 }
 
-static int xgene_enet_phy_connect(struct net_device *ndev)
+#ifdef CONFIG_ACPI
+static struct acpi_device *acpi_phy_find_device(struct device *dev)
+{
+	struct acpi_reference_args args;
+	struct fwnode_handle *fw_node;
+	int status;
+
+	fw_node = acpi_fwnode_handle(ACPI_COMPANION(dev));
+	status = acpi_node_get_property_reference(fw_node, "phy-handle", 0,
+						  &args);
+	if (ACPI_FAILURE(status)) {
+		dev_dbg(dev, "No matching phy in ACPI table\n");
+		return NULL;
+	}
+
+	return args.adev;
+}
+#endif
+
+int xgene_enet_phy_connect(struct net_device *ndev)
 {
 	struct xgene_enet_pdata *pdata = netdev_priv(ndev);
-	struct device_node *phy_np;
+	struct device_node *np;
 	struct phy_device *phy_dev;
 	struct device *dev = &pdata->pdev->dev;
+	struct acpi_device *adev;
+	int i;
 
 	if (dev->of_node) {
-		phy_np = of_parse_phandle(dev->of_node, "phy-handle", 0);
-		if (!phy_np) {
+		for (i = 0 ; i < 2; i++) {
+			np = of_parse_phandle(dev->of_node, "phy-handle", i);
+			if (np)
+				break;
+		}
+
+		if (!np) {
 			netdev_dbg(ndev, "No phy-handle found in DT\n");
 			return -ENODEV;
 		}
 
-		phy_dev = of_phy_connect(ndev, phy_np, &xgene_enet_adjust_link,
+		phy_dev = of_phy_connect(ndev, np, &xgene_enet_adjust_link,
 					 0, pdata->phy_mode);
 		if (!phy_dev) {
 			netdev_err(ndev, "Could not connect to PHY\n");
@@ -822,6 +855,11 @@ static int xgene_enet_phy_connect(struct net_device *ndev)
 
 		pdata->phy_dev = phy_dev;
 	} else {
+#ifdef CONFIG_ACPI
+		adev = acpi_phy_find_device(dev);
+		if (adev)
+			pdata->phy_dev =  adev->driver_data;
+
 		phy_dev = pdata->phy_dev;
 
 		if (!phy_dev ||
@@ -830,6 +868,7 @@ static int xgene_enet_phy_connect(struct net_device *ndev)
 			netdev_err(ndev, "Could not connect to PHY\n");
 			return  -ENODEV;
 		}
+#endif
 	}
 
 	pdata->phy_speed = SPEED_UNKNOWN;
@@ -928,6 +967,12 @@ int xgene_enet_mdio_config(struct xgene_enet_pdata *pdata)
 		xgene_enet_mdio_remove(pdata);
 
 	return ret;
+}
+
+void xgene_enet_phy_disconnect(struct xgene_enet_pdata *pdata)
+{
+	if (pdata->phy_dev)
+		phy_disconnect(pdata->phy_dev);
 }
 
 void xgene_enet_mdio_remove(struct xgene_enet_pdata *pdata)

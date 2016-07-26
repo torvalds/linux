@@ -301,11 +301,6 @@ enum xgene_enet_ring_bufnum {
 	RING_BUFNUM_INVALID
 };
 
-enum xgene_enet_cmd {
-	XGENE_ENET_WR_CMD = BIT(31),
-	XGENE_ENET_RD_CMD = BIT(30)
-};
-
 enum xgene_enet_err_code {
 	HBF_READ_DATA = 3,
 	HBF_LL_READ = 4,
@@ -351,6 +346,8 @@ void xgene_enet_parse_error(struct xgene_enet_desc_ring *ring,
 int xgene_enet_mdio_config(struct xgene_enet_pdata *pdata);
 void xgene_enet_mdio_remove(struct xgene_enet_pdata *pdata);
 bool xgene_ring_mgr_init(struct xgene_enet_pdata *p);
+int xgene_enet_phy_connect(struct net_device *ndev);
+void xgene_enet_phy_disconnect(struct xgene_enet_pdata *pdata);
 
 extern const struct xgene_mac_ops xgene_gmac_ops;
 extern const struct xgene_port_ops xgene_gport_ops;

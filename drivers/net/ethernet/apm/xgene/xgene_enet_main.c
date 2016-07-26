@@ -763,7 +763,7 @@ static int xgene_enet_close(struct net_device *ndev)
 	mac_ops->tx_disable(pdata);
 	mac_ops->rx_disable(pdata);
 
-	if (pdata->phy_mode == PHY_INTERFACE_MODE_RGMII)
+	if (pdata->phy_dev)
 		phy_stop(pdata->phy_dev);
 	else
 		cancel_delayed_work_sync(&pdata->link_work);
@@ -1295,6 +1295,23 @@ static int xgene_enet_get_irqs(struct xgene_enet_pdata *pdata)
 	return 0;
 }
 
+static int xgene_enet_check_phy_handle(struct xgene_enet_pdata *pdata)
+{
+	int ret;
+
+	if (pdata->phy_mode == PHY_INTERFACE_MODE_XGMII)
+		return 0;
+
+	if (!IS_ENABLED(CONFIG_MDIO_XGENE))
+		return 0;
+
+	ret = xgene_enet_phy_connect(pdata->ndev);
+	if (!ret)
+		pdata->mdio_driver = true;
+
+	return 0;
+}
+
 static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 {
 	struct platform_device *pdev;
@@ -1377,6 +1394,10 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 		return ret;
 
 	ret = xgene_enet_get_irqs(pdata);
+	if (ret)
+		return ret;
+
+	ret = xgene_enet_check_phy_handle(pdata);
 	if (ret)
 		return ret;
 
@@ -1574,7 +1595,7 @@ static int xgene_enet_probe(struct platform_device *pdev)
 	struct net_device *ndev;
 	struct xgene_enet_pdata *pdata;
 	struct device *dev = &pdev->dev;
-	const struct xgene_mac_ops *mac_ops;
+	void (*link_state)(struct work_struct *);
 	const struct of_device_id *of_id;
 	int ret;
 
@@ -1636,14 +1657,17 @@ static int xgene_enet_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_netdev;
 
-	mac_ops = pdata->mac_ops;
-	if (pdata->phy_mode == PHY_INTERFACE_MODE_RGMII) {
-		ret = xgene_enet_mdio_config(pdata);
-		if (ret)
-			goto err_netdev;
-	} else {
-		INIT_DELAYED_WORK(&pdata->link_work, mac_ops->link_state);
+	link_state = pdata->mac_ops->link_state;
+	if (pdata->phy_mode == PHY_INTERFACE_MODE_XGMII) {
+		INIT_DELAYED_WORK(&pdata->link_work, link_state);
+	} else if (!pdata->mdio_driver) {
+		if (pdata->phy_mode == PHY_INTERFACE_MODE_RGMII)
+			ret = xgene_enet_mdio_config(pdata);
+		else
+			INIT_DELAYED_WORK(&pdata->link_work, link_state);
 	}
+	if (ret)
+		goto err;
 
 	xgene_enet_napi_add(pdata);
 	ret = register_netdev(ndev);
@@ -1676,11 +1700,11 @@ static int xgene_enet_remove(struct platform_device *pdev)
 		dev_close(ndev);
 	rtnl_unlock();
 
-	mac_ops->rx_disable(pdata);
-	mac_ops->tx_disable(pdata);
-
-	if (pdata->phy_mode == PHY_INTERFACE_MODE_RGMII)
+	if (pdata->mdio_driver)
+		xgene_enet_phy_disconnect(pdata);
+	else if (pdata->phy_mode == PHY_INTERFACE_MODE_RGMII)
 		xgene_enet_mdio_remove(pdata);
+
 	unregister_netdev(ndev);
 	pdata->port_ops->shutdown(pdata);
 	xgene_enet_delete_desc_rings(pdata);
