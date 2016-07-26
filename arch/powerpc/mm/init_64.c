@@ -427,7 +427,9 @@ void __init mmu_early_init_devtree(void)
 	if (disable_radix)
 		cur_cpu_spec->mmu_features &= ~MMU_FTR_RADIX;
 
-	if (!radix_enabled())
+	if (radix_enabled())
+		radix__early_init_devtree();
+	else
 		hash__early_init_devtree();
 }
 #endif /* CONFIG_PPC_STD_MMU_64 */

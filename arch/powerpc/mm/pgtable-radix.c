@@ -264,7 +264,7 @@ static int __init radix_dt_scan_page_sizes(unsigned long node,
 	return 1;
 }
 
-static void __init radix_init_page_sizes(void)
+void __init radix__early_init_devtree(void)
 {
 	int rc;
 
@@ -343,7 +343,6 @@ void __init radix__early_init_mmu(void)
 	__pte_frag_nr = H_PTE_FRAG_NR;
 	__pte_frag_size_shift = H_PTE_FRAG_SIZE_SHIFT;
 
-	radix_init_page_sizes();
 	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
 		radix_init_native();
 		lpcr = mfspr(SPRN_LPCR);
