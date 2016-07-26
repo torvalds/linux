@@ -40,6 +40,8 @@
  */
 
 struct si2165_state {
+	struct i2c_client *client;
+
 	struct i2c_adapter *i2c;
 
 	struct dvb_frontend fe;
@@ -1162,6 +1164,153 @@ error:
 	return NULL;
 }
 EXPORT_SYMBOL(si2165_attach);
+
+static int si2165_probe(struct i2c_client *client,
+		const struct i2c_device_id *id)
+{
+	struct si2165_state *state = NULL;
+	struct si2165_platform_data *pdata = client->dev.platform_data;
+	int n;
+	int ret = 0;
+	u8 val;
+	char rev_char;
+	const char *chip_name;
+
+	/* allocate memory for the internal state */
+	state = kzalloc(sizeof(struct si2165_state), GFP_KERNEL);
+	if (state == NULL) {
+		ret = -ENOMEM;
+		goto error;
+	}
+
+	/* setup the state */
+	state->client = client;
+	state->i2c = client->adapter;
+	state->config.i2c_addr = client->addr;
+	state->config.chip_mode = pdata->chip_mode;
+	state->config.ref_freq_Hz = pdata->ref_freq_Hz;
+	state->config.inversion = pdata->inversion;
+
+	if (state->config.ref_freq_Hz < 4000000
+	    || state->config.ref_freq_Hz > 27000000) {
+		dev_err(&state->i2c->dev, "%s: ref_freq of %d Hz not supported by this driver\n",
+			 KBUILD_MODNAME, state->config.ref_freq_Hz);
+		ret = -EINVAL;
+		goto error;
+	}
+
+	/* create dvb_frontend */
+	memcpy(&state->fe.ops, &si2165_ops,
+		sizeof(struct dvb_frontend_ops));
+	state->fe.ops.release = NULL;
+	state->fe.demodulator_priv = state;
+	i2c_set_clientdata(client, state);
+
+	/* powerup */
+	ret = si2165_writereg8(state, 0x0000, state->config.chip_mode);
+	if (ret < 0)
+		goto nodev_error;
+
+	ret = si2165_readreg8(state, 0x0000, &val);
+	if (ret < 0)
+		goto nodev_error;
+	if (val != state->config.chip_mode)
+		goto nodev_error;
+
+	ret = si2165_readreg8(state, 0x0023, &state->chip_revcode);
+	if (ret < 0)
+		goto nodev_error;
+
+	ret = si2165_readreg8(state, 0x0118, &state->chip_type);
+	if (ret < 0)
+		goto nodev_error;
+
+	/* powerdown */
+	ret = si2165_writereg8(state, 0x0000, SI2165_MODE_OFF);
+	if (ret < 0)
+		goto nodev_error;
+
+	if (state->chip_revcode < 26)
+		rev_char = 'A' + state->chip_revcode;
+	else
+		rev_char = '?';
+
+	switch (state->chip_type) {
+	case 0x06:
+		chip_name = "Si2161";
+		state->has_dvbt = true;
+		break;
+	case 0x07:
+		chip_name = "Si2165";
+		state->has_dvbt = true;
+		state->has_dvbc = true;
+		break;
+	default:
+		dev_err(&state->i2c->dev, "%s: Unsupported Silicon Labs chip (type %d, rev %d)\n",
+			KBUILD_MODNAME, state->chip_type, state->chip_revcode);
+		goto nodev_error;
+	}
+
+	dev_info(&state->i2c->dev,
+		"%s: Detected Silicon Labs %s-%c (type %d, rev %d)\n",
+		KBUILD_MODNAME, chip_name, rev_char, state->chip_type,
+		state->chip_revcode);
+
+	strlcat(state->fe.ops.info.name, chip_name,
+			sizeof(state->fe.ops.info.name));
+
+	n = 0;
+	if (state->has_dvbt) {
+		state->fe.ops.delsys[n++] = SYS_DVBT;
+		strlcat(state->fe.ops.info.name, " DVB-T",
+			sizeof(state->fe.ops.info.name));
+	}
+	if (state->has_dvbc) {
+		state->fe.ops.delsys[n++] = SYS_DVBC_ANNEX_A;
+		strlcat(state->fe.ops.info.name, " DVB-C",
+			sizeof(state->fe.ops.info.name));
+	}
+
+	/* return fe pointer */
+	*pdata->fe = &state->fe;
+
+	return 0;
+
+nodev_error:
+	ret = -ENODEV;
+error:
+	kfree(state);
+	dev_dbg(&client->dev, "failed=%d\n", ret);
+	return ret;
+}
+
+static int si2165_remove(struct i2c_client *client)
+{
+	struct si2165_state *state = i2c_get_clientdata(client);
+
+	dev_dbg(&client->dev, "\n");
+
+	kfree(state);
+	return 0;
+}
+
+static const struct i2c_device_id si2165_id_table[] = {
+	{"si2165", 0},
+	{}
+};
+MODULE_DEVICE_TABLE(i2c, si2165_id_table);
+
+static struct i2c_driver si2165_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "si2165",
+	},
+	.probe		= si2165_probe,
+	.remove		= si2165_remove,
+	.id_table	= si2165_id_table,
+};
+
+module_i2c_driver(si2165_driver);
 
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");

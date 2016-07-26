@@ -28,6 +28,28 @@ enum {
 	SI2165_MODE_PLL_XTAL = 0x21
 };
 
+/* I2C addresses
+ * possible values: 0x64,0x65,0x66,0x67
+ */
+struct si2165_platform_data {
+	/*
+	 * frontend
+	 * returned by driver
+	 */
+	struct dvb_frontend **fe;
+
+	/* external clock or XTAL */
+	u8 chip_mode;
+
+	/* frequency of external clock or xtal in Hz
+	 * possible values: 4000000, 16000000, 20000000, 240000000, 27000000
+	 */
+	u32 ref_freq_Hz;
+
+	/* invert the spectrum */
+	bool inversion;
+};
+
 struct si2165_config {
 	/* i2c addr
 	 * possible values: 0x64,0x65,0x66,0x67 */
