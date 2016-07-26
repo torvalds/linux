@@ -1055,7 +1055,13 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 
 			/* Adding to swap updated mapping */
 			mapping = page_mapping(page);
+		} else if (unlikely(PageTransHuge(page))) {
+			/* Split file THP */
+			if (split_huge_page_to_list(page, page_list))
+				goto keep_locked;
 		}
+
+		VM_BUG_ON_PAGE(PageTransHuge(page), page);
 
 		/*
 		 * The page is mapped into the page tables of one or more
