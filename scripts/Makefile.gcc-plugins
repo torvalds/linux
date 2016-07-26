@@ -6,6 +6,19 @@ ifdef CONFIG_GCC_PLUGINS
 
   gcc-plugin-$(CONFIG_GCC_PLUGIN_CYC_COMPLEXITY)	+= cyc_complexity_plugin.so
 
+  gcc-plugin-$(CONFIG_GCC_PLUGIN_INITIFY)		+= initify_plugin.so
+  gcc-plugin-cflags-$(CONFIG_GCC_PLUGIN_INITIFY)	+= -DINITIFY_PLUGIN -fplugin-arg-initify_plugin-search_init_exit_functions
+  gcc-plugin-cflags-$(CONFIG_GCC_PLUGIN_INITIFY_VERBOSE)+= -fplugin-arg-initify_plugin-verbose -fplugin-arg-initify_plugin-print_missing_attr
+  gcc-plugin-cflags-$(CONFIG_GCC_PLUGIN_INITIFY_INIT_EXIT)	+= -fplugin-arg-initify_plugin-enable_init_to_exit_moves
+  ifdef CONFIG_GCC_PLUGIN_INITIFY
+    INITIFY_DISABLE_VERIFIY_NOCAPTURE_FUNCTIONS		+= -fplugin-arg-initify_plugin-disable_verify_nocapture_functions
+  endif
+
+  # The Latent Entropy instrumentation pass should already come after Initify
+  # ("optimized" vs "inline"), but just in case this changes, maintain the
+  # runtime ordering here too. Order matters so that Latent Entropy will
+  # instrument functions that have been newly moved into the .init section
+  # by Initify.
   gcc-plugin-$(CONFIG_GCC_PLUGIN_LATENT_ENTROPY)	+= latent_entropy_plugin.so
   gcc-plugin-cflags-$(CONFIG_GCC_PLUGIN_LATENT_ENTROPY)	+= -DLATENT_ENTROPY_PLUGIN
   ifdef CONFIG_PAX_LATENT_ENTROPY
@@ -33,6 +46,7 @@ ifdef CONFIG_GCC_PLUGINS
 
   export PLUGINCC GCC_PLUGINS_CFLAGS GCC_PLUGIN GCC_PLUGIN_SUBDIR
   export SANCOV_PLUGIN DISABLE_LATENT_ENTROPY_PLUGIN
+  export INITIFY_DISABLE_VERIFIY_NOCAPTURE_FUNCTIONS
 
   ifneq ($(PLUGINCC),)
     # SANCOV_PLUGIN can be only in CFLAGS_KCOV because avoid duplication.
