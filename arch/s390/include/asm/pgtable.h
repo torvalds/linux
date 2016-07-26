@@ -953,9 +953,11 @@ static inline pte_t pte_mkhuge(pte_t pte)
 #define	IPTE_LOCAL	1
 
 #define IPTE_NODAT	0x400
+#define IPTE_GUEST_ASCE	0x800
 
 static inline void __ptep_ipte(unsigned long address, pte_t *ptep,
-			       unsigned long opt, int local)
+			       unsigned long opt, unsigned long asce,
+			       int local)
 {
 	unsigned long pto = (unsigned long) ptep;
 
@@ -969,6 +971,7 @@ static inline void __ptep_ipte(unsigned long address, pte_t *ptep,
 	}
 
 	/* Invalidate ptes with options + TLB flush of the ptes */
+	opt = opt | (asce & _ASCE_ORIGIN);
 	asm volatile(
 		"	.insn	rrf,0xb2210000,%[r1],%[r2],%[r3],%[m4]"
 		: [r2] "+a" (address), [r3] "+a" (opt)
@@ -1355,34 +1358,59 @@ static inline void __pmdp_csp(pmd_t *pmdp)
 
 #define IDTE_PTOA	0x0800
 #define IDTE_NODAT	0x1000
+#define IDTE_GUEST_ASCE	0x2000
 
 static inline void __pmdp_idte(unsigned long addr, pmd_t *pmdp,
-			       unsigned long opt, int local)
+			       unsigned long opt, unsigned long asce,
+			       int local)
 {
 	unsigned long sto;
 
 	sto = (unsigned long) pmdp - pmd_index(addr) * sizeof(pmd_t);
-	asm volatile(
-		"	.insn	rrf,0xb98e0000,%[r1],%[r2],0,%[m4]"
-		: "+m" (*pmdp)
-		: [r1] "a" (sto), [r2] "a" ((addr & HPAGE_MASK) | opt),
-		  [m4] "i" (local)
-		: "cc" );
+	if (__builtin_constant_p(opt) && opt == 0) {
+		/* flush without guest asce */
+		asm volatile(
+			"	.insn	rrf,0xb98e0000,%[r1],%[r2],0,%[m4]"
+			: "+m" (*pmdp)
+			: [r1] "a" (sto), [r2] "a" ((addr & HPAGE_MASK)),
+			  [m4] "i" (local)
+			: "cc" );
+	} else {
+		/* flush with guest asce */
+		asm volatile(
+			"	.insn	rrf,0xb98e0000,%[r1],%[r2],%[r3],%[m4]"
+			: "+m" (*pmdp)
+			: [r1] "a" (sto), [r2] "a" ((addr & HPAGE_MASK) | opt),
+			  [r3] "a" (asce), [m4] "i" (local)
+			: "cc" );
+	}
 }
 
 static inline void __pudp_idte(unsigned long addr, pud_t *pudp,
-			       unsigned long opt, int local)
+			       unsigned long opt, unsigned long asce,
+			       int local)
 {
 	unsigned long r3o;
 
 	r3o = (unsigned long) pudp - pud_index(addr) * sizeof(pud_t);
 	r3o |= _ASCE_TYPE_REGION3;
-	asm volatile(
-		"	.insn	rrf,0xb98e0000,%[r1],%[r2],0,%[m4]"
-		: "+m" (*pudp)
-		: [r1] "a" (r3o), [r2] "a" ((addr & PUD_MASK) | opt),
-		  [m4] "i" (local)
-		: "cc" );
+	if (__builtin_constant_p(opt) && opt == 0) {
+		/* flush without guest asce */
+		asm volatile(
+			"	.insn	rrf,0xb98e0000,%[r1],%[r2],0,%[m4]"
+			: "+m" (*pudp)
+			: [r1] "a" (r3o), [r2] "a" ((addr & PUD_MASK)),
+			  [m4] "i" (local)
+			: "cc");
+	} else {
+		/* flush with guest asce */
+		asm volatile(
+			"	.insn	rrf,0xb98e0000,%[r1],%[r2],%[r3],%[m4]"
+			: "+m" (*pudp)
+			: [r1] "a" (r3o), [r2] "a" ((addr & PUD_MASK) | opt),
+			  [r3] "a" (asce), [m4] "i" (local)
+			: "cc" );
+	}
 }
 
 pmd_t pmdp_xchg_direct(struct mm_struct *, unsigned long, pmd_t *, pmd_t);
