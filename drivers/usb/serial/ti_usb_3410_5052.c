@@ -276,9 +276,6 @@ struct ti_firmware_header {
 
 #define TI_DEFAULT_CLOSING_WAIT	4000		/* in .01 secs */
 
-/* supported setserial flags */
-#define TI_SET_SERIAL_FLAGS	0
-
 /* read urb states */
 #define TI_READ_URB_RUNNING	0
 #define TI_READ_URB_STOPPING	1
@@ -292,7 +289,6 @@ struct ti_port {
 	u8			tp_shadow_mcr;
 	u8			tp_uart_mode;	/* 232 or 485 modes */
 	unsigned int		tp_uart_base_addr;
-	int			tp_flags;
 	struct ti_device	*tp_tdev;
 	struct usb_serial_port	*tp_port;
 	spinlock_t		tp_lock;
@@ -306,7 +302,6 @@ struct ti_device {
 	struct usb_serial	*td_serial;
 	int			td_is_3410;
 	bool			td_rs485_only;
-	int			td_urb_error;
 };
 
 static int ti_startup(struct usb_serial *serial);
@@ -1157,11 +1152,9 @@ static void ti_interrupt_callback(struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		dev_dbg(dev, "%s - urb shutting down, %d\n", __func__, status);
-		tdev->td_urb_error = 1;
 		return;
 	default:
 		dev_err(dev, "%s - nonzero urb status, %d\n", __func__, status);
-		tdev->td_urb_error = 1;
 		goto exit;
 	}
 
@@ -1234,12 +1227,10 @@ static void ti_bulk_in_callback(struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		dev_dbg(dev, "%s - urb shutting down, %d\n", __func__, status);
-		tport->tp_tdev->td_urb_error = 1;
 		return;
 	default:
 		dev_err(dev, "%s - nonzero urb status, %d\n",
 			__func__, status);
-		tport->tp_tdev->td_urb_error = 1;
 	}
 
 	if (status == -EPIPE)
@@ -1294,12 +1285,10 @@ static void ti_bulk_out_callback(struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		dev_dbg(&port->dev, "%s - urb shutting down, %d\n", __func__, status);
-		tport->tp_tdev->td_urb_error = 1;
 		return;
 	default:
 		dev_err_console(port, "%s - nonzero urb status, %d\n",
 			__func__, status);
-		tport->tp_tdev->td_urb_error = 1;
 	}
 
 	/* send any buffered data */
@@ -1449,7 +1438,6 @@ static int ti_get_serial_info(struct ti_port *tport,
 	ret_serial.type = PORT_16550A;
 	ret_serial.line = port->minor;
 	ret_serial.port = port->port_number;
-	ret_serial.flags = tport->tp_flags;
 	ret_serial.xmit_fifo_size = kfifo_size(&port->write_fifo);
 	ret_serial.baud_base = tport->tp_tdev->td_is_3410 ? 921600 : 460800;
 	ret_serial.closing_wait = cwait;
@@ -1474,7 +1462,6 @@ static int ti_set_serial_info(struct tty_struct *tty, struct ti_port *tport,
 	if (cwait != ASYNC_CLOSING_WAIT_NONE)
 		cwait = msecs_to_jiffies(10 * new_serial.closing_wait);
 
-	tport->tp_flags = new_serial.flags & TI_SET_SERIAL_FLAGS;
 	tport->tp_port->port.closing_wait = cwait;
 
 	return 0;
