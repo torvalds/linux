@@ -4239,11 +4239,9 @@ int iceland_unforce_dpm_levels(struct pp_hwmgr *hwmgr)
 {
 	iceland_hwmgr *data = (iceland_hwmgr *)(hwmgr->backend);
 
-#if 0
 	PP_ASSERT_WITH_CODE (0 == iceland_is_dpm_running(hwmgr),
 		"Trying to Unforce DPM when DPM is disabled. Returning without sending SMC message.",
 		return -1);
-#endif
 
 	if (0 == data->sclk_dpm_key_disabled) {
 		PP_ASSERT_WITH_CODE((0 == smum_send_msg_to_smc(
