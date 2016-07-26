@@ -171,23 +171,6 @@ static int mlxsw_sp_port_admin_status_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(paos), paos_pl);
 }
 
-static int mlxsw_sp_port_oper_status_get(struct mlxsw_sp_port *mlxsw_sp_port,
-					 bool *p_is_up)
-{
-	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	char paos_pl[MLXSW_REG_PAOS_LEN];
-	u8 oper_status;
-	int err;
-
-	mlxsw_reg_paos_pack(paos_pl, mlxsw_sp_port->local_port, 0);
-	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(paos), paos_pl);
-	if (err)
-		return err;
-	oper_status = mlxsw_reg_paos_oper_status_get(paos_pl);
-	*p_is_up = oper_status == MLXSW_PORT_ADMIN_STATUS_UP ? true : false;
-	return 0;
-}
-
 static int mlxsw_sp_port_dev_addr_set(struct mlxsw_sp_port *mlxsw_sp_port,
 				      unsigned char *addr)
 {
@@ -408,7 +391,11 @@ static netdev_tx_t mlxsw_sp_port_xmit(struct sk_buff *skb,
 	}
 
 	mlxsw_sp_txhdr_construct(skb, &tx_info);
-	len = skb->len;
+	/* TX header is consumed by HW on the way so we shouldn't count its
+	 * bytes as being sent.
+	 */
+	len = skb->len - MLXSW_TXHDR_LEN;
+
 	/* Due to a race we might fail here because of a full queue. In that
 	 * unlikely case we simply drop the packet.
 	 */
@@ -1430,7 +1417,8 @@ static int mlxsw_sp_port_get_settings(struct net_device *dev,
 
 	cmd->supported = mlxsw_sp_from_ptys_supported_port(eth_proto_cap) |
 			 mlxsw_sp_from_ptys_supported_link(eth_proto_cap) |
-			 SUPPORTED_Pause | SUPPORTED_Asym_Pause;
+			 SUPPORTED_Pause | SUPPORTED_Asym_Pause |
+			 SUPPORTED_Autoneg;
 	cmd->advertising = mlxsw_sp_from_ptys_advert_link(eth_proto_admin);
 	mlxsw_sp_from_ptys_speed_duplex(netif_carrier_ok(dev),
 					eth_proto_oper, cmd);
@@ -1489,7 +1477,6 @@ static int mlxsw_sp_port_set_settings(struct net_device *dev,
 	u32 eth_proto_new;
 	u32 eth_proto_cap;
 	u32 eth_proto_admin;
-	bool is_up;
 	int err;
 
 	speed = ethtool_cmd_speed(cmd);
@@ -1521,12 +1508,7 @@ static int mlxsw_sp_port_set_settings(struct net_device *dev,
 		return err;
 	}
 
-	err = mlxsw_sp_port_oper_status_get(mlxsw_sp_port, &is_up);
-	if (err) {
-		netdev_err(dev, "Failed to get oper status");
-		return err;
-	}
-	if (!is_up)
+	if (!netif_running(dev))
 		return 0;
 
 	err = mlxsw_sp_port_admin_status_set(mlxsw_sp_port, false);

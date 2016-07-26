@@ -513,7 +513,6 @@ int mlx5_modify_nic_vport_node_guid(struct mlx5_core_dev *mdev,
 {
 	int inlen = MLX5_ST_SZ_BYTES(modify_nic_vport_context_in);
 	void *nic_vport_context;
-	u8 *guid;
 	void *in;
 	int err;
 
@@ -535,8 +534,6 @@ int mlx5_modify_nic_vport_node_guid(struct mlx5_core_dev *mdev,
 
 	nic_vport_context = MLX5_ADDR_OF(modify_nic_vport_context_in,
 					 in, nic_vport_context);
-	guid = MLX5_ADDR_OF(nic_vport_context, nic_vport_context,
-			    node_guid);
 	MLX5_SET64(nic_vport_context, nic_vport_context, node_guid, node_guid);
 
 	err = mlx5_modify_nic_vport_context(mdev, in, inlen);
