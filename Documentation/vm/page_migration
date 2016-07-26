@@ -181,11 +181,12 @@ After isolation, VM calls migratepage of driver with isolated page.
 The function of migratepage is to move content of the old page to new page
 and set up fields of struct page newpage. Keep in mind that you should
 indicate to the VM the oldpage is no longer movable via __ClearPageMovable()
-under page_lock if you migrated the oldpage successfully and returns 0.
-If driver cannot migrate the page at the moment, driver can return -EAGAIN.
-On -EAGAIN, VM will retry page migration in a short time because VM interprets
--EAGAIN as "temporal migration failure". On returning any error except -EAGAIN,
-VM will give up the page migration without retrying in this time.
+under page_lock if you migrated the oldpage successfully and returns
+MIGRATEPAGE_SUCCESS. If driver cannot migrate the page at the moment, driver
+can return -EAGAIN. On -EAGAIN, VM will retry page migration in a short time
+because VM interprets -EAGAIN as "temporal migration failure". On returning
+any error except -EAGAIN, VM will give up the page migration without retrying
+in this time.
 
 Driver shouldn't touch page.lru field VM using in the functions.
 

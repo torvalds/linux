@@ -493,7 +493,7 @@ static int virtballoon_migratepage(struct balloon_dev_info *vb_dev_info,
 
 	put_page(page); /* balloon reference */
 
-	return 0;
+	return MIGRATEPAGE_SUCCESS;
 }
 
 static struct dentry *balloon_mount(struct file_system_type *fs_type,
