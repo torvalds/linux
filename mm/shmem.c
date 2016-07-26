@@ -258,14 +258,15 @@ bool shmem_charge(struct inode *inode, long pages)
 {
 	struct shmem_inode_info *info = SHMEM_I(inode);
 	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
+	unsigned long flags;
 
 	if (shmem_acct_block(info->flags, pages))
 		return false;
-	spin_lock(&info->lock);
+	spin_lock_irqsave(&info->lock, flags);
 	info->alloced += pages;
 	inode->i_blocks += pages * BLOCKS_PER_PAGE;
 	shmem_recalc_inode(inode);
-	spin_unlock(&info->lock);
+	spin_unlock_irqrestore(&info->lock, flags);
 	inode->i_mapping->nrpages += pages;
 
 	if (!sbinfo->max_blocks)
@@ -273,10 +274,10 @@ bool shmem_charge(struct inode *inode, long pages)
 	if (percpu_counter_compare(&sbinfo->used_blocks,
 				sbinfo->max_blocks - pages) > 0) {
 		inode->i_mapping->nrpages -= pages;
-		spin_lock(&info->lock);
+		spin_lock_irqsave(&info->lock, flags);
 		info->alloced -= pages;
 		shmem_recalc_inode(inode);
-		spin_unlock(&info->lock);
+		spin_unlock_irqrestore(&info->lock, flags);
 
 		return false;
 	}
@@ -288,12 +289,13 @@ void shmem_uncharge(struct inode *inode, long pages)
 {
 	struct shmem_inode_info *info = SHMEM_I(inode);
 	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
+	unsigned long flags;
 
-	spin_lock(&info->lock);
+	spin_lock_irqsave(&info->lock, flags);
 	info->alloced -= pages;
 	inode->i_blocks -= pages * BLOCKS_PER_PAGE;
 	shmem_recalc_inode(inode);
-	spin_unlock(&info->lock);
+	spin_unlock_irqrestore(&info->lock, flags);
 
 	if (sbinfo->max_blocks)
 		percpu_counter_sub(&sbinfo->used_blocks, pages);
@@ -818,10 +820,10 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
 		index++;
 	}
 
-	spin_lock(&info->lock);
+	spin_lock_irq(&info->lock);
 	info->swapped -= nr_swaps_freed;
 	shmem_recalc_inode(inode);
-	spin_unlock(&info->lock);
+	spin_unlock_irq(&info->lock);
 }
 
 void shmem_truncate_range(struct inode *inode, loff_t lstart, loff_t lend)
@@ -838,9 +840,9 @@ static int shmem_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	struct shmem_inode_info *info = SHMEM_I(inode);
 
 	if (info->alloced - info->swapped != inode->i_mapping->nrpages) {
-		spin_lock(&info->lock);
+		spin_lock_irq(&info->lock);
 		shmem_recalc_inode(inode);
-		spin_unlock(&info->lock);
+		spin_unlock_irq(&info->lock);
 	}
 	generic_fillattr(inode, stat);
 	return 0;
@@ -984,9 +986,9 @@ static int shmem_unuse_inode(struct shmem_inode_info *info,
 		delete_from_swap_cache(*pagep);
 		set_page_dirty(*pagep);
 		if (!error) {
-			spin_lock(&info->lock);
+			spin_lock_irq(&info->lock);
 			info->swapped--;
-			spin_unlock(&info->lock);
+			spin_unlock_irq(&info->lock);
 			swap_free(swap);
 		}
 	}
@@ -1134,10 +1136,10 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 		list_add_tail(&info->swaplist, &shmem_swaplist);
 
 	if (add_to_swap_cache(page, swap, GFP_ATOMIC) == 0) {
-		spin_lock(&info->lock);
+		spin_lock_irq(&info->lock);
 		shmem_recalc_inode(inode);
 		info->swapped++;
-		spin_unlock(&info->lock);
+		spin_unlock_irq(&info->lock);
 
 		swap_shmem_alloc(swap);
 		shmem_delete_from_page_cache(page, swp_to_radix_entry(swap));
@@ -1523,10 +1525,10 @@ repeat:
 
 		mem_cgroup_commit_charge(page, memcg, true, false);
 
-		spin_lock(&info->lock);
+		spin_lock_irq(&info->lock);
 		info->swapped--;
 		shmem_recalc_inode(inode);
-		spin_unlock(&info->lock);
+		spin_unlock_irq(&info->lock);
 
 		if (sgp == SGP_WRITE)
 			mark_page_accessed(page);
@@ -1603,11 +1605,11 @@ alloc_nohuge:		page = shmem_alloc_and_acct_page(gfp, info, sbinfo,
 				PageTransHuge(page));
 		lru_cache_add_anon(page);
 
-		spin_lock(&info->lock);
+		spin_lock_irq(&info->lock);
 		info->alloced += 1 << compound_order(page);
 		inode->i_blocks += BLOCKS_PER_PAGE << compound_order(page);
 		shmem_recalc_inode(inode);
-		spin_unlock(&info->lock);
+		spin_unlock_irq(&info->lock);
 		alloced = true;
 
 		/*
@@ -1639,9 +1641,9 @@ clear:
 		if (alloced) {
 			ClearPageDirty(page);
 			delete_from_page_cache(page);
-			spin_lock(&info->lock);
+			spin_lock_irq(&info->lock);
 			shmem_recalc_inode(inode);
-			spin_unlock(&info->lock);
+			spin_unlock_irq(&info->lock);
 		}
 		error = -EINVAL;
 		goto unlock;
@@ -1673,9 +1675,9 @@ unlock:
 	}
 	if (error == -ENOSPC && !once++) {
 		info = SHMEM_I(inode);
-		spin_lock(&info->lock);
+		spin_lock_irq(&info->lock);
 		shmem_recalc_inode(inode);
-		spin_unlock(&info->lock);
+		spin_unlock_irq(&info->lock);
 		goto repeat;
 	}
 	if (error == -EEXIST)	/* from above or from radix_tree_insert */
@@ -1874,7 +1876,7 @@ int shmem_lock(struct file *file, int lock, struct user_struct *user)
 	struct shmem_inode_info *info = SHMEM_I(inode);
 	int retval = -ENOMEM;
 
-	spin_lock(&info->lock);
+	spin_lock_irq(&info->lock);
 	if (lock && !(info->flags & VM_LOCKED)) {
 		if (!user_shm_lock(inode->i_size, user))
 			goto out_nomem;
@@ -1889,7 +1891,7 @@ int shmem_lock(struct file *file, int lock, struct user_struct *user)
 	retval = 0;
 
 out_nomem:
-	spin_unlock(&info->lock);
+	spin_unlock_irq(&info->lock);
 	return retval;
 }
 
