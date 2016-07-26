@@ -870,6 +870,7 @@ int skl_init_module(struct skl_sst *ctx,
 	msg.ppl_instance_id = mconfig->pipe->ppl_id;
 	msg.param_data_size = module_config_size;
 	msg.core_id = mconfig->core_id;
+	msg.domain = mconfig->domain;
 
 	ret = skl_ipc_init_instance(&ctx->ipc, &msg, param_data);
 	if (ret < 0) {

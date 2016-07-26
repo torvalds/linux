@@ -1656,6 +1656,7 @@ static int skl_tplg_widget_load(struct snd_soc_component *cmpnt,
 	mconfig->max_in_queue = dfw_config->max_in_queue;
 	mconfig->max_out_queue = dfw_config->max_out_queue;
 	mconfig->is_loadable = dfw_config->is_loadable;
+	mconfig->domain = dfw_config->proc_domain;
 	skl_tplg_fill_fmt(mconfig->in_fmt, dfw_config->in_fmt,
 						MODULE_MAX_IN_PINS);
 	skl_tplg_fill_fmt(mconfig->out_fmt, dfw_config->out_fmt,

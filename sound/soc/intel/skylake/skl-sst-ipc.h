@@ -91,6 +91,7 @@ struct skl_ipc_init_instance_msg {
 	u16 param_data_size;
 	u8 ppl_instance_id;
 	u8 core_id;
+	u8 domain;
 };
 
 struct skl_ipc_bind_unbind_msg {

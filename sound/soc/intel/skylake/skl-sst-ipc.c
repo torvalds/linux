@@ -114,6 +114,11 @@
 #define IPC_CORE_ID(x)			(((x) & IPC_CORE_ID_MASK) \
 					<< IPC_CORE_ID_SHIFT)
 
+#define IPC_DOMAIN_SHIFT                28
+#define IPC_DOMAIN_MASK                 0x1
+#define IPC_DOMAIN(x)                   (((x) & IPC_DOMAIN_MASK) \
+					<< IPC_DOMAIN_SHIFT)
+
 /* Bind/Unbind message extension register */
 #define IPC_DST_MOD_ID_SHIFT		0
 #define IPC_DST_MOD_ID(x)		(((x) & IPC_MOD_ID_MASK) \
@@ -705,6 +710,7 @@ int skl_ipc_init_instance(struct sst_generic_ipc *ipc,
 	header.extension = IPC_CORE_ID(msg->core_id);
 	header.extension |= IPC_PPL_INSTANCE_ID(msg->ppl_instance_id);
 	header.extension |= IPC_PARAM_BLOCK_SIZE(param_block_size);
+	header.extension |= IPC_DOMAIN(msg->domain);
 
 	dev_dbg(ipc->dev, "In %s primary =%x ext=%x\n", __func__,
 			 header.primary, header.extension);
