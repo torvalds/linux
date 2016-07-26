@@ -41,6 +41,8 @@ enum transparent_hugepage_flag {
 #endif
 };
 
+extern struct kobj_attribute shmem_enabled_attr;
+
 #define HPAGE_PMD_ORDER (HPAGE_PMD_SHIFT-PAGE_SHIFT)
 #define HPAGE_PMD_NR (1<<HPAGE_PMD_ORDER)
 
