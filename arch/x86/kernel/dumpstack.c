@@ -205,6 +205,11 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 	show_stack_log_lvl(task, NULL, sp, bp, "");
 }
 
+void show_stack_regs(struct pt_regs *regs)
+{
+	show_stack_log_lvl(current, regs, (unsigned long *)regs->sp, regs->bp, "");
+}
+
 static arch_spinlock_t die_lock = __ARCH_SPIN_LOCK_UNLOCKED;
 static int die_owner = -1;
 static unsigned int die_nest_count;
