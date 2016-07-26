@@ -253,16 +253,14 @@ struct ccp_device {
 
 	struct device *dev;
 
-	/*
-	 * Bus specific device information
+	/* Bus specific device information
 	 */
 	void *dev_specific;
 	int (*get_irq)(struct ccp_device *ccp);
 	void (*free_irq)(struct ccp_device *ccp);
 	unsigned int irq;
 
-	/*
-	 * I/O area used for device communication. The register mapping
+	/* I/O area used for device communication. The register mapping
 	 * starts at an offset into the mapped bar.
 	 *   The CMD_REQx registers and the Delete_Cmd_Queue_Job register
 	 *   need to be protected while a command queue thread is accessing
@@ -272,8 +270,7 @@ struct ccp_device {
 	void __iomem *io_map;
 	void __iomem *io_regs;
 
-	/*
-	 * Master lists that all cmds are queued on. Because there can be
+	/* Master lists that all cmds are queued on. Because there can be
 	 * more than one CCP command queue that can process a cmd a separate
 	 * backlog list is neeeded so that the backlog completion call
 	 * completes before the cmd is available for execution.
@@ -283,34 +280,29 @@ struct ccp_device {
 	struct list_head cmd;
 	struct list_head backlog;
 
-	/*
-	 * The command queues. These represent the queues available on the
+	/* The command queues. These represent the queues available on the
 	 * CCP that are available for processing cmds
 	 */
 	struct ccp_cmd_queue cmd_q[MAX_HW_QUEUES];
 	unsigned int cmd_q_count;
 
-	/*
-	 * Support for the CCP True RNG
+	/* Support for the CCP True RNG
 	 */
 	struct hwrng hwrng;
 	unsigned int hwrng_retries;
 
-	/*
-	 * Support for the CCP DMA capabilities
+	/* Support for the CCP DMA capabilities
 	 */
 	struct dma_device dma_dev;
 	struct ccp_dma_chan *ccp_dma_chan;
 	struct kmem_cache *dma_cmd_cache;
 	struct kmem_cache *dma_desc_cache;
 
-	/*
-	 * A counter used to generate job-ids for cmds submitted to the CCP
+	/* A counter used to generate job-ids for cmds submitted to the CCP
 	 */
 	atomic_t current_id ____cacheline_aligned;
 
-	/*
-	 * The CCP uses key storage blocks (KSB) to maintain context for certain
+	/* The CCP uses key storage blocks (KSB) to maintain context for certain
 	 * operations. To prevent multiple cmds from using the same KSB range
 	 * a command queue reserves a KSB range for the duration of the cmd.
 	 * Each queue, will however, reserve 2 KSB blocks for operations that
