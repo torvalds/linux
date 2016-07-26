@@ -182,7 +182,8 @@ struct x86_legacy_features {
 
 /**
  * struct x86_platform_ops - platform specific runtime functions
- * @calibrate_tsc:		calibrate TSC
+ * @calibrate_cpu:		calibrate CPU
+ * @calibrate_tsc:		calibrate TSC, if different from CPU
  * @get_wallclock:		get time from HW clock like RTC etc.
  * @set_wallclock:		set time back to HW clock
  * @is_untracked_pat_range	exclude from PAT logic
@@ -201,6 +202,7 @@ struct x86_legacy_features {
  * 				semantics.
  */
 struct x86_platform_ops {
+	unsigned long (*calibrate_cpu)(void);
 	unsigned long (*calibrate_tsc)(void);
 	void (*get_wallclock)(struct timespec *ts);
 	int (*set_wallclock)(const struct timespec *ts);
