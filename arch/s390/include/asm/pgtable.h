@@ -376,6 +376,7 @@ static inline int is_module_addr(void *addr)
 
 /* Guest Page State used for virtualization */
 #define _PGSTE_GPS_ZERO			0x0000000080000000UL
+#define _PGSTE_GPS_NODAT		0x0000000040000000UL
 #define _PGSTE_GPS_USAGE_MASK		0x0000000003000000UL
 #define _PGSTE_GPS_USAGE_STABLE		0x0000000000000000UL
 #define _PGSTE_GPS_USAGE_UNUSED		0x0000000001000000UL
