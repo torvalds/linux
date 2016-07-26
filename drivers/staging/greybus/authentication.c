@@ -265,6 +265,7 @@ static long cap_ioctl_unlocked(struct file *file, unsigned int cmd,
 			       unsigned long arg)
 {
 	struct gb_cap *cap = file->private_data;
+	struct gb_bundle *bundle = cap->connection->bundle;
 	int ret = -ENODEV;
 
 	/*
@@ -278,8 +279,13 @@ static long cap_ioctl_unlocked(struct file *file, unsigned int cmd,
 	 * new operations.
 	 */
 	mutex_lock(&cap->mutex);
-	if (!cap->disabled)
-		ret = cap_ioctl(cap, cmd, (void __user *)arg);
+	if (!cap->disabled) {
+		ret = gb_pm_runtime_get_sync(bundle);
+		if (!ret) {
+			ret = cap_ioctl(cap, cmd, (void __user *)arg);
+			gb_pm_runtime_put_autosuspend(bundle);
+		}
+	}
 	mutex_unlock(&cap->mutex);
 
 	return ret;

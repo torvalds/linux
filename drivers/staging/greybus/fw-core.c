@@ -20,6 +20,27 @@ struct gb_fw_core {
 	struct gb_connection	*cap_connection;
 };
 
+#ifndef SPI_CORE_SUPPORT_PM
+static int fw_spi_prepare_transfer_hardware(struct device *dev)
+{
+	return gb_pm_runtime_get_sync(to_gb_bundle(dev));
+}
+
+static void fw_spi_unprepare_transfer_hardware(struct device *dev)
+{
+	gb_pm_runtime_put_autosuspend(to_gb_bundle(dev));
+}
+
+static struct spilib_ops __spilib_ops = {
+	.prepare_transfer_hardware = fw_spi_prepare_transfer_hardware,
+	.unprepare_transfer_hardware = fw_spi_unprepare_transfer_hardware,
+};
+
+static struct spilib_ops *spilib_ops = &__spilib_ops;
+#else
+static struct spilib_ops *spilib_ops = NULL;
+#endif
+
 struct gb_connection *to_fw_mgmt_connection(struct device *dev)
 {
 	struct gb_fw_core *fw_core = dev_get_drvdata(dev);
@@ -38,7 +59,8 @@ static int gb_fw_spi_connection_init(struct gb_connection *connection)
 	if (ret)
 		return ret;
 
-	ret = gb_spilib_master_init(connection, &connection->bundle->dev, NULL);
+	ret = gb_spilib_master_init(connection, &connection->bundle->dev,
+				    spilib_ops);
 	if (ret) {
 		gb_connection_disable(connection);
 		return ret;
@@ -206,6 +228,8 @@ static int gb_fw_core_probe(struct gb_bundle *bundle,
 
 	greybus_set_drvdata(bundle, fw_core);
 
+	gb_pm_runtime_put_autosuspend(bundle);
+
 	return 0;
 
 err_exit_connections:
@@ -225,6 +249,11 @@ err_destroy_connections:
 static void gb_fw_core_disconnect(struct gb_bundle *bundle)
 {
 	struct gb_fw_core *fw_core = greybus_get_drvdata(bundle);
+	int ret;
+
+	ret = gb_pm_runtime_get_sync(bundle);
+	if (ret)
+		gb_pm_runtime_get_noresume(bundle);
 
 	gb_fw_mgmt_connection_exit(fw_core->mgmt_connection);
 	gb_cap_connection_exit(fw_core->cap_connection);
