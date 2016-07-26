@@ -2007,3 +2007,89 @@ int tipc_nl_node_get_monitor(struct sk_buff *skb, struct genl_info *info)
 
 	return genlmsg_reply(msg.skb, info);
 }
+
+int tipc_nl_node_dump_monitor(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	struct net *net = sock_net(skb->sk);
+	u32 prev_bearer = cb->args[0];
+	struct tipc_nl_msg msg;
+	int err;
+	int i;
+
+	if (prev_bearer == MAX_BEARERS)
+		return 0;
+
+	msg.skb = skb;
+	msg.portid = NETLINK_CB(cb->skb).portid;
+	msg.seq = cb->nlh->nlmsg_seq;
+
+	rtnl_lock();
+	for (i = prev_bearer; i < MAX_BEARERS; i++) {
+		prev_bearer = i;
+		err = __tipc_nl_add_monitor(net, &msg, prev_bearer);
+		if (err)
+			goto out;
+	}
+
+out:
+	rtnl_unlock();
+	cb->args[0] = prev_bearer;
+
+	return skb->len;
+}
+
+int tipc_nl_node_dump_monitor_peer(struct sk_buff *skb,
+				   struct netlink_callback *cb)
+{
+	struct net *net = sock_net(skb->sk);
+	u32 prev_node = cb->args[1];
+	u32 bearer_id = cb->args[2];
+	int done = cb->args[0];
+	struct tipc_nl_msg msg;
+	int err;
+
+	if (!prev_node) {
+		struct nlattr **attrs;
+		struct nlattr *mon[TIPC_NLA_MON_MAX + 1];
+
+		err = tipc_nlmsg_parse(cb->nlh, &attrs);
+		if (err)
+			return err;
+
+		if (!attrs[TIPC_NLA_MON])
+			return -EINVAL;
+
+		err = nla_parse_nested(mon, TIPC_NLA_MON_MAX,
+				       attrs[TIPC_NLA_MON],
+				       tipc_nl_monitor_policy);
+		if (err)
+			return err;
+
+		if (!mon[TIPC_NLA_MON_REF])
+			return -EINVAL;
+
+		bearer_id = nla_get_u32(mon[TIPC_NLA_MON_REF]);
+
+		if (bearer_id >= MAX_BEARERS)
+			return -EINVAL;
+	}
+
+	if (done)
+		return 0;
+
+	msg.skb = skb;
+	msg.portid = NETLINK_CB(cb->skb).portid;
+	msg.seq = cb->nlh->nlmsg_seq;
+
+	rtnl_lock();
+	err = tipc_nl_add_monitor_peer(net, &msg, bearer_id, &prev_node);
+	if (!err)
+		done = 1;
+
+	rtnl_unlock();
+	cb->args[0] = done;
+	cb->args[1] = prev_node;
+	cb->args[2] = bearer_id;
+
+	return skb->len;
+}

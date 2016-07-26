@@ -80,4 +80,7 @@ int tipc_nl_node_set_link(struct sk_buff *skb, struct genl_info *info);
 
 int tipc_nl_node_set_monitor(struct sk_buff *skb, struct genl_info *info);
 int tipc_nl_node_get_monitor(struct sk_buff *skb, struct genl_info *info);
+int tipc_nl_node_dump_monitor(struct sk_buff *skb, struct netlink_callback *cb);
+int tipc_nl_node_dump_monitor_peer(struct sk_buff *skb,
+				   struct netlink_callback *cb);
 #endif
