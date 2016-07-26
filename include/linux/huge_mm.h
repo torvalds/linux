@@ -41,6 +41,16 @@ enum transparent_hugepage_flag {
 #endif
 };
 
+struct kobject;
+struct kobj_attribute;
+
+extern ssize_t single_hugepage_flag_store(struct kobject *kobj,
+				 struct kobj_attribute *attr,
+				 const char *buf, size_t count,
+				 enum transparent_hugepage_flag flag);
+extern ssize_t single_hugepage_flag_show(struct kobject *kobj,
+				struct kobj_attribute *attr, char *buf,
+				enum transparent_hugepage_flag flag);
 extern struct kobj_attribute shmem_enabled_attr;
 
 #define HPAGE_PMD_ORDER (HPAGE_PMD_SHIFT-PAGE_SHIFT)
