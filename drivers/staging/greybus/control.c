@@ -534,7 +534,7 @@ int gb_control_enable(struct gb_control *control)
 		control->has_bundle_version = true;
 
 	/* FIXME: use protocol version instead */
-	if (!(control->intf->quirks & GB_INTERFACE_QUIRK_NO_PM))
+	if (!(control->intf->quirks & GB_INTERFACE_QUIRK_NO_BUNDLE_ACTIVATE))
 		control->has_bundle_activate = true;
 
 	return 0;
