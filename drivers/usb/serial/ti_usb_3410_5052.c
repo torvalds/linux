@@ -688,7 +688,6 @@ static int ti_open(struct tty_struct *tty, struct usb_serial_port *port)
 	if (tty)
 		ti_set_termios(tty, port, &tty->termios);
 
-	dev_dbg(&port->dev, "%s - sending TI_OPEN_PORT\n", __func__);
 	status = ti_command_out_sync(tdev, TI_OPEN_PORT,
 		(__u8)(TI_UART1_PORT + port_number), open_settings, NULL, 0);
 	if (status) {
@@ -697,7 +696,6 @@ static int ti_open(struct tty_struct *tty, struct usb_serial_port *port)
 		goto unlink_int_urb;
 	}
 
-	dev_dbg(&port->dev, "%s - sending TI_START_PORT\n", __func__);
 	status = ti_command_out_sync(tdev, TI_START_PORT,
 		(__u8)(TI_UART1_PORT + port_number), 0, NULL, 0);
 	if (status) {
@@ -706,7 +704,6 @@ static int ti_open(struct tty_struct *tty, struct usb_serial_port *port)
 		goto unlink_int_urb;
 	}
 
-	dev_dbg(&port->dev, "%s - sending TI_PURGE_PORT\n", __func__);
 	status = ti_command_out_sync(tdev, TI_PURGE_PORT,
 		(__u8)(TI_UART1_PORT + port_number), TI_PURGE_INPUT, NULL, 0);
 	if (status) {
@@ -730,7 +727,6 @@ static int ti_open(struct tty_struct *tty, struct usb_serial_port *port)
 	if (tty)
 		ti_set_termios(tty, port, &tty->termios);
 
-	dev_dbg(&port->dev, "%s - sending TI_OPEN_PORT (2)\n", __func__);
 	status = ti_command_out_sync(tdev, TI_OPEN_PORT,
 		(__u8)(TI_UART1_PORT + port_number), open_settings, NULL, 0);
 	if (status) {
@@ -739,7 +735,6 @@ static int ti_open(struct tty_struct *tty, struct usb_serial_port *port)
 		goto unlink_int_urb;
 	}
 
-	dev_dbg(&port->dev, "%s - sending TI_START_PORT (2)\n", __func__);
 	status = ti_command_out_sync(tdev, TI_START_PORT,
 		(__u8)(TI_UART1_PORT + port_number), 0, NULL, 0);
 	if (status) {
@@ -749,7 +744,6 @@ static int ti_open(struct tty_struct *tty, struct usb_serial_port *port)
 	}
 
 	/* start read urb */
-	dev_dbg(&port->dev, "%s - start read urb\n", __func__);
 	urb = port->read_urb;
 	if (!urb) {
 		dev_err(&port->dev, "%s - no read urb\n", __func__);
@@ -775,7 +769,6 @@ unlink_int_urb:
 		usb_kill_urb(port->serial->port[0]->interrupt_in_urb);
 release_lock:
 	mutex_unlock(&tdev->td_open_close_lock);
-	dev_dbg(&port->dev, "%s - exit %d\n", __func__, status);
 	return status;
 }
 
@@ -805,7 +798,6 @@ static void ti_close(struct usb_serial_port *port)
 
 	port_number = port->port_number;
 
-	dev_dbg(&port->dev, "%s - sending TI_CLOSE_PORT\n", __func__);
 	status = ti_command_out_sync(tdev, TI_CLOSE_PORT,
 		     (__u8)(TI_UART1_PORT + port_number), 0, NULL, 0);
 	if (status)
@@ -832,7 +824,6 @@ static int ti_write(struct tty_struct *tty, struct usb_serial_port *port,
 	struct ti_port *tport = usb_get_serial_port_data(port);
 
 	if (count == 0) {
-		dev_dbg(&port->dev, "%s - write request of 0 bytes\n", __func__);
 		return 0;
 	}
 
@@ -939,11 +930,9 @@ static int ti_ioctl(struct tty_struct *tty,
 
 	switch (cmd) {
 	case TIOCGSERIAL:
-		dev_dbg(&port->dev, "%s - TIOCGSERIAL\n", __func__);
 		return ti_get_serial_info(tport,
 				(struct serial_struct __user *)arg);
 	case TIOCSSERIAL:
-		dev_dbg(&port->dev, "%s - TIOCSSERIAL\n", __func__);
 		return ti_set_serial_info(tty, tport,
 				(struct serial_struct __user *)arg);
 	}
