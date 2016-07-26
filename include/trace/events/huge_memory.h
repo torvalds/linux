@@ -13,7 +13,7 @@
 	EM( SCAN_EXCEED_NONE_PTE,	"exceed_none_pte")		\
 	EM( SCAN_PTE_NON_PRESENT,	"pte_non_present")		\
 	EM( SCAN_PAGE_RO,		"no_writable_page")		\
-	EM( SCAN_NO_REFERENCED_PAGE,	"no_referenced_page")		\
+	EM( SCAN_LACK_REFERENCED_PAGE,	"lack_referenced_page")		\
 	EM( SCAN_PAGE_NULL,		"page_null")			\
 	EM( SCAN_SCAN_ABORT,		"scan_aborted")			\
 	EM( SCAN_PAGE_COUNT,		"not_suitable_page_count")	\
@@ -47,7 +47,7 @@ SCAN_STATUS
 TRACE_EVENT(mm_khugepaged_scan_pmd,
 
 	TP_PROTO(struct mm_struct *mm, struct page *page, bool writable,
-		 bool referenced, int none_or_zero, int status, int unmapped),
+		 int referenced, int none_or_zero, int status, int unmapped),
 
 	TP_ARGS(mm, page, writable, referenced, none_or_zero, status, unmapped),
 
@@ -55,7 +55,7 @@ TRACE_EVENT(mm_khugepaged_scan_pmd,
 		__field(struct mm_struct *, mm)
 		__field(unsigned long, pfn)
 		__field(bool, writable)
-		__field(bool, referenced)
+		__field(int, referenced)
 		__field(int, none_or_zero)
 		__field(int, status)
 		__field(int, unmapped)
@@ -108,14 +108,14 @@ TRACE_EVENT(mm_collapse_huge_page,
 TRACE_EVENT(mm_collapse_huge_page_isolate,
 
 	TP_PROTO(struct page *page, int none_or_zero,
-		 bool referenced, bool  writable, int status),
+		 int referenced, bool  writable, int status),
 
 	TP_ARGS(page, none_or_zero, referenced, writable, status),
 
 	TP_STRUCT__entry(
 		__field(unsigned long, pfn)
 		__field(int, none_or_zero)
-		__field(bool, referenced)
+		__field(int, referenced)
 		__field(bool, writable)
 		__field(int, status)
 	),
@@ -138,25 +138,28 @@ TRACE_EVENT(mm_collapse_huge_page_isolate,
 
 TRACE_EVENT(mm_collapse_huge_page_swapin,
 
-	TP_PROTO(struct mm_struct *mm, int swapped_in, int ret),
+	TP_PROTO(struct mm_struct *mm, int swapped_in, int referenced, int ret),
 
-	TP_ARGS(mm, swapped_in, ret),
+	TP_ARGS(mm, swapped_in, referenced, ret),
 
 	TP_STRUCT__entry(
 		__field(struct mm_struct *, mm)
 		__field(int, swapped_in)
+		__field(int, referenced)
 		__field(int, ret)
 	),
 
 	TP_fast_assign(
 		__entry->mm = mm;
 		__entry->swapped_in = swapped_in;
+		__entry->referenced = referenced;
 		__entry->ret = ret;
 	),
 
-	TP_printk("mm=%p, swapped_in=%d, ret=%d",
+	TP_printk("mm=%p, swapped_in=%d, referenced=%d, ret=%d",
 		__entry->mm,
 		__entry->swapped_in,
+		__entry->referenced,
 		__entry->ret)
 );
 
