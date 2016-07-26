@@ -921,6 +921,7 @@ static void ip6mr_update_thresholds(struct mr6_table *mrt, struct mfc6_cache *ca
 				cache->mfc_un.res.maxvif = vifi + 1;
 		}
 	}
+	cache->mfc_un.res.lastuse = jiffies;
 }
 
 static int mif6_add(struct net *net, struct mr6_table *mrt,
@@ -1500,7 +1501,6 @@ static int ip6mr_mfc_add(struct net *net, struct mr6_table *mrt,
 	c->mf6c_origin = mfc->mf6cc_origin.sin6_addr;
 	c->mf6c_mcastgrp = mfc->mf6cc_mcastgrp.sin6_addr;
 	c->mf6c_parent = mfc->mf6cc_parent;
-	c->mfc_un.res.lastuse = jiffies;
 	ip6mr_update_thresholds(mrt, c, ttls);
 	if (!mrtsock)
 		c->mfc_flags |= MFC_STATIC;
