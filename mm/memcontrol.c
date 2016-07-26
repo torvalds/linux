@@ -2273,20 +2273,30 @@ static void memcg_schedule_kmem_cache_create(struct mem_cgroup *memcg,
 	current->memcg_kmem_skip_account = 0;
 }
 
-/*
+static inline bool memcg_kmem_bypass(void)
+{
+	if (in_interrupt() || !current->mm || (current->flags & PF_KTHREAD))
+		return true;
+	return false;
+}
+
+/**
+ * memcg_kmem_get_cache: select the correct per-memcg cache for allocation
+ * @cachep: the original global kmem cache
+ *
  * Return the kmem_cache we're supposed to use for a slab allocation.
  * We try to use the current memcg's version of the cache.
  *
- * If the cache does not exist yet, if we are the first user of it,
- * we either create it immediately, if possible, or create it asynchronously
- * in a workqueue.
- * In the latter case, we will let the current allocation go through with
- * the original cache.
+ * If the cache does not exist yet, if we are the first user of it, we
+ * create it asynchronously in a workqueue and let the current allocation
+ * go through with the original cache.
  *
- * Can't be called in interrupt context or from kernel threads.
- * This function needs to be called with rcu_read_lock() held.
+ * This function takes a reference to the cache it returns to assure it
+ * won't get destroyed while we are working with it. Once the caller is
+ * done with it, memcg_kmem_put_cache() must be called to release the
+ * reference.
  */
-struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
+struct kmem_cache *memcg_kmem_get_cache(struct kmem_cache *cachep)
 {
 	struct mem_cgroup *memcg;
 	struct kmem_cache *memcg_cachep;
@@ -2294,10 +2304,7 @@ struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
 
 	VM_BUG_ON(!is_root_cache(cachep));
 
-	if (cachep->flags & SLAB_ACCOUNT)
-		gfp |= __GFP_ACCOUNT;
-
-	if (!(gfp & __GFP_ACCOUNT))
+	if (memcg_kmem_bypass())
 		return cachep;
 
 	if (current->memcg_kmem_skip_account)
@@ -2330,14 +2337,27 @@ out:
 	return cachep;
 }
 
-void __memcg_kmem_put_cache(struct kmem_cache *cachep)
+/**
+ * memcg_kmem_put_cache: drop reference taken by memcg_kmem_get_cache
+ * @cachep: the cache returned by memcg_kmem_get_cache
+ */
+void memcg_kmem_put_cache(struct kmem_cache *cachep)
 {
 	if (!is_root_cache(cachep))
 		css_put(&cachep->memcg_params.memcg->css);
 }
 
-int __memcg_kmem_charge_memcg(struct page *page, gfp_t gfp, int order,
-			      struct mem_cgroup *memcg)
+/**
+ * memcg_kmem_charge: charge a kmem page
+ * @page: page to charge
+ * @gfp: reclaim mode
+ * @order: allocation order
+ * @memcg: memory cgroup to charge
+ *
+ * Returns 0 on success, an error code on failure.
+ */
+int memcg_kmem_charge_memcg(struct page *page, gfp_t gfp, int order,
+			    struct mem_cgroup *memcg)
 {
 	unsigned int nr_pages = 1 << order;
 	struct page_counter *counter;
@@ -2358,19 +2378,34 @@ int __memcg_kmem_charge_memcg(struct page *page, gfp_t gfp, int order,
 	return 0;
 }
 
-int __memcg_kmem_charge(struct page *page, gfp_t gfp, int order)
+/**
+ * memcg_kmem_charge: charge a kmem page to the current memory cgroup
+ * @page: page to charge
+ * @gfp: reclaim mode
+ * @order: allocation order
+ *
+ * Returns 0 on success, an error code on failure.
+ */
+int memcg_kmem_charge(struct page *page, gfp_t gfp, int order)
 {
 	struct mem_cgroup *memcg;
 	int ret = 0;
 
+	if (memcg_kmem_bypass())
+		return 0;
+
 	memcg = get_mem_cgroup_from_mm(current->mm);
 	if (!mem_cgroup_is_root(memcg))
-		ret = __memcg_kmem_charge_memcg(page, gfp, order, memcg);
+		ret = memcg_kmem_charge_memcg(page, gfp, order, memcg);
 	css_put(&memcg->css);
 	return ret;
 }
-
-void __memcg_kmem_uncharge(struct page *page, int order)
+/**
+ * memcg_kmem_uncharge: uncharge a kmem page
+ * @page: page to uncharge
+ * @order: allocation order
+ */
+void memcg_kmem_uncharge(struct page *page, int order)
 {
 	struct mem_cgroup *memcg = page->mem_cgroup;
 	unsigned int nr_pages = 1 << order;
