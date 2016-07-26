@@ -20,6 +20,11 @@ enum gb_svc_state {
 	GB_SVC_STATE_SVC_HELLO,
 };
 
+enum gb_svc_watchdog_bite {
+	GB_SVC_WATCHDOG_BITE_RESET_UNIPRO = 0,
+	GB_SVC_WATCHDOG_BITE_PANIC_KERNEL,
+};
+
 struct gb_svc_watchdog;
 
 struct svc_debugfs_pwrmon_rail {
@@ -43,6 +48,7 @@ struct gb_svc {
 	u8 protocol_minor;
 
 	struct gb_svc_watchdog	*watchdog;
+	enum gb_svc_watchdog_bite action;
 
 	struct dentry *debugfs_dentry;
 	struct svc_debugfs_pwrmon_rail *pwrmon_rails;

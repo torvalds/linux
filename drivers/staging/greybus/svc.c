@@ -100,6 +100,36 @@ static ssize_t watchdog_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(watchdog);
 
+static ssize_t watchdog_action_show(struct device *dev,
+				    struct device_attribute *attr, char *buf)
+{
+	struct gb_svc *svc = to_gb_svc(dev);
+
+	if (svc->action == GB_SVC_WATCHDOG_BITE_PANIC_KERNEL)
+		return sprintf(buf, "panic\n");
+	else if (svc->action == GB_SVC_WATCHDOG_BITE_RESET_UNIPRO)
+		return sprintf(buf, "reset\n");
+
+	return -EINVAL;
+}
+
+static ssize_t watchdog_action_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t len)
+{
+	struct gb_svc *svc = to_gb_svc(dev);
+
+	if (sysfs_streq(buf, "panic"))
+		svc->action = GB_SVC_WATCHDOG_BITE_PANIC_KERNEL;
+	else if (sysfs_streq(buf, "reset"))
+		svc->action = GB_SVC_WATCHDOG_BITE_RESET_UNIPRO;
+	else
+		return -EINVAL;
+
+	return len;
+}
+static DEVICE_ATTR_RW(watchdog_action);
+
 static int gb_svc_pwrmon_rail_count_get(struct gb_svc *svc, u8 *value)
 {
 	struct gb_svc_pwrmon_rail_count_get_response response;
@@ -222,6 +252,7 @@ static struct attribute *svc_attrs[] = {
 	&dev_attr_ap_intf_id.attr,
 	&dev_attr_intf_eject.attr,
 	&dev_attr_watchdog.attr,
+	&dev_attr_watchdog_action.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(svc);

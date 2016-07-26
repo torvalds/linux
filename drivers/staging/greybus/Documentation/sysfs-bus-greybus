@@ -257,3 +257,19 @@ Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		If the SVC watchdog is enabled or not.  Writing 0 to this
 		file will disable the watchdog, writing 1 will enable it.
+
+What:		/sys/bus/greybus/devices/N-svc/watchdog_action
+Date:		July 2016
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		This attribute indicates the action to be performed upon SVC
+		watchdog bite.
+
+		The action can be one of the "reset" or "panic". Writing either
+		one of the "reset" or "panic" will change the behavior of SVC
+		watchdog bite. Default value is "reset".
+
+		"reset" means the UniPro subsystem is to be reset.
+
+		"panic" means SVC watchdog bite will cause kernel to panic.
