@@ -665,6 +665,7 @@ struct inode {
 #endif
 	struct list_head	i_lru;		/* inode LRU list */
 	struct list_head	i_sb_list;
+	struct list_head	i_wb_list;	/* backing dev writeback list */
 	union {
 		struct hlist_head	i_dentry;
 		struct rcu_head		i_rcu;
@@ -1448,6 +1449,9 @@ struct super_block {
 	/* s_inode_list_lock protects s_inodes */
 	spinlock_t		s_inode_list_lock ____cacheline_aligned_in_smp;
 	struct list_head	s_inodes;	/* all inodes */
+
+	spinlock_t		s_inode_wblist_lock;
+	struct list_head	s_inodes_wb;	/* writeback inodes */
 };
 
 extern struct timespec current_fs_time(struct super_block *sb);
