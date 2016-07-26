@@ -257,6 +257,7 @@ static int malidp_bind(struct device *dev)
 {
 	struct resource *res;
 	struct drm_device *drm;
+	struct device_node *ep;
 	struct malidp_drm *malidp;
 	struct malidp_hw_device *hwdev;
 	struct platform_device *pdev = to_platform_device(dev);
@@ -360,11 +361,12 @@ static int malidp_bind(struct device *dev)
 		goto register_fail;
 
 	/* Set the CRTC's port so that the encoder component can find it */
-	malidp->crtc.port = of_graph_get_next_endpoint(dev->of_node, NULL);
+	ep = of_graph_get_next_endpoint(dev->of_node, NULL);
+	if (!ep)
+		goto port_fail;
+	malidp->crtc.port = of_get_next_parent(ep);
 
 	ret = component_bind_all(dev, drm);
-	of_node_put(malidp->crtc.port);
-
 	if (ret) {
 		DRM_ERROR("Failed to bind all components\n");
 		goto bind_fail;
@@ -402,6 +404,9 @@ vblank_fail:
 irq_init_fail:
 	component_unbind_all(dev, drm);
 bind_fail:
+	of_node_put(malidp->crtc.port);
+	malidp->crtc.port = NULL;
+port_fail:
 	drm_dev_unregister(drm);
 register_fail:
 	malidp_de_planes_destroy(drm);
@@ -435,6 +440,8 @@ static void malidp_unbind(struct device *dev)
 	malidp_de_irq_fini(drm);
 	drm_vblank_cleanup(drm);
 	component_unbind_all(dev, drm);
+	of_node_put(malidp->crtc.port);
+	malidp->crtc.port = NULL;
 	drm_dev_unregister(drm);
 	malidp_de_planes_destroy(drm);
 	drm_mode_config_cleanup(drm);
