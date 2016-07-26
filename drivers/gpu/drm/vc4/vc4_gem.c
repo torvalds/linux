@@ -573,7 +573,7 @@ vc4_cl_lookup_bos(struct drm_device *dev,
 
 fail:
 	drm_free_large(handles);
-	return 0;
+	return ret;
 }
 
 static int
