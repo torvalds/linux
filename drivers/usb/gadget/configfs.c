@@ -1211,8 +1211,9 @@ static void purge_configs_funcs(struct gadget_info *gi)
 
 			list_move_tail(&f->list, &cfg->func_list);
 			if (f->unbind) {
-				dev_err(&gi->cdev.gadget->dev, "unbind function"
-						" '%s'/%p\n", f->name, f);
+				dev_info(&gi->cdev.gadget->dev,
+				         "unbind function '%s'/%p\n",
+				         f->name, f);
 				f->unbind(c, f);
 			}
 		}
