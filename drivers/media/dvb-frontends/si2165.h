@@ -50,35 +50,4 @@ struct si2165_platform_data {
 	bool inversion;
 };
 
-struct si2165_config {
-	/* i2c addr
-	 * possible values: 0x64,0x65,0x66,0x67 */
-	u8 i2c_addr;
-
-	/* external clock or XTAL */
-	u8 chip_mode;
-
-	/* frequency of external clock or xtal in Hz
-	 * possible values: 4000000, 16000000, 20000000, 240000000, 27000000
-	 */
-	u32 ref_freq_Hz;
-
-	/* invert the spectrum */
-	bool inversion;
-};
-
-#if IS_REACHABLE(CONFIG_DVB_SI2165)
-struct dvb_frontend *si2165_attach(
-	const struct si2165_config *config,
-	struct i2c_adapter *i2c);
-#else
-static inline struct dvb_frontend *si2165_attach(
-	const struct si2165_config *config,
-	struct i2c_adapter *i2c)
-{
-	pr_warn("%s: driver disabled by Kconfig\n", __func__);
-	return NULL;
-}
-#endif /* CONFIG_DVB_SI2165 */
-
 #endif /* _DVB_SI2165_H */
