@@ -171,6 +171,27 @@ struct tipc_bearer *tipc_bearer_find(struct net *net, const char *name)
 	return NULL;
 }
 
+/*     tipc_bearer_get_name - get the bearer name from its id.
+ *     @net: network namespace
+ *     @name: a pointer to the buffer where the name will be stored.
+ *     @bearer_id: the id to get the name from.
+ */
+int tipc_bearer_get_name(struct net *net, char *name, u32 bearer_id)
+{
+	struct tipc_net *tn = tipc_net(net);
+	struct tipc_bearer *b;
+
+	if (bearer_id >= MAX_BEARERS)
+		return -EINVAL;
+
+	b = rtnl_dereference(tn->bearer_list[bearer_id]);
+	if (!b)
+		return -EINVAL;
+
+	strcpy(name, b->name);
+	return 0;
+}
+
 void tipc_bearer_add_dest(struct net *net, u32 bearer_id, u32 dest)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
