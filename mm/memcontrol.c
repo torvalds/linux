@@ -5580,7 +5580,6 @@ static void uncharge_list(struct list_head *page_list)
 
 			if (PageTransHuge(page)) {
 				nr_pages <<= compound_order(page);
-				VM_BUG_ON_PAGE(!PageTransHuge(page), page);
 				nr_huge += nr_pages;
 			}
 			if (PageAnon(page))
