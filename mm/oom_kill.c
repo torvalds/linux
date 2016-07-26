@@ -452,7 +452,7 @@ static bool __oom_reap_task(struct task_struct *tsk)
 	 * We have to make sure to not race with the victim exit path
 	 * and cause premature new oom victim selection:
 	 * __oom_reap_task		exit_mm
-	 *   atomic_inc_not_zero
+	 *   mmget_not_zero
 	 *				  mmput
 	 *				    atomic_dec_and_test
 	 *				  exit_oom_victim
@@ -474,12 +474,22 @@ static bool __oom_reap_task(struct task_struct *tsk)
 	if (!p)
 		goto unlock_oom;
 	mm = p->mm;
-	atomic_inc(&mm->mm_users);
+	atomic_inc(&mm->mm_count);
 	task_unlock(p);
 
 	if (!down_read_trylock(&mm->mmap_sem)) {
 		ret = false;
-		goto unlock_oom;
+		goto mm_drop;
+	}
+
+	/*
+	 * increase mm_users only after we know we will reap something so
+	 * that the mmput_async is called only when we have reaped something
+	 * and delayed __mmput doesn't matter that much
+	 */
+	if (!mmget_not_zero(mm)) {
+		up_read(&mm->mmap_sem);
+		goto mm_drop;
 	}
 
 	tlb_gather_mmu(&tlb, mm, 0, -1);
@@ -521,15 +531,16 @@ static bool __oom_reap_task(struct task_struct *tsk)
 	 * to release its memory.
 	 */
 	set_bit(MMF_OOM_REAPED, &mm->flags);
-unlock_oom:
-	mutex_unlock(&oom_lock);
 	/*
 	 * Drop our reference but make sure the mmput slow path is called from a
 	 * different context because we shouldn't risk we get stuck there and
 	 * put the oom_reaper out of the way.
 	 */
-	if (mm)
-		mmput_async(mm);
+	mmput_async(mm);
+mm_drop:
+	mmdrop(mm);
+unlock_oom:
+	mutex_unlock(&oom_lock);
 	return ret;
 }
 
