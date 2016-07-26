@@ -889,11 +889,16 @@ EXPORT_SYMBOL_GPL(greybus_message_sent);
  * data into the request buffer and handle the rest via workqueue.
  */
 static void gb_connection_recv_request(struct gb_connection *connection,
-				       u16 operation_id, u8 type,
-				       void *data, size_t size)
+				const struct gb_operation_msg_hdr *header,
+				void *data, size_t size)
 {
 	struct gb_operation *operation;
+	u16 operation_id;
+	u8 type;
 	int ret;
+
+	operation_id = le16_to_cpu(header->operation_id);
+	type = header->type;
 
 	operation = gb_operation_create_incoming(connection, operation_id,
 						type, data, size);
@@ -1002,7 +1007,6 @@ void gb_connection_recv(struct gb_connection *connection,
 	struct gb_operation_msg_hdr header;
 	struct device *dev = &connection->hd->dev;
 	size_t msg_size;
-	u16 operation_id;
 
 	if (connection->state == GB_CONNECTION_STATE_DISABLED ||
 			gb_connection_is_offloaded(connection)) {
@@ -1029,13 +1033,13 @@ void gb_connection_recv(struct gb_connection *connection,
 		return;		/* XXX Should still complete operation */
 	}
 
-	operation_id = le16_to_cpu(header.operation_id);
-	if (header.type & GB_MESSAGE_TYPE_RESPONSE)
+	if (header.type & GB_MESSAGE_TYPE_RESPONSE) {
 		gb_connection_recv_response(connection,	&header, data,
 						msg_size);
-	else
-		gb_connection_recv_request(connection, operation_id,
-						header.type, data, msg_size);
+	} else {
+		gb_connection_recv_request(connection, &header, data,
+						msg_size);
+	}
 }
 
 /*
