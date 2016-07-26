@@ -1,8 +1,7 @@
 config ZRAM
 	tristate "Compressed RAM block device support"
-	depends on BLOCK && SYSFS && ZSMALLOC
-	select LZO_COMPRESS
-	select LZO_DECOMPRESS
+	depends on BLOCK && SYSFS && ZSMALLOC && CRYPTO
+	select CRYPTO_LZO
 	default n
 	help
 	  Creates virtual block devices called /dev/zramX (X = 0, 1, ...).
@@ -18,8 +17,7 @@ config ZRAM
 config ZRAM_LZ4_COMPRESS
 	bool "Enable LZ4 algorithm support"
 	depends on ZRAM
-	select LZ4_COMPRESS
-	select LZ4_DECOMPRESS
+	select CRYPTO_LZ4
 	default n
 	help
 	  This option enables LZ4 compression algorithm support. Compression
