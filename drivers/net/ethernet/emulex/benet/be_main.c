@@ -5077,6 +5077,10 @@ static void be_worker(struct work_struct *work)
 	struct be_rx_obj *rxo;
 	int i;
 
+	if (be_physfn(adapter) &&
+	    MODULO(adapter->work_counter, adapter->be_get_temp_freq) == 0)
+		be_cmd_get_die_temperature(adapter);
+
 	/* when interrupts are not yet enabled, just reap any pending
 	 * mcc completions
 	 */
@@ -5094,10 +5098,6 @@ static void be_worker(struct work_struct *work)
 		else
 			be_cmd_get_stats(adapter, &adapter->stats_cmd);
 	}
-
-	if (be_physfn(adapter) &&
-	    MODULO(adapter->work_counter, adapter->be_get_temp_freq) == 0)
-		be_cmd_get_die_temperature(adapter);
 
 	for_all_rx_queues(adapter, rxo, i) {
 		/* Replenish RX-queues starved due to memory
