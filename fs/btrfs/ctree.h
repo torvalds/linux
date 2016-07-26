@@ -117,6 +117,7 @@ static inline unsigned long btrfs_chunk_item_size(int num_stripes)
 #define BTRFS_FS_STATE_REMOUNTING	1
 #define BTRFS_FS_STATE_TRANS_ABORTED	2
 #define BTRFS_FS_STATE_DEV_REPLACING	3
+#define BTRFS_FS_STATE_DUMMY_FS_INFO	4
 
 #define BTRFS_BACKREF_REV_MAX		256
 #define BTRFS_BACKREF_REV_SHIFT		56
@@ -143,21 +144,6 @@ struct btrfs_header {
 	__le32 nritems;
 	u8 level;
 } __attribute__ ((__packed__));
-
-#define BTRFS_NODEPTRS_PER_BLOCK(r) (((r)->nodesize - \
-				      sizeof(struct btrfs_header)) / \
-				     sizeof(struct btrfs_key_ptr))
-#define __BTRFS_LEAF_DATA_SIZE(bs) ((bs) - sizeof(struct btrfs_header))
-#define BTRFS_LEAF_DATA_SIZE(r) (__BTRFS_LEAF_DATA_SIZE(r->nodesize))
-#define BTRFS_FILE_EXTENT_INLINE_DATA_START		\
-		(offsetof(struct btrfs_file_extent_item, disk_bytenr))
-#define BTRFS_MAX_INLINE_DATA_SIZE(r) (BTRFS_LEAF_DATA_SIZE(r) - \
-					sizeof(struct btrfs_item) - \
-					BTRFS_FILE_EXTENT_INLINE_DATA_START)
-#define BTRFS_MAX_XATTR_SIZE(r)	(BTRFS_LEAF_DATA_SIZE(r) - \
-				 sizeof(struct btrfs_item) -\
-				 sizeof(struct btrfs_dir_item))
-
 
 /*
  * this is a very generous portion of the super block, giving us
@@ -1114,12 +1100,11 @@ struct btrfs_subvolume_writers {
 #define BTRFS_ROOT_REF_COWS		1
 #define BTRFS_ROOT_TRACK_DIRTY		2
 #define BTRFS_ROOT_IN_RADIX		3
-#define BTRFS_ROOT_DUMMY_ROOT		4
-#define BTRFS_ROOT_ORPHAN_ITEM_INSERTED	5
-#define BTRFS_ROOT_DEFRAG_RUNNING	6
-#define BTRFS_ROOT_FORCE_COW		7
-#define BTRFS_ROOT_MULTI_LOG_TASKS	8
-#define BTRFS_ROOT_DIRTY		9
+#define BTRFS_ROOT_ORPHAN_ITEM_INSERTED	4
+#define BTRFS_ROOT_DEFRAG_RUNNING	5
+#define BTRFS_ROOT_FORCE_COW		6
+#define BTRFS_ROOT_MULTI_LOG_TASKS	7
+#define BTRFS_ROOT_DIRTY		8
 
 /*
  * in ram representation of the tree.  extent_root is used for all allocations
@@ -1181,8 +1166,10 @@ struct btrfs_root {
 
 	u64 highest_objectid;
 
+#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 	/* only used with CONFIG_BTRFS_FS_RUN_SANITY_TESTS is enabled */
 	u64 alloc_bytenr;
+#endif
 
 	u64 defrag_trans_start;
 	struct btrfs_key defrag_progress;
@@ -1259,6 +1246,39 @@ struct btrfs_root {
 	atomic_t qgroup_meta_rsv;
 };
 
+static inline u32 __BTRFS_LEAF_DATA_SIZE(u32 blocksize)
+{
+	return blocksize - sizeof(struct btrfs_header);
+}
+
+static inline u32 BTRFS_LEAF_DATA_SIZE(const struct btrfs_root *root)
+{
+	return __BTRFS_LEAF_DATA_SIZE(root->nodesize);
+}
+
+static inline u32 BTRFS_MAX_ITEM_SIZE(const struct btrfs_root *root)
+{
+	return BTRFS_LEAF_DATA_SIZE(root) - sizeof(struct btrfs_item);
+}
+
+static inline u32 BTRFS_NODEPTRS_PER_BLOCK(const struct btrfs_root *root)
+{
+	return BTRFS_LEAF_DATA_SIZE(root) / sizeof(struct btrfs_key_ptr);
+}
+
+#define BTRFS_FILE_EXTENT_INLINE_DATA_START		\
+		(offsetof(struct btrfs_file_extent_item, disk_bytenr))
+static inline u32 BTRFS_MAX_INLINE_DATA_SIZE(const struct btrfs_root *root)
+{
+	return BTRFS_MAX_ITEM_SIZE(root) -
+	       BTRFS_FILE_EXTENT_INLINE_DATA_START;
+}
+
+static inline u32 BTRFS_MAX_XATTR_SIZE(const struct btrfs_root *root)
+{
+	return BTRFS_MAX_ITEM_SIZE(root) - sizeof(struct btrfs_dir_item);
+}
+
 /*
  * Flags for mount options.
  *
@@ -1299,21 +1319,21 @@ struct btrfs_root {
 #define btrfs_clear_opt(o, opt)		((o) &= ~BTRFS_MOUNT_##opt)
 #define btrfs_set_opt(o, opt)		((o) |= BTRFS_MOUNT_##opt)
 #define btrfs_raw_test_opt(o, opt)	((o) & BTRFS_MOUNT_##opt)
-#define btrfs_test_opt(root, opt)	((root)->fs_info->mount_opt & \
+#define btrfs_test_opt(fs_info, opt)	((fs_info)->mount_opt & \
 					 BTRFS_MOUNT_##opt)
 
-#define btrfs_set_and_info(root, opt, fmt, args...)			\
+#define btrfs_set_and_info(fs_info, opt, fmt, args...)			\
 {									\
-	if (!btrfs_test_opt(root, opt))					\
-		btrfs_info(root->fs_info, fmt, ##args);			\
-	btrfs_set_opt(root->fs_info->mount_opt, opt);			\
+	if (!btrfs_test_opt(fs_info, opt))				\
+		btrfs_info(fs_info, fmt, ##args);			\
+	btrfs_set_opt(fs_info->mount_opt, opt);				\
 }
 
-#define btrfs_clear_and_info(root, opt, fmt, args...)			\
+#define btrfs_clear_and_info(fs_info, opt, fmt, args...)		\
 {									\
-	if (btrfs_test_opt(root, opt))					\
-		btrfs_info(root->fs_info, fmt, ##args);			\
-	btrfs_clear_opt(root->fs_info->mount_opt, opt);			\
+	if (btrfs_test_opt(fs_info, opt))				\
+		btrfs_info(fs_info, fmt, ##args);			\
+	btrfs_clear_opt(fs_info->mount_opt, opt);			\
 }
 
 #ifdef CONFIG_BTRFS_DEBUG
@@ -1321,9 +1341,9 @@ static inline int
 btrfs_should_fragment_free_space(struct btrfs_root *root,
 				 struct btrfs_block_group_cache *block_group)
 {
-	return (btrfs_test_opt(root, FRAGMENT_METADATA) &&
+	return (btrfs_test_opt(root->fs_info, FRAGMENT_METADATA) &&
 		block_group->flags & BTRFS_BLOCK_GROUP_METADATA) ||
-	       (btrfs_test_opt(root, FRAGMENT_DATA) &&
+	       (btrfs_test_opt(root->fs_info, FRAGMENT_DATA) &&
 		block_group->flags &  BTRFS_BLOCK_GROUP_DATA);
 }
 #endif
@@ -2886,9 +2906,6 @@ void btrfs_put_tree_mod_seq(struct btrfs_fs_info *fs_info,
 int btrfs_old_root_level(struct btrfs_root *root, u64 time_seq);
 
 /* root-item.c */
-int btrfs_find_root_ref(struct btrfs_root *tree_root,
-			struct btrfs_path *path,
-			u64 root_id, u64 ref_id);
 int btrfs_add_root_ref(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *tree_root,
 		       u64 root_id, u64 ref_id, u64 dirid, u64 sequence,
@@ -3362,23 +3379,23 @@ const char *btrfs_decode_error(int errno);
 
 __cold
 void __btrfs_abort_transaction(struct btrfs_trans_handle *trans,
-			       struct btrfs_root *root, const char *function,
+			       const char *function,
 			       unsigned int line, int errno);
 
 /*
  * Call btrfs_abort_transaction as early as possible when an error condition is
  * detected, that way the exact line number is reported.
  */
-#define btrfs_abort_transaction(trans, root, errno)		\
+#define btrfs_abort_transaction(trans, errno)		\
 do {								\
 	/* Report first abort since mount */			\
 	if (!test_and_set_bit(BTRFS_FS_STATE_TRANS_ABORTED,	\
-			&((root)->fs_info->fs_state))) {	\
+			&((trans)->fs_info->fs_state))) {	\
 		WARN(1, KERN_DEBUG				\
 		"BTRFS: Transaction aborted (error %d)\n",	\
 		(errno));					\
 	}							\
-	__btrfs_abort_transaction((trans), (root), __func__,	\
+	__btrfs_abort_transaction((trans), __func__,		\
 				  __LINE__, (errno));		\
 } while (0)
 
@@ -3610,13 +3627,13 @@ static inline int btrfs_defrag_cancelled(struct btrfs_fs_info *fs_info)
 void btrfs_test_destroy_inode(struct inode *inode);
 #endif
 
-static inline int btrfs_test_is_dummy_root(struct btrfs_root *root)
+static inline int btrfs_is_testing(struct btrfs_fs_info *fs_info)
 {
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
-	if (unlikely(test_bit(BTRFS_ROOT_DUMMY_ROOT, &root->state)))
+	if (unlikely(test_bit(BTRFS_FS_STATE_DUMMY_FS_INFO,
+			      &fs_info->fs_state)))
 		return 1;
 #endif
 	return 0;
 }
-
 #endif

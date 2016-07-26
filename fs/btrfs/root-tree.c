@@ -150,7 +150,7 @@ int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 
 	ret = btrfs_search_slot(trans, root, key, path, 0, 1);
 	if (ret < 0) {
-		btrfs_abort_transaction(trans, root, ret);
+		btrfs_abort_transaction(trans, ret);
 		goto out;
 	}
 
@@ -176,20 +176,20 @@ int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 		ret = btrfs_search_slot(trans, root, key, path,
 				-1, 1);
 		if (ret < 0) {
-			btrfs_abort_transaction(trans, root, ret);
+			btrfs_abort_transaction(trans, ret);
 			goto out;
 		}
 
 		ret = btrfs_del_item(trans, root, path);
 		if (ret < 0) {
-			btrfs_abort_transaction(trans, root, ret);
+			btrfs_abort_transaction(trans, ret);
 			goto out;
 		}
 		btrfs_release_path(path);
 		ret = btrfs_insert_empty_item(trans, root, path,
 				key, sizeof(*item));
 		if (ret < 0) {
-			btrfs_abort_transaction(trans, root, ret);
+			btrfs_abort_transaction(trans, ret);
 			goto out;
 		}
 		l = path->nodes[0];
@@ -448,7 +448,7 @@ again:
 	ret = btrfs_insert_empty_item(trans, tree_root, path, &key,
 				      sizeof(*ref) + name_len);
 	if (ret) {
-		btrfs_abort_transaction(trans, tree_root, ret);
+		btrfs_abort_transaction(trans, ret);
 		btrfs_free_path(path);
 		return ret;
 	}

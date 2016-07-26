@@ -280,7 +280,7 @@ fail:
 	if (locked)
 		mutex_unlock(&trans->transaction->cache_write_mutex);
 	if (ret)
-		btrfs_abort_transaction(trans, root, ret);
+		btrfs_abort_transaction(trans, ret);
 
 	return ret;
 }
@@ -3026,7 +3026,7 @@ int btrfs_find_space_cluster(struct btrfs_root *root,
 	 * For metadata, allow allocates with smaller extents.  For
 	 * data, keep it dense.
 	 */
-	if (btrfs_test_opt(root, SSD_SPREAD)) {
+	if (btrfs_test_opt(root->fs_info, SSD_SPREAD)) {
 		cont1_bytes = min_bytes = bytes + empty_size;
 	} else if (block_group->flags & BTRFS_BLOCK_GROUP_METADATA) {
 		cont1_bytes = bytes;
@@ -3470,7 +3470,7 @@ int load_free_ino_cache(struct btrfs_fs_info *fs_info, struct btrfs_root *root)
 	int ret = 0;
 	u64 root_gen = btrfs_root_generation(&root->root_item);
 
-	if (!btrfs_test_opt(root, INODE_MAP_CACHE))
+	if (!btrfs_test_opt(root->fs_info, INODE_MAP_CACHE))
 		return 0;
 
 	/*
@@ -3514,7 +3514,7 @@ int btrfs_write_out_ino_cache(struct btrfs_root *root,
 	struct btrfs_io_ctl io_ctl;
 	bool release_metadata = true;
 
-	if (!btrfs_test_opt(root, INODE_MAP_CACHE))
+	if (!btrfs_test_opt(root->fs_info, INODE_MAP_CACHE))
 		return 0;
 
 	memset(&io_ctl, 0, sizeof(io_ctl));

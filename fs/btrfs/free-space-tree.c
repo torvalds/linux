@@ -305,7 +305,7 @@ int convert_free_space_to_bitmaps(struct btrfs_trans_handle *trans,
 out:
 	kvfree(bitmap);
 	if (ret)
-		btrfs_abort_transaction(trans, root, ret);
+		btrfs_abort_transaction(trans, ret);
 	return ret;
 }
 
@@ -454,7 +454,7 @@ int convert_free_space_to_extents(struct btrfs_trans_handle *trans,
 out:
 	kvfree(bitmap);
 	if (ret)
-		btrfs_abort_transaction(trans, root, ret);
+		btrfs_abort_transaction(trans, ret);
 	return ret;
 }
 
@@ -851,7 +851,7 @@ int remove_from_free_space_tree(struct btrfs_trans_handle *trans,
 out:
 	btrfs_free_path(path);
 	if (ret)
-		btrfs_abort_transaction(trans, fs_info->free_space_root, ret);
+		btrfs_abort_transaction(trans, ret);
 	return ret;
 }
 
@@ -1047,7 +1047,7 @@ int add_to_free_space_tree(struct btrfs_trans_handle *trans,
 out:
 	btrfs_free_path(path);
 	if (ret)
-		btrfs_abort_transaction(trans, fs_info->free_space_root, ret);
+		btrfs_abort_transaction(trans, ret);
 	return ret;
 }
 
@@ -1193,7 +1193,7 @@ int btrfs_create_free_space_tree(struct btrfs_fs_info *fs_info)
 
 abort:
 	fs_info->creating_free_space_tree = 0;
-	btrfs_abort_transaction(trans, tree_root, ret);
+	btrfs_abort_transaction(trans, ret);
 	btrfs_end_transaction(trans, tree_root);
 	return ret;
 }
@@ -1280,7 +1280,7 @@ int btrfs_clear_free_space_tree(struct btrfs_fs_info *fs_info)
 	return 0;
 
 abort:
-	btrfs_abort_transaction(trans, tree_root, ret);
+	btrfs_abort_transaction(trans, ret);
 	btrfs_end_transaction(trans, tree_root);
 	return ret;
 }
@@ -1333,7 +1333,7 @@ out:
 	btrfs_free_path(path);
 	mutex_unlock(&block_group->free_space_lock);
 	if (ret)
-		btrfs_abort_transaction(trans, fs_info->free_space_root, ret);
+		btrfs_abort_transaction(trans, ret);
 	return ret;
 }
 
@@ -1410,7 +1410,7 @@ int remove_block_group_free_space(struct btrfs_trans_handle *trans,
 out:
 	btrfs_free_path(path);
 	if (ret)
-		btrfs_abort_transaction(trans, root, ret);
+		btrfs_abort_transaction(trans, ret);
 	return ret;
 }
 
