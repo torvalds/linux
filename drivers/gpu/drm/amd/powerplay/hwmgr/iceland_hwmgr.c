@@ -4170,7 +4170,7 @@ int iceland_unforce_dpm_levels(struct pp_hwmgr *hwmgr)
 								return -1);
 	}
 
-	if (0 == data->pcie_dpm_key_disabled) {
+	if (0 == data->mclk_dpm_key_disabled) {
 		PP_ASSERT_WITH_CODE((0 == smum_send_msg_to_smc(
 							     hwmgr->smumgr,
 					PPSMC_MSG_MCLKDPM_NoForcedLevel)),
