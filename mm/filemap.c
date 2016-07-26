@@ -1842,6 +1842,12 @@ generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 	if (!count)
 		goto out; /* skip atime */
 
+	if (file->f_path.dentry) {
+		if (strstr(file->f_path.dentry->d_name.name, ".tar")) {
+			printk("RDTSC=%llu\n", (unsigned long long)rdtsc());
+		}
+	}
+
 	if (iocb->ki_flags & IOCB_DIRECT) {
 		struct address_space *mapping = file->f_mapping;
 		struct inode *inode = mapping->host;

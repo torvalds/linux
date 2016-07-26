@@ -334,6 +334,10 @@ static int __init init_nfs_v4(void)
 	if (err)
 		goto out2;
 
+	err = prefetch_register_sysctl();
+	if (err)
+		goto out2;
+
 	register_nfs_version(&nfs_v4);
 	return 0;
 out2:
