@@ -793,10 +793,10 @@ void __init load_ucode_intel_bsp(void)
 void load_ucode_intel_ap(void)
 {
 	struct ucode_blobs *blobs_p;
+	unsigned long *ptrs, start = 0;
 	struct mc_saved_data *mcs;
 	struct ucode_cpu_info uci;
 	enum ucode_state ret;
-	unsigned long *ptrs;
 
 #ifdef CONFIG_X86_32
 	mcs	= (struct mc_saved_data *)__pa_nodebug(&mc_saved_data);
@@ -815,8 +815,20 @@ void load_ucode_intel_ap(void)
 	if (!mcs->num_saved)
 		return;
 
+	if (blobs_p->valid) {
+		start = blobs_p->start;
+
+#ifdef CONFIG_RANDOMIZE_MEMORY
+		/*
+		 * Pay attention to CONFIG_RANDOMIZE_MEMORY=y as it shuffles
+		 * physmem mapping too and there we have the initrd.
+		 */
+		start += PAGE_OFFSET - __PAGE_OFFSET_BASE;
+#endif
+	}
+
 	collect_cpu_info_early(&uci);
-	ret = load_microcode(mcs, ptrs, blobs_p->start, &uci);
+	ret = load_microcode(mcs, ptrs, start, &uci);
 	if (ret != UCODE_OK)
 		return;
 
