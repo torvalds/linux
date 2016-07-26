@@ -87,8 +87,6 @@
 struct vop_plane_state {
 	struct drm_plane_state base;
 	int format;
-	struct drm_rect src;
-	struct drm_rect dest;
 	dma_addr_t yrgb_mst;
 	bool enable;
 };
@@ -595,8 +593,8 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	const struct vop_win_data *win = vop_win->data;
 	bool visible;
 	int ret;
-	struct drm_rect *dest = &vop_plane_state->dest;
-	struct drm_rect *src = &vop_plane_state->src;
+	struct drm_rect *dest = &state->dst;
+	struct drm_rect *src = &state->src;
 	struct drm_rect clip;
 	int min_scale = win->phy->scl ? FRAC_16_16(1, 8) :
 					DRM_PLANE_HELPER_NO_SCALING;
@@ -694,8 +692,8 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	unsigned int actual_w, actual_h;
 	unsigned int dsp_stx, dsp_sty;
 	uint32_t act_info, dsp_info, dsp_st;
-	struct drm_rect *src = &vop_plane_state->src;
-	struct drm_rect *dest = &vop_plane_state->dest;
+	struct drm_rect *src = &state->src;
+	struct drm_rect *dest = &state->dst;
 	struct drm_gem_object *obj, *uv_obj;
 	struct rockchip_gem_object *rk_obj, *rk_uv_obj;
 	unsigned long offset;
