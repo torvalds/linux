@@ -364,6 +364,7 @@ void xen_timer_resume(void)
 
 static const struct pv_time_ops xen_time_ops __initconst = {
 	.sched_clock = xen_clocksource_read,
+	.steal_clock = xen_steal_clock,
 };
 
 static void __init xen_time_init(void)

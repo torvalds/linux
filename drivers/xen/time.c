@@ -80,7 +80,7 @@ bool xen_vcpu_stolen(int vcpu)
 	return per_cpu(xen_runstate, vcpu).state == RUNSTATE_runnable;
 }
 
-static u64 xen_steal_clock(int cpu)
+u64 xen_steal_clock(int cpu)
 {
 	struct vcpu_runstate_info state;
 
