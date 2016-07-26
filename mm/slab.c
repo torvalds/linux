@@ -3452,8 +3452,7 @@ static void free_block(struct kmem_cache *cachep, void **objpp,
 		n->free_objects -= cachep->num;
 
 		page = list_last_entry(&n->slabs_free, struct page, lru);
-		list_del(&page->lru);
-		list_add(&page->lru, list);
+		list_move(&page->lru, list);
 	}
 }
 
