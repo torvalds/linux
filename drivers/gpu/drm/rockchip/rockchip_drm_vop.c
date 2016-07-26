@@ -584,6 +584,7 @@ static void vop_crtc_disable(struct drm_crtc *crtc)
 		VOP_WIN_SET(vop, win, enable, 0);
 		spin_unlock(&vop->reg_lock);
 	}
+	vop_cfg_done(vop);
 
 	drm_crtc_vblank_off(crtc);
 
