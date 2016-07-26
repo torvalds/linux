@@ -1665,10 +1665,8 @@ int ocfs2_create_new_inode_locks(struct inode *inode)
 	}
 
 	ret = ocfs2_create_new_lock(osb, &OCFS2_I(inode)->ip_open_lockres, 0, 0);
-	if (ret) {
+	if (ret)
 		mlog_errno(ret);
-		goto bail;
-	}
 
 bail:
 	return ret;
