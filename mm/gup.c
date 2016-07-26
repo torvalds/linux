@@ -279,6 +279,8 @@ struct page *follow_page_mask(struct vm_area_struct *vma,
 			spin_unlock(ptl);
 			ret = 0;
 			split_huge_pmd(vma, pmd, address);
+			if (pmd_trans_unstable(pmd))
+				ret = -EBUSY;
 		} else {
 			get_page(page);
 			spin_unlock(ptl);
