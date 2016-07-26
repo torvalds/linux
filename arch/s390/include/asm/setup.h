@@ -86,9 +86,13 @@ extern char vmpoff_cmd[];
 #define CONSOLE_IS_SCLP		(console_mode == 1)
 #define CONSOLE_IS_3215		(console_mode == 2)
 #define CONSOLE_IS_3270		(console_mode == 3)
+#define CONSOLE_IS_VT220	(console_mode == 4)
+#define CONSOLE_IS_HVC		(console_mode == 5)
 #define SET_CONSOLE_SCLP	do { console_mode = 1; } while (0)
 #define SET_CONSOLE_3215	do { console_mode = 2; } while (0)
 #define SET_CONSOLE_3270	do { console_mode = 3; } while (0)
+#define SET_CONSOLE_VT220	do { console_mode = 4; } while (0)
+#define SET_CONSOLE_HVC		do { console_mode = 5; } while (0)
 
 #define NSS_NAME_SIZE	8
 extern char kernel_nss_name[];

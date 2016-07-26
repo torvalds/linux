@@ -85,7 +85,7 @@ EXPORT_SYMBOL_GPL(gmap_alloc);
 static void gmap_flush_tlb(struct gmap *gmap)
 {
 	if (MACHINE_HAS_IDTE)
-		__tlb_flush_asce(gmap->mm, gmap->asce);
+		__tlb_flush_idte(gmap->asce);
 	else
 		__tlb_flush_global();
 }
@@ -124,7 +124,7 @@ void gmap_free(struct gmap *gmap)
 
 	/* Flush tlb. */
 	if (MACHINE_HAS_IDTE)
-		__tlb_flush_asce(gmap->mm, gmap->asce);
+		__tlb_flush_idte(gmap->asce);
 	else
 		__tlb_flush_global();
 
@@ -430,6 +430,9 @@ int __gmap_link(struct gmap *gmap, unsigned long gaddr, unsigned long vmaddr)
 	VM_BUG_ON(pgd_none(*pgd));
 	pud = pud_offset(pgd, vmaddr);
 	VM_BUG_ON(pud_none(*pud));
+	/* large puds cannot yet be handled */
+	if (pud_large(*pud))
+		return -EFAULT;
 	pmd = pmd_offset(pud, vmaddr);
 	VM_BUG_ON(pmd_none(*pmd));
 	/* large pmds cannot yet be handled */

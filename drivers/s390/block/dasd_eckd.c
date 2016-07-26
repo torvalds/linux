@@ -228,7 +228,7 @@ check_XRC (struct ccw1         *de_ccw,
 	data->ga_extended |= 0x08; /* switch on 'Time Stamp Valid'   */
 	data->ga_extended |= 0x02; /* switch on 'Extended Parameter' */
 
-	rc = get_sync_clock(&data->ep_sys_time);
+	rc = get_phys_clock(&data->ep_sys_time);
 	/* Ignore return code if sync clock is switched off. */
 	if (rc == -EOPNOTSUPP || rc == -EACCES)
 		rc = 0;
@@ -339,7 +339,7 @@ static int check_XRC_on_prefix(struct PFX_eckd_data *pfxdata,
 	pfxdata->define_extent.ga_extended |= 0x02; /* 'Extended Parameter' */
 	pfxdata->validity.time_stamp = 1;	    /* 'Time Stamp Valid'   */
 
-	rc = get_sync_clock(&pfxdata->define_extent.ep_sys_time);
+	rc = get_phys_clock(&pfxdata->define_extent.ep_sys_time);
 	/* Ignore return code if sync clock is switched off. */
 	if (rc == -EOPNOTSUPP || rc == -EACCES)
 		rc = 0;

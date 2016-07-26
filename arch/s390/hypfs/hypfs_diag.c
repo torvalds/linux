@@ -337,25 +337,27 @@ static inline __u64 phys_cpu__ctidx(enum diag204_format type, void *hdr)
 
 /* Diagnose 204 functions */
 
-static inline int __diag204(unsigned long subcode, unsigned long size, void *addr)
+static inline int __diag204(unsigned long *subcode, unsigned long size, void *addr)
 {
-	register unsigned long _subcode asm("0") = subcode;
+	register unsigned long _subcode asm("0") = *subcode;
 	register unsigned long _size asm("1") = size;
 
 	asm volatile(
 		"	diag	%2,%0,0x204\n"
-		"0:\n"
+		"0:	nopr	%%r7\n"
 		EX_TABLE(0b,0b)
 		: "+d" (_subcode), "+d" (_size) : "d" (addr) : "memory");
-	if (_subcode)
-		return -1;
+	*subcode = _subcode;
 	return _size;
 }
 
 static int diag204(unsigned long subcode, unsigned long size, void *addr)
 {
 	diag_stat_inc(DIAG_STAT_X204);
-	return __diag204(subcode, size, addr);
+	size = __diag204(&subcode, size, addr);
+	if (subcode)
+		return -1;
+	return size;
 }
 
 /*

@@ -2794,8 +2794,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			timer: [X86] Force use of architectural NMI
 				timer mode (see also oprofile.timer
 				for generic hr timer mode)
-				[s390] Force legacy basic mode sampling
-                                (report cpu_type "timer")
 
 	oops=panic	Always panic on oopses. Default is to just kill the
 			process, but there is a small probability of
