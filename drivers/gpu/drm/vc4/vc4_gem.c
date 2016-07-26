@@ -942,8 +942,8 @@ vc4_gem_destroy(struct drm_device *dev)
 		vc4->overflow_mem = NULL;
 	}
 
-	vc4_bo_cache_destroy(dev);
-
 	if (vc4->hang_state)
 		vc4_free_hang_state(dev, vc4->hang_state);
+
+	vc4_bo_cache_destroy(dev);
 }
