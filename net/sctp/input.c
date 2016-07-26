@@ -112,7 +112,6 @@ int sctp_rcv(struct sk_buff *skb)
 	struct sctp_ep_common *rcvr;
 	struct sctp_transport *transport = NULL;
 	struct sctp_chunk *chunk;
-	struct sctphdr *sh;
 	union sctp_addr src;
 	union sctp_addr dest;
 	int family;
@@ -126,8 +125,6 @@ int sctp_rcv(struct sk_buff *skb)
 
 	if (skb_linearize(skb))
 		goto discard_it;
-
-	sh = sctp_hdr(skb);
 
 	/* Pull up the IP and SCTP headers. */
 	__skb_pull(skb, skb_transport_offset(skb));
@@ -230,7 +227,7 @@ int sctp_rcv(struct sk_buff *skb)
 	chunk->rcvr = rcvr;
 
 	/* Remember the SCTP header. */
-	chunk->sctp_hdr = sh;
+	chunk->sctp_hdr = sctp_hdr(skb);
 
 	/* Set the source and destination addresses of the incoming chunk.  */
 	sctp_init_addrs(chunk, &src, &dest);

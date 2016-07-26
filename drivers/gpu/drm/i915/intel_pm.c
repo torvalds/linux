@@ -57,7 +57,7 @@
 
 static void gen9_init_clock_gating(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	/* See Bspec note for PSR2_CTL bit 31, Wa#828:skl,bxt,kbl */
 	I915_WRITE(CHICKEN_PAR1_1,
@@ -7046,7 +7046,7 @@ static void gen8_set_l3sqc_credits(struct drm_i915_private *dev_priv,
 
 static void kabylake_init_clock_gating(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	gen9_init_clock_gating(dev);
 
@@ -7067,7 +7067,7 @@ static void kabylake_init_clock_gating(struct drm_device *dev)
 
 static void skylake_init_clock_gating(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	gen9_init_clock_gating(dev);
 

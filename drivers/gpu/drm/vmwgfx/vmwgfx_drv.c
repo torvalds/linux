@@ -233,6 +233,7 @@ static int vmw_force_iommu;
 static int vmw_restrict_iommu;
 static int vmw_force_coherent;
 static int vmw_restrict_dma_mask;
+static int vmw_assume_16bpp;
 
 static int vmw_probe(struct pci_dev *, const struct pci_device_id *);
 static void vmw_master_init(struct vmw_master *);
@@ -249,6 +250,8 @@ MODULE_PARM_DESC(force_coherent, "Force coherent TTM pages");
 module_param_named(force_coherent, vmw_force_coherent, int, 0600);
 MODULE_PARM_DESC(restrict_dma_mask, "Restrict DMA mask to 44 bits with IOMMU");
 module_param_named(restrict_dma_mask, vmw_restrict_dma_mask, int, 0600);
+MODULE_PARM_DESC(assume_16bpp, "Assume 16-bpp when filtering modes");
+module_param_named(assume_16bpp, vmw_assume_16bpp, int, 0600);
 
 
 static void vmw_print_capabilities(uint32_t capabilities)
@@ -660,6 +663,8 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	dev_priv->vram_start = pci_resource_start(dev->pdev, 1);
 	dev_priv->mmio_start = pci_resource_start(dev->pdev, 2);
 
+	dev_priv->assume_16bpp = !!vmw_assume_16bpp;
+
 	dev_priv->enable_fb = enable_fbdev;
 
 	vmw_write(dev_priv, SVGA_REG_ID, SVGA_ID_2);
@@ -705,6 +710,13 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		uint64_t mem_size =
 			vmw_read(dev_priv,
 				 SVGA_REG_SUGGESTED_GBOBJECT_MEM_SIZE_KB);
+
+		/*
+		 * Workaround for low memory 2D VMs to compensate for the
+		 * allocation taken by fbdev
+		 */
+		if (!(dev_priv->capabilities & SVGA_CAP_3D))
+			mem_size *= 2;
 
 		dev_priv->max_mob_pages = mem_size * 1024 / PAGE_SIZE;
 		dev_priv->prim_bb_mem =
