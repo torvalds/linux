@@ -33,7 +33,7 @@
 #include "amdgpu.h"
 #include "atom.h"
 
-#define AMDGPU_IB_TEST_TIMEOUT	msecs_to_jiffies(10)
+#define AMDGPU_IB_TEST_TIMEOUT	msecs_to_jiffies(1000)
 
 /*
  * IB
