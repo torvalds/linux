@@ -2920,7 +2920,7 @@ map_pte:
 	return 0;
 }
 
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+#ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
 
 #define HPAGE_CACHE_INDEX_MASK (HPAGE_PMD_NR - 1)
 static inline bool transhuge_vma_suitable(struct vm_area_struct *vma,
@@ -3002,7 +3002,8 @@ int alloc_set_pte(struct fault_env *fe, struct mem_cgroup *memcg,
 	pte_t entry;
 	int ret;
 
-	if (pmd_none(*fe->pmd) && PageTransCompound(page)) {
+	if (pmd_none(*fe->pmd) && PageTransCompound(page) &&
+			IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE)) {
 		/* THP on COW? */
 		VM_BUG_ON_PAGE(memcg, page);
 
