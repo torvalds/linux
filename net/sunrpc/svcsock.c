@@ -763,8 +763,10 @@ static void svc_tcp_state_change(struct sock *sk)
 		printk("svc: socket %p: no user data\n", sk);
 	else {
 		svsk->sk_ostate(sk);
-		set_bit(XPT_CLOSE, &svsk->sk_xprt.xpt_flags);
-		svc_xprt_enqueue(&svsk->sk_xprt);
+		if (sk->sk_state != TCP_ESTABLISHED) {
+			set_bit(XPT_CLOSE, &svsk->sk_xprt.xpt_flags);
+			svc_xprt_enqueue(&svsk->sk_xprt);
+		}
 	}
 }
 
@@ -1290,8 +1292,13 @@ static void svc_tcp_init(struct svc_sock *svsk, struct svc_serv *serv)
 		tcp_sk(sk)->nonagle |= TCP_NAGLE_OFF;
 
 		set_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags);
-		if (sk->sk_state != TCP_ESTABLISHED)
+		switch (sk->sk_state) {
+		case TCP_SYN_RECV:
+		case TCP_ESTABLISHED:
+			break;
+		default:
 			set_bit(XPT_CLOSE, &svsk->sk_xprt.xpt_flags);
+		}
 	}
 }
 
