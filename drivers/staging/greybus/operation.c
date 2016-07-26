@@ -928,13 +928,16 @@ static void gb_connection_recv_request(struct gb_connection *connection,
  * data into the response buffer and handle the rest via workqueue.
  */
 static void gb_connection_recv_response(struct gb_connection *connection,
-			u16 operation_id, u8 result, void *data, size_t size)
+				const struct gb_operation_msg_hdr *header,
+				void *data, size_t size)
 {
-	struct gb_operation_msg_hdr *header;
 	struct gb_operation *operation;
 	struct gb_message *message;
-	int errno = gb_operation_status_map(result);
 	size_t message_size;
+	u16 operation_id;
+	int errno;
+
+	operation_id = le16_to_cpu(header->operation_id);
 
 	if (!operation_id) {
 		dev_err_ratelimited(&connection->hd->dev,
@@ -951,8 +954,8 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 		return;
 	}
 
+	errno = gb_operation_status_map(header->result);
 	message = operation->response;
-	header = message->header;
 	message_size = sizeof(*header) + message->payload_size;
 	if (!errno && size > message_size) {
 		dev_err_ratelimited(&connection->hd->dev,
@@ -979,7 +982,7 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 
 	/* The rest will be handled in work queue context */
 	if (gb_operation_result_set(operation, errno)) {
-		memcpy(header, data, size);
+		memcpy(message->buffer, data, size);
 		queue_work(gb_operation_completion_wq, &operation->work);
 	}
 
@@ -1026,8 +1029,8 @@ void gb_connection_recv(struct gb_connection *connection,
 
 	operation_id = le16_to_cpu(header.operation_id);
 	if (header.type & GB_MESSAGE_TYPE_RESPONSE)
-		gb_connection_recv_response(connection, operation_id,
-						header.result, data, msg_size);
+		gb_connection_recv_response(connection,	&header, data,
+						msg_size);
 	else
 		gb_connection_recv_request(connection, operation_id,
 						header.type, data, msg_size);
