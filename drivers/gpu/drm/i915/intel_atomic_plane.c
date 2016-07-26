@@ -134,20 +134,6 @@ static int intel_plane_atomic_check(struct drm_plane *plane,
 
 	crtc_state = to_intel_crtc_state(drm_crtc_state);
 
-	/*
-	 * The original src/dest coordinates are stored in state->base, but
-	 * we want to keep another copy internal to our driver that we can
-	 * clip/modify ourselves.
-	 */
-	intel_state->base.src.x1 = state->src_x;
-	intel_state->base.src.y1 = state->src_y;
-	intel_state->base.src.x2 = state->src_x + state->src_w;
-	intel_state->base.src.y2 = state->src_y + state->src_h;
-	intel_state->base.dst.x1 = state->crtc_x;
-	intel_state->base.dst.y1 = state->crtc_y;
-	intel_state->base.dst.x2 = state->crtc_x + state->crtc_w;
-	intel_state->base.dst.y2 = state->crtc_y + state->crtc_h;
-
 	/* Clip all planes to CRTC size, or 0x0 if CRTC is disabled */
 	intel_state->clip.x1 = 0;
 	intel_state->clip.y1 = 0;

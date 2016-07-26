@@ -14128,7 +14128,6 @@ intel_check_primary_plane(struct drm_plane *plane,
 			  struct intel_plane_state *state)
 {
 	struct drm_crtc *crtc = state->base.crtc;
-	struct drm_framebuffer *fb = state->base.fb;
 	int min_scale = DRM_PLANE_HELPER_NO_SCALING;
 	int max_scale = DRM_PLANE_HELPER_NO_SCALING;
 	bool can_position = false;
@@ -14142,14 +14141,10 @@ intel_check_primary_plane(struct drm_plane *plane,
 		can_position = true;
 	}
 
-	return drm_plane_helper_check_update(plane, crtc, fb,
-					     &state->base.src,
-					     &state->base.dst,
-					     &state->base.clip,
-					     state->base.rotation,
-					     min_scale, max_scale,
-					     can_position, true,
-					     &state->base.visible);
+	return drm_plane_helper_check_state(&state->base,
+					    &state->clip,
+					    min_scale, max_scale,
+					    can_position, true);
 }
 
 static void intel_begin_crtc_commit(struct drm_crtc *crtc,
@@ -14329,20 +14324,17 @@ intel_check_cursor_plane(struct drm_plane *plane,
 			 struct intel_crtc_state *crtc_state,
 			 struct intel_plane_state *state)
 {
-	struct drm_crtc *crtc = crtc_state->base.crtc;
 	struct drm_framebuffer *fb = state->base.fb;
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	enum pipe pipe = to_intel_plane(plane)->pipe;
 	unsigned stride;
 	int ret;
 
-	ret = drm_plane_helper_check_update(plane, crtc, fb, &state->base.src,
-					    &state->base.dst,
-					    &state->base.clip,
-					    state->base.rotation,
-					    DRM_PLANE_HELPER_NO_SCALING,
-					    DRM_PLANE_HELPER_NO_SCALING,
-					    true, true, &state->base.visible);
+	ret = drm_plane_helper_check_state(&state->base,
+					   &state->clip,
+					   DRM_PLANE_HELPER_NO_SCALING,
+					   DRM_PLANE_HELPER_NO_SCALING,
+					   true, true);
 	if (ret)
 		return ret;
 
