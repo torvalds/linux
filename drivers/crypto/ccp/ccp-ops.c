@@ -46,25 +46,25 @@ static u32 ccp_alloc_ksb(struct ccp_device *ccp, unsigned int count)
 	int start;
 
 	for (;;) {
-		mutex_lock(&ccp->ksb_mutex);
+		mutex_lock(&ccp->sb_mutex);
 
-		start = (u32)bitmap_find_next_zero_area(ccp->ksb,
-							ccp->ksb_count,
-							ccp->ksb_start,
+		start = (u32)bitmap_find_next_zero_area(ccp->sb,
+							ccp->sb_count,
+							ccp->sb_start,
 							count, 0);
-		if (start <= ccp->ksb_count) {
-			bitmap_set(ccp->ksb, start, count);
+		if (start <= ccp->sb_count) {
+			bitmap_set(ccp->sb, start, count);
 
-			mutex_unlock(&ccp->ksb_mutex);
+			mutex_unlock(&ccp->sb_mutex);
 			break;
 		}
 
-		ccp->ksb_avail = 0;
+		ccp->sb_avail = 0;
 
-		mutex_unlock(&ccp->ksb_mutex);
+		mutex_unlock(&ccp->sb_mutex);
 
 		/* Wait for KSB entries to become available */
-		if (wait_event_interruptible(ccp->ksb_queue, ccp->ksb_avail))
+		if (wait_event_interruptible(ccp->sb_queue, ccp->sb_avail))
 			return 0;
 	}
 
@@ -77,15 +77,15 @@ static void ccp_free_ksb(struct ccp_device *ccp, unsigned int start,
 	if (!start)
 		return;
 
-	mutex_lock(&ccp->ksb_mutex);
+	mutex_lock(&ccp->sb_mutex);
 
-	bitmap_clear(ccp->ksb, start - KSB_START, count);
+	bitmap_clear(ccp->sb, start - KSB_START, count);
 
-	ccp->ksb_avail = 1;
+	ccp->sb_avail = 1;
 
-	mutex_unlock(&ccp->ksb_mutex);
+	mutex_unlock(&ccp->sb_mutex);
 
-	wake_up_interruptible_all(&ccp->ksb_queue);
+	wake_up_interruptible_all(&ccp->sb_queue);
 }
 
 static u32 ccp_gen_jobid(struct ccp_device *ccp)
@@ -232,7 +232,7 @@ static int ccp_reverse_set_dm_area(struct ccp_dm_workarea *wa,
 				   unsigned int len, unsigned int se_len,
 				   bool sign_extend)
 {
-	unsigned int nbytes, sg_offset, dm_offset, ksb_len, i;
+	unsigned int nbytes, sg_offset, dm_offset, sb_len, i;
 	u8 buffer[CCP_REVERSE_BUF_SIZE];
 
 	if (WARN_ON(se_len > sizeof(buffer)))
@@ -242,21 +242,21 @@ static int ccp_reverse_set_dm_area(struct ccp_dm_workarea *wa,
 	dm_offset = 0;
 	nbytes = len;
 	while (nbytes) {
-		ksb_len = min_t(unsigned int, nbytes, se_len);
-		sg_offset -= ksb_len;
+		sb_len = min_t(unsigned int, nbytes, se_len);
+		sg_offset -= sb_len;
 
-		scatterwalk_map_and_copy(buffer, sg, sg_offset, ksb_len, 0);
-		for (i = 0; i < ksb_len; i++)
-			wa->address[dm_offset + i] = buffer[ksb_len - i - 1];
+		scatterwalk_map_and_copy(buffer, sg, sg_offset, sb_len, 0);
+		for (i = 0; i < sb_len; i++)
+			wa->address[dm_offset + i] = buffer[sb_len - i - 1];
 
-		dm_offset += ksb_len;
-		nbytes -= ksb_len;
+		dm_offset += sb_len;
+		nbytes -= sb_len;
 
-		if ((ksb_len != se_len) && sign_extend) {
+		if ((sb_len != se_len) && sign_extend) {
 			/* Must sign-extend to nearest sign-extend length */
 			if (wa->address[dm_offset - 1] & 0x80)
 				memset(wa->address + dm_offset, 0xff,
-				       se_len - ksb_len);
+				       se_len - sb_len);
 		}
 	}
 
@@ -267,22 +267,22 @@ static void ccp_reverse_get_dm_area(struct ccp_dm_workarea *wa,
 				    struct scatterlist *sg,
 				    unsigned int len)
 {
-	unsigned int nbytes, sg_offset, dm_offset, ksb_len, i;
+	unsigned int nbytes, sg_offset, dm_offset, sb_len, i;
 	u8 buffer[CCP_REVERSE_BUF_SIZE];
 
 	sg_offset = 0;
 	dm_offset = len;
 	nbytes = len;
 	while (nbytes) {
-		ksb_len = min_t(unsigned int, nbytes, sizeof(buffer));
-		dm_offset -= ksb_len;
+		sb_len = min_t(unsigned int, nbytes, sizeof(buffer));
+		dm_offset -= sb_len;
 
-		for (i = 0; i < ksb_len; i++)
-			buffer[ksb_len - i - 1] = wa->address[dm_offset + i];
-		scatterwalk_map_and_copy(buffer, sg, sg_offset, ksb_len, 1);
+		for (i = 0; i < sb_len; i++)
+			buffer[sb_len - i - 1] = wa->address[dm_offset + i];
+		scatterwalk_map_and_copy(buffer, sg, sg_offset, sb_len, 1);
 
-		sg_offset += ksb_len;
-		nbytes -= ksb_len;
+		sg_offset += sb_len;
+		nbytes -= sb_len;
 	}
 }
 
@@ -450,9 +450,9 @@ static void ccp_process_data(struct ccp_data *src, struct ccp_data *dst,
 	}
 }
 
-static int ccp_copy_to_from_ksb(struct ccp_cmd_queue *cmd_q,
-				struct ccp_dm_workarea *wa, u32 jobid, u32 ksb,
-				u32 byte_swap, bool from)
+static int ccp_copy_to_from_sb(struct ccp_cmd_queue *cmd_q,
+			       struct ccp_dm_workarea *wa, u32 jobid, u32 sb,
+			       u32 byte_swap, bool from)
 {
 	struct ccp_op op;
 
@@ -464,8 +464,8 @@ static int ccp_copy_to_from_ksb(struct ccp_cmd_queue *cmd_q,
 
 	if (from) {
 		op.soc = 1;
-		op.src.type = CCP_MEMTYPE_KSB;
-		op.src.u.ksb = ksb;
+		op.src.type = CCP_MEMTYPE_SB;
+		op.src.u.sb = sb;
 		op.dst.type = CCP_MEMTYPE_SYSTEM;
 		op.dst.u.dma.address = wa->dma.address;
 		op.dst.u.dma.length = wa->length;
@@ -473,8 +473,8 @@ static int ccp_copy_to_from_ksb(struct ccp_cmd_queue *cmd_q,
 		op.src.type = CCP_MEMTYPE_SYSTEM;
 		op.src.u.dma.address = wa->dma.address;
 		op.src.u.dma.length = wa->length;
-		op.dst.type = CCP_MEMTYPE_KSB;
-		op.dst.u.ksb = ksb;
+		op.dst.type = CCP_MEMTYPE_SB;
+		op.dst.u.sb = sb;
 	}
 
 	op.u.passthru.byte_swap = byte_swap;
@@ -482,18 +482,18 @@ static int ccp_copy_to_from_ksb(struct ccp_cmd_queue *cmd_q,
 	return cmd_q->ccp->vdata->perform->passthru(&op);
 }
 
-static int ccp_copy_to_ksb(struct ccp_cmd_queue *cmd_q,
-			   struct ccp_dm_workarea *wa, u32 jobid, u32 ksb,
-			   u32 byte_swap)
+static int ccp_copy_to_sb(struct ccp_cmd_queue *cmd_q,
+			  struct ccp_dm_workarea *wa, u32 jobid, u32 sb,
+			  u32 byte_swap)
 {
-	return ccp_copy_to_from_ksb(cmd_q, wa, jobid, ksb, byte_swap, false);
+	return ccp_copy_to_from_sb(cmd_q, wa, jobid, sb, byte_swap, false);
 }
 
-static int ccp_copy_from_ksb(struct ccp_cmd_queue *cmd_q,
-			     struct ccp_dm_workarea *wa, u32 jobid, u32 ksb,
-			     u32 byte_swap)
+static int ccp_copy_from_sb(struct ccp_cmd_queue *cmd_q,
+			    struct ccp_dm_workarea *wa, u32 jobid, u32 sb,
+			    u32 byte_swap)
 {
-	return ccp_copy_to_from_ksb(cmd_q, wa, jobid, ksb, byte_swap, true);
+	return ccp_copy_to_from_sb(cmd_q, wa, jobid, sb, byte_swap, true);
 }
 
 static int ccp_run_aes_cmac_cmd(struct ccp_cmd_queue *cmd_q,
@@ -528,54 +528,54 @@ static int ccp_run_aes_cmac_cmd(struct ccp_cmd_queue *cmd_q,
 			return -EINVAL;
 	}
 
-	BUILD_BUG_ON(CCP_AES_KEY_KSB_COUNT != 1);
-	BUILD_BUG_ON(CCP_AES_CTX_KSB_COUNT != 1);
+	BUILD_BUG_ON(CCP_AES_KEY_SB_COUNT != 1);
+	BUILD_BUG_ON(CCP_AES_CTX_SB_COUNT != 1);
 
 	ret = -EIO;
 	memset(&op, 0, sizeof(op));
 	op.cmd_q = cmd_q;
 	op.jobid = ccp_gen_jobid(cmd_q->ccp);
-	op.ksb_key = cmd_q->ksb_key;
-	op.ksb_ctx = cmd_q->ksb_ctx;
+	op.sb_key = cmd_q->sb_key;
+	op.sb_ctx = cmd_q->sb_ctx;
 	op.init = 1;
 	op.u.aes.type = aes->type;
 	op.u.aes.mode = aes->mode;
 	op.u.aes.action = aes->action;
 
-	/* All supported key sizes fit in a single (32-byte) KSB entry
+	/* All supported key sizes fit in a single (32-byte) SB entry
 	 * and must be in little endian format. Use the 256-bit byte
 	 * swap passthru option to convert from big endian to little
 	 * endian.
 	 */
 	ret = ccp_init_dm_workarea(&key, cmd_q,
-				   CCP_AES_KEY_KSB_COUNT * CCP_KSB_BYTES,
+				   CCP_AES_KEY_SB_COUNT * CCP_SB_BYTES,
 				   DMA_TO_DEVICE);
 	if (ret)
 		return ret;
 
-	dm_offset = CCP_KSB_BYTES - aes->key_len;
+	dm_offset = CCP_SB_BYTES - aes->key_len;
 	ccp_set_dm_area(&key, dm_offset, aes->key, 0, aes->key_len);
-	ret = ccp_copy_to_ksb(cmd_q, &key, op.jobid, op.ksb_key,
-			      CCP_PASSTHRU_BYTESWAP_256BIT);
+	ret = ccp_copy_to_sb(cmd_q, &key, op.jobid, op.sb_key,
+			     CCP_PASSTHRU_BYTESWAP_256BIT);
 	if (ret) {
 		cmd->engine_error = cmd_q->cmd_error;
 		goto e_key;
 	}
 
-	/* The AES context fits in a single (32-byte) KSB entry and
+	/* The AES context fits in a single (32-byte) SB entry and
 	 * must be in little endian format. Use the 256-bit byte swap
 	 * passthru option to convert from big endian to little endian.
 	 */
 	ret = ccp_init_dm_workarea(&ctx, cmd_q,
-				   CCP_AES_CTX_KSB_COUNT * CCP_KSB_BYTES,
+				   CCP_AES_CTX_SB_COUNT * CCP_SB_BYTES,
 				   DMA_BIDIRECTIONAL);
 	if (ret)
 		goto e_key;
 
-	dm_offset = CCP_KSB_BYTES - AES_BLOCK_SIZE;
+	dm_offset = CCP_SB_BYTES - AES_BLOCK_SIZE;
 	ccp_set_dm_area(&ctx, dm_offset, aes->iv, 0, aes->iv_len);
-	ret = ccp_copy_to_ksb(cmd_q, &ctx, op.jobid, op.ksb_ctx,
-			      CCP_PASSTHRU_BYTESWAP_256BIT);
+	ret = ccp_copy_to_sb(cmd_q, &ctx, op.jobid, op.sb_ctx,
+			     CCP_PASSTHRU_BYTESWAP_256BIT);
 	if (ret) {
 		cmd->engine_error = cmd_q->cmd_error;
 		goto e_ctx;
@@ -593,9 +593,9 @@ static int ccp_run_aes_cmac_cmd(struct ccp_cmd_queue *cmd_q,
 			op.eom = 1;
 
 			/* Push the K1/K2 key to the CCP now */
-			ret = ccp_copy_from_ksb(cmd_q, &ctx, op.jobid,
-						op.ksb_ctx,
-						CCP_PASSTHRU_BYTESWAP_256BIT);
+			ret = ccp_copy_from_sb(cmd_q, &ctx, op.jobid,
+					       op.sb_ctx,
+					       CCP_PASSTHRU_BYTESWAP_256BIT);
 			if (ret) {
 				cmd->engine_error = cmd_q->cmd_error;
 				goto e_src;
@@ -603,8 +603,8 @@ static int ccp_run_aes_cmac_cmd(struct ccp_cmd_queue *cmd_q,
 
 			ccp_set_dm_area(&ctx, 0, aes->cmac_key, 0,
 					aes->cmac_key_len);
-			ret = ccp_copy_to_ksb(cmd_q, &ctx, op.jobid, op.ksb_ctx,
-					      CCP_PASSTHRU_BYTESWAP_256BIT);
+			ret = ccp_copy_to_sb(cmd_q, &ctx, op.jobid, op.sb_ctx,
+					     CCP_PASSTHRU_BYTESWAP_256BIT);
 			if (ret) {
 				cmd->engine_error = cmd_q->cmd_error;
 				goto e_src;
@@ -623,15 +623,15 @@ static int ccp_run_aes_cmac_cmd(struct ccp_cmd_queue *cmd_q,
 	/* Retrieve the AES context - convert from LE to BE using
 	 * 32-byte (256-bit) byteswapping
 	 */
-	ret = ccp_copy_from_ksb(cmd_q, &ctx, op.jobid, op.ksb_ctx,
-				CCP_PASSTHRU_BYTESWAP_256BIT);
+	ret = ccp_copy_from_sb(cmd_q, &ctx, op.jobid, op.sb_ctx,
+			       CCP_PASSTHRU_BYTESWAP_256BIT);
 	if (ret) {
 		cmd->engine_error = cmd_q->cmd_error;
 		goto e_src;
 	}
 
 	/* ...but we only need AES_BLOCK_SIZE bytes */
-	dm_offset = CCP_KSB_BYTES - AES_BLOCK_SIZE;
+	dm_offset = CCP_SB_BYTES - AES_BLOCK_SIZE;
 	ccp_get_dm_area(&ctx, dm_offset, aes->iv, 0, aes->iv_len);
 
 e_src:
@@ -681,56 +681,56 @@ static int ccp_run_aes_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 			return -EINVAL;
 	}
 
-	BUILD_BUG_ON(CCP_AES_KEY_KSB_COUNT != 1);
-	BUILD_BUG_ON(CCP_AES_CTX_KSB_COUNT != 1);
+	BUILD_BUG_ON(CCP_AES_KEY_SB_COUNT != 1);
+	BUILD_BUG_ON(CCP_AES_CTX_SB_COUNT != 1);
 
 	ret = -EIO;
 	memset(&op, 0, sizeof(op));
 	op.cmd_q = cmd_q;
 	op.jobid = ccp_gen_jobid(cmd_q->ccp);
-	op.ksb_key = cmd_q->ksb_key;
-	op.ksb_ctx = cmd_q->ksb_ctx;
+	op.sb_key = cmd_q->sb_key;
+	op.sb_ctx = cmd_q->sb_ctx;
 	op.init = (aes->mode == CCP_AES_MODE_ECB) ? 0 : 1;
 	op.u.aes.type = aes->type;
 	op.u.aes.mode = aes->mode;
 	op.u.aes.action = aes->action;
 
-	/* All supported key sizes fit in a single (32-byte) KSB entry
+	/* All supported key sizes fit in a single (32-byte) SB entry
 	 * and must be in little endian format. Use the 256-bit byte
 	 * swap passthru option to convert from big endian to little
 	 * endian.
 	 */
 	ret = ccp_init_dm_workarea(&key, cmd_q,
-				   CCP_AES_KEY_KSB_COUNT * CCP_KSB_BYTES,
+				   CCP_AES_KEY_SB_COUNT * CCP_SB_BYTES,
 				   DMA_TO_DEVICE);
 	if (ret)
 		return ret;
 
-	dm_offset = CCP_KSB_BYTES - aes->key_len;
+	dm_offset = CCP_SB_BYTES - aes->key_len;
 	ccp_set_dm_area(&key, dm_offset, aes->key, 0, aes->key_len);
-	ret = ccp_copy_to_ksb(cmd_q, &key, op.jobid, op.ksb_key,
-			      CCP_PASSTHRU_BYTESWAP_256BIT);
+	ret = ccp_copy_to_sb(cmd_q, &key, op.jobid, op.sb_key,
+			     CCP_PASSTHRU_BYTESWAP_256BIT);
 	if (ret) {
 		cmd->engine_error = cmd_q->cmd_error;
 		goto e_key;
 	}
 
-	/* The AES context fits in a single (32-byte) KSB entry and
+	/* The AES context fits in a single (32-byte) SB entry and
 	 * must be in little endian format. Use the 256-bit byte swap
 	 * passthru option to convert from big endian to little endian.
 	 */
 	ret = ccp_init_dm_workarea(&ctx, cmd_q,
-				   CCP_AES_CTX_KSB_COUNT * CCP_KSB_BYTES,
+				   CCP_AES_CTX_SB_COUNT * CCP_SB_BYTES,
 				   DMA_BIDIRECTIONAL);
 	if (ret)
 		goto e_key;
 
 	if (aes->mode != CCP_AES_MODE_ECB) {
 		/* Load the AES context - conver to LE */
-		dm_offset = CCP_KSB_BYTES - AES_BLOCK_SIZE;
+		dm_offset = CCP_SB_BYTES - AES_BLOCK_SIZE;
 		ccp_set_dm_area(&ctx, dm_offset, aes->iv, 0, aes->iv_len);
-		ret = ccp_copy_to_ksb(cmd_q, &ctx, op.jobid, op.ksb_ctx,
-				      CCP_PASSTHRU_BYTESWAP_256BIT);
+		ret = ccp_copy_to_sb(cmd_q, &ctx, op.jobid, op.sb_ctx,
+				     CCP_PASSTHRU_BYTESWAP_256BIT);
 		if (ret) {
 			cmd->engine_error = cmd_q->cmd_error;
 			goto e_ctx;
@@ -786,15 +786,15 @@ static int ccp_run_aes_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 		/* Retrieve the AES context - convert from LE to BE using
 		 * 32-byte (256-bit) byteswapping
 		 */
-		ret = ccp_copy_from_ksb(cmd_q, &ctx, op.jobid, op.ksb_ctx,
-					CCP_PASSTHRU_BYTESWAP_256BIT);
+		ret = ccp_copy_from_sb(cmd_q, &ctx, op.jobid, op.sb_ctx,
+				       CCP_PASSTHRU_BYTESWAP_256BIT);
 		if (ret) {
 			cmd->engine_error = cmd_q->cmd_error;
 			goto e_dst;
 		}
 
 		/* ...but we only need AES_BLOCK_SIZE bytes */
-		dm_offset = CCP_KSB_BYTES - AES_BLOCK_SIZE;
+		dm_offset = CCP_SB_BYTES - AES_BLOCK_SIZE;
 		ccp_get_dm_area(&ctx, dm_offset, aes->iv, 0, aes->iv_len);
 	}
 
@@ -858,53 +858,53 @@ static int ccp_run_xts_aes_cmd(struct ccp_cmd_queue *cmd_q,
 	if (!xts->key || !xts->iv || !xts->src || !xts->dst)
 		return -EINVAL;
 
-	BUILD_BUG_ON(CCP_XTS_AES_KEY_KSB_COUNT != 1);
-	BUILD_BUG_ON(CCP_XTS_AES_CTX_KSB_COUNT != 1);
+	BUILD_BUG_ON(CCP_XTS_AES_KEY_SB_COUNT != 1);
+	BUILD_BUG_ON(CCP_XTS_AES_CTX_SB_COUNT != 1);
 
 	ret = -EIO;
 	memset(&op, 0, sizeof(op));
 	op.cmd_q = cmd_q;
 	op.jobid = ccp_gen_jobid(cmd_q->ccp);
-	op.ksb_key = cmd_q->ksb_key;
-	op.ksb_ctx = cmd_q->ksb_ctx;
+	op.sb_key = cmd_q->sb_key;
+	op.sb_ctx = cmd_q->sb_ctx;
 	op.init = 1;
 	op.u.xts.action = xts->action;
 	op.u.xts.unit_size = xts->unit_size;
 
-	/* All supported key sizes fit in a single (32-byte) KSB entry
+	/* All supported key sizes fit in a single (32-byte) SB entry
 	 * and must be in little endian format. Use the 256-bit byte
 	 * swap passthru option to convert from big endian to little
 	 * endian.
 	 */
 	ret = ccp_init_dm_workarea(&key, cmd_q,
-				   CCP_XTS_AES_KEY_KSB_COUNT * CCP_KSB_BYTES,
+				   CCP_XTS_AES_KEY_SB_COUNT * CCP_SB_BYTES,
 				   DMA_TO_DEVICE);
 	if (ret)
 		return ret;
 
-	dm_offset = CCP_KSB_BYTES - AES_KEYSIZE_128;
+	dm_offset = CCP_SB_BYTES - AES_KEYSIZE_128;
 	ccp_set_dm_area(&key, dm_offset, xts->key, 0, xts->key_len);
 	ccp_set_dm_area(&key, 0, xts->key, dm_offset, xts->key_len);
-	ret = ccp_copy_to_ksb(cmd_q, &key, op.jobid, op.ksb_key,
-			      CCP_PASSTHRU_BYTESWAP_256BIT);
+	ret = ccp_copy_to_sb(cmd_q, &key, op.jobid, op.sb_key,
+			     CCP_PASSTHRU_BYTESWAP_256BIT);
 	if (ret) {
 		cmd->engine_error = cmd_q->cmd_error;
 		goto e_key;
 	}
 
-	/* The AES context fits in a single (32-byte) KSB entry and
+	/* The AES context fits in a single (32-byte) SB entry and
 	 * for XTS is already in little endian format so no byte swapping
 	 * is needed.
 	 */
 	ret = ccp_init_dm_workarea(&ctx, cmd_q,
-				   CCP_XTS_AES_CTX_KSB_COUNT * CCP_KSB_BYTES,
+				   CCP_XTS_AES_CTX_SB_COUNT * CCP_SB_BYTES,
 				   DMA_BIDIRECTIONAL);
 	if (ret)
 		goto e_key;
 
 	ccp_set_dm_area(&ctx, 0, xts->iv, 0, xts->iv_len);
-	ret = ccp_copy_to_ksb(cmd_q, &ctx, op.jobid, op.ksb_ctx,
-			      CCP_PASSTHRU_BYTESWAP_NOOP);
+	ret = ccp_copy_to_sb(cmd_q, &ctx, op.jobid, op.sb_ctx,
+			     CCP_PASSTHRU_BYTESWAP_NOOP);
 	if (ret) {
 		cmd->engine_error = cmd_q->cmd_error;
 		goto e_ctx;
@@ -950,15 +950,15 @@ static int ccp_run_xts_aes_cmd(struct ccp_cmd_queue *cmd_q,
 	/* Retrieve the AES context - convert from LE to BE using
 	 * 32-byte (256-bit) byteswapping
 	 */
-	ret = ccp_copy_from_ksb(cmd_q, &ctx, op.jobid, op.ksb_ctx,
-				CCP_PASSTHRU_BYTESWAP_256BIT);
+	ret = ccp_copy_from_sb(cmd_q, &ctx, op.jobid, op.sb_ctx,
+			       CCP_PASSTHRU_BYTESWAP_256BIT);
 	if (ret) {
 		cmd->engine_error = cmd_q->cmd_error;
 		goto e_dst;
 	}
 
 	/* ...but we only need AES_BLOCK_SIZE bytes */
-	dm_offset = CCP_KSB_BYTES - AES_BLOCK_SIZE;
+	dm_offset = CCP_SB_BYTES - AES_BLOCK_SIZE;
 	ccp_get_dm_area(&ctx, dm_offset, xts->iv, 0, xts->iv_len);
 
 e_dst:
@@ -1036,21 +1036,21 @@ static int ccp_run_sha_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 	if (!sha->src)
 		return -EINVAL;
 
-	BUILD_BUG_ON(CCP_SHA_KSB_COUNT != 1);
+	BUILD_BUG_ON(CCP_SHA_SB_COUNT != 1);
 
 	memset(&op, 0, sizeof(op));
 	op.cmd_q = cmd_q;
 	op.jobid = ccp_gen_jobid(cmd_q->ccp);
-	op.ksb_ctx = cmd_q->ksb_ctx;
+	op.sb_ctx = cmd_q->sb_ctx;
 	op.u.sha.type = sha->type;
 	op.u.sha.msg_bits = sha->msg_bits;
 
-	/* The SHA context fits in a single (32-byte) KSB entry and
+	/* The SHA context fits in a single (32-byte) SB entry and
 	 * must be in little endian format. Use the 256-bit byte swap
 	 * passthru option to convert from big endian to little endian.
 	 */
 	ret = ccp_init_dm_workarea(&ctx, cmd_q,
-				   CCP_SHA_KSB_COUNT * CCP_KSB_BYTES,
+				   CCP_SHA_SB_COUNT * CCP_SB_BYTES,
 				   DMA_BIDIRECTIONAL);
 	if (ret)
 		return ret;
@@ -1077,8 +1077,8 @@ static int ccp_run_sha_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 		ccp_set_dm_area(&ctx, 0, sha->ctx, 0, sha->ctx_len);
 	}
 
-	ret = ccp_copy_to_ksb(cmd_q, &ctx, op.jobid, op.ksb_ctx,
-			      CCP_PASSTHRU_BYTESWAP_256BIT);
+	ret = ccp_copy_to_sb(cmd_q, &ctx, op.jobid, op.sb_ctx,
+			     CCP_PASSTHRU_BYTESWAP_256BIT);
 	if (ret) {
 		cmd->engine_error = cmd_q->cmd_error;
 		goto e_ctx;
@@ -1107,8 +1107,8 @@ static int ccp_run_sha_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 	/* Retrieve the SHA context - convert from LE to BE using
 	 * 32-byte (256-bit) byteswapping to BE
 	 */
-	ret = ccp_copy_from_ksb(cmd_q, &ctx, op.jobid, op.ksb_ctx,
-				CCP_PASSTHRU_BYTESWAP_256BIT);
+	ret = ccp_copy_from_sb(cmd_q, &ctx, op.jobid, op.sb_ctx,
+			       CCP_PASSTHRU_BYTESWAP_256BIT);
 	if (ret) {
 		cmd->engine_error = cmd_q->cmd_error;
 		goto e_data;
@@ -1191,7 +1191,7 @@ static int ccp_run_rsa_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 	struct ccp_dm_workarea exp, src;
 	struct ccp_data dst;
 	struct ccp_op op;
-	unsigned int ksb_count, i_len, o_len;
+	unsigned int sb_count, i_len, o_len;
 	int ret;
 
 	if (rsa->key_size > CCP_RSA_MAX_WIDTH)
@@ -1209,16 +1209,16 @@ static int ccp_run_rsa_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 	o_len = ((rsa->key_size + 255) / 256) * 32;
 	i_len = o_len * 2;
 
-	ksb_count = o_len / CCP_KSB_BYTES;
+	sb_count = o_len / CCP_SB_BYTES;
 
 	memset(&op, 0, sizeof(op));
 	op.cmd_q = cmd_q;
 	op.jobid = ccp_gen_jobid(cmd_q->ccp);
-	op.ksb_key = ccp_alloc_ksb(cmd_q->ccp, ksb_count);
-	if (!op.ksb_key)
+	op.sb_key = ccp_alloc_ksb(cmd_q->ccp, sb_count);
+	if (!op.sb_key)
 		return -EIO;
 
-	/* The RSA exponent may span multiple (32-byte) KSB entries and must
+	/* The RSA exponent may span multiple (32-byte) SB entries and must
 	 * be in little endian format. Reverse copy each 32-byte chunk
 	 * of the exponent (En chunk to E0 chunk, E(n-1) chunk to E1 chunk)
 	 * and each byte within that chunk and do not perform any byte swap
@@ -1226,14 +1226,14 @@ static int ccp_run_rsa_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 	 */
 	ret = ccp_init_dm_workarea(&exp, cmd_q, o_len, DMA_TO_DEVICE);
 	if (ret)
-		goto e_ksb;
+		goto e_sb;
 
 	ret = ccp_reverse_set_dm_area(&exp, rsa->exp, rsa->exp_len,
-				      CCP_KSB_BYTES, false);
+				      CCP_SB_BYTES, false);
 	if (ret)
 		goto e_exp;
-	ret = ccp_copy_to_ksb(cmd_q, &exp, op.jobid, op.ksb_key,
-			      CCP_PASSTHRU_BYTESWAP_NOOP);
+	ret = ccp_copy_to_sb(cmd_q, &exp, op.jobid, op.sb_key,
+			     CCP_PASSTHRU_BYTESWAP_NOOP);
 	if (ret) {
 		cmd->engine_error = cmd_q->cmd_error;
 		goto e_exp;
@@ -1248,12 +1248,12 @@ static int ccp_run_rsa_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 		goto e_exp;
 
 	ret = ccp_reverse_set_dm_area(&src, rsa->mod, rsa->mod_len,
-				      CCP_KSB_BYTES, false);
+				      CCP_SB_BYTES, false);
 	if (ret)
 		goto e_src;
 	src.address += o_len;	/* Adjust the address for the copy operation */
 	ret = ccp_reverse_set_dm_area(&src, rsa->src, rsa->src_len,
-				      CCP_KSB_BYTES, false);
+				      CCP_SB_BYTES, false);
 	if (ret)
 		goto e_src;
 	src.address -= o_len;	/* Reset the address to original value */
@@ -1292,8 +1292,8 @@ e_src:
 e_exp:
 	ccp_dm_free(&exp);
 
-e_ksb:
-	ccp_free_ksb(cmd_q->ccp, op.ksb_key, ksb_count);
+e_sb:
+	ccp_free_ksb(cmd_q->ccp, op.sb_key, sb_count);
 
 	return ret;
 }
@@ -1322,7 +1322,7 @@ static int ccp_run_passthru_cmd(struct ccp_cmd_queue *cmd_q,
 			return -EINVAL;
 	}
 
-	BUILD_BUG_ON(CCP_PASSTHRU_KSB_COUNT != 1);
+	BUILD_BUG_ON(CCP_PASSTHRU_SB_COUNT != 1);
 
 	memset(&op, 0, sizeof(op));
 	op.cmd_q = cmd_q;
@@ -1330,18 +1330,18 @@ static int ccp_run_passthru_cmd(struct ccp_cmd_queue *cmd_q,
 
 	if (pt->bit_mod != CCP_PASSTHRU_BITWISE_NOOP) {
 		/* Load the mask */
-		op.ksb_key = cmd_q->ksb_key;
+		op.sb_key = cmd_q->sb_key;
 
 		ret = ccp_init_dm_workarea(&mask, cmd_q,
-					   CCP_PASSTHRU_KSB_COUNT *
-					   CCP_KSB_BYTES,
+					   CCP_PASSTHRU_SB_COUNT *
+					   CCP_SB_BYTES,
 					   DMA_TO_DEVICE);
 		if (ret)
 			return ret;
 
 		ccp_set_dm_area(&mask, 0, pt->mask, 0, pt->mask_len);
-		ret = ccp_copy_to_ksb(cmd_q, &mask, op.jobid, op.ksb_key,
-				      CCP_PASSTHRU_BYTESWAP_NOOP);
+		ret = ccp_copy_to_sb(cmd_q, &mask, op.jobid, op.sb_key,
+				     CCP_PASSTHRU_BYTESWAP_NOOP);
 		if (ret) {
 			cmd->engine_error = cmd_q->cmd_error;
 			goto e_mask;
@@ -1449,7 +1449,7 @@ static int ccp_run_passthru_nomap_cmd(struct ccp_cmd_queue *cmd_q,
 			return -EINVAL;
 	}
 
-	BUILD_BUG_ON(CCP_PASSTHRU_KSB_COUNT != 1);
+	BUILD_BUG_ON(CCP_PASSTHRU_SB_COUNT != 1);
 
 	memset(&op, 0, sizeof(op));
 	op.cmd_q = cmd_q;
@@ -1457,13 +1457,13 @@ static int ccp_run_passthru_nomap_cmd(struct ccp_cmd_queue *cmd_q,
 
 	if (pt->bit_mod != CCP_PASSTHRU_BITWISE_NOOP) {
 		/* Load the mask */
-		op.ksb_key = cmd_q->ksb_key;
+		op.sb_key = cmd_q->sb_key;
 
 		mask.length = pt->mask_len;
 		mask.dma.address = pt->mask;
 		mask.dma.length = pt->mask_len;
 
-		ret = ccp_copy_to_ksb(cmd_q, &mask, op.jobid, op.ksb_key,
+		ret = ccp_copy_to_sb(cmd_q, &mask, op.jobid, op.sb_key,
 				     CCP_PASSTHRU_BYTESWAP_NOOP);
 		if (ret) {
 			cmd->engine_error = cmd_q->cmd_error;

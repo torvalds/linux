@@ -4,6 +4,7 @@
  * Copyright (C) 2013,2016 Advanced Micro Devices, Inc.
  *
  * Author: Tom Lendacky <thomas.lendacky@amd.com>
+ * Author: Gary R Hook <gary.hook@amd.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -397,9 +398,9 @@ struct ccp_device *ccp_alloc_struct(struct device *dev)
 
 	spin_lock_init(&ccp->cmd_lock);
 	mutex_init(&ccp->req_mutex);
-	mutex_init(&ccp->ksb_mutex);
-	ccp->ksb_count = KSB_COUNT;
-	ccp->ksb_start = 0;
+	mutex_init(&ccp->sb_mutex);
+	ccp->sb_count = KSB_COUNT;
+	ccp->sb_start = 0;
 
 	ccp->ord = ccp_increment_unit_ordinal();
 	snprintf(ccp->name, MAX_CCP_NAME_LEN, "ccp-%u", ccp->ord);

@@ -100,10 +100,10 @@ static int ccp_perform_aes(struct ccp_op *op)
 		| (op->u.aes.type << REQ1_AES_TYPE_SHIFT)
 		| (op->u.aes.mode << REQ1_AES_MODE_SHIFT)
 		| (op->u.aes.action << REQ1_AES_ACTION_SHIFT)
-		| (op->ksb_key << REQ1_KEY_KSB_SHIFT);
+		| (op->sb_key << REQ1_KEY_KSB_SHIFT);
 	cr[1] = op->src.u.dma.length - 1;
 	cr[2] = ccp_addr_lo(&op->src.u.dma);
-	cr[3] = (op->ksb_ctx << REQ4_KSB_SHIFT)
+	cr[3] = (op->sb_ctx << REQ4_KSB_SHIFT)
 		| (CCP_MEMTYPE_SYSTEM << REQ4_MEMTYPE_SHIFT)
 		| ccp_addr_hi(&op->src.u.dma);
 	cr[4] = ccp_addr_lo(&op->dst.u.dma);
@@ -130,10 +130,10 @@ static int ccp_perform_xts_aes(struct ccp_op *op)
 	cr[0] = (CCP_ENGINE_XTS_AES_128 << REQ1_ENGINE_SHIFT)
 		| (op->u.xts.action << REQ1_AES_ACTION_SHIFT)
 		| (op->u.xts.unit_size << REQ1_XTS_AES_SIZE_SHIFT)
-		| (op->ksb_key << REQ1_KEY_KSB_SHIFT);
+		| (op->sb_key << REQ1_KEY_KSB_SHIFT);
 	cr[1] = op->src.u.dma.length - 1;
 	cr[2] = ccp_addr_lo(&op->src.u.dma);
-	cr[3] = (op->ksb_ctx << REQ4_KSB_SHIFT)
+	cr[3] = (op->sb_ctx << REQ4_KSB_SHIFT)
 		| (CCP_MEMTYPE_SYSTEM << REQ4_MEMTYPE_SHIFT)
 		| ccp_addr_hi(&op->src.u.dma);
 	cr[4] = ccp_addr_lo(&op->dst.u.dma);
@@ -159,7 +159,7 @@ static int ccp_perform_sha(struct ccp_op *op)
 		| REQ1_INIT;
 	cr[1] = op->src.u.dma.length - 1;
 	cr[2] = ccp_addr_lo(&op->src.u.dma);
-	cr[3] = (op->ksb_ctx << REQ4_KSB_SHIFT)
+	cr[3] = (op->sb_ctx << REQ4_KSB_SHIFT)
 		| (CCP_MEMTYPE_SYSTEM << REQ4_MEMTYPE_SHIFT)
 		| ccp_addr_hi(&op->src.u.dma);
 
@@ -182,11 +182,11 @@ static int ccp_perform_rsa(struct ccp_op *op)
 	/* Fill out the register contents for REQ1 through REQ6 */
 	cr[0] = (CCP_ENGINE_RSA << REQ1_ENGINE_SHIFT)
 		| (op->u.rsa.mod_size << REQ1_RSA_MOD_SIZE_SHIFT)
-		| (op->ksb_key << REQ1_KEY_KSB_SHIFT)
+		| (op->sb_key << REQ1_KEY_KSB_SHIFT)
 		| REQ1_EOM;
 	cr[1] = op->u.rsa.input_len - 1;
 	cr[2] = ccp_addr_lo(&op->src.u.dma);
-	cr[3] = (op->ksb_ctx << REQ4_KSB_SHIFT)
+	cr[3] = (op->sb_ctx << REQ4_KSB_SHIFT)
 		| (CCP_MEMTYPE_SYSTEM << REQ4_MEMTYPE_SHIFT)
 		| ccp_addr_hi(&op->src.u.dma);
 	cr[4] = ccp_addr_lo(&op->dst.u.dma);
@@ -216,10 +216,10 @@ static int ccp_perform_passthru(struct ccp_op *op)
 			| ccp_addr_hi(&op->src.u.dma);
 
 		if (op->u.passthru.bit_mod != CCP_PASSTHRU_BITWISE_NOOP)
-			cr[3] |= (op->ksb_key << REQ4_KSB_SHIFT);
+			cr[3] |= (op->sb_key << REQ4_KSB_SHIFT);
 	} else {
-		cr[2] = op->src.u.ksb * CCP_KSB_BYTES;
-		cr[3] = (CCP_MEMTYPE_KSB << REQ4_MEMTYPE_SHIFT);
+		cr[2] = op->src.u.sb * CCP_SB_BYTES;
+		cr[3] = (CCP_MEMTYPE_SB << REQ4_MEMTYPE_SHIFT);
 	}
 
 	if (op->dst.type == CCP_MEMTYPE_SYSTEM) {
@@ -227,8 +227,8 @@ static int ccp_perform_passthru(struct ccp_op *op)
 		cr[5] = (CCP_MEMTYPE_SYSTEM << REQ6_MEMTYPE_SHIFT)
 			| ccp_addr_hi(&op->dst.u.dma);
 	} else {
-		cr[4] = op->dst.u.ksb * CCP_KSB_BYTES;
-		cr[5] = (CCP_MEMTYPE_KSB << REQ6_MEMTYPE_SHIFT);
+		cr[4] = op->dst.u.sb * CCP_SB_BYTES;
+		cr[5] = (CCP_MEMTYPE_SB << REQ6_MEMTYPE_SHIFT);
 	}
 
 	if (op->eom)
@@ -322,9 +322,9 @@ static int ccp_init(struct ccp_device *ccp)
 		cmd_q->dma_pool = dma_pool;
 
 		/* Reserve 2 KSB regions for the queue */
-		cmd_q->ksb_key = KSB_START + ccp->ksb_start++;
-		cmd_q->ksb_ctx = KSB_START + ccp->ksb_start++;
-		ccp->ksb_count -= 2;
+		cmd_q->sb_key = KSB_START + ccp->sb_start++;
+		cmd_q->sb_ctx = KSB_START + ccp->sb_start++;
+		ccp->sb_count -= 2;
 
 		/* Preset some register values and masks that are queue
 		 * number dependent
@@ -376,7 +376,7 @@ static int ccp_init(struct ccp_device *ccp)
 	}
 
 	/* Initialize the queues used to wait for KSB space and suspend */
-	init_waitqueue_head(&ccp->ksb_queue);
+	init_waitqueue_head(&ccp->sb_queue);
 	init_waitqueue_head(&ccp->suspend_queue);
 
 	/* Create a kthread for each queue */

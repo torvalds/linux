@@ -111,8 +111,7 @@
 #define KSB_START			77
 #define KSB_END				127
 #define KSB_COUNT			(KSB_END - KSB_START + 1)
-#define CCP_KSB_BITS			256
-#define CCP_KSB_BYTES			32
+#define CCP_SB_BITS			256
 
 #define CCP_JOBID_MASK			0x0000003f
 
@@ -121,19 +120,19 @@
 
 #define CCP_REVERSE_BUF_SIZE		64
 
-#define CCP_AES_KEY_KSB_COUNT		1
-#define CCP_AES_CTX_KSB_COUNT		1
+#define CCP_AES_KEY_SB_COUNT		1
+#define CCP_AES_CTX_SB_COUNT		1
 
-#define CCP_XTS_AES_KEY_KSB_COUNT	1
-#define CCP_XTS_AES_CTX_KSB_COUNT	1
+#define CCP_XTS_AES_KEY_SB_COUNT	1
+#define CCP_XTS_AES_CTX_SB_COUNT	1
 
-#define CCP_SHA_KSB_COUNT		1
+#define CCP_SHA_SB_COUNT		1
 
 #define CCP_RSA_MAX_WIDTH		4096
 
 #define CCP_PASSTHRU_BLOCKSIZE		256
 #define CCP_PASSTHRU_MASKSIZE		32
-#define CCP_PASSTHRU_KSB_COUNT		1
+#define CCP_PASSTHRU_SB_COUNT		1
 
 #define CCP_ECC_MODULUS_BYTES		48      /* 384-bits */
 #define CCP_ECC_MAX_OPERANDS		6
@@ -144,6 +143,8 @@
 #define CCP_ECC_OUTPUT_SIZE		64
 #define CCP_ECC_RESULT_OFFSET		60
 #define CCP_ECC_RESULT_SUCCESS		0x0001
+
+#define CCP_SB_BYTES			32
 
 struct ccp_op;
 
@@ -215,9 +216,9 @@ struct ccp_cmd_queue {
 	/* Queue dma pool */
 	struct dma_pool *dma_pool;
 
-	/* Queue reserved KSB regions */
-	u32 ksb_key;
-	u32 ksb_ctx;
+	/* Per-queue reserved storage block(s) */
+	u32 sb_key;
+	u32 sb_ctx;
 
 	/* Queue processing thread */
 	struct task_struct *kthread;
@@ -313,12 +314,12 @@ struct ccp_device {
 	 * to avoid allocation contention.  This will reserve at most 10 KSB
 	 * entries, leaving 40 KSB entries available for dynamic allocation.
 	 */
-	struct mutex ksb_mutex ____cacheline_aligned;
-	DECLARE_BITMAP(ksb, KSB_COUNT);
-	wait_queue_head_t ksb_queue;
-	unsigned int ksb_avail;
-	unsigned int ksb_count;
-	u32 ksb_start;
+	struct mutex sb_mutex ____cacheline_aligned;
+	DECLARE_BITMAP(sb, KSB_COUNT);
+	wait_queue_head_t sb_queue;
+	unsigned int sb_avail;
+	unsigned int sb_count;
+	u32 sb_start;
 
 	/* Suspend support */
 	unsigned int suspending;
@@ -330,7 +331,7 @@ struct ccp_device {
 
 enum ccp_memtype {
 	CCP_MEMTYPE_SYSTEM = 0,
-	CCP_MEMTYPE_KSB,
+	CCP_MEMTYPE_SB,
 	CCP_MEMTYPE_LOCAL,
 	CCP_MEMTYPE__LAST,
 };
@@ -374,7 +375,7 @@ struct ccp_mem {
 	enum ccp_memtype type;
 	union {
 		struct ccp_dma_info dma;
-		u32 ksb;
+		u32 sb;
 	} u;
 };
 
@@ -414,8 +415,8 @@ struct ccp_op {
 	u32 jobid;
 	u32 ioc;
 	u32 soc;
-	u32 ksb_key;
-	u32 ksb_ctx;
+	u32 sb_key;
+	u32 sb_ctx;
 	u32 init;
 	u32 eom;
 
