@@ -1142,7 +1142,7 @@ static void arpc_add(struct es2_ap_dev *es2, struct arpc *rpc)
 {
 	rpc->active = true;
 	rpc->req->id = cpu_to_le16(es2->arpc_id_cycle++);
-	list_add_tail(&es2->arpcs, &rpc->list);
+	list_add_tail(&rpc->list, &es2->arpcs);
 }
 
 static void arpc_del(struct es2_ap_dev *es2, struct arpc *rpc)
