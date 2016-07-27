@@ -536,7 +536,6 @@ static int radeon_atpx_get_client_id(struct pci_dev *pdev)
 static const struct vga_switcheroo_handler radeon_atpx_handler = {
 	.switchto = radeon_atpx_switchto,
 	.power_state = radeon_atpx_power_state,
-	.init = radeon_atpx_init,
 	.get_client_id = radeon_atpx_get_client_id,
 };
 
@@ -572,6 +571,7 @@ static bool radeon_atpx_detect(void)
 		printk(KERN_INFO "vga_switcheroo: detected switching method %s handle\n",
 		       acpi_method_name);
 		radeon_atpx_priv.atpx_detected = true;
+		radeon_atpx_init();
 		return true;
 	}
 	return false;
