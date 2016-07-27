@@ -31,10 +31,8 @@
 
 #define DCB_LOC_ON_CHIP 0
 
-#define ROM16(x) le16_to_cpu(*(u16 *)&(x))
-#define ROM32(x) le32_to_cpu(*(u32 *)&(x))
-#define ROM48(x) ({ u8 *p = &(x); (u64)ROM16(p[4]) << 32 | ROM32(p[0]); })
-#define ROM64(x) le64_to_cpu(*(u64 *)&(x))
+#define ROM16(x) get_unaligned_le16(&(x))
+#define ROM32(x) get_unaligned_le32(&(x))
 #define ROMPTR(d,x) ({            \
 	struct nouveau_drm *drm = nouveau_drm((d)); \
 	ROM16(x) ? &drm->vbios.data[ROM16(x)] : NULL; \
