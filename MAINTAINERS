@@ -4942,6 +4942,13 @@ F:	Documentation/filesystems/caching/
 F:	fs/fscache/
 F:	include/linux/fscache*.h
 
+FS-CRYPTO: FILE SYSTEM LEVEL ENCRYPTION SUPPORT
+M:	Theodore Y. Ts'o <tytso@mit.edu>
+M:	Jaegeuk Kim <jaegeuk@kernel.org>
+S:	Supported
+F:	fs/crypto/
+F:	include/linux/fscrypto.h
+
 F2FS FILE SYSTEM
 M:	Jaegeuk Kim <jaegeuk@kernel.org>
 M:	Changman Lee <cm224.lee@samsung.com>

@@ -208,6 +208,9 @@ static int ext4_init_block_bitmap(struct super_block *sb,
 	memset(bh->b_data, 0, sb->s_blocksize);
 
 	bit_max = ext4_num_base_meta_clusters(sb, block_group);
+	if ((bit_max >> 3) >= bh->b_size)
+		return -EFSCORRUPTED;
+
 	for (bit = 0; bit < bit_max; bit++)
 		ext4_set_bit(bit, bh->b_data);
 
@@ -610,7 +613,9 @@ int ext4_should_retry_alloc(struct super_block *sb, int *retries)
 
 	jbd_debug(1, "%s: retrying operation after ENOSPC\n", sb->s_id);
 
-	jbd2_journal_force_commit_nested(EXT4_SB(sb)->s_journal);
+	smp_mb();
+	if (EXT4_SB(sb)->s_mb_free_pending)
+		jbd2_journal_force_commit_nested(EXT4_SB(sb)->s_journal);
 	return 1;
 }
 

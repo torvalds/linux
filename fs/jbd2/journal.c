@@ -691,6 +691,7 @@ int jbd2_log_wait_commit(journal_t *journal, tid_t tid)
 {
 	int err = 0;
 
+	jbd2_might_wait_for_commit(journal);
 	read_lock(&journal->j_state_lock);
 #ifdef CONFIG_JBD2_DEBUG
 	if (!tid_geq(journal->j_commit_request, tid)) {
@@ -1091,6 +1092,7 @@ static void jbd2_stats_proc_exit(journal_t *journal)
 
 static journal_t * journal_init_common (void)
 {
+	static struct lock_class_key jbd2_trans_commit_key;
 	journal_t *journal;
 	int err;
 
@@ -1125,6 +1127,9 @@ static journal_t * journal_init_common (void)
 	}
 
 	spin_lock_init(&journal->j_history_lock);
+
+	lockdep_init_map(&journal->j_trans_commit_map, "jbd2_handle",
+			 &jbd2_trans_commit_key, 0);
 
 	return journal;
 }
