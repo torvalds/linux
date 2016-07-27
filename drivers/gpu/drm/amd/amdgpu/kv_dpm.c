@@ -191,6 +191,7 @@ static void sumo_construct_vid_mapping_table(struct amdgpu_device *adev,
 	vid_mapping_table->num_entries = i;
 }
 
+#if 0
 static const struct kv_lcac_config_values sx_local_cac_cfg_kv[] =
 {
 	{  0,       4,        1    },
@@ -289,6 +290,7 @@ static const struct kv_lcac_config_reg cpl_cac_config_reg[] =
 {
 	{ 0xc0400d80, 0x003e0000, 17, 0x3fc00000, 22, 0x0001fffe, 1, 0x00000001, 0 }
 };
+#endif
 
 static const struct kv_pt_config_reg didt_config_kv[] =
 {

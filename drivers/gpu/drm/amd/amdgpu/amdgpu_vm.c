@@ -195,6 +195,7 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		      struct amdgpu_job *job)
 {
 	struct amdgpu_device *adev = ring->adev;
+	uint64_t fence_context = adev->fence_context + ring->idx;
 	struct fence *updates = sync->last_vm_update;
 	struct amdgpu_vm_id *id, *idle;
 	struct fence **fences;
@@ -254,7 +255,6 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 	i = ring->idx;
 	do {
 		struct fence *flushed;
-		bool same_ring = ring->idx == i;
 
 		id = vm->ids[i++];
 		if (i == AMDGPU_MAX_RINGS)
@@ -272,8 +272,11 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		if (job->vm_pd_addr != id->pd_gpu_addr)
 			continue;
 
-		if (!same_ring &&
-		    (!id->last_flush || !fence_is_signaled(id->last_flush)))
+		if (!id->last_flush)
+			continue;
+
+		if (id->last_flush->context != fence_context &&
+		    !fence_is_signaled(id->last_flush))
 			continue;
 
 		flushed  = id->flushed_updates;
@@ -294,7 +297,7 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 
 		job->vm_id = id - adev->vm_manager.ids;
 		job->vm_needs_flush = false;
-		trace_amdgpu_vm_grab_id(vm, ring->idx, job->vm_id, job->vm_pd_addr);
+		trace_amdgpu_vm_grab_id(vm, ring->idx, job);
 
 		mutex_unlock(&adev->vm_manager.lock);
 		return 0;
@@ -325,7 +328,7 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 	vm->ids[ring->idx] = id;
 
 	job->vm_id = id - adev->vm_manager.ids;
-	trace_amdgpu_vm_grab_id(vm, ring->idx, job->vm_id, job->vm_pd_addr);
+	trace_amdgpu_vm_grab_id(vm, ring->idx, job);
 
 error:
 	mutex_unlock(&adev->vm_manager.lock);
