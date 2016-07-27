@@ -46,7 +46,7 @@ static void i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *o
 static void
 i915_gem_object_retire__write(struct drm_i915_gem_object *obj);
 static void
-i915_gem_object_retire__read(struct drm_i915_gem_object *obj, int ring);
+i915_gem_object_retire__read(struct drm_i915_gem_object *obj, int engine);
 
 static bool cpu_cache_is_coherent(struct drm_device *dev,
 				  enum i915_cache_level level)
@@ -1385,10 +1385,10 @@ static void
 i915_gem_object_retire_request(struct drm_i915_gem_object *obj,
 			       struct drm_i915_gem_request *req)
 {
-	int ring = req->engine->id;
+	int idx = req->engine->id;
 
-	if (obj->last_read_req[ring] == req)
-		i915_gem_object_retire__read(obj, ring);
+	if (obj->last_read_req[idx] == req)
+		i915_gem_object_retire__read(obj, idx);
 	else if (obj->last_write_req == req)
 		i915_gem_object_retire__write(obj);
 
@@ -2381,20 +2381,20 @@ i915_gem_object_retire__write(struct drm_i915_gem_object *obj)
 }
 
 static void
-i915_gem_object_retire__read(struct drm_i915_gem_object *obj, int ring)
+i915_gem_object_retire__read(struct drm_i915_gem_object *obj, int idx)
 {
 	struct i915_vma *vma;
 
-	GEM_BUG_ON(obj->last_read_req[ring] == NULL);
-	GEM_BUG_ON(!(obj->active & (1 << ring)));
+	GEM_BUG_ON(obj->last_read_req[idx] == NULL);
+	GEM_BUG_ON(!(obj->active & (1 << idx)));
 
-	list_del_init(&obj->engine_list[ring]);
-	i915_gem_request_assign(&obj->last_read_req[ring], NULL);
+	list_del_init(&obj->engine_list[idx]);
+	i915_gem_request_assign(&obj->last_read_req[idx], NULL);
 
-	if (obj->last_write_req && obj->last_write_req->engine->id == ring)
+	if (obj->last_write_req && obj->last_write_req->engine->id == idx)
 		i915_gem_object_retire__write(obj);
 
-	obj->active &= ~(1 << ring);
+	obj->active &= ~(1 << idx);
 	if (obj->active)
 		return;
 
@@ -4599,7 +4599,7 @@ int i915_gem_init(struct drm_device *dev)
 
 	ret = i915_gem_init_hw(dev);
 	if (ret == -EIO) {
-		/* Allow ring initialisation to fail by marking the GPU as
+		/* Allow engine initialisation to fail by marking the GPU as
 		 * wedged. But we only want to do this where the GPU is angry,
 		 * for all other failure, such as an allocation failure, bail.
 		 */
