@@ -4,6 +4,7 @@
  * Copyright (C) 2013,2016 Advanced Micro Devices, Inc.
  *
  * Author: Tom Lendacky <thomas.lendacky@amd.com>
+ * Author: Gary R Hook <gary.hook@amd.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -163,6 +164,8 @@ struct ccp_actions {
 struct ccp_vdata {
 	unsigned int version;
 	const struct ccp_actions *perform;
+	const unsigned int bar;
+	const unsigned int offset;
 };
 
 extern struct ccp_vdata ccpv3;
