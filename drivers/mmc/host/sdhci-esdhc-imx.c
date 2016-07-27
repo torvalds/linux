@@ -1296,7 +1296,9 @@ static int sdhci_esdhc_imx_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int sdhci_esdhc_suspend(struct device *dev)
 {
-	return sdhci_pltfm_suspend(dev);
+	struct sdhci_host *host = dev_get_drvdata(dev);
+
+	return sdhci_suspend_host(host);
 }
 
 static int sdhci_esdhc_resume(struct device *dev)
@@ -1306,7 +1308,7 @@ static int sdhci_esdhc_resume(struct device *dev)
 	/* re-initialize hw state in case it's lost in low power mode */
 	sdhci_esdhc_imx_hwinit(host);
 
-	return sdhci_pltfm_resume(dev);
+	return sdhci_resume_host(host);
 }
 #endif
 
