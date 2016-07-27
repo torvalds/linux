@@ -39,17 +39,13 @@
  *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
-
-/dts-v1/;
-
 #include <dt-bindings/pwm/pwm.h>
 #include <dt-bindings/input/input.h>
 #include "rk3399.dtsi"
 #include "rk3399-android.dtsi"
 
 / {
-	model = "Rockchip RK3399 Box Board rev2 (Android)";
-	compatible = "rockchip,rk3399";
+	compatible = "rockchip,rk3399-box","rockchip,rk3399";
 
 	vcc1v8_s0: vcc1v8-s0 {
 		compatible = "regulator-fixed";
@@ -211,8 +207,8 @@
 };
 
 &sdmmc {
-	clock-frequency = <150000000>;
-	clock-freq-min-max = <400000 150000000>;
+	clock-frequency = <100000000>;
+	clock-freq-min-max = <400000 100000000>;
 	supports-sd;
 	bus-width = <4>;
 	cap-mmc-highspeed;
@@ -227,7 +223,7 @@
 };
 
 &sdio0 {
-	clock-frequency = <140000000>;
+	clock-frequency = <100000000>;
 	clock-freq-min-max = <200000 100000000>;
 	supports-sdio;
 	bus-width = <4>;
