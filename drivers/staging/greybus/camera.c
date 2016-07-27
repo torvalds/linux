@@ -113,12 +113,12 @@ static const struct gb_camera_fmt_info gb_fmt_info[] = {
 		.bpp	   = 0,
 	},
 	{
-		.mbus_code = V4L2_MBUS_FMT_ARA_METADATA_1X8,
+		.mbus_code = V4L2_MBUS_FMT_GB_CAM_METADATA_1X8,
 		.gb_format = 0x41,
 		.bpp	   = 0,
 	},
 	{
-		.mbus_code = V4L2_MBUS_FMT_ARA_DEBUG_DATA_1X8,
+		.mbus_code = V4L2_MBUS_FMT_GB_CAM_DEBUG_DATA_1X8,
 		.gb_format = 0x42,
 		.bpp	   = 0,
 	},
