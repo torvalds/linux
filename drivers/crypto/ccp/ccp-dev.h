@@ -440,6 +440,7 @@ void ccp_del_device(struct ccp_device *ccp);
 struct ccp_device *ccp_alloc_struct(struct device *dev);
 bool ccp_queues_suspended(struct ccp_device *ccp);
 int ccp_cmd_queue_thread(void *data);
+int ccp_trng_read(struct hwrng *rng, void *data, size_t max, bool wait);
 
 int ccp_run_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd);
 

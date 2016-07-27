@@ -307,35 +307,6 @@ static int ccp_perform_ecc(struct ccp_op *op)
 	return ccp_do_cmd(op, cr, ARRAY_SIZE(cr));
 }
 
-static int ccp_trng_read(struct hwrng *rng, void *data, size_t max, bool wait)
-{
-	struct ccp_device *ccp = container_of(rng, struct ccp_device, hwrng);
-	u32 trng_value;
-	int len = min_t(int, sizeof(trng_value), max);
-
-	/*
-	 * Locking is provided by the caller so we can update device
-	 * hwrng-related fields safely
-	 */
-	trng_value = ioread32(ccp->io_regs + TRNG_OUT_REG);
-	if (!trng_value) {
-		/* Zero is returned if not data is available or if a
-		 * bad-entropy error is present. Assume an error if
-		 * we exceed TRNG_RETRIES reads of zero.
-		 */
-		if (ccp->hwrng_retries++ > TRNG_RETRIES)
-			return -EIO;
-
-		return 0;
-	}
-
-	/* Reset the counter and save the rng value */
-	ccp->hwrng_retries = 0;
-	memcpy(data, &trng_value, len);
-
-	return len;
-}
-
 static int ccp_init(struct ccp_device *ccp)
 {
 	struct device *dev = ccp->dev;
@@ -495,17 +466,6 @@ static void ccp_destroy(struct ccp_device *ccp)
 	/* Remove this device from the list of available units first */
 	ccp_del_device(ccp);
 
-	/* Unregister the DMA engine */
-	ccp_dmaengine_unregister(ccp);
-
-	/* Unregister the RNG */
-	hwrng_unregister(&ccp->hwrng);
-
-	/* Stop the queue kthreads */
-	for (i = 0; i < ccp->cmd_q_count; i++)
-		if (ccp->cmd_q[i].kthread)
-			kthread_stop(ccp->cmd_q[i].kthread);
-
 	/* Build queue interrupt mask (two interrupt masks per queue) */
 	qim = 0;
 	for (i = 0; i < ccp->cmd_q_count; i++) {
@@ -522,6 +482,17 @@ static void ccp_destroy(struct ccp_device *ccp)
 		ioread32(cmd_q->reg_status);
 	}
 	iowrite32(qim, ccp->io_regs + IRQ_STATUS_REG);
+
+	/* Unregister the DMA engine */
+	ccp_dmaengine_unregister(ccp);
+
+	/* Unregister the RNG */
+	hwrng_unregister(&ccp->hwrng);
+
+	/* Stop the queue kthreads */
+	for (i = 0; i < ccp->cmd_q_count; i++)
+		if (ccp->cmd_q[i].kthread)
+			kthread_stop(ccp->cmd_q[i].kthread);
 
 	ccp->free_irq(ccp);
 
