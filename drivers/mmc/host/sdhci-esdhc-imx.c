@@ -1293,7 +1293,7 @@ static int sdhci_esdhc_imx_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int sdhci_esdhc_suspend(struct device *dev)
 {
 	return sdhci_pltfm_suspend(dev);
@@ -1308,7 +1308,9 @@ static int sdhci_esdhc_resume(struct device *dev)
 
 	return sdhci_pltfm_resume(dev);
 }
+#endif
 
+#ifdef CONFIG_PM
 static int sdhci_esdhc_runtime_suspend(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
