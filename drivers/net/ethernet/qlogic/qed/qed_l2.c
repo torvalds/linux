@@ -1664,6 +1664,8 @@ static int qed_fill_eth_dev_info(struct qed_dev *cdev,
 	info->num_tc = 1;
 
 	if (IS_PF(cdev)) {
+		int max_vf_vlan_filters = 0;
+
 		if (cdev->int_params.out.int_mode == QED_INT_MODE_MSIX) {
 			for_each_hwfn(cdev, i)
 			    info->num_queues +=
@@ -1676,7 +1678,12 @@ static int qed_fill_eth_dev_info(struct qed_dev *cdev,
 			info->num_queues = cdev->num_hwfns;
 		}
 
-		info->num_vlan_filters = RESC_NUM(&cdev->hwfns[0], QED_VLAN);
+		if (IS_QED_SRIOV(cdev))
+			max_vf_vlan_filters = cdev->p_iov_info->total_vfs *
+					      QED_ETH_VF_NUM_VLAN_FILTERS;
+		info->num_vlan_filters = RESC_NUM(&cdev->hwfns[0], QED_VLAN) -
+					 max_vf_vlan_filters;
+
 		ether_addr_copy(info->port_mac,
 				cdev->hwfns[0].hw_info.hw_mac_addr);
 	} else {
