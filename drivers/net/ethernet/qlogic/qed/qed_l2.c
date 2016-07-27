@@ -590,7 +590,7 @@ qed_sp_eth_rx_queue_start(struct qed_hwfn *p_hwfn,
 			  u16 cqe_pbl_size, void __iomem **pp_prod)
 {
 	struct qed_hw_cid_data *p_rx_cid;
-	u64 init_prod_val = 0;
+	u32 init_prod_val = 0;
 	u16 abs_l2_queue = 0;
 	u8 abs_stats_id = 0;
 	int rc;
@@ -618,7 +618,7 @@ qed_sp_eth_rx_queue_start(struct qed_hwfn *p_hwfn,
 				 MSTORM_ETH_PF_PRODS_OFFSET(abs_l2_queue);
 
 	/* Init the rcq, rx bd and rx sge (if valid) producers to 0 */
-	__internal_ram_wr(p_hwfn, *pp_prod, sizeof(u64),
+	__internal_ram_wr(p_hwfn, *pp_prod, sizeof(u32),
 			  (u32 *)(&init_prod_val));
 
 	/* Allocate a CID for the queue */
