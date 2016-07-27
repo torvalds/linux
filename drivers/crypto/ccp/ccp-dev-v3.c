@@ -432,14 +432,9 @@ static int ccp_init(struct ccp_device *ccp)
 	dev_dbg(dev, "Registering device...\n");
 	ccp_add_device(ccp);
 
-	/* Register the RNG */
-	ccp->hwrng.name = ccp->rngname;
-	ccp->hwrng.read = ccp_trng_read;
-	ret = hwrng_register(&ccp->hwrng);
-	if (ret) {
-		dev_err(dev, "error registering hwrng (%d)\n", ret);
+	ret = ccp_register_rng(ccp);
+	if (ret)
 		goto e_kthread;
-	}
 
 	/* Register the DMA engine support */
 	ret = ccp_dmaengine_register(ccp);
@@ -449,7 +444,7 @@ static int ccp_init(struct ccp_device *ccp)
 	return 0;
 
 e_hwrng:
-	hwrng_unregister(&ccp->hwrng);
+	ccp_unregister_rng(ccp);
 
 e_kthread:
 	for (i = 0; i < ccp->cmd_q_count; i++)
@@ -475,7 +470,7 @@ static void ccp_destroy(struct ccp_device *ccp)
 	ccp_dmaengine_unregister(ccp);
 
 	/* Unregister the RNG */
-	hwrng_unregister(&ccp->hwrng);
+	ccp_unregister_rng(ccp);
 
 	/* Remove this device from the list of available units */
 	ccp_del_device(ccp);

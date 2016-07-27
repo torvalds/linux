@@ -601,6 +601,8 @@ int ccp_trng_read(struct hwrng *rng, void *data, size_t max, bool wait);
 
 int ccp_run_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd);
 
+int ccp_register_rng(struct ccp_device *ccp);
+void ccp_unregister_rng(struct ccp_device *ccp);
 int ccp_dmaengine_register(struct ccp_device *ccp);
 void ccp_dmaengine_unregister(struct ccp_device *ccp);
 

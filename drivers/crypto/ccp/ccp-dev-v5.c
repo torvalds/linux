@@ -828,6 +828,10 @@ static int ccp5_init(struct ccp_device *ccp)
 	/* Put this on the unit list to make it available */
 	ccp_add_device(ccp);
 
+	ret = ccp_register_rng(ccp);
+	if (ret)
+		goto e_kthread;
+
 	return 0;
 
 e_kthread:
@@ -851,6 +855,9 @@ static void ccp5_destroy(struct ccp_device *ccp)
 	struct ccp_cmd_queue *cmd_q;
 	struct ccp_cmd *cmd;
 	unsigned int i;
+
+	/* Unregister the RNG */
+	ccp_unregister_rng(ccp);
 
 	/* Remove this device from the list of available units first */
 	ccp_del_device(ccp);

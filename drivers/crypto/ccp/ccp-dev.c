@@ -119,6 +119,29 @@ void ccp_del_device(struct ccp_device *ccp)
 	write_unlock_irqrestore(&ccp_unit_lock, flags);
 }
 
+
+
+int ccp_register_rng(struct ccp_device *ccp)
+{
+	int ret = 0;
+
+	dev_dbg(ccp->dev, "Registering RNG...\n");
+	/* Register an RNG */
+	ccp->hwrng.name = ccp->rngname;
+	ccp->hwrng.read = ccp_trng_read;
+	ret = hwrng_register(&ccp->hwrng);
+	if (ret)
+		dev_err(ccp->dev, "error registering hwrng (%d)\n", ret);
+
+	return ret;
+}
+
+void ccp_unregister_rng(struct ccp_device *ccp)
+{
+	if (ccp->hwrng.name)
+		hwrng_unregister(&ccp->hwrng);
+}
+
 static struct ccp_device *ccp_get_device(void)
 {
 	unsigned long flags;
