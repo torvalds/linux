@@ -1102,7 +1102,7 @@ void gen8_irq_power_well_pre_disable(struct drm_i915_private *dev_priv,
 
 /* intel_crt.c */
 void intel_crt_init(struct drm_device *dev);
-
+void intel_crt_reset(struct drm_encoder *encoder);
 
 /* intel_ddi.c */
 void intel_ddi_clk_select(struct intel_encoder *encoder,
@@ -1425,6 +1425,8 @@ int intel_dsi_dcs_init_backlight_funcs(struct intel_connector *intel_connector);
 
 /* intel_dvo.c */
 void intel_dvo_init(struct drm_device *dev);
+/* intel_hotplug.c */
+void intel_hpd_poll_init(struct drm_i915_private *dev_priv);
 
 
 /* legacy fbdev emulation in intel_fbdev.c */

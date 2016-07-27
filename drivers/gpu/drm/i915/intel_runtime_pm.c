@@ -1078,6 +1078,7 @@ static void vlv_init_display_clock_gating(struct drm_i915_private *dev_priv)
 
 static void vlv_display_power_well_init(struct drm_i915_private *dev_priv)
 {
+	struct intel_encoder *encoder;
 	enum pipe pipe;
 
 	/*
@@ -1113,6 +1114,12 @@ static void vlv_display_power_well_init(struct drm_i915_private *dev_priv)
 
 	intel_hpd_init(dev_priv);
 
+	/* Re-enable the ADPA, if we have one */
+	for_each_intel_encoder(&dev_priv->drm, encoder) {
+		if (encoder->type == INTEL_OUTPUT_ANALOG)
+			intel_crt_reset(&encoder->base);
+	}
+
 	i915_redisable_vga_power_on(&dev_priv->drm);
 }
 
@@ -1126,6 +1133,8 @@ static void vlv_display_power_well_deinit(struct drm_i915_private *dev_priv)
 	synchronize_irq(dev_priv->drm.irq);
 
 	intel_power_sequencer_reset(dev_priv);
+
+	intel_hpd_poll_init(dev_priv);
 }
 
 static void vlv_display_power_well_enable(struct drm_i915_private *dev_priv,
