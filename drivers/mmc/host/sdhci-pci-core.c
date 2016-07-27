@@ -1413,8 +1413,7 @@ static const struct sdhci_ops sdhci_pci_ops = {
  *                                                                           *
 \*****************************************************************************/
 
-#ifdef CONFIG_PM
-
+#ifdef CONFIG_PM_SLEEP
 static int sdhci_pci_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
@@ -1496,7 +1495,9 @@ static int sdhci_pci_resume(struct device *dev)
 
 	return 0;
 }
+#endif
 
+#ifdef CONFIG_PM
 static int sdhci_pci_runtime_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
@@ -1562,17 +1563,10 @@ static int sdhci_pci_runtime_resume(struct device *dev)
 
 	return 0;
 }
-
-#else /* CONFIG_PM */
-
-#define sdhci_pci_suspend NULL
-#define sdhci_pci_resume NULL
-
-#endif /* CONFIG_PM */
+#endif
 
 static const struct dev_pm_ops sdhci_pci_pm_ops = {
-	.suspend = sdhci_pci_suspend,
-	.resume = sdhci_pci_resume,
+	SET_SYSTEM_SLEEP_PM_OPS(sdhci_pci_suspend, sdhci_pci_resume)
 	SET_RUNTIME_PM_OPS(sdhci_pci_runtime_suspend,
 			sdhci_pci_runtime_resume, NULL)
 };
