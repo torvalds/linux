@@ -756,7 +756,6 @@ int xgene_enet_phy_connect(struct net_device *ndev)
 	struct device_node *np;
 	struct phy_device *phy_dev;
 	struct device *dev = &pdata->pdev->dev;
-	struct acpi_device *adev;
 	int i;
 
 	if (dev->of_node) {
@@ -781,7 +780,7 @@ int xgene_enet_phy_connect(struct net_device *ndev)
 		pdata->phy_dev = phy_dev;
 	} else {
 #ifdef CONFIG_ACPI
-		adev = acpi_phy_find_device(dev);
+		struct acpi_device *adev = acpi_phy_find_device(dev);
 		if (adev)
 			pdata->phy_dev =  adev->driver_data;
 
