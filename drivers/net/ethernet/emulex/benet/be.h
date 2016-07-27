@@ -508,6 +508,10 @@ struct be_wrb_params {
 	u16 lso_mss;	/* MSS for LSO */
 };
 
+struct be_eth_addr {
+	unsigned char mac[ETH_ALEN];
+};
+
 struct be_adapter {
 	struct pci_dev *pdev;
 	struct net_device *netdev;
@@ -523,7 +527,7 @@ struct be_adapter {
 	struct be_dma_mem mbox_mem_alloced;
 
 	struct be_mcc_obj mcc_obj;
-	spinlock_t mcc_lock;	/* For serializing mcc cmds to BE card */
+	struct mutex mcc_lock;	/* For serializing mcc cmds to BE card */
 	spinlock_t mcc_cq_lock;
 
 	u16 cfg_num_rx_irqs;		/* configured via set-channels */
@@ -570,11 +574,15 @@ struct be_adapter {
 	int if_handle;		/* Used to configure filtering */
 	u32 if_flags;		/* Interface filtering flags */
 	u32 *pmac_id;		/* MAC addr handle used by BE card */
+	struct be_eth_addr *uc_list;/* list of uc-addrs programmed (not perm) */
 	u32 uc_macs;		/* Count of secondary UC MAC programmed */
+	struct be_eth_addr *mc_list;/* list of mcast addrs programmed */
+	u32 mc_count;
 	unsigned long vids[BITS_TO_LONGS(VLAN_N_VID)];
 	u16 vlans_added;
 	bool update_uc_list;
 	bool update_mc_list;
+	struct mutex rx_filter_lock;/* For protecting vids[] & mc/uc_list[] */
 
 	u32 beacon_state;	/* for set_phys_id */
 
@@ -626,6 +634,15 @@ struct be_adapter {
 	u32 fat_dump_len;
 	u16 serial_num[CNTL_SERIAL_NUM_WORDS];
 	u8 phy_state; /* state of sfp optics (functional, faulted, etc.,) */
+};
+
+/* Used for defered FW config cmds. Add fields to this struct as reqd */
+struct be_cmd_work {
+	struct work_struct work;
+	struct be_adapter *adapter;
+	union {
+		__be16 vxlan_port;
+	} info;
 };
 
 #define be_physfn(adapter)		(!adapter->virtfn)

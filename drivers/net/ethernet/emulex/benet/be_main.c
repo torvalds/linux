@@ -53,6 +53,10 @@ static const struct pci_device_id be_dev_ids[] = {
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, be_dev_ids);
+
+/* Workqueue used by all functions for defering cmd calls to the adapter */
+struct workqueue_struct *be_wq;
+
 /* UE Status Low CSR */
 static const char * const ue_status_low_desc[] = {
 	"CEV",
@@ -1453,34 +1457,45 @@ static int be_vlan_add_vid(struct net_device *netdev, __be16 proto, u16 vid)
 	struct be_adapter *adapter = netdev_priv(netdev);
 	int status = 0;
 
+	mutex_lock(&adapter->rx_filter_lock);
+
 	/* Packets with VID 0 are always received by Lancer by default */
 	if (lancer_chip(adapter) && vid == 0)
-		return status;
+		goto done;
 
 	if (test_bit(vid, adapter->vids))
-		return status;
+		goto done;
 
 	set_bit(vid, adapter->vids);
 	adapter->vlans_added++;
 
-	return be_vid_config(adapter);
+	status = be_vid_config(adapter);
+done:
+	mutex_unlock(&adapter->rx_filter_lock);
+	return status;
 }
 
 static int be_vlan_rem_vid(struct net_device *netdev, __be16 proto, u16 vid)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
+	int status = 0;
+
+	mutex_lock(&adapter->rx_filter_lock);
 
 	/* Packets with VID 0 are always received by Lancer by default */
 	if (lancer_chip(adapter) && vid == 0)
-		return 0;
+		goto done;
 
 	if (!test_bit(vid, adapter->vids))
-		return 0;
+		goto done;
 
 	clear_bit(vid, adapter->vids);
 	adapter->vlans_added--;
 
-	return be_vid_config(adapter);
+	status = be_vid_config(adapter);
+done:
+	mutex_unlock(&adapter->rx_filter_lock);
+	return status;
 }
 
 static void be_set_all_promisc(struct be_adapter *adapter)
@@ -1551,9 +1566,11 @@ static int be_mc_list_update(struct net_device *netdev,
 static void be_set_mc_list(struct be_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
+	struct netdev_hw_addr *ha;
 	bool mc_promisc = false;
 	int status;
 
+	netif_addr_lock_bh(netdev);
 	__dev_mc_sync(netdev, be_mc_list_update, be_mc_list_update);
 
 	if (netdev->flags & IFF_PROMISC) {
@@ -1571,6 +1588,18 @@ static void be_set_mc_list(struct be_adapter *adapter)
 		 */
 		adapter->update_mc_list = true;
 	}
+
+	if (adapter->update_mc_list) {
+		int i = 0;
+
+		/* cache the mc-list in adapter */
+		netdev_for_each_mc_addr(ha, netdev) {
+			ether_addr_copy(adapter->mc_list[i].mac, ha->addr);
+			i++;
+		}
+		adapter->mc_count = netdev_mc_count(netdev);
+	}
+	netif_addr_unlock_bh(netdev);
 
 	if (mc_promisc) {
 		be_set_mc_promisc(adapter);
@@ -1591,6 +1620,7 @@ static void be_clear_mc_list(struct be_adapter *adapter)
 
 	__dev_mc_unsync(netdev, NULL);
 	be_cmd_rx_filter(adapter, BE_IF_FLAGS_MULTICAST, OFF);
+	adapter->mc_count = 0;
 }
 
 static void be_set_uc_list(struct be_adapter *adapter)
@@ -1598,8 +1628,9 @@ static void be_set_uc_list(struct be_adapter *adapter)
 	struct net_device *netdev = adapter->netdev;
 	struct netdev_hw_addr *ha;
 	bool uc_promisc = false;
-	int i = 1; /* First slot is claimed by the Primary MAC */
+	int curr_uc_macs = 0, i;
 
+	netif_addr_lock_bh(netdev);
 	__dev_uc_sync(netdev, be_uc_list_update, be_uc_list_update);
 
 	if (netdev->flags & IFF_PROMISC) {
@@ -1614,21 +1645,32 @@ static void be_set_uc_list(struct be_adapter *adapter)
 		adapter->update_uc_list = true;
 	}
 
+	if (adapter->update_uc_list) {
+		i = 1; /* First slot is claimed by the Primary MAC */
+
+		/* cache the uc-list in adapter array */
+		netdev_for_each_uc_addr(ha, netdev) {
+			ether_addr_copy(adapter->uc_list[i].mac, ha->addr);
+			i++;
+		}
+		curr_uc_macs = netdev_uc_count(netdev);
+	}
+	netif_addr_unlock_bh(netdev);
+
 	if (uc_promisc) {
 		be_set_uc_promisc(adapter);
 	} else if (adapter->update_uc_list) {
 		be_clear_uc_promisc(adapter);
 
-		for (; adapter->uc_macs > 0; adapter->uc_macs--, i++)
+		for (i = 0; i < adapter->uc_macs; i++)
 			be_cmd_pmac_del(adapter, adapter->if_handle,
-					adapter->pmac_id[i], 0);
+					adapter->pmac_id[i + 1], 0);
 
-		netdev_for_each_uc_addr(ha, adapter->netdev) {
-			adapter->uc_macs++; /* First slot is for Primary MAC */
-			be_cmd_pmac_add(adapter,
-					(u8 *)ha->addr, adapter->if_handle,
-					&adapter->pmac_id[adapter->uc_macs], 0);
-		}
+		for (i = 0; i < curr_uc_macs; i++)
+			be_cmd_pmac_add(adapter, adapter->uc_list[i].mac,
+					adapter->if_handle,
+					&adapter->pmac_id[i + 1], 0);
+		adapter->uc_macs = curr_uc_macs;
 		adapter->update_uc_list = false;
 	}
 }
@@ -1639,15 +1681,17 @@ static void be_clear_uc_list(struct be_adapter *adapter)
 	int i;
 
 	__dev_uc_unsync(netdev, NULL);
-	for (i = 1; i < (adapter->uc_macs + 1); i++)
+	for (i = 0; i < adapter->uc_macs; i++)
 		be_cmd_pmac_del(adapter, adapter->if_handle,
-				adapter->pmac_id[i], 0);
+				adapter->pmac_id[i + 1], 0);
 	adapter->uc_macs = 0;
 }
 
-static void be_set_rx_mode(struct net_device *netdev)
+static void __be_set_rx_mode(struct be_adapter *adapter)
 {
-	struct be_adapter *adapter = netdev_priv(netdev);
+	struct net_device *netdev = adapter->netdev;
+
+	mutex_lock(&adapter->rx_filter_lock);
 
 	if (netdev->flags & IFF_PROMISC) {
 		if (!be_in_all_promisc(adapter))
@@ -1662,6 +1706,17 @@ static void be_set_rx_mode(struct net_device *netdev)
 
 	be_set_uc_list(adapter);
 	be_set_mc_list(adapter);
+
+	mutex_unlock(&adapter->rx_filter_lock);
+}
+
+static void be_work_set_rx_mode(struct work_struct *work)
+{
+	struct be_cmd_work *cmd_work =
+				container_of(work, struct be_cmd_work, work);
+
+	__be_set_rx_mode(cmd_work->adapter);
+	kfree(cmd_work);
 }
 
 static int be_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
@@ -3546,6 +3601,11 @@ static int be_close(struct net_device *netdev)
 	if (!(adapter->flags & BE_FLAGS_SETUP_DONE))
 		return 0;
 
+	/* Before attempting cleanup ensure all the pending cmds in the
+	 * config_wq have finished execution
+	 */
+	flush_workqueue(be_wq);
+
 	be_disable_if_filters(adapter);
 
 	if (adapter->flags & BE_FLAGS_NAPI_ENABLED) {
@@ -3670,7 +3730,7 @@ static int be_enable_if_filters(struct be_adapter *adapter)
 	if (adapter->vlans_added)
 		be_vid_config(adapter);
 
-	be_set_rx_mode(adapter->netdev);
+	__be_set_rx_mode(adapter);
 
 	return 0;
 }
@@ -3944,12 +4004,28 @@ static void be_calculate_vf_res(struct be_adapter *adapter, u16 num_vfs,
 		vft_res->max_mcc_count = res.max_mcc_count / (num_vfs + 1);
 }
 
+static void be_if_destroy(struct be_adapter *adapter)
+{
+	be_cmd_if_destroy(adapter, adapter->if_handle,  0);
+
+	kfree(adapter->pmac_id);
+	adapter->pmac_id = NULL;
+
+	kfree(adapter->mc_list);
+	adapter->mc_list = NULL;
+
+	kfree(adapter->uc_list);
+	adapter->uc_list = NULL;
+}
+
 static int be_clear(struct be_adapter *adapter)
 {
 	struct pci_dev *pdev = adapter->pdev;
 	struct  be_resources vft_res = {0};
 
 	be_cancel_worker(adapter);
+
+	flush_workqueue(be_wq);
 
 	if (sriov_enabled(adapter))
 		be_vf_clear(adapter);
@@ -3968,10 +4044,8 @@ static int be_clear(struct be_adapter *adapter)
 	}
 
 	be_disable_vxlan_offloads(adapter);
-	kfree(adapter->pmac_id);
-	adapter->pmac_id = NULL;
 
-	be_cmd_if_destroy(adapter, adapter->if_handle,  0);
+	be_if_destroy(adapter);
 
 	be_clear_queues(adapter);
 
@@ -4425,7 +4499,7 @@ static int be_mac_setup(struct be_adapter *adapter)
 
 static void be_schedule_worker(struct be_adapter *adapter)
 {
-	schedule_delayed_work(&adapter->work, msecs_to_jiffies(1000));
+	queue_delayed_work(be_wq, &adapter->work, msecs_to_jiffies(1000));
 	adapter->flags |= BE_FLAGS_WORKER_SCHEDULED;
 }
 
@@ -4477,6 +4551,22 @@ static int be_if_create(struct be_adapter *adapter)
 	u32 cap_flags = be_if_cap_flags(adapter);
 	int status;
 
+	/* alloc required memory for other filtering fields */
+	adapter->pmac_id = kcalloc(be_max_uc(adapter),
+				   sizeof(*adapter->pmac_id), GFP_KERNEL);
+	if (!adapter->pmac_id)
+		return -ENOMEM;
+
+	adapter->mc_list = kcalloc(be_max_mc(adapter),
+				   sizeof(*adapter->mc_list), GFP_KERNEL);
+	if (!adapter->mc_list)
+		return -ENOMEM;
+
+	adapter->uc_list = kcalloc(be_max_uc(adapter),
+				   sizeof(*adapter->uc_list), GFP_KERNEL);
+	if (!adapter->uc_list)
+		return -ENOMEM;
+
 	if (adapter->cfg_num_rx_irqs == 1)
 		cap_flags &= ~(BE_IF_FLAGS_DEFQ_RSS | BE_IF_FLAGS_RSS);
 
@@ -4485,7 +4575,10 @@ static int be_if_create(struct be_adapter *adapter)
 	status = be_cmd_if_create(adapter, be_if_cap_flags(adapter), en_flags,
 				  &adapter->if_handle, 0);
 
-	return status;
+	if (status)
+		return status;
+
+	return 0;
 }
 
 int be_update_queues(struct be_adapter *adapter)
@@ -4613,11 +4706,6 @@ static int be_setup(struct be_adapter *adapter)
 	status = be_get_resources(adapter);
 	if (status)
 		goto err;
-
-	adapter->pmac_id = kcalloc(be_max_uc(adapter),
-				   sizeof(*adapter->pmac_id), GFP_KERNEL);
-	if (!adapter->pmac_id)
-		return -ENOMEM;
 
 	status = be_msix_enable(adapter);
 	if (status)
@@ -4812,6 +4900,23 @@ static int be_ndo_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 				       0, 0, nlflags, filter_mask, NULL);
 }
 
+static struct be_cmd_work *be_alloc_work(struct be_adapter *adapter,
+					 void (*func)(struct work_struct *))
+{
+	struct be_cmd_work *work;
+
+	work = kzalloc(sizeof(*work), GFP_ATOMIC);
+	if (!work) {
+		dev_err(&adapter->pdev->dev,
+			"be_work memory allocation failed\n");
+		return NULL;
+	}
+
+	INIT_WORK(&work->work, func);
+	work->adapter = adapter;
+	return work;
+}
+
 /* VxLAN offload Notes:
  *
  * The stack defines tunnel offload flags (hw_enc_features) for IP and doesn't
@@ -4826,23 +4931,19 @@ static int be_ndo_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
  * adds more than one port, disable offloads and don't re-enable them again
  * until after all the tunnels are removed.
  */
-static void be_add_vxlan_port(struct net_device *netdev,
-			      struct udp_tunnel_info *ti)
+static void be_work_add_vxlan_port(struct work_struct *work)
 {
-	struct be_adapter *adapter = netdev_priv(netdev);
+	struct be_cmd_work *cmd_work =
+				container_of(work, struct be_cmd_work, work);
+	struct be_adapter *adapter = cmd_work->adapter;
+	struct net_device *netdev = adapter->netdev;
 	struct device *dev = &adapter->pdev->dev;
-	__be16 port = ti->port;
+	__be16 port = cmd_work->info.vxlan_port;
 	int status;
-
-	if (ti->type != UDP_TUNNEL_TYPE_VXLAN)
-		return;
-
-	if (lancer_chip(adapter) || BEx_chip(adapter) || be_is_mc(adapter))
-		return;
 
 	if (adapter->vxlan_port == port && adapter->vxlan_port_count) {
 		adapter->vxlan_port_aliases++;
-		return;
+		goto done;
 	}
 
 	if (adapter->flags & BE_FLAGS_VXLAN_OFFLOADS) {
@@ -4854,7 +4955,7 @@ static void be_add_vxlan_port(struct net_device *netdev,
 	}
 
 	if (adapter->vxlan_port_count++ >= 1)
-		return;
+		goto done;
 
 	status = be_cmd_manage_iface(adapter, adapter->if_handle,
 				     OP_CONVERT_NORMAL_TO_TUNNEL);
@@ -4879,29 +4980,26 @@ static void be_add_vxlan_port(struct net_device *netdev,
 
 	dev_info(dev, "Enabled VxLAN offloads for UDP port %d\n",
 		 be16_to_cpu(port));
-	return;
+	goto done;
 err:
 	be_disable_vxlan_offloads(adapter);
+done:
+	kfree(cmd_work);
 }
 
-static void be_del_vxlan_port(struct net_device *netdev,
-			      struct udp_tunnel_info *ti)
+static void be_work_del_vxlan_port(struct work_struct *work)
 {
-	struct be_adapter *adapter = netdev_priv(netdev);
-	__be16 port = ti->port;
-
-	if (ti->type != UDP_TUNNEL_TYPE_VXLAN)
-		return;
-
-	if (lancer_chip(adapter) || BEx_chip(adapter) || be_is_mc(adapter))
-		return;
+	struct be_cmd_work *cmd_work =
+				container_of(work, struct be_cmd_work, work);
+	struct be_adapter *adapter = cmd_work->adapter;
+	__be16 port = cmd_work->info.vxlan_port;
 
 	if (adapter->vxlan_port != port)
 		goto done;
 
 	if (adapter->vxlan_port_aliases) {
 		adapter->vxlan_port_aliases--;
-		return;
+		goto out;
 	}
 
 	be_disable_vxlan_offloads(adapter);
@@ -4911,6 +5009,40 @@ static void be_del_vxlan_port(struct net_device *netdev,
 		 be16_to_cpu(port));
 done:
 	adapter->vxlan_port_count--;
+out:
+	kfree(cmd_work);
+}
+
+static void be_cfg_vxlan_port(struct net_device *netdev,
+			      struct udp_tunnel_info *ti,
+			      void (*func)(struct work_struct *))
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+	struct be_cmd_work *cmd_work;
+
+	if (ti->type != UDP_TUNNEL_TYPE_VXLAN)
+		return;
+
+	if (lancer_chip(adapter) || BEx_chip(adapter) || be_is_mc(adapter))
+		return;
+
+	cmd_work = be_alloc_work(adapter, func);
+	if (cmd_work) {
+		cmd_work->info.vxlan_port = ti->port;
+		queue_work(be_wq, &cmd_work->work);
+	}
+}
+
+static void be_del_vxlan_port(struct net_device *netdev,
+			      struct udp_tunnel_info *ti)
+{
+	be_cfg_vxlan_port(netdev, ti, be_work_del_vxlan_port);
+}
+
+static void be_add_vxlan_port(struct net_device *netdev,
+			      struct udp_tunnel_info *ti)
+{
+	be_cfg_vxlan_port(netdev, ti, be_work_add_vxlan_port);
 }
 
 static netdev_features_t be_features_check(struct sk_buff *skb,
@@ -4973,6 +5105,16 @@ static int be_get_phys_port_id(struct net_device *dev,
 	ppid->id_len = id_len;
 
 	return 0;
+}
+
+static void be_set_rx_mode(struct net_device *dev)
+{
+	struct be_adapter *adapter = netdev_priv(dev);
+	struct be_cmd_work *work;
+
+	work = be_alloc_work(adapter, be_work_set_rx_mode);
+	if (work)
+		queue_work(be_wq, &work->work);
 }
 
 static const struct net_device_ops be_netdev_ops = {
@@ -5200,7 +5342,7 @@ static void be_worker(struct work_struct *work)
 
 reschedule:
 	adapter->work_counter++;
-	schedule_delayed_work(&adapter->work, msecs_to_jiffies(1000));
+	queue_delayed_work(be_wq, &adapter->work, msecs_to_jiffies(1000));
 }
 
 static void be_unmap_pci_bars(struct be_adapter *adapter)
@@ -5340,7 +5482,8 @@ static int be_drv_init(struct be_adapter *adapter)
 	}
 
 	mutex_init(&adapter->mbox_lock);
-	spin_lock_init(&adapter->mcc_lock);
+	mutex_init(&adapter->mcc_lock);
+	mutex_init(&adapter->rx_filter_lock);
 	spin_lock_init(&adapter->mcc_cq_lock);
 	init_completion(&adapter->et_cmd_compl);
 
@@ -5796,6 +5939,12 @@ static int __init be_init_module(void)
 		pr_info(DRV_NAME " : Use sysfs method to enable VFs\n");
 	}
 
+	be_wq = create_singlethread_workqueue("be_wq");
+	if (!be_wq) {
+		pr_warn(DRV_NAME "workqueue creation failed\n");
+		return -1;
+	}
+
 	return pci_register_driver(&be_driver);
 }
 module_init(be_init_module);
@@ -5803,5 +5952,8 @@ module_init(be_init_module);
 static void __exit be_exit_module(void)
 {
 	pci_unregister_driver(&be_driver);
+
+	if (be_wq)
+		destroy_workqueue(be_wq);
 }
 module_exit(be_exit_module);
