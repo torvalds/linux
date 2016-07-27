@@ -2,6 +2,7 @@
 #define __ASM_POWERPC_CPUTABLE_H
 
 
+#include <linux/types.h>
 #include <asm/asm-compat.h>
 #include <asm/feature-fixups.h>
 #include <uapi/asm/cputable.h>
@@ -576,12 +577,10 @@ enum {
 };
 #endif /* __powerpc64__ */
 
-static inline int cpu_has_feature(unsigned long feature)
+static inline bool cpu_has_feature(unsigned long feature)
 {
-	return (CPU_FTRS_ALWAYS & feature) ||
-	       (CPU_FTRS_POSSIBLE
-		& cur_cpu_spec->cpu_features
-		& feature);
+	return !!((CPU_FTRS_ALWAYS & feature) ||
+		  (CPU_FTRS_POSSIBLE & cur_cpu_spec->cpu_features & feature));
 }
 
 #define HBP_NUM 1
