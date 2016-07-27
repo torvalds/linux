@@ -191,6 +191,7 @@ rockchip_rk3066_pll_clk_set_by_auto(struct rockchip_clk_pll *pll,
 
 	nr_out = PLL_NR_MAX + 1;
 	no_out = 0;
+	nf_out = 0;
 
 	if (fin_hz == 0 || fout_hz == 0 || fout_hz == fin_hz)
 		return NULL;
