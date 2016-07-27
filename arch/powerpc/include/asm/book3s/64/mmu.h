@@ -24,7 +24,7 @@ struct mmu_psize_def {
 extern struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
 
 #ifdef CONFIG_PPC_RADIX_MMU
-#define radix_enabled() mmu_has_feature(MMU_FTR_RADIX)
+#define radix_enabled() mmu_has_feature(MMU_FTR_TYPE_RADIX)
 #else
 #define radix_enabled() (0)
 #endif

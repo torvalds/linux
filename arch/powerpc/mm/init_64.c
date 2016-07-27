@@ -425,7 +425,7 @@ void __init mmu_early_init_devtree(void)
 {
 	/* Disable radix mode based on kernel command line. */
 	if (disable_radix)
-		cur_cpu_spec->mmu_features &= ~MMU_FTR_RADIX;
+		cur_cpu_spec->mmu_features &= ~MMU_FTR_TYPE_RADIX;
 
 	if (radix_enabled())
 		radix__early_init_devtree();
