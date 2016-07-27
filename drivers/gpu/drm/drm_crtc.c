@@ -613,11 +613,6 @@ void drm_framebuffer_remove(struct drm_framebuffer *fb)
 	 * in this manner.
 	 */
 	if (drm_framebuffer_read_refcount(fb) > 1) {
-		if (dev->mode_config.funcs->atomic_commit) {
-			drm_atomic_remove_fb(fb);
-			goto out;
-		}
-
 		drm_modeset_lock_all(dev);
 		/* remove from any CRTC */
 		drm_for_each_crtc(crtc, dev) {
@@ -635,7 +630,6 @@ void drm_framebuffer_remove(struct drm_framebuffer *fb)
 		drm_modeset_unlock_all(dev);
 	}
 
-out:
 	drm_framebuffer_unreference(fb);
 }
 EXPORT_SYMBOL(drm_framebuffer_remove);
@@ -934,11 +928,11 @@ int drm_connector_init(struct drm_device *dev,
 	connector->dev = dev;
 	connector->funcs = funcs;
 
-	connector->connector_id = ida_simple_get(&config->connector_ida, 0, 0, GFP_KERNEL);
-	if (connector->connector_id < 0) {
-		ret = connector->connector_id;
+	ret = ida_simple_get(&config->connector_ida, 0, 0, GFP_KERNEL);
+	if (ret < 0)
 		goto out_put;
-	}
+	connector->index = ret;
+	ret = 0;
 
 	connector->connector_type = connector_type;
 	connector->connector_type_id =
@@ -986,7 +980,7 @@ out_put_type_id:
 		ida_remove(connector_ida, connector->connector_type_id);
 out_put_id:
 	if (ret)
-		ida_remove(&config->connector_ida, connector->connector_id);
+		ida_remove(&config->connector_ida, connector->index);
 out_put:
 	if (ret)
 		drm_mode_object_unregister(dev, &connector->base);
@@ -1030,7 +1024,7 @@ void drm_connector_cleanup(struct drm_connector *connector)
 		   connector->connector_type_id);
 
 	ida_remove(&dev->mode_config.connector_ida,
-		   connector->connector_id);
+		   connector->index);
 
 	kfree(connector->display_info.bus_formats);
 	drm_mode_object_unregister(dev, &connector->base);
@@ -1113,6 +1107,15 @@ void drm_connector_unregister(struct drm_connector *connector)
 }
 EXPORT_SYMBOL(drm_connector_unregister);
 
+static void drm_connector_unregister_all(struct drm_device *dev)
+{
+	struct drm_connector *connector;
+
+	/* FIXME: taking the mode config mutex ends up in a clash with sysfs */
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
+		drm_connector_unregister(connector);
+}
+
 static int drm_connector_register_all(struct drm_device *dev)
 {
 	struct drm_connector *connector;
@@ -1135,26 +1138,6 @@ err:
 	drm_connector_unregister_all(dev);
 	return ret;
 }
-
-/**
- * drm_connector_unregister_all - unregister connector userspace interfaces
- * @dev: drm device
- *
- * This functions unregisters all connectors from sysfs and other places so
- * that userspace can no longer access them. Drivers should call this as the
- * first step tearing down the device instace, or when the underlying
- * physical device disappeared (e.g. USB unplug), right before calling
- * drm_dev_unregister().
- */
-void drm_connector_unregister_all(struct drm_device *dev)
-{
-	struct drm_connector *connector;
-
-	/* FIXME: taking the mode config mutex ends up in a clash with sysfs */
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
-		drm_connector_unregister(connector);
-}
-EXPORT_SYMBOL(drm_connector_unregister_all);
 
 static int drm_encoder_register_all(struct drm_device *dev)
 {

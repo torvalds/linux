@@ -96,6 +96,7 @@ static int rockchip_dp_poweron(struct analogix_dp_plat_data *plat_data)
 	ret = rockchip_dp_pre_init(dp);
 	if (ret < 0) {
 		dev_err(dp->dev, "failed to dp pre init %d\n", ret);
+		clk_disable_unprepare(dp->pclk);
 		return ret;
 	}
 
@@ -272,6 +273,7 @@ static int rockchip_dp_init(struct rockchip_dp_device *dp)
 	ret = rockchip_dp_pre_init(dp);
 	if (ret < 0) {
 		dev_err(dp->dev, "failed to pre init %d\n", ret);
+		clk_disable_unprepare(dp->pclk);
 		return ret;
 	}
 

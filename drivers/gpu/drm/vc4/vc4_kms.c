@@ -26,8 +26,7 @@ static void vc4_output_poll_changed(struct drm_device *dev)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 
-	if (vc4->fbdev)
-		drm_fbdev_cma_hotplug_event(vc4->fbdev);
+	drm_fbdev_cma_hotplug_event(vc4->fbdev);
 }
 
 struct vc4_commit {

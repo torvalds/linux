@@ -32,9 +32,25 @@
 #include <drm/drmP.h>
 #include <drm/drm_gem.h>
 
+#include <uapi/drm/vgem_drm.h>
+
+struct vgem_file {
+	struct idr fence_idr;
+	struct mutex fence_mutex;
+};
+
 #define to_vgem_bo(x) container_of(x, struct drm_vgem_gem_object, base)
 struct drm_vgem_gem_object {
 	struct drm_gem_object base;
 };
+
+int vgem_fence_open(struct vgem_file *file);
+int vgem_fence_attach_ioctl(struct drm_device *dev,
+			    void *data,
+			    struct drm_file *file);
+int vgem_fence_signal_ioctl(struct drm_device *dev,
+			    void *data,
+			    struct drm_file *file);
+void vgem_fence_close(struct vgem_file *file);
 
 #endif

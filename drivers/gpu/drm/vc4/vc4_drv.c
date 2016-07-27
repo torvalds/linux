@@ -91,8 +91,7 @@ static void vc4_lastclose(struct drm_device *dev)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 
-	if (vc4->fbdev)
-		drm_fbdev_cma_restore_mode(vc4->fbdev);
+	drm_fbdev_cma_restore_mode(vc4->fbdev);
 }
 
 static const struct file_operations vc4_drm_fops = {

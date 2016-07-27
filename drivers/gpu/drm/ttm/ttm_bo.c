@@ -146,7 +146,6 @@ static void ttm_bo_release_list(struct kref *list_kref)
 	BUG_ON(bo->mem.mm_node != NULL);
 	BUG_ON(!list_empty(&bo->lru));
 	BUG_ON(!list_empty(&bo->ddestroy));
-
 	ttm_tt_destroy(bo->ttm);
 	atomic_dec(&bo->glob->bo_count);
 	fence_put(bo->moving);

@@ -782,7 +782,10 @@ struct drm_crtc {
 	struct drm_plane *primary;
 	struct drm_plane *cursor;
 
-	/* position inside the mode_config.list, can be used as a [] idx */
+	/**
+	 * @index: Position inside the mode_config.list, can be used as an array
+	 * index. It is invariant over the lifetime of the CRTC.
+	 */
 	unsigned index;
 
 	/* position of cursor plane on crtc */
@@ -1209,7 +1212,10 @@ struct drm_encoder {
 	char *name;
 	int encoder_type;
 
-	/* position inside the mode_config.list, can be used as a [] idx */
+	/**
+	 * @index: Position inside the mode_config.list, can be used as an array
+	 * index. It is invariant over the lifetime of the encoder.
+	 */
 	unsigned index;
 
 	uint32_t possible_crtcs;
@@ -1240,7 +1246,6 @@ struct drm_encoder {
  * @head: list management
  * @base: base KMS object
  * @name: human readable name, can be overwritten by the driver
- * @connector_id: compacted connector id useful indexing arrays
  * @connector_type: one of the %DRM_MODE_CONNECTOR_<foo> types from drm_mode.h
  * @connector_type_id: index into connector type enum
  * @interlace_allowed: can this connector handle interlaced modes?
@@ -1297,7 +1302,15 @@ struct drm_connector {
 	struct drm_mode_object base;
 
 	char *name;
-	int connector_id;
+
+	/**
+	 * @index: Compacted connector index, which matches the position inside
+	 * the mode_config.list for drivers not supporting hot-add/removing. Can
+	 * be used as an array index. It is invariant over the lifetime of the
+	 * connector.
+	 */
+	unsigned index;
+
 	int connector_type;
 	int connector_type_id;
 	bool interlace_allowed;
@@ -1710,7 +1723,10 @@ struct drm_plane {
 
 	enum drm_plane_type type;
 
-	/* position inside the mode_config.list, can be used as a [] idx */
+	/**
+	 * @index: Position inside the mode_config.list, can be used as an array
+	 * index. It is invariant over the lifetime of the plane.
+	 */
 	unsigned index;
 
 	const struct drm_plane_helper_funcs *helper_private;
@@ -2318,8 +2334,6 @@ struct drm_mode_config_funcs {
  * @fb_lock: mutex to protect fb state and lists
  * @num_fb: number of fbs available
  * @fb_list: list of framebuffers available
- * @num_connector: number of connectors on this device
- * @connector_list: list of connector objects
  * @num_encoder: number of encoders on this device
  * @encoder_list: list of encoder objects
  * @num_overlay_plane: number of overlay planes on this device
@@ -2341,18 +2355,8 @@ struct drm_mode_config_funcs {
  * @property_blob_list: list of all the blob property objects
  * @blob_lock: mutex for blob property allocation and management
  * @*_property: core property tracking
- * @degamma_lut_property: LUT used to convert the framebuffer's colors to linear
- *	gamma
- * @degamma_lut_size_property: size of the degamma LUT as supported by the
- *	driver (read-only)
- * @ctm_property: Matrix used to convert colors after the lookup in the
- *	degamma LUT
- * @gamma_lut_property: LUT used to convert the colors, after the CSC matrix, to
- *	the gamma space of the connected screen (read-only)
- * @gamma_lut_size_property: size of the gamma LUT as supported by the driver
  * @preferred_depth: preferred RBG pixel depth, used by fb helpers
  * @prefer_shadow: hint to userspace to prefer shadow-fb rendering
- * @async_page_flip: does this device support async flips on the primary plane?
  * @cursor_width: hint to userspace for max cursor width
  * @cursor_height: hint to userspace for max cursor height
  * @helper_private: mid-layer private data
@@ -2394,8 +2398,17 @@ struct drm_mode_config {
 	int num_fb;
 	struct list_head fb_list;
 
+	/**
+	 * @num_connector: Number of connectors on this device.
+	 */
 	int num_connector;
+	/**
+	 * @connector_ida: ID allocator for connector indices.
+	 */
 	struct ida connector_ida;
+	/**
+	 * @connector_list: List of connector objects.
+	 */
 	struct list_head connector_list;
 	int num_encoder;
 	struct list_head encoder_list;
@@ -2430,64 +2443,238 @@ struct drm_mode_config {
 
 	/* pointers to standard properties */
 	struct list_head property_blob_list;
+	/**
+	 * @edid_property: Default connector property to hold the EDID of the
+	 * currently connected sink, if any.
+	 */
 	struct drm_property *edid_property;
+	/**
+	 * @dpms_property: Default connector property to control the
+	 * connector's DPMS state.
+	 */
 	struct drm_property *dpms_property;
+	/**
+	 * @path_property: Default connector property to hold the DP MST path
+	 * for the port.
+	 */
 	struct drm_property *path_property;
+	/**
+	 * @tile_property: Default connector property to store the tile
+	 * position of a tiled screen, for sinks which need to be driven with
+	 * multiple CRTCs.
+	 */
 	struct drm_property *tile_property;
+	/**
+	 * @plane_type_property: Default plane property to differentiate
+	 * CURSOR, PRIMARY and OVERLAY legacy uses of planes.
+	 */
 	struct drm_property *plane_type_property;
+	/**
+	 * @rotation_property: Optional property for planes or CRTCs to specifiy
+	 * rotation.
+	 */
 	struct drm_property *rotation_property;
+	/**
+	 * @prop_src_x: Default atomic plane property for the plane source
+	 * position in the connected &drm_framebuffer.
+	 */
 	struct drm_property *prop_src_x;
+	/**
+	 * @prop_src_y: Default atomic plane property for the plane source
+	 * position in the connected &drm_framebuffer.
+	 */
 	struct drm_property *prop_src_y;
+	/**
+	 * @prop_src_w: Default atomic plane property for the plane source
+	 * position in the connected &drm_framebuffer.
+	 */
 	struct drm_property *prop_src_w;
+	/**
+	 * @prop_src_h: Default atomic plane property for the plane source
+	 * position in the connected &drm_framebuffer.
+	 */
 	struct drm_property *prop_src_h;
+	/**
+	 * @prop_crtc_x: Default atomic plane property for the plane destination
+	 * position in the &drm_crtc is is being shown on.
+	 */
 	struct drm_property *prop_crtc_x;
+	/**
+	 * @prop_crtc_y: Default atomic plane property for the plane destination
+	 * position in the &drm_crtc is is being shown on.
+	 */
 	struct drm_property *prop_crtc_y;
+	/**
+	 * @prop_crtc_w: Default atomic plane property for the plane destination
+	 * position in the &drm_crtc is is being shown on.
+	 */
 	struct drm_property *prop_crtc_w;
+	/**
+	 * @prop_crtc_h: Default atomic plane property for the plane destination
+	 * position in the &drm_crtc is is being shown on.
+	 */
 	struct drm_property *prop_crtc_h;
+	/**
+	 * @prop_fb_id: Default atomic plane property to specify the
+	 * &drm_framebuffer.
+	 */
 	struct drm_property *prop_fb_id;
+	/**
+	 * @prop_crtc_id: Default atomic plane property to specify the
+	 * &drm_crtc.
+	 */
 	struct drm_property *prop_crtc_id;
+	/**
+	 * @prop_active: Default atomic CRTC property to control the active
+	 * state, which is the simplified implementation for DPMS in atomic
+	 * drivers.
+	 */
 	struct drm_property *prop_active;
+	/**
+	 * @prop_mode_id: Default atomic CRTC property to set the mode for a
+	 * CRTC. A 0 mode implies that the CRTC is entirely disabled - all
+	 * connectors must be of and active must be set to disabled, too.
+	 */
 	struct drm_property *prop_mode_id;
 
-	/* DVI-I properties */
+	/**
+	 * @dvi_i_subconnector_property: Optional DVI-I property to
+	 * differentiate between analog or digital mode.
+	 */
 	struct drm_property *dvi_i_subconnector_property;
+	/**
+	 * @dvi_i_select_subconnector_property: Optional DVI-I property to
+	 * select between analog or digital mode.
+	 */
 	struct drm_property *dvi_i_select_subconnector_property;
 
-	/* TV properties */
+	/**
+	 * @tv_subconnector_property: Optional TV property to differentiate
+	 * between different TV connector types.
+	 */
 	struct drm_property *tv_subconnector_property;
+	/**
+	 * @tv_select_subconnector_property: Optional TV property to select
+	 * between different TV connector types.
+	 */
 	struct drm_property *tv_select_subconnector_property;
+	/**
+	 * @tv_mode_property: Optional TV property to select
+	 * the output TV mode.
+	 */
 	struct drm_property *tv_mode_property;
+	/**
+	 * @tv_left_margin_property: Optional TV property to set the left
+	 * margin.
+	 */
 	struct drm_property *tv_left_margin_property;
+	/**
+	 * @tv_right_margin_property: Optional TV property to set the right
+	 * margin.
+	 */
 	struct drm_property *tv_right_margin_property;
+	/**
+	 * @tv_top_margin_property: Optional TV property to set the right
+	 * margin.
+	 */
 	struct drm_property *tv_top_margin_property;
+	/**
+	 * @tv_bottom_margin_property: Optional TV property to set the right
+	 * margin.
+	 */
 	struct drm_property *tv_bottom_margin_property;
+	/**
+	 * @tv_brightness_property: Optional TV property to set the
+	 * brightness.
+	 */
 	struct drm_property *tv_brightness_property;
+	/**
+	 * @tv_contrast_property: Optional TV property to set the
+	 * contrast.
+	 */
 	struct drm_property *tv_contrast_property;
+	/**
+	 * @tv_flicker_reduction_property: Optional TV property to control the
+	 * flicker reduction mode.
+	 */
 	struct drm_property *tv_flicker_reduction_property;
+	/**
+	 * @tv_overscan_property: Optional TV property to control the overscan
+	 * setting.
+	 */
 	struct drm_property *tv_overscan_property;
+	/**
+	 * @tv_saturation_property: Optional TV property to set the
+	 * saturation.
+	 */
 	struct drm_property *tv_saturation_property;
+	/**
+	 * @tv_hue_property: Optional TV property to set the hue.
+	 */
 	struct drm_property *tv_hue_property;
 
-	/* Optional properties */
+	/**
+	 * @scaling_mode_property: Optional connector property to control the
+	 * upscaling, mostly used for built-in panels.
+	 */
 	struct drm_property *scaling_mode_property;
+	/**
+	 * @aspect_ratio_property: Optional connector property to control the
+	 * HDMI infoframe aspect ratio setting.
+	 */
 	struct drm_property *aspect_ratio_property;
+	/**
+	 * @dirty_info_property: Optional connector property to give userspace a
+	 * hint that the DIRTY_FB ioctl should be used.
+	 */
 	struct drm_property *dirty_info_property;
 
-	/* Optional color correction properties */
+	/**
+	 * @degamma_lut_property: Optional CRTC property to set the LUT used to
+	 * convert the framebuffer's colors to linear gamma.
+	 */
 	struct drm_property *degamma_lut_property;
+	/**
+	 * @degamma_lut_size_property: Optional CRTC property for the size of
+	 * the degamma LUT as supported by the driver (read-only).
+	 */
 	struct drm_property *degamma_lut_size_property;
+	/**
+	 * @ctm_property: Optional CRTC property to set the
+	 * matrix used to convert colors after the lookup in the
+	 * degamma LUT.
+	 */
 	struct drm_property *ctm_property;
+	/**
+	 * @gamma_lut_property: Optional CRTC property to set the LUT used to
+	 * convert the colors, after the CTM matrix, to the gamma space of the
+	 * connected screen.
+	 */
 	struct drm_property *gamma_lut_property;
+	/**
+	 * @gamma_lut_size_property: Optional CRTC property for the size of the
+	 * gamma LUT as supported by the driver (read-only).
+	 */
 	struct drm_property *gamma_lut_size_property;
 
-	/* properties for virtual machine layout */
+	/**
+	 * @suggested_x_property: Optional connector property with a hint for
+	 * the position of the output on the host's screen.
+	 */
 	struct drm_property *suggested_x_property;
+	/**
+	 * @suggested_y_property: Optional connector property with a hint for
+	 * the position of the output on the host's screen.
+	 */
 	struct drm_property *suggested_y_property;
 
 	/* dumb ioctl parameters */
 	uint32_t preferred_depth, prefer_shadow;
 
-	/* whether async page flip is supported or not */
+	/**
+	 * @async_page_flip: Does this device support async flips on the primary
+	 * plane?
+	 */
 	bool async_page_flip;
 
 	/**
@@ -2584,11 +2771,8 @@ void drm_connector_unregister(struct drm_connector *connector);
 extern void drm_connector_cleanup(struct drm_connector *connector);
 static inline unsigned drm_connector_index(struct drm_connector *connector)
 {
-	return connector->connector_id;
+	return connector->index;
 }
-
-/* helpers to {un}register all connectors from sysfs for device */
-extern void drm_connector_unregister_all(struct drm_device *dev);
 
 extern __printf(5, 6)
 int drm_encoder_init(struct drm_device *dev,

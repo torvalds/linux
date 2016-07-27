@@ -404,8 +404,7 @@ drm_atomic_replace_property_blob(struct drm_property_blob **blob,
 	if (old_blob == new_blob)
 		return;
 
-	if (old_blob)
-		drm_property_unreference_blob(old_blob);
+	drm_property_unreference_blob(old_blob);
 	if (new_blob)
 		drm_property_reference_blob(new_blob);
 	*blob = new_blob;
@@ -1588,72 +1587,6 @@ void drm_atomic_clean_old_fb(struct drm_device *dev,
 	}
 }
 EXPORT_SYMBOL(drm_atomic_clean_old_fb);
-
-int drm_atomic_remove_fb(struct drm_framebuffer *fb)
-{
-	struct drm_modeset_acquire_ctx ctx;
-	struct drm_device *dev = fb->dev;
-	struct drm_atomic_state *state;
-	struct drm_plane *plane;
-	int ret = 0;
-	unsigned plane_mask;
-
-	state = drm_atomic_state_alloc(dev);
-	if (!state)
-		return -ENOMEM;
-
-	drm_modeset_acquire_init(&ctx, 0);
-	state->acquire_ctx = &ctx;
-
-retry:
-	plane_mask = 0;
-	ret = drm_modeset_lock_all_ctx(dev, &ctx);
-	if (ret)
-		goto unlock;
-
-	drm_for_each_plane(plane, dev) {
-		struct drm_plane_state *plane_state;
-
-		if (plane->state->fb != fb)
-			continue;
-
-		plane_state = drm_atomic_get_plane_state(state, plane);
-		if (IS_ERR(plane_state)) {
-			ret = PTR_ERR(plane_state);
-			goto unlock;
-		}
-
-		drm_atomic_set_fb_for_plane(plane_state, NULL);
-		ret = drm_atomic_set_crtc_for_plane(plane_state, NULL);
-		if (ret)
-			goto unlock;
-
-		plane_mask |= BIT(drm_plane_index(plane));
-
-		plane->old_fb = plane->fb;
-		plane->fb = NULL;
-	}
-
-	if (plane_mask)
-		ret = drm_atomic_commit(state);
-
-unlock:
-	if (plane_mask)
-		drm_atomic_clean_old_fb(dev, plane_mask, ret);
-
-	if (ret == -EDEADLK) {
-		drm_modeset_backoff(&ctx);
-		goto retry;
-	}
-
-	if (ret || !plane_mask)
-		drm_atomic_state_free(state);
-
-	drm_modeset_drop_locks(&ctx);
-	drm_modeset_acquire_fini(&ctx);
-
-	return ret;
-}
 
 int drm_mode_atomic_ioctl(struct drm_device *dev,
 			  void *data, struct drm_file *file_priv)
