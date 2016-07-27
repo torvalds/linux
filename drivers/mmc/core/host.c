@@ -386,7 +386,7 @@ EXPORT_SYMBOL(mmc_alloc_host);
  *	prepared to start servicing requests before this function
  *	completes.
  */
-static struct mmc_host *primary_sdio_host;
+struct mmc_host *primary_sdio_host;
 int mmc_add_host(struct mmc_host *host)
 {
 	int err;

@@ -39,6 +39,7 @@
 #include <linux/rockchip/common.h>
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
+#include <linux/mmc/host.h>
 #ifdef CONFIG_OF
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -52,6 +53,9 @@
 #endif
 
 #define LOG(x...)   printk(KERN_INFO "[WLAN_RFKILL]: "x)
+
+extern struct mmc_host *primary_sdio_host;
+extern void mmc_pwrseq_power_off(struct mmc_host *host);
 
 struct rfkill_wlan_data {
 	struct rksdmmc_gpio_wifi_moudle *pdata;
@@ -290,6 +294,9 @@ int rockchip_wifi_power(int on)
 
     LOG("%s: %d\n", __func__, on);
 
+	if (!on && primary_sdio_host)
+		mmc_pwrseq_power_off(primary_sdio_host);
+
     if (mrfkill == NULL) {
         LOG("%s: rfkill-wlan driver has not Successful initialized\n", __func__);
         return -1;
@@ -380,7 +387,6 @@ EXPORT_SYMBOL(rockchip_wifi_power);
  * Wifi Sdio Detect Func
  *
  *************************************************************************/
-#include <linux/mmc/host.h>
 extern int mmc_host_rescan(struct mmc_host *host, int val, int irq_type);
 int rockchip_wifi_set_carddetect(int val)
 {
