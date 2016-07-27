@@ -1240,7 +1240,7 @@ static int f2fs_write_data_page(struct page *page,
 		.sbi = sbi,
 		.type = DATA,
 		.op = REQ_OP_WRITE,
-		.op_flags = (wbc->sync_mode == WB_SYNC_ALL) ? WRITE_SYNC : 0,
+		.op_flags = wbc_to_write_flags(wbc),
 		.page = page,
 		.encrypted_page = NULL,
 	};

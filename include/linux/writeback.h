@@ -100,6 +100,14 @@ struct writeback_control {
 #endif
 };
 
+static inline int wbc_to_write_flags(struct writeback_control *wbc)
+{
+	if (wbc->sync_mode == WB_SYNC_ALL)
+		return WRITE_SYNC;
+
+	return 0;
+}
+
 /*
  * A wb_domain represents a domain that wb's (bdi_writeback's) belong to
  * and are measured against each other in.  There always is one global
