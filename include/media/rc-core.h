@@ -29,9 +29,16 @@ do {								\
 		printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__);	\
 } while (0)
 
+/**
+ * enum rc_driver_type - type of the RC output
+ *
+ * @RC_DRIVER_SCANCODE:	Driver or hardware generates a scancode
+ * @RC_DRIVER_IR_RAW:	Driver or hardware generates pulse/space sequences.
+ *			It needs a Infra-Red pulse/space decoder
+ */
 enum rc_driver_type {
-	RC_DRIVER_SCANCODE = 0,	/* Driver or hardware generates a scancode */
-	RC_DRIVER_IR_RAW,	/* Needs a Infra-Red pulse/space decoder */
+	RC_DRIVER_SCANCODE = 0,
+	RC_DRIVER_IR_RAW,
 };
 
 /**
@@ -188,12 +195,46 @@ struct rc_dev {
  * Remote Controller, at sys/class/rc.
  */
 
+/**
+ * rc_allocate_device - Allocates a RC device
+ *
+ * returns a pointer to struct rc_dev.
+ */
 struct rc_dev *rc_allocate_device(void);
+
+/**
+ * rc_free_device - Frees a RC device
+ *
+ * @dev: pointer to struct rc_dev.
+ */
 void rc_free_device(struct rc_dev *dev);
+
+/**
+ * rc_register_device - Registers a RC device
+ *
+ * @dev: pointer to struct rc_dev.
+ */
 int rc_register_device(struct rc_dev *dev);
+
+/**
+ * rc_unregister_device - Unregisters a RC device
+ *
+ * @dev: pointer to struct rc_dev.
+ */
 void rc_unregister_device(struct rc_dev *dev);
 
+/**
+ * rc_open - Opens a RC device
+ *
+ * @rdev: pointer to struct rc_dev.
+ */
 int rc_open(struct rc_dev *rdev);
+
+/**
+ * rc_open - Closes a RC device
+ *
+ * @rdev: pointer to struct rc_dev.
+ */
 void rc_close(struct rc_dev *rdev);
 
 void rc_repeat(struct rc_dev *dev);

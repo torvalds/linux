@@ -14,6 +14,10 @@ Contents:
    :maxdepth: 2
 
    kernel-documentation
+   media/media_uapi
+   media/media_kapi
+   media/dvb-drivers/index
+   media/v4l-drivers/index
 
 Indices and tables
 ==================
