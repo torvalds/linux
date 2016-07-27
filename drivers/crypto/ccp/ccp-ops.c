@@ -4,6 +4,7 @@
  * Copyright (C) 2013,2016 Advanced Micro Devices, Inc.
  *
  * Author: Tom Lendacky <thomas.lendacky@amd.com>
+ * Author: Gary R Hook <gary.hook@amd.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -478,7 +479,7 @@ static int ccp_copy_to_from_ksb(struct ccp_cmd_queue *cmd_q,
 
 	op.u.passthru.byte_swap = byte_swap;
 
-	return cmd_q->ccp->vdata->perform->perform_passthru(&op);
+	return cmd_q->ccp->vdata->perform->passthru(&op);
 }
 
 static int ccp_copy_to_ksb(struct ccp_cmd_queue *cmd_q,
@@ -610,7 +611,7 @@ static int ccp_run_aes_cmac_cmd(struct ccp_cmd_queue *cmd_q,
 			}
 		}
 
-		ret = cmd_q->ccp->vdata->perform->perform_aes(&op);
+		ret = cmd_q->ccp->vdata->perform->aes(&op);
 		if (ret) {
 			cmd->engine_error = cmd_q->cmd_error;
 			goto e_src;
@@ -772,7 +773,7 @@ static int ccp_run_aes_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 				op.soc = 1;
 		}
 
-		ret = cmd_q->ccp->vdata->perform->perform_aes(&op);
+		ret = cmd_q->ccp->vdata->perform->aes(&op);
 		if (ret) {
 			cmd->engine_error = cmd_q->cmd_error;
 			goto e_dst;
@@ -937,7 +938,7 @@ static int ccp_run_xts_aes_cmd(struct ccp_cmd_queue *cmd_q,
 		if (!src.sg_wa.bytes_left)
 			op.eom = 1;
 
-		ret = cmd_q->ccp->vdata->perform->perform_xts_aes(&op);
+		ret = cmd_q->ccp->vdata->perform->xts_aes(&op);
 		if (ret) {
 			cmd->engine_error = cmd_q->cmd_error;
 			goto e_dst;
@@ -1094,7 +1095,7 @@ static int ccp_run_sha_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 		if (sha->final && !src.sg_wa.bytes_left)
 			op.eom = 1;
 
-		ret = cmd_q->ccp->vdata->perform->perform_sha(&op);
+		ret = cmd_q->ccp->vdata->perform->sha(&op);
 		if (ret) {
 			cmd->engine_error = cmd_q->cmd_error;
 			goto e_data;
@@ -1274,7 +1275,7 @@ static int ccp_run_rsa_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 	op.u.rsa.mod_size = rsa->key_size;
 	op.u.rsa.input_len = i_len;
 
-	ret = cmd_q->ccp->vdata->perform->perform_rsa(&op);
+	ret = cmd_q->ccp->vdata->perform->rsa(&op);
 	if (ret) {
 		cmd->engine_error = cmd_q->cmd_error;
 		goto e_dst;
@@ -1399,7 +1400,7 @@ static int ccp_run_passthru_cmd(struct ccp_cmd_queue *cmd_q,
 		op.dst.u.dma.offset = dst.sg_wa.sg_used;
 		op.dst.u.dma.length = op.src.u.dma.length;
 
-		ret = cmd_q->ccp->vdata->perform->perform_passthru(&op);
+		ret = cmd_q->ccp->vdata->perform->passthru(&op);
 		if (ret) {
 			cmd->engine_error = cmd_q->cmd_error;
 			goto e_dst;
@@ -1484,7 +1485,7 @@ static int ccp_run_passthru_nomap_cmd(struct ccp_cmd_queue *cmd_q,
 	op.dst.u.dma.offset = 0;
 	op.dst.u.dma.length = pt->src_len;
 
-	ret = cmd_q->ccp->vdata->perform->perform_passthru(&op);
+	ret = cmd_q->ccp->vdata->perform->passthru(&op);
 	if (ret)
 		cmd->engine_error = cmd_q->cmd_error;
 
@@ -1575,7 +1576,7 @@ static int ccp_run_ecc_mm_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 
 	op.u.ecc.function = cmd->u.ecc.function;
 
-	ret = cmd_q->ccp->vdata->perform->perform_ecc(&op);
+	ret = cmd_q->ccp->vdata->perform->ecc(&op);
 	if (ret) {
 		cmd->engine_error = cmd_q->cmd_error;
 		goto e_dst;
@@ -1739,7 +1740,7 @@ static int ccp_run_ecc_pm_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 
 	op.u.ecc.function = cmd->u.ecc.function;
 
-	ret = cmd_q->ccp->vdata->perform->perform_ecc(&op);
+	ret = cmd_q->ccp->vdata->perform->ecc(&op);
 	if (ret) {
 		cmd->engine_error = cmd_q->cmd_error;
 		goto e_dst;

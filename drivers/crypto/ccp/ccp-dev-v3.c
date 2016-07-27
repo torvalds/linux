@@ -528,12 +528,12 @@ static irqreturn_t ccp_irq_handler(int irq, void *data)
 }
 
 static const struct ccp_actions ccp3_actions = {
-	.perform_aes = ccp_perform_aes,
-	.perform_xts_aes = ccp_perform_xts_aes,
-	.perform_sha = ccp_perform_sha,
-	.perform_rsa = ccp_perform_rsa,
-	.perform_passthru = ccp_perform_passthru,
-	.perform_ecc = ccp_perform_ecc,
+	.aes = ccp_perform_aes,
+	.xts_aes = ccp_perform_xts_aes,
+	.sha = ccp_perform_sha,
+	.rsa = ccp_perform_rsa,
+	.passthru = ccp_perform_passthru,
+	.ecc = ccp_perform_ecc,
 	.init = ccp_init,
 	.destroy = ccp_destroy,
 	.irqhandler = ccp_irq_handler,

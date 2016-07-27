@@ -149,12 +149,12 @@ struct ccp_op;
 
 /* Structure for computation functions that are device-specific */
 struct ccp_actions {
-	int (*perform_aes)(struct ccp_op *);
-	int (*perform_xts_aes)(struct ccp_op *);
-	int (*perform_sha)(struct ccp_op *);
-	int (*perform_rsa)(struct ccp_op *);
-	int (*perform_passthru)(struct ccp_op *);
-	int (*perform_ecc)(struct ccp_op *);
+	int (*aes)(struct ccp_op *);
+	int (*xts_aes)(struct ccp_op *);
+	int (*sha)(struct ccp_op *);
+	int (*rsa)(struct ccp_op *);
+	int (*passthru)(struct ccp_op *);
+	int (*ecc)(struct ccp_op *);
 	int (*init)(struct ccp_device *);
 	void (*destroy)(struct ccp_device *);
 	irqreturn_t (*irqhandler)(int, void *);
