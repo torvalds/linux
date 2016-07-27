@@ -793,7 +793,8 @@ static int i40e_client_setup_qvlist(struct i40e_info *ldev,
 			wr32(hw, I40E_PFINT_AEQCTL, reg);
 		}
 	}
-
+	/* Mitigate sync problems with iwarp VF driver */
+	i40e_flush(hw);
 	return 0;
 err:
 	kfree(ldev->qvlist_info);
