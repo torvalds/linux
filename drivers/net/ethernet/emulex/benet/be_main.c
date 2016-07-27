@@ -1463,13 +1463,7 @@ static int be_vlan_add_vid(struct net_device *netdev, __be16 proto, u16 vid)
 	set_bit(vid, adapter->vids);
 	adapter->vlans_added++;
 
-	status = be_vid_config(adapter);
-	if (status) {
-		adapter->vlans_added--;
-		clear_bit(vid, adapter->vids);
-	}
-
-	return status;
+	return be_vid_config(adapter);
 }
 
 static int be_vlan_rem_vid(struct net_device *netdev, __be16 proto, u16 vid)
