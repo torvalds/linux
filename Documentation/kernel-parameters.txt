@@ -3598,6 +3598,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 				present during boot.
 		nocompress	Don't compress/decompress hibernation images.
 		no		Disable hibernation and resume.
+		protect_image	Turn on image protection during restoration
+				(that will set all pages holding image data
+				during restoration read-only).
 
 	retain_initrd	[RAM] Keep initrd memory after extraction
 

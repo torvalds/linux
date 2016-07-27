@@ -1644,7 +1644,7 @@ static inline void mwait_play_dead(void)
 	}
 }
 
-static inline void hlt_play_dead(void)
+void hlt_play_dead(void)
 {
 	if (__this_cpu_read(cpu_info.x86) >= 4)
 		wbinvd();
