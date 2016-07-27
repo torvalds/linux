@@ -2064,10 +2064,13 @@ static int qede_vlan_rx_kill_vid(struct net_device *dev, __be16 proto, u16 vid)
 	}
 
 	/* Remove vlan */
-	rc = qede_set_ucast_rx_vlan(edev, QED_FILTER_XCAST_TYPE_DEL, vid);
-	if (rc) {
-		DP_ERR(edev, "Failed to remove VLAN %d\n", vid);
-		return -EINVAL;
+	if (vlan->configured) {
+		rc = qede_set_ucast_rx_vlan(edev, QED_FILTER_XCAST_TYPE_DEL,
+					    vid);
+		if (rc) {
+			DP_ERR(edev, "Failed to remove VLAN %d\n", vid);
+			return -EINVAL;
+		}
 	}
 
 	qede_del_vlan_from_list(edev, vlan);
