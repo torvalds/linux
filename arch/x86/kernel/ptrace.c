@@ -923,15 +923,18 @@ static int putreg32(struct task_struct *child, unsigned regno, u32 value)
 
 	case offsetof(struct user32, regs.orig_eax):
 		/*
-		 * A 32-bit debugger setting orig_eax means to restore
-		 * the state of the task restarting a 32-bit syscall.
-		 * Make sure we interpret the -ERESTART* codes correctly
-		 * in case the task is not actually still sitting at the
-		 * exit from a 32-bit syscall with TS_COMPAT still set.
+		 * Warning: bizarre corner case fixup here.  A 32-bit
+		 * debugger setting orig_eax to -1 wants to disable
+		 * syscall restart.  Make sure that the syscall
+		 * restart code sign-extends orig_ax.  Also make sure
+		 * we interpret the -ERESTART* codes correctly if
+		 * loaded into regs->ax in case the task is not
+		 * actually still sitting at the exit from a 32-bit
+		 * syscall with TS_COMPAT still set.
 		 */
 		regs->orig_ax = value;
 		if (syscall_get_nr(child, regs) >= 0)
-			task_thread_info(child)->status |= TS_COMPAT;
+			task_thread_info(child)->status |= TS_I386_REGS_POKED;
 		break;
 
 	case offsetof(struct user32, regs.eflags):
