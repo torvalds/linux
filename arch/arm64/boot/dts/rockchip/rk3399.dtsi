@@ -1222,6 +1222,16 @@
 			clock-output-names = "clk_usbphy1_480m";
 			status = "disabled";
 
+			u2phy1_otg: otg-port {
+				#phy-cells = <0>;
+				interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "otg-bvalid", "otg-id",
+						  "linestate";
+				status = "disabled";
+			};
+
 			u2phy1_host: host-port {
 				#phy-cells = <0>;
 				interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH 0>;
