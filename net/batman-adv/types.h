@@ -184,7 +184,7 @@ struct batadv_orig_ifinfo {
 
 /**
  * struct batadv_frag_table_entry - head in the fragment buffer table
- * @head: head of list with fragments
+ * @fragment_list: head of list with fragments
  * @lock: lock to protect the list of fragments
  * @timestamp: time (jiffie) of last received fragment
  * @seqno: sequence number of the fragments in the list
@@ -192,8 +192,8 @@ struct batadv_orig_ifinfo {
  * @total_size: expected size of the assembled packet
  */
 struct batadv_frag_table_entry {
-	struct hlist_head head;
-	spinlock_t lock; /* protects head */
+	struct hlist_head fragment_list;
+	spinlock_t lock; /* protects fragment_list */
 	unsigned long timestamp;
 	u16 seqno;
 	u16 size;

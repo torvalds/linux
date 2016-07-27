@@ -73,7 +73,7 @@ void batadv_frag_purge_orig(struct batadv_orig_node *orig_node,
 		spin_lock_bh(&chain->lock);
 
 		if (!check_cb || check_cb(chain)) {
-			batadv_frag_clear_chain(&chain->head);
+			batadv_frag_clear_chain(&chain->fragment_list);
 			chain->size = 0;
 		}
 
@@ -117,8 +117,8 @@ static bool batadv_frag_init_chain(struct batadv_frag_table_entry *chain,
 	if (chain->seqno == seqno)
 		return false;
 
-	if (!hlist_empty(&chain->head))
-		batadv_frag_clear_chain(&chain->head);
+	if (!hlist_empty(&chain->fragment_list))
+		batadv_frag_clear_chain(&chain->fragment_list);
 
 	chain->size = 0;
 	chain->seqno = seqno;
@@ -176,7 +176,7 @@ static bool batadv_frag_insert_packet(struct batadv_orig_node *orig_node,
 	chain = &orig_node->fragments[bucket];
 	spin_lock_bh(&chain->lock);
 	if (batadv_frag_init_chain(chain, seqno)) {
-		hlist_add_head(&frag_entry_new->list, &chain->head);
+		hlist_add_head(&frag_entry_new->list, &chain->fragment_list);
 		chain->size = skb->len - hdr_size;
 		chain->timestamp = jiffies;
 		chain->total_size = ntohs(frag_packet->total_size);
@@ -185,7 +185,7 @@ static bool batadv_frag_insert_packet(struct batadv_orig_node *orig_node,
 	}
 
 	/* Find the position for the new fragment. */
-	hlist_for_each_entry(frag_entry_curr, &chain->head, list) {
+	hlist_for_each_entry(frag_entry_curr, &chain->fragment_list, list) {
 		/* Drop packet if fragment already exists. */
 		if (frag_entry_curr->no == frag_entry_new->no)
 			goto err_unlock;
@@ -220,11 +220,11 @@ out:
 		 * exceeds the maximum size of one merged packet. Don't allow
 		 * packets to have different total_size.
 		 */
-		batadv_frag_clear_chain(&chain->head);
+		batadv_frag_clear_chain(&chain->fragment_list);
 		chain->size = 0;
 	} else if (ntohs(frag_packet->total_size) == chain->size) {
 		/* All fragments received. Hand over chain to caller. */
-		hlist_move_list(&chain->head, chain_out);
+		hlist_move_list(&chain->fragment_list, chain_out);
 		chain->size = 0;
 	}
 
