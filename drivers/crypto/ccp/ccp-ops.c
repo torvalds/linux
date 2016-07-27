@@ -41,53 +41,6 @@ static const __be32 ccp_sha256_init[CCP_SHA_CTXSIZE / sizeof(__be32)] = {
 	cpu_to_be32(SHA256_H6), cpu_to_be32(SHA256_H7),
 };
 
-static u32 ccp_alloc_ksb(struct ccp_device *ccp, unsigned int count)
-{
-	int start;
-
-	for (;;) {
-		mutex_lock(&ccp->sb_mutex);
-
-		start = (u32)bitmap_find_next_zero_area(ccp->sb,
-							ccp->sb_count,
-							ccp->sb_start,
-							count, 0);
-		if (start <= ccp->sb_count) {
-			bitmap_set(ccp->sb, start, count);
-
-			mutex_unlock(&ccp->sb_mutex);
-			break;
-		}
-
-		ccp->sb_avail = 0;
-
-		mutex_unlock(&ccp->sb_mutex);
-
-		/* Wait for KSB entries to become available */
-		if (wait_event_interruptible(ccp->sb_queue, ccp->sb_avail))
-			return 0;
-	}
-
-	return KSB_START + start;
-}
-
-static void ccp_free_ksb(struct ccp_device *ccp, unsigned int start,
-			 unsigned int count)
-{
-	if (!start)
-		return;
-
-	mutex_lock(&ccp->sb_mutex);
-
-	bitmap_clear(ccp->sb, start - KSB_START, count);
-
-	ccp->sb_avail = 1;
-
-	mutex_unlock(&ccp->sb_mutex);
-
-	wake_up_interruptible_all(&ccp->sb_queue);
-}
-
 static u32 ccp_gen_jobid(struct ccp_device *ccp)
 {
 	return atomic_inc_return(&ccp->current_id) & CCP_JOBID_MASK;
@@ -1214,7 +1167,8 @@ static int ccp_run_rsa_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 	memset(&op, 0, sizeof(op));
 	op.cmd_q = cmd_q;
 	op.jobid = ccp_gen_jobid(cmd_q->ccp);
-	op.sb_key = ccp_alloc_ksb(cmd_q->ccp, sb_count);
+	op.sb_key = cmd_q->ccp->vdata->perform->sballoc(cmd_q, sb_count);
+
 	if (!op.sb_key)
 		return -EIO;
 
@@ -1293,7 +1247,7 @@ e_exp:
 	ccp_dm_free(&exp);
 
 e_sb:
-	ccp_free_ksb(cmd_q->ccp, op.sb_key, sb_count);
+	cmd_q->ccp->vdata->perform->sbfree(cmd_q, op.sb_key, sb_count);
 
 	return ret;
 }

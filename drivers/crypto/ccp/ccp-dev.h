@@ -147,30 +147,6 @@
 #define CCP_SB_BYTES			32
 
 struct ccp_op;
-
-/* Structure for computation functions that are device-specific */
-struct ccp_actions {
-	int (*aes)(struct ccp_op *);
-	int (*xts_aes)(struct ccp_op *);
-	int (*sha)(struct ccp_op *);
-	int (*rsa)(struct ccp_op *);
-	int (*passthru)(struct ccp_op *);
-	int (*ecc)(struct ccp_op *);
-	int (*init)(struct ccp_device *);
-	void (*destroy)(struct ccp_device *);
-	irqreturn_t (*irqhandler)(int, void *);
-};
-
-/* Structure to hold CCP version-specific values */
-struct ccp_vdata {
-	unsigned int version;
-	const struct ccp_actions *perform;
-	const unsigned int bar;
-	const unsigned int offset;
-};
-
-extern struct ccp_vdata ccpv3;
-
 struct ccp_device;
 struct ccp_cmd;
 
@@ -306,13 +282,22 @@ struct ccp_device {
 	 */
 	atomic_t current_id ____cacheline_aligned;
 
-	/* The CCP uses key storage blocks (KSB) to maintain context for certain
-	 * operations. To prevent multiple cmds from using the same KSB range
-	 * a command queue reserves a KSB range for the duration of the cmd.
-	 * Each queue, will however, reserve 2 KSB blocks for operations that
-	 * only require single KSB entries (eg. AES context/iv and key) in order
-	 * to avoid allocation contention.  This will reserve at most 10 KSB
-	 * entries, leaving 40 KSB entries available for dynamic allocation.
+	/* The v3 CCP uses key storage blocks (SB) to maintain context for
+	 * certain operations. To prevent multiple cmds from using the same
+	 * SB range a command queue reserves an SB range for the duration of
+	 * the cmd. Each queue, will however, reserve 2 SB blocks for
+	 * operations that only require single SB entries (eg. AES context/iv
+	 * and key) in order to avoid allocation contention.  This will reserve
+	 * at most 10 SB entries, leaving 40 SB entries available for dynamic
+	 * allocation.
+	 *
+	 * The v5 CCP Local Storage Block (LSB) is broken up into 8
+	 * memrory ranges, each of which can be enabled for access by one
+	 * or more queues. Device initialization takes this into account,
+	 * and attempts to assign one region for exclusive use by each
+	 * available queue; the rest are then aggregated as "public" use.
+	 * If there are fewer regions than queues, all regions are shared
+	 * amongst all queues.
 	 */
 	struct mutex sb_mutex ____cacheline_aligned;
 	DECLARE_BITMAP(sb, KSB_COUNT);
@@ -460,5 +445,32 @@ int ccp_run_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd);
 
 int ccp_dmaengine_register(struct ccp_device *ccp);
 void ccp_dmaengine_unregister(struct ccp_device *ccp);
+
+/* Structure for computation functions that are device-specific */
+struct ccp_actions {
+	int (*aes)(struct ccp_op *);
+	int (*xts_aes)(struct ccp_op *);
+	int (*sha)(struct ccp_op *);
+	int (*rsa)(struct ccp_op *);
+	int (*passthru)(struct ccp_op *);
+	int (*ecc)(struct ccp_op *);
+	u32 (*sballoc)(struct ccp_cmd_queue *, unsigned int);
+	void (*sbfree)(struct ccp_cmd_queue *, unsigned int,
+			       unsigned int);
+	int (*init)(struct ccp_device *);
+	void (*destroy)(struct ccp_device *);
+	irqreturn_t (*irqhandler)(int, void *);
+};
+
+/* Structure to hold CCP version-specific values */
+struct ccp_vdata {
+	unsigned int version;
+	int (*init)(struct ccp_device *);
+	const struct ccp_actions *perform;
+	const unsigned int bar;
+	const unsigned int offset;
+};
+
+extern	struct ccp_vdata ccpv3;
 
 #endif

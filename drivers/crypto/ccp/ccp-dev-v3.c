@@ -20,6 +20,56 @@
 
 #include "ccp-dev.h"
 
+static u32 ccp_alloc_ksb(struct ccp_cmd_queue *cmd_q, unsigned int count)
+{
+	int start;
+	struct ccp_device *ccp = cmd_q->ccp;
+
+	for (;;) {
+		mutex_lock(&ccp->sb_mutex);
+
+		start = (u32)bitmap_find_next_zero_area(ccp->sb,
+							ccp->sb_count,
+							ccp->sb_start,
+							count, 0);
+		if (start <= ccp->sb_count) {
+			bitmap_set(ccp->sb, start, count);
+
+			mutex_unlock(&ccp->sb_mutex);
+			break;
+		}
+
+		ccp->sb_avail = 0;
+
+		mutex_unlock(&ccp->sb_mutex);
+
+		/* Wait for KSB entries to become available */
+		if (wait_event_interruptible(ccp->sb_queue, ccp->sb_avail))
+			return 0;
+	}
+
+	return KSB_START + start;
+}
+
+static void ccp_free_ksb(struct ccp_cmd_queue *cmd_q, unsigned int start,
+			 unsigned int count)
+{
+	struct ccp_device *ccp = cmd_q->ccp;
+
+	if (!start)
+		return;
+
+	mutex_lock(&ccp->sb_mutex);
+
+	bitmap_clear(ccp->sb, start - KSB_START, count);
+
+	ccp->sb_avail = 1;
+
+	mutex_unlock(&ccp->sb_mutex);
+
+	wake_up_interruptible_all(&ccp->sb_queue);
+}
+
 static int ccp_do_cmd(struct ccp_op *op, u32 *cr, unsigned int cr_count)
 {
 	struct ccp_cmd_queue *cmd_q = op->cmd_q;
@@ -534,6 +584,8 @@ static const struct ccp_actions ccp3_actions = {
 	.rsa = ccp_perform_rsa,
 	.passthru = ccp_perform_passthru,
 	.ecc = ccp_perform_ecc,
+	.sballoc = ccp_alloc_ksb,
+	.sbfree = ccp_free_ksb,
 	.init = ccp_init,
 	.destroy = ccp_destroy,
 	.irqhandler = ccp_irq_handler,
