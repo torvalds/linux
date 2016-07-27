@@ -9169,6 +9169,8 @@ M:	David Woodhouse <dwmw2@infradead.org>
 L:	linux-pm@vger.kernel.org
 T:	git git://git.infradead.org/battery-2.6.git
 S:	Maintained
+F:	Documentation/devicetree/bindings/power/
+F:	Documentation/devicetree/bindings/power_supply/
 F:	include/linux/power_supply.h
 F:	drivers/power/
 X:	drivers/power/avs/
