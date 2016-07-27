@@ -296,7 +296,6 @@ static int sch311x_gpio_remove(struct platform_device *pdev)
 
 static struct platform_driver sch311x_gpio_driver = {
 	.driver.name	= DRV_NAME,
-	.driver.owner	= THIS_MODULE,
 	.probe		= sch311x_gpio_probe,
 	.remove		= sch311x_gpio_remove,
 };
