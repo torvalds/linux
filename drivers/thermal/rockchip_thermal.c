@@ -213,8 +213,8 @@ struct rockchip_thermal_data {
 #define TSADCV2_HIGHT_TSHUT_DEBOUNCE_COUNT	4
 #define TSADCV2_AUTO_PERIOD_TIME		250 /* 250ms */
 #define TSADCV2_AUTO_PERIOD_HT_TIME		50  /* 50ms */
-#define TSADCV3_AUTO_PERIOD_TIME		187500 /* 250ms */
-#define TSADCV3_AUTO_PERIOD_HT_TIME		37500  /* 50ms */
+#define TSADCV3_AUTO_PERIOD_TIME		1875 /* 2.5ms */
+#define TSADCV3_AUTO_PERIOD_HT_TIME		1875 /* 2.5ms */
 
 #define TSADCV2_USER_INTER_PD_SOC		0x340 /* 13 clocks */
 
