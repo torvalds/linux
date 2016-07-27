@@ -1351,23 +1351,24 @@ i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
 
 /**
  * Find one BSD ring to dispatch the corresponding BSD command.
- * The ring index is returned.
+ * The engine index is returned.
  */
 static unsigned int
-gen8_dispatch_bsd_ring(struct drm_i915_private *dev_priv, struct drm_file *file)
+gen8_dispatch_bsd_engine(struct drm_i915_private *dev_priv,
+			 struct drm_file *file)
 {
 	struct drm_i915_file_private *file_priv = file->driver_priv;
 
 	/* Check whether the file_priv has already selected one ring. */
-	if ((int)file_priv->bsd_ring < 0) {
+	if ((int)file_priv->bsd_engine < 0) {
 		/* If not, use the ping-pong mechanism to select one. */
 		mutex_lock(&dev_priv->drm.struct_mutex);
-		file_priv->bsd_ring = dev_priv->mm.bsd_ring_dispatch_index;
-		dev_priv->mm.bsd_ring_dispatch_index ^= 1;
+		file_priv->bsd_engine = dev_priv->mm.bsd_engine_dispatch_index;
+		dev_priv->mm.bsd_engine_dispatch_index ^= 1;
 		mutex_unlock(&dev_priv->drm.struct_mutex);
 	}
 
-	return file_priv->bsd_ring;
+	return file_priv->bsd_engine;
 }
 
 #define I915_USER_RINGS (4)
@@ -1404,7 +1405,7 @@ eb_select_engine(struct drm_i915_private *dev_priv,
 		unsigned int bsd_idx = args->flags & I915_EXEC_BSD_MASK;
 
 		if (bsd_idx == I915_EXEC_BSD_DEFAULT) {
-			bsd_idx = gen8_dispatch_bsd_ring(dev_priv, file);
+			bsd_idx = gen8_dispatch_bsd_engine(dev_priv, file);
 		} else if (bsd_idx >= I915_EXEC_BSD_RING1 &&
 			   bsd_idx <= I915_EXEC_BSD_RING2) {
 			bsd_idx >>= I915_EXEC_BSD_SHIFT;
