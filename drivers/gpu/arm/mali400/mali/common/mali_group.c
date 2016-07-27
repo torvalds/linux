@@ -697,7 +697,7 @@ void mali_group_add_group(struct mali_group *parent, struct mali_group *child)
 					      mali_pp_job_get_pid(job), mali_pp_job_get_tid(job), 0, 0, 0);
 #if defined(CONFIG_GPU_TRACEPOINTS) && defined(CONFIG_TRACEPOINTS)
 		trace_gpu_sched_switch(
-			mali_pp_core_description(group->pp_core),
+			mali_pp_core_description(child->pp_core),
 			sched_clock(), mali_pp_job_get_tid(job),
 			0, mali_pp_job_get_id(job));
 #endif
