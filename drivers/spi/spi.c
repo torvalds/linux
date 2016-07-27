@@ -851,6 +851,20 @@ static int __spi_unmap_msg(struct spi_master *master, struct spi_message *msg)
 	return 0;
 }
 #else /* !CONFIG_HAS_DMA */
+static inline int spi_map_buf(struct spi_master *master,
+			      struct device *dev, struct sg_table *sgt,
+			      void *buf, size_t len,
+			      enum dma_data_direction dir)
+{
+	return -EINVAL;
+}
+
+static inline void spi_unmap_buf(struct spi_master *master,
+				 struct device *dev, struct sg_table *sgt,
+				 enum dma_data_direction dir)
+{
+}
+
 static inline int __spi_map_msg(struct spi_master *master,
 				struct spi_message *msg)
 {
@@ -1057,7 +1071,6 @@ EXPORT_SYMBOL_GPL(spi_finalize_current_transfer);
  * __spi_pump_messages - function which processes spi message queue
  * @master: master to process queue for
  * @in_kthread: true if we are in the context of the message pump thread
- * @bus_locked: true if the bus mutex is held when calling this function
  *
  * This function checks if there is any spi message in the queue that
  * needs processing and if so call out to the driver to initialize hardware
@@ -1067,8 +1080,7 @@ EXPORT_SYMBOL_GPL(spi_finalize_current_transfer);
  * inside spi_sync(); the queue extraction handling at the top of the
  * function should deal with this safely.
  */
-static void __spi_pump_messages(struct spi_master *master, bool in_kthread,
-				bool bus_locked)
+static void __spi_pump_messages(struct spi_master *master, bool in_kthread)
 {
 	unsigned long flags;
 	bool was_busy = false;
@@ -1140,6 +1152,8 @@ static void __spi_pump_messages(struct spi_master *master, bool in_kthread,
 		master->busy = true;
 	spin_unlock_irqrestore(&master->queue_lock, flags);
 
+	mutex_lock(&master->io_mutex);
+
 	if (!was_busy && master->auto_runtime_pm) {
 		ret = pm_runtime_get_sync(master->dev.parent);
 		if (ret < 0) {
@@ -1163,9 +1177,6 @@ static void __spi_pump_messages(struct spi_master *master, bool in_kthread,
 			return;
 		}
 	}
-
-	if (!bus_locked)
-		mutex_lock(&master->bus_lock_mutex);
 
 	trace_spi_message_start(master->cur_msg);
 
@@ -1196,8 +1207,7 @@ static void __spi_pump_messages(struct spi_master *master, bool in_kthread,
 	}
 
 out:
-	if (!bus_locked)
-		mutex_unlock(&master->bus_lock_mutex);
+	mutex_unlock(&master->io_mutex);
 
 	/* Prod the scheduler in case transfer_one() was busy waiting */
 	if (!ret)
@@ -1213,7 +1223,7 @@ static void spi_pump_messages(struct kthread_work *work)
 	struct spi_master *master =
 		container_of(work, struct spi_master, pump_messages);
 
-	__spi_pump_messages(master, true, master->bus_lock_flag);
+	__spi_pump_messages(master, true);
 }
 
 static int spi_init_queue(struct spi_master *master)
@@ -1886,6 +1896,7 @@ int spi_register_master(struct spi_master *master)
 	spin_lock_init(&master->queue_lock);
 	spin_lock_init(&master->bus_lock_spinlock);
 	mutex_init(&master->bus_lock_mutex);
+	mutex_init(&master->io_mutex);
 	master->bus_lock_flag = 0;
 	init_completion(&master->xfer_completion);
 	if (!master->max_dma_len)
@@ -2738,6 +2749,7 @@ int spi_flash_read(struct spi_device *spi,
 
 {
 	struct spi_master *master = spi->master;
+	struct device *rx_dev = NULL;
 	int ret;
 
 	if ((msg->opcode_nbits == SPI_NBITS_DUAL ||
@@ -2763,9 +2775,24 @@ int spi_flash_read(struct spi_device *spi,
 			return ret;
 		}
 	}
+
 	mutex_lock(&master->bus_lock_mutex);
+	mutex_lock(&master->io_mutex);
+	if (master->dma_rx) {
+		rx_dev = master->dma_rx->device->dev;
+		ret = spi_map_buf(master, rx_dev, &msg->rx_sg,
+				  msg->buf, msg->len,
+				  DMA_FROM_DEVICE);
+		if (!ret)
+			msg->cur_msg_mapped = true;
+	}
 	ret = master->spi_flash_read(spi, msg);
+	if (msg->cur_msg_mapped)
+		spi_unmap_buf(master, rx_dev, &msg->rx_sg,
+			      DMA_FROM_DEVICE);
+	mutex_unlock(&master->io_mutex);
 	mutex_unlock(&master->bus_lock_mutex);
+
 	if (master->auto_runtime_pm)
 		pm_runtime_put(master->dev.parent);
 
@@ -2785,8 +2812,7 @@ static void spi_complete(void *arg)
 	complete(arg);
 }
 
-static int __spi_sync(struct spi_device *spi, struct spi_message *message,
-		      int bus_locked)
+static int __spi_sync(struct spi_device *spi, struct spi_message *message)
 {
 	DECLARE_COMPLETION_ONSTACK(done);
 	int status;
@@ -2803,9 +2829,6 @@ static int __spi_sync(struct spi_device *spi, struct spi_message *message,
 
 	SPI_STATISTICS_INCREMENT_FIELD(&master->statistics, spi_sync);
 	SPI_STATISTICS_INCREMENT_FIELD(&spi->statistics, spi_sync);
-
-	if (!bus_locked)
-		mutex_lock(&master->bus_lock_mutex);
 
 	/* If we're not using the legacy transfer method then we will
 	 * try to transfer in the calling context so special case.
@@ -2824,9 +2847,6 @@ static int __spi_sync(struct spi_device *spi, struct spi_message *message,
 		status = spi_async_locked(spi, message);
 	}
 
-	if (!bus_locked)
-		mutex_unlock(&master->bus_lock_mutex);
-
 	if (status == 0) {
 		/* Push out the messages in the calling context if we
 		 * can.
@@ -2836,7 +2856,7 @@ static int __spi_sync(struct spi_device *spi, struct spi_message *message,
 						       spi_sync_immediate);
 			SPI_STATISTICS_INCREMENT_FIELD(&spi->statistics,
 						       spi_sync_immediate);
-			__spi_pump_messages(master, false, bus_locked);
+			__spi_pump_messages(master, false);
 		}
 
 		wait_for_completion(&done);
@@ -2869,7 +2889,13 @@ static int __spi_sync(struct spi_device *spi, struct spi_message *message,
  */
 int spi_sync(struct spi_device *spi, struct spi_message *message)
 {
-	return __spi_sync(spi, message, spi->master->bus_lock_flag);
+	int ret;
+
+	mutex_lock(&spi->master->bus_lock_mutex);
+	ret = __spi_sync(spi, message);
+	mutex_unlock(&spi->master->bus_lock_mutex);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(spi_sync);
 
@@ -2891,7 +2917,7 @@ EXPORT_SYMBOL_GPL(spi_sync);
  */
 int spi_sync_locked(struct spi_device *spi, struct spi_message *message)
 {
-	return __spi_sync(spi, message, 1);
+	return __spi_sync(spi, message);
 }
 EXPORT_SYMBOL_GPL(spi_sync_locked);
 
