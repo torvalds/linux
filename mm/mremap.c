@@ -210,9 +210,8 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
 				}
 			}
 			split_huge_pmd(vma, old_pmd, old_addr);
-			if (pmd_none(*old_pmd))
+			if (pmd_trans_unstable(old_pmd))
 				continue;
-			VM_BUG_ON(pmd_trans_huge(*old_pmd));
 		}
 		if (pte_alloc(new_vma->vm_mm, new_pmd, new_addr))
 			break;

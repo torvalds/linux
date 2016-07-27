@@ -24,6 +24,9 @@
 #include <linux/of_fdt.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
+#include <linux/acpi.h>
+#include <linux/ucs2_string.h>
 
 #include <asm/early_ioremap.h>
 
@@ -195,6 +198,96 @@ static void generic_ops_unregister(void)
 	efivars_unregister(&generic_efivars);
 }
 
+#if IS_ENABLED(CONFIG_ACPI)
+#define EFIVAR_SSDT_NAME_MAX	16
+static char efivar_ssdt[EFIVAR_SSDT_NAME_MAX] __initdata;
+static int __init efivar_ssdt_setup(char *str)
+{
+	if (strlen(str) < sizeof(efivar_ssdt))
+		memcpy(efivar_ssdt, str, strlen(str));
+	else
+		pr_warn("efivar_ssdt: name too long: %s\n", str);
+	return 0;
+}
+__setup("efivar_ssdt=", efivar_ssdt_setup);
+
+static __init int efivar_ssdt_iter(efi_char16_t *name, efi_guid_t vendor,
+				   unsigned long name_size, void *data)
+{
+	struct efivar_entry *entry;
+	struct list_head *list = data;
+	char utf8_name[EFIVAR_SSDT_NAME_MAX];
+	int limit = min_t(unsigned long, EFIVAR_SSDT_NAME_MAX, name_size);
+
+	ucs2_as_utf8(utf8_name, name, limit - 1);
+	if (strncmp(utf8_name, efivar_ssdt, limit) != 0)
+		return 0;
+
+	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	if (!entry)
+		return 0;
+
+	memcpy(entry->var.VariableName, name, name_size);
+	memcpy(&entry->var.VendorGuid, &vendor, sizeof(efi_guid_t));
+
+	efivar_entry_add(entry, list);
+
+	return 0;
+}
+
+static __init int efivar_ssdt_load(void)
+{
+	LIST_HEAD(entries);
+	struct efivar_entry *entry, *aux;
+	unsigned long size;
+	void *data;
+	int ret;
+
+	ret = efivar_init(efivar_ssdt_iter, &entries, true, &entries);
+
+	list_for_each_entry_safe(entry, aux, &entries, list) {
+		pr_info("loading SSDT from variable %s-%pUl\n", efivar_ssdt,
+			&entry->var.VendorGuid);
+
+		list_del(&entry->list);
+
+		ret = efivar_entry_size(entry, &size);
+		if (ret) {
+			pr_err("failed to get var size\n");
+			goto free_entry;
+		}
+
+		data = kmalloc(size, GFP_KERNEL);
+		if (!data)
+			goto free_entry;
+
+		ret = efivar_entry_get(entry, NULL, &size, data);
+		if (ret) {
+			pr_err("failed to get var data\n");
+			goto free_data;
+		}
+
+		ret = acpi_load_table(data);
+		if (ret) {
+			pr_err("failed to load table: %d\n", ret);
+			goto free_data;
+		}
+
+		goto free_entry;
+
+free_data:
+		kfree(data);
+
+free_entry:
+		kfree(entry);
+	}
+
+	return ret;
+}
+#else
+static inline int efivar_ssdt_load(void) { return 0; }
+#endif
+
 /*
  * We register the efi subsystem with the firmware subsystem and the
  * efivars subsystem with the efi subsystem, if the system was booted with
@@ -217,6 +310,9 @@ static int __init efisubsys_init(void)
 	error = generic_ops_register();
 	if (error)
 		goto err_put;
+
+	if (efi_enabled(EFI_RUNTIME_SERVICES))
+		efivar_ssdt_load();
 
 	error = sysfs_create_group(efi_kobj, &efi_subsys_attr_group);
 	if (error) {

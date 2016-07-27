@@ -41,7 +41,10 @@ static inline int prepare_hugepage_range(struct file *file,
 static inline void huge_pte_clear(struct mm_struct *mm, unsigned long addr,
 				  pte_t *ptep)
 {
-	pte_val(*ptep) = _SEGMENT_ENTRY_EMPTY;
+	if ((pte_val(*ptep) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R3)
+		pte_val(*ptep) = _REGION3_ENTRY_EMPTY;
+	else
+		pte_val(*ptep) = _SEGMENT_ENTRY_EMPTY;
 }
 
 static inline void huge_ptep_clear_flush(struct vm_area_struct *vma,

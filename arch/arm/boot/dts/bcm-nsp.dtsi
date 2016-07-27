@@ -206,6 +206,11 @@
 			brcm,nand-has-wp;
 		};
 
+		rng: rng@33000 {
+			compatible = "brcm,bcm-nsp-rng";
+			reg = <0x33000 0x14>;
+		};
+
 		ccbtimer0: timer@34000 {
 			compatible = "arm,sp804";
 			reg = <0x34000 0x1000>;
@@ -265,6 +270,48 @@
 			reg = <0x3f1c0 0x04>,
 			      <0x30028 0x04>,
 			      <0x3f408 0x04>;
+		};
+
+		sata_phy: sata_phy@40100 {
+			compatible = "brcm,iproc-nsp-sata-phy";
+			reg = <0x40100 0x340>;
+			reg-names = "phy";
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			sata_phy0: sata-phy@0 {
+				reg = <0>;
+				#phy-cells = <0>;
+				status = "disabled";
+			};
+
+			sata_phy1: sata-phy@1 {
+				reg = <1>;
+				#phy-cells = <0>;
+				status = "disabled";
+			};
+		};
+
+		sata: ahci@41000 {
+			compatible = "brcm,bcm-nsp-ahci";
+			reg-names = "ahci", "top-ctrl";
+			reg = <0x41000 0x1000>, <0x40020 0x1c>;
+			interrupts = <GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+
+			sata0: sata-port@0 {
+				reg = <0>;
+				phys = <&sata_phy0>;
+				phy-names = "sata-phy";
+			};
+
+			sata1: sata-port@1 {
+				reg = <1>;
+				phys = <&sata_phy1>;
+				phy-names = "sata-phy";
+			};
 		};
 	};
 

@@ -23,6 +23,7 @@
  *  Frederic Weisbecker gave his permission to relicense the code to
  *  the Lesser General Public License.
  */
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -31,8 +32,9 @@
 #include <errno.h>
 #include <stdint.h>
 #include <limits.h>
+#include <linux/string.h>
 
-#include <netinet/ip6.h>
+#include <netinet/in.h>
 #include "event-parse.h"
 #include "event-utils.h"
 
@@ -6131,12 +6133,7 @@ int pevent_strerror(struct pevent *pevent __maybe_unused,
 	const char *msg;
 
 	if (errnum >= 0) {
-		msg = strerror_r(errnum, buf, buflen);
-		if (msg != buf) {
-			size_t len = strlen(msg);
-			memcpy(buf, msg, min(buflen - 1, len));
-			*(buf + min(buflen - 1, len)) = '\0';
-		}
+		str_error_r(errnum, buf, buflen);
 		return 0;
 	}
 

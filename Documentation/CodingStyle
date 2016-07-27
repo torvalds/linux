@@ -458,7 +458,7 @@ of the function, telling people what it does, and possibly WHY it does
 it.
 
 When commenting the kernel API functions, please use the kernel-doc format.
-See the files Documentation/kernel-doc-nano-HOWTO.txt and scripts/kernel-doc
+See the files Documentation/kernel-documentation.rst and scripts/kernel-doc
 for details.
 
 Linux style for comments is the C89 "/* ... */" style.

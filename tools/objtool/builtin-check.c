@@ -26,6 +26,7 @@
  */
 
 #include <string.h>
+#include <stdlib.h>
 #include <subcmd/parse-options.h>
 
 #include "builtin.h"
@@ -667,7 +668,7 @@ static int add_func_switch_tables(struct objtool_file *file,
 				  struct symbol *func)
 {
 	struct instruction *insn, *prev_jump;
-	struct rela *text_rela, *rodata_rela, *prev_rela;
+	struct rela *text_rela, *rodata_rela, *prev_rela = NULL;
 	int ret;
 
 	prev_jump = NULL;

@@ -47,8 +47,6 @@ static DEFINE_MUTEX(info_lock);
 /* Time after which channel-path status may be outdated. */
 static unsigned long chp_info_expires;
 
-/* Workqueue to perform pending configure tasks. */
-static struct workqueue_struct *chp_wq;
 static struct work_struct cfg_work;
 
 /* Wait queue for configure completion events. */
@@ -428,11 +426,14 @@ int chp_update_desc(struct channel_path *chp)
 	if (rc)
 		return rc;
 
-	rc = chsc_determine_fmt1_channel_path_desc(chp->chpid, &chp->desc_fmt1);
-	if (rc)
-		return rc;
+	/*
+	 * Fetching the following data is optional. Not all machines or
+	 * hypervisors implement the required chsc commands.
+	 */
+	chsc_determine_fmt1_channel_path_desc(chp->chpid, &chp->desc_fmt1);
+	chsc_get_channel_measurement_chars(chp);
 
-	return chsc_get_channel_measurement_chars(chp);
+	return 0;
 }
 
 /**
@@ -714,7 +715,7 @@ static void cfg_func(struct work_struct *work)
 		wake_up_interruptible(&cfg_wait_queue);
 		return;
 	}
-	queue_work(chp_wq, &cfg_work);
+	schedule_work(&cfg_work);
 }
 
 /**
@@ -732,7 +733,7 @@ void chp_cfg_schedule(struct chp_id chpid, int configure)
 	cfg_set_task(chpid, configure ? cfg_configure : cfg_deconfigure);
 	cfg_busy = 1;
 	mutex_unlock(&cfg_lock);
-	queue_work(chp_wq, &cfg_work);
+	schedule_work(&cfg_work);
 }
 
 /**
@@ -766,11 +767,6 @@ static int __init chp_init(void)
 	ret = crw_register_handler(CRW_RSC_CPATH, chp_process_crw);
 	if (ret)
 		return ret;
-	chp_wq = create_singlethread_workqueue("cio_chp");
-	if (!chp_wq) {
-		crw_unregister_handler(CRW_RSC_CPATH);
-		return -ENOMEM;
-	}
 	INIT_WORK(&cfg_work, cfg_func);
 	init_waitqueue_head(&cfg_wait_queue);
 	if (info_update())

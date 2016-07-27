@@ -649,23 +649,6 @@ static int s5pcsis_log_status(struct v4l2_subdev *sd)
 	return 0;
 }
 
-static int s5pcsis_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
-{
-	struct v4l2_mbus_framefmt *format = v4l2_subdev_get_try_format(sd, fh->pad, 0);
-
-	format->colorspace = V4L2_COLORSPACE_JPEG;
-	format->code = s5pcsis_formats[0].code;
-	format->width = S5PCSIS_DEF_PIX_WIDTH;
-	format->height = S5PCSIS_DEF_PIX_HEIGHT;
-	format->field = V4L2_FIELD_NONE;
-
-	return 0;
-}
-
-static const struct v4l2_subdev_internal_ops s5pcsis_sd_internal_ops = {
-	.open = s5pcsis_open,
-};
-
 static struct v4l2_subdev_core_ops s5pcsis_core_ops = {
 	.s_power = s5pcsis_s_power,
 	.log_status = s5pcsis_log_status,

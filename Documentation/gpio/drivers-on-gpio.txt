@@ -37,15 +37,16 @@ hardware descriptions such as device tree or ACPI:
   external connector status, such as a headset line for an audio driver or an
   HDMI connector. It will provide a better userspace sysfs interface than GPIO.
 
-- restart-gpio: drivers/power/gpio-restart.c is used to restart/reboot the
-  system by pulling a GPIO line and will register a restart handler so
+- restart-gpio: drivers/power/reset/gpio-restart.c is used to restart/reboot
+  the system by pulling a GPIO line and will register a restart handler so
   userspace can issue the right system call to restart the system.
 
-- poweroff-gpio: drivers/power/gpio-poweroff.c is used to power the system down
-  by pulling a GPIO line and will register a pm_power_off() callback so that
-  userspace can issue the right system call to power down the system.
+- poweroff-gpio: drivers/power/reset/gpio-poweroff.c is used to power the
+  system down by pulling a GPIO line and will register a pm_power_off()
+  callback so that userspace can issue the right system call to power down the
+  system.
 
-- gpio-gate-clock: drivers/clk/clk-gpio-gate.c is used to control a gated clock
+- gpio-gate-clock: drivers/clk/clk-gpio.c is used to control a gated clock
   (off/on) that uses a GPIO, and integrated with the clock subsystem.
 
 - i2c-gpio: drivers/i2c/busses/i2c-gpio.c is used to drive an I2C bus

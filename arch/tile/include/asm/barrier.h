@@ -87,6 +87,13 @@ mb_incoherent(void)
 #define __smp_mb__after_atomic()	__smp_mb()
 #endif
 
+/*
+ * The TILE architecture does not do speculative reads; this ensures
+ * that a control dependency also orders against loads and already provides
+ * a LOAD->{LOAD,STORE} order and can forgo the additional RMB.
+ */
+#define smp_acquire__after_ctrl_dep()	barrier()
+
 #include <asm-generic/barrier.h>
 
 #endif /* !__ASSEMBLY__ */

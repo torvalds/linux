@@ -275,7 +275,7 @@ config TAU_AVERAGE
 config QE_GPIO
 	bool "QE GPIO support"
 	depends on QUICC_ENGINE
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	help
 	  Say Y here if you're going to use hardware that connects to the
 	  QE GPIOs.
@@ -285,7 +285,7 @@ config CPM2
 	depends on (FSL_SOC_BOOKE && PPC32) || 8260
 	select CPM
 	select PPC_PCI_CHOICE
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	help
 	  The CPM2 (Communications Processor Module) is a coprocessor on
 	  embedded CPUs made by Freescale.  Selecting this option means that
@@ -324,7 +324,7 @@ config OF_RTC
 config SIMPLE_GPIO
 	bool "Support for simple, memory-mapped GPIO controllers"
 	depends on PPC
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	help
 	  Say Y here to support simple, memory-mapped GPIO controllers.
 	  These are usually BCSRs used to control board's switches, LEDs,
@@ -334,7 +334,7 @@ config SIMPLE_GPIO
 config MCU_MPC8349EMITX
 	bool "MPC8349E-mITX MCU driver"
 	depends on I2C=y && PPC_83xx
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	help
 	  Say Y here to enable soft power-off functionality on the Freescale
 	  boards with the MPC8349E-mITX-compatible MCU chips. This driver will

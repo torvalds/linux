@@ -797,6 +797,8 @@ static const u16 bb_ramp_pwm_normal[] = {
 	(0  << 9) | 400, /* BB_RAMP6 */
 };
 
+#if 0
+/* Currently unused */
 static const u16 bb_ramp_pwm_boost[] = {
 	550, /* max BB gain in 10th of dB */
 	8, /* ramp_slope = 1dB of gain -> clock_ticks_per_db = clk_khz / ramp_slope -> BB_RAMP2 */
@@ -806,6 +808,7 @@ static const u16 bb_ramp_pwm_boost[] = {
 	(2  << 9) | 208, /* BB_RAMP5 = 29dB */
 	(0  << 9) | 440, /* BB_RAMP6 */
 };
+#endif
 
 static const u16 rf_ramp_pwm_cband[] = {
 	314, /* max RF gain in 10th of dB */
@@ -849,6 +852,8 @@ static const u16 rf_ramp_pwm_uhf[] = {
 	(0  << 10) | 580, /* GAIN_4_2, LNA 4 */
 };
 
+#if 0
+/* Currently unused */
 static const u16 rf_ramp_pwm_sband[] = {
 	253, /* max RF gain in 10th of dB */
 	38, /* ramp_slope = 1dB of gain -> clock_ticks_per_db = clk_khz / ramp_slope -> RF_RAMP2 */
@@ -862,6 +867,7 @@ static const u16 rf_ramp_pwm_sband[] = {
 	(0  << 10) | 0, /* GAIN_4_1, LNA 4 = 0dB */
 	(0  << 10) | 0, /* GAIN_4_2, LNA 4 */
 };
+#endif
 
 struct slope {
 	s16 range;

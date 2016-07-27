@@ -44,8 +44,7 @@ static int process_events(union perf_event **events, size_t count)
 	for (i = 0; i < count && !err; i++)
 		err = process_event(&evlist, events[i]);
 
-	if (evlist)
-		perf_evlist__delete(evlist);
+	perf_evlist__delete(evlist);
 
 	return err;
 }

@@ -113,6 +113,7 @@
 #include <asm/prom.h>
 #include <asm/microcode.h>
 #include <asm/mmu_context.h>
+#include <asm/kaslr.h>
 
 /*
  * max_low_pfn_mapped: highest direct mapped pfn under 4GB
@@ -399,18 +400,11 @@ static void __init reserve_initrd(void)
 	memblock_free(ramdisk_image, ramdisk_end - ramdisk_image);
 }
 
-static void __init early_initrd_acpi_init(void)
-{
-	early_acpi_table_init((void *)initrd_start, initrd_end - initrd_start);
-}
 #else
 static void __init early_reserve_initrd(void)
 {
 }
 static void __init reserve_initrd(void)
-{
-}
-static void __init early_initrd_acpi_init(void)
 {
 }
 #endif /* CONFIG_BLK_DEV_INITRD */
@@ -942,6 +936,8 @@ void __init setup_arch(char **cmdline_p)
 
 	x86_init.oem.arch_setup();
 
+	kernel_randomize_memory();
+
 	iomem_resource.end = (1ULL << boot_cpu_data.x86_phys_bits) - 1;
 	setup_memory_map();
 	parse_setup_data();
@@ -1146,7 +1142,7 @@ void __init setup_arch(char **cmdline_p)
 
 	reserve_initrd();
 
-	early_initrd_acpi_init();
+	acpi_table_upgrade();
 
 	vsmp_init();
 

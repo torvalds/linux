@@ -1,0 +1,94 @@
+<refentry id="cec-func-poll">
+  <refmeta>
+    <refentrytitle>cec poll()</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>cec-poll</refname>
+    <refpurpose>Wait for some event on a file descriptor</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcsynopsisinfo>#include &lt;sys/poll.h&gt;</funcsynopsisinfo>
+      <funcprototype>
+	<funcdef>int <function>poll</function></funcdef>
+	<paramdef>struct pollfd *<parameter>ufds</parameter></paramdef>
+	<paramdef>unsigned int <parameter>nfds</parameter></paramdef>
+	<paramdef>int <parameter>timeout</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>
+      Note: this documents the proposed CEC API. This API is not yet finalized and
+      is currently only available as a staging kernel module.
+    </para>
+
+    <para>With the <function>poll()</function> function applications
+can wait for CEC events.</para>
+
+    <para>On success <function>poll()</function> returns the number of
+file descriptors that have been selected (that is, file descriptors
+for which the <structfield>revents</structfield> field of the
+respective <structname>pollfd</structname> structure is non-zero).
+CEC devices set the <constant>POLLIN</constant> and
+<constant>POLLRDNORM</constant> flags in the
+<structfield>revents</structfield> field if there are messages in the
+receive queue. If the transmit queue has room for new messages, the
+<constant>POLLOUT</constant> and <constant>POLLWRNORM</constant>
+flags are set. If there are events in the event queue, then the
+<constant>POLLPRI</constant> flag is set.
+When the function timed out it returns a value of zero, on
+failure it returns <returnvalue>-1</returnvalue> and the
+<varname>errno</varname> variable is set appropriately.
+</para>
+
+    <para>For more details see the
+<function>poll()</function> manual page.</para>
+  </refsect1>
+
+  <refsect1>
+    <title>Return Value</title>
+
+    <para>On success, <function>poll()</function> returns the number
+structures which have non-zero <structfield>revents</structfield>
+fields, or zero if the call timed out. On error
+<returnvalue>-1</returnvalue> is returned, and the
+<varname>errno</varname> variable is set appropriately:</para>
+
+    <variablelist>
+      <varlistentry>
+	<term><errorcode>EBADF</errorcode></term>
+	<listitem>
+	  <para>One or more of the <parameter>ufds</parameter> members
+specify an invalid file descriptor.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>EFAULT</errorcode></term>
+	<listitem>
+	  <para><parameter>ufds</parameter> references an inaccessible
+memory area.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>EINTR</errorcode></term>
+	<listitem>
+	  <para>The call was interrupted by a signal.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>EINVAL</errorcode></term>
+	<listitem>
+	  <para>The <parameter>nfds</parameter> argument is greater
+than <constant>OPEN_MAX</constant>.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+</refentry>

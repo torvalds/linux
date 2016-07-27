@@ -292,7 +292,10 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 		    tmp > dev->max_timeout)
 				return -EINVAL;
 
-		dev->timeout = tmp;
+		if (dev->s_timeout)
+			ret = dev->s_timeout(dev, tmp);
+		if (!ret)
+			dev->timeout = tmp;
 		break;
 
 	case LIRC_SET_REC_TIMEOUT_REPORTS:

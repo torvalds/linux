@@ -119,17 +119,6 @@ struct client_debug_mask {
 #define ORANGEFS_CACHE_CREATE_FLAGS 0
 #endif /* ((defined ORANGEFS_KERNEL_DEBUG) && (defined CONFIG_DEBUG_SLAB)) */
 
-/* orangefs xattr and acl related defines */
-#define ORANGEFS_XATTR_INDEX_POSIX_ACL_ACCESS  1
-#define ORANGEFS_XATTR_INDEX_POSIX_ACL_DEFAULT 2
-#define ORANGEFS_XATTR_INDEX_TRUSTED           3
-#define ORANGEFS_XATTR_INDEX_DEFAULT           4
-
-#define ORANGEFS_XATTR_NAME_ACL_ACCESS XATTR_NAME_POSIX_ACL_ACCESS
-#define ORANGEFS_XATTR_NAME_ACL_DEFAULT XATTR_NAME_POSIX_ACL_DEFAULT
-#define ORANGEFS_XATTR_NAME_TRUSTED_PREFIX "trusted."
-#define ORANGEFS_XATTR_NAME_DEFAULT_PREFIX ""
-
 /* these functions are defined in orangefs-utils.c */
 int orangefs_prepare_cdm_array(char *debug_array_string);
 int orangefs_prepare_debugfs_help_string(int);
@@ -528,13 +517,11 @@ __s32 fsid_of_op(struct orangefs_kernel_op_s *op);
 int orangefs_flush_inode(struct inode *inode);
 
 ssize_t orangefs_inode_getxattr(struct inode *inode,
-			     const char *prefix,
 			     const char *name,
 			     void *buffer,
 			     size_t size);
 
 int orangefs_inode_setxattr(struct inode *inode,
-			 const char *prefix,
 			 const char *name,
 			 const void *value,
 			 size_t size,
@@ -600,8 +587,8 @@ int service_operation(struct orangefs_kernel_op_s *op,
 
 #define fill_default_sys_attrs(sys_attr, type, mode)			\
 do {									\
-	sys_attr.owner = from_kuid(current_user_ns(), current_fsuid()); \
-	sys_attr.group = from_kgid(current_user_ns(), current_fsgid()); \
+	sys_attr.owner = from_kuid(&init_user_ns, current_fsuid()); \
+	sys_attr.group = from_kgid(&init_user_ns, current_fsgid()); \
 	sys_attr.perms = ORANGEFS_util_translate_mode(mode);		\
 	sys_attr.mtime = 0;						\
 	sys_attr.atime = 0;						\

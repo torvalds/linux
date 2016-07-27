@@ -96,7 +96,7 @@ new	- new frequency
 For details about OPP, see Documentation/power/opp.txt
 
 dev_pm_opp_init_cpufreq_table - cpufreq framework typically is initialized with
-	cpufreq_frequency_table_cpuinfo which is provided with the list of
+	cpufreq_table_validate_and_show() which is provided with the list of
 	frequencies that are available for operation. This function provides
 	a ready to use conversion routine to translate the OPP layer's internal
 	information about the available frequencies into a format readily
@@ -110,7 +110,7 @@ dev_pm_opp_init_cpufreq_table - cpufreq framework typically is initialized with
 		/* Do things */
 		r = dev_pm_opp_init_cpufreq_table(dev, &freq_table);
 		if (!r)
-			cpufreq_frequency_table_cpuinfo(policy, freq_table);
+			cpufreq_table_validate_and_show(policy, freq_table);
 		/* Do other things */
 	 }
 

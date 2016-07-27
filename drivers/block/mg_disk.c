@@ -687,15 +687,13 @@ static unsigned int mg_issue_req(struct request *req,
 		unsigned int sect_num,
 		unsigned int sect_cnt)
 {
-	switch (rq_data_dir(req)) {
-	case READ:
+	if (rq_data_dir(req) == READ) {
 		if (mg_out(host, sect_num, sect_cnt, MG_CMD_RD, &mg_read_intr)
 				!= MG_ERR_NONE) {
 			mg_bad_rw_intr(host);
 			return host->error;
 		}
-		break;
-	case WRITE:
+	} else {
 		/* TODO : handler */
 		outb(ATA_NIEN, (unsigned long)host->dev_base + MG_REG_DRV_CTRL);
 		if (mg_out(host, sect_num, sect_cnt, MG_CMD_WR, &mg_write_intr)
@@ -714,7 +712,6 @@ static unsigned int mg_issue_req(struct request *req,
 		mod_timer(&host->timer, jiffies + 3 * HZ);
 		outb(MG_CMD_WR_CONF, (unsigned long)host->dev_base +
 				MG_REG_COMMAND);
-		break;
 	}
 	return MG_ERR_NONE;
 }
@@ -1018,7 +1015,7 @@ probe_err_7:
 probe_err_6:
 	blk_cleanup_queue(host->breq);
 probe_err_5:
-	unregister_blkdev(MG_DISK_MAJ, MG_DISK_NAME);
+	unregister_blkdev(host->major, MG_DISK_NAME);
 probe_err_4:
 	if (!prv_data->use_polling)
 		free_irq(host->irq, host);

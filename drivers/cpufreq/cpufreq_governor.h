@@ -138,8 +138,8 @@ struct dbs_governor {
 	unsigned int (*gov_dbs_timer)(struct cpufreq_policy *policy);
 	struct policy_dbs_info *(*alloc)(void);
 	void (*free)(struct policy_dbs_info *policy_dbs);
-	int (*init)(struct dbs_data *dbs_data, bool notify);
-	void (*exit)(struct dbs_data *dbs_data, bool notify);
+	int (*init)(struct dbs_data *dbs_data);
+	void (*exit)(struct dbs_data *dbs_data);
 	void (*start)(struct cpufreq_policy *policy);
 };
 
@@ -148,6 +148,25 @@ static inline struct dbs_governor *dbs_governor_of(struct cpufreq_policy *policy
 	return container_of(policy->governor, struct dbs_governor, gov);
 }
 
+/* Governor callback routines */
+int cpufreq_dbs_governor_init(struct cpufreq_policy *policy);
+void cpufreq_dbs_governor_exit(struct cpufreq_policy *policy);
+int cpufreq_dbs_governor_start(struct cpufreq_policy *policy);
+void cpufreq_dbs_governor_stop(struct cpufreq_policy *policy);
+void cpufreq_dbs_governor_limits(struct cpufreq_policy *policy);
+
+#define CPUFREQ_DBS_GOVERNOR_INITIALIZER(_name_)			\
+	{								\
+		.name = _name_,						\
+		.max_transition_latency	= TRANSITION_LATENCY_LIMIT,	\
+		.owner = THIS_MODULE,					\
+		.init = cpufreq_dbs_governor_init,			\
+		.exit = cpufreq_dbs_governor_exit,			\
+		.start = cpufreq_dbs_governor_start,			\
+		.stop = cpufreq_dbs_governor_stop,			\
+		.limits = cpufreq_dbs_governor_limits,			\
+	}
+
 /* Governor specific operations */
 struct od_ops {
 	unsigned int (*powersave_bias_target)(struct cpufreq_policy *policy,
@@ -155,7 +174,6 @@ struct od_ops {
 };
 
 unsigned int dbs_update(struct cpufreq_policy *policy);
-int cpufreq_governor_dbs(struct cpufreq_policy *policy, unsigned int event);
 void od_register_powersave_bias_handler(unsigned int (*f)
 		(struct cpufreq_policy *, unsigned int, unsigned int),
 		unsigned int powersave_bias);

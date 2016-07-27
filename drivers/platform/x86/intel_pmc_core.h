@@ -23,6 +23,7 @@
 
 /* Sunrise Point Power Management Controller PCI Device ID */
 #define SPT_PMC_PCI_DEVICE_ID			0x9d21
+
 #define SPT_PMC_BASE_ADDR_OFFSET		0x48
 #define SPT_PMC_SLP_S0_RES_COUNTER_OFFSET	0x13c
 #define SPT_PMC_MMIO_REG_LEN			0x100
@@ -42,9 +43,7 @@
 struct pmc_dev {
 	u32 base_addr;
 	void __iomem *regbase;
-#if IS_ENABLED(CONFIG_DEBUG_FS)
 	struct dentry *dbgfs_dir;
-#endif /* CONFIG_DEBUG_FS */
 	bool has_slp_s0_res;
 };
 

@@ -18,9 +18,12 @@ void perf_env__exit(struct perf_env *env)
 	zfree(&env->cmdline_argv);
 	zfree(&env->sibling_cores);
 	zfree(&env->sibling_threads);
-	zfree(&env->numa_nodes);
 	zfree(&env->pmu_mappings);
 	zfree(&env->cpu);
+
+	for (i = 0; i < env->nr_numa_nodes; i++)
+		cpu_map__put(env->numa_nodes[i].map);
+	zfree(&env->numa_nodes);
 
 	for (i = 0; i < env->caches_cnt; i++)
 		cpu_cache_level__free(&env->caches[i]);

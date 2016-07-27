@@ -151,8 +151,65 @@ unsigned long __must_check __copy_to_user(void __user *to, const void *from,
 	__rc;							\
 })
 
-#define __put_user_fn(x, ptr, size) __put_get_user_asm(ptr, x, size, 0x810000UL)
-#define __get_user_fn(x, ptr, size) __put_get_user_asm(x, ptr, size, 0x81UL)
+static inline int __put_user_fn(void *x, void __user *ptr, unsigned long size)
+{
+	unsigned long spec = 0x810000UL;
+	int rc;
+
+	switch (size) {
+	case 1:
+		rc = __put_get_user_asm((unsigned char __user *)ptr,
+					(unsigned char *)x,
+					size, spec);
+		break;
+	case 2:
+		rc = __put_get_user_asm((unsigned short __user *)ptr,
+					(unsigned short *)x,
+					size, spec);
+		break;
+	case 4:
+		rc = __put_get_user_asm((unsigned int __user *)ptr,
+					(unsigned int *)x,
+					size, spec);
+		break;
+	case 8:
+		rc = __put_get_user_asm((unsigned long __user *)ptr,
+					(unsigned long *)x,
+					size, spec);
+		break;
+	};
+	return rc;
+}
+
+static inline int __get_user_fn(void *x, const void __user *ptr, unsigned long size)
+{
+	unsigned long spec = 0x81UL;
+	int rc;
+
+	switch (size) {
+	case 1:
+		rc = __put_get_user_asm((unsigned char *)x,
+					(unsigned char __user *)ptr,
+					size, spec);
+		break;
+	case 2:
+		rc = __put_get_user_asm((unsigned short *)x,
+					(unsigned short __user *)ptr,
+					size, spec);
+		break;
+	case 4:
+		rc = __put_get_user_asm((unsigned int *)x,
+					(unsigned int __user *)ptr,
+					size, spec);
+		break;
+	case 8:
+		rc = __put_get_user_asm((unsigned long *)x,
+					(unsigned long __user *)ptr,
+					size, spec);
+		break;
+	};
+	return rc;
+}
 
 #else /* CONFIG_HAVE_MARCH_Z10_FEATURES */
 
@@ -191,7 +248,7 @@ static inline int __get_user_fn(void *x, const void __user *ptr, unsigned long s
 		__put_user_bad();				\
 		break;						\
 	 }							\
-	__pu_err;						\
+	__builtin_expect(__pu_err, 0);				\
 })
 
 #define put_user(x, ptr)					\
@@ -240,7 +297,7 @@ int __put_user_bad(void) __attribute__((noreturn));
 		__get_user_bad();				\
 		break;						\
 	}							\
-	__gu_err;						\
+	__builtin_expect(__gu_err, 0);				\
 })
 
 #define get_user(x, ptr)					\

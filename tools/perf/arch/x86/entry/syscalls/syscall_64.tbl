@@ -374,3 +374,5 @@
 543	x32	io_setup		compat_sys_io_setup
 544	x32	io_submit		compat_sys_io_submit
 545	x32	execveat		compat_sys_execveat/ptregs
+534	x32	preadv2			compat_sys_preadv2
+535	x32	pwritev2		compat_sys_pwritev2

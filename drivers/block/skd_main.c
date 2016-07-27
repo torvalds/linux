@@ -597,7 +597,7 @@ static void skd_request_fn(struct request_queue *q)
 		data_dir = rq_data_dir(req);
 		io_flags = req->cmd_flags;
 
-		if (io_flags & REQ_FLUSH)
+		if (req_op(req) == REQ_OP_FLUSH)
 			flush++;
 
 		if (io_flags & REQ_FUA)
@@ -4690,10 +4690,10 @@ static int skd_bdev_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return -EIO;
 }
 
-static int skd_bdev_attach(struct skd_device *skdev)
+static int skd_bdev_attach(struct device *parent, struct skd_device *skdev)
 {
 	pr_debug("%s:%s:%d add_disk\n", skdev->name, __func__, __LINE__);
-	add_disk(skdev->disk);
+	device_add_disk(parent, skdev->disk);
 	return 0;
 }
 
@@ -4812,8 +4812,6 @@ static int skd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_drvdata(pdev, skdev);
 
-	skdev->disk->driverfs_dev = &pdev->dev;
-
 	for (i = 0; i < SKD_MAX_BARS; i++) {
 		skdev->mem_phys[i] = pci_resource_start(pdev, i);
 		skdev->mem_size[i] = (u32)pci_resource_len(pdev, i);
@@ -4851,7 +4849,7 @@ static int skd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 					      (SKD_START_WAIT_SECONDS * HZ));
 	if (skdev->gendisk_on > 0) {
 		/* device came on-line after reset */
-		skd_bdev_attach(skdev);
+		skd_bdev_attach(&pdev->dev, skdev);
 		rc = 0;
 	} else {
 		/* we timed out, something is wrong with the device,

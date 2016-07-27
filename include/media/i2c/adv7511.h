@@ -32,11 +32,7 @@ struct adv7511_monitor_detect {
 struct adv7511_edid_detect {
 	int present;
 	int segment;
-};
-
-struct adv7511_cec_arg {
-	void *arg;
-	u32 f_flags;
+	uint16_t phys_addr;
 };
 
 struct adv7511_platform_data {
