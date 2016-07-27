@@ -70,7 +70,6 @@ libperf-y += stat.o
 libperf-y += stat-shadow.o
 libperf-y += record.o
 libperf-y += srcline.o
-libperf-y += str_error_r.o
 libperf-y += data.o
 libperf-y += tsc.o
 libperf-y += cloexec.o
@@ -173,10 +172,6 @@ $(OUTPUT)util/rbtree.o: ../lib/rbtree.c FORCE
 	$(call if_changed_dep,cc_o_c)
 
 $(OUTPUT)util/libstring.o: ../lib/string.c FORCE
-	$(call rule_mkdir)
-	$(call if_changed_dep,cc_o_c)
-
-$(OUTPUT)util/str_error_r.o: ../lib/str_error_r.c FORCE
 	$(call rule_mkdir)
 	$(call if_changed_dep,cc_o_c)
 
