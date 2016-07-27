@@ -141,10 +141,11 @@ static void ccp_free_irqs(struct ccp_device *ccp)
 			free_irq(ccp_pci->msix[ccp_pci->msix_count].vector,
 				 dev);
 		pci_disable_msix(pdev);
-	} else {
+	} else if (ccp->irq) {
 		free_irq(ccp->irq, dev);
 		pci_disable_msi(pdev);
 	}
+	ccp->irq = 0;
 }
 
 static int ccp_find_mmio_area(struct ccp_device *ccp)
@@ -229,6 +230,8 @@ static int ccp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	dev_set_drvdata(dev, ccp);
 
+	if (ccp->vdata->setup)
+		ccp->vdata->setup(ccp);
 	ret = ccp->vdata->perform->init(ccp);
 	if (ret)
 		goto e_iomap;
@@ -321,6 +324,7 @@ static int ccp_pci_resume(struct pci_dev *pdev)
 
 static const struct pci_device_id ccp_pci_table[] = {
 	{ PCI_VDEVICE(AMD, 0x1537), (kernel_ulong_t)&ccpv3 },
+	{ PCI_VDEVICE(AMD, 0x1456), (kernel_ulong_t)&ccpv5 },
 	/* Last entry must be zero */
 	{ 0, }
 };

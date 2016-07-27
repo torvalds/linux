@@ -21,25 +21,28 @@
 #include "ccp-dev.h"
 
 /* SHA initial context values */
-static const __be32 ccp_sha1_init[CCP_SHA_CTXSIZE / sizeof(__be32)] = {
+static const __be32 ccp_sha1_init[SHA1_DIGEST_SIZE / sizeof(__be32)] = {
 	cpu_to_be32(SHA1_H0), cpu_to_be32(SHA1_H1),
 	cpu_to_be32(SHA1_H2), cpu_to_be32(SHA1_H3),
-	cpu_to_be32(SHA1_H4), 0, 0, 0,
+	cpu_to_be32(SHA1_H4),
 };
 
-static const __be32 ccp_sha224_init[CCP_SHA_CTXSIZE / sizeof(__be32)] = {
+static const __be32 ccp_sha224_init[SHA256_DIGEST_SIZE / sizeof(__be32)] = {
 	cpu_to_be32(SHA224_H0), cpu_to_be32(SHA224_H1),
 	cpu_to_be32(SHA224_H2), cpu_to_be32(SHA224_H3),
 	cpu_to_be32(SHA224_H4), cpu_to_be32(SHA224_H5),
 	cpu_to_be32(SHA224_H6), cpu_to_be32(SHA224_H7),
 };
 
-static const __be32 ccp_sha256_init[CCP_SHA_CTXSIZE / sizeof(__be32)] = {
+static const __be32 ccp_sha256_init[SHA256_DIGEST_SIZE / sizeof(__be32)] = {
 	cpu_to_be32(SHA256_H0), cpu_to_be32(SHA256_H1),
 	cpu_to_be32(SHA256_H2), cpu_to_be32(SHA256_H3),
 	cpu_to_be32(SHA256_H4), cpu_to_be32(SHA256_H5),
 	cpu_to_be32(SHA256_H6), cpu_to_be32(SHA256_H7),
 };
+
+#define	CCP_NEW_JOBID(ccp)	((ccp->vdata->version == CCP_VERSION(3, 0)) ? \
+					ccp_gen_jobid(ccp) : 0)
 
 static u32 ccp_gen_jobid(struct ccp_device *ccp)
 {
@@ -487,7 +490,7 @@ static int ccp_run_aes_cmac_cmd(struct ccp_cmd_queue *cmd_q,
 	ret = -EIO;
 	memset(&op, 0, sizeof(op));
 	op.cmd_q = cmd_q;
-	op.jobid = ccp_gen_jobid(cmd_q->ccp);
+	op.jobid = CCP_NEW_JOBID(cmd_q->ccp);
 	op.sb_key = cmd_q->sb_key;
 	op.sb_ctx = cmd_q->sb_ctx;
 	op.init = 1;
@@ -640,7 +643,7 @@ static int ccp_run_aes_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 	ret = -EIO;
 	memset(&op, 0, sizeof(op));
 	op.cmd_q = cmd_q;
-	op.jobid = ccp_gen_jobid(cmd_q->ccp);
+	op.jobid = CCP_NEW_JOBID(cmd_q->ccp);
 	op.sb_key = cmd_q->sb_key;
 	op.sb_ctx = cmd_q->sb_ctx;
 	op.init = (aes->mode == CCP_AES_MODE_ECB) ? 0 : 1;
@@ -679,7 +682,7 @@ static int ccp_run_aes_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 		goto e_key;
 
 	if (aes->mode != CCP_AES_MODE_ECB) {
-		/* Load the AES context - conver to LE */
+		/* Load the AES context - convert to LE */
 		dm_offset = CCP_SB_BYTES - AES_BLOCK_SIZE;
 		ccp_set_dm_area(&ctx, dm_offset, aes->iv, 0, aes->iv_len);
 		ret = ccp_copy_to_sb(cmd_q, &ctx, op.jobid, op.sb_ctx,
@@ -817,7 +820,7 @@ static int ccp_run_xts_aes_cmd(struct ccp_cmd_queue *cmd_q,
 	ret = -EIO;
 	memset(&op, 0, sizeof(op));
 	op.cmd_q = cmd_q;
-	op.jobid = ccp_gen_jobid(cmd_q->ccp);
+	op.jobid = CCP_NEW_JOBID(cmd_q->ccp);
 	op.sb_key = cmd_q->sb_key;
 	op.sb_ctx = cmd_q->sb_ctx;
 	op.init = 1;
@@ -936,98 +939,154 @@ static int ccp_run_sha_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 	struct ccp_dm_workarea ctx;
 	struct ccp_data src;
 	struct ccp_op op;
+	unsigned int ioffset, ooffset;
+	unsigned int digest_size;
+	int sb_count;
+	const void *init;
+	u64 block_size;
+	int ctx_size;
 	int ret;
 
-	if (sha->ctx_len != CCP_SHA_CTXSIZE)
+	switch (sha->type) {
+	case CCP_SHA_TYPE_1:
+		if (sha->ctx_len < SHA1_DIGEST_SIZE)
+			return -EINVAL;
+		block_size = SHA1_BLOCK_SIZE;
+		break;
+	case CCP_SHA_TYPE_224:
+		if (sha->ctx_len < SHA224_DIGEST_SIZE)
+			return -EINVAL;
+		block_size = SHA224_BLOCK_SIZE;
+		break;
+	case CCP_SHA_TYPE_256:
+		if (sha->ctx_len < SHA256_DIGEST_SIZE)
+			return -EINVAL;
+		block_size = SHA256_BLOCK_SIZE;
+		break;
+	default:
 		return -EINVAL;
+	}
 
 	if (!sha->ctx)
 		return -EINVAL;
 
-	if (!sha->final && (sha->src_len & (CCP_SHA_BLOCKSIZE - 1)))
+	if (!sha->final && (sha->src_len & (block_size - 1)))
 		return -EINVAL;
 
-	if (!sha->src_len) {
-		const u8 *sha_zero;
+	/* The version 3 device can't handle zero-length input */
+	if (cmd_q->ccp->vdata->version == CCP_VERSION(3, 0)) {
 
-		/* Not final, just return */
-		if (!sha->final)
+		if (!sha->src_len) {
+			unsigned int digest_len;
+			const u8 *sha_zero;
+
+			/* Not final, just return */
+			if (!sha->final)
+				return 0;
+
+			/* CCP can't do a zero length sha operation so the
+			 * caller must buffer the data.
+			 */
+			if (sha->msg_bits)
+				return -EINVAL;
+
+			/* The CCP cannot perform zero-length sha operations
+			 * so the caller is required to buffer data for the
+			 * final operation. However, a sha operation for a
+			 * message with a total length of zero is valid so
+			 * known values are required to supply the result.
+			 */
+			switch (sha->type) {
+			case CCP_SHA_TYPE_1:
+				sha_zero = sha1_zero_message_hash;
+				digest_len = SHA1_DIGEST_SIZE;
+				break;
+			case CCP_SHA_TYPE_224:
+				sha_zero = sha224_zero_message_hash;
+				digest_len = SHA224_DIGEST_SIZE;
+				break;
+			case CCP_SHA_TYPE_256:
+				sha_zero = sha256_zero_message_hash;
+				digest_len = SHA256_DIGEST_SIZE;
+				break;
+			default:
+				return -EINVAL;
+			}
+
+			scatterwalk_map_and_copy((void *)sha_zero, sha->ctx, 0,
+						 digest_len, 1);
+
 			return 0;
-
-		/* CCP can't do a zero length sha operation so the caller
-		 * must buffer the data.
-		 */
-		if (sha->msg_bits)
-			return -EINVAL;
-
-		/* The CCP cannot perform zero-length sha operations so the
-		 * caller is required to buffer data for the final operation.
-		 * However, a sha operation for a message with a total length
-		 * of zero is valid so known values are required to supply
-		 * the result.
-		 */
-		switch (sha->type) {
-		case CCP_SHA_TYPE_1:
-			sha_zero = sha1_zero_message_hash;
-			break;
-		case CCP_SHA_TYPE_224:
-			sha_zero = sha224_zero_message_hash;
-			break;
-		case CCP_SHA_TYPE_256:
-			sha_zero = sha256_zero_message_hash;
-			break;
-		default:
-			return -EINVAL;
 		}
-
-		scatterwalk_map_and_copy((void *)sha_zero, sha->ctx, 0,
-					 sha->ctx_len, 1);
-
-		return 0;
 	}
 
-	if (!sha->src)
-		return -EINVAL;
+	/* Set variables used throughout */
+	switch (sha->type) {
+	case CCP_SHA_TYPE_1:
+		digest_size = SHA1_DIGEST_SIZE;
+		init = (void *) ccp_sha1_init;
+		ctx_size = SHA1_DIGEST_SIZE;
+		sb_count = 1;
+		if (cmd_q->ccp->vdata->version != CCP_VERSION(3, 0))
+			ooffset = ioffset = CCP_SB_BYTES - SHA1_DIGEST_SIZE;
+		else
+			ooffset = ioffset = 0;
+		break;
+	case CCP_SHA_TYPE_224:
+		digest_size = SHA224_DIGEST_SIZE;
+		init = (void *) ccp_sha224_init;
+		ctx_size = SHA256_DIGEST_SIZE;
+		sb_count = 1;
+		ioffset = 0;
+		if (cmd_q->ccp->vdata->version != CCP_VERSION(3, 0))
+			ooffset = CCP_SB_BYTES - SHA224_DIGEST_SIZE;
+		else
+			ooffset = 0;
+		break;
+	case CCP_SHA_TYPE_256:
+		digest_size = SHA256_DIGEST_SIZE;
+		init = (void *) ccp_sha256_init;
+		ctx_size = SHA256_DIGEST_SIZE;
+		sb_count = 1;
+		ooffset = ioffset = 0;
+		break;
+	default:
+		ret = -EINVAL;
+		goto e_data;
+	}
 
-	BUILD_BUG_ON(CCP_SHA_SB_COUNT != 1);
+	/* For zero-length plaintext the src pointer is ignored;
+	 * otherwise both parts must be valid
+	 */
+	if (sha->src_len && !sha->src)
+		return -EINVAL;
 
 	memset(&op, 0, sizeof(op));
 	op.cmd_q = cmd_q;
-	op.jobid = ccp_gen_jobid(cmd_q->ccp);
-	op.sb_ctx = cmd_q->sb_ctx;
+	op.jobid = CCP_NEW_JOBID(cmd_q->ccp);
+	op.sb_ctx = cmd_q->sb_ctx; /* Pre-allocated */
 	op.u.sha.type = sha->type;
 	op.u.sha.msg_bits = sha->msg_bits;
 
-	/* The SHA context fits in a single (32-byte) SB entry and
-	 * must be in little endian format. Use the 256-bit byte swap
-	 * passthru option to convert from big endian to little endian.
-	 */
-	ret = ccp_init_dm_workarea(&ctx, cmd_q,
-				   CCP_SHA_SB_COUNT * CCP_SB_BYTES,
+	ret = ccp_init_dm_workarea(&ctx, cmd_q, sb_count * CCP_SB_BYTES,
 				   DMA_BIDIRECTIONAL);
 	if (ret)
 		return ret;
-
 	if (sha->first) {
-		const __be32 *init;
-
 		switch (sha->type) {
 		case CCP_SHA_TYPE_1:
-			init = ccp_sha1_init;
-			break;
 		case CCP_SHA_TYPE_224:
-			init = ccp_sha224_init;
-			break;
 		case CCP_SHA_TYPE_256:
-			init = ccp_sha256_init;
+			memcpy(ctx.address + ioffset, init, ctx_size);
 			break;
 		default:
 			ret = -EINVAL;
 			goto e_ctx;
 		}
-		memcpy(ctx.address, init, CCP_SHA_CTXSIZE);
 	} else {
-		ccp_set_dm_area(&ctx, 0, sha->ctx, 0, sha->ctx_len);
+		/* Restore the context */
+		ccp_set_dm_area(&ctx, 0, sha->ctx, 0,
+				sb_count * CCP_SB_BYTES);
 	}
 
 	ret = ccp_copy_to_sb(cmd_q, &ctx, op.jobid, op.sb_ctx,
@@ -1037,24 +1096,33 @@ static int ccp_run_sha_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 		goto e_ctx;
 	}
 
-	/* Send data to the CCP SHA engine */
-	ret = ccp_init_data(&src, cmd_q, sha->src, sha->src_len,
-			    CCP_SHA_BLOCKSIZE, DMA_TO_DEVICE);
-	if (ret)
-		goto e_ctx;
+	if (sha->src) {
+		/* Send data to the CCP SHA engine; block_size is set above */
+		ret = ccp_init_data(&src, cmd_q, sha->src, sha->src_len,
+				    block_size, DMA_TO_DEVICE);
+		if (ret)
+			goto e_ctx;
 
-	while (src.sg_wa.bytes_left) {
-		ccp_prepare_data(&src, NULL, &op, CCP_SHA_BLOCKSIZE, false);
-		if (sha->final && !src.sg_wa.bytes_left)
-			op.eom = 1;
+		while (src.sg_wa.bytes_left) {
+			ccp_prepare_data(&src, NULL, &op, block_size, false);
+			if (sha->final && !src.sg_wa.bytes_left)
+				op.eom = 1;
 
+			ret = cmd_q->ccp->vdata->perform->sha(&op);
+			if (ret) {
+				cmd->engine_error = cmd_q->cmd_error;
+				goto e_data;
+			}
+
+			ccp_process_data(&src, NULL, &op);
+		}
+	} else {
+		op.eom = 1;
 		ret = cmd_q->ccp->vdata->perform->sha(&op);
 		if (ret) {
 			cmd->engine_error = cmd_q->cmd_error;
 			goto e_data;
 		}
-
-		ccp_process_data(&src, NULL, &op);
 	}
 
 	/* Retrieve the SHA context - convert from LE to BE using
@@ -1067,32 +1135,31 @@ static int ccp_run_sha_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 		goto e_data;
 	}
 
-	ccp_get_dm_area(&ctx, 0, sha->ctx, 0, sha->ctx_len);
+	if (sha->final) {
+		/* Finishing up, so get the digest */
+		switch (sha->type) {
+		case CCP_SHA_TYPE_1:
+		case CCP_SHA_TYPE_224:
+		case CCP_SHA_TYPE_256:
+			ccp_get_dm_area(&ctx, ooffset,
+					sha->ctx, 0,
+					digest_size);
+			break;
+		default:
+			ret = -EINVAL;
+			goto e_ctx;
+		}
+	} else {
+		/* Stash the context */
+		ccp_get_dm_area(&ctx, 0, sha->ctx, 0,
+				sb_count * CCP_SB_BYTES);
+	}
 
 	if (sha->final && sha->opad) {
 		/* HMAC operation, recursively perform final SHA */
 		struct ccp_cmd hmac_cmd;
 		struct scatterlist sg;
-		u64 block_size, digest_size;
 		u8 *hmac_buf;
-
-		switch (sha->type) {
-		case CCP_SHA_TYPE_1:
-			block_size = SHA1_BLOCK_SIZE;
-			digest_size = SHA1_DIGEST_SIZE;
-			break;
-		case CCP_SHA_TYPE_224:
-			block_size = SHA224_BLOCK_SIZE;
-			digest_size = SHA224_DIGEST_SIZE;
-			break;
-		case CCP_SHA_TYPE_256:
-			block_size = SHA256_BLOCK_SIZE;
-			digest_size = SHA256_DIGEST_SIZE;
-			break;
-		default:
-			ret = -EINVAL;
-			goto e_data;
-		}
 
 		if (sha->opad_len != block_size) {
 			ret = -EINVAL;
@@ -1107,7 +1174,18 @@ static int ccp_run_sha_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 		sg_init_one(&sg, hmac_buf, block_size + digest_size);
 
 		scatterwalk_map_and_copy(hmac_buf, sha->opad, 0, block_size, 0);
-		memcpy(hmac_buf + block_size, ctx.address, digest_size);
+		switch (sha->type) {
+		case CCP_SHA_TYPE_1:
+		case CCP_SHA_TYPE_224:
+		case CCP_SHA_TYPE_256:
+			memcpy(hmac_buf + block_size,
+			       ctx.address + ooffset,
+			       digest_size);
+			break;
+		default:
+			ret = -EINVAL;
+			goto e_ctx;
+		}
 
 		memset(&hmac_cmd, 0, sizeof(hmac_cmd));
 		hmac_cmd.engine = CCP_ENGINE_SHA;
@@ -1130,7 +1208,8 @@ static int ccp_run_sha_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 	}
 
 e_data:
-	ccp_free_data(&src, cmd_q);
+	if (sha->src)
+		ccp_free_data(&src, cmd_q);
 
 e_ctx:
 	ccp_dm_free(&ctx);
@@ -1261,7 +1340,7 @@ static int ccp_run_passthru_cmd(struct ccp_cmd_queue *cmd_q,
 	struct ccp_op op;
 	bool in_place = false;
 	unsigned int i;
-	int ret;
+	int ret = 0;
 
 	if (!pt->final && (pt->src_len & (CCP_PASSTHRU_BLOCKSIZE - 1)))
 		return -EINVAL;
@@ -1280,7 +1359,7 @@ static int ccp_run_passthru_cmd(struct ccp_cmd_queue *cmd_q,
 
 	memset(&op, 0, sizeof(op));
 	op.cmd_q = cmd_q;
-	op.jobid = ccp_gen_jobid(cmd_q->ccp);
+	op.jobid = CCP_NEW_JOBID(cmd_q->ccp);
 
 	if (pt->bit_mod != CCP_PASSTHRU_BITWISE_NOOP) {
 		/* Load the mask */
@@ -1469,7 +1548,7 @@ static int ccp_run_ecc_mm_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 
 	memset(&op, 0, sizeof(op));
 	op.cmd_q = cmd_q;
-	op.jobid = ccp_gen_jobid(cmd_q->ccp);
+	op.jobid = CCP_NEW_JOBID(cmd_q->ccp);
 
 	/* Concatenate the modulus and the operands. Both the modulus and
 	 * the operands must be in little endian format.  Since the input
@@ -1594,7 +1673,7 @@ static int ccp_run_ecc_pm_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 
 	memset(&op, 0, sizeof(op));
 	op.cmd_q = cmd_q;
-	op.jobid = ccp_gen_jobid(cmd_q->ccp);
+	op.jobid = CCP_NEW_JOBID(cmd_q->ccp);
 
 	/* Concatenate the modulus and the operands. Both the modulus and
 	 * the operands must be in little endian format.  Since the input
@@ -1632,7 +1711,7 @@ static int ccp_run_ecc_pm_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 		goto e_src;
 	src.address += CCP_ECC_OPERAND_SIZE;
 
-	/* Set the first point Z coordianate to 1 */
+	/* Set the first point Z coordinate to 1 */
 	*src.address = 0x01;
 	src.address += CCP_ECC_OPERAND_SIZE;
 
@@ -1651,7 +1730,7 @@ static int ccp_run_ecc_pm_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 			goto e_src;
 		src.address += CCP_ECC_OPERAND_SIZE;
 
-		/* Set the second point Z coordianate to 1 */
+		/* Set the second point Z coordinate to 1 */
 		*src.address = 0x01;
 		src.address += CCP_ECC_OPERAND_SIZE;
 	} else {

@@ -238,9 +238,6 @@ struct ccp_xts_aes_engine {
 };
 
 /***** SHA engine *****/
-#define CCP_SHA_BLOCKSIZE               SHA256_BLOCK_SIZE
-#define CCP_SHA_CTXSIZE                 SHA256_DIGEST_SIZE
-
 /**
  * ccp_sha_type - type of SHA operation
  *

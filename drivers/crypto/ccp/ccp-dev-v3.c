@@ -405,6 +405,7 @@ static int ccp_init(struct ccp_device *ccp)
 	init_waitqueue_head(&ccp->sb_queue);
 	init_waitqueue_head(&ccp->suspend_queue);
 
+	dev_dbg(dev, "Starting threads...\n");
 	/* Create a kthread for each queue */
 	for (i = 0; i < ccp->cmd_q_count; i++) {
 		struct task_struct *kthread;
@@ -424,6 +425,13 @@ static int ccp_init(struct ccp_device *ccp)
 		wake_up_process(kthread);
 	}
 
+	dev_dbg(dev, "Enabling interrupts...\n");
+	/* Enable interrupts */
+	iowrite32(qim, ccp->io_regs + IRQ_MASK_REG);
+
+	dev_dbg(dev, "Registering device...\n");
+	ccp_add_device(ccp);
+
 	/* Register the RNG */
 	ccp->hwrng.name = ccp->rngname;
 	ccp->hwrng.read = ccp_trng_read;
@@ -437,11 +445,6 @@ static int ccp_init(struct ccp_device *ccp)
 	ret = ccp_dmaengine_register(ccp);
 	if (ret)
 		goto e_hwrng;
-
-	ccp_add_device(ccp);
-
-	/* Enable interrupts */
-	iowrite32(qim, ccp->io_regs + IRQ_MASK_REG);
 
 	return 0;
 
@@ -468,7 +471,13 @@ static void ccp_destroy(struct ccp_device *ccp)
 	struct ccp_cmd *cmd;
 	unsigned int qim, i;
 
-	/* Remove this device from the list of available units first */
+	/* Unregister the DMA engine */
+	ccp_dmaengine_unregister(ccp);
+
+	/* Unregister the RNG */
+	hwrng_unregister(&ccp->hwrng);
+
+	/* Remove this device from the list of available units */
 	ccp_del_device(ccp);
 
 	/* Build queue interrupt mask (two interrupt masks per queue) */
@@ -487,12 +496,6 @@ static void ccp_destroy(struct ccp_device *ccp)
 		ioread32(cmd_q->reg_status);
 	}
 	iowrite32(qim, ccp->io_regs + IRQ_STATUS_REG);
-
-	/* Unregister the DMA engine */
-	ccp_dmaengine_unregister(ccp);
-
-	/* Unregister the RNG */
-	hwrng_unregister(&ccp->hwrng);
 
 	/* Stop the queue kthreads */
 	for (i = 0; i < ccp->cmd_q_count; i++)
@@ -570,6 +573,7 @@ static const struct ccp_actions ccp3_actions = {
 
 struct ccp_vdata ccpv3 = {
 	.version = CCP_VERSION(3, 0),
+	.setup = NULL,
 	.perform = &ccp3_actions,
 	.bar = 2,
 	.offset = 0x20000,

@@ -61,7 +61,62 @@
 #define CMD_Q_ERROR(__qs)		((__qs) & 0x0000003f)
 #define CMD_Q_DEPTH(__qs)		(((__qs) >> 12) & 0x0000000f)
 
-/****** REQ0 Related Values ******/
+/* ------------------------ CCP Version 5 Specifics ------------------------ */
+#define CMD5_QUEUE_MASK_OFFSET		0x00
+#define CMD5_REQID_CONFIG_OFFSET	0x08
+#define LSB_PUBLIC_MASK_LO_OFFSET	0x18
+#define LSB_PUBLIC_MASK_HI_OFFSET	0x1C
+#define LSB_PRIVATE_MASK_LO_OFFSET	0x20
+#define LSB_PRIVATE_MASK_HI_OFFSET	0x24
+
+#define CMD5_Q_CONTROL_BASE		0x0000
+#define CMD5_Q_TAIL_LO_BASE		0x0004
+#define CMD5_Q_HEAD_LO_BASE		0x0008
+#define CMD5_Q_INT_ENABLE_BASE		0x000C
+#define CMD5_Q_INTERRUPT_STATUS_BASE	0x0010
+
+#define CMD5_Q_STATUS_BASE		0x0100
+#define CMD5_Q_INT_STATUS_BASE		0x0104
+#define CMD5_Q_DMA_STATUS_BASE		0x0108
+#define CMD5_Q_DMA_READ_STATUS_BASE	0x010C
+#define CMD5_Q_DMA_WRITE_STATUS_BASE	0x0110
+#define CMD5_Q_ABORT_BASE		0x0114
+#define CMD5_Q_AX_CACHE_BASE		0x0118
+
+/* Address offset between two virtual queue registers */
+#define CMD5_Q_STATUS_INCR		0x1000
+
+/* Bit masks */
+#define CMD5_Q_RUN			0x1
+#define CMD5_Q_HALT			0x2
+#define CMD5_Q_MEM_LOCATION		0x4
+#define CMD5_Q_SIZE			0x1F
+#define CMD5_Q_SHIFT			3
+#define COMMANDS_PER_QUEUE		16
+#define QUEUE_SIZE_VAL			((ffs(COMMANDS_PER_QUEUE) - 2) & \
+					  CMD5_Q_SIZE)
+#define Q_PTR_MASK			(2 << (QUEUE_SIZE_VAL + 5) - 1)
+#define Q_DESC_SIZE			sizeof(struct ccp5_desc)
+#define Q_SIZE(n)			(COMMANDS_PER_QUEUE*(n))
+
+#define INT_COMPLETION			0x1
+#define INT_ERROR			0x2
+#define INT_QUEUE_STOPPED		0x4
+#define ALL_INTERRUPTS			(INT_COMPLETION| \
+					 INT_ERROR| \
+					 INT_QUEUE_STOPPED)
+
+#define LSB_REGION_WIDTH		5
+#define MAX_LSB_CNT			8
+
+#define LSB_SIZE			16
+#define LSB_ITEM_SIZE			32
+#define PLSB_MAP_SIZE			(LSB_SIZE)
+#define SLSB_MAP_SIZE			(MAX_LSB_CNT * LSB_SIZE)
+
+#define LSB_ENTRY_NUMBER(LSB_ADDR)	(LSB_ADDR / LSB_ITEM_SIZE)
+
+/* ------------------------ CCP Version 3 Specifics ------------------------ */
 #define REQ0_WAIT_FOR_WRITE		0x00000004
 #define REQ0_INT_ON_COMPLETE		0x00000002
 #define REQ0_STOP_ON_COMPLETE		0x00000001
@@ -115,6 +170,8 @@
 
 #define CCP_JOBID_MASK			0x0000003f
 
+/* ------------------------ General CCP Defines ------------------------ */
+
 #define CCP_DMAPOOL_MAX_SIZE		64
 #define CCP_DMAPOOL_ALIGN		BIT(5)
 
@@ -149,6 +206,7 @@
 struct ccp_op;
 struct ccp_device;
 struct ccp_cmd;
+struct ccp_fns;
 
 struct ccp_dma_cmd {
 	struct list_head entry;
@@ -192,9 +250,29 @@ struct ccp_cmd_queue {
 	/* Queue dma pool */
 	struct dma_pool *dma_pool;
 
+	/* Queue base address (not neccessarily aligned)*/
+	struct ccp5_desc *qbase;
+
+	/* Aligned queue start address (per requirement) */
+	struct mutex q_mutex ____cacheline_aligned;
+	unsigned int qidx;
+
+	/* Version 5 has different requirements for queue memory */
+	unsigned int qsize;
+	dma_addr_t qbase_dma;
+	dma_addr_t qdma_tail;
+
 	/* Per-queue reserved storage block(s) */
 	u32 sb_key;
 	u32 sb_ctx;
+
+	/* Bitmap of LSBs that can be accessed by this queue */
+	DECLARE_BITMAP(lsbmask, MAX_LSB_CNT);
+	/* Private LSB that is assigned to this queue, or -1 if none.
+	 * Bitmap for my private LSB, unused otherwise
+	 */
+	unsigned int lsb;
+	DECLARE_BITMAP(lsbmap, PLSB_MAP_SIZE);
 
 	/* Queue processing thread */
 	struct task_struct *kthread;
@@ -209,8 +287,17 @@ struct ccp_cmd_queue {
 	u32 int_err;
 
 	/* Register addresses for queue */
+	void __iomem *reg_control;
+	void __iomem *reg_tail_lo;
+	void __iomem *reg_head_lo;
+	void __iomem *reg_int_enable;
+	void __iomem *reg_interrupt_status;
 	void __iomem *reg_status;
 	void __iomem *reg_int_status;
+	void __iomem *reg_dma_status;
+	void __iomem *reg_dma_read_status;
+	void __iomem *reg_dma_write_status;
+	u32 qcontrol; /* Cached control register */
 
 	/* Status values from job */
 	u32 int_status;
@@ -306,6 +393,9 @@ struct ccp_device {
 	unsigned int sb_count;
 	u32 sb_start;
 
+	/* Bitmap of shared LSBs, if any */
+	DECLARE_BITMAP(lsbmap, SLSB_MAP_SIZE);
+
 	/* Suspend support */
 	unsigned int suspending;
 	wait_queue_head_t suspend_queue;
@@ -320,6 +410,7 @@ enum ccp_memtype {
 	CCP_MEMTYPE_LOCAL,
 	CCP_MEMTYPE__LAST,
 };
+#define	CCP_MEMTYPE_LSB	CCP_MEMTYPE_KSB
 
 struct ccp_dma_info {
 	dma_addr_t address;
@@ -407,6 +498,7 @@ struct ccp_op {
 
 	struct ccp_mem src;
 	struct ccp_mem dst;
+	struct ccp_mem exp;
 
 	union {
 		struct ccp_aes_op aes;
@@ -416,6 +508,7 @@ struct ccp_op {
 		struct ccp_passthru_op passthru;
 		struct ccp_ecc_op ecc;
 	} u;
+	struct ccp_mem key;
 };
 
 static inline u32 ccp_addr_lo(struct ccp_dma_info *info)
@@ -427,6 +520,70 @@ static inline u32 ccp_addr_hi(struct ccp_dma_info *info)
 {
 	return upper_32_bits(info->address + info->offset) & 0x0000ffff;
 }
+
+/**
+ * descriptor for version 5 CPP commands
+ * 8 32-bit words:
+ * word 0: function; engine; control bits
+ * word 1: length of source data
+ * word 2: low 32 bits of source pointer
+ * word 3: upper 16 bits of source pointer; source memory type
+ * word 4: low 32 bits of destination pointer
+ * word 5: upper 16 bits of destination pointer; destination memory type
+ * word 6: low 32 bits of key pointer
+ * word 7: upper 16 bits of key pointer; key memory type
+ */
+struct dword0 {
+	__le32 soc:1;
+	__le32 ioc:1;
+	__le32 rsvd1:1;
+	__le32 init:1;
+	__le32 eom:1;		/* AES/SHA only */
+	__le32 function:15;
+	__le32 engine:4;
+	__le32 prot:1;
+	__le32 rsvd2:7;
+};
+
+struct dword3 {
+	__le32 src_hi:16;
+	__le32 src_mem:2;
+	__le32 lsb_cxt_id:8;
+	__le32 rsvd1:5;
+	__le32 fixed:1;
+};
+
+union dword4 {
+	__le32 dst_lo;		/* NON-SHA	*/
+	__le32 sha_len_lo;	/* SHA		*/
+};
+
+union dword5 {
+	struct {
+		__le32 dst_hi:16;
+		__le32 dst_mem:2;
+		__le32 rsvd1:13;
+		__le32 fixed:1;
+	} fields;
+	__le32 sha_len_hi;
+};
+
+struct dword7 {
+	__le32 key_hi:16;
+	__le32 key_mem:2;
+	__le32 rsvd1:14;
+};
+
+struct ccp5_desc {
+	struct dword0 dw0;
+	__le32 length;
+	__le32 src_lo;
+	struct dword3 dw3;
+	union dword4 dw4;
+	union dword5 dw5;
+	__le32 key_lo;
+	struct dword7 dw7;
+};
 
 int ccp_pci_init(void);
 void ccp_pci_exit(void);
@@ -466,13 +623,14 @@ struct ccp_actions {
 
 /* Structure to hold CCP version-specific values */
 struct ccp_vdata {
-	unsigned int version;
-	int (*init)(struct ccp_device *);
+	const unsigned int version;
+	void (*setup)(struct ccp_device *);
 	const struct ccp_actions *perform;
 	const unsigned int bar;
 	const unsigned int offset;
 };
 
 extern	struct ccp_vdata ccpv3;
+extern	struct ccp_vdata ccpv5;
 
 #endif
