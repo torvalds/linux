@@ -74,7 +74,13 @@ struct pstore_info {
 	void		*data;
 };
 
-#define	PSTORE_FLAGS_FRAGILE	1
+#define PSTORE_FLAGS_DMESG	(1 << 0)
+#define PSTORE_FLAGS_FRAGILE	PSTORE_FLAGS_DMESG
+#define PSTORE_FLAGS_CONSOLE	(1 << 1)
+#define PSTORE_FLAGS_FTRACE	(1 << 2)
+#define PSTORE_FLAGS_PMSG	(1 << 3)
+
+#define PSTORE_FLAGS_ALL	((1 << 4) - 1)
 
 extern int pstore_register(struct pstore_info *);
 extern void pstore_unregister(struct pstore_info *);

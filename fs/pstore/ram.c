@@ -623,6 +623,8 @@ static int ramoops_probe(struct platform_device *pdev)
 		goto fail_clear;
 	}
 
+	cxt->pstore.flags = PSTORE_FLAGS_ALL;
+
 	err = pstore_register(&cxt->pstore);
 	if (err) {
 		pr_err("registering with pstore failed\n");
