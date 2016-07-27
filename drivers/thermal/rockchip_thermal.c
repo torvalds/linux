@@ -222,10 +222,10 @@ struct rockchip_thermal_data {
 #define GRF_TSADC_TESTBIT_L			0x0e648
 #define GRF_TSADC_TESTBIT_H			0x0e64c
 
-#define GRF_TSADC_TSEN_PD_ON			(0x30003 << 0)
-#define GRF_TSADC_TSEN_PD_OFF			(0x30000 << 0)
 #define GRF_SARADC_TESTBIT_ON			(0x10001 << 2)
 #define GRF_TSADC_TESTBIT_H_ON			(0x10001 << 2)
+#define GRF_TSADC_VCM_EN_L			(0x10001 << 7)
+#define GRF_TSADC_VCM_EN_H			(0x10001 << 7)
 
 /**
  * struct tsadc_table - code to temperature conversion table
@@ -567,9 +567,10 @@ static void rk_tsadcv3_initialize(struct regmap *grf, void __iomem *regs,
 			       regs + TSADCV2_HIGHT_TSHUT_DEBOUNCE);
 
 	} else {
-		regmap_write(grf, GRF_TSADC_TESTBIT_L, GRF_TSADC_TSEN_PD_ON);
-		mdelay(10);
-		regmap_write(grf, GRF_TSADC_TESTBIT_L, GRF_TSADC_TSEN_PD_OFF);
+		/* Enable the voltage common mode feature */
+		regmap_write(grf, GRF_TSADC_TESTBIT_L, GRF_TSADC_VCM_EN_L);
+		regmap_write(grf, GRF_TSADC_TESTBIT_H, GRF_TSADC_VCM_EN_H);
+
 		usleep_range(15, 100); /* The spec note says at least 15 us */
 		regmap_write(grf, GRF_SARADC_TESTBIT, GRF_SARADC_TESTBIT_ON);
 		regmap_write(grf, GRF_TSADC_TESTBIT_H, GRF_TSADC_TESTBIT_H_ON);
