@@ -4079,6 +4079,12 @@ megasas_get_pd_list(struct megasas_instance *instance)
 	struct MR_PD_ADDRESS *pd_addr;
 	dma_addr_t ci_h = 0;
 
+	if (instance->pd_list_not_supported) {
+		dev_info(&instance->pdev->dev, "MR_DCMD_PD_LIST_QUERY "
+		"not supported by firmware\n");
+		return ret;
+	}
+
 	cmd = megasas_get_cmd(instance);
 
 	if (!cmd) {
