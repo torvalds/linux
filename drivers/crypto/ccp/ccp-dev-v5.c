@@ -832,6 +832,11 @@ static int ccp5_init(struct ccp_device *ccp)
 	if (ret)
 		goto e_kthread;
 
+	/* Register the DMA engine support */
+	ret = ccp_dmaengine_register(ccp);
+	if (ret)
+		goto e_hwrng;
+
 	return 0;
 
 e_kthread:
@@ -855,6 +860,9 @@ static void ccp5_destroy(struct ccp_device *ccp)
 	struct ccp_cmd_queue *cmd_q;
 	struct ccp_cmd *cmd;
 	unsigned int i;
+
+	/* Unregister the DMA engine */
+	ccp_dmaengine_unregister(ccp);
 
 	/* Unregister the RNG */
 	ccp_unregister_rng(ccp);
