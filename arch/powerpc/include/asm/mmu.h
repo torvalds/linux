@@ -163,6 +163,18 @@ static inline void assert_pte_locked(struct mm_struct *mm, unsigned long addr)
 }
 #endif /* !CONFIG_DEBUG_VM */
 
+#ifdef CONFIG_PPC_RADIX_MMU
+static inline bool radix_enabled(void)
+{
+	return mmu_has_feature(MMU_FTR_TYPE_RADIX);
+}
+#else
+static inline bool radix_enabled(void)
+{
+	return false;
+}
+#endif
+
 #endif /* !__ASSEMBLY__ */
 
 /* The kernel use the constants below to index in the page sizes array.
@@ -228,10 +240,6 @@ static inline void mmu_early_init_devtree(void) { }
 #elif defined (CONFIG_PPC_8xx)
 /* Motorola/Freescale 8xx software loaded TLB */
 #  include <asm/mmu-8xx.h>
-#endif
-
-#ifndef radix_enabled
-#define radix_enabled() (0)
 #endif
 
 #endif /* __KERNEL__ */
