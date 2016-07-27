@@ -977,8 +977,7 @@ static int s3c24xx_nand_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, info);
 
-	spin_lock_init(&info->controller.lock);
-	init_waitqueue_head(&info->controller.wq);
+	nand_hw_control_init(&info->controller);
 
 	/* get the clock source and enable it */
 

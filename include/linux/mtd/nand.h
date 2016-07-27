@@ -460,6 +460,13 @@ struct nand_hw_control {
 	wait_queue_head_t wq;
 };
 
+static inline void nand_hw_control_init(struct nand_hw_control *nfc)
+{
+	nfc->active = NULL;
+	spin_lock_init(&nfc->lock);
+	init_waitqueue_head(&nfc->wq);
+}
+
 /**
  * struct nand_ecc_ctrl - Control structure for ECC
  * @mode:	ECC mode
