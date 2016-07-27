@@ -617,9 +617,11 @@ _mali_osk_errcode_t mali_executor_interrupt_gp(struct mali_group *group,
 		struct mali_gp_job *job;
 		mali_bool success;
 
+		/*
 		if (MALI_TRUE == time_out) {
 			mali_group_dump_status(group);
 		}
+		*/
 
 		success = (int_result != MALI_INTERRUPT_RESULT_ERROR) ?
 			  MALI_TRUE : MALI_FALSE;
