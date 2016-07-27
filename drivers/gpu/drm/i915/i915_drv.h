@@ -512,8 +512,8 @@ struct drm_i915_error_state {
 	struct intel_display_error_state *display;
 	struct drm_i915_error_object *semaphore_obj;
 
-	struct drm_i915_error_ring {
-		bool valid;
+	struct drm_i915_error_engine {
+		int engine_id;
 		/* Software tracked state */
 		bool waiting;
 		int num_waiters;
@@ -578,7 +578,7 @@ struct drm_i915_error_state {
 
 		pid_t pid;
 		char comm[TASK_COMM_LEN];
-	} ring[I915_NUM_ENGINES];
+	} engine[I915_NUM_ENGINES];
 
 	struct drm_i915_error_buffer {
 		u32 size;
@@ -593,7 +593,7 @@ struct drm_i915_error_state {
 		u32 dirty:1;
 		u32 purgeable:1;
 		u32 userptr:1;
-		s32 ring:4;
+		s32 engine:4;
 		u32 cache_level:3;
 	} **active_bo, **pinned_bo;
 
