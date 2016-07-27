@@ -1256,8 +1256,8 @@ static void arpc_in_callback(struct urb *urb)
 	spin_lock_irqsave(&es2->arpc_lock, flags);
 	rpc = arpc_find(es2, resp->id);
 	if (!rpc) {
-		dev_err(dev, "invalid arpc response id received: %d\n",
-			resp->id);
+		dev_err(dev, "invalid arpc response id received: %u\n",
+			le16_to_cpu(resp->id));
 		spin_unlock_irqrestore(&es2->arpc_lock, flags);
 		goto exit;
 	}
