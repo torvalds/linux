@@ -340,7 +340,7 @@ struct intel_engine_cs {
 
 	/*
 	 * Table of commands the command parser needs to know about
-	 * for this ring.
+	 * for this engine.
 	 */
 	DECLARE_HASHTABLE(cmd_hash, I915_CMD_HASH_ORDER);
 
@@ -354,11 +354,11 @@ struct intel_engine_cs {
 	 * Returns the bitmask for the length field of the specified command.
 	 * Return 0 for an unrecognized/invalid command.
 	 *
-	 * If the command parser finds an entry for a command in the ring's
+	 * If the command parser finds an entry for a command in the engine's
 	 * cmd_tables, it gets the command's length based on the table entry.
-	 * If not, it calls this function to determine the per-ring length field
-	 * encoding for the command (i.e. certain opcode ranges use certain bits
-	 * to encode the command length in the header).
+	 * If not, it calls this function to determine the per-engine length
+	 * field encoding for the command (i.e. different opcode ranges use
+	 * certain bits to encode the command length in the header).
 	 */
 	u32 (*get_cmd_length_mask)(u32 cmd_header);
 };

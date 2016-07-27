@@ -207,5 +207,5 @@ int intel_engine_init_common(struct intel_engine_cs *engine)
 	if (ret)
 		return ret;
 
-	return i915_cmd_parser_init_ring(engine);
+	return intel_engine_init_cmd_parser(engine);
 }

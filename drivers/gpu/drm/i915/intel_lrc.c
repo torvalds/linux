@@ -1925,7 +1925,7 @@ void intel_logical_ring_cleanup(struct intel_engine_cs *engine)
 	if (engine->cleanup)
 		engine->cleanup(engine);
 
-	i915_cmd_parser_fini_ring(engine);
+	intel_engine_cleanup_cmd_parser(engine);
 	i915_gem_batch_pool_fini(&engine->batch_pool);
 
 	intel_engine_fini_breadcrumbs(engine);

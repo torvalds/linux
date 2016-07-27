@@ -2267,7 +2267,7 @@ void intel_cleanup_engine(struct intel_engine_cs *engine)
 		cleanup_phys_status_page(engine);
 	}
 
-	i915_cmd_parser_fini_ring(engine);
+	intel_engine_cleanup_cmd_parser(engine);
 	i915_gem_batch_pool_fini(&engine->batch_pool);
 	intel_engine_fini_breadcrumbs(engine);
 

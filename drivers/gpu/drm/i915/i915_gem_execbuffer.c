@@ -1216,12 +1216,12 @@ i915_gem_execbuffer_parse(struct intel_engine_cs *engine,
 	if (IS_ERR(shadow_batch_obj))
 		return shadow_batch_obj;
 
-	ret = i915_parse_cmds(engine,
-			      batch_obj,
-			      shadow_batch_obj,
-			      batch_start_offset,
-			      batch_len,
-			      is_master);
+	ret = intel_engine_cmd_parser(engine,
+				      batch_obj,
+				      shadow_batch_obj,
+				      batch_start_offset,
+				      batch_len,
+				      is_master);
 	if (ret)
 		goto err;
 
@@ -1563,7 +1563,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	}
 
 	params->args_batch_start_offset = args->batch_start_offset;
-	if (i915_needs_cmd_parser(engine) && args->batch_len) {
+	if (intel_engine_needs_cmd_parser(engine) && args->batch_len) {
 		struct drm_i915_gem_object *parsed_batch_obj;
 
 		parsed_batch_obj = i915_gem_execbuffer_parse(engine,

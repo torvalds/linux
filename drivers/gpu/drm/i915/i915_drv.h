@@ -2500,8 +2500,9 @@ struct drm_i915_cmd_descriptor {
 /*
  * A table of commands requiring special handling by the command parser.
  *
- * Each ring has an array of tables. Each table consists of an array of command
- * descriptors, which must be sorted with command opcodes in ascending order.
+ * Each engine has an array of tables. Each table consists of an array of
+ * command descriptors, which must be sorted with command opcodes in
+ * ascending order.
  */
 struct drm_i915_cmd_table {
 	const struct drm_i915_cmd_descriptor *table;
@@ -3529,15 +3530,15 @@ const char *i915_cache_level_str(struct drm_i915_private *i915, int type);
 
 /* i915_cmd_parser.c */
 int i915_cmd_parser_get_version(struct drm_i915_private *dev_priv);
-int i915_cmd_parser_init_ring(struct intel_engine_cs *engine);
-void i915_cmd_parser_fini_ring(struct intel_engine_cs *engine);
-bool i915_needs_cmd_parser(struct intel_engine_cs *engine);
-int i915_parse_cmds(struct intel_engine_cs *engine,
-		    struct drm_i915_gem_object *batch_obj,
-		    struct drm_i915_gem_object *shadow_batch_obj,
-		    u32 batch_start_offset,
-		    u32 batch_len,
-		    bool is_master);
+int intel_engine_init_cmd_parser(struct intel_engine_cs *engine);
+void intel_engine_cleanup_cmd_parser(struct intel_engine_cs *engine);
+bool intel_engine_needs_cmd_parser(struct intel_engine_cs *engine);
+int intel_engine_cmd_parser(struct intel_engine_cs *engine,
+			    struct drm_i915_gem_object *batch_obj,
+			    struct drm_i915_gem_object *shadow_batch_obj,
+			    u32 batch_start_offset,
+			    u32 batch_len,
+			    bool is_master);
 
 /* i915_suspend.c */
 extern int i915_save_state(struct drm_device *dev);
