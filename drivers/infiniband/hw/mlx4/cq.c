@@ -690,7 +690,7 @@ repoll:
 	if (unlikely((cqe->owner_sr_opcode & MLX4_CQE_OPCODE_MASK) == MLX4_OPCODE_NOP &&
 		     is_send)) {
 		pr_warn("Completion for NOP opcode detected!\n");
-		return -EINVAL;
+		return -EAGAIN;
 	}
 
 	/* Resize CQ in progress */
@@ -721,7 +721,7 @@ repoll:
 		if (unlikely(!mqp)) {
 			pr_warn("CQ %06x with entry for unknown QPN %06x\n",
 			       cq->mcq.cqn, be32_to_cpu(cqe->vlan_my_qpn) & MLX4_CQE_QPN_MASK);
-			return -EINVAL;
+			return -EAGAIN;
 		}
 
 		*cur_qp = to_mibqp(mqp);
@@ -739,7 +739,7 @@ repoll:
 		if (unlikely(!msrq)) {
 			pr_warn("CQ %06x with entry for unknown SRQN %06x\n",
 				cq->mcq.cqn, srq_num);
-			return -EINVAL;
+			return -EAGAIN;
 		}
 	}
 
