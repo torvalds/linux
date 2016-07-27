@@ -573,6 +573,8 @@ struct be_adapter {
 	u32 uc_macs;		/* Count of secondary UC MAC programmed */
 	unsigned long vids[BITS_TO_LONGS(VLAN_N_VID)];
 	u16 vlans_added;
+	bool update_uc_list;
+	bool update_mc_list;
 
 	u32 beacon_state;	/* for set_phys_id */
 

@@ -1420,8 +1420,8 @@ static int be_vid_config(struct be_adapter *adapter)
 	u16 num = 0, i = 0;
 	int status = 0;
 
-	/* No need to further configure vids if in promiscuous mode */
-	if (be_in_all_promisc(adapter))
+	/* No need to change the VLAN state if the I/F is in promiscuous */
+	if (adapter->netdev->flags & IFF_PROMISC)
 		return 0;
 
 	if (adapter->vlans_added > be_max_vlans(adapter))
@@ -1483,12 +1483,6 @@ static int be_vlan_rem_vid(struct net_device *netdev, __be16 proto, u16 vid)
 	return be_vid_config(adapter);
 }
 
-static void be_clear_all_promisc(struct be_adapter *adapter)
-{
-	be_cmd_rx_filter(adapter, BE_IF_FLAGS_ALL_PROMISCUOUS, OFF);
-	adapter->if_flags &= ~BE_IF_FLAGS_ALL_PROMISCUOUS;
-}
-
 static void be_set_all_promisc(struct be_adapter *adapter)
 {
 	be_cmd_rx_filter(adapter, BE_IF_FLAGS_ALL_PROMISCUOUS, ON);
@@ -1507,42 +1501,144 @@ static void be_set_mc_promisc(struct be_adapter *adapter)
 		adapter->if_flags |= BE_IF_FLAGS_MCAST_PROMISCUOUS;
 }
 
-static void be_set_mc_list(struct be_adapter *adapter)
+static void be_set_uc_promisc(struct be_adapter *adapter)
 {
 	int status;
 
-	status = be_cmd_rx_filter(adapter, BE_IF_FLAGS_MULTICAST, ON);
+	if (adapter->if_flags & BE_IF_FLAGS_PROMISCUOUS)
+		return;
+
+	status = be_cmd_rx_filter(adapter, BE_IF_FLAGS_PROMISCUOUS, ON);
 	if (!status)
-		adapter->if_flags &= ~BE_IF_FLAGS_MCAST_PROMISCUOUS;
-	else
+		adapter->if_flags |= BE_IF_FLAGS_PROMISCUOUS;
+}
+
+static void be_clear_uc_promisc(struct be_adapter *adapter)
+{
+	int status;
+
+	if (!(adapter->if_flags & BE_IF_FLAGS_PROMISCUOUS))
+		return;
+
+	status = be_cmd_rx_filter(adapter, BE_IF_FLAGS_PROMISCUOUS, OFF);
+	if (!status)
+		adapter->if_flags &= ~BE_IF_FLAGS_PROMISCUOUS;
+}
+
+/* The below 2 functions are the callback args for __dev_mc_sync/dev_uc_sync().
+ * We use a single callback function for both sync and unsync. We really don't
+ * add/remove addresses through this callback. But, we use it to detect changes
+ * to the uc/mc lists. The entire uc/mc list is programmed in be_set_rx_mode().
+ */
+static int be_uc_list_update(struct net_device *netdev,
+			     const unsigned char *addr)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+
+	adapter->update_uc_list = true;
+	return 0;
+}
+
+static int be_mc_list_update(struct net_device *netdev,
+			     const unsigned char *addr)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+
+	adapter->update_mc_list = true;
+	return 0;
+}
+
+static void be_set_mc_list(struct be_adapter *adapter)
+{
+	struct net_device *netdev = adapter->netdev;
+	bool mc_promisc = false;
+	int status;
+
+	__dev_mc_sync(netdev, be_mc_list_update, be_mc_list_update);
+
+	if (netdev->flags & IFF_PROMISC) {
+		adapter->update_mc_list = false;
+	} else if (netdev->flags & IFF_ALLMULTI ||
+		   netdev_mc_count(netdev) > be_max_mc(adapter)) {
+		/* Enable multicast promisc if num configured exceeds
+		 * what we support
+		 */
+		mc_promisc = true;
+		adapter->update_mc_list = false;
+	} else if (adapter->if_flags & BE_IF_FLAGS_MCAST_PROMISCUOUS) {
+		/* Update mc-list unconditionally if the iface was previously
+		 * in mc-promisc mode and now is out of that mode.
+		 */
+		adapter->update_mc_list = true;
+	}
+
+	if (mc_promisc) {
 		be_set_mc_promisc(adapter);
+	} else if (adapter->update_mc_list) {
+		status = be_cmd_rx_filter(adapter, BE_IF_FLAGS_MULTICAST, ON);
+		if (!status)
+			adapter->if_flags &= ~BE_IF_FLAGS_MCAST_PROMISCUOUS;
+		else
+			be_set_mc_promisc(adapter);
+
+		adapter->update_mc_list = false;
+	}
+}
+
+static void be_clear_mc_list(struct be_adapter *adapter)
+{
+	struct net_device *netdev = adapter->netdev;
+
+	__dev_mc_unsync(netdev, NULL);
+	be_cmd_rx_filter(adapter, BE_IF_FLAGS_MULTICAST, OFF);
 }
 
 static void be_set_uc_list(struct be_adapter *adapter)
 {
+	struct net_device *netdev = adapter->netdev;
 	struct netdev_hw_addr *ha;
+	bool uc_promisc = false;
 	int i = 1; /* First slot is claimed by the Primary MAC */
 
-	for (; adapter->uc_macs > 0; adapter->uc_macs--, i++)
-		be_cmd_pmac_del(adapter, adapter->if_handle,
-				adapter->pmac_id[i], 0);
+	__dev_uc_sync(netdev, be_uc_list_update, be_uc_list_update);
 
-	if (netdev_uc_count(adapter->netdev) > be_max_uc(adapter)) {
-		be_set_all_promisc(adapter);
-		return;
+	if (netdev->flags & IFF_PROMISC) {
+		adapter->update_uc_list = false;
+	} else if (netdev_uc_count(netdev) > (be_max_uc(adapter) - 1)) {
+		uc_promisc = true;
+		adapter->update_uc_list = false;
+	}  else if (adapter->if_flags & BE_IF_FLAGS_PROMISCUOUS) {
+		/* Update uc-list unconditionally if the iface was previously
+		 * in uc-promisc mode and now is out of that mode.
+		 */
+		adapter->update_uc_list = true;
 	}
 
-	netdev_for_each_uc_addr(ha, adapter->netdev) {
-		adapter->uc_macs++; /* First slot is for Primary MAC */
-		be_cmd_pmac_add(adapter, (u8 *)ha->addr, adapter->if_handle,
-				&adapter->pmac_id[adapter->uc_macs], 0);
+	if (uc_promisc) {
+		be_set_uc_promisc(adapter);
+	} else if (adapter->update_uc_list) {
+		be_clear_uc_promisc(adapter);
+
+		for (; adapter->uc_macs > 0; adapter->uc_macs--, i++)
+			be_cmd_pmac_del(adapter, adapter->if_handle,
+					adapter->pmac_id[i], 0);
+
+		netdev_for_each_uc_addr(ha, adapter->netdev) {
+			adapter->uc_macs++; /* First slot is for Primary MAC */
+			be_cmd_pmac_add(adapter,
+					(u8 *)ha->addr, adapter->if_handle,
+					&adapter->pmac_id[adapter->uc_macs], 0);
+		}
+		adapter->update_uc_list = false;
 	}
 }
 
 static void be_clear_uc_list(struct be_adapter *adapter)
 {
+	struct net_device *netdev = adapter->netdev;
 	int i;
 
+	__dev_uc_unsync(netdev, NULL);
 	for (i = 1; i < (adapter->uc_macs + 1); i++)
 		be_cmd_pmac_del(adapter, adapter->if_handle,
 				adapter->pmac_id[i], 0);
@@ -1554,27 +1650,17 @@ static void be_set_rx_mode(struct net_device *netdev)
 	struct be_adapter *adapter = netdev_priv(netdev);
 
 	if (netdev->flags & IFF_PROMISC) {
-		be_set_all_promisc(adapter);
-		return;
+		if (!be_in_all_promisc(adapter))
+			be_set_all_promisc(adapter);
+	} else if (be_in_all_promisc(adapter)) {
+		/* We need to re-program the vlan-list or clear
+		 * vlan-promisc mode (if needed) when the interface
+		 * comes out of promisc mode.
+		 */
+		be_vid_config(adapter);
 	}
 
-	/* Interface was previously in promiscuous mode; disable it */
-	if (be_in_all_promisc(adapter)) {
-		be_clear_all_promisc(adapter);
-		if (adapter->vlans_added)
-			be_vid_config(adapter);
-	}
-
-	/* Enable multicast promisc if num configured exceeds what we support */
-	if (netdev->flags & IFF_ALLMULTI ||
-	    netdev_mc_count(netdev) > be_max_mc(adapter)) {
-		be_set_mc_promisc(adapter);
-		return;
-	}
-
-	if (netdev_uc_count(netdev) != adapter->uc_macs)
-		be_set_uc_list(adapter);
-
+	be_set_uc_list(adapter);
 	be_set_mc_list(adapter);
 }
 
@@ -3426,6 +3512,7 @@ static void be_disable_if_filters(struct be_adapter *adapter)
 			adapter->pmac_id[0], 0);
 
 	be_clear_uc_list(adapter);
+	be_clear_mc_list(adapter);
 
 	/* The IFACE flags are enabled in the open path and cleared
 	 * in the close path. When a VF gets detached from the host and
