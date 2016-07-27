@@ -474,7 +474,6 @@ befs_find_brun_dblindirect(struct super_block *sb,
 			   (unsigned long)
 			   iaddr2blockno(sb, &data->double_indirect) +
 			   dbl_which_block);
-		brelse(dbl_indir_block);
 		return BEFS_ERR;
 	}
 
@@ -499,7 +498,6 @@ befs_find_brun_dblindirect(struct super_block *sb,
 		befs_error(sb, "%s couldn't read the indirect block "
 			   "at blockno %lu", __func__, (unsigned long)
 			   iaddr2blockno(sb, &indir_run) + which_block);
-		brelse(indir_block);
 		return BEFS_ERR;
 	}
 
