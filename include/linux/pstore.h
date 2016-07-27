@@ -80,8 +80,6 @@ struct pstore_info {
 #define PSTORE_FLAGS_FTRACE	(1 << 2)
 #define PSTORE_FLAGS_PMSG	(1 << 3)
 
-#define PSTORE_FLAGS_ALL	((1 << 4) - 1)
-
 extern int pstore_register(struct pstore_info *);
 extern void pstore_unregister(struct pstore_info *);
 extern bool pstore_cannot_block_path(enum kmsg_dump_reason reason);
