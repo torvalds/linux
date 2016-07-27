@@ -16,10 +16,8 @@ DOCBOOKS := z8530book.xml device-drivers.xml \
 	    genericirq.xml s390-drivers.xml uio-howto.xml scsi.xml \
 	    80211.xml debugobjects.xml sh.xml regulator.xml \
 	    alsa-driver-api.xml writing-an-alsa-driver.xml \
-	    tracepoint.xml gpu.xml media_api.xml w1.xml \
+	    tracepoint.xml gpu.xml w1.xml \
 	    writing_musb_glue_layer.xml crypto-API.xml iio.xml
-
-include Documentation/DocBook/media/Makefile
 
 ###
 # The build process is as follows (targets):
@@ -49,7 +47,6 @@ pdfdocs: $(PDF)
 HTML := $(sort $(patsubst %.xml, %.html, $(BOOKS)))
 htmldocs: $(HTML)
 	$(call cmd,build_main_index)
-	$(call install_media_images)
 
 MAN := $(patsubst %.xml, %.9, $(BOOKS))
 mandocs: $(MAN)
@@ -219,9 +216,6 @@ silent_gen_xml = :
 
 else
 
-# Needed, due to cleanmediadocs
-include Documentation/DocBook/media/Makefile
-
 htmldocs:
 pdfdocs:
 psdocs:
@@ -269,7 +263,7 @@ clean-files := $(DOCBOOKS) \
 
 clean-dirs := $(patsubst %.xml,%,$(DOCBOOKS)) man
 
-cleandocs: cleanmediadocs
+cleandocs:
 	$(Q)rm -f $(call objectify, $(clean-files))
 	$(Q)rm -rf $(call objectify, $(clean-dirs))
 
