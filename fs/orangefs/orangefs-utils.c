@@ -153,12 +153,12 @@ static inline int copy_attributes_from_inode(struct inode *inode,
 	 */
 	attrs->mask = 0;
 	if (iattr->ia_valid & ATTR_UID) {
-		attrs->owner = from_kuid(current_user_ns(), iattr->ia_uid);
+		attrs->owner = from_kuid(&init_user_ns, iattr->ia_uid);
 		attrs->mask |= ORANGEFS_ATTR_SYS_UID;
 		gossip_debug(GOSSIP_UTILS_DEBUG, "(UID) %d\n", attrs->owner);
 	}
 	if (iattr->ia_valid & ATTR_GID) {
-		attrs->group = from_kgid(current_user_ns(), iattr->ia_gid);
+		attrs->group = from_kgid(&init_user_ns, iattr->ia_gid);
 		attrs->mask |= ORANGEFS_ATTR_SYS_GID;
 		gossip_debug(GOSSIP_UTILS_DEBUG, "(GID) %d\n", attrs->group);
 	}
