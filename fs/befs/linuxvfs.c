@@ -184,6 +184,7 @@ befs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
 
 	if (ret == BEFS_BT_NOT_FOUND) {
 		befs_debug(sb, "<--- %s %pd not found", __func__, dentry);
+		d_add(dentry, NULL);
 		return ERR_PTR(-ENOENT);
 
 	} else if (ret != BEFS_OK || offset == 0) {
