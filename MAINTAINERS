@@ -6783,6 +6783,7 @@ M:	Jacek Anaszewski <j.anaszewski@samsung.com>
 L:	linux-leds@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/j.anaszewski/linux-leds.git
 S:	Maintained
+F:	Documentation/devicetree/bindings/leds/
 F:	drivers/leds/
 F:	include/linux/leds.h
 
