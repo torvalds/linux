@@ -60,6 +60,15 @@ config CODE_PATCHING_SELFTEST
 	depends on DEBUG_KERNEL
 	default n
 
+config JUMP_LABEL_FEATURE_CHECKS
+	bool "Enable use of jump label for cpu/mmu_has_feature()"
+	depends on JUMP_LABEL
+	default y
+	help
+	  Selecting this options enables use of jump labels for some internal
+	  feature checks. This should generate more optimal code for those
+	  checks.
+
 config FTR_FIXUP_SELFTEST
 	bool "Run self-tests of the feature-fixup code"
 	depends on DEBUG_KERNEL
