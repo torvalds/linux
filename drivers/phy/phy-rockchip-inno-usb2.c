@@ -1233,6 +1233,14 @@ static const struct rockchip_usb2phy_cfg rk3399_phy_cfgs[] = {
 		.num_ports	= 2,
 		.clkout_ctl	= { 0xe460, 4, 4, 1, 0 },
 		.port_cfgs	= {
+			[USB2PHY_PORT_OTG] = {
+				.phy_sus        = { 0xe464, 1, 0, 2, 1 },
+				.bvalid_det_en  = { 0xe3c0, 8, 8, 0, 1 },
+				.bvalid_det_st  = { 0xe3e0, 8, 8, 0, 1 },
+				.bvalid_det_clr = { 0xe3d0, 8, 8, 0, 1 },
+				.utmi_avalid	= { 0xe2ac, 10, 10, 0, 1 },
+				.utmi_bvalid    = { 0xe2ac, 16, 16, 0, 1 },
+			},
 			[USB2PHY_PORT_HOST] = {
 				.phy_sus	= { 0xe468, 1, 0, 0x2, 0x1 },
 				.ls_det_en	= { 0xe3c0, 11, 11, 0, 1 },
