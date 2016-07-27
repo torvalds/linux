@@ -1,5 +1,5 @@
 /*
- * Sync File validation framework and debug information
+ * drivers/base/sync.c
  *
  * Copyright (C) 2012 Google, Inc.
  *
@@ -26,7 +26,7 @@
 #include <linux/uaccess.h>
 #include <linux/anon_inodes.h>
 #include <linux/time64.h>
-//#include "sync.h"
+#include "sync.h"
 
 #ifdef CONFIG_DEBUG_FS
 
