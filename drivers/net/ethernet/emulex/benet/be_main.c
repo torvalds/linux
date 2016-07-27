@@ -1427,6 +1427,11 @@ static int be_vid_config(struct be_adapter *adapter)
 	if (adapter->vlans_added > be_max_vlans(adapter))
 		return be_set_vlan_promisc(adapter);
 
+	if (adapter->if_flags & BE_IF_FLAGS_VLAN_PROMISCUOUS) {
+		status = be_clear_vlan_promisc(adapter);
+		if (status)
+			return status;
+	}
 	/* Construct VLAN Table to give to HW */
 	for_each_set_bit(i, adapter->vids, VLAN_N_VID)
 		vids[num++] = cpu_to_le16(i);
@@ -1439,8 +1444,6 @@ static int be_vid_config(struct be_adapter *adapter)
 		    addl_status(status) ==
 				MCC_ADDL_STATUS_INSUFFICIENT_RESOURCES)
 			return be_set_vlan_promisc(adapter);
-	} else if (adapter->if_flags & BE_IF_FLAGS_VLAN_PROMISCUOUS) {
-		status = be_clear_vlan_promisc(adapter);
 	}
 	return status;
 }
