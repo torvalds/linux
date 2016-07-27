@@ -323,7 +323,7 @@ static ssize_t gt_boost_freq_mhz_store(struct device *kdev,
 {
 	struct drm_minor *minor = dev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	u32 val;
 	ssize_t ret;
 
