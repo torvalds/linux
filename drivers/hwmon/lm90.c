@@ -1719,9 +1719,13 @@ static int lm90_probe(struct i2c_client *client,
 	return 0;
 }
 
-static void lm90_alert(struct i2c_client *client, unsigned int flag)
+static void lm90_alert(struct i2c_client *client, enum i2c_alert_protocol type,
+		       unsigned int flag)
 {
 	u16 alarms;
+
+	if (type != I2C_PROTOCOL_SMBUS_ALERT)
+		return;
 
 	if (lm90_is_tripped(client, &alarms)) {
 		/*
