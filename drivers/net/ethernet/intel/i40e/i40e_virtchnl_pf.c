@@ -2318,6 +2318,7 @@ err:
 	/* send the response back to the VF */
 	aq_ret = i40e_vc_send_msg_to_vf(vf, I40E_VIRTCHNL_OP_GET_RSS_HENA_CAPS,
 					aq_ret, (u8 *)vrh, len);
+	kfree(vrh);
 	return aq_ret;
 }
 
