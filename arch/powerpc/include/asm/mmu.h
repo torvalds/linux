@@ -135,9 +135,9 @@ enum {
 		0,
 };
 
-static inline int mmu_has_feature(unsigned long feature)
+static inline bool mmu_has_feature(unsigned long feature)
 {
-	return (MMU_FTRS_POSSIBLE & cur_cpu_spec->mmu_features & feature);
+	return !!(MMU_FTRS_POSSIBLE & cur_cpu_spec->mmu_features & feature);
 }
 
 static inline void mmu_clear_feature(unsigned long feature)
