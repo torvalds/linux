@@ -80,7 +80,7 @@ static int orangefs_readpages(struct file *file,
 		if (!add_to_page_cache(page,
 				       mapping,
 				       page->index,
-				       GFP_KERNEL)) {
+				       readahead_gfp_mask(mapping))) {
 			ret = read_one_page(page);
 			gossip_debug(GOSSIP_INODE_DEBUG,
 				"failure adding page to cache, read_one_page returned: %d\n",
