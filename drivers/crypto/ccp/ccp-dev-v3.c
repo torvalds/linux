@@ -70,6 +70,11 @@ static void ccp_free_ksb(struct ccp_cmd_queue *cmd_q, unsigned int start,
 	wake_up_interruptible_all(&ccp->sb_queue);
 }
 
+static unsigned int ccp_get_free_slots(struct ccp_cmd_queue *cmd_q)
+{
+	return CMD_Q_DEPTH(ioread32(cmd_q->reg_status));
+}
+
 static int ccp_do_cmd(struct ccp_op *op, u32 *cr, unsigned int cr_count)
 {
 	struct ccp_cmd_queue *cmd_q = op->cmd_q;
@@ -357,7 +362,7 @@ static int ccp_init(struct ccp_device *ccp)
 		cmd_q->int_ok = 1 << (i * 2);
 		cmd_q->int_err = 1 << ((i * 2) + 1);
 
-		cmd_q->free_slots = CMD_Q_DEPTH(ioread32(cmd_q->reg_status));
+		cmd_q->free_slots = ccp_get_free_slots(cmd_q);
 
 		init_waitqueue_head(&cmd_q->int_queue);
 
@@ -559,6 +564,7 @@ static const struct ccp_actions ccp3_actions = {
 	.sbfree = ccp_free_ksb,
 	.init = ccp_init,
 	.destroy = ccp_destroy,
+	.get_free_slots = ccp_get_free_slots,
 	.irqhandler = ccp_irq_handler,
 };
 

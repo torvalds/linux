@@ -1765,7 +1765,7 @@ int ccp_run_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 	cmd->engine_error = 0;
 	cmd_q->cmd_error = 0;
 	cmd_q->int_rcvd = 0;
-	cmd_q->free_slots = CMD_Q_DEPTH(ioread32(cmd_q->reg_status));
+	cmd_q->free_slots = cmd_q->ccp->vdata->perform->get_free_slots(cmd_q);
 
 	switch (cmd->engine) {
 	case CCP_ENGINE_AES:
