@@ -85,7 +85,7 @@ struct befs_btree_node {
 };
 
 /* local constants */
-static const befs_off_t befs_bt_inval = 0xffffffffffffffffULL;
+static const befs_off_t BEFS_BT_INVAL = 0xffffffffffffffffULL;
 
 /* local functions */
 static int befs_btree_seekleaf(struct super_block *sb, const befs_data_stream *ds,
@@ -467,7 +467,7 @@ befs_btree_read(struct super_block *sb, const befs_data_stream *ds,
 	while (key_sum + this_node->head.all_key_count <= key_no) {
 
 		/* no more nodes to look in: key_no is too large */
-		if (this_node->head.right == befs_bt_inval) {
+		if (this_node->head.right == BEFS_BT_INVAL) {
 			*keysize = 0;
 			*value = 0;
 			befs_debug(sb,
@@ -608,7 +608,7 @@ static int
 befs_leafnode(struct befs_btree_node *node)
 {
 	/* all interior nodes (and only interior nodes) have an overflow node */
-	if (node->head.overflow == befs_bt_inval)
+	if (node->head.overflow == BEFS_BT_INVAL)
 		return 1;
 	else
 		return 0;
