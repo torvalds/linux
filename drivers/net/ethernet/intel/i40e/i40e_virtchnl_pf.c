@@ -991,7 +991,9 @@ complete_reset:
 		i40e_enable_vf_mappings(vf);
 		set_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states);
 		clear_bit(I40E_VF_STAT_DISABLED, &vf->vf_states);
-		i40e_notify_client_of_vf_reset(pf, abs_vf_id);
+		/* Do not notify the client during VF init */
+		if (vf->pf->num_alloc_vfs)
+			i40e_notify_client_of_vf_reset(pf, abs_vf_id);
 		vf->num_vlan = 0;
 	}
 	/* tell the VF the reset is done */
@@ -1090,7 +1092,6 @@ int i40e_alloc_vfs(struct i40e_pf *pf, u16 num_alloc_vfs)
 			goto err_iov;
 		}
 	}
-	i40e_notify_client_of_vf_enable(pf, num_alloc_vfs);
 	/* allocate memory */
 	vfs = kcalloc(num_alloc_vfs, sizeof(struct i40e_vf), GFP_KERNEL);
 	if (!vfs) {
@@ -1113,6 +1114,8 @@ int i40e_alloc_vfs(struct i40e_pf *pf, u16 num_alloc_vfs)
 
 	}
 	pf->num_alloc_vfs = num_alloc_vfs;
+
+	i40e_notify_client_of_vf_enable(pf, num_alloc_vfs);
 
 err_alloc:
 	if (ret)
