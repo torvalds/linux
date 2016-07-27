@@ -992,6 +992,7 @@ complete_reset:
 		set_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states);
 		clear_bit(I40E_VF_STAT_DISABLED, &vf->vf_states);
 		i40e_notify_client_of_vf_reset(pf, abs_vf_id);
+		vf->num_vlan = 0;
 	}
 	/* tell the VF the reset is done */
 	wr32(hw, I40E_VFGEN_RSTAT1(vf->vf_id), I40E_VFR_VFACTIVE);
