@@ -572,9 +572,12 @@ int qed_sp_eth_rxq_start_ramrod(struct qed_hwfn *p_hwfn,
 	p_ramrod->num_of_pbl_pages	= cpu_to_le16(cqe_pbl_size);
 	DMA_REGPAIR_LE(p_ramrod->cqe_pbl_addr, cqe_pbl_addr);
 
-	rc = qed_spq_post(p_hwfn, p_ent, NULL);
+	p_ramrod->vf_rx_prod_index = params->vf_qid;
+	if (params->vf_qid)
+		DP_VERBOSE(p_hwfn, QED_MSG_SP,
+			   "Queue is meant for VF rxq[%04x]\n", params->vf_qid);
 
-	return rc;
+	return qed_spq_post(p_hwfn, p_ent, NULL);
 }
 
 static int
@@ -612,7 +615,7 @@ qed_sp_eth_rx_queue_start(struct qed_hwfn *p_hwfn,
 
 	*pp_prod = (u8 __iomem *)p_hwfn->regview +
 				 GTT_BAR0_MAP_REG_MSDM_RAM +
-				 MSTORM_PRODS_OFFSET(abs_l2_queue);
+				 MSTORM_ETH_PF_PRODS_OFFSET(abs_l2_queue);
 
 	/* Init the rcq, rx bd and rx sge (if valid) producers to 0 */
 	__internal_ram_wr(p_hwfn, *pp_prod, sizeof(u64),
@@ -756,9 +759,9 @@ int qed_sp_eth_txq_start_ramrod(struct qed_hwfn  *p_hwfn,
 	struct qed_spq_entry *p_ent = NULL;
 	struct qed_sp_init_data init_data;
 	struct qed_hw_cid_data *p_tx_cid;
-	u8 abs_vport_id;
+	u16 pq_id, abs_tx_q_id = 0;
 	int rc = -EINVAL;
-	u16 pq_id;
+	u8 abs_vport_id;
 
 	/* Store information for the stop */
 	p_tx_cid = &p_hwfn->p_tx_cids[p_params->queue_id];
@@ -766,6 +769,10 @@ int qed_sp_eth_txq_start_ramrod(struct qed_hwfn  *p_hwfn,
 	p_tx_cid->opaque_fid	= opaque_fid;
 
 	rc = qed_fw_vport(p_hwfn, p_params->vport_id, &abs_vport_id);
+	if (rc)
+		return rc;
+
+	rc = qed_fw_l2_queue(p_hwfn, p_params->queue_id, &abs_tx_q_id);
 	if (rc)
 		return rc;
 
@@ -788,6 +795,7 @@ int qed_sp_eth_txq_start_ramrod(struct qed_hwfn  *p_hwfn,
 	p_ramrod->sb_index		= p_params->sb_idx;
 	p_ramrod->stats_counter_id	= stats_id;
 
+	p_ramrod->queue_zone_id		= cpu_to_le16(abs_tx_q_id);
 	p_ramrod->pbl_size		= cpu_to_le16(pbl_size);
 	DMA_REGPAIR_LE(p_ramrod->pbl_base_addr, pbl_addr);
 
@@ -1482,51 +1490,51 @@ static void __qed_get_vport_port_stats(struct qed_hwfn *p_hwfn,
 			offsetof(struct public_port, stats),
 			sizeof(port_stats));
 
-	p_stats->rx_64_byte_packets		+= port_stats.pmm.r64;
-	p_stats->rx_65_to_127_byte_packets	+= port_stats.pmm.r127;
-	p_stats->rx_128_to_255_byte_packets	+= port_stats.pmm.r255;
-	p_stats->rx_256_to_511_byte_packets	+= port_stats.pmm.r511;
-	p_stats->rx_512_to_1023_byte_packets	+= port_stats.pmm.r1023;
-	p_stats->rx_1024_to_1518_byte_packets	+= port_stats.pmm.r1518;
-	p_stats->rx_1519_to_1522_byte_packets	+= port_stats.pmm.r1522;
-	p_stats->rx_1519_to_2047_byte_packets	+= port_stats.pmm.r2047;
-	p_stats->rx_2048_to_4095_byte_packets	+= port_stats.pmm.r4095;
-	p_stats->rx_4096_to_9216_byte_packets	+= port_stats.pmm.r9216;
-	p_stats->rx_9217_to_16383_byte_packets	+= port_stats.pmm.r16383;
-	p_stats->rx_crc_errors			+= port_stats.pmm.rfcs;
-	p_stats->rx_mac_crtl_frames		+= port_stats.pmm.rxcf;
-	p_stats->rx_pause_frames		+= port_stats.pmm.rxpf;
-	p_stats->rx_pfc_frames			+= port_stats.pmm.rxpp;
-	p_stats->rx_align_errors		+= port_stats.pmm.raln;
-	p_stats->rx_carrier_errors		+= port_stats.pmm.rfcr;
-	p_stats->rx_oversize_packets		+= port_stats.pmm.rovr;
-	p_stats->rx_jabbers			+= port_stats.pmm.rjbr;
-	p_stats->rx_undersize_packets		+= port_stats.pmm.rund;
-	p_stats->rx_fragments			+= port_stats.pmm.rfrg;
-	p_stats->tx_64_byte_packets		+= port_stats.pmm.t64;
-	p_stats->tx_65_to_127_byte_packets	+= port_stats.pmm.t127;
-	p_stats->tx_128_to_255_byte_packets	+= port_stats.pmm.t255;
-	p_stats->tx_256_to_511_byte_packets	+= port_stats.pmm.t511;
-	p_stats->tx_512_to_1023_byte_packets	+= port_stats.pmm.t1023;
-	p_stats->tx_1024_to_1518_byte_packets	+= port_stats.pmm.t1518;
-	p_stats->tx_1519_to_2047_byte_packets	+= port_stats.pmm.t2047;
-	p_stats->tx_2048_to_4095_byte_packets	+= port_stats.pmm.t4095;
-	p_stats->tx_4096_to_9216_byte_packets	+= port_stats.pmm.t9216;
-	p_stats->tx_9217_to_16383_byte_packets	+= port_stats.pmm.t16383;
-	p_stats->tx_pause_frames		+= port_stats.pmm.txpf;
-	p_stats->tx_pfc_frames			+= port_stats.pmm.txpp;
-	p_stats->tx_lpi_entry_count		+= port_stats.pmm.tlpiec;
-	p_stats->tx_total_collisions		+= port_stats.pmm.tncl;
-	p_stats->rx_mac_bytes			+= port_stats.pmm.rbyte;
-	p_stats->rx_mac_uc_packets		+= port_stats.pmm.rxuca;
-	p_stats->rx_mac_mc_packets		+= port_stats.pmm.rxmca;
-	p_stats->rx_mac_bc_packets		+= port_stats.pmm.rxbca;
-	p_stats->rx_mac_frames_ok		+= port_stats.pmm.rxpok;
-	p_stats->tx_mac_bytes			+= port_stats.pmm.tbyte;
-	p_stats->tx_mac_uc_packets		+= port_stats.pmm.txuca;
-	p_stats->tx_mac_mc_packets		+= port_stats.pmm.txmca;
-	p_stats->tx_mac_bc_packets		+= port_stats.pmm.txbca;
-	p_stats->tx_mac_ctrl_frames		+= port_stats.pmm.txcf;
+	p_stats->rx_64_byte_packets		+= port_stats.eth.r64;
+	p_stats->rx_65_to_127_byte_packets	+= port_stats.eth.r127;
+	p_stats->rx_128_to_255_byte_packets	+= port_stats.eth.r255;
+	p_stats->rx_256_to_511_byte_packets	+= port_stats.eth.r511;
+	p_stats->rx_512_to_1023_byte_packets	+= port_stats.eth.r1023;
+	p_stats->rx_1024_to_1518_byte_packets	+= port_stats.eth.r1518;
+	p_stats->rx_1519_to_1522_byte_packets	+= port_stats.eth.r1522;
+	p_stats->rx_1519_to_2047_byte_packets	+= port_stats.eth.r2047;
+	p_stats->rx_2048_to_4095_byte_packets	+= port_stats.eth.r4095;
+	p_stats->rx_4096_to_9216_byte_packets	+= port_stats.eth.r9216;
+	p_stats->rx_9217_to_16383_byte_packets	+= port_stats.eth.r16383;
+	p_stats->rx_crc_errors			+= port_stats.eth.rfcs;
+	p_stats->rx_mac_crtl_frames		+= port_stats.eth.rxcf;
+	p_stats->rx_pause_frames		+= port_stats.eth.rxpf;
+	p_stats->rx_pfc_frames			+= port_stats.eth.rxpp;
+	p_stats->rx_align_errors		+= port_stats.eth.raln;
+	p_stats->rx_carrier_errors		+= port_stats.eth.rfcr;
+	p_stats->rx_oversize_packets		+= port_stats.eth.rovr;
+	p_stats->rx_jabbers			+= port_stats.eth.rjbr;
+	p_stats->rx_undersize_packets		+= port_stats.eth.rund;
+	p_stats->rx_fragments			+= port_stats.eth.rfrg;
+	p_stats->tx_64_byte_packets		+= port_stats.eth.t64;
+	p_stats->tx_65_to_127_byte_packets	+= port_stats.eth.t127;
+	p_stats->tx_128_to_255_byte_packets	+= port_stats.eth.t255;
+	p_stats->tx_256_to_511_byte_packets	+= port_stats.eth.t511;
+	p_stats->tx_512_to_1023_byte_packets	+= port_stats.eth.t1023;
+	p_stats->tx_1024_to_1518_byte_packets	+= port_stats.eth.t1518;
+	p_stats->tx_1519_to_2047_byte_packets	+= port_stats.eth.t2047;
+	p_stats->tx_2048_to_4095_byte_packets	+= port_stats.eth.t4095;
+	p_stats->tx_4096_to_9216_byte_packets	+= port_stats.eth.t9216;
+	p_stats->tx_9217_to_16383_byte_packets	+= port_stats.eth.t16383;
+	p_stats->tx_pause_frames		+= port_stats.eth.txpf;
+	p_stats->tx_pfc_frames			+= port_stats.eth.txpp;
+	p_stats->tx_lpi_entry_count		+= port_stats.eth.tlpiec;
+	p_stats->tx_total_collisions		+= port_stats.eth.tncl;
+	p_stats->rx_mac_bytes			+= port_stats.eth.rbyte;
+	p_stats->rx_mac_uc_packets		+= port_stats.eth.rxuca;
+	p_stats->rx_mac_mc_packets		+= port_stats.eth.rxmca;
+	p_stats->rx_mac_bc_packets		+= port_stats.eth.rxbca;
+	p_stats->rx_mac_frames_ok		+= port_stats.eth.rxpok;
+	p_stats->tx_mac_bytes			+= port_stats.eth.tbyte;
+	p_stats->tx_mac_uc_packets		+= port_stats.eth.txuca;
+	p_stats->tx_mac_mc_packets		+= port_stats.eth.txmca;
+	p_stats->tx_mac_bc_packets		+= port_stats.eth.txbca;
+	p_stats->tx_mac_ctrl_frames		+= port_stats.eth.txcf;
 	for (j = 0; j < 8; j++) {
 		p_stats->brb_truncates	+= port_stats.brb.brb_truncate[j];
 		p_stats->brb_discards	+= port_stats.brb.brb_discard[j];
@@ -2156,10 +2164,17 @@ static int qed_fp_cqe_completion(struct qed_dev *dev,
 extern const struct qed_iov_hv_ops qed_iov_ops_pass;
 #endif
 
+#ifdef CONFIG_DCB
+extern const struct qed_eth_dcbnl_ops qed_dcbnl_ops_pass;
+#endif
+
 static const struct qed_eth_ops qed_eth_ops_pass = {
 	.common = &qed_common_ops_pass,
 #ifdef CONFIG_QED_SRIOV
 	.iov = &qed_iov_ops_pass,
+#endif
+#ifdef CONFIG_DCB
+	.dcb = &qed_dcbnl_ops_pass,
 #endif
 	.fill_dev_info = &qed_fill_eth_dev_info,
 	.register_ops = &qed_register_eth_ops,

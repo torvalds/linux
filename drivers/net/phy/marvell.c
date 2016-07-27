@@ -138,6 +138,21 @@
 #define MII_88E1510_GEN_CTRL_REG_1_MODE_SGMII	0x1	/* SGMII to copper */
 #define MII_88E1510_GEN_CTRL_REG_1_RESET	0x8000	/* Soft reset */
 
+#define LPA_FIBER_1000HALF	0x40
+#define LPA_FIBER_1000FULL	0x20
+
+#define LPA_PAUSE_FIBER	0x180
+#define LPA_PAUSE_ASYM_FIBER	0x100
+
+#define ADVERTISE_FIBER_1000HALF	0x40
+#define ADVERTISE_FIBER_1000FULL	0x20
+
+#define ADVERTISE_PAUSE_FIBER		0x180
+#define ADVERTISE_PAUSE_ASYM_FIBER	0x100
+
+#define REGISTER_LINK_STATUS	0x400
+#define NB_FIBER_STATS	1
+
 MODULE_DESCRIPTION("Marvell PHY driver");
 MODULE_AUTHOR("Andy Fleming");
 MODULE_LICENSE("GPL");
@@ -150,8 +165,9 @@ struct marvell_hw_stat {
 };
 
 static struct marvell_hw_stat marvell_hw_stats[] = {
-	{ "phy_receive_errors", 0, 21, 16},
+	{ "phy_receive_errors_copper", 0, 21, 16},
 	{ "phy_idle_errors", 0, 10, 8 },
+	{ "phy_receive_errors_fiber", 1, 21, 16},
 };
 
 struct marvell_priv {
@@ -477,15 +493,122 @@ static int m88e1318_config_aneg(struct phy_device *phydev)
 	return m88e1121_config_aneg(phydev);
 }
 
+/**
+ * ethtool_adv_to_fiber_adv_t
+ * @ethadv: the ethtool advertisement settings
+ *
+ * A small helper function that translates ethtool advertisement
+ * settings to phy autonegotiation advertisements for the
+ * MII_ADV register for fiber link.
+ */
+static inline u32 ethtool_adv_to_fiber_adv_t(u32 ethadv)
+{
+	u32 result = 0;
+
+	if (ethadv & ADVERTISED_1000baseT_Half)
+		result |= ADVERTISE_FIBER_1000HALF;
+	if (ethadv & ADVERTISED_1000baseT_Full)
+		result |= ADVERTISE_FIBER_1000FULL;
+
+	if ((ethadv & ADVERTISE_PAUSE_ASYM) && (ethadv & ADVERTISE_PAUSE_CAP))
+		result |= LPA_PAUSE_ASYM_FIBER;
+	else if (ethadv & ADVERTISE_PAUSE_CAP)
+		result |= (ADVERTISE_PAUSE_FIBER
+			   & (~ADVERTISE_PAUSE_ASYM_FIBER));
+
+	return result;
+}
+
+/**
+ * marvell_config_aneg_fiber - restart auto-negotiation or write BMCR
+ * @phydev: target phy_device struct
+ *
+ * Description: If auto-negotiation is enabled, we configure the
+ *   advertising, and then restart auto-negotiation.  If it is not
+ *   enabled, then we write the BMCR. Adapted for fiber link in
+ *   some Marvell's devices.
+ */
+static int marvell_config_aneg_fiber(struct phy_device *phydev)
+{
+	int changed = 0;
+	int err;
+	int adv, oldadv;
+	u32 advertise;
+
+	if (phydev->autoneg != AUTONEG_ENABLE)
+		return genphy_setup_forced(phydev);
+
+	/* Only allow advertising what this PHY supports */
+	phydev->advertising &= phydev->supported;
+	advertise = phydev->advertising;
+
+	/* Setup fiber advertisement */
+	adv = phy_read(phydev, MII_ADVERTISE);
+	if (adv < 0)
+		return adv;
+
+	oldadv = adv;
+	adv &= ~(ADVERTISE_FIBER_1000HALF | ADVERTISE_FIBER_1000FULL
+		| LPA_PAUSE_FIBER);
+	adv |= ethtool_adv_to_fiber_adv_t(advertise);
+
+	if (adv != oldadv) {
+		err = phy_write(phydev, MII_ADVERTISE, adv);
+		if (err < 0)
+			return err;
+
+		changed = 1;
+	}
+
+	if (changed == 0) {
+		/* Advertisement hasn't changed, but maybe aneg was never on to
+		 * begin with?  Or maybe phy was isolated?
+		 */
+		int ctl = phy_read(phydev, MII_BMCR);
+
+		if (ctl < 0)
+			return ctl;
+
+		if (!(ctl & BMCR_ANENABLE) || (ctl & BMCR_ISOLATE))
+			changed = 1; /* do restart aneg */
+	}
+
+	/* Only restart aneg if we are advertising something different
+	 * than we were before.
+	 */
+	if (changed > 0)
+		changed = genphy_restart_aneg(phydev);
+
+	return changed;
+}
+
 static int m88e1510_config_aneg(struct phy_device *phydev)
 {
 	int err;
 
+	err = phy_write(phydev, MII_MARVELL_PHY_PAGE, MII_M1111_COPPER);
+	if (err < 0)
+		goto error;
+
+	/* Configure the copper link first */
 	err = m88e1318_config_aneg(phydev);
 	if (err < 0)
-		return err;
+		goto error;
 
-	return 0;
+	/* Then the fiber link */
+	err = phy_write(phydev, MII_MARVELL_PHY_PAGE, MII_M1111_FIBER);
+	if (err < 0)
+		goto error;
+
+	err = marvell_config_aneg_fiber(phydev);
+	if (err < 0)
+		goto error;
+
+	return phy_write(phydev, MII_MARVELL_PHY_PAGE, MII_M1111_COPPER);
+
+error:
+	phy_write(phydev, MII_MARVELL_PHY_PAGE, MII_M1111_COPPER);
+	return err;
 }
 
 static int marvell_config_init(struct phy_device *phydev)
@@ -890,26 +1013,79 @@ static int m88e1145_config_init(struct phy_device *phydev)
 	return 0;
 }
 
-/* marvell_read_status
+/**
+ * fiber_lpa_to_ethtool_lpa_t
+ * @lpa: value of the MII_LPA register for fiber link
  *
- * Generic status code does not detect Fiber correctly!
+ * A small helper function that translates MII_LPA
+ * bits to ethtool LP advertisement settings.
+ */
+static u32 fiber_lpa_to_ethtool_lpa_t(u32 lpa)
+{
+	u32 result = 0;
+
+	if (lpa & LPA_FIBER_1000HALF)
+		result |= ADVERTISED_1000baseT_Half;
+	if (lpa & LPA_FIBER_1000FULL)
+		result |= ADVERTISED_1000baseT_Full;
+
+	return result;
+}
+
+/**
+ * marvell_update_link - update link status in real time in @phydev
+ * @phydev: target phy_device struct
+ *
+ * Description: Update the value in phydev->link to reflect the
+ *   current link value.
+ */
+static int marvell_update_link(struct phy_device *phydev, int fiber)
+{
+	int status;
+
+	/* Use the generic register for copper link, or specific
+	 * register for fiber case */
+	if (fiber) {
+		status = phy_read(phydev, MII_M1011_PHY_STATUS);
+		if (status < 0)
+			return status;
+
+		if ((status & REGISTER_LINK_STATUS) == 0)
+			phydev->link = 0;
+		else
+			phydev->link = 1;
+	} else {
+		return genphy_update_link(phydev);
+	}
+
+	return 0;
+}
+
+/* marvell_read_status_page
+ *
  * Description:
  *   Check the link, then figure out the current state
  *   by comparing what we advertise with what the link partner
  *   advertises.  Start by checking the gigabit possibilities,
  *   then move on to 10/100.
  */
-static int marvell_read_status(struct phy_device *phydev)
+static int marvell_read_status_page(struct phy_device *phydev, int page)
 {
 	int adv;
 	int err;
 	int lpa;
 	int lpagb;
 	int status = 0;
+	int fiber;
 
-	/* Update the link, but return if there
+	/* Detect and update the link, but return if there
 	 * was an error */
-	err = genphy_update_link(phydev);
+	if (page == MII_M1111_FIBER)
+		fiber = 1;
+	else
+		fiber = 0;
+
+	err = marvell_update_link(phydev, fiber);
 	if (err)
 		return err;
 
@@ -929,9 +1105,6 @@ static int marvell_read_status(struct phy_device *phydev)
 		adv = phy_read(phydev, MII_ADVERTISE);
 		if (adv < 0)
 			return adv;
-
-		phydev->lp_advertising = mii_stat1000_to_ethtool_lpa_t(lpagb) |
-					 mii_lpa_to_ethtool_lpa_t(lpa);
 
 		lpa &= adv;
 
@@ -957,9 +1130,30 @@ static int marvell_read_status(struct phy_device *phydev)
 			break;
 		}
 
-		if (phydev->duplex == DUPLEX_FULL) {
-			phydev->pause = lpa & LPA_PAUSE_CAP ? 1 : 0;
-			phydev->asym_pause = lpa & LPA_PAUSE_ASYM ? 1 : 0;
+		if (!fiber) {
+			phydev->lp_advertising = mii_stat1000_to_ethtool_lpa_t(lpagb) |
+					 mii_lpa_to_ethtool_lpa_t(lpa);
+
+			if (phydev->duplex == DUPLEX_FULL) {
+				phydev->pause = lpa & LPA_PAUSE_CAP ? 1 : 0;
+				phydev->asym_pause = lpa & LPA_PAUSE_ASYM ? 1 : 0;
+			}
+		} else {
+			/* The fiber link is only 1000M capable */
+			phydev->lp_advertising = fiber_lpa_to_ethtool_lpa_t(lpa);
+
+			if (phydev->duplex == DUPLEX_FULL) {
+				if (!(lpa & LPA_PAUSE_FIBER)) {
+					phydev->pause = 0;
+					phydev->asym_pause = 0;
+				} else if ((lpa & LPA_PAUSE_ASYM_FIBER)) {
+					phydev->pause = 1;
+					phydev->asym_pause = 1;
+				} else {
+					phydev->pause = 1;
+					phydev->asym_pause = 0;
+				}
+			}
 		}
 	} else {
 		int bmcr = phy_read(phydev, MII_BMCR);
@@ -984,6 +1178,119 @@ static int marvell_read_status(struct phy_device *phydev)
 	}
 
 	return 0;
+}
+
+/* marvell_read_status
+ *
+ * Some Marvell's phys have two modes: fiber and copper.
+ * Both need status checked.
+ * Description:
+ *   First, check the fiber link and status.
+ *   If the fiber link is down, check the copper link and status which
+ *   will be the default value if both link are down.
+ */
+static int marvell_read_status(struct phy_device *phydev)
+{
+	int err;
+
+	/* Check the fiber mode first */
+	if (phydev->supported & SUPPORTED_FIBRE) {
+		err = phy_write(phydev, MII_MARVELL_PHY_PAGE, MII_M1111_FIBER);
+		if (err < 0)
+			goto error;
+
+		err = marvell_read_status_page(phydev, MII_M1111_FIBER);
+		if (err < 0)
+			goto error;
+
+		/* If the fiber link is up, it is the selected and used link.
+		 * In this case, we need to stay in the fiber page.
+		 * Please to be careful about that, avoid to restore Copper page
+		 * in other functions which could break the behaviour
+		 * for some fiber phy like 88E1512.
+		 * */
+		if (phydev->link)
+			return 0;
+
+		/* If fiber link is down, check and save copper mode state */
+		err = phy_write(phydev, MII_MARVELL_PHY_PAGE, MII_M1111_COPPER);
+		if (err < 0)
+			goto error;
+	}
+
+	return marvell_read_status_page(phydev, MII_M1111_COPPER);
+
+error:
+	phy_write(phydev, MII_MARVELL_PHY_PAGE, MII_M1111_COPPER);
+	return err;
+}
+
+/* marvell_suspend
+ *
+ * Some Marvell's phys have two modes: fiber and copper.
+ * Both need to be suspended
+ */
+static int marvell_suspend(struct phy_device *phydev)
+{
+	int err;
+
+	/* Suspend the fiber mode first */
+	if (!(phydev->supported & SUPPORTED_FIBRE)) {
+		err = phy_write(phydev, MII_MARVELL_PHY_PAGE, MII_M1111_FIBER);
+		if (err < 0)
+			goto error;
+
+		/* With the page set, use the generic suspend */
+		err = genphy_suspend(phydev);
+		if (err < 0)
+			goto error;
+
+		/* Then, the copper link */
+		err = phy_write(phydev, MII_MARVELL_PHY_PAGE, MII_M1111_COPPER);
+		if (err < 0)
+			goto error;
+	}
+
+	/* With the page set, use the generic suspend */
+	return genphy_suspend(phydev);
+
+error:
+	phy_write(phydev, MII_MARVELL_PHY_PAGE, MII_M1111_COPPER);
+	return err;
+}
+
+/* marvell_resume
+ *
+ * Some Marvell's phys have two modes: fiber and copper.
+ * Both need to be resumed
+ */
+static int marvell_resume(struct phy_device *phydev)
+{
+	int err;
+
+	/* Resume the fiber mode first */
+	if (!(phydev->supported & SUPPORTED_FIBRE)) {
+		err = phy_write(phydev, MII_MARVELL_PHY_PAGE, MII_M1111_FIBER);
+		if (err < 0)
+			goto error;
+
+		/* With the page set, use the generic resume */
+		err = genphy_resume(phydev);
+		if (err < 0)
+			goto error;
+
+		/* Then, the copper link */
+		err = phy_write(phydev, MII_MARVELL_PHY_PAGE, MII_M1111_COPPER);
+		if (err < 0)
+			goto error;
+	}
+
+	/* With the page set, use the generic resume */
+	return genphy_resume(phydev);
+
+error:
+	phy_write(phydev, MII_MARVELL_PHY_PAGE, MII_M1111_COPPER);
+	return err;
 }
 
 static int marvell_aneg_done(struct phy_device *phydev)
@@ -1107,7 +1414,10 @@ static int m88e1318_set_wol(struct phy_device *phydev, struct ethtool_wolinfo *w
 
 static int marvell_get_sset_count(struct phy_device *phydev)
 {
-	return ARRAY_SIZE(marvell_hw_stats);
+	if (phydev->supported & SUPPORTED_FIBRE)
+		return ARRAY_SIZE(marvell_hw_stats);
+	else
+		return ARRAY_SIZE(marvell_hw_stats) - NB_FIBER_STATS;
 }
 
 static void marvell_get_strings(struct phy_device *phydev, u8 *data)
@@ -1361,7 +1671,7 @@ static struct phy_driver marvell_drivers[] = {
 		.phy_id = MARVELL_PHY_ID_88E1510,
 		.phy_id_mask = MARVELL_PHY_ID_MASK,
 		.name = "Marvell 88E1510",
-		.features = PHY_GBIT_FEATURES,
+		.features = PHY_GBIT_FEATURES | SUPPORTED_FIBRE,
 		.flags = PHY_HAS_INTERRUPT,
 		.probe = marvell_probe,
 		.config_init = &m88e1510_config_init,
@@ -1370,8 +1680,8 @@ static struct phy_driver marvell_drivers[] = {
 		.ack_interrupt = &marvell_ack_interrupt,
 		.config_intr = &marvell_config_intr,
 		.did_interrupt = &m88e1121_did_interrupt,
-		.resume = &genphy_resume,
-		.suspend = &genphy_suspend,
+		.resume = &marvell_resume,
+		.suspend = &marvell_suspend,
 		.get_sset_count = marvell_get_sset_count,
 		.get_strings = marvell_get_strings,
 		.get_stats = marvell_get_stats,

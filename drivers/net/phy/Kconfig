@@ -12,6 +12,9 @@ menuconfig PHYLIB
 
 if PHYLIB
 
+config SWPHY
+	bool
+
 comment "MII PHY device drivers"
 
 config AQUANTIA_PHY
@@ -159,6 +162,7 @@ config MICROCHIP_PHY
 config FIXED_PHY
 	tristate "Driver for MDIO Bus/PHY emulation with fixed speed/link PHYs"
 	depends on PHYLIB
+	select SWPHY
 	---help---
 	  Adds the platform "fixed" MDIO Bus to cover the boards that use
 	  PHYs that are not connected to the real MDIO bus.
@@ -254,6 +258,17 @@ config MDIO_BUS_MUX_MMIOREG
 
 	  Currently, only 8-bit registers are supported.
 
+config MDIO_BUS_MUX_BCM_IPROC
+	tristate "Support for iProc based MDIO bus multiplexers"
+	depends on OF && OF_MDIO && (ARCH_BCM_IPROC || COMPILE_TEST)
+	select MDIO_BUS_MUX
+	default ARCH_BCM_IPROC
+	help
+	  This module provides a driver for MDIO bus multiplexers found in
+	  iProc based Broadcom SoCs. This multiplexer connects one of several
+	  child MDIO bus to a parent bus. Buses could be internal as well as
+	  external and selection logic lies inside the same multiplexer.
+
 config MDIO_BCM_UNIMAC
 	tristate "Broadcom UniMAC MDIO bus controller"
 	depends on HAS_IOMEM
@@ -270,6 +285,27 @@ config MDIO_BCM_IPROC
 	help
 	  This module provides a driver for the MDIO busses found in the
 	  Broadcom iProc SoC's.
+
+config INTEL_XWAY_PHY
+	tristate "Driver for Intel XWAY PHYs"
+	---help---
+	  Supports the Intel XWAY (former Lantiq) 11G and 22E PHYs.
+	  These PHYs are marked as standalone chips under the names
+	  PEF 7061, PEF 7071 and PEF 7072 or integrated into the Intel
+	  SoCs xRX200, xRX300, xRX330, xRX350 and xRX550.
+
+config MDIO_HISI_FEMAC
+	tristate "Hisilicon FEMAC MDIO bus controller"
+	depends on HAS_IOMEM && OF_MDIO
+	help
+	  This module provides a driver for the MDIO busses found in the
+	  Hisilicon SoC that have an Fast Ethernet MAC.
+
+config MDIO_XGENE
+	tristate "APM X-Gene SoC MDIO bus controller"
+	help
+	  This module provides a driver for the MDIO busses found in the
+	  APM X-Gene SoC's.
 
 endif # PHYLIB
 

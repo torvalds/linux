@@ -220,7 +220,7 @@ void cfg80211_stop_p2p_device(struct cfg80211_registered_device *rdev,
 
 	if (rdev->scan_req && rdev->scan_req->wdev == wdev) {
 		if (WARN_ON(!rdev->scan_req->notified))
-			rdev->scan_req->aborted = true;
+			rdev->scan_req->info.aborted = true;
 		___cfg80211_scan_done(rdev, false);
 	}
 }
@@ -748,6 +748,36 @@ int wiphy_register(struct wiphy *wiphy)
 		nl80211_send_reg_change_event(&request);
 	}
 
+	/* Check that nobody globally advertises any capabilities they do not
+	 * advertise on all possible interface types.
+	 */
+	if (wiphy->extended_capabilities_len &&
+	    wiphy->num_iftype_ext_capab &&
+	    wiphy->iftype_ext_capab) {
+		u8 supported_on_all, j;
+		const struct wiphy_iftype_ext_capab *capab;
+
+		capab = wiphy->iftype_ext_capab;
+		for (j = 0; j < wiphy->extended_capabilities_len; j++) {
+			if (capab[0].extended_capabilities_len > j)
+				supported_on_all =
+					capab[0].extended_capabilities[j];
+			else
+				supported_on_all = 0x00;
+			for (i = 1; i < wiphy->num_iftype_ext_capab; i++) {
+				if (j >= capab[i].extended_capabilities_len) {
+					supported_on_all = 0x00;
+					break;
+				}
+				supported_on_all &=
+					capab[i].extended_capabilities[j];
+			}
+			if (WARN_ON(wiphy->extended_capabilities[j] &
+				    ~supported_on_all))
+				break;
+		}
+	}
+
 	rdev->wiphy.registered = true;
 	rtnl_unlock();
 
@@ -1057,7 +1087,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 		cfg80211_update_iface_num(rdev, wdev->iftype, -1);
 		if (rdev->scan_req && rdev->scan_req->wdev == wdev) {
 			if (WARN_ON(!rdev->scan_req->notified))
-				rdev->scan_req->aborted = true;
+				rdev->scan_req->info.aborted = true;
 			___cfg80211_scan_done(rdev, false);
 		}
 

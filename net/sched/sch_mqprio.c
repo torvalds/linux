@@ -342,7 +342,8 @@ static int mqprio_dump_class_stats(struct Qdisc *sch, unsigned long cl,
 		 * hold here is the look on dev_queue->qdisc_sleeping
 		 * also acquired below.
 		 */
-		spin_unlock_bh(d->lock);
+		if (d->lock)
+			spin_unlock_bh(d->lock);
 
 		for (i = tc.offset; i < tc.offset + tc.count; i++) {
 			struct netdev_queue *q = netdev_get_tx_queue(dev, i);
@@ -359,15 +360,17 @@ static int mqprio_dump_class_stats(struct Qdisc *sch, unsigned long cl,
 			spin_unlock_bh(qdisc_lock(qdisc));
 		}
 		/* Reclaim root sleeping lock before completing stats */
-		spin_lock_bh(d->lock);
-		if (gnet_stats_copy_basic(d, NULL, &bstats) < 0 ||
+		if (d->lock)
+			spin_lock_bh(d->lock);
+		if (gnet_stats_copy_basic(NULL, d, NULL, &bstats) < 0 ||
 		    gnet_stats_copy_queue(d, NULL, &qstats, qlen) < 0)
 			return -1;
 	} else {
 		struct netdev_queue *dev_queue = mqprio_queue_get(sch, cl);
 
 		sch = dev_queue->qdisc_sleeping;
-		if (gnet_stats_copy_basic(d, NULL, &sch->bstats) < 0 ||
+		if (gnet_stats_copy_basic(qdisc_root_sleeping_running(sch),
+					  d, NULL, &sch->bstats) < 0 ||
 		    gnet_stats_copy_queue(d, NULL,
 					  &sch->qstats, sch->q.qlen) < 0)
 			return -1;

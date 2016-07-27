@@ -42,7 +42,11 @@ struct ixgbe_jump_table {
 	struct ixgbe_mat_field *mat;
 	struct ixgbe_fdir_filter *input;
 	union ixgbe_atr_input *mask;
+	u32 link_hdl;
+	unsigned long child_loc_map[32];
 };
+
+#define IXGBE_MAX_HW_ENTRIES 2045
 
 static inline int ixgbe_mat_prgm_sip(struct ixgbe_fdir_filter *input,
 				     union ixgbe_atr_input *mask,

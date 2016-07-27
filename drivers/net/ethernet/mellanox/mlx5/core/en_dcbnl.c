@@ -195,7 +195,6 @@ static int mlx5e_dcbnl_ieee_setpfc(struct net_device *dev,
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	struct mlx5_core_dev *mdev = priv->mdev;
-	enum mlx5_port_status ps;
 	u8 curr_pfc_en;
 	int ret;
 
@@ -204,14 +203,8 @@ static int mlx5e_dcbnl_ieee_setpfc(struct net_device *dev,
 	if (pfc->pfc_en == curr_pfc_en)
 		return 0;
 
-	mlx5_query_port_admin_status(mdev, &ps);
-	if (ps == MLX5_PORT_UP)
-		mlx5_set_port_admin_status(mdev, MLX5_PORT_DOWN);
-
 	ret = mlx5_set_port_pfc(mdev, pfc->pfc_en, pfc->pfc_en);
-
-	if (ps == MLX5_PORT_UP)
-		mlx5_set_port_admin_status(mdev, MLX5_PORT_UP);
+	mlx5_toggle_port_link(mdev);
 
 	return ret;
 }

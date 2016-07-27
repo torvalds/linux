@@ -30,22 +30,48 @@
 #include <linux/slab.h>
 #include <linux/ethtool.h>
 #include <asm/io.h>
+#include "stmmac_pcs.h"
 #include "dwmac1000.h"
 
 static void dwmac1000_core_init(struct mac_device_info *hw, int mtu)
 {
 	void __iomem *ioaddr = hw->pcsr;
 	u32 value = readl(ioaddr + GMAC_CONTROL);
+
+	/* Configure GMAC core */
 	value |= GMAC_CORE_INIT;
+
 	if (mtu > 1500)
 		value |= GMAC_CONTROL_2K;
 	if (mtu > 2000)
 		value |= GMAC_CONTROL_JE;
 
+	if (hw->ps) {
+		value |= GMAC_CONTROL_TE;
+
+		if (hw->ps == SPEED_1000) {
+			value &= ~GMAC_CONTROL_PS;
+		} else {
+			value |= GMAC_CONTROL_PS;
+
+			if (hw->ps == SPEED_10)
+				value &= ~GMAC_CONTROL_FES;
+			else
+				value |= GMAC_CONTROL_FES;
+		}
+	}
+
 	writel(value, ioaddr + GMAC_CONTROL);
 
 	/* Mask GMAC interrupts */
-	writel(0x207, ioaddr + GMAC_INT_MASK);
+	value = GMAC_INT_DEFAULT_MASK;
+
+	if (hw->pmt)
+		value &= ~GMAC_INT_DISABLE_PMT;
+	if (hw->pcs)
+		value &= ~GMAC_INT_DISABLE_PCS;
+
+	writel(value, ioaddr + GMAC_INT_MASK);
 
 #ifdef STMMAC_VLAN_TAG_USED
 	/* Tag detection without filtering */
@@ -241,6 +267,39 @@ static void dwmac1000_pmt(struct mac_device_info *hw, unsigned long mode)
 	writel(pmt, ioaddr + GMAC_PMT);
 }
 
+/* RGMII or SMII interface */
+static void dwmac1000_rgsmii(void __iomem *ioaddr, struct stmmac_extra_stats *x)
+{
+	u32 status;
+
+	status = readl(ioaddr + GMAC_RGSMIIIS);
+	x->irq_rgmii_n++;
+
+	/* Check the link status */
+	if (status & GMAC_RGSMIIIS_LNKSTS) {
+		int speed_value;
+
+		x->pcs_link = 1;
+
+		speed_value = ((status & GMAC_RGSMIIIS_SPEED) >>
+			       GMAC_RGSMIIIS_SPEED_SHIFT);
+		if (speed_value == GMAC_RGSMIIIS_SPEED_125)
+			x->pcs_speed = SPEED_1000;
+		else if (speed_value == GMAC_RGSMIIIS_SPEED_25)
+			x->pcs_speed = SPEED_100;
+		else
+			x->pcs_speed = SPEED_10;
+
+		x->pcs_duplex = (status & GMAC_RGSMIIIS_LNKMOD_MASK);
+
+		pr_info("Link is Up - %d/%s\n", (int)x->pcs_speed,
+			x->pcs_duplex ? "Full" : "Half");
+	} else {
+		x->pcs_link = 0;
+		pr_info("Link is Down\n");
+	}
+}
+
 static int dwmac1000_irq_status(struct mac_device_info *hw,
 				struct stmmac_extra_stats *x)
 {
@@ -249,19 +308,20 @@ static int dwmac1000_irq_status(struct mac_device_info *hw,
 	int ret = 0;
 
 	/* Not used events (e.g. MMC interrupts) are not handled. */
-	if ((intr_status & mmc_tx_irq))
+	if ((intr_status & GMAC_INT_STATUS_MMCTIS))
 		x->mmc_tx_irq_n++;
-	if (unlikely(intr_status & mmc_rx_irq))
+	if (unlikely(intr_status & GMAC_INT_STATUS_MMCRIS))
 		x->mmc_rx_irq_n++;
-	if (unlikely(intr_status & mmc_rx_csum_offload_irq))
+	if (unlikely(intr_status & GMAC_INT_STATUS_MMCCSUM))
 		x->mmc_rx_csum_offload_irq_n++;
-	if (unlikely(intr_status & pmt_irq)) {
+	if (unlikely(intr_status & GMAC_INT_DISABLE_PMT)) {
 		/* clear the PMT bits 5 and 6 by reading the PMT status reg */
 		readl(ioaddr + GMAC_PMT);
 		x->irq_receive_pmt_irq_n++;
 	}
-	/* MAC trx/rx EEE LPI entry/exit interrupts */
-	if (intr_status & lpiis_irq) {
+
+	/* MAC tx/rx EEE LPI entry/exit interrupts */
+	if (intr_status & GMAC_INT_STATUS_LPIIS) {
 		/* Clean LPI interrupt by reading the Reg 12 */
 		ret = readl(ioaddr + LPI_CTRL_STATUS);
 
@@ -275,36 +335,10 @@ static int dwmac1000_irq_status(struct mac_device_info *hw,
 			x->irq_rx_path_exit_lpi_mode_n++;
 	}
 
-	if ((intr_status & pcs_ane_irq) || (intr_status & pcs_link_irq)) {
-		readl(ioaddr + GMAC_AN_STATUS);
-		x->irq_pcs_ane_n++;
-	}
-	if (intr_status & rgmii_irq) {
-		u32 status = readl(ioaddr + GMAC_S_R_GMII);
-		x->irq_rgmii_n++;
+	dwmac_pcs_isr(ioaddr, GMAC_PCS_BASE, intr_status, x);
 
-		/* Save and dump the link status. */
-		if (status & GMAC_S_R_GMII_LINK) {
-			int speed_value = (status & GMAC_S_R_GMII_SPEED) >>
-			    GMAC_S_R_GMII_SPEED_SHIFT;
-			x->pcs_duplex = (status & GMAC_S_R_GMII_MODE);
-
-			if (speed_value == GMAC_S_R_GMII_SPEED_125)
-				x->pcs_speed = SPEED_1000;
-			else if (speed_value == GMAC_S_R_GMII_SPEED_25)
-				x->pcs_speed = SPEED_100;
-			else
-				x->pcs_speed = SPEED_10;
-
-			x->pcs_link = 1;
-			pr_debug("%s: Link is Up - %d/%s\n", __func__,
-				 (int)x->pcs_speed,
-				 x->pcs_duplex ? "Full" : "Half");
-		} else {
-			x->pcs_link = 0;
-			pr_debug("%s: Link is Down\n", __func__);
-		}
-	}
+	if (intr_status & PCS_RGSMIIIS_IRQ)
+		dwmac1000_rgsmii(ioaddr, x);
 
 	return ret;
 }
@@ -363,38 +397,20 @@ static void dwmac1000_set_eee_timer(struct mac_device_info *hw, int ls, int tw)
 	writel(value, ioaddr + LPI_TIMER_CTRL);
 }
 
-static void dwmac1000_ctrl_ane(struct mac_device_info *hw, bool restart)
+static void dwmac1000_ctrl_ane(void __iomem *ioaddr, bool ane, bool srgmi_ral,
+			       bool loopback)
 {
-	void __iomem *ioaddr = hw->pcsr;
-	/* auto negotiation enable and External Loopback enable */
-	u32 value = GMAC_AN_CTRL_ANE | GMAC_AN_CTRL_ELE;
-
-	if (restart)
-		value |= GMAC_AN_CTRL_RAN;
-
-	writel(value, ioaddr + GMAC_AN_CTRL);
+	dwmac_ctrl_ane(ioaddr, GMAC_PCS_BASE, ane, srgmi_ral, loopback);
 }
 
-static void dwmac1000_get_adv(struct mac_device_info *hw, struct rgmii_adv *adv)
+static void dwmac1000_rane(void __iomem *ioaddr, bool restart)
 {
-	void __iomem *ioaddr = hw->pcsr;
-	u32 value = readl(ioaddr + GMAC_ANE_ADV);
+	dwmac_rane(ioaddr, GMAC_PCS_BASE, restart);
+}
 
-	if (value & GMAC_ANE_FD)
-		adv->duplex = DUPLEX_FULL;
-	if (value & GMAC_ANE_HD)
-		adv->duplex |= DUPLEX_HALF;
-
-	adv->pause = (value & GMAC_ANE_PSE) >> GMAC_ANE_PSE_SHIFT;
-
-	value = readl(ioaddr + GMAC_ANE_LPA);
-
-	if (value & GMAC_ANE_FD)
-		adv->lp_duplex = DUPLEX_FULL;
-	if (value & GMAC_ANE_HD)
-		adv->lp_duplex = DUPLEX_HALF;
-
-	adv->lp_pause = (value & GMAC_ANE_PSE) >> GMAC_ANE_PSE_SHIFT;
+static void dwmac1000_get_adv_lp(void __iomem *ioaddr, struct rgmii_adv *adv)
+{
+	dwmac_get_adv_lp(ioaddr, GMAC_PCS_BASE, adv);
 }
 
 static void dwmac1000_debug(void __iomem *ioaddr, struct stmmac_extra_stats *x)
@@ -485,9 +501,10 @@ static const struct stmmac_ops dwmac1000_ops = {
 	.reset_eee_mode = dwmac1000_reset_eee_mode,
 	.set_eee_timer = dwmac1000_set_eee_timer,
 	.set_eee_pls = dwmac1000_set_eee_pls,
-	.ctrl_ane = dwmac1000_ctrl_ane,
-	.get_adv = dwmac1000_get_adv,
 	.debug = dwmac1000_debug,
+	.pcs_ctrl_ane = dwmac1000_ctrl_ane,
+	.pcs_rane = dwmac1000_rane,
+	.pcs_get_adv_lp = dwmac1000_get_adv_lp,
 };
 
 struct mac_device_info *dwmac1000_setup(void __iomem *ioaddr, int mcbins,

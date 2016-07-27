@@ -2249,20 +2249,20 @@ struct fw_acl_vlan_cmd {
 enum fw_port_cap {
 	FW_PORT_CAP_SPEED_100M		= 0x0001,
 	FW_PORT_CAP_SPEED_1G		= 0x0002,
-	FW_PORT_CAP_SPEED_2_5G		= 0x0004,
+	FW_PORT_CAP_SPEED_25G		= 0x0004,
 	FW_PORT_CAP_SPEED_10G		= 0x0008,
 	FW_PORT_CAP_SPEED_40G		= 0x0010,
 	FW_PORT_CAP_SPEED_100G		= 0x0020,
 	FW_PORT_CAP_FC_RX		= 0x0040,
 	FW_PORT_CAP_FC_TX		= 0x0080,
 	FW_PORT_CAP_ANEG		= 0x0100,
-	FW_PORT_CAP_MDI_0		= 0x0200,
-	FW_PORT_CAP_MDI_1		= 0x0400,
-	FW_PORT_CAP_BEAN		= 0x0800,
-	FW_PORT_CAP_PMA_LPBK		= 0x1000,
-	FW_PORT_CAP_PCS_LPBK		= 0x2000,
-	FW_PORT_CAP_PHYXS_LPBK		= 0x4000,
-	FW_PORT_CAP_FAR_END_LPBK	= 0x8000,
+	FW_PORT_CAP_MDIX		= 0x0200,
+	FW_PORT_CAP_MDIAUTO		= 0x0400,
+	FW_PORT_CAP_FEC			= 0x0800,
+	FW_PORT_CAP_TECHKR		= 0x1000,
+	FW_PORT_CAP_TECHKX4		= 0x2000,
+	FW_PORT_CAP_802_3_PAUSE		= 0x4000,
+	FW_PORT_CAP_802_3_ASM_DIR	= 0x8000,
 };
 
 enum fw_port_mdi {
@@ -2376,7 +2376,8 @@ struct fw_port_cmd {
 			__u8   cbllen;
 			__u8   auxlinfo;
 			__u8   dcbxdis_pkd;
-			__u8   r8_lo[3];
+			__u8   r8_lo;
+			__be16 lpacap;
 			__be64 r9;
 		} info;
 		struct fw_port_diags {
@@ -2555,6 +2556,11 @@ enum fw_port_type {
 	FW_PORT_TYPE_QSA,
 	FW_PORT_TYPE_QSFP,
 	FW_PORT_TYPE_BP40_BA,
+	FW_PORT_TYPE_KR4_100G,
+	FW_PORT_TYPE_CR4_QSFP,
+	FW_PORT_TYPE_CR_QSFP,
+	FW_PORT_TYPE_CR2_QSFP,
+	FW_PORT_TYPE_SFP28,
 
 	FW_PORT_TYPE_NONE = FW_PORT_CMD_PTYPE_M
 };

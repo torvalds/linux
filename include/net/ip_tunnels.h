@@ -132,6 +132,7 @@ struct ip_tunnel {
 	int			ip_tnl_net_id;
 	struct gro_cells	gro_cells;
 	bool			collect_md;
+	bool			ignore_df;
 };
 
 #define TUNNEL_CSUM		__cpu_to_be16(0x01)
@@ -156,6 +157,7 @@ struct tnl_ptk_info {
 	__be16 proto;
 	__be32 key;
 	__be32 seq;
+	int hdr_len;
 };
 
 #define PACKET_RCVD	0

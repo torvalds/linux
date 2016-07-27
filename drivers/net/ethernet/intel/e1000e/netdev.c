@@ -4352,7 +4352,8 @@ static cycle_t e1000e_cyclecounter_read(const struct cyclecounter *cc)
 
 			time_delta = systim_next - systim;
 			temp = time_delta;
-			rem = do_div(temp, incvalue);
+			/* VMWare users have seen incvalue of zero, don't div / 0 */
+			rem = incvalue ? do_div(temp, incvalue) : (time_delta != 0);
 
 			systim = systim_next;
 

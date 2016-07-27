@@ -997,6 +997,7 @@ static void sta_apply_mesh_params(struct ieee80211_local *local,
 			if (sta->mesh->plink_state != NL80211_PLINK_ESTAB)
 				changed = mesh_plink_inc_estab_count(sdata);
 			sta->mesh->plink_state = params->plink_state;
+			sta->mesh->aid = params->peer_aid;
 
 			ieee80211_mps_sta_status_update(sta);
 			changed |= ieee80211_mps_set_sta_local_pm(sta,

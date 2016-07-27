@@ -345,8 +345,8 @@ static int find_portno(struct net_bridge *br)
 static struct net_bridge_port *new_nbp(struct net_bridge *br,
 				       struct net_device *dev)
 {
-	int index;
 	struct net_bridge_port *p;
+	int index, err;
 
 	index = find_portno(br);
 	if (index < 0)
@@ -366,7 +366,12 @@ static struct net_bridge_port *new_nbp(struct net_bridge *br,
 	br_init_port(p);
 	br_set_state(p, BR_STATE_DISABLED);
 	br_stp_port_timer_init(p);
-	br_multicast_add_port(p);
+	err = br_multicast_add_port(p);
+	if (err) {
+		dev_put(dev);
+		kfree(p);
+		p = ERR_PTR(err);
+	}
 
 	return p;
 }

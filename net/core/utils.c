@@ -133,7 +133,7 @@ int in4_pton(const char *src, int srclen,
 	s = src;
 	d = dbuf;
 	i = 0;
-	while(1) {
+	while (1) {
 		int c;
 		c = xdigit2bin(srclen > 0 ? *s : '\0', delim);
 		if (!(c & (IN6PTON_DIGIT | IN6PTON_DOT | IN6PTON_DELIM | IN6PTON_COLON_MASK))) {
@@ -283,11 +283,11 @@ cont:
 	i = 15; d--;
 
 	if (dc) {
-		while(d >= dc)
+		while (d >= dc)
 			dst[i--] = *d--;
-		while(i >= dc - dbuf)
+		while (i >= dc - dbuf)
 			dst[i--] = 0;
-		while(i >= 0)
+		while (i >= 0)
 			dst[i--] = *d--;
 	} else
 		memcpy(dst, dbuf, sizeof(dbuf));

@@ -184,7 +184,7 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 
 	tx_info_src = MWIFIEX_SKB_TXCB(skb_src);
 	skb_aggr = mwifiex_alloc_dma_align_buf(adapter->tx_buf_size,
-					       GFP_ATOMIC | GFP_DMA);
+					       GFP_ATOMIC);
 	if (!skb_aggr) {
 		spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
 				       ra_list_flags);

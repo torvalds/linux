@@ -980,13 +980,13 @@ int i40e_unregister_client(struct i40e_client *client)
 	 * a close for each of the client instances that were opened.
 	 * client_release function is called to handle this.
 	 */
+	mutex_lock(&i40e_client_mutex);
 	if (!client || i40e_client_release(client)) {
 		ret = -EIO;
 		goto out;
 	}
 
 	/* TODO: check if device is in reset, or if that matters? */
-	mutex_lock(&i40e_client_mutex);
 	if (!i40e_client_is_registered(client)) {
 		pr_info("i40e: Client %s has not been registered\n",
 			client->name);
@@ -1005,8 +1005,8 @@ int i40e_unregister_client(struct i40e_client *client)
 		       client->name);
 	}
 
-	mutex_unlock(&i40e_client_mutex);
 out:
+	mutex_unlock(&i40e_client_mutex);
 	return ret;
 }
 EXPORT_SYMBOL(i40e_unregister_client);

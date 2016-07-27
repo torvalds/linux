@@ -107,6 +107,7 @@ struct t4vf_port_stats {
 struct link_config {
 	unsigned int   supported;        /* link capabilities */
 	unsigned int   advertising;      /* advertised capabilities */
+	unsigned short lp_advertising;   /* peer advertised capabilities */
 	unsigned short requested_speed;  /* speed user has requested */
 	unsigned short speed;            /* actual link speed */
 	unsigned char  requested_fc;     /* flow control user has requested */

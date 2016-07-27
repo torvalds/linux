@@ -167,6 +167,10 @@ void cw1200_scan_work(struct work_struct *work)
 	}
 
 	if (!priv->scan.req || (priv->scan.curr == priv->scan.end)) {
+		struct cfg80211_scan_info info = {
+			.aborted = priv->scan.status ? 1 : 0,
+		};
+
 		if (priv->scan.output_power != priv->output_power)
 			wsm_set_output_power(priv, priv->output_power * 10);
 		if (priv->join_status == CW1200_JOIN_STATUS_STA &&
@@ -188,7 +192,7 @@ void cw1200_scan_work(struct work_struct *work)
 		cw1200_scan_restart_delayed(priv);
 		wsm_unlock_tx(priv);
 		mutex_unlock(&priv->conf_mutex);
-		ieee80211_scan_completed(priv->hw, priv->scan.status ? 1 : 0);
+		ieee80211_scan_completed(priv->hw, &info);
 		up(&priv->scan.lock);
 		return;
 	} else {

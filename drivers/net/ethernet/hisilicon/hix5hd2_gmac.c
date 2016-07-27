@@ -218,7 +218,6 @@ struct hix5hd2_priv {
 	struct device *dev;
 	struct net_device *netdev;
 
-	struct phy_device *phy;
 	struct device_node *phy_node;
 	phy_interface_t	phy_mode;
 
@@ -402,7 +401,7 @@ static int hix5hd2_net_set_mac_address(struct net_device *dev, void *p)
 static void hix5hd2_adjust_link(struct net_device *dev)
 {
 	struct hix5hd2_priv *priv = netdev_priv(dev);
-	struct phy_device *phy = priv->phy;
+	struct phy_device *phy = dev->phydev;
 
 	if ((priv->speed != phy->speed) || (priv->duplex != phy->duplex)) {
 		hix5hd2_config_port(dev, phy->speed, phy->duplex);
@@ -679,6 +678,7 @@ static void hix5hd2_free_dma_desc_rings(struct hix5hd2_priv *priv)
 static int hix5hd2_net_open(struct net_device *dev)
 {
 	struct hix5hd2_priv *priv = netdev_priv(dev);
+	struct phy_device *phy;
 	int ret;
 
 	ret = clk_prepare_enable(priv->clk);
@@ -687,12 +687,12 @@ static int hix5hd2_net_open(struct net_device *dev)
 		return ret;
 	}
 
-	priv->phy = of_phy_connect(dev, priv->phy_node,
-				   &hix5hd2_adjust_link, 0, priv->phy_mode);
-	if (!priv->phy)
+	phy = of_phy_connect(dev, priv->phy_node,
+			     &hix5hd2_adjust_link, 0, priv->phy_mode);
+	if (!phy)
 		return -ENODEV;
 
-	phy_start(priv->phy);
+	phy_start(phy);
 	hix5hd2_hw_init(priv);
 	hix5hd2_rx_refill(priv);
 
@@ -716,9 +716,9 @@ static int hix5hd2_net_close(struct net_device *dev)
 	netif_stop_queue(dev);
 	hix5hd2_free_dma_desc_rings(priv);
 
-	if (priv->phy) {
-		phy_stop(priv->phy);
-		phy_disconnect(priv->phy);
+	if (dev->phydev) {
+		phy_stop(dev->phydev);
+		phy_disconnect(dev->phydev);
 	}
 
 	clk_disable_unprepare(priv->clk);
@@ -750,32 +750,10 @@ static const struct net_device_ops hix5hd2_netdev_ops = {
 	.ndo_set_mac_address	= hix5hd2_net_set_mac_address,
 };
 
-static int hix5hd2_get_settings(struct net_device *net_dev,
-				struct ethtool_cmd *cmd)
-{
-	struct hix5hd2_priv *priv = netdev_priv(net_dev);
-
-	if (!priv->phy)
-		return -ENODEV;
-
-	return phy_ethtool_gset(priv->phy, cmd);
-}
-
-static int hix5hd2_set_settings(struct net_device *net_dev,
-				struct ethtool_cmd *cmd)
-{
-	struct hix5hd2_priv *priv = netdev_priv(net_dev);
-
-	if (!priv->phy)
-		return -ENODEV;
-
-	return phy_ethtool_sset(priv->phy, cmd);
-}
-
 static struct ethtool_ops hix5hd2_ethtools_ops = {
 	.get_link		= ethtool_op_get_link,
-	.get_settings		= hix5hd2_get_settings,
-	.set_settings		= hix5hd2_set_settings,
+	.get_link_ksettings     = phy_ethtool_get_link_ksettings,
+	.set_link_ksettings     = phy_ethtool_set_link_ksettings,
 };
 
 static int hix5hd2_mdio_wait_ready(struct mii_bus *bus)

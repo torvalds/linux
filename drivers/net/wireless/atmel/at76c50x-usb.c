@@ -1922,6 +1922,9 @@ static void at76_dwork_hw_scan(struct work_struct *work)
 {
 	struct at76_priv *priv = container_of(work, struct at76_priv,
 					      dwork_hw_scan.work);
+	struct cfg80211_scan_info info = {
+		.aborted = false,
+	};
 	int ret;
 
 	if (priv->device_unplugged)
@@ -1948,7 +1951,7 @@ static void at76_dwork_hw_scan(struct work_struct *work)
 
 	mutex_unlock(&priv->mtx);
 
-	ieee80211_scan_completed(priv->hw, false);
+	ieee80211_scan_completed(priv->hw, &info);
 
 	ieee80211_wake_queues(priv->hw);
 }

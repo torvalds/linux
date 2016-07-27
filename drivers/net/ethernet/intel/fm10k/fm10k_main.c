@@ -28,7 +28,7 @@
 
 #include "fm10k.h"
 
-#define DRV_VERSION	"0.19.3-k"
+#define DRV_VERSION	"0.21.2-k"
 #define DRV_SUMMARY	"Intel(R) Ethernet Switch Host Interface Driver"
 const char fm10k_driver_version[] = DRV_VERSION;
 char fm10k_driver_name[] = "fm10k";
@@ -56,7 +56,7 @@ static int __init fm10k_init_module(void)
 	pr_info("%s\n", fm10k_copyright);
 
 	/* create driver workqueue */
-	fm10k_workqueue = create_workqueue("fm10k");
+	fm10k_workqueue = alloc_workqueue("fm10k", WQ_MEM_RECLAIM, 0);
 
 	fm10k_dbg_init();
 
@@ -77,7 +77,6 @@ static void __exit fm10k_exit_module(void)
 	fm10k_dbg_exit();
 
 	/* destroy driver workqueue */
-	flush_workqueue(fm10k_workqueue);
 	destroy_workqueue(fm10k_workqueue);
 }
 module_exit(fm10k_exit_module);
@@ -272,7 +271,7 @@ static bool fm10k_add_rx_frag(struct fm10k_rx_buffer *rx_buffer,
 #if (PAGE_SIZE < 8192)
 	unsigned int truesize = FM10K_RX_BUFSZ;
 #else
-	unsigned int truesize = SKB_DATA_ALIGN(size);
+	unsigned int truesize = ALIGN(size, 512);
 #endif
 	unsigned int pull_len;
 
@@ -1129,11 +1128,13 @@ static u64 fm10k_get_tx_completed(struct fm10k_ring *ring)
 	return ring->stats.packets;
 }
 
-static u64 fm10k_get_tx_pending(struct fm10k_ring *ring)
+u64 fm10k_get_tx_pending(struct fm10k_ring *ring)
 {
-	/* use SW head and tail until we have real hardware */
-	u32 head = ring->next_to_clean;
-	u32 tail = ring->next_to_use;
+	struct fm10k_intfc *interface = ring->q_vector->interface;
+	struct fm10k_hw *hw = &interface->hw;
+
+	u32 head = fm10k_read_reg(hw, FM10K_TDH(ring->reg_idx));
+	u32 tail = fm10k_read_reg(hw, FM10K_TDT(ring->reg_idx));
 
 	return ((head <= tail) ? tail : tail + ring->count) - head;
 }
@@ -1857,7 +1858,7 @@ static int fm10k_init_msix_capability(struct fm10k_intfc *interface)
 	if (v_budget < 0) {
 		kfree(interface->msix_entries);
 		interface->msix_entries = NULL;
-		return -ENOMEM;
+		return v_budget;
 	}
 
 	/* record the number of queues available for q_vectors */

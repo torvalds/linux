@@ -286,7 +286,7 @@ static const struct neigh_ops clip_neigh_ops = {
 	.connected_output =	neigh_direct_output,
 };
 
-static int clip_constructor(struct neighbour *neigh)
+static int clip_constructor(struct net_device *dev, struct neighbour *neigh)
 {
 	struct atmarp_entry *entry = neighbour_priv(neigh);
 

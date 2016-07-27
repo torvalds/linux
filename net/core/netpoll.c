@@ -163,7 +163,7 @@ static void poll_one_napi(struct napi_struct *napi)
 	 */
 	work = napi->poll(napi, 0);
 	WARN_ONCE(work, "%pF exceeded budget in poll\n", napi->poll);
-	trace_napi_poll(napi);
+	trace_napi_poll(napi, work, 0);
 
 	clear_bit(NAPI_STATE_NPSVC, &napi->state);
 }

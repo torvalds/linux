@@ -382,7 +382,6 @@ struct axidma_bd {
  * struct axienet_local - axienet private per device data
  * @ndev:	Pointer for net_device to which it will be attached.
  * @dev:	Pointer to device structure
- * @phy_dev:	Pointer to PHY device structure attached to the axienet_local
  * @phy_node:	Pointer to device node structure
  * @mii_bus:	Pointer to MII bus structure
  * @regs:	Base address for the axienet_local device address space
@@ -420,7 +419,6 @@ struct axienet_local {
 	struct device *dev;
 
 	/* Connection to PHY device */
-	struct phy_device *phy_dev;	/* Pointer to PHY device */
 	struct device_node *phy_node;
 
 	/* MDIO bus data */

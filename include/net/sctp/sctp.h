@@ -186,6 +186,10 @@ void sctp_assocs_proc_exit(struct net *net);
 int sctp_remaddr_proc_init(struct net *net);
 void sctp_remaddr_proc_exit(struct net *net);
 
+/*
+ * sctp/offload.c
+ */
+int sctp_offload_init(void);
 
 /*
  * Module global variables

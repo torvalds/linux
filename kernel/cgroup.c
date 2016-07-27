@@ -61,6 +61,7 @@
 #include <linux/cpuset.h>
 #include <linux/proc_ns.h>
 #include <linux/nsproxy.h>
+#include <linux/file.h>
 #include <net/sock.h>
 
 /*
@@ -6203,6 +6204,40 @@ struct cgroup *cgroup_get_from_path(const char *path)
 	return cgrp;
 }
 EXPORT_SYMBOL_GPL(cgroup_get_from_path);
+
+/**
+ * cgroup_get_from_fd - get a cgroup pointer from a fd
+ * @fd: fd obtained by open(cgroup2_dir)
+ *
+ * Find the cgroup from a fd which should be obtained
+ * by opening a cgroup directory.  Returns a pointer to the
+ * cgroup on success. ERR_PTR is returned if the cgroup
+ * cannot be found.
+ */
+struct cgroup *cgroup_get_from_fd(int fd)
+{
+	struct cgroup_subsys_state *css;
+	struct cgroup *cgrp;
+	struct file *f;
+
+	f = fget_raw(fd);
+	if (!f)
+		return ERR_PTR(-EBADF);
+
+	css = css_tryget_online_from_dir(f->f_path.dentry, NULL);
+	fput(f);
+	if (IS_ERR(css))
+		return ERR_CAST(css);
+
+	cgrp = css->cgroup;
+	if (!cgroup_on_dfl(cgrp)) {
+		cgroup_put(cgrp);
+		return ERR_PTR(-EBADF);
+	}
+
+	return cgrp;
+}
+EXPORT_SYMBOL_GPL(cgroup_get_from_fd);
 
 /*
  * sock->sk_cgrp_data handling.  For more info, see sock_cgroup_data
