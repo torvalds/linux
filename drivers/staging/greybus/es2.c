@@ -1100,7 +1100,7 @@ static struct arpc *arpc_alloc(void *payload, u16 size, u8 type)
 		goto err_free_rpc;
 
 	rpc->resp = kzalloc(sizeof(*rpc->resp), GFP_KERNEL);
-	if (!rpc->req)
+	if (!rpc->resp)
 		goto err_free_req;
 
 	rpc->req->type = type;
