@@ -1200,11 +1200,6 @@ static struct cpuhp_step cpuhp_bp_states[] = {
 		.startup = smpcfd_prepare_cpu,
 		.teardown = smpcfd_dead_cpu,
 	},
-	[CPUHP_TIMERS_DEAD] = {
-		.name = "timers dead",
-		.startup = NULL,
-		.teardown = timers_dead_cpu,
-	},
 	[CPUHP_RCUTREE_PREP] = {
 		.name = "RCU-tree prepare",
 		.startup = rcutree_prepare_cpu,
@@ -1220,6 +1215,16 @@ static struct cpuhp_step cpuhp_bp_states[] = {
 		.teardown		= notify_dead,
 		.skip_onerr		= true,
 		.cant_stop		= true,
+	},
+	/*
+	 * On the tear-down path, timers_dead_cpu() must be invoked
+	 * before blk_mq_queue_reinit_notify() from notify_dead(),
+	 * otherwise a RCU stall occurs.
+	 */
+	[CPUHP_TIMERS_DEAD] = {
+		.name = "timers dead",
+		.startup = NULL,
+		.teardown = timers_dead_cpu,
 	},
 	/* Kicks the plugged cpu into life */
 	[CPUHP_BRINGUP_CPU] = {
