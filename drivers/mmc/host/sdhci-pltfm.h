@@ -110,6 +110,5 @@ static inline void *sdhci_pltfm_priv(struct sdhci_pltfm_host *host)
 }
 
 extern const struct dev_pm_ops sdhci_pltfm_pmops;
-#define SDHCI_PLTFM_PMOPS (&sdhci_pltfm_pmops)
 
 #endif /* _DRIVERS_MMC_SDHCI_PLTFM_H */

@@ -260,7 +260,7 @@ static struct platform_driver sdhci_iproc_driver = {
 	.driver = {
 		.name = "sdhci-iproc",
 		.of_match_table = sdhci_iproc_of_match,
-		.pm = SDHCI_PLTFM_PMOPS,
+		.pm = &sdhci_pltfm_pmops,
 	},
 	.probe = sdhci_iproc_probe,
 	.remove = sdhci_pltfm_unregister,

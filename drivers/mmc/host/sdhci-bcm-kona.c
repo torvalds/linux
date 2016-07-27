@@ -326,7 +326,7 @@ err_pltfm_free:
 static struct platform_driver sdhci_bcm_kona_driver = {
 	.driver		= {
 		.name	= "sdhci-kona",
-		.pm	= SDHCI_PLTFM_PMOPS,
+		.pm	= &sdhci_pltfm_pmops,
 		.of_match_table = sdhci_bcm_kona_of_match,
 	},
 	.probe		= sdhci_bcm_kona_probe,
