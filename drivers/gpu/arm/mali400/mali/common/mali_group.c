@@ -696,10 +696,12 @@ void mali_group_add_group(struct mali_group *parent, struct mali_group *child)
 					      MALI_PROFILING_EVENT_REASON_START_STOP_HW_VIRTUAL,
 					      mali_pp_job_get_pid(job), mali_pp_job_get_tid(job), 0, 0, 0);
 #if defined(CONFIG_GPU_TRACEPOINTS) && defined(CONFIG_TRACEPOINTS)
-		trace_gpu_sched_switch(
-			mali_pp_core_description(child->pp_core),
-			sched_clock(), mali_pp_job_get_tid(job),
-			0, mali_pp_job_get_id(job));
+		if (child->pp_core) {
+			trace_gpu_sched_switch(
+				mali_pp_core_description(child->pp_core),
+				sched_clock(), mali_pp_job_get_tid(job),
+				0, mali_pp_job_get_id(job));
+		}
 #endif
 
 #if defined(CONFIG_MALI400_PROFILING)
@@ -849,9 +851,11 @@ void mali_group_start_gp_job(struct mali_group *group, struct mali_gp_job *job)
 #endif /* #if defined(CONFIG_MALI400_PROFILING) */
 
 #if defined(CONFIG_GPU_TRACEPOINTS) && defined(CONFIG_TRACEPOINTS)
-	trace_gpu_sched_switch(mali_gp_core_description(group->gp_core),
-			       sched_clock(), mali_gp_job_get_tid(job),
-			       0, mali_gp_job_get_id(job));
+	if (group->gp_core) {
+		trace_gpu_sched_switch(mali_gp_core_description(group->gp_core),
+				       sched_clock(), mali_gp_job_get_tid(job),
+				       0, mali_gp_job_get_id(job));
+	}
 #endif
 
 	group->gp_running_job = job;
@@ -977,9 +981,11 @@ void mali_group_start_pp_job(struct mali_group *group, struct mali_pp_job *job, 
 	}
 
 #if defined(CONFIG_GPU_TRACEPOINTS) && defined(CONFIG_TRACEPOINTS)
-	trace_gpu_sched_switch(mali_pp_core_description(group->pp_core),
-			       sched_clock(), mali_pp_job_get_tid(job),
-			       0, mali_pp_job_get_id(job));
+	if (group->pp_core) {
+		trace_gpu_sched_switch(mali_pp_core_description(group->pp_core),
+				       sched_clock(), mali_pp_job_get_tid(job),
+				       0, mali_pp_job_get_id(job));
+	}
 #endif
 
 	group->pp_running_job = job;
@@ -1149,9 +1155,11 @@ struct mali_pp_job *mali_group_complete_pp(struct mali_group *group, mali_bool s
 		}
 
 #if defined(CONFIG_GPU_TRACEPOINTS) && defined(CONFIG_TRACEPOINTS)
-		trace_gpu_sched_switch(
-			mali_gp_core_description(group->gp_core),
-			sched_clock(), 0, 0, 0);
+		if (group->gp_core) {
+			trace_gpu_sched_switch(
+				mali_gp_core_description(group->gp_core),
+				sched_clock(), 0, 0, 0);
+		}
 #endif
 
 	}
@@ -1207,9 +1215,11 @@ struct mali_gp_job *mali_group_complete_gp(struct mali_group *group, mali_bool s
 #endif
 
 #if defined(CONFIG_GPU_TRACEPOINTS) && defined(CONFIG_TRACEPOINTS)
-		trace_gpu_sched_switch(
-			mali_pp_core_description(group->pp_core),
-			sched_clock(), 0, 0, 0);
+		if (group->pp_core) {
+			trace_gpu_sched_switch(
+				mali_pp_core_description(group->pp_core),
+				sched_clock(), 0, 0, 0);
+		}
 #endif
 
 #if defined(CONFIG_MALI400_PROFILING)

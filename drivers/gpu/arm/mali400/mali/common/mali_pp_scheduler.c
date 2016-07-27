@@ -867,7 +867,8 @@ static void mali_pp_scheduler_set_group_idle_and_unlock(struct mali_group *group
 			_mali_osk_list_move(&(group->pp_scheduler_list), &group_list_idle);
 
 #if defined(CONFIG_GPU_TRACEPOINTS) && defined(CONFIG_TRACEPOINTS)
-			trace_gpu_sched_switch(mali_pp_get_hw_core_desc(group->pp_core), sched_clock(), 0, 0, 0);
+			if (group->pp_core)
+				trace_gpu_sched_switch(mali_pp_get_hw_core_desc(group->pp_core), sched_clock(), 0, 0, 0);
 #endif
 
 			mali_pp_scheduler_unlock();
@@ -1087,7 +1088,8 @@ void mali_pp_scheduler_job_done(struct mali_group *group, struct mali_pp_job *jo
 		}
 
 #if defined(CONFIG_GPU_TRACEPOINTS) && defined(CONFIG_TRACEPOINTS)
-		trace_gpu_sched_switch(mali_pp_get_hw_core_desc(group->pp_core), sched_clock(), 0, 0, 0);
+		if (group->pp_core)
+			trace_gpu_sched_switch(mali_pp_get_hw_core_desc(group->pp_core), sched_clock(), 0, 0, 0);
 #endif
 
 		_mali_osk_wait_queue_wake_up(pp_scheduler_working_wait_queue);
