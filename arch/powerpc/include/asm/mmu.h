@@ -135,9 +135,14 @@ enum {
 		0,
 };
 
-static inline bool mmu_has_feature(unsigned long feature)
+static inline bool early_mmu_has_feature(unsigned long feature)
 {
 	return !!(MMU_FTRS_POSSIBLE & cur_cpu_spec->mmu_features & feature);
+}
+
+static inline bool mmu_has_feature(unsigned long feature)
+{
+	return early_mmu_has_feature(feature);
 }
 
 static inline void mmu_clear_feature(unsigned long feature)
@@ -168,8 +173,18 @@ static inline bool radix_enabled(void)
 {
 	return mmu_has_feature(MMU_FTR_TYPE_RADIX);
 }
+
+static inline bool early_radix_enabled(void)
+{
+	return early_mmu_has_feature(MMU_FTR_TYPE_RADIX);
+}
 #else
 static inline bool radix_enabled(void)
+{
+	return false;
+}
+
+static inline bool early_radix_enabled(void)
 {
 	return false;
 }
