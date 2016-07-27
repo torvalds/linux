@@ -683,7 +683,7 @@ static int crypt_iv_tcw_whitening(struct crypt_config *cc,
 				  u8 *data)
 {
 	struct iv_tcw_private *tcw = &cc->iv_gen_private.tcw;
-	u64 sector = cpu_to_le64((u64)dmreq->iv_sector);
+	__le64 sector = cpu_to_le64(dmreq->iv_sector);
 	u8 buf[TCW_WHITENING_SIZE];
 	SHASH_DESC_ON_STACK(desc, tcw->crc32_tfm);
 	int i, r;
@@ -722,7 +722,7 @@ static int crypt_iv_tcw_gen(struct crypt_config *cc, u8 *iv,
 			    struct dm_crypt_request *dmreq)
 {
 	struct iv_tcw_private *tcw = &cc->iv_gen_private.tcw;
-	u64 sector = cpu_to_le64((u64)dmreq->iv_sector);
+	__le64 sector = cpu_to_le64(dmreq->iv_sector);
 	u8 *src;
 	int r = 0;
 

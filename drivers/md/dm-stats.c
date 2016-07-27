@@ -10,7 +10,7 @@
 #include <linux/module.h>
 #include <linux/device-mapper.h>
 
-#include "dm.h"
+#include "dm-core.h"
 #include "dm-stats.h"
 
 #define DM_MSG_PREFIX "stats"
