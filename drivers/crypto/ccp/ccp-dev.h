@@ -63,7 +63,9 @@
 
 /* ------------------------ CCP Version 5 Specifics ------------------------ */
 #define CMD5_QUEUE_MASK_OFFSET		0x00
+#define	CMD5_QUEUE_PRIO_OFFSET		0x04
 #define CMD5_REQID_CONFIG_OFFSET	0x08
+#define	CMD5_CMD_TIMEOUT_OFFSET		0x10
 #define LSB_PUBLIC_MASK_LO_OFFSET	0x18
 #define LSB_PUBLIC_MASK_HI_OFFSET	0x1C
 #define LSB_PRIVATE_MASK_LO_OFFSET	0x20
@@ -82,6 +84,11 @@
 #define CMD5_Q_DMA_WRITE_STATUS_BASE	0x0110
 #define CMD5_Q_ABORT_BASE		0x0114
 #define CMD5_Q_AX_CACHE_BASE		0x0118
+
+#define	CMD5_CONFIG_0_OFFSET		0x6000
+#define	CMD5_TRNG_CTL_OFFSET		0x6008
+#define	CMD5_AES_MASK_OFFSET		0x6010
+#define	CMD5_CLK_GATE_CTL_OFFSET	0x603C
 
 /* Address offset between two virtual queue registers */
 #define CMD5_Q_STATUS_INCR		0x1000
@@ -634,5 +641,6 @@ struct ccp_vdata {
 
 extern	struct ccp_vdata ccpv3;
 extern	struct ccp_vdata ccpv5;
+extern	struct ccp_vdata ccpv5other;
 
 #endif

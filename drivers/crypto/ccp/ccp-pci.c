@@ -232,6 +232,7 @@ static int ccp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	if (ccp->vdata->setup)
 		ccp->vdata->setup(ccp);
+
 	ret = ccp->vdata->perform->init(ccp);
 	if (ret)
 		goto e_iomap;
@@ -325,6 +326,7 @@ static int ccp_pci_resume(struct pci_dev *pdev)
 static const struct pci_device_id ccp_pci_table[] = {
 	{ PCI_VDEVICE(AMD, 0x1537), (kernel_ulong_t)&ccpv3 },
 	{ PCI_VDEVICE(AMD, 0x1456), (kernel_ulong_t)&ccpv5 },
+	{ PCI_VDEVICE(AMD, 0x1468), (kernel_ulong_t)&ccpv5other },
 	/* Last entry must be zero */
 	{ 0, }
 };

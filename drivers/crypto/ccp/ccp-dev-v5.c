@@ -835,7 +835,7 @@ static int ccp5_init(struct ccp_device *ccp)
 	/* Register the DMA engine support */
 	ret = ccp_dmaengine_register(ccp);
 	if (ret)
-		goto e_hwrng;
+		goto e_kthread;
 
 	return 0;
 
@@ -952,6 +952,33 @@ static void ccp5_config(struct ccp_device *ccp)
 	iowrite32(0x00001249, ccp->io_regs + CMD5_REQID_CONFIG_OFFSET);
 }
 
+static void ccp5other_config(struct ccp_device *ccp)
+{
+	int i;
+	u32 rnd;
+
+	/* We own all of the queues on the NTB CCP */
+
+	iowrite32(0x00012D57, ccp->io_regs + CMD5_TRNG_CTL_OFFSET);
+	iowrite32(0x00000003, ccp->io_regs + CMD5_CONFIG_0_OFFSET);
+	for (i = 0; i < 12; i++) {
+		rnd = ioread32(ccp->io_regs + TRNG_OUT_REG);
+		iowrite32(rnd, ccp->io_regs + CMD5_AES_MASK_OFFSET);
+	}
+
+	iowrite32(0x0000001F, ccp->io_regs + CMD5_QUEUE_MASK_OFFSET);
+	iowrite32(0x00005B6D, ccp->io_regs + CMD5_QUEUE_PRIO_OFFSET);
+	iowrite32(0x00000000, ccp->io_regs + CMD5_CMD_TIMEOUT_OFFSET);
+
+	iowrite32(0x3FFFFFFF, ccp->io_regs + LSB_PRIVATE_MASK_LO_OFFSET);
+	iowrite32(0x000003FF, ccp->io_regs + LSB_PRIVATE_MASK_HI_OFFSET);
+
+	iowrite32(0x00108823, ccp->io_regs + CMD5_CLK_GATE_CTL_OFFSET);
+
+	ccp5_config(ccp);
+}
+
+/* Version 5 adds some function, but is essentially the same as v5 */
 static const struct ccp_actions ccp5_actions = {
 	.aes = ccp5_perform_aes,
 	.xts_aes = ccp5_perform_xts_aes,
@@ -970,6 +997,14 @@ static const struct ccp_actions ccp5_actions = {
 struct ccp_vdata ccpv5 = {
 	.version = CCP_VERSION(5, 0),
 	.setup = ccp5_config,
+	.perform = &ccp5_actions,
+	.bar = 2,
+	.offset = 0x0,
+};
+
+struct ccp_vdata ccpv5other = {
+	.version = CCP_VERSION(5, 0),
+	.setup = ccp5other_config,
 	.perform = &ccp5_actions,
 	.bar = 2,
 	.offset = 0x0,
