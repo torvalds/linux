@@ -10,6 +10,9 @@ config DCACHE_WORD_ACCESS
 
 if BLOCK
 
+config FS_IOMAP
+	bool
+
 source "fs/ext2/Kconfig"
 source "fs/ext4/Kconfig"
 source "fs/jbd2/Kconfig"

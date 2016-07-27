@@ -21,6 +21,7 @@
 #include <linux/kernel.h>
 #include <linux/syscalls.h>
 #include <linux/fs.h>
+#include <linux/iomap.h>
 #include <linux/mm.h>
 #include <linux/percpu.h>
 #include <linux/slab.h>
@@ -1892,8 +1893,62 @@ void page_zero_new_buffers(struct page *page, unsigned from, unsigned to)
 }
 EXPORT_SYMBOL(page_zero_new_buffers);
 
-int __block_write_begin(struct page *page, loff_t pos, unsigned len,
-		get_block_t *get_block)
+static void
+iomap_to_bh(struct inode *inode, sector_t block, struct buffer_head *bh,
+		struct iomap *iomap)
+{
+	loff_t offset = block << inode->i_blkbits;
+
+	bh->b_bdev = iomap->bdev;
+
+	/*
+	 * Block points to offset in file we need to map, iomap contains
+	 * the offset at which the map starts. If the map ends before the
+	 * current block, then do not map the buffer and let the caller
+	 * handle it.
+	 */
+	BUG_ON(offset >= iomap->offset + iomap->length);
+
+	switch (iomap->type) {
+	case IOMAP_HOLE:
+		/*
+		 * If the buffer is not up to date or beyond the current EOF,
+		 * we need to mark it as new to ensure sub-block zeroing is
+		 * executed if necessary.
+		 */
+		if (!buffer_uptodate(bh) ||
+		    (offset >= i_size_read(inode)))
+			set_buffer_new(bh);
+		break;
+	case IOMAP_DELALLOC:
+		if (!buffer_uptodate(bh) ||
+		    (offset >= i_size_read(inode)))
+			set_buffer_new(bh);
+		set_buffer_uptodate(bh);
+		set_buffer_mapped(bh);
+		set_buffer_delay(bh);
+		break;
+	case IOMAP_UNWRITTEN:
+		/*
+		 * For unwritten regions, we always need to ensure that
+		 * sub-block writes cause the regions in the block we are not
+		 * writing to are zeroed. Set the buffer as new to ensure this.
+		 */
+		set_buffer_new(bh);
+		set_buffer_unwritten(bh);
+		/* FALLTHRU */
+	case IOMAP_MAPPED:
+		if (offset >= i_size_read(inode))
+			set_buffer_new(bh);
+		bh->b_blocknr = (iomap->blkno >> (inode->i_blkbits - 9)) +
+				((offset - iomap->offset) >> inode->i_blkbits);
+		set_buffer_mapped(bh);
+		break;
+	}
+}
+
+int __block_write_begin_int(struct page *page, loff_t pos, unsigned len,
+		get_block_t *get_block, struct iomap *iomap)
 {
 	unsigned from = pos & (PAGE_SIZE - 1);
 	unsigned to = from + len;
@@ -1929,9 +1984,14 @@ int __block_write_begin(struct page *page, loff_t pos, unsigned len,
 			clear_buffer_new(bh);
 		if (!buffer_mapped(bh)) {
 			WARN_ON(bh->b_size != blocksize);
-			err = get_block(inode, block, bh, 1);
-			if (err)
-				break;
+			if (get_block) {
+				err = get_block(inode, block, bh, 1);
+				if (err)
+					break;
+			} else {
+				iomap_to_bh(inode, block, bh, iomap);
+			}
+
 			if (buffer_new(bh)) {
 				unmap_underlying_metadata(bh->b_bdev,
 							bh->b_blocknr);
@@ -1971,6 +2031,12 @@ int __block_write_begin(struct page *page, loff_t pos, unsigned len,
 	if (unlikely(err))
 		page_zero_new_buffers(page, from, to);
 	return err;
+}
+
+int __block_write_begin(struct page *page, loff_t pos, unsigned len,
+		get_block_t *get_block)
+{
+	return __block_write_begin_int(page, pos, len, get_block, NULL);
 }
 EXPORT_SYMBOL(__block_write_begin);
 

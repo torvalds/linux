@@ -431,7 +431,7 @@ xfs_lock_inumorder(int lock_mode, int subclass)
  * lock more than one at a time, lockdep will report false positives saying we
  * have violated locking orders.
  */
-void
+static void
 xfs_lock_inodes(
 	xfs_inode_t	**ips,
 	int		inodes,
@@ -667,14 +667,6 @@ xfs_ip2xflags(
 	return _xfs_dic2xflags(dic->di_flags, dic->di_flags2, XFS_IFORK_Q(ip));
 }
 
-uint
-xfs_dic2xflags(
-	struct xfs_dinode	*dip)
-{
-	return _xfs_dic2xflags(be16_to_cpu(dip->di_flags),
-				be64_to_cpu(dip->di_flags2), XFS_DFORK_Q(dip));
-}
-
 /*
  * Lookups up an inode from "name". If ci_name is not NULL, then a CI match
  * is allowed, otherwise it has to be an exact match. If a CI match is found,
@@ -748,7 +740,7 @@ out_unlock:
  * are not linked into the directory structure - they are attached
  * directly to the superblock - and so have no parent.
  */
-int
+static int
 xfs_ialloc(
 	xfs_trans_t	*tp,
 	xfs_inode_t	*pip,
@@ -1085,7 +1077,7 @@ xfs_dir_ialloc(
  * link count to go to zero, move the inode to AGI unlinked list so that it can
  * be freed when the last active reference goes away via xfs_inactive().
  */
-int				/* error */
+static int			/* error */
 xfs_droplink(
 	xfs_trans_t *tp,
 	xfs_inode_t *ip)
@@ -1104,7 +1096,7 @@ xfs_droplink(
 /*
  * Increment the link count on an inode & log the change.
  */
-int
+static int
 xfs_bumplink(
 	xfs_trans_t *tp,
 	xfs_inode_t *ip)

@@ -474,5 +474,7 @@ static inline int xfs_btree_get_level(struct xfs_btree_block *block)
 
 bool xfs_btree_sblock_v5hdr_verify(struct xfs_buf *bp);
 bool xfs_btree_sblock_verify(struct xfs_buf *bp, unsigned int max_recs);
+uint xfs_btree_compute_maxlevels(struct xfs_mount *mp, uint *limits,
+				 unsigned long len);
 
 #endif	/* __XFS_BTREE_H__ */
