@@ -153,7 +153,6 @@ struct pt_regs {
 	(!compat_user_mode(regs) ? ((regs)->sp = value) : ((regs)->compat_sp = value))
 
 extern int regs_query_register_offset(const char *name);
-extern const char *regs_query_register_name(unsigned int offset);
 extern unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs,
 					       unsigned int n);
 
