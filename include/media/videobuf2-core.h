@@ -27,7 +27,6 @@ enum vb2_memory {
 	VB2_MEMORY_DMABUF	= 4,
 };
 
-struct vb2_alloc_ctx;
 struct vb2_fileio_data;
 struct vb2_threadio_data;
 
@@ -57,7 +56,7 @@ struct vb2_threadio_data;
  * @put_userptr: inform the allocator that a USERPTR buffer will no longer
  *		 be used.
  * @attach_dmabuf: attach a shared struct dma_buf for a hardware operation;
- *		   used for DMABUF memory types; alloc_ctx is the alloc context
+ *		   used for DMABUF memory types; dev is the alloc device
  *		   dbuf is the shared dma_buf; returns NULL on failure;
  *		   allocator private per-buffer structure on success;
  *		   this needs to be used for further accesses to the buffer.
@@ -93,13 +92,13 @@ struct vb2_threadio_data;
  *				  unmap_dmabuf.
  */
 struct vb2_mem_ops {
-	void		*(*alloc)(void *alloc_ctx, unsigned long size,
-				  enum dma_data_direction dma_dir,
+	void		*(*alloc)(struct device *dev, const struct dma_attrs *attrs,
+				  unsigned long size, enum dma_data_direction dma_dir,
 				  gfp_t gfp_flags);
 	void		(*put)(void *buf_priv);
 	struct dma_buf *(*get_dmabuf)(void *buf_priv, unsigned long flags);
 
-	void		*(*get_userptr)(void *alloc_ctx, unsigned long vaddr,
+	void		*(*get_userptr)(struct device *dev, unsigned long vaddr,
 					unsigned long size,
 					enum dma_data_direction dma_dir);
 	void		(*put_userptr)(void *buf_priv);
@@ -107,7 +106,7 @@ struct vb2_mem_ops {
 	void		(*prepare)(void *buf_priv);
 	void		(*finish)(void *buf_priv);
 
-	void		*(*attach_dmabuf)(void *alloc_ctx, struct dma_buf *dbuf,
+	void		*(*attach_dmabuf)(struct device *dev, struct dma_buf *dbuf,
 					  unsigned long size,
 					  enum dma_data_direction dma_dir);
 	void		(*detach_dmabuf)(void *buf_priv);
@@ -282,7 +281,7 @@ struct vb2_buffer {
  *			in *num_buffers, the required number of planes per
  *			buffer in *num_planes, the size of each plane should be
  *			set in the sizes[] array and optional per-plane
- *			allocator specific context in the alloc_ctxs[] array.
+ *			allocator specific device in the alloc_devs[] array.
  *			When called from VIDIOC_REQBUFS, *num_planes == 0, the
  *			driver has to use the currently configured format to
  *			determine the plane sizes and *num_buffers is the total
@@ -356,7 +355,7 @@ struct vb2_buffer {
 struct vb2_ops {
 	int (*queue_setup)(struct vb2_queue *q,
 			   unsigned int *num_buffers, unsigned int *num_planes,
-			   unsigned int sizes[], void *alloc_ctxs[]);
+			   unsigned int sizes[], struct device *alloc_devs[]);
 
 	void (*wait_prepare)(struct vb2_queue *q);
 	void (*wait_finish)(struct vb2_queue *q);
@@ -401,6 +400,9 @@ struct vb2_buf_ops {
  *		caller. For example, for V4L2, it should match
  *		the V4L2_BUF_TYPE_* in include/uapi/linux/videodev2.h
  * @io_modes:	supported io methods (see vb2_io_modes enum)
+ * @dev:	device to use for the default allocation context if the driver
+ *		doesn't fill in the @alloc_devs array.
+ * @dma_attrs:	DMA attributes to use for the DMA. May be NULL.
  * @fileio_read_once:		report EOF after reading the first buffer
  * @fileio_write_immediately:	queue buffer after each write() call
  * @allow_zero_bytesused:	allow bytesused == 0 to be passed to the driver
@@ -447,7 +449,7 @@ struct vb2_buf_ops {
  * @done_list:	list of buffers ready to be dequeued to userspace
  * @done_lock:	lock to protect done_list list
  * @done_wq:	waitqueue for processes waiting for buffers ready to be dequeued
- * @alloc_ctx:	memory type/allocator-specific contexts for each plane
+ * @alloc_devs:	memory type/allocator-specific per-plane device
  * @streaming:	current streaming state
  * @start_streaming_called: start_streaming() was called successfully and we
  *		started streaming.
@@ -467,6 +469,8 @@ struct vb2_buf_ops {
 struct vb2_queue {
 	unsigned int			type;
 	unsigned int			io_modes;
+	struct device			*dev;
+	const struct dma_attrs		*dma_attrs;
 	unsigned			fileio_read_once:1;
 	unsigned			fileio_write_immediately:1;
 	unsigned			allow_zero_bytesused:1;
@@ -499,7 +503,7 @@ struct vb2_queue {
 	spinlock_t			done_lock;
 	wait_queue_head_t		done_wq;
 
-	void				*alloc_ctx[VB2_MAX_PLANES];
+	struct device			*alloc_devs[VB2_MAX_PLANES];
 
 	unsigned int			streaming:1;
 	unsigned int			start_streaming_called:1;
