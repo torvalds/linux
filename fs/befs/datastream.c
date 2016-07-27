@@ -249,16 +249,8 @@ befs_find_brun_direct(struct super_block *sb, const befs_data_stream *data,
 	int i;
 	const befs_block_run *array = data->direct;
 	befs_blocknr_t sum;
-	befs_blocknr_t max_block =
-	    data->max_direct_range >> BEFS_SB(sb)->block_shift;
 
 	befs_debug(sb, "---> %s, find %lu", __func__, (unsigned long)blockno);
-
-	if (blockno > max_block) {
-		befs_error(sb, "%s passed block outside of direct region",
-			   __func__);
-		return BEFS_ERR;
-	}
 
 	for (i = 0, sum = 0; i < BEFS_NUM_DIRECT_BLOCKS;
 	     sum += array[i].len, i++) {
