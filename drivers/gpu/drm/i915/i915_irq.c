@@ -3140,13 +3140,13 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 				}
 			} else {
 				/* We always increment the hangcheck score
-				 * if the ring is busy and still processing
+				 * if the engine is busy and still processing
 				 * the same request, so that no single request
 				 * can run indefinitely (such as a chain of
 				 * batches). The only time we do not increment
 				 * the hangcheck score on this ring, if this
-				 * ring is in a legitimate wait for another
-				 * ring. In that case the waiting ring is a
+				 * engine is in a legitimate wait for another
+				 * engine. In that case the waiting engine is a
 				 * victim and we want to be sure we catch the
 				 * right culprit. Then every time we do kick
 				 * the ring, add a small increment to the
