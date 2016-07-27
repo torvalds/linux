@@ -42,6 +42,7 @@
 
 /dts-v1/;
 #include <dt-bindings/pwm/pwm.h>
+#include <dt-bindings/sensor-dev.h>
 #include "rk3399.dtsi"
 #include "rk3399-android.dtsi"
 
@@ -667,9 +668,23 @@
 };
 
 &i2c4 {
-	status = "disabled";
-	i2c-scl-rising-time-ns = <600>;
-	i2c-scl-falling-time-ns = <20>;
+	status = "okay";
+	i2c-scl-rising-time-ns = <345>;
+	i2c-scl-falling-time-ns = <11>;
+	clock-frequency = <400000>;
+
+	sensor@0f {
+		status = "okay";
+		compatible = "ak8963";
+		pinctrl-names = "default";
+		pinctrl-0 = <&ak8963_irq_gpio>;
+		reg = <0x0f>;
+		type = <SENSOR_TYPE_COMPASS>;
+		irq-gpio = <&gpio1 0 IRQ_TYPE_EDGE_RISING>;
+		irq_enable = <1>;
+		poll_delay_ms = <30>;
+		layout = <1>;
+	};
 };
 
 &i2c5 {
@@ -931,6 +946,12 @@
 		host_vbus_drv: host-vbus-drv {
 			rockchip,pins =
 				<4 25 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	ak8963 {
+		ak8963_irq_gpio: ak8963-irq-gpio {
+			rockchip,pins = <1 0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };
