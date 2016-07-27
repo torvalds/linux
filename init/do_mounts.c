@@ -201,7 +201,7 @@ done:
  *	8) <major>:<minor> major and minor number of the device separated by
  *	   a colon.
  *
- *	If name doesn't have fall into the categories above, we return (0,0).
+ *	If the name doesn't fall into the categories above, we return (0,0).
  *	block_class is used to check if something is a disk name. If the disk
  *	name contains slashes, the device name has them replaced with
  *	bangs.
