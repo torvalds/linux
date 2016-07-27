@@ -818,13 +818,11 @@ void load_ucode_intel_ap(void)
 	if (blobs_p->valid) {
 		start = blobs_p->start;
 
-#ifdef CONFIG_RANDOMIZE_MEMORY
 		/*
 		 * Pay attention to CONFIG_RANDOMIZE_MEMORY=y as it shuffles
 		 * physmem mapping too and there we have the initrd.
 		 */
 		start += PAGE_OFFSET - __PAGE_OFFSET_BASE;
-#endif
 	}
 
 	collect_cpu_info_early(&uci);
