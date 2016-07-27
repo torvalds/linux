@@ -2399,8 +2399,7 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 				 * Protected against the rmap code by
 				 * the page lock.
 				 */
-				page_move_anon_rmap(compound_head(old_page),
-						    vma, address);
+				page_move_anon_rmap(old_page, vma);
 			}
 			unlock_page(old_page);
 			return wp_page_reuse(mm, vma, address, page_table, ptl,

@@ -28,6 +28,7 @@
 #include <linux/platform_device.h>
 
 #include <asm/cpu_device_id.h>
+#include <asm/intel-family.h>
 #include <asm/intel_pmc_ipc.h>
 #include <asm/intel_punit_ipc.h>
 #include <asm/intel_telemetry.h>
@@ -163,7 +164,7 @@ static struct telemetry_plt_config telem_apl_config = {
 };
 
 static const struct x86_cpu_id telemetry_cpu_ids[] = {
-	TELEM_CPU(0x5c, telem_apl_config),
+	TELEM_CPU(INTEL_FAM6_ATOM_GOLDMONT, telem_apl_config),
 	{}
 };
 

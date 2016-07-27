@@ -2640,6 +2640,7 @@ static netdev_tx_t macsec_start_xmit(struct sk_buff *skb,
 		u64_stats_update_begin(&secy_stats->syncp);
 		secy_stats->stats.OutPktsUntagged++;
 		u64_stats_update_end(&secy_stats->syncp);
+		skb->dev = macsec->real_dev;
 		len = skb->len;
 		ret = dev_queue_xmit(skb);
 		count_tx(dev, ret, len);

@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -55,27 +51,33 @@ void request_out_callback(lnet_event_t *ev)
 {
 	struct ptlrpc_cb_id *cbid = ev->md.user_ptr;
 	struct ptlrpc_request *req = cbid->cbid_arg;
+	bool wakeup = false;
 
-	LASSERT(ev->type == LNET_EVENT_SEND ||
-		ev->type == LNET_EVENT_UNLINK);
+	LASSERT(ev->type == LNET_EVENT_SEND || ev->type == LNET_EVENT_UNLINK);
 	LASSERT(ev->unlinked);
 
 	DEBUG_REQ(D_NET, req, "type %d, status %d", ev->type, ev->status);
 
 	sptlrpc_request_out_callback(req);
+
 	spin_lock(&req->rq_lock);
 	req->rq_real_sent = ktime_get_real_seconds();
-	if (ev->unlinked)
-		req->rq_req_unlink = 0;
+	req->rq_req_unlinked = 1;
+	/* reply_in_callback happened before request_out_callback? */
+	if (req->rq_reply_unlinked)
+		wakeup = true;
 
 	if (ev->type == LNET_EVENT_UNLINK || ev->status != 0) {
 		/* Failed send: make it seem like the reply timed out, just
 		 * like failing sends in client.c does currently...
 		 */
-
 		req->rq_net_err = 1;
-		ptlrpc_client_wake_req(req);
+		wakeup = true;
 	}
+
+	if (wakeup)
+		ptlrpc_client_wake_req(req);
+
 	spin_unlock(&req->rq_lock);
 
 	ptlrpc_req_finished(req);
@@ -104,7 +106,7 @@ void reply_in_callback(lnet_event_t *ev)
 	req->rq_receiving_reply = 0;
 	req->rq_early = 0;
 	if (ev->unlinked)
-		req->rq_reply_unlink = 0;
+		req->rq_reply_unlinked = 1;
 
 	if (ev->status)
 		goto out_wake;
@@ -118,7 +120,7 @@ void reply_in_callback(lnet_event_t *ev)
 	if (ev->mlength < ev->rlength) {
 		CDEBUG(D_RPCTRACE, "truncate req %p rpc %d - %d+%d\n", req,
 		       req->rq_replen, ev->rlength, ev->offset);
-		req->rq_reply_truncate = 1;
+		req->rq_reply_truncated = 1;
 		req->rq_replied = 1;
 		req->rq_status = -EOVERFLOW;
 		req->rq_nob_received = ev->rlength + ev->offset;
@@ -135,7 +137,8 @@ void reply_in_callback(lnet_event_t *ev)
 
 		req->rq_early_count++; /* number received, client side */
 
-		if (req->rq_replied)   /* already got the real reply */
+		/* already got the real reply or buffers are already unlinked */
+		if (req->rq_replied || req->rq_reply_unlinked == 1)
 			goto out_wake;
 
 		req->rq_early = 1;
@@ -328,6 +331,7 @@ void request_in_callback(lnet_event_t *ev)
 		}
 	}
 
+	ptlrpc_srv_req_init(req);
 	/* NB we ABSOLUTELY RELY on req being zeroed, so pointers are NULL,
 	 * flags are reset and scalars are zero.  We only set the message
 	 * size to non-zero if this was a successful receive.
@@ -341,10 +345,6 @@ void request_in_callback(lnet_event_t *ev)
 	req->rq_self = ev->target.nid;
 	req->rq_rqbd = rqbd;
 	req->rq_phase = RQ_PHASE_NEW;
-	spin_lock_init(&req->rq_lock);
-	INIT_LIST_HEAD(&req->rq_timed_list);
-	INIT_LIST_HEAD(&req->rq_exp_list);
-	atomic_set(&req->rq_refcount, 1);
 	if (ev->type == LNET_EVENT_PUT)
 		CDEBUG(D_INFO, "incoming req@%p x%llu msgsize %u\n",
 		       req, req->rq_xid, ev->mlength);

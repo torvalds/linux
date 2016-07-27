@@ -8,7 +8,7 @@
 #include "builtin.h"
 
 #include "util/util.h"
-#include "util/cache.h"
+#include "util/config.h"
 
 #include "util/annotate.h"
 #include "util/color.h"
@@ -361,7 +361,7 @@ static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
 	struct perf_evsel *pos;
 
 	fprintf(stdout, "#\n# Total Lost Samples: %" PRIu64 "\n#\n", evlist->stats.total_lost_samples);
-	evlist__for_each(evlist, pos) {
+	evlist__for_each_entry(evlist, pos) {
 		struct hists *hists = evsel__hists(pos);
 		const char *evname = perf_evsel__name(pos);
 
@@ -370,7 +370,8 @@ static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
 			continue;
 
 		hists__fprintf_nr_sample_events(hists, rep, evname, stdout);
-		hists__fprintf(hists, true, 0, 0, rep->min_percent, stdout);
+		hists__fprintf(hists, true, 0, 0, rep->min_percent, stdout,
+			       symbol_conf.use_callchain);
 		fprintf(stdout, "\n\n");
 	}
 
@@ -477,7 +478,7 @@ static int report__collapse_hists(struct report *rep)
 
 	ui_progress__init(&prog, rep->nr_entries, "Merging related events...");
 
-	evlist__for_each(rep->session->evlist, pos) {
+	evlist__for_each_entry(rep->session->evlist, pos) {
 		struct hists *hists = evsel__hists(pos);
 
 		if (pos->idx == 0)
@@ -510,7 +511,7 @@ static void report__output_resort(struct report *rep)
 
 	ui_progress__init(&prog, rep->nr_entries, "Sorting events for output...");
 
-	evlist__for_each(rep->session->evlist, pos)
+	evlist__for_each_entry(rep->session->evlist, pos)
 		perf_evsel__output_resort(pos, &prog);
 
 	ui_progress__finish();
@@ -551,7 +552,7 @@ static int __cmd_report(struct report *rep)
 
 	report__warn_kptr_restrict(rep);
 
-	evlist__for_each(session->evlist, pos)
+	evlist__for_each_entry(session->evlist, pos)
 		rep->nr_entries += evsel__hists(pos)->nr_entries;
 
 	if (use_browser == 0) {
@@ -582,7 +583,7 @@ static int __cmd_report(struct report *rep)
 	 * might be changed during the collapse phase.
 	 */
 	rep->nr_entries = 0;
-	evlist__for_each(session->evlist, pos)
+	evlist__for_each_entry(session->evlist, pos)
 		rep->nr_entries += evsel__hists(pos)->nr_entries;
 
 	if (rep->nr_entries == 0) {
@@ -816,6 +817,9 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "Show raw trace event output (do not use print fmt or plugins)"),
 	OPT_BOOLEAN(0, "hierarchy", &symbol_conf.report_hierarchy,
 		    "Show entries in a hierarchy"),
+	OPT_CALLBACK_DEFAULT(0, "stdio-color", NULL, "mode",
+			     "'always' (default), 'never' or 'auto' only applicable to --stdio mode",
+			     stdio__config_color, "always"),
 	OPT_END()
 	};
 	struct perf_data_file file = {

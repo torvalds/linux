@@ -600,8 +600,7 @@ static enum i40iw_status_code i40iw_create_cqp(struct i40iw_device *iwdev)
 	cqp_init_info.scratch_array = cqp->scratch_array;
 	status = dev->cqp_ops->cqp_init(dev->cqp, &cqp_init_info);
 	if (status) {
-		i40iw_pr_err("cqp init status %d maj_err %d min_err %d\n",
-			     status, maj_err, min_err);
+		i40iw_pr_err("cqp init status %d\n", status);
 		goto exit;
 	}
 	status = dev->cqp_ops->cqp_create(dev->cqp, true, &maj_err, &min_err);

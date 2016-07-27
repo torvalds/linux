@@ -718,7 +718,7 @@ static int gic_shared_irq_domain_map(struct irq_domain *d, unsigned int virq,
 
 	spin_lock_irqsave(&gic_lock, flags);
 	gic_map_to_pin(intr, gic_cpu_pin);
-	gic_map_to_vpe(intr, vpe);
+	gic_map_to_vpe(intr, mips_cm_vp_id(vpe));
 	for (i = 0; i < min(gic_vpes, NR_CPUS); i++)
 		clear_bit(intr, pcpu_masks[i].pcpu_mask);
 	set_bit(intr, pcpu_masks[vpe].pcpu_mask);
@@ -959,7 +959,7 @@ int gic_ipi_domain_match(struct irq_domain *d, struct device_node *node,
 	switch (bus_token) {
 	case DOMAIN_BUS_IPI:
 		is_ipi = d->bus_token == bus_token;
-		return to_of_node(d->fwnode) == node && is_ipi;
+		return (!node || to_of_node(d->fwnode) == node) && is_ipi;
 		break;
 	default:
 		return 0;
@@ -1042,12 +1042,14 @@ static void __init __gic_init(unsigned long gic_base_addr,
 					       &gic_irq_domain_ops, NULL);
 	if (!gic_irq_domain)
 		panic("Failed to add GIC IRQ domain");
+	gic_irq_domain->name = "mips-gic-irq";
 
 	gic_dev_domain = irq_domain_add_hierarchy(gic_irq_domain, 0,
 						  GIC_NUM_LOCAL_INTRS + gic_shared_intrs,
 						  node, &gic_dev_domain_ops, NULL);
 	if (!gic_dev_domain)
 		panic("Failed to add GIC DEV domain");
+	gic_dev_domain->name = "mips-gic-dev";
 
 	gic_ipi_domain = irq_domain_add_hierarchy(gic_irq_domain,
 						  IRQ_DOMAIN_FLAG_IPI_PER_CPU,
@@ -1056,6 +1058,7 @@ static void __init __gic_init(unsigned long gic_base_addr,
 	if (!gic_ipi_domain)
 		panic("Failed to add GIC IPI domain");
 
+	gic_ipi_domain->name = "mips-gic-ipi";
 	gic_ipi_domain->bus_token = DOMAIN_BUS_IPI;
 
 	if (node &&

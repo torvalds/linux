@@ -445,7 +445,7 @@ cifs_atomic_open(struct inode *inode, struct dentry *direntry,
 		 * Check for hashed negative dentry. We have already revalidated
 		 * the dentry and it is fine. No need to perform another lookup.
 		 */
-		if (!d_unhashed(direntry))
+		if (!d_in_lookup(direntry))
 			return -ENOENT;
 
 		res = cifs_lookup(inode, direntry, 0);

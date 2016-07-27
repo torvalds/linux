@@ -375,9 +375,11 @@ config VIRT_CPU_ACCOUNTING_GEN
 
 	  If unsure, say N.
 
+endchoice
+
 config IRQ_TIME_ACCOUNTING
 	bool "Fine granularity task level IRQ time accounting"
-	depends on HAVE_IRQ_TIME_ACCOUNTING && !NO_HZ_FULL
+	depends on HAVE_IRQ_TIME_ACCOUNTING && !VIRT_CPU_ACCOUNTING_NATIVE
 	help
 	  Select this option to enable fine granularity task irq time
 	  accounting. This is done by reading a timestamp on each
@@ -385,8 +387,6 @@ config IRQ_TIME_ACCOUNTING
 	  small performance impact.
 
 	  If in doubt, say N here.
-
-endchoice
 
 config BSD_PROCESS_ACCT
 	bool "BSD Process Accounting"
@@ -517,6 +517,7 @@ config SRCU
 config TASKS_RCU
 	bool
 	default n
+	depends on !UML
 	select SRCU
 	help
 	  This option enables a task-based RCU implementation that uses
@@ -1458,6 +1459,7 @@ config KALLSYMS_ALL
 
 config KALLSYMS_ABSOLUTE_PERCPU
 	bool
+	depends on KALLSYMS
 	default X86_64 && SMP
 
 config KALLSYMS_BASE_RELATIVE

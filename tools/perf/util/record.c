@@ -148,7 +148,7 @@ void perf_evlist__config(struct perf_evlist *evlist, struct record_opts *opts,
 
 	use_comm_exec = perf_can_comm_exec();
 
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		perf_evsel__config(evsel, opts, callchain);
 		if (evsel->tracking && use_comm_exec)
 			evsel->attr.comm_exec = 1;
@@ -161,18 +161,18 @@ void perf_evlist__config(struct perf_evlist *evlist, struct record_opts *opts,
 		 * match the id.
 		 */
 		use_sample_identifier = perf_can_sample_identifier();
-		evlist__for_each(evlist, evsel)
+		evlist__for_each_entry(evlist, evsel)
 			perf_evsel__set_sample_id(evsel, use_sample_identifier);
 	} else if (evlist->nr_entries > 1) {
 		struct perf_evsel *first = perf_evlist__first(evlist);
 
-		evlist__for_each(evlist, evsel) {
+		evlist__for_each_entry(evlist, evsel) {
 			if (evsel->attr.sample_type == first->attr.sample_type)
 				continue;
 			use_sample_identifier = perf_can_sample_identifier();
 			break;
 		}
-		evlist__for_each(evlist, evsel)
+		evlist__for_each_entry(evlist, evsel)
 			perf_evsel__set_sample_id(evsel, use_sample_identifier);
 	}
 

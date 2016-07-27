@@ -625,8 +625,7 @@ static int scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 
 
 			for (i = 0; i < request->n_ssids; i++) {
-				if (request->ssids[i].ssid &&
-				    request->ssids[i].ssid_len != 0) {
+				if (request->ssids[i].ssid_len != 0) {
 					strHiddenNetwork.net_info[i].ssid = kmalloc(request->ssids[i].ssid_len, GFP_KERNEL);
 					memcpy(strHiddenNetwork.net_info[i].ssid, request->ssids[i].ssid, request->ssids[i].ssid_len);
 					strHiddenNetwork.net_info[i].ssid_len = request->ssids[i].ssid_len;

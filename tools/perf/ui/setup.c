@@ -60,6 +60,13 @@ static inline int setup_gtk_browser(void) { return -1; }
 static inline void exit_gtk_browser(bool wait_for_ok __maybe_unused) {}
 #endif
 
+int stdio__config_color(const struct option *opt __maybe_unused,
+			const char *mode, int unset __maybe_unused)
+{
+	perf_use_color_default = perf_config_colorbool("color.ui", mode, -1);
+	return 0;
+}
+
 void setup_browser(bool fallback_to_pager)
 {
 	if (use_browser < 2 && (!isatty(1) || dump_trace))

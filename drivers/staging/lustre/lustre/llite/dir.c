@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -366,7 +362,7 @@ struct page *ll_get_dir_page(struct inode *dir, __u64 hash,
 
 		ll_finish_md_op_data(op_data);
 
-		request = (struct ptlrpc_request *)it.d.lustre.it_data;
+		request = (struct ptlrpc_request *)it.it_request;
 		if (request)
 			ptlrpc_req_finished(request);
 		if (rc < 0) {
@@ -378,7 +374,7 @@ struct page *ll_get_dir_page(struct inode *dir, __u64 hash,
 		CDEBUG(D_INODE, "setting lr_lvb_inode to inode "DFID"(%p)\n",
 		       PFID(ll_inode2fid(dir)), dir);
 		md_set_lock_data(ll_i2sbi(dir)->ll_md_exp,
-				 &it.d.lustre.it_lock_handle, dir, NULL);
+				 &it.it_lock_handle, dir, NULL);
 	} else {
 		/* for cross-ref object, l_ast_data of the lock may not be set,
 		 * we reset it here
@@ -1076,17 +1072,11 @@ static int copy_and_ioctl(int cmd, struct obd_export *exp,
 	void *copy;
 	int rc;
 
-	copy = kzalloc(size, GFP_NOFS);
-	if (!copy)
-		return -ENOMEM;
-
-	if (copy_from_user(copy, data, size)) {
-		rc = -EFAULT;
-		goto out;
-	}
+	copy = memdup_user(data, size);
+	if (IS_ERR(copy))
+		return PTR_ERR(copy);
 
 	rc = obd_iocontrol(cmd, exp, size, copy, NULL);
-out:
 	kfree(copy);
 
 	return rc;
@@ -1107,8 +1097,7 @@ static int quotactl_ioctl(struct ll_sb_info *sbi, struct if_quotactl *qctl)
 	case Q_QUOTAOFF:
 	case Q_SETQUOTA:
 	case Q_SETINFO:
-		if (!capable(CFS_CAP_SYS_ADMIN) ||
-		    sbi->ll_flags & LL_SBI_RMT_CLIENT)
+		if (!capable(CFS_CAP_SYS_ADMIN))
 			return -EPERM;
 		break;
 	case Q_GETQUOTA:
@@ -1116,8 +1105,7 @@ static int quotactl_ioctl(struct ll_sb_info *sbi, struct if_quotactl *qctl)
 		      !uid_eq(current_euid(), make_kuid(&init_user_ns, id))) ||
 		     (type == GRPQUOTA &&
 		      !in_egroup_p(make_kgid(&init_user_ns, id)))) &&
-		    (!capable(CFS_CAP_SYS_ADMIN) ||
-		     sbi->ll_flags & LL_SBI_RMT_CLIENT))
+		      !capable(CFS_CAP_SYS_ADMIN))
 			return -EPERM;
 		break;
 	case Q_GETINFO:
@@ -1128,9 +1116,6 @@ static int quotactl_ioctl(struct ll_sb_info *sbi, struct if_quotactl *qctl)
 	}
 
 	if (valid != QC_GENERAL) {
-		if (sbi->ll_flags & LL_SBI_RMT_CLIENT)
-			return -EOPNOTSUPP;
-
 		if (cmd == Q_GETINFO)
 			qctl->qc_cmd = Q_GETOINFO;
 		else if (cmd == Q_GETQUOTA)
@@ -1538,7 +1523,9 @@ skip_lmm:
 			st.st_atime   = body->atime;
 			st.st_mtime   = body->mtime;
 			st.st_ctime   = body->ctime;
-			st.st_ino     = inode->i_ino;
+			st.st_ino     = cl_fid_build_ino(&body->fid1,
+							 sbi->ll_flags &
+							 LL_SBI_32BIT_API);
 
 			lmdp = (struct lov_user_mds_data __user *)arg;
 			if (copy_to_user(&lmdp->lmd_st, &st, sizeof(st))) {
@@ -1631,8 +1618,7 @@ free_lmm:
 		struct obd_quotactl *oqctl;
 		int error = 0;
 
-		if (!capable(CFS_CAP_SYS_ADMIN) ||
-		    sbi->ll_flags & LL_SBI_RMT_CLIENT)
+		if (!capable(CFS_CAP_SYS_ADMIN))
 			return -EPERM;
 
 		oqctl = kzalloc(sizeof(*oqctl), GFP_NOFS);
@@ -1655,8 +1641,7 @@ free_lmm:
 	case OBD_IOC_POLL_QUOTACHECK: {
 		struct if_quotacheck *check;
 
-		if (!capable(CFS_CAP_SYS_ADMIN) ||
-		    sbi->ll_flags & LL_SBI_RMT_CLIENT)
+		if (!capable(CFS_CAP_SYS_ADMIN))
 			return -EPERM;
 
 		check = kzalloc(sizeof(*check), GFP_NOFS);
@@ -1713,20 +1698,6 @@ out_quotactl:
 		return ll_get_obd_name(inode, cmd, arg);
 	case LL_IOC_FLUSHCTX:
 		return ll_flush_ctx(inode);
-#ifdef CONFIG_FS_POSIX_ACL
-	case LL_IOC_RMTACL: {
-		if (sbi->ll_flags & LL_SBI_RMT_CLIENT && is_root_inode(inode)) {
-			struct ll_file_data *fd = LUSTRE_FPRIVATE(file);
-
-			rc = rct_add(&sbi->ll_rct, current_pid(), arg);
-			if (!rc)
-				fd->fd_flags |= LL_FILE_RMTACL;
-			return rc;
-		} else {
-			return 0;
-		}
-	}
-#endif
 	case LL_IOC_GETOBDCOUNT: {
 		int count, vallen;
 		struct obd_export *exp;

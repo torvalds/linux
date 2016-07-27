@@ -83,6 +83,13 @@ void nf_conntrack_lock(spinlock_t *lock) __acquires(lock)
 	spin_lock(lock);
 	while (unlikely(nf_conntrack_locks_all)) {
 		spin_unlock(lock);
+
+		/*
+		 * Order the 'nf_conntrack_locks_all' load vs. the
+		 * spin_unlock_wait() loads below, to ensure
+		 * that 'nf_conntrack_locks_all_lock' is indeed held:
+		 */
+		smp_rmb(); /* spin_lock(&nf_conntrack_locks_all_lock) */
 		spin_unlock_wait(&nf_conntrack_locks_all_lock);
 		spin_lock(lock);
 	}
@@ -128,6 +135,14 @@ static void nf_conntrack_all_lock(void)
 	spin_lock(&nf_conntrack_locks_all_lock);
 	nf_conntrack_locks_all = true;
 
+	/*
+	 * Order the above store of 'nf_conntrack_locks_all' against
+	 * the spin_unlock_wait() loads below, such that if
+	 * nf_conntrack_lock() observes 'nf_conntrack_locks_all'
+	 * we must observe nf_conntrack_locks[] held:
+	 */
+	smp_mb(); /* spin_lock(&nf_conntrack_locks_all_lock) */
+
 	for (i = 0; i < CONNTRACK_LOCKS; i++) {
 		spin_unlock_wait(&nf_conntrack_locks[i]);
 	}
@@ -135,7 +150,13 @@ static void nf_conntrack_all_lock(void)
 
 static void nf_conntrack_all_unlock(void)
 {
-	nf_conntrack_locks_all = false;
+	/*
+	 * All prior stores must be complete before we clear
+	 * 'nf_conntrack_locks_all'. Otherwise nf_conntrack_lock()
+	 * might observe the false value but not the entire
+	 * critical section:
+	 */
+	smp_store_release(&nf_conntrack_locks_all, false);
 	spin_unlock(&nf_conntrack_locks_all_lock);
 }
 
@@ -646,6 +667,7 @@ static int nf_ct_resolve_clash(struct net *net, struct sk_buff *skb,
 
 	l4proto = __nf_ct_l4proto_find(nf_ct_l3num(ct), nf_ct_protonum(ct));
 	if (l4proto->allow_clash &&
+	    !nfct_nat(ct) &&
 	    !nf_ct_is_dying(ct) &&
 	    atomic_inc_not_zero(&ct->ct_general.use)) {
 		nf_ct_acct_merge(ct, ctinfo, (struct nf_conn *)skb->nfct);
@@ -1601,8 +1623,15 @@ void *nf_ct_alloc_hashtable(unsigned int *sizep, int nulls)
 	unsigned int nr_slots, i;
 	size_t sz;
 
+	if (*sizep > (UINT_MAX / sizeof(struct hlist_nulls_head)))
+		return NULL;
+
 	BUILD_BUG_ON(sizeof(struct hlist_nulls_head) != sizeof(struct hlist_head));
 	nr_slots = *sizep = roundup(*sizep, PAGE_SIZE / sizeof(struct hlist_nulls_head));
+
+	if (nr_slots > (UINT_MAX / sizeof(struct hlist_nulls_head)))
+		return NULL;
+
 	sz = nr_slots * sizeof(struct hlist_nulls_head);
 	hash = (void *)__get_free_pages(GFP_KERNEL | __GFP_NOWARN | __GFP_ZERO,
 					get_order(sz));

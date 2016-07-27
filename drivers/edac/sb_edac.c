@@ -2378,22 +2378,19 @@ static int sbridge_get_onedevice(struct pci_dev **prev,
  * @num_mc: pointer to the memory controllers count, to be incremented in case
  *	    of success.
  * @table: model specific table
- * @allow_dups: allow for multiple devices to exist with the same device id
- *              (as implemented, this isn't expected to work correctly in the
- *              multi-socket case).
- * @multi_bus: don't assume devices on different buses belong to different
- *             memory controllers.
  *
  * returns 0 in case of success or error code
  */
-static int sbridge_get_all_devices_full(u8 *num_mc,
-					const struct pci_id_table *table,
-					int allow_dups,
-					int multi_bus)
+static int sbridge_get_all_devices(u8 *num_mc,
+					const struct pci_id_table *table)
 {
 	int i, rc;
 	struct pci_dev *pdev = NULL;
+	int allow_dups = 0;
+	int multi_bus = 0;
 
+	if (table->type == KNIGHTS_LANDING)
+		allow_dups = multi_bus = 1;
 	while (table && table->descr) {
 		for (i = 0; i < table->n_devs; i++) {
 			if (!allow_dups || i == 0 ||
@@ -2419,11 +2416,6 @@ static int sbridge_get_all_devices_full(u8 *num_mc,
 
 	return 0;
 }
-
-#define sbridge_get_all_devices(num_mc, table) \
-		sbridge_get_all_devices_full(num_mc, table, 0, 0)
-#define sbridge_get_all_devices_knl(num_mc, table) \
-		sbridge_get_all_devices_full(num_mc, table, 1, 1)
 
 static int sbridge_mci_bind_devs(struct mem_ctl_info *mci,
 				 struct sbridge_dev *sbridge_dev)

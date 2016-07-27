@@ -16,6 +16,8 @@
 #include <linux/debugfs.h>
 #include <linux/skbuff.h>
 #include <linux/kthread.h>
+#include <linux/idr.h>
+#include <linux/seq_file.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_cmnd.h>
@@ -33,7 +35,6 @@
 #define MAX_BUF			8192
 #define MAX_PENDING_REQUESTS	(MIN_NUMSIGNALS * 2)
 #define VISORHBA_ERROR_COUNT	30
-#define VISORHBA_OPEN_MAX	1
 
 static int visorhba_queue_command_lck(struct scsi_cmnd *scsicmd,
 				      void (*visorhba_cmnd_done)
@@ -50,14 +51,7 @@ static int visorhba_pause(struct visor_device *dev,
 static int visorhba_resume(struct visor_device *dev,
 			   visorbus_state_complete_func complete_func);
 
-static ssize_t info_debugfs_read(struct file *file, char __user *buf,
-				 size_t len, loff_t *offset);
-static int set_no_disk_inquiry_result(unsigned char *buf,
-				      size_t len, bool is_lun0);
 static struct dentry *visorhba_debugfs_dir;
-static const struct file_operations debugfs_info_fops = {
-	.read = info_debugfs_read,
-};
 
 /* GUIDS for HBA channel type supported by this driver */
 static struct visor_channeltype_descriptor visorhba_channel_types[] = {
@@ -99,14 +93,6 @@ struct scsipending {
 	char cmdtype;		/* Type of pointer that is being stored */
 };
 
-/* Work Data for dar_work_queue */
-struct diskaddremove {
-	u8 add;			/* 0-remove, 1-add */
-	struct Scsi_Host *shost; /* Scsi Host for this visorhba instance */
-	u32 channel, id, lun;	/* Disk Path */
-	struct diskaddremove *next;
-};
-
 /* Each scsi_host has a host_data area that contains this struct. */
 struct visorhba_devdata {
 	struct Scsi_Host *scsihost;
@@ -133,13 +119,20 @@ struct visorhba_devdata {
 	int devnum;
 	struct task_struct *thread;
 	int thread_wait_ms;
+
+	/*
+	 * allows us to pass int handles back-and-forth between us and
+	 * iovm, instead of raw pointers
+	 */
+	struct idr idr;
+
+	struct dentry *debugfs_dir;
+	struct dentry *debugfs_info;
 };
 
 struct visorhba_devices_open {
 	struct visorhba_devdata *devdata;
 };
-
-static struct visorhba_devices_open visorhbas_open[VISORHBA_OPEN_MAX];
 
 #define for_each_vdisk_match(iter, list, match)			  \
 	for (iter = &list->head; iter->next; iter = iter->next) \
@@ -191,7 +184,7 @@ static void visor_thread_stop(struct task_struct *task)
  *	Partition so that it can be handled when it completes. If new is
  *	NULL it is assumed the entry refers only to the cmdrsp.
  *	Returns insert_location where entry was added,
- *	SCSI_MLQUEUE_DEVICE_BUSY if it can't
+ *	-EBUSY if it can't
  */
 static int add_scsipending_entry(struct visorhba_devdata *devdata,
 				 char cmdtype, void *new)
@@ -206,7 +199,7 @@ static int add_scsipending_entry(struct visorhba_devdata *devdata,
 		insert_location = (insert_location + 1) % MAX_PENDING_REQUESTS;
 		if (insert_location == (int)devdata->nextinsert) {
 			spin_unlock_irqrestore(&devdata->privlock, flags);
-			return -1;
+			return -EBUSY;
 		}
 	}
 
@@ -269,6 +262,62 @@ static struct uiscmdrsp *get_scsipending_cmdrsp(struct visorhba_devdata *ddata,
 }
 
 /**
+ *      simple_idr_get - associate a provided pointer with an int value
+ *                       1 <= value <= INT_MAX, and return this int value;
+ *                       the pointer value can be obtained later by passing
+ *                       this int value to idr_find()
+ *      @idrtable: the data object maintaining the pointer<-->int mappings
+ *      @p: the pointer value to be remembered
+ *      @lock: a spinlock used when exclusive access to idrtable is needed
+ */
+static unsigned int simple_idr_get(struct idr *idrtable, void *p,
+				   spinlock_t *lock)
+{
+	int id;
+	unsigned long flags;
+
+	idr_preload(GFP_KERNEL);
+	spin_lock_irqsave(lock, flags);
+	id = idr_alloc(idrtable, p, 1, INT_MAX, GFP_NOWAIT);
+	spin_unlock_irqrestore(lock, flags);
+	idr_preload_end();
+	if (id < 0)
+		return 0;  /* failure */
+	return (unsigned int)(id);  /* idr_alloc() guarantees > 0 */
+}
+
+/**
+ *      setup_scsitaskmgmt_handles - stash the necessary handles so that the
+ *                                   completion processing logic for a taskmgmt
+ *                                   cmd will be able to find who to wake up
+ *                                   and where to stash the result
+ */
+static void setup_scsitaskmgmt_handles(struct idr *idrtable, spinlock_t *lock,
+				       struct uiscmdrsp *cmdrsp,
+				       wait_queue_head_t *event, int *result)
+{
+	/* specify the event that has to be triggered when this */
+	/* cmd is complete */
+	cmdrsp->scsitaskmgmt.notify_handle =
+		simple_idr_get(idrtable, event, lock);
+	cmdrsp->scsitaskmgmt.notifyresult_handle =
+		simple_idr_get(idrtable, result, lock);
+}
+
+/**
+ *      cleanup_scsitaskmgmt_handles - forget handles created by
+ *                                     setup_scsitaskmgmt_handles()
+ */
+static void cleanup_scsitaskmgmt_handles(struct idr *idrtable,
+					 struct uiscmdrsp *cmdrsp)
+{
+	if (cmdrsp->scsitaskmgmt.notify_handle)
+		idr_remove(idrtable, cmdrsp->scsitaskmgmt.notify_handle);
+	if (cmdrsp->scsitaskmgmt.notifyresult_handle)
+		idr_remove(idrtable, cmdrsp->scsitaskmgmt.notifyresult_handle);
+}
+
+/**
  *	forward_taskmgmt_command - send taskmegmt command to the Service
  *				   Partition
  *	@tasktype: Type of taskmgmt command
@@ -303,10 +352,8 @@ static int forward_taskmgmt_command(enum task_mgmt_types tasktype,
 
 	/* issue TASK_MGMT_ABORT_TASK */
 	cmdrsp->cmdtype = CMD_SCSITASKMGMT_TYPE;
-	/* specify the event that has to be triggered when this */
-	/* cmd is complete */
-	cmdrsp->scsitaskmgmt.notify_handle = (u64)&notifyevent;
-	cmdrsp->scsitaskmgmt.notifyresult_handle = (u64)&notifyresult;
+	setup_scsitaskmgmt_handles(&devdata->idr, &devdata->privlock, cmdrsp,
+				   &notifyevent, &notifyresult);
 
 	/* save destination */
 	cmdrsp->scsitaskmgmt.tasktype = tasktype;
@@ -315,6 +362,8 @@ static int forward_taskmgmt_command(enum task_mgmt_types tasktype,
 	cmdrsp->scsitaskmgmt.vdest.lun = scsidev->lun;
 	cmdrsp->scsitaskmgmt.handle = scsicmd_id;
 
+	dev_dbg(&scsidev->sdev_gendev,
+		"visorhba: initiating type=%d taskmgmt command\n", tasktype);
 	if (!visorchannel_signalinsert(devdata->dev->visorchannel,
 				       IOCHAN_TO_IOPART,
 				       cmdrsp))
@@ -327,17 +376,23 @@ static int forward_taskmgmt_command(enum task_mgmt_types tasktype,
 				msecs_to_jiffies(45000)))
 		goto err_del_scsipending_ent;
 
+	dev_dbg(&scsidev->sdev_gendev,
+		"visorhba: taskmgmt type=%d success; result=0x%x\n",
+		 tasktype, notifyresult);
 	if (tasktype == TASK_MGMT_ABORT_TASK)
 		scsicmd->result = DID_ABORT << 16;
 	else
 		scsicmd->result = DID_RESET << 16;
 
 	scsicmd->scsi_done(scsicmd);
-
+	cleanup_scsitaskmgmt_handles(&devdata->idr, cmdrsp);
 	return SUCCESS;
 
 err_del_scsipending_ent:
+	dev_dbg(&scsidev->sdev_gendev,
+		"visorhba: taskmgmt type=%d not executed\n", tasktype);
 	del_scsipending_ent(devdata, scsicmd_id);
+	cleanup_scsitaskmgmt_handles(&devdata->idr, cmdrsp);
 	return FAILED;
 }
 
@@ -606,64 +661,76 @@ static struct scsi_host_template visorhba_driver_template = {
 };
 
 /**
- *	info_debugfs_read - debugfs interface to dump visorhba states
- *	@file: Debug file
- *	@buf: buffer to send back to user
- *	@len: len that can be written to buf
- *	@offset: offset into buf
+ *	info_debugfs_show - debugfs interface to dump visorhba states
  *
- *	Dumps information about the visorhba driver and devices
- *	TODO: Make this per vhba
- *	Returns bytes_read
+ *      This presents a file in the debugfs tree named:
+ *          /visorhba/vbus<x>:dev<y>/info
  */
-static ssize_t info_debugfs_read(struct file *file, char __user *buf,
-				 size_t len, loff_t *offset)
+static int info_debugfs_show(struct seq_file *seq, void *v)
 {
-	ssize_t bytes_read = 0;
-	int str_pos = 0;
-	u64 phys_flags_addr;
-	int i;
-	struct visorhba_devdata *devdata;
-	char *vbuf;
+	struct visorhba_devdata *devdata = seq->private;
 
-	if (len > MAX_BUF)
-		len = MAX_BUF;
-	vbuf = kzalloc(len, GFP_KERNEL);
-	if (!vbuf)
-		return -ENOMEM;
+	seq_printf(seq, "max_buff_len = %u\n", devdata->max_buff_len);
+	seq_printf(seq, "interrupts_rcvd = %llu\n", devdata->interrupts_rcvd);
+	seq_printf(seq, "interrupts_disabled = %llu\n",
+		   devdata->interrupts_disabled);
+	seq_printf(seq, "interrupts_notme = %llu\n",
+		   devdata->interrupts_notme);
+	seq_printf(seq, "flags_addr = %p\n", devdata->flags_addr);
+	if (devdata->flags_addr) {
+		u64 phys_flags_addr =
+			virt_to_phys((__force  void *)devdata->flags_addr);
+		seq_printf(seq, "phys_flags_addr = 0x%016llx\n",
+			   phys_flags_addr);
+		seq_printf(seq, "FeatureFlags = %llu\n",
+			   (__le64)readq(devdata->flags_addr));
+	}
+	seq_printf(seq, "acquire_failed_cnt = %llu\n",
+		   devdata->acquire_failed_cnt);
 
-	for (i = 0; i < VISORHBA_OPEN_MAX; i++) {
-		if (!visorhbas_open[i].devdata)
-			continue;
+	return 0;
+}
 
-		devdata = visorhbas_open[i].devdata;
+static int info_debugfs_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, info_debugfs_show, inode->i_private);
+}
 
-		str_pos += scnprintf(vbuf + str_pos,
-				len - str_pos, "max_buff_len:%u\n",
-				devdata->max_buff_len);
+static const struct file_operations info_debugfs_fops = {
+	.owner = THIS_MODULE,
+	.open = info_debugfs_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
 
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				"\ninterrupts_rcvd = %llu, interrupts_disabled = %llu\n",
-				devdata->interrupts_rcvd,
-				devdata->interrupts_disabled);
-		str_pos += scnprintf(vbuf + str_pos,
-				len - str_pos, "\ninterrupts_notme = %llu,\n",
-				devdata->interrupts_notme);
-		phys_flags_addr = virt_to_phys((__force  void *)
-					       devdata->flags_addr);
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				"flags_addr = %p, phys_flags_addr=0x%016llx, FeatureFlags=%llu\n",
-				devdata->flags_addr, phys_flags_addr,
-				(__le64)readq(devdata->flags_addr));
-		str_pos += scnprintf(vbuf + str_pos,
-			len - str_pos, "acquire_failed_cnt:%llu\n",
-			devdata->acquire_failed_cnt);
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos, "\n");
+/**
+ *	complete_taskmgmt_command - complete task management
+ *	@cmdrsp: Response from the IOVM
+ *
+ *	Service Partition returned the result of the task management
+ *	command. Wake up anyone waiting for it.
+ *	Returns void
+ */
+static inline void complete_taskmgmt_command
+(struct idr *idrtable, struct uiscmdrsp *cmdrsp, int result)
+{
+	wait_queue_head_t *wq =
+		idr_find(idrtable, cmdrsp->scsitaskmgmt.notify_handle);
+	int *scsi_result_ptr =
+		idr_find(idrtable, cmdrsp->scsitaskmgmt.notifyresult_handle);
+
+	if (unlikely(!(wq && scsi_result_ptr))) {
+		pr_err("visorhba: no completion context; cmd will time out\n");
+		return;
 	}
 
-	bytes_read = simple_read_from_buffer(buf, len, offset, vbuf, str_pos);
-	kfree(vbuf);
-	return bytes_read;
+	/* copy the result of the taskmgmt and
+	 * wake up the error handler that is waiting for this
+	 */
+	pr_debug("visorhba: notifying initiator with result=0x%x\n", result);
+	*scsi_result_ptr = result;
+	wake_up_all(wq);
 }
 
 /**
@@ -701,17 +768,8 @@ static void visorhba_serverdown_complete(struct visorhba_devdata *devdata)
 			break;
 		case CMD_SCSITASKMGMT_TYPE:
 			cmdrsp = pendingdel->sent;
-			cmdrsp->scsitaskmgmt.notifyresult_handle
-							= TASK_MGMT_FAILED;
-			wake_up_all((wait_queue_head_t *)
-				    cmdrsp->scsitaskmgmt.notify_handle);
-			break;
-		case CMD_VDISKMGMT_TYPE:
-			cmdrsp = pendingdel->sent;
-			cmdrsp->vdiskmgmt.notifyresult_handle
-							= VDISK_MGMT_FAILED;
-			wake_up_all((wait_queue_head_t *)
-				    cmdrsp->vdiskmgmt.notify_handle);
+			complete_taskmgmt_command(&devdata->idr, cmdrsp,
+						  TASK_MGMT_FAILED);
 			break;
 		default:
 			break;
@@ -878,89 +936,6 @@ complete_scsi_command(struct uiscmdrsp *cmdrsp, struct scsi_cmnd *scsicmd)
 	scsicmd->scsi_done(scsicmd);
 }
 
-/* DELETE VDISK TASK MGMT COMMANDS */
-static inline void complete_vdiskmgmt_command(struct uiscmdrsp *cmdrsp)
-{
-	/* copy the result of the taskmgmt and
-	 * wake up the error handler that is waiting for this
-	 */
-	cmdrsp->vdiskmgmt.notifyresult_handle = cmdrsp->vdiskmgmt.result;
-	wake_up_all((wait_queue_head_t *)cmdrsp->vdiskmgmt.notify_handle);
-}
-
-/**
- *	complete_taskmgmt_command - complete task management
- *	@cmdrsp: Response from the IOVM
- *
- *	Service Partition returned the result of the task management
- *	command. Wake up anyone waiting for it.
- *	Returns void
- */
-static inline void complete_taskmgmt_command(struct uiscmdrsp *cmdrsp)
-{
-	/* copy the result of the taskgmgt and
-	 * wake up the error handler that is waiting for this
-	 */
-	cmdrsp->vdiskmgmt.notifyresult_handle = cmdrsp->vdiskmgmt.result;
-	wake_up_all((wait_queue_head_t *)cmdrsp->scsitaskmgmt.notify_handle);
-}
-
-static struct work_struct dar_work_queue;
-static struct diskaddremove *dar_work_queue_head;
-static spinlock_t dar_work_queue_lock; /* Lock to protet dar_work_queue_head */
-static unsigned short dar_work_queue_sched;
-
-/**
- *	queue_disk_add_remove - IOSP has sent us a add/remove request
- *	@dar: disk add/remove request
- *
- *	Queue the work needed to add/remove a disk.
- *	Returns void
- */
-static inline void queue_disk_add_remove(struct diskaddremove *dar)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&dar_work_queue_lock, flags);
-	if (!dar_work_queue_head) {
-		dar_work_queue_head = dar;
-		dar->next = NULL;
-	} else {
-		dar->next = dar_work_queue_head;
-		dar_work_queue_head = dar;
-	}
-	if (!dar_work_queue_sched) {
-		schedule_work(&dar_work_queue);
-		dar_work_queue_sched = 1;
-	}
-	spin_unlock_irqrestore(&dar_work_queue_lock, flags);
-}
-
-/**
- *	process_disk_notify - IOSP has sent a process disk notify event
- *	@shost: Scsi hot
- *	@cmdrsp: Response from the IOSP
- *
- *	Queue it to the work queue.
- *	Return void.
- */
-static void process_disk_notify(struct Scsi_Host *shost,
-				struct uiscmdrsp *cmdrsp)
-{
-	struct diskaddremove *dar;
-
-	dar = kzalloc(sizeof(*dar), GFP_ATOMIC);
-	if (!dar)
-		return;
-
-	dar->add = cmdrsp->disknotify.add;
-	dar->shost = shost;
-	dar->channel = cmdrsp->disknotify.channel;
-	dar->id = cmdrsp->disknotify.id;
-	dar->lun = cmdrsp->disknotify.lun;
-	queue_disk_add_remove(dar);
-}
-
 /**
  *	drain_queue - pull responses out of iochannel
  *	@cmdrsp: Response from the IOSP
@@ -973,7 +948,6 @@ static void
 drain_queue(struct uiscmdrsp *cmdrsp, struct visorhba_devdata *devdata)
 {
 	struct scsi_cmnd *scsicmd;
-	struct Scsi_Host *shost = devdata->scsihost;
 
 	while (1) {
 		if (!visorchannel_signalremove(devdata->dev->visorchannel,
@@ -995,21 +969,12 @@ drain_queue(struct uiscmdrsp *cmdrsp, struct visorhba_devdata *devdata)
 			if (!del_scsipending_ent(devdata,
 						 cmdrsp->scsitaskmgmt.handle))
 				break;
-			complete_taskmgmt_command(cmdrsp);
-		} else if (cmdrsp->cmdtype == CMD_NOTIFYGUEST_TYPE) {
-			/* The vHba pointer has no meaning in a
-			 * guest partition. Let's be safe and set it
-			 * to NULL now. Do not use it here!
-			 */
-			cmdrsp->disknotify.v_hba = NULL;
-			process_disk_notify(shost, cmdrsp);
-		} else if (cmdrsp->cmdtype == CMD_VDISKMGMT_TYPE) {
-			if (!del_scsipending_ent(devdata,
-						 cmdrsp->vdiskmgmt.handle))
-				break;
-			complete_vdiskmgmt_command(cmdrsp);
-		}
-		/* cmdrsp is now available for resuse */
+			complete_taskmgmt_command(&devdata->idr, cmdrsp,
+						  cmdrsp->scsitaskmgmt.result);
+		} else if (cmdrsp->cmdtype == CMD_NOTIFYGUEST_TYPE)
+			dev_err_once(&devdata->dev->device,
+				     "ignoring unsupported NOTIFYGUEST\n");
+		/* cmdrsp is now available for re-use */
 	}
 }
 
@@ -1107,7 +1072,7 @@ static int visorhba_probe(struct visor_device *dev)
 	struct Scsi_Host *scsihost;
 	struct vhba_config_max max;
 	struct visorhba_devdata *devdata = NULL;
-	int i, err, channel_offset;
+	int err, channel_offset;
 	u64 features;
 
 	scsihost = scsi_host_alloc(&visorhba_driver_template,
@@ -1122,9 +1087,9 @@ static int visorhba_probe(struct visor_device *dev)
 	if (err < 0)
 		goto err_scsi_host_put;
 
-	scsihost->max_id = (unsigned)max.max_id;
-	scsihost->max_lun = (unsigned)max.max_lun;
-	scsihost->cmd_per_lun = (unsigned)max.cmd_per_lun;
+	scsihost->max_id = (unsigned int)max.max_id;
+	scsihost->max_lun = (unsigned int)max.max_lun;
+	scsihost->cmd_per_lun = (unsigned int)max.cmd_per_lun;
 	scsihost->max_sectors =
 	    (unsigned short)(max.max_io_size >> 9);
 	scsihost->sg_tablesize =
@@ -1136,15 +1101,23 @@ static int visorhba_probe(struct visor_device *dev)
 		goto err_scsi_host_put;
 
 	devdata = (struct visorhba_devdata *)scsihost->hostdata;
-	for (i = 0; i < VISORHBA_OPEN_MAX; i++) {
-		if (!visorhbas_open[i].devdata) {
-			visorhbas_open[i].devdata = devdata;
-			break;
-		}
-	}
-
 	devdata->dev = dev;
 	dev_set_drvdata(&dev->device, devdata);
+
+	devdata->debugfs_dir = debugfs_create_dir(dev_name(&dev->device),
+						  visorhba_debugfs_dir);
+	if (!devdata->debugfs_dir) {
+		err = -ENOMEM;
+		goto err_scsi_remove_host;
+	}
+	devdata->debugfs_info =
+		debugfs_create_file("info", S_IRUSR | S_IRGRP,
+				    devdata->debugfs_dir, devdata,
+				    &info_debugfs_fops);
+	if (!devdata->debugfs_info) {
+		err = -ENOMEM;
+		goto err_debugfs_dir;
+	}
 
 	init_waitqueue_head(&devdata->rsp_queue);
 	spin_lock_init(&devdata->privlock);
@@ -1156,11 +1129,13 @@ static int visorhba_probe(struct visor_device *dev)
 				  channel_header.features);
 	err = visorbus_read_channel(dev, channel_offset, &features, 8);
 	if (err)
-		goto err_scsi_remove_host;
+		goto err_debugfs_info;
 	features |= ULTRA_IO_CHANNEL_IS_POLLING;
 	err = visorbus_write_channel(dev, channel_offset, &features, 8);
 	if (err)
-		goto err_scsi_remove_host;
+		goto err_debugfs_info;
+
+	idr_init(&devdata->idr);
 
 	devdata->thread_wait_ms = 2;
 	devdata->thread = visor_thread_start(process_incoming_rsps, devdata,
@@ -1169,6 +1144,12 @@ static int visorhba_probe(struct visor_device *dev)
 	scsi_scan_host(scsihost);
 
 	return 0;
+
+err_debugfs_info:
+	debugfs_remove(devdata->debugfs_info);
+
+err_debugfs_dir:
+	debugfs_remove_recursive(devdata->debugfs_dir);
 
 err_scsi_remove_host:
 	scsi_remove_host(scsihost);
@@ -1198,7 +1179,11 @@ static void visorhba_remove(struct visor_device *dev)
 	scsi_remove_host(scsihost);
 	scsi_host_put(scsihost);
 
+	idr_destroy(&devdata->idr);
+
 	dev_set_drvdata(&dev->device, NULL);
+	debugfs_remove(devdata->debugfs_info);
+	debugfs_remove_recursive(devdata->debugfs_dir);
 }
 
 /**
@@ -1209,26 +1194,17 @@ static void visorhba_remove(struct visor_device *dev)
  */
 static int visorhba_init(void)
 {
-	struct dentry *ret;
 	int rc = -ENOMEM;
 
 	visorhba_debugfs_dir = debugfs_create_dir("visorhba", NULL);
 	if (!visorhba_debugfs_dir)
 		return -ENOMEM;
 
-	ret = debugfs_create_file("info", S_IRUSR, visorhba_debugfs_dir, NULL,
-				  &debugfs_info_fops);
-
-	if (!ret) {
-		rc = -EIO;
-		goto cleanup_debugfs;
-	}
-
 	rc = visorbus_register_visor_driver(&visorhba_driver);
 	if (rc)
 		goto cleanup_debugfs;
 
-	return rc;
+	return 0;
 
 cleanup_debugfs:
 	debugfs_remove_recursive(visorhba_debugfs_dir);

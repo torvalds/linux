@@ -4645,7 +4645,7 @@ intel_dp_detect(struct drm_connector *connector, bool force)
 
 	intel_dp->detect_done = false;
 
-	if (intel_connector->detect_edid)
+	if (is_edp(intel_dp) || intel_connector->detect_edid)
 		return connector_status_connected;
 	else
 		return connector_status_disconnected;
