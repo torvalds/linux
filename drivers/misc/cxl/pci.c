@@ -1521,14 +1521,15 @@ static const struct cxl_service_layer_ops xsl_ops = {
 	.write_timebase_ctrl = write_timebase_ctrl_xsl,
 	.timebase_read = timebase_read_xsl,
 	.capi_mode = OPAL_PHB_CAPI_MODE_DMA,
-	.min_pe = 1, /* Workaround for Mellanox CX4 HW bug */
 };
 
 static void set_sl_ops(struct cxl *adapter, struct pci_dev *dev)
 {
 	if (dev->vendor == PCI_VENDOR_ID_MELLANOX && dev->device == 0x1013) {
+		/* Mellanox CX-4 */
 		dev_info(&adapter->dev, "Device uses an XSL\n");
 		adapter->native->sl_ops = &xsl_ops;
+		adapter->min_pe = 1; /* Workaround for CX-4 hardware bug */
 	} else {
 		dev_info(&adapter->dev, "Device uses a PSL\n");
 		adapter->native->sl_ops = &psl_ops;
