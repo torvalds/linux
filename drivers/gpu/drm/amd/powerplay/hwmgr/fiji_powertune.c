@@ -77,9 +77,8 @@ void fiji_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr)
 
 		fiji_hwmgr->fast_watermark_threshold = 100;
 
-		if (hwmgr->powercontainment_enabled) {
-			phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-				    PHM_PlatformCaps_PowerContainment);
+		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+					PHM_PlatformCaps_PowerContainment)) {
 			tmp = 1;
 			fiji_hwmgr->enable_dte_feature = tmp ? false : true;
 			fiji_hwmgr->enable_tdc_limit_feature = tmp ? true : false;

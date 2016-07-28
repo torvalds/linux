@@ -41,6 +41,25 @@ extern int fiji_hwmgr_init(struct pp_hwmgr *hwmgr);
 extern int polaris10_hwmgr_init(struct pp_hwmgr *hwmgr);
 extern int iceland_hwmgr_init(struct pp_hwmgr *hwmgr);
 
+static int hwmgr_set_features_platform_caps(struct pp_hwmgr *hwmgr)
+{
+	if (amdgpu_sclk_deep_sleep_en)
+		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_SclkDeepSleep);
+	else
+		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_SclkDeepSleep);
+
+	if (amdgpu_powercontainment)
+		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			    PHM_PlatformCaps_PowerContainment);
+	else
+		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+			    PHM_PlatformCaps_PowerContainment);
+
+	return 0;
+}
+
 int hwmgr_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 {
 	struct pp_hwmgr *hwmgr;
@@ -60,7 +79,8 @@ int hwmgr_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 	hwmgr->hw_revision = pp_init->rev_id;
 	hwmgr->usec_timeout = AMD_MAX_USEC_TIMEOUT;
 	hwmgr->power_source = PP_PowerSource_AC;
-	hwmgr->powercontainment_enabled = pp_init->powercontainment_enabled;
+
+	hwmgr_set_features_platform_caps(hwmgr);
 
 	switch (hwmgr->chip_family) {
 	case AMDGPU_FAMILY_CZ:

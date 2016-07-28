@@ -41,6 +41,9 @@ struct phm_fan_speed_info;
 struct pp_atomctrl_voltage_table;
 
 
+extern int amdgpu_powercontainment;
+extern int amdgpu_sclk_deep_sleep_en;
+
 enum DISPLAY_GAP {
 	DISPLAY_GAP_VBLANK_OR_WM = 0,   /* Wait for vblank or MCHG watermark. */
 	DISPLAY_GAP_VBLANK       = 1,   /* Wait for vblank. */
@@ -614,7 +617,6 @@ struct pp_hwmgr {
 	uint32_t num_ps;
 	struct pp_thermal_controller_info thermal_controller;
 	bool fan_ctrl_is_in_default_mode;
-	bool powercontainment_enabled;
 	uint32_t fan_ctrl_default_mode;
 	uint32_t tmin;
 	struct phm_microcode_version_info microcode_version_info;

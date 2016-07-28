@@ -2773,9 +2773,6 @@ int polaris10_set_features_platform_caps(struct pp_hwmgr *hwmgr)
 	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_SclkDeepSleep);
-
-	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 		PHM_PlatformCaps_DynamicPatchPowerState);
 
 	if (data->mvdd_control == POLARIS10_VOLTAGE_CONTROL_NONE)
@@ -2819,13 +2816,6 @@ int polaris10_set_features_platform_caps(struct pp_hwmgr *hwmgr)
 						PHM_PlatformCaps_TDRamping);
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 						PHM_PlatformCaps_TCPRamping);
-
-	if (hwmgr->powercontainment_enabled)
-		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-			    PHM_PlatformCaps_PowerContainment);
-	else
-		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
-			    PHM_PlatformCaps_PowerContainment);
 
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 							PHM_PlatformCaps_CAC);

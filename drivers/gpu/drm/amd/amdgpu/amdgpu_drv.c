@@ -84,6 +84,7 @@ int amdgpu_sched_jobs = 32;
 int amdgpu_sched_hw_submission = 2;
 int amdgpu_powerplay = -1;
 int amdgpu_powercontainment = 1;
+int amdgpu_sclk_deep_sleep_en = 1;
 unsigned amdgpu_pcie_gen_cap = 0;
 unsigned amdgpu_pcie_lane_cap = 0;
 unsigned amdgpu_cg_mask = 0xffffffff;
@@ -169,6 +170,9 @@ module_param_named(powerplay, amdgpu_powerplay, int, 0444);
 MODULE_PARM_DESC(powercontainment, "Power Containment (1 = enable (default), 0 = disable)");
 module_param_named(powercontainment, amdgpu_powercontainment, int, 0444);
 #endif
+
+MODULE_PARM_DESC(sclkdeepsleep, "SCLK Deep Sleep (1 = enable (default), 0 = disable)");
+module_param_named(sclkdeepsleep, amdgpu_sclk_deep_sleep_en, int, 0444);
 
 MODULE_PARM_DESC(pcie_gen_cap, "PCIE Gen Caps (0: autodetect (default))");
 module_param_named(pcie_gen_cap, amdgpu_pcie_gen_cap, uint, 0444);

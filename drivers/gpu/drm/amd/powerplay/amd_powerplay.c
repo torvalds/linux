@@ -31,6 +31,7 @@
 #include "eventmanager.h"
 #include "pp_debug.h"
 
+
 #define PP_CHECK(handle)						\
 	do {								\
 		if ((handle) == NULL || (handle)->pp_valid != PP_VALID)	\
