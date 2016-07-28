@@ -3099,14 +3099,13 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
 		enum compact_priority prio, enum compact_result *compact_result)
 {
 	struct page *page;
-	int contended_compaction;
 
 	if (!order)
 		return NULL;
 
 	current->flags |= PF_MEMALLOC;
 	*compact_result = try_to_compact_pages(gfp_mask, order, alloc_flags, ac,
-						prio, &contended_compaction);
+									prio);
 	current->flags &= ~PF_MEMALLOC;
 
 	if (*compact_result <= COMPACT_INACTIVE)
@@ -3134,24 +3133,6 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
 	 * is that pages exist, but not enough to satisfy watermarks.
 	 */
 	count_vm_event(COMPACTFAIL);
-
-	/*
-	 * In all zones where compaction was attempted (and not
-	 * deferred or skipped), lock contention has been detected.
-	 * For THP allocation we do not want to disrupt the others
-	 * so we fallback to base pages instead.
-	 */
-	if (contended_compaction == COMPACT_CONTENDED_LOCK)
-		*compact_result = COMPACT_CONTENDED;
-
-	/*
-	 * If compaction was aborted due to need_resched(), we do not
-	 * want to further increase allocation latency, unless it is
-	 * khugepaged trying to collapse.
-	 */
-	if (contended_compaction == COMPACT_CONTENDED_SCHED
-		&& !(current->flags & PF_KTHREAD))
-		*compact_result = COMPACT_CONTENDED;
 
 	cond_resched();
 
@@ -3545,13 +3526,6 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
 			 * direct reclaim.
 			 */
 			if (compact_result == COMPACT_DEFERRED)
-				goto nopage;
-
-			/*
-			 * Compaction is contended so rather back off than cause
-			 * excessive stalls.
-			 */
-			if (compact_result == COMPACT_CONTENDED)
 				goto nopage;
 
 			/*

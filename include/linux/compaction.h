@@ -55,14 +55,6 @@ enum compact_result {
 	COMPACT_PARTIAL,
 };
 
-/* Used to signal whether compaction detected need_sched() or lock contention */
-/* No contention detected */
-#define COMPACT_CONTENDED_NONE	0
-/* Either need_sched() was true or fatal signal pending */
-#define COMPACT_CONTENDED_SCHED	1
-/* Zone lock or lru_lock was contended in async compaction */
-#define COMPACT_CONTENDED_LOCK	2
-
 struct alloc_context; /* in mm/internal.h */
 
 #ifdef CONFIG_COMPACTION
@@ -76,9 +68,8 @@ extern int sysctl_compact_unevictable_allowed;
 
 extern int fragmentation_index(struct zone *zone, unsigned int order);
 extern enum compact_result try_to_compact_pages(gfp_t gfp_mask,
-			unsigned int order,
-		unsigned int alloc_flags, const struct alloc_context *ac,
-		enum compact_priority prio, int *contended);
+		unsigned int order, unsigned int alloc_flags,
+		const struct alloc_context *ac, enum compact_priority prio);
 extern void compact_pgdat(pg_data_t *pgdat, int order);
 extern void reset_isolation_suitable(pg_data_t *pgdat);
 extern enum compact_result compaction_suitable(struct zone *zone, int order,
