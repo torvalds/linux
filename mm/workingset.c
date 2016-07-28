@@ -355,8 +355,8 @@ static unsigned long count_shadow_nodes(struct shrinker *shrinker,
 		pages = mem_cgroup_node_nr_lru_pages(sc->memcg, sc->nid,
 						     LRU_ALL_FILE);
 	} else {
-		pages = sum_zone_node_page_state(sc->nid, NR_ACTIVE_FILE) +
-			sum_zone_node_page_state(sc->nid, NR_INACTIVE_FILE);
+		pages = node_page_state(NODE_DATA(sc->nid), NR_ACTIVE_FILE) +
+			node_page_state(NODE_DATA(sc->nid), NR_INACTIVE_FILE);
 	}
 
 	/*

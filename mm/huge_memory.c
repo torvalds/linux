@@ -1818,7 +1818,7 @@ static void __split_huge_page(struct page *page, struct list_head *list,
 	pgoff_t end = -1;
 	int i;
 
-	lruvec = mem_cgroup_page_lruvec(head, zone);
+	lruvec = mem_cgroup_page_lruvec(head, zone->zone_pgdat);
 
 	/* complete memcg works before add pages to LRU */
 	mem_cgroup_split_huge_fixup(head);

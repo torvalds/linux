@@ -285,8 +285,8 @@ static unsigned long zone_dirtyable_memory(struct zone *zone)
 	 */
 	nr_pages -= min(nr_pages, zone->totalreserve_pages);
 
-	nr_pages += zone_page_state(zone, NR_INACTIVE_FILE);
-	nr_pages += zone_page_state(zone, NR_ACTIVE_FILE);
+	nr_pages += node_page_state(zone->zone_pgdat, NR_INACTIVE_FILE);
+	nr_pages += node_page_state(zone->zone_pgdat, NR_ACTIVE_FILE);
 
 	return nr_pages;
 }
@@ -348,8 +348,8 @@ static unsigned long global_dirtyable_memory(void)
 	 */
 	x -= min(x, totalreserve_pages);
 
-	x += global_page_state(NR_INACTIVE_FILE);
-	x += global_page_state(NR_ACTIVE_FILE);
+	x += global_node_page_state(NR_INACTIVE_FILE);
+	x += global_node_page_state(NR_ACTIVE_FILE);
 
 	if (!vm_highmem_is_dirtyable)
 		x -= highmem_dirtyable_memory(x);

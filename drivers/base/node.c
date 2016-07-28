@@ -56,6 +56,7 @@ static ssize_t node_read_meminfo(struct device *dev,
 {
 	int n;
 	int nid = dev->id;
+	struct pglist_data *pgdat = NODE_DATA(nid);
 	struct sysinfo i;
 
 	si_meminfo_node(&i, nid);
@@ -74,15 +75,15 @@ static ssize_t node_read_meminfo(struct device *dev,
 		       nid, K(i.totalram),
 		       nid, K(i.freeram),
 		       nid, K(i.totalram - i.freeram),
-		       nid, K(sum_zone_node_page_state(nid, NR_ACTIVE_ANON) +
-				sum_zone_node_page_state(nid, NR_ACTIVE_FILE)),
-		       nid, K(sum_zone_node_page_state(nid, NR_INACTIVE_ANON) +
-				sum_zone_node_page_state(nid, NR_INACTIVE_FILE)),
-		       nid, K(sum_zone_node_page_state(nid, NR_ACTIVE_ANON)),
-		       nid, K(sum_zone_node_page_state(nid, NR_INACTIVE_ANON)),
-		       nid, K(sum_zone_node_page_state(nid, NR_ACTIVE_FILE)),
-		       nid, K(sum_zone_node_page_state(nid, NR_INACTIVE_FILE)),
-		       nid, K(sum_zone_node_page_state(nid, NR_UNEVICTABLE)),
+		       nid, K(node_page_state(pgdat, NR_ACTIVE_ANON) +
+				node_page_state(pgdat, NR_ACTIVE_FILE)),
+		       nid, K(node_page_state(pgdat, NR_INACTIVE_ANON) +
+				node_page_state(pgdat, NR_INACTIVE_FILE)),
+		       nid, K(node_page_state(pgdat, NR_ACTIVE_ANON)),
+		       nid, K(node_page_state(pgdat, NR_INACTIVE_ANON)),
+		       nid, K(node_page_state(pgdat, NR_ACTIVE_FILE)),
+		       nid, K(node_page_state(pgdat, NR_INACTIVE_FILE)),
+		       nid, K(node_page_state(pgdat, NR_UNEVICTABLE)),
 		       nid, K(sum_zone_node_page_state(nid, NR_MLOCK)));
 
 #ifdef CONFIG_HIGHMEM
