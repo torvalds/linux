@@ -31,6 +31,10 @@
 #define DISP_OD_INTSTA				0x000c
 #define DISP_OD_CFG				0x0020
 #define DISP_OD_SIZE				0x0030
+#define DISP_DITHER_5				0x0114
+#define DISP_DITHER_7				0x011c
+#define DISP_DITHER_15				0x013c
+#define DISP_DITHER_16				0x0140
 
 #define DISP_REG_UFO_START			0x0000
 
@@ -49,20 +53,59 @@
 
 #define LUT_10BIT_MASK				0x03ff
 
-#define	OD_RELAY_MODE		BIT(0)
+#define COLOR_BYPASS_ALL			BIT(7)
+#define COLOR_SEQ_SEL				BIT(13)
 
-#define	UFO_BYPASS		BIT(2)
+#define OD_RELAYMODE				BIT(0)
 
-#define	COLOR_BYPASS_ALL	BIT(7)
-#define	COLOR_SEQ_SEL		BIT(13)
+#define UFO_BYPASS				BIT(2)
 
-#define AAL_EN			BIT(0)
+#define AAL_EN					BIT(0)
 
-#define GAMMA_EN		BIT(0)
-#define GAMMA_LUT_EN		BIT(1)
+#define GAMMA_EN				BIT(0)
+#define GAMMA_LUT_EN				BIT(1)
+
+#define DISP_DITHERING				BIT(2)
+#define DITHER_LSB_ERR_SHIFT_R(x)		(((x) & 0x7) << 28)
+#define DITHER_OVFLW_BIT_R(x)			(((x) & 0x7) << 24)
+#define DITHER_ADD_LSHIFT_R(x)			(((x) & 0x7) << 20)
+#define DITHER_ADD_RSHIFT_R(x)			(((x) & 0x7) << 16)
+#define DITHER_NEW_BIT_MODE			BIT(0)
+#define DITHER_LSB_ERR_SHIFT_B(x)		(((x) & 0x7) << 28)
+#define DITHER_OVFLW_BIT_B(x)			(((x) & 0x7) << 24)
+#define DITHER_ADD_LSHIFT_B(x)			(((x) & 0x7) << 20)
+#define DITHER_ADD_RSHIFT_B(x)			(((x) & 0x7) << 16)
+#define DITHER_LSB_ERR_SHIFT_G(x)		(((x) & 0x7) << 12)
+#define DITHER_OVFLW_BIT_G(x)			(((x) & 0x7) << 8)
+#define DITHER_ADD_LSHIFT_G(x)			(((x) & 0x7) << 4)
+#define DITHER_ADD_RSHIFT_G(x)			(((x) & 0x7) << 0)
+
+void mtk_dither_set(struct mtk_ddp_comp *comp, unsigned int bpc,
+		    unsigned int CFG)
+{
+	/* If bpc equal to 0, the dithering function didn't be enabled */
+	if (bpc == 0)
+		return;
+
+	if (bpc >= MTK_MIN_BPC) {
+		writel(0, comp->regs + DISP_DITHER_5);
+		writel(0, comp->regs + DISP_DITHER_7);
+		writel(DITHER_LSB_ERR_SHIFT_R(MTK_MAX_BPC - bpc) |
+		       DITHER_ADD_LSHIFT_R(MTK_MAX_BPC - bpc) |
+		       DITHER_NEW_BIT_MODE,
+		       comp->regs + DISP_DITHER_15);
+		writel(DITHER_LSB_ERR_SHIFT_B(MTK_MAX_BPC - bpc) |
+		       DITHER_ADD_LSHIFT_B(MTK_MAX_BPC - bpc) |
+		       DITHER_LSB_ERR_SHIFT_G(MTK_MAX_BPC - bpc) |
+		       DITHER_ADD_LSHIFT_G(MTK_MAX_BPC - bpc),
+		       comp->regs + DISP_DITHER_16);
+		writel(DISP_DITHERING, comp->regs + CFG);
+	}
+}
 
 static void mtk_color_config(struct mtk_ddp_comp *comp, unsigned int w,
-			     unsigned int h, unsigned int vrefresh)
+			     unsigned int h, unsigned int vrefresh,
+			     unsigned int bpc)
 {
 	writel(w, comp->regs + DISP_COLOR_WIDTH);
 	writel(h, comp->regs + DISP_COLOR_HEIGHT);
@@ -76,14 +119,16 @@ static void mtk_color_start(struct mtk_ddp_comp *comp)
 }
 
 static void mtk_od_config(struct mtk_ddp_comp *comp, unsigned int w,
-			  unsigned int h, unsigned int vrefresh)
+			  unsigned int h, unsigned int vrefresh,
+			  unsigned int bpc)
 {
 	writel(w << 16 | h, comp->regs + DISP_OD_SIZE);
+	writel(OD_RELAYMODE, comp->regs + OD_RELAYMODE);
+	mtk_dither_set(comp, bpc, DISP_OD_CFG);
 }
 
 static void mtk_od_start(struct mtk_ddp_comp *comp)
 {
-	writel(OD_RELAY_MODE, comp->regs + DISP_OD_CFG);
 	writel(1, comp->regs + DISP_OD_EN);
 }
 
@@ -93,7 +138,8 @@ static void mtk_ufoe_start(struct mtk_ddp_comp *comp)
 }
 
 static void mtk_aal_config(struct mtk_ddp_comp *comp, unsigned int w,
-			   unsigned int h, unsigned int vrefresh)
+			   unsigned int h, unsigned int vrefresh,
+			   unsigned int bpc)
 {
 	writel(h << 16 | w, comp->regs + DISP_AAL_SIZE);
 }
@@ -109,9 +155,11 @@ static void mtk_aal_stop(struct mtk_ddp_comp *comp)
 }
 
 static void mtk_gamma_config(struct mtk_ddp_comp *comp, unsigned int w,
-			     unsigned int h, unsigned int vrefresh)
+			     unsigned int h, unsigned int vrefresh,
+			     unsigned int bpc)
 {
 	writel(h << 16 | w, comp->regs + DISP_GAMMA_SIZE);
+	mtk_dither_set(comp, bpc, DISP_GAMMA_CFG);
 }
 
 static void mtk_gamma_start(struct mtk_ddp_comp *comp)
