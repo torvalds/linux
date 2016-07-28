@@ -1350,6 +1350,38 @@ int __isolate_lru_page(struct page *page, isolate_mode_t mode)
 	return ret;
 }
 
+
+/*
+ * Update LRU sizes after isolating pages. The LRU size updates must
+ * be complete before mem_cgroup_update_lru_size due to a santity check.
+ */
+static __always_inline void update_lru_sizes(struct lruvec *lruvec,
+			enum lru_list lru, unsigned long *nr_zone_taken,
+			unsigned long nr_taken)
+{
+#ifdef CONFIG_HIGHMEM
+	int zid;
+
+	/*
+	 * Highmem has separate accounting for highmem pages so each zone
+	 * is updated separately.
+	 */
+	for (zid = 0; zid < MAX_NR_ZONES; zid++) {
+		if (!nr_zone_taken[zid])
+			continue;
+
+		__update_lru_size(lruvec, lru, zid, -nr_zone_taken[zid]);
+	}
+#else
+	/* Zone ID does not matter on !HIGHMEM */
+	__update_lru_size(lruvec, lru, 0, -nr_taken);
+#endif
+
+#ifdef CONFIG_MEMCG
+	mem_cgroup_update_lru_size(lruvec, lru, -nr_taken);
+#endif
+}
+
 /*
  * zone_lru_lock is heavily contended.  Some of the functions that
  * shrink the lists perform better by taking out a batch of pages
@@ -1436,13 +1468,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
 	*nr_scanned = scan;
 	trace_mm_vmscan_lru_isolate(sc->reclaim_idx, sc->order, nr_to_scan, scan,
 				    nr_taken, mode, is_file_lru(lru));
-	for (scan = 0; scan < MAX_NR_ZONES; scan++) {
-		nr_pages = nr_zone_taken[scan];
-		if (!nr_pages)
-			continue;
-
-		update_lru_size(lruvec, lru, scan, -nr_pages);
-	}
+	update_lru_sizes(lruvec, lru, nr_zone_taken, nr_taken);
 	return nr_taken;
 }
 
