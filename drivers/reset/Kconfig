@@ -21,6 +21,12 @@ config RESET_ATH79
 	  This enables the ATH79 reset controller driver that supports the
 	  AR71xx SoC reset controller.
 
+config RESET_BERLIN
+	bool "Berlin Reset Driver" if COMPILE_TEST
+	default ARCH_BERLIN
+	help
+	  This enables the reset controller driver for Marvell Berlin SoCs.
+
 config RESET_OXNAS
 	bool
 
