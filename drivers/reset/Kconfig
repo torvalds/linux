@@ -14,6 +14,13 @@ menuconfig RESET_CONTROLLER
 
 if RESET_CONTROLLER
 
+config RESET_ATH79
+	bool "AR71xx Reset Driver" if COMPILE_TEST
+	default ATH79
+	help
+	  This enables the ATH79 reset controller driver that supports the
+	  AR71xx SoC reset controller.
+
 config RESET_OXNAS
 	bool
 
