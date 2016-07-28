@@ -5380,8 +5380,9 @@ _scsih_check_device(struct MPT3SAS_ADAPTER *ioc,
 		     MPI2_SAS_DEVICE0_FLAGS_ENCL_LEVEL_VALID) {
 			sas_device->enclosure_level =
 				le16_to_cpu(sas_device_pg0.EnclosureLevel);
-			memcpy(&sas_device->connector_name[0],
-				&sas_device_pg0.ConnectorName[0], 4);
+			memcpy(sas_device->connector_name,
+				sas_device_pg0.ConnectorName, 4);
+			sas_device->connector_name[4] = '\0';
 		} else {
 			sas_device->enclosure_level = 0;
 			sas_device->connector_name[0] = '\0';
@@ -5508,8 +5509,9 @@ _scsih_add_device(struct MPT3SAS_ADAPTER *ioc, u16 handle, u8 phy_num,
 	if (sas_device_pg0.Flags & MPI2_SAS_DEVICE0_FLAGS_ENCL_LEVEL_VALID) {
 		sas_device->enclosure_level =
 			le16_to_cpu(sas_device_pg0.EnclosureLevel);
-		memcpy(&sas_device->connector_name[0],
-			&sas_device_pg0.ConnectorName[0], 4);
+		memcpy(sas_device->connector_name,
+			sas_device_pg0.ConnectorName, 4);
+		sas_device->connector_name[4] = '\0';
 	} else {
 		sas_device->enclosure_level = 0;
 		sas_device->connector_name[0] = '\0';
