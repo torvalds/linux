@@ -2964,11 +2964,6 @@ static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
 			return ERR_PTR(ret);
 	}
 
-	if (of_find_property(np, "supports-highspeed", NULL)) {
-		dev_info(dev, "supports-highspeed property is deprecated.\n");
-		pdata->caps |= MMC_CAP_SD_HIGHSPEED | MMC_CAP_MMC_HIGHSPEED;
-	}
-
 	return pdata;
 }
 
