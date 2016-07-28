@@ -4391,7 +4391,6 @@ follow_huge_pud(struct mm_struct *mm, unsigned long address,
 
 /*
  * This function is called from memory failure code.
- * Assume the caller holds page lock of the head page.
  */
 int dequeue_hwpoisoned_huge_page(struct page *hpage)
 {

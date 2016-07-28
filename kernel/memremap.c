@@ -308,12 +308,6 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
 	if (is_ram == REGION_INTERSECTS)
 		return __va(res->start);
 
-	if (altmap && !IS_ENABLED(CONFIG_SPARSEMEM_VMEMMAP)) {
-		dev_err(dev, "%s: altmap requires CONFIG_SPARSEMEM_VMEMMAP=y\n",
-				__func__);
-		return ERR_PTR(-ENXIO);
-	}
-
 	if (!ref)
 		return ERR_PTR(-EINVAL);
 
@@ -401,7 +395,6 @@ void vmem_altmap_free(struct vmem_altmap *altmap, unsigned long nr_pfns)
 	altmap->alloc -= nr_pfns;
 }
 
-#ifdef CONFIG_SPARSEMEM_VMEMMAP
 struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start)
 {
 	/*
@@ -427,5 +420,4 @@ struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start)
 
 	return pgmap ? pgmap->altmap : NULL;
 }
-#endif /* CONFIG_SPARSEMEM_VMEMMAP */
 #endif /* CONFIG_ZONE_DEVICE */

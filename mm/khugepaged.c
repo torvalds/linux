@@ -480,7 +480,7 @@ void __khugepaged_exit(struct mm_struct *mm)
 static void release_pte_page(struct page *page)
 {
 	/* 0 stands for page_is_file_cache(page) == false */
-	dec_zone_page_state(page, NR_ISOLATED_ANON + 0);
+	dec_node_page_state(page, NR_ISOLATED_ANON + 0);
 	unlock_page(page);
 	putback_lru_page(page);
 }
@@ -576,7 +576,7 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
 			goto out;
 		}
 		/* 0 stands for page_is_file_cache(page) == false */
-		inc_zone_page_state(page, NR_ISOLATED_ANON + 0);
+		inc_node_page_state(page, NR_ISOLATED_ANON + 0);
 		VM_BUG_ON_PAGE(!PageLocked(page), page);
 		VM_BUG_ON_PAGE(PageLRU(page), page);
 
@@ -672,10 +672,10 @@ static bool khugepaged_scan_abort(int nid)
 	int i;
 
 	/*
-	 * If zone_reclaim_mode is disabled, then no extra effort is made to
+	 * If node_reclaim_mode is disabled, then no extra effort is made to
 	 * allocate memory locally.
 	 */
-	if (!zone_reclaim_mode)
+	if (!node_reclaim_mode)
 		return false;
 
 	/* If there is a count for this node already, it must be acceptable */
@@ -694,7 +694,7 @@ static bool khugepaged_scan_abort(int nid)
 /* Defrag for khugepaged will enter direct reclaim/compaction if necessary */
 static inline gfp_t alloc_hugepage_khugepaged_gfpmask(void)
 {
-	return GFP_TRANSHUGE | (khugepaged_defrag() ? __GFP_DIRECT_RECLAIM : 0);
+	return khugepaged_defrag() ? GFP_TRANSHUGE : GFP_TRANSHUGE_LIGHT;
 }
 
 #ifdef CONFIG_NUMA
@@ -1483,10 +1483,10 @@ tree_unlocked:
 		}
 
 		local_irq_save(flags);
-		__inc_zone_page_state(new_page, NR_SHMEM_THPS);
+		__inc_node_page_state(new_page, NR_SHMEM_THPS);
 		if (nr_none) {
-			__mod_zone_page_state(zone, NR_FILE_PAGES, nr_none);
-			__mod_zone_page_state(zone, NR_SHMEM, nr_none);
+			__mod_node_page_state(zone->zone_pgdat, NR_FILE_PAGES, nr_none);
+			__mod_node_page_state(zone->zone_pgdat, NR_SHMEM, nr_none);
 		}
 		local_irq_restore(flags);
 
