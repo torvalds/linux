@@ -1466,8 +1466,7 @@ static void pci_devices_present_work(struct work_struct *work)
 			if (hpdev->reported_missing) {
 				found = true;
 				put_pcichild(hpdev, hv_pcidev_ref_childlist);
-				list_del(&hpdev->list_entry);
-				list_add_tail(&hpdev->list_entry, &removed);
+				list_move_tail(&hpdev->list_entry, &removed);
 				break;
 			}
 		}
