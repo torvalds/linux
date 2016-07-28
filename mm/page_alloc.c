@@ -3556,11 +3556,9 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
 			/*
 			 * Looks like reclaim/compaction is worth trying, but
 			 * sync compaction could be very expensive, so keep
-			 * using async compaction, unless it's khugepaged
-			 * trying to collapse.
+			 * using async compaction.
 			 */
-			if (!(current->flags & PF_KTHREAD))
-				migration_mode = MIGRATE_ASYNC;
+			migration_mode = MIGRATE_ASYNC;
 		}
 	}
 
