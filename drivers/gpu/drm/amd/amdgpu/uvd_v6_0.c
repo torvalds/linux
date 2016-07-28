@@ -396,15 +396,10 @@ static int uvd_v6_0_start(struct amdgpu_device *adev)
 
 	uvd_v6_0_mc_resume(adev);
 
-	/* Set dynamic clock gating in S/W control mode */
-	if (adev->cg_flags & AMD_CG_SUPPORT_UVD_MGCG) {
-		uvd_v6_0_set_sw_clock_gating(adev);
-	} else {
-		/* disable clock gating */
-		uint32_t data = RREG32(mmUVD_CGC_CTRL);
-		data &= ~UVD_CGC_CTRL__DYN_CLOCK_MODE_MASK;
-		WREG32(mmUVD_CGC_CTRL, data);
-	}
+	/* disable clock gating */
+	tmp = RREG32(mmUVD_CGC_CTRL);
+	tmp &= ~UVD_CGC_CTRL__DYN_CLOCK_MODE_MASK;
+	WREG32(mmUVD_CGC_CTRL, tmp);
 
 	/* disable interupt */
 	WREG32_P(mmUVD_MASTINT_EN, 0, ~UVD_MASTINT_EN__VCPU_EN_MASK);
