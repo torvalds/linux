@@ -54,6 +54,12 @@ config RESET_SOCFPGA
 	help
 	  This enables the reset controller driver for Altera SoCFPGAs.
 
+config RESET_STM32
+	bool "STM32 Reset Driver" if COMPILE_TEST
+	default ARCH_STM32
+	help
+	  This enables the RCC reset controller driver for STM32 MCUs.
+
 config TI_SYSCON_RESET
 	tristate "TI SYSCON Reset Driver"
 	depends on HAS_IOMEM
