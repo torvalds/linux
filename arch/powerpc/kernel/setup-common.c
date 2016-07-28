@@ -146,6 +146,10 @@ void machine_restart(char *cmd)
 		ppc_md.restart(cmd);
 
 	smp_send_stop();
+
+	do_kernel_restart(cmd);
+	mdelay(1000);
+
 	machine_hang();
 }
 
