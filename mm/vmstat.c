@@ -924,20 +924,15 @@ const char * const vmstat_text[] = {
 	"nr_alloc_batch",
 	"nr_zone_anon_lru",
 	"nr_zone_file_lru",
+	"nr_zone_write_pending",
 	"nr_mlock",
-	"nr_file_pages",
-	"nr_dirty",
-	"nr_writeback",
 	"nr_slab_reclaimable",
 	"nr_slab_unreclaimable",
 	"nr_page_table_pages",
 	"nr_kernel_stack",
-	"nr_unstable",
 	"nr_bounce",
 	"nr_vmscan_write",
 	"nr_vmscan_immediate_reclaim",
-	"nr_writeback_temp",
-	"nr_shmem",
 	"nr_dirtied",
 	"nr_written",
 #if IS_ENABLED(CONFIG_ZSMALLOC)
@@ -951,9 +946,6 @@ const char * const vmstat_text[] = {
 	"numa_local",
 	"numa_other",
 #endif
-	"nr_anon_transparent_hugepages",
-	"nr_shmem_hugepages",
-	"nr_shmem_pmdmapped",
 	"nr_free_cma",
 
 	/* Node-based counters */
@@ -970,6 +962,15 @@ const char * const vmstat_text[] = {
 	"workingset_nodereclaim",
 	"nr_anon_pages",
 	"nr_mapped",
+	"nr_file_pages",
+	"nr_dirty",
+	"nr_writeback",
+	"nr_writeback_temp",
+	"nr_shmem",
+	"nr_shmem_hugepages",
+	"nr_shmem_pmdmapped",
+	"nr_anon_transparent_hugepages",
+	"nr_unstable",
 
 	/* enum writeback_stat_item counters */
 	"nr_dirty_threshold",
