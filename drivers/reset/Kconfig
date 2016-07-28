@@ -42,6 +42,12 @@ config RESET_MESON
 config RESET_OXNAS
 	bool
 
+config RESET_PISTACHIO
+	bool "Pistachio Reset Driver" if COMPILE_TEST
+	default MACH_PISTACHIO
+	help
+	  This enables the reset driver for ImgTec Pistachio SoCs.
+
 config TI_SYSCON_RESET
 	tristate "TI SYSCON Reset Driver"
 	depends on HAS_IOMEM
