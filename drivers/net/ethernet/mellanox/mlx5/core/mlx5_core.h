@@ -58,8 +58,8 @@ do {									\
 } while (0)
 
 #define mlx5_core_err(__dev, format, ...)				\
-	dev_err(&(__dev)->pdev->dev, "%s:%s:%d:(pid %d): " format,	\
-	       (__dev)->priv.name, __func__, __LINE__, current->pid,	\
+	dev_err(&(__dev)->pdev->dev, "%s:%d:(pid %d): " format,	\
+		__func__, __LINE__, current->pid,	\
 	       ##__VA_ARGS__)
 
 #define mlx5_core_warn(__dev, format, ...)				\

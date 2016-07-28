@@ -324,7 +324,7 @@ enum {
 				MLX5_DEV_CAP_FLAG_DCT,
 };
 
-static u16 to_fw_pkey_sz(u32 size)
+static u16 to_fw_pkey_sz(struct mlx5_core_dev *dev, u32 size)
 {
 	switch (size) {
 	case 128:
@@ -340,7 +340,7 @@ static u16 to_fw_pkey_sz(u32 size)
 	case 4096:
 		return 5;
 	default:
-		pr_warn("invalid pkey table size %d\n", size);
+		mlx5_core_warn(dev, "invalid pkey table size %d\n", size);
 		return 0;
 	}
 }
@@ -477,7 +477,7 @@ static int handle_hca_cap(struct mlx5_core_dev *dev)
 		      128);
 	/* we limit the size of the pkey table to 128 entries for now */
 	MLX5_SET(cmd_hca_cap, set_hca_cap, pkey_table_size,
-		 to_fw_pkey_sz(128));
+		 to_fw_pkey_sz(dev, 128));
 
 	if (prof->mask & MLX5_PROF_MASK_QP_SIZE)
 		MLX5_SET(cmd_hca_cap, set_hca_cap, log_max_qp,
@@ -1312,8 +1312,9 @@ static int init_one(struct pci_dev *pdev,
 	pci_set_drvdata(pdev, dev);
 
 	if (prof_sel < 0 || prof_sel >= ARRAY_SIZE(profile)) {
-		pr_warn("selected profile out of range, selecting default (%d)\n",
-			MLX5_DEFAULT_PROF);
+		mlx5_core_warn(dev,
+			       "selected profile out of range, selecting default (%d)\n",
+			       MLX5_DEFAULT_PROF);
 		prof_sel = MLX5_DEFAULT_PROF;
 	}
 	dev->profile = &profile[prof_sel];

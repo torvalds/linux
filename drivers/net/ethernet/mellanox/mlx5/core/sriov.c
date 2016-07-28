@@ -155,13 +155,13 @@ int mlx5_core_sriov_configure(struct pci_dev *pdev, int num_vfs)
 		if (!pci_vfs_assigned(pdev))
 			pci_disable_sriov(pdev);
 		else
-			pr_info("unloading PF driver while leaving orphan VFs\n");
+			mlx5_core_info(dev, "unloading PF driver while leaving orphan VFs\n");
 		return 0;
 	}
 
 	err = mlx5_core_sriov_enable(pdev, num_vfs);
 	if (err) {
-		dev_warn(&pdev->dev, "mlx5_core_sriov_enable failed %d\n", err);
+		mlx5_core_warn(dev, "mlx5_core_sriov_enable failed %d\n", err);
 		return err;
 	}
 
@@ -180,7 +180,8 @@ static int sync_required(struct pci_dev *pdev)
 	int cur_vfs = pci_num_vf(pdev);
 
 	if (cur_vfs != sriov->num_vfs) {
-		pr_info("current VFs %d, registered %d - sync needed\n", cur_vfs, sriov->num_vfs);
+		mlx5_core_warn(dev, "current VFs %d, registered %d - sync needed\n",
+			       cur_vfs, sriov->num_vfs);
 		return 1;
 	}
 

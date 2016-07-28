@@ -306,7 +306,7 @@ __esw_fdb_set_vport_rule(struct mlx5_eswitch *esw, u32 vport, bool rx_rule,
 
 	spec = mlx5_vzalloc(sizeof(*spec));
 	if (!spec) {
-		pr_warn("FDB: Failed to alloc match parameters\n");
+		esw_warn(esw->dev, "FDB: Failed to alloc match parameters\n");
 		return NULL;
 	}
 	dmac_v = MLX5_ADDR_OF(fte_match_param, spec->match_value,
@@ -340,8 +340,8 @@ __esw_fdb_set_vport_rule(struct mlx5_eswitch *esw, u32 vport, bool rx_rule,
 				   MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
 				   0, &dest);
 	if (IS_ERR(flow_rule)) {
-		pr_warn(
-			"FDB: Failed to add flow rule: dmac_v(%pM) dmac_c(%pM) -> vport(%d), err(%ld)\n",
+		esw_warn(esw->dev,
+			 "FDB: Failed to add flow rule: dmac_v(%pM) dmac_c(%pM) -> vport(%d), err(%ld)\n",
 			 dmac_v, dmac_c, vport, PTR_ERR(flow_rule));
 		flow_rule = NULL;
 	}
@@ -1318,8 +1318,9 @@ static int esw_vport_ingress_config(struct mlx5_eswitch *esw,
 				   0, NULL);
 	if (IS_ERR(vport->ingress.allow_rule)) {
 		err = PTR_ERR(vport->ingress.allow_rule);
-		pr_warn("vport[%d] configure ingress allow rule, err(%d)\n",
-			vport->vport, err);
+		esw_warn(esw->dev,
+			 "vport[%d] configure ingress allow rule, err(%d)\n",
+			 vport->vport, err);
 		vport->ingress.allow_rule = NULL;
 		goto out;
 	}
@@ -1331,8 +1332,9 @@ static int esw_vport_ingress_config(struct mlx5_eswitch *esw,
 				   0, NULL);
 	if (IS_ERR(vport->ingress.drop_rule)) {
 		err = PTR_ERR(vport->ingress.drop_rule);
-		pr_warn("vport[%d] configure ingress drop rule, err(%d)\n",
-			vport->vport, err);
+		esw_warn(esw->dev,
+			 "vport[%d] configure ingress drop rule, err(%d)\n",
+			 vport->vport, err);
 		vport->ingress.drop_rule = NULL;
 		goto out;
 	}
@@ -1384,8 +1386,9 @@ static int esw_vport_egress_config(struct mlx5_eswitch *esw,
 				   0, NULL);
 	if (IS_ERR(vport->egress.allowed_vlan)) {
 		err = PTR_ERR(vport->egress.allowed_vlan);
-		pr_warn("vport[%d] configure egress allowed vlan rule failed, err(%d)\n",
-			vport->vport, err);
+		esw_warn(esw->dev,
+			 "vport[%d] configure egress allowed vlan rule failed, err(%d)\n",
+			 vport->vport, err);
 		vport->egress.allowed_vlan = NULL;
 		goto out;
 	}
@@ -1398,8 +1401,9 @@ static int esw_vport_egress_config(struct mlx5_eswitch *esw,
 				   0, NULL);
 	if (IS_ERR(vport->egress.drop_rule)) {
 		err = PTR_ERR(vport->egress.drop_rule);
-		pr_warn("vport[%d] configure egress drop rule failed, err(%d)\n",
-			vport->vport, err);
+		esw_warn(esw->dev,
+			 "vport[%d] configure egress drop rule failed, err(%d)\n",
+			 vport->vport, err);
 		vport->egress.drop_rule = NULL;
 	}
 out:
