@@ -86,11 +86,27 @@
 		simple-audio-card,format = "i2s";
 		simple-audio-card,name = "rockchip,fennec-codec";
 		simple-audio-card,mclk-fs = <512>;
-		simple-audio-card,cpu {
-			sound-dai = <&i2s>;
+
+		simple-audio-card,dai-link@0 {
+			format = "i2s";
+			cpu {
+				sound-dai = <&i2s>;
+			};
+			codec {
+				sound-dai = <&hdmi>;
+			};
+
 		};
-		simple-audio-card,codec {
-			sound-dai = <&hdmi>;
+
+		simple-audio-card,dai-link@1 {
+			format = "i2s";
+			cpu {
+				sound-dai = <&i2s>;
+			};
+
+			codec {
+				sound-dai = <&es8323>;
+			};
 		};
 	};
 
@@ -395,6 +411,19 @@
 				};
 			};
 		};
+	};
+};
+
+&i2c2 {
+	status = "okay";
+
+	es8323: es8323@10 {
+		compatible = "everest,es8323";
+		reg = <0x10>;
+		hp-det-gpio = <&gpio5 19 GPIO_ACTIVE_HIGH>;
+		clock-names = "mclk";
+		clocks = <&cru SCLK_I2S0_OUT>;
+		#sound-dai-cells = <0>;
 	};
 };
 
