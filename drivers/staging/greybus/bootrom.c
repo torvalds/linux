@@ -114,7 +114,7 @@ static void bootrom_es2_fixup_vid_pid(struct gb_bootrom *bootrom)
 	struct gb_interface *intf = connection->bundle->intf;
 	int ret;
 
-	if (!(intf->quirks & GB_INTERFACE_QUIRK_NO_ARA_IDS))
+	if (!(intf->quirks & GB_INTERFACE_QUIRK_NO_GMP_IDS))
 		return;
 
 	ret = gb_operation_sync(connection, GB_BOOTROM_TYPE_GET_VID_PID,

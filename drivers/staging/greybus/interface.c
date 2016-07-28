@@ -31,11 +31,11 @@
 #define DME_DDBL1_MANUFACTURERID	0x5003
 #define DME_DDBL1_PRODUCTID		0x5004
 
-#define DME_TOSHIBA_ARA_VID		0x6000
-#define DME_TOSHIBA_ARA_PID		0x6001
-#define DME_TOSHIBA_ARA_SN0		0x6002
-#define DME_TOSHIBA_ARA_SN1		0x6003
-#define DME_TOSHIBA_ARA_INIT_STATUS	0x6101
+#define DME_TOSHIBA_GMP_VID		0x6000
+#define DME_TOSHIBA_GMP_PID		0x6001
+#define DME_TOSHIBA_GMP_SN0		0x6002
+#define DME_TOSHIBA_GMP_SN1		0x6003
+#define DME_TOSHIBA_GMP_INIT_STATUS	0x6101
 
 /* DDBL1 Manufacturer and Product ids */
 #define TOSHIBA_DMID			0x0126
@@ -60,7 +60,7 @@ static int gb_interface_read_ara_dme(struct gb_interface *intf)
 
 	/*
 	 * Unless this is a Toshiba bridge, bail out until we have defined
-	 * standard Ara attributes.
+	 * standard GMP attributes.
 	 */
 	if (intf->ddbl1_manufacturer_id != TOSHIBA_DMID) {
 		dev_err(&intf->dev, "unknown manufacturer %08x\n",
@@ -68,21 +68,21 @@ static int gb_interface_read_ara_dme(struct gb_interface *intf)
 		return -ENODEV;
 	}
 
-	ret = gb_interface_dme_attr_get(intf, DME_TOSHIBA_ARA_VID,
+	ret = gb_interface_dme_attr_get(intf, DME_TOSHIBA_GMP_VID,
 					&intf->vendor_id);
 	if (ret)
 		return ret;
 
-	ret = gb_interface_dme_attr_get(intf, DME_TOSHIBA_ARA_PID,
+	ret = gb_interface_dme_attr_get(intf, DME_TOSHIBA_GMP_PID,
 					&intf->product_id);
 	if (ret)
 		return ret;
 
-	ret = gb_interface_dme_attr_get(intf, DME_TOSHIBA_ARA_SN0, &sn0);
+	ret = gb_interface_dme_attr_get(intf, DME_TOSHIBA_GMP_SN0, &sn0);
 	if (ret)
 		return ret;
 
-	ret = gb_interface_dme_attr_get(intf, DME_TOSHIBA_ARA_SN1, &sn1);
+	ret = gb_interface_dme_attr_get(intf, DME_TOSHIBA_GMP_SN1, &sn1);
 	if (ret)
 		return ret;
 
@@ -111,7 +111,7 @@ static int gb_interface_read_dme(struct gb_interface *intf)
 
 	if (intf->ddbl1_manufacturer_id == TOSHIBA_DMID &&
 			intf->ddbl1_product_id == TOSHIBA_ES2_BRIDGE_DPID) {
-		intf->quirks |= GB_INTERFACE_QUIRK_NO_ARA_IDS;
+		intf->quirks |= GB_INTERFACE_QUIRK_NO_GMP_IDS;
 		intf->quirks |= GB_INTERFACE_QUIRK_NO_INIT_STATUS;
 	}
 
@@ -377,7 +377,7 @@ static int gb_interface_read_and_clear_init_status(struct gb_interface *intf)
 	if (intf->quirks & GB_INTERFACE_QUIRK_NO_INIT_STATUS)
 		attr = DME_T_TST_SRC_INCREMENT;
 	else
-		attr = DME_TOSHIBA_ARA_INIT_STATUS;
+		attr = DME_TOSHIBA_GMP_INIT_STATUS;
 
 	ret = gb_svc_dme_peer_get(hd->svc, intf->interface_id, attr,
 				  DME_SELECTOR_INDEX_NULL, &value);
@@ -793,7 +793,7 @@ struct device_type greybus_interface_type = {
 };
 
 /*
- * A Greybus module represents a user-replaceable component on an Ara
+ * A Greybus module represents a user-replaceable component on a GMP
  * phone.  An interface is the physical connection on that module.  A
  * module may have more than one interface.
  *
@@ -1282,7 +1282,7 @@ int gb_interface_add(struct gb_interface *intf)
 
 	switch (intf->type) {
 	case GB_INTERFACE_TYPE_GREYBUS:
-		dev_info(&intf->dev, "Ara VID=0x%08x, PID=0x%08x\n",
+		dev_info(&intf->dev, "GMP VID=0x%08x, PID=0x%08x\n",
 				intf->vendor_id, intf->product_id);
 		/* fall-through */
 	case GB_INTERFACE_TYPE_UNIPRO:
