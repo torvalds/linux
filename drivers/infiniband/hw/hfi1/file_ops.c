@@ -727,7 +727,6 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 
 	if (--uctxt->cnt) {
 		uctxt->active_slaves &= ~(1 << fdata->subctxt);
-		uctxt->subpid[fdata->subctxt] = 0;
 		mutex_unlock(&hfi1_mutex);
 		goto done;
 	}
@@ -753,7 +752,6 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 	write_kctxt_csr(dd, uctxt->sc->hw_context, SEND_CTXT_CHECK_ENABLE,
 			hfi1_pkt_default_send_ctxt_mask(dd, uctxt->sc->type));
 	sc_disable(uctxt->sc);
-	uctxt->pid = 0;
 	spin_unlock_irqrestore(&dd->uctxt_lock, flags);
 
 	dd->rcd[uctxt->ctxt] = NULL;
@@ -893,7 +891,6 @@ static int find_shared_ctxt(struct file *fp,
 			}
 			fd->uctxt = uctxt;
 			fd->subctxt  = uctxt->cnt++;
-			uctxt->subpid[fd->subctxt] = current->pid;
 			uctxt->active_slaves |= 1 << fd->subctxt;
 			ret = 1;
 			goto done;
@@ -978,7 +975,6 @@ static int allocate_ctxt(struct file *fp, struct hfi1_devdata *dd,
 			return ret;
 	}
 	uctxt->userversion = uinfo->userversion;
-	uctxt->pid = current->pid;
 	uctxt->flags = HFI1_CAP_UGET(MASK);
 	init_waitqueue_head(&uctxt->wait);
 	strlcpy(uctxt->comm, current->comm, sizeof(uctxt->comm));

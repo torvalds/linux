@@ -270,9 +270,6 @@ struct hfi1_ctxtdata {
 	u32 urgent;
 	/* saved total number of polled urgent packets for poll edge trigger */
 	u32 urgent_poll;
-	/* pid of process using this ctxt */
-	pid_t pid;
-	pid_t subpid[HFI1_MAX_SHARED_CTXTS];
 	/* same size as task_struct .comm[], command that opened context */
 	char comm[TASK_COMM_LEN];
 	/* so file ops can get at unit */
