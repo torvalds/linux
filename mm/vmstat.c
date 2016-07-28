@@ -921,7 +921,6 @@ int fragmentation_index(struct zone *zone, unsigned int order)
 const char * const vmstat_text[] = {
 	/* enum zone_stat_item countes */
 	"nr_free_pages",
-	"nr_alloc_batch",
 	"nr_zone_anon_lru",
 	"nr_zone_file_lru",
 	"nr_zone_write_pending",
@@ -1632,10 +1631,9 @@ int vmstat_refresh(struct ctl_table *table, int write,
 		val = atomic_long_read(&vm_zone_stat[i]);
 		if (val < 0) {
 			switch (i) {
-			case NR_ALLOC_BATCH:
 			case NR_PAGES_SCANNED:
 				/*
-				 * These are often seen to go negative in
+				 * This is often seen to go negative in
 				 * recent kernels, but not to go permanently
 				 * negative.  Whilst it would be nicer not to
 				 * have exceptions, rooting them out would be
