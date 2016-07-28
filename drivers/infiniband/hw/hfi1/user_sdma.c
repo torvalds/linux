@@ -310,8 +310,7 @@ static bool sdma_rb_filter(struct mmu_rb_node *, unsigned long, unsigned long);
 static int sdma_rb_insert(void *, struct mmu_rb_node *);
 static int sdma_rb_evict(void *arg, struct mmu_rb_node *mnode,
 			 void *arg2, bool *stop);
-static void sdma_rb_remove(void *, struct mmu_rb_node *,
-			   struct mm_struct *);
+static void sdma_rb_remove(void *, struct mmu_rb_node *, struct mm_struct *);
 static int sdma_rb_invalidate(void *, struct mmu_rb_node *);
 
 static struct mmu_rb_ops sdma_rb_ops = {
@@ -446,7 +445,8 @@ int hfi1_user_sdma_alloc_queues(struct hfi1_ctxtdata *uctxt, struct file *fp)
 	cq->nentries = hfi1_sdma_comp_ring_size;
 	fd->cq = cq;
 
-	ret = hfi1_mmu_rb_register(pq, pq->mm, &sdma_rb_ops, &pq->handler);
+	ret = hfi1_mmu_rb_register(pq, pq->mm, &sdma_rb_ops, dd->pport->hfi1_wq,
+				   &pq->handler);
 	if (ret) {
 		dd_dev_err(dd, "Failed to register with MMU %d", ret);
 		goto done;
@@ -1651,20 +1651,8 @@ static void sdma_rb_remove(void *arg, struct mmu_rb_node *mnode,
 
 	atomic_sub(node->npages, &node->pq->n_locked);
 
-	/*
-	 * If mm is set, we are being called by the MMU notifier and we
-	 * should not pass a mm_struct to unpin_vector_page(). This is to
-	 * prevent a deadlock when hfi1_release_user_pages() attempts to
-	 * take the mmap_sem, which the MMU notifier has already taken.
-	 */
-	unpin_vector_pages(mm ? NULL : current->mm, node->pages, 0,
-			   node->npages);
-	/*
-	 * If called by the MMU notifier, we have to adjust the pinned
-	 * page count ourselves.
-	 */
-	if (mm)
-		mm->pinned_vm -= node->npages;
+	unpin_vector_pages(node->pq->mm, node->pages, 0, node->npages);
+
 	kfree(node);
 }
 

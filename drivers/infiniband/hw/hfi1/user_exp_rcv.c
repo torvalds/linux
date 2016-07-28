@@ -209,7 +209,9 @@ int hfi1_user_exp_rcv_init(struct file *fp)
 		 * Register MMU notifier callbacks. If the registration
 		 * fails, continue without TID caching for this context.
 		 */
-		ret = hfi1_mmu_rb_register(fd, fd->mm, &tid_rb_ops, &fd->handler);
+		ret = hfi1_mmu_rb_register(fd, fd->mm, &tid_rb_ops,
+					   dd->pport->hfi1_wq,
+					   &fd->handler);
 		if (ret) {
 			dd_dev_info(dd,
 				    "Failed MMU notifier registration %d\n",

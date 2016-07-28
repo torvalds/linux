@@ -57,6 +57,10 @@ struct mmu_rb_node {
 	struct list_head list;
 };
 
+/*
+ * NOTE: filter, insert, invalidate, and evict must not sleep.  Only remove is
+ * allowed to sleep.
+ */
 struct mmu_rb_ops {
 	bool (*filter)(struct mmu_rb_node *node, unsigned long addr,
 		       unsigned long len);
@@ -70,6 +74,7 @@ struct mmu_rb_ops {
 
 int hfi1_mmu_rb_register(void *ops_arg, struct mm_struct *mm,
 			 struct mmu_rb_ops *ops,
+			 struct workqueue_struct *wq,
 			 struct mmu_rb_handler **handler);
 void hfi1_mmu_rb_unregister(struct mmu_rb_handler *handler);
 int hfi1_mmu_rb_insert(struct mmu_rb_handler *handler,
