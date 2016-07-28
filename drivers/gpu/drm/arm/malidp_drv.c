@@ -360,8 +360,10 @@ static int malidp_bind(struct device *dev)
 
 	/* Set the CRTC's port so that the encoder component can find it */
 	ep = of_graph_get_next_endpoint(dev->of_node, NULL);
-	if (!ep)
+	if (!ep) {
+		ret = -EINVAL;
 		goto port_fail;
+	}
 	malidp->crtc.port = of_get_next_parent(ep);
 
 	ret = component_bind_all(dev, drm);
