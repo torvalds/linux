@@ -27,6 +27,12 @@ config RESET_BERLIN
 	help
 	  This enables the reset controller driver for Marvell Berlin SoCs.
 
+config RESET_LPC18XX
+	bool "LPC18xx/43xx Reset Driver" if COMPILE_TEST
+	default ARCH_LPC18XX
+	help
+	  This enables the reset controller driver for NXP LPC18xx/43xx SoCs.
+
 config RESET_OXNAS
 	bool
 
