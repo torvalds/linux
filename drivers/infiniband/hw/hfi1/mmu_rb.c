@@ -223,23 +223,6 @@ static void __mmu_rb_remove(struct mmu_rb_handler *handler,
 		handler->ops->remove(handler->root, node, mm);
 }
 
-struct mmu_rb_node *hfi1_mmu_rb_search(struct rb_root *root, unsigned long addr,
-				       unsigned long len)
-{
-	struct mmu_rb_handler *handler = find_mmu_handler(root);
-	struct mmu_rb_node *node;
-	unsigned long flags;
-
-	if (!handler)
-		return ERR_PTR(-EINVAL);
-
-	spin_lock_irqsave(&handler->lock, flags);
-	node = __mmu_rb_search(handler, addr, len);
-	spin_unlock_irqrestore(&handler->lock, flags);
-
-	return node;
-}
-
 struct mmu_rb_node *hfi1_mmu_rb_extract(struct rb_root *root,
 					unsigned long addr, unsigned long len)
 {
