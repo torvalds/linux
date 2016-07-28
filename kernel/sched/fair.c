@@ -6320,6 +6320,7 @@ static int energy_aware_wake_cpu(struct task_struct *p, int target, int sync)
 	struct sched_group *sg, *sg_target;
 	int target_max_cap = INT_MAX;
 	int target_cpu = task_cpu(p);
+	unsigned long task_util_boosted, new_util;
 	int i;
 
 	if (sysctl_sched_sync_hint_enable && sync) {
@@ -6363,6 +6364,7 @@ static int energy_aware_wake_cpu(struct task_struct *p, int target, int sync)
 			}
 		} while (sg = sg->next, sg != sd->groups);
 
+		task_util_boosted = boosted_task_util(p);
 		/* Find cpu with sufficient capacity */
 		for_each_cpu_and(i, tsk_cpus_allowed(p), sched_group_cpus(sg_target)) {
 			/*
@@ -6370,8 +6372,13 @@ static int energy_aware_wake_cpu(struct task_struct *p, int target, int sync)
 			 * so prev_cpu will receive a negative bias due to the double
 			 * accounting. However, the blocked utilization may be zero.
 			 */
-			int new_util = cpu_util(i) + boosted_task_util(p);
+			new_util = cpu_util(i) + task_util_boosted;
 
+			/*
+			 * Ensure minimum capacity to grant the required boost.
+			 * The target CPU can be already at a capacity level higher
+			 * than the one required to boost the task.
+			 */
 			if (new_util > capacity_orig_of(i))
 				continue;
 
