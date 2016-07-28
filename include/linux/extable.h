@@ -1,6 +1,8 @@
 #ifndef _LINUX_EXTABLE_H
 #define _LINUX_EXTABLE_H
 
+#include <linux/stddef.h>	/* for NULL */
+
 struct module;
 struct exception_table_entry;
 
