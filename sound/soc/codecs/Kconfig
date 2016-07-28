@@ -64,6 +64,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_DMIC
 	select SND_SOC_BT_SCO
 	select SND_SOC_ES8316 if I2C
+	select SND_SOC_ES8323 if I2C
 	select SND_SOC_ES8328_SPI if SPI_MASTER
 	select SND_SOC_ES8328_I2C if I2C
 	select SND_SOC_GTM601
@@ -463,6 +464,10 @@ config SND_SOC_DMIC
 
 config SND_SOC_ES8316
 	tristate "Everest Semi ES8316 CODEC"
+	depends on I2C
+
+config SND_SOC_ES8323
+	tristate "Everest Semi ES8323 CODEC"
 	depends on I2C
 
 config SND_SOC_HDMI_CODEC
