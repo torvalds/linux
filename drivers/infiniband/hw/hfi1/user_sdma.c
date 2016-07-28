@@ -1239,6 +1239,7 @@ retry:
 			list_del(&node->list);
 		pq->n_locked -= node->npages;
 		spin_unlock(&pq->evict_lock);
+		iovec->node = NULL;
 		goto bail;
 	}
 	return 0;
