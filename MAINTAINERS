@@ -11314,11 +11314,6 @@ F:	Documentation/thermal/cpu-cooling-api.txt
 F:	drivers/thermal/cpu_cooling.c
 F:	include/linux/cpu_cooling.h
 
-THINGM BLINK(1) USB RGB LED DRIVER
-M:	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
-S:	Maintained
-F:	drivers/hid/hid-thingm.c
-
 THINKPAD ACPI EXTRAS DRIVER
 M:	Henrique de Moraes Holschuh <ibm-acpi@hmh.eng.br>
 L:	ibm-acpi-devel@lists.sourceforge.net
