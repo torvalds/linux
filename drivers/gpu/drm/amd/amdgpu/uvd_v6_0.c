@@ -997,6 +997,8 @@ static int uvd_v6_0_set_powergating_state(void *handle,
 	if (!(adev->pg_flags & AMD_PG_SUPPORT_UVD))
 		return 0;
 
+	WREG32(mmUVD_POWER_STATUS, UVD_POWER_STATUS__UVD_PG_EN_MASK);
+
 	if (state == AMD_PG_STATE_GATE) {
 		uvd_v6_0_stop(adev);
 		return 0;
