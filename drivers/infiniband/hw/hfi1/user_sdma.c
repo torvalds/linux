@@ -520,7 +520,7 @@ static u8 dlid_to_selector(u16 dlid)
 int hfi1_user_sdma_process_request(struct file *fp, struct iovec *iovec,
 				   unsigned long dim, unsigned long *count)
 {
-	int ret = 0, i = 0;
+	int ret = 0, i;
 	struct hfi1_filedata *fd = fp->private_data;
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	struct hfi1_user_sdma_pkt_q *pq = fd->pq;
@@ -657,7 +657,7 @@ int hfi1_user_sdma_process_request(struct file *fp, struct iovec *iovec,
 	idx++;
 
 	/* Save all the IO vector structures */
-	while (i < req->data_iovs) {
+	for (i = 0; i < req->data_iovs; i++) {
 		INIT_LIST_HEAD(&req->iovs[i].list);
 		memcpy(&req->iovs[i].iov, iovec + idx++, sizeof(struct iovec));
 		ret = pin_vector_pages(req, &req->iovs[i]);
@@ -665,7 +665,7 @@ int hfi1_user_sdma_process_request(struct file *fp, struct iovec *iovec,
 			req->status = ret;
 			goto free_req;
 		}
-		req->data_len += req->iovs[i++].iov.iov_len;
+		req->data_len += req->iovs[i].iov.iov_len;
 	}
 	SDMA_DBG(req, "total data length %u", req->data_len);
 
