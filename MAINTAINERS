@@ -12148,6 +12148,8 @@ F:	include/linux/virtio_vsock.h
 F:	include/uapi/linux/virtio_vsock.h
 F:	net/vmw_vsock/virtio_transport_common.c
 F:	net/vmw_vsock/virtio_transport.c
+F:	drivers/vhost/vsock.c
+F:	drivers/vhost/vsock.h
 
 VIRTUAL SERIO DEVICE DRIVER
 M:	Stephen Chandler Paul <thatslyude@gmail.com>
