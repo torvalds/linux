@@ -19,6 +19,20 @@ config VHOST_SCSI
 	Say M here to enable the vhost_scsi TCM fabric module
 	for use with virtio-scsi guests
 
+config VHOST_VSOCK
+	tristate "vhost virtio-vsock driver"
+	depends on VSOCKETS && EVENTFD
+	select VIRTIO_VSOCKETS_COMMON
+	select VHOST
+	default n
+	---help---
+	This kernel module can be loaded in the host kernel to provide AF_VSOCK
+	sockets for communicating with guests.  The guests must have the
+	virtio_transport.ko driver loaded to use the virtio-vsock device.
+
+	To compile this driver as a module, choose M here: the module will be called
+	vhost_vsock.
+
 config VHOST_RING
 	tristate
 	---help---
