@@ -1224,7 +1224,7 @@ bail:
 static void unpin_vector_pages(struct mm_struct *mm, struct page **pages,
 			       unsigned start, unsigned npages)
 {
-	hfi1_release_user_pages(mm, pages + start, npages, 0);
+	hfi1_release_user_pages(mm, pages + start, npages, false);
 	kfree(pages);
 }
 
