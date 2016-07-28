@@ -103,7 +103,7 @@ struct flush_queue {
 	struct flush_queue_entry *entries;
 };
 
-DEFINE_PER_CPU(struct flush_queue, flush_queue);
+static DEFINE_PER_CPU(struct flush_queue, flush_queue);
 
 static atomic_t queue_timer_on;
 static struct timer_list queue_timer;
