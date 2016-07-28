@@ -1072,6 +1072,8 @@ static void __make_request(struct mddev *mddev, struct bio *bio)
 	int max_sectors;
 	int sectors;
 
+	md_write_start(mddev, bio);
+
 	/*
 	 * Register the new request and wait if the reconstruction
 	 * thread has put up a bar for new requests.
@@ -1454,8 +1456,6 @@ static void make_request(struct mddev *mddev, struct bio *bio)
 		md_flush_request(mddev, bio);
 		return;
 	}
-
-	md_write_start(mddev, bio);
 
 	do {
 
