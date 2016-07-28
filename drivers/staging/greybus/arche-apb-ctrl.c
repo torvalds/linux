@@ -42,6 +42,10 @@ struct arche_apb_ctrl_drvdata {
 
 	struct pinctrl *pinctrl;
 	struct pinctrl_state *pin_default;
+
+	/* V2: SPI Bus control  */
+	int spi_en_gpio;
+	bool spi_en_polarity_high;
 };
 
 /*
@@ -72,6 +76,10 @@ static int coldboot_seq(struct platform_device *pdev)
 
 	/* Hold APB in reset state */
 	assert_reset(apb->resetn_gpio);
+
+	if (apb->state == ARCHE_PLATFORM_STATE_FW_FLASHING &&
+			gpio_is_valid(apb->spi_en_gpio))
+		devm_gpio_free(dev, apb->spi_en_gpio);
 
 	/* Enable power to APB */
 	if (!IS_ERR(apb->vcore)) {
@@ -128,6 +136,23 @@ static int fw_flashing_seq(struct platform_device *pdev)
 		return ret;
 	}
 
+	if (gpio_is_valid(apb->spi_en_gpio)) {
+		unsigned long flags;
+
+		if (apb->spi_en_polarity_high)
+			flags = GPIOF_OUT_INIT_HIGH;
+		else
+			flags = GPIOF_OUT_INIT_LOW;
+
+		ret = devm_gpio_request_one(dev, apb->spi_en_gpio,
+				flags, "apb_spi_en");
+		if (ret) {
+			dev_err(dev, "Failed requesting SPI bus en gpio %d\n",
+				apb->spi_en_gpio);
+			return ret;
+		}
+	}
+
 	/* for flashing device should be in reset state */
 	assert_reset(apb->resetn_gpio);
 	apb->state = ARCHE_PLATFORM_STATE_FW_FLASHING;
@@ -137,6 +162,7 @@ static int fw_flashing_seq(struct platform_device *pdev)
 
 static int standby_boot_seq(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct arche_apb_ctrl_drvdata *apb = platform_get_drvdata(pdev);
 
 	if (apb->init_disabled)
@@ -146,6 +172,10 @@ static int standby_boot_seq(struct platform_device *pdev)
 	if (apb->state == ARCHE_PLATFORM_STATE_STANDBY ||
 			apb->state == ARCHE_PLATFORM_STATE_OFF)
 		return 0;
+
+	if (apb->state == ARCHE_PLATFORM_STATE_FW_FLASHING &&
+			gpio_is_valid(apb->spi_en_gpio))
+		devm_gpio_free(dev, apb->spi_en_gpio);
 
 	/*
 	 * As per WDM spec, do nothing
@@ -162,10 +192,15 @@ static int standby_boot_seq(struct platform_device *pdev)
 
 static void poweroff_seq(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct arche_apb_ctrl_drvdata *apb = platform_get_drvdata(pdev);
 
 	if (apb->init_disabled || apb->state == ARCHE_PLATFORM_STATE_OFF)
 		return;
+
+	if (apb->state == ARCHE_PLATFORM_STATE_FW_FLASHING &&
+			gpio_is_valid(apb->spi_en_gpio))
+		devm_gpio_free(dev, apb->spi_en_gpio);
 
 	/* disable the clock */
 	if (gpio_is_valid(apb->clk_en_gpio))
@@ -367,6 +402,14 @@ static int apb_ctrl_get_devtree_data(struct platform_device *pdev,
 	if (IS_ERR(apb->pin_default)) {
 		dev_err(&pdev->dev, "could not get default pin state\n");
 		return PTR_ERR(apb->pin_default);
+	}
+
+	/* Only applicable for platform >= V2 */
+	apb->spi_en_gpio = of_get_named_gpio(np, "spi-en-gpio", 0);
+	if (apb->spi_en_gpio >= 0) {
+		if (of_property_read_bool(pdev->dev.of_node,
+					"spi-en-active-high"))
+			apb->spi_en_polarity_high = true;
 	}
 
 	return 0;

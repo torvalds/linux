@@ -215,18 +215,6 @@ static int apb_cold_boot(struct device *dev, void *data)
 	return 0;
 }
 
-static int apb_fw_flashing_state(struct device *dev, void *data)
-{
-	int ret;
-
-	ret = apb_ctrl_fw_flashing(dev);
-	if (ret)
-		dev_warn(dev, "failed to switch to fw flashing state\n");
-
-	/*Child nodes are independent, so do not exit coldboot operation */
-	return 0;
-}
-
 static int apb_poweroff(struct device *dev, void *data)
 {
 	apb_ctrl_poweroff(dev);
@@ -485,17 +473,18 @@ retry:
 		if (arche_pdata->state == ARCHE_PLATFORM_STATE_FW_FLASHING)
 			goto exit;
 
-		/* First we want to make sure we power off everything
-		 * and then enter FW flashing state */
-		device_for_each_child(arche_pdata->dev, NULL, apb_poweroff);
-
+		/*
+		 * Here we only control SVC.
+		 *
+		 * In case of FW_FLASHING mode we do not want to control
+		 * APBs, as in case of V2, SPI bus is shared between both
+		 * the APBs. So let user chose which APB he wants to flash.
+		 */
 		arche_platform_poweroff_seq(arche_pdata);
 
 		ret = arche_platform_fw_flashing_seq(arche_pdata);
 		if (ret)
 			goto exit;
-
-		device_for_each_child(arche_pdata->dev, NULL, apb_fw_flashing_state);
 	} else {
 		dev_err(arche_pdata->dev, "unknown state\n");
 		ret = -EINVAL;
