@@ -1651,6 +1651,7 @@ void intel_dp_set_link_params(struct intel_dp *intel_dp,
 {
 	intel_dp->link_rate = pipe_config->port_clock;
 	intel_dp->lane_count = pipe_config->lane_count;
+	intel_dp->link_mst = intel_crtc_has_type(pipe_config, INTEL_OUTPUT_DP_MST);
 }
 
 static void intel_dp_prepare(struct intel_encoder *encoder)

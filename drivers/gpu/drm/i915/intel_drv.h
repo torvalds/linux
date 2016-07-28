@@ -852,6 +852,7 @@ struct intel_dp {
 	int link_rate;
 	uint8_t lane_count;
 	uint8_t sink_count;
+	bool link_mst;
 	bool has_audio;
 	bool detect_done;
 	enum hdmi_force_audio force_audio;
