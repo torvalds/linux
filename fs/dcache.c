@@ -316,20 +316,6 @@ static void dentry_free(struct dentry *dentry)
 		call_rcu(&dentry->d_u.d_rcu, __d_free);
 }
 
-/**
- * dentry_rcuwalk_invalidate - invalidate in-progress rcu-walk lookups
- * @dentry: the target dentry
- * After this call, in-progress rcu-walk path lookup will fail. This
- * should be called after unhashing, and after changing d_inode (if
- * the dentry has not already been unhashed).
- */
-static inline void dentry_rcuwalk_invalidate(struct dentry *dentry)
-{
-	lockdep_assert_held(&dentry->d_lock);
-	/* Go through am invalidation barrier */
-	write_seqcount_invalidate(&dentry->d_seq);
-}
-
 /*
  * Release the dentry's inode, using the filesystem
  * d_iput() operation if defined.
@@ -468,7 +454,8 @@ void __d_drop(struct dentry *dentry)
 		__hlist_bl_del(&dentry->d_hash);
 		dentry->d_hash.pprev = NULL;
 		hlist_bl_unlock(b);
-		dentry_rcuwalk_invalidate(dentry);
+		/* After this call, in-progress rcu-walk path lookup will fail. */
+		write_seqcount_invalidate(&dentry->d_seq);
 	}
 }
 EXPORT_SYMBOL(__d_drop);
