@@ -305,10 +305,10 @@ static int defer_packet_queue(
 	unsigned seq);
 static void activate_packet_queue(struct iowait *, int);
 static bool sdma_rb_filter(struct mmu_rb_node *, unsigned long, unsigned long);
-static int sdma_rb_insert(struct rb_root *, struct mmu_rb_node *);
-static void sdma_rb_remove(struct rb_root *, struct mmu_rb_node *,
+static int sdma_rb_insert(void *, struct mmu_rb_node *);
+static void sdma_rb_remove(void *, struct mmu_rb_node *,
 			   struct mm_struct *);
-static int sdma_rb_invalidate(struct rb_root *, struct mmu_rb_node *);
+static int sdma_rb_invalidate(void *, struct mmu_rb_node *);
 
 static struct mmu_rb_ops sdma_rb_ops = {
 	.filter = sdma_rb_filter,
@@ -410,7 +410,6 @@ int hfi1_user_sdma_alloc_queues(struct hfi1_ctxtdata *uctxt, struct file *fp)
 	pq->state = SDMA_PKT_Q_INACTIVE;
 	atomic_set(&pq->n_reqs, 0);
 	init_waitqueue_head(&pq->wait);
-	pq->sdma_rb_root = RB_ROOT;
 	INIT_LIST_HEAD(&pq->evict);
 	spin_lock_init(&pq->evict_lock);
 	pq->mm = fd->mm;
@@ -443,7 +442,7 @@ int hfi1_user_sdma_alloc_queues(struct hfi1_ctxtdata *uctxt, struct file *fp)
 	cq->nentries = hfi1_sdma_comp_ring_size;
 	fd->cq = cq;
 
-	ret = hfi1_mmu_rb_register(pq->mm, &pq->sdma_rb_root, &sdma_rb_ops);
+	ret = hfi1_mmu_rb_register(pq, pq->mm, &sdma_rb_ops, &pq->handler);
 	if (ret) {
 		dd_dev_err(dd, "Failed to register with MMU %d", ret);
 		goto done;
@@ -481,7 +480,8 @@ int hfi1_user_sdma_free_queues(struct hfi1_filedata *fd)
 		  uctxt->ctxt, fd->subctxt);
 	pq = fd->pq;
 	if (pq) {
-		hfi1_mmu_rb_unregister(&pq->sdma_rb_root);
+		if (pq->handler)
+			hfi1_mmu_rb_unregister(pq->handler);
 		spin_lock_irqsave(&uctxt->sdma_qlock, flags);
 		if (!list_empty(&pq->list))
 			list_del_init(&pq->list);
@@ -1145,7 +1145,7 @@ static u32 sdma_cache_evict(struct hfi1_user_sdma_pkt_q *pq, u32 npages)
 	spin_unlock(&pq->evict_lock);
 
 	list_for_each_entry_safe(node, ptr, &to_evict, list)
-		hfi1_mmu_rb_remove(&pq->sdma_rb_root, &node->rb);
+		hfi1_mmu_rb_remove(pq->handler, &node->rb);
 
 	return cleared;
 }
@@ -1159,7 +1159,7 @@ static int pin_vector_pages(struct user_sdma_request *req,
 	struct sdma_mmu_node *node = NULL;
 	struct mmu_rb_node *rb_node;
 
-	rb_node = hfi1_mmu_rb_extract(&pq->sdma_rb_root,
+	rb_node = hfi1_mmu_rb_extract(pq->handler,
 				      (unsigned long)iovec->iov.iov_base,
 				      iovec->iov.iov_len);
 	if (rb_node && !IS_ERR(rb_node))
@@ -1240,7 +1240,7 @@ retry:
 	iovec->npages = npages;
 	iovec->node = node;
 
-	ret = hfi1_mmu_rb_insert(&req->pq->sdma_rb_root, &node->rb);
+	ret = hfi1_mmu_rb_insert(req->pq->handler, &node->rb);
 	if (ret) {
 		spin_lock(&pq->evict_lock);
 		if (!list_empty(&node->list))
@@ -1612,7 +1612,7 @@ static void user_sdma_free_request(struct user_sdma_request *req, bool unpin)
 				continue;
 
 			if (unpin)
-				hfi1_mmu_rb_remove(&req->pq->sdma_rb_root,
+				hfi1_mmu_rb_remove(req->pq->handler,
 						   &node->rb);
 			else
 				atomic_dec(&node->refcount);
@@ -1642,7 +1642,7 @@ static bool sdma_rb_filter(struct mmu_rb_node *node, unsigned long addr,
 	return (bool)(node->addr == addr);
 }
 
-static int sdma_rb_insert(struct rb_root *root, struct mmu_rb_node *mnode)
+static int sdma_rb_insert(void *arg, struct mmu_rb_node *mnode)
 {
 	struct sdma_mmu_node *node =
 		container_of(mnode, struct sdma_mmu_node, rb);
@@ -1651,7 +1651,7 @@ static int sdma_rb_insert(struct rb_root *root, struct mmu_rb_node *mnode)
 	return 0;
 }
 
-static void sdma_rb_remove(struct rb_root *root, struct mmu_rb_node *mnode,
+static void sdma_rb_remove(void *arg, struct mmu_rb_node *mnode,
 			   struct mm_struct *mm)
 {
 	struct sdma_mmu_node *node =
@@ -1692,7 +1692,7 @@ static void sdma_rb_remove(struct rb_root *root, struct mmu_rb_node *mnode,
 	kfree(node);
 }
 
-static int sdma_rb_invalidate(struct rb_root *root, struct mmu_rb_node *mnode)
+static int sdma_rb_invalidate(void *arg, struct mmu_rb_node *mnode)
 {
 	struct sdma_mmu_node *node =
 		container_of(mnode, struct sdma_mmu_node, rb);

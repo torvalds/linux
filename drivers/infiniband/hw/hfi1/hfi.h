@@ -1186,6 +1186,7 @@ struct hfi1_devdata {
 
 struct tid_rb_node;
 struct mmu_rb_node;
+struct mmu_rb_handler;
 
 /* Private data for file operations */
 struct hfi1_filedata {
@@ -1196,7 +1197,7 @@ struct hfi1_filedata {
 	/* for cpu affinity; -1 if none */
 	int rec_cpu_num;
 	u32 tid_n_pinned;
-	struct rb_root tid_rb_root;
+	struct mmu_rb_handler *handler;
 	struct tid_rb_node **entry_to_rb;
 	spinlock_t tid_lock; /* protect tid_[limit,used] counters */
 	u32 tid_limit;

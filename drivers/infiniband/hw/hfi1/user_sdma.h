@@ -68,7 +68,7 @@ struct hfi1_user_sdma_pkt_q {
 	unsigned state;
 	wait_queue_head_t wait;
 	unsigned long unpinned;
-	struct rb_root sdma_rb_root;
+	struct mmu_rb_handler *handler;
 	u32 n_locked;
 	struct list_head evict;
 	spinlock_t evict_lock; /* protect evict and n_locked */

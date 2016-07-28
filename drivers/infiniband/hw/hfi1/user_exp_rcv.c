@@ -82,14 +82,14 @@ struct tid_pageset {
 	       ((unsigned long)vaddr & PAGE_MASK)) >> PAGE_SHIFT))
 
 static void unlock_exp_tids(struct hfi1_ctxtdata *, struct exp_tid_set *,
-			    struct rb_root *);
+			    struct hfi1_filedata *);
 static u32 find_phys_blocks(struct page **, unsigned, struct tid_pageset *);
 static int set_rcvarray_entry(struct file *, unsigned long, u32,
 			      struct tid_group *, struct page **, unsigned);
-static int tid_rb_insert(struct rb_root *, struct mmu_rb_node *);
-static void tid_rb_remove(struct rb_root *, struct mmu_rb_node *,
+static int tid_rb_insert(void *, struct mmu_rb_node *);
+static void tid_rb_remove(void *, struct mmu_rb_node *,
 			  struct mm_struct *);
-static int tid_rb_invalidate(struct rb_root *, struct mmu_rb_node *);
+static int tid_rb_invalidate(void *, struct mmu_rb_node *);
 static int program_rcvarray(struct file *, unsigned long, struct tid_group *,
 			    struct tid_pageset *, unsigned, u16, struct page **,
 			    u32 *, unsigned *, unsigned *);
@@ -162,7 +162,6 @@ int hfi1_user_exp_rcv_init(struct file *fp)
 
 	spin_lock_init(&fd->tid_lock);
 	spin_lock_init(&fd->invalid_lock);
-	fd->tid_rb_root = RB_ROOT;
 
 	if (!uctxt->subctxt_cnt || !fd->subctxt) {
 		exp_tid_group_init(&uctxt->tid_group_list);
@@ -211,8 +210,7 @@ int hfi1_user_exp_rcv_init(struct file *fp)
 		 * fails, continue but turn off the TID caching for
 		 * all user contexts.
 		 */
-		ret = hfi1_mmu_rb_register(fd->mm, &fd->tid_rb_root,
-					   &tid_rb_ops);
+		ret = hfi1_mmu_rb_register(fd, fd->mm, &tid_rb_ops, &fd->handler);
 		if (ret) {
 			dd_dev_info(dd,
 				    "Failed MMU notifier registration %d\n",
@@ -263,17 +261,15 @@ int hfi1_user_exp_rcv_free(struct hfi1_filedata *fd)
 	 * was freed.
 	 */
 	if (!HFI1_CAP_IS_USET(TID_UNMAP))
-		hfi1_mmu_rb_unregister(&fd->tid_rb_root);
+		hfi1_mmu_rb_unregister(fd->handler);
 
 	kfree(fd->invalid_tids);
 
 	if (!uctxt->cnt) {
 		if (!EXP_TID_SET_EMPTY(uctxt->tid_full_list))
-			unlock_exp_tids(uctxt, &uctxt->tid_full_list,
-					&fd->tid_rb_root);
+			unlock_exp_tids(uctxt, &uctxt->tid_full_list, fd);
 		if (!EXP_TID_SET_EMPTY(uctxt->tid_used_list))
-			unlock_exp_tids(uctxt, &uctxt->tid_used_list,
-					&fd->tid_rb_root);
+			unlock_exp_tids(uctxt, &uctxt->tid_used_list, fd);
 		list_for_each_entry_safe(grp, gptr, &uctxt->tid_group_list.list,
 					 list) {
 			list_del_init(&grp->list);
@@ -830,7 +826,6 @@ static int set_rcvarray_entry(struct file *fp, unsigned long vaddr,
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	struct tid_rb_node *node;
 	struct hfi1_devdata *dd = uctxt->dd;
-	struct rb_root *root = &fd->tid_rb_root;
 	dma_addr_t phys;
 
 	/*
@@ -863,9 +858,9 @@ static int set_rcvarray_entry(struct file *fp, unsigned long vaddr,
 	memcpy(node->pages, pages, sizeof(struct page *) * npages);
 
 	if (HFI1_CAP_IS_USET(TID_UNMAP))
-		ret = tid_rb_insert(root, &node->mmu);
+		ret = tid_rb_insert(fd, &node->mmu);
 	else
-		ret = hfi1_mmu_rb_insert(root, &node->mmu);
+		ret = hfi1_mmu_rb_insert(fd->handler, &node->mmu);
 
 	if (ret) {
 		hfi1_cdbg(TID, "Failed to insert RB node %u 0x%lx, 0x%lx %d",
@@ -906,9 +901,9 @@ static int unprogram_rcvarray(struct file *fp, u32 tidinfo,
 	if (!node || node->rcventry != (uctxt->expected_base + rcventry))
 		return -EBADF;
 	if (HFI1_CAP_IS_USET(TID_UNMAP))
-		tid_rb_remove(&fd->tid_rb_root, &node->mmu, fd->mm);
+		tid_rb_remove(fd, &node->mmu, fd->mm);
 	else
-		hfi1_mmu_rb_remove(&fd->tid_rb_root, &node->mmu);
+		hfi1_mmu_rb_remove(fd->handler, &node->mmu);
 
 	if (grp)
 		*grp = node->grp;
@@ -950,11 +945,10 @@ static void clear_tid_node(struct hfi1_filedata *fd, struct tid_rb_node *node)
 }
 
 static void unlock_exp_tids(struct hfi1_ctxtdata *uctxt,
-			    struct exp_tid_set *set, struct rb_root *root)
+			    struct exp_tid_set *set,
+			    struct hfi1_filedata *fd)
 {
 	struct tid_group *grp, *ptr;
-	struct hfi1_filedata *fd = container_of(root, struct hfi1_filedata,
-						tid_rb_root);
 	int i;
 
 	list_for_each_entry_safe(grp, ptr, &set->list, list) {
@@ -970,10 +964,9 @@ static void unlock_exp_tids(struct hfi1_ctxtdata *uctxt,
 				if (!node || node->rcventry != rcventry)
 					continue;
 				if (HFI1_CAP_IS_USET(TID_UNMAP))
-					tid_rb_remove(&fd->tid_rb_root,
-						      &node->mmu, fd->mm);
+					tid_rb_remove(fd, &node->mmu, fd->mm);
 				else
-					hfi1_mmu_rb_remove(&fd->tid_rb_root,
+					hfi1_mmu_rb_remove(fd->handler,
 							   &node->mmu);
 				clear_tid_node(fd, node);
 			}
@@ -981,10 +974,9 @@ static void unlock_exp_tids(struct hfi1_ctxtdata *uctxt,
 	}
 }
 
-static int tid_rb_invalidate(struct rb_root *root, struct mmu_rb_node *mnode)
+static int tid_rb_invalidate(void *arg, struct mmu_rb_node *mnode)
 {
-	struct hfi1_filedata *fdata =
-		container_of(root, struct hfi1_filedata, tid_rb_root);
+	struct hfi1_filedata *fdata = arg;
 	struct hfi1_ctxtdata *uctxt = fdata->uctxt;
 	struct tid_rb_node *node =
 		container_of(mnode, struct tid_rb_node, mmu);
@@ -1025,10 +1017,9 @@ static int tid_rb_invalidate(struct rb_root *root, struct mmu_rb_node *mnode)
 	return 0;
 }
 
-static int tid_rb_insert(struct rb_root *root, struct mmu_rb_node *node)
+static int tid_rb_insert(void *arg, struct mmu_rb_node *node)
 {
-	struct hfi1_filedata *fdata =
-		container_of(root, struct hfi1_filedata, tid_rb_root);
+	struct hfi1_filedata *fdata = arg;
 	struct tid_rb_node *tnode =
 		container_of(node, struct tid_rb_node, mmu);
 	u32 base = fdata->uctxt->expected_base;
@@ -1037,11 +1028,10 @@ static int tid_rb_insert(struct rb_root *root, struct mmu_rb_node *node)
 	return 0;
 }
 
-static void tid_rb_remove(struct rb_root *root, struct mmu_rb_node *node,
+static void tid_rb_remove(void *arg, struct mmu_rb_node *node,
 			  struct mm_struct *mm)
 {
-	struct hfi1_filedata *fdata =
-		container_of(root, struct hfi1_filedata, tid_rb_root);
+	struct hfi1_filedata *fdata = arg;
 	struct tid_rb_node *tnode =
 		container_of(node, struct tid_rb_node, mmu);
 	u32 base = fdata->uctxt->expected_base;
