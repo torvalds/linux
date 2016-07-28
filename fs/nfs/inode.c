@@ -1665,7 +1665,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 	unsigned long now = jiffies;
 	unsigned long save_cache_validity;
 	bool have_writers = nfs_file_has_buffered_writers(nfsi);
-	bool cache_revalidated;
+	bool cache_revalidated = true;
 
 	dfprintk(VFS, "NFS: %s(%s/%lu fh_crc=0x%08x ct=%d info=0x%x)\n",
 			__func__, inode->i_sb->s_id, inode->i_ino,
@@ -1714,8 +1714,10 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 	/* Do atomic weak cache consistency updates */
 	invalid |= nfs_wcc_update_inode(inode, fattr);
 
-
-	cache_revalidated = !pnfs_layoutcommit_outstanding(inode);
+	if (pnfs_layoutcommit_outstanding(inode)) {
+		nfsi->cache_validity |= save_cache_validity & NFS_INO_INVALID_ATTR;
+		cache_revalidated = false;
+	}
 
 	/* More cache consistency checks */
 	if (fattr->valid & NFS_ATTR_FATTR_CHANGE) {
