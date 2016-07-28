@@ -200,22 +200,6 @@ static struct mmu_rb_node *__mmu_rb_search(struct mmu_rb_handler *handler,
 	return node;
 }
 
-/* Caller must *not* hold handler lock. */
-static void __mmu_rb_remove(struct mmu_rb_handler *handler,
-			    struct mmu_rb_node *node, struct mm_struct *mm)
-{
-	unsigned long flags;
-
-	/* Validity of handler and node pointers has been checked by caller. */
-	hfi1_cdbg(MMU, "Removing node addr 0x%llx, len %u", node->addr,
-		  node->len);
-	spin_lock_irqsave(&handler->lock, flags);
-	__mmu_int_rb_remove(node, handler->root);
-	spin_unlock_irqrestore(&handler->lock, flags);
-
-	handler->ops->remove(handler->root, node, mm);
-}
-
 struct mmu_rb_node *hfi1_mmu_rb_extract(struct rb_root *root,
 					unsigned long addr, unsigned long len)
 {
@@ -237,12 +221,20 @@ struct mmu_rb_node *hfi1_mmu_rb_extract(struct rb_root *root,
 
 void hfi1_mmu_rb_remove(struct rb_root *root, struct mmu_rb_node *node)
 {
+	unsigned long flags;
 	struct mmu_rb_handler *handler = find_mmu_handler(root);
 
 	if (!handler || !node)
 		return;
 
-	__mmu_rb_remove(handler, node, NULL);
+	/* Validity of handler and node pointers has been checked by caller. */
+	hfi1_cdbg(MMU, "Removing node addr 0x%llx, len %u", node->addr,
+		  node->len);
+	spin_lock_irqsave(&handler->lock, flags);
+	__mmu_int_rb_remove(node, handler->root);
+	spin_unlock_irqrestore(&handler->lock, flags);
+
+	handler->ops->remove(handler->root, node, NULL);
 }
 
 static struct mmu_rb_handler *find_mmu_handler(struct rb_root *root)
