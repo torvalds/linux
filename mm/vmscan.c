@@ -2605,9 +2605,6 @@ static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
 
 	for_each_zone_zonelist_nodemask(zone, z, zonelist,
 					sc->reclaim_idx, sc->nodemask) {
-		if (!populated_zone(zone))
-			continue;
-
 		/*
 		 * Take care memory controller reclaiming has small influence
 		 * to global LRU.
