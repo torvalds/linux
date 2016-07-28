@@ -381,6 +381,19 @@ typedef struct elf64_shdr {
 #define NT_PPC_VMX	0x100		/* PowerPC Altivec/VMX registers */
 #define NT_PPC_SPE	0x101		/* PowerPC SPE/EVR registers */
 #define NT_PPC_VSX	0x102		/* PowerPC VSX registers */
+#define NT_PPC_TAR	0x103		/* Target Address Register */
+#define NT_PPC_PPR	0x104		/* Program Priority Register */
+#define NT_PPC_DSCR	0x105		/* Data Stream Control Register */
+#define NT_PPC_EBB	0x106		/* Event Based Branch Registers */
+#define NT_PPC_PMU	0x107		/* Performance Monitor Registers */
+#define NT_PPC_TM_CGPR	0x108		/* TM checkpointed GPR Registers */
+#define NT_PPC_TM_CFPR	0x109		/* TM checkpointed FPR Registers */
+#define NT_PPC_TM_CVMX	0x10a		/* TM checkpointed VMX Registers */
+#define NT_PPC_TM_CVSX	0x10b		/* TM checkpointed VSX Registers */
+#define NT_PPC_TM_SPR	0x10c		/* TM Special Purpose Registers */
+#define NT_PPC_TM_CTAR	0x10d		/* TM checkpointed Target Address Register */
+#define NT_PPC_TM_CPPR	0x10e		/* TM checkpointed Program Priority Register */
+#define NT_PPC_TM_CDSCR	0x10f		/* TM checkpointed Data Stream Control Register */
 #define NT_386_TLS	0x200		/* i386 TLS slots (struct user_desc) */
 #define NT_386_IOPERM	0x201		/* x86 io permission bitmap (1=deny) */
 #define NT_X86_XSTATE	0x202		/* x86 extended state using xsave */
