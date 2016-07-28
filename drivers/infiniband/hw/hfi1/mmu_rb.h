@@ -65,8 +65,7 @@ struct mmu_rb_ops {
 	bool (*filter)(struct mmu_rb_node *node, unsigned long addr,
 		       unsigned long len);
 	int (*insert)(void *ops_arg, struct mmu_rb_node *mnode);
-	void (*remove)(void *ops_arg, struct mmu_rb_node *mnode,
-		       struct mm_struct *mm);
+	void (*remove)(void *ops_arg, struct mmu_rb_node *mnode);
 	int (*invalidate)(void *ops_arg, struct mmu_rb_node *node);
 	int (*evict)(void *ops_arg, struct mmu_rb_node *mnode,
 		     void *evict_arg, bool *stop);

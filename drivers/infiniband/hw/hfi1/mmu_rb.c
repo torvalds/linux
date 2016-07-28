@@ -253,8 +253,7 @@ void hfi1_mmu_rb_evict(struct mmu_rb_handler *handler, void *evict_arg)
 	while (!list_empty(&del_list)) {
 		rbnode = list_first_entry(&del_list, struct mmu_rb_node, list);
 		list_del(&rbnode->list);
-		handler->ops->remove(handler->ops_arg, rbnode,
-				     handler->mm);
+		handler->ops->remove(handler->ops_arg, rbnode);
 	}
 }
 
@@ -275,7 +274,7 @@ void hfi1_mmu_rb_remove(struct mmu_rb_handler *handler,
 	__mmu_int_rb_remove(node, &handler->root);
 	spin_unlock_irqrestore(&handler->lock, flags);
 
-	handler->ops->remove(handler->ops_arg, node, NULL);
+	handler->ops->remove(handler->ops_arg, node);
 }
 
 static inline void mmu_notifier_page(struct mmu_notifier *mn,
@@ -335,7 +334,7 @@ static void do_remove(struct mmu_rb_handler *handler,
 	while (!list_empty(del_list)) {
 		node = list_first_entry(del_list, struct mmu_rb_node, list);
 		list_del(&node->list);
-		handler->ops->remove(handler->ops_arg, node, handler->mm);
+		handler->ops->remove(handler->ops_arg, node);
 	}
 }
 

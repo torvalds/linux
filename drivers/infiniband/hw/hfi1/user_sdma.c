@@ -310,7 +310,7 @@ static bool sdma_rb_filter(struct mmu_rb_node *, unsigned long, unsigned long);
 static int sdma_rb_insert(void *, struct mmu_rb_node *);
 static int sdma_rb_evict(void *arg, struct mmu_rb_node *mnode,
 			 void *arg2, bool *stop);
-static void sdma_rb_remove(void *, struct mmu_rb_node *, struct mm_struct *);
+static void sdma_rb_remove(void *, struct mmu_rb_node *);
 static int sdma_rb_invalidate(void *, struct mmu_rb_node *);
 
 static struct mmu_rb_ops sdma_rb_ops = {
@@ -1643,8 +1643,7 @@ static int sdma_rb_evict(void *arg, struct mmu_rb_node *mnode,
 	return 1; /* remove this node */
 }
 
-static void sdma_rb_remove(void *arg, struct mmu_rb_node *mnode,
-			   struct mm_struct *mm)
+static void sdma_rb_remove(void *arg, struct mmu_rb_node *mnode)
 {
 	struct sdma_mmu_node *node =
 		container_of(mnode, struct sdma_mmu_node, rb);
