@@ -3123,7 +3123,6 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
 		.may_writepage = !laptop_mode,
 		.may_unmap = 1,
 		.may_swap = 1,
-		.reclaim_idx = classzone_idx,
 	};
 	count_vm_event(PAGEOUTRUN);
 
@@ -3131,12 +3130,17 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
 		bool raise_priority = true;
 
 		sc.nr_reclaimed = 0;
+		sc.reclaim_idx = classzone_idx;
 
 		/*
-		 * If the number of buffer_heads in the machine exceeds the
-		 * maximum allowed level then reclaim from all zones. This is
-		 * not specific to highmem as highmem may not exist but it is
-		 * it is expected that buffer_heads are stripped in writeback.
+		 * If the number of buffer_heads exceeds the maximum allowed
+		 * then consider reclaiming from all zones. This has a dual
+		 * purpose -- on 64-bit systems it is expected that
+		 * buffer_heads are stripped during active rotation. On 32-bit
+		 * systems, highmem pages can pin lowmem memory and shrinking
+		 * buffers can relieve lowmem pressure. Reclaim may still not
+		 * go ahead if all eligible zones for the original allocation
+		 * request are balanced to avoid excessive reclaim from kswapd.
 		 */
 		if (buffer_heads_over_limit) {
 			for (i = MAX_NR_ZONES - 1; i >= 0; i--) {
@@ -3155,14 +3159,16 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
 		 * Scanning from low to high zone would allow congestion to be
 		 * cleared during a very small window when a small low
 		 * zone was balanced even under extreme pressure when the
-		 * overall node may be congested.
+		 * overall node may be congested. Note that sc.reclaim_idx
+		 * is not used as buffer_heads_over_limit may have adjusted
+		 * it.
 		 */
-		for (i = sc.reclaim_idx; i >= 0; i--) {
+		for (i = classzone_idx; i >= 0; i--) {
 			zone = pgdat->node_zones + i;
 			if (!populated_zone(zone))
 				continue;
 
-			if (zone_balanced(zone, sc.order, sc.reclaim_idx))
+			if (zone_balanced(zone, sc.order, classzone_idx))
 				goto out;
 		}
 
