@@ -1132,6 +1132,10 @@ static int get_ctxt_info(struct file *fp, void __user *ubase, __u32 len)
 				HFI1_CAP_MISC_MASK) << HFI1_CAP_USER_SHIFT) |
 			HFI1_CAP_UGET_MASK(uctxt->flags, MASK) |
 			HFI1_CAP_KGET_MASK(uctxt->flags, K2U);
+	/* adjust flag if this fd is not able to cache */
+	if (!fd->handler)
+		cinfo.runtime_flags |= HFI1_CAP_TID_UNMAP; /* no caching */
+
 	cinfo.num_active = hfi1_count_active_units();
 	cinfo.unit = uctxt->dd->unit;
 	cinfo.ctxt = uctxt->ctxt;

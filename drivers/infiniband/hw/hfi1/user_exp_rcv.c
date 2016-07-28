@@ -196,7 +196,7 @@ int hfi1_user_exp_rcv_init(struct file *fp)
 	if (!fd->entry_to_rb)
 		return -ENOMEM;
 
-	if (!HFI1_CAP_IS_USET(TID_UNMAP)) {
+	if (!HFI1_CAP_UGET_MASK(uctxt->flags, TID_UNMAP)) {
 		fd->invalid_tid_idx = 0;
 		fd->invalid_tids = kzalloc(uctxt->expected_count *
 					   sizeof(u32), GFP_KERNEL);
@@ -207,15 +207,13 @@ int hfi1_user_exp_rcv_init(struct file *fp)
 
 		/*
 		 * Register MMU notifier callbacks. If the registration
-		 * fails, continue but turn off the TID caching for
-		 * all user contexts.
+		 * fails, continue without TID caching for this context.
 		 */
 		ret = hfi1_mmu_rb_register(fd, fd->mm, &tid_rb_ops, &fd->handler);
 		if (ret) {
 			dd_dev_info(dd,
 				    "Failed MMU notifier registration %d\n",
 				    ret);
-			HFI1_CAP_USET(TID_UNMAP);
 			ret = 0;
 		}
 	}
@@ -234,7 +232,7 @@ int hfi1_user_exp_rcv_init(struct file *fp)
 	 * init.
 	 */
 	spin_lock(&fd->tid_lock);
-	if (uctxt->subctxt_cnt && !HFI1_CAP_IS_USET(TID_UNMAP)) {
+	if (uctxt->subctxt_cnt && fd->handler) {
 		u16 remainder;
 
 		fd->tid_limit = uctxt->expected_count / uctxt->subctxt_cnt;
@@ -260,7 +258,7 @@ int hfi1_user_exp_rcv_free(struct hfi1_filedata *fd)
 	 * The notifier would have been removed when the process'es mm
 	 * was freed.
 	 */
-	if (!HFI1_CAP_IS_USET(TID_UNMAP))
+	if (fd->handler)
 		hfi1_mmu_rb_unregister(fd->handler);
 
 	kfree(fd->invalid_tids);
@@ -857,7 +855,7 @@ static int set_rcvarray_entry(struct file *fp, unsigned long vaddr,
 	node->freed = false;
 	memcpy(node->pages, pages, sizeof(struct page *) * npages);
 
-	if (HFI1_CAP_IS_USET(TID_UNMAP))
+	if (!fd->handler)
 		ret = tid_rb_insert(fd, &node->mmu);
 	else
 		ret = hfi1_mmu_rb_insert(fd->handler, &node->mmu);
@@ -900,7 +898,7 @@ static int unprogram_rcvarray(struct file *fp, u32 tidinfo,
 	node = fd->entry_to_rb[rcventry];
 	if (!node || node->rcventry != (uctxt->expected_base + rcventry))
 		return -EBADF;
-	if (HFI1_CAP_IS_USET(TID_UNMAP))
+	if (!fd->handler)
 		tid_rb_remove(fd, &node->mmu, fd->mm);
 	else
 		hfi1_mmu_rb_remove(fd->handler, &node->mmu);
@@ -963,7 +961,7 @@ static void unlock_exp_tids(struct hfi1_ctxtdata *uctxt,
 							  uctxt->expected_base];
 				if (!node || node->rcventry != rcventry)
 					continue;
-				if (HFI1_CAP_IS_USET(TID_UNMAP))
+				if (!fd->handler)
 					tid_rb_remove(fd, &node->mmu, fd->mm);
 				else
 					hfi1_mmu_rb_remove(fd->handler,
