@@ -139,20 +139,11 @@ static int mv_cesa_ablkcipher_process(struct crypto_async_request *req,
 	struct ablkcipher_request *ablkreq = ablkcipher_request_cast(req);
 	struct mv_cesa_ablkcipher_req *creq = ablkcipher_request_ctx(ablkreq);
 	struct mv_cesa_req *basereq = &creq->base;
-	unsigned int ivsize;
-	int ret;
 
 	if (mv_cesa_req_get_type(basereq) == CESA_STD_REQ)
 		return mv_cesa_ablkcipher_std_process(ablkreq, status);
 
-	ret = mv_cesa_dma_process(basereq, status);
-	if (ret)
-		return ret;
-
-	ivsize = crypto_ablkcipher_ivsize(crypto_ablkcipher_reqtfm(ablkreq));
-	memcpy_fromio(ablkreq->info, basereq->chain.last->data, ivsize);
-
-	return 0;
+	return mv_cesa_dma_process(basereq, status);
 }
 
 static void mv_cesa_ablkcipher_step(struct crypto_async_request *req)
