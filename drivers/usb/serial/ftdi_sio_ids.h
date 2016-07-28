@@ -679,6 +679,12 @@
 #define INTREPID_NEOVI_PID	0x0701
 
 /*
+ * WICED USB UART
+ */
+#define WICED_VID		0x0A5C
+#define WICED_USB20706V2_PID	0x6422
+
+/*
  * Definitions for ID TECH (www.idt-net.com) devices
  */
 #define IDTECH_VID		0x0ACD	/* ID TECH Vendor ID */
