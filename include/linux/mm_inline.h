@@ -4,22 +4,6 @@
 #include <linux/huge_mm.h>
 #include <linux/swap.h>
 
-#ifdef CONFIG_HIGHMEM
-extern atomic_t highmem_file_pages;
-
-static inline void acct_highmem_file_pages(int zid, enum lru_list lru,
-							int nr_pages)
-{
-	if (is_highmem_idx(zid) && is_file_lru(lru))
-		atomic_add(nr_pages, &highmem_file_pages);
-}
-#else
-static inline void acct_highmem_file_pages(int zid, enum lru_list lru,
-							int nr_pages)
-{
-}
-#endif
-
 /**
  * page_is_file_cache - should the page be on a file LRU or anon LRU?
  * @page: the page to test
@@ -47,7 +31,6 @@ static __always_inline void __update_lru_size(struct lruvec *lruvec,
 	__mod_node_page_state(pgdat, NR_LRU_BASE + lru, nr_pages);
 	__mod_zone_page_state(&pgdat->node_zones[zid],
 				NR_ZONE_LRU_BASE + lru, nr_pages);
-	acct_highmem_file_pages(zid, lru, nr_pages);
 }
 
 static __always_inline void update_lru_size(struct lruvec *lruvec,
