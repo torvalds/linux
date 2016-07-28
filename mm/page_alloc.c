@@ -295,14 +295,6 @@ static inline bool __meminit early_page_uninitialised(unsigned long pfn)
 	return false;
 }
 
-static inline bool early_page_nid_uninitialised(unsigned long pfn, int nid)
-{
-	if (pfn >= NODE_DATA(nid)->first_deferred_pfn)
-		return true;
-
-	return false;
-}
-
 /*
  * Returns false when the remaining initialisation should be deferred until
  * later in the boot cycle when it can be parallelised.
@@ -338,11 +330,6 @@ static inline void reset_deferred_meminit(pg_data_t *pgdat)
 }
 
 static inline bool early_page_uninitialised(unsigned long pfn)
-{
-	return false;
-}
-
-static inline bool early_page_nid_uninitialised(unsigned long pfn, int nid)
 {
 	return false;
 }
