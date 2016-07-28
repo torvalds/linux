@@ -1424,7 +1424,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
 	LIST_HEAD(pages_skipped);
 
 	for (scan = 0; scan < nr_to_scan && nr_taken < nr_to_scan &&
-					!list_empty(src); scan++) {
+					!list_empty(src);) {
 		struct page *page;
 
 		page = lru_to_page(src);
@@ -1437,6 +1437,12 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
 			nr_skipped[page_zonenum(page)]++;
 			continue;
 		}
+
+		/*
+		 * Account for scanned and skipped separetly to avoid the pgdat
+		 * being prematurely marked unreclaimable by pgdat_reclaimable.
+		 */
+		scan++;
 
 		switch (__isolate_lru_page(page, mode)) {
 		case 0:
@@ -1465,14 +1471,24 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
 	 */
 	if (!list_empty(&pages_skipped)) {
 		int zid;
+		unsigned long total_skipped = 0;
 
-		list_splice(&pages_skipped, src);
 		for (zid = 0; zid < MAX_NR_ZONES; zid++) {
 			if (!nr_skipped[zid])
 				continue;
 
 			__count_zid_vm_events(PGSCAN_SKIP, zid, nr_skipped[zid]);
+			total_skipped += nr_skipped[zid];
 		}
+
+		/*
+		 * Account skipped pages as a partial scan as the pgdat may be
+		 * close to unreclaimable. If the LRU list is empty, account
+		 * skipped pages as a full scan.
+		 */
+		scan += list_empty(src) ? total_skipped : total_skipped >> 2;
+
+		list_splice(&pages_skipped, src);
 	}
 	*nr_scanned = scan;
 	trace_mm_vmscan_lru_isolate(sc->reclaim_idx, sc->order, nr_to_scan, scan,
