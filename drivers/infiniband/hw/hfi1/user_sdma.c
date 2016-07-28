@@ -1115,7 +1115,8 @@ static u32 sdma_cache_evict(struct hfi1_user_sdma_pkt_q *pq, u32 npages)
 }
 
 static int pin_vector_pages(struct user_sdma_request *req,
-			    struct user_sdma_iovec *iovec) {
+			    struct user_sdma_iovec *iovec)
+{
 	int ret = 0, pinned, npages, cleared;
 	struct page **pages;
 	struct hfi1_user_sdma_pkt_q *pq = req->pq;
