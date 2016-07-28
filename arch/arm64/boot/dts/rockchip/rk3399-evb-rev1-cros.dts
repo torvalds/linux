@@ -60,6 +60,21 @@
 			};
 		};
 	};
+
+	hdmi_codec: hdmi-codec {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "HDMI-CODEC";
+
+		simple-audio-card,cpu {
+			sound-dai = <&i2s2>;
+		};
+
+		simple-audio-card,codec {
+			sound-dai = <&hdmi>;
+		};
+	};
 };
 
 &mipi_dsi {
@@ -88,6 +103,18 @@
 			};
 		};
 	};
+};
+
+&hdmi {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	#sound-dai-cells = <0>;
+	status = "okay";
+};
+
+&i2s2 {
+	#sound-dai-cells = <0>;
+	status = "okay";
 };
 
 &vopb {
