@@ -94,7 +94,7 @@ static int program_rcvarray(struct file *, unsigned long, struct tid_group *,
 			    struct tid_pageset *, unsigned, u16, struct page **,
 			    u32 *, unsigned *, unsigned *);
 static int unprogram_rcvarray(struct file *, u32, struct tid_group **);
-static void clear_tid_node(struct hfi1_filedata *, u16, struct tid_rb_node *);
+static void clear_tid_node(struct hfi1_filedata *, struct tid_rb_node *);
 
 static struct mmu_rb_ops tid_rb_ops = {
 	.insert = mmu_rb_insert,
@@ -911,12 +911,11 @@ static int unprogram_rcvarray(struct file *fp, u32 tidinfo,
 
 	if (grp)
 		*grp = node->grp;
-	clear_tid_node(fd, fd->subctxt, node);
+	clear_tid_node(fd, node);
 	return 0;
 }
 
-static void clear_tid_node(struct hfi1_filedata *fd, u16 subctxt,
-			   struct tid_rb_node *node)
+static void clear_tid_node(struct hfi1_filedata *fd, struct tid_rb_node *node)
 {
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	struct hfi1_devdata *dd = uctxt->dd;
@@ -975,7 +974,7 @@ static void unlock_exp_tids(struct hfi1_ctxtdata *uctxt,
 				else
 					hfi1_mmu_rb_remove(&fd->tid_rb_root,
 							   &node->mmu);
-				clear_tid_node(fd, -1, node);
+				clear_tid_node(fd, node);
 			}
 		}
 	}
