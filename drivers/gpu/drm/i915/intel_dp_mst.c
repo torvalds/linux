@@ -99,7 +99,7 @@ static void intel_mst_disable_dp(struct intel_encoder *encoder)
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
 	int ret;
 
-	DRM_DEBUG_KMS("%d\n", intel_dp->active_mst_links);
+	DRM_DEBUG_KMS("%d\n", intel_dp->active_streams);
 
 	drm_dp_mst_reset_vcpi_slots(&intel_dp->mst_mgr, intel_mst->connector->port);
 
@@ -115,7 +115,7 @@ static void intel_mst_post_disable_dp(struct intel_encoder *encoder)
 	struct intel_digital_port *intel_dig_port = intel_mst->primary;
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
 
-	DRM_DEBUG_KMS("%d\n", intel_dp->active_mst_links);
+	DRM_DEBUG_KMS("%d\n", intel_dp->active_streams);
 
 	/* this can fail */
 	drm_dp_check_act_status(&intel_dp->mst_mgr);
@@ -124,10 +124,10 @@ static void intel_mst_post_disable_dp(struct intel_encoder *encoder)
 
 	drm_dp_mst_deallocate_vcpi(&intel_dp->mst_mgr, intel_mst->connector->port);
 
-	intel_dp->active_mst_links--;
+	intel_dp->active_streams--;
 
 	intel_mst->connector = NULL;
-	if (intel_dp->active_mst_links == 0) {
+	if (intel_dp->active_streams == 0) {
 		intel_dig_port->base.post_disable(&intel_dig_port->base);
 		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_OFF);
 	}
@@ -165,11 +165,11 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder)
 	 */
 	found->encoder = encoder;
 
-	DRM_DEBUG_KMS("%d\n", intel_dp->active_mst_links);
+	DRM_DEBUG_KMS("%d\n", intel_dp->active_streams);
 
 	intel_mst->connector = found;
 
-	if (intel_dp->active_mst_links == 0) {
+	if (intel_dp->active_streams == 0) {
 		intel_ddi_clk_select(&intel_dig_port->base, intel_crtc->config);
 
 		intel_prepare_dp_ddi_buffers(&intel_dig_port->base);
@@ -193,7 +193,7 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder)
 	}
 
 
-	intel_dp->active_mst_links++;
+	intel_dp->active_streams++;
 	temp = I915_READ(DP_TP_STATUS(port));
 	I915_WRITE(DP_TP_STATUS(port), temp);
 
@@ -210,7 +210,7 @@ static void intel_mst_enable_dp(struct intel_encoder *encoder)
 	enum port port = intel_dig_port->port;
 	int ret;
 
-	DRM_DEBUG_KMS("%d\n", intel_dp->active_mst_links);
+	DRM_DEBUG_KMS("%d\n", intel_dp->active_streams);
 
 	if (intel_wait_for_register(dev_priv,
 				    DP_TP_STATUS(port),

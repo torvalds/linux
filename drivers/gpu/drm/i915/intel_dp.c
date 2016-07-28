@@ -2685,6 +2685,9 @@ static void intel_enable_dp(struct intel_encoder *encoder)
 				    lane_mask);
 	}
 
+	WARN_ON(intel_dp->active_streams != 0);
+	intel_dp->active_streams++;
+
 	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
 	intel_dp_start_link_train(intel_dp);
 	intel_dp_stop_link_train(intel_dp);
@@ -3344,6 +3347,9 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 
 	DRM_DEBUG_KMS("\n");
 
+	intel_dp->active_streams--;
+	WARN_ON(intel_dp->active_streams != 0);
+
 	if ((IS_GEN7(dev) && port == PORT_A) ||
 	    (HAS_PCH_CPT(dev) && port != PORT_A)) {
 		DP &= ~DP_LINK_TRAIN_MASK_CPT;
@@ -3833,7 +3839,7 @@ go_again:
 		if (bret == true) {
 
 			/* check link status - esi[10] = 0x200c */
-			if (intel_dp->active_mst_links &&
+			if (intel_dp->active_streams &&
 			    !drm_dp_channel_eq_ok(&esi[10], intel_dp->lane_count)) {
 				DRM_DEBUG_KMS("channel EQ not ok, retraining\n");
 				intel_dp_start_link_train(intel_dp);
