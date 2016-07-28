@@ -114,6 +114,7 @@ int intel_engines_init(struct drm_device *dev)
 	unsigned int i;
 	int ret;
 
+	WARN_ON(INTEL_INFO(dev_priv)->ring_mask == 0);
 	WARN_ON(INTEL_INFO(dev_priv)->ring_mask &
 		GENMASK(sizeof(mask) * BITS_PER_BYTE - 1, I915_NUM_ENGINES));
 
