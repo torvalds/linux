@@ -1249,25 +1249,26 @@ out:
 	return 0;
 }
 
-int madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+/*
+ * Return true if we do MADV_FREE successfully on entire pmd page.
+ * Otherwise, return false.
+ */
+bool madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
 		pmd_t *pmd, unsigned long addr, unsigned long next)
-
 {
 	spinlock_t *ptl;
 	pmd_t orig_pmd;
 	struct page *page;
 	struct mm_struct *mm = tlb->mm;
-	int ret = 0;
+	bool ret = false;
 
 	ptl = pmd_trans_huge_lock(pmd, vma);
 	if (!ptl)
 		goto out_unlocked;
 
 	orig_pmd = *pmd;
-	if (is_huge_zero_pmd(orig_pmd)) {
-		ret = 1;
+	if (is_huge_zero_pmd(orig_pmd))
 		goto out;
-	}
 
 	page = pmd_page(orig_pmd);
 	/*
@@ -1309,7 +1310,7 @@ int madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
 		set_pmd_at(mm, addr, pmd, orig_pmd);
 		tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
 	}
-	ret = 1;
+	ret = true;
 out:
 	spin_unlock(ptl);
 out_unlocked:
