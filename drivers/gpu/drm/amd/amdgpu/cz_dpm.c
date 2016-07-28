@@ -435,7 +435,11 @@ static int cz_dpm_init(struct amdgpu_device *adev)
 		pi->caps_td_ramping = true;
 		pi->caps_tcp_ramping = true;
 	}
-	pi->caps_sclk_ds = true;
+	if (amdgpu_sclk_deep_sleep_en)
+		pi->caps_sclk_ds = true;
+	else
+		pi->caps_sclk_ds = false;
+
 	pi->voting_clients = 0x00c00033;
 	pi->auto_thermal_throttling_enabled = true;
 	pi->bapm_enabled = false;
