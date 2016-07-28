@@ -1964,12 +1964,15 @@ static void shrink_active_list(unsigned long nr_to_scan,
  *    1TB     101        10GB
  *   10TB     320        32GB
  */
-static bool inactive_list_is_low(struct lruvec *lruvec, bool file)
+static bool inactive_list_is_low(struct lruvec *lruvec, bool file,
+						struct scan_control *sc)
 {
 	unsigned long inactive_ratio;
 	unsigned long inactive;
 	unsigned long active;
 	unsigned long gb;
+	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
+	int zid;
 
 	/*
 	 * If we don't have swap space, anonymous page deactivation
@@ -1980,6 +1983,27 @@ static bool inactive_list_is_low(struct lruvec *lruvec, bool file)
 
 	inactive = lruvec_lru_size(lruvec, file * LRU_FILE);
 	active = lruvec_lru_size(lruvec, file * LRU_FILE + LRU_ACTIVE);
+
+	/*
+	 * For zone-constrained allocations, it is necessary to check if
+	 * deactivations are required for lowmem to be reclaimed. This
+	 * calculates the inactive/active pages available in eligible zones.
+	 */
+	for (zid = sc->reclaim_idx + 1; zid < MAX_NR_ZONES; zid++) {
+		struct zone *zone = &pgdat->node_zones[zid];
+		unsigned long inactive_zone, active_zone;
+
+		if (!populated_zone(zone))
+			continue;
+
+		inactive_zone = zone_page_state(zone,
+				NR_ZONE_LRU_BASE + (file * LRU_FILE));
+		active_zone = zone_page_state(zone,
+				NR_ZONE_LRU_BASE + (file * LRU_FILE) + LRU_ACTIVE);
+
+		inactive -= min(inactive, inactive_zone);
+		active -= min(active, active_zone);
+	}
 
 	gb = (inactive + active) >> (30 - PAGE_SHIFT);
 	if (gb)
@@ -1994,7 +2018,7 @@ static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
 				 struct lruvec *lruvec, struct scan_control *sc)
 {
 	if (is_active_lru(lru)) {
-		if (inactive_list_is_low(lruvec, is_file_lru(lru)))
+		if (inactive_list_is_low(lruvec, is_file_lru(lru), sc))
 			shrink_active_list(nr_to_scan, lruvec, sc, lru);
 		return 0;
 	}
@@ -2125,7 +2149,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
 	 * lruvec even if it has plenty of old anonymous pages unless the
 	 * system is under heavy pressure.
 	 */
-	if (!inactive_list_is_low(lruvec, true) &&
+	if (!inactive_list_is_low(lruvec, true, sc) &&
 	    lruvec_lru_size(lruvec, LRU_INACTIVE_FILE) >> sc->priority) {
 		scan_balance = SCAN_FILE;
 		goto out;
@@ -2367,7 +2391,7 @@ static void shrink_node_memcg(struct pglist_data *pgdat, struct mem_cgroup *memc
 	 * Even if we did not try to evict anon pages at all, we want to
 	 * rebalance the anon lru active/inactive ratio.
 	 */
-	if (inactive_list_is_low(lruvec, false))
+	if (inactive_list_is_low(lruvec, false, sc))
 		shrink_active_list(SWAP_CLUSTER_MAX, lruvec,
 				   sc, LRU_ACTIVE_ANON);
 
@@ -3020,7 +3044,7 @@ static void age_active_anon(struct pglist_data *pgdat,
 	do {
 		struct lruvec *lruvec = mem_cgroup_lruvec(pgdat, memcg);
 
-		if (inactive_list_is_low(lruvec, false))
+		if (inactive_list_is_low(lruvec, false, sc))
 			shrink_active_list(SWAP_CLUSTER_MAX, lruvec,
 					   sc, LRU_ACTIVE_ANON);
 
