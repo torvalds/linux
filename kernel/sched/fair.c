@@ -5098,18 +5098,13 @@ normalize_energy(int energy_diff)
 static inline int
 energy_diff(struct energy_env *eenv)
 {
-	unsigned int boost;
+	int boost = schedtune_task_boost(eenv->task);
 	int nrg_delta;
 
 	/* Conpute "absolute" energy diff */
 	__energy_diff(eenv);
 
 	/* Return energy diff when boost margin is 0 */
-#ifdef CONFIG_CGROUP_SCHEDTUNE
-	boost = schedtune_task_boost(eenv->task);
-#else
-	boost = get_sysctl_sched_cfs_boost();
-#endif
 	if (boost == 0)
 		return eenv->nrg.diff;
 
@@ -5313,13 +5308,8 @@ schedtune_margin(unsigned long signal, long boost)
 static inline int
 schedtune_cpu_margin(unsigned long util, int cpu)
 {
-	int boost;
+	int boost = schedtune_cpu_boost(cpu);
 
-#ifdef CONFIG_CGROUP_SCHEDTUNE
-	boost = schedtune_cpu_boost(cpu);
-#else
-	boost = get_sysctl_sched_cfs_boost();
-#endif
 	if (boost == 0)
 		return 0;
 
@@ -5329,15 +5319,10 @@ schedtune_cpu_margin(unsigned long util, int cpu)
 static inline long
 schedtune_task_margin(struct task_struct *task)
 {
-	int boost;
+	int boost = schedtune_task_boost(task);
 	unsigned long util;
 	long margin;
 
-#ifdef CONFIG_CGROUP_SCHEDTUNE
-	boost = schedtune_task_boost(task);
-#else
-	boost = get_sysctl_sched_cfs_boost();
-#endif
 	if (boost == 0)
 		return 0;
 
