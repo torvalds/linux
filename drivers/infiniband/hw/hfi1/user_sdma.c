@@ -552,6 +552,14 @@ int hfi1_user_sdma_process_request(struct file *fp, struct iovec *iovec,
 
 	trace_hfi1_sdma_user_reqinfo(dd, uctxt->ctxt, fd->subctxt,
 				     (u16 *)&info);
+
+	if (info.comp_idx >= hfi1_sdma_comp_ring_size) {
+		hfi1_cdbg(SDMA,
+			  "[%u:%u:%u:%u] Invalid comp index",
+			  dd->unit, uctxt->ctxt, fd->subctxt, info.comp_idx);
+		return -EINVAL;
+	}
+
 	if (cq->comps[info.comp_idx].status == QUEUED ||
 	    test_bit(SDMA_REQ_IN_USE, &pq->reqs[info.comp_idx].flags)) {
 		hfi1_cdbg(SDMA, "[%u:%u:%u] Entry %u is in QUEUED state",
