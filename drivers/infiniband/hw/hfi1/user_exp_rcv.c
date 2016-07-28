@@ -211,7 +211,8 @@ int hfi1_user_exp_rcv_init(struct file *fp)
 		 * fails, continue but turn off the TID caching for
 		 * all user contexts.
 		 */
-		ret = hfi1_mmu_rb_register(&fd->tid_rb_root, &tid_rb_ops);
+		ret = hfi1_mmu_rb_register(fd->mm, &fd->tid_rb_root,
+					   &tid_rb_ops);
 		if (ret) {
 			dd_dev_info(dd,
 				    "Failed MMU notifier registration %d\n",
@@ -399,12 +400,12 @@ int hfi1_user_exp_rcv_setup(struct file *fp, struct hfi1_tid_info *tinfo)
 	 * pages, accept the amount pinned so far and program only that.
 	 * User space knows how to deal with partially programmed buffers.
 	 */
-	if (!hfi1_can_pin_pages(dd, fd->tid_n_pinned, npages)) {
+	if (!hfi1_can_pin_pages(dd, fd->mm, fd->tid_n_pinned, npages)) {
 		ret = -ENOMEM;
 		goto bail;
 	}
 
-	pinned = hfi1_acquire_user_pages(vaddr, npages, true, pages);
+	pinned = hfi1_acquire_user_pages(fd->mm, vaddr, npages, true, pages);
 	if (pinned <= 0) {
 		ret = pinned;
 		goto bail;
@@ -559,7 +560,7 @@ nomem:
 	 * for example), unpin all unmapped pages so we can pin them nex time.
 	 */
 	if (mapped_pages != pinned) {
-		hfi1_release_user_pages(current->mm, &pages[mapped_pages],
+		hfi1_release_user_pages(fd->mm, &pages[mapped_pages],
 					pinned - mapped_pages,
 					false);
 		fd->tid_n_pinned -= pinned - mapped_pages;
@@ -905,7 +906,7 @@ static int unprogram_rcvarray(struct file *fp, u32 tidinfo,
 	if (!node || node->rcventry != (uctxt->expected_base + rcventry))
 		return -EBADF;
 	if (HFI1_CAP_IS_USET(TID_UNMAP))
-		tid_rb_remove(&fd->tid_rb_root, &node->mmu, NULL);
+		tid_rb_remove(&fd->tid_rb_root, &node->mmu, fd->mm);
 	else
 		hfi1_mmu_rb_remove(&fd->tid_rb_root, &node->mmu);
 
@@ -933,7 +934,7 @@ static void clear_tid_node(struct hfi1_filedata *fd, struct tid_rb_node *node)
 
 	pci_unmap_single(dd->pcidev, node->dma_addr, node->mmu.len,
 			 PCI_DMA_FROMDEVICE);
-	hfi1_release_user_pages(current->mm, node->pages, node->npages, true);
+	hfi1_release_user_pages(fd->mm, node->pages, node->npages, true);
 	fd->tid_n_pinned -= node->npages;
 
 	node->grp->used--;
@@ -970,7 +971,7 @@ static void unlock_exp_tids(struct hfi1_ctxtdata *uctxt,
 					continue;
 				if (HFI1_CAP_IS_USET(TID_UNMAP))
 					tid_rb_remove(&fd->tid_rb_root,
-						      &node->mmu, NULL);
+						      &node->mmu, fd->mm);
 				else
 					hfi1_mmu_rb_remove(&fd->tid_rb_root,
 							   &node->mmu);

@@ -180,8 +180,10 @@ static int hfi1_file_open(struct inode *inode, struct file *fp)
 
 	fd = kzalloc(sizeof(*fd), GFP_KERNEL);
 
-	if (fd) /* no cpu affinity by default */
-		fd->rec_cpu_num = -1;
+	if (fd) {
+		fd->rec_cpu_num = -1; /* no cpu affinity by default */
+		fd->mm = current->mm;
+	}
 
 	fp->private_data = fd;
 

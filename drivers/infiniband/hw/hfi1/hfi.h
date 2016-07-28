@@ -1205,6 +1205,7 @@ struct hfi1_filedata {
 	u32 invalid_tid_idx;
 	/* protect invalid_tids array and invalid_tid_idx */
 	spinlock_t invalid_lock;
+	struct mm_struct *mm;
 };
 
 extern struct list_head hfi1_dev_list;
@@ -1700,9 +1701,10 @@ void shutdown_led_override(struct hfi1_pportdata *ppd);
  */
 #define DEFAULT_RCVHDR_ENTSIZE 32
 
-bool hfi1_can_pin_pages(struct hfi1_devdata *dd, u32 nlocked, u32 npages);
-int hfi1_acquire_user_pages(unsigned long vaddr, size_t npages, bool writable,
-			    struct page **pages);
+bool hfi1_can_pin_pages(struct hfi1_devdata *dd, struct mm_struct *mm,
+			u32 nlocked, u32 npages);
+int hfi1_acquire_user_pages(struct mm_struct *mm, unsigned long vaddr,
+			    size_t npages, bool writable, struct page **pages);
 void hfi1_release_user_pages(struct mm_struct *mm, struct page **p,
 			     size_t npages, bool dirty);
 

@@ -72,6 +72,7 @@ struct hfi1_user_sdma_pkt_q {
 	u32 n_locked;
 	struct list_head evict;
 	spinlock_t evict_lock; /* protect evict and n_locked */
+	struct mm_struct *mm;
 };
 
 struct hfi1_user_sdma_comp_q {

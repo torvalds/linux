@@ -65,7 +65,8 @@ struct mmu_rb_ops {
 	int (*invalidate)(struct rb_root *root, struct mmu_rb_node *node);
 };
 
-int hfi1_mmu_rb_register(struct rb_root *root, struct mmu_rb_ops *ops);
+int hfi1_mmu_rb_register(struct mm_struct *mm, struct rb_root *root,
+			 struct mmu_rb_ops *ops);
 void hfi1_mmu_rb_unregister(struct rb_root *);
 int hfi1_mmu_rb_insert(struct rb_root *, struct mmu_rb_node *);
 void hfi1_mmu_rb_remove(struct rb_root *, struct mmu_rb_node *);

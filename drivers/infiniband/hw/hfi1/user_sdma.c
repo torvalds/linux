@@ -413,6 +413,7 @@ int hfi1_user_sdma_alloc_queues(struct hfi1_ctxtdata *uctxt, struct file *fp)
 	pq->sdma_rb_root = RB_ROOT;
 	INIT_LIST_HEAD(&pq->evict);
 	spin_lock_init(&pq->evict_lock);
+	pq->mm = fd->mm;
 
 	iowait_init(&pq->busy, 0, NULL, defer_packet_queue,
 		    activate_packet_queue, NULL);
@@ -442,7 +443,7 @@ int hfi1_user_sdma_alloc_queues(struct hfi1_ctxtdata *uctxt, struct file *fp)
 	cq->nentries = hfi1_sdma_comp_ring_size;
 	fd->cq = cq;
 
-	ret = hfi1_mmu_rb_register(&pq->sdma_rb_root, &sdma_rb_ops);
+	ret = hfi1_mmu_rb_register(pq->mm, &pq->sdma_rb_root, &sdma_rb_ops);
 	if (ret) {
 		dd_dev_err(dd, "Failed to register with MMU %d", ret);
 		goto done;
@@ -1205,12 +1206,12 @@ static int pin_vector_pages(struct user_sdma_request *req,
 			spin_unlock(&pq->evict_lock);
 		}
 retry:
-		if (!hfi1_can_pin_pages(pq->dd, pq->n_locked, npages)) {
+		if (!hfi1_can_pin_pages(pq->dd, pq->mm, pq->n_locked, npages)) {
 			cleared = sdma_cache_evict(pq, npages);
 			if (cleared >= npages)
 				goto retry;
 		}
-		pinned = hfi1_acquire_user_pages(
+		pinned = hfi1_acquire_user_pages(pq->mm,
 			((unsigned long)iovec->iov.iov_base +
 			 (node->npages * PAGE_SIZE)), npages, 0,
 			pages + node->npages);
@@ -1220,7 +1221,7 @@ retry:
 			goto bail;
 		}
 		if (pinned != npages) {
-			unpin_vector_pages(current->mm, pages, node->npages,
+			unpin_vector_pages(pq->mm, pages, node->npages,
 					   pinned);
 			ret = -EFAULT;
 			goto bail;
@@ -1252,7 +1253,7 @@ retry:
 	return 0;
 bail:
 	if (rb_node)
-		unpin_vector_pages(current->mm, node->pages, 0, node->npages);
+		unpin_vector_pages(pq->mm, node->pages, 0, node->npages);
 	kfree(node);
 	return ret;
 }
