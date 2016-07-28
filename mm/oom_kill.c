@@ -757,45 +757,35 @@ static inline bool __task_will_free_mem(struct task_struct *task)
  * Checks whether the given task is dying or exiting and likely to
  * release its address space. This means that all threads and processes
  * sharing the same mm have to be killed or exiting.
+ * Caller has to make sure that task->mm is stable (hold task_lock or
+ * it operates on the current).
  */
 bool task_will_free_mem(struct task_struct *task)
 {
-	struct mm_struct *mm;
+	struct mm_struct *mm = task->mm;
 	struct task_struct *p;
 	bool ret;
+
+	/*
+	 * Skip tasks without mm because it might have passed its exit_mm and
+	 * exit_oom_victim. oom_reaper could have rescued that but do not rely
+	 * on that for now. We can consider find_lock_task_mm in future.
+	 */
+	if (!mm)
+		return false;
 
 	if (!__task_will_free_mem(task))
 		return false;
 
 	/*
-	 * If the process has passed exit_mm we have to skip it because
-	 * we have lost a link to other tasks sharing this mm, we do not
-	 * have anything to reap and the task might then get stuck waiting
-	 * for parent as zombie and we do not want it to hold TIF_MEMDIE
-	 */
-	p = find_lock_task_mm(task);
-	if (!p)
-		return false;
-
-	mm = p->mm;
-
-	/*
 	 * This task has already been drained by the oom reaper so there are
 	 * only small chances it will free some more
 	 */
-	if (test_bit(MMF_OOM_REAPED, &mm->flags)) {
-		task_unlock(p);
+	if (test_bit(MMF_OOM_REAPED, &mm->flags))
 		return false;
-	}
 
-	if (atomic_read(&mm->mm_users) <= 1) {
-		task_unlock(p);
+	if (atomic_read(&mm->mm_users) <= 1)
 		return true;
-	}
-
-	/* pin the mm to not get freed and reused */
-	atomic_inc(&mm->mm_count);
-	task_unlock(p);
 
 	/*
 	 * This is really pessimistic but we do not have any reliable way
@@ -812,7 +802,6 @@ bool task_will_free_mem(struct task_struct *task)
 			break;
 	}
 	rcu_read_unlock();
-	mmdrop(mm);
 
 	return ret;
 }
@@ -838,12 +827,15 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
 	 * If the task is already exiting, don't alarm the sysadmin or kill
 	 * its children or threads, just set TIF_MEMDIE so it can die quickly
 	 */
+	task_lock(p);
 	if (task_will_free_mem(p)) {
 		mark_oom_victim(p);
 		wake_oom_reaper(p);
+		task_unlock(p);
 		put_task_struct(p);
 		return;
 	}
+	task_unlock(p);
 
 	if (__ratelimit(&oom_rs))
 		dump_header(oc, p);
@@ -1014,11 +1006,8 @@ bool out_of_memory(struct oom_control *oc)
 	 * If current has a pending SIGKILL or is exiting, then automatically
 	 * select it.  The goal is to allow it to allocate so that it may
 	 * quickly exit and free its memory.
-	 *
-	 * But don't select if current has already released its mm and cleared
-	 * TIF_MEMDIE flag at exit_mm(), otherwise an OOM livelock may occur.
 	 */
-	if (current->mm && task_will_free_mem(current)) {
+	if (task_will_free_mem(current)) {
 		mark_oom_victim(current);
 		wake_oom_reaper(current);
 		return true;
