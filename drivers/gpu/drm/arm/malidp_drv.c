@@ -285,10 +285,8 @@ static int malidp_bind(struct device *dev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	hwdev->regs = devm_ioremap_resource(dev, res);
-	if (IS_ERR(hwdev->regs)) {
-		DRM_ERROR("Failed to map control registers area\n");
+	if (IS_ERR(hwdev->regs))
 		return PTR_ERR(hwdev->regs);
-	}
 
 	hwdev->pclk = devm_clk_get(dev, "pclk");
 	if (IS_ERR(hwdev->pclk))
