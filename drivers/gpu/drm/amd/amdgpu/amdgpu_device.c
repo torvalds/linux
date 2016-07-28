@@ -2282,21 +2282,25 @@ static ssize_t amdgpu_debugfs_regs_read(struct file *f, char __user *buf,
 	struct amdgpu_device *adev = f->f_inode->i_private;
 	ssize_t result = 0;
 	int r;
-	bool use_bank;
+	bool pm_pg_lock, use_bank;
 	unsigned instance_bank, sh_bank, se_bank;
 
 	if (size & 0x3 || *pos & 0x3)
 		return -EINVAL;
+
+	/* are we reading registers for which a PG lock is necessary? */
+	pm_pg_lock = (*pos >> 23) & 1;
 
 	if (*pos & (1ULL << 62)) {
 		se_bank = (*pos >> 24) & 0x3FF;
 		sh_bank = (*pos >> 34) & 0x3FF;
 		instance_bank = (*pos >> 44) & 0x3FF;
 		use_bank = 1;
-		*pos &= 0xFFFFFF;
 	} else {
 		use_bank = 0;
 	}
+
+	*pos &= 0x3FFFF;
 
 	if (use_bank) {
 		if (sh_bank >= adev->gfx.config.max_sh_per_se ||
@@ -2306,6 +2310,9 @@ static ssize_t amdgpu_debugfs_regs_read(struct file *f, char __user *buf,
 		amdgpu_gfx_select_se_sh(adev, se_bank,
 					sh_bank, instance_bank);
 	}
+
+	if (pm_pg_lock)
+		mutex_lock(&adev->pm.mutex);
 
 	while (size) {
 		uint32_t value;
@@ -2331,6 +2338,9 @@ end:
 		amdgpu_gfx_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
 		mutex_unlock(&adev->grbm_idx_mutex);
 	}
+
+	if (pm_pg_lock)
+		mutex_unlock(&adev->pm.mutex);
 
 	return result;
 }
