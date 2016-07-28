@@ -2523,7 +2523,7 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
  * Returns true if compaction should go ahead for a high-order request, or
  * the high-order allocation would succeed without compaction.
  */
-static inline bool compaction_ready(struct zone *zone, int order, int classzone_idx)
+static inline bool compaction_ready(struct zone *zone, struct scan_control *sc)
 {
 	unsigned long watermark;
 	bool watermark_ok;
@@ -2534,21 +2534,21 @@ static inline bool compaction_ready(struct zone *zone, int order, int classzone_
 	 * there is a buffer of free pages available to give compaction
 	 * a reasonable chance of completing and allocating the page
 	 */
-	watermark = high_wmark_pages(zone) + (2UL << order);
-	watermark_ok = zone_watermark_ok_safe(zone, 0, watermark, classzone_idx);
+	watermark = high_wmark_pages(zone) + (2UL << sc->order);
+	watermark_ok = zone_watermark_ok_safe(zone, 0, watermark, sc->reclaim_idx);
 
 	/*
 	 * If compaction is deferred, reclaim up to a point where
 	 * compaction will have a chance of success when re-enabled
 	 */
-	if (compaction_deferred(zone, order))
+	if (compaction_deferred(zone, sc->order))
 		return watermark_ok;
 
 	/*
 	 * If compaction is not ready to start and allocation is not likely
 	 * to succeed without it, then keep reclaiming.
 	 */
-	if (compaction_suitable(zone, order, 0, classzone_idx) == COMPACT_SKIPPED)
+	if (compaction_suitable(zone, sc->order, 0, sc->reclaim_idx) == COMPACT_SKIPPED)
 		return false;
 
 	return watermark_ok;
@@ -2569,7 +2569,6 @@ static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
 	unsigned long nr_soft_reclaimed;
 	unsigned long nr_soft_scanned;
 	gfp_t orig_mask;
-	enum zone_type classzone_idx;
 	pg_data_t *last_pgdat = NULL;
 
 	/*
@@ -2580,24 +2579,13 @@ static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
 	orig_mask = sc->gfp_mask;
 	if (buffer_heads_over_limit) {
 		sc->gfp_mask |= __GFP_HIGHMEM;
-		sc->reclaim_idx = classzone_idx = gfp_zone(sc->gfp_mask);
+		sc->reclaim_idx = gfp_zone(sc->gfp_mask);
 	}
 
 	for_each_zone_zonelist_nodemask(zone, z, zonelist,
 					sc->reclaim_idx, sc->nodemask) {
 		if (!populated_zone(zone))
 			continue;
-
-		/*
-		 * Note that reclaim_idx does not change as it is the highest
-		 * zone reclaimed from which for empty zones is a no-op but
-		 * classzone_idx is used by shrink_node to test if the slabs
-		 * should be shrunk on a given node.
-		 */
-		classzone_idx = sc->reclaim_idx;
-		while (!populated_zone(zone->zone_pgdat->node_zones +
-							classzone_idx))
-			classzone_idx--;
 
 		/*
 		 * Take care memory controller reclaiming has small influence
@@ -2623,8 +2611,7 @@ static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
 			 */
 			if (IS_ENABLED(CONFIG_COMPACTION) &&
 			    sc->order > PAGE_ALLOC_COSTLY_ORDER &&
-			    zonelist_zone_idx(z) <= classzone_idx &&
-			    compaction_ready(zone, sc->order, classzone_idx)) {
+			    compaction_ready(zone, sc)) {
 				sc->compaction_ready = true;
 				continue;
 			}
