@@ -33,6 +33,12 @@ config RESET_LPC18XX
 	help
 	  This enables the reset controller driver for NXP LPC18xx/43xx SoCs.
 
+config RESET_MESON
+	bool "Meson Reset Driver" if COMPILE_TEST
+	default ARCH_MESON
+	help
+	  This enables the reset driver for Amlogic Meson SoCs.
+
 config RESET_OXNAS
 	bool
 
