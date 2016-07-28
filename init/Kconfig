@@ -852,8 +852,8 @@ config LOG_CPU_MAX_BUF_SHIFT
 	  used as it forces an exact (power of two) size of the ring buffer.
 
 	  The number of possible CPUs is used for this computation ignoring
-	  hotplugging making the compuation optimal for the the worst case
-	  scenerio while allowing a simple algorithm to be used from bootup.
+	  hotplugging making the computation optimal for the worst case
+	  scenario while allowing a simple algorithm to be used from bootup.
 
 	  Examples shift values and their meaning:
 		     17 => 128 KB for each CPU
