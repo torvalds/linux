@@ -223,7 +223,7 @@ Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		The AP interface ID, a 1-byte non-zero integer which
 		defines the position of the AP module on the frame.
-		The interface positions are defined in the ARA
+		The interface positions are defined in the GMP
 		Module Developer Kit.
 
 What:		/sys/bus/greybus/devices/N-svc/endo_id
@@ -233,7 +233,7 @@ Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		The Endo ID, which is a 2-byte hexadecimal value
 		defined by the Endo layout scheme, documented in
-		the ARA Module Developer Kit.
+		the GMP Module Developer Kit.
 
 What:		/sys/bus/greybus/devices/N-svc/intf_eject
 Date:		October 2015
