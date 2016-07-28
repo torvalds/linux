@@ -659,6 +659,7 @@ raid5_get_active_stripe(struct r5conf *conf, sector_t sector,
 {
 	struct stripe_head *sh;
 	int hash = stripe_hash_locks_hash(sector);
+	int inc_empty_inactive_list_flag;
 
 	pr_debug("get_stripe, sector %llu\n", (unsigned long long)sector);
 
@@ -703,7 +704,12 @@ raid5_get_active_stripe(struct r5conf *conf, sector_t sector,
 					atomic_inc(&conf->active_stripes);
 				BUG_ON(list_empty(&sh->lru) &&
 				       !test_bit(STRIPE_EXPANDING, &sh->state));
+				inc_empty_inactive_list_flag = 0;
+				if (!list_empty(conf->inactive_list + hash))
+					inc_empty_inactive_list_flag = 1;
 				list_del_init(&sh->lru);
+				if (list_empty(conf->inactive_list + hash) && inc_empty_inactive_list_flag)
+					atomic_inc(&conf->empty_inactive_list_nr);
 				if (sh->group) {
 					sh->group->stripes_cnt--;
 					sh->group = NULL;
@@ -762,6 +768,7 @@ static void stripe_add_to_batch_list(struct r5conf *conf, struct stripe_head *sh
 	sector_t head_sector, tmp_sec;
 	int hash;
 	int dd_idx;
+	int inc_empty_inactive_list_flag;
 
 	/* Don't cross chunks, so stripe pd_idx/qd_idx is the same */
 	tmp_sec = sh->sector;
@@ -779,7 +786,12 @@ static void stripe_add_to_batch_list(struct r5conf *conf, struct stripe_head *sh
 				atomic_inc(&conf->active_stripes);
 			BUG_ON(list_empty(&head->lru) &&
 			       !test_bit(STRIPE_EXPANDING, &head->state));
+			inc_empty_inactive_list_flag = 0;
+			if (!list_empty(conf->inactive_list + hash))
+				inc_empty_inactive_list_flag = 1;
 			list_del_init(&head->lru);
+			if (list_empty(conf->inactive_list + hash) && inc_empty_inactive_list_flag)
+				atomic_inc(&conf->empty_inactive_list_nr);
 			if (head->group) {
 				head->group->stripes_cnt--;
 				head->group = NULL;
