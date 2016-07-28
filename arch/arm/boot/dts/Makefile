@@ -393,7 +393,8 @@ dtb-$(CONFIG_SOC_IMX6ULL) += \
 	imx6ull-14x14-ddr3-arm2-usb.dtb \
 	imx6ull-14x14-ddr3-arm2-wm8958.dtb \
 	imx6ull-14x14-evk.dtb \
-	imx6ull-14x14-evk-btwifi.dtb
+	imx6ull-14x14-evk-btwifi.dtb \
+	imx6ull-14x14-evk-gpmi-weim.dtb
 dtb-$(CONFIG_SOC_IMX7D) += \
 	imx7d-12x12-lpddr3-arm2.dtb \
 	imx7d-12x12-lpddr3-arm2-m4.dtb \
