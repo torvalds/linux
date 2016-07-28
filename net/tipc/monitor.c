@@ -794,10 +794,10 @@ int __tipc_nl_add_monitor(struct net *net, struct tipc_nl_msg *msg,
 	return 0;
 
 attr_msg_full:
+	read_unlock_bh(&mon->lock);
 	nla_nest_cancel(msg->skb, attrs);
 msg_full:
 	genlmsg_cancel(msg->skb, hdr);
-	read_unlock_bh(&mon->lock);
 
 	return -EMSGSIZE;
 }
