@@ -99,9 +99,6 @@ int hfi1_mmu_rb_register(struct rb_root *root, struct mmu_rb_ops *ops)
 {
 	struct mmu_rb_handler *handlr;
 
-	if (!ops->invalidate)
-		return -EINVAL;
-
 	handlr = kmalloc(sizeof(*handlr), GFP_KERNEL);
 	if (!handlr)
 		return -ENOMEM;
@@ -143,8 +140,7 @@ void hfi1_mmu_rb_unregister(struct rb_root *root)
 		while ((node = rb_first(root))) {
 			rbnode = rb_entry(node, struct mmu_rb_node, node);
 			rb_erase(node, root);
-			if (handler->ops->remove)
-				handler->ops->remove(root, rbnode, NULL);
+			handler->ops->remove(root, rbnode, NULL);
 		}
 	}
 	spin_unlock_irqrestore(&handler->lock, flags);
@@ -172,11 +168,9 @@ int hfi1_mmu_rb_insert(struct rb_root *root, struct mmu_rb_node *mnode)
 	}
 	__mmu_int_rb_insert(mnode, root);
 
-	if (handler->ops->insert) {
-		ret = handler->ops->insert(root, mnode);
-		if (ret)
-			__mmu_int_rb_remove(mnode, root);
-	}
+	ret = handler->ops->insert(root, mnode);
+	if (ret)
+		__mmu_int_rb_remove(mnode, root);
 unlock:
 	spin_unlock_irqrestore(&handler->lock, flags);
 	return ret;
@@ -219,8 +213,7 @@ static void __mmu_rb_remove(struct mmu_rb_handler *handler,
 	__mmu_int_rb_remove(node, handler->root);
 	spin_unlock_irqrestore(&handler->lock, flags);
 
-	if (handler->ops->remove)
-		handler->ops->remove(handler->root, node, mm);
+	handler->ops->remove(handler->root, node, mm);
 }
 
 struct mmu_rb_node *hfi1_mmu_rb_extract(struct rb_root *root,
@@ -300,8 +293,7 @@ static void mmu_notifier_mem_invalidate(struct mmu_notifier *mn,
 			  node->addr, node->len);
 		if (handler->ops->invalidate(root, node)) {
 			__mmu_int_rb_remove(node, root);
-			if (handler->ops->remove)
-				handler->ops->remove(root, node, mm);
+			handler->ops->remove(root, node, mm);
 		}
 	}
 	spin_unlock_irqrestore(&handler->lock, flags);
