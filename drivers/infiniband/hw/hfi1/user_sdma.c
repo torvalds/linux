@@ -793,14 +793,21 @@ static inline u32 compute_data_length(struct user_sdma_request *req,
 	 * The size of the data of the first packet is in the header
 	 * template. However, it includes the header and ICRC, which need
 	 * to be subtracted.
+	 * The minimum representable packet data length in a header is 4 bytes,
+	 * therefore, when the data length request is less than 4 bytes, there's
+	 * only one packet, and the packet data length is equal to that of the
+	 * request data length.
 	 * The size of the remaining packets is the minimum of the frag
 	 * size (MTU) or remaining data in the request.
 	 */
 	u32 len;
 
 	if (!req->seqnum) {
-		len = ((be16_to_cpu(req->hdr.lrh[2]) << 2) -
-		       (sizeof(tx->hdr) - 4));
+		if (req->data_len < sizeof(u32))
+			len = req->data_len;
+		else
+			len = ((be16_to_cpu(req->hdr.lrh[2]) << 2) -
+			       (sizeof(tx->hdr) - 4));
 	} else if (req_opcode(req->info.ctrl) == EXPECTED) {
 		u32 tidlen = EXP_TID_GET(req->tids[req->tididx], LEN) *
 			PAGE_SIZE;
@@ -827,6 +834,13 @@ static inline u32 compute_data_length(struct user_sdma_request *req,
 		len = min(req->data_len - req->sent, (u32)req->info.fragsize);
 	}
 	SDMA_DBG(req, "Data Length = %u", len);
+	return len;
+}
+
+static inline u32 pad_len(u32 len)
+{
+	if (len & (sizeof(u32) - 1))
+		len += sizeof(u32) - (len & (sizeof(u32) - 1));
 	return len;
 }
 
@@ -921,7 +935,8 @@ static int user_sdma_send_pkts(struct user_sdma_request *req, unsigned maxpkts)
 		if (test_bit(SDMA_REQ_HAVE_AHG, &req->flags)) {
 			if (!req->seqnum) {
 				u16 pbclen = le16_to_cpu(req->hdr.pbc[0]);
-				u32 lrhlen = get_lrh_len(req->hdr, datalen);
+				u32 lrhlen = get_lrh_len(req->hdr,
+							 pad_len(datalen));
 				/*
 				 * Copy the request header into the tx header
 				 * because the HW needs a cacheline-aligned
@@ -1219,16 +1234,14 @@ static int check_header_template(struct user_sdma_request *req,
 	/*
 	 * Perform safety checks for any type of packet:
 	 *    - transfer size is multiple of 64bytes
-	 *    - packet length is multiple of 4bytes
-	 *    - entire request length is multiple of 4bytes
+	 *    - packet length is multiple of 4 bytes
 	 *    - packet length is not larger than MTU size
 	 *
 	 * These checks are only done for the first packet of the
 	 * transfer since the header is "given" to us by user space.
 	 * For the remainder of the packets we compute the values.
 	 */
-	if (req->info.fragsize % PIO_BLOCK_SIZE ||
-	    lrhlen & 0x3 || req->data_len & 0x3  ||
+	if (req->info.fragsize % PIO_BLOCK_SIZE || lrhlen & 0x3 ||
 	    lrhlen > get_lrh_len(*hdr, req->info.fragsize))
 		return -EINVAL;
 
@@ -1290,7 +1303,7 @@ static int set_txreq_header(struct user_sdma_request *req,
 	struct hfi1_pkt_header *hdr = &tx->hdr;
 	u16 pbclen;
 	int ret;
-	u32 tidval = 0, lrhlen = get_lrh_len(*hdr, datalen);
+	u32 tidval = 0, lrhlen = get_lrh_len(*hdr, pad_len(datalen));
 
 	/* Copy the header template to the request before modification */
 	memcpy(hdr, &req->hdr, sizeof(*hdr));
@@ -1401,7 +1414,7 @@ static int set_txreq_header_ahg(struct user_sdma_request *req,
 	struct hfi1_user_sdma_pkt_q *pq = req->pq;
 	struct hfi1_pkt_header *hdr = &req->hdr;
 	u16 pbclen = le16_to_cpu(hdr->pbc[0]);
-	u32 val32, tidval = 0, lrhlen = get_lrh_len(*hdr, len);
+	u32 val32, tidval = 0, lrhlen = get_lrh_len(*hdr, pad_len(len));
 
 	if (PBC2LRH(pbclen) != lrhlen) {
 		/* PBC.PbcLengthDWs */
