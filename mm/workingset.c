@@ -351,12 +351,13 @@ static unsigned long count_shadow_nodes(struct shrinker *shrinker,
 	shadow_nodes = list_lru_shrink_count(&workingset_shadow_nodes, sc);
 	local_irq_enable();
 
-	if (memcg_kmem_enabled())
+	if (memcg_kmem_enabled()) {
 		pages = mem_cgroup_node_nr_lru_pages(sc->memcg, sc->nid,
 						     LRU_ALL_FILE);
-	else
-		pages = node_page_state(sc->nid, NR_ACTIVE_FILE) +
-			node_page_state(sc->nid, NR_INACTIVE_FILE);
+	} else {
+		pages = sum_zone_node_page_state(sc->nid, NR_ACTIVE_FILE) +
+			sum_zone_node_page_state(sc->nid, NR_INACTIVE_FILE);
+	}
 
 	/*
 	 * Active cache pages are limited to 50% of memory, and shadow
