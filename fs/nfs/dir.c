@@ -232,7 +232,7 @@ int nfs_readdir_make_qstr(struct qstr *string, const char *name, unsigned int le
 	 * in a page cache page which kmemleak does not scan.
 	 */
 	kmemleak_not_leak(string->name);
-	string->hash = full_name_hash(name, len);
+	string->hash = full_name_hash(NULL, name, len);
 	return 0;
 }
 
@@ -502,7 +502,7 @@ void nfs_prime_dcache(struct dentry *parent, struct nfs_entry *entry)
 		if (filename.len == 2 && filename.name[1] == '.')
 			return;
 	}
-	filename.hash = full_name_hash(filename.name, filename.len);
+	filename.hash = full_name_hash(parent, filename.name, filename.len);
 
 	dentry = d_lookup(parent, &filename);
 again:

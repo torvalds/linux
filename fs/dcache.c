@@ -104,11 +104,9 @@ static unsigned int d_hash_shift __read_mostly;
 
 static struct hlist_bl_head *dentry_hashtable __read_mostly;
 
-static inline struct hlist_bl_head *d_hash(const struct dentry *parent,
-					unsigned int hash)
+static inline struct hlist_bl_head *d_hash(unsigned int hash)
 {
-	hash += (unsigned long) parent / L1_CACHE_BYTES;
-	return dentry_hashtable + hash_32(hash, d_hash_shift);
+	return dentry_hashtable + (hash >> (32 - d_hash_shift));
 }
 
 #define IN_LOOKUP_SHIFT 10
@@ -488,7 +486,7 @@ void __d_drop(struct dentry *dentry)
 		if (unlikely(IS_ROOT(dentry)))
 			b = &dentry->d_sb->s_anon;
 		else
-			b = d_hash(dentry->d_parent, dentry->d_name.hash);
+			b = d_hash(dentry->d_name.hash);
 
 		hlist_bl_lock(b);
 		__hlist_bl_del(&dentry->d_hash);
@@ -1716,7 +1714,7 @@ struct dentry *d_alloc_name(struct dentry *parent, const char *name)
 	struct qstr q;
 
 	q.name = name;
-	q.hash_len = hashlen_string(name);
+	q.hash_len = hashlen_string(parent, name);
 	return d_alloc(parent, &q);
 }
 EXPORT_SYMBOL(d_alloc_name);
@@ -2140,7 +2138,7 @@ struct dentry *__d_lookup_rcu(const struct dentry *parent,
 {
 	u64 hashlen = name->hash_len;
 	const unsigned char *str = name->name;
-	struct hlist_bl_head *b = d_hash(parent, hashlen_hash(hashlen));
+	struct hlist_bl_head *b = d_hash(hashlen_hash(hashlen));
 	struct hlist_bl_node *node;
 	struct dentry *dentry;
 
@@ -2257,7 +2255,7 @@ struct dentry *__d_lookup(const struct dentry *parent, const struct qstr *name)
 	unsigned int len = name->len;
 	unsigned int hash = name->hash;
 	const unsigned char *str = name->name;
-	struct hlist_bl_head *b = d_hash(parent, hash);
+	struct hlist_bl_head *b = d_hash(hash);
 	struct hlist_bl_node *node;
 	struct dentry *found = NULL;
 	struct dentry *dentry;
@@ -2337,7 +2335,7 @@ struct dentry *d_hash_and_lookup(struct dentry *dir, struct qstr *name)
 	 * calculate the standard hash first, as the d_op->d_hash()
 	 * routine may choose to leave the hash value unchanged.
 	 */
-	name->hash = full_name_hash(name->name, name->len);
+	name->hash = full_name_hash(dir, name->name, name->len);
 	if (dir->d_flags & DCACHE_OP_HASH) {
 		int err = dir->d_op->d_hash(dir, name);
 		if (unlikely(err < 0))
@@ -2410,7 +2408,7 @@ static void __d_rehash(struct dentry * entry, struct hlist_bl_head *b)
 
 static void _d_rehash(struct dentry * entry)
 {
-	__d_rehash(entry, d_hash(entry->d_parent, entry->d_name.hash));
+	__d_rehash(entry, d_hash(entry->d_name.hash));
 }
 
 /**
@@ -2874,7 +2872,7 @@ static void __d_move(struct dentry *dentry, struct dentry *target,
 	 * for the same hash queue because of how unlikely it is.
 	 */
 	__d_drop(dentry);
-	__d_rehash(dentry, d_hash(target->d_parent, target->d_name.hash));
+	__d_rehash(dentry, d_hash(target->d_name.hash));
 
 	/*
 	 * Unhash the target (d_delete() is not usable here).  If exchanging
@@ -2882,8 +2880,7 @@ static void __d_move(struct dentry *dentry, struct dentry *target,
 	 */
 	__d_drop(target);
 	if (exchange) {
-		__d_rehash(target,
-			   d_hash(dentry->d_parent, dentry->d_name.hash));
+		__d_rehash(target, d_hash(dentry->d_name.hash));
 	}
 
 	/* Switch the names.. */
