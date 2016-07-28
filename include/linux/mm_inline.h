@@ -45,6 +45,8 @@ static __always_inline void __update_lru_size(struct lruvec *lruvec,
 	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
 
 	__mod_node_page_state(pgdat, NR_LRU_BASE + lru, nr_pages);
+	__mod_zone_page_state(&pgdat->node_zones[zid],
+				NR_ZONE_LRU_BASE + lru, nr_pages);
 	acct_highmem_file_pages(zid, lru, nr_pages);
 }
 

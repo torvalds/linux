@@ -1359,23 +1359,14 @@ static __always_inline void update_lru_sizes(struct lruvec *lruvec,
 			enum lru_list lru, unsigned long *nr_zone_taken,
 			unsigned long nr_taken)
 {
-#ifdef CONFIG_HIGHMEM
 	int zid;
 
-	/*
-	 * Highmem has separate accounting for highmem pages so each zone
-	 * is updated separately.
-	 */
 	for (zid = 0; zid < MAX_NR_ZONES; zid++) {
 		if (!nr_zone_taken[zid])
 			continue;
 
 		__update_lru_size(lruvec, lru, zid, -nr_zone_taken[zid]);
 	}
-#else
-	/* Zone ID does not matter on !HIGHMEM */
-	__update_lru_size(lruvec, lru, 0, -nr_taken);
-#endif
 
 #ifdef CONFIG_MEMCG
 	mem_cgroup_update_lru_size(lruvec, lru, -nr_taken);
