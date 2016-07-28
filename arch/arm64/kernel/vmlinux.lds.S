@@ -184,9 +184,9 @@ SECTIONS
 		*(.hash)
 	}
 
-	__rela_offset	= ADDR(.rela) - KIMAGE_VADDR;
+	__rela_offset	= ABSOLUTE(ADDR(.rela) - KIMAGE_VADDR);
 	__rela_size	= SIZEOF(.rela);
-	__dynsym_offset	= ADDR(.dynsym) - KIMAGE_VADDR;
+	__dynsym_offset	= ABSOLUTE(ADDR(.dynsym) - KIMAGE_VADDR);
 
 	. = ALIGN(SEGMENT_ALIGN);
 	__init_end = .;
