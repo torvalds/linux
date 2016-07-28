@@ -694,28 +694,32 @@ TRACE_EVENT(f2fs_direct_IO_exit,
 		__entry->ret)
 );
 
-TRACE_EVENT(f2fs_reserve_new_block,
+TRACE_EVENT(f2fs_reserve_new_blocks,
 
-	TP_PROTO(struct inode *inode, nid_t nid, unsigned int ofs_in_node),
+	TP_PROTO(struct inode *inode, nid_t nid, unsigned int ofs_in_node,
+							blkcnt_t count),
 
-	TP_ARGS(inode, nid, ofs_in_node),
+	TP_ARGS(inode, nid, ofs_in_node, count),
 
 	TP_STRUCT__entry(
 		__field(dev_t,	dev)
 		__field(nid_t, nid)
 		__field(unsigned int, ofs_in_node)
+		__field(blkcnt_t, count)
 	),
 
 	TP_fast_assign(
 		__entry->dev	= inode->i_sb->s_dev;
 		__entry->nid	= nid;
 		__entry->ofs_in_node = ofs_in_node;
+		__entry->count = count;
 	),
 
-	TP_printk("dev = (%d,%d), nid = %u, ofs_in_node = %u",
+	TP_printk("dev = (%d,%d), nid = %u, ofs_in_node = %u, count = %llu",
 		show_dev(__entry),
 		(unsigned int)__entry->nid,
-		__entry->ofs_in_node)
+		__entry->ofs_in_node,
+		(unsigned long long)__entry->count)
 );
 
 DECLARE_EVENT_CLASS(f2fs__submit_page_bio,
@@ -1271,14 +1275,14 @@ TRACE_EVENT(f2fs_destroy_extent_tree,
 
 DECLARE_EVENT_CLASS(f2fs_sync_dirty_inodes,
 
-	TP_PROTO(struct super_block *sb, int type, int count),
+	TP_PROTO(struct super_block *sb, int type, s64 count),
 
 	TP_ARGS(sb, type, count),
 
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(int, type)
-		__field(int, count)
+		__field(s64, count)
 	),
 
 	TP_fast_assign(
@@ -1287,7 +1291,7 @@ DECLARE_EVENT_CLASS(f2fs_sync_dirty_inodes,
 		__entry->count	= count;
 	),
 
-	TP_printk("dev = (%d,%d), %s, dirty count = %d",
+	TP_printk("dev = (%d,%d), %s, dirty count = %lld",
 		show_dev(__entry),
 		show_file_type(__entry->type),
 		__entry->count)
@@ -1295,14 +1299,14 @@ DECLARE_EVENT_CLASS(f2fs_sync_dirty_inodes,
 
 DEFINE_EVENT(f2fs_sync_dirty_inodes, f2fs_sync_dirty_inodes_enter,
 
-	TP_PROTO(struct super_block *sb, int type, int count),
+	TP_PROTO(struct super_block *sb, int type, s64 count),
 
 	TP_ARGS(sb, type, count)
 );
 
 DEFINE_EVENT(f2fs_sync_dirty_inodes, f2fs_sync_dirty_inodes_exit,
 
-	TP_PROTO(struct super_block *sb, int type, int count),
+	TP_PROTO(struct super_block *sb, int type, s64 count),
 
 	TP_ARGS(sb, type, count)
 );

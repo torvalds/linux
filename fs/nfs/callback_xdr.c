@@ -146,8 +146,14 @@ static __be32 decode_stateid(struct xdr_stream *xdr, nfs4_stateid *stateid)
 	p = read_buf(xdr, NFS4_STATEID_SIZE);
 	if (unlikely(p == NULL))
 		return htonl(NFS4ERR_RESOURCE);
-	memcpy(stateid, p, NFS4_STATEID_SIZE);
+	memcpy(stateid->data, p, NFS4_STATEID_SIZE);
 	return 0;
+}
+
+static __be32 decode_delegation_stateid(struct xdr_stream *xdr, nfs4_stateid *stateid)
+{
+	stateid->type = NFS4_DELEGATION_STATEID_TYPE;
+	return decode_stateid(xdr, stateid);
 }
 
 static __be32 decode_compound_hdr_arg(struct xdr_stream *xdr, struct cb_compound_hdr_arg *hdr)
@@ -211,7 +217,7 @@ static __be32 decode_recall_args(struct svc_rqst *rqstp, struct xdr_stream *xdr,
 	__be32 *p;
 	__be32 status;
 
-	status = decode_stateid(xdr, &args->stateid);
+	status = decode_delegation_stateid(xdr, &args->stateid);
 	if (unlikely(status != 0))
 		goto out;
 	p = read_buf(xdr, 4);
@@ -227,6 +233,11 @@ out:
 }
 
 #if defined(CONFIG_NFS_V4_1)
+static __be32 decode_layout_stateid(struct xdr_stream *xdr, nfs4_stateid *stateid)
+{
+	stateid->type = NFS4_LAYOUT_STATEID_TYPE;
+	return decode_stateid(xdr, stateid);
+}
 
 static __be32 decode_layoutrecall_args(struct svc_rqst *rqstp,
 				       struct xdr_stream *xdr,
@@ -263,7 +274,7 @@ static __be32 decode_layoutrecall_args(struct svc_rqst *rqstp,
 		}
 		p = xdr_decode_hyper(p, &args->cbl_range.offset);
 		p = xdr_decode_hyper(p, &args->cbl_range.length);
-		status = decode_stateid(xdr, &args->cbl_stateid);
+		status = decode_layout_stateid(xdr, &args->cbl_stateid);
 		if (unlikely(status != 0))
 			goto out;
 	} else if (args->cbl_recall_type == RETURN_FSID) {

@@ -615,8 +615,6 @@ struct TCP_Server_Info {
 	bool	sec_mskerberos;		/* supports legacy MS Kerberos */
 	bool	large_buf;		/* is current buffer large? */
 	struct delayed_work	echo; /* echo ping workqueue job */
-	struct kvec *iov;	/* reusable kvec array for receives */
-	unsigned int nr_iov;	/* number of kvecs in array */
 	char	*smallbuf;	/* pointer to current "small" buffer */
 	char	*bigbuf;	/* pointer to current "big" buffer */
 	unsigned int total_read; /* total amount of data read in this pass */
@@ -1621,6 +1619,7 @@ void cifs_oplock_break(struct work_struct *work);
 
 extern const struct slow_work_ops cifs_oplock_break_ops;
 extern struct workqueue_struct *cifsiod_wq;
+extern __u32 cifs_lock_secret;
 
 extern mempool_t *cifs_mid_poolp;
 

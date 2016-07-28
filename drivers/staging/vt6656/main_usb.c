@@ -238,7 +238,7 @@ static int vnt_init_registers(struct vnt_private *priv)
 		priv->tx_antenna_mode = ANT_B;
 		priv->rx_antenna_sel = 1;
 
-		if (priv->tx_rx_ant_inv == true)
+		if (priv->tx_rx_ant_inv)
 			priv->rx_antenna_mode = ANT_A;
 		else
 			priv->rx_antenna_mode = ANT_B;
@@ -248,14 +248,14 @@ static int vnt_init_registers(struct vnt_private *priv)
 		if (antenna & EEP_ANTENNA_AUX) {
 			priv->tx_antenna_mode = ANT_A;
 
-			if (priv->tx_rx_ant_inv == true)
+			if (priv->tx_rx_ant_inv)
 				priv->rx_antenna_mode = ANT_B;
 			else
 				priv->rx_antenna_mode = ANT_A;
 		} else {
 			priv->tx_antenna_mode = ANT_B;
 
-		if (priv->tx_rx_ant_inv == true)
+		if (priv->tx_rx_ant_inv)
 			priv->rx_antenna_mode = ANT_A;
 		else
 			priv->rx_antenna_mode = ANT_B;

@@ -25,7 +25,6 @@
 
 #include <linux/list.h>
 #include <linux/mutex.h>
-#include <linux/spinlock.h>
 
 #include <media/media-devnode.h>
 #include <media/media-entity.h>
@@ -304,8 +303,7 @@ struct media_entity_notify {
  * @pads:	List of registered pads
  * @links:	List of registered links
  * @entity_notify: List of registered entity_notify callbacks
- * @lock:	Entities list lock
- * @graph_mutex: Entities graph operation lock
+ * @graph_mutex: Protects access to struct media_device data
  * @pm_count_walk: Graph walk for power state walk. Access serialised using
  *		   graph_mutex.
  *
@@ -313,7 +311,8 @@ struct media_entity_notify {
  * @enable_source: Enable Source Handler function pointer
  * @disable_source: Disable Source Handler function pointer
  *
- * @link_notify: Link state change notification callback
+ * @link_notify: Link state change notification callback. This callback is
+ *		 called with the graph_mutex held.
  *
  * This structure represents an abstract high-level media device. It allows easy
  * access to entities and provides basic media device-level support. The
@@ -357,7 +356,7 @@ struct media_device {
 	u32 hw_revision;
 	u32 driver_version;
 
-	u32 topology_version;
+	u64 topology_version;
 
 	u32 id;
 	struct ida entity_internal_idx;
@@ -371,8 +370,6 @@ struct media_device {
 	/* notify callback list invoked when a new entity is registered */
 	struct list_head entity_notify;
 
-	/* Protects the graph objects creation/removal */
-	spinlock_t lock;
 	/* Serializes graph operations. */
 	struct mutex graph_mutex;
 	struct media_entity_graph pm_count_walk;
@@ -494,7 +491,7 @@ int __must_check __media_device_register(struct media_device *mdev,
 #define media_device_register(mdev) __media_device_register(mdev, THIS_MODULE)
 
 /**
- * __media_device_unregister() - Unegisters a media device element
+ * media_device_unregister() - Unregisters a media device element
  *
  * @mdev:	pointer to struct &media_device
  *

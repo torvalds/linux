@@ -194,7 +194,7 @@ void phy_RF8256_Config_ParaFile(struct net_device *dev)
 			break;
 		}
 
-		/*----Restore RFENV control type----*/;
+		/*----Restore RFENV control type----*/
 		switch (eRFPath) {
 		case RF90_PATH_A:
 		case RF90_PATH_C:

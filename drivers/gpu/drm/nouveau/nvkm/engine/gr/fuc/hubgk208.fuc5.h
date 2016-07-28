@@ -531,9 +531,10 @@ uint32_t gk208_grhub_code[] = {
 	0x1f19f014,
 	0x02300080,
 	0xbd0001f6,
-/* 0x0491: main */
-	0x0031f404,
-	0x0d0028f4,
+/* 0x0491: wait */
+	0x0028f404,
+/* 0x0497: main */
+	0x0d0031f4,
 	0x00377e10,
 	0xf401f400,
 	0x4001e4b1,
@@ -590,7 +591,7 @@ uint32_t gk208_grhub_code[] = {
 	0x09f60217,
 	0xf504bd00,
 /* 0x056b: main_not_ctx_switch */
-	0xb0ff2a0e,
+	0xb0ff300e,
 	0x1bf401e4,
 	0x7ef2b20c,
 	0xf4000820,
@@ -612,11 +613,11 @@ uint32_t gk208_grhub_code[] = {
 	0x7e01f5f0,
 	0xf50002f8,
 /* 0x05b7: main_done */
-	0xbdfede0e,
+	0xbdfee40e,
 	0x1f29f024,
 	0x02300080,
 	0xbd0002f6,
-	0xcc0ef504,
+	0xd20ef504,
 /* 0x05c9: ih */
 	0xf900f9fe,
 	0x0188fe80,

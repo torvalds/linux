@@ -182,7 +182,7 @@ static inline void arch_refresh_nodedata(int nid, pg_data_t *pgdat)
 #endif /* CONFIG_HAVE_ARCH_NODEDATA_EXTENSION */
 
 #ifdef CONFIG_HAVE_BOOTMEM_INFO_NODE
-extern void register_page_bootmem_info_node(struct pglist_data *pgdat);
+extern void __init register_page_bootmem_info_node(struct pglist_data *pgdat);
 #else
 static inline void register_page_bootmem_info_node(struct pglist_data *pgdat)
 {
@@ -247,16 +247,16 @@ static inline void mem_hotplug_done(void) {}
 
 #ifdef CONFIG_MEMORY_HOTREMOVE
 
-extern int is_mem_section_removable(unsigned long pfn, unsigned long nr_pages);
+extern bool is_mem_section_removable(unsigned long pfn, unsigned long nr_pages);
 extern void try_offline_node(int nid);
 extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
 extern void remove_memory(int nid, u64 start, u64 size);
 
 #else
-static inline int is_mem_section_removable(unsigned long pfn,
+static inline bool is_mem_section_removable(unsigned long pfn,
 					unsigned long nr_pages)
 {
-	return 0;
+	return false;
 }
 
 static inline void try_offline_node(int nid) {}

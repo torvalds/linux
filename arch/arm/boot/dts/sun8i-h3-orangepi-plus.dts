@@ -40,95 +40,56 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-/dts-v1/;
-#include "sun8i-h3.dtsi"
-#include "sunxi-common-regulators.dtsi"
-
-#include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/input/input.h>
-#include <dt-bindings/pinctrl/sun4i-a10.h>
+/* The Orange Pi Plus is an extended version of the Orange Pi 2 */
+#include "sun8i-h3-orangepi-2.dts"
 
 / {
 	model = "Xunlong Orange Pi Plus";
 	compatible = "xunlong,orangepi-plus", "allwinner,sun8i-h3";
 
-	aliases {
-		serial0 = &uart0;
-	};
-
-	chosen {
-		stdout-path = "serial0:115200n8";
-	};
-
-	leds {
-		compatible = "gpio-leds";
+	reg_usb3_vbus: usb3-vbus {
+		compatible = "regulator-fixed";
 		pinctrl-names = "default";
-		pinctrl-0 = <&leds_opc>, <&leds_r_opc>;
-
-		status_led {
-			label = "orangepi-plus:red:status";
-			gpios = <&pio 0 15 GPIO_ACTIVE_HIGH>;
-		};
-
-		pwr_led {
-			label = "orangepi-plus:green:pwr";
-			gpios = <&r_pio 0 10 GPIO_ACTIVE_HIGH>;
-			default-state = "on";
-		};
+		pinctrl-0 = <&usb3_vbus_pin_a>;
+		regulator-name = "usb3-vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-boot-on;
+		enable-active-high;
+		gpio = <&pio 6 11 GPIO_ACTIVE_HIGH>;
 	};
+};
 
-	r_gpio_keys {
-		compatible = "gpio-keys";
-		input-name = "sw4";
+&ehci3 {
+	status = "okay";
+};
 
-		pinctrl-names = "default";
-		pinctrl-0 = <&sw_r_opc>;
+&mmc2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc2_8bit_pins>;
+	vmmc-supply = <&reg_vcc3v3>;
+	bus-width = <8>;
+	non-removable;
+	cap-mmc-hw-reset;
+	status = "okay";
+};
 
-		sw4@0 {
-			label = "sw4";
-			linux,code = <BTN_0>;
-			gpios = <&r_pio 0 3 GPIO_ACTIVE_LOW>;
-		};
-	};
+&mmc2_8bit_pins {
+	/* Increase drive strength for DDR modes */
+	allwinner,drive = <SUN4I_PINCTRL_40_MA>;
+	/* eMMC is missing pull-ups */
+	allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
 };
 
 &pio {
-	leds_opc: led_pins@0 {
-		allwinner,pins = "PA15";
+	usb3_vbus_pin_a: usb3_vbus_pin@0 {
+		allwinner,pins = "PG11";
 		allwinner,function = "gpio_out";
 		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 };
 
-&r_pio {
-	leds_r_opc: led_pins@0 {
-		allwinner,pins = "PL10";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-	};
-
-	sw_r_opc: key_pins@0 {
-		allwinner,pins = "PL03";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-	};
-};
-
-&mmc0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin>;
-	vmmc-supply = <&reg_vcc3v3>;
-	bus-width = <4>;
-	cd-gpios = <&pio 5 6 GPIO_ACTIVE_HIGH>; /* PF6 */
-	cd-inverted;
-	status = "okay";
-};
-
-&uart0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
-	status = "okay";
+&usbphy {
+	usb3_vbus-supply = <&reg_usb3_vbus>;
 };

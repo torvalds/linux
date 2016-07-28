@@ -27,7 +27,8 @@
 void scif_recv_mark(struct scif_dev *scifdev, struct scifmsg *msg)
 {
 	struct scif_endpt *ep = (struct scif_endpt *)msg->payload[0];
-	int mark, err;
+	int mark = 0;
+	int err;
 
 	err = _scif_fence_mark(ep, &mark);
 	if (err)

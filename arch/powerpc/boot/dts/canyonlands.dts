@@ -190,12 +190,21 @@
 					 /* DMA */ 0x2 &UIC0 0xc 0x4>;
 		};
 
+		AHBDMA: dma@bffd0800 {
+			compatible = "snps,dma-spear1340";
+			reg = <4 0xbffd0800 0x400>;
+			interrupt-parent = <&UIC3>;
+			interrupts = <0x5 0x4>;
+			#dma-cells = <3>;
+		};
+
 		SATA0: sata@bffd1000 {
 			compatible = "amcc,sata-460ex";
-			reg = <4 0xbffd1000 0x800 4 0xbffd0800 0x400>;
+			reg = <4 0xbffd1000 0x800>;
 			interrupt-parent = <&UIC3>;
-			interrupts = <0x0 0x4       /* SATA */
-				      0x5 0x4>;     /* AHBDMA */
+			interrupts = <0x0 0x4>;
+			dmas = <&AHBDMA 0 1 0>;
+			dma-names = "sata-dma";
 		};
 
 		POB0: opb {

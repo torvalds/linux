@@ -173,6 +173,22 @@ void down_write_nested(struct rw_semaphore *sem, int subclass)
 
 EXPORT_SYMBOL(down_write_nested);
 
+int __sched down_write_killable_nested(struct rw_semaphore *sem, int subclass)
+{
+	might_sleep();
+	rwsem_acquire(&sem->dep_map, subclass, 0, _RET_IP_);
+
+	if (LOCK_CONTENDED_RETURN(sem, __down_write_trylock, __down_write_killable)) {
+		rwsem_release(&sem->dep_map, 1, _RET_IP_);
+		return -EINTR;
+	}
+
+	rwsem_set_owner(sem);
+	return 0;
+}
+
+EXPORT_SYMBOL(down_write_killable_nested);
+
 void up_read_non_owner(struct rw_semaphore *sem)
 {
 	__up_read(sem);

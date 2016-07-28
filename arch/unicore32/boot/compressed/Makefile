@@ -54,7 +54,6 @@ LDFLAGS_vmlinux += -T
 $(obj)/vmlinux: $(obj)/vmlinux.lds $(obj)/head.o $(obj)/piggy.o \
 		$(obj)/misc.o FORCE
 	$(call if_changed,ld)
-	@:
 
 # We now have a PIC decompressor implementation.  Decompressors running
 # from RAM should not define ZTEXTADDR.  Decompressors running directly

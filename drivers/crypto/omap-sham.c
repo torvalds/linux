@@ -1986,7 +1986,7 @@ err_algs:
 					&dd->pdata->algs_info[i].algs_list[j]);
 err_pm:
 	pm_runtime_disable(dev);
-	if (dd->polling_mode)
+	if (!dd->polling_mode)
 		dma_release_channel(dd->dma_lch);
 data_err:
 	dev_err(dev, "initialization failed.\n");

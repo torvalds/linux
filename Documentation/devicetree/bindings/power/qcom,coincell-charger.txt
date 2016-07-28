@@ -29,7 +29,7 @@ IC (PMIC)
 - qcom,charger-disable:
 	Usage: optional
 	Value type: <boolean>
-	Definition: definining this property disables charging
+	Definition: defining this property disables charging
 
 This charger is a sub-node of one of the 8941 PMIC blocks, and is specified
 as a child node in DTS of that node.  See ../mfd/qcom,spmi-pmic.txt and

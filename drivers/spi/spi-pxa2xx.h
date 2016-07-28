@@ -56,7 +56,6 @@ struct driver_data {
 	struct sg_table tx_sgt;
 	int rx_nents;
 	int tx_nents;
-	void *dummy;
 	atomic_t dma_running;
 
 	/* Current message transfer state info */
@@ -69,8 +68,6 @@ struct driver_data {
 	void *rx;
 	void *rx_end;
 	int dma_mapped;
-	size_t rx_map_len;
-	size_t tx_map_len;
 	u8 n_bytes;
 	int (*write)(struct driver_data *drv_data);
 	int (*read)(struct driver_data *drv_data);

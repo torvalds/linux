@@ -83,6 +83,11 @@ static void __init parse_memsize_param(void)
 	}
 }
 
+void __init *plat_get_fdt(void)
+{
+	return (void *)__dtb_start;
+}
+
 void __init plat_mem_setup(void)
 {
 	/* allow command line/bootloader env to override memory size in DT */

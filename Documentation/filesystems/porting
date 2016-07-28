@@ -578,3 +578,10 @@ in your dentry operations instead.
 --
 [mandatory]
 	->atomic_open() calls without O_CREAT may happen in parallel.
+--
+[mandatory]
+	->setxattr() and xattr_handler.set() get dentry and inode passed separately.
+	dentry might be yet to be attached to inode, so do _not_ use its ->d_inode
+	in the instances.  Rationale: !@#!@# security_d_instantiate() needs to be
+	called before we attach dentry to inode and !@#!@##!@$!$#!@#$!@$!@$ smack
+	->d_instantiate() uses not just ->getxattr() but ->setxattr() as well.

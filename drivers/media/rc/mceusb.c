@@ -188,6 +188,7 @@
 #define VENDOR_TWISTEDMELON	0x2596
 #define VENDOR_HAUPPAUGE	0x2040
 #define VENDOR_PCTV		0x2013
+#define VENDOR_ADAPTEC		0x03f3
 
 enum mceusb_model_type {
 	MCE_GEN2 = 0,		/* Most boards */
@@ -302,6 +303,9 @@ static struct usb_device_id mceusb_dev_table[] = {
 	/* SMK/I-O Data GV-MC7/RCKIT Receiver */
 	{ USB_DEVICE(VENDOR_SMK, 0x0353),
 	  .driver_info = MCE_GEN2_NO_TX },
+	/* SMK RXX6000 Infrared Receiver */
+	{ USB_DEVICE(VENDOR_SMK, 0x0357),
+	  .driver_info = MCE_GEN2_NO_TX },
 	/* Tatung eHome Infrared Transceiver */
 	{ USB_DEVICE(VENDOR_TATUNG, 0x9150) },
 	/* Shuttle eHome Infrared Transceiver */
@@ -405,6 +409,8 @@ static struct usb_device_id mceusb_dev_table[] = {
 	  .driver_info = HAUPPAUGE_CX_HYBRID_TV },
 	{ USB_DEVICE(VENDOR_PCTV, 0x025e),
 	  .driver_info = HAUPPAUGE_CX_HYBRID_TV },
+	/* Adaptec / HP eHome Receiver */
+	{ USB_DEVICE(VENDOR_ADAPTEC, 0x0094) },
 
 	/* Terminating entry */
 	{ }

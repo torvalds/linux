@@ -60,6 +60,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&lcd_enable_h>;
 		regulator-name = "panel_regulator";
+		startup-delay-us = <100000>;
 		vin-supply = <&vcc33_sys>;
 	};
 
@@ -85,6 +86,14 @@
 		vin-supply = <&vcc33_sys>;
 		startup-delay-us = <15000>;
 	};
+};
+
+&backlight {
+	power-supply = <&backlight_regulator>;
+};
+
+&panel {
+	power-supply= <&panel_regulator>;
 };
 
 &rk808 {

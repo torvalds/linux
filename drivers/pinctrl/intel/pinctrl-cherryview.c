@@ -1526,17 +1526,16 @@ static int chv_pinctrl_probe(struct platform_device *pdev)
 	pctrl->pctldesc.pins = pctrl->community->pins;
 	pctrl->pctldesc.npins = pctrl->community->npins;
 
-	pctrl->pctldev = pinctrl_register(&pctrl->pctldesc, &pdev->dev, pctrl);
+	pctrl->pctldev = devm_pinctrl_register(&pdev->dev, &pctrl->pctldesc,
+					       pctrl);
 	if (IS_ERR(pctrl->pctldev)) {
 		dev_err(&pdev->dev, "failed to register pinctrl driver\n");
 		return PTR_ERR(pctrl->pctldev);
 	}
 
 	ret = chv_gpio_probe(pctrl, irq);
-	if (ret) {
-		pinctrl_unregister(pctrl->pctldev);
+	if (ret)
 		return ret;
-	}
 
 	platform_set_drvdata(pdev, pctrl);
 
@@ -1548,7 +1547,6 @@ static int chv_pinctrl_remove(struct platform_device *pdev)
 	struct chv_pinctrl *pctrl = platform_get_drvdata(pdev);
 
 	gpiochip_remove(&pctrl->chip);
-	pinctrl_unregister(pctrl->pctldev);
 
 	return 0;
 }

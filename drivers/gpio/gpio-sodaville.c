@@ -3,6 +3,8 @@
  *
  *  Copyright (c) 2010, 2011 Intel Corporation
  *
+ *  Author: Hans J. Koch <hjk@linutronix.de>
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License 2 as published
  *  by the Free Software Foundation.
@@ -15,7 +17,6 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/of_irq.h>
@@ -257,34 +258,17 @@ done:
 	return ret;
 }
 
-static void sdv_gpio_remove(struct pci_dev *pdev)
-{
-	struct sdv_gpio_chip_data *sd = pci_get_drvdata(pdev);
-
-	free_irq(pdev->irq, sd);
-	irq_free_descs(sd->irq_base, SDV_NUM_PUB_GPIOS);
-
-	gpiochip_remove(&sd->chip);
-	pci_release_region(pdev, GPIO_BAR);
-	iounmap(sd->gpio_pub_base);
-	pci_disable_device(pdev);
-	kfree(sd);
-}
-
 static const struct pci_device_id sdv_gpio_pci_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_SDV_GPIO) },
 	{ 0, },
 };
 
 static struct pci_driver sdv_gpio_driver = {
+	.driver = {
+		.suppress_bind_attrs = true,
+	},
 	.name = DRV_NAME,
 	.id_table = sdv_gpio_pci_ids,
 	.probe = sdv_gpio_probe,
-	.remove = sdv_gpio_remove,
 };
-
-module_pci_driver(sdv_gpio_driver);
-
-MODULE_AUTHOR("Hans J. Koch <hjk@linutronix.de>");
-MODULE_DESCRIPTION("GPIO interface for Intel Sodaville SoCs");
-MODULE_LICENSE("GPL v2");
+builtin_pci_driver(sdv_gpio_driver);

@@ -133,7 +133,7 @@ nexti:	scan = find_next_zero_bit(iounit->bmap, limit, scan);
 	vaddr = IOUNIT_DMA_BASE + (scan << PAGE_SHIFT) + (vaddr & ~PAGE_MASK);
 	for (k = 0; k < npages; k++, iopte = __iopte(iopte_val(iopte) + 0x100), scan++) {
 		set_bit(scan, iounit->bmap);
-		sbus_writel(iopte, &iounit->page_table[scan]);
+		sbus_writel(iopte_val(iopte), &iounit->page_table[scan]);
 	}
 	IOD(("%08lx\n", vaddr));
 	return vaddr;
@@ -228,7 +228,7 @@ static int iounit_map_dma_area(struct device *dev, dma_addr_t *pba, unsigned lon
 			i = ((addr - IOUNIT_DMA_BASE) >> PAGE_SHIFT);
 
 			iopte = iounit->page_table + i;
-			sbus_writel(MKIOPTE(__pa(page)), iopte);
+			sbus_writel(iopte_val(MKIOPTE(__pa(page))), iopte);
 		}
 		addr += PAGE_SIZE;
 		va += PAGE_SIZE;

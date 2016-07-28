@@ -66,6 +66,10 @@
 	};
 };
 
+&be0 {
+	status = "okay";
+};
+
 &codec {
 	status = "okay";
 };
@@ -185,6 +189,14 @@
 	pinctrl-0 = <&chip_vbus_pin>;
 	vin-supply = <&reg_vcc5v0>;
 	gpio = <&pio 1 10 GPIO_ACTIVE_HIGH>; /* PB10 */
+	status = "okay";
+};
+
+&tcon0 {
+	status = "okay";
+};
+
+&tve0 {
 	status = "okay";
 };
 

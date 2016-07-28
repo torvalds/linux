@@ -1,4 +1,8 @@
 /*
+ * ZTE ZX296702 GPIO driver
+ *
+ * Author: Jun Nie <jun.nie@linaro.org>
+ *
  * Copyright (C) 2015 Linaro Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -10,7 +14,7 @@
 #include <linux/errno.h>
 #include <linux/gpio/driver.h>
 #include <linux/irqchip/chained_irq.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
@@ -282,7 +286,6 @@ static const struct of_device_id zx_gpio_match[] = {
 	},
 	{ },
 };
-MODULE_DEVICE_TABLE(of, zx_gpio_match);
 
 static struct platform_driver zx_gpio_driver = {
 	.probe		= zx_gpio_probe,
@@ -291,9 +294,4 @@ static struct platform_driver zx_gpio_driver = {
 		.of_match_table = of_match_ptr(zx_gpio_match),
 	},
 };
-
-module_platform_driver(zx_gpio_driver)
-
-MODULE_AUTHOR("Jun Nie <jun.nie@linaro.org>");
-MODULE_DESCRIPTION("ZTE ZX296702 GPIO driver");
-MODULE_LICENSE("GPL");
+builtin_platform_driver(zx_gpio_driver)

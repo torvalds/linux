@@ -44,8 +44,8 @@ enum {
 	NETIF_F_FSO_BIT,		/* ... FCoE segmentation */
 	NETIF_F_GSO_GRE_BIT,		/* ... GRE with TSO */
 	NETIF_F_GSO_GRE_CSUM_BIT,	/* ... GRE with csum with TSO */
-	NETIF_F_GSO_IPIP_BIT,		/* ... IPIP tunnel with TSO */
-	NETIF_F_GSO_SIT_BIT,		/* ... SIT tunnel with TSO */
+	NETIF_F_GSO_IPXIP4_BIT,		/* ... IP4 or IP6 over IP4 with TSO */
+	NETIF_F_GSO_IPXIP6_BIT,		/* ... IP4 or IP6 over IP6 with TSO */
 	NETIF_F_GSO_UDP_TUNNEL_BIT,	/* ... UDP TUNNEL with TSO */
 	NETIF_F_GSO_UDP_TUNNEL_CSUM_BIT,/* ... UDP TUNNEL with TSO & CSUM */
 	NETIF_F_GSO_PARTIAL_BIT,	/* ... Only segment inner-most L4
@@ -121,8 +121,8 @@ enum {
 #define NETIF_F_RXALL		__NETIF_F(RXALL)
 #define NETIF_F_GSO_GRE		__NETIF_F(GSO_GRE)
 #define NETIF_F_GSO_GRE_CSUM	__NETIF_F(GSO_GRE_CSUM)
-#define NETIF_F_GSO_IPIP	__NETIF_F(GSO_IPIP)
-#define NETIF_F_GSO_SIT		__NETIF_F(GSO_SIT)
+#define NETIF_F_GSO_IPXIP4	__NETIF_F(GSO_IPXIP4)
+#define NETIF_F_GSO_IPXIP6	__NETIF_F(GSO_IPXIP6)
 #define NETIF_F_GSO_UDP_TUNNEL	__NETIF_F(GSO_UDP_TUNNEL)
 #define NETIF_F_GSO_UDP_TUNNEL_CSUM __NETIF_F(GSO_UDP_TUNNEL_CSUM)
 #define NETIF_F_TSO_MANGLEID	__NETIF_F(TSO_MANGLEID)
@@ -200,8 +200,8 @@ enum {
 
 #define NETIF_F_GSO_ENCAP_ALL	(NETIF_F_GSO_GRE |			\
 				 NETIF_F_GSO_GRE_CSUM |			\
-				 NETIF_F_GSO_IPIP |			\
-				 NETIF_F_GSO_SIT |			\
+				 NETIF_F_GSO_IPXIP4 |			\
+				 NETIF_F_GSO_IPXIP6 |			\
 				 NETIF_F_GSO_UDP_TUNNEL |		\
 				 NETIF_F_GSO_UDP_TUNNEL_CSUM)
 

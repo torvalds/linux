@@ -193,12 +193,12 @@ static long ceph_ioctl_get_dataloc(struct file *file, void __user *arg)
 	if (copy_from_user(&dl, arg, sizeof(dl)))
 		return -EFAULT;
 
-	down_read(&osdc->map_sem);
+	down_read(&osdc->lock);
 	r = ceph_calc_file_object_mapping(&ci->i_layout, dl.file_offset, len,
 					  &dl.object_no, &dl.object_offset,
 					  &olen);
 	if (r < 0) {
-		up_read(&osdc->map_sem);
+		up_read(&osdc->lock);
 		return -EIO;
 	}
 	dl.file_offset -= dl.object_offset;
@@ -213,15 +213,15 @@ static long ceph_ioctl_get_dataloc(struct file *file, void __user *arg)
 		 ceph_ino(inode), dl.object_no);
 
 	oloc.pool = ceph_file_layout_pg_pool(ci->i_layout);
-	ceph_oid_set_name(&oid, dl.object_name);
+	ceph_oid_printf(&oid, "%s", dl.object_name);
 
-	r = ceph_oloc_oid_to_pg(osdc->osdmap, &oloc, &oid, &pgid);
+	r = ceph_object_locator_to_pg(osdc->osdmap, &oid, &oloc, &pgid);
 	if (r < 0) {
-		up_read(&osdc->map_sem);
+		up_read(&osdc->lock);
 		return r;
 	}
 
-	dl.osd = ceph_calc_pg_primary(osdc->osdmap, pgid);
+	dl.osd = ceph_pg_to_acting_primary(osdc->osdmap, &pgid);
 	if (dl.osd >= 0) {
 		struct ceph_entity_addr *a =
 			ceph_osd_addr(osdc->osdmap, dl.osd);
@@ -230,7 +230,7 @@ static long ceph_ioctl_get_dataloc(struct file *file, void __user *arg)
 	} else {
 		memset(&dl.osd_addr, 0, sizeof(dl.osd_addr));
 	}
-	up_read(&osdc->map_sem);
+	up_read(&osdc->lock);
 
 	/* send result back to user */
 	if (copy_to_user(arg, &dl, sizeof(dl)))

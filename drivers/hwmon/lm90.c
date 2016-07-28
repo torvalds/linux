@@ -375,7 +375,7 @@ struct lm90_data {
 	int kind;
 	u32 flags;
 
-	int update_interval;	/* in milliseconds */
+	unsigned int update_interval; /* in milliseconds */
 
 	u8 config_orig;		/* Original configuration register value */
 	u8 convrate_orig;	/* Original conversion rate register value */

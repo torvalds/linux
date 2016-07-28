@@ -77,6 +77,7 @@ static inline void r4k_on_each_cpu(void (*func) (void *info), void *info)
  */
 static unsigned long icache_size __read_mostly;
 static unsigned long dcache_size __read_mostly;
+static unsigned long vcache_size __read_mostly;
 static unsigned long scache_size __read_mostly;
 
 /*
@@ -447,6 +448,11 @@ static inline void local_r4k___flush_cache_all(void * args)
 		r4k_blast_scache();
 		break;
 
+	case CPU_BMIPS5000:
+		r4k_blast_scache();
+		__sync();
+		break;
+
 	default:
 		r4k_blast_dcache();
 		r4k_blast_icache();
@@ -492,7 +498,14 @@ static inline void local_r4k_flush_cache_range(void * args)
 	if (!(has_valid_asid(vma->vm_mm)))
 		return;
 
-	r4k_blast_dcache();
+	/*
+	 * If dcache can alias, we must blast it since mapping is changing.
+	 * If executable, we must ensure any dirty lines are written back far
+	 * enough to be visible to icache.
+	 */
+	if (cpu_has_dc_aliases || (exec && !cpu_has_ic_fills_f_dc))
+		r4k_blast_dcache();
+	/* If executable, blast stale lines from icache */
 	if (exec)
 		r4k_blast_icache();
 }
@@ -502,7 +515,7 @@ static void r4k_flush_cache_range(struct vm_area_struct *vma,
 {
 	int exec = vma->vm_flags & VM_EXEC;
 
-	if (cpu_has_dc_aliases || (exec && !cpu_has_ic_fills_f_dc))
+	if (cpu_has_dc_aliases || exec)
 		r4k_on_each_cpu(local_r4k_flush_cache_range, vma);
 }
 
@@ -1148,6 +1161,8 @@ static void probe_pcache(void)
 					  c->dcache.ways *
 					  c->dcache.linesz;
 		c->dcache.waybit = 0;
+		if ((prid & PRID_REV_MASK) >= PRID_REV_LOONGSON3A_R2)
+			c->options |= MIPS_CPU_PREFETCH;
 		break;
 
 	case CPU_CAVIUM_OCTEON3:
@@ -1278,6 +1293,8 @@ static void probe_pcache(void)
 	case CPU_M5150:
 	case CPU_QEMU_GENERIC:
 	case CPU_I6400:
+	case CPU_P6600:
+	case CPU_M6250:
 		if (!(read_c0_config7() & MIPS_CONF7_IAR) &&
 		    (c->icache.waysize > PAGE_SIZE))
 			c->icache.flags |= MIPS_CACHE_ALIASES;
@@ -1304,7 +1321,14 @@ static void probe_pcache(void)
 		break;
 
 	case CPU_ALCHEMY:
+	case CPU_I6400:
 		c->icache.flags |= MIPS_CACHE_IC_F_DC;
+		break;
+
+	case CPU_BMIPS5000:
+		c->icache.flags |= MIPS_CACHE_IC_F_DC;
+		/* Cache aliases are handled in hardware; allow HIGHMEM */
+		c->dcache.flags &= ~MIPS_CACHE_ALIASES;
 		break;
 
 	case CPU_LOONGSON2:
@@ -1326,6 +1350,31 @@ static void probe_pcache(void)
 	       (c->dcache.flags & MIPS_CACHE_ALIASES) ?
 			"cache aliases" : "no aliases",
 	       c->dcache.linesz);
+}
+
+static void probe_vcache(void)
+{
+	struct cpuinfo_mips *c = &current_cpu_data;
+	unsigned int config2, lsize;
+
+	if (current_cpu_type() != CPU_LOONGSON3)
+		return;
+
+	config2 = read_c0_config2();
+	if ((lsize = ((config2 >> 20) & 15)))
+		c->vcache.linesz = 2 << lsize;
+	else
+		c->vcache.linesz = lsize;
+
+	c->vcache.sets = 64 << ((config2 >> 24) & 15);
+	c->vcache.ways = 1 + ((config2 >> 16) & 15);
+
+	vcache_size = c->vcache.sets * c->vcache.ways * c->vcache.linesz;
+
+	c->vcache.waybit = 0;
+
+	pr_info("Unified victim cache %ldkB %s, linesize %d bytes.\n",
+		vcache_size >> 10, way_string[c->vcache.ways], c->vcache.linesz);
 }
 
 /*
@@ -1650,6 +1699,7 @@ void r4k_cache_init(void)
 	struct cpuinfo_mips *c = &current_cpu_data;
 
 	probe_pcache();
+	probe_vcache();
 	setup_scache();
 
 	r4k_blast_dcache_page_setup();
@@ -1671,7 +1721,7 @@ void r4k_cache_init(void)
 	 * This code supports virtually indexed processors and will be
 	 * unnecessarily inefficient on physically indexed processors.
 	 */
-	if (c->dcache.linesz)
+	if (c->dcache.linesz && cpu_has_dc_aliases)
 		shm_align_mask = max_t( unsigned long,
 					c->dcache.sets * c->dcache.linesz - 1,
 					PAGE_SIZE - 1);
@@ -1744,11 +1794,23 @@ void r4k_cache_init(void)
 		flush_icache_range = (void *)b5k_instruction_hazard;
 		local_flush_icache_range = (void *)b5k_instruction_hazard;
 
-		/* Cache aliases are handled in hardware; allow HIGHMEM */
-		current_cpu_data.dcache.flags &= ~MIPS_CACHE_ALIASES;
 
 		/* Optimization: an L2 flush implicitly flushes the L1 */
 		current_cpu_data.options |= MIPS_CPU_INCLUSIVE_CACHES;
+		break;
+	case CPU_LOONGSON3:
+		/* Loongson-3 maintains cache coherency by hardware */
+		__flush_cache_all	= cache_noop;
+		__flush_cache_vmap	= cache_noop;
+		__flush_cache_vunmap	= cache_noop;
+		__flush_kernel_vmap_range = (void *)cache_noop;
+		flush_cache_mm		= (void *)cache_noop;
+		flush_cache_page	= (void *)cache_noop;
+		flush_cache_range	= (void *)cache_noop;
+		flush_cache_sigtramp	= (void *)cache_noop;
+		flush_icache_all	= (void *)cache_noop;
+		flush_data_cache_page	= (void *)cache_noop;
+		local_flush_data_cache_page	= (void *)cache_noop;
 		break;
 	}
 }

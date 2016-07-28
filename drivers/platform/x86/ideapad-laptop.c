@@ -48,7 +48,10 @@
 #define CFG_CAMERA_BIT	(19)
 
 #if IS_ENABLED(CONFIG_ACPI_WMI)
-static const char ideapad_wmi_fnesc_event[] = "26CAB2E5-5CF1-46AE-AAC3-4A12B6BA50E6";
+static const char *const ideapad_wmi_fnesc_events[] = {
+	"26CAB2E5-5CF1-46AE-AAC3-4A12B6BA50E6", /* Yoga 3 */
+	"56322276-8493-4CE8-A783-98C991274F5E", /* Yoga 700 */
+};
 #endif
 
 enum {
@@ -93,6 +96,7 @@ struct ideapad_private {
 	struct dentry *debug;
 	unsigned long cfg;
 	bool has_hw_rfkill_switch;
+	const char *fnesc_guid;
 };
 
 static bool no_bt_rfkill;
@@ -563,6 +567,7 @@ static void ideapad_sysfs_exit(struct ideapad_private *priv)
 static const struct key_entry ideapad_keymap[] = {
 	{ KE_KEY, 6,  { KEY_SWITCHVIDEOMODE } },
 	{ KE_KEY, 7,  { KEY_CAMERA } },
+	{ KE_KEY, 8,  { KEY_MICMUTE } },
 	{ KE_KEY, 11, { KEY_F16 } },
 	{ KE_KEY, 13, { KEY_WLAN } },
 	{ KE_KEY, 16, { KEY_PROG1 } },
@@ -805,6 +810,7 @@ static void ideapad_acpi_notify(acpi_handle handle, u32 event, void *data)
 				break;
 			case 13:
 			case 11:
+			case 8:
 			case 7:
 			case 6:
 				ideapad_input_report(priv, vpc_bit);
@@ -989,8 +995,16 @@ static int ideapad_acpi_add(struct platform_device *pdev)
 		ACPI_DEVICE_NOTIFY, ideapad_acpi_notify, priv);
 	if (ret)
 		goto notification_failed;
+
 #if IS_ENABLED(CONFIG_ACPI_WMI)
-	ret = wmi_install_notify_handler(ideapad_wmi_fnesc_event, ideapad_wmi_notify, priv);
+	for (i = 0; i < ARRAY_SIZE(ideapad_wmi_fnesc_events); i++) {
+		ret = wmi_install_notify_handler(ideapad_wmi_fnesc_events[i],
+						 ideapad_wmi_notify, priv);
+		if (ret == AE_OK) {
+			priv->fnesc_guid = ideapad_wmi_fnesc_events[i];
+			break;
+		}
+	}
 	if (ret != AE_OK && ret != AE_NOT_EXIST)
 		goto notification_failed_wmi;
 #endif
@@ -1020,7 +1034,8 @@ static int ideapad_acpi_remove(struct platform_device *pdev)
 	int i;
 
 #if IS_ENABLED(CONFIG_ACPI_WMI)
-	wmi_remove_notify_handler(ideapad_wmi_fnesc_event);
+	if (priv->fnesc_guid)
+		wmi_remove_notify_handler(priv->fnesc_guid);
 #endif
 	acpi_remove_notify_handler(priv->adev->handle,
 		ACPI_DEVICE_NOTIFY, ideapad_acpi_notify);

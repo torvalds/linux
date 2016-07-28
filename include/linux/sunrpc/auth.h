@@ -127,7 +127,7 @@ struct rpc_authops {
 	void			(*destroy)(struct rpc_auth *);
 
 	struct rpc_cred *	(*lookup_cred)(struct rpc_auth *, struct auth_cred *, int);
-	struct rpc_cred *	(*crcreate)(struct rpc_auth*, struct auth_cred *, int);
+	struct rpc_cred *	(*crcreate)(struct rpc_auth*, struct auth_cred *, int, gfp_t);
 	int			(*list_pseudoflavors)(rpc_authflavor_t *, int);
 	rpc_authflavor_t	(*info2flavor)(struct rpcsec_gss_info *);
 	int			(*flavor2info)(rpc_authflavor_t,
@@ -167,6 +167,7 @@ void 			rpc_destroy_authunix(void);
 
 struct rpc_cred *	rpc_lookup_cred(void);
 struct rpc_cred *	rpc_lookup_cred_nonblock(void);
+struct rpc_cred *	rpc_lookup_generic_cred(struct auth_cred *, int, gfp_t);
 struct rpc_cred *	rpc_lookup_machine_cred(const char *service_name);
 int			rpcauth_register(const struct rpc_authops *);
 int			rpcauth_unregister(const struct rpc_authops *);
@@ -178,7 +179,7 @@ rpc_authflavor_t	rpcauth_get_pseudoflavor(rpc_authflavor_t,
 int			rpcauth_get_gssinfo(rpc_authflavor_t,
 				struct rpcsec_gss_info *);
 int			rpcauth_list_flavors(rpc_authflavor_t *, int);
-struct rpc_cred *	rpcauth_lookup_credcache(struct rpc_auth *, struct auth_cred *, int);
+struct rpc_cred *	rpcauth_lookup_credcache(struct rpc_auth *, struct auth_cred *, int, gfp_t);
 void			rpcauth_init_cred(struct rpc_cred *, const struct auth_cred *, struct rpc_auth *, const struct rpc_credops *);
 struct rpc_cred *	rpcauth_lookupcred(struct rpc_auth *, int);
 struct rpc_cred *	rpcauth_generic_bind_cred(struct rpc_task *, struct rpc_cred *, int);
@@ -201,8 +202,27 @@ char *			rpcauth_stringify_acceptor(struct rpc_cred *);
 static inline
 struct rpc_cred *	get_rpccred(struct rpc_cred *cred)
 {
-	atomic_inc(&cred->cr_count);
+	if (cred != NULL)
+		atomic_inc(&cred->cr_count);
 	return cred;
+}
+
+/**
+ * get_rpccred_rcu - get a reference to a cred using rcu-protected pointer
+ * @cred: cred of which to take a reference
+ *
+ * In some cases, we may have a pointer to a credential to which we
+ * want to take a reference, but don't already have one. Because these
+ * objects are freed using RCU, we can access the cr_count while its
+ * on its way to destruction and only take a reference if it's not already
+ * zero.
+ */
+static inline struct rpc_cred *
+get_rpccred_rcu(struct rpc_cred *cred)
+{
+	if (atomic_inc_not_zero(&cred->cr_count))
+		return cred;
+	return NULL;
 }
 
 #endif /* __KERNEL__ */

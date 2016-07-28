@@ -932,6 +932,7 @@ void __init dm644x_init(void)
 {
 	davinci_common_init(&davinci_soc_info_dm644x);
 	davinci_map_sysmod();
+	davinci_clk_init(davinci_soc_info_dm644x.cpu_clks);
 }
 
 int __init dm644x_init_video(struct vpfe_config *vpfe_cfg,

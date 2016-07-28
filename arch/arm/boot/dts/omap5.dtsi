@@ -187,7 +187,7 @@
 					#size-cells = <1>;
 					ranges = <0 0x5a0 0xec>;
 
-					pbias_regulator: pbias_regulator {
+					pbias_regulator: pbias_regulator@60 {
 						compatible = "ti,pbias-omap5", "ti,pbias-omap";
 						reg = <0x60 0x4>;
 						syscon = <&omap5_padconf_global>;
@@ -398,6 +398,10 @@
 			ti,hwmods = "gpmc";
 			clocks = <&l3_iclk_div>;
 			clock-names = "fck";
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			gpio-controller;
+			#gpio-cells = <2>;
 		};
 
 		i2c1: i2c@48070000 {

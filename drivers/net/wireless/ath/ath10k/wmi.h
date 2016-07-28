@@ -1444,6 +1444,7 @@ enum wmi_10_2_cmd_id {
 	WMI_10_2_MU_CAL_START_CMDID,
 	WMI_10_2_SET_LTEU_CONFIG_CMDID,
 	WMI_10_2_SET_CCA_PARAMS,
+	WMI_10_2_PDEV_BSS_CHAN_INFO_REQUEST_CMDID,
 	WMI_10_2_PDEV_UTF_CMDID = WMI_10_2_END_CMDID - 1,
 };
 
@@ -1487,6 +1488,8 @@ enum wmi_10_2_event_id {
 	WMI_10_2_WDS_PEER_EVENTID,
 	WMI_10_2_PEER_STA_PS_STATECHG_EVENTID,
 	WMI_10_2_PDEV_TEMPERATURE_EVENTID,
+	WMI_10_2_MU_REPORT_EVENTID,
+	WMI_10_2_PDEV_BSS_CHAN_INFO_EVENTID,
 	WMI_10_2_PDEV_UTF_EVENTID = WMI_10_2_END_EVENTID - 1,
 };
 
@@ -1795,6 +1798,7 @@ struct wmi_channel {
 		__le32 reginfo1;
 		struct {
 			u8 antenna_max;
+			u8 max_tx_power;
 		} __packed;
 	} __packed;
 } __packed;
@@ -2450,6 +2454,7 @@ enum wmi_10_2_feature_mask {
 	WMI_10_2_RX_BATCH_MODE = BIT(0),
 	WMI_10_2_ATF_CONFIG    = BIT(1),
 	WMI_10_2_COEX_GPIO     = BIT(3),
+	WMI_10_2_BSS_CHAN_INFO = BIT(6),
 	WMI_10_2_PEER_STATS    = BIT(7),
 };
 
@@ -6280,6 +6285,17 @@ struct wmi_pdev_temperature_event {
 	__le32 temperature;
 } __packed;
 
+struct wmi_pdev_bss_chan_info_event {
+	__le32 freq;
+	__le32 noise_floor;
+	__le64 cycle_busy;
+	__le64 cycle_total;
+	__le64 cycle_tx;
+	__le64 cycle_rx;
+	__le64 cycle_rx_bss;
+	__le32 reserved;
+} __packed;
+
 /* WOW structures */
 enum wmi_wow_wakeup_event {
 	WOW_BMISS_EVENT = 0,
@@ -6482,6 +6498,16 @@ enum wmi_host_platform_type {
 	WMI_HOST_PLATFORM_HIGH_PERF,
 	WMI_HOST_PLATFORM_LOW_PERF,
 };
+
+enum wmi_bss_survey_req_type {
+	WMI_BSS_SURVEY_REQ_TYPE_READ = 1,
+	WMI_BSS_SURVEY_REQ_TYPE_READ_CLEAR,
+};
+
+struct wmi_pdev_chan_info_req_cmd {
+	__le32 type;
+	__le32 reserved;
+} __packed;
 
 struct ath10k;
 struct ath10k_vif;

@@ -235,6 +235,8 @@ static void __init pseries_discover_pic(void)
 
 	for_each_node_by_name(np, "interrupt-controller") {
 		typep = of_get_property(np, "compatible", NULL);
+		if (!typep)
+			continue;
 		if (strstr(typep, "open-pic")) {
 			pSeries_mpic_node = of_node_get(np);
 			ppc_md.init_IRQ       = pseries_mpic_init_IRQ;
@@ -265,7 +267,7 @@ static int pci_dn_reconfig_notifier(struct notifier_block *nb, unsigned long act
 		pdn = parent ? PCI_DN(parent) : NULL;
 		if (pdn) {
 			/* Create pdn and EEH device */
-			update_dn_pci_info(np, pdn->phb);
+			pci_add_device_node_info(pdn->phb, np);
 			eeh_dev_init(PCI_DN(np), pdn->phb);
 		}
 

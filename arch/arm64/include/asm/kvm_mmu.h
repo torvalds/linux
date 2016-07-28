@@ -45,18 +45,6 @@
  */
 #define TRAMPOLINE_VA		(HYP_PAGE_OFFSET_MASK & PAGE_MASK)
 
-/*
- * KVM_MMU_CACHE_MIN_PAGES is the number of stage2 page table translation
- * levels in addition to the PGD and potentially the PUD which are
- * pre-allocated (we pre-allocate the fake PGD and the PUD when the Stage-2
- * tables use one level of tables less than the kernel.
- */
-#ifdef CONFIG_ARM64_64K_PAGES
-#define KVM_MMU_CACHE_MIN_PAGES	1
-#else
-#define KVM_MMU_CACHE_MIN_PAGES	2
-#endif
-
 #ifdef __ASSEMBLY__
 
 #include <asm/alternative.h>
@@ -91,6 +79,8 @@ alternative_endif
 #define KVM_PHYS_SIZE	(1UL << KVM_PHYS_SHIFT)
 #define KVM_PHYS_MASK	(KVM_PHYS_SIZE - 1UL)
 
+#include <asm/stage2_pgtable.h>
+
 int create_hyp_mappings(void *from, void *to);
 int create_hyp_io_mappings(void *from, void *to, phys_addr_t);
 void free_boot_hyp_pgd(void);
@@ -122,19 +112,32 @@ static inline void kvm_clean_pmd_entry(pmd_t *pmd) {}
 static inline void kvm_clean_pte(pte_t *pte) {}
 static inline void kvm_clean_pte_entry(pte_t *pte) {}
 
-static inline void kvm_set_s2pte_writable(pte_t *pte)
+static inline pte_t kvm_s2pte_mkwrite(pte_t pte)
 {
-	pte_val(*pte) |= PTE_S2_RDWR;
+	pte_val(pte) |= PTE_S2_RDWR;
+	return pte;
 }
 
-static inline void kvm_set_s2pmd_writable(pmd_t *pmd)
+static inline pmd_t kvm_s2pmd_mkwrite(pmd_t pmd)
 {
-	pmd_val(*pmd) |= PMD_S2_RDWR;
+	pmd_val(pmd) |= PMD_S2_RDWR;
+	return pmd;
 }
 
 static inline void kvm_set_s2pte_readonly(pte_t *pte)
 {
-	pte_val(*pte) = (pte_val(*pte) & ~PTE_S2_RDWR) | PTE_S2_RDONLY;
+	pteval_t pteval;
+	unsigned long tmp;
+
+	asm volatile("//	kvm_set_s2pte_readonly\n"
+	"	prfm	pstl1strm, %2\n"
+	"1:	ldxr	%0, %2\n"
+	"	and	%0, %0, %3		// clear PTE_S2_RDWR\n"
+	"	orr	%0, %0, %4		// set PTE_S2_RDONLY\n"
+	"	stxr	%w1, %0, %2\n"
+	"	cbnz	%w1, 1b\n"
+	: "=&r" (pteval), "=&r" (tmp), "+Q" (pte_val(*pte))
+	: "L" (~PTE_S2_RDWR), "L" (PTE_S2_RDONLY));
 }
 
 static inline bool kvm_s2pte_readonly(pte_t *pte)
@@ -144,69 +147,12 @@ static inline bool kvm_s2pte_readonly(pte_t *pte)
 
 static inline void kvm_set_s2pmd_readonly(pmd_t *pmd)
 {
-	pmd_val(*pmd) = (pmd_val(*pmd) & ~PMD_S2_RDWR) | PMD_S2_RDONLY;
+	kvm_set_s2pte_readonly((pte_t *)pmd);
 }
 
 static inline bool kvm_s2pmd_readonly(pmd_t *pmd)
 {
-	return (pmd_val(*pmd) & PMD_S2_RDWR) == PMD_S2_RDONLY;
-}
-
-
-#define kvm_pgd_addr_end(addr, end)	pgd_addr_end(addr, end)
-#define kvm_pud_addr_end(addr, end)	pud_addr_end(addr, end)
-#define kvm_pmd_addr_end(addr, end)	pmd_addr_end(addr, end)
-
-/*
- * In the case where PGDIR_SHIFT is larger than KVM_PHYS_SHIFT, we can address
- * the entire IPA input range with a single pgd entry, and we would only need
- * one pgd entry.  Note that in this case, the pgd is actually not used by
- * the MMU for Stage-2 translations, but is merely a fake pgd used as a data
- * structure for the kernel pgtable macros to work.
- */
-#if PGDIR_SHIFT > KVM_PHYS_SHIFT
-#define PTRS_PER_S2_PGD_SHIFT	0
-#else
-#define PTRS_PER_S2_PGD_SHIFT	(KVM_PHYS_SHIFT - PGDIR_SHIFT)
-#endif
-#define PTRS_PER_S2_PGD		(1 << PTRS_PER_S2_PGD_SHIFT)
-
-#define kvm_pgd_index(addr)	(((addr) >> PGDIR_SHIFT) & (PTRS_PER_S2_PGD - 1))
-
-/*
- * If we are concatenating first level stage-2 page tables, we would have less
- * than or equal to 16 pointers in the fake PGD, because that's what the
- * architecture allows.  In this case, (4 - CONFIG_PGTABLE_LEVELS)
- * represents the first level for the host, and we add 1 to go to the next
- * level (which uses contatenation) for the stage-2 tables.
- */
-#if PTRS_PER_S2_PGD <= 16
-#define KVM_PREALLOC_LEVEL	(4 - CONFIG_PGTABLE_LEVELS + 1)
-#else
-#define KVM_PREALLOC_LEVEL	(0)
-#endif
-
-static inline void *kvm_get_hwpgd(struct kvm *kvm)
-{
-	pgd_t *pgd = kvm->arch.pgd;
-	pud_t *pud;
-
-	if (KVM_PREALLOC_LEVEL == 0)
-		return pgd;
-
-	pud = pud_offset(pgd, 0);
-	if (KVM_PREALLOC_LEVEL == 1)
-		return pud;
-
-	BUG_ON(KVM_PREALLOC_LEVEL != 2);
-	return pmd_offset(pud, 0);
-}
-
-static inline unsigned int kvm_get_hwpgd_size(void)
-{
-	if (KVM_PREALLOC_LEVEL > 0)
-		return PTRS_PER_S2_PGD * PAGE_SIZE;
-	return PTRS_PER_S2_PGD * sizeof(pgd_t);
+	return kvm_s2pte_readonly((pte_t *)pmd);
 }
 
 static inline bool kvm_page_empty(void *ptr)
@@ -215,22 +161,19 @@ static inline bool kvm_page_empty(void *ptr)
 	return page_count(ptr_page) == 1;
 }
 
-#define kvm_pte_table_empty(kvm, ptep) kvm_page_empty(ptep)
+#define hyp_pte_table_empty(ptep) kvm_page_empty(ptep)
 
 #ifdef __PAGETABLE_PMD_FOLDED
-#define kvm_pmd_table_empty(kvm, pmdp) (0)
+#define hyp_pmd_table_empty(pmdp) (0)
 #else
-#define kvm_pmd_table_empty(kvm, pmdp) \
-	(kvm_page_empty(pmdp) && (!(kvm) || KVM_PREALLOC_LEVEL < 2))
+#define hyp_pmd_table_empty(pmdp) kvm_page_empty(pmdp)
 #endif
 
 #ifdef __PAGETABLE_PUD_FOLDED
-#define kvm_pud_table_empty(kvm, pudp) (0)
+#define hyp_pud_table_empty(pudp) (0)
 #else
-#define kvm_pud_table_empty(kvm, pudp) \
-	(kvm_page_empty(pudp) && (!(kvm) || KVM_PREALLOC_LEVEL < 1))
+#define hyp_pud_table_empty(pudp) kvm_page_empty(pudp)
 #endif
-
 
 struct kvm;
 

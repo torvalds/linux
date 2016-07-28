@@ -375,8 +375,9 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 		return -EBUSY;
 	}
 
-	/* scan on P2P_DEVICE is handled as p2p search */
-	if (wdev->iftype == NL80211_IFTYPE_P2P_DEVICE) {
+	/* social scan on P2P_DEVICE is handled as p2p search */
+	if (wdev->iftype == NL80211_IFTYPE_P2P_DEVICE &&
+	    wil_p2p_is_social_scan(request)) {
 		wil->scan_request = request;
 		wil->radio_wdev = wdev;
 		rc = wil_p2p_search(wil, request);

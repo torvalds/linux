@@ -276,7 +276,9 @@ void lustre_assert_wire_constants(void)
 		 (long long)FLD_QUERY);
 	LASSERTF(FLD_FIRST_OPC == 900, "found %lld\n",
 		 (long long)FLD_FIRST_OPC);
-	LASSERTF(FLD_LAST_OPC == 901, "found %lld\n",
+	LASSERTF(FLD_READ == 901, "found %lld\n",
+		 (long long)FLD_READ);
+	LASSERTF(FLD_LAST_OPC == 902, "found %lld\n",
 		 (long long)FLD_LAST_OPC);
 	LASSERTF(SEQ_QUERY == 700, "found %lld\n",
 		 (long long)SEQ_QUERY);
@@ -1069,6 +1071,8 @@ void lustre_assert_wire_constants(void)
 		 OBD_CONNECT_PINGLESS);
 	LASSERTF(OBD_CONNECT_FLOCK_DEAD == 0x8000000000000ULL,
 		 "found 0x%.16llxULL\n", OBD_CONNECT_FLOCK_DEAD);
+	LASSERTF(OBD_CONNECT_OPEN_BY_FID == 0x20000000000000ULL,
+		 "found 0x%.16llxULL\n", OBD_CONNECT_OPEN_BY_FID);
 	LASSERTF(OBD_CKSUM_CRC32 == 0x00000001UL, "found 0x%.8xUL\n",
 		(unsigned)OBD_CKSUM_CRC32);
 	LASSERTF(OBD_CKSUM_ADLER == 0x00000002UL, "found 0x%.8xUL\n",
@@ -1639,6 +1643,12 @@ void lustre_assert_wire_constants(void)
 		OBD_BRW_ASYNC);
 	LASSERTF(OBD_BRW_MEMALLOC == 0x800, "found 0x%.8x\n",
 		OBD_BRW_MEMALLOC);
+	LASSERTF(OBD_BRW_OVER_USRQUOTA == 0x1000, "found 0x%.8x\n",
+		 OBD_BRW_OVER_USRQUOTA);
+	LASSERTF(OBD_BRW_OVER_GRPQUOTA == 0x2000, "found 0x%.8x\n",
+		 OBD_BRW_OVER_GRPQUOTA);
+	LASSERTF(OBD_BRW_SOFT_SYNC == 0x4000, "found 0x%.8x\n",
+		 OBD_BRW_SOFT_SYNC);
 
 	/* Checks for struct ost_body */
 	LASSERTF((int)sizeof(struct ost_body) == 208, "found %lld\n",

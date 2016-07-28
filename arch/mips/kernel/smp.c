@@ -243,18 +243,6 @@ static int __init mips_smp_ipi_init(void)
 	struct irq_domain *ipidomain;
 	struct device_node *node;
 
-	/*
-	 * In some cases like qemu-malta, it is desired to try SMP with
-	 * a single core. Qemu-malta has no GIC, so an attempt to set any IPIs
-	 * would cause a BUG_ON() to be triggered since there's no ipidomain.
-	 *
-	 * Since for a single core system IPIs aren't required really, skip the
-	 * initialisation which should generally keep any such configurations
-	 * happy and only fail hard when trying to truely run SMP.
-	 */
-	if (cpumask_weight(cpu_possible_mask) == 1)
-		return 0;
-
 	node = of_irq_find_parent(of_root);
 	ipidomain = irq_find_matching_host(node, DOMAIN_BUS_IPI);
 
@@ -266,7 +254,17 @@ static int __init mips_smp_ipi_init(void)
 	if (node && !ipidomain)
 		ipidomain = irq_find_matching_host(NULL, DOMAIN_BUS_IPI);
 
-	BUG_ON(!ipidomain);
+	/*
+	 * There are systems which only use IPI domains some of the time,
+	 * depending upon configuration we don't know until runtime. An
+	 * example is Malta where we may compile in support for GIC & the
+	 * MT ASE, but run on a system which has multiple VPEs in a single
+	 * core and doesn't include a GIC. Until all IPI implementations
+	 * have been converted to use IPI domains the best we can do here
+	 * is to return & hope some other code sets up the IPIs.
+	 */
+	if (!ipidomain)
+		return 0;
 
 	call_virq = irq_reserve_ipi(ipidomain, cpu_possible_mask);
 	BUG_ON(!call_virq);

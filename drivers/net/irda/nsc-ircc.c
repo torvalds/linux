@@ -1253,7 +1253,7 @@ static void nsc_ircc_change_dongle_speed(int iobase, int speed, int dongle_id)
  */
 static __u8 nsc_ircc_change_speed(struct nsc_ircc_cb *self, __u32 speed)
 {
-	struct net_device *dev = self->netdev;
+	struct net_device *dev;
 	__u8 mcr = MCR_SIR;
 	int iobase; 
 	__u8 bank;
@@ -1263,6 +1263,7 @@ static __u8 nsc_ircc_change_speed(struct nsc_ircc_cb *self, __u32 speed)
 
 	IRDA_ASSERT(self != NULL, return 0;);
 
+	dev = self->netdev;
 	iobase = self->io.fir_base;
 
 	/* Update accounting for new speed */

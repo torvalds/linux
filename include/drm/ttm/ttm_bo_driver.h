@@ -434,6 +434,18 @@ struct ttm_bo_driver {
 	 */
 	int (*io_mem_reserve)(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem);
 	void (*io_mem_free)(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem);
+
+	/**
+	 * Optional driver callback for when BO is removed from the LRU.
+	 * Called with LRU lock held immediately before the removal.
+	 */
+	void (*lru_removal)(struct ttm_buffer_object *bo);
+
+	/**
+	 * Return the list_head after which a BO should be inserted in the LRU.
+	 */
+	struct list_head *(*lru_tail)(struct ttm_buffer_object *bo);
+	struct list_head *(*swap_lru_tail)(struct ttm_buffer_object *bo);
 };
 
 /**
@@ -502,7 +514,6 @@ struct ttm_bo_global {
  * @vma_manager: Address space manager
  * lru_lock: Spinlock that protects the buffer+device lru lists and
  * ddestroy lists.
- * @val_seq: Current validation sequence.
  * @dev_mapping: A pointer to the struct address_space representing the
  * device address space.
  * @wq: Work queue structure for the delayed delete workqueue.
@@ -528,7 +539,6 @@ struct ttm_bo_device {
 	 * Protected by the global:lru lock.
 	 */
 	struct list_head ddestroy;
-	uint32_t val_seq;
 
 	/*
 	 * Protected by load / firstopen / lastclose /unload sync.
@@ -753,14 +763,16 @@ extern void ttm_mem_io_unlock(struct ttm_mem_type_manager *man);
 extern void ttm_bo_del_sub_from_lru(struct ttm_buffer_object *bo);
 extern void ttm_bo_add_to_lru(struct ttm_buffer_object *bo);
 
+struct list_head *ttm_bo_default_lru_tail(struct ttm_buffer_object *bo);
+struct list_head *ttm_bo_default_swap_lru_tail(struct ttm_buffer_object *bo);
+
 /**
  * __ttm_bo_reserve:
  *
  * @bo: A pointer to a struct ttm_buffer_object.
  * @interruptible: Sleep interruptible if waiting.
  * @no_wait: Don't sleep while trying to reserve, rather return -EBUSY.
- * @use_ticket: If @bo is already reserved, Only sleep waiting for
- * it to become unreserved if @ticket->stamp is older.
+ * @ticket: ticket used to acquire the ww_mutex.
  *
  * Will not remove reserved buffers from the lru lists.
  * Otherwise identical to ttm_bo_reserve.
@@ -776,8 +788,7 @@ extern void ttm_bo_add_to_lru(struct ttm_buffer_object *bo);
  * be returned if @use_ticket is set to true.
  */
 static inline int __ttm_bo_reserve(struct ttm_buffer_object *bo,
-				   bool interruptible,
-				   bool no_wait, bool use_ticket,
+				   bool interruptible, bool no_wait,
 				   struct ww_acquire_ctx *ticket)
 {
 	int ret = 0;
@@ -806,8 +817,7 @@ static inline int __ttm_bo_reserve(struct ttm_buffer_object *bo,
  * @bo: A pointer to a struct ttm_buffer_object.
  * @interruptible: Sleep interruptible if waiting.
  * @no_wait: Don't sleep while trying to reserve, rather return -EBUSY.
- * @use_ticket: If @bo is already reserved, Only sleep waiting for
- * it to become unreserved if @ticket->stamp is older.
+ * @ticket: ticket used to acquire the ww_mutex.
  *
  * Locks a buffer object for validation. (Or prevents other processes from
  * locking it for validation) and removes it from lru lists, while taking
@@ -846,15 +856,14 @@ static inline int __ttm_bo_reserve(struct ttm_buffer_object *bo,
  * be returned if @use_ticket is set to true.
  */
 static inline int ttm_bo_reserve(struct ttm_buffer_object *bo,
-				 bool interruptible,
-				 bool no_wait, bool use_ticket,
+				 bool interruptible, bool no_wait,
 				 struct ww_acquire_ctx *ticket)
 {
 	int ret;
 
 	WARN_ON(!atomic_read(&bo->kref.refcount));
 
-	ret = __ttm_bo_reserve(bo, interruptible, no_wait, use_ticket, ticket);
+	ret = __ttm_bo_reserve(bo, interruptible, no_wait, ticket);
 	if (likely(ret == 0))
 		ttm_bo_del_sub_from_lru(bo);
 
@@ -1030,8 +1039,7 @@ extern pgprot_t ttm_io_prot(uint32_t caching_flags, pgprot_t tmp);
 
 extern const struct ttm_mem_type_manager_func ttm_bo_manager_func;
 
-#if (defined(CONFIG_AGP) || (defined(CONFIG_AGP_MODULE) && defined(MODULE)))
-#define TTM_HAS_AGP
+#if IS_ENABLED(CONFIG_AGP)
 #include <linux/agp_backend.h>
 
 /**

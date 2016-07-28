@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2009-2015 Emulex.  All rights reserved.                *
+ * Copyright (C) 2009-2016 Emulex.  All rights reserved.                *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -2557,7 +2557,26 @@ struct lpfc_mbx_memory_dump_type3 {
 
 /* SFF-8472 Table 3.1a Diagnostics: Data Fields Address/Page A2 */
 
-#define SSF_AW_THRESHOLDS		0
+#define SSF_TEMP_HIGH_ALARM		0
+#define SSF_TEMP_LOW_ALARM		2
+#define SSF_TEMP_HIGH_WARNING		4
+#define SSF_TEMP_LOW_WARNING		6
+#define SSF_VOLTAGE_HIGH_ALARM		8
+#define SSF_VOLTAGE_LOW_ALARM		10
+#define SSF_VOLTAGE_HIGH_WARNING	12
+#define SSF_VOLTAGE_LOW_WARNING		14
+#define SSF_BIAS_HIGH_ALARM		16
+#define SSF_BIAS_LOW_ALARM		18
+#define SSF_BIAS_HIGH_WARNING		20
+#define SSF_BIAS_LOW_WARNING		22
+#define SSF_TXPOWER_HIGH_ALARM		24
+#define SSF_TXPOWER_LOW_ALARM		26
+#define SSF_TXPOWER_HIGH_WARNING	28
+#define SSF_TXPOWER_LOW_WARNING		30
+#define SSF_RXPOWER_HIGH_ALARM		32
+#define SSF_RXPOWER_LOW_ALARM		34
+#define SSF_RXPOWER_HIGH_WARNING	36
+#define SSF_RXPOWER_LOW_WARNING		38
 #define SSF_EXT_CAL_CONSTANTS		56
 #define SSF_CC_DMI			95
 #define SFF_TEMPERATURE_B1		96
@@ -2865,6 +2884,9 @@ struct lpfc_sli4_parameters {
 	uint32_t word17;
 	uint32_t word18;
 	uint32_t word19;
+#define cfg_ext_embed_cb_SHIFT			0
+#define cfg_ext_embed_cb_MASK			0x00000001
+#define cfg_ext_embed_cb_WORD			word19
 };
 
 struct lpfc_mbx_get_sli4_parameters {
@@ -3919,6 +3941,9 @@ union lpfc_wqe {
 union lpfc_wqe128 {
 	uint32_t words[32];
 	struct lpfc_wqe_generic generic;
+	struct fcp_icmnd64_wqe fcp_icmd;
+	struct fcp_iread64_wqe fcp_iread;
+	struct fcp_iwrite64_wqe fcp_iwrite;
 	struct xmit_seq64_wqe xmit_sequence;
 	struct gen_req64_wqe gen_req;
 };

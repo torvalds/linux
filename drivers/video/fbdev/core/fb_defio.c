@@ -164,7 +164,7 @@ static const struct address_space_operations fb_deferred_io_aops = {
 	.set_page_dirty = fb_deferred_io_set_page_dirty,
 };
 
-static int fb_deferred_io_mmap(struct fb_info *info, struct vm_area_struct *vma)
+int fb_deferred_io_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	vma->vm_ops = &fb_deferred_io_vm_ops;
 	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
@@ -173,6 +173,7 @@ static int fb_deferred_io_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	vma->vm_private_data = info;
 	return 0;
 }
+EXPORT_SYMBOL(fb_deferred_io_mmap);
 
 /* workqueue callback */
 static void fb_deferred_io_work(struct work_struct *work)

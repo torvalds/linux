@@ -105,6 +105,7 @@ config X86
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS
+	select HAVE_EXIT_THREAD
 	select HAVE_FENTRY			if X86_64
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_FUNCTION_GRAPH_FP_TEST
@@ -130,6 +131,7 @@ config X86
 	select HAVE_MEMBLOCK
 	select HAVE_MEMBLOCK_NODE_MAP
 	select HAVE_MIXED_BREAKPOINTS_REGS
+	select HAVE_NMI
 	select HAVE_OPROFILE
 	select HAVE_OPTPROBES
 	select HAVE_PCSPKR_PLATFORM
@@ -2436,6 +2438,15 @@ config PCI_CNB20LE_QUIRK
 	  You should say N unless you know you need this.
 
 source "drivers/pci/Kconfig"
+
+config ISA_BUS
+	bool "ISA-style bus support on modern systems" if EXPERT
+	select ISA_BUS_API
+	help
+	  Enables ISA-style drivers on modern systems. This is necessary to
+	  support PC/104 devices on X86_64 platforms.
+
+	  If unsure, say N.
 
 # x86_64 have no ISA slots, but can have ISA-style DMA.
 config ISA_DMA_API

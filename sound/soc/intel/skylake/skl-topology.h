@@ -281,7 +281,7 @@ enum skl_module_state {
 };
 
 struct skl_module_cfg {
-	char guid[SKL_UUID_STR_SZ];
+	u8 guid[16];
 	struct skl_module_inst_id id;
 	u8 domain;
 	bool homogenous_inputs;

@@ -21,3 +21,13 @@ Contact:	Konrad Rzeszutek <ketuzsezr@darnok.org>
 Description:	The /sys/firmware/ibft/ethernetX directory will contain
 		files that expose the iSCSI Boot Firmware Table NIC data.
 		Usually this contains the IP address, MAC, and gateway of the NIC.
+
+What:		/sys/firmware/ibft/acpi_header
+Date:		March 2016
+Contact:	David Bond <dbond@suse.com>
+Description:	The /sys/firmware/ibft/acpi_header directory will contain files
+		that expose the SIGNATURE, OEM_ID, and OEM_TABLE_ID fields of the
+		acpi table header of the iBFT structure.  This will allow for
+		identification of the creator of the table which is useful in
+		determining quirks associated with some adapters when used in
+		hardware vs software iscsi initiator mode.

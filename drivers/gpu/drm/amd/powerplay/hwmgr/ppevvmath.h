@@ -127,8 +127,8 @@ fInt fExponential(fInt exponent)        /*Can be used to calculate e^exponent*/
 	fInt solution = fPositiveOne; /*Starting off with baseline of 1 */
 	fInt error_term;
 
-	uint32_t k_array[11] = {55452, 27726, 13863, 6931, 4055, 2231, 1178, 606, 308, 155, 78};
-	uint32_t expk_array[11] = {2560000, 160000, 40000, 20000, 15000, 12500, 11250, 10625, 10313, 10156, 10078};
+	static const uint32_t k_array[11] = {55452, 27726, 13863, 6931, 4055, 2231, 1178, 606, 308, 155, 78};
+	static const uint32_t expk_array[11] = {2560000, 160000, 40000, 20000, 15000, 12500, 11250, 10625, 10313, 10156, 10078};
 
 	if (GreaterThan(fZERO, exponent)) {
 		exponent = fNegate(exponent);
@@ -162,8 +162,8 @@ fInt fNaturalLog(fInt value)
 	fInt solution = ConvertToFraction(0); /*Starting off with baseline of 0 */
 	fInt error_term;
 
-	uint32_t k_array[10] = {160000, 40000, 20000, 15000, 12500, 11250, 10625, 10313, 10156, 10078};
-	uint32_t logk_array[10] = {27726, 13863, 6931, 4055, 2231, 1178, 606, 308, 155, 78};
+	static const uint32_t k_array[10] = {160000, 40000, 20000, 15000, 12500, 11250, 10625, 10313, 10156, 10078};
+	static const uint32_t logk_array[10] = {27726, 13863, 6931, 4055, 2231, 1178, 606, 308, 155, 78};
 
 	while (GreaterThan(fAdd(value, fNegativeOne), upper_bound)) {
 		for (i = 0; i < 10; i++) {

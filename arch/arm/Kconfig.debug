@@ -268,14 +268,6 @@ choice
 		  Say Y here if you want kernel low-level debugging support
 		  on HI3620 UART.
 
-	config DEBUG_HI3716_UART
-		bool "Hisilicon Hi3716 Debug UART"
-		depends on ARCH_HI3xxx
-		select DEBUG_UART_PL01X
-		help
-		  Say Y here if you want kernel low-level debugging support
-		  on HI3716 UART.
-
 	config DEBUG_HIGHBANK_UART
 		bool "Kernel low-level debugging messages via Highbank UART"
 		depends on ARCH_HIGHBANK

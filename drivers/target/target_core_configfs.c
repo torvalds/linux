@@ -99,6 +99,67 @@ static ssize_t target_core_item_version_show(struct config_item *item,
 
 CONFIGFS_ATTR_RO(target_core_item_, version);
 
+char db_root[DB_ROOT_LEN] = DB_ROOT_DEFAULT;
+static char db_root_stage[DB_ROOT_LEN];
+
+static ssize_t target_core_item_dbroot_show(struct config_item *item,
+					    char *page)
+{
+	return sprintf(page, "%s\n", db_root);
+}
+
+static ssize_t target_core_item_dbroot_store(struct config_item *item,
+					const char *page, size_t count)
+{
+	ssize_t read_bytes;
+	struct file *fp;
+
+	mutex_lock(&g_tf_lock);
+	if (!list_empty(&g_tf_list)) {
+		mutex_unlock(&g_tf_lock);
+		pr_err("db_root: cannot be changed: target drivers registered");
+		return -EINVAL;
+	}
+
+	if (count > (DB_ROOT_LEN - 1)) {
+		mutex_unlock(&g_tf_lock);
+		pr_err("db_root: count %d exceeds DB_ROOT_LEN-1: %u\n",
+		       (int)count, DB_ROOT_LEN - 1);
+		return -EINVAL;
+	}
+
+	read_bytes = snprintf(db_root_stage, DB_ROOT_LEN, "%s", page);
+	if (!read_bytes) {
+		mutex_unlock(&g_tf_lock);
+		return -EINVAL;
+	}
+	if (db_root_stage[read_bytes - 1] == '\n')
+		db_root_stage[read_bytes - 1] = '\0';
+
+	/* validate new db root before accepting it */
+	fp = filp_open(db_root_stage, O_RDONLY, 0);
+	if (IS_ERR(fp)) {
+		mutex_unlock(&g_tf_lock);
+		pr_err("db_root: cannot open: %s\n", db_root_stage);
+		return -EINVAL;
+	}
+	if (!S_ISDIR(fp->f_inode->i_mode)) {
+		filp_close(fp, 0);
+		mutex_unlock(&g_tf_lock);
+		pr_err("db_root: not a directory: %s\n", db_root_stage);
+		return -EINVAL;
+	}
+	filp_close(fp, 0);
+
+	strncpy(db_root, db_root_stage, read_bytes);
+
+	mutex_unlock(&g_tf_lock);
+
+	return read_bytes;
+}
+
+CONFIGFS_ATTR(target_core_item_, dbroot);
+
 static struct target_fabric_configfs *target_core_get_fabric(
 	const char *name)
 {
@@ -239,6 +300,7 @@ static struct configfs_group_operations target_core_fabric_group_ops = {
  */
 static struct configfs_attribute *target_core_fabric_item_attrs[] = {
 	&target_core_item_attr_version,
+	&target_core_item_attr_dbroot,
 	NULL,
 };
 
@@ -321,14 +383,6 @@ static int target_fabric_tf_ops_check(const struct target_core_fabric_ops *tfo)
 	}
 	if (!tfo->release_cmd) {
 		pr_err("Missing tfo->release_cmd()\n");
-		return -EINVAL;
-	}
-	if (!tfo->shutdown_session) {
-		pr_err("Missing tfo->shutdown_session()\n");
-		return -EINVAL;
-	}
-	if (!tfo->close_session) {
-		pr_err("Missing tfo->close_session()\n");
 		return -EINVAL;
 	}
 	if (!tfo->sess_get_index) {

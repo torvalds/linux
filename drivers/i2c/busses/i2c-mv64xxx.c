@@ -134,9 +134,7 @@ struct mv64xxx_i2c_data {
 	int			rc;
 	u32			freq_m;
 	u32			freq_n;
-#if defined(CONFIG_HAVE_CLK)
 	struct clk              *clk;
-#endif
 	wait_queue_head_t	waitq;
 	spinlock_t		lock;
 	struct i2c_msg		*msg;
@@ -757,7 +755,6 @@ static const struct of_device_id mv64xxx_i2c_of_match_table[] = {
 MODULE_DEVICE_TABLE(of, mv64xxx_i2c_of_match_table);
 
 #ifdef CONFIG_OF
-#ifdef CONFIG_HAVE_CLK
 static int
 mv64xxx_calc_freq(struct mv64xxx_i2c_data *drv_data,
 		  const int tclk, const int n, const int m)
@@ -791,25 +788,20 @@ mv64xxx_find_baud_factors(struct mv64xxx_i2c_data *drv_data,
 		return false;
 	return true;
 }
-#endif /* CONFIG_HAVE_CLK */
 
 static int
 mv64xxx_of_config(struct mv64xxx_i2c_data *drv_data,
 		  struct device *dev)
 {
-	/* CLK is mandatory when using DT to describe the i2c bus. We
-	 * need to know tclk in order to calculate bus clock
-	 * factors.
-	 */
-#if !defined(CONFIG_HAVE_CLK)
-	/* Have OF but no CLK */
-	return -ENODEV;
-#else
 	const struct of_device_id *device;
 	struct device_node *np = dev->of_node;
 	u32 bus_freq, tclk;
 	int rc = 0;
 
+	/* CLK is mandatory when using DT to describe the i2c bus. We
+	 * need to know tclk in order to calculate bus clock
+	 * factors.
+	 */
 	if (IS_ERR(drv_data->clk)) {
 		rc = -ENODEV;
 		goto out;
@@ -869,7 +861,6 @@ mv64xxx_of_config(struct mv64xxx_i2c_data *drv_data,
 
 out:
 	return rc;
-#endif
 }
 #else /* CONFIG_OF */
 static int
@@ -907,14 +898,13 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 	init_waitqueue_head(&drv_data->waitq);
 	spin_lock_init(&drv_data->lock);
 
-#if defined(CONFIG_HAVE_CLK)
 	/* Not all platforms have a clk */
 	drv_data->clk = devm_clk_get(&pd->dev, NULL);
-	if (!IS_ERR(drv_data->clk)) {
-		clk_prepare(drv_data->clk);
-		clk_enable(drv_data->clk);
-	}
-#endif
+	if (IS_ERR(drv_data->clk) && PTR_ERR(drv_data->clk) == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
+	if (!IS_ERR(drv_data->clk))
+		clk_prepare_enable(drv_data->clk);
+
 	if (pdata) {
 		drv_data->freq_m = pdata->freq_m;
 		drv_data->freq_n = pdata->freq_n;
@@ -964,13 +954,10 @@ exit_reset:
 	if (!IS_ERR_OR_NULL(drv_data->rstc))
 		reset_control_assert(drv_data->rstc);
 exit_clk:
-#if defined(CONFIG_HAVE_CLK)
 	/* Not all platforms have a clk */
-	if (!IS_ERR(drv_data->clk)) {
-		clk_disable(drv_data->clk);
-		clk_unprepare(drv_data->clk);
-	}
-#endif
+	if (!IS_ERR(drv_data->clk))
+		clk_disable_unprepare(drv_data->clk);
+
 	return rc;
 }
 
@@ -983,13 +970,9 @@ mv64xxx_i2c_remove(struct platform_device *dev)
 	free_irq(drv_data->irq, drv_data);
 	if (!IS_ERR_OR_NULL(drv_data->rstc))
 		reset_control_assert(drv_data->rstc);
-#if defined(CONFIG_HAVE_CLK)
 	/* Not all platforms have a clk */
-	if (!IS_ERR(drv_data->clk)) {
-		clk_disable(drv_data->clk);
-		clk_unprepare(drv_data->clk);
-	}
-#endif
+	if (!IS_ERR(drv_data->clk))
+		clk_disable_unprepare(drv_data->clk);
 
 	return 0;
 }

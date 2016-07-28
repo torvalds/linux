@@ -115,7 +115,7 @@ int hid_sensor_power_state(struct hid_sensor_common *st, bool state)
 		return ret;
 	}
 
- 	return 0;
+	return 0;
 #else
 	atomic_set(&st->user_requested_state, state);
 	return _hid_sensor_power_state(st, state);

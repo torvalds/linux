@@ -254,38 +254,28 @@ static void cleanup_service_irqs(struct pci_dev *dev)
 static int get_port_device_capability(struct pci_dev *dev)
 {
 	int services = 0;
-	u32 reg32;
 	int cap_mask = 0;
-	int err;
 
 	if (pcie_ports_disabled)
 		return 0;
 
 	cap_mask = PCIE_PORT_SERVICE_PME | PCIE_PORT_SERVICE_HP
-			| PCIE_PORT_SERVICE_VC;
+			| PCIE_PORT_SERVICE_VC | PCIE_PORT_SERVICE_DPC;
 	if (pci_aer_available())
 		cap_mask |= PCIE_PORT_SERVICE_AER;
 
-	if (pcie_ports_auto) {
-		err = pcie_port_platform_notify(dev, &cap_mask);
-		if (err)
-			return 0;
-	}
+	if (pcie_ports_auto)
+		pcie_port_platform_notify(dev, &cap_mask);
 
 	/* Hot-Plug Capable */
-	if ((cap_mask & PCIE_PORT_SERVICE_HP) &&
-	    pcie_caps_reg(dev) & PCI_EXP_FLAGS_SLOT) {
-		pcie_capability_read_dword(dev, PCI_EXP_SLTCAP, &reg32);
-		if (reg32 & PCI_EXP_SLTCAP_HPC) {
-			services |= PCIE_PORT_SERVICE_HP;
-			/*
-			 * Disable hot-plug interrupts in case they have been
-			 * enabled by the BIOS and the hot-plug service driver
-			 * is not loaded.
-			 */
-			pcie_capability_clear_word(dev, PCI_EXP_SLTCTL,
-				PCI_EXP_SLTCTL_CCIE | PCI_EXP_SLTCTL_HPIE);
-		}
+	if ((cap_mask & PCIE_PORT_SERVICE_HP) && dev->is_hotplug_bridge) {
+		services |= PCIE_PORT_SERVICE_HP;
+		/*
+		 * Disable hot-plug interrupts in case they have been enabled
+		 * by the BIOS and the hot-plug service driver is not loaded.
+		 */
+		pcie_capability_clear_word(dev, PCI_EXP_SLTCTL,
+			  PCI_EXP_SLTCTL_CCIE | PCI_EXP_SLTCTL_HPIE);
 	}
 	/* AER capable */
 	if ((cap_mask & PCIE_PORT_SERVICE_AER)
@@ -311,6 +301,8 @@ static int get_port_device_capability(struct pci_dev *dev)
 		 */
 		pcie_pme_interrupt_enable(dev, false);
 	}
+	if (pci_find_ext_capability(dev, PCI_EXT_CAP_ID_DPC))
+		services |= PCIE_PORT_SERVICE_DPC;
 
 	return services;
 }
@@ -338,7 +330,7 @@ static int pcie_device_init(struct pci_dev *pdev, int service, int irq)
 	device = &pcie->device;
 	device->bus = &pcie_port_bus_type;
 	device->release = release_pcie_device;	/* callback to free pcie dev */
-	dev_set_name(device, "%s:pcie%02x",
+	dev_set_name(device, "%s:pcie%03x",
 		     pci_name(pdev),
 		     get_descriptor_id(pci_pcie_type(pdev), service));
 	device->parent = &pdev->dev;

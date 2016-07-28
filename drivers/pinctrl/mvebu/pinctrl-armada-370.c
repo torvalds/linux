@@ -417,18 +417,12 @@ static int armada_370_pinctrl_probe(struct platform_device *pdev)
 	return mvebu_pinctrl_probe(pdev);
 }
 
-static int armada_370_pinctrl_remove(struct platform_device *pdev)
-{
-	return mvebu_pinctrl_remove(pdev);
-}
-
 static struct platform_driver armada_370_pinctrl_driver = {
 	.driver = {
 		.name = "armada-370-pinctrl",
 		.of_match_table = armada_370_pinctrl_of_match,
 	},
 	.probe = armada_370_pinctrl_probe,
-	.remove = armada_370_pinctrl_remove,
 };
 
 module_platform_driver(armada_370_pinctrl_driver);

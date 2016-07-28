@@ -1194,7 +1194,7 @@ static enum i40iw_status_code i40iw_ieq_process_buf(struct i40iw_puda_rsrc *ieq,
 
 	ioffset = (u16)(buf->data - (u8 *)buf->mem.va);
 	while (datalen) {
-		fpdu_len = i40iw_ieq_get_fpdu_length(ntohs(*(u16 *)datap));
+		fpdu_len = i40iw_ieq_get_fpdu_length(ntohs(*(__be16 *)datap));
 		if (fpdu_len > pfpdu->max_fpdu_data) {
 			i40iw_debug(ieq->dev, I40IW_DEBUG_IEQ,
 				    "%s: error bad fpdu_len\n", __func__);

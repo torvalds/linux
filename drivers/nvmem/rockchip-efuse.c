@@ -23,7 +23,6 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
-#include <linux/regmap.h>
 
 #define EFUSE_A_SHIFT			6
 #define EFUSE_A_MASK			0x3ff
@@ -41,17 +40,9 @@ struct rockchip_efuse_chip {
 	struct clk *clk;
 };
 
-static int rockchip_efuse_write(void *context, const void *data, size_t count)
+static int rockchip_efuse_read(void *context, unsigned int offset,
+			       void *val, size_t bytes)
 {
-	/* Nothing TBD, Read-Only */
-	return 0;
-}
-
-static int rockchip_efuse_read(void *context,
-			       const void *reg, size_t reg_size,
-			       void *val, size_t val_size)
-{
-	unsigned int offset = *(u32 *)reg;
 	struct rockchip_efuse_chip *efuse = context;
 	u8 *buf = val;
 	int ret;
@@ -64,12 +55,12 @@ static int rockchip_efuse_read(void *context,
 
 	writel(EFUSE_LOAD | EFUSE_PGENB, efuse->base + REG_EFUSE_CTRL);
 	udelay(1);
-	while (val_size) {
+	while (bytes--) {
 		writel(readl(efuse->base + REG_EFUSE_CTRL) &
 			     (~(EFUSE_A_MASK << EFUSE_A_SHIFT)),
 			     efuse->base + REG_EFUSE_CTRL);
 		writel(readl(efuse->base + REG_EFUSE_CTRL) |
-			     ((offset & EFUSE_A_MASK) << EFUSE_A_SHIFT),
+			     ((offset++ & EFUSE_A_MASK) << EFUSE_A_SHIFT),
 			     efuse->base + REG_EFUSE_CTRL);
 		udelay(1);
 		writel(readl(efuse->base + REG_EFUSE_CTRL) |
@@ -79,9 +70,6 @@ static int rockchip_efuse_read(void *context,
 		writel(readl(efuse->base + REG_EFUSE_CTRL) &
 		     (~EFUSE_STROBE), efuse->base + REG_EFUSE_CTRL);
 		udelay(1);
-
-		val_size -= 1;
-		offset += 1;
 	}
 
 	/* Switch to standby mode */
@@ -92,22 +80,11 @@ static int rockchip_efuse_read(void *context,
 	return 0;
 }
 
-static struct regmap_bus rockchip_efuse_bus = {
-	.read = rockchip_efuse_read,
-	.write = rockchip_efuse_write,
-	.reg_format_endian_default = REGMAP_ENDIAN_NATIVE,
-	.val_format_endian_default = REGMAP_ENDIAN_NATIVE,
-};
-
-static struct regmap_config rockchip_efuse_regmap_config = {
-	.reg_bits = 32,
-	.reg_stride = 1,
-	.val_bits = 8,
-};
-
 static struct nvmem_config econfig = {
 	.name = "rockchip-efuse",
 	.owner = THIS_MODULE,
+	.stride = 1,
+	.word_size = 1,
 	.read_only = true,
 };
 
@@ -121,7 +98,6 @@ static int rockchip_efuse_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct nvmem_device *nvmem;
-	struct regmap *regmap;
 	struct rockchip_efuse_chip *efuse;
 
 	efuse = devm_kzalloc(&pdev->dev, sizeof(struct rockchip_efuse_chip),
@@ -139,16 +115,9 @@ static int rockchip_efuse_probe(struct platform_device *pdev)
 		return PTR_ERR(efuse->clk);
 
 	efuse->dev = &pdev->dev;
-
-	rockchip_efuse_regmap_config.max_register = resource_size(res) - 1;
-
-	regmap = devm_regmap_init(efuse->dev, &rockchip_efuse_bus,
-				  efuse, &rockchip_efuse_regmap_config);
-	if (IS_ERR(regmap)) {
-		dev_err(efuse->dev, "regmap init failed\n");
-		return PTR_ERR(regmap);
-	}
-
+	econfig.size = resource_size(res);
+	econfig.reg_read = rockchip_efuse_read;
+	econfig.priv = efuse;
 	econfig.dev = efuse->dev;
 	nvmem = nvmem_register(&econfig);
 	if (IS_ERR(nvmem))

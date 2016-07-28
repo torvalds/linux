@@ -129,6 +129,28 @@ nfs4_file_flush(struct file *file, fl_owner_t id)
 }
 
 #ifdef CONFIG_NFS_V4_2
+static ssize_t nfs4_copy_file_range(struct file *file_in, loff_t pos_in,
+				    struct file *file_out, loff_t pos_out,
+				    size_t count, unsigned int flags)
+{
+	struct inode *in_inode = file_inode(file_in);
+	struct inode *out_inode = file_inode(file_out);
+	int ret;
+
+	if (in_inode == out_inode)
+		return -EINVAL;
+
+	/* flush any pending writes */
+	ret = nfs_sync_inode(in_inode);
+	if (ret)
+		return ret;
+	ret = nfs_sync_inode(out_inode);
+	if (ret)
+		return ret;
+
+	return nfs42_proc_copy(file_in, pos_in, file_out, pos_out, count);
+}
+
 static loff_t nfs4_file_llseek(struct file *filep, loff_t offset, int whence)
 {
 	loff_t ret;
@@ -243,6 +265,7 @@ const struct file_operations nfs4_file_operations = {
 	.check_flags	= nfs_check_flags,
 	.setlease	= simple_nosetlease,
 #ifdef CONFIG_NFS_V4_2
+	.copy_file_range = nfs4_copy_file_range,
 	.llseek		= nfs4_file_llseek,
 	.fallocate	= nfs42_fallocate,
 	.clone_file_range = nfs42_clone_file_range,

@@ -60,6 +60,8 @@ unsigned int obd_dump_on_eviction;
 EXPORT_SYMBOL(obd_dump_on_eviction);
 unsigned int obd_max_dirty_pages = 256;
 EXPORT_SYMBOL(obd_max_dirty_pages);
+atomic_t obd_unstable_pages;
+EXPORT_SYMBOL(obd_unstable_pages);
 atomic_t obd_dirty_pages;
 EXPORT_SYMBOL(obd_dirty_pages);
 unsigned int obd_timeout = OBD_TIMEOUT_DEFAULT;   /* seconds */
@@ -335,7 +337,6 @@ int class_handle_ioctl(unsigned int cmd, unsigned long arg)
 		err = 0;
 		goto out;
 	}
-
 	}
 
 	if (data->ioc_dev == OBD_DEV_BY_DEVNAME) {
@@ -461,7 +462,7 @@ static int obd_init_checks(void)
 		CWARN("LPD64 wrong length! strlen(%s)=%d != 2\n", buf, len);
 		ret = -EINVAL;
 	}
-	if ((u64val & ~CFS_PAGE_MASK) >= PAGE_SIZE) {
+	if ((u64val & ~PAGE_MASK) >= PAGE_SIZE) {
 		CWARN("mask failed: u64val %llu >= %llu\n", u64val,
 		      (__u64)PAGE_SIZE);
 		ret = -EINVAL;

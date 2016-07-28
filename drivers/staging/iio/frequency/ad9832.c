@@ -31,7 +31,7 @@ static unsigned long ad9832_calc_freqreg(unsigned long mclk, unsigned long fout)
 }
 
 static int ad9832_write_frequency(struct ad9832_state *st,
-				  unsigned addr, unsigned long fout)
+				  unsigned int addr, unsigned long fout)
 {
 	unsigned long regval;
 

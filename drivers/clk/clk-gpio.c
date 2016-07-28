@@ -94,13 +94,13 @@ const struct clk_ops clk_gpio_mux_ops = {
 };
 EXPORT_SYMBOL_GPL(clk_gpio_mux_ops);
 
-static struct clk *clk_register_gpio(struct device *dev, const char *name,
+static struct clk_hw *clk_register_gpio(struct device *dev, const char *name,
 		const char * const *parent_names, u8 num_parents, unsigned gpio,
 		bool active_low, unsigned long flags,
 		const struct clk_ops *clk_gpio_ops)
 {
 	struct clk_gpio *clk_gpio;
-	struct clk *clk;
+	struct clk_hw *hw;
 	struct clk_init_data init = {};
 	unsigned long gpio_flags;
 	int err;
@@ -141,24 +141,26 @@ static struct clk *clk_register_gpio(struct device *dev, const char *name,
 	clk_gpio->gpiod = gpio_to_desc(gpio);
 	clk_gpio->hw.init = &init;
 
+	hw = &clk_gpio->hw;
 	if (dev)
-		clk = devm_clk_register(dev, &clk_gpio->hw);
+		err = devm_clk_hw_register(dev, hw);
 	else
-		clk = clk_register(NULL, &clk_gpio->hw);
+		err = clk_hw_register(NULL, hw);
 
-	if (!IS_ERR(clk))
-		return clk;
+	if (!err)
+		return hw;
 
 	if (!dev) {
 		gpiod_put(clk_gpio->gpiod);
 		kfree(clk_gpio);
 	}
 
-	return clk;
+	return ERR_PTR(err);
 }
 
 /**
- * clk_register_gpio_gate - register a gpio clock gate with the clock framework
+ * clk_hw_register_gpio_gate - register a gpio clock gate with the clock
+ * framework
  * @dev: device that is registering this clock
  * @name: name of this clock
  * @parent_name: name of this clock's parent
@@ -166,7 +168,7 @@ static struct clk *clk_register_gpio(struct device *dev, const char *name,
  * @active_low: true if gpio should be set to 0 to enable clock
  * @flags: clock flags
  */
-struct clk *clk_register_gpio_gate(struct device *dev, const char *name,
+struct clk_hw *clk_hw_register_gpio_gate(struct device *dev, const char *name,
 		const char *parent_name, unsigned gpio, bool active_low,
 		unsigned long flags)
 {
@@ -175,10 +177,24 @@ struct clk *clk_register_gpio_gate(struct device *dev, const char *name,
 			(parent_name ? 1 : 0), gpio, active_low, flags,
 			&clk_gpio_gate_ops);
 }
+EXPORT_SYMBOL_GPL(clk_hw_register_gpio_gate);
+
+struct clk *clk_register_gpio_gate(struct device *dev, const char *name,
+		const char *parent_name, unsigned gpio, bool active_low,
+		unsigned long flags)
+{
+	struct clk_hw *hw;
+
+	hw = clk_hw_register_gpio_gate(dev, name, parent_name, gpio, active_low,
+				       flags);
+	if (IS_ERR(hw))
+		return ERR_CAST(hw);
+	return hw->clk;
+}
 EXPORT_SYMBOL_GPL(clk_register_gpio_gate);
 
 /**
- * clk_register_gpio_mux - register a gpio clock mux with the clock framework
+ * clk_hw_register_gpio_mux - register a gpio clock mux with the clock framework
  * @dev: device that is registering this clock
  * @name: name of this clock
  * @parent_names: names of this clock's parents
@@ -187,7 +203,7 @@ EXPORT_SYMBOL_GPL(clk_register_gpio_gate);
  * @active_low: true if gpio should be set to 0 to enable clock
  * @flags: clock flags
  */
-struct clk *clk_register_gpio_mux(struct device *dev, const char *name,
+struct clk_hw *clk_hw_register_gpio_mux(struct device *dev, const char *name,
 		const char * const *parent_names, u8 num_parents, unsigned gpio,
 		bool active_low, unsigned long flags)
 {
@@ -198,6 +214,20 @@ struct clk *clk_register_gpio_mux(struct device *dev, const char *name,
 
 	return clk_register_gpio(dev, name, parent_names, num_parents,
 			gpio, active_low, flags, &clk_gpio_mux_ops);
+}
+EXPORT_SYMBOL_GPL(clk_hw_register_gpio_mux);
+
+struct clk *clk_register_gpio_mux(struct device *dev, const char *name,
+		const char * const *parent_names, u8 num_parents, unsigned gpio,
+		bool active_low, unsigned long flags)
+{
+	struct clk_hw *hw;
+
+	hw = clk_hw_register_gpio_mux(dev, name, parent_names, num_parents,
+			gpio, active_low, flags);
+	if (IS_ERR(hw))
+		return ERR_CAST(hw);
+	return hw->clk;
 }
 EXPORT_SYMBOL_GPL(clk_register_gpio_mux);
 

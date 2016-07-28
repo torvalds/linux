@@ -42,6 +42,7 @@
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_sa.h>
 #include <rdma/ib_cm.h>
+#include <rdma/rw.h>
 
 #include <scsi/srp.h>
 
@@ -174,21 +175,17 @@ struct srpt_recv_ioctx {
 	struct srpt_ioctx	ioctx;
 	struct list_head	wait_list;
 };
+	
+struct srpt_rw_ctx {
+	struct rdma_rw_ctx	rw;
+	struct scatterlist	*sg;
+	unsigned int		nents;
+};
 
 /**
  * struct srpt_send_ioctx - SRPT send I/O context.
  * @ioctx:       See above.
  * @ch:          Channel pointer.
- * @free_list:   Node in srpt_rdma_ch.free_list.
- * @n_rbuf:      Number of data buffers in the received SRP command.
- * @rbufs:       Pointer to SRP data buffer array.
- * @single_rbuf: SRP data buffer if the command has only a single buffer.
- * @sg:          Pointer to sg-list associated with this I/O context.
- * @sg_cnt:      SG-list size.
- * @mapped_sg_count: ib_dma_map_sg() return value.
- * @n_rdma_wrs:  Number of elements in the rdma_wrs array.
- * @rdma_wrs:    Array with information about the RDMA mapping.
- * @tag:         Tag of the received SRP information unit.
  * @spinlock:    Protects 'state'.
  * @state:       I/O context state.
  * @cmd:         Target core command data structure.
@@ -197,21 +194,18 @@ struct srpt_recv_ioctx {
 struct srpt_send_ioctx {
 	struct srpt_ioctx	ioctx;
 	struct srpt_rdma_ch	*ch;
-	struct ib_rdma_wr	*rdma_wrs;
+
+	struct srpt_rw_ctx	s_rw_ctx;
+	struct srpt_rw_ctx	*rw_ctxs;
+
 	struct ib_cqe		rdma_cqe;
-	struct srp_direct_buf	*rbufs;
-	struct srp_direct_buf	single_rbuf;
-	struct scatterlist	*sg;
 	struct list_head	free_list;
 	spinlock_t		spinlock;
 	enum srpt_command_state	state;
 	struct se_cmd		cmd;
 	struct completion	tx_done;
-	int			sg_cnt;
-	int			mapped_sg_count;
-	u16			n_rdma_wrs;
 	u8			n_rdma;
-	u8			n_rbuf;
+	u8			n_rw_ctx;
 	bool			queue_status_only;
 	u8			sense_data[TRANSPORT_SENSE_BUFFER];
 };

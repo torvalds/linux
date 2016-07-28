@@ -192,7 +192,7 @@ static inline void tcf_action_stats_update(struct tc_action *a, u64 bytes,
 #else /* CONFIG_NET_CLS_ACT */
 
 #define tc_no_actions(_exts) true
-#define tc_for_each_action(_a, _exts) while (0)
+#define tc_for_each_action(_a, _exts) while ((void)(_a), 0)
 #define tcf_action_stats_update(a, bytes, packets, lastuse)
 
 #endif /* CONFIG_NET_CLS_ACT */

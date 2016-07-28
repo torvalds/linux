@@ -1583,15 +1583,15 @@ static int ep_send_events(struct eventpoll *ep,
 	return ep_scan_ready_list(ep, ep_send_events_proc, &esed, 0, false);
 }
 
-static inline struct timespec ep_set_mstimeout(long ms)
+static inline struct timespec64 ep_set_mstimeout(long ms)
 {
-	struct timespec now, ts = {
+	struct timespec64 now, ts = {
 		.tv_sec = ms / MSEC_PER_SEC,
 		.tv_nsec = NSEC_PER_MSEC * (ms % MSEC_PER_SEC),
 	};
 
-	ktime_get_ts(&now);
-	return timespec_add_safe(now, ts);
+	ktime_get_ts64(&now);
+	return timespec64_add_safe(now, ts);
 }
 
 /**
@@ -1621,11 +1621,11 @@ static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
 	ktime_t expires, *to = NULL;
 
 	if (timeout > 0) {
-		struct timespec end_time = ep_set_mstimeout(timeout);
+		struct timespec64 end_time = ep_set_mstimeout(timeout);
 
 		slack = select_estimate_accuracy(&end_time);
 		to = &expires;
-		*to = timespec_to_ktime(end_time);
+		*to = timespec64_to_ktime(end_time);
 	} else if (timeout == 0) {
 		/*
 		 * Avoid the unnecessary trip to the wait queue loop, if the

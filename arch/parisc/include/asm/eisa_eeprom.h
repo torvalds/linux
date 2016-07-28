@@ -99,7 +99,7 @@ struct eeprom_eisa_slot_info
 #define HPEE_MEMORY_DECODE_24BITS 0x04
 #define HPEE_MEMORY_DECODE_32BITS 0x08
 /* byte 2 and 3 are a 16bit LE value
- * containging the memory size in kilobytes */
+ * containing the memory size in kilobytes */
 /* byte 4,5,6 are a 24bit LE value
  * containing the memory base address */
 
@@ -135,7 +135,7 @@ struct eeprom_eisa_slot_info
 #define HPEE_PORT_SHARED    0x40
 #define HPEE_PORT_MORE      0x80
 /* byte 1 and 2 is a 16bit LE value
- * conating the start port number */
+ * containing the start port number */
 
 #define HPEE_PORT_INIT_MAX_LEN     60 /* in bytes here */
 /* port init entry byte 0 */

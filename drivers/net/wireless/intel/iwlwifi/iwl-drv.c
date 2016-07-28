@@ -117,7 +117,7 @@ struct iwl_drv {
 	const struct iwl_cfg *cfg;
 
 	int fw_index;                   /* firmware we're trying to load */
-	char firmware_name[32];         /* name of firmware file to load */
+	char firmware_name[64];         /* name of firmware file to load */
 
 	struct completion request_firmware_complete;
 
@@ -211,20 +211,12 @@ static int iwl_alloc_fw_desc(struct iwl_drv *drv, struct fw_desc *desc,
 static void iwl_req_fw_callback(const struct firmware *ucode_raw,
 				void *context);
 
-#define UCODE_EXPERIMENTAL_INDEX	100
-#define UCODE_EXPERIMENTAL_TAG		"exp"
-
 static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 {
 	const char *name_pre = drv->cfg->fw_name_pre;
 	char tag[8];
 
 	if (first) {
-#ifdef CONFIG_IWLWIFI_DEBUG_EXPERIMENTAL_UCODE
-		drv->fw_index = UCODE_EXPERIMENTAL_INDEX;
-		strcpy(tag, UCODE_EXPERIMENTAL_TAG);
-	} else if (drv->fw_index == UCODE_EXPERIMENTAL_INDEX) {
-#endif
 		drv->fw_index = drv->cfg->ucode_api_max;
 		sprintf(tag, "%d", drv->fw_index);
 	} else {
@@ -240,9 +232,7 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 	snprintf(drv->firmware_name, sizeof(drv->firmware_name), "%s%s.ucode",
 		 name_pre, tag);
 
-	IWL_DEBUG_INFO(drv, "attempting to load firmware %s'%s'\n",
-		       (drv->fw_index == UCODE_EXPERIMENTAL_INDEX)
-				? "EXPERIMENTAL " : "",
+	IWL_DEBUG_INFO(drv, "attempting to load firmware '%s'\n",
 		       drv->firmware_name);
 
 	return request_firmware_nowait(THIS_MODULE, 1, drv->firmware_name,
@@ -541,9 +531,7 @@ static int iwl_parse_v1_v2_firmware(struct iwl_drv *drv,
 	}
 
 	if (build)
-		sprintf(buildstr, " build %u%s", build,
-		       (drv->fw_index == UCODE_EXPERIMENTAL_INDEX)
-				? " (EXP)" : "");
+		sprintf(buildstr, " build %u", build);
 	else
 		buildstr[0] = '\0';
 
@@ -627,9 +615,7 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 	build = le32_to_cpu(ucode->build);
 
 	if (build)
-		sprintf(buildstr, " build %u%s", build,
-		       (drv->fw_index == UCODE_EXPERIMENTAL_INDEX)
-				? " (EXP)" : "");
+		sprintf(buildstr, " build %u", build);
 	else
 		buildstr[0] = '\0';
 
@@ -1277,15 +1263,12 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	 * firmware filename ... but we don't check for that and only rely
 	 * on the API version read from firmware header from here on forward
 	 */
-	/* no api version check required for experimental uCode */
-	if (drv->fw_index != UCODE_EXPERIMENTAL_INDEX) {
-		if (api_ver < api_min || api_ver > api_max) {
-			IWL_ERR(drv,
-				"Driver unable to support your firmware API. "
-				"Driver supports v%u, firmware is v%u.\n",
-				api_max, api_ver);
-			goto try_again;
-		}
+	if (api_ver < api_min || api_ver > api_max) {
+		IWL_ERR(drv,
+			"Driver unable to support your firmware API. "
+			"Driver supports v%u, firmware is v%u.\n",
+			api_max, api_ver);
+		goto try_again;
 	}
 
 	/*
@@ -1744,4 +1727,4 @@ MODULE_PARM_DESC(d0i3_timeout, "Timeout to D0i3 entry when idle (ms)");
 
 module_param_named(disable_11ac, iwlwifi_mod_params.disable_11ac, bool,
 		   S_IRUGO);
-MODULE_PARM_DESC(disable_11ac, "Disable VHT capabilities");
+MODULE_PARM_DESC(disable_11ac, "Disable VHT capabilities (default: false)");

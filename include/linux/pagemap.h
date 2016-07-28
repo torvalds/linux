@@ -90,12 +90,12 @@ void release_pages(struct page **pages, int nr, bool cold);
 
 /*
  * speculatively take a reference to a page.
- * If the page is free (_count == 0), then _count is untouched, and 0
- * is returned. Otherwise, _count is incremented by 1 and 1 is returned.
+ * If the page is free (_refcount == 0), then _refcount is untouched, and 0
+ * is returned. Otherwise, _refcount is incremented by 1 and 1 is returned.
  *
  * This function must be called inside the same rcu_read_lock() section as has
  * been used to lookup the page in the pagecache radix-tree (or page table):
- * this allows allocators to use a synchronize_rcu() to stabilize _count.
+ * this allows allocators to use a synchronize_rcu() to stabilize _refcount.
  *
  * Unless an RCU grace period has passed, the count of all pages coming out
  * of the allocator must be considered unstable. page_count may return higher
@@ -111,7 +111,7 @@ void release_pages(struct page **pages, int nr, bool cold);
  * 2. conditionally increment refcount
  * 3. check the page is still in pagecache (if no, goto 1)
  *
- * Remove-side that cares about stability of _count (eg. reclaim) has the
+ * Remove-side that cares about stability of _refcount (eg. reclaim) has the
  * following (with tree_lock held for write):
  * A. atomically check refcount is correct and set it to 0 (atomic_cmpxchg)
  * B. remove page from pagecache
@@ -518,33 +518,27 @@ void page_endio(struct page *page, int rw, int err);
 extern void add_page_wait_queue(struct page *page, wait_queue_t *waiter);
 
 /*
- * Fault a userspace page into pagetables.  Return non-zero on a fault.
- *
- * This assumes that two userspace pages are always sufficient.
+ * Fault one or two userspace pages into pagetables.
+ * Return -EINVAL if more than two pages would be needed.
+ * Return non-zero on a fault.
  */
 static inline int fault_in_pages_writeable(char __user *uaddr, int size)
 {
-	int ret;
+	int span, ret;
 
 	if (unlikely(size == 0))
 		return 0;
 
+	span = offset_in_page(uaddr) + size;
+	if (span > 2 * PAGE_SIZE)
+		return -EINVAL;
 	/*
 	 * Writing zeroes into userspace here is OK, because we know that if
 	 * the zero gets there, we'll be overwriting it.
 	 */
 	ret = __put_user(0, uaddr);
-	if (ret == 0) {
-		char __user *end = uaddr + size - 1;
-
-		/*
-		 * If the page was already mapped, this will get a cache miss
-		 * for sure, so try to avoid doing it.
-		 */
-		if (((unsigned long)uaddr & PAGE_MASK) !=
-				((unsigned long)end & PAGE_MASK))
-			ret = __put_user(0, end);
-	}
+	if (ret == 0 && span > PAGE_SIZE)
+		ret = __put_user(0, uaddr + size - 1);
 	return ret;
 }
 

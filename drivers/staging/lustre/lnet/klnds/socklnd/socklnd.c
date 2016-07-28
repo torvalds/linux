@@ -2582,7 +2582,6 @@ ksocknal_debug_peerhash(lnet_ni_t *ni)
 	}
 
 	read_unlock(&ksocknal_data.ksnd_global_lock);
-	return;
 }
 
 void

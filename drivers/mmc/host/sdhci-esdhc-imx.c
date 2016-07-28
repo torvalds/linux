@@ -1011,7 +1011,7 @@ sdhci_esdhc_imx_probe_dt(struct platform_device *pdev,
 	if (ret)
 		return ret;
 
-	if (!IS_ERR_VALUE(mmc_gpio_get_cd(host->mmc)))
+	if (mmc_gpio_get_cd(host->mmc) >= 0)
 		host->quirks &= ~SDHCI_QUIRK_BROKEN_CARD_DETECTION;
 
 	return 0;

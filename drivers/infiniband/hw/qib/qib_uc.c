@@ -45,7 +45,7 @@
  *
  * Return 1 if constructed; otherwise, return 0.
  */
-int qib_make_uc_req(struct rvt_qp *qp)
+int qib_make_uc_req(struct rvt_qp *qp, unsigned long *flags)
 {
 	struct qib_qp_priv *priv = qp->priv;
 	struct qib_other_headers *ohdr;

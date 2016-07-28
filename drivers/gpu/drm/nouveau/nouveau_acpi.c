@@ -6,7 +6,7 @@
 #include <drm/drm_edid.h>
 #include <acpi/video.h>
 
-#include "nouveau_drm.h"
+#include "nouveau_drv.h"
 #include "nouveau_acpi.h"
 
 #define NOUVEAU_DSM_LED 0x02

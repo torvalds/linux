@@ -484,30 +484,6 @@ destroy_both_connections(struct snd_bebob *bebob)
 }
 
 static int
-get_sync_mode(struct snd_bebob *bebob, enum cip_flags *sync_mode)
-{
-	enum snd_bebob_clock_type src;
-	int err;
-
-	err = snd_bebob_stream_get_clock_src(bebob, &src);
-	if (err < 0)
-		return err;
-
-	switch (src) {
-	case SND_BEBOB_CLOCK_TYPE_INTERNAL:
-	case SND_BEBOB_CLOCK_TYPE_EXTERNAL:
-		*sync_mode = CIP_SYNC_TO_DEVICE;
-		break;
-	default:
-	case SND_BEBOB_CLOCK_TYPE_SYT:
-		*sync_mode = 0;
-		break;
-	}
-
-	return 0;
-}
-
-static int
 start_stream(struct snd_bebob *bebob, struct amdtp_stream *stream,
 	     unsigned int rate)
 {
@@ -550,8 +526,6 @@ int snd_bebob_stream_init_duplex(struct snd_bebob *bebob)
 		goto end;
 	}
 
-	bebob->tx_stream.flags |= CIP_SKIP_INIT_DBC_CHECK;
-
 	/*
 	 * BeBoB v3 transfers packets with these qurks:
 	 *  - In the beginning of streaming, the value of dbc is incremented
@@ -584,8 +558,6 @@ end:
 int snd_bebob_stream_start_duplex(struct snd_bebob *bebob, unsigned int rate)
 {
 	const struct snd_bebob_rate_spec *rate_spec = bebob->spec->rate;
-	struct amdtp_stream *master, *slave;
-	enum cip_flags sync_mode;
 	unsigned int curr_rate;
 	int err = 0;
 
@@ -593,22 +565,11 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob, unsigned int rate)
 	if (bebob->substreams_counter == 0)
 		goto end;
 
-	err = get_sync_mode(bebob, &sync_mode);
-	if (err < 0)
-		goto end;
-	if (sync_mode == CIP_SYNC_TO_DEVICE) {
-		master = &bebob->tx_stream;
-		slave  = &bebob->rx_stream;
-	} else {
-		master = &bebob->rx_stream;
-		slave  = &bebob->tx_stream;
-	}
-
 	/*
 	 * Considering JACK/FFADO streaming:
 	 * TODO: This can be removed hwdep functionality becomes popular.
 	 */
-	err = check_connection_used_by_others(bebob, master);
+	err = check_connection_used_by_others(bebob, &bebob->rx_stream);
 	if (err < 0)
 		goto end;
 
@@ -618,11 +579,12 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob, unsigned int rate)
 	 * At bus reset, connections should not be broken here. So streams need
 	 * to be re-started. This is a reason to use SKIP_INIT_DBC_CHECK flag.
 	 */
-	if (amdtp_streaming_error(master))
-		amdtp_stream_stop(master);
-	if (amdtp_streaming_error(slave))
-		amdtp_stream_stop(slave);
-	if (!amdtp_stream_running(master) && !amdtp_stream_running(slave))
+	if (amdtp_streaming_error(&bebob->rx_stream))
+		amdtp_stream_stop(&bebob->rx_stream);
+	if (amdtp_streaming_error(&bebob->tx_stream))
+		amdtp_stream_stop(&bebob->tx_stream);
+	if (!amdtp_stream_running(&bebob->rx_stream) &&
+	    !amdtp_stream_running(&bebob->tx_stream))
 		break_both_connections(bebob);
 
 	/* stop streams if rate is different */
@@ -635,16 +597,13 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob, unsigned int rate)
 	if (rate == 0)
 		rate = curr_rate;
 	if (rate != curr_rate) {
-		amdtp_stream_stop(master);
-		amdtp_stream_stop(slave);
+		amdtp_stream_stop(&bebob->rx_stream);
+		amdtp_stream_stop(&bebob->tx_stream);
 		break_both_connections(bebob);
 	}
 
 	/* master should be always running */
-	if (!amdtp_stream_running(master)) {
-		amdtp_stream_set_sync(sync_mode, master, slave);
-		bebob->master = master;
-
+	if (!amdtp_stream_running(&bebob->rx_stream)) {
 		/*
 		 * NOTE:
 		 * If establishing connections at first, Yamaha GO46
@@ -666,7 +625,7 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob, unsigned int rate)
 		if (err < 0)
 			goto end;
 
-		err = start_stream(bebob, master, rate);
+		err = start_stream(bebob, &bebob->rx_stream, rate);
 		if (err < 0) {
 			dev_err(&bebob->unit->device,
 				"fail to run AMDTP master stream:%d\n", err);
@@ -685,15 +644,16 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob, unsigned int rate)
 				dev_err(&bebob->unit->device,
 					"fail to ensure sampling rate: %d\n",
 					err);
-				amdtp_stream_stop(master);
+				amdtp_stream_stop(&bebob->rx_stream);
 				break_both_connections(bebob);
 				goto end;
 			}
 		}
 
 		/* wait first callback */
-		if (!amdtp_stream_wait_callback(master, CALLBACK_TIMEOUT)) {
-			amdtp_stream_stop(master);
+		if (!amdtp_stream_wait_callback(&bebob->rx_stream,
+						CALLBACK_TIMEOUT)) {
+			amdtp_stream_stop(&bebob->rx_stream);
 			break_both_connections(bebob);
 			err = -ETIMEDOUT;
 			goto end;
@@ -701,20 +661,21 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob, unsigned int rate)
 	}
 
 	/* start slave if needed */
-	if (!amdtp_stream_running(slave)) {
-		err = start_stream(bebob, slave, rate);
+	if (!amdtp_stream_running(&bebob->tx_stream)) {
+		err = start_stream(bebob, &bebob->tx_stream, rate);
 		if (err < 0) {
 			dev_err(&bebob->unit->device,
 				"fail to run AMDTP slave stream:%d\n", err);
-			amdtp_stream_stop(master);
+			amdtp_stream_stop(&bebob->rx_stream);
 			break_both_connections(bebob);
 			goto end;
 		}
 
 		/* wait first callback */
-		if (!amdtp_stream_wait_callback(slave, CALLBACK_TIMEOUT)) {
-			amdtp_stream_stop(slave);
-			amdtp_stream_stop(master);
+		if (!amdtp_stream_wait_callback(&bebob->tx_stream,
+						CALLBACK_TIMEOUT)) {
+			amdtp_stream_stop(&bebob->tx_stream);
+			amdtp_stream_stop(&bebob->rx_stream);
 			break_both_connections(bebob);
 			err = -ETIMEDOUT;
 		}
@@ -725,22 +686,12 @@ end:
 
 void snd_bebob_stream_stop_duplex(struct snd_bebob *bebob)
 {
-	struct amdtp_stream *master, *slave;
-
-	if (bebob->master == &bebob->rx_stream) {
-		slave  = &bebob->tx_stream;
-		master = &bebob->rx_stream;
-	} else {
-		slave  = &bebob->rx_stream;
-		master = &bebob->tx_stream;
-	}
-
 	if (bebob->substreams_counter == 0) {
-		amdtp_stream_pcm_abort(master);
-		amdtp_stream_stop(master);
+		amdtp_stream_pcm_abort(&bebob->rx_stream);
+		amdtp_stream_stop(&bebob->rx_stream);
 
-		amdtp_stream_pcm_abort(slave);
-		amdtp_stream_stop(slave);
+		amdtp_stream_pcm_abort(&bebob->tx_stream);
+		amdtp_stream_stop(&bebob->tx_stream);
 
 		break_both_connections(bebob);
 	}

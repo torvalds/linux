@@ -27,6 +27,22 @@ __CEPH_FORALL_OSD_OPS(GENERATE_CASE)
 	}
 }
 
+const char *ceph_osd_watch_op_name(int o)
+{
+	switch (o) {
+	case CEPH_OSD_WATCH_OP_UNWATCH:
+		return "unwatch";
+	case CEPH_OSD_WATCH_OP_WATCH:
+		return "watch";
+	case CEPH_OSD_WATCH_OP_RECONNECT:
+		return "reconnect";
+	case CEPH_OSD_WATCH_OP_PING:
+		return "ping";
+	default:
+		return "???";
+	}
+}
+
 const char *ceph_osd_state_name(int s)
 {
 	switch (s) {

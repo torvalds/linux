@@ -208,7 +208,7 @@ static void vc4_plane_destroy_state(struct drm_plane *plane,
 	}
 
 	kfree(vc4_state->dlist);
-	__drm_atomic_helper_plane_destroy_state(plane, &vc4_state->base);
+	__drm_atomic_helper_plane_destroy_state(&vc4_state->base);
 	kfree(state);
 }
 

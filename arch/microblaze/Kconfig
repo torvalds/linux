@@ -16,6 +16,7 @@ config MICROBLAZE
 	select GENERIC_IRQ_SHOW
 	select GENERIC_PCI_IOMAP
 	select GENERIC_SCHED_CLOCK
+	select HAVE_ARCH_HASH
 	select HAVE_ARCH_KGDB
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DMA_API_DEBUG
@@ -32,6 +33,7 @@ config MICROBLAZE
 	select OF_EARLY_FLATTREE
 	select TRACING_SUPPORT
 	select VIRT_TO_BUS
+	select CPU_NO_EFFICIENT_FFS
 
 config SWAP
 	def_bool n

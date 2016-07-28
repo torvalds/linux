@@ -88,8 +88,7 @@ void __init ls1x_clk_init(void)
 {
 	struct clk *clk;
 
-	clk = clk_register_fixed_rate(NULL, "osc_33m_clk", NULL, CLK_IS_ROOT,
-				      OSC);
+	clk = clk_register_fixed_rate(NULL, "osc_33m_clk", NULL, 0, OSC);
 	clk_register_clkdev(clk, "osc_33m_clk", NULL);
 
 	/* clock derived from 33 MHz OSC clk */

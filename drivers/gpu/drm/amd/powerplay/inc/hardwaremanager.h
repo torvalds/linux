@@ -211,6 +211,7 @@ enum phm_platform_caps {
 	PHM_PlatformCaps_ClockStretcher,
 	PHM_PlatformCaps_TablelessHardwareInterface,
 	PHM_PlatformCaps_EnableDriverEVV,
+	PHM_PlatformCaps_SPLLShutdownSupport,
 	PHM_PlatformCaps_Max
 };
 

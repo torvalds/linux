@@ -72,7 +72,7 @@ static void uartlite_outbe32(u32 val, void __iomem *addr)
 	iowrite32be(val, addr);
 }
 
-static struct uartlite_reg_ops uartlite_be = {
+static const struct uartlite_reg_ops uartlite_be = {
 	.in = uartlite_inbe32,
 	.out = uartlite_outbe32,
 };
@@ -87,21 +87,21 @@ static void uartlite_outle32(u32 val, void __iomem *addr)
 	iowrite32(val, addr);
 }
 
-static struct uartlite_reg_ops uartlite_le = {
+static const struct uartlite_reg_ops uartlite_le = {
 	.in = uartlite_inle32,
 	.out = uartlite_outle32,
 };
 
 static inline u32 uart_in32(u32 offset, struct uart_port *port)
 {
-	struct uartlite_reg_ops *reg_ops = port->private_data;
+	const struct uartlite_reg_ops *reg_ops = port->private_data;
 
 	return reg_ops->in(port->membase + offset);
 }
 
 static inline void uart_out32(u32 val, u32 offset, struct uart_port *port)
 {
-	struct uartlite_reg_ops *reg_ops = port->private_data;
+	const struct uartlite_reg_ops *reg_ops = port->private_data;
 
 	reg_ops->out(val, port->membase + offset);
 }
@@ -345,13 +345,13 @@ static int ulite_request_port(struct uart_port *port)
 		return -EBUSY;
 	}
 
-	port->private_data = &uartlite_be;
+	port->private_data = (void *)&uartlite_be;
 	ret = uart_in32(ULITE_CONTROL, port);
 	uart_out32(ULITE_CONTROL_RST_TX, ULITE_CONTROL, port);
 	ret = uart_in32(ULITE_STATUS, port);
 	/* Endianess detection */
 	if ((ret & ULITE_STATUS_TXEMPTY) != ULITE_STATUS_TXEMPTY)
-		port->private_data = &uartlite_le;
+		port->private_data = (void *)&uartlite_le;
 
 	return 0;
 }

@@ -19,11 +19,11 @@
 #define PWM_CTRL		0xc
 
 /* PWM Control Register Bits */
-#define CNT_RST			(0x1 << 7)
-#define INT_SR			(0x1 << 6)
-#define INT_EN			(0x1 << 5)
-#define PWM_SINGLE		(0x1 << 4)
-#define PWM_OE			(0x1 << 3)
-#define CNT_EN			0x1
+#define CNT_RST			BIT(7)
+#define INT_SR			BIT(6)
+#define INT_EN			BIT(5)
+#define PWM_SINGLE		BIT(4)
+#define PWM_OE			BIT(3)
+#define CNT_EN			BIT(0)
 
 #endif /* __ASM_MACH_LOONGSON32_REGS_PWM_H */

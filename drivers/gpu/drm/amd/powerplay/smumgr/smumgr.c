@@ -30,6 +30,7 @@
 #include "cz_smumgr.h"
 #include "tonga_smumgr.h"
 #include "fiji_smumgr.h"
+#include "polaris10_smumgr.h"
 
 int smum_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 {
@@ -62,6 +63,10 @@ int smum_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 		case CHIP_FIJI:
 			fiji_smum_init(smumgr);
 			break;
+		case CHIP_POLARIS11:
+		case CHIP_POLARIS10:
+			polaris10_smum_init(smumgr);
+			break;
 		default:
 			return -EINVAL;
 		}
@@ -76,6 +81,7 @@ int smum_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 
 int smum_fini(struct pp_smumgr *smumgr)
 {
+	kfree(smumgr->device);
 	kfree(smumgr);
 	return 0;
 }

@@ -18,10 +18,43 @@
 #include <linux/delay.h>
 #include <linux/regulator/consumer.h>
 
+#include <linux/iio/sysfs.h>
 #include <linux/iio/buffer.h>
 #include <linux/iio/triggered_buffer.h>
 #include <linux/iio/trigger_consumer.h>
 #include "ms5611.h"
+
+#define MS5611_INIT_OSR(_cmd, _conv_usec, _rate) \
+	{ .cmd = _cmd, .conv_usec = _conv_usec, .rate = _rate }
+
+static const struct ms5611_osr ms5611_avail_pressure_osr[] = {
+	MS5611_INIT_OSR(0x40, 600,  256),
+	MS5611_INIT_OSR(0x42, 1170, 512),
+	MS5611_INIT_OSR(0x44, 2280, 1024),
+	MS5611_INIT_OSR(0x46, 4540, 2048),
+	MS5611_INIT_OSR(0x48, 9040, 4096)
+};
+
+static const struct ms5611_osr ms5611_avail_temp_osr[] = {
+	MS5611_INIT_OSR(0x50, 600,  256),
+	MS5611_INIT_OSR(0x52, 1170, 512),
+	MS5611_INIT_OSR(0x54, 2280, 1024),
+	MS5611_INIT_OSR(0x56, 4540, 2048),
+	MS5611_INIT_OSR(0x58, 9040, 4096)
+};
+
+static const char ms5611_show_osr[] = "256 512 1024 2048 4096";
+
+static IIO_CONST_ATTR(oversampling_ratio_available, ms5611_show_osr);
+
+static struct attribute *ms5611_attributes[] = {
+	&iio_const_attr_oversampling_ratio_available.dev_attr.attr,
+	NULL,
+};
+
+static const struct attribute_group ms5611_attribute_group = {
+	.attrs = ms5611_attributes,
+};
 
 static bool ms5611_prom_is_valid(u16 *prom, size_t len)
 {
@@ -239,9 +272,68 @@ static int ms5611_read_raw(struct iio_dev *indio_dev,
 		default:
 			return -EINVAL;
 		}
+	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
+		if (chan->type != IIO_TEMP && chan->type != IIO_PRESSURE)
+			break;
+		mutex_lock(&st->lock);
+		if (chan->type == IIO_TEMP)
+			*val = (int)st->temp_osr->rate;
+		else
+			*val = (int)st->pressure_osr->rate;
+		mutex_unlock(&st->lock);
+		return IIO_VAL_INT;
 	}
 
 	return -EINVAL;
+}
+
+static const struct ms5611_osr *ms5611_find_osr(int rate,
+						const struct ms5611_osr *osr,
+						size_t count)
+{
+	unsigned int r;
+
+	for (r = 0; r < count; r++)
+		if ((unsigned short)rate == osr[r].rate)
+			break;
+	if (r >= count)
+		return NULL;
+	return &osr[r];
+}
+
+static int ms5611_write_raw(struct iio_dev *indio_dev,
+			    struct iio_chan_spec const *chan,
+			    int val, int val2, long mask)
+{
+	struct ms5611_state *st = iio_priv(indio_dev);
+	const struct ms5611_osr *osr = NULL;
+
+	if (mask != IIO_CHAN_INFO_OVERSAMPLING_RATIO)
+		return -EINVAL;
+
+	if (chan->type == IIO_TEMP)
+		osr = ms5611_find_osr(val, ms5611_avail_temp_osr,
+				      ARRAY_SIZE(ms5611_avail_temp_osr));
+	else if (chan->type == IIO_PRESSURE)
+		osr = ms5611_find_osr(val, ms5611_avail_pressure_osr,
+				      ARRAY_SIZE(ms5611_avail_pressure_osr));
+	if (!osr)
+		return -EINVAL;
+
+	mutex_lock(&st->lock);
+
+	if (iio_buffer_enabled(indio_dev)) {
+		mutex_unlock(&st->lock);
+		return -EBUSY;
+	}
+
+	if (chan->type == IIO_TEMP)
+		st->temp_osr = osr;
+	else
+		st->pressure_osr = osr;
+
+	mutex_unlock(&st->lock);
+	return 0;
 }
 
 static const unsigned long ms5611_scan_masks[] = {0x3, 0};
@@ -259,7 +351,8 @@ static const struct iio_chan_spec ms5611_channels[] = {
 	{
 		.type = IIO_PRESSURE,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED) |
-			BIT(IIO_CHAN_INFO_SCALE),
+			BIT(IIO_CHAN_INFO_SCALE) |
+			BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO),
 		.scan_index = 0,
 		.scan_type = {
 			.sign = 's',
@@ -271,7 +364,8 @@ static const struct iio_chan_spec ms5611_channels[] = {
 	{
 		.type = IIO_TEMP,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED) |
-			BIT(IIO_CHAN_INFO_SCALE),
+			BIT(IIO_CHAN_INFO_SCALE) |
+			BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO),
 		.scan_index = 1,
 		.scan_type = {
 			.sign = 's',
@@ -285,40 +379,68 @@ static const struct iio_chan_spec ms5611_channels[] = {
 
 static const struct iio_info ms5611_info = {
 	.read_raw = &ms5611_read_raw,
+	.write_raw = &ms5611_write_raw,
+	.attrs = &ms5611_attribute_group,
 	.driver_module = THIS_MODULE,
 };
 
 static int ms5611_init(struct iio_dev *indio_dev)
 {
 	int ret;
-	struct regulator *vdd = devm_regulator_get(indio_dev->dev.parent,
-	                                           "vdd");
+	struct ms5611_state *st = iio_priv(indio_dev);
 
 	/* Enable attached regulator if any. */
-	if (!IS_ERR(vdd)) {
-		ret = regulator_enable(vdd);
+	st->vdd = devm_regulator_get(indio_dev->dev.parent, "vdd");
+	if (!IS_ERR(st->vdd)) {
+		ret = regulator_enable(st->vdd);
 		if (ret) {
 			dev_err(indio_dev->dev.parent,
-			        "failed to enable Vdd supply: %d\n", ret);
+				"failed to enable Vdd supply: %d\n", ret);
 			return ret;
 		}
+	} else {
+		ret = PTR_ERR(st->vdd);
+		if (ret != -ENODEV)
+			return ret;
 	}
 
 	ret = ms5611_reset(indio_dev);
 	if (ret < 0)
-		return ret;
+		goto err_regulator_disable;
 
-	return ms5611_read_prom(indio_dev);
+	ret = ms5611_read_prom(indio_dev);
+	if (ret < 0)
+		goto err_regulator_disable;
+
+	return 0;
+
+err_regulator_disable:
+	if (!IS_ERR_OR_NULL(st->vdd))
+		regulator_disable(st->vdd);
+	return ret;
+}
+
+static void ms5611_fini(const struct iio_dev *indio_dev)
+{
+	const struct ms5611_state *st = iio_priv(indio_dev);
+
+	if (!IS_ERR_OR_NULL(st->vdd))
+		regulator_disable(st->vdd);
 }
 
 int ms5611_probe(struct iio_dev *indio_dev, struct device *dev,
-                 const char *name, int type)
+		 const char *name, int type)
 {
 	int ret;
 	struct ms5611_state *st = iio_priv(indio_dev);
 
 	mutex_init(&st->lock);
 	st->chip_info = &chip_info_tbl[type];
+	st->temp_osr =
+		&ms5611_avail_temp_osr[ARRAY_SIZE(ms5611_avail_temp_osr) - 1];
+	st->pressure_osr =
+		&ms5611_avail_pressure_osr[ARRAY_SIZE(ms5611_avail_pressure_osr)
+					   - 1];
 	indio_dev->dev.parent = dev;
 	indio_dev->name = name;
 	indio_dev->info = &ms5611_info;
@@ -335,7 +457,7 @@ int ms5611_probe(struct iio_dev *indio_dev, struct device *dev,
 					 ms5611_trigger_handler, NULL);
 	if (ret < 0) {
 		dev_err(dev, "iio triggered buffer setup failed\n");
-		return ret;
+		goto err_fini;
 	}
 
 	ret = iio_device_register(indio_dev);
@@ -348,7 +470,8 @@ int ms5611_probe(struct iio_dev *indio_dev, struct device *dev,
 
 err_buffer_cleanup:
 	iio_triggered_buffer_cleanup(indio_dev);
-
+err_fini:
+	ms5611_fini(indio_dev);
 	return ret;
 }
 EXPORT_SYMBOL(ms5611_probe);
@@ -357,6 +480,7 @@ int ms5611_remove(struct iio_dev *indio_dev)
 {
 	iio_device_unregister(indio_dev);
 	iio_triggered_buffer_cleanup(indio_dev);
+	ms5611_fini(indio_dev);
 
 	return 0;
 }

@@ -73,9 +73,7 @@ static int thingm_send(struct thingm_device *tdev, u8 buf[REPORT_SIZE])
 {
 	int ret;
 
-	hid_dbg(tdev->hdev, "-> %d %c %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx\n",
-			buf[0], buf[1], buf[2], buf[3], buf[4],
-			buf[5], buf[6], buf[7], buf[8]);
+	hid_dbg(tdev->hdev, "-> %d %c %7ph\n", buf[0], buf[1], &buf[2]);
 
 	mutex_lock(&tdev->lock);
 
@@ -110,9 +108,7 @@ static int thingm_recv(struct thingm_device *tdev, u8 buf[REPORT_SIZE])
 
 	ret = 0;
 
-	hid_dbg(tdev->hdev, "<- %d %c %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx\n",
-			buf[0], buf[1], buf[2], buf[3], buf[4],
-			buf[5], buf[6], buf[7], buf[8]);
+	hid_dbg(tdev->hdev, "<- %d %c %7ph\n", buf[0], buf[1], &buf[2]);
 err:
 	mutex_unlock(&tdev->lock);
 	return ret;

@@ -16,7 +16,7 @@ Required Properties:
 Optional Properties:
 
 - rockchip,grf: phandle to the syscon managing the "general register files"
-  If missing pll rates are not changable, due to the missing pll lock status.
+  If missing pll rates are not changeable, due to the missing pll lock status.
 
 Each clock is assigned an identifier and client nodes can use this identifier
 to specify the clock which they consume. All available clocks are defined as

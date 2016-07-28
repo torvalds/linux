@@ -76,8 +76,11 @@ struct ingenic_cgu_mux_info {
 /**
  * struct ingenic_cgu_div_info - information about a divider
  * @reg: offset of the divider control register within the CGU
- * @shift: number of bits to shift the divide value by (ie. the index of
+ * @shift: number of bits to left shift the divide value by (ie. the index of
  *         the lowest bit of the divide value within its control register)
+ * @div: number of bits to divide the divider value by (i.e. if the
+ *	 effective divider value is the value written to the register
+ *	 multiplied by some constant)
  * @bits: the size of the divide value in bits
  * @ce_bit: the index of the change enable bit within reg, or -1 if there
  *          isn't one
@@ -87,6 +90,7 @@ struct ingenic_cgu_mux_info {
 struct ingenic_cgu_div_info {
 	unsigned reg;
 	u8 shift;
+	u8 div;
 	u8 bits;
 	s8 ce_bit;
 	s8 busy_bit;

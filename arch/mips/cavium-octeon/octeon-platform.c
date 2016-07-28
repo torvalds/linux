@@ -13,6 +13,7 @@
 #include <linux/i2c.h>
 #include <linux/usb.h>
 #include <linux/dma-mapping.h>
+#include <linux/etherdevice.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
@@ -525,9 +526,16 @@ static void __init octeon_fdt_set_phy(int eth, int phy_addr)
 
 static void __init octeon_fdt_set_mac_addr(int n, u64 *pmac)
 {
+	const u8 *old_mac;
+	int old_len;
 	u8 new_mac[6];
 	u64 mac = *pmac;
 	int r;
+
+	old_mac = fdt_getprop(initial_boot_params, n, "local-mac-address",
+			      &old_len);
+	if (!old_mac || old_len != 6 || is_valid_ether_addr(old_mac))
+		return;
 
 	new_mac[0] = (mac >> 40) & 0xff;
 	new_mac[1] = (mac >> 32) & 0xff;
@@ -560,7 +568,7 @@ static void __init octeon_fdt_rm_ethernet(int node)
 	fdt_nop_node(initial_boot_params, node);
 }
 
-static void __init octeon_fdt_pip_port(int iface, int i, int p, int max, u64 *pmac)
+static void __init octeon_fdt_pip_port(int iface, int i, int p, int max)
 {
 	char name_buffer[20];
 	int eth;
@@ -583,10 +591,9 @@ static void __init octeon_fdt_pip_port(int iface, int i, int p, int max, u64 *pm
 
 	phy_addr = cvmx_helper_board_get_mii_address(ipd_port);
 	octeon_fdt_set_phy(eth, phy_addr);
-	octeon_fdt_set_mac_addr(eth, pmac);
 }
 
-static void __init octeon_fdt_pip_iface(int pip, int idx, u64 *pmac)
+static void __init octeon_fdt_pip_iface(int pip, int idx)
 {
 	char name_buffer[20];
 	int iface;
@@ -602,7 +609,73 @@ static void __init octeon_fdt_pip_iface(int pip, int idx, u64 *pmac)
 		count = cvmx_helper_ports_on_interface(idx);
 
 	for (p = 0; p < 16; p++)
-		octeon_fdt_pip_port(iface, idx, p, count - 1, pmac);
+		octeon_fdt_pip_port(iface, idx, p, count - 1);
+}
+
+void __init octeon_fill_mac_addresses(void)
+{
+	const char *alias_prop;
+	char name_buffer[20];
+	u64 mac_addr_base;
+	int aliases;
+	int pip;
+	int i;
+
+	aliases = fdt_path_offset(initial_boot_params, "/aliases");
+	if (aliases < 0)
+		return;
+
+	mac_addr_base =
+		((octeon_bootinfo->mac_addr_base[0] & 0xffull)) << 40 |
+		((octeon_bootinfo->mac_addr_base[1] & 0xffull)) << 32 |
+		((octeon_bootinfo->mac_addr_base[2] & 0xffull)) << 24 |
+		((octeon_bootinfo->mac_addr_base[3] & 0xffull)) << 16 |
+		((octeon_bootinfo->mac_addr_base[4] & 0xffull)) << 8 |
+		 (octeon_bootinfo->mac_addr_base[5] & 0xffull);
+
+	for (i = 0; i < 2; i++) {
+		int mgmt;
+
+		snprintf(name_buffer, sizeof(name_buffer), "mix%d", i);
+		alias_prop = fdt_getprop(initial_boot_params, aliases,
+					 name_buffer, NULL);
+		if (!alias_prop)
+			continue;
+		mgmt = fdt_path_offset(initial_boot_params, alias_prop);
+		if (mgmt < 0)
+			continue;
+		octeon_fdt_set_mac_addr(mgmt, &mac_addr_base);
+	}
+
+	alias_prop = fdt_getprop(initial_boot_params, aliases, "pip", NULL);
+	if (!alias_prop)
+		return;
+
+	pip = fdt_path_offset(initial_boot_params, alias_prop);
+	if (pip < 0)
+		return;
+
+	for (i = 0; i <= 4; i++) {
+		int iface;
+		int p;
+
+		snprintf(name_buffer, sizeof(name_buffer), "interface@%d", i);
+		iface = fdt_subnode_offset(initial_boot_params, pip,
+					   name_buffer);
+		if (iface < 0)
+			continue;
+		for (p = 0; p < 16; p++) {
+			int eth;
+
+			snprintf(name_buffer, sizeof(name_buffer),
+				 "ethernet@%x", p);
+			eth = fdt_subnode_offset(initial_boot_params, iface,
+						 name_buffer);
+			if (eth < 0)
+				continue;
+			octeon_fdt_set_mac_addr(eth, &mac_addr_base);
+		}
+	}
 }
 
 int __init octeon_prune_device_tree(void)
@@ -612,7 +685,6 @@ int __init octeon_prune_device_tree(void)
 	const char *alias_prop;
 	char name_buffer[20];
 	int aliases;
-	u64 mac_addr_base;
 
 	if (fdt_check_header(initial_boot_params))
 		panic("Corrupt Device Tree.");
@@ -622,15 +694,6 @@ int __init octeon_prune_device_tree(void)
 		pr_err("Error: No /aliases node in device tree.");
 		return -EINVAL;
 	}
-
-
-	mac_addr_base =
-		((octeon_bootinfo->mac_addr_base[0] & 0xffull)) << 40 |
-		((octeon_bootinfo->mac_addr_base[1] & 0xffull)) << 32 |
-		((octeon_bootinfo->mac_addr_base[2] & 0xffull)) << 24 |
-		((octeon_bootinfo->mac_addr_base[3] & 0xffull)) << 16 |
-		((octeon_bootinfo->mac_addr_base[4] & 0xffull)) << 8 |
-		(octeon_bootinfo->mac_addr_base[5] & 0xffull);
 
 	if (OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN63XX))
 		max_port = 2;
@@ -660,7 +723,6 @@ int __init octeon_prune_device_tree(void)
 			} else {
 				int phy_addr = cvmx_helper_board_get_mii_address(CVMX_HELPER_BOARD_MGMT_IPD_PORT + i);
 				octeon_fdt_set_phy(mgmt, phy_addr);
-				octeon_fdt_set_mac_addr(mgmt, &mac_addr_base);
 			}
 		}
 	}
@@ -670,7 +732,7 @@ int __init octeon_prune_device_tree(void)
 		int pip = fdt_path_offset(initial_boot_params, pip_path);
 		if (pip	 >= 0)
 			for (i = 0; i <= 4; i++)
-				octeon_fdt_pip_iface(pip, i, &mac_addr_base);
+				octeon_fdt_pip_iface(pip, i);
 	}
 
 	/* I2C */

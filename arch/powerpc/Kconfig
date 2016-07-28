@@ -116,6 +116,8 @@ config PPC
 	select GENERIC_ATOMIC64 if PPC32
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 	select HAVE_PERF_EVENTS
+	select HAVE_PERF_REGS
+	select HAVE_PERF_USER_STACK_DUMP
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_HW_BREAKPOINT if PERF_EVENTS && PPC_BOOK3S_64
 	select ARCH_WANT_IPC_PARSE_VERSION
@@ -126,7 +128,7 @@ config PPC
 	select IRQ_FORCED_THREADING
 	select HAVE_RCU_TABLE_FREE if SMP
 	select HAVE_SYSCALL_TRACEPOINTS
-	select HAVE_CBPF_JIT
+	select HAVE_CBPF_JIT if CPU_BIG_ENDIAN
 	select HAVE_ARCH_JUMP_LABEL
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select ARCH_HAS_GCOV_PROFILE_ALL
@@ -153,6 +155,7 @@ config PPC
 	select NO_BOOTMEM
 	select HAVE_GENERIC_RCU_GUP
 	select HAVE_PERF_EVENTS_NMI if PPC64
+	select HAVE_NMI if PERF_EVENTS
 	select EDAC_SUPPORT
 	select EDAC_ATOMIC_SCRUB
 	select ARCH_HAS_DMA_SET_COHERENT_MASK
@@ -606,9 +609,9 @@ endchoice
 
 config FORCE_MAX_ZONEORDER
 	int "Maximum zone order"
-	range 9 64 if PPC64 && PPC_64K_PAGES
+	range 8 9 if PPC64 && PPC_64K_PAGES
 	default "9" if PPC64 && PPC_64K_PAGES
-	range 13 64 if PPC64 && !PPC_64K_PAGES
+	range 9 13 if PPC64 && !PPC_64K_PAGES
 	default "13" if PPC64 && !PPC_64K_PAGES
 	range 9 64 if PPC32 && PPC_16K_PAGES
 	default "9" if PPC32 && PPC_16K_PAGES
@@ -795,7 +798,6 @@ config 4xx_SOC
 
 config FSL_LBC
 	bool "Freescale Local Bus support"
-	depends on FSL_SOC
 	help
 	  Enables reporting of errors from the Freescale local bus
 	  controller.  Also contains some common code used by

@@ -1,0 +1,35 @@
+#
+# For a description of the syntax of this configuration file,
+# see Documentation/kbuild/kconfig-language.txt.
+#
+
+menuconfig ARC_PLAT_EZNPS
+	bool "\"EZchip\" ARC dev platform"
+	select ARC_HAS_COH_CACHES if SMP
+	select CPU_BIG_ENDIAN
+	select CLKSRC_NPS
+	select EZNPS_GIC
+	select EZCHIP_NPS_MANAGEMENT_ENET if ETHERNET
+	help
+	  Support for EZchip development platforms,
+	  based on ARC700 cores.
+	  We handle few flavours:
+	    - Hardware Emulator AKA HE which is FPGA based chasis
+	    - Simulator based on MetaWare nSIM
+	    - NPS400 chip based on ASIC
+
+config EZNPS_MTM_EXT
+	bool "ARC-EZchip MTM Extensions"
+	select CPUMASK_OFFSTACK
+	depends on ARC_PLAT_EZNPS && SMP
+	default y
+	help
+	  Here we add new hierarchy for CPUs topology.
+	  We got:
+		Core
+		Thread
+	  At the new thread level each CPU represent one HW thread.
+	  At highest hierarchy each core contain 16 threads,
+	  any of them seem like CPU from Linux point of view.
+	  All threads within same core share the execution unit of the
+	  core and HW scheduler round robin between them.

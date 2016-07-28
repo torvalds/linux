@@ -1528,8 +1528,8 @@ static int etnaviv_gpu_bind(struct device *dev, struct device *master,
 	INIT_WORK(&gpu->recover_work, recover_worker);
 	init_waitqueue_head(&gpu->fence_event);
 
-	setup_timer(&gpu->hangcheck_timer, hangcheck_handler,
-			(unsigned long)gpu);
+	setup_deferrable_timer(&gpu->hangcheck_timer, hangcheck_handler,
+			       (unsigned long)gpu);
 
 	priv->gpu[priv->num_gpus++] = gpu;
 

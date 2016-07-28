@@ -52,6 +52,13 @@ struct iio_channel_info {
 	unsigned location;
 };
 
+static inline int iioutils_check_suffix(const char *str, const char *suffix)
+{
+	return strlen(str) >= strlen(suffix) &&
+		strncmp(str+strlen(str)-strlen(suffix),
+			suffix, strlen(suffix)) == 0;
+}
+
 int iioutils_break_up_name(const char *full_name, char **generic_name);
 int iioutils_get_type(unsigned *is_signed, unsigned *bytes, unsigned *bits_used,
 		      unsigned *shift, uint64_t *mask, unsigned *be,

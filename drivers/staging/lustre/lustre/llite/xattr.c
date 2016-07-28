@@ -181,8 +181,9 @@ int ll_setxattr_common(struct inode *inode, const char *name,
 			size = rc;
 
 			pv = (const char *)new_value;
-		} else
+		} else {
 			return -EOPNOTSUPP;
+		}
 
 		valid |= rce_ops2valid(rce->rce_ops);
 	}
@@ -210,16 +211,14 @@ int ll_setxattr_common(struct inode *inode, const char *name,
 	return 0;
 }
 
-int ll_setxattr(struct dentry *dentry, const char *name,
-		const void *value, size_t size, int flags)
+int ll_setxattr(struct dentry *dentry, struct inode *inode,
+		const char *name, const void *value, size_t size, int flags)
 {
-	struct inode *inode = d_inode(dentry);
-
 	LASSERT(inode);
 	LASSERT(name);
 
-	CDEBUG(D_VFSTRACE, "VFS Op:inode=%lu/%u(%p), xattr %s\n",
-	       inode->i_ino, inode->i_generation, inode, name);
+	CDEBUG(D_VFSTRACE, "VFS Op:inode="DFID"(%p), xattr %s\n",
+	       PFID(ll_inode2fid(inode)), inode, name);
 
 	ll_stats_ops_tally(ll_i2sbi(inode), LPROC_LL_SETXATTR, 1);
 
@@ -243,12 +242,12 @@ int ll_setxattr(struct dentry *dentry, const char *name,
 			lump->lmm_stripe_offset = -1;
 
 		if (lump && S_ISREG(inode->i_mode)) {
-			int flags = FMODE_WRITE;
+			__u64 it_flags = FMODE_WRITE;
 			int lum_size = (lump->lmm_magic == LOV_USER_MAGIC_V1) ?
 				sizeof(*lump) : sizeof(struct lov_user_md_v3);
 
-			rc = ll_lov_setstripe_ea_info(inode, dentry, flags, lump,
-						      lum_size);
+			rc = ll_lov_setstripe_ea_info(inode, dentry, it_flags,
+						      lump, lum_size);
 			/* b10667: rc always be 0 here for now */
 			rc = 0;
 		} else if (S_ISDIR(inode->i_mode)) {
@@ -272,8 +271,8 @@ int ll_removexattr(struct dentry *dentry, const char *name)
 	LASSERT(inode);
 	LASSERT(name);
 
-	CDEBUG(D_VFSTRACE, "VFS Op:inode=%lu/%u(%p), xattr %s\n",
-	       inode->i_ino, inode->i_generation, inode, name);
+	CDEBUG(D_VFSTRACE, "VFS Op:inode="DFID"(%p), xattr %s\n",
+	       PFID(ll_inode2fid(inode)), inode, name);
 
 	ll_stats_ops_tally(ll_i2sbi(inode), LPROC_LL_REMOVEXATTR, 1);
 	return ll_setxattr_common(inode, name, NULL, 0, 0,
@@ -292,8 +291,8 @@ int ll_getxattr_common(struct inode *inode, const char *name,
 	struct rmtacl_ctl_entry *rce = NULL;
 	struct ll_inode_info *lli = ll_i2info(inode);
 
-	CDEBUG(D_VFSTRACE, "VFS Op:inode=%lu/%u(%p)\n",
-	       inode->i_ino, inode->i_generation, inode);
+	CDEBUG(D_VFSTRACE, "VFS Op:inode="DFID"(%p)\n",
+	       PFID(ll_inode2fid(inode)), inode);
 
 	/* listxattr have slightly different behavior from of ext3:
 	 * without 'user_xattr' ext3 will list all xattr names but
@@ -338,7 +337,6 @@ int ll_getxattr_common(struct inode *inode, const char *name,
 	 */
 	if (xattr_type == XATTR_ACL_ACCESS_T &&
 	    !(sbi->ll_flags & LL_SBI_RMT_CLIENT)) {
-
 		struct posix_acl *acl;
 
 		spin_lock(&lli->lli_lock);
@@ -423,8 +421,7 @@ getxattr_nocache:
 	if (rce && rce->rce_ops == RMT_LSETFACL) {
 		ext_acl_xattr_header *acl;
 
-		acl = lustre_posix_acl_xattr_2ext(
-					(posix_acl_xattr_header *)buffer, rc);
+		acl = lustre_posix_acl_xattr_2ext(buffer, rc);
 		if (IS_ERR(acl)) {
 			rc = PTR_ERR(acl);
 			goto out;
@@ -457,8 +454,8 @@ ssize_t ll_getxattr(struct dentry *dentry, struct inode *inode,
 	LASSERT(inode);
 	LASSERT(name);
 
-	CDEBUG(D_VFSTRACE, "VFS Op:inode=%lu/%u(%p), xattr %s\n",
-	       inode->i_ino, inode->i_generation, inode, name);
+	CDEBUG(D_VFSTRACE, "VFS Op:inode="DFID"(%p), xattr %s\n",
+	       PFID(ll_inode2fid(inode)), inode, name);
 
 	ll_stats_ops_tally(ll_i2sbi(inode), LPROC_LL_GETXATTR, 1);
 
@@ -552,8 +549,8 @@ ssize_t ll_listxattr(struct dentry *dentry, char *buffer, size_t size)
 
 	LASSERT(inode);
 
-	CDEBUG(D_VFSTRACE, "VFS Op:inode=%lu/%u(%p)\n",
-	       inode->i_ino, inode->i_generation, inode);
+	CDEBUG(D_VFSTRACE, "VFS Op:inode="DFID"(%p)\n",
+	       PFID(ll_inode2fid(inode)), inode);
 
 	ll_stats_ops_tally(ll_i2sbi(inode), LPROC_LL_LISTXATTR, 1);
 

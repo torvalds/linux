@@ -39,8 +39,9 @@
 enum { XATTR_USER, XATTR_CIFS_ACL, XATTR_ACL_ACCESS, XATTR_ACL_DEFAULT };
 
 static int cifs_xattr_set(const struct xattr_handler *handler,
-			  struct dentry *dentry, const char *name,
-			  const void *value, size_t size, int flags)
+			  struct dentry *dentry, struct inode *inode,
+			  const char *name, const void *value,
+			  size_t size, int flags)
 {
 	int rc = -EOPNOTSUPP;
 	unsigned int xid;
@@ -99,12 +100,12 @@ static int cifs_xattr_set(const struct xattr_handler *handler,
 			if (value &&
 			    pTcon->ses->server->ops->set_acl)
 				rc = pTcon->ses->server->ops->set_acl(pacl,
-						size, d_inode(dentry),
+						size, inode,
 						full_path, CIFS_ACL_DACL);
 			else
 				rc = -EOPNOTSUPP;
 			if (rc == 0) /* force revalidate of the inode */
-				CIFS_I(d_inode(dentry))->time = 0;
+				CIFS_I(inode)->time = 0;
 			kfree(pacl);
 		}
 #endif /* CONFIG_CIFS_ACL */

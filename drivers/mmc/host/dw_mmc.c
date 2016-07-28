@@ -1431,7 +1431,7 @@ static int dw_mci_get_ro(struct mmc_host *mmc)
 	int gpio_ro = mmc_gpio_get_ro(mmc);
 
 	/* Use platform get_ro function, else try on board write protect */
-	if (!IS_ERR_VALUE(gpio_ro))
+	if (gpio_ro >= 0)
 		read_only = gpio_ro;
 	else
 		read_only =
@@ -1454,7 +1454,7 @@ static int dw_mci_get_cd(struct mmc_host *mmc)
 	if ((mmc->caps & MMC_CAP_NEEDS_POLL) ||
 	    (mmc->caps & MMC_CAP_NONREMOVABLE))
 		present = 1;
-	else if (!IS_ERR_VALUE(gpio_cd))
+	else if (gpio_cd >= 0)
 		present = gpio_cd;
 	else
 		present = (mci_readl(slot->host, CDETECT) & (1 << slot->id))
@@ -2595,13 +2595,13 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 	/* Useful defaults if platform data is unset. */
 	if (host->use_dma == TRANS_MODE_IDMAC) {
 		mmc->max_segs = host->ring_size;
-		mmc->max_blk_size = 65536;
+		mmc->max_blk_size = 65535;
 		mmc->max_seg_size = 0x1000;
 		mmc->max_req_size = mmc->max_seg_size * host->ring_size;
 		mmc->max_blk_count = mmc->max_req_size / 512;
 	} else if (host->use_dma == TRANS_MODE_EDMAC) {
 		mmc->max_segs = 64;
-		mmc->max_blk_size = 65536;
+		mmc->max_blk_size = 65535;
 		mmc->max_blk_count = 65535;
 		mmc->max_req_size =
 				mmc->max_blk_size * mmc->max_blk_count;
@@ -2609,7 +2609,7 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 	} else {
 		/* TRANS_MODE_PIO */
 		mmc->max_segs = 64;
-		mmc->max_blk_size = 65536; /* BLKSIZ is 16 bits */
+		mmc->max_blk_size = 65535; /* BLKSIZ is 16 bits */
 		mmc->max_blk_count = 512;
 		mmc->max_req_size = mmc->max_blk_size *
 				    mmc->max_blk_count;
@@ -2927,7 +2927,7 @@ static void dw_mci_enable_cd(struct dw_mci *host)
 		if (slot->mmc->caps & MMC_CAP_NEEDS_POLL)
 			return;
 
-		if (IS_ERR_VALUE(mmc_gpio_get_cd(slot->mmc)))
+		if (mmc_gpio_get_cd(slot->mmc) < 0)
 			break;
 	}
 	if (i == host->num_slots)
