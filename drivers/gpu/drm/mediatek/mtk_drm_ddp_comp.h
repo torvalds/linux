@@ -21,6 +21,7 @@ struct device_node;
 struct drm_crtc;
 struct drm_device;
 struct mtk_plane_state;
+struct drm_crtc_state;
 
 enum mtk_ddp_comp_type {
 	MTK_DISP_OVL,
@@ -73,6 +74,8 @@ struct mtk_ddp_comp_funcs {
 	void (*layer_off)(struct mtk_ddp_comp *comp, unsigned int idx);
 	void (*layer_config)(struct mtk_ddp_comp *comp, unsigned int idx,
 			     struct mtk_plane_state *state);
+	void (*gamma_set)(struct mtk_ddp_comp *comp,
+			  struct drm_crtc_state *state);
 };
 
 struct mtk_ddp_comp {
@@ -137,6 +140,13 @@ static inline void mtk_ddp_comp_layer_config(struct mtk_ddp_comp *comp,
 {
 	if (comp->funcs && comp->funcs->layer_config)
 		comp->funcs->layer_config(comp, idx, state);
+}
+
+static inline void mtk_ddp_gamma_set(struct mtk_ddp_comp *comp,
+				     struct drm_crtc_state *state)
+{
+	if (comp->funcs && comp->funcs->gamma_set)
+		comp->funcs->gamma_set(comp, state);
 }
 
 int mtk_ddp_comp_get_id(struct device_node *node,

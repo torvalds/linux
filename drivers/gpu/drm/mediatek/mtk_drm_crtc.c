@@ -409,6 +409,9 @@ static void mtk_drm_crtc_atomic_flush(struct drm_crtc *crtc,
 	}
 	if (pending_planes)
 		mtk_crtc->pending_planes = true;
+	if (crtc->state->color_mgmt_changed)
+		for (i = 0; i < mtk_crtc->ddp_comp_nr; i++)
+			mtk_ddp_gamma_set(mtk_crtc->ddp_comp[i], crtc->state);
 }
 
 static const struct drm_crtc_funcs mtk_crtc_funcs = {
@@ -418,6 +421,7 @@ static const struct drm_crtc_funcs mtk_crtc_funcs = {
 	.reset			= mtk_drm_crtc_reset,
 	.atomic_duplicate_state	= mtk_drm_crtc_duplicate_state,
 	.atomic_destroy_state	= mtk_drm_crtc_destroy_state,
+	.gamma_set		= drm_atomic_helper_legacy_gamma_set,
 };
 
 static const struct drm_crtc_helper_funcs mtk_crtc_helper_funcs = {
@@ -568,7 +572,8 @@ int mtk_drm_crtc_create(struct drm_device *drm_dev,
 				&mtk_crtc->planes[1].base, pipe);
 	if (ret < 0)
 		goto unprepare;
-
+	drm_mode_crtc_set_gamma_size(&mtk_crtc->base, MTK_LUT_SIZE);
+	drm_crtc_enable_color_mgmt(&mtk_crtc->base, 0, false, MTK_LUT_SIZE);
 	priv->crtc[pipe] = &mtk_crtc->base;
 	priv->num_pipes++;
 
