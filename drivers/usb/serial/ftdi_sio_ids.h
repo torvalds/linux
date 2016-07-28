@@ -406,6 +406,12 @@
 #define FTDI_4N_GALAXY_DE_3_PID	0xF3C2
 
 /*
+ * Ivium Technologies product IDs
+ */
+#define FTDI_PALMSENS_PID	0xf440
+#define FTDI_IVIUM_XSTAT_PID	0xf441
+
+/*
  * Linx Technologies product ids
  */
 #define LINX_SDMUSBQSS_PID	0xF448	/* Linx SDM-USB-QS-S */
