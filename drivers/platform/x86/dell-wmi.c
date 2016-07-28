@@ -114,7 +114,7 @@ static const struct key_entry dell_wmi_keymap_type_0000[] __initconst = {
 	{ KE_IGNORE, 0xe00e, { KEY_RESERVED } },
 
 	/* Wifi Catcher */
-	{ KE_KEY,    0xe011, { KEY_PROG2 } },
+	{ KE_KEY,    0xe011, { KEY_WLAN } },
 
 	/* Ambient light sensor toggle */
 	{ KE_IGNORE, 0xe013, { KEY_RESERVED } },
