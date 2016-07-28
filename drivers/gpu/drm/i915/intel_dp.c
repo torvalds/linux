@@ -1447,7 +1447,7 @@ intel_dp_max_link_rate(struct intel_dp *intel_dp)
 	if (WARN_ON(len <= 0))
 		return 162000;
 
-	return rates[rate_to_index(0, rates) - 1];
+	return rates[len - 1];
 }
 
 int intel_dp_rate_select(struct intel_dp *intel_dp, int rate)
