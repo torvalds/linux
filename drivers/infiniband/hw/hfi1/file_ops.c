@@ -168,6 +168,7 @@ static inline int is_valid_mmap(u64 token)
 
 static int hfi1_file_open(struct inode *inode, struct file *fp)
 {
+	struct hfi1_filedata *fd;
 	struct hfi1_devdata *dd = container_of(inode->i_cdev,
 					       struct hfi1_devdata,
 					       user_cdev);
@@ -176,10 +177,15 @@ static int hfi1_file_open(struct inode *inode, struct file *fp)
 	kobject_get(&dd->kobj);
 
 	/* The real work is performed later in assign_ctxt() */
-	fp->private_data = kzalloc(sizeof(struct hfi1_filedata), GFP_KERNEL);
-	if (fp->private_data) /* no cpu affinity by default */
-		((struct hfi1_filedata *)fp->private_data)->rec_cpu_num = -1;
-	return fp->private_data ? 0 : -ENOMEM;
+
+	fd = kzalloc(sizeof(*fd), GFP_KERNEL);
+
+	if (fd) /* no cpu affinity by default */
+		fd->rec_cpu_num = -1;
+
+	fp->private_data = fd;
+
+	return fd ? 0 : -ENOMEM;
 }
 
 static long hfi1_file_ioctl(struct file *fp, unsigned int cmd,
