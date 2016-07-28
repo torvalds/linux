@@ -1535,7 +1535,7 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 	r = amd_sched_entity_init(&ring->sched, &vm->entity,
 				  rq, amdgpu_sched_jobs);
 	if (r)
-		return r;
+		goto err;
 
 	vm->page_directory_fence = NULL;
 
@@ -1564,6 +1564,9 @@ error_free_page_directory:
 
 error_free_sched_entity:
 	amd_sched_entity_fini(&ring->sched, &vm->entity);
+
+err:
+	drm_free_large(vm->page_tables);
 
 	return r;
 }
