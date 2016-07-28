@@ -999,10 +999,6 @@ static __net_init int ipv4_sysctl_init_net(struct net *net)
 	if (!net->ipv4.sysctl_local_reserved_ports)
 		goto err_ports;
 
-	net->ipv4.sysctl_ip_default_ttl = IPDEFTTL;
-	net->ipv4.sysctl_ip_dynaddr = 0;
-	net->ipv4.sysctl_ip_early_demux = 1;
-
 	return 0;
 
 err_ports:

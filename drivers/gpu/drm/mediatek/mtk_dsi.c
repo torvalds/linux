@@ -695,10 +695,8 @@ static void mtk_dsi_destroy_conn_enc(struct mtk_dsi *dsi)
 {
 	drm_encoder_cleanup(&dsi->encoder);
 	/* Skip connector cleanup if creation was delegated to the bridge */
-	if (dsi->conn.dev) {
-		drm_connector_unregister(&dsi->conn);
+	if (dsi->conn.dev)
 		drm_connector_cleanup(&dsi->conn);
-	}
 }
 
 static void mtk_dsi_ddp_start(struct mtk_ddp_comp *comp)

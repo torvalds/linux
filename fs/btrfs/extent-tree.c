@@ -2042,6 +2042,11 @@ int btrfs_discard_extent(struct btrfs_root *root, u64 bytenr,
 	struct btrfs_bio *bbio = NULL;
 
 
+	/*
+	 * Avoid races with device replace and make sure our bbio has devices
+	 * associated to its stripes that don't go away while we are discarding.
+	 */
+	btrfs_bio_counter_inc_blocked(root->fs_info);
 	/* Tell the block device(s) that the sectors can be discarded */
 	ret = btrfs_map_block(root->fs_info, REQ_DISCARD,
 			      bytenr, &num_bytes, &bbio, 0);
@@ -2074,6 +2079,7 @@ int btrfs_discard_extent(struct btrfs_root *root, u64 bytenr,
 		}
 		btrfs_put_bbio(bbio);
 	}
+	btrfs_bio_counter_dec(root->fs_info);
 
 	if (actual_bytes)
 		*actual_bytes = discarded_bytes;

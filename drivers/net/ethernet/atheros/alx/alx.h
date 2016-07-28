@@ -96,6 +96,10 @@ struct alx_priv {
 	unsigned int rx_ringsz;
 	unsigned int rxbuf_size;
 
+	struct page  *rx_page;
+	unsigned int rx_page_offset;
+	unsigned int rx_frag_size;
+
 	struct napi_struct napi;
 	struct alx_tx_queue txq;
 	struct alx_rx_queue rxq;

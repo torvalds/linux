@@ -480,13 +480,13 @@ THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
 	.macro	uaccess_save, tmp
 #ifdef CONFIG_CPU_SW_DOMAIN_PAN
 	mrc	p15, 0, \tmp, c3, c0, 0
-	str	\tmp, [sp, #S_FRAME_SIZE]
+	str	\tmp, [sp, #SVC_DACR]
 #endif
 	.endm
 
 	.macro	uaccess_restore
 #ifdef CONFIG_CPU_SW_DOMAIN_PAN
-	ldr	r0, [sp, #S_FRAME_SIZE]
+	ldr	r0, [sp, #SVC_DACR]
 	mcr	p15, 0, r0, c3, c0, 0
 #endif
 	.endm

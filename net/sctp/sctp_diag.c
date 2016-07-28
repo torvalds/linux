@@ -356,6 +356,9 @@ static int sctp_ep_dump(struct sctp_endpoint *ep, void *p)
 	if (cb->args[4] < cb->args[1])
 		goto next;
 
+	if ((r->idiag_states & ~TCPF_LISTEN) && !list_empty(&ep->asocs))
+		goto next;
+
 	if (r->sdiag_family != AF_UNSPEC &&
 	    sk->sk_family != r->sdiag_family)
 		goto next;

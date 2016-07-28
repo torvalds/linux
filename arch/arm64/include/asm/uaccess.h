@@ -81,19 +81,6 @@ static inline void set_fs(mm_segment_t fs)
 #define segment_eq(a, b)	((a) == (b))
 
 /*
- * Return 1 if addr < current->addr_limit, 0 otherwise.
- */
-#define __addr_ok(addr)							\
-({									\
-	unsigned long flag;						\
-	asm("cmp %1, %0; cset %0, lo"					\
-		: "=&r" (flag)						\
-		: "r" (addr), "0" (current_thread_info()->addr_limit)	\
-		: "cc");						\
-	flag;								\
-})
-
-/*
  * Test whether a block of memory is a valid user space address.
  * Returns 1 if the range is valid, 0 otherwise.
  *

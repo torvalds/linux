@@ -1824,7 +1824,7 @@ static int qede_set_vf_rate(struct net_device *dev, int vfidx,
 {
 	struct qede_dev *edev = netdev_priv(dev);
 
-	return edev->ops->iov->set_rate(edev->cdev, vfidx, max_tx_rate,
+	return edev->ops->iov->set_rate(edev->cdev, vfidx, min_tx_rate,
 					max_tx_rate);
 }
 
@@ -2091,6 +2091,29 @@ static void qede_vlan_mark_nonconfigured(struct qede_dev *edev)
 	edev->accept_any_vlan = false;
 }
 
+int qede_set_features(struct net_device *dev, netdev_features_t features)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+	netdev_features_t changes = features ^ dev->features;
+	bool need_reload = false;
+
+	/* No action needed if hardware GRO is disabled during driver load */
+	if (changes & NETIF_F_GRO) {
+		if (dev->features & NETIF_F_GRO)
+			need_reload = !edev->gro_disable;
+		else
+			need_reload = edev->gro_disable;
+	}
+
+	if (need_reload && netif_running(edev->ndev)) {
+		dev->features = features;
+		qede_reload(edev, NULL, NULL);
+		return 1;
+	}
+
+	return 0;
+}
+
 #ifdef CONFIG_QEDE_VXLAN
 static void qede_add_vxlan_port(struct net_device *dev,
 				sa_family_t sa_family, __be16 port)
@@ -2175,6 +2198,7 @@ static const struct net_device_ops qede_netdev_ops = {
 #endif
 	.ndo_vlan_rx_add_vid = qede_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid = qede_vlan_rx_kill_vid,
+	.ndo_set_features = qede_set_features,
 	.ndo_get_stats64 = qede_get_stats64,
 #ifdef CONFIG_QED_SRIOV
 	.ndo_set_vf_link_state = qede_set_vf_link_state,

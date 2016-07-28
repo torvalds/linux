@@ -191,10 +191,8 @@ static void vgic_mmio_change_active(struct kvm_vcpu *vcpu, struct vgic_irq *irq,
 	 * other thread sync back the IRQ.
 	 */
 	while (irq->vcpu && /* IRQ may have state in an LR somewhere */
-	       irq->vcpu->cpu != -1) { /* VCPU thread is running */
-		BUG_ON(irq->intid < VGIC_NR_PRIVATE_IRQS);
+	       irq->vcpu->cpu != -1) /* VCPU thread is running */
 		cond_resched_lock(&irq->irq_lock);
-	}
 
 	irq->active = new_active_state;
 	if (new_active_state)

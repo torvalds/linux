@@ -100,12 +100,11 @@ static void __hyp_text save_lrs(struct kvm_vcpu *vcpu, void __iomem *base)
 		if (!(vcpu->arch.vgic_cpu.live_lrs & (1UL << i)))
 			continue;
 
-		if (cpu_if->vgic_elrsr & (1UL << i)) {
+		if (cpu_if->vgic_elrsr & (1UL << i))
 			cpu_if->vgic_lr[i] &= ~GICH_LR_STATE;
-			continue;
-		}
+		else
+			cpu_if->vgic_lr[i] = readl_relaxed(base + GICH_LR0 + (i * 4));
 
-		cpu_if->vgic_lr[i] = readl_relaxed(base + GICH_LR0 + (i * 4));
 		writel_relaxed(0, base + GICH_LR0 + (i * 4));
 	}
 }

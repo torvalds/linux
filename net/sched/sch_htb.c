@@ -928,17 +928,10 @@ ok:
 		}
 	}
 	qdisc_qstats_overlimit(sch);
-	if (likely(next_event > q->now)) {
-		if (!test_bit(__QDISC_STATE_DEACTIVATED,
-			      &qdisc_root_sleeping(q->watchdog.qdisc)->state)) {
-			ktime_t time = ns_to_ktime(next_event);
-			qdisc_throttled(q->watchdog.qdisc);
-			hrtimer_start(&q->watchdog.timer, time,
-				      HRTIMER_MODE_ABS_PINNED);
-		}
-	} else {
+	if (likely(next_event > q->now))
+		qdisc_watchdog_schedule_ns(&q->watchdog, next_event, true);
+	else
 		schedule_work(&q->work);
-	}
 fin:
 	return skb;
 }
