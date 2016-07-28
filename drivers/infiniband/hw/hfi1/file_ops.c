@@ -981,7 +981,7 @@ static int allocate_ctxt(struct file *fp, struct hfi1_devdata *dd,
 			return ret;
 	}
 	uctxt->userversion = uinfo->userversion;
-	uctxt->flags = HFI1_CAP_UGET(MASK);
+	uctxt->flags = hfi1_cap_mask; /* save current flag state */
 	init_waitqueue_head(&uctxt->wait);
 	strlcpy(uctxt->comm, current->comm, sizeof(uctxt->comm));
 	memcpy(uctxt->uuid, uinfo->uuid, sizeof(uctxt->uuid));
@@ -1084,18 +1084,18 @@ static int user_init(struct file *fp)
 	hfi1_set_ctxt_jkey(uctxt->dd, uctxt->ctxt, uctxt->jkey);
 
 	rcvctrl_ops = HFI1_RCVCTRL_CTXT_ENB;
-	if (HFI1_CAP_KGET_MASK(uctxt->flags, HDRSUPP))
+	if (HFI1_CAP_UGET_MASK(uctxt->flags, HDRSUPP))
 		rcvctrl_ops |= HFI1_RCVCTRL_TIDFLOW_ENB;
 	/*
 	 * Ignore the bit in the flags for now until proper
 	 * support for multiple packet per rcv array entry is
 	 * added.
 	 */
-	if (!HFI1_CAP_KGET_MASK(uctxt->flags, MULTI_PKT_EGR))
+	if (!HFI1_CAP_UGET_MASK(uctxt->flags, MULTI_PKT_EGR))
 		rcvctrl_ops |= HFI1_RCVCTRL_ONE_PKT_EGR_ENB;
-	if (HFI1_CAP_KGET_MASK(uctxt->flags, NODROP_EGR_FULL))
+	if (HFI1_CAP_UGET_MASK(uctxt->flags, NODROP_EGR_FULL))
 		rcvctrl_ops |= HFI1_RCVCTRL_NO_EGR_DROP_ENB;
-	if (HFI1_CAP_KGET_MASK(uctxt->flags, NODROP_RHQ_FULL))
+	if (HFI1_CAP_UGET_MASK(uctxt->flags, NODROP_RHQ_FULL))
 		rcvctrl_ops |= HFI1_RCVCTRL_NO_RHQ_DROP_ENB;
 	/*
 	 * The RcvCtxtCtrl.TailUpd bit has to be explicitly written.
@@ -1103,7 +1103,7 @@ static int user_init(struct file *fp)
 	 * uses of the chip or ctxt. Therefore, add the rcvctrl op
 	 * for both cases.
 	 */
-	if (HFI1_CAP_KGET_MASK(uctxt->flags, DMA_RTAIL))
+	if (HFI1_CAP_UGET_MASK(uctxt->flags, DMA_RTAIL))
 		rcvctrl_ops |= HFI1_RCVCTRL_TAILUPD_ENB;
 	else
 		rcvctrl_ops |= HFI1_RCVCTRL_TAILUPD_DIS;
@@ -1126,9 +1126,10 @@ static int get_ctxt_info(struct file *fp, void __user *ubase, __u32 len)
 	int ret = 0;
 
 	memset(&cinfo, 0, sizeof(cinfo));
-	ret = hfi1_get_base_kinfo(uctxt, &cinfo);
-	if (ret < 0)
-		goto done;
+	cinfo.runtime_flags = (((uctxt->flags >> HFI1_CAP_MISC_SHIFT) &
+				HFI1_CAP_MISC_MASK) << HFI1_CAP_USER_SHIFT) |
+			HFI1_CAP_UGET_MASK(uctxt->flags, MASK) |
+			HFI1_CAP_KGET_MASK(uctxt->flags, K2U);
 	cinfo.num_active = hfi1_count_active_units();
 	cinfo.unit = uctxt->dd->unit;
 	cinfo.ctxt = uctxt->ctxt;
@@ -1150,7 +1151,7 @@ static int get_ctxt_info(struct file *fp, void __user *ubase, __u32 len)
 	trace_hfi1_ctxt_info(uctxt->dd, uctxt->ctxt, fd->subctxt, cinfo);
 	if (copy_to_user(ubase, &cinfo, sizeof(cinfo)))
 		ret = -EFAULT;
-done:
+
 	return ret;
 }
 

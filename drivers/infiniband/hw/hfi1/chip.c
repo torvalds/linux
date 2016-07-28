@@ -9648,14 +9648,6 @@ void hfi1_clear_tids(struct hfi1_ctxtdata *rcd)
 		hfi1_put_tid(dd, i, PT_INVALID, 0, 0);
 }
 
-int hfi1_get_base_kinfo(struct hfi1_ctxtdata *rcd,
-			struct hfi1_ctxt_info *kinfo)
-{
-	kinfo->runtime_flags = (HFI1_MISC_GET() << HFI1_CAP_USER_SHIFT) |
-		HFI1_CAP_UGET(MASK) | HFI1_CAP_KGET(K2U);
-	return 0;
-}
-
 struct hfi1_message_header *hfi1_get_msgheader(
 				struct hfi1_devdata *dd, __le32 *rhf_addr)
 {
