@@ -12300,6 +12300,7 @@ static bool check_digital_port_conflicts(struct drm_atomic_state *state)
 	struct drm_device *dev = state->dev;
 	struct drm_connector *connector;
 	unsigned int used_ports = 0;
+	unsigned int used_mst_ports = 0;
 
 	/*
 	 * Walk the connector list instead of the encoder
@@ -12336,10 +12337,19 @@ static bool check_digital_port_conflicts(struct drm_atomic_state *state)
 				return false;
 
 			used_ports |= port_mask;
+			break;
+		case INTEL_OUTPUT_DP_MST:
+			used_mst_ports |=
+				1 << enc_to_mst(&encoder->base)->primary->port;
+			break;
 		default:
 			break;
 		}
 	}
+
+	/* can't mix MST and SST/HDMI on the same port */
+	if (used_ports & used_mst_ports)
+		return false;
 
 	return true;
 }
