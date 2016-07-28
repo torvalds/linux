@@ -616,15 +616,10 @@ static u16 nvmet_rdma_map_sgl_keyed(struct nvmet_rdma_rsp *rsp,
 	if (!len)
 		return 0;
 
-	/* use the already allocated data buffer if possible */
-	if (len <= NVMET_RDMA_INLINE_DATA_SIZE && rsp->queue->host_qid) {
-		nvmet_rdma_use_inline_sg(rsp, len, 0);
-	} else {
-		status = nvmet_rdma_alloc_sgl(&rsp->req.sg, &rsp->req.sg_cnt,
-				len);
-		if (status)
-			return status;
-	}
+	status = nvmet_rdma_alloc_sgl(&rsp->req.sg, &rsp->req.sg_cnt,
+			len);
+	if (status)
+		return status;
 
 	ret = rdma_rw_ctx_init(&rsp->rw, cm_id->qp, cm_id->port_num,
 			rsp->req.sg, rsp->req.sg_cnt, 0, addr, key,
