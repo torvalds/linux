@@ -999,8 +999,8 @@ static int cs53l30_i2c_probe(struct i2c_client *client,
 	/* Check if MCLK provided */
 	cs53l30->mclk = devm_clk_get(dev, "mclk");
 	if (IS_ERR(cs53l30->mclk)) {
-		if (PTR_ERR(cs53l30->mclk) == -EPROBE_DEFER) {
-			ret = -EPROBE_DEFER;
+		if (PTR_ERR(cs53l30->mclk) != -ENOENT) {
+			ret = PTR_ERR(cs53l30->mclk);
 			goto error;
 		}
 		/* Otherwise mark the mclk pointer to NULL */
