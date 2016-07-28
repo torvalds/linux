@@ -3886,6 +3886,7 @@ static int irq_remapping_alloc(struct irq_domain *domain, unsigned int virq,
 	}
 	if (index < 0) {
 		pr_warn("Failed to allocate IRTE\n");
+		ret = index;
 		goto out_free_parent;
 	}
 
