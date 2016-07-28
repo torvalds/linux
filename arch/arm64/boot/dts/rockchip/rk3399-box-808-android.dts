@@ -549,6 +549,10 @@
 &u2phy0 {
 	status = "okay";
 
+	u2phy0_otg: otg-port {
+		status = "okay";
+	};
+
 	u2phy0_host: host-port {
 		phy-supply = <&vcc5v0_host>;
 		status = "okay";
@@ -557,6 +561,10 @@
 
 &u2phy1 {
 	status = "okay";
+
+	u2phy1_otg: otg-port {
+		status = "okay";
+	};
 
 	u2phy1_host: host-port {
 		phy-supply = <&vcc5v0_host>;

@@ -439,6 +439,8 @@
 			reg = <0x0 0xfe800000 0x0 0x100000>;
 			interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH 0>;
 			dr_mode = "otg";
+			phys = <&u2phy0_otg>;
+			phy-names = "usb2-phy";
 			snps,dis_enblslpm_quirk;
 			snps,phyif_utmi_16_bits;
 			snps,dis_u2_freeclk_exists_quirk;
@@ -465,6 +467,8 @@
 			reg = <0x0 0xfe900000 0x0 0x100000>;
 			interrupts = <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH 0>;
 			dr_mode = "otg";
+			phys = <&u2phy1_otg>;
+			phy-names = "usb2-phy";
 			snps,dis_enblslpm_quirk;
 			snps,phyif_utmi_16_bits;
 			snps,dis_u2_freeclk_exists_quirk;
