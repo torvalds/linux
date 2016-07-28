@@ -472,8 +472,8 @@ int hfi1_user_sdma_free_queues(struct hfi1_filedata *fd)
 	hfi1_cdbg(SDMA, "[%u:%u:%u] Freeing user SDMA queues", uctxt->dd->unit,
 		  uctxt->ctxt, fd->subctxt);
 	pq = fd->pq;
-	hfi1_mmu_rb_unregister(&pq->sdma_rb_root);
 	if (pq) {
+		hfi1_mmu_rb_unregister(&pq->sdma_rb_root);
 		spin_lock_irqsave(&uctxt->sdma_qlock, flags);
 		if (!list_empty(&pq->list))
 			list_del_init(&pq->list);
