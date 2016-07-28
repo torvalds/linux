@@ -587,8 +587,8 @@ static inline void check_seg_range(struct f2fs_sb_info *sbi, unsigned int segno)
 
 static inline void verify_block_addr(struct f2fs_sb_info *sbi, block_t blk_addr)
 {
-	f2fs_bug_on(sbi, blk_addr < SEG0_BLKADDR(sbi)
-					|| blk_addr >= MAX_BLKADDR(sbi));
+	BUG_ON(blk_addr < SEG0_BLKADDR(sbi)
+			|| blk_addr >= MAX_BLKADDR(sbi));
 }
 
 /*
