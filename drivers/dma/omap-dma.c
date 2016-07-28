@@ -1292,9 +1292,13 @@ static int omap_dma_probe(struct platform_device *pdev)
 static int omap_dma_remove(struct platform_device *pdev)
 {
 	struct omap_dmadev *od = platform_get_drvdata(pdev);
+	int irq;
 
 	if (pdev->dev.of_node)
 		of_dma_controller_free(pdev->dev.of_node);
+
+	irq = platform_get_irq(pdev, 1);
+	devm_free_irq(&pdev->dev, irq, od);
 
 	dma_async_device_unregister(&od->ddev);
 

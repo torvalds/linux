@@ -239,6 +239,9 @@ struct edma_cc {
 	bool				chmap_exist;
 	enum dma_event_q		default_queue;
 
+	unsigned int			ccint;
+	unsigned int			ccerrint;
+
 	/*
 	 * The slot_inuse bit for each PaRAM slot is clear unless the slot is
 	 * in use by Linux or if it is allocated to be used by DSP.
@@ -2283,6 +2286,7 @@ static int edma_probe(struct platform_device *pdev)
 			dev_err(dev, "CCINT (%d) failed --> %d\n", irq, ret);
 			return ret;
 		}
+		ecc->ccint = irq;
 	}
 
 	irq = platform_get_irq_byname(pdev, "edma3_ccerrint");
@@ -2298,6 +2302,7 @@ static int edma_probe(struct platform_device *pdev)
 			dev_err(dev, "CCERRINT (%d) failed --> %d\n", irq, ret);
 			return ret;
 		}
+		ecc->ccerrint = irq;
 	}
 
 	ecc->dummy_slot = edma_alloc_slot(ecc, EDMA_SLOT_ANY);
@@ -2388,10 +2393,26 @@ err_reg1:
 	return ret;
 }
 
+static void edma_cleanupp_vchan(struct dma_device *dmadev)
+{
+	struct edma_chan *echan, *_echan;
+
+	list_for_each_entry_safe(echan, _echan,
+			&dmadev->channels, vchan.chan.device_node) {
+		list_del(&echan->vchan.chan.device_node);
+		tasklet_kill(&echan->vchan.task);
+	}
+}
+
 static int edma_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct edma_cc *ecc = dev_get_drvdata(dev);
+
+	devm_free_irq(dev, ecc->ccint, ecc);
+	devm_free_irq(dev, ecc->ccerrint, ecc);
+
+	edma_cleanupp_vchan(&ecc->dma_slave);
 
 	if (dev->of_node)
 		of_dma_controller_free(dev->of_node);

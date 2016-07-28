@@ -148,6 +148,7 @@ struct moxart_chan {
 struct moxart_dmadev {
 	struct dma_device		dma_slave;
 	struct moxart_chan		slave_chans[APB_DMA_MAX_CHANNEL];
+	unsigned int			irq;
 };
 
 struct moxart_filter_data {
@@ -615,6 +616,7 @@ static int moxart_probe(struct platform_device *pdev)
 		dev_err(dev, "devm_request_irq failed\n");
 		return ret;
 	}
+	mdc->irq = irq;
 
 	ret = dma_async_device_register(&mdc->dma_slave);
 	if (ret) {
@@ -637,6 +639,8 @@ static int moxart_probe(struct platform_device *pdev)
 static int moxart_remove(struct platform_device *pdev)
 {
 	struct moxart_dmadev *m = platform_get_drvdata(pdev);
+
+	devm_free_irq(&pdev->dev, m->irq, m);
 
 	dma_async_device_unregister(&m->dma_slave);
 

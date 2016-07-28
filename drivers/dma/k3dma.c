@@ -102,6 +102,7 @@ struct k3_dma_dev {
 	struct clk		*clk;
 	u32			dma_channels;
 	u32			dma_requests;
+	unsigned int		irq;
 };
 
 #define to_k3_dma(dmadev) container_of(dmadev, struct k3_dma_dev, slave)
@@ -703,6 +704,8 @@ static int k3_dma_probe(struct platform_device *op)
 	if (ret)
 		return ret;
 
+	d->irq = irq;
+
 	/* init phy channel */
 	d->phy = devm_kzalloc(&op->dev,
 		d->dma_channels * sizeof(struct k3_dma_phy), GFP_KERNEL);
@@ -786,6 +789,8 @@ static int k3_dma_remove(struct platform_device *op)
 
 	dma_async_device_unregister(&d->slave);
 	of_dma_controller_free((&op->dev)->of_node);
+
+	devm_free_irq(&op->dev, d->irq, d);
 
 	list_for_each_entry_safe(c, cn, &d->slave.channels, vc.chan.device_node) {
 		list_del(&c->vc.chan.device_node);

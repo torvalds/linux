@@ -3002,11 +3002,17 @@ static int pl330_remove(struct amba_device *adev)
 {
 	struct pl330_dmac *pl330 = amba_get_drvdata(adev);
 	struct dma_pl330_chan *pch, *_p;
+	int i, irq;
 
 	pm_runtime_get_noresume(pl330->ddma.dev);
 
 	if (adev->dev.of_node)
 		of_dma_controller_free(adev->dev.of_node);
+
+	for (i = 0; i < AMBA_NR_IRQS; i++) {
+		irq = adev->irq[i];
+		devm_free_irq(&adev->dev, irq, pl330);
+	}
 
 	dma_async_device_unregister(&pl330->ddma);
 
