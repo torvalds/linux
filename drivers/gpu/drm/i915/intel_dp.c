@@ -3940,7 +3940,7 @@ static bool
 intel_dp_short_pulse(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
-	u8 sink_irq_vector;
+	u8 sink_irq_vector = 0;
 	u8 old_sink_count = intel_dp->sink_count;
 	bool ret;
 
@@ -3967,7 +3967,8 @@ intel_dp_short_pulse(struct intel_dp *intel_dp)
 
 	/* Try to read the source of the interrupt */
 	if (intel_dp->dpcd[DP_DPCD_REV] >= 0x11 &&
-	    intel_dp_get_sink_irq(intel_dp, &sink_irq_vector)) {
+	    intel_dp_get_sink_irq(intel_dp, &sink_irq_vector) &&
+	    sink_irq_vector != 0) {
 		/* Clear interrupt source */
 		drm_dp_dpcd_writeb(&intel_dp->aux,
 				   DP_DEVICE_SERVICE_IRQ_VECTOR,
@@ -4251,7 +4252,7 @@ intel_dp_long_pulse(struct intel_connector *intel_connector)
 	struct drm_device *dev = connector->dev;
 	enum drm_connector_status status;
 	enum intel_display_power_domain power_domain;
-	u8 sink_irq_vector;
+	u8 sink_irq_vector = 0;
 
 	power_domain = intel_display_port_aux_power_domain(intel_encoder);
 	intel_display_power_get(to_i915(dev), power_domain);
@@ -4330,7 +4331,8 @@ intel_dp_long_pulse(struct intel_connector *intel_connector)
 
 	/* Try to read the source of the interrupt */
 	if (intel_dp->dpcd[DP_DPCD_REV] >= 0x11 &&
-	    intel_dp_get_sink_irq(intel_dp, &sink_irq_vector)) {
+	    intel_dp_get_sink_irq(intel_dp, &sink_irq_vector) &&
+	    sink_irq_vector != 0) {
 		/* Clear interrupt source */
 		drm_dp_dpcd_writeb(&intel_dp->aux,
 				   DP_DEVICE_SERVICE_IRQ_VECTOR,
