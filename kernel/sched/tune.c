@@ -51,50 +51,51 @@ __schedtune_accept_deltas(int nrg_delta, int cap_delta,
 			  int perf_boost_idx, int perf_constrain_idx)
 {
 	int payoff = -INT_MAX;
+	int gain_idx = -1;
 
 	/* Performance Boost (B) region */
-	if (nrg_delta > 0 && cap_delta > 0) {
-		/*
-		 * Evaluate "Performance Boost" vs "Energy Increase"
-		 * payoff criteria:
-		 *    cap_delta / nrg_delta < cap_gain / nrg_gain
-		 * which is:
-		 *    nrg_delta * cap_gain > cap_delta * nrg_gain
-		 */
-		payoff  = nrg_delta * threshold_gains[perf_boost_idx].cap_gain;
-		payoff -= cap_delta * threshold_gains[perf_boost_idx].nrg_gain;
-
-		trace_sched_tune_filter(
-				nrg_delta, cap_delta,
-				threshold_gains[perf_boost_idx].nrg_gain,
-				threshold_gains[perf_boost_idx].cap_gain,
-				payoff, 8);
-
-		return payoff;
-	}
-
+	if (nrg_delta >= 0 && cap_delta > 0)
+		gain_idx = perf_boost_idx;
 	/* Performance Constraint (C) region */
-	if (nrg_delta < 0 && cap_delta < 0) {
-		/*
-		 * Evaluate "Performance Boost" vs "Energy Increase"
-		 * payoff criteria:
-		 *    cap_delta / nrg_delta > cap_gain / nrg_gain
-		 * which is:
-		 *    cap_delta * nrg_gain > nrg_delta * cap_gain
-		 */
-		payoff  = cap_delta * threshold_gains[perf_constrain_idx].nrg_gain;
-		payoff -= nrg_delta * threshold_gains[perf_constrain_idx].cap_gain;
-
-		trace_sched_tune_filter(
-				nrg_delta, cap_delta,
-				threshold_gains[perf_constrain_idx].nrg_gain,
-				threshold_gains[perf_constrain_idx].cap_gain,
-				payoff, 6);
-
-		return payoff;
-	}
+	else if (nrg_delta < 0 && cap_delta <= 0)
+		gain_idx = perf_constrain_idx;
 
 	/* Default: reject schedule candidate */
+	if (gain_idx == -1)
+		return payoff;
+
+	/*
+	 * Evaluate "Performance Boost" vs "Energy Increase"
+	 *
+	 * - Performance Boost (B) region
+	 *
+	 *   Condition: nrg_delta > 0 && cap_delta > 0
+	 *   Payoff criteria:
+	 *     cap_gain / nrg_gain  < cap_delta / nrg_delta =
+	 *     cap_gain * nrg_delta < cap_delta * nrg_gain
+	 *   Note that since both nrg_gain and nrg_delta are positive, the
+	 *   inequality does not change. Thus:
+	 *
+	 *     payoff = (cap_delta * nrg_gain) - (cap_gain * nrg_delta)
+	 *
+	 * - Performance Constraint (C) region
+	 *
+	 *   Condition: nrg_delta < 0 && cap_delta < 0
+	 *   payoff criteria:
+	 *     cap_gain / nrg_gain  > cap_delta / nrg_delta =
+	 *     cap_gain * nrg_delta < cap_delta * nrg_gain
+	 *   Note that since nrg_gain > 0 while nrg_delta < 0, the
+	 *   inequality change. Thus:
+	 *
+	 *     payoff = (cap_delta * nrg_gain) - (cap_gain * nrg_delta)
+	 *
+	 * This means that, in case of same positive defined {cap,nrg}_gain
+	 * for both the B and C regions, we can use the same payoff formula
+	 * where a positive value represents the accept condition.
+	 */
+	payoff  = cap_delta * threshold_gains[gain_idx].nrg_gain;
+	payoff -= nrg_delta * threshold_gains[gain_idx].cap_gain;
+
 	return payoff;
 }
 
