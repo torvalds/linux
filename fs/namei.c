@@ -1449,9 +1449,8 @@ static int follow_dotdot(struct nameidata *nd)
 }
 
 /*
- * This looks up the name in dcache, possibly revalidates the old dentry and
- * allocates a new one if not found or not valid.  In the need_lookup argument
- * returns whether i_op->lookup is necessary.
+ * This looks up the name in dcache and possibly revalidates the found dentry.
+ * NULL is returned if the dentry does not exist in the cache.
  */
 static struct dentry *lookup_dcache(const struct qstr *name,
 				    struct dentry *dir,
@@ -4336,7 +4335,7 @@ int vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	 * Check source == target.
 	 * On overlayfs need to look at underlying inodes.
 	 */
-	if (vfs_select_inode(old_dentry, 0) == vfs_select_inode(new_dentry, 0))
+	if (d_real_inode(old_dentry) == d_real_inode(new_dentry))
 		return 0;
 
 	error = may_delete(old_dir, old_dentry, is_dir);

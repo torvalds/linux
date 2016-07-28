@@ -637,13 +637,12 @@ static ssize_t bm_entry_write(struct file *file, const char __user *buffer,
 		break;
 	case 3:
 		/* Delete this handler. */
-		root = dget(file->f_path.dentry->d_sb->s_root);
+		root = file_inode(file)->i_sb->s_root;
 		inode_lock(d_inode(root));
 
 		kill_node(e);
 
 		inode_unlock(d_inode(root));
-		dput(root);
 		break;
 	default:
 		return res;
@@ -665,8 +664,8 @@ static ssize_t bm_register_write(struct file *file, const char __user *buffer,
 {
 	Node *e;
 	struct inode *inode;
-	struct dentry *root, *dentry;
-	struct super_block *sb = file->f_path.dentry->d_sb;
+	struct super_block *sb = file_inode(file)->i_sb;
+	struct dentry *root = sb->s_root, *dentry;
 	int err = 0;
 
 	e = create_entry(buffer, count);
@@ -674,7 +673,6 @@ static ssize_t bm_register_write(struct file *file, const char __user *buffer,
 	if (IS_ERR(e))
 		return PTR_ERR(e);
 
-	root = dget(sb->s_root);
 	inode_lock(d_inode(root));
 	dentry = lookup_one_len(e->name, root, strlen(e->name));
 	err = PTR_ERR(dentry);
@@ -712,7 +710,6 @@ out2:
 	dput(dentry);
 out:
 	inode_unlock(d_inode(root));
-	dput(root);
 
 	if (err) {
 		kfree(e);
@@ -753,14 +750,13 @@ static ssize_t bm_status_write(struct file *file, const char __user *buffer,
 		break;
 	case 3:
 		/* Delete all handlers. */
-		root = dget(file->f_path.dentry->d_sb->s_root);
+		root = file_inode(file)->i_sb->s_root;
 		inode_lock(d_inode(root));
 
 		while (!list_empty(&entries))
 			kill_node(list_entry(entries.next, Node, list));
 
 		inode_unlock(d_inode(root));
-		dput(root);
 		break;
 	default:
 		return res;
