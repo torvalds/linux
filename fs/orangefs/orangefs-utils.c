@@ -262,7 +262,7 @@ int orangefs_inode_getattr(struct inode *inode, int new, int bypass)
 	    get_khandle_from_ino(inode));
 
 	if (!new && !bypass) {
-		if (orangefs_inode->getattr_time > jiffies)
+		if (time_before(jiffies, orangefs_inode->getattr_time))
 			return 0;
 	}
 
@@ -421,7 +421,7 @@ int orangefs_inode_setattr(struct inode *inode, struct iattr *iattr)
 		ClearMtimeFlag(orangefs_inode);
 		ClearCtimeFlag(orangefs_inode);
 		ClearModeFlag(orangefs_inode);
-		orangefs_inode->getattr_time = 0;
+		orangefs_inode->getattr_time = jiffies - 1;
 	}
 
 	return ret;

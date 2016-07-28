@@ -95,7 +95,7 @@ static int orangefs_d_revalidate(struct dentry *dentry, unsigned int flags)
 {
 	int ret;
 
-	if (dentry->d_time > jiffies)
+	if (time_before(jiffies, dentry->d_time))
 		return 1;
 
 	if (flags & LOOKUP_RCU)
