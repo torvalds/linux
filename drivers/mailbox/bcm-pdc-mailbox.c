@@ -1028,9 +1028,9 @@ static int pdc_ring_init(struct pdc_state *pdcs, int ringset)
 		goto fail_dealloc;
 	}
 
-	dev_dbg(dev, " - base DMA addr of tx ring      %#llx", tx.dmabase);
+	dev_dbg(dev, " - base DMA addr of tx ring      %pad", &tx.dmabase);
 	dev_dbg(dev, " - base virtual addr of tx ring  %p", tx.vbase);
-	dev_dbg(dev, " - base DMA addr of rx ring      %#llx", rx.dmabase);
+	dev_dbg(dev, " - base DMA addr of rx ring      %pad", &rx.dmabase);
 	dev_dbg(dev, " - base virtual addr of rx ring  %p", rx.vbase);
 
 	/* lock after ring allocation to avoid scheduling while atomic */
@@ -1455,8 +1455,8 @@ static int pdc_probe(struct platform_device *pdev)
 		err = -ENODEV;
 		goto cleanup_ring_pool;
 	}
-	dev_dbg(dev, "PDC register region res.start = %#llx, res.end = %#llx",
-		pdc_regs->start, pdc_regs->end);
+	dev_dbg(dev, "PDC register region res.start = %pa, res.end = %pa",
+		&pdc_regs->start, &pdc_regs->end);
 
 	pdcs->pdc_reg_vbase = devm_ioremap_resource(&pdev->dev, pdc_regs);
 	if (IS_ERR(pdcs->pdc_reg_vbase)) {
