@@ -2564,15 +2564,6 @@ clean_ndev_ret:
 	return ret;
 }
 
-static int cpsw_remove_child_device(struct device *dev, void *c)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-
-	of_device_unregister(pdev);
-
-	return 0;
-}
-
 static int cpsw_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
@@ -2591,7 +2582,7 @@ static int cpsw_remove(struct platform_device *pdev)
 
 	cpsw_ale_destroy(priv->ale);
 	cpdma_ctlr_destroy(priv->dma);
-	device_for_each_child(&pdev->dev, NULL, cpsw_remove_child_device);
+	of_platform_depopulate(&pdev->dev);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	if (priv->data.dual_emac)
