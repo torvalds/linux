@@ -1278,7 +1278,8 @@ static int vi_common_early_init(void *handle)
 			AMD_CG_SUPPORT_SDMA_LS;
 		adev->pg_flags |= AMD_PG_SUPPORT_GFX_PG |
 			AMD_PG_SUPPORT_GFX_SMG |
-			AMD_PG_SUPPORT_GFX_PIPELINE;
+			AMD_PG_SUPPORT_GFX_PIPELINE |
+			AMD_PG_SUPPORT_UVD;
 		adev->external_rev_id = adev->rev_id + 0x1;
 		break;
 	default:
