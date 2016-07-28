@@ -12,5 +12,7 @@
 #define BOOT_RECOVERY		(REBOOT_FLAG + 3)
  /* enter fastboot mode */
 #define BOOT_FASTBOOT		(REBOOT_FLAG + 9)
+/* enter charging mode */
+#define BOOT_CHARGING		(REBOOT_FLAG + 11)
 
 #endif
