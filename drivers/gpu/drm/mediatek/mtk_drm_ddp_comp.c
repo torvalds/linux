@@ -41,6 +41,9 @@
 #define DISP_AAL_EN				0x0000
 #define DISP_AAL_SIZE				0x0030
 
+#define DISP_GAMMA_EN				0x0000
+#define DISP_GAMMA_SIZE				0x0030
+
 #define	OD_RELAY_MODE		BIT(0)
 
 #define	UFO_BYPASS		BIT(2)
@@ -49,6 +52,8 @@
 #define	COLOR_SEQ_SEL		BIT(13)
 
 #define AAL_EN			BIT(0)
+
+#define GAMMA_EN		BIT(0)
 
 static void mtk_color_config(struct mtk_ddp_comp *comp, unsigned int w,
 			     unsigned int h, unsigned int vrefresh)
@@ -97,10 +102,32 @@ static void mtk_aal_stop(struct mtk_ddp_comp *comp)
 	writel_relaxed(0x0, comp->regs + DISP_AAL_EN);
 }
 
+static void mtk_gamma_config(struct mtk_ddp_comp *comp, unsigned int w,
+			     unsigned int h, unsigned int vrefresh)
+{
+	writel(h << 16 | w, comp->regs + DISP_GAMMA_SIZE);
+}
+
+static void mtk_gamma_start(struct mtk_ddp_comp *comp)
+{
+	writel(GAMMA_EN, comp->regs  + DISP_GAMMA_EN);
+}
+
+static void mtk_gamma_stop(struct mtk_ddp_comp *comp)
+{
+	writel_relaxed(0x0, comp->regs  + DISP_GAMMA_EN);
+}
+
 static const struct mtk_ddp_comp_funcs ddp_aal = {
 	.config = mtk_aal_config,
 	.start = mtk_aal_start,
 	.stop = mtk_aal_stop,
+};
+
+static const struct mtk_ddp_comp_funcs ddp_gamma = {
+	.config = mtk_gamma_config,
+	.start = mtk_gamma_start,
+	.stop = mtk_gamma_stop,
 };
 
 static const struct mtk_ddp_comp_funcs ddp_color = {
@@ -145,7 +172,7 @@ static const struct mtk_ddp_comp_match mtk_ddp_matches[DDP_COMPONENT_ID_MAX] = {
 	[DDP_COMPONENT_DPI0]	= { MTK_DPI,		0, NULL },
 	[DDP_COMPONENT_DSI0]	= { MTK_DSI,		0, NULL },
 	[DDP_COMPONENT_DSI1]	= { MTK_DSI,		1, NULL },
-	[DDP_COMPONENT_GAMMA]	= { MTK_DISP_GAMMA,	0, NULL },
+	[DDP_COMPONENT_GAMMA]	= { MTK_DISP_GAMMA,	0, &ddp_gamma },
 	[DDP_COMPONENT_OD]	= { MTK_DISP_OD,	0, &ddp_od },
 	[DDP_COMPONENT_OVL0]	= { MTK_DISP_OVL,	0, NULL },
 	[DDP_COMPONENT_OVL1]	= { MTK_DISP_OVL,	1, NULL },
