@@ -345,10 +345,8 @@ static int xgene_mdio_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	csr_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(csr_base)) {
-		dev_err(dev, "Unable to retrieve mac CSR region\n");
+	if (IS_ERR(csr_base))
 		return PTR_ERR(csr_base);
-	}
 	pdata->mac_csr_addr = csr_base;
 	pdata->mdio_csr_addr = csr_base + BLOCK_XG_MDIO_CSR_OFFSET;
 	pdata->diag_csr_addr = csr_base + BLOCK_DIAG_CSR_OFFSET;
