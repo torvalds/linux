@@ -222,14 +222,12 @@ struct rvt_mmap_info {
  * to send a RDMA read response or atomic operation.
  */
 struct rvt_ack_entry {
-	u8 opcode;
-	u8 sent;
+	struct rvt_sge rdma_sge;
+	u64 atomic_data;
 	u32 psn;
 	u32 lpsn;
-	union {
-		struct rvt_sge rdma_sge;
-		u64 atomic_data;
-	};
+	u8 opcode;
+	u8 sent;
 };
 
 #define	RC_QP_SCALING_INTERVAL	5
