@@ -14601,8 +14601,14 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 	/* set up LCB access - must be after set_up_interrupts() */
 	init_lcb_access(dd);
 
+	/*
+	 * Serial number is created from the base guid:
+	 * [27:24] = base guid [38:35]
+	 * [23: 0] = base guid [23: 0]
+	 */
 	snprintf(dd->serial, SERIAL_MAX, "0x%08llx\n",
-		 dd->base_guid & 0xFFFFFF);
+		 (dd->base_guid & 0xFFFFFF) |
+		     ((dd->base_guid >> 11) & 0xF000000));
 
 	dd->oui1 = dd->base_guid >> 56 & 0xFF;
 	dd->oui2 = dd->base_guid >> 48 & 0xFF;
