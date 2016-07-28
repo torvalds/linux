@@ -434,6 +434,8 @@ void i40evf_add_ether_addrs(struct i40evf_adapter *adapter)
 			ether_addr_copy(veal->list[i].addr, f->macaddr);
 			i++;
 			f->add = false;
+			if (i == count)
+				break;
 		}
 	}
 	if (!more)
@@ -497,6 +499,8 @@ void i40evf_del_ether_addrs(struct i40evf_adapter *adapter)
 			i++;
 			list_del(&f->list);
 			kfree(f);
+			if (i == count)
+				break;
 		}
 	}
 	if (!more)
@@ -560,6 +564,8 @@ void i40evf_add_vlans(struct i40evf_adapter *adapter)
 			vvfl->vlan_id[i] = f->vlan;
 			i++;
 			f->add = false;
+			if (i == count)
+				break;
 		}
 	}
 	if (!more)
@@ -623,6 +629,8 @@ void i40evf_del_vlans(struct i40evf_adapter *adapter)
 			i++;
 			list_del(&f->list);
 			kfree(f);
+			if (i == count)
+				break;
 		}
 	}
 	if (!more)

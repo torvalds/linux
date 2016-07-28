@@ -84,7 +84,7 @@ xfs_alloc_lookup_ge(
  * Lookup the first record less than or equal to [bno, len]
  * in the btree given by cur.
  */
-int					/* error */
+static int				/* error */
 xfs_alloc_lookup_le(
 	struct xfs_btree_cur	*cur,	/* btree cursor */
 	xfs_agblock_t		bno,	/* starting block of extent */
@@ -1839,19 +1839,8 @@ void
 xfs_alloc_compute_maxlevels(
 	xfs_mount_t	*mp)	/* file system mount structure */
 {
-	int		level;
-	uint		maxblocks;
-	uint		maxleafents;
-	int		minleafrecs;
-	int		minnoderecs;
-
-	maxleafents = (mp->m_sb.sb_agblocks + 1) / 2;
-	minleafrecs = mp->m_alloc_mnr[0];
-	minnoderecs = mp->m_alloc_mnr[1];
-	maxblocks = (maxleafents + minleafrecs - 1) / minleafrecs;
-	for (level = 1; maxblocks > 1; level++)
-		maxblocks = (maxblocks + minnoderecs - 1) / minnoderecs;
-	mp->m_ag_maxlevels = level;
+	mp->m_ag_maxlevels = xfs_btree_compute_maxlevels(mp, mp->m_alloc_mnr,
+			(mp->m_sb.sb_agblocks + 1) / 2);
 }
 
 /*
@@ -2658,35 +2647,26 @@ error0:
 	return error;
 }
 
-/*
- * Free an extent.
- * Just break up the extent address and hand off to xfs_free_ag_extent
- * after fixing up the freelist.
- */
-int				/* error */
-xfs_free_extent(
-	xfs_trans_t	*tp,	/* transaction pointer */
-	xfs_fsblock_t	bno,	/* starting block number of extent */
-	xfs_extlen_t	len)	/* length of extent */
+/* Ensure that the freelist is at full capacity. */
+int
+xfs_free_extent_fix_freelist(
+	struct xfs_trans	*tp,
+	xfs_agnumber_t		agno,
+	struct xfs_buf		**agbp)
 {
-	xfs_alloc_arg_t	args;
-	int		error;
+	struct xfs_alloc_arg	args;
+	int			error;
 
-	ASSERT(len != 0);
-	memset(&args, 0, sizeof(xfs_alloc_arg_t));
+	memset(&args, 0, sizeof(struct xfs_alloc_arg));
 	args.tp = tp;
 	args.mp = tp->t_mountp;
+	args.agno = agno;
 
 	/*
 	 * validate that the block number is legal - the enables us to detect
 	 * and handle a silent filesystem corruption rather than crashing.
 	 */
-	args.agno = XFS_FSB_TO_AGNO(args.mp, bno);
 	if (args.agno >= args.mp->m_sb.sb_agcount)
-		return -EFSCORRUPTED;
-
-	args.agbno = XFS_FSB_TO_AGBNO(args.mp, bno);
-	if (args.agbno >= args.mp->m_sb.sb_agblocks)
 		return -EFSCORRUPTED;
 
 	args.pag = xfs_perag_get(args.mp, args.agno);
@@ -2694,19 +2674,52 @@ xfs_free_extent(
 
 	error = xfs_alloc_fix_freelist(&args, XFS_ALLOC_FLAG_FREEING);
 	if (error)
-		goto error0;
+		goto out;
+
+	*agbp = args.agbp;
+out:
+	xfs_perag_put(args.pag);
+	return error;
+}
+
+/*
+ * Free an extent.
+ * Just break up the extent address and hand off to xfs_free_ag_extent
+ * after fixing up the freelist.
+ */
+int				/* error */
+xfs_free_extent(
+	struct xfs_trans	*tp,	/* transaction pointer */
+	xfs_fsblock_t		bno,	/* starting block number of extent */
+	xfs_extlen_t		len)	/* length of extent */
+{
+	struct xfs_mount	*mp = tp->t_mountp;
+	struct xfs_buf		*agbp;
+	xfs_agnumber_t		agno = XFS_FSB_TO_AGNO(mp, bno);
+	xfs_agblock_t		agbno = XFS_FSB_TO_AGBNO(mp, bno);
+	int			error;
+
+	ASSERT(len != 0);
+
+	error = xfs_free_extent_fix_freelist(tp, agno, &agbp);
+	if (error)
+		return error;
+
+	XFS_WANT_CORRUPTED_GOTO(mp, agbno < mp->m_sb.sb_agblocks, err);
 
 	/* validate the extent size is legal now we have the agf locked */
-	if (args.agbno + len >
-			be32_to_cpu(XFS_BUF_TO_AGF(args.agbp)->agf_length)) {
-		error = -EFSCORRUPTED;
-		goto error0;
-	}
+	XFS_WANT_CORRUPTED_GOTO(mp,
+		agbno + len <= be32_to_cpu(XFS_BUF_TO_AGF(agbp)->agf_length),
+				err);
 
-	error = xfs_free_ag_extent(tp, args.agbp, args.agno, args.agbno, len, 0);
-	if (!error)
-		xfs_extent_busy_insert(tp, args.agno, args.agbno, len, 0);
-error0:
-	xfs_perag_put(args.pag);
+	error = xfs_free_ag_extent(tp, agbp, agno, agbno, len, 0);
+	if (error)
+		goto err;
+
+	xfs_extent_busy_insert(tp, agno, agbno, len, 0);
+	return 0;
+
+err:
+	xfs_trans_brelse(tp, agbp);
 	return error;
 }

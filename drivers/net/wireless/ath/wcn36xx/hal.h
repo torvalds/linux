@@ -4123,7 +4123,7 @@ struct wcn36xx_hal_update_scan_params_req {
 
 /* Update scan params - sent from host to PNO to be used during PNO
  * scanningx */
-struct update_scan_params_req_ex {
+struct wcn36xx_hal_update_scan_params_req_ex {
 
 	struct wcn36xx_hal_msg_header header;
 
@@ -4151,7 +4151,7 @@ struct update_scan_params_req_ex {
 
 	/* Cb State */
 	enum phy_chan_bond_state state;
-};
+} __packed;
 
 /* Update scan params - sent from host to PNO to be used during PNO
  * scanningx */

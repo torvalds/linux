@@ -62,6 +62,13 @@ wants to support one of the below features, it should adapt the bindings below.
 - wakeup-source
 	device can be used as a wakeup source.
 
+- reg
+	I2C slave addresses
+
+- reg-names
+	Names of map programmable addresses.
+	It can contain any map needing another address than default one.
+
 Binding may contain optional "interrupts" property, describing interrupts
 used by the device. I2C core will assign "irq" interrupt (or the very first
 interrupt if not using interrupt names) as primary interrupt for the slave.

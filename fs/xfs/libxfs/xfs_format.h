@@ -1435,41 +1435,57 @@ typedef __be64 xfs_bmbt_ptr_t, xfs_bmdr_ptr_t;
  * with the crc feature bit, and all accesses to them must be conditional on
  * that flag.
  */
+/* short form block header */
+struct xfs_btree_block_shdr {
+	__be32		bb_leftsib;
+	__be32		bb_rightsib;
+
+	__be64		bb_blkno;
+	__be64		bb_lsn;
+	uuid_t		bb_uuid;
+	__be32		bb_owner;
+	__le32		bb_crc;
+};
+
+/* long form block header */
+struct xfs_btree_block_lhdr {
+	__be64		bb_leftsib;
+	__be64		bb_rightsib;
+
+	__be64		bb_blkno;
+	__be64		bb_lsn;
+	uuid_t		bb_uuid;
+	__be64		bb_owner;
+	__le32		bb_crc;
+	__be32		bb_pad; /* padding for alignment */
+};
+
 struct xfs_btree_block {
 	__be32		bb_magic;	/* magic number for block type */
 	__be16		bb_level;	/* 0 is a leaf */
 	__be16		bb_numrecs;	/* current # of data records */
 	union {
-		struct {
-			__be32		bb_leftsib;
-			__be32		bb_rightsib;
-
-			__be64		bb_blkno;
-			__be64		bb_lsn;
-			uuid_t		bb_uuid;
-			__be32		bb_owner;
-			__le32		bb_crc;
-		} s;			/* short form pointers */
-		struct	{
-			__be64		bb_leftsib;
-			__be64		bb_rightsib;
-
-			__be64		bb_blkno;
-			__be64		bb_lsn;
-			uuid_t		bb_uuid;
-			__be64		bb_owner;
-			__le32		bb_crc;
-			__be32		bb_pad; /* padding for alignment */
-		} l;			/* long form pointers */
+		struct xfs_btree_block_shdr s;
+		struct xfs_btree_block_lhdr l;
 	} bb_u;				/* rest */
 };
 
-#define XFS_BTREE_SBLOCK_LEN	16	/* size of a short form block */
-#define XFS_BTREE_LBLOCK_LEN	24	/* size of a long form block */
+/* size of a short form block */
+#define XFS_BTREE_SBLOCK_LEN \
+	(offsetof(struct xfs_btree_block, bb_u) + \
+	 offsetof(struct xfs_btree_block_shdr, bb_blkno))
+/* size of a long form block */
+#define XFS_BTREE_LBLOCK_LEN \
+	(offsetof(struct xfs_btree_block, bb_u) + \
+	 offsetof(struct xfs_btree_block_lhdr, bb_blkno))
 
 /* sizes of CRC enabled btree blocks */
-#define XFS_BTREE_SBLOCK_CRC_LEN	(XFS_BTREE_SBLOCK_LEN + 40)
-#define XFS_BTREE_LBLOCK_CRC_LEN	(XFS_BTREE_LBLOCK_LEN + 48)
+#define XFS_BTREE_SBLOCK_CRC_LEN \
+	(offsetof(struct xfs_btree_block, bb_u) + \
+	 sizeof(struct xfs_btree_block_shdr))
+#define XFS_BTREE_LBLOCK_CRC_LEN \
+	(offsetof(struct xfs_btree_block, bb_u) + \
+	 sizeof(struct xfs_btree_block_lhdr))
 
 #define XFS_BTREE_SBLOCK_CRC_OFF \
 	offsetof(struct xfs_btree_block, bb_u.s.bb_crc)

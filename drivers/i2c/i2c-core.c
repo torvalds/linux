@@ -27,6 +27,8 @@
    I2C slave support (c) 2014 by Wolfram Sang <wsa@sang-engineering.com>
  */
 
+#define pr_fmt(fmt) "i2c-core: " fmt
+
 #include <dt-bindings/i2c/i2c.h>
 #include <asm/uaccess.h>
 #include <linux/acpi.h>
@@ -493,7 +495,8 @@ acpi_i2c_space_handler(u32 function, acpi_physical_address command,
 		break;
 
 	default:
-		pr_info("protocol(0x%02x) is not supported.\n", accessor_type);
+		dev_warn(&adapter->dev, "protocol 0x%02x not supported for client 0x%02x\n",
+			 accessor_type, client->addr);
 		ret = AE_BAD_PARAMETER;
 		goto err;
 	}
@@ -758,6 +761,47 @@ int i2c_recover_bus(struct i2c_adapter *adap)
 	return adap->bus_recovery_info->recover_bus(adap);
 }
 EXPORT_SYMBOL_GPL(i2c_recover_bus);
+
+static void i2c_init_recovery(struct i2c_adapter *adap)
+{
+	struct i2c_bus_recovery_info *bri = adap->bus_recovery_info;
+	char *err_str;
+
+	if (!bri)
+		return;
+
+	if (!bri->recover_bus) {
+		err_str = "no recover_bus() found";
+		goto err;
+	}
+
+	/* Generic GPIO recovery */
+	if (bri->recover_bus == i2c_generic_gpio_recovery) {
+		if (!gpio_is_valid(bri->scl_gpio)) {
+			err_str = "invalid SCL gpio";
+			goto err;
+		}
+
+		if (gpio_is_valid(bri->sda_gpio))
+			bri->get_sda = get_sda_gpio_value;
+		else
+			bri->get_sda = NULL;
+
+		bri->get_scl = get_scl_gpio_value;
+		bri->set_scl = set_scl_gpio_value;
+	} else if (bri->recover_bus == i2c_generic_scl_recovery) {
+		/* Generic SCL recovery */
+		if (!bri->set_scl || !bri->get_scl) {
+			err_str = "no {get|set}_scl() found";
+			goto err;
+		}
+	}
+
+	return;
+ err:
+	dev_err(&adap->dev, "Not using recovery: %s\n", err_str);
+	adap->bus_recovery_info = NULL;
+}
 
 static int i2c_device_probe(struct device *dev)
 {
@@ -1240,6 +1284,47 @@ struct i2c_client *i2c_new_dummy(struct i2c_adapter *adapter, u16 address)
 }
 EXPORT_SYMBOL_GPL(i2c_new_dummy);
 
+/**
+ * i2c_new_secondary_device - Helper to get the instantiated secondary address
+ * and create the associated device
+ * @client: Handle to the primary client
+ * @name: Handle to specify which secondary address to get
+ * @default_addr: Used as a fallback if no secondary address was specified
+ * Context: can sleep
+ *
+ * I2C clients can be composed of multiple I2C slaves bound together in a single
+ * component. The I2C client driver then binds to the master I2C slave and needs
+ * to create I2C dummy clients to communicate with all the other slaves.
+ *
+ * This function creates and returns an I2C dummy client whose I2C address is
+ * retrieved from the platform firmware based on the given slave name. If no
+ * address is specified by the firmware default_addr is used.
+ *
+ * On DT-based platforms the address is retrieved from the "reg" property entry
+ * cell whose "reg-names" value matches the slave name.
+ *
+ * This returns the new i2c client, which should be saved for later use with
+ * i2c_unregister_device(); or NULL to indicate an error.
+ */
+struct i2c_client *i2c_new_secondary_device(struct i2c_client *client,
+						const char *name,
+						u16 default_addr)
+{
+	struct device_node *np = client->dev.of_node;
+	u32 addr = default_addr;
+	int i;
+
+	if (np) {
+		i = of_property_match_string(np, "reg-names", name);
+		if (i >= 0)
+			of_property_read_u32_index(np, "reg", i, &addr);
+	}
+
+	dev_dbg(&client->adapter->dev, "Address for %s : 0x%x\n", name, addr);
+	return i2c_new_dummy(client->adapter, addr);
+}
+EXPORT_SYMBOL_GPL(i2c_new_secondary_device);
+
 /* ------------------------------------------------------------------------- */
 
 /* I2C bus adapters -- one roots each I2C or SMBUS segment */
@@ -1608,7 +1693,7 @@ static int __process_new_adapter(struct device_driver *d, void *data)
 
 static int i2c_register_adapter(struct i2c_adapter *adap)
 {
-	int res = 0;
+	int res = -EINVAL;
 
 	/* Can't register until after driver model init */
 	if (WARN_ON(!is_registered)) {
@@ -1617,15 +1702,12 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 	}
 
 	/* Sanity checks */
-	if (unlikely(adap->name[0] == '\0')) {
-		pr_err("i2c-core: Attempt to register an adapter with "
-		       "no name!\n");
-		return -EINVAL;
-	}
-	if (unlikely(!adap->algo)) {
-		pr_err("i2c-core: Attempt to register adapter '%s' with "
-		       "no algo!\n", adap->name);
-		return -EINVAL;
+	if (WARN(!adap->name[0], "i2c adapter has no name"))
+		goto out_list;
+
+	if (!adap->algo) {
+		pr_err("adapter '%s': no algo supplied!\n", adap->name);
+		goto out_list;
 	}
 
 	if (!adap->lock_bus) {
@@ -1647,8 +1729,10 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 	adap->dev.bus = &i2c_bus_type;
 	adap->dev.type = &i2c_adapter_type;
 	res = device_register(&adap->dev);
-	if (res)
+	if (res) {
+		pr_err("adapter '%s': can't register device (%d)\n", adap->name, res);
 		goto out_list;
+	}
 
 	dev_dbg(&adap->dev, "adapter [%s] registered\n", adap->name);
 
@@ -1664,41 +1748,8 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 			 "Failed to create compatibility class link\n");
 #endif
 
-	/* bus recovery specific initialization */
-	if (adap->bus_recovery_info) {
-		struct i2c_bus_recovery_info *bri = adap->bus_recovery_info;
+	i2c_init_recovery(adap);
 
-		if (!bri->recover_bus) {
-			dev_err(&adap->dev, "No recover_bus() found, not using recovery\n");
-			adap->bus_recovery_info = NULL;
-			goto exit_recovery;
-		}
-
-		/* Generic GPIO recovery */
-		if (bri->recover_bus == i2c_generic_gpio_recovery) {
-			if (!gpio_is_valid(bri->scl_gpio)) {
-				dev_err(&adap->dev, "Invalid SCL gpio, not using recovery\n");
-				adap->bus_recovery_info = NULL;
-				goto exit_recovery;
-			}
-
-			if (gpio_is_valid(bri->sda_gpio))
-				bri->get_sda = get_sda_gpio_value;
-			else
-				bri->get_sda = NULL;
-
-			bri->get_scl = get_scl_gpio_value;
-			bri->set_scl = set_scl_gpio_value;
-		} else if (bri->recover_bus == i2c_generic_scl_recovery) {
-			/* Generic SCL recovery */
-			if (!bri->set_scl || !bri->get_scl) {
-				dev_err(&adap->dev, "No {get|set}_scl() found, not using recovery\n");
-				adap->bus_recovery_info = NULL;
-			}
-		}
-	}
-
-exit_recovery:
 	/* create pre-declared device nodes */
 	of_i2c_register_devices(adap);
 	acpi_i2c_register_devices(adap);
@@ -1730,13 +1781,12 @@ out_list:
  */
 static int __i2c_add_numbered_adapter(struct i2c_adapter *adap)
 {
-	int	id;
+	int id;
 
 	mutex_lock(&core_lock);
-	id = idr_alloc(&i2c_adapter_idr, adap, adap->nr, adap->nr + 1,
-		       GFP_KERNEL);
+	id = idr_alloc(&i2c_adapter_idr, adap, adap->nr, adap->nr + 1, GFP_KERNEL);
 	mutex_unlock(&core_lock);
-	if (id < 0)
+	if (WARN(id < 0, "couldn't get idr"))
 		return id == -ENOSPC ? -EBUSY : id;
 
 	return i2c_register_adapter(adap);
@@ -1773,7 +1823,7 @@ int i2c_add_adapter(struct i2c_adapter *adapter)
 	id = idr_alloc(&i2c_adapter_idr, adapter,
 		       __i2c_first_dynamic_bus_num, 0, GFP_KERNEL);
 	mutex_unlock(&core_lock);
-	if (id < 0)
+	if (WARN(id < 0, "couldn't get idr"))
 		return id;
 
 	adapter->nr = id;
@@ -1871,8 +1921,7 @@ void i2c_del_adapter(struct i2c_adapter *adap)
 	found = idr_find(&i2c_adapter_idr, adap->nr);
 	mutex_unlock(&core_lock);
 	if (found != adap) {
-		pr_debug("i2c-core: attempting to delete unregistered "
-			 "adapter [%s]\n", adap->name);
+		pr_debug("attempting to delete unregistered adapter [%s]\n", adap->name);
 		return;
 	}
 
@@ -2032,7 +2081,7 @@ int i2c_register_driver(struct module *owner, struct i2c_driver *driver)
 	if (res)
 		return res;
 
-	pr_debug("i2c-core: driver [%s] registered\n", driver->driver.name);
+	pr_debug("driver [%s] registered\n", driver->driver.name);
 
 	INIT_LIST_HEAD(&driver->clients);
 	/* Walk the adapters that are already present */
@@ -2059,7 +2108,7 @@ void i2c_del_driver(struct i2c_driver *driver)
 	i2c_for_each_dev(driver, __process_removed_driver);
 
 	driver_unregister(&driver->driver);
-	pr_debug("i2c-core: driver [%s] unregistered\n", driver->driver.name);
+	pr_debug("driver [%s] unregistered\n", driver->driver.name);
 }
 EXPORT_SYMBOL(i2c_del_driver);
 
@@ -2150,8 +2199,8 @@ static int of_i2c_notify(struct notifier_block *nb, unsigned long action,
 		put_device(&adap->dev);
 
 		if (IS_ERR(client)) {
-			pr_err("%s: failed to create for '%s'\n",
-					__func__, rd->dn->full_name);
+			dev_err(&adap->dev, "failed to create client for '%s'\n",
+				 rd->dn->full_name);
 			return notifier_from_errno(PTR_ERR(client));
 		}
 		break;
@@ -2772,7 +2821,7 @@ static int i2c_smbus_check_pec(u8 cpec, struct i2c_msg *msg)
 	cpec = i2c_smbus_msg_pec(cpec, msg);
 
 	if (rpec != cpec) {
-		pr_debug("i2c-core: Bad PEC 0x%02x vs. 0x%02x\n",
+		pr_debug("Bad PEC 0x%02x vs. 0x%02x\n",
 			rpec, cpec);
 		return -EBADMSG;
 	}

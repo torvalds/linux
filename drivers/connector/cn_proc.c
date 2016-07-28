@@ -22,7 +22,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/ktime.h>
 #include <linux/init.h>
@@ -390,5 +389,4 @@ static int __init cn_proc_init(void)
 	}
 	return 0;
 }
-
-module_init(cn_proc_init);
+device_initcall(cn_proc_init);

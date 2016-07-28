@@ -145,8 +145,10 @@
 
 #define CSR_LED_REG             (CSR_BASE+0x094)
 #define CSR_DRAM_INT_TBL_REG	(CSR_BASE+0x0A0)
-#define CSR_MAC_SHADOW_REG_CTRL	(CSR_BASE+0x0A8) /* 6000 and up */
-
+#define CSR_MAC_SHADOW_REG_CTRL		(CSR_BASE + 0x0A8) /* 6000 and up */
+#define CSR_MAC_SHADOW_REG_CTRL_RX_WAKE	BIT(20)
+#define CSR_MAC_SHADOW_REG_CTL2		(CSR_BASE + 0x0AC)
+#define CSR_MAC_SHADOW_REG_CTL2_RX_WAKE	0xFFFF
 
 /* GIO Chicken Bits (PCI Express bus link power management) */
 #define CSR_GIO_CHICKEN_BITS    (CSR_BASE+0x100)

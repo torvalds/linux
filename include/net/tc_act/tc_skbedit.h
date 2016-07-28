@@ -23,15 +23,14 @@
 #include <linux/tc_act/tc_skbedit.h>
 
 struct tcf_skbedit {
-	struct tcf_common	common;
-	u32			flags;
-	u32     		priority;
-	u32     		mark;
-	u16			queue_mapping;
-	/* XXX: 16-bit pad here? */
+	struct tc_action	common;
+	u32		flags;
+	u32		priority;
+	u32		mark;
+	u16		queue_mapping;
+	u16		ptype;
 };
-#define to_skbedit(a) \
-	container_of(a->priv, struct tcf_skbedit, common)
+#define to_skbedit(a) ((struct tcf_skbedit *)a)
 
 /* Return true iff action is mark */
 static inline bool is_tcf_skbedit_mark(const struct tc_action *a)

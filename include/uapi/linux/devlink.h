@@ -57,6 +57,8 @@ enum devlink_command {
 	DEVLINK_CMD_SB_OCC_SNAPSHOT,
 	DEVLINK_CMD_SB_OCC_MAX_CLEAR,
 
+	DEVLINK_CMD_ESWITCH_MODE_GET,
+	DEVLINK_CMD_ESWITCH_MODE_SET,
 	/* add new commands above here */
 
 	__DEVLINK_CMD_MAX,
@@ -95,6 +97,11 @@ enum devlink_sb_threshold_type {
 
 #define DEVLINK_SB_THRESHOLD_TO_ALPHA_MAX 20
 
+enum devlink_eswitch_mode {
+	DEVLINK_ESWITCH_MODE_LEGACY,
+	DEVLINK_ESWITCH_MODE_SWITCHDEV,
+};
+
 enum devlink_attr {
 	/* don't change the order or add anything between, this is ABI! */
 	DEVLINK_ATTR_UNSPEC,
@@ -125,6 +132,7 @@ enum devlink_attr {
 	DEVLINK_ATTR_SB_TC_INDEX,		/* u16 */
 	DEVLINK_ATTR_SB_OCC_CUR,		/* u32 */
 	DEVLINK_ATTR_SB_OCC_MAX,		/* u32 */
+	DEVLINK_ATTR_ESWITCH_MODE,		/* u16 */
 
 	/* add new attributes above here, update the policy in devlink.c */
 

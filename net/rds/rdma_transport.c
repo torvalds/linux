@@ -33,6 +33,7 @@
 #include <linux/module.h>
 #include <rdma/rdma_cm.h>
 
+#include "rds_single_path.h"
 #include "rdma_transport.h"
 #include "ib.h"
 

@@ -624,6 +624,9 @@ qla2x00_initialize_adapter(scsi_qla_host_t *vha)
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req = ha->req_q_map[0];
 
+	memset(&vha->qla_stats, 0, sizeof(vha->qla_stats));
+	memset(&vha->fc_host_stat, 0, sizeof(vha->fc_host_stat));
+
 	/* Clear adapter flags. */
 	vha->flags.online = 0;
 	ha->flags.chip_reset_done = 0;
@@ -2053,6 +2056,14 @@ qla2x00_update_fw_options(scsi_qla_host_t *vha)
 	if (IS_QLA6312(ha))
 		ha->fw_options[2] |= BIT_13;
 
+	/* Set Retry FLOGI in case of P2P connection */
+	if (ha->operating_mode == P2P) {
+		ha->fw_options[2] |= BIT_3;
+		ql_dbg(ql_dbg_disc, vha, 0x2100,
+		    "(%s): Setting FLOGI retry BIT in fw_options[2]: 0x%x\n",
+			__func__, ha->fw_options[2]);
+	}
+
 	/* Update firmware options. */
 	qla2x00_set_fw_options(vha, ha->fw_options);
 }
@@ -2069,6 +2080,14 @@ qla24xx_update_fw_options(scsi_qla_host_t *vha)
 	/*  Hold status IOCBs until ABTS response received. */
 	if (ql2xfwholdabts)
 		ha->fw_options[3] |= BIT_12;
+
+	/* Set Retry FLOGI in case of P2P connection */
+	if (ha->operating_mode == P2P) {
+		ha->fw_options[2] |= BIT_3;
+		ql_dbg(ql_dbg_disc, vha, 0x2101,
+		    "(%s): Setting FLOGI retry BIT in fw_options[2]: 0x%x\n",
+			__func__, ha->fw_options[2]);
+	}
 
 	/* Update Serial Link options. */
 	if ((le16_to_cpu(ha->fw_seriallink_options24[0]) & BIT_0) == 0)
@@ -2269,13 +2288,13 @@ qla2x00_init_rings(scsi_qla_host_t *vha)
 		mid_init_cb->options = cpu_to_le16(BIT_1);
 		mid_init_cb->init_cb.execution_throttle =
 		    cpu_to_le16(ha->cur_fw_xcb_count);
-		/* D-Port Status */
-		if (IS_DPORT_CAPABLE(ha))
-			mid_init_cb->init_cb.firmware_options_1 |=
-			    cpu_to_le16(BIT_7);
-		/* Enable FA-WWPN */
+		ha->flags.dport_enabled =
+		    (mid_init_cb->init_cb.firmware_options_1 & BIT_7) != 0;
+		ql_dbg(ql_dbg_init, vha, 0x0191, "DPORT Support: %s.\n",
+		    (ha->flags.dport_enabled) ? "enabled" : "disabled");
+		/* FA-WWPN Status */
 		ha->flags.fawwpn_enabled =
-		    (mid_init_cb->init_cb.firmware_options_1 & BIT_6) ? 1 : 0;
+		    (mid_init_cb->init_cb.firmware_options_1 & BIT_6) != 0;
 		ql_dbg(ql_dbg_init, vha, 0x0141, "FA-WWPN Support: %s.\n",
 		    (ha->flags.fawwpn_enabled) ? "enabled" : "disabled");
 	}
@@ -6512,6 +6531,14 @@ qla81xx_update_fw_options(scsi_qla_host_t *vha)
 	/*  Hold status IOCBs until ABTS response received. */
 	if (ql2xfwholdabts)
 		ha->fw_options[3] |= BIT_12;
+
+	/* Set Retry FLOGI in case of P2P connection */
+	if (ha->operating_mode == P2P) {
+		ha->fw_options[2] |= BIT_3;
+		ql_dbg(ql_dbg_disc, vha, 0x2103,
+		    "(%s): Setting FLOGI retry BIT in fw_options[2]: 0x%x\n",
+			__func__, ha->fw_options[2]);
+	}
 
 	if (!ql2xetsenable)
 		goto out;

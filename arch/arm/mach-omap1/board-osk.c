@@ -172,7 +172,7 @@ static struct gpio_led tps_leds[] = {
 	 * Also, D9 requires non-battery power.
 	 */
 	{ .gpio = OSK_TPS_GPIO_LED_D9, .name = "d9",
-			.default_trigger = "ide-disk", },
+			.default_trigger = "disk-activity", },
 	{ .gpio = OSK_TPS_GPIO_LED_D2, .name = "d2", },
 	{ .gpio = OSK_TPS_GPIO_LED_D3, .name = "d3", .active_low = 1,
 			.default_trigger = "heartbeat", },

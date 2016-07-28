@@ -280,7 +280,7 @@ EXPORT_SYMBOL(ath_dynack_sample_ack_ts);
 void ath_dynack_node_init(struct ath_hw *ah, struct ath_node *an)
 {
 	/* ackto = slottime + sifs + air delay */
-	u32 ackto = ATH9K_SLOT_TIME_9 + 16 + 64;
+	u32 ackto = 9 + 16 + 64;
 	struct ath_dynack *da = &ah->dynack;
 
 	an->ackto = ackto;
@@ -315,7 +315,7 @@ EXPORT_SYMBOL(ath_dynack_node_deinit);
 void ath_dynack_reset(struct ath_hw *ah)
 {
 	/* ackto = slottime + sifs + air delay */
-	u32 ackto = ATH9K_SLOT_TIME_9 + 16 + 64;
+	u32 ackto = 9 + 16 + 64;
 	struct ath_dynack *da = &ah->dynack;
 
 	da->lto = jiffies;

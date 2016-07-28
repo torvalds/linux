@@ -135,9 +135,12 @@ void tipc_disc_rcv(struct net *net, struct sk_buff *skb,
 	u16 caps = msg_node_capabilities(hdr);
 	bool respond = false;
 	bool dupl_addr = false;
+	int err;
 
-	bearer->media->msg2addr(bearer, &maddr, msg_media_addr(hdr));
+	err = bearer->media->msg2addr(bearer, &maddr, msg_media_addr(hdr));
 	kfree_skb(skb);
+	if (err)
+		return;
 
 	/* Ensure message from node is valid and communication is permitted */
 	if (net_id != tn->net_id)

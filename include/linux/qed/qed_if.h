@@ -34,6 +34,96 @@ enum dcbx_protocol_type {
 	DCBX_MAX_PROTOCOL_TYPE
 };
 
+#ifdef CONFIG_DCB
+#define QED_LLDP_CHASSIS_ID_STAT_LEN 4
+#define QED_LLDP_PORT_ID_STAT_LEN 4
+#define QED_DCBX_MAX_APP_PROTOCOL 32
+#define QED_MAX_PFC_PRIORITIES 8
+#define QED_DCBX_DSCP_SIZE 64
+
+struct qed_dcbx_lldp_remote {
+	u32 peer_chassis_id[QED_LLDP_CHASSIS_ID_STAT_LEN];
+	u32 peer_port_id[QED_LLDP_PORT_ID_STAT_LEN];
+	bool enable_rx;
+	bool enable_tx;
+	u32 tx_interval;
+	u32 max_credit;
+};
+
+struct qed_dcbx_lldp_local {
+	u32 local_chassis_id[QED_LLDP_CHASSIS_ID_STAT_LEN];
+	u32 local_port_id[QED_LLDP_PORT_ID_STAT_LEN];
+};
+
+struct qed_dcbx_app_prio {
+	u8 roce;
+	u8 roce_v2;
+	u8 fcoe;
+	u8 iscsi;
+	u8 eth;
+};
+
+struct qed_dbcx_pfc_params {
+	bool willing;
+	bool enabled;
+	u8 prio[QED_MAX_PFC_PRIORITIES];
+	u8 max_tc;
+};
+
+struct qed_app_entry {
+	bool ethtype;
+	bool enabled;
+	u8 prio;
+	u16 proto_id;
+	enum dcbx_protocol_type proto_type;
+};
+
+struct qed_dcbx_params {
+	struct qed_app_entry app_entry[QED_DCBX_MAX_APP_PROTOCOL];
+	u16 num_app_entries;
+	bool app_willing;
+	bool app_valid;
+	bool app_error;
+	bool ets_willing;
+	bool ets_enabled;
+	bool ets_cbs;
+	bool valid;
+	u8 ets_pri_tc_tbl[QED_MAX_PFC_PRIORITIES];
+	u8 ets_tc_bw_tbl[QED_MAX_PFC_PRIORITIES];
+	u8 ets_tc_tsa_tbl[QED_MAX_PFC_PRIORITIES];
+	struct qed_dbcx_pfc_params pfc;
+	u8 max_ets_tc;
+};
+
+struct qed_dcbx_admin_params {
+	struct qed_dcbx_params params;
+	bool valid;
+};
+
+struct qed_dcbx_remote_params {
+	struct qed_dcbx_params params;
+	bool valid;
+};
+
+struct qed_dcbx_operational_params {
+	struct qed_dcbx_app_prio app_prio;
+	struct qed_dcbx_params params;
+	bool valid;
+	bool enabled;
+	bool ieee;
+	bool cee;
+	u32 err;
+};
+
+struct qed_dcbx_get {
+	struct qed_dcbx_operational_params operational;
+	struct qed_dcbx_lldp_remote lldp_remote;
+	struct qed_dcbx_lldp_local lldp_local;
+	struct qed_dcbx_remote_params remote;
+	struct qed_dcbx_admin_params local;
+};
+#endif
+
 enum qed_led_mode {
 	QED_LED_MODE_OFF,
 	QED_LED_MODE_ON,
@@ -58,8 +148,70 @@ struct qed_eth_pf_params {
 	u16 num_cons;
 };
 
+/* Most of the the parameters below are described in the FW iSCSI / TCP HSI */
+struct qed_iscsi_pf_params {
+	u64 glbl_q_params_addr;
+	u64 bdq_pbl_base_addr[2];
+	u32 max_cwnd;
+	u16 cq_num_entries;
+	u16 cmdq_num_entries;
+	u16 dup_ack_threshold;
+	u16 tx_sws_timer;
+	u16 min_rto;
+	u16 min_rto_rt;
+	u16 max_rto;
+
+	/* The following parameters are used during HW-init
+	 * and these parameters need to be passed as arguments
+	 * to update_pf_params routine invoked before slowpath start
+	 */
+	u16 num_cons;
+	u16 num_tasks;
+
+	/* The following parameters are used during protocol-init */
+	u16 half_way_close_timeout;
+	u16 bdq_xoff_threshold[2];
+	u16 bdq_xon_threshold[2];
+	u16 cmdq_xoff_threshold;
+	u16 cmdq_xon_threshold;
+	u16 rq_buffer_size;
+
+	u8 num_sq_pages_in_ring;
+	u8 num_r2tq_pages_in_ring;
+	u8 num_uhq_pages_in_ring;
+	u8 num_queues;
+	u8 log_page_size;
+	u8 rqe_log_size;
+	u8 max_fin_rt;
+	u8 gl_rq_pi;
+	u8 gl_cmd_pi;
+	u8 debug_mode;
+	u8 ll2_ooo_queue_id;
+	u8 ooo_enable;
+
+	u8 is_target;
+	u8 bdq_pbl_num_entries[2];
+};
+
+struct qed_rdma_pf_params {
+	/* Supplied to QED during resource allocation (may affect the ILT and
+	 * the doorbell BAR).
+	 */
+	u32 min_dpis;		/* number of requested DPIs */
+	u32 num_mrs;		/* number of requested memory regions */
+	u32 num_qps;		/* number of requested Queue Pairs */
+	u32 num_srqs;		/* number of requested SRQ */
+	u8 roce_edpm_mode;	/* see QED_ROCE_EDPM_MODE_ENABLE */
+	u8 gl_pi;		/* protocol index */
+
+	/* Will allocate rate limiters to be used with QPs */
+	u8 enable_dcqcn;
+};
+
 struct qed_pf_params {
 	struct qed_eth_pf_params eth_pf_params;
+	struct qed_iscsi_pf_params iscsi_pf_params;
+	struct qed_rdma_pf_params rdma_pf_params;
 };
 
 enum qed_int_mode {
@@ -100,6 +252,8 @@ struct qed_dev_info {
 	/* MFW version */
 	u32		mfw_rev;
 
+	bool rdma_supported;
+
 	u32		flash_size;
 	u8		mf_mode;
 	bool		tx_switching;
@@ -111,6 +265,7 @@ enum qed_sb_type {
 
 enum qed_protocol {
 	QED_PROTOCOL_ETH,
+	QED_PROTOCOL_ISCSI,
 };
 
 struct qed_link_params {
@@ -325,12 +480,37 @@ struct qed_common_ops {
 	int		(*chain_alloc)(struct qed_dev *cdev,
 				       enum qed_chain_use_mode intended_use,
 				       enum qed_chain_mode mode,
-				       u16 num_elems,
+				       enum qed_chain_cnt_type cnt_type,
+				       u32 num_elems,
 				       size_t elem_size,
 				       struct qed_chain *p_chain);
 
 	void		(*chain_free)(struct qed_dev *cdev,
 				      struct qed_chain *p_chain);
+
+/**
+ * @brief get_coalesce - Get coalesce parameters in usec
+ *
+ * @param cdev
+ * @param rx_coal - Rx coalesce value in usec
+ * @param tx_coal - Tx coalesce value in usec
+ *
+ */
+	void (*get_coalesce)(struct qed_dev *cdev, u16 *rx_coal, u16 *tx_coal);
+
+/**
+ * @brief set_coalesce - Configure Rx coalesce value in usec
+ *
+ * @param cdev
+ * @param rx_coal - Rx coalesce value in usec
+ * @param tx_coal - Tx coalesce value in usec
+ * @param qid - Queue index
+ * @param sb_id - Status Block Id
+ *
+ * @return 0 on success, error otherwise.
+ */
+	int (*set_coalesce)(struct qed_dev *cdev, u16 rx_coal, u16 tx_coal,
+			    u8 qid, u16 sb_id);
 
 /**
  * @brief set_led - Configure LED mode

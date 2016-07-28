@@ -11,32 +11,18 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
-#include <linux/types.h>
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
-#include <linux/skbuff.h>
-#include <linux/rculist.h>
-#include <linux/netdevice.h>
-#include <linux/in.h>
-#include <linux/ip.h>
 #include <linux/udp.h>
 #include <linux/igmp.h>
-#include <linux/etherdevice.h>
 #include <linux/if_ether.h>
-#include <linux/if_vlan.h>
-#include <linux/hash.h>
 #include <linux/ethtool.h>
 #include <net/arp.h>
 #include <net/ndisc.h>
 #include <net/ip.h>
-#include <net/ip_tunnels.h>
 #include <net/icmp.h>
-#include <net/udp.h>
-#include <net/udp_tunnel.h>
 #include <net/rtnetlink.h>
-#include <net/route.h>
-#include <net/dsfield.h>
 #include <net/inet_ecn.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
@@ -44,12 +30,9 @@
 #include <net/protocol.h>
 
 #if IS_ENABLED(CONFIG_IPV6)
-#include <net/ipv6.h>
-#include <net/addrconf.h>
 #include <net/ip6_tunnel.h>
 #include <net/ip6_checksum.h>
 #endif
-#include <net/dst_metadata.h>
 
 #define VXLAN_VERSION	"0.1"
 
@@ -619,42 +602,6 @@ static int vxlan_gro_complete(struct sock *sk, struct sk_buff *skb, int nhoff)
 	return eth_gro_complete(skb, nhoff + sizeof(struct vxlanhdr));
 }
 
-/* Notify netdevs that UDP port started listening */
-static void vxlan_notify_add_rx_port(struct vxlan_sock *vs)
-{
-	struct net_device *dev;
-	struct sock *sk = vs->sock->sk;
-	struct net *net = sock_net(sk);
-	sa_family_t sa_family = vxlan_get_sk_family(vs);
-	__be16 port = inet_sk(sk)->inet_sport;
-
-	rcu_read_lock();
-	for_each_netdev_rcu(net, dev) {
-		if (dev->netdev_ops->ndo_add_vxlan_port)
-			dev->netdev_ops->ndo_add_vxlan_port(dev, sa_family,
-							    port);
-	}
-	rcu_read_unlock();
-}
-
-/* Notify netdevs that UDP port is no more listening */
-static void vxlan_notify_del_rx_port(struct vxlan_sock *vs)
-{
-	struct net_device *dev;
-	struct sock *sk = vs->sock->sk;
-	struct net *net = sock_net(sk);
-	sa_family_t sa_family = vxlan_get_sk_family(vs);
-	__be16 port = inet_sk(sk)->inet_sport;
-
-	rcu_read_lock();
-	for_each_netdev_rcu(net, dev) {
-		if (dev->netdev_ops->ndo_del_vxlan_port)
-			dev->netdev_ops->ndo_del_vxlan_port(dev, sa_family,
-							    port);
-	}
-	rcu_read_unlock();
-}
-
 /* Add new entry to forwarding table -- assumes lock held */
 static int vxlan_fdb_create(struct vxlan_dev *vxlan,
 			    const u8 *mac, union vxlan_addr *ip,
@@ -1050,7 +997,10 @@ static bool __vxlan_sock_release_prep(struct vxlan_sock *vs)
 	vn = net_generic(sock_net(vs->sock->sk), vxlan_net_id);
 	spin_lock(&vn->sock_lock);
 	hlist_del_rcu(&vs->hlist);
-	vxlan_notify_del_rx_port(vs);
+	udp_tunnel_notify_del_rx_port(vs->sock,
+				      (vs->flags & VXLAN_F_GPE) ?
+				      UDP_TUNNEL_TYPE_VXLAN_GPE :
+				      UDP_TUNNEL_TYPE_VXLAN);
 	spin_unlock(&vn->sock_lock);
 
 	return true;
@@ -2525,30 +2475,24 @@ static struct device_type vxlan_type = {
 	.name = "vxlan",
 };
 
-/* Calls the ndo_add_vxlan_port of the caller in order to
+/* Calls the ndo_udp_tunnel_add of the caller in order to
  * supply the listening VXLAN udp ports. Callers are expected
- * to implement the ndo_add_vxlan_port.
+ * to implement the ndo_udp_tunnel_add.
  */
 static void vxlan_push_rx_ports(struct net_device *dev)
 {
 	struct vxlan_sock *vs;
 	struct net *net = dev_net(dev);
 	struct vxlan_net *vn = net_generic(net, vxlan_net_id);
-	sa_family_t sa_family;
-	__be16 port;
 	unsigned int i;
-
-	if (!dev->netdev_ops->ndo_add_vxlan_port)
-		return;
 
 	spin_lock(&vn->sock_lock);
 	for (i = 0; i < PORT_HASH_SIZE; ++i) {
-		hlist_for_each_entry_rcu(vs, &vn->sock_list[i], hlist) {
-			port = inet_sk(vs->sock->sk)->inet_sport;
-			sa_family = vxlan_get_sk_family(vs);
-			dev->netdev_ops->ndo_add_vxlan_port(dev, sa_family,
-							    port);
-		}
+		hlist_for_each_entry_rcu(vs, &vn->sock_list[i], hlist)
+			udp_tunnel_push_rx_port(dev, vs->sock,
+						(vs->flags & VXLAN_F_GPE) ?
+						UDP_TUNNEL_TYPE_VXLAN_GPE :
+						UDP_TUNNEL_TYPE_VXLAN);
 	}
 	spin_unlock(&vn->sock_lock);
 }
@@ -2750,7 +2694,10 @@ static struct vxlan_sock *vxlan_socket_create(struct net *net, bool ipv6,
 
 	spin_lock(&vn->sock_lock);
 	hlist_add_head_rcu(&vs->hlist, vs_head(net, port));
-	vxlan_notify_add_rx_port(vs);
+	udp_tunnel_notify_add_rx_port(sock,
+				      (vs->flags & VXLAN_F_GPE) ?
+				      UDP_TUNNEL_TYPE_VXLAN_GPE :
+				      UDP_TUNNEL_TYPE_VXLAN);
 	spin_unlock(&vn->sock_lock);
 
 	/* Mark socket as an encapsulation socket. */
@@ -3308,7 +3255,7 @@ static int vxlan_netdevice_event(struct notifier_block *unused,
 
 	if (event == NETDEV_UNREGISTER)
 		vxlan_handle_lowerdev_unregister(vn, dev);
-	else if (event == NETDEV_OFFLOAD_PUSH_VXLAN)
+	else if (event == NETDEV_UDP_TUNNEL_PUSH_INFO)
 		vxlan_push_rx_ports(dev);
 
 	return NOTIFY_DONE;

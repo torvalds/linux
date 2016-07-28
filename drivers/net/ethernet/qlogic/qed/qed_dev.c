@@ -17,6 +17,7 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/vmalloc.h>
 #include <linux/etherdevice.h>
 #include <linux/qed/qed_chain.h>
 #include <linux/qed/qed_if.h>
@@ -160,9 +161,13 @@ static int qed_init_qm_info(struct qed_hwfn *p_hwfn, bool b_sleepable)
 	u8 num_vports, vf_offset = 0, i, vport_id, num_ports, curr_queue = 0;
 	struct qed_qm_info *qm_info = &p_hwfn->qm_info;
 	struct init_qm_port_params *p_qm_port;
+	bool init_rdma_offload_pq = false;
+	bool init_pure_ack_pq = false;
+	bool init_ooo_pq = false;
 	u16 num_pqs, multi_cos_tcs = 1;
 	u8 pf_wfq = qm_info->pf_wfq;
 	u32 pf_rl = qm_info->pf_rl;
+	u16 num_pf_rls = 0;
 	u16 num_vfs = 0;
 
 #ifdef CONFIG_QED_SRIOV
@@ -173,6 +178,25 @@ static int qed_init_qm_info(struct qed_hwfn *p_hwfn, bool b_sleepable)
 
 	num_pqs = multi_cos_tcs + num_vfs + 1;	/* The '1' is for pure-LB */
 	num_vports = (u8)RESC_NUM(p_hwfn, QED_VPORT);
+
+	if (p_hwfn->hw_info.personality == QED_PCI_ETH_ROCE) {
+		num_pqs++;	/* for RoCE queue */
+		init_rdma_offload_pq = true;
+		/* we subtract num_vfs because each require a rate limiter,
+		 * and one default rate limiter
+		 */
+		if (p_hwfn->pf_params.rdma_pf_params.enable_dcqcn)
+			num_pf_rls = RESC_NUM(p_hwfn, QED_RL) - num_vfs - 1;
+
+		num_pqs += num_pf_rls;
+		qm_info->num_pf_rls = (u8) num_pf_rls;
+	}
+
+	if (p_hwfn->hw_info.personality == QED_PCI_ISCSI) {
+		num_pqs += 2;	/* for iSCSI pure-ACK / OOO queue */
+		init_pure_ack_pq = true;
+		init_ooo_pq = true;
+	}
 
 	/* Sanity checking that setup requires legal number of resources */
 	if (num_pqs > RESC_NUM(p_hwfn, QED_PQ)) {
@@ -211,12 +235,22 @@ static int qed_init_qm_info(struct qed_hwfn *p_hwfn, bool b_sleepable)
 
 	vport_id = (u8)RESC_START(p_hwfn, QED_VPORT);
 
+	/* First init rate limited queues */
+	for (curr_queue = 0; curr_queue < num_pf_rls; curr_queue++) {
+		qm_info->qm_pq_params[curr_queue].vport_id = vport_id++;
+		qm_info->qm_pq_params[curr_queue].tc_id =
+		    p_hwfn->hw_info.non_offload_tc;
+		qm_info->qm_pq_params[curr_queue].wrr_group = 1;
+		qm_info->qm_pq_params[curr_queue].rl_valid = 1;
+	}
+
 	/* First init per-TC PQs */
 	for (i = 0; i < multi_cos_tcs; i++) {
 		struct init_qm_pq_params *params =
 		    &qm_info->qm_pq_params[curr_queue++];
 
-		if (p_hwfn->hw_info.personality == QED_PCI_ETH) {
+		if (p_hwfn->hw_info.personality == QED_PCI_ETH_ROCE ||
+		    p_hwfn->hw_info.personality == QED_PCI_ETH) {
 			params->vport_id = vport_id;
 			params->tc_id = p_hwfn->hw_info.non_offload_tc;
 			params->wrr_group = 1;
@@ -236,6 +270,32 @@ static int qed_init_qm_info(struct qed_hwfn *p_hwfn, bool b_sleepable)
 	curr_queue++;
 
 	qm_info->offload_pq = 0;
+	if (init_rdma_offload_pq) {
+		qm_info->offload_pq = curr_queue;
+		qm_info->qm_pq_params[curr_queue].vport_id = vport_id;
+		qm_info->qm_pq_params[curr_queue].tc_id =
+		    p_hwfn->hw_info.offload_tc;
+		qm_info->qm_pq_params[curr_queue].wrr_group = 1;
+		curr_queue++;
+	}
+
+	if (init_pure_ack_pq) {
+		qm_info->pure_ack_pq = curr_queue;
+		qm_info->qm_pq_params[curr_queue].vport_id = vport_id;
+		qm_info->qm_pq_params[curr_queue].tc_id =
+		    p_hwfn->hw_info.offload_tc;
+		qm_info->qm_pq_params[curr_queue].wrr_group = 1;
+		curr_queue++;
+	}
+
+	if (init_ooo_pq) {
+		qm_info->ooo_pq = curr_queue;
+		qm_info->qm_pq_params[curr_queue].vport_id = vport_id;
+		qm_info->qm_pq_params[curr_queue].tc_id = DCBX_ISCSI_OOO_TC;
+		qm_info->qm_pq_params[curr_queue].wrr_group = 1;
+		curr_queue++;
+	}
+
 	/* Then init per-VF PQs */
 	vf_offset = curr_queue;
 	for (i = 0; i < num_vfs; i++) {
@@ -244,6 +304,7 @@ static int qed_init_qm_info(struct qed_hwfn *p_hwfn, bool b_sleepable)
 		qm_info->qm_pq_params[curr_queue].tc_id =
 		    p_hwfn->hw_info.non_offload_tc;
 		qm_info->qm_pq_params[curr_queue].wrr_group = 1;
+		qm_info->qm_pq_params[curr_queue].rl_valid = 1;
 		curr_queue++;
 	}
 
@@ -256,7 +317,10 @@ static int qed_init_qm_info(struct qed_hwfn *p_hwfn, bool b_sleepable)
 	for (i = 0; i < num_ports; i++) {
 		p_qm_port = &qm_info->qm_port_params[i];
 		p_qm_port->active = 1;
-		p_qm_port->num_active_phys_tcs = 4;
+		if (num_ports == 4)
+			p_qm_port->active_phys_tcs = 0x7;
+		else
+			p_qm_port->active_phys_tcs = 0x9f;
 		p_qm_port->num_pbf_cmd_lines = PBF_MAX_CMD_LINES / num_ports;
 		p_qm_port->num_btb_blocks = BTB_MAX_BLOCKS / num_ports;
 	}
@@ -366,21 +430,20 @@ int qed_resc_alloc(struct qed_dev *cdev)
 		if (!p_hwfn->p_tx_cids) {
 			DP_NOTICE(p_hwfn,
 				  "Failed to allocate memory for Tx Cids\n");
-			rc = -ENOMEM;
-			goto alloc_err;
+			goto alloc_no_mem;
 		}
 
 		p_hwfn->p_rx_cids = kzalloc(rx_size, GFP_KERNEL);
 		if (!p_hwfn->p_rx_cids) {
 			DP_NOTICE(p_hwfn,
 				  "Failed to allocate memory for Rx Cids\n");
-			rc = -ENOMEM;
-			goto alloc_err;
+			goto alloc_no_mem;
 		}
 	}
 
 	for_each_hwfn(cdev, i) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
+		u32 n_eqes, num_cons;
 
 		/* First allocate the context manager structure */
 		rc = qed_cxt_mngr_alloc(p_hwfn);
@@ -429,18 +492,34 @@ int qed_resc_alloc(struct qed_dev *cdev)
 			goto alloc_err;
 
 		/* EQ */
-		p_eq = qed_eq_alloc(p_hwfn, 256);
-		if (!p_eq) {
-			rc = -ENOMEM;
+		n_eqes = qed_chain_get_capacity(&p_hwfn->p_spq->chain);
+		if (p_hwfn->hw_info.personality == QED_PCI_ETH_ROCE) {
+			num_cons = qed_cxt_get_proto_cid_count(p_hwfn,
+							       PROTOCOLID_ROCE,
+							       0) * 2;
+			n_eqes += num_cons + 2 * MAX_NUM_VFS_BB;
+		} else if (p_hwfn->hw_info.personality == QED_PCI_ISCSI) {
+			num_cons =
+			    qed_cxt_get_proto_cid_count(p_hwfn,
+							PROTOCOLID_ISCSI, 0);
+			n_eqes += 2 * num_cons;
+		}
+
+		if (n_eqes > 0xFFFF) {
+			DP_ERR(p_hwfn,
+			       "Cannot allocate 0x%x EQ elements. The maximum of a u16 chain is 0x%x\n",
+			       n_eqes, 0xFFFF);
 			goto alloc_err;
 		}
+
+		p_eq = qed_eq_alloc(p_hwfn, (u16) n_eqes);
+		if (!p_eq)
+			goto alloc_no_mem;
 		p_hwfn->p_eq = p_eq;
 
 		p_consq = qed_consq_alloc(p_hwfn);
-		if (!p_consq) {
-			rc = -ENOMEM;
-			goto alloc_err;
-		}
+		if (!p_consq)
+			goto alloc_no_mem;
 		p_hwfn->p_consq = p_consq;
 
 		/* DMA info initialization */
@@ -469,6 +548,8 @@ int qed_resc_alloc(struct qed_dev *cdev)
 
 	return 0;
 
+alloc_no_mem:
+	rc = -ENOMEM;
 alloc_err:
 	qed_resc_free(cdev);
 	return rc;
@@ -634,6 +715,7 @@ static int qed_hw_init_common(struct qed_hwfn *p_hwfn,
 	struct qed_qm_info *qm_info = &p_hwfn->qm_info;
 	struct qed_qm_common_rt_init_params params;
 	struct qed_dev *cdev = p_hwfn->cdev;
+	u16 num_pfs, pf_id;
 	u32 concrete_fid;
 	int rc = 0;
 	u8 vf_id;
@@ -682,9 +764,16 @@ static int qed_hw_init_common(struct qed_hwfn *p_hwfn,
 	qed_wr(p_hwfn, p_ptt, PSWRQ2_REG_L2P_VALIDATE_VFID, 0);
 	qed_wr(p_hwfn, p_ptt, PGLUE_B_REG_USE_CLIENTID_IN_TAG, 1);
 
-	/* Disable relaxed ordering in the PCI config space */
-	qed_wr(p_hwfn, p_ptt, 0x20b4,
-	       qed_rd(p_hwfn, p_ptt, 0x20b4) & ~0x10);
+	if (QED_IS_BB(p_hwfn->cdev)) {
+		num_pfs = NUM_OF_ENG_PFS(p_hwfn->cdev);
+		for (pf_id = 0; pf_id < num_pfs; pf_id++) {
+			qed_fid_pretend(p_hwfn, p_ptt, pf_id);
+			qed_wr(p_hwfn, p_ptt, PRS_REG_SEARCH_ROCE, 0x0);
+			qed_wr(p_hwfn, p_ptt, PRS_REG_SEARCH_TCP, 0x0);
+		}
+		/* pretend to original PF */
+		qed_fid_pretend(p_hwfn, p_ptt, p_hwfn->rel_pf_id);
+	}
 
 	for (vf_id = 0; vf_id < MAX_NUM_VFS_BB; vf_id++) {
 		concrete_fid = qed_vfid_to_concrete(p_hwfn, vf_id);
@@ -703,8 +792,31 @@ static int qed_hw_init_port(struct qed_hwfn *p_hwfn,
 {
 	int rc = 0;
 
-	rc = qed_init_run(p_hwfn, p_ptt, PHASE_PORT, p_hwfn->port_id,
-			  hw_mode);
+	rc = qed_init_run(p_hwfn, p_ptt, PHASE_PORT, p_hwfn->port_id, hw_mode);
+	if (rc != 0)
+		return rc;
+
+	if (hw_mode & (1 << MODE_MF_SI)) {
+		u8 pf_id = 0;
+
+		if (!qed_hw_init_first_eth(p_hwfn, p_ptt, &pf_id)) {
+			DP_VERBOSE(p_hwfn, NETIF_MSG_IFUP,
+				   "PF[%08x] is first eth on engine\n", pf_id);
+
+			/* We should have configured BIT for ppfid, i.e., the
+			 * relative function number in the port. But there's a
+			 * bug in LLH in BB where the ppfid is actually engine
+			 * based, so we need to take this into account.
+			 */
+			qed_wr(p_hwfn, p_ptt,
+			       NIG_REG_LLH_TAGMAC_DEF_PF_VECTOR, 1 << pf_id);
+		}
+
+		/* Take the protocol-based hit vector if there is a hit,
+		 * otherwise take the other vector.
+		 */
+		qed_wr(p_hwfn, p_ptt, NIG_REG_LLH_CLS_TYPE_DUALMODE, 0x2);
+	}
 	return rc;
 }
 
@@ -751,7 +863,8 @@ static int qed_hw_init_pf(struct qed_hwfn *p_hwfn,
 	}
 
 	/* Protocl Configuration  */
-	STORE_RT_REG(p_hwfn, PRS_REG_SEARCH_TCP_RT_OFFSET, 0);
+	STORE_RT_REG(p_hwfn, PRS_REG_SEARCH_TCP_RT_OFFSET,
+		     (p_hwfn->hw_info.personality == QED_PCI_ISCSI) ? 1 : 0);
 	STORE_RT_REG(p_hwfn, PRS_REG_SEARCH_FCOE_RT_OFFSET, 0);
 	STORE_RT_REG(p_hwfn, PRS_REG_SEARCH_ROCE_RT_OFFSET, 0);
 
@@ -772,6 +885,21 @@ static int qed_hw_init_pf(struct qed_hwfn *p_hwfn,
 
 	/* Pure runtime initializations - directly to the HW  */
 	qed_int_igu_init_pure_rt(p_hwfn, p_ptt, true, true);
+
+	if (hw_mode & (1 << MODE_MF_SI)) {
+		u8 pf_id = 0;
+		u32 val;
+
+		if (!qed_hw_init_first_eth(p_hwfn, p_ptt, &pf_id)) {
+			if (p_hwfn->rel_pf_id == pf_id) {
+				DP_VERBOSE(p_hwfn, NETIF_MSG_IFUP,
+					   "PF[%d] is first ETH on engine\n",
+					   pf_id);
+				val = 1;
+			}
+			qed_wr(p_hwfn, p_ptt, PRS_REG_MSG_INFO, val);
+		}
+	}
 
 	if (b_hw_start) {
 		/* enable interrupts */
@@ -1213,8 +1341,9 @@ static void qed_hw_set_feat(struct qed_hwfn *p_hwfn)
 		   num_features);
 }
 
-static void qed_hw_get_resc(struct qed_hwfn *p_hwfn)
+static int qed_hw_get_resc(struct qed_hwfn *p_hwfn)
 {
+	u8 enabled_func_idx = p_hwfn->enabled_func_idx;
 	u32 *resc_start = p_hwfn->hw_info.resc_start;
 	u8 num_funcs = p_hwfn->num_funcs_on_engine;
 	u32 *resc_num = p_hwfn->hw_info.resc_num;
@@ -1238,14 +1367,22 @@ static void qed_hw_get_resc(struct qed_hwfn *p_hwfn)
 	resc_num[QED_VPORT] = MAX_NUM_VPORTS_BB / num_funcs;
 	resc_num[QED_RSS_ENG] = ETH_RSS_ENGINE_NUM_BB / num_funcs;
 	resc_num[QED_PQ] = MAX_QM_TX_QUEUES_BB / num_funcs;
-	resc_num[QED_RL] = 8;
+	resc_num[QED_RL] = min_t(u32, 64, resc_num[QED_VPORT]);
 	resc_num[QED_MAC] = ETH_NUM_MAC_FILTERS / num_funcs;
 	resc_num[QED_VLAN] = (ETH_NUM_VLAN_FILTERS - 1 /*For vlan0*/) /
 			     num_funcs;
-	resc_num[QED_ILT] = 950;
+	resc_num[QED_ILT] = PXP_NUM_ILT_RECORDS_BB / num_funcs;
 
 	for (i = 0; i < QED_MAX_RESC; i++)
-		resc_start[i] = resc_num[i] * p_hwfn->rel_pf_id;
+		resc_start[i] = resc_num[i] * enabled_func_idx;
+
+	/* Sanity for ILT */
+	if (RESC_END(p_hwfn, QED_ILT) > PXP_NUM_ILT_RECORDS_BB) {
+		DP_NOTICE(p_hwfn, "Can't assign ILT pages [%08x,...,%08x]\n",
+			  RESC_START(p_hwfn, QED_ILT),
+			  RESC_END(p_hwfn, QED_ILT) - 1);
+		return -EINVAL;
+	}
 
 	qed_hw_set_feat(p_hwfn);
 
@@ -1275,6 +1412,8 @@ static void qed_hw_get_resc(struct qed_hwfn *p_hwfn)
 		   p_hwfn->hw_info.resc_start[QED_VLAN],
 		   p_hwfn->hw_info.resc_num[QED_ILT],
 		   p_hwfn->hw_info.resc_start[QED_ILT]);
+
+	return 0;
 }
 
 static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn,
@@ -1304,31 +1443,31 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn,
 
 	switch ((core_cfg & NVM_CFG1_GLOB_NETWORK_PORT_MODE_MASK) >>
 		NVM_CFG1_GLOB_NETWORK_PORT_MODE_OFFSET) {
-	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_DE_2X40G:
+	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_BB_2X40G:
 		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_2X40G;
 		break;
-	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_DE_2X50G:
+	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_2X50G:
 		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_2X50G;
 		break;
-	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_DE_1X100G:
+	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_BB_1X100G:
 		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_1X100G;
 		break;
-	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_DE_4X10G_F:
+	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_4X10G_F:
 		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_4X10G_F;
 		break;
-	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_DE_4X10G_E:
+	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_BB_4X10G_E:
 		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_4X10G_E;
 		break;
-	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_DE_4X20G:
+	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_BB_4X20G:
 		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_4X20G;
 		break;
-	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_DE_1X40G:
+	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_1X40G:
 		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_1X40G;
 		break;
-	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_DE_2X25G:
+	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_2X25G:
 		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_2X25G;
 		break;
-	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_DE_1X25G:
+	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_1X25G:
 		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_1X25G;
 		break;
 	default:
@@ -1373,7 +1512,7 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn,
 	case NVM_CFG1_PORT_DRV_LINK_SPEED_50G:
 		link->speed.forced_speed = 50000;
 		break;
-	case NVM_CFG1_PORT_DRV_LINK_SPEED_100G:
+	case NVM_CFG1_PORT_DRV_LINK_SPEED_BB_100G:
 		link->speed.forced_speed = 100000;
 		break;
 	default:
@@ -1429,14 +1568,20 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn,
 	if (device_capabilities & NVM_CFG1_GLOB_DEVICE_CAPABILITIES_ETHERNET)
 		__set_bit(QED_DEV_CAP_ETH,
 			  &p_hwfn->hw_info.device_capabilities);
+	if (device_capabilities & NVM_CFG1_GLOB_DEVICE_CAPABILITIES_ISCSI)
+		__set_bit(QED_DEV_CAP_ISCSI,
+			  &p_hwfn->hw_info.device_capabilities);
+	if (device_capabilities & NVM_CFG1_GLOB_DEVICE_CAPABILITIES_ROCE)
+		__set_bit(QED_DEV_CAP_ROCE,
+			  &p_hwfn->hw_info.device_capabilities);
 
 	return qed_mcp_fill_shmem_func_info(p_hwfn, p_ptt);
 }
 
 static void qed_get_num_funcs(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
-	u32 reg_function_hide, tmp, eng_mask;
-	u8 num_funcs;
+	u8 num_funcs, enabled_func_idx = p_hwfn->rel_pf_id;
+	u32 reg_function_hide, tmp, eng_mask, low_pfs_mask;
 
 	num_funcs = MAX_NUM_PFS_BB;
 
@@ -1466,9 +1611,19 @@ static void qed_get_num_funcs(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 				num_funcs++;
 			tmp >>= 0x1;
 		}
+
+		/* Get the PF index within the enabled functions */
+		low_pfs_mask = (0x1 << p_hwfn->abs_pf_id) - 1;
+		tmp = reg_function_hide & eng_mask & low_pfs_mask;
+		while (tmp) {
+			if (tmp & 0x1)
+				enabled_func_idx--;
+			tmp >>= 0x1;
+		}
 	}
 
 	p_hwfn->num_funcs_on_engine = num_funcs;
+	p_hwfn->enabled_func_idx = enabled_func_idx;
 
 	DP_VERBOSE(p_hwfn,
 		   NETIF_MSG_PROBE,
@@ -1538,9 +1693,7 @@ qed_get_hw_info(struct qed_hwfn *p_hwfn,
 
 	qed_get_num_funcs(p_hwfn, p_ptt);
 
-	qed_hw_get_resc(p_hwfn);
-
-	return rc;
+	return qed_hw_get_resc(p_hwfn);
 }
 
 static int qed_get_dev_info(struct qed_dev *cdev)
@@ -1737,92 +1890,285 @@ void qed_hw_remove(struct qed_dev *cdev)
 	qed_iov_free_hw_info(cdev);
 }
 
+static void qed_chain_free_next_ptr(struct qed_dev *cdev,
+				    struct qed_chain *p_chain)
+{
+	void *p_virt = p_chain->p_virt_addr, *p_virt_next = NULL;
+	dma_addr_t p_phys = p_chain->p_phys_addr, p_phys_next = 0;
+	struct qed_chain_next *p_next;
+	u32 size, i;
+
+	if (!p_virt)
+		return;
+
+	size = p_chain->elem_size * p_chain->usable_per_page;
+
+	for (i = 0; i < p_chain->page_cnt; i++) {
+		if (!p_virt)
+			break;
+
+		p_next = (struct qed_chain_next *)((u8 *)p_virt + size);
+		p_virt_next = p_next->next_virt;
+		p_phys_next = HILO_DMA_REGPAIR(p_next->next_phys);
+
+		dma_free_coherent(&cdev->pdev->dev,
+				  QED_CHAIN_PAGE_SIZE, p_virt, p_phys);
+
+		p_virt = p_virt_next;
+		p_phys = p_phys_next;
+	}
+}
+
+static void qed_chain_free_single(struct qed_dev *cdev,
+				  struct qed_chain *p_chain)
+{
+	if (!p_chain->p_virt_addr)
+		return;
+
+	dma_free_coherent(&cdev->pdev->dev,
+			  QED_CHAIN_PAGE_SIZE,
+			  p_chain->p_virt_addr, p_chain->p_phys_addr);
+}
+
+static void qed_chain_free_pbl(struct qed_dev *cdev, struct qed_chain *p_chain)
+{
+	void **pp_virt_addr_tbl = p_chain->pbl.pp_virt_addr_tbl;
+	u32 page_cnt = p_chain->page_cnt, i, pbl_size;
+	u8 *p_pbl_virt = p_chain->pbl.p_virt_table;
+
+	if (!pp_virt_addr_tbl)
+		return;
+
+	if (!p_chain->pbl.p_virt_table)
+		goto out;
+
+	for (i = 0; i < page_cnt; i++) {
+		if (!pp_virt_addr_tbl[i])
+			break;
+
+		dma_free_coherent(&cdev->pdev->dev,
+				  QED_CHAIN_PAGE_SIZE,
+				  pp_virt_addr_tbl[i],
+				  *(dma_addr_t *)p_pbl_virt);
+
+		p_pbl_virt += QED_CHAIN_PBL_ENTRY_SIZE;
+	}
+
+	pbl_size = page_cnt * QED_CHAIN_PBL_ENTRY_SIZE;
+	dma_free_coherent(&cdev->pdev->dev,
+			  pbl_size,
+			  p_chain->pbl.p_virt_table, p_chain->pbl.p_phys_table);
+out:
+	vfree(p_chain->pbl.pp_virt_addr_tbl);
+}
+
+void qed_chain_free(struct qed_dev *cdev, struct qed_chain *p_chain)
+{
+	switch (p_chain->mode) {
+	case QED_CHAIN_MODE_NEXT_PTR:
+		qed_chain_free_next_ptr(cdev, p_chain);
+		break;
+	case QED_CHAIN_MODE_SINGLE:
+		qed_chain_free_single(cdev, p_chain);
+		break;
+	case QED_CHAIN_MODE_PBL:
+		qed_chain_free_pbl(cdev, p_chain);
+		break;
+	}
+}
+
+static int
+qed_chain_alloc_sanity_check(struct qed_dev *cdev,
+			     enum qed_chain_cnt_type cnt_type,
+			     size_t elem_size, u32 page_cnt)
+{
+	u64 chain_size = ELEMS_PER_PAGE(elem_size) * page_cnt;
+
+	/* The actual chain size can be larger than the maximal possible value
+	 * after rounding up the requested elements number to pages, and after
+	 * taking into acount the unusuable elements (next-ptr elements).
+	 * The size of a "u16" chain can be (U16_MAX + 1) since the chain
+	 * size/capacity fields are of a u32 type.
+	 */
+	if ((cnt_type == QED_CHAIN_CNT_TYPE_U16 &&
+	     chain_size > 0x10000) ||
+	    (cnt_type == QED_CHAIN_CNT_TYPE_U32 &&
+	     chain_size > 0x100000000ULL)) {
+		DP_NOTICE(cdev,
+			  "The actual chain size (0x%llx) is larger than the maximal possible value\n",
+			  chain_size);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int
+qed_chain_alloc_next_ptr(struct qed_dev *cdev, struct qed_chain *p_chain)
+{
+	void *p_virt = NULL, *p_virt_prev = NULL;
+	dma_addr_t p_phys = 0;
+	u32 i;
+
+	for (i = 0; i < p_chain->page_cnt; i++) {
+		p_virt = dma_alloc_coherent(&cdev->pdev->dev,
+					    QED_CHAIN_PAGE_SIZE,
+					    &p_phys, GFP_KERNEL);
+		if (!p_virt) {
+			DP_NOTICE(cdev, "Failed to allocate chain memory\n");
+			return -ENOMEM;
+		}
+
+		if (i == 0) {
+			qed_chain_init_mem(p_chain, p_virt, p_phys);
+			qed_chain_reset(p_chain);
+		} else {
+			qed_chain_init_next_ptr_elem(p_chain, p_virt_prev,
+						     p_virt, p_phys);
+		}
+
+		p_virt_prev = p_virt;
+	}
+	/* Last page's next element should point to the beginning of the
+	 * chain.
+	 */
+	qed_chain_init_next_ptr_elem(p_chain, p_virt_prev,
+				     p_chain->p_virt_addr,
+				     p_chain->p_phys_addr);
+
+	return 0;
+}
+
+static int
+qed_chain_alloc_single(struct qed_dev *cdev, struct qed_chain *p_chain)
+{
+	dma_addr_t p_phys = 0;
+	void *p_virt = NULL;
+
+	p_virt = dma_alloc_coherent(&cdev->pdev->dev,
+				    QED_CHAIN_PAGE_SIZE, &p_phys, GFP_KERNEL);
+	if (!p_virt) {
+		DP_NOTICE(cdev, "Failed to allocate chain memory\n");
+		return -ENOMEM;
+	}
+
+	qed_chain_init_mem(p_chain, p_virt, p_phys);
+	qed_chain_reset(p_chain);
+
+	return 0;
+}
+
+static int qed_chain_alloc_pbl(struct qed_dev *cdev, struct qed_chain *p_chain)
+{
+	u32 page_cnt = p_chain->page_cnt, size, i;
+	dma_addr_t p_phys = 0, p_pbl_phys = 0;
+	void **pp_virt_addr_tbl = NULL;
+	u8 *p_pbl_virt = NULL;
+	void *p_virt = NULL;
+
+	size = page_cnt * sizeof(*pp_virt_addr_tbl);
+	pp_virt_addr_tbl = vmalloc(size);
+	if (!pp_virt_addr_tbl) {
+		DP_NOTICE(cdev,
+			  "Failed to allocate memory for the chain virtual addresses table\n");
+		return -ENOMEM;
+	}
+	memset(pp_virt_addr_tbl, 0, size);
+
+	/* The allocation of the PBL table is done with its full size, since it
+	 * is expected to be successive.
+	 * qed_chain_init_pbl_mem() is called even in a case of an allocation
+	 * failure, since pp_virt_addr_tbl was previously allocated, and it
+	 * should be saved to allow its freeing during the error flow.
+	 */
+	size = page_cnt * QED_CHAIN_PBL_ENTRY_SIZE;
+	p_pbl_virt = dma_alloc_coherent(&cdev->pdev->dev,
+					size, &p_pbl_phys, GFP_KERNEL);
+	qed_chain_init_pbl_mem(p_chain, p_pbl_virt, p_pbl_phys,
+			       pp_virt_addr_tbl);
+	if (!p_pbl_virt) {
+		DP_NOTICE(cdev, "Failed to allocate chain pbl memory\n");
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < page_cnt; i++) {
+		p_virt = dma_alloc_coherent(&cdev->pdev->dev,
+					    QED_CHAIN_PAGE_SIZE,
+					    &p_phys, GFP_KERNEL);
+		if (!p_virt) {
+			DP_NOTICE(cdev, "Failed to allocate chain memory\n");
+			return -ENOMEM;
+		}
+
+		if (i == 0) {
+			qed_chain_init_mem(p_chain, p_virt, p_phys);
+			qed_chain_reset(p_chain);
+		}
+
+		/* Fill the PBL table with the physical address of the page */
+		*(dma_addr_t *)p_pbl_virt = p_phys;
+		/* Keep the virtual address of the page */
+		p_chain->pbl.pp_virt_addr_tbl[i] = p_virt;
+
+		p_pbl_virt += QED_CHAIN_PBL_ENTRY_SIZE;
+	}
+
+	return 0;
+}
+
 int qed_chain_alloc(struct qed_dev *cdev,
 		    enum qed_chain_use_mode intended_use,
 		    enum qed_chain_mode mode,
-		    u16 num_elems,
-		    size_t elem_size,
-		    struct qed_chain *p_chain)
+		    enum qed_chain_cnt_type cnt_type,
+		    u32 num_elems, size_t elem_size, struct qed_chain *p_chain)
 {
-	dma_addr_t p_pbl_phys = 0;
-	void *p_pbl_virt = NULL;
-	dma_addr_t p_phys = 0;
-	void *p_virt = NULL;
-	u16 page_cnt = 0;
-	size_t size;
+	u32 page_cnt;
+	int rc = 0;
 
 	if (mode == QED_CHAIN_MODE_SINGLE)
 		page_cnt = 1;
 	else
 		page_cnt = QED_CHAIN_PAGE_CNT(num_elems, elem_size, mode);
 
-	size = page_cnt * QED_CHAIN_PAGE_SIZE;
-	p_virt = dma_alloc_coherent(&cdev->pdev->dev,
-				    size, &p_phys, GFP_KERNEL);
-	if (!p_virt) {
-		DP_NOTICE(cdev, "Failed to allocate chain mem\n");
+	rc = qed_chain_alloc_sanity_check(cdev, cnt_type, elem_size, page_cnt);
+	if (rc) {
+		DP_NOTICE(cdev,
+			  "Cannot allocate a chain with the given arguments:\n"
+			  "[use_mode %d, mode %d, cnt_type %d, num_elems %d, elem_size %zu]\n",
+			  intended_use, mode, cnt_type, num_elems, elem_size);
+		return rc;
+	}
+
+	qed_chain_init_params(p_chain, page_cnt, (u8) elem_size, intended_use,
+			      mode, cnt_type);
+
+	switch (mode) {
+	case QED_CHAIN_MODE_NEXT_PTR:
+		rc = qed_chain_alloc_next_ptr(cdev, p_chain);
+		break;
+	case QED_CHAIN_MODE_SINGLE:
+		rc = qed_chain_alloc_single(cdev, p_chain);
+		break;
+	case QED_CHAIN_MODE_PBL:
+		rc = qed_chain_alloc_pbl(cdev, p_chain);
+		break;
+	}
+	if (rc)
 		goto nomem;
-	}
-
-	if (mode == QED_CHAIN_MODE_PBL) {
-		size = page_cnt * QED_CHAIN_PBL_ENTRY_SIZE;
-		p_pbl_virt = dma_alloc_coherent(&cdev->pdev->dev,
-						size, &p_pbl_phys,
-						GFP_KERNEL);
-		if (!p_pbl_virt) {
-			DP_NOTICE(cdev, "Failed to allocate chain pbl mem\n");
-			goto nomem;
-		}
-
-		qed_chain_pbl_init(p_chain, p_virt, p_phys, page_cnt,
-				   (u8)elem_size, intended_use,
-				   p_pbl_phys, p_pbl_virt);
-	} else {
-		qed_chain_init(p_chain, p_virt, p_phys, page_cnt,
-			       (u8)elem_size, intended_use, mode);
-	}
 
 	return 0;
 
 nomem:
-	dma_free_coherent(&cdev->pdev->dev,
-			  page_cnt * QED_CHAIN_PAGE_SIZE,
-			  p_virt, p_phys);
-	dma_free_coherent(&cdev->pdev->dev,
-			  page_cnt * QED_CHAIN_PBL_ENTRY_SIZE,
-			  p_pbl_virt, p_pbl_phys);
-
-	return -ENOMEM;
+	qed_chain_free(cdev, p_chain);
+	return rc;
 }
 
-void qed_chain_free(struct qed_dev *cdev,
-		    struct qed_chain *p_chain)
-{
-	size_t size;
-
-	if (!p_chain->p_virt_addr)
-		return;
-
-	if (p_chain->mode == QED_CHAIN_MODE_PBL) {
-		size = p_chain->page_cnt * QED_CHAIN_PBL_ENTRY_SIZE;
-		dma_free_coherent(&cdev->pdev->dev, size,
-				  p_chain->pbl.p_virt_table,
-				  p_chain->pbl.p_phys_table);
-	}
-
-	size = p_chain->page_cnt * QED_CHAIN_PAGE_SIZE;
-	dma_free_coherent(&cdev->pdev->dev, size,
-			  p_chain->p_virt_addr,
-			  p_chain->p_phys_addr);
-}
-
-int qed_fw_l2_queue(struct qed_hwfn *p_hwfn,
-		    u16 src_id, u16 *dst_id)
+int qed_fw_l2_queue(struct qed_hwfn *p_hwfn, u16 src_id, u16 *dst_id)
 {
 	if (src_id >= RESC_NUM(p_hwfn, QED_L2_QUEUE)) {
 		u16 min, max;
 
-		min = (u16)RESC_START(p_hwfn, QED_L2_QUEUE);
+		min = (u16) RESC_START(p_hwfn, QED_L2_QUEUE);
 		max = min + RESC_NUM(p_hwfn, QED_L2_QUEUE);
 		DP_NOTICE(p_hwfn,
 			  "l2_queue id [%d] is not valid, available indices [%d - %d]\n",
@@ -1874,6 +2220,110 @@ int qed_fw_rss_eng(struct qed_hwfn *p_hwfn,
 	*dst_id = RESC_START(p_hwfn, QED_RSS_ENG) + src_id;
 
 	return 0;
+}
+
+static int qed_set_coalesce(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+			    u32 hw_addr, void *p_eth_qzone,
+			    size_t eth_qzone_size, u8 timeset)
+{
+	struct coalescing_timeset *p_coal_timeset;
+
+	if (p_hwfn->cdev->int_coalescing_mode != QED_COAL_MODE_ENABLE) {
+		DP_NOTICE(p_hwfn, "Coalescing configuration not enabled\n");
+		return -EINVAL;
+	}
+
+	p_coal_timeset = p_eth_qzone;
+	memset(p_coal_timeset, 0, eth_qzone_size);
+	SET_FIELD(p_coal_timeset->value, COALESCING_TIMESET_TIMESET, timeset);
+	SET_FIELD(p_coal_timeset->value, COALESCING_TIMESET_VALID, 1);
+	qed_memcpy_to(p_hwfn, p_ptt, hw_addr, p_eth_qzone, eth_qzone_size);
+
+	return 0;
+}
+
+int qed_set_rxq_coalesce(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+			 u16 coalesce, u8 qid, u16 sb_id)
+{
+	struct ustorm_eth_queue_zone eth_qzone;
+	u8 timeset, timer_res;
+	u16 fw_qid = 0;
+	u32 address;
+	int rc;
+
+	/* Coalesce = (timeset << timer-resolution), timeset is 7bit wide */
+	if (coalesce <= 0x7F) {
+		timer_res = 0;
+	} else if (coalesce <= 0xFF) {
+		timer_res = 1;
+	} else if (coalesce <= 0x1FF) {
+		timer_res = 2;
+	} else {
+		DP_ERR(p_hwfn, "Invalid coalesce value - %d\n", coalesce);
+		return -EINVAL;
+	}
+	timeset = (u8)(coalesce >> timer_res);
+
+	rc = qed_fw_l2_queue(p_hwfn, (u16)qid, &fw_qid);
+	if (rc)
+		return rc;
+
+	rc = qed_int_set_timer_res(p_hwfn, p_ptt, timer_res, sb_id, false);
+	if (rc)
+		goto out;
+
+	address = BAR0_MAP_REG_USDM_RAM + USTORM_ETH_QUEUE_ZONE_OFFSET(fw_qid);
+
+	rc = qed_set_coalesce(p_hwfn, p_ptt, address, &eth_qzone,
+			      sizeof(struct ustorm_eth_queue_zone), timeset);
+	if (rc)
+		goto out;
+
+	p_hwfn->cdev->rx_coalesce_usecs = coalesce;
+out:
+	return rc;
+}
+
+int qed_set_txq_coalesce(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+			 u16 coalesce, u8 qid, u16 sb_id)
+{
+	struct xstorm_eth_queue_zone eth_qzone;
+	u8 timeset, timer_res;
+	u16 fw_qid = 0;
+	u32 address;
+	int rc;
+
+	/* Coalesce = (timeset << timer-resolution), timeset is 7bit wide */
+	if (coalesce <= 0x7F) {
+		timer_res = 0;
+	} else if (coalesce <= 0xFF) {
+		timer_res = 1;
+	} else if (coalesce <= 0x1FF) {
+		timer_res = 2;
+	} else {
+		DP_ERR(p_hwfn, "Invalid coalesce value - %d\n", coalesce);
+		return -EINVAL;
+	}
+	timeset = (u8)(coalesce >> timer_res);
+
+	rc = qed_fw_l2_queue(p_hwfn, (u16)qid, &fw_qid);
+	if (rc)
+		return rc;
+
+	rc = qed_int_set_timer_res(p_hwfn, p_ptt, timer_res, sb_id, true);
+	if (rc)
+		goto out;
+
+	address = BAR0_MAP_REG_XSDM_RAM + XSTORM_ETH_QUEUE_ZONE_OFFSET(fw_qid);
+
+	rc = qed_set_coalesce(p_hwfn, p_ptt, address, &eth_qzone,
+			      sizeof(struct xstorm_eth_queue_zone), timeset);
+	if (rc)
+		goto out;
+
+	p_hwfn->cdev->tx_coalesce_usecs = coalesce;
+out:
+	return rc;
 }
 
 /* Calculate final WFQ values for all vports and configure them.

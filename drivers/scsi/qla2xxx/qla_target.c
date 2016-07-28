@@ -215,8 +215,8 @@ static inline void qlt_incr_num_pend_cmds(struct scsi_qla_host *vha)
 	spin_lock_irqsave(&vha->hw->tgt.q_full_lock, flags);
 
 	vha->hw->tgt.num_pend_cmds++;
-	if (vha->hw->tgt.num_pend_cmds > vha->hw->qla_stats.stat_max_pend_cmds)
-		vha->hw->qla_stats.stat_max_pend_cmds =
+	if (vha->hw->tgt.num_pend_cmds > vha->qla_stats.stat_max_pend_cmds)
+		vha->qla_stats.stat_max_pend_cmds =
 			vha->hw->tgt.num_pend_cmds;
 	spin_unlock_irqrestore(&vha->hw->tgt.q_full_lock, flags);
 }
@@ -5231,8 +5231,8 @@ qlt_alloc_qfull_cmd(struct scsi_qla_host *vha,
 	if ((vha->hw->tgt.num_qfull_cmds_alloc + 1) > MAX_QFULL_CMDS_ALLOC) {
 		vha->hw->tgt.num_qfull_cmds_dropped++;
 		if (vha->hw->tgt.num_qfull_cmds_dropped >
-			vha->hw->qla_stats.stat_max_qfull_cmds_dropped)
-			vha->hw->qla_stats.stat_max_qfull_cmds_dropped =
+			vha->qla_stats.stat_max_qfull_cmds_dropped)
+			vha->qla_stats.stat_max_qfull_cmds_dropped =
 				vha->hw->tgt.num_qfull_cmds_dropped;
 
 		ql_dbg(ql_dbg_io, vha, 0x3068,
@@ -5263,8 +5263,8 @@ qlt_alloc_qfull_cmd(struct scsi_qla_host *vha,
 
 		vha->hw->tgt.num_qfull_cmds_dropped++;
 		if (vha->hw->tgt.num_qfull_cmds_dropped >
-			vha->hw->qla_stats.stat_max_qfull_cmds_dropped)
-			vha->hw->qla_stats.stat_max_qfull_cmds_dropped =
+			vha->qla_stats.stat_max_qfull_cmds_dropped)
+			vha->qla_stats.stat_max_qfull_cmds_dropped =
 				vha->hw->tgt.num_qfull_cmds_dropped;
 
 		qlt_chk_exch_leak_thresh_hold(vha);
@@ -5293,8 +5293,8 @@ qlt_alloc_qfull_cmd(struct scsi_qla_host *vha,
 
 	vha->hw->tgt.num_qfull_cmds_alloc++;
 	if (vha->hw->tgt.num_qfull_cmds_alloc >
-		vha->hw->qla_stats.stat_max_qfull_cmds_alloc)
-		vha->hw->qla_stats.stat_max_qfull_cmds_alloc =
+		vha->qla_stats.stat_max_qfull_cmds_alloc)
+		vha->qla_stats.stat_max_qfull_cmds_alloc =
 			vha->hw->tgt.num_qfull_cmds_alloc;
 }
 

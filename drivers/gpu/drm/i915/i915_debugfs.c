@@ -2100,9 +2100,10 @@ static int i915_dump_lrc(struct seq_file *m, void *unused)
 		return ret;
 
 	list_for_each_entry(ctx, &dev_priv->context_list, link)
-		if (ctx != dev_priv->kernel_context)
+		if (ctx != dev_priv->kernel_context) {
 			for_each_engine(engine, dev_priv)
 				i915_dump_lrc_obj(m, ctx, engine);
+		}
 
 	mutex_unlock(&dev->struct_mutex);
 
