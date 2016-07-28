@@ -206,6 +206,40 @@ struct mmu_rb_node *hfi1_mmu_rb_extract(struct mmu_rb_handler *handler,
 	return node;
 }
 
+void hfi1_mmu_rb_evict(struct mmu_rb_handler *handler, void *evict_arg)
+{
+	struct mmu_rb_node *rbnode;
+	struct rb_node *node, *next;
+	struct list_head del_list;
+	unsigned long flags;
+	bool stop = false;
+
+	INIT_LIST_HEAD(&del_list);
+
+	spin_lock_irqsave(&handler->lock, flags);
+	for (node = rb_first(&handler->root); node; node = next) {
+		next = rb_next(node);
+		rbnode = rb_entry(node, struct mmu_rb_node, node);
+		if (handler->ops->evict(handler->ops_arg, rbnode, evict_arg,
+					&stop)) {
+			__mmu_int_rb_remove(rbnode, &handler->root);
+			list_add(&rbnode->list, &del_list);
+		}
+		if (stop)
+			break;
+	}
+	spin_unlock_irqrestore(&handler->lock, flags);
+
+	down_write(&handler->mm->mmap_sem);
+	while (!list_empty(&del_list)) {
+		rbnode = list_first_entry(&del_list, struct mmu_rb_node, list);
+		list_del(&rbnode->list);
+		handler->ops->remove(handler->ops_arg, rbnode,
+				     handler->mm);
+	}
+	up_write(&handler->mm->mmap_sem);
+}
+
 void hfi1_mmu_rb_remove(struct mmu_rb_handler *handler,
 			struct mmu_rb_node *node)
 {

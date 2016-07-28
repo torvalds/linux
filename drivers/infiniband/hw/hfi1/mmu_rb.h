@@ -54,6 +54,7 @@ struct mmu_rb_node {
 	unsigned long len;
 	unsigned long __last;
 	struct rb_node node;
+	struct list_head list;
 };
 
 struct mmu_rb_ops {
@@ -63,6 +64,8 @@ struct mmu_rb_ops {
 	void (*remove)(void *ops_arg, struct mmu_rb_node *mnode,
 		       struct mm_struct *mm);
 	int (*invalidate)(void *ops_arg, struct mmu_rb_node *node);
+	int (*evict)(void *ops_arg, struct mmu_rb_node *mnode,
+		     void *evict_arg, bool *stop);
 };
 
 int hfi1_mmu_rb_register(void *ops_arg, struct mm_struct *mm,
@@ -71,6 +74,7 @@ int hfi1_mmu_rb_register(void *ops_arg, struct mm_struct *mm,
 void hfi1_mmu_rb_unregister(struct mmu_rb_handler *handler);
 int hfi1_mmu_rb_insert(struct mmu_rb_handler *handler,
 		       struct mmu_rb_node *mnode);
+void hfi1_mmu_rb_evict(struct mmu_rb_handler *handler, void *evict_arg);
 void hfi1_mmu_rb_remove(struct mmu_rb_handler *handler,
 			struct mmu_rb_node *mnode);
 struct mmu_rb_node *hfi1_mmu_rb_extract(struct mmu_rb_handler *handler,
