@@ -3144,31 +3144,39 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
 
 		sc.nr_reclaimed = 0;
 
-		/* Scan from the highest requested zone to dma */
-		for (i = classzone_idx; i >= 0; i--) {
-			zone = pgdat->node_zones + i;
-			if (!populated_zone(zone))
-				continue;
+		/*
+		 * If the number of buffer_heads in the machine exceeds the
+		 * maximum allowed level then reclaim from all zones. This is
+		 * not specific to highmem as highmem may not exist but it is
+		 * it is expected that buffer_heads are stripped in writeback.
+		 */
+		if (buffer_heads_over_limit) {
+			for (i = MAX_NR_ZONES - 1; i >= 0; i--) {
+				zone = pgdat->node_zones + i;
+				if (!populated_zone(zone))
+					continue;
 
-			/*
-			 * If the number of buffer_heads in the machine
-			 * exceeds the maximum allowed level and this node
-			 * has a highmem zone, force kswapd to reclaim from
-			 * it to relieve lowmem pressure.
-			 */
-			if (buffer_heads_over_limit && is_highmem_idx(i)) {
-				classzone_idx = i;
-				break;
-			}
-
-			if (!zone_balanced(zone, order, 0)) {
 				classzone_idx = i;
 				break;
 			}
 		}
 
-		if (i < 0)
-			goto out;
+		/*
+		 * Only reclaim if there are no eligible zones. Check from
+		 * high to low zone as allocations prefer higher zones.
+		 * Scanning from low to high zone would allow congestion to be
+		 * cleared during a very small window when a small low
+		 * zone was balanced even under extreme pressure when the
+		 * overall node may be congested.
+		 */
+		for (i = classzone_idx; i >= 0; i--) {
+			zone = pgdat->node_zones + i;
+			if (!populated_zone(zone))
+				continue;
+
+			if (zone_balanced(zone, sc.order, classzone_idx))
+				goto out;
+		}
 
 		/*
 		 * Do some background aging of the anon list, to give
@@ -3212,19 +3220,6 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
 		/* Check if kswapd should be suspending */
 		if (try_to_freeze() || kthread_should_stop())
 			break;
-
-		/*
-		 * Stop reclaiming if any eligible zone is balanced and clear
-		 * node writeback or congested.
-		 */
-		for (i = 0; i <= classzone_idx; i++) {
-			zone = pgdat->node_zones + i;
-			if (!populated_zone(zone))
-				continue;
-
-			if (zone_balanced(zone, sc.order, classzone_idx))
-				goto out;
-		}
 
 		/*
 		 * Raise priority if scanning rate is too low or there was no
