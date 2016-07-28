@@ -1066,10 +1066,12 @@ void qdio_int_handler(struct ccw_device *cdev, unsigned long intparm,
 		      struct irb *irb)
 {
 	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
+	struct subchannel_id schid;
 	int cstat, dstat;
 
 	if (!intparm || !irq_ptr) {
-		DBF_ERROR("qint:%4x", cdev->private->schid.sch_no);
+		ccw_device_get_schid(cdev, &schid);
+		DBF_ERROR("qint:%4x", schid.sch_no);
 		return;
 	}
 
@@ -1122,12 +1124,14 @@ void qdio_int_handler(struct ccw_device *cdev, unsigned long intparm,
 int qdio_get_ssqd_desc(struct ccw_device *cdev,
 		       struct qdio_ssqd_desc *data)
 {
+	struct subchannel_id schid;
 
 	if (!cdev || !cdev->private)
 		return -EINVAL;
 
-	DBF_EVENT("get ssqd:%4x", cdev->private->schid.sch_no);
-	return qdio_setup_get_ssqd(NULL, &cdev->private->schid, data);
+	ccw_device_get_schid(cdev, &schid);
+	DBF_EVENT("get ssqd:%4x", schid.sch_no);
+	return qdio_setup_get_ssqd(NULL, &schid, data);
 }
 EXPORT_SYMBOL_GPL(qdio_get_ssqd_desc);
 
@@ -1154,6 +1158,7 @@ static void qdio_shutdown_queues(struct ccw_device *cdev)
 int qdio_shutdown(struct ccw_device *cdev, int how)
 {
 	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
+	struct subchannel_id schid;
 	int rc;
 	unsigned long flags;
 
@@ -1161,7 +1166,8 @@ int qdio_shutdown(struct ccw_device *cdev, int how)
 		return -ENODEV;
 
 	WARN_ON_ONCE(irqs_disabled());
-	DBF_EVENT("qshutdown:%4x", cdev->private->schid.sch_no);
+	ccw_device_get_schid(cdev, &schid);
+	DBF_EVENT("qshutdown:%4x", schid.sch_no);
 
 	mutex_lock(&irq_ptr->setup_mutex);
 	/*
@@ -1228,11 +1234,13 @@ EXPORT_SYMBOL_GPL(qdio_shutdown);
 int qdio_free(struct ccw_device *cdev)
 {
 	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
+	struct subchannel_id schid;
 
 	if (!irq_ptr)
 		return -ENODEV;
 
-	DBF_EVENT("qfree:%4x", cdev->private->schid.sch_no);
+	ccw_device_get_schid(cdev, &schid);
+	DBF_EVENT("qfree:%4x", schid.sch_no);
 	DBF_DEV_EVENT(DBF_ERR, irq_ptr, "dbf abandoned");
 	mutex_lock(&irq_ptr->setup_mutex);
 
@@ -1251,9 +1259,11 @@ EXPORT_SYMBOL_GPL(qdio_free);
  */
 int qdio_allocate(struct qdio_initialize *init_data)
 {
+	struct subchannel_id schid;
 	struct qdio_irq *irq_ptr;
 
-	DBF_EVENT("qallocate:%4x", init_data->cdev->private->schid.sch_no);
+	ccw_device_get_schid(init_data->cdev, &schid);
+	DBF_EVENT("qallocate:%4x", schid.sch_no);
 
 	if ((init_data->no_input_qs && !init_data->input_handler) ||
 	    (init_data->no_output_qs && !init_data->output_handler))
@@ -1331,12 +1341,14 @@ static void qdio_detect_hsicq(struct qdio_irq *irq_ptr)
  */
 int qdio_establish(struct qdio_initialize *init_data)
 {
-	struct qdio_irq *irq_ptr;
 	struct ccw_device *cdev = init_data->cdev;
+	struct subchannel_id schid;
+	struct qdio_irq *irq_ptr;
 	unsigned long saveflags;
 	int rc;
 
-	DBF_EVENT("qestablish:%4x", cdev->private->schid.sch_no);
+	ccw_device_get_schid(cdev, &schid);
+	DBF_EVENT("qestablish:%4x", schid.sch_no);
 
 	irq_ptr = cdev->private->qdio_data;
 	if (!irq_ptr)
@@ -1407,11 +1419,13 @@ EXPORT_SYMBOL_GPL(qdio_establish);
  */
 int qdio_activate(struct ccw_device *cdev)
 {
+	struct subchannel_id schid;
 	struct qdio_irq *irq_ptr;
 	int rc;
 	unsigned long saveflags;
 
-	DBF_EVENT("qactivate:%4x", cdev->private->schid.sch_no);
+	ccw_device_get_schid(cdev, &schid);
+	DBF_EVENT("qactivate:%4x", schid.sch_no);
 
 	irq_ptr = cdev->private->qdio_data;
 	if (!irq_ptr)
