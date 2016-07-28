@@ -3402,7 +3402,6 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
 {
 	struct zone *zone;
 	struct zoneref *z;
-	pg_data_t *current_pgdat = NULL;
 
 	/*
 	 * Make sure we converge to OOM if we cannot make any progress
@@ -3410,15 +3409,6 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
 	 */
 	if (no_progress_loops > MAX_RECLAIM_RETRIES)
 		return false;
-
-	/*
-	 * Blindly retry lowmem allocation requests that are often ignored by
-	 * the OOM killer up to MAX_RECLAIM_RETRIES as we not have a reliable
-	 * and fast means of calculating reclaimable, dirty and writeback pages
-	 * in eligible zones.
-	 */
-	if (ac->high_zoneidx < ZONE_NORMAL)
-		goto out;
 
 	/*
 	 * Keep reclaiming pages while there is a chance this will lead
@@ -3430,38 +3420,18 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
 					ac->nodemask) {
 		unsigned long available;
 		unsigned long reclaimable;
-		int zid;
 
-		if (current_pgdat == zone->zone_pgdat)
-			continue;
-
-		current_pgdat = zone->zone_pgdat;
-		available = reclaimable = pgdat_reclaimable_pages(current_pgdat);
+		available = reclaimable = zone_reclaimable_pages(zone);
 		available -= DIV_ROUND_UP(no_progress_loops * available,
 					  MAX_RECLAIM_RETRIES);
-
-		/* Account for all free pages on eligible zones */
-		for (zid = 0; zid <= zone_idx(zone); zid++) {
-			struct zone *acct_zone = &current_pgdat->node_zones[zid];
-
-			available += zone_page_state_snapshot(acct_zone, NR_FREE_PAGES);
-		}
+		available += zone_page_state_snapshot(zone, NR_FREE_PAGES);
 
 		/*
 		 * Would the allocation succeed if we reclaimed the whole
-		 * available? This is approximate because there is no
-		 * accurate count of reclaimable pages per zone.
+		 * available?
 		 */
-		for (zid = 0; zid <= zone_idx(zone); zid++) {
-			struct zone *check_zone = &current_pgdat->node_zones[zid];
-			unsigned long estimate;
-
-			estimate = min(check_zone->managed_pages, available);
-			if (!__zone_watermark_ok(check_zone, order,
-					min_wmark_pages(check_zone), ac_classzone_idx(ac),
-					alloc_flags, estimate))
-				continue;
-
+		if (__zone_watermark_ok(zone, order, min_wmark_pages(zone),
+				ac_classzone_idx(ac), alloc_flags, available)) {
 			/*
 			 * If we didn't make any progress and have a lot of
 			 * dirty + writeback pages then we should wait for
@@ -3471,16 +3441,15 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
 			if (!did_some_progress) {
 				unsigned long write_pending;
 
-				write_pending =
-					node_page_state(current_pgdat, NR_WRITEBACK) +
-					node_page_state(current_pgdat, NR_FILE_DIRTY);
+				write_pending = zone_page_state_snapshot(zone,
+							NR_ZONE_WRITE_PENDING);
 
 				if (2 * write_pending > reclaimable) {
 					congestion_wait(BLK_RW_ASYNC, HZ/10);
 					return true;
 				}
 			}
-out:
+
 			/*
 			 * Memory allocation/reclaim might be called from a WQ
 			 * context and the current implementation of the WQ
@@ -4361,6 +4330,7 @@ void show_free_areas(unsigned int filter)
 			" active_file:%lukB"
 			" inactive_file:%lukB"
 			" unevictable:%lukB"
+			" writepending:%lukB"
 			" present:%lukB"
 			" managed:%lukB"
 			" mlocked:%lukB"
@@ -4383,6 +4353,7 @@ void show_free_areas(unsigned int filter)
 			K(zone_page_state(zone, NR_ZONE_ACTIVE_FILE)),
 			K(zone_page_state(zone, NR_ZONE_INACTIVE_FILE)),
 			K(zone_page_state(zone, NR_ZONE_UNEVICTABLE)),
+			K(zone_page_state(zone, NR_ZONE_WRITE_PENDING)),
 			K(zone->present_pages),
 			K(zone->managed_pages),
 			K(zone_page_state(zone, NR_MLOCK)),

@@ -1438,11 +1438,6 @@ bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
 {
 	struct zone *zone;
 	struct zoneref *z;
-	pg_data_t *last_pgdat = NULL;
-
-	/* Do not retry compaction for zone-constrained allocations */
-	if (ac->high_zoneidx < ZONE_NORMAL)
-		return false;
 
 	/*
 	 * Make sure at least one zone would pass __compaction_suitable if we continue
@@ -1453,27 +1448,14 @@ bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
 		unsigned long available;
 		enum compact_result compact_result;
 
-		if (last_pgdat == zone->zone_pgdat)
-			continue;
-
-		/*
-		 * This over-estimates the number of pages available for
-		 * reclaim/compaction but walking the LRU would take too
-		 * long. The consequences are that compaction may retry
-		 * longer than it should for a zone-constrained allocation
-		 * request.
-		 */
-		last_pgdat = zone->zone_pgdat;
-		available = pgdat_reclaimable_pages(zone->zone_pgdat) / order;
-
 		/*
 		 * Do not consider all the reclaimable memory because we do not
 		 * want to trash just for a single high order allocation which
 		 * is even not guaranteed to appear even if __compaction_suitable
 		 * is happy about the watermark check.
 		 */
+		available = zone_reclaimable_pages(zone) / order;
 		available += zone_page_state_snapshot(zone, NR_FREE_PAGES);
-		available = min(zone->managed_pages, available);
 		compact_result = __compaction_suitable(zone, order, alloc_flags,
 				ac_classzone_idx(ac), available);
 		if (compact_result != COMPACT_SKIPPED &&
