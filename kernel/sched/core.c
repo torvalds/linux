@@ -156,6 +156,18 @@ int sysctl_sched_rt_runtime = 950000;
 /* cpus with isolated domains */
 cpumask_var_t cpu_isolated_map;
 
+struct rq *
+lock_rq_of(struct task_struct *p, struct rq_flags *flags)
+{
+	return task_rq_lock(p, flags);
+}
+
+void
+unlock_rq_of(struct rq *rq, struct task_struct *p, struct rq_flags *flags)
+{
+	task_rq_unlock(rq, p, flags);
+}
+
 /*
  * this_rq_lock - lock this runqueue and disable interrupts.
  */
