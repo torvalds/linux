@@ -6291,7 +6291,7 @@ done:
 	return target;
 }
 
-static inline int find_best_target(struct task_struct *p, bool prefer_idle)
+static inline int find_best_target(struct task_struct *p, bool boosted, bool prefer_idle)
 {
 	int iter_cpu;
 	int target_cpu = -1;
@@ -6309,9 +6309,9 @@ static inline int find_best_target(struct task_struct *p, bool prefer_idle)
 		int idle_idx;
 
 		/*
-		 * favor higher cpus for tasks that prefer idle cores
+		 * Iterate from higher cpus for boosted tasks.
 		 */
-		int i = prefer_idle ? NR_CPUS-iter_cpu-1 : iter_cpu;
+		int i = boosted ? NR_CPUS-iter_cpu-1 : iter_cpu;
 
 		if (!cpu_online(i) || !cpumask_test_cpu(i, tsk_cpus_allowed(p)))
 			continue;
@@ -6481,7 +6481,7 @@ static int energy_aware_wake_cpu(struct task_struct *p, int target, int sync)
 		bool boosted = 0;
 		bool prefer_idle = 0;
 #endif
-		int tmp_target = find_best_target(p, boosted || prefer_idle);
+		int tmp_target = find_best_target(p, boosted, prefer_idle);
 		if (tmp_target >= 0) {
 			target_cpu = tmp_target;
 			if ((boosted || prefer_idle) && idle_cpu(target_cpu))
