@@ -25,6 +25,8 @@
 #define FREQ_1P2_GHZ		1200000000
 #define FREQ_396_MHZ		396000
 #define FREQ_696_MHZ		696000
+#define FREQ_99_MHZ		99000
+#define FREQ_24_MHZ		24000
 
 static struct regulator *arm_reg;
 static struct regulator *pu_reg;
@@ -65,6 +67,17 @@ static int imx6q_set_target(struct cpufreq_policy *policy, unsigned int index)
 	new_freq = freq_table[index].frequency;
 	freq_hz = new_freq * 1000;
 	old_freq = policy->cur;
+
+	/*
+	 * ON i.MX6ULL, the 24MHz setpoint is not seen by cpufreq
+	 * so we neet to prevent the cpufreq change frequency
+	 * from 24MHz to 99Mhz directly. busfreq will handle this
+	 * when exit from low bus mode.
+	 */
+	if (old_freq == FREQ_24_MHZ && new_freq == FREQ_99_MHZ) {
+		mutex_unlock(&set_cpufreq_lock);
+		return 0;
+	};
 
 	rcu_read_lock();
 	opp = dev_pm_opp_find_freq_ceil(cpu_dev, &freq_hz);
