@@ -3080,7 +3080,8 @@ handle_failed_stripe(struct r5conf *conf, struct stripe_head *sh,
 			struct md_rdev *rdev;
 			rcu_read_lock();
 			rdev = rcu_dereference(conf->disks[i].rdev);
-			if (rdev && test_bit(In_sync, &rdev->flags))
+			if (rdev && test_bit(In_sync, &rdev->flags) &&
+			    !test_bit(Faulty, &rdev->flags))
 				atomic_inc(&rdev->nr_pending);
 			else
 				rdev = NULL;
@@ -3210,15 +3211,16 @@ handle_failed_sync(struct r5conf *conf, struct stripe_head *sh,
 		/* During recovery devices cannot be removed, so
 		 * locking and refcounting of rdevs is not needed
 		 */
+		rcu_read_lock();
 		for (i = 0; i < conf->raid_disks; i++) {
-			struct md_rdev *rdev = conf->disks[i].rdev;
+			struct md_rdev *rdev = rcu_dereference(conf->disks[i].rdev);
 			if (rdev
 			    && !test_bit(Faulty, &rdev->flags)
 			    && !test_bit(In_sync, &rdev->flags)
 			    && !rdev_set_badblocks(rdev, sh->sector,
 						   STRIPE_SECTORS, 0))
 				abort = 1;
-			rdev = conf->disks[i].replacement;
+			rdev = rcu_dereference(conf->disks[i].replacement);
 			if (rdev
 			    && !test_bit(Faulty, &rdev->flags)
 			    && !test_bit(In_sync, &rdev->flags)
@@ -3226,6 +3228,7 @@ handle_failed_sync(struct r5conf *conf, struct stripe_head *sh,
 						   STRIPE_SECTORS, 0))
 				abort = 1;
 		}
+		rcu_read_unlock();
 		if (abort)
 			conf->recovery_disabled =
 				conf->mddev->recovery_disabled;
@@ -3237,15 +3240,16 @@ static int want_replace(struct stripe_head *sh, int disk_idx)
 {
 	struct md_rdev *rdev;
 	int rv = 0;
-	/* Doing recovery so rcu locking not required */
-	rdev = sh->raid_conf->disks[disk_idx].replacement;
+
+	rcu_read_lock();
+	rdev = rcu_dereference(sh->raid_conf->disks[disk_idx].replacement);
 	if (rdev
 	    && !test_bit(Faulty, &rdev->flags)
 	    && !test_bit(In_sync, &rdev->flags)
 	    && (rdev->recovery_offset <= sh->sector
 		|| rdev->mddev->recovery_cp <= sh->sector))
 		rv = 1;
-
+	rcu_read_unlock();
 	return rv;
 }
 
@@ -3600,7 +3604,7 @@ static void handle_stripe_dirtying(struct r5conf *conf,
 	pr_debug("for sector %llu, rmw=%d rcw=%d\n",
 		(unsigned long long)sh->sector, rmw, rcw);
 	set_bit(STRIPE_HANDLE, &sh->state);
-	if ((rmw < rcw || (rmw == rcw && conf->rmw_level == PARITY_ENABLE_RMW)) && rmw > 0) {
+	if ((rmw < rcw || (rmw == rcw && conf->rmw_level == PARITY_PREFER_RMW)) && rmw > 0) {
 		/* prefer read-modify-write, but need to get some data */
 		if (conf->mddev->queue)
 			blk_add_trace_msg(conf->mddev->queue,
@@ -3627,7 +3631,7 @@ static void handle_stripe_dirtying(struct r5conf *conf,
 			}
 		}
 	}
-	if ((rcw < rmw || (rcw == rmw && conf->rmw_level != PARITY_ENABLE_RMW)) && rcw > 0) {
+	if ((rcw < rmw || (rcw == rmw && conf->rmw_level != PARITY_PREFER_RMW)) && rcw > 0) {
 		/* want reconstruct write, but need to get some data */
 		int qread =0;
 		rcw = 0;
@@ -7066,10 +7070,12 @@ static void raid5_status(struct seq_file *seq, struct mddev *mddev)
 	seq_printf(seq, " level %d, %dk chunk, algorithm %d", mddev->level,
 		conf->chunk_sectors / 2, mddev->layout);
 	seq_printf (seq, " [%d/%d] [", conf->raid_disks, conf->raid_disks - mddev->degraded);
-	for (i = 0; i < conf->raid_disks; i++)
-		seq_printf (seq, "%s",
-			       conf->disks[i].rdev &&
-			       test_bit(In_sync, &conf->disks[i].rdev->flags) ? "U" : "_");
+	rcu_read_lock();
+	for (i = 0; i < conf->raid_disks; i++) {
+		struct md_rdev *rdev = rcu_dereference(conf->disks[i].rdev);
+		seq_printf (seq, "%s", rdev && test_bit(In_sync, &rdev->flags) ? "U" : "_");
+	}
+	rcu_read_unlock();
 	seq_printf (seq, "]");
 }
 
@@ -7191,12 +7197,15 @@ static int raid5_remove_disk(struct mddev *mddev, struct md_rdev *rdev)
 		goto abort;
 	}
 	*rdevp = NULL;
-	synchronize_rcu();
-	if (atomic_read(&rdev->nr_pending)) {
-		/* lost the race, try later */
-		err = -EBUSY;
-		*rdevp = rdev;
-	} else if (p->replacement) {
+	if (!test_bit(RemoveSynchronized, &rdev->flags)) {
+		synchronize_rcu();
+		if (atomic_read(&rdev->nr_pending)) {
+			/* lost the race, try later */
+			err = -EBUSY;
+			*rdevp = rdev;
+		}
+	}
+	if (p->replacement) {
 		/* We must have just cleared 'rdev' */
 		p->rdev = p->replacement;
 		clear_bit(Replacement, &p->replacement->flags);

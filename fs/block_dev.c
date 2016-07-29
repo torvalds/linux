@@ -614,7 +614,6 @@ static void init_once(void *foo)
 
 	memset(bdev, 0, sizeof(*bdev));
 	mutex_init(&bdev->bd_mutex);
-	INIT_LIST_HEAD(&bdev->bd_inodes);
 	INIT_LIST_HEAD(&bdev->bd_list);
 #ifdef CONFIG_SYSFS
 	INIT_LIST_HEAD(&bdev->bd_holder_disks);
@@ -624,24 +623,13 @@ static void init_once(void *foo)
 	mutex_init(&bdev->bd_fsfreeze_mutex);
 }
 
-static inline void __bd_forget(struct inode *inode)
-{
-	list_del_init(&inode->i_devices);
-	inode->i_bdev = NULL;
-	inode->i_mapping = &inode->i_data;
-}
-
 static void bdev_evict_inode(struct inode *inode)
 {
 	struct block_device *bdev = &BDEV_I(inode)->bdev;
-	struct list_head *p;
 	truncate_inode_pages_final(&inode->i_data);
 	invalidate_inode_buffers(inode); /* is it needed here? */
 	clear_inode(inode);
 	spin_lock(&bdev_lock);
-	while ( (p = bdev->bd_inodes.next) != &bdev->bd_inodes ) {
-		__bd_forget(list_entry(p, struct inode, i_devices));
-	}
 	list_del_init(&bdev->bd_list);
 	spin_unlock(&bdev_lock);
 }
@@ -805,7 +793,6 @@ static struct block_device *bd_acquire(struct inode *inode)
 			bdgrab(bdev);
 			inode->i_bdev = bdev;
 			inode->i_mapping = bdev->bd_inode->i_mapping;
-			list_add(&inode->i_devices, &bdev->bd_inodes);
 		}
 		spin_unlock(&bdev_lock);
 	}
@@ -821,7 +808,8 @@ void bd_forget(struct inode *inode)
 	spin_lock(&bdev_lock);
 	if (!sb_is_blkdev_sb(inode->i_sb))
 		bdev = inode->i_bdev;
-	__bd_forget(inode);
+	inode->i_bdev = NULL;
+	inode->i_mapping = &inode->i_data;
 	spin_unlock(&bdev_lock);
 
 	if (bdev)

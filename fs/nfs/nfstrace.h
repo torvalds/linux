@@ -707,9 +707,9 @@ TRACE_EVENT(nfs_sillyrename_unlink,
 			__entry->dev = dir->i_sb->s_dev;
 			__entry->dir = NFS_FILEID(dir);
 			__entry->error = error;
-			memcpy(__get_dynamic_array(name),
+			memcpy(__get_str(name),
 				data->args.name.name, len);
-			((char *)__get_dynamic_array(name))[len] = 0;
+			__get_str(name)[len] = 0;
 		),
 
 		TP_printk(

@@ -207,7 +207,7 @@ adfs_hash(const struct dentry *parent, struct qstr *qstr)
 	 */
 	qstr->len = i = name_len;
 	name = qstr->name;
-	hash = init_name_hash();
+	hash = init_name_hash(parent);
 	while (i--) {
 		char c;
 

@@ -670,7 +670,7 @@ struct u300_pmx {
  * u300_pmx_registers - the array of registers read/written for each pinmux
  * shunt setting
  */
-const u32 u300_pmx_registers[] = {
+static const u32 u300_pmx_registers[] = {
 	U300_SYSCON_PMC1LR,
 	U300_SYSCON_PMC1HR,
 	U300_SYSCON_PMC2R,

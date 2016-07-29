@@ -232,7 +232,7 @@ int nfs_readdir_make_qstr(struct qstr *string, const char *name, unsigned int le
 	 * in a page cache page which kmemleak does not scan.
 	 */
 	kmemleak_not_leak(string->name);
-	string->hash = full_name_hash(name, len);
+	string->hash = full_name_hash(NULL, name, len);
 	return 0;
 }
 
@@ -502,7 +502,7 @@ void nfs_prime_dcache(struct dentry *parent, struct nfs_entry *entry)
 		if (filename.len == 2 && filename.name[1] == '.')
 			return;
 	}
-	filename.hash = full_name_hash(filename.name, filename.len);
+	filename.hash = full_name_hash(parent, filename.name, filename.len);
 
 	dentry = d_lookup(parent, &filename);
 again:
@@ -734,7 +734,7 @@ struct page *get_cache_page(nfs_readdir_descriptor_t *desc)
 	struct page *page;
 
 	for (;;) {
-		page = read_cache_page(file_inode(desc->file)->i_mapping,
+		page = read_cache_page(desc->file->f_mapping,
 			desc->page_index, (filler_t *)nfs_readdir_filler, desc);
 		if (IS_ERR(page) || grab_page(page))
 			break;
@@ -1397,19 +1397,18 @@ struct dentry *nfs_lookup(struct inode *dir, struct dentry * dentry, unsigned in
 	if (IS_ERR(label))
 		goto out;
 
-	/* Protect against concurrent sillydeletes */
 	trace_nfs_lookup_enter(dir, dentry, flags);
 	error = NFS_PROTO(dir)->lookup(dir, &dentry->d_name, fhandle, fattr, label);
 	if (error == -ENOENT)
 		goto no_entry;
 	if (error < 0) {
 		res = ERR_PTR(error);
-		goto out_unblock_sillyrename;
+		goto out_label;
 	}
 	inode = nfs_fhget(dentry->d_sb, fhandle, fattr, label);
 	res = ERR_CAST(inode);
 	if (IS_ERR(res))
-		goto out_unblock_sillyrename;
+		goto out_label;
 
 	/* Success: notify readdir to use READDIRPLUS */
 	nfs_advise_use_readdirplus(dir);
@@ -1418,11 +1417,11 @@ no_entry:
 	res = d_splice_alias(inode, dentry);
 	if (res != NULL) {
 		if (IS_ERR(res))
-			goto out_unblock_sillyrename;
+			goto out_label;
 		dentry = res;
 	}
 	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
-out_unblock_sillyrename:
+out_label:
 	trace_nfs_lookup_exit(dir, dentry, flags, error);
 	nfs4_label_free(label);
 out:

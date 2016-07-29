@@ -660,7 +660,7 @@ static struct drm_gem_object *__etnaviv_gem_new(struct drm_device *dev,
 		 * why this is required _and_ expected if you're
 		 * going to pin these pages.
 		 */
-		mapping = file_inode(obj->filp)->i_mapping;
+		mapping = obj->filp->f_mapping;
 		mapping_set_gfp_mask(mapping, GFP_HIGHUSER);
 	}
 

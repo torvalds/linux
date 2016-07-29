@@ -2303,7 +2303,7 @@ static int origin_map(struct dm_target *ti, struct bio *bio)
 }
 
 static long origin_direct_access(struct dm_target *ti, sector_t sector,
-		void __pmem **kaddr, pfn_t *pfn, long size)
+		void **kaddr, pfn_t *pfn, long size)
 {
 	DMWARN("device does not support dax.");
 	return -EIO;

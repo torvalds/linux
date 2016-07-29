@@ -166,6 +166,8 @@ int generic_swapfile_activate(struct swap_info_struct *sis,
 		unsigned block_in_page;
 		sector_t first_block;
 
+		cond_resched();
+
 		first_block = bmap(inode, probe_block);
 		if (first_block == 0)
 			goto bad_bmap;

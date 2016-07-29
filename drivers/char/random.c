@@ -1668,13 +1668,12 @@ static int rand_initialize(void)
 #ifdef CONFIG_NUMA
 	pool = kmalloc(num_nodes * sizeof(void *),
 		       GFP_KERNEL|__GFP_NOFAIL|__GFP_ZERO);
-	for (i=0; i < num_nodes; i++) {
+	for_each_online_node(i) {
 		crng = kmalloc_node(sizeof(struct crng_state),
 				    GFP_KERNEL | __GFP_NOFAIL, i);
 		spin_lock_init(&crng->lock);
 		crng_initialize(crng);
 		pool[i] = crng;
-
 	}
 	mb();
 	crng_node_pool = pool;

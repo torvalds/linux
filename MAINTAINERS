@@ -5334,8 +5334,9 @@ M:	Bjorn Andersson <bjorn.andersson@linaro.org>
 L:	linux-remoteproc@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ohad/hwspinlock.git
+F:	Documentation/devicetree/bindings/hwlock/
 F:	Documentation/hwspinlock.txt
-F:	drivers/hwspinlock/hwspinlock_*
+F:	drivers/hwspinlock/
 F:	include/linux/hwspinlock.h
 
 HARMONY SOUND DRIVER
@@ -9732,8 +9733,9 @@ M:	Bjorn Andersson <bjorn.andersson@linaro.org>
 L:	linux-remoteproc@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ohad/remoteproc.git
 S:	Maintained
-F:	drivers/remoteproc/
+F:	Documentation/devicetree/bindings/remoteproc/
 F:	Documentation/remoteproc.txt
+F:	drivers/remoteproc/
 F:	include/linux/remoteproc.h
 
 REMOTE PROCESSOR MESSAGING (RPMSG) SUBSYSTEM
@@ -11439,11 +11441,6 @@ S:	Supported
 F:	Documentation/thermal/cpu-cooling-api.txt
 F:	drivers/thermal/cpu_cooling.c
 F:	include/linux/cpu_cooling.h
-
-THINGM BLINK(1) USB RGB LED DRIVER
-M:	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
-S:	Maintained
-F:	drivers/hid/hid-thingm.c
 
 THINKPAD ACPI EXTRAS DRIVER
 M:	Henrique de Moraes Holschuh <ibm-acpi@hmh.eng.br>

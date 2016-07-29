@@ -398,7 +398,7 @@ int autofs4_wait(struct autofs_sb_info *sbi,
 		}
 	}
 	qstr.name = name;
-	qstr.hash = full_name_hash(name, qstr.len);
+	qstr.hash = full_name_hash(dentry, name, qstr.len);
 
 	if (mutex_lock_interruptible(&sbi->wq_mutex)) {
 		kfree(qstr.name);

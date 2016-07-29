@@ -273,7 +273,7 @@ v9fs_vfs_atomic_open_dotl(struct inode *dir, struct dentry *dentry,
 	p9_debug(P9_DEBUG_VFS, "name:%s flags:0x%x mode:0x%hx\n",
 		 name, flags, omode);
 
-	dfid = v9fs_fid_lookup(dentry->d_parent);
+	dfid = v9fs_parent_fid(dentry);
 	if (IS_ERR(dfid)) {
 		err = PTR_ERR(dfid);
 		p9_debug(P9_DEBUG_VFS, "fid lookup failed %d\n", err);
@@ -389,7 +389,6 @@ static int v9fs_vfs_mkdir_dotl(struct inode *dir,
 	umode_t mode;
 	struct inode *inode;
 	struct p9_qid qid;
-	struct dentry *dir_dentry;
 	struct posix_acl *dacl = NULL, *pacl = NULL;
 
 	p9_debug(P9_DEBUG_VFS, "name %pd\n", dentry);
@@ -400,8 +399,7 @@ static int v9fs_vfs_mkdir_dotl(struct inode *dir,
 	if (dir->i_mode & S_ISGID)
 		omode |= S_ISGID;
 
-	dir_dentry = dentry->d_parent;
-	dfid = v9fs_fid_lookup(dir_dentry);
+	dfid = v9fs_parent_fid(dentry);
 	if (IS_ERR(dfid)) {
 		err = PTR_ERR(dfid);
 		p9_debug(P9_DEBUG_VFS, "fid lookup failed %d\n", err);
@@ -691,7 +689,7 @@ v9fs_vfs_symlink_dotl(struct inode *dir, struct dentry *dentry,
 	p9_debug(P9_DEBUG_VFS, "%lu,%s,%s\n", dir->i_ino, name, symname);
 	v9ses = v9fs_inode2v9ses(dir);
 
-	dfid = v9fs_fid_lookup(dentry->d_parent);
+	dfid = v9fs_parent_fid(dentry);
 	if (IS_ERR(dfid)) {
 		err = PTR_ERR(dfid);
 		p9_debug(P9_DEBUG_VFS, "fid lookup failed %d\n", err);
@@ -762,7 +760,6 @@ v9fs_vfs_link_dotl(struct dentry *old_dentry, struct inode *dir,
 		struct dentry *dentry)
 {
 	int err;
-	struct dentry *dir_dentry;
 	struct p9_fid *dfid, *oldfid;
 	struct v9fs_session_info *v9ses;
 
@@ -770,8 +767,7 @@ v9fs_vfs_link_dotl(struct dentry *old_dentry, struct inode *dir,
 		 dir->i_ino, old_dentry, dentry);
 
 	v9ses = v9fs_inode2v9ses(dir);
-	dir_dentry = dentry->d_parent;
-	dfid = v9fs_fid_lookup(dir_dentry);
+	dfid = v9fs_parent_fid(dentry);
 	if (IS_ERR(dfid))
 		return PTR_ERR(dfid);
 
@@ -822,7 +818,6 @@ v9fs_vfs_mknod_dotl(struct inode *dir, struct dentry *dentry, umode_t omode,
 	struct p9_fid *fid = NULL, *dfid = NULL;
 	struct inode *inode;
 	struct p9_qid qid;
-	struct dentry *dir_dentry;
 	struct posix_acl *dacl = NULL, *pacl = NULL;
 
 	p9_debug(P9_DEBUG_VFS, " %lu,%pd mode: %hx MAJOR: %u MINOR: %u\n",
@@ -830,8 +825,7 @@ v9fs_vfs_mknod_dotl(struct inode *dir, struct dentry *dentry, umode_t omode,
 		 MAJOR(rdev), MINOR(rdev));
 
 	v9ses = v9fs_inode2v9ses(dir);
-	dir_dentry = dentry->d_parent;
-	dfid = v9fs_fid_lookup(dir_dentry);
+	dfid = v9fs_parent_fid(dentry);
 	if (IS_ERR(dfid)) {
 		err = PTR_ERR(dfid);
 		p9_debug(P9_DEBUG_VFS, "fid lookup failed %d\n", err);

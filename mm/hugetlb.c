@@ -3316,7 +3316,7 @@ static void unmap_ref_private(struct mm_struct *mm, struct vm_area_struct *vma,
 	address = address & huge_page_mask(h);
 	pgoff = ((address - vma->vm_start) >> PAGE_SHIFT) +
 			vma->vm_pgoff;
-	mapping = file_inode(vma->vm_file)->i_mapping;
+	mapping = vma->vm_file->f_mapping;
 
 	/*
 	 * Take the mapping lock for the duration of the table walk. As
@@ -4391,7 +4391,6 @@ follow_huge_pud(struct mm_struct *mm, unsigned long address,
 
 /*
  * This function is called from memory failure code.
- * Assume the caller holds page lock of the head page.
  */
 int dequeue_hwpoisoned_huge_page(struct page *hpage)
 {

@@ -20,7 +20,7 @@
  */
 #include <linux/io.h>
 #include <linux/mfd/syscon.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pinctrl/pinctrl.h>
@@ -1210,7 +1210,6 @@ static const struct of_device_id zynq_pinctrl_of_match[] = {
 	{ .compatible = "xlnx,pinctrl-zynq" },
 	{ }
 };
-MODULE_DEVICE_TABLE(of, zynq_pinctrl_of_match);
 
 static struct platform_driver zynq_pinctrl_driver = {
 	.driver = {
@@ -1225,13 +1224,3 @@ static int __init zynq_pinctrl_init(void)
 	return platform_driver_register(&zynq_pinctrl_driver);
 }
 arch_initcall(zynq_pinctrl_init);
-
-static void __exit zynq_pinctrl_exit(void)
-{
-	platform_driver_unregister(&zynq_pinctrl_driver);
-}
-module_exit(zynq_pinctrl_exit);
-
-MODULE_AUTHOR("Sören Brinkmann <soren.brinkmann@xilinx.com>");
-MODULE_DESCRIPTION("Xilinx Zynq pinctrl driver");
-MODULE_LICENSE("GPL");

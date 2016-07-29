@@ -170,7 +170,8 @@ static inline int is_omitted_entry(struct ll_statahead_info *sai, __u64 index)
  * Insert it into sai_entries tail when init.
  */
 static struct ll_sa_entry *
-ll_sa_entry_alloc(struct ll_statahead_info *sai, __u64 index,
+ll_sa_entry_alloc(struct dentry *parent,
+		  struct ll_statahead_info *sai, __u64 index,
 		  const char *name, int len)
 {
 	struct ll_inode_info *lli;
@@ -217,7 +218,8 @@ ll_sa_entry_alloc(struct ll_statahead_info *sai, __u64 index,
 	dname = (char *)entry + sizeof(struct ll_sa_entry);
 	memcpy(dname, name, len);
 	dname[len] = 0;
-	entry->se_qstr.hash = full_name_hash(name, len);
+
+	entry->se_qstr.hash = full_name_hash(parent, name, len);
 	entry->se_qstr.len = len;
 	entry->se_qstr.name = dname;
 
@@ -898,7 +900,7 @@ static void ll_statahead_one(struct dentry *parent, const char *entry_name,
 	int		       rc;
 	int		       rc1;
 
-	entry = ll_sa_entry_alloc(sai, sai->sai_index, entry_name,
+	entry = ll_sa_entry_alloc(parent, sai, sai->sai_index, entry_name,
 				  entry_name_len);
 	if (IS_ERR(entry))
 		return;

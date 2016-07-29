@@ -198,8 +198,7 @@ struct device *nd_btt_create(struct nd_region *nd_region)
 {
 	struct device *dev = __nd_btt_create(nd_region, 0, NULL, NULL);
 
-	if (dev)
-		__nd_device_register(dev);
+	__nd_device_register(dev);
 	return dev;
 }
 
