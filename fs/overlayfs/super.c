@@ -608,7 +608,7 @@ out:
 
 struct file *ovl_path_open(struct path *path, int flags)
 {
-	return dentry_open(path, flags, current_cred());
+	return dentry_open(path, flags | O_NOATIME, current_cred());
 }
 
 static void ovl_put_super(struct super_block *sb)
@@ -1075,6 +1075,10 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 			pr_err("overlayfs: failed to clone upperpath\n");
 			goto out_put_lowerpath;
 		}
+		/* Don't inherit atime flags */
+		ufs->upper_mnt->mnt_flags &= ~(MNT_NOATIME | MNT_NODIRATIME | MNT_RELATIME);
+
+		sb->s_time_gran = ufs->upper_mnt->mnt_sb->s_time_gran;
 
 		ufs->workdir = ovl_workdir_create(ufs->upper_mnt, workpath.dentry);
 		err = PTR_ERR(ufs->workdir);
@@ -1122,7 +1126,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 		 * Make lower_mnt R/O.  That way fchmod/fchown on lower file
 		 * will fail instead of modifying lower fs.
 		 */
-		mnt->mnt_flags |= MNT_READONLY;
+		mnt->mnt_flags |= MNT_READONLY | MNT_NOATIME;
 
 		ufs->lower_mnt[ufs->numlower] = mnt;
 		ufs->numlower++;

@@ -943,4 +943,5 @@ const struct inode_operations ovl_dir_inode_operations = {
 	.listxattr	= ovl_listxattr,
 	.removexattr	= ovl_removexattr,
 	.get_acl	= ovl_get_acl,
+	.update_time	= ovl_update_time,
 };
