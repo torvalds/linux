@@ -335,6 +335,8 @@ atmel_hlcdc_plane_update_pos_and_size(struct atmel_hlcdc_plane *plane,
 
 		atmel_hlcdc_layer_update_cfg(&plane->layer, 13, 0xffffffff,
 					     factor_reg);
+	} else {
+		atmel_hlcdc_layer_update_cfg(&plane->layer, 13, 0xffffffff, 0);
 	}
 }
 

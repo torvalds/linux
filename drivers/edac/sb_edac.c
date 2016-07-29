@@ -218,8 +218,11 @@ static const u32 rir_offset[MAX_RIR_RANGES][MAX_RIR_WAY] = {
 	{ 0x1a0, 0x1a4, 0x1a8, 0x1ac, 0x1b0, 0x1b4, 0x1b8, 0x1bc },
 };
 
-#define RIR_RNK_TGT(reg)		GET_BITFIELD(reg, 16, 19)
-#define RIR_OFFSET(reg)		GET_BITFIELD(reg,  2, 14)
+#define RIR_RNK_TGT(type, reg) (((type) == BROADWELL) ? \
+	GET_BITFIELD(reg, 20, 23) : GET_BITFIELD(reg, 16, 19))
+
+#define RIR_OFFSET(type, reg) (((type) == HASWELL || (type) == BROADWELL) ? \
+	GET_BITFIELD(reg,  2, 15) : GET_BITFIELD(reg,  2, 14))
 
 /* Device 16, functions 2-7 */
 
@@ -1175,14 +1178,14 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 				pci_read_config_dword(pvt->pci_tad[i],
 						      rir_offset[j][k],
 						      &reg);
-				tmp_mb = RIR_OFFSET(reg) << 6;
+				tmp_mb = RIR_OFFSET(pvt->info.type, reg) << 6;
 
 				gb = div_u64_rem(tmp_mb, 1024, &mb);
 				edac_dbg(0, "CH#%d RIR#%d INTL#%d, offset %u.%03u GB (0x%016Lx), tgt: %d, reg=0x%08x\n",
 					 i, j, k,
 					 gb, (mb*1000)/1024,
 					 ((u64)tmp_mb) << 20L,
-					 (u32)RIR_RNK_TGT(reg),
+					 (u32)RIR_RNK_TGT(pvt->info.type, reg),
 					 reg);
 			}
 		}
@@ -1512,7 +1515,7 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 	pci_read_config_dword(pvt->pci_tad[ch_add + base_ch],
 			      rir_offset[n_rir][idx],
 			      &reg);
-	*rank = RIR_RNK_TGT(reg);
+	*rank = RIR_RNK_TGT(pvt->info.type, reg);
 
 	edac_dbg(0, "RIR#%d: channel address 0x%08Lx < 0x%08Lx, RIR interleave %d, index %d\n",
 		 n_rir,
