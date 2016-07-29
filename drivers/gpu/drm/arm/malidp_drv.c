@@ -378,6 +378,8 @@ static int malidp_bind(struct device *dev)
 	if (ret < 0)
 		goto irq_init_fail;
 
+	drm->irq_enabled = true;
+
 	ret = drm_vblank_init(drm, drm->mode_config.num_crtc);
 	if (ret < 0) {
 		DRM_ERROR("failed to initialise vblank\n");
@@ -403,6 +405,7 @@ fbdev_fail:
 vblank_fail:
 	malidp_se_irq_fini(drm);
 	malidp_de_irq_fini(drm);
+	drm->irq_enabled = false;
 irq_init_fail:
 	component_unbind_all(dev, drm);
 bind_fail:
