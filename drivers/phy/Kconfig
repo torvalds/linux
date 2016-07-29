@@ -341,6 +341,15 @@ config PHY_ROCKCHIP_DP
 	help
 	  Enable this to support the Rockchip Display Port PHY.
 
+config PHY_ROCKCHIP_TYPEC
+	tristate "Rockchip TYPEC PHY Driver"
+	depends on ARCH_ROCKCHIP && OF
+	select EXTCON
+	select GENERIC_PHY
+	select RESET_CONTROLLER
+	help
+	  Enable this to support the Rockchip USB TYPEC PHY.
+
 config PHY_ST_SPEAR1310_MIPHY
 	tristate "ST SPEAR1310-MIPHY driver"
 	select GENERIC_PHY
