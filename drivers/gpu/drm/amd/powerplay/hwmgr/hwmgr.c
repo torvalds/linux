@@ -206,29 +206,7 @@ int phm_wait_on_register(struct pp_hwmgr *hwmgr, uint32_t index,
 	return 0;
 }
 
-int phm_wait_for_register_unequal(struct pp_hwmgr *hwmgr,
-				uint32_t index, uint32_t value, uint32_t mask)
-{
-	uint32_t i;
-	uint32_t cur_value;
 
-	if (hwmgr == NULL || hwmgr->device == NULL) {
-		printk(KERN_ERR "[ powerplay ] Invalid Hardware Manager!");
-		return -EINVAL;
-	}
-
-	for (i = 0; i < hwmgr->usec_timeout; i++) {
-		cur_value = cgs_read_register(hwmgr->device, index);
-		if ((cur_value & mask) != (value & mask))
-			break;
-		udelay(1);
-	}
-
-	/* timeout means wrong logic*/
-	if (i == hwmgr->usec_timeout)
-		return -1;
-	return 0;
-}
 
 
 /**
@@ -251,21 +229,7 @@ void phm_wait_on_indirect_register(struct pp_hwmgr *hwmgr,
 	phm_wait_on_register(hwmgr, indirect_port + 1, mask, value);
 }
 
-void phm_wait_for_indirect_register_unequal(struct pp_hwmgr *hwmgr,
-					uint32_t indirect_port,
-					uint32_t index,
-					uint32_t value,
-					uint32_t mask)
-{
-	if (hwmgr == NULL || hwmgr->device == NULL) {
-		printk(KERN_ERR "[ powerplay ] Invalid Hardware Manager!");
-		return;
-	}
 
-	cgs_write_register(hwmgr->device, indirect_port, index);
-	phm_wait_for_register_unequal(hwmgr, indirect_port + 1,
-				      value, mask);
-}
 
 bool phm_cf_want_uvd_power_gating(struct pp_hwmgr *hwmgr)
 {
