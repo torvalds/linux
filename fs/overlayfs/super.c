@@ -20,6 +20,7 @@
 #include <linux/sched.h>
 #include <linux/statfs.h>
 #include <linux/seq_file.h>
+#include <linux/posix_acl_xattr.h>
 #include "overlayfs.h"
 
 MODULE_AUTHOR("Miklos Szeredi <miklos@szeredi.hu>");
@@ -966,6 +967,96 @@ static unsigned int ovl_split_lowerdirs(char *str)
 	return ctr;
 }
 
+static int ovl_posix_acl_xattr_set(const struct xattr_handler *handler,
+				   struct dentry *dentry, struct inode *inode,
+				   const char *name, const void *value,
+				   size_t size, int flags)
+{
+	struct dentry *workdir = ovl_workdir(dentry);
+	struct inode *realinode = ovl_inode_real(inode, NULL);
+	struct posix_acl *acl = NULL;
+	int err;
+
+	/* Check that everything is OK before copy-up */
+	if (value) {
+		acl = posix_acl_from_xattr(&init_user_ns, value, size);
+		if (IS_ERR(acl))
+			return PTR_ERR(acl);
+	}
+	err = -EOPNOTSUPP;
+	if (!IS_POSIXACL(d_inode(workdir)))
+		goto out_acl_release;
+	if (!realinode->i_op->set_acl)
+		goto out_acl_release;
+	if (handler->flags == ACL_TYPE_DEFAULT && !S_ISDIR(inode->i_mode)) {
+		err = acl ? -EACCES : 0;
+		goto out_acl_release;
+	}
+	err = -EPERM;
+	if (!inode_owner_or_capable(inode))
+		goto out_acl_release;
+
+	posix_acl_release(acl);
+
+	return ovl_setxattr(dentry, inode, handler->name, value, size, flags);
+
+out_acl_release:
+	posix_acl_release(acl);
+	return err;
+}
+
+static int ovl_other_xattr_set(const struct xattr_handler *handler,
+			       struct dentry *dentry, struct inode *inode,
+			       const char *name, const void *value,
+			       size_t size, int flags)
+{
+	return ovl_setxattr(dentry, inode, name, value, size, flags);
+}
+
+static int ovl_own_xattr_set(const struct xattr_handler *handler,
+			     struct dentry *dentry, struct inode *inode,
+			     const char *name, const void *value,
+			     size_t size, int flags)
+{
+	return -EPERM;
+}
+
+static const struct xattr_handler ovl_posix_acl_access_xattr_handler = {
+	.name = XATTR_NAME_POSIX_ACL_ACCESS,
+	.flags = ACL_TYPE_ACCESS,
+	.set = ovl_posix_acl_xattr_set,
+};
+
+static const struct xattr_handler ovl_posix_acl_default_xattr_handler = {
+	.name = XATTR_NAME_POSIX_ACL_DEFAULT,
+	.flags = ACL_TYPE_DEFAULT,
+	.set = ovl_posix_acl_xattr_set,
+};
+
+static const struct xattr_handler ovl_own_xattr_handler = {
+	.prefix	= OVL_XATTR_PREFIX,
+	.set = ovl_own_xattr_set,
+};
+
+static const struct xattr_handler ovl_other_xattr_handler = {
+	.prefix	= "", /* catch all */
+	.set = ovl_other_xattr_set,
+};
+
+static const struct xattr_handler *ovl_xattr_handlers[] = {
+	&ovl_posix_acl_access_xattr_handler,
+	&ovl_posix_acl_default_xattr_handler,
+	&ovl_own_xattr_handler,
+	&ovl_other_xattr_handler,
+	NULL
+};
+
+static const struct xattr_handler *ovl_xattr_noacl_handlers[] = {
+	&ovl_own_xattr_handler,
+	&ovl_other_xattr_handler,
+	NULL,
+};
+
 static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct path upperpath = { NULL, NULL };
@@ -1178,6 +1269,10 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 
 	sb->s_magic = OVERLAYFS_SUPER_MAGIC;
 	sb->s_op = &ovl_super_operations;
+	if (IS_ENABLED(CONFIG_FS_POSIX_ACL))
+		sb->s_xattr = ovl_xattr_handlers;
+	else
+		sb->s_xattr = ovl_xattr_noacl_handlers;
 	sb->s_root = root_dentry;
 	sb->s_fs_info = ufs;
 	sb->s_flags |= MS_POSIXACL;
