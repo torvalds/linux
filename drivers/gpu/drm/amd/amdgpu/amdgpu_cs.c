@@ -386,8 +386,10 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 
 		r = ttm_eu_reserve_buffers(&p->ticket, &p->validated, true,
 					   &duplicates);
-		if (unlikely(r != 0))
+		if (unlikely(r != 0)) {
+			DRM_ERROR("ttm_eu_reserve_buffers failed.\n");
 			goto error_free_pages;
+		}
 
 		/* Without a BO list we don't have userptr BOs */
 		if (!p->bo_list)
@@ -427,9 +429,10 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 		/* Unreserve everything again. */
 		ttm_eu_backoff_reservation(&p->ticket, &p->validated);
 
-		/* We tried to often, just abort */
+		/* We tried too many times, just abort */
 		if (!--tries) {
 			r = -EDEADLK;
+			DRM_ERROR("deadlock in %s\n", __func__);
 			goto error_free_pages;
 		}
 
@@ -441,11 +444,13 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 							 sizeof(struct page*));
 			if (!e->user_pages) {
 				r = -ENOMEM;
+				DRM_ERROR("calloc failure in %s\n", __func__);
 				goto error_free_pages;
 			}
 
 			r = amdgpu_ttm_tt_get_user_pages(ttm, e->user_pages);
 			if (r) {
+				DRM_ERROR("amdgpu_ttm_tt_get_user_pages failed.\n");
 				drm_free_large(e->user_pages);
 				e->user_pages = NULL;
 				goto error_free_pages;
@@ -462,12 +467,16 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 	p->bytes_moved = 0;
 
 	r = amdgpu_cs_list_validate(p, &duplicates);
-	if (r)
+	if (r) {
+		DRM_ERROR("amdgpu_cs_list_validate(duplicates) failed.\n");
 		goto error_validate;
+	}
 
 	r = amdgpu_cs_list_validate(p, &p->validated);
-	if (r)
+	if (r) {
+		DRM_ERROR("amdgpu_cs_list_validate(validated) failed.\n");
 		goto error_validate;
+	}
 
 	fpriv->vm.last_eviction_counter =
 		atomic64_read(&p->adev->num_evictions);
