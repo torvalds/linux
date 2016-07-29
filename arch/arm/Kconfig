@@ -1186,6 +1186,60 @@ config ARM_ERRATA_773022
 	  loop buffer may deliver incorrect instructions. This
 	  workaround disables the loop buffer to avoid the erratum.
 
+config ARM_ERRATA_818325_852422
+	bool "ARM errata: A12: some seqs of opposed cond code instrs => deadlock or corruption"
+	depends on CPU_V7
+	help
+	  This option enables the workaround for:
+	  - Cortex-A12 818325: Execution of an UNPREDICTABLE STR or STM
+	    instruction might deadlock.  Fixed in r0p1.
+	  - Cortex-A12 852422: Execution of a sequence of instructions might
+	    lead to either a data corruption or a CPU deadlock.  Not fixed in
+	    any Cortex-A12 cores yet.
+	  This workaround for all both errata involves setting bit[12] of the
+	  Feature Register. This bit disables an optimisation applied to a
+	  sequence of 2 instructions that use opposing condition codes.
+
+config ARM_ERRATA_821420
+	bool "ARM errata: A12: sequence of VMOV to core registers might lead to a dead lock"
+	depends on CPU_V7
+	help
+	  This option enables the workaround for the 821420 Cortex-A12
+	  (all revs) erratum. In very rare timing conditions, a sequence
+	  of VMOV to Core registers instructions, for which the second
+	  one is in the shadow of a branch or abort, can lead to a
+	  deadlock when the VMOV instructions are issued out-of-order.
+
+config ARM_ERRATA_825619
+	bool "ARM errata: A12: DMB NSHST/ISHST mixed ... might cause deadlock"
+	depends on CPU_V7
+	help
+	  This option enables the workaround for the 825619 Cortex-A12
+	  (all revs) erratum. Within rare timing constraints, executing a
+	  DMB NSHST or DMB ISHST instruction followed by a mix of Cacheable
+	  and Device/Strongly-Ordered loads and stores might cause deadlock
+
+config ARM_ERRATA_852421
+	bool "ARM errata: A17: DMB ST might fail to create order between stores"
+	depends on CPU_V7
+	help
+	  This option enables the workaround for the 852421 Cortex-A17
+	  (r1p0, r1p1, r1p2) erratum. Under very rare timing conditions,
+	  execution of a DMB ST instruction might fail to properly order
+	  stores from GroupA and stores from GroupB.
+
+config ARM_ERRATA_852423
+	bool "ARM errata: A17: some seqs of opposed cond code instrs => deadlock or corruption"
+	depends on CPU_V7
+	help
+	  This option enables the workaround for:
+	  - Cortex-A17 852423: Execution of a sequence of instructions might
+	    lead to either a data corruption or a CPU deadlock.  Not fixed in
+	    any Cortex-A17 cores yet.
+	  This is identical to Cortex-A12 erratum 852422.  It is a separate
+	  config option from the A12 erratum due to the way errata are checked
+	  for and handled.
+
 endmenu
 
 source "arch/arm/common/Kconfig"
