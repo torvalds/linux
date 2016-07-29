@@ -1123,6 +1123,45 @@ static void delete_last_nop(struct symbol *sym)
 	}
 }
 
+int symbol__strerror_disassemble(struct symbol *sym __maybe_unused, struct map *map,
+			      int errnum, char *buf, size_t buflen)
+{
+	struct dso *dso = map->dso;
+
+	BUG_ON(buflen == 0);
+
+	if (errnum >= 0) {
+		str_error_r(errnum, buf, buflen);
+		return 0;
+	}
+
+	switch (errnum) {
+	case SYMBOL_ANNOTATE_ERRNO__NO_VMLINUX: {
+		char bf[SBUILD_ID_SIZE + 15] = " with build id ";
+		char *build_id_msg = NULL;
+
+		if (dso->has_build_id) {
+			build_id__sprintf(dso->build_id,
+					  sizeof(dso->build_id), bf + 15);
+			build_id_msg = bf;
+		}
+		scnprintf(buf, buflen,
+			  "No vmlinux file%s\nwas found in the path.\n\n"
+			  "Note that annotation using /proc/kcore requires CAP_SYS_RAWIO capability.\n\n"
+			  "Please use:\n\n"
+			  "  perf buildid-cache -vu vmlinux\n\n"
+			  "or:\n\n"
+			  "  --vmlinux vmlinux\n", build_id_msg ?: "");
+	}
+		break;
+	default:
+		scnprintf(buf, buflen, "Internal error: Invalid %d error code\n", errnum);
+		break;
+	}
+
+	return 0;
+}
+
 int symbol__disassemble(struct symbol *sym, struct map *map, size_t privsize)
 {
 	struct dso *dso = map->dso;
@@ -1143,11 +1182,8 @@ int symbol__disassemble(struct symbol *sym, struct map *map, size_t privsize)
 		symbol__join_symfs(symfs_filename, filename);
 
 	if (filename == NULL) {
-		if (dso->has_build_id) {
-			pr_err("Can't annotate %s: not enough memory\n",
-			       sym->name);
-			return -ENOMEM;
-		}
+		if (dso->has_build_id)
+			return ENOMEM;
 		goto fallback;
 	} else if (dso__is_kcore(dso)) {
 		goto fallback;
@@ -1168,27 +1204,7 @@ fallback:
 
 	if (dso->symtab_type == DSO_BINARY_TYPE__KALLSYMS &&
 	    !dso__is_kcore(dso)) {
-		char bf[SBUILD_ID_SIZE + 15] = " with build id ";
-		char *build_id_msg = NULL;
-
-		if (dso->annotate_warned)
-			goto out_free_filename;
-
-		if (dso->has_build_id) {
-			build_id__sprintf(dso->build_id,
-					  sizeof(dso->build_id), bf + 15);
-			build_id_msg = bf;
-		}
-		err = -ENOENT;
-		dso->annotate_warned = 1;
-		pr_err("Can't annotate %s:\n\n"
-		       "No vmlinux file%s\nwas found in the path.\n\n"
-		       "Note that annotation using /proc/kcore requires CAP_SYS_RAWIO capability.\n\n"
-		       "Please use:\n\n"
-		       "  perf buildid-cache -vu vmlinux\n\n"
-		       "or:\n\n"
-		       "  --vmlinux vmlinux\n",
-		       sym->name, build_id_msg ?: "");
+		err = SYMBOL_ANNOTATE_ERRNO__NO_VMLINUX;
 		goto out_free_filename;
 	}
 
