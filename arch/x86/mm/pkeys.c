@@ -11,6 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  */
+#include <linux/debugfs.h>		/* debugfs_create_u32()		*/
 #include <linux/mm_types.h>             /* mm_struct, vma, etc...       */
 #include <linux/pkeys.h>                /* PKEY_*                       */
 #include <uapi/asm-generic/mman-common.h>
@@ -159,3 +160,68 @@ void copy_init_pkru_to_fpregs(void)
 	 */
 	write_pkru(init_pkru_value_snapshot);
 }
+
+static ssize_t init_pkru_read_file(struct file *file, char __user *user_buf,
+			     size_t count, loff_t *ppos)
+{
+	char buf[32];
+	unsigned int len;
+
+	len = sprintf(buf, "0x%x\n", init_pkru_value);
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t init_pkru_write_file(struct file *file,
+		 const char __user *user_buf, size_t count, loff_t *ppos)
+{
+	char buf[32];
+	ssize_t len;
+	u32 new_init_pkru;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EFAULT;
+
+	/* Make the buffer a valid string that we can not overrun */
+	buf[len] = '\0';
+	if (kstrtouint(buf, 0, &new_init_pkru))
+		return -EINVAL;
+
+	/*
+	 * Don't allow insane settings that will blow the system
+	 * up immediately if someone attempts to disable access
+	 * or writes to pkey 0.
+	 */
+	if (new_init_pkru & (PKRU_AD_BIT|PKRU_WD_BIT))
+		return -EINVAL;
+
+	WRITE_ONCE(init_pkru_value, new_init_pkru);
+	return count;
+}
+
+static const struct file_operations fops_init_pkru = {
+	.read = init_pkru_read_file,
+	.write = init_pkru_write_file,
+	.llseek = default_llseek,
+};
+
+static int __init create_init_pkru_value(void)
+{
+	debugfs_create_file("init_pkru", S_IRUSR | S_IWUSR,
+			arch_debugfs_dir, NULL, &fops_init_pkru);
+	return 0;
+}
+late_initcall(create_init_pkru_value);
+
+static __init int setup_init_pkru(char *opt)
+{
+	u32 new_init_pkru;
+
+	if (kstrtouint(opt, 0, &new_init_pkru))
+		return 1;
+
+	WRITE_ONCE(init_pkru_value, new_init_pkru);
+
+	return 1;
+}
+__setup("init_pkru=", setup_init_pkru);
