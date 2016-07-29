@@ -25,17 +25,7 @@ source "drivers/staging/media/cxd2099/Kconfig"
 
 source "drivers/staging/media/davinci_vpfe/Kconfig"
 
-source "drivers/staging/media/mn88472/Kconfig"
-
-source "drivers/staging/media/mx2/Kconfig"
-
-source "drivers/staging/media/mx3/Kconfig"
-
-source "drivers/staging/media/omap1/Kconfig"
-
 source "drivers/staging/media/omap4iss/Kconfig"
-
-source "drivers/staging/media/timb/Kconfig"
 
 source "drivers/staging/media/tw686x-kh/Kconfig"
 

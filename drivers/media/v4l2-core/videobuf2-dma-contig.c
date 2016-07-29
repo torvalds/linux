@@ -753,6 +753,59 @@ void vb2_dma_contig_cleanup_ctx(void *alloc_ctx)
 }
 EXPORT_SYMBOL_GPL(vb2_dma_contig_cleanup_ctx);
 
+/**
+ * vb2_dma_contig_set_max_seg_size() - configure DMA max segment size
+ * @dev:	device for configuring DMA parameters
+ * @size:	size of DMA max segment size to set
+ *
+ * To allow mapping the scatter-list into a single chunk in the DMA
+ * address space, the device is required to have the DMA max segment
+ * size parameter set to a value larger than the buffer size. Otherwise,
+ * the DMA-mapping subsystem will split the mapping into max segment
+ * size chunks. This function sets the DMA max segment size
+ * parameter to let DMA-mapping map a buffer as a single chunk in DMA
+ * address space.
+ * This code assumes that the DMA-mapping subsystem will merge all
+ * scatterlist segments if this is really possible (for example when
+ * an IOMMU is available and enabled).
+ * Ideally, this parameter should be set by the generic bus code, but it
+ * is left with the default 64KiB value due to historical litmiations in
+ * other subsystems (like limited USB host drivers) and there no good
+ * place to set it to the proper value.
+ * This function should be called from the drivers, which are known to
+ * operate on platforms with IOMMU and provide access to shared buffers
+ * (either USERPTR or DMABUF). This should be done before initializing
+ * videobuf2 queue.
+ */
+int vb2_dma_contig_set_max_seg_size(struct device *dev, unsigned int size)
+{
+	if (!dev->dma_parms) {
+		dev->dma_parms = kzalloc(sizeof(dev->dma_parms), GFP_KERNEL);
+		if (!dev->dma_parms)
+			return -ENOMEM;
+	}
+	if (dma_get_max_seg_size(dev) < size)
+		return dma_set_max_seg_size(dev, size);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(vb2_dma_contig_set_max_seg_size);
+
+/*
+ * vb2_dma_contig_clear_max_seg_size() - release resources for DMA parameters
+ * @dev:	device for configuring DMA parameters
+ *
+ * This function releases resources allocated to configure DMA parameters
+ * (see vb2_dma_contig_set_max_seg_size() function). It should be called from
+ * device drivers on driver remove.
+ */
+void vb2_dma_contig_clear_max_seg_size(struct device *dev)
+{
+	kfree(dev->dma_parms);
+	dev->dma_parms = NULL;
+}
+EXPORT_SYMBOL_GPL(vb2_dma_contig_clear_max_seg_size);
+
 MODULE_DESCRIPTION("DMA-contig memory handling routines for videobuf2");
 MODULE_AUTHOR("Pawel Osciak <pawel@osciak.com>");
 MODULE_LICENSE("GPL");

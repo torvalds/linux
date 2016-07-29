@@ -7357,6 +7357,16 @@ L:	linux-iio@vger.kernel.org
 S:	Maintained
 F:	drivers/iio/potentiometer/mcp4531.c
 
+MEDIA DRIVERS FOR RENESAS - FCP
+M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+L:	linux-media@vger.kernel.org
+L:	linux-renesas-soc@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Supported
+F:	Documentation/devicetree/bindings/media/renesas,fcp.txt
+F:	drivers/media/platform/rcar-fcp.c
+F:	include/media/rcar-fcp.h
+
 MEDIA DRIVERS FOR RENESAS - VSP1
 M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 L:	linux-media@vger.kernel.org
@@ -7366,8 +7376,18 @@ S:	Supported
 F:	Documentation/devicetree/bindings/media/renesas,vsp1.txt
 F:	drivers/media/platform/vsp1/
 
+MEDIA DRIVERS FOR HELENE
+M:	Abylay Ospan <aospan@netup.ru>
+L:	linux-media@vger.kernel.org
+W:	https://linuxtv.org
+W:	http://netup.tv/
+T:	git git://linuxtv.org/media_tree.git
+S:	Supported
+F:	drivers/media/dvb-frontends/helene*
+
 MEDIA DRIVERS FOR ASCOT2E
 M:	Sergey Kozlov <serjk@netup.ru>
+M:	Abylay Ospan <aospan@netup.ru>
 L:	linux-media@vger.kernel.org
 W:	https://linuxtv.org
 W:	http://netup.tv/
@@ -7377,6 +7397,7 @@ F:	drivers/media/dvb-frontends/ascot2e*
 
 MEDIA DRIVERS FOR CXD2841ER
 M:	Sergey Kozlov <serjk@netup.ru>
+M:	Abylay Ospan <aospan@netup.ru>
 L:	linux-media@vger.kernel.org
 W:	https://linuxtv.org
 W:	http://netup.tv/
@@ -7386,6 +7407,7 @@ F:	drivers/media/dvb-frontends/cxd2841er*
 
 MEDIA DRIVERS FOR HORUS3A
 M:	Sergey Kozlov <serjk@netup.ru>
+M:	Abylay Ospan <aospan@netup.ru>
 L:	linux-media@vger.kernel.org
 W:	https://linuxtv.org
 W:	http://netup.tv/
@@ -7395,6 +7417,7 @@ F:	drivers/media/dvb-frontends/horus3a*
 
 MEDIA DRIVERS FOR LNBH25
 M:	Sergey Kozlov <serjk@netup.ru>
+M:	Abylay Ospan <aospan@netup.ru>
 L:	linux-media@vger.kernel.org
 W:	https://linuxtv.org
 W:	http://netup.tv/
@@ -7404,6 +7427,7 @@ F:	drivers/media/dvb-frontends/lnbh25*
 
 MEDIA DRIVERS FOR NETUP PCI UNIVERSAL DVB devices
 M:	Sergey Kozlov <serjk@netup.ru>
+M:	Abylay Ospan <aospan@netup.ru>
 L:	linux-media@vger.kernel.org
 W:	https://linuxtv.org
 W:	http://netup.tv/
@@ -7653,10 +7677,8 @@ L:	linux-media@vger.kernel.org
 W:	https://linuxtv.org
 W:	http://palosaari.fi/linux/
 Q:	http://patchwork.linuxtv.org/project/linux-media/list/
-T:	git git://linuxtv.org/anttip/media_tree.git
 S:	Maintained
-F:	drivers/staging/media/mn88472/
-F:	drivers/media/dvb-frontends/mn88472.h
+F:	drivers/media/dvb-frontends/mn88472*
 
 MN88473 MEDIA DRIVER
 M:	Antti Palosaari <crope@iki.fi>

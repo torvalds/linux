@@ -49,7 +49,6 @@ struct vsp1_video {
 	void *alloc_ctx;
 	spinlock_t irqlock;
 	struct list_head irqqueue;
-	unsigned int sequence;
 };
 
 static inline struct vsp1_video *to_vsp1_video(struct video_device *vdev)

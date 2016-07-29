@@ -347,7 +347,7 @@ struct media_entity_notify {
 struct media_device {
 	/* dev->driver_data points to this struct. */
 	struct device *dev;
-	struct media_devnode devnode;
+	struct media_devnode *devnode;
 
 	char model[32];
 	char driver_name[32];
@@ -392,9 +392,6 @@ struct usb_device;
 /* Supported link_notify @notification values. */
 #define MEDIA_DEV_NOTIFY_PRE_LINK_CH	0
 #define MEDIA_DEV_NOTIFY_POST_LINK_CH	1
-
-/* media_devnode to media_device */
-#define to_media_device(node) container_of(node, struct media_device, devnode)
 
 /**
  * media_entity_enum_init - Initialise an entity enumeration
