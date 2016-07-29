@@ -274,7 +274,7 @@ int drm_primary_helper_update(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	ret = drm_plane_helper_check_update(plane, crtc, fb,
 					    &src, &dest, &clip,
-					    BIT(DRM_ROTATE_0),
+					    DRM_ROTATE_0,
 					    DRM_PLANE_HELPER_NO_SCALING,
 					    DRM_PLANE_HELPER_NO_SCALING,
 					    false, false, &visible);

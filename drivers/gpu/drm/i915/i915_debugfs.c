@@ -3089,12 +3089,12 @@ static const char *plane_rotation(unsigned int rotation)
 	 */
 	snprintf(buf, sizeof(buf),
 		 "%s%s%s%s%s%s(0x%08x)",
-		 (rotation & BIT(DRM_ROTATE_0)) ? "0 " : "",
-		 (rotation & BIT(DRM_ROTATE_90)) ? "90 " : "",
-		 (rotation & BIT(DRM_ROTATE_180)) ? "180 " : "",
-		 (rotation & BIT(DRM_ROTATE_270)) ? "270 " : "",
-		 (rotation & BIT(DRM_REFLECT_X)) ? "FLIPX " : "",
-		 (rotation & BIT(DRM_REFLECT_Y)) ? "FLIPY " : "",
+		 (rotation & DRM_ROTATE_0) ? "0 " : "",
+		 (rotation & DRM_ROTATE_90) ? "90 " : "",
+		 (rotation & DRM_ROTATE_180) ? "180 " : "",
+		 (rotation & DRM_ROTATE_270) ? "270 " : "",
+		 (rotation & DRM_REFLECT_X) ? "FLIPX " : "",
+		 (rotation & DRM_REFLECT_Y) ? "FLIPY " : "",
 		 rotation);
 
 	return buf;

@@ -223,7 +223,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	 * This also validates that any existing fb inherited from the
 	 * BIOS is suitable for own access.
 	 */
-	ret = intel_pin_and_fence_fb_obj(&ifbdev->fb->base, BIT(DRM_ROTATE_0));
+	ret = intel_pin_and_fence_fb_obj(&ifbdev->fb->base, DRM_ROTATE_0);
 	if (ret)
 		goto out_unlock;
 
@@ -289,7 +289,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 out_destroy_fbi:
 	drm_fb_helper_release_fbi(helper);
 out_unpin:
-	intel_unpin_fb_obj(&ifbdev->fb->base, BIT(DRM_ROTATE_0));
+	intel_unpin_fb_obj(&ifbdev->fb->base, DRM_ROTATE_0);
 out_unlock:
 	mutex_unlock(&dev->struct_mutex);
 	return ret;
@@ -554,7 +554,7 @@ static void intel_fbdev_destroy(struct intel_fbdev *ifbdev)
 
 	if (ifbdev->fb) {
 		mutex_lock(&ifbdev->helper.dev->struct_mutex);
-		intel_unpin_fb_obj(&ifbdev->fb->base, BIT(DRM_ROTATE_0));
+		intel_unpin_fb_obj(&ifbdev->fb->base, DRM_ROTATE_0);
 		mutex_unlock(&ifbdev->helper.dev->struct_mutex);
 
 		drm_framebuffer_remove(&ifbdev->fb->base);

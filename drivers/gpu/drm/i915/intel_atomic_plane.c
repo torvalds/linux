@@ -55,7 +55,7 @@ intel_create_plane_state(struct drm_plane *plane)
 		return NULL;
 
 	state->base.plane = plane;
-	state->base.rotation = BIT(DRM_ROTATE_0);
+	state->base.rotation = DRM_ROTATE_0;
 	state->ckey.flags = I915_SET_COLORKEY_NONE;
 
 	return state;

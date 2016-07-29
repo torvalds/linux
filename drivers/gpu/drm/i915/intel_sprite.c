@@ -444,7 +444,7 @@ vlv_update_plane(struct drm_plane *dplane,
 						   fb->pitches[0], rotation);
 	linear_offset -= sprsurf_offset;
 
-	if (rotation == BIT(DRM_ROTATE_180)) {
+	if (rotation == DRM_ROTATE_180) {
 		sprctl |= SP_ROTATE_180;
 
 		x += src_w;
@@ -577,7 +577,7 @@ ivb_update_plane(struct drm_plane *plane,
 						   fb->pitches[0], rotation);
 	linear_offset -= sprsurf_offset;
 
-	if (rotation == BIT(DRM_ROTATE_180)) {
+	if (rotation == DRM_ROTATE_180) {
 		sprctl |= SPRITE_ROTATE_180;
 
 		/* HSW and BDW does this automagically in hardware */
@@ -714,7 +714,7 @@ ilk_update_plane(struct drm_plane *plane,
 						   fb->pitches[0], rotation);
 	linear_offset -= dvssurf_offset;
 
-	if (rotation == BIT(DRM_ROTATE_180)) {
+	if (rotation == DRM_ROTATE_180) {
 		dvscntr |= DVS_ROTATE_180;
 
 		x += src_w;

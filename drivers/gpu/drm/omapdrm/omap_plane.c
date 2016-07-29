@@ -109,8 +109,8 @@ static void omap_plane_atomic_update(struct drm_plane *plane,
 	win.src_y = state->src_y >> 16;
 
 	switch (state->rotation & DRM_ROTATE_MASK) {
-	case BIT(DRM_ROTATE_90):
-	case BIT(DRM_ROTATE_270):
+	case DRM_ROTATE_90:
+	case DRM_ROTATE_270:
 		win.src_w = state->src_h >> 16;
 		win.src_h = state->src_w >> 16;
 		break;
@@ -149,7 +149,7 @@ static void omap_plane_atomic_disable(struct drm_plane *plane,
 	struct omap_plane_state *omap_state = to_omap_plane_state(plane->state);
 	struct omap_plane *omap_plane = to_omap_plane(plane);
 
-	plane->state->rotation = BIT(DRM_ROTATE_0);
+	plane->state->rotation = DRM_ROTATE_0;
 	omap_state->zorder = plane->type == DRM_PLANE_TYPE_PRIMARY
 			   ? 0 : omap_plane->id;
 
@@ -178,7 +178,7 @@ static int omap_plane_atomic_check(struct drm_plane *plane,
 		return -EINVAL;
 
 	if (state->fb) {
-		if (state->rotation != BIT(DRM_ROTATE_0) &&
+		if (state->rotation != DRM_ROTATE_0 &&
 		    !omap_framebuffer_supports_rotation(state->fb))
 			return -EINVAL;
 	}
@@ -269,7 +269,7 @@ static void omap_plane_reset(struct drm_plane *plane)
 	 */
 	omap_state->zorder = plane->type == DRM_PLANE_TYPE_PRIMARY
 			   ? 0 : omap_plane->id;
-	omap_state->base.rotation = BIT(DRM_ROTATE_0);
+	omap_state->base.rotation = DRM_ROTATE_0;
 
 	plane->state = &omap_state->base;
 	plane->state->plane = plane;

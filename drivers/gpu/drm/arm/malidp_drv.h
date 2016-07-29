@@ -49,6 +49,6 @@ void malidp_de_planes_destroy(struct drm_device *drm);
 int malidp_crtc_init(struct drm_device *drm);
 
 /* often used combination of rotational bits */
-#define MALIDP_ROTATED_MASK	(BIT(DRM_ROTATE_90) | BIT(DRM_ROTATE_270))
+#define MALIDP_ROTATED_MASK	(DRM_ROTATE_90 | DRM_ROTATE_270)
 
 #endif  /* __MALIDP_DRV_H__ */

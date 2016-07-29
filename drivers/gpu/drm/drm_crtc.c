@@ -2804,8 +2804,8 @@ int drm_crtc_check_viewport(const struct drm_crtc *crtc,
 	drm_crtc_get_hv_timing(mode, &hdisplay, &vdisplay);
 
 	if (crtc->state &&
-	    crtc->primary->state->rotation & (BIT(DRM_ROTATE_90) |
-					      BIT(DRM_ROTATE_270)))
+	    crtc->primary->state->rotation & (DRM_ROTATE_90 |
+					      DRM_ROTATE_270))
 		swap(hdisplay, vdisplay);
 
 	return check_src_coords(x << 16, y << 16,
@@ -5646,9 +5646,9 @@ int drm_mode_destroy_dumb_ioctl(struct drm_device *dev,
  * Eg. if the hardware supports everything except DRM_REFLECT_X
  * one could call this function like this:
  *
- * drm_rotation_simplify(rotation, BIT(DRM_ROTATE_0) |
- *                       BIT(DRM_ROTATE_90) | BIT(DRM_ROTATE_180) |
- *                       BIT(DRM_ROTATE_270) | BIT(DRM_REFLECT_Y));
+ * drm_rotation_simplify(rotation, DRM_ROTATE_0 |
+ *                       DRM_ROTATE_90 | DRM_ROTATE_180 |
+ *                       DRM_ROTATE_270 | DRM_REFLECT_Y);
  *
  * to eliminate the DRM_ROTATE_X flag. Depending on what kind of
  * transforms the hardware supports, this function may not
@@ -5659,7 +5659,7 @@ unsigned int drm_rotation_simplify(unsigned int rotation,
 				   unsigned int supported_rotations)
 {
 	if (rotation & ~supported_rotations) {
-		rotation ^= BIT(DRM_REFLECT_X) | BIT(DRM_REFLECT_Y);
+		rotation ^= DRM_REFLECT_X | DRM_REFLECT_Y;
 		rotation = (rotation & DRM_REFLECT_MASK) |
 		           BIT((ffs(rotation & DRM_ROTATE_MASK) + 1) % 4);
 	}
@@ -5788,12 +5788,12 @@ struct drm_property *drm_mode_create_rotation_property(struct drm_device *dev,
 						       unsigned int supported_rotations)
 {
 	static const struct drm_prop_enum_list props[] = {
-		{ DRM_ROTATE_0,   "rotate-0" },
-		{ DRM_ROTATE_90,  "rotate-90" },
-		{ DRM_ROTATE_180, "rotate-180" },
-		{ DRM_ROTATE_270, "rotate-270" },
-		{ DRM_REFLECT_X,  "reflect-x" },
-		{ DRM_REFLECT_Y,  "reflect-y" },
+		{ __builtin_ffs(DRM_ROTATE_0) - 1,   "rotate-0" },
+		{ __builtin_ffs(DRM_ROTATE_90) - 1,  "rotate-90" },
+		{ __builtin_ffs(DRM_ROTATE_180) - 1, "rotate-180" },
+		{ __builtin_ffs(DRM_ROTATE_270) - 1, "rotate-270" },
+		{ __builtin_ffs(DRM_REFLECT_X) - 1,  "reflect-x" },
+		{ __builtin_ffs(DRM_REFLECT_Y) - 1,  "reflect-y" },
 	};
 
 	return drm_property_create_bitmask(dev, 0, "rotation",

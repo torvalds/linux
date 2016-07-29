@@ -83,14 +83,15 @@ static inline uint64_t I642U64(int64_t val)
  * specified amount in degrees in counter clockwise direction. DRM_REFLECT_X and
  * DRM_REFLECT_Y reflects the image along the specified axis prior to rotation
  */
-#define DRM_ROTATE_MASK 0x0f
-#define DRM_ROTATE_0	0
-#define DRM_ROTATE_90	1
-#define DRM_ROTATE_180	2
-#define DRM_ROTATE_270	3
-#define DRM_REFLECT_MASK (~DRM_ROTATE_MASK)
-#define DRM_REFLECT_X	4
-#define DRM_REFLECT_Y	5
+#define DRM_ROTATE_0	BIT(0)
+#define DRM_ROTATE_90	BIT(1)
+#define DRM_ROTATE_180	BIT(2)
+#define DRM_ROTATE_270	BIT(3)
+#define DRM_ROTATE_MASK (DRM_ROTATE_0   | DRM_ROTATE_90 | \
+			 DRM_ROTATE_180 | DRM_ROTATE_270)
+#define DRM_REFLECT_X	BIT(4)
+#define DRM_REFLECT_Y	BIT(5)
+#define DRM_REFLECT_MASK (DRM_REFLECT_X | DRM_REFLECT_Y)
 
 enum drm_connector_force {
 	DRM_FORCE_UNSPECIFIED,
