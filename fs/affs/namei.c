@@ -136,7 +136,7 @@ affs_compare_dentry(const struct dentry *parent, const struct dentry *dentry,
 {
 
 	return __affs_compare_dentry(len, str, name, affs_toupper,
-				     affs_nofilenametruncate(parent));
+				     affs_nofilenametruncate(dentry));
 }
 
 static int
@@ -144,7 +144,7 @@ affs_intl_compare_dentry(const struct dentry *parent, const struct dentry *dentr
 		unsigned int len, const char *str, const struct qstr *name)
 {
 	return __affs_compare_dentry(len, str, name, affs_intl_toupper,
-				     affs_nofilenametruncate(parent));
+				     affs_nofilenametruncate(dentry));
 
 }
 
