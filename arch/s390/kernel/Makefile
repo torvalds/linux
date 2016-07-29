@@ -47,6 +47,7 @@ AFLAGS_REMOVE_head.o	+= $(CC_FLAGS_MARCH)
 AFLAGS_head.o		+= -march=z900
 endif
 GCOV_PROFILE_sclp.o := n
+GCOV_PROFILE_als.o := n
 
 obj-y	:= traps.o time.o process.o base.o early.o setup.o idle.o vtime.o
 obj-y	+= processor.o sys_s390.o ptrace.o signal.o cpcmd.o ebcdic.o nmi.o
