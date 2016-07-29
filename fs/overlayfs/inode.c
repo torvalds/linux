@@ -128,7 +128,7 @@ int ovl_permission(struct inode *inode, int mask)
 	realinode = d_inode_rcu(realdentry);
 	if (!realinode) {
 		WARN_ON(!(mask & MAY_NOT_BLOCK));
-		return -ENOENT;
+		return -ECHILD;
 	}
 
 	/*
