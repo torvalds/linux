@@ -1181,6 +1181,7 @@ static int rk32_edp_enable(void)
 
 	if (!edp->edp_en) {
 		rk32_edp_clk_enable(edp);
+		pm_runtime_get_sync(edp->dev);
 		rk32_edp_pre_init(edp);
 		rk32_edp_init_edp(edp);
 		enable_irq(edp->irq);
@@ -1230,6 +1231,7 @@ static int  rk32_edp_disable(void)
 	struct rk32_edp *edp = rk32_edp;
 
 	if (edp->edp_en) {
+		pm_runtime_put(edp->dev);
 		disable_irq(edp->irq);
 		rk32_edp_reset(edp);
 		rk32_edp_analog_power_ctr(edp, 0);
@@ -1825,6 +1827,9 @@ static int rk32_edp_probe(struct platform_device *pdev)
 	disable_irq_nosync(edp->irq);
 	if (!support_uboot_display())
 		rk32_edp_clk_disable(edp);
+
+	pm_runtime_enable(&pdev->dev);
+
 	rk32_edp = edp;
 	rk_fb_trsm_ops_register(&trsm_edp_ops, SCREEN_EDP);
 #if defined(CONFIG_DEBUG_FS)
@@ -1848,8 +1853,10 @@ static int rk32_edp_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static void rk32_edp_shutdown(struct platform_device *pdev)
+static int rockchip_edp_remove(struct platform_device *pdev)
 {
+	pm_runtime_disable(&pdev->dev);
+	return 0;
 }
 
 #if defined(CONFIG_OF)
@@ -1864,6 +1871,7 @@ MODULE_DEVICE_TABLE(of, rk32_edp_dt_ids);
 
 static struct platform_driver rk32_edp_driver = {
 	.probe = rk32_edp_probe,
+	.remove = rockchip_edp_remove,
 	.driver = {
 		   .name = "rk32-edp",
 		   .owner = THIS_MODULE,
@@ -1871,7 +1879,6 @@ static struct platform_driver rk32_edp_driver = {
 		   .of_match_table = of_match_ptr(rk32_edp_dt_ids),
 #endif
 	},
-	.shutdown = rk32_edp_shutdown,
 };
 
 static int __init rk32_edp_module_init(void)
