@@ -81,10 +81,12 @@ EXPORT_SYMBOL_GPL(nvme_cancel_request);
 bool nvme_change_ctrl_state(struct nvme_ctrl *ctrl,
 		enum nvme_ctrl_state new_state)
 {
-	enum nvme_ctrl_state old_state = ctrl->state;
+	enum nvme_ctrl_state old_state;
 	bool changed = false;
 
 	spin_lock_irq(&ctrl->lock);
+
+	old_state = ctrl->state;
 	switch (new_state) {
 	case NVME_CTRL_LIVE:
 		switch (old_state) {
@@ -140,10 +142,11 @@ bool nvme_change_ctrl_state(struct nvme_ctrl *ctrl,
 	default:
 		break;
 	}
-	spin_unlock_irq(&ctrl->lock);
 
 	if (changed)
 		ctrl->state = new_state;
+
+	spin_unlock_irq(&ctrl->lock);
 
 	return changed;
 }
