@@ -1,0 +1,23 @@
+#include "qcom-msm8974.dtsi"
+#include "qcom-pm8841.dtsi"
+#include "qcom-pm8941.dtsi"
+
+/ {
+	model = "LGE MSM 8974 HAMMERHEAD";
+	compatible = "lge,hammerhead", "qcom,msm8974";
+
+	aliases {
+		serial0 = &blsp1_uart1;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+};
+
+&soc {
+	serial@f991d000 {
+		status = "ok";
+	};
+
+};
