@@ -998,6 +998,7 @@ static struct platform_driver exynos5440_pinctrl_driver = {
 	.driver = {
 		.name	= "exynos5440-pinctrl",
 		.of_match_table = exynos5440_pinctrl_dt_match,
+		.suppress_bind_attrs = true,
 	},
 };
 
