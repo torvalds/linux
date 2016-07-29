@@ -3068,9 +3068,9 @@ static int fw4_ack(struct c4iw_dev *dev, struct sk_buff *skb)
 		PDBG("%s last streaming msg ack ep %p tid %u state %u "
 		     "initiator %u freeing skb\n", __func__, ep, ep->hwtid,
 		     state_read(&ep->com), ep->mpa_attr.initiator ? 1 : 0);
+		mutex_lock(&ep->com.mutex);
 		kfree_skb(ep->mpa_skb);
 		ep->mpa_skb = NULL;
-		mutex_lock(&ep->com.mutex);
 		if (test_bit(STOP_MPA_TIMER, &ep->com.flags))
 			stop_ep_timer(ep);
 		mutex_unlock(&ep->com.mutex);
@@ -3647,6 +3647,16 @@ int c4iw_ep_disconnect(struct c4iw_ep *ep, int abrupt, gfp_t gfp)
 			ep->com.state = ABORTING;
 		else {
 			ep->com.state = CLOSING;
+
+			/*
+			 * if we close before we see the fw4_ack() then we fix
+			 * up the timer state since we're reusing it.
+			 */
+			if (ep->mpa_skb &&
+			    test_bit(STOP_MPA_TIMER, &ep->com.flags)) {
+				clear_bit(STOP_MPA_TIMER, &ep->com.flags);
+				stop_ep_timer(ep);
+			}
 			start_ep_timer(ep);
 		}
 		set_bit(CLOSE_SENT, &ep->com.flags);
