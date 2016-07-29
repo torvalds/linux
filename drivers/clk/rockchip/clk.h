@@ -238,7 +238,7 @@ struct clk *rockchip_clk_register_pll(struct rockchip_clk_provider *ctx,
 		u8 num_parents, int con_offset, int grf_lock_offset,
 		int lock_shift, int mode_offset, int mode_shift,
 		struct rockchip_pll_rate_table *rate_table,
-		u8 clk_pll_flags);
+		unsigned long flags, u8 clk_pll_flags);
 
 struct rockchip_cpuclk_clksel {
 	int reg;
