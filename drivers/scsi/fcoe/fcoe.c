@@ -2495,7 +2495,7 @@ static int __init fcoe_init(void)
 	if (rc) {
 		printk(KERN_ERR "failed to register an fcoe transport, check "
 			"if libfcoe is loaded\n");
-		return rc;
+		goto out_destroy;
 	}
 
 	mutex_lock(&fcoe_config_mutex);
@@ -2518,6 +2518,7 @@ static int __init fcoe_init(void)
 
 out_free:
 	mutex_unlock(&fcoe_config_mutex);
+out_destroy:
 	destroy_workqueue(fcoe_wq);
 	return rc;
 }
