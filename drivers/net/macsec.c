@@ -344,7 +344,6 @@ static void free_rxsa(struct rcu_head *head)
 
 	crypto_free_aead(sa->key.tfm);
 	free_percpu(sa->stats);
-	macsec_rxsc_put(sa->sc);
 	kfree(sa);
 }
 
@@ -1653,7 +1652,7 @@ static int macsec_add_rxsa(struct sk_buff *skb, struct genl_info *info)
 
 	rtnl_lock();
 	rx_sc = get_rxsc_from_nl(genl_info_net(info), attrs, tb_rxsc, &dev, &secy);
-	if (IS_ERR(rx_sc) || !macsec_rxsc_get(rx_sc)) {
+	if (IS_ERR(rx_sc)) {
 		rtnl_unlock();
 		return PTR_ERR(rx_sc);
 	}
