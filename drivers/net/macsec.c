@@ -3179,6 +3179,8 @@ static int macsec_newlink(struct net *net, struct net_device *dev,
 	if (err < 0)
 		return err;
 
+	dev_hold(real_dev);
+
 	/* need to be already registered so that ->init has run and
 	 * the MAC addr is set
 	 */
@@ -3206,8 +3208,6 @@ static int macsec_newlink(struct net *net, struct net_device *dev,
 		goto del_dev;
 
 	macsec_generation++;
-
-	dev_hold(real_dev);
 
 	return 0;
 
