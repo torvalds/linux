@@ -609,6 +609,9 @@ cifs_get_root(struct smb_vol *vol, struct super_block *sb)
 	char *s, *p;
 	char sep;
 
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_USE_PREFIX_PATH)
+		return dget(sb->s_root);
+
 	full_path = cifs_build_path_to_root(vol, cifs_sb,
 					    cifs_sb_master_tcon(cifs_sb));
 	if (full_path == NULL)
@@ -731,11 +734,7 @@ cifs_do_mount(struct file_system_type *fs_type,
 		sb->s_flags |= MS_ACTIVE;
 	}
 
-	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_USE_PREFIX_PATH)
-		root = dget(sb->s_root);
-	else
-		root = cifs_get_root(volume_info, sb);
-
+	root = cifs_get_root(volume_info, sb);
 	if (IS_ERR(root))
 		goto out_super;
 
