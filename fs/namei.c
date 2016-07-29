@@ -2396,33 +2396,6 @@ int vfs_path_lookup(struct dentry *dentry, struct vfsmount *mnt,
 EXPORT_SYMBOL(vfs_path_lookup);
 
 /**
- * lookup_hash - lookup single pathname component on already hashed name
- * @name:	name and hash to lookup
- * @base:	base directory to lookup from
- *
- * The name must have been verified and hashed (see lookup_one_len()).  Using
- * this after just full_name_hash() is unsafe.
- *
- * This function also doesn't check for search permission on base directory.
- *
- * Use lookup_one_len_unlocked() instead, unless you really know what you are
- * doing.
- *
- * Do not hold i_mutex; this helper takes i_mutex if necessary.
- */
-struct dentry *lookup_hash(const struct qstr *name, struct dentry *base)
-{
-	struct dentry *ret;
-
-	ret = lookup_dcache(name, base, 0);
-	if (!ret)
-		ret = lookup_slow(name, base, 0);
-
-	return ret;
-}
-EXPORT_SYMBOL(lookup_hash);
-
-/**
  * lookup_one_len - filesystem helper to lookup single pathname component
  * @name:	pathname component to lookup
  * @base:	base directory to lookup from
@@ -2493,6 +2466,7 @@ struct dentry *lookup_one_len_unlocked(const char *name,
 	struct qstr this;
 	unsigned int c;
 	int err;
+	struct dentry *ret;
 
 	this.name = name;
 	this.len = len;
@@ -2524,7 +2498,10 @@ struct dentry *lookup_one_len_unlocked(const char *name,
 	if (err)
 		return ERR_PTR(err);
 
-	return lookup_hash(&this, base);
+	ret = lookup_dcache(&this, base, 0);
+	if (!ret)
+		ret = lookup_slow(&this, base, 0);
+	return ret;
 }
 EXPORT_SYMBOL(lookup_one_len_unlocked);
 
