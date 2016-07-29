@@ -50,7 +50,7 @@ static int hpfs_compare_dentry(const struct dentry *parent, const struct dentry 
 
 	if (hpfs_chk_name(name->name, &bl))
 		return 1;
-	if (hpfs_compare_names(parent->d_sb, str, al, name->name, bl, 0))
+	if (hpfs_compare_names(dentry->d_sb, str, al, name->name, bl, 0))
 		return 1;
 	return 0;
 }
