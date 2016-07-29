@@ -906,7 +906,7 @@ int dm_set_target_max_io_len(struct dm_target *ti, sector_t len)
 EXPORT_SYMBOL_GPL(dm_set_target_max_io_len);
 
 static long dm_blk_direct_access(struct block_device *bdev, sector_t sector,
-				 void __pmem **kaddr, pfn_t *pfn, long size)
+				 void **kaddr, pfn_t *pfn, long size)
 {
 	struct mapped_device *md = bdev->bd_disk->private_data;
 	struct dm_table *map;

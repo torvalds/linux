@@ -1012,7 +1012,7 @@ GrpTable: Grp15
 4: XSAVE
 5: XRSTOR | lfence (11B)
 6: XSAVEOPT | clwb (66) | mfence (11B)
-7: clflush | clflushopt (66) | sfence (11B) | pcommit (66),(11B)
+7: clflush | clflushopt (66) | sfence (11B)
 EndTable
 
 GrpTable: Grp16
