@@ -2482,8 +2482,7 @@ static int add_bound_rdev(struct md_rdev *rdev)
 		if (add_journal)
 			mddev_resume(mddev);
 		if (err) {
-			unbind_rdev_from_array(rdev);
-			export_rdev(rdev);
+			md_kick_rdev_from_array(rdev);
 			return err;
 		}
 	}
@@ -2600,6 +2599,10 @@ state_store(struct md_rdev *rdev, const char *buf, size_t len)
 		else
 			err = -EBUSY;
 	} else if (cmd_match(buf, "remove")) {
+		if (rdev->mddev->pers) {
+			clear_bit(Blocked, &rdev->flags);
+			remove_and_add_spares(rdev->mddev, rdev);
+		}
 		if (rdev->raid_disk >= 0)
 			err = -EBUSY;
 		else {
@@ -3176,8 +3179,7 @@ int md_rdev_init(struct md_rdev *rdev)
 	rdev->data_offset = 0;
 	rdev->new_data_offset = 0;
 	rdev->sb_events = 0;
-	rdev->last_read_error.tv_sec  = 0;
-	rdev->last_read_error.tv_nsec = 0;
+	rdev->last_read_error = 0;
 	rdev->sb_loaded = 0;
 	rdev->bb_page = NULL;
 	atomic_set(&rdev->nr_pending, 0);
@@ -3583,6 +3585,8 @@ level_store(struct mddev *mddev, const char *buf, size_t len)
 			mddev->to_remove = &md_redundancy_group;
 	}
 
+	module_put(oldpers->owner);
+
 	rdev_for_each(rdev, mddev) {
 		if (rdev->raid_disk < 0)
 			continue;
@@ -3940,6 +3944,8 @@ array_state_store(struct mddev *mddev, const char *buf, size_t len)
 			} else
 				err = -EBUSY;
 		}
+		if (!err)
+			sysfs_notify_dirent_safe(mddev->sysfs_state);
 		spin_unlock(&mddev->lock);
 		return err ?: len;
 	}
@@ -4191,7 +4197,8 @@ size_store(struct mddev *mddev, const char *buf, size_t len)
 		return err;
 	if (mddev->pers) {
 		err = update_size(mddev, sectors);
-		md_update_sb(mddev, 1);
+		if (err == 0)
+			md_update_sb(mddev, 1);
 	} else {
 		if (mddev->dev_sectors == 0 ||
 		    mddev->dev_sectors > sectors)
@@ -7813,6 +7820,7 @@ void md_do_sync(struct md_thread *thread)
 		if (ret)
 			goto skip;
 
+		set_bit(MD_CLUSTER_RESYNC_LOCKED, &mddev->flags);
 		if (!(test_bit(MD_RECOVERY_SYNC, &mddev->recovery) ||
 			test_bit(MD_RECOVERY_RESHAPE, &mddev->recovery) ||
 			test_bit(MD_RECOVERY_RECOVER, &mddev->recovery))
@@ -8151,18 +8159,11 @@ void md_do_sync(struct md_thread *thread)
 		}
 	}
  skip:
-	if (mddev_is_clustered(mddev) &&
-	    ret == 0) {
-		/* set CHANGE_PENDING here since maybe another
-		 * update is needed, so other nodes are informed */
-		set_mask_bits(&mddev->flags, 0,
-			      BIT(MD_CHANGE_PENDING) | BIT(MD_CHANGE_DEVS));
-		md_wakeup_thread(mddev->thread);
-		wait_event(mddev->sb_wait,
-			   !test_bit(MD_CHANGE_PENDING, &mddev->flags));
-		md_cluster_ops->resync_finish(mddev);
-	} else
-		set_bit(MD_CHANGE_DEVS, &mddev->flags);
+	/* set CHANGE_PENDING here since maybe another update is needed,
+	 * so other nodes are informed. It should be harmless for normal
+	 * raid */
+	set_mask_bits(&mddev->flags, 0,
+		      BIT(MD_CHANGE_PENDING) | BIT(MD_CHANGE_DEVS));
 
 	spin_lock(&mddev->lock);
 	if (!test_bit(MD_RECOVERY_INTR, &mddev->recovery)) {
@@ -8188,15 +8189,34 @@ static int remove_and_add_spares(struct mddev *mddev,
 	struct md_rdev *rdev;
 	int spares = 0;
 	int removed = 0;
+	bool remove_some = false;
 
-	rdev_for_each(rdev, mddev)
+	rdev_for_each(rdev, mddev) {
 		if ((this == NULL || rdev == this) &&
 		    rdev->raid_disk >= 0 &&
 		    !test_bit(Blocked, &rdev->flags) &&
-		    (test_bit(Faulty, &rdev->flags) ||
+		    test_bit(Faulty, &rdev->flags) &&
+		    atomic_read(&rdev->nr_pending)==0) {
+			/* Faulty non-Blocked devices with nr_pending == 0
+			 * never get nr_pending incremented,
+			 * never get Faulty cleared, and never get Blocked set.
+			 * So we can synchronize_rcu now rather than once per device
+			 */
+			remove_some = true;
+			set_bit(RemoveSynchronized, &rdev->flags);
+		}
+	}
+
+	if (remove_some)
+		synchronize_rcu();
+	rdev_for_each(rdev, mddev) {
+		if ((this == NULL || rdev == this) &&
+		    rdev->raid_disk >= 0 &&
+		    !test_bit(Blocked, &rdev->flags) &&
+		    ((test_bit(RemoveSynchronized, &rdev->flags) ||
 		     (!test_bit(In_sync, &rdev->flags) &&
 		      !test_bit(Journal, &rdev->flags))) &&
-		    atomic_read(&rdev->nr_pending)==0) {
+		    atomic_read(&rdev->nr_pending)==0)) {
 			if (mddev->pers->hot_remove_disk(
 				    mddev, rdev) == 0) {
 				sysfs_unlink_rdev(mddev, rdev);
@@ -8204,6 +8224,10 @@ static int remove_and_add_spares(struct mddev *mddev,
 				removed++;
 			}
 		}
+		if (remove_some && test_bit(RemoveSynchronized, &rdev->flags))
+			clear_bit(RemoveSynchronized, &rdev->flags);
+	}
+
 	if (removed && mddev->kobj.sd)
 		sysfs_notify(&mddev->kobj, NULL, "degraded");
 
@@ -8506,6 +8530,11 @@ void md_reap_sync_thread(struct mddev *mddev)
 			rdev->saved_raid_disk = -1;
 
 	md_update_sb(mddev, 1);
+	/* MD_CHANGE_PENDING should be cleared by md_update_sb, so we can
+	 * call resync_finish here if MD_CLUSTER_RESYNC_LOCKED is set by
+	 * clustered raid */
+	if (test_and_clear_bit(MD_CLUSTER_RESYNC_LOCKED, &mddev->flags))
+		md_cluster_ops->resync_finish(mddev);
 	clear_bit(MD_RECOVERY_RUNNING, &mddev->recovery);
 	clear_bit(MD_RECOVERY_DONE, &mddev->recovery);
 	clear_bit(MD_RECOVERY_SYNC, &mddev->recovery);
@@ -8803,6 +8832,7 @@ EXPORT_SYMBOL(md_reload_sb);
  * at boot time.
  */
 
+static DEFINE_MUTEX(detected_devices_mutex);
 static LIST_HEAD(all_detected_devices);
 struct detected_devices_node {
 	struct list_head list;
@@ -8816,7 +8846,9 @@ void md_autodetect_dev(dev_t dev)
 	node_detected_dev = kzalloc(sizeof(*node_detected_dev), GFP_KERNEL);
 	if (node_detected_dev) {
 		node_detected_dev->dev = dev;
+		mutex_lock(&detected_devices_mutex);
 		list_add_tail(&node_detected_dev->list, &all_detected_devices);
+		mutex_unlock(&detected_devices_mutex);
 	} else {
 		printk(KERN_CRIT "md: md_autodetect_dev: kzalloc failed"
 			", skipping dev(%d,%d)\n", MAJOR(dev), MINOR(dev));
@@ -8835,6 +8867,7 @@ static void autostart_arrays(int part)
 
 	printk(KERN_INFO "md: Autodetecting RAID arrays.\n");
 
+	mutex_lock(&detected_devices_mutex);
 	while (!list_empty(&all_detected_devices) && i_scanned < INT_MAX) {
 		i_scanned++;
 		node_detected_dev = list_entry(all_detected_devices.next,
@@ -8853,6 +8886,7 @@ static void autostart_arrays(int part)
 		list_add(&rdev->same_set, &pending_raid_disks);
 		i_passed++;
 	}
+	mutex_unlock(&detected_devices_mutex);
 
 	printk(KERN_INFO "md: Scanned %d and added %d devices.\n",
 						i_scanned, i_passed);
