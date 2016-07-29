@@ -21,6 +21,7 @@
 #include <asm/unaligned.h>
 #include <linux/of_platform.h>
 #include <linux/acpi.h>
+#include <linux/regulator/consumer.h>
 
 #define PCA953X_INPUT		0
 #define PCA953X_OUTPUT		1
@@ -113,6 +114,7 @@ struct pca953x_chip {
 	const char *const *names;
 	int	chip_type;
 	unsigned long driver_data;
+	struct regulator *regulator;
 };
 
 static int pca953x_read_single(struct pca953x_chip *chip, int reg, u32 *val,
@@ -746,6 +748,7 @@ static int pca953x_probe(struct i2c_client *client,
 	int irq_base = 0;
 	int ret;
 	u32 invert = 0;
+	struct regulator *reg;
 
 	chip = devm_kzalloc(&client->dev,
 			sizeof(struct pca953x_chip), GFP_KERNEL);
@@ -765,6 +768,20 @@ static int pca953x_probe(struct i2c_client *client,
 
 	chip->client = client;
 
+	reg = devm_regulator_get(&client->dev, "vcc");
+	if (IS_ERR(reg)) {
+		ret = PTR_ERR(reg);
+		if (ret != -EPROBE_DEFER)
+			dev_err(&client->dev, "reg get err: %d\n", ret);
+		return ret;
+	}
+	ret = regulator_enable(reg);
+	if (ret) {
+		dev_err(&client->dev, "reg en err: %d\n", ret);
+		return ret;
+	}
+	chip->regulator = reg;
+
 	if (id) {
 		chip->driver_data = id->driver_data;
 	} else {
@@ -776,8 +793,10 @@ static int pca953x_probe(struct i2c_client *client,
 			chip->driver_data = (int)(uintptr_t)match->data;
 		} else {
 			id = acpi_match_device(pca953x_acpi_ids, &client->dev);
-			if (!id)
-				return -ENODEV;
+			if (!id) {
+				ret = -ENODEV;
+				goto err_exit;
+			}
 
 			chip->driver_data = id->driver_data;
 		}
@@ -797,15 +816,15 @@ static int pca953x_probe(struct i2c_client *client,
 	else
 		ret = device_pca957x_init(chip, invert);
 	if (ret)
-		return ret;
+		goto err_exit;
 
 	ret = devm_gpiochip_add_data(&client->dev, &chip->gpio_chip, chip);
 	if (ret)
-		return ret;
+		goto err_exit;
 
 	ret = pca953x_irq_setup(chip, irq_base);
 	if (ret)
-		return ret;
+		goto err_exit;
 
 	if (pdata && pdata->setup) {
 		ret = pdata->setup(client, chip->gpio_chip.base,
@@ -816,6 +835,10 @@ static int pca953x_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, chip);
 	return 0;
+
+err_exit:
+	regulator_disable(chip->regulator);
+	return ret;
 }
 
 static int pca953x_remove(struct i2c_client *client)
@@ -827,14 +850,14 @@ static int pca953x_remove(struct i2c_client *client)
 	if (pdata && pdata->teardown) {
 		ret = pdata->teardown(client, chip->gpio_chip.base,
 				chip->gpio_chip.ngpio, pdata->context);
-		if (ret < 0) {
+		if (ret < 0)
 			dev_err(&client->dev, "%s failed, %d\n",
 					"teardown", ret);
-			return ret;
-		}
 	}
 
-	return 0;
+	regulator_disable(chip->regulator);
+
+	return ret;
 }
 
 /* convenience to stop overlong match-table lines */
