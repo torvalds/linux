@@ -307,23 +307,29 @@ static struct dentry *ovl_check_empty_and_clear(struct dentry *dentry)
 {
 	int err;
 	struct dentry *ret = NULL;
+	enum ovl_path_type type = ovl_path_type(dentry);
 	LIST_HEAD(list);
 
 	err = ovl_check_empty_dir(dentry, &list);
-	if (err)
+	if (err) {
 		ret = ERR_PTR(err);
-	else {
-		/*
-		 * If no upperdentry then skip clearing whiteouts.
-		 *
-		 * Can race with copy-up, since we don't hold the upperdir
-		 * mutex.  Doesn't matter, since copy-up can't create a
-		 * non-empty directory from an empty one.
-		 */
-		if (ovl_dentry_upper(dentry))
-			ret = ovl_clear_empty(dentry, &list);
+		goto out_free;
 	}
 
+	/*
+	 * When removing an empty opaque directory, then it makes no sense to
+	 * replace it with an exact replica of itself.
+	 *
+	 * If no upperdentry then skip clearing whiteouts.
+	 *
+	 * Can race with copy-up, since we don't hold the upperdir mutex.
+	 * Doesn't matter, since copy-up can't create a non-empty directory
+	 * from an empty one.
+	 */
+	if (OVL_TYPE_UPPER(type) && OVL_TYPE_MERGE(type))
+		ret = ovl_clear_empty(dentry, &list);
+
+out_free:
 	ovl_cache_free(&list);
 
 	return ret;
@@ -551,24 +557,10 @@ static int ovl_remove_and_whiteout(struct dentry *dentry, bool is_dir)
 		return -EROFS;
 
 	if (is_dir) {
-		if (OVL_TYPE_MERGE_OR_LOWER(ovl_path_type(dentry))) {
-			opaquedir = ovl_check_empty_and_clear(dentry);
-			err = PTR_ERR(opaquedir);
-			if (IS_ERR(opaquedir))
-				goto out;
-		} else {
-			LIST_HEAD(list);
-
-			/*
-			 * When removing an empty opaque directory, then it
-			 * makes no sense to replace it with an exact replica of
-			 * itself.  But emptiness still needs to be checked.
-			 */
-			err = ovl_check_empty_dir(dentry, &list);
-			ovl_cache_free(&list);
-			if (err)
-				goto out;
-		}
+		opaquedir = ovl_check_empty_and_clear(dentry);
+		err = PTR_ERR(opaquedir);
+		if (IS_ERR(opaquedir))
+			goto out;
 	}
 
 	err = ovl_lock_rename_workdir(workdir, upperdir);
