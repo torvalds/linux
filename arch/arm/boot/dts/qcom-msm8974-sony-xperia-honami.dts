@@ -257,23 +257,6 @@
 			};
 		};
 	};
-
-	vreg_boost: vreg-boost {
-		compatible = "regulator-fixed";
-
-		regulator-name = "vreg-boost";
-		regulator-min-microvolt = <3150000>;
-		regulator-max-microvolt = <3150000>;
-
-		regulator-always-on;
-		regulator-boot-on;
-
-		gpio = <&pm8941_gpios 21 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
-
-		pinctrl-names = "default";
-		pinctrl-0 = <&boost_bypass_n_pin>;
-     };
 };
 
 &soc {
@@ -446,11 +429,6 @@
 		};
 
 		gpios@c000 {
-			boost_bypass_n_pin: boost-bypass {
-				pins = "gpio21";
-				function = "normal";
-			};
-
 			gpio_keys_pin_a: gpio-keys-active {
 				pins = "gpio2", "gpio3", "gpio4", "gpio5";
 				function = "normal";
