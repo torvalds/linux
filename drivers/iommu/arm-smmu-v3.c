@@ -879,7 +879,7 @@ static void arm_smmu_cmdq_skip_err(struct arm_smmu_device *smmu)
 	 * We may have concurrent producers, so we need to be careful
 	 * not to touch any of the shadow cmdq state.
 	 */
-	queue_read(cmd, Q_ENT(q, idx), q->ent_dwords);
+	queue_read(cmd, Q_ENT(q, cons), q->ent_dwords);
 	dev_err(smmu->dev, "skipping command in error state:\n");
 	for (i = 0; i < ARRAY_SIZE(cmd); ++i)
 		dev_err(smmu->dev, "\t0x%016llx\n", (unsigned long long)cmd[i]);
@@ -890,7 +890,7 @@ static void arm_smmu_cmdq_skip_err(struct arm_smmu_device *smmu)
 		return;
 	}
 
-	queue_write(cmd, Q_ENT(q, idx), q->ent_dwords);
+	queue_write(Q_ENT(q, cons), cmd, q->ent_dwords);
 }
 
 static void arm_smmu_cmdq_issue_cmd(struct arm_smmu_device *smmu,
