@@ -1052,7 +1052,7 @@ static void uncore_pci_exit(void)
 	}
 }
 
-static void uncore_cpu_dying(int cpu)
+static int uncore_cpu_dying(unsigned int cpu)
 {
 	struct intel_uncore_type *type, **types = uncore_msr_uncores;
 	struct intel_uncore_pmu *pmu;
@@ -1069,16 +1069,19 @@ static void uncore_cpu_dying(int cpu)
 				uncore_box_exit(box);
 		}
 	}
+	return 0;
 }
 
-static void uncore_cpu_starting(int cpu, bool init)
+static int first_init;
+
+static int uncore_cpu_starting(unsigned int cpu)
 {
 	struct intel_uncore_type *type, **types = uncore_msr_uncores;
 	struct intel_uncore_pmu *pmu;
 	struct intel_uncore_box *box;
 	int i, pkg, ncpus = 1;
 
-	if (init) {
+	if (first_init) {
 		/*
 		 * On init we get the number of online cpus in the package
 		 * and set refcount for all of them.
@@ -1099,9 +1102,11 @@ static void uncore_cpu_starting(int cpu, bool init)
 				uncore_box_init(box);
 		}
 	}
+
+	return 0;
 }
 
-static int uncore_cpu_prepare(int cpu)
+static int uncore_cpu_prepare(unsigned int cpu)
 {
 	struct intel_uncore_type *type, **types = uncore_msr_uncores;
 	struct intel_uncore_pmu *pmu;
@@ -1164,13 +1169,13 @@ static void uncore_change_context(struct intel_uncore_type **uncores,
 		uncore_change_type_ctx(*uncores, old_cpu, new_cpu);
 }
 
-static void uncore_event_exit_cpu(int cpu)
+static int uncore_event_cpu_offline(unsigned int cpu)
 {
 	int target;
 
 	/* Check if exiting cpu is used for collecting uncore events */
 	if (!cpumask_test_and_clear_cpu(cpu, &uncore_cpu_mask))
-		return;
+		return 0;
 
 	/* Find a new cpu to collect uncore events */
 	target = cpumask_any_but(topology_core_cpumask(cpu), cpu);
@@ -1183,9 +1188,10 @@ static void uncore_event_exit_cpu(int cpu)
 
 	uncore_change_context(uncore_msr_uncores, cpu, target);
 	uncore_change_context(uncore_pci_uncores, cpu, target);
+	return 0;
 }
 
-static void uncore_event_init_cpu(int cpu)
+static int uncore_event_cpu_online(unsigned int cpu)
 {
 	int target;
 
@@ -1195,49 +1201,14 @@ static void uncore_event_init_cpu(int cpu)
 	 */
 	target = cpumask_any_and(&uncore_cpu_mask, topology_core_cpumask(cpu));
 	if (target < nr_cpu_ids)
-		return;
+		return 0;
 
 	cpumask_set_cpu(cpu, &uncore_cpu_mask);
 
 	uncore_change_context(uncore_msr_uncores, -1, cpu);
 	uncore_change_context(uncore_pci_uncores, -1, cpu);
+	return 0;
 }
-
-static int uncore_cpu_notifier(struct notifier_block *self,
-			       unsigned long action, void *hcpu)
-{
-	unsigned int cpu = (long)hcpu;
-
-	switch (action & ~CPU_TASKS_FROZEN) {
-	case CPU_UP_PREPARE:
-		return notifier_from_errno(uncore_cpu_prepare(cpu));
-
-	case CPU_STARTING:
-		uncore_cpu_starting(cpu, false);
-	case CPU_DOWN_FAILED:
-		uncore_event_init_cpu(cpu);
-		break;
-
-	case CPU_UP_CANCELED:
-	case CPU_DYING:
-		uncore_cpu_dying(cpu);
-		break;
-
-	case CPU_DOWN_PREPARE:
-		uncore_event_exit_cpu(cpu);
-		break;
-	}
-	return NOTIFY_OK;
-}
-
-static struct notifier_block uncore_cpu_nb = {
-	.notifier_call	= uncore_cpu_notifier,
-	/*
-	 * to migrate uncore events, our notifier should be executed
-	 * before perf core's notifier.
-	 */
-	.priority	= CPU_PRI_PERF + 1,
-};
 
 static int __init type_pmu_register(struct intel_uncore_type *type)
 {
@@ -1280,41 +1251,6 @@ err:
 	uncore_types_exit(uncore_msr_uncores);
 	uncore_msr_uncores = empty_uncore;
 	return ret;
-}
-
-static void __init uncore_cpu_setup(void *dummy)
-{
-	uncore_cpu_starting(smp_processor_id(), true);
-}
-
-/* Lazy to avoid allocation of a few bytes for the normal case */
-static __initdata DECLARE_BITMAP(packages, MAX_LOCAL_APIC);
-
-static int __init uncore_cpumask_init(bool msr)
-{
-	unsigned int cpu;
-
-	for_each_online_cpu(cpu) {
-		unsigned int pkg = topology_logical_package_id(cpu);
-		int ret;
-
-		if (test_and_set_bit(pkg, packages))
-			continue;
-		/*
-		 * The first online cpu of each package allocates and takes
-		 * the refcounts for all other online cpus in that package.
-		 * If msrs are not enabled no allocation is required.
-		 */
-		if (msr) {
-			ret = uncore_cpu_prepare(cpu);
-			if (ret)
-				return ret;
-		}
-		uncore_event_init_cpu(cpu);
-		smp_call_function_single(cpu, uncore_cpu_setup, NULL, 1);
-	}
-	__register_cpu_notifier(&uncore_cpu_nb);
-	return 0;
 }
 
 #define X86_UNCORE_MODEL_MATCH(model, init)	\
@@ -1440,11 +1376,33 @@ static int __init intel_uncore_init(void)
 	if (cret && pret)
 		return -ENODEV;
 
-	cpu_notifier_register_begin();
-	ret = uncore_cpumask_init(!cret);
-	if (ret)
-		goto err;
-	cpu_notifier_register_done();
+	/*
+	 * Install callbacks. Core will call them for each online cpu.
+	 *
+	 * The first online cpu of each package allocates and takes
+	 * the refcounts for all other online cpus in that package.
+	 * If msrs are not enabled no allocation is required and
+	 * uncore_cpu_prepare() is not called for each online cpu.
+	 */
+	if (!cret) {
+	       ret = cpuhp_setup_state(CPUHP_PERF_X86_UNCORE_PREP,
+					"PERF_X86_UNCORE_PREP",
+					uncore_cpu_prepare, NULL);
+		if (ret)
+			goto err;
+	} else {
+		cpuhp_setup_state_nocalls(CPUHP_PERF_X86_UNCORE_PREP,
+					  "PERF_X86_UNCORE_PREP",
+					  uncore_cpu_prepare, NULL);
+	}
+	first_init = 1;
+	cpuhp_setup_state(CPUHP_AP_PERF_X86_UNCORE_STARTING,
+			  "AP_PERF_X86_UNCORE_STARTING",
+			  uncore_cpu_starting, uncore_cpu_dying);
+	first_init = 0;
+	cpuhp_setup_state(CPUHP_AP_PERF_X86_UNCORE_ONLINE,
+			  "AP_PERF_X86_UNCORE_ONLINE",
+			  uncore_event_cpu_online, uncore_event_cpu_offline);
 	return 0;
 
 err:
@@ -1452,17 +1410,16 @@ err:
 	on_each_cpu_mask(&uncore_cpu_mask, uncore_exit_boxes, NULL, 1);
 	uncore_types_exit(uncore_msr_uncores);
 	uncore_pci_exit();
-	cpu_notifier_register_done();
 	return ret;
 }
 module_init(intel_uncore_init);
 
 static void __exit intel_uncore_exit(void)
 {
-	cpu_notifier_register_begin();
-	__unregister_cpu_notifier(&uncore_cpu_nb);
+	cpuhp_remove_state_nocalls(CPUHP_AP_PERF_X86_UNCORE_ONLINE);
+	cpuhp_remove_state_nocalls(CPUHP_AP_PERF_X86_UNCORE_STARTING);
+	cpuhp_remove_state_nocalls(CPUHP_PERF_X86_UNCORE_PREP);
 	uncore_types_exit(uncore_msr_uncores);
 	uncore_pci_exit();
-	cpu_notifier_register_done();
 }
 module_exit(intel_uncore_exit);

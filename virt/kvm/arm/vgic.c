@@ -2326,31 +2326,17 @@ int vgic_has_attr_regs(const struct vgic_io_range *ranges, phys_addr_t offset)
 		return -ENXIO;
 }
 
-static void vgic_init_maintenance_interrupt(void *info)
+static int vgic_starting_cpu(unsigned int cpu)
 {
 	enable_percpu_irq(vgic->maint_irq, 0);
+	return 0;
 }
 
-static int vgic_cpu_notify(struct notifier_block *self,
-			   unsigned long action, void *cpu)
+static int vgic_dying_cpu(unsigned int cpu)
 {
-	switch (action) {
-	case CPU_STARTING:
-	case CPU_STARTING_FROZEN:
-		vgic_init_maintenance_interrupt(NULL);
-		break;
-	case CPU_DYING:
-	case CPU_DYING_FROZEN:
-		disable_percpu_irq(vgic->maint_irq);
-		break;
-	}
-
-	return NOTIFY_OK;
+	disable_percpu_irq(vgic->maint_irq);
+	return 0;
 }
-
-static struct notifier_block vgic_cpu_nb = {
-	.notifier_call = vgic_cpu_notify,
-};
 
 static int kvm_vgic_probe(void)
 {
@@ -2392,19 +2378,10 @@ int kvm_vgic_hyp_init(void)
 		return ret;
 	}
 
-	ret = __register_cpu_notifier(&vgic_cpu_nb);
-	if (ret) {
-		kvm_err("Cannot register vgic CPU notifier\n");
-		goto out_free_irq;
-	}
-
-	on_each_cpu(vgic_init_maintenance_interrupt, NULL, 1);
-
+	cpuhp_setup_state(CPUHP_AP_KVM_ARM_VGIC_STARTING,
+			  "AP_KVM_ARM_VGIC_STARTING", vgic_starting_cpu,
+			  vgic_dying_cpu);
 	return 0;
-
-out_free_irq:
-	free_percpu_irq(vgic->maint_irq, kvm_get_running_vcpus());
-	return ret;
 }
 
 int kvm_irq_map_gsi(struct kvm *kvm,

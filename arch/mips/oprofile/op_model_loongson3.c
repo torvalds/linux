@@ -168,33 +168,26 @@ static int loongson3_perfcount_handler(void)
 	return handled;
 }
 
-static int loongson3_cpu_callback(struct notifier_block *nfb,
-	unsigned long action, void *hcpu)
+static int loongson3_starting_cpu(unsigned int cpu)
 {
-	switch (action) {
-	case CPU_STARTING:
-	case CPU_STARTING_FROZEN:
-		write_c0_perflo1(reg.control1);
-		write_c0_perflo2(reg.control2);
-		break;
-	case CPU_DYING:
-	case CPU_DYING_FROZEN:
-		write_c0_perflo1(0xc0000000);
-		write_c0_perflo2(0x40000000);
-		break;
-	}
-
-	return NOTIFY_OK;
+	write_c0_perflo1(reg.control1);
+	write_c0_perflo2(reg.control2);
+	return 0;
 }
 
-static struct notifier_block loongson3_notifier_block = {
-	.notifier_call = loongson3_cpu_callback
-};
+static int loongson3_dying_cpu(unsigned int cpu)
+{
+	write_c0_perflo1(0xc0000000);
+	write_c0_perflo2(0x40000000);
+	return 0;
+}
 
 static int __init loongson3_init(void)
 {
 	on_each_cpu(reset_counters, NULL, 1);
-	register_hotcpu_notifier(&loongson3_notifier_block);
+	cpuhp_setup_state_nocalls(CPUHP_AP_MIPS_OP_LOONGSON3_STARTING,
+				  "AP_MIPS_OP_LOONGSON3_STARTING",
+				  loongson3_starting_cpu, loongson3_dying_cpu);
 	save_perf_irq = perf_irq;
 	perf_irq = loongson3_perfcount_handler;
 
@@ -204,7 +197,7 @@ static int __init loongson3_init(void)
 static void loongson3_exit(void)
 {
 	on_each_cpu(reset_counters, NULL, 1);
-	unregister_hotcpu_notifier(&loongson3_notifier_block);
+	cpuhp_remove_state_nocalls(CPUHP_AP_MIPS_OP_LOONGSON3_STARTING);
 	perf_irq = save_perf_irq;
 }
 

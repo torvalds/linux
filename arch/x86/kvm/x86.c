@@ -5552,9 +5552,10 @@ int kvm_fast_pio_out(struct kvm_vcpu *vcpu, int size, unsigned short port)
 }
 EXPORT_SYMBOL_GPL(kvm_fast_pio_out);
 
-static void tsc_bad(void *info)
+static int kvmclock_cpu_down_prep(unsigned int cpu)
 {
 	__this_cpu_write(cpu_tsc_khz, 0);
+	return 0;
 }
 
 static void tsc_khz_changed(void *data)
@@ -5659,27 +5660,11 @@ static struct notifier_block kvmclock_cpufreq_notifier_block = {
 	.notifier_call  = kvmclock_cpufreq_notifier
 };
 
-static int kvmclock_cpu_notifier(struct notifier_block *nfb,
-					unsigned long action, void *hcpu)
+static int kvmclock_cpu_online(unsigned int cpu)
 {
-	unsigned int cpu = (unsigned long)hcpu;
-
-	switch (action) {
-		case CPU_ONLINE:
-		case CPU_DOWN_FAILED:
-			smp_call_function_single(cpu, tsc_khz_changed, NULL, 1);
-			break;
-		case CPU_DOWN_PREPARE:
-			smp_call_function_single(cpu, tsc_bad, NULL, 1);
-			break;
-	}
-	return NOTIFY_OK;
+	tsc_khz_changed(NULL);
+	return 0;
 }
-
-static struct notifier_block kvmclock_cpu_notifier_block = {
-	.notifier_call  = kvmclock_cpu_notifier,
-	.priority = -INT_MAX
-};
 
 static void kvm_timer_init(void)
 {
@@ -5687,7 +5672,6 @@ static void kvm_timer_init(void)
 
 	max_tsc_khz = tsc_khz;
 
-	cpu_notifier_register_begin();
 	if (!boot_cpu_has(X86_FEATURE_CONSTANT_TSC)) {
 #ifdef CONFIG_CPU_FREQ
 		struct cpufreq_policy policy;
@@ -5702,12 +5686,9 @@ static void kvm_timer_init(void)
 					  CPUFREQ_TRANSITION_NOTIFIER);
 	}
 	pr_debug("kvm: max_tsc_khz = %ld\n", max_tsc_khz);
-	for_each_online_cpu(cpu)
-		smp_call_function_single(cpu, tsc_khz_changed, NULL, 1);
 
-	__register_hotcpu_notifier(&kvmclock_cpu_notifier_block);
-	cpu_notifier_register_done();
-
+	cpuhp_setup_state(CPUHP_AP_X86_KVM_CLK_ONLINE, "AP_X86_KVM_CLK_ONLINE",
+			  kvmclock_cpu_online, kvmclock_cpu_down_prep);
 }
 
 static DEFINE_PER_CPU(struct kvm_vcpu *, current_vcpu);
@@ -5896,7 +5877,7 @@ void kvm_arch_exit(void)
 	if (!boot_cpu_has(X86_FEATURE_CONSTANT_TSC))
 		cpufreq_unregister_notifier(&kvmclock_cpufreq_notifier_block,
 					    CPUFREQ_TRANSITION_NOTIFIER);
-	unregister_hotcpu_notifier(&kvmclock_cpu_notifier_block);
+	cpuhp_remove_state_nocalls(CPUHP_AP_X86_KVM_CLK_ONLINE);
 #ifdef CONFIG_X86_64
 	pvclock_gtod_unregister_notifier(&pvclock_gtod_notifier);
 #endif

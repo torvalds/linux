@@ -49,10 +49,9 @@ struct irqaction gic_compare_irqaction = {
 	.name = "timer",
 };
 
-static void gic_clockevent_cpu_init(struct clock_event_device *cd)
+static void gic_clockevent_cpu_init(unsigned int cpu,
+				    struct clock_event_device *cd)
 {
-	unsigned int cpu = smp_processor_id();
-
 	cd->name		= "MIPS GIC";
 	cd->features		= CLOCK_EVT_FEAT_ONESHOT |
 				  CLOCK_EVT_FEAT_C3STOP;
@@ -79,19 +78,10 @@ static void gic_update_frequency(void *data)
 	clockevents_update_freq(this_cpu_ptr(&gic_clockevent_device), rate);
 }
 
-static int gic_cpu_notifier(struct notifier_block *nb, unsigned long action,
-				void *data)
+static int gic_starting_cpu(unsigned int cpu)
 {
-	switch (action & ~CPU_TASKS_FROZEN) {
-	case CPU_STARTING:
-		gic_clockevent_cpu_init(this_cpu_ptr(&gic_clockevent_device));
-		break;
-	case CPU_DYING:
-		gic_clockevent_cpu_exit(this_cpu_ptr(&gic_clockevent_device));
-		break;
-	}
-
-	return NOTIFY_OK;
+	gic_clockevent_cpu_init(cpu, this_cpu_ptr(&gic_clockevent_device));
+	return 0;
 }
 
 static int gic_clk_notifier(struct notifier_block *nb, unsigned long action,
@@ -105,10 +95,11 @@ static int gic_clk_notifier(struct notifier_block *nb, unsigned long action,
 	return NOTIFY_OK;
 }
 
-
-static struct notifier_block gic_cpu_nb = {
-	.notifier_call = gic_cpu_notifier,
-};
+static int gic_dying_cpu(unsigned int cpu)
+{
+	gic_clockevent_cpu_exit(this_cpu_ptr(&gic_clockevent_device));
+	return 0;
+}
 
 static struct notifier_block gic_clk_nb = {
 	.notifier_call = gic_clk_notifier,
@@ -125,12 +116,9 @@ static int gic_clockevent_init(void)
 	if (ret < 0)
 		return ret;
 
-	ret = register_cpu_notifier(&gic_cpu_nb);
-	if (ret < 0)
-		pr_warn("GIC: Unable to register CPU notifier\n");
-
-	gic_clockevent_cpu_init(this_cpu_ptr(&gic_clockevent_device));
-
+	cpuhp_setup_state(CPUHP_AP_MIPS_GIC_TIMER_STARTING,
+			  "AP_MIPS_GIC_TIMER_STARTING", gic_starting_cpu,
+			  gic_dying_cpu);
 	return 0;
 }
 
