@@ -691,6 +691,7 @@ static const struct super_operations ovl_super_operations = {
 	.statfs		= ovl_statfs,
 	.show_options	= ovl_show_options,
 	.remount_fs	= ovl_remount,
+	.drop_inode	= generic_delete_inode,
 };
 
 enum {
