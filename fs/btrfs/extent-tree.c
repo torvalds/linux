@@ -4457,6 +4457,15 @@ void check_system_chunk(struct btrfs_trans_handle *trans,
 	}
 }
 
+/*
+ * If force is CHUNK_ALLOC_FORCE:
+ *    - return 1 if it successfully allocates a chunk,
+ *    - return errors including -ENOSPC otherwise.
+ * If force is NOT CHUNK_ALLOC_FORCE:
+ *    - return 0 if it doesn't need to allocate a new chunk,
+ *    - return 1 if it successfully allocates a chunk,
+ *    - return errors including -ENOSPC otherwise.
+ */
 static int do_chunk_alloc(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *extent_root, u64 flags, int force)
 {
