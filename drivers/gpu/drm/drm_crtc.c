@@ -2682,8 +2682,6 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 			goto out;
 		}
 
-		drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V);
-
 		/*
 		 * Check whether the primary plane supports the fb pixel format.
 		 * Drivers not implementing the universal planes API use a
