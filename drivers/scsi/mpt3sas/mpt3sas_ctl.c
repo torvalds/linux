@@ -1001,10 +1001,9 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 				ioc->name,
 				le16_to_cpu(mpi_request->FunctionDependent1));
 			mpt3sas_halt_firmware(ioc);
-			mpt3sas_scsih_issue_tm(ioc,
+			mpt3sas_scsih_issue_locked_tm(ioc,
 			    le16_to_cpu(mpi_request->FunctionDependent1), 0, 0,
-			    0, MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET, 0, 30,
-			    TM_MUTEX_ON);
+			    0, MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET, 0, 30);
 		} else
 			mpt3sas_base_hard_reset_handler(ioc, CAN_SLEEP,
 			    FORCE_BIG_HAMMER);

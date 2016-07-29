@@ -794,16 +794,6 @@ struct reply_post_struct {
 	dma_addr_t			reply_post_free_dma;
 };
 
-/**
- * enum mutex_type - task management mutex type
- * @TM_MUTEX_OFF: mutex is not required becuase calling function is acquiring it
- * @TM_MUTEX_ON: mutex is required
- */
-enum mutex_type {
-	TM_MUTEX_OFF = 0,
-	TM_MUTEX_ON = 1,
-};
-
 typedef void (*MPT3SAS_FLUSH_RUNNING_CMDS)(struct MPT3SAS_ADAPTER *ioc);
 /**
  * struct MPT3SAS_ADAPTER - per adapter struct
@@ -1291,7 +1281,11 @@ void mpt3sas_scsih_reset_handler(struct MPT3SAS_ADAPTER *ioc, int reset_phase);
 
 int mpt3sas_scsih_issue_tm(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 	uint channel, uint id, uint lun, u8 type, u16 smid_task,
-	ulong timeout, enum mutex_type m_type);
+	ulong timeout);
+int mpt3sas_scsih_issue_locked_tm(struct MPT3SAS_ADAPTER *ioc, u16 handle,
+	uint channel, uint id, uint lun, u8 type, u16 smid_task,
+	ulong timeout);
+
 void mpt3sas_scsih_set_tm_flag(struct MPT3SAS_ADAPTER *ioc, u16 handle);
 void mpt3sas_scsih_clear_tm_flag(struct MPT3SAS_ADAPTER *ioc, u16 handle);
 void mpt3sas_expander_remove(struct MPT3SAS_ADAPTER *ioc, u64 sas_address);
