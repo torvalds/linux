@@ -2339,17 +2339,13 @@ again:
 }
 EXPORT_SYMBOL(d_delete);
 
-static void __d_rehash(struct dentry * entry, struct hlist_bl_head *b)
+static void __d_rehash(struct dentry *entry)
 {
+	struct hlist_bl_head *b = d_hash(entry->d_name.hash);
 	BUG_ON(!d_unhashed(entry));
 	hlist_bl_lock(b);
 	hlist_bl_add_head_rcu(&entry->d_hash, b);
 	hlist_bl_unlock(b);
-}
-
-static void _d_rehash(struct dentry * entry)
-{
-	__d_rehash(entry, d_hash(entry->d_name.hash));
 }
 
 /**
@@ -2362,7 +2358,7 @@ static void _d_rehash(struct dentry * entry)
 void d_rehash(struct dentry * entry)
 {
 	spin_lock(&entry->d_lock);
-	_d_rehash(entry);
+	__d_rehash(entry);
 	spin_unlock(&entry->d_lock);
 }
 EXPORT_SYMBOL(d_rehash);
@@ -2536,7 +2532,7 @@ static inline void __d_add(struct dentry *dentry, struct inode *inode)
 		raw_write_seqcount_end(&dentry->d_seq);
 		fsnotify_update_flags(dentry);
 	}
-	_d_rehash(dentry);
+	__d_rehash(dentry);
 	if (dir)
 		end_dir_add(dir, n);
 	spin_unlock(&dentry->d_lock);
@@ -2598,7 +2594,7 @@ struct dentry *d_exact_alias(struct dentry *entry, struct inode *inode)
 			alias = NULL;
 		} else {
 			__dget_dlock(alias);
-			_d_rehash(alias);
+			__d_rehash(alias);
 			spin_unlock(&alias->d_lock);
 		}
 		spin_unlock(&inode->i_lock);
@@ -2782,29 +2778,21 @@ static void __d_move(struct dentry *dentry, struct dentry *target,
 	write_seqcount_begin(&dentry->d_seq);
 	write_seqcount_begin_nested(&target->d_seq, DENTRY_D_LOCK_NESTED);
 
+	/* unhash both */
 	/* __d_drop does write_seqcount_barrier, but they're OK to nest. */
-
-	/*
-	 * Move the dentry to the target hash queue. Don't bother checking
-	 * for the same hash queue because of how unlikely it is.
-	 */
 	__d_drop(dentry);
-	__d_rehash(dentry, d_hash(target->d_name.hash));
-
-	/*
-	 * Unhash the target (d_delete() is not usable here).  If exchanging
-	 * the two dentries, then rehash onto the other's hash queue.
-	 */
 	__d_drop(target);
-	if (exchange) {
-		__d_rehash(target, d_hash(dentry->d_name.hash));
-	}
 
 	/* Switch the names.. */
 	if (exchange)
 		swap_names(dentry, target);
 	else
 		copy_name(dentry, target);
+
+	/* rehash in new place(s) */
+	__d_rehash(dentry);
+	if (exchange)
+		__d_rehash(target);
 
 	/* ... and switch them in the tree */
 	if (IS_ROOT(dentry)) {
