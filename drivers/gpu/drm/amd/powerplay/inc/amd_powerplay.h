@@ -132,6 +132,8 @@ struct amd_pp_init {
 	uint32_t chip_family;
 	uint32_t chip_id;
 	uint32_t rev_id;
+	uint16_t sub_sys_id;
+	uint16_t sub_vendor_id;
 };
 
 enum amd_pp_display_config_type{
