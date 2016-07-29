@@ -666,14 +666,14 @@ static const u8 ic_bootp_cookie[4] = { 99, 130, 83, 99 };
 #ifdef IPCONFIG_DHCP
 
 static void __init
-ic_dhcp_init_options(u8 *options)
+ic_dhcp_init_options(u8 *options, struct ic_device *d)
 {
 	u8 mt = ((ic_servaddr == NONE)
 		 ? DHCPDISCOVER : DHCPREQUEST);
 	u8 *e = options;
 	int len;
 
-	pr_debug("DHCP: Sending message type %d\n", mt);
+	pr_debug("DHCP: Sending message type %d (%s)\n", mt, d->dev->name);
 
 	memcpy(e, ic_bootp_cookie, 4);	/* RFC1048 Magic Cookie */
 	e += 4;
@@ -857,7 +857,7 @@ static void __init ic_bootp_send_if(struct ic_device *d, unsigned long jiffies_d
 	/* add DHCP options or BOOTP extensions */
 #ifdef IPCONFIG_DHCP
 	if (ic_proto_enabled & IC_USE_DHCP)
-		ic_dhcp_init_options(b->exten);
+		ic_dhcp_init_options(b->exten, d);
 	else
 #endif
 		ic_bootp_init_ext(b->exten);
@@ -1033,8 +1033,8 @@ static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, str
 	/* Is it a reply to our BOOTP request? */
 	if (b->op != BOOTP_REPLY ||
 	    b->xid != d->xid) {
-		net_err_ratelimited("DHCP/BOOTP: Reply not for us, op[%x] xid[%x]\n",
-				    b->op, b->xid);
+		net_err_ratelimited("DHCP/BOOTP: Reply not for us on %s, op[%x] xid[%x]\n",
+				    d->dev->name, b->op, b->xid);
 		goto drop_unlock;
 	}
 
@@ -1075,7 +1075,7 @@ static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, str
 				}
 			}
 
-			pr_debug("DHCP: Got message type %d\n", mt);
+			pr_debug("DHCP: Got message type %d (%s)\n", mt, d->dev->name);
 
 			switch (mt) {
 			case DHCPOFFER:
