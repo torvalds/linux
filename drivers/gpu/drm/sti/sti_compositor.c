@@ -254,12 +254,12 @@ static int sti_compositor_probe(struct platform_device *pdev)
 	}
 
 	/* Get reset resources */
-	compo->rst_main = devm_reset_control_get(dev, "compo-main");
+	compo->rst_main = devm_reset_control_get_shared(dev, "compo-main");
 	/* Take compo main out of reset */
 	if (!IS_ERR(compo->rst_main))
 		reset_control_deassert(compo->rst_main);
 
-	compo->rst_aux = devm_reset_control_get(dev, "compo-aux");
+	compo->rst_aux = devm_reset_control_get_shared(dev, "compo-aux");
 	/* Take compo aux out of reset */
 	if (!IS_ERR(compo->rst_aux))
 		reset_control_deassert(compo->rst_aux);
