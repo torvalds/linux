@@ -18,16 +18,4 @@
 #define PKEY_DEDICATED_EXECUTE_ONLY 0
 #endif /* ! CONFIG_ARCH_HAS_PKEYS */
 
-/*
- * This is called from mprotect_pkey().
- *
- * Returns true if the protection keys is valid.
- */
-static inline bool validate_pkey(int pkey)
-{
-	if (pkey < 0)
-		return false;
-	return (pkey < arch_max_pkey());
-}
-
 #endif /* _LINUX_PKEYS_H */
