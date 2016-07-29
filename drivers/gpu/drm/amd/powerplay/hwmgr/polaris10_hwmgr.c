@@ -3133,7 +3133,10 @@ int polaris10_patch_voltage_workaround(struct pp_hwmgr *hwmgr)
 			table_info->vddc_lookup_table;
 	uint32_t i;
 
-	if (hwmgr->chip_id == CHIP_POLARIS10 && hwmgr->hw_revision == 0xC7) {
+	if (hwmgr->chip_id == CHIP_POLARIS10 && hwmgr->hw_revision == 0xC7 &&
+			((hwmgr->sub_sys_id == 0xb37 && hwmgr->sub_vendor_id == 0x1002) ||
+		    (hwmgr->sub_sys_id == 0x4a8 && hwmgr->sub_vendor_id == 0x1043) ||
+		    (hwmgr->sub_sys_id == 0x9480 && hwmgr->sub_vendor_id == 0x1682))) {
 		if (lookup_table->entries[dep_mclk_table->entries[dep_mclk_table->count-1].vddInd].us_vdd >= 1000)
 			return 0;
 
