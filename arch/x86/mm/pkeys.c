@@ -21,7 +21,18 @@
 
 int __execute_only_pkey(struct mm_struct *mm)
 {
+	bool need_to_set_mm_pkey = false;
+	int execute_only_pkey = mm->context.execute_only_pkey;
 	int ret;
+
+	/* Do we need to assign a pkey for mm's execute-only maps? */
+	if (execute_only_pkey == -1) {
+		/* Go allocate one to use, which might fail */
+		execute_only_pkey = mm_pkey_alloc(mm);
+		if (execute_only_pkey < 0)
+			return -1;
+		need_to_set_mm_pkey = true;
+	}
 
 	/*
 	 * We do not want to go through the relatively costly
@@ -32,22 +43,33 @@ int __execute_only_pkey(struct mm_struct *mm)
 	 * can make fpregs inactive.
 	 */
 	preempt_disable();
-	if (fpregs_active() &&
-	    !__pkru_allows_read(read_pkru(), PKEY_DEDICATED_EXECUTE_ONLY)) {
+	if (!need_to_set_mm_pkey &&
+	    fpregs_active() &&
+	    !__pkru_allows_read(read_pkru(), execute_only_pkey)) {
 		preempt_enable();
-		return PKEY_DEDICATED_EXECUTE_ONLY;
+		return execute_only_pkey;
 	}
 	preempt_enable();
-	ret = arch_set_user_pkey_access(current, PKEY_DEDICATED_EXECUTE_ONLY,
+
+	/*
+	 * Set up PKRU so that it denies access for everything
+	 * other than execution.
+	 */
+	ret = arch_set_user_pkey_access(current, execute_only_pkey,
 			PKEY_DISABLE_ACCESS);
 	/*
 	 * If the PKRU-set operation failed somehow, just return
 	 * 0 and effectively disable execute-only support.
 	 */
-	if (ret)
-		return 0;
+	if (ret) {
+		mm_set_pkey_free(mm, execute_only_pkey);
+		return -1;
+	}
 
-	return PKEY_DEDICATED_EXECUTE_ONLY;
+	/* We got one, store it and use it from here on out */
+	if (need_to_set_mm_pkey)
+		mm->context.execute_only_pkey = execute_only_pkey;
+	return execute_only_pkey;
 }
 
 static inline bool vma_is_pkey_exec_only(struct vm_area_struct *vma)
@@ -55,7 +77,7 @@ static inline bool vma_is_pkey_exec_only(struct vm_area_struct *vma)
 	/* Do this check first since the vm_flags should be hot */
 	if ((vma->vm_flags & (VM_READ | VM_WRITE | VM_EXEC)) != VM_EXEC)
 		return false;
-	if (vma_pkey(vma) != PKEY_DEDICATED_EXECUTE_ONLY)
+	if (vma_pkey(vma) != vma->vm_mm->context.execute_only_pkey)
 		return false;
 
 	return true;
