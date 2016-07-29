@@ -297,15 +297,12 @@ static void imx_ldb_encoder_mode_set(struct drm_encoder *encoder,
 	}
 
 	if (!bus_format) {
-		struct drm_connector_state *conn_state;
 		struct drm_connector *connector;
-		int i;
 
-		for_each_connector_in_state(encoder->crtc->state->state,
-					    connector, conn_state, i) {
+		drm_for_each_connector(connector, encoder->dev) {
 			struct drm_display_info *di = &connector->display_info;
 
-			if (conn_state->crtc == encoder->crtc &&
+			if (connector->encoder == encoder &&
 			    di->num_bus_formats) {
 				bus_format = di->bus_formats[0];
 				break;
