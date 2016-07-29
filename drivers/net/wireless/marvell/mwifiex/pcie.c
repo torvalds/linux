@@ -2911,7 +2911,7 @@ static int mwifiex_pcie_request_irq(struct mwifiex_adapter *adapter)
 static void mwifiex_pcie_get_fw_name(struct mwifiex_adapter *adapter)
 {
 	int revision_id = 0;
-	int version;
+	int version, magic;
 	struct pcie_service_card *card = adapter->card;
 
 	switch (card->dev->device) {
@@ -2936,30 +2936,19 @@ static void mwifiex_pcie_get_fw_name(struct mwifiex_adapter *adapter)
 		}
 		break;
 	case PCIE_DEVICE_ID_MARVELL_88W8997:
-		mwifiex_read_reg(adapter, 0x0c48, &revision_id);
+		mwifiex_read_reg(adapter, 0x8, &revision_id);
 		mwifiex_read_reg(adapter, 0x0cd0, &version);
+		mwifiex_read_reg(adapter, 0x0cd4, &magic);
+		revision_id &= 0xff;
 		version &= 0x7;
-		switch (revision_id) {
-		case PCIE8997_V2:
-			if (version == CHIP_VER_PCIEUART)
-				strcpy(adapter->fw_name,
-				       PCIEUART8997_FW_NAME_V2);
-			else
-				strcpy(adapter->fw_name,
-				       PCIEUSB8997_FW_NAME_V2);
-			break;
-		case PCIE8997_Z:
-			if (version == CHIP_VER_PCIEUART)
-				strcpy(adapter->fw_name,
-				       PCIEUART8997_FW_NAME_Z);
-			else
-				strcpy(adapter->fw_name,
-				       PCIEUSB8997_FW_NAME_Z);
-			break;
-		default:
-			strcpy(adapter->fw_name, PCIE8997_DEFAULT_FW_NAME);
-			break;
-		}
+		magic &= 0xff;
+		if (revision_id == PCIE8997_A1 &&
+		    magic == CHIP_MAGIC_VALUE &&
+		    version == CHIP_VER_PCIEUART)
+			strcpy(adapter->fw_name, PCIEUART8997_FW_NAME_V4);
+		else
+			strcpy(adapter->fw_name, PCIEUSB8997_FW_NAME_V4);
+		break;
 	default:
 		break;
 	}
