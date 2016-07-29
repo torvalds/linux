@@ -1612,7 +1612,7 @@ static void ixgbevf_configure_tx_ring(struct ixgbevf_adapter *adapter,
 		txdctl = IXGBE_READ_REG(hw, IXGBE_VFTXDCTL(reg_idx));
 	}  while (--wait_loop && !(txdctl & IXGBE_TXDCTL_ENABLE));
 	if (!wait_loop)
-		pr_err("Could not enable Tx Queue %d\n", reg_idx);
+		hw_dbg(hw, "Could not enable Tx Queue %d\n", reg_idx);
 }
 
 /**
