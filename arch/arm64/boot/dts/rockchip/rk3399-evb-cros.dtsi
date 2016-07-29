@@ -40,12 +40,95 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-/dts-v1/;
-
-#include "rk3399-evb-rev2.dtsi"
-#include "rk3399-evb-cros.dtsi"
-
 / {
-	model = "Rockchip RK3399 Evaluation Board v2 (Chrome OS)";
-	compatible = "google,rk3399evb-rev2", "rockchip,rk3399-evb-rev2", "rockchip,rk3399";
+	model = "Rockchip RK3399 Evaluation Board (Chrome OS)";
+	compatible = "google,rk3399evb", "rockchip,rk3399-evb", "rockchip,rk3399";
+
+	edp_panel: edp-panel {
+		compatible = "lg,lp097qx1-spa1", "panel-simple";
+		backlight = <&backlight>;
+		power-supply = <&vcc3v3_s0>;
+		enable-gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
+
+		ports {
+			panel_in_edp: endpoint {
+				remote-endpoint = <&edp_out_panel>;
+			};
+		};
+	};
+
+	hdmi_codec: hdmi-codec {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "HDMI-CODEC";
+
+		simple-audio-card,cpu {
+			sound-dai = <&i2s2>;
+		};
+
+		simple-audio-card,codec {
+			sound-dai = <&hdmi>;
+		};
+	};
+};
+
+&mipi_dsi {
+	status = "okay";
+	panel {
+		compatible ="boe,tv080wum-nl0";
+		reg = <0>;
+		backlight = <&backlight>;
+		enable-gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+};
+
+&edp {
+	status = "disabled";
+
+	ports {
+		edp_out: port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			edp_out_panel: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&panel_in_edp>;
+			};
+		};
+	};
+};
+
+&hdmi {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	#sound-dai-cells = <0>;
+	status = "okay";
+};
+
+&i2s2 {
+	#sound-dai-cells = <0>;
+	status = "okay";
+};
+
+&vopb {
+	status = "okay";
+};
+
+&vopb_mmu {
+	status = "okay";
+};
+
+&vopl {
+	status = "okay";
+};
+
+&vopl_mmu {
+	status = "okay";
+};
+
+&display_subsystem {
+	status = "okay";
 };

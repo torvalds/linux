@@ -42,10 +42,10 @@
 
 /dts-v1/;
 
-#include "rk3399-evb-rev2.dtsi"
+#include "rk3399-evb-rev3.dtsi"
 #include "rk3399-evb-cros.dtsi"
 
 / {
-	model = "Rockchip RK3399 Evaluation Board v2 (Chrome OS)";
-	compatible = "google,rk3399evb-rev2", "rockchip,rk3399-evb-rev2", "rockchip,rk3399";
+	model = "Rockchip RK3399 Evaluation Board v3 (Chrome OS)";
+	compatible = "google,rk3399evb-rev3", "rockchip,rk3399-evb-rev3", "rockchip,rk3399";
 };
