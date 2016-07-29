@@ -167,6 +167,7 @@ static void ovl_instantiate(struct dentry *dentry, struct inode *inode,
 {
 	ovl_dentry_version_inc(dentry->d_parent);
 	ovl_dentry_update(dentry, newdentry);
+	ovl_inode_update(inode, d_inode(newdentry));
 	ovl_copyattr(newdentry->d_inode, inode);
 	d_instantiate(dentry, inode);
 }
@@ -416,7 +417,7 @@ static int ovl_create_or_link(struct dentry *dentry, int mode, dev_t rdev,
 	};
 
 	err = -ENOMEM;
-	inode = ovl_new_inode(dentry->d_sb, mode, dentry->d_fsdata);
+	inode = ovl_new_inode(dentry->d_sb, mode);
 	if (!inode)
 		goto out;
 

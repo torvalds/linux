@@ -27,6 +27,8 @@ enum ovl_path_type {
 #define OVL_XATTR_PRE_LEN  16
 #define OVL_XATTR_OPAQUE   OVL_XATTR_PRE_NAME"opaque"
 
+#define OVL_ISUPPER_MASK 1UL
+
 static inline int ovl_do_rmdir(struct inode *dir, struct dentry *dentry)
 {
 	int err = vfs_rmdir(dir, dentry);
@@ -131,6 +133,16 @@ static inline int ovl_do_whiteout(struct inode *dir, struct dentry *dentry)
 	return err;
 }
 
+static inline struct inode *ovl_inode_real(struct inode *inode, bool *is_upper)
+{
+	unsigned long x = (unsigned long) READ_ONCE(inode->i_private);
+
+	if (is_upper)
+		*is_upper = x & OVL_ISUPPER_MASK;
+
+	return (struct inode *) (x & ~OVL_ISUPPER_MASK);
+}
+
 enum ovl_path_type ovl_path_type(struct dentry *dentry);
 u64 ovl_dentry_version_get(struct dentry *dentry);
 void ovl_dentry_version_inc(struct dentry *dentry);
@@ -141,8 +153,6 @@ int ovl_path_next(int idx, struct dentry *dentry, struct path *path);
 struct dentry *ovl_dentry_upper(struct dentry *dentry);
 struct dentry *ovl_dentry_lower(struct dentry *dentry);
 struct dentry *ovl_dentry_real(struct dentry *dentry);
-struct dentry *ovl_entry_real(struct ovl_entry *oe, bool *is_upper);
-struct inode *ovl_inode_real(struct inode *inode);
 struct vfsmount *ovl_entry_mnt_real(struct ovl_entry *oe, struct inode *inode,
 				    bool is_upper);
 struct ovl_dir_cache *ovl_dir_cache(struct dentry *dentry);
@@ -155,6 +165,7 @@ void ovl_dentry_set_opaque(struct dentry *dentry, bool opaque);
 bool ovl_is_whiteout(struct dentry *dentry);
 const struct cred *ovl_override_creds(struct super_block *sb);
 void ovl_dentry_update(struct dentry *dentry, struct dentry *upperdentry);
+void ovl_inode_update(struct inode *inode, struct inode *upperinode);
 struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 			  unsigned int flags);
 struct file *ovl_path_open(struct path *path, int flags);
@@ -183,8 +194,7 @@ struct posix_acl *ovl_get_acl(struct inode *inode, int type);
 int ovl_open_maybe_copy_up(struct dentry *dentry, unsigned int file_flags);
 int ovl_update_time(struct inode *inode, struct timespec *ts, int flags);
 
-struct inode *ovl_new_inode(struct super_block *sb, umode_t mode,
-			    struct ovl_entry *oe);
+struct inode *ovl_new_inode(struct super_block *sb, umode_t mode);
 static inline void ovl_copyattr(struct inode *from, struct inode *to)
 {
 	to->i_uid = from->i_uid;

@@ -145,25 +145,11 @@ struct dentry *ovl_dentry_real(struct dentry *dentry)
 	return realdentry;
 }
 
-struct dentry *ovl_entry_real(struct ovl_entry *oe, bool *is_upper)
+static void ovl_inode_init(struct inode *inode, struct inode *realinode,
+			   bool is_upper)
 {
-	struct dentry *realdentry;
-
-	realdentry = ovl_upperdentry_dereference(oe);
-	if (realdentry) {
-		*is_upper = true;
-	} else {
-		realdentry = __ovl_dentry_lower(oe);
-		*is_upper = false;
-	}
-	return realdentry;
-}
-
-struct inode *ovl_inode_real(struct inode *inode)
-{
-	bool tmp;
-
-	return d_inode(ovl_entry_real(inode->i_private, &tmp));
+	WRITE_ONCE(inode->i_private, (unsigned long) realinode |
+		   (is_upper ? OVL_ISUPPER_MASK : 0));
 }
 
 struct vfsmount *ovl_entry_mnt_real(struct ovl_entry *oe, struct inode *inode,
@@ -235,13 +221,19 @@ void ovl_dentry_update(struct dentry *dentry, struct dentry *upperdentry)
 
 	WARN_ON(!inode_is_locked(upperdentry->d_parent->d_inode));
 	WARN_ON(oe->__upperdentry);
-	BUG_ON(!upperdentry->d_inode);
 	/*
 	 * Make sure upperdentry is consistent before making it visible to
 	 * ovl_upperdentry_dereference().
 	 */
 	smp_wmb();
 	oe->__upperdentry = upperdentry;
+}
+
+void ovl_inode_update(struct inode *inode, struct inode *upperinode)
+{
+	WARN_ON(!upperinode);
+	WRITE_ONCE(inode->i_private,
+		   (unsigned long) upperinode | OVL_ISUPPER_MASK);
 }
 
 void ovl_dentry_version_inc(struct dentry *dentry)
@@ -574,14 +566,16 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 
 	if (upperdentry || ctr) {
 		struct dentry *realdentry;
+		struct inode *realinode;
 
 		realdentry = upperdentry ? upperdentry : stack[0].dentry;
+		realinode = d_inode(realdentry);
 
 		err = -ENOMEM;
-		inode = ovl_new_inode(dentry->d_sb, realdentry->d_inode->i_mode,
-				      oe);
+		inode = ovl_new_inode(dentry->d_sb, realinode->i_mode);
 		if (!inode)
 			goto out_free_oe;
+		ovl_inode_init(inode, realinode, !!upperdentry);
 		ovl_copyattr(realdentry->d_inode, inode);
 	}
 
@@ -969,6 +963,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	struct path upperpath = { NULL, NULL };
 	struct path workpath = { NULL, NULL };
 	struct dentry *root_dentry;
+	struct inode *realinode;
 	struct ovl_entry *oe;
 	struct ovl_fs *ufs;
 	struct path *stack = NULL;
@@ -1150,7 +1145,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	if (!oe)
 		goto out_put_cred;
 
-	root_dentry = d_make_root(ovl_new_inode(sb, S_IFDIR, oe));
+	root_dentry = d_make_root(ovl_new_inode(sb, S_IFDIR));
 	if (!root_dentry)
 		goto out_free_oe;
 
@@ -1169,8 +1164,9 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 
 	root_dentry->d_fsdata = oe;
 
-	ovl_copyattr(ovl_dentry_real(root_dentry)->d_inode,
-		     root_dentry->d_inode);
+	realinode = d_inode(ovl_dentry_real(root_dentry));
+	ovl_inode_init(d_inode(root_dentry), realinode, !!upperpath.dentry);
+	ovl_copyattr(realinode, d_inode(root_dentry));
 
 	sb->s_magic = OVERLAYFS_SUPER_MAGIC;
 	sb->s_op = &ovl_super_operations;
