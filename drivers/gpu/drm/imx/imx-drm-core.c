@@ -84,12 +84,6 @@ static int imx_drm_driver_unload(struct drm_device *drm)
 	return 0;
 }
 
-void imx_drm_handle_vblank(struct imx_drm_crtc *imx_drm_crtc)
-{
-	drm_crtc_handle_vblank(imx_drm_crtc->crtc);
-}
-EXPORT_SYMBOL_GPL(imx_drm_handle_vblank);
-
 static int imx_drm_enable_vblank(struct drm_device *drm, unsigned int pipe)
 {
 	struct imx_drm_device *imxdrm = drm->dev_private;
