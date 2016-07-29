@@ -1160,7 +1160,6 @@ int qdio_shutdown(struct ccw_device *cdev, int how)
 	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
 	struct subchannel_id schid;
 	int rc;
-	unsigned long flags;
 
 	if (!irq_ptr)
 		return -ENODEV;
@@ -1190,7 +1189,7 @@ int qdio_shutdown(struct ccw_device *cdev, int how)
 	qdio_shutdown_debug_entries(irq_ptr);
 
 	/* cleanup subchannel */
-	spin_lock_irqsave(get_ccwdev_lock(cdev), flags);
+	spin_lock_irq(get_ccwdev_lock(cdev));
 
 	if (how & QDIO_FLAG_CLEANUP_USING_CLEAR)
 		rc = ccw_device_clear(cdev, QDIO_DOING_CLEANUP);
@@ -1204,12 +1203,12 @@ int qdio_shutdown(struct ccw_device *cdev, int how)
 	}
 
 	qdio_set_state(irq_ptr, QDIO_IRQ_STATE_CLEANUP);
-	spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
+	spin_unlock_irq(get_ccwdev_lock(cdev));
 	wait_event_interruptible_timeout(cdev->private->wait_q,
 		irq_ptr->state == QDIO_IRQ_STATE_INACTIVE ||
 		irq_ptr->state == QDIO_IRQ_STATE_ERR,
 		10 * HZ);
-	spin_lock_irqsave(get_ccwdev_lock(cdev), flags);
+	spin_lock_irq(get_ccwdev_lock(cdev));
 
 no_cleanup:
 	qdio_shutdown_thinint(irq_ptr);
@@ -1217,7 +1216,7 @@ no_cleanup:
 	/* restore interrupt handler */
 	if ((void *)cdev->handler == (void *)qdio_int_handler)
 		cdev->handler = irq_ptr->orig_handler;
-	spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
+	spin_unlock_irq(get_ccwdev_lock(cdev));
 
 	qdio_set_state(irq_ptr, QDIO_IRQ_STATE_INACTIVE);
 	mutex_unlock(&irq_ptr->setup_mutex);
@@ -1344,7 +1343,6 @@ int qdio_establish(struct qdio_initialize *init_data)
 	struct ccw_device *cdev = init_data->cdev;
 	struct subchannel_id schid;
 	struct qdio_irq *irq_ptr;
-	unsigned long saveflags;
 	int rc;
 
 	ccw_device_get_schid(cdev, &schid);
@@ -1373,7 +1371,7 @@ int qdio_establish(struct qdio_initialize *init_data)
 	irq_ptr->ccw.count = irq_ptr->equeue.count;
 	irq_ptr->ccw.cda = (u32)((addr_t)irq_ptr->qdr);
 
-	spin_lock_irqsave(get_ccwdev_lock(cdev), saveflags);
+	spin_lock_irq(get_ccwdev_lock(cdev));
 	ccw_device_set_options_mask(cdev, 0);
 
 	rc = ccw_device_start(cdev, &irq_ptr->ccw, QDIO_DOING_ESTABLISH, 0, 0);
@@ -1381,7 +1379,7 @@ int qdio_establish(struct qdio_initialize *init_data)
 		DBF_ERROR("%4x est IO ERR", irq_ptr->schid.sch_no);
 		DBF_ERROR("rc:%4x", rc);
 	}
-	spin_unlock_irqrestore(get_ccwdev_lock(cdev), saveflags);
+	spin_unlock_irq(get_ccwdev_lock(cdev));
 
 	if (rc) {
 		mutex_unlock(&irq_ptr->setup_mutex);
@@ -1422,7 +1420,6 @@ int qdio_activate(struct ccw_device *cdev)
 	struct subchannel_id schid;
 	struct qdio_irq *irq_ptr;
 	int rc;
-	unsigned long saveflags;
 
 	ccw_device_get_schid(cdev, &schid);
 	DBF_EVENT("qactivate:%4x", schid.sch_no);
@@ -1445,7 +1442,7 @@ int qdio_activate(struct ccw_device *cdev)
 	irq_ptr->ccw.count = irq_ptr->aqueue.count;
 	irq_ptr->ccw.cda = 0;
 
-	spin_lock_irqsave(get_ccwdev_lock(cdev), saveflags);
+	spin_lock_irq(get_ccwdev_lock(cdev));
 	ccw_device_set_options(cdev, CCWDEV_REPORT_ALL);
 
 	rc = ccw_device_start(cdev, &irq_ptr->ccw, QDIO_DOING_ACTIVATE,
@@ -1454,7 +1451,7 @@ int qdio_activate(struct ccw_device *cdev)
 		DBF_ERROR("%4x act IO ERR", irq_ptr->schid.sch_no);
 		DBF_ERROR("rc:%4x", rc);
 	}
-	spin_unlock_irqrestore(get_ccwdev_lock(cdev), saveflags);
+	spin_unlock_irq(get_ccwdev_lock(cdev));
 
 	if (rc)
 		goto out;
