@@ -160,8 +160,8 @@ void udp_set_csum(bool nocheck, struct sk_buff *skb,
 
 static inline void udp_csum_pull_header(struct sk_buff *skb)
 {
-	if (skb->ip_summed == CHECKSUM_NONE)
-		skb->csum = csum_partial(udp_hdr(skb), sizeof(struct udphdr),
+	if (!skb->csum_valid && skb->ip_summed == CHECKSUM_NONE)
+		skb->csum = csum_partial(skb->data, sizeof(struct udphdr),
 					 skb->csum);
 	skb_pull_rcsum(skb, sizeof(struct udphdr));
 	UDP_SKB_CB(skb)->cscov -= sizeof(struct udphdr);

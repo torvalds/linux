@@ -263,7 +263,7 @@ static bool check_hw_exists(void)
 
 msr_fail:
 	pr_cont("Broken PMU hardware detected, using software events only.\n");
-	pr_info("%sFailed to access perfctr msr (MSR %x is %Lx)\n",
+	printk("%sFailed to access perfctr msr (MSR %x is %Lx)\n",
 		boot_cpu_has(X86_FEATURE_HYPERVISOR) ? KERN_INFO : KERN_ERR,
 		reg, val_new);
 
@@ -1621,6 +1621,29 @@ ssize_t events_sysfs_show(struct device *dev, struct device_attribute *attr, cha
 	return x86_pmu.events_sysfs_show(page, config);
 }
 EXPORT_SYMBOL_GPL(events_sysfs_show);
+
+ssize_t events_ht_sysfs_show(struct device *dev, struct device_attribute *attr,
+			  char *page)
+{
+	struct perf_pmu_events_ht_attr *pmu_attr =
+		container_of(attr, struct perf_pmu_events_ht_attr, attr);
+
+	/*
+	 * Report conditional events depending on Hyper-Threading.
+	 *
+	 * This is overly conservative as usually the HT special
+	 * handling is not needed if the other CPU thread is idle.
+	 *
+	 * Note this does not (and cannot) handle the case when thread
+	 * siblings are invisible, for example with virtualization
+	 * if they are owned by some other guest.  The user tool
+	 * has to re-read when a thread sibling gets onlined later.
+	 */
+	return sprintf(page, "%s",
+			topology_max_smt_threads() > 1 ?
+			pmu_attr->event_str_ht :
+			pmu_attr->event_str_noht);
+}
 
 EVENT_ATTR(cpu-cycles,			CPU_CYCLES		);
 EVENT_ATTR(instructions,		INSTRUCTIONS		);

@@ -75,7 +75,7 @@
 	    </mediaobject>
 	</figure>
 	<para>The media infrastructure API was designed to control such
-	    devices. It is divided into four parts.</para>
+	    devices. It is divided into five parts.</para>
 	<para>The first part covers radio, video capture and output,
 		cameras, analog TV devices and codecs.</para>
 	<para>The second part covers the
@@ -87,6 +87,7 @@
 		<xref linkend="fe-delivery-system-t" />.</para>
 	<para>The third part covers the Remote Controller API.</para>
 	<para>The fourth part covers the Media Controller API.</para>
+	<para>The fifth part covers the CEC (Consumer Electronics Control) API.</para>
 	<para>It should also be noted that a media device may also have audio
 	      components, like mixers, PCM capture, PCM playback, etc, which
 	      are controlled via ALSA API.</para>
@@ -106,6 +107,9 @@
 </part>
 <part id="media_common">
 &sub-media-controller;
+</part>
+<part id="cec">
+&sub-cec-api;
 </part>
 
 <chapter id="gen_errors">

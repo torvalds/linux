@@ -823,7 +823,6 @@ struct macb {
 	struct macb_or_gem_ops	macbgem_ops;
 
 	struct mii_bus		*mii_bus;
-	struct phy_device	*phy_dev;
 	int 			link;
 	int 			speed;
 	int 			duplex;

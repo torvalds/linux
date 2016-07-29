@@ -5,6 +5,7 @@ Required properties:
      "brcm,bcm7425-sata-phy"
      "brcm,bcm7445-sata-phy"
      "brcm,iproc-ns2-sata-phy"
+     "brcm,iproc-nsp-sata-phy"
      "brcm,phy-sata3"
 - address-cells: should be 1
 - size-cells: should be 0
@@ -22,7 +23,8 @@ Sub-nodes required properties:
 
 Sub-nodes optional properties:
 - brcm,enable-ssc: use spread spectrum clocking (SSC) on this port
-     This property is not applicable for "brcm,iproc-ns2-sata-phy".
+     This property is not applicable for "brcm,iproc-ns2-sata-phy" and
+     "brcm,iproc-nsp-sata-phy".
 
 Example:
 	sata-phy@f0458100 {

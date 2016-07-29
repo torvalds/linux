@@ -104,7 +104,7 @@ static int lif_set_format(struct v4l2_subdev *subdev,
 	return 0;
 }
 
-static struct v4l2_subdev_pad_ops lif_pad_ops = {
+static const struct v4l2_subdev_pad_ops lif_pad_ops = {
 	.init_cfg = vsp1_entity_init_cfg,
 	.enum_mbus_code = lif_enum_mbus_code,
 	.enum_frame_size = lif_enum_frame_size,
@@ -112,7 +112,7 @@ static struct v4l2_subdev_pad_ops lif_pad_ops = {
 	.set_fmt = lif_set_format,
 };
 
-static struct v4l2_subdev_ops lif_ops = {
+static const struct v4l2_subdev_ops lif_ops = {
 	.pad    = &lif_pad_ops,
 };
 
@@ -122,13 +122,16 @@ static struct v4l2_subdev_ops lif_ops = {
 
 static void lif_configure(struct vsp1_entity *entity,
 			  struct vsp1_pipeline *pipe,
-			  struct vsp1_dl_list *dl)
+			  struct vsp1_dl_list *dl, bool full)
 {
 	const struct v4l2_mbus_framefmt *format;
 	struct vsp1_lif *lif = to_lif(&entity->subdev);
 	unsigned int hbth = 1300;
 	unsigned int obth = 400;
 	unsigned int lbth = 200;
+
+	if (!full)
+		return;
 
 	format = vsp1_entity_get_pad_format(&lif->entity, lif->entity.config,
 					    LIF_PAD_SOURCE);
@@ -165,7 +168,12 @@ struct vsp1_lif *vsp1_lif_create(struct vsp1_device *vsp1)
 	lif->entity.ops = &lif_entity_ops;
 	lif->entity.type = VSP1_ENTITY_LIF;
 
-	ret = vsp1_entity_init(vsp1, &lif->entity, "lif", 2, &lif_ops);
+	/* The LIF is never exposed to userspace, but media entity registration
+	 * requires a function to be set. Use PROC_VIDEO_PIXEL_FORMATTER just to
+	 * avoid triggering a WARN_ON(), the value won't be seen anywhere.
+	 */
+	ret = vsp1_entity_init(vsp1, &lif->entity, "lif", 2, &lif_ops,
+			       MEDIA_ENT_F_PROC_VIDEO_PIXEL_FORMATTER);
 	if (ret < 0)
 		return ERR_PTR(ret);
 

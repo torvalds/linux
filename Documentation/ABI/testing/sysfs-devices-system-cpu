@@ -340,3 +340,13 @@ Description:	POWERNV CPUFreq driver's frequency throttle stats directory and
 		'policyX/throttle_stats' directory and all the attributes are same as
 		the /sys/devices/system/cpu/cpuX/cpufreq/throttle_stats directory and
 		attributes which give the frequency throttle information of the chip.
+
+What:		/sys/devices/system/cpu/cpuX/regs/
+		/sys/devices/system/cpu/cpuX/regs/identification/
+		/sys/devices/system/cpu/cpuX/regs/identification/midr_el1
+		/sys/devices/system/cpu/cpuX/regs/identification/revidr_el1
+Date:		June 2016
+Contact:	Linux ARM Kernel Mailing list <linux-arm-kernel@lists.infradead.org>
+Description:	AArch64 CPU registers
+		'identification' directory exposes the CPU ID registers for
+		 identifying model and revision of the CPU.

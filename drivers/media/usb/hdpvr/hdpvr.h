@@ -107,8 +107,6 @@ struct hdpvr_device {
 	/* waitqueue for data */
 	wait_queue_head_t	wait_data;
 	/**/
-	struct workqueue_struct	*workqueue;
-	/**/
 	struct work_struct	worker;
 	/* current stream owner */
 	struct v4l2_fh		*owner;

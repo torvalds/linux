@@ -113,7 +113,6 @@ struct sh_mobile_ceu_dev {
 	spinlock_t lock;		/* Protects video buffer lists */
 	struct list_head capture;
 	struct vb2_v4l2_buffer *active;
-	struct vb2_alloc_ctx *alloc_ctx;
 
 	struct sh_mobile_ceu_info *pdata;
 	struct completion complete;
@@ -211,13 +210,11 @@ static int sh_mobile_ceu_soft_reset(struct sh_mobile_ceu_dev *pcdev)
  */
 static int sh_mobile_ceu_videobuf_setup(struct vb2_queue *vq,
 			unsigned int *count, unsigned int *num_planes,
-			unsigned int sizes[], void *alloc_ctxs[])
+			unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct soc_camera_device *icd = soc_camera_from_vb2q(vq);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
-
-	alloc_ctxs[0] = pcdev->alloc_ctx;
 
 	if (!vq->num_buffers)
 		pcdev->sequence = 0;
@@ -1670,6 +1667,7 @@ static int sh_mobile_ceu_init_videobuf(struct vb2_queue *q,
 	q->buf_struct_size = sizeof(struct sh_mobile_ceu_buffer);
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &ici->host_lock;
+	q->dev = ici->v4l2_dev.dev;
 
 	return vb2_queue_init(q);
 }
@@ -1822,12 +1820,6 @@ static int sh_mobile_ceu_probe(struct platform_device *pdev)
 	pcdev->ici.ops = &sh_mobile_ceu_host_ops;
 	pcdev->ici.capabilities = SOCAM_HOST_CAP_STRIDE;
 
-	pcdev->alloc_ctx = vb2_dma_contig_init_ctx(&pdev->dev);
-	if (IS_ERR(pcdev->alloc_ctx)) {
-		err = PTR_ERR(pcdev->alloc_ctx);
-		goto exit_free_clk;
-	}
-
 	if (pcdev->pdata && pcdev->pdata->asd_sizes) {
 		struct v4l2_async_subdev **asd;
 		char name[] = "sh-mobile-csi2";
@@ -1872,7 +1864,7 @@ static int sh_mobile_ceu_probe(struct platform_device *pdev)
 
 		if (!csi2_pdev) {
 			err = -ENOMEM;
-			goto exit_free_ctx;
+			goto exit_free_clk;
 		}
 
 		pcdev->csi2_pdev		= csi2_pdev;
@@ -1955,8 +1947,6 @@ exit_pdev_put:
 		pcdev->csi2_pdev->resource = NULL;
 		platform_device_put(pcdev->csi2_pdev);
 	}
-exit_free_ctx:
-	vb2_dma_contig_cleanup_ctx(pcdev->alloc_ctx);
 exit_free_clk:
 	pm_runtime_disable(&pdev->dev);
 exit_release_mem:
@@ -1976,7 +1966,6 @@ static int sh_mobile_ceu_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	if (platform_get_resource(pdev, IORESOURCE_MEM, 1))
 		dma_release_declared_memory(&pdev->dev);
-	vb2_dma_contig_cleanup_ctx(pcdev->alloc_ctx);
 	if (csi2_pdev && csi2_pdev->dev.driver) {
 		struct module *csi2_drv = csi2_pdev->dev.driver->owner;
 		platform_device_del(csi2_pdev);

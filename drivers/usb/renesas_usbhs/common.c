@@ -697,7 +697,7 @@ probe_end_fifo_exit:
 probe_end_pipe_exit:
 	usbhs_pipe_remove(priv);
 
-	dev_info(&pdev->dev, "probe failed\n");
+	dev_info(&pdev->dev, "probe failed (%d)\n", ret);
 
 	return ret;
 }

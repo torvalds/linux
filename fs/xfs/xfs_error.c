@@ -55,11 +55,14 @@ xfs_error_test(int error_tag, int *fsidp, char *expression,
 }
 
 int
-xfs_errortag_add(int error_tag, xfs_mount_t *mp)
+xfs_errortag_add(unsigned int error_tag, xfs_mount_t *mp)
 {
 	int i;
 	int len;
 	int64_t fsid;
+
+	if (error_tag >= XFS_ERRTAG_MAX)
+		return -EINVAL;
 
 	memcpy(&fsid, mp->m_fixedfsid, sizeof(xfs_fsid_t));
 

@@ -135,7 +135,8 @@ struct rtl8xxxu_rxdesc16 {
 
 	u32 seq:12;
 	u32 frag:4;
-	u32 nextpktlen:14;
+	u32 pkt_cnt:8;
+	u32 reserved:6;
 	u32 nextind:1;
 	u32 reserved0:1;
 
@@ -198,7 +199,8 @@ struct rtl8xxxu_rxdesc16 {
 
 	u32 reserved0:1;
 	u32 nextind:1;
-	u32 nextpktlen:14;
+	u32 reserved:6;
+	u32 pkt_cnt:8;
 	u32 frag:4;
 	u32 seq:12;
 
@@ -1245,6 +1247,7 @@ struct rtl8xxxu_priv {
 	u32 ep_tx_normal_queue:1;
 	u32 ep_tx_low_queue:1;
 	u32 has_xtalk:1;
+	u32 rx_buf_aggregation:1;
 	u8 xtalk;
 	unsigned int pipe_interrupt;
 	unsigned int pipe_in;
@@ -1315,8 +1318,7 @@ struct rtl8xxxu_fileops {
 	void (*phy_init_antenna_selection) (struct rtl8xxxu_priv *priv);
 	void (*phy_iq_calibrate) (struct rtl8xxxu_priv *priv);
 	void (*config_channel) (struct ieee80211_hw *hw);
-	int (*parse_rx_desc) (struct rtl8xxxu_priv *priv, struct sk_buff *skb,
-			      struct ieee80211_rx_status *rx_status);
+	int (*parse_rx_desc) (struct rtl8xxxu_priv *priv, struct sk_buff *skb);
 	void (*init_aggregation) (struct rtl8xxxu_priv *priv);
 	void (*init_statistics) (struct rtl8xxxu_priv *priv);
 	void (*enable_rf) (struct rtl8xxxu_priv *priv);
@@ -1329,6 +1331,7 @@ struct rtl8xxxu_fileops {
 	void (*report_connect) (struct rtl8xxxu_priv *priv,
 				u8 macid, bool connect);
 	int writeN_block_size;
+	int rx_agg_buf_size;
 	char tx_desc_size;
 	char rx_desc_size;
 	char has_s0s1;
@@ -1409,13 +1412,12 @@ void rtl8xxxu_gen1_report_connect(struct rtl8xxxu_priv *priv,
 				  u8 macid, bool connect);
 void rtl8xxxu_gen2_report_connect(struct rtl8xxxu_priv *priv,
 				  u8 macid, bool connect);
+void rtl8xxxu_gen1_init_aggregation(struct rtl8xxxu_priv *priv);
 void rtl8xxxu_gen1_enable_rf(struct rtl8xxxu_priv *priv);
 void rtl8xxxu_gen1_disable_rf(struct rtl8xxxu_priv *priv);
 void rtl8xxxu_gen2_disable_rf(struct rtl8xxxu_priv *priv);
-int rtl8xxxu_parse_rxdesc16(struct rtl8xxxu_priv *priv, struct sk_buff *skb,
-			    struct ieee80211_rx_status *rx_status);
-int rtl8xxxu_parse_rxdesc24(struct rtl8xxxu_priv *priv, struct sk_buff *skb,
-			    struct ieee80211_rx_status *rx_status);
+int rtl8xxxu_parse_rxdesc16(struct rtl8xxxu_priv *priv, struct sk_buff *skb);
+int rtl8xxxu_parse_rxdesc24(struct rtl8xxxu_priv *priv, struct sk_buff *skb);
 int rtl8xxxu_gen2_channel_to_group(int channel);
 bool rtl8xxxu_gen2_simularity_compare(struct rtl8xxxu_priv *priv,
 				      int result[][8], int c1, int c2);

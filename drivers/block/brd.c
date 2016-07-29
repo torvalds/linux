@@ -339,7 +339,7 @@ static blk_qc_t brd_make_request(struct request_queue *q, struct bio *bio)
 	if (bio_end_sector(bio) > get_capacity(bdev->bd_disk))
 		goto io_error;
 
-	if (unlikely(bio->bi_rw & REQ_DISCARD)) {
+	if (unlikely(bio_op(bio) == REQ_OP_DISCARD)) {
 		if (sector & ((PAGE_SIZE >> SECTOR_SHIFT) - 1) ||
 		    bio->bi_iter.bi_size & ~PAGE_MASK)
 			goto io_error;
@@ -347,9 +347,7 @@ static blk_qc_t brd_make_request(struct request_queue *q, struct bio *bio)
 		goto out;
 	}
 
-	rw = bio_rw(bio);
-	if (rw == READA)
-		rw = READ;
+	rw = bio_data_dir(bio);
 
 	bio_for_each_segment(bvec, bio, iter) {
 		unsigned int len = bvec.bv_len;
@@ -381,7 +379,7 @@ static int brd_rw_page(struct block_device *bdev, sector_t sector,
 
 #ifdef CONFIG_BLK_DEV_RAM_DAX
 static long brd_direct_access(struct block_device *bdev, sector_t sector,
-			void __pmem **kaddr, pfn_t *pfn, long size)
+			void **kaddr, pfn_t *pfn, long size)
 {
 	struct brd_device *brd = bdev->bd_disk->private_data;
 	struct page *page;
@@ -391,7 +389,7 @@ static long brd_direct_access(struct block_device *bdev, sector_t sector,
 	page = brd_insert_page(brd, sector);
 	if (!page)
 		return -ENOSPC;
-	*kaddr = (void __pmem *)page_address(page);
+	*kaddr = page_address(page);
 	*pfn = page_to_pfn_t(page);
 
 	return PAGE_SIZE;
@@ -509,7 +507,9 @@ static struct brd_device *brd_alloc(int i)
 	blk_queue_max_discard_sectors(brd->brd_queue, UINT_MAX);
 	brd->brd_queue->limits.discard_zeroes_data = 1;
 	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, brd->brd_queue);
-
+#ifdef CONFIG_BLK_DEV_RAM_DAX
+	queue_flag_set_unlocked(QUEUE_FLAG_DAX, brd->brd_queue);
+#endif
 	disk = brd->brd_disk = alloc_disk(max_part);
 	if (!disk)
 		goto out_free_queue;

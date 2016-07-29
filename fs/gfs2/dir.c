@@ -1513,7 +1513,7 @@ static void gfs2_dir_readahead(struct inode *inode, unsigned hsize, u32 index,
 				continue;
 			}
 			bh->b_end_io = end_buffer_read_sync;
-			submit_bh(READA | REQ_META, bh);
+			submit_bh(REQ_OP_READ, REQ_RAHEAD | REQ_META, bh);
 			continue;
 		}
 		brelse(bh);
@@ -1663,7 +1663,8 @@ struct inode *gfs2_dir_search(struct inode *dir, const struct qstr *name,
 		brelse(bh);
 		if (fail_on_exist)
 			return ERR_PTR(-EEXIST);
-		inode = gfs2_inode_lookup(dir->i_sb, dtype, addr, formal_ino);
+		inode = gfs2_inode_lookup(dir->i_sb, dtype, addr, formal_ino,
+					  GFS2_BLKST_FREE /* ignore */);
 		if (!IS_ERR(inode))
 			GFS2_I(inode)->i_rahead = rahead;
 		return inode;

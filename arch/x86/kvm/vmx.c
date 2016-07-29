@@ -2707,8 +2707,7 @@ static void nested_vmx_setup_ctls_msrs(struct vcpu_vmx *vmx)
 		SECONDARY_EXEC_APIC_REGISTER_VIRT |
 		SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY |
 		SECONDARY_EXEC_WBINVD_EXITING |
-		SECONDARY_EXEC_XSAVES |
-		SECONDARY_EXEC_PCOMMIT;
+		SECONDARY_EXEC_XSAVES;
 
 	if (enable_ept) {
 		/* nested EPT: emulate EPT also to L1 */
@@ -3270,7 +3269,6 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 			SECONDARY_EXEC_SHADOW_VMCS |
 			SECONDARY_EXEC_XSAVES |
 			SECONDARY_EXEC_ENABLE_PML |
-			SECONDARY_EXEC_PCOMMIT |
 			SECONDARY_EXEC_TSC_SCALING;
 		if (adjust_vmx_controls(min2, opt2,
 					MSR_IA32_VMX_PROCBASED_CTLS2,
@@ -4858,9 +4856,6 @@ static u32 vmx_secondary_exec_control(struct vcpu_vmx *vmx)
 	if (!enable_pml)
 		exec_control &= ~SECONDARY_EXEC_ENABLE_PML;
 
-	/* Currently, we allow L1 guest to directly run pcommit instruction. */
-	exec_control &= ~SECONDARY_EXEC_PCOMMIT;
-
 	return exec_control;
 }
 
@@ -4904,9 +4899,10 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 
 	vmcs_write32(CPU_BASED_VM_EXEC_CONTROL, vmx_exec_control(vmx));
 
-	if (cpu_has_secondary_exec_ctrls())
+	if (cpu_has_secondary_exec_ctrls()) {
 		vmcs_write32(SECONDARY_VM_EXEC_CONTROL,
 				vmx_secondary_exec_control(vmx));
+	}
 
 	if (kvm_vcpu_apicv_active(&vmx->vcpu)) {
 		vmcs_write64(EOI_EXIT_BITMAP0, 0);
@@ -4978,6 +4974,12 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 
 	if (vmx_xsaves_supported())
 		vmcs_write64(XSS_EXIT_BITMAP, VMX_XSS_EXIT_BITMAP);
+
+	if (enable_pml) {
+		ASSERT(vmx->pml_pg);
+		vmcs_write64(PML_ADDRESS, page_to_phys(vmx->pml_pg));
+		vmcs_write16(GUEST_PML_INDEX, PML_ENTITY_NUM - 1);
+	}
 
 	return 0;
 }
@@ -7558,13 +7560,6 @@ static int handle_pml_full(struct kvm_vcpu *vcpu)
 	return 1;
 }
 
-static int handle_pcommit(struct kvm_vcpu *vcpu)
-{
-	/* we never catch pcommit instruct for L1 guest. */
-	WARN_ON(1);
-	return 1;
-}
-
 /*
  * The exit handlers return 1 if the exit was handled fully and guest execution
  * may resume.  Otherwise they set the kvm_run parameter to indicate what needs
@@ -7615,7 +7610,6 @@ static int (*const kvm_vmx_exit_handlers[])(struct kvm_vcpu *vcpu) = {
 	[EXIT_REASON_XSAVES]                  = handle_xsaves,
 	[EXIT_REASON_XRSTORS]                 = handle_xrstors,
 	[EXIT_REASON_PML_FULL]		      = handle_pml_full,
-	[EXIT_REASON_PCOMMIT]                 = handle_pcommit,
 };
 
 static const int kvm_vmx_max_exit_handlers =
@@ -7924,8 +7918,6 @@ static bool nested_vmx_exit_handled(struct kvm_vcpu *vcpu)
 		 * the XSS exit bitmap in vmcs12.
 		 */
 		return nested_cpu_has2(vmcs12, SECONDARY_EXEC_XSAVES);
-	case EXIT_REASON_PCOMMIT:
-		return nested_cpu_has2(vmcs12, SECONDARY_EXEC_PCOMMIT);
 	default:
 		return true;
 	}
@@ -7935,22 +7927,6 @@ static void vmx_get_exit_info(struct kvm_vcpu *vcpu, u64 *info1, u64 *info2)
 {
 	*info1 = vmcs_readl(EXIT_QUALIFICATION);
 	*info2 = vmcs_read32(VM_EXIT_INTR_INFO);
-}
-
-static int vmx_create_pml_buffer(struct vcpu_vmx *vmx)
-{
-	struct page *pml_pg;
-
-	pml_pg = alloc_page(GFP_KERNEL | __GFP_ZERO);
-	if (!pml_pg)
-		return -ENOMEM;
-
-	vmx->pml_pg = pml_pg;
-
-	vmcs_write64(PML_ADDRESS, page_to_phys(vmx->pml_pg));
-	vmcs_write16(GUEST_PML_INDEX, PML_ENTITY_NUM - 1);
-
-	return 0;
 }
 
 static void vmx_destroy_pml_buffer(struct vcpu_vmx *vmx)
@@ -8224,6 +8200,7 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 	if ((vectoring_info & VECTORING_INFO_VALID_MASK) &&
 			(exit_reason != EXIT_REASON_EXCEPTION_NMI &&
 			exit_reason != EXIT_REASON_EPT_VIOLATION &&
+			exit_reason != EXIT_REASON_PML_FULL &&
 			exit_reason != EXIT_REASON_TASK_SWITCH)) {
 		vcpu->run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
 		vcpu->run->internal.suberror = KVM_INTERNAL_ERROR_DELIVERY_EV;
@@ -8854,6 +8831,22 @@ static void vmx_load_vmcs01(struct kvm_vcpu *vcpu)
 	put_cpu();
 }
 
+/*
+ * Ensure that the current vmcs of the logical processor is the
+ * vmcs01 of the vcpu before calling free_nested().
+ */
+static void vmx_free_vcpu_nested(struct kvm_vcpu *vcpu)
+{
+       struct vcpu_vmx *vmx = to_vmx(vcpu);
+       int r;
+
+       r = vcpu_load(vcpu);
+       BUG_ON(r);
+       vmx_load_vmcs01(vcpu);
+       free_nested(vmx);
+       vcpu_put(vcpu);
+}
+
 static void vmx_free_vcpu(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
@@ -8862,8 +8855,7 @@ static void vmx_free_vcpu(struct kvm_vcpu *vcpu)
 		vmx_destroy_pml_buffer(vmx);
 	free_vpid(vmx->vpid);
 	leave_guest_mode(vcpu);
-	vmx_load_vmcs01(vcpu);
-	free_nested(vmx);
+	vmx_free_vcpu_nested(vcpu);
 	free_loaded_vmcs(vmx->loaded_vmcs);
 	kfree(vmx->guest_msrs);
 	kvm_vcpu_uninit(vcpu);
@@ -8885,14 +8877,26 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 	if (err)
 		goto free_vcpu;
 
+	err = -ENOMEM;
+
+	/*
+	 * If PML is turned on, failure on enabling PML just results in failure
+	 * of creating the vcpu, therefore we can simplify PML logic (by
+	 * avoiding dealing with cases, such as enabling PML partially on vcpus
+	 * for the guest, etc.
+	 */
+	if (enable_pml) {
+		vmx->pml_pg = alloc_page(GFP_KERNEL | __GFP_ZERO);
+		if (!vmx->pml_pg)
+			goto uninit_vcpu;
+	}
+
 	vmx->guest_msrs = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	BUILD_BUG_ON(ARRAY_SIZE(vmx_msr_index) * sizeof(vmx->guest_msrs[0])
 		     > PAGE_SIZE);
 
-	err = -ENOMEM;
-	if (!vmx->guest_msrs) {
-		goto uninit_vcpu;
-	}
+	if (!vmx->guest_msrs)
+		goto free_pml;
 
 	vmx->loaded_vmcs = &vmx->vmcs01;
 	vmx->loaded_vmcs->vmcs = alloc_vmcs();
@@ -8936,18 +8940,6 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 	vmx->nested.current_vmptr = -1ull;
 	vmx->nested.current_vmcs12 = NULL;
 
-	/*
-	 * If PML is turned on, failure on enabling PML just results in failure
-	 * of creating the vcpu, therefore we can simplify PML logic (by
-	 * avoiding dealing with cases, such as enabling PML partially on vcpus
-	 * for the guest, etc.
-	 */
-	if (enable_pml) {
-		err = vmx_create_pml_buffer(vmx);
-		if (err)
-			goto free_vmcs;
-	}
-
 	return &vmx->vcpu;
 
 free_vmcs:
@@ -8955,6 +8947,8 @@ free_vmcs:
 	free_loaded_vmcs(vmx->loaded_vmcs);
 free_msrs:
 	kfree(vmx->guest_msrs);
+free_pml:
+	vmx_destroy_pml_buffer(vmx);
 uninit_vcpu:
 	kvm_vcpu_uninit(&vmx->vcpu);
 free_vcpu:
@@ -9086,15 +9080,6 @@ static void vmx_cpuid_update(struct kvm_vcpu *vcpu)
 
 	if (cpu_has_secondary_exec_ctrls())
 		vmcs_set_secondary_exec_control(secondary_exec_ctl);
-
-	if (static_cpu_has(X86_FEATURE_PCOMMIT) && nested) {
-		if (guest_cpuid_has_pcommit(vcpu))
-			vmx->nested.nested_vmx_secondary_ctls_high |=
-				SECONDARY_EXEC_PCOMMIT;
-		else
-			vmx->nested.nested_vmx_secondary_ctls_high &=
-				~SECONDARY_EXEC_PCOMMIT;
-	}
 }
 
 static void vmx_set_supported_cpuid(u32 func, struct kvm_cpuid_entry2 *entry)
@@ -9707,8 +9692,7 @@ static void prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 		exec_control &= ~(SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES |
 				  SECONDARY_EXEC_RDTSCP |
 				  SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY |
-				  SECONDARY_EXEC_APIC_REGISTER_VIRT |
-				  SECONDARY_EXEC_PCOMMIT);
+				  SECONDARY_EXEC_APIC_REGISTER_VIRT);
 		if (nested_cpu_has(vmcs12,
 				CPU_BASED_ACTIVATE_SECONDARY_CONTROLS))
 			exec_control |= vmcs12->secondary_vm_exec_control;

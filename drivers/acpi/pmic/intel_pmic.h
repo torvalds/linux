@@ -12,8 +12,8 @@ struct intel_pmic_opregion_data {
 	int (*update_power)(struct regmap *r, int reg, int bit, bool on);
 	int (*get_raw_temp)(struct regmap *r, int reg);
 	int (*update_aux)(struct regmap *r, int reg, int raw_temp);
-	int (*get_policy)(struct regmap *r, int reg, u64 *value);
-	int (*update_policy)(struct regmap *r, int reg, int enable);
+	int (*get_policy)(struct regmap *r, int reg, int bit, u64 *value);
+	int (*update_policy)(struct regmap *r, int reg, int bit, int enable);
 	struct pmic_table *power_table;
 	int power_table_count;
 	struct pmic_table *thermal_table;

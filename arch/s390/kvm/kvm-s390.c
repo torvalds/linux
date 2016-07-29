@@ -28,7 +28,7 @@
 #include <linux/vmalloc.h>
 #include <asm/asm-offsets.h>
 #include <asm/lowcore.h>
-#include <asm/etr.h>
+#include <asm/stp.h>
 #include <asm/pgtable.h>
 #include <asm/gmap.h>
 #include <asm/nmi.h>

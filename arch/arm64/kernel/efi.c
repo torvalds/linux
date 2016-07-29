@@ -62,11 +62,59 @@ struct screen_info screen_info __section(.data);
 int __init efi_create_mapping(struct mm_struct *mm, efi_memory_desc_t *md)
 {
 	pteval_t prot_val = create_mapping_protection(md);
+	bool allow_block_mappings = (md->type != EFI_RUNTIME_SERVICES_CODE &&
+				     md->type != EFI_RUNTIME_SERVICES_DATA);
+
+	if (!PAGE_ALIGNED(md->phys_addr) ||
+	    !PAGE_ALIGNED(md->num_pages << EFI_PAGE_SHIFT)) {
+		/*
+		 * If the end address of this region is not aligned to page
+		 * size, the mapping is rounded up, and may end up sharing a
+		 * page frame with the next UEFI memory region. If we create
+		 * a block entry now, we may need to split it again when mapping
+		 * the next region, and support for that is going to be removed
+		 * from the MMU routines. So avoid block mappings altogether in
+		 * that case.
+		 */
+		allow_block_mappings = false;
+	}
 
 	create_pgd_mapping(mm, md->phys_addr, md->virt_addr,
 			   md->num_pages << EFI_PAGE_SHIFT,
-			   __pgprot(prot_val | PTE_NG));
+			   __pgprot(prot_val | PTE_NG), allow_block_mappings);
 	return 0;
+}
+
+static int __init set_permissions(pte_t *ptep, pgtable_t token,
+				  unsigned long addr, void *data)
+{
+	efi_memory_desc_t *md = data;
+	pte_t pte = *ptep;
+
+	if (md->attribute & EFI_MEMORY_RO)
+		pte = set_pte_bit(pte, __pgprot(PTE_RDONLY));
+	if (md->attribute & EFI_MEMORY_XP)
+		pte = set_pte_bit(pte, __pgprot(PTE_PXN));
+	set_pte(ptep, pte);
+	return 0;
+}
+
+int __init efi_set_mapping_permissions(struct mm_struct *mm,
+				       efi_memory_desc_t *md)
+{
+	BUG_ON(md->type != EFI_RUNTIME_SERVICES_CODE &&
+	       md->type != EFI_RUNTIME_SERVICES_DATA);
+
+	/*
+	 * Calling apply_to_page_range() is only safe on regions that are
+	 * guaranteed to be mapped down to pages. Since we are only called
+	 * for regions that have been mapped using efi_create_mapping() above
+	 * (and this is checked by the generic Memory Attributes table parsing
+	 * routines), there is no need to check that again here.
+	 */
+	return apply_to_page_range(mm, md->virt_addr,
+				   md->num_pages << EFI_PAGE_SHIFT,
+				   set_permissions, md);
 }
 
 static int __init arm64_dmi_init(void)

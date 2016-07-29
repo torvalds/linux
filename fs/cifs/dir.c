@@ -445,7 +445,7 @@ cifs_atomic_open(struct inode *inode, struct dentry *direntry,
 		 * Check for hashed negative dentry. We have already revalidated
 		 * the dentry and it is fine. No need to perform another lookup.
 		 */
-		if (!d_unhashed(direntry))
+		if (!d_in_lookup(direntry))
 			return -ENOENT;
 
 		res = cifs_lookup(inode, direntry, 0);
@@ -856,7 +856,7 @@ static int cifs_ci_hash(const struct dentry *dentry, struct qstr *q)
 	wchar_t c;
 	int i, charlen;
 
-	hash = init_name_hash();
+	hash = init_name_hash(dentry);
 	for (i = 0; i < q->len; i += charlen) {
 		charlen = codepage->char2uni(&q->name[i], q->len - i, &c);
 		/* error out if we can't convert the character */

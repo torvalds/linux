@@ -103,7 +103,8 @@ static int mlxsw_sp_port_pg_prio_map(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	mlxsw_reg_pptb_pack(pptb_pl, mlxsw_sp_port->local_port);
 	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++)
-		mlxsw_reg_pptb_prio_to_buff_set(pptb_pl, i, prio_tc[i]);
+		mlxsw_reg_pptb_prio_to_buff_pack(pptb_pl, i, prio_tc[i]);
+
 	return mlxsw_reg_write(mlxsw_sp_port->mlxsw_sp->core, MLXSW_REG(pptb),
 			       pptb_pl);
 }
@@ -249,6 +250,7 @@ static int mlxsw_sp_dcbnl_ieee_setets(struct net_device *dev,
 		return err;
 
 	memcpy(mlxsw_sp_port->dcb.ets, ets, sizeof(*ets));
+	mlxsw_sp_port->dcb.ets->ets_cap = IEEE_8021QAZ_MAX_TCS;
 
 	return 0;
 }
@@ -351,7 +353,8 @@ static int mlxsw_sp_dcbnl_ieee_setpfc(struct net_device *dev,
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 	int err;
 
-	if (mlxsw_sp_port->link.tx_pause || mlxsw_sp_port->link.rx_pause) {
+	if ((mlxsw_sp_port->link.tx_pause || mlxsw_sp_port->link.rx_pause) &&
+	    pfc->pfc_en) {
 		netdev_err(dev, "PAUSE frames already enabled on port\n");
 		return -EINVAL;
 	}
@@ -371,6 +374,7 @@ static int mlxsw_sp_dcbnl_ieee_setpfc(struct net_device *dev,
 	}
 
 	memcpy(mlxsw_sp_port->dcb.pfc, pfc, sizeof(*pfc));
+	mlxsw_sp_port->dcb.pfc->pfc_cap = IEEE_8021QAZ_MAX_TCS;
 
 	return 0;
 

@@ -1433,7 +1433,7 @@ config SCSI_U14_34F_MAX_TAGS
 
 config SCSI_ULTRASTOR
 	tristate "UltraStor SCSI support"
-	depends on X86 && ISA && SCSI
+	depends on X86 && ISA && SCSI && ISA_DMA_API
 	---help---
 	  This is support for the UltraStor 14F, 24F and 34F SCSI-2 host
 	  adapter family.  This driver is explained in section 3.12 of the

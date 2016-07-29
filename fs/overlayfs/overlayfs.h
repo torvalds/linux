@@ -179,7 +179,7 @@ ssize_t ovl_getxattr(struct dentry *dentry, struct inode *inode,
 		     const char *name, void *value, size_t size);
 ssize_t ovl_listxattr(struct dentry *dentry, char *list, size_t size);
 int ovl_removexattr(struct dentry *dentry, const char *name);
-struct inode *ovl_d_select_inode(struct dentry *dentry, unsigned file_flags);
+int ovl_open_maybe_copy_up(struct dentry *dentry, unsigned int file_flags);
 
 struct inode *ovl_new_inode(struct super_block *sb, umode_t mode,
 			    struct ovl_entry *oe);
@@ -187,6 +187,7 @@ static inline void ovl_copyattr(struct inode *from, struct inode *to)
 {
 	to->i_uid = from->i_uid;
 	to->i_gid = from->i_gid;
+	to->i_mode = from->i_mode;
 }
 
 /* dir.c */

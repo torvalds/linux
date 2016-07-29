@@ -98,10 +98,10 @@
 			 SCTLR_ELx_SA | SCTLR_ELx_I)
 
 /* SCTLR_EL1 specific flags. */
+#define SCTLR_EL1_UCI		(1 << 26)
 #define SCTLR_EL1_SPAN		(1 << 23)
 #define SCTLR_EL1_SED		(1 << 8)
 #define SCTLR_EL1_CP15BEN	(1 << 5)
-
 
 /* id_aa64isar0 */
 #define ID_AA64ISAR0_RDM_SHIFT		28

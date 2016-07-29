@@ -202,7 +202,7 @@ static void __init request_standard_resources(void)
 	struct resource *res;
 
 	kernel_code.start   = virt_to_phys(_text);
-	kernel_code.end     = virt_to_phys(_etext - 1);
+	kernel_code.end     = virt_to_phys(__init_begin - 1);
 	kernel_data.start   = virt_to_phys(_sdata);
 	kernel_data.end     = virt_to_phys(_end - 1);
 
@@ -257,13 +257,16 @@ void __init setup_arch(char **cmdline_p)
 	 */
 	cpu_uninstall_idmap();
 
+	xen_early_init();
 	efi_init();
 	arm64_memblock_init();
 
+	paging_init();
+
+	acpi_table_upgrade();
+
 	/* Parse the ACPI tables for possible boot-time configuration */
 	acpi_boot_table_init();
-
-	paging_init();
 
 	if (acpi_disabled)
 		unflatten_device_tree();
@@ -280,8 +283,6 @@ void __init setup_arch(char **cmdline_p)
 		psci_dt_init();
 	else
 		psci_acpi_init();
-
-	xen_early_init();
 
 	cpu_read_bootcpu_ops();
 	smp_init_cpus();

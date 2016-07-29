@@ -24,12 +24,7 @@
 #include <linux/netdev_features.h>
 #include <linux/udp.h>
 #include <linux/tcp.h>
-#ifdef CONFIG_QEDE_VXLAN
-#include <net/vxlan.h>
-#endif
-#ifdef CONFIG_QEDE_GENEVE
-#include <net/geneve.h>
-#endif
+#include <net/udp_tunnel.h>
 #include <linux/ip.h>
 #include <net/ipv6.h>
 #include <net/tcp.h>
@@ -490,6 +485,24 @@ static bool qede_pkt_req_lin(struct qede_dev *edev, struct sk_buff *skb,
 }
 #endif
 
+static inline void qede_update_tx_producer(struct qede_tx_queue *txq)
+{
+	/* wmb makes sure that the BDs data is updated before updating the
+	 * producer, otherwise FW may read old data from the BDs.
+	 */
+	wmb();
+	barrier();
+	writel(txq->tx_db.raw, txq->doorbell_addr);
+
+	/* mmiowb is needed to synchronize doorbell writes from more than one
+	 * processor. It guarantees that the write arrives to the device before
+	 * the queue lock is released and another start_xmit is called (possibly
+	 * on another CPU). Without this barrier, the next doorbell can bypass
+	 * this doorbell. This is applicable to IA64/Altix systems.
+	 */
+	mmiowb();
+}
+
 /* Main transmit function */
 static
 netdev_tx_t qede_start_xmit(struct sk_buff *skb,
@@ -548,6 +561,7 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb,
 	if (unlikely(dma_mapping_error(&edev->pdev->dev, mapping))) {
 		DP_NOTICE(edev, "SKB mapping failed\n");
 		qede_free_failed_tx_pkt(edev, txq, first_bd, 0, false);
+		qede_update_tx_producer(txq);
 		return NETDEV_TX_OK;
 	}
 	nbd++;
@@ -579,8 +593,6 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb,
 
 	/* Fill the parsing flags & params according to the requested offload */
 	if (xmit_type & XMIT_L4_CSUM) {
-		u16 temp = 1 << ETH_TX_DATA_1ST_BD_TUNN_CFG_OVERRIDE_SHIFT;
-
 		/* We don't re-calculate IP checksum as it is already done by
 		 * the upper stack
 		 */
@@ -590,14 +602,8 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb,
 		if (xmit_type & XMIT_ENC) {
 			first_bd->data.bd_flags.bitfields |=
 				1 << ETH_TX_1ST_BD_FLAGS_IP_CSUM_SHIFT;
-		} else {
-			/* In cases when OS doesn't indicate for inner offloads
-			 * when packet is tunnelled, we need to override the HW
-			 * tunnel configuration so that packets are treated as
-			 * regular non tunnelled packets and no inner offloads
-			 * are done by the hardware.
-			 */
-			first_bd->data.bitfields |= cpu_to_le16(temp);
+			first_bd->data.bitfields |=
+			    1 << ETH_TX_DATA_1ST_BD_TUNN_FLAG_SHIFT;
 		}
 
 		/* If the packet is IPv6 with extension header, indicate that
@@ -655,6 +661,10 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb,
 			tx_data_bd = (struct eth_tx_bd *)third_bd;
 			data_split = true;
 		}
+	} else {
+		first_bd->data.bitfields |=
+		    (skb->len & ETH_TX_DATA_1ST_BD_PKT_LEN_MASK) <<
+		    ETH_TX_DATA_1ST_BD_PKT_LEN_SHIFT;
 	}
 
 	/* Handle fragmented skb */
@@ -666,6 +676,7 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb,
 		if (rc) {
 			qede_free_failed_tx_pkt(edev, txq, first_bd, nbd,
 						data_split);
+			qede_update_tx_producer(txq);
 			return NETDEV_TX_OK;
 		}
 
@@ -690,6 +701,7 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb,
 		if (rc) {
 			qede_free_failed_tx_pkt(edev, txq, first_bd, nbd,
 						data_split);
+			qede_update_tx_producer(txq);
 			return NETDEV_TX_OK;
 		}
 	}
@@ -710,20 +722,8 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb,
 	txq->tx_db.data.bd_prod =
 		cpu_to_le16(qed_chain_get_prod_idx(&txq->tx_pbl));
 
-	/* wmb makes sure that the BDs data is updated before updating the
-	 * producer, otherwise FW may read old data from the BDs.
-	 */
-	wmb();
-	barrier();
-	writel(txq->tx_db.raw, txq->doorbell_addr);
-
-	/* mmiowb is needed to synchronize doorbell writes from more than one
-	 * processor. It guarantees that the write arrives to the device before
-	 * the queue lock is released and another start_xmit is called (possibly
-	 * on another CPU). Without this barrier, the next doorbell can bypass
-	 * this doorbell. This is applicable to IA64/Altix systems.
-	 */
-	mmiowb();
+	if (!skb->xmit_more || netif_tx_queue_stopped(netdev_txq))
+		qede_update_tx_producer(txq);
 
 	if (unlikely(qed_chain_get_elem_left(&txq->tx_pbl)
 		      < (MAX_SKB_FRAGS + 1))) {
@@ -1357,6 +1357,20 @@ static u8 qede_check_csum(u16 flag)
 		return qede_check_tunn_csum(flag);
 }
 
+static bool qede_pkt_is_ip_fragmented(struct eth_fast_path_rx_reg_cqe *cqe,
+				      u16 flag)
+{
+	u8 tun_pars_flg = cqe->tunnel_pars_flags.flags;
+
+	if ((tun_pars_flg & (ETH_TUNNEL_PARSING_FLAGS_IPV4_FRAGMENT_MASK <<
+			     ETH_TUNNEL_PARSING_FLAGS_IPV4_FRAGMENT_SHIFT)) ||
+	    (flag & (PARSING_AND_ERR_FLAGS_IPV4FRAG_MASK <<
+		     PARSING_AND_ERR_FLAGS_IPV4FRAG_SHIFT)))
+		return true;
+
+	return false;
+}
+
 static int qede_rx_int(struct qede_fastpath *fp, int budget)
 {
 	struct qede_dev *edev = fp->edev;
@@ -1435,6 +1449,12 @@ static int qede_rx_int(struct qede_fastpath *fp, int budget)
 
 		csum_flag = qede_check_csum(parse_flag);
 		if (unlikely(csum_flag == QEDE_CSUM_ERROR)) {
+			if (qede_pkt_is_ip_fragmented(&cqe->fast_path_regular,
+						      parse_flag)) {
+				rxq->rx_ip_frags++;
+				goto alloc_skb;
+			}
+
 			DP_NOTICE(edev,
 				  "CQE in CONS = %u has error, flags = %x, dropping incoming packet\n",
 				  sw_comp_cons, parse_flag);
@@ -1443,6 +1463,7 @@ static int qede_rx_int(struct qede_fastpath *fp, int budget)
 			goto next_cqe;
 		}
 
+alloc_skb:
 		skb = netdev_alloc_skb(edev->ndev, QEDE_RX_HDR_SIZE);
 		if (unlikely(!skb)) {
 			DP_NOTICE(edev,
@@ -1453,7 +1474,7 @@ static int qede_rx_int(struct qede_fastpath *fp, int budget)
 		}
 
 		/* Copy data into SKB */
-		if (len + pad <= QEDE_RX_HDR_SIZE) {
+		if (len + pad <= edev->rx_copybreak) {
 			memcpy(skb_put(skb, len),
 			       page_address(data) + pad +
 				sw_rx_data->page_offset, len);
@@ -1585,56 +1606,49 @@ next_cqe: /* don't consume bd rx buffer */
 
 static int qede_poll(struct napi_struct *napi, int budget)
 {
-	int work_done = 0;
 	struct qede_fastpath *fp = container_of(napi, struct qede_fastpath,
-						 napi);
+						napi);
 	struct qede_dev *edev = fp->edev;
+	int rx_work_done = 0;
+	u8 tc;
 
-	while (1) {
-		u8 tc;
+	for (tc = 0; tc < edev->num_tc; tc++)
+		if (qede_txq_has_work(&fp->txqs[tc]))
+			qede_tx_int(edev, &fp->txqs[tc]);
 
-		for (tc = 0; tc < edev->num_tc; tc++)
-			if (qede_txq_has_work(&fp->txqs[tc]))
-				qede_tx_int(edev, &fp->txqs[tc]);
-
-		if (qede_has_rx_work(fp->rxq)) {
-			work_done += qede_rx_int(fp, budget - work_done);
-
-			/* must not complete if we consumed full budget */
-			if (work_done >= budget)
-				break;
-		}
+	rx_work_done = qede_has_rx_work(fp->rxq) ?
+			qede_rx_int(fp, budget) : 0;
+	if (rx_work_done < budget) {
+		qed_sb_update_sb_idx(fp->sb_info);
+		/* *_has_*_work() reads the status block,
+		 * thus we need to ensure that status block indices
+		 * have been actually read (qed_sb_update_sb_idx)
+		 * prior to this check (*_has_*_work) so that
+		 * we won't write the "newer" value of the status block
+		 * to HW (if there was a DMA right after
+		 * qede_has_rx_work and if there is no rmb, the memory
+		 * reading (qed_sb_update_sb_idx) may be postponed
+		 * to right before *_ack_sb). In this case there
+		 * will never be another interrupt until there is
+		 * another update of the status block, while there
+		 * is still unhandled work.
+		 */
+		rmb();
 
 		/* Fall out from the NAPI loop if needed */
-		if (!(qede_has_rx_work(fp->rxq) || qede_has_tx_work(fp))) {
-			qed_sb_update_sb_idx(fp->sb_info);
-			/* *_has_*_work() reads the status block,
-			 * thus we need to ensure that status block indices
-			 * have been actually read (qed_sb_update_sb_idx)
-			 * prior to this check (*_has_*_work) so that
-			 * we won't write the "newer" value of the status block
-			 * to HW (if there was a DMA right after
-			 * qede_has_rx_work and if there is no rmb, the memory
-			 * reading (qed_sb_update_sb_idx) may be postponed
-			 * to right before *_ack_sb). In this case there
-			 * will never be another interrupt until there is
-			 * another update of the status block, while there
-			 * is still unhandled work.
-			 */
-			rmb();
+		if (!(qede_has_rx_work(fp->rxq) ||
+		      qede_has_tx_work(fp))) {
+			napi_complete(napi);
 
-			if (!(qede_has_rx_work(fp->rxq) ||
-			      qede_has_tx_work(fp))) {
-				napi_complete(napi);
-				/* Update and reenable interrupts */
-				qed_sb_ack(fp->sb_info, IGU_INT_ENABLE,
-					   1 /*update*/);
-				break;
-			}
+			/* Update and reenable interrupts */
+			qed_sb_ack(fp->sb_info, IGU_INT_ENABLE,
+				   1 /*update*/);
+		} else {
+			rx_work_done = budget;
 		}
 	}
 
-	return work_done;
+	return rx_work_done;
 }
 
 static irqreturn_t qede_msix_fp_int(int irq, void *fp_cookie)
@@ -2116,75 +2130,75 @@ int qede_set_features(struct net_device *dev, netdev_features_t features)
 	return 0;
 }
 
-#ifdef CONFIG_QEDE_VXLAN
-static void qede_add_vxlan_port(struct net_device *dev,
-				sa_family_t sa_family, __be16 port)
+static void qede_udp_tunnel_add(struct net_device *dev,
+				struct udp_tunnel_info *ti)
 {
 	struct qede_dev *edev = netdev_priv(dev);
-	u16 t_port = ntohs(port);
+	u16 t_port = ntohs(ti->port);
 
-	if (edev->vxlan_dst_port)
+	switch (ti->type) {
+	case UDP_TUNNEL_TYPE_VXLAN:
+		if (edev->vxlan_dst_port)
+			return;
+
+		edev->vxlan_dst_port = t_port;
+
+		DP_VERBOSE(edev, QED_MSG_DEBUG, "Added vxlan port=%d",
+			   t_port);
+
+		set_bit(QEDE_SP_VXLAN_PORT_CONFIG, &edev->sp_flags);
+		break;
+	case UDP_TUNNEL_TYPE_GENEVE:
+		if (edev->geneve_dst_port)
+			return;
+
+		edev->geneve_dst_port = t_port;
+
+		DP_VERBOSE(edev, QED_MSG_DEBUG, "Added geneve port=%d",
+			   t_port);
+		set_bit(QEDE_SP_GENEVE_PORT_CONFIG, &edev->sp_flags);
+		break;
+	default:
 		return;
+	}
 
-	edev->vxlan_dst_port = t_port;
-
-	DP_VERBOSE(edev, QED_MSG_DEBUG, "Added vxlan port=%d", t_port);
-
-	set_bit(QEDE_SP_VXLAN_PORT_CONFIG, &edev->sp_flags);
 	schedule_delayed_work(&edev->sp_task, 0);
 }
 
-static void qede_del_vxlan_port(struct net_device *dev,
-				sa_family_t sa_family, __be16 port)
+static void qede_udp_tunnel_del(struct net_device *dev,
+				struct udp_tunnel_info *ti)
 {
 	struct qede_dev *edev = netdev_priv(dev);
-	u16 t_port = ntohs(port);
+	u16 t_port = ntohs(ti->port);
 
-	if (t_port != edev->vxlan_dst_port)
+	switch (ti->type) {
+	case UDP_TUNNEL_TYPE_VXLAN:
+		if (t_port != edev->vxlan_dst_port)
+			return;
+
+		edev->vxlan_dst_port = 0;
+
+		DP_VERBOSE(edev, QED_MSG_DEBUG, "Deleted vxlan port=%d",
+			   t_port);
+
+		set_bit(QEDE_SP_VXLAN_PORT_CONFIG, &edev->sp_flags);
+		break;
+	case UDP_TUNNEL_TYPE_GENEVE:
+		if (t_port != edev->geneve_dst_port)
+			return;
+
+		edev->geneve_dst_port = 0;
+
+		DP_VERBOSE(edev, QED_MSG_DEBUG, "Deleted geneve port=%d",
+			   t_port);
+		set_bit(QEDE_SP_GENEVE_PORT_CONFIG, &edev->sp_flags);
+		break;
+	default:
 		return;
+	}
 
-	edev->vxlan_dst_port = 0;
-
-	DP_VERBOSE(edev, QED_MSG_DEBUG, "Deleted vxlan port=%d", t_port);
-
-	set_bit(QEDE_SP_VXLAN_PORT_CONFIG, &edev->sp_flags);
 	schedule_delayed_work(&edev->sp_task, 0);
 }
-#endif
-
-#ifdef CONFIG_QEDE_GENEVE
-static void qede_add_geneve_port(struct net_device *dev,
-				 sa_family_t sa_family, __be16 port)
-{
-	struct qede_dev *edev = netdev_priv(dev);
-	u16 t_port = ntohs(port);
-
-	if (edev->geneve_dst_port)
-		return;
-
-	edev->geneve_dst_port = t_port;
-
-	DP_VERBOSE(edev, QED_MSG_DEBUG, "Added geneve port=%d", t_port);
-	set_bit(QEDE_SP_GENEVE_PORT_CONFIG, &edev->sp_flags);
-	schedule_delayed_work(&edev->sp_task, 0);
-}
-
-static void qede_del_geneve_port(struct net_device *dev,
-				 sa_family_t sa_family, __be16 port)
-{
-	struct qede_dev *edev = netdev_priv(dev);
-	u16 t_port = ntohs(port);
-
-	if (t_port != edev->geneve_dst_port)
-		return;
-
-	edev->geneve_dst_port = 0;
-
-	DP_VERBOSE(edev, QED_MSG_DEBUG, "Deleted geneve port=%d", t_port);
-	set_bit(QEDE_SP_GENEVE_PORT_CONFIG, &edev->sp_flags);
-	schedule_delayed_work(&edev->sp_task, 0);
-}
-#endif
 
 static const struct net_device_ops qede_netdev_ops = {
 	.ndo_open = qede_open,
@@ -2208,14 +2222,8 @@ static const struct net_device_ops qede_netdev_ops = {
 	.ndo_get_vf_config = qede_get_vf_config,
 	.ndo_set_vf_rate = qede_set_vf_rate,
 #endif
-#ifdef CONFIG_QEDE_VXLAN
-	.ndo_add_vxlan_port = qede_add_vxlan_port,
-	.ndo_del_vxlan_port = qede_del_vxlan_port,
-#endif
-#ifdef CONFIG_QEDE_GENEVE
-	.ndo_add_geneve_port = qede_add_geneve_port,
-	.ndo_del_geneve_port = qede_del_geneve_port,
-#endif
+	.ndo_udp_tunnel_add = qede_udp_tunnel_add,
+	.ndo_udp_tunnel_del = qede_udp_tunnel_del,
 };
 
 /* -------------------------------------------------------------------------
@@ -2505,8 +2513,13 @@ static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 
 	edev->ops->register_ops(cdev, &qede_ll_ops, edev);
 
+#ifdef CONFIG_DCB
+	qede_set_dcbnl_ops(edev->ndev);
+#endif
+
 	INIT_DELAYED_WORK(&edev->sp_task, qede_sp_task);
 	mutex_init(&edev->qede_lock);
+	edev->rx_copybreak = QEDE_RX_HDR_SIZE;
 
 	DP_INFO(edev, "Ending successfully qede probe\n");
 
@@ -2823,6 +2836,7 @@ static int qede_alloc_mem_rxq(struct qede_dev *edev,
 	rc = edev->ops->common->chain_alloc(edev->cdev,
 					    QED_CHAIN_USE_TO_CONSUME_PRODUCE,
 					    QED_CHAIN_MODE_NEXT_PTR,
+					    QED_CHAIN_CNT_TYPE_U16,
 					    RX_RING_SIZE,
 					    sizeof(struct eth_rx_bd),
 					    &rxq->rx_bd_ring);
@@ -2834,6 +2848,7 @@ static int qede_alloc_mem_rxq(struct qede_dev *edev,
 	rc = edev->ops->common->chain_alloc(edev->cdev,
 					    QED_CHAIN_USE_TO_CONSUME,
 					    QED_CHAIN_MODE_PBL,
+					    QED_CHAIN_CNT_TYPE_U16,
 					    RX_RING_SIZE,
 					    sizeof(union eth_rx_cqe),
 					    &rxq->rx_comp_ring);
@@ -2885,9 +2900,9 @@ static int qede_alloc_mem_txq(struct qede_dev *edev,
 	rc = edev->ops->common->chain_alloc(edev->cdev,
 					    QED_CHAIN_USE_TO_CONSUME_PRODUCE,
 					    QED_CHAIN_MODE_PBL,
+					    QED_CHAIN_CNT_TYPE_U16,
 					    NUM_TX_BDS_MAX,
-					    sizeof(*p_virt),
-					    &txq->tx_pbl);
+					    sizeof(*p_virt), &txq->tx_pbl);
 	if (rc)
 		goto err;
 
@@ -3578,12 +3593,8 @@ static int qede_open(struct net_device *ndev)
 	if (rc)
 		return rc;
 
-#ifdef CONFIG_QEDE_VXLAN
-	vxlan_get_rx_port(ndev);
-#endif
-#ifdef CONFIG_QEDE_GENEVE
-	geneve_get_rx_port(ndev);
-#endif
+	udp_tunnel_get_rx_info(ndev);
+
 	return 0;
 }
 

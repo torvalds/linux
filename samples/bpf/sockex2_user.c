@@ -5,6 +5,7 @@
 #include "bpf_load.h"
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <sys/resource.h>
 
 struct pair {
 	__u64 packets;
@@ -13,11 +14,13 @@ struct pair {
 
 int main(int ac, char **argv)
 {
+	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
 	char filename[256];
 	FILE *f;
 	int i, sock;
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
+	setrlimit(RLIMIT_MEMLOCK, &r);
 
 	if (load_bpf_file(filename)) {
 		printf("%s", bpf_log_buf);

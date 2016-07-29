@@ -480,7 +480,7 @@ static int fuse_atomic_open(struct inode *dir, struct dentry *entry,
 	struct fuse_conn *fc = get_fuse_conn(dir);
 	struct dentry *res = NULL;
 
-	if (d_unhashed(entry)) {
+	if (d_in_lookup(entry)) {
 		res = fuse_lookup(dir, entry, 0);
 		if (IS_ERR(res))
 			return PTR_ERR(res);
@@ -955,6 +955,7 @@ int fuse_reverse_inval_entry(struct super_block *sb, u64 parent_nodeid,
 	if (!dir)
 		goto unlock;
 
+	name->hash = full_name_hash(dir, name->name, name->len);
 	entry = d_lookup(dir, name);
 	dput(dir);
 	if (!entry)
@@ -1204,7 +1205,7 @@ static int fuse_direntplus_link(struct file *file,
 
 	fc = get_fuse_conn(dir);
 
-	name.hash = full_name_hash(name.name, name.len);
+	name.hash = full_name_hash(parent, name.name, name.len);
 	dentry = d_lookup(parent, &name);
 	if (!dentry) {
 retry:

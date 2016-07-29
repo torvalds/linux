@@ -230,7 +230,7 @@ static int vpbe_buffer_prepare(struct vb2_buffer *vb)
 static int
 vpbe_buffer_queue_setup(struct vb2_queue *vq,
 			unsigned int *nbuffers, unsigned int *nplanes,
-			unsigned int sizes[], void *alloc_ctxs[])
+			unsigned int sizes[], struct device *alloc_devs[])
 
 {
 	/* Get the file handle object and layer object */
@@ -242,7 +242,6 @@ vpbe_buffer_queue_setup(struct vb2_queue *vq,
 	/* Store number of buffers allocated in numbuffer member */
 	if (vq->num_buffers + *nbuffers < VPBE_DEFAULT_NUM_BUFS)
 		*nbuffers = VPBE_DEFAULT_NUM_BUFS - vq->num_buffers;
-	alloc_ctxs[0] = layer->alloc_ctx;
 
 	if (*nplanes)
 		return sizes[0] < layer->pix_fmt.sizeimage ? -EINVAL : 0;
@@ -1451,17 +1450,10 @@ static int vpbe_display_probe(struct platform_device *pdev)
 		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		q->min_buffers_needed = 1;
 		q->lock = &disp_dev->dev[i]->opslock;
+		q->dev = disp_dev->vpbe_dev->pdev;
 		err = vb2_queue_init(q);
 		if (err) {
 			v4l2_err(v4l2_dev, "vb2_queue_init() failed\n");
-			goto probe_out;
-		}
-
-		disp_dev->dev[i]->alloc_ctx =
-			vb2_dma_contig_init_ctx(disp_dev->vpbe_dev->pdev);
-		if (IS_ERR(disp_dev->dev[i]->alloc_ctx)) {
-			v4l2_err(v4l2_dev, "Failed to get the context\n");
-			err = PTR_ERR(disp_dev->dev[i]->alloc_ctx);
 			goto probe_out;
 		}
 
@@ -1482,7 +1474,6 @@ probe_out:
 	for (k = 0; k < VPBE_DISPLAY_MAX_DEVICES; k++) {
 		/* Unregister video device */
 		if (disp_dev->dev[k] != NULL) {
-			vb2_dma_contig_cleanup_ctx(disp_dev->dev[k]->alloc_ctx);
 			video_unregister_device(&disp_dev->dev[k]->video_dev);
 			kfree(disp_dev->dev[k]);
 		}
@@ -1510,7 +1501,6 @@ static int vpbe_display_remove(struct platform_device *pdev)
 	for (i = 0; i < VPBE_DISPLAY_MAX_DEVICES; i++) {
 		/* Get the pointer to the layer object */
 		vpbe_display_layer = disp_dev->dev[i];
-		vb2_dma_contig_cleanup_ctx(vpbe_display_layer->alloc_ctx);
 		/* Unregister video device */
 		video_unregister_device(&vpbe_display_layer->video_dev);
 

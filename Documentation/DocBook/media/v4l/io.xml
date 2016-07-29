@@ -88,7 +88,7 @@ function.<footnote>
 <structfield>capabilities</structfield> field of &v4l2-capability;
 returned by the &VIDIOC-QUERYCAP; ioctl is set. There are two
 streaming methods, to determine if the memory mapping flavor is
-supported applications must call the &VIDIOC-REQBUFS; ioctl.</para>
+supported applications must call the &VIDIOC-REQBUFS; ioctl with the memory type set to <constant>V4L2_MEMORY_MMAP</constant>.</para>
 
     <para>Streaming is an I/O method where only pointers to buffers
 are exchanged between application and driver, the data itself is not
@@ -369,7 +369,7 @@ rest should be evident.</para>
 <structfield>capabilities</structfield> field of &v4l2-capability;
 returned by the &VIDIOC-QUERYCAP; ioctl is set. If the particular user
 pointer method (not only memory mapping) is supported must be
-determined by calling the &VIDIOC-REQBUFS; ioctl.</para>
+determined by calling the &VIDIOC-REQBUFS; ioctl with the memory type set to <constant>V4L2_MEMORY_USERPTR</constant>.</para>
 
     <para>This I/O method combines advantages of the read/write and
 memory mapping methods. Buffers (planes) are allocated by the application

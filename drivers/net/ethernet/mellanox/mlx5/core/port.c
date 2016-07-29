@@ -202,15 +202,24 @@ int mlx5_query_port_proto_oper(struct mlx5_core_dev *dev,
 }
 EXPORT_SYMBOL_GPL(mlx5_query_port_proto_oper);
 
-int mlx5_set_port_proto(struct mlx5_core_dev *dev, u32 proto_admin,
-			int proto_mask)
+int mlx5_set_port_ptys(struct mlx5_core_dev *dev, bool an_disable,
+		       u32 proto_admin, int proto_mask)
 {
-	u32 in[MLX5_ST_SZ_DW(ptys_reg)];
 	u32 out[MLX5_ST_SZ_DW(ptys_reg)];
+	u32 in[MLX5_ST_SZ_DW(ptys_reg)];
+	u8 an_disable_admin;
+	u8 an_disable_cap;
+	u8 an_status;
+
+	mlx5_query_port_autoneg(dev, proto_mask, &an_status,
+				&an_disable_cap, &an_disable_admin);
+	if (!an_disable_cap && an_disable)
+		return -EPERM;
 
 	memset(in, 0, sizeof(in));
 
 	MLX5_SET(ptys_reg, in, local_port, 1);
+	MLX5_SET(ptys_reg, in, an_disable_admin, an_disable);
 	MLX5_SET(ptys_reg, in, proto_mask, proto_mask);
 	if (proto_mask == MLX5_PTYS_EN)
 		MLX5_SET(ptys_reg, in, eth_proto_admin, proto_admin);
@@ -220,7 +229,19 @@ int mlx5_set_port_proto(struct mlx5_core_dev *dev, u32 proto_admin,
 	return mlx5_core_access_reg(dev, in, sizeof(in), out,
 				    sizeof(out), MLX5_REG_PTYS, 0, 1);
 }
-EXPORT_SYMBOL_GPL(mlx5_set_port_proto);
+EXPORT_SYMBOL_GPL(mlx5_set_port_ptys);
+
+/* This function should be used after setting a port register only */
+void mlx5_toggle_port_link(struct mlx5_core_dev *dev)
+{
+	enum mlx5_port_status ps;
+
+	mlx5_query_port_admin_status(dev, &ps);
+	mlx5_set_port_admin_status(dev, MLX5_PORT_DOWN);
+	if (ps == MLX5_PORT_UP)
+		mlx5_set_port_admin_status(dev, MLX5_PORT_UP);
+}
+EXPORT_SYMBOL_GPL(mlx5_toggle_port_link);
 
 int mlx5_set_port_admin_status(struct mlx5_core_dev *dev,
 			       enum mlx5_port_status status)
@@ -517,6 +538,25 @@ int mlx5_query_port_pfc(struct mlx5_core_dev *dev, u8 *pfc_en_tx, u8 *pfc_en_rx)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mlx5_query_port_pfc);
+
+void mlx5_query_port_autoneg(struct mlx5_core_dev *dev, int proto_mask,
+			     u8 *an_status,
+			     u8 *an_disable_cap, u8 *an_disable_admin)
+{
+	u32 out[MLX5_ST_SZ_DW(ptys_reg)];
+
+	*an_status = 0;
+	*an_disable_cap = 0;
+	*an_disable_admin = 0;
+
+	if (mlx5_query_port_ptys(dev, out, sizeof(out), proto_mask, 1))
+		return;
+
+	*an_status = MLX5_GET(ptys_reg, out, an_status);
+	*an_disable_cap = MLX5_GET(ptys_reg, out, an_disable_cap);
+	*an_disable_admin = MLX5_GET(ptys_reg, out, an_disable_admin);
+}
+EXPORT_SYMBOL_GPL(mlx5_query_port_autoneg);
 
 int mlx5_max_tc(struct mlx5_core_dev *mdev)
 {

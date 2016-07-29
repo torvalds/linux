@@ -219,7 +219,7 @@ vsp1_video_complete_buffer(struct vsp1_video *video)
 
 	spin_unlock_irqrestore(&video->irqlock, flags);
 
-	done->buf.sequence = video->sequence++;
+	done->buf.sequence = pipe->sequence;
 	done->buf.vb2_buf.timestamp = ktime_get_ns();
 	for (i = 0; i < done->buf.vb2_buf.num_planes; ++i)
 		vb2_set_plane_payload(&done->buf.vb2_buf, i,
@@ -251,10 +251,16 @@ static void vsp1_video_frame_end(struct vsp1_pipeline *pipe,
 static void vsp1_video_pipeline_run(struct vsp1_pipeline *pipe)
 {
 	struct vsp1_device *vsp1 = pipe->output->entity.vsp1;
+	struct vsp1_entity *entity;
 	unsigned int i;
 
 	if (!pipe->dl)
 		pipe->dl = vsp1_dl_list_get(pipe->output->dlm);
+
+	list_for_each_entry(entity, &pipe->entities, list_pipe) {
+		if (entity->ops->configure)
+			entity->ops->configure(entity, pipe, pipe->dl, false);
+	}
 
 	for (i = 0; i < vsp1->info->rpf_count; ++i) {
 		struct vsp1_rwpf *rwpf = pipe->inputs[i];
@@ -519,8 +525,8 @@ static void vsp1_video_pipeline_put(struct vsp1_pipeline *pipe)
 
 static int
 vsp1_video_queue_setup(struct vb2_queue *vq,
-		     unsigned int *nbuffers, unsigned int *nplanes,
-		     unsigned int sizes[], void *alloc_ctxs[])
+		       unsigned int *nbuffers, unsigned int *nplanes,
+		       unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct vsp1_video *video = vb2_get_drv_priv(vq);
 	const struct v4l2_pix_format_mplane *format = &video->rwpf->format;
@@ -530,20 +536,16 @@ vsp1_video_queue_setup(struct vb2_queue *vq,
 		if (*nplanes != format->num_planes)
 			return -EINVAL;
 
-		for (i = 0; i < *nplanes; i++) {
+		for (i = 0; i < *nplanes; i++)
 			if (sizes[i] < format->plane_fmt[i].sizeimage)
 				return -EINVAL;
-			alloc_ctxs[i] = video->alloc_ctx;
-		}
 		return 0;
 	}
 
 	*nplanes = format->num_planes;
 
-	for (i = 0; i < format->num_planes; ++i) {
+	for (i = 0; i < format->num_planes; ++i)
 		sizes[i] = format->plane_fmt[i].sizeimage;
-		alloc_ctxs[i] = video->alloc_ctx;
-	}
 
 	return 0;
 }
@@ -632,7 +634,7 @@ static int vsp1_video_setup_pipeline(struct vsp1_pipeline *pipe)
 		vsp1_entity_route_setup(entity, pipe->dl);
 
 		if (entity->ops->configure)
-			entity->ops->configure(entity, pipe, pipe->dl);
+			entity->ops->configure(entity, pipe, pipe->dl, true);
 	}
 
 	return 0;
@@ -674,7 +676,7 @@ static void vsp1_video_stop_streaming(struct vb2_queue *vq)
 	int ret;
 
 	mutex_lock(&pipe->lock);
-	if (--pipe->stream_count == 0) {
+	if (--pipe->stream_count == pipe->num_inputs) {
 		/* Stop the pipeline. */
 		ret = vsp1_pipeline_stop(pipe);
 		if (ret == -ETIMEDOUT)
@@ -696,7 +698,7 @@ static void vsp1_video_stop_streaming(struct vb2_queue *vq)
 	spin_unlock_irqrestore(&video->irqlock, flags);
 }
 
-static struct vb2_ops vsp1_video_queue_qops = {
+static const struct vb2_ops vsp1_video_queue_qops = {
 	.queue_setup = vsp1_video_queue_setup,
 	.buf_prepare = vsp1_video_buffer_prepare,
 	.buf_queue = vsp1_video_buffer_queue,
@@ -804,8 +806,6 @@ vsp1_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 
 	if (video->queue.owner && video->queue.owner != file->private_data)
 		return -EBUSY;
-
-	video->sequence = 0;
 
 	/* Get a pipeline for the video node and start streaming on it. No link
 	 * touching an entity in the pipeline can be activated or deactivated
@@ -915,7 +915,7 @@ static int vsp1_video_release(struct file *file)
 	return 0;
 }
 
-static struct v4l2_file_operations vsp1_video_fops = {
+static const struct v4l2_file_operations vsp1_video_fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = video_ioctl2,
 	.open = vsp1_video_open,
@@ -982,13 +982,6 @@ struct vsp1_video *vsp1_video_create(struct vsp1_device *vsp1,
 
 	video_set_drvdata(&video->video, video);
 
-	/* ... and the buffers queue... */
-	video->alloc_ctx = vb2_dma_contig_init_ctx(video->vsp1->dev);
-	if (IS_ERR(video->alloc_ctx)) {
-		ret = PTR_ERR(video->alloc_ctx);
-		goto error;
-	}
-
 	video->queue.type = video->type;
 	video->queue.io_modes = VB2_MMAP | VB2_USERPTR | VB2_DMABUF;
 	video->queue.lock = &video->lock;
@@ -997,6 +990,7 @@ struct vsp1_video *vsp1_video_create(struct vsp1_device *vsp1,
 	video->queue.ops = &vsp1_video_queue_qops;
 	video->queue.mem_ops = &vb2_dma_contig_memops;
 	video->queue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
+	video->queue.dev = video->vsp1->dev;
 	ret = vb2_queue_init(&video->queue);
 	if (ret < 0) {
 		dev_err(video->vsp1->dev, "failed to initialize vb2 queue\n");
@@ -1014,7 +1008,6 @@ struct vsp1_video *vsp1_video_create(struct vsp1_device *vsp1,
 	return video;
 
 error:
-	vb2_dma_contig_cleanup_ctx(video->alloc_ctx);
 	vsp1_video_cleanup(video);
 	return ERR_PTR(ret);
 }
@@ -1024,6 +1017,5 @@ void vsp1_video_cleanup(struct vsp1_video *video)
 	if (video_is_registered(&video->video))
 		video_unregister_device(&video->video);
 
-	vb2_dma_contig_cleanup_ctx(video->alloc_ctx);
 	media_entity_cleanup(&video->video.entity);
 }

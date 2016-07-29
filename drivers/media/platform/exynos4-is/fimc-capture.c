@@ -340,7 +340,7 @@ int fimc_capture_resume(struct fimc_dev *fimc)
 
 static int queue_setup(struct vb2_queue *vq,
 		       unsigned int *num_buffers, unsigned int *num_planes,
-		       unsigned int sizes[], void *allocators[])
+		       unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct fimc_ctx *ctx = vq->drv_priv;
 	struct fimc_frame *frame = &ctx->d_frame;
@@ -354,11 +354,9 @@ static int queue_setup(struct vb2_queue *vq,
 	if (*num_planes) {
 		if (*num_planes != fmt->memplanes)
 			return -EINVAL;
-		for (i = 0; i < *num_planes; i++) {
+		for (i = 0; i < *num_planes; i++)
 			if (sizes[i] < (wh * fmt->depth[i]) / 8)
 				return -EINVAL;
-			allocators[i] = ctx->fimc_dev->alloc_ctx;
-		}
 		return 0;
 	}
 
@@ -371,8 +369,6 @@ static int queue_setup(struct vb2_queue *vq,
 			sizes[i] = frame->payload[i];
 		else
 			sizes[i] = max_t(u32, size, frame->payload[i]);
-
-		allocators[i] = ctx->fimc_dev->alloc_ctx;
 	}
 
 	return 0;
@@ -1779,6 +1775,7 @@ static int fimc_register_capture_device(struct fimc_dev *fimc,
 	q->buf_struct_size = sizeof(struct fimc_vid_buffer);
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &fimc->lock;
+	q->dev = &fimc->pdev->dev;
 
 	ret = vb2_queue_init(q);
 	if (ret)

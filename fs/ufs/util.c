@@ -118,7 +118,7 @@ void ubh_sync_block(struct ufs_buffer_head *ubh)
 		unsigned i;
 
 		for (i = 0; i < ubh->count; i++)
-			write_dirty_buffer(ubh->bh[i], WRITE);
+			write_dirty_buffer(ubh->bh[i], 0);
 
 		for (i = 0; i < ubh->count; i++)
 			wait_on_buffer(ubh->bh[i]);

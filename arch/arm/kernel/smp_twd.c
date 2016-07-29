@@ -390,7 +390,7 @@ int __init twd_local_timer_register(struct twd_local_timer *tlt)
 }
 
 #ifdef CONFIG_OF
-static void __init twd_local_timer_of_register(struct device_node *np)
+static int __init twd_local_timer_of_register(struct device_node *np)
 {
 	int err;
 
@@ -410,6 +410,7 @@ static void __init twd_local_timer_of_register(struct device_node *np)
 
 out:
 	WARN(err, "twd_local_timer_of_register failed (%d)\n", err);
+	return err;
 }
 CLOCKSOURCE_OF_DECLARE(arm_twd_a9, "arm,cortex-a9-twd-timer", twd_local_timer_of_register);
 CLOCKSOURCE_OF_DECLARE(arm_twd_a5, "arm,cortex-a5-twd-timer", twd_local_timer_of_register);

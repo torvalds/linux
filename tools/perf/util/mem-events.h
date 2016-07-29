@@ -18,6 +18,7 @@ enum {
 };
 
 extern struct perf_mem_event perf_mem_events[PERF_MEM_EVENTS__MAX];
+extern unsigned int perf_mem_events__loads_ldlat;
 
 int perf_mem_events__parse(const char *str);
 int perf_mem_events__init(void);

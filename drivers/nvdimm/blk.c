@@ -267,10 +267,8 @@ static int nsblk_attach_disk(struct nd_namespace_blk *nsblk)
 	q = blk_alloc_queue(GFP_KERNEL);
 	if (!q)
 		return -ENOMEM;
-	if (devm_add_action(dev, nd_blk_release_queue, q)) {
-		blk_cleanup_queue(q);
+	if (devm_add_action_or_reset(dev, nd_blk_release_queue, q))
 		return -ENOMEM;
-	}
 
 	blk_queue_make_request(q, nd_blk_make_request);
 	blk_queue_max_hw_sectors(q, UINT_MAX);
@@ -282,19 +280,17 @@ static int nsblk_attach_disk(struct nd_namespace_blk *nsblk)
 	disk = alloc_disk(0);
 	if (!disk)
 		return -ENOMEM;
-	if (devm_add_action(dev, nd_blk_release_disk, disk)) {
-		put_disk(disk);
-		return -ENOMEM;
-	}
 
-	disk->driverfs_dev	= dev;
 	disk->first_minor	= 0;
 	disk->fops		= &nd_blk_fops;
 	disk->queue		= q;
 	disk->flags		= GENHD_FL_EXT_DEVT;
 	nvdimm_namespace_disk_name(&nsblk->common, disk->disk_name);
 	set_capacity(disk, 0);
-	add_disk(disk);
+	device_add_disk(dev, disk);
+
+	if (devm_add_action_or_reset(dev, nd_blk_release_disk, disk))
+		return -ENOMEM;
 
 	if (nsblk_meta_size(nsblk)) {
 		int rc = nd_integrity_init(disk, nsblk_meta_size(nsblk));

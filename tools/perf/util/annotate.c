@@ -354,6 +354,15 @@ static struct ins_ops nop_ops = {
 	.scnprintf = nop__scnprintf,
 };
 
+static struct ins_ops ret_ops = {
+	.scnprintf = ins__raw_scnprintf,
+};
+
+bool ins__is_ret(const struct ins *ins)
+{
+	return ins->ops == &ret_ops;
+}
+
 static struct ins instructions[] = {
 	{ .name = "add",   .ops  = &mov_ops, },
 	{ .name = "addl",  .ops  = &mov_ops, },
@@ -444,6 +453,7 @@ static struct ins instructions[] = {
 	{ .name = "xadd",  .ops  = &mov_ops, },
 	{ .name = "xbeginl", .ops  = &jump_ops, },
 	{ .name = "xbeginq", .ops  = &jump_ops, },
+	{ .name = "retq",  .ops  = &ret_ops, },
 };
 
 static int ins__key_cmp(const void *name, const void *insp)
@@ -1512,13 +1522,14 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map,
 	const char *d_filename;
 	const char *evsel_name = perf_evsel__name(evsel);
 	struct annotation *notes = symbol__annotation(sym);
+	struct sym_hist *h = annotation__histogram(notes, evsel->idx);
 	struct disasm_line *pos, *queue = NULL;
 	u64 start = map__rip_2objdump(map, sym->start);
 	int printed = 2, queue_len = 0;
 	int more = 0;
 	u64 len;
 	int width = 8;
-	int namelen, evsel_name_len, graph_dotted_len;
+	int graph_dotted_len;
 
 	filename = strdup(dso->long_name);
 	if (!filename)
@@ -1530,17 +1541,14 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map,
 		d_filename = basename(filename);
 
 	len = symbol__size(sym);
-	namelen = strlen(d_filename);
-	evsel_name_len = strlen(evsel_name);
 
 	if (perf_evsel__is_group_event(evsel))
 		width *= evsel->nr_members;
 
-	printf(" %-*.*s|	Source code & Disassembly of %s for %s\n",
-	       width, width, "Percent", d_filename, evsel_name);
+	graph_dotted_len = printf(" %-*.*s|	Source code & Disassembly of %s for %s (%" PRIu64 " samples)\n",
+	       width, width, "Percent", d_filename, evsel_name, h->sum);
 
-	graph_dotted_len = width + namelen + evsel_name_len;
-	printf("-%-*.*s-----------------------------------------\n",
+	printf("%-*.*s----\n",
 	       graph_dotted_len, graph_dotted_len, graph_dotted_line);
 
 	if (verbose)
@@ -1674,11 +1682,6 @@ int symbol__tty_annotate(struct symbol *sym, struct map *map,
 	disasm__purge(&symbol__annotation(sym)->src->source);
 
 	return 0;
-}
-
-int hist_entry__annotate(struct hist_entry *he, size_t privsize)
-{
-	return symbol__annotate(he->ms.sym, he->ms.map, privsize);
 }
 
 bool ui__has_annotation(void)

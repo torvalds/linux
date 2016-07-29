@@ -48,7 +48,7 @@ static u8 _rtl8821ae_map_hwqueue_to_fwqueue(struct sk_buff *skb, u8 hw_queue)
 	return skb->priority;
 }
 
-static u16 odm_cfo(char value)
+static u16 odm_cfo(s8 value)
 {
 	int ret_val;
 
@@ -64,9 +64,9 @@ static u16 odm_cfo(char value)
 	return ret_val;
 }
 
-static u8 _rtl8821ae_evm_dbm_jaguar(char value)
+static u8 _rtl8821ae_evm_dbm_jaguar(s8 value)
 {
-	char ret_val = value;
+	s8 ret_val = value;
 
 	/* -33dB~0dB to 33dB ~ 0dB*/
 	if (ret_val == -128)
@@ -88,7 +88,7 @@ static void query_rxphystatus(struct ieee80211_hw *hw,
 	struct phy_status_rpt *p_phystrpt = (struct phy_status_rpt *)p_drvinfo;
 	struct rtl_dm *rtldm = rtl_dm(rtl_priv(hw));
 	struct rtl_phy *rtlphy = &rtlpriv->phy;
-	char rx_pwr_all = 0, rx_pwr[4];
+	s8 rx_pwr_all = 0, rx_pwr[4];
 	u8 rf_rx_num = 0, evm, evmdbm, pwdb_all;
 	u8 i, max_spatial_stream;
 	u32 rssi, total_rssi = 0;
@@ -170,7 +170,7 @@ static void query_rxphystatus(struct ieee80211_hw *hw,
 					pwdb_all = 100;
 			}
 		} else { /* 8821 */
-			char pout = -6;
+			s8 pout = -6;
 
 			switch (lan_idx) {
 			case 5:
@@ -275,7 +275,7 @@ static void query_rxphystatus(struct ieee80211_hw *hw,
 		if (bpacket_match_bssid) {
 			for (i = RF90_PATH_A; i <= RF90_PATH_B; i++)
 				rtl_priv(hw)->dm.cfo_tail[i] =
-					(char)p_phystrpt->cfotail[i];
+					(s8)p_phystrpt->cfotail[i];
 
 			rtl_priv(hw)->dm.packet_count++;
 		}
@@ -716,7 +716,7 @@ void rtl8821ae_tx_fill_desc(struct ieee80211_hw *hw,
 				 PCI_DMA_TODEVICE);
 	if (pci_dma_mapping_error(rtlpci->pdev, mapping)) {
 		RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE,
-			 "DMA mapping error");
+			 "DMA mapping error\n");
 		return;
 	}
 	CLEAR_PCI_TX_DESC_CONTENT(pdesc, sizeof(struct tx_desc_8821ae));
@@ -857,7 +857,7 @@ void rtl8821ae_tx_fill_cmddesc(struct ieee80211_hw *hw,
 
 	if (pci_dma_mapping_error(rtlpci->pdev, mapping)) {
 		RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE,
-			 "DMA mapping error");
+			 "DMA mapping error\n");
 		return;
 	}
 	CLEAR_PCI_TX_DESC_CONTENT(pdesc, TX_DESC_SIZE);

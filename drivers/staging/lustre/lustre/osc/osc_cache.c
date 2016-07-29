@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -127,9 +123,9 @@ static const char *oes_strings[] = {
 		/* ----- part 4 ----- */				      \
 		## __VA_ARGS__);					      \
 	if (lvl == D_ERROR && __ext->oe_dlmlock)			      \
-		LDLM_ERROR(__ext->oe_dlmlock, "extent: %p\n", __ext);	      \
+		LDLM_ERROR(__ext->oe_dlmlock, "extent: %p", __ext);	      \
 	else								      \
-		LDLM_DEBUG(__ext->oe_dlmlock, "extent: %p\n", __ext);	      \
+		LDLM_DEBUG(__ext->oe_dlmlock, "extent: %p", __ext);	      \
 } while (0)
 
 #undef EASSERTF
@@ -1868,7 +1864,8 @@ void osc_dec_unstable_pages(struct ptlrpc_request *req)
 	LASSERT(page_count >= 0);
 
 	for (i = 0; i < page_count; i++)
-		dec_zone_page_state(desc->bd_iov[i].kiov_page, NR_UNSTABLE_NFS);
+		dec_node_page_state(desc->bd_iov[i].kiov_page,
+							NR_UNSTABLE_NFS);
 
 	atomic_sub(page_count, &cli->cl_cache->ccc_unstable_nr);
 	LASSERT(atomic_read(&cli->cl_cache->ccc_unstable_nr) >= 0);
@@ -1902,7 +1899,8 @@ void osc_inc_unstable_pages(struct ptlrpc_request *req)
 	LASSERT(page_count >= 0);
 
 	for (i = 0; i < page_count; i++)
-		inc_zone_page_state(desc->bd_iov[i].kiov_page, NR_UNSTABLE_NFS);
+		inc_node_page_state(desc->bd_iov[i].kiov_page,
+							NR_UNSTABLE_NFS);
 
 	LASSERT(atomic_read(&cli->cl_cache->ccc_unstable_nr) >= 0);
 	atomic_add(page_count, &cli->cl_cache->ccc_unstable_nr);
@@ -2371,7 +2369,7 @@ int osc_prep_async_page(struct osc_object *osc, struct osc_page *ops,
 	oap->oap_obj_off = offset;
 	LASSERT(!(offset & ~PAGE_MASK));
 
-	if (!client_is_remote(exp) && capable(CFS_CAP_SYS_RESOURCE))
+	if (capable(CFS_CAP_SYS_RESOURCE))
 		oap->oap_brw_flags = OBD_BRW_NOQUOTA;
 
 	INIT_LIST_HEAD(&oap->oap_pending_item);
@@ -2410,8 +2408,7 @@ int osc_queue_async_io(const struct lu_env *env, struct cl_io *io,
 
 	/* Set the OBD_BRW_SRVLOCK before the page is queued. */
 	brw_flags |= ops->ops_srvlock ? OBD_BRW_SRVLOCK : 0;
-	if (!client_is_remote(osc_export(osc)) &&
-	    capable(CFS_CAP_SYS_RESOURCE)) {
+	if (capable(CFS_CAP_SYS_RESOURCE)) {
 		brw_flags |= OBD_BRW_NOQUOTA;
 		cmd |= OBD_BRW_NOQUOTA;
 	}
@@ -2773,7 +2770,8 @@ int osc_queue_sync_pages(const struct lu_env *env, struct osc_object *obj,
 	ext->oe_sync = 1;
 	ext->oe_urgent = 1;
 	ext->oe_start = start;
-	ext->oe_end = ext->oe_max_end = end;
+	ext->oe_end = end;
+	ext->oe_max_end = end;
 	ext->oe_obj = obj;
 	ext->oe_srvlock = !!(brw_flags & OBD_BRW_SRVLOCK);
 	ext->oe_nr_pages = page_count;
@@ -3308,7 +3306,8 @@ int osc_lock_discard_pages(const struct lu_env *env, struct osc_object *osc,
 		goto out;
 
 	cb = mode == CLM_READ ? check_and_discard_cb : discard_cb;
-	info->oti_fn_index = info->oti_next_index = start;
+	info->oti_fn_index = start;
+	info->oti_next_index = start;
 	do {
 		res = osc_page_gang_lookup(env, io, osc,
 					   info->oti_next_index, end, cb, osc);

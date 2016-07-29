@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -252,6 +253,20 @@ struct mvm_statistics_general_v8 {
 	u8 reserved[4 - (NUM_MAC_INDEX % 4)];
 } __packed; /* STATISTICS_GENERAL_API_S_VER_8 */
 
+/**
+ * struct mvm_statistics_load - RX statistics for multi-queue devices
+ * @air_time: accumulated air time, per mac
+ * @byte_count: accumulated byte count, per mac
+ * @pkt_count: accumulated packet count, per mac
+ * @avg_energy: average RSSI, per station
+ */
+struct mvm_statistics_load {
+	__le32 air_time[NUM_MAC_INDEX];
+	__le32 byte_count[NUM_MAC_INDEX];
+	__le32 pkt_count[NUM_MAC_INDEX];
+	u8 avg_energy[IWL_MVM_STATION_COUNT];
+} __packed; /* STATISTICS_RX_MAC_STATION_S_VER_1 */
+
 struct mvm_statistics_rx {
 	struct mvm_statistics_rx_phy ofdm;
 	struct mvm_statistics_rx_phy cck;
@@ -266,13 +281,20 @@ struct mvm_statistics_rx {
  * while associated.  To disable this behavior, set DISABLE_NOTIF flag in the
  * STATISTICS_CMD (0x9c), below.
  */
-
 struct iwl_notif_statistics_v10 {
 	__le32 flag;
 	struct mvm_statistics_rx rx;
 	struct mvm_statistics_tx tx;
 	struct mvm_statistics_general_v8 general;
 } __packed; /* STATISTICS_NTFY_API_S_VER_10 */
+
+struct iwl_notif_statistics_v11 {
+	__le32 flag;
+	struct mvm_statistics_rx rx;
+	struct mvm_statistics_tx tx;
+	struct mvm_statistics_general_v8 general;
+	struct mvm_statistics_load load_stats;
+} __packed; /* STATISTICS_NTFY_API_S_VER_11 */
 
 #define IWL_STATISTICS_FLG_CLEAR		0x1
 #define IWL_STATISTICS_FLG_DISABLE_NOTIF	0x2

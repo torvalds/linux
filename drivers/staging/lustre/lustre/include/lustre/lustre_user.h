@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -215,7 +211,7 @@ struct ost_id {
 #define IOC_OBD_STATFS		  _IOWR('f', 164, struct obd_statfs *)
 #define IOC_LOV_GETINFO		 _IOWR('f', 165, struct lov_user_mds_data *)
 #define LL_IOC_FLUSHCTX		 _IOW('f', 166, long)
-#define LL_IOC_RMTACL		   _IOW('f', 167, long)
+/* LL_IOC_RMTACL			167 obsolete */
 #define LL_IOC_GETOBDCOUNT	      _IOR('f', 168, long)
 #define LL_IOC_LLOOP_ATTACH	     _IOWR('f', 169, long)
 #define LL_IOC_LLOOP_DETACH	     _IOWR('f', 170, long)
@@ -540,19 +536,6 @@ struct identity_downcall_data {
 	__u32			    idd_ngroups;
 	struct perm_downcall_data idd_perms[N_PERMS_MAX];
 	__u32			    idd_groups[0];
-};
-
-/* for non-mapped uid/gid */
-#define NOBODY_UID      99
-#define NOBODY_GID      99
-
-#define INVALID_ID      (-1)
-
-enum {
-	RMT_LSETFACL    = 1,
-	RMT_LGETFACL    = 2,
-	RMT_RSETFACL    = 3,
-	RMT_RGETFACL    = 4
 };
 
 /* lustre volatile file support

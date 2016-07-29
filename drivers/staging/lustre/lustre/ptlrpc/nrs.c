@@ -769,7 +769,7 @@ static int nrs_policy_register(struct ptlrpc_nrs *nrs,
 	spin_unlock(&nrs->nrs_lock);
 
 	if (rc != 0)
-		(void) nrs_policy_unregister(nrs, policy->pol_desc->pd_name);
+		(void)nrs_policy_unregister(nrs, policy->pol_desc->pd_name);
 
 	return rc;
 }

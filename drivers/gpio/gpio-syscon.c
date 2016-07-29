@@ -129,7 +129,7 @@ static int syscon_gpio_dir_out(struct gpio_chip *chip, unsigned offset, int val)
 
 static const struct syscon_gpio_data clps711x_mctrl_gpio = {
 	/* ARM CLPS711X SYSFLG1 Bits 8-10 */
-	.compatible	= "cirrus,clps711x-syscon1",
+	.compatible	= "cirrus,ep7209-syscon1",
 	.flags		= GPIO_SYSCON_FEAT_IN,
 	.bit_count	= 3,
 	.dat_bit_offset	= 0x40 * 8 + 8,
@@ -168,7 +168,7 @@ static const struct syscon_gpio_data keystone_dsp_gpio = {
 
 static const struct of_device_id syscon_gpio_ids[] = {
 	{
-		.compatible	= "cirrus,clps711x-mctrl-gpio",
+		.compatible	= "cirrus,ep7209-mctrl-gpio",
 		.data		= &clps711x_mctrl_gpio,
 	},
 	{

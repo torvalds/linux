@@ -84,7 +84,7 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 static int queue_setup(struct vb2_queue *q,
 			   unsigned int *num_buffers, unsigned int *num_planes,
-			   unsigned int sizes[], void *alloc_ctxs[])
+			   unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct cx8802_dev *dev = q->drv_priv;
 
@@ -92,7 +92,6 @@ static int queue_setup(struct vb2_queue *q,
 	dev->ts_packet_size  = 188 * 4;
 	dev->ts_packet_count = dvb_buf_tscnt;
 	sizes[0] = dev->ts_packet_size * dev->ts_packet_count;
-	alloc_ctxs[0] = dev->alloc_ctx;
 	*num_buffers = dvb_buf_tscnt;
 	return 0;
 }
@@ -1793,6 +1792,7 @@ static int cx8802_dvb_probe(struct cx8802_driver *drv)
 		q->mem_ops = &vb2_dma_sg_memops;
 		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		q->lock = &core->lock;
+		q->dev = &dev->pci->dev;
 
 		err = vb2_queue_init(q);
 		if (err < 0)

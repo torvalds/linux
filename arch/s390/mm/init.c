@@ -40,7 +40,7 @@
 #include <asm/ctl_reg.h>
 #include <asm/sclp.h>
 
-pgd_t swapper_pg_dir[PTRS_PER_PGD] __attribute__((__aligned__(PAGE_SIZE)));
+pgd_t swapper_pg_dir[PTRS_PER_PGD] __section(.bss..swapper_pg_dir);
 
 unsigned long empty_zero_page, zero_page_mask;
 EXPORT_SYMBOL(empty_zero_page);
@@ -111,17 +111,16 @@ void __init paging_init(void)
 
 void mark_rodata_ro(void)
 {
-	/* Text and rodata are already protected. Nothing to do here. */
-	pr_info("Write protecting the kernel read-only data: %luk\n",
-		((unsigned long)&_eshared - (unsigned long)&_stext) >> 10);
+	unsigned long size = __end_ro_after_init - __start_ro_after_init;
+
+	set_memory_ro((unsigned long)__start_ro_after_init, size >> PAGE_SHIFT);
+	pr_info("Write protected read-only-after-init data: %luk\n", size >> 10);
 }
 
 void __init mem_init(void)
 {
-	if (MACHINE_HAS_TLB_LC)
-		cpumask_set_cpu(0, &init_mm.context.cpu_attach_mask);
+	cpumask_set_cpu(0, &init_mm.context.cpu_attach_mask);
 	cpumask_set_cpu(0, mm_cpumask(&init_mm));
-	atomic_set(&init_mm.context.attach_count, 1);
 
 	set_max_mapnr(max_low_pfn);
         high_memory = (void *) __va(max_low_pfn * PAGE_SIZE);

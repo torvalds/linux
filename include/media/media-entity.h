@@ -104,7 +104,7 @@ struct media_entity_graph {
 	int top;
 };
 
-/*
+/**
  * struct media_pipeline - Media pipeline related information
  *
  * @streaming_count:	Streaming start count - streaming stop count
@@ -180,8 +180,10 @@ struct media_pad {
  *			view. The media_entity_pipeline_start() function
  *			validates all links by calling this operation. Optional.
  *
- * Note: Those these callbacks are called with struct media_device.@graph_mutex
- * mutex held.
+ * .. note::
+ *
+ *    Those these callbacks are called with struct media_device.@graph_mutex
+ *    mutex held.
  */
 struct media_entity_operations {
 	int (*link_setup)(struct media_entity *entity,
@@ -538,7 +540,7 @@ static inline bool media_entity_enum_intersects(
  * @gobj:	Pointer to the graph object
  *
  * This routine initializes the embedded struct media_gobj inside a
- * media graph object. It is called automatically if media_*_create()
+ * media graph object. It is called automatically if media_*_create\(\)
  * calls are used. However, if the object (entity, link, pad, interface)
  * is embedded on some other object, this function should be called before
  * registering the object at the media controller.
@@ -602,19 +604,20 @@ static inline void media_entity_cleanup(struct media_entity *entity) {};
  * @flags:	Link flags, as defined in include/uapi/linux/media.h.
  *
  * Valid values for flags:
- * A %MEDIA_LNK_FL_ENABLED flag indicates that the link is enabled and can be
- *	used to transfer media data. When two or more links target a sink pad,
- *	only one of them can be enabled at a time.
  *
- * A %MEDIA_LNK_FL_IMMUTABLE flag indicates that the link enabled state can't
- *	be modified at runtime. If %MEDIA_LNK_FL_IMMUTABLE is set, then
- *	%MEDIA_LNK_FL_ENABLED must also be set since an immutable link is
- *	always enabled.
+ * - A %MEDIA_LNK_FL_ENABLED flag indicates that the link is enabled and can
+ *   be used to transfer media data. When two or more links target a sink pad,
+ *   only one of them can be enabled at a time.
  *
- * NOTE:
+ * - A %MEDIA_LNK_FL_IMMUTABLE flag indicates that the link enabled state can't
+ *   be modified at runtime. If %MEDIA_LNK_FL_IMMUTABLE is set, then
+ *   %MEDIA_LNK_FL_ENABLED must also be set since an immutable link is
+ *   always enabled.
  *
- * Before calling this function, media_entity_pads_init() and
- * media_device_register_entity() should be called previously for both ends.
+ * .. note::
+ *
+ *    Before calling this function, media_entity_pads_init() and
+ *    media_device_register_entity() should be called previously for both ends.
  */
 __must_check int media_create_pad_link(struct media_entity *source,
 			u16 source_pad, struct media_entity *sink,
@@ -641,6 +644,7 @@ __must_check int media_create_pad_link(struct media_entity *source,
  *	and @sink are NULL.
  *
  * Valid values for flags:
+ *
  * A %MEDIA_LNK_FL_ENABLED flag indicates that the link is enabled and can be
  *	used to transfer media data. If multiple links are created and this
  *	flag is passed as an argument, only the first created link will have
@@ -677,8 +681,10 @@ void __media_entity_remove_links(struct media_entity *entity);
  *
  * @entity:	pointer to &media_entity
  *
- * Note: this is called automatically when an entity is unregistered via
- * media_device_register_entity().
+ * .. note::
+ *
+ *    This is called automatically when an entity is unregistered via
+ *    media_device_register_entity().
  */
 void media_entity_remove_links(struct media_entity *entity);
 
@@ -728,9 +734,11 @@ int __media_entity_setup_link(struct media_link *link, u32 flags);
  * being enabled, the link_setup operation must return -EBUSY and can't
  * implicitly disable the first enabled link.
  *
- * NOTE: the valid values of the flags for the link is the same as described
- * on media_create_pad_link(), for pad to pad links or the same as described
- * on media_create_intf_link(), for interface to entity links.
+ * .. note::
+ *
+ *    The valid values of the flags for the link is the same as described
+ *    on media_create_pad_link(), for pad to pad links or the same as described
+ *    on media_create_intf_link(), for interface to entity links.
  */
 int media_entity_setup_link(struct media_link *link, u32 flags);
 
@@ -844,7 +852,7 @@ __must_check int media_entity_pipeline_start(struct media_entity *entity,
  * @entity: Starting entity
  * @pipe: Media pipeline to be assigned to all entities in the pipeline.
  *
- * Note: This is the non-locking version of media_entity_pipeline_start()
+ * ..note:: This is the non-locking version of media_entity_pipeline_start()
  */
 __must_check int __media_entity_pipeline_start(struct media_entity *entity,
 					       struct media_pipeline *pipe);
@@ -868,7 +876,7 @@ void media_entity_pipeline_stop(struct media_entity *entity);
  *
  * @entity: Starting entity
  *
- * Note: This is the non-locking version of media_entity_pipeline_stop()
+ * .. note:: This is the non-locking version of media_entity_pipeline_stop()
  */
 void __media_entity_pipeline_stop(struct media_entity *entity);
 
@@ -909,20 +917,21 @@ struct media_link *
  *
  *
  * Valid values for flags:
- * The %MEDIA_LNK_FL_ENABLED flag indicates that the interface is connected to
- *	the entity hardware. That's the default value for interfaces. An
- *	interface may be disabled if the hardware is busy due to the usage
- *	of some other interface that it is currently controlling the hardware.
- *	A typical example is an hybrid TV device that handle only one type of
- *	stream on a given time. So, when the digital TV is streaming,
- *	the V4L2 interfaces won't be enabled, as such device is not able to
- *	also stream analog TV or radio.
  *
- * Note:
+ * - The %MEDIA_LNK_FL_ENABLED flag indicates that the interface is connected to
+ *   the entity hardware. That's the default value for interfaces. An
+ *   interface may be disabled if the hardware is busy due to the usage
+ *   of some other interface that it is currently controlling the hardware.
+ *   A typical example is an hybrid TV device that handle only one type of
+ *   stream on a given time. So, when the digital TV is streaming,
+ *   the V4L2 interfaces won't be enabled, as such device is not able to
+ *   also stream analog TV or radio.
  *
- * Before calling this function, media_devnode_create() should be called for
- * the interface and media_device_register_entity() should be called for the
- * interface that will be part of the link.
+ * .. note::
+ *
+ *    Before calling this function, media_devnode_create() should be called for
+ *    the interface and media_device_register_entity() should be called for the
+ *    interface that will be part of the link.
  */
 __must_check media_create_intf_link(struct media_entity *entity,
 				    struct media_interface *intf,
@@ -932,7 +941,7 @@ __must_check media_create_intf_link(struct media_entity *entity,
  *
  * @link:	pointer to &media_link.
  *
- * Note: this is an unlocked version of media_remove_intf_link()
+ * .. note:: This is an unlocked version of media_remove_intf_link()
  */
 void __media_remove_intf_link(struct media_link *link);
 
@@ -941,7 +950,7 @@ void __media_remove_intf_link(struct media_link *link);
  *
  * @link:	pointer to &media_link.
  *
- * Note: prefer to use this one, instead of __media_remove_intf_link()
+ * .. note:: Prefer to use this one, instead of __media_remove_intf_link()
  */
 void media_remove_intf_link(struct media_link *link);
 
@@ -950,7 +959,7 @@ void media_remove_intf_link(struct media_link *link);
  *
  * @intf:	pointer to &media_interface
  *
- * Note: this is an unlocked version of media_remove_intf_links().
+ * .. note:: This is an unlocked version of media_remove_intf_links().
  */
 void __media_remove_intf_links(struct media_interface *intf);
 
@@ -959,12 +968,12 @@ void __media_remove_intf_links(struct media_interface *intf);
  *
  * @intf:	pointer to &media_interface
  *
- * Notes:
+ * .. note::
  *
- * this is called automatically when an entity is unregistered via
- * media_device_register_entity() and by media_devnode_remove().
+ *   #) This is called automatically when an entity is unregistered via
+ *      media_device_register_entity() and by media_devnode_remove().
  *
- * Prefer to use this one, instead of __media_remove_intf_links().
+ *   #) Prefer to use this one, instead of __media_remove_intf_links().
  */
 void media_remove_intf_links(struct media_interface *intf);
 

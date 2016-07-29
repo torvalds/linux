@@ -76,6 +76,36 @@
 #define atomic_dec_return_release(v)	atomic_sub_return_release(1, (v))
 #define atomic_dec_return(v)		atomic_sub_return(1, (v))
 
+#define atomic_fetch_add_relaxed	atomic_fetch_add_relaxed
+#define atomic_fetch_add_acquire	atomic_fetch_add_acquire
+#define atomic_fetch_add_release	atomic_fetch_add_release
+#define atomic_fetch_add		atomic_fetch_add
+
+#define atomic_fetch_sub_relaxed	atomic_fetch_sub_relaxed
+#define atomic_fetch_sub_acquire	atomic_fetch_sub_acquire
+#define atomic_fetch_sub_release	atomic_fetch_sub_release
+#define atomic_fetch_sub		atomic_fetch_sub
+
+#define atomic_fetch_and_relaxed	atomic_fetch_and_relaxed
+#define atomic_fetch_and_acquire	atomic_fetch_and_acquire
+#define atomic_fetch_and_release	atomic_fetch_and_release
+#define atomic_fetch_and		atomic_fetch_and
+
+#define atomic_fetch_andnot_relaxed	atomic_fetch_andnot_relaxed
+#define atomic_fetch_andnot_acquire	atomic_fetch_andnot_acquire
+#define atomic_fetch_andnot_release	atomic_fetch_andnot_release
+#define atomic_fetch_andnot		atomic_fetch_andnot
+
+#define atomic_fetch_or_relaxed		atomic_fetch_or_relaxed
+#define atomic_fetch_or_acquire		atomic_fetch_or_acquire
+#define atomic_fetch_or_release		atomic_fetch_or_release
+#define atomic_fetch_or			atomic_fetch_or
+
+#define atomic_fetch_xor_relaxed	atomic_fetch_xor_relaxed
+#define atomic_fetch_xor_acquire	atomic_fetch_xor_acquire
+#define atomic_fetch_xor_release	atomic_fetch_xor_release
+#define atomic_fetch_xor		atomic_fetch_xor
+
 #define atomic_xchg_relaxed(v, new)	xchg_relaxed(&((v)->counter), (new))
 #define atomic_xchg_acquire(v, new)	xchg_acquire(&((v)->counter), (new))
 #define atomic_xchg_release(v, new)	xchg_release(&((v)->counter), (new))
@@ -124,6 +154,36 @@
 #define atomic64_dec_return_acquire(v)	atomic64_sub_return_acquire(1, (v))
 #define atomic64_dec_return_release(v)	atomic64_sub_return_release(1, (v))
 #define atomic64_dec_return(v)		atomic64_sub_return(1, (v))
+
+#define atomic64_fetch_add_relaxed	atomic64_fetch_add_relaxed
+#define atomic64_fetch_add_acquire	atomic64_fetch_add_acquire
+#define atomic64_fetch_add_release	atomic64_fetch_add_release
+#define atomic64_fetch_add		atomic64_fetch_add
+
+#define atomic64_fetch_sub_relaxed	atomic64_fetch_sub_relaxed
+#define atomic64_fetch_sub_acquire	atomic64_fetch_sub_acquire
+#define atomic64_fetch_sub_release	atomic64_fetch_sub_release
+#define atomic64_fetch_sub		atomic64_fetch_sub
+
+#define atomic64_fetch_and_relaxed	atomic64_fetch_and_relaxed
+#define atomic64_fetch_and_acquire	atomic64_fetch_and_acquire
+#define atomic64_fetch_and_release	atomic64_fetch_and_release
+#define atomic64_fetch_and		atomic64_fetch_and
+
+#define atomic64_fetch_andnot_relaxed	atomic64_fetch_andnot_relaxed
+#define atomic64_fetch_andnot_acquire	atomic64_fetch_andnot_acquire
+#define atomic64_fetch_andnot_release	atomic64_fetch_andnot_release
+#define atomic64_fetch_andnot		atomic64_fetch_andnot
+
+#define atomic64_fetch_or_relaxed	atomic64_fetch_or_relaxed
+#define atomic64_fetch_or_acquire	atomic64_fetch_or_acquire
+#define atomic64_fetch_or_release	atomic64_fetch_or_release
+#define atomic64_fetch_or		atomic64_fetch_or
+
+#define atomic64_fetch_xor_relaxed	atomic64_fetch_xor_relaxed
+#define atomic64_fetch_xor_acquire	atomic64_fetch_xor_acquire
+#define atomic64_fetch_xor_release	atomic64_fetch_xor_release
+#define atomic64_fetch_xor		atomic64_fetch_xor
 
 #define atomic64_xchg_relaxed		atomic_xchg_relaxed
 #define atomic64_xchg_acquire		atomic_xchg_acquire

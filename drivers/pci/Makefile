@@ -51,6 +51,9 @@ obj-$(CONFIG_ACPI)    += pci-acpi.o
 # SMBIOS provided firmware instance and labels
 obj-$(CONFIG_PCI_LABEL) += pci-label.o
 
+# Intel MID platform PM support
+obj-$(CONFIG_X86_INTEL_MID) += pci-mid.o
+
 obj-$(CONFIG_PCI_SYSCALL) += syscall.o
 
 obj-$(CONFIG_PCI_STUB) += pci-stub.o

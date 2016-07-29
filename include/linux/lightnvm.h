@@ -1,7 +1,9 @@
 #ifndef NVM_H
 #define NVM_H
 
+#include <linux/blkdev.h>
 #include <linux/types.h>
+#include <uapi/linux/lightnvm.h>
 
 enum {
 	NVM_IO_OK = 0,
@@ -269,24 +271,15 @@ struct nvm_lun {
 	int lun_id;
 	int chnl_id;
 
-	/* It is up to the target to mark blocks as closed. If the target does
-	 * not do it, all blocks are marked as open, and nr_open_blocks
-	 * represents the number of blocks in use
-	 */
-	unsigned int nr_open_blocks;	/* Number of used, writable blocks */
-	unsigned int nr_closed_blocks;	/* Number of used, read-only blocks */
-	unsigned int nr_free_blocks;	/* Number of unused blocks */
-	unsigned int nr_bad_blocks;	/* Number of bad blocks */
-
 	spinlock_t lock;
 
+	unsigned int nr_free_blocks;	/* Number of unused blocks */
 	struct nvm_block *blocks;
 };
 
 enum {
 	NVM_BLK_ST_FREE =	0x1,	/* Free block */
-	NVM_BLK_ST_OPEN =	0x2,	/* Open block - read-write */
-	NVM_BLK_ST_CLOSED =	0x4,	/* Closed block - read-only */
+	NVM_BLK_ST_TGT =	0x2,	/* Block in use by target */
 	NVM_BLK_ST_BAD =	0x8,	/* Bad block */
 };
 
@@ -385,6 +378,7 @@ static inline struct ppa_addr dev_to_generic_addr(struct nvm_dev *dev,
 {
 	struct ppa_addr l;
 
+	l.ppa = 0;
 	/*
 	 * (r.ppa << X offset) & X len bitmask. X eq. blk, pg, etc.
 	 */
@@ -455,6 +449,8 @@ struct nvm_tgt_type {
 	struct list_head list;
 };
 
+extern struct nvm_tgt_type *nvm_find_target_type(const char *, int);
+
 extern int nvm_register_tgt_type(struct nvm_tgt_type *);
 extern void nvm_unregister_tgt_type(struct nvm_tgt_type *);
 
@@ -463,6 +459,9 @@ extern void nvm_dev_dma_free(struct nvm_dev *, void *, dma_addr_t);
 
 typedef int (nvmm_register_fn)(struct nvm_dev *);
 typedef void (nvmm_unregister_fn)(struct nvm_dev *);
+
+typedef int (nvmm_create_tgt_fn)(struct nvm_dev *, struct nvm_ioctl_create *);
+typedef int (nvmm_remove_tgt_fn)(struct nvm_dev *, struct nvm_ioctl_remove *);
 typedef struct nvm_block *(nvmm_get_blk_fn)(struct nvm_dev *,
 					      struct nvm_lun *, unsigned long);
 typedef void (nvmm_put_blk_fn)(struct nvm_dev *, struct nvm_block *);
@@ -488,9 +487,10 @@ struct nvmm_type {
 	nvmm_register_fn *register_mgr;
 	nvmm_unregister_fn *unregister_mgr;
 
+	nvmm_create_tgt_fn *create_tgt;
+	nvmm_remove_tgt_fn *remove_tgt;
+
 	/* Block administration callbacks */
-	nvmm_get_blk_fn *get_blk_unlocked;
-	nvmm_put_blk_fn *put_blk_unlocked;
 	nvmm_get_blk_fn *get_blk;
 	nvmm_put_blk_fn *put_blk;
 	nvmm_open_blk_fn *open_blk;
@@ -520,10 +520,6 @@ struct nvmm_type {
 extern int nvm_register_mgr(struct nvmm_type *);
 extern void nvm_unregister_mgr(struct nvmm_type *);
 
-extern struct nvm_block *nvm_get_blk_unlocked(struct nvm_dev *,
-					struct nvm_lun *, unsigned long);
-extern void nvm_put_blk_unlocked(struct nvm_dev *, struct nvm_block *);
-
 extern struct nvm_block *nvm_get_blk(struct nvm_dev *, struct nvm_lun *,
 								unsigned long);
 extern void nvm_put_blk(struct nvm_dev *, struct nvm_block *);
@@ -532,11 +528,13 @@ extern int nvm_register(struct request_queue *, char *,
 						struct nvm_dev_ops *);
 extern void nvm_unregister(char *);
 
+void nvm_mark_blk(struct nvm_dev *dev, struct ppa_addr ppa, int type);
+
 extern int nvm_submit_io(struct nvm_dev *, struct nvm_rq *);
 extern void nvm_generic_to_addr_mode(struct nvm_dev *, struct nvm_rq *);
 extern void nvm_addr_to_generic_mode(struct nvm_dev *, struct nvm_rq *);
 extern int nvm_set_rqd_ppalist(struct nvm_dev *, struct nvm_rq *,
-						struct ppa_addr *, int, int);
+					const struct ppa_addr *, int, int);
 extern void nvm_free_rqd_ppalist(struct nvm_dev *, struct nvm_rq *);
 extern int nvm_erase_ppa(struct nvm_dev *, struct ppa_addr *, int);
 extern int nvm_erase_blk(struct nvm_dev *, struct nvm_block *);

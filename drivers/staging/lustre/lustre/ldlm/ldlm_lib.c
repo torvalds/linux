@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -345,7 +341,8 @@ int client_obd_setup(struct obd_device *obddev, struct lustre_cfg *lcfg)
 	 * Set cl_chksum* to CRC32 for now to avoid returning screwed info
 	 * through procfs.
 	 */
-	cli->cl_cksum_type = cli->cl_supp_cksum_types = OBD_CKSUM_CRC32;
+	cli->cl_cksum_type = OBD_CKSUM_CRC32;
+	cli->cl_supp_cksum_types = OBD_CKSUM_CRC32;
 	atomic_set(&cli->cl_resends, OSC_DEFAULT_RESENDS);
 
 	/* This value may be reduced at connect time in

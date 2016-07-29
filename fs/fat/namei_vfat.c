@@ -107,7 +107,7 @@ static unsigned int vfat_striptail_len(const struct qstr *qstr)
  */
 static int vfat_hash(const struct dentry *dentry, struct qstr *qstr)
 {
-	qstr->hash = full_name_hash(qstr->name, vfat_striptail_len(qstr));
+	qstr->hash = full_name_hash(dentry, qstr->name, vfat_striptail_len(qstr));
 	return 0;
 }
 
@@ -127,7 +127,7 @@ static int vfat_hashi(const struct dentry *dentry, struct qstr *qstr)
 	name = qstr->name;
 	len = vfat_striptail_len(qstr);
 
-	hash = init_name_hash();
+	hash = init_name_hash(dentry);
 	while (len--)
 		hash = partial_name_hash(nls_tolower(t, *name++), hash);
 	qstr->hash = end_name_hash(hash);

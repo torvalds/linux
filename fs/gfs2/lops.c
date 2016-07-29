@@ -230,17 +230,19 @@ static void gfs2_end_log_write(struct bio *bio)
 /**
  * gfs2_log_flush_bio - Submit any pending log bio
  * @sdp: The superblock
- * @rw: The rw flags
+ * @op: REQ_OP
+ * @op_flags: rq_flag_bits
  *
  * Submit any pending part-built or full bio to the block device. If
  * there is no pending bio, then this is a no-op.
  */
 
-void gfs2_log_flush_bio(struct gfs2_sbd *sdp, int rw)
+void gfs2_log_flush_bio(struct gfs2_sbd *sdp, int op, int op_flags)
 {
 	if (sdp->sd_log_bio) {
 		atomic_inc(&sdp->sd_log_in_flight);
-		submit_bio(rw, sdp->sd_log_bio);
+		bio_set_op_attrs(sdp->sd_log_bio, op, op_flags);
+		submit_bio(sdp->sd_log_bio);
 		sdp->sd_log_bio = NULL;
 	}
 }
@@ -299,7 +301,7 @@ static struct bio *gfs2_log_get_bio(struct gfs2_sbd *sdp, u64 blkno)
 		nblk >>= sdp->sd_fsb2bb_shift;
 		if (blkno == nblk)
 			return bio;
-		gfs2_log_flush_bio(sdp, WRITE);
+		gfs2_log_flush_bio(sdp, REQ_OP_WRITE, 0);
 	}
 
 	return gfs2_log_alloc_bio(sdp, blkno);
@@ -328,7 +330,7 @@ static void gfs2_log_write(struct gfs2_sbd *sdp, struct page *page,
 	bio = gfs2_log_get_bio(sdp, blkno);
 	ret = bio_add_page(bio, page, size, offset);
 	if (ret == 0) {
-		gfs2_log_flush_bio(sdp, WRITE);
+		gfs2_log_flush_bio(sdp, REQ_OP_WRITE, 0);
 		bio = gfs2_log_alloc_bio(sdp, blkno);
 		ret = bio_add_page(bio, page, size, offset);
 		WARN_ON(ret == 0);
@@ -535,9 +537,9 @@ static int buf_lo_scan_elements(struct gfs2_jdesc *jd, unsigned int start,
 	if (pass != 1 || be32_to_cpu(ld->ld_type) != GFS2_LOG_DESC_METADATA)
 		return 0;
 
-	gfs2_replay_incr_blk(sdp, &start);
+	gfs2_replay_incr_blk(jd, &start);
 
-	for (; blks; gfs2_replay_incr_blk(sdp, &start), blks--) {
+	for (; blks; gfs2_replay_incr_blk(jd, &start), blks--) {
 		blkno = be64_to_cpu(*ptr++);
 
 		jd->jd_found_blocks++;
@@ -693,7 +695,7 @@ static int revoke_lo_scan_elements(struct gfs2_jdesc *jd, unsigned int start,
 
 	offset = sizeof(struct gfs2_log_descriptor);
 
-	for (; blks; gfs2_replay_incr_blk(sdp, &start), blks--) {
+	for (; blks; gfs2_replay_incr_blk(jd, &start), blks--) {
 		error = gfs2_replay_read_block(jd, start, &bh);
 		if (error)
 			return error;
@@ -762,7 +764,6 @@ static int databuf_lo_scan_elements(struct gfs2_jdesc *jd, unsigned int start,
 				    __be64 *ptr, int pass)
 {
 	struct gfs2_inode *ip = GFS2_I(jd->jd_inode);
-	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
 	struct gfs2_glock *gl = ip->i_gl;
 	unsigned int blks = be32_to_cpu(ld->ld_data1);
 	struct buffer_head *bh_log, *bh_ip;
@@ -773,8 +774,8 @@ static int databuf_lo_scan_elements(struct gfs2_jdesc *jd, unsigned int start,
 	if (pass != 1 || be32_to_cpu(ld->ld_type) != GFS2_LOG_DESC_JDATA)
 		return 0;
 
-	gfs2_replay_incr_blk(sdp, &start);
-	for (; blks; gfs2_replay_incr_blk(sdp, &start), blks--) {
+	gfs2_replay_incr_blk(jd, &start);
+	for (; blks; gfs2_replay_incr_blk(jd, &start), blks--) {
 		blkno = be64_to_cpu(*ptr++);
 		esc = be64_to_cpu(*ptr++);
 

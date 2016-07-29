@@ -65,7 +65,7 @@ static int efivarfs_d_compare(const struct dentry *parent,
 
 static int efivarfs_d_hash(const struct dentry *dentry, struct qstr *qstr)
 {
-	unsigned long hash = init_name_hash();
+	unsigned long hash = init_name_hash(dentry);
 	const unsigned char *s = qstr->name;
 	unsigned int len = qstr->len;
 
@@ -98,7 +98,7 @@ static struct dentry *efivarfs_alloc_dentry(struct dentry *parent, char *name)
 	q.name = name;
 	q.len = strlen(name);
 
-	err = efivarfs_d_hash(NULL, &q);
+	err = efivarfs_d_hash(parent, &q);
 	if (err)
 		return ERR_PTR(err);
 

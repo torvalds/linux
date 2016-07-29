@@ -526,10 +526,12 @@ static void mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 	fw.fw_buf = (u8 *) adapter->firmware->data;
 	fw.fw_len = adapter->firmware->size;
 
-	if (adapter->if_ops.dnld_fw)
+	if (adapter->if_ops.dnld_fw) {
 		ret = adapter->if_ops.dnld_fw(adapter, &fw);
-	else
+	} else {
 		ret = mwifiex_dnld_fw(adapter, &fw);
+	}
+
 	if (ret == -1)
 		goto err_dnld_fw;
 
@@ -695,9 +697,13 @@ mwifiex_close(struct net_device *dev)
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 
 	if (priv->scan_request) {
+		struct cfg80211_scan_info info = {
+			.aborted = true,
+		};
+
 		mwifiex_dbg(priv->adapter, INFO,
 			    "aborting scan on ndo_stop\n");
-		cfg80211_scan_done(priv->scan_request, 1);
+		cfg80211_scan_done(priv->scan_request, &info);
 		priv->scan_request = NULL;
 		priv->scan_aborting = true;
 	}

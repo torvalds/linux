@@ -51,34 +51,37 @@ static s32 fm10k_reset_hw_pf(struct fm10k_hw *hw)
 
 	/* shut down all rings */
 	err = fm10k_disable_queues_generic(hw, FM10K_MAX_QUEUES);
-	if (err)
+	if (err == FM10K_ERR_REQUESTS_PENDING) {
+		hw->mac.reset_while_pending++;
+		goto force_reset;
+	} else if (err) {
 		return err;
+	}
 
 	/* Verify that DMA is no longer active */
 	reg = fm10k_read_reg(hw, FM10K_DMA_CTRL);
 	if (reg & (FM10K_DMA_CTRL_TX_ACTIVE | FM10K_DMA_CTRL_RX_ACTIVE))
 		return FM10K_ERR_DMA_PENDING;
 
-	/* verify the switch is ready for reset */
-	reg = fm10k_read_reg(hw, FM10K_DMA_CTRL2);
-	if (!(reg & FM10K_DMA_CTRL2_SWITCH_READY))
-		goto out;
-
+force_reset:
 	/* Inititate data path reset */
-	reg |= FM10K_DMA_CTRL_DATAPATH_RESET;
+	reg = FM10K_DMA_CTRL_DATAPATH_RESET;
 	fm10k_write_reg(hw, FM10K_DMA_CTRL, reg);
 
 	/* Flush write and allow 100us for reset to complete */
 	fm10k_write_flush(hw);
 	udelay(FM10K_RESET_TIMEOUT);
 
+	/* Reset mailbox global interrupts */
+	reg = FM10K_MBX_GLOBAL_REQ_INTERRUPT | FM10K_MBX_GLOBAL_ACK_INTERRUPT;
+	fm10k_write_reg(hw, FM10K_GMBX, reg);
+
 	/* Verify we made it out of reset */
 	reg = fm10k_read_reg(hw, FM10K_IP);
 	if (!(reg & FM10K_IP_NOTINRESET))
-		err = FM10K_ERR_RESET_FAILED;
+		return FM10K_ERR_RESET_FAILED;
 
-out:
-	return err;
+	return 0;
 }
 
 /**
@@ -1619,25 +1622,15 @@ static s32 fm10k_request_lport_map_pf(struct fm10k_hw *hw)
  **/
 static s32 fm10k_get_host_state_pf(struct fm10k_hw *hw, bool *switch_ready)
 {
-	s32 ret_val = 0;
 	u32 dma_ctrl2;
 
 	/* verify the switch is ready for interaction */
 	dma_ctrl2 = fm10k_read_reg(hw, FM10K_DMA_CTRL2);
 	if (!(dma_ctrl2 & FM10K_DMA_CTRL2_SWITCH_READY))
-		goto out;
+		return 0;
 
 	/* retrieve generic host state info */
-	ret_val = fm10k_get_host_state_generic(hw, switch_ready);
-	if (ret_val)
-		goto out;
-
-	/* interface cannot receive traffic without logical ports */
-	if (hw->mac.dglort_map == FM10K_DGLORTMAP_NONE)
-		ret_val = fm10k_request_lport_map_pf(hw);
-
-out:
-	return ret_val;
+	return fm10k_get_host_state_generic(hw, switch_ready);
 }
 
 /* This structure defines the attibutes to be parsed below */
@@ -1813,6 +1806,7 @@ static const struct fm10k_mac_ops mac_ops_pf = {
 	.set_dma_mask		= fm10k_set_dma_mask_pf,
 	.get_fault		= fm10k_get_fault_pf,
 	.get_host_state		= fm10k_get_host_state_pf,
+	.request_lport_map	= fm10k_request_lport_map_pf,
 };
 
 static const struct fm10k_iov_ops iov_ops_pf = {

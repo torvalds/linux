@@ -255,10 +255,10 @@ kbuild/
 	- directory with info about the kernel build process.
 kdump/
 	- directory with mini HowTo on getting the crash dump code to work.
-kernel-doc-nano-HOWTO.txt
-	- mini HowTo on generation and location of kernel documentation files.
 kernel-docs.txt
 	- listing of various WWW + books that document kernel internals.
+kernel-documentation.rst
+	- how to write and format reStructuredText kernel documentation
 kernel-parameters.txt
 	- summary listing of command line / boot prompt args for the kernel.
 kernel-per-CPU-kthreads.txt

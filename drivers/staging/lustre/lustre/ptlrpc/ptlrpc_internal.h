@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -292,4 +288,47 @@ static inline void ptlrpc_reqset_put(struct ptlrpc_request_set *set)
 	if (atomic_dec_and_test(&set->set_refcount))
 		kfree(set);
 }
+
+/** initialise ptlrpc common fields */
+static inline void ptlrpc_req_comm_init(struct ptlrpc_request *req)
+{
+	spin_lock_init(&req->rq_lock);
+	atomic_set(&req->rq_refcount, 1);
+	INIT_LIST_HEAD(&req->rq_list);
+	INIT_LIST_HEAD(&req->rq_replay_list);
+}
+
+/** initialise client side ptlrpc request */
+static inline void ptlrpc_cli_req_init(struct ptlrpc_request *req)
+{
+	struct ptlrpc_cli_req *cr = &req->rq_cli;
+
+	ptlrpc_req_comm_init(req);
+
+	req->rq_receiving_reply = 0;
+	req->rq_req_unlinked = 1;
+	req->rq_reply_unlinked = 1;
+
+	req->rq_receiving_reply = 0;
+	req->rq_req_unlinked = 1;
+	req->rq_reply_unlinked = 1;
+
+	INIT_LIST_HEAD(&cr->cr_set_chain);
+	INIT_LIST_HEAD(&cr->cr_ctx_chain);
+	init_waitqueue_head(&cr->cr_reply_waitq);
+	init_waitqueue_head(&cr->cr_set_waitq);
+}
+
+/** initialise server side ptlrpc request */
+static inline void ptlrpc_srv_req_init(struct ptlrpc_request *req)
+{
+	struct ptlrpc_srv_req *sr = &req->rq_srv;
+
+	ptlrpc_req_comm_init(req);
+	req->rq_srv_req = 1;
+	INIT_LIST_HEAD(&sr->sr_exp_list);
+	INIT_LIST_HEAD(&sr->sr_timed_list);
+	INIT_LIST_HEAD(&sr->sr_hist_list);
+}
+
 #endif /* PTLRPC_INTERNAL_H */

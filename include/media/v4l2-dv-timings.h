@@ -28,7 +28,7 @@
  */
 extern const struct v4l2_dv_timings v4l2_dv_timings_presets[];
 
-/**
+/*
  * v4l2_check_dv_timings_fnc - timings check callback
  *
  * @t: the v4l2_dv_timings struct.

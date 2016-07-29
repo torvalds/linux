@@ -2229,6 +2229,7 @@ static int __ovs_nla_copy_actions(struct net *net, const struct nlattr *attr,
 			[OVS_ACTION_ATTR_SAMPLE] = (u32)-1,
 			[OVS_ACTION_ATTR_HASH] = sizeof(struct ovs_action_hash),
 			[OVS_ACTION_ATTR_CT] = (u32)-1,
+			[OVS_ACTION_ATTR_TRUNC] = sizeof(struct ovs_action_trunc),
 		};
 		const struct ovs_action_push_vlan *vlan;
 		int type = nla_type(a);
@@ -2254,6 +2255,14 @@ static int __ovs_nla_copy_actions(struct net *net, const struct nlattr *attr,
 			if (nla_get_u32(a) >= DP_MAX_PORTS)
 				return -EINVAL;
 			break;
+
+		case OVS_ACTION_ATTR_TRUNC: {
+			const struct ovs_action_trunc *trunc = nla_data(a);
+
+			if (trunc->max_len < ETH_HLEN)
+				return -EINVAL;
+			break;
+		}
 
 		case OVS_ACTION_ATTR_HASH: {
 			const struct ovs_action_hash *act_hash = nla_data(a);

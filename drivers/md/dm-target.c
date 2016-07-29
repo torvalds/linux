@@ -4,7 +4,7 @@
  * This file is released under the GPL.
  */
 
-#include "dm.h"
+#include "dm-core.h"
 
 #include <linux/module.h>
 #include <linux/init.h>
@@ -148,9 +148,15 @@ static void io_err_release_clone_rq(struct request *clone)
 {
 }
 
+static long io_err_direct_access(struct dm_target *ti, sector_t sector,
+				 void **kaddr, pfn_t *pfn, long size)
+{
+	return -EIO;
+}
+
 static struct target_type error_target = {
 	.name = "error",
-	.version = {1, 4, 0},
+	.version = {1, 5, 0},
 	.features = DM_TARGET_WILDCARD,
 	.ctr  = io_err_ctr,
 	.dtr  = io_err_dtr,
@@ -158,6 +164,7 @@ static struct target_type error_target = {
 	.map_rq = io_err_map_rq,
 	.clone_and_map_rq = io_err_clone_and_map_rq,
 	.release_clone_rq = io_err_release_clone_rq,
+	.direct_access = io_err_direct_access,
 };
 
 int __init dm_target_init(void)

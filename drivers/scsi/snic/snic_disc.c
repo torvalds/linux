@@ -113,11 +113,11 @@ snic_queue_report_tgt_req(struct snic *snic)
 
 	pa = pci_map_single(snic->pdev, buf, buf_len, PCI_DMA_FROMDEVICE);
 	if (pci_dma_mapping_error(snic->pdev, pa)) {
-		kfree(buf);
-		snic_req_free(snic, rqi);
 		SNIC_HOST_ERR(snic->shost,
 			      "Rpt-tgt rspbuf %p: PCI DMA Mapping Failed\n",
 			      buf);
+		kfree(buf);
+		snic_req_free(snic, rqi);
 		ret = -EINVAL;
 
 		goto error;

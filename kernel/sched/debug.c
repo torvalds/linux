@@ -879,9 +879,9 @@ void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
 
 	nr_switches = p->nvcsw + p->nivcsw;
 
-#ifdef CONFIG_SCHEDSTATS
 	P(se.nr_migrations);
 
+#ifdef CONFIG_SCHEDSTATS
 	if (schedstat_enabled()) {
 		u64 avg_atom, avg_per_cpu;
 

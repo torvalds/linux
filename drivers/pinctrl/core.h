@@ -134,6 +134,7 @@ struct pinctrl_setting {
  * @name: a name for the pin, e.g. the name of the pin/pad/finger on a
  *	datasheet or such
  * @dynamic_name: if the name of this pin was dynamically allocated
+ * @drv_data: driver-defined per-pin data. pinctrl core does not touch this
  * @mux_usecount: If zero, the pin is not claimed, and @owner should be NULL.
  *	If non-zero, this pin is claimed by @owner. This field is an integer
  *	rather than a boolean, since pinctrl_get() might process multiple
@@ -148,6 +149,7 @@ struct pin_desc {
 	struct pinctrl_dev *pctldev;
 	const char *name;
 	bool dynamic_name;
+	void *drv_data;
 	/* These fields only added when supporting pinmux drivers */
 #ifdef CONFIG_PINMUX
 	unsigned mux_usecount;

@@ -286,6 +286,9 @@ n:
 
 #endif
 
+#define FUNC_START(name)	_GLOBAL(name)
+#define FUNC_END(name)
+
 /* 
  * LOAD_REG_IMMEDIATE(rn, expr)
  *   Loads the value of the constant expression 'expr' into register 'rn'

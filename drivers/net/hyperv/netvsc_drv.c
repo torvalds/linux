@@ -98,16 +98,14 @@ static void netvsc_set_multicast_list(struct net_device *net)
 
 static int netvsc_open(struct net_device *net)
 {
-	struct net_device_context *net_device_ctx = netdev_priv(net);
-	struct hv_device *device_obj = net_device_ctx->device_ctx;
-	struct netvsc_device *nvdev = net_device_ctx->nvdev;
+	struct netvsc_device *nvdev = net_device_to_netvsc_device(net);
 	struct rndis_device *rdev;
 	int ret = 0;
 
 	netif_carrier_off(net);
 
 	/* Open up the device */
-	ret = rndis_filter_open(device_obj);
+	ret = rndis_filter_open(nvdev);
 	if (ret != 0) {
 		netdev_err(net, "unable to open device (ret %d).\n", ret);
 		return ret;
@@ -125,7 +123,6 @@ static int netvsc_open(struct net_device *net)
 static int netvsc_close(struct net_device *net)
 {
 	struct net_device_context *net_device_ctx = netdev_priv(net);
-	struct hv_device *device_obj = net_device_ctx->device_ctx;
 	struct netvsc_device *nvdev = net_device_ctx->nvdev;
 	int ret;
 	u32 aread, awrite, i, msec = 10, retry = 0, retry_max = 20;
@@ -135,7 +132,7 @@ static int netvsc_close(struct net_device *net)
 
 	/* Make sure netvsc_set_multicast_list doesn't re-enable filter! */
 	cancel_work_sync(&net_device_ctx->work);
-	ret = rndis_filter_close(device_obj);
+	ret = rndis_filter_close(nvdev);
 	if (ret != 0) {
 		netdev_err(net, "unable to close device (ret %d).\n", ret);
 		return ret;
@@ -701,7 +698,6 @@ int netvsc_recv_callback(struct hv_device *device_obj,
 	}
 
 vf_injection_done:
-	net_device_ctx = netdev_priv(net);
 	rx_stats = this_cpu_ptr(net_device_ctx->rx_stats);
 
 	/* Allocate a skb - TODO direct I/O to pages? */
@@ -986,8 +982,6 @@ static struct rtnl_link_stats64 *netvsc_get_stats64(struct net_device *net,
 
 static int netvsc_set_mac_addr(struct net_device *ndev, void *p)
 {
-	struct net_device_context *ndevctx = netdev_priv(ndev);
-	struct hv_device *hdev =  ndevctx->device_ctx;
 	struct sockaddr *addr = p;
 	char save_adr[ETH_ALEN];
 	unsigned char save_aatype;
@@ -1000,7 +994,7 @@ static int netvsc_set_mac_addr(struct net_device *ndev, void *p)
 	if (err != 0)
 		return err;
 
-	err = rndis_filter_set_device_mac(hdev, addr->sa_data);
+	err = rndis_filter_set_device_mac(ndev, addr->sa_data);
 	if (err != 0) {
 		/* roll back to saved MAC */
 		memcpy(ndev->dev_addr, save_adr, ETH_ALEN);
@@ -1248,7 +1242,7 @@ static int netvsc_vf_up(struct net_device *vf_netdev)
 	/*
 	 * Open the device before switching data path.
 	 */
-	rndis_filter_open(net_device_ctx->device_ctx);
+	rndis_filter_open(netvsc_dev);
 
 	/*
 	 * notify the host to switch the data path.
@@ -1303,7 +1297,7 @@ static int netvsc_vf_down(struct net_device *vf_netdev)
 		udelay(50);
 	netvsc_switch_datapath(ndev, false);
 	netdev_info(ndev, "Data path switched from VF: %s\n", vf_netdev->name);
-	rndis_filter_close(net_device_ctx->device_ctx);
+	rndis_filter_close(netvsc_dev);
 	netif_carrier_on(ndev);
 	/*
 	 * Notify peers.
@@ -1499,6 +1493,10 @@ static int netvsc_netdev_event(struct notifier_block *this,
 			       unsigned long event, void *ptr)
 {
 	struct net_device *event_dev = netdev_notifier_info_to_dev(ptr);
+
+	/* Avoid Vlan, Bonding dev with same MAC registering as VF */
+	if (event_dev->priv_flags & (IFF_802_1Q_VLAN | IFF_BONDING))
+		return NOTIFY_DONE;
 
 	switch (event) {
 	case NETDEV_REGISTER:

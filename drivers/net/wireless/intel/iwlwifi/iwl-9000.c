@@ -55,7 +55,7 @@
 #include "iwl-agn-hw.h"
 
 /* Highest firmware API version supported */
-#define IWL9000_UCODE_API_MAX	21
+#define IWL9000_UCODE_API_MAX	24
 
 /* Lowest firmware API version supported */
 #define IWL9000_UCODE_API_MIN	16
@@ -178,6 +178,7 @@ const struct iwl_cfg iwl5165_2ac_cfg = {
 		.nvm_ver = IWL9000_NVM_VERSION,
 		.nvm_calib_ver = IWL9000_TX_POWER_VERSION,
 		.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
+		.integrated = true,
 };
 
 MODULE_FIRMWARE(IWL9000_MODULE_FIRMWARE(IWL9000_UCODE_API_MAX));

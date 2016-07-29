@@ -667,8 +667,11 @@ xfs_reserve_blocks(
 	__uint64_t              *inval,
 	xfs_fsop_resblks_t      *outval)
 {
-	__int64_t		lcounter, delta, fdblks_delta;
+	__int64_t		lcounter, delta;
+	__int64_t		fdblks_delta = 0;
 	__uint64_t		request;
+	__int64_t		free;
+	int			error = 0;
 
 	/* If inval is null, report current values and return */
 	if (inval == (__uint64_t *)NULL) {
@@ -682,24 +685,23 @@ xfs_reserve_blocks(
 	request = *inval;
 
 	/*
-	 * With per-cpu counters, this becomes an interesting
-	 * problem. we needto work out if we are freeing or allocation
-	 * blocks first, then we can do the modification as necessary.
+	 * With per-cpu counters, this becomes an interesting problem. we need
+	 * to work out if we are freeing or allocation blocks first, then we can
+	 * do the modification as necessary.
 	 *
-	 * We do this under the m_sb_lock so that if we are near
-	 * ENOSPC, we will hold out any changes while we work out
-	 * what to do. This means that the amount of free space can
-	 * change while we do this, so we need to retry if we end up
-	 * trying to reserve more space than is available.
+	 * We do this under the m_sb_lock so that if we are near ENOSPC, we will
+	 * hold out any changes while we work out what to do. This means that
+	 * the amount of free space can change while we do this, so we need to
+	 * retry if we end up trying to reserve more space than is available.
 	 */
-retry:
 	spin_lock(&mp->m_sb_lock);
 
 	/*
 	 * If our previous reservation was larger than the current value,
-	 * then move any unused blocks back to the free pool.
+	 * then move any unused blocks back to the free pool. Modify the resblks
+	 * counters directly since we shouldn't have any problems unreserving
+	 * space.
 	 */
-	fdblks_delta = 0;
 	if (mp->m_resblks > request) {
 		lcounter = mp->m_resblks_avail - request;
 		if (lcounter  > 0) {		/* release unused blocks */
@@ -707,54 +709,67 @@ retry:
 			mp->m_resblks_avail -= lcounter;
 		}
 		mp->m_resblks = request;
-	} else {
-		__int64_t	free;
+		if (fdblks_delta) {
+			spin_unlock(&mp->m_sb_lock);
+			error = xfs_mod_fdblocks(mp, fdblks_delta, 0);
+			spin_lock(&mp->m_sb_lock);
+		}
 
+		goto out;
+	}
+
+	/*
+	 * If the request is larger than the current reservation, reserve the
+	 * blocks before we update the reserve counters. Sample m_fdblocks and
+	 * perform a partial reservation if the request exceeds free space.
+	 */
+	error = -ENOSPC;
+	do {
 		free = percpu_counter_sum(&mp->m_fdblocks) -
 							XFS_ALLOC_SET_ASIDE(mp);
 		if (!free)
-			goto out; /* ENOSPC and fdblks_delta = 0 */
+			break;
 
 		delta = request - mp->m_resblks;
 		lcounter = free - delta;
-		if (lcounter < 0) {
+		if (lcounter < 0)
 			/* We can't satisfy the request, just get what we can */
-			mp->m_resblks += free;
-			mp->m_resblks_avail += free;
-			fdblks_delta = -free;
-		} else {
-			fdblks_delta = -delta;
-			mp->m_resblks = request;
-			mp->m_resblks_avail += delta;
-		}
+			fdblks_delta = free;
+		else
+			fdblks_delta = delta;
+
+		/*
+		 * We'll either succeed in getting space from the free block
+		 * count or we'll get an ENOSPC. If we get a ENOSPC, it means
+		 * things changed while we were calculating fdblks_delta and so
+		 * we should try again to see if there is anything left to
+		 * reserve.
+		 *
+		 * Don't set the reserved flag here - we don't want to reserve
+		 * the extra reserve blocks from the reserve.....
+		 */
+		spin_unlock(&mp->m_sb_lock);
+		error = xfs_mod_fdblocks(mp, -fdblks_delta, 0);
+		spin_lock(&mp->m_sb_lock);
+	} while (error == -ENOSPC);
+
+	/*
+	 * Update the reserve counters if blocks have been successfully
+	 * allocated.
+	 */
+	if (!error && fdblks_delta) {
+		mp->m_resblks += fdblks_delta;
+		mp->m_resblks_avail += fdblks_delta;
 	}
+
 out:
 	if (outval) {
 		outval->resblks = mp->m_resblks;
 		outval->resblks_avail = mp->m_resblks_avail;
 	}
-	spin_unlock(&mp->m_sb_lock);
 
-	if (fdblks_delta) {
-		/*
-		 * If we are putting blocks back here, m_resblks_avail is
-		 * already at its max so this will put it in the free pool.
-		 *
-		 * If we need space, we'll either succeed in getting it
-		 * from the free block count or we'll get an enospc. If
-		 * we get a ENOSPC, it means things changed while we were
-		 * calculating fdblks_delta and so we should try again to
-		 * see if there is anything left to reserve.
-		 *
-		 * Don't set the reserved flag here - we don't want to reserve
-		 * the extra reserve blocks from the reserve.....
-		 */
-		int error;
-		error = xfs_mod_fdblocks(mp, fdblks_delta, 0);
-		if (error == -ENOSPC)
-			goto retry;
-	}
-	return 0;
+	spin_unlock(&mp->m_sb_lock);
+	return error;
 }
 
 int

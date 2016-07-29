@@ -316,28 +316,6 @@ static void __init register_insn_emulation_sysctl(struct ctl_table *table)
  */
 #define TYPE_SWPB (1 << 22)
 
-/*
- * Set up process info to signal segmentation fault - called on access error.
- */
-static void set_segfault(struct pt_regs *regs, unsigned long addr)
-{
-	siginfo_t info;
-
-	down_read(&current->mm->mmap_sem);
-	if (find_vma(current->mm, addr) == NULL)
-		info.si_code = SEGV_MAPERR;
-	else
-		info.si_code = SEGV_ACCERR;
-	up_read(&current->mm->mmap_sem);
-
-	info.si_signo = SIGSEGV;
-	info.si_errno = 0;
-	info.si_addr  = (void *) instruction_pointer(regs);
-
-	pr_debug("SWP{B} emulation: access caused memory abort!\n");
-	arm64_notify_die("Illegal memory access", regs, &info, 0);
-}
-
 static int emulate_swpX(unsigned int address, unsigned int *data,
 			unsigned int type)
 {
@@ -366,6 +344,21 @@ static int emulate_swpX(unsigned int address, unsigned int *data,
 	return res;
 }
 
+#define	ARM_OPCODE_CONDITION_UNCOND	0xf
+
+static unsigned int __kprobes aarch32_check_condition(u32 opcode, u32 psr)
+{
+	u32 cc_bits  = opcode >> 28;
+
+	if (cc_bits != ARM_OPCODE_CONDITION_UNCOND) {
+		if ((*aarch32_opcode_cond_checks[cc_bits])(psr))
+			return ARM_OPCODE_CONDTEST_PASS;
+		else
+			return ARM_OPCODE_CONDTEST_FAIL;
+	}
+	return ARM_OPCODE_CONDTEST_UNCOND;
+}
+
 /*
  * swp_handler logs the id of calling process, dissects the instruction, sanity
  * checks the memory location, calls emulate_swpX for the actual operation and
@@ -380,7 +373,7 @@ static int swp_handler(struct pt_regs *regs, u32 instr)
 
 	type = instr & TYPE_SWPB;
 
-	switch (arm_check_condition(instr, regs->pstate)) {
+	switch (aarch32_check_condition(instr, regs->pstate)) {
 	case ARM_OPCODE_CONDTEST_PASS:
 		break;
 	case ARM_OPCODE_CONDTEST_FAIL:
@@ -430,7 +423,8 @@ ret:
 	return 0;
 
 fault:
-	set_segfault(regs, address);
+	pr_debug("SWP{B} emulation: access caused memory abort!\n");
+	arm64_notify_segfault(regs, address);
 
 	return 0;
 }
@@ -461,7 +455,7 @@ static int cp15barrier_handler(struct pt_regs *regs, u32 instr)
 {
 	perf_sw_event(PERF_COUNT_SW_EMULATION_FAULTS, 1, regs, regs->pc);
 
-	switch (arm_check_condition(instr, regs->pstate)) {
+	switch (aarch32_check_condition(instr, regs->pstate)) {
 	case ARM_OPCODE_CONDTEST_PASS:
 		break;
 	case ARM_OPCODE_CONDTEST_FAIL:

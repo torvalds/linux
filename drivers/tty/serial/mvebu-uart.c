@@ -300,6 +300,8 @@ static int mvebu_uart_startup(struct uart_port *port)
 static void mvebu_uart_shutdown(struct uart_port *port)
 {
 	writel(0, port->membase + UART_CTRL);
+
+	free_irq(port->irq, port);
 }
 
 static void mvebu_uart_set_termios(struct uart_port *port,
