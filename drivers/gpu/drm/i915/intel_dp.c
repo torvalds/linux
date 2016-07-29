@@ -3545,7 +3545,7 @@ intel_dp_probe_oui(struct intel_dp *intel_dp)
 }
 
 static bool
-intel_dp_probe_mst(struct intel_dp *intel_dp)
+intel_dp_can_mst(struct intel_dp *intel_dp)
 {
 	u8 buf[1];
 
@@ -3558,18 +3558,30 @@ intel_dp_probe_mst(struct intel_dp *intel_dp)
 	if (intel_dp->dpcd[DP_DPCD_REV] < 0x12)
 		return false;
 
-	if (drm_dp_dpcd_read(&intel_dp->aux, DP_MSTM_CAP, buf, 1)) {
-		if (buf[0] & DP_MST_CAP) {
-			DRM_DEBUG_KMS("Sink is MST capable\n");
-			intel_dp->is_mst = true;
-		} else {
-			DRM_DEBUG_KMS("Sink is not MST capable\n");
-			intel_dp->is_mst = false;
-		}
-	}
+	if (drm_dp_dpcd_read(&intel_dp->aux, DP_MSTM_CAP, buf, 1) != 1)
+		return false;
 
-	drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst_mgr, intel_dp->is_mst);
-	return intel_dp->is_mst;
+	return buf[0] & DP_MST_CAP;
+}
+
+static void
+intel_dp_configure_mst(struct intel_dp *intel_dp)
+{
+	if (!i915.enable_dp_mst)
+		return;
+
+	if (!intel_dp->can_mst)
+		return;
+
+	intel_dp->is_mst = intel_dp_can_mst(intel_dp);
+
+	if (intel_dp->is_mst)
+		DRM_DEBUG_KMS("Sink is MST capable\n");
+	else
+		DRM_DEBUG_KMS("Sink is not MST capable\n");
+
+	drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst_mgr,
+					intel_dp->is_mst);
 }
 
 static int intel_dp_sink_crc_stop(struct intel_dp *intel_dp)
@@ -3999,6 +4011,9 @@ intel_dp_detect_dpcd(struct intel_dp *intel_dp)
 		connector_status_connected : connector_status_disconnected;
 	}
 
+	if (intel_dp_can_mst(intel_dp))
+		return connector_status_connected;
+
 	/* If no HPD, poke DDC gently */
 	if (drm_probe_ddc(&intel_dp->aux.ddc))
 		return connector_status_connected;
@@ -4236,7 +4251,6 @@ intel_dp_long_pulse(struct intel_connector *intel_connector)
 	struct drm_device *dev = connector->dev;
 	enum drm_connector_status status;
 	enum intel_display_power_domain power_domain;
-	bool ret;
 	u8 sink_irq_vector;
 
 	power_domain = intel_display_port_aux_power_domain(intel_encoder);
@@ -4279,8 +4293,9 @@ intel_dp_long_pulse(struct intel_connector *intel_connector)
 
 	intel_dp_probe_oui(intel_dp);
 
-	ret = intel_dp_probe_mst(intel_dp);
-	if (ret) {
+	intel_dp_configure_mst(intel_dp);
+
+	if (intel_dp->is_mst) {
 		/*
 		 * If we are in MST mode then this connector
 		 * won't appear connected or have anything
