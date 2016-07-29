@@ -56,7 +56,6 @@ MODULE_PARM_DESC(bna_debugfs_enable, "Enables debugfs feature, default=1,"
 static u32 bnad_rxqs_per_cq = 2;
 static u32 bna_id;
 static struct mutex bnad_list_mutex;
-static LIST_HEAD(bnad_list);
 static const u8 bnad_bcast_addr[] __aligned(2) =
 	{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
@@ -80,7 +79,6 @@ static void
 bnad_add_to_list(struct bnad *bnad)
 {
 	mutex_lock(&bnad_list_mutex);
-	list_add_tail(&bnad->list_entry, &bnad_list);
 	bnad->id = bna_id++;
 	mutex_unlock(&bnad_list_mutex);
 }
@@ -89,7 +87,6 @@ static void
 bnad_remove_from_list(struct bnad *bnad)
 {
 	mutex_lock(&bnad_list_mutex);
-	list_del(&bnad->list_entry);
 	mutex_unlock(&bnad_list_mutex);
 }
 
