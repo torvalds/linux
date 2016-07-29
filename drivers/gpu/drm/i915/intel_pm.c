@@ -340,6 +340,11 @@ void intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enable)
 		I915_WRITE(FW_BLC_SELF, val);
 		POSTING_READ(FW_BLC_SELF);
 	} else if (IS_I915GM(dev)) {
+		/*
+		 * FIXME can't find a bit like this for 915G, and
+		 * and yet it does have the related watermark in
+		 * FW_BLC_SELF. What's going on?
+		 */
 		val = enable ? _MASKED_BIT_ENABLE(INSTPM_SELF_EN) :
 			       _MASKED_BIT_DISABLE(INSTPM_SELF_EN);
 		I915_WRITE(INSTPM, val);
@@ -1621,7 +1626,7 @@ static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 		if (IS_I945G(dev) || IS_I945GM(dev))
 			I915_WRITE(FW_BLC_SELF,
 				   FW_BLC_SELF_FIFO_MASK | (srwm & 0xff));
-		else if (IS_I915GM(dev))
+		else
 			I915_WRITE(FW_BLC_SELF, srwm & 0x3f);
 	}
 
