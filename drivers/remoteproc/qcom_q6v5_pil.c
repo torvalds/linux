@@ -863,8 +863,10 @@ static int q6v5_probe(struct platform_device *pdev)
 		goto free_rproc;
 
 	qproc->state = qcom_smem_state_get(&pdev->dev, "stop", &qproc->stop_bit);
-	if (IS_ERR(qproc->state))
+	if (IS_ERR(qproc->state)) {
+		ret = PTR_ERR(qproc->state);
 		goto free_rproc;
+	}
 
 	ret = rproc_add(rproc);
 	if (ret)
