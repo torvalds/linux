@@ -1604,6 +1604,9 @@ static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 		unsigned long line_time_us;
 		int entries;
 
+		if (IS_I915GM(dev) || IS_I945GM(dev))
+			cpp = 4;
+
 		line_time_us = max(htotal * 1000 / clock, 1);
 
 		/* Use ns/us then divide to preserve precision */
