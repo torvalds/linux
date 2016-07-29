@@ -1898,12 +1898,20 @@ int c4iw_ib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	return 0;
 }
 
+static void move_qp_to_err(struct c4iw_qp *qp)
+{
+	struct c4iw_qp_attributes attrs = { .next_state = C4IW_QP_STATE_ERROR };
+
+	(void)c4iw_modify_qp(qp->rhp, qp, C4IW_QP_ATTR_NEXT_STATE, &attrs, 1);
+}
+
 void c4iw_drain_sq(struct ib_qp *ibqp)
 {
 	struct c4iw_qp *qp = to_c4iw_qp(ibqp);
 	unsigned long flag;
 	bool need_to_wait;
 
+	move_qp_to_err(qp);
 	spin_lock_irqsave(&qp->lock, flag);
 	need_to_wait = !t4_sq_empty(&qp->wq);
 	spin_unlock_irqrestore(&qp->lock, flag);
@@ -1918,6 +1926,7 @@ void c4iw_drain_rq(struct ib_qp *ibqp)
 	unsigned long flag;
 	bool need_to_wait;
 
+	move_qp_to_err(qp);
 	spin_lock_irqsave(&qp->lock, flag);
 	need_to_wait = !t4_rq_empty(&qp->wq);
 	spin_unlock_irqrestore(&qp->lock, flag);
