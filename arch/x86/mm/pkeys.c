@@ -121,3 +121,41 @@ int __arch_override_mprotect_pkey(struct vm_area_struct *vma, int prot, int pkey
 	 */
 	return vma_pkey(vma);
 }
+
+#define PKRU_AD_KEY(pkey)	(PKRU_AD_BIT << ((pkey) * PKRU_BITS_PER_PKEY))
+
+/*
+ * Make the default PKRU value (at execve() time) as restrictive
+ * as possible.  This ensures that any threads clone()'d early
+ * in the process's lifetime will not accidentally get access
+ * to data which is pkey-protected later on.
+ */
+u32 init_pkru_value = PKRU_AD_KEY( 1) | PKRU_AD_KEY( 2) | PKRU_AD_KEY( 3) |
+		      PKRU_AD_KEY( 4) | PKRU_AD_KEY( 5) | PKRU_AD_KEY( 6) |
+		      PKRU_AD_KEY( 7) | PKRU_AD_KEY( 8) | PKRU_AD_KEY( 9) |
+		      PKRU_AD_KEY(10) | PKRU_AD_KEY(11) | PKRU_AD_KEY(12) |
+		      PKRU_AD_KEY(13) | PKRU_AD_KEY(14) | PKRU_AD_KEY(15);
+
+/*
+ * Called from the FPU code when creating a fresh set of FPU
+ * registers.  This is called from a very specific context where
+ * we know the FPU regstiers are safe for use and we can use PKRU
+ * directly.  The fact that PKRU is only available when we are
+ * using eagerfpu mode makes this possible.
+ */
+void copy_init_pkru_to_fpregs(void)
+{
+	u32 init_pkru_value_snapshot = READ_ONCE(init_pkru_value);
+	/*
+	 * Any write to PKRU takes it out of the XSAVE 'init
+	 * state' which increases context switch cost.  Avoid
+	 * writing 0 when PKRU was already 0.
+	 */
+	if (!init_pkru_value_snapshot && !read_pkru())
+		return;
+	/*
+	 * Override the PKRU state that came from 'init_fpstate'
+	 * with the baseline from the process.
+	 */
+	write_pkru(init_pkru_value_snapshot);
+}
