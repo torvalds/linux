@@ -124,55 +124,11 @@ int ovl_permission(struct inode *inode, int mask)
 	const struct cred *old_cred;
 	int err;
 
-	if (ovl_is_default_permissions(inode)) {
-		struct kstat stat;
-		struct path realpath = { .dentry = realdentry };
-
-		if (mask & MAY_NOT_BLOCK)
-			return -ECHILD;
-
-		realpath.mnt = ovl_entry_mnt_real(oe, inode, is_upper);
-
-		err = vfs_getattr(&realpath, &stat);
-		if (err)
-			return err;
-
-		if ((stat.mode ^ inode->i_mode) & S_IFMT)
-			return -ESTALE;
-
-		inode->i_mode = stat.mode;
-		inode->i_uid = stat.uid;
-		inode->i_gid = stat.gid;
-
-		return generic_permission(inode, mask);
-	}
-
 	/* Careful in RCU walk mode */
 	realinode = d_inode_rcu(realdentry);
 	if (!realinode) {
 		WARN_ON(!(mask & MAY_NOT_BLOCK));
 		return -ENOENT;
-	}
-
-	if (mask & MAY_WRITE) {
-		umode_t mode = realinode->i_mode;
-
-		/*
-		 * Writes will always be redirected to upper layer, so
-		 * ignore lower layer being read-only.
-		 *
-		 * If the overlay itself is read-only then proceed
-		 * with the permission check, don't return EROFS.
-		 * This will only happen if this is the lower layer of
-		 * another overlayfs.
-		 *
-		 * If upper fs becomes read-only after the overlay was
-		 * constructed return EROFS to prevent modification of
-		 * upper layer.
-		 */
-		if (is_upper && !IS_RDONLY(inode) && IS_RDONLY(realinode) &&
-		    (S_ISREG(mode) || S_ISDIR(mode) || S_ISLNK(mode)))
-			return -EROFS;
 	}
 
 	/*
@@ -186,7 +142,7 @@ int ovl_permission(struct inode *inode, int mask)
 	old_cred = ovl_override_creds(inode->i_sb);
 	if (!is_upper)
 		mask &= ~(MAY_WRITE | MAY_APPEND);
-	err = __inode_permission(realinode, mask);
+	err = inode_permission(realinode, mask);
 	revert_creds(old_cred);
 
 	return err;

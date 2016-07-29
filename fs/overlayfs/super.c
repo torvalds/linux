@@ -185,13 +185,6 @@ struct ovl_dir_cache *ovl_dir_cache(struct dentry *dentry)
 	return oe->cache;
 }
 
-bool ovl_is_default_permissions(struct inode *inode)
-{
-	struct ovl_fs *ofs = inode->i_sb->s_fs_info;
-
-	return ofs->config.default_permissions;
-}
-
 void ovl_set_dir_cache(struct dentry *dentry, struct ovl_dir_cache *cache)
 {
 	struct ovl_entry *oe = dentry->d_fsdata;
