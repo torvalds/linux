@@ -13,6 +13,7 @@
 
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/clk.h>
 #include <linux/i2c.h>
 #include <linux/property.h>
 #include <linux/pm_wakeirq.h>
@@ -115,11 +116,22 @@ static void da7219_aad_hptest_work(struct work_struct *work)
 
 	u16 tonegen_freq_hptest;
 	u8 accdet_cfg8;
-	int report = 0;
+	int report = 0, ret = 0;
 
 	/* Lock DAPM and any Kcontrols that are affected by this test */
 	snd_soc_dapm_mutex_lock(dapm);
 	mutex_lock(&da7219->lock);
+
+	/* Ensure MCLK is available for HP test procedure */
+	if (da7219->mclk) {
+		ret = clk_prepare_enable(da7219->mclk);
+		if (ret) {
+			dev_err(codec->dev, "Failed to enable mclk - %d\n", ret);
+			mutex_unlock(&da7219->lock);
+			snd_soc_dapm_mutex_unlock(dapm);
+			return;
+		}
+	}
 
 	/* Bypass cache so it saves current settings */
 	regcache_cache_bypass(da7219->regmap, true);
@@ -249,6 +261,10 @@ static void da7219_aad_hptest_work(struct work_struct *work)
 			    DA7219_HP_L_AMP_OE_MASK);
 	snd_soc_update_bits(codec, DA7219_HP_R_CTRL, DA7219_HP_R_AMP_OE_MASK,
 			    DA7219_HP_R_AMP_OE_MASK);
+
+	/* Remove MCLK, if previously enabled */
+	if (da7219->mclk)
+		clk_disable_unprepare(da7219->mclk);
 
 	mutex_unlock(&da7219->lock);
 	snd_soc_dapm_mutex_unlock(dapm);
