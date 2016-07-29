@@ -1473,7 +1473,7 @@ static int polaris10_populate_smc_acpi_level(struct pp_hwmgr *hwmgr,
 
 	/* Get MinVoltage and Frequency from DPM0,
 	 * already converted to SMC_UL */
-	sclk_frequency = data->dpm_table.sclk_table.dpm_levels[0].value;
+	sclk_frequency = data->vbios_boot_state.sclk_bootup_value;
 	result = polaris10_get_dependency_volt_by_clk(hwmgr,
 			table_info->vdd_dep_on_sclk,
 			sclk_frequency,
@@ -1509,8 +1509,7 @@ static int polaris10_populate_smc_acpi_level(struct pp_hwmgr *hwmgr,
 
 
 	/* Get MinVoltage and Frequency from DPM0, already converted to SMC_UL */
-	table->MemoryACPILevel.MclkFrequency =
-			data->dpm_table.mclk_table.dpm_levels[0].value;
+	table->MemoryACPILevel.MclkFrequency = data->vbios_boot_state.mclk_bootup_value;
 	result = polaris10_get_dependency_volt_by_clk(hwmgr,
 			table_info->vdd_dep_on_mclk,
 			table->MemoryACPILevel.MclkFrequency,
@@ -2669,6 +2668,10 @@ int polaris10_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to enable deep sleep master switch!", result = tmp_result);
 
+	tmp_result = polaris10_enable_didt_config(hwmgr);
+	PP_ASSERT_WITH_CODE((tmp_result == 0),
+			"Failed to enable deep sleep master switch!", result = tmp_result);
+
 	tmp_result = polaris10_start_dpm(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to start DPM!", result = tmp_result);
@@ -2808,13 +2811,13 @@ int polaris10_set_features_platform_caps(struct pp_hwmgr *hwmgr)
 					PHM_PlatformCaps_DynamicUVDState);
 
 	/* power tune caps Assume disabled */
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 						PHM_PlatformCaps_SQRamping);
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 						PHM_PlatformCaps_DBRamping);
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 						PHM_PlatformCaps_TDRamping);
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 						PHM_PlatformCaps_TCPRamping);
 
 	if (hwmgr->powercontainment_enabled)
@@ -3258,7 +3261,7 @@ int polaris10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	if (0 == result) {
 		struct cgs_system_info sys_info = {0};
 
-		data->is_tlu_enabled = 0;
+		data->is_tlu_enabled = false;
 
 		hwmgr->platform_descriptor.hardwareActivityPerformanceLevels =
 							POLARIS10_MAX_HARDWARE_POWERLEVELS;
@@ -3640,6 +3643,7 @@ static int polaris10_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 	disable_mclk_switching_for_frame_lock = phm_cap_enabled(
 				    hwmgr->platform_descriptor.platformCaps,
 				    PHM_PlatformCaps_DisableMclkSwitchingForFrameLock);
+
 
 	disable_mclk_switching = (1 < info.display_count) ||
 				    disable_mclk_switching_for_frame_lock;
@@ -4145,8 +4149,8 @@ static int polaris10_freeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 	if ((0 == data->sclk_dpm_key_disabled) &&
 		(data->need_update_smu7_dpm_table &
 			(DPMTABLE_OD_UPDATE_SCLK + DPMTABLE_UPDATE_SCLK))) {
-		PP_ASSERT_WITH_CODE(true == polaris10_is_dpm_running(hwmgr),
-				"Trying to freeze SCLK DPM when DPM is disabled",
+		PP_ASSERT_WITH_CODE(polaris10_is_dpm_running(hwmgr),
+				    "Trying to freeze SCLK DPM when DPM is disabled",
 				);
 		PP_ASSERT_WITH_CODE(0 == smum_send_msg_to_smc(hwmgr->smumgr,
 				PPSMC_MSG_SCLKDPM_FreezeLevel),
@@ -4157,8 +4161,8 @@ static int polaris10_freeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 	if ((0 == data->mclk_dpm_key_disabled) &&
 		(data->need_update_smu7_dpm_table &
 		 DPMTABLE_OD_UPDATE_MCLK)) {
-		PP_ASSERT_WITH_CODE(true == polaris10_is_dpm_running(hwmgr),
-				"Trying to freeze MCLK DPM when DPM is disabled",
+		PP_ASSERT_WITH_CODE(polaris10_is_dpm_running(hwmgr),
+				    "Trying to freeze MCLK DPM when DPM is disabled",
 				);
 		PP_ASSERT_WITH_CODE(0 == smum_send_msg_to_smc(hwmgr->smumgr,
 				PPSMC_MSG_MCLKDPM_FreezeLevel),
@@ -4318,7 +4322,6 @@ static int polaris10_trim_single_dpm_states(struct pp_hwmgr *hwmgr,
 static int polaris10_trim_dpm_states(struct pp_hwmgr *hwmgr,
 		const struct polaris10_power_state *polaris10_ps)
 {
-	int result = 0;
 	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	uint32_t high_limit_count;
 
@@ -4338,7 +4341,7 @@ static int polaris10_trim_dpm_states(struct pp_hwmgr *hwmgr,
 			polaris10_ps->performance_levels[0].memory_clock,
 			polaris10_ps->performance_levels[high_limit_count].memory_clock);
 
-	return result;
+	return 0;
 }
 
 static int polaris10_generate_dpm_level_enable_mask(
@@ -4421,25 +4424,20 @@ int polaris10_update_uvd_dpm(struct pp_hwmgr *hwmgr, bool bgate)
 	return polaris10_enable_disable_uvd_dpm(hwmgr, !bgate);
 }
 
-static int polaris10_update_vce_dpm(struct pp_hwmgr *hwmgr, const void *input)
+int polaris10_update_vce_dpm(struct pp_hwmgr *hwmgr, bool bgate)
 {
-	const struct phm_set_power_state_input *states =
-			(const struct phm_set_power_state_input *)input;
 	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
-	const struct polaris10_power_state *polaris10_nps =
-			cast_const_phw_polaris10_power_state(states->pnew_state);
-	const struct polaris10_power_state *polaris10_cps =
-			cast_const_phw_polaris10_power_state(states->pcurrent_state);
-
 	uint32_t mm_boot_level_offset, mm_boot_level_value;
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 
-	if (polaris10_nps->vce_clks.evclk > 0 &&
-	(polaris10_cps == NULL || polaris10_cps->vce_clks.evclk == 0)) {
-
-		data->smc_state_table.VceBootLevel =
+	if (!bgate) {
+		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+						PHM_PlatformCaps_StablePState))
+			data->smc_state_table.VceBootLevel =
 				(uint8_t) (table_info->mm_dep_table->count - 1);
+		else
+			data->smc_state_table.VceBootLevel = 0;
 
 		mm_boot_level_offset = data->dpm_table_start +
 				offsetof(SMU74_Discrete_DpmTable, VceBootLevel);
@@ -4452,17 +4450,13 @@ static int polaris10_update_vce_dpm(struct pp_hwmgr *hwmgr, const void *input)
 		cgs_write_ind_register(hwmgr->device,
 				CGS_IND_REG__SMC, mm_boot_level_offset, mm_boot_level_value);
 
-		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_StablePState)) {
+		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_StablePState))
 			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
 					PPSMC_MSG_VCEDPM_SetEnabledMask,
 					(uint32_t)1 << data->smc_state_table.VceBootLevel);
-
-			polaris10_enable_disable_vce_dpm(hwmgr, true);
-		} else if (polaris10_nps->vce_clks.evclk == 0 &&
-				polaris10_cps != NULL &&
-				polaris10_cps->vce_clks.evclk > 0)
-			polaris10_enable_disable_vce_dpm(hwmgr, false);
 	}
+
+	polaris10_enable_disable_vce_dpm(hwmgr, !bgate);
 
 	return 0;
 }
@@ -4548,8 +4542,8 @@ static int polaris10_unfreeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 		(data->need_update_smu7_dpm_table &
 		(DPMTABLE_OD_UPDATE_SCLK + DPMTABLE_UPDATE_SCLK))) {
 
-		PP_ASSERT_WITH_CODE(true == polaris10_is_dpm_running(hwmgr),
-				"Trying to Unfreeze SCLK DPM when DPM is disabled",
+		PP_ASSERT_WITH_CODE(polaris10_is_dpm_running(hwmgr),
+				    "Trying to Unfreeze SCLK DPM when DPM is disabled",
 				);
 		PP_ASSERT_WITH_CODE(0 == smum_send_msg_to_smc(hwmgr->smumgr,
 				PPSMC_MSG_SCLKDPM_UnfreezeLevel),
@@ -4560,8 +4554,8 @@ static int polaris10_unfreeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 	if ((0 == data->mclk_dpm_key_disabled) &&
 		(data->need_update_smu7_dpm_table & DPMTABLE_OD_UPDATE_MCLK)) {
 
-		PP_ASSERT_WITH_CODE(true == polaris10_is_dpm_running(hwmgr),
-				"Trying to Unfreeze MCLK DPM when DPM is disabled",
+		PP_ASSERT_WITH_CODE(polaris10_is_dpm_running(hwmgr),
+				    "Trying to Unfreeze MCLK DPM when DPM is disabled",
 				);
 		PP_ASSERT_WITH_CODE(0 == smum_send_msg_to_smc(hwmgr->smumgr,
 				PPSMC_MSG_SCLKDPM_UnfreezeLevel),
@@ -4617,6 +4611,8 @@ static int polaris10_notify_smc_display(struct pp_hwmgr *hwmgr)
 	return (smum_send_msg_to_smc(hwmgr->smumgr, (PPSMC_Msg)PPSMC_HasDisplay) == 0) ?  0 : -EINVAL;
 }
 
+
+
 static int polaris10_set_power_state_tasks(struct pp_hwmgr *hwmgr, const void *input)
 {
 	int tmp_result, result = 0;
@@ -4648,11 +4644,6 @@ static int polaris10_set_power_state_tasks(struct pp_hwmgr *hwmgr, const void *i
 	tmp_result = polaris10_generate_dpm_level_enable_mask(hwmgr, input);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to generate DPM level enabled mask!",
-			result = tmp_result);
-
-	tmp_result = polaris10_update_vce_dpm(hwmgr, input);
-	PP_ASSERT_WITH_CODE((0 == tmp_result),
-			"Failed to update VCE DPM!",
 			result = tmp_result);
 
 	tmp_result = polaris10_update_sclk_threshold(hwmgr);
@@ -4725,6 +4716,7 @@ int polaris10_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwm
 	if (num_active_displays > 1)  /* to do && (pHwMgr->pPECI->displayConfiguration.bMultiMonitorInSync != TRUE)) */
 		polaris10_notify_smc_display_change(hwmgr, false);
 
+
 	return 0;
 }
 
@@ -4773,6 +4765,7 @@ int polaris10_program_display_gap(struct pp_hwmgr *hwmgr)
 	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, data->soft_regs_start + offsetof(SMU74_SoftRegisters, PreVBlankGap), 0x64);
 
 	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, data->soft_regs_start + offsetof(SMU74_SoftRegisters, VBlankTimeout), (frame_time_in_us - pre_vbi_time_in_us));
+
 
 	return 0;
 }

@@ -21,8 +21,8 @@
  *
  */
 
-#ifndef ICELAND_SMUMGR_H
-#define ICELAND_SMUMGR_H
+#ifndef ICELAND_SMUM_H
+#define ICELAND_SMUM_H
 
 #include "ppsmc.h"
 

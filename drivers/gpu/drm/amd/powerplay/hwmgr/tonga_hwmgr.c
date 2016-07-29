@@ -571,7 +571,7 @@ int tonga_disable_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 	if (0 == data->sclk_dpm_key_disabled) {
 		/* Checking if DPM is running.  If we discover hang because of this, we should skip this message.*/
 		PP_ASSERT_WITH_CODE(
-				(0 == tonga_is_dpm_running(hwmgr)),
+				!tonga_is_dpm_running(hwmgr),
 				"Trying to Disable SCLK DPM when DPM is disabled",
 				return -1
 				);
@@ -587,7 +587,7 @@ int tonga_disable_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 	if (0 == data->mclk_dpm_key_disabled) {
 		/* Checking if DPM is running.  If we discover hang because of this, we should skip this message. */
 		PP_ASSERT_WITH_CODE(
-				(0 == tonga_is_dpm_running(hwmgr)),
+				!tonga_is_dpm_running(hwmgr),
 				"Trying to Disable MCLK DPM when DPM is disabled",
 				return -1
 				);
@@ -614,7 +614,7 @@ int tonga_stop_dpm(struct pp_hwmgr *hwmgr)
 	if (0 == data->pcie_dpm_key_disabled) {
 		/* Checking if DPM is running.  If we discover hang because of this, we should skip this message.*/
 		PP_ASSERT_WITH_CODE(
-				(0 == tonga_is_dpm_running(hwmgr)),
+				!tonga_is_dpm_running(hwmgr),
 				"Trying to Disable PCIE DPM when DPM is disabled",
 				return -1
 				);
@@ -630,7 +630,7 @@ int tonga_stop_dpm(struct pp_hwmgr *hwmgr)
 
 	/* Checking if DPM is running.  If we discover hang because of this, we should skip this message.*/
 	PP_ASSERT_WITH_CODE(
-			(0 == tonga_is_dpm_running(hwmgr)),
+			!tonga_is_dpm_running(hwmgr),
 			"Trying to Disable Voltage CNTL when DPM is disabled",
 			return -1
 			);
@@ -688,8 +688,9 @@ int tonga_dpm_force_state(struct pp_hwmgr *hwmgr, uint32_t n)
 	uint32_t level_mask = 1 << n;
 
 	/* Checking if DPM is running.  If we discover hang because of this, we should skip this message. */
-	PP_ASSERT_WITH_CODE(0 == tonga_is_dpm_running(hwmgr),
-			"Trying to force SCLK when DPM is disabled", return -1;);
+	PP_ASSERT_WITH_CODE(!tonga_is_dpm_running(hwmgr),
+			    "Trying to force SCLK when DPM is disabled",
+			    return -1;);
 	if (0 == data->sclk_dpm_key_disabled)
 		return (0 == smum_send_msg_to_smc_with_parameter(
 							     hwmgr->smumgr,
@@ -712,8 +713,9 @@ int tonga_dpm_force_state_mclk(struct pp_hwmgr *hwmgr, uint32_t n)
 	uint32_t level_mask = 1 << n;
 
 	/* Checking if DPM is running.  If we discover hang because of this, we should skip this message. */
-	PP_ASSERT_WITH_CODE(0 == tonga_is_dpm_running(hwmgr),
-			"Trying to Force MCLK when DPM is disabled", return -1;);
+	PP_ASSERT_WITH_CODE(!tonga_is_dpm_running(hwmgr),
+			    "Trying to Force MCLK when DPM is disabled",
+			    return -1;);
 	if (0 == data->mclk_dpm_key_disabled)
 		return (0 == smum_send_msg_to_smc_with_parameter(
 								hwmgr->smumgr,
@@ -735,8 +737,9 @@ int tonga_dpm_force_state_pcie(struct pp_hwmgr *hwmgr, uint32_t n)
 	tonga_hwmgr *data = (tonga_hwmgr *)(hwmgr->backend);
 
 	/* Checking if DPM is running.  If we discover hang because of this, we should skip this message.*/
-	PP_ASSERT_WITH_CODE(0 == tonga_is_dpm_running(hwmgr),
-			"Trying to Force PCIE level when DPM is disabled", return -1;);
+	PP_ASSERT_WITH_CODE(!tonga_is_dpm_running(hwmgr),
+			    "Trying to Force PCIE level when DPM is disabled",
+			    return -1;);
 	if (0 == data->pcie_dpm_key_disabled)
 		return (0 == smum_send_msg_to_smc_with_parameter(
 							     hwmgr->smumgr,
@@ -774,7 +777,7 @@ int tonga_process_firmware_header(struct pp_hwmgr *hwmgr)
 
 	uint32_t tmp;
 	int result;
-	bool error = 0;
+	bool error = false;
 
 	result = tonga_read_smc_sram_dword(hwmgr->smumgr,
 				SMU72_FIRMWARE_HEADER_LOCATION +
@@ -933,11 +936,11 @@ int tonga_init_power_gate_state(struct pp_hwmgr *hwmgr)
 {
 	tonga_hwmgr *data = (tonga_hwmgr *)(hwmgr->backend);
 
-	data->uvd_power_gated = 0;
-	data->vce_power_gated = 0;
-	data->samu_power_gated = 0;
-	data->acp_power_gated = 0;
-	data->pg_acp_init = 1;
+	data->uvd_power_gated = false;
+	data->vce_power_gated = false;
+	data->samu_power_gated = false;
+	data->acp_power_gated = false;
+	data->pg_acp_init = true;
 
 	return 0;
 }
@@ -955,7 +958,7 @@ int tonga_check_for_dpm_running(struct pp_hwmgr *hwmgr)
 	 * because we may have test scenarios that need us intentionly disable SCLK/MCLK DPM,
 	 * whereas voltage control is a fundemental change that will not be disabled
 	 */
-	return (0 == tonga_is_dpm_running(hwmgr) ? 0 : 1);
+	return (!tonga_is_dpm_running(hwmgr) ? 0 : 1);
 }
 
 /**
@@ -968,7 +971,7 @@ int tonga_check_for_dpm_stopped(struct pp_hwmgr *hwmgr)
 {
 	tonga_hwmgr *data = (tonga_hwmgr *)(hwmgr->backend);
 
-	if (0 != tonga_is_dpm_running(hwmgr)) {
+	if (tonga_is_dpm_running(hwmgr)) {
 		/* If HW Virtualization is enabled, dpm_table_start will not have a valid value */
 		if (!data->dpm_table_start) {
 			return 1;
@@ -991,7 +994,7 @@ static int tonga_trim_voltage_table(struct pp_hwmgr *hwmgr,
 {
 	uint32_t table_size, i, j;
 	uint16_t vvalue;
-	bool bVoltageFound = 0;
+	bool bVoltageFound = false;
 	pp_atomctrl_voltage_table *table;
 
 	PP_ASSERT_WITH_CODE((NULL != voltage_table), "Voltage Table empty.", return -1;);
@@ -1007,11 +1010,11 @@ static int tonga_trim_voltage_table(struct pp_hwmgr *hwmgr,
 
 	for (i = 0; i < voltage_table->count; i++) {
 		vvalue = voltage_table->entries[i].value;
-		bVoltageFound = 0;
+		bVoltageFound = false;
 
 		for (j = 0; j < table->count; j++) {
 			if (vvalue == table->entries[j].value) {
-				bVoltageFound = 1;
+				bVoltageFound = true;
 				break;
 			}
 		}
@@ -1331,7 +1334,6 @@ static int tonga_populate_cac_tables(struct pp_hwmgr *hwmgr,
 {
 	uint32_t count;
 	uint8_t index;
-	int result = 0;
 	tonga_hwmgr *data = (tonga_hwmgr *)(hwmgr->backend);
 	struct phm_ppt_v1_information *pptable_info = (struct phm_ppt_v1_information *)(hwmgr->pptable);
 	struct phm_ppt_v1_voltage_lookup_table *vddgfx_lookup_table = pptable_info->vddgfx_lookup_table;
@@ -1378,7 +1380,7 @@ static int tonga_populate_cac_tables(struct pp_hwmgr *hwmgr,
 		}
 	}
 
-	return result;
+	return 0;
 }
 
 
@@ -2042,7 +2044,7 @@ static int tonga_populate_single_memory_level(
 
 	if ((data->mclk_stutter_mode_threshold != 0) &&
 	    (memory_clock <= data->mclk_stutter_mode_threshold) &&
-	    (data->is_uvd_enabled == 0)
+	    (!data->is_uvd_enabled)
 	    && (PHM_READ_FIELD(hwmgr->device, DPG_PIPE_STUTTER_CONTROL, STUTTER_ENABLE) & 0x1)
 	    && (data->display_timing.num_existing_displays <= 2)
 	    && (data->display_timing.num_existing_displays != 0))
@@ -2705,7 +2707,7 @@ static int tonga_reset_single_dpm_table(
 
 	dpm_table->count = count;
 	for (i = 0; i < MAX_REGULAR_DPM_NUMBER; i++) {
-		dpm_table->dpm_levels[i].enabled = 0;
+		dpm_table->dpm_levels[i].enabled = false;
 	}
 
 	return 0;
@@ -2718,7 +2720,7 @@ static void tonga_setup_pcie_table_entry(
 {
 	dpm_table->dpm_levels[index].value = pcie_gen;
 	dpm_table->dpm_levels[index].param1 = pcie_lanes;
-	dpm_table->dpm_levels[index].enabled = 1;
+	dpm_table->dpm_levels[index].enabled = true;
 }
 
 static int tonga_setup_default_pcie_tables(struct pp_hwmgr *hwmgr)
@@ -2828,7 +2830,7 @@ static int tonga_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 				allowed_vdd_sclk_table->entries[i].clk) {
 			data->dpm_table.sclk_table.dpm_levels[data->dpm_table.sclk_table.count].value =
 				allowed_vdd_sclk_table->entries[i].clk;
-			data->dpm_table.sclk_table.dpm_levels[data->dpm_table.sclk_table.count].enabled = 1; /*(i==0) ? 1 : 0; to do */
+			data->dpm_table.sclk_table.dpm_levels[data->dpm_table.sclk_table.count].enabled = true; /*(i==0) ? 1 : 0; to do */
 			data->dpm_table.sclk_table.count++;
 		}
 	}
@@ -2842,7 +2844,7 @@ static int tonga_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 			allowed_vdd_mclk_table->entries[i].clk) {
 			data->dpm_table.mclk_table.dpm_levels[data->dpm_table.mclk_table.count].value =
 				allowed_vdd_mclk_table->entries[i].clk;
-			data->dpm_table.mclk_table.dpm_levels[data->dpm_table.mclk_table.count].enabled = 1; /*(i==0) ? 1 : 0; */
+			data->dpm_table.mclk_table.dpm_levels[data->dpm_table.mclk_table.count].enabled = true; /*(i==0) ? 1 : 0; */
 			data->dpm_table.mclk_table.count++;
 		}
 	}
@@ -3134,7 +3136,7 @@ int tonga_upload_dpm_level_enable_mask(struct pp_hwmgr *hwmgr)
 
 	if (0 == data->sclk_dpm_key_disabled) {
 		/* Checking if DPM is running.  If we discover hang because of this, we should skip this message.*/
-		if (0 != tonga_is_dpm_running(hwmgr))
+		if (tonga_is_dpm_running(hwmgr))
 			printk(KERN_ERR "[ powerplay ] Trying to set Enable Mask when DPM is disabled \n");
 
 		if (0 != data->dpm_level_enable_mask.sclk_dpm_enable_mask) {
@@ -3149,7 +3151,7 @@ int tonga_upload_dpm_level_enable_mask(struct pp_hwmgr *hwmgr)
 
 	if (0 == data->mclk_dpm_key_disabled) {
 		/* Checking if DPM is running.  If we discover hang because of this, we should skip this message.*/
-		if (0 != tonga_is_dpm_running(hwmgr))
+		if (tonga_is_dpm_running(hwmgr))
 			printk(KERN_ERR "[ powerplay ] Trying to set Enable Mask when DPM is disabled \n");
 
 		if (0 != data->dpm_level_enable_mask.mclk_dpm_enable_mask) {
@@ -3260,7 +3262,7 @@ int tonga_initializa_dynamic_state_adjustment_rule_settings(struct pp_hwmgr *hwm
 
 	/* initialize vddc_dep_on_dal_pwrl table */
 	table_size = sizeof(uint32_t) + 4 * sizeof(struct phm_clock_voltage_dependency_record);
-	table_clk_vlt = (struct phm_clock_voltage_dependency_table *)kzalloc(table_size, GFP_KERNEL);
+	table_clk_vlt = kzalloc(table_size, GFP_KERNEL);
 
 	if (NULL == table_clk_vlt) {
 		printk(KERN_ERR "[ powerplay ] Can not allocate space for vddc_dep_on_dal_pwrl! \n");
@@ -3335,9 +3337,9 @@ int tonga_unforce_dpm_levels(struct pp_hwmgr *hwmgr)
 	tonga_hwmgr *data = (tonga_hwmgr *)(hwmgr->backend);
 	int result = 1;
 
-	PP_ASSERT_WITH_CODE (0 == tonga_is_dpm_running(hwmgr),
-		"Trying to Unforce DPM when DPM is disabled. Returning without sending SMC message.",
-							return result);
+	PP_ASSERT_WITH_CODE (!tonga_is_dpm_running(hwmgr),
+			     "Trying to Unforce DPM when DPM is disabled. Returning without sending SMC message.",
+			     return result);
 
 	if (0 == data->pcie_dpm_key_disabled) {
 		PP_ASSERT_WITH_CODE((0 == smum_send_msg_to_smc(
@@ -3741,7 +3743,7 @@ uint8_t tonga_get_memory_modile_index(struct pp_hwmgr *hwmgr)
 
 bool tonga_check_s0_mc_reg_index(uint16_t inReg, uint16_t *outReg)
 {
-	bool result = 1;
+	bool result = true;
 
 	switch (inReg) {
 	case  mmMC_SEQ_RAS_TIMING:
@@ -3825,7 +3827,7 @@ bool tonga_check_s0_mc_reg_index(uint16_t inReg, uint16_t *outReg)
 		break;
 
 	default:
-		result = 0;
+		result = false;
 		break;
 	}
 
@@ -4449,7 +4451,7 @@ int tonga_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 
 	hwmgr->backend = data;
 
-	data->dll_defaule_on = 0;
+	data->dll_defaule_on = false;
 	data->sram_end = SMC_RAM_END;
 
 	data->activity_target[0] = PPTONGA_TARGETACTIVITY_DFLT;
@@ -4555,13 +4557,13 @@ int tonga_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 
 	/* ULV Support*/
 	ulv = &(data->ulv);
-	ulv->ulv_supported = 0;
+	ulv->ulv_supported = false;
 
 	/* Initalize Dynamic State Adjustment Rule Settings*/
 	result = tonga_initializa_dynamic_state_adjustment_rule_settings(hwmgr);
 	if (result)
 		printk(KERN_ERR "[ powerplay ] tonga_initializa_dynamic_state_adjustment_rule_settings failed!\n");
-	data->uvd_enabled = 0;
+	data->uvd_enabled = false;
 
 	table = &(data->smc_state_table);
 
@@ -4608,7 +4610,7 @@ int tonga_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 		PHM_PlatformCaps_SMU7);
 
-	data->vddc_phase_shed_control = 0;
+	data->vddc_phase_shed_control = false;
 
 	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 		      PHM_PlatformCaps_UVDPowerGating);
@@ -4627,7 +4629,7 @@ int tonga_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	}
 
 	if (0 == result) {
-		data->is_tlu_enabled = 0;
+		data->is_tlu_enabled = false;
 		hwmgr->platform_descriptor.hardwareActivityPerformanceLevels =
 			TONGA_MAX_HARDWARE_POWERLEVELS;
 		hwmgr->platform_descriptor.hardwarePerformanceLevels = 2;
@@ -5308,9 +5310,8 @@ static int tonga_freeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 	if ((0 == data->sclk_dpm_key_disabled) &&
 		(data->need_update_smu7_dpm_table &
 		(DPMTABLE_OD_UPDATE_SCLK + DPMTABLE_UPDATE_SCLK))) {
-		PP_ASSERT_WITH_CODE(
-			0 == tonga_is_dpm_running(hwmgr),
-			"Trying to freeze SCLK DPM when DPM is disabled",
+		PP_ASSERT_WITH_CODE(!tonga_is_dpm_running(hwmgr),
+				    "Trying to freeze SCLK DPM when DPM is disabled",
 			);
 		PP_ASSERT_WITH_CODE(
 			0 == smum_send_msg_to_smc(hwmgr->smumgr,
@@ -5322,8 +5323,8 @@ static int tonga_freeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 	if ((0 == data->mclk_dpm_key_disabled) &&
 		(data->need_update_smu7_dpm_table &
 		 DPMTABLE_OD_UPDATE_MCLK)) {
-		PP_ASSERT_WITH_CODE(0 == tonga_is_dpm_running(hwmgr),
-			"Trying to freeze MCLK DPM when DPM is disabled",
+		PP_ASSERT_WITH_CODE(!tonga_is_dpm_running(hwmgr),
+				    "Trying to freeze MCLK DPM when DPM is disabled",
 			);
 		PP_ASSERT_WITH_CODE(
 			0 == smum_send_msg_to_smc(hwmgr->smumgr,
@@ -5458,7 +5459,6 @@ static	int tonga_trim_single_dpm_states(struct pp_hwmgr *hwmgr,
 
 static int tonga_trim_dpm_states(struct pp_hwmgr *hwmgr, const struct tonga_power_state *hw_state)
 {
-	int result = 0;
 	struct tonga_hwmgr *data = (struct tonga_hwmgr *)(hwmgr->backend);
 	uint32_t high_limit_count;
 
@@ -5478,7 +5478,7 @@ static int tonga_trim_dpm_states(struct pp_hwmgr *hwmgr, const struct tonga_powe
 						hw_state->performance_levels[0].memory_clock,
 						hw_state->performance_levels[high_limit_count].memory_clock);
 
-	return result;
+	return 0;
 }
 
 static int tonga_generate_dpm_level_enable_mask(struct pp_hwmgr *hwmgr, const void *input)
@@ -5625,8 +5625,8 @@ static int tonga_unfreeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 		(data->need_update_smu7_dpm_table &
 		(DPMTABLE_OD_UPDATE_SCLK + DPMTABLE_UPDATE_SCLK))) {
 
-		PP_ASSERT_WITH_CODE(0 == tonga_is_dpm_running(hwmgr),
-			"Trying to Unfreeze SCLK DPM when DPM is disabled",
+		PP_ASSERT_WITH_CODE(!tonga_is_dpm_running(hwmgr),
+				    "Trying to Unfreeze SCLK DPM when DPM is disabled",
 			);
 		PP_ASSERT_WITH_CODE(
 			 0 == smum_send_msg_to_smc(hwmgr->smumgr,
@@ -5638,9 +5638,8 @@ static int tonga_unfreeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 	if ((0 == data->mclk_dpm_key_disabled) &&
 		(data->need_update_smu7_dpm_table & DPMTABLE_OD_UPDATE_MCLK)) {
 
-		PP_ASSERT_WITH_CODE(
-				0 == tonga_is_dpm_running(hwmgr),
-				"Trying to Unfreeze MCLK DPM when DPM is disabled",
+		PP_ASSERT_WITH_CODE(!tonga_is_dpm_running(hwmgr),
+				    "Trying to Unfreeze MCLK DPM when DPM is disabled",
 				);
 		PP_ASSERT_WITH_CODE(
 			 0 == smum_send_msg_to_smc(hwmgr->smumgr,

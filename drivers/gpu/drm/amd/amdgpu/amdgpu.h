@@ -306,13 +306,16 @@ struct amdgpu_ring_funcs {
 				uint32_t oa_base, uint32_t oa_size);
 	/* testing functions */
 	int (*test_ring)(struct amdgpu_ring *ring);
-	int (*test_ib)(struct amdgpu_ring *ring);
+	int (*test_ib)(struct amdgpu_ring *ring, long timeout);
 	/* insert NOP packets */
 	void (*insert_nop)(struct amdgpu_ring *ring, uint32_t count);
 	/* pad the indirect buffer to the necessary number of dw */
 	void (*pad_ib)(struct amdgpu_ring *ring, struct amdgpu_ib *ib);
 	unsigned (*init_cond_exec)(struct amdgpu_ring *ring);
 	void (*patch_cond_exec)(struct amdgpu_ring *ring, unsigned offset);
+	/* note usage for clock and power gating */
+	void (*begin_use)(struct amdgpu_ring *ring);
+	void (*end_use)(struct amdgpu_ring *ring);
 };
 
 /*
@@ -772,7 +775,6 @@ struct amdgpu_ring {
 	struct amdgpu_fence_driver	fence_drv;
 	struct amd_gpu_scheduler	sched;
 
-	spinlock_t              fence_lock;
 	struct amdgpu_bo	*ring_obj;
 	volatile uint32_t	*ring;
 	unsigned		rptr_offs;
@@ -799,8 +801,8 @@ struct amdgpu_ring {
 	enum amdgpu_ring_type	type;
 	char			name[16];
 	unsigned		cond_exe_offs;
-	u64				cond_exe_gpu_addr;
-	volatile u32	*cond_exe_cpu_addr;
+	u64			cond_exe_gpu_addr;
+	volatile u32		*cond_exe_cpu_addr;
 #if defined(CONFIG_DEBUG_FS)
 	struct dentry *ent;
 #endif
@@ -1679,6 +1681,7 @@ struct amdgpu_uvd {
 	struct amdgpu_ring	ring;
 	struct amdgpu_irq_src	irq;
 	bool			address_64_bit;
+	bool			use_ctx_buf;
 	struct amd_sched_entity entity;
 };
 
@@ -1700,6 +1703,7 @@ struct amdgpu_vce {
 	struct drm_file		*filp[AMDGPU_MAX_VCE_HANDLES];
 	uint32_t		img_size[AMDGPU_MAX_VCE_HANDLES];
 	struct delayed_work	idle_work;
+	struct mutex		idle_mutex;
 	const struct firmware	*fw;	/* VCE firmware */
 	struct amdgpu_ring	ring[AMDGPU_MAX_VCE_RINGS];
 	struct amdgpu_irq_src	irq;
@@ -2242,7 +2246,7 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 #define amdgpu_vm_set_pte_pde(adev, ib, pe, addr, count, incr, flags) ((adev)->vm_manager.vm_pte_funcs->set_pte_pde((ib), (pe), (addr), (count), (incr), (flags)))
 #define amdgpu_ring_parse_cs(r, p, ib) ((r)->funcs->parse_cs((p), (ib)))
 #define amdgpu_ring_test_ring(r) (r)->funcs->test_ring((r))
-#define amdgpu_ring_test_ib(r) (r)->funcs->test_ib((r))
+#define amdgpu_ring_test_ib(r, t) (r)->funcs->test_ib((r), (t))
 #define amdgpu_ring_get_rptr(r) (r)->funcs->get_rptr((r))
 #define amdgpu_ring_get_wptr(r) (r)->funcs->get_wptr((r))
 #define amdgpu_ring_set_wptr(r) (r)->funcs->set_wptr((r))

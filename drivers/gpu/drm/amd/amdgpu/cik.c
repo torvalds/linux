@@ -879,7 +879,7 @@ static void cik_vga_set_state(struct amdgpu_device *adev, bool state)
 	uint32_t tmp;
 
 	tmp = RREG32(mmCONFIG_CNTL);
-	if (state == false)
+	if (!state)
 		tmp |= CONFIG_CNTL__VGA_DIS_MASK;
 	else
 		tmp &= ~CONFIG_CNTL__VGA_DIS_MASK;

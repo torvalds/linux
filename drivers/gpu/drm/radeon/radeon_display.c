@@ -714,7 +714,7 @@ static void radeon_crtc_init(struct drm_device *dev, int index)
 
 	drm_mode_crtc_set_gamma_size(&radeon_crtc->base, 256);
 	radeon_crtc->crtc_id = index;
-	radeon_crtc->flip_queue = create_singlethread_workqueue("radeon-crtc");
+	radeon_crtc->flip_queue = alloc_workqueue("radeon-crtc", WQ_HIGHPRI, 0);
 	rdev->mode_info.crtcs[index] = radeon_crtc;
 
 	if (rdev->family >= CHIP_BONAIRE) {
@@ -1324,9 +1324,7 @@ static void radeon_user_framebuffer_destroy(struct drm_framebuffer *fb)
 {
 	struct radeon_framebuffer *radeon_fb = to_radeon_framebuffer(fb);
 
-	if (radeon_fb->obj) {
-		drm_gem_object_unreference_unlocked(radeon_fb->obj);
-	}
+	drm_gem_object_unreference_unlocked(radeon_fb->obj);
 	drm_framebuffer_cleanup(fb);
 	kfree(radeon_fb);
 }

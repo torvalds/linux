@@ -1289,9 +1289,9 @@ int atomctrl_set_ac_timing_ai(struct pp_hwmgr *hwmgr, uint32_t memory_clock,
 	int result;
 
 	memory_clock_parameters.asDPMMCReg.ulClock.ulClockFreq =
-		cpu_to_le32(memory_clock & SET_CLOCK_FREQ_MASK);
+		memory_clock & SET_CLOCK_FREQ_MASK;
 	memory_clock_parameters.asDPMMCReg.ulClock.ulComputeClockFlag =
-		cpu_to_le32(ADJUST_MC_SETTING_PARAM);
+		ADJUST_MC_SETTING_PARAM;
 	memory_clock_parameters.asDPMMCReg.ucMclkDPMState = level;
 
 	result = cgs_atom_exec_cmd_table

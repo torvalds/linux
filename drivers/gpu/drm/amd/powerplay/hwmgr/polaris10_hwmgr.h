@@ -352,6 +352,6 @@ int polaris10_hwmgr_init(struct pp_hwmgr *hwmgr);
 int polaris10_update_uvd_dpm(struct pp_hwmgr *hwmgr, bool bgate);
 int polaris10_update_samu_dpm(struct pp_hwmgr *hwmgr, bool bgate);
 int polaris10_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable);
-
+int polaris10_update_vce_dpm(struct pp_hwmgr *hwmgr, bool bgate);
 #endif
 

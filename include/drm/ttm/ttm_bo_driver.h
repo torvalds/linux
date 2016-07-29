@@ -628,6 +628,15 @@ extern int ttm_tt_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem);
 extern void ttm_tt_destroy(struct ttm_tt *ttm);
 
 /**
+ * ttm_ttm_unbind:
+ *
+ * @ttm: The struct ttm_tt.
+ *
+ * Unbind a struct ttm_tt.
+ */
+extern void ttm_tt_unbind(struct ttm_tt *ttm);
+
+/**
  * ttm_tt_swapin:
  *
  * @ttm: The struct ttm_tt.

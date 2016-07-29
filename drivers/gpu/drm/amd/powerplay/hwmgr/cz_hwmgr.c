@@ -1167,9 +1167,9 @@ static int cz_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 
 	cz_ps->action = cz_current_ps->action;
 
-	if ((force_high == false) && (cz_ps->action == FORCE_HIGH))
+	if (!force_high && (cz_ps->action == FORCE_HIGH))
 		cz_ps->action = CANCEL_FORCE_HIGH;
-	else if ((force_high == true) && (cz_ps->action != FORCE_HIGH))
+	else if (force_high && (cz_ps->action != FORCE_HIGH))
 		cz_ps->action = FORCE_HIGH;
 	else
 		cz_ps->action = DO_NOTHING;
@@ -1656,7 +1656,7 @@ static void cz_hw_print_display_cfg(
 	struct cz_hwmgr *hw_data = (struct cz_hwmgr *)(hwmgr->backend);
 	uint32_t data = 0;
 
-	if (hw_data->cc6_settings.cc6_setting_changed == true) {
+	if (hw_data->cc6_settings.cc6_setting_changed) {
 
 		hw_data->cc6_settings.cc6_setting_changed = false;
 

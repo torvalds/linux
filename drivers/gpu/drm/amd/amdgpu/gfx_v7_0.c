@@ -2105,25 +2105,25 @@ static void gfx_v7_0_ring_emit_ib_compute(struct amdgpu_ring *ring,
  * Provides a basic gfx ring test to verify that IBs are working.
  * Returns 0 on success, error on failure.
  */
-static int gfx_v7_0_ring_test_ib(struct amdgpu_ring *ring)
+static int gfx_v7_0_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_ib ib;
 	struct fence *f = NULL;
 	uint32_t scratch;
 	uint32_t tmp = 0;
-	int r;
+	long r;
 
 	r = amdgpu_gfx_scratch_get(adev, &scratch);
 	if (r) {
-		DRM_ERROR("amdgpu: failed to get scratch reg (%d).\n", r);
+		DRM_ERROR("amdgpu: failed to get scratch reg (%ld).\n", r);
 		return r;
 	}
 	WREG32(scratch, 0xCAFEDEAD);
 	memset(&ib, 0, sizeof(ib));
 	r = amdgpu_ib_get(adev, NULL, 256, &ib);
 	if (r) {
-		DRM_ERROR("amdgpu: failed to get ib (%d).\n", r);
+		DRM_ERROR("amdgpu: failed to get ib (%ld).\n", r);
 		goto err1;
 	}
 	ib.ptr[0] = PACKET3(PACKET3_SET_UCONFIG_REG, 1);
@@ -2135,14 +2135,19 @@ static int gfx_v7_0_ring_test_ib(struct amdgpu_ring *ring)
 	if (r)
 		goto err2;
 
-	r = fence_wait(f, false);
-	if (r) {
-		DRM_ERROR("amdgpu: fence wait failed (%d).\n", r);
+	r = fence_wait_timeout(f, false, timeout);
+	if (r == 0) {
+		DRM_ERROR("amdgpu: IB test timed out\n");
+		r = -ETIMEDOUT;
+		goto err2;
+	} else if (r < 0) {
+		DRM_ERROR("amdgpu: fence wait failed (%ld).\n", r);
 		goto err2;
 	}
 	tmp = RREG32(scratch);
 	if (tmp == 0xDEADBEEF) {
 		DRM_INFO("ib test on ring %d succeeded\n", ring->idx);
+		r = 0;
 	} else {
 		DRM_ERROR("amdgpu: ib test failed (scratch(0x%04X)=0x%08X)\n",
 			  scratch, tmp);

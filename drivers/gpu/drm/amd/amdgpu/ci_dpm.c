@@ -102,12 +102,14 @@ static const struct ci_pt_defaults defaults_saturn_xt =
 	{ 0x187, 0x187, 0x187, 0x1C7, 0x1C7, 0x1C7, 0x210, 0x210, 0x210, 0x266, 0x266, 0x266, 0x2C9, 0x2C9, 0x2C9 }
 };
 
+#if 0
 static const struct ci_pt_defaults defaults_saturn_pro =
 {
 	1, 0xF, 0xFD, 0x19, 5, 55, 0, 0x30000,
 	{ 0x96,  0x21D, 0x23B, 0xA1,  0x85,  0x87,  0x83,  0x84,  0x81,  0xE6,  0xE6,  0xE6,  0x71,  0x6A,  0x6A  },
 	{ 0x193, 0x19E, 0x19E, 0x1D2, 0x1DC, 0x1DC, 0x21A, 0x223, 0x223, 0x26E, 0x27E, 0x274, 0x2CF, 0x2D2, 0x2D2 }
 };
+#endif
 
 static const struct ci_pt_config_reg didt_config_ci[] =
 {
@@ -3034,7 +3036,7 @@ static int ci_populate_single_memory_level(struct amdgpu_device *adev,
 
 	if (pi->mclk_stutter_mode_threshold &&
 	    (memory_clock <= pi->mclk_stutter_mode_threshold) &&
-	    (pi->uvd_enabled == false) &&
+	    (!pi->uvd_enabled) &&
 	    (RREG32(mmDPG_PIPE_STUTTER_CONTROL) & DPG_PIPE_STUTTER_CONTROL__STUTTER_ENABLE_MASK) &&
 	    (adev->pm.dpm.new_active_crtc_count <= 2))
 		memory_level->StutterEnable = true;

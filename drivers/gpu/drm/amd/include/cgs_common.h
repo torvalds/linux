@@ -113,6 +113,8 @@ enum cgs_system_info_id {
 	CGS_SYSTEM_INFO_ADAPTER_BDF_ID = 1,
 	CGS_SYSTEM_INFO_PCIE_GEN_INFO,
 	CGS_SYSTEM_INFO_PCIE_MLW,
+	CGS_SYSTEM_INFO_PCIE_DEV,
+	CGS_SYSTEM_INFO_PCIE_REV,
 	CGS_SYSTEM_INFO_CG_FLAGS,
 	CGS_SYSTEM_INFO_PG_FLAGS,
 	CGS_SYSTEM_INFO_GFX_CU_INFO,
@@ -121,13 +123,13 @@ enum cgs_system_info_id {
 };
 
 struct cgs_system_info {
-	uint64_t       size;
-	uint64_t       info_id;
+	uint64_t			size;
+	enum cgs_system_info_id		info_id;
 	union {
-		void           *ptr;
-		uint64_t        value;
+		void			*ptr;
+		uint64_t		value;
 	};
-	uint64_t               padding[13];
+	uint64_t			padding[13];
 };
 
 /*

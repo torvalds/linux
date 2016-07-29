@@ -354,7 +354,7 @@ static void cik_sdma_enable(struct amdgpu_device *adev, bool enable)
 	u32 me_cntl;
 	int i;
 
-	if (enable == false) {
+	if (!enable) {
 		cik_sdma_gfx_stop(adev);
 		cik_sdma_rlc_stop(adev);
 	}
@@ -617,19 +617,19 @@ static int cik_sdma_ring_test_ring(struct amdgpu_ring *ring)
  * Test a simple IB in the DMA ring (CIK).
  * Returns 0 on success, error on failure.
  */
-static int cik_sdma_ring_test_ib(struct amdgpu_ring *ring)
+static int cik_sdma_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_ib ib;
 	struct fence *f = NULL;
 	unsigned index;
-	int r;
 	u32 tmp = 0;
 	u64 gpu_addr;
+	long r;
 
 	r = amdgpu_wb_get(adev, &index);
 	if (r) {
-		dev_err(adev->dev, "(%d) failed to allocate wb slot\n", r);
+		dev_err(adev->dev, "(%ld) failed to allocate wb slot\n", r);
 		return r;
 	}
 
@@ -639,7 +639,7 @@ static int cik_sdma_ring_test_ib(struct amdgpu_ring *ring)
 	memset(&ib, 0, sizeof(ib));
 	r = amdgpu_ib_get(adev, NULL, 256, &ib);
 	if (r) {
-		DRM_ERROR("amdgpu: failed to get ib (%d).\n", r);
+		DRM_ERROR("amdgpu: failed to get ib (%ld).\n", r);
 		goto err0;
 	}
 
@@ -654,14 +654,19 @@ static int cik_sdma_ring_test_ib(struct amdgpu_ring *ring)
 	if (r)
 		goto err1;
 
-	r = fence_wait(f, false);
-	if (r) {
-		DRM_ERROR("amdgpu: fence wait failed (%d).\n", r);
+	r = fence_wait_timeout(f, false, timeout);
+	if (r == 0) {
+		DRM_ERROR("amdgpu: IB test timed out\n");
+		r = -ETIMEDOUT;
+		goto err1;
+	} else if (r < 0) {
+		DRM_ERROR("amdgpu: fence wait failed (%ld).\n", r);
 		goto err1;
 	}
 	tmp = le32_to_cpu(adev->wb.wb[index]);
 	if (tmp == 0xDEADBEEF) {
 		DRM_INFO("ib test on ring %d succeeded\n", ring->idx);
+		r = 0;
 	} else {
 		DRM_ERROR("amdgpu: ib test failed (0x%08X)\n", tmp);
 		r = -EINVAL;

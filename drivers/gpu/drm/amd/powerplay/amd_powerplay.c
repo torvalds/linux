@@ -176,7 +176,7 @@ static int pp_hw_fini(void *handle)
 
 static bool pp_is_idle(void *handle)
 {
-	return 0;
+	return false;
 }
 
 static int pp_wait_for_idle(void *handle)

@@ -698,7 +698,7 @@ static int fiji_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	if (0 == result) {
 		struct cgs_system_info sys_info = {0};
 
-		data->is_tlu_enabled = 0;
+		data->is_tlu_enabled = false;
 		hwmgr->platform_descriptor.hardwareActivityPerformanceLevels =
 				FIJI_MAX_HARDWARE_POWERLEVELS;
 		hwmgr->platform_descriptor.hardwarePerformanceLevels = 2;
@@ -1450,7 +1450,7 @@ static void fiji_setup_pcie_table_entry(
 {
 	dpm_table->dpm_levels[index].value = pcie_gen;
 	dpm_table->dpm_levels[index].param1 = pcie_lanes;
-	dpm_table->dpm_levels[index].enabled = 1;
+	dpm_table->dpm_levels[index].enabled = true;
 }
 
 static int fiji_setup_default_pcie_table(struct pp_hwmgr *hwmgr)
@@ -1662,7 +1662,6 @@ static int fiji_populate_cac_table(struct pp_hwmgr *hwmgr,
 {
 	uint32_t count;
 	uint8_t index;
-	int result = 0;
 	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
@@ -1684,7 +1683,7 @@ static int fiji_populate_cac_table(struct pp_hwmgr *hwmgr,
 						VOLTAGE_SCALE)) / 25);
 	}
 
-	return result;
+	return 0;
 }
 
 /**
@@ -4389,8 +4388,9 @@ static int fiji_freeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 	if ((0 == data->sclk_dpm_key_disabled) &&
 		(data->need_update_smu7_dpm_table &
 			(DPMTABLE_OD_UPDATE_SCLK + DPMTABLE_UPDATE_SCLK))) {
-		PP_ASSERT_WITH_CODE(true == fiji_is_dpm_running(hwmgr),
-				"Trying to freeze SCLK DPM when DPM is disabled",);
+		PP_ASSERT_WITH_CODE(fiji_is_dpm_running(hwmgr),
+				    "Trying to freeze SCLK DPM when DPM is disabled",
+				    );
 		PP_ASSERT_WITH_CODE(0 == smum_send_msg_to_smc(hwmgr->smumgr,
 				PPSMC_MSG_SCLKDPM_FreezeLevel),
 				"Failed to freeze SCLK DPM during FreezeSclkMclkDPM Function!",
@@ -4400,8 +4400,9 @@ static int fiji_freeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 	if ((0 == data->mclk_dpm_key_disabled) &&
 		(data->need_update_smu7_dpm_table &
 		 DPMTABLE_OD_UPDATE_MCLK)) {
-		PP_ASSERT_WITH_CODE(true == fiji_is_dpm_running(hwmgr),
-				"Trying to freeze MCLK DPM when DPM is disabled",);
+		PP_ASSERT_WITH_CODE(fiji_is_dpm_running(hwmgr),
+				    "Trying to freeze MCLK DPM when DPM is disabled",
+				    );
 		PP_ASSERT_WITH_CODE(0 == smum_send_msg_to_smc(hwmgr->smumgr,
 				PPSMC_MSG_MCLKDPM_FreezeLevel),
 				"Failed to freeze MCLK DPM during FreezeSclkMclkDPM Function!",
@@ -4571,7 +4572,6 @@ static int fiji_trim_single_dpm_states(struct pp_hwmgr *hwmgr,
 static int fiji_trim_dpm_states(struct pp_hwmgr *hwmgr,
 		const struct fiji_power_state *fiji_ps)
 {
-	int result = 0;
 	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
 	uint32_t high_limit_count;
 
@@ -4591,7 +4591,7 @@ static int fiji_trim_dpm_states(struct pp_hwmgr *hwmgr,
 			fiji_ps->performance_levels[0].memory_clock,
 			fiji_ps->performance_levels[high_limit_count].memory_clock);
 
-	return result;
+	return 0;
 }
 
 static int fiji_generate_dpm_level_enable_mask(
@@ -4850,8 +4850,9 @@ static int fiji_unfreeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 		(data->need_update_smu7_dpm_table &
 		(DPMTABLE_OD_UPDATE_SCLK + DPMTABLE_UPDATE_SCLK))) {
 
-		PP_ASSERT_WITH_CODE(true == fiji_is_dpm_running(hwmgr),
-				"Trying to Unfreeze SCLK DPM when DPM is disabled",);
+		PP_ASSERT_WITH_CODE(fiji_is_dpm_running(hwmgr),
+				    "Trying to Unfreeze SCLK DPM when DPM is disabled",
+				    );
 		PP_ASSERT_WITH_CODE(0 == smum_send_msg_to_smc(hwmgr->smumgr,
 				PPSMC_MSG_SCLKDPM_UnfreezeLevel),
 			"Failed to unfreeze SCLK DPM during UnFreezeSclkMclkDPM Function!",
@@ -4861,8 +4862,9 @@ static int fiji_unfreeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 	if ((0 == data->mclk_dpm_key_disabled) &&
 		(data->need_update_smu7_dpm_table & DPMTABLE_OD_UPDATE_MCLK)) {
 
-		PP_ASSERT_WITH_CODE(true == fiji_is_dpm_running(hwmgr),
-				"Trying to Unfreeze MCLK DPM when DPM is disabled",);
+		PP_ASSERT_WITH_CODE(fiji_is_dpm_running(hwmgr),
+				    "Trying to Unfreeze MCLK DPM when DPM is disabled",
+				    );
 		PP_ASSERT_WITH_CODE(0 == smum_send_msg_to_smc(hwmgr->smumgr,
 				PPSMC_MSG_SCLKDPM_UnfreezeLevel),
 		    "Failed to unfreeze MCLK DPM during UnFreezeSclkMclkDPM Function!",

@@ -210,11 +210,11 @@ static void vce_v3_0_set_vce_sw_clock_gating(struct amdgpu_device *adev,
 static int vce_v3_0_firmware_loaded(struct amdgpu_device *adev)
 {
 	int i, j;
-	uint32_t status = 0;
 
 	for (i = 0; i < 10; ++i) {
 		for (j = 0; j < 100; ++j) {
-			status = RREG32(mmVCE_STATUS);
+			uint32_t status = RREG32(mmVCE_STATUS);
+
 			if (status & VCE_STATUS_VCPU_REPORT_FW_LOADED_MASK)
 				return 0;
 			mdelay(10);
@@ -655,12 +655,27 @@ static int vce_v3_0_process_interrupt(struct amdgpu_device *adev,
 	return 0;
 }
 
+static void vce_v3_set_bypass_mode(struct amdgpu_device *adev, bool enable)
+{
+	u32 tmp = RREG32_SMC(ixGCK_DFS_BYPASS_CNTL);
+
+	if (enable)
+		tmp |= GCK_DFS_BYPASS_CNTL__BYPASSECLK_MASK;
+	else
+		tmp &= ~GCK_DFS_BYPASS_CNTL__BYPASSECLK_MASK;
+
+	WREG32_SMC(ixGCK_DFS_BYPASS_CNTL, tmp);
+}
+
 static int vce_v3_0_set_clockgating_state(void *handle,
 					  enum amd_clockgating_state state)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	bool enable = (state == AMD_CG_STATE_GATE) ? true : false;
 	int i;
+
+	if (adev->asic_type == CHIP_POLARIS10)
+		vce_v3_set_bypass_mode(adev, enable);
 
 	if (!(adev->cg_flags & AMD_CG_SUPPORT_VCE_MGCG))
 		return 0;
@@ -752,6 +767,8 @@ static const struct amdgpu_ring_funcs vce_v3_0_ring_funcs = {
 	.test_ib = amdgpu_vce_ring_test_ib,
 	.insert_nop = amdgpu_ring_insert_nop,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
+	.begin_use = amdgpu_vce_ring_begin_use,
+	.end_use = amdgpu_vce_ring_end_use,
 };
 
 static void vce_v3_0_set_ring_funcs(struct amdgpu_device *adev)

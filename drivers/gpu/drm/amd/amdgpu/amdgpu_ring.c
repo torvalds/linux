@@ -75,6 +75,10 @@ int amdgpu_ring_alloc(struct amdgpu_ring *ring, unsigned ndw)
 
 	ring->count_dw = ndw;
 	ring->wptr_old = ring->wptr;
+
+	if (ring->funcs->begin_use)
+		ring->funcs->begin_use(ring);
+
 	return 0;
 }
 
@@ -127,6 +131,9 @@ void amdgpu_ring_commit(struct amdgpu_ring *ring)
 
 	mb();
 	amdgpu_ring_set_wptr(ring);
+
+	if (ring->funcs->end_use)
+		ring->funcs->end_use(ring);
 }
 
 /**
@@ -139,6 +146,9 @@ void amdgpu_ring_commit(struct amdgpu_ring *ring)
 void amdgpu_ring_undo(struct amdgpu_ring *ring)
 {
 	ring->wptr = ring->wptr_old;
+
+	if (ring->funcs->end_use)
+		ring->funcs->end_use(ring);
 }
 
 /**
@@ -198,7 +208,6 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 	ring->cond_exe_gpu_addr = adev->wb.gpu_addr + (ring->cond_exe_offs * 4);
 	ring->cond_exe_cpu_addr = &adev->wb.wb[ring->cond_exe_offs];
 
-	spin_lock_init(&ring->fence_lock);
 	r = amdgpu_fence_driver_start_ring(ring, irq_src, irq_type);
 	if (r) {
 		dev_err(adev->dev, "failed initializing fences (%d).\n", r);
