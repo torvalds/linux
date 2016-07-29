@@ -357,6 +357,21 @@ static int ovl_create_over_whiteout(struct dentry *dentry, struct inode *inode,
 	if (err)
 		goto out_dput2;
 
+	/*
+	 * mode could have been mutilated due to umask (e.g. sgid directory)
+	 */
+	if (!S_ISLNK(stat->mode) && newdentry->d_inode->i_mode != stat->mode) {
+		struct iattr attr = {
+			.ia_valid = ATTR_MODE,
+			.ia_mode = stat->mode,
+		};
+		inode_lock(newdentry->d_inode);
+		err = notify_change(newdentry, &attr, NULL);
+		inode_unlock(newdentry->d_inode);
+		if (err)
+			goto out_cleanup;
+	}
+
 	if (S_ISDIR(stat->mode)) {
 		err = ovl_set_opaque(newdentry);
 		if (err)
@@ -397,7 +412,6 @@ static int ovl_create_or_link(struct dentry *dentry, int mode, dev_t rdev,
 	const struct cred *old_cred;
 	struct cred *override_cred;
 	struct kstat stat = {
-		.mode = mode,
 		.rdev = rdev,
 	};
 
@@ -410,12 +424,15 @@ static int ovl_create_or_link(struct dentry *dentry, int mode, dev_t rdev,
 	if (err)
 		goto out_iput;
 
+	inode_init_owner(inode, dentry->d_parent->d_inode, mode);
+	stat.mode = inode->i_mode;
+
 	old_cred = ovl_override_creds(dentry->d_sb);
 	err = -ENOMEM;
 	override_cred = prepare_creds();
 	if (override_cred) {
-		override_cred->fsuid = old_cred->fsuid;
-		override_cred->fsgid = old_cred->fsgid;
+		override_cred->fsuid = inode->i_uid;
+		override_cred->fsgid = inode->i_gid;
 		put_cred(override_creds(override_cred));
 		put_cred(override_cred);
 
@@ -427,8 +444,14 @@ static int ovl_create_or_link(struct dentry *dentry, int mode, dev_t rdev,
 							link, hardlink);
 	}
 	revert_creds(old_cred);
-	if (!err)
+	if (!err) {
+		struct inode *realinode = d_inode(ovl_dentry_upper(dentry));
+
+		WARN_ON(inode->i_mode != realinode->i_mode);
+		WARN_ON(!uid_eq(inode->i_uid, realinode->i_uid));
+		WARN_ON(!gid_eq(inode->i_gid, realinode->i_gid));
 		inode = NULL;
+	}
 out_iput:
 	iput(inode);
 out:
