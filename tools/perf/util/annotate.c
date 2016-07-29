@@ -1123,7 +1123,7 @@ static void delete_last_nop(struct symbol *sym)
 	}
 }
 
-int symbol__annotate(struct symbol *sym, struct map *map, size_t privsize)
+int symbol__disassemble(struct symbol *sym, struct map *map, size_t privsize)
 {
 	struct dso *dso = map->dso;
 	char *filename = dso__build_id_filename(dso, NULL, 0);
@@ -1694,7 +1694,7 @@ int symbol__tty_annotate(struct symbol *sym, struct map *map,
 	struct rb_root source_line = RB_ROOT;
 	u64 len;
 
-	if (symbol__annotate(sym, map, 0) < 0)
+	if (symbol__disassemble(sym, map, 0) < 0)
 		return -1;
 
 	len = symbol__size(sym);

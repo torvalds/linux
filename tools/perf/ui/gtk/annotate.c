@@ -166,7 +166,7 @@ static int symbol__gtk_annotate(struct symbol *sym, struct map *map,
 	if (map->dso->annotate_warned)
 		return -1;
 
-	if (symbol__annotate(sym, map, 0) < 0) {
+	if (symbol__disassemble(sym, map, 0) < 0) {
 		ui__error("%s", ui_helpline__current);
 		return -1;
 	}
