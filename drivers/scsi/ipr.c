@@ -10219,6 +10219,7 @@ static int ipr_probe_ioa(struct pci_dev *pdev,
 
 		if (!ioa_cfg->reset_work_q) {
 			dev_err(&pdev->dev, "Couldn't register reset workqueue\n");
+			rc = -ENOMEM;
 			goto out_free_irq;
 		}
 	} else
