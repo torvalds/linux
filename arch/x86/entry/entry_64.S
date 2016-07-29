@@ -1058,7 +1058,7 @@ END(error_entry)
 
 
 /*
- * On entry, EBS is a "return to kernel mode" flag:
+ * On entry, EBX is a "return to kernel mode" flag:
  *   1: already in kernel mode, don't need SWAPGS
  *   0: user gsbase is loaded, we need SWAPGS and standard preparation for return to usermode
  */
