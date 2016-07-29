@@ -4480,6 +4480,7 @@ static void rtl_rar_set(struct rtl8169_private *tp, u8 *addr)
 static int rtl_set_mac_address(struct net_device *dev, void *p)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
+	struct device *d = &tp->pci_dev->dev;
 	struct sockaddr *addr = p;
 
 	if (!is_valid_ether_addr(addr->sa_data))
@@ -4487,7 +4488,12 @@ static int rtl_set_mac_address(struct net_device *dev, void *p)
 
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 
-	rtl_rar_set(tp, dev->dev_addr);
+	pm_runtime_get_noresume(d);
+
+	if (pm_runtime_active(d))
+		rtl_rar_set(tp, dev->dev_addr);
+
+	pm_runtime_put_noidle(d);
 
 	return 0;
 }
@@ -7890,6 +7896,7 @@ static int rtl8169_runtime_resume(struct device *device)
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct rtl8169_private *tp = netdev_priv(dev);
+	rtl_rar_set(tp, dev->dev_addr);
 
 	if (!tp->TxDescArray)
 		return 0;
