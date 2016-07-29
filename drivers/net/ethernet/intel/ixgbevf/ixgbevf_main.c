@@ -2993,6 +2993,7 @@ static void ixgbevf_free_all_tx_resources(struct ixgbevf_adapter *adapter)
  **/
 int ixgbevf_setup_tx_resources(struct ixgbevf_ring *tx_ring)
 {
+	struct ixgbevf_adapter *adapter = netdev_priv(tx_ring->netdev);
 	int size;
 
 	size = sizeof(struct ixgbevf_tx_buffer) * tx_ring->count;
