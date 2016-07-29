@@ -696,8 +696,12 @@ static int ovl_do_remove(struct dentry *dentry, bool is_dir)
 	else
 		err = ovl_remove_and_whiteout(dentry, is_dir);
 	revert_creds(old_cred);
-	if (!err && !is_dir)
-		drop_nlink(dentry->d_inode);
+	if (!err) {
+		if (is_dir)
+			clear_nlink(dentry->d_inode);
+		else
+			drop_nlink(dentry->d_inode);
+	}
 out_drop_write:
 	ovl_drop_write(dentry);
 out:
