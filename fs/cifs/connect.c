@@ -2781,6 +2781,24 @@ compare_mount_options(struct super_block *sb, struct cifs_mnt_data *mnt_data)
 	return 1;
 }
 
+static int
+match_prepath(struct super_block *sb, struct cifs_mnt_data *mnt_data)
+{
+	struct cifs_sb_info *old = CIFS_SB(sb);
+	struct cifs_sb_info *new = mnt_data->cifs_sb;
+
+	if (old->mnt_cifs_flags & CIFS_MOUNT_USE_PREFIX_PATH) {
+		if (!(new->mnt_cifs_flags & CIFS_MOUNT_USE_PREFIX_PATH))
+			return 0;
+		/* The prepath should be null terminated strings */
+		if (strcmp(new->prepath, old->prepath))
+			return 0;
+
+		return 1;
+	}
+	return 0;
+}
+
 int
 cifs_match_super(struct super_block *sb, void *data)
 {
@@ -2808,7 +2826,8 @@ cifs_match_super(struct super_block *sb, void *data)
 
 	if (!match_server(tcp_srv, volume_info) ||
 	    !match_session(ses, volume_info) ||
-	    !match_tcon(tcon, volume_info->UNC)) {
+	    !match_tcon(tcon, volume_info->UNC) ||
+	    !match_prepath(sb, mnt_data)) {
 		rc = 0;
 		goto out;
 	}
