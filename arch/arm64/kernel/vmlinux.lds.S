@@ -63,14 +63,19 @@ PECOFF_FILE_ALIGNMENT = 0x200;
 #endif
 
 #if defined(CONFIG_DEBUG_ALIGN_RODATA)
-#define ALIGN_DEBUG_RO			. = ALIGN(1<<SECTION_SHIFT);
-#define ALIGN_DEBUG_RO_MIN(min)		ALIGN_DEBUG_RO
-#elif defined(CONFIG_DEBUG_RODATA)
-#define ALIGN_DEBUG_RO			. = ALIGN(1<<PAGE_SHIFT);
-#define ALIGN_DEBUG_RO_MIN(min)		ALIGN_DEBUG_RO
+/*
+ *  4 KB granule:   1 level 2 entry
+ * 16 KB granule: 128 level 3 entries, with contiguous bit
+ * 64 KB granule:  32 level 3 entries, with contiguous bit
+ */
+#define SEGMENT_ALIGN			SZ_2M
 #else
-#define ALIGN_DEBUG_RO
-#define ALIGN_DEBUG_RO_MIN(min)		. = ALIGN(min);
+/*
+ *  4 KB granule:  16 level 3 entries, with contiguous bit
+ * 16 KB granule:   4 level 3 entries, without contiguous bit
+ * 64 KB granule:   1 level 3 entry
+ */
+#define SEGMENT_ALIGN			SZ_64K
 #endif
 
 SECTIONS
@@ -96,7 +101,6 @@ SECTIONS
 		_text = .;
 		HEAD_TEXT
 	}
-	ALIGN_DEBUG_RO_MIN(PAGE_SIZE)
 	.text : {			/* Real text segment		*/
 		_stext = .;		/* Text and read-only data	*/
 			__exception_text_start = .;
@@ -114,11 +118,12 @@ SECTIONS
 		*(.got)			/* Global offset table		*/
 	}
 
-	RO_DATA(PAGE_SIZE)
-	EXCEPTION_TABLE(8)
+	. = ALIGN(SEGMENT_ALIGN);
+	RO_DATA(PAGE_SIZE)		/* everything from this point to */
+	EXCEPTION_TABLE(8)		/* _etext will be marked RO NX   */
 	NOTES
 
-	ALIGN_DEBUG_RO_MIN(PAGE_SIZE)
+	. = ALIGN(SEGMENT_ALIGN);
 	_etext = .;			/* End of text and rodata section */
 	__init_begin = .;
 
@@ -151,12 +156,9 @@ SECTIONS
 		*(.altinstr_replacement)
 	}
 	.rela : ALIGN(8) {
-		__reloc_start = .;
 		*(.rela .rela*)
-		__reloc_end = .;
 	}
 	.dynsym : ALIGN(8) {
-		__dynsym_start = .;
 		*(.dynsym)
 	}
 	.dynstr : {
@@ -166,7 +168,11 @@ SECTIONS
 		*(.hash)
 	}
 
-	. = ALIGN(PAGE_SIZE);
+	__rela_offset	= ADDR(.rela) - KIMAGE_VADDR;
+	__rela_size	= SIZEOF(.rela);
+	__dynsym_offset	= ADDR(.dynsym) - KIMAGE_VADDR;
+
+	. = ALIGN(SEGMENT_ALIGN);
 	__init_end = .;
 
 	_data = .;
