@@ -54,7 +54,7 @@ MODULE_PARM_DESC(bna_debugfs_enable, "Enables debugfs feature, default=1,"
  * Global variables
  */
 static u32 bnad_rxqs_per_cq = 2;
-static u32 bna_id;
+static atomic_t bna_id;
 static struct mutex bnad_list_mutex;
 static const u8 bnad_bcast_addr[] __aligned(2) =
 	{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
@@ -79,7 +79,6 @@ static void
 bnad_add_to_list(struct bnad *bnad)
 {
 	mutex_lock(&bnad_list_mutex);
-	bnad->id = bna_id++;
 	mutex_unlock(&bnad_list_mutex);
 }
 
@@ -3651,6 +3650,7 @@ bnad_pci_probe(struct pci_dev *pdev,
 	bnad = netdev_priv(netdev);
 	bnad_lock_init(bnad);
 	bnad_add_to_list(bnad);
+	bnad->id = atomic_inc_return(&bna_id) - 1;
 
 	mutex_lock(&bnad->conf_mutex);
 	/*
