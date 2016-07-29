@@ -409,14 +409,8 @@ static const struct inode_operations ovl_symlink_inode_operations = {
 	.update_time	= ovl_update_time,
 };
 
-struct inode *ovl_new_inode(struct super_block *sb, umode_t mode)
+static void ovl_fill_inode(struct inode *inode, umode_t mode)
 {
-	struct inode *inode;
-
-	inode = new_inode(sb);
-	if (!inode)
-		return NULL;
-
 	inode->i_ino = get_next_ino();
 	inode->i_mode = mode;
 	inode->i_flags |= S_NOCMTIME;
@@ -432,6 +426,10 @@ struct inode *ovl_new_inode(struct super_block *sb, umode_t mode)
 		inode->i_op = &ovl_symlink_inode_operations;
 		break;
 
+	default:
+		WARN(1, "illegal file type: %i\n", mode);
+		/* Fall through */
+
 	case S_IFREG:
 	case S_IFSOCK:
 	case S_IFBLK:
@@ -439,11 +437,42 @@ struct inode *ovl_new_inode(struct super_block *sb, umode_t mode)
 	case S_IFIFO:
 		inode->i_op = &ovl_file_inode_operations;
 		break;
+	}
+}
 
-	default:
-		WARN(1, "illegal file type: %i\n", mode);
-		iput(inode);
-		inode = NULL;
+struct inode *ovl_new_inode(struct super_block *sb, umode_t mode)
+{
+	struct inode *inode;
+
+	inode = new_inode(sb);
+	if (inode)
+		ovl_fill_inode(inode, mode);
+
+	return inode;
+}
+
+static int ovl_inode_test(struct inode *inode, void *data)
+{
+	return ovl_inode_real(inode, NULL) == data;
+}
+
+static int ovl_inode_set(struct inode *inode, void *data)
+{
+	inode->i_private = (void *) (((unsigned long) data) | OVL_ISUPPER_MASK);
+	return 0;
+}
+
+struct inode *ovl_get_inode(struct super_block *sb, struct inode *realinode)
+
+{
+	struct inode *inode;
+
+	inode = iget5_locked(sb, (unsigned long) realinode,
+			     ovl_inode_test, ovl_inode_set, realinode);
+	if (inode && inode->i_state & I_NEW) {
+		ovl_fill_inode(inode, realinode->i_mode);
+		set_nlink(inode, realinode->i_nlink);
+		unlock_new_inode(inode);
 	}
 
 	return inode;

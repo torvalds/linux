@@ -232,8 +232,11 @@ void ovl_dentry_update(struct dentry *dentry, struct dentry *upperdentry)
 void ovl_inode_update(struct inode *inode, struct inode *upperinode)
 {
 	WARN_ON(!upperinode);
+	WARN_ON(!inode_unhashed(inode));
 	WRITE_ONCE(inode->i_private,
 		   (unsigned long) upperinode | OVL_ISUPPER_MASK);
+	if (!S_ISDIR(upperinode->i_mode))
+		__insert_inode_hash(inode, (unsigned long) upperinode);
 }
 
 void ovl_dentry_version_inc(struct dentry *dentry)
@@ -572,10 +575,15 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 		realinode = d_inode(realdentry);
 
 		err = -ENOMEM;
-		inode = ovl_new_inode(dentry->d_sb, realinode->i_mode);
+		if (upperdentry && !d_is_dir(upperdentry)) {
+			inode = ovl_get_inode(dentry->d_sb, realinode);
+		} else {
+			inode = ovl_new_inode(dentry->d_sb, realinode->i_mode);
+			if (inode)
+				ovl_inode_init(inode, realinode, !!upperdentry);
+		}
 		if (!inode)
 			goto out_free_oe;
-		ovl_inode_init(inode, realinode, !!upperdentry);
 		ovl_copyattr(realdentry->d_inode, inode);
 	}
 
