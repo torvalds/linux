@@ -18,7 +18,6 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
-#include <linux/of_platform.h>
 #include <linux/of_fdt.h>
 
 #include <asm/bootinfo.h>
@@ -285,7 +284,6 @@ void __init plat_time_init(void)
 
 static int __init ath79_setup(void)
 {
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 	if  (mips_machtype == ATH79_MACH_GENERIC_OF)
 		return 0;
 

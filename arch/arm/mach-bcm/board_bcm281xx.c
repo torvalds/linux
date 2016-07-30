@@ -13,7 +13,6 @@
 
 #include <linux/clocksource.h>
 #include <linux/of_address.h>
-#include <linux/of_platform.h>
 
 #include <asm/mach/arch.h>
 
@@ -58,7 +57,6 @@ static void bcm281xx_restart(enum reboot_mode mode, const char *cmd)
 
 static void __init bcm281xx_init(void)
 {
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 	kona_l2_cache_init();
 }
 
