@@ -16,8 +16,8 @@ struct lkl_netdev_vde {
 };
 
 struct lkl_netdev *nuse_vif_vde_create(char *switch_path);
-static int net_vde_tx(struct lkl_netdev *nd, void *data, int len);
-static int net_vde_rx(struct lkl_netdev *nd, void *data, int *len);
+static int net_vde_tx(struct lkl_netdev *nd, struct lkl_dev_buf *iov, int cnt);
+static int net_vde_rx(struct lkl_netdev *nd, struct lkl_dev_buf *iov, int cnt);
 static int net_vde_poll_with_timeout(struct lkl_netdev *nd, int events,
 				     int timeout);
 static int net_vde_poll(struct lkl_netdev *nd, int events);
@@ -28,23 +28,27 @@ struct lkl_dev_net_ops vde_net_ops = {
 	.poll = net_vde_poll,
 };
 
-int net_vde_tx(struct lkl_netdev *nd, void *data, int len)
+int net_vde_tx(struct lkl_netdev *nd, struct lkl_dev_buf *iov, int cnt)
 {
 	int ret;
 	struct lkl_netdev_vde *nd_vde;
+	void *data = iov[0].addr;
+	int len = (int)iov[0].len;
 
 	nd_vde = (struct lkl_netdev_vde *) nd;
 
 	ret = vde_send(nd_vde->conn, data, len, 0);
 	if (ret <= 0 && errno == EAGAIN)
 		return -1;
-	return 0;
+	return ret;
 }
 
-int net_vde_rx(struct lkl_netdev *nd, void *data, int *len)
+int net_vde_rx(struct lkl_netdev *nd, struct lkl_dev_buf *iov, int cnt)
 {
 	int ret;
 	struct lkl_netdev_vde *nd_vde;
+	void *data = iov[0].addr;
+	int len = (int)iov[0].len;
 
 	nd_vde = (struct lkl_netdev_vde *) nd;
 
@@ -52,17 +56,16 @@ int net_vde_rx(struct lkl_netdev *nd, void *data, int *len)
 	 * Due to a bug in libvdeplug we have to first poll to make sure
 	 * that there is data available.
 	 * The correct solution would be to just use
-	 *   ret = vde_recv(nd_vde->conn, data, *len, MSG_DONTWAIT);
+	 *   ret = vde_recv(nd_vde->conn, data, len, MSG_DONTWAIT);
 	 * This should be changed once libvdeplug is fixed.
 	 */
 	ret = 0;
 	if (net_vde_poll_with_timeout(nd, LKL_DEV_NET_POLL_RX, 0) &
 							    LKL_DEV_NET_POLL_RX)
-		ret = vde_recv(nd_vde->conn, data, *len, 0);
+		ret = vde_recv(nd_vde->conn, data, len, 0);
 	if (ret <= 0)
 		return -1;
-	*len = ret;
-	return 0;
+	return ret;
 }
 
 int net_vde_poll_with_timeout(struct lkl_netdev *nd, int events, int timeout)

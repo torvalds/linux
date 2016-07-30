@@ -237,7 +237,7 @@ struct lkl_netdev;
  * @returns a network device id (0 is valid) or a strictly negative value in
  * case of error
  */
-int lkl_netdev_add(struct lkl_netdev *nd, void *mac);
+int lkl_netdev_add(struct lkl_netdev *nd, void *mac, int offload);
 
 /**
 * lkl_netdevs_remove - destroy all network devices
@@ -283,7 +283,7 @@ int lkl_stop_syscall_thread(void);
  * @ifname - interface name for the TAP device. need to be configured
  * on host in advance
  */
-struct lkl_netdev *lkl_netdev_tap_create(const char *ifname);
+struct lkl_netdev *lkl_netdev_tap_create(const char *ifname, int offload);
 
 /**
  * lkl_netdev_dpdk_create - create DPDK net_device for the virtio net backend

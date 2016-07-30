@@ -21,7 +21,7 @@ extern char lkl_virtio_devs[256];
 
 struct lkl_dev_buf {
 	void *addr;
-	unsigned int len;
+	size_t len;
 };
 
 extern struct lkl_dev_blk_ops lkl_dev_blk_ops;
@@ -50,6 +50,7 @@ struct lkl_dev_blk_ops {
 struct lkl_netdev {
 	struct lkl_dev_net_ops *ops;
 	lkl_thread_t rx_tid, tx_tid;
+	uint8_t has_vnet_hdr: 1;
 };
 
 struct lkl_dev_net_ops {
@@ -58,11 +59,11 @@ struct lkl_dev_net_ops {
 	 * The data buffer can only hold 0 or 1 complete packets.
 	 *
 	 * @nd - pointer to the network device
-	 * @data - pointer to the buffer
-	 * @len - size of the buffer in bytes
-	 * @returns 0 for success and -1 for failure.
+	 * @iov - pointer to the buffer vector
+	 * @cnt - # of vectors in iov.
+	 * @returns number of bytes transmitted
 	 */ 
-	int (*tx)(struct lkl_netdev *nd, void *data, int len);
+	int (*tx)(struct lkl_netdev *nd, struct lkl_dev_buf *iov, int cnt);
 	/* Reads a packet from the net device.
 	 *
 	 * It must only read one complete packet if present.
@@ -71,12 +72,11 @@ struct lkl_dev_net_ops {
 	 * decide to drop it or trim it.
 	 *
 	 * @nd - pointer to the network device
-	 * @data - pointer to the buffer to store the packet
-	 * @len - pointer to the maximum size of the buffer. Also stores the
-	 * real number of bytes read after return.
-	 * @returns 0 for success and -1 if nothing is read.
+	 * @iov - pointer to the buffer vector to store the packet
+	 * @cnt - # of vectors in iov.
+	 * @returns number of bytes read for success or < 0 if error
 	 */ 
-	int (*rx)(struct lkl_netdev *nd, void *data, int *len);
+	int (*rx)(struct lkl_netdev *nd, struct lkl_dev_buf *iov, int cnt);
 #define LKL_DEV_NET_POLL_RX		1
 #define LKL_DEV_NET_POLL_TX		2
 	/* Polls a net device.

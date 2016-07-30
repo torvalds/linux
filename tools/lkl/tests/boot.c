@@ -328,11 +328,11 @@ int test_netdev_add(char *str, int len)
 	struct lkl_netdev *netdev;
 	int ret = 0;
 
-	netdev = lkl_netdev_tap_create(cla.tap_ifname);
+	netdev = lkl_netdev_tap_create(cla.tap_ifname, 0);
 	if (!netdev)
 		goto out;
 
-	ret = lkl_netdev_add((struct lkl_netdev *)netdev, NULL);
+	ret = lkl_netdev_add((struct lkl_netdev *)netdev, NULL, 0);
 	if (ret < 0)
 		goto out;
 

@@ -130,7 +130,7 @@ static int test_net_init(int argc, char **argv)
 		gateway = argv[6];
 
 	if (iftype && ifname && (strncmp(iftype, "tap", 3) == 0))
-		nd = lkl_netdev_tap_create(ifname);
+		nd = lkl_netdev_tap_create(ifname, 0);
 #ifdef CONFIG_AUTO_LKL_VIRTIO_NET_DPDK
 	else if (iftype && ifname && (strncmp(iftype, "dpdk", 4) == 0))
 		nd = lkl_netdev_dpdk_create(ifname);
@@ -143,7 +143,7 @@ static int test_net_init(int argc, char **argv)
 		return -1;
 	}
 
-	ret = lkl_netdev_add(nd, NULL);
+	ret = lkl_netdev_add(nd, NULL, 0);
 	if (ret < 0) {
 		fprintf(stderr, "failed to add netdev: %s\n",
 			lkl_strerror(ret));
