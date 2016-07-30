@@ -128,6 +128,7 @@ idt	Integrated Device Technologies, Inc.
 ifi	Ingenieurburo Fur Ic-Technologie (I/F/I)
 iom	Iomega Corporation
 img	Imagination Technologies Ltd.
+infineon Infineon Technologies
 inforce	Inforce Computing
 ingenic	Ingenic Semiconductor
 innolux	Innolux Corporation
@@ -255,6 +256,7 @@ syna	Synaptics Inc.
 synology	Synology, Inc.
 SUNW	Sun Microsystems, Inc
 tbs	TBS Technologies
+tcg	Trusted Computing Group
 tcl	Toby Churchill Ltd.
 technexion	TechNexion
 technologic	Technologic Systems

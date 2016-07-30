@@ -2837,7 +2837,7 @@ F:	include/uapi/linux/can/error.h
 F:	include/uapi/linux/can/netlink.h
 
 CAPABILITIES
-M:	Serge Hallyn <serge.hallyn@canonical.com>
+M:	Serge Hallyn <serge@hallyn.com>
 L:	linux-security-module@vger.kernel.org
 S:	Supported
 F:	include/linux/capability.h
@@ -10675,7 +10675,7 @@ SMACK SECURITY MODULE
 M:	Casey Schaufler <casey@schaufler-ca.com>
 L:	linux-security-module@vger.kernel.org
 W:	http://schaufler-ca.com
-T:	git git://git.gitorious.org/smack-next/kernel.git
+T:	git git://github.com/cschaufler/smack-next
 S:	Maintained
 F:	Documentation/security/Smack.txt
 F:	security/smack/
