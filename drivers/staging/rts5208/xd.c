@@ -834,7 +834,6 @@ static int xd_check_data_blank(u8 *redunt)
 		!= (XD_ECC1_ALL1 | XD_ECC2_ALL1))
 		return 0;
 
-
 	for (i = 0; i < 4; i++) {
 		if (redunt[RESERVED0 + i] != 0xFF)
 			return 0;
@@ -1402,7 +1401,6 @@ static int xd_erase_block(struct rtsx_chip *chip, u32 phy_blk)
 	return STATUS_FAIL;
 }
 
-
 static int xd_build_l2p_tbl(struct rtsx_chip *chip, int zone_no)
 {
 	struct xd_info *xd_card = &(chip->xd_card);
@@ -1830,7 +1828,6 @@ static int xd_prepare_write(struct rtsx_chip *chip,
 	return STATUS_SUCCESS;
 }
 
-
 static int xd_write_multiple_pages(struct rtsx_chip *chip, u32 old_blk,
 				u32 new_blk, u32 log_blk, u8 start_page,
 				u8 end_page, u8 *buf, unsigned int *index,
@@ -1999,7 +1996,6 @@ int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 		rtsx_trace(chip);
 		return STATUS_FAIL;
 	}
-
 
 	if (detect_card_cd(chip, XD_CARD) != STATUS_SUCCESS) {
 		chip->card_fail |= XD_CARD;

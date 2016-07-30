@@ -77,7 +77,6 @@ do {							\
 } while (0)
 #define wait_timeout(msecs)	wait_timeout_x(TASK_INTERRUPTIBLE, (msecs))
 
-
 #define STATE_TRANS_NONE	0
 #define STATE_TRANS_CMD		1
 #define STATE_TRANS_BUF		2
@@ -138,6 +137,7 @@ static inline struct Scsi_Host *rtsx_to_host(struct rtsx_dev *dev)
 {
 	return container_of((void *) dev, struct Scsi_Host, hostdata);
 }
+
 static inline struct rtsx_dev *host_to_rtsx(struct Scsi_Host *host)
 {
 	return (struct rtsx_dev *) host->hostdata;
