@@ -141,7 +141,6 @@ int microcode_sanity_check(void *mc, int print_err)
 	}
 	return 0;
 }
-EXPORT_SYMBOL_GPL(microcode_sanity_check);
 
 /*
  * Returns 1 if update has been found, 0 otherwise.
@@ -183,4 +182,3 @@ int has_newer_microcode(void *mc, unsigned int csig, int cpf, int new_rev)
 
 	return find_matching_signature(mc, csig, cpf);
 }
-EXPORT_SYMBOL_GPL(has_newer_microcode);
