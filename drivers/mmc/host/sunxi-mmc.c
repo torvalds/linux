@@ -1160,6 +1160,8 @@ static int sunxi_mmc_remove(struct platform_device *pdev)
 	if (!IS_ERR(host->reset))
 		reset_control_assert(host->reset);
 
+	clk_disable_unprepare(host->clk_sample);
+	clk_disable_unprepare(host->clk_output);
 	clk_disable_unprepare(host->clk_mmc);
 	clk_disable_unprepare(host->clk_ahb);
 
