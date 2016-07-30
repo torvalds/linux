@@ -2205,22 +2205,14 @@ static void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u64 phys_addr = __pa(per_cpu(vmxarea, cpu));
+	bool already_loaded = vmx->loaded_vmcs->cpu == cpu;
 
 	if (!vmm_exclusive)
 		kvm_cpu_vmxon(phys_addr);
-	else if (vmx->loaded_vmcs->cpu != cpu)
+	else if (!already_loaded)
 		loaded_vmcs_clear(vmx->loaded_vmcs);
 
-	if (per_cpu(current_vmcs, cpu) != vmx->loaded_vmcs->vmcs) {
-		per_cpu(current_vmcs, cpu) = vmx->loaded_vmcs->vmcs;
-		vmcs_load(vmx->loaded_vmcs->vmcs);
-	}
-
-	if (vmx->loaded_vmcs->cpu != cpu) {
-		struct desc_ptr *gdt = this_cpu_ptr(&host_gdt);
-		unsigned long sysenter_esp;
-
-		kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
+	if (!already_loaded) {
 		local_irq_disable();
 		crash_disable_local_vmclear(cpu);
 
@@ -2235,6 +2227,18 @@ static void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 			 &per_cpu(loaded_vmcss_on_cpu, cpu));
 		crash_enable_local_vmclear(cpu);
 		local_irq_enable();
+	}
+
+	if (per_cpu(current_vmcs, cpu) != vmx->loaded_vmcs->vmcs) {
+		per_cpu(current_vmcs, cpu) = vmx->loaded_vmcs->vmcs;
+		vmcs_load(vmx->loaded_vmcs->vmcs);
+	}
+
+	if (!already_loaded) {
+		struct desc_ptr *gdt = this_cpu_ptr(&host_gdt);
+		unsigned long sysenter_esp;
+
+		kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
 
 		/*
 		 * Linux uses per-cpu TSS and GDT, so set these when switching
