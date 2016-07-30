@@ -662,6 +662,9 @@ static int sunxi_mmc_clk_set_phase(struct sunxi_mmc_host *host,
 {
 	int index;
 
+	if (!host->cfg->clk_delays)
+		return 0;
+
 	/* determine delays */
 	if (rate <= 400000) {
 		index = SDXC_CLK_400K;
@@ -978,10 +981,15 @@ static const struct sunxi_mmc_clk_delay sun9i_mmc_clk_delays[] = {
 
 static const struct sunxi_mmc_cfg sun4i_a10_cfg = {
 	.idma_des_size_bits = 13,
-	.clk_delays = sunxi_mmc_clk_delays,
+	.clk_delays = NULL,
 };
 
 static const struct sunxi_mmc_cfg sun5i_a13_cfg = {
+	.idma_des_size_bits = 16,
+	.clk_delays = NULL,
+};
+
+static const struct sunxi_mmc_cfg sun7i_a20_cfg = {
 	.idma_des_size_bits = 16,
 	.clk_delays = sunxi_mmc_clk_delays,
 };
@@ -994,6 +1002,7 @@ static const struct sunxi_mmc_cfg sun9i_a80_cfg = {
 static const struct of_device_id sunxi_mmc_of_match[] = {
 	{ .compatible = "allwinner,sun4i-a10-mmc", .data = &sun4i_a10_cfg },
 	{ .compatible = "allwinner,sun5i-a13-mmc", .data = &sun5i_a13_cfg },
+	{ .compatible = "allwinner,sun7i-a20-mmc", .data = &sun7i_a20_cfg },
 	{ .compatible = "allwinner,sun9i-a80-mmc", .data = &sun9i_a80_cfg },
 	{ /* sentinel */ }
 };
@@ -1032,16 +1041,18 @@ static int sunxi_mmc_resource_request(struct sunxi_mmc_host *host,
 		return PTR_ERR(host->clk_mmc);
 	}
 
-	host->clk_output = devm_clk_get(&pdev->dev, "output");
-	if (IS_ERR(host->clk_output)) {
-		dev_err(&pdev->dev, "Could not get output clock\n");
-		return PTR_ERR(host->clk_output);
-	}
+	if (host->cfg->clk_delays) {
+		host->clk_output = devm_clk_get(&pdev->dev, "output");
+		if (IS_ERR(host->clk_output)) {
+			dev_err(&pdev->dev, "Could not get output clock\n");
+			return PTR_ERR(host->clk_output);
+		}
 
-	host->clk_sample = devm_clk_get(&pdev->dev, "sample");
-	if (IS_ERR(host->clk_sample)) {
-		dev_err(&pdev->dev, "Could not get sample clock\n");
-		return PTR_ERR(host->clk_sample);
+		host->clk_sample = devm_clk_get(&pdev->dev, "sample");
+		if (IS_ERR(host->clk_sample)) {
+			dev_err(&pdev->dev, "Could not get sample clock\n");
+			return PTR_ERR(host->clk_sample);
+		}
 	}
 
 	host->reset = devm_reset_control_get_optional(&pdev->dev, "ahb");
@@ -1144,8 +1155,10 @@ static int sunxi_mmc_probe(struct platform_device *pdev)
 	mmc->f_min		=   400000;
 	mmc->f_max		= 52000000;
 	mmc->caps	       |= MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED |
-				  MMC_CAP_1_8V_DDR |
 				  MMC_CAP_ERASE | MMC_CAP_SDIO_IRQ;
+
+	if (host->cfg->clk_delays)
+		mmc->caps      |= MMC_CAP_1_8V_DDR;
 
 	ret = mmc_of_parse(mmc);
 	if (ret)
