@@ -2155,6 +2155,17 @@ mpt3sas_base_map_resources(struct MPT3SAS_ADAPTER *ioc)
 	} else
 		ioc->msix96_vector = 0;
 
+	if (ioc->is_warpdrive) {
+		ioc->reply_post_host_index[0] = (resource_size_t __iomem *)
+		    &ioc->chip->ReplyPostHostIndex;
+
+		for (i = 1; i < ioc->cpu_msix_table_sz; i++)
+			ioc->reply_post_host_index[i] =
+			(resource_size_t __iomem *)
+			((u8 __iomem *)&ioc->chip->Doorbell + (0x4000 + ((i - 1)
+			* 4)));
+	}
+
 	list_for_each_entry(reply_q, &ioc->reply_queue_list, list)
 		pr_info(MPT3SAS_FMT "%s: IRQ %d\n",
 		    reply_q->name,  ((ioc->msix_enable) ? "PCI-MSI-X enabled" :
@@ -5200,17 +5211,6 @@ mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
 	r = mpt3sas_base_map_resources(ioc);
 	if (r)
 		goto out_free_resources;
-
-	if (ioc->is_warpdrive) {
-		ioc->reply_post_host_index[0] = (resource_size_t __iomem *)
-		    &ioc->chip->ReplyPostHostIndex;
-
-		for (i = 1; i < ioc->cpu_msix_table_sz; i++)
-			ioc->reply_post_host_index[i] =
-			(resource_size_t __iomem *)
-			((u8 __iomem *)&ioc->chip->Doorbell + (0x4000 + ((i - 1)
-			* 4)));
-	}
 
 	pci_set_drvdata(ioc->pdev, ioc->shost);
 	r = _base_get_ioc_facts(ioc, CAN_SLEEP);
