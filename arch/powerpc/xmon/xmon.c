@@ -2284,13 +2284,13 @@ static void dump_one_paca(int cpu)
 	DUMP(p, subcore_sibling_mask, "x");
 #endif
 
-	DUMP(p, user_time, "llx");
-	DUMP(p, system_time, "llx");
-	DUMP(p, user_time_scaled, "llx");
-	DUMP(p, starttime, "llx");
-	DUMP(p, starttime_user, "llx");
-	DUMP(p, startspurr, "llx");
-	DUMP(p, utime_sspurr, "llx");
+	DUMP(p, accounting.user_time, "llx");
+	DUMP(p, accounting.system_time, "llx");
+	DUMP(p, accounting.user_time_scaled, "llx");
+	DUMP(p, accounting.starttime, "llx");
+	DUMP(p, accounting.starttime_user, "llx");
+	DUMP(p, accounting.startspurr, "llx");
+	DUMP(p, accounting.utime_sspurr, "llx");
 	DUMP(p, stolen_time, "llx");
 #undef DUMP
 

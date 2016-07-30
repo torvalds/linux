@@ -68,6 +68,10 @@
 #include "../mm/mmu_decl.h"
 #endif
 
+#ifdef CONFIG_PPC_8xx
+#include <asm/fixmap.h>
+#endif
+
 int main(void)
 {
 	DEFINE(THREAD, offsetof(struct task_struct, thread));
@@ -240,13 +244,28 @@ int main(void)
 	DEFINE(PACAHWCPUID, offsetof(struct paca_struct, hw_cpu_id));
 	DEFINE(PACAKEXECSTATE, offsetof(struct paca_struct, kexec_state));
 	DEFINE(PACA_DSCR_DEFAULT, offsetof(struct paca_struct, dscr_default));
-	DEFINE(PACA_STARTTIME, offsetof(struct paca_struct, starttime));
-	DEFINE(PACA_STARTTIME_USER, offsetof(struct paca_struct, starttime_user));
-	DEFINE(PACA_USER_TIME, offsetof(struct paca_struct, user_time));
-	DEFINE(PACA_SYSTEM_TIME, offsetof(struct paca_struct, system_time));
+	DEFINE(ACCOUNT_STARTTIME,
+	       offsetof(struct paca_struct, accounting.starttime));
+	DEFINE(ACCOUNT_STARTTIME_USER,
+	       offsetof(struct paca_struct, accounting.starttime_user));
+	DEFINE(ACCOUNT_USER_TIME,
+	       offsetof(struct paca_struct, accounting.user_time));
+	DEFINE(ACCOUNT_SYSTEM_TIME,
+	       offsetof(struct paca_struct, accounting.system_time));
 	DEFINE(PACA_TRAP_SAVE, offsetof(struct paca_struct, trap_save));
 	DEFINE(PACA_NAPSTATELOST, offsetof(struct paca_struct, nap_state_lost));
 	DEFINE(PACA_SPRG_VDSO, offsetof(struct paca_struct, sprg_vdso));
+#else /* CONFIG_PPC64 */
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
+	DEFINE(ACCOUNT_STARTTIME,
+	       offsetof(struct thread_info, accounting.starttime));
+	DEFINE(ACCOUNT_STARTTIME_USER,
+	       offsetof(struct thread_info, accounting.starttime_user));
+	DEFINE(ACCOUNT_USER_TIME,
+	       offsetof(struct thread_info, accounting.user_time));
+	DEFINE(ACCOUNT_SYSTEM_TIME,
+	       offsetof(struct thread_info, accounting.system_time));
+#endif
 #endif /* CONFIG_PPC64 */
 
 	/* RTAS */
@@ -733,6 +752,10 @@ int main(void)
 #endif
 
 	DEFINE(PPC_DBELL_SERVER, PPC_DBELL_SERVER);
+
+#ifdef CONFIG_PPC_8xx
+	DEFINE(VIRT_IMMR_BASE, (u64)__fix_to_virt(FIX_IMMR_BASE));
+#endif
 
 	return 0;
 }
