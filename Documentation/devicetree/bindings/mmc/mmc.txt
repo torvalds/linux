@@ -102,10 +102,12 @@ Required host node properties when using function subnodes:
 - #size-cells: should be zero.
 
 Required function subnode properties:
-- compatible: name of SDIO function following generic names recommended practice
 - reg: Must contain the SDIO function number of the function this subnode
        describes. A value of 0 denotes the memory SD function, values from
        1 to 7 denote the SDIO functions.
+
+Optional function subnode properties:
+- compatible: name of SDIO function following generic names recommended practice
 
 
 Examples
