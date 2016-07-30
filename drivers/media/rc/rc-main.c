@@ -1460,6 +1460,10 @@ int rc_register_device(struct rc_dev *dev)
 	dev->input_dev->phys = dev->input_phys;
 	dev->input_dev->name = dev->input_name;
 
+	rc = input_register_device(dev->input_dev);
+	if (rc)
+		goto out_table;
+
 	/*
 	 * Default delay of 250ms is too short for some protocols, especially
 	 * since the timeout is currently set to 250ms. Increase it to 500ms,
@@ -1474,11 +1478,6 @@ int rc_register_device(struct rc_dev *dev)
 	 * to do.
 	 */
 	dev->input_dev->rep[REP_PERIOD] = 125;
-
-	/* rc_open will be called here */
-	rc = input_register_device(dev->input_dev);
-	if (rc)
-		goto out_table;
 
 	path = kobject_get_path(&dev->dev.kobj, GFP_KERNEL);
 	dev_info(&dev->dev, "%s as %s\n",
