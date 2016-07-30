@@ -34,25 +34,6 @@ static void cvm_oct_get_drvinfo(struct net_device *dev,
 	strlcpy(info->bus_info, "Builtin", sizeof(info->bus_info));
 }
 
-static int cvm_oct_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
-{
-	if (dev->phydev)
-		return phy_ethtool_gset(dev->phydev, cmd);
-
-	return -EINVAL;
-}
-
-static int cvm_oct_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
-{
-	if (!capable(CAP_NET_ADMIN))
-		return -EPERM;
-
-	if (dev->phydev)
-		return phy_ethtool_sset(dev->phydev, cmd);
-
-	return -EINVAL;
-}
-
 static int cvm_oct_nway_reset(struct net_device *dev)
 {
 	if (!capable(CAP_NET_ADMIN))
@@ -66,10 +47,10 @@ static int cvm_oct_nway_reset(struct net_device *dev)
 
 const struct ethtool_ops cvm_oct_ethtool_ops = {
 	.get_drvinfo = cvm_oct_get_drvinfo,
-	.get_settings = cvm_oct_get_settings,
-	.set_settings = cvm_oct_set_settings,
 	.nway_reset = cvm_oct_nway_reset,
 	.get_link = ethtool_op_get_link,
+	.get_link_ksettings = phy_ethtool_get_link_ksettings,
+	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
 
 /**
