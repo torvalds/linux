@@ -128,13 +128,13 @@ int __init init_common(struct tsens_device *tmdev)
 	void __iomem *base;
 
 	base = of_iomap(tmdev->dev->of_node, 0);
-	if (IS_ERR(base))
+	if (!base)
 		return -EINVAL;
 
 	tmdev->map = devm_regmap_init_mmio(tmdev->dev, base, &tsens_config);
-	if (!tmdev->map) {
+	if (IS_ERR(tmdev->map)) {
 		iounmap(base);
-		return -ENODEV;
+		return PTR_ERR(tmdev->map);
 	}
 
 	return 0;
