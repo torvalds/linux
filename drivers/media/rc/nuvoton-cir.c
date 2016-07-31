@@ -886,6 +886,15 @@ static irqreturn_t nvt_cir_isr(int irq, void *data)
 	status = nvt_cir_reg_read(nvt, CIR_IRSTS);
 	iren = nvt_cir_reg_read(nvt, CIR_IREN);
 
+	/* At least NCT6779D creates a spurious interrupt when the
+	 * logical device is being disabled.
+	 */
+	if (status == 0xff && iren == 0xff) {
+		spin_unlock_irqrestore(&nvt->nvt_lock, flags);
+		nvt_dbg_verbose("Spurious interrupt detected");
+		return IRQ_HANDLED;
+	}
+
 	/* IRQ may be shared with CIR WAKE, therefore check for each
 	 * status bit whether the related interrupt source is enabled
 	 */
