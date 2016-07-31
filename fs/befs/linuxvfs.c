@@ -299,7 +299,6 @@ static struct inode *befs_iget(struct super_block *sb, unsigned long ino)
 	struct befs_sb_info *befs_sb = BEFS_SB(sb);
 	struct befs_inode_info *befs_ino;
 	struct inode *inode;
-	long ret = -EIO;
 
 	befs_debug(sb, "---> %s inode = %lu", __func__, ino);
 
@@ -421,7 +420,7 @@ static struct inode *befs_iget(struct super_block *sb, unsigned long ino)
       unacquire_none:
 	iget_failed(inode);
 	befs_debug(sb, "<--- %s - Bad inode", __func__);
-	return ERR_PTR(ret);
+	return ERR_PTR(-EIO);
 }
 
 /* Initialize the inode cache. Called at fs setup.
