@@ -1819,7 +1819,8 @@ int __init ap_module_init(void)
 	if (ap_domain_index < -1 || ap_domain_index > max_domain_id) {
 		pr_warn("%d is not a valid cryptographic domain\n",
 			ap_domain_index);
-		return -EINVAL;
+		rc = -EINVAL;
+		goto out_free;
 	}
 	/* In resume callback we need to know if the user had set the domain.
 	 * If so, we can not just reset it.
@@ -1892,6 +1893,7 @@ out:
 	unregister_reset_call(&ap_reset_call);
 	if (ap_using_interrupts())
 		unregister_adapter_interrupt(&ap_airq);
+out_free:
 	kfree(ap_configuration);
 	return rc;
 }
