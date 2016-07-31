@@ -420,7 +420,7 @@ befs_btree_read(struct super_block *sb, const befs_data_stream *ds,
 {
 	struct befs_btree_node *this_node;
 	befs_btree_super bt_super;
-	befs_off_t node_off = 0;
+	befs_off_t node_off;
 	int cur_key;
 	fs64 *valarray;
 	char *keystart;
