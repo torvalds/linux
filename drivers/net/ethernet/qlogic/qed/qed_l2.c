@@ -590,7 +590,7 @@ qed_sp_eth_rx_queue_start(struct qed_hwfn *p_hwfn,
 			  u16 cqe_pbl_size, void __iomem **pp_prod)
 {
 	struct qed_hw_cid_data *p_rx_cid;
-	u64 init_prod_val = 0;
+	u32 init_prod_val = 0;
 	u16 abs_l2_queue = 0;
 	u8 abs_stats_id = 0;
 	int rc;
@@ -618,7 +618,7 @@ qed_sp_eth_rx_queue_start(struct qed_hwfn *p_hwfn,
 				 MSTORM_ETH_PF_PRODS_OFFSET(abs_l2_queue);
 
 	/* Init the rcq, rx bd and rx sge (if valid) producers to 0 */
-	__internal_ram_wr(p_hwfn, *pp_prod, sizeof(u64),
+	__internal_ram_wr(p_hwfn, *pp_prod, sizeof(u32),
 			  (u32 *)(&init_prod_val));
 
 	/* Allocate a CID for the queue */
@@ -1664,6 +1664,8 @@ static int qed_fill_eth_dev_info(struct qed_dev *cdev,
 	info->num_tc = 1;
 
 	if (IS_PF(cdev)) {
+		int max_vf_vlan_filters = 0;
+
 		if (cdev->int_params.out.int_mode == QED_INT_MODE_MSIX) {
 			for_each_hwfn(cdev, i)
 			    info->num_queues +=
@@ -1676,7 +1678,12 @@ static int qed_fill_eth_dev_info(struct qed_dev *cdev,
 			info->num_queues = cdev->num_hwfns;
 		}
 
-		info->num_vlan_filters = RESC_NUM(&cdev->hwfns[0], QED_VLAN);
+		if (IS_QED_SRIOV(cdev))
+			max_vf_vlan_filters = cdev->p_iov_info->total_vfs *
+					      QED_ETH_VF_NUM_VLAN_FILTERS;
+		info->num_vlan_filters = RESC_NUM(&cdev->hwfns[0], QED_VLAN) -
+					 max_vf_vlan_filters;
+
 		ether_addr_copy(info->port_mac,
 				cdev->hwfns[0].hw_info.hw_mac_addr);
 	} else {

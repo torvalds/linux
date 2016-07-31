@@ -2539,7 +2539,7 @@ int qed_configure_vport_wfq(struct qed_dev *cdev, u16 vp_id, u32 rate)
 
 		rc = __qed_configure_vport_wfq(p_hwfn, p_ptt, vp_id, rate);
 
-		if (!rc) {
+		if (rc) {
 			qed_ptt_release(p_hwfn, p_ptt);
 			return rc;
 		}
