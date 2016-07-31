@@ -520,8 +520,7 @@ int hfsplus_uni2asc(struct super_block *sb, const struct hfsplus_unistr *ustr,
 int hfsplus_asc2uni(struct super_block *sb, struct hfsplus_unistr *ustr,
 		    int max_unistr_len, const char *astr, int len);
 int hfsplus_hash_dentry(const struct dentry *dentry, struct qstr *str);
-int hfsplus_compare_dentry(const struct dentry *parent,
-			   const struct dentry *dentry, unsigned int len,
+int hfsplus_compare_dentry(const struct dentry *dentry, unsigned int len,
 			   const char *str, const struct qstr *name);
 
 /* wrapper.c */

@@ -29,18 +29,15 @@
 #define BEQUIET
 
 static int isofs_hashi(const struct dentry *parent, struct qstr *qstr);
-static int isofs_dentry_cmpi(const struct dentry *parent,
-		const struct dentry *dentry,
+static int isofs_dentry_cmpi(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name);
 
 #ifdef CONFIG_JOLIET
 static int isofs_hashi_ms(const struct dentry *parent, struct qstr *qstr);
 static int isofs_hash_ms(const struct dentry *parent, struct qstr *qstr);
-static int isofs_dentry_cmpi_ms(const struct dentry *parent,
-		const struct dentry *dentry,
+static int isofs_dentry_cmpi_ms(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name);
-static int isofs_dentry_cmp_ms(const struct dentry *parent,
-		const struct dentry *dentry,
+static int isofs_dentry_cmp_ms(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name);
 #endif
 
@@ -235,7 +232,7 @@ isofs_hashi(const struct dentry *dentry, struct qstr *qstr)
 }
 
 static int
-isofs_dentry_cmpi(const struct dentry *parent, const struct dentry *dentry,
+isofs_dentry_cmpi(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name)
 {
 	return isofs_dentry_cmp_common(len, str, name, 0, 1);
@@ -276,14 +273,14 @@ isofs_hashi_ms(const struct dentry *dentry, struct qstr *qstr)
 }
 
 static int
-isofs_dentry_cmp_ms(const struct dentry *parent, const struct dentry *dentry,
+isofs_dentry_cmp_ms(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name)
 {
 	return isofs_dentry_cmp_common(len, str, name, 1, 0);
 }
 
 static int
-isofs_dentry_cmpi_ms(const struct dentry *parent, const struct dentry *dentry,
+isofs_dentry_cmpi_ms(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name)
 {
 	return isofs_dentry_cmp_common(len, str, name, 1, 1);

@@ -34,7 +34,7 @@ static int hpfs_hash_dentry(const struct dentry *dentry, struct qstr *qstr)
 	return 0;
 }
 
-static int hpfs_compare_dentry(const struct dentry *parent, const struct dentry *dentry,
+static int hpfs_compare_dentry(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name)
 {
 	unsigned al = len;

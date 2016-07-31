@@ -14,11 +14,11 @@ typedef int (*toupper_t)(int);
 
 static int	 affs_toupper(int ch);
 static int	 affs_hash_dentry(const struct dentry *, struct qstr *);
-static int       affs_compare_dentry(const struct dentry *parent, const struct dentry *dentry,
+static int       affs_compare_dentry(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name);
 static int	 affs_intl_toupper(int ch);
 static int	 affs_intl_hash_dentry(const struct dentry *, struct qstr *);
-static int       affs_intl_compare_dentry(const struct dentry *parent, const struct dentry *dentry,
+static int       affs_intl_compare_dentry(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name);
 
 const struct dentry_operations affs_dentry_operations = {
@@ -131,7 +131,7 @@ static inline int __affs_compare_dentry(unsigned int len,
 }
 
 static int
-affs_compare_dentry(const struct dentry *parent, const struct dentry *dentry,
+affs_compare_dentry(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name)
 {
 
@@ -140,7 +140,7 @@ affs_compare_dentry(const struct dentry *parent, const struct dentry *dentry,
 }
 
 static int
-affs_intl_compare_dentry(const struct dentry *parent, const struct dentry *dentry,
+affs_intl_compare_dentry(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name)
 {
 	return __affs_compare_dentry(len, str, name, affs_intl_toupper,
