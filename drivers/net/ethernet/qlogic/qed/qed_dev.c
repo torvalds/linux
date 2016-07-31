@@ -888,7 +888,7 @@ static int qed_hw_init_pf(struct qed_hwfn *p_hwfn,
 
 	if (hw_mode & (1 << MODE_MF_SI)) {
 		u8 pf_id = 0;
-		u32 val;
+		u32 val = 0;
 
 		if (!qed_hw_init_first_eth(p_hwfn, p_ptt, &pf_id)) {
 			if (p_hwfn->rel_pf_id == pf_id) {
