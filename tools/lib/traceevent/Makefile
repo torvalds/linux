@@ -99,8 +99,6 @@ libdir_SQ = $(subst ','\'',$(libdir))
 libdir_relative_SQ = $(subst ','\'',$(libdir_relative))
 plugin_dir_SQ = $(subst ','\'',$(plugin_dir))
 
-LIB_TARGET = libtraceevent.a libtraceevent.so
-
 CONFIG_INCLUDES = 
 CONFIG_LIBS	=
 CONFIG_FLAGS	=
@@ -113,6 +111,9 @@ OBJ		= $@
 N		=
 
 EVENT_PARSE_VERSION = $(EP_VERSION).$(EP_PATCHLEVEL).$(EP_EXTRAVERSION)
+
+LIB_TARGET  = libtraceevent.a libtraceevent.so.$(EVENT_PARSE_VERSION)
+LIB_INSTALL = libtraceevent.a libtraceevent.so*
 
 INCLUDES = -I. -I $(srctree)/tools/include $(CONFIG_INCLUDES)
 
@@ -171,8 +172,10 @@ all_cmd: $(CMD_TARGETS)
 $(TE_IN): force
 	$(Q)$(MAKE) $(build)=libtraceevent
 
-$(OUTPUT)libtraceevent.so: $(TE_IN)
-	$(QUIET_LINK)$(CC) --shared $^ -o $@
+$(OUTPUT)libtraceevent.so.$(EVENT_PARSE_VERSION): $(TE_IN)
+	$(QUIET_LINK)$(CC) --shared $^ -Wl,-soname,libtraceevent.so.$(EP_VERSION) -o $@
+	@ln -sf $(@F) $(OUTPUT)libtraceevent.so
+	@ln -sf $(@F) $(OUTPUT)libtraceevent.so.$(EP_VERSION)
 
 $(OUTPUT)libtraceevent.a: $(TE_IN)
 	$(QUIET_LINK)$(RM) $@; $(AR) rcs $@ $^
@@ -262,7 +265,8 @@ endef
 
 install_lib: all_cmd install_plugins
 	$(call QUIET_INSTALL, $(LIB_TARGET)) \
-		$(call do_install,$(LIB_TARGET),$(libdir_SQ))
+		$(call do_install_mkdir,$(libdir_SQ)); \
+		cp -fpR $(LIB_INSTALL) $(DESTDIR)$(libdir_SQ)
 
 install_plugins: $(PLUGINS)
 	$(call QUIET_INSTALL, trace_plugins) \
