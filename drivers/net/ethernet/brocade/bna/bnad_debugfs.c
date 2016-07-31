@@ -312,7 +312,8 @@ bnad_debugfs_write_regrd(struct file *file, const char __user *buf,
 	struct bnad_debug_info *regrd_debug = file->private_data;
 	struct bnad *bnad = (struct bnad *)regrd_debug->i_private;
 	struct bfa_ioc *ioc = &bnad->bna.ioceth.ioc;
-	int addr, len, rc, i;
+	int rc, i;
+	u32 addr, len;
 	u32 *regbuf;
 	void __iomem *rb, *reg_addr;
 	unsigned long flags;
