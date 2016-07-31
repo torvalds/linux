@@ -706,15 +706,10 @@ mwifiex_cmd_802_11_key_material_v2(struct mwifiex_private *priv,
 				    (priv->wep_key_curr_index & KEY_INDEX_MASK))
 					key_info |= KEY_DEFAULT;
 			} else {
-				if (mac) {
-					if (is_broadcast_ether_addr(mac))
-						key_info |= KEY_MCAST;
-					else
-						key_info |= KEY_UNICAST |
-							    KEY_DEFAULT;
-				} else {
+				if (is_broadcast_ether_addr(mac))
 					key_info |= KEY_MCAST;
-				}
+				else
+					key_info |= KEY_UNICAST | KEY_DEFAULT;
 			}
 		}
 		km->key_param_set.key_info = cpu_to_le16(key_info);
