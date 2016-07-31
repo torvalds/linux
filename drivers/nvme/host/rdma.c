@@ -1269,7 +1269,7 @@ static int nvme_rdma_route_resolved(struct nvme_rdma_queue *queue)
 {
 	struct nvme_rdma_ctrl *ctrl = queue->ctrl;
 	struct rdma_conn_param param = { };
-	struct nvme_rdma_cm_req priv;
+	struct nvme_rdma_cm_req priv = { };
 	int ret;
 
 	param.qp_num = queue->qp->qp_num;
