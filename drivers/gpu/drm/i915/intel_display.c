@@ -14070,6 +14070,7 @@ intel_cleanup_plane_fb(struct drm_plane *plane,
 {
 	struct drm_device *dev = plane->dev;
 	struct intel_plane_state *old_intel_state;
+	struct intel_plane_state *intel_state = to_intel_plane_state(plane->state);
 	struct drm_i915_gem_object *old_obj = intel_fb_obj(old_state->fb);
 	struct drm_i915_gem_object *obj = intel_fb_obj(plane->state->fb);
 
@@ -14082,6 +14083,7 @@ intel_cleanup_plane_fb(struct drm_plane *plane,
 	    !INTEL_INFO(dev)->cursor_needs_physical))
 		intel_unpin_fb_obj(old_state->fb, old_state->rotation);
 
+	i915_gem_request_assign(&intel_state->wait_req, NULL);
 	i915_gem_request_assign(&old_intel_state->wait_req, NULL);
 }
 
