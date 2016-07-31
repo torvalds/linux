@@ -120,7 +120,7 @@ befs_get_block(struct inode *inode, sector_t block,
 	struct super_block *sb = inode->i_sb;
 	befs_data_stream *ds = &BEFS_I(inode)->i_data.ds;
 	befs_block_run run = BAD_IADDR;
-	int res = 0;
+	int res;
 	ulong disk_off;
 
 	befs_debug(sb, "---> befs_get_block() for inode %lu, block %ld",
