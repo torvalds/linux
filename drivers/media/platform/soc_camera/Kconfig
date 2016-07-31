@@ -35,13 +35,6 @@ config VIDEO_RCAR_VIN_OLD
 	---help---
 	  This is a v4l2 driver for the R-Car VIN Interface
 
-config VIDEO_SH_MOBILE_CSI2
-	tristate "SuperH Mobile MIPI CSI-2 Interface driver"
-	depends on VIDEO_DEV && SOC_CAMERA && HAVE_CLK
-	depends on ARCH_SHMOBILE || SUPERH || COMPILE_TEST
-	---help---
-	  This is a v4l2 driver for the SuperH MIPI CSI-2 Interface
-
 config VIDEO_SH_MOBILE_CEU
 	tristate "SuperH Mobile CEU Interface driver"
 	depends on VIDEO_DEV && SOC_CAMERA && HAS_DMA && HAVE_CLK
