@@ -1859,7 +1859,7 @@ static int bcm_enet_probe(struct platform_device *pdev)
 	} else {
 
 		/* run platform code to initialize PHY device */
-		if (pd->mii_config &&
+		if (pd && pd->mii_config &&
 		    pd->mii_config(dev, 1, bcm_enet_mdio_read_mii,
 				   bcm_enet_mdio_write_mii)) {
 			dev_err(&pdev->dev, "unable to configure mdio bus\n");
