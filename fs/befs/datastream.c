@@ -425,10 +425,9 @@ befs_find_brun_dblindirect(struct super_block *sb,
 	struct buffer_head *indir_block;
 	befs_block_run indir_run;
 	befs_disk_inode_addr *iaddr_array;
-	struct befs_sb_info *befs_sb = BEFS_SB(sb);
 
 	befs_blocknr_t indir_start_blk =
-	    data->max_indirect_range >> befs_sb->block_shift;
+	    data->max_indirect_range >> BEFS_SB(sb)->block_shift;
 
 	off_t dbl_indir_off = blockno - indir_start_blk;
 
