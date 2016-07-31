@@ -20,7 +20,8 @@
 #include <asm/code-patching.h>
 #include <asm/page.h>
 #include <asm/sections.h>
-
+#include <asm/setup.h>
+#include <asm/firmware.h>
 
 struct fixup_entry {
 	unsigned long	mask;
@@ -130,7 +131,7 @@ void do_lwsync_fixups(unsigned long value, void *fixup_start, void *fixup_end)
 	}
 }
 
-void do_final_fixups(void)
+static void do_final_fixups(void)
 {
 #if defined(CONFIG_PPC64) && defined(CONFIG_RELOCATABLE)
 	int *src, *dest;
@@ -149,6 +150,33 @@ void do_final_fixups(void)
 		dest++;
 	}
 #endif
+}
+
+void apply_feature_fixups(void)
+{
+	struct cpu_spec *spec = *PTRRELOC(&cur_cpu_spec);
+
+	/*
+	 * Apply the CPU-specific and firmware specific fixups to kernel text
+	 * (nop out sections not relevant to this CPU or this firmware).
+	 */
+	do_feature_fixups(spec->cpu_features,
+			  PTRRELOC(&__start___ftr_fixup),
+			  PTRRELOC(&__stop___ftr_fixup));
+
+	do_feature_fixups(spec->mmu_features,
+			  PTRRELOC(&__start___mmu_ftr_fixup),
+			  PTRRELOC(&__stop___mmu_ftr_fixup));
+
+	do_lwsync_fixups(spec->cpu_features,
+			 PTRRELOC(&__start___lwsync_fixup),
+			 PTRRELOC(&__stop___lwsync_fixup));
+
+#ifdef CONFIG_PPC64
+	do_feature_fixups(powerpc_firmware_features,
+			  &__start___fw_ftr_fixup, &__stop___fw_ftr_fixup);
+#endif
+	do_final_fixups();
 }
 
 #ifdef CONFIG_FTR_FIXUP_SELFTEST

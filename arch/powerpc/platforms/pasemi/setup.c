@@ -62,7 +62,7 @@ static int num_mce_regs;
 static int nmi_virq = NO_IRQ;
 
 
-static void pas_restart(char *cmd)
+static void __noreturn pas_restart(char *cmd)
 {
 	/* Need to put others cpu in hold loop so they're not sleeping */
 	smp_send_stop();
@@ -339,11 +339,6 @@ out:
 	return !!(srr1 & 0x2);
 }
 
-static void __init pas_init_early(void)
-{
-	iommu_init_early_pasemi();
-}
-
 #ifdef CONFIG_PCMCIA
 static int pcmcia_notify(struct notifier_block *nb, unsigned long action,
 			 void *data)
@@ -420,15 +415,11 @@ machine_device_initcall(pasemi, pasemi_publish_devices);
  */
 static int __init pas_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	if (!of_flat_dt_is_compatible(root, "PA6T-1682M") &&
-	    !of_flat_dt_is_compatible(root, "pasemi,pwrficient"))
+	if (!of_machine_is_compatible("PA6T-1682M") &&
+	    !of_machine_is_compatible("pasemi,pwrficient"))
 		return 0;
 
-	hpte_init_native();
-
-	alloc_iobmap_l2();
+	iommu_init_early_pasemi();
 
 	return 1;
 }
@@ -437,7 +428,6 @@ define_machine(pasemi) {
 	.name			= "PA Semi PWRficient",
 	.probe			= pas_probe,
 	.setup_arch		= pas_setup_arch,
-	.init_early		= pas_init_early,
 	.init_IRQ		= pas_init_IRQ,
 	.get_irq		= mpic_get_irq,
 	.restart		= pas_restart,

@@ -622,7 +622,7 @@ static struct spu *spu_get_idle(struct spu_context *ctx)
 
 /**
  * find_victim - find a lower priority context to preempt
- * @ctx:	canidate context for running
+ * @ctx:	candidate context for running
  *
  * Returns the freed physical spu to run the new context on.
  */

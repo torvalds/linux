@@ -35,7 +35,7 @@
 #include <asm/mmu_context.h>
 #include <asm/switch_to.h>
 #include <asm/firmware.h>
-#include <asm/hvcall.h>
+#include <asm/setup.h>
 #include <linux/gfp.h>
 #include <linux/sched.h>
 #include <linux/vmalloc.h>
@@ -1690,7 +1690,7 @@ static int kvmppc_core_init_vm_pr(struct kvm *kvm)
 	if (firmware_has_feature(FW_FEATURE_SET_MODE)) {
 		spin_lock(&kvm_global_user_count_lock);
 		if (++kvm_global_user_count == 1)
-			pSeries_disable_reloc_on_exc();
+			pseries_disable_reloc_on_exc();
 		spin_unlock(&kvm_global_user_count_lock);
 	}
 	return 0;
@@ -1706,7 +1706,7 @@ static void kvmppc_core_destroy_vm_pr(struct kvm *kvm)
 		spin_lock(&kvm_global_user_count_lock);
 		BUG_ON(kvm_global_user_count == 0);
 		if (--kvm_global_user_count == 0)
-			pSeries_enable_reloc_on_exc();
+			pseries_enable_reloc_on_exc();
 		spin_unlock(&kvm_global_user_count_lock);
 	}
 }

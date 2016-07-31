@@ -139,7 +139,7 @@ static void eeh_enable_irq(struct pci_dev *dev)
 		 * into it.
 		 *
 		 * That's just wrong.The warning in the core code is
-		 * there to tell people to fix their assymetries in
+		 * there to tell people to fix their asymmetries in
 		 * their own code, not by abusing the core information
 		 * to avoid it.
 		 *

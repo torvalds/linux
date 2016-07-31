@@ -6948,6 +6948,7 @@ F:	drivers/crypto/nx/
 F:	drivers/crypto/vmx/
 F:	drivers/net/ethernet/ibm/ibmveth.*
 F:	drivers/net/ethernet/ibm/ibmvnic.*
+F:	drivers/pci/hotplug/pnv_php.c
 F:	drivers/pci/hotplug/rpa*
 F:	drivers/scsi/ibmvscsi/
 N:	opal
@@ -9213,6 +9214,12 @@ S:	Maintained
 F:	drivers/firmware/psci.c
 F:	include/linux/psci.h
 F:	include/uapi/linux/psci.h
+
+POWERNV OPERATOR PANEL LCD DISPLAY DRIVER
+M:	Suraj Jitindar Singh <sjitindarsingh@gmail.com>
+L:	linuxppc-dev@lists.ozlabs.org
+S:	Maintained
+F:	drivers/char/powernv-op-panel.c
 
 PNP SUPPORT
 M:	"Rafael J. Wysocki" <rafael.j.wysocki@intel.com>

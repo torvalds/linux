@@ -104,20 +104,6 @@ _GLOBAL(mulhdu)
 	blr
 
 /*
- * sub_reloc_offset(x) returns x - reloc_offset().
- */
-_GLOBAL(sub_reloc_offset)
-	mflr	r0
-	bl	1f
-1:	mflr	r5
-	lis	r4,1b@ha
-	addi	r4,r4,1b@l
-	subf	r5,r4,r5
-	subf	r3,r5,r3
-	mtlr	r0
-	blr
-
-/*
  * reloc_got2 runs through the .got2 section adding an offset
  * to each entry.
  */

@@ -41,11 +41,18 @@
 #include <asm/ppc-pci.h>
 #include <asm/eeh.h>
 
+/* hose_spinlock protects accesses to the the phb_bitmap. */
 static DEFINE_SPINLOCK(hose_spinlock);
 LIST_HEAD(hose_list);
 
-/* XXX kill that some day ... */
-static int global_phb_number;		/* Global phb counter */
+/* For dynamic PHB numbering on get_phb_number(): max number of PHBs. */
+#define MAX_PHBS 0x10000
+
+/*
+ * For dynamic PHB numbering: used/free PHBs tracking bitmap.
+ * Accesses to this bitmap should be protected by hose_spinlock.
+ */
+static DECLARE_BITMAP(phb_bitmap, MAX_PHBS);
 
 /* ISA Memory physical address */
 resource_size_t isa_mem_base;
@@ -64,6 +71,42 @@ struct dma_map_ops *get_pci_dma_ops(void)
 }
 EXPORT_SYMBOL(get_pci_dma_ops);
 
+/*
+ * This function should run under locking protection, specifically
+ * hose_spinlock.
+ */
+static int get_phb_number(struct device_node *dn)
+{
+	int ret, phb_id = -1;
+	u64 prop;
+
+	/*
+	 * Try fixed PHB numbering first, by checking archs and reading
+	 * the respective device-tree properties. Firstly, try powernv by
+	 * reading "ibm,opal-phbid", only present in OPAL environment.
+	 */
+	ret = of_property_read_u64(dn, "ibm,opal-phbid", &prop);
+	if (ret)
+		ret = of_property_read_u32_index(dn, "reg", 1, (u32 *)&prop);
+
+	if (!ret)
+		phb_id = (int)(prop & (MAX_PHBS - 1));
+
+	/* We need to be sure to not use the same PHB number twice. */
+	if ((phb_id >= 0) && !test_and_set_bit(phb_id, phb_bitmap))
+		return phb_id;
+
+	/*
+	 * If not pseries nor powernv, or if fixed PHB numbering tried to add
+	 * the same PHB number twice, then fallback to dynamic PHB numbering.
+	 */
+	phb_id = find_first_zero_bit(phb_bitmap, MAX_PHBS);
+	BUG_ON(phb_id >= MAX_PHBS);
+	set_bit(phb_id, phb_bitmap);
+
+	return phb_id;
+}
+
 struct pci_controller *pcibios_alloc_controller(struct device_node *dev)
 {
 	struct pci_controller *phb;
@@ -72,7 +115,7 @@ struct pci_controller *pcibios_alloc_controller(struct device_node *dev)
 	if (phb == NULL)
 		return NULL;
 	spin_lock(&hose_spinlock);
-	phb->global_number = global_phb_number++;
+	phb->global_number = get_phb_number(dev);
 	list_add_tail(&phb->list_node, &hose_list);
 	spin_unlock(&hose_spinlock);
 	phb->dn = dev;
@@ -94,6 +137,11 @@ EXPORT_SYMBOL_GPL(pcibios_alloc_controller);
 void pcibios_free_controller(struct pci_controller *phb)
 {
 	spin_lock(&hose_spinlock);
+
+	/* Clear bit of phb_bitmap to allow reuse of this PHB number. */
+	if (phb->global_number < MAX_PHBS)
+		clear_bit(phb->global_number, phb_bitmap);
+
 	list_del(&phb->list_node);
 	spin_unlock(&hose_spinlock);
 
@@ -122,6 +170,14 @@ resource_size_t pcibios_window_alignment(struct pci_bus *bus,
 	 * memory window.
 	 */
 	return 1;
+}
+
+void pcibios_setup_bridge(struct pci_bus *bus, unsigned long type)
+{
+	struct pci_controller *hose = pci_bus_to_host(bus);
+
+	if (hose->controller_ops.setup_bridge)
+		hose->controller_ops.setup_bridge(bus, type);
 }
 
 void pcibios_reset_secondary_bus(struct pci_dev *dev)
@@ -1362,8 +1418,10 @@ void __init pcibios_resource_survey(void)
 	/* Allocate and assign resources */
 	list_for_each_entry(b, &pci_root_buses, node)
 		pcibios_allocate_bus_resources(b);
-	pcibios_allocate_resources(0);
-	pcibios_allocate_resources(1);
+	if (!pci_has_flag(PCI_REASSIGN_ALL_RSRC)) {
+		pcibios_allocate_resources(0);
+		pcibios_allocate_resources(1);
+	}
 
 	/* Before we start assigning unassigned resource, we try to reserve
 	 * the low IO area and the VGA memory area if they intersect the
@@ -1436,8 +1494,12 @@ void pcibios_finish_adding_to_bus(struct pci_bus *bus)
 	/* Allocate bus and devices resources */
 	pcibios_allocate_bus_resources(bus);
 	pcibios_claim_one_bus(bus);
-	if (!pci_has_flag(PCI_PROBE_ONLY))
-		pci_assign_unassigned_bus_resources(bus);
+	if (!pci_has_flag(PCI_PROBE_ONLY)) {
+		if (bus->self)
+			pci_assign_unassigned_bridge_resources(bus->self);
+		else
+			pci_assign_unassigned_bus_resources(bus);
+	}
 
 	/* Fixup EEH */
 	eeh_add_device_tree_late(bus);
@@ -1485,9 +1547,9 @@ static void pcibios_setup_phb_resources(struct pci_controller *hose,
 	res = &hose->io_resource;
 
 	if (!res->flags) {
-		pr_info("PCI: I/O resource not set for host"
-		       " bridge %s (domain %d)\n",
-		       hose->dn->full_name, hose->global_number);
+		pr_debug("PCI: I/O resource not set for host"
+			 " bridge %s (domain %d)\n",
+			 hose->dn->full_name, hose->global_number);
 	} else {
 		offset = pcibios_io_space_offset(hose);
 

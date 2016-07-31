@@ -107,25 +107,9 @@ BEGIN_FTR_SECTION
 	beq	9f
 
 	cmpwi	cr3,r13,2
-
-	/*
-	 * Check if last bit of HSPGR0 is set. This indicates whether we are
-	 * waking up from winkle.
-	 */
 	GET_PACA(r13)
-	clrldi	r5,r13,63
-	clrrdi	r13,r13,1
-	cmpwi	cr4,r5,1
-	mtspr	SPRN_HSPRG0,r13
+	bl	pnv_restore_hyp_resource
 
-	lbz	r0,PACA_THREAD_IDLE_STATE(r13)
-	cmpwi   cr2,r0,PNV_THREAD_NAP
-	bgt     cr2,8f				/* Either sleep or Winkle */
-
-	/* Waking up from nap should not cause hypervisor state loss */
-	bgt	cr3,.
-
-	/* Waking up from nap */
 	li	r0,PNV_THREAD_RUNNING
 	stb	r0,PACA_THREAD_IDLE_STATE(r13)	/* Clear thread state */
 
@@ -143,13 +127,9 @@ BEGIN_FTR_SECTION
 
 	/* Return SRR1 from power7_nap() */
 	mfspr	r3,SPRN_SRR1
-	beq	cr3,2f
-	b	power7_wakeup_noloss
-2:	b	power7_wakeup_loss
-
-	/* Fast Sleep wakeup on PowerNV */
-8:	GET_PACA(r13)
-	b 	power7_wakeup_tb_loss
+	blt	cr3,2f
+	b	pnv_wakeup_loss
+2:	b	pnv_wakeup_noloss
 
 9:
 END_FTR_SECTION_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
@@ -350,6 +330,12 @@ hv_doorbell_trampoline:
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	h_doorbell_hv
+
+	. = 0xea0
+hv_virt_irq_trampoline:
+	SET_SCRATCH0(r13)
+	EXCEPTION_PROLOG_0(PACA_EXGEN)
+	b	h_virt_irq_hv
 
 	/* We need to deal with the Altivec unavailable exception
 	 * here which is at 0xf20, thus in the middle of the
@@ -601,6 +587,9 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
 	MASKABLE_EXCEPTION_HV_OOL(0xe82, h_doorbell)
 	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xe82)
 
+	MASKABLE_EXCEPTION_HV_OOL(0xea2, h_virt_irq)
+	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xea2)
+
 	/* moved from 0xf00 */
 	STD_EXCEPTION_PSERIES_OOL(0xf00, performance_monitor)
 	KVM_HANDLER(PACA_EXGEN, EXC_STD, 0xf00)
@@ -680,6 +669,8 @@ _GLOBAL(__replay_interrupt)
 BEGIN_FTR_SECTION
 	cmpwi	r3,0xe80
 	beq	h_doorbell_common
+	cmpwi	r3,0xea0
+	beq	h_virt_irq_common
 FTR_SECTION_ELSE
 	cmpwi	r3,0xa00
 	beq	doorbell_super_common
@@ -754,6 +745,7 @@ kvmppc_skip_Hinterrupt:
 #else
 	STD_EXCEPTION_COMMON_ASYNC(0xe80, h_doorbell, unknown_exception)
 #endif
+	STD_EXCEPTION_COMMON_ASYNC(0xea0, h_virt_irq, do_IRQ)
 	STD_EXCEPTION_COMMON_ASYNC(0xf00, performance_monitor, performance_monitor_exception)
 	STD_EXCEPTION_COMMON(0x1300, instruction_breakpoint, instruction_breakpoint_exception)
 	STD_EXCEPTION_COMMON(0x1502, denorm, unknown_exception)
@@ -762,11 +754,6 @@ kvmppc_skip_Hinterrupt:
 #else
 	STD_EXCEPTION_COMMON(0x1700, altivec_assist, unknown_exception)
 #endif
-#ifdef CONFIG_CBE_RAS
-	STD_EXCEPTION_COMMON(0x1200, cbe_system_error, cbe_system_error_exception)
-	STD_EXCEPTION_COMMON(0x1600, cbe_maintenance, cbe_maintenance_exception)
-	STD_EXCEPTION_COMMON(0x1800, cbe_thermal, cbe_thermal_exception)
-#endif /* CONFIG_CBE_RAS */
 
 	/*
 	 * Relocation-on interrupts: A subset of the interrupts can be delivered
@@ -876,6 +863,12 @@ h_doorbell_relon_trampoline:
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	h_doorbell_relon_hv
+
+	. = 0x4ea0
+h_virt_irq_relon_trampoline:
+	SET_SCRATCH0(r13)
+	EXCEPTION_PROLOG_0(PACA_EXGEN)
+	b	h_virt_irq_relon_hv
 
 	. = 0x4f00
 performance_monitor_relon_pseries_trampoline:
@@ -1131,12 +1124,10 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 	bl	vsx_unavailable_exception
 	b	ret_from_except
 
-	STD_EXCEPTION_COMMON(0xf60, facility_unavailable, facility_unavailable_exception)
-	STD_EXCEPTION_COMMON(0xf80, hv_facility_unavailable, facility_unavailable_exception)
-
 	/* Equivalents to the above handlers for relocation-on interrupt vectors */
 	STD_RELON_EXCEPTION_HV_OOL(0xe40, emulation_assist)
 	MASKABLE_RELON_EXCEPTION_HV_OOL(0xe80, h_doorbell)
+	MASKABLE_RELON_EXCEPTION_HV_OOL(0xea0, h_virt_irq)
 
 	STD_RELON_EXCEPTION_PSERIES_OOL(0xf00, performance_monitor)
 	STD_RELON_EXCEPTION_PSERIES_OOL(0xf20, altivec_unavailable)
@@ -1169,6 +1160,15 @@ fwnmi_data_area:
 	 */
 	. = 0x8000
 #endif /* defined(CONFIG_PPC_PSERIES) || defined(CONFIG_PPC_POWERNV) */
+
+	STD_EXCEPTION_COMMON(0xf60, facility_unavailable, facility_unavailable_exception)
+	STD_EXCEPTION_COMMON(0xf80, hv_facility_unavailable, facility_unavailable_exception)
+
+#ifdef CONFIG_CBE_RAS
+	STD_EXCEPTION_COMMON(0x1200, cbe_system_error, cbe_system_error_exception)
+	STD_EXCEPTION_COMMON(0x1600, cbe_maintenance, cbe_maintenance_exception)
+	STD_EXCEPTION_COMMON(0x1800, cbe_thermal, cbe_thermal_exception)
+#endif /* CONFIG_CBE_RAS */
 
 	.globl hmi_exception_early
 hmi_exception_early:
@@ -1289,7 +1289,7 @@ machine_check_handle_early:
 	GET_PACA(r13)
 	ld	r1,PACAR1(r13)
 	li	r3,PNV_THREAD_NAP
-	b	power7_enter_nap_mode
+	b	pnv_enter_arch207_idle_mode
 4:
 #endif
 	/*

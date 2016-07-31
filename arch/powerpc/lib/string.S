@@ -16,15 +16,6 @@
 	PPC_LONG_ALIGN
 	.text
 	
-_GLOBAL(strcpy)
-	addi	r5,r3,-1
-	addi	r4,r4,-1
-1:	lbzu	r0,1(r4)
-	cmpwi	0,r0,0
-	stbu	r0,1(r5)
-	bne	1b
-	blr
-
 /* This clears out any unused part of the destination buffer,
    just as the libc version does.  -- paulus */
 _GLOBAL(strncpy)
@@ -33,6 +24,7 @@ _GLOBAL(strncpy)
 	mtctr	r5
 	addi	r6,r3,-1
 	addi	r4,r4,-1
+	.balign 16
 1:	lbzu	r0,1(r4)
 	cmpwi	0,r0,0
 	stbu	r0,1(r6)
@@ -45,36 +37,13 @@ _GLOBAL(strncpy)
 	bdnz	2b
 	blr
 
-_GLOBAL(strcat)
-	addi	r5,r3,-1
-	addi	r4,r4,-1
-1:	lbzu	r0,1(r5)
-	cmpwi	0,r0,0
-	bne	1b
-	addi	r5,r5,-1
-1:	lbzu	r0,1(r4)
-	cmpwi	0,r0,0
-	stbu	r0,1(r5)
-	bne	1b
-	blr
-
-_GLOBAL(strcmp)
-	addi	r5,r3,-1
-	addi	r4,r4,-1
-1:	lbzu	r3,1(r5)
-	cmpwi	1,r3,0
-	lbzu	r0,1(r4)
-	subf.	r3,r0,r3
-	beqlr	1
-	beq	1b
-	blr
-
 _GLOBAL(strncmp)
 	PPC_LCMPI 0,r5,0
 	beq-	2f
 	mtctr	r5
 	addi	r5,r3,-1
 	addi	r4,r4,-1
+	.balign 16
 1:	lbzu	r3,1(r5)
 	cmpwi	1,r3,0
 	lbzu	r0,1(r4)
@@ -83,14 +52,6 @@ _GLOBAL(strncmp)
 	bdnzt	eq,1b
 	blr
 2:	li	r3,0
-	blr
-
-_GLOBAL(strlen)
-	addi	r4,r3,-1
-1:	lbzu	r0,1(r4)
-	cmpwi	0,r0,0
-	bne	1b
-	subf	r3,r3,r4
 	blr
 
 #ifdef CONFIG_PPC32
@@ -114,6 +75,7 @@ _GLOBAL(memchr)
 	beq-	2f
 	mtctr	r5
 	addi	r3,r3,-1
+	.balign 16
 1:	lbzu	r0,1(r3)
 	cmpw	0,r0,r4
 	bdnzf	2,1b

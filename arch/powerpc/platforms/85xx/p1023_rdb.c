@@ -100,9 +100,7 @@ static void __init mpc85xx_rdb_pic_init(void)
 
 static int __init p1023_rdb_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	return of_flat_dt_is_compatible(root, "fsl,P1023RDB");
+	return of_machine_is_compatible("fsl,P1023RDB");
 
 }
 
