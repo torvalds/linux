@@ -347,8 +347,6 @@ befs_find_key(struct super_block *sb, struct befs_btree_node *node,
 
 	befs_debug(sb, "---> %s %s", __func__, findkey);
 
-	*value = 0;
-
 	findkey_len = strlen(findkey);
 
 	/* if node can not contain key, just skeep this node */
