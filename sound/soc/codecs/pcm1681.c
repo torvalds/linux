@@ -73,7 +73,7 @@ static bool pcm1681_accessible_reg(struct device *dev, unsigned int reg)
 	return !((reg == 0x00) || (reg == 0x0f));
 }
 
-static bool pcm1681_writeable_reg(struct device *dev, unsigned register reg)
+static bool pcm1681_writeable_reg(struct device *dev, unsigned int reg)
 {
 	return pcm1681_accessible_reg(dev, reg) &&
 		(reg != PCM1681_ZERO_DETECT_STATUS);
