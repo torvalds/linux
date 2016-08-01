@@ -8824,6 +8824,15 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/pci/xgene-pci-msi.txt
 F:	drivers/pci/host/pci-xgene-msi.c
 
+PCIE DRIVER FOR AXIS ARTPEC
+M:	Niklas Cassel <niklas.cassel@axis.com>
+M:	Jesper Nilsson <jesper.nilsson@axis.com>
+L:	linux-arm-kernel@axis.com
+L:	linux-pci@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/pci/axis,artpec*
+F:	drivers/pci/host/*artpec*
+
 PCIE DRIVER FOR HISILICON
 M:	Zhou Wang <wangzhou1@hisilicon.com>
 M:	Gabriele Paoloni <gabriele.paoloni@huawei.com>
