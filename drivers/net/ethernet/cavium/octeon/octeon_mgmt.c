@@ -1513,6 +1513,7 @@ static int octeon_mgmt_probe(struct platform_device *pdev)
 	return 0;
 
 err:
+	of_node_put(p->phy_np);
 	free_netdev(netdev);
 	return result;
 }
@@ -1520,8 +1521,10 @@ err:
 static int octeon_mgmt_remove(struct platform_device *pdev)
 {
 	struct net_device *netdev = platform_get_drvdata(pdev);
+	struct octeon_mgmt *p = netdev_priv(netdev);
 
 	unregister_netdev(netdev);
+	of_node_put(p->phy_np);
 	free_netdev(netdev);
 	return 0;
 }
