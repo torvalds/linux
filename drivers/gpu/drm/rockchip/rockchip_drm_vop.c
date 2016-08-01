@@ -153,7 +153,6 @@ struct vop {
 	struct device *dev;
 	struct drm_device *drm_dev;
 	struct drm_property *plane_zpos_prop;
-	bool is_enabled;
 
 	/* mutex vsync_ work */
 	struct mutex vsync_mutex;
@@ -461,9 +460,6 @@ static void vop_dsp_hold_valid_irq_enable(struct vop *vop)
 {
 	unsigned long flags;
 
-	if (WARN_ON(!vop->is_enabled))
-		return;
-
 	spin_lock_irqsave(&vop->irq_lock, flags);
 
 	VOP_INTR_SET_TYPE(vop, enable, DSP_HOLD_VALID_INTR, 1);
@@ -474,9 +470,6 @@ static void vop_dsp_hold_valid_irq_enable(struct vop *vop)
 static void vop_dsp_hold_valid_irq_disable(struct vop *vop)
 {
 	unsigned long flags;
-
-	if (WARN_ON(!vop->is_enabled))
-		return;
 
 	spin_lock_irqsave(&vop->irq_lock, flags);
 
@@ -535,11 +528,6 @@ static void vop_enable(struct drm_crtc *crtc)
 
 		VOP_WIN_SET(vop, win, gate, 1);
 	}
-
-	/*
-	 * At here, vop clock & iommu is enable, R/W vop regs would be safe.
-	 */
-	vop->is_enabled = true;
 
 	spin_lock(&vop->reg_lock);
 
@@ -603,8 +591,6 @@ static void vop_crtc_disable(struct drm_crtc *crtc)
 	vop_dsp_hold_valid_irq_disable(vop);
 
 	disable_irq(vop->irq);
-
-	vop->is_enabled = false;
 
 	/*
 	 * vop standby complete, so iommu detach is safe.
@@ -758,9 +744,6 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	 * can't update plane when vop is disabled.
 	 */
 	if (!crtc)
-		return;
-
-	if (WARN_ON(!vop->is_enabled))
 		return;
 
 	if (!vop_plane_state->enable) {
@@ -965,9 +948,6 @@ static int vop_crtc_enable_vblank(struct drm_crtc *crtc)
 	struct vop *vop = to_vop(crtc);
 	unsigned long flags;
 
-	if (WARN_ON(!vop->is_enabled))
-		return -EPERM;
-
 	spin_lock_irqsave(&vop->irq_lock, flags);
 
 	VOP_INTR_SET_TYPE(vop, enable, FS_INTR, 1);
@@ -981,9 +961,6 @@ static void vop_crtc_disable_vblank(struct drm_crtc *crtc)
 {
 	struct vop *vop = to_vop(crtc);
 	unsigned long flags;
-
-	if (WARN_ON(!vop->is_enabled))
-		return;
 
 	spin_lock_irqsave(&vop->irq_lock, flags);
 
@@ -1226,9 +1203,6 @@ static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 	struct rockchip_crtc_state *s =
 			to_rockchip_crtc_state(crtc->state);
 	struct vop *vop = to_vop(crtc);
-
-	if (WARN_ON(!vop->is_enabled))
-		return;
 
 	spin_lock(&vop->reg_lock);
 
