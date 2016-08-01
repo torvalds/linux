@@ -273,6 +273,39 @@ struct name_cache_entry {
 	char name[];
 };
 
+static void inconsistent_snapshot_error(struct send_ctx *sctx,
+					enum btrfs_compare_tree_result result,
+					const char *what)
+{
+	const char *result_string;
+
+	switch (result) {
+	case BTRFS_COMPARE_TREE_NEW:
+		result_string = "new";
+		break;
+	case BTRFS_COMPARE_TREE_DELETED:
+		result_string = "deleted";
+		break;
+	case BTRFS_COMPARE_TREE_CHANGED:
+		result_string = "updated";
+		break;
+	case BTRFS_COMPARE_TREE_SAME:
+		ASSERT(0);
+		result_string = "unchanged";
+		break;
+	default:
+		ASSERT(0);
+		result_string = "unexpected";
+	}
+
+	btrfs_err(sctx->send_root->fs_info,
+		  "Send: inconsistent snapshot, found %s %s for inode %llu without updated inode item, send root is %llu, parent root is %llu",
+		  result_string, what, sctx->cmp_key->objectid,
+		  sctx->send_root->root_key.objectid,
+		  (sctx->parent_root ?
+		   sctx->parent_root->root_key.objectid : 0));
+}
+
 static int is_waiting_for_move(struct send_ctx *sctx, u64 ino);
 
 static struct waiting_dir_move *
@@ -5711,7 +5744,10 @@ static int changed_ref(struct send_ctx *sctx,
 {
 	int ret = 0;
 
-	BUG_ON(sctx->cur_ino != sctx->cmp_key->objectid);
+	if (sctx->cur_ino != sctx->cmp_key->objectid) {
+		inconsistent_snapshot_error(sctx, result, "reference");
+		return -EIO;
+	}
 
 	if (!sctx->cur_inode_new_gen &&
 	    sctx->cur_ino != BTRFS_FIRST_FREE_OBJECTID) {
@@ -5736,7 +5772,10 @@ static int changed_xattr(struct send_ctx *sctx,
 {
 	int ret = 0;
 
-	BUG_ON(sctx->cur_ino != sctx->cmp_key->objectid);
+	if (sctx->cur_ino != sctx->cmp_key->objectid) {
+		inconsistent_snapshot_error(sctx, result, "xattr");
+		return -EIO;
+	}
 
 	if (!sctx->cur_inode_new_gen && !sctx->cur_inode_deleted) {
 		if (result == BTRFS_COMPARE_TREE_NEW)
@@ -5760,7 +5799,10 @@ static int changed_extent(struct send_ctx *sctx,
 {
 	int ret = 0;
 
-	BUG_ON(sctx->cur_ino != sctx->cmp_key->objectid);
+	if (sctx->cur_ino != sctx->cmp_key->objectid) {
+		inconsistent_snapshot_error(sctx, result, "extent");
+		return -EIO;
+	}
 
 	if (!sctx->cur_inode_new_gen && !sctx->cur_inode_deleted) {
 		if (result != BTRFS_COMPARE_TREE_DELETED)
