@@ -47,8 +47,6 @@
 #include "skeleton.dtsi"
 
 / {
-	compatible = "rockchip,rk3228";
-
 	interrupt-parent = <&gic>;
 
 	aliases {
@@ -138,6 +136,47 @@
 		clock-frequency = <24000000>;
 		clock-output-names = "xin24m";
 		#clock-cells = <0>;
+	};
+
+	i2s1: i2s1@100b0000 {
+		compatible = "rockchip,rk3228-i2s", "rockchip,rk3066-i2s";
+		reg = <0x100b0000 0x4000>;
+		interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clock-names = "i2s_clk", "i2s_hclk";
+		clocks = <&cru SCLK_I2S1>, <&cru HCLK_I2S1_8CH>;
+		dmas = <&pdma 14>, <&pdma 15>;
+		dma-names = "tx", "rx";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s1_bus>;
+		status = "disabled";
+	};
+
+	i2s0: i2s0@100c0000 {
+		compatible = "rockchip,rk3228-i2s", "rockchip,rk3066-i2s";
+		reg = <0x100c0000 0x4000>;
+		interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clock-names = "i2s_clk", "i2s_hclk";
+		clocks = <&cru SCLK_I2S0>, <&cru HCLK_I2S0_8CH>;
+		dmas = <&pdma 11>, <&pdma 12>;
+		dma-names = "tx", "rx";
+		status = "disabled";
+	};
+
+	i2s2: i2s2@100e0000 {
+		compatible = "rockchip,rk3228-i2s", "rockchip,rk3066-i2s";
+		reg = <0x100e0000 0x4000>;
+		interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clock-names = "i2s_clk", "i2s_hclk";
+		clocks = <&cru SCLK_I2S2>, <&cru HCLK_I2S2_2CH>;
+		dmas = <&pdma 0>, <&pdma 1>;
+		dma-names = "tx", "rx";
+		status = "disabled";
 	};
 
 	grf: syscon@11000000 {
@@ -376,6 +415,25 @@
 		status = "disabled";
 	};
 
+	gmac: ethernet@30200000 {
+		compatible = "rockchip,rk3228-gmac";
+		reg = <0x30200000 0x10000>;
+		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "macirq";
+		clocks = <&cru SCLK_MAC>, <&cru SCLK_MAC_RX>,
+			<&cru SCLK_MAC_TX>, <&cru SCLK_MAC_REF>,
+			<&cru SCLK_MAC_REFOUT>, <&cru ACLK_GMAC>,
+			<&cru PCLK_GMAC>;
+		clock-names = "stmmaceth", "mac_clk_rx",
+			"mac_clk_tx", "clk_mac_ref",
+			"clk_mac_refout", "aclk_mac",
+			"pclk_mac";
+		resets = <&cru SRST_GMAC>;
+		reset-names = "stmmaceth";
+		rockchip,grf = <&grf>;
+		status = "disabled";
+	};
+
 	gic: interrupt-controller@32010000 {
 		compatible = "arm,gic-400";
 		interrupt-controller;
@@ -460,6 +518,10 @@
 			bias-disable;
 		};
 
+		pcfg_pull_none_drv_12ma: pcfg-pull-none-drv-12ma {
+			drive-strength = <12>;
+		};
+
 		emmc {
 			emmc_clk: emmc-clk {
 				rockchip,pins = <2 7 RK_FUNC_2 &pcfg_pull_none>;
@@ -478,6 +540,44 @@
 						<1 29 RK_FUNC_2 &pcfg_pull_none>,
 						<1 30 RK_FUNC_2 &pcfg_pull_none>,
 						<1 31 RK_FUNC_2 &pcfg_pull_none>;
+			};
+		};
+
+		gmac {
+			rgmii_pins: rgmii-pins {
+				rockchip,pins = <2 14 RK_FUNC_1 &pcfg_pull_none>,
+						<2 12 RK_FUNC_1 &pcfg_pull_none>,
+						<2 25 RK_FUNC_1 &pcfg_pull_none>,
+						<2 19 RK_FUNC_1 &pcfg_pull_none_drv_12ma>,
+						<2 18 RK_FUNC_1 &pcfg_pull_none_drv_12ma>,
+						<2 22 RK_FUNC_1 &pcfg_pull_none_drv_12ma>,
+						<2 23 RK_FUNC_1 &pcfg_pull_none_drv_12ma>,
+						<2 9 RK_FUNC_1 &pcfg_pull_none_drv_12ma>,
+						<2 13 RK_FUNC_1 &pcfg_pull_none_drv_12ma>,
+						<2 17 RK_FUNC_1 &pcfg_pull_none>,
+						<2 16 RK_FUNC_1 &pcfg_pull_none>,
+						<2 21 RK_FUNC_2 &pcfg_pull_none>,
+						<2 20 RK_FUNC_2 &pcfg_pull_none>,
+						<2 11 RK_FUNC_1 &pcfg_pull_none>,
+						<2 8 RK_FUNC_1 &pcfg_pull_none>;
+			};
+
+			rmii_pins: rmii-pins {
+				rockchip,pins = <2 14 RK_FUNC_1 &pcfg_pull_none>,
+						<2 12 RK_FUNC_1 &pcfg_pull_none>,
+						<2 25 RK_FUNC_1 &pcfg_pull_none>,
+						<2 19 RK_FUNC_1 &pcfg_pull_none_drv_12ma>,
+						<2 18 RK_FUNC_1 &pcfg_pull_none_drv_12ma>,
+						<2 13 RK_FUNC_1 &pcfg_pull_none_drv_12ma>,
+						<2 17 RK_FUNC_1 &pcfg_pull_none>,
+						<2 16 RK_FUNC_1 &pcfg_pull_none>,
+						<2 8 RK_FUNC_1 &pcfg_pull_none>,
+						<2 15 RK_FUNC_1 &pcfg_pull_none>;
+			};
+
+			phy_pins: phy-pins {
+				rockchip,pins = <2 14 RK_FUNC_2 &pcfg_pull_none>,
+						<2 8 RK_FUNC_2 &pcfg_pull_none>;
 			};
 		};
 
@@ -506,6 +606,20 @@
 			i2c3_xfer: i2c3-xfer {
 				rockchip,pins = <0 6 RK_FUNC_1 &pcfg_pull_none>,
 						<0 7 RK_FUNC_1 &pcfg_pull_none>;
+			};
+		};
+
+		i2s1 {
+			i2s1_bus: i2s1-bus {
+				rockchip,pins = <0 8 RK_FUNC_1 &pcfg_pull_none>,
+						<0 9 RK_FUNC_1 &pcfg_pull_none>,
+						<0 11 RK_FUNC_1 &pcfg_pull_none>,
+						<0 12 RK_FUNC_1 &pcfg_pull_none>,
+						<0 13 RK_FUNC_1 &pcfg_pull_none>,
+						<0 14 RK_FUNC_1 &pcfg_pull_none>,
+						<1 2 RK_FUNC_1 &pcfg_pull_none>,
+						<1 4 RK_FUNC_1 &pcfg_pull_none>,
+						<1 5 RK_FUNC_1 &pcfg_pull_none>;
 			};
 		};
 

@@ -84,6 +84,12 @@
 		};
 	};
 
+	pmu {
+		compatible = "arm,cortex-a7-pmu";
+		interrupts = <GIC_PPI 7 (GIC_CPU_MASK_SIMPLE(4) |
+					 IRQ_TYPE_LEVEL_HIGH)>;
+	};
+
 	clocks {
 		sleep_clk: sleep_clk {
 			compatible = "fixed-clock";

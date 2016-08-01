@@ -112,11 +112,6 @@
 	};
 };
 
-&mfc {
-	memory-region = <&mfc_left>, <&mfc_right>;
-	status = "okay";
-};
-
 &pinctrl_1 {
 	keypad_rows: keypad-rows {
 		samsung,pins = "gpx2-0", "gpx2-1", "gpx2-2";

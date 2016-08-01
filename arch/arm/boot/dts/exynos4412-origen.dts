@@ -84,6 +84,22 @@
 	cpu0-supply = <&buck2_reg>;
 };
 
+&exynos_usbphy {
+	status = "okay";
+};
+
+&ehci {
+	samsung,vbus-gpio = <&gpx3 5 1>;
+	status = "okay";
+
+	port@1{
+		status = "okay";
+	};
+	port@2 {
+		status = "okay";
+	};
+};
+
 &fimd {
 	pinctrl-0 = <&lcd_clk &lcd_data24 &pwm1_out>;
 	pinctrl-names = "default";
@@ -464,11 +480,6 @@
 		keypad,column = <1>;
 		linux,code = <KEY_ENTER>;
 	};
-};
-
-&mfc {
-	memory-region = <&mfc_left>, <&mfc_right>;
-	status = "okay";
 };
 
 &mshc_0 {

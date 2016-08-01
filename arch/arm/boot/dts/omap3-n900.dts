@@ -143,6 +143,18 @@
 		io-channels = <&twl_madc 0>, <&twl_madc 4>, <&twl_madc 12>;
 		io-channel-names = "temp", "bsi", "vbat";
 	};
+
+	pwm9: dmtimer-pwm {
+		compatible = "ti,omap-dmtimer-pwm";
+		#pwm-cells = <3>;
+		ti,timers = <&timer9>;
+		ti,clock-source = <0x00>; /* timer_sys_ck */
+	};
+
+	ir: n900-ir {
+		compatible = "nokia,n900-ir";
+		pwms = <&pwm9 0 26316 0>; /* 38000 Hz */
+	};
 };
 
 &omap3_pmx_core {

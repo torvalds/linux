@@ -165,6 +165,27 @@
 			reg = <0x12000 0x1000>;
 			syscon = <&syscon 0x10 6>;
 		};
+
+		fpga_irqc: fpga-irqc@15000 {
+			compatible = "technologic,ts4800-irqc";
+			reg = <0x15000 0x1000>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_interrupt_fpga>;
+			interrupt-parent = <&gpio2>;
+			interrupts= <9 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-controller;
+			#interrupt-cells = <1>;
+		};
+
+		can@1a000 {
+			compatible = "technologic,sja1000";
+			reg = <0x1a000 0x100>;
+			interrupt-parent = <&fpga_irqc>;
+			interrupts = <1>;
+			reg-io-width = <2>;
+			nxp,tx-output-config = <0x06>;
+			nxp,external-clock-frequency = <24000000>;
+		};
 	};
 };
 
@@ -225,6 +246,12 @@
 		fsl,pins = <
 			MX51_PAD_KEY_COL4__I2C2_SCL		0x400001ed
 			MX51_PAD_KEY_COL5__I2C2_SDA		0x400001ed
+		>;
+	};
+
+	pinctrl_interrupt_fpga: fpgaicgrp {
+		fsl,pins = <
+			MX51_PAD_EIM_D27__GPIO2_9		0xe5
 		>;
 	};
 

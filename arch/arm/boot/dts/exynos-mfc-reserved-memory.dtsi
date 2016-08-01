@@ -14,16 +14,22 @@
 		#size-cells = <1>;
 		ranges;
 
-		mfc_left: region@51000000 {
+		mfc_left: region_mfc_left {
 			compatible = "shared-dma-pool";
 			no-map;
-			reg = <0x51000000 0x800000>;
+			size = <0x1000000>;
+			alignment = <0x100000>;
 		};
 
-		mfc_right: region@43000000 {
+		mfc_right: region_mfc_right {
 			compatible = "shared-dma-pool";
 			no-map;
-			reg = <0x43000000 0x800000>;
+			size = <0x800000>;
+			alignment = <0x100000>;
 		};
 	};
+};
+
+&mfc {
+	memory-region = <&mfc_left>, <&mfc_right>;
 };

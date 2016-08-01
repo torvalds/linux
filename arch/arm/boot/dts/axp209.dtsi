@@ -87,6 +87,7 @@
 
 		reg_ldo5: ldo5 {
 			regulator-name = "ldo5";
+			status = "disabled";
 		};
 	};
 

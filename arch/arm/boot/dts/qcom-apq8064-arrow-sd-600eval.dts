@@ -1,10 +1,11 @@
 #include "qcom-apq8064-v2.0.dtsi"
-#include "qcom-apq8064-arrow-db600c-pins.dtsi"
+#include "qcom-apq8064-arrow-sd-600eval-pins.dtsi"
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/mfd/qcom-rpm.h>
 
 / {
-	model = "Arrow Electronics, APQ8064 DB600c";
-	compatible = "arrow,db600c", "qcom,apq8064";
+	model = "Arrow Electronics, APQ8064 SD_600eval";
+	compatible = "arrow,sd_600eval", "qcom,apq8064";
 
 	aliases {
 		serial0 = &gsbi7_serial;
@@ -82,7 +83,8 @@
 				s4 {
 					regulator-min-microvolt	= <1800000>;
 					regulator-max-microvolt	= <1800000>;
-					qcom,switch-mode-frequency = <3200000>;
+					qcom,switch-mode-frequency = <1600000>;
+					qcom,force-mode = <QCOM_RPM_FORCE_MODE_AUTO>;
 					bias-pull-down;
 					regulator-always-on;
 				};

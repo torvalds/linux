@@ -22,8 +22,15 @@
 			marvell,intc-nr-irqs = <34>;
 		};
 
+		pinctrl: pinctrl@40e00000 {
+			reg = <0x40e00054 0x20 0x40e0000c 0xc 0x40e0010c 4
+			       0x40f00020 0x10>;
+			compatible = "marvell,pxa27x-pinctrl";
+		};
+
 		gpio: gpio@40e00000 {
 			compatible = "intel,pxa27x-gpio";
+			gpio-ranges = <&pinctrl 0 0 128>;
 			clocks = <&clks CLK_NONE>;
 		};
 

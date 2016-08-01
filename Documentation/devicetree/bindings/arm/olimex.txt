@@ -1,5 +1,9 @@
-Olimex i.MX Platforms Device Tree Bindings
-------------------------------------------
+Olimex Device Tree Bindings
+---------------------------
+
+SAM9-L9260 Board
+Required root node properties:
+    - compatible = "olimex,sam9-l9260", "atmel,at91sam9260";
 
 i.MX23 Olinuxino Low Cost Board
 Required root node properties:
