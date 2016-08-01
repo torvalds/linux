@@ -64,7 +64,7 @@
 		};
 	};
 
-	matrix_keypad: matrix_keypad@0 {
+	matrix_keypad: matrix_keypad0 {
 		compatible = "gpio-matrix-keypad";
 
 		pinctrl-names = "default";
