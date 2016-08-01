@@ -47,7 +47,6 @@ struct pr_ops;
  */
 #define BLKCG_MAX_POLS		2
 
-struct request;
 typedef void (rq_end_io_fn)(struct request *, int);
 
 #define BLK_RL_SYNCFULL		(1U << 0)
