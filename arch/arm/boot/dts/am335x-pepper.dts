@@ -41,15 +41,15 @@
 		compatible = "ti,da830-evm-audio";
 	};
 
-	vbat: fixedregulator@0 {
+	vbat: fixedregulator0 {
 		compatible = "regulator-fixed";
 	};
 
-	v3v3c_reg: fixedregulator@1 {
+	v3v3c_reg: fixedregulator1 {
 		compatible = "regulator-fixed";
 	};
 
-	vdd5_reg: fixedregulator@2 {
+	vdd5_reg: fixedregulator2 {
 		compatible = "regulator-fixed";
 	};
 };

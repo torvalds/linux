@@ -33,7 +33,7 @@
 	regulators {
 		compatible = "simple-bus";
 
-		vcc5v: fixedregulator@0 {
+		vcc5v: fixedregulator0 {
 			compatible = "regulator-fixed";
 			regulator-name = "vcc5v";
 			regulator-min-microvolt = <5000000>;

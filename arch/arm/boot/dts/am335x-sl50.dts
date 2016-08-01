@@ -103,7 +103,7 @@
 		reset-gpios = <&gpio1 20 GPIO_ACTIVE_LOW>;
 	};
 
-	vmmcsd_fixed: fixedregulator@0 {
+	vmmcsd_fixed: fixedregulator0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vmmcsd_fixed";
 		regulator-min-microvolt = <3300000>;

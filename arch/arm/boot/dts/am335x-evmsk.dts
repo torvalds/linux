@@ -32,7 +32,7 @@
 		reg = <0x80000000 0x10000000>; /* 256 MB */
 	};
 
-	vbat: fixedregulator@0 {
+	vbat: fixedregulator0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vbat";
 		regulator-min-microvolt = <5000000>;
@@ -40,13 +40,13 @@
 		regulator-boot-on;
 	};
 
-	lis3_reg: fixedregulator@1 {
+	lis3_reg: fixedregulator1 {
 		compatible = "regulator-fixed";
 		regulator-name = "lis3_reg";
 		regulator-boot-on;
 	};
 
-	wl12xx_vmmc: fixedregulator@2 {
+	wl12xx_vmmc: fixedregulator2 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&wl12xx_gpio>;
 		compatible = "regulator-fixed";
@@ -58,7 +58,7 @@
 		enable-active-high;
 	};
 
-	vtt_fixed: fixedregulator@3 {
+	vtt_fixed: fixedregulator3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vtt";
 		regulator-min-microvolt = <1500000>;

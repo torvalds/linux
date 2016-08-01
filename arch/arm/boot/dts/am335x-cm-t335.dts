@@ -34,7 +34,7 @@
 	};
 
 	/* regulator for mmc */
-	vmmc_fixed: fixedregulator@0 {
+	vmmc_fixed: fixedregulator0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vmmc_fixed";
 		regulator-min-microvolt = <3300000>;
@@ -42,7 +42,7 @@
 	};
 
 	/* Regulator for WiFi */
-	vwlan_fixed: fixedregulator@2 {
+	vwlan_fixed: fixedregulator2 {
 		compatible = "regulator-fixed";
 		regulator-name = "vwlan_fixed";
 		gpio = <&gpio0 20 GPIO_ACTIVE_HIGH>; /* gpio0_20 */

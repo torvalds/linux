@@ -24,7 +24,7 @@
 		reg = <0x80000000 0x10000000>; /* 256 MB */
 	};
 
-	vbat: fixedregulator@0 {
+	vbat: fixedregulator0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vbat";
 		regulator-min-microvolt = <5000000>;
@@ -32,7 +32,7 @@
 		regulator-boot-on;
 	};
 
-	vtt_fixed: fixedregulator@1 {
+	vtt_fixed: fixedregulator1 {
 		compatible = "regulator-fixed";
 		regulator-name = "vtt";
 		regulator-min-microvolt = <1500000>;
