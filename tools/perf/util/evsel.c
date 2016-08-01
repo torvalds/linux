@@ -882,7 +882,7 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts,
 		perf_evsel__set_sample_bit(evsel, REGS_INTR);
 	}
 
-	if (target__has_cpu(&opts->target))
+	if (target__has_cpu(&opts->target) || opts->sample_cpu)
 		perf_evsel__set_sample_bit(evsel, CPU);
 
 	if (opts->period)
