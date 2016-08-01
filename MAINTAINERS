@@ -5353,6 +5353,12 @@ T:	git git://linuxtv.org/anttip/media_tree.git
 S:	Maintained
 F:	drivers/media/dvb-frontends/hd29l2*
 
+HEWLETT PACKARD ENTERPRISE ILO NMI WATCHDOG DRIVER
+M:	Brian Boylston <brian.boylston@hpe.com>
+S:	Supported
+F:	Documentation/watchdog/hpwdt.txt
+F:	drivers/watchdog/hpwdt.c
+
 HEWLETT-PACKARD SMART ARRAY RAID DRIVER (hpsa)
 M:	Don Brace <don.brace@microsemi.com>
 L:	iss_storagedev@hp.com
