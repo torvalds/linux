@@ -1315,6 +1315,24 @@ enum motionsense_command {
 	 */
 	MOTIONSENSE_CMD_KB_WAKE_ANGLE = 5,
 
+	/*
+	 * Returns a single sensor data.
+	 */
+	MOTIONSENSE_CMD_DATA = 6,
+
+	/*
+	 * Perform low level calibration.. On sensors that support it, ask to
+	 * do offset calibration.
+	 */
+	MOTIONSENSE_CMD_PERFORM_CALIB = 10,
+
+	/*
+	 * Sensor Offset command is a setter/getter command for the offset used
+	 * for calibration. The offsets can be calculated by the host, or via
+	 * PERFORM_CALIB command.
+	 */
+	MOTIONSENSE_CMD_SENSOR_OFFSET = 11,
+
 	/* Number of motionsense sub-commands. */
 	MOTIONSENSE_NUM_CMDS
 };
@@ -1335,12 +1353,18 @@ enum motionsensor_id {
 enum motionsensor_type {
 	MOTIONSENSE_TYPE_ACCEL = 0,
 	MOTIONSENSE_TYPE_GYRO = 1,
+	MOTIONSENSE_TYPE_MAG = 2,
+	MOTIONSENSE_TYPE_PROX = 3,
+	MOTIONSENSE_TYPE_LIGHT = 4,
+	MOTIONSENSE_TYPE_ACTIVITY = 5,
+	MOTIONSENSE_TYPE_MAX
 };
 
 /* List of motion sensor locations. */
 enum motionsensor_location {
 	MOTIONSENSE_LOC_BASE = 0,
 	MOTIONSENSE_LOC_LID = 1,
+	MOTIONSENSE_LOC_MAX,
 };
 
 /* List of motion sensor chips. */
@@ -1361,6 +1385,31 @@ enum motionsensor_chip {
  */
 #define EC_MOTION_SENSE_NO_VALUE -1
 
+#define EC_MOTION_SENSE_INVALID_CALIB_TEMP 0x8000
+
+/* Set Calibration information */
+#define MOTION_SENSE_SET_OFFSET	1
+
+struct ec_response_motion_sensor_data {
+	/* Flags for each sensor. */
+	uint8_t flags;
+	/* Sensor number the data comes from */
+	uint8_t sensor_num;
+	/* Each sensor is up to 3-axis. */
+	union {
+		int16_t             data[3];
+		struct {
+			uint16_t    rsvd;
+			uint32_t    timestamp;
+		} __packed;
+		struct {
+			uint8_t     activity; /* motionsensor_activity */
+			uint8_t     state;
+			int16_t     add_info[2];
+		};
+	};
+} __packed;
+
 struct ec_params_motion_sense {
 	uint8_t cmd;
 	union {
@@ -1378,9 +1427,37 @@ struct ec_params_motion_sense {
 			int16_t data;
 		} ec_rate, kb_wake_angle;
 
+		/* Used for MOTIONSENSE_CMD_SENSOR_OFFSET */
+		struct {
+			uint8_t sensor_num;
+
+			/*
+			 * bit 0: If set (MOTION_SENSE_SET_OFFSET), set
+			 * the calibration information in the EC.
+			 * If unset, just retrieve calibration information.
+			 */
+			uint16_t flags;
+
+			/*
+			 * Temperature at calibration, in units of 0.01 C
+			 * 0x8000: invalid / unknown.
+			 * 0x0: 0C
+			 * 0x7fff: +327.67C
+			 */
+			int16_t temp;
+
+			/*
+			 * Offset for calibration.
+			 * Unit:
+			 * Accelerometer: 1/1024 g
+			 * Gyro:          1/1024 deg/s
+			 * Compass:       1/16 uT
+			 */
+			int16_t offset[3];
+		} __packed sensor_offset;
+
 		/* Used for MOTIONSENSE_CMD_INFO. */
 		struct {
-			/* Should be element of enum motionsensor_id. */
 			uint8_t sensor_num;
 		} info;
 
@@ -1410,11 +1487,14 @@ struct ec_response_motion_sense {
 			/* Flags representing the motion sensor module. */
 			uint8_t module_flags;
 
-			/* Flags for each sensor in enum motionsensor_id. */
-			uint8_t sensor_flags[EC_MOTION_SENSOR_COUNT];
+			/* Number of sensors managed directly by the EC. */
+			uint8_t sensor_count;
 
-			/* Array of all sensor data. Each sensor is 3-axis. */
-			int16_t data[3*EC_MOTION_SENSOR_COUNT];
+			/*
+			 * Sensor data is truncated if response_max is too small
+			 * for holding all the data.
+			 */
+			struct ec_response_motion_sensor_data sensor[0];
 		} dump;
 
 		/* Used for MOTIONSENSE_CMD_INFO. */
@@ -1429,6 +1509,9 @@ struct ec_response_motion_sense {
 			uint8_t chip;
 		} info;
 
+		/* Used for MOTIONSENSE_CMD_DATA */
+		struct ec_response_motion_sensor_data data;
+
 		/*
 		 * Used for MOTIONSENSE_CMD_EC_RATE, MOTIONSENSE_CMD_SENSOR_ODR,
 		 * MOTIONSENSE_CMD_SENSOR_RANGE, and
@@ -1438,6 +1521,12 @@ struct ec_response_motion_sense {
 			/* Current value of the parameter queried. */
 			int32_t ret;
 		} ec_rate, sensor_odr, sensor_range, kb_wake_angle;
+
+		/* Used for MOTIONSENSE_CMD_SENSOR_OFFSET */
+		struct {
+			int16_t temp;
+			int16_t offset[3];
+		} sensor_offset, perform_calib;
 	};
 } __packed;
 

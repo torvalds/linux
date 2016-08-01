@@ -1,0 +1,14 @@
+#
+# Chrome OS Embedded Controller managed sensors library
+#
+config IIO_CROS_EC_SENSORS_CORE
+	tristate "ChromeOS EC Sensors Core"
+	depends on SYSFS && MFD_CROS_EC
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Base module for the ChromeOS EC Sensors module.
+	  Contains core functions used by other IIO CrosEC sensor
+	  drivers.
+	  Define common attributes and sysfs interrupt handler.
+

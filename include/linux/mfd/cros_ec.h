@@ -148,6 +148,15 @@ struct cros_ec_device {
 	int event_size;
 };
 
+/**
+ * struct cros_ec_sensor_platform - ChromeOS EC sensor platform information
+ *
+ * @sensor_num: Id of the sensor, as reported by the EC.
+ */
+struct cros_ec_sensor_platform {
+	u8 sensor_num;
+};
+
 /* struct cros_ec_platform - ChromeOS EC platform information
  *
  * @ec_name: name of EC device (e.g. 'cros-ec', 'cros-pd', ...)
