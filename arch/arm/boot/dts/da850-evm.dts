@@ -136,7 +136,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&nand_cs3_pins>;
 	};
-	vbat: fixedregulator@0 {
+	vbat: fixedregulator0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vbat";
 		regulator-min-microvolt = <5000000>;
