@@ -132,7 +132,7 @@
 		cache-level = <2>;
 	};
 
-	ocp {
+	ocp@44000000 {
 		compatible = "ti,am4372-l3-noc", "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
