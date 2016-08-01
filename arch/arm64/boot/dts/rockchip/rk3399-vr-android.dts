@@ -304,27 +304,31 @@
 	opp-shared;
 	opp@200000000 {
 		opp-hz = /bits/ 64 <200000000>;
-		opp-microvolt = <800000>;
+		opp-microvolt = <825000>;
 	};
+
 	opp@300000000 {
 		opp-hz = /bits/ 64 <300000000>;
-		opp-microvolt = <800000>;
+		opp-microvolt = <850000>;
 	};
 	opp@400000000 {
 		opp-hz = /bits/ 64 <400000000>;
-		opp-microvolt = <800000>;
+		opp-microvolt = <875000>;
 	};
+
 	opp@500000000 {
 		opp-hz = /bits/ 64 <500000000>;
-		opp-microvolt = <850000>;
+		opp-microvolt = <925000>;
 	};
+
 	opp@600000000 {
 		opp-hz = /bits/ 64 <600000000>;
-		opp-microvolt = <900000>;
+		opp-microvolt = <975000>;
 	};
+
 	opp@800000000 {
 		opp-hz = /bits/ 64 <800000000>;
-		opp-microvolt = <1000000>;
+		opp-microvolt = <1025000>;
 	};
 };
 
