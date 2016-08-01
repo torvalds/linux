@@ -4953,6 +4953,7 @@ static DEFINE_SPINLOCK(resource_alignment_lock);
 static resource_size_t pci_specified_resource_alignment(struct pci_dev *dev)
 {
 	int seg, bus, slot, func, align_order, count;
+	unsigned short vendor, device, subsystem_vendor, subsystem_device;
 	resource_size_t align = 0;
 	char *p;
 
@@ -4966,28 +4967,55 @@ static resource_size_t pci_specified_resource_alignment(struct pci_dev *dev)
 		} else {
 			align_order = -1;
 		}
-		if (sscanf(p, "%x:%x:%x.%x%n",
-			&seg, &bus, &slot, &func, &count) != 4) {
-			seg = 0;
-			if (sscanf(p, "%x:%x.%x%n",
-					&bus, &slot, &func, &count) != 3) {
-				/* Invalid format */
-				printk(KERN_ERR "PCI: Can't parse resource_alignment parameter: %s\n",
-					p);
+		if (strncmp(p, "pci:", 4) == 0) {
+			/* PCI vendor/device (subvendor/subdevice) ids are specified */
+			p += 4;
+			if (sscanf(p, "%hx:%hx:%hx:%hx%n",
+				&vendor, &device, &subsystem_vendor, &subsystem_device, &count) != 4) {
+				if (sscanf(p, "%hx:%hx%n", &vendor, &device, &count) != 2) {
+					printk(KERN_ERR "PCI: Can't parse resource_alignment parameter: pci:%s\n",
+						p);
+					break;
+				}
+				subsystem_vendor = subsystem_device = 0;
+			}
+			p += count;
+			if ((!vendor || (vendor == dev->vendor)) &&
+				(!device || (device == dev->device)) &&
+				(!subsystem_vendor || (subsystem_vendor == dev->subsystem_vendor)) &&
+				(!subsystem_device || (subsystem_device == dev->subsystem_device))) {
+				if (align_order == -1)
+					align = PAGE_SIZE;
+				else
+					align = 1 << align_order;
+				/* Found */
 				break;
 			}
 		}
-		p += count;
-		if (seg == pci_domain_nr(dev->bus) &&
-			bus == dev->bus->number &&
-			slot == PCI_SLOT(dev->devfn) &&
-			func == PCI_FUNC(dev->devfn)) {
-			if (align_order == -1)
-				align = PAGE_SIZE;
-			else
-				align = 1 << align_order;
-			/* Found */
-			break;
+		else {
+			if (sscanf(p, "%x:%x:%x.%x%n",
+				&seg, &bus, &slot, &func, &count) != 4) {
+				seg = 0;
+				if (sscanf(p, "%x:%x.%x%n",
+						&bus, &slot, &func, &count) != 3) {
+					/* Invalid format */
+					printk(KERN_ERR "PCI: Can't parse resource_alignment parameter: %s\n",
+						p);
+					break;
+				}
+			}
+			p += count;
+			if (seg == pci_domain_nr(dev->bus) &&
+				bus == dev->bus->number &&
+				slot == PCI_SLOT(dev->devfn) &&
+				func == PCI_FUNC(dev->devfn)) {
+				if (align_order == -1)
+					align = PAGE_SIZE;
+				else
+					align = 1 << align_order;
+				/* Found */
+				break;
+			}
 		}
 		if (*p != ';' && *p != ',') {
 			/* End of param or invalid format */

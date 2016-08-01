@@ -515,25 +515,23 @@ void pci_common_init_dev(struct device *parent, struct hw_pci *hw)
 	list_for_each_entry(sys, &head, node) {
 		struct pci_bus *bus = sys->bus;
 
-		if (!pci_has_flag(PCI_PROBE_ONLY)) {
+		/*
+		 * We insert PCI resources into the iomem_resource and
+		 * ioport_resource trees in either pci_bus_claim_resources()
+		 * or pci_bus_assign_resources().
+		 */
+		if (pci_has_flag(PCI_PROBE_ONLY)) {
+			pci_bus_claim_resources(bus);
+		} else {
 			struct pci_bus *child;
 
-			/*
-			 * Size the bridge windows.
-			 */
 			pci_bus_size_bridges(bus);
-
-			/*
-			 * Assign resources.
-			 */
 			pci_bus_assign_resources(bus);
 
 			list_for_each_entry(child, &bus->children, node)
 				pcie_bus_configure_settings(child);
 		}
-		/*
-		 * Tell drivers about devices found.
-		 */
+
 		pci_bus_add_devices(bus);
 	}
 }
@@ -588,18 +586,6 @@ resource_size_t pcibios_align_resource(void *data, const struct resource *res,
 				start, size, align);
 
 	return start;
-}
-
-/**
- * pcibios_enable_device - Enable I/O and memory.
- * @dev: PCI device to be enabled
- */
-int pcibios_enable_device(struct pci_dev *dev, int mask)
-{
-	if (pci_has_flag(PCI_PROBE_ONLY))
-		return 0;
-
-	return pci_enable_resources(dev, mask);
 }
 
 int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
