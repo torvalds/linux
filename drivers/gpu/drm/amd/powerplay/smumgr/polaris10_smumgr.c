@@ -978,7 +978,7 @@ static int polaris10_smu_init(struct pp_smumgr *smumgr)
 	return 0;
 }
 
-static const struct pp_smumgr_func ellsemere_smu_funcs = {
+static const struct pp_smumgr_func polaris10_smu_funcs = {
 	.smu_init = polaris10_smu_init,
 	.smu_fini = polaris10_smu_fini,
 	.start_smu = polaris10_start_smu,
@@ -1001,7 +1001,7 @@ int polaris10_smum_init(struct pp_smumgr *smumgr)
 		return -1;
 
 	smumgr->backend = polaris10_smu;
-	smumgr->smumgr_funcs = &ellsemere_smu_funcs;
+	smumgr->smumgr_funcs = &polaris10_smu_funcs;
 
 	return 0;
 }
