@@ -23,7 +23,7 @@
 #include <linux/bootmem.h>
 #include <linux/ftrace.h>
 #include <linux/ioport.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/syscore_ops.h>
 #include <linux/delay.h>
 #include <linux/timex.h>

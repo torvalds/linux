@@ -11,7 +11,6 @@
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/rbtree_augmented.h>
 #include <linux/sched.h>
 #include <linux/gfp.h>

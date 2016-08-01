@@ -1,4 +1,3 @@
-#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
 #include <asm/apicdef.h>
