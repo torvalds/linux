@@ -29,7 +29,7 @@
 		reg = <0x80000000 0x40000000>; /* 1 GB */
 	};
 
-	vemmc: fixedregulator@0 {
+	vemmc: fixedregulator0 {
 		compatible = "regulator-fixed";
 		regulator-name = "VEMMC";
 		regulator-min-microvolt = <2900000>;
@@ -39,7 +39,7 @@
 		enable-active-high;
 	};
 
-	vwlan_fixed: fixedregulator@2 {
+	vwlan_fixed: fixedregulator2 {
 		compatible = "regulator-fixed";
 		regulator-name = "VWLAN";
 		gpio = <&gpio2 3 GPIO_ACTIVE_HIGH>; /* gpio 35 */
