@@ -85,6 +85,7 @@ config PCI_HOST_GENERIC
 	bool "Generic PCI host controller"
 	depends on (ARM || ARM64) && OF
 	select PCI_HOST_COMMON
+	select IRQ_DOMAIN
 	help
 	  Say Y here if you want to support a simple generic PCI host
 	  controller, such as the one emulated by kvmtool.
@@ -244,5 +245,15 @@ config PCIE_ARMADA_8K
 	  Armada-8K SoCs. The PCIe controller on Armada-8K is based on
 	  Designware hardware and therefore the driver re-uses the
 	  Designware core functions to implement the driver.
+
+config PCIE_ARTPEC6
+	bool "Axis ARTPEC-6 PCIe controller"
+	depends on MACH_ARTPEC6
+	depends on PCI_MSI_IRQ_DOMAIN
+	select PCIE_DW
+	select PCIEPORTBUS
+	help
+	  Say Y here to enable PCIe controller support on Axis ARTPEC-6
+	  SoCs.  This PCIe controller uses the DesignWare core.
 
 endmenu
