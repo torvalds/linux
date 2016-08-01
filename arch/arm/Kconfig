@@ -327,7 +327,6 @@ choice
 config ARCH_MULTIPLATFORM
 	bool "Allow multiple platforms to be selected"
 	depends on MMU
-	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARM_HAS_SG_CHAIN
 	select ARM_PATCH_PHYS_VIRT
 	select AUTO_ZRELADDR
@@ -342,7 +341,6 @@ config ARCH_MULTIPLATFORM
 config ARM_SINGLE_ARMV7M
 	bool "ARMv7-M based platforms (Cortex-M0/M3/M4)"
 	depends on !MMU
-	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARM_NVIC
 	select AUTO_ZRELADDR
 	select CLKSRC_OF
@@ -356,12 +354,12 @@ config ARM_SINGLE_ARMV7M
 
 config ARCH_CLPS711X
 	bool "Cirrus Logic CLPS711x/EP721x/EP731x-based"
-	select ARCH_REQUIRE_GPIOLIB
 	select AUTO_ZRELADDR
 	select COMMON_CLK
 	select CPU_ARM720T
 	select GENERIC_CLOCKEVENTS
 	select CLPS711X_TIMER
+	select GPIOLIB
 	select MFD_SYSCON
 	select SOC_BUS
 	help
@@ -369,10 +367,10 @@ config ARCH_CLPS711X
 
 config ARCH_GEMINI
 	bool "Cortina Systems Gemini"
-	select ARCH_REQUIRE_GPIOLIB
 	select CLKSRC_MMIO
 	select CPU_FA526
 	select GENERIC_CLOCKEVENTS
+	select GPIOLIB
 	help
 	  Support for the Cortina Systems Gemini family SoCs
 
@@ -393,7 +391,6 @@ config ARCH_EBSA110
 config ARCH_EP93XX
 	bool "EP93xx-based"
 	select ARCH_HAS_HOLES_MEMORYMODEL
-	select ARCH_REQUIRE_GPIOLIB
 	select ARM_AMBA
 	select ARM_PATCH_PHYS_VIRT
 	select ARM_VIC
@@ -402,6 +399,7 @@ config ARCH_EP93XX
 	select CLKSRC_MMIO
 	select CPU_ARM920T
 	select GENERIC_CLOCKEVENTS
+	select GPIOLIB
 	help
 	  This enables support for the Cirrus EP93xx series of CPUs.
 
@@ -442,9 +440,9 @@ config ARCH_IOP13XX
 config ARCH_IOP32X
 	bool "IOP32x-based"
 	depends on MMU
-	select ARCH_REQUIRE_GPIOLIB
 	select CPU_XSCALE
 	select GPIO_IOP
+	select GPIOLIB
 	select NEED_RET_TO_USER
 	select PCI
 	select PLAT_IOP
@@ -455,9 +453,9 @@ config ARCH_IOP32X
 config ARCH_IOP33X
 	bool "IOP33x-based"
 	depends on MMU
-	select ARCH_REQUIRE_GPIOLIB
 	select CPU_XSCALE
 	select GPIO_IOP
+	select GPIOLIB
 	select NEED_RET_TO_USER
 	select PCI
 	select PLAT_IOP
@@ -468,12 +466,12 @@ config ARCH_IXP4XX
 	bool "IXP4xx-based"
 	depends on MMU
 	select ARCH_HAS_DMA_SET_COHERENT_MASK
-	select ARCH_REQUIRE_GPIOLIB
 	select ARCH_SUPPORTS_BIG_ENDIAN
 	select CLKSRC_MMIO
 	select CPU_XSCALE
 	select DMABOUNCE if PCI
 	select GENERIC_CLOCKEVENTS
+	select GPIOLIB
 	select MIGHT_HAVE_PCI
 	select NEED_MACH_IO_H
 	select USB_EHCI_BIG_ENDIAN_DESC
@@ -483,9 +481,9 @@ config ARCH_IXP4XX
 
 config ARCH_DOVE
 	bool "Marvell Dove"
-	select ARCH_REQUIRE_GPIOLIB
 	select CPU_PJ4
 	select GENERIC_CLOCKEVENTS
+	select GPIOLIB
 	select MIGHT_HAVE_PCI
 	select MULTI_IRQ_HANDLER
 	select MVEBU_MBUS
@@ -499,10 +497,10 @@ config ARCH_DOVE
 
 config ARCH_KS8695
 	bool "Micrel/Kendin KS8695"
-	select ARCH_REQUIRE_GPIOLIB
 	select CLKSRC_MMIO
 	select CPU_ARM922T
 	select GENERIC_CLOCKEVENTS
+	select GPIOLIB
 	select NEED_MACH_MEMORY_H
 	help
 	  Support for Micrel/Kendin KS8695 "Centaur" (ARM922T) based
@@ -510,11 +508,11 @@ config ARCH_KS8695
 
 config ARCH_W90X900
 	bool "Nuvoton W90X900 CPU"
-	select ARCH_REQUIRE_GPIOLIB
 	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
 	select CPU_ARM926T
 	select GENERIC_CLOCKEVENTS
+	select GPIOLIB
 	help
 	  Support for Nuvoton (Winbond logic dept.) ARM9 processor,
 	  At present, the w90x900 has been renamed nuc900, regarding
@@ -526,13 +524,13 @@ config ARCH_W90X900
 
 config ARCH_LPC32XX
 	bool "NXP LPC32XX"
-	select ARCH_REQUIRE_GPIOLIB
 	select ARM_AMBA
 	select CLKDEV_LOOKUP
 	select CLKSRC_LPC32XX
 	select COMMON_CLK
 	select CPU_ARM926T
 	select GENERIC_CLOCKEVENTS
+	select GPIOLIB
 	select MULTI_IRQ_HANDLER
 	select SPARSE_IRQ
 	select USE_OF
@@ -543,7 +541,6 @@ config ARCH_PXA
 	bool "PXA2xx/PXA3xx-based"
 	depends on MMU
 	select ARCH_MTD_XIP
-	select ARCH_REQUIRE_GPIOLIB
 	select ARM_CPU_SUSPEND if PM
 	select AUTO_ZRELADDR
 	select COMMON_CLK
@@ -554,6 +551,7 @@ config ARCH_PXA
 	select CPU_XSCALE if !CPU_XSC3
 	select GENERIC_CLOCKEVENTS
 	select GPIO_PXA
+	select GPIOLIB
 	select HAVE_IDE
 	select IRQ_DOMAIN
 	select MULTI_IRQ_HANDLER
@@ -584,7 +582,6 @@ config ARCH_RPC
 config ARCH_SA1100
 	bool "SA1100-based"
 	select ARCH_MTD_XIP
-	select ARCH_REQUIRE_GPIOLIB
 	select ARCH_SPARSEMEM_ENABLE
 	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
@@ -593,6 +590,7 @@ config ARCH_SA1100
 	select CPU_FREQ
 	select CPU_SA1100
 	select GENERIC_CLOCKEVENTS
+	select GPIOLIB
 	select HAVE_IDE
 	select IRQ_DOMAIN
 	select ISA
@@ -604,12 +602,12 @@ config ARCH_SA1100
 
 config ARCH_S3C24XX
 	bool "Samsung S3C24XX SoCs"
-	select ARCH_REQUIRE_GPIOLIB
 	select ATAGS
 	select CLKDEV_LOOKUP
 	select CLKSRC_SAMSUNG_PWM
 	select GENERIC_CLOCKEVENTS
 	select GPIO_SAMSUNG
+	select GPIOLIB
 	select HAVE_S3C2410_I2C if I2C
 	select HAVE_S3C2410_WATCHDOG if WATCHDOG
 	select HAVE_S3C_RTC if RTC_CLASS
@@ -625,12 +623,12 @@ config ARCH_S3C24XX
 config ARCH_DAVINCI
 	bool "TI DaVinci"
 	select ARCH_HAS_HOLES_MEMORYMODEL
-	select ARCH_REQUIRE_GPIOLIB
 	select CLKDEV_LOOKUP
 	select CPU_ARM926T
 	select GENERIC_ALLOCATOR
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_IRQ_CHIP
+	select GPIOLIB
 	select HAVE_IDE
 	select USE_OF
 	select ZONE_DMA
@@ -642,11 +640,11 @@ config ARCH_OMAP1
 	depends on MMU
 	select ARCH_HAS_HOLES_MEMORYMODEL
 	select ARCH_OMAP
-	select ARCH_REQUIRE_GPIOLIB
 	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_IRQ_CHIP
+	select GPIOLIB
 	select HAVE_IDE
 	select IRQ_DOMAIN
 	select MULTI_IRQ_HANDLER
@@ -868,7 +866,7 @@ source "arch/arm/mach-zynq/Kconfig"
 config ARCH_EFM32
 	bool "Energy Micro efm32"
 	depends on ARM_SINGLE_ARMV7M
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	help
 	  Support for Energy Micro's (now Silicon Labs) efm32 Giant Gecko
 	  processors.
@@ -901,7 +899,7 @@ config MACH_STM32F429
 	default y
 
 config ARCH_MPS2
-	bool "ARM MPS2 paltform"
+	bool "ARM MPS2 platform"
 	depends on ARM_SINGLE_ARMV7M
 	select ARM_AMBA
 	select CLKSRC_MPS2

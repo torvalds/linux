@@ -50,7 +50,7 @@ void __init mx1_init_irq(void)
 
 void __init imx1_soc_init(void)
 {
-	mxc_arch_reset_init(MX1_IO_ADDRESS(MX1_WDT_BASE_ADDR));
+	imx1_reset_init(MX1_IO_ADDRESS(MX1_WDT_BASE_ADDR));
 	mxc_device_init();
 
 	mxc_register_gpio("imx1-gpio", 0, MX1_GPIO1_BASE_ADDR, SZ_256,
