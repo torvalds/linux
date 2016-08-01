@@ -99,7 +99,7 @@ libdir_SQ = $(subst ','\'',$(libdir))
 libdir_relative_SQ = $(subst ','\'',$(libdir_relative))
 plugin_dir_SQ = $(subst ','\'',$(plugin_dir))
 
-LIB_FILE = libtraceevent.a libtraceevent.so
+LIB_TARGET = libtraceevent.a libtraceevent.so
 
 CONFIG_INCLUDES = 
 CONFIG_LIBS	=
@@ -156,11 +156,11 @@ PLUGINS += plugin_cfg80211.so
 PLUGINS    := $(addprefix $(OUTPUT),$(PLUGINS))
 PLUGINS_IN := $(PLUGINS:.so=-in.o)
 
-TE_IN    := $(OUTPUT)libtraceevent-in.o
-LIB_FILE := $(addprefix $(OUTPUT),$(LIB_FILE))
+TE_IN      := $(OUTPUT)libtraceevent-in.o
+LIB_TARGET := $(addprefix $(OUTPUT),$(LIB_TARGET))
 DYNAMIC_LIST_FILE := $(OUTPUT)libtraceevent-dynamic-list
 
-CMD_TARGETS = $(LIB_FILE) $(PLUGINS) $(DYNAMIC_LIST_FILE)
+CMD_TARGETS = $(LIB_TARGET) $(PLUGINS) $(DYNAMIC_LIST_FILE)
 
 TARGETS = $(CMD_TARGETS)
 
@@ -261,8 +261,8 @@ define do_generate_dynamic_list_file
 endef
 
 install_lib: all_cmd install_plugins
-	$(call QUIET_INSTALL, $(LIB_FILE)) \
-		$(call do_install,$(LIB_FILE),$(libdir_SQ))
+	$(call QUIET_INSTALL, $(LIB_TARGET)) \
+		$(call do_install,$(LIB_TARGET),$(libdir_SQ))
 
 install_plugins: $(PLUGINS)
 	$(call QUIET_INSTALL, trace_plugins) \
