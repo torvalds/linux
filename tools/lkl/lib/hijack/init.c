@@ -202,6 +202,8 @@ static void PinToFirstCpu(const cpu_set_t* cpus)
 	}
 }
 
+int lkl_debug;
+
 void __attribute__((constructor(102)))
 hijack_init(void)
 {
@@ -234,11 +236,17 @@ hijack_init(void)
 	char *single_cpu= getenv("LKL_HIJACK_SINGLE_CPU");
 	int single_cpu_mode = 0;
 	cpu_set_t ori_cpu;
+	char *offload1 = getenv("LKL_HIJACK_OFFLOAD");
+	int offload = 0;
 
-	if (!debug)
+	if (!debug) {
 		lkl_host_ops.print = NULL;
-	else
+	} else {
 		lkl_register_dbg_handler();
+		lkl_debug = strtol(debug, NULL, 0);
+	}
+	if (offload1)
+		offload = strtol(offload1, NULL, 0);
 
 	if (single_cpu) {
 		single_cpu_mode = atoi(single_cpu);
@@ -274,18 +282,28 @@ hijack_init(void)
 			"WARN: variable LKL_HIJACK_NET_TAP is now obsoleted.\n"
 			"      please use LKL_HIJACK_NET_IFTYPE and "
 			"LKL_HIJACK_NET_IFPARAMS instead.\n");
-		nd = lkl_netdev_tap_create(tap);
+		nd = lkl_netdev_tap_create(tap, offload);
 	}
 
 	if (!nd && iftype && ifparams) {
-		if ((strcmp(iftype, "tap") == 0))
-			nd = lkl_netdev_tap_create(ifparams);
-		else if (strcmp(iftype, "dpdk") == 0)
-			nd = lkl_netdev_dpdk_create(ifparams);
-		else if (strcmp(iftype, "vde") == 0)
-			nd = lkl_netdev_vde_create(ifparams);
-		else if (strcmp(iftype, "raw") == 0)
-			nd = lkl_netdev_raw_create(ifparams);
+		if ((strcmp(iftype, "tap") == 0)) {
+			nd = lkl_netdev_tap_create(ifparams, offload);
+		} else {
+			if (offload) {
+				fprintf(stderr,
+					"WARN: LKL_HIJACK_OFFLOAD is only "
+					"supported on tap device (for now)!\n"
+					"No offload features will be "
+					"enabled.\n");
+			}
+			offload = 0;
+			if (strcmp(iftype, "dpdk") == 0)
+				nd = lkl_netdev_dpdk_create(ifparams);
+			else if (strcmp(iftype, "vde") == 0)
+				nd = lkl_netdev_vde_create(ifparams);
+			else if (strcmp(iftype, "raw") == 0)
+				nd = lkl_netdev_raw_create(ifparams);
+		}
 	}
 
 	if (nd) {
@@ -295,9 +313,9 @@ hijack_init(void)
 			fprintf(stderr, "failed to parse mac\n");
 			return;
 		} else if (ret > 0) {
-			ret = lkl_netdev_add(nd, mac);
+			ret = lkl_netdev_add(nd, mac, offload);
 		} else {
-			ret = lkl_netdev_add(nd, NULL);
+			ret = lkl_netdev_add(nd, NULL, offload);
 		}
 
 		if (ret < 0) {
@@ -388,6 +406,13 @@ hijack_fini(void)
 	int i;
 	char *dump = getenv("LKL_HIJACK_DUMP");
 
+	/* The following pauses the kernel before exiting allowing one
+	 * to debug or collect stattistics/diagnosis info from it.
+	 */
+	if (lkl_debug & 0x100) {
+		while (1)
+			pause();
+	}
 	if (dump)
 		mount_cmds_exec(dump, dump_file);
 

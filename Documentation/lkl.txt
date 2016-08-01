@@ -198,7 +198,12 @@ are the list of those variable for your environment.
 ```
 * LKL_HIJACK_DEBUG
 
-  increase the verbose level of debug information.
+  Setting it causes some debug information (both from the kernel and the
+  LKL library) to be enabled.
+  It is also used as a bit mask to turn on specific debugging facilities.
+  E.g., setting it to 0x100 ("export LKL_HIJACK_DEBUG=0x100") will cause
+  the LKL kernel to pause after the hijack'ed app exits. This allows one
+  to debug or collect info from the LKL kernel before it quits.
 ```
      $ LKL_HIJACK_DEBUG=1 lkl-hijack.sh ip address show
 ```
@@ -210,6 +215,18 @@ are the list of those variable for your environment.
 ```
      $ LKL_HIJACK_SINGLE_CPU=1 lkl-hijack.sh ip address show
 ```
+* LKL_HIJACK_OFFLOAD
+
+  Work as a bit mask to enable selective device offload features. E.g.,
+  to enable "mergeable RX buffer" (LKL_VIRTIO_NET_F_MRG_RXBUF) +
+  "guest csum" (LKL_VIRTIO_NET_F_GUEST_CSUM) device features, simply set
+  it to 0x8002.
+
+  See virtio_net.h for a list of offload features and their bit masks.
+```
+     $ LKL_HIJACK_OFFLOAD=0x8002 lkl-hijack.sh ./netserver -D -f
+```
+
 FAQ
 ===
 

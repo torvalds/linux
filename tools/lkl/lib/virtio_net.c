@@ -73,28 +73,28 @@ static int net_enqueue(struct virtio_dev *dev, struct virtio_req *req)
 {
 	struct lkl_virtio_net_hdr_v1 *header;
 	struct virtio_net_dev *net_dev;
-	int ret, len;
-	void *buf;
+	int ret;
+	struct lkl_dev_buf iov[1];
 
 	header = req->buf[0].addr;
 	net_dev = netdev_of(dev);
-	len = req->buf[0].len - sizeof(*header);
+	iov[0].len = req->buf[0].len - sizeof(*header);
 
-	buf = &header[1];
+	iov[0].addr = &header[1];
 
-	if (!len && req->buf_count > 1) {
-		buf = req->buf[1].addr;
-		len = req->buf[1].len;
+	if (!iov[0].len && req->buf_count > 1) {
+		iov[0].addr = req->buf[1].addr;
+		iov[0].len = req->buf[1].len;
 	}
 
 	/* Pick which virtqueue to send the buffer(s) to */
 	if (is_tx_queue(dev, req->q)) {
-		ret = net_dev->ops->tx(net_dev->nd, buf, len);
+		ret = net_dev->ops->tx(net_dev->nd, iov, 1);
 		if (ret < 0)
 			return -1;
 	} else if (is_rx_queue(dev, req->q)) {
 		header->num_buffers = 1;
-		ret = net_dev->ops->rx(net_dev->nd, buf, &len);
+		ret = net_dev->ops->rx(net_dev->nd, iov, 1);
 		if (ret < 0)
 			return -1;
 	} else {
@@ -102,7 +102,7 @@ static int net_enqueue(struct virtio_dev *dev, struct virtio_req *req)
 		return -1;
 	}
 
-	virtio_req_complete(req, len + sizeof(*header));
+	virtio_req_complete(req, iov[0].len + sizeof(*header));
 	return 0;
 }
 
@@ -174,7 +174,7 @@ static struct lkl_mutex **init_queue_locks(int num_queues)
 	return ret;
 }
 
-int lkl_netdev_add(struct lkl_netdev *nd, void *mac)
+int lkl_netdev_add(struct lkl_netdev *nd, void *mac, int offload)
 {
 	struct virtio_net_dev *dev;
 	int ret = -LKL_ENOMEM;
@@ -188,6 +188,7 @@ int lkl_netdev_add(struct lkl_netdev *nd, void *mac)
 	dev->dev.device_id = LKL_VIRTIO_ID_NET;
 	if (mac)
 		dev->dev.device_features |= BIT(LKL_VIRTIO_NET_F_MAC);
+	dev->dev.device_features |= offload;
 	dev->dev.config_data = &dev->config;
 	dev->dev.config_len = sizeof(dev->config);
 	dev->dev.ops = &net_ops;
