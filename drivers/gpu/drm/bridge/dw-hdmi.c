@@ -1759,6 +1759,7 @@ static int dw_hdmi_register(struct drm_device *drm, struct dw_hdmi *hdmi)
 
 	encoder->bridge = bridge;
 	hdmi->connector.polled = DRM_CONNECTOR_POLL_HPD;
+	hdmi->connector.port = hdmi->dev->of_node;
 
 	drm_connector_helper_add(&hdmi->connector,
 				 &dw_hdmi_connector_helper_funcs);

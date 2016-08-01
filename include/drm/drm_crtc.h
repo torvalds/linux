@@ -610,6 +610,7 @@ struct drm_encoder {
 /**
  * struct drm_connector - central DRM connector control structure
  * @dev: parent DRM device
+ * @port: OF node used by find connector by node.
  * @kdev: kernel device for sysfs attributes
  * @attr: sysfs attributes
  * @head: list management
@@ -664,6 +665,7 @@ struct drm_encoder {
  */
 struct drm_connector {
 	struct drm_device *dev;
+	struct device_node *port;
 	struct device *kdev;
 	struct device_attribute *attr;
 	struct list_head head;

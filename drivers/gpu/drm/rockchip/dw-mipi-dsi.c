@@ -1089,6 +1089,7 @@ static int dw_mipi_dsi_register(struct drm_device *drm,
 			   &dw_mipi_dsi_atomic_connector_funcs,
 			   DRM_MODE_CONNECTOR_DSI);
 
+	dsi->connector.port = dev->of_node;
 	drm_mode_connector_attach_encoder(connector, encoder);
 
 	return 0;

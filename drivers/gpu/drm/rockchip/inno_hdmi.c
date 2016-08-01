@@ -869,6 +869,7 @@ static int inno_hdmi_register(struct drm_device *drm, struct inno_hdmi *hdmi)
 			 DRM_MODE_ENCODER_TMDS, NULL);
 
 	hdmi->connector.polled = DRM_CONNECTOR_POLL_HPD;
+	hdmi->connector.port = dev->of_node;
 
 	drm_connector_helper_add(&hdmi->connector,
 				 &inno_hdmi_connector_helper_funcs);
