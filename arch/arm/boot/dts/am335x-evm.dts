@@ -73,20 +73,20 @@
 				0x0201006c>;	/* DOWN */
 	};
 
-	gpio_keys: volume_keys@0 {
+	gpio_keys: volume_keys0 {
 		compatible = "gpio-keys";
 		#address-cells = <1>;
 		#size-cells = <0>;
 		autorepeat;
 
-		switch@9 {
+		switch9 {
 			label = "volume-up";
 			linux,code = <115>;
 			gpios = <&gpio0 2 GPIO_ACTIVE_LOW>;
 			wakeup-source;
 		};
 
-		switch@10 {
+		switch10 {
 			label = "volume-down";
 			linux,code = <114>;
 			gpios = <&gpio0 3 GPIO_ACTIVE_LOW>;
