@@ -114,7 +114,7 @@ config CPU_FREQ_DEFAULT_GOV_INTERACTIVE
 
 config CPU_FREQ_DEFAULT_GOV_SCHED
 	bool "sched"
-	select CPU_FREQ_GOV_SCHED
+	select CPU_FREQ_GOV_INTERACTIVE
 	help
 	  Use the CPUfreq governor 'sched' as default. This scales
 	  cpu frequency using CPU utilization estimates from the
