@@ -51,7 +51,7 @@ static int cros_ec_sensors_read(struct iio_dev *indio_dev,
 	s16 data = 0;
 	s64 val64;
 	int i;
-	int ret = IIO_VAL_INT;
+	int ret;
 	int idx = chan->scan_index;
 
 	mutex_lock(&st->core.cmd_lock);
@@ -137,7 +137,7 @@ static int cros_ec_sensors_write(struct iio_dev *indio_dev,
 {
 	struct cros_ec_sensors_state *st = iio_priv(indio_dev);
 	int i;
-	int ret = 0;
+	int ret;
 	int idx = chan->scan_index;
 
 	mutex_lock(&st->core.cmd_lock);
