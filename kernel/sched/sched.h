@@ -565,6 +565,8 @@ struct root_domain {
 	 */
 	cpumask_var_t rto_mask;
 	struct cpupri cpupri;
+
+	unsigned long max_cpu_capacity;
 };
 
 extern struct root_domain def_root_domain;
