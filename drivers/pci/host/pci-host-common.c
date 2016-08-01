@@ -20,9 +20,8 @@
 #include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_pci.h>
+#include <linux/pci-ecam.h>
 #include <linux/platform_device.h>
-
-#include "../ecam.h"
 
 static int gen_pci_parse_request_of_pci_ranges(struct device *dev,
 		       struct list_head *resources, struct resource **bus_range)
