@@ -75,4 +75,14 @@ static inline unsigned long *bitmap_alloc(int nbits)
 	return calloc(1, BITS_TO_LONGS(nbits) * sizeof(unsigned long));
 }
 
+/*
+ * bitmap_scnprintf - print bitmap list into buffer
+ * @bitmap: bitmap
+ * @nbits: size of bitmap
+ * @buf: buffer to store output
+ * @size: size of @buf
+ */
+size_t bitmap_scnprintf(unsigned long *bitmap, int nbits,
+			char *buf, size_t size);
+
 #endif /* _PERF_BITOPS_H */
