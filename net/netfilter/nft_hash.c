@@ -189,7 +189,6 @@ static void nft_hash_walk(const struct nft_ctx *ctx, const struct nft_set *set,
 	struct nft_hash_elem *he;
 	struct rhashtable_iter hti;
 	struct nft_set_elem elem;
-	u8 genmask = nft_genmask_cur(read_pnet(&set->pnet));
 	int err;
 
 	err = rhashtable_walk_init(&priv->ht, &hti, GFP_KERNEL);
@@ -218,7 +217,7 @@ static void nft_hash_walk(const struct nft_ctx *ctx, const struct nft_set *set,
 			goto cont;
 		if (nft_set_elem_expired(&he->ext))
 			goto cont;
-		if (!nft_set_elem_active(&he->ext, genmask))
+		if (!nft_set_elem_active(&he->ext, iter->genmask))
 			goto cont;
 
 		elem.priv = he;

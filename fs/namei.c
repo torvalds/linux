@@ -3030,9 +3030,13 @@ static int atomic_open(struct nameidata *nd, struct dentry *dentry,
 			}
 			if (*opened & FILE_CREATED)
 				fsnotify_create(dir, dentry);
-			path->dentry = dentry;
-			path->mnt = nd->path.mnt;
-			return 1;
+			if (unlikely(d_is_negative(dentry))) {
+				error = -ENOENT;
+			} else {
+				path->dentry = dentry;
+				path->mnt = nd->path.mnt;
+				return 1;
+			}
 		}
 	}
 	dput(dentry);
@@ -3201,9 +3205,7 @@ static int do_last(struct nameidata *nd,
 	int acc_mode = op->acc_mode;
 	unsigned seq;
 	struct inode *inode;
-	struct path save_parent = { .dentry = NULL, .mnt = NULL };
 	struct path path;
-	bool retried = false;
 	int error;
 
 	nd->flags &= ~LOOKUP_PARENT;
@@ -3246,7 +3248,6 @@ static int do_last(struct nameidata *nd,
 			return -EISDIR;
 	}
 
-retry_lookup:
 	if (open_flag & (O_CREAT | O_TRUNC | O_WRONLY | O_RDWR)) {
 		error = mnt_want_write(nd->path.mnt);
 		if (!error)
@@ -3298,6 +3299,10 @@ retry_lookup:
 		got_write = false;
 	}
 
+	error = follow_managed(&path, nd);
+	if (unlikely(error < 0))
+		return error;
+
 	if (unlikely(d_is_negative(path.dentry))) {
 		path_to_nameidata(&path, nd);
 		return -ENOENT;
@@ -3313,10 +3318,6 @@ retry_lookup:
 		return -EEXIST;
 	}
 
-	error = follow_managed(&path, nd);
-	if (unlikely(error < 0))
-		return error;
-
 	seq = 0;	/* out of RCU mode, so the value doesn't matter */
 	inode = d_backing_inode(path.dentry);
 finish_lookup:
@@ -3327,23 +3328,14 @@ finish_lookup:
 	if (unlikely(error))
 		return error;
 
-	if ((nd->flags & LOOKUP_RCU) || nd->path.mnt != path.mnt) {
-		path_to_nameidata(&path, nd);
-	} else {
-		save_parent.dentry = nd->path.dentry;
-		save_parent.mnt = mntget(path.mnt);
-		nd->path.dentry = path.dentry;
-
-	}
+	path_to_nameidata(&path, nd);
 	nd->inode = inode;
 	nd->seq = seq;
 	/* Why this, you ask?  _Now_ we might have grown LOOKUP_JUMPED... */
 finish_open:
 	error = complete_walk(nd);
-	if (error) {
-		path_put(&save_parent);
+	if (error)
 		return error;
-	}
 	audit_inode(nd->name, nd->path.dentry, 0);
 	error = -EISDIR;
 	if ((open_flag & O_CREAT) && d_is_dir(nd->path.dentry))
@@ -3366,13 +3358,9 @@ finish_open_created:
 		goto out;
 	BUG_ON(*opened & FILE_OPENED); /* once it's opened, it's opened */
 	error = vfs_open(&nd->path, file, current_cred());
-	if (!error) {
-		*opened |= FILE_OPENED;
-	} else {
-		if (error == -EOPENSTALE)
-			goto stale_open;
+	if (error)
 		goto out;
-	}
+	*opened |= FILE_OPENED;
 opened:
 	error = open_check_o_direct(file);
 	if (!error)
@@ -3388,26 +3376,7 @@ out:
 	}
 	if (got_write)
 		mnt_drop_write(nd->path.mnt);
-	path_put(&save_parent);
 	return error;
-
-stale_open:
-	/* If no saved parent or already retried then can't retry */
-	if (!save_parent.dentry || retried)
-		goto out;
-
-	BUG_ON(save_parent.dentry != dir);
-	path_put(&nd->path);
-	nd->path = save_parent;
-	nd->inode = dir->d_inode;
-	save_parent.mnt = NULL;
-	save_parent.dentry = NULL;
-	if (got_write) {
-		mnt_drop_write(nd->path.mnt);
-		got_write = false;
-	}
-	retried = true;
-	goto retry_lookup;
 }
 
 static int do_tmpfile(struct nameidata *nd, unsigned flags,

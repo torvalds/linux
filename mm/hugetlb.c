@@ -832,8 +832,27 @@ static bool vma_has_reserves(struct vm_area_struct *vma, long chg)
 	 * Only the process that called mmap() has reserves for
 	 * private mappings.
 	 */
-	if (is_vma_resv_set(vma, HPAGE_RESV_OWNER))
-		return true;
+	if (is_vma_resv_set(vma, HPAGE_RESV_OWNER)) {
+		/*
+		 * Like the shared case above, a hole punch or truncate
+		 * could have been performed on the private mapping.
+		 * Examine the value of chg to determine if reserves
+		 * actually exist or were previously consumed.
+		 * Very Subtle - The value of chg comes from a previous
+		 * call to vma_needs_reserves().  The reserve map for
+		 * private mappings has different (opposite) semantics
+		 * than that of shared mappings.  vma_needs_reserves()
+		 * has already taken this difference in semantics into
+		 * account.  Therefore, the meaning of chg is the same
+		 * as in the shared case above.  Code could easily be
+		 * combined, but keeping it separate draws attention to
+		 * subtle differences.
+		 */
+		if (chg)
+			return false;
+		else
+			return true;
+	}
 
 	return false;
 }
@@ -1011,6 +1030,7 @@ static void destroy_compound_gigantic_page(struct page *page,
 	int nr_pages = 1 << order;
 	struct page *p = page + 1;
 
+	atomic_set(compound_mapcount_ptr(page), 0);
 	for (i = 1; i < nr_pages; i++, p = mem_map_next(p, page, i)) {
 		clear_compound_head(p);
 		set_page_refcounted(p);
@@ -1816,6 +1836,25 @@ static long __vma_reservation_common(struct hstate *h,
 
 	if (vma->vm_flags & VM_MAYSHARE)
 		return ret;
+	else if (is_vma_resv_set(vma, HPAGE_RESV_OWNER) && ret >= 0) {
+		/*
+		 * In most cases, reserves always exist for private mappings.
+		 * However, a file associated with mapping could have been
+		 * hole punched or truncated after reserves were consumed.
+		 * As subsequent fault on such a range will not use reserves.
+		 * Subtle - The reserve map for private mappings has the
+		 * opposite meaning than that of shared mappings.  If NO
+		 * entry is in the reserve map, it means a reservation exists.
+		 * If an entry exists in the reserve map, it means the
+		 * reservation has already been consumed.  As a result, the
+		 * return value of this routine is the opposite of the
+		 * value returned from reserve map manipulation routines above.
+		 */
+		if (ret)
+			return 0;
+		else
+			return 1;
+	}
 	else
 		return ret < 0 ? ret : 0;
 }
@@ -4190,7 +4229,6 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
 		if (saddr) {
 			spte = huge_pte_offset(svma->vm_mm, saddr);
 			if (spte) {
-				mm_inc_nr_pmds(mm);
 				get_page(virt_to_page(spte));
 				break;
 			}
@@ -4205,9 +4243,9 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
 	if (pud_none(*pud)) {
 		pud_populate(mm, pud,
 				(pmd_t *)((unsigned long)spte & PAGE_MASK));
+		mm_inc_nr_pmds(mm);
 	} else {
 		put_page(virt_to_page(spte));
-		mm_inc_nr_pmds(mm);
 	}
 	spin_unlock(ptl);
 out:

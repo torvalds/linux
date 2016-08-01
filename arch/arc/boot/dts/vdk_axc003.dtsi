@@ -14,7 +14,6 @@
 
 / {
 	compatible = "snps,arc";
-	clock-frequency = <50000000>;
 	#address-cells = <1>;
 	#size-cells = <1>;
 

@@ -140,8 +140,7 @@ unsigned int rds_trans_stats_info_copy(struct rds_info_iterator *iter,
 	rds_info_iter_unmap(iter);
 	down_read(&rds_trans_sem);
 
-	for (i = 0; i < RDS_TRANS_COUNT; i++)
-	{
+	for (i = 0; i < RDS_TRANS_COUNT; i++) {
 		trans = transports[i];
 		if (!trans || !trans->stats_info_copy)
 			continue;

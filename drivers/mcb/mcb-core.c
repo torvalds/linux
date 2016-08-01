@@ -61,20 +61,35 @@ static int mcb_probe(struct device *dev)
 	struct mcb_driver *mdrv = to_mcb_driver(dev->driver);
 	struct mcb_device *mdev = to_mcb_device(dev);
 	const struct mcb_device_id *found_id;
+	struct module *carrier_mod;
+	int ret;
 
 	found_id = mcb_match_id(mdrv->id_table, mdev);
 	if (!found_id)
 		return -ENODEV;
 
-	return mdrv->probe(mdev, found_id);
+	carrier_mod = mdev->dev.parent->driver->owner;
+	if (!try_module_get(carrier_mod))
+		return -EINVAL;
+
+	get_device(dev);
+	ret = mdrv->probe(mdev, found_id);
+	if (ret)
+		module_put(carrier_mod);
+
+	return ret;
 }
 
 static int mcb_remove(struct device *dev)
 {
 	struct mcb_driver *mdrv = to_mcb_driver(dev->driver);
 	struct mcb_device *mdev = to_mcb_device(dev);
+	struct module *carrier_mod;
 
 	mdrv->remove(mdev);
+
+	carrier_mod = mdev->dev.parent->driver->owner;
+	module_put(carrier_mod);
 
 	put_device(&mdev->dev);
 

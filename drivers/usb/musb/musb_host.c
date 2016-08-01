@@ -434,7 +434,13 @@ static void musb_advance_schedule(struct musb *musb, struct urb *urb,
 		}
 	}
 
-	if (qh != NULL && qh->is_ready) {
+	/*
+	 * The pipe must be broken if current urb->status is set, so don't
+	 * start next urb.
+	 * TODO: to minimize the risk of regression, only check urb->status
+	 * for RX, until we have a test case to understand the behavior of TX.
+	 */
+	if ((!status || !is_in) && qh && qh->is_ready) {
 		dev_dbg(musb->controller, "... next ep%d %cX urb %p\n",
 		    hw_ep->epnum, is_in ? 'R' : 'T', next_urb(qh));
 		musb_start_urb(musb, is_in, qh);
@@ -594,14 +600,13 @@ musb_rx_reinit(struct musb *musb, struct musb_qh *qh, u8 epnum)
 		musb_writew(ep->regs, MUSB_TXCSR, 0);
 
 	/* scrub all previous state, clearing toggle */
-	} else {
-		csr = musb_readw(ep->regs, MUSB_RXCSR);
-		if (csr & MUSB_RXCSR_RXPKTRDY)
-			WARNING("rx%d, packet/%d ready?\n", ep->epnum,
-				musb_readw(ep->regs, MUSB_RXCOUNT));
-
-		musb_h_flush_rxfifo(ep, MUSB_RXCSR_CLRDATATOG);
 	}
+	csr = musb_readw(ep->regs, MUSB_RXCSR);
+	if (csr & MUSB_RXCSR_RXPKTRDY)
+		WARNING("rx%d, packet/%d ready?\n", ep->epnum,
+			musb_readw(ep->regs, MUSB_RXCOUNT));
+
+	musb_h_flush_rxfifo(ep, MUSB_RXCSR_CLRDATATOG);
 
 	/* target addr and (for multipoint) hub addr/port */
 	if (musb->is_multipoint) {
@@ -627,7 +632,7 @@ musb_rx_reinit(struct musb *musb, struct musb_qh *qh, u8 epnum)
 	ep->rx_reinit = 0;
 }
 
-static int musb_tx_dma_set_mode_mentor(struct dma_controller *dma,
+static void musb_tx_dma_set_mode_mentor(struct dma_controller *dma,
 		struct musb_hw_ep *hw_ep, struct musb_qh *qh,
 		struct urb *urb, u32 offset,
 		u32 *length, u8 *mode)
@@ -664,22 +669,17 @@ static int musb_tx_dma_set_mode_mentor(struct dma_controller *dma,
 	}
 	channel->desired_mode = *mode;
 	musb_writew(epio, MUSB_TXCSR, csr);
-
-	return 0;
 }
 
-static int musb_tx_dma_set_mode_cppi_tusb(struct dma_controller *dma,
-					  struct musb_hw_ep *hw_ep,
-					  struct musb_qh *qh,
-					  struct urb *urb,
-					  u32 offset,
-					  u32 *length,
-					  u8 *mode)
+static void musb_tx_dma_set_mode_cppi_tusb(struct dma_controller *dma,
+					   struct musb_hw_ep *hw_ep,
+					   struct musb_qh *qh,
+					   struct urb *urb,
+					   u32 offset,
+					   u32 *length,
+					   u8 *mode)
 {
 	struct dma_channel *channel = hw_ep->tx_channel;
-
-	if (!is_cppi_enabled(hw_ep->musb) && !tusb_dma_omap(hw_ep->musb))
-		return -ENODEV;
 
 	channel->actual_len = 0;
 
@@ -688,8 +688,6 @@ static int musb_tx_dma_set_mode_cppi_tusb(struct dma_controller *dma,
 	 * to identify the zero-length-final-packet case.
 	 */
 	*mode = (urb->transfer_flags & URB_ZERO_PACKET) ? 1 : 0;
-
-	return 0;
 }
 
 static bool musb_tx_dma_program(struct dma_controller *dma,
@@ -699,15 +697,14 @@ static bool musb_tx_dma_program(struct dma_controller *dma,
 	struct dma_channel	*channel = hw_ep->tx_channel;
 	u16			pkt_size = qh->maxpacket;
 	u8			mode;
-	int			res;
 
 	if (musb_dma_inventra(hw_ep->musb) || musb_dma_ux500(hw_ep->musb))
-		res = musb_tx_dma_set_mode_mentor(dma, hw_ep, qh, urb,
-						 offset, &length, &mode);
+		musb_tx_dma_set_mode_mentor(dma, hw_ep, qh, urb, offset,
+					    &length, &mode);
+	else if (is_cppi_enabled(hw_ep->musb) || tusb_dma_omap(hw_ep->musb))
+		musb_tx_dma_set_mode_cppi_tusb(dma, hw_ep, qh, urb, offset,
+					       &length, &mode);
 	else
-		res = musb_tx_dma_set_mode_cppi_tusb(dma, hw_ep, qh, urb,
-						     offset, &length, &mode);
-	if (res)
 		return false;
 
 	qh->segsize = length;
@@ -995,9 +992,15 @@ static void musb_bulk_nak_timeout(struct musb *musb, struct musb_hw_ep *ep,
 	if (is_in) {
 		dma = is_dma_capable() ? ep->rx_channel : NULL;
 
-		/* clear nak timeout bit */
+		/*
+		 * Need to stop the transaction by clearing REQPKT first
+		 * then the NAK Timeout bit ref MUSBMHDRC USB 2.0 HIGH-SPEED
+		 * DUAL-ROLE CONTROLLER Programmer's Guide, section 9.2.2
+		 */
 		rx_csr = musb_readw(epio, MUSB_RXCSR);
 		rx_csr |= MUSB_RXCSR_H_WZC_BITS;
+		rx_csr &= ~MUSB_RXCSR_H_REQPKT;
+		musb_writew(epio, MUSB_RXCSR, rx_csr);
 		rx_csr &= ~MUSB_RXCSR_DATAERROR;
 		musb_writew(epio, MUSB_RXCSR, rx_csr);
 
@@ -1551,7 +1554,7 @@ static int musb_rx_dma_iso_cppi41(struct dma_controller *dma,
 				  struct urb *urb,
 				  size_t len)
 {
-	struct dma_channel *channel = hw_ep->tx_channel;
+	struct dma_channel *channel = hw_ep->rx_channel;
 	void __iomem *epio = hw_ep->regs;
 	dma_addr_t *buf;
 	u32 length, res;
@@ -1869,6 +1872,9 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 
 		status = -EPROTO;
 		musb_writeb(epio, MUSB_RXINTERVAL, 0);
+
+		rx_csr &= ~MUSB_RXCSR_H_ERROR;
+		musb_writew(epio, MUSB_RXCSR, rx_csr);
 
 	} else if (rx_csr & MUSB_RXCSR_DATAERROR) {
 
