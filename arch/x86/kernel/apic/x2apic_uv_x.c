@@ -325,7 +325,7 @@ static __init void build_uv_gr_table(void)
 	struct uv_gam_range_entry *gre = uv_gre_table;
 	struct uv_gam_range_s *grt;
 	unsigned long last_limit = 0, ram_limit = 0;
-	int bytes, i, sid, lsid = -1;
+	int bytes, i, sid, lsid = -1, indx = 0, lindx = -1;
 
 	if (!gre)
 		return;
@@ -356,11 +356,12 @@ static __init void build_uv_gr_table(void)
 		}
 		sid = gre->sockid - _min_socket;
 		if (lsid < sid) {		/* new range */
-			grt = &_gr_table[sid];
-			grt->base = lsid;
+			grt = &_gr_table[indx];
+			grt->base = lindx;
 			grt->nasid = gre->nasid;
 			grt->limit = last_limit = gre->limit;
 			lsid = sid;
+			lindx = indx++;
 			continue;
 		}
 		if (lsid == sid && !ram_limit) {	/* update range */
@@ -371,7 +372,7 @@ static __init void build_uv_gr_table(void)
 		}
 		if (!ram_limit) {		/* non-contiguous ram range */
 			grt++;
-			grt->base = sid - 1;
+			grt->base = lindx;
 			grt->nasid = gre->nasid;
 			grt->limit = last_limit = gre->limit;
 			continue;
