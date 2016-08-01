@@ -19,6 +19,7 @@
 #include <linux/io.h>
 #include <linux/of_address.h>
 #include <linux/syscore_ops.h>
+#include <linux/soc/brcmstb/brcmstb.h>
 
 #define CPU_CREDIT_REG_OFFSET			0x184
 #define  CPU_CREDIT_REG_MCPx_WR_PAIRING_EN_MASK	0x70000000

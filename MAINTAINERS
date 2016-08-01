@@ -1536,6 +1536,7 @@ M:	David Brown <david.brown@linaro.org>
 L:	linux-arm-msm@vger.kernel.org
 L:	linux-soc@vger.kernel.org
 S:	Maintained
+F:	Documentation/devicetree/bindings/soc/qcom/
 F:	arch/arm/boot/dts/qcom-*.dts
 F:	arch/arm/boot/dts/qcom-*.dtsi
 F:	arch/arm/mach-qcom/
@@ -1841,7 +1842,6 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 T:	git git://git.linaro.org/people/ulfh/clk.git
 S:	Maintained
 F:	drivers/clk/ux500/
-F:	include/linux/platform_data/clk-ux500.h
 
 ARM/VERSATILE EXPRESS PLATFORM
 M:	Liviu Dudau <liviu.dudau@arm.com>
