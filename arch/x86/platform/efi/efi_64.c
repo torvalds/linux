@@ -24,7 +24,7 @@
 #include <linux/spinlock.h>
 #include <linux/bootmem.h>
 #include <linux/ioport.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/efi.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>

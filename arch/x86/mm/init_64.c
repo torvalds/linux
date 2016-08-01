@@ -27,7 +27,6 @@
 #include <linux/pfn.h>
 #include <linux/poison.h>
 #include <linux/dma-mapping.h>
-#include <linux/module.h>
 #include <linux/memory.h>
 #include <linux/memory_hotplug.h>
 #include <linux/memremap.h>

@@ -357,3 +357,6 @@ SLAVE DMA ENGINE
 
 SPI
   devm_spi_register_master()
+
+WATCHDOG
+  devm_watchdog_register_device()

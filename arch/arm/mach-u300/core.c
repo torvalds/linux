@@ -391,8 +391,7 @@ static void __init u300_init_machine_dt(void)
 	pinctrl_register_mappings(u300_pinmux_map,
 				  ARRAY_SIZE(u300_pinmux_map));
 
-	of_platform_populate(NULL, of_default_bus_match_table,
-			u300_auxdata_lookup, NULL);
+	of_platform_default_populate(NULL, u300_auxdata_lookup, NULL);
 
 	/* Enable SEMI self refresh */
 	val = readw(syscon_base + U300_SYSCON_SMCR) |

@@ -37,6 +37,10 @@
 #include "libbpf.h"
 #include "bpf.h"
 
+#ifndef EM_BPF
+#define EM_BPF 247
+#endif
+
 #define __printf(a, b)	__attribute__((format(printf, a, b)))
 
 __printf(1, 2)
@@ -439,7 +443,8 @@ static int bpf_object__elf_init(struct bpf_object *obj)
 	}
 	ep = &obj->efile.ehdr;
 
-	if ((ep->e_type != ET_REL) || (ep->e_machine != 0)) {
+	/* Old LLVM set e_machine to EM_NONE */
+	if ((ep->e_type != ET_REL) || (ep->e_machine && (ep->e_machine != EM_BPF))) {
 		pr_warning("%s is not an eBPF object file\n",
 			obj->path);
 		err = -LIBBPF_ERRNO__FORMAT;

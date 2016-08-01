@@ -152,6 +152,7 @@ struct iommu_dm_region {
  * @domain_set_attr: Change domain attributes
  * @get_dm_regions: Request list of direct mapping requirements for a device
  * @put_dm_regions: Free list of direct mapping requirements for a device
+ * @apply_dm_region: Temporary helper call-back for iova reserved ranges
  * @domain_window_enable: Configure and enable a particular window for a domain
  * @domain_window_disable: Disable a particular window for a domain
  * @domain_set_windows: Set the number of windows for a domain
@@ -186,6 +187,8 @@ struct iommu_ops {
 	/* Request/Free a list of direct mapping requirements for a device */
 	void (*get_dm_regions)(struct device *dev, struct list_head *list);
 	void (*put_dm_regions)(struct device *dev, struct list_head *list);
+	void (*apply_dm_region)(struct device *dev, struct iommu_domain *domain,
+				struct iommu_dm_region *region);
 
 	/* Window handling functions */
 	int (*domain_window_enable)(struct iommu_domain *domain, u32 wnd_nr,

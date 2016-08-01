@@ -242,7 +242,8 @@ long kvmppc_h_put_tce_indirect(struct kvm_vcpu *vcpu,
 	struct kvmppc_spapr_tce_table *stt;
 	long i, ret = H_SUCCESS, idx;
 	unsigned long entry, ua = 0;
-	u64 __user *tces, tce;
+	u64 __user *tces;
+	u64 tce;
 
 	stt = kvmppc_find_table(vcpu, liobn);
 	if (!stt)

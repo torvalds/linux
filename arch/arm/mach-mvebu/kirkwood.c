@@ -179,7 +179,7 @@ static void __init kirkwood_dt_init(void)
 	kirkwood_pm_init();
 	kirkwood_dt_eth_fixup();
 
-	of_platform_populate(NULL, of_default_bus_match_table, auxdata, NULL);
+	of_platform_default_populate(NULL, auxdata, NULL);
 }
 
 static const char * const kirkwood_dt_board_compat[] __initconst = {

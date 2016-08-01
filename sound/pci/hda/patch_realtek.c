@@ -3718,6 +3718,9 @@ static void alc_headset_mode_unplugged(struct hda_codec *codec)
 	case 0x10ec0295:
 		alc_process_coef_fw(codec, coef0225);
 		break;
+	case 0x10ec0867:
+		alc_update_coefex_idx(codec, 0x57, 0x5, 1<<14, 0);
+		break;
 	}
 	codec_dbg(codec, "Headset jack set to unplugged mode.\n");
 }
@@ -3805,6 +3808,9 @@ static void alc_headset_mode_mic_in(struct hda_codec *codec, hda_nid_t hp_pin,
 		alc_process_coef_fw(codec, coef0293);
 		snd_hda_set_pin_ctl_cache(codec, mic_pin, PIN_VREF50);
 		break;
+	case 0x10ec0867:
+		alc_update_coefex_idx(codec, 0x57, 0x5, 0, 1<<14);
+		/* fallthru */
 	case 0x10ec0662:
 		snd_hda_set_pin_ctl_cache(codec, hp_pin, 0);
 		snd_hda_set_pin_ctl_cache(codec, mic_pin, PIN_VREF50);
@@ -3899,6 +3905,9 @@ static void alc_headset_mode_default(struct hda_codec *codec)
 	case 0x10ec0668:
 		alc_process_coef_fw(codec, coef0688);
 		break;
+	case 0x10ec0867:
+		alc_update_coefex_idx(codec, 0x57, 0x5, 1<<14, 0);
+		break;
 	}
 	codec_dbg(codec, "Headset jack set to headphone (default) mode.\n");
 }
@@ -3988,6 +3997,9 @@ static void alc_headset_mode_ctia(struct hda_codec *codec)
 	case 0x10ec0225:
 	case 0x10ec0295:
 		alc_process_coef_fw(codec, coef0225);
+		break;
+	case 0x10ec0867:
+		alc_update_coefex_idx(codec, 0x57, 0x5, 1<<14, 0);
 		break;
 	}
 	codec_dbg(codec, "Headset jack set to iPhone-style headset mode.\n");
@@ -4165,6 +4177,9 @@ static void alc_determine_headset_type(struct hda_codec *codec)
 		msleep(800);
 		val = alc_read_coef_idx(codec, 0x46);
 		is_ctia = (val & 0x00f0) == 0x00f0;
+		break;
+	case 0x10ec0867:
+		is_ctia = true;
 		break;
 	}
 
@@ -6532,6 +6547,8 @@ enum {
 	ALC668_FIXUP_DELL_XPS13,
 	ALC662_FIXUP_ASUS_Nx50,
 	ALC668_FIXUP_ASUS_Nx51,
+	ALC891_FIXUP_HEADSET_MODE,
+	ALC891_FIXUP_DELL_MIC_NO_PRESENCE,
 };
 
 static const struct hda_fixup alc662_fixups[] = {
@@ -6787,6 +6804,20 @@ static const struct hda_fixup alc662_fixups[] = {
 		.chained = true,
 		.chain_id = ALC662_FIXUP_BASS_CHMAP,
 	},
+	[ALC891_FIXUP_HEADSET_MODE] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = alc_fixup_headset_mode,
+	},
+	[ALC891_FIXUP_DELL_MIC_NO_PRESENCE] = {
+		.type = HDA_FIXUP_PINS,
+		.v.pins = (const struct hda_pintbl[]) {
+			{ 0x19, 0x03a1913d }, /* use as headphone mic, without its own jack detect */
+			{ 0x1b, 0x03a1113c }, /* use as headset mic, without its own jack detect */
+			{ }
+		},
+		.chained = true,
+		.chain_id = ALC891_FIXUP_HEADSET_MODE
+	},
 };
 
 static const struct snd_pci_quirk alc662_fixup_tbl[] = {
@@ -6903,6 +6934,11 @@ static const struct hda_model_fixup alc662_fixup_models[] = {
 };
 
 static const struct snd_hda_pin_quirk alc662_pin_fixup_tbl[] = {
+	SND_HDA_PIN_QUIRK(0x10ec0867, 0x1028, "Dell", ALC891_FIXUP_DELL_MIC_NO_PRESENCE,
+		{0x17, 0x02211010},
+		{0x18, 0x01a19030},
+		{0x1a, 0x01813040},
+		{0x21, 0x01014020}),
 	SND_HDA_PIN_QUIRK(0x10ec0662, 0x1028, "Dell", ALC662_FIXUP_DELL_MIC_NO_PRESENCE,
 		{0x14, 0x01014010},
 		{0x18, 0x01a19020},
@@ -7091,7 +7127,7 @@ static const struct hda_device_id snd_hda_id_realtek[] = {
 	HDA_CODEC_ENTRY(0x10ec0700, "ALC700", patch_alc269),
 	HDA_CODEC_ENTRY(0x10ec0701, "ALC701", patch_alc269),
 	HDA_CODEC_ENTRY(0x10ec0703, "ALC703", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0867, "ALC891", patch_alc882),
+	HDA_CODEC_ENTRY(0x10ec0867, "ALC891", patch_alc662),
 	HDA_CODEC_ENTRY(0x10ec0880, "ALC880", patch_alc880),
 	HDA_CODEC_ENTRY(0x10ec0882, "ALC882", patch_alc882),
 	HDA_CODEC_ENTRY(0x10ec0883, "ALC883", patch_alc882),

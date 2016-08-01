@@ -1783,12 +1783,12 @@ static int do_seccomp(struct pt_regs *regs)
 	 * have already loaded -ENOSYS into r3, or seccomp has put
 	 * something else in r3 (via SECCOMP_RET_ERRNO/TRACE).
 	 */
-	if (__secure_computing())
+	if (__secure_computing(NULL))
 		return -1;
 
 	/*
 	 * The syscall was allowed by seccomp, restore the register
-	 * state to what ptrace and audit expect.
+	 * state to what audit expects.
 	 * Note that we use orig_gpr3, which means a seccomp tracer can
 	 * modify the first syscall parameter (in orig_gpr3) and also
 	 * allow the syscall to proceed.
@@ -1822,22 +1822,25 @@ static inline int do_seccomp(struct pt_regs *regs) { return 0; }
  */
 long do_syscall_trace_enter(struct pt_regs *regs)
 {
-	bool abort = false;
-
 	user_exit();
 
+	/*
+	 * The tracer may decide to abort the syscall, if so tracehook
+	 * will return !0. Note that the tracer may also just change
+	 * regs->gpr[0] to an invalid syscall number, that is handled
+	 * below on the exit path.
+	 */
+	if (test_thread_flag(TIF_SYSCALL_TRACE) &&
+	    tracehook_report_syscall_entry(regs))
+		goto skip;
+
+	/* Run seccomp after ptrace; allow it to set gpr[3]. */
 	if (do_seccomp(regs))
 		return -1;
 
-	if (test_thread_flag(TIF_SYSCALL_TRACE)) {
-		/*
-		 * The tracer may decide to abort the syscall, if so tracehook
-		 * will return !0. Note that the tracer may also just change
-		 * regs->gpr[0] to an invalid syscall number, that is handled
-		 * below on the exit path.
-		 */
-		abort = tracehook_report_syscall_entry(regs) != 0;
-	}
+	/* Avoid trace and audit when syscall is invalid. */
+	if (regs->gpr[0] >= NR_syscalls)
+		goto skip;
 
 	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
 		trace_sys_enter(regs, regs->gpr[0]);
@@ -1854,17 +1857,16 @@ long do_syscall_trace_enter(struct pt_regs *regs)
 				    regs->gpr[5] & 0xffffffff,
 				    regs->gpr[6] & 0xffffffff);
 
-	if (abort || regs->gpr[0] >= NR_syscalls) {
-		/*
-		 * If we are aborting explicitly, or if the syscall number is
-		 * now invalid, set the return value to -ENOSYS.
-		 */
-		regs->gpr[3] = -ENOSYS;
-		return -1;
-	}
-
 	/* Return the possibly modified but valid syscall number */
 	return regs->gpr[0];
+
+skip:
+	/*
+	 * If we are aborting explicitly, or if the syscall number is
+	 * now invalid, set the return value to -ENOSYS.
+	 */
+	regs->gpr[3] = -ENOSYS;
+	return -1;
 }
 
 void do_syscall_trace_leave(struct pt_regs *regs)

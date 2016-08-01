@@ -224,14 +224,6 @@ config SND_SOC_SNOW
 	  Say Y if you want to add audio support for various Snow
 	  boards based on Exynos5 series of SoCs.
 
-config SND_SOC_ODROIDX2
-	tristate "Audio support for Odroid-X2 and Odroid-U3"
-	depends on SND_SOC_SAMSUNG && I2C
-	select SND_SOC_MAX98090
-	select SND_SAMSUNG_I2S
-	help
-	  Say Y here to enable audio support for the Odroid-X2/U3.
-
 config SND_SOC_ARNDALE_RT5631_ALC5631
         tristate "Audio support for RT5631(ALC5631) on Arndale Board"
         depends on SND_SOC_SAMSUNG && I2C

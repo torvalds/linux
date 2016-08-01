@@ -12,14 +12,33 @@ its hardware characteristcs.
 
 	* compatible: These have to be supplemented with "arm,primecell" as
 	  drivers are using the AMBA bus interface.  Possible values include:
-		- "arm,coresight-etb10", "arm,primecell";
-		- "arm,coresight-tpiu", "arm,primecell";
-		- "arm,coresight-tmc", "arm,primecell";
-		- "arm,coresight-funnel", "arm,primecell";
-		- "arm,coresight-etm3x", "arm,primecell";
-		- "arm,coresight-etm4x", "arm,primecell";
-		- "qcom,coresight-replicator1x", "arm,primecell";
-		- "arm,coresight-stm", "arm,primecell"; [1]
+		- Embedded Trace Buffer (version 1.0):
+			"arm,coresight-etb10", "arm,primecell";
+
+		- Trace Port Interface Unit:
+			"arm,coresight-tpiu", "arm,primecell";
+
+		- Trace Memory Controller, used for Embedded Trace Buffer(ETB),
+		  Embedded Trace FIFO(ETF) and Embedded Trace Router(ETR)
+		  configuration.  The configuration mode (ETB, ETF, ETR) is
+		  discovered at boot time when the device is probed.
+			"arm,coresight-tmc", "arm,primecell";
+
+		- Trace Funnel:
+			"arm,coresight-funnel", "arm,primecell";
+
+		- Embedded Trace Macrocell (version 3.x) and
+					Program Flow Trace Macrocell:
+			"arm,coresight-etm3x", "arm,primecell";
+
+		- Embedded Trace Macrocell (version 4.x):
+			"arm,coresight-etm4x", "arm,primecell";
+
+		- Qualcomm Configurable Replicator (version 1.x):
+			"qcom,coresight-replicator1x", "arm,primecell";
+
+		- System Trace Macrocell:
+			"arm,coresight-stm", "arm,primecell"; [1]
 
 	* reg: physical base address and length of the register
 	  set(s) of the component.

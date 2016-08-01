@@ -20,3 +20,5 @@ back_to_back_ebbs_test
 lost_exception_test
 no_handler_test
 cycles_with_mmcr2_test
+ebb_lmr
+ebb_lmr_regs

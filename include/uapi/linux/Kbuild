@@ -455,6 +455,7 @@ header-y += virtio_scsi.h
 header-y += virtio_types.h
 header-y += vm_sockets.h
 header-y += vt.h
+header-y += vtpm_proxy.h
 header-y += wait.h
 header-y += wanrouter.h
 header-y += watchdog.h

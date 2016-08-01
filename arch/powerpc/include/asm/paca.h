@@ -25,6 +25,7 @@
 #ifdef CONFIG_KVM_BOOK3S_64_HANDLER
 #include <asm/kvm_book3s_asm.h>
 #endif
+#include <asm/accounting.h>
 
 register struct paca_struct *local_paca asm("r13");
 
@@ -184,13 +185,7 @@ struct paca_struct {
 #endif
 
 	/* Stuff for accurate time accounting */
-	u64 user_time;			/* accumulated usermode TB ticks */
-	u64 system_time;		/* accumulated system TB ticks */
-	u64 user_time_scaled;		/* accumulated usermode SPURR ticks */
-	u64 starttime;			/* TB value snapshot */
-	u64 starttime_user;		/* TB value on exit to usermode */
-	u64 startspurr;			/* SPURR value snapshot */
-	u64 utime_sspurr;		/* ->user_time when ->startspurr set */
+	struct cpu_accounting_data accounting;
 	u64 stolen_time;		/* TB ticks taken by hypervisor */
 	u64 dtl_ridx;			/* read index in dispatch log */
 	struct dtl_entry *dtl_curr;	/* pointer corresponding to dtl_ridx */

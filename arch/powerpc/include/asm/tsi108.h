@@ -77,7 +77,7 @@
  * nodes if your board uses the Broadcom PHYs
  */
 #define TSI108_PHY_MV88E	0	/* Marvel 88Exxxx PHY */
-#define TSI108_PHY_BCM54XX	1	/* Broardcom BCM54xx PHY */
+#define TSI108_PHY_BCM54XX	1	/* Broadcom BCM54xx PHY */
 
 /* Global variables */
 

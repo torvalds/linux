@@ -387,15 +387,4 @@ static struct isa_driver snd_jazz16_driver = {
 	},
 };
 
-static int __init alsa_card_jazz16_init(void)
-{
-	return isa_register_driver(&snd_jazz16_driver, SNDRV_CARDS);
-}
-
-static void __exit alsa_card_jazz16_exit(void)
-{
-	isa_unregister_driver(&snd_jazz16_driver);
-}
-
-module_init(alsa_card_jazz16_init)
-module_exit(alsa_card_jazz16_exit)
+module_isa_driver(snd_jazz16_driver, SNDRV_CARDS);

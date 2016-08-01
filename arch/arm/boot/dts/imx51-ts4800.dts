@@ -102,7 +102,7 @@
 	status = "okay";
 
 	rtc: m41t00@68 {
-		compatible = "stm,m41t00";
+		compatible = "st,m41t00";
 		reg = <0x68>;
 	};
 };

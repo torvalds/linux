@@ -149,14 +149,14 @@ config PPC_EARLY_DEBUG_BOOTX
 
 config PPC_EARLY_DEBUG_LPAR
 	bool "LPAR HV Console"
-	depends on PPC_PSERIES
+	depends on PPC_PSERIES && HVC_CONSOLE
 	help
 	  Select this to enable early debugging for a machine with a HVC
 	  console on vterm 0.
 
 config PPC_EARLY_DEBUG_LPAR_HVSI
 	bool "LPAR HVSI Console"
-	depends on PPC_PSERIES
+	depends on PPC_PSERIES && HVC_CONSOLE
 	help
 	  Select this to enable early debugging for a machine with a HVSI
 	  console on a specified vterm.
@@ -212,7 +212,6 @@ config PPC_EARLY_DEBUG_40x
 config PPC_EARLY_DEBUG_CPM
 	bool "Early serial debugging for Freescale CPM-based serial ports"
 	depends on SERIAL_CPM
-	select PIN_TLB if PPC_8xx
 	help
 	  Select this to enable early debugging for Freescale chips
 	  using a CPM-based serial port.  This assumes that the bootwrapper

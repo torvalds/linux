@@ -92,4 +92,11 @@ config SAMPLE_CONNECTOR
 	  with it.
 	  See also Documentation/connector/connector.txt
 
+config SAMPLE_SECCOMP
+	tristate "Build seccomp sample code -- loadable modules only"
+	depends on SECCOMP_FILTER && m
+	help
+	  Build samples of seccomp filters using various methods of
+	  BPF filter construction.
+
 endif # SAMPLES

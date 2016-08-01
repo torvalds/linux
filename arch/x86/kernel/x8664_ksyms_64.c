@@ -1,7 +1,8 @@
 /* Exports for assembly files.
    All C exports should go in the respective C files. */
 
-#include <linux/module.h>
+#include <linux/export.h>
+#include <linux/spinlock_types.h>
 #include <linux/smp.h>
 
 #include <net/checksum.h>

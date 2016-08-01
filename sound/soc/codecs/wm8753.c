@@ -32,7 +32,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -486,7 +485,7 @@ SND_SOC_DAPM_DAC("Voice DAC", "Voice Playback", WM8753_PWR1, 4, 0),
 SND_SOC_DAPM_OUTPUT("MONO1"),
 SND_SOC_DAPM_MUX("Mono 2 Mux", SND_SOC_NOPM, 0, 0, &wm8753_mono2_controls),
 SND_SOC_DAPM_OUTPUT("MONO2"),
-SND_SOC_DAPM_MIXER("Out3 Left + Right", -1, 0, 0, NULL, 0),
+SND_SOC_DAPM_MIXER("Out3 Left + Right", SND_SOC_NOPM, 0, 0, NULL, 0),
 SND_SOC_DAPM_MUX("Out3 Mux", SND_SOC_NOPM, 0, 0, &wm8753_out3_controls),
 SND_SOC_DAPM_PGA("Out 3", WM8753_PWR3, 4, 0, NULL, 0),
 SND_SOC_DAPM_OUTPUT("OUT3"),
