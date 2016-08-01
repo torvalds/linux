@@ -72,7 +72,7 @@
 
 	leds {
 		compatible = "gpio-leds";
-		led@1 {
+		led1 {
 			label = "Heartbeat";
 			gpios = <&gpio3 16 GPIO_ACTIVE_HIGH>; /* gpio3_80 ACT_LED */
 			linux,default-trigger = "heartbeat";
