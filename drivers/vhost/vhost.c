@@ -657,6 +657,12 @@ static int log_access_ok(void __user *log_base, u64 addr, unsigned long sz)
 			 (sz + VHOST_PAGE_SIZE * 8 - 1) / VHOST_PAGE_SIZE / 8);
 }
 
+static bool vhost_overflow(u64 uaddr, u64 size)
+{
+	/* Make sure 64 bit math will not overflow. */
+	return uaddr > ULONG_MAX || size > ULONG_MAX || uaddr > ULONG_MAX - size;
+}
+
 /* Caller should have vq mutex and device mutex. */
 static int vq_memory_access_ok(void __user *log_base, struct vhost_umem *umem,
 			       int log_all)
@@ -669,9 +675,11 @@ static int vq_memory_access_ok(void __user *log_base, struct vhost_umem *umem,
 	list_for_each_entry(node, &umem->umem_list, link) {
 		unsigned long a = node->userspace_addr;
 
-		if (node->size > ULONG_MAX)
+		if (vhost_overflow(node->userspace_addr, node->size))
 			return 0;
-		else if (!access_ok(VERIFY_WRITE, (void __user *)a,
+
+
+		if (!access_ok(VERIFY_WRITE, (void __user *)a,
 				    node->size))
 			return 0;
 		else if (log_all && !log_access_ok(log_base,
@@ -912,6 +920,10 @@ static void vhost_iotlb_notify_vq(struct vhost_dev *d,
 static int umem_access_ok(u64 uaddr, u64 size, int access)
 {
 	unsigned long a = uaddr;
+
+	/* Make sure 64 bit math will not overflow. */
+	if (vhost_overflow(uaddr, size))
+		return -EFAULT;
 
 	if ((access & VHOST_ACCESS_RO) &&
 	    !access_ok(VERIFY_READ, (void __user *)a, size))
