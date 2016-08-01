@@ -1080,6 +1080,8 @@ struct btrfs_fs_info {
 	struct list_head pinned_chunks;
 
 	int creating_free_space_tree;
+	/* Used to record internally whether fs has been frozen */
+	int fs_frozen;
 };
 
 struct btrfs_subvolume_writers {
