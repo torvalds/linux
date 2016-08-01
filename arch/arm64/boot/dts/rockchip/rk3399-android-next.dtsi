@@ -194,6 +194,20 @@
 
 &display_subsystem {
 	status = "okay";
+
+	route {
+		route0 {
+			logo,uboot = "logo.bmp";
+			logo,kernel = "logo_kernel.bmp";
+			connect = <&vopb_out_mipi>;
+		};
+
+		route1 {
+			logo,uboot = "logo.bmp";
+			logo,kernel = "logo_kernel.bmp";
+			connect = <&vopl_out_hdmi>;
+		};
+	};
 };
 
 &i2s2 {
