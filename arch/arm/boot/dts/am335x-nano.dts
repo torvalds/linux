@@ -27,7 +27,7 @@
 	leds {
 		compatible = "gpio-leds";
 
-		led@0 {
+		led0 {
 			label = "nanobone:green:usr1";
 			gpios = <&gpio1 5 0>;
 			default-state = "off";

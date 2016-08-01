@@ -62,28 +62,28 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&leds_pins_default>;
 
-		led@0 {
+		led0 {
 			label = "beagle-x15:usr0";
 			gpios = <&gpio7 9 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 			default-state = "off";
 		};
 
-		led@1 {
+		led1 {
 			label = "beagle-x15:usr1";
 			gpios = <&gpio7 8 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "cpu0";
 			default-state = "off";
 		};
 
-		led@2 {
+		led2 {
 			label = "beagle-x15:usr2";
 			gpios = <&gpio7 14 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "mmc0";
 			default-state = "off";
 		};
 
-		led@3 {
+		led3 {
 			label = "beagle-x15:usr3";
 			gpios = <&gpio7 15 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "disk-activity";

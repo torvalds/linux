@@ -29,7 +29,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&leds_pins_default>;
 
-		led@0 {
+		led0 {
 			label = "cl-som-am57x:green";
 			gpios = <&gpio2 5 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";

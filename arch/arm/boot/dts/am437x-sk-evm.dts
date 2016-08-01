@@ -93,28 +93,28 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&leds_pins>;
 
-		led@0 {
+		led0 {
 			label = "am437x-sk:red:heartbeat";
 			gpios = <&gpio5 0 GPIO_ACTIVE_HIGH>;	/* Bank 5, pin 0 */
 			linux,default-trigger = "heartbeat";
 			default-state = "off";
 		};
 
-		led@1 {
+		led1 {
 			label = "am437x-sk:green:mmc1";
 			gpios = <&gpio5 1 GPIO_ACTIVE_HIGH>;	/* Bank 5, pin 1 */
 			linux,default-trigger = "mmc0";
 			default-state = "off";
 		};
 
-		led@2 {
+		led2 {
 			label = "am437x-sk:blue:cpu0";
 			gpios = <&gpio5 2 GPIO_ACTIVE_HIGH>;	/* Bank 5, pin 2 */
 			linux,default-trigger = "cpu0";
 			default-state = "off";
 		};
 
-		led@3 {
+		led3 {
 			label = "am437x-sk:blue:usr3";
 			gpios = <&gpio5 3 GPIO_ACTIVE_HIGH>;	/* Bank 5, pin 3 */
 			default-state = "off";

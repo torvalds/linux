@@ -31,7 +31,7 @@
 
 		compatible = "gpio-leds";
 
-		led@0 {
+		led0 {
 			label = "com:green:user";
 			gpios = <&gpio1 23 GPIO_ACTIVE_HIGH>;
 			default-state = "on";

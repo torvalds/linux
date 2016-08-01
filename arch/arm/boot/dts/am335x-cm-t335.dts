@@ -26,7 +26,7 @@
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
 		pinctrl-0 = <&gpio_led_pins>;
-		led@0 {
+		led0 {
 			label = "cm_t335:green";
 			gpios = <&gpio2 0 GPIO_ACTIVE_LOW>;	/* gpio2_0 */
 			linux,default-trigger = "heartbeat";

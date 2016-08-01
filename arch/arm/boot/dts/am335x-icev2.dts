@@ -43,52 +43,52 @@
 		enable-active-high;
 	};
 
-	leds@0 {
+	leds0 {
 		compatible = "gpio-leds";
 
-		led@0 {
+		led0 {
 			label = "out0";
 			gpios = <&tpic2810 0 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
-		led@1 {
+		led1 {
 			label = "out1";
 			gpios = <&tpic2810 1 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
-		led@2 {
+		led2 {
 			label = "out2";
 			gpios = <&tpic2810 2 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
-		led@3 {
+		led3 {
 			label = "out3";
 			gpios = <&tpic2810 3 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
-		led@4 {
+		led4 {
 			label = "out4";
 			gpios = <&tpic2810 4 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
-		led@5 {
+		led5 {
 			label = "out5";
 			gpios = <&tpic2810 5 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
-		led@6 {
+		led6 {
 			label = "out6";
 			gpios = <&tpic2810 6 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
-		led@7 {
+		led7 {
 			label = "out7";
 			gpios = <&tpic2810 7 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
@@ -96,44 +96,44 @@
 	};
 
 	/* Tricolor status LEDs */
-	leds@1 {
+	leds1 {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
 		pinctrl-0 = <&user_leds>;
 
-		led@0 {
+		led0 {
 			label = "status0:red:cpu0";
 			gpios = <&gpio0 17 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 			linux,default-trigger = "cpu0";
 		};
 
-		led@1 {
+		led1 {
 			label = "status0:green:usr";
 			gpios = <&gpio0 16 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
-		led@2 {
+		led2 {
 			label = "status0:yellow:usr";
 			gpios = <&gpio3 9 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
-		led@3 {
+		led3 {
 			label = "status1:red:mmc0";
 			gpios = <&gpio1 30 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 			linux,default-trigger = "mmc0";
 		};
 
-		led@4 {
+		led4 {
 			label = "status1:green:usr";
 			gpios = <&gpio0 20 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
-		led@5 {
+		led5 {
 			label = "status1:yellow:usr";
 			gpios = <&gpio0 19 GPIO_ACTIVE_HIGH>;
 			default-state = "off";

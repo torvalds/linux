@@ -595,14 +595,14 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&user_leds_pins>;
 
-	led@0 {
+	led0 {
 		label = "pepper:user0:blue";
 		gpios = <&gpio1 20 GPIO_ACTIVE_HIGH>;
 		linux,default-trigger = "none";
 		default-state = "off";
 	};
 
-	led@1 {
+	led1 {
 		label = "pepper:user1:red";
 		gpios = <&gpio1 21 GPIO_ACTIVE_HIGH>;
 		linux,default-trigger = "none";
