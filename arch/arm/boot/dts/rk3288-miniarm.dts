@@ -89,6 +89,19 @@
 		};
 	};
 
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,name = "rockchip,miniarm-codec";
+		simple-audio-card,mclk-fs = <512>;
+		simple-audio-card,cpu {
+			sound-dai = <&i2s>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&hdmi>;
+		};
+	};
+
 	vcc_sys: vsys-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_sys";
@@ -153,6 +166,9 @@
 };
 
 &hdmi {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	#sound-dai-cells = <0>;
 	ddc-i2c-bus = <&i2c5>;
 	status = "okay";
 };
@@ -377,6 +393,11 @@
 };
 
 &i2c5 {
+	status = "okay";
+};
+
+&i2s {
+	#sound-dai-cells = <0>;
 	status = "okay";
 };
 
