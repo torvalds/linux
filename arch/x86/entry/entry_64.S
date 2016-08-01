@@ -347,8 +347,7 @@ ENTRY(stub_ptregs_64)
 	jmp	entry_SYSCALL64_slow_path
 
 1:
-	/* Called from C */
-	jmp	*%rax				/* called from C */
+	jmp	*%rax				/* Called from C */
 END(stub_ptregs_64)
 
 .macro ptregs_stub func
