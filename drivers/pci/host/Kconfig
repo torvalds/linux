@@ -17,6 +17,15 @@ config PCI_MVEBU
 	depends on ARM
 	depends on OF
 
+config PCI_AARDVARK
+	bool "Aardvark PCIe controller"
+	depends on ARCH_MVEBU && ARM64
+	depends on OF
+	depends on PCI_MSI_IRQ_DOMAIN
+	help
+	 Add support for Aardvark 64bit PCIe Host Controller. This
+	 controller is part of the South Bridge of the Marvel Armada
+	 3700 SoC.
 
 config PCIE_XILINX_NWL
 	bool "NWL PCIe Core"
