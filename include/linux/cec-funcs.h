@@ -227,7 +227,7 @@ static inline void cec_set_digital_service_id(__u8 *msg,
 	if (digital->service_id_method == CEC_OP_SERVICE_ID_METHOD_BY_CHANNEL) {
 		*msg++ = (digital->channel.channel_number_fmt << 2) |
 			 (digital->channel.major >> 8);
-		*msg++ = digital->channel.major && 0xff;
+		*msg++ = digital->channel.major & 0xff;
 		*msg++ = digital->channel.minor >> 8;
 		*msg++ = digital->channel.minor & 0xff;
 		*msg++ = 0;
@@ -1277,7 +1277,7 @@ static inline void cec_msg_user_control_pressed(struct cec_msg *msg,
 		msg->len += 4;
 		msg->msg[3] = (ui_cmd->channel_identifier.channel_number_fmt << 2) |
 			      (ui_cmd->channel_identifier.major >> 8);
-		msg->msg[4] = ui_cmd->channel_identifier.major && 0xff;
+		msg->msg[4] = ui_cmd->channel_identifier.major & 0xff;
 		msg->msg[5] = ui_cmd->channel_identifier.minor >> 8;
 		msg->msg[6] = ui_cmd->channel_identifier.minor & 0xff;
 		break;
