@@ -1185,9 +1185,8 @@ int symbol__disassemble(struct symbol *sym, struct map *map, size_t privsize)
 		if (dso->has_build_id)
 			return ENOMEM;
 		goto fallback;
-	} else if (dso__is_kcore(dso)) {
-		goto fallback;
-	} else if (readlink(symfs_filename, command, sizeof(command)) < 0 ||
+	} else if (dso__is_kcore(dso) ||
+		   readlink(symfs_filename, command, sizeof(command)) < 0 ||
 		   strstr(command, DSO__NAME_KALLSYMS) ||
 		   access(symfs_filename, R_OK)) {
 		free(filename);
