@@ -2905,31 +2905,12 @@ static struct omap_hwmod_ocp_if dra7xx_l3_main_1__tptc1 = {
 	.user		= OCP_USER_MPU,
 };
 
-static struct omap_hwmod_addr_space dra7xx_dss_addrs[] = {
-	{
-		.name		= "family",
-		.pa_start	= 0x58000000,
-		.pa_end		= 0x5800007f,
-		.flags		= ADDR_TYPE_RT
-	},
-};
-
 /* l3_main_1 -> dss */
 static struct omap_hwmod_ocp_if dra7xx_l3_main_1__dss = {
 	.master		= &dra7xx_l3_main_1_hwmod,
 	.slave		= &dra7xx_dss_hwmod,
 	.clk		= "l3_iclk_div",
-	.addr		= dra7xx_dss_addrs,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-static struct omap_hwmod_addr_space dra7xx_dss_dispc_addrs[] = {
-	{
-		.name		= "dispc",
-		.pa_start	= 0x58001000,
-		.pa_end		= 0x58001fff,
-		.flags		= ADDR_TYPE_RT
-	},
 };
 
 /* l3_main_1 -> dispc */
@@ -2937,18 +2918,7 @@ static struct omap_hwmod_ocp_if dra7xx_l3_main_1__dispc = {
 	.master		= &dra7xx_l3_main_1_hwmod,
 	.slave		= &dra7xx_dss_dispc_hwmod,
 	.clk		= "l3_iclk_div",
-	.addr		= dra7xx_dss_dispc_addrs,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-static struct omap_hwmod_addr_space dra7xx_dss_hdmi_addrs[] = {
-	{
-		.name		= "hdmi_wp",
-		.pa_start	= 0x58040000,
-		.pa_end		= 0x580400ff,
-		.flags		= ADDR_TYPE_RT
-	},
-	{ }
 };
 
 /* l3_main_1 -> dispc */
@@ -2956,7 +2926,6 @@ static struct omap_hwmod_ocp_if dra7xx_l3_main_1__hdmi = {
 	.master		= &dra7xx_l3_main_1_hwmod,
 	.slave		= &dra7xx_dss_hdmi_hwmod,
 	.clk		= "l3_iclk_div",
-	.addr		= dra7xx_dss_hdmi_addrs,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -3410,21 +3379,11 @@ static struct omap_hwmod_ocp_if dra7xx_l4_cfg__pciess2 = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-static struct omap_hwmod_addr_space dra7xx_qspi_addrs[] = {
-	{
-		.pa_start	= 0x4b300000,
-		.pa_end		= 0x4b30007f,
-		.flags		= ADDR_TYPE_RT
-	},
-	{ }
-};
-
 /* l3_main_1 -> qspi */
 static struct omap_hwmod_ocp_if dra7xx_l3_main_1__qspi = {
 	.master		= &dra7xx_l3_main_1_hwmod,
 	.slave		= &dra7xx_qspi_hwmod,
 	.clk		= "l3_iclk_div",
-	.addr		= dra7xx_qspi_addrs,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 

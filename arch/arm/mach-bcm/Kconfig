@@ -112,9 +112,17 @@ config ARCH_BCM_21664
 	  Enable support for the BCM21664 family, which includes
 	  BCM21663 and BCM21664 variants.
 
+config ARCH_BCM_23550
+	bool "Broadcom BCM23550 SoC"
+	depends on ARCH_MULTI_V7
+	select ARCH_BCM_MOBILE
+	select HAVE_SMP
+	help
+	  Enable support for the BCM23550.
+
 config ARCH_BCM_MOBILE_L2_CACHE
 	bool "Broadcom mobile SoC level 2 cache support"
-	depends on ARCH_BCM_MOBILE
+	depends on ARCH_BCM_281XX || ARCH_BCM_21664
 	default y
 	select CACHE_L2X0
 	select ARCH_BCM_MOBILE_SMC
@@ -129,7 +137,7 @@ config ARCH_BCM_MOBILE_SMP
 	select HAVE_ARM_SCU
 	select ARM_ERRATA_764369
 	help
-	  SMP support for the BCM281XX and BCM21664 SoC families.
+	  SMP support for the BCM281XX, BCM21664 and BCM23550 SoC families.
 	  Provided as an option so SMP support for SoCs of this type
 	  can be disabled for an SMP-enabled kernel.
 

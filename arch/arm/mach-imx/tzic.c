@@ -55,14 +55,14 @@ static struct irq_domain *domain;
 #define TZIC_NUM_IRQS 128
 
 #ifdef CONFIG_FIQ
-static int tzic_set_irq_fiq(unsigned int irq, unsigned int type)
+static int tzic_set_irq_fiq(unsigned int hwirq, unsigned int type)
 {
 	unsigned int index, mask, value;
 
-	index = irq >> 5;
+	index = hwirq >> 5;
 	if (unlikely(index >= 4))
 		return -EINVAL;
-	mask = 1U << (irq & 0x1F);
+	mask = 1U << (hwirq & 0x1F);
 
 	value = imx_readl(tzic_base + TZIC_INTSEC0(index)) | mask;
 	if (type)

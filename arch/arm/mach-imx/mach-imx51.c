@@ -52,6 +52,8 @@ static void __init imx51_dt_init(void)
 {
 	imx51_ipu_mipi_setup();
 	imx_src_init();
+
+	imx_aips_allow_unprivileged_access("fsl,imx51-aipstz");
 }
 
 static void __init imx51_init_late(void)
