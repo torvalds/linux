@@ -21,11 +21,11 @@ void handle_syscall(struct uml_pt_regs *r)
 	PT_REGS_SET_SYSCALL_RETURN(regs, -ENOSYS);
 
 	if (syscall_trace_enter(regs))
-		return;
+		goto out;
 
 	/* Do the seccomp check after ptrace; failures should be fast. */
 	if (secure_computing(NULL) == -1)
-		return;
+		goto out;
 
 	/* Update the syscall number after orig_ax has potentially been updated
 	 * with ptrace.
@@ -37,5 +37,6 @@ void handle_syscall(struct uml_pt_regs *r)
 		PT_REGS_SET_SYSCALL_RETURN(regs,
 				EXECUTE_SYSCALL(syscall, regs));
 
+out:
 	syscall_trace_leave(regs);
 }
