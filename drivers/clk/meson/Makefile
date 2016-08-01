@@ -2,5 +2,6 @@
 # Makefile for Meson specific clk
 #
 
-obj-y += clkc.o clk-pll.o clk-cpu.o
-obj-y += meson8b-clkc.o
+obj-$(CONFIG_COMMON_CLK_AMLOGIC) += clk-pll.o clk-cpu.o clk-mpll.o
+obj-$(CONFIG_COMMON_CLK_MESON8B) += meson8b-clkc.o
+obj-$(CONFIG_COMMON_CLK_GXBB)	 += gxbb.o

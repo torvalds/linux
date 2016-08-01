@@ -1086,7 +1086,7 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host,
 
 	_host->native_hotplug = !(pdata->flags & TMIO_MMC_USE_GPIO_CD ||
 				  mmc->caps & MMC_CAP_NEEDS_POLL ||
-				  mmc->caps & MMC_CAP_NONREMOVABLE ||
+				  !mmc_card_is_removable(mmc) ||
 				  mmc->slot.cd_irq >= 0);
 
 	if (tmio_mmc_clk_enable(_host) < 0) {

@@ -252,7 +252,7 @@
 		};
 
 		watchdog@b017000 {
-			compatible = "qcom,kpss-standalone";
+			compatible = "qcom,kpss-wdt", "qcom,kpss-wdt-ipq4019";
 			reg = <0xb017000 0x40>;
 			clocks = <&sleep_clk>;
 			timeout-sec = <10>;

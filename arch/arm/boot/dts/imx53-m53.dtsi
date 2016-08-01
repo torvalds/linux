@@ -84,7 +84,7 @@
 	};
 
 	rtc: rtc@68 {
-		compatible = "stm,m41t62";
+		compatible = "st,m41t62";
 		reg = <0x68>;
 	};
 };

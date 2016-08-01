@@ -60,6 +60,7 @@
 #include <asm/switch_to.h>
 #include <asm/tm.h>
 #include <asm/debug.h>
+#include <asm/asm-prototypes.h>
 #include <sysdev/fsl_pci.h>
 
 #if defined(CONFIG_DEBUGGER) || defined(CONFIG_KEXEC)
@@ -1376,6 +1377,7 @@ void facility_unavailable_exception(struct pt_regs *regs)
 		[FSCR_TM_LG] = "TM",
 		[FSCR_EBB_LG] = "EBB",
 		[FSCR_TAR_LG] = "TAR",
+		[FSCR_LM_LG] = "LM",
 	};
 	char *facility = "unknown";
 	u64 value;
@@ -1418,7 +1420,8 @@ void facility_unavailable_exception(struct pt_regs *regs)
 			rd = (instword >> 21) & 0x1f;
 			current->thread.dscr = regs->gpr[rd];
 			current->thread.dscr_inherit = 1;
-			mtspr(SPRN_FSCR, value | FSCR_DSCR);
+			current->thread.fscr |= FSCR_DSCR;
+			mtspr(SPRN_FSCR, current->thread.fscr);
 		}
 
 		/* Read from DSCR (mfspr RT, 0x03) */
@@ -1431,6 +1434,14 @@ void facility_unavailable_exception(struct pt_regs *regs)
 			regs->nip += 4;
 			emulate_single_step(regs);
 		}
+		return;
+	} else if ((status == FSCR_LM_LG) && cpu_has_feature(CPU_FTR_ARCH_300)) {
+		/*
+		 * This process has touched LM, so turn it on forever
+		 * for this process
+		 */
+		current->thread.fscr |= FSCR_LM;
+		mtspr(SPRN_FSCR, current->thread.fscr);
 		return;
 	}
 

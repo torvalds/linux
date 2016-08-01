@@ -3109,7 +3109,7 @@ static int intel_pmu_cpu_prepare(int cpu)
 		cpuc->excl_thread_id = 0;
 	}
 
-	return NOTIFY_OK;
+	return 0;
 
 err_constraint_list:
 	kfree(cpuc->constraint_list);
@@ -3120,7 +3120,7 @@ err_shared_regs:
 	cpuc->shared_regs = NULL;
 
 err:
-	return NOTIFY_BAD;
+	return -ENOMEM;
 }
 
 static void intel_pmu_cpu_starting(int cpu)

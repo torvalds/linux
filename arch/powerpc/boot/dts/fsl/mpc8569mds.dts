@@ -232,7 +232,7 @@
 			mode = "cpu-qe";
 
 			serial-flash@0 {
-				compatible = "stm,m25p40";
+				compatible = "st,m25p40";
 				reg = <0>;
 				spi-max-frequency = <25000000>;
 			};

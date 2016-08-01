@@ -1477,49 +1477,49 @@ NOKPROBE_SYMBOL(perf_event_nmi_handler);
 struct event_constraint emptyconstraint;
 struct event_constraint unconstrained;
 
-static int
-x86_pmu_notifier(struct notifier_block *self, unsigned long action, void *hcpu)
+static int x86_pmu_prepare_cpu(unsigned int cpu)
 {
-	unsigned int cpu = (long)hcpu;
 	struct cpu_hw_events *cpuc = &per_cpu(cpu_hw_events, cpu);
-	int i, ret = NOTIFY_OK;
+	int i;
 
-	switch (action & ~CPU_TASKS_FROZEN) {
-	case CPU_UP_PREPARE:
-		for (i = 0 ; i < X86_PERF_KFREE_MAX; i++)
-			cpuc->kfree_on_online[i] = NULL;
-		if (x86_pmu.cpu_prepare)
-			ret = x86_pmu.cpu_prepare(cpu);
-		break;
+	for (i = 0 ; i < X86_PERF_KFREE_MAX; i++)
+		cpuc->kfree_on_online[i] = NULL;
+	if (x86_pmu.cpu_prepare)
+		return x86_pmu.cpu_prepare(cpu);
+	return 0;
+}
 
-	case CPU_STARTING:
-		if (x86_pmu.cpu_starting)
-			x86_pmu.cpu_starting(cpu);
-		break;
+static int x86_pmu_dead_cpu(unsigned int cpu)
+{
+	if (x86_pmu.cpu_dead)
+		x86_pmu.cpu_dead(cpu);
+	return 0;
+}
 
-	case CPU_ONLINE:
-		for (i = 0 ; i < X86_PERF_KFREE_MAX; i++) {
-			kfree(cpuc->kfree_on_online[i]);
-			cpuc->kfree_on_online[i] = NULL;
-		}
-		break;
+static int x86_pmu_online_cpu(unsigned int cpu)
+{
+	struct cpu_hw_events *cpuc = &per_cpu(cpu_hw_events, cpu);
+	int i;
 
-	case CPU_DYING:
-		if (x86_pmu.cpu_dying)
-			x86_pmu.cpu_dying(cpu);
-		break;
-
-	case CPU_UP_CANCELED:
-	case CPU_DEAD:
-		if (x86_pmu.cpu_dead)
-			x86_pmu.cpu_dead(cpu);
-		break;
-
-	default:
-		break;
+	for (i = 0 ; i < X86_PERF_KFREE_MAX; i++) {
+		kfree(cpuc->kfree_on_online[i]);
+		cpuc->kfree_on_online[i] = NULL;
 	}
+	return 0;
+}
 
-	return ret;
+static int x86_pmu_starting_cpu(unsigned int cpu)
+{
+	if (x86_pmu.cpu_starting)
+		x86_pmu.cpu_starting(cpu);
+	return 0;
+}
+
+static int x86_pmu_dying_cpu(unsigned int cpu)
+{
+	if (x86_pmu.cpu_dying)
+		x86_pmu.cpu_dying(cpu);
+	return 0;
 }
 
 static void __init pmu_check_apic(void)
@@ -1787,10 +1787,39 @@ static int __init init_hw_perf_events(void)
 	pr_info("... fixed-purpose events:   %d\n",     x86_pmu.num_counters_fixed);
 	pr_info("... event mask:             %016Lx\n", x86_pmu.intel_ctrl);
 
-	perf_pmu_register(&pmu, "cpu", PERF_TYPE_RAW);
-	perf_cpu_notifier(x86_pmu_notifier);
+	/*
+	 * Install callbacks. Core will call them for each online
+	 * cpu.
+	 */
+	err = cpuhp_setup_state(CPUHP_PERF_X86_PREPARE, "PERF_X86_PREPARE",
+				x86_pmu_prepare_cpu, x86_pmu_dead_cpu);
+	if (err)
+		return err;
+
+	err = cpuhp_setup_state(CPUHP_AP_PERF_X86_STARTING,
+				"AP_PERF_X86_STARTING", x86_pmu_starting_cpu,
+				x86_pmu_dying_cpu);
+	if (err)
+		goto out;
+
+	err = cpuhp_setup_state(CPUHP_AP_PERF_X86_ONLINE, "AP_PERF_X86_ONLINE",
+				x86_pmu_online_cpu, NULL);
+	if (err)
+		goto out1;
+
+	err = perf_pmu_register(&pmu, "cpu", PERF_TYPE_RAW);
+	if (err)
+		goto out2;
 
 	return 0;
+
+out2:
+	cpuhp_remove_state(CPUHP_AP_PERF_X86_ONLINE);
+out1:
+	cpuhp_remove_state(CPUHP_AP_PERF_X86_STARTING);
+out:
+	cpuhp_remove_state(CPUHP_PERF_X86_PREPARE);
+	return err;
 }
 early_initcall(init_hw_perf_events);
 

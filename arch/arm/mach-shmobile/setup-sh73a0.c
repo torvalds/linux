@@ -18,7 +18,6 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/of_platform.h>
 #include <linux/delay.h>
 #include <linux/input.h>
 #include <linux/io.h>
@@ -55,7 +54,6 @@ static void __init sh73a0_generic_init(void)
 	/* Shared attribute override enable, 64K*8way */
 	l2x0_init(IOMEM(0xf0100000), 0x00400000, 0xc20f0fff);
 #endif
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
 static const char *const sh73a0_boards_compat_dt[] __initconst = {

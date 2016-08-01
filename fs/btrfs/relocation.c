@@ -2604,25 +2604,28 @@ static int reserve_metadata_space(struct btrfs_trans_handle *trans,
 
 	trans->block_rsv = rc->block_rsv;
 	rc->reserved_bytes += num_bytes;
+
+	/*
+	 * We are under a transaction here so we can only do limited flushing.
+	 * If we get an enospc just kick back -EAGAIN so we know to drop the
+	 * transaction and try to refill when we can flush all the things.
+	 */
 	ret = btrfs_block_rsv_refill(root, rc->block_rsv, num_bytes,
-				BTRFS_RESERVE_FLUSH_ALL);
+				BTRFS_RESERVE_FLUSH_LIMIT);
 	if (ret) {
-		if (ret == -EAGAIN) {
-			tmp = rc->extent_root->nodesize *
-				RELOCATION_RESERVED_NODES;
-			while (tmp <= rc->reserved_bytes)
-				tmp <<= 1;
-			/*
-			 * only one thread can access block_rsv at this point,
-			 * so we don't need hold lock to protect block_rsv.
-			 * we expand more reservation size here to allow enough
-			 * space for relocation and we will return earlier in
-			 * enospc case.
-			 */
-			rc->block_rsv->size = tmp + rc->extent_root->nodesize *
-					      RELOCATION_RESERVED_NODES;
-		}
-		return ret;
+		tmp = rc->extent_root->nodesize * RELOCATION_RESERVED_NODES;
+		while (tmp <= rc->reserved_bytes)
+			tmp <<= 1;
+		/*
+		 * only one thread can access block_rsv at this point,
+		 * so we don't need hold lock to protect block_rsv.
+		 * we expand more reservation size here to allow enough
+		 * space for relocation and we will return eailer in
+		 * enospc case.
+		 */
+		rc->block_rsv->size = tmp + rc->extent_root->nodesize *
+			RELOCATION_RESERVED_NODES;
+		return -EAGAIN;
 	}
 
 	return 0;
@@ -3871,6 +3874,7 @@ static noinline_for_stack
 int prepare_to_relocate(struct reloc_control *rc)
 {
 	struct btrfs_trans_handle *trans;
+	int ret;
 
 	rc->block_rsv = btrfs_alloc_block_rsv(rc->extent_root,
 					      BTRFS_BLOCK_RSV_TEMP);
@@ -3885,6 +3889,11 @@ int prepare_to_relocate(struct reloc_control *rc)
 	rc->reserved_bytes = 0;
 	rc->block_rsv->size = rc->extent_root->nodesize *
 			      RELOCATION_RESERVED_NODES;
+	ret = btrfs_block_rsv_refill(rc->extent_root,
+				     rc->block_rsv, rc->block_rsv->size,
+				     BTRFS_RESERVE_FLUSH_ALL);
+	if (ret)
+		return ret;
 
 	rc->create_reloc_tree = 1;
 	set_reloc_control(rc);
@@ -4643,7 +4652,7 @@ int btrfs_reloc_post_snapshot(struct btrfs_trans_handle *trans,
 	if (rc->merge_reloc_tree) {
 		ret = btrfs_block_rsv_migrate(&pending->block_rsv,
 					      rc->block_rsv,
-					      rc->nodes_relocated);
+					      rc->nodes_relocated, 1);
 		if (ret)
 			return ret;
 	}

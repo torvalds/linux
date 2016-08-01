@@ -19,7 +19,6 @@
 #include <linux/bootmem.h>
 #include <linux/seq_file.h>
 #include <linux/screen_info.h>
-#include <linux/of_iommu.h>
 #include <linux/of_platform.h>
 #include <linux/init.h>
 #include <linux/kexec.h>
@@ -844,7 +843,7 @@ static void __init request_standard_resources(const struct machine_desc *mdesc)
 	struct resource *res;
 
 	kernel_code.start   = virt_to_phys(_text);
-	kernel_code.end     = virt_to_phys(_etext - 1);
+	kernel_code.end     = virt_to_phys(__init_begin - 1);
 	kernel_data.start   = virt_to_phys(_sdata);
 	kernel_data.end     = virt_to_phys(_end - 1);
 
@@ -903,14 +902,9 @@ static int __init customize_machine(void)
 	 * machine from the device tree, if no callback is provided,
 	 * otherwise we would always need an init_machine callback.
 	 */
-	of_iommu_init();
 	if (machine_desc->init_machine)
 		machine_desc->init_machine();
-#ifdef CONFIG_OF
-	else
-		of_platform_populate(NULL, of_default_bus_match_table,
-					NULL, NULL);
-#endif
+
 	return 0;
 }
 arch_initcall(customize_machine);

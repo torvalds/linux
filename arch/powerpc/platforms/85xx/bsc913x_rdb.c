@@ -50,9 +50,7 @@ machine_device_initcall(bsc9131_rdb, mpc85xx_common_publish_devices);
 
 static int __init bsc9131_rdb_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	return of_flat_dt_is_compatible(root, "fsl,bsc9131rdb");
+	return of_machine_is_compatible("fsl,bsc9131rdb");
 }
 
 define_machine(bsc9131_rdb) {

@@ -595,7 +595,7 @@ static void nfs4_clear_ds_conn_bit(struct nfs4_pnfs_ds *ds)
 }
 
 static struct nfs_client *(*get_v3_ds_connect)(
-			struct nfs_client *mds_clp,
+			struct nfs_server *mds_srv,
 			const struct sockaddr *ds_addr,
 			int ds_addrlen,
 			int ds_proto,
@@ -654,7 +654,7 @@ static int _nfs4_pnfs_v3_ds_connect(struct nfs_server *mds_srv,
 			rpc_clnt_add_xprt(clp->cl_rpcclient, &xprt_args,
 					rpc_clnt_test_and_add_xprt, NULL);
 		} else
-			clp = get_v3_ds_connect(mds_srv->nfs_client,
+			clp = get_v3_ds_connect(mds_srv,
 					(struct sockaddr *)&da->da_addr,
 					da->da_addrlen, IPPROTO_TCP,
 					timeo, retrans, au_flavor);
@@ -690,7 +690,7 @@ static int _nfs4_pnfs_v4_ds_connect(struct nfs_server *mds_srv,
 		dprintk("%s: DS %s: trying address %s\n",
 			__func__, ds->ds_remotestr, da->da_remotestr);
 
-		clp = nfs4_set_ds_client(mds_srv->nfs_client,
+		clp = nfs4_set_ds_client(mds_srv,
 					(struct sockaddr *)&da->da_addr,
 					da->da_addrlen, IPPROTO_TCP,
 					timeo, retrans, minor_version,
@@ -940,6 +940,13 @@ EXPORT_SYMBOL_GPL(pnfs_layout_mark_request_commit);
 int
 pnfs_nfs_generic_sync(struct inode *inode, bool datasync)
 {
+	int ret;
+
+	if (!pnfs_layoutcommit_outstanding(inode))
+		return 0;
+	ret = nfs_commit_inode(inode, FLUSH_SYNC);
+	if (ret < 0)
+		return ret;
 	if (datasync)
 		return 0;
 	return pnfs_layoutcommit_inode(inode, true);

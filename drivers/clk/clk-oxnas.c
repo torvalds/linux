@@ -18,7 +18,7 @@
 
 #include <linux/clk-provider.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/stringify.h>
@@ -170,26 +170,17 @@ static int oxnas_stdclk_probe(struct platform_device *pdev)
 				   clk_oxnas->onecell_data);
 }
 
-static int oxnas_stdclk_remove(struct platform_device *pdev)
-{
-	of_clk_del_provider(pdev->dev.of_node);
-
-	return 0;
-}
-
 static const struct of_device_id oxnas_stdclk_dt_ids[] = {
 	{ .compatible = "oxsemi,ox810se-stdclk" },
 	{ }
 };
-MODULE_DEVICE_TABLE(of, oxnas_stdclk_dt_ids);
 
 static struct platform_driver oxnas_stdclk_driver = {
 	.probe = oxnas_stdclk_probe,
-	.remove = oxnas_stdclk_remove,
 	.driver	= {
 		.name = "oxnas-stdclk",
+		.suppress_bind_attrs = true,
 		.of_match_table = oxnas_stdclk_dt_ids,
 	},
 };
-
-module_platform_driver(oxnas_stdclk_driver);
+builtin_platform_driver(oxnas_stdclk_driver);

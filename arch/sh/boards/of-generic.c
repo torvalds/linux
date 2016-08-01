@@ -9,9 +9,7 @@
  */
 
 #include <linux/of.h>
-#include <linux/of_platform.h>
 #include <linux/of_fdt.h>
-#include <linux/of_iommu.h>
 #include <linux/clocksource.h>
 #include <linux/irqchip.h>
 #include <linux/clk-provider.h>
@@ -180,17 +178,3 @@ void __init arch_init_clk_ops(struct sh_clk_ops **ops, int idx)
 void __init plat_irq_setup(void)
 {
 }
-
-static int __init sh_of_device_init(void)
-{
-	pr_info("SH generic board support: populating platform devices\n");
-	if (of_have_populated_dt()) {
-		of_iommu_init();
-		of_platform_populate(NULL, of_default_bus_match_table,
-				     NULL, NULL);
-	} else {
-		pr_crit("Device tree not populated\n");
-	}
-	return 0;
-}
-arch_initcall_sync(sh_of_device_init);

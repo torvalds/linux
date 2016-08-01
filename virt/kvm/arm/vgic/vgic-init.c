@@ -353,31 +353,18 @@ out:
 
 /* GENERIC PROBE */
 
-static void vgic_init_maintenance_interrupt(void *info)
+static int vgic_init_cpu_starting(unsigned int cpu)
 {
 	enable_percpu_irq(kvm_vgic_global_state.maint_irq, 0);
+	return 0;
 }
 
-static int vgic_cpu_notify(struct notifier_block *self,
-			   unsigned long action, void *cpu)
+
+static int vgic_init_cpu_dying(unsigned int cpu)
 {
-	switch (action) {
-	case CPU_STARTING:
-	case CPU_STARTING_FROZEN:
-		vgic_init_maintenance_interrupt(NULL);
-		break;
-	case CPU_DYING:
-	case CPU_DYING_FROZEN:
-		disable_percpu_irq(kvm_vgic_global_state.maint_irq);
-		break;
-	}
-
-	return NOTIFY_OK;
+	disable_percpu_irq(kvm_vgic_global_state.maint_irq);
+	return 0;
 }
-
-static struct notifier_block vgic_cpu_nb = {
-	.notifier_call = vgic_cpu_notify,
-};
 
 static irqreturn_t vgic_maintenance_handler(int irq, void *data)
 {
@@ -434,13 +421,13 @@ int kvm_vgic_hyp_init(void)
 		return ret;
 	}
 
-	ret = __register_cpu_notifier(&vgic_cpu_nb);
+	ret = cpuhp_setup_state(CPUHP_AP_KVM_ARM_VGIC_INIT_STARTING,
+				"AP_KVM_ARM_VGIC_INIT_STARTING",
+				vgic_init_cpu_starting, vgic_init_cpu_dying);
 	if (ret) {
 		kvm_err("Cannot register vgic CPU notifier\n");
 		goto out_free_irq;
 	}
-
-	on_each_cpu(vgic_init_maintenance_interrupt, NULL, 1);
 
 	kvm_info("vgic interrupt IRQ%d\n", kvm_vgic_global_state.maint_irq);
 	return 0;

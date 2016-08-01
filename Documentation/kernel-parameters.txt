@@ -931,8 +931,17 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	dhash_entries=	[KNL]
 			Set number of hash buckets for dentry cache.
 
+	disable_1tb_segments [PPC]
+			Disables the use of 1TB hash page table segments. This
+			causes the kernel to fall back to 256MB segments which
+			can be useful when debugging issues that require an SLB
+			miss to occur.
+
 	disable=	[IPV6]
 			See Documentation/networking/ipv6.txt.
+
+	disable_radix	[PPC]
+			Disable RADIX MMU mode on POWER9
 
 	disable_cpu_apicid= [X86,APIC,SMP]
 			Format: <int>

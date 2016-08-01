@@ -259,7 +259,7 @@ static inline void sd_ctrl_write16_rep(struct tmio_mmc_host *host, int addr,
 
 static inline void sd_ctrl_write32_as_16_and_16(struct tmio_mmc_host *host, int addr, u32 val)
 {
-	writew(val, host->ctl + (addr << host->bus_shift));
+	writew(val & 0xffff, host->ctl + (addr << host->bus_shift));
 	writew(val >> 16, host->ctl + ((addr + 2) << host->bus_shift));
 }
 

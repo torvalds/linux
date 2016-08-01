@@ -1619,6 +1619,13 @@ bool atime_needs_update(const struct path *path, struct inode *inode)
 
 	if (inode->i_flags & S_NOATIME)
 		return false;
+
+	/* Atime updates will likely cause i_uid and i_gid to be written
+	 * back improprely if their true value is unknown to the vfs.
+	 */
+	if (HAS_UNMAPPED_ID(inode))
+		return false;
+
 	if (IS_NOATIME(inode))
 		return false;
 	if ((inode->i_sb->s_flags & MS_NODIRATIME) && S_ISDIR(inode->i_mode))

@@ -13,6 +13,7 @@
 #include <asm/msr.h>
 #include <asm/bugs.h>
 #include <asm/cpu.h>
+#include <asm/intel-family.h>
 
 #ifdef CONFIG_X86_64
 #include <linux/topology.h>
@@ -507,6 +508,10 @@ static void init_intel(struct cpuinfo_x86 *c)
 	if (c->x86 == 6 && boot_cpu_has(X86_FEATURE_CLFLUSH) &&
 	    (c->x86_model == 29 || c->x86_model == 46 || c->x86_model == 47))
 		set_cpu_bug(c, X86_BUG_CLFLUSH_MONITOR);
+
+	if (c->x86 == 6 && boot_cpu_has(X86_FEATURE_MWAIT) &&
+		((c->x86_model == INTEL_FAM6_ATOM_GOLDMONT)))
+		set_cpu_bug(c, X86_BUG_MONITOR);
 
 #ifdef CONFIG_X86_64
 	if (c->x86 == 15)

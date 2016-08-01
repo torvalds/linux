@@ -60,6 +60,11 @@ config GEF_SBC610
 	help
 	  This option enables support for the GE SBC610.
 
+config MVME7100
+        bool "Artesyn MVME7100"
+        help
+          This option enables support for the Emerson/Artesyn MVME7100 board.
+
 endif
 
 config MPC8641
@@ -68,7 +73,8 @@ config MPC8641
 	select FSL_PCI if PCI
 	select PPC_UDBG_16550
 	select MPIC
-	default y if MPC8641_HPCN || SBC8641D || GEF_SBC610 || GEF_SBC310 || GEF_PPC9A
+	default y if MPC8641_HPCN || SBC8641D || GEF_SBC610 || GEF_SBC310 || GEF_PPC9A \
+			|| MVME7100
 
 config MPC8610
 	bool

@@ -27,21 +27,6 @@ unsigned retries = 0;
 #define TEST_DURATION 10 /* seconds */
 #define TM_RETRIES 100
 
-long failure_code(void)
-{
-	return __builtin_get_texasru() >> 24;
-}
-
-bool failure_is_persistent(void)
-{
-	return (failure_code() & TM_CAUSE_PERSISTENT) == TM_CAUSE_PERSISTENT;
-}
-
-bool failure_is_syscall(void)
-{
-	return (failure_code() & TM_CAUSE_SYSCALL) == TM_CAUSE_SYSCALL;
-}
-
 pid_t getppid_tm(bool suspend)
 {
 	int i;

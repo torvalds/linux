@@ -12,6 +12,7 @@
 #include <linux/mm.h>
 #include <linux/hugetlb.h>
 #include <linux/memblock.h>
+#include <asm/ppc-opcode.h>
 
 #include <asm/tlb.h>
 #include <asm/tlbflush.h>
@@ -34,8 +35,7 @@ static inline void __tlbiel_pid(unsigned long pid, int set,
 	r = 1;   /* raidx format */
 
 	asm volatile("ptesync": : :"memory");
-	asm volatile(".long 0x7c000224 | (%0 << 11) | (%1 << 16) |"
-		     "(%2 << 17) | (%3 << 18) | (%4 << 21)"
+	asm volatile(PPC_TLBIEL(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(rs) : "memory");
 	asm volatile("ptesync": : :"memory");
 }
@@ -63,8 +63,7 @@ static inline void _tlbie_pid(unsigned long pid, unsigned long ric)
 	r = 1;   /* raidx format */
 
 	asm volatile("ptesync": : :"memory");
-	asm volatile(".long 0x7c000264 | (%0 << 11) | (%1 << 16) |"
-		     "(%2 << 17) | (%3 << 18) | (%4 << 21)"
+	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(rs) : "memory");
 	asm volatile("eieio; tlbsync; ptesync": : :"memory");
 }
@@ -81,8 +80,7 @@ static inline void _tlbiel_va(unsigned long va, unsigned long pid,
 	r = 1;   /* raidx format */
 
 	asm volatile("ptesync": : :"memory");
-	asm volatile(".long 0x7c000224 | (%0 << 11) | (%1 << 16) |"
-		     "(%2 << 17) | (%3 << 18) | (%4 << 21)"
+	asm volatile(PPC_TLBIEL(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(rs) : "memory");
 	asm volatile("ptesync": : :"memory");
 }
@@ -99,8 +97,7 @@ static inline void _tlbie_va(unsigned long va, unsigned long pid,
 	r = 1;   /* raidx format */
 
 	asm volatile("ptesync": : :"memory");
-	asm volatile(".long 0x7c000264 | (%0 << 11) | (%1 << 16) |"
-		     "(%2 << 17) | (%3 << 18) | (%4 << 21)"
+	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(rs) : "memory");
 	asm volatile("eieio; tlbsync; ptesync": : :"memory");
 }
@@ -285,9 +282,61 @@ void radix__flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 }
 EXPORT_SYMBOL(radix__flush_tlb_range);
 
+static int radix_get_mmu_psize(int page_size)
+{
+	int psize;
+
+	if (page_size == (1UL << mmu_psize_defs[mmu_virtual_psize].shift))
+		psize = mmu_virtual_psize;
+	else if (page_size == (1UL << mmu_psize_defs[MMU_PAGE_2M].shift))
+		psize = MMU_PAGE_2M;
+	else if (page_size == (1UL << mmu_psize_defs[MMU_PAGE_1G].shift))
+		psize = MMU_PAGE_1G;
+	else
+		return -1;
+	return psize;
+}
 
 void radix__tlb_flush(struct mmu_gather *tlb)
 {
 	struct mm_struct *mm = tlb->mm;
 	radix__flush_tlb_mm(mm);
 }
+
+void radix__flush_tlb_lpid_va(unsigned long lpid, unsigned long gpa,
+			      unsigned long page_size)
+{
+	unsigned long rb,rs,prs,r;
+	unsigned long ap;
+	unsigned long ric = RIC_FLUSH_TLB;
+
+	ap = mmu_get_ap(radix_get_mmu_psize(page_size));
+	rb = gpa & ~(PPC_BITMASK(52, 63));
+	rb |= ap << PPC_BITLSHIFT(58);
+	rs = lpid & ((1UL << 32) - 1);
+	prs = 0; /* process scoped */
+	r = 1;   /* raidx format */
+
+	asm volatile("ptesync": : :"memory");
+	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
+		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(rs) : "memory");
+	asm volatile("eieio; tlbsync; ptesync": : :"memory");
+}
+EXPORT_SYMBOL(radix__flush_tlb_lpid_va);
+
+void radix__flush_tlb_lpid(unsigned long lpid)
+{
+	unsigned long rb,rs,prs,r;
+	unsigned long ric = RIC_FLUSH_ALL;
+
+	rb = 0x2 << PPC_BITLSHIFT(53); /* IS = 2 */
+	rs = lpid & ((1UL << 32) - 1);
+	prs = 0; /* partition scoped */
+	r = 1;   /* raidx format */
+
+	asm volatile("ptesync": : :"memory");
+	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
+		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(rs) : "memory");
+	asm volatile("eieio; tlbsync; ptesync": : :"memory");
+}
+EXPORT_SYMBOL(radix__flush_tlb_lpid);
