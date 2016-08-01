@@ -17,13 +17,16 @@
 #include <linux/dma-iommu.h>
 
 #include <drm/drmP.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_sync_helper.h>
 #include <drm/rockchip_drm.h>
 #include <linux/dma-mapping.h>
 #include <linux/pm_runtime.h>
+#include <linux/memblock.h>
 #include <linux/module.h>
+#include <linux/of_address.h>
 #include <linux/of_graph.h>
 #include <linux/component.h>
 #include <linux/fence.h>
@@ -43,6 +46,451 @@
 
 static LIST_HEAD(rockchip_drm_subdrv_list);
 static DEFINE_MUTEX(subdrv_list_mutex);
+
+struct rockchip_drm_mode_set {
+	struct list_head head;
+	struct drm_framebuffer *fb;
+	struct drm_connector *connector;
+	struct drm_crtc *crtc;
+	struct drm_display_mode *mode;
+	int hdisplay;
+	int vdisplay;
+	int vrefresh;
+
+	bool mode_changed;
+	int ratio;
+};
+
+static struct drm_crtc *find_crtc_by_node(struct drm_device *drm_dev,
+					  struct device_node *node)
+{
+	struct device_node *np_crtc;
+	struct drm_crtc *crtc;
+
+	np_crtc = of_get_parent(node);
+	if (!np_crtc || !of_device_is_available(np_crtc))
+		return NULL;
+
+	drm_for_each_crtc(crtc, drm_dev) {
+		if (crtc->port == np_crtc)
+			return crtc;
+	}
+
+	return NULL;
+}
+
+static struct drm_connector *find_connector_by_node(struct drm_device *drm_dev,
+						    struct device_node *node)
+{
+	struct device_node *np_connector;
+	struct drm_connector *connector;
+
+	np_connector = of_graph_get_remote_port_parent(node);
+	if (!np_connector || !of_device_is_available(np_connector))
+		return NULL;
+
+	drm_for_each_connector(connector, drm_dev) {
+		if (connector->port == np_connector)
+			return connector;
+	}
+
+	return NULL;
+}
+
+static struct drm_framebuffer *
+get_framebuffer_by_node(struct drm_device *drm_dev, struct device_node *node)
+{
+	struct drm_mode_fb_cmd2 mode_cmd = { 0 };
+	struct device_node *memory;
+	struct resource res;
+	u32 val;
+	int bpp;
+
+	memory = of_parse_phandle(node, "logo,mem", 0);
+	if (!memory)
+		return NULL;
+
+	if (of_address_to_resource(memory, 0, &res)) {
+		pr_err("%s: could not get bootram phy addr\n", __func__);
+		return NULL;
+	}
+
+	if (of_property_read_u32(node, "logo,offset", &val)) {
+		pr_err("%s: failed to get logo,offset\n", __func__);
+		return NULL;
+	}
+	mode_cmd.offsets[0] = val;
+
+	if (of_property_read_u32(node, "logo,width", &val)) {
+		pr_err("%s: failed to get logo,width\n", __func__);
+		return NULL;
+	}
+	mode_cmd.width = val;
+
+	if (of_property_read_u32(node, "logo,height", &val)) {
+		pr_err("%s: failed to get logo,height\n", __func__);
+		return NULL;
+	}
+	mode_cmd.height = val;
+
+	if (of_property_read_u32(node, "logo,bpp", &val)) {
+		pr_err("%s: failed to get logo,bpp\n", __func__);
+		return NULL;
+	}
+	bpp = val;
+
+	mode_cmd.pitches[0] = mode_cmd.width * bpp / 8;
+	mode_cmd.pixel_format = DRM_FORMAT_BGR888;
+
+	return rockchip_fb_alloc(drm_dev, &mode_cmd, NULL, &res, 1);
+}
+
+static struct rockchip_drm_mode_set *
+of_parse_display_resource(struct drm_device *drm_dev, struct device_node *route)
+{
+	struct rockchip_drm_mode_set *set;
+	struct device_node *connect;
+	struct drm_framebuffer *fb;
+	struct drm_connector *connector;
+	struct drm_crtc *crtc;
+	u32 val;
+
+	connect = of_parse_phandle(route, "connect", 0);
+	if (!connect)
+		return NULL;
+
+	fb = get_framebuffer_by_node(drm_dev, route);
+	if (IS_ERR_OR_NULL(fb))
+		return NULL;
+
+	crtc = find_crtc_by_node(drm_dev, connect);
+	connector = find_connector_by_node(drm_dev, connect);
+	if (!crtc || !connector) {
+		dev_warn(drm_dev->dev,
+			 "No available crtc or connector for display");
+		drm_framebuffer_unreference(fb);
+		return NULL;
+	}
+
+	set = kzalloc(sizeof(*set), GFP_KERNEL);
+	if (!set)
+		return NULL;
+
+	if (!of_property_read_u32(route, "video,hdisplay", &val))
+		set->hdisplay = val;
+
+	if (!of_property_read_u32(route, "video,vdisplay", &val))
+		set->vdisplay = val;
+
+	if (!of_property_read_u32(route, "video,vrefresh", &val))
+		set->vrefresh = val;
+
+	set->fb = fb;
+	set->crtc = crtc;
+	set->connector = connector;
+	/* TODO: set display fullscreen or center */
+	set->ratio = 0;
+
+	return set;
+}
+
+int setup_initial_state(struct drm_device *drm_dev,
+			struct drm_atomic_state *state,
+			struct rockchip_drm_mode_set *set)
+{
+	struct drm_connector *connector = set->connector;
+	struct drm_crtc *crtc = set->crtc;
+	struct drm_crtc_state *crtc_state;
+	struct drm_connector_state *conn_state;
+	struct drm_plane_state *primary_state;
+	struct drm_display_mode *mode = NULL;
+	const struct drm_connector_helper_funcs *funcs;
+	bool is_crtc_enabled = true;
+	int hdisplay, vdisplay;
+	int fb_width, fb_height;
+	int found = 0, match = 0;
+	int num_modes;
+	int ret = 0;
+
+	if (!set->hdisplay || !set->vdisplay || !set->vrefresh)
+		is_crtc_enabled = false;
+
+	conn_state = drm_atomic_get_connector_state(state, connector);
+	if (IS_ERR(conn_state))
+		return PTR_ERR(conn_state);
+
+	funcs = connector->helper_private;
+	conn_state->best_encoder = funcs->best_encoder(connector);
+	num_modes = connector->funcs->fill_modes(connector, 4096, 4096);
+	if (!num_modes) {
+		dev_err(drm_dev->dev, "connector[%s] can't found any modes\n",
+			connector->name);
+		return -EINVAL;
+	}
+
+	list_for_each_entry(mode, &connector->modes, head) {
+		if (mode->hdisplay == set->hdisplay &&
+		    mode->vdisplay == set->vdisplay &&
+		    drm_mode_vrefresh(mode) == set->vrefresh) {
+			found = 1;
+			match = 1;
+			break;
+		}
+	}
+
+	if (!found) {
+		list_for_each_entry(mode, &connector->modes, head) {
+			if (mode->type & DRM_MODE_TYPE_PREFERRED) {
+				found = 1;
+				break;
+			}
+		}
+
+		if (!found) {
+			mode = list_first_entry_or_null(&connector->modes,
+							struct drm_display_mode,
+							head);
+			if (!mode) {
+				pr_err("failed to find available modes\n");
+				return -EINVAL;
+			}
+		}
+	}
+
+	set->mode = mode;
+	crtc_state = drm_atomic_get_crtc_state(state, crtc);
+	if (IS_ERR(crtc_state))
+		return PTR_ERR(crtc_state);
+
+	drm_mode_copy(&crtc_state->adjusted_mode, mode);
+	if (!match || !is_crtc_enabled) {
+		set->mode_changed = true;
+	} else {
+		ret = drm_atomic_set_crtc_for_connector(conn_state, crtc);
+		if (ret)
+			return ret;
+
+		ret = drm_atomic_set_mode_for_crtc(crtc_state, mode);
+		if (ret)
+			return ret;
+
+		crtc_state->active = true;
+	}
+
+	if (!set->fb)
+		return 0;
+	primary_state = drm_atomic_get_plane_state(state, crtc->primary);
+	if (IS_ERR(primary_state))
+		return PTR_ERR(primary_state);
+
+	hdisplay = mode->hdisplay;
+	vdisplay = mode->vdisplay;
+	fb_width = set->fb->width;
+	fb_height = set->fb->height;
+
+	primary_state->crtc = crtc;
+	primary_state->src_x = 0;
+	primary_state->src_y = 0;
+	primary_state->src_w = fb_width << 16;
+	primary_state->src_h = fb_height << 16;
+	if (set->ratio) {
+		if (set->fb->width >= hdisplay) {
+			primary_state->crtc_x = 0;
+			primary_state->crtc_w = hdisplay;
+		} else {
+			primary_state->crtc_x = (hdisplay - fb_width) / 2;
+			primary_state->crtc_w = set->fb->width;
+		}
+
+		if (set->fb->height >= vdisplay) {
+			primary_state->crtc_y = 0;
+			primary_state->crtc_h = vdisplay;
+		} else {
+			primary_state->crtc_y = (vdisplay - fb_height) / 2;
+			primary_state->crtc_h = fb_height;
+		}
+	} else {
+		primary_state->crtc_x = 0;
+		primary_state->crtc_y = 0;
+		primary_state->crtc_w = hdisplay;
+		primary_state->crtc_h = vdisplay;
+	}
+
+	return 0;
+}
+
+static int update_state(struct drm_device *drm_dev,
+			struct drm_atomic_state *state,
+			struct rockchip_drm_mode_set *set,
+			unsigned int *plane_mask)
+{
+	struct drm_mode_config *mode_config = &drm_dev->mode_config;
+	struct drm_crtc *crtc = set->crtc;
+	struct drm_connector *connector = set->connector;
+	struct drm_display_mode *mode = set->mode;
+	struct drm_plane_state *primary_state;
+	struct drm_crtc_state *crtc_state;
+	struct drm_connector_state *conn_state;
+	int ret;
+
+	crtc_state = drm_atomic_get_crtc_state(state, crtc);
+	if (IS_ERR(crtc_state))
+		return PTR_ERR(crtc_state);
+	conn_state = drm_atomic_get_connector_state(state, connector);
+	if (IS_ERR(conn_state))
+		return PTR_ERR(conn_state);
+
+	if (set->mode_changed) {
+		ret = drm_atomic_set_crtc_for_connector(conn_state, crtc);
+		if (ret)
+			return ret;
+
+		ret = drm_atomic_set_mode_for_crtc(crtc_state, mode);
+		if (ret)
+			return ret;
+
+		crtc_state->active = true;
+	} else {
+		const struct drm_crtc_helper_funcs *funcs;
+
+		funcs = crtc->helper_private;
+		if (!funcs || !funcs->enable)
+			return -ENXIO;
+		funcs->enable(crtc);
+	}
+
+	primary_state = drm_atomic_get_plane_state(state, crtc->primary);
+	if (IS_ERR(primary_state))
+		return PTR_ERR(primary_state);
+
+	crtc_state->plane_mask = 1 << drm_plane_index(crtc->primary);
+	*plane_mask |= crtc_state->plane_mask;
+
+	drm_atomic_set_fb_for_plane(primary_state, set->fb);
+	drm_framebuffer_unreference(set->fb);
+	ret = drm_atomic_set_crtc_for_plane(primary_state, crtc);
+
+	/*
+	 * TODO:
+	 * some vop maybe not support ymirror, but force use it now.
+	 */
+	drm_atomic_plane_set_property(crtc->primary, primary_state,
+				      mode_config->rotation_property,
+				      BIT(DRM_REFLECT_Y));
+
+	return ret;
+}
+
+static void show_loader_logo(struct drm_device *drm_dev)
+{
+	struct drm_atomic_state *state;
+	struct device_node *np = drm_dev->dev->of_node;
+	struct drm_mode_config *mode_config = &drm_dev->mode_config;
+	struct device_node *root, *route;
+	struct rockchip_drm_mode_set *set, *tmp;
+	struct list_head mode_set_list;
+	unsigned plane_mask = 0;
+	int ret;
+
+	root = of_get_child_by_name(np, "route");
+	if (!root) {
+		dev_warn(drm_dev->dev, "failed to parse display resources\n");
+		return;
+	}
+
+	INIT_LIST_HEAD(&mode_set_list);
+	drm_modeset_lock_all(drm_dev);
+	state = drm_atomic_state_alloc(drm_dev);
+	if (!state) {
+		dev_err(drm_dev->dev, "failed to alloc atomic state\n");
+		ret = -ENOMEM;
+		goto err_unlock;
+	}
+
+	state->acquire_ctx = mode_config->acquire_ctx;
+	for_each_child_of_node(root, route) {
+		set = of_parse_display_resource(drm_dev, route);
+		if (!set)
+			continue;
+
+		if (setup_initial_state(drm_dev, state, set)) {
+			drm_framebuffer_unreference(set->fb);
+			kfree(set);
+			continue;
+		}
+		INIT_LIST_HEAD(&set->head);
+		list_add_tail(&set->head, &mode_set_list);
+	}
+
+	if (list_empty(&mode_set_list)) {
+		dev_warn(drm_dev->dev, "can't not find any loader display\n");
+		ret = -ENXIO;
+		goto err_free_state;
+	}
+
+	/*
+	 * The state save initial devices status, swap the state into
+	 * drm deivces as old state, so if new state come, can compare
+	 * with this state to judge which status need to update.
+	 */
+	drm_atomic_helper_swap_state(drm_dev, state);
+	drm_atomic_state_free(state);
+	state = drm_atomic_helper_duplicate_state(drm_dev,
+						  mode_config->acquire_ctx);
+	if (IS_ERR(state)) {
+		dev_err(drm_dev->dev, "failed to duplicate atomic state\n");
+		ret = PTR_ERR_OR_ZERO(state);
+		goto err_unlock;
+	}
+	state->acquire_ctx = mode_config->acquire_ctx;
+	list_for_each_entry(set, &mode_set_list, head)
+		/*
+		 * We don't want to see any fail on update_state.
+		 */
+		WARN_ON(update_state(drm_dev, state, set, &plane_mask));
+
+	ret = drm_atomic_commit(state);
+	drm_atomic_clean_old_fb(drm_dev, plane_mask, ret);
+
+	list_for_each_entry_safe(set, tmp, &mode_set_list, head) {
+		struct drm_crtc *crtc = set->crtc;
+
+		list_del(&set->head);
+		kfree(set);
+
+		/* FIXME:
+		 * primary plane state rotation is not BIT(0), but we only want
+		 * it effect on logo display, userspace may not known to clean
+		 * this property, would get unexpect display, so force set
+		 * primary rotation to BIT(0).
+		 */
+		if (!crtc->primary || !crtc->primary->state)
+			continue;
+
+		drm_atomic_plane_set_property(crtc->primary,
+					      crtc->primary->state,
+					      mode_config->rotation_property,
+					      BIT(0));
+	}
+
+	/*
+	 * Is possible get deadlock here?
+	 */
+	WARN_ON(ret == -EDEADLK);
+
+	if (ret)
+		goto err_free_state;
+
+	drm_modeset_unlock_all(drm_dev);
+	return;
+
+err_free_state:
+	drm_atomic_state_free(state);
+err_unlock:
+	drm_modeset_unlock_all(drm_dev);
+	if (ret)
+		dev_err(drm_dev->dev, "failed to show loader logo\n");
+}
 
 /*
  * Attach a (component) device to the shared drm dma mapping from master drm
@@ -254,6 +702,8 @@ static int rockchip_drm_load(struct drm_device *drm_dev, unsigned long flags)
 	drm_dev->vblank_disable_allowed = true;
 
 	drm_mode_config_reset(drm_dev);
+
+	show_loader_logo(drm_dev);
 
 	ret = rockchip_drm_fbdev_init(drm_dev);
 	if (ret)
