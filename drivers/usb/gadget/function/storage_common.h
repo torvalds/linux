@@ -88,6 +88,12 @@ do {									\
 #define ASC(x)		((u8) ((x) >> 8))
 #define ASCQ(x)		((u8) (x))
 
+/*
+ * Vendor (8 chars), product (16 chars), release (4 hexadecimal digits) and NUL
+ * byte
+ */
+#define INQUIRY_STRING_LEN ((size_t) (8 + 16 + 4 + 1))
+
 struct fsg_lun {
 	struct file	*filp;
 	loff_t		file_length;
@@ -112,6 +118,7 @@ struct fsg_lun {
 	struct device	dev;
 	const char	*name;		/* "lun.name" */
 	const char	**name_pfx;	/* "function.name" */
+	char		inquiry_string[INQUIRY_STRING_LEN];
 };
 
 static inline bool fsg_lun_is_open(struct fsg_lun *curlun)
@@ -210,6 +217,7 @@ ssize_t fsg_show_ro(struct fsg_lun *curlun, char *buf);
 ssize_t fsg_show_nofua(struct fsg_lun *curlun, char *buf);
 ssize_t fsg_show_file(struct fsg_lun *curlun, struct rw_semaphore *filesem,
 		      char *buf);
+ssize_t fsg_show_inquiry_string(struct fsg_lun *curlun, char *buf);
 ssize_t fsg_show_cdrom(struct fsg_lun *curlun, char *buf);
 ssize_t fsg_show_removable(struct fsg_lun *curlun, char *buf);
 ssize_t fsg_store_ro(struct fsg_lun *curlun, struct rw_semaphore *filesem,
@@ -221,5 +229,7 @@ ssize_t fsg_store_cdrom(struct fsg_lun *curlun, struct rw_semaphore *filesem,
 			const char *buf, size_t count);
 ssize_t fsg_store_removable(struct fsg_lun *curlun, const char *buf,
 			    size_t count);
+ssize_t fsg_store_inquiry_string(struct fsg_lun *curlun, const char *buf,
+				 size_t count);
 
 #endif /* USB_STORAGE_COMMON_H */
