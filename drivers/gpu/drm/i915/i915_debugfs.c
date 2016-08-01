@@ -5238,7 +5238,8 @@ static void broadwell_sseu_device_status(struct drm_device *dev,
 static int i915_sseu_status(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_i915_private *dev_priv = to_i915(node->minor->dev);
+	struct drm_device *dev = &dev_priv->drm;
 	struct sseu_dev_status stat;
 
 	if (INTEL_INFO(dev)->gen < 8)
@@ -5268,6 +5269,9 @@ static int i915_sseu_status(struct seq_file *m, void *unused)
 
 	seq_puts(m, "SSEU Device Status\n");
 	memset(&stat, 0, sizeof(stat));
+
+	intel_runtime_pm_get(dev_priv);
+
 	if (IS_CHERRYVIEW(dev)) {
 		cherryview_sseu_device_status(dev, &stat);
 	} else if (IS_BROADWELL(dev)) {
@@ -5275,6 +5279,9 @@ static int i915_sseu_status(struct seq_file *m, void *unused)
 	} else if (INTEL_INFO(dev)->gen >= 9) {
 		gen9_sseu_device_status(dev, &stat);
 	}
+
+	intel_runtime_pm_put(dev_priv);
+
 	seq_printf(m, "  Enabled Slice Total: %u\n",
 		   stat.slice_total);
 	seq_printf(m, "  Enabled Subslice Total: %u\n",
