@@ -686,9 +686,9 @@ void *__init __fixmap_remap_fdt(phys_addr_t dt_phys, int *size, pgprot_t prot)
 	/*
 	 * Check whether the physical FDT address is set and meets the minimum
 	 * alignment requirement. Since we are relying on MIN_FDT_ALIGN to be
-	 * at least 8 bytes so that we can always access the size field of the
-	 * FDT header after mapping the first chunk, double check here if that
-	 * is indeed the case.
+	 * at least 8 bytes so that we can always access the magic and size
+	 * fields of the FDT header after mapping the first chunk, double check
+	 * here if that is indeed the case.
 	 */
 	BUILD_BUG_ON(MIN_FDT_ALIGN < 8);
 	if (!dt_phys || dt_phys % MIN_FDT_ALIGN)
@@ -716,7 +716,7 @@ void *__init __fixmap_remap_fdt(phys_addr_t dt_phys, int *size, pgprot_t prot)
 	create_mapping_noalloc(round_down(dt_phys, SWAPPER_BLOCK_SIZE),
 			dt_virt_base, SWAPPER_BLOCK_SIZE, prot);
 
-	if (fdt_check_header(dt_virt) != 0)
+	if (fdt_magic(dt_virt) != FDT_MAGIC)
 		return NULL;
 
 	*size = fdt_totalsize(dt_virt);
