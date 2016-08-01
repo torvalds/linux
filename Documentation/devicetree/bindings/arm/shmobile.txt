@@ -29,6 +29,8 @@ SoCs:
     compatible = "renesas,r8a7794"
   - R-Car H3 (R8A77950)
     compatible = "renesas,r8a7795"
+  - R-Car M3-W (R8A77960)
+    compatible = "renesas,r8a7796"
 
 
 Boards:
@@ -63,5 +65,7 @@ Boards:
     compatible = "renesas,porter", "renesas,r8a7791"
   - Salvator-X (RTP0RC7795SIPB0010S)
     compatible = "renesas,salvator-x", "renesas,r8a7795";
+  - Salvator-X
+    compatible = "renesas,salvator-x", "renesas,r8a7796";
   - SILK (RTP0RC7794LCB00011S)
     compatible = "renesas,silk", "renesas,r8a7794"

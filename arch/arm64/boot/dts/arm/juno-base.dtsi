@@ -56,6 +56,315 @@
 			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(6) | IRQ_TYPE_LEVEL_LOW)>;
 	};
 
+	/*
+	 * Juno TRMs specify the size for these coresight components as 64K.
+	 * The actual size is just 4K though 64K is reserved. Access to the
+	 * unmapped reserved region results in a DECERR response.
+	 */
+	etf@20010000 {
+		compatible = "arm,coresight-tmc", "arm,primecell";
+		reg = <0 0x20010000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			/* input port */
+			port@0 {
+				reg = <0>;
+				etf_in_port: endpoint {
+					slave-mode;
+					remote-endpoint = <&main_funnel_out_port>;
+				};
+			};
+
+			/* output port */
+			port@1 {
+				reg = <0>;
+				etf_out_port: endpoint {
+					remote-endpoint = <&replicator_in_port0>;
+				};
+			};
+		};
+	};
+
+	tpiu@20030000 {
+		compatible = "arm,coresight-tpiu", "arm,primecell";
+		reg = <0 0x20030000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+		port {
+			tpiu_in_port: endpoint {
+				slave-mode;
+				remote-endpoint = <&replicator_out_port0>;
+			};
+		};
+	};
+
+	main-funnel@20040000 {
+		compatible = "arm,coresight-funnel", "arm,primecell";
+		reg = <0 0x20040000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				main_funnel_out_port: endpoint {
+					remote-endpoint = <&etf_in_port>;
+				};
+			};
+
+			port@1 {
+				reg = <0>;
+				main_funnel_in_port0: endpoint {
+					slave-mode;
+					remote-endpoint = <&cluster0_funnel_out_port>;
+				};
+			};
+
+			port@2 {
+				reg = <1>;
+				main_funnel_in_port1: endpoint {
+					slave-mode;
+					remote-endpoint = <&cluster1_funnel_out_port>;
+				};
+			};
+
+		};
+	};
+
+	etr@20070000 {
+		compatible = "arm,coresight-tmc", "arm,primecell";
+		reg = <0 0x20070000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+		port {
+			etr_in_port: endpoint {
+				slave-mode;
+				remote-endpoint = <&replicator_out_port1>;
+			};
+		};
+	};
+
+	etm0: etm@22040000 {
+		compatible = "arm,coresight-etm4x", "arm,primecell";
+		reg = <0 0x22040000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+		port {
+			cluster0_etm0_out_port: endpoint {
+				remote-endpoint = <&cluster0_funnel_in_port0>;
+			};
+		};
+	};
+
+	cluster0-funnel@220c0000 {
+		compatible = "arm,coresight-funnel", "arm,primecell";
+		reg = <0 0x220c0000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				cluster0_funnel_out_port: endpoint {
+					remote-endpoint = <&main_funnel_in_port0>;
+				};
+			};
+
+			port@1 {
+				reg = <0>;
+				cluster0_funnel_in_port0: endpoint {
+					slave-mode;
+					remote-endpoint = <&cluster0_etm0_out_port>;
+				};
+			};
+
+			port@2 {
+				reg = <1>;
+				cluster0_funnel_in_port1: endpoint {
+					slave-mode;
+					remote-endpoint = <&cluster0_etm1_out_port>;
+				};
+			};
+		};
+	};
+
+	etm1: etm@22140000 {
+		compatible = "arm,coresight-etm4x", "arm,primecell";
+		reg = <0 0x22140000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+		port {
+			cluster0_etm1_out_port: endpoint {
+				remote-endpoint = <&cluster0_funnel_in_port1>;
+			};
+		};
+	};
+
+	etm2: etm@23040000 {
+		compatible = "arm,coresight-etm4x", "arm,primecell";
+		reg = <0 0x23040000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+		port {
+			cluster1_etm0_out_port: endpoint {
+				remote-endpoint = <&cluster1_funnel_in_port0>;
+			};
+		};
+	};
+
+	cluster1-funnel@230c0000 {
+		compatible = "arm,coresight-funnel", "arm,primecell";
+		reg = <0 0x230c0000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				cluster1_funnel_out_port: endpoint {
+					remote-endpoint = <&main_funnel_in_port1>;
+				};
+			};
+
+			port@1 {
+				reg = <0>;
+				cluster1_funnel_in_port0: endpoint {
+					slave-mode;
+					remote-endpoint = <&cluster1_etm0_out_port>;
+				};
+			};
+
+			port@2 {
+				reg = <1>;
+				cluster1_funnel_in_port1: endpoint {
+					slave-mode;
+					remote-endpoint = <&cluster1_etm1_out_port>;
+				};
+			};
+			port@3 {
+				reg = <2>;
+				cluster1_funnel_in_port2: endpoint {
+					slave-mode;
+					remote-endpoint = <&cluster1_etm2_out_port>;
+				};
+			};
+			port@4 {
+				reg = <3>;
+				cluster1_funnel_in_port3: endpoint {
+					slave-mode;
+					remote-endpoint = <&cluster1_etm3_out_port>;
+				};
+			};
+		};
+	};
+
+	etm3: etm@23140000 {
+		compatible = "arm,coresight-etm4x", "arm,primecell";
+		reg = <0 0x23140000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+		port {
+			cluster1_etm1_out_port: endpoint {
+				remote-endpoint = <&cluster1_funnel_in_port1>;
+			};
+		};
+	};
+
+	etm4: etm@23240000 {
+		compatible = "arm,coresight-etm4x", "arm,primecell";
+		reg = <0 0x23240000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+		port {
+			cluster1_etm2_out_port: endpoint {
+				remote-endpoint = <&cluster1_funnel_in_port2>;
+			};
+		};
+	};
+
+	etm5: etm@23340000 {
+		compatible = "arm,coresight-etm4x", "arm,primecell";
+		reg = <0 0x23340000 0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+		port {
+			cluster1_etm3_out_port: endpoint {
+				remote-endpoint = <&cluster1_funnel_in_port3>;
+			};
+		};
+	};
+
+	coresight-replicator {
+		/*
+		 * Non-configurable replicators don't show up on the
+		 * AMBA bus.  As such no need to add "arm,primecell".
+		 */
+		compatible = "arm,coresight-replicator";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			/* replicator output ports */
+			port@0 {
+				reg = <0>;
+				replicator_out_port0: endpoint {
+					remote-endpoint = <&tpiu_in_port>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				replicator_out_port1: endpoint {
+					remote-endpoint = <&etr_in_port>;
+				};
+			};
+
+			/* replicator input port */
+			port@2 {
+				reg = <0>;
+				replicator_in_port0: endpoint {
+					slave-mode;
+					remote-endpoint = <&etf_out_port>;
+				};
+			};
+		};
+	};
+
 	sram: sram@2e000000 {
 		compatible = "arm,juno-sram-ns", "mmio-sram";
 		reg = <0x0 0x2e000000 0x0 0x8000>;
@@ -119,9 +428,57 @@
 			};
 		};
 
+		scpi_devpd: scpi-power-domains {
+			compatible = "arm,scpi-power-domains";
+			num-domains = <2>;
+			#power-domain-cells = <1>;
+		};
+
 		scpi_sensors0: sensors {
 			compatible = "arm,scpi-sensors";
 			#thermal-sensor-cells = <1>;
+		};
+	};
+
+	thermal-zones {
+		pmic {
+			polling-delay = <1000>;
+			polling-delay-passive = <100>;
+			thermal-sensors = <&scpi_sensors0 0>;
+		};
+
+		soc {
+			polling-delay = <1000>;
+			polling-delay-passive = <100>;
+			thermal-sensors = <&scpi_sensors0 3>;
+		};
+
+		big_cluster_thermal_zone: big_cluster {
+			polling-delay = <1000>;
+			polling-delay-passive = <100>;
+			thermal-sensors = <&scpi_sensors0 21>;
+			status = "disabled";
+		};
+
+		little_cluster_thermal_zone: little_cluster {
+			polling-delay = <1000>;
+			polling-delay-passive = <100>;
+			thermal-sensors = <&scpi_sensors0 22>;
+			status = "disabled";
+		};
+
+		gpu0_thermal_zone: gpu0 {
+			polling-delay = <1000>;
+			polling-delay-passive = <100>;
+			thermal-sensors = <&scpi_sensors0 23>;
+			status = "disabled";
+		};
+
+		gpu1_thermal_zone: gpu1 {
+			polling-delay = <1000>;
+			polling-delay-passive = <100>;
+			thermal-sensors = <&scpi_sensors0 24>;
+			status = "disabled";
 		};
 	};
 

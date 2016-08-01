@@ -42,13 +42,48 @@
 		#size-cells = <2>;
 		ranges;
 
-		reserve_aligned@86000000 {
-			reg = <0x0 0x86000000 0x0 0x0300000>;
+		tz-apps@86000000 {
+			reg = <0x0 0x86000000 0x0 0x300000>;
 			no-map;
 		};
 
 		smem_mem: smem_region@86300000 {
-			reg = <0x0 0x86300000 0x0 0x0100000>;
+			reg = <0x0 0x86300000 0x0 0x100000>;
+			no-map;
+		};
+
+		hypervisor@86400000 {
+			reg = <0x0 0x86400000 0x0 0x100000>;
+			no-map;
+		};
+
+		tz@86500000 {
+			reg = <0x0 0x86500000 0x0 0x180000>;
+			no-map;
+		};
+
+		reserved@8668000 {
+			reg = <0x0 0x86680000 0x0 0x80000>;
+			no-map;
+		};
+
+		rmtfs@86700000 {
+			reg = <0x0 0x86700000 0x0 0xe0000>;
+			no-map;
+		};
+
+		rfsa@867e00000 {
+			reg = <0x0 0x867e0000 0x0 0x20000>;
+			no-map;
+		};
+
+		mpss@86800000 {
+			reg = <0x0 0x86800000 0x0 0x2b00000>;
+			no-map;
+		};
+
+		wcnss@89300000 {
+			reg = <0x0 0x89300000 0x0 0x600000>;
 			no-map;
 		};
 	};
@@ -62,6 +97,8 @@
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0>;
 			next-level-cache = <&L2_0>;
+			enable-method = "psci";
+			cpu-idle-states = <&CPU_SPC>;
 		};
 
 		CPU1: cpu@1 {
@@ -69,6 +106,8 @@
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x1>;
 			next-level-cache = <&L2_0>;
+			enable-method = "psci";
+			cpu-idle-states = <&CPU_SPC>;
 		};
 
 		CPU2: cpu@2 {
@@ -76,6 +115,8 @@
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x2>;
 			next-level-cache = <&L2_0>;
+			enable-method = "psci";
+			cpu-idle-states = <&CPU_SPC>;
 		};
 
 		CPU3: cpu@3 {
@@ -83,12 +124,35 @@
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x3>;
 			next-level-cache = <&L2_0>;
+			enable-method = "psci";
+			cpu-idle-states = <&CPU_SPC>;
 		};
 
 		L2_0: l2-cache {
 		      compatible = "cache";
 		      cache-level = <2>;
 		};
+
+		idle-states {
+			CPU_SPC: spc {
+				compatible = "arm,idle-state";
+				arm,psci-suspend-param = <0x40000002>;
+				entry-latency-us = <130>;
+				exit-latency-us = <150>;
+				min-residency-us = <2000>;
+				local-timer-stop;
+			};
+		};
+	};
+
+	psci {
+		compatible = "arm,psci-1.0";
+		method = "smc";
+	};
+
+	pmu {
+		compatible = "arm,armv8-pmuv3";
+		interrupts = <GIC_PPI 7 GIC_CPU_MASK_SIMPLE(4)>;
 	};
 
 	timer {
@@ -120,6 +184,14 @@
 		qcom,rpm-msg-ram = <&rpm_msg_ram>;
 
 		hwlocks = <&tcsr_mutex 3>;
+	};
+
+	firmware {
+		scm {
+			compatible = "qcom,scm";
+			clocks = <&gcc GCC_CRYPTO_CLK>, <&gcc GCC_CRYPTO_AXI_CLK>, <&gcc GCC_CRYPTO_AHB_CLK>;
+			clock-names = "core", "bus", "iface";
+		};
 	};
 
 	soc: soc {
