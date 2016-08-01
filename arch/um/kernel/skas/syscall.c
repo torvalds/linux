@@ -27,12 +27,7 @@ void handle_syscall(struct uml_pt_regs *r)
 	if (secure_computing(NULL) == -1)
 		goto out;
 
-	/* Update the syscall number after orig_ax has potentially been updated
-	 * with ptrace.
-	 */
-	UPT_SYSCALL_NR(r) = PT_SYSCALL_NR(r->gp);
 	syscall = UPT_SYSCALL_NR(r);
-
 	if (syscall >= 0 && syscall <= __NR_syscall_max)
 		PT_REGS_SET_SYSCALL_RETURN(regs,
 				EXECUTE_SYSCALL(syscall, regs));
