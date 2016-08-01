@@ -381,3 +381,31 @@ define archhelp
   echo  '                  install to $$(INSTALL_PATH) and run lilo'
   echo  '  vdso_install  - Install unstripped vdso.so to $$(INSTALL_MOD_PATH)/vdso'
 endef
+
+kernel.img: zImage
+	$(Q)scripts/mkkrnlimg $(objtree)/arch/arm/boot/zImage $(objtree)/kernel.img >/dev/null
+	@echo '  Image:  kernel.img (with zImage) is ready'
+
+ifdef CONFIG_FB
+LOGO := $(notdir $(wildcard $(srctree)/logo.bmp))
+LOGO_KERNEL := $(notdir $(wildcard $(srctree)/logo_kernel.bmp))
+endif
+%.img: %.dtb kernel.img $(LOGO) $(LOGO_KERNEL)
+	$(Q) if [ -f $(srctree)/$(LOGO) -a "$(srctree)" != "$(objtree)" ]; then cp -a $(srctree)/$(LOGO) $(objtree)/; fi
+	$(Q) if [ -f $(srctree)/$(LOGO_KERNEL) -a "$(srctree)" != "$(objtree)" ]; then cp -a $(srctree)/$(LOGO_KERNEL) $(objtree)/; fi
+	$(Q)scripts/resource_tool $(objtree)/arch/arm/boot/dts/$*.dtb $(LOGO) $(LOGO_KERNEL)
+	@echo '  Image:  resource.img (with $*.dtb $(LOGO) $(LOGO_KERNEL)) is ready'
+	$(Q) if [ -x $(srctree)/scripts/mkbootimg ]; then \
+		$(srctree)/scripts/mkbootimg \
+			--kernel $(objtree)/arch/arm/boot/Image \
+			--second resource.img \
+			-o boot.img && \
+		echo '  Image:  boot.img (with Image resource.img) is ready'; \
+		$(srctree)/scripts/mkbootimg \
+			--kernel $(objtree)/arch/arm/boot/zImage \
+			--second resource.img \
+			-o zboot.img && \
+		echo '  Image:  zboot.img (with zImage resource.img) is ready'; \
+	fi
+
+CLEAN_FILES += boot.img kernel.img resource.img zboot.img
