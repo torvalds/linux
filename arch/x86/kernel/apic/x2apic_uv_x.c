@@ -223,6 +223,11 @@ static int __init uv_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 	if (strncmp(oem_id, "SGI", 3) != 0)
 		return 0;
 
+	if (numa_off) {
+		pr_err("UV: NUMA is off, disabling UV support\n");
+		return 0;
+	}
+
 	/* Setup early hub type field in uv_hub_info for Node 0 */
 	uv_cpu_info->p_uv_hub_info = &uv_hub_info_node0;
 
