@@ -377,3 +377,15 @@ define archhelp
   echo  '                  install to $$(INSTALL_PATH) and run lilo'
   echo  '  vdso_install  - Install unstripped vdso.so to $$(INSTALL_MOD_PATH)/vdso'
 endef
+
+kernel.img: zImage
+	$(Q)$(srctree)/scripts/mkkrnlimg $(objtree)/arch/arm/boot/zImage $(objtree)/kernel.img >/dev/null
+	@echo '  Image:  kernel.img is ready'
+
+LOGO := $(notdir $(wildcard $(srctree)/logo.bmp))
+LOGO_KERNEL := $(notdir $(wildcard $(srctree)/logo_kernel.bmp))
+%.img: %.dtb kernel.img $(LOGO) $(LOGO_KERNEL)
+	$(Q) if [ -f $(srctree)/$(LOGO) -a "$(srctree)" != "$(objtree)" ]; then cp -a $(srctree)/$(LOGO) $(objtree)/; fi
+	$(Q) if [ -f $(srctree)/$(LOGO_KERNEL) -a "$(srctree)" != "$(objtree)" ]; then cp -a $(srctree)/$(LOGO_KERNEL) $(objtree)/; fi
+	$(Q)$(srctree)/scripts/resource_tool $(objtree)/arch/arm/boot/dts/$*.dtb $(LOGO) $(LOGO_KERNEL)
+	@echo '  Image:  resource.img (with $*.dtb $(LOGO) $(LOGO_KERNEL)) is ready'
