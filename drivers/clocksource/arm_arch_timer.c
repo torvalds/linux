@@ -8,6 +8,9 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+
+#define pr_fmt(fmt)	"arm_arch_timer: " fmt
+
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
@@ -370,16 +373,33 @@ static bool arch_timer_has_nonsecure_ppi(void)
 		arch_timer_ppi[PHYS_NONSECURE_PPI]);
 }
 
+static u32 check_ppi_trigger(int irq)
+{
+	u32 flags = irq_get_trigger_type(irq);
+
+	if (flags != IRQF_TRIGGER_HIGH && flags != IRQF_TRIGGER_LOW) {
+		pr_warn("WARNING: Invalid trigger for IRQ%d, assuming level low\n", irq);
+		pr_warn("WARNING: Please fix your firmware\n");
+		flags = IRQF_TRIGGER_LOW;
+	}
+
+	return flags;
+}
+
 static int arch_timer_starting_cpu(unsigned int cpu)
 {
 	struct clock_event_device *clk = this_cpu_ptr(arch_timer_evt);
+	u32 flags;
 
 	__arch_timer_setup(ARCH_CP15_TIMER, clk);
 
-	enable_percpu_irq(arch_timer_ppi[arch_timer_uses_ppi], 0);
+	flags = check_ppi_trigger(arch_timer_ppi[arch_timer_uses_ppi]);
+	enable_percpu_irq(arch_timer_ppi[arch_timer_uses_ppi], flags);
 
-	if (arch_timer_has_nonsecure_ppi())
-		enable_percpu_irq(arch_timer_ppi[PHYS_NONSECURE_PPI], 0);
+	if (arch_timer_has_nonsecure_ppi()) {
+		flags = check_ppi_trigger(arch_timer_ppi[PHYS_NONSECURE_PPI]);
+		enable_percpu_irq(arch_timer_ppi[PHYS_NONSECURE_PPI], flags);
+	}
 
 	arch_counter_set_user_access();
 	if (evtstrm_enable)
