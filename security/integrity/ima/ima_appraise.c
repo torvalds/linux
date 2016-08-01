@@ -130,6 +130,7 @@ enum hash_algo ima_get_hash_algo(struct evm_ima_xattr_data *xattr_value,
 				 int xattr_len)
 {
 	struct signature_v2_hdr *sig;
+	enum hash_algo ret;
 
 	if (!xattr_value || xattr_len < 2)
 		/* return default hash algo */
@@ -143,7 +144,9 @@ enum hash_algo ima_get_hash_algo(struct evm_ima_xattr_data *xattr_value,
 		return sig->hash_algo;
 		break;
 	case IMA_XATTR_DIGEST_NG:
-		return xattr_value->digest[0];
+		ret = xattr_value->digest[0];
+		if (ret < HASH_ALGO__LAST)
+			return ret;
 		break;
 	case IMA_XATTR_DIGEST:
 		/* this is for backward compatibility */
