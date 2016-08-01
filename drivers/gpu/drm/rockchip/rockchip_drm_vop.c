@@ -760,8 +760,6 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	uint32_t act_info, dsp_info, dsp_st;
 	struct drm_rect *src = &vop_plane_state->src;
 	struct drm_rect *dest = &vop_plane_state->dest;
-	struct drm_gem_object *obj, *uv_obj;
-	struct rockchip_gem_object *rk_obj, *rk_uv_obj;
 	unsigned long offset;
 	dma_addr_t dma_addr;
 	int ymirror, xmirror;
@@ -779,9 +777,6 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 		return;
 	}
 
-	obj = rockchip_fb_get_gem_obj(fb, 0);
-	rk_obj = to_rockchip_obj(obj);
-
 	actual_w = drm_rect_width(src) >> 16;
 	actual_h = drm_rect_height(src) >> 16;
 	act_info = (actual_h - 1) << 16 | ((actual_w - 1) & 0xffff);
@@ -798,7 +793,9 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 		offset += ((src->y2 >> 16) - 1) * fb->pitches[0];
 	else
 		offset += (src->y1 >> 16) * fb->pitches[0];
-	vop_plane_state->yrgb_mst = rk_obj->dma_addr + offset + fb->offsets[0];
+
+	dma_addr = rockchip_fb_get_dma_addr(fb, 0, vop->dev);
+	vop_plane_state->yrgb_mst = dma_addr + offset + fb->offsets[0];
 
 	ymirror = !!(state->rotation & BIT(DRM_REFLECT_Y));
 	xmirror = !!(state->rotation & BIT(DRM_REFLECT_X));
@@ -815,13 +812,11 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 		int vsub = drm_format_vert_chroma_subsampling(fb->pixel_format);
 		int bpp = drm_format_plane_cpp(fb->pixel_format, 1);
 
-		uv_obj = rockchip_fb_get_gem_obj(fb, 1);
-		rk_uv_obj = to_rockchip_obj(uv_obj);
-
 		offset = (src->x1 >> 16) * bpp / hsub;
 		offset += (src->y1 >> 16) * fb->pitches[1] / vsub;
 
-		dma_addr = rk_uv_obj->dma_addr + offset + fb->offsets[1];
+		dma_addr = rockchip_fb_get_dma_addr(fb, 1, vop->dev);
+		dma_addr += offset + fb->offsets[1];
 		VOP_WIN_SET(vop, win, uv_vir, fb->pitches[1] >> 2);
 		VOP_WIN_SET(vop, win, uv_mst, dma_addr);
 	}

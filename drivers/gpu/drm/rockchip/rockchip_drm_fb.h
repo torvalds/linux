@@ -23,6 +23,11 @@ void rockchip_drm_framebuffer_fini(struct drm_framebuffer *fb);
 
 void rockchip_drm_mode_config_init(struct drm_device *dev);
 
-struct drm_gem_object *rockchip_fb_get_gem_obj(struct drm_framebuffer *fb,
-					       unsigned int plane);
+struct drm_framebuffer *
+rockchip_fb_alloc(struct drm_device *dev, struct drm_mode_fb_cmd2 *mode_cmd,
+		  struct drm_gem_object **obj, struct resource *res,
+		  unsigned int num_planes);
+
+dma_addr_t rockchip_fb_get_dma_addr(struct drm_framebuffer *fb,
+				    unsigned int plane, struct device *dev);
 #endif /* _ROCKCHIP_DRM_FB_H */

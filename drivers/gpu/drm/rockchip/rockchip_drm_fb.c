@@ -18,6 +18,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_crtc_helper.h>
+#include <linux/memblock.h>
 
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_gem.h"
@@ -26,23 +27,28 @@
 
 struct rockchip_drm_fb {
 	struct drm_framebuffer fb;
+	dma_addr_t dma_addr[ROCKCHIP_MAX_FB_BUFFER];
 	struct drm_gem_object *obj[ROCKCHIP_MAX_FB_BUFFER];
+	struct sg_table *sgt;
+	phys_addr_t start;
+	phys_addr_t size;
 };
 
-struct drm_gem_object *rockchip_fb_get_gem_obj(struct drm_framebuffer *fb,
-					       unsigned int plane)
+dma_addr_t rockchip_fb_get_dma_addr(struct drm_framebuffer *fb,
+				    unsigned int plane, struct device *dev)
 {
 	struct rockchip_drm_fb *rk_fb = to_rockchip_fb(fb);
 
-	if (plane >= ROCKCHIP_MAX_FB_BUFFER)
-		return NULL;
+	if (WARN_ON(plane >= ROCKCHIP_MAX_FB_BUFFER))
+		return 0;
 
-	return rk_fb->obj[plane];
+	return rk_fb->dma_addr[plane];
 }
 
 static void rockchip_drm_fb_destroy(struct drm_framebuffer *fb)
 {
 	struct rockchip_drm_fb *rockchip_fb = to_rockchip_fb(fb);
+	struct drm_device *dev = fb->dev;
 	struct drm_gem_object *obj;
 	int i;
 
@@ -50,6 +56,17 @@ static void rockchip_drm_fb_destroy(struct drm_framebuffer *fb)
 		obj = rockchip_fb->obj[i];
 		if (obj)
 			drm_gem_object_unreference_unlocked(obj);
+	}
+
+	if (rockchip_fb->sgt) {
+		void *start = phys_to_virt(rockchip_fb->start);
+		void *end = phys_to_virt(rockchip_fb->size);
+
+		dma_unmap_sg(dev->dev, rockchip_fb->sgt->sgl,
+			     rockchip_fb->sgt->nents, DMA_TO_DEVICE);
+		sg_free_table(rockchip_fb->sgt);
+		memblock_free(rockchip_fb->start, rockchip_fb->size);
+		free_reserved_area(start, end, -1, "drm_fb");
 	}
 
 	drm_framebuffer_cleanup(fb);
@@ -71,12 +88,14 @@ static const struct drm_framebuffer_funcs rockchip_drm_fb_funcs = {
 	.create_handle	= rockchip_drm_fb_create_handle,
 };
 
-static struct rockchip_drm_fb *
+struct drm_framebuffer *
 rockchip_fb_alloc(struct drm_device *dev, struct drm_mode_fb_cmd2 *mode_cmd,
-		  struct drm_gem_object **obj, unsigned int num_planes)
+		  struct drm_gem_object **obj, struct resource *res,
+		  unsigned int num_planes)
 {
 	struct rockchip_drm_fb *rockchip_fb;
-	int ret;
+	struct rockchip_gem_object *rk_obj;
+	int ret = 0;
 	int i;
 
 	rockchip_fb = kzalloc(sizeof(*rockchip_fb), GFP_KERNEL);
@@ -85,26 +104,77 @@ rockchip_fb_alloc(struct drm_device *dev, struct drm_mode_fb_cmd2 *mode_cmd,
 
 	drm_helper_mode_fill_fb_struct(&rockchip_fb->fb, mode_cmd);
 
-	for (i = 0; i < num_planes; i++)
-		rockchip_fb->obj[i] = obj[i];
-
 	ret = drm_framebuffer_init(dev, &rockchip_fb->fb,
 				   &rockchip_drm_fb_funcs);
 	if (ret) {
 		dev_err(dev->dev, "Failed to initialize framebuffer: %d\n",
 			ret);
-		kfree(rockchip_fb);
-		return ERR_PTR(ret);
+		goto err_free_fb;
 	}
 
-	return rockchip_fb;
+	if (obj) {
+		for (i = 0; i < num_planes; i++)
+			rockchip_fb->obj[i] = obj[i];
+
+		for (i = 0; i < num_planes; i++) {
+			rk_obj = to_rockchip_obj(obj[i]);
+			rockchip_fb->dma_addr[i] = rk_obj->dma_addr;
+		}
+	} else if (res) {
+		unsigned long nr_pages;
+		struct page **pages;
+		struct sg_table *sgt;
+		DEFINE_DMA_ATTRS(attrs);
+		phys_addr_t start = res->start;
+		phys_addr_t size = res->end - res->start;
+
+		nr_pages = PAGE_ALIGN(size) >> PAGE_SHIFT;
+		pages = kmalloc_array(nr_pages, sizeof(*pages),	GFP_KERNEL);
+		if (!pages) {
+			ret = -ENOMEM;
+			goto err_deinit_drm_fb;
+		}
+		i = 0;
+		while (i < nr_pages) {
+			pages[i] = phys_to_page(start);
+			start += PAGE_SIZE;
+			i++;
+		}
+		sgt = drm_prime_pages_to_sg(pages, nr_pages);
+		if (IS_ERR(sgt)) {
+			kfree(pages);
+			ret = PTR_ERR(sgt);
+			goto err_deinit_drm_fb;
+		}
+
+		dma_set_attr(DMA_ATTR_SKIP_CPU_SYNC, &attrs);
+		dma_set_attr(DMA_ATTR_NO_KERNEL_MAPPING, &attrs);
+		dma_map_sg_attrs(dev->dev, sgt->sgl, sgt->nents,
+				 DMA_TO_DEVICE, &attrs);
+		rockchip_fb->dma_addr[0] = sg_dma_address(sgt->sgl);
+		rockchip_fb->sgt = sgt;
+		rockchip_fb->start = res->start;
+		rockchip_fb->size = size;
+	} else {
+		ret = -EINVAL;
+		dev_err(dev->dev, "Failed to find available buffer\n");
+		goto err_deinit_drm_fb;
+	}
+
+	return &rockchip_fb->fb;
+
+err_deinit_drm_fb:
+	drm_framebuffer_cleanup(&rockchip_fb->fb);
+err_free_fb:
+	kfree(rockchip_fb);
+	return ERR_PTR(ret);
 }
 
 static struct drm_framebuffer *
 rockchip_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 			struct drm_mode_fb_cmd2 *mode_cmd)
 {
-	struct rockchip_drm_fb *rockchip_fb;
+	struct drm_framebuffer *fb;
 	struct drm_gem_object *objs[ROCKCHIP_MAX_FB_BUFFER];
 	struct drm_gem_object *obj;
 	unsigned int hsub;
@@ -143,13 +213,13 @@ rockchip_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 		objs[i] = obj;
 	}
 
-	rockchip_fb = rockchip_fb_alloc(dev, mode_cmd, objs, i);
-	if (IS_ERR(rockchip_fb)) {
-		ret = PTR_ERR(rockchip_fb);
+	fb = rockchip_fb_alloc(dev, mode_cmd, objs, NULL, i);
+	if (IS_ERR(fb)) {
+		ret = PTR_ERR(fb);
 		goto err_gem_object_unreference;
 	}
 
-	return &rockchip_fb->fb;
+	return fb;
 
 err_gem_object_unreference:
 	for (i--; i >= 0; i--)
@@ -317,13 +387,13 @@ rockchip_drm_framebuffer_init(struct drm_device *dev,
 			      struct drm_mode_fb_cmd2 *mode_cmd,
 			      struct drm_gem_object *obj)
 {
-	struct rockchip_drm_fb *rockchip_fb;
+	struct drm_framebuffer *fb;
 
-	rockchip_fb = rockchip_fb_alloc(dev, mode_cmd, &obj, 1);
-	if (IS_ERR(rockchip_fb))
+	fb = rockchip_fb_alloc(dev, mode_cmd, &obj, NULL, 1);
+	if (IS_ERR(fb))
 		return NULL;
 
-	return &rockchip_fb->fb;
+	return fb;
 }
 
 void rockchip_drm_mode_config_init(struct drm_device *dev)
