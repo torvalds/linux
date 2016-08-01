@@ -600,7 +600,7 @@ static int si476x_core_fwver_to_revision(struct si476x_core *core,
 unknown_revision:
 	dev_err(&core->client->dev,
 		"Unsupported version of the firmware: %d.%d.%d, "
-		"reverting to A10 comptible functions\n",
+		"reverting to A10 compatible functions\n",
 		major, minor1, minor2);
 
 	return SI476X_REVISION_A10;
