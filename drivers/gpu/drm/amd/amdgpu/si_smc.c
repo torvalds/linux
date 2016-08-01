@@ -224,6 +224,7 @@ int si_load_smc_ucode(struct amdgpu_device *adev, u32 limit)
 
 	amdgpu_ucode_print_smc_hdr(&hdr->header);
 
+	adev->pm.fw_version = le32_to_cpu(hdr->header.ucode_version);
 	ucode_start_address = le32_to_cpu(hdr->ucode_start_addr);
 	ucode_size = le32_to_cpu(hdr->header.ucode_size_bytes);
 	src = (const u8 *)
