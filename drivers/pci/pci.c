@@ -10,6 +10,7 @@
 #include <linux/acpi.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
+#include <linux/dmi.h>
 #include <linux/init.h>
 #include <linux/of.h>
 #include <linux/of_pci.h>
@@ -28,6 +29,7 @@
 #include <linux/pci_hotplug.h>
 #include <linux/vmalloc.h>
 #include <asm/setup.h>
+#include <asm/dma.h>
 #include <linux/aer.h>
 #include "pci.h"
 
@@ -83,6 +85,9 @@ unsigned long pci_cardbus_mem_size = DEFAULT_CARDBUS_MEM_SIZE;
 unsigned long pci_hotplug_io_size  = DEFAULT_HOTPLUG_IO_SIZE;
 unsigned long pci_hotplug_mem_size = DEFAULT_HOTPLUG_MEM_SIZE;
 
+#define DEFAULT_HOTPLUG_BUS_SIZE	1
+unsigned long pci_hotplug_bus_size = DEFAULT_HOTPLUG_BUS_SIZE;
+
 enum pcie_bus_config_types pcie_bus_config = PCIE_BUS_DEFAULT;
 
 /*
@@ -102,6 +107,21 @@ unsigned int pcibios_max_latency = 255;
 
 /* If set, the PCIe ARI capability will not be used. */
 static bool pcie_ari_disabled;
+
+/* Disable bridge_d3 for all PCIe ports */
+static bool pci_bridge_d3_disable;
+/* Force bridge_d3 for all PCIe ports */
+static bool pci_bridge_d3_force;
+
+static int __init pcie_port_pm_setup(char *str)
+{
+	if (!strcmp(str, "off"))
+		pci_bridge_d3_disable = true;
+	else if (!strcmp(str, "force"))
+		pci_bridge_d3_force = true;
+	return 1;
+}
+__setup("pcie_port_pm=", pcie_port_pm_setup);
 
 /**
  * pci_bus_max_busnr - returns maximum PCI bus number of given bus' children
@@ -2158,6 +2178,164 @@ void pci_config_pm_runtime_put(struct pci_dev *pdev)
 }
 
 /**
+ * pci_bridge_d3_possible - Is it possible to put the bridge into D3
+ * @bridge: Bridge to check
+ *
+ * This function checks if it is possible to move the bridge to D3.
+ * Currently we only allow D3 for recent enough PCIe ports.
+ */
+static bool pci_bridge_d3_possible(struct pci_dev *bridge)
+{
+	unsigned int year;
+
+	if (!pci_is_pcie(bridge))
+		return false;
+
+	switch (pci_pcie_type(bridge)) {
+	case PCI_EXP_TYPE_ROOT_PORT:
+	case PCI_EXP_TYPE_UPSTREAM:
+	case PCI_EXP_TYPE_DOWNSTREAM:
+		if (pci_bridge_d3_disable)
+			return false;
+		if (pci_bridge_d3_force)
+			return true;
+
+		/*
+		 * It should be safe to put PCIe ports from 2015 or newer
+		 * to D3.
+		 */
+		if (dmi_get_date(DMI_BIOS_DATE, &year, NULL, NULL) &&
+		    year >= 2015) {
+			return true;
+		}
+		break;
+	}
+
+	return false;
+}
+
+static int pci_dev_check_d3cold(struct pci_dev *dev, void *data)
+{
+	bool *d3cold_ok = data;
+	bool no_d3cold;
+
+	/*
+	 * The device needs to be allowed to go D3cold and if it is wake
+	 * capable to do so from D3cold.
+	 */
+	no_d3cold = dev->no_d3cold || !dev->d3cold_allowed ||
+		(device_may_wakeup(&dev->dev) && !pci_pme_capable(dev, PCI_D3cold)) ||
+		!pci_power_manageable(dev);
+
+	*d3cold_ok = !no_d3cold;
+
+	return no_d3cold;
+}
+
+/*
+ * pci_bridge_d3_update - Update bridge D3 capabilities
+ * @dev: PCI device which is changed
+ * @remove: Is the device being removed
+ *
+ * Update upstream bridge PM capabilities accordingly depending on if the
+ * device PM configuration was changed or the device is being removed.  The
+ * change is also propagated upstream.
+ */
+static void pci_bridge_d3_update(struct pci_dev *dev, bool remove)
+{
+	struct pci_dev *bridge;
+	bool d3cold_ok = true;
+
+	bridge = pci_upstream_bridge(dev);
+	if (!bridge || !pci_bridge_d3_possible(bridge))
+		return;
+
+	pci_dev_get(bridge);
+	/*
+	 * If the device is removed we do not care about its D3cold
+	 * capabilities.
+	 */
+	if (!remove)
+		pci_dev_check_d3cold(dev, &d3cold_ok);
+
+	if (d3cold_ok) {
+		/*
+		 * We need to go through all children to find out if all of
+		 * them can still go to D3cold.
+		 */
+		pci_walk_bus(bridge->subordinate, pci_dev_check_d3cold,
+			     &d3cold_ok);
+	}
+
+	if (bridge->bridge_d3 != d3cold_ok) {
+		bridge->bridge_d3 = d3cold_ok;
+		/* Propagate change to upstream bridges */
+		pci_bridge_d3_update(bridge, false);
+	}
+
+	pci_dev_put(bridge);
+}
+
+/**
+ * pci_bridge_d3_device_changed - Update bridge D3 capabilities on change
+ * @dev: PCI device that was changed
+ *
+ * If a device is added or its PM configuration, such as is it allowed to
+ * enter D3cold, is changed this function updates upstream bridge PM
+ * capabilities accordingly.
+ */
+void pci_bridge_d3_device_changed(struct pci_dev *dev)
+{
+	pci_bridge_d3_update(dev, false);
+}
+
+/**
+ * pci_bridge_d3_device_removed - Update bridge D3 capabilities on remove
+ * @dev: PCI device being removed
+ *
+ * Function updates upstream bridge PM capabilities based on other devices
+ * still left on the bus.
+ */
+void pci_bridge_d3_device_removed(struct pci_dev *dev)
+{
+	pci_bridge_d3_update(dev, true);
+}
+
+/**
+ * pci_d3cold_enable - Enable D3cold for device
+ * @dev: PCI device to handle
+ *
+ * This function can be used in drivers to enable D3cold from the device
+ * they handle.  It also updates upstream PCI bridge PM capabilities
+ * accordingly.
+ */
+void pci_d3cold_enable(struct pci_dev *dev)
+{
+	if (dev->no_d3cold) {
+		dev->no_d3cold = false;
+		pci_bridge_d3_device_changed(dev);
+	}
+}
+EXPORT_SYMBOL_GPL(pci_d3cold_enable);
+
+/**
+ * pci_d3cold_disable - Disable D3cold for device
+ * @dev: PCI device to handle
+ *
+ * This function can be used in drivers to disable D3cold from the device
+ * they handle.  It also updates upstream PCI bridge PM capabilities
+ * accordingly.
+ */
+void pci_d3cold_disable(struct pci_dev *dev)
+{
+	if (!dev->no_d3cold) {
+		dev->no_d3cold = true;
+		pci_bridge_d3_device_changed(dev);
+	}
+}
+EXPORT_SYMBOL_GPL(pci_d3cold_disable);
+
+/**
  * pci_pm_init - Initialize PM functions of given PCI device
  * @dev: PCI device to handle.
  */
@@ -2191,6 +2369,7 @@ void pci_pm_init(struct pci_dev *dev)
 	dev->pm_cap = pm;
 	dev->d3_delay = PCI_PM_D3_WAIT;
 	dev->d3cold_delay = PCI_PM_D3COLD_WAIT;
+	dev->bridge_d3 = pci_bridge_d3_possible(dev);
 	dev->d3cold_allowed = true;
 
 	dev->d1_support = false;
@@ -4916,7 +5095,7 @@ static ssize_t pci_resource_alignment_store(struct bus_type *bus,
 	return pci_set_resource_alignment_param(buf, count);
 }
 
-BUS_ATTR(resource_alignment, 0644, pci_resource_alignment_show,
+static BUS_ATTR(resource_alignment, 0644, pci_resource_alignment_show,
 					pci_resource_alignment_store);
 
 static int __init pci_resource_alignment_sysfs_init(void)
@@ -5046,6 +5225,11 @@ static int __init pci_setup(char *str)
 				pci_hotplug_io_size = memparse(str + 9, &str);
 			} else if (!strncmp(str, "hpmemsize=", 10)) {
 				pci_hotplug_mem_size = memparse(str + 10, &str);
+			} else if (!strncmp(str, "hpbussize=", 10)) {
+				pci_hotplug_bus_size =
+					simple_strtoul(str + 10, &str, 0);
+				if (pci_hotplug_bus_size > 0xff)
+					pci_hotplug_bus_size = DEFAULT_HOTPLUG_BUS_SIZE;
 			} else if (!strncmp(str, "pcie_bus_tune_off", 17)) {
 				pcie_bus_config = PCIE_BUS_TUNE_OFF;
 			} else if (!strncmp(str, "pcie_bus_safe", 13)) {
