@@ -112,13 +112,10 @@ int nilfs_get_block(struct inode *inode, sector_t blkoff,
 				 * However, the page having this block must
 				 * be locked in this case.
 				 */
-				printk(KERN_WARNING
-				       "nilfs_get_block: a race condition "
-				       "while inserting a data block. "
-				       "(inode number=%lu, file block "
-				       "offset=%llu)\n",
-				       inode->i_ino,
-				       (unsigned long long)blkoff);
+				nilfs_msg(inode->i_sb, KERN_WARNING,
+					  "%s (ino=%lu): a race condition while inserting a data block at offset=%llu",
+					  __func__, inode->i_ino,
+					  (unsigned long long)blkoff);
 				err = 0;
 			}
 			nilfs_transaction_abort(inode->i_sb);
