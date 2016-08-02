@@ -1415,25 +1415,18 @@ static int gen6_signal(struct drm_i915_gem_request *signaller_req)
 	return 0;
 }
 
-/**
- * gen6_emit_request - Update the semaphore mailbox registers
- *
- * @request - request to write to the ring
- *
- * Update the mailbox registers in the *other* rings with the current seqno.
- * This acts like a signal in the canonical semaphore.
- */
-static int gen6_emit_request(struct drm_i915_gem_request *req)
+static void i9xx_submit_request(struct drm_i915_gem_request *request)
 {
-	struct intel_engine_cs *engine = req->engine;
+	struct drm_i915_private *dev_priv = request->i915;
+
+	I915_WRITE_TAIL(request->engine,
+			intel_ring_offset(request->ring, request->tail));
+}
+
+static int i9xx_emit_request(struct drm_i915_gem_request *req)
+{
 	struct intel_ring *ring = req->ring;
 	int ret;
-
-	if (engine->semaphore.signal) {
-		ret = engine->semaphore.signal(req);
-		if (ret)
-			return ret;
-	}
 
 	ret = intel_ring_begin(req, 4);
 	if (ret)
@@ -1448,6 +1441,27 @@ static int gen6_emit_request(struct drm_i915_gem_request *req)
 	req->tail = ring->tail;
 
 	return 0;
+}
+
+/**
+ * gen6_emit_request - Update the semaphore mailbox registers
+ *
+ * @request - request to write to the ring
+ *
+ * Update the mailbox registers in the *other* rings with the current seqno.
+ * This acts like a signal in the canonical semaphore.
+ */
+static int gen6_emit_request(struct drm_i915_gem_request *req)
+{
+	if (req->engine->semaphore.signal) {
+		int ret;
+
+		ret = req->engine->semaphore.signal(req);
+		if (ret)
+			return ret;
+	}
+
+	return i9xx_emit_request(req);
 }
 
 static int gen8_render_emit_request(struct drm_i915_gem_request *req)
@@ -1680,34 +1694,6 @@ bsd_ring_flush(struct drm_i915_gem_request *req, u32 mode)
 	intel_ring_emit(ring, MI_NOOP);
 	intel_ring_advance(ring);
 	return 0;
-}
-
-static int i9xx_emit_request(struct drm_i915_gem_request *req)
-{
-	struct intel_ring *ring = req->ring;
-	int ret;
-
-	ret = intel_ring_begin(req, 4);
-	if (ret)
-		return ret;
-
-	intel_ring_emit(ring, MI_STORE_DWORD_INDEX);
-	intel_ring_emit(ring, I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
-	intel_ring_emit(ring, req->fence.seqno);
-	intel_ring_emit(ring, MI_USER_INTERRUPT);
-	intel_ring_advance(ring);
-
-	req->tail = ring->tail;
-
-	return 0;
-}
-
-static void i9xx_submit_request(struct drm_i915_gem_request *request)
-{
-	struct drm_i915_private *dev_priv = request->i915;
-
-	I915_WRITE_TAIL(request->engine,
-			intel_ring_offset(request->ring, request->tail));
 }
 
 static void
@@ -2496,9 +2482,7 @@ static void gen6_bsd_submit_request(struct drm_i915_gem_request *request)
 		DRM_ERROR("timed out waiting for the BSD ring to wake up\n");
 
 	/* Now that the ring is fully powered up, update the tail */
-	I915_WRITE_FW(RING_TAIL(request->engine->mmio_base),
-		      intel_ring_offset(request->ring, request->tail));
-	POSTING_READ_FW(RING_TAIL(request->engine->mmio_base));
+	i9xx_submit_request(request);
 
 	/* Let the ring send IDLE messages to the GT again,
 	 * and so let it sleep to conserve power when idle.
