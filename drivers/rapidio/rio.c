@@ -1848,7 +1848,9 @@ EXPORT_SYMBOL_GPL(rio_release_dma);
  * Initializes RapidIO capable DMA channel for the specified data transfer.
  * Uses DMA channel private extension to pass information related to remote
  * target RIO device.
- * Returns pointer to DMA transaction descriptor or NULL if failed.
+ *
+ * Returns: pointer to DMA transaction descriptor if successful,
+ *          error-valued pointer or NULL if failed.
  */
 struct dma_async_tx_descriptor *rio_dma_prep_xfer(struct dma_chan *dchan,
 	u16 destid, struct rio_dma_data *data,
@@ -1883,7 +1885,9 @@ EXPORT_SYMBOL_GPL(rio_dma_prep_xfer);
  * Initializes RapidIO capable DMA channel for the specified data transfer.
  * Uses DMA channel private extension to pass information related to remote
  * target RIO device.
- * Returns pointer to DMA transaction descriptor or NULL if failed.
+ *
+ * Returns: pointer to DMA transaction descriptor if successful,
+ *          error-valued pointer or NULL if failed.
  */
 struct dma_async_tx_descriptor *rio_dma_prep_slave_sg(struct rio_dev *rdev,
 	struct dma_chan *dchan, struct rio_dma_data *data,
