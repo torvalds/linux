@@ -9,6 +9,8 @@
  *
  * Bits taken from arch/arm/mach-dove/pcie.c
  *
+ * Author: Thierry Reding <treding@nvidia.com>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -32,7 +34,7 @@
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/msi.h>
 #include <linux/of_address.h>
 #include <linux/of_pci.h>
@@ -183,26 +185,26 @@
 
 #define AFI_PEXBIAS_CTRL_0		0x168
 
-#define RP_VEND_XP	0x00000F00
+#define RP_VEND_XP	0x00000f00
 #define  RP_VEND_XP_DL_UP	(1 << 30)
 
-#define RP_PRIV_MISC	0x00000FE0
-#define  RP_PRIV_MISC_PRSNT_MAP_EP_PRSNT (0xE << 0)
-#define  RP_PRIV_MISC_PRSNT_MAP_EP_ABSNT (0xF << 0)
+#define RP_PRIV_MISC	0x00000fe0
+#define  RP_PRIV_MISC_PRSNT_MAP_EP_PRSNT (0xe << 0)
+#define  RP_PRIV_MISC_PRSNT_MAP_EP_ABSNT (0xf << 0)
 
 #define RP_LINK_CONTROL_STATUS			0x00000090
 #define  RP_LINK_CONTROL_STATUS_DL_LINK_ACTIVE	0x20000000
 #define  RP_LINK_CONTROL_STATUS_LINKSTAT_MASK	0x3fff0000
 
-#define PADS_CTL_SEL		0x0000009C
+#define PADS_CTL_SEL		0x0000009c
 
-#define PADS_CTL		0x000000A0
+#define PADS_CTL		0x000000a0
 #define  PADS_CTL_IDDQ_1L	(1 << 0)
 #define  PADS_CTL_TX_DATA_EN_1L	(1 << 6)
 #define  PADS_CTL_RX_DATA_EN_1L	(1 << 10)
 
-#define PADS_PLL_CTL_TEGRA20			0x000000B8
-#define PADS_PLL_CTL_TEGRA30			0x000000B4
+#define PADS_PLL_CTL_TEGRA20			0x000000b8
+#define PADS_PLL_CTL_TEGRA30			0x000000b4
 #define  PADS_PLL_CTL_RST_B4SM			(1 << 1)
 #define  PADS_PLL_CTL_LOCKDET			(1 << 8)
 #define  PADS_PLL_CTL_REFCLK_MASK		(0x3 << 16)
@@ -214,9 +216,9 @@
 #define  PADS_PLL_CTL_TXCLKREF_DIV5		(1 << 20)
 #define  PADS_PLL_CTL_TXCLKREF_BUF_EN		(1 << 22)
 
-#define PADS_REFCLK_CFG0			0x000000C8
-#define PADS_REFCLK_CFG1			0x000000CC
-#define PADS_REFCLK_BIAS			0x000000D0
+#define PADS_REFCLK_CFG0			0x000000c8
+#define PADS_REFCLK_CFG1			0x000000cc
+#define PADS_REFCLK_BIAS			0x000000d0
 
 /*
  * Fields in PADS_REFCLK_CFG*. Those registers form an array of 16-bit
@@ -227,15 +229,6 @@
 #define PADS_REFCLK_CFG_E_TERM_SHIFT		7
 #define PADS_REFCLK_CFG_PREDI_SHIFT		8  /* 11:8 */
 #define PADS_REFCLK_CFG_DRVI_SHIFT		12 /* 15:12 */
-
-/* Default value provided by HW engineering is 0xfa5c */
-#define PADS_REFCLK_CFG_VALUE \
-	( \
-		(0x17 << PADS_REFCLK_CFG_TERM_SHIFT)   | \
-		(0    << PADS_REFCLK_CFG_E_TERM_SHIFT) | \
-		(0xa  << PADS_REFCLK_CFG_PREDI_SHIFT)  | \
-		(0xf  << PADS_REFCLK_CFG_DRVI_SHIFT)     \
-	)
 
 struct tegra_msi {
 	struct msi_controller chip;
@@ -252,6 +245,8 @@ struct tegra_pcie_soc_data {
 	unsigned int msi_base_shift;
 	u32 pads_pll_ctl;
 	u32 tx_ref_sel;
+	u32 pads_refclk_cfg0;
+	u32 pads_refclk_cfg1;
 	bool has_pex_clkreq_en;
 	bool has_pex_bias_ctrl;
 	bool has_intr_prsnt_sense;
@@ -274,7 +269,6 @@ struct tegra_pcie {
 	struct list_head buses;
 	struct resource *cs;
 
-	struct resource all;
 	struct resource io;
 	struct resource pio;
 	struct resource mem;
@@ -623,20 +617,8 @@ static int tegra_pcie_setup(int nr, struct pci_sys_data *sys)
 	sys->mem_offset = pcie->offset.mem;
 	sys->io_offset = pcie->offset.io;
 
-	err = devm_request_resource(pcie->dev, &pcie->all, &pcie->io);
+	err = devm_request_resource(pcie->dev, &iomem_resource, &pcie->io);
 	if (err < 0)
-		return err;
-
-	err = devm_request_resource(pcie->dev, &ioport_resource, &pcie->pio);
-	if (err < 0)
-		return err;
-
-	err = devm_request_resource(pcie->dev, &pcie->all, &pcie->mem);
-	if (err < 0)
-		return err;
-
-	err = devm_request_resource(pcie->dev, &pcie->all, &pcie->prefetch);
-	if (err)
 		return err;
 
 	pci_add_resource_offset(&sys->resources, &pcie->pio, sys->io_offset);
@@ -645,8 +627,11 @@ static int tegra_pcie_setup(int nr, struct pci_sys_data *sys)
 				sys->mem_offset);
 	pci_add_resource(&sys->resources, &pcie->busn);
 
-	pci_ioremap_io(pcie->pio.start, pcie->io.start);
+	err = devm_request_pci_bus_resources(pcie->dev, &sys->resources);
+	if (err < 0)
+		return err;
 
+	pci_remap_iospace(&pcie->pio, pcie->io.start);
 	return 1;
 }
 
@@ -838,12 +823,6 @@ static int tegra_pcie_phy_enable(struct tegra_pcie *pcie)
 	value |= PADS_PLL_CTL_RST_B4SM;
 	pads_writel(pcie, value, soc->pads_pll_ctl);
 
-	/* Configure the reference clock driver */
-	value = PADS_REFCLK_CFG_VALUE | (PADS_REFCLK_CFG_VALUE << 16);
-	pads_writel(pcie, value, PADS_REFCLK_CFG0);
-	if (soc->num_ports > 2)
-		pads_writel(pcie, PADS_REFCLK_CFG_VALUE, PADS_REFCLK_CFG1);
-
 	/* wait for the PLL to lock */
 	err = tegra_pcie_pll_wait(pcie, 500);
 	if (err < 0) {
@@ -927,6 +906,7 @@ static int tegra_pcie_port_phy_power_off(struct tegra_pcie_port *port)
 
 static int tegra_pcie_phy_power_on(struct tegra_pcie *pcie)
 {
+	const struct tegra_pcie_soc_data *soc = pcie->soc_data;
 	struct tegra_pcie_port *port;
 	int err;
 
@@ -951,6 +931,12 @@ static int tegra_pcie_phy_power_on(struct tegra_pcie *pcie)
 			return err;
 		}
 	}
+
+	/* Configure the reference clock driver */
+	pads_writel(pcie, soc->pads_refclk_cfg0, PADS_REFCLK_CFG0);
+
+	if (soc->num_ports > 2)
+		pads_writel(pcie, soc->pads_refclk_cfg1, PADS_REFCLK_CFG1);
 
 	return 0;
 }
@@ -1822,12 +1808,6 @@ static int tegra_pcie_parse_dt(struct tegra_pcie *pcie)
 	struct resource res;
 	int err;
 
-	memset(&pcie->all, 0, sizeof(pcie->all));
-	pcie->all.flags = IORESOURCE_MEM;
-	pcie->all.name = np->full_name;
-	pcie->all.start = ~0;
-	pcie->all.end = 0;
-
 	if (of_pci_range_parser_init(&parser, np)) {
 		dev_err(pcie->dev, "missing \"ranges\" property\n");
 		return -EINVAL;
@@ -1880,17 +1860,7 @@ static int tegra_pcie_parse_dt(struct tegra_pcie *pcie)
 			}
 			break;
 		}
-
-		if (res.start <= pcie->all.start)
-			pcie->all.start = res.start;
-
-		if (res.end >= pcie->all.end)
-			pcie->all.end = res.end;
 	}
-
-	err = devm_request_resource(pcie->dev, &iomem_resource, &pcie->all);
-	if (err < 0)
-		return err;
 
 	err = of_pci_parse_bus_range(np, &pcie->busn);
 	if (err < 0) {
@@ -2078,6 +2048,7 @@ static const struct tegra_pcie_soc_data tegra20_pcie_data = {
 	.msi_base_shift = 0,
 	.pads_pll_ctl = PADS_PLL_CTL_TEGRA20,
 	.tx_ref_sel = PADS_PLL_CTL_TXCLKREF_DIV10,
+	.pads_refclk_cfg0 = 0xfa5cfa5c,
 	.has_pex_clkreq_en = false,
 	.has_pex_bias_ctrl = false,
 	.has_intr_prsnt_sense = false,
@@ -2090,6 +2061,8 @@ static const struct tegra_pcie_soc_data tegra30_pcie_data = {
 	.msi_base_shift = 8,
 	.pads_pll_ctl = PADS_PLL_CTL_TEGRA30,
 	.tx_ref_sel = PADS_PLL_CTL_TXCLKREF_BUF_EN,
+	.pads_refclk_cfg0 = 0xfa5cfa5c,
+	.pads_refclk_cfg1 = 0xfa5cfa5c,
 	.has_pex_clkreq_en = true,
 	.has_pex_bias_ctrl = true,
 	.has_intr_prsnt_sense = true,
@@ -2102,6 +2075,7 @@ static const struct tegra_pcie_soc_data tegra124_pcie_data = {
 	.msi_base_shift = 8,
 	.pads_pll_ctl = PADS_PLL_CTL_TEGRA30,
 	.tx_ref_sel = PADS_PLL_CTL_TXCLKREF_BUF_EN,
+	.pads_refclk_cfg0 = 0x44ac44ac,
 	.has_pex_clkreq_en = true,
 	.has_pex_bias_ctrl = true,
 	.has_intr_prsnt_sense = true,
@@ -2115,7 +2089,6 @@ static const struct of_device_id tegra_pcie_of_match[] = {
 	{ .compatible = "nvidia,tegra20-pcie", .data = &tegra20_pcie_data },
 	{ },
 };
-MODULE_DEVICE_TABLE(of, tegra_pcie_of_match);
 
 static void *tegra_pcie_ports_seq_start(struct seq_file *s, loff_t *pos)
 {
@@ -2249,8 +2222,6 @@ static int tegra_pcie_probe(struct platform_device *pdev)
 	if (err < 0)
 		return err;
 
-	pcibios_min_mem = 0;
-
 	err = tegra_pcie_get_resources(pcie);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to request resources: %d\n", err);
@@ -2306,8 +2277,4 @@ static struct platform_driver tegra_pcie_driver = {
 	},
 	.probe = tegra_pcie_probe,
 };
-module_platform_driver(tegra_pcie_driver);
-
-MODULE_AUTHOR("Thierry Reding <treding@nvidia.com>");
-MODULE_DESCRIPTION("NVIDIA Tegra PCIe driver");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver(tegra_pcie_driver);

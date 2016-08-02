@@ -76,3 +76,8 @@
 &usb3 {
 	status = "okay";
 };
+
+/* CON17 (PCIe) / CON12 (mini-PCIe) */
+&pcie0 {
+	status = "okay";
+};
