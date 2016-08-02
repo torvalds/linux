@@ -1428,15 +1428,14 @@ static int gen6_signal(struct drm_i915_gem_request *signaller_req,
 }
 
 /**
- * gen6_add_request - Update the semaphore mailbox registers
+ * gen6_emit_request - Update the semaphore mailbox registers
  *
  * @request - request to write to the ring
  *
  * Update the mailbox registers in the *other* rings with the current seqno.
  * This acts like a signal in the canonical semaphore.
  */
-static int
-gen6_add_request(struct drm_i915_gem_request *req)
+static int gen6_emit_request(struct drm_i915_gem_request *req)
 {
 	struct intel_engine_cs *engine = req->engine;
 	struct intel_ring *ring = req->ring;
@@ -1457,13 +1456,11 @@ gen6_add_request(struct drm_i915_gem_request *req)
 	intel_ring_advance(ring);
 
 	req->tail = ring->tail;
-	engine->submit_request(req);
 
 	return 0;
 }
 
-static int
-gen8_render_add_request(struct drm_i915_gem_request *req)
+static int gen8_render_emit_request(struct drm_i915_gem_request *req)
 {
 	struct intel_engine_cs *engine = req->engine;
 	struct intel_ring *ring = req->ring;
@@ -1487,9 +1484,9 @@ gen8_render_add_request(struct drm_i915_gem_request *req)
 	intel_ring_emit(ring, 0);
 	intel_ring_emit(ring, MI_USER_INTERRUPT);
 	intel_ring_emit(ring, MI_NOOP);
+	intel_ring_advance(ring);
 
 	req->tail = ring->tail;
-	engine->submit_request(req);
 
 	return 0;
 }
@@ -1692,8 +1689,7 @@ bsd_ring_flush(struct drm_i915_gem_request *req, u32 mode)
 	return 0;
 }
 
-static int
-i9xx_add_request(struct drm_i915_gem_request *req)
+static int i9xx_emit_request(struct drm_i915_gem_request *req)
 {
 	struct intel_ring *ring = req->ring;
 	int ret;
@@ -1709,7 +1705,6 @@ i9xx_add_request(struct drm_i915_gem_request *req)
 	intel_ring_advance(ring);
 
 	req->tail = ring->tail;
-	req->engine->submit_request(req);
 
 	return 0;
 }
@@ -2814,11 +2809,11 @@ static void intel_ring_default_vfuncs(struct drm_i915_private *dev_priv,
 				      struct intel_engine_cs *engine)
 {
 	engine->init_hw = init_ring_common;
-	engine->submit_request = i9xx_submit_request;
 
-	engine->add_request = i9xx_add_request;
+	engine->emit_request = i9xx_emit_request;
 	if (INTEL_GEN(dev_priv) >= 6)
-		engine->add_request = gen6_add_request;
+		engine->emit_request = gen6_emit_request;
+	engine->submit_request = i9xx_submit_request;
 
 	if (INTEL_GEN(dev_priv) >= 8)
 		engine->emit_bb_start = gen8_emit_bb_start;
@@ -2847,7 +2842,7 @@ int intel_init_render_ring_buffer(struct intel_engine_cs *engine)
 
 	if (INTEL_GEN(dev_priv) >= 8) {
 		engine->init_context = intel_rcs_ctx_init;
-		engine->add_request = gen8_render_add_request;
+		engine->emit_request = gen8_render_emit_request;
 		engine->emit_flush = gen8_render_ring_flush;
 		if (i915.semaphores)
 			engine->semaphore.signal = gen8_rcs_signal;

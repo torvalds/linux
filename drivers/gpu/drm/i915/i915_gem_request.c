@@ -466,12 +466,9 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 	 */
 	request->postfix = ring->tail;
 
-	if (i915.enable_execlists)
-		ret = engine->emit_request(request);
-	else
-		ret = engine->add_request(request);
 	/* Not allowed to fail! */
-	WARN(ret, "emit|add_request failed: %d!\n", ret);
+	ret = engine->emit_request(request);
+	WARN(ret, "(%s)->emit_request failed: %d!\n", engine->name, ret);
 
 	/* Sanity check that the reserved size was large enough. */
 	ret = ring->tail - request_start;
@@ -483,6 +480,7 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 		  reserved_tail, ret);
 
 	i915_gem_mark_busy(engine);
+	engine->submit_request(request);
 }
 
 static unsigned long local_clock_us(unsigned int *cpu)

@@ -738,7 +738,7 @@ err_unpin:
 }
 
 /*
- * intel_logical_ring_advance_and_submit() - advance the tail and submit the workload
+ * intel_logical_ring_advance() - advance the tail and prepare for submission
  * @request: Request to advance the logical ringbuffer of.
  *
  * The tail is updated in our logical ringbuffer struct, not in the actual context. What
@@ -747,7 +747,7 @@ err_unpin:
  * point, the tail *inside* the context is updated and the ELSP written to.
  */
 static int
-intel_logical_ring_advance_and_submit(struct drm_i915_gem_request *request)
+intel_logical_ring_advance(struct drm_i915_gem_request *request)
 {
 	struct intel_ring *ring = request->ring;
 	struct intel_engine_cs *engine = request->engine;
@@ -773,12 +773,6 @@ intel_logical_ring_advance_and_submit(struct drm_i915_gem_request *request)
 	 */
 	request->previous_context = engine->last_context;
 	engine->last_context = request->ctx;
-
-	if (i915.enable_guc_submission)
-		i915_guc_submit(request);
-	else
-		execlists_context_queue(request);
-
 	return 0;
 }
 
@@ -1768,7 +1762,7 @@ static int gen8_emit_request(struct drm_i915_gem_request *request)
 	intel_ring_emit(ring, request->fence.seqno);
 	intel_ring_emit(ring, MI_USER_INTERRUPT);
 	intel_ring_emit(ring, MI_NOOP);
-	return intel_logical_ring_advance_and_submit(request);
+	return intel_logical_ring_advance(request);
 }
 
 static int gen8_emit_request_render(struct drm_i915_gem_request *request)
@@ -1799,7 +1793,7 @@ static int gen8_emit_request_render(struct drm_i915_gem_request *request)
 	intel_ring_emit(ring, 0);
 	intel_ring_emit(ring, MI_USER_INTERRUPT);
 	intel_ring_emit(ring, MI_NOOP);
-	return intel_logical_ring_advance_and_submit(request);
+	return intel_logical_ring_advance(request);
 }
 
 static int intel_lr_context_render_state_init(struct drm_i915_gem_request *req)
@@ -1900,13 +1894,23 @@ void intel_logical_ring_cleanup(struct intel_engine_cs *engine)
 	engine->i915 = NULL;
 }
 
+void intel_execlists_enable_submission(struct drm_i915_private *dev_priv)
+{
+	struct intel_engine_cs *engine;
+
+	for_each_engine(engine, dev_priv)
+		engine->submit_request = execlists_context_queue;
+}
+
 static void
 logical_ring_default_vfuncs(struct intel_engine_cs *engine)
 {
 	/* Default vfuncs which can be overriden by each engine. */
 	engine->init_hw = gen8_init_common_ring;
-	engine->emit_request = gen8_emit_request;
 	engine->emit_flush = gen8_emit_flush;
+	engine->emit_request = gen8_emit_request;
+	engine->submit_request = execlists_context_queue;
+
 	engine->irq_enable = gen8_logical_ring_enable_irq;
 	engine->irq_disable = gen8_logical_ring_disable_irq;
 	engine->emit_bb_start = gen8_emit_bb_start;

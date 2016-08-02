@@ -95,6 +95,8 @@ uint64_t intel_lr_context_descriptor(struct i915_gem_context *ctx,
 /* Execlists */
 int intel_sanitize_enable_execlists(struct drm_i915_private *dev_priv,
 				    int enable_execlists);
+void intel_execlists_enable_submission(struct drm_i915_private *dev_priv);
+
 struct i915_execbuffer_params;
 int intel_execlists_submission(struct i915_execbuffer_params *params,
 			       struct drm_i915_gem_execbuffer2 *args,

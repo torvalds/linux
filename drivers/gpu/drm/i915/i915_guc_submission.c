@@ -585,7 +585,7 @@ static int guc_ring_doorbell(struct i915_guc_client *gc)
  * The only error here arises if the doorbell hardware isn't functioning
  * as expected, which really shouln't happen.
  */
-int i915_guc_submit(struct drm_i915_gem_request *rq)
+static void i915_guc_submit(struct drm_i915_gem_request *rq)
 {
 	unsigned int engine_id = rq->engine->id;
 	struct intel_guc *guc = &rq->i915->guc;
@@ -602,8 +602,6 @@ int i915_guc_submit(struct drm_i915_gem_request *rq)
 
 	guc->submissions[engine_id] += 1;
 	guc->last_seqno[engine_id] = rq->fence.seqno;
-
-	return b_ret;
 }
 
 /*
@@ -992,6 +990,7 @@ int i915_guc_submission_enable(struct drm_i915_private *dev_priv)
 {
 	struct intel_guc *guc = &dev_priv->guc;
 	struct i915_guc_client *client;
+	struct intel_engine_cs *engine;
 
 	/* client for execbuf submission */
 	client = guc_client_alloc(dev_priv,
@@ -1006,6 +1005,10 @@ int i915_guc_submission_enable(struct drm_i915_private *dev_priv)
 	host2guc_sample_forcewake(guc, client);
 	guc_init_doorbell_hw(guc);
 
+	/* Take over from manual control of ELSP (execlists) */
+	for_each_engine(engine, dev_priv)
+		engine->submit_request = i915_guc_submit;
+
 	return 0;
 }
 
@@ -1013,8 +1016,14 @@ void i915_guc_submission_disable(struct drm_i915_private *dev_priv)
 {
 	struct intel_guc *guc = &dev_priv->guc;
 
+	if (!guc->execbuf_client)
+		return;
+
 	guc_client_free(dev_priv, guc->execbuf_client);
 	guc->execbuf_client = NULL;
+
+	/* Revert back to manual ELSP submission */
+	intel_execlists_enable_submission(dev_priv);
 }
 
 void i915_guc_submission_fini(struct drm_i915_private *dev_priv)
