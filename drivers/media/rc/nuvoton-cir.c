@@ -791,7 +791,7 @@ static void nvt_handle_rx_fifo_overrun(struct nvt_dev *nvt)
 /* copy data from hardware rx fifo into driver buffer */
 static void nvt_get_rx_ir_data(struct nvt_dev *nvt)
 {
-	u8 fifocount, val;
+	u8 fifocount;
 	int i;
 
 	/* Get count of how many bytes to read from RX FIFO */
@@ -800,10 +800,8 @@ static void nvt_get_rx_ir_data(struct nvt_dev *nvt)
 	nvt_dbg("attempting to fetch %u bytes from hw rx fifo", fifocount);
 
 	/* Read fifocount bytes from CIR Sample RX FIFO register */
-	for (i = 0; i < fifocount; i++) {
-		val = nvt_cir_reg_read(nvt, CIR_SRXFIFO);
-		nvt->buf[i] = val;
-	}
+	for (i = 0; i < fifocount; i++)
+		nvt->buf[i] = nvt_cir_reg_read(nvt, CIR_SRXFIFO);
 
 	nvt->pkts = fifocount;
 	nvt_dbg("%s: pkts now %d", __func__, nvt->pkts);
