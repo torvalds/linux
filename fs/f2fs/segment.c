@@ -660,7 +660,7 @@ static void add_discard_addrs(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	bool force = (cpc->reason == CP_DISCARD);
 	int i;
 
-	if (se->valid_blocks == max_blocks)
+	if (se->valid_blocks == max_blocks || !f2fs_discard_en(sbi))
 		return;
 
 	if (!force) {
@@ -818,12 +818,14 @@ static void update_sit_entry(struct f2fs_sb_info *sbi, block_t blkaddr, int del)
 	if (del > 0) {
 		if (f2fs_test_and_set_bit(offset, se->cur_valid_map))
 			f2fs_bug_on(sbi, 1);
-		if (!f2fs_test_and_set_bit(offset, se->discard_map))
+		if (f2fs_discard_en(sbi) &&
+			!f2fs_test_and_set_bit(offset, se->discard_map))
 			sbi->discard_blks--;
 	} else {
 		if (!f2fs_test_and_clear_bit(offset, se->cur_valid_map))
 			f2fs_bug_on(sbi, 1);
-		if (f2fs_test_and_clear_bit(offset, se->discard_map))
+		if (f2fs_discard_en(sbi) &&
+			f2fs_test_and_clear_bit(offset, se->discard_map))
 			sbi->discard_blks++;
 	}
 	if (!f2fs_test_bit(offset, se->ckpt_valid_map))
@@ -2127,12 +2129,16 @@ static int build_sit_info(struct f2fs_sb_info *sbi)
 			= kzalloc(SIT_VBLOCK_MAP_SIZE, GFP_KERNEL);
 		sit_i->sentries[start].ckpt_valid_map
 			= kzalloc(SIT_VBLOCK_MAP_SIZE, GFP_KERNEL);
-		sit_i->sentries[start].discard_map
-			= kzalloc(SIT_VBLOCK_MAP_SIZE, GFP_KERNEL);
 		if (!sit_i->sentries[start].cur_valid_map ||
-				!sit_i->sentries[start].ckpt_valid_map ||
-				!sit_i->sentries[start].discard_map)
+				!sit_i->sentries[start].ckpt_valid_map)
 			return -ENOMEM;
+
+		if (f2fs_discard_en(sbi)) {
+			sit_i->sentries[start].discard_map
+				= kzalloc(SIT_VBLOCK_MAP_SIZE, GFP_KERNEL);
+			if (!sit_i->sentries[start].discard_map)
+				return -ENOMEM;
+		}
 	}
 
 	sit_i->tmp_map = kzalloc(SIT_VBLOCK_MAP_SIZE, GFP_KERNEL);
@@ -2276,8 +2282,12 @@ got_it:
 			seg_info_from_raw_sit(se, &sit);
 
 			/* build discard map only one time */
-			memcpy(se->discard_map, se->cur_valid_map, SIT_VBLOCK_MAP_SIZE);
-			sbi->discard_blks += sbi->blocks_per_seg - se->valid_blocks;
+			if (f2fs_discard_en(sbi)) {
+				memcpy(se->discard_map, se->cur_valid_map,
+							SIT_VBLOCK_MAP_SIZE);
+				sbi->discard_blks += sbi->blocks_per_seg -
+							se->valid_blocks;
+			}
 
 			if (sbi->segs_per_sec > 1) {
 				struct sec_entry *e = get_sec_entry(sbi, start);
