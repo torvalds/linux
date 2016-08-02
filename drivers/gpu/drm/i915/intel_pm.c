@@ -6493,7 +6493,7 @@ void intel_init_gt_powersave(struct drm_i915_private *dev_priv)
 		cherryview_init_gt_powersave(dev_priv);
 	else if (IS_VALLEYVIEW(dev_priv))
 		valleyview_init_gt_powersave(dev_priv);
-	else
+	else if (INTEL_GEN(dev_priv) >= 6)
 		gen6_init_rps_frequencies(dev_priv);
 
 	/* Derive initial user preferences/limits from the hardware limits */
