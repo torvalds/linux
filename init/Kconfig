@@ -2080,7 +2080,7 @@ config TRIM_UNUSED_KSYMS
 	  (especially when using LTO) for optimizing the code and reducing
 	  binary size.  This might have some security advantages as well.
 
-	  If unsure say N.
+	  If unsure, or if you need to build out-of-tree modules, say N.
 
 endif # MODULES
 
