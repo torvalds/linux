@@ -3,6 +3,7 @@
 
 #include <string.h>
 #include <linux/bitops.h>
+#include <stdlib.h>
 
 #define DECLARE_BITMAP(name,bits) \
 	unsigned long name[BITS_TO_LONGS(bits)]
@@ -63,6 +64,15 @@ static inline int test_and_set_bit(int nr, unsigned long *addr)
 	*p = old | mask;
 
 	return (old & mask) != 0;
+}
+
+/**
+ * bitmap_alloc - Allocate bitmap
+ * @nr: Bit to set
+ */
+static inline unsigned long *bitmap_alloc(int nbits)
+{
+	return calloc(1, BITS_TO_LONGS(nbits) * sizeof(unsigned long));
 }
 
 #endif /* _PERF_BITOPS_H */
