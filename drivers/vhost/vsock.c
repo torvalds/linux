@@ -434,10 +434,7 @@ err:
 
 static void vhost_vsock_free(struct vhost_vsock *vsock)
 {
-	if (is_vmalloc_addr(vsock))
-		vfree(vsock);
-	else
-		kfree(vsock);
+	kvfree(vsock);
 }
 
 static int vhost_vsock_dev_open(struct inode *inode, struct file *file)
