@@ -51,31 +51,29 @@ int cec_get_device(struct cec_devnode *devnode)
 {
 	/*
 	 * Check if the cec device is available. This needs to be done with
-	 * the cec_devnode_lock held to prevent an open/unregister race:
+	 * the devnode->lock held to prevent an open/unregister race:
 	 * without the lock, the device could be unregistered and freed between
 	 * the devnode->registered check and get_device() calls, leading to
 	 * a crash.
 	 */
-	mutex_lock(&cec_devnode_lock);
+	mutex_lock(&devnode->lock);
 	/*
 	 * return ENXIO if the cec device has been removed
 	 * already or if it is not registered anymore.
 	 */
 	if (!devnode->registered) {
-		mutex_unlock(&cec_devnode_lock);
+		mutex_unlock(&devnode->lock);
 		return -ENXIO;
 	}
 	/* and increase the device refcount */
 	get_device(&devnode->dev);
-	mutex_unlock(&cec_devnode_lock);
+	mutex_unlock(&devnode->lock);
 	return 0;
 }
 
 void cec_put_device(struct cec_devnode *devnode)
 {
-	mutex_lock(&cec_devnode_lock);
 	put_device(&devnode->dev);
-	mutex_unlock(&cec_devnode_lock);
 }
 
 /* Called when the last user of the cec device exits. */
@@ -84,11 +82,10 @@ static void cec_devnode_release(struct device *cd)
 	struct cec_devnode *devnode = to_cec_devnode(cd);
 
 	mutex_lock(&cec_devnode_lock);
-
 	/* Mark device node number as free */
 	clear_bit(devnode->minor, cec_devnode_nums);
-
 	mutex_unlock(&cec_devnode_lock);
+
 	cec_delete_adapter(to_cec_adapter(devnode));
 }
 
@@ -160,7 +157,9 @@ static int __must_check cec_devnode_register(struct cec_devnode *devnode,
 cdev_del:
 	cdev_del(&devnode->cdev);
 clr_bit:
+	mutex_lock(&cec_devnode_lock);
 	clear_bit(devnode->minor, cec_devnode_nums);
+	mutex_unlock(&cec_devnode_lock);
 	return ret;
 }
 
@@ -177,17 +176,21 @@ static void cec_devnode_unregister(struct cec_devnode *devnode)
 {
 	struct cec_fh *fh;
 
-	/* Check if devnode was never registered or already unregistered */
-	if (!devnode->registered || devnode->unregistered)
-		return;
-
 	mutex_lock(&devnode->lock);
+
+	/* Check if devnode was never registered or already unregistered */
+	if (!devnode->registered || devnode->unregistered) {
+		mutex_unlock(&devnode->lock);
+		return;
+	}
+
 	list_for_each_entry(fh, &devnode->fhs, list)
 		wake_up_interruptible(&fh->wait);
-	mutex_unlock(&devnode->lock);
 
 	devnode->registered = false;
 	devnode->unregistered = true;
+	mutex_unlock(&devnode->lock);
+
 	device_del(&devnode->dev);
 	cdev_del(&devnode->cdev);
 	put_device(&devnode->dev);
