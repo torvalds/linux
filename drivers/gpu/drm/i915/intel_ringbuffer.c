@@ -1309,108 +1309,105 @@ static void render_ring_cleanup(struct intel_engine_cs *engine)
 	intel_fini_pipe_control(engine);
 }
 
-static int gen8_rcs_signal(struct drm_i915_gem_request *signaller_req)
+static int gen8_rcs_signal(struct drm_i915_gem_request *req)
 {
-	struct intel_ring *signaller = signaller_req->ring;
-	struct drm_i915_private *dev_priv = signaller_req->i915;
+	struct intel_ring *ring = req->ring;
+	struct drm_i915_private *dev_priv = req->i915;
 	struct intel_engine_cs *waiter;
 	enum intel_engine_id id;
 	int ret, num_rings;
 
 	num_rings = hweight32(INTEL_INFO(dev_priv)->ring_mask);
-	ret = intel_ring_begin(signaller_req, (num_rings-1) * 8);
+	ret = intel_ring_begin(req, (num_rings-1) * 8);
 	if (ret)
 		return ret;
 
 	for_each_engine_id(waiter, dev_priv, id) {
-		u64 gtt_offset =
-			signaller_req->engine->semaphore.signal_ggtt[id];
+		u64 gtt_offset = req->engine->semaphore.signal_ggtt[id];
 		if (gtt_offset == MI_SEMAPHORE_SYNC_INVALID)
 			continue;
 
-		intel_ring_emit(signaller, GFX_OP_PIPE_CONTROL(6));
-		intel_ring_emit(signaller,
+		intel_ring_emit(ring, GFX_OP_PIPE_CONTROL(6));
+		intel_ring_emit(ring,
 				PIPE_CONTROL_GLOBAL_GTT_IVB |
 				PIPE_CONTROL_QW_WRITE |
 				PIPE_CONTROL_CS_STALL);
-		intel_ring_emit(signaller, lower_32_bits(gtt_offset));
-		intel_ring_emit(signaller, upper_32_bits(gtt_offset));
-		intel_ring_emit(signaller, signaller_req->fence.seqno);
-		intel_ring_emit(signaller, 0);
-		intel_ring_emit(signaller,
+		intel_ring_emit(ring, lower_32_bits(gtt_offset));
+		intel_ring_emit(ring, upper_32_bits(gtt_offset));
+		intel_ring_emit(ring, req->fence.seqno);
+		intel_ring_emit(ring, 0);
+		intel_ring_emit(ring,
 				MI_SEMAPHORE_SIGNAL |
 				MI_SEMAPHORE_TARGET(waiter->hw_id));
-		intel_ring_emit(signaller, 0);
+		intel_ring_emit(ring, 0);
 	}
-	intel_ring_advance(signaller);
+	intel_ring_advance(ring);
 
 	return 0;
 }
 
-static int gen8_xcs_signal(struct drm_i915_gem_request *signaller_req)
+static int gen8_xcs_signal(struct drm_i915_gem_request *req)
 {
-	struct intel_ring *signaller = signaller_req->ring;
-	struct drm_i915_private *dev_priv = signaller_req->i915;
+	struct intel_ring *ring = req->ring;
+	struct drm_i915_private *dev_priv = req->i915;
 	struct intel_engine_cs *waiter;
 	enum intel_engine_id id;
 	int ret, num_rings;
 
 	num_rings = hweight32(INTEL_INFO(dev_priv)->ring_mask);
-	ret = intel_ring_begin(signaller_req, (num_rings-1) * 6);
+	ret = intel_ring_begin(req, (num_rings-1) * 6);
 	if (ret)
 		return ret;
 
 	for_each_engine_id(waiter, dev_priv, id) {
-		u64 gtt_offset =
-			signaller_req->engine->semaphore.signal_ggtt[id];
+		u64 gtt_offset = req->engine->semaphore.signal_ggtt[id];
 		if (gtt_offset == MI_SEMAPHORE_SYNC_INVALID)
 			continue;
 
-		intel_ring_emit(signaller,
+		intel_ring_emit(ring,
 				(MI_FLUSH_DW + 1) | MI_FLUSH_DW_OP_STOREDW);
-		intel_ring_emit(signaller,
+		intel_ring_emit(ring,
 				lower_32_bits(gtt_offset) |
 				MI_FLUSH_DW_USE_GTT);
-		intel_ring_emit(signaller, upper_32_bits(gtt_offset));
-		intel_ring_emit(signaller, signaller_req->fence.seqno);
-		intel_ring_emit(signaller,
+		intel_ring_emit(ring, upper_32_bits(gtt_offset));
+		intel_ring_emit(ring, req->fence.seqno);
+		intel_ring_emit(ring,
 				MI_SEMAPHORE_SIGNAL |
 				MI_SEMAPHORE_TARGET(waiter->hw_id));
-		intel_ring_emit(signaller, 0);
+		intel_ring_emit(ring, 0);
 	}
-	intel_ring_advance(signaller);
+	intel_ring_advance(ring);
 
 	return 0;
 }
 
-static int gen6_signal(struct drm_i915_gem_request *signaller_req)
+static int gen6_signal(struct drm_i915_gem_request *req)
 {
-	struct intel_ring *signaller = signaller_req->ring;
-	struct drm_i915_private *dev_priv = signaller_req->i915;
+	struct intel_ring *ring = req->ring;
+	struct drm_i915_private *dev_priv = req->i915;
 	struct intel_engine_cs *useless;
 	enum intel_engine_id id;
 	int ret, num_rings;
 
 	num_rings = hweight32(INTEL_INFO(dev_priv)->ring_mask);
-	ret = intel_ring_begin(signaller_req, round_up((num_rings-1) * 3, 2));
+	ret = intel_ring_begin(req, round_up((num_rings-1) * 3, 2));
 	if (ret)
 		return ret;
 
 	for_each_engine_id(useless, dev_priv, id) {
-		i915_reg_t mbox_reg =
-			signaller_req->engine->semaphore.mbox.signal[id];
+		i915_reg_t mbox_reg = req->engine->semaphore.mbox.signal[id];
 
 		if (i915_mmio_reg_valid(mbox_reg)) {
-			intel_ring_emit(signaller, MI_LOAD_REGISTER_IMM(1));
-			intel_ring_emit_reg(signaller, mbox_reg);
-			intel_ring_emit(signaller, signaller_req->fence.seqno);
+			intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
+			intel_ring_emit_reg(ring, mbox_reg);
+			intel_ring_emit(ring, req->fence.seqno);
 		}
 	}
 
 	/* If num_dwords was rounded, make sure the tail pointer is correct */
 	if (num_rings % 2 == 0)
-		intel_ring_emit(signaller, MI_NOOP);
-	intel_ring_advance(signaller);
+		intel_ring_emit(ring, MI_NOOP);
+	intel_ring_advance(ring);
 
 	return 0;
 }
@@ -1505,64 +1502,65 @@ static int gen8_render_emit_request(struct drm_i915_gem_request *req)
  */
 
 static int
-gen8_ring_sync(struct drm_i915_gem_request *wait,
-	       struct drm_i915_gem_request *signal)
+gen8_ring_sync_to(struct drm_i915_gem_request *req,
+		  struct drm_i915_gem_request *signal)
 {
-	struct intel_ring *waiter = wait->ring;
-	struct drm_i915_private *dev_priv = wait->i915;
-	u64 offset = GEN8_WAIT_OFFSET(wait->engine, signal->engine->id);
+	struct intel_ring *ring = req->ring;
+	struct drm_i915_private *dev_priv = req->i915;
+	u64 offset = GEN8_WAIT_OFFSET(req->engine, signal->engine->id);
 	struct i915_hw_ppgtt *ppgtt;
 	int ret;
 
-	ret = intel_ring_begin(wait, 4);
+	ret = intel_ring_begin(req, 4);
 	if (ret)
 		return ret;
 
-	intel_ring_emit(waiter, MI_SEMAPHORE_WAIT |
-				MI_SEMAPHORE_GLOBAL_GTT |
-				MI_SEMAPHORE_SAD_GTE_SDD);
-	intel_ring_emit(waiter, signal->fence.seqno);
-	intel_ring_emit(waiter, lower_32_bits(offset));
-	intel_ring_emit(waiter, upper_32_bits(offset));
-	intel_ring_advance(waiter);
+	intel_ring_emit(ring,
+			MI_SEMAPHORE_WAIT |
+			MI_SEMAPHORE_GLOBAL_GTT |
+			MI_SEMAPHORE_SAD_GTE_SDD);
+	intel_ring_emit(ring, signal->fence.seqno);
+	intel_ring_emit(ring, lower_32_bits(offset));
+	intel_ring_emit(ring, upper_32_bits(offset));
+	intel_ring_advance(ring);
 
 	/* When the !RCS engines idle waiting upon a semaphore, they lose their
 	 * pagetables and we must reload them before executing the batch.
 	 * We do this on the i915_switch_context() following the wait and
 	 * before the dispatch.
 	 */
-	ppgtt = wait->ctx->ppgtt;
-	if (ppgtt && wait->engine->id != RCS)
-		ppgtt->pd_dirty_rings |= intel_engine_flag(wait->engine);
+	ppgtt = req->ctx->ppgtt;
+	if (ppgtt && req->engine->id != RCS)
+		ppgtt->pd_dirty_rings |= intel_engine_flag(req->engine);
 	return 0;
 }
 
 static int
-gen6_ring_sync(struct drm_i915_gem_request *wait,
-	       struct drm_i915_gem_request *signal)
+gen6_ring_sync_to(struct drm_i915_gem_request *req,
+		  struct drm_i915_gem_request *signal)
 {
-	struct intel_ring *waiter = wait->ring;
+	struct intel_ring *ring = req->ring;
 	u32 dw1 = MI_SEMAPHORE_MBOX |
 		  MI_SEMAPHORE_COMPARE |
 		  MI_SEMAPHORE_REGISTER;
-	u32 wait_mbox = signal->engine->semaphore.mbox.wait[wait->engine->id];
+	u32 wait_mbox = signal->engine->semaphore.mbox.wait[req->engine->id];
 	int ret;
 
 	WARN_ON(wait_mbox == MI_SEMAPHORE_SYNC_INVALID);
 
-	ret = intel_ring_begin(wait, 4);
+	ret = intel_ring_begin(req, 4);
 	if (ret)
 		return ret;
 
-	intel_ring_emit(waiter, dw1 | wait_mbox);
+	intel_ring_emit(ring, dw1 | wait_mbox);
 	/* Throughout all of the GEM code, seqno passed implies our current
 	 * seqno is >= the last seqno executed. However for hardware the
 	 * comparison is strictly greater than.
 	 */
-	intel_ring_emit(waiter, signal->fence.seqno - 1);
-	intel_ring_emit(waiter, 0);
-	intel_ring_emit(waiter, MI_NOOP);
-	intel_ring_advance(waiter);
+	intel_ring_emit(ring, signal->fence.seqno - 1);
+	intel_ring_emit(ring, 0);
+	intel_ring_emit(ring, MI_NOOP);
+	intel_ring_advance(ring);
 
 	return 0;
 }
@@ -2669,7 +2667,7 @@ static void intel_ring_init_semaphores(struct drm_i915_private *dev_priv,
 	if (INTEL_GEN(dev_priv) >= 8) {
 		u64 offset = i915_gem_obj_ggtt_offset(dev_priv->semaphore_obj);
 
-		engine->semaphore.sync_to = gen8_ring_sync;
+		engine->semaphore.sync_to = gen8_ring_sync_to;
 		engine->semaphore.signal = gen8_xcs_signal;
 
 		for (i = 0; i < I915_NUM_ENGINES; i++) {
@@ -2683,7 +2681,7 @@ static void intel_ring_init_semaphores(struct drm_i915_private *dev_priv,
 			engine->semaphore.signal_ggtt[i] = ring_offset;
 		}
 	} else if (INTEL_GEN(dev_priv) >= 6) {
-		engine->semaphore.sync_to = gen6_ring_sync;
+		engine->semaphore.sync_to = gen6_ring_sync_to;
 		engine->semaphore.signal = gen6_signal;
 
 		/*

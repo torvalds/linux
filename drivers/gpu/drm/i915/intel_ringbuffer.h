@@ -277,9 +277,9 @@ struct intel_engine_cs {
 		};
 
 		/* AKA wait() */
-		int	(*sync_to)(struct drm_i915_gem_request *to,
-				   struct drm_i915_gem_request *from);
-		int	(*signal)(struct drm_i915_gem_request *signaller_req);
+		int	(*sync_to)(struct drm_i915_gem_request *req,
+				   struct drm_i915_gem_request *signal);
+		int	(*signal)(struct drm_i915_gem_request *req);
 	} semaphore;
 
 	/* Execlists */
