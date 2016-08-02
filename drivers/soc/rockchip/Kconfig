@@ -36,6 +36,17 @@ config ROCKCHIP_PM_DOMAINS
 
           If unsure, say N.
 
+config ROCKCHIP_VENDOR_STORAGE
+	tristate "Rockchip vendor storage support"
+	help
+	  Say y here to enable rockchip vendor storage support.
+
+config ROCKCHIP_MMC_VENDOR_STORAGE
+	tristate "Rockchip mmc vendor storage support"
+	depends on ROCKCHIP_VENDOR_STORAGE && MMC
+	help
+	  Say y here to enable rockchip mmc vendor storage support.
+
 config ROCKCHIP_FIQ_DEBUGGER
 	tristate "Rockchip FIQ Debugger"
 	depends on FIQ_DEBUGGER
