@@ -270,7 +270,8 @@ static const u32 tonga_mgcg_cgcg_init[] =
 
 static const u32 golden_settings_polaris11_a11[] =
 {
-	mmCB_HW_CONTROL, 0xfffdf3cf, 0x00006208,
+	mmCB_HW_CONTROL, 0x0000f3cf, 0x00007208,
+	mmCB_HW_CONTROL_2, 0x0f000000, 0x0f000000,
 	mmCB_HW_CONTROL_3, 0x000001ff, 0x00000040,
 	mmDB_DEBUG2, 0xf00fffff, 0x00000400,
 	mmPA_SC_ENHANCE, 0xffffffff, 0x20000001,
@@ -279,7 +280,7 @@ static const u32 golden_settings_polaris11_a11[] =
 	mmPA_SC_RASTER_CONFIG_1, 0x0000003f, 0x00000000,
 	mmRLC_CGCG_CGLS_CTRL, 0x00000003, 0x0001003c,
 	mmRLC_CGCG_CGLS_CTRL_3D, 0xffffffff, 0x0001003c,
-	mmSQ_CONFIG, 0x07f80000, 0x07180000,
+	mmSQ_CONFIG, 0x07f80000, 0x01180000,
 	mmTA_CNTL_AUX, 0x000f000f, 0x000b0000,
 	mmTCC_CTRL, 0x00100000, 0xf31fff7f,
 	mmTCP_ADDR_CONFIG, 0x000003ff, 0x000000f3,
