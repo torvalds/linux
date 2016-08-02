@@ -508,14 +508,14 @@ static int cec_open(struct inode *inode, struct file *filp)
 
 	filp->private_data = fh;
 
-	mutex_lock(&devnode->fhs_lock);
+	mutex_lock(&devnode->lock);
 	/* Queue up initial state events */
 	ev_state.state_change.phys_addr = adap->phys_addr;
 	ev_state.state_change.log_addr_mask = adap->log_addrs.log_addr_mask;
 	cec_queue_event_fh(fh, &ev_state, 0);
 
 	list_add(&fh->list, &devnode->fhs);
-	mutex_unlock(&devnode->fhs_lock);
+	mutex_unlock(&devnode->lock);
 
 	return 0;
 }
@@ -540,9 +540,9 @@ static int cec_release(struct inode *inode, struct file *filp)
 		cec_monitor_all_cnt_dec(adap);
 	mutex_unlock(&adap->lock);
 
-	mutex_lock(&devnode->fhs_lock);
+	mutex_lock(&devnode->lock);
 	list_del(&fh->list);
-	mutex_unlock(&devnode->fhs_lock);
+	mutex_unlock(&devnode->lock);
 
 	/* Unhook pending transmits from this filehandle. */
 	mutex_lock(&adap->lock);

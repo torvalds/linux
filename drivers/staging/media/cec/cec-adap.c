@@ -124,10 +124,10 @@ static void cec_queue_event(struct cec_adapter *adap,
 	u64 ts = ktime_get_ns();
 	struct cec_fh *fh;
 
-	mutex_lock(&adap->devnode.fhs_lock);
+	mutex_lock(&adap->devnode.lock);
 	list_for_each_entry(fh, &adap->devnode.fhs, list)
 		cec_queue_event_fh(fh, ev, ts);
-	mutex_unlock(&adap->devnode.fhs_lock);
+	mutex_unlock(&adap->devnode.lock);
 }
 
 /*
@@ -191,12 +191,12 @@ static void cec_queue_msg_monitor(struct cec_adapter *adap,
 	u32 monitor_mode = valid_la ? CEC_MODE_MONITOR :
 				      CEC_MODE_MONITOR_ALL;
 
-	mutex_lock(&adap->devnode.fhs_lock);
+	mutex_lock(&adap->devnode.lock);
 	list_for_each_entry(fh, &adap->devnode.fhs, list) {
 		if (fh->mode_follower >= monitor_mode)
 			cec_queue_msg_fh(fh, msg);
 	}
-	mutex_unlock(&adap->devnode.fhs_lock);
+	mutex_unlock(&adap->devnode.lock);
 }
 
 /*
@@ -207,12 +207,12 @@ static void cec_queue_msg_followers(struct cec_adapter *adap,
 {
 	struct cec_fh *fh;
 
-	mutex_lock(&adap->devnode.fhs_lock);
+	mutex_lock(&adap->devnode.lock);
 	list_for_each_entry(fh, &adap->devnode.fhs, list) {
 		if (fh->mode_follower == CEC_MODE_FOLLOWER)
 			cec_queue_msg_fh(fh, msg);
 	}
-	mutex_unlock(&adap->devnode.fhs_lock);
+	mutex_unlock(&adap->devnode.lock);
 }
 
 /* Notify userspace of an adapter state change. */

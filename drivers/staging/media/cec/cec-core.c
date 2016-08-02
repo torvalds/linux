@@ -117,7 +117,7 @@ static int __must_check cec_devnode_register(struct cec_devnode *devnode,
 
 	/* Initialization */
 	INIT_LIST_HEAD(&devnode->fhs);
-	mutex_init(&devnode->fhs_lock);
+	mutex_init(&devnode->lock);
 
 	/* Part 1: Find a free minor number */
 	mutex_lock(&cec_devnode_lock);
@@ -181,10 +181,10 @@ static void cec_devnode_unregister(struct cec_devnode *devnode)
 	if (!devnode->registered || devnode->unregistered)
 		return;
 
-	mutex_lock(&devnode->fhs_lock);
+	mutex_lock(&devnode->lock);
 	list_for_each_entry(fh, &devnode->fhs, list)
 		wake_up_interruptible(&fh->wait);
-	mutex_unlock(&devnode->fhs_lock);
+	mutex_unlock(&devnode->lock);
 
 	devnode->registered = false;
 	devnode->unregistered = true;
