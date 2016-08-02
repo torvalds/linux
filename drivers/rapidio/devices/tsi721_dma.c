@@ -726,6 +726,7 @@ static dma_cookie_t tsi721_tx_submit(struct dma_async_tx_descriptor *txd)
 	cookie = dma_cookie_assign(txd);
 	desc->status = DMA_IN_PROGRESS;
 	list_add_tail(&desc->desc_node, &bdma_chan->queue);
+	tsi721_advance_work(bdma_chan, NULL);
 
 	spin_unlock_bh(&bdma_chan->lock);
 	return cookie;
