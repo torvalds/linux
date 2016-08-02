@@ -204,8 +204,6 @@ struct intel_engine_cs {
 
 	int		(*init_context)(struct drm_i915_gem_request *req);
 
-	void		(*write_tail)(struct intel_engine_cs *engine,
-				      u32 value);
 	int		(*add_request)(struct drm_i915_gem_request *req);
 	/* Some chipsets are not quite as coherent as advertised and need
 	 * an expensive kick to force a true read of the up-to-date seqno.
@@ -296,6 +294,7 @@ struct intel_engine_cs {
 #define I915_DISPATCH_SECURE 0x1
 #define I915_DISPATCH_PINNED 0x2
 #define I915_DISPATCH_RS     0x4
+	void		(*submit_request)(struct drm_i915_gem_request *req);
 
 	/**
 	 * List of objects currently involved in rendering from the
@@ -461,6 +460,13 @@ static inline void intel_ring_emit_reg(struct intel_ring *ring, i915_reg_t reg)
 
 static inline void intel_ring_advance(struct intel_ring *ring)
 {
+	/* The modulus is required so that we avoid writing
+	 * request->tail == ring->size, rather than the expected 0,
+	 * into the RING_TAIL register as that can cause a GPU hang.
+	 * As this is only strictly required for the request->tail,
+	 * and only then as we write the value into hardware, we can
+	 * one day remove the modulus after every command packet.
+	 */
 	ring->tail &= ring->size - 1;
 }
 
