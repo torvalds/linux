@@ -405,7 +405,7 @@ static void __init pnv_ioda_parse_m64_window(struct pnv_phb *phb)
 	struct pci_controller *hose = phb->hose;
 	struct device_node *dn = hose->dn;
 	struct resource *res;
-	const u32 *r;
+	const __be32 *r;
 	u64 pci_addr;
 
 	if (phb->type != PNV_PHB_IODA1 && phb->type != PNV_PHB_IODA2) {
