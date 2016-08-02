@@ -181,6 +181,17 @@
 	status = "okay";
 };
 
+&i2c3 {
+	status = "okay";
+	i2c-scl-rising-time-ns = <450>;
+	i2c-scl-falling-time-ns = <15>;
+};
+
+&hdmi {
+	ddc-i2c-bus = <&i2c3>;
+	status = "okay";
+};
+
 &display_subsystem {
 	status = "okay";
 };
