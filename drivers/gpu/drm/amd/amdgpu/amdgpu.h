@@ -51,6 +51,7 @@
 #include "amdgpu_ih.h"
 #include "amdgpu_irq.h"
 #include "amdgpu_ucode.h"
+#include "amdgpu_ttm.h"
 #include "amdgpu_gds.h"
 #include "amd_powerplay.h"
 #include "amdgpu_acp.h"
@@ -397,50 +398,8 @@ int amdgpu_fence_wait_empty(struct amdgpu_ring *ring);
 unsigned amdgpu_fence_count_emitted(struct amdgpu_ring *ring);
 
 /*
- * TTM.
+ * BO.
  */
-
-#define AMDGPU_TTM_LRU_SIZE	20
-
-struct amdgpu_mman_lru {
-	struct list_head		*lru[TTM_NUM_MEM_TYPES];
-	struct list_head		*swap_lru;
-};
-
-struct amdgpu_mman {
-	struct ttm_bo_global_ref        bo_global_ref;
-	struct drm_global_reference	mem_global_ref;
-	struct ttm_bo_device		bdev;
-	bool				mem_global_referenced;
-	bool				initialized;
-
-#if defined(CONFIG_DEBUG_FS)
-	struct dentry			*vram;
-	struct dentry			*gtt;
-#endif
-
-	/* buffer handling */
-	const struct amdgpu_buffer_funcs	*buffer_funcs;
-	struct amdgpu_ring			*buffer_funcs_ring;
-	/* Scheduler entity for buffer moves */
-	struct amd_sched_entity			entity;
-
-	/* custom LRU management */
-	struct amdgpu_mman_lru			log2_size[AMDGPU_TTM_LRU_SIZE];
-};
-
-int amdgpu_copy_buffer(struct amdgpu_ring *ring,
-		       uint64_t src_offset,
-		       uint64_t dst_offset,
-		       uint32_t byte_count,
-		       struct reservation_object *resv,
-		       struct fence **fence);
-int amdgpu_fill_buffer(struct amdgpu_bo *bo,
-			uint32_t src_data,
-			struct reservation_object *resv,
-			struct fence **fence);
-
-int amdgpu_mmap(struct file *filp, struct vm_area_struct *vma);
 
 struct amdgpu_bo_list_entry {
 	struct amdgpu_bo		*robj;
