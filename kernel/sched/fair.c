@@ -6351,10 +6351,22 @@ static inline int find_best_target(struct task_struct *p, bool prefer_idle)
 
 		if (new_util < cur_capacity) {
 			if (cpu_rq(i)->nr_running) {
-				if (target_util == 0 ||
-					target_util > new_util) {
-					target_cpu = i;
-					target_util = new_util;
+				if(prefer_idle) {
+					// Find a target cpu with lowest
+					// utilization.
+					if (target_util == 0 ||
+						target_util < new_util) {
+						target_cpu = i;
+						target_util = new_util;
+					}
+				} else {
+					// Find a target cpu with highest
+					// utilization.
+					if (target_util == 0 ||
+						target_util > new_util) {
+						target_cpu = i;
+						target_util = new_util;
+					}
 				}
 			} else if (!prefer_idle) {
 				if (best_idle_cpu < 0 ||
@@ -6366,6 +6378,7 @@ static inline int find_best_target(struct task_struct *p, bool prefer_idle)
 			}
 		} else if (backup_capacity == 0 ||
 				backup_capacity > cur_capacity) {
+			// Find a backup cpu with least capacity.
 			backup_capacity = cur_capacity;
 			backup_cpu = i;
 		}
