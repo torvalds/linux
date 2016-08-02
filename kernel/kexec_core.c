@@ -147,7 +147,7 @@ static struct page *kimage_alloc_page(struct kimage *image,
 
 int sanity_check_segment_list(struct kimage *image)
 {
-	int result, i;
+	int i;
 	unsigned long nr_segments = image->nr_segments;
 
 	/*
@@ -163,16 +163,15 @@ int sanity_check_segment_list(struct kimage *image)
 	 * simply because addresses are changed to page size
 	 * granularity.
 	 */
-	result = -EADDRNOTAVAIL;
 	for (i = 0; i < nr_segments; i++) {
 		unsigned long mstart, mend;
 
 		mstart = image->segment[i].mem;
 		mend   = mstart + image->segment[i].memsz;
 		if ((mstart & ~PAGE_MASK) || (mend & ~PAGE_MASK))
-			return result;
+			return -EADDRNOTAVAIL;
 		if (mend >= KEXEC_DESTINATION_MEMORY_LIMIT)
-			return result;
+			return -EADDRNOTAVAIL;
 	}
 
 	/* Verify our destination addresses do not overlap.
@@ -180,7 +179,6 @@ int sanity_check_segment_list(struct kimage *image)
 	 * through very weird things can happen with no
 	 * easy explanation as one segment stops on another.
 	 */
-	result = -EINVAL;
 	for (i = 0; i < nr_segments; i++) {
 		unsigned long mstart, mend;
 		unsigned long j;
@@ -194,7 +192,7 @@ int sanity_check_segment_list(struct kimage *image)
 			pend   = pstart + image->segment[j].memsz;
 			/* Do the segments overlap ? */
 			if ((mend > pstart) && (mstart < pend))
-				return result;
+				return -EINVAL;
 		}
 	}
 
@@ -203,10 +201,9 @@ int sanity_check_segment_list(struct kimage *image)
 	 * and it is easier to check up front than to be surprised
 	 * later on.
 	 */
-	result = -EINVAL;
 	for (i = 0; i < nr_segments; i++) {
 		if (image->segment[i].bufsz > image->segment[i].memsz)
-			return result;
+			return -EINVAL;
 	}
 
 	/*
@@ -220,7 +217,6 @@ int sanity_check_segment_list(struct kimage *image)
 	 */
 
 	if (image->type == KEXEC_TYPE_CRASH) {
-		result = -EADDRNOTAVAIL;
 		for (i = 0; i < nr_segments; i++) {
 			unsigned long mstart, mend;
 
@@ -229,7 +225,7 @@ int sanity_check_segment_list(struct kimage *image)
 			/* Ensure we are within the crash kernel limits */
 			if ((mstart < crashk_res.start) ||
 			    (mend > crashk_res.end))
-				return result;
+				return -EADDRNOTAVAIL;
 		}
 	}
 
