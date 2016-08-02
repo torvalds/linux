@@ -37,10 +37,14 @@
 #include "tsi721.h"
 
 #ifdef DEBUG
-u32 dbg_level = DBG_INIT | DBG_EXIT;
+u32 dbg_level;
 module_param(dbg_level, uint, S_IWUSR | S_IRUGO);
 MODULE_PARM_DESC(dbg_level, "Debugging output level (default 0 = none)");
 #endif
+
+static int pcie_mrrs = -1;
+module_param(pcie_mrrs, int, S_IRUGO);
+MODULE_PARM_DESC(pcie_mrrs, "PCIe MRRS override value (0...5)");
 
 static void tsi721_omsg_handler(struct tsi721_device *priv, int ch);
 static void tsi721_imsg_handler(struct tsi721_device *priv, int ch);
@@ -2839,6 +2843,16 @@ static int tsi721_probe(struct pci_dev *pdev,
 	/* Clear "no snoop" and "relaxed ordering" bits. */
 	pcie_capability_clear_and_set_word(pdev, PCI_EXP_DEVCTL,
 		PCI_EXP_DEVCTL_RELAX_EN | PCI_EXP_DEVCTL_NOSNOOP_EN, 0);
+
+	/* Override PCIe Maximum Read Request Size setting if requested */
+	if (pcie_mrrs >= 0) {
+		if (pcie_mrrs <= 5)
+			pcie_capability_clear_and_set_word(pdev, PCI_EXP_DEVCTL,
+					PCI_EXP_DEVCTL_READRQ, pcie_mrrs << 12);
+		else
+			tsi_info(&pdev->dev,
+				 "Invalid MRRS override value %d", pcie_mrrs);
+	}
 
 	/* Adjust PCIe completion timeout. */
 	pcie_capability_clear_and_set_word(pdev, PCI_EXP_DEVCTL2, 0xf, 0x2);

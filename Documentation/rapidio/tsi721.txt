@@ -39,6 +39,13 @@ fully compatible with RIONET driver (Ethernet over RapidIO messaging services).
         DMA channels not selected by this mask will not be used by this device
         driver. Default value is 0x7f (use all channels).
 
+- 'pcie_mrrs' - override value for PCIe Maximum Read Request Size (MRRS).
+        This parameter gives an ability to override MRRS value set during PCIe
+        configuration process. Tsi721 supports read request sizes up to 4096B.
+        Value for this parameter must be set as defined by PCIe specification:
+        0 = 128B, 1 = 256B, 2 = 512B, 3 = 1024B, 4 = 2048B and 5 = 4096B.
+        Default value is '-1' (= keep platform setting).
+
 II. Known problems
 
   None.
