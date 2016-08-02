@@ -1823,7 +1823,8 @@ int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
 	return 0;
 }
 
-int kvm_set_routing_entry(struct kvm_kernel_irq_routing_entry *e,
+int kvm_set_routing_entry(struct kvm *kvm,
+			  struct kvm_kernel_irq_routing_entry *e,
 			  const struct kvm_irq_routing_entry *ue)
 {
 	int r = -EINVAL;

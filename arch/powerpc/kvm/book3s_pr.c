@@ -914,7 +914,7 @@ int kvmppc_handle_exit_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	/* We get here with MSR.EE=1 */
 
 	trace_kvm_exit(exit_nr, vcpu);
-	kvm_guest_exit();
+	guest_exit();
 
 	switch (exit_nr) {
 	case BOOK3S_INTERRUPT_INST_STORAGE:
@@ -1049,7 +1049,17 @@ int kvmppc_handle_exit_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		int emul;
 
 program_interrupt:
-		flags = vcpu->arch.shadow_srr1 & 0x1f0000ull;
+		/*
+		 * shadow_srr1 only contains valid flags if we came here via
+		 * a program exception. The other exceptions (emulation assist,
+		 * FP unavailable, etc.) do not provide flags in SRR1, so use
+		 * an illegal-instruction exception when injecting a program
+		 * interrupt into the guest.
+		 */
+		if (exit_nr == BOOK3S_INTERRUPT_PROGRAM)
+			flags = vcpu->arch.shadow_srr1 & 0x1f0000ull;
+		else
+			flags = SRR1_PROGILL;
 
 		emul = kvmppc_get_last_inst(vcpu, INST_GENERIC, &last_inst);
 		if (emul != EMULATE_DONE) {
@@ -1531,7 +1541,7 @@ static int kvmppc_vcpu_run_pr(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 
 	kvmppc_clear_debug(vcpu);
 
-	/* No need for kvm_guest_exit. It's done in handle_exit.
+	/* No need for guest_exit. It's done in handle_exit.
 	   We also get here with interrupts enabled. */
 
 	/* Make sure we save the guest FPU/Altivec/VSX state */

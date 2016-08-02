@@ -277,6 +277,7 @@ static inline int is_module_addr(void *addr)
 /* Bits in the region table entry */
 #define _REGION_ENTRY_ORIGIN	~0xfffUL/* region/segment table origin	    */
 #define _REGION_ENTRY_PROTECT	0x200	/* region protection bit	    */
+#define _REGION_ENTRY_OFFSET	0xc0	/* region table offset		    */
 #define _REGION_ENTRY_INVALID	0x20	/* invalid region table entry	    */
 #define _REGION_ENTRY_TYPE_MASK	0x0c	/* region/segment table type mask   */
 #define _REGION_ENTRY_TYPE_R1	0x0c	/* region first table type	    */
@@ -364,6 +365,7 @@ static inline int is_module_addr(void *addr)
 #define PGSTE_GC_BIT	0x0002000000000000UL
 #define PGSTE_UC_BIT	0x0000800000000000UL	/* user dirty (migration) */
 #define PGSTE_IN_BIT	0x0000400000000000UL	/* IPTE notify bit */
+#define PGSTE_VSIE_BIT	0x0000200000000000UL	/* ref'd in a shadow table */
 
 /* Guest Page State used for virtualization */
 #define _PGSTE_GPS_ZERO		0x0000000080000000UL
@@ -1002,15 +1004,26 @@ static inline int ptep_set_access_flags(struct vm_area_struct *vma,
 void ptep_set_pte_at(struct mm_struct *mm, unsigned long addr,
 		     pte_t *ptep, pte_t entry);
 void ptep_set_notify(struct mm_struct *mm, unsigned long addr, pte_t *ptep);
-void ptep_notify(struct mm_struct *mm, unsigned long addr, pte_t *ptep);
+void ptep_notify(struct mm_struct *mm, unsigned long addr,
+		 pte_t *ptep, unsigned long bits);
+int ptep_force_prot(struct mm_struct *mm, unsigned long gaddr,
+		    pte_t *ptep, int prot, unsigned long bit);
 void ptep_zap_unused(struct mm_struct *mm, unsigned long addr,
 		     pte_t *ptep , int reset);
 void ptep_zap_key(struct mm_struct *mm, unsigned long addr, pte_t *ptep);
+int ptep_shadow_pte(struct mm_struct *mm, unsigned long saddr,
+		    pte_t *sptep, pte_t *tptep, pte_t pte);
+void ptep_unshadow_pte(struct mm_struct *mm, unsigned long saddr, pte_t *ptep);
 
 bool test_and_clear_guest_dirty(struct mm_struct *mm, unsigned long address);
 int set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
 			  unsigned char key, bool nq);
-unsigned char get_guest_storage_key(struct mm_struct *mm, unsigned long addr);
+int cond_set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
+			       unsigned char key, unsigned char *oldkey,
+			       bool nq, bool mr, bool mc);
+int reset_guest_reference_bit(struct mm_struct *mm, unsigned long addr);
+int get_guest_storage_key(struct mm_struct *mm, unsigned long addr,
+			  unsigned char *key);
 
 /*
  * Certain architectures need to do special things when PTEs

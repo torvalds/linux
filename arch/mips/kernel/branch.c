@@ -790,7 +790,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 		epc += 4 + (insn.i_format.simmediate << 2);
 		regs->cp0_epc = epc;
 		break;
-	case beqzcjic_op:
+	case pop66_op:
 		if (!cpu_has_mips_r6) {
 			ret = -SIGILL;
 			break;
@@ -798,7 +798,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 		/* Compact branch: BEQZC || JIC */
 		regs->cp0_epc += 8;
 		break;
-	case bnezcjialc_op:
+	case pop76_op:
 		if (!cpu_has_mips_r6) {
 			ret = -SIGILL;
 			break;
@@ -809,8 +809,8 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 		regs->cp0_epc += 8;
 		break;
 #endif
-	case cbcond0_op:
-	case cbcond1_op:
+	case pop10_op:
+	case pop30_op:
 		/* Only valid for MIPS R6 */
 		if (!cpu_has_mips_r6) {
 			ret = -SIGILL;
