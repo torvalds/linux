@@ -419,7 +419,7 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 	 * should already have been reserved in the ring buffer. Let the ring
 	 * know that it is time to use that space up.
 	 */
-	request_start = intel_ring_get_tail(ring);
+	request_start = ring->tail;
 	reserved_tail = request->reserved_space;
 	request->reserved_space = 0;
 
@@ -464,19 +464,19 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 	 * GPU processing the request, we never over-estimate the
 	 * position of the head.
 	 */
-	request->postfix = intel_ring_get_tail(ring);
+	request->postfix = ring->tail;
 
 	if (i915.enable_execlists) {
 		ret = engine->emit_request(request);
 	} else {
 		ret = engine->add_request(request);
 
-		request->tail = intel_ring_get_tail(ring);
+		request->tail = ring->tail;
 	}
 	/* Not allowed to fail! */
 	WARN(ret, "emit|add_request failed: %d!\n", ret);
 	/* Sanity check that the reserved size was large enough. */
-	ret = intel_ring_get_tail(ring) - request_start;
+	ret = ring->tail - request_start;
 	if (ret < 0)
 		ret += ring->size;
 	WARN_ONCE(ret > reserved_tail,

@@ -490,11 +490,6 @@ static inline u32 intel_engine_get_seqno(struct intel_engine_cs *engine)
 
 int init_workarounds_ring(struct intel_engine_cs *engine);
 
-static inline u32 intel_ring_get_tail(struct intel_ring *ring)
-{
-	return ring->tail;
-}
-
 /*
  * Arbitrary size for largest possible 'add request' sequence. The code paths
  * are complex and variable. Empirical measurement shows that the worst case
