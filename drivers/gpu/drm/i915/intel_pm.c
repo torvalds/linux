@@ -6541,9 +6541,7 @@ void intel_init_gt_powersave(struct drm_i915_private *dev_priv)
 
 void intel_cleanup_gt_powersave(struct drm_i915_private *dev_priv)
 {
-	if (IS_CHERRYVIEW(dev_priv))
-		return;
-	else if (IS_VALLEYVIEW(dev_priv))
+	if (IS_VALLEYVIEW(dev_priv))
 		valleyview_cleanup_gt_powersave(dev_priv);
 
 	if (!i915.enable_rc6)
