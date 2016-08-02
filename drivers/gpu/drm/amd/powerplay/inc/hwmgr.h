@@ -278,6 +278,8 @@ struct pp_hwmgr_func {
 
 	int (*dynamic_state_management_enable)(
 						struct pp_hwmgr *hw_mgr);
+	int (*dynamic_state_management_disable)(
+						struct pp_hwmgr *hw_mgr);
 
 	int (*patch_boot_state)(struct pp_hwmgr *hwmgr,
 				     struct pp_hw_power_state *hw_ps);
@@ -333,11 +335,13 @@ struct pp_hwmgr_func {
 	int (*get_clock_by_type)(struct pp_hwmgr *hwmgr, enum amd_pp_clock_type type, struct amd_pp_clocks *clocks);
 	int (*get_max_high_clocks)(struct pp_hwmgr *hwmgr, struct amd_pp_simple_clock_info *clocks);
 	int (*power_off_asic)(struct pp_hwmgr *hwmgr);
-	int (*get_pp_table)(struct pp_hwmgr *hwmgr, char **table);
-	int (*set_pp_table)(struct pp_hwmgr *hwmgr, const char *buf, size_t size);
 	int (*force_clock_level)(struct pp_hwmgr *hwmgr, enum pp_clock_type type, uint32_t mask);
 	int (*print_clock_levels)(struct pp_hwmgr *hwmgr, enum pp_clock_type type, char *buf);
 	int (*enable_per_cu_power_gating)(struct pp_hwmgr *hwmgr, bool enable);
+	int (*get_sclk_od)(struct pp_hwmgr *hwmgr);
+	int (*set_sclk_od)(struct pp_hwmgr *hwmgr, uint32_t value);
+	int (*get_mclk_od)(struct pp_hwmgr *hwmgr);
+	int (*set_mclk_od)(struct pp_hwmgr *hwmgr, uint32_t value);
 };
 
 struct pp_table_func {
@@ -580,6 +584,7 @@ struct pp_hwmgr {
 	struct pp_smumgr *smumgr;
 	const void *soft_pp_table;
 	uint32_t soft_pp_table_size;
+	void *hardcode_pp_table;
 	bool need_pp_table_upload;
 	enum amd_dpm_forced_level dpm_level;
 	bool block_hw_access;
@@ -609,6 +614,7 @@ struct pp_hwmgr {
 	uint32_t num_ps;
 	struct pp_thermal_controller_info thermal_controller;
 	bool fan_ctrl_is_in_default_mode;
+	bool powercontainment_enabled;
 	uint32_t fan_ctrl_default_mode;
 	uint32_t tmin;
 	struct phm_microcode_version_info microcode_version_info;

@@ -221,7 +221,6 @@ static int qxl_crtc_page_flip(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct qxl_device *qdev = dev->dev_private;
-	struct qxl_crtc *qcrtc = to_qxl_crtc(crtc);
 	struct qxl_framebuffer *qfb_src = to_qxl_framebuffer(fb);
 	struct qxl_framebuffer *qfb_old = to_qxl_framebuffer(crtc->primary->fb);
 	struct qxl_bo *bo_old = gem_to_qxl_bo(qfb_old->obj);
@@ -252,14 +251,14 @@ static int qxl_crtc_page_flip(struct drm_crtc *crtc,
 	qxl_draw_dirty_fb(qdev, qfb_src, bo, 0, 0,
 			  &norect, one_clip_rect, inc);
 
-	drm_vblank_get(dev, qcrtc->index);
+	drm_crtc_vblank_get(crtc);
 
 	if (event) {
 		spin_lock_irqsave(&dev->event_lock, flags);
-		drm_send_vblank_event(dev, qcrtc->index, event);
+		drm_crtc_send_vblank_event(crtc, event);
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 	}
-	drm_vblank_put(dev, qcrtc->index);
+	drm_crtc_vblank_put(crtc);
 
 	ret = qxl_bo_reserve(bo, false);
 	if (!ret) {
@@ -469,8 +468,7 @@ void qxl_user_framebuffer_destroy(struct drm_framebuffer *fb)
 {
 	struct qxl_framebuffer *qxl_fb = to_qxl_framebuffer(fb);
 
-	if (qxl_fb->obj)
-		drm_gem_object_unreference_unlocked(qxl_fb->obj);
+	drm_gem_object_unreference_unlocked(qxl_fb->obj);
 	drm_framebuffer_cleanup(fb);
 	kfree(qxl_fb);
 }
@@ -730,7 +728,6 @@ static int qdev_crtc_init(struct drm_device *dev, int crtc_id)
 
 	drm_crtc_init(dev, &qxl_crtc->base, &qxl_crtc_funcs);
 	qxl_crtc->index = crtc_id;
-	drm_mode_crtc_set_gamma_size(&qxl_crtc->base, 256);
 	drm_crtc_helper_add(&qxl_crtc->base, &qxl_crtc_helper_funcs);
 	return 0;
 }

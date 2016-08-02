@@ -25,13 +25,8 @@ enum omapdss_version {
 	OMAPDSS_VER_DRA7xx,
 };
 
-struct omap_dss_device;
-
 /* Board specific data */
 struct omap_dss_board_info {
-	int num_devices;
-	struct omap_dss_device **devices;
-	struct omap_dss_device *default_device;
 	const char *default_display_name;
 	int (*dsi_enable_pads)(int dsi_id, unsigned int lane_mask);
 	void (*dsi_disable_pads)(int dsi_id, unsigned int lane_mask);

@@ -60,6 +60,21 @@ static int mipi_dsi_device_match(struct device *dev, struct device_driver *drv)
 	return 0;
 }
 
+static int mipi_dsi_uevent(struct device *dev, struct kobj_uevent_env *env)
+{
+	struct mipi_dsi_device *dsi = to_mipi_dsi_device(dev);
+	int err;
+
+	err = of_device_uevent_modalias(dev, env);
+	if (err != -ENODEV)
+		return err;
+
+	add_uevent_var(env, "MODALIAS=%s%s", MIPI_DSI_MODULE_PREFIX,
+		       dsi->name);
+
+	return 0;
+}
+
 static const struct dev_pm_ops mipi_dsi_device_pm_ops = {
 	.runtime_suspend = pm_generic_runtime_suspend,
 	.runtime_resume = pm_generic_runtime_resume,
@@ -74,6 +89,7 @@ static const struct dev_pm_ops mipi_dsi_device_pm_ops = {
 static struct bus_type mipi_dsi_bus_type = {
 	.name = "mipi-dsi",
 	.match = mipi_dsi_device_match,
+	.uevent = mipi_dsi_uevent,
 	.pm = &mipi_dsi_device_pm_ops,
 };
 
@@ -981,6 +997,28 @@ int mipi_dsi_dcs_set_tear_on(struct mipi_dsi_device *dsi,
 	return 0;
 }
 EXPORT_SYMBOL(mipi_dsi_dcs_set_tear_on);
+
+/**
+ * mipi_dsi_dcs_set_tear_scanline() - set the scanline to use as trigger for
+ *    the Tearing Effect output signal of the display module
+ * @dsi: DSI peripheral device
+ * @scanline: scanline to use as trigger
+ *
+ * Return: 0 on success or a negative error code on failure
+ */
+int mipi_dsi_dcs_set_tear_scanline(struct mipi_dsi_device *dsi, u16 scanline)
+{
+	u8 payload[3] = { MIPI_DCS_SET_TEAR_SCANLINE, scanline >> 8,
+			  scanline & 0xff };
+	ssize_t err;
+
+	err = mipi_dsi_generic_write(dsi, payload, sizeof(payload));
+	if (err < 0)
+		return err;
+
+	return 0;
+}
+EXPORT_SYMBOL(mipi_dsi_dcs_set_tear_scanline);
 
 /**
  * mipi_dsi_dcs_set_pixel_format() - sets the pixel format for the RGB image

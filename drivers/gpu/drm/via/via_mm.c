@@ -208,7 +208,7 @@ void via_reclaim_buffers_locked(struct drm_device *dev,
 	struct via_file_private *file_priv = file->driver_priv;
 	struct via_memblock *entry, *next;
 
-	if (!(file->minor->master && file->master->lock.hw_lock))
+	if (!(dev->master && file->master->lock.hw_lock))
 		return;
 
 	drm_legacy_idlelock_take(&file->master->lock);

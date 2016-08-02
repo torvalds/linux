@@ -120,6 +120,8 @@ nvkm_volt_parse_bios(struct nvkm_bios *bios, struct nvkm_volt *volt)
 
 	data = nvbios_volt_parse(bios, &ver, &hdr, &cnt, &len, &info);
 	if (data && info.vidmask && info.base && info.step) {
+		volt->min_uv = info.min;
+		volt->max_uv = info.max;
 		for (i = 0; i < info.vidmask + 1; i++) {
 			if (info.base >= info.min &&
 				info.base <= info.max) {
@@ -131,6 +133,8 @@ nvkm_volt_parse_bios(struct nvkm_bios *bios, struct nvkm_volt *volt)
 		}
 		volt->vid_mask = info.vidmask;
 	} else if (data && info.vidmask) {
+		volt->min_uv = 0xffffffff;
+		volt->max_uv = 0;
 		for (i = 0; i < cnt; i++) {
 			data = nvbios_volt_entry_parse(bios, i, &ver, &hdr,
 						       &ivid);
@@ -138,9 +142,14 @@ nvkm_volt_parse_bios(struct nvkm_bios *bios, struct nvkm_volt *volt)
 				volt->vid[volt->vid_nr].uv = ivid.voltage;
 				volt->vid[volt->vid_nr].vid = ivid.vid;
 				volt->vid_nr++;
+				volt->min_uv = min(volt->min_uv, ivid.voltage);
+				volt->max_uv = max(volt->max_uv, ivid.voltage);
 			}
 		}
 		volt->vid_mask = info.vidmask;
+	} else if (data && info.type == NVBIOS_VOLT_PWM) {
+		volt->min_uv = info.base;
+		volt->max_uv = info.base + info.pwm_range;
 	}
 }
 
@@ -181,8 +190,11 @@ nvkm_volt_ctor(const struct nvkm_volt_func *func, struct nvkm_device *device,
 	volt->func = func;
 
 	/* Assuming the non-bios device should build the voltage table later */
-	if (bios)
+	if (bios) {
 		nvkm_volt_parse_bios(bios, volt);
+		nvkm_debug(&volt->subdev, "min: %iuv max: %iuv\n",
+			   volt->min_uv, volt->max_uv);
+	}
 
 	if (volt->vid_nr) {
 		for (i = 0; i < volt->vid_nr; i++) {

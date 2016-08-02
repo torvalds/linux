@@ -281,6 +281,7 @@ struct pp_atom_ctrl__avfs_parameters {
 
 extern bool atomctrl_get_pp_assign_pin(struct pp_hwmgr *hwmgr, const uint32_t pinId, pp_atomctrl_gpio_pin_assignment *gpio_pin_assignment);
 extern int atomctrl_get_voltage_evv_on_sclk(struct pp_hwmgr *hwmgr, uint8_t voltage_type, uint32_t sclk, uint16_t virtual_voltage_Id, uint16_t *voltage);
+extern int atomctrl_get_voltage_evv(struct pp_hwmgr *hwmgr, uint16_t virtual_voltage_id, uint16_t *voltage);
 extern uint32_t atomctrl_get_mpll_reference_clock(struct pp_hwmgr *hwmgr);
 extern int atomctrl_get_memory_clock_spread_spectrum(struct pp_hwmgr *hwmgr, const uint32_t memory_clock, pp_atomctrl_internal_ss_info *ssInfo);
 extern int atomctrl_get_engine_clock_spread_spectrum(struct pp_hwmgr *hwmgr, const uint32_t engine_clock, pp_atomctrl_internal_ss_info *ssInfo);
