@@ -97,41 +97,41 @@ struct kvmppc_vcpu_book3s;
 struct kvmppc_book3s_shadow_vcpu;
 
 struct kvm_vm_stat {
-	u32 remote_tlb_flush;
+	ulong remote_tlb_flush;
 };
 
 struct kvm_vcpu_stat {
-	u32 sum_exits;
-	u32 mmio_exits;
-	u32 signal_exits;
-	u32 light_exits;
+	u64 sum_exits;
+	u64 mmio_exits;
+	u64 signal_exits;
+	u64 light_exits;
 	/* Account for special types of light exits: */
-	u32 itlb_real_miss_exits;
-	u32 itlb_virt_miss_exits;
-	u32 dtlb_real_miss_exits;
-	u32 dtlb_virt_miss_exits;
-	u32 syscall_exits;
-	u32 isi_exits;
-	u32 dsi_exits;
-	u32 emulated_inst_exits;
-	u32 dec_exits;
-	u32 ext_intr_exits;
-	u32 halt_successful_poll;
-	u32 halt_attempted_poll;
-	u32 halt_poll_invalid;
-	u32 halt_wakeup;
-	u32 dbell_exits;
-	u32 gdbell_exits;
-	u32 ld;
-	u32 st;
+	u64 itlb_real_miss_exits;
+	u64 itlb_virt_miss_exits;
+	u64 dtlb_real_miss_exits;
+	u64 dtlb_virt_miss_exits;
+	u64 syscall_exits;
+	u64 isi_exits;
+	u64 dsi_exits;
+	u64 emulated_inst_exits;
+	u64 dec_exits;
+	u64 ext_intr_exits;
+	u64 halt_successful_poll;
+	u64 halt_attempted_poll;
+	u64 halt_poll_invalid;
+	u64 halt_wakeup;
+	u64 dbell_exits;
+	u64 gdbell_exits;
+	u64 ld;
+	u64 st;
 #ifdef CONFIG_PPC_BOOK3S
-	u32 pf_storage;
-	u32 pf_instruc;
-	u32 sp_storage;
-	u32 sp_instruc;
-	u32 queue_intr;
-	u32 ld_slow;
-	u32 st_slow;
+	u64 pf_storage;
+	u64 pf_instruc;
+	u64 sp_storage;
+	u64 sp_instruc;
+	u64 queue_intr;
+	u64 ld_slow;
+	u64 st_slow;
 #endif
 };
 

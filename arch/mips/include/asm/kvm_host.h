@@ -110,32 +110,32 @@
 extern atomic_t kvm_mips_instance;
 
 struct kvm_vm_stat {
-	u32 remote_tlb_flush;
+	ulong remote_tlb_flush;
 };
 
 struct kvm_vcpu_stat {
-	u32 wait_exits;
-	u32 cache_exits;
-	u32 signal_exits;
-	u32 int_exits;
-	u32 cop_unusable_exits;
-	u32 tlbmod_exits;
-	u32 tlbmiss_ld_exits;
-	u32 tlbmiss_st_exits;
-	u32 addrerr_st_exits;
-	u32 addrerr_ld_exits;
-	u32 syscall_exits;
-	u32 resvd_inst_exits;
-	u32 break_inst_exits;
-	u32 trap_inst_exits;
-	u32 msa_fpe_exits;
-	u32 fpe_exits;
-	u32 msa_disabled_exits;
-	u32 flush_dcache_exits;
-	u32 halt_successful_poll;
-	u32 halt_attempted_poll;
-	u32 halt_poll_invalid;
-	u32 halt_wakeup;
+	u64 wait_exits;
+	u64 cache_exits;
+	u64 signal_exits;
+	u64 int_exits;
+	u64 cop_unusable_exits;
+	u64 tlbmod_exits;
+	u64 tlbmiss_ld_exits;
+	u64 tlbmiss_st_exits;
+	u64 addrerr_st_exits;
+	u64 addrerr_ld_exits;
+	u64 syscall_exits;
+	u64 resvd_inst_exits;
+	u64 break_inst_exits;
+	u64 trap_inst_exits;
+	u64 msa_fpe_exits;
+	u64 fpe_exits;
+	u64 msa_disabled_exits;
+	u64 flush_dcache_exits;
+	u64 halt_successful_poll;
+	u64 halt_attempted_poll;
+	u64 halt_poll_invalid;
+	u64 halt_wakeup;
 };
 
 struct kvm_arch_memory_slot {
