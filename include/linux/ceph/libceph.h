@@ -21,6 +21,7 @@
 #include <linux/ceph/mon_client.h>
 #include <linux/ceph/osd_client.h>
 #include <linux/ceph/ceph_fs.h>
+#include <linux/ceph/string_table.h>
 
 /*
  * mount options
@@ -214,8 +215,9 @@ static void erase_##name(struct rb_root *root, type *t)			\
 }
 
 #define DEFINE_RB_LOOKUP_FUNC(name, type, keyfld, nodefld)		\
+extern type __lookup_##name##_key;					\
 static type *lookup_##name(struct rb_root *root,			\
-			   typeof(((type *)0)->keyfld) key)		\
+			   typeof(__lookup_##name##_key.keyfld) key)	\
 {									\
 	struct rb_node *n = root->rb_node;				\
 									\
