@@ -28,6 +28,15 @@
 #include "i915_drv.h"
 #include "intel_renderstate.h"
 
+struct render_state {
+	const struct intel_renderstate_rodata *rodata;
+	struct drm_i915_gem_object *obj;
+	u64 ggtt_offset;
+	int gen;
+	u32 aux_batch_size;
+	u32 aux_batch_offset;
+};
+
 static const struct intel_renderstate_rodata *
 render_state_get_rodata(const int gen)
 {
@@ -51,6 +60,7 @@ static int render_state_init(struct render_state *so,
 	int ret;
 
 	so->gen = INTEL_GEN(dev_priv);
+	so->ggtt_offset = 0; /* keep gcc quiet */
 	so->rodata = render_state_get_rodata(so->gen);
 	if (so->rodata == NULL)
 		return 0;
@@ -192,14 +202,14 @@ err_out:
 
 #undef OUT_BATCH
 
-void i915_gem_render_state_fini(struct render_state *so)
+static void render_state_fini(struct render_state *so)
 {
 	i915_gem_object_ggtt_unpin(so->obj);
 	i915_gem_object_put(so->obj);
 }
 
-int i915_gem_render_state_prepare(struct intel_engine_cs *engine,
-				  struct render_state *so)
+static int render_state_prepare(struct intel_engine_cs *engine,
+				struct render_state *so)
 {
 	int ret;
 
@@ -215,7 +225,7 @@ int i915_gem_render_state_prepare(struct intel_engine_cs *engine,
 
 	ret = render_state_setup(so);
 	if (ret) {
-		i915_gem_render_state_fini(so);
+		render_state_fini(so);
 		return ret;
 	}
 
@@ -227,7 +237,7 @@ int i915_gem_render_state_init(struct drm_i915_gem_request *req)
 	struct render_state so;
 	int ret;
 
-	ret = i915_gem_render_state_prepare(req->engine, &so);
+	ret = render_state_prepare(req->engine, &so);
 	if (ret)
 		return ret;
 
@@ -251,8 +261,7 @@ int i915_gem_render_state_init(struct drm_i915_gem_request *req)
 	}
 
 	i915_vma_move_to_active(i915_gem_obj_to_ggtt(so.obj), req);
-
 out:
-	i915_gem_render_state_fini(&so);
+	render_state_fini(&so);
 	return ret;
 }

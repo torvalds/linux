@@ -1796,38 +1796,6 @@ static int gen8_emit_request_render(struct drm_i915_gem_request *request)
 	return intel_logical_ring_advance(request);
 }
 
-static int intel_lr_context_render_state_init(struct drm_i915_gem_request *req)
-{
-	struct render_state so;
-	int ret;
-
-	ret = i915_gem_render_state_prepare(req->engine, &so);
-	if (ret)
-		return ret;
-
-	if (so.rodata == NULL)
-		return 0;
-
-	ret = req->engine->emit_bb_start(req, so.ggtt_offset,
-					 so.rodata->batch_items * 4,
-					 I915_DISPATCH_SECURE);
-	if (ret)
-		goto out;
-
-	ret = req->engine->emit_bb_start(req,
-					 (so.ggtt_offset + so.aux_batch_offset),
-					 so.aux_batch_size,
-					 I915_DISPATCH_SECURE);
-	if (ret)
-		goto out;
-
-	i915_vma_move_to_active(i915_gem_obj_to_ggtt(so.obj), req);
-
-out:
-	i915_gem_render_state_fini(&so);
-	return ret;
-}
-
 static int gen8_init_rcs_context(struct drm_i915_gem_request *req)
 {
 	int ret;
@@ -1844,7 +1812,7 @@ static int gen8_init_rcs_context(struct drm_i915_gem_request *req)
 	if (ret)
 		DRM_ERROR("MOCS failed to program: expect performance issues.\n");
 
-	return intel_lr_context_render_state_init(req);
+	return i915_gem_render_state_init(req);
 }
 
 /**
