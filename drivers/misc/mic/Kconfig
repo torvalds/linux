@@ -148,5 +148,5 @@ config VOP
 	  <http://software.intel.com/en-us/mic-developer>.
 
 if VOP
-source "drivers/vhost/Kconfig"
+source "drivers/vhost/Kconfig.vringh"
 endif

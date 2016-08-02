@@ -33,12 +33,6 @@ config VHOST_VSOCK
 	To compile this driver as a module, choose M here: the module will be called
 	vhost_vsock.
 
-config VHOST_RING
-	tristate
-	---help---
-	  This option is selected by any driver which needs to access
-	  the host side of a virtio ring.
-
 config VHOST
 	tristate
 	---help---
