@@ -2346,7 +2346,10 @@ S:	Supported
 F:	drivers/media/platform/sti/bdisp
 
 BEFS FILE SYSTEM
-S:	Orphan
+M:	Luis de Bethencourt <luisbg@osg.samsung.com>
+M:	Salah Triki <salah.triki@gmail.com>
+S:	Maintained
+T:	git git://github.com/luisbg/linux-befs.git
 F:	Documentation/filesystems/befs.txt
 F:	fs/befs/
 
