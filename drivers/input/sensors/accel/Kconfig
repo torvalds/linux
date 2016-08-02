@@ -88,5 +88,13 @@ config GS_BMA023
   help
     To have support for your specific gsesnor you will have to
     select the proper drivers which depend on this option.
+
+config LSM330_ACC
+	bool "gsensor lsm330"
+	default y
+	help
+	  To have support for your specific gsesnor you will have to
+	  select the proper drivers which depend on this option.
+
 endif
 
