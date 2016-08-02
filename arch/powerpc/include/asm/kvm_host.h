@@ -296,6 +296,7 @@ struct kvm_arch {
 #define VCORE_SLEEPING	3
 #define VCORE_RUNNING	4
 #define VCORE_EXITING	5
+#define VCORE_POLLING	6
 
 /*
  * Struct used to manage memory for a virtual processor area
