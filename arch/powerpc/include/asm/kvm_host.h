@@ -116,8 +116,12 @@ struct kvm_vcpu_stat {
 	u64 emulated_inst_exits;
 	u64 dec_exits;
 	u64 ext_intr_exits;
+	u64 halt_poll_success_ns;
+	u64 halt_poll_fail_ns;
+	u64 halt_wait_ns;
 	u64 halt_successful_poll;
 	u64 halt_attempted_poll;
+	u64 halt_successful_wait;
 	u64 halt_poll_invalid;
 	u64 halt_wakeup;
 	u64 dbell_exits;
