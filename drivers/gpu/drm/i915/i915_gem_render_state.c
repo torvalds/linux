@@ -32,15 +32,14 @@ struct render_state {
 	const struct intel_renderstate_rodata *rodata;
 	struct drm_i915_gem_object *obj;
 	u64 ggtt_offset;
-	int gen;
 	u32 aux_batch_size;
 	u32 aux_batch_offset;
 };
 
 static const struct intel_renderstate_rodata *
-render_state_get_rodata(const int gen)
+render_state_get_rodata(const struct drm_i915_gem_request *req)
 {
-	switch (gen) {
+	switch (INTEL_GEN(req->i915)) {
 	case 6:
 		return &gen6_null_state;
 	case 7:
@@ -52,36 +51,6 @@ render_state_get_rodata(const int gen)
 	}
 
 	return NULL;
-}
-
-static int render_state_init(struct render_state *so,
-			     struct drm_i915_private *dev_priv)
-{
-	int ret;
-
-	so->gen = INTEL_GEN(dev_priv);
-	so->ggtt_offset = 0; /* keep gcc quiet */
-	so->rodata = render_state_get_rodata(so->gen);
-	if (so->rodata == NULL)
-		return 0;
-
-	if (so->rodata->batch_items * 4 > 4096)
-		return -EINVAL;
-
-	so->obj = i915_gem_object_create(&dev_priv->drm, 4096);
-	if (IS_ERR(so->obj))
-		return PTR_ERR(so->obj);
-
-	ret = i915_gem_obj_ggtt_pin(so->obj, 4096, 0);
-	if (ret)
-		goto free_gem;
-
-	so->ggtt_offset = i915_gem_obj_ggtt_offset(so->obj);
-	return 0;
-
-free_gem:
-	i915_gem_object_put(so->obj);
-	return ret;
 }
 
 /*
@@ -106,6 +75,7 @@ static int render_state_setup(struct render_state *so)
 {
 	struct drm_device *dev = so->obj->base.dev;
 	const struct intel_renderstate_rodata *rodata = so->rodata;
+	const bool has_64bit_reloc = INTEL_GEN(dev) >= 8;
 	unsigned int i = 0, reloc_index = 0;
 	struct page *page;
 	u32 *d;
@@ -124,7 +94,7 @@ static int render_state_setup(struct render_state *so)
 		if (i * 4  == rodata->reloc[reloc_index]) {
 			u64 r = s + so->ggtt_offset;
 			s = lower_32_bits(r);
-			if (so->gen >= 8) {
+			if (has_64bit_reloc) {
 				if (i + 1 >= rodata->batch_items ||
 				    rodata->batch[i + 1] != 0) {
 					ret = -EINVAL;
@@ -202,53 +172,40 @@ err_out:
 
 #undef OUT_BATCH
 
-static void render_state_fini(struct render_state *so)
-{
-	i915_gem_object_ggtt_unpin(so->obj);
-	i915_gem_object_put(so->obj);
-}
-
-static int render_state_prepare(struct intel_engine_cs *engine,
-				struct render_state *so)
-{
-	int ret;
-
-	if (WARN_ON(engine->id != RCS))
-		return -ENOENT;
-
-	ret = render_state_init(so, engine->i915);
-	if (ret)
-		return ret;
-
-	if (so->rodata == NULL)
-		return 0;
-
-	ret = render_state_setup(so);
-	if (ret) {
-		render_state_fini(so);
-		return ret;
-	}
-
-	return 0;
-}
-
 int i915_gem_render_state_init(struct drm_i915_gem_request *req)
 {
 	struct render_state so;
 	int ret;
 
-	ret = render_state_prepare(req->engine, &so);
-	if (ret)
-		return ret;
+	if (WARN_ON(req->engine->id != RCS))
+		return -ENOENT;
 
-	if (so.rodata == NULL)
+	so.rodata = render_state_get_rodata(req);
+	if (!so.rodata)
 		return 0;
+
+	if (so.rodata->batch_items * 4 > 4096)
+		return -EINVAL;
+
+	so.obj = i915_gem_object_create(&req->i915->drm, 4096);
+	if (IS_ERR(so.obj))
+		return PTR_ERR(so.obj);
+
+	ret = i915_gem_obj_ggtt_pin(so.obj, 4096, 0);
+	if (ret)
+		goto err_obj;
+
+	so.ggtt_offset = i915_gem_obj_ggtt_offset(so.obj);
+
+	ret = render_state_setup(&so);
+	if (ret)
+		goto err_unpin;
 
 	ret = req->engine->emit_bb_start(req, so.ggtt_offset,
 					 so.rodata->batch_items * 4,
 					 I915_DISPATCH_SECURE);
 	if (ret)
-		goto out;
+		goto err_unpin;
 
 	if (so.aux_batch_size > 8) {
 		ret = req->engine->emit_bb_start(req,
@@ -257,11 +214,13 @@ int i915_gem_render_state_init(struct drm_i915_gem_request *req)
 						 so.aux_batch_size,
 						 I915_DISPATCH_SECURE);
 		if (ret)
-			goto out;
+			goto err_unpin;
 	}
 
 	i915_vma_move_to_active(i915_gem_obj_to_ggtt(so.obj), req);
-out:
-	render_state_fini(&so);
+err_unpin:
+	i915_gem_object_ggtt_unpin(so.obj);
+err_obj:
+	i915_gem_object_put(so.obj);
 	return ret;
 }
