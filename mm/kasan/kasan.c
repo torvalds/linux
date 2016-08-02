@@ -584,7 +584,6 @@ void kasan_kmalloc(struct kmem_cache *cache, const void *object, size_t size,
 			get_alloc_info(cache, object);
 
 		alloc_info->state = KASAN_STATE_ALLOC;
-		alloc_info->alloc_size = size;
 		set_track(&alloc_info->track, flags);
 	}
 }
