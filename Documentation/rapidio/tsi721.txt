@@ -25,6 +25,20 @@ fully compatible with RIONET driver (Ethernet over RapidIO messaging services).
         This parameter can be changed dynamically.
         Use CONFIG_RAPIDIO_DEBUG=y to enable debug output at the top level.
 
+- 'dma_desc_per_channel' - This parameter defines number of hardware buffer
+        descriptors allocated for each registered Tsi721 DMA channel.
+        Its default value is 128.
+
+- 'dma_txqueue_sz' - DMA transactions queue size. Defines number of pending
+        transaction requests that can be accepted by each DMA channel.
+        Default value is 16.
+
+- 'dma_sel' - DMA channel selection mask. Bitmask that defines which hardware
+        DMA channels (0 ... 6) will be registered with DmaEngine core.
+        If bit is set to 1, the corresponding DMA channel will be registered.
+        DMA channels not selected by this mask will not be used by this device
+        driver. Default value is 0x7f (use all channels).
+
 II. Known problems
 
   None.
