@@ -301,6 +301,9 @@ extern struct inode *nilfs_alloc_inode(struct super_block *);
 extern void nilfs_destroy_inode(struct inode *);
 
 extern __printf(3, 4)
+void __nilfs_msg(struct super_block *sb, const char *level,
+		 const char *fmt, ...);
+extern __printf(3, 4)
 void __nilfs_error(struct super_block *sb, const char *function,
 		   const char *fmt, ...);
 extern __printf(3, 4)
@@ -308,11 +311,15 @@ void nilfs_warning(struct super_block *, const char *, const char *, ...);
 
 #ifdef CONFIG_PRINTK
 
+#define nilfs_msg(sb, level, fmt, ...)					\
+	__nilfs_msg(sb, level, fmt, ##__VA_ARGS__)
 #define nilfs_error(sb, fmt, ...)					\
 	__nilfs_error(sb, __func__, fmt, ##__VA_ARGS__)
 
 #else
 
+#define nilfs_msg(sb, level, fmt, ...)					\
+	no_printk(fmt, ##__VA_ARGS__)
 #define nilfs_error(sb, fmt, ...)					\
 	do {								\
 		no_printk(fmt, ##__VA_ARGS__);				\
