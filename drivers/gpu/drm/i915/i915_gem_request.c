@@ -264,14 +264,7 @@ int i915_gem_set_seqno(struct drm_device *dev, u32 seqno)
 	if (ret)
 		return ret;
 
-	/* Carefully set the last_seqno value so that wrap
-	 * detection still works
-	 */
 	dev_priv->next_seqno = seqno;
-	dev_priv->last_seqno = seqno - 1;
-	if (dev_priv->last_seqno == 0)
-		dev_priv->last_seqno--;
-
 	return 0;
 }
 
@@ -288,7 +281,7 @@ static int i915_gem_get_seqno(struct drm_i915_private *dev_priv, u32 *seqno)
 		dev_priv->next_seqno = 1;
 	}
 
-	*seqno = dev_priv->last_seqno = dev_priv->next_seqno++;
+	*seqno = dev_priv->next_seqno++;
 	return 0;
 }
 

@@ -277,9 +277,8 @@ struct intel_engine_cs {
 		};
 
 		/* AKA wait() */
-		int	(*sync_to)(struct drm_i915_gem_request *to_req,
-				   struct intel_engine_cs *from,
-				   u32 seqno);
+		int	(*sync_to)(struct drm_i915_gem_request *to,
+				   struct drm_i915_gem_request *from);
 		int	(*signal)(struct drm_i915_gem_request *signaller_req);
 	} semaphore;
 

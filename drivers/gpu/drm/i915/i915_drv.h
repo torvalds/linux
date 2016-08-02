@@ -1757,7 +1757,7 @@ struct drm_i915_private {
 	struct i915_gem_context *kernel_context;
 	struct intel_engine_cs engine[I915_NUM_ENGINES];
 	struct drm_i915_gem_object *semaphore_obj;
-	uint32_t last_seqno, next_seqno;
+	u32 next_seqno;
 
 	struct drm_dma_handle *status_page_dmah;
 	struct resource mch_res;

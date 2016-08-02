@@ -1496,12 +1496,6 @@ static int gen8_render_emit_request(struct drm_i915_gem_request *req)
 	return 0;
 }
 
-static inline bool i915_gem_has_seqno_wrapped(struct drm_i915_private *dev_priv,
-					      u32 seqno)
-{
-	return dev_priv->last_seqno < seqno;
-}
-
 /**
  * intel_ring_sync - sync the waiter to the signaller on seqno
  *
@@ -1511,24 +1505,23 @@ static inline bool i915_gem_has_seqno_wrapped(struct drm_i915_private *dev_priv,
  */
 
 static int
-gen8_ring_sync(struct drm_i915_gem_request *waiter_req,
-	       struct intel_engine_cs *signaller,
-	       u32 seqno)
+gen8_ring_sync(struct drm_i915_gem_request *wait,
+	       struct drm_i915_gem_request *signal)
 {
-	struct intel_ring *waiter = waiter_req->ring;
-	struct drm_i915_private *dev_priv = waiter_req->i915;
-	u64 offset = GEN8_WAIT_OFFSET(waiter_req->engine, signaller->id);
+	struct intel_ring *waiter = wait->ring;
+	struct drm_i915_private *dev_priv = wait->i915;
+	u64 offset = GEN8_WAIT_OFFSET(wait->engine, signal->engine->id);
 	struct i915_hw_ppgtt *ppgtt;
 	int ret;
 
-	ret = intel_ring_begin(waiter_req, 4);
+	ret = intel_ring_begin(wait, 4);
 	if (ret)
 		return ret;
 
 	intel_ring_emit(waiter, MI_SEMAPHORE_WAIT |
 				MI_SEMAPHORE_GLOBAL_GTT |
 				MI_SEMAPHORE_SAD_GTE_SDD);
-	intel_ring_emit(waiter, seqno);
+	intel_ring_emit(waiter, signal->fence.seqno);
 	intel_ring_emit(waiter, lower_32_bits(offset));
 	intel_ring_emit(waiter, upper_32_bits(offset));
 	intel_ring_advance(waiter);
@@ -1538,48 +1531,37 @@ gen8_ring_sync(struct drm_i915_gem_request *waiter_req,
 	 * We do this on the i915_switch_context() following the wait and
 	 * before the dispatch.
 	 */
-	ppgtt = waiter_req->ctx->ppgtt;
-	if (ppgtt && waiter_req->engine->id != RCS)
-		ppgtt->pd_dirty_rings |= intel_engine_flag(waiter_req->engine);
+	ppgtt = wait->ctx->ppgtt;
+	if (ppgtt && wait->engine->id != RCS)
+		ppgtt->pd_dirty_rings |= intel_engine_flag(wait->engine);
 	return 0;
 }
 
 static int
-gen6_ring_sync(struct drm_i915_gem_request *waiter_req,
-	       struct intel_engine_cs *signaller,
-	       u32 seqno)
+gen6_ring_sync(struct drm_i915_gem_request *wait,
+	       struct drm_i915_gem_request *signal)
 {
-	struct intel_ring *waiter = waiter_req->ring;
+	struct intel_ring *waiter = wait->ring;
 	u32 dw1 = MI_SEMAPHORE_MBOX |
 		  MI_SEMAPHORE_COMPARE |
 		  MI_SEMAPHORE_REGISTER;
-	u32 wait_mbox = signaller->semaphore.mbox.wait[waiter_req->engine->id];
+	u32 wait_mbox = signal->engine->semaphore.mbox.wait[wait->engine->id];
 	int ret;
 
+	WARN_ON(wait_mbox == MI_SEMAPHORE_SYNC_INVALID);
+
+	ret = intel_ring_begin(wait, 4);
+	if (ret)
+		return ret;
+
+	intel_ring_emit(waiter, dw1 | wait_mbox);
 	/* Throughout all of the GEM code, seqno passed implies our current
 	 * seqno is >= the last seqno executed. However for hardware the
 	 * comparison is strictly greater than.
 	 */
-	seqno -= 1;
-
-	WARN_ON(wait_mbox == MI_SEMAPHORE_SYNC_INVALID);
-
-	ret = intel_ring_begin(waiter_req, 4);
-	if (ret)
-		return ret;
-
-	/* If seqno wrap happened, omit the wait with no-ops */
-	if (likely(!i915_gem_has_seqno_wrapped(waiter_req->i915, seqno))) {
-		intel_ring_emit(waiter, dw1 | wait_mbox);
-		intel_ring_emit(waiter, seqno);
-		intel_ring_emit(waiter, 0);
-		intel_ring_emit(waiter, MI_NOOP);
-	} else {
-		intel_ring_emit(waiter, MI_NOOP);
-		intel_ring_emit(waiter, MI_NOOP);
-		intel_ring_emit(waiter, MI_NOOP);
-		intel_ring_emit(waiter, MI_NOOP);
-	}
+	intel_ring_emit(waiter, signal->fence.seqno - 1);
+	intel_ring_emit(waiter, 0);
+	intel_ring_emit(waiter, MI_NOOP);
 	intel_ring_advance(waiter);
 
 	return 0;

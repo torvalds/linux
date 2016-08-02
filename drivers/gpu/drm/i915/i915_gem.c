@@ -2867,22 +2867,15 @@ __i915_gem_object_sync(struct drm_i915_gem_object *obj,
 		i915_gem_object_retire_request(obj, from);
 	} else {
 		int idx = intel_engine_sync_index(from->engine, to->engine);
-		u32 seqno = i915_gem_request_get_seqno(from);
-
-		if (seqno <= from->engine->semaphore.sync_seqno[idx])
+		if (from->fence.seqno <= from->engine->semaphore.sync_seqno[idx])
 			return 0;
 
 		trace_i915_gem_ring_sync_to(to, from);
-		ret = to->engine->semaphore.sync_to(to, from->engine, seqno);
+		ret = to->engine->semaphore.sync_to(to, from);
 		if (ret)
 			return ret;
 
-		/* We use last_read_req because sync_to()
-		 * might have just caused seqno wrap under
-		 * the radar.
-		 */
-		from->engine->semaphore.sync_seqno[idx] =
-			i915_gem_request_get_seqno(obj->last_read_req[from->engine->id]);
+		from->engine->semaphore.sync_seqno[idx] = from->fence.seqno;
 	}
 
 	return 0;
