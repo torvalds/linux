@@ -1352,9 +1352,6 @@ int qdio_establish(struct qdio_initialize *init_data)
 	if (!irq_ptr)
 		return -ENODEV;
 
-	if (cdev->private->state != DEV_STATE_ONLINE)
-		return -EINVAL;
-
 	mutex_lock(&irq_ptr->setup_mutex);
 	qdio_setup_irq(init_data);
 
@@ -1424,9 +1421,6 @@ int qdio_activate(struct ccw_device *cdev)
 	irq_ptr = cdev->private->qdio_data;
 	if (!irq_ptr)
 		return -ENODEV;
-
-	if (cdev->private->state != DEV_STATE_ONLINE)
-		return -EINVAL;
 
 	mutex_lock(&irq_ptr->setup_mutex);
 	if (irq_ptr->state == QDIO_IRQ_STATE_INACTIVE) {
