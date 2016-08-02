@@ -1207,7 +1207,7 @@ static void drop_large_spte(struct kvm_vcpu *vcpu, u64 *sptep)
  *
  * Return true if tlb need be flushed.
  */
-static bool spte_write_protect(struct kvm *kvm, u64 *sptep, bool pt_protect)
+static bool spte_write_protect(u64 *sptep, bool pt_protect)
 {
 	u64 spte = *sptep;
 
@@ -1233,12 +1233,12 @@ static bool __rmap_write_protect(struct kvm *kvm,
 	bool flush = false;
 
 	for_each_rmap_spte(rmap_head, &iter, sptep)
-		flush |= spte_write_protect(kvm, sptep, pt_protect);
+		flush |= spte_write_protect(sptep, pt_protect);
 
 	return flush;
 }
 
-static bool spte_clear_dirty(struct kvm *kvm, u64 *sptep)
+static bool spte_clear_dirty(u64 *sptep)
 {
 	u64 spte = *sptep;
 
@@ -1256,12 +1256,12 @@ static bool __rmap_clear_dirty(struct kvm *kvm, struct kvm_rmap_head *rmap_head)
 	bool flush = false;
 
 	for_each_rmap_spte(rmap_head, &iter, sptep)
-		flush |= spte_clear_dirty(kvm, sptep);
+		flush |= spte_clear_dirty(sptep);
 
 	return flush;
 }
 
-static bool spte_set_dirty(struct kvm *kvm, u64 *sptep)
+static bool spte_set_dirty(u64 *sptep)
 {
 	u64 spte = *sptep;
 
@@ -1279,7 +1279,7 @@ static bool __rmap_set_dirty(struct kvm *kvm, struct kvm_rmap_head *rmap_head)
 	bool flush = false;
 
 	for_each_rmap_spte(rmap_head, &iter, sptep)
-		flush |= spte_set_dirty(kvm, sptep);
+		flush |= spte_set_dirty(sptep);
 
 	return flush;
 }
