@@ -446,7 +446,7 @@ void nilfs_sufile_do_scrap(struct inode *sufile, __u64 segnum,
 
 	kaddr = kmap_atomic(su_bh->b_page);
 	su = nilfs_sufile_block_get_segment_usage(sufile, segnum, su_bh, kaddr);
-	if (su->su_flags == cpu_to_le32(1UL << NILFS_SEGMENT_USAGE_DIRTY) &&
+	if (su->su_flags == cpu_to_le32(BIT(NILFS_SEGMENT_USAGE_DIRTY)) &&
 	    su->su_nblocks == cpu_to_le32(0)) {
 		kunmap_atomic(kaddr);
 		return;
@@ -457,7 +457,7 @@ void nilfs_sufile_do_scrap(struct inode *sufile, __u64 segnum,
 	/* make the segment garbage */
 	su->su_lastmod = cpu_to_le64(0);
 	su->su_nblocks = cpu_to_le32(0);
-	su->su_flags = cpu_to_le32(1UL << NILFS_SEGMENT_USAGE_DIRTY);
+	su->su_flags = cpu_to_le32(BIT(NILFS_SEGMENT_USAGE_DIRTY));
 	kunmap_atomic(kaddr);
 
 	nilfs_sufile_mod_counter(header_bh, clean ? (u64)-1 : 0, dirty ? 0 : 1);
@@ -695,7 +695,7 @@ static int nilfs_sufile_truncate_range(struct inode *sufile,
 		su2 = su;
 		for (j = 0; j < n; j++, su = (void *)su + susz) {
 			if ((le32_to_cpu(su->su_flags) &
-			     ~(1UL << NILFS_SEGMENT_USAGE_ERROR)) ||
+			     ~BIT(NILFS_SEGMENT_USAGE_ERROR)) ||
 			    nilfs_segment_is_active(nilfs, segnum + j)) {
 				ret = -EBUSY;
 				kunmap_atomic(kaddr);
@@ -862,10 +862,10 @@ ssize_t nilfs_sufile_get_suinfo(struct inode *sufile, __u64 segnum, void *buf,
 			si->sui_lastmod = le64_to_cpu(su->su_lastmod);
 			si->sui_nblocks = le32_to_cpu(su->su_nblocks);
 			si->sui_flags = le32_to_cpu(su->su_flags) &
-				~(1UL << NILFS_SEGMENT_USAGE_ACTIVE);
+				~BIT(NILFS_SEGMENT_USAGE_ACTIVE);
 			if (nilfs_segment_is_active(nilfs, segnum + j))
 				si->sui_flags |=
-					(1UL << NILFS_SEGMENT_USAGE_ACTIVE);
+					BIT(NILFS_SEGMENT_USAGE_ACTIVE);
 		}
 		kunmap_atomic(kaddr);
 		brelse(su_bh);
@@ -953,7 +953,7 @@ ssize_t nilfs_sufile_set_suinfo(struct inode *sufile, void *buf,
 			 * disk.
 			 */
 			sup->sup_sui.sui_flags &=
-					~(1UL << NILFS_SEGMENT_USAGE_ACTIVE);
+					~BIT(NILFS_SEGMENT_USAGE_ACTIVE);
 
 			cleansi = nilfs_suinfo_clean(&sup->sup_sui);
 			cleansu = nilfs_segment_usage_clean(su);

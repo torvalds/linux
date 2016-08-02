@@ -119,20 +119,19 @@ enum {
 /*
  * Macros to check inode numbers
  */
-#define NILFS_MDT_INO_BITS   \
-	((unsigned int)(1 << NILFS_DAT_INO | 1 << NILFS_CPFILE_INO |	\
-			1 << NILFS_SUFILE_INO | 1 << NILFS_IFILE_INO |	\
-			1 << NILFS_ATIME_INO | 1 << NILFS_SKETCH_INO))
+#define NILFS_MDT_INO_BITS						\
+	(BIT(NILFS_DAT_INO) | BIT(NILFS_CPFILE_INO) |			\
+	 BIT(NILFS_SUFILE_INO) | BIT(NILFS_IFILE_INO) |			\
+	 BIT(NILFS_ATIME_INO) | BIT(NILFS_SKETCH_INO))
 
-#define NILFS_SYS_INO_BITS   \
-	((unsigned int)(1 << NILFS_ROOT_INO) | NILFS_MDT_INO_BITS)
+#define NILFS_SYS_INO_BITS (BIT(NILFS_ROOT_INO) | NILFS_MDT_INO_BITS)
 
 #define NILFS_FIRST_INO(sb) (((struct the_nilfs *)sb->s_fs_info)->ns_first_ino)
 
 #define NILFS_MDT_INODE(sb, ino) \
-	((ino) < NILFS_FIRST_INO(sb) && (NILFS_MDT_INO_BITS & (1 << (ino))))
+	((ino) < NILFS_FIRST_INO(sb) && (NILFS_MDT_INO_BITS & BIT(ino)))
 #define NILFS_VALID_INODE(sb, ino) \
-	((ino) >= NILFS_FIRST_INO(sb) || (NILFS_SYS_INO_BITS & (1 << (ino))))
+	((ino) >= NILFS_FIRST_INO(sb) || (NILFS_SYS_INO_BITS & BIT(ino)))
 
 /**
  * struct nilfs_transaction_info: context information for synchronization

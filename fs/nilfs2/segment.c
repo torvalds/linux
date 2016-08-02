@@ -1858,11 +1858,11 @@ static void nilfs_segctor_complete_write(struct nilfs_sc_info *sci)
 		 */
 		list_for_each_entry(bh, &segbuf->sb_payload_buffers,
 				    b_assoc_buffers) {
-			const unsigned long set_bits = (1 << BH_Uptodate);
+			const unsigned long set_bits = BIT(BH_Uptodate);
 			const unsigned long clear_bits =
-				(1 << BH_Dirty | 1 << BH_Async_Write |
-				 1 << BH_Delay | 1 << BH_NILFS_Volatile |
-				 1 << BH_NILFS_Redirected);
+				(BIT(BH_Dirty) | BIT(BH_Async_Write) |
+				 BIT(BH_Delay) | BIT(BH_NILFS_Volatile) |
+				 BIT(BH_NILFS_Redirected));
 
 			set_mask_bits(&bh->b_state, clear_bits, set_bits);
 			if (bh == segbuf->sb_super_root) {
@@ -2132,10 +2132,10 @@ static void nilfs_segctor_start_timer(struct nilfs_sc_info *sci)
 static void nilfs_segctor_do_flush(struct nilfs_sc_info *sci, int bn)
 {
 	spin_lock(&sci->sc_state_lock);
-	if (!(sci->sc_flush_request & (1 << bn))) {
+	if (!(sci->sc_flush_request & BIT(bn))) {
 		unsigned long prev_req = sci->sc_flush_request;
 
-		sci->sc_flush_request |= (1 << bn);
+		sci->sc_flush_request |= BIT(bn);
 		if (!prev_req)
 			wake_up(&sci->sc_wait_daemon);
 	}
@@ -2319,7 +2319,7 @@ int nilfs_construct_dsync_segment(struct super_block *sb, struct inode *inode,
 }
 
 #define FLUSH_FILE_BIT	(0x1) /* data file only */
-#define FLUSH_DAT_BIT	(1 << NILFS_DAT_INO) /* DAT only */
+#define FLUSH_DAT_BIT	BIT(NILFS_DAT_INO) /* DAT only */
 
 /**
  * nilfs_segctor_accept - record accepted sequence count of log-write requests

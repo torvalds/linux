@@ -356,7 +356,7 @@ struct inode *nilfs_new_inode(struct inode *dir, umode_t mode)
 
 	root = NILFS_I(dir)->i_root;
 	ii = NILFS_I(inode);
-	ii->i_state = 1 << NILFS_I_NEW;
+	ii->i_state = BIT(NILFS_I_NEW);
 	ii->i_root = root;
 
 	err = nilfs_ifile_create_inode(root->ifile, &ino, &ii->i_bh);
@@ -555,7 +555,7 @@ static int nilfs_iget_set(struct inode *inode, void *opaque)
 
 	inode->i_ino = args->ino;
 	if (args->for_gc) {
-		NILFS_I(inode)->i_state = 1 << NILFS_I_GCINODE;
+		NILFS_I(inode)->i_state = BIT(NILFS_I_GCINODE);
 		NILFS_I(inode)->i_cno = args->cno;
 		NILFS_I(inode)->i_root = NULL;
 	} else {
