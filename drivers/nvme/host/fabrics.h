@@ -64,9 +64,10 @@ enum {
  *		being added.
  * @subsysnqn:	Hold the fully qualified NQN subystem name (format defined
  *		in the NVMe specification, "NVMe Qualified Names").
- * @traddr:	network address that will be used by the host to communicate
- *		to the added NVMe controller.
- * @trsvcid:	network port used for host-controller communication.
+ * @traddr:	The transport-specific TRADDR field for a port on the
+ *              subsystem which is adding a controller.
+ * @trsvcid:	The transport-specific TRSVCID field for a port on the
+ *              subsystem which is adding a controller.
  * @queue_size: Number of IO queue elements.
  * @nr_io_queues: Number of controller IO queues that will be established.
  * @reconnect_delay: Time between two consecutive reconnect attempts.
