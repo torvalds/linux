@@ -34,6 +34,9 @@
 #define GB_TIMESYNC_KTIME_UPDATE		msecs_to_jiffies(1000)
 #define GB_TIMESYNC_MAX_KTIME_CONVERSION	15
 
+/* Maximum number of times we'll retry a failed synchronous sync */
+#define GB_TIMESYNC_MAX_RETRIES			5
+
 /* Reported nanoseconds/femtoseconds per clock */
 static u64 gb_timesync_ns_per_clock;
 static u64 gb_timesync_fs_per_clock;
@@ -870,19 +873,26 @@ int gb_timesync_schedule_synchronous(struct gb_interface *interface)
 {
 	int ret;
 	struct gb_timesync_svc *timesync_svc;
+	int retries;
 
 	if (!(interface->features & GREYBUS_INTERFACE_FEATURE_TIMESYNC))
 		return 0;
 
 	mutex_lock(&gb_timesync_svc_list_mutex);
-	timesync_svc = gb_timesync_find_timesync_svc(interface->hd);
-	if (!timesync_svc) {
-		ret = -ENODEV;
-		goto done;
-	}
+	for (retries = 0; retries < GB_TIMESYNC_MAX_RETRIES; retries++) {
+		timesync_svc = gb_timesync_find_timesync_svc(interface->hd);
+		if (!timesync_svc) {
+			ret = -ENODEV;
+			goto done;
+		}
 
-	ret = __gb_timesync_schedule_synchronous(timesync_svc,
+		ret = __gb_timesync_schedule_synchronous(timesync_svc,
 						 GB_TIMESYNC_STATE_INIT);
+		if (!ret)
+			break;
+	}
+	if (ret && retries == GB_TIMESYNC_MAX_RETRIES)
+		ret = -ETIMEDOUT;
 done:
 	mutex_unlock(&gb_timesync_svc_list_mutex);
 	return ret;
