@@ -15,7 +15,7 @@
 #include <misc/cxl-base.h>
 #include <asm/opal-api.h>
 
-#define PCI_SLOT_ID_PREFIX	0x8000000000000000
+#define PCI_SLOT_ID_PREFIX	(1UL << 63)
 #define PCI_SLOT_ID(phb_id, bdfn)	\
 	(PCI_SLOT_ID_PREFIX | ((uint64_t)(bdfn) << 16) | (phb_id))
 
