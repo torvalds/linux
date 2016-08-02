@@ -134,7 +134,6 @@ static void kasan_object_err(struct kmem_cache *cache, struct page *page,
 				void *object, char *unused_reason)
 {
 	struct kasan_alloc_meta *alloc_info = get_alloc_info(cache, object);
-	struct kasan_free_meta *free_info;
 
 	dump_stack();
 	pr_err("Object at %p, in cache %s size: %d\n", object, cache->name,
@@ -142,23 +141,11 @@ static void kasan_object_err(struct kmem_cache *cache, struct page *page,
 
 	if (!(cache->flags & SLAB_KASAN))
 		return;
-	switch (alloc_info->state) {
-	case KASAN_STATE_INIT:
-		pr_err("Object not allocated yet\n");
-		break;
-	case KASAN_STATE_ALLOC:
-		pr_err("Allocation:\n");
-		print_track(&alloc_info->track);
-		break;
-	case KASAN_STATE_FREE:
-	case KASAN_STATE_QUARANTINE:
-		free_info = get_free_info(cache, object);
-		pr_err("Allocation:\n");
-		print_track(&alloc_info->track);
-		pr_err("Deallocation:\n");
-		print_track(&free_info->track);
-		break;
-	}
+
+	pr_err("Allocated:\n");
+	print_track(&alloc_info->alloc_track);
+	pr_err("Freed:\n");
+	print_track(&alloc_info->free_track);
 }
 
 static void print_address_description(struct kasan_access_info *info)
