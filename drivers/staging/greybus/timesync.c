@@ -772,7 +772,8 @@ static void gb_timesync_worker(struct work_struct *work)
 
 	case GB_TIMESYNC_STATE_WAIT_SVC:
 		dev_err(&timesync_svc->svc->dev,
-			"timeout SVC strobe completion\n");
+			"timeout SVC strobe completion %d/%d\n",
+			timesync_svc->strobe, GB_TIMESYNC_MAX_STROBES);
 		gb_timesync_teardown(timesync_svc);
 		break;
 
