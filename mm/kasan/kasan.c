@@ -543,8 +543,7 @@ bool kasan_slab_free(struct kmem_cache *cache, void *object)
 
 	shadow_byte = READ_ONCE(*(s8 *)kasan_mem_to_shadow(object));
 	if (shadow_byte < 0 || shadow_byte >= KASAN_SHADOW_SCALE_SIZE) {
-		pr_err("Double free");
-		dump_stack();
+		kasan_report_double_free(cache, object, shadow_byte);
 		return true;
 	}
 
