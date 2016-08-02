@@ -691,6 +691,29 @@ out:
 
 static DEVICE_ATTR(loading, 0644, firmware_loading_show, firmware_loading_store);
 
+static void firmware_rw(struct firmware_buf *buf, char *buffer,
+			loff_t offset, size_t count, bool read)
+{
+	while (count) {
+		void *page_data;
+		int page_nr = offset >> PAGE_SHIFT;
+		int page_ofs = offset & (PAGE_SIZE-1);
+		int page_cnt = min_t(size_t, PAGE_SIZE - page_ofs, count);
+
+		page_data = kmap(buf->pages[page_nr]);
+
+		if (read)
+			memcpy(buffer, page_data + page_ofs, page_cnt);
+		else
+			memcpy(page_data + page_ofs, buffer, page_cnt);
+
+		kunmap(buf->pages[page_nr]);
+		buffer += page_cnt;
+		offset += page_cnt;
+		count -= page_cnt;
+	}
+}
+
 static ssize_t firmware_data_read(struct file *filp, struct kobject *kobj,
 				  struct bin_attribute *bin_attr,
 				  char *buffer, loff_t offset, size_t count)
@@ -715,21 +738,8 @@ static ssize_t firmware_data_read(struct file *filp, struct kobject *kobj,
 
 	ret_count = count;
 
-	while (count) {
-		void *page_data;
-		int page_nr = offset >> PAGE_SHIFT;
-		int page_ofs = offset & (PAGE_SIZE-1);
-		int page_cnt = min_t(size_t, PAGE_SIZE - page_ofs, count);
+	firmware_rw(buf, buffer, offset, count, true);
 
-		page_data = kmap(buf->pages[page_nr]);
-
-		memcpy(buffer, page_data + page_ofs, page_cnt);
-
-		kunmap(buf->pages[page_nr]);
-		buffer += page_cnt;
-		offset += page_cnt;
-		count -= page_cnt;
-	}
 out:
 	mutex_unlock(&fw_lock);
 	return ret_count;
@@ -809,24 +819,9 @@ static ssize_t firmware_data_write(struct file *filp, struct kobject *kobj,
 		goto out;
 
 	retval = count;
+	firmware_rw(buf, buffer, offset, count, false);
 
-	while (count) {
-		void *page_data;
-		int page_nr = offset >> PAGE_SHIFT;
-		int page_ofs = offset & (PAGE_SIZE - 1);
-		int page_cnt = min_t(size_t, PAGE_SIZE - page_ofs, count);
-
-		page_data = kmap(buf->pages[page_nr]);
-
-		memcpy(page_data + page_ofs, buffer, page_cnt);
-
-		kunmap(buf->pages[page_nr]);
-		buffer += page_cnt;
-		offset += page_cnt;
-		count -= page_cnt;
-	}
-
-	buf->size = max_t(size_t, offset, buf->size);
+	buf->size = max_t(size_t, offset + count, buf->size);
 out:
 	mutex_unlock(&fw_lock);
 	return retval;
