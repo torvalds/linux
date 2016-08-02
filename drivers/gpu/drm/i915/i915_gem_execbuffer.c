@@ -998,10 +998,8 @@ i915_gem_execbuffer_move_to_gpu(struct drm_i915_gem_request *req,
 	if (flush_domains & I915_GEM_DOMAIN_GTT)
 		wmb();
 
-	/* Unconditionally invalidate gpu caches and ensure that we do flush
-	 * any residual writes from the previous batch.
-	 */
-	return intel_engine_invalidate_all_caches(req);
+	/* Unconditionally invalidate GPU caches and TLBs. */
+	return req->engine->emit_flush(req, I915_GEM_GPU_DOMAINS, 0);
 }
 
 static bool
@@ -1163,9 +1161,6 @@ i915_gem_execbuffer_move_to_active(struct list_head *vmas,
 static void
 i915_gem_execbuffer_retire_commands(struct i915_execbuffer_params *params)
 {
-	/* Unconditionally force add_request to emit a full flush. */
-	params->engine->gpu_caches_dirty = true;
-
 	/* Add a breadcrumb for the completion of the batch buffer */
 	__i915_add_request(params->request, params->batch_obj, true);
 }

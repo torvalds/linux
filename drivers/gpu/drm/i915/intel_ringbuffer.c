@@ -688,8 +688,9 @@ static int intel_ring_workarounds_emit(struct drm_i915_gem_request *req)
 	if (w->count == 0)
 		return 0;
 
-	req->engine->gpu_caches_dirty = true;
-	ret = intel_engine_flush_all_caches(req);
+	ret = req->engine->emit_flush(req,
+				      I915_GEM_GPU_DOMAINS,
+				      I915_GEM_GPU_DOMAINS);
 	if (ret)
 		return ret;
 
@@ -706,8 +707,9 @@ static int intel_ring_workarounds_emit(struct drm_i915_gem_request *req)
 
 	intel_ring_advance(ring);
 
-	req->engine->gpu_caches_dirty = true;
-	ret = intel_engine_flush_all_caches(req);
+	ret = req->engine->emit_flush(req,
+				      I915_GEM_GPU_DOMAINS,
+				      I915_GEM_GPU_DOMAINS);
 	if (ret)
 		return ret;
 
@@ -2860,21 +2862,21 @@ int intel_init_render_ring_buffer(struct intel_engine_cs *engine)
 	if (INTEL_GEN(dev_priv) >= 8) {
 		engine->init_context = intel_rcs_ctx_init;
 		engine->add_request = gen8_render_add_request;
-		engine->flush = gen8_render_ring_flush;
+		engine->emit_flush = gen8_render_ring_flush;
 		if (i915.semaphores)
 			engine->semaphore.signal = gen8_rcs_signal;
 	} else if (INTEL_GEN(dev_priv) >= 6) {
 		engine->init_context = intel_rcs_ctx_init;
-		engine->flush = gen7_render_ring_flush;
+		engine->emit_flush = gen7_render_ring_flush;
 		if (IS_GEN6(dev_priv))
-			engine->flush = gen6_render_ring_flush;
+			engine->emit_flush = gen6_render_ring_flush;
 	} else if (IS_GEN5(dev_priv)) {
-		engine->flush = gen4_render_ring_flush;
+		engine->emit_flush = gen4_render_ring_flush;
 	} else {
 		if (INTEL_GEN(dev_priv) < 4)
-			engine->flush = gen2_render_ring_flush;
+			engine->emit_flush = gen2_render_ring_flush;
 		else
-			engine->flush = gen4_render_ring_flush;
+			engine->emit_flush = gen4_render_ring_flush;
 		engine->irq_enable_mask = I915_USER_INTERRUPT;
 	}
 
@@ -2911,12 +2913,12 @@ int intel_init_bsd_ring_buffer(struct intel_engine_cs *engine)
 		/* gen6 bsd needs a special wa for tail updates */
 		if (IS_GEN6(dev_priv))
 			engine->write_tail = gen6_bsd_ring_write_tail;
-		engine->flush = gen6_bsd_ring_flush;
+		engine->emit_flush = gen6_bsd_ring_flush;
 		if (INTEL_GEN(dev_priv) < 8)
 			engine->irq_enable_mask = GT_BSD_USER_INTERRUPT;
 	} else {
 		engine->mmio_base = BSD_RING_BASE;
-		engine->flush = bsd_ring_flush;
+		engine->emit_flush = bsd_ring_flush;
 		if (IS_GEN5(dev_priv))
 			engine->irq_enable_mask = ILK_BSD_USER_INTERRUPT;
 		else
@@ -2935,7 +2937,7 @@ int intel_init_bsd2_ring_buffer(struct intel_engine_cs *engine)
 
 	intel_ring_default_vfuncs(dev_priv, engine);
 
-	engine->flush = gen6_bsd_ring_flush;
+	engine->emit_flush = gen6_bsd_ring_flush;
 
 	return intel_init_ring_buffer(engine);
 }
@@ -2946,7 +2948,7 @@ int intel_init_blt_ring_buffer(struct intel_engine_cs *engine)
 
 	intel_ring_default_vfuncs(dev_priv, engine);
 
-	engine->flush = gen6_ring_flush;
+	engine->emit_flush = gen6_ring_flush;
 	if (INTEL_GEN(dev_priv) < 8)
 		engine->irq_enable_mask = GT_BLT_USER_INTERRUPT;
 
@@ -2959,7 +2961,7 @@ int intel_init_vebox_ring_buffer(struct intel_engine_cs *engine)
 
 	intel_ring_default_vfuncs(dev_priv, engine);
 
-	engine->flush = gen6_ring_flush;
+	engine->emit_flush = gen6_ring_flush;
 
 	if (INTEL_GEN(dev_priv) < 8) {
 		engine->irq_enable_mask = PM_VEBOX_USER_INTERRUPT;
@@ -2968,46 +2970,6 @@ int intel_init_vebox_ring_buffer(struct intel_engine_cs *engine)
 	}
 
 	return intel_init_ring_buffer(engine);
-}
-
-int
-intel_engine_flush_all_caches(struct drm_i915_gem_request *req)
-{
-	struct intel_engine_cs *engine = req->engine;
-	int ret;
-
-	if (!engine->gpu_caches_dirty)
-		return 0;
-
-	ret = engine->flush(req, 0, I915_GEM_GPU_DOMAINS);
-	if (ret)
-		return ret;
-
-	trace_i915_gem_ring_flush(req, 0, I915_GEM_GPU_DOMAINS);
-
-	engine->gpu_caches_dirty = false;
-	return 0;
-}
-
-int
-intel_engine_invalidate_all_caches(struct drm_i915_gem_request *req)
-{
-	struct intel_engine_cs *engine = req->engine;
-	uint32_t flush_domains;
-	int ret;
-
-	flush_domains = 0;
-	if (engine->gpu_caches_dirty)
-		flush_domains = I915_GEM_GPU_DOMAINS;
-
-	ret = engine->flush(req, I915_GEM_GPU_DOMAINS, flush_domains);
-	if (ret)
-		return ret;
-
-	trace_i915_gem_ring_flush(req, I915_GEM_GPU_DOMAINS, flush_domains);
-
-	engine->gpu_caches_dirty = false;
-	return 0;
 }
 
 void intel_engine_stop(struct intel_engine_cs *engine)

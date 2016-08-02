@@ -451,12 +451,10 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 	 * what.
 	 */
 	if (flush_caches) {
-		if (i915.enable_execlists)
-			ret = logical_ring_flush_all_caches(request);
-		else
-			ret = intel_engine_flush_all_caches(request);
+		ret = engine->emit_flush(request, 0, I915_GEM_GPU_DOMAINS);
+
 		/* Not allowed to fail! */
-		WARN(ret, "*_ring_flush_all_caches failed: %d!\n", ret);
+		WARN(ret, "engine->emit_flush() failed: %d!\n", ret);
 	}
 
 	trace_i915_gem_request_add(request);

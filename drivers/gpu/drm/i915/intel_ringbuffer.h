@@ -206,9 +206,6 @@ struct intel_engine_cs {
 
 	void		(*write_tail)(struct intel_engine_cs *engine,
 				      u32 value);
-	int __must_check (*flush)(struct drm_i915_gem_request *req,
-				  u32	invalidate_domains,
-				  u32	flush_domains);
 	int		(*add_request)(struct drm_i915_gem_request *req);
 	/* Some chipsets are not quite as coherent as advertised and need
 	 * an expensive kick to force a true read of the up-to-date seqno.
@@ -324,8 +321,6 @@ struct intel_engine_cs {
 	 * inspecting request list.
 	 */
 	u32 last_submitted_seqno;
-
-	bool gpu_caches_dirty;
 
 	struct i915_gem_context *last_context;
 
@@ -474,8 +469,6 @@ void intel_ring_update_space(struct intel_ring *ring);
 
 int __must_check intel_engine_idle(struct intel_engine_cs *engine);
 void intel_engine_init_seqno(struct intel_engine_cs *engine, u32 seqno);
-int intel_engine_flush_all_caches(struct drm_i915_gem_request *req);
-int intel_engine_invalidate_all_caches(struct drm_i915_gem_request *req);
 
 int intel_init_pipe_control(struct intel_engine_cs *engine, int size);
 void intel_fini_pipe_control(struct intel_engine_cs *engine);

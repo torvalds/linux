@@ -642,24 +642,6 @@ static void execlists_context_queue(struct drm_i915_gem_request *request)
 	spin_unlock_bh(&engine->execlist_lock);
 }
 
-static int logical_ring_invalidate_all_caches(struct drm_i915_gem_request *req)
-{
-	struct intel_engine_cs *engine = req->engine;
-	uint32_t flush_domains;
-	int ret;
-
-	flush_domains = 0;
-	if (engine->gpu_caches_dirty)
-		flush_domains = I915_GEM_GPU_DOMAINS;
-
-	ret = engine->emit_flush(req, I915_GEM_GPU_DOMAINS, flush_domains);
-	if (ret)
-		return ret;
-
-	engine->gpu_caches_dirty = false;
-	return 0;
-}
-
 static int execlists_move_to_gpu(struct drm_i915_gem_request *req,
 				 struct list_head *vmas)
 {
@@ -690,7 +672,7 @@ static int execlists_move_to_gpu(struct drm_i915_gem_request *req,
 	/* Unconditionally invalidate gpu caches and ensure that we do flush
 	 * any residual writes from the previous batch.
 	 */
-	return logical_ring_invalidate_all_caches(req);
+	return req->engine->emit_flush(req, I915_GEM_GPU_DOMAINS, 0);
 }
 
 int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request)
@@ -930,22 +912,6 @@ void intel_logical_ring_stop(struct intel_engine_cs *engine)
 	I915_WRITE_MODE(engine, _MASKED_BIT_DISABLE(STOP_RING));
 }
 
-int logical_ring_flush_all_caches(struct drm_i915_gem_request *req)
-{
-	struct intel_engine_cs *engine = req->engine;
-	int ret;
-
-	if (!engine->gpu_caches_dirty)
-		return 0;
-
-	ret = engine->emit_flush(req, 0, I915_GEM_GPU_DOMAINS);
-	if (ret)
-		return ret;
-
-	engine->gpu_caches_dirty = false;
-	return 0;
-}
-
 static int intel_lr_context_pin(struct i915_gem_context *ctx,
 				struct intel_engine_cs *engine)
 {
@@ -1026,15 +992,15 @@ void intel_lr_context_unpin(struct i915_gem_context *ctx,
 static int intel_logical_ring_workarounds_emit(struct drm_i915_gem_request *req)
 {
 	int ret, i;
-	struct intel_engine_cs *engine = req->engine;
 	struct intel_ring *ring = req->ring;
 	struct i915_workarounds *w = &req->i915->workarounds;
 
 	if (w->count == 0)
 		return 0;
 
-	engine->gpu_caches_dirty = true;
-	ret = logical_ring_flush_all_caches(req);
+	ret = req->engine->emit_flush(req,
+				      I915_GEM_GPU_DOMAINS,
+				      I915_GEM_GPU_DOMAINS);
 	if (ret)
 		return ret;
 
@@ -1051,8 +1017,9 @@ static int intel_logical_ring_workarounds_emit(struct drm_i915_gem_request *req)
 
 	intel_ring_advance(ring);
 
-	engine->gpu_caches_dirty = true;
-	ret = logical_ring_flush_all_caches(req);
+	ret = req->engine->emit_flush(req,
+				      I915_GEM_GPU_DOMAINS,
+				      I915_GEM_GPU_DOMAINS);
 	if (ret)
 		return ret;
 
