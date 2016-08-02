@@ -2680,15 +2680,16 @@ static int kvmppc_vcore_check_block(struct kvmppc_vcore *vc)
  */
 static void kvmppc_vcore_blocked(struct kvmppc_vcore *vc)
 {
+	ktime_t cur, start_poll, start_wait;
 	int do_sleep = 1;
-	ktime_t cur, start;
 	u64 block_ns;
 	DECLARE_SWAITQUEUE(wait);
 
 	/* Poll for pending exceptions and ceded state */
-	cur = start = ktime_get();
+	cur = start_poll = ktime_get();
 	if (vc->halt_poll_ns) {
-		ktime_t stop = ktime_add_ns(start, vc->halt_poll_ns);
+		ktime_t stop = ktime_add_ns(start_poll, vc->halt_poll_ns);
+		++vc->runner->stat.halt_attempted_poll;
 
 		vc->vcore_state = VCORE_POLLING;
 		spin_unlock(&vc->lock);
@@ -2704,8 +2705,10 @@ static void kvmppc_vcore_blocked(struct kvmppc_vcore *vc)
 		spin_lock(&vc->lock);
 		vc->vcore_state = VCORE_INACTIVE;
 
-		if (!do_sleep)
+		if (!do_sleep) {
+			++vc->runner->stat.halt_successful_poll;
 			goto out;
+		}
 	}
 
 	prepare_to_swait(&vc->wq, &wait, TASK_INTERRUPTIBLE);
@@ -2713,8 +2716,13 @@ static void kvmppc_vcore_blocked(struct kvmppc_vcore *vc)
 	if (kvmppc_vcore_check_block(vc)) {
 		finish_swait(&vc->wq, &wait);
 		do_sleep = 0;
+		/* If we polled, count this as a successful poll */
+		if (vc->halt_poll_ns)
+			++vc->runner->stat.halt_successful_poll;
 		goto out;
 	}
+
+	start_wait = ktime_get();
 
 	vc->vcore_state = VCORE_SLEEPING;
 	trace_kvmppc_vcore_blocked(vc, 0);
@@ -2724,11 +2732,29 @@ static void kvmppc_vcore_blocked(struct kvmppc_vcore *vc)
 	spin_lock(&vc->lock);
 	vc->vcore_state = VCORE_INACTIVE;
 	trace_kvmppc_vcore_blocked(vc, 1);
+	++vc->runner->stat.halt_successful_wait;
 
 	cur = ktime_get();
 
 out:
-	block_ns = ktime_to_ns(cur) - ktime_to_ns(start);
+	block_ns = ktime_to_ns(cur) - ktime_to_ns(start_poll);
+
+	/* Attribute wait time */
+	if (do_sleep) {
+		vc->runner->stat.halt_wait_ns +=
+			ktime_to_ns(cur) - ktime_to_ns(start_wait);
+		/* Attribute failed poll time */
+		if (vc->halt_poll_ns)
+			vc->runner->stat.halt_poll_fail_ns +=
+				ktime_to_ns(start_wait) -
+				ktime_to_ns(start_poll);
+	} else {
+		/* Attribute successful poll time */
+		if (vc->halt_poll_ns)
+			vc->runner->stat.halt_poll_success_ns +=
+				ktime_to_ns(cur) -
+				ktime_to_ns(start_poll);
+	}
 
 	/* Adjust poll time */
 	if (halt_poll_max_ns) {
