@@ -564,11 +564,16 @@ static void iwl_set_hw_address_from_csr(struct iwl_trans *trans,
 	__le32 mac_addr0 = cpu_to_le32(iwl_read32(trans, CSR_MAC_ADDR0_STRAP));
 	__le32 mac_addr1 = cpu_to_le32(iwl_read32(trans, CSR_MAC_ADDR1_STRAP));
 
-	/* If OEM did not fuse address - get it from OTP */
-	if (!mac_addr0 && !mac_addr1) {
-		mac_addr0 = cpu_to_le32(iwl_read32(trans, CSR_MAC_ADDR0_OTP));
-		mac_addr1 = cpu_to_le32(iwl_read32(trans, CSR_MAC_ADDR1_OTP));
-	}
+	iwl_flip_hw_address(mac_addr0, mac_addr1, data->hw_addr);
+	/*
+	 * If the OEM fused a valid address, use it instead of the one in the
+	 * OTP
+	 */
+	if (is_valid_ether_addr(data->hw_addr))
+		return;
+
+	mac_addr0 = cpu_to_le32(iwl_read32(trans, CSR_MAC_ADDR0_OTP));
+	mac_addr1 = cpu_to_le32(iwl_read32(trans, CSR_MAC_ADDR1_OTP));
 
 	iwl_flip_hw_address(mac_addr0, mac_addr1, data->hw_addr);
 }
