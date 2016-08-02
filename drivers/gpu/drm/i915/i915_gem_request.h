@@ -61,7 +61,7 @@ struct drm_i915_gem_request {
 	 */
 	struct i915_gem_context *ctx;
 	struct intel_engine_cs *engine;
-	struct intel_ringbuffer *ringbuf;
+	struct intel_ringbuffer *ring;
 	struct intel_signal_node signaling;
 
 	/** GEM sequence number associated with the previous request,

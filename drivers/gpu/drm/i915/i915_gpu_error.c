@@ -1097,7 +1097,7 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 		request = i915_gem_find_active_request(engine);
 		if (request) {
 			struct i915_address_space *vm;
-			struct intel_ringbuffer *rb;
+			struct intel_ringbuffer *ring;
 
 			vm = request->ctx->ppgtt ?
 				&request->ctx->ppgtt->base : &ggtt->base;
@@ -1114,7 +1114,7 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 			if (HAS_BROKEN_CS_TLB(dev_priv))
 				ee->wa_batchbuffer =
 					i915_error_ggtt_object_create(dev_priv,
-							     engine->scratch.obj);
+								      engine->scratch.obj);
 
 			if (request->pid) {
 				struct task_struct *task;
@@ -1131,23 +1131,20 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 			error->simulated |=
 				request->ctx->flags & CONTEXT_NO_ERROR_CAPTURE;
 
-			rb = request->ringbuf;
-			ee->cpu_ring_head = rb->head;
-			ee->cpu_ring_tail = rb->tail;
+			ring = request->ring;
+			ee->cpu_ring_head = ring->head;
+			ee->cpu_ring_tail = ring->tail;
 			ee->ringbuffer =
 				i915_error_ggtt_object_create(dev_priv,
-							      rb->obj);
+							      ring->obj);
 		}
 
 		ee->hws_page =
 			i915_error_ggtt_object_create(dev_priv,
 						      engine->status_page.obj);
 
-		if (engine->wa_ctx.obj) {
-			ee->wa_ctx =
-				i915_error_ggtt_object_create(dev_priv,
-							      engine->wa_ctx.obj);
-		}
+		ee->wa_ctx = i915_error_ggtt_object_create(dev_priv,
+							   engine->wa_ctx.obj);
 
 		i915_gem_record_active_context(engine, error, ee);
 

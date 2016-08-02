@@ -1173,7 +1173,7 @@ i915_gem_execbuffer_retire_commands(struct i915_execbuffer_params *params)
 static int
 i915_reset_gen7_sol_offsets(struct drm_i915_gem_request *req)
 {
-	struct intel_ringbuffer *ring = req->ringbuf;
+	struct intel_ringbuffer *ring = req->ring;
 	int ret, i;
 
 	if (!IS_GEN7(req->i915) || req->engine->id != RCS) {
@@ -1303,7 +1303,7 @@ i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
 
 	if (params->engine->id == RCS &&
 	    instp_mode != dev_priv->relative_constants_mode) {
-		struct intel_ringbuffer *ring = params->request->ringbuf;
+		struct intel_ringbuffer *ring = params->request->ring;
 
 		ret = intel_ring_begin(params->request, 4);
 		if (ret)

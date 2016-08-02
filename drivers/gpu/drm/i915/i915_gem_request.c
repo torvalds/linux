@@ -170,7 +170,7 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 	 * Note this requires that we are always called in request
 	 * completion order.
 	 */
-	request->ringbuf->last_retired_head = request->postfix;
+	request->ring->last_retired_head = request->postfix;
 
 	i915_gem_request_remove_from_client(request);
 
@@ -423,7 +423,7 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 			bool flush_caches)
 {
 	struct intel_engine_cs *engine;
-	struct intel_ringbuffer *ringbuf;
+	struct intel_ringbuffer *ring;
 	u32 request_start;
 	u32 reserved_tail;
 	int ret;
@@ -432,14 +432,14 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 		return;
 
 	engine = request->engine;
-	ringbuf = request->ringbuf;
+	ring = request->ring;
 
 	/*
 	 * To ensure that this call will not fail, space for its emissions
 	 * should already have been reserved in the ring buffer. Let the ring
 	 * know that it is time to use that space up.
 	 */
-	request_start = intel_ring_get_tail(ringbuf);
+	request_start = intel_ring_get_tail(ring);
 	reserved_tail = request->reserved_space;
 	request->reserved_space = 0;
 
@@ -486,21 +486,21 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 	 * GPU processing the request, we never over-estimate the
 	 * position of the head.
 	 */
-	request->postfix = intel_ring_get_tail(ringbuf);
+	request->postfix = intel_ring_get_tail(ring);
 
 	if (i915.enable_execlists) {
 		ret = engine->emit_request(request);
 	} else {
 		ret = engine->add_request(request);
 
-		request->tail = intel_ring_get_tail(ringbuf);
+		request->tail = intel_ring_get_tail(ring);
 	}
 	/* Not allowed to fail! */
 	WARN(ret, "emit|add_request failed: %d!\n", ret);
 	/* Sanity check that the reserved size was large enough. */
-	ret = intel_ring_get_tail(ringbuf) - request_start;
+	ret = intel_ring_get_tail(ring) - request_start;
 	if (ret < 0)
-		ret += ringbuf->size;
+		ret += ring->size;
 	WARN_ONCE(ret > reserved_tail,
 		  "Not enough space reserved (%d bytes) "
 		  "for adding the request (%d bytes)\n",

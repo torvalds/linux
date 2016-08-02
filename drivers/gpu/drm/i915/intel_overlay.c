@@ -253,7 +253,7 @@ static int intel_overlay_on(struct intel_overlay *overlay)
 
 	overlay->active = true;
 
-	ring = req->ringbuf;
+	ring = req->ring;
 	intel_ring_emit(ring, MI_OVERLAY_FLIP | MI_OVERLAY_ON);
 	intel_ring_emit(ring, overlay->flip_addr | OFC_UPDATE);
 	intel_ring_emit(ring, MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
@@ -295,7 +295,7 @@ static int intel_overlay_continue(struct intel_overlay *overlay,
 		return ret;
 	}
 
-	ring = req->ringbuf;
+	ring = req->ring;
 	intel_ring_emit(ring, MI_OVERLAY_FLIP | MI_OVERLAY_CONTINUE);
 	intel_ring_emit(ring, flip_addr);
 	intel_ring_advance(ring);
@@ -362,7 +362,7 @@ static int intel_overlay_off(struct intel_overlay *overlay)
 		return ret;
 	}
 
-	ring = req->ringbuf;
+	ring = req->ring;
 	/* wait for overlay to go idle */
 	intel_ring_emit(ring, MI_OVERLAY_FLIP | MI_OVERLAY_CONTINUE);
 	intel_ring_emit(ring, flip_addr);
@@ -438,7 +438,7 @@ static int intel_overlay_release_old_vid(struct intel_overlay *overlay)
 			return ret;
 		}
 
-		ring = req->ringbuf;
+		ring = req->ring;
 		intel_ring_emit(ring,
 				MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
 		intel_ring_emit(ring, MI_NOOP);
