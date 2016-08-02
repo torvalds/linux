@@ -769,21 +769,11 @@ static void nvt_process_rx_ir_data(struct nvt_dev *nvt)
 			rawir.pulse ? "pulse" : "space", rawir.duration);
 
 		ir_raw_event_store_with_filter(nvt->rdev, &rawir);
-
-		/*
-		 * BUF_PULSE_BIT indicates end of IR data, BUF_REPEAT_BYTE
-		 * indicates end of IR signal, but new data incoming. In both
-		 * cases, it means we're ready to call ir_raw_event_handle
-		 */
-		if ((sample == BUF_PULSE_BIT) && (i + 1 < nvt->pkts)) {
-			nvt_dbg("Calling ir_raw_event_handle (signal end)\n");
-			ir_raw_event_handle(nvt->rdev);
-		}
 	}
 
 	nvt->pkts = 0;
 
-	nvt_dbg("Calling ir_raw_event_handle (buffer empty)\n");
+	nvt_dbg("Calling ir_raw_event_handle\n");
 	ir_raw_event_handle(nvt->rdev);
 
 	nvt_dbg_verbose("%s done", __func__);
