@@ -591,7 +591,7 @@ static int orangefs_file_release(struct inode *inode, struct file *file)
 	orangefs_flush_inode(inode);
 
 	/*
-	 * remove all associated inode pages from the page cache and mmap
+	 * remove all associated inode pages from the page cache and
 	 * readahead cache (if any); this forces an expensive refresh of
 	 * data for the next caller of mmap (or 'get_block' accesses)
 	 */

@@ -50,7 +50,7 @@ __s32 fsid_of_op(struct orangefs_kernel_op_s *op)
 		case ORANGEFS_VFS_OP_TRUNCATE:
 			fsid = op->upcall.req.truncate.refn.fs_id;
 			break;
-		case ORANGEFS_VFS_OP_MMAP_RA_FLUSH:
+		case ORANGEFS_VFS_OP_RA_FLUSH:
 			fsid = op->upcall.req.ra_cache_flush.refn.fs_id;
 			break;
 		case ORANGEFS_VFS_OP_FS_UMOUNT:

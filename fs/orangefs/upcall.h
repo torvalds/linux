@@ -98,7 +98,7 @@ struct orangefs_truncate_request_s {
 	__s64 size;
 };
 
-struct orangefs_mmap_ra_cache_flush_request_s {
+struct orangefs_ra_cache_flush_request_s {
 	struct orangefs_object_kref refn;
 };
 
@@ -228,7 +228,7 @@ struct orangefs_upcall_s {
 		struct orangefs_rename_request_s rename;
 		struct orangefs_statfs_request_s statfs;
 		struct orangefs_truncate_request_s truncate;
-		struct orangefs_mmap_ra_cache_flush_request_s ra_cache_flush;
+		struct orangefs_ra_cache_flush_request_s ra_cache_flush;
 		struct orangefs_fs_mount_request_s fs_mount;
 		struct orangefs_fs_umount_request_s fs_umount;
 		struct orangefs_getxattr_request_s getxattr;
