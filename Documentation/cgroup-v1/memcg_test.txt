@@ -6,7 +6,7 @@ Because VM is getting complex (one of reasons is memcg...), memcg's behavior
 is complex. This is a document for memcg's internal behavior.
 Please note that implementation details can be changed.
 
-(*) Topics on API should be in Documentation/cgroups/memory.txt)
+(*) Topics on API should be in Documentation/cgroup-v1/memory.txt)
 
 0. How to record usage ?
    2 objects are used.
@@ -256,7 +256,7 @@ Under below explanation, we assume CONFIG_MEM_RES_CTRL_SWAP=y.
 
 	You can see charges have been moved by reading *.usage_in_bytes or
 	memory.stat of both A and B.
-	See 8.2 of Documentation/cgroups/memory.txt to see what value should be
+	See 8.2 of Documentation/cgroup-v1/memory.txt to see what value should be
 	written to move_charge_at_immigrate.
 
  9.10 Memory thresholds
