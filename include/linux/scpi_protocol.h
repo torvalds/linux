@@ -70,6 +70,8 @@ struct scpi_ops {
 	int (*sensor_get_capability)(u16 *sensors);
 	int (*sensor_get_info)(u16 sensor_id, struct scpi_sensor_info *);
 	int (*sensor_get_value)(u16, u64 *);
+	int (*device_get_power_state)(u16);
+	int (*device_set_power_state)(u16, u8);
 };
 
 #if IS_REACHABLE(CONFIG_ARM_SCPI_PROTOCOL)

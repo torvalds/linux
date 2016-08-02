@@ -220,7 +220,7 @@ static void __init imx6q_1588_init(void)
 				IMX6Q_GPR1_ENET_CLK_SEL_MASK,
 				clksel);
 	else
-		pr_err("failed to find fsl,imx6q-iomux-gpr regmap\n");
+		pr_err("failed to find fsl,imx6q-iomuxc-gpr regmap\n");
 
 	clk_put(enet_ref);
 put_ptp_clk:
@@ -407,6 +407,8 @@ static const char * const imx6q_dt_compat[] __initconst = {
 };
 
 DT_MACHINE_START(IMX6Q, "Freescale i.MX6 Quad/DualLite (Device Tree)")
+	.l2c_aux_val 	= 0,
+	.l2c_aux_mask	= ~0,
 	.smp		= smp_ops(imx_smp_ops),
 	.map_io		= imx6q_map_io,
 	.init_irq	= imx6q_init_irq,

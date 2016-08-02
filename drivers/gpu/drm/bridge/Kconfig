@@ -50,6 +50,25 @@ config DRM_PARADE_PS8622
 	---help---
 	  Parade eDP-LVDS bridge chip driver.
 
+config DRM_SII902X
+	tristate "Silicon Image sii902x RGB/HDMI bridge"
+	depends on OF
+	select DRM_KMS_HELPER
+	select REGMAP_I2C
+	---help---
+	  Silicon Image sii902x bridge chip driver.
+
+config DRM_TOSHIBA_TC358767
+	tristate "Toshiba TC358767 eDP bridge"
+	depends on OF
+	select DRM_KMS_HELPER
+	select REGMAP_I2C
+	select DRM_PANEL
+	---help---
+	  Toshiba TC358767 eDP bridge chip driver.
+
 source "drivers/gpu/drm/bridge/analogix/Kconfig"
+
+source "drivers/gpu/drm/bridge/adv7511/Kconfig"
 
 endmenu

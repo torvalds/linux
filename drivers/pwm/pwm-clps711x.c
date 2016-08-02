@@ -155,7 +155,7 @@ static int clps711x_pwm_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id __maybe_unused clps711x_pwm_dt_ids[] = {
-	{ .compatible = "cirrus,clps711x-pwm", },
+	{ .compatible = "cirrus,ep7209-pwm", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, clps711x_pwm_dt_ids);

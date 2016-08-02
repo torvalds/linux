@@ -32,9 +32,9 @@ config ARCH_INTEGRATOR_AP
 config INTEGRATOR_IMPD1
 	bool "Include support for Integrator/IM-PD1"
 	depends on ARCH_INTEGRATOR_AP
-	select ARCH_REQUIRE_GPIOLIB
 	select ARM_VIC
-	select GPIO_PL061 if GPIOLIB
+	select GPIO_PL061
+	select GPIOLIB
 	help
 	  The IM-PD1 is an add-on logic module for the Integrator which
 	  allows ARM(R) Ltd PrimeCells to be developed and evaluated.

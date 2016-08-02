@@ -964,18 +964,9 @@ static enum drm_mode_status dw_mipi_dsi_mode_valid(
 	return mode_status;
 }
 
-static struct drm_encoder *dw_mipi_dsi_connector_best_encoder(
-					struct drm_connector *connector)
-{
-	struct dw_mipi_dsi *dsi = con_to_dsi(connector);
-
-	return &dsi->encoder;
-}
-
 static struct drm_connector_helper_funcs dw_mipi_dsi_connector_helper_funcs = {
 	.get_modes = dw_mipi_dsi_connector_get_modes,
 	.mode_valid = dw_mipi_dsi_mode_valid,
-	.best_encoder = dw_mipi_dsi_connector_best_encoder,
 };
 
 static enum drm_connector_status

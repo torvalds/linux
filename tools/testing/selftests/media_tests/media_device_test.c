@@ -1,5 +1,5 @@
 /*
- * media_devkref_test.c - Media Controller Device Kref API Test
+ * media_device_test.c - Media Controller Device ioctl loop Test
  *
  * Copyright (c) 2016 Shuah Khan <shuahkh@osg.samsung.com>
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
@@ -35,13 +35,14 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
+#include <time.h>
 #include <linux/media.h>
 
 int main(int argc, char **argv)
 {
 	int opt;
 	char media_device[256];
-	int count = 0;
+	int count;
 	struct media_device_info mdi;
 	int ret;
 	int fd;
@@ -69,6 +70,10 @@ int main(int argc, char **argv)
 		exit(-1);
 	}
 
+	/* Generate random number of interations */
+	srand((unsigned int) time(NULL));
+	count = rand();
+
 	/* Open Media device and keep it open */
 	fd = open(media_device, O_RDWR);
 	if (fd == -1) {
@@ -82,14 +87,16 @@ int main(int argc, char **argv)
 	       "other Oops in the dmesg. Enable KaSan kernel\n"
 	       "config option for use-after-free error detection.\n\n");
 
-	while (count < 100) {
+	printf("Running test for %d iternations\n", count);
+
+	while (count > 0) {
 		ret = ioctl(fd, MEDIA_IOC_DEVICE_INFO, &mdi);
 		if (ret < 0)
 			printf("Media Device Info errno %s\n", strerror(errno));
 		else
-			printf("Media device model %s driver %s\n",
-				mdi.model, mdi.driver);
+			printf("Media device model %s driver %s - count %d\n",
+				mdi.model, mdi.driver, count);
 		sleep(10);
-		count++;
+		count--;
 	}
 }

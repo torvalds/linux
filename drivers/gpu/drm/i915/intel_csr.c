@@ -286,7 +286,7 @@ static uint32_t *parse_csr_fw(struct drm_i915_private *dev_priv,
 	uint32_t dmc_offset = CSR_DEFAULT_FW_OFFSET, readcount = 0, nbytes;
 	uint32_t i;
 	uint32_t *dmc_payload;
-	uint32_t required_min_version;
+	uint32_t required_version;
 
 	if (!fw)
 		return NULL;
@@ -303,24 +303,23 @@ static uint32_t *parse_csr_fw(struct drm_i915_private *dev_priv,
 	csr->version = css_header->version;
 
 	if (IS_KABYLAKE(dev_priv)) {
-		required_min_version = KBL_CSR_VERSION_REQUIRED;
+		required_version = KBL_CSR_VERSION_REQUIRED;
 	} else if (IS_SKYLAKE(dev_priv)) {
-		required_min_version = SKL_CSR_VERSION_REQUIRED;
+		required_version = SKL_CSR_VERSION_REQUIRED;
 	} else if (IS_BROXTON(dev_priv)) {
-		required_min_version = BXT_CSR_VERSION_REQUIRED;
+		required_version = BXT_CSR_VERSION_REQUIRED;
 	} else {
 		MISSING_CASE(INTEL_REVID(dev_priv));
-		required_min_version = 0;
+		required_version = 0;
 	}
 
-	if (csr->version < required_min_version) {
-		DRM_INFO("Refusing to load old DMC firmware v%u.%u,"
-			 " please upgrade to v%u.%u or later"
-			   " [" FIRMWARE_URL "].\n",
+	if (csr->version != required_version) {
+		DRM_INFO("Refusing to load DMC firmware v%u.%u,"
+			 " please use v%u.%u [" FIRMWARE_URL "].\n",
 			 CSR_VERSION_MAJOR(csr->version),
 			 CSR_VERSION_MINOR(csr->version),
-			 CSR_VERSION_MAJOR(required_min_version),
-			 CSR_VERSION_MINOR(required_min_version));
+			 CSR_VERSION_MAJOR(required_version),
+			 CSR_VERSION_MINOR(required_version));
 		return NULL;
 	}
 
@@ -413,7 +412,7 @@ static void csr_load_work_fn(struct work_struct *work)
 	csr = &dev_priv->csr;
 
 	ret = request_firmware(&fw, dev_priv->csr.fw_path,
-			       &dev_priv->dev->pdev->dev);
+			       &dev_priv->drm.pdev->dev);
 	if (fw)
 		dev_priv->csr.dmc_payload = parse_csr_fw(dev_priv, fw);
 
@@ -427,7 +426,7 @@ static void csr_load_work_fn(struct work_struct *work)
 			 CSR_VERSION_MAJOR(csr->version),
 			 CSR_VERSION_MINOR(csr->version));
 	} else {
-		dev_notice(dev_priv->dev->dev,
+		dev_notice(dev_priv->drm.dev,
 			   "Failed to load DMC firmware"
 			   " [" FIRMWARE_URL "],"
 			   " disabling runtime power management.\n");

@@ -37,7 +37,7 @@ struct host1x_syncpt_base {
 };
 
 struct host1x_syncpt {
-	int id;
+	unsigned int id;
 	atomic_t min_val;
 	atomic_t max_val;
 	u32 base_val;
@@ -58,13 +58,13 @@ int host1x_syncpt_init(struct host1x *host);
 void host1x_syncpt_deinit(struct host1x *host);
 
 /* Return number of sync point supported. */
-int host1x_syncpt_nb_pts(struct host1x *host);
+unsigned int host1x_syncpt_nb_pts(struct host1x *host);
 
 /* Return number of wait bases supported. */
-int host1x_syncpt_nb_bases(struct host1x *host);
+unsigned int host1x_syncpt_nb_bases(struct host1x *host);
 
 /* Return number of mlocks supported. */
-int host1x_syncpt_nb_mlocks(struct host1x *host);
+unsigned int host1x_syncpt_nb_mlocks(struct host1x *host);
 
 /*
  * Check sync point sanity. If max is larger than min, there have too many

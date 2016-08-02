@@ -49,6 +49,7 @@ enum cgs_ind_reg {
 	CGS_IND_REG__SMC,
 	CGS_IND_REG__UVD_CTX,
 	CGS_IND_REG__DIDT,
+	CGS_IND_REG_GC_CAC,
 	CGS_IND_REG__AUDIO_ENDPT
 };
 
@@ -112,20 +113,23 @@ enum cgs_system_info_id {
 	CGS_SYSTEM_INFO_ADAPTER_BDF_ID = 1,
 	CGS_SYSTEM_INFO_PCIE_GEN_INFO,
 	CGS_SYSTEM_INFO_PCIE_MLW,
+	CGS_SYSTEM_INFO_PCIE_DEV,
+	CGS_SYSTEM_INFO_PCIE_REV,
 	CGS_SYSTEM_INFO_CG_FLAGS,
 	CGS_SYSTEM_INFO_PG_FLAGS,
 	CGS_SYSTEM_INFO_GFX_CU_INFO,
+	CGS_SYSTEM_INFO_GFX_SE_INFO,
 	CGS_SYSTEM_INFO_ID_MAXIMUM,
 };
 
 struct cgs_system_info {
-	uint64_t       size;
-	uint64_t       info_id;
+	uint64_t			size;
+	enum cgs_system_info_id		info_id;
 	union {
-		void           *ptr;
-		uint64_t        value;
+		void			*ptr;
+		uint64_t		value;
 	};
-	uint64_t               padding[13];
+	uint64_t			padding[13];
 };
 
 /*
@@ -158,6 +162,10 @@ struct cgs_firmware_info {
 	uint16_t		feature_version;
 	uint32_t		image_size;
 	uint64_t		mc_addr;
+
+	/* only for smc firmware */
+	uint32_t		ucode_start_address;
+
 	void			*kptr;
 };
 
@@ -189,7 +197,6 @@ typedef unsigned long cgs_handle_t;
 
 struct cgs_acpi_method_argument {
 	uint32_t type;
-	uint32_t method_length;
 	uint32_t data_length;
 	union{
 		uint32_t value;

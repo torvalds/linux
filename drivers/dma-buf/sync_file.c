@@ -82,7 +82,7 @@ struct sync_file *sync_file_create(struct fence *fence)
 
 	sync_file->num_fences = 1;
 	atomic_set(&sync_file->status, 1);
-	snprintf(sync_file->name, sizeof(sync_file->name), "%s-%s%d-%d",
+	snprintf(sync_file->name, sizeof(sync_file->name), "%s-%s%llu-%d",
 		 fence->ops->get_driver_name(fence),
 		 fence->ops->get_timeline_name(fence), fence->context,
 		 fence->seqno);

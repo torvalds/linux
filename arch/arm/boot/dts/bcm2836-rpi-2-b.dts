@@ -1,6 +1,7 @@
 /dts-v1/;
 #include "bcm2836.dtsi"
 #include "bcm2835-rpi.dtsi"
+#include "bcm283x-rpi-smsc9514.dtsi"
 
 / {
 	compatible = "raspberrypi,2-model-b", "brcm,bcm2836";

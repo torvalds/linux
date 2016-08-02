@@ -22,7 +22,7 @@
 		nvidia,model = "GoogleNyanBlaze";
 	};
 
-	pinmux@0,70000868 {
+	pinmux@70000868 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinmux_default>;
 

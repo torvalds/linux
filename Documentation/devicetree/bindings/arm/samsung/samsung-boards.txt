@@ -47,6 +47,7 @@ Required root node properties:
 	- "hardkernel,odroid-u3"  - for Exynos4412-based Hardkernel Odroid U3.
 	- "hardkernel,odroid-x"   - for Exynos4412-based Hardkernel Odroid X.
 	- "hardkernel,odroid-x2"  - for Exynos4412-based Hardkernel Odroid X2.
+	- "hardkernel,odroid-xu"  - for Exynos5410-based Hardkernel Odroid XU.
 	- "hardkernel,odroid-xu3" - for Exynos5422-based Hardkernel Odroid XU3.
 	- "hardkernel,odroid-xu3-lite" - for Exynos5422-based Hardkernel
 					 Odroid XU3 Lite board.

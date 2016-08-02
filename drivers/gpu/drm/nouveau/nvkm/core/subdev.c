@@ -57,6 +57,9 @@ nvkm_subdev_name[NVKM_SUBDEV_NR] = {
 	[NVKM_ENGINE_CE0     ] = "ce0",
 	[NVKM_ENGINE_CE1     ] = "ce1",
 	[NVKM_ENGINE_CE2     ] = "ce2",
+	[NVKM_ENGINE_CE3     ] = "ce3",
+	[NVKM_ENGINE_CE4     ] = "ce4",
+	[NVKM_ENGINE_CE5     ] = "ce5",
 	[NVKM_ENGINE_CIPHER  ] = "cipher",
 	[NVKM_ENGINE_DISP    ] = "disp",
 	[NVKM_ENGINE_DMAOBJ  ] = "dma",
@@ -71,6 +74,7 @@ nvkm_subdev_name[NVKM_SUBDEV_NR] = {
 	[NVKM_ENGINE_MSVLD   ] = "msvld",
 	[NVKM_ENGINE_NVENC0  ] = "nvenc0",
 	[NVKM_ENGINE_NVENC1  ] = "nvenc1",
+	[NVKM_ENGINE_NVENC2  ] = "nvenc2",
 	[NVKM_ENGINE_NVDEC   ] = "nvdec",
 	[NVKM_ENGINE_PM      ] = "pm",
 	[NVKM_ENGINE_SEC     ] = "sec",
@@ -105,7 +109,7 @@ nvkm_subdev_fini(struct nvkm_subdev *subdev, bool suspend)
 		}
 	}
 
-	nvkm_mc_reset(device->mc, subdev->index);
+	nvkm_mc_reset(device, subdev->index);
 
 	time = ktime_to_us(ktime_get()) - time;
 	nvkm_trace(subdev, "%s completed in %lldus\n", action, time);

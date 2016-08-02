@@ -130,7 +130,7 @@
 		};
 
 		pll3x2: pll3x2_clk {
-			compatible = "fixed-factor-clock";
+			compatible = "allwinner,sun4i-a10-pll3-2x-clk", "fixed-factor-clock";
 			#clock-cells = <0>;
 			clock-div = <1>;
 			clock-mult = <2>;

@@ -1087,7 +1087,6 @@ static int ab8500_probe(struct platform_device *pdev)
 		"Vbus Detect (USB)",
 		"USB ID Detect",
 		"UART Factory Mode Detect"};
-	struct ab8500_platform_data *plat = dev_get_platdata(&pdev->dev);
 	const struct platform_device_id *platid = platform_get_device_id(pdev);
 	enum ab8500_version version = AB8500_VERSION_UNDEFINED;
 	struct device_node *np = pdev->dev.of_node;
@@ -1218,9 +1217,6 @@ static int ab8500_probe(struct platform_device *pdev)
 	} else {
 		pr_cont("None\n");
 	}
-
-	if (plat && plat->init)
-		plat->init(ab8500);
 
 	if (is_ab9540(ab8500)) {
 		ret = get_register_interruptible(ab8500, AB8500_CHARGER,
