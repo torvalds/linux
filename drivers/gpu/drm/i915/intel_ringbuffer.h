@@ -214,12 +214,6 @@ struct intel_engine_cs {
 	 * monotonic, even if not coherent.
 	 */
 	void		(*irq_seqno_barrier)(struct intel_engine_cs *engine);
-	int		(*dispatch_execbuffer)(struct drm_i915_gem_request *req,
-					       u64 offset, u32 length,
-					       unsigned dispatch_flags);
-#define I915_DISPATCH_SECURE 0x1
-#define I915_DISPATCH_PINNED 0x2
-#define I915_DISPATCH_RS     0x4
 	void		(*cleanup)(struct intel_engine_cs *engine);
 
 	/* GEN8 signal/wait table - never trust comments!
@@ -297,7 +291,11 @@ struct intel_engine_cs {
 #define EMIT_FLUSH	BIT(1)
 #define EMIT_BARRIER	(EMIT_INVALIDATE | EMIT_FLUSH)
 	int		(*emit_bb_start)(struct drm_i915_gem_request *req,
-					 u64 offset, unsigned dispatch_flags);
+					 u64 offset, u32 length,
+					 unsigned int dispatch_flags);
+#define I915_DISPATCH_SECURE 0x1
+#define I915_DISPATCH_PINNED 0x2
+#define I915_DISPATCH_RS     0x4
 
 	/**
 	 * List of objects currently involved in rendering from the

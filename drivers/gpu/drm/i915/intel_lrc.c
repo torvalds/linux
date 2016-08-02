@@ -859,7 +859,9 @@ int intel_execlists_submission(struct i915_execbuffer_params *params,
 	exec_start = params->batch_obj_vm_offset +
 		     args->batch_start_offset;
 
-	ret = engine->emit_bb_start(params->request, exec_start, params->dispatch_flags);
+	ret = engine->emit_bb_start(params->request,
+				    exec_start, args->batch_len,
+				    params->dispatch_flags);
 	if (ret)
 		return ret;
 
@@ -1539,7 +1541,8 @@ static int intel_logical_ring_emit_pdps(struct drm_i915_gem_request *req)
 }
 
 static int gen8_emit_bb_start(struct drm_i915_gem_request *req,
-			      u64 offset, unsigned dispatch_flags)
+			      u64 offset, u32 len,
+			      unsigned int dispatch_flags)
 {
 	struct intel_ring *ring = req->ring;
 	bool ppgtt = !(dispatch_flags & I915_DISPATCH_SECURE);
@@ -1812,13 +1815,15 @@ static int intel_lr_context_render_state_init(struct drm_i915_gem_request *req)
 		return 0;
 
 	ret = req->engine->emit_bb_start(req, so.ggtt_offset,
-				       I915_DISPATCH_SECURE);
+					 so.rodata->batch_items * 4,
+					 I915_DISPATCH_SECURE);
 	if (ret)
 		goto out;
 
 	ret = req->engine->emit_bb_start(req,
-				       (so.ggtt_offset + so.aux_batch_offset),
-				       I915_DISPATCH_SECURE);
+					 (so.ggtt_offset + so.aux_batch_offset),
+					 so.aux_batch_size,
+					 I915_DISPATCH_SECURE);
 	if (ret)
 		goto out;
 

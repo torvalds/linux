@@ -1326,9 +1326,9 @@ i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
 	if (exec_len == 0)
 		exec_len = params->batch_obj->base.size;
 
-	ret = params->engine->dispatch_execbuffer(params->request,
-						  exec_start, exec_len,
-						  params->dispatch_flags);
+	ret = params->engine->emit_bb_start(params->request,
+					    exec_start, exec_len,
+					    params->dispatch_flags);
 	if (ret)
 		return ret;
 

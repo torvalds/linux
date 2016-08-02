@@ -1779,9 +1779,9 @@ gen8_irq_disable(struct intel_engine_cs *engine)
 }
 
 static int
-i965_dispatch_execbuffer(struct drm_i915_gem_request *req,
-			 u64 offset, u32 length,
-			 unsigned dispatch_flags)
+i965_emit_bb_start(struct drm_i915_gem_request *req,
+		   u64 offset, u32 length,
+		   unsigned int dispatch_flags)
 {
 	struct intel_ring *ring = req->ring;
 	int ret;
@@ -1806,9 +1806,9 @@ i965_dispatch_execbuffer(struct drm_i915_gem_request *req,
 #define I830_TLB_ENTRIES (2)
 #define I830_WA_SIZE max(I830_TLB_ENTRIES*4096, I830_BATCH_LIMIT)
 static int
-i830_dispatch_execbuffer(struct drm_i915_gem_request *req,
-			 u64 offset, u32 len,
-			 unsigned dispatch_flags)
+i830_emit_bb_start(struct drm_i915_gem_request *req,
+		   u64 offset, u32 len,
+		   unsigned int dispatch_flags)
 {
 	struct intel_ring *ring = req->ring;
 	u32 cs_offset = req->engine->scratch.gtt_offset;
@@ -1868,9 +1868,9 @@ i830_dispatch_execbuffer(struct drm_i915_gem_request *req,
 }
 
 static int
-i915_dispatch_execbuffer(struct drm_i915_gem_request *req,
-			 u64 offset, u32 len,
-			 unsigned dispatch_flags)
+i915_emit_bb_start(struct drm_i915_gem_request *req,
+		   u64 offset, u32 len,
+		   unsigned int dispatch_flags)
 {
 	struct intel_ring *ring = req->ring;
 	int ret;
@@ -2562,9 +2562,9 @@ static int gen6_bsd_ring_flush(struct drm_i915_gem_request *req, u32 mode)
 }
 
 static int
-gen8_ring_dispatch_execbuffer(struct drm_i915_gem_request *req,
-			      u64 offset, u32 len,
-			      unsigned dispatch_flags)
+gen8_emit_bb_start(struct drm_i915_gem_request *req,
+		   u64 offset, u32 len,
+		   unsigned int dispatch_flags)
 {
 	struct intel_ring *ring = req->ring;
 	bool ppgtt = USES_PPGTT(req->i915) &&
@@ -2588,9 +2588,9 @@ gen8_ring_dispatch_execbuffer(struct drm_i915_gem_request *req,
 }
 
 static int
-hsw_ring_dispatch_execbuffer(struct drm_i915_gem_request *req,
-			     u64 offset, u32 len,
-			     unsigned dispatch_flags)
+hsw_emit_bb_start(struct drm_i915_gem_request *req,
+		  u64 offset, u32 len,
+		  unsigned int dispatch_flags)
 {
 	struct intel_ring *ring = req->ring;
 	int ret;
@@ -2613,9 +2613,9 @@ hsw_ring_dispatch_execbuffer(struct drm_i915_gem_request *req,
 }
 
 static int
-gen6_ring_dispatch_execbuffer(struct drm_i915_gem_request *req,
-			      u64 offset, u32 len,
-			      unsigned dispatch_flags)
+gen6_emit_bb_start(struct drm_i915_gem_request *req,
+		   u64 offset, u32 len,
+		   unsigned int dispatch_flags)
 {
 	struct intel_ring *ring = req->ring;
 	int ret;
@@ -2818,15 +2818,15 @@ static void intel_ring_default_vfuncs(struct drm_i915_private *dev_priv,
 		engine->add_request = gen6_add_request;
 
 	if (INTEL_GEN(dev_priv) >= 8)
-		engine->dispatch_execbuffer = gen8_ring_dispatch_execbuffer;
+		engine->emit_bb_start = gen8_emit_bb_start;
 	else if (INTEL_GEN(dev_priv) >= 6)
-		engine->dispatch_execbuffer = gen6_ring_dispatch_execbuffer;
+		engine->emit_bb_start = gen6_emit_bb_start;
 	else if (INTEL_GEN(dev_priv) >= 4)
-		engine->dispatch_execbuffer = i965_dispatch_execbuffer;
+		engine->emit_bb_start = i965_emit_bb_start;
 	else if (IS_I830(dev_priv) || IS_845G(dev_priv))
-		engine->dispatch_execbuffer = i830_dispatch_execbuffer;
+		engine->emit_bb_start = i830_emit_bb_start;
 	else
-		engine->dispatch_execbuffer = i915_dispatch_execbuffer;
+		engine->emit_bb_start = i915_emit_bb_start;
 
 	intel_ring_init_irq(dev_priv, engine);
 	intel_ring_init_semaphores(dev_priv, engine);
@@ -2864,7 +2864,7 @@ int intel_init_render_ring_buffer(struct intel_engine_cs *engine)
 	}
 
 	if (IS_HASWELL(dev_priv))
-		engine->dispatch_execbuffer = hsw_ring_dispatch_execbuffer;
+		engine->emit_bb_start = hsw_emit_bb_start;
 
 	engine->init_hw = init_render_ring;
 	engine->cleanup = render_ring_cleanup;

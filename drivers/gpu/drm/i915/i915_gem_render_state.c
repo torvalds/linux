@@ -234,18 +234,18 @@ int i915_gem_render_state_init(struct drm_i915_gem_request *req)
 	if (so.rodata == NULL)
 		return 0;
 
-	ret = req->engine->dispatch_execbuffer(req, so.ggtt_offset,
-					     so.rodata->batch_items * 4,
-					     I915_DISPATCH_SECURE);
+	ret = req->engine->emit_bb_start(req, so.ggtt_offset,
+					 so.rodata->batch_items * 4,
+					 I915_DISPATCH_SECURE);
 	if (ret)
 		goto out;
 
 	if (so.aux_batch_size > 8) {
-		ret = req->engine->dispatch_execbuffer(req,
-						     (so.ggtt_offset +
-						      so.aux_batch_offset),
-						     so.aux_batch_size,
-						     I915_DISPATCH_SECURE);
+		ret = req->engine->emit_bb_start(req,
+						 (so.ggtt_offset +
+						  so.aux_batch_offset),
+						 so.aux_batch_size,
+						 I915_DISPATCH_SECURE);
 		if (ret)
 			goto out;
 	}
