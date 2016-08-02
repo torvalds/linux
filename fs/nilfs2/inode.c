@@ -723,9 +723,9 @@ repeat:
 		goto repeat;
 
 failed:
-	nilfs_warning(ii->vfs_inode.i_sb, __func__,
-		      "failed to truncate bmap (ino=%lu, err=%d)",
-		      ii->vfs_inode.i_ino, ret);
+	nilfs_msg(ii->vfs_inode.i_sb, KERN_WARNING,
+		  "error %d truncating bmap (ino=%lu)", ret,
+		  ii->vfs_inode.i_ino);
 }
 
 void nilfs_truncate(struct inode *inode)
@@ -936,9 +936,9 @@ int nilfs_set_file_dirty(struct inode *inode, unsigned int nr_dirty)
 			 * This will happen when somebody is freeing
 			 * this inode.
 			 */
-			nilfs_warning(inode->i_sb, __func__,
-				      "cannot get inode (ino=%lu)",
-				      inode->i_ino);
+			nilfs_msg(inode->i_sb, KERN_WARNING,
+				  "cannot set file dirty (ino=%lu): the file is being freed",
+				  inode->i_ino);
 			spin_unlock(&nilfs->ns_inode_lock);
 			return -EINVAL; /*
 					 * NILFS_I_DIRTY may remain for
@@ -959,8 +959,9 @@ int __nilfs_mark_inode_dirty(struct inode *inode, int flags)
 
 	err = nilfs_load_inode_block(inode, &ibh);
 	if (unlikely(err)) {
-		nilfs_warning(inode->i_sb, __func__,
-			      "failed to reget inode block.");
+		nilfs_msg(inode->i_sb, KERN_WARNING,
+			  "cannot mark inode dirty (ino=%lu): error %d loading inode block",
+			  inode->i_ino, err);
 		return err;
 	}
 	nilfs_update_inode(inode, ibh, flags);
@@ -986,8 +987,8 @@ void nilfs_dirty_inode(struct inode *inode, int flags)
 	struct nilfs_mdt_info *mdi = NILFS_MDT(inode);
 
 	if (is_bad_inode(inode)) {
-		nilfs_warning(inode->i_sb, __func__,
-			      "tried to mark bad_inode dirty. ignored.");
+		nilfs_msg(inode->i_sb, KERN_WARNING,
+			  "tried to mark bad_inode dirty. ignored.");
 		dump_stack();
 		return;
 	}

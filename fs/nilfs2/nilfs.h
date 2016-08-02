@@ -306,8 +306,6 @@ void __nilfs_msg(struct super_block *sb, const char *level,
 extern __printf(3, 4)
 void __nilfs_error(struct super_block *sb, const char *function,
 		   const char *fmt, ...);
-extern __printf(3, 4)
-void nilfs_warning(struct super_block *, const char *, const char *, ...);
 
 #ifdef CONFIG_PRINTK
 
@@ -319,7 +317,10 @@ void nilfs_warning(struct super_block *, const char *, const char *, ...);
 #else
 
 #define nilfs_msg(sb, level, fmt, ...)					\
-	no_printk(fmt, ##__VA_ARGS__)
+	do {								\
+		no_printk(fmt, ##__VA_ARGS__);				\
+		(void)(sb);						\
+	} while (0)
 #define nilfs_error(sb, fmt, ...)					\
 	do {								\
 		no_printk(fmt, ##__VA_ARGS__);				\

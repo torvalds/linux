@@ -403,11 +403,10 @@ void nilfs_clear_dirty_page(struct page *page, bool silent)
 
 	BUG_ON(!PageLocked(page));
 
-	if (!silent) {
-		nilfs_warning(sb, __func__,
-				"discard page: offset %lld, ino %lu",
-				page_offset(page), inode->i_ino);
-	}
+	if (!silent)
+		nilfs_msg(sb, KERN_WARNING,
+			  "discard dirty page: offset=%lld, ino=%lu",
+			  page_offset(page), inode->i_ino);
 
 	ClearPageUptodate(page);
 	ClearPageMappedToDisk(page);
@@ -422,11 +421,11 @@ void nilfs_clear_dirty_page(struct page *page, bool silent)
 		bh = head = page_buffers(page);
 		do {
 			lock_buffer(bh);
-			if (!silent) {
-				nilfs_warning(sb, __func__,
-					"discard block %llu, size %zu",
-					(u64)bh->b_blocknr, bh->b_size);
-			}
+			if (!silent)
+				nilfs_msg(sb, KERN_WARNING,
+					  "discard dirty block: blocknr=%llu, size=%zu",
+					  (u64)bh->b_blocknr, bh->b_size);
+
 			set_mask_bits(&bh->b_state, clear_bits, 0);
 			unlock_buffer(bh);
 		} while (bh = bh->b_this_page, bh != head);

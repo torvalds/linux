@@ -115,8 +115,7 @@ static void nilfs_set_error(struct super_block *sb)
  *
  * This implements the body of nilfs_error() macro.  Normally,
  * nilfs_error() should be used.  As for sustainable errors such as a
- * single-shot I/O error, nilfs_warning() or printk() should be used
- * instead.
+ * single-shot I/O error, nilfs_msg() should be used instead.
  *
  * Callers should not add a trailing newline since this will do it.
  */
@@ -150,24 +149,6 @@ void __nilfs_error(struct super_block *sb, const char *function,
 		panic("NILFS (device %s): panic forced after error\n",
 		      sb->s_id);
 }
-
-void nilfs_warning(struct super_block *sb, const char *function,
-		   const char *fmt, ...)
-{
-	struct va_format vaf;
-	va_list args;
-
-	va_start(args, fmt);
-
-	vaf.fmt = fmt;
-	vaf.va = &args;
-
-	printk(KERN_WARNING "NILFS warning (device %s): %s: %pV\n",
-	       sb->s_id, function, &vaf);
-
-	va_end(args);
-}
-
 
 struct inode *nilfs_alloc_inode(struct super_block *sb)
 {
