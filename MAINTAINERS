@@ -5094,6 +5094,15 @@ L:	linux-scsi@vger.kernel.org
 S:	Odd Fixes (e.g., new signatures)
 F:	drivers/scsi/fdomain.*
 
+GCC PLUGINS
+M:	Kees Cook <keescook@chromium.org>
+R:	Emese Revfy <re.emese@gmail.com>
+L:	kernel-hardening@lists.openwall.com
+S:	Maintained
+F:	scripts/gcc-plugins/
+F:	scripts/gcc-plugin.sh
+F:	Documentation/gcc-plugins.txt
+
 GCOV BASED KERNEL PROFILING
 M:	Peter Oberparleiter <oberpar@linux.vnet.ibm.com>
 S:	Maintained
