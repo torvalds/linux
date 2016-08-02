@@ -98,6 +98,12 @@ struct drm_rockchip_rga_exec {
 	__u64		async;
 };
 
+enum rockchip_plane_feture {
+	ROCKCHIP_DRM_PLANE_FEATURE_SCALE,
+	ROCKCHIP_DRM_PLANE_FEATURE_ALPHA,
+	ROCKCHIP_DRM_PLANE_FEATURE_MAX,
+};
+
 #define DRM_ROCKCHIP_GEM_CREATE		0x00
 #define DRM_ROCKCHIP_GEM_MAP_OFFSET	0x01
 #define DRM_ROCKCHIP_GEM_CPU_ACQUIRE	0x02

@@ -31,6 +31,7 @@
 #include <linux/reset.h>
 #include <linux/delay.h>
 #include <linux/sort.h>
+#include <uapi/drm/rockchip_drm.h>
 
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_gem.h"
@@ -153,6 +154,7 @@ struct vop {
 	struct device *dev;
 	struct drm_device *drm_dev;
 	struct drm_property *plane_zpos_prop;
+	struct drm_property *plane_feature_prop;
 	bool is_iommu_enabled;
 	bool is_iommu_needed;
 
@@ -1398,6 +1400,7 @@ static int vop_plane_init(struct vop *vop, struct vop_win *win,
 	struct drm_plane *share = NULL;
 	unsigned int rotations = 0;
 	struct drm_property *prop;
+	uint64_t feature = 0;
 	int ret;
 
 	if (win->parent)
@@ -1432,6 +1435,14 @@ static int vop_plane_init(struct vop *vop, struct vop_win *win,
 					   BIT(DRM_ROTATE_0));
 		win->rotation_prop = prop;
 	}
+	if (win->phy->scl)
+		feature |= BIT(ROCKCHIP_DRM_PLANE_FEATURE_SCALE);
+	if (VOP_WIN_SUPPORT(vop, win, src_alpha_ctl) ||
+	    VOP_WIN_SUPPORT(vop, win, alpha_en))
+		feature |= BIT(ROCKCHIP_DRM_PLANE_FEATURE_ALPHA);
+
+	drm_object_attach_property(&win->base.base, vop->plane_feature_prop,
+				   feature);
 
 	return 0;
 }
@@ -1554,6 +1565,10 @@ static int vop_win_init(struct vop *vop)
 	unsigned int i, j;
 	unsigned int num_wins = 0;
 	struct drm_property *prop;
+	static const struct drm_prop_enum_list props[] = {
+		{ ROCKCHIP_DRM_PLANE_FEATURE_SCALE, "scale" },
+		{ ROCKCHIP_DRM_PLANE_FEATURE_ALPHA, "alpha" },
+	};
 
 	for (i = 0; i < vop_data->win_size; i++) {
 		struct vop_win *vop_win = &vop->win[num_wins];
@@ -1598,6 +1613,16 @@ static int vop_win_init(struct vop *vop)
 		return -EINVAL;
 	}
 	vop->plane_zpos_prop = prop;
+
+	vop->plane_feature_prop = drm_property_create_bitmask(vop->drm_dev,
+				DRM_MODE_PROP_IMMUTABLE, "FEATURE",
+				props, ARRAY_SIZE(props),
+				BIT(ROCKCHIP_DRM_PLANE_FEATURE_SCALE) |
+				BIT(ROCKCHIP_DRM_PLANE_FEATURE_ALPHA));
+	if (!vop->plane_feature_prop) {
+		DRM_ERROR("failed to create feature property\n");
+		return -EINVAL;
+	}
 
 	return 0;
 }
