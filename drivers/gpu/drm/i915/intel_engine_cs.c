@@ -155,7 +155,7 @@ cleanup:
 		if (i915.enable_execlists)
 			intel_logical_ring_cleanup(&dev_priv->engine[i]);
 		else
-			intel_cleanup_engine(&dev_priv->engine[i]);
+			intel_engine_cleanup(&dev_priv->engine[i]);
 	}
 
 	return ret;

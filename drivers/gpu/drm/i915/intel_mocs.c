@@ -276,7 +276,7 @@ int intel_mocs_init_engine(struct intel_engine_cs *engine)
 static int emit_mocs_control_table(struct drm_i915_gem_request *req,
 				   const struct drm_i915_mocs_table *table)
 {
-	struct intel_ringbuffer *ring = req->ring;
+	struct intel_ring *ring = req->ring;
 	enum intel_engine_id engine = req->engine->id;
 	unsigned int index;
 	int ret;
@@ -336,7 +336,7 @@ static inline u32 l3cc_combine(const struct drm_i915_mocs_table *table,
 static int emit_mocs_l3cc_table(struct drm_i915_gem_request *req,
 				const struct drm_i915_mocs_table *table)
 {
-	struct intel_ringbuffer *ring = req->ring;
+	struct intel_ring *ring = req->ring;
 	unsigned int i;
 	int ret;
 

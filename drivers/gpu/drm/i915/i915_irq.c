@@ -2993,7 +2993,7 @@ static bool subunits_stuck(struct intel_engine_cs *engine)
 	return stuck;
 }
 
-static enum intel_ring_hangcheck_action
+static enum intel_engine_hangcheck_action
 head_stuck(struct intel_engine_cs *engine, u64 acthd)
 {
 	if (acthd != engine->hangcheck.acthd) {
@@ -3011,11 +3011,11 @@ head_stuck(struct intel_engine_cs *engine, u64 acthd)
 	return HANGCHECK_HUNG;
 }
 
-static enum intel_ring_hangcheck_action
-ring_stuck(struct intel_engine_cs *engine, u64 acthd)
+static enum intel_engine_hangcheck_action
+engine_stuck(struct intel_engine_cs *engine, u64 acthd)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
-	enum intel_ring_hangcheck_action ha;
+	enum intel_engine_hangcheck_action ha;
 	u32 tmp;
 
 	ha = head_stuck(engine, acthd);
@@ -3124,7 +3124,7 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 		if (engine->irq_seqno_barrier)
 			engine->irq_seqno_barrier(engine);
 
-		acthd = intel_ring_get_active_head(engine);
+		acthd = intel_engine_get_active_head(engine);
 		seqno = intel_engine_get_seqno(engine);
 
 		/* Reset stuck interrupts between batch advances */
@@ -3154,8 +3154,8 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 				 * being repeatedly kicked and so responsible
 				 * for stalling the machine.
 				 */
-				engine->hangcheck.action = ring_stuck(engine,
-								      acthd);
+				engine->hangcheck.action =
+					engine_stuck(engine, acthd);
 
 				switch (engine->hangcheck.action) {
 				case HANGCHECK_IDLE:

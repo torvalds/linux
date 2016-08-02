@@ -174,7 +174,7 @@ void i915_gem_context_free(struct kref *ctx_ref)
 
 		WARN_ON(ce->pin_count);
 		if (ce->ring)
-			intel_ringbuffer_free(ce->ring);
+			intel_ring_free(ce->ring);
 
 		i915_gem_object_put(ce->state);
 	}
@@ -552,7 +552,7 @@ static inline int
 mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 {
 	struct drm_i915_private *dev_priv = req->i915;
-	struct intel_ringbuffer *ring = req->ring;
+	struct intel_ring *ring = req->ring;
 	struct intel_engine_cs *engine = req->engine;
 	u32 flags = hw_flags | MI_MM_SPACE_GTT;
 	const int num_rings =
@@ -655,7 +655,7 @@ mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 static int remap_l3(struct drm_i915_gem_request *req, int slice)
 {
 	u32 *remap_info = req->i915->l3_parity.remap_info[slice];
-	struct intel_ringbuffer *ring = req->ring;
+	struct intel_ring *ring = req->ring;
 	int i, ret;
 
 	if (!remap_info)

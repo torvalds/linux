@@ -221,7 +221,7 @@ static void print_error_buffers(struct drm_i915_error_state_buf *m,
 	}
 }
 
-static const char *hangcheck_action_to_str(enum intel_ring_hangcheck_action a)
+static const char *hangcheck_action_to_str(enum intel_engine_hangcheck_action a)
 {
 	switch (a) {
 	case HANGCHECK_IDLE:
@@ -879,7 +879,7 @@ static void gen8_record_semaphore_state(struct drm_i915_error_state *error,
 		signal_offset =
 			(GEN8_SIGNAL_OFFSET(engine, id) & (PAGE_SIZE - 1)) / 4;
 		tmp = error->semaphore_obj->pages[0];
-		idx = intel_ring_sync_index(engine, to);
+		idx = intel_engine_sync_index(engine, to);
 
 		ee->semaphore_mboxes[idx] = tmp[signal_offset];
 		ee->semaphore_seqno[idx] = engine->semaphore.sync_seqno[idx];
@@ -981,7 +981,7 @@ static void error_record_engine_registers(struct drm_i915_error_state *error,
 
 	ee->waiting = intel_engine_has_waiter(engine);
 	ee->instpm = I915_READ(RING_INSTPM(engine->mmio_base));
-	ee->acthd = intel_ring_get_active_head(engine);
+	ee->acthd = intel_engine_get_active_head(engine);
 	ee->seqno = intel_engine_get_seqno(engine);
 	ee->last_seqno = engine->last_submitted_seqno;
 	ee->start = I915_READ_START(engine);
@@ -1097,7 +1097,7 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 		request = i915_gem_find_active_request(engine);
 		if (request) {
 			struct i915_address_space *vm;
-			struct intel_ringbuffer *ring;
+			struct intel_ring *ring;
 
 			vm = request->ctx->ppgtt ?
 				&request->ctx->ppgtt->base : &ggtt->base;

@@ -669,7 +669,7 @@ static int gen8_write_pdp(struct drm_i915_gem_request *req,
 			  unsigned entry,
 			  dma_addr_t addr)
 {
-	struct intel_ringbuffer *ring = req->ring;
+	struct intel_ring *ring = req->ring;
 	struct intel_engine_cs *engine = req->engine;
 	int ret;
 
@@ -1661,7 +1661,7 @@ static uint32_t get_pd_offset(struct i915_hw_ppgtt *ppgtt)
 static int hsw_mm_switch(struct i915_hw_ppgtt *ppgtt,
 			 struct drm_i915_gem_request *req)
 {
-	struct intel_ringbuffer *ring = req->ring;
+	struct intel_ring *ring = req->ring;
 	struct intel_engine_cs *engine = req->engine;
 	int ret;
 
@@ -1688,7 +1688,7 @@ static int hsw_mm_switch(struct i915_hw_ppgtt *ppgtt,
 static int gen7_mm_switch(struct i915_hw_ppgtt *ppgtt,
 			  struct drm_i915_gem_request *req)
 {
-	struct intel_ringbuffer *ring = req->ring;
+	struct intel_ring *ring = req->ring;
 	struct intel_engine_cs *engine = req->engine;
 	int ret;
 

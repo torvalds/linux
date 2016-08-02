@@ -518,7 +518,7 @@ struct drm_i915_error_state {
 		bool waiting;
 		int num_waiters;
 		int hangcheck_score;
-		enum intel_ring_hangcheck_action hangcheck_action;
+		enum intel_engine_hangcheck_action hangcheck_action;
 		int num_requests;
 
 		/* our own tracking of ring head and tail */
@@ -894,7 +894,7 @@ struct i915_gem_context {
 
 	struct intel_context {
 		struct drm_i915_gem_object *state;
-		struct intel_ringbuffer *ring;
+		struct intel_ring *ring;
 		struct i915_vma *lrc_vma;
 		uint32_t *lrc_reg_state;
 		u64 lrc_desc;

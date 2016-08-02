@@ -2486,7 +2486,7 @@ static void i915_gem_reset_engine_status(struct intel_engine_cs *engine)
 
 static void i915_gem_reset_engine_cleanup(struct intel_engine_cs *engine)
 {
-	struct intel_ringbuffer *buffer;
+	struct intel_ring *ring;
 
 	while (!list_empty(&engine->active_list)) {
 		struct drm_i915_gem_object *obj;
@@ -2502,7 +2502,7 @@ static void i915_gem_reset_engine_cleanup(struct intel_engine_cs *engine)
 	 * (lockless) lookup doesn't try and wait upon the request as we
 	 * reset it.
 	 */
-	intel_ring_init_seqno(engine, engine->last_submitted_seqno);
+	intel_engine_init_seqno(engine, engine->last_submitted_seqno);
 
 	/*
 	 * Clear the execlists queue up before freeing the requests, as those
@@ -2541,9 +2541,9 @@ static void i915_gem_reset_engine_cleanup(struct intel_engine_cs *engine)
 	 * upon reset is less than when we start. Do one more pass over
 	 * all the ringbuffers to reset last_retired_head.
 	 */
-	list_for_each_entry(buffer, &engine->buffers, link) {
-		buffer->last_retired_head = buffer->tail;
-		intel_ring_update_space(buffer);
+	list_for_each_entry(ring, &engine->buffers, link) {
+		ring->last_retired_head = ring->tail;
+		intel_ring_update_space(ring);
 	}
 
 	engine->i915->gt.active_engines &= ~intel_engine_flag(engine);
@@ -2870,7 +2870,7 @@ __i915_gem_object_sync(struct drm_i915_gem_object *obj,
 
 		i915_gem_object_retire_request(obj, from_req);
 	} else {
-		int idx = intel_ring_sync_index(from, to);
+		int idx = intel_engine_sync_index(from, to);
 		u32 seqno = i915_gem_request_get_seqno(from_req);
 
 		WARN_ON(!to_req);
@@ -4570,8 +4570,8 @@ int i915_gem_init(struct drm_device *dev)
 
 	if (!i915.enable_execlists) {
 		dev_priv->gt.execbuf_submit = i915_gem_ringbuffer_submission;
-		dev_priv->gt.cleanup_engine = intel_cleanup_engine;
-		dev_priv->gt.stop_engine = intel_stop_engine;
+		dev_priv->gt.cleanup_engine = intel_engine_cleanup;
+		dev_priv->gt.stop_engine = intel_engine_stop;
 	} else {
 		dev_priv->gt.execbuf_submit = intel_execlists_submission;
 		dev_priv->gt.cleanup_engine = intel_logical_ring_cleanup;

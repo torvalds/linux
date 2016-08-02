@@ -767,7 +767,7 @@ err_unpin:
 static int
 intel_logical_ring_advance_and_submit(struct drm_i915_gem_request *request)
 {
-	struct intel_ringbuffer *ring = request->ring;
+	struct intel_ring *ring = request->ring;
 	struct intel_engine_cs *engine = request->engine;
 
 	intel_ring_advance(ring);
@@ -818,7 +818,7 @@ int intel_execlists_submission(struct i915_execbuffer_params *params,
 	struct drm_device       *dev = params->dev;
 	struct intel_engine_cs *engine = params->engine;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_ringbuffer *ring = params->request->ring;
+	struct intel_ring *ring = params->request->ring;
 	u64 exec_start;
 	int instp_mode;
 	u32 instp_mask;
@@ -973,7 +973,7 @@ static int intel_lr_context_pin(struct i915_gem_context *ctx,
 
 	lrc_reg_state = vaddr + LRC_STATE_PN * PAGE_SIZE;
 
-	ret = intel_pin_and_map_ringbuffer_obj(dev_priv, ce->ring);
+	ret = intel_pin_and_map_ring(dev_priv, ce->ring);
 	if (ret)
 		goto unpin_map;
 
@@ -1011,7 +1011,7 @@ void intel_lr_context_unpin(struct i915_gem_context *ctx,
 	if (--ce->pin_count)
 		return;
 
-	intel_unpin_ringbuffer_obj(ce->ring);
+	intel_unpin_ring(ce->ring);
 
 	i915_gem_object_unpin_map(ce->state);
 	i915_gem_object_ggtt_unpin(ce->state);
@@ -1027,7 +1027,7 @@ static int intel_logical_ring_workarounds_emit(struct drm_i915_gem_request *req)
 {
 	int ret, i;
 	struct intel_engine_cs *engine = req->engine;
-	struct intel_ringbuffer *ring = req->ring;
+	struct intel_ring *ring = req->ring;
 	struct i915_workarounds *w = &req->i915->workarounds;
 
 	if (w->count == 0)
@@ -1550,7 +1550,7 @@ static int gen9_init_render_ring(struct intel_engine_cs *engine)
 static int intel_logical_ring_emit_pdps(struct drm_i915_gem_request *req)
 {
 	struct i915_hw_ppgtt *ppgtt = req->ctx->ppgtt;
-	struct intel_ringbuffer *ring = req->ring;
+	struct intel_ring *ring = req->ring;
 	struct intel_engine_cs *engine = req->engine;
 	const int num_lri_cmds = GEN8_LEGACY_PDPES * 2;
 	int i, ret;
@@ -1578,7 +1578,7 @@ static int intel_logical_ring_emit_pdps(struct drm_i915_gem_request *req)
 static int gen8_emit_bb_start(struct drm_i915_gem_request *req,
 			      u64 offset, unsigned dispatch_flags)
 {
-	struct intel_ringbuffer *ring = req->ring;
+	struct intel_ring *ring = req->ring;
 	bool ppgtt = !(dispatch_flags & I915_DISPATCH_SECURE);
 	int ret;
 
@@ -1635,8 +1635,8 @@ static int gen8_emit_flush(struct drm_i915_gem_request *request,
 			   u32 invalidate_domains,
 			   u32 unused)
 {
-	struct intel_ringbuffer *ring = request->ring;
-	uint32_t cmd;
+	struct intel_ring *ring = request->ring;
+	u32 cmd;
 	int ret;
 
 	ret = intel_ring_begin(request, 4);
@@ -1673,7 +1673,7 @@ static int gen8_emit_flush_render(struct drm_i915_gem_request *request,
 				  u32 invalidate_domains,
 				  u32 flush_domains)
 {
-	struct intel_ringbuffer *ring = request->ring;
+	struct intel_ring *ring = request->ring;
 	struct intel_engine_cs *engine = request->engine;
 	u32 scratch_addr = engine->scratch.gtt_offset + 2 * CACHELINE_BYTES;
 	bool vf_flush_wa = false, dc_flush_wa = false;
@@ -1787,7 +1787,7 @@ static void bxt_a_seqno_barrier(struct intel_engine_cs *engine)
 
 static int gen8_emit_request(struct drm_i915_gem_request *request)
 {
-	struct intel_ringbuffer *ring = request->ring;
+	struct intel_ring *ring = request->ring;
 	int ret;
 
 	ret = intel_ring_begin(request, 6 + WA_TAIL_DWORDS);
@@ -1810,7 +1810,7 @@ static int gen8_emit_request(struct drm_i915_gem_request *request)
 
 static int gen8_emit_request_render(struct drm_i915_gem_request *request)
 {
-	struct intel_ringbuffer *ring = request->ring;
+	struct intel_ring *ring = request->ring;
 	int ret;
 
 	ret = intel_ring_begin(request, 8 + WA_TAIL_DWORDS);
@@ -2162,7 +2162,7 @@ static int
 populate_lr_context(struct i915_gem_context *ctx,
 		    struct drm_i915_gem_object *ctx_obj,
 		    struct intel_engine_cs *engine,
-		    struct intel_ringbuffer *ringbuf)
+		    struct intel_ring *ring)
 {
 	struct drm_i915_private *dev_priv = ctx->i915;
 	struct i915_hw_ppgtt *ppgtt = ctx->ppgtt;
@@ -2215,7 +2215,7 @@ populate_lr_context(struct i915_gem_context *ctx,
 		       RING_START(engine->mmio_base), 0);
 	ASSIGN_CTX_REG(reg_state, CTX_RING_BUFFER_CONTROL,
 		       RING_CTL(engine->mmio_base),
-		       ((ringbuf->size - PAGE_SIZE) & RING_NR_PAGES) | RING_VALID);
+		       ((ring->size - PAGE_SIZE) & RING_NR_PAGES) | RING_VALID);
 	ASSIGN_CTX_REG(reg_state, CTX_BB_HEAD_U,
 		       RING_BBADDR_UDW(engine->mmio_base), 0);
 	ASSIGN_CTX_REG(reg_state, CTX_BB_HEAD_L,
@@ -2343,7 +2343,7 @@ static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 	struct drm_i915_gem_object *ctx_obj;
 	struct intel_context *ce = &ctx->engine[engine->id];
 	uint32_t context_size;
-	struct intel_ringbuffer *ring;
+	struct intel_ring *ring;
 	int ret;
 
 	WARN_ON(ce->state);
@@ -2359,7 +2359,7 @@ static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 		return PTR_ERR(ctx_obj);
 	}
 
-	ring = intel_engine_create_ringbuffer(engine, ctx->ring_size);
+	ring = intel_engine_create_ring(engine, ctx->ring_size);
 	if (IS_ERR(ring)) {
 		ret = PTR_ERR(ring);
 		goto error_deref_obj;
@@ -2378,7 +2378,7 @@ static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 	return 0;
 
 error_ring_free:
-	intel_ringbuffer_free(ring);
+	intel_ring_free(ring);
 error_deref_obj:
 	i915_gem_object_put(ctx_obj);
 	ce->ring = NULL;

@@ -244,7 +244,7 @@ static int i915_gem_init_seqno(struct drm_i915_private *dev_priv, u32 seqno)
 
 	/* Finally reset hw state */
 	for_each_engine(engine, dev_priv)
-		intel_ring_init_seqno(engine, seqno);
+		intel_engine_init_seqno(engine, seqno);
 
 	return 0;
 }
@@ -423,7 +423,7 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 			bool flush_caches)
 {
 	struct intel_engine_cs *engine;
-	struct intel_ringbuffer *ring;
+	struct intel_ring *ring;
 	u32 request_start;
 	u32 reserved_tail;
 	int ret;
@@ -454,7 +454,7 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 		if (i915.enable_execlists)
 			ret = logical_ring_flush_all_caches(request);
 		else
-			ret = intel_ring_flush_all_caches(request);
+			ret = intel_engine_flush_all_caches(request);
 		/* Not allowed to fail! */
 		WARN(ret, "*_ring_flush_all_caches failed: %d!\n", ret);
 	}

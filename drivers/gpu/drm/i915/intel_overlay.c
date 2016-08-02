@@ -235,7 +235,7 @@ static int intel_overlay_on(struct intel_overlay *overlay)
 	struct drm_i915_private *dev_priv = overlay->i915;
 	struct intel_engine_cs *engine = &dev_priv->engine[RCS];
 	struct drm_i915_gem_request *req;
-	struct intel_ringbuffer *ring;
+	struct intel_ring *ring;
 	int ret;
 
 	WARN_ON(overlay->active);
@@ -270,7 +270,7 @@ static int intel_overlay_continue(struct intel_overlay *overlay,
 	struct drm_i915_private *dev_priv = overlay->i915;
 	struct intel_engine_cs *engine = &dev_priv->engine[RCS];
 	struct drm_i915_gem_request *req;
-	struct intel_ringbuffer *ring;
+	struct intel_ring *ring;
 	u32 flip_addr = overlay->flip_addr;
 	u32 tmp;
 	int ret;
@@ -340,7 +340,7 @@ static int intel_overlay_off(struct intel_overlay *overlay)
 	struct drm_i915_private *dev_priv = overlay->i915;
 	struct intel_engine_cs *engine = &dev_priv->engine[RCS];
 	struct drm_i915_gem_request *req;
-	struct intel_ringbuffer *ring;
+	struct intel_ring *ring;
 	u32 flip_addr = overlay->flip_addr;
 	int ret;
 
@@ -426,7 +426,7 @@ static int intel_overlay_release_old_vid(struct intel_overlay *overlay)
 	if (I915_READ(ISR) & I915_OVERLAY_PLANE_FLIP_PENDING_INTERRUPT) {
 		/* synchronous slowpath */
 		struct drm_i915_gem_request *req;
-		struct intel_ringbuffer *ring;
+		struct intel_ring *ring;
 
 		req = i915_gem_request_alloc(engine, NULL);
 		if (IS_ERR(req))
