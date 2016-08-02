@@ -200,7 +200,7 @@ static int panel_simple_unprepare(struct drm_panel *panel)
 		return 0;
 
 	if (p->enable_gpio)
-		gpiod_set_value_cansleep(p->enable_gpio, 0);
+		gpiod_direction_output(p->enable_gpio, 0);
 
 	regulator_disable(p->supply);
 
@@ -227,7 +227,7 @@ static int panel_simple_prepare(struct drm_panel *panel)
 	}
 
 	if (p->enable_gpio)
-		gpiod_set_value_cansleep(p->enable_gpio, 1);
+		gpiod_direction_output(p->enable_gpio, 1);
 
 	if (p->desc && p->desc->delay.prepare)
 		msleep(p->desc->delay.prepare);
@@ -329,8 +329,7 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 	if (IS_ERR(panel->supply))
 		return PTR_ERR(panel->supply);
 
-	panel->enable_gpio = devm_gpiod_get_optional(dev, "enable",
-						     GPIOD_OUT_LOW);
+	panel->enable_gpio = devm_gpiod_get_optional(dev, "enable", 0);
 	if (IS_ERR(panel->enable_gpio)) {
 		err = PTR_ERR(panel->enable_gpio);
 		dev_err(dev, "failed to request GPIO: %d\n", err);
