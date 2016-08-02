@@ -219,6 +219,157 @@
 	};
 };
 
+&cluster0_opp {
+	opp@408000000 {
+		opp-hz = /bits/ 64 <408000000>;
+		opp-microvolt = <800000>;
+		clock-latency-ns = <40000>;
+	};
+	opp@600000000 {
+		opp-hz = /bits/ 64 <600000000>;
+		opp-microvolt = <800000>;
+	};
+	opp@816000000 {
+		opp-hz = /bits/ 64 <816000000>;
+		opp-microvolt = <800000>;
+	};
+	opp@1008000000 {
+		opp-hz = /bits/ 64 <1008000000>;
+		opp-microvolt = <875000>;
+	};
+	opp@1200000000 {
+		opp-hz = /bits/ 64 <1200000000>;
+		opp-microvolt = <925000>;
+	};
+	opp@1416000000 {
+		opp-hz = /bits/ 64 <1416000000>;
+		opp-microvolt = <1050000>;
+	};
+	opp@1512000000 {
+		opp-hz = /bits/ 64 <1512000000>;
+		opp-microvolt = <1075000>;
+	};
+};
+
+&cluster1_opp {
+	opp@408000000 {
+		opp-hz = /bits/ 64 <408000000>;
+		opp-microvolt = <800000>;
+		clock-latency-ns = <40000>;
+	};
+	opp@600000000 {
+		opp-hz = /bits/ 64 <600000000>;
+		opp-microvolt = <800000>;
+	};
+	opp@816000000 {
+		opp-hz = /bits/ 64 <816000000>;
+		opp-microvolt = <825000>;
+	};
+	opp@1008000000 {
+		opp-hz = /bits/ 64 <1008000000>;
+		opp-microvolt = <875000>;
+	};
+	opp@1200000000 {
+		opp-hz = /bits/ 64 <1200000000>;
+		opp-microvolt = <950000>;
+	};
+	opp@1416000000 {
+		opp-hz = /bits/ 64 <1416000000>;
+		opp-microvolt = <1025000>;
+	};
+	opp@1608000000 {
+		opp-hz = /bits/ 64 <1608000000>;
+		opp-microvolt = <1100000>;
+	};
+	opp@1800000000 {
+		opp-hz = /bits/ 64 <1800000000>;
+		opp-microvolt = <1175000>;
+	};
+	opp@1992000000 {
+		opp-hz = /bits/ 64 <1992000000>;
+		opp-microvolt = <1250000>;
+	};
+};
+
+&gpu_opp_table {
+	compatible = "operating-points-v2";
+	opp-shared;
+	opp@200000000 {
+		opp-hz = /bits/ 64 <200000000>;
+		opp-microvolt = <850000>;
+	};
+	opp@300000000 {
+		opp-hz = /bits/ 64 <300000000>;
+		opp-microvolt = <900000>;
+	};
+	opp@400000000 {
+		opp-hz = /bits/ 64 <400000000>;
+		opp-microvolt = <900000>;
+	};
+	opp@500000000 {
+		opp-hz = /bits/ 64 <500000000>;
+		opp-microvolt = <950000>;
+	};
+	opp@600000000 {
+		opp-hz = /bits/ 64 <600000000>;
+		opp-microvolt = <1000000>;
+	};
+	opp@800000000 {
+		opp-hz = /bits/ 64 <800000000>;
+		opp-microvolt = <1050000>;
+	};
+};
+
+&rk_key {
+	compatible = "rockchip,key";
+	status = "okay";
+
+	io-channels = <&saradc 1>;
+
+	vol-up-key {
+		linux,code = <114>;
+		label = "volume up";
+		rockchip,adc_value = <1>;
+	};
+
+	vol-down-key {
+		linux,code = <115>;
+		label = "volume down";
+		rockchip,adc_value = <170>;
+	};
+
+	power-key {
+		gpios = <&gpio0 5 GPIO_ACTIVE_LOW>;
+		linux,code = <116>;
+		label = "power";
+		gpio-key,wakeup;
+	};
+
+	menu-key {
+		linux,code = <59>;
+		label = "menu";
+		rockchip,adc_value = <746>;
+	};
+
+	home-key {
+		linux,code = <102>;
+		label = "home";
+		rockchip,adc_value = <355>;
+	};
+
+	back-key {
+		linux,code = <158>;
+		label = "back";
+		rockchip,adc_value = <560>;
+	};
+
+	camera-key {
+		linux,code = <212>;
+		label = "camera";
+		rockchip,adc_value = <450>;
+	};
+};
+
 &sdmmc {
 	clock-frequency = <50000000>;
 	clock-freq-min-max = <400000 150000000>;
@@ -292,28 +443,20 @@
 	i2c-scl-falling-time-ns = <30>;
 	clock-frequency = <400000>;
 
-	xz3216: dcdc@60 {
-		compatible = "xz3216";
-		reg = <0x60>;
-		status = "okay";
-		regulators {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			vdd_cpu_b: regulator@0 {
-				reg = <0>;
-				vin-supply = <&vcc_sys>;
-				regulator-compatible = "xz_dcdc1";
-				regulator-name = "vdd_cpu_b";
-				regulator-min-microvolt = <712500>;
-				regulator-max-microvolt = <1500000>;
-				regulator-ramp-delay = <1000>;
-				fcs,suspend-voltage-selector = <1>;
-				regulator-always-on;
-				regulator-boot-on;
-				regulator-state-mem {
-					regulator-off-in-suspend;
-				};
-			};
+	vdd_cpu_b: syr837@40 {
+		compatible = "silergy,syr827";
+		reg = <0x40>;
+		vin-supply = <&vcc_sys>;
+		regulator-compatible = "fan53555-reg";
+		regulator-name = "vdd_cpu_b";
+		regulator-min-microvolt = <712500>;
+		regulator-max-microvolt = <1500000>;
+		regulator-ramp-delay = <1000>;
+		fcs,suspend-voltage-selector = <1>;
+		regulator-always-on;
+		regulator-initial-state = <3>;
+		regulator-state-mem {
+			regulator-off-in-suspend;
 		};
 	};
 
@@ -498,12 +641,12 @@
 			vcc_sd: LDO_REG9 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-min-microvolt = <3000000>;
-				regulator-max-microvolt = <3000000>;
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3300000>;
 				regulator-name = "vcc_sd";
 				regulator-state-mem {
 					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <3000000>;
+					regulator-suspend-microvolt = <3300000>;
 				};
 			};
 
@@ -550,7 +693,7 @@
 	es8316: es8316@10 {
 		#sound-dai-cells = <0>;
 		compatible = "everest,es8316";
-		reg = <0x10>;
+		reg = <0x11>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&hp_det>;
 		clocks = <&cru SCLK_I2S_8CH_OUT>;
@@ -566,8 +709,33 @@
 	i2c-scl-falling-time-ns = <11>;
 	clock-frequency = <400000>;
 
-	mpu6500@68 {
+	lsm330_accel@1e {
 		status = "okay";
+		compatible = "lsm330_acc";
+		pinctrl-names = "default";
+		pinctrl-0 = <&lsm330a_irq_gpio>;
+		reg = <0x1e>;
+		irq-gpio = <&gpio2 27 IRQ_TYPE_EDGE_RISING>;
+		type = <SENSOR_TYPE_ACCEL>;
+		irq_enable = <1>;
+		poll_delay_ms = <30>;
+		layout = <4>;
+	};
+
+	lsm330_gyro@6a {
+		status = "okay";
+		compatible = "lsm330_gyro";
+		pinctrl-names = "default";
+		pinctrl-0 = <&lsm330g_irq_gpio>;
+		reg = <0x6a>;
+		irq-gpio = <&gpio1 20 IRQ_TYPE_EDGE_RISING>;
+		type = <SENSOR_TYPE_GYROSCOPE>;
+		irq_enable = <0>;
+		poll_delay_ms = <30>;
+	};
+
+	mpu6500@68 {
+		status = "disabled";
 		compatible = "invensense,mpu6500";
 		pinctrl-names = "default";
 		pinctrl-0 = <&mpu6500_irq_gpio>;
@@ -596,11 +764,11 @@
 	};
 
 	sensor@20 {
-		status = "disabled";
+		status = "okay";
 		compatible = "capella,light_cm3218";
 		pinctrl-names = "default";
 		pinctrl-0 = <&cm3218_irq_gpio>;
-		reg = <0x20>;
+		reg = <0x10>;
 		type = <SENSOR_TYPE_LIGHT>;
 		irq-gpio = <&gpio4 24 IRQ_TYPE_EDGE_RISING>;
 		irq_enable = <1>;
@@ -805,6 +973,18 @@
 	lcdpwr-enable {
 		lcdpwr_enable_h: lcdpwr-enable-h {
 			rockchip,pins = <3 8 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	lsm330_a {
+		lsm330a_irq_gpio: lsm330a-irq-gpio {
+			rockchip,pins = <2 27 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	lsm330_g {
+		lsm330g_irq_gpio: lsm330g-irq-gpio {
+			rockchip,pins = <1 20 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
