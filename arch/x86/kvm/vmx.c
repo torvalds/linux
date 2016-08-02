@@ -2945,7 +2945,6 @@ static int vmx_get_vmx_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata)
 			vmx->nested.nested_vmx_secondary_ctls_high);
 		break;
 	case MSR_IA32_VMX_EPT_VPID_CAP:
-		/* Currently, no nested vpid support */
 		*pdata = vmx->nested.nested_vmx_ept_caps |
 			((u64)vmx->nested.nested_vmx_vpid_caps << 32);
 		break;
