@@ -2069,6 +2069,7 @@ sub process {
 	my $is_patch = 0;
 	my $in_header_lines = $file ? 0 : 1;
 	my $in_commit_log = 0;		#Scanning lines before patch
+	my $has_commit_log = 0;		#Encountered lines before patch
        my $commit_log_possible_stack_dump = 0;
 	my $commit_log_long_line = 0;
 	my $commit_log_has_diff = 0;
@@ -2566,6 +2567,7 @@ sub process {
 		      $rawline =~ /^(commit\b|from\b|[\w-]+:).*$/i)) {
 			$in_header_lines = 0;
 			$in_commit_log = 1;
+			$has_commit_log = 1;
 		}
 
 # Check if there is UTF-8 in a commit log when a mail header has explicitly
@@ -6055,7 +6057,7 @@ sub process {
 		ERROR("NOT_UNIFIED_DIFF",
 		      "Does not appear to be a unified-diff format patch\n");
 	}
-	if ($is_patch && $filename ne '-' && $chk_signoff && $signoff == 0) {
+	if ($is_patch && $has_commit_log && $chk_signoff && $signoff == 0) {
 		ERROR("MISSING_SIGN_OFF",
 		      "Missing Signed-off-by: line(s)\n");
 	}
