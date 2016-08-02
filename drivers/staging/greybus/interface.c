@@ -1160,7 +1160,7 @@ int gb_interface_enable(struct gb_interface *intf)
 	ret = gb_timesync_interface_add(intf);
 	if (ret) {
 		dev_err(&intf->dev, "failed to add to timesync: %d\n", ret);
-		goto err_destroy_bundles;
+		goto err_del_control;
 	}
 
 	pm_runtime_use_autosuspend(&intf->dev);
@@ -1186,6 +1186,8 @@ int gb_interface_enable(struct gb_interface *intf)
 
 	return 0;
 
+err_del_control:
+	gb_control_del(intf->control);
 err_destroy_bundles:
 	list_for_each_entry_safe(bundle, tmp, &intf->bundles, links)
 		gb_bundle_destroy(bundle);
