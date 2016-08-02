@@ -477,7 +477,7 @@ skl_tplg_init_pipe_modules(struct skl *skl, struct skl_pipe *pipe)
 		if (mconfig->id.module_id < 0) {
 			struct skl_dfw_module *dfw_config;
 
-			dfw_config = kzalloc(sizeof(dfw_config), GFP_KERNEL);
+			dfw_config = kzalloc(sizeof(*dfw_config), GFP_KERNEL);
 			if (!dfw_config)
 				return -ENOMEM;
 
