@@ -280,9 +280,7 @@ struct intel_engine_cs {
 		int	(*sync_to)(struct drm_i915_gem_request *to_req,
 				   struct intel_engine_cs *from,
 				   u32 seqno);
-		int	(*signal)(struct drm_i915_gem_request *signaller_req,
-				  /* num_dwords needed by caller */
-				  unsigned int num_dwords);
+		int	(*signal)(struct drm_i915_gem_request *signaller_req);
 	} semaphore;
 
 	/* Execlists */
