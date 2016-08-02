@@ -2845,51 +2845,35 @@ out:
 
 static int
 __i915_gem_object_sync(struct drm_i915_gem_object *obj,
-		       struct intel_engine_cs *to,
-		       struct drm_i915_gem_request *from_req,
-		       struct drm_i915_gem_request **to_req)
+		       struct drm_i915_gem_request *to,
+		       struct drm_i915_gem_request *from)
 {
-	struct intel_engine_cs *from;
 	int ret;
 
-	from = i915_gem_request_get_engine(from_req);
-	if (to == from)
+	if (to->engine == from->engine)
 		return 0;
 
-	if (i915_gem_request_completed(from_req))
+	if (i915_gem_request_completed(from))
 		return 0;
 
 	if (!i915.semaphores) {
-		struct drm_i915_private *i915 = to_i915(obj->base.dev);
-		ret = __i915_wait_request(from_req,
-					  i915->mm.interruptible,
+		ret = __i915_wait_request(from,
+					  from->i915->mm.interruptible,
 					  NULL,
 					  NO_WAITBOOST);
 		if (ret)
 			return ret;
 
-		i915_gem_object_retire_request(obj, from_req);
+		i915_gem_object_retire_request(obj, from);
 	} else {
-		int idx = intel_engine_sync_index(from, to);
-		u32 seqno = i915_gem_request_get_seqno(from_req);
+		int idx = intel_engine_sync_index(from->engine, to->engine);
+		u32 seqno = i915_gem_request_get_seqno(from);
 
-		WARN_ON(!to_req);
-
-		if (seqno <= from->semaphore.sync_seqno[idx])
+		if (seqno <= from->engine->semaphore.sync_seqno[idx])
 			return 0;
 
-		if (*to_req == NULL) {
-			struct drm_i915_gem_request *req;
-
-			req = i915_gem_request_alloc(to, NULL);
-			if (IS_ERR(req))
-				return PTR_ERR(req);
-
-			*to_req = req;
-		}
-
-		trace_i915_gem_ring_sync_to(*to_req, from, from_req);
-		ret = to->semaphore.sync_to(*to_req, from, seqno);
+		trace_i915_gem_ring_sync_to(to, from);
+		ret = to->engine->semaphore.sync_to(to, from->engine, seqno);
 		if (ret)
 			return ret;
 
@@ -2897,8 +2881,8 @@ __i915_gem_object_sync(struct drm_i915_gem_object *obj,
 		 * might have just caused seqno wrap under
 		 * the radar.
 		 */
-		from->semaphore.sync_seqno[idx] =
-			i915_gem_request_get_seqno(obj->last_read_req[from->id]);
+		from->engine->semaphore.sync_seqno[idx] =
+			i915_gem_request_get_seqno(obj->last_read_req[from->engine->id]);
 	}
 
 	return 0;
@@ -2908,17 +2892,12 @@ __i915_gem_object_sync(struct drm_i915_gem_object *obj,
  * i915_gem_object_sync - sync an object to a ring.
  *
  * @obj: object which may be in use on another ring.
- * @to: ring we wish to use the object on. May be NULL.
- * @to_req: request we wish to use the object for. See below.
- *          This will be allocated and returned if a request is
- *          required but not passed in.
+ * @to: request we are wishing to use
  *
  * This code is meant to abstract object synchronization with the GPU.
- * Calling with NULL implies synchronizing the object with the CPU
- * rather than a particular GPU ring. Conceptually we serialise writes
- * between engines inside the GPU. We only allow one engine to write
- * into a buffer at any time, but multiple readers. To ensure each has
- * a coherent view of memory, we must:
+ * Conceptually we serialise writes between engines inside the GPU.
+ * We only allow one engine to write into a buffer at any time, but
+ * multiple readers. To ensure each has a coherent view of memory, we must:
  *
  * - If there is an outstanding write request to the object, the new
  *   request must wait for it to complete (either CPU or in hw, requests
@@ -2927,22 +2906,11 @@ __i915_gem_object_sync(struct drm_i915_gem_object *obj,
  * - If we are a write request (pending_write_domain is set), the new
  *   request must wait for outstanding read requests to complete.
  *
- * For CPU synchronisation (NULL to) no request is required. For syncing with
- * rings to_req must be non-NULL. However, a request does not have to be
- * pre-allocated. If *to_req is NULL and sync commands will be emitted then a
- * request will be allocated automatically and returned through *to_req. Note
- * that it is not guaranteed that commands will be emitted (because the system
- * might already be idle). Hence there is no need to create a request that
- * might never have any work submitted. Note further that if a request is
- * returned in *to_req, it is the responsibility of the caller to submit
- * that request (after potentially adding more work to it).
- *
  * Returns 0 if successful, else propagates up the lower layer error.
  */
 int
 i915_gem_object_sync(struct drm_i915_gem_object *obj,
-		     struct intel_engine_cs *to,
-		     struct drm_i915_gem_request **to_req)
+		     struct drm_i915_gem_request *to)
 {
 	const bool readonly = obj->base.pending_write_domain == 0;
 	struct drm_i915_gem_request *req[I915_NUM_ENGINES];
@@ -2950,9 +2918,6 @@ i915_gem_object_sync(struct drm_i915_gem_object *obj,
 
 	if (!obj->active)
 		return 0;
-
-	if (to == NULL)
-		return i915_gem_object_wait_rendering(obj, readonly);
 
 	n = 0;
 	if (readonly) {
@@ -2964,7 +2929,7 @@ i915_gem_object_sync(struct drm_i915_gem_object *obj,
 				req[n++] = obj->last_read_req[i];
 	}
 	for (i = 0; i < n; i++) {
-		ret = __i915_gem_object_sync(obj, to, req[i], to_req);
+		ret = __i915_gem_object_sync(obj, to, req[i]);
 		if (ret)
 			return ret;
 	}

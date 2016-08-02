@@ -292,10 +292,21 @@ static int i915_gem_get_seqno(struct drm_i915_private *dev_priv, u32 *seqno)
 	return 0;
 }
 
-static inline int
-__i915_gem_request_alloc(struct intel_engine_cs *engine,
-			 struct i915_gem_context *ctx,
-			 struct drm_i915_gem_request **req_out)
+/**
+ * i915_gem_request_alloc - allocate a request structure
+ *
+ * @engine: engine that we wish to issue the request on.
+ * @ctx: context that the request will be associated with.
+ *       This can be NULL if the request is not directly related to
+ *       any specific user context, in which case this function will
+ *       choose an appropriate context to use.
+ *
+ * Returns a pointer to the allocated request if successful,
+ * or an error code if not.
+ */
+struct drm_i915_gem_request *
+i915_gem_request_alloc(struct intel_engine_cs *engine,
+		       struct i915_gem_context *ctx)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 	unsigned int reset_counter = i915_reset_counter(&dev_priv->gpu_error);
@@ -303,18 +314,13 @@ __i915_gem_request_alloc(struct intel_engine_cs *engine,
 	u32 seqno;
 	int ret;
 
-	if (!req_out)
-		return -EINVAL;
-
-	*req_out = NULL;
-
 	/* ABI: Before userspace accesses the GPU (e.g. execbuffer), report
 	 * EIO if the GPU is already wedged, or EAGAIN to drop the struct_mutex
 	 * and restart.
 	 */
 	ret = i915_gem_check_wedge(reset_counter, dev_priv->mm.interruptible);
 	if (ret)
-		return ret;
+		return ERR_PTR(ret);
 
 	/* Move the oldest request to the slab-cache (if not in use!) */
 	req = list_first_entry_or_null(&engine->request_list,
@@ -324,7 +330,7 @@ __i915_gem_request_alloc(struct intel_engine_cs *engine,
 
 	req = kmem_cache_zalloc(dev_priv->requests, GFP_KERNEL);
 	if (!req)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	ret = i915_gem_get_seqno(dev_priv, &seqno);
 	if (ret)
@@ -357,39 +363,13 @@ __i915_gem_request_alloc(struct intel_engine_cs *engine,
 	if (ret)
 		goto err_ctx;
 
-	*req_out = req;
-	return 0;
+	return req;
 
 err_ctx:
 	i915_gem_context_put(ctx);
 err:
 	kmem_cache_free(dev_priv->requests, req);
-	return ret;
-}
-
-/**
- * i915_gem_request_alloc - allocate a request structure
- *
- * @engine: engine that we wish to issue the request on.
- * @ctx: context that the request will be associated with.
- *       This can be NULL if the request is not directly related to
- *       any specific user context, in which case this function will
- *       choose an appropriate context to use.
- *
- * Returns a pointer to the allocated request if successful,
- * or an error code if not.
- */
-struct drm_i915_gem_request *
-i915_gem_request_alloc(struct intel_engine_cs *engine,
-		       struct i915_gem_context *ctx)
-{
-	struct drm_i915_gem_request *req;
-	int err;
-
-	if (!ctx)
-		ctx = engine->i915->kernel_context;
-	err = __i915_gem_request_alloc(engine, ctx, &req);
-	return err ? ERR_PTR(err) : req;
+	return ERR_PTR(ret);
 }
 
 static void i915_gem_mark_busy(const struct intel_engine_cs *engine)

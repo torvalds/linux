@@ -981,7 +981,7 @@ i915_gem_execbuffer_move_to_gpu(struct drm_i915_gem_request *req,
 		struct drm_i915_gem_object *obj = vma->obj;
 
 		if (obj->active & other_rings) {
-			ret = i915_gem_object_sync(obj, req->engine, &req);
+			ret = i915_gem_object_sync(obj, req);
 			if (ret)
 				return ret;
 		}
@@ -1427,7 +1427,6 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
-	struct drm_i915_gem_request *req = NULL;
 	struct eb_vmas *eb;
 	struct drm_i915_gem_object *batch_obj;
 	struct drm_i915_gem_exec_object2 shadow_exec_entry;
@@ -1615,13 +1614,13 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		params->batch_obj_vm_offset = i915_gem_obj_offset(batch_obj, vm);
 
 	/* Allocate a request for this batch buffer nice and early. */
-	req = i915_gem_request_alloc(engine, ctx);
-	if (IS_ERR(req)) {
-		ret = PTR_ERR(req);
+	params->request = i915_gem_request_alloc(engine, ctx);
+	if (IS_ERR(params->request)) {
+		ret = PTR_ERR(params->request);
 		goto err_batch_unpin;
 	}
 
-	ret = i915_gem_request_add_to_client(req, file);
+	ret = i915_gem_request_add_to_client(params->request, file);
 	if (ret)
 		goto err_request;
 
@@ -1637,7 +1636,6 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	params->dispatch_flags          = dispatch_flags;
 	params->batch_obj               = batch_obj;
 	params->ctx                     = ctx;
-	params->request                 = req;
 
 	ret = dev_priv->gt.execbuf_submit(params, args, &eb->vmas);
 err_request:

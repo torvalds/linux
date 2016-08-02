@@ -449,10 +449,9 @@ TRACE_EVENT(i915_gem_evict_vm,
 );
 
 TRACE_EVENT(i915_gem_ring_sync_to,
-	    TP_PROTO(struct drm_i915_gem_request *to_req,
-		     struct intel_engine_cs *from,
-		     struct drm_i915_gem_request *req),
-	    TP_ARGS(to_req, from, req),
+	    TP_PROTO(struct drm_i915_gem_request *to,
+		     struct drm_i915_gem_request *from),
+	    TP_ARGS(to, from),
 
 	    TP_STRUCT__entry(
 			     __field(u32, dev)
@@ -463,9 +462,9 @@ TRACE_EVENT(i915_gem_ring_sync_to,
 
 	    TP_fast_assign(
 			   __entry->dev = from->i915->drm.primary->index;
-			   __entry->sync_from = from->id;
-			   __entry->sync_to = to_req->engine->id;
-			   __entry->seqno = req->fence.seqno;
+			   __entry->sync_from = from->engine->id;
+			   __entry->sync_to = to->engine->id;
+			   __entry->seqno = from->fence.seqno;
 			   ),
 
 	    TP_printk("dev=%u, sync-from=%u, sync-to=%u, seqno=%u",

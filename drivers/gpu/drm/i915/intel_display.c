@@ -11575,7 +11575,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	struct intel_flip_work *work;
 	struct intel_engine_cs *engine;
 	bool mmio_flip;
-	struct drm_i915_gem_request *request = NULL;
+	struct drm_i915_gem_request *request;
 	int ret;
 
 	/*
@@ -11682,22 +11682,6 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 
 	mmio_flip = use_mmio_flip(engine, obj);
 
-	/* When using CS flips, we want to emit semaphores between rings.
-	 * However, when using mmio flips we will create a task to do the
-	 * synchronisation, so all we want here is to pin the framebuffer
-	 * into the display plane and skip any waits.
-	 */
-	if (!mmio_flip) {
-		ret = i915_gem_object_sync(obj, engine, &request);
-		if (!ret && !request) {
-			request = i915_gem_request_alloc(engine, NULL);
-			ret = PTR_ERR_OR_ZERO(request);
-		}
-
-		if (ret)
-			goto cleanup_pending;
-	}
-
 	ret = intel_pin_and_fence_fb_obj(fb, primary->state->rotation);
 	if (ret)
 		goto cleanup_pending;
@@ -11715,14 +11699,24 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 
 		schedule_work(&work->mmio_work);
 	} else {
-		i915_gem_request_assign(&work->flip_queued_req, request);
+		request = i915_gem_request_alloc(engine, engine->last_context);
+		if (IS_ERR(request)) {
+			ret = PTR_ERR(request);
+			goto cleanup_unpin;
+		}
+
+		ret = i915_gem_object_sync(obj, request);
+		if (ret)
+			goto cleanup_request;
+
 		ret = dev_priv->display.queue_flip(dev, crtc, fb, obj, request,
 						   page_flip_flags);
 		if (ret)
-			goto cleanup_unpin;
+			goto cleanup_request;
 
 		intel_mark_page_flip_active(intel_crtc, work);
 
+		work->flip_queued_req = i915_gem_request_get(request);
 		i915_add_request_no_flush(request);
 	}
 
@@ -11737,11 +11731,11 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 
 	return 0;
 
+cleanup_request:
+	i915_add_request_no_flush(request);
 cleanup_unpin:
 	intel_unpin_fb_obj(fb, crtc->primary->state->rotation);
 cleanup_pending:
-	if (!IS_ERR_OR_NULL(request))
-		i915_add_request_no_flush(request);
 	atomic_dec(&intel_crtc->unpin_work_count);
 	mutex_unlock(&dev->struct_mutex);
 cleanup:

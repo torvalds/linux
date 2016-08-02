@@ -229,11 +229,18 @@ static int intel_overlay_do_wait_request(struct intel_overlay *overlay,
 	return 0;
 }
 
+static struct drm_i915_gem_request *alloc_request(struct intel_overlay *overlay)
+{
+	struct drm_i915_private *dev_priv = overlay->i915;
+	struct intel_engine_cs *engine = &dev_priv->engine[RCS];
+
+	return i915_gem_request_alloc(engine, dev_priv->kernel_context);
+}
+
 /* overlay needs to be disable in OCMD reg */
 static int intel_overlay_on(struct intel_overlay *overlay)
 {
 	struct drm_i915_private *dev_priv = overlay->i915;
-	struct intel_engine_cs *engine = &dev_priv->engine[RCS];
 	struct drm_i915_gem_request *req;
 	struct intel_ring *ring;
 	int ret;
@@ -241,7 +248,7 @@ static int intel_overlay_on(struct intel_overlay *overlay)
 	WARN_ON(overlay->active);
 	WARN_ON(IS_I830(dev_priv) && !(dev_priv->quirks & QUIRK_PIPEA_FORCE));
 
-	req = i915_gem_request_alloc(engine, NULL);
+	req = alloc_request(overlay);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
@@ -268,7 +275,6 @@ static int intel_overlay_continue(struct intel_overlay *overlay,
 				  bool load_polyphase_filter)
 {
 	struct drm_i915_private *dev_priv = overlay->i915;
-	struct intel_engine_cs *engine = &dev_priv->engine[RCS];
 	struct drm_i915_gem_request *req;
 	struct intel_ring *ring;
 	u32 flip_addr = overlay->flip_addr;
@@ -285,7 +291,7 @@ static int intel_overlay_continue(struct intel_overlay *overlay,
 	if (tmp & (1 << 17))
 		DRM_DEBUG("overlay underrun, DOVSTA: %x\n", tmp);
 
-	req = i915_gem_request_alloc(engine, NULL);
+	req = alloc_request(overlay);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
@@ -338,7 +344,6 @@ static void intel_overlay_off_tail(struct intel_overlay *overlay)
 static int intel_overlay_off(struct intel_overlay *overlay)
 {
 	struct drm_i915_private *dev_priv = overlay->i915;
-	struct intel_engine_cs *engine = &dev_priv->engine[RCS];
 	struct drm_i915_gem_request *req;
 	struct intel_ring *ring;
 	u32 flip_addr = overlay->flip_addr;
@@ -352,7 +357,7 @@ static int intel_overlay_off(struct intel_overlay *overlay)
 	 * of the hw. Do it in both cases */
 	flip_addr |= OFC_UPDATE;
 
-	req = i915_gem_request_alloc(engine, NULL);
+	req = alloc_request(overlay);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
@@ -412,7 +417,6 @@ static int intel_overlay_recover_from_interrupt(struct intel_overlay *overlay)
 static int intel_overlay_release_old_vid(struct intel_overlay *overlay)
 {
 	struct drm_i915_private *dev_priv = overlay->i915;
-	struct intel_engine_cs *engine = &dev_priv->engine[RCS];
 	int ret;
 
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
@@ -428,7 +432,7 @@ static int intel_overlay_release_old_vid(struct intel_overlay *overlay)
 		struct drm_i915_gem_request *req;
 		struct intel_ring *ring;
 
-		req = i915_gem_request_alloc(engine, NULL);
+		req = alloc_request(overlay);
 		if (IS_ERR(req))
 			return PTR_ERR(req);
 
