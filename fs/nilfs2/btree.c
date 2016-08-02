@@ -517,6 +517,9 @@ static int __nilfs_btree_get_block(const struct nilfs_bmap *btree, __u64 ptr,
 
  out_no_wait:
 	if (!buffer_uptodate(bh)) {
+		nilfs_msg(btree->b_inode->i_sb, KERN_ERR,
+			  "I/O error reading b-tree node block (ino=%lu, blocknr=%llu)",
+			  btree->b_inode->i_ino, (unsigned long long)ptr);
 		brelse(bh);
 		return -EIO;
 	}
