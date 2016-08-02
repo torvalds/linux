@@ -142,8 +142,6 @@ struct hfsc_class {
 					   link-sharing, max(myf, cfmin) */
 	u64	cl_myf;			/* my fit-time (calculated from this
 					   class's own upperlimit curve) */
-	u64	cl_myfadj;		/* my fit-time adjustment (to cancel
-					   history dependence) */
 	u64	cl_cfmin;		/* earliest children's fit-time (used
 					   with cl_myf to obtain cl_f) */
 	u64	cl_cvtmin;		/* minimal virtual time among the
@@ -730,7 +728,6 @@ init_vf(struct hfsc_class *cl, unsigned int len)
 				/* compute myf */
 				cl->cl_myf = rtsc_y2x(&cl->cl_ulimit,
 						      cl->cl_total);
-				cl->cl_myfadj = 0;
 			}
 		}
 
@@ -797,9 +794,10 @@ update_vf(struct hfsc_class *cl, unsigned int len, u64 cur_time)
 
 		/* update f */
 		if (cl->cl_flags & HFSC_USC) {
+			cl->cl_myf = rtsc_y2x(&cl->cl_ulimit, cl->cl_total);
+#if 0
 			cl->cl_myf = cl->cl_myfadj + rtsc_y2x(&cl->cl_ulimit,
 							      cl->cl_total);
-#if 0
 			/*
 			 * This code causes classes to stay way under their
 			 * limit when multiple classes are used at gigabit
@@ -1471,7 +1469,6 @@ hfsc_reset_class(struct hfsc_class *cl)
 	cl->cl_parentperiod = 0;
 	cl->cl_f            = 0;
 	cl->cl_myf          = 0;
-	cl->cl_myfadj       = 0;
 	cl->cl_cfmin        = 0;
 	cl->cl_nactive      = 0;
 
