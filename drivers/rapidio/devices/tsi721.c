@@ -2555,11 +2555,11 @@ static int tsi721_query_mport(struct rio_mport *mport,
 	struct tsi721_device *priv = mport->priv;
 	u32 rval;
 
-	rval = ioread32(priv->regs + (0x100 + RIO_PORT_N_ERR_STS_CSR(0)));
+	rval = ioread32(priv->regs + 0x100 + RIO_PORT_N_ERR_STS_CSR(0, 0));
 	if (rval & RIO_PORT_N_ERR_STS_PORT_OK) {
-		rval = ioread32(priv->regs + (0x100 + RIO_PORT_N_CTL2_CSR(0)));
+		rval = ioread32(priv->regs + 0x100 + RIO_PORT_N_CTL2_CSR(0, 0));
 		attr->link_speed = (rval & RIO_PORT_N_CTL2_SEL_BAUD) >> 28;
-		rval = ioread32(priv->regs + (0x100 + RIO_PORT_N_CTL_CSR(0)));
+		rval = ioread32(priv->regs + 0x100 + RIO_PORT_N_CTL_CSR(0, 0));
 		attr->link_width = (rval & RIO_PORT_N_CTL_IPW) >> 27;
 	} else
 		attr->link_speed = RIO_LINK_DOWN;
@@ -2673,9 +2673,9 @@ static int tsi721_setup_mport(struct tsi721_device *priv)
 	mport->ops = &tsi721_rio_ops;
 	mport->index = 0;
 	mport->sys_size = 0; /* small system */
-	mport->phy_type = RIO_PHY_SERIAL;
 	mport->priv = (void *)priv;
 	mport->phys_efptr = 0x100;
+	mport->phys_rmap = 1;
 	mport->dev.parent = &pdev->dev;
 	mport->dev.release = tsi721_mport_release;
 

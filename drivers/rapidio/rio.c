@@ -786,10 +786,11 @@ EXPORT_SYMBOL_GPL(rio_unmap_outb_region);
  * @local: Indicate a local master port or remote device access
  * @destid: Destination ID of the device
  * @hopcount: Number of switch hops to the device
+ * @rmap: pointer to location to store register map type info
  */
 u32
 rio_mport_get_physefb(struct rio_mport *port, int local,
-		      u16 destid, u8 hopcount)
+		      u16 destid, u8 hopcount, u32 *rmap)
 {
 	u32 ext_ftr_ptr;
 	u32 ftr_header;
@@ -807,14 +808,21 @@ rio_mport_get_physefb(struct rio_mport *port, int local,
 		ftr_header = RIO_GET_BLOCK_ID(ftr_header);
 		switch (ftr_header) {
 
-		case RIO_EFB_SER_EP_ID_V13P:
-		case RIO_EFB_SER_EP_REC_ID_V13P:
-		case RIO_EFB_SER_EP_FREE_ID_V13P:
 		case RIO_EFB_SER_EP_ID:
 		case RIO_EFB_SER_EP_REC_ID:
 		case RIO_EFB_SER_EP_FREE_ID:
-		case RIO_EFB_SER_EP_FREC_ID:
+		case RIO_EFB_SER_EP_M1_ID:
+		case RIO_EFB_SER_EP_SW_M1_ID:
+		case RIO_EFB_SER_EPF_M1_ID:
+		case RIO_EFB_SER_EPF_SW_M1_ID:
+			*rmap = 1;
+			return ext_ftr_ptr;
 
+		case RIO_EFB_SER_EP_M2_ID:
+		case RIO_EFB_SER_EP_SW_M2_ID:
+		case RIO_EFB_SER_EPF_M2_ID:
+		case RIO_EFB_SER_EPF_SW_M2_ID:
+			*rmap = 2;
 			return ext_ftr_ptr;
 
 		default:
@@ -873,16 +881,16 @@ int rio_set_port_lockout(struct rio_dev *rdev, u32 pnum, int lock)
 	u32 regval;
 
 	rio_read_config_32(rdev,
-				 rdev->phys_efptr + RIO_PORT_N_CTL_CSR(pnum),
-				 &regval);
+		RIO_DEV_PORT_N_CTL_CSR(rdev, pnum),
+		&regval);
 	if (lock)
 		regval |= RIO_PORT_N_CTL_LOCKOUT;
 	else
 		regval &= ~RIO_PORT_N_CTL_LOCKOUT;
 
 	rio_write_config_32(rdev,
-				  rdev->phys_efptr + RIO_PORT_N_CTL_CSR(pnum),
-				  regval);
+		RIO_DEV_PORT_N_CTL_CSR(rdev, pnum),
+		regval);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rio_set_port_lockout);
@@ -906,6 +914,7 @@ int rio_enable_rx_tx_port(struct rio_mport *port,
 #ifdef CONFIG_RAPIDIO_ENABLE_RX_TX_PORTS
 	u32 regval;
 	u32 ext_ftr_ptr;
+	u32 rmap;
 
 	/*
 	* enable rx input tx output port
@@ -913,34 +922,29 @@ int rio_enable_rx_tx_port(struct rio_mport *port,
 	pr_debug("rio_enable_rx_tx_port(local = %d, destid = %d, hopcount = "
 		 "%d, port_num = %d)\n", local, destid, hopcount, port_num);
 
-	ext_ftr_ptr = rio_mport_get_physefb(port, local, destid, hopcount);
+	ext_ftr_ptr = rio_mport_get_physefb(port, local, destid,
+					    hopcount, &rmap);
 
 	if (local) {
-		rio_local_read_config_32(port, ext_ftr_ptr +
-				RIO_PORT_N_CTL_CSR(0),
+		rio_local_read_config_32(port,
+				ext_ftr_ptr + RIO_PORT_N_CTL_CSR(0, rmap),
 				&regval);
 	} else {
 		if (rio_mport_read_config_32(port, destid, hopcount,
-		ext_ftr_ptr + RIO_PORT_N_CTL_CSR(port_num), &regval) < 0)
+			ext_ftr_ptr + RIO_PORT_N_CTL_CSR(port_num, rmap),
+				&regval) < 0)
 			return -EIO;
 	}
 
-	if (regval & RIO_PORT_N_CTL_P_TYP_SER) {
-		/* serial */
-		regval = regval | RIO_PORT_N_CTL_EN_RX_SER
-				| RIO_PORT_N_CTL_EN_TX_SER;
-	} else {
-		/* parallel */
-		regval = regval | RIO_PORT_N_CTL_EN_RX_PAR
-				| RIO_PORT_N_CTL_EN_TX_PAR;
-	}
+	regval = regval | RIO_PORT_N_CTL_EN_RX | RIO_PORT_N_CTL_EN_TX;
 
 	if (local) {
-		rio_local_write_config_32(port, ext_ftr_ptr +
-					  RIO_PORT_N_CTL_CSR(0), regval);
+		rio_local_write_config_32(port,
+			ext_ftr_ptr + RIO_PORT_N_CTL_CSR(0, rmap), regval);
 	} else {
 		if (rio_mport_write_config_32(port, destid, hopcount,
-		    ext_ftr_ptr + RIO_PORT_N_CTL_CSR(port_num), regval) < 0)
+			ext_ftr_ptr + RIO_PORT_N_CTL_CSR(port_num, rmap),
+				regval) < 0)
 			return -EIO;
 	}
 #endif
@@ -1042,14 +1046,14 @@ rio_get_input_status(struct rio_dev *rdev, int pnum, u32 *lnkresp)
 		/* Read from link maintenance response register
 		 * to clear valid bit */
 		rio_read_config_32(rdev,
-			rdev->phys_efptr + RIO_PORT_N_MNT_RSP_CSR(pnum),
+			RIO_DEV_PORT_N_MNT_RSP_CSR(rdev, pnum),
 			&regval);
 		udelay(50);
 	}
 
 	/* Issue Input-status command */
 	rio_write_config_32(rdev,
-		rdev->phys_efptr + RIO_PORT_N_MNT_REQ_CSR(pnum),
+		RIO_DEV_PORT_N_MNT_REQ_CSR(rdev, pnum),
 		RIO_MNT_REQ_CMD_IS);
 
 	/* Exit if the response is not expected */
@@ -1060,7 +1064,7 @@ rio_get_input_status(struct rio_dev *rdev, int pnum, u32 *lnkresp)
 	while (checkcount--) {
 		udelay(50);
 		rio_read_config_32(rdev,
-			rdev->phys_efptr + RIO_PORT_N_MNT_RSP_CSR(pnum),
+			RIO_DEV_PORT_N_MNT_RSP_CSR(rdev, pnum),
 			&regval);
 		if (regval & RIO_PORT_N_MNT_RSP_RVAL) {
 			*lnkresp = regval;
@@ -1076,6 +1080,13 @@ rio_get_input_status(struct rio_dev *rdev, int pnum, u32 *lnkresp)
  * @rdev: Pointer to RIO device control structure
  * @pnum: Switch port number to clear errors
  * @err_status: port error status (if 0 reads register from device)
+ *
+ * TODO: Currently this routine is not compatible with recovery process
+ * specified for idt_gen3 RapidIO switch devices. It has to be reviewed
+ * to implement universal recovery process that is compatible full range
+ * off available devices.
+ * IDT gen3 switch driver now implements HW-specific error handler that
+ * issues soft port reset to the port to reset ERR_STOP bits and ackIDs.
  */
 static int rio_clr_err_stopped(struct rio_dev *rdev, u32 pnum, u32 err_status)
 {
@@ -1085,10 +1096,10 @@ static int rio_clr_err_stopped(struct rio_dev *rdev, u32 pnum, u32 err_status)
 
 	if (err_status == 0)
 		rio_read_config_32(rdev,
-			rdev->phys_efptr + RIO_PORT_N_ERR_STS_CSR(pnum),
+			RIO_DEV_PORT_N_ERR_STS_CSR(rdev, pnum),
 			&err_status);
 
-	if (err_status & RIO_PORT_N_ERR_STS_PW_OUT_ES) {
+	if (err_status & RIO_PORT_N_ERR_STS_OUT_ES) {
 		pr_debug("RIO_EM: servicing Output Error-Stopped state\n");
 		/*
 		 * Send a Link-Request/Input-Status control symbol
@@ -1103,7 +1114,7 @@ static int rio_clr_err_stopped(struct rio_dev *rdev, u32 pnum, u32 err_status)
 		far_ackid = (regval & RIO_PORT_N_MNT_RSP_ASTAT) >> 5;
 		far_linkstat = regval & RIO_PORT_N_MNT_RSP_LSTAT;
 		rio_read_config_32(rdev,
-			rdev->phys_efptr + RIO_PORT_N_ACK_STS_CSR(pnum),
+			RIO_DEV_PORT_N_ACK_STS_CSR(rdev, pnum),
 			&regval);
 		pr_debug("RIO_EM: SP%d_ACK_STS_CSR=0x%08x\n", pnum, regval);
 		near_ackid = (regval & RIO_PORT_N_ACK_INBOUND) >> 24;
@@ -1121,43 +1132,43 @@ static int rio_clr_err_stopped(struct rio_dev *rdev, u32 pnum, u32 err_status)
 			 * far inbound.
 			 */
 			rio_write_config_32(rdev,
-				rdev->phys_efptr + RIO_PORT_N_ACK_STS_CSR(pnum),
+				RIO_DEV_PORT_N_ACK_STS_CSR(rdev, pnum),
 				(near_ackid << 24) |
 					(far_ackid << 8) | far_ackid);
 			/* Align far outstanding/outbound ackIDs with
 			 * near inbound.
 			 */
 			far_ackid++;
-			if (nextdev)
-				rio_write_config_32(nextdev,
-					nextdev->phys_efptr +
-					RIO_PORT_N_ACK_STS_CSR(RIO_GET_PORT_NUM(nextdev->swpinfo)),
-					(far_ackid << 24) |
-					(near_ackid << 8) | near_ackid);
-			else
-				pr_debug("RIO_EM: Invalid nextdev pointer (NULL)\n");
+			if (!nextdev) {
+				pr_debug("RIO_EM: nextdev pointer == NULL\n");
+				goto rd_err;
+			}
+
+			rio_write_config_32(nextdev,
+				RIO_DEV_PORT_N_ACK_STS_CSR(nextdev,
+					RIO_GET_PORT_NUM(nextdev->swpinfo)),
+				(far_ackid << 24) |
+				(near_ackid << 8) | near_ackid);
 		}
 rd_err:
-		rio_read_config_32(rdev,
-			rdev->phys_efptr + RIO_PORT_N_ERR_STS_CSR(pnum),
-			&err_status);
+		rio_read_config_32(rdev, RIO_DEV_PORT_N_ERR_STS_CSR(rdev, pnum),
+				   &err_status);
 		pr_debug("RIO_EM: SP%d_ERR_STS_CSR=0x%08x\n", pnum, err_status);
 	}
 
-	if ((err_status & RIO_PORT_N_ERR_STS_PW_INP_ES) && nextdev) {
+	if ((err_status & RIO_PORT_N_ERR_STS_INP_ES) && nextdev) {
 		pr_debug("RIO_EM: servicing Input Error-Stopped state\n");
 		rio_get_input_status(nextdev,
 				     RIO_GET_PORT_NUM(nextdev->swpinfo), NULL);
 		udelay(50);
 
-		rio_read_config_32(rdev,
-			rdev->phys_efptr + RIO_PORT_N_ERR_STS_CSR(pnum),
-			&err_status);
+		rio_read_config_32(rdev, RIO_DEV_PORT_N_ERR_STS_CSR(rdev, pnum),
+				   &err_status);
 		pr_debug("RIO_EM: SP%d_ERR_STS_CSR=0x%08x\n", pnum, err_status);
 	}
 
-	return (err_status & (RIO_PORT_N_ERR_STS_PW_OUT_ES |
-			      RIO_PORT_N_ERR_STS_PW_INP_ES)) ? 1 : 0;
+	return (err_status & (RIO_PORT_N_ERR_STS_OUT_ES |
+			      RIO_PORT_N_ERR_STS_INP_ES)) ? 1 : 0;
 }
 
 /**
@@ -1257,9 +1268,8 @@ int rio_inb_pwrite_handler(struct rio_mport *mport, union rio_pw_msg *pw_msg)
 	if (rdev->rswitch->ops && rdev->rswitch->ops->em_handle)
 		rdev->rswitch->ops->em_handle(rdev, portnum);
 
-	rio_read_config_32(rdev,
-			rdev->phys_efptr + RIO_PORT_N_ERR_STS_CSR(portnum),
-			&err_status);
+	rio_read_config_32(rdev, RIO_DEV_PORT_N_ERR_STS_CSR(rdev, portnum),
+			   &err_status);
 	pr_debug("RIO_PW: SP%d_ERR_STS_CSR=0x%08x\n", portnum, err_status);
 
 	if (err_status & RIO_PORT_N_ERR_STS_PORT_OK) {
@@ -1276,8 +1286,8 @@ int rio_inb_pwrite_handler(struct rio_mport *mport, union rio_pw_msg *pw_msg)
 		 * Depending on the link partner state, two attempts
 		 * may be needed for successful recovery.
 		 */
-		if (err_status & (RIO_PORT_N_ERR_STS_PW_OUT_ES |
-				  RIO_PORT_N_ERR_STS_PW_INP_ES)) {
+		if (err_status & (RIO_PORT_N_ERR_STS_OUT_ES |
+				  RIO_PORT_N_ERR_STS_INP_ES)) {
 			if (rio_clr_err_stopped(rdev, portnum, err_status))
 				rio_clr_err_stopped(rdev, portnum, 0);
 		}
@@ -1287,10 +1297,18 @@ int rio_inb_pwrite_handler(struct rio_mport *mport, union rio_pw_msg *pw_msg)
 			rdev->rswitch->port_ok &= ~(1 << portnum);
 			rio_set_port_lockout(rdev, portnum, 1);
 
+			if (rdev->phys_rmap == 1) {
 			rio_write_config_32(rdev,
-				rdev->phys_efptr +
-					RIO_PORT_N_ACK_STS_CSR(portnum),
+				RIO_DEV_PORT_N_ACK_STS_CSR(rdev, portnum),
 				RIO_PORT_N_ACK_CLEAR);
+			} else {
+				rio_write_config_32(rdev,
+					RIO_DEV_PORT_N_OB_ACK_CSR(rdev, portnum),
+					RIO_PORT_N_OB_ACK_CLEAR);
+				rio_write_config_32(rdev,
+					RIO_DEV_PORT_N_IB_ACK_CSR(rdev, portnum),
+					0);
+			}
 
 			/* Schedule Extraction Service */
 			pr_debug("RIO_PW: Device Extraction on [%s]-P%d\n",
@@ -1319,9 +1337,8 @@ int rio_inb_pwrite_handler(struct rio_mport *mport, union rio_pw_msg *pw_msg)
 	}
 
 	/* Clear remaining error bits and Port-Write Pending bit */
-	rio_write_config_32(rdev,
-			rdev->phys_efptr + RIO_PORT_N_ERR_STS_CSR(portnum),
-			err_status);
+	rio_write_config_32(rdev, RIO_DEV_PORT_N_ERR_STS_CSR(rdev, portnum),
+			    err_status);
 
 	return 0;
 }
@@ -1372,20 +1389,7 @@ EXPORT_SYMBOL_GPL(rio_mport_get_efb);
  * Tell if a device supports a given RapidIO capability.
  * Returns the offset of the requested extended feature
  * block within the device's RIO configuration space or
- * 0 in case the device does not support it.  Possible
- * values for @ftr:
- *
- * %RIO_EFB_PAR_EP_ID		LP/LVDS EP Devices
- *
- * %RIO_EFB_PAR_EP_REC_ID	LP/LVDS EP Recovery Devices
- *
- * %RIO_EFB_PAR_EP_FREE_ID	LP/LVDS EP Free Devices
- *
- * %RIO_EFB_SER_EP_ID		LP/Serial EP Devices
- *
- * %RIO_EFB_SER_EP_REC_ID	LP/Serial EP Recovery Devices
- *
- * %RIO_EFB_SER_EP_FREE_ID	LP/Serial EP Free Devices
+ * 0 in case the device does not support it.
  */
 u32
 rio_mport_get_feature(struct rio_mport * port, int local, u16 destid,

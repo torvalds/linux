@@ -1813,7 +1813,7 @@ static int rio_mport_add_riodev(struct mport_cdev_priv *priv,
 	if (rdev->pef & RIO_PEF_EXT_FEATURES) {
 		rdev->efptr = rval & 0xffff;
 		rdev->phys_efptr = rio_mport_get_physefb(mport, 0, destid,
-							 hopcount);
+						hopcount, &rdev->phys_rmap);
 
 		rdev->em_efptr = rio_mport_get_feature(mport, 0, destid,
 						hopcount, RIO_EFB_ERR_MGMNT);
