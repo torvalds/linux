@@ -802,7 +802,6 @@ static void nvt_handle_rx_fifo_overrun(struct nvt_dev *nvt)
 static void nvt_get_rx_ir_data(struct nvt_dev *nvt)
 {
 	u8 fifocount, val;
-	unsigned int b_idx;
 	int i;
 
 	/* Get count of how many bytes to read from RX FIFO */
@@ -810,21 +809,13 @@ static void nvt_get_rx_ir_data(struct nvt_dev *nvt)
 
 	nvt_dbg("attempting to fetch %u bytes from hw rx fifo", fifocount);
 
-	b_idx = nvt->pkts;
-
-	/* This should never happen, but lets check anyway... */
-	if (b_idx + fifocount > RX_BUF_LEN) {
-		nvt_process_rx_ir_data(nvt);
-		b_idx = 0;
-	}
-
 	/* Read fifocount bytes from CIR Sample RX FIFO register */
 	for (i = 0; i < fifocount; i++) {
 		val = nvt_cir_reg_read(nvt, CIR_SRXFIFO);
-		nvt->buf[b_idx + i] = val;
+		nvt->buf[i] = val;
 	}
 
-	nvt->pkts += fifocount;
+	nvt->pkts = fifocount;
 	nvt_dbg("%s: pkts now %d", __func__, nvt->pkts);
 
 	nvt_process_rx_ir_data(nvt);
