@@ -42,6 +42,18 @@
 
 #define BATCH_OFFSET_BIAS (256*1024)
 
+struct i915_execbuffer_params {
+	struct drm_device               *dev;
+	struct drm_file                 *file;
+	u32				 dispatch_flags;
+	u32				 args_batch_start_offset;
+	u32				 batch_obj_vm_offset;
+	struct intel_engine_cs          *engine;
+	struct drm_i915_gem_object      *batch_obj;
+	struct i915_gem_context         *ctx;
+	struct drm_i915_gem_request     *request;
+};
+
 struct eb_vmas {
 	struct list_head vmas;
 	int and;
@@ -1117,7 +1129,7 @@ i915_gem_validate_context(struct drm_device *dev, struct drm_file *file,
 	return ctx;
 }
 
-void
+static void
 i915_gem_execbuffer_move_to_active(struct list_head *vmas,
 				   struct drm_i915_gem_request *req)
 {
@@ -1244,10 +1256,10 @@ err:
 		return ERR_PTR(ret);
 }
 
-int
-i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
-			       struct drm_i915_gem_execbuffer2 *args,
-			       struct list_head *vmas)
+static int
+execbuf_submit(struct i915_execbuffer_params *params,
+	       struct drm_i915_gem_execbuffer2 *args,
+	       struct list_head *vmas)
 {
 	struct drm_i915_private *dev_priv = params->request->i915;
 	u64 exec_start, exec_len;
@@ -1637,7 +1649,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	params->batch_obj               = batch_obj;
 	params->ctx                     = ctx;
 
-	ret = dev_priv->gt.execbuf_submit(params, args, &eb->vmas);
+	ret = execbuf_submit(params, args, &eb->vmas);
 err_request:
 	i915_gem_execbuffer_retire_commands(params);
 

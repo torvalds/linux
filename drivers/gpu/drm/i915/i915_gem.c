@@ -4534,11 +4534,9 @@ int i915_gem_init(struct drm_device *dev)
 	mutex_lock(&dev->struct_mutex);
 
 	if (!i915.enable_execlists) {
-		dev_priv->gt.execbuf_submit = i915_gem_ringbuffer_submission;
 		dev_priv->gt.cleanup_engine = intel_engine_cleanup;
 		dev_priv->gt.stop_engine = intel_engine_stop;
 	} else {
-		dev_priv->gt.execbuf_submit = intel_execlists_submission;
 		dev_priv->gt.cleanup_engine = intel_logical_ring_cleanup;
 		dev_priv->gt.stop_engine = intel_logical_ring_stop;
 	}

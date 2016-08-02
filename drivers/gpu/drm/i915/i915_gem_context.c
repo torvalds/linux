@@ -894,8 +894,9 @@ int i915_switch_context(struct drm_i915_gem_request *req)
 {
 	struct intel_engine_cs *engine = req->engine;
 
-	WARN_ON(i915.enable_execlists);
 	lockdep_assert_held(&req->i915->drm.struct_mutex);
+	if (i915.enable_execlists)
+		return 0;
 
 	if (!req->ctx->engine[engine->id].state) {
 		struct i915_gem_context *to = req->ctx;
@@ -943,9 +944,7 @@ int i915_gem_switch_to_kernel_context(struct drm_i915_private *dev_priv)
 		if (IS_ERR(req))
 			return PTR_ERR(req);
 
-		ret = 0;
-		if (!i915.enable_execlists)
-			ret = i915_switch_context(req);
+		ret = i915_switch_context(req);
 		i915_add_request_no_flush(req);
 		if (ret)
 			return ret;

@@ -1705,18 +1705,6 @@ struct i915_virtual_gpu {
 	bool active;
 };
 
-struct i915_execbuffer_params {
-	struct drm_device               *dev;
-	struct drm_file                 *file;
-	uint32_t                        dispatch_flags;
-	uint32_t                        args_batch_start_offset;
-	uint64_t                        batch_obj_vm_offset;
-	struct intel_engine_cs *engine;
-	struct drm_i915_gem_object      *batch_obj;
-	struct i915_gem_context            *ctx;
-	struct drm_i915_gem_request     *request;
-};
-
 /* used in computing the new watermarks state */
 struct intel_wm_config {
 	unsigned int num_pipes_active;
@@ -2016,9 +2004,6 @@ struct drm_i915_private {
 
 	/* Abstract the submission mechanism (legacy ringbuffer or execlists) away */
 	struct {
-		int (*execbuf_submit)(struct i915_execbuffer_params *params,
-				      struct drm_i915_gem_execbuffer2 *args,
-				      struct list_head *vmas);
 		void (*cleanup_engine)(struct intel_engine_cs *engine);
 		void (*stop_engine)(struct intel_engine_cs *engine);
 
@@ -2993,11 +2978,6 @@ int i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv);
 int i915_gem_sw_finish_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *file_priv);
-void i915_gem_execbuffer_move_to_active(struct list_head *vmas,
-					struct drm_i915_gem_request *req);
-int i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
-				   struct drm_i915_gem_execbuffer2 *args,
-				   struct list_head *vmas);
 int i915_gem_execbuffer(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 int i915_gem_execbuffer2(struct drm_device *dev, void *data,

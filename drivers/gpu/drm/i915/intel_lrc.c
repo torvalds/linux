@@ -642,39 +642,6 @@ static void execlists_submit_request(struct drm_i915_gem_request *request)
 	spin_unlock_bh(&engine->execlist_lock);
 }
 
-static int execlists_move_to_gpu(struct drm_i915_gem_request *req,
-				 struct list_head *vmas)
-{
-	const unsigned other_rings = ~intel_engine_flag(req->engine);
-	struct i915_vma *vma;
-	uint32_t flush_domains = 0;
-	bool flush_chipset = false;
-	int ret;
-
-	list_for_each_entry(vma, vmas, exec_list) {
-		struct drm_i915_gem_object *obj = vma->obj;
-
-		if (obj->active & other_rings) {
-			ret = i915_gem_object_sync(obj, req);
-			if (ret)
-				return ret;
-		}
-
-		if (obj->base.write_domain & I915_GEM_DOMAIN_CPU)
-			flush_chipset |= i915_gem_clflush_object(obj, false);
-
-		flush_domains |= obj->base.write_domain;
-	}
-
-	if (flush_domains & I915_GEM_DOMAIN_GTT)
-		wmb();
-
-	/* Unconditionally invalidate gpu caches and ensure that we do flush
-	 * any residual writes from the previous batch.
-	 */
-	return req->engine->emit_flush(req, EMIT_INVALIDATE);
-}
-
 int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request)
 {
 	struct intel_engine_cs *engine = request->engine;
@@ -773,96 +740,6 @@ intel_logical_ring_advance(struct drm_i915_gem_request *request)
 	 */
 	request->previous_context = engine->last_context;
 	engine->last_context = request->ctx;
-	return 0;
-}
-
-/**
- * intel_execlists_submission() - submit a batchbuffer for execution, Execlists style
- * @params: execbuffer call parameters.
- * @args: execbuffer call arguments.
- * @vmas: list of vmas.
- *
- * This is the evil twin version of i915_gem_ringbuffer_submission. It abstracts
- * away the submission details of the execbuffer ioctl call.
- *
- * Return: non-zero if the submission fails.
- */
-int intel_execlists_submission(struct i915_execbuffer_params *params,
-			       struct drm_i915_gem_execbuffer2 *args,
-			       struct list_head *vmas)
-{
-	struct drm_device       *dev = params->dev;
-	struct intel_engine_cs *engine = params->engine;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_ring *ring = params->request->ring;
-	u64 exec_start;
-	int instp_mode;
-	u32 instp_mask;
-	int ret;
-
-	instp_mode = args->flags & I915_EXEC_CONSTANTS_MASK;
-	instp_mask = I915_EXEC_CONSTANTS_MASK;
-	switch (instp_mode) {
-	case I915_EXEC_CONSTANTS_REL_GENERAL:
-	case I915_EXEC_CONSTANTS_ABSOLUTE:
-	case I915_EXEC_CONSTANTS_REL_SURFACE:
-		if (instp_mode != 0 && engine->id != RCS) {
-			DRM_DEBUG("non-0 rel constants mode on non-RCS\n");
-			return -EINVAL;
-		}
-
-		if (instp_mode != dev_priv->relative_constants_mode) {
-			if (instp_mode == I915_EXEC_CONSTANTS_REL_SURFACE) {
-				DRM_DEBUG("rel surface constants mode invalid on gen5+\n");
-				return -EINVAL;
-			}
-
-			/* The HW changed the meaning on this bit on gen6 */
-			instp_mask &= ~I915_EXEC_CONSTANTS_REL_SURFACE;
-		}
-		break;
-	default:
-		DRM_DEBUG("execbuf with unknown constants: %d\n", instp_mode);
-		return -EINVAL;
-	}
-
-	if (args->flags & I915_EXEC_GEN7_SOL_RESET) {
-		DRM_DEBUG("sol reset is gen7 only\n");
-		return -EINVAL;
-	}
-
-	ret = execlists_move_to_gpu(params->request, vmas);
-	if (ret)
-		return ret;
-
-	if (engine->id == RCS &&
-	    instp_mode != dev_priv->relative_constants_mode) {
-		ret = intel_ring_begin(params->request, 4);
-		if (ret)
-			return ret;
-
-		intel_ring_emit(ring, MI_NOOP);
-		intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
-		intel_ring_emit_reg(ring, INSTPM);
-		intel_ring_emit(ring, instp_mask << 16 | instp_mode);
-		intel_ring_advance(ring);
-
-		dev_priv->relative_constants_mode = instp_mode;
-	}
-
-	exec_start = params->batch_obj_vm_offset +
-		     args->batch_start_offset;
-
-	ret = engine->emit_bb_start(params->request,
-				    exec_start, args->batch_len,
-				    params->dispatch_flags);
-	if (ret)
-		return ret;
-
-	trace_i915_gem_ring_dispatch(params->request, params->dispatch_flags);
-
-	i915_gem_execbuffer_move_to_active(vmas, params->request);
-
 	return 0;
 }
 
