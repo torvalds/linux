@@ -2633,7 +2633,8 @@ static void pnv_pci_ioda2_table_do_free_pages(__be64 *addr,
 		u64 *tmp = (u64 *) addr_ul;
 
 		for (i = 0; i < size; ++i) {
-			unsigned long hpa = be64_to_cpu(tmp[i]);
+			unsigned long hpa =
+				be64_to_cpu((__force __be64)(tmp[i]));
 
 			if (!(hpa & (TCE_PCI_READ | TCE_PCI_WRITE)))
 				continue;
