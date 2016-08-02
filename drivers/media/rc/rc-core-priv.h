@@ -20,7 +20,6 @@
 #define	MAX_IR_EVENT_SIZE	512
 
 #include <linux/slab.h>
-#include <linux/spinlock.h>
 #include <media/rc-core.h>
 
 struct ir_raw_handler {
@@ -37,7 +36,6 @@ struct ir_raw_handler {
 struct ir_raw_event_ctrl {
 	struct list_head		list;		/* to keep track of raw clients */
 	struct task_struct		*thread;
-	spinlock_t			lock;
 	/* fifo for the pulse/space durations */
 	DECLARE_KFIFO(kfifo, struct ir_raw_event, MAX_IR_EVENT_SIZE);
 	ktime_t				last_event;	/* when last event occurred */
