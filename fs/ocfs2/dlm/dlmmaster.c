@@ -2416,7 +2416,17 @@ int dlm_deref_lockres_done_handler(struct o2net_msg *msg, u32 len, void *data,
 	}
 
 	spin_lock(&res->spinlock);
-	BUG_ON(!(res->state & DLM_LOCK_RES_DROPPING_REF));
+	if (!(res->state & DLM_LOCK_RES_DROPPING_REF)) {
+		spin_unlock(&res->spinlock);
+		spin_unlock(&dlm->spinlock);
+		mlog(ML_NOTICE, "%s:%.*s: node %u sends deref done "
+			"but it is already derefed!\n", dlm->name,
+			res->lockname.len, res->lockname.name, node);
+		dlm_lockres_put(res);
+		ret = 0;
+		goto done;
+	}
+
 	if (!list_empty(&res->purge)) {
 		mlog(0, "%s: Removing res %.*s from purgelist\n",
 			dlm->name, res->lockname.len, res->lockname.name);
@@ -2456,7 +2466,6 @@ int dlm_deref_lockres_done_handler(struct o2net_msg *msg, u32 len, void *data,
 	spin_unlock(&dlm->spinlock);
 
 	ret = 0;
-
 done:
 	dlm_put(dlm);
 	return ret;
