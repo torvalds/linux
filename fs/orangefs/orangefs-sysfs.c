@@ -949,10 +949,8 @@ static int sysfs_service_op_show(char *kobj_id, char *buf, void *attr)
 out:
 	if (!rc) {
 		if (strcmp(kobj_id, PC_KOBJ_ID)) {
-			rc = scnprintf(buf,
-				       PAGE_SIZE,
-				       "%d\n",
-				       (int)new_op->downcall.resp.param.value);
+			rc = scnprintf(buf, PAGE_SIZE, "%d\n",
+			    (int)new_op->downcall.resp.param.u.value64);
 		} else {
 			rc = scnprintf(
 				buf,
@@ -1277,7 +1275,7 @@ static int sysfs_service_op_store(char *kobj_id, const char *buf, void *attr)
 
 	new_op->upcall.req.param.type = ORANGEFS_PARAM_REQUEST_SET;
 
-	new_op->upcall.req.param.value = val;
+	new_op->upcall.req.param.u.value64 = val;
 
 	/*
 	 * The service_operation will return a errno return code on

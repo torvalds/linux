@@ -187,7 +187,10 @@ enum orangefs_param_request_op {
 struct orangefs_param_request_s {
 	enum orangefs_param_request_type type;
 	enum orangefs_param_request_op op;
-	__s64 value;
+	union {
+		__s64 value64;
+		__s32 value32[2];
+	} u;
 	char s_value[ORANGEFS_MAX_DEBUG_STRING_LEN];
 };
 
