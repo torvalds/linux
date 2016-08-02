@@ -1205,6 +1205,38 @@ struct nilfs_super_data {
 	int flags;
 };
 
+static int nilfs_parse_snapshot_option(const char *option,
+				       const substring_t *arg,
+				       struct nilfs_super_data *sd)
+{
+	unsigned long long val;
+	const char *msg = NULL;
+	int err;
+
+	if (!(sd->flags & MS_RDONLY)) {
+		msg = "read-only option is not specified";
+		goto parse_error;
+	}
+
+	err = kstrtoull(arg->from, 0, &val);
+	if (err) {
+		if (err == -ERANGE)
+			msg = "too large checkpoint number";
+		else
+			msg = "malformed argument";
+		goto parse_error;
+	} else if (val == 0) {
+		msg = "invalid checkpoint number 0";
+		goto parse_error;
+	}
+	sd->cno = val;
+	return 0;
+
+parse_error:
+	nilfs_msg(NULL, KERN_ERR, "invalid option \"%s\": %s", option, msg);
+	return 1;
+}
+
 /**
  * nilfs_identify - pre-read mount options needed to identify mount instance
  * @data: mount options
@@ -1221,24 +1253,9 @@ static int nilfs_identify(char *data, struct nilfs_super_data *sd)
 		p = strsep(&options, ",");
 		if (p != NULL && *p) {
 			token = match_token(p, tokens, args);
-			if (token == Opt_snapshot) {
-				if (!(sd->flags & MS_RDONLY)) {
-					ret++;
-				} else {
-					sd->cno = simple_strtoull(args[0].from,
-								  NULL, 0);
-					/*
-					 * No need to see the end pointer;
-					 * match_token() has done syntax
-					 * checking.
-					 */
-					if (sd->cno == 0)
-						ret++;
-				}
-			}
-			if (ret)
-				nilfs_msg(NULL, KERN_ERR,
-					  "invalid mount option: %s", p);
+			if (token == Opt_snapshot)
+				ret = nilfs_parse_snapshot_option(p, &args[0],
+								  sd);
 		}
 		if (!options)
 			break;
