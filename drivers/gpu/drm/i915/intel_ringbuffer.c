@@ -67,19 +67,15 @@ static void __intel_engine_submit(struct intel_engine_cs *engine)
 }
 
 static int
-gen2_render_ring_flush(struct drm_i915_gem_request *req,
-		       u32	invalidate_domains,
-		       u32	flush_domains)
+gen2_render_ring_flush(struct drm_i915_gem_request *req, u32 mode)
 {
 	struct intel_ring *ring = req->ring;
 	u32 cmd;
 	int ret;
 
 	cmd = MI_FLUSH;
-	if (((invalidate_domains|flush_domains) & I915_GEM_DOMAIN_RENDER) == 0)
-		cmd |= MI_NO_WRITE_FLUSH;
 
-	if (invalidate_domains & I915_GEM_DOMAIN_SAMPLER)
+	if (mode & EMIT_INVALIDATE)
 		cmd |= MI_READ_FLUSH;
 
 	ret = intel_ring_begin(req, 2);
@@ -94,9 +90,7 @@ gen2_render_ring_flush(struct drm_i915_gem_request *req,
 }
 
 static int
-gen4_render_ring_flush(struct drm_i915_gem_request *req,
-		       u32	invalidate_domains,
-		       u32	flush_domains)
+gen4_render_ring_flush(struct drm_i915_gem_request *req, u32 mode)
 {
 	struct intel_ring *ring = req->ring;
 	u32 cmd;
@@ -131,7 +125,7 @@ gen4_render_ring_flush(struct drm_i915_gem_request *req,
 	 */
 
 	cmd = MI_FLUSH;
-	if (invalidate_domains) {
+	if (mode & EMIT_INVALIDATE) {
 		cmd |= MI_EXE_FLUSH;
 		if (IS_G4X(req->i915) || IS_GEN5(req->i915))
 			cmd |= MI_INVALIDATE_ISP;
@@ -222,8 +216,7 @@ intel_emit_post_sync_nonzero_flush(struct drm_i915_gem_request *req)
 }
 
 static int
-gen6_render_ring_flush(struct drm_i915_gem_request *req,
-		       u32 invalidate_domains, u32 flush_domains)
+gen6_render_ring_flush(struct drm_i915_gem_request *req, u32 mode)
 {
 	struct intel_ring *ring = req->ring;
 	u32 scratch_addr =
@@ -240,7 +233,7 @@ gen6_render_ring_flush(struct drm_i915_gem_request *req,
 	 * number of bits based on the write domains has little performance
 	 * impact.
 	 */
-	if (flush_domains) {
+	if (mode & EMIT_FLUSH) {
 		flags |= PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH;
 		flags |= PIPE_CONTROL_DEPTH_CACHE_FLUSH;
 		/*
@@ -249,7 +242,7 @@ gen6_render_ring_flush(struct drm_i915_gem_request *req,
 		 */
 		flags |= PIPE_CONTROL_CS_STALL;
 	}
-	if (invalidate_domains) {
+	if (mode & EMIT_INVALIDATE) {
 		flags |= PIPE_CONTROL_TLB_INVALIDATE;
 		flags |= PIPE_CONTROL_INSTRUCTION_CACHE_INVALIDATE;
 		flags |= PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE;
@@ -297,8 +290,7 @@ gen7_render_ring_cs_stall_wa(struct drm_i915_gem_request *req)
 }
 
 static int
-gen7_render_ring_flush(struct drm_i915_gem_request *req,
-		       u32 invalidate_domains, u32 flush_domains)
+gen7_render_ring_flush(struct drm_i915_gem_request *req, u32 mode)
 {
 	struct intel_ring *ring = req->ring;
 	u32 scratch_addr =
@@ -320,13 +312,13 @@ gen7_render_ring_flush(struct drm_i915_gem_request *req,
 	 * number of bits based on the write domains has little performance
 	 * impact.
 	 */
-	if (flush_domains) {
+	if (mode & EMIT_FLUSH) {
 		flags |= PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH;
 		flags |= PIPE_CONTROL_DEPTH_CACHE_FLUSH;
 		flags |= PIPE_CONTROL_DC_FLUSH_ENABLE;
 		flags |= PIPE_CONTROL_FLUSH_ENABLE;
 	}
-	if (invalidate_domains) {
+	if (mode & EMIT_INVALIDATE) {
 		flags |= PIPE_CONTROL_TLB_INVALIDATE;
 		flags |= PIPE_CONTROL_INSTRUCTION_CACHE_INVALIDATE;
 		flags |= PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE;
@@ -384,8 +376,7 @@ gen8_emit_pipe_control(struct drm_i915_gem_request *req,
 }
 
 static int
-gen8_render_ring_flush(struct drm_i915_gem_request *req,
-		       u32 invalidate_domains, u32 flush_domains)
+gen8_render_ring_flush(struct drm_i915_gem_request *req, u32 mode)
 {
 	u32 scratch_addr = req->engine->scratch.gtt_offset + 2 * CACHELINE_BYTES;
 	u32 flags = 0;
@@ -393,13 +384,13 @@ gen8_render_ring_flush(struct drm_i915_gem_request *req,
 
 	flags |= PIPE_CONTROL_CS_STALL;
 
-	if (flush_domains) {
+	if (mode & EMIT_FLUSH) {
 		flags |= PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH;
 		flags |= PIPE_CONTROL_DEPTH_CACHE_FLUSH;
 		flags |= PIPE_CONTROL_DC_FLUSH_ENABLE;
 		flags |= PIPE_CONTROL_FLUSH_ENABLE;
 	}
-	if (invalidate_domains) {
+	if (mode & EMIT_INVALIDATE) {
 		flags |= PIPE_CONTROL_TLB_INVALIDATE;
 		flags |= PIPE_CONTROL_INSTRUCTION_CACHE_INVALIDATE;
 		flags |= PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE;
@@ -688,9 +679,7 @@ static int intel_ring_workarounds_emit(struct drm_i915_gem_request *req)
 	if (w->count == 0)
 		return 0;
 
-	ret = req->engine->emit_flush(req,
-				      I915_GEM_GPU_DOMAINS,
-				      I915_GEM_GPU_DOMAINS);
+	ret = req->engine->emit_flush(req, EMIT_BARRIER);
 	if (ret)
 		return ret;
 
@@ -707,9 +696,7 @@ static int intel_ring_workarounds_emit(struct drm_i915_gem_request *req)
 
 	intel_ring_advance(ring);
 
-	ret = req->engine->emit_flush(req,
-				      I915_GEM_GPU_DOMAINS,
-				      I915_GEM_GPU_DOMAINS);
+	ret = req->engine->emit_flush(req, EMIT_BARRIER);
 	if (ret)
 		return ret;
 
@@ -1700,9 +1687,7 @@ i8xx_irq_disable(struct intel_engine_cs *engine)
 }
 
 static int
-bsd_ring_flush(struct drm_i915_gem_request *req,
-	       u32     invalidate_domains,
-	       u32     flush_domains)
+bsd_ring_flush(struct drm_i915_gem_request *req, u32 mode)
 {
 	struct intel_ring *ring = req->ring;
 	int ret;
@@ -2533,8 +2518,7 @@ static void gen6_bsd_ring_write_tail(struct intel_engine_cs *engine,
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 }
 
-static int gen6_bsd_ring_flush(struct drm_i915_gem_request *req,
-			       u32 invalidate, u32 flush)
+static int gen6_bsd_ring_flush(struct drm_i915_gem_request *req, u32 mode)
 {
 	struct intel_ring *ring = req->ring;
 	uint32_t cmd;
@@ -2561,7 +2545,7 @@ static int gen6_bsd_ring_flush(struct drm_i915_gem_request *req,
 	 * operation is complete. This bit is only valid when the
 	 * Post-Sync Operation field is a value of 1h or 3h."
 	 */
-	if (invalidate & I915_GEM_GPU_DOMAINS)
+	if (mode & EMIT_INVALIDATE)
 		cmd |= MI_INVALIDATE_TLB | MI_INVALIDATE_BSD;
 
 	intel_ring_emit(ring, cmd);
@@ -2653,8 +2637,7 @@ gen6_ring_dispatch_execbuffer(struct drm_i915_gem_request *req,
 
 /* Blitter support (SandyBridge+) */
 
-static int gen6_ring_flush(struct drm_i915_gem_request *req,
-			   u32 invalidate, u32 flush)
+static int gen6_ring_flush(struct drm_i915_gem_request *req, u32 mode)
 {
 	struct intel_ring *ring = req->ring;
 	uint32_t cmd;
@@ -2681,7 +2664,7 @@ static int gen6_ring_flush(struct drm_i915_gem_request *req,
 	 * operation is complete. This bit is only valid when the
 	 * Post-Sync Operation field is a value of 1h or 3h."
 	 */
-	if (invalidate & I915_GEM_DOMAIN_RENDER)
+	if (mode & EMIT_INVALIDATE)
 		cmd |= MI_INVALIDATE_TLB;
 	intel_ring_emit(ring, cmd);
 	intel_ring_emit(ring,

@@ -451,7 +451,7 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 	 * what.
 	 */
 	if (flush_caches) {
-		ret = engine->emit_flush(request, 0, I915_GEM_GPU_DOMAINS);
+		ret = engine->emit_flush(request, EMIT_FLUSH);
 
 		/* Not allowed to fail! */
 		WARN(ret, "engine->emit_flush() failed: %d!\n", ret);

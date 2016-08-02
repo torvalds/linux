@@ -292,8 +292,10 @@ struct intel_engine_cs {
 	u32 ctx_desc_template;
 	int		(*emit_request)(struct drm_i915_gem_request *request);
 	int		(*emit_flush)(struct drm_i915_gem_request *request,
-				      u32 invalidate_domains,
-				      u32 flush_domains);
+				      u32 mode);
+#define EMIT_INVALIDATE	BIT(0)
+#define EMIT_FLUSH	BIT(1)
+#define EMIT_BARRIER	(EMIT_INVALIDATE | EMIT_FLUSH)
 	int		(*emit_bb_start)(struct drm_i915_gem_request *req,
 					 u64 offset, unsigned dispatch_flags);
 
