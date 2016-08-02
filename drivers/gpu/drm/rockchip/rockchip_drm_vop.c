@@ -490,9 +490,6 @@ static void vop_enable(struct drm_crtc *crtc)
 	struct vop *vop = to_vop(crtc);
 	int ret, i;
 
-	if (vop->is_enabled)
-		return;
-
 	ret = clk_prepare_enable(vop->hclk);
 	if (ret < 0) {
 		dev_err(vop->dev, "failed to enable hclk - %d\n", ret);
@@ -568,9 +565,6 @@ static void vop_crtc_disable(struct drm_crtc *crtc)
 {
 	struct vop *vop = to_vop(crtc);
 	int i;
-
-	if (!vop->is_enabled)
-		return;
 
 	/*
 	 * We need to make sure that all windows are disabled before we
