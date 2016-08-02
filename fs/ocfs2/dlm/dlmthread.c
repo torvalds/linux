@@ -175,6 +175,15 @@ static void dlm_purge_lockres(struct dlm_ctxt *dlm,
 	     res->lockname.len, res->lockname.name, master);
 
 	if (!master) {
+		if (res->state & DLM_LOCK_RES_DROPPING_REF) {
+			mlog(ML_NOTICE, "%s: res %.*s already in "
+				"DLM_LOCK_RES_DROPPING_REF state\n",
+				dlm->name, res->lockname.len,
+				res->lockname.name);
+			spin_unlock(&res->spinlock);
+			return;
+		}
+
 		res->state |= DLM_LOCK_RES_DROPPING_REF;
 		/* drop spinlock...  retake below */
 		spin_unlock(&res->spinlock);
@@ -203,8 +212,8 @@ static void dlm_purge_lockres(struct dlm_ctxt *dlm,
 		dlm->purge_count--;
 	}
 
-	if (!master && ret != 0) {
-		mlog(0, "%s: deref %.*s in progress or master goes down\n",
+	if (!master && ret == DLM_DEREF_RESPONSE_INPROG) {
+		mlog(0, "%s: deref %.*s in progress\n",
 			dlm->name, res->lockname.len, res->lockname.name);
 		spin_unlock(&res->spinlock);
 		return;

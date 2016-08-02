@@ -2276,9 +2276,12 @@ int dlm_drop_lockres_ref(struct dlm_ctxt *dlm, struct dlm_lock_resource *res)
 		mlog(ML_ERROR, "%s: res %.*s, DEREF to node %u got %d\n",
 		     dlm->name, namelen, lockname, res->owner, r);
 		dlm_print_one_lock_resource(res);
-		BUG();
-	}
-	return ret ? ret : r;
+		if (r == -ENOMEM)
+			BUG();
+	} else
+		ret = r;
+
+	return ret;
 }
 
 int dlm_deref_lockres_handler(struct o2net_msg *msg, u32 len, void *data,
