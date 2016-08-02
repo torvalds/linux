@@ -1444,22 +1444,20 @@ static int i9xx_emit_request(struct drm_i915_gem_request *req)
 }
 
 /**
- * gen6_emit_request - Update the semaphore mailbox registers
+ * gen6_sema_emit_request - Update the semaphore mailbox registers
  *
  * @request - request to write to the ring
  *
  * Update the mailbox registers in the *other* rings with the current seqno.
  * This acts like a signal in the canonical semaphore.
  */
-static int gen6_emit_request(struct drm_i915_gem_request *req)
+static int gen6_sema_emit_request(struct drm_i915_gem_request *req)
 {
-	if (req->engine->semaphore.signal) {
-		int ret;
+	int ret;
 
-		ret = req->engine->semaphore.signal(req);
-		if (ret)
-			return ret;
-	}
+	ret = req->engine->semaphore.signal(req);
+	if (ret)
+		return ret;
 
 	return i9xx_emit_request(req);
 }
@@ -2785,11 +2783,14 @@ static void intel_ring_init_irq(struct drm_i915_private *dev_priv,
 static void intel_ring_default_vfuncs(struct drm_i915_private *dev_priv,
 				      struct intel_engine_cs *engine)
 {
+	intel_ring_init_irq(dev_priv, engine);
+	intel_ring_init_semaphores(dev_priv, engine);
+
 	engine->init_hw = init_ring_common;
 
 	engine->emit_request = i9xx_emit_request;
-	if (INTEL_GEN(dev_priv) >= 6)
-		engine->emit_request = gen6_emit_request;
+	if (i915.semaphores)
+		engine->emit_request = gen6_sema_emit_request;
 	engine->submit_request = i9xx_submit_request;
 
 	if (INTEL_GEN(dev_priv) >= 8)
@@ -2802,9 +2803,6 @@ static void intel_ring_default_vfuncs(struct drm_i915_private *dev_priv,
 		engine->emit_bb_start = i830_emit_bb_start;
 	else
 		engine->emit_bb_start = i915_emit_bb_start;
-
-	intel_ring_init_irq(dev_priv, engine);
-	intel_ring_init_semaphores(dev_priv, engine);
 }
 
 int intel_init_render_ring_buffer(struct intel_engine_cs *engine)
