@@ -558,6 +558,19 @@ config GPIO_F7188X
 	  To compile this driver as a module, choose M here: the module will
 	  be called f7188x-gpio.
 
+config GPIO_GPIO_MM
+	tristate "Diamond Systems GPIO-MM GPIO support"
+	depends on ISA_BUS_API
+	help
+	  Enables GPIO support for the Diamond Systems GPIO-MM and GPIO-MM-12.
+
+	  The Diamond Systems GPIO-MM device features 48 lines of digital I/O
+	  via the emulation of dual 82C55A PPI chips. This driver provides GPIO
+	  support for these 48 channels of digital I/O.
+
+	  The base port addresses for the devices may be configured via the base
+	  array module parameter.
+
 config GPIO_IT87
 	tristate "IT87xx GPIO support"
 	help
