@@ -868,7 +868,10 @@ int irq_domain_xlate_onetwocell(struct irq_domain *d,
 	if (WARN_ON(intsize < 1))
 		return -EINVAL;
 	*out_hwirq = intspec[0];
-	*out_type = (intsize > 1) ? intspec[1] : IRQ_TYPE_NONE;
+	if (intsize > 1)
+		*out_type = intspec[1] & IRQ_TYPE_SENSE_MASK;
+	else
+		*out_type = IRQ_TYPE_NONE;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(irq_domain_xlate_onetwocell);
