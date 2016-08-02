@@ -441,9 +441,8 @@ intel_write_status_page(struct intel_engine_cs *engine,
 
 struct intel_ring *
 intel_engine_create_ring(struct intel_engine_cs *engine, int size);
-int intel_pin_and_map_ring(struct drm_i915_private *dev_priv,
-			   struct intel_ring *ring);
-void intel_unpin_ring(struct intel_ring *ring);
+int intel_ring_pin(struct intel_ring *ring);
+void intel_ring_unpin(struct intel_ring *ring);
 void intel_ring_free(struct intel_ring *ring);
 
 void intel_engine_stop(struct intel_engine_cs *engine);

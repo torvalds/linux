@@ -1993,24 +1993,9 @@ static int init_phys_status_page(struct intel_engine_cs *engine)
 	return 0;
 }
 
-void intel_unpin_ring(struct intel_ring *ring)
+int intel_ring_pin(struct intel_ring *ring)
 {
-	GEM_BUG_ON(!ring->vma);
-	GEM_BUG_ON(!ring->vaddr);
-
-	if (HAS_LLC(ring->obj->base.dev) && !ring->obj->stolen)
-		i915_gem_object_unpin_map(ring->obj);
-	else
-		i915_vma_unpin_iomap(ring->vma);
-	ring->vaddr = NULL;
-
-	i915_gem_object_ggtt_unpin(ring->obj);
-	ring->vma = NULL;
-}
-
-int intel_pin_and_map_ring(struct drm_i915_private *dev_priv,
-			   struct intel_ring *ring)
-{
+	struct drm_i915_private *dev_priv = ring->engine->i915;
 	struct drm_i915_gem_object *obj = ring->obj;
 	/* Ring wraparound at offset 0 sometimes hangs. No idea why. */
 	unsigned flags = PIN_OFFSET_BIAS | 4096;
@@ -2059,6 +2044,21 @@ int intel_pin_and_map_ring(struct drm_i915_private *dev_priv,
 err_unpin:
 	i915_gem_object_ggtt_unpin(obj);
 	return ret;
+}
+
+void intel_ring_unpin(struct intel_ring *ring)
+{
+	GEM_BUG_ON(!ring->vma);
+	GEM_BUG_ON(!ring->vaddr);
+
+	if (HAS_LLC(ring->engine->i915) && !ring->obj->stolen)
+		i915_gem_object_unpin_map(ring->obj);
+	else
+		i915_vma_unpin_iomap(ring->vma);
+	ring->vaddr = NULL;
+
+	i915_gem_object_ggtt_unpin(ring->obj);
+	ring->vma = NULL;
 }
 
 static void intel_destroy_ringbuffer_obj(struct intel_ring *ring)
@@ -2233,7 +2233,7 @@ static int intel_init_ring_buffer(struct intel_engine_cs *engine)
 			goto error;
 	}
 
-	ret = intel_pin_and_map_ring(dev_priv, ring);
+	ret = intel_ring_pin(ring);
 	if (ret) {
 		DRM_ERROR("Failed to pin and map ringbuffer %s: %d\n",
 				engine->name, ret);
@@ -2261,7 +2261,7 @@ void intel_engine_cleanup(struct intel_engine_cs *engine)
 		intel_engine_stop(engine);
 		WARN_ON(!IS_GEN2(dev_priv) && (I915_READ_MODE(engine) & MODE_IDLE) == 0);
 
-		intel_unpin_ring(engine->buffer);
+		intel_ring_unpin(engine->buffer);
 		intel_ring_free(engine->buffer);
 		engine->buffer = NULL;
 	}

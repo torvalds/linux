@@ -973,7 +973,7 @@ static int intel_lr_context_pin(struct i915_gem_context *ctx,
 
 	lrc_reg_state = vaddr + LRC_STATE_PN * PAGE_SIZE;
 
-	ret = intel_pin_and_map_ring(dev_priv, ce->ring);
+	ret = intel_ring_pin(ce->ring);
 	if (ret)
 		goto unpin_map;
 
@@ -1011,7 +1011,7 @@ void intel_lr_context_unpin(struct i915_gem_context *ctx,
 	if (--ce->pin_count)
 		return;
 
-	intel_unpin_ring(ce->ring);
+	intel_ring_unpin(ce->ring);
 
 	i915_gem_object_unpin_map(ce->state);
 	i915_gem_object_ggtt_unpin(ce->state);
