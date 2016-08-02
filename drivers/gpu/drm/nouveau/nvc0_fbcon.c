@@ -125,7 +125,7 @@ nvc0_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 	OUT_RING  (chan, 0);
 	OUT_RING  (chan, image->dy);
 
-	dwords = ALIGN(image->width * image->height, 32) >> 5;
+	dwords = ALIGN(ALIGN(image->width, 8) * image->height, 32) >> 5;
 	while (dwords) {
 		int push = dwords > 2047 ? 2047 : dwords;
 
