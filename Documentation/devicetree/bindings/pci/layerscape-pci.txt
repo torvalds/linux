@@ -24,6 +24,9 @@ Required properties:
   The first entry must be a link to the SCFG device node
   The second entry must be '0' or '1' based on physical PCIe controller index.
   This is used to get SCFG PEXN registers
+- dma-coherent: Indicates that the hardware IP block can ensure the coherency
+  of the data transferred from/to the IP block. This can avoid the software
+  cache flush/invalid actions, and improve the performance significantly.
 
 Example:
 
@@ -38,6 +41,7 @@ Example:
 		#address-cells = <3>;
 		#size-cells = <2>;
 		device_type = "pci";
+		dma-coherent;
 		num-lanes = <4>;
 		bus-range = <0x0 0xff>;
 		ranges = <0x81000000 0x0 0x00000000 0x40 0x00010000 0x0 0x00010000   /* downstream I/O */

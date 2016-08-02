@@ -206,6 +206,13 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 	};
+
+	pca9536: gpio@41 {
+		compatible = "ti,pca9536";
+		reg = <0x41>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
 };
 
 #include "tps65910.dtsi"

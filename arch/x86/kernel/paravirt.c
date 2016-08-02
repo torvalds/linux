@@ -19,7 +19,8 @@
 */
 
 #include <linux/errno.h>
-#include <linux/module.h>
+#include <linux/init.h>
+#include <linux/export.h>
 #include <linux/efi.h>
 #include <linux/bcd.h>
 #include <linux/highmem.h>

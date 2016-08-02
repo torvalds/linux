@@ -1242,11 +1242,6 @@ static struct pwm_omap_dmtimer_pdata __maybe_unused pwm_dmtimer_pdata = {
 #if defined(CONFIG_IR_RX51) || defined(CONFIG_IR_RX51_MODULE)
 static struct lirc_rx51_platform_data rx51_lirc_data = {
 	.set_max_mpu_wakeup_lat = omap_pm_set_max_mpu_wakeup_lat,
-	.pwm_timer = 9, /* Use GPT 9 for CIR */
-#if IS_ENABLED(CONFIG_OMAP_DM_TIMER)
-	.dmtimer = &pwm_dmtimer_pdata,
-#endif
-
 };
 
 static struct platform_device rx51_lirc_device = {

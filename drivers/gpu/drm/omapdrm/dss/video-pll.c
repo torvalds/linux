@@ -17,8 +17,7 @@
 #include <linux/platform_device.h>
 #include <linux/sched.h>
 
-#include <video/omapdss.h>
-
+#include "omapdss.h"
 #include "dss.h"
 #include "dss_features.h"
 
@@ -108,6 +107,8 @@ static const struct dss_pll_ops dss_pll_ops = {
 };
 
 static const struct dss_pll_hw dss_dra7_video_pll_hw = {
+	.type = DSS_PLL_TYPE_A,
+
 	.n_max = (1 << 8) - 1,
 	.m_max = (1 << 12) - 1,
 	.mX_max = (1 << 5) - 1,
@@ -124,6 +125,10 @@ static const struct dss_pll_hw dss_dra7_video_pll_hw = {
 	.mX_lsb[0] = 21,
 	.mX_msb[1] = 30,
 	.mX_lsb[1] = 26,
+	.mX_msb[2] = 4,
+	.mX_lsb[2] = 0,
+	.mX_msb[3] = 9,
+	.mX_lsb[3] = 5,
 
 	.has_refsel = true,
 };

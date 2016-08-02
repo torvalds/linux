@@ -104,26 +104,26 @@ struct qcom_smem_state *qcom_smem_state_get(struct device *dev,
 
 	if (con_id) {
 		index = of_property_match_string(dev->of_node,
-						 "qcom,state-names",
+						 "qcom,smem-state-names",
 						 con_id);
 		if (index < 0) {
-			dev_err(dev, "missing qcom,state-names\n");
+			dev_err(dev, "missing qcom,smem-state-names\n");
 			return ERR_PTR(index);
 		}
 	}
 
 	ret = of_parse_phandle_with_args(dev->of_node,
-					 "qcom,state",
-					 "#qcom,state-cells",
+					 "qcom,smem-states",
+					 "#qcom,smem-state-cells",
 					 index,
 					 &args);
 	if (ret) {
-		dev_err(dev, "failed to parse qcom,state property\n");
+		dev_err(dev, "failed to parse qcom,smem-states property\n");
 		return ERR_PTR(ret);
 	}
 
 	if (args.args_count != 1) {
-		dev_err(dev, "invalid #qcom,state-cells\n");
+		dev_err(dev, "invalid #qcom,smem-state-cells\n");
 		return ERR_PTR(-EINVAL);
 	}
 

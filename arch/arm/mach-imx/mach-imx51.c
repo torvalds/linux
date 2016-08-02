@@ -52,6 +52,8 @@ static void __init imx51_dt_init(void)
 {
 	imx51_ipu_mipi_setup();
 	imx_src_init();
+
+	imx_aips_allow_unprivileged_access("fsl,imx51-aipstz");
 }
 
 static void __init imx51_init_late(void)
@@ -67,7 +69,6 @@ static const char * const imx51_dt_board_compat[] __initconst = {
 
 DT_MACHINE_START(IMX51_DT, "Freescale i.MX51 (Device Tree Support)")
 	.init_early	= imx51_init_early,
-	.init_irq	= tzic_init_irq,
 	.init_machine	= imx51_dt_init,
 	.init_late	= imx51_init_late,
 	.dt_compat	= imx51_dt_board_compat,

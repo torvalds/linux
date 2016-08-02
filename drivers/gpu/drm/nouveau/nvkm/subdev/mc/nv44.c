@@ -43,7 +43,7 @@ nv44_mc = {
 	.intr = nv17_mc_intr,
 	.intr_unarm = nv04_mc_intr_unarm,
 	.intr_rearm = nv04_mc_intr_rearm,
-	.intr_mask = nv04_mc_intr_mask,
+	.intr_stat = nv04_mc_intr_stat,
 	.reset = nv17_mc_reset,
 };
 

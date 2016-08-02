@@ -529,7 +529,7 @@ static int lm90_update_limits(struct device *dev)
 		return val;
 	data->temp_hyst = val;
 
-	lm90_read_reg(client, LM90_REG_R_REMOTE_LOWH);
+	val = lm90_read_reg(client, LM90_REG_R_REMOTE_LOWH);
 	if (val < 0)
 		return val;
 	data->temp11[REMOTE_LOW] = val << 8;
@@ -1551,9 +1551,7 @@ static int lm90_init_client(struct i2c_client *client, struct lm90_data *data)
 	if (config != data->config_orig) /* Only write if changed */
 		i2c_smbus_write_byte_data(client, LM90_REG_W_CONFIG1, config);
 
-	devm_add_action(&client->dev, lm90_restore_conf, data);
-
-	return 0;
+	return devm_add_action_or_reset(&client->dev, lm90_restore_conf, data);
 }
 
 static bool lm90_is_tripped(struct i2c_client *client, u16 *status)
@@ -1640,7 +1638,9 @@ static int lm90_probe(struct i2c_client *client,
 		return err;
 	}
 
-	devm_add_action(dev, lm90_regulator_disable, regulator);
+	err = devm_add_action_or_reset(dev, lm90_regulator_disable, regulator);
+	if (err)
+		return err;
 
 	data = devm_kzalloc(dev, sizeof(struct lm90_data), GFP_KERNEL);
 	if (!data)
@@ -1696,7 +1696,9 @@ static int lm90_probe(struct i2c_client *client,
 		err = device_create_file(dev, &dev_attr_pec);
 		if (err)
 			return err;
-		devm_add_action(dev, lm90_remove_pec, dev);
+		err = devm_add_action_or_reset(dev, lm90_remove_pec, dev);
+		if (err)
+			return err;
 	}
 
 	hwmon_dev = devm_hwmon_device_register_with_groups(dev, client->name,

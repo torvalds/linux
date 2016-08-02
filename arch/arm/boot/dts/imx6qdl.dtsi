@@ -185,6 +185,7 @@
 			cache-level = <2>;
 			arm,tag-latency = <4 2 3>;
 			arm,data-latency = <4 2 3>;
+			arm,shared-override;
 		};
 
 		pcie: pcie@0x01000000 {
@@ -1100,6 +1101,7 @@
 			ocotp: ocotp@021bc000 {
 				compatible = "fsl,imx6q-ocotp", "syscon";
 				reg = <0x021bc000 0x4000>;
+				clocks = <&clks IMX6QDL_CLK_IIM>;
 			};
 
 			tzasc@021d0000 { /* TZASC1 */
@@ -1255,7 +1257,7 @@
 				#size-cells = <0>;
 				reg = <3>;
 
-				ipu1_di0_disp1: disp1-endpoint {
+				ipu1_di1_disp1: disp1-endpoint {
 				};
 
 				ipu1_di1_hdmi: hdmi-endpoint {

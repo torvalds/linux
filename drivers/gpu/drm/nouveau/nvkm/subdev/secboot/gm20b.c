@@ -42,6 +42,32 @@ struct gm20b_flcn_bl_desc {
 	u32 data_size;
 };
 
+static int
+gm20b_secboot_prepare_blobs(struct gm200_secboot *gsb)
+{
+	struct nvkm_subdev *subdev = &gsb->base.subdev;
+	int acr_size;
+	int ret;
+
+	ret = gm20x_secboot_prepare_blobs(gsb);
+	if (ret)
+		return ret;
+
+	acr_size = gsb->acr_load_blob->size;
+	/*
+	 * On Tegra the WPR region is set by the bootloader. It is illegal for
+	 * the HS blob to be larger than this region.
+	 */
+	if (acr_size > gsb->wpr_size) {
+		nvkm_error(subdev, "WPR region too small for FW blob!\n");
+		nvkm_error(subdev, "required: %dB\n", acr_size);
+		nvkm_error(subdev, "WPR size: %dB\n", gsb->wpr_size);
+		return -ENOSPC;
+	}
+
+	return 0;
+}
+
 /**
  * gm20b_secboot_fixup_bl_desc - adapt BL descriptor to format used by GM20B FW
  *
@@ -88,6 +114,7 @@ gm20b_secboot_func = {
 	.bl_desc_size = sizeof(struct gm20b_flcn_bl_desc),
 	.fixup_bl_desc = gm20b_secboot_fixup_bl_desc,
 	.fixup_hs_desc = gm20b_secboot_fixup_hs_desc,
+	.prepare_blobs = gm20b_secboot_prepare_blobs,
 };
 
 
@@ -147,32 +174,6 @@ gm20b_tegra_read_wpr(struct gm200_secboot *gsb)
 #endif
 
 static int
-gm20b_secboot_prepare_blobs(struct nvkm_secboot *sb)
-{
-	struct gm200_secboot *gsb = gm200_secboot(sb);
-	int acr_size;
-	int ret;
-
-	ret = gm20x_secboot_prepare_blobs(gsb);
-	if (ret)
-		return ret;
-
-	acr_size = gsb->acr_load_blob->size;
-	/*
-	 * On Tegra the WPR region is set by the bootloader. It is illegal for
-	 * the HS blob to be larger than this region.
-	 */
-	if (acr_size > gsb->wpr_size) {
-		nvkm_error(&sb->subdev, "WPR region too small for FW blob!\n");
-		nvkm_error(&sb->subdev, "required: %dB\n", acr_size);
-		nvkm_error(&sb->subdev, "WPR size: %dB\n", gsb->wpr_size);
-		return -ENOSPC;
-	}
-
-	return 0;
-}
-
-static int
 gm20b_secboot_init(struct nvkm_secboot *sb)
 {
 	struct gm200_secboot *gsb = gm200_secboot(sb);
@@ -189,7 +190,6 @@ static const struct nvkm_secboot_func
 gm20b_secboot = {
 	.dtor = gm200_secboot_dtor,
 	.init = gm20b_secboot_init,
-	.prepare_blobs = gm20b_secboot_prepare_blobs,
 	.reset = gm200_secboot_reset,
 	.start = gm200_secboot_start,
 	.managed_falcons = BIT(NVKM_SECBOOT_FALCON_FECS),

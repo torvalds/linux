@@ -2823,4 +2823,7 @@
 #define mmDC_EDC_CSINVOC_CNT                                                    0x3192
 #define mmDC_EDC_RESTORE_CNT                                                    0x3193
 
+#define mmGC_CAC_IND_INDEX                                                      0x129a
+#define mmGC_CAC_IND_DATA                                                       0x129b
+
 #endif /* GFX_8_0_D_H */

@@ -431,7 +431,7 @@ static int mtk_mipi_tx_probe(struct platform_device *pdev)
 	phy_set_drvdata(phy, mipi_tx);
 
 	phy_provider = devm_of_phy_provider_register(dev, of_phy_simple_xlate);
-	if (IS_ERR(phy)) {
+	if (IS_ERR(phy_provider)) {
 		ret = PTR_ERR(phy_provider);
 		return ret;
 	}

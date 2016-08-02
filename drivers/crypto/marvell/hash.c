@@ -315,12 +315,6 @@ static void mv_cesa_ahash_complete(struct crypto_async_request *req)
 	for (i = 0; i < digsize / 4; i++)
 		creq->state[i] = readl_relaxed(engine->regs + CESA_IVDIG(i));
 
-	if (creq->cache_ptr)
-		sg_pcopy_to_buffer(ahashreq->src, creq->src_nents,
-				   creq->cache,
-				   creq->cache_ptr,
-				   ahashreq->nbytes - creq->cache_ptr);
-
 	if (creq->last_req) {
 		/*
 		 * Hardware's MD5 digest is in little endian format, but
@@ -365,6 +359,12 @@ static void mv_cesa_ahash_req_cleanup(struct crypto_async_request *req)
 		mv_cesa_ahash_last_cleanup(ahashreq);
 
 	mv_cesa_ahash_cleanup(ahashreq);
+
+	if (creq->cache_ptr)
+		sg_pcopy_to_buffer(ahashreq->src, creq->src_nents,
+				   creq->cache,
+				   creq->cache_ptr,
+				   ahashreq->nbytes - creq->cache_ptr);
 }
 
 static const struct mv_cesa_req_ops mv_cesa_ahash_req_ops = {

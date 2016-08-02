@@ -22,7 +22,6 @@ struct arcpgu_drm_private {
 	struct clk		*clk;
 	struct drm_fbdev_cma	*fbdev;
 	struct drm_framebuffer	*fb;
-	struct list_head	event_list;
 	struct drm_crtc		crtc;
 	struct drm_plane	*plane;
 };
@@ -43,6 +42,7 @@ static inline u32 arc_pgu_read(struct arcpgu_drm_private *arcpgu,
 
 int arc_pgu_setup_crtc(struct drm_device *dev);
 int arcpgu_drm_hdmi_init(struct drm_device *drm, struct device_node *np);
+int arcpgu_drm_sim_init(struct drm_device *drm, struct device_node *np);
 struct drm_fbdev_cma *arcpgu_fbdev_cma_init(struct drm_device *dev,
 	unsigned int preferred_bpp, unsigned int num_crtc,
 	unsigned int max_conn_count);

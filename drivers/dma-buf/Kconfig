@@ -1,11 +1,20 @@
 menu "DMABUF options"
 
 config SYNC_FILE
-	bool "sync_file support for fences"
+	bool "Explicit Synchronization Framework"
 	default n
 	select ANON_INODES
 	select DMA_SHARED_BUFFER
 	---help---
-	  This option enables the fence framework synchronization to export
-	  sync_files to userspace that can represent one or more fences.
+	  The Sync File Framework adds explicit syncronization via
+	  userspace. It enables send/receive 'struct fence' objects to/from
+	  userspace via Sync File fds for synchronization between drivers via
+	  userspace components. It has been ported from Android.
+
+	  The first and main user for this is graphics in which a fence is
+	  associated with a buffer. When a job is submitted to the GPU a fence
+	  is attached to the buffer and is transferred via userspace, using Sync
+	  Files fds, to the DRM driver for example. More details at
+	  Documentation/sync_file.txt.
+
 endmenu

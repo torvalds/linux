@@ -36,3 +36,9 @@ bool shmobile_smp_cpu_can_disable(unsigned int cpu)
 	return true; /* Hotplug of any CPU is supported */
 }
 #endif
+
+bool __init shmobile_smp_init_fallback_ops(void)
+{
+	/* fallback on PSCI/smp_ops if no other DT based method is detected */
+	return platform_can_secondary_boot() ? true : false;
+}

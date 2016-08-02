@@ -134,16 +134,7 @@ static int socfpga_reset_probe(struct platform_device *pdev)
 	data->rcdev.ops = &socfpga_reset_ops;
 	data->rcdev.of_node = pdev->dev.of_node;
 
-	return reset_controller_register(&data->rcdev);
-}
-
-static int socfpga_reset_remove(struct platform_device *pdev)
-{
-	struct socfpga_reset_data *data = platform_get_drvdata(pdev);
-
-	reset_controller_unregister(&data->rcdev);
-
-	return 0;
+	return devm_reset_controller_register(dev, &data->rcdev);
 }
 
 static const struct of_device_id socfpga_reset_dt_ids[] = {
@@ -153,7 +144,6 @@ static const struct of_device_id socfpga_reset_dt_ids[] = {
 
 static struct platform_driver socfpga_reset_driver = {
 	.probe	= socfpga_reset_probe,
-	.remove	= socfpga_reset_remove,
 	.driver = {
 		.name		= "socfpga-reset",
 		.of_match_table	= socfpga_reset_dt_ids,

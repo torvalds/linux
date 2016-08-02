@@ -13,34 +13,11 @@
 	compatible = "ti,dra742", "ti,dra74", "ti,dra7";
 
 	cpus {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		cpu0: cpu@0 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a15";
-			reg = <0>;
-
-			operating-points = <
-				/* kHz    uV */
-				1000000	1060000
-				1176000	1160000
-				>;
-
-			clocks = <&dpll_mpu_ck>;
-			clock-names = "cpu";
-
-			clock-latency = <300000>; /* From omap-cpufreq driver */
-
-			/* cooling options */
-			cooling-min-level = <0>;
-			cooling-max-level = <2>;
-			#cooling-cells = <2>; /* min followed by max */
-		};
 		cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a15";
 			reg = <1>;
+			operating-points-v2 = <&cpu0_opp_table>;
 		};
 	};
 

@@ -56,8 +56,8 @@ static void tegra_atomic_complete(struct tegra_drm *tegra,
 	 */
 
 	drm_atomic_helper_commit_modeset_disables(drm, state);
-	drm_atomic_helper_commit_planes(drm, state, false);
 	drm_atomic_helper_commit_modeset_enables(drm, state);
+	drm_atomic_helper_commit_planes(drm, state, true);
 
 	drm_atomic_helper_wait_for_vblanks(drm, state);
 
@@ -93,7 +93,7 @@ static int tegra_atomic_commit(struct drm_device *drm,
 	 * the software side now.
 	 */
 
-	drm_atomic_helper_swap_state(drm, state);
+	drm_atomic_helper_swap_state(state, true);
 
 	if (nonblock)
 		tegra_atomic_schedule(tegra, state);

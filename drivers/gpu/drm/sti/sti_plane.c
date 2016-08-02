@@ -45,25 +45,15 @@ const char *sti_plane_to_str(struct sti_plane *plane)
 
 #define STI_FPS_INTERVAL_MS     3000
 
-static int sti_plane_timespec_ms_diff(struct timespec lhs, struct timespec rhs)
-{
-	struct timespec tmp_ts = timespec_sub(lhs, rhs);
-	u64 tmp_ns = (u64)timespec_to_ns(&tmp_ts);
-
-	do_div(tmp_ns, NSEC_PER_MSEC);
-
-	return (u32)tmp_ns;
-}
-
 void sti_plane_update_fps(struct sti_plane *plane,
 			  bool new_frame,
 			  bool new_field)
 {
-	struct timespec now;
+	ktime_t now;
 	struct sti_fps_info *fps;
 	int fpks, fipks, ms_since_last, num_frames, num_fields;
 
-	getrawmonotonic(&now);
+	now = ktime_get();
 
 	/* Compute number of frame updates */
 	fps = &plane->fps_info;
@@ -76,7 +66,7 @@ void sti_plane_update_fps(struct sti_plane *plane,
 		return;
 
 	fps->curr_frame_counter++;
-	ms_since_last = sti_plane_timespec_ms_diff(now, fps->last_timestamp);
+	ms_since_last = ktime_to_ms(ktime_sub(now, fps->last_timestamp));
 	num_frames = fps->curr_frame_counter - fps->last_frame_counter;
 
 	if (num_frames <= 0  || ms_since_last < STI_FPS_INTERVAL_MS)
@@ -106,17 +96,9 @@ void sti_plane_update_fps(struct sti_plane *plane,
 			 plane->fps_info.fips_str);
 }
 
-static void sti_plane_destroy(struct drm_plane *drm_plane)
-{
-	DRM_DEBUG_DRIVER("\n");
-
-	drm_plane_helper_disable(drm_plane);
-	drm_plane_cleanup(drm_plane);
-}
-
-static int sti_plane_set_property(struct drm_plane *drm_plane,
-				  struct drm_property *property,
-				  uint64_t val)
+int sti_plane_set_property(struct drm_plane *drm_plane,
+			   struct drm_property *property,
+			   uint64_t val)
 {
 	struct drm_device *dev = drm_plane->dev;
 	struct sti_private *private = dev->dev_private;
@@ -170,13 +152,3 @@ void sti_plane_init_property(struct sti_plane *plane,
 			 plane->drm_plane.base.id,
 			 sti_plane_to_str(plane), plane->zorder);
 }
-
-struct drm_plane_funcs sti_plane_helpers_funcs = {
-	.update_plane = drm_atomic_helper_update_plane,
-	.disable_plane = drm_atomic_helper_disable_plane,
-	.destroy = sti_plane_destroy,
-	.set_property = sti_plane_set_property,
-	.reset = drm_atomic_helper_plane_reset,
-	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
-};
