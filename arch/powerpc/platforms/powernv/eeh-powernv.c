@@ -1546,7 +1546,7 @@ static int pnv_eeh_next_error(struct eeh_pe **pe)
 
 				/* Try best to clear it */
 				opal_pci_eeh_freeze_clear(phb->opal_id,
-					frozen_pe_no,
+					be64_to_cpu(frozen_pe_no),
 					OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
 				ret = EEH_NEXT_ERR_NONE;
 			} else if ((*pe)->state & EEH_PE_ISOLATED ||
