@@ -25,7 +25,6 @@
 #include <linux/compat.h>	/* compat_ptr() */
 #include <linux/mount.h>	/* mnt_want_write_file(), mnt_drop_write_file() */
 #include <linux/buffer_head.h>
-#include <linux/nilfs2_fs.h>
 #include "nilfs.h"
 #include "segment.h"
 #include "bmap.h"

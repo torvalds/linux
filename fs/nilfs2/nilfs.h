@@ -23,7 +23,8 @@
 #include <linux/buffer_head.h>
 #include <linux/spinlock.h>
 #include <linux/blkdev.h>
-#include <linux/nilfs2_fs.h>
+#include <linux/nilfs2_api.h>
+#include <linux/nilfs2_ondisk.h>
 #include "the_nilfs.h"
 #include "bmap.h"
 
