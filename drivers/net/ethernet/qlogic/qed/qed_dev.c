@@ -35,8 +35,7 @@
 #include "qed_sriov.h"
 #include "qed_vf.h"
 
-static spinlock_t qm_lock;
-static bool qm_lock_init = false;
+static DEFINE_SPINLOCK(qm_lock);
 
 /* API common to all protocols */
 enum BAR_ID {
@@ -1003,11 +1002,6 @@ int qed_hw_init(struct qed_dev *cdev,
 
 		p_hwfn->first_on_engine = (load_code ==
 					   FW_MSG_CODE_DRV_LOAD_ENGINE);
-
-		if (!qm_lock_init) {
-			spin_lock_init(&qm_lock);
-			qm_lock_init = true;
-		}
 
 		switch (load_code) {
 		case FW_MSG_CODE_DRV_LOAD_ENGINE:
