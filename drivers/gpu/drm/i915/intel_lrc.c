@@ -373,7 +373,7 @@ static void execlists_update_context(struct drm_i915_gem_request *rq)
 	struct i915_hw_ppgtt *ppgtt = rq->ctx->ppgtt;
 	uint32_t *reg_state = rq->ctx->engine[engine->id].lrc_reg_state;
 
-	reg_state[CTX_RING_TAIL+1] = rq->tail;
+	reg_state[CTX_RING_TAIL+1] = intel_ring_offset(rq->ring, rq->tail);
 
 	/* True 32b PPGTT with dynamic page allocation: update PDP
 	 * registers and point the unallocated PDPs to scratch page.

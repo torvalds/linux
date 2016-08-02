@@ -1718,7 +1718,8 @@ static void i9xx_submit_request(struct drm_i915_gem_request *request)
 {
 	struct drm_i915_private *dev_priv = request->i915;
 
-	I915_WRITE_TAIL(request->engine, request->tail);
+	I915_WRITE_TAIL(request->engine,
+			intel_ring_offset(request->ring, request->tail));
 }
 
 static void
@@ -2080,6 +2081,8 @@ intel_engine_create_ring(struct intel_engine_cs *engine, int size)
 {
 	struct intel_ring *ring;
 	int ret;
+
+	GEM_BUG_ON(!is_power_of_2(size));
 
 	ring = kzalloc(sizeof(*ring), GFP_KERNEL);
 	if (ring == NULL) {
@@ -2505,7 +2508,8 @@ static void gen6_bsd_submit_request(struct drm_i915_gem_request *request)
 		DRM_ERROR("timed out waiting for the BSD ring to wake up\n");
 
 	/* Now that the ring is fully powered up, update the tail */
-	I915_WRITE_FW(RING_TAIL(request->engine->mmio_base), request->tail);
+	I915_WRITE_FW(RING_TAIL(request->engine->mmio_base),
+		      intel_ring_offset(request->ring, request->tail));
 	POSTING_READ_FW(RING_TAIL(request->engine->mmio_base));
 
 	/* Let the ring send IDLE messages to the GT again,

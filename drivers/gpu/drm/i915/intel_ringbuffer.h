@@ -460,14 +460,20 @@ static inline void intel_ring_emit_reg(struct intel_ring *ring, i915_reg_t reg)
 
 static inline void intel_ring_advance(struct intel_ring *ring)
 {
-	/* The modulus is required so that we avoid writing
-	 * request->tail == ring->size, rather than the expected 0,
-	 * into the RING_TAIL register as that can cause a GPU hang.
-	 * As this is only strictly required for the request->tail,
-	 * and only then as we write the value into hardware, we can
-	 * one day remove the modulus after every command packet.
+	/* Dummy function.
+	 *
+	 * This serves as a placeholder in the code so that the reader
+	 * can compare against the preceding intel_ring_begin() and
+	 * check that the number of dwords emitted matches the space
+	 * reserved for the command packet (i.e. the value passed to
+	 * intel_ring_begin()).
 	 */
-	ring->tail &= ring->size - 1;
+}
+
+static inline u32 intel_ring_offset(struct intel_ring *ring, u32 value)
+{
+	/* Don't write ring->size (equivalent to 0) as that hangs some GPUs. */
+	return value & (ring->size - 1);
 }
 
 int __intel_ring_space(int head, int tail, int size);
