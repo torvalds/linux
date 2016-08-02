@@ -15,12 +15,11 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of_address.h>
 #include <linux/of_pci.h>
+#include <linux/pci-ecam.h>
 #include <linux/platform_device.h>
-
-#include "../ecam.h"
 
 #define PEM_CFG_WR 0x28
 #define PEM_CFG_RD 0x30
@@ -285,8 +284,9 @@ static int thunder_pem_config_write(struct pci_bus *bus, unsigned int devfn,
 	return pci_generic_config_write(bus, devfn, where, size, val);
 }
 
-static int thunder_pem_init(struct device *dev, struct pci_config_window *cfg)
+static int thunder_pem_init(struct pci_config_window *cfg)
 {
+	struct device *dev = cfg->parent;
 	resource_size_t bar4_start;
 	struct resource *res_pem;
 	struct thunder_pem_pci *pem_pci;
@@ -346,7 +346,6 @@ static const struct of_device_id thunder_pem_of_match[] = {
 	{ .compatible = "cavium,pci-host-thunder-pem" },
 	{ },
 };
-MODULE_DEVICE_TABLE(of, thunder_pem_of_match);
 
 static int thunder_pem_probe(struct platform_device *pdev)
 {
@@ -360,7 +359,4 @@ static struct platform_driver thunder_pem_driver = {
 	},
 	.probe = thunder_pem_probe,
 };
-module_platform_driver(thunder_pem_driver);
-
-MODULE_DESCRIPTION("Thunder PEM PCIe host driver");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver(thunder_pem_driver);

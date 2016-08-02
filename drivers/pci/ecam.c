@@ -19,9 +19,8 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/pci-ecam.h>
 #include <linux/slab.h>
-
-#include "ecam.h"
 
 /*
  * On 64-bit systems, we do a single ioremap for the whole config space
@@ -52,6 +51,7 @@ struct pci_config_window *pci_ecam_create(struct device *dev,
 	if (!cfg)
 		return ERR_PTR(-ENOMEM);
 
+	cfg->parent = dev;
 	cfg->ops = ops;
 	cfg->busr.start = busr->start;
 	cfg->busr.end = busr->end;
@@ -95,7 +95,7 @@ struct pci_config_window *pci_ecam_create(struct device *dev,
 	}
 
 	if (ops->init) {
-		err = ops->init(dev, cfg);
+		err = ops->init(cfg);
 		if (err)
 			goto err_exit;
 	}

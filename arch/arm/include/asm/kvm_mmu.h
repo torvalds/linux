@@ -26,16 +26,7 @@
  * We directly use the kernel VA for the HYP, as we can directly share
  * the mapping (HTTBR "covers" TTBR1).
  */
-#define HYP_PAGE_OFFSET_MASK	UL(~0)
-#define HYP_PAGE_OFFSET		PAGE_OFFSET
-#define KERN_TO_HYP(kva)	(kva)
-
-/*
- * Our virtual mapping for the boot-time MMU-enable code. Must be
- * shared across all the page-tables. Conveniently, we use the vectors
- * page, where no kernel data will ever be shared with HYP.
- */
-#define TRAMPOLINE_VA		UL(CONFIG_VECTORS_BASE)
+#define kern_hyp_va(kva)	(kva)
 
 /*
  * KVM_MMU_CACHE_MIN_PAGES is the number of stage2 page table translation levels.
@@ -49,9 +40,8 @@
 #include <asm/pgalloc.h>
 #include <asm/stage2_pgtable.h>
 
-int create_hyp_mappings(void *from, void *to);
+int create_hyp_mappings(void *from, void *to, pgprot_t prot);
 int create_hyp_io_mappings(void *from, void *to, phys_addr_t);
-void free_boot_hyp_pgd(void);
 void free_hyp_pgds(void);
 
 void stage2_unmap_vm(struct kvm *kvm);
@@ -65,7 +55,6 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu, struct kvm_run *run);
 void kvm_mmu_free_memory_caches(struct kvm_vcpu *vcpu);
 
 phys_addr_t kvm_mmu_get_httbr(void);
-phys_addr_t kvm_mmu_get_boot_httbr(void);
 phys_addr_t kvm_get_idmap_vector(void);
 phys_addr_t kvm_get_idmap_start(void);
 int kvm_mmu_init(void);

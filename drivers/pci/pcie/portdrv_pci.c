@@ -93,6 +93,26 @@ static int pcie_port_resume_noirq(struct device *dev)
 	return 0;
 }
 
+static int pcie_port_runtime_suspend(struct device *dev)
+{
+	return to_pci_dev(dev)->bridge_d3 ? 0 : -EBUSY;
+}
+
+static int pcie_port_runtime_resume(struct device *dev)
+{
+	return 0;
+}
+
+static int pcie_port_runtime_idle(struct device *dev)
+{
+	/*
+	 * Assume the PCI core has set bridge_d3 whenever it thinks the port
+	 * should be good to go to D3.  Everything else, including moving
+	 * the port to D3, is handled by the PCI core.
+	 */
+	return to_pci_dev(dev)->bridge_d3 ? 0 : -EBUSY;
+}
+
 static const struct dev_pm_ops pcie_portdrv_pm_ops = {
 	.suspend	= pcie_port_device_suspend,
 	.resume		= pcie_port_device_resume,
@@ -101,6 +121,9 @@ static const struct dev_pm_ops pcie_portdrv_pm_ops = {
 	.poweroff	= pcie_port_device_suspend,
 	.restore	= pcie_port_device_resume,
 	.resume_noirq	= pcie_port_resume_noirq,
+	.runtime_suspend = pcie_port_runtime_suspend,
+	.runtime_resume	= pcie_port_runtime_resume,
+	.runtime_idle	= pcie_port_runtime_idle,
 };
 
 #define PCIE_PORTDRV_PM_OPS	(&pcie_portdrv_pm_ops)
@@ -134,16 +157,39 @@ static int pcie_portdrv_probe(struct pci_dev *dev,
 		return status;
 
 	pci_save_state(dev);
+
 	/*
-	 * D3cold may not work properly on some PCIe port, so disable
-	 * it by default.
+	 * Prevent runtime PM if the port is advertising support for PCIe
+	 * hotplug.  Otherwise the BIOS hotplug SMI code might not be able
+	 * to enumerate devices behind this port properly (the port is
+	 * powered down preventing all config space accesses to the
+	 * subordinate devices).  We can't be sure for native PCIe hotplug
+	 * either so prevent that as well.
 	 */
-	dev->d3cold_allowed = false;
+	if (!dev->is_hotplug_bridge) {
+		/*
+		 * Keep the port resumed 100ms to make sure things like
+		 * config space accesses from userspace (lspci) will not
+		 * cause the port to repeatedly suspend and resume.
+		 */
+		pm_runtime_set_autosuspend_delay(&dev->dev, 100);
+		pm_runtime_use_autosuspend(&dev->dev);
+		pm_runtime_mark_last_busy(&dev->dev);
+		pm_runtime_put_autosuspend(&dev->dev);
+		pm_runtime_allow(&dev->dev);
+	}
+
 	return 0;
 }
 
 static void pcie_portdrv_remove(struct pci_dev *dev)
 {
+	if (!dev->is_hotplug_bridge) {
+		pm_runtime_forbid(&dev->dev);
+		pm_runtime_get_noresume(&dev->dev);
+		pm_runtime_dont_use_autosuspend(&dev->dev);
+	}
+
 	pcie_port_device_remove(dev);
 }
 

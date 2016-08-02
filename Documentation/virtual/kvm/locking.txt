@@ -89,7 +89,7 @@ In mmu_spte_clear_track_bits():
    old_spte = *spte;
 
    /* 'if' condition is satisfied. */
-   if (old_spte.Accssed == 1 &&
+   if (old_spte.Accessed == 1 &&
         old_spte.W == 0)
       spte = 0ull;
                                          on fast page fault path:
@@ -102,7 +102,7 @@ In mmu_spte_clear_track_bits():
       old_spte = xchg(spte, 0ull)
 
 
-   if (old_spte.Accssed == 1)
+   if (old_spte.Accessed == 1)
       kvm_set_pfn_accessed(spte.pfn);
    if (old_spte.Dirty == 1)
       kvm_set_pfn_dirty(spte.pfn);
