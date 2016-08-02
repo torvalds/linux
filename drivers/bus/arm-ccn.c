@@ -187,6 +187,7 @@ struct arm_ccn {
 	struct arm_ccn_component *xp;
 
 	struct arm_ccn_dt dt;
+	int mn_id;
 };
 
 
@@ -326,6 +327,7 @@ struct arm_ccn_pmu_event {
 static ssize_t arm_ccn_pmu_event_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
+	struct arm_ccn *ccn = pmu_to_arm_ccn(dev_get_drvdata(dev));
 	struct arm_ccn_pmu_event *event = container_of(attr,
 			struct arm_ccn_pmu_event, attr);
 	ssize_t res;
@@ -351,6 +353,9 @@ static ssize_t arm_ccn_pmu_event_show(struct device *dev,
 		if (event->event == CCN_EVENT_WATCHPOINT)
 			res += snprintf(buf + res, PAGE_SIZE - res,
 					",cmp_l=?,cmp_h=?,mask=?");
+		break;
+	case CCN_TYPE_MN:
+		res += snprintf(buf + res, PAGE_SIZE - res, ",node=%d", ccn->mn_id);
 		break;
 	default:
 		res += snprintf(buf + res, PAGE_SIZE - res, ",node=?");
@@ -381,9 +386,9 @@ static umode_t arm_ccn_pmu_events_is_visible(struct kobject *kobj,
 }
 
 static struct arm_ccn_pmu_event arm_ccn_pmu_events[] = {
-	CCN_EVENT_MN(eobarrier, "dir=0,vc=0,cmp_h=0x1c00", CCN_IDX_MASK_OPCODE),
-	CCN_EVENT_MN(ecbarrier, "dir=0,vc=0,cmp_h=0x1e00", CCN_IDX_MASK_OPCODE),
-	CCN_EVENT_MN(dvmop, "dir=0,vc=0,cmp_h=0x2800", CCN_IDX_MASK_OPCODE),
+	CCN_EVENT_MN(eobarrier, "dir=1,vc=0,cmp_h=0x1c00", CCN_IDX_MASK_OPCODE),
+	CCN_EVENT_MN(ecbarrier, "dir=1,vc=0,cmp_h=0x1e00", CCN_IDX_MASK_OPCODE),
+	CCN_EVENT_MN(dvmop, "dir=1,vc=0,cmp_h=0x2800", CCN_IDX_MASK_OPCODE),
 	CCN_EVENT_HNI(txdatflits, "dir=1,vc=3", CCN_IDX_MASK_ANY),
 	CCN_EVENT_HNI(rxdatflits, "dir=0,vc=3", CCN_IDX_MASK_ANY),
 	CCN_EVENT_HNI(txreqflits, "dir=1,vc=0", CCN_IDX_MASK_ANY),
@@ -757,6 +762,12 @@ static int arm_ccn_pmu_event_init(struct perf_event *event)
 
 	/* Validate node/xp vs topology */
 	switch (type) {
+	case CCN_TYPE_MN:
+		if (node_xp != ccn->mn_id) {
+			dev_warn(ccn->dev, "Invalid MN ID %d!\n", node_xp);
+			return -EINVAL;
+		}
+		break;
 	case CCN_TYPE_XP:
 		if (node_xp >= ccn->num_xps) {
 			dev_warn(ccn->dev, "Invalid XP ID %d!\n", node_xp);
@@ -1368,6 +1379,8 @@ static int arm_ccn_init_nodes(struct arm_ccn *ccn, int region,
 
 	switch (type) {
 	case CCN_TYPE_MN:
+		ccn->mn_id = id;
+		return 0;
 	case CCN_TYPE_DT:
 		return 0;
 	case CCN_TYPE_XP:
