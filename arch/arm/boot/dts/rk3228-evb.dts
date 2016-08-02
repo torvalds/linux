@@ -25,6 +25,7 @@
 };
 
 &emmc {
+	supports-emmc;
 	cap-mmc-highspeed;
 	mmc-ddr-1_8v;
 	disable-wp;
