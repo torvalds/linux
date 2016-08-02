@@ -87,7 +87,7 @@ struct kvmppc_vcore {
 	u8 vcore_state;
 	u8 in_guest;
 	struct kvmppc_vcore *master_vcore;
-	struct list_head runnable_threads;
+	struct kvm_vcpu *runnable_threads[MAX_SMT_THREADS];
 	struct list_head preempt_list;
 	spinlock_t lock;
 	struct swait_queue_head wq;

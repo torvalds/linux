@@ -635,7 +635,6 @@ struct kvm_vcpu_arch {
 	long pgfault_index;
 	unsigned long pgfault_hpte[2];
 
-	struct list_head run_list;
 	struct task_struct *run_task;
 	struct kvm_run *kvm_run;
 
