@@ -61,6 +61,11 @@ static inline void console_verbose(void)
 		console_loglevel = CONSOLE_LOGLEVEL_MOTORMOUTH;
 }
 
+/* strlen("ratelimit") + 1 */
+#define DEVKMSG_STR_MAX_SIZE 10
+extern char devkmsg_log_str[];
+struct ctl_table;
+
 struct va_format {
 	const char *fmt;
 	va_list *va;
@@ -174,6 +179,10 @@ extern bool printk_timed_ratelimit(unsigned long *caller_jiffies,
 extern int printk_delay_msec;
 extern int dmesg_restrict;
 extern int kptr_restrict;
+
+extern int
+devkmsg_sysctl_set_loglvl(struct ctl_table *table, int write, void __user *buf,
+			  size_t *lenp, loff_t *ppos);
 
 extern void wake_up_klogd(void);
 

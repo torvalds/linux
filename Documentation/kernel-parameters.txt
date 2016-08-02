@@ -3173,6 +3173,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Format: <bool>  (1/Y/y=enable, 0/N/n=disable)
 			default: disabled
 
+	printk.devkmsg={on,off,ratelimit}
+			Control writing to /dev/kmsg.
+			on - unlimited logging to /dev/kmsg from userspace
+			off - logging to /dev/kmsg disabled
+			ratelimit - ratelimit the logging
+			Default: ratelimit
+
 	printk.time=	Show timing data prefixed to each printk message line
 			Format: <bool>  (1/Y/y=enable, 0/N/n=disable)
 
