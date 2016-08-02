@@ -1768,9 +1768,11 @@ static void pnv_pci_ioda1_tce_invalidate(struct iommu_table *tbl,
         mb(); /* Ensure above stores are visible */
         while (start <= end) {
 		if (rm)
-			__raw_rm_writeq(cpu_to_be64(start), invalidate);
+			__raw_rm_writeq((__force u64)cpu_to_be64(start),
+					invalidate);
 		else
-			__raw_writeq(cpu_to_be64(start), invalidate);
+			__raw_writeq((__force unsigned long)cpu_to_be64(start),
+				     invalidate);
                 start += inc;
         }
 
@@ -1836,11 +1838,12 @@ void pnv_pci_ioda2_tce_invalidate_entire(struct pnv_phb *phb, bool rm)
 
 	mb(); /* Ensure previous TCE table stores are visible */
 	if (rm)
-		__raw_rm_writeq(cpu_to_be64(val),
+		__raw_rm_writeq((__force u64)cpu_to_be64(val),
 				(__be64 __iomem *)
 				phb->ioda.tce_inval_reg_phys);
 	else
-		__raw_writeq(cpu_to_be64(val), phb->ioda.tce_inval_reg);
+		__raw_writeq((__force unsigned long)cpu_to_be64(val),
+			     phb->ioda.tce_inval_reg);
 }
 
 static inline void pnv_pci_ioda2_tce_invalidate_pe(struct pnv_ioda_pe *pe)
@@ -1853,7 +1856,8 @@ static inline void pnv_pci_ioda2_tce_invalidate_pe(struct pnv_ioda_pe *pe)
 		return;
 
 	mb(); /* Ensure above stores are visible */
-	__raw_writeq(cpu_to_be64(val), phb->ioda.tce_inval_reg);
+	__raw_writeq((__force unsigned long)cpu_to_be64(val),
+		     phb->ioda.tce_inval_reg);
 }
 
 static void pnv_pci_ioda2_do_tce_invalidate(unsigned pe_number, bool rm,
@@ -1875,9 +1879,11 @@ static void pnv_pci_ioda2_do_tce_invalidate(unsigned pe_number, bool rm,
 
 	while (start <= end) {
 		if (rm)
-			__raw_rm_writeq(cpu_to_be64(start), invalidate);
+			__raw_rm_writeq((__force u64)cpu_to_be64(start),
+					invalidate);
 		else
-			__raw_writeq(cpu_to_be64(start), invalidate);
+			__raw_writeq((__force unsigned long)cpu_to_be64(start),
+				     invalidate);
 		start += inc;
 	}
 }
