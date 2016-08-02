@@ -47,15 +47,15 @@ int __intel_ring_space(int head, int tail, int size)
 	return space - I915_RING_FREE_SPACE;
 }
 
-void intel_ring_update_space(struct intel_ring *ringbuf)
+void intel_ring_update_space(struct intel_ring *ring)
 {
-	if (ringbuf->last_retired_head != -1) {
-		ringbuf->head = ringbuf->last_retired_head;
-		ringbuf->last_retired_head = -1;
+	if (ring->last_retired_head != -1) {
+		ring->head = ring->last_retired_head;
+		ring->last_retired_head = -1;
 	}
 
-	ringbuf->space = __intel_ring_space(ringbuf->head & HEAD_ADDR,
-					    ringbuf->tail, ringbuf->size);
+	ring->space = __intel_ring_space(ring->head & HEAD_ADDR,
+					 ring->tail, ring->size);
 }
 
 static void __intel_engine_submit(struct intel_engine_cs *engine)
@@ -1993,25 +1993,25 @@ static int init_phys_status_page(struct intel_engine_cs *engine)
 	return 0;
 }
 
-void intel_unpin_ring(struct intel_ring *ringbuf)
+void intel_unpin_ring(struct intel_ring *ring)
 {
-	GEM_BUG_ON(!ringbuf->vma);
-	GEM_BUG_ON(!ringbuf->vaddr);
+	GEM_BUG_ON(!ring->vma);
+	GEM_BUG_ON(!ring->vaddr);
 
-	if (HAS_LLC(ringbuf->obj->base.dev) && !ringbuf->obj->stolen)
-		i915_gem_object_unpin_map(ringbuf->obj);
+	if (HAS_LLC(ring->obj->base.dev) && !ring->obj->stolen)
+		i915_gem_object_unpin_map(ring->obj);
 	else
-		i915_vma_unpin_iomap(ringbuf->vma);
-	ringbuf->vaddr = NULL;
+		i915_vma_unpin_iomap(ring->vma);
+	ring->vaddr = NULL;
 
-	i915_gem_object_ggtt_unpin(ringbuf->obj);
-	ringbuf->vma = NULL;
+	i915_gem_object_ggtt_unpin(ring->obj);
+	ring->vma = NULL;
 }
 
 int intel_pin_and_map_ring(struct drm_i915_private *dev_priv,
-			   struct intel_ring *ringbuf)
+			   struct intel_ring *ring)
 {
-	struct drm_i915_gem_object *obj = ringbuf->obj;
+	struct drm_i915_gem_object *obj = ring->obj;
 	/* Ring wraparound at offset 0 sometimes hangs. No idea why. */
 	unsigned flags = PIN_OFFSET_BIAS | 4096;
 	void *addr;
@@ -2052,8 +2052,8 @@ int intel_pin_and_map_ring(struct drm_i915_private *dev_priv,
 		}
 	}
 
-	ringbuf->vaddr = addr;
-	ringbuf->vma = i915_gem_obj_to_ggtt(obj);
+	ring->vaddr = addr;
+	ring->vma = i915_gem_obj_to_ggtt(obj);
 	return 0;
 
 err_unpin:
@@ -2061,29 +2061,29 @@ err_unpin:
 	return ret;
 }
 
-static void intel_destroy_ringbuffer_obj(struct intel_ring *ringbuf)
+static void intel_destroy_ringbuffer_obj(struct intel_ring *ring)
 {
-	i915_gem_object_put(ringbuf->obj);
-	ringbuf->obj = NULL;
+	i915_gem_object_put(ring->obj);
+	ring->obj = NULL;
 }
 
 static int intel_alloc_ringbuffer_obj(struct drm_device *dev,
-				      struct intel_ring *ringbuf)
+				      struct intel_ring *ring)
 {
 	struct drm_i915_gem_object *obj;
 
 	obj = NULL;
 	if (!HAS_LLC(dev))
-		obj = i915_gem_object_create_stolen(dev, ringbuf->size);
+		obj = i915_gem_object_create_stolen(dev, ring->size);
 	if (obj == NULL)
-		obj = i915_gem_object_create(dev, ringbuf->size);
+		obj = i915_gem_object_create(dev, ring->size);
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
 	/* mark ring buffers as read-only from GPU side by default */
 	obj->gt_ro = 1;
 
-	ringbuf->obj = obj;
+	ring->obj = obj;
 
 	return 0;
 }
@@ -2190,7 +2190,7 @@ static void intel_ring_context_unpin(struct i915_gem_context *ctx,
 static int intel_init_ring_buffer(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
-	struct intel_ring *ringbuf;
+	struct intel_ring *ring;
 	int ret;
 
 	WARN_ON(engine->buffer);
@@ -2215,12 +2215,12 @@ static int intel_init_ring_buffer(struct intel_engine_cs *engine)
 	if (ret)
 		goto error;
 
-	ringbuf = intel_engine_create_ring(engine, 32 * PAGE_SIZE);
-	if (IS_ERR(ringbuf)) {
-		ret = PTR_ERR(ringbuf);
+	ring = intel_engine_create_ring(engine, 32 * PAGE_SIZE);
+	if (IS_ERR(ring)) {
+		ret = PTR_ERR(ring);
 		goto error;
 	}
-	engine->buffer = ringbuf;
+	engine->buffer = ring;
 
 	if (I915_NEED_GFX_HWS(dev_priv)) {
 		ret = init_status_page(engine);
@@ -2233,11 +2233,11 @@ static int intel_init_ring_buffer(struct intel_engine_cs *engine)
 			goto error;
 	}
 
-	ret = intel_pin_and_map_ring(dev_priv, ringbuf);
+	ret = intel_pin_and_map_ring(dev_priv, ring);
 	if (ret) {
 		DRM_ERROR("Failed to pin and map ringbuffer %s: %d\n",
 				engine->name, ret);
-		intel_destroy_ringbuffer_obj(ringbuf);
+		intel_destroy_ringbuffer_obj(ring);
 		goto error;
 	}
 

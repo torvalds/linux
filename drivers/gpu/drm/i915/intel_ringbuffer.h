@@ -471,7 +471,7 @@ static inline void intel_ring_advance(struct intel_ring *ring)
 }
 
 int __intel_ring_space(int head, int tail, int size);
-void intel_ring_update_space(struct intel_ring *ringbuf);
+void intel_ring_update_space(struct intel_ring *ring);
 
 int __must_check intel_engine_idle(struct intel_engine_cs *engine);
 void intel_engine_init_seqno(struct intel_engine_cs *engine, u32 seqno);
@@ -498,9 +498,9 @@ static inline u32 intel_engine_get_seqno(struct intel_engine_cs *engine)
 
 int init_workarounds_ring(struct intel_engine_cs *engine);
 
-static inline u32 intel_ring_get_tail(struct intel_ring *ringbuf)
+static inline u32 intel_ring_get_tail(struct intel_ring *ring)
 {
-	return ringbuf->tail;
+	return ring->tail;
 }
 
 /*
