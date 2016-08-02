@@ -289,7 +289,7 @@ static void fsl_rio_inbound_mem_init(struct rio_priv *priv)
 }
 
 int fsl_map_inb_mem(struct rio_mport *mport, dma_addr_t lstart,
-	u64 rstart, u32 size, u32 flags)
+	u64 rstart, u64 size, u32 flags)
 {
 	struct rio_priv *priv = mport->priv;
 	u32 base_size;
@@ -298,7 +298,7 @@ int fsl_map_inb_mem(struct rio_mport *mport, dma_addr_t lstart,
 	u32 riwar;
 	int i;
 
-	if ((size & (size - 1)) != 0)
+	if ((size & (size - 1)) != 0 || size > 0x400000000ULL)
 		return -EINVAL;
 
 	base_size_log = ilog2(size);
