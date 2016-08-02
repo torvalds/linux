@@ -137,7 +137,9 @@ static void kasan_object_err(struct kmem_cache *cache, struct page *page,
 	struct kasan_free_meta *free_info;
 
 	dump_stack();
-	pr_err("Object at %p, in cache %s\n", object, cache->name);
+	pr_err("Object at %p, in cache %s size: %d\n", object, cache->name,
+		cache->object_size);
+
 	if (!(cache->flags & SLAB_KASAN))
 		return;
 	switch (alloc_info->state) {
@@ -145,15 +147,11 @@ static void kasan_object_err(struct kmem_cache *cache, struct page *page,
 		pr_err("Object not allocated yet\n");
 		break;
 	case KASAN_STATE_ALLOC:
-		pr_err("Object allocated with size %u bytes.\n",
-		       alloc_info->alloc_size);
 		pr_err("Allocation:\n");
 		print_track(&alloc_info->track);
 		break;
 	case KASAN_STATE_FREE:
 	case KASAN_STATE_QUARANTINE:
-		pr_err("Object freed, allocated with size %u bytes\n",
-		       alloc_info->alloc_size);
 		free_info = get_free_info(cache, object);
 		pr_err("Allocation:\n");
 		print_track(&alloc_info->track);
