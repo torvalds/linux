@@ -41,8 +41,8 @@ static int nilfs_bmap_convert_error(struct nilfs_bmap *bmap,
 	struct inode *inode = bmap->b_inode;
 
 	if (err == -EINVAL) {
-		nilfs_error(inode->i_sb, fname,
-			    "broken bmap (inode number=%lu)", inode->i_ino);
+		__nilfs_error(inode->i_sb, fname,
+			      "broken bmap (inode number=%lu)", inode->i_ino);
 		err = -EIO;
 	}
 	return err;

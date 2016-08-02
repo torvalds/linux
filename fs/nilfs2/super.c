@@ -91,19 +91,21 @@ static void nilfs_set_error(struct super_block *sb)
 }
 
 /**
- * nilfs_error() - report failure condition on a filesystem
+ * __nilfs_error() - report failure condition on a filesystem
  *
- * nilfs_error() sets an ERROR_FS flag on the superblock as well as
- * reporting an error message.  It should be called when NILFS detects
- * incoherences or defects of meta data on disk.  As for sustainable
- * errors such as a single-shot I/O error, nilfs_warning() or the printk()
- * function should be used instead.
+ * __nilfs_error() sets an ERROR_FS flag on the superblock as well as
+ * reporting an error message.  This function should be called when
+ * NILFS detects incoherences or defects of meta data on disk.
  *
- * The segment constructor must not call this function because it can
- * kill itself.
+ * This implements the body of nilfs_error() macro.  Normally,
+ * nilfs_error() should be used.  As for sustainable errors such as a
+ * single-shot I/O error, nilfs_warning() or printk() should be used
+ * instead.
+ *
+ * Callers should not add a trailing newline since this will do it.
  */
-void nilfs_error(struct super_block *sb, const char *function,
-		 const char *fmt, ...)
+void __nilfs_error(struct super_block *sb, const char *function,
+		   const char *fmt, ...)
 {
 	struct the_nilfs *nilfs = sb->s_fs_info;
 	struct va_format vaf;

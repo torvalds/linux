@@ -140,10 +140,9 @@ out:
 	/* Too bad, we had an error */
 
 Ebadsize:
-	nilfs_error(sb, "nilfs_check_page",
+	nilfs_error(sb,
 		    "size of directory #%lu is not a multiple of chunk size",
-		    dir->i_ino
-	);
+		    dir->i_ino);
 	goto fail;
 Eshort:
 	error = "rec_len is smaller than minimal";
@@ -157,19 +156,18 @@ Enamelen:
 Espan:
 	error = "directory entry across blocks";
 bad_entry:
-	nilfs_error(sb, "nilfs_check_page", "bad entry in directory #%lu: %s - "
-		    "offset=%lu, inode=%lu, rec_len=%d, name_len=%d",
-		    dir->i_ino, error, (page->index<<PAGE_SHIFT)+offs,
-		    (unsigned long) le64_to_cpu(p->inode),
+	nilfs_error(sb,
+		    "bad entry in directory #%lu: %s - offset=%lu, inode=%lu, rec_len=%d, name_len=%d",
+		    dir->i_ino, error, (page->index << PAGE_SHIFT) + offs,
+		    (unsigned long)le64_to_cpu(p->inode),
 		    rec_len, p->name_len);
 	goto fail;
 Eend:
 	p = (struct nilfs_dir_entry *)(kaddr + offs);
-	nilfs_error(sb, "nilfs_check_page",
-		    "entry in directory #%lu spans the page boundary"
-		    "offset=%lu, inode=%lu",
-		    dir->i_ino, (page->index<<PAGE_SHIFT)+offs,
-		    (unsigned long) le64_to_cpu(p->inode));
+	nilfs_error(sb,
+		    "entry in directory #%lu spans the page boundary offset=%lu, inode=%lu",
+		    dir->i_ino, (page->index << PAGE_SHIFT) + offs,
+		    (unsigned long)le64_to_cpu(p->inode));
 fail:
 	SetPageError(page);
 	return false;
@@ -267,8 +265,7 @@ static int nilfs_readdir(struct file *file, struct dir_context *ctx)
 		struct page *page = nilfs_get_page(inode, n);
 
 		if (IS_ERR(page)) {
-			nilfs_error(sb, __func__, "bad page in #%lu",
-				    inode->i_ino);
+			nilfs_error(sb, "bad page in #%lu", inode->i_ino);
 			ctx->pos += PAGE_SIZE - offset;
 			return -EIO;
 		}
@@ -278,8 +275,7 @@ static int nilfs_readdir(struct file *file, struct dir_context *ctx)
 			NILFS_DIR_REC_LEN(1);
 		for ( ; (char *)de <= limit; de = nilfs_next_entry(de)) {
 			if (de->rec_len == 0) {
-				nilfs_error(sb, __func__,
-					    "zero-length directory entry");
+				nilfs_error(sb, "zero-length directory entry");
 				nilfs_put_page(page);
 				return -EIO;
 			}
@@ -345,7 +341,7 @@ nilfs_find_entry(struct inode *dir, const struct qstr *qstr,
 			kaddr += nilfs_last_byte(dir, n) - reclen;
 			while ((char *) de <= kaddr) {
 				if (de->rec_len == 0) {
-					nilfs_error(dir->i_sb, __func__,
+					nilfs_error(dir->i_sb,
 						"zero-length directory entry");
 					nilfs_put_page(page);
 					goto out;
@@ -360,7 +356,7 @@ nilfs_find_entry(struct inode *dir, const struct qstr *qstr,
 			n = 0;
 		/* next page is past the blocks we've got */
 		if (unlikely(n > (dir->i_blocks >> (PAGE_SHIFT - 9)))) {
-			nilfs_error(dir->i_sb, __func__,
+			nilfs_error(dir->i_sb,
 			       "dir %lu size %lld exceeds block count %llu",
 			       dir->i_ino, dir->i_size,
 			       (unsigned long long)dir->i_blocks);
@@ -469,7 +465,7 @@ int nilfs_add_link(struct dentry *dentry, struct inode *inode)
 				goto got_it;
 			}
 			if (de->rec_len == 0) {
-				nilfs_error(dir->i_sb, __func__,
+				nilfs_error(dir->i_sb,
 					    "zero-length directory entry");
 				err = -EIO;
 				goto out_unlock;
@@ -541,7 +537,7 @@ int nilfs_delete_entry(struct nilfs_dir_entry *dir, struct page *page)
 
 	while ((char *)de < (char *)dir) {
 		if (de->rec_len == 0) {
-			nilfs_error(inode->i_sb, __func__,
+			nilfs_error(inode->i_sb,
 				    "zero-length directory entry");
 			err = -EIO;
 			goto out;
@@ -628,7 +624,7 @@ int nilfs_empty_dir(struct inode *inode)
 
 		while ((char *)de <= kaddr) {
 			if (de->rec_len == 0) {
-				nilfs_error(inode->i_sb, __func__,
+				nilfs_error(inode->i_sb,
 					    "zero-length directory entry (kaddr=%p, de=%p)",
 					    kaddr, de);
 				goto not_empty;

@@ -145,8 +145,7 @@ int nilfs_ifile_get_inode_block(struct inode *ifile, ino_t ino,
 	int err;
 
 	if (unlikely(!NILFS_VALID_INODE(sb, ino))) {
-		nilfs_error(sb, __func__, "bad inode number: %lu",
-			    (unsigned long) ino);
+		nilfs_error(sb, "bad inode number: %lu", (unsigned long)ino);
 		return -EINVAL;
 	}
 
