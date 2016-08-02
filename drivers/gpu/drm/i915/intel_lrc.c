@@ -384,8 +384,8 @@ static void execlists_update_context(struct drm_i915_gem_request *rq)
 		execlists_update_context_pdps(ppgtt, reg_state);
 }
 
-static void execlists_submit_requests(struct drm_i915_gem_request *rq0,
-				      struct drm_i915_gem_request *rq1)
+static void execlists_elsp_submit_contexts(struct drm_i915_gem_request *rq0,
+					   struct drm_i915_gem_request *rq1)
 {
 	struct drm_i915_private *dev_priv = rq0->i915;
 	unsigned int fw_domains = rq0->engine->fw_domains;
@@ -418,7 +418,7 @@ static inline void execlists_context_status_change(
 	atomic_notifier_call_chain(&rq->ctx->status_notifier, status, rq);
 }
 
-static void execlists_context_unqueue(struct intel_engine_cs *engine)
+static void execlists_unqueue(struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_request *req0 = NULL, *req1 = NULL;
 	struct drm_i915_gem_request *cursor, *tmp;
@@ -486,7 +486,7 @@ static void execlists_context_unqueue(struct intel_engine_cs *engine)
 		req0->tail &= req0->ring->size - 1;
 	}
 
-	execlists_submit_requests(req0, req1);
+	execlists_elsp_submit_contexts(req0, req1);
 }
 
 static unsigned int
@@ -597,7 +597,7 @@ static void intel_lrc_irq_handler(unsigned long data)
 	if (submit_contexts) {
 		if (!engine->disable_lite_restore_wa ||
 		    (csb[i][0] & GEN8_CTX_STATUS_ACTIVE_IDLE))
-			execlists_context_unqueue(engine);
+			execlists_unqueue(engine);
 	}
 
 	spin_unlock(&engine->execlist_lock);
@@ -606,7 +606,7 @@ static void intel_lrc_irq_handler(unsigned long data)
 		DRM_ERROR("More than two context complete events?\n");
 }
 
-static void execlists_context_queue(struct drm_i915_gem_request *request)
+static void execlists_submit_request(struct drm_i915_gem_request *request)
 {
 	struct intel_engine_cs *engine = request->engine;
 	struct drm_i915_gem_request *cursor;
@@ -637,7 +637,7 @@ static void execlists_context_queue(struct drm_i915_gem_request *request)
 	list_add_tail(&request->execlist_link, &engine->execlist_queue);
 	request->ctx_hw_id = request->ctx->hw_id;
 	if (num_elements == 0)
-		execlists_context_unqueue(engine);
+		execlists_unqueue(engine);
 
 	spin_unlock_bh(&engine->execlist_lock);
 }
@@ -1899,7 +1899,7 @@ void intel_execlists_enable_submission(struct drm_i915_private *dev_priv)
 	struct intel_engine_cs *engine;
 
 	for_each_engine(engine, dev_priv)
-		engine->submit_request = execlists_context_queue;
+		engine->submit_request = execlists_submit_request;
 }
 
 static void
@@ -1909,7 +1909,7 @@ logical_ring_default_vfuncs(struct intel_engine_cs *engine)
 	engine->init_hw = gen8_init_common_ring;
 	engine->emit_flush = gen8_emit_flush;
 	engine->emit_request = gen8_emit_request;
-	engine->submit_request = execlists_context_queue;
+	engine->submit_request = execlists_submit_request;
 
 	engine->irq_enable = gen8_logical_ring_enable_irq;
 	engine->irq_disable = gen8_logical_ring_disable_irq;

@@ -1019,11 +1019,11 @@ void i915_guc_submission_disable(struct drm_i915_private *dev_priv)
 	if (!guc->execbuf_client)
 		return;
 
-	guc_client_free(dev_priv, guc->execbuf_client);
-	guc->execbuf_client = NULL;
-
 	/* Revert back to manual ELSP submission */
 	intel_execlists_enable_submission(dev_priv);
+
+	guc_client_free(dev_priv, guc->execbuf_client);
+	guc->execbuf_client = NULL;
 }
 
 void i915_guc_submission_fini(struct drm_i915_private *dev_priv)
