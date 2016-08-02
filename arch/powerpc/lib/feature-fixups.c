@@ -161,7 +161,7 @@ static unsigned long __initdata saved_firmware_features;
 
 void __init apply_feature_fixups(void)
 {
-	struct cpu_spec *spec = *PTRRELOC(&cur_cpu_spec);
+	struct cpu_spec *spec = PTRRELOC(*PTRRELOC(&cur_cpu_spec));
 
 	*PTRRELOC(&saved_cpu_features) = spec->cpu_features;
 	*PTRRELOC(&saved_mmu_features) = spec->mmu_features;
