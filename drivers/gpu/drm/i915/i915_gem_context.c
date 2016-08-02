@@ -552,6 +552,7 @@ static inline int
 mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 {
 	struct drm_i915_private *dev_priv = req->i915;
+	struct intel_ringbuffer *ring = req->ringbuf;
 	struct intel_engine_cs *engine = req->engine;
 	u32 flags = hw_flags | MI_MM_SPACE_GTT;
 	const int num_rings =
@@ -589,64 +590,64 @@ mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 
 	/* WaProgramMiArbOnOffAroundMiSetContext:ivb,vlv,hsw,bdw,chv */
 	if (INTEL_GEN(dev_priv) >= 7) {
-		intel_ring_emit(engine, MI_ARB_ON_OFF | MI_ARB_DISABLE);
+		intel_ring_emit(ring, MI_ARB_ON_OFF | MI_ARB_DISABLE);
 		if (num_rings) {
 			struct intel_engine_cs *signaller;
 
-			intel_ring_emit(engine,
+			intel_ring_emit(ring,
 					MI_LOAD_REGISTER_IMM(num_rings));
 			for_each_engine(signaller, dev_priv) {
 				if (signaller == engine)
 					continue;
 
-				intel_ring_emit_reg(engine,
+				intel_ring_emit_reg(ring,
 						    RING_PSMI_CTL(signaller->mmio_base));
-				intel_ring_emit(engine,
+				intel_ring_emit(ring,
 						_MASKED_BIT_ENABLE(GEN6_PSMI_SLEEP_MSG_DISABLE));
 			}
 		}
 	}
 
-	intel_ring_emit(engine, MI_NOOP);
-	intel_ring_emit(engine, MI_SET_CONTEXT);
-	intel_ring_emit(engine,
+	intel_ring_emit(ring, MI_NOOP);
+	intel_ring_emit(ring, MI_SET_CONTEXT);
+	intel_ring_emit(ring,
 			i915_gem_obj_ggtt_offset(req->ctx->engine[RCS].state) |
 			flags);
 	/*
 	 * w/a: MI_SET_CONTEXT must always be followed by MI_NOOP
 	 * WaMiSetContext_Hang:snb,ivb,vlv
 	 */
-	intel_ring_emit(engine, MI_NOOP);
+	intel_ring_emit(ring, MI_NOOP);
 
 	if (INTEL_GEN(dev_priv) >= 7) {
 		if (num_rings) {
 			struct intel_engine_cs *signaller;
 			i915_reg_t last_reg = {}; /* keep gcc quiet */
 
-			intel_ring_emit(engine,
+			intel_ring_emit(ring,
 					MI_LOAD_REGISTER_IMM(num_rings));
 			for_each_engine(signaller, dev_priv) {
 				if (signaller == engine)
 					continue;
 
 				last_reg = RING_PSMI_CTL(signaller->mmio_base);
-				intel_ring_emit_reg(engine, last_reg);
-				intel_ring_emit(engine,
+				intel_ring_emit_reg(ring, last_reg);
+				intel_ring_emit(ring,
 						_MASKED_BIT_DISABLE(GEN6_PSMI_SLEEP_MSG_DISABLE));
 			}
 
 			/* Insert a delay before the next switch! */
-			intel_ring_emit(engine,
+			intel_ring_emit(ring,
 					MI_STORE_REGISTER_MEM |
 					MI_SRM_LRM_GLOBAL_GTT);
-			intel_ring_emit_reg(engine, last_reg);
-			intel_ring_emit(engine, engine->scratch.gtt_offset);
-			intel_ring_emit(engine, MI_NOOP);
+			intel_ring_emit_reg(ring, last_reg);
+			intel_ring_emit(ring, engine->scratch.gtt_offset);
+			intel_ring_emit(ring, MI_NOOP);
 		}
-		intel_ring_emit(engine, MI_ARB_ON_OFF | MI_ARB_ENABLE);
+		intel_ring_emit(ring, MI_ARB_ON_OFF | MI_ARB_ENABLE);
 	}
 
-	intel_ring_advance(engine);
+	intel_ring_advance(ring);
 
 	return ret;
 }
@@ -654,7 +655,7 @@ mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 static int remap_l3(struct drm_i915_gem_request *req, int slice)
 {
 	u32 *remap_info = req->i915->l3_parity.remap_info[slice];
-	struct intel_engine_cs *engine = req->engine;
+	struct intel_ringbuffer *ring = req->ringbuf;
 	int i, ret;
 
 	if (!remap_info)
@@ -669,13 +670,13 @@ static int remap_l3(struct drm_i915_gem_request *req, int slice)
 	 * here because no other code should access these registers other than
 	 * at initialization time.
 	 */
-	intel_ring_emit(engine, MI_LOAD_REGISTER_IMM(GEN7_L3LOG_SIZE/4));
+	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(GEN7_L3LOG_SIZE/4));
 	for (i = 0; i < GEN7_L3LOG_SIZE/4; i++) {
-		intel_ring_emit_reg(engine, GEN7_L3LOG(slice, i));
-		intel_ring_emit(engine, remap_info[i]);
+		intel_ring_emit_reg(ring, GEN7_L3LOG(slice, i));
+		intel_ring_emit(ring, remap_info[i]);
 	}
-	intel_ring_emit(engine, MI_NOOP);
-	intel_ring_advance(engine);
+	intel_ring_emit(ring, MI_NOOP);
+	intel_ring_advance(ring);
 
 	return 0;
 }

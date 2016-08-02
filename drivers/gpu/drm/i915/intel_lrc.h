@@ -73,32 +73,6 @@ int logical_xcs_ring_init(struct intel_engine_cs *engine);
 int intel_engines_init(struct drm_device *dev);
 
 int logical_ring_flush_all_caches(struct drm_i915_gem_request *req);
-/**
- * intel_logical_ring_advance() - advance the ringbuffer tail
- * @ringbuf: Ringbuffer to advance.
- *
- * The tail is only updated in our logical ringbuffer struct.
- */
-static inline void intel_logical_ring_advance(struct intel_ringbuffer *ringbuf)
-{
-	__intel_ringbuffer_advance(ringbuf);
-}
-
-/**
- * intel_logical_ring_emit() - write a DWORD to the ringbuffer.
- * @ringbuf: Ringbuffer to write to.
- * @data: DWORD to write.
- */
-static inline void intel_logical_ring_emit(struct intel_ringbuffer *ringbuf,
-					   u32 data)
-{
-	__intel_ringbuffer_emit(ringbuf, data);
-}
-static inline void intel_logical_ring_emit_reg(struct intel_ringbuffer *ringbuf,
-					       i915_reg_t reg)
-{
-	intel_logical_ring_emit(ringbuf, i915_mmio_reg_offset(reg));
-}
 
 /* Logical Ring Contexts */
 

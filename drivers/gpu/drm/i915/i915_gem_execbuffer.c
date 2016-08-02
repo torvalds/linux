@@ -1171,14 +1171,12 @@ i915_gem_execbuffer_retire_commands(struct i915_execbuffer_params *params)
 }
 
 static int
-i915_reset_gen7_sol_offsets(struct drm_device *dev,
-			    struct drm_i915_gem_request *req)
+i915_reset_gen7_sol_offsets(struct drm_i915_gem_request *req)
 {
-	struct intel_engine_cs *engine = req->engine;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_ringbuffer *ring = req->ringbuf;
 	int ret, i;
 
-	if (!IS_GEN7(dev) || engine != &dev_priv->engine[RCS]) {
+	if (!IS_GEN7(req->i915) || req->engine->id != RCS) {
 		DRM_DEBUG("sol reset is gen7/rcs only\n");
 		return -EINVAL;
 	}
@@ -1188,12 +1186,12 @@ i915_reset_gen7_sol_offsets(struct drm_device *dev,
 		return ret;
 
 	for (i = 0; i < 4; i++) {
-		intel_ring_emit(engine, MI_LOAD_REGISTER_IMM(1));
-		intel_ring_emit_reg(engine, GEN7_SO_WRITE_OFFSET(i));
-		intel_ring_emit(engine, 0);
+		intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
+		intel_ring_emit_reg(ring, GEN7_SO_WRITE_OFFSET(i));
+		intel_ring_emit(ring, 0);
 	}
 
-	intel_ring_advance(engine);
+	intel_ring_advance(ring);
 
 	return 0;
 }
@@ -1256,9 +1254,7 @@ i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
 			       struct drm_i915_gem_execbuffer2 *args,
 			       struct list_head *vmas)
 {
-	struct drm_device *dev = params->dev;
-	struct intel_engine_cs *engine = params->engine;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = params->request->i915;
 	u64 exec_start, exec_len;
 	int instp_mode;
 	u32 instp_mask;
@@ -1272,34 +1268,31 @@ i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
 	if (ret)
 		return ret;
 
-	WARN(params->ctx->ppgtt && params->ctx->ppgtt->pd_dirty_rings & (1<<engine->id),
-	     "%s didn't clear reload\n", engine->name);
-
 	instp_mode = args->flags & I915_EXEC_CONSTANTS_MASK;
 	instp_mask = I915_EXEC_CONSTANTS_MASK;
 	switch (instp_mode) {
 	case I915_EXEC_CONSTANTS_REL_GENERAL:
 	case I915_EXEC_CONSTANTS_ABSOLUTE:
 	case I915_EXEC_CONSTANTS_REL_SURFACE:
-		if (instp_mode != 0 && engine != &dev_priv->engine[RCS]) {
+		if (instp_mode != 0 && params->engine->id != RCS) {
 			DRM_DEBUG("non-0 rel constants mode on non-RCS\n");
 			return -EINVAL;
 		}
 
 		if (instp_mode != dev_priv->relative_constants_mode) {
-			if (INTEL_INFO(dev)->gen < 4) {
+			if (INTEL_INFO(dev_priv)->gen < 4) {
 				DRM_DEBUG("no rel constants on pre-gen4\n");
 				return -EINVAL;
 			}
 
-			if (INTEL_INFO(dev)->gen > 5 &&
+			if (INTEL_INFO(dev_priv)->gen > 5 &&
 			    instp_mode == I915_EXEC_CONSTANTS_REL_SURFACE) {
 				DRM_DEBUG("rel surface constants mode invalid on gen5+\n");
 				return -EINVAL;
 			}
 
 			/* The HW changed the meaning on this bit on gen6 */
-			if (INTEL_INFO(dev)->gen >= 6)
+			if (INTEL_INFO(dev_priv)->gen >= 6)
 				instp_mask &= ~I915_EXEC_CONSTANTS_REL_SURFACE;
 		}
 		break;
@@ -1308,23 +1301,25 @@ i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
 		return -EINVAL;
 	}
 
-	if (engine == &dev_priv->engine[RCS] &&
+	if (params->engine->id == RCS &&
 	    instp_mode != dev_priv->relative_constants_mode) {
+		struct intel_ringbuffer *ring = params->request->ringbuf;
+
 		ret = intel_ring_begin(params->request, 4);
 		if (ret)
 			return ret;
 
-		intel_ring_emit(engine, MI_NOOP);
-		intel_ring_emit(engine, MI_LOAD_REGISTER_IMM(1));
-		intel_ring_emit_reg(engine, INSTPM);
-		intel_ring_emit(engine, instp_mask << 16 | instp_mode);
-		intel_ring_advance(engine);
+		intel_ring_emit(ring, MI_NOOP);
+		intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
+		intel_ring_emit_reg(ring, INSTPM);
+		intel_ring_emit(ring, instp_mask << 16 | instp_mode);
+		intel_ring_advance(ring);
 
 		dev_priv->relative_constants_mode = instp_mode;
 	}
 
 	if (args->flags & I915_EXEC_GEN7_SOL_RESET) {
-		ret = i915_reset_gen7_sol_offsets(dev, params->request);
+		ret = i915_reset_gen7_sol_offsets(params->request);
 		if (ret)
 			return ret;
 	}
@@ -1336,9 +1331,9 @@ i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
 	if (exec_len == 0)
 		exec_len = params->batch_obj->base.size;
 
-	ret = engine->dispatch_execbuffer(params->request,
-					exec_start, exec_len,
-					params->dispatch_flags);
+	ret = params->engine->dispatch_execbuffer(params->request,
+						  exec_start, exec_len,
+						  params->dispatch_flags);
 	if (ret)
 		return ret;
 
