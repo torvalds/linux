@@ -543,9 +543,9 @@ bool kasan_slab_free(struct kmem_cache *cache, void *object)
 		switch (alloc_info->state) {
 		case KASAN_STATE_ALLOC:
 			alloc_info->state = KASAN_STATE_QUARANTINE;
-			quarantine_put(free_info, cache);
 			set_track(&free_info->track, GFP_NOWAIT);
 			kasan_poison_slab_free(cache, object);
+			quarantine_put(free_info, cache);
 			return true;
 		case KASAN_STATE_QUARANTINE:
 		case KASAN_STATE_FREE:
