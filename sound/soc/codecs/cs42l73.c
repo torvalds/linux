@@ -794,7 +794,7 @@ struct cs42l73_mclk_div {
 	u8 mmcc;
 };
 
-static struct cs42l73_mclk_div cs42l73_mclk_coeffs[] = {
+static const struct cs42l73_mclk_div cs42l73_mclk_coeffs[] = {
 	/* MCLK, Sample Rate, xMMCC[5:0] */
 	{5644800, 11025, 0x30},
 	{5644800, 22050, 0x20},
@@ -844,7 +844,7 @@ struct cs42l73_mclkx_div {
 	u8 mclkdiv;
 };
 
-static struct cs42l73_mclkx_div cs42l73_mclkx_coeffs[] = {
+static const struct cs42l73_mclkx_div cs42l73_mclkx_coeffs[] = {
 	{5644800,  1, 0},	/* 5644800 */
 	{6000000,  1, 0},	/* 6000000 */
 	{6144000,  1, 0},	/* 6144000 */
