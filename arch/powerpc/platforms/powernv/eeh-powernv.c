@@ -1314,7 +1314,7 @@ static void pnv_eeh_get_and_dump_hub_diag(struct pci_controller *hose)
 		return;
 	}
 
-	switch (data->type) {
+	switch (be16_to_cpu(data->type)) {
 	case OPAL_P7IOC_DIAG_TYPE_RGC:
 		pr_info("P7IOC diag-data for RGC\n\n");
 		pnv_eeh_dump_hub_diag_common(data);
