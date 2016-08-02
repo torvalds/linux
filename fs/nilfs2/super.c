@@ -1076,7 +1076,7 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent)
 	__u64 cno;
 	int err;
 
-	nilfs = alloc_nilfs(sb->s_bdev);
+	nilfs = alloc_nilfs(sb);
 	if (!nilfs)
 		return -ENOMEM;
 

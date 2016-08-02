@@ -56,12 +56,12 @@ void nilfs_set_last_segment(struct the_nilfs *nilfs,
 
 /**
  * alloc_nilfs - allocate a nilfs object
- * @bdev: block device to which the_nilfs is related
+ * @sb: super block instance
  *
  * Return Value: On success, pointer to the_nilfs is returned.
  * On error, NULL is returned.
  */
-struct the_nilfs *alloc_nilfs(struct block_device *bdev)
+struct the_nilfs *alloc_nilfs(struct super_block *sb)
 {
 	struct the_nilfs *nilfs;
 
@@ -69,7 +69,8 @@ struct the_nilfs *alloc_nilfs(struct block_device *bdev)
 	if (!nilfs)
 		return NULL;
 
-	nilfs->ns_bdev = bdev;
+	nilfs->ns_sb = sb;
+	nilfs->ns_bdev = sb->s_bdev;
 	atomic_set(&nilfs->ns_ndirtyblks, 0);
 	init_rwsem(&nilfs->ns_sem);
 	mutex_init(&nilfs->ns_snapshot_mount_mutex);
