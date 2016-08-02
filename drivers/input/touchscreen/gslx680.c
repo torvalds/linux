@@ -41,7 +41,7 @@ struct fw_data
 };
 */
 
-//#define RK_GEAR_TOUCH
+#define RK_GEAR_TOUCH
 #define REPORT_DATA_ANDROID_4_0
 #define HAVE_TOUCH_KEY
 //#define SLEEP_CLEAR_POINT
