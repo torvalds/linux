@@ -228,9 +228,9 @@ if ($^V && $^V lt $minimum_perl_version) {
 	}
 }
 
+#if no filenames are given, push '-' to read patch from stdin
 if ($#ARGV < 0) {
-	print "$P: no input files\n";
-	exit(1);
+	push(@ARGV, '-');
 }
 
 sub hash_save_array_words {
