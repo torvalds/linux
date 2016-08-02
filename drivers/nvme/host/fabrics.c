@@ -109,8 +109,16 @@ static void nvmf_host_put(struct nvmf_host *host)
  */
 int nvmf_get_address(struct nvme_ctrl *ctrl, char *buf, int size)
 {
-	return snprintf(buf, size, "traddr=%s,trsvcid=%s\n",
-			ctrl->opts->traddr, ctrl->opts->trsvcid);
+	int len = 0;
+
+	if (ctrl->opts->mask & NVMF_OPT_TRADDR)
+		len += snprintf(buf, size, "traddr=%s", ctrl->opts->traddr);
+	if (ctrl->opts->mask & NVMF_OPT_TRSVCID)
+		len += snprintf(buf + len, size - len, "%strsvcid=%s",
+				(len) ? "," : "", ctrl->opts->trsvcid);
+	len += snprintf(buf + len, size - len, "\n");
+
+	return len;
 }
 EXPORT_SYMBOL_GPL(nvmf_get_address);
 
