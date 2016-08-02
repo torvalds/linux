@@ -187,7 +187,7 @@ static int __gfs2_jdata_writepage(struct page *page, struct writeback_control *w
 		ClearPageChecked(page);
 		if (!page_has_buffers(page)) {
 			create_empty_buffers(page, inode->i_sb->s_blocksize,
-					     (1 << BH_Dirty)|(1 << BH_Uptodate));
+					     BIT(BH_Dirty)|BIT(BH_Uptodate));
 		}
 		gfs2_page_add_databufs(ip, page, 0, sdp->sd_vfs->s_blocksize-1);
 	}
