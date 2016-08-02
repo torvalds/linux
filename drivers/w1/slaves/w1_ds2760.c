@@ -162,25 +162,12 @@ static struct w1_family w1_ds2760_family = {
 	.fid = W1_FAMILY_DS2760,
 	.fops = &w1_ds2760_fops,
 };
-
-static int __init w1_ds2760_init(void)
-{
-	pr_info("1-Wire driver for the DS2760 battery monitor chip - (c) 2004-2005, Szabolcs Gyurko\n");
-	return w1_register_family(&w1_ds2760_family);
-}
-
-static void __exit w1_ds2760_exit(void)
-{
-	w1_unregister_family(&w1_ds2760_family);
-}
+module_w1_family(w1_ds2760_family);
 
 EXPORT_SYMBOL(w1_ds2760_read);
 EXPORT_SYMBOL(w1_ds2760_write);
 EXPORT_SYMBOL(w1_ds2760_store_eeprom);
 EXPORT_SYMBOL(w1_ds2760_recall_eeprom);
-
-module_init(w1_ds2760_init);
-module_exit(w1_ds2760_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Szabolcs Gyurko <szabolcs.gyurko@tlt.hu>");

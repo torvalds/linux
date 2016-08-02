@@ -151,19 +151,7 @@ static struct w1_family w1_ds2781_family = {
 	.fid = W1_FAMILY_DS2781,
 	.fops = &w1_ds2781_fops,
 };
-
-static int __init w1_ds2781_init(void)
-{
-	return w1_register_family(&w1_ds2781_family);
-}
-
-static void __exit w1_ds2781_exit(void)
-{
-	w1_unregister_family(&w1_ds2781_family);
-}
-
-module_init(w1_ds2781_init);
-module_exit(w1_ds2781_exit);
+module_w1_family(w1_ds2781_family);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Renata Sayakhova <renata@oktetlabs.ru>");
