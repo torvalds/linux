@@ -380,7 +380,7 @@ static void __init setup_command_line(char *command_line)
 
 static __initdata DECLARE_COMPLETION(kthreadd_done);
 
-static noinline void __init_refok rest_init(void)
+static noinline void __ref rest_init(void)
 {
 	int pid;
 

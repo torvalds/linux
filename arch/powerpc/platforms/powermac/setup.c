@@ -353,12 +353,12 @@ static int pmac_late_init(void)
 machine_late_initcall(powermac, pmac_late_init);
 
 /*
- * This is __init_refok because we check for "initializing" before
+ * This is __ref because we check for "initializing" before
  * touching any of the __init sensitive things and "initializing"
  * will be false after __init time. This can't be __init because it
  * can be called whenever a disk is first accessed.
  */
-void __init_refok note_bootable_part(dev_t dev, int part, int goodness)
+void __ref note_bootable_part(dev_t dev, int part, int goodness)
 {
 	char *p;
 

@@ -1877,7 +1877,7 @@ static struct array_cache __percpu *alloc_kmem_cache_cpus(
 	return cpu_cache;
 }
 
-static int __init_refok setup_cpu_cache(struct kmem_cache *cachep, gfp_t gfp)
+static int __ref setup_cpu_cache(struct kmem_cache *cachep, gfp_t gfp)
 {
 	if (slab_state >= FULL)
 		return enable_cpucache(cachep, gfp);
