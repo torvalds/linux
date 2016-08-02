@@ -46,6 +46,11 @@ static int pcie_mrrs = -1;
 module_param(pcie_mrrs, int, S_IRUGO);
 MODULE_PARM_DESC(pcie_mrrs, "PCIe MRRS override value (0...5)");
 
+static u8 mbox_sel = 0x0f;
+module_param(mbox_sel, byte, S_IRUGO);
+MODULE_PARM_DESC(mbox_sel,
+		 "RIO Messaging MBOX Selection Mask (default: 0x0f = all)");
+
 static void tsi721_omsg_handler(struct tsi721_device *priv, int ch);
 static void tsi721_imsg_handler(struct tsi721_device *priv, int ch);
 
@@ -1881,6 +1886,11 @@ static int tsi721_open_outb_mbox(struct rio_mport *mport, void *dev_id,
 		goto out;
 	}
 
+	if ((mbox_sel & (1 << mbox)) == 0) {
+		rc = -ENODEV;
+		goto out;
+	}
+
 	priv->omsg_ring[mbox].dev_id = dev_id;
 	priv->omsg_ring[mbox].size = entries;
 	priv->omsg_ring[mbox].sts_rdptr = 0;
@@ -2162,6 +2172,11 @@ static int tsi721_open_inb_mbox(struct rio_mport *mport, void *dev_id,
 	    (entries > TSI721_IMSGD_RING_SIZE) ||
 	    (!is_power_of_2(entries)) || mbox >= RIO_MAX_MBOX) {
 		rc = -EINVAL;
+		goto out;
+	}
+
+	if ((mbox_sel & (1 << mbox)) == 0) {
+		rc = -ENODEV;
 		goto out;
 	}
 

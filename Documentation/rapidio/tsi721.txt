@@ -46,6 +46,11 @@ fully compatible with RIONET driver (Ethernet over RapidIO messaging services).
         0 = 128B, 1 = 256B, 2 = 512B, 3 = 1024B, 4 = 2048B and 5 = 4096B.
         Default value is '-1' (= keep platform setting).
 
+- 'mbox_sel' - RIO messaging MBOX selection mask. This is a bitmask that defines
+        messaging MBOXes are managed by this device driver. Mask bits 0 - 3
+        correspond to MBOX0 - MBOX3. MBOX is under driver's control if the
+        corresponding bit is set to '1'. Default value is 0x0f (= all).
+
 II. Known problems
 
   None.
