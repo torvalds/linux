@@ -363,7 +363,7 @@ static void guc_init_ctx_desc(struct intel_guc *guc,
 		lrc->context_id = (client->ctx_index << GUC_ELC_CTXID_OFFSET) |
 				(engine->guc_id << GUC_ELC_ENGINE_OFFSET);
 
-		obj = ce->ringbuf->obj;
+		obj = ce->ring->obj;
 		gfx_addr = i915_gem_obj_ggtt_offset(obj);
 
 		lrc->ring_begin = gfx_addr;

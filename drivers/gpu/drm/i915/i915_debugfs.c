@@ -425,8 +425,8 @@ static int per_file_ctx_stats(int id, void *ptr, void *data)
 	for (n = 0; n < ARRAY_SIZE(ctx->engine); n++) {
 		if (ctx->engine[n].state)
 			per_file_stats(0, ctx->engine[n].state, data);
-		if (ctx->engine[n].ringbuf)
-			per_file_stats(0, ctx->engine[n].ringbuf->obj, data);
+		if (ctx->engine[n].ring)
+			per_file_stats(0, ctx->engine[n].ring->obj, data);
 	}
 
 	return 0;
@@ -2085,8 +2085,8 @@ static int i915_context_status(struct seq_file *m, void *unused)
 			seq_putc(m, ce->initialised ? 'I' : 'i');
 			if (ce->state)
 				describe_obj(m, ce->state);
-			if (ce->ringbuf)
-				describe_ctx_ringbuf(m, ce->ringbuf);
+			if (ce->ring)
+				describe_ctx_ringbuf(m, ce->ring);
 			seq_putc(m, '\n');
 		}
 

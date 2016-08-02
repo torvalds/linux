@@ -482,11 +482,8 @@ static void execlists_context_unqueue(struct intel_engine_cs *engine)
 		 * resubmit the request. See gen8_emit_request() for where we
 		 * prepare the padding after the end of the request.
 		 */
-		struct intel_ringbuffer *ringbuf;
-
-		ringbuf = req0->ctx->engine[engine->id].ringbuf;
 		req0->tail += 8;
-		req0->tail &= ringbuf->size - 1;
+		req0->tail &= req0->ring->size - 1;
 	}
 
 	execlists_submit_requests(req0, req1);
@@ -714,7 +711,7 @@ int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request
 			return ret;
 	}
 
-	request->ring = ce->ringbuf;
+	request->ring = ce->ring;
 
 	if (i915.enable_guc_submission) {
 		/*
@@ -976,14 +973,14 @@ static int intel_lr_context_pin(struct i915_gem_context *ctx,
 
 	lrc_reg_state = vaddr + LRC_STATE_PN * PAGE_SIZE;
 
-	ret = intel_pin_and_map_ringbuffer_obj(dev_priv, ce->ringbuf);
+	ret = intel_pin_and_map_ringbuffer_obj(dev_priv, ce->ring);
 	if (ret)
 		goto unpin_map;
 
 	ce->lrc_vma = i915_gem_obj_to_ggtt(ce->state);
 	intel_lr_context_descriptor_update(ctx, engine);
 
-	lrc_reg_state[CTX_RING_BUFFER_START+1] = ce->ringbuf->vma->node.start;
+	lrc_reg_state[CTX_RING_BUFFER_START+1] = ce->ring->vma->node.start;
 	ce->lrc_reg_state = lrc_reg_state;
 	ce->state->dirty = true;
 
@@ -1014,7 +1011,7 @@ void intel_lr_context_unpin(struct i915_gem_context *ctx,
 	if (--ce->pin_count)
 		return;
 
-	intel_unpin_ringbuffer_obj(ce->ringbuf);
+	intel_unpin_ringbuffer_obj(ce->ring);
 
 	i915_gem_object_unpin_map(ce->state);
 	i915_gem_object_ggtt_unpin(ce->state);
@@ -2346,7 +2343,7 @@ static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 	struct drm_i915_gem_object *ctx_obj;
 	struct intel_context *ce = &ctx->engine[engine->id];
 	uint32_t context_size;
-	struct intel_ringbuffer *ringbuf;
+	struct intel_ringbuffer *ring;
 	int ret;
 
 	WARN_ON(ce->state);
@@ -2362,29 +2359,29 @@ static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 		return PTR_ERR(ctx_obj);
 	}
 
-	ringbuf = intel_engine_create_ringbuffer(engine, ctx->ring_size);
-	if (IS_ERR(ringbuf)) {
-		ret = PTR_ERR(ringbuf);
+	ring = intel_engine_create_ringbuffer(engine, ctx->ring_size);
+	if (IS_ERR(ring)) {
+		ret = PTR_ERR(ring);
 		goto error_deref_obj;
 	}
 
-	ret = populate_lr_context(ctx, ctx_obj, engine, ringbuf);
+	ret = populate_lr_context(ctx, ctx_obj, engine, ring);
 	if (ret) {
 		DRM_DEBUG_DRIVER("Failed to populate LRC: %d\n", ret);
-		goto error_ringbuf;
+		goto error_ring_free;
 	}
 
-	ce->ringbuf = ringbuf;
+	ce->ring = ring;
 	ce->state = ctx_obj;
 	ce->initialised = engine->init_context == NULL;
 
 	return 0;
 
-error_ringbuf:
-	intel_ringbuffer_free(ringbuf);
+error_ring_free:
+	intel_ringbuffer_free(ring);
 error_deref_obj:
 	i915_gem_object_put(ctx_obj);
-	ce->ringbuf = NULL;
+	ce->ring = NULL;
 	ce->state = NULL;
 	return ret;
 }
@@ -2415,7 +2412,7 @@ void intel_lr_context_reset(struct drm_i915_private *dev_priv,
 
 		i915_gem_object_unpin_map(ctx_obj);
 
-		ce->ringbuf->head = 0;
-		ce->ringbuf->tail = 0;
+		ce->ring->head = 0;
+		ce->ring->tail = 0;
 	}
 }

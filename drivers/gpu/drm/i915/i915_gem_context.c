@@ -173,8 +173,8 @@ void i915_gem_context_free(struct kref *ctx_ref)
 			continue;
 
 		WARN_ON(ce->pin_count);
-		if (ce->ringbuf)
-			intel_ringbuffer_free(ce->ringbuf);
+		if (ce->ring)
+			intel_ringbuffer_free(ce->ring);
 
 		i915_gem_object_put(ce->state);
 	}

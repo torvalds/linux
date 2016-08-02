@@ -894,7 +894,7 @@ struct i915_gem_context {
 
 	struct intel_context {
 		struct drm_i915_gem_object *state;
-		struct intel_ringbuffer *ringbuf;
+		struct intel_ringbuffer *ring;
 		struct i915_vma *lrc_vma;
 		uint32_t *lrc_reg_state;
 		u64 lrc_desc;
