@@ -153,6 +153,8 @@ struct vop {
 	struct device *dev;
 	struct drm_device *drm_dev;
 	struct drm_property *plane_zpos_prop;
+	bool is_iommu_enabled;
+	bool is_iommu_needed;
 
 	/* mutex vsync_ work */
 	struct mutex vsync_mutex;
@@ -255,6 +257,43 @@ static inline uint32_t vop_get_intr_type(struct vop *vop,
 static inline void vop_cfg_done(struct vop *vop)
 {
 	VOP_CTRL_SET(vop, cfg_done, 1);
+}
+
+static bool vop_is_allwin_disabled(struct vop *vop)
+{
+	int i;
+
+	for (i = 0; i < vop->num_wins; i++) {
+		struct vop_win *win = &vop->win[i];
+
+		if (VOP_WIN_GET(vop, win, enable) != 0)
+			return false;
+	}
+
+	return true;
+}
+
+static bool vop_win_pending_is_complete(struct vop *vop)
+{
+	dma_addr_t yrgb_mst;
+	int i;
+
+	for (i = 0; i < vop->num_wins; i++) {
+		struct vop_win *win = &vop->win[i];
+		struct drm_plane *plane = &win->base;
+		struct vop_plane_state *state =
+				to_vop_plane_state(plane->state);
+		if (!state->enable) {
+			if (VOP_WIN_GET(vop, win, enable) != 0)
+				return false;
+			continue;
+		}
+		yrgb_mst = VOP_WIN_GET_YRGBADDR(vop, win);
+		if (yrgb_mst != state->yrgb_mst)
+			return false;
+	}
+
+	return true;
 }
 
 static bool has_rb_swapped(uint32_t format)
@@ -507,18 +546,6 @@ static void vop_enable(struct drm_crtc *crtc)
 		return;
 	}
 
-	/*
-	 * Slave iommu shares power, irq and clock with vop.  It was associated
-	 * automatically with this master device via common driver code.
-	 * Now that we have enabled the clock we attach it to the shared drm
-	 * mapping.
-	 */
-	ret = rockchip_drm_dma_attach_device(vop->drm_dev, vop->dev);
-	if (ret) {
-		dev_err(vop->dev, "failed to attach dma mapping, %d\n", ret);
-		goto err_disable_aclk;
-	}
-
 	memcpy(vop->regsbak, vop->regs, vop->len);
 
 	VOP_CTRL_SET(vop, global_regdone_en, 1);
@@ -541,8 +568,6 @@ static void vop_enable(struct drm_crtc *crtc)
 
 	return;
 
-err_disable_aclk:
-	clk_disable_unprepare(vop->aclk);
 err_disable_dclk:
 	clk_disable_unprepare(vop->dclk);
 err_disable_hclk:
@@ -592,10 +617,13 @@ static void vop_crtc_disable(struct drm_crtc *crtc)
 
 	disable_irq(vop->irq);
 
-	/*
-	 * vop standby complete, so iommu detach is safe.
-	 */
-	rockchip_drm_dma_detach_device(vop->drm_dev, vop->dev);
+	if (vop->is_iommu_enabled) {
+		/*
+		 * vop standby complete, so iommu detach is safe.
+		 */
+		rockchip_drm_dma_detach_device(vop->drm_dev, vop->dev);
+		vop->is_iommu_enabled = false;
+	}
 
 	pm_runtime_put(vop->dev);
 	clk_disable_unprepare(vop->dclk);
@@ -828,6 +856,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 
 	VOP_WIN_SET(vop, win, enable, 1);
 	spin_unlock(&vop->reg_lock);
+	vop->is_iommu_needed = true;
 }
 
 static const struct drm_plane_helper_funcs plane_helper_funcs = {
@@ -1197,8 +1226,8 @@ err_free_pzpos:
 	return ret;
 }
 
-static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
-				  struct drm_crtc_state *old_crtc_state)
+static void vop_cfg_update(struct drm_crtc *crtc,
+			   struct drm_crtc_state *old_crtc_state)
 {
 	struct rockchip_crtc_state *s =
 			to_rockchip_crtc_state(crtc->state);
@@ -1210,6 +1239,27 @@ static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 	vop_cfg_done(vop);
 
 	spin_unlock(&vop->reg_lock);
+}
+
+static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
+				  struct drm_crtc_state *old_crtc_state)
+{
+	struct vop *vop = to_vop(crtc);
+
+	if (!vop->is_iommu_enabled && vop->is_iommu_needed) {
+		int ret;
+		if (!vop_is_allwin_disabled(vop)) {
+			vop_cfg_update(crtc, old_crtc_state);
+			while(!vop_win_pending_is_complete(vop));
+		}
+		ret = rockchip_drm_dma_attach_device(vop->drm_dev, vop->dev);
+		if (ret) {
+			dev_err(vop->dev, "failed to attach dma mapping, %d\n", ret);
+		}
+		vop->is_iommu_enabled = true;
+	}
+
+	vop_cfg_update(crtc, old_crtc_state);
 }
 
 static void vop_crtc_atomic_begin(struct drm_crtc *crtc,
@@ -1269,31 +1319,14 @@ static const struct drm_crtc_funcs vop_crtc_funcs = {
 	.atomic_destroy_state = vop_crtc_destroy_state,
 };
 
-static bool vop_win_pending_is_complete(struct vop_win *vop_win)
-{
-	struct drm_plane *plane = &vop_win->base;
-	struct vop_plane_state *state = to_vop_plane_state(plane->state);
-	dma_addr_t yrgb_mst;
-
-	if (!state->enable)
-		return VOP_WIN_GET(vop_win->vop, vop_win, enable) == 0;
-
-	yrgb_mst = VOP_WIN_GET_YRGBADDR(vop_win->vop, vop_win);
-
-	return yrgb_mst == state->yrgb_mst;
-}
-
 static void vop_handle_vblank(struct vop *vop)
 {
 	struct drm_device *drm = vop->drm_dev;
 	struct drm_crtc *crtc = &vop->crtc;
 	unsigned long flags;
-	int i;
 
-	for (i = 0; i < vop->num_wins; i++) {
-		if (!vop_win_pending_is_complete(&vop->win[i]))
-			return;
-	}
+	if (!vop_win_pending_is_complete(vop))
+		return;
 
 	if (vop->event) {
 		spin_lock_irqsave(&drm->event_lock, flags);
