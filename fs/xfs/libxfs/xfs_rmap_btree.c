@@ -180,6 +180,35 @@ xfs_rmapbt_init_key_from_rec(
 	key->rmap.rm_offset = rec->rmap.rm_offset;
 }
 
+/*
+ * The high key for a reverse mapping record can be computed by shifting
+ * the startblock and offset to the highest value that would still map
+ * to that record.  In practice this means that we add blockcount-1 to
+ * the startblock for all records, and if the record is for a data/attr
+ * fork mapping, we add blockcount-1 to the offset too.
+ */
+STATIC void
+xfs_rmapbt_init_high_key_from_rec(
+	union xfs_btree_key	*key,
+	union xfs_btree_rec	*rec)
+{
+	__uint64_t		off;
+	int			adj;
+
+	adj = be32_to_cpu(rec->rmap.rm_blockcount) - 1;
+
+	key->rmap.rm_startblock = rec->rmap.rm_startblock;
+	be32_add_cpu(&key->rmap.rm_startblock, adj);
+	key->rmap.rm_owner = rec->rmap.rm_owner;
+	key->rmap.rm_offset = rec->rmap.rm_offset;
+	if (XFS_RMAP_NON_INODE_OWNER(be64_to_cpu(rec->rmap.rm_owner)) ||
+	    XFS_RMAP_IS_BMBT_BLOCK(be64_to_cpu(rec->rmap.rm_offset)))
+		return;
+	off = be64_to_cpu(key->rmap.rm_offset);
+	off = (XFS_RMAP_OFF(off) + adj) | (off & ~XFS_RMAP_OFF_MASK);
+	key->rmap.rm_offset = cpu_to_be64(off);
+}
+
 STATIC void
 xfs_rmapbt_init_rec_from_cur(
 	struct xfs_btree_cur	*cur,
@@ -228,6 +257,38 @@ xfs_rmapbt_key_diff(
 
 	x = XFS_RMAP_OFF(be64_to_cpu(kp->rm_offset));
 	y = rec->rm_offset;
+	if (x > y)
+		return 1;
+	else if (y > x)
+		return -1;
+	return 0;
+}
+
+STATIC __int64_t
+xfs_rmapbt_diff_two_keys(
+	struct xfs_btree_cur	*cur,
+	union xfs_btree_key	*k1,
+	union xfs_btree_key	*k2)
+{
+	struct xfs_rmap_key	*kp1 = &k1->rmap;
+	struct xfs_rmap_key	*kp2 = &k2->rmap;
+	__int64_t		d;
+	__u64			x, y;
+
+	d = (__int64_t)be32_to_cpu(kp1->rm_startblock) -
+		       be32_to_cpu(kp2->rm_startblock);
+	if (d)
+		return d;
+
+	x = be64_to_cpu(kp1->rm_owner);
+	y = be64_to_cpu(kp2->rm_owner);
+	if (x > y)
+		return 1;
+	else if (y > x)
+		return -1;
+
+	x = XFS_RMAP_OFF(be64_to_cpu(kp1->rm_offset));
+	y = XFS_RMAP_OFF(be64_to_cpu(kp2->rm_offset));
 	if (x > y)
 		return 1;
 	else if (y > x)
@@ -382,10 +443,12 @@ static const struct xfs_btree_ops xfs_rmapbt_ops = {
 	.get_minrecs		= xfs_rmapbt_get_minrecs,
 	.get_maxrecs		= xfs_rmapbt_get_maxrecs,
 	.init_key_from_rec	= xfs_rmapbt_init_key_from_rec,
+	.init_high_key_from_rec	= xfs_rmapbt_init_high_key_from_rec,
 	.init_rec_from_cur	= xfs_rmapbt_init_rec_from_cur,
 	.init_ptr_from_cur	= xfs_rmapbt_init_ptr_from_cur,
 	.key_diff		= xfs_rmapbt_key_diff,
 	.buf_ops		= &xfs_rmapbt_buf_ops,
+	.diff_two_keys		= xfs_rmapbt_diff_two_keys,
 #if defined(DEBUG) || defined(XFS_WARN)
 	.keys_inorder		= xfs_rmapbt_keys_inorder,
 	.recs_inorder		= xfs_rmapbt_recs_inorder,
@@ -412,8 +475,9 @@ xfs_rmapbt_init_cursor(
 	cur = kmem_zone_zalloc(xfs_btree_cur_zone, KM_NOFS);
 	cur->bc_tp = tp;
 	cur->bc_mp = mp;
+	/* Overlapping btree; 2 keys per pointer. */
 	cur->bc_btnum = XFS_BTNUM_RMAP;
-	cur->bc_flags = XFS_BTREE_CRC_BLOCKS;
+	cur->bc_flags = XFS_BTREE_CRC_BLOCKS | XFS_BTREE_OVERLAPPING;
 	cur->bc_blocklog = mp->m_sb.sb_blocklog;
 	cur->bc_ops = &xfs_rmapbt_ops;
 	cur->bc_nlevels = be32_to_cpu(agf->agf_levels[XFS_BTNUM_RMAP]);
@@ -438,7 +502,7 @@ xfs_rmapbt_maxrecs(
 	if (leaf)
 		return blocklen / sizeof(struct xfs_rmap_rec);
 	return blocklen /
-		(sizeof(struct xfs_rmap_key) + sizeof(xfs_rmap_ptr_t));
+		(2 * sizeof(struct xfs_rmap_key) + sizeof(xfs_rmap_ptr_t));
 }
 
 /* Compute the maximum height of an rmap btree. */
