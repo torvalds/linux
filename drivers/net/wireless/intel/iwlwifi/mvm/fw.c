@@ -90,15 +90,6 @@ struct iwl_mvm_alive_data {
 	u32 scd_base_addr;
 };
 
-static inline const struct fw_img *
-iwl_get_ucode_image(struct iwl_mvm *mvm, enum iwl_ucode_type ucode_type)
-{
-	if (ucode_type >= IWL_UCODE_TYPE_MAX)
-		return NULL;
-
-	return &mvm->fw->img[ucode_type];
-}
-
 static int iwl_send_tx_ant_cfg(struct iwl_mvm *mvm, u8 valid_tx_ant)
 {
 	struct iwl_tx_ant_cfg_cmd tx_ant_cmd = {
@@ -592,9 +583,9 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	    iwl_fw_dbg_conf_usniffer(mvm->fw, FW_DBG_START_FROM_ALIVE) &&
 	    !(fw_has_capa(&mvm->fw->ucode_capa,
 			  IWL_UCODE_TLV_CAPA_USNIFFER_UNIFIED)))
-		fw = iwl_get_ucode_image(mvm, IWL_UCODE_REGULAR_USNIFFER);
+		fw = iwl_get_ucode_image(mvm->fw, IWL_UCODE_REGULAR_USNIFFER);
 	else
-		fw = iwl_get_ucode_image(mvm, ucode_type);
+		fw = iwl_get_ucode_image(mvm->fw, ucode_type);
 	if (WARN_ON(!fw))
 		return -EINVAL;
 	mvm->cur_ucode = ucode_type;

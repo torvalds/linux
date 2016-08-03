@@ -329,4 +329,13 @@ iwl_fw_dbg_conf_usniffer(const struct iwl_fw *fw, u8 id)
 	return conf_tlv->usniffer;
 }
 
+static inline const struct fw_img *
+iwl_get_ucode_image(const struct iwl_fw *fw, enum iwl_ucode_type ucode_type)
+{
+	if (ucode_type >= IWL_UCODE_TYPE_MAX)
+		return NULL;
+
+	return &fw->img[ucode_type];
+}
+
 #endif  /* __iwl_fw_h__ */
