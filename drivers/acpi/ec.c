@@ -146,6 +146,10 @@ static unsigned int ec_storm_threshold  __read_mostly = 8;
 module_param(ec_storm_threshold, uint, 0644);
 MODULE_PARM_DESC(ec_storm_threshold, "Maxim false GPE numbers not considered as GPE storm");
 
+static bool ec_freeze_events __read_mostly = false;
+module_param(ec_freeze_events, bool, 0644);
+MODULE_PARM_DESC(ec_freeze_events, "Disabling event handling during suspend/resume");
+
 struct acpi_ec_query_handler {
 	struct list_head node;
 	acpi_ec_query_func func;
@@ -250,10 +254,18 @@ static bool acpi_ec_event_enabled(struct acpi_ec *ec)
 	if (!test_bit(EC_FLAGS_QUERY_ENABLED, &ec->flags))
 		return false;
 	/*
-	 * The EC event handling is automatically disabled as soon as the
-	 * EC driver is stopped.
+	 * However, disabling the event handling is experimental for late
+	 * stage (suspend), and is controlled by the boot parameter of
+	 * "ec_freeze_events":
+	 * 1. true:  The EC event handling is disabled before entering
+	 *           the noirq stage.
+	 * 2. false: The EC event handling is automatically disabled as
+	 *           soon as the EC driver is stopped.
 	 */
-	return test_bit(EC_FLAGS_STARTED, &ec->flags);
+	if (ec_freeze_events)
+		return acpi_ec_started(ec);
+	else
+		return test_bit(EC_FLAGS_STARTED, &ec->flags);
 }
 
 static bool acpi_ec_flushed(struct acpi_ec *ec)
@@ -510,6 +522,38 @@ static void acpi_ec_enable_event(struct acpi_ec *ec)
 	/* Drain additional events if hardware requires that */
 	if (EC_FLAGS_CLEAR_ON_RESUME)
 		acpi_ec_clear(ec);
+}
+
+static bool acpi_ec_query_flushed(struct acpi_ec *ec)
+{
+	bool flushed;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ec->lock, flags);
+	flushed = !ec->nr_pending_queries;
+	spin_unlock_irqrestore(&ec->lock, flags);
+	return flushed;
+}
+
+static void __acpi_ec_flush_event(struct acpi_ec *ec)
+{
+	/*
+	 * When ec_freeze_events is true, we need to flush events in
+	 * the proper position before entering the noirq stage.
+	 */
+	wait_event(ec->wait, acpi_ec_query_flushed(ec));
+	if (ec_query_wq)
+		flush_workqueue(ec_query_wq);
+}
+
+static void acpi_ec_disable_event(struct acpi_ec *ec)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&ec->lock, flags);
+	__acpi_ec_disable_event(ec);
+	spin_unlock_irqrestore(&ec->lock, flags);
+	__acpi_ec_flush_event(ec);
 }
 
 static bool acpi_ec_guard_event(struct acpi_ec *ec)
@@ -941,7 +985,7 @@ static void acpi_ec_stop(struct acpi_ec *ec, bool suspending)
 		if (!suspending) {
 			acpi_ec_complete_request(ec);
 			ec_dbg_ref(ec, "Decrease driver");
-		} else
+		} else if (!ec_freeze_events)
 			__acpi_ec_disable_event(ec);
 		clear_bit(EC_FLAGS_STARTED, &ec->flags);
 		clear_bit(EC_FLAGS_STOPPED, &ec->flags);
@@ -1693,6 +1737,16 @@ static int acpi_ec_resume_noirq(struct device *dev)
 	return 0;
 }
 
+static int acpi_ec_suspend(struct device *dev)
+{
+	struct acpi_ec *ec =
+		acpi_driver_data(to_acpi_device(dev));
+
+	if (ec_freeze_events)
+		acpi_ec_disable_event(ec);
+	return 0;
+}
+
 static int acpi_ec_resume(struct device *dev)
 {
 	struct acpi_ec *ec =
@@ -1705,7 +1759,7 @@ static int acpi_ec_resume(struct device *dev)
 
 static const struct dev_pm_ops acpi_ec_pm = {
 	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(acpi_ec_suspend_noirq, acpi_ec_resume_noirq)
-	SET_SYSTEM_SLEEP_PM_OPS(NULL, acpi_ec_resume)
+	SET_SYSTEM_SLEEP_PM_OPS(acpi_ec_suspend, acpi_ec_resume)
 };
 
 static int param_set_event_clearing(const char *val, struct kernel_param *kp)
