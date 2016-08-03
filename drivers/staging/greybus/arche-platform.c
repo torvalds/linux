@@ -548,6 +548,9 @@ static int arche_platform_pm_notifier(struct notifier_block *notifier,
 		arche_platform_poweroff_seq(arche_pdata);
 		break;
 	case PM_POST_SUSPEND:
+		if (arche_pdata->state != ARCHE_PLATFORM_STATE_OFF)
+			break;
+
 		arche_platform_wd_irq_en(arche_pdata);
 		arche_platform_coldboot_seq(arche_pdata);
 		break;
