@@ -454,7 +454,7 @@ xfs_rui_recover(
 	 * just toss the RUI.
 	 */
 	for (i = 0; i < ruip->rui_format.rui_nextents; i++) {
-		rmap = &(ruip->rui_format.rui_extents[i]);
+		rmap = &ruip->rui_format.rui_extents[i];
 		startblock_fsb = XFS_BB_TO_FSB(mp,
 				   XFS_FSB_TO_DADDR(mp, rmap->me_startblock));
 		switch (rmap->me_flags & XFS_RMAP_EXTENT_TYPE_MASK) {
@@ -469,10 +469,10 @@ xfs_rui_recover(
 			op_ok = false;
 			break;
 		}
-		if (!op_ok || (startblock_fsb == 0) ||
-		    (rmap->me_len == 0) ||
-		    (startblock_fsb >= mp->m_sb.sb_dblocks) ||
-		    (rmap->me_len >= mp->m_sb.sb_agblocks) ||
+		if (!op_ok || startblock_fsb == 0 ||
+		    rmap->me_len == 0 ||
+		    startblock_fsb >= mp->m_sb.sb_dblocks ||
+		    rmap->me_len >= mp->m_sb.sb_agblocks ||
 		    (rmap->me_flags & ~XFS_RMAP_EXTENT_FLAGS)) {
 			/*
 			 * This will pull the RUI from the AIL and
@@ -490,7 +490,7 @@ xfs_rui_recover(
 	rudp = xfs_trans_get_rud(tp, ruip);
 
 	for (i = 0; i < ruip->rui_format.rui_nextents; i++) {
-		rmap = &(ruip->rui_format.rui_extents[i]);
+		rmap = &ruip->rui_format.rui_extents[i];
 		state = (rmap->me_flags & XFS_RMAP_EXTENT_UNWRITTEN) ?
 				XFS_EXT_UNWRITTEN : XFS_EXT_NORM;
 		whichfork = (rmap->me_flags & XFS_RMAP_EXTENT_ATTR_FORK) ?
