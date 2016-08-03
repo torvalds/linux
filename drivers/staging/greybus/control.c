@@ -174,9 +174,8 @@ int gb_control_mode_switch_operation(struct gb_control *control)
 		return -ENOMEM;
 
 	ret = gb_operation_request_send_sync(operation);
-	if (ret) {
+	if (ret)
 		dev_err(&control->dev, "failed to send mode switch: %d\n", ret);
-	}
 
 	gb_operation_put(operation);
 
