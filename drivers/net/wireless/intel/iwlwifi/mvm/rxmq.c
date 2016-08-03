@@ -418,10 +418,11 @@ static void iwl_mvm_release_frames(struct iwl_mvm *mvm,
 
 		ssn = ieee80211_sn_inc(ssn);
 
-		/* holes are valid since nssn indicates frames were received. */
-		if (skb_queue_empty(skb_list) || !skb_peek_tail(skb_list))
-			continue;
-		/* Empty the list. Will have more than one frame for A-MSDU */
+		/*
+		 * Empty the list. Will have more than one frame for A-MSDU.
+		 * Empty list is valid as well since nssn indicates frames were
+		 * received.
+		 */
 		while ((skb = __skb_dequeue(skb_list))) {
 			iwl_mvm_pass_packet_to_mac80211(mvm, napi, skb,
 							reorder_buf->queue,
@@ -434,7 +435,7 @@ static void iwl_mvm_release_frames(struct iwl_mvm *mvm,
 	if (reorder_buf->num_stored && !reorder_buf->removed) {
 		u16 index = reorder_buf->head_sn % reorder_buf->buf_size;
 
-		while (!skb_peek_tail(&reorder_buf->entries[index]))
+		while (skb_queue_empty(&reorder_buf->entries[index]))
 			index = (index + 1) % reorder_buf->buf_size;
 		/* modify timer to match next frame's expiration time */
 		mod_timer(&reorder_buf->reorder_timer,
@@ -462,7 +463,7 @@ void iwl_mvm_reorder_timer_expired(unsigned long data)
 	for (i = 0; i < buf->buf_size ; i++) {
 		index = (buf->head_sn + i) % buf->buf_size;
 
-		if (!skb_peek_tail(&buf->entries[index]))
+		if (skb_queue_empty(&buf->entries[index]))
 			continue;
 		if (!time_after(jiffies, buf->reorder_time[index] +
 				RX_REORDER_BUF_TIMEOUT_MQ))
