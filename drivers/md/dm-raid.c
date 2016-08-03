@@ -1960,6 +1960,7 @@ static void super_sync(struct mddev *mddev, struct md_rdev *rdev)
 	sb->data_offset = cpu_to_le64(rdev->data_offset);
 	sb->new_data_offset = cpu_to_le64(rdev->new_data_offset);
 	sb->sectors = cpu_to_le64(rdev->sectors);
+	sb->incompat_features = cpu_to_le32(0);
 
 	/* Zero out the rest of the payload after the size of the superblock */
 	memset(sb + 1, 0, rdev->sb_size - sizeof(*sb));
