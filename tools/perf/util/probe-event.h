@@ -128,6 +128,8 @@ char *synthesize_perf_probe_point(struct perf_probe_point *pp);
 int perf_probe_event__copy(struct perf_probe_event *dst,
 			   struct perf_probe_event *src);
 
+bool perf_probe_with_var(struct perf_probe_event *pev);
+
 /* Check the perf_probe_event needs debuginfo */
 bool perf_probe_event_need_dwarf(struct perf_probe_event *pev);
 
