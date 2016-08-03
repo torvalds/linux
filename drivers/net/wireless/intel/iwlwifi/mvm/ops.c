@@ -1672,7 +1672,7 @@ static void iwl_mvm_rx_mq_rss(struct iwl_op_mode *op_mode,
 	else if (unlikely(pkt->hdr.cmd == RX_QUEUES_NOTIFICATION &&
 			  pkt->hdr.group_id == DATA_PATH_GROUP))
 		iwl_mvm_rx_queue_notif(mvm, rxb, queue);
-	else
+	else if (likely(pkt->hdr.cmd == REPLY_RX_MPDU_CMD))
 		iwl_mvm_rx_mpdu_mq(mvm, napi, rxb, queue);
 }
 
