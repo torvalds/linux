@@ -21,6 +21,7 @@
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
+#include "xfs_bit.h"
 #include "xfs_mount.h"
 #include "xfs_defer.h"
 #include "xfs_trans.h"
@@ -28,6 +29,7 @@
 #include "xfs_extfree_item.h"
 #include "xfs_alloc.h"
 #include "xfs_bmap.h"
+#include "xfs_trace.h"
 
 /*
  * This routine is called to allocate an "extent free done"
@@ -68,9 +70,14 @@ xfs_trans_free_extent(
 	xfs_extlen_t		ext_len,
 	struct xfs_owner_info	*oinfo)
 {
+	struct xfs_mount	*mp = tp->t_mountp;
 	uint			next_extent;
+	xfs_agnumber_t		agno = XFS_FSB_TO_AGNO(mp, start_block);
+	xfs_agblock_t		agbno = XFS_FSB_TO_AGBNO(mp, start_block);
 	struct xfs_extent	*extp;
 	int			error;
+
+	trace_xfs_bmap_free_deferred(tp->t_mountp, agno, 0, agbno, ext_len);
 
 	error = xfs_free_extent(tp, start_block, ext_len, oinfo);
 
