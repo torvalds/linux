@@ -92,13 +92,58 @@ xfs_rmap_update(
 	struct xfs_rmap_irec	*irec)
 {
 	union xfs_btree_rec	rec;
+	int			error;
+
+	trace_xfs_rmap_update(cur->bc_mp, cur->bc_private.a.agno,
+			irec->rm_startblock, irec->rm_blockcount,
+			irec->rm_owner, irec->rm_offset, irec->rm_flags);
 
 	rec.rmap.rm_startblock = cpu_to_be32(irec->rm_startblock);
 	rec.rmap.rm_blockcount = cpu_to_be32(irec->rm_blockcount);
 	rec.rmap.rm_owner = cpu_to_be64(irec->rm_owner);
 	rec.rmap.rm_offset = cpu_to_be64(
 			xfs_rmap_irec_offset_pack(irec));
-	return xfs_btree_update(cur, &rec);
+	error = xfs_btree_update(cur, &rec);
+	if (error)
+		trace_xfs_rmap_update_error(cur->bc_mp,
+				cur->bc_private.a.agno, error, _RET_IP_);
+	return error;
+}
+
+int
+xfs_rmap_insert(
+	struct xfs_btree_cur	*rcur,
+	xfs_agblock_t		agbno,
+	xfs_extlen_t		len,
+	uint64_t		owner,
+	uint64_t		offset,
+	unsigned int		flags)
+{
+	int			i;
+	int			error;
+
+	trace_xfs_rmap_insert(rcur->bc_mp, rcur->bc_private.a.agno, agbno,
+			len, owner, offset, flags);
+
+	error = xfs_rmap_lookup_eq(rcur, agbno, len, owner, offset, flags, &i);
+	if (error)
+		goto done;
+	XFS_WANT_CORRUPTED_GOTO(rcur->bc_mp, i == 0, done);
+
+	rcur->bc_rec.r.rm_startblock = agbno;
+	rcur->bc_rec.r.rm_blockcount = len;
+	rcur->bc_rec.r.rm_owner = owner;
+	rcur->bc_rec.r.rm_offset = offset;
+	rcur->bc_rec.r.rm_flags = flags;
+	error = xfs_btree_insert(rcur, &i);
+	if (error)
+		goto done;
+	XFS_WANT_CORRUPTED_GOTO(rcur->bc_mp, i == 1, done);
+done:
+	if (error)
+		trace_xfs_rmap_insert_error(rcur->bc_mp,
+				rcur->bc_private.a.agno, error, _RET_IP_);
+	return error;
 }
 
 static int
