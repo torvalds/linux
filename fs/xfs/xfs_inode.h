@@ -27,7 +27,7 @@
 struct xfs_dinode;
 struct xfs_inode;
 struct xfs_buf;
-struct xfs_bmap_free;
+struct xfs_defer_ops;
 struct xfs_bmbt_irec;
 struct xfs_inode_log_item;
 struct xfs_mount;
@@ -398,7 +398,7 @@ uint		xfs_ilock_attr_map_shared(struct xfs_inode *);
 
 uint		xfs_ip2xflags(struct xfs_inode *);
 int		xfs_ifree(struct xfs_trans *, xfs_inode_t *,
-			   struct xfs_bmap_free *);
+			   struct xfs_defer_ops *);
 int		xfs_itruncate_extents(struct xfs_trans **, struct xfs_inode *,
 				      int, xfs_fsize_t);
 void		xfs_iext_realloc(xfs_inode_t *, int, int);

@@ -93,11 +93,4 @@ struct xfs_defer_op_type {
 
 void xfs_defer_init_op_type(const struct xfs_defer_op_type *type);
 
-/* XXX: compatibility shims, will go away in the next patch */
-#define xfs_bmap_finish		xfs_defer_finish
-#define xfs_bmap_cancel		xfs_defer_cancel
-#define xfs_bmap_init		xfs_defer_init
-#define xfs_bmap_free		xfs_defer_ops
-typedef struct xfs_defer_ops	xfs_bmap_free_t;
-
 #endif /* __XFS_DEFER_H__ */

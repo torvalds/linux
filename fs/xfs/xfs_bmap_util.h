@@ -21,7 +21,7 @@
 /* Kernel only BMAP related definitions and functions */
 
 struct xfs_bmbt_irec;
-struct xfs_bmap_free_item;
+struct xfs_extent_free_item;
 struct xfs_ifork;
 struct xfs_inode;
 struct xfs_mount;

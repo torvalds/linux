@@ -35,7 +35,7 @@
  * caller must use all nextents extents, because we are not
  * flexible about this at all.
  */
-struct xfs_efi_log_item *
+STATIC struct xfs_efi_log_item *
 xfs_trans_get_efi(struct xfs_trans	*tp,
 		  uint			nextents)
 {
@@ -59,7 +59,7 @@ xfs_trans_get_efi(struct xfs_trans	*tp,
  * extent is to be logged as needing to be freed.  It should
  * be called once for each extent to be freed.
  */
-void
+STATIC void
 xfs_trans_log_efi_extent(struct xfs_trans		*tp,
 			 struct xfs_efi_log_item	*efip,
 			 xfs_fsblock_t			start_block,
@@ -156,13 +156,13 @@ xfs_extent_free_diff_items(
 	struct list_head		*b)
 {
 	struct xfs_mount		*mp = priv;
-	struct xfs_bmap_free_item	*ra;
-	struct xfs_bmap_free_item	*rb;
+	struct xfs_extent_free_item	*ra;
+	struct xfs_extent_free_item	*rb;
 
-	ra = container_of(a, struct xfs_bmap_free_item, xbfi_list);
-	rb = container_of(b, struct xfs_bmap_free_item, xbfi_list);
-	return  XFS_FSB_TO_AGNO(mp, ra->xbfi_startblock) -
-		XFS_FSB_TO_AGNO(mp, rb->xbfi_startblock);
+	ra = container_of(a, struct xfs_extent_free_item, xefi_list);
+	rb = container_of(b, struct xfs_extent_free_item, xefi_list);
+	return  XFS_FSB_TO_AGNO(mp, ra->xefi_startblock) -
+		XFS_FSB_TO_AGNO(mp, rb->xefi_startblock);
 }
 
 /* Get an EFI. */
@@ -181,11 +181,11 @@ xfs_extent_free_log_item(
 	void				*intent,
 	struct list_head		*item)
 {
-	struct xfs_bmap_free_item	*free;
+	struct xfs_extent_free_item	*free;
 
-	free = container_of(item, struct xfs_bmap_free_item, xbfi_list);
-	xfs_trans_log_efi_extent(tp, intent, free->xbfi_startblock,
-			free->xbfi_blockcount);
+	free = container_of(item, struct xfs_extent_free_item, xefi_list);
+	xfs_trans_log_efi_extent(tp, intent, free->xefi_startblock,
+			free->xefi_blockcount);
 }
 
 /* Get an EFD so we can process all the free extents. */
@@ -207,13 +207,13 @@ xfs_extent_free_finish_item(
 	void				*done_item,
 	void				**state)
 {
-	struct xfs_bmap_free_item	*free;
+	struct xfs_extent_free_item	*free;
 	int				error;
 
-	free = container_of(item, struct xfs_bmap_free_item, xbfi_list);
+	free = container_of(item, struct xfs_extent_free_item, xefi_list);
 	error = xfs_trans_free_extent(tp, done_item,
-			free->xbfi_startblock,
-			free->xbfi_blockcount);
+			free->xefi_startblock,
+			free->xefi_blockcount);
 	kmem_free(free);
 	return error;
 }
@@ -231,9 +231,9 @@ STATIC void
 xfs_extent_free_cancel_item(
 	struct list_head		*item)
 {
-	struct xfs_bmap_free_item	*free;
+	struct xfs_extent_free_item	*free;
 
-	free = container_of(item, struct xfs_bmap_free_item, xbfi_list);
+	free = container_of(item, struct xfs_extent_free_item, xefi_list);
 	kmem_free(free);
 }
 

@@ -1123,7 +1123,7 @@ xfs_create(
 	struct xfs_inode	*ip = NULL;
 	struct xfs_trans	*tp = NULL;
 	int			error;
-	xfs_bmap_free_t		free_list;
+	struct xfs_defer_ops	free_list;
 	xfs_fsblock_t		first_block;
 	bool                    unlock_dp_on_error = false;
 	prid_t			prid;
@@ -1183,7 +1183,7 @@ xfs_create(
 		      XFS_IOLOCK_PARENT | XFS_ILOCK_PARENT);
 	unlock_dp_on_error = true;
 
-	xfs_bmap_init(&free_list, &first_block);
+	xfs_defer_init(&free_list, &first_block);
 
 	/*
 	 * Reserve disk quota and the inode.
@@ -1254,7 +1254,7 @@ xfs_create(
 	 */
 	xfs_qm_vop_create_dqattach(tp, ip, udqp, gdqp, pdqp);
 
-	error = xfs_bmap_finish(&tp, &free_list, NULL);
+	error = xfs_defer_finish(&tp, &free_list, NULL);
 	if (error)
 		goto out_bmap_cancel;
 
@@ -1270,7 +1270,7 @@ xfs_create(
 	return 0;
 
  out_bmap_cancel:
-	xfs_bmap_cancel(&free_list);
+	xfs_defer_cancel(&free_list);
  out_trans_cancel:
 	xfs_trans_cancel(tp);
  out_release_inode:
@@ -1402,7 +1402,7 @@ xfs_link(
 	xfs_mount_t		*mp = tdp->i_mount;
 	xfs_trans_t		*tp;
 	int			error;
-	xfs_bmap_free_t         free_list;
+	struct xfs_defer_ops	free_list;
 	xfs_fsblock_t           first_block;
 	int			resblks;
 
@@ -1453,7 +1453,7 @@ xfs_link(
 			goto error_return;
 	}
 
-	xfs_bmap_init(&free_list, &first_block);
+	xfs_defer_init(&free_list, &first_block);
 
 	/*
 	 * Handle initial link state of O_TMPFILE inode
@@ -1483,9 +1483,9 @@ xfs_link(
 	if (mp->m_flags & (XFS_MOUNT_WSYNC|XFS_MOUNT_DIRSYNC))
 		xfs_trans_set_sync(tp);
 
-	error = xfs_bmap_finish(&tp, &free_list, NULL);
+	error = xfs_defer_finish(&tp, &free_list, NULL);
 	if (error) {
-		xfs_bmap_cancel(&free_list);
+		xfs_defer_cancel(&free_list);
 		goto error_return;
 	}
 
@@ -1527,7 +1527,7 @@ xfs_itruncate_extents(
 {
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_trans	*tp = *tpp;
-	xfs_bmap_free_t		free_list;
+	struct xfs_defer_ops	free_list;
 	xfs_fsblock_t		first_block;
 	xfs_fileoff_t		first_unmap_block;
 	xfs_fileoff_t		last_block;
@@ -1563,7 +1563,7 @@ xfs_itruncate_extents(
 	ASSERT(first_unmap_block < last_block);
 	unmap_len = last_block - first_unmap_block + 1;
 	while (!done) {
-		xfs_bmap_init(&free_list, &first_block);
+		xfs_defer_init(&free_list, &first_block);
 		error = xfs_bunmapi(tp, ip,
 				    first_unmap_block, unmap_len,
 				    xfs_bmapi_aflag(whichfork),
@@ -1577,7 +1577,7 @@ xfs_itruncate_extents(
 		 * Duplicate the transaction that has the permanent
 		 * reservation and commit the old transaction.
 		 */
-		error = xfs_bmap_finish(&tp, &free_list, ip);
+		error = xfs_defer_finish(&tp, &free_list, ip);
 		if (error)
 			goto out_bmap_cancel;
 
@@ -1603,7 +1603,7 @@ out_bmap_cancel:
 	 * the transaction can be properly aborted.  We just need to make sure
 	 * we're not holding any resources that we were not when we came in.
 	 */
-	xfs_bmap_cancel(&free_list);
+	xfs_defer_cancel(&free_list);
 	goto out;
 }
 
@@ -1744,7 +1744,7 @@ STATIC int
 xfs_inactive_ifree(
 	struct xfs_inode *ip)
 {
-	xfs_bmap_free_t		free_list;
+	struct xfs_defer_ops	free_list;
 	xfs_fsblock_t		first_block;
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_trans	*tp;
@@ -1781,7 +1781,7 @@ xfs_inactive_ifree(
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, 0);
 
-	xfs_bmap_init(&free_list, &first_block);
+	xfs_defer_init(&free_list, &first_block);
 	error = xfs_ifree(tp, ip, &free_list);
 	if (error) {
 		/*
@@ -1808,11 +1808,11 @@ xfs_inactive_ifree(
 	 * Just ignore errors at this point.  There is nothing we can do except
 	 * to try to keep going. Make sure it's not a silent error.
 	 */
-	error = xfs_bmap_finish(&tp, &free_list, NULL);
+	error = xfs_defer_finish(&tp, &free_list, NULL);
 	if (error) {
-		xfs_notice(mp, "%s: xfs_bmap_finish returned error %d",
+		xfs_notice(mp, "%s: xfs_defer_finish returned error %d",
 			__func__, error);
-		xfs_bmap_cancel(&free_list);
+		xfs_defer_cancel(&free_list);
 	}
 	error = xfs_trans_commit(tp);
 	if (error)
@@ -2368,7 +2368,7 @@ int
 xfs_ifree(
 	xfs_trans_t	*tp,
 	xfs_inode_t	*ip,
-	xfs_bmap_free_t	*flist)
+	struct xfs_defer_ops	*flist)
 {
 	int			error;
 	struct xfs_icluster	xic = { 0 };
@@ -2475,7 +2475,7 @@ xfs_iunpin_wait(
  * directory entry.
  *
  * This is still safe from a transactional point of view - it is not until we
- * get to xfs_bmap_finish() that we have the possibility of multiple
+ * get to xfs_defer_finish() that we have the possibility of multiple
  * transactions in this operation. Hence as long as we remove the directory
  * entry and drop the link count in the first transaction of the remove
  * operation, there are no transactional constraints on the ordering here.
@@ -2490,7 +2490,7 @@ xfs_remove(
 	xfs_trans_t             *tp = NULL;
 	int			is_dir = S_ISDIR(VFS_I(ip)->i_mode);
 	int                     error = 0;
-	xfs_bmap_free_t         free_list;
+	struct xfs_defer_ops	free_list;
 	xfs_fsblock_t           first_block;
 	uint			resblks;
 
@@ -2572,7 +2572,7 @@ xfs_remove(
 	if (error)
 		goto out_trans_cancel;
 
-	xfs_bmap_init(&free_list, &first_block);
+	xfs_defer_init(&free_list, &first_block);
 	error = xfs_dir_removename(tp, dp, name, ip->i_ino,
 					&first_block, &free_list, resblks);
 	if (error) {
@@ -2588,7 +2588,7 @@ xfs_remove(
 	if (mp->m_flags & (XFS_MOUNT_WSYNC|XFS_MOUNT_DIRSYNC))
 		xfs_trans_set_sync(tp);
 
-	error = xfs_bmap_finish(&tp, &free_list, NULL);
+	error = xfs_defer_finish(&tp, &free_list, NULL);
 	if (error)
 		goto out_bmap_cancel;
 
@@ -2602,7 +2602,7 @@ xfs_remove(
 	return 0;
 
  out_bmap_cancel:
-	xfs_bmap_cancel(&free_list);
+	xfs_defer_cancel(&free_list);
  out_trans_cancel:
 	xfs_trans_cancel(tp);
  std_return:
@@ -2663,7 +2663,7 @@ xfs_sort_for_rename(
 static int
 xfs_finish_rename(
 	struct xfs_trans	*tp,
-	struct xfs_bmap_free	*free_list)
+	struct xfs_defer_ops	*free_list)
 {
 	int			error;
 
@@ -2674,9 +2674,9 @@ xfs_finish_rename(
 	if (tp->t_mountp->m_flags & (XFS_MOUNT_WSYNC|XFS_MOUNT_DIRSYNC))
 		xfs_trans_set_sync(tp);
 
-	error = xfs_bmap_finish(&tp, free_list, NULL);
+	error = xfs_defer_finish(&tp, free_list, NULL);
 	if (error) {
-		xfs_bmap_cancel(free_list);
+		xfs_defer_cancel(free_list);
 		xfs_trans_cancel(tp);
 		return error;
 	}
@@ -2698,7 +2698,7 @@ xfs_cross_rename(
 	struct xfs_inode	*dp2,
 	struct xfs_name		*name2,
 	struct xfs_inode	*ip2,
-	struct xfs_bmap_free	*free_list,
+	struct xfs_defer_ops	*free_list,
 	xfs_fsblock_t		*first_block,
 	int			spaceres)
 {
@@ -2801,7 +2801,7 @@ xfs_cross_rename(
 	return xfs_finish_rename(tp, free_list);
 
 out_trans_abort:
-	xfs_bmap_cancel(free_list);
+	xfs_defer_cancel(free_list);
 	xfs_trans_cancel(tp);
 	return error;
 }
@@ -2856,7 +2856,7 @@ xfs_rename(
 {
 	struct xfs_mount	*mp = src_dp->i_mount;
 	struct xfs_trans	*tp;
-	struct xfs_bmap_free	free_list;
+	struct xfs_defer_ops	free_list;
 	xfs_fsblock_t		first_block;
 	struct xfs_inode	*wip = NULL;		/* whiteout inode */
 	struct xfs_inode	*inodes[__XFS_SORT_INODES];
@@ -2945,7 +2945,7 @@ xfs_rename(
 		goto out_trans_cancel;
 	}
 
-	xfs_bmap_init(&free_list, &first_block);
+	xfs_defer_init(&free_list, &first_block);
 
 	/* RENAME_EXCHANGE is unique from here on. */
 	if (flags & RENAME_EXCHANGE)
@@ -3131,7 +3131,7 @@ xfs_rename(
 	return error;
 
 out_bmap_cancel:
-	xfs_bmap_cancel(&free_list);
+	xfs_defer_cancel(&free_list);
 out_trans_cancel:
 	xfs_trans_cancel(tp);
 out_release_wip:

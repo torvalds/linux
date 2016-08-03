@@ -212,11 +212,6 @@ void		xfs_trans_log_buf(xfs_trans_t *, struct xfs_buf *, uint, uint);
 void		xfs_trans_log_inode(xfs_trans_t *, struct xfs_inode *, uint);
 
 void		xfs_extent_free_init_defer_op(void);
-struct xfs_efi_log_item	*xfs_trans_get_efi(struct xfs_trans *, uint);
-void		xfs_trans_log_efi_extent(struct xfs_trans *,
-					 struct xfs_efi_log_item *,
-					 xfs_fsblock_t,
-					 xfs_extlen_t);
 struct xfs_efd_log_item	*xfs_trans_get_efd(struct xfs_trans *,
 				  struct xfs_efi_log_item *,
 				  uint);

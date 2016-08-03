@@ -153,9 +153,9 @@ xfs_calc_finobt_res(
  * item logged to try to account for the overhead of the transaction mechanism.
  *
  * Note:  Most of the reservations underestimate the number of allocation
- * groups into which they could free extents in the xfs_bmap_finish() call.
+ * groups into which they could free extents in the xfs_defer_finish() call.
  * This is because the number in the worst case is quite high and quite
- * unusual.  In order to fix this we need to change xfs_bmap_finish() to free
+ * unusual.  In order to fix this we need to change xfs_defer_finish() to free
  * extents in only a single AG at a time.  This will require changes to the
  * EFI code as well, however, so that the EFI for the extents not freed is
  * logged again in each transaction.  See SGI PV #261917.

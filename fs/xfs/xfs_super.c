@@ -1697,7 +1697,7 @@ xfs_init_zones(void)
 		goto out_free_ioend_bioset;
 
 	xfs_bmap_free_item_zone = kmem_zone_init(
-			sizeof(struct xfs_bmap_free_item),
+			sizeof(struct xfs_extent_free_item),
 			"xfs_bmap_free_item");
 	if (!xfs_bmap_free_item_zone)
 		goto out_destroy_log_ticket_zone;
