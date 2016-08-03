@@ -453,10 +453,6 @@ static const struct xfs_btree_ops xfs_rmapbt_ops = {
 	.keys_inorder		= xfs_rmapbt_keys_inorder,
 	.recs_inorder		= xfs_rmapbt_recs_inorder,
 #endif
-
-	.get_leaf_keys		= xfs_btree_get_leaf_keys_overlapped,
-	.get_node_keys		= xfs_btree_get_node_keys_overlapped,
-	.update_keys		= xfs_btree_update_keys_overlapped,
 };
 
 /*
