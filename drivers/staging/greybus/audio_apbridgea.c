@@ -84,14 +84,6 @@ int gb_audio_apbridgea_set_tx_data_size(struct gb_connection *connection,
 }
 EXPORT_SYMBOL_GPL(gb_audio_apbridgea_set_tx_data_size);
 
-int gb_audio_apbridgea_get_tx_delay(struct gb_connection *connection,
-				    __u16 i2s_port, __u32 *delay)
-{
-	/* TODO: implement */
-	return -EOPNOTSUPP;
-}
-EXPORT_SYMBOL_GPL(gb_audio_apbridgea_get_tx_delay);
-
 int gb_audio_apbridgea_prepare_tx(struct gb_connection *connection,
 				  __u16 i2s_port)
 {
@@ -157,14 +149,6 @@ int gb_audio_apbridgea_set_rx_data_size(struct gb_connection *connection,
 			    GB_APB_REQUEST_AUDIO_CONTROL, true);
 }
 EXPORT_SYMBOL_GPL(gb_audio_apbridgea_set_rx_data_size);
-
-int gb_audio_apbridgea_get_rx_delay(struct gb_connection *connection,
-				    __u16 i2s_port, __u32 *delay)
-{
-	/* TODO: implement */
-	return -EOPNOTSUPP;
-}
-EXPORT_SYMBOL_GPL(gb_audio_apbridgea_get_rx_delay);
 
 int gb_audio_apbridgea_prepare_rx(struct gb_connection *connection,
 				  __u16 i2s_port)

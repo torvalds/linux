@@ -260,8 +260,6 @@ extern int gb_audio_apbridgea_unregister_cport(struct gb_connection *connection,
 					       __u8 direction);
 extern int gb_audio_apbridgea_set_tx_data_size(struct gb_connection *connection,
 					       __u16 i2s_port, __u16 size);
-extern int gb_audio_apbridgea_get_tx_delay(struct gb_connection *connection,
-					   __u16 i2s_port, __u32 *delay);
 extern int gb_audio_apbridgea_prepare_tx(struct gb_connection *connection,
 					 __u16 i2s_port);
 extern int gb_audio_apbridgea_start_tx(struct gb_connection *connection,
@@ -272,8 +270,6 @@ extern int gb_audio_apbridgea_shutdown_tx(struct gb_connection *connection,
 					  __u16 i2s_port);
 extern int gb_audio_apbridgea_set_rx_data_size(struct gb_connection *connection,
 					       __u16 i2s_port, __u16 size);
-extern int gb_audio_apbridgea_get_rx_delay(struct gb_connection *connection,
-					   __u16 i2s_port, __u32 *delay);
 extern int gb_audio_apbridgea_prepare_rx(struct gb_connection *connection,
 					 __u16 i2s_port);
 extern int gb_audio_apbridgea_start_rx(struct gb_connection *connection,
