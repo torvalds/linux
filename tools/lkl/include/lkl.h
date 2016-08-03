@@ -246,16 +246,27 @@ int lkl_set_ipv6_gateway(void* addr);
 struct lkl_netdev;
 
 /**
+* lkl_netdev_args - arguments to lkl_netdev_add
+* @mac - optional MAC address for the device
+* @offload - offload bits for the device
+*/
+struct lkl_netdev_args {
+	void *mac;
+	unsigned int offload;
+};
+
+/**
  * lkl_netdev_add - add a new network device
  *
  * Must be called before calling lkl_start_kernel.
  *
  * @nd - the network device host handle
- * @mac - optional MAC address for the device
+ * @args - arguments that configs the netdev. Can be NULL
  * @returns a network device id (0 is valid) or a strictly negative value in
  * case of error
  */
-int lkl_netdev_add(struct lkl_netdev *nd, void *mac, int offload);
+
+int lkl_netdev_add(struct lkl_netdev *nd, struct lkl_netdev_args* args);
 
 /**
 * lkl_netdevs_remove - destroy all network devices

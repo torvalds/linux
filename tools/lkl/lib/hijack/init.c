@@ -235,6 +235,7 @@ hijack_init(void)
 	char *debug = getenv("LKL_HIJACK_DEBUG");
 	char *mount = getenv("LKL_HIJACK_MOUNT");
 	struct lkl_netdev *nd = NULL;
+	struct lkl_netdev_args nd_args;
 	char *neigh_entries = getenv("LKL_HIJACK_NET_NEIGHBOR");
 	/* single_cpu mode:
 	 * 0: Don't pin to single CPU (default).
@@ -253,6 +254,7 @@ hijack_init(void)
 	char *offload1 = getenv("LKL_HIJACK_OFFLOAD");
 	int offload = 0;
 
+	memset(&nd_args, 0, sizeof(struct lkl_netdev_args));
 	if (!debug) {
 		lkl_host_ops.print = NULL;
 	} else {
@@ -297,6 +299,7 @@ hijack_init(void)
 			"      please use LKL_HIJACK_NET_IFTYPE and "
 			"LKL_HIJACK_NET_IFPARAMS instead.\n");
 		nd = lkl_netdev_tap_create(tap, offload);
+		nd_args.offload = offload;
 	}
 
 	if (!nd && iftype && ifparams) {
@@ -327,10 +330,12 @@ hijack_init(void)
 			fprintf(stderr, "failed to parse mac\n");
 			return;
 		} else if (ret > 0) {
-			ret = lkl_netdev_add(nd, mac, offload);
+			nd_args.mac = mac;
 		} else {
-			ret = lkl_netdev_add(nd, NULL, offload);
+			nd_args.mac = NULL;
 		}
+
+		ret = lkl_netdev_add(nd, &nd_args);
 
 		if (ret < 0) {
 			fprintf(stderr, "failed to add netdev: %s\n",

@@ -332,7 +332,7 @@ int test_netdev_add(char *str, int len)
 	if (!netdev)
 		goto out;
 
-	ret = lkl_netdev_add((struct lkl_netdev *)netdev, NULL, 0);
+	ret = lkl_netdev_add((struct lkl_netdev *)netdev, NULL);
 	if (ret < 0)
 		goto out;
 

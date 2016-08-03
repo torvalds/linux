@@ -202,7 +202,7 @@ static struct lkl_mutex **init_queue_locks(int num_queues)
 	return ret;
 }
 
-int lkl_netdev_add(struct lkl_netdev *nd, void *mac, int offload)
+int lkl_netdev_add(struct lkl_netdev *nd, struct lkl_netdev_args* args)
 {
 	struct virtio_net_dev *dev;
 	int ret = -LKL_ENOMEM;
@@ -214,9 +214,14 @@ int lkl_netdev_add(struct lkl_netdev *nd, void *mac, int offload)
 	memset(dev, 0, sizeof(*dev));
 
 	dev->dev.device_id = LKL_VIRTIO_ID_NET;
-	if (mac)
-		dev->dev.device_features |= BIT(LKL_VIRTIO_NET_F_MAC);
-	dev->dev.device_features |= offload;
+	if (args) {
+		if (args->mac) {
+			dev->dev.device_features |= BIT(LKL_VIRTIO_NET_F_MAC);
+			memcpy(dev->config.mac, args->mac, LKL_ETH_ALEN);
+		}
+		dev->dev.device_features |= args->offload;
+
+	}
 	dev->dev.config_data = &dev->config;
 	dev->dev.config_len = sizeof(dev->config);
 	dev->dev.ops = &net_ops;
@@ -226,9 +231,6 @@ int lkl_netdev_add(struct lkl_netdev *nd, void *mac, int offload)
 
 	if (!dev->queue_locks)
 		goto out_free;
-
-	if (mac)
-		memcpy(dev->config.mac, mac, LKL_ETH_ALEN);
 
 	dev->rx_poll.event = LKL_DEV_NET_POLL_RX;
 	dev->rx_poll.dev = dev;
