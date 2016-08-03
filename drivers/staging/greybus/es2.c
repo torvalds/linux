@@ -20,6 +20,9 @@
 #include "connection.h"
 
 
+/* Default timeout for USB vendor requests. */
+#define ES2_USB_CTRL_TIMEOUT	500
+
 /* Default timeout for ARPC CPort requests */
 #define ES2_ARPC_CPORT_TIMEOUT	500
 
@@ -204,8 +207,6 @@ static int cport_to_ep_pair(struct es2_ap_dev *es2, u16 cport_id)
 	return es2->cport_to_ep[cport_id];
 }
 
-#define ES2_TIMEOUT	500	/* 500 ms for the SVC to do something */
-
 /* Disable for now until we work all of this out to keep a warning-free build */
 #if 0
 /* Test if the endpoints pair is already mapped to a cport */
@@ -250,7 +251,7 @@ static int map_cport_to_ep(struct es2_ap_dev *es2,
 				 0x00, 0x00,
 				 (char *)cport_to_ep,
 				 sizeof(*cport_to_ep),
-				 ES2_TIMEOUT);
+				 ES2_USB_CTRL_TIMEOUT);
 	if (retval == sizeof(*cport_to_ep))
 		retval = 0;
 	kfree(cport_to_ep);
@@ -280,7 +281,7 @@ static int output_sync(struct es2_ap_dev *es2, void *req, u16 size, u8 cmd)
 				 cmd,
 				 USB_DIR_OUT | USB_TYPE_VENDOR |
 				 USB_RECIP_INTERFACE,
-				 0, 0, data, size, ES2_TIMEOUT);
+				 0, 0, data, size, ES2_USB_CTRL_TIMEOUT);
 	if (retval < 0)
 		dev_err(&udev->dev, "%s: return error %d\n", __func__, retval);
 	else
@@ -716,7 +717,7 @@ static int cport_enable(struct gb_host_device *hd, u16 cport_id,
 				GB_APB_REQUEST_CPORT_FLAGS,
 				USB_DIR_OUT | USB_TYPE_VENDOR |
 				USB_RECIP_INTERFACE, cport_id, 0,
-				req, sizeof(*req), ES2_TIMEOUT);
+				req, sizeof(*req), ES2_USB_CTRL_TIMEOUT);
 	if (ret != sizeof(*req)) {
 		dev_err(&udev->dev, "failed to set cport flags for port %d\n",
 				cport_id);
@@ -754,7 +755,7 @@ static int latency_tag_enable(struct gb_host_device *hd, u16 cport_id)
 				 GB_APB_REQUEST_LATENCY_TAG_EN,
 				 USB_DIR_OUT | USB_TYPE_VENDOR |
 				 USB_RECIP_INTERFACE, cport_id, 0, NULL,
-				 0, ES2_TIMEOUT);
+				 0, ES2_USB_CTRL_TIMEOUT);
 
 	if (retval < 0)
 		dev_err(&udev->dev, "Cannot enable latency tag for cport %d\n",
@@ -772,7 +773,7 @@ static int latency_tag_disable(struct gb_host_device *hd, u16 cport_id)
 				 GB_APB_REQUEST_LATENCY_TAG_DIS,
 				 USB_DIR_OUT | USB_TYPE_VENDOR |
 				 USB_RECIP_INTERFACE, cport_id, 0, NULL,
-				 0, ES2_TIMEOUT);
+				 0, ES2_USB_CTRL_TIMEOUT);
 
 	if (retval < 0)
 		dev_err(&udev->dev, "Cannot disable latency tag for cport %d\n",
@@ -790,7 +791,7 @@ static int cport_features_enable(struct gb_host_device *hd, u16 cport_id)
 				 GB_APB_REQUEST_CPORT_FEAT_EN,
 				 USB_DIR_OUT | USB_TYPE_VENDOR |
 				 USB_RECIP_INTERFACE, cport_id, 0, NULL,
-				 0, ES2_TIMEOUT);
+				 0, ES2_USB_CTRL_TIMEOUT);
 	if (retval < 0)
 		dev_err(&udev->dev, "Cannot enable CPort features for cport %u: %d\n",
 			cport_id, retval);
@@ -807,7 +808,7 @@ static int cport_features_disable(struct gb_host_device *hd, u16 cport_id)
 				 GB_APB_REQUEST_CPORT_FEAT_DIS,
 				 USB_DIR_OUT | USB_TYPE_VENDOR |
 				 USB_RECIP_INTERFACE, cport_id, 0, NULL,
-				 0, ES2_TIMEOUT);
+				 0, ES2_USB_CTRL_TIMEOUT);
 	if (retval < 0)
 		dev_err(&udev->dev,
 			"Cannot disable CPort features for cport %u: %d\n",
@@ -835,7 +836,7 @@ static int timesync_enable(struct gb_host_device *hd, u8 count,
 				 REQUEST_TIMESYNC_ENABLE,
 				 USB_DIR_OUT | USB_TYPE_VENDOR |
 				 USB_RECIP_INTERFACE, 0, 0, request,
-				 sizeof(*request), ES2_TIMEOUT);
+				 sizeof(*request), ES2_USB_CTRL_TIMEOUT);
 	if (retval < 0)
 		dev_err(&udev->dev, "Cannot enable timesync %d\n", retval);
 
@@ -853,7 +854,7 @@ static int timesync_disable(struct gb_host_device *hd)
 				 REQUEST_TIMESYNC_DISABLE,
 				 USB_DIR_OUT | USB_TYPE_VENDOR |
 				 USB_RECIP_INTERFACE, 0, 0, NULL,
-				 0, ES2_TIMEOUT);
+				 0, ES2_USB_CTRL_TIMEOUT);
 	if (retval < 0)
 		dev_err(&udev->dev, "Cannot disable timesync %d\n", retval);
 
@@ -878,7 +879,7 @@ static int timesync_authoritative(struct gb_host_device *hd, u64 *frame_time)
 				 REQUEST_TIMESYNC_AUTHORITATIVE,
 				 USB_DIR_OUT | USB_TYPE_VENDOR |
 				 USB_RECIP_INTERFACE, 0, 0, request,
-				 sizeof(*request), ES2_TIMEOUT);
+				 sizeof(*request), ES2_USB_CTRL_TIMEOUT);
 	if (retval < 0)
 		dev_err(&udev->dev, "Cannot timesync authoritative out %d\n", retval);
 
@@ -901,7 +902,8 @@ static int timesync_get_last_event(struct gb_host_device *hd, u64 *frame_time)
 				 REQUEST_TIMESYNC_GET_LAST_EVENT,
 				 USB_DIR_IN | USB_TYPE_VENDOR |
 				 USB_RECIP_INTERFACE, 0, 0, response_frame_time,
-				 sizeof(*response_frame_time), ES2_TIMEOUT);
+				 sizeof(*response_frame_time),
+				 ES2_USB_CTRL_TIMEOUT);
 
 	if (retval != sizeof(*response_frame_time)) {
 		dev_err(&udev->dev, "Cannot get last TimeSync event: %d\n",
@@ -1168,7 +1170,7 @@ static int arpc_send(struct es2_ap_dev *es2, struct arpc *rpc, int timeout)
 				 USB_RECIP_INTERFACE,
 				 0, 0,
 				 rpc->req, le16_to_cpu(rpc->req->size),
-				 ES2_TIMEOUT);
+				 ES2_USB_CTRL_TIMEOUT);
 	if (retval != le16_to_cpu(rpc->req->size)) {
 		dev_err(&udev->dev,
 			"failed to send ARPC request %d: %d\n",
@@ -1288,7 +1290,6 @@ static void apb_log_get(struct es2_ap_dev *es2, char *buf)
 {
 	int retval;
 
-	/* SVC messages go down our control pipe */
 	do {
 		retval = usb_control_msg(es2->usb_dev,
 					usb_rcvctrlpipe(es2->usb_dev, 0),
@@ -1297,7 +1298,7 @@ static void apb_log_get(struct es2_ap_dev *es2, char *buf)
 					0x00, 0x00,
 					buf,
 					APB1_LOG_MSG_SIZE,
-					ES2_TIMEOUT);
+					ES2_USB_CTRL_TIMEOUT);
 		if (retval > 0)
 			kfifo_in(&es2->apb_log_fifo, buf, retval);
 	} while (retval > 0);
@@ -1424,7 +1425,7 @@ static int apb_get_cport_count(struct usb_device *udev)
 				 GB_APB_REQUEST_CPORT_COUNT,
 				 USB_DIR_IN | USB_TYPE_VENDOR |
 				 USB_RECIP_INTERFACE, 0, 0, cport_count,
-				 sizeof(*cport_count), ES2_TIMEOUT);
+				 sizeof(*cport_count), ES2_USB_CTRL_TIMEOUT);
 	if (retval != sizeof(*cport_count)) {
 		dev_err(&udev->dev, "Cannot retrieve CPort count: %d\n",
 			retval);
