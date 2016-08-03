@@ -1574,6 +1574,10 @@ xfs_fs_fill_super(
 		}
 	}
 
+	if (xfs_sb_version_hasrmapbt(&mp->m_sb))
+		xfs_alert(mp,
+	"EXPERIMENTAL reverse mapping btree feature enabled. Use at your own risk!");
+
 	error = xfs_mountfs(mp);
 	if (error)
 		goto out_filestream_unmount;
