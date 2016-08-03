@@ -246,7 +246,6 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 	struct video_device *vfd_enc;
 	struct resource *res;
 	int i, j, ret;
-	DEFINE_DMA_ATTRS(attrs);
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
@@ -377,9 +376,6 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 		mtk_v4l2_err("Failed to register video device");
 		goto err_enc_reg;
 	}
-
-	/* Avoid the iommu eat big hunks */
-	dma_set_attr(DMA_ATTR_ALLOC_SINGLE_PAGES, &attrs);
 
 	mtk_v4l2_debug(0, "encoder registered as /dev/video%d",
 			vfd_enc->num);
