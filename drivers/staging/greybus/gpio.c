@@ -708,26 +708,26 @@ static int gb_gpio_probe(struct gbphy_device *gbphy_dev,
 	if (ret)
 		goto exit_line_free;
 
-	ret = gpiochip_add(gpio);
-	if (ret) {
-		dev_err(&connection->bundle->dev,
-			"failed to add gpio chip: %d\n", ret);
-		goto exit_line_free;
-	}
-
 	ret = gb_gpio_irqchip_add(gpio, irqc, 0,
 				   handle_level_irq, IRQ_TYPE_NONE);
 	if (ret) {
 		dev_err(&connection->bundle->dev,
 			"failed to add irq chip: %d\n", ret);
-		goto exit_gpiochip_remove;
+		goto exit_line_free;
+	}
+
+	ret = gpiochip_add(gpio);
+	if (ret) {
+		dev_err(&connection->bundle->dev,
+			"failed to add gpio chip: %d\n", ret);
+		goto exit_gpio_irqchip_remove;
 	}
 
 	gbphy_runtime_put_autosuspend(gbphy_dev);
 	return 0;
 
-exit_gpiochip_remove:
-	gb_gpiochip_remove(gpio);
+exit_gpio_irqchip_remove:
+	gb_gpio_irqchip_remove(ggc);
 exit_line_free:
 	kfree(ggc->lines);
 exit_connection_disable:
@@ -750,8 +750,8 @@ static void gb_gpio_remove(struct gbphy_device *gbphy_dev)
 		gbphy_runtime_get_noresume(gbphy_dev);
 
 	gb_connection_disable_rx(connection);
-	gb_gpio_irqchip_remove(ggc);
 	gb_gpiochip_remove(&ggc->chip);
+	gb_gpio_irqchip_remove(ggc);
 	gb_connection_disable(connection);
 	gb_connection_destroy(connection);
 	kfree(ggc->lines);
