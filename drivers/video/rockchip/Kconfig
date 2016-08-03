@@ -68,4 +68,5 @@ source "drivers/video/rockchip/rga/Kconfig"
 source "drivers/video/rockchip/rga2/Kconfig"
 source "drivers/video/rockchip/vcodec/Kconfig"
 source "drivers/video/rockchip/iep/Kconfig"
+source "drivers/video/rockchip/dp/Kconfig"
 

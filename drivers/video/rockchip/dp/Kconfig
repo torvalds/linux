@@ -1,0 +1,12 @@
+menu "DP"
+
+config ROCKCHIP_DP
+	tristate "ROCKCHIP fb cdn dp driver"
+	depends on RK_HDMI
+	select SND_SOC_HDMI_CODEC if SND_SOC
+	help
+	  This selects support for Rockchip SoC specific extensions
+	  for the cdn DP driver. If you want to enable Dp on
+	  RK3399 based SoC with rkfb, you should select this
+	  option.
+endmenu
