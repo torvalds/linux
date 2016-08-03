@@ -31,6 +31,7 @@
 #include "xfs_trans.h"
 #include "xfs_alloc.h"
 #include "xfs_rmap.h"
+#include "xfs_rmap_btree.h"
 #include "xfs_trans_space.h"
 #include "xfs_trace.h"
 #include "xfs_error.h"
@@ -158,6 +159,218 @@ out_error:
 	return error;
 }
 
+/*
+ * A mergeable rmap must have the same owner and the same values for
+ * the unwritten, attr_fork, and bmbt flags.  The startblock and
+ * offset are checked separately.
+ */
+static bool
+xfs_rmap_is_mergeable(
+	struct xfs_rmap_irec	*irec,
+	uint64_t		owner,
+	unsigned int		flags)
+{
+	if (irec->rm_owner == XFS_RMAP_OWN_NULL)
+		return false;
+	if (irec->rm_owner != owner)
+		return false;
+	if ((flags & XFS_RMAP_UNWRITTEN) ^
+	    (irec->rm_flags & XFS_RMAP_UNWRITTEN))
+		return false;
+	if ((flags & XFS_RMAP_ATTR_FORK) ^
+	    (irec->rm_flags & XFS_RMAP_ATTR_FORK))
+		return false;
+	if ((flags & XFS_RMAP_BMBT_BLOCK) ^
+	    (irec->rm_flags & XFS_RMAP_BMBT_BLOCK))
+		return false;
+	return true;
+}
+
+/*
+ * When we allocate a new block, the first thing we do is add a reference to
+ * the extent in the rmap btree. This takes the form of a [agbno, length,
+ * owner, offset] record.  Flags are encoded in the high bits of the offset
+ * field.
+ */
+STATIC int
+xfs_rmap_map(
+	struct xfs_btree_cur	*cur,
+	xfs_agblock_t		bno,
+	xfs_extlen_t		len,
+	bool			unwritten,
+	struct xfs_owner_info	*oinfo)
+{
+	struct xfs_mount	*mp = cur->bc_mp;
+	struct xfs_rmap_irec	ltrec;
+	struct xfs_rmap_irec	gtrec;
+	int			have_gt;
+	int			have_lt;
+	int			error = 0;
+	int			i;
+	uint64_t		owner;
+	uint64_t		offset;
+	unsigned int		flags = 0;
+	bool			ignore_off;
+
+	xfs_owner_info_unpack(oinfo, &owner, &offset, &flags);
+	ASSERT(owner != 0);
+	ignore_off = XFS_RMAP_NON_INODE_OWNER(owner) ||
+			(flags & XFS_RMAP_BMBT_BLOCK);
+	if (unwritten)
+		flags |= XFS_RMAP_UNWRITTEN;
+	trace_xfs_rmap_map(mp, cur->bc_private.a.agno, bno, len,
+			unwritten, oinfo);
+
+	/*
+	 * For the initial lookup, look for an exact match or the left-adjacent
+	 * record for our insertion point. This will also give us the record for
+	 * start block contiguity tests.
+	 */
+	error = xfs_rmap_lookup_le(cur, bno, len, owner, offset, flags,
+			&have_lt);
+	if (error)
+		goto out_error;
+	XFS_WANT_CORRUPTED_GOTO(mp, have_lt == 1, out_error);
+
+	error = xfs_rmap_get_rec(cur, &ltrec, &have_lt);
+	if (error)
+		goto out_error;
+	XFS_WANT_CORRUPTED_GOTO(mp, have_lt == 1, out_error);
+	trace_xfs_rmap_lookup_le_range_result(cur->bc_mp,
+			cur->bc_private.a.agno, ltrec.rm_startblock,
+			ltrec.rm_blockcount, ltrec.rm_owner,
+			ltrec.rm_offset, ltrec.rm_flags);
+
+	if (!xfs_rmap_is_mergeable(&ltrec, owner, flags))
+		have_lt = 0;
+
+	XFS_WANT_CORRUPTED_GOTO(mp,
+		have_lt == 0 ||
+		ltrec.rm_startblock + ltrec.rm_blockcount <= bno, out_error);
+
+	/*
+	 * Increment the cursor to see if we have a right-adjacent record to our
+	 * insertion point. This will give us the record for end block
+	 * contiguity tests.
+	 */
+	error = xfs_btree_increment(cur, 0, &have_gt);
+	if (error)
+		goto out_error;
+	if (have_gt) {
+		error = xfs_rmap_get_rec(cur, &gtrec, &have_gt);
+		if (error)
+			goto out_error;
+		XFS_WANT_CORRUPTED_GOTO(mp, have_gt == 1, out_error);
+		XFS_WANT_CORRUPTED_GOTO(mp, bno + len <= gtrec.rm_startblock,
+					out_error);
+		trace_xfs_rmap_find_right_neighbor_result(cur->bc_mp,
+			cur->bc_private.a.agno, gtrec.rm_startblock,
+			gtrec.rm_blockcount, gtrec.rm_owner,
+			gtrec.rm_offset, gtrec.rm_flags);
+		if (!xfs_rmap_is_mergeable(&gtrec, owner, flags))
+			have_gt = 0;
+	}
+
+	/*
+	 * Note: cursor currently points one record to the right of ltrec, even
+	 * if there is no record in the tree to the right.
+	 */
+	if (have_lt &&
+	    ltrec.rm_startblock + ltrec.rm_blockcount == bno &&
+	    (ignore_off || ltrec.rm_offset + ltrec.rm_blockcount == offset)) {
+		/*
+		 * left edge contiguous, merge into left record.
+		 *
+		 *       ltbno     ltlen
+		 * orig:   |ooooooooo|
+		 * adding:           |aaaaaaaaa|
+		 * result: |rrrrrrrrrrrrrrrrrrr|
+		 *                  bno       len
+		 */
+		ltrec.rm_blockcount += len;
+		if (have_gt &&
+		    bno + len == gtrec.rm_startblock &&
+		    (ignore_off || offset + len == gtrec.rm_offset) &&
+		    (unsigned long)ltrec.rm_blockcount + len +
+				gtrec.rm_blockcount <= XFS_RMAP_LEN_MAX) {
+			/*
+			 * right edge also contiguous, delete right record
+			 * and merge into left record.
+			 *
+			 *       ltbno     ltlen    gtbno     gtlen
+			 * orig:   |ooooooooo|         |ooooooooo|
+			 * adding:           |aaaaaaaaa|
+			 * result: |rrrrrrrrrrrrrrrrrrrrrrrrrrrrr|
+			 */
+			ltrec.rm_blockcount += gtrec.rm_blockcount;
+			trace_xfs_rmap_delete(mp, cur->bc_private.a.agno,
+					gtrec.rm_startblock,
+					gtrec.rm_blockcount,
+					gtrec.rm_owner,
+					gtrec.rm_offset,
+					gtrec.rm_flags);
+			error = xfs_btree_delete(cur, &i);
+			if (error)
+				goto out_error;
+			XFS_WANT_CORRUPTED_GOTO(mp, i == 1, out_error);
+		}
+
+		/* point the cursor back to the left record and update */
+		error = xfs_btree_decrement(cur, 0, &have_gt);
+		if (error)
+			goto out_error;
+		error = xfs_rmap_update(cur, &ltrec);
+		if (error)
+			goto out_error;
+	} else if (have_gt &&
+		   bno + len == gtrec.rm_startblock &&
+		   (ignore_off || offset + len == gtrec.rm_offset)) {
+		/*
+		 * right edge contiguous, merge into right record.
+		 *
+		 *                 gtbno     gtlen
+		 * Orig:             |ooooooooo|
+		 * adding: |aaaaaaaaa|
+		 * Result: |rrrrrrrrrrrrrrrrrrr|
+		 *        bno       len
+		 */
+		gtrec.rm_startblock = bno;
+		gtrec.rm_blockcount += len;
+		if (!ignore_off)
+			gtrec.rm_offset = offset;
+		error = xfs_rmap_update(cur, &gtrec);
+		if (error)
+			goto out_error;
+	} else {
+		/*
+		 * no contiguous edge with identical owner, insert
+		 * new record at current cursor position.
+		 */
+		cur->bc_rec.r.rm_startblock = bno;
+		cur->bc_rec.r.rm_blockcount = len;
+		cur->bc_rec.r.rm_owner = owner;
+		cur->bc_rec.r.rm_offset = offset;
+		cur->bc_rec.r.rm_flags = flags;
+		trace_xfs_rmap_insert(mp, cur->bc_private.a.agno, bno, len,
+			owner, offset, flags);
+		error = xfs_btree_insert(cur, &i);
+		if (error)
+			goto out_error;
+		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, out_error);
+	}
+
+	trace_xfs_rmap_map_done(mp, cur->bc_private.a.agno, bno, len,
+			unwritten, oinfo);
+out_error:
+	if (error)
+		trace_xfs_rmap_map_error(mp, cur->bc_private.a.agno,
+				error, _RET_IP_);
+	return error;
+}
+
+/*
+ * Add a reference to an extent in the rmap btree.
+ */
 int
 xfs_rmap_alloc(
 	struct xfs_trans	*tp,
@@ -168,19 +381,22 @@ xfs_rmap_alloc(
 	struct xfs_owner_info	*oinfo)
 {
 	struct xfs_mount	*mp = tp->t_mountp;
-	int			error = 0;
+	struct xfs_btree_cur	*cur;
+	int			error;
 
 	if (!xfs_sb_version_hasrmapbt(&mp->m_sb))
 		return 0;
 
-	trace_xfs_rmap_map(mp, agno, bno, len, false, oinfo);
-	if (1)
+	cur = xfs_rmapbt_init_cursor(mp, tp, agbp, agno);
+	error = xfs_rmap_map(cur, bno, len, false, oinfo);
+	if (error)
 		goto out_error;
-	trace_xfs_rmap_map_done(mp, agno, bno, len, false, oinfo);
+
+	xfs_btree_del_cursor(cur, XFS_BTREE_NOERROR);
 	return 0;
 
 out_error:
-	trace_xfs_rmap_map_error(mp, agno, error, _RET_IP_);
+	xfs_btree_del_cursor(cur, XFS_BTREE_ERROR);
 	return error;
 }
 
