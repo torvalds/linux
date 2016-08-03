@@ -159,6 +159,7 @@ xfs_defer_intake_work(
 	struct xfs_defer_pending	*dfp;
 
 	list_for_each_entry(dfp, &dop->dop_intake, dfp_list) {
+		trace_xfs_defer_intake_work(tp->t_mountp, dfp);
 		dfp->dfp_intent = dfp->dfp_type->create_intent(tp,
 				dfp->dfp_count);
 		list_sort(tp->t_mountp, &dfp->dfp_work,
@@ -179,6 +180,7 @@ xfs_defer_trans_abort(
 {
 	struct xfs_defer_pending	*dfp;
 
+	trace_xfs_defer_trans_abort(tp->t_mountp, dop);
 	/*
 	 * If the transaction was committed, drop the intent reference
 	 * since we're bailing out of here. The other reference is
@@ -191,6 +193,7 @@ xfs_defer_trans_abort(
 
 	/* Abort intent items. */
 	list_for_each_entry(dfp, &dop->dop_pending, dfp_list) {
+		trace_xfs_defer_pending_abort(tp->t_mountp, dfp);
 		if (dfp->dfp_committed)
 			dfp->dfp_type->abort_intent(dfp->dfp_intent);
 	}
@@ -217,9 +220,12 @@ xfs_defer_trans_roll(
 		xfs_trans_log_inode(*tp, dop->dop_inodes[i], XFS_ILOG_CORE);
 	}
 
+	trace_xfs_defer_trans_roll((*tp)->t_mountp, dop);
+
 	/* Roll the transaction. */
 	error = xfs_trans_roll(tp, ip);
 	if (error) {
+		trace_xfs_defer_trans_roll_error((*tp)->t_mountp, dop, error);
 		xfs_defer_trans_abort(*tp, dop, error);
 		return error;
 	}
@@ -291,6 +297,8 @@ xfs_defer_finish(
 
 	ASSERT((*tp)->t_flags & XFS_TRANS_PERM_LOG_RES);
 
+	trace_xfs_defer_finish((*tp)->t_mountp, dop);
+
 	/* Until we run out of pending work to finish... */
 	while (xfs_defer_has_unfinished_work(dop)) {
 		/* Log intents for work items sitting in the intake. */
@@ -305,12 +313,14 @@ xfs_defer_finish(
 		list_for_each_entry_reverse(dfp, &dop->dop_pending, dfp_list) {
 			if (dfp->dfp_committed)
 				break;
+			trace_xfs_defer_pending_commit((*tp)->t_mountp, dfp);
 			dfp->dfp_committed = true;
 		}
 
 		/* Log an intent-done item for the first pending item. */
 		dfp = list_first_entry(&dop->dop_pending,
 				struct xfs_defer_pending, dfp_list);
+		trace_xfs_defer_pending_finish((*tp)->t_mountp, dfp);
 		done_item = dfp->dfp_type->create_done(*tp, dfp->dfp_intent,
 				dfp->dfp_count);
 		cleanup_fn = dfp->dfp_type->finish_cleanup;
@@ -343,6 +353,10 @@ xfs_defer_finish(
 	}
 
 out:
+	if (error)
+		trace_xfs_defer_finish_error((*tp)->t_mountp, dop, error);
+	else
+		trace_xfs_defer_finish_done((*tp)->t_mountp, dop);
 	return error;
 }
 
@@ -358,11 +372,14 @@ xfs_defer_cancel(
 	struct list_head		*pwi;
 	struct list_head		*n;
 
+	trace_xfs_defer_cancel(NULL, dop);
+
 	/*
 	 * Free the pending items.  Caller should already have arranged
 	 * for the intent items to be released.
 	 */
 	list_for_each_entry_safe(dfp, pli, &dop->dop_intake, dfp_list) {
+		trace_xfs_defer_intake_cancel(NULL, dfp);
 		list_del(&dfp->dfp_list);
 		list_for_each_safe(pwi, n, &dfp->dfp_work) {
 			list_del(pwi);
@@ -373,6 +390,7 @@ xfs_defer_cancel(
 		kmem_free(dfp);
 	}
 	list_for_each_entry_safe(dfp, pli, &dop->dop_pending, dfp_list) {
+		trace_xfs_defer_pending_cancel(NULL, dfp);
 		list_del(&dfp->dfp_list);
 		list_for_each_safe(pwi, n, &dfp->dfp_work) {
 			list_del(pwi);
@@ -441,4 +459,5 @@ xfs_defer_init(
 	*fbp = NULLFSBLOCK;
 	INIT_LIST_HEAD(&dop->dop_intake);
 	INIT_LIST_HEAD(&dop->dop_pending);
+	trace_xfs_defer_init(NULL, dop);
 }
