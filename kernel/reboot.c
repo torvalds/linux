@@ -185,6 +185,25 @@ void do_kernel_restart(char *cmd)
 	atomic_notifier_call_chain(&restart_handler_list, reboot_mode, cmd);
 }
 
+static ATOMIC_NOTIFIER_HEAD(i2c_restart_handler_list);
+
+int register_i2c_restart_handler(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_register(&i2c_restart_handler_list, nb);
+}
+EXPORT_SYMBOL(register_i2c_restart_handler);
+
+int unregister_i2c_restart_handler(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_unregister(&i2c_restart_handler_list, nb);
+}
+EXPORT_SYMBOL(unregister_i2c_restart_handler);
+
+void do_kernel_i2c_restart(char *cmd)
+{
+	atomic_notifier_call_chain(&i2c_restart_handler_list, reboot_mode, cmd);
+}
+
 void migrate_to_reboot_cpu(void)
 {
 	/* The boot cpu is always logical cpu 0 */

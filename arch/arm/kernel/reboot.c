@@ -166,6 +166,8 @@ void machine_restart(char *cmd)
 	local_irq_disable();
 	smp_send_stop();
 
+	do_kernel_i2c_restart(cmd);
+
 	/* Flush the console to make sure all the relevant messages make it
 	 * out to the console drivers */
 	arm_machine_flush_console();
