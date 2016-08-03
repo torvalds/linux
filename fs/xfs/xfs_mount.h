@@ -123,6 +123,8 @@ typedef struct xfs_mount {
 	uint			m_in_maxlevels;	/* max inobt btree levels. */
 	uint			m_rmap_maxlevels; /* max rmap btree levels */
 	xfs_extlen_t		m_ag_prealloc_blocks; /* reserved ag blocks */
+	uint			m_alloc_set_aside; /* space we can't use */
+	uint			m_ag_max_usable; /* max space per AG */
 	struct radix_tree_root	m_perag_tree;	/* per-ag accounting info */
 	spinlock_t		m_perag_lock;	/* lock for m_perag_tree */
 	struct mutex		m_growlock;	/* growfs mutex */

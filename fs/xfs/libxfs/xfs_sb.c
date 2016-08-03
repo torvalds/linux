@@ -745,6 +745,8 @@ xfs_sb_mount_common(
 		mp->m_ialloc_min_blks = sbp->sb_spino_align;
 	else
 		mp->m_ialloc_min_blks = mp->m_ialloc_blks;
+	mp->m_alloc_set_aside = xfs_alloc_set_aside(mp);
+	mp->m_ag_max_usable = xfs_alloc_ag_max_usable(mp);
 }
 
 /*

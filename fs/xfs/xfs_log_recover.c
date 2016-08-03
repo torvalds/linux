@@ -5008,6 +5008,7 @@ xlog_do_recover(
 		xfs_warn(mp, "Failed post-recovery per-ag init: %d", error);
 		return error;
 	}
+	mp->m_alloc_set_aside = xfs_alloc_set_aside(mp);
 
 	xlog_recover_check_summary(log);
 

@@ -584,6 +584,7 @@ xfs_growfs_data_private(
 	} else
 		mp->m_maxicount = 0;
 	xfs_set_low_space_thresholds(mp);
+	mp->m_alloc_set_aside = xfs_alloc_set_aside(mp);
 
 	/* update secondary superblocks. */
 	for (agno = 1; agno < nagcount; agno++) {
@@ -721,7 +722,7 @@ xfs_fs_counts(
 	cnt->allocino = percpu_counter_read_positive(&mp->m_icount);
 	cnt->freeino = percpu_counter_read_positive(&mp->m_ifree);
 	cnt->freedata = percpu_counter_read_positive(&mp->m_fdblocks) -
-							XFS_ALLOC_SET_ASIDE(mp);
+						mp->m_alloc_set_aside;
 
 	spin_lock(&mp->m_sb_lock);
 	cnt->freertx = mp->m_sb.sb_frextents;
@@ -809,7 +810,7 @@ xfs_reserve_blocks(
 	error = -ENOSPC;
 	do {
 		free = percpu_counter_sum(&mp->m_fdblocks) -
-							XFS_ALLOC_SET_ASIDE(mp);
+						mp->m_alloc_set_aside;
 		if (!free)
 			break;
 
