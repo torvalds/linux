@@ -33,11 +33,11 @@
  * caller must use all nextents extents, because we are not
  * flexible about this at all.
  */
-xfs_efi_log_item_t *
-xfs_trans_get_efi(xfs_trans_t	*tp,
-		  uint		nextents)
+struct xfs_efi_log_item *
+xfs_trans_get_efi(struct xfs_trans	*tp,
+		  uint			nextents)
 {
-	xfs_efi_log_item_t	*efip;
+	struct xfs_efi_log_item		*efip;
 
 	ASSERT(tp != NULL);
 	ASSERT(nextents > 0);
@@ -58,13 +58,13 @@ xfs_trans_get_efi(xfs_trans_t	*tp,
  * be called once for each extent to be freed.
  */
 void
-xfs_trans_log_efi_extent(xfs_trans_t		*tp,
-			 xfs_efi_log_item_t	*efip,
-			 xfs_fsblock_t		start_block,
-			 xfs_extlen_t		ext_len)
+xfs_trans_log_efi_extent(struct xfs_trans		*tp,
+			 struct xfs_efi_log_item	*efip,
+			 xfs_fsblock_t			start_block,
+			 xfs_extlen_t			ext_len)
 {
-	uint			next_extent;
-	xfs_extent_t		*extp;
+	uint						next_extent;
+	struct xfs_extent				*extp;
 
 	tp->t_flags |= XFS_TRANS_DIRTY;
 	efip->efi_item.li_desc->lid_flags |= XFS_LID_DIRTY;
@@ -88,12 +88,12 @@ xfs_trans_log_efi_extent(xfs_trans_t		*tp,
  * caller must use all nextents extents, because we are not
  * flexible about this at all.
  */
-xfs_efd_log_item_t *
-xfs_trans_get_efd(xfs_trans_t		*tp,
-		  xfs_efi_log_item_t	*efip,
-		  uint			nextents)
+struct xfs_efd_log_item *
+xfs_trans_get_efd(struct xfs_trans		*tp,
+		  struct xfs_efi_log_item	*efip,
+		  uint				nextents)
 {
-	xfs_efd_log_item_t	*efdp;
+	struct xfs_efd_log_item			*efdp;
 
 	ASSERT(tp != NULL);
 	ASSERT(nextents > 0);
