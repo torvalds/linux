@@ -59,13 +59,6 @@ struct kasan_global {
  * Structures to keep alloc and free tracks *
  */
 
-enum kasan_state {
-	KASAN_STATE_INIT,
-	KASAN_STATE_ALLOC,
-	KASAN_STATE_QUARANTINE,
-	KASAN_STATE_FREE
-};
-
 #define KASAN_STACK_DEPTH 64
 
 struct kasan_track {
@@ -74,9 +67,8 @@ struct kasan_track {
 };
 
 struct kasan_alloc_meta {
-	struct kasan_track track;
-	u32 state : 2;	/* enum kasan_state */
-	u32 alloc_size : 30;
+	struct kasan_track alloc_track;
+	struct kasan_track free_track;
 };
 
 struct qlist_node {
@@ -87,7 +79,6 @@ struct kasan_free_meta {
 	 * Otherwise it might be used for the allocator freelist.
 	 */
 	struct qlist_node quarantine_link;
-	struct kasan_track track;
 };
 
 struct kasan_alloc_meta *get_alloc_info(struct kmem_cache *cache,
@@ -108,6 +99,8 @@ static inline bool kasan_report_enabled(void)
 
 void kasan_report(unsigned long addr, size_t size,
 		bool is_write, unsigned long ip);
+void kasan_report_double_free(struct kmem_cache *cache, void *object,
+			s8 shadow);
 
 #if defined(CONFIG_SLAB) || defined(CONFIG_SLUB)
 void quarantine_put(struct kasan_free_meta *info, struct kmem_cache *cache);

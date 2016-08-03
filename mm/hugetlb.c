@@ -2216,6 +2216,10 @@ static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,
 		 * and reducing the surplus.
 		 */
 		spin_unlock(&hugetlb_lock);
+
+		/* yield cpu to avoid soft lockup */
+		cond_resched();
+
 		if (hstate_is_gigantic(h))
 			ret = alloc_fresh_gigantic_page(h, nodes_allowed);
 		else
@@ -4306,7 +4310,7 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
 				pte = (pte_t *)pmd_alloc(mm, pud, addr);
 		}
 	}
-	BUG_ON(pte && !pte_none(*pte) && !pte_huge(*pte));
+	BUG_ON(pte && pte_present(*pte) && !pte_huge(*pte));
 
 	return pte;
 }
