@@ -156,10 +156,8 @@ struct qlcnic_vf_info {
 	spinlock_t			vlan_list_lock;	/* Lock for VLAN list */
 };
 
-struct qlcnic_async_work_list {
+struct qlcnic_async_cmd {
 	struct list_head	list;
-	struct work_struct	work;
-	void			*ptr;
 	struct qlcnic_cmd_args	*cmd;
 };
 
@@ -168,7 +166,10 @@ struct qlcnic_back_channel {
 	struct workqueue_struct *bc_trans_wq;
 	struct workqueue_struct *bc_async_wq;
 	struct workqueue_struct *bc_flr_wq;
-	struct list_head	async_list;
+	struct qlcnic_adapter	*adapter;
+	struct list_head	async_cmd_list;
+	struct work_struct	vf_async_work;
+	spinlock_t		queue_lock; /* async_cmd_list queue lock */
 };
 
 struct qlcnic_sriov {
