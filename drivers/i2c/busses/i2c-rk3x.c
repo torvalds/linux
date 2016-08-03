@@ -25,6 +25,8 @@
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 #include <linux/math64.h>
+#include <linux/reboot.h>
+#include <linux/delay.h>
 
 
 /* Register Map */
@@ -191,6 +193,7 @@ struct rk3x_i2c_soc_data {
  * @state: state of i2c transfer
  * @processed: byte length which has been send or received
  * @error: error code for i2c transfer
+ * @i2c_restart_nb: make sure the i2c transfer to be finished
  */
 struct rk3x_i2c {
 	struct i2c_adapter adap;
@@ -221,6 +224,8 @@ struct rk3x_i2c {
 	enum rk3x_i2c_state state;
 	unsigned int processed;
 	int error;
+
+	struct notifier_block i2c_restart_nb;
 };
 
 static inline void i2c_writel(struct rk3x_i2c *i2c, u32 value,
@@ -1076,9 +1081,9 @@ static int rk3x_i2c_xfer(struct i2c_adapter *adap,
 		if (i + ret >= num)
 			i2c->is_last_msg = true;
 
-		spin_unlock_irqrestore(&i2c->lock, flags);
-
 		rk3x_i2c_start(i2c);
+
+		spin_unlock_irqrestore(&i2c->lock, flags);
 
 		timeout = wait_event_timeout(i2c->wait, !i2c->busy,
 					     msecs_to_jiffies(WAIT_TIMEOUT));
@@ -1113,6 +1118,39 @@ static int rk3x_i2c_xfer(struct i2c_adapter *adap,
 	spin_unlock_irqrestore(&i2c->lock, flags);
 
 	return ret < 0 ? ret : num;
+}
+
+static int rk3x_i2c_restart_notify(struct notifier_block *this,
+				   unsigned long mode, void *cmd)
+{
+	struct rk3x_i2c *i2c = container_of(this, struct rk3x_i2c,
+					    i2c_restart_nb);
+	int tmo = WAIT_TIMEOUT * USEC_PER_MSEC;
+	u32 val;
+
+	if (i2c->state != STATE_IDLE) {
+		/* complete the unfinished job */
+		while (tmo-- && i2c->busy) {
+			udelay(1);
+			rk3x_i2c_irq(0, i2c);
+		}
+	}
+
+	if (tmo <= 0) {
+		dev_err(i2c->dev, "restart timeout, ipd: 0x%02x, state: %d\n",
+			i2c_readl(i2c, REG_IPD), i2c->state);
+
+		/* Force a STOP condition without interrupt */
+		i2c_writel(i2c, 0, REG_IEN);
+		val = i2c_readl(i2c, REG_CON) & REG_CON_TUNING_MASK;
+		val |= REG_CON_EN | REG_CON_STOP;
+		i2c_writel(i2c, val, REG_CON);
+
+		udelay(10);
+		i2c->state = STATE_IDLE;
+	}
+
+	return NOTIFY_DONE;
 }
 
 static __maybe_unused int rk3x_i2c_resume(struct device *dev)
@@ -1227,6 +1265,14 @@ static int rk3x_i2c_probe(struct platform_device *pdev)
 
 	spin_lock_init(&i2c->lock);
 	init_waitqueue_head(&i2c->wait);
+
+	i2c->i2c_restart_nb.notifier_call = rk3x_i2c_restart_notify;
+	i2c->i2c_restart_nb.priority = 128;
+	ret = register_i2c_restart_handler(&i2c->i2c_restart_nb);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to setup i2c restart handler.\n");
+		return ret;
+	}
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	i2c->regs = devm_ioremap_resource(&pdev->dev, mem);
@@ -1346,6 +1392,7 @@ static int rk3x_i2c_remove(struct platform_device *pdev)
 	i2c_del_adapter(&i2c->adap);
 
 	clk_notifier_unregister(i2c->clk, &i2c->clk_rate_nb);
+	unregister_i2c_restart_handler(&i2c->i2c_restart_nb);
 	clk_unprepare(i2c->pclk);
 	clk_unprepare(i2c->clk);
 
