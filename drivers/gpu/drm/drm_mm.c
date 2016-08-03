@@ -217,7 +217,6 @@ static void drm_mm_insert_helper(struct drm_mm_node *hole_node,
 	node->color = color;
 	node->allocated = 1;
 
-	INIT_LIST_HEAD(&node->hole_stack);
 	list_add(&node->node_list, &hole_node->node_list);
 
 	drm_mm_interval_tree_add_node(hole_node, node);
@@ -276,14 +275,13 @@ int drm_mm_reserve_node(struct drm_mm *mm, struct drm_mm_node *node)
 	node->mm = mm;
 	node->allocated = 1;
 
-	INIT_LIST_HEAD(&node->hole_stack);
 	list_add(&node->node_list, &hole->node_list);
 
 	drm_mm_interval_tree_add_node(hole, node);
 
 	if (node->start == hole_start) {
 		hole->hole_follows = 0;
-		list_del_init(&hole->hole_stack);
+		list_del(&hole->hole_stack);
 	}
 
 	node->hole_follows = 0;
@@ -379,7 +377,6 @@ static void drm_mm_insert_helper_range(struct drm_mm_node *hole_node,
 	node->color = color;
 	node->allocated = 1;
 
-	INIT_LIST_HEAD(&node->hole_stack);
 	list_add(&node->node_list, &hole_node->node_list);
 
 	drm_mm_interval_tree_add_node(hole_node, node);
@@ -833,7 +830,6 @@ void drm_mm_init(struct drm_mm * mm, u64 start, u64 size)
 
 	/* Clever trick to avoid a special case in the free hole tracking. */
 	INIT_LIST_HEAD(&mm->head_node.node_list);
-	INIT_LIST_HEAD(&mm->head_node.hole_stack);
 	mm->head_node.hole_follows = 1;
 	mm->head_node.scanned_block = 0;
 	mm->head_node.scanned_prev_free = 0;
