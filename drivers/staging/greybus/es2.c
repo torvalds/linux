@@ -19,6 +19,10 @@
 #include "kernel_ver.h"
 #include "connection.h"
 
+
+/* Default timeout for ARPC CPort requests */
+#define ES2_ARPC_CPORT_TIMEOUT	500
+
 /* Fixed CPort numbers */
 #define ES2_CPORT_CDSI0		16
 #define ES2_CPORT_CDSI1		17
@@ -622,7 +626,7 @@ static int cport_reset(struct gb_host_device *hd, u16 cport_id)
 
 	req.cport_id = cpu_to_le16(cport_id);
 	retval = arpc_sync(es2, ARPC_TYPE_CPORT_RESET, &req, sizeof(req),
-			   &result, ES2_TIMEOUT);
+			   &result, ES2_ARPC_CPORT_TIMEOUT);
 	if (retval == -EREMOTEIO) {
 		dev_err(&udev->dev, "failed to reset cport %u: %d\n", cport_id,
 			result);
