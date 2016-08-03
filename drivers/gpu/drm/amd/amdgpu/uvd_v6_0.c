@@ -960,12 +960,12 @@ static int uvd_v6_0_set_clockgating_state(void *handle,
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (!(adev->cg_flags & AMD_CG_SUPPORT_UVD_MGCG))
-		return 0;
-
 	if (adev->asic_type == CHIP_FIJI ||
 	    adev->asic_type == CHIP_POLARIS10)
 		uvd_v6_set_bypass_mode(adev, state == AMD_CG_STATE_GATE ? true : false);
+
+	if (!(adev->cg_flags & AMD_CG_SUPPORT_UVD_MGCG))
+		return 0;
 
 	if (state == AMD_CG_STATE_GATE) {
 		/* disable HW gating and enable Sw gating */
