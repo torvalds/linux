@@ -227,6 +227,12 @@ struct xfs_btree_ops {
 #define LASTREC_DELREC	2
 
 
+union xfs_btree_irec {
+	struct xfs_alloc_rec_incore	a;
+	struct xfs_bmbt_irec		b;
+	struct xfs_inobt_rec_incore	i;
+};
+
 /*
  * Btree cursor structure.
  * This collects all information needed by the btree code in one place.
@@ -237,11 +243,7 @@ typedef struct xfs_btree_cur
 	struct xfs_mount	*bc_mp;	/* file system mount struct */
 	const struct xfs_btree_ops *bc_ops;
 	uint			bc_flags; /* btree features - below */
-	union {
-		xfs_alloc_rec_incore_t	a;
-		xfs_bmbt_irec_t		b;
-		xfs_inobt_rec_incore_t	i;
-	}		bc_rec;		/* current insert/search record value */
+	union xfs_btree_irec	bc_rec;	/* current insert/search record value */
 	struct xfs_buf	*bc_bufs[XFS_BTREE_MAXLEVELS];	/* buf ptr per level */
 	int		bc_ptrs[XFS_BTREE_MAXLEVELS];	/* key/record # */
 	__uint8_t	bc_ra[XFS_BTREE_MAXLEVELS];	/* readahead bits */
@@ -523,5 +525,15 @@ void xfs_btree_get_leaf_keys_overlapped(struct xfs_btree_cur *cur,
 void xfs_btree_get_node_keys_overlapped(struct xfs_btree_cur *cur,
 		struct xfs_btree_block *block, union xfs_btree_key *key);
 int xfs_btree_update_keys_overlapped(struct xfs_btree_cur *cur, int level);
+
+/* return codes */
+#define XFS_BTREE_QUERY_RANGE_CONTINUE	0	/* keep iterating */
+#define XFS_BTREE_QUERY_RANGE_ABORT	1	/* stop iterating */
+typedef int (*xfs_btree_query_range_fn)(struct xfs_btree_cur *cur,
+		union xfs_btree_rec *rec, void *priv);
+
+int xfs_btree_query_range(struct xfs_btree_cur *cur,
+		union xfs_btree_irec *low_rec, union xfs_btree_irec *high_rec,
+		xfs_btree_query_range_fn fn, void *priv);
 
 #endif	/* __XFS_BTREE_H__ */

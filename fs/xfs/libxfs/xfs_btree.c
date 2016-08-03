@@ -4521,3 +4521,267 @@ xfs_btree_compute_maxlevels(
 		maxblocks = (maxblocks + limits[1] - 1) / limits[1];
 	return level;
 }
+
+/*
+ * Query a regular btree for all records overlapping a given interval.
+ * Start with a LE lookup of the key of low_rec and return all records
+ * until we find a record with a key greater than the key of high_rec.
+ */
+STATIC int
+xfs_btree_simple_query_range(
+	struct xfs_btree_cur		*cur,
+	union xfs_btree_key		*low_key,
+	union xfs_btree_key		*high_key,
+	xfs_btree_query_range_fn	fn,
+	void				*priv)
+{
+	union xfs_btree_rec		*recp;
+	union xfs_btree_key		rec_key;
+	__int64_t			diff;
+	int				stat;
+	bool				firstrec = true;
+	int				error;
+
+	ASSERT(cur->bc_ops->init_high_key_from_rec);
+	ASSERT(cur->bc_ops->diff_two_keys);
+
+	/*
+	 * Find the leftmost record.  The btree cursor must be set
+	 * to the low record used to generate low_key.
+	 */
+	stat = 0;
+	error = xfs_btree_lookup(cur, XFS_LOOKUP_LE, &stat);
+	if (error)
+		goto out;
+
+	while (stat) {
+		/* Find the record. */
+		error = xfs_btree_get_rec(cur, &recp, &stat);
+		if (error || !stat)
+			break;
+		cur->bc_ops->init_high_key_from_rec(&rec_key, recp);
+
+		/* Skip if high_key(rec) < low_key. */
+		if (firstrec) {
+			firstrec = false;
+			diff = cur->bc_ops->diff_two_keys(cur, low_key,
+					&rec_key);
+			if (diff > 0)
+				goto advloop;
+		}
+
+		/* Stop if high_key < low_key(rec). */
+		diff = cur->bc_ops->diff_two_keys(cur, &rec_key, high_key);
+		if (diff > 0)
+			break;
+
+		/* Callback */
+		error = fn(cur, recp, priv);
+		if (error < 0 || error == XFS_BTREE_QUERY_RANGE_ABORT)
+			break;
+
+advloop:
+		/* Move on to the next record. */
+		error = xfs_btree_increment(cur, 0, &stat);
+		if (error)
+			break;
+	}
+
+out:
+	return error;
+}
+
+/*
+ * Query an overlapped interval btree for all records overlapping a given
+ * interval.  This function roughly follows the algorithm given in
+ * "Interval Trees" of _Introduction to Algorithms_, which is section
+ * 14.3 in the 2nd and 3rd editions.
+ *
+ * First, generate keys for the low and high records passed in.
+ *
+ * For any leaf node, generate the high and low keys for the record.
+ * If the record keys overlap with the query low/high keys, pass the
+ * record to the function iterator.
+ *
+ * For any internal node, compare the low and high keys of each
+ * pointer against the query low/high keys.  If there's an overlap,
+ * follow the pointer.
+ *
+ * As an optimization, we stop scanning a block when we find a low key
+ * that is greater than the query's high key.
+ */
+STATIC int
+xfs_btree_overlapped_query_range(
+	struct xfs_btree_cur		*cur,
+	union xfs_btree_key		*low_key,
+	union xfs_btree_key		*high_key,
+	xfs_btree_query_range_fn	fn,
+	void				*priv)
+{
+	union xfs_btree_ptr		ptr;
+	union xfs_btree_ptr		*pp;
+	union xfs_btree_key		rec_key;
+	union xfs_btree_key		rec_hkey;
+	union xfs_btree_key		*lkp;
+	union xfs_btree_key		*hkp;
+	union xfs_btree_rec		*recp;
+	struct xfs_btree_block		*block;
+	__int64_t			ldiff;
+	__int64_t			hdiff;
+	int				level;
+	struct xfs_buf			*bp;
+	int				i;
+	int				error;
+
+	/* Load the root of the btree. */
+	level = cur->bc_nlevels - 1;
+	cur->bc_ops->init_ptr_from_cur(cur, &ptr);
+	error = xfs_btree_lookup_get_block(cur, level, &ptr, &block);
+	if (error)
+		return error;
+	xfs_btree_get_block(cur, level, &bp);
+	trace_xfs_btree_overlapped_query_range(cur, level, bp);
+#ifdef DEBUG
+	error = xfs_btree_check_block(cur, block, level, bp);
+	if (error)
+		goto out;
+#endif
+	cur->bc_ptrs[level] = 1;
+
+	while (level < cur->bc_nlevels) {
+		block = xfs_btree_get_block(cur, level, &bp);
+
+		/* End of node, pop back towards the root. */
+		if (cur->bc_ptrs[level] > be16_to_cpu(block->bb_numrecs)) {
+pop_up:
+			if (level < cur->bc_nlevels - 1)
+				cur->bc_ptrs[level + 1]++;
+			level++;
+			continue;
+		}
+
+		if (level == 0) {
+			/* Handle a leaf node. */
+			recp = xfs_btree_rec_addr(cur, cur->bc_ptrs[0], block);
+
+			cur->bc_ops->init_high_key_from_rec(&rec_hkey, recp);
+			ldiff = cur->bc_ops->diff_two_keys(cur, &rec_hkey,
+					low_key);
+
+			cur->bc_ops->init_key_from_rec(&rec_key, recp);
+			hdiff = cur->bc_ops->diff_two_keys(cur, high_key,
+					&rec_key);
+
+			/*
+			 * If (record's high key >= query's low key) and
+			 *    (query's high key >= record's low key), then
+			 * this record overlaps the query range; callback.
+			 */
+			if (ldiff >= 0 && hdiff >= 0) {
+				error = fn(cur, recp, priv);
+				if (error < 0 ||
+				    error == XFS_BTREE_QUERY_RANGE_ABORT)
+					break;
+			} else if (hdiff < 0) {
+				/* Record is larger than high key; pop. */
+				goto pop_up;
+			}
+			cur->bc_ptrs[level]++;
+			continue;
+		}
+
+		/* Handle an internal node. */
+		lkp = xfs_btree_key_addr(cur, cur->bc_ptrs[level], block);
+		hkp = xfs_btree_high_key_addr(cur, cur->bc_ptrs[level], block);
+		pp = xfs_btree_ptr_addr(cur, cur->bc_ptrs[level], block);
+
+		ldiff = cur->bc_ops->diff_two_keys(cur, hkp, low_key);
+		hdiff = cur->bc_ops->diff_two_keys(cur, high_key, lkp);
+
+		/*
+		 * If (pointer's high key >= query's low key) and
+		 *    (query's high key >= pointer's low key), then
+		 * this record overlaps the query range; follow pointer.
+		 */
+		if (ldiff >= 0 && hdiff >= 0) {
+			level--;
+			error = xfs_btree_lookup_get_block(cur, level, pp,
+					&block);
+			if (error)
+				goto out;
+			xfs_btree_get_block(cur, level, &bp);
+			trace_xfs_btree_overlapped_query_range(cur, level, bp);
+#ifdef DEBUG
+			error = xfs_btree_check_block(cur, block, level, bp);
+			if (error)
+				goto out;
+#endif
+			cur->bc_ptrs[level] = 1;
+			continue;
+		} else if (hdiff < 0) {
+			/* The low key is larger than the upper range; pop. */
+			goto pop_up;
+		}
+		cur->bc_ptrs[level]++;
+	}
+
+out:
+	/*
+	 * If we don't end this function with the cursor pointing at a record
+	 * block, a subsequent non-error cursor deletion will not release
+	 * node-level buffers, causing a buffer leak.  This is quite possible
+	 * with a zero-results range query, so release the buffers if we
+	 * failed to return any results.
+	 */
+	if (cur->bc_bufs[0] == NULL) {
+		for (i = 0; i < cur->bc_nlevels; i++) {
+			if (cur->bc_bufs[i]) {
+				xfs_trans_brelse(cur->bc_tp, cur->bc_bufs[i]);
+				cur->bc_bufs[i] = NULL;
+				cur->bc_ptrs[i] = 0;
+				cur->bc_ra[i] = 0;
+			}
+		}
+	}
+
+	return error;
+}
+
+/*
+ * Query a btree for all records overlapping a given interval of keys.  The
+ * supplied function will be called with each record found; return one of the
+ * XFS_BTREE_QUERY_RANGE_{CONTINUE,ABORT} values or the usual negative error
+ * code.  This function returns XFS_BTREE_QUERY_RANGE_ABORT, zero, or a
+ * negative error code.
+ */
+int
+xfs_btree_query_range(
+	struct xfs_btree_cur		*cur,
+	union xfs_btree_irec		*low_rec,
+	union xfs_btree_irec		*high_rec,
+	xfs_btree_query_range_fn	fn,
+	void				*priv)
+{
+	union xfs_btree_rec		rec;
+	union xfs_btree_key		low_key;
+	union xfs_btree_key		high_key;
+
+	/* Find the keys of both ends of the interval. */
+	cur->bc_rec = *high_rec;
+	cur->bc_ops->init_rec_from_cur(cur, &rec);
+	cur->bc_ops->init_key_from_rec(&high_key, &rec);
+
+	cur->bc_rec = *low_rec;
+	cur->bc_ops->init_rec_from_cur(cur, &rec);
+	cur->bc_ops->init_key_from_rec(&low_key, &rec);
+
+	/* Enforce low key < high key. */
+	if (cur->bc_ops->diff_two_keys(cur, &low_key, &high_key) > 0)
+		return -EINVAL;
+
+	if (!(cur->bc_flags & XFS_BTREE_OVERLAPPING))
+		return xfs_btree_simple_query_range(cur, &low_key,
+				&high_key, fn, priv);
+	return xfs_btree_overlapped_query_range(cur, &low_key, &high_key,
+			fn, priv);
+}

@@ -2220,6 +2220,7 @@ DEFINE_EVENT(xfs_btree_cur_class, name, \
 	TP_PROTO(struct xfs_btree_cur *cur, int level, struct xfs_buf *bp), \
 	TP_ARGS(cur, level, bp))
 DEFINE_BTREE_CUR_EVENT(xfs_btree_updkeys);
+DEFINE_BTREE_CUR_EVENT(xfs_btree_overlapped_query_range);
 
 #endif /* _TRACE_XFS_H */
 
