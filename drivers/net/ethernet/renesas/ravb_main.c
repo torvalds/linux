@@ -1876,6 +1876,20 @@ static int ravb_set_gti(struct net_device *ndev)
 	return 0;
 }
 
+static void ravb_set_config_mode(struct net_device *ndev)
+{
+	struct ravb_private *priv = netdev_priv(ndev);
+
+	if (priv->chip_id == RCAR_GEN2) {
+		ravb_modify(ndev, CCC, CCC_OPC, CCC_OPC_CONFIG);
+		/* Set CSEL value */
+		ravb_modify(ndev, CCC, CCC_CSEL, CCC_CSEL_HPB);
+	} else {
+		ravb_modify(ndev, CCC, CCC_OPC, CCC_OPC_CONFIG |
+			    CCC_GAC | CCC_CSEL_HPB);
+	}
+}
+
 static int ravb_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -1978,14 +1992,7 @@ static int ravb_probe(struct platform_device *pdev)
 	ndev->ethtool_ops = &ravb_ethtool_ops;
 
 	/* Set AVB config mode */
-	if (chip_id == RCAR_GEN2) {
-		ravb_modify(ndev, CCC, CCC_OPC, CCC_OPC_CONFIG);
-		/* Set CSEL value */
-		ravb_modify(ndev, CCC, CCC_CSEL, CCC_CSEL_HPB);
-	} else {
-		ravb_modify(ndev, CCC, CCC_OPC, CCC_OPC_CONFIG |
-			    CCC_GAC | CCC_CSEL_HPB);
-	}
+	ravb_set_config_mode(ndev);
 
 	/* Set GTI value */
 	error = ravb_set_gti(ndev);
@@ -2097,6 +2104,54 @@ static int ravb_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
+static int ravb_runtime_suspend(struct device *dev)
+{
+	struct net_device *ndev = dev_get_drvdata(dev);
+	int ret = 0;
+
+	if (netif_running(ndev)) {
+		netif_device_detach(ndev);
+		ret = ravb_close(ndev);
+	}
+
+	return ret;
+}
+
+static int ravb_runtime_resume(struct device *dev)
+{
+	struct net_device *ndev = dev_get_drvdata(dev);
+	struct ravb_private *priv = netdev_priv(ndev);
+	int ret = 0;
+
+	/* All register have been reset to default values.
+	 * Restore all registers which where setup at probe time and
+	 * reopen device if it was running before system suspended.
+	 */
+
+	/* Set AVB config mode */
+	ravb_set_config_mode(ndev);
+
+	/* Set GTI value */
+	ret = ravb_set_gti(ndev);
+	if (ret)
+		return ret;
+
+	/* Request GTI loading */
+	ravb_modify(ndev, GCCR, GCCR_LTI, GCCR_LTI);
+
+	/* Restore descriptor base address table */
+	ravb_write(ndev, priv->desc_bat_dma, DBAT);
+
+	if (netif_running(ndev)) {
+		ret = ravb_open(ndev);
+		if (ret < 0)
+			return ret;
+		netif_device_attach(ndev);
+	}
+
+	return ret;
+}
+
 static int ravb_runtime_nop(struct device *dev)
 {
 	/* Runtime PM callback shared between ->runtime_suspend()
@@ -2110,6 +2165,7 @@ static int ravb_runtime_nop(struct device *dev)
 }
 
 static const struct dev_pm_ops ravb_dev_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(ravb_runtime_suspend, ravb_runtime_resume)
 	SET_RUNTIME_PM_OPS(ravb_runtime_nop, ravb_runtime_nop, NULL)
 };
 
