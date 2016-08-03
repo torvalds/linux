@@ -685,7 +685,7 @@ xfs_bmap_punch_delalloc_range(
 		xfs_bmbt_irec_t	imap;
 		int		nimaps = 1;
 		xfs_fsblock_t	firstblock;
-		struct xfs_defer_ops flist;
+		struct xfs_defer_ops dfops;
 
 		/*
 		 * Map the range first and check that it is a delalloc extent
@@ -716,18 +716,18 @@ xfs_bmap_punch_delalloc_range(
 		WARN_ON(imap.br_blockcount == 0);
 
 		/*
-		 * Note: while we initialise the firstblock/flist pair, they
+		 * Note: while we initialise the firstblock/dfops pair, they
 		 * should never be used because blocks should never be
 		 * allocated or freed for a delalloc extent and hence we need
 		 * don't cancel or finish them after the xfs_bunmapi() call.
 		 */
-		xfs_defer_init(&flist, &firstblock);
+		xfs_defer_init(&dfops, &firstblock);
 		error = xfs_bunmapi(NULL, ip, start_fsb, 1, 0, 1, &firstblock,
-					&flist, &done);
+					&dfops, &done);
 		if (error)
 			break;
 
-		ASSERT(!xfs_defer_has_unfinished_work(&flist));
+		ASSERT(!xfs_defer_has_unfinished_work(&dfops));
 next_block:
 		start_fsb++;
 		remaining--;
@@ -884,7 +884,7 @@ xfs_alloc_file_space(
 	int			rt;
 	xfs_trans_t		*tp;
 	xfs_bmbt_irec_t		imaps[1], *imapp;
-	struct xfs_defer_ops	free_list;
+	struct xfs_defer_ops	dfops;
 	uint			qblocks, resblks, resrtextents;
 	int			error;
 
@@ -975,17 +975,17 @@ xfs_alloc_file_space(
 
 		xfs_trans_ijoin(tp, ip, 0);
 
-		xfs_defer_init(&free_list, &firstfsb);
+		xfs_defer_init(&dfops, &firstfsb);
 		error = xfs_bmapi_write(tp, ip, startoffset_fsb,
 					allocatesize_fsb, alloc_type, &firstfsb,
-					resblks, imapp, &nimaps, &free_list);
+					resblks, imapp, &nimaps, &dfops);
 		if (error)
 			goto error0;
 
 		/*
 		 * Complete the transaction
 		 */
-		error = xfs_defer_finish(&tp, &free_list, NULL);
+		error = xfs_defer_finish(&tp, &dfops, NULL);
 		if (error)
 			goto error0;
 
@@ -1008,7 +1008,7 @@ xfs_alloc_file_space(
 	return error;
 
 error0:	/* Cancel bmap, unlock inode, unreserve quota blocks, cancel trans */
-	xfs_defer_cancel(&free_list);
+	xfs_defer_cancel(&dfops);
 	xfs_trans_unreserve_quota_nblks(tp, ip, (long)qblocks, 0, quota_flag);
 
 error1:	/* Just cancel transaction */
@@ -1026,7 +1026,7 @@ xfs_unmap_extent(
 {
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_trans	*tp;
-	struct xfs_defer_ops	free_list;
+	struct xfs_defer_ops	dfops;
 	xfs_fsblock_t		firstfsb;
 	uint			resblks = XFS_DIOSTRAT_SPACE_RES(mp, 0);
 	int			error;
@@ -1045,13 +1045,13 @@ xfs_unmap_extent(
 
 	xfs_trans_ijoin(tp, ip, 0);
 
-	xfs_defer_init(&free_list, &firstfsb);
+	xfs_defer_init(&dfops, &firstfsb);
 	error = xfs_bunmapi(tp, ip, startoffset_fsb, len_fsb, 0, 2, &firstfsb,
-			&free_list, done);
+			&dfops, done);
 	if (error)
 		goto out_bmap_cancel;
 
-	error = xfs_defer_finish(&tp, &free_list, ip);
+	error = xfs_defer_finish(&tp, &dfops, ip);
 	if (error)
 		goto out_bmap_cancel;
 
@@ -1061,7 +1061,7 @@ out_unlock:
 	return error;
 
 out_bmap_cancel:
-	xfs_defer_cancel(&free_list);
+	xfs_defer_cancel(&dfops);
 out_trans_cancel:
 	xfs_trans_cancel(tp);
 	goto out_unlock;
@@ -1250,7 +1250,7 @@ xfs_shift_file_space(
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_trans	*tp;
 	int			error;
-	struct xfs_defer_ops	free_list;
+	struct xfs_defer_ops	dfops;
 	xfs_fsblock_t		first_block;
 	xfs_fileoff_t		stop_fsb;
 	xfs_fileoff_t		next_fsb;
@@ -1328,19 +1328,19 @@ xfs_shift_file_space(
 
 		xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 
-		xfs_defer_init(&free_list, &first_block);
+		xfs_defer_init(&dfops, &first_block);
 
 		/*
 		 * We are using the write transaction in which max 2 bmbt
 		 * updates are allowed
 		 */
 		error = xfs_bmap_shift_extents(tp, ip, &next_fsb, shift_fsb,
-				&done, stop_fsb, &first_block, &free_list,
+				&done, stop_fsb, &first_block, &dfops,
 				direction, XFS_BMAP_MAX_SHIFT_EXTENTS);
 		if (error)
 			goto out_bmap_cancel;
 
-		error = xfs_defer_finish(&tp, &free_list, NULL);
+		error = xfs_defer_finish(&tp, &dfops, NULL);
 		if (error)
 			goto out_bmap_cancel;
 
@@ -1350,7 +1350,7 @@ xfs_shift_file_space(
 	return error;
 
 out_bmap_cancel:
-	xfs_defer_cancel(&free_list);
+	xfs_defer_cancel(&dfops);
 out_trans_cancel:
 	xfs_trans_cancel(tp);
 	return error;

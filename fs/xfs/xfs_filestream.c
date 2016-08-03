@@ -386,7 +386,7 @@ xfs_filestream_new_ag(
 	}
 
 	flags = (ap->userdata ? XFS_PICK_USERDATA : 0) |
-	        (ap->flist->dop_low ? XFS_PICK_LOWSPACE : 0);
+	        (ap->dfops->dop_low ? XFS_PICK_LOWSPACE : 0);
 
 	err = xfs_filestream_pick_ag(pip, startag, agp, flags, minlen);
 

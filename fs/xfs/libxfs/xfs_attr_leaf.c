@@ -792,7 +792,7 @@ xfs_attr_shortform_to_leaf(xfs_da_args_t *args)
 	nargs.dp = dp;
 	nargs.geo = args->geo;
 	nargs.firstblock = args->firstblock;
-	nargs.flist = args->flist;
+	nargs.dfops = args->dfops;
 	nargs.total = args->total;
 	nargs.whichfork = XFS_ATTR_FORK;
 	nargs.trans = args->trans;
@@ -922,7 +922,7 @@ xfs_attr3_leaf_to_shortform(
 	nargs.geo = args->geo;
 	nargs.dp = dp;
 	nargs.firstblock = args->firstblock;
-	nargs.flist = args->flist;
+	nargs.dfops = args->dfops;
 	nargs.total = args->total;
 	nargs.whichfork = XFS_ATTR_FORK;
 	nargs.trans = args->trans;

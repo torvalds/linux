@@ -407,11 +407,11 @@ xfs_bmbt_dup_cursor(
 			cur->bc_private.b.ip, cur->bc_private.b.whichfork);
 
 	/*
-	 * Copy the firstblock, flist, and flags values,
+	 * Copy the firstblock, dfops, and flags values,
 	 * since init cursor doesn't get them.
 	 */
 	new->bc_private.b.firstblock = cur->bc_private.b.firstblock;
-	new->bc_private.b.flist = cur->bc_private.b.flist;
+	new->bc_private.b.dfops = cur->bc_private.b.dfops;
 	new->bc_private.b.flags = cur->bc_private.b.flags;
 
 	return new;
@@ -424,7 +424,7 @@ xfs_bmbt_update_cursor(
 {
 	ASSERT((dst->bc_private.b.firstblock != NULLFSBLOCK) ||
 	       (dst->bc_private.b.ip->i_d.di_flags & XFS_DIFLAG_REALTIME));
-	ASSERT(dst->bc_private.b.flist == src->bc_private.b.flist);
+	ASSERT(dst->bc_private.b.dfops == src->bc_private.b.dfops);
 
 	dst->bc_private.b.allocated += src->bc_private.b.allocated;
 	dst->bc_private.b.firstblock = src->bc_private.b.firstblock;
@@ -463,7 +463,7 @@ xfs_bmbt_alloc_block(
 		 * block allocation here and corrupt the filesystem.
 		 */
 		args.minleft = args.tp->t_blk_res;
-	} else if (cur->bc_private.b.flist->dop_low) {
+	} else if (cur->bc_private.b.dfops->dop_low) {
 		args.type = XFS_ALLOCTYPE_START_BNO;
 	} else {
 		args.type = XFS_ALLOCTYPE_NEAR_BNO;
@@ -491,7 +491,7 @@ xfs_bmbt_alloc_block(
 		error = xfs_alloc_vextent(&args);
 		if (error)
 			goto error0;
-		cur->bc_private.b.flist->dop_low = true;
+		cur->bc_private.b.dfops->dop_low = true;
 	}
 	if (args.fsbno == NULLFSBLOCK) {
 		XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
@@ -527,7 +527,7 @@ xfs_bmbt_free_block(
 	struct xfs_trans	*tp = cur->bc_tp;
 	xfs_fsblock_t		fsbno = XFS_DADDR_TO_FSB(mp, XFS_BUF_ADDR(bp));
 
-	xfs_bmap_add_free(mp, cur->bc_private.b.flist, fsbno, 1);
+	xfs_bmap_add_free(mp, cur->bc_private.b.dfops, fsbno, 1);
 	ip->i_d.di_nblocks--;
 
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
@@ -793,7 +793,7 @@ xfs_bmbt_init_cursor(
 	cur->bc_private.b.forksize = XFS_IFORK_SIZE(ip, whichfork);
 	cur->bc_private.b.ip = ip;
 	cur->bc_private.b.firstblock = NULLFSBLOCK;
-	cur->bc_private.b.flist = NULL;
+	cur->bc_private.b.dfops = NULL;
 	cur->bc_private.b.allocated = 0;
 	cur->bc_private.b.flags = 0;
 	cur->bc_private.b.whichfork = whichfork;

@@ -308,7 +308,7 @@ xfs_qm_dqalloc(
 	xfs_buf_t	**O_bpp)
 {
 	xfs_fsblock_t	firstblock;
-	struct xfs_defer_ops flist;
+	struct xfs_defer_ops dfops;
 	xfs_bmbt_irec_t map;
 	int		nmaps, error;
 	xfs_buf_t	*bp;
@@ -321,7 +321,7 @@ xfs_qm_dqalloc(
 	/*
 	 * Initialize the bmap freelist prior to calling bmapi code.
 	 */
-	xfs_defer_init(&flist, &firstblock);
+	xfs_defer_init(&dfops, &firstblock);
 	xfs_ilock(quotip, XFS_ILOCK_EXCL);
 	/*
 	 * Return if this type of quotas is turned off while we didn't
@@ -337,7 +337,7 @@ xfs_qm_dqalloc(
 	error = xfs_bmapi_write(tp, quotip, offset_fsb,
 				XFS_DQUOT_CLUSTER_SIZE_FSB, XFS_BMAPI_METADATA,
 				&firstblock, XFS_QM_DQALLOC_SPACE_RES(mp),
-				&map, &nmaps, &flist);
+				&map, &nmaps, &dfops);
 	if (error)
 		goto error0;
 	ASSERT(map.br_blockcount == XFS_DQUOT_CLUSTER_SIZE_FSB);
@@ -383,7 +383,7 @@ xfs_qm_dqalloc(
 
 	xfs_trans_bhold(tp, bp);
 
-	error = xfs_defer_finish(tpp, &flist, NULL);
+	error = xfs_defer_finish(tpp, &dfops, NULL);
 	if (error)
 		goto error1;
 
@@ -399,7 +399,7 @@ xfs_qm_dqalloc(
 	return 0;
 
 error1:
-	xfs_defer_cancel(&flist);
+	xfs_defer_cancel(&dfops);
 error0:
 	xfs_iunlock(quotip, XFS_ILOCK_EXCL);
 

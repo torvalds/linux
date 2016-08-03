@@ -2029,7 +2029,7 @@ xfs_da_grow_inode_int(
 	error = xfs_bmapi_write(tp, dp, *bno, count,
 			xfs_bmapi_aflag(w)|XFS_BMAPI_METADATA|XFS_BMAPI_CONTIG,
 			args->firstblock, args->total, &map, &nmap,
-			args->flist);
+			args->dfops);
 	if (error)
 		return error;
 
@@ -2052,7 +2052,7 @@ xfs_da_grow_inode_int(
 			error = xfs_bmapi_write(tp, dp, b, c,
 					xfs_bmapi_aflag(w)|XFS_BMAPI_METADATA,
 					args->firstblock, args->total,
-					&mapp[mapi], &nmap, args->flist);
+					&mapp[mapi], &nmap, args->dfops);
 			if (error)
 				goto out_free_map;
 			if (nmap < 1)
@@ -2362,7 +2362,7 @@ xfs_da_shrink_inode(
 		 */
 		error = xfs_bunmapi(tp, dp, dead_blkno, count,
 				    xfs_bmapi_aflag(w), 0, args->firstblock,
-				    args->flist, &done);
+				    args->dfops, &done);
 		if (error == -ENOSPC) {
 			if (w != XFS_DATA_FORK)
 				break;
