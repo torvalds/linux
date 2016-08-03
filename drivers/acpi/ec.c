@@ -468,6 +468,8 @@ static inline void __acpi_ec_enable_event(struct acpi_ec *ec)
 {
 	if (!test_and_set_bit(EC_FLAGS_QUERY_ENABLED, &ec->flags))
 		ec_log_drv("event unblocked");
+	if (!test_bit(EC_FLAGS_QUERY_PENDING, &ec->flags))
+		advance_transaction(ec);
 }
 
 static inline void __acpi_ec_disable_event(struct acpi_ec *ec)
