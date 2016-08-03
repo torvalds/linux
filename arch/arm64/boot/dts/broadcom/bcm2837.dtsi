@@ -1,4 +1,4 @@
-#include "../../../../arm/boot/dts/bcm283x.dtsi"
+#include "bcm283x.dtsi"
 
 / {
 	compatible = "brcm,bcm2836";
