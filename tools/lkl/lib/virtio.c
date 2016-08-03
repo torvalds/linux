@@ -1,5 +1,6 @@
 #include <string.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <lkl_host.h>
 #include <lkl/linux/virtio_ring.h>
 #include "iomem.h"
@@ -70,10 +71,32 @@ void virtio_req_complete(struct virtio_req *req, uint32_t len)
 	struct virtio_queue *q = req->q;
 	struct virtio_dev *dev = req->dev;
 	uint16_t idx = le16toh(q->used->idx) & (q->num - 1);
-	uint16_t new = le16toh(q->used->idx) + 1;
+	uint16_t new;
 	int send_irq = 0;
+	int avail_used;
 
 	q->used->ring[idx].id = htole16(req->idx);
+	if (req->mergeable_rx_len == 0) {
+		new = le16toh(q->used->idx) + 1;
+		avail_used = 1;
+	} else {
+		/* we've potentially used up multiple (non-chained)
+		 * descriptors and have to create one "used" entry for
+		 * each descr we've consumed.
+		 */
+		int i = 0, last_idx = q->last_avail_idx, req_idx;
+
+		avail_used = req->buf_count;
+		new = le16toh(q->used->idx) + req->buf_count;
+		while (i < req->buf_count-1) {
+			q->used->ring[idx].len = htole16(req->buf[i].len);
+			len -= req->buf[i].len;
+			idx++; i++; last_idx++;
+			idx &= (q->num - 1);
+			req_idx = q->avail->ring[last_idx & (q->num - 1)];
+			q->used->ring[idx].id = htole16(req_idx);
+		}
+	}
 	q->used->ring[idx].len = htole16(len);
 	/* Make sure all memory writes before are visible to the driver before
 	 * updating the idx.
@@ -86,9 +109,9 @@ void virtio_req_complete(struct virtio_req *req, uint32_t len)
 
 	/* Triggers the irq whenever there is no available buffer.
 	 * q->last_avail_idx is incremented after calling virtio_req_complete(),
-	 * so here we need to add one to it.
+	 * so here we need to add avail_used to it.
 	 */
-	if (q->last_avail_idx + 1 == q->avail->idx)
+	if (q->last_avail_idx + avail_used == q->avail->idx)
 		send_irq = 1;
 
 	/* There are two rings: q->avail and q->used for each of the rx and tx
@@ -148,35 +171,68 @@ static void init_dev_buf_from_vring_desc(struct lkl_dev_buf *buf,
 		bad_driver("bad vring_desc\n");
 }
 
+/*
+ * Below there are two distinctly different (per packet) buffer allocation
+ * schemes for us to deal with:
+ *
+ * 1. One or more descriptors chained through "next" as indicated by the
+ *    LKL_VRING_DESC_F_NEXT flag,
+ * 2. One or more descriptors from the ring sequentially, as many as are
+ *    available and needed. This is the RX only "mergeable_rx_bufs" mode.
+ *    The mode is entered when the VIRTIO_NET_F_MRG_RXBUF device feature
+ *    is enabled.
+ */
 static int virtio_process_one(struct virtio_dev *dev, struct virtio_queue *q,
-			      int idx)
+			      int idx, bool is_mergeable_rx)
 {
 	int q_buf_cnt = 0, ret = -1;
 	struct virtio_req req = {
 		.dev = dev,
 		.q = q,
 		.idx = q->avail->ring[idx & (q->num - 1)],
+		.mergeable_rx_len = 0,
 	};
 	uint16_t prev_flags = LKL_VRING_DESC_F_NEXT;
 	struct lkl_vring_desc *curr_vring_desc = vring_desc_at_le_idx(q, req.idx);
 
-	while ((prev_flags & LKL_VRING_DESC_F_NEXT) &&
-		(q_buf_cnt < VIRTIO_REQ_MAX_BUFS)) {
-		prev_flags = le16toh(curr_vring_desc->flags);
-		init_dev_buf_from_vring_desc(&req.buf[q_buf_cnt++], curr_vring_desc);
-		curr_vring_desc = vring_desc_at_le_idx(q, curr_vring_desc->next);
+	if (is_mergeable_rx) {
+		int len = 0, desc_idx;
+
+		/* We may receive upto 64KB TSO packet so collect as many
+		 * descriptors as there are available upto 64KB in total len.
+		 */
+		while ((len < 65535) && (q_buf_cnt < VIRTIO_REQ_MAX_BUFS)) {
+			init_dev_buf_from_vring_desc(
+			    &req.buf[q_buf_cnt], curr_vring_desc);
+			len += req.buf[q_buf_cnt++].len;
+			if (++idx == le16toh(q->avail->idx))
+				break;
+			desc_idx = q->avail->ring[idx & (q->num - 1)];
+			curr_vring_desc = vring_desc_at_le_idx(q, desc_idx);
+		}
+		req.mergeable_rx_len = len;
+	} else {
+		while ((prev_flags & LKL_VRING_DESC_F_NEXT) &&
+			(q_buf_cnt < VIRTIO_REQ_MAX_BUFS)) {
+			prev_flags = le16toh(curr_vring_desc->flags);
+			init_dev_buf_from_vring_desc(
+			    &req.buf[q_buf_cnt++], curr_vring_desc);
+			curr_vring_desc =
+			    vring_desc_at_le_idx(q, curr_vring_desc->next);
+		}
+		/* Somehow we've built a request too long to fit our device */
+		if (q_buf_cnt == VIRTIO_REQ_MAX_BUFS &&
+			(prev_flags & LKL_VRING_DESC_F_NEXT))
+			bad_driver("enqueued too many request bufs");
 	}
-
-	/* Somehow, we've built a request that's too long to fit onto our device */
-	if (q_buf_cnt == VIRTIO_REQ_MAX_BUFS &&
-		(prev_flags & LKL_VRING_DESC_F_NEXT))
-		bad_driver("enqueued too many request bufs");
-
 	req.buf_count = q_buf_cnt;
 	ret = dev->ops->enqueue(dev, &req);
 	if (ret < 0)
 		return ret;
-	q->last_avail_idx++;
+	if (is_mergeable_rx)
+		q->last_avail_idx += ret;
+	else
+		q->last_avail_idx++;
 	return 0;
 }
 
@@ -200,6 +256,7 @@ static int virtio_process_one(struct virtio_dev *dev, struct virtio_queue *q,
 void virtio_process_queue(struct virtio_dev *dev, uint32_t qidx)
 {
 	struct virtio_queue *q = &dev->queue[qidx];
+	bool is_mergeable_rx;
 
 	if (!q->ready)
 		return;
@@ -207,11 +264,16 @@ void virtio_process_queue(struct virtio_dev *dev, uint32_t qidx)
 	if (dev->ops->acquire_queue)
 		dev->ops->acquire_queue(dev, qidx);
 
+	is_mergeable_rx = ((dev->device_id == LKL_VIRTIO_ID_NET) &&
+	    is_rx_queue(dev, q) &&
+	    (dev->device_features & BIT(LKL_VIRTIO_NET_F_MRG_RXBUF)));
+
 	while (q->last_avail_idx != le16toh(q->avail->idx)) {
 		/* Make sure following loads happens after loading q->avail->idx.
 		 */
 		__sync_synchronize();
-		if (virtio_process_one(dev, q, q->last_avail_idx) < 0)
+		if (virtio_process_one(dev, q, q->last_avail_idx,
+		    is_mergeable_rx) < 0)
 			break;
 		if (q->last_avail_idx == le16toh(q->avail->idx))
 			virtio_set_avail_event(q, q->avail->idx);

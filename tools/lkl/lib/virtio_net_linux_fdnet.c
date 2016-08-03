@@ -32,6 +32,12 @@ struct lkl_netdev_linux_fdnet_ops lkl_netdev_linux_fdnet_ops = {
 	#endif /* __NR_eventfd */
 };
 
+/* The following tx() and rx() code assume struct lkl_dev_buf matches
+ * sruct iovec so we can safely cast iov to (struct iovec *). (If
+ * BUILD_BUG_ON() were supported in LKL, I would have added
+ *
+ * "BUILD_BUG_ON(sizeof(struct lkl_dev_buf) == sizeof(struct iovec));"
+ */
 static int linux_fdnet_net_tx(struct lkl_netdev *nd,
 			      struct lkl_dev_buf *iov, int cnt)
 {
@@ -61,7 +67,6 @@ static int linux_fdnet_net_rx(struct lkl_netdev *nd,
 
 	if (ret < 0 && errno != EAGAIN)
 		perror("read from fdnet device fails");
-
 	return ret;
 }
 
