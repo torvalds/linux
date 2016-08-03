@@ -611,7 +611,7 @@ static int cport_reset(struct gb_host_device *hd, u16 cport_id)
 	struct usb_device *udev = es2->usb_dev;
 	struct arpc_cport_reset_req req;
 	int retval;
-	int result = 0;
+	int result;
 
 	switch (cport_id) {
 	case GB_SVC_CPORT_ID:
@@ -1184,6 +1184,8 @@ static int arpc_sync(struct es2_ap_dev *es2, u8 type, void *payload,
 	unsigned long flags;
 	int retval;
 
+	*result = 0;
+
 	rpc = arpc_alloc(payload, size, type);
 	if (!rpc)
 		return -ENOMEM;
@@ -1205,11 +1207,12 @@ static int arpc_sync(struct es2_ap_dev *es2, u8 type, void *payload,
 		goto out_arpc_del;
 	}
 
-	*result = rpc->resp->result;
-	if (*result)
+	if (rpc->resp->result) {
 		retval = -EREMOTEIO;
-	else
+		*result = rpc->resp->result;
+	} else {
 		retval = 0;
+	}
 
 out_arpc_del:
 	spin_lock_irqsave(&es2->arpc_lock, flags);
