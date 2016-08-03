@@ -251,7 +251,7 @@ void drm_master_release(struct drm_file *file_priv)
 	if (!drm_is_current_master(file_priv))
 		goto out;
 
-	if (!drm_core_check_feature(dev, DRIVER_MODESET)) {
+	if (drm_core_check_feature(dev, DRIVER_LEGACY)) {
 		/*
 		 * Since the master is disappearing, so is the
 		 * possibility to lock.
