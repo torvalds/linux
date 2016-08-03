@@ -123,6 +123,7 @@ typedef struct xfs_alloc_arg {
 	char		isfl;		/* set if is freelist blocks - !acctg */
 	char		userdata;	/* mask defining userdata treatment */
 	xfs_fsblock_t	firstblock;	/* io first block allocated */
+	struct xfs_owner_info	oinfo;	/* owner of blocks being allocated */
 } xfs_alloc_arg_t;
 
 /*
@@ -208,9 +209,10 @@ xfs_alloc_vextent(
  */
 int				/* error */
 xfs_free_extent(
-	struct xfs_trans *tp,	/* transaction pointer */
-	xfs_fsblock_t	bno,	/* starting block number of extent */
-	xfs_extlen_t	len);	/* length of extent */
+	struct xfs_trans	*tp,	/* transaction pointer */
+	xfs_fsblock_t		bno,	/* starting block number of extent */
+	xfs_extlen_t		len,	/* length of extent */
+	struct xfs_owner_info	*oinfo);/* extent owner */
 
 int				/* error */
 xfs_alloc_lookup_ge(

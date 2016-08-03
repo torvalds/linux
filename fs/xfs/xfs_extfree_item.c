@@ -27,6 +27,8 @@
 #include "xfs_buf_item.h"
 #include "xfs_extfree_item.h"
 #include "xfs_log.h"
+#include "xfs_btree.h"
+#include "xfs_rmap.h"
 
 
 kmem_zone_t	*xfs_efi_zone;
@@ -503,6 +505,7 @@ xfs_efi_recover(
 	int			error = 0;
 	xfs_extent_t		*extp;
 	xfs_fsblock_t		startblock_fsb;
+	struct xfs_owner_info	oinfo;
 
 	ASSERT(!test_bit(XFS_EFI_RECOVERED, &efip->efi_flags));
 
@@ -534,10 +537,11 @@ xfs_efi_recover(
 		return error;
 	efdp = xfs_trans_get_efd(tp, efip, efip->efi_format.efi_nextents);
 
+	xfs_rmap_skip_owner_update(&oinfo);
 	for (i = 0; i < efip->efi_format.efi_nextents; i++) {
 		extp = &(efip->efi_format.efi_extents[i]);
 		error = xfs_trans_free_extent(tp, efdp, extp->ext_start,
-					      extp->ext_len);
+					      extp->ext_len, &oinfo);
 		if (error)
 			goto abort_error;
 

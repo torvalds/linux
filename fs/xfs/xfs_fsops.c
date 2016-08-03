@@ -41,6 +41,7 @@
 #include "xfs_trace.h"
 #include "xfs_log.h"
 #include "xfs_filestream.h"
+#include "xfs_rmap.h"
 
 /*
  * File system operations
@@ -436,6 +437,8 @@ xfs_growfs_data_private(
 	 * There are new blocks in the old last a.g.
 	 */
 	if (new) {
+		struct xfs_owner_info	oinfo;
+
 		/*
 		 * Change the agi length.
 		 */
@@ -463,14 +466,20 @@ xfs_growfs_data_private(
 		       be32_to_cpu(agi->agi_length));
 
 		xfs_alloc_log_agf(tp, bp, XFS_AGF_LENGTH);
+
 		/*
 		 * Free the new space.
+		 *
+		 * XFS_RMAP_OWN_NULL is used here to tell the rmap btree that
+		 * this doesn't actually exist in the rmap btree.
 		 */
-		error = xfs_free_extent(tp, XFS_AGB_TO_FSB(mp, agno,
-			be32_to_cpu(agf->agf_length) - new), new);
-		if (error) {
+		xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_NULL);
+		error = xfs_free_extent(tp,
+				XFS_AGB_TO_FSB(mp, agno,
+					be32_to_cpu(agf->agf_length) - new),
+				new, &oinfo);
+		if (error)
 			goto error0;
-		}
 	}
 
 	/*
