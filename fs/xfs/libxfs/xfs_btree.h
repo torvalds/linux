@@ -133,7 +133,7 @@ do {    \
 	}       \
 } while (0)
 
-#define	XFS_BTREE_MAXLEVELS	8	/* max of all btrees */
+#define	XFS_BTREE_MAXLEVELS	9	/* max of all btrees */
 
 struct xfs_btree_ops {
 	/* size of the key and record structures */
