@@ -8,7 +8,7 @@ config ARCH_SUNXI
 
 config ARCH_ALPINE
 	bool "Annapurna Labs Alpine platform"
-	select ALPINE_MSI
+	select ALPINE_MSI if PCI
 	help
 	  This enables support for the Annapurna Labs Alpine
 	  Soc family.
