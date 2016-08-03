@@ -631,9 +631,6 @@ static int vce_v3_0_check_soft_reset(void *handle)
 	tmp = REG_SET_FIELD(tmp, GRBM_GFX_INDEX, INSTANCE_INDEX, 0);
 	WREG32(mmGRBM_GFX_INDEX, tmp);
 
-	if (adev->vce.harvest_config & (AMDGPU_VCE_HARVEST_VCE0 | AMDGPU_VCE_HARVEST_VCE1))
-		srbm_soft_reset = 0;
-
 	if (srbm_soft_reset) {
 		adev->ip_block_status[AMD_IP_BLOCK_TYPE_VCE].hang = true;
 		adev->vce.srbm_soft_reset = srbm_soft_reset;
