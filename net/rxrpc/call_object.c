@@ -491,13 +491,6 @@ void rxrpc_release_call(struct rxrpc_call *call)
 		spin_lock_bh(&call->lock);
 		while ((skb = skb_dequeue(&call->rx_queue)) ||
 		       (skb = skb_dequeue(&call->rx_oos_queue))) {
-			sp = rxrpc_skb(skb);
-			if (sp->call) {
-				ASSERTCMP(sp->call, ==, call);
-				rxrpc_put_call(call);
-				sp->call = NULL;
-			}
-			skb->destructor = NULL;
 			spin_unlock_bh(&call->lock);
 
 			_debug("- zap %s %%%u #%u",
@@ -605,6 +598,7 @@ void __rxrpc_put_call(struct rxrpc_call *call)
 
 	if (atomic_dec_and_test(&call->usage)) {
 		_debug("call %d dead", call->debug_id);
+		WARN_ON(atomic_read(&call->skb_count) != 0);
 		ASSERTCMP(call->state, ==, RXRPC_CALL_DEAD);
 		rxrpc_queue_work(&call->destroyer);
 	}

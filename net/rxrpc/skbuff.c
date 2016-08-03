@@ -98,11 +98,39 @@ static void rxrpc_hard_ACK_data(struct rxrpc_call *call,
 	spin_unlock_bh(&call->lock);
 }
 
+/**
+ * rxrpc_kernel_data_consumed - Record consumption of data message
+ * @call: The call to which the message pertains.
+ * @skb: Message holding data
+ *
+ * Record the consumption of a data message and generate an ACK if appropriate.
+ * The call state is shifted if this was the final packet.  The caller must be
+ * in process context with no spinlocks held.
+ *
+ * TODO: Actually generate the ACK here rather than punting this to the
+ * workqueue.
+ */
+void rxrpc_kernel_data_consumed(struct rxrpc_call *call, struct sk_buff *skb)
+{
+	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
+
+	_enter("%d,%p{%u}", call->debug_id, skb, sp->hdr.seq);
+
+	ASSERTCMP(sp->call, ==, call);
+	ASSERTCMP(sp->hdr.type, ==, RXRPC_PACKET_TYPE_DATA);
+
+	/* TODO: Fix the sequence number tracking */
+	ASSERTCMP(sp->hdr.seq, >=, call->rx_data_recv);
+	ASSERTCMP(sp->hdr.seq, <=, call->rx_data_recv + 1);
+	ASSERTCMP(sp->hdr.seq, >, call->rx_data_eaten);
+
+	call->rx_data_recv = sp->hdr.seq;
+	rxrpc_hard_ACK_data(call, sp);
+}
+EXPORT_SYMBOL(rxrpc_kernel_data_consumed);
+
 /*
- * destroy a packet that has an RxRPC control buffer
- * - advance the hard-ACK state of the parent call (done here in case something
- *   in the kernel bypasses recvmsg() and steals the packet directly off of the
- *   socket receive queue)
+ * Destroy a packet that has an RxRPC control buffer
  */
 void rxrpc_packet_destructor(struct sk_buff *skb)
 {
@@ -112,9 +140,8 @@ void rxrpc_packet_destructor(struct sk_buff *skb)
 	_enter("%p{%p}", skb, call);
 
 	if (call) {
-		/* send the final ACK on a client call */
-		if (sp->hdr.type == RXRPC_PACKET_TYPE_DATA)
-			rxrpc_hard_ACK_data(call, sp);
+		if (atomic_dec_return(&call->skb_count) < 0)
+			BUG();
 		rxrpc_put_call(call);
 		sp->call = NULL;
 	}

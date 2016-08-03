@@ -55,9 +55,6 @@ int rxrpc_queue_rcv_skb(struct rxrpc_call *call, struct sk_buff *skb,
 	if (test_bit(RXRPC_CALL_TERMINAL_MSG, &call->flags)) {
 		_debug("already terminated");
 		ASSERTCMP(call->state, >=, RXRPC_CALL_COMPLETE);
-		skb->destructor = NULL;
-		sp->call = NULL;
-		rxrpc_put_call(call);
 		rxrpc_free_skb(skb);
 		return 0;
 	}
@@ -111,13 +108,7 @@ int rxrpc_queue_rcv_skb(struct rxrpc_call *call, struct sk_buff *skb,
 	ret = 0;
 
 out:
-	/* release the socket buffer */
-	if (skb) {
-		skb->destructor = NULL;
-		sp->call = NULL;
-		rxrpc_put_call(call);
-		rxrpc_free_skb(skb);
-	}
+	rxrpc_free_skb(skb);
 
 	_leave(" = %d", ret);
 	return ret;
@@ -200,6 +191,7 @@ static int rxrpc_fast_process_data(struct rxrpc_call *call,
 
 	sp->call = call;
 	rxrpc_get_call(call);
+	atomic_inc(&call->skb_count);
 	terminal = ((sp->hdr.flags & RXRPC_LAST_PACKET) &&
 		    !(sp->hdr.flags & RXRPC_CLIENT_INITIATED));
 	ret = rxrpc_queue_rcv_skb(call, skb, false, terminal);

@@ -460,6 +460,7 @@ static void rxrpc_insert_oos_packet(struct rxrpc_call *call,
 	ASSERTCMP(sp->call, ==, NULL);
 	sp->call = call;
 	rxrpc_get_call(call);
+	atomic_inc(&call->skb_count);
 
 	/* insert into the buffer in sequence order */
 	spin_lock_bh(&call->lock);
@@ -734,6 +735,7 @@ all_acked:
 		skb->mark = RXRPC_SKB_MARK_FINAL_ACK;
 		sp->call = call;
 		rxrpc_get_call(call);
+		atomic_inc(&call->skb_count);
 		spin_lock_bh(&call->lock);
 		if (rxrpc_queue_rcv_skb(call, skb, true, true) < 0)
 			BUG();
@@ -793,6 +795,7 @@ static int rxrpc_post_message(struct rxrpc_call *call, u32 mark, u32 error,
 		sp->error = error;
 		sp->call = call;
 		rxrpc_get_call(call);
+		atomic_inc(&call->skb_count);
 
 		spin_lock_bh(&call->lock);
 		ret = rxrpc_queue_rcv_skb(call, skb, true, fatal);
