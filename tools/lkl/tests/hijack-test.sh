@@ -67,12 +67,17 @@ export LKL_HIJACK_NET_IFTYPE=tap
 export LKL_HIJACK_NET_IFPARAMS=lkl_ptt0
 export LKL_HIJACK_NET_IP=192.168.13.2
 export LKL_HIJACK_NET_NETMASK_LEN=24
+export LKL_HIJACK_NET_GATEWAY=192.168.13.1
+export LKL_HIJACK_NET_IPV6=2001:db8:0:f102::2
+export LKL_HIJACK_NET_NETMASK6_LEN=64
+export LKL_HIJACK_NET_GATEWAY6=2001:db8:0:f102::1
 
 # Set up the TAP device we'd like to use
 sudo ip tuntap del dev lkl_ptt0 mode tap || true
 sudo ip tuntap add dev lkl_ptt0 mode tap user $USER
 sudo ip link set dev lkl_ptt0 up
 sudo ip addr add dev lkl_ptt0 192.168.13.1/24
+sudo ip -6 addr add dev lkl_ptt0 2001:db8:0:f102::1/64
 
 # Make sure our device has the addresses we expect
 addr=$(LKL_HIJACK_DEBUG=1\
@@ -80,26 +85,38 @@ addr=$(LKL_HIJACK_DEBUG=1\
 echo "$addr" | grep eth0
 echo "$addr" | grep 192.168.13.2
 echo "$addr" | grep "aa:bb:cc:dd:ee:ff"
+echo "$addr" | grep "2001:db8:0:f102::2"
 ! echo "$addr" | grep "WARN: failed to free"
 
 # Copy ping so we're allowed to run it under LKL
 cp `which ping` .
+cp `which ping6` .
 
 # Make sure we can ping the host from inside LKL
 ${hijack_script} ./ping 192.168.13.1 -c 1
-rm ./ping
+${hijack_script} ./ping6 2001:db8:0:f102::1 -c 10
+rm ./ping ./ping6
 
 # Now let's check that the host can see LKL.
-sudo arp -d 192.168.13.2
+sudo ip -6 neigh del 2001:db8:0:f102::2 dev lkl_ptt0
+sudo ip neigh del 192.168.13.2 dev lkl_ptt0
 sudo ping -i 0.01 -c 65 192.168.13.2 &
+sudo ping6 -i 0.01 -c 65 2001:db8:0:f102::2 &
 ${hijack_script} sleep 3
 
-# add arp entries
-ans=$(LKL_HIJACK_NET_ARP="192.168.13.100|12:34:56:78:9a:bc;192.168.13.101|12:34:56:78:9a:be"\
+# add neighbor entries
+ans=$(LKL_HIJACK_NET_NEIGHBOR="192.168.13.100|12:34:56:78:9a:bc;2001:db8:0:f102::100|12:34:56:78:9a:be"\
   ${hijack_script} ip neighbor show) || true
 echo "$ans" | tail -n 15 | grep "12:34:56:78:9a:bc"
 echo "$ans" | tail -n 15 | grep "12:34:56:78:9a:be"
 
+# gateway
+ans=$(${hijack_script} ip route show) || true
+echo "$ans" | tail -n 15 | grep "192.168.13.1"
+
+# gateway v6
+ans=$(${hijack_script} ip -6 route show) || true
+echo "$ans" | tail -n 15 | grep "2001:db8:0:f102::1"
 
 sh ${script_dir}/run_netperf.sh 192.168.13.1 1 0 TCP_STREAM
 sh ${script_dir}/run_netperf.sh 192.168.13.1 1 0 TCP_RR

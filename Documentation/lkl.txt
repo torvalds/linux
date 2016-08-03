@@ -189,11 +189,11 @@ are the list of those variable for your environment.
 ```
      $ LKL_HIJACK_NET_MTU=1280 lkl-hijack.sh ip address show
 ```
-* LKL_HIJACK_NET_ARP
+* LKL_HIJACK_NET_NEIGHBOR
 
-  Add a list of arp permanent entries in the form of "ip|mac;ip|mac;..."
+  Add a list of permanent neighbor entries in the form of "ip|mac;ip|mac;...". ipv6 are supported
 ```
-     $ LKL_HIJACK_NET_ARP="192.168.13.100|12:34:56:78:9a:bc;192.168.13.101|12:34:56:78:9a:be"
+     $ LKL_HIJACK_NET_NEIGHBOR="192.168.13.100|12:34:56:78:9a:bc;2001:db8:0:f101::3|12:34:56:78:9a:be"
      lkl-hijack.sh ip neighbor show
 ```
 * LKL_HIJACK_DEBUG
