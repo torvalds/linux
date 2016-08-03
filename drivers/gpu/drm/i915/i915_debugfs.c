@@ -3625,7 +3625,6 @@ i915_pipe_crc_read(struct file *filep, char __user *user_buf, size_t count,
 	while (n_entries > 0) {
 		struct intel_pipe_crc_entry *entry =
 			&pipe_crc->entries[pipe_crc->tail];
-		int ret;
 
 		if (CIRC_CNT(pipe_crc->head, pipe_crc->tail,
 			     INTEL_PIPE_CRC_ENTRIES_NR) < 1)
@@ -3642,8 +3641,7 @@ i915_pipe_crc_read(struct file *filep, char __user *user_buf, size_t count,
 
 		spin_unlock_irq(&pipe_crc->lock);
 
-		ret = copy_to_user(user_buf, buf, PIPE_CRC_LINE_LEN);
-		if (ret == PIPE_CRC_LINE_LEN)
+		if (copy_to_user(user_buf, buf, PIPE_CRC_LINE_LEN))
 			return -EFAULT;
 
 		user_buf += PIPE_CRC_LINE_LEN;
