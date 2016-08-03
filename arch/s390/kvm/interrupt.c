@@ -24,6 +24,7 @@
 #include <asm/sclp.h>
 #include <asm/isc.h>
 #include <asm/gmap.h>
+#include <asm/switch_to.h>
 #include "kvm-s390.h"
 #include "gaccess.h"
 #include "trace-s390.h"
@@ -404,7 +405,12 @@ static int __write_machine_check(struct kvm_vcpu *vcpu,
 				 struct kvm_s390_mchk_info *mchk)
 {
 	unsigned long ext_sa_addr;
+	freg_t fprs[NUM_FPRS];
 	int rc;
+
+	/* take care of lazy register loading via vcpu load/put */
+	save_fpu_regs();
+	save_access_regs(vcpu->run->s.regs.acrs);
 
 	/* Extended save area */
 	rc = read_guest_lc(vcpu, __LC_VX_SAVE_AREA_ADDR, &ext_sa_addr,
@@ -412,6 +418,7 @@ static int __write_machine_check(struct kvm_vcpu *vcpu,
 	rc |= kvm_s390_vcpu_store_adtl_status(vcpu, ext_sa_addr);
 
 	/* General interruption information */
+	rc |= put_guest_lc(vcpu, 1, (u8 __user *) __LC_AR_MODE_ID);
 	rc |= write_guest_lc(vcpu, __LC_MCK_OLD_PSW,
 			     &vcpu->arch.sie_block->gpsw, sizeof(psw_t));
 	rc |= read_guest_lc(vcpu, __LC_MCK_NEW_PSW,
@@ -419,7 +426,27 @@ static int __write_machine_check(struct kvm_vcpu *vcpu,
 	rc |= put_guest_lc(vcpu, mchk->mcic, (u64 __user *) __LC_MCCK_CODE);
 
 	/* Register-save areas */
-	rc |= kvm_s390_vcpu_store_status(vcpu, KVM_S390_STORE_STATUS_PREFIXED);
+	if (MACHINE_HAS_VX) {
+		convert_vx_to_fp(fprs, (__vector128 *) vcpu->run->s.regs.vrs);
+		rc |= write_guest_lc(vcpu, __LC_FPREGS_SAVE_AREA, fprs, 128);
+	} else {
+		rc |= write_guest_lc(vcpu, __LC_FPREGS_SAVE_AREA,
+				     vcpu->run->s.regs.fprs, 128);
+	}
+	rc |= write_guest_lc(vcpu, __LC_GPREGS_SAVE_AREA,
+			     vcpu->run->s.regs.gprs, 128);
+	rc |= put_guest_lc(vcpu, current->thread.fpu.fpc,
+			   (u32 __user *) __LC_FP_CREG_SAVE_AREA);
+	rc |= put_guest_lc(vcpu, vcpu->arch.sie_block->todpr,
+			   (u32 __user *) __LC_TOD_PROGREG_SAVE_AREA);
+	rc |= put_guest_lc(vcpu, kvm_s390_get_cpu_timer(vcpu),
+			   (u64 __user *) __LC_CPU_TIMER_SAVE_AREA);
+	rc |= put_guest_lc(vcpu, vcpu->arch.sie_block->ckc >> 8,
+			   (u64 __user *) __LC_CLOCK_COMP_SAVE_AREA);
+	rc |= write_guest_lc(vcpu, __LC_AREGS_SAVE_AREA,
+			     &vcpu->run->s.regs.acrs, 64);
+	rc |= write_guest_lc(vcpu, __LC_CREGS_SAVE_AREA,
+			     &vcpu->arch.sie_block->gcr, 128);
 
 	/* Extended interruption information */
 	rc |= put_guest_lc(vcpu, mchk->failing_storage_address,
