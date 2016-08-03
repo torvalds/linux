@@ -2871,6 +2871,7 @@ xfs_btree_make_block_unfull(
 		if (numrecs < cur->bc_ops->get_dmaxrecs(cur, level)) {
 			/* A root block that can be made bigger. */
 			xfs_iroot_realloc(ip, 1, cur->bc_private.b.whichfork);
+			*stat = 1;
 		} else {
 			/* A root block that needs replacing */
 			int	logflags = 0;
