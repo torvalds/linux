@@ -46,6 +46,7 @@
 #include <linux/slab.h>
 #include <linux/seq_file.h>
 #include <linux/export.h>
+#include <linux/interval_tree_generic.h>
 
 /**
  * DOC: Overview
@@ -103,6 +104,72 @@ static struct drm_mm_node *drm_mm_search_free_in_range_generic(const struct drm_
 						u64 end,
 						enum drm_mm_search_flags flags);
 
+#define START(node) ((node)->start)
+#define LAST(node)  ((node)->start + (node)->size - 1)
+
+INTERVAL_TREE_DEFINE(struct drm_mm_node, rb,
+		     u64, __subtree_last,
+		     START, LAST, static inline, drm_mm_interval_tree)
+
+struct drm_mm_node *
+drm_mm_interval_first(struct drm_mm *mm, u64 start, u64 last)
+{
+	return drm_mm_interval_tree_iter_first(&mm->interval_tree,
+					       start, last);
+}
+EXPORT_SYMBOL(drm_mm_interval_first);
+
+struct drm_mm_node *
+drm_mm_interval_next(struct drm_mm_node *node, u64 start, u64 last)
+{
+	return drm_mm_interval_tree_iter_next(node, start, last);
+}
+EXPORT_SYMBOL(drm_mm_interval_next);
+
+static void drm_mm_interval_tree_add_node(struct drm_mm_node *hole_node,
+					  struct drm_mm_node *node)
+{
+	struct drm_mm *mm = hole_node->mm;
+	struct rb_node **link, *rb;
+	struct drm_mm_node *parent;
+
+	node->__subtree_last = LAST(node);
+
+	if (hole_node->allocated) {
+		rb = &hole_node->rb;
+		while (rb) {
+			parent = rb_entry(rb, struct drm_mm_node, rb);
+			if (parent->__subtree_last >= node->__subtree_last)
+				break;
+
+			parent->__subtree_last = node->__subtree_last;
+			rb = rb_parent(rb);
+		}
+
+		rb = &hole_node->rb;
+		link = &hole_node->rb.rb_right;
+	} else {
+		rb = NULL;
+		link = &mm->interval_tree.rb_node;
+	}
+
+	while (*link) {
+		rb = *link;
+		parent = rb_entry(rb, struct drm_mm_node, rb);
+		if (parent->__subtree_last < node->__subtree_last)
+			parent->__subtree_last = node->__subtree_last;
+		if (node->start < parent->start)
+			link = &parent->rb.rb_left;
+		else
+			link = &parent->rb.rb_right;
+	}
+
+	rb_link_node(&node->rb, rb, link);
+	rb_insert_augmented(&node->rb,
+			    &mm->interval_tree,
+			    &drm_mm_interval_tree_augment);
+}
+
 static void drm_mm_insert_helper(struct drm_mm_node *hole_node,
 				 struct drm_mm_node *node,
 				 u64 size, unsigned alignment,
@@ -153,6 +220,8 @@ static void drm_mm_insert_helper(struct drm_mm_node *hole_node,
 	INIT_LIST_HEAD(&node->hole_stack);
 	list_add(&node->node_list, &hole_node->node_list);
 
+	drm_mm_interval_tree_add_node(hole_node, node);
+
 	BUG_ON(node->start + node->size > adj_end);
 
 	node->hole_follows = 0;
@@ -178,41 +247,52 @@ static void drm_mm_insert_helper(struct drm_mm_node *hole_node,
  */
 int drm_mm_reserve_node(struct drm_mm *mm, struct drm_mm_node *node)
 {
+	u64 end = node->start + node->size;
 	struct drm_mm_node *hole;
-	u64 end;
-	u64 hole_start;
-	u64 hole_end;
-
-	BUG_ON(node == NULL);
+	u64 hole_start, hole_end;
 
 	end = node->start + node->size;
 
 	/* Find the relevant hole to add our node to */
-	drm_mm_for_each_hole(hole, mm, hole_start, hole_end) {
-		if (hole_start > node->start || hole_end < end)
-			continue;
-
-		node->mm = mm;
-		node->allocated = 1;
-
-		INIT_LIST_HEAD(&node->hole_stack);
-		list_add(&node->node_list, &hole->node_list);
-
-		if (node->start == hole_start) {
-			hole->hole_follows = 0;
-			list_del_init(&hole->hole_stack);
-		}
-
-		node->hole_follows = 0;
-		if (end != hole_end) {
-			list_add(&node->hole_stack, &mm->hole_stack);
-			node->hole_follows = 1;
-		}
-
-		return 0;
+	hole = drm_mm_interval_tree_iter_first(&mm->interval_tree,
+					       node->start, ~(u64)0);
+	if (hole) {
+		if (hole->start < end)
+			return -ENOSPC;
+	} else {
+		hole = list_entry(&mm->head_node.node_list,
+				  typeof(*hole), node_list);
 	}
 
-	return -ENOSPC;
+	hole = list_last_entry(&hole->node_list, typeof(*hole), node_list);
+	if (!hole->hole_follows)
+		return -ENOSPC;
+
+	hole_start = __drm_mm_hole_node_start(hole);
+	hole_end = __drm_mm_hole_node_end(hole);
+	if (hole_start > node->start || hole_end < end)
+		return -ENOSPC;
+
+	node->mm = mm;
+	node->allocated = 1;
+
+	INIT_LIST_HEAD(&node->hole_stack);
+	list_add(&node->node_list, &hole->node_list);
+
+	drm_mm_interval_tree_add_node(hole, node);
+
+	if (node->start == hole_start) {
+		hole->hole_follows = 0;
+		list_del_init(&hole->hole_stack);
+	}
+
+	node->hole_follows = 0;
+	if (end != hole_end) {
+		list_add(&node->hole_stack, &mm->hole_stack);
+		node->hole_follows = 1;
+	}
+
+	return 0;
 }
 EXPORT_SYMBOL(drm_mm_reserve_node);
 
@@ -302,6 +382,8 @@ static void drm_mm_insert_helper_range(struct drm_mm_node *hole_node,
 	INIT_LIST_HEAD(&node->hole_stack);
 	list_add(&node->node_list, &hole_node->node_list);
 
+	drm_mm_interval_tree_add_node(hole_node, node);
+
 	BUG_ON(node->start < start);
 	BUG_ON(node->start < adj_start);
 	BUG_ON(node->start + node->size > adj_end);
@@ -390,6 +472,7 @@ void drm_mm_remove_node(struct drm_mm_node *node)
 	} else
 		list_move(&prev_node->hole_stack, &mm->hole_stack);
 
+	drm_mm_interval_tree_remove(node, &mm->interval_tree);
 	list_del(&node->node_list);
 	node->allocated = 0;
 }
@@ -516,11 +599,13 @@ void drm_mm_replace_node(struct drm_mm_node *old, struct drm_mm_node *new)
 {
 	list_replace(&old->node_list, &new->node_list);
 	list_replace(&old->hole_stack, &new->hole_stack);
+	rb_replace_node(&old->rb, &new->rb, &old->mm->interval_tree);
 	new->hole_follows = old->hole_follows;
 	new->mm = old->mm;
 	new->start = old->start;
 	new->size = old->size;
 	new->color = old->color;
+	new->__subtree_last = old->__subtree_last;
 
 	old->allocated = 0;
 	new->allocated = 1;
@@ -757,6 +842,8 @@ void drm_mm_init(struct drm_mm * mm, u64 start, u64 size)
 	mm->head_node.start = start + size;
 	mm->head_node.size = start - mm->head_node.start;
 	list_add_tail(&mm->head_node.hole_stack, &mm->hole_stack);
+
+	mm->interval_tree = RB_ROOT;
 
 	mm->color_adjust = NULL;
 }
