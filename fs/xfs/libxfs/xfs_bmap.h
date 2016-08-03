@@ -69,27 +69,6 @@ struct xfs_bmap_free_item
 	struct list_head	xbfi_list;
 };
 
-/*
- * Header for free extent list.
- *
- * xbf_low is used by the allocator to activate the lowspace algorithm -
- * when free space is running low the extent allocator may choose to
- * allocate an extent from an AG without leaving sufficient space for
- * a btree split when inserting the new extent.  In this case the allocator
- * will enable the lowspace algorithm which is supposed to allow further
- * allocations (such as btree splits and newroots) to allocate from
- * sequential AGs.  In order to avoid locking AGs out of order the lowspace
- * algorithm will start searching for free space from AG 0.  If the correct
- * transaction reservations have been made then this algorithm will eventually
- * find all the space it needs.
- */
-typedef	struct xfs_bmap_free
-{
-	struct list_head	xbf_flist;	/* list of to-be-free extents */
-	int			xbf_count;	/* count of items on list */
-	int			xbf_low;	/* alloc in low mode */
-} xfs_bmap_free_t;
-
 #define	XFS_BMAP_MAX_NMAP	4
 
 /*
@@ -139,14 +118,6 @@ static inline int xfs_bmapi_aflag(int w)
 #define	DELAYSTARTBLOCK		((xfs_fsblock_t)-1LL)
 #define	HOLESTARTBLOCK		((xfs_fsblock_t)-2LL)
 
-static inline void xfs_bmap_init(xfs_bmap_free_t *flp, xfs_fsblock_t *fbp)
-{
-	INIT_LIST_HEAD(&flp->xbf_flist);
-	flp->xbf_count = 0;
-	flp->xbf_low = 0;
-	*fbp = NULLFSBLOCK;
-}
-
 /*
  * Flags for xfs_bmap_add_extent*.
  */
@@ -195,9 +166,6 @@ int	xfs_bmap_add_attrfork(struct xfs_inode *ip, int size, int rsvd);
 void	xfs_bmap_local_to_extents_empty(struct xfs_inode *ip, int whichfork);
 void	xfs_bmap_add_free(struct xfs_mount *mp, struct xfs_bmap_free *flist,
 			  xfs_fsblock_t bno, xfs_filblks_t len);
-void	xfs_bmap_cancel(struct xfs_bmap_free *flist);
-int	xfs_bmap_finish(struct xfs_trans **tp, struct xfs_bmap_free *flist,
-			struct xfs_inode *ip);
 void	xfs_bmap_compute_maxlevels(struct xfs_mount *mp, int whichfork);
 int	xfs_bmap_first_unused(struct xfs_trans *tp, struct xfs_inode *ip,
 		xfs_extlen_t len, xfs_fileoff_t *unused, int whichfork);

@@ -25,6 +25,7 @@
 #include "xfs_bit.h"
 #include "xfs_mount.h"
 #include "xfs_da_format.h"
+#include "xfs_defer.h"
 #include "xfs_inode.h"
 #include "xfs_btree.h"
 #include "xfs_trans.h"
@@ -77,95 +78,6 @@ xfs_zero_extent(
 		block << (mp->m_super->s_blocksize_bits - 9),
 		count_fsb << (mp->m_super->s_blocksize_bits - 9),
 		GFP_NOFS, true);
-}
-
-/* Sort bmap items by AG. */
-static int
-xfs_bmap_free_list_cmp(
-	void			*priv,
-	struct list_head	*a,
-	struct list_head	*b)
-{
-	struct xfs_mount	*mp = priv;
-	struct xfs_bmap_free_item	*ra;
-	struct xfs_bmap_free_item	*rb;
-
-	ra = container_of(a, struct xfs_bmap_free_item, xbfi_list);
-	rb = container_of(b, struct xfs_bmap_free_item, xbfi_list);
-	return  XFS_FSB_TO_AGNO(mp, ra->xbfi_startblock) -
-		XFS_FSB_TO_AGNO(mp, rb->xbfi_startblock);
-}
-
-/*
- * Routine to be called at transaction's end by xfs_bmapi, xfs_bunmapi
- * caller.  Frees all the extents that need freeing, which must be done
- * last due to locking considerations.  We never free any extents in
- * the first transaction.
- *
- * If an inode *ip is provided, rejoin it to the transaction if
- * the transaction was committed.
- */
-int						/* error */
-xfs_bmap_finish(
-	struct xfs_trans		**tp,	/* transaction pointer addr */
-	struct xfs_bmap_free		*flist,	/* i/o: list extents to free */
-	struct xfs_inode		*ip)
-{
-	struct xfs_efd_log_item		*efd;	/* extent free data */
-	struct xfs_efi_log_item		*efi;	/* extent free intention */
-	int				error;	/* error return value */
-	int				committed;/* xact committed or not */
-	struct xfs_bmap_free_item	*free;	/* free extent item */
-
-	ASSERT((*tp)->t_flags & XFS_TRANS_PERM_LOG_RES);
-	if (flist->xbf_count == 0)
-		return 0;
-
-	list_sort((*tp)->t_mountp, &flist->xbf_flist, xfs_bmap_free_list_cmp);
-
-	efi = xfs_trans_get_efi(*tp, flist->xbf_count);
-	list_for_each_entry(free, &flist->xbf_flist, xbfi_list)
-		xfs_trans_log_efi_extent(*tp, efi, free->xbfi_startblock,
-			free->xbfi_blockcount);
-
-	error = __xfs_trans_roll(tp, ip, &committed);
-	if (error) {
-		/*
-		 * If the transaction was committed, drop the EFD reference
-		 * since we're bailing out of here. The other reference is
-		 * dropped when the EFI hits the AIL.
-		 *
-		 * If the transaction was not committed, the EFI is freed by the
-		 * EFI item unlock handler on abort. Also, we have a new
-		 * transaction so we should return committed=1 even though we're
-		 * returning an error.
-		 */
-		if (committed) {
-			xfs_efi_release(efi);
-			xfs_force_shutdown((*tp)->t_mountp,
-					   SHUTDOWN_META_IO_ERROR);
-		}
-		return error;
-	}
-
-	/*
-	 * Get an EFD and free each extent in the list, logging to the EFD in
-	 * the process. The remaining bmap free list is cleaned up by the caller
-	 * on error.
-	 */
-	efd = xfs_trans_get_efd(*tp, efi, flist->xbf_count);
-	while (!list_empty(&flist->xbf_flist)) {
-		free = list_first_entry(&flist->xbf_flist,
-				struct xfs_bmap_free_item, xbfi_list);
-		error = xfs_trans_free_extent(*tp, efd, free->xbfi_startblock,
-					      free->xbfi_blockcount);
-		if (error)
-			return error;
-
-		xfs_bmap_del_free(flist, free);
-	}
-
-	return 0;
 }
 
 int
@@ -815,7 +727,7 @@ xfs_bmap_punch_delalloc_range(
 		if (error)
 			break;
 
-		ASSERT(!flist.xbf_count && list_empty(&flist.xbf_flist));
+		ASSERT(!xfs_defer_has_unfinished_work(&flist));
 next_block:
 		start_fsb++;
 		remaining--;
