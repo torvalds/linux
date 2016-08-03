@@ -1,0 +1,205 @@
+/*
+ * Copyright (C) 2016 Oracle.  All Rights Reserved.
+ *
+ * Author: Darrick J. Wong <darrick.wong@oracle.com>
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+#include "xfs.h"
+#include "xfs_fs.h"
+#include "xfs_shared.h"
+#include "xfs_format.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
+#include "xfs_mount.h"
+#include "xfs_defer.h"
+#include "xfs_trans.h"
+#include "xfs_trans_priv.h"
+#include "xfs_rmap_item.h"
+#include "xfs_alloc.h"
+#include "xfs_rmap.h"
+
+/*
+ * This routine is called to allocate an "rmap update intent"
+ * log item that will hold nextents worth of extents.  The
+ * caller must use all nextents extents, because we are not
+ * flexible about this at all.
+ */
+struct xfs_rui_log_item *
+xfs_trans_get_rui(
+	struct xfs_trans		*tp,
+	uint				nextents)
+{
+	struct xfs_rui_log_item		*ruip;
+
+	ASSERT(tp != NULL);
+	ASSERT(nextents > 0);
+
+	ruip = xfs_rui_init(tp->t_mountp, nextents);
+	ASSERT(ruip != NULL);
+
+	/*
+	 * Get a log_item_desc to point at the new item.
+	 */
+	xfs_trans_add_item(tp, &ruip->rui_item);
+	return ruip;
+}
+
+/* Set the map extent flags for this reverse mapping. */
+static void
+xfs_trans_set_rmap_flags(
+	struct xfs_map_extent		*rmap,
+	enum xfs_rmap_intent_type	type,
+	int				whichfork,
+	xfs_exntst_t			state)
+{
+	rmap->me_flags = 0;
+	if (state == XFS_EXT_UNWRITTEN)
+		rmap->me_flags |= XFS_RMAP_EXTENT_UNWRITTEN;
+	if (whichfork == XFS_ATTR_FORK)
+		rmap->me_flags |= XFS_RMAP_EXTENT_ATTR_FORK;
+	switch (type) {
+	case XFS_RMAP_MAP:
+		rmap->me_flags |= XFS_RMAP_EXTENT_MAP;
+		break;
+	case XFS_RMAP_UNMAP:
+		rmap->me_flags |= XFS_RMAP_EXTENT_UNMAP;
+		break;
+	case XFS_RMAP_CONVERT:
+		rmap->me_flags |= XFS_RMAP_EXTENT_CONVERT;
+		break;
+	case XFS_RMAP_ALLOC:
+		rmap->me_flags |= XFS_RMAP_EXTENT_ALLOC;
+		break;
+	case XFS_RMAP_FREE:
+		rmap->me_flags |= XFS_RMAP_EXTENT_FREE;
+		break;
+	default:
+		ASSERT(0);
+	}
+}
+
+/*
+ * This routine is called to indicate that the described reverse
+ * mapping is to be logged as needing to be updated.  It should be
+ * called once for each mapping.
+ */
+void
+xfs_trans_log_start_rmap_update(
+	struct xfs_trans		*tp,
+	struct xfs_rui_log_item		*ruip,
+	enum xfs_rmap_intent_type	type,
+	__uint64_t			owner,
+	int				whichfork,
+	xfs_fileoff_t			startoff,
+	xfs_fsblock_t			startblock,
+	xfs_filblks_t			blockcount,
+	xfs_exntst_t			state)
+{
+	uint				next_extent;
+	struct xfs_map_extent		*rmap;
+
+	tp->t_flags |= XFS_TRANS_DIRTY;
+	ruip->rui_item.li_desc->lid_flags |= XFS_LID_DIRTY;
+
+	/*
+	 * atomic_inc_return gives us the value after the increment;
+	 * we want to use it as an array index so we need to subtract 1 from
+	 * it.
+	 */
+	next_extent = atomic_inc_return(&ruip->rui_next_extent) - 1;
+	ASSERT(next_extent < ruip->rui_format.rui_nextents);
+	rmap = &(ruip->rui_format.rui_extents[next_extent]);
+	rmap->me_owner = owner;
+	rmap->me_startblock = startblock;
+	rmap->me_startoff = startoff;
+	rmap->me_len = blockcount;
+	xfs_trans_set_rmap_flags(rmap, type, whichfork, state);
+}
+
+
+/*
+ * This routine is called to allocate an "rmap update done"
+ * log item that will hold nextents worth of extents.  The
+ * caller must use all nextents extents, because we are not
+ * flexible about this at all.
+ */
+struct xfs_rud_log_item *
+xfs_trans_get_rud(
+	struct xfs_trans		*tp,
+	struct xfs_rui_log_item		*ruip,
+	uint				nextents)
+{
+	struct xfs_rud_log_item		*rudp;
+
+	ASSERT(tp != NULL);
+	ASSERT(nextents > 0);
+
+	rudp = xfs_rud_init(tp->t_mountp, ruip, nextents);
+	ASSERT(rudp != NULL);
+
+	/*
+	 * Get a log_item_desc to point at the new item.
+	 */
+	xfs_trans_add_item(tp, &rudp->rud_item);
+	return rudp;
+}
+
+/*
+ * Finish an rmap update and log it to the RUD. Note that the transaction is
+ * marked dirty regardless of whether the rmap update succeeds or fails to
+ * support the RUI/RUD lifecycle rules.
+ */
+int
+xfs_trans_log_finish_rmap_update(
+	struct xfs_trans		*tp,
+	struct xfs_rud_log_item		*rudp,
+	enum xfs_rmap_intent_type	type,
+	__uint64_t			owner,
+	int				whichfork,
+	xfs_fileoff_t			startoff,
+	xfs_fsblock_t			startblock,
+	xfs_filblks_t			blockcount,
+	xfs_exntst_t			state)
+{
+	uint				next_extent;
+	struct xfs_map_extent		*rmap;
+	int				error;
+
+	/* XXX: actually finish the rmap update here */
+	error = -EFSCORRUPTED;
+
+	/*
+	 * Mark the transaction dirty, even on error. This ensures the
+	 * transaction is aborted, which:
+	 *
+	 * 1.) releases the RUI and frees the RUD
+	 * 2.) shuts down the filesystem
+	 */
+	tp->t_flags |= XFS_TRANS_DIRTY;
+	rudp->rud_item.li_desc->lid_flags |= XFS_LID_DIRTY;
+
+	next_extent = rudp->rud_next_extent;
+	ASSERT(next_extent < rudp->rud_format.rud_nextents);
+	rmap = &(rudp->rud_format.rud_extents[next_extent]);
+	rmap->me_owner = owner;
+	rmap->me_startblock = startblock;
+	rmap->me_startoff = startoff;
+	rmap->me_len = blockcount;
+	xfs_trans_set_rmap_flags(rmap, type, whichfork, state);
+	rudp->rud_next_extent++;
+
+	return error;
+}

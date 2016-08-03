@@ -22,6 +22,7 @@
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
+#include "xfs_bit.h"
 #include "xfs_mount.h"
 #include "xfs_trans.h"
 #include "xfs_trans_priv.h"
@@ -456,4 +457,63 @@ xfs_rud_init(
 	rudp->rud_format.rud_rui_id = ruip->rui_format.rui_id;
 
 	return rudp;
+}
+
+/*
+ * Process an rmap update intent item that was recovered from the log.
+ * We need to update the rmapbt.
+ */
+int
+xfs_rui_recover(
+	struct xfs_mount		*mp,
+	struct xfs_rui_log_item		*ruip)
+{
+	int				i;
+	int				error = 0;
+	struct xfs_map_extent		*rmap;
+	xfs_fsblock_t			startblock_fsb;
+	bool				op_ok;
+
+	ASSERT(!test_bit(XFS_RUI_RECOVERED, &ruip->rui_flags));
+
+	/*
+	 * First check the validity of the extents described by the
+	 * RUI.  If any are bad, then assume that all are bad and
+	 * just toss the RUI.
+	 */
+	for (i = 0; i < ruip->rui_format.rui_nextents; i++) {
+		rmap = &(ruip->rui_format.rui_extents[i]);
+		startblock_fsb = XFS_BB_TO_FSB(mp,
+				   XFS_FSB_TO_DADDR(mp, rmap->me_startblock));
+		switch (rmap->me_flags & XFS_RMAP_EXTENT_TYPE_MASK) {
+		case XFS_RMAP_EXTENT_MAP:
+		case XFS_RMAP_EXTENT_UNMAP:
+		case XFS_RMAP_EXTENT_CONVERT:
+		case XFS_RMAP_EXTENT_ALLOC:
+		case XFS_RMAP_EXTENT_FREE:
+			op_ok = true;
+			break;
+		default:
+			op_ok = false;
+			break;
+		}
+		if (!op_ok || (startblock_fsb == 0) ||
+		    (rmap->me_len == 0) ||
+		    (startblock_fsb >= mp->m_sb.sb_dblocks) ||
+		    (rmap->me_len >= mp->m_sb.sb_agblocks) ||
+		    (rmap->me_flags & ~XFS_RMAP_EXTENT_FLAGS)) {
+			/*
+			 * This will pull the RUI from the AIL and
+			 * free the memory associated with it.
+			 */
+			set_bit(XFS_RUI_RECOVERED, &ruip->rui_flags);
+			xfs_rui_release(ruip);
+			return -EIO;
+		}
+	}
+
+	/* XXX: do nothing for now */
+	set_bit(XFS_RUI_RECOVERED, &ruip->rui_flags);
+	xfs_rui_release(ruip);
+	return error;
 }

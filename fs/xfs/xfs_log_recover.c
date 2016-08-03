@@ -43,6 +43,7 @@
 #include "xfs_bmap_btree.h"
 #include "xfs_error.h"
 #include "xfs_dir2.h"
+#include "xfs_rmap_item.h"
 
 #define BLK_AVG(blk1, blk2)	((blk1+blk2) >> 1)
 
@@ -1911,6 +1912,8 @@ xlog_recover_reorder_trans(
 		case XFS_LI_QUOTAOFF:
 		case XFS_LI_EFD:
 		case XFS_LI_EFI:
+		case XFS_LI_RUI:
+		case XFS_LI_RUD:
 			trace_xfs_log_recover_item_reorder_tail(log,
 							trans, item, pass);
 			list_move_tail(&item->ri_list, &inode_list);
@@ -3415,6 +3418,101 @@ xlog_recover_efd_pass2(
 }
 
 /*
+ * This routine is called to create an in-core extent rmap update
+ * item from the rui format structure which was logged on disk.
+ * It allocates an in-core rui, copies the extents from the format
+ * structure into it, and adds the rui to the AIL with the given
+ * LSN.
+ */
+STATIC int
+xlog_recover_rui_pass2(
+	struct xlog			*log,
+	struct xlog_recover_item	*item,
+	xfs_lsn_t			lsn)
+{
+	int				error;
+	struct xfs_mount		*mp = log->l_mp;
+	struct xfs_rui_log_item		*ruip;
+	struct xfs_rui_log_format	*rui_formatp;
+
+	rui_formatp = item->ri_buf[0].i_addr;
+
+	ruip = xfs_rui_init(mp, rui_formatp->rui_nextents);
+	error = xfs_rui_copy_format(&item->ri_buf[0], &ruip->rui_format);
+	if (error) {
+		xfs_rui_item_free(ruip);
+		return error;
+	}
+	atomic_set(&ruip->rui_next_extent, rui_formatp->rui_nextents);
+
+	spin_lock(&log->l_ailp->xa_lock);
+	/*
+	 * The RUI has two references. One for the RUD and one for RUI to ensure
+	 * it makes it into the AIL. Insert the RUI into the AIL directly and
+	 * drop the RUI reference. Note that xfs_trans_ail_update() drops the
+	 * AIL lock.
+	 */
+	xfs_trans_ail_update(log->l_ailp, &ruip->rui_item, lsn);
+	xfs_rui_release(ruip);
+	return 0;
+}
+
+
+/*
+ * This routine is called when an RUD format structure is found in a committed
+ * transaction in the log. Its purpose is to cancel the corresponding RUI if it
+ * was still in the log. To do this it searches the AIL for the RUI with an id
+ * equal to that in the RUD format structure. If we find it we drop the RUD
+ * reference, which removes the RUI from the AIL and frees it.
+ */
+STATIC int
+xlog_recover_rud_pass2(
+	struct xlog			*log,
+	struct xlog_recover_item	*item)
+{
+	struct xfs_rud_log_format	*rud_formatp;
+	struct xfs_rui_log_item		*ruip = NULL;
+	struct xfs_log_item		*lip;
+	__uint64_t			rui_id;
+	struct xfs_ail_cursor		cur;
+	struct xfs_ail			*ailp = log->l_ailp;
+
+	rud_formatp = item->ri_buf[0].i_addr;
+	ASSERT(item->ri_buf[0].i_len == (sizeof(struct xfs_rud_log_format) +
+			((rud_formatp->rud_nextents - 1) *
+			sizeof(struct xfs_map_extent))));
+	rui_id = rud_formatp->rud_rui_id;
+
+	/*
+	 * Search for the RUI with the id in the RUD format structure in the
+	 * AIL.
+	 */
+	spin_lock(&ailp->xa_lock);
+	lip = xfs_trans_ail_cursor_first(ailp, &cur, 0);
+	while (lip != NULL) {
+		if (lip->li_type == XFS_LI_RUI) {
+			ruip = (struct xfs_rui_log_item *)lip;
+			if (ruip->rui_format.rui_id == rui_id) {
+				/*
+				 * Drop the RUD reference to the RUI. This
+				 * removes the RUI from the AIL and frees it.
+				 */
+				spin_unlock(&ailp->xa_lock);
+				xfs_rui_release(ruip);
+				spin_lock(&ailp->xa_lock);
+				break;
+			}
+		}
+		lip = xfs_trans_ail_cursor_next(ailp, &cur);
+	}
+
+	xfs_trans_ail_cursor_done(&cur);
+	spin_unlock(&ailp->xa_lock);
+
+	return 0;
+}
+
+/*
  * This routine is called when an inode create format structure is found in a
  * committed transaction in the log.  It's purpose is to initialise the inodes
  * being allocated on disk. This requires us to get inode cluster buffers that
@@ -3639,6 +3737,8 @@ xlog_recover_ra_pass2(
 	case XFS_LI_EFI:
 	case XFS_LI_EFD:
 	case XFS_LI_QUOTAOFF:
+	case XFS_LI_RUI:
+	case XFS_LI_RUD:
 	default:
 		break;
 	}
@@ -3662,6 +3762,8 @@ xlog_recover_commit_pass1(
 	case XFS_LI_EFD:
 	case XFS_LI_DQUOT:
 	case XFS_LI_ICREATE:
+	case XFS_LI_RUI:
+	case XFS_LI_RUD:
 		/* nothing to do in pass 1 */
 		return 0;
 	default:
@@ -3692,6 +3794,10 @@ xlog_recover_commit_pass2(
 		return xlog_recover_efi_pass2(log, item, trans->r_lsn);
 	case XFS_LI_EFD:
 		return xlog_recover_efd_pass2(log, item);
+	case XFS_LI_RUI:
+		return xlog_recover_rui_pass2(log, item, trans->r_lsn);
+	case XFS_LI_RUD:
+		return xlog_recover_rud_pass2(log, item);
 	case XFS_LI_DQUOT:
 		return xlog_recover_dquot_pass2(log, buffer_list, item,
 						trans->r_lsn);
@@ -4204,11 +4310,52 @@ xlog_recover_cancel_efi(
 	spin_lock(&ailp->xa_lock);
 }
 
+/* Recover the RUI if necessary. */
+STATIC int
+xlog_recover_process_rui(
+	struct xfs_mount		*mp,
+	struct xfs_ail			*ailp,
+	struct xfs_log_item		*lip)
+{
+	struct xfs_rui_log_item		*ruip;
+	int				error;
+
+	/*
+	 * Skip RUIs that we've already processed.
+	 */
+	ruip = container_of(lip, struct xfs_rui_log_item, rui_item);
+	if (test_bit(XFS_RUI_RECOVERED, &ruip->rui_flags))
+		return 0;
+
+	spin_unlock(&ailp->xa_lock);
+	error = xfs_rui_recover(mp, ruip);
+	spin_lock(&ailp->xa_lock);
+
+	return error;
+}
+
+/* Release the RUI since we're cancelling everything. */
+STATIC void
+xlog_recover_cancel_rui(
+	struct xfs_mount		*mp,
+	struct xfs_ail			*ailp,
+	struct xfs_log_item		*lip)
+{
+	struct xfs_rui_log_item		*ruip;
+
+	ruip = container_of(lip, struct xfs_rui_log_item, rui_item);
+
+	spin_unlock(&ailp->xa_lock);
+	xfs_rui_release(ruip);
+	spin_lock(&ailp->xa_lock);
+}
+
 /* Is this log item a deferred action intent? */
 static inline bool xlog_item_is_intent(struct xfs_log_item *lip)
 {
 	switch (lip->li_type) {
 	case XFS_LI_EFI:
+	case XFS_LI_RUI:
 		return true;
 	default:
 		return false;
@@ -4269,6 +4416,9 @@ xlog_recover_process_intents(
 		case XFS_LI_EFI:
 			error = xlog_recover_process_efi(log->l_mp, ailp, lip);
 			break;
+		case XFS_LI_RUI:
+			error = xlog_recover_process_rui(log->l_mp, ailp, lip);
+			break;
 		}
 		if (error)
 			goto out;
@@ -4312,6 +4462,9 @@ xlog_recover_cancel_intents(
 		switch (lip->li_type) {
 		case XFS_LI_EFI:
 			xlog_recover_cancel_efi(log->l_mp, ailp, lip);
+			break;
+		case XFS_LI_RUI:
+			xlog_recover_cancel_rui(log->l_mp, ailp, lip);
 			break;
 		}
 
@@ -5130,6 +5283,7 @@ xlog_recover_finish(
 			xfs_alert(log->l_mp, "Failed to recover intents");
 			return error;
 		}
+
 		/*
 		 * Sync the log to get all the intents out of the AIL.
 		 * This isn't absolutely necessary, but it helps in

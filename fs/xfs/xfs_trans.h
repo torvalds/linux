@@ -233,4 +233,21 @@ void		xfs_trans_buf_copy_type(struct xfs_buf *dst_bp,
 extern kmem_zone_t	*xfs_trans_zone;
 extern kmem_zone_t	*xfs_log_item_desc_zone;
 
+enum xfs_rmap_intent_type;
+
+struct xfs_rui_log_item *xfs_trans_get_rui(struct xfs_trans *tp, uint nextents);
+void xfs_trans_log_start_rmap_update(struct xfs_trans *tp,
+		struct xfs_rui_log_item *ruip, enum xfs_rmap_intent_type type,
+		__uint64_t owner, int whichfork, xfs_fileoff_t startoff,
+		xfs_fsblock_t startblock, xfs_filblks_t blockcount,
+		xfs_exntst_t state);
+
+struct xfs_rud_log_item *xfs_trans_get_rud(struct xfs_trans *tp,
+		struct xfs_rui_log_item *ruip, uint nextents);
+int xfs_trans_log_finish_rmap_update(struct xfs_trans *tp,
+		struct xfs_rud_log_item *rudp, enum xfs_rmap_intent_type type,
+		__uint64_t owner, int whichfork, xfs_fileoff_t startoff,
+		xfs_fsblock_t startblock, xfs_filblks_t blockcount,
+		xfs_exntst_t state);
+
 #endif	/* __XFS_TRANS_H__ */
