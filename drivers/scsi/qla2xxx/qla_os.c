@@ -899,12 +899,12 @@ qla2x00_wait_for_hba_ready(scsi_qla_host_t *vha)
 	struct qla_hw_data *ha = vha->hw;
 	scsi_qla_host_t *base_vha = pci_get_drvdata(ha->pdev);
 
-	while (((qla2x00_reset_active(vha)) || ha->dpc_active ||
-	    ha->flags.mbox_busy) ||
-		test_bit(FX00_RESET_RECOVERY, &vha->dpc_flags) ||
-		test_bit(FX00_TARGET_SCAN, &vha->dpc_flags)) {
-			if (test_bit(UNLOADING, &base_vha->dpc_flags))
-				break;
+	while ((qla2x00_reset_active(vha) || ha->dpc_active ||
+		ha->flags.mbox_busy) ||
+	       test_bit(FX00_RESET_RECOVERY, &vha->dpc_flags) ||
+	       test_bit(FX00_TARGET_SCAN, &vha->dpc_flags)) {
+		if (test_bit(UNLOADING, &base_vha->dpc_flags))
+			break;
 		msleep(1000);
 	}
 }
