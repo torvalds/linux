@@ -589,7 +589,11 @@ static int vce_v3_0_wait_for_idle(void *handle)
 	return -ETIMEDOUT;
 }
 
-#define AMDGPU_VCE_STATUS_BUSY_MASK    0x78
+#define  VCE_STATUS_VCPU_REPORT_AUTO_BUSY_MASK  0x00000008L   /* AUTO_BUSY */
+#define  VCE_STATUS_VCPU_REPORT_RB0_BUSY_MASK   0x00000010L   /* RB0_BUSY */
+#define  VCE_STATUS_VCPU_REPORT_RB1_BUSY_MASK   0x00000020L   /* RB1_BUSY */
+#define  AMDGPU_VCE_STATUS_BUSY_MASK (VCE_STATUS_VCPU_REPORT_AUTO_BUSY_MASK | \
+				      VCE_STATUS_VCPU_REPORT_RB0_BUSY_MASK)
 
 static int vce_v3_0_check_soft_reset(void *handle)
 {
