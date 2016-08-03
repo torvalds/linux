@@ -1854,6 +1854,8 @@ init_xfs_fs(void)
 	printk(KERN_INFO XFS_VERSION_STRING " with "
 			 XFS_BUILD_OPTIONS " enabled\n");
 
+	xfs_extent_free_init_defer_op();
+
 	xfs_dir_startup();
 
 	error = xfs_init_zones();

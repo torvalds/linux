@@ -210,6 +210,8 @@ void		xfs_trans_ichgtime(struct xfs_trans *, struct xfs_inode *, int);
 void		xfs_trans_ijoin(struct xfs_trans *, struct xfs_inode *, uint);
 void		xfs_trans_log_buf(xfs_trans_t *, struct xfs_buf *, uint, uint);
 void		xfs_trans_log_inode(xfs_trans_t *, struct xfs_inode *, uint);
+
+void		xfs_extent_free_init_defer_op(void);
 struct xfs_efi_log_item	*xfs_trans_get_efi(struct xfs_trans *, uint);
 void		xfs_trans_log_efi_extent(struct xfs_trans *,
 					 struct xfs_efi_log_item *,
