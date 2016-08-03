@@ -460,6 +460,8 @@ static int __write_machine_check(struct kvm_vcpu *vcpu,
 			     &vcpu->arch.sie_block->gcr, 128);
 
 	/* Extended interruption information */
+	rc |= put_guest_lc(vcpu, mchk->ext_damage_code,
+			   (u32 __user *) __LC_EXT_DAMAGE_CODE);
 	rc |= put_guest_lc(vcpu, mchk->failing_storage_address,
 			   (u64 __user *) __LC_MCCK_FAIL_STOR_ADDR);
 	rc |= write_guest_lc(vcpu, __LC_PSW_SAVE_AREA, &mchk->fixed_logout,
