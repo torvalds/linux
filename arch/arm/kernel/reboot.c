@@ -137,6 +137,7 @@ void machine_restart(char *cmd)
 	local_irq_disable();
 	smp_send_stop();
 
+	do_kernel_pre_restart(cmd);
 	do_kernel_restart(cmd);
 
 	/* Give a grace period for failure to restart of 1s */

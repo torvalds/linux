@@ -49,6 +49,26 @@ extern int register_restart_handler(struct notifier_block *);
 extern int unregister_restart_handler(struct notifier_block *);
 extern void do_kernel_restart(char *cmd);
 
+#ifdef CONFIG_NO_GKI
+extern int register_pre_restart_handler(struct notifier_block *nb);
+extern int unregister_pre_restart_handler(struct notifier_block *nb);
+extern void do_kernel_pre_restart(char *cmd);
+#else
+static inline int register_pre_restart_handler(struct notifier_block *nb)
+{
+	return 0;
+}
+
+static inline int unregister_pre_restart_handler(struct notifier_block *nb)
+{
+	return 0;
+}
+
+static inline void do_kernel_pre_restart(char *cmd)
+{
+}
+#endif
+
 /*
  * Architecture-specific implementations of sys_reboot commands.
  */

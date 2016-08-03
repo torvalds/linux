@@ -191,6 +191,8 @@ void machine_restart(char *cmd)
 	local_irq_disable();
 	smp_send_stop();
 
+	do_kernel_pre_restart(cmd);
+
 	/*
 	 * UpdateCapsule() depends on the system being reset via
 	 * ResetSystem().
