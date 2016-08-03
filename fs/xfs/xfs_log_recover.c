@@ -24,7 +24,6 @@
 #include "xfs_bit.h"
 #include "xfs_sb.h"
 #include "xfs_mount.h"
-#include "xfs_defer.h"
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
 #include "xfs_inode.h"
@@ -4165,126 +4164,112 @@ xlog_recover_process_data(
 	return 0;
 }
 
-/*
- * Process an extent free intent item that was recovered from
- * the log.  We need to free the extents that it describes.
- */
+/* Recover the EFI if necessary. */
 STATIC int
 xlog_recover_process_efi(
-	xfs_mount_t		*mp,
-	xfs_efi_log_item_t	*efip)
+	struct xfs_mount		*mp,
+	struct xfs_ail			*ailp,
+	struct xfs_log_item		*lip)
 {
-	xfs_efd_log_item_t	*efdp;
-	xfs_trans_t		*tp;
-	int			i;
-	int			error = 0;
-	xfs_extent_t		*extp;
-	xfs_fsblock_t		startblock_fsb;
-
-	ASSERT(!test_bit(XFS_EFI_RECOVERED, &efip->efi_flags));
+	struct xfs_efi_log_item		*efip;
+	int				error;
 
 	/*
-	 * First check the validity of the extents described by the
-	 * EFI.  If any are bad, then assume that all are bad and
-	 * just toss the EFI.
+	 * Skip EFIs that we've already processed.
 	 */
-	for (i = 0; i < efip->efi_format.efi_nextents; i++) {
-		extp = &(efip->efi_format.efi_extents[i]);
-		startblock_fsb = XFS_BB_TO_FSB(mp,
-				   XFS_FSB_TO_DADDR(mp, extp->ext_start));
-		if ((startblock_fsb == 0) ||
-		    (extp->ext_len == 0) ||
-		    (startblock_fsb >= mp->m_sb.sb_dblocks) ||
-		    (extp->ext_len >= mp->m_sb.sb_agblocks)) {
-			/*
-			 * This will pull the EFI from the AIL and
-			 * free the memory associated with it.
-			 */
-			set_bit(XFS_EFI_RECOVERED, &efip->efi_flags);
-			xfs_efi_release(efip);
-			return -EIO;
-		}
-	}
+	efip = container_of(lip, struct xfs_efi_log_item, efi_item);
+	if (test_bit(XFS_EFI_RECOVERED, &efip->efi_flags))
+		return 0;
 
-	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate, 0, 0, 0, &tp);
-	if (error)
-		return error;
-	efdp = xfs_trans_get_efd(tp, efip, efip->efi_format.efi_nextents);
+	spin_unlock(&ailp->xa_lock);
+	error = xfs_efi_recover(mp, efip);
+	spin_lock(&ailp->xa_lock);
 
-	for (i = 0; i < efip->efi_format.efi_nextents; i++) {
-		extp = &(efip->efi_format.efi_extents[i]);
-		error = xfs_trans_free_extent(tp, efdp, extp->ext_start,
-					      extp->ext_len);
-		if (error)
-			goto abort_error;
-
-	}
-
-	set_bit(XFS_EFI_RECOVERED, &efip->efi_flags);
-	error = xfs_trans_commit(tp);
-	return error;
-
-abort_error:
-	xfs_trans_cancel(tp);
 	return error;
 }
 
+/* Release the EFI since we're cancelling everything. */
+STATIC void
+xlog_recover_cancel_efi(
+	struct xfs_mount		*mp,
+	struct xfs_ail			*ailp,
+	struct xfs_log_item		*lip)
+{
+	struct xfs_efi_log_item		*efip;
+
+	efip = container_of(lip, struct xfs_efi_log_item, efi_item);
+
+	spin_unlock(&ailp->xa_lock);
+	xfs_efi_release(efip);
+	spin_lock(&ailp->xa_lock);
+}
+
+/* Is this log item a deferred action intent? */
+static inline bool xlog_item_is_intent(struct xfs_log_item *lip)
+{
+	switch (lip->li_type) {
+	case XFS_LI_EFI:
+		return true;
+	default:
+		return false;
+	}
+}
+
 /*
- * When this is called, all of the EFIs which did not have
- * corresponding EFDs should be in the AIL.  What we do now
- * is free the extents associated with each one.
+ * When this is called, all of the log intent items which did not have
+ * corresponding log done items should be in the AIL.  What we do now
+ * is update the data structures associated with each one.
  *
- * Since we process the EFIs in normal transactions, they
- * will be removed at some point after the commit.  This prevents
- * us from just walking down the list processing each one.
- * We'll use a flag in the EFI to skip those that we've already
- * processed and use the AIL iteration mechanism's generation
- * count to try to speed this up at least a bit.
+ * Since we process the log intent items in normal transactions, they
+ * will be removed at some point after the commit.  This prevents us
+ * from just walking down the list processing each one.  We'll use a
+ * flag in the intent item to skip those that we've already processed
+ * and use the AIL iteration mechanism's generation count to try to
+ * speed this up at least a bit.
  *
- * When we start, we know that the EFIs are the only things in
- * the AIL.  As we process them, however, other items are added
- * to the AIL.  Since everything added to the AIL must come after
- * everything already in the AIL, we stop processing as soon as
- * we see something other than an EFI in the AIL.
+ * When we start, we know that the intents are the only things in the
+ * AIL.  As we process them, however, other items are added to the
+ * AIL.
  */
 STATIC int
-xlog_recover_process_efis(
+xlog_recover_process_intents(
 	struct xlog		*log)
 {
 	struct xfs_log_item	*lip;
-	struct xfs_efi_log_item	*efip;
 	int			error = 0;
 	struct xfs_ail_cursor	cur;
 	struct xfs_ail		*ailp;
+	xfs_lsn_t		last_lsn;
 
 	ailp = log->l_ailp;
 	spin_lock(&ailp->xa_lock);
 	lip = xfs_trans_ail_cursor_first(ailp, &cur, 0);
+	last_lsn = xlog_assign_lsn(log->l_curr_cycle, log->l_curr_block);
 	while (lip != NULL) {
 		/*
-		 * We're done when we see something other than an EFI.
-		 * There should be no EFIs left in the AIL now.
+		 * We're done when we see something other than an intent.
+		 * There should be no intents left in the AIL now.
 		 */
-		if (lip->li_type != XFS_LI_EFI) {
+		if (!xlog_item_is_intent(lip)) {
 #ifdef DEBUG
 			for (; lip; lip = xfs_trans_ail_cursor_next(ailp, &cur))
-				ASSERT(lip->li_type != XFS_LI_EFI);
+				ASSERT(!xlog_item_is_intent(lip));
 #endif
 			break;
 		}
 
 		/*
-		 * Skip EFIs that we've already processed.
+		 * We should never see a redo item with a LSN higher than
+		 * the last transaction we found in the log at the start
+		 * of recovery.
 		 */
-		efip = container_of(lip, struct xfs_efi_log_item, efi_item);
-		if (test_bit(XFS_EFI_RECOVERED, &efip->efi_flags)) {
-			lip = xfs_trans_ail_cursor_next(ailp, &cur);
-			continue;
-		}
+		ASSERT(XFS_LSN_CMP(last_lsn, lip->li_lsn) >= 0);
 
-		spin_unlock(&ailp->xa_lock);
-		error = xlog_recover_process_efi(log->l_mp, efip);
-		spin_lock(&ailp->xa_lock);
+		switch (lip->li_type) {
+		case XFS_LI_EFI:
+			error = xlog_recover_process_efi(log->l_mp, ailp, lip);
+			break;
+		}
 		if (error)
 			goto out;
 		lip = xfs_trans_ail_cursor_next(ailp, &cur);
@@ -4296,15 +4281,14 @@ out:
 }
 
 /*
- * A cancel occurs when the mount has failed and we're bailing out. Release all
- * pending EFIs so they don't pin the AIL.
+ * A cancel occurs when the mount has failed and we're bailing out.
+ * Release all pending log intent items so they don't pin the AIL.
  */
 STATIC int
-xlog_recover_cancel_efis(
+xlog_recover_cancel_intents(
 	struct xlog		*log)
 {
 	struct xfs_log_item	*lip;
-	struct xfs_efi_log_item	*efip;
 	int			error = 0;
 	struct xfs_ail_cursor	cur;
 	struct xfs_ail		*ailp;
@@ -4314,22 +4298,22 @@ xlog_recover_cancel_efis(
 	lip = xfs_trans_ail_cursor_first(ailp, &cur, 0);
 	while (lip != NULL) {
 		/*
-		 * We're done when we see something other than an EFI.
-		 * There should be no EFIs left in the AIL now.
+		 * We're done when we see something other than an intent.
+		 * There should be no intents left in the AIL now.
 		 */
-		if (lip->li_type != XFS_LI_EFI) {
+		if (!xlog_item_is_intent(lip)) {
 #ifdef DEBUG
 			for (; lip; lip = xfs_trans_ail_cursor_next(ailp, &cur))
-				ASSERT(lip->li_type != XFS_LI_EFI);
+				ASSERT(!xlog_item_is_intent(lip));
 #endif
 			break;
 		}
 
-		efip = container_of(lip, struct xfs_efi_log_item, efi_item);
-
-		spin_unlock(&ailp->xa_lock);
-		xfs_efi_release(efip);
-		spin_lock(&ailp->xa_lock);
+		switch (lip->li_type) {
+		case XFS_LI_EFI:
+			xlog_recover_cancel_efi(log->l_mp, ailp, lip);
+			break;
+		}
 
 		lip = xfs_trans_ail_cursor_next(ailp, &cur);
 	}
@@ -5140,16 +5124,16 @@ xlog_recover_finish(
 	 */
 	if (log->l_flags & XLOG_RECOVERY_NEEDED) {
 		int	error;
-		error = xlog_recover_process_efis(log);
+		error = xlog_recover_process_intents(log);
 		if (error) {
-			xfs_alert(log->l_mp, "Failed to recover EFIs");
+			xfs_alert(log->l_mp, "Failed to recover intents");
 			return error;
 		}
 		/*
-		 * Sync the log to get all the EFIs out of the AIL.
+		 * Sync the log to get all the intents out of the AIL.
 		 * This isn't absolutely necessary, but it helps in
 		 * case the unlink transactions would have problems
-		 * pushing the EFIs out of the way.
+		 * pushing the intents out of the way.
 		 */
 		xfs_log_force(log->l_mp, XFS_LOG_SYNC);
 
@@ -5174,7 +5158,7 @@ xlog_recover_cancel(
 	int		error = 0;
 
 	if (log->l_flags & XLOG_RECOVERY_NEEDED)
-		error = xlog_recover_cancel_efis(log);
+		error = xlog_recover_cancel_intents(log);
 
 	return error;
 }

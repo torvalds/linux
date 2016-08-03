@@ -20,6 +20,7 @@
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
+#include "xfs_bit.h"
 #include "xfs_mount.h"
 #include "xfs_trans.h"
 #include "xfs_trans_priv.h"
@@ -485,4 +486,68 @@ xfs_efd_init(
 	efdp->efd_format.efd_efi_id = efip->efi_format.efi_id;
 
 	return efdp;
+}
+
+/*
+ * Process an extent free intent item that was recovered from
+ * the log.  We need to free the extents that it describes.
+ */
+int
+xfs_efi_recover(
+	struct xfs_mount	*mp,
+	struct xfs_efi_log_item	*efip)
+{
+	struct xfs_efd_log_item	*efdp;
+	struct xfs_trans	*tp;
+	int			i;
+	int			error = 0;
+	xfs_extent_t		*extp;
+	xfs_fsblock_t		startblock_fsb;
+
+	ASSERT(!test_bit(XFS_EFI_RECOVERED, &efip->efi_flags));
+
+	/*
+	 * First check the validity of the extents described by the
+	 * EFI.  If any are bad, then assume that all are bad and
+	 * just toss the EFI.
+	 */
+	for (i = 0; i < efip->efi_format.efi_nextents; i++) {
+		extp = &(efip->efi_format.efi_extents[i]);
+		startblock_fsb = XFS_BB_TO_FSB(mp,
+				   XFS_FSB_TO_DADDR(mp, extp->ext_start));
+		if ((startblock_fsb == 0) ||
+		    (extp->ext_len == 0) ||
+		    (startblock_fsb >= mp->m_sb.sb_dblocks) ||
+		    (extp->ext_len >= mp->m_sb.sb_agblocks)) {
+			/*
+			 * This will pull the EFI from the AIL and
+			 * free the memory associated with it.
+			 */
+			set_bit(XFS_EFI_RECOVERED, &efip->efi_flags);
+			xfs_efi_release(efip);
+			return -EIO;
+		}
+	}
+
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate, 0, 0, 0, &tp);
+	if (error)
+		return error;
+	efdp = xfs_trans_get_efd(tp, efip, efip->efi_format.efi_nextents);
+
+	for (i = 0; i < efip->efi_format.efi_nextents; i++) {
+		extp = &(efip->efi_format.efi_extents[i]);
+		error = xfs_trans_free_extent(tp, efdp, extp->ext_start,
+					      extp->ext_len);
+		if (error)
+			goto abort_error;
+
+	}
+
+	set_bit(XFS_EFI_RECOVERED, &efip->efi_flags);
+	error = xfs_trans_commit(tp);
+	return error;
+
+abort_error:
+	xfs_trans_cancel(tp);
+	return error;
 }
