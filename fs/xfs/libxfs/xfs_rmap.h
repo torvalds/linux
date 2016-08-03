@@ -163,4 +163,23 @@ int xfs_rmap_query_range(struct xfs_btree_cur *cur,
 		struct xfs_rmap_irec *low_rec, struct xfs_rmap_irec *high_rec,
 		xfs_rmap_query_range_fn fn, void *priv);
 
+enum xfs_rmap_intent_type {
+	XFS_RMAP_MAP,
+	XFS_RMAP_MAP_SHARED,
+	XFS_RMAP_UNMAP,
+	XFS_RMAP_UNMAP_SHARED,
+	XFS_RMAP_CONVERT,
+	XFS_RMAP_CONVERT_SHARED,
+	XFS_RMAP_ALLOC,
+	XFS_RMAP_FREE,
+};
+
+struct xfs_rmap_intent {
+	struct list_head			ri_list;
+	enum xfs_rmap_intent_type		ri_type;
+	__uint64_t				ri_owner;
+	int					ri_whichfork;
+	struct xfs_bmbt_irec			ri_bmap;
+};
+
 #endif	/* __XFS_RMAP_H__ */
