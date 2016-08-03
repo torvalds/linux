@@ -235,16 +235,12 @@ extern int gb_audio_gb_set_pcm(struct gb_connection *connection,
 			       uint8_t sig_bits);
 extern int gb_audio_gb_set_tx_data_size(struct gb_connection *connection,
 					uint16_t data_cport, uint16_t size);
-extern int gb_audio_gb_get_tx_delay(struct gb_connection *connection,
-				    uint16_t data_cport, uint32_t *delay);
 extern int gb_audio_gb_activate_tx(struct gb_connection *connection,
 				   uint16_t data_cport);
 extern int gb_audio_gb_deactivate_tx(struct gb_connection *connection,
 				     uint16_t data_cport);
 extern int gb_audio_gb_set_rx_data_size(struct gb_connection *connection,
 					uint16_t data_cport, uint16_t size);
-extern int gb_audio_gb_get_rx_delay(struct gb_connection *connection,
-				    uint16_t data_cport, uint32_t *delay);
 extern int gb_audio_gb_activate_rx(struct gb_connection *connection,
 				   uint16_t data_cport);
 extern int gb_audio_gb_deactivate_rx(struct gb_connection *connection,

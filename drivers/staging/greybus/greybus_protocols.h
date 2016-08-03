@@ -1935,11 +1935,11 @@ struct gb_lights_get_flash_fault_response {
 #define GB_AUDIO_TYPE_GET_PCM			0x08
 #define GB_AUDIO_TYPE_SET_PCM			0x09
 #define GB_AUDIO_TYPE_SET_TX_DATA_SIZE		0x0a
-#define GB_AUDIO_TYPE_GET_TX_DELAY		0x0b
+						/* 0x0b unused */
 #define GB_AUDIO_TYPE_ACTIVATE_TX		0x0c
 #define GB_AUDIO_TYPE_DEACTIVATE_TX		0x0d
 #define GB_AUDIO_TYPE_SET_RX_DATA_SIZE		0x0e
-#define GB_AUDIO_TYPE_GET_RX_DELAY		0x0f
+						/* 0x0f unused */
 #define GB_AUDIO_TYPE_ACTIVATE_RX		0x10
 #define GB_AUDIO_TYPE_DEACTIVATE_RX		0x11
 #define GB_AUDIO_TYPE_JACK_EVENT		0x12
@@ -2227,14 +2227,6 @@ struct gb_audio_set_tx_data_size_request {
 	__le16	size;
 } __packed;
 
-struct gb_audio_get_tx_delay_request {
-	__le16	data_cport;
-} __packed;
-
-struct gb_audio_get_tx_delay_response {
-	__le32	delay;
-} __packed;
-
 struct gb_audio_activate_tx_request {
 	__le16	data_cport;
 } __packed;
@@ -2246,14 +2238,6 @@ struct gb_audio_deactivate_tx_request {
 struct gb_audio_set_rx_data_size_request {
 	__le16	data_cport;
 	__le16	size;
-} __packed;
-
-struct gb_audio_get_rx_delay_request {
-	__le16	data_cport;
-} __packed;
-
-struct gb_audio_get_rx_delay_response {
-	__le32	delay;
 } __packed;
 
 struct gb_audio_activate_rx_request {
