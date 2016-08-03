@@ -126,6 +126,7 @@ static void vce_v3_0_set_vce_sw_clock_gating(struct amdgpu_device *adev,
 					     bool gated)
 {
 	u32 tmp, data;
+
 	/* Set Override to disable Clock Gating */
 	vce_v3_0_override_vce_clock_gating(adev, true);
 
@@ -165,9 +166,9 @@ static void vce_v3_0_set_vce_sw_clock_gating(struct amdgpu_device *adev,
 		/* Force VCE_UENC_DMA_DCLK_CTRL Clock ON */
 		tmp = data = RREG32(mmVCE_UENC_DMA_DCLK_CTRL);
 		data |= VCE_UENC_DMA_DCLK_CTRL__WRDMCLK_FORCEON_MASK |
-				VCE_UENC_DMA_DCLK_CTRL__RDDMCLK_FORCEON_MASK |
-				VCE_UENC_DMA_DCLK_CTRL__REGCLK_FORCEON_MASK  |
-				0x8;
+			VCE_UENC_DMA_DCLK_CTRL__RDDMCLK_FORCEON_MASK |
+			VCE_UENC_DMA_DCLK_CTRL__REGCLK_FORCEON_MASK  |
+			0x8;
 		if (tmp != data)
 			WREG32(mmVCE_UENC_DMA_DCLK_CTRL, data);
 	} else {
@@ -201,9 +202,9 @@ static void vce_v3_0_set_vce_sw_clock_gating(struct amdgpu_device *adev,
 		/* Set VCE_UENC_DMA_DCLK_CTRL CG always in dynamic mode */
 		tmp = data = RREG32(mmVCE_UENC_DMA_DCLK_CTRL);
 		data &= ~(VCE_UENC_DMA_DCLK_CTRL__WRDMCLK_FORCEON_MASK |
-				VCE_UENC_DMA_DCLK_CTRL__RDDMCLK_FORCEON_MASK |
-				VCE_UENC_DMA_DCLK_CTRL__REGCLK_FORCEON_MASK  |
-				0x8);
+			  VCE_UENC_DMA_DCLK_CTRL__RDDMCLK_FORCEON_MASK |
+			  VCE_UENC_DMA_DCLK_CTRL__REGCLK_FORCEON_MASK  |
+			  0x8);
 		if (tmp != data)
 			WREG32(mmVCE_UENC_DMA_DCLK_CTRL, data);
 	}
