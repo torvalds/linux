@@ -966,12 +966,12 @@
 				MX6QDL_PAD_EIM_DA0__EIM_AD00		0xb0b1
 			>;
 		};
-	};
 
-	pinctrl_hdmi_cec: hdmicecgrp {
-		fsl,pins = <
-			MX6QDL_PAD_EIM_A25__HDMI_TX_CEC_LINE 0x1f8b0
-		>;
+		pinctrl_hdmi_cec: hdmicecgrp {
+			fsl,pins = <
+				MX6QDL_PAD_EIM_A25__HDMI_TX_CEC_LINE 0x1f8b0
+			>;
+		};
 	};
 };
 
