@@ -89,6 +89,15 @@ struct tce_iommu_group {
 };
 
 /*
+ * A container needs to remember which preregistered areas and how many times
+ * it has referenced to do proper cleanup at the userspace process exit.
+ */
+struct tce_iommu_prereg {
+	struct list_head next;
+	struct mm_iommu_table_group_mem_t *mem;
+};
+
+/*
  * The container descriptor supports only a single group per container.
  * Required by the API as the container is not supplied with the IOMMU group
  * at the moment of initialization.
@@ -101,12 +110,26 @@ struct tce_container {
 	struct mm_struct *mm;
 	struct iommu_table *tables[IOMMU_TABLE_GROUP_MAX_TABLES];
 	struct list_head group_list;
+	struct list_head prereg_list;
 };
+
+static long tce_iommu_prereg_free(struct tce_container *container,
+		struct tce_iommu_prereg *tcemem)
+{
+	long ret;
+
+	list_del(&tcemem->next);
+	ret = mm_iommu_put(container->mm, tcemem->mem);
+	kfree(tcemem);
+
+	return ret;
+}
 
 static long tce_iommu_unregister_pages(struct tce_container *container,
 		__u64 vaddr, __u64 size)
 {
 	struct mm_iommu_table_group_mem_t *mem;
+	struct tce_iommu_prereg *tcemem;
 
 	if ((vaddr & ~PAGE_MASK) || (size & ~PAGE_MASK))
 		return -EINVAL;
@@ -115,7 +138,12 @@ static long tce_iommu_unregister_pages(struct tce_container *container,
 	if (!mem)
 		return -ENOENT;
 
-	return mm_iommu_put(container->mm, mem);
+	list_for_each_entry(tcemem, &container->prereg_list, next) {
+		if (tcemem->mem == mem)
+			return tce_iommu_prereg_free(container, tcemem);
+	}
+
+	return -ENOENT;
 }
 
 static long tce_iommu_register_pages(struct tce_container *container,
@@ -123,6 +151,7 @@ static long tce_iommu_register_pages(struct tce_container *container,
 {
 	long ret = 0;
 	struct mm_iommu_table_group_mem_t *mem = NULL;
+	struct tce_iommu_prereg *tcemem;
 	unsigned long entries = size >> PAGE_SHIFT;
 
 	if ((vaddr & ~PAGE_MASK) || (size & ~PAGE_MASK) ||
@@ -140,6 +169,18 @@ static long tce_iommu_register_pages(struct tce_container *container,
 	ret = mm_iommu_get(container->mm, vaddr, entries, &mem);
 	if (ret)
 		return ret;
+
+	list_for_each_entry(tcemem, &container->prereg_list, next) {
+		if (tcemem->mem == mem) {
+			mm_iommu_put(container->mm, mem);
+			return -EBUSY;
+		}
+	}
+
+	tcemem = kzalloc(sizeof(*tcemem), GFP_KERNEL);
+	tcemem->mem = mem;
+	list_add(&tcemem->next, &container->prereg_list);
+
 	container->enabled = true;
 
 	return 0;
@@ -325,6 +366,7 @@ static void *tce_iommu_open(unsigned long arg)
 
 	mutex_init(&container->lock);
 	INIT_LIST_HEAD_RCU(&container->group_list);
+	INIT_LIST_HEAD_RCU(&container->prereg_list);
 
 	container->v2 = arg == VFIO_SPAPR_TCE_v2_IOMMU;
 
@@ -360,6 +402,14 @@ static void tce_iommu_release(void *iommu_data)
 
 		tce_iommu_clear(container, tbl, tbl->it_offset, tbl->it_size);
 		tce_iommu_free_table(tbl);
+	}
+
+	while (!list_empty(&container->prereg_list)) {
+		struct tce_iommu_prereg *tcemem;
+
+		tcemem = list_first_entry(&container->prereg_list,
+				struct tce_iommu_prereg, next);
+		tce_iommu_prereg_free(container, tcemem);
 	}
 
 	if (container->mm)

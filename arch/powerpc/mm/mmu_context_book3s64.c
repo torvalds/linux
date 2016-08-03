@@ -159,10 +159,6 @@ static inline void destroy_pagetable_page(struct mm_struct *mm)
 
 void destroy_context(struct mm_struct *mm)
 {
-#ifdef CONFIG_SPAPR_TCE_IOMMU
-	mm_iommu_cleanup(mm);
-#endif
-
 #ifdef CONFIG_PPC_ICSWX
 	drop_cop(mm->context.acop, mm);
 	kfree(mm->context.cop_lockp);
