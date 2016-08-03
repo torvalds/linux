@@ -4640,7 +4640,9 @@ finish:
 	}
 
 	if (!bio_list_empty(&s.return_bi)) {
-		if (test_bit(MD_CHANGE_PENDING, &conf->mddev->flags)) {
+		if (test_bit(MD_CHANGE_PENDING, &conf->mddev->flags) &&
+				(s.failed <= conf->max_degraded ||
+					conf->mddev->external == 0)) {
 			spin_lock_irq(&conf->device_lock);
 			bio_list_merge(&conf->return_bi, &s.return_bi);
 			spin_unlock_irq(&conf->device_lock);
