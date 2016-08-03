@@ -734,15 +734,15 @@ static void fm10k_configure_rx_ring(struct fm10k_intfc *interface,
 	u64 rdba = ring->dma;
 	struct fm10k_hw *hw = &interface->hw;
 	u32 size = ring->count * sizeof(union fm10k_rx_desc);
-	u32 rxqctl = FM10K_RXQCTL_ENABLE | FM10K_RXQCTL_PF;
-	u32 rxdctl = FM10K_RXDCTL_WRITE_BACK_MIN_DELAY;
+	u32 rxqctl, rxdctl = FM10K_RXDCTL_WRITE_BACK_MIN_DELAY;
 	u32 srrctl = FM10K_SRRCTL_BUFFER_CHAINING_EN;
 	u32 rxint = FM10K_INT_MAP_DISABLE;
 	u8 rx_pause = interface->rx_pause;
 	u8 reg_idx = ring->reg_idx;
 
 	/* disable queue to avoid issues while updating state */
-	fm10k_write_reg(hw, FM10K_RXQCTL(reg_idx), 0);
+	rxqctl = fm10k_read_reg(hw, FM10K_RXQCTL(reg_idx));
+	rxqctl &= ~FM10K_RXQCTL_ENABLE;
 	fm10k_write_flush(hw);
 
 	/* possible poll here to verify ring resources have been cleaned */
@@ -797,6 +797,8 @@ static void fm10k_configure_rx_ring(struct fm10k_intfc *interface,
 	fm10k_write_reg(hw, FM10K_RXINT(reg_idx), rxint);
 
 	/* enable queue */
+	rxqctl = fm10k_read_reg(hw, FM10K_RXQCTL(reg_idx));
+	rxqctl |= FM10K_RXQCTL_ENABLE;
 	fm10k_write_reg(hw, FM10K_RXQCTL(reg_idx), rxqctl);
 
 	/* place buffers on ring for receive data */
