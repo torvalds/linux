@@ -601,9 +601,6 @@ static int vce_v3_0_check_soft_reset(void *handle)
 	u32 srbm_soft_reset = 0;
 	u32 tmp;
 
-	/* VCE BUG: it is always busy, so skip its checking now */
-	return 0;
-
 	/* According to VCE team , we should use VCE_STATUS instead
 	 * SRBM_STATUS.VCE_BUSY bit for busy status checking.
 	 * GRBM_GFX_INDEX.INSTANCE_INDEX is used to specify which VCE
