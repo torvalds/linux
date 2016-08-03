@@ -66,7 +66,7 @@ struct lkl_netdev *lkl_netdev_tap_create(const char *ifname, int offload)
 		close(fd);
 		return NULL;
 	}
-	if (tap_arg && ioctl(fd, TUNSETOFFLOAD, tap_arg) != 0) {
+	if (ioctl(fd, TUNSETOFFLOAD, tap_arg) != 0) {
 		fprintf(stderr, "tap: failed to TUNSETOFFLOAD to %s: %s\n",
 			ifr.ifr_name, strerror(errno));
 		close(fd);
@@ -75,6 +75,7 @@ struct lkl_netdev *lkl_netdev_tap_create(const char *ifname, int offload)
 	nd = lkl_register_netdev_linux_fdnet(fd);
 	if (!nd) {
 		perror("failed to register to.");
+		close(fd);
 		return NULL;
 	}
 	nd->dev.has_vnet_hdr = (vnet_hdr_sz != 0);

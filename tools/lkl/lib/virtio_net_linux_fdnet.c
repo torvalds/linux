@@ -47,7 +47,7 @@ static int linux_fdnet_net_tx(struct lkl_netdev *nd,
 
 	do {
 		ret = writev(nd_fdnet->fd, (struct iovec *)iov, cnt);
-	} while (ret == -1 && errno == EINVAL);
+	} while (ret == -1 && errno == EINTR);
 
 	if (ret < 0 && errno != EAGAIN)
 		perror("write to Linux fd netdev fails");
@@ -63,7 +63,7 @@ static int linux_fdnet_net_rx(struct lkl_netdev *nd,
 
 	do {
 		ret = readv(nd_fdnet->fd, (struct iovec *)iov, cnt);
-	} while (ret == -1 && errno == EINVAL);
+	} while (ret == -1 && errno == EINTR);
 
 	if (ret < 0 && errno != EAGAIN)
 		perror("read from fdnet device fails");
