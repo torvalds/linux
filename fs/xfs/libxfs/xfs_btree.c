@@ -2249,7 +2249,6 @@ xfs_btree_lshift(
 	int			level,
 	int			*stat)		/* success/failure */
 {
-	union xfs_btree_key	key;		/* btree key */
 	struct xfs_buf		*lbp;		/* left buffer pointer */
 	struct xfs_btree_block	*left;		/* left btree block */
 	int			lrecs;		/* left record count */
@@ -2392,13 +2391,6 @@ xfs_btree_lshift(
 			xfs_btree_rec_addr(cur, 2, right),
 			-1, rrecs);
 		xfs_btree_log_recs(cur, rbp, 1, rrecs);
-
-		/*
-		 * If it's the first record in the block, we'll need a key
-		 * structure to pass up to the next level (updkey).
-		 */
-		cur->bc_ops->init_key_from_rec(&key,
-			xfs_btree_rec_addr(cur, 1, right));
 	}
 
 	/*
@@ -2461,7 +2453,6 @@ xfs_btree_rshift(
 	int			level,
 	int			*stat)		/* success/failure */
 {
-	union xfs_btree_key	key;		/* btree key */
 	struct xfs_buf		*lbp;		/* left buffer pointer */
 	struct xfs_btree_block	*left;		/* left btree block */
 	struct xfs_buf		*rbp;		/* right buffer pointer */
@@ -2570,11 +2561,6 @@ xfs_btree_rshift(
 		/* Now put the new data in, and log it. */
 		xfs_btree_copy_recs(cur, rrp, lrp, 1);
 		xfs_btree_log_recs(cur, rbp, 1, rrecs + 1);
-
-		cur->bc_ops->init_key_from_rec(&key, rrp);
-
-		ASSERT(cur->bc_ops->recs_inorder(cur, rrp,
-			xfs_btree_rec_addr(cur, 2, right)));
 	}
 
 	/*
