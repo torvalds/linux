@@ -1295,7 +1295,7 @@ void drm_vblank_off(struct drm_device *dev, unsigned int pipe)
 		if (e->pipe != pipe)
 			continue;
 		DRM_DEBUG("Sending premature vblank event on disable: "
-			  "wanted %d, current %d\n",
+			  "wanted %u, current %u\n",
 			  e->event.sequence, seq);
 		list_del(&e->base.link);
 		drm_vblank_put(dev, pipe);
@@ -1585,7 +1585,7 @@ static int drm_queue_vblank_event(struct drm_device *dev, unsigned int pipe,
 
 	seq = drm_vblank_count_and_time(dev, pipe, &now);
 
-	DRM_DEBUG("event on vblank count %d, current %d, crtc %u\n",
+	DRM_DEBUG("event on vblank count %u, current %u, crtc %u\n",
 		  vblwait->request.sequence, seq, pipe);
 
 	trace_drm_vblank_event_queued(current->pid, pipe,
@@ -1693,7 +1693,7 @@ int drm_wait_vblank(struct drm_device *dev, void *data,
 		return drm_queue_vblank_event(dev, pipe, vblwait, file_priv);
 	}
 
-	DRM_DEBUG("waiting on vblank count %d, crtc %u\n",
+	DRM_DEBUG("waiting on vblank count %u, crtc %u\n",
 		  vblwait->request.sequence, pipe);
 	DRM_WAIT_ON(ret, vblank->queue, 3 * HZ,
 		    (((drm_vblank_count(dev, pipe) -
@@ -1708,7 +1708,7 @@ int drm_wait_vblank(struct drm_device *dev, void *data,
 		vblwait->reply.tval_sec = now.tv_sec;
 		vblwait->reply.tval_usec = now.tv_usec;
 
-		DRM_DEBUG("returning %d to client\n",
+		DRM_DEBUG("returning %u to client\n",
 			  vblwait->reply.sequence);
 	} else {
 		DRM_DEBUG("vblank wait interrupted by signal\n");
@@ -1735,7 +1735,7 @@ static void drm_handle_vblank_events(struct drm_device *dev, unsigned int pipe)
 		if ((seq - e->event.sequence) > (1<<23))
 			continue;
 
-		DRM_DEBUG("vblank event on %d, current %d\n",
+		DRM_DEBUG("vblank event on %u, current %u\n",
 			  e->event.sequence, seq);
 
 		list_del(&e->base.link);
