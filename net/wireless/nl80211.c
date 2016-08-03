@@ -2525,10 +2525,35 @@ static int nl80211_dump_interface(struct sk_buff *skb, struct netlink_callback *
 	int if_idx = 0;
 	int wp_start = cb->args[0];
 	int if_start = cb->args[1];
+	int filter_wiphy = -1;
 	struct cfg80211_registered_device *rdev;
 	struct wireless_dev *wdev;
 
 	rtnl_lock();
+	if (!cb->args[2]) {
+		struct nl80211_dump_wiphy_state state = {
+			.filter_wiphy = -1,
+		};
+		int ret;
+
+		ret = nl80211_dump_wiphy_parse(skb, cb, &state);
+		if (ret)
+			return ret;
+
+		filter_wiphy = state.filter_wiphy;
+
+		/*
+		 * if filtering, set cb->args[2] to +1 since 0 is the default
+		 * value needed to determine that parsing is necessary.
+		 */
+		if (filter_wiphy >= 0)
+			cb->args[2] = filter_wiphy + 1;
+		else
+			cb->args[2] = -1;
+	} else if (cb->args[2] > 0) {
+		filter_wiphy = cb->args[2] - 1;
+	}
+
 	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
 		if (!net_eq(wiphy_net(&rdev->wiphy), sock_net(skb->sk)))
 			continue;
@@ -2536,6 +2561,10 @@ static int nl80211_dump_interface(struct sk_buff *skb, struct netlink_callback *
 			wp_idx++;
 			continue;
 		}
+
+		if (filter_wiphy >= 0 && filter_wiphy != rdev->wiphy_idx)
+			continue;
+
 		if_idx = 0;
 
 		list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list) {
