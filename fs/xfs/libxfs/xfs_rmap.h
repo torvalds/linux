@@ -151,4 +151,13 @@ int xfs_rmap_lookup_eq(struct xfs_btree_cur *cur, xfs_agblock_t bno,
 int xfs_rmap_get_rec(struct xfs_btree_cur *cur, struct xfs_rmap_irec *irec,
 		int *stat);
 
+typedef int (*xfs_rmap_query_range_fn)(
+	struct xfs_btree_cur	*cur,
+	struct xfs_rmap_irec	*rec,
+	void			*priv);
+
+int xfs_rmap_query_range(struct xfs_btree_cur *cur,
+		struct xfs_rmap_irec *low_rec, struct xfs_rmap_irec *high_rec,
+		xfs_rmap_query_range_fn fn, void *priv);
+
 #endif	/* __XFS_RMAP_H__ */
