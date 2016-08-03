@@ -47,6 +47,24 @@
 	};
 };
 
+&i2c0 {
+	temperature-sensor@4c {
+		compatible = "adi,adt7461a";
+		reg = <0x4c>;
+	};
+
+	eeprom@52 {
+		compatible = "atmel,24c02";
+		reg = <0x52>;
+		pagesize = <16>;
+	};
+
+	rtc@68 {
+		compatible = "st,m41t81";
+		reg = <0x68>;
+	};
+};
+
 &nand {
 	nandcs@0 {
 		compatible = "brcm,nandcs";
@@ -85,7 +103,7 @@
 	};
 };
 
-/* XHCI, SATA, MMC, and Ethernet support needed to be complete */
+/* XHCI, MMC, and Ethernet support needed to be complete */
 
 &uart0 {
 	status = "okay";
@@ -96,6 +114,18 @@
 };
 
 &pcie1 {
+	status = "okay";
+};
+
+&sata_phy0 {
+	status = "okay";
+};
+
+&sata_phy1 {
+	status = "okay";
+};
+
+&sata {
 	status = "okay";
 };
 
