@@ -169,6 +169,16 @@
 	pinctrl-0 = <&pinctrl_i2c2>;
 	status = "okay";
 
+	egalax_ts@04 {
+		compatible = "eeti,egalax_ts";
+		reg = <0x04>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_egalax_int>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <31 2>;
+		wakeup-gpios = <&gpio3 31 0>;
+	};
+
 	hdmi: edid@50 {
 		compatible = "fsl,imx6-hdmi-i2c";
 		reg = <0x50>;
@@ -251,6 +261,12 @@
 			fsl,pins = <
 				MX6QDL_PAD_GPIO_5__I2C3_SCL 		0x4001b8b1
 				MX6QDL_PAD_GPIO_16__I2C3_SDA 		0x4001b8b1
+			>;
+		};
+
+		pinctrl_egalax_int: egalax_intgrp {
+			fsl,pins = <
+				MX6QDL_PAD_EIM_D31__GPIO3_IO31 	0x80000000
 			>;
 		};
 
