@@ -163,8 +163,7 @@ static int ct_seq_show(struct seq_file *s, void *v)
 	ret = -ENOSPC;
 	seq_printf(s, "%-8s %u %ld ",
 		   l4proto->name, nf_ct_protonum(ct),
-		   timer_pending(&ct->timeout)
-		   ? (long)(ct->timeout.expires - jiffies)/HZ : 0);
+		   nf_ct_expires(ct) / HZ);
 
 	if (l4proto->print_conntrack)
 		l4proto->print_conntrack(s, ct);
