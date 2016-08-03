@@ -509,6 +509,7 @@ int qed_resc_alloc(struct qed_dev *cdev)
 			DP_ERR(p_hwfn,
 			       "Cannot allocate 0x%x EQ elements. The maximum of a u16 chain is 0x%x\n",
 			       n_eqes, 0xFFFF);
+			rc = -EINVAL;
 			goto alloc_err;
 		}
 
@@ -888,7 +889,7 @@ static int qed_hw_init_pf(struct qed_hwfn *p_hwfn,
 
 	if (hw_mode & (1 << MODE_MF_SI)) {
 		u8 pf_id = 0;
-		u32 val;
+		u32 val = 0;
 
 		if (!qed_hw_init_first_eth(p_hwfn, p_ptt, &pf_id)) {
 			if (p_hwfn->rel_pf_id == pf_id) {
@@ -2539,7 +2540,7 @@ int qed_configure_vport_wfq(struct qed_dev *cdev, u16 vp_id, u32 rate)
 
 		rc = __qed_configure_vport_wfq(p_hwfn, p_ptt, vp_id, rate);
 
-		if (!rc) {
+		if (rc) {
 			qed_ptt_release(p_hwfn, p_ptt);
 			return rc;
 		}

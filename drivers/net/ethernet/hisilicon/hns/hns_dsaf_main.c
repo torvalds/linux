@@ -51,7 +51,7 @@ int hns_dsaf_get_cfg(struct dsaf_device *dsaf_dev)
 	const char *mode_str;
 	struct regmap *syscon;
 	struct resource *res;
-	struct device_node *np = dsaf_dev->dev->of_node;
+	struct device_node *np = dsaf_dev->dev->of_node, *np_temp;
 	struct platform_device *pdev = to_platform_device(dsaf_dev->dev);
 
 	if (dev_of_node(dsaf_dev->dev)) {
@@ -102,8 +102,9 @@ int hns_dsaf_get_cfg(struct dsaf_device *dsaf_dev)
 		dsaf_dev->dsaf_tc_mode = HRD_DSAF_4TC_MODE;
 
 	if (dev_of_node(dsaf_dev->dev)) {
-		syscon = syscon_node_to_regmap(
-				of_parse_phandle(np, "subctrl-syscon", 0));
+		np_temp = of_parse_phandle(np, "subctrl-syscon", 0);
+		syscon = syscon_node_to_regmap(np_temp);
+		of_node_put(np_temp);
 		if (IS_ERR_OR_NULL(syscon)) {
 			res = platform_get_resource(pdev, IORESOURCE_MEM,
 						    res_idx++);

@@ -1780,6 +1780,7 @@ static int sh_eth_phy_init(struct net_device *ndev)
 					sh_eth_adjust_link, 0,
 					mdp->phy_interface);
 
+		of_node_put(pn);
 		if (!phydev)
 			phydev = ERR_PTR(-ENOENT);
 	} else {
