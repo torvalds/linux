@@ -757,6 +757,10 @@ static const struct xfs_btree_ops xfs_bmbt_ops = {
 	.keys_inorder		= xfs_bmbt_keys_inorder,
 	.recs_inorder		= xfs_bmbt_recs_inorder,
 #endif
+
+	.get_leaf_keys		= xfs_btree_get_leaf_keys,
+	.get_node_keys		= xfs_btree_get_node_keys,
+	.update_keys		= xfs_btree_update_keys,
 };
 
 /*

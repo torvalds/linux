@@ -314,6 +314,10 @@ static const struct xfs_btree_ops xfs_inobt_ops = {
 	.keys_inorder		= xfs_inobt_keys_inorder,
 	.recs_inorder		= xfs_inobt_recs_inorder,
 #endif
+
+	.get_leaf_keys		= xfs_btree_get_leaf_keys,
+	.get_node_keys		= xfs_btree_get_node_keys,
+	.update_keys		= xfs_btree_update_keys,
 };
 
 static const struct xfs_btree_ops xfs_finobt_ops = {
@@ -335,6 +339,10 @@ static const struct xfs_btree_ops xfs_finobt_ops = {
 	.keys_inorder		= xfs_inobt_keys_inorder,
 	.recs_inorder		= xfs_inobt_recs_inorder,
 #endif
+
+	.get_leaf_keys		= xfs_btree_get_leaf_keys,
+	.get_node_keys		= xfs_btree_get_node_keys,
+	.update_keys		= xfs_btree_update_keys,
 };
 
 /*

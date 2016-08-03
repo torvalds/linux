@@ -180,6 +180,19 @@ struct xfs_btree_ops {
 				union xfs_btree_rec *r1,
 				union xfs_btree_rec *r2);
 #endif
+
+	/* derive the low & high keys from the records in a leaf block */
+	void	(*get_leaf_keys)(struct xfs_btree_cur *cur,
+				 struct xfs_btree_block *block,
+				 union xfs_btree_key *key);
+
+	/* derive the low & high keys from the keys in a node block */
+	void	(*get_node_keys)(struct xfs_btree_cur *cur,
+				 struct xfs_btree_block *block,
+				 union xfs_btree_key *key);
+
+	/* update the parent keys of given btree level */
+	int	(*update_keys)(struct xfs_btree_cur *cur, int level);
 };
 
 /*
@@ -474,5 +487,11 @@ bool xfs_btree_sblock_v5hdr_verify(struct xfs_buf *bp);
 bool xfs_btree_sblock_verify(struct xfs_buf *bp, unsigned int max_recs);
 uint xfs_btree_compute_maxlevels(struct xfs_mount *mp, uint *limits,
 				 unsigned long len);
+
+void xfs_btree_get_leaf_keys(struct xfs_btree_cur *cur,
+		struct xfs_btree_block *block, union xfs_btree_key *key);
+void xfs_btree_get_node_keys(struct xfs_btree_cur *cur,
+		struct xfs_btree_block *block, union xfs_btree_key *key);
+int xfs_btree_update_keys(struct xfs_btree_cur *cur, int level);
 
 #endif	/* __XFS_BTREE_H__ */
