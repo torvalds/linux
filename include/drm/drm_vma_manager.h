@@ -40,13 +40,11 @@ struct drm_vma_offset_file {
 struct drm_vma_offset_node {
 	rwlock_t vm_lock;
 	struct drm_mm_node vm_node;
-	struct rb_node vm_rb;
 	struct rb_root vm_files;
 };
 
 struct drm_vma_offset_manager {
 	rwlock_t vm_lock;
-	struct rb_root vm_addr_space_rb;
 	struct drm_mm vm_addr_space_mm;
 };
 
