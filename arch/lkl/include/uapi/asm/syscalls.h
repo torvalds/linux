@@ -101,14 +101,20 @@ struct sockaddr {
 #include <linux/if.h>
 #define __UAPI_DEF_IN_IPPROTO	1
 #define __UAPI_DEF_IN_ADDR	1
-#define __UAPI_DEF_IN_ADDR	1
+#define __UAPI_DEF_IN6_ADDR	1
 #define __UAPI_DEF_IP_MREQ	1
 #define __UAPI_DEF_IN_PKTINFO	1
 #define __UAPI_DEF_SOCKADDR_IN	1
 #define __UAPI_DEF_IN_CLASS	1
 #include <linux/in.h>
+#include <linux/in6.h>
 #include <linux/sockios.h>
 #include <linux/route.h>
+#include <linux/ipv6_route.h>
+#include <linux/ipv6.h>
+#include <linux/netlink.h>
+#include <linux/neighbour.h>
+#include <linux/rtnetlink.h>
 
 #include <linux/kdev_t.h>
 #include <asm/irq.h>
