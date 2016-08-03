@@ -503,7 +503,7 @@ static void iwl_mvm_del_ba(struct iwl_mvm *mvm, int queue,
 	struct iwl_mvm_reorder_buffer *reorder_buf;
 	u8 baid = data->baid;
 
-	if (WARN_ON_ONCE(baid >= IWL_RX_REORDER_DATA_INVALID_BAID))
+	if (WARN_ONCE(baid >= IWL_MAX_BAID, "invalid BAID: %x\n", baid))
 		return;
 
 	rcu_read_lock();
