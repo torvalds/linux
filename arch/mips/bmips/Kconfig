@@ -73,6 +73,10 @@ config DT_SFR_NEUFBOX4_SERCOMM
 	bool "SFR Neufbox 4 (Sercomm)"
 	select BUILTIN_DTB
 
+config DT_SFR_NEUFBOX6_SERCOMM
+	bool "SFR Neufbox 6 (Sercomm)"
+	select BUILTIN_DTB
+
 endchoice
 
 endif
