@@ -173,14 +173,14 @@ static inline void ww_acquire_fini(struct ww_acquire_ctx *ctx)
 	mutex_release(&ctx->dep_map, 0, _THIS_IP_);
 
 	DEBUG_LOCKS_WARN_ON(ctx->acquired);
-	if (!config_enabled(CONFIG_PROVE_LOCKING))
+	if (!IS_ENABLED(CONFIG_PROVE_LOCKING))
 		/*
 		 * lockdep will normally handle this,
 		 * but fail without anyway
 		 */
 		ctx->done_acquire = 1;
 
-	if (!config_enabled(CONFIG_DEBUG_LOCK_ALLOC))
+	if (!IS_ENABLED(CONFIG_DEBUG_LOCK_ALLOC))
 		/* ensure ww_acquire_fini will still fail if called twice */
 		ctx->acquired = ~0U;
 #endif
