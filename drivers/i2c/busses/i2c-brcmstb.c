@@ -228,7 +228,7 @@ static irqreturn_t brcmstb_i2c_isr(int irq, void *devid)
 		return IRQ_NONE;
 
 	brcmstb_i2c_enable_disable_irq(dev, INT_DISABLE);
-	complete_all(&dev->done);
+	complete(&dev->done);
 
 	dev_dbg(dev->device, "isr handled");
 	return IRQ_HANDLED;
