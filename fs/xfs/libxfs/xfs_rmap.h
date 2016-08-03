@@ -142,4 +142,13 @@ int xfs_rmap_free(struct xfs_trans *tp, struct xfs_buf *agbp,
 		  xfs_agnumber_t agno, xfs_agblock_t bno, xfs_extlen_t len,
 		  struct xfs_owner_info *oinfo);
 
+int xfs_rmap_lookup_le(struct xfs_btree_cur *cur, xfs_agblock_t bno,
+		xfs_extlen_t len, uint64_t owner, uint64_t offset,
+		unsigned int flags, int *stat);
+int xfs_rmap_lookup_eq(struct xfs_btree_cur *cur, xfs_agblock_t bno,
+		xfs_extlen_t len, uint64_t owner, uint64_t offset,
+		unsigned int flags, int *stat);
+int xfs_rmap_get_rec(struct xfs_btree_cur *cur, struct xfs_rmap_irec *irec,
+		int *stat);
+
 #endif	/* __XFS_RMAP_H__ */
