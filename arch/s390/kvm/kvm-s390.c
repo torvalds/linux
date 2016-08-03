@@ -2362,8 +2362,10 @@ retry:
 		rc = gmap_mprotect_notify(vcpu->arch.gmap,
 					  kvm_s390_get_prefix(vcpu),
 					  PAGE_SIZE * 2, PROT_WRITE);
-		if (rc)
+		if (rc) {
+			kvm_make_request(KVM_REQ_MMU_RELOAD, vcpu);
 			return rc;
+		}
 		goto retry;
 	}
 
