@@ -829,8 +829,6 @@ struct amdgpu_ring {
 
 /* PTBs (Page Table Blocks) need to be aligned to 32K */
 #define AMDGPU_VM_PTB_ALIGN_SIZE   32768
-#define AMDGPU_VM_PTB_ALIGN_MASK (AMDGPU_VM_PTB_ALIGN_SIZE - 1)
-#define AMDGPU_VM_PTB_ALIGN(a) (((a) + AMDGPU_VM_PTB_ALIGN_MASK) & ~AMDGPU_VM_PTB_ALIGN_MASK)
 
 #define AMDGPU_PTE_VALID	(1 << 0)
 #define AMDGPU_PTE_SYSTEM	(1 << 1)
