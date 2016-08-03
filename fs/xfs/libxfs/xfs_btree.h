@@ -38,10 +38,11 @@ union xfs_btree_ptr {
 };
 
 union xfs_btree_key {
-	xfs_bmbt_key_t		bmbt;
-	xfs_bmdr_key_t		bmbr;	/* bmbt root block */
-	xfs_alloc_key_t		alloc;
-	xfs_inobt_key_t		inobt;
+	struct xfs_bmbt_key		bmbt;
+	xfs_bmdr_key_t			bmbr;	/* bmbt root block */
+	xfs_alloc_key_t			alloc;
+	struct xfs_inobt_key		inobt;
+	struct xfs_rmap_key		rmap;
 };
 
 /*
@@ -56,13 +57,18 @@ union xfs_btree_bigkey {
 	xfs_bmdr_key_t			bmbr;	/* bmbt root block */
 	xfs_alloc_key_t			alloc;
 	struct xfs_inobt_key		inobt;
+	struct {
+		struct xfs_rmap_key	rmap;
+		struct xfs_rmap_key	rmap_hi;
+	};
 };
 
 union xfs_btree_rec {
-	xfs_bmbt_rec_t		bmbt;
-	xfs_bmdr_rec_t		bmbr;	/* bmbt root block */
-	xfs_alloc_rec_t		alloc;
-	xfs_inobt_rec_t		inobt;
+	struct xfs_bmbt_rec		bmbt;
+	xfs_bmdr_rec_t			bmbr;	/* bmbt root block */
+	struct xfs_alloc_rec		alloc;
+	struct xfs_inobt_rec		inobt;
+	struct xfs_rmap_rec		rmap;
 };
 
 /*

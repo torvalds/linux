@@ -68,6 +68,73 @@ xfs_rmap_skip_owner_update(
 
 struct xfs_buf;
 
+static inline __u64
+xfs_rmap_irec_offset_pack(
+	const struct xfs_rmap_irec	*irec)
+{
+	__u64			x;
+
+	x = XFS_RMAP_OFF(irec->rm_offset);
+	if (irec->rm_flags & XFS_RMAP_ATTR_FORK)
+		x |= XFS_RMAP_OFF_ATTR_FORK;
+	if (irec->rm_flags & XFS_RMAP_BMBT_BLOCK)
+		x |= XFS_RMAP_OFF_BMBT_BLOCK;
+	if (irec->rm_flags & XFS_RMAP_UNWRITTEN)
+		x |= XFS_RMAP_OFF_UNWRITTEN;
+	return x;
+}
+
+static inline int
+xfs_rmap_irec_offset_unpack(
+	__u64			offset,
+	struct xfs_rmap_irec	*irec)
+{
+	if (offset & ~(XFS_RMAP_OFF_MASK | XFS_RMAP_OFF_FLAGS))
+		return -EFSCORRUPTED;
+	irec->rm_offset = XFS_RMAP_OFF(offset);
+	if (offset & XFS_RMAP_OFF_ATTR_FORK)
+		irec->rm_flags |= XFS_RMAP_ATTR_FORK;
+	if (offset & XFS_RMAP_OFF_BMBT_BLOCK)
+		irec->rm_flags |= XFS_RMAP_BMBT_BLOCK;
+	if (offset & XFS_RMAP_OFF_UNWRITTEN)
+		irec->rm_flags |= XFS_RMAP_UNWRITTEN;
+	return 0;
+}
+
+static inline void
+xfs_owner_info_unpack(
+	struct xfs_owner_info	*oinfo,
+	uint64_t		*owner,
+	uint64_t		*offset,
+	unsigned int		*flags)
+{
+	unsigned int		r = 0;
+
+	*owner = oinfo->oi_owner;
+	*offset = oinfo->oi_offset;
+	if (oinfo->oi_flags & XFS_OWNER_INFO_ATTR_FORK)
+		r |= XFS_RMAP_ATTR_FORK;
+	if (oinfo->oi_flags & XFS_OWNER_INFO_BMBT_BLOCK)
+		r |= XFS_RMAP_BMBT_BLOCK;
+	*flags = r;
+}
+
+static inline void
+xfs_owner_info_pack(
+	struct xfs_owner_info	*oinfo,
+	uint64_t		owner,
+	uint64_t		offset,
+	unsigned int		flags)
+{
+	oinfo->oi_owner = owner;
+	oinfo->oi_offset = XFS_RMAP_OFF(offset);
+	oinfo->oi_flags = 0;
+	if (flags & XFS_RMAP_ATTR_FORK)
+		oinfo->oi_flags |= XFS_OWNER_INFO_ATTR_FORK;
+	if (flags & XFS_RMAP_BMBT_BLOCK)
+		oinfo->oi_flags |= XFS_OWNER_INFO_BMBT_BLOCK;
+}
+
 int xfs_rmap_alloc(struct xfs_trans *tp, struct xfs_buf *agbp,
 		   xfs_agnumber_t agno, xfs_agblock_t bno, xfs_extlen_t len,
 		   struct xfs_owner_info *oinfo);

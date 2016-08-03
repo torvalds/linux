@@ -2446,6 +2446,8 @@ DECLARE_EVENT_CLASS(xfs_rmap_class,
 		__entry->owner = oinfo->oi_owner;
 		__entry->offset = oinfo->oi_offset;
 		__entry->flags = oinfo->oi_flags;
+		if (unwritten)
+			__entry->flags |= XFS_RMAP_UNWRITTEN;
 	),
 	TP_printk("dev %d:%d agno %u agbno %u len %u owner %lld offset %llu flags 0x%lx",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
