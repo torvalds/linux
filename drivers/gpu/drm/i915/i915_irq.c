@@ -656,12 +656,6 @@ static void i915_enable_asle_pipestat(struct drm_i915_private *dev_priv)
  *   of horizontal active on the first line of vertical active
  */
 
-static u32 i8xx_get_vblank_counter(struct drm_device *dev, unsigned int pipe)
-{
-	/* Gen2 doesn't have a hardware frame counter */
-	return 0;
-}
-
 /* Called from drm generic code, passed a 'crtc', which
  * we use as a pipe index
  */
@@ -4538,8 +4532,9 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 			  i915_hangcheck_elapsed);
 
 	if (IS_GEN2(dev_priv)) {
+		/* Gen2 doesn't have a hardware frame counter */
 		dev->max_vblank_count = 0;
-		dev->driver->get_vblank_counter = i8xx_get_vblank_counter;
+		dev->driver->get_vblank_counter = drm_vblank_no_hw_counter;
 	} else if (IS_G4X(dev_priv) || INTEL_INFO(dev_priv)->gen >= 5) {
 		dev->max_vblank_count = 0xffffffff; /* full 32 bit counter */
 		dev->driver->get_vblank_counter = g4x_get_vblank_counter;
