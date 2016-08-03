@@ -2397,29 +2397,29 @@ xfs_btree_lshift(
 	 * Using a temporary cursor, update the parent key values of the
 	 * block on the left.
 	 */
-	error = xfs_btree_dup_cursor(cur, &tcur);
-	if (error)
-		goto error0;
-	i = xfs_btree_firstrec(tcur, level);
-	XFS_WANT_CORRUPTED_GOTO(cur->bc_mp, i == 1, error0);
+	if (cur->bc_flags & XFS_BTREE_OVERLAPPING) {
+		error = xfs_btree_dup_cursor(cur, &tcur);
+		if (error)
+			goto error0;
+		i = xfs_btree_firstrec(tcur, level);
+		XFS_WANT_CORRUPTED_GOTO(tcur->bc_mp, i == 1, error0);
 
-	error = xfs_btree_decrement(tcur, level, &i);
-	if (error)
-		goto error1;
+		error = xfs_btree_decrement(tcur, level, &i);
+		if (error)
+			goto error1;
+
+		/* Update the parent high keys of the left block, if needed. */
+		error = xfs_btree_update_keys(tcur, level);
+		if (error)
+			goto error1;
+
+		xfs_btree_del_cursor(tcur, XFS_BTREE_NOERROR);
+	}
 
 	/* Update the parent keys of the right block. */
 	error = xfs_btree_update_keys(cur, level);
 	if (error)
-		goto error1;
-
-	/* Update the parent high keys of the left block, if needed. */
-	if (tcur->bc_flags & XFS_BTREE_OVERLAPPING) {
-		error = xfs_btree_update_keys(tcur, level);
-		if (error)
-			goto error1;
-	}
-
-	xfs_btree_del_cursor(tcur, XFS_BTREE_NOERROR);
+		goto error0;
 
 	/* Slide the cursor value left one. */
 	cur->bc_ptrs[level]--;
@@ -2580,7 +2580,7 @@ xfs_btree_rshift(
 	if (error)
 		goto error0;
 	i = xfs_btree_lastrec(tcur, level);
-	XFS_WANT_CORRUPTED_GOTO(cur->bc_mp, i == 1, error0);
+	XFS_WANT_CORRUPTED_GOTO(tcur->bc_mp, i == 1, error0);
 
 	error = xfs_btree_increment(tcur, level, &i);
 	if (error)
