@@ -243,7 +243,7 @@ xfs_growfs_data_private(
 		agf->agf_flfirst = cpu_to_be32(1);
 		agf->agf_fllast = 0;
 		agf->agf_flcount = 0;
-		tmpsize = agsize - XFS_PREALLOC_BLOCKS(mp);
+		tmpsize = agsize - mp->m_ag_prealloc_blocks;
 		agf->agf_freeblks = cpu_to_be32(tmpsize);
 		agf->agf_longest = cpu_to_be32(tmpsize);
 		if (xfs_sb_version_hascrc(&mp->m_sb))
@@ -340,7 +340,7 @@ xfs_growfs_data_private(
 						agno, 0);
 
 		arec = XFS_ALLOC_REC_ADDR(mp, XFS_BUF_TO_BLOCK(bp), 1);
-		arec->ar_startblock = cpu_to_be32(XFS_PREALLOC_BLOCKS(mp));
+		arec->ar_startblock = cpu_to_be32(mp->m_ag_prealloc_blocks);
 		arec->ar_blockcount = cpu_to_be32(
 			agsize - be32_to_cpu(arec->ar_startblock));
 
@@ -369,7 +369,7 @@ xfs_growfs_data_private(
 						agno, 0);
 
 		arec = XFS_ALLOC_REC_ADDR(mp, XFS_BUF_TO_BLOCK(bp), 1);
-		arec->ar_startblock = cpu_to_be32(XFS_PREALLOC_BLOCKS(mp));
+		arec->ar_startblock = cpu_to_be32(mp->m_ag_prealloc_blocks);
 		arec->ar_blockcount = cpu_to_be32(
 			agsize - be32_to_cpu(arec->ar_startblock));
 		nfree += be32_to_cpu(arec->ar_blockcount);
