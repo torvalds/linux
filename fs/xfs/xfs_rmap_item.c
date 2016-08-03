@@ -24,11 +24,13 @@
 #include "xfs_trans_resv.h"
 #include "xfs_bit.h"
 #include "xfs_mount.h"
+#include "xfs_defer.h"
 #include "xfs_trans.h"
 #include "xfs_trans_priv.h"
 #include "xfs_buf_item.h"
 #include "xfs_rmap_item.h"
 #include "xfs_log.h"
+#include "xfs_rmap.h"
 
 
 kmem_zone_t	*xfs_rui_zone;
@@ -473,6 +475,12 @@ xfs_rui_recover(
 	struct xfs_map_extent		*rmap;
 	xfs_fsblock_t			startblock_fsb;
 	bool				op_ok;
+	struct xfs_rud_log_item		*rudp;
+	enum xfs_rmap_intent_type	type;
+	int				whichfork;
+	xfs_exntst_t			state;
+	struct xfs_trans		*tp;
+	struct xfs_btree_cur		*rcur = NULL;
 
 	ASSERT(!test_bit(XFS_RUI_RECOVERED, &ruip->rui_flags));
 
@@ -512,8 +520,53 @@ xfs_rui_recover(
 		}
 	}
 
-	/* XXX: do nothing for now */
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate, 0, 0, 0, &tp);
+	if (error)
+		return error;
+	rudp = xfs_trans_get_rud(tp, ruip, ruip->rui_format.rui_nextents);
+
+	for (i = 0; i < ruip->rui_format.rui_nextents; i++) {
+		rmap = &(ruip->rui_format.rui_extents[i]);
+		state = (rmap->me_flags & XFS_RMAP_EXTENT_UNWRITTEN) ?
+				XFS_EXT_UNWRITTEN : XFS_EXT_NORM;
+		whichfork = (rmap->me_flags & XFS_RMAP_EXTENT_ATTR_FORK) ?
+				XFS_ATTR_FORK : XFS_DATA_FORK;
+		switch (rmap->me_flags & XFS_RMAP_EXTENT_TYPE_MASK) {
+		case XFS_RMAP_EXTENT_MAP:
+			type = XFS_RMAP_MAP;
+			break;
+		case XFS_RMAP_EXTENT_UNMAP:
+			type = XFS_RMAP_UNMAP;
+			break;
+		case XFS_RMAP_EXTENT_CONVERT:
+			type = XFS_RMAP_CONVERT;
+			break;
+		case XFS_RMAP_EXTENT_ALLOC:
+			type = XFS_RMAP_ALLOC;
+			break;
+		case XFS_RMAP_EXTENT_FREE:
+			type = XFS_RMAP_FREE;
+			break;
+		default:
+			error = -EFSCORRUPTED;
+			goto abort_error;
+		}
+		error = xfs_trans_log_finish_rmap_update(tp, rudp, type,
+				rmap->me_owner, whichfork,
+				rmap->me_startoff, rmap->me_startblock,
+				rmap->me_len, state, &rcur);
+		if (error)
+			goto abort_error;
+
+	}
+
+	xfs_rmap_finish_one_cleanup(tp, rcur, error);
 	set_bit(XFS_RUI_RECOVERED, &ruip->rui_flags);
-	xfs_rui_release(ruip);
+	error = xfs_trans_commit(tp);
+	return error;
+
+abort_error:
+	xfs_rmap_finish_one_cleanup(tp, rcur, error);
+	xfs_trans_cancel(tp);
 	return error;
 }

@@ -41,6 +41,7 @@
 #include "xfs_trace.h"
 #include "xfs_icache.h"
 #include "xfs_log.h"
+#include "xfs_rmap_btree.h"
 
 /* Kernel only BMAP related definitions and functions */
 

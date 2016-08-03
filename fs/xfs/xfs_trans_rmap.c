@@ -171,14 +171,15 @@ xfs_trans_log_finish_rmap_update(
 	xfs_fileoff_t			startoff,
 	xfs_fsblock_t			startblock,
 	xfs_filblks_t			blockcount,
-	xfs_exntst_t			state)
+	xfs_exntst_t			state,
+	struct xfs_btree_cur		**pcur)
 {
 	uint				next_extent;
 	struct xfs_map_extent		*rmap;
 	int				error;
 
-	/* XXX: actually finish the rmap update here */
-	error = -EFSCORRUPTED;
+	error = xfs_rmap_finish_one(tp, type, owner, whichfork, startoff,
+			startblock, blockcount, state, pcur);
 
 	/*
 	 * Mark the transaction dirty, even on error. This ensures the
@@ -276,7 +277,8 @@ xfs_rmap_update_finish_item(
 			rmap->ri_bmap.br_startoff,
 			rmap->ri_bmap.br_startblock,
 			rmap->ri_bmap.br_blockcount,
-			rmap->ri_bmap.br_state);
+			rmap->ri_bmap.br_state,
+			(struct xfs_btree_cur **)state);
 	kmem_free(rmap);
 	return error;
 }
@@ -288,6 +290,9 @@ xfs_rmap_update_finish_cleanup(
 	void			*state,
 	int			error)
 {
+	struct xfs_btree_cur	*rcur = state;
+
+	xfs_rmap_finish_one_cleanup(tp, rcur, error);
 }
 
 /* Abort all pending RUIs. */

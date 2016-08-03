@@ -2179,6 +2179,11 @@ xfs_bmap_add_extent_delay_real(
 		ASSERT(0);
 	}
 
+	/* add reverse mapping */
+	error = xfs_rmap_map_extent(mp, bma->dfops, bma->ip, whichfork, new);
+	if (error)
+		goto done;
+
 	/* convert to a btree if necessary */
 	if (xfs_bmap_needs_btree(bma->ip, whichfork)) {
 		int	tmp_logflags;	/* partial log flag return val */
@@ -2715,6 +2720,11 @@ xfs_bmap_add_extent_unwritten_real(
 		ASSERT(0);
 	}
 
+	/* update reverse mappings */
+	error = xfs_rmap_convert_extent(mp, dfops, ip, XFS_DATA_FORK, new);
+	if (error)
+		goto done;
+
 	/* convert to a btree if necessary */
 	if (xfs_bmap_needs_btree(ip, XFS_DATA_FORK)) {
 		int	tmp_logflags;	/* partial log flag return val */
@@ -3106,6 +3116,11 @@ xfs_bmap_add_extent_hole_real(
 		}
 		break;
 	}
+
+	/* add reverse mapping */
+	error = xfs_rmap_map_extent(mp, bma->dfops, bma->ip, whichfork, new);
+	if (error)
+		goto done;
 
 	/* convert to a btree if necessary */
 	if (xfs_bmap_needs_btree(bma->ip, whichfork)) {
@@ -5034,6 +5049,14 @@ xfs_bmap_del_extent(
 		++*idx;
 		break;
 	}
+
+	/* remove reverse mapping */
+	if (!delay) {
+		error = xfs_rmap_unmap_extent(mp, dfops, ip, whichfork, del);
+		if (error)
+			goto done;
+	}
+
 	/*
 	 * If we need to, add to list of extents to delete.
 	 */
@@ -5573,7 +5596,8 @@ xfs_bmse_shift_one(
 	struct xfs_bmbt_rec_host	*gotp,
 	struct xfs_btree_cur		*cur,
 	int				*logflags,
-	enum shift_direction		direction)
+	enum shift_direction		direction,
+	struct xfs_defer_ops		*dfops)
 {
 	struct xfs_ifork		*ifp;
 	struct xfs_mount		*mp;
@@ -5621,9 +5645,13 @@ xfs_bmse_shift_one(
 		/* check whether to merge the extent or shift it down */
 		if (xfs_bmse_can_merge(&adj_irec, &got,
 				       offset_shift_fsb)) {
-			return xfs_bmse_merge(ip, whichfork, offset_shift_fsb,
-					      *current_ext, gotp, adj_irecp,
-					      cur, logflags);
+			error = xfs_bmse_merge(ip, whichfork, offset_shift_fsb,
+					       *current_ext, gotp, adj_irecp,
+					       cur, logflags);
+			if (error)
+				return error;
+			adj_irec = got;
+			goto update_rmap;
 		}
 	} else {
 		startoff = got.br_startoff + offset_shift_fsb;
@@ -5660,9 +5688,10 @@ update_current_ext:
 		(*current_ext)--;
 	xfs_bmbt_set_startoff(gotp, startoff);
 	*logflags |= XFS_ILOG_CORE;
+	adj_irec = got;
 	if (!cur) {
 		*logflags |= XFS_ILOG_DEXT;
-		return 0;
+		goto update_rmap;
 	}
 
 	error = xfs_bmbt_lookup_eq(cur, got.br_startoff, got.br_startblock,
@@ -5672,8 +5701,18 @@ update_current_ext:
 	XFS_WANT_CORRUPTED_RETURN(mp, i == 1);
 
 	got.br_startoff = startoff;
-	return xfs_bmbt_update(cur, got.br_startoff, got.br_startblock,
-			       got.br_blockcount, got.br_state);
+	error = xfs_bmbt_update(cur, got.br_startoff, got.br_startblock,
+			got.br_blockcount, got.br_state);
+	if (error)
+		return error;
+
+update_rmap:
+	/* update reverse mapping */
+	error = xfs_rmap_unmap_extent(mp, dfops, ip, whichfork, &adj_irec);
+	if (error)
+		return error;
+	adj_irec.br_startoff = startoff;
+	return xfs_rmap_map_extent(mp, dfops, ip, whichfork, &adj_irec);
 }
 
 /*
@@ -5801,7 +5840,7 @@ xfs_bmap_shift_extents(
 	while (nexts++ < num_exts) {
 		error = xfs_bmse_shift_one(ip, whichfork, offset_shift_fsb,
 					   &current_ext, gotp, cur, &logflags,
-					   direction);
+					   direction, dfops);
 		if (error)
 			goto del_cursor;
 		/*
