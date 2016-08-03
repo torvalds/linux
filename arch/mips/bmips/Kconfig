@@ -21,10 +21,6 @@ config DT_BCM93384WVG_VIPER
 	bool "BCM93384WVG Viper CPU (EXPERIMENTAL)"
 	select BUILTIN_DTB
 
-config DT_BCM96358NB4SER
-	bool "BCM96358NB4SER"
-	select BUILTIN_DTB
-
 config DT_BCM96368MVWG
 	bool "BCM96368MVWG"
 	select BUILTIN_DTB
@@ -63,6 +59,10 @@ config DT_BCM97425SVMB
 
 config DT_BCM97435SVMB
 	bool "BCM97435SVMB"
+	select BUILTIN_DTB
+
+config DT_SFR_NEUFBOX4_SERCOMM
+	bool "SFR Neufbox 4 (Sercomm)"
 	select BUILTIN_DTB
 
 endchoice
