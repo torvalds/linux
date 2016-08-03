@@ -213,6 +213,8 @@ struct ustat {
 #define SOCK_DCCP		6
 #define SOCK_PACKET		10
 
+#define MSG_TRUNC 0x20
+
 /* avoid colision with system headers defines */
 #define sa_handler sa_handler
 #define st_atime st_atime
