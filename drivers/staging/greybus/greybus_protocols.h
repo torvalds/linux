@@ -99,15 +99,6 @@ struct gb_operation_msg_hdr {
 #define GB_REQUEST_TYPE_PING			0x00
 #define GB_REQUEST_TYPE_INVALID			0x7f
 
-struct gb_protocol_version_request {
-	__u8	major;
-	__u8	minor;
-} __packed;
-
-struct gb_protocol_version_response {
-	__u8	major;
-	__u8	minor;
-} __packed;
 
 /* Control Protocol */
 
