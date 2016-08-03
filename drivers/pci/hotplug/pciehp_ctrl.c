@@ -120,6 +120,7 @@ static int board_added(struct slot *p_slot)
 	}
 
 	pciehp_green_led_on(p_slot);
+	pciehp_set_attention_status(p_slot, 0);
 	return 0;
 
 err_exit:
