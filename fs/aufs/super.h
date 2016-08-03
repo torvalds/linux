@@ -96,7 +96,8 @@ struct au_sbinfo {
 	} au_si_pid;
 
 	/*
-	 * dirty approach to protect sb->sb_inodes and ->s_files from remount.
+	* dirty approach to protect sb->sb_inodes and ->s_files (gone) from
+	* remount.
 	 */
 	atomic_long_t		si_ninodes, si_nfiles;
 
@@ -176,6 +177,9 @@ struct au_sbinfo {
 	wait_queue_head_t	si_plink_wq;
 	spinlock_t		si_plink_maint_lock;
 	pid_t			si_plink_maint_pid;
+
+	/* file list */
+	struct au_sphlhead  si_files;
 
 	/*
 	 * sysfs and lifetime management.

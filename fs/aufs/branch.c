@@ -568,23 +568,25 @@ static unsigned long long au_farray_cb(void *a,
 {
 	unsigned long long n;
 	struct file **p, *f;
+	struct au_sphlhead *files;
+	struct au_finfo *finfo;
 	struct super_block *sb = arg;
 
 	n = 0;
 	p = a;
-	lg_global_lock(&files_lglock);
-	do_file_list_for_each_entry(sb, f) {
-		if (au_fi(f)
-		    && file_count(f)
+	files = &au_sbi(sb)->si_files;
+	spin_lock(&files->spin);
+	hlist_for_each_entry(finfo, &files->head, fi_hlist) {
+		f = finfo->fi_file;
+		if (file_count(f)
 		    && !special_file(file_inode(f)->i_mode)) {
 			get_file(f);
 			*p++ = f;
 			n++;
 			AuDebugOn(n > max);
 		}
-	} while_file_list_for_each_entry;
-	lg_global_unlock(&files_lglock);
-
+	}
+	spin_unlock(&files->spin);
 	return n;
 }
 
@@ -1273,7 +1275,13 @@ static int au_br_mod_files_ro(struct super_block *sb, aufs_bindex_t bindex)
 			continue;
 
 		/* todo: already flushed? */
-		/* cf. fs/super.c:mark_files_ro() */
+		 /*
+		* fs/super.c:mark_files_ro() is gone, but aufs keeps its
+		* approach which resets f_mode and calls mnt_drop_write() and
+		* file_release_write() for each file, because the branch
+		* attribute in aufs world is totally different from the native
+		* fs rw/ro mode.
+		*/
 		/* fi_read_lock(file); */
 		hfile = &au_fi(file)->fi_htop;
 		hf = hfile->hf_file;
