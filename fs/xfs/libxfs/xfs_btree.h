@@ -44,6 +44,20 @@ union xfs_btree_key {
 	xfs_inobt_key_t		inobt;
 };
 
+/*
+ * In-core key that holds both low and high keys for overlapped btrees.
+ * The two keys are packed next to each other on disk, so do the same
+ * in memory.  Preserve the existing xfs_btree_key as a single key to
+ * avoid the mental model breakage that would happen if we passed a
+ * bigkey into a function that operates on a single key.
+ */
+union xfs_btree_bigkey {
+	struct xfs_bmbt_key		bmbt;
+	xfs_bmdr_key_t			bmbr;	/* bmbt root block */
+	xfs_alloc_key_t			alloc;
+	struct xfs_inobt_key		inobt;
+};
+
 union xfs_btree_rec {
 	xfs_bmbt_rec_t		bmbt;
 	xfs_bmdr_rec_t		bmbr;	/* bmbt root block */
@@ -162,10 +176,20 @@ struct xfs_btree_ops {
 				     union xfs_btree_rec *rec);
 	void	(*init_ptr_from_cur)(struct xfs_btree_cur *cur,
 				     union xfs_btree_ptr *ptr);
+	void	(*init_high_key_from_rec)(union xfs_btree_key *key,
+					  union xfs_btree_rec *rec);
 
 	/* difference between key value and cursor value */
 	__int64_t (*key_diff)(struct xfs_btree_cur *cur,
 			      union xfs_btree_key *key);
+
+	/*
+	 * Difference between key2 and key1 -- positive if key1 > key2,
+	 * negative if key1 < key2, and zero if equal.
+	 */
+	__int64_t (*diff_two_keys)(struct xfs_btree_cur *cur,
+				   union xfs_btree_key *key1,
+				   union xfs_btree_key *key2);
 
 	const struct xfs_buf_ops	*buf_ops;
 
@@ -249,6 +273,7 @@ typedef struct xfs_btree_cur
 #define XFS_BTREE_ROOT_IN_INODE		(1<<1)	/* root may be variable size */
 #define XFS_BTREE_LASTREC_UPDATE	(1<<2)	/* track last rec externally */
 #define XFS_BTREE_CRC_BLOCKS		(1<<3)	/* uses extended btree blocks */
+#define XFS_BTREE_OVERLAPPING		(1<<4)	/* overlapping intervals */
 
 
 #define	XFS_BTREE_NOERROR	0
@@ -493,5 +518,10 @@ void xfs_btree_get_leaf_keys(struct xfs_btree_cur *cur,
 void xfs_btree_get_node_keys(struct xfs_btree_cur *cur,
 		struct xfs_btree_block *block, union xfs_btree_key *key);
 int xfs_btree_update_keys(struct xfs_btree_cur *cur, int level);
+void xfs_btree_get_leaf_keys_overlapped(struct xfs_btree_cur *cur,
+		struct xfs_btree_block *block, union xfs_btree_key *key);
+void xfs_btree_get_node_keys_overlapped(struct xfs_btree_cur *cur,
+		struct xfs_btree_block *block, union xfs_btree_key *key);
+int xfs_btree_update_keys_overlapped(struct xfs_btree_cur *cur, int level);
 
 #endif	/* __XFS_BTREE_H__ */

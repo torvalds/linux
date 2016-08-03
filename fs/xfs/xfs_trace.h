@@ -38,6 +38,7 @@ struct xlog_recover_item;
 struct xfs_buf_log_format;
 struct xfs_inode_log_format;
 struct xfs_bmbt_irec;
+struct xfs_btree_cur;
 
 DECLARE_EVENT_CLASS(xfs_attr_list_class,
 	TP_PROTO(struct xfs_attr_list_context *ctx),
@@ -2184,6 +2185,41 @@ DEFINE_DISCARD_EVENT(xfs_discard_extent);
 DEFINE_DISCARD_EVENT(xfs_discard_toosmall);
 DEFINE_DISCARD_EVENT(xfs_discard_exclude);
 DEFINE_DISCARD_EVENT(xfs_discard_busy);
+
+/* btree cursor events */
+DECLARE_EVENT_CLASS(xfs_btree_cur_class,
+	TP_PROTO(struct xfs_btree_cur *cur, int level, struct xfs_buf *bp),
+	TP_ARGS(cur, level, bp),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_btnum_t, btnum)
+		__field(int, level)
+		__field(int, nlevels)
+		__field(int, ptr)
+		__field(xfs_daddr_t, daddr)
+	),
+	TP_fast_assign(
+		__entry->dev = cur->bc_mp->m_super->s_dev;
+		__entry->btnum = cur->bc_btnum;
+		__entry->level = level;
+		__entry->nlevels = cur->bc_nlevels;
+		__entry->ptr = cur->bc_ptrs[level];
+		__entry->daddr = bp ? bp->b_bn : -1;
+	),
+	TP_printk("dev %d:%d btnum %d level %d/%d ptr %d daddr 0x%llx",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->btnum,
+		  __entry->level,
+		  __entry->nlevels,
+		  __entry->ptr,
+		  (unsigned long long)__entry->daddr)
+)
+
+#define DEFINE_BTREE_CUR_EVENT(name) \
+DEFINE_EVENT(xfs_btree_cur_class, name, \
+	TP_PROTO(struct xfs_btree_cur *cur, int level, struct xfs_buf *bp), \
+	TP_ARGS(cur, level, bp))
+DEFINE_BTREE_CUR_EVENT(xfs_btree_updkeys);
 
 #endif /* _TRACE_XFS_H */
 
