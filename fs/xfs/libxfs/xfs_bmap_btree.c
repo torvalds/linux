@@ -600,17 +600,6 @@ xfs_bmbt_init_key_from_rec(
 }
 
 STATIC void
-xfs_bmbt_init_rec_from_key(
-	union xfs_btree_key	*key,
-	union xfs_btree_rec	*rec)
-{
-	ASSERT(key->bmbt.br_startoff != 0);
-
-	xfs_bmbt_disk_set_allf(&rec->bmbt, be64_to_cpu(key->bmbt.br_startoff),
-			       0, 0, XFS_EXT_NORM);
-}
-
-STATIC void
 xfs_bmbt_init_rec_from_cur(
 	struct xfs_btree_cur	*cur,
 	union xfs_btree_rec	*rec)
@@ -760,7 +749,6 @@ static const struct xfs_btree_ops xfs_bmbt_ops = {
 	.get_minrecs		= xfs_bmbt_get_minrecs,
 	.get_dmaxrecs		= xfs_bmbt_get_dmaxrecs,
 	.init_key_from_rec	= xfs_bmbt_init_key_from_rec,
-	.init_rec_from_key	= xfs_bmbt_init_rec_from_key,
 	.init_rec_from_cur	= xfs_bmbt_init_rec_from_cur,
 	.init_ptr_from_cur	= xfs_bmbt_init_ptr_from_cur,
 	.key_diff		= xfs_bmbt_key_diff,

@@ -158,8 +158,6 @@ struct xfs_btree_ops {
 	/* init values of btree structures */
 	void	(*init_key_from_rec)(union xfs_btree_key *key,
 				     union xfs_btree_rec *rec);
-	void	(*init_rec_from_key)(union xfs_btree_key *key,
-				     union xfs_btree_rec *rec);
 	void	(*init_rec_from_cur)(struct xfs_btree_cur *cur,
 				     union xfs_btree_rec *rec);
 	void	(*init_ptr_from_cur)(struct xfs_btree_cur *cur,

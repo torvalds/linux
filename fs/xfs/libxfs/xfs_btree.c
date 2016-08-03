@@ -2858,10 +2858,9 @@ xfs_btree_make_block_unfull(
 	int			*index,	/* new tree index */
 	union xfs_btree_ptr	*nptr,	/* new btree ptr */
 	struct xfs_btree_cur	**ncur,	/* new btree cursor */
-	union xfs_btree_rec	*nrec,	/* new record */
+	union xfs_btree_key	*key, /* key of new block */
 	int			*stat)
 {
-	union xfs_btree_key	key;	/* new btree key value */
 	int			error = 0;
 
 	if ((cur->bc_flags & XFS_BTREE_ROOT_IN_INODE) &&
@@ -2907,13 +2906,12 @@ xfs_btree_make_block_unfull(
 	 * If this works we have to re-set our variables because we
 	 * could be in a different block now.
 	 */
-	error = xfs_btree_split(cur, level, nptr, &key, ncur, stat);
+	error = xfs_btree_split(cur, level, nptr, key, ncur, stat);
 	if (error || *stat == 0)
 		return error;
 
 
 	*index = cur->bc_ptrs[level];
-	cur->bc_ops->init_rec_from_key(&key, nrec);
 	return 0;
 }
 
@@ -2926,16 +2924,16 @@ xfs_btree_insrec(
 	struct xfs_btree_cur	*cur,	/* btree cursor */
 	int			level,	/* level to insert record at */
 	union xfs_btree_ptr	*ptrp,	/* i/o: block number inserted */
-	union xfs_btree_rec	*recp,	/* i/o: record data inserted */
+	union xfs_btree_rec	*rec,	/* record to insert */
+	union xfs_btree_key	*key,	/* i/o: block key for ptrp */
 	struct xfs_btree_cur	**curp,	/* output: new cursor replacing cur */
 	int			*stat)	/* success/failure */
 {
 	struct xfs_btree_block	*block;	/* btree block */
 	struct xfs_buf		*bp;	/* buffer for block */
-	union xfs_btree_key	key;	/* btree key */
 	union xfs_btree_ptr	nptr;	/* new block ptr */
 	struct xfs_btree_cur	*ncur;	/* new btree cursor */
-	union xfs_btree_rec	nrec;	/* new record count */
+	union xfs_btree_key	nkey;	/* new block key */
 	int			optr;	/* old key/record index */
 	int			ptr;	/* key/record index */
 	int			numrecs;/* number of records */
@@ -2945,7 +2943,7 @@ xfs_btree_insrec(
 #endif
 
 	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
-	XFS_BTREE_TRACE_ARGIPR(cur, level, *ptrp, recp);
+	XFS_BTREE_TRACE_ARGIPR(cur, level, *ptrp, &rec);
 
 	ncur = NULL;
 
@@ -2970,9 +2968,6 @@ xfs_btree_insrec(
 		return 0;
 	}
 
-	/* Make a key out of the record data to be inserted, and save it. */
-	cur->bc_ops->init_key_from_rec(&key, recp);
-
 	optr = ptr;
 
 	XFS_BTREE_STATS_INC(cur, insrec);
@@ -2989,10 +2984,10 @@ xfs_btree_insrec(
 	/* Check that the new entry is being inserted in the right place. */
 	if (ptr <= numrecs) {
 		if (level == 0) {
-			ASSERT(cur->bc_ops->recs_inorder(cur, recp,
+			ASSERT(cur->bc_ops->recs_inorder(cur, rec,
 				xfs_btree_rec_addr(cur, ptr, block)));
 		} else {
-			ASSERT(cur->bc_ops->keys_inorder(cur, &key,
+			ASSERT(cur->bc_ops->keys_inorder(cur, key,
 				xfs_btree_key_addr(cur, ptr, block)));
 		}
 	}
@@ -3005,7 +3000,7 @@ xfs_btree_insrec(
 	xfs_btree_set_ptr_null(cur, &nptr);
 	if (numrecs == cur->bc_ops->get_maxrecs(cur, level)) {
 		error = xfs_btree_make_block_unfull(cur, level, numrecs,
-					&optr, &ptr, &nptr, &ncur, &nrec, stat);
+					&optr, &ptr, &nptr, &ncur, &nkey, stat);
 		if (error || *stat == 0)
 			goto error0;
 	}
@@ -3055,7 +3050,7 @@ xfs_btree_insrec(
 #endif
 
 		/* Now put the new data in, bump numrecs and log it. */
-		xfs_btree_copy_keys(cur, kp, &key, 1);
+		xfs_btree_copy_keys(cur, kp, key, 1);
 		xfs_btree_copy_ptrs(cur, pp, ptrp, 1);
 		numrecs++;
 		xfs_btree_set_numrecs(block, numrecs);
@@ -3076,7 +3071,7 @@ xfs_btree_insrec(
 		xfs_btree_shift_recs(cur, rp, 1, numrecs - ptr + 1);
 
 		/* Now put the new data in, bump numrecs and log it. */
-		xfs_btree_copy_recs(cur, rp, recp, 1);
+		xfs_btree_copy_recs(cur, rp, rec, 1);
 		xfs_btree_set_numrecs(block, ++numrecs);
 		xfs_btree_log_recs(cur, bp, ptr, numrecs);
 #ifdef DEBUG
@@ -3092,7 +3087,7 @@ xfs_btree_insrec(
 
 	/* If we inserted at the start of a block, update the parents' keys. */
 	if (optr == 1) {
-		error = xfs_btree_updkey(cur, &key, level + 1);
+		error = xfs_btree_updkey(cur, key, level + 1);
 		if (error)
 			goto error0;
 	}
@@ -3102,7 +3097,7 @@ xfs_btree_insrec(
 	 * we are at the far right edge of the tree, update it.
 	 */
 	if (xfs_btree_is_lastrec(cur, block, level)) {
-		cur->bc_ops->update_lastrec(cur, block, recp,
+		cur->bc_ops->update_lastrec(cur, block, rec,
 					    ptr, LASTREC_INSREC);
 	}
 
@@ -3112,7 +3107,7 @@ xfs_btree_insrec(
 	 */
 	*ptrp = nptr;
 	if (!xfs_btree_ptr_is_null(cur, &nptr)) {
-		*recp = nrec;
+		*key = nkey;
 		*curp = ncur;
 	}
 
@@ -3143,6 +3138,7 @@ xfs_btree_insert(
 	union xfs_btree_ptr	nptr;	/* new block number (split result) */
 	struct xfs_btree_cur	*ncur;	/* new cursor (split result) */
 	struct xfs_btree_cur	*pcur;	/* previous level's cursor */
+	union xfs_btree_key	key;	/* key of block to insert */
 	union xfs_btree_rec	rec;	/* record to insert */
 
 	level = 0;
@@ -3150,7 +3146,10 @@ xfs_btree_insert(
 	pcur = cur;
 
 	xfs_btree_set_ptr_null(cur, &nptr);
+
+	/* Make a key out of the record data to be inserted, and save it. */
 	cur->bc_ops->init_rec_from_cur(cur, &rec);
+	cur->bc_ops->init_key_from_rec(&key, &rec);
 
 	/*
 	 * Loop going up the tree, starting at the leaf level.
@@ -3162,7 +3161,8 @@ xfs_btree_insert(
 		 * Insert nrec/nptr into this level of the tree.
 		 * Note if we fail, nptr will be null.
 		 */
-		error = xfs_btree_insrec(pcur, level, &nptr, &rec, &ncur, &i);
+		error = xfs_btree_insrec(pcur, level, &nptr, &rec, &key,
+				&ncur, &i);
 		if (error) {
 			if (pcur != cur)
 				xfs_btree_del_cursor(pcur, XFS_BTREE_ERROR);

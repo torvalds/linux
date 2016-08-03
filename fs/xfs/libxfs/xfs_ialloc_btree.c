@@ -146,14 +146,6 @@ xfs_inobt_init_key_from_rec(
 }
 
 STATIC void
-xfs_inobt_init_rec_from_key(
-	union xfs_btree_key	*key,
-	union xfs_btree_rec	*rec)
-{
-	rec->inobt.ir_startino = key->inobt.ir_startino;
-}
-
-STATIC void
 xfs_inobt_init_rec_from_cur(
 	struct xfs_btree_cur	*cur,
 	union xfs_btree_rec	*rec)
@@ -314,7 +306,6 @@ static const struct xfs_btree_ops xfs_inobt_ops = {
 	.get_minrecs		= xfs_inobt_get_minrecs,
 	.get_maxrecs		= xfs_inobt_get_maxrecs,
 	.init_key_from_rec	= xfs_inobt_init_key_from_rec,
-	.init_rec_from_key	= xfs_inobt_init_rec_from_key,
 	.init_rec_from_cur	= xfs_inobt_init_rec_from_cur,
 	.init_ptr_from_cur	= xfs_inobt_init_ptr_from_cur,
 	.key_diff		= xfs_inobt_key_diff,
@@ -336,7 +327,6 @@ static const struct xfs_btree_ops xfs_finobt_ops = {
 	.get_minrecs		= xfs_inobt_get_minrecs,
 	.get_maxrecs		= xfs_inobt_get_maxrecs,
 	.init_key_from_rec	= xfs_inobt_init_key_from_rec,
-	.init_rec_from_key	= xfs_inobt_init_rec_from_key,
 	.init_rec_from_cur	= xfs_inobt_init_rec_from_cur,
 	.init_ptr_from_cur	= xfs_finobt_init_ptr_from_cur,
 	.key_diff		= xfs_inobt_key_diff,
