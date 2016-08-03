@@ -852,9 +852,9 @@
 		rockchip,adc_value = <620>;
 	};
 
-	brightness-key {
-		linux,code = <244>;
-		label = "brightness";
+	home-key {
+		linux,code = <102>;
+		label = "home";
 		rockchip,adc_value = <700>;
 	};
 };
