@@ -55,14 +55,14 @@ static int entry_handler(struct kretprobe_instance *ri, struct pt_regs *regs)
  */
 static int ret_handler(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
-	int retval = regs_return_value(regs);
+	unsigned long retval = regs_return_value(regs);
 	struct my_data *data = (struct my_data *)ri->data;
 	s64 delta;
 	ktime_t now;
 
 	now = ktime_get();
 	delta = ktime_to_ns(ktime_sub(now, data->entry_stamp));
-	pr_info("%s returned %d and took %lld ns to execute\n",
+	pr_info("%s returned %lu and took %lld ns to execute\n",
 			func_name, retval, (long long)delta);
 	return 0;
 }
