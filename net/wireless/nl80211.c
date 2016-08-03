@@ -2871,17 +2871,9 @@ static int nl80211_del_interface(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
 	struct wireless_dev *wdev = info->user_ptr[1];
-	struct sk_buff *msg;
-	int status;
 
 	if (!rdev->ops->del_virtual_intf)
 		return -EOPNOTSUPP;
-
-	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
-	if (msg && nl80211_send_iface(msg, 0, 0, 0, rdev, wdev, true) < 0) {
-		nlmsg_free(msg);
-		msg = NULL;
-	}
 
 	/*
 	 * If we remove a wireless device without a netdev then clear
@@ -2893,15 +2885,7 @@ static int nl80211_del_interface(struct sk_buff *skb, struct genl_info *info)
 	if (!wdev->netdev)
 		info->user_ptr[1] = NULL;
 
-	status = rdev_del_virtual_intf(rdev, wdev);
-	if (status >= 0 && msg)
-		genlmsg_multicast_netns(&nl80211_fam, wiphy_net(&rdev->wiphy),
-					msg, 0, NL80211_MCGRP_CONFIG,
-					GFP_KERNEL);
-	else
-		nlmsg_free(msg);
-
-	return status;
+	return rdev_del_virtual_intf(rdev, wdev);
 }
 
 static int nl80211_set_noack_map(struct sk_buff *skb, struct genl_info *info)
