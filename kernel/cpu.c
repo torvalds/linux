@@ -349,8 +349,16 @@ static int bringup_cpu(unsigned int cpu)
 	struct task_struct *idle = idle_thread_get(cpu);
 	int ret;
 
+	/*
+	 * Some architectures have to walk the irq descriptors to
+	 * setup the vector space for the cpu which comes online.
+	 * Prevent irq alloc/free across the bringup.
+	 */
+	irq_lock_sparse();
+
 	/* Arch-specific enabling code. */
 	ret = __cpu_up(cpu, idle);
+	irq_unlock_sparse();
 	if (ret) {
 		cpu_notify(CPU_UP_CANCELED, cpu);
 		return ret;

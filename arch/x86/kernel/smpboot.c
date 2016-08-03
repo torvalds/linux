@@ -1115,17 +1115,8 @@ int native_cpu_up(unsigned int cpu, struct task_struct *tidle)
 
 	common_cpu_up(cpu, tidle);
 
-	/*
-	 * We have to walk the irq descriptors to setup the vector
-	 * space for the cpu which comes online.  Prevent irq
-	 * alloc/free across the bringup.
-	 */
-	irq_lock_sparse();
-
 	err = do_boot_cpu(apicid, cpu, tidle);
-
 	if (err) {
-		irq_unlock_sparse();
 		pr_err("do_boot_cpu failed(%d) to wakeup CPU#%u\n", err, cpu);
 		return -EIO;
 	}
@@ -1142,8 +1133,6 @@ int native_cpu_up(unsigned int cpu, struct task_struct *tidle)
 		cpu_relax();
 		touch_nmi_watchdog();
 	}
-
-	irq_unlock_sparse();
 
 	return 0;
 }
