@@ -830,6 +830,9 @@ struct amdgpu_ring {
 /* PTBs (Page Table Blocks) need to be aligned to 32K */
 #define AMDGPU_VM_PTB_ALIGN_SIZE   32768
 
+/* LOG2 number of continuous pages for the fragment field */
+#define AMDGPU_LOG2_PAGES_PER_FRAG 4
+
 #define AMDGPU_PTE_VALID	(1 << 0)
 #define AMDGPU_PTE_SYSTEM	(1 << 1)
 #define AMDGPU_PTE_SNOOPED	(1 << 2)
@@ -840,10 +843,7 @@ struct amdgpu_ring {
 #define AMDGPU_PTE_READABLE	(1 << 5)
 #define AMDGPU_PTE_WRITEABLE	(1 << 6)
 
-/* PTE (Page Table Entry) fragment field for different page sizes */
-#define AMDGPU_PTE_FRAG_4KB	(0 << 7)
-#define AMDGPU_PTE_FRAG_64KB	(4 << 7)
-#define AMDGPU_LOG2_PAGES_PER_FRAG 4
+#define AMDGPU_PTE_FRAG(x)	((x & 0x1f) << 7)
 
 /* How to programm VM fault handling */
 #define AMDGPU_VM_FAULT_STOP_NEVER	0

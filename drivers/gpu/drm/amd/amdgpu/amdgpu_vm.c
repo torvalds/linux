@@ -739,7 +739,7 @@ static void amdgpu_vm_frag_ptes(struct amdgpu_device *adev,
 	 */
 
 	/* SI and newer are optimized for 64KB */
-	uint64_t frag_flags = AMDGPU_PTE_FRAG_64KB;
+	uint64_t frag_flags = AMDGPU_PTE_FRAG(AMDGPU_LOG2_PAGES_PER_FRAG);
 	uint64_t frag_align = 0x80;
 
 	uint64_t frag_start = ALIGN(pe_start, frag_align);
