@@ -33,6 +33,7 @@
 /dts-v1/;
 
 #include "bcm-nsp.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "NorthStar Plus XMC (BCM958525xmc)";
@@ -49,6 +50,12 @@
 	memory {
 		device_type = "memory";
 		reg = <0x60000000 0x40000000>;
+	};
+
+	gpio-restart {
+		compatible = "gpio-restart";
+		gpios = <&gpioa 31 GPIO_ACTIVE_LOW>;
+		priority = <200>;
 	};
 };
 
