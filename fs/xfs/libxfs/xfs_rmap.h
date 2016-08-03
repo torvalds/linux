@@ -64,4 +64,15 @@ xfs_rmap_skip_owner_update(
 	oi->oi_owner = XFS_RMAP_OWN_UNKNOWN;
 }
 
+/* Reverse mapping functions. */
+
+struct xfs_buf;
+
+int xfs_rmap_alloc(struct xfs_trans *tp, struct xfs_buf *agbp,
+		   xfs_agnumber_t agno, xfs_agblock_t bno, xfs_extlen_t len,
+		   struct xfs_owner_info *oinfo);
+int xfs_rmap_free(struct xfs_trans *tp, struct xfs_buf *agbp,
+		  xfs_agnumber_t agno, xfs_agblock_t bno, xfs_extlen_t len,
+		  struct xfs_owner_info *oinfo);
+
 #endif	/* __XFS_RMAP_H__ */
