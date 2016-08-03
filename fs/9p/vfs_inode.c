@@ -975,13 +975,13 @@ v9fs_vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (IS_ERR(oldfid))
 		return PTR_ERR(oldfid);
 
-	olddirfid = v9fs_parent_fid(old_dentry);
+	olddirfid = clone_fid(v9fs_parent_fid(old_dentry));
 	if (IS_ERR(olddirfid)) {
 		retval = PTR_ERR(olddirfid);
 		goto done;
 	}
 
-	newdirfid = v9fs_parent_fid(new_dentry);
+	newdirfid = clone_fid(v9fs_parent_fid(new_dentry));
 	if (IS_ERR(newdirfid)) {
 		retval = PTR_ERR(newdirfid);
 		goto clunk_olddir;
