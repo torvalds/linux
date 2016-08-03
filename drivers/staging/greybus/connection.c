@@ -527,7 +527,7 @@ static int gb_connection_ping(struct gb_connection *connection)
 		if (!hd->driver->cport_ping)
 			return 0;
 
-		ret = hd->driver->cport_ping(hd, connection->intf_cport_id);
+		ret = hd->driver->cport_ping(hd, connection->hd_cport_id);
 	} else {
 		ret = gb_connection_ping_operation(connection);
 	}
