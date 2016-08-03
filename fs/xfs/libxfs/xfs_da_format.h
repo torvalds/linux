@@ -629,6 +629,7 @@ typedef struct xfs_attr_shortform {
 	struct xfs_attr_sf_hdr {	/* constant-structure header block */
 		__be16	totsize;	/* total bytes in shortform list */
 		__u8	count;	/* count of active entries */
+		__u8	padding;
 	} hdr;
 	struct xfs_attr_sf_entry {
 		__uint8_t namelen;	/* actual length of name (no NULL) */
