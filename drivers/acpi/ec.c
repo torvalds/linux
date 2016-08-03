@@ -1619,6 +1619,58 @@ error:
 	return ret;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static void acpi_ec_enter_noirq(struct acpi_ec *ec)
+{
+	unsigned long flags;
+
+	if (ec == first_ec) {
+		spin_lock_irqsave(&ec->lock, flags);
+		ec->saved_busy_polling = ec_busy_polling;
+		ec->saved_polling_guard = ec_polling_guard;
+		ec_busy_polling = true;
+		ec_polling_guard = 0;
+		ec_log_drv("interrupt blocked");
+		spin_unlock_irqrestore(&ec->lock, flags);
+	}
+}
+
+static void acpi_ec_leave_noirq(struct acpi_ec *ec)
+{
+	unsigned long flags;
+
+	if (ec == first_ec) {
+		spin_lock_irqsave(&ec->lock, flags);
+		ec_busy_polling = ec->saved_busy_polling;
+		ec_polling_guard = ec->saved_polling_guard;
+		ec_log_drv("interrupt unblocked");
+		spin_unlock_irqrestore(&ec->lock, flags);
+	}
+}
+
+static int acpi_ec_suspend_noirq(struct device *dev)
+{
+	struct acpi_ec *ec =
+		acpi_driver_data(to_acpi_device(dev));
+
+	acpi_ec_enter_noirq(ec);
+	return 0;
+}
+
+static int acpi_ec_resume_noirq(struct device *dev)
+{
+	struct acpi_ec *ec =
+		acpi_driver_data(to_acpi_device(dev));
+
+	acpi_ec_leave_noirq(ec);
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops acpi_ec_pm = {
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(acpi_ec_suspend_noirq, acpi_ec_resume_noirq)
+};
+
 static int param_set_event_clearing(const char *val, struct kernel_param *kp)
 {
 	int result = 0;
@@ -1664,6 +1716,7 @@ static struct acpi_driver acpi_ec_driver = {
 		.add = acpi_ec_add,
 		.remove = acpi_ec_remove,
 		},
+	.drv.pm = &acpi_ec_pm,
 };
 
 static inline int acpi_ec_query_init(void)
