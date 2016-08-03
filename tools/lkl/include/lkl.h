@@ -223,6 +223,24 @@ int lkl_if_set_ipv4(int ifindex, unsigned int addr, unsigned int netmask_len);
 int lkl_set_ipv4_gateway(unsigned int addr);
 
 /**
+ * lkl_if_set_ipv6 - set IPv6 address on interface
+ *
+ * @ifindex - the ifindex of the interface
+ * @addr - 16-byte IPv6 address (i.e., struct in6_addr)
+ * @netprefix_len - prefix length of the @addr
+ * @returns - return 0 if no error: otherwise negative value returns
+ */
+int lkl_if_set_ipv6(int ifindex, void* addr, unsigned int netprefix_len);
+
+/**
+ * lkl_set_ipv6_gateway - add an IPv6 default route
+ *
+ * @addr - 16-byte IPv6 address of the gateway (i.e., struct in6_addr)
+ * @returns - return 0 if no error: otherwise negative value returns
+ */
+int lkl_set_ipv6_gateway(void* addr);
+
+/**
  * lkl_netdev - host network device handle, defined in lkl_host.h.
  */
 struct lkl_netdev;
@@ -321,12 +339,13 @@ struct lkl_netdev *lkl_netdev_raw_create(const char *ifname);
 void lkl_register_dbg_handler();
 
 /**
- * lkl_add_arp_entry - add a permanent arp entry
+ * lkl_add_neighbor - add a permanent arp entry
  * @ifindex - the ifindex of the interface
+ * @af - adress family of the ip address. Must be LKL_AF_INET or LKL_AF_INET6
  * @ip - ip address of the entry in network byte order
  * @mac - mac address of the entry
  */
-int lkl_add_arp_entry(int ifindex, unsigned int ip, void* mac);
+int lkl_add_neighbor(int ifindex, int af, void* addr, void* mac);
 
 #ifdef __cplusplus
 }
