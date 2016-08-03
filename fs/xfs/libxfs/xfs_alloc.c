@@ -2702,6 +2702,13 @@ xfs_free_extent(
 
 	ASSERT(len != 0);
 
+	trace_xfs_bmap_free_deferred(mp, agno, 0, agbno, len);
+
+	if (XFS_TEST_ERROR(false, mp,
+			XFS_ERRTAG_FREE_EXTENT,
+			XFS_RANDOM_FREE_EXTENT))
+		return -EIO;
+
 	error = xfs_free_extent_fix_freelist(tp, agno, &agbp);
 	if (error)
 		return error;

@@ -90,7 +90,8 @@ extern void xfs_verifier_error(struct xfs_buf *bp);
 #define XFS_ERRTAG_STRATCMPL_IOERR			19
 #define XFS_ERRTAG_DIOWRITE_IOERR			20
 #define XFS_ERRTAG_BMAPIFORMAT				21
-#define XFS_ERRTAG_MAX					22
+#define XFS_ERRTAG_FREE_EXTENT				22
+#define XFS_ERRTAG_MAX					23
 
 /*
  * Random factors for above tags, 1 means always, 2 means 1/2 time, etc.
@@ -117,6 +118,7 @@ extern void xfs_verifier_error(struct xfs_buf *bp);
 #define XFS_RANDOM_STRATCMPL_IOERR			(XFS_RANDOM_DEFAULT/10)
 #define XFS_RANDOM_DIOWRITE_IOERR			(XFS_RANDOM_DEFAULT/10)
 #define	XFS_RANDOM_BMAPIFORMAT				XFS_RANDOM_DEFAULT
+#define XFS_RANDOM_FREE_EXTENT				1
 
 #ifdef DEBUG
 extern int xfs_error_test_active;

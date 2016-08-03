@@ -2417,8 +2417,11 @@ DEFINE_DEFER_PENDING_EVENT(xfs_defer_pending_cancel);
 DEFINE_DEFER_PENDING_EVENT(xfs_defer_pending_finish);
 DEFINE_DEFER_PENDING_EVENT(xfs_defer_pending_abort);
 
-DEFINE_PHYS_EXTENT_DEFERRED_EVENT(xfs_defer_phys_extent);
 DEFINE_MAP_EXTENT_DEFERRED_EVENT(xfs_defer_map_extent);
+
+#define DEFINE_BMAP_FREE_DEFERRED_EVENT DEFINE_PHYS_EXTENT_DEFERRED_EVENT
+DEFINE_BMAP_FREE_DEFERRED_EVENT(xfs_bmap_free_defer);
+DEFINE_BMAP_FREE_DEFERRED_EVENT(xfs_bmap_free_deferred);
 
 #endif /* _TRACE_XFS_H */
 
