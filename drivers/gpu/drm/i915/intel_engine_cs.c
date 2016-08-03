@@ -210,3 +210,17 @@ int intel_engine_init_common(struct intel_engine_cs *engine)
 
 	return intel_engine_init_cmd_parser(engine);
 }
+
+/**
+ * intel_engines_cleanup_common - cleans up the engine state created by
+ *                                the common initiailizers.
+ * @engine: Engine to cleanup.
+ *
+ * This cleans up everything created by the common helpers.
+ */
+void intel_engine_cleanup_common(struct intel_engine_cs *engine)
+{
+	intel_engine_cleanup_cmd_parser(engine);
+	intel_engine_fini_breadcrumbs(engine);
+	i915_gem_batch_pool_fini(&engine->batch_pool);
+}

@@ -483,6 +483,7 @@ void intel_fini_pipe_control(struct intel_engine_cs *engine);
 
 void intel_engine_setup_common(struct intel_engine_cs *engine);
 int intel_engine_init_common(struct intel_engine_cs *engine);
+void intel_engine_cleanup_common(struct intel_engine_cs *engine);
 
 int intel_init_render_ring_buffer(struct intel_engine_cs *engine);
 int intel_init_bsd_ring_buffer(struct intel_engine_cs *engine);
