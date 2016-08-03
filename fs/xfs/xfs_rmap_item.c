@@ -273,36 +273,13 @@ static inline struct xfs_rud_log_item *RUD_ITEM(struct xfs_log_item *lip)
 }
 
 STATIC void
-xfs_rud_item_free(struct xfs_rud_log_item *rudp)
-{
-	if (rudp->rud_format.rud_nextents > XFS_RUD_MAX_FAST_EXTENTS)
-		kmem_free(rudp);
-	else
-		kmem_zone_free(xfs_rud_zone, rudp);
-}
-
-/*
- * This returns the number of iovecs needed to log the given rud item.
- * We only need 1 iovec for an rud item.  It just logs the rud_log_format
- * structure.
- */
-static inline int
-xfs_rud_item_sizeof(
-	struct xfs_rud_log_item	*rudp)
-{
-	return sizeof(struct xfs_rud_log_format) +
-			(rudp->rud_format.rud_nextents - 1) *
-			sizeof(struct xfs_map_extent);
-}
-
-STATIC void
 xfs_rud_item_size(
 	struct xfs_log_item	*lip,
 	int			*nvecs,
 	int			*nbytes)
 {
 	*nvecs += 1;
-	*nbytes += xfs_rud_item_sizeof(RUD_ITEM(lip));
+	*nbytes += sizeof(struct xfs_rud_log_format);
 }
 
 /*
@@ -320,13 +297,11 @@ xfs_rud_item_format(
 	struct xfs_rud_log_item	*rudp = RUD_ITEM(lip);
 	struct xfs_log_iovec	*vecp = NULL;
 
-	ASSERT(rudp->rud_next_extent == rudp->rud_format.rud_nextents);
-
 	rudp->rud_format.rud_type = XFS_LI_RUD;
 	rudp->rud_format.rud_size = 1;
 
 	xlog_copy_iovec(lv, &vecp, XLOG_REG_TYPE_RUD_FORMAT, &rudp->rud_format,
-			xfs_rud_item_sizeof(rudp));
+			sizeof(struct xfs_rud_log_format));
 }
 
 /*
@@ -374,7 +349,7 @@ xfs_rud_item_unlock(
 
 	if (lip->li_flags & XFS_LI_ABORTED) {
 		xfs_rui_release(rudp->rud_ruip);
-		xfs_rud_item_free(rudp);
+		kmem_zone_free(xfs_rud_zone, rudp);
 	}
 }
 
@@ -398,7 +373,7 @@ xfs_rud_item_committed(
 	 * aborted due to log I/O error).
 	 */
 	xfs_rui_release(rudp->rud_ruip);
-	xfs_rud_item_free(rudp);
+	kmem_zone_free(xfs_rud_zone, rudp);
 
 	return (xfs_lsn_t)-1;
 }
@@ -437,25 +412,14 @@ static const struct xfs_item_ops xfs_rud_item_ops = {
 struct xfs_rud_log_item *
 xfs_rud_init(
 	struct xfs_mount		*mp,
-	struct xfs_rui_log_item		*ruip,
-	uint				nextents)
+	struct xfs_rui_log_item		*ruip)
 
 {
 	struct xfs_rud_log_item	*rudp;
-	uint			size;
 
-	ASSERT(nextents > 0);
-	if (nextents > XFS_RUD_MAX_FAST_EXTENTS) {
-		size = (uint)(sizeof(struct xfs_rud_log_item) +
-			((nextents - 1) * sizeof(struct xfs_map_extent)));
-		rudp = kmem_zalloc(size, KM_SLEEP);
-	} else {
-		rudp = kmem_zone_zalloc(xfs_rud_zone, KM_SLEEP);
-	}
-
+	rudp = kmem_zone_zalloc(xfs_rud_zone, KM_SLEEP);
 	xfs_log_item_init(mp, &rudp->rud_item, XFS_LI_RUD, &xfs_rud_item_ops);
 	rudp->rud_ruip = ruip;
-	rudp->rud_format.rud_nextents = nextents;
 	rudp->rud_format.rud_rui_id = ruip->rui_format.rui_id;
 
 	return rudp;
@@ -523,7 +487,7 @@ xfs_rui_recover(
 	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate, 0, 0, 0, &tp);
 	if (error)
 		return error;
-	rudp = xfs_trans_get_rud(tp, ruip, ruip->rui_format.rui_nextents);
+	rudp = xfs_trans_get_rud(tp, ruip);
 
 	for (i = 0; i < ruip->rui_format.rui_nextents; i++) {
 		rmap = &(ruip->rui_format.rui_extents[i]);

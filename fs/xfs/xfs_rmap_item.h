@@ -77,21 +77,15 @@ struct xfs_rui_log_item {
 struct xfs_rud_log_item {
 	struct xfs_log_item		rud_item;
 	struct xfs_rui_log_item		*rud_ruip;
-	uint				rud_next_extent;
 	struct xfs_rud_log_format	rud_format;
 };
-
-/*
- * Max number of extents in fast allocation path.
- */
-#define	XFS_RUD_MAX_FAST_EXTENTS	16
 
 extern struct kmem_zone	*xfs_rui_zone;
 extern struct kmem_zone	*xfs_rud_zone;
 
 struct xfs_rui_log_item *xfs_rui_init(struct xfs_mount *, uint);
 struct xfs_rud_log_item *xfs_rud_init(struct xfs_mount *,
-		struct xfs_rui_log_item *, uint);
+		struct xfs_rui_log_item *);
 int xfs_rui_copy_format(struct xfs_log_iovec *buf,
 		struct xfs_rui_log_format *dst_rui_fmt);
 void xfs_rui_item_free(struct xfs_rui_log_item *);

@@ -658,9 +658,8 @@ struct xfs_rui_log_format {
 struct xfs_rud_log_format {
 	__uint16_t		rud_type;	/* rud log item type */
 	__uint16_t		rud_size;	/* size of this item */
-	__uint32_t		rud_nextents;	/* # of extents freed */
+	__uint32_t		__pad;
 	__uint64_t		rud_rui_id;	/* id of corresponding rui */
-	struct xfs_map_extent	rud_extents[1];	/* array of extents rmapped */
 };
 
 /*

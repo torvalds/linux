@@ -129,29 +129,14 @@ xfs_trans_log_start_rmap_update(
 	xfs_trans_set_rmap_flags(rmap, type, whichfork, state);
 }
 
-/*
- * This routine is called to allocate an "rmap update done"
- * log item that will hold nextents worth of extents.  The
- * caller must use all nextents extents, because we are not
- * flexible about this at all.
- */
 struct xfs_rud_log_item *
 xfs_trans_get_rud(
 	struct xfs_trans		*tp,
-	struct xfs_rui_log_item		*ruip,
-	uint				nextents)
+	struct xfs_rui_log_item		*ruip)
 {
 	struct xfs_rud_log_item		*rudp;
 
-	ASSERT(tp != NULL);
-	ASSERT(nextents > 0);
-
-	rudp = xfs_rud_init(tp->t_mountp, ruip, nextents);
-	ASSERT(rudp != NULL);
-
-	/*
-	 * Get a log_item_desc to point at the new item.
-	 */
+	rudp = xfs_rud_init(tp->t_mountp, ruip);
 	xfs_trans_add_item(tp, &rudp->rud_item);
 	return rudp;
 }
@@ -174,8 +159,6 @@ xfs_trans_log_finish_rmap_update(
 	xfs_exntst_t			state,
 	struct xfs_btree_cur		**pcur)
 {
-	uint				next_extent;
-	struct xfs_map_extent		*rmap;
 	int				error;
 
 	error = xfs_rmap_finish_one(tp, type, owner, whichfork, startoff,
@@ -190,16 +173,6 @@ xfs_trans_log_finish_rmap_update(
 	 */
 	tp->t_flags |= XFS_TRANS_DIRTY;
 	rudp->rud_item.li_desc->lid_flags |= XFS_LID_DIRTY;
-
-	next_extent = rudp->rud_next_extent;
-	ASSERT(next_extent < rudp->rud_format.rud_nextents);
-	rmap = &(rudp->rud_format.rud_extents[next_extent]);
-	rmap->me_owner = owner;
-	rmap->me_startblock = startblock;
-	rmap->me_startoff = startoff;
-	rmap->me_len = blockcount;
-	xfs_trans_set_rmap_flags(rmap, type, whichfork, state);
-	rudp->rud_next_extent++;
 
 	return error;
 }
@@ -255,7 +228,7 @@ xfs_rmap_update_create_done(
 	void				*intent,
 	unsigned int			count)
 {
-	return xfs_trans_get_rud(tp, intent, count);
+	return xfs_trans_get_rud(tp, intent);
 }
 
 /* Process a deferred rmap update. */

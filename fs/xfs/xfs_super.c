@@ -1770,9 +1770,7 @@ xfs_init_zones(void)
 	if (!xfs_icreate_zone)
 		goto out_destroy_ili_zone;
 
-	xfs_rud_zone = kmem_zone_init((sizeof(struct xfs_rud_log_item) +
-			((XFS_RUD_MAX_FAST_EXTENTS - 1) *
-				 sizeof(struct xfs_map_extent))),
+	xfs_rud_zone = kmem_zone_init(sizeof(struct xfs_rud_log_item),
 			"xfs_rud_item");
 	if (!xfs_rud_zone)
 		goto out_destroy_icreate_zone;

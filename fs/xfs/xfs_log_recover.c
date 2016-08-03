@@ -3482,9 +3482,7 @@ xlog_recover_rud_pass2(
 	struct xfs_ail			*ailp = log->l_ailp;
 
 	rud_formatp = item->ri_buf[0].i_addr;
-	ASSERT(item->ri_buf[0].i_len == (sizeof(struct xfs_rud_log_format) +
-			((rud_formatp->rud_nextents - 1) *
-			sizeof(struct xfs_map_extent))));
+	ASSERT(item->ri_buf[0].i_len == sizeof(struct xfs_rud_log_format));
 	rui_id = rud_formatp->rud_rui_id;
 
 	/*
