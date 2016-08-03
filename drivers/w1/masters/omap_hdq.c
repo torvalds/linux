@@ -390,8 +390,6 @@ static int hdq_read_byte(struct hdq_data *hdq_data, u8 *val)
 		goto out;
 	}
 
-	hdq_data->hdq_irqstatus = 0;
-
 	if (!(hdq_data->hdq_irqstatus & OMAP_HDQ_INT_STATUS_RXCOMPLETE)) {
 		hdq_reg_merge(hdq_data, OMAP_HDQ_CTRL_STATUS,
 			OMAP_HDQ_CTRL_STATUS_DIR | OMAP_HDQ_CTRL_STATUS_GO,

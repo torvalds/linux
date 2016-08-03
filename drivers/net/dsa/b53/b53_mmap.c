@@ -233,8 +233,7 @@ static int b53_mmap_probe(struct platform_device *pdev)
 	if (!dev)
 		return -ENOMEM;
 
-	if (pdata)
-		dev->pdata = pdata;
+	dev->pdata = pdata;
 
 	platform_set_drvdata(pdev, dev);
 

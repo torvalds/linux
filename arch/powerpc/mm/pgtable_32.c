@@ -79,7 +79,7 @@ void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 #endif
 }
 
-__init_refok pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
+__ref pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
 {
 	pte_t *pte;
 

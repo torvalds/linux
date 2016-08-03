@@ -388,7 +388,7 @@ int qed_vf_pf_rxq_start(struct qed_hwfn *p_hwfn,
 
 	/* Learn the address of the producer from the response */
 	if (pp_prod) {
-		u64 init_prod_val = 0;
+		u32 init_prod_val = 0;
 
 		*pp_prod = (u8 __iomem *)p_hwfn->regview + resp->offset;
 		DP_VERBOSE(p_hwfn, QED_MSG_IOV,
@@ -396,7 +396,7 @@ int qed_vf_pf_rxq_start(struct qed_hwfn *p_hwfn,
 			   rx_qid, *pp_prod, resp->offset);
 
 		/* Init the rcq, rx bd and rx sge (if valid) producers to 0 */
-		__internal_ram_wr(p_hwfn, *pp_prod, sizeof(u64),
+		__internal_ram_wr(p_hwfn, *pp_prod, sizeof(u32),
 				  (u32 *)&init_prod_val);
 	}
 

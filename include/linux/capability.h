@@ -38,6 +38,7 @@ struct cpu_vfs_cap_data {
 struct file;
 struct inode;
 struct dentry;
+struct task_struct;
 struct user_namespace;
 
 extern const kernel_cap_t __cap_empty_set;

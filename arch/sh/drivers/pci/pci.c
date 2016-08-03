@@ -221,7 +221,7 @@ pcibios_bus_report_status_early(struct pci_channel *hose,
  * We can't use pci_find_device() here since we are
  * called from interrupt context.
  */
-static void __init_refok
+static void __ref
 pcibios_bus_report_status(struct pci_bus *bus, unsigned int status_mask,
 			  int warn)
 {
@@ -256,7 +256,7 @@ pcibios_bus_report_status(struct pci_bus *bus, unsigned int status_mask,
 			pcibios_bus_report_status(dev->subordinate, status_mask, warn);
 }
 
-void __init_refok pcibios_report_status(unsigned int status_mask, int warn)
+void __ref pcibios_report_status(unsigned int status_mask, int warn)
 {
 	struct pci_channel *hose;
 

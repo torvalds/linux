@@ -22,7 +22,7 @@
 #include <linux/types.h>
 #include <linux/fs.h>
 #include <linux/buffer_head.h>
-#include <linux/nilfs2_fs.h>
+#include <linux/nilfs2_ondisk.h>	/* nilfs_binfo, nilfs_inode, etc */
 #include "alloc.h"
 #include "dat.h"
 

@@ -661,7 +661,7 @@ enum dma_rtype {
  */
 #define TSI721_DMA_CHNUM	TSI721_DMA_MAXCH
 
-#define TSI721_DMACH_MAINT	0	/* DMA channel for maint requests */
+#define TSI721_DMACH_MAINT	7	/* DMA channel for maint requests */
 #define TSI721_DMACH_MAINT_NBD	32	/* Number of BDs for maint requests */
 
 #define TSI721_DMACH_DMA	1	/* DMA channel for data transfers */
