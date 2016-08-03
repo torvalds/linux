@@ -33,6 +33,8 @@ struct xfs_trans;
 struct xfs_trans_res;
 struct xfs_dquot_acct;
 struct xfs_busy_extent;
+struct xfs_rud_log_item;
+struct xfs_rui_log_item;
 
 typedef struct xfs_log_item {
 	struct list_head		li_ail;		/* AIL pointers */
@@ -233,15 +235,10 @@ void		xfs_trans_buf_copy_type(struct xfs_buf *dst_bp,
 extern kmem_zone_t	*xfs_trans_zone;
 extern kmem_zone_t	*xfs_log_item_desc_zone;
 
+/* rmap updates */
 enum xfs_rmap_intent_type;
 
-struct xfs_rui_log_item *xfs_trans_get_rui(struct xfs_trans *tp, uint nextents);
-void xfs_trans_log_start_rmap_update(struct xfs_trans *tp,
-		struct xfs_rui_log_item *ruip, enum xfs_rmap_intent_type type,
-		__uint64_t owner, int whichfork, xfs_fileoff_t startoff,
-		xfs_fsblock_t startblock, xfs_filblks_t blockcount,
-		xfs_exntst_t state);
-
+void xfs_rmap_update_init_defer_op(void);
 struct xfs_rud_log_item *xfs_trans_get_rud(struct xfs_trans *tp,
 		struct xfs_rui_log_item *ruip, uint nextents);
 int xfs_trans_log_finish_rmap_update(struct xfs_trans *tp,

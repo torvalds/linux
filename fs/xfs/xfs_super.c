@@ -1876,6 +1876,7 @@ init_xfs_fs(void)
 			 XFS_BUILD_OPTIONS " enabled\n");
 
 	xfs_extent_free_init_defer_op();
+	xfs_rmap_update_init_defer_op();
 
 	xfs_dir_startup();
 
