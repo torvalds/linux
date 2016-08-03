@@ -61,6 +61,10 @@ config DT_BCM97435SVMB
 	bool "BCM97435SVMB"
 	select BUILTIN_DTB
 
+config DT_COMTREND_VR3032U
+	bool "Comtrend VR-3032u"
+	select BUILTIN_DTB
+
 config DT_SFR_NEUFBOX4_SERCOMM
 	bool "SFR Neufbox 4 (Sercomm)"
 	select BUILTIN_DTB
