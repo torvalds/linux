@@ -452,10 +452,10 @@ void iwl_mvm_reorder_timer_expired(unsigned long data)
 	u16 sn = 0, index = 0;
 	bool expired = false;
 
-	spin_lock_bh(&buf->lock);
+	spin_lock(&buf->lock);
 
 	if (!buf->num_stored || buf->removed) {
-		spin_unlock_bh(&buf->lock);
+		spin_unlock(&buf->lock);
 		return;
 	}
 
@@ -492,7 +492,7 @@ void iwl_mvm_reorder_timer_expired(unsigned long data)
 			  buf->reorder_time[index] +
 			  1 + RX_REORDER_BUF_TIMEOUT_MQ);
 	}
-	spin_unlock_bh(&buf->lock);
+	spin_unlock(&buf->lock);
 }
 
 static void iwl_mvm_del_ba(struct iwl_mvm *mvm, int queue,
