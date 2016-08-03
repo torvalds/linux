@@ -745,14 +745,14 @@ static int iwl_mvm_sta_alloc_queue(struct iwl_mvm *mvm,
 			.scd_queue = queue,
 			.action = SCD_CFG_DISABLE_QUEUE,
 		};
-		u8 ac;
+		u8 txq_curr_ac;
 
 		disable_agg_tids = iwl_mvm_remove_sta_queue_marking(mvm, queue);
 
 		spin_lock_bh(&mvm->queue_info_lock);
-		ac = mvm->queue_info[queue].mac80211_ac;
+		txq_curr_ac = mvm->queue_info[queue].mac80211_ac;
 		cmd.sta_id = mvm->queue_info[queue].ra_sta_id;
-		cmd.tx_fifo = iwl_mvm_ac_to_tx_fifo[ac];
+		cmd.tx_fifo = iwl_mvm_ac_to_tx_fifo[txq_curr_ac];
 		cmd.tid = mvm->queue_info[queue].txq_tid;
 		spin_unlock_bh(&mvm->queue_info_lock);
 
