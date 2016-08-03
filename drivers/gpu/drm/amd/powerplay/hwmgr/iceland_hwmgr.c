@@ -3621,9 +3621,6 @@ static int iceland_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	data->engine_clock_data = 0;
 	data->memory_clock_data = 0;
 
-	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-		    PHM_PlatformCaps_SclkDeepSleep);
-
 	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 		      PHM_PlatformCaps_SclkDeepSleepAboveLow);
 
@@ -3847,8 +3844,7 @@ static int iceland_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 			PHM_PlatformCaps_GFXClockGatingManagedInCAIL);
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_IcelandULPSSWWorkAround);
-	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_PowerContainment);
+
 
 	/* iceland doesn't support UVD and VCE */
 	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,

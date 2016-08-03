@@ -221,9 +221,6 @@ static int cz_initialize_dpm_defaults(struct pp_hwmgr *hwmgr)
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 				    PHM_PlatformCaps_NonABMSupportInPPLib);
 
-	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-					   PHM_PlatformCaps_SclkDeepSleep);
-
 	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 					PHM_PlatformCaps_DynamicM3Arbiter);
 

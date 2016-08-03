@@ -57,8 +57,6 @@ void fiji_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr)
 
 	/* Assume disabled */
 	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_PowerContainment);
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_CAC);
 	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_SQRamping);
