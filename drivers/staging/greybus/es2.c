@@ -1184,7 +1184,8 @@ static int arpc_sync(struct es2_ap_dev *es2, u8 type, void *payload,
 	unsigned long flags;
 	int retval;
 
-	*result = 0;
+	if (result)
+		*result = 0;
 
 	rpc = arpc_alloc(payload, size, type);
 	if (!rpc)
@@ -1209,7 +1210,8 @@ static int arpc_sync(struct es2_ap_dev *es2, u8 type, void *payload,
 
 	if (rpc->resp->result) {
 		retval = -EREMOTEIO;
-		*result = rpc->resp->result;
+		if (result)
+			*result = rpc->resp->result;
 	} else {
 		retval = 0;
 	}
