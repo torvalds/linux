@@ -285,10 +285,6 @@ static int vce_v3_0_start(struct amdgpu_device *adev)
 		/* clear BUSY flag */
 		WREG32_P(mmVCE_STATUS, 0, ~VCE_STATUS__JOB_BUSY_MASK);
 
-		/* Set Clock-Gating off */
-		if (adev->cg_flags & AMD_CG_SUPPORT_VCE_MGCG)
-			vce_v3_0_set_vce_sw_clock_gating(adev, false);
-
 		if (r) {
 			DRM_ERROR("VCE not responding, giving up!!!\n");
 			mutex_unlock(&adev->grbm_idx_mutex);
