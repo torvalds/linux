@@ -292,9 +292,9 @@ struct arpc_response_message {
 	__u8	result;		/* Result of RPC */
 } __packed;
 
-#define ARPC_CPORT_RESET			0x00
+#define ARPC_TYPE_CPORT_RESET			0x00
 
-struct arpc_cport_reset {
+struct arpc_cport_reset_req {
 	__le16 cport_id;
 } __packed;
 

@@ -609,7 +609,7 @@ static int cport_reset(struct gb_host_device *hd, u16 cport_id)
 {
 	struct es2_ap_dev *es2 = hd_to_es2(hd);
 	struct usb_device *udev = es2->usb_dev;
-	struct arpc_cport_reset req;
+	struct arpc_cport_reset_req req;
 	int retval;
 	int result = 0;
 
@@ -621,7 +621,7 @@ static int cport_reset(struct gb_host_device *hd, u16 cport_id)
 	}
 
 	req.cport_id = cpu_to_le16(cport_id);
-	retval = arpc_sync(es2, ARPC_CPORT_RESET, &req, sizeof(req),
+	retval = arpc_sync(es2, ARPC_TYPE_CPORT_RESET, &req, sizeof(req),
 			   &result, ES2_TIMEOUT);
 	if (retval == -EREMOTEIO) {
 		dev_err(&udev->dev, "failed to reset cport %u: %d\n", cport_id,
