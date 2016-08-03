@@ -130,40 +130,35 @@ static void vce_v3_0_set_vce_sw_clock_gating(struct amdgpu_device *adev,
 	/* Set Override to disable Clock Gating */
 	vce_v3_0_override_vce_clock_gating(adev, true);
 
-	if (!gated) {
-		/* Force CLOCK ON for VCE_CLOCK_GATING_B,
-		 * {*_FORCE_ON, *_FORCE_OFF} = {1, 0}
-		 * VREG can be FORCE ON or set to Dynamic, but can't be OFF
-		 */
+	/* This function enables MGCG which is controlled by firmware.
+	   With the clocks in the gated state the core is still
+	   accessible but the firmware will throttle the clocks on the
+	   fly as necessary.
+	*/
+	if (gated) {
 		tmp = data = RREG32(mmVCE_CLOCK_GATING_B);
 		data |= 0x1ff;
 		data &= ~0xef0000;
 		if (tmp != data)
 			WREG32(mmVCE_CLOCK_GATING_B, data);
 
-		/* Force CLOCK ON for VCE_UENC_CLOCK_GATING,
-		 * {*_FORCE_ON, *_FORCE_OFF} = {1, 0}
-		 */
 		tmp = data = RREG32(mmVCE_UENC_CLOCK_GATING);
 		data |= 0x3ff000;
 		data &= ~0xffc00000;
 		if (tmp != data)
 			WREG32(mmVCE_UENC_CLOCK_GATING, data);
 
-		/* set VCE_UENC_CLOCK_GATING_2 */
 		tmp = data = RREG32(mmVCE_UENC_CLOCK_GATING_2);
 		data |= 0x2;
-		data &= ~0x2;
+		data &= ~0x00010000;
 		if (tmp != data)
 			WREG32(mmVCE_UENC_CLOCK_GATING_2, data);
 
-		/* Force CLOCK ON for VCE_UENC_REG_CLOCK_GATING */
 		tmp = data = RREG32(mmVCE_UENC_REG_CLOCK_GATING);
 		data |= 0x37f;
 		if (tmp != data)
 			WREG32(mmVCE_UENC_REG_CLOCK_GATING, data);
 
-		/* Force VCE_UENC_DMA_DCLK_CTRL Clock ON */
 		tmp = data = RREG32(mmVCE_UENC_DMA_DCLK_CTRL);
 		data |= VCE_UENC_DMA_DCLK_CTRL__WRDMCLK_FORCEON_MASK |
 			VCE_UENC_DMA_DCLK_CTRL__RDDMCLK_FORCEON_MASK |
@@ -172,34 +167,27 @@ static void vce_v3_0_set_vce_sw_clock_gating(struct amdgpu_device *adev,
 		if (tmp != data)
 			WREG32(mmVCE_UENC_DMA_DCLK_CTRL, data);
 	} else {
-		/* Force CLOCK OFF for VCE_CLOCK_GATING_B,
-		 * {*, *_FORCE_OFF} = {*, 1}
-		 * set VREG to Dynamic, as it can't be OFF
-		 */
 		tmp = data = RREG32(mmVCE_CLOCK_GATING_B);
 		data &= ~0x80010;
 		data |= 0xe70008;
 		if (tmp != data)
 			WREG32(mmVCE_CLOCK_GATING_B, data);
-		/* Force CLOCK OFF for VCE_UENC_CLOCK_GATING,
-		 * Force ClOCK OFF takes precedent over Force CLOCK ON setting.
-		 * {*_FORCE_ON, *_FORCE_OFF} = {*, 1}
-		 */
+
 		tmp = data = RREG32(mmVCE_UENC_CLOCK_GATING);
 		data |= 0xffc00000;
 		if (tmp != data)
 			WREG32(mmVCE_UENC_CLOCK_GATING, data);
-		/* Set VCE_UENC_CLOCK_GATING_2 */
+
 		tmp = data = RREG32(mmVCE_UENC_CLOCK_GATING_2);
 		data |= 0x10000;
 		if (tmp != data)
 			WREG32(mmVCE_UENC_CLOCK_GATING_2, data);
-		/* Set VCE_UENC_REG_CLOCK_GATING to dynamic */
+
 		tmp = data = RREG32(mmVCE_UENC_REG_CLOCK_GATING);
 		data &= ~0xffc00000;
 		if (tmp != data)
 			WREG32(mmVCE_UENC_REG_CLOCK_GATING, data);
-		/* Set VCE_UENC_DMA_DCLK_CTRL CG always in dynamic mode */
+
 		tmp = data = RREG32(mmVCE_UENC_DMA_DCLK_CTRL);
 		data &= ~(VCE_UENC_DMA_DCLK_CTRL__WRDMCLK_FORCEON_MASK |
 			  VCE_UENC_DMA_DCLK_CTRL__RDDMCLK_FORCEON_MASK |
@@ -538,7 +526,7 @@ static void vce_v3_0_mc_resume(struct amdgpu_device *adev, int idx)
 	WREG32_P(mmVCE_CLOCK_GATING_A, 0, ~(1 << 16));
 	WREG32_P(mmVCE_UENC_CLOCK_GATING, 0x1FF000, ~0xFF9FF000);
 	WREG32_P(mmVCE_UENC_REG_CLOCK_GATING, 0x3F, ~0x3F);
-	WREG32(mmVCE_CLOCK_GATING_B, 0xf7);
+	WREG32(mmVCE_CLOCK_GATING_B, 0x1FF);
 
 	WREG32(mmVCE_LMI_CTRL, 0x00398000);
 	WREG32_P(mmVCE_LMI_CACHE_CTRL, 0x0, ~0x1);
