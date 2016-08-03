@@ -1248,7 +1248,8 @@ static int vi_common_early_init(void *handle)
 			AMD_CG_SUPPORT_HDP_MGCG |
 			AMD_CG_SUPPORT_HDP_LS |
 			AMD_CG_SUPPORT_SDMA_MGCG |
-			AMD_CG_SUPPORT_SDMA_LS;
+			AMD_CG_SUPPORT_SDMA_LS |
+			AMD_CG_SUPPORT_VCE_MGCG;
 		/* rev0 hardware requires workarounds to support PG */
 		adev->pg_flags = 0;
 		if (adev->rev_id != 0x00) {
