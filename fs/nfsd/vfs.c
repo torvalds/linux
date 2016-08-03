@@ -1141,7 +1141,7 @@ nfsd_create_locked(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		char *fname, int flen, struct iattr *iap,
 		int type, dev_t rdev, struct svc_fh *resfhp)
 {
-	struct dentry	*dentry, *dchild = NULL;
+	struct dentry	*dentry, *dchild;
 	struct inode	*dirp;
 	__be32		err;
 	__be32		err2;
@@ -1208,8 +1208,7 @@ nfsd_create_locked(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	if (!err)
 		err = fh_update(resfhp);
 out:
-	if (dchild && !IS_ERR(dchild))
-		dput(dchild);
+	dput(dchild);
 	return err;
 
 out_nfserr:
