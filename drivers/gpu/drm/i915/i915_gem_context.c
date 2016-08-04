@@ -763,9 +763,8 @@ static int do_rcs_switch(struct drm_i915_gem_request *req)
 		return 0;
 
 	/* Trying to pin first makes error handling easier. */
-	ret = i915_gem_obj_ggtt_pin(to->engine[RCS].state,
-				    to->ggtt_alignment,
-				    0);
+	ret = i915_gem_object_ggtt_pin(to->engine[RCS].state, NULL, 0,
+				       to->ggtt_alignment, 0);
 	if (ret)
 		return ret;
 

@@ -799,8 +799,9 @@ static int intel_lr_context_pin(struct i915_gem_context *ctx,
 	if (ce->pin_count++)
 		return 0;
 
-	ret = i915_gem_obj_ggtt_pin(ce->state, GEN8_LR_CONTEXT_ALIGN,
-				    PIN_OFFSET_BIAS | GUC_WOPCM_TOP);
+	ret = i915_gem_object_ggtt_pin(ce->state, NULL,
+				       0, GEN8_LR_CONTEXT_ALIGN,
+				       PIN_OFFSET_BIAS | GUC_WOPCM_TOP);
 	if (ret)
 		goto err;
 
@@ -1203,7 +1204,8 @@ static int lrc_setup_wa_ctx_obj(struct intel_engine_cs *engine, u32 size)
 		return ret;
 	}
 
-	ret = i915_gem_obj_ggtt_pin(engine->wa_ctx.obj, PAGE_SIZE, 0);
+	ret = i915_gem_object_ggtt_pin(engine->wa_ctx.obj, NULL,
+				       0, PAGE_SIZE, 0);
 	if (ret) {
 		DRM_DEBUG_DRIVER("pin LRC WA ctx backing obj failed: %d\n",
 				 ret);

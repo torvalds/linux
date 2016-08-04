@@ -639,7 +639,7 @@ int intel_init_pipe_control(struct intel_engine_cs *engine, int size)
 		goto err;
 	}
 
-	ret = i915_gem_obj_ggtt_pin(obj, 4096, PIN_HIGH);
+	ret = i915_gem_object_ggtt_pin(obj, NULL, 0, 4096, PIN_HIGH);
 	if (ret)
 		goto err_unref;
 
@@ -1896,7 +1896,7 @@ static int init_status_page(struct intel_engine_cs *engine)
 			 * actualy map it).
 			 */
 			flags |= PIN_MAPPABLE;
-		ret = i915_gem_obj_ggtt_pin(obj, 4096, flags);
+		ret = i915_gem_object_ggtt_pin(obj, NULL, 0, 4096, flags);
 		if (ret) {
 err_unref:
 			i915_gem_object_put(obj);
@@ -1943,7 +1943,7 @@ int intel_ring_pin(struct intel_ring *ring)
 	int ret;
 
 	if (HAS_LLC(dev_priv) && !obj->stolen) {
-		ret = i915_gem_obj_ggtt_pin(obj, PAGE_SIZE, flags);
+		ret = i915_gem_object_ggtt_pin(obj, NULL, 0, PAGE_SIZE, flags);
 		if (ret)
 			return ret;
 
@@ -1957,8 +1957,8 @@ int intel_ring_pin(struct intel_ring *ring)
 			goto err_unpin;
 		}
 	} else {
-		ret = i915_gem_obj_ggtt_pin(obj, PAGE_SIZE,
-					    flags | PIN_MAPPABLE);
+		ret = i915_gem_object_ggtt_pin(obj, NULL, 0, PAGE_SIZE,
+					       flags | PIN_MAPPABLE);
 		if (ret)
 			return ret;
 
@@ -2092,7 +2092,8 @@ static int intel_ring_context_pin(struct i915_gem_context *ctx,
 		return 0;
 
 	if (ce->state) {
-		ret = i915_gem_obj_ggtt_pin(ce->state, ctx->ggtt_alignment, 0);
+		ret = i915_gem_object_ggtt_pin(ce->state, NULL, 0,
+					       ctx->ggtt_alignment, 0);
 		if (ret)
 			goto error;
 	}
@@ -2649,7 +2650,7 @@ static void intel_ring_init_semaphores(struct drm_i915_private *dev_priv,
 			i915.semaphores = 0;
 		} else {
 			i915_gem_object_set_cache_level(obj, I915_CACHE_LLC);
-			ret = i915_gem_obj_ggtt_pin(obj, 0, PIN_NONBLOCK);
+			ret = i915_gem_object_ggtt_pin(obj, NULL, 0, 0, 0);
 			if (ret != 0) {
 				i915_gem_object_put(obj);
 				DRM_ERROR("Failed to pin semaphore bo. Disabling semaphores\n");

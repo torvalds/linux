@@ -323,7 +323,7 @@ static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
 		return ret;
 	}
 
-	ret = i915_gem_obj_ggtt_pin(guc_fw->guc_fw_obj, 0, 0);
+	ret = i915_gem_object_ggtt_pin(guc_fw->guc_fw_obj, NULL, 0, 0, 0);
 	if (ret) {
 		DRM_DEBUG_DRIVER("pin failed %d\n", ret);
 		return ret;

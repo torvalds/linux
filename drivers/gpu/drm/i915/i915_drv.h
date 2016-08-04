@@ -3289,15 +3289,6 @@ static inline bool i915_gem_obj_ggtt_bound(struct drm_i915_gem_object *obj)
 unsigned long
 i915_gem_obj_ggtt_size(struct drm_i915_gem_object *obj);
 
-static inline int __must_check
-i915_gem_obj_ggtt_pin(struct drm_i915_gem_object *obj,
-		      uint32_t alignment,
-		      unsigned flags)
-{
-	return i915_gem_object_ggtt_pin(obj, &i915_ggtt_view_normal,
-					0, alignment, flags);
-}
-
 void i915_gem_object_ggtt_unpin_view(struct drm_i915_gem_object *obj,
 				     const struct i915_ggtt_view *view);
 static inline void

@@ -1270,7 +1270,7 @@ i915_gem_execbuffer_parse(struct intel_engine_cs *engine,
 	if (ret)
 		goto err;
 
-	ret = i915_gem_obj_ggtt_pin(shadow_batch_obj, 0, 0);
+	ret = i915_gem_object_ggtt_pin(shadow_batch_obj, NULL, 0, 0, 0);
 	if (ret)
 		goto err;
 
@@ -1650,7 +1650,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		 *   fitting due to fragmentation.
 		 * So this is actually safe.
 		 */
-		ret = i915_gem_obj_ggtt_pin(obj, 0, 0);
+		ret = i915_gem_object_ggtt_pin(obj, NULL, 0, 0, 0);
 		if (ret)
 			goto err;
 

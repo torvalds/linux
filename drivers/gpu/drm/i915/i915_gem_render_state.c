@@ -191,7 +191,7 @@ int i915_gem_render_state_init(struct drm_i915_gem_request *req)
 	if (IS_ERR(so.obj))
 		return PTR_ERR(so.obj);
 
-	ret = i915_gem_obj_ggtt_pin(so.obj, 4096, 0);
+	ret = i915_gem_object_ggtt_pin(so.obj, NULL, 0, 0, 0);
 	if (ret)
 		goto err_obj;
 

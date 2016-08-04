@@ -652,7 +652,7 @@ i915_gem_gtt_pread(struct drm_device *dev,
 	uint64_t offset;
 	int ret;
 
-	ret = i915_gem_obj_ggtt_pin(obj, 0, PIN_MAPPABLE);
+	ret = i915_gem_object_ggtt_pin(obj, NULL, 0, 0, PIN_MAPPABLE);
 	if (ret) {
 		ret = insert_mappable_node(dev_priv, &node, PAGE_SIZE);
 		if (ret)
@@ -949,7 +949,8 @@ i915_gem_gtt_pwrite_fast(struct drm_i915_private *i915,
 	if (obj->tiling_mode != I915_TILING_NONE)
 		return -EFAULT;
 
-	ret = i915_gem_obj_ggtt_pin(obj, 0, PIN_MAPPABLE | PIN_NONBLOCK);
+	ret = i915_gem_object_ggtt_pin(obj, NULL, 0, 0,
+				       PIN_MAPPABLE | PIN_NONBLOCK);
 	if (ret) {
 		ret = insert_mappable_node(i915, &node, PAGE_SIZE);
 		if (ret)
@@ -3719,7 +3720,7 @@ int __i915_vma_do_pin(struct i915_vma *vma,
 		goto err;
 	}
 
-	if ((bound & (I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND)) == 0) {
+	if ((bound & I915_VMA_BIND_MASK) == 0) {
 		ret = i915_vma_insert(vma, size, alignment, flags);
 		if (ret)
 			goto err;
@@ -3750,7 +3751,8 @@ i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 	struct i915_vma *vma;
 	int ret;
 
-	BUG_ON(!view);
+	if (!view)
+		view = &i915_ggtt_view_normal;
 
 	vma = i915_gem_obj_lookup_or_create_ggtt_vma(obj, view);
 	if (IS_ERR(vma))
@@ -3782,12 +3784,7 @@ void
 i915_gem_object_ggtt_unpin_view(struct drm_i915_gem_object *obj,
 				const struct i915_ggtt_view *view)
 {
-	struct i915_vma *vma = i915_gem_obj_to_ggtt_view(obj, view);
-
-	WARN_ON(!i915_vma_is_pinned(vma));
-	WARN_ON(!i915_gem_obj_ggtt_bound_view(obj, view));
-
-	__i915_vma_unpin(vma);
+	i915_vma_unpin(i915_gem_obj_to_ggtt_view(obj, view));
 }
 
 int

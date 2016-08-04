@@ -3430,6 +3430,8 @@ i915_gem_obj_lookup_or_create_ggtt_vma(struct drm_i915_gem_object *obj,
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	struct i915_vma *vma = i915_gem_obj_to_ggtt_view(obj, view);
 
+	GEM_BUG_ON(!view);
+
 	if (!vma)
 		vma = __i915_gem_vma_create(obj, &ggtt->base, view);
 

@@ -635,8 +635,8 @@ gem_allocate_guc_obj(struct drm_i915_private *dev_priv, u32 size)
 		return NULL;
 	}
 
-	if (i915_gem_obj_ggtt_pin(obj, PAGE_SIZE,
-			PIN_OFFSET_BIAS | GUC_WOPCM_TOP)) {
+	if (i915_gem_object_ggtt_pin(obj, NULL, 0, PAGE_SIZE,
+				     PIN_OFFSET_BIAS | GUC_WOPCM_TOP)) {
 		i915_gem_object_put(obj);
 		return NULL;
 	}
