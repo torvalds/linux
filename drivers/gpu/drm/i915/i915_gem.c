@@ -2961,12 +2961,12 @@ static bool i915_gem_valid_gtt_space(struct i915_vma *vma,
  * @flags: mask of PIN_* flags to use
  */
 static struct i915_vma *
-i915_gem_object_bind_to_vm(struct drm_i915_gem_object *obj,
-			   struct i915_address_space *vm,
-			   const struct i915_ggtt_view *ggtt_view,
-			   u64 size,
-			   u64 alignment,
-			   u64 flags)
+i915_gem_object_insert_into_vm(struct drm_i915_gem_object *obj,
+			       struct i915_address_space *vm,
+			       const struct i915_ggtt_view *ggtt_view,
+			       u64 size,
+			       u64 alignment,
+			       u64 flags)
 {
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -3092,19 +3092,12 @@ search_free:
 	}
 	GEM_BUG_ON(!i915_gem_valid_gtt_space(vma, obj->cache_level));
 
-	trace_i915_vma_bind(vma, flags);
-	ret = i915_vma_bind(vma, obj->cache_level, flags);
-	if (ret)
-		goto err_remove_node;
-
 	list_move_tail(&obj->global_list, &dev_priv->mm.bound_list);
 	list_move_tail(&vma->vm_link, &vm->inactive_list);
 	obj->bind_count++;
 
 	return vma;
 
-err_remove_node:
-	drm_mm_remove_node(&vma->node);
 err_vma:
 	vma = ERR_PTR(ret);
 err_unpin:
@@ -3764,23 +3757,25 @@ i915_gem_object_do_pin(struct drm_i915_gem_object *obj,
 		}
 	}
 
-	bound = vma ? vma->bound : 0;
 	if (vma == NULL || !drm_mm_node_allocated(&vma->node)) {
-		vma = i915_gem_object_bind_to_vm(obj, vm, ggtt_view,
-						 size, alignment, flags);
+		vma = i915_gem_object_insert_into_vm(obj, vm, ggtt_view,
+						     size, alignment, flags);
 		if (IS_ERR(vma))
 			return PTR_ERR(vma);
-	} else {
-		ret = i915_vma_bind(vma, obj->cache_level, flags);
-		if (ret)
-			return ret;
 	}
+
+	bound = vma->bound;
+	ret = i915_vma_bind(vma, obj->cache_level, flags);
+	if (ret)
+		return ret;
 
 	if (ggtt_view && ggtt_view->type == I915_GGTT_VIEW_NORMAL &&
 	    (bound ^ vma->bound) & GLOBAL_BIND) {
 		__i915_vma_set_map_and_fenceable(vma);
 		WARN_ON(flags & PIN_MAPPABLE && !obj->map_and_fenceable);
 	}
+
+	GEM_BUG_ON(i915_vma_misplaced(vma, size, alignment, flags));
 
 	vma->pin_count++;
 	return 0;
