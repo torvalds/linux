@@ -550,13 +550,13 @@ int rockchip_rga_set_cmdlist_ioctl(struct drm_device *drm_dev, void *data,
 	 * command have two integer, one for register offset, another for
 	 * register value.
 	 */
-	if (copy_from_user(cmdlist->data, compat_ptr((compat_uptr_t)req->cmd),
+	if (copy_from_user(cmdlist->data, (void __user *)req->cmd,
 			   sizeof(struct drm_rockchip_rga_cmd) * req->cmd_nr))
 		return -EFAULT;
 	cmdlist->last += req->cmd_nr * 2;
 
 	if (copy_from_user(&cmdlist->data[cmdlist->last],
-			   compat_ptr((compat_uptr_t)req->cmd_buf),
+			   (void __user *)req->cmd_buf,
 			   sizeof(struct drm_rockchip_rga_cmd) * req->cmd_buf_nr))
 		return -EFAULT;
 	cmdlist->last += req->cmd_buf_nr * 2;
