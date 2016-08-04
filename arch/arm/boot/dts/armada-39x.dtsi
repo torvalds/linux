@@ -389,6 +389,12 @@
 				clocks = <&mainpll>;
 				clock-output-names = "nand";
 			};
+
+			thermal@e8078 {
+				compatible = "marvell,armada380-thermal";
+				reg = <0xe4078 0x4>, <0xe4074 0x4>;
+				status = "okay";
+			};
 		};
 
 		pcie-controller {
