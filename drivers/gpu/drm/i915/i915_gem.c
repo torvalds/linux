@@ -1353,23 +1353,23 @@ i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj,
 	int ret, i;
 
 	if (readonly) {
-		if (obj->last_write_req != NULL) {
-			ret = i915_wait_request(obj->last_write_req);
+		if (obj->last_write.request) {
+			ret = i915_wait_request(obj->last_write.request);
 			if (ret)
 				return ret;
 
-			i = obj->last_write_req->engine->id;
-			if (obj->last_read_req[i] == obj->last_write_req)
+			i = obj->last_write.request->engine->id;
+			if (obj->last_read[i].request == obj->last_write.request)
 				i915_gem_object_retire__read(obj, i);
 			else
 				i915_gem_object_retire__write(obj);
 		}
 	} else {
 		for (i = 0; i < I915_NUM_ENGINES; i++) {
-			if (obj->last_read_req[i] == NULL)
+			if (!obj->last_read[i].request)
 				continue;
 
-			ret = i915_wait_request(obj->last_read_req[i]);
+			ret = i915_wait_request(obj->last_read[i].request);
 			if (ret)
 				return ret;
 
@@ -1397,9 +1397,9 @@ i915_gem_object_retire_request(struct drm_i915_gem_object *obj,
 {
 	int idx = req->engine->id;
 
-	if (obj->last_read_req[idx] == req)
+	if (obj->last_read[idx].request == req)
 		i915_gem_object_retire__read(obj, idx);
-	else if (obj->last_write_req == req)
+	else if (obj->last_write.request == req)
 		i915_gem_object_retire__write(obj);
 
 	if (!i915_reset_in_progress(&req->i915->gpu_error))
@@ -1428,7 +1428,7 @@ i915_gem_object_wait_rendering__nonblocking(struct drm_i915_gem_object *obj,
 	if (readonly) {
 		struct drm_i915_gem_request *req;
 
-		req = obj->last_write_req;
+		req = obj->last_write.request;
 		if (req == NULL)
 			return 0;
 
@@ -1437,7 +1437,7 @@ i915_gem_object_wait_rendering__nonblocking(struct drm_i915_gem_object *obj,
 		for (i = 0; i < I915_NUM_ENGINES; i++) {
 			struct drm_i915_gem_request *req;
 
-			req = obj->last_read_req[i];
+			req = obj->last_read[i].request;
 			if (req == NULL)
 				continue;
 
@@ -2375,7 +2375,7 @@ void i915_vma_move_to_active(struct i915_vma *vma,
 	obj->active |= intel_engine_flag(engine);
 
 	list_move_tail(&obj->engine_list[engine->id], &engine->active_list);
-	i915_gem_request_assign(&obj->last_read_req[engine->id], req);
+	i915_gem_active_set(&obj->last_read[engine->id], req);
 
 	list_move_tail(&vma->vm_link, &vma->vm->active_list);
 }
@@ -2383,10 +2383,10 @@ void i915_vma_move_to_active(struct i915_vma *vma,
 static void
 i915_gem_object_retire__write(struct drm_i915_gem_object *obj)
 {
-	GEM_BUG_ON(obj->last_write_req == NULL);
-	GEM_BUG_ON(!(obj->active & intel_engine_flag(obj->last_write_req->engine)));
+	GEM_BUG_ON(!obj->last_write.request);
+	GEM_BUG_ON(!(obj->active & intel_engine_flag(obj->last_write.request->engine)));
 
-	i915_gem_request_assign(&obj->last_write_req, NULL);
+	i915_gem_active_set(&obj->last_write, NULL);
 	intel_fb_obj_flush(obj, true, ORIGIN_CS);
 }
 
@@ -2395,13 +2395,13 @@ i915_gem_object_retire__read(struct drm_i915_gem_object *obj, int idx)
 {
 	struct i915_vma *vma;
 
-	GEM_BUG_ON(obj->last_read_req[idx] == NULL);
+	GEM_BUG_ON(!obj->last_read[idx].request);
 	GEM_BUG_ON(!(obj->active & (1 << idx)));
 
 	list_del_init(&obj->engine_list[idx]);
-	i915_gem_request_assign(&obj->last_read_req[idx], NULL);
+	i915_gem_active_set(&obj->last_read[idx], NULL);
 
-	if (obj->last_write_req && obj->last_write_req->engine->id == idx)
+	if (obj->last_write.request && obj->last_write.request->engine->id == idx)
 		i915_gem_object_retire__write(obj);
 
 	obj->active &= ~(1 << idx);
@@ -2420,7 +2420,7 @@ i915_gem_object_retire__read(struct drm_i915_gem_object *obj, int idx)
 			list_move_tail(&vma->vm_link, &vma->vm->inactive_list);
 	}
 
-	i915_gem_request_assign(&obj->last_fenced_req, NULL);
+	i915_gem_active_set(&obj->last_fence, NULL);
 	i915_gem_object_put(obj);
 }
 
@@ -2621,7 +2621,7 @@ i915_gem_retire_requests_ring(struct intel_engine_cs *engine)
 				       struct drm_i915_gem_object,
 				       engine_list[engine->id]);
 
-		if (!list_empty(&obj->last_read_req[engine->id]->list))
+		if (!list_empty(&obj->last_read[engine->id].request->list))
 			break;
 
 		i915_gem_object_retire__read(obj, engine->id);
@@ -2754,7 +2754,7 @@ i915_gem_object_flush_active(struct drm_i915_gem_object *obj)
 	for (i = 0; i < I915_NUM_ENGINES; i++) {
 		struct drm_i915_gem_request *req;
 
-		req = obj->last_read_req[i];
+		req = obj->last_read[i].request;
 		if (req == NULL)
 			continue;
 
@@ -2830,10 +2830,10 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	i915_gem_object_put(obj);
 
 	for (i = 0; i < I915_NUM_ENGINES; i++) {
-		if (obj->last_read_req[i] == NULL)
+		if (!obj->last_read[i].request)
 			continue;
 
-		req[n++] = i915_gem_request_get(obj->last_read_req[i]);
+		req[n++] = i915_gem_request_get(obj->last_read[i].request);
 	}
 
 	mutex_unlock(&dev->struct_mutex);
@@ -2924,12 +2924,12 @@ i915_gem_object_sync(struct drm_i915_gem_object *obj,
 
 	n = 0;
 	if (readonly) {
-		if (obj->last_write_req)
-			req[n++] = obj->last_write_req;
+		if (obj->last_write.request)
+			req[n++] = obj->last_write.request;
 	} else {
 		for (i = 0; i < I915_NUM_ENGINES; i++)
-			if (obj->last_read_req[i])
-				req[n++] = obj->last_read_req[i];
+			if (obj->last_read[i].request)
+				req[n++] = obj->last_read[i].request;
 	}
 	for (i = 0; i < n; i++) {
 		ret = __i915_gem_object_sync(obj, to, req[i]);
@@ -4026,12 +4026,12 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 		for (i = 0; i < I915_NUM_ENGINES; i++) {
 			struct drm_i915_gem_request *req;
 
-			req = obj->last_read_req[i];
+			req = obj->last_read[i].request;
 			if (req)
 				args->busy |= 1 << (16 + req->engine->exec_id);
 		}
-		if (obj->last_write_req)
-			args->busy |= obj->last_write_req->engine->exec_id;
+		if (obj->last_write.request)
+			args->busy |= obj->last_write.request->engine->exec_id;
 	}
 
 unref:

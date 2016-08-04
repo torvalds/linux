@@ -2242,11 +2242,10 @@ struct drm_i915_gem_object {
 	 * requests on one ring where the write request is older than the
 	 * read request. This allows for the CPU to read from an active
 	 * buffer by only waiting for the write to complete.
-	 * */
-	struct drm_i915_gem_request *last_read_req[I915_NUM_ENGINES];
-	struct drm_i915_gem_request *last_write_req;
-	/** Breadcrumb of last fenced GPU access to the buffer. */
-	struct drm_i915_gem_request *last_fenced_req;
+	 */
+	struct i915_gem_active last_read[I915_NUM_ENGINES];
+	struct i915_gem_active last_write;
+	struct i915_gem_active last_fence;
 
 	/** Current tiling stride for the object, if it's tiled. */
 	uint32_t stride;

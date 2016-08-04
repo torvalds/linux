@@ -1150,7 +1150,7 @@ i915_gem_execbuffer_move_to_active(struct list_head *vmas,
 
 		i915_vma_move_to_active(vma, req);
 		if (obj->base.write_domain) {
-			i915_gem_request_assign(&obj->last_write_req, req);
+			i915_gem_active_set(&obj->last_write, req);
 
 			intel_fb_obj_invalidate(obj, ORIGIN_CS);
 
@@ -1158,7 +1158,7 @@ i915_gem_execbuffer_move_to_active(struct list_head *vmas,
 			obj->base.write_domain &= ~I915_GEM_GPU_DOMAINS;
 		}
 		if (entry->flags & EXEC_OBJECT_NEEDS_FENCE) {
-			i915_gem_request_assign(&obj->last_fenced_req, req);
+			i915_gem_active_set(&obj->last_fence, req);
 			if (entry->flags & __EXEC_OBJECT_HAS_FENCE) {
 				struct drm_i915_private *dev_priv = engine->i915;
 				list_move_tail(&dev_priv->fence_regs[obj->fence_reg].lru_list,

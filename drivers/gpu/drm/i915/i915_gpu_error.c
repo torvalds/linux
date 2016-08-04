@@ -751,8 +751,8 @@ static void capture_bo(struct drm_i915_error_buffer *err,
 	err->size = obj->base.size;
 	err->name = obj->base.name;
 	for (i = 0; i < I915_NUM_ENGINES; i++)
-		err->rseqno[i] = i915_gem_request_get_seqno(obj->last_read_req[i]);
-	err->wseqno = i915_gem_request_get_seqno(obj->last_write_req);
+		err->rseqno[i] = i915_gem_request_get_seqno(obj->last_read[i].request);
+	err->wseqno = i915_gem_request_get_seqno(obj->last_write.request);
 	err->gtt_offset = vma->node.start;
 	err->read_domains = obj->base.read_domains;
 	err->write_domain = obj->base.write_domain;
@@ -764,8 +764,7 @@ static void capture_bo(struct drm_i915_error_buffer *err,
 	err->dirty = obj->dirty;
 	err->purgeable = obj->madv != I915_MADV_WILLNEED;
 	err->userptr = obj->userptr.mm != NULL;
-	err->engine = obj->last_write_req ?
-		i915_gem_request_get_engine(obj->last_write_req)->id : -1;
+	err->engine = obj->last_write.request ? obj->last_write.request->engine->id : -1;
 	err->cache_level = obj->cache_level;
 }
 

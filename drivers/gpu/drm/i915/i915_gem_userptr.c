@@ -74,7 +74,7 @@ static void wait_rendering(struct drm_i915_gem_object *obj)
 	for (i = 0; i < I915_NUM_ENGINES; i++) {
 		struct drm_i915_gem_request *req;
 
-		req = obj->last_read_req[i];
+		req = obj->last_read[i].request;
 		if (req == NULL)
 			continue;
 

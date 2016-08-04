@@ -11370,7 +11370,7 @@ static bool use_mmio_flip(struct intel_engine_cs *engine,
 	if (resv && !reservation_object_test_signaled_rcu(resv, false))
 		return true;
 
-	return engine != i915_gem_request_get_engine(obj->last_write_req);
+	return engine != i915_gem_request_get_engine(obj->last_write.request);
 }
 
 static void skl_do_mmio_flip(struct intel_crtc *intel_crtc,
@@ -11673,7 +11673,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	} else if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev)) {
 		engine = &dev_priv->engine[BCS];
 	} else if (INTEL_INFO(dev)->gen >= 7) {
-		engine = i915_gem_request_get_engine(obj->last_write_req);
+		engine = i915_gem_request_get_engine(obj->last_write.request);
 		if (engine == NULL || engine->id != RCS)
 			engine = &dev_priv->engine[BCS];
 	} else {
@@ -11695,7 +11695,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 		INIT_WORK(&work->mmio_work, intel_mmio_flip_work_func);
 
 		i915_gem_request_assign(&work->flip_queued_req,
-					obj->last_write_req);
+					obj->last_write.request);
 
 		schedule_work(&work->mmio_work);
 	} else {
@@ -14043,7 +14043,7 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 			to_intel_plane_state(new_state);
 
 		i915_gem_request_assign(&plane_state->wait_req,
-					obj->last_write_req);
+					obj->last_write.request);
 	}
 
 	return ret;

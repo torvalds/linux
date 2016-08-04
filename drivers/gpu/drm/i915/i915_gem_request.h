@@ -249,4 +249,45 @@ static inline bool i915_spin_request(const struct drm_i915_gem_request *request,
 		__i915_spin_request(request, state, timeout_us));
 }
 
+/* We treat requests as fences. This is not be to confused with our
+ * "fence registers" but pipeline synchronisation objects ala GL_ARB_sync.
+ * We use the fences to synchronize access from the CPU with activity on the
+ * GPU, for example, we should not rewrite an object's PTE whilst the GPU
+ * is reading them. We also track fences at a higher level to provide
+ * implicit synchronisation around GEM objects, e.g. set-domain will wait
+ * for outstanding GPU rendering before marking the object ready for CPU
+ * access, or a pageflip will wait until the GPU is complete before showing
+ * the frame on the scanout.
+ *
+ * In order to use a fence, the object must track the fence it needs to
+ * serialise with. For example, GEM objects want to track both read and
+ * write access so that we can perform concurrent read operations between
+ * the CPU and GPU engines, as well as waiting for all rendering to
+ * complete, or waiting for the last GPU user of a "fence register". The
+ * object then embeds a #i915_gem_active to track the most recent (in
+ * retirement order) request relevant for the desired mode of access.
+ * The #i915_gem_active is updated with i915_gem_active_set() to track the
+ * most recent fence request, typically this is done as part of
+ * i915_vma_move_to_active().
+ *
+ * When the #i915_gem_active completes (is retired), it will
+ * signal its completion to the owner through a callback as well as mark
+ * itself as idle (i915_gem_active.request == NULL). The owner
+ * can then perform any action, such as delayed freeing of an active
+ * resource including itself.
+ */
+struct i915_gem_active {
+	struct drm_i915_gem_request *request;
+};
+
+static inline void
+i915_gem_active_set(struct i915_gem_active *active,
+		    struct drm_i915_gem_request *request)
+{
+	i915_gem_request_assign(&active->request, request);
+}
+
+#define for_each_active(mask, idx) \
+	for (; mask ? idx = ffs(mask) - 1, 1 : 0; mask &= ~BIT(idx))
+
 #endif /* I915_GEM_REQUEST_H */
