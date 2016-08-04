@@ -101,6 +101,7 @@ struct drm_i915_gem_request {
 	 * error state dump only).
 	 */
 	struct drm_i915_gem_object *batch_obj;
+	struct list_head active_list;
 
 	/** Time at which this request was emitted, in jiffies. */
 	unsigned long emitted_jiffies;
@@ -213,8 +214,12 @@ struct intel_rps_client;
 int __i915_wait_request(struct drm_i915_gem_request *req,
 			bool interruptible,
 			s64 *timeout,
-			struct intel_rps_client *rps);
-int __must_check i915_wait_request(struct drm_i915_gem_request *req);
+			struct intel_rps_client *rps)
+	__attribute__((nonnull(1)));
+
+int __must_check
+i915_wait_request(struct drm_i915_gem_request *req)
+	__attribute__((nonnull));
 
 static inline u32 intel_engine_get_seqno(struct intel_engine_cs *engine);
 
@@ -276,9 +281,38 @@ static inline bool i915_spin_request(const struct drm_i915_gem_request *request,
  * can then perform any action, such as delayed freeing of an active
  * resource including itself.
  */
+struct i915_gem_active;
+
+typedef void (*i915_gem_retire_fn)(struct i915_gem_active *,
+				   struct drm_i915_gem_request *);
+
 struct i915_gem_active {
 	struct drm_i915_gem_request *request;
+	struct list_head link;
+	i915_gem_retire_fn retire;
 };
+
+void i915_gem_retire_noop(struct i915_gem_active *,
+			  struct drm_i915_gem_request *request);
+
+/**
+ * init_request_active - prepares the activity tracker for use
+ * @active - the active tracker
+ * @func - a callback when then the tracker is retired (becomes idle),
+ *         can be NULL
+ *
+ * init_request_active() prepares the embedded @active struct for use as
+ * an activity tracker, that is for tracking the last known active request
+ * associated with it. When the last request becomes idle, when it is retired
+ * after completion, the optional callback @func is invoked.
+ */
+static inline void
+init_request_active(struct i915_gem_active *active,
+		    i915_gem_retire_fn retire)
+{
+	INIT_LIST_HEAD(&active->link);
+	active->retire = retire ?: i915_gem_retire_noop;
+}
 
 /**
  * i915_gem_active_set - updates the tracker to watch the current request
@@ -293,7 +327,8 @@ static inline void
 i915_gem_active_set(struct i915_gem_active *active,
 		    struct drm_i915_gem_request *request)
 {
-	i915_gem_request_assign(&active->request, request);
+	list_move(&active->link, &request->active_list);
+	active->request = request;
 }
 
 static inline struct drm_i915_gem_request *
@@ -303,17 +338,23 @@ __i915_gem_active_peek(const struct i915_gem_active *active)
 }
 
 /**
- * i915_gem_active_peek - report the request being monitored
+ * i915_gem_active_peek - report the active request being monitored
  * @active - the active tracker
  *
- * i915_gem_active_peek() returns the current request being tracked, or NULL.
- * It does not obtain a reference on the request for the caller, so the
- * caller must hold struct_mutex.
+ * i915_gem_active_peek() returns the current request being tracked if
+ * still active, or NULL. It does not obtain a reference on the request
+ * for the caller, so the caller must hold struct_mutex.
  */
 static inline struct drm_i915_gem_request *
 i915_gem_active_peek(const struct i915_gem_active *active, struct mutex *mutex)
 {
-	return active->request;
+	struct drm_i915_gem_request *request;
+
+	request = active->request;
+	if (!request || i915_gem_request_completed(request))
+		return NULL;
+
+	return request;
 }
 
 /**
@@ -326,13 +367,7 @@ i915_gem_active_peek(const struct i915_gem_active *active, struct mutex *mutex)
 static inline struct drm_i915_gem_request *
 i915_gem_active_get(const struct i915_gem_active *active, struct mutex *mutex)
 {
-	struct drm_i915_gem_request *request;
-
-	request = i915_gem_active_peek(active, mutex);
-	if (!request || i915_gem_request_completed(request))
-		return NULL;
-
-	return i915_gem_request_get(request);
+	return i915_gem_request_get(i915_gem_active_peek(active, mutex));
 }
 
 /**
@@ -361,13 +396,7 @@ static inline bool
 i915_gem_active_is_idle(const struct i915_gem_active *active,
 			struct mutex *mutex)
 {
-	struct drm_i915_gem_request *request;
-
-	request = i915_gem_active_peek(active, mutex);
-	if (!request || i915_gem_request_completed(request))
-		return true;
-
-	return false;
+	return !i915_gem_active_peek(active, mutex);
 }
 
 /**
@@ -377,6 +406,9 @@ i915_gem_active_is_idle(const struct i915_gem_active *active,
  * i915_gem_active_wait() waits until the request is completed before
  * returning. Note that it does not guarantee that the request is
  * retired first, see i915_gem_active_retire().
+ *
+ * i915_gem_active_wait() returns immediately if the active
+ * request is already complete.
  */
 static inline int __must_check
 i915_gem_active_wait(const struct i915_gem_active *active, struct mutex *mutex)
@@ -387,7 +419,7 @@ i915_gem_active_wait(const struct i915_gem_active *active, struct mutex *mutex)
 	if (!request)
 		return 0;
 
-	return i915_wait_request(request);
+	return __i915_wait_request(request, true, NULL, NULL);
 }
 
 /**
@@ -400,10 +432,25 @@ i915_gem_active_wait(const struct i915_gem_active *active, struct mutex *mutex)
  * tracker is idle, the function returns immediately.
  */
 static inline int __must_check
-i915_gem_active_retire(const struct i915_gem_active *active,
+i915_gem_active_retire(struct i915_gem_active *active,
 		       struct mutex *mutex)
 {
-	return i915_gem_active_wait(active, mutex);
+	struct drm_i915_gem_request *request;
+	int ret;
+
+	request = active->request;
+	if (!request)
+		return 0;
+
+	ret = __i915_wait_request(request, true, NULL, NULL);
+	if (ret)
+		return ret;
+
+	list_del_init(&active->link);
+	active->request = NULL;
+	active->retire(active, request);
+
+	return 0;
 }
 
 /* Convenience functions for peeking at state inside active's request whilst

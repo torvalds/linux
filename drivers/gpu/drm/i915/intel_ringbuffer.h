@@ -293,18 +293,6 @@ struct intel_engine_cs {
 	u32 ctx_desc_template;
 
 	/**
-	 * List of objects currently involved in rendering from the
-	 * ringbuffer.
-	 *
-	 * Includes buffers having the contents of their GPU caches
-	 * flushed, not necessarily primitives.  last_read_req
-	 * represents when the rendering involved will be completed.
-	 *
-	 * A reference is held on the buffer while on this list.
-	 */
-	struct list_head active_list;
-
-	/**
 	 * List of breadcrumbs associated with GPU requests currently
 	 * outstanding.
 	 */

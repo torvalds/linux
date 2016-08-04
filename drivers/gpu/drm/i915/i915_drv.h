@@ -432,8 +432,6 @@ void intel_link_compute_m_n(int bpp, int nlanes,
 #define DRIVER_MINOR		6
 #define DRIVER_PATCHLEVEL	0
 
-#define WATCH_LISTS	0
-
 struct opregion_header;
 struct opregion_acpi;
 struct opregion_swsci;
@@ -2153,7 +2151,6 @@ struct drm_i915_gem_object {
 	struct drm_mm_node *stolen;
 	struct list_head global_list;
 
-	struct list_head engine_list[I915_NUM_ENGINES];
 	/** Used in execbuf to temporarily hold a ref */
 	struct list_head obj_exec_link;
 
@@ -3462,13 +3459,6 @@ static inline bool i915_gem_object_needs_bit17_swizzle(struct drm_i915_gem_objec
 	return dev_priv->mm.bit_6_swizzle_x == I915_BIT_6_SWIZZLE_9_10_17 &&
 		obj->tiling_mode != I915_TILING_NONE;
 }
-
-/* i915_gem_debug.c */
-#if WATCH_LISTS
-int i915_verify_lists(struct drm_device *dev);
-#else
-#define i915_verify_lists(dev) 0
-#endif
 
 /* i915_debugfs.c */
 #ifdef CONFIG_DEBUG_FS
