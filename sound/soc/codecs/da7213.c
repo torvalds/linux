@@ -750,10 +750,17 @@ static int da7213_dai_event(struct snd_soc_dapm_widget *w,
 		snd_soc_update_bits(codec, DA7213_PC_COUNT,
 				    DA7213_PC_FREERUN_MASK, 0);
 
-		/* Slave mode, if SRM not enabled no need for status checks */
+		/* If SRM not enabled then nothing more to do */
 		pll_ctrl = snd_soc_read(codec, DA7213_PLL_CTRL);
 		if (!(pll_ctrl & DA7213_PLL_SRM_EN))
 			return 0;
+
+		/* Assist 32KHz mode PLL lock */
+		if (pll_ctrl & DA7213_PLL_32K_MODE) {
+			snd_soc_write(codec, 0xF0, 0x8B);
+			snd_soc_write(codec, 0xF2, 0x03);
+			snd_soc_write(codec, 0xF0, 0x00);
+		}
 
 		/* Check SRM has locked */
 		do {
@@ -771,6 +778,14 @@ static int da7213_dai_event(struct snd_soc_dapm_widget *w,
 
 		return 0;
 	case SND_SOC_DAPM_POST_PMD:
+		/* Revert 32KHz PLL lock udpates if applied previously */
+		pll_ctrl = snd_soc_read(codec, DA7213_PLL_CTRL);
+		if (pll_ctrl & DA7213_PLL_32K_MODE) {
+			snd_soc_write(codec, 0xF0, 0x8B);
+			snd_soc_write(codec, 0xF2, 0x01);
+			snd_soc_write(codec, 0xF0, 0x00);
+		}
+
 		/* PC free-running */
 		snd_soc_update_bits(codec, DA7213_PC_COUNT,
 				    DA7213_PC_FREERUN_MASK,
@@ -1427,6 +1442,14 @@ static int da7213_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 	snd_soc_update_bits(codec, DA7213_PLL_CTRL,
 			    DA7213_PLL_INDIV_MASK | DA7213_PLL_MODE_MASK,
 			    pll_ctrl);
+
+	/* Assist 32KHz mode PLL lock */
+	if (source == DA7213_SYSCLK_PLL_32KHZ) {
+		snd_soc_write(codec, 0xF0, 0x8B);
+		snd_soc_write(codec, 0xF1, 0x03);
+		snd_soc_write(codec, 0xF1, 0x01);
+		snd_soc_write(codec, 0xF0, 0x00);
+	}
 
 	return 0;
 }
