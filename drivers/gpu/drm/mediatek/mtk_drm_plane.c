@@ -30,10 +30,9 @@ static const u32 formats[] = {
 	DRM_FORMAT_RGB565,
 };
 
-static void mtk_plane_enable(struct mtk_drm_plane *mtk_plane,
+static void mtk_plane_enable(struct drm_plane *plane,
 			     dma_addr_t addr)
 {
-	struct drm_plane *plane = &mtk_plane->base;
 	struct mtk_plane_state *state = to_mtk_plane_state(plane->state);
 	unsigned int pitch, format;
 	bool enable;
@@ -162,14 +161,13 @@ static void mtk_plane_atomic_update(struct drm_plane *plane,
 	struct drm_crtc *crtc = state->base.crtc;
 	struct drm_gem_object *gem;
 	struct mtk_drm_gem_obj *mtk_gem;
-	struct mtk_drm_plane *mtk_plane = to_mtk_plane(plane);
 
 	if (!crtc)
 		return;
 
 	gem = mtk_fb_get_gem_obj(state->base.fb);
 	mtk_gem = to_mtk_gem_obj(gem);
-	mtk_plane_enable(mtk_plane, mtk_gem->dma_addr);
+	mtk_plane_enable(plane, mtk_gem->dma_addr);
 }
 
 static void mtk_plane_atomic_disable(struct drm_plane *plane,
@@ -188,12 +186,12 @@ static const struct drm_plane_helper_funcs mtk_plane_helper_funcs = {
 	.atomic_disable = mtk_plane_atomic_disable,
 };
 
-int mtk_plane_init(struct drm_device *dev, struct mtk_drm_plane *mtk_plane,
+int mtk_plane_init(struct drm_device *dev, struct drm_plane *plane,
 		   unsigned long possible_crtcs, enum drm_plane_type type)
 {
 	int err;
 
-	err = drm_universal_plane_init(dev, &mtk_plane->base, possible_crtcs,
+	err = drm_universal_plane_init(dev, plane, possible_crtcs,
 				       &mtk_plane_funcs, formats,
 				       ARRAY_SIZE(formats), type, NULL);
 	if (err) {
@@ -201,7 +199,7 @@ int mtk_plane_init(struct drm_device *dev, struct mtk_drm_plane *mtk_plane,
 		return err;
 	}
 
-	drm_plane_helper_add(&mtk_plane->base, &mtk_plane_helper_funcs);
+	drm_plane_helper_add(plane, &mtk_plane_helper_funcs);
 
 	return 0;
 }
