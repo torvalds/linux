@@ -13,6 +13,7 @@ static void inet_diag_msg_sctpasoc_fill(struct inet_diag_msg *r,
 {
 	union sctp_addr laddr, paddr;
 	struct dst_entry *dst;
+	struct timer_list *t3_rtx = &asoc->peer.primary_path->T3_rtx_timer;
 
 	laddr = list_entry(asoc->base.bind_addr.address_list.next,
 			   struct sctp_sockaddr_entry, list)->a;
@@ -40,10 +41,15 @@ static void inet_diag_msg_sctpasoc_fill(struct inet_diag_msg *r,
 	}
 
 	r->idiag_state = asoc->state;
-	r->idiag_timer = SCTP_EVENT_TIMEOUT_T3_RTX;
-	r->idiag_retrans = asoc->rtx_data_chunks;
-	r->idiag_expires = jiffies_to_msecs(
-		asoc->timeouts[SCTP_EVENT_TIMEOUT_T3_RTX] - jiffies);
+	if (timer_pending(t3_rtx)) {
+		r->idiag_timer = SCTP_EVENT_TIMEOUT_T3_RTX;
+		r->idiag_retrans = asoc->rtx_data_chunks;
+		r->idiag_expires = jiffies_to_msecs(t3_rtx->expires - jiffies);
+	} else {
+		r->idiag_timer = 0;
+		r->idiag_retrans = 0;
+		r->idiag_expires = 0;
+	}
 }
 
 static int inet_diag_msg_sctpladdrs_fill(struct sk_buff *skb,
