@@ -299,7 +299,6 @@ hijack_init(void)
 			"      please use LKL_HIJACK_NET_IFTYPE and "
 			"LKL_HIJACK_NET_IFPARAMS instead.\n");
 		nd = lkl_netdev_tap_create(tap, offload);
-		nd_args.offload = offload;
 	}
 
 	if (!nd && iftype && ifparams) {
@@ -335,6 +334,7 @@ hijack_init(void)
 			nd_args.mac = NULL;
 		}
 
+		nd_args.offload = offload;
 		ret = lkl_netdev_add(nd, &nd_args);
 
 		if (ret < 0) {
