@@ -97,11 +97,11 @@ the following ``V4L2_YCBCR_ENC_601`` encoding:
 
 .. math::
 
-    Y' = 0.299R' + 0.587G' + 0.114B'
+    Y' = 0.2990R' + 0.5870G' + 0.1140B'
 
-    Cb = -0.169R' - 0.331G' + 0.5B'
+    Cb = -0.1687R' - 0.3313G' + 0.5B'
 
-    Cr = 0.5R' - 0.419G' - 0.081B'
+    Cr = 0.5R' - 0.4187G' - 0.0813B'
 
 Y' is clamped to the range [0…1] and Cb and Cr are clamped to the range
 [-0.5…0.5]. This conversion to Y'CbCr is identical to the one defined in
@@ -241,11 +241,11 @@ scaled and offset:
 
 .. math::
 
-    Y' = \frac{219}{256} * (0.299R' + 0.587G' + 0.114B') + \frac{16}{256}
+    Y' = \frac{219}{256} * (0.2990R' + 0.5870G' + 0.1140B') + \frac{16}{256}
 
-    Cb = \frac{224}{256} * (-0.169R' - 0.331G' + 0.5B')
+    Cb = \frac{224}{256} * (-0.1687R' - 0.3313G' + 0.5B')
 
-    Cr = \frac{224}{256} * (0.5R' - 0.419G' - 0.081B')
+    Cr = \frac{224}{256} * (0.5R' - 0.4187G' - 0.0813B')
 
 Y' is clamped to the range [0…1] and Cb and Cr are clamped to the range
 [-0.5…0.5]. The non-standard xvYCC 709 or xvYCC 601 encodings can be
@@ -440,11 +440,11 @@ the following ``V4L2_YCBCR_ENC_601`` encoding:
 
 .. math::
 
-    Y' = 0.299R' + 0.587G' + 0.114B'
+    Y' = 0.2990R' + 0.5870G' + 0.1140B'
 
-    Cb = -0.169R' - 0.331G' + 0.5B'
+    Cb = -0.1687R' - 0.3313G' + 0.5B'
 
-    Cr = 0.5R' - 0.419G' - 0.081B'
+    Cr = 0.5R' - 0.4187G' - 0.0813B'
 
 Y' is clamped to the range [0…1] and Cb and Cr are clamped to the range
 [-0.5…0.5]. This transform is identical to one defined in SMPTE
@@ -842,11 +842,11 @@ the following ``V4L2_YCBCR_ENC_601`` encoding:
 
 .. math::
 
-    Y' = 0.299R' + 0.587G' + 0.114B'
+    Y' = 0.2990R' + 0.5870G' + 0.1140B'
 
-    Cb = -0.169R' - 0.331G' + 0.5B'
+    Cb = -0.1687R' - 0.3313G' + 0.5B'
 
-    Cr = 0.5R' - 0.419G' - 0.081B'
+    Cr = 0.5R' - 0.4187G' - 0.0813B'
 
 Y' is clamped to the range [0…1] and Cb and Cr are clamped to the range
 [-0.5…0.5]. The Y'CbCr quantization is limited range. This transform is
@@ -940,11 +940,11 @@ the following ``V4L2_YCBCR_ENC_601`` encoding:
 
 .. math::
 
-    Y' = 0.299R' + 0.587G' + 0.114B'
+    Y' = 0.2990R' + 0.5870G' + 0.1140B'
 
-    Cb = -0.169R' - 0.331G' + 0.5B'
+    Cb = -0.1687R' - 0.3313G' + 0.5B'
 
-    Cr = 0.5R' - 0.419G' - 0.081B'
+    Cr = 0.5R' - 0.4187G' - 0.0813B'
 
 Y' is clamped to the range [0…1] and Cb and Cr are clamped to the range
 [-0.5…0.5]. The Y'CbCr quantization is limited range. This transform is
