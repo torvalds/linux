@@ -579,7 +579,7 @@ static int rproc_handle_carveout(struct rproc *rproc,
 		return -EINVAL;
 	}
 
-	dev_dbg(dev, "carveout rsc: da %x, pa %x, len %x, flags %x\n",
+	dev_dbg(dev, "carveout rsc: da %x, pa %x, len 0x%x, flags %x\n",
 			rsc->da, rsc->pa, rsc->len, rsc->flags);
 
 	carveout = kzalloc(sizeof(*carveout), GFP_KERNEL);
@@ -588,7 +588,8 @@ static int rproc_handle_carveout(struct rproc *rproc,
 
 	va = dma_alloc_coherent(dev->parent, rsc->len, &dma, GFP_KERNEL);
 	if (!va) {
-		dev_err(dev->parent, "dma_alloc_coherent err: %d\n", rsc->len);
+		dev_err(dev->parent,
+			"failed to allocate dma memory: len 0x%x\n", rsc->len);
 		ret = -ENOMEM;
 		goto free_carv;
 	}
