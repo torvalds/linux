@@ -70,9 +70,9 @@ static signed long i915_fence_wait(struct fence *fence,
 		timeout = NULL;
 	}
 
-	ret = __i915_wait_request(to_request(fence),
-				  interruptible, timeout,
-				  NO_WAITBOOST);
+	ret = i915_wait_request(to_request(fence),
+				interruptible, timeout,
+				NO_WAITBOOST);
 	if (ret == -ETIME)
 		return 0;
 
@@ -579,7 +579,7 @@ bool __i915_spin_request(const struct drm_i915_gem_request *req,
 }
 
 /**
- * __i915_wait_request - wait until execution of request has finished
+ * i915_wait_request - wait until execution of request has finished
  * @req: duh!
  * @interruptible: do an interruptible wait (normally yes)
  * @timeout: in - how long to wait (NULL forever); out - how much time remaining
@@ -595,10 +595,10 @@ bool __i915_spin_request(const struct drm_i915_gem_request *req,
  * Returns 0 if the request was found within the alloted time. Else returns the
  * errno with remaining time filled in timeout argument.
  */
-int __i915_wait_request(struct drm_i915_gem_request *req,
-			bool interruptible,
-			s64 *timeout,
-			struct intel_rps_client *rps)
+int i915_wait_request(struct drm_i915_gem_request *req,
+		      bool interruptible,
+		      s64 *timeout,
+		      struct intel_rps_client *rps)
 {
 	int state = interruptible ? TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE;
 	DEFINE_WAIT(reset);

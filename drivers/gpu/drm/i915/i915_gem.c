@@ -1420,7 +1420,7 @@ i915_gem_object_wait_rendering__nonblocking(struct drm_i915_gem_object *obj,
 	mutex_unlock(&dev->struct_mutex);
 	ret = 0;
 	for (i = 0; ret == 0 && i < n; i++)
-		ret = __i915_wait_request(requests[i], true, NULL, rps);
+		ret = i915_wait_request(requests[i], true, NULL, rps);
 	mutex_lock(&dev->struct_mutex);
 
 	for (i = 0; i < n; i++)
@@ -2726,9 +2726,9 @@ out:
 
 	for (i = 0; i < n; i++) {
 		if (ret == 0)
-			ret = __i915_wait_request(requests[i], true,
-						  args->timeout_ns > 0 ? &args->timeout_ns : NULL,
-						  to_rps_client(file));
+			ret = i915_wait_request(requests[i], true,
+						args->timeout_ns > 0 ? &args->timeout_ns : NULL,
+						to_rps_client(file));
 		i915_gem_request_put(requests[i]);
 	}
 	return ret;
@@ -2744,10 +2744,10 @@ __i915_gem_object_sync(struct drm_i915_gem_request *to,
 		return 0;
 
 	if (!i915.semaphores) {
-		ret = __i915_wait_request(from,
-					  from->i915->mm.interruptible,
-					  NULL,
-					  NO_WAITBOOST);
+		ret = i915_wait_request(from,
+					from->i915->mm.interruptible,
+					NULL,
+					NO_WAITBOOST);
 		if (ret)
 			return ret;
 	} else {
@@ -3712,7 +3712,7 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 	if (target == NULL)
 		return 0;
 
-	ret = __i915_wait_request(target, true, NULL, NULL);
+	ret = i915_wait_request(target, true, NULL, NULL);
 	i915_gem_request_put(target);
 
 	return ret;

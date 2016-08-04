@@ -83,7 +83,7 @@ static void wait_rendering(struct drm_i915_gem_object *obj)
 	mutex_unlock(&dev->struct_mutex);
 
 	for (i = 0; i < n; i++)
-		__i915_wait_request(requests[i], false, NULL, NULL);
+		i915_wait_request(requests[i], false, NULL, NULL);
 
 	mutex_lock(&dev->struct_mutex);
 

@@ -2240,9 +2240,9 @@ int intel_engine_idle(struct intel_engine_cs *engine)
 			 link);
 
 	/* Make sure we do not trigger any retires */
-	return __i915_wait_request(req,
-				   req->i915->mm.interruptible,
-				   NULL, NULL);
+	return i915_wait_request(req,
+				 req->i915->mm.interruptible,
+				 NULL, NULL);
 }
 
 int intel_ring_alloc_request_extras(struct drm_i915_gem_request *request)
@@ -2299,7 +2299,7 @@ static int wait_for_space(struct drm_i915_gem_request *req, int bytes)
 	if (WARN_ON(&target->ring_link == &ring->request_list))
 		return -ENOSPC;
 
-	ret = __i915_wait_request(target, true, NULL, NO_WAITBOOST);
+	ret = i915_wait_request(target, true, NULL, NO_WAITBOOST);
 	if (ret)
 		return ret;
 
