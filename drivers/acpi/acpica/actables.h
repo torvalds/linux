@@ -159,7 +159,8 @@ acpi_status
 acpi_tb_install_fixed_table(acpi_physical_address address,
 			    char *signature, u32 *table_index);
 
-acpi_status acpi_tb_parse_root_table(acpi_physical_address rsdp_address);
+acpi_status ACPI_INIT_FUNCTION
+acpi_tb_parse_root_table(acpi_physical_address rsdp_address);
 
 /*
  * tbxfload

@@ -416,18 +416,19 @@ ACPI_GLOBAL(u8, acpi_gbl_system_awake_and_running);
 /*
  * Initialization
  */
-ACPI_EXTERNAL_RETURN_STATUS(acpi_status __init
+ACPI_EXTERNAL_RETURN_STATUS(acpi_status ACPI_INIT_FUNCTION
 			    acpi_initialize_tables(struct acpi_table_desc
 						   *initial_storage,
 						   u32 initial_table_count,
 						   u8 allow_resize))
-ACPI_EXTERNAL_RETURN_STATUS(acpi_status __init acpi_initialize_subsystem(void))
-
-ACPI_EXTERNAL_RETURN_STATUS(acpi_status __init acpi_enable_subsystem(u32 flags))
-
-ACPI_EXTERNAL_RETURN_STATUS(acpi_status __init
-			    acpi_initialize_objects(u32 flags))
-ACPI_EXTERNAL_RETURN_STATUS(acpi_status __init acpi_terminate(void))
+ACPI_EXTERNAL_RETURN_STATUS(acpi_status ACPI_INIT_FUNCTION
+			     acpi_initialize_subsystem(void))
+ACPI_EXTERNAL_RETURN_STATUS(acpi_status ACPI_INIT_FUNCTION
+			     acpi_enable_subsystem(u32 flags))
+ACPI_EXTERNAL_RETURN_STATUS(acpi_status ACPI_INIT_FUNCTION
+			     acpi_initialize_objects(u32 flags))
+ACPI_EXTERNAL_RETURN_STATUS(acpi_status ACPI_INIT_FUNCTION
+			     acpi_terminate(void))
 
 /*
  * Miscellaneous global interfaces
@@ -467,7 +468,7 @@ ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 /*
  * ACPI table load/unload interfaces
  */
-ACPI_EXTERNAL_RETURN_STATUS(acpi_status __init
+ACPI_EXTERNAL_RETURN_STATUS(acpi_status ACPI_INIT_FUNCTION
 			    acpi_install_table(acpi_physical_address address,
 					       u8 physical))
 
@@ -476,14 +477,17 @@ ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 
 ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 			    acpi_unload_parent_table(acpi_handle object))
-ACPI_EXTERNAL_RETURN_STATUS(acpi_status __init acpi_load_tables(void))
+
+ACPI_EXTERNAL_RETURN_STATUS(acpi_status ACPI_INIT_FUNCTION
+			    acpi_load_tables(void))
 
 /*
  * ACPI table manipulation interfaces
  */
-ACPI_EXTERNAL_RETURN_STATUS(acpi_status __init acpi_reallocate_root_table(void))
+ACPI_EXTERNAL_RETURN_STATUS(acpi_status ACPI_INIT_FUNCTION
+			    acpi_reallocate_root_table(void))
 
-ACPI_EXTERNAL_RETURN_STATUS(acpi_status __init
+ACPI_EXTERNAL_RETURN_STATUS(acpi_status ACPI_INIT_FUNCTION
 			    acpi_find_root_pointer(acpi_physical_address
 						   *rsdp_address))
 ACPI_EXTERNAL_RETURN_STATUS(acpi_status

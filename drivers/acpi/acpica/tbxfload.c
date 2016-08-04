@@ -63,7 +63,7 @@ ACPI_MODULE_NAME("tbxfload")
  * DESCRIPTION: Load the ACPI tables from the RSDT/XSDT
  *
  ******************************************************************************/
-acpi_status __init acpi_load_tables(void)
+acpi_status ACPI_INIT_FUNCTION acpi_load_tables(void)
 {
 	acpi_status status;
 
@@ -272,7 +272,7 @@ unlock_and_exit:
  *
  ******************************************************************************/
 
-acpi_status __init
+acpi_status ACPI_INIT_FUNCTION
 acpi_install_table(acpi_physical_address address, u8 physical)
 {
 	acpi_status status;

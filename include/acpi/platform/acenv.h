@@ -403,4 +403,8 @@ typedef char *va_list;
 #endif				/* ACPI_APPLICATION */
 #endif				/* ACPI_FILE */
 
+#ifndef ACPI_INIT_FUNCTION
+#define ACPI_INIT_FUNCTION
+#endif
+
 #endif				/* __ACENV_H__ */

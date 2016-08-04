@@ -92,6 +92,8 @@
 #include <asm/acenv.h>
 #endif
 
+#define ACPI_INIT_FUNCTION __init
+
 #ifndef CONFIG_ACPI
 
 /* External globals for __KERNEL__, stubs is needed */

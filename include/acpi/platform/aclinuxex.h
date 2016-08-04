@@ -71,7 +71,7 @@
 /*
  * Overrides for in-kernel ACPICA
  */
-acpi_status __init acpi_os_initialize(void);
+acpi_status ACPI_INIT_FUNCTION acpi_os_initialize(void);
 
 acpi_status acpi_os_terminate(void);
 
