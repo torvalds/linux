@@ -2746,35 +2746,6 @@ out_rearm:
 }
 
 /**
- * Ensures that an object will eventually get non-busy by flushing any required
- * write domains, emitting any outstanding lazy request and retiring and
- * completed requests.
- * @obj: object to flush
- */
-static int
-i915_gem_object_flush_active(struct drm_i915_gem_object *obj)
-{
-	int i;
-
-	if (!obj->active)
-		return 0;
-
-	for (i = 0; i < I915_NUM_ENGINES; i++) {
-		struct drm_i915_gem_request *req;
-
-		req = i915_gem_active_peek(&obj->last_read[i],
-					   &obj->base.dev->struct_mutex);
-		if (req == NULL)
-			continue;
-
-		if (i915_gem_request_completed(req))
-			i915_gem_object_retire__read(obj, i);
-	}
-
-	return 0;
-}
-
-/**
  * i915_gem_wait_ioctl - implements DRM_IOCTL_I915_GEM_WAIT
  * @dev: drm device pointer
  * @data: ioctl data blob
@@ -2820,23 +2791,8 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 		return -ENOENT;
 	}
 
-	/* Need to make sure the object gets inactive eventually. */
-	ret = i915_gem_object_flush_active(obj);
-	if (ret)
-		goto out;
-
 	if (!obj->active)
 		goto out;
-
-	/* Do this after OLR check to make sure we make forward progress polling
-	 * on this IOCTL with a timeout == 0 (like busy ioctl)
-	 */
-	if (args->timeout_ns == 0) {
-		ret = -ETIME;
-		goto out;
-	}
-
-	i915_gem_object_put(obj);
 
 	for (i = 0; i < I915_NUM_ENGINES; i++) {
 		struct drm_i915_gem_request *req;
@@ -2847,6 +2803,8 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 			requests[n++] = req;
 	}
 
+out:
+	i915_gem_object_put(obj);
 	mutex_unlock(&dev->struct_mutex);
 
 	for (i = 0; i < n; i++) {
@@ -2856,11 +2814,6 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 						  to_rps_client(file));
 		i915_gem_request_put(requests[i]);
 	}
-	return ret;
-
-out:
-	i915_gem_object_put(obj);
-	mutex_unlock(&dev->struct_mutex);
 	return ret;
 }
 
@@ -4032,13 +3985,8 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 
 	/* Count all active objects as busy, even if they are currently not used
 	 * by the gpu. Users of this interface expect objects to eventually
-	 * become non-busy without any further actions, therefore emit any
-	 * necessary flushes here.
+	 * become non-busy without any further actions.
 	 */
-	ret = i915_gem_object_flush_active(obj);
-	if (ret)
-		goto unref;
-
 	args->busy = 0;
 	if (obj->active) {
 		struct drm_i915_gem_request *req;
@@ -4056,7 +4004,6 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 			args->busy |= req->engine->exec_id;
 	}
 
-unref:
 	i915_gem_object_put(obj);
 unlock:
 	mutex_unlock(&dev->struct_mutex);
