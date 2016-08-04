@@ -1143,9 +1143,20 @@ static int omap_sham_final_shash(struct ahash_request *req)
 {
 	struct omap_sham_ctx *tctx = crypto_tfm_ctx(req->base.tfm);
 	struct omap_sham_reqctx *ctx = ahash_request_ctx(req);
+	int offset = 0;
+
+	/*
+	 * If we are running HMAC on limited hardware support, skip
+	 * the ipad in the beginning of the buffer if we are going for
+	 * software fallback algorithm.
+	 */
+	if (test_bit(FLAGS_HMAC, &ctx->flags) &&
+	    !test_bit(FLAGS_AUTO_XOR, &ctx->dd->flags))
+		offset = get_block_size(ctx);
 
 	return omap_sham_shash_digest(tctx->fallback, req->base.flags,
-				      ctx->buffer, ctx->bufcnt, req->result);
+				      ctx->buffer + offset,
+				      ctx->bufcnt - offset, req->result);
 }
 
 static int omap_sham_final(struct ahash_request *req)
