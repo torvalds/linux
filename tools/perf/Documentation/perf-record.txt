@@ -192,6 +192,9 @@ OPTIONS
 --period::
 	Record the sample period.
 
+--sample-cpu::
+	Record the sample cpu.
+
 -n::
 --no-samples::
 	Don't sample.

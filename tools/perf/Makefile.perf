@@ -161,7 +161,7 @@ TRACE_EVENT_DIR = $(srctree)/tools/lib/traceevent/
 BPF_DIR		= $(srctree)/tools/lib/bpf/
 SUBCMD_DIR	= $(srctree)/tools/lib/subcmd/
 
-# include config/Makefile by default and rule out
+# include Makefile.config by default and rule out
 # non-config cases
 config := 1
 
@@ -183,7 +183,7 @@ ifeq ($(filter feature-dump,$(MAKECMDGOALS)),feature-dump)
 FEATURE_TESTS := all
 endif
 endif
-include config/Makefile
+include Makefile.config
 endif
 
 ifeq ($(config),0)
@@ -706,7 +706,7 @@ $(INSTALL_DOC_TARGETS):
 ### Cleaning rules
 
 #
-# This is here, not in config/Makefile, because config/Makefile does
+# This is here, not in Makefile.config, because Makefile.config does
 # not get included for the clean target:
 #
 config-clean:
