@@ -132,7 +132,7 @@ static int __btrfs_add_inode_defrag(struct inode *inode,
 
 static inline int __need_auto_defrag(struct btrfs_root *root)
 {
-	if (!btrfs_test_opt(root, AUTO_DEFRAG))
+	if (!btrfs_test_opt(root->fs_info, AUTO_DEFRAG))
 		return 0;
 
 	if (btrfs_fs_closing(root->fs_info))
@@ -950,7 +950,7 @@ delete_extent_item:
 			ret = btrfs_del_items(trans, root, path, del_slot,
 					      del_nr);
 			if (ret) {
-				btrfs_abort_transaction(trans, root, ret);
+				btrfs_abort_transaction(trans, ret);
 				break;
 			}
 
@@ -974,7 +974,7 @@ delete_extent_item:
 		path->slots[0] = del_slot;
 		ret = btrfs_del_items(trans, root, path, del_slot, del_nr);
 		if (ret)
-			btrfs_abort_transaction(trans, root, ret);
+			btrfs_abort_transaction(trans, ret);
 	}
 
 	leaf = path->nodes[0];
@@ -1190,7 +1190,7 @@ again:
 			goto again;
 		}
 		if (ret < 0) {
-			btrfs_abort_transaction(trans, root, ret);
+			btrfs_abort_transaction(trans, ret);
 			goto out;
 		}
 
@@ -1278,7 +1278,7 @@ again:
 
 		ret = btrfs_del_items(trans, root, path, del_slot, del_nr);
 		if (ret < 0) {
-			btrfs_abort_transaction(trans, root, ret);
+			btrfs_abort_transaction(trans, ret);
 			goto out;
 		}
 	}
@@ -2975,7 +2975,7 @@ int btrfs_auto_defrag_init(void)
 {
 	btrfs_inode_defrag_cachep = kmem_cache_create("btrfs_inode_defrag",
 					sizeof(struct inode_defrag), 0,
-					SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD,
+					SLAB_MEM_SPREAD,
 					NULL);
 	if (!btrfs_inode_defrag_cachep)
 		return -ENOMEM;
