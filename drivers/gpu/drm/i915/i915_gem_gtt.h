@@ -609,6 +609,20 @@ i915_ggtt_view_equal(const struct i915_ggtt_view *a,
 	return true;
 }
 
+int __must_check
+i915_vma_pin(struct i915_vma *vma, u64 size, u64 alignment, u64 flags);
+/* Flags used by pin/bind&friends. */
+#define PIN_MAPPABLE		BIT(0)
+#define PIN_NONBLOCK		BIT(1)
+#define PIN_GLOBAL		BIT(2)
+#define PIN_OFFSET_BIAS		BIT(3)
+#define PIN_USER		BIT(4)
+#define PIN_UPDATE		BIT(5)
+#define PIN_ZONE_4G		BIT(6)
+#define PIN_HIGH		BIT(7)
+#define PIN_OFFSET_FIXED	BIT(8)
+#define PIN_OFFSET_MASK		(~4095)
+
 static inline int i915_vma_pin_count(const struct i915_vma *vma)
 {
 	return vma->pin_count;

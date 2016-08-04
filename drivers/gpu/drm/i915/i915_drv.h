@@ -3018,23 +3018,6 @@ struct drm_i915_gem_object *i915_gem_object_create_from_data(
 void i915_gem_close_object(struct drm_gem_object *gem, struct drm_file *file);
 void i915_gem_free_object(struct drm_gem_object *obj);
 
-/* Flags used by pin/bind&friends. */
-#define PIN_MAPPABLE	(1<<0)
-#define PIN_NONBLOCK	(1<<1)
-#define PIN_GLOBAL	(1<<2)
-#define PIN_OFFSET_BIAS	(1<<3)
-#define PIN_USER	(1<<4)
-#define PIN_UPDATE	(1<<5)
-#define PIN_ZONE_4G	(1<<6)
-#define PIN_HIGH	(1<<7)
-#define PIN_OFFSET_FIXED	(1<<8)
-#define PIN_OFFSET_MASK (~4095)
-int __must_check
-i915_gem_object_pin(struct drm_i915_gem_object *obj,
-		    struct i915_address_space *vm,
-		    u64 size,
-		    u64 alignment,
-		    u64 flags);
 int __must_check
 i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 			 const struct i915_ggtt_view *view,
@@ -3311,11 +3294,8 @@ i915_gem_obj_ggtt_pin(struct drm_i915_gem_object *obj,
 		      uint32_t alignment,
 		      unsigned flags)
 {
-	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
-
-	return i915_gem_object_pin(obj, &ggtt->base, 0, alignment,
-				   flags | PIN_GLOBAL);
+	return i915_gem_object_ggtt_pin(obj, &i915_ggtt_view_normal,
+					0, alignment, flags);
 }
 
 void i915_gem_object_ggtt_unpin_view(struct drm_i915_gem_object *obj,

@@ -2963,34 +2963,30 @@ static bool i915_gem_valid_gtt_space(struct i915_vma *vma,
 }
 
 /**
- * Finds free space in the GTT aperture and binds the object or a view of it
- * there.
- * @obj: object to bind
- * @vm: address space to bind into
- * @ggtt_view: global gtt view if applicable
+ * i915_vma_insert - finds a slot for the vma in its address space
+ * @vma: the vma
  * @size: requested size in bytes (can be larger than the VMA)
- * @alignment: requested alignment
+ * @alignment: required alignment
  * @flags: mask of PIN_* flags to use
+ *
+ * First we try to allocate some free space that meets the requirements for
+ * the VMA. Failiing that, if the flags permit, it will evict an old VMA,
+ * preferrably the oldest idle entry to make room for the new VMA.
+ *
+ * Returns:
+ * 0 on success, negative error code otherwise.
  */
-static struct i915_vma *
-i915_gem_object_insert_into_vm(struct drm_i915_gem_object *obj,
-			       struct i915_address_space *vm,
-			       const struct i915_ggtt_view *ggtt_view,
-			       u64 size,
-			       u64 alignment,
-			       u64 flags)
+static int
+i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 {
-	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
-	struct i915_vma *vma;
+	struct drm_i915_private *dev_priv = to_i915(vma->vm->dev);
+	struct drm_i915_gem_object *obj = vma->obj;
 	u64 start, end;
 	u64 min_alignment;
 	int ret;
 
-	vma = ggtt_view ?
-		i915_gem_obj_lookup_or_create_ggtt_vma(obj, ggtt_view) :
-		i915_gem_obj_lookup_or_create_vma(obj, vm);
-	if (IS_ERR(vma))
-		return vma;
+	GEM_BUG_ON(vma->bound);
+	GEM_BUG_ON(drm_mm_node_allocated(&vma->node));
 
 	size = max(size, vma->size);
 	if (flags & PIN_MAPPABLE)
@@ -3004,7 +3000,7 @@ i915_gem_object_insert_into_vm(struct drm_i915_gem_object *obj,
 	if (alignment & (min_alignment - 1)) {
 		DRM_DEBUG("Invalid object alignment requested %llu, minimum %llu\n",
 			  alignment, min_alignment);
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 	}
 
 	start = flags & PIN_OFFSET_BIAS ? flags & PIN_OFFSET_MASK : 0;
@@ -3024,17 +3020,17 @@ i915_gem_object_insert_into_vm(struct drm_i915_gem_object *obj,
 			  size, obj->base.size,
 			  flags & PIN_MAPPABLE ? "mappable" : "total",
 			  end);
-		return ERR_PTR(-E2BIG);
+		return -E2BIG;
 	}
 
 	ret = i915_gem_object_get_pages(obj);
 	if (ret)
-		return ERR_PTR(ret);
+		return ret;
 
 	i915_gem_object_pin_pages(obj);
 
 	if (flags & PIN_OFFSET_FIXED) {
-		uint64_t offset = flags & PIN_OFFSET_MASK;
+		u64 offset = flags & PIN_OFFSET_MASK;
 		if (offset & (alignment - 1) || offset > end - size) {
 			ret = -EINVAL;
 			goto err_unpin;
@@ -3096,11 +3092,11 @@ search_free:
 	list_move_tail(&vma->vm_link, &vma->vm->inactive_list);
 	obj->bind_count++;
 
-	return vma;
+	return 0;
 
 err_unpin:
 	i915_gem_object_unpin_pages(obj);
-	return ERR_PTR(ret);
+	return ret;
 }
 
 bool
@@ -3661,6 +3657,9 @@ i915_vma_misplaced(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 {
 	struct drm_i915_gem_object *obj = vma->obj;
 
+	if (!drm_mm_node_allocated(&vma->node))
+		return false;
+
 	if (vma->node.size < size)
 		return true;
 
@@ -3705,91 +3704,42 @@ void __i915_vma_set_map_and_fenceable(struct i915_vma *vma)
 	obj->map_and_fenceable = mappable && fenceable;
 }
 
-static int
-i915_gem_object_do_pin(struct drm_i915_gem_object *obj,
-		       struct i915_address_space *vm,
-		       const struct i915_ggtt_view *ggtt_view,
-		       u64 size,
-		       u64 alignment,
-		       u64 flags)
+int
+i915_vma_pin(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 {
-	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
-	struct i915_vma *vma;
-	unsigned bound;
+	unsigned int bound = vma->bound;
 	int ret;
 
-	if (WARN_ON(vm == &dev_priv->mm.aliasing_ppgtt->base))
-		return -ENODEV;
+	GEM_BUG_ON((flags & (PIN_GLOBAL | PIN_USER)) == 0);
+	GEM_BUG_ON((flags & PIN_GLOBAL) && !vma->is_ggtt);
 
-	if (WARN_ON(flags & (PIN_GLOBAL | PIN_MAPPABLE) && !i915_is_ggtt(vm)))
-		return -EINVAL;
+	if (WARN_ON(i915_vma_pin_count(vma) == DRM_I915_GEM_OBJECT_MAX_PIN_COUNT))
+		return -EBUSY;
 
-	if (WARN_ON((flags & (PIN_MAPPABLE | PIN_GLOBAL)) == PIN_MAPPABLE))
-		return -EINVAL;
+	/* Pin early to prevent the shrinker/eviction logic from destroying
+	 * our vma as we insert and bind.
+	 */
+	__i915_vma_pin(vma);
 
-	if (WARN_ON(i915_is_ggtt(vm) != !!ggtt_view))
-		return -EINVAL;
-
-	vma = ggtt_view ? i915_gem_obj_to_ggtt_view(obj, ggtt_view) :
-			  i915_gem_obj_to_vma(obj, vm);
-
-	if (vma) {
-		if (WARN_ON(i915_vma_pin_count(vma) == DRM_I915_GEM_OBJECT_MAX_PIN_COUNT))
-			return -EBUSY;
-
-		if (i915_vma_misplaced(vma, size, alignment, flags)) {
-			WARN(i915_vma_is_pinned(vma),
-			     "bo is already pinned in %s with incorrect alignment:"
-			     " offset=%08x %08x, req.alignment=%llx, req.map_and_fenceable=%d,"
-			     " obj->map_and_fenceable=%d\n",
-			     ggtt_view ? "ggtt" : "ppgtt",
-			     upper_32_bits(vma->node.start),
-			     lower_32_bits(vma->node.start),
-			     alignment,
-			     !!(flags & PIN_MAPPABLE),
-			     obj->map_and_fenceable);
-			ret = i915_vma_unbind(vma);
-			if (ret)
-				return ret;
-
-			vma = NULL;
-		}
+	if (!bound) {
+		ret = i915_vma_insert(vma, size, alignment, flags);
+		if (ret)
+			goto err;
 	}
 
-	if (vma == NULL || !drm_mm_node_allocated(&vma->node)) {
-		vma = i915_gem_object_insert_into_vm(obj, vm, ggtt_view,
-						     size, alignment, flags);
-		if (IS_ERR(vma))
-			return PTR_ERR(vma);
-	}
-
-	bound = vma->bound;
-	ret = i915_vma_bind(vma, obj->cache_level, flags);
+	ret = i915_vma_bind(vma, vma->obj->cache_level, flags);
 	if (ret)
-		return ret;
+		goto err;
 
-	if (ggtt_view && ggtt_view->type == I915_GGTT_VIEW_NORMAL &&
-	    (bound ^ vma->bound) & GLOBAL_BIND) {
+	if ((bound ^ vma->bound) & GLOBAL_BIND)
 		__i915_vma_set_map_and_fenceable(vma);
-		WARN_ON(flags & PIN_MAPPABLE && !obj->map_and_fenceable);
-	}
 
 	GEM_BUG_ON(i915_vma_misplaced(vma, size, alignment, flags));
-
-	__i915_vma_pin(vma);
 	return 0;
-}
 
-int
-i915_gem_object_pin(struct drm_i915_gem_object *obj,
-		    struct i915_address_space *vm,
-		    u64 size,
-		    u64 alignment,
-		    u64 flags)
-{
-	return i915_gem_object_do_pin(obj, vm,
-				      i915_is_ggtt(vm) ? &i915_ggtt_view_normal : NULL,
-				      size, alignment, flags);
+err:
+	__i915_vma_unpin(vma);
+	return ret;
 }
 
 int
@@ -3799,14 +3749,35 @@ i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 			 u64 alignment,
 			 u64 flags)
 {
-	struct drm_device *dev = obj->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
+	struct i915_vma *vma;
+	int ret;
 
 	BUG_ON(!view);
 
-	return i915_gem_object_do_pin(obj, &ggtt->base, view,
-				      size, alignment, flags | PIN_GLOBAL);
+	vma = i915_gem_obj_lookup_or_create_ggtt_vma(obj, view);
+	if (IS_ERR(vma))
+		return PTR_ERR(vma);
+
+	if (i915_vma_misplaced(vma, size, alignment, flags)) {
+		if (flags & PIN_NONBLOCK &&
+		    (i915_vma_is_pinned(vma) || i915_vma_is_active(vma)))
+			return -ENOSPC;
+
+		WARN(i915_vma_is_pinned(vma),
+		     "bo is already pinned in ggtt with incorrect alignment:"
+		     " offset=%08x %08x, req.alignment=%llx, req.map_and_fenceable=%d,"
+		     " obj->map_and_fenceable=%d\n",
+		     upper_32_bits(vma->node.start),
+		     lower_32_bits(vma->node.start),
+		     alignment,
+		     !!(flags & PIN_MAPPABLE),
+		     obj->map_and_fenceable);
+		ret = i915_vma_unbind(vma);
+		if (ret)
+			return ret;
+	}
+
+	return i915_vma_pin(vma, size, alignment, flags | PIN_GLOBAL);
 }
 
 void

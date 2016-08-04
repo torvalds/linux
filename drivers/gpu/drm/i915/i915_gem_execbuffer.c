@@ -45,11 +45,10 @@
 struct i915_execbuffer_params {
 	struct drm_device               *dev;
 	struct drm_file                 *file;
-	u32				 dispatch_flags;
-	u32				 args_batch_start_offset;
-	u32				 batch_obj_vm_offset;
+	struct i915_vma			*batch;
+	u32				dispatch_flags;
+	u32				args_batch_start_offset;
 	struct intel_engine_cs          *engine;
-	struct drm_i915_gem_object      *batch_obj;
 	struct i915_gem_context         *ctx;
 	struct drm_i915_gem_request     *request;
 };
@@ -100,6 +99,26 @@ eb_reset(struct eb_vmas *eb)
 {
 	if (eb->and >= 0)
 		memset(eb->buckets, 0, (eb->and+1)*sizeof(struct hlist_head));
+}
+
+static struct i915_vma *
+eb_get_batch(struct eb_vmas *eb)
+{
+	struct i915_vma *vma = list_entry(eb->vmas.prev, typeof(*vma), exec_list);
+
+	/*
+	 * SNA is doing fancy tricks with compressing batch buffers, which leads
+	 * to negative relocation deltas. Usually that works out ok since the
+	 * relocate address is still positive, except when the batch is placed
+	 * very low in the GTT. Ensure this doesn't happen.
+	 *
+	 * Note that actual hangs have only been observed on gen7, but for
+	 * paranoia do it everywhere.
+	 */
+	if ((vma->exec_entry->flags & EXEC_OBJECT_PINNED) == 0)
+		vma->exec_entry->flags |= __EXEC_OBJECT_NEEDS_BIAS;
+
+	return vma;
 }
 
 static int
@@ -196,35 +215,6 @@ err:
 	 */
 
 	return ret;
-}
-
-static inline struct i915_vma *
-eb_get_batch_vma(struct eb_vmas *eb)
-{
-	/* The batch is always the LAST item in the VMA list */
-	struct i915_vma *vma = list_last_entry(&eb->vmas, typeof(*vma), exec_list);
-
-	return vma;
-}
-
-static struct drm_i915_gem_object *
-eb_get_batch(struct eb_vmas *eb)
-{
-	struct i915_vma *vma = eb_get_batch_vma(eb);
-
-	/*
-	 * SNA is doing fancy tricks with compressing batch buffers, which leads
-	 * to negative relocation deltas. Usually that works out ok since the
-	 * relocate address is still positive, except when the batch is placed
-	 * very low in the GTT. Ensure this doesn't happen.
-	 *
-	 * Note that actual hangs have only been observed on gen7, but for
-	 * paranoia do it everywhere.
-	 */
-	if ((vma->exec_entry->flags & EXEC_OBJECT_PINNED) == 0)
-		vma->exec_entry->flags |= __EXEC_OBJECT_NEEDS_BIAS;
-
-	return vma->obj;
 }
 
 static struct i915_vma *eb_get_vma(struct eb_vmas *eb, unsigned long handle)
@@ -682,16 +672,16 @@ i915_gem_execbuffer_reserve_vma(struct i915_vma *vma,
 			flags |= PIN_HIGH;
 	}
 
-	ret = i915_gem_object_pin(obj, vma->vm,
-				  entry->pad_to_size,
-				  entry->alignment,
-				  flags);
-	if ((ret == -ENOSPC  || ret == -E2BIG) &&
+	ret = i915_vma_pin(vma,
+			   entry->pad_to_size,
+			   entry->alignment,
+			   flags);
+	if ((ret == -ENOSPC || ret == -E2BIG) &&
 	    only_mappable_for_reloc(entry->flags))
-		ret = i915_gem_object_pin(obj, vma->vm,
-					  entry->pad_to_size,
-					  entry->alignment,
-					  flags & ~PIN_MAPPABLE);
+		ret = i915_vma_pin(vma,
+				   entry->pad_to_size,
+				   entry->alignment,
+				   flags & ~PIN_MAPPABLE);
 	if (ret)
 		return ret;
 
@@ -1252,11 +1242,11 @@ i915_reset_gen7_sol_offsets(struct drm_i915_gem_request *req)
 	return 0;
 }
 
-static struct drm_i915_gem_object*
+static struct i915_vma*
 i915_gem_execbuffer_parse(struct intel_engine_cs *engine,
 			  struct drm_i915_gem_exec_object2 *shadow_exec_entry,
-			  struct eb_vmas *eb,
 			  struct drm_i915_gem_object *batch_obj,
+			  struct eb_vmas *eb,
 			  u32 batch_start_offset,
 			  u32 batch_len,
 			  bool is_master)
@@ -1268,7 +1258,7 @@ i915_gem_execbuffer_parse(struct intel_engine_cs *engine,
 	shadow_batch_obj = i915_gem_batch_pool_get(&engine->batch_pool,
 						   PAGE_ALIGN(batch_len));
 	if (IS_ERR(shadow_batch_obj))
-		return shadow_batch_obj;
+		return ERR_CAST(shadow_batch_obj);
 
 	ret = intel_engine_cmd_parser(engine,
 				      batch_obj,
@@ -1293,14 +1283,12 @@ i915_gem_execbuffer_parse(struct intel_engine_cs *engine,
 	i915_gem_object_get(shadow_batch_obj);
 	list_add_tail(&vma->exec_list, &eb->vmas);
 
-	shadow_batch_obj->base.pending_read_domains = I915_GEM_DOMAIN_COMMAND;
-
-	return shadow_batch_obj;
+	return vma;
 
 err:
 	i915_gem_object_unpin_pages(shadow_batch_obj);
 	if (ret == -EACCES) /* unhandled chained batch */
-		return batch_obj;
+		return NULL;
 	else
 		return ERR_PTR(ret);
 }
@@ -1381,11 +1369,11 @@ execbuf_submit(struct i915_execbuffer_params *params,
 	}
 
 	exec_len   = args->batch_len;
-	exec_start = params->batch_obj_vm_offset +
+	exec_start = params->batch->node.start +
 		     params->args_batch_start_offset;
 
 	if (exec_len == 0)
-		exec_len = params->batch_obj->base.size;
+		exec_len = params->batch->size;
 
 	ret = params->engine->emit_bb_start(params->request,
 					    exec_start, exec_len,
@@ -1489,7 +1477,6 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	struct eb_vmas *eb;
-	struct drm_i915_gem_object *batch_obj;
 	struct drm_i915_gem_exec_object2 shadow_exec_entry;
 	struct intel_engine_cs *engine;
 	struct i915_gem_context *ctx;
@@ -1583,7 +1570,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		goto err;
 
 	/* take note of the batch buffer before we might reorder the lists */
-	batch_obj = eb_get_batch(eb);
+	params->batch = eb_get_batch(eb);
 
 	/* Move the objects en-masse into the GTT, evicting if necessary. */
 	need_relocs = (args->flags & I915_EXEC_NO_RELOC) == 0;
@@ -1607,7 +1594,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	}
 
 	/* Set the pending read domains for the batch buffer to COMMAND */
-	if (batch_obj->base.pending_write_domain) {
+	if (params->batch->obj->base.pending_write_domain) {
 		DRM_DEBUG("Attempting to use self-modifying batch buffer\n");
 		ret = -EINVAL;
 		goto err;
@@ -1615,26 +1602,20 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 
 	params->args_batch_start_offset = args->batch_start_offset;
 	if (intel_engine_needs_cmd_parser(engine) && args->batch_len) {
-		struct drm_i915_gem_object *parsed_batch_obj;
+		struct i915_vma *vma;
 
-		parsed_batch_obj = i915_gem_execbuffer_parse(engine,
-							     &shadow_exec_entry,
-							     eb,
-							     batch_obj,
-							     args->batch_start_offset,
-							     args->batch_len,
-							     drm_is_current_master(file));
-		if (IS_ERR(parsed_batch_obj)) {
-			ret = PTR_ERR(parsed_batch_obj);
+		vma = i915_gem_execbuffer_parse(engine, &shadow_exec_entry,
+						params->batch->obj,
+						eb,
+						args->batch_start_offset,
+						args->batch_len,
+						drm_is_current_master(file));
+		if (IS_ERR(vma)) {
+			ret = PTR_ERR(vma);
 			goto err;
 		}
 
-		/*
-		 * parsed_batch_obj == batch_obj means batch not fully parsed:
-		 * Accept, but don't promote to secure.
-		 */
-
-		if (parsed_batch_obj != batch_obj) {
+		if (vma) {
 			/*
 			 * Batch parsed and accepted:
 			 *
@@ -1646,16 +1627,18 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 			 */
 			dispatch_flags |= I915_DISPATCH_SECURE;
 			params->args_batch_start_offset = 0;
-			batch_obj = parsed_batch_obj;
+			params->batch = vma;
 		}
 	}
 
-	batch_obj->base.pending_read_domains |= I915_GEM_DOMAIN_COMMAND;
+	params->batch->obj->base.pending_read_domains |= I915_GEM_DOMAIN_COMMAND;
 
 	/* snb/ivb/vlv conflate the "batch in ppgtt" bit with the "non-secure
 	 * batch" bit. Hence we need to pin secure batches into the global gtt.
 	 * hsw should have this fixed, but bdw mucks it up again. */
 	if (dispatch_flags & I915_DISPATCH_SECURE) {
+		struct drm_i915_gem_object *obj = params->batch->obj;
+
 		/*
 		 * So on first glance it looks freaky that we pin the batch here
 		 * outside of the reservation loop. But:
@@ -1666,13 +1649,12 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		 *   fitting due to fragmentation.
 		 * So this is actually safe.
 		 */
-		ret = i915_gem_obj_ggtt_pin(batch_obj, 0, 0);
+		ret = i915_gem_obj_ggtt_pin(obj, 0, 0);
 		if (ret)
 			goto err;
 
-		params->batch_obj_vm_offset = i915_gem_obj_ggtt_offset(batch_obj);
-	} else
-		params->batch_obj_vm_offset = i915_gem_obj_offset(batch_obj, vm);
+		params->batch = i915_gem_obj_to_ggtt(obj);
+	}
 
 	/* Allocate a request for this batch buffer nice and early. */
 	params->request = i915_gem_request_alloc(engine, ctx);
@@ -1695,12 +1677,11 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	params->file                    = file;
 	params->engine                    = engine;
 	params->dispatch_flags          = dispatch_flags;
-	params->batch_obj               = batch_obj;
 	params->ctx                     = ctx;
 
 	ret = execbuf_submit(params, args, &eb->vmas);
 err_request:
-	__i915_add_request(params->request, params->batch_obj, ret == 0);
+	__i915_add_request(params->request, params->batch->obj, ret == 0);
 
 err_batch_unpin:
 	/*
@@ -1710,8 +1691,7 @@ err_batch_unpin:
 	 * active.
 	 */
 	if (dispatch_flags & I915_DISPATCH_SECURE)
-		i915_gem_object_ggtt_unpin(batch_obj);
-
+		i915_vma_unpin(params->batch);
 err:
 	/* the request owns the ref now */
 	i915_gem_context_put(ctx);

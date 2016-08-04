@@ -3665,13 +3665,10 @@ int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
 		return 0;
 
 	if (vma->bound == 0 && vma->vm->allocate_va_range) {
-		/* XXX: i915_vma_pin() will fix this +- hack */
-		__i915_vma_pin(vma);
 		trace_i915_va_alloc(vma);
 		ret = vma->vm->allocate_va_range(vma->vm,
 						 vma->node.start,
 						 vma->node.size);
-		__i915_vma_unpin(vma);
 		if (ret)
 			return ret;
 	}
