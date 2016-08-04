@@ -1004,7 +1004,7 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 
 	intel_sanitize_options(dev_priv);
 
-	ret = i915_ggtt_probe_hw(dev);
+	ret = i915_ggtt_probe_hw(dev_priv);
 	if (ret)
 		return ret;
 
@@ -1022,11 +1022,11 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 		goto out_ggtt;
 	}
 
-	ret = i915_ggtt_init_hw(dev);
+	ret = i915_ggtt_init_hw(dev_priv);
 	if (ret)
 		return ret;
 
-	ret = i915_ggtt_enable_hw(dev);
+	ret = i915_ggtt_enable_hw(dev_priv);
 	if (ret) {
 		DRM_ERROR("failed to enable GGTT\n");
 		goto out_ggtt;
@@ -1104,7 +1104,7 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 	return 0;
 
 out_ggtt:
-	i915_ggtt_cleanup_hw(dev);
+	i915_ggtt_cleanup_hw(dev_priv);
 
 	return ret;
 }
@@ -1124,7 +1124,7 @@ static void i915_driver_cleanup_hw(struct drm_i915_private *dev_priv)
 	pm_qos_remove_request(&dev_priv->pm_qos);
 	arch_phys_wc_del(ggtt->mtrr);
 	io_mapping_free(ggtt->mappable);
-	i915_ggtt_cleanup_hw(dev);
+	i915_ggtt_cleanup_hw(dev_priv);
 }
 
 /**
@@ -1570,7 +1570,7 @@ static int i915_drm_resume(struct drm_device *dev)
 
 	disable_rpm_wakeref_asserts(dev_priv);
 
-	ret = i915_ggtt_enable_hw(dev);
+	ret = i915_ggtt_enable_hw(dev_priv);
 	if (ret)
 		DRM_ERROR("failed to re-enable GGTT\n");
 

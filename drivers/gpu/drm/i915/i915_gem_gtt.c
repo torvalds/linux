@@ -2223,17 +2223,16 @@ void  i915_ppgtt_release(struct kref *kref)
 	kfree(ppgtt);
 }
 
-extern int intel_iommu_gfx_mapped;
 /* Certain Gen5 chipsets require require idling the GPU before
  * unmapping anything from the GTT when VT-d is enabled.
  */
-static bool needs_idle_maps(struct drm_device *dev)
+static bool needs_idle_maps(struct drm_i915_private *dev_priv)
 {
 #ifdef CONFIG_INTEL_IOMMU
 	/* Query intel_iommu to see if we need the workaround. Presumably that
 	 * was loaded first.
 	 */
-	if (IS_GEN5(dev) && IS_MOBILE(dev) && intel_iommu_gfx_mapped)
+	if (IS_GEN5(dev_priv) && IS_MOBILE(dev_priv) && intel_iommu_gfx_mapped)
 		return true;
 #endif
 	return false;
@@ -2746,7 +2745,7 @@ static void i915_gtt_color_adjust(struct drm_mm_node *node,
 		*end -= 4096;
 }
 
-static int i915_gem_setup_global_gtt(struct drm_device *dev,
+static int i915_gem_setup_global_gtt(struct drm_i915_private *dev_priv,
 				     u64 start,
 				     u64 mappable_end,
 				     u64 end)
@@ -2760,7 +2759,6 @@ static int i915_gem_setup_global_gtt(struct drm_device *dev,
 	 * aperture.  One page should be enough to keep any prefetching inside
 	 * of the aperture.
 	 */
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	struct drm_mm_node *entry;
 	struct drm_i915_gem_object *obj;
@@ -2781,7 +2779,7 @@ static int i915_gem_setup_global_gtt(struct drm_device *dev,
 	if (ret)
 		return ret;
 
-	if (!HAS_LLC(dev))
+	if (!HAS_LLC(dev_priv))
 		ggtt->base.mm.color_adjust = i915_gtt_color_adjust;
 
 	/* Mark any preallocated objects as occupied */
@@ -2813,14 +2811,14 @@ static int i915_gem_setup_global_gtt(struct drm_device *dev,
 	/* And finally clear the reserved guard page */
 	ggtt->base.clear_range(&ggtt->base, end - PAGE_SIZE, PAGE_SIZE, true);
 
-	if (USES_PPGTT(dev) && !USES_FULL_PPGTT(dev)) {
+	if (USES_PPGTT(dev_priv) && !USES_FULL_PPGTT(dev_priv)) {
 		struct i915_hw_ppgtt *ppgtt;
 
 		ppgtt = kzalloc(sizeof(*ppgtt), GFP_KERNEL);
 		if (!ppgtt)
 			return -ENOMEM;
 
-		ret = __hw_ppgtt_init(dev, ppgtt);
+		ret = __hw_ppgtt_init(&dev_priv->drm, ppgtt);
 		if (ret) {
 			ppgtt->base.cleanup(&ppgtt->base);
 			kfree(ppgtt);
@@ -2851,23 +2849,22 @@ static int i915_gem_setup_global_gtt(struct drm_device *dev,
 
 /**
  * i915_gem_init_ggtt - Initialize GEM for Global GTT
- * @dev: DRM device
+ * @dev_priv: i915 device
  */
-void i915_gem_init_ggtt(struct drm_device *dev)
+void i915_gem_init_ggtt(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 
-	i915_gem_setup_global_gtt(dev, 0, ggtt->mappable_end, ggtt->base.total);
+	i915_gem_setup_global_gtt(dev_priv,
+				  0, ggtt->mappable_end, ggtt->base.total);
 }
 
 /**
  * i915_ggtt_cleanup_hw - Clean up GGTT hardware initialization
- * @dev: DRM device
+ * @dev_priv: i915 device
  */
-void i915_ggtt_cleanup_hw(struct drm_device *dev)
+void i915_ggtt_cleanup_hw(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 
 	if (dev_priv->mm.aliasing_ppgtt) {
@@ -2876,7 +2873,7 @@ void i915_ggtt_cleanup_hw(struct drm_device *dev)
 		ppgtt->base.cleanup(&ppgtt->base);
 	}
 
-	i915_gem_cleanup_stolen(dev);
+	i915_gem_cleanup_stolen(&dev_priv->drm);
 
 	if (drm_mm_initialized(&ggtt->base.mm)) {
 		intel_vgt_deballoon(dev_priv);
@@ -2966,17 +2963,16 @@ static size_t gen9_get_stolen_size(u16 gen9_gmch_ctl)
 		return (gen9_gmch_ctl - 0xf0 + 1) << 22;
 }
 
-static int ggtt_probe_common(struct drm_device *dev,
-			     size_t gtt_size)
+static int ggtt_probe_common(struct drm_i915_private *dev_priv, size_t gtt_size)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
+	struct pci_dev *pdev = dev_priv->drm.pdev;
 	struct i915_page_scratch *scratch_page;
 	phys_addr_t ggtt_phys_addr;
 
 	/* For Modern GENs the PTEs and register space are split in the BAR */
-	ggtt_phys_addr = pci_resource_start(dev->pdev, 0) +
-			 (pci_resource_len(dev->pdev, 0) / 2);
+	ggtt_phys_addr = pci_resource_start(pdev, 0) +
+			 (pci_resource_len(pdev, 0) / 2);
 
 	/*
 	 * On BXT writes larger than 64 bit to the GTT pagetable range will be
@@ -2985,7 +2981,7 @@ static int ggtt_probe_common(struct drm_device *dev,
 	 * resort to an uncached mapping. The WC issue is easily caught by the
 	 * readback check when writing GTT PTE entries.
 	 */
-	if (IS_BROXTON(dev))
+	if (IS_BROXTON(dev_priv))
 		ggtt->gsm = ioremap_nocache(ggtt_phys_addr, gtt_size);
 	else
 		ggtt->gsm = ioremap_wc(ggtt_phys_addr, gtt_size);
@@ -2994,7 +2990,7 @@ static int ggtt_probe_common(struct drm_device *dev,
 		return -ENOMEM;
 	}
 
-	scratch_page = alloc_scratch_page(dev);
+	scratch_page = alloc_scratch_page(&dev_priv->drm);
 	if (IS_ERR(scratch_page)) {
 		DRM_ERROR("Scratch setup failed\n");
 		/* iounmap will also get called at remove, but meh */
@@ -3082,24 +3078,24 @@ static void chv_setup_private_ppat(struct drm_i915_private *dev_priv)
 
 static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 {
-	struct drm_device *dev = ggtt->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(ggtt->base.dev);
+	struct pci_dev *pdev = dev_priv->drm.pdev;
 	u16 snb_gmch_ctl;
 	int ret;
 
 	/* TODO: We're not aware of mappable constraints on gen8 yet */
-	ggtt->mappable_base = pci_resource_start(dev->pdev, 2);
-	ggtt->mappable_end = pci_resource_len(dev->pdev, 2);
+	ggtt->mappable_base = pci_resource_start(pdev, 2);
+	ggtt->mappable_end = pci_resource_len(pdev, 2);
 
-	if (!pci_set_dma_mask(dev->pdev, DMA_BIT_MASK(39)))
-		pci_set_consistent_dma_mask(dev->pdev, DMA_BIT_MASK(39));
+	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(39)))
+		pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(39));
 
-	pci_read_config_word(dev->pdev, SNB_GMCH_CTRL, &snb_gmch_ctl);
+	pci_read_config_word(pdev, SNB_GMCH_CTRL, &snb_gmch_ctl);
 
-	if (INTEL_INFO(dev)->gen >= 9) {
+	if (INTEL_GEN(dev_priv) >= 9) {
 		ggtt->stolen_size = gen9_get_stolen_size(snb_gmch_ctl);
 		ggtt->size = gen8_get_total_gtt_size(snb_gmch_ctl);
-	} else if (IS_CHERRYVIEW(dev)) {
+	} else if (IS_CHERRYVIEW(dev_priv)) {
 		ggtt->stolen_size = chv_get_stolen_size(snb_gmch_ctl);
 		ggtt->size = chv_get_total_gtt_size(snb_gmch_ctl);
 	} else {
@@ -3109,12 +3105,12 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 
 	ggtt->base.total = (ggtt->size / sizeof(gen8_pte_t)) << PAGE_SHIFT;
 
-	if (IS_CHERRYVIEW(dev) || IS_BROXTON(dev))
+	if (IS_CHERRYVIEW(dev_priv) || IS_BROXTON(dev_priv))
 		chv_setup_private_ppat(dev_priv);
 	else
 		bdw_setup_private_ppat(dev_priv);
 
-	ret = ggtt_probe_common(dev, ggtt->size);
+	ret = ggtt_probe_common(dev_priv, ggtt->size);
 
 	ggtt->base.bind_vma = ggtt_bind_vma;
 	ggtt->base.unbind_vma = ggtt_unbind_vma;
@@ -3132,12 +3128,13 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 
 static int gen6_gmch_probe(struct i915_ggtt *ggtt)
 {
-	struct drm_device *dev = ggtt->base.dev;
+	struct drm_i915_private *dev_priv = to_i915(ggtt->base.dev);
+	struct pci_dev *pdev = dev_priv->drm.pdev;
 	u16 snb_gmch_ctl;
 	int ret;
 
-	ggtt->mappable_base = pci_resource_start(dev->pdev, 2);
-	ggtt->mappable_end = pci_resource_len(dev->pdev, 2);
+	ggtt->mappable_base = pci_resource_start(pdev, 2);
+	ggtt->mappable_end = pci_resource_len(pdev, 2);
 
 	/* 64/512MB is the current min/max we actually know of, but this is just
 	 * a coarse sanity check.
@@ -3147,15 +3144,15 @@ static int gen6_gmch_probe(struct i915_ggtt *ggtt)
 		return -ENXIO;
 	}
 
-	if (!pci_set_dma_mask(dev->pdev, DMA_BIT_MASK(40)))
-		pci_set_consistent_dma_mask(dev->pdev, DMA_BIT_MASK(40));
-	pci_read_config_word(dev->pdev, SNB_GMCH_CTRL, &snb_gmch_ctl);
+	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(40)))
+		pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(40));
+	pci_read_config_word(pdev, SNB_GMCH_CTRL, &snb_gmch_ctl);
 
 	ggtt->stolen_size = gen6_get_stolen_size(snb_gmch_ctl);
 	ggtt->size = gen6_get_total_gtt_size(snb_gmch_ctl);
 	ggtt->base.total = (ggtt->size / sizeof(gen6_pte_t)) << PAGE_SHIFT;
 
-	ret = ggtt_probe_common(dev, ggtt->size);
+	ret = ggtt_probe_common(dev_priv, ggtt->size);
 
 	ggtt->base.clear_range = gen6_ggtt_clear_range;
 	ggtt->base.insert_page = gen6_ggtt_insert_page;
@@ -3176,8 +3173,7 @@ static void gen6_gmch_remove(struct i915_address_space *vm)
 
 static int i915_gmch_probe(struct i915_ggtt *ggtt)
 {
-	struct drm_device *dev = ggtt->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(ggtt->base.dev);
 	int ret;
 
 	ret = intel_gmch_probe(dev_priv->bridge_dev, dev_priv->drm.pdev, NULL);
@@ -3189,7 +3185,7 @@ static int i915_gmch_probe(struct i915_ggtt *ggtt)
 	intel_gtt_get(&ggtt->base.total, &ggtt->stolen_size,
 		      &ggtt->mappable_base, &ggtt->mappable_end);
 
-	ggtt->do_idle_maps = needs_idle_maps(&dev_priv->drm);
+	ggtt->do_idle_maps = needs_idle_maps(dev_priv);
 	ggtt->base.insert_page = i915_ggtt_insert_page;
 	ggtt->base.insert_entries = i915_ggtt_insert_entries;
 	ggtt->base.clear_range = i915_ggtt_clear_range;
@@ -3209,28 +3205,27 @@ static void i915_gmch_remove(struct i915_address_space *vm)
 
 /**
  * i915_ggtt_probe_hw - Probe GGTT hardware location
- * @dev: DRM device
+ * @dev_priv: i915 device
  */
-int i915_ggtt_probe_hw(struct drm_device *dev)
+int i915_ggtt_probe_hw(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	int ret;
 
-	if (INTEL_INFO(dev)->gen <= 5) {
+	if (INTEL_GEN(dev_priv) <= 5) {
 		ggtt->probe = i915_gmch_probe;
 		ggtt->base.cleanup = i915_gmch_remove;
-	} else if (INTEL_INFO(dev)->gen < 8) {
+	} else if (INTEL_GEN(dev_priv) < 8) {
 		ggtt->probe = gen6_gmch_probe;
 		ggtt->base.cleanup = gen6_gmch_remove;
 
-		if (HAS_EDRAM(dev))
+		if (HAS_EDRAM(dev_priv))
 			ggtt->base.pte_encode = iris_pte_encode;
-		else if (IS_HASWELL(dev))
+		else if (IS_HASWELL(dev_priv))
 			ggtt->base.pte_encode = hsw_pte_encode;
-		else if (IS_VALLEYVIEW(dev))
+		else if (IS_VALLEYVIEW(dev_priv))
 			ggtt->base.pte_encode = byt_pte_encode;
-		else if (INTEL_INFO(dev)->gen >= 7)
+		else if (INTEL_GEN(dev_priv) >= 7)
 			ggtt->base.pte_encode = ivb_pte_encode;
 		else
 			ggtt->base.pte_encode = snb_pte_encode;
@@ -3239,7 +3234,7 @@ int i915_ggtt_probe_hw(struct drm_device *dev)
 		ggtt->base.cleanup = gen6_gmch_remove;
 	}
 
-	ggtt->base.dev = dev;
+	ggtt->base.dev = &dev_priv->drm;
 	ggtt->base.is_ggtt = true;
 
 	ret = ggtt->probe(ggtt);
@@ -3269,11 +3264,10 @@ int i915_ggtt_probe_hw(struct drm_device *dev)
 
 /**
  * i915_ggtt_init_hw - Initialize GGTT hardware
- * @dev: DRM device
+ * @dev_priv: i915 device
  */
-int i915_ggtt_init_hw(struct drm_device *dev)
+int i915_ggtt_init_hw(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	int ret;
 
@@ -3281,7 +3275,7 @@ int i915_ggtt_init_hw(struct drm_device *dev)
 	 * Initialise stolen early so that we may reserve preallocated
 	 * objects for the BIOS to KMS transition.
 	 */
-	ret = i915_gem_init_stolen(dev);
+	ret = i915_gem_init_stolen(&dev_priv->drm);
 	if (ret)
 		goto out_gtt_cleanup;
 
@@ -3292,9 +3286,9 @@ out_gtt_cleanup:
 	return ret;
 }
 
-int i915_ggtt_enable_hw(struct drm_device *dev)
+int i915_ggtt_enable_hw(struct drm_i915_private *dev_priv)
 {
-	if (INTEL_INFO(dev)->gen < 6 && !intel_enable_gtt())
+	if (INTEL_GEN(dev_priv) < 6 && !intel_enable_gtt())
 		return -EIO;
 
 	return 0;
