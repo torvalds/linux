@@ -1154,7 +1154,13 @@ void i915_vma_move_to_active(struct i915_vma *vma,
 
 	obj->dirty = 1; /* be paranoid  */
 
-	/* Add a reference if we're newly entering the active list. */
+	/* Add a reference if we're newly entering the active list.
+	 * The order in which we add operations to the retirement queue is
+	 * vital here: mark_active adds to the start of the callback list,
+	 * such that subsequent callbacks are called first. Therefore we
+	 * add the active reference first and queue for it to be dropped
+	 * *last*.
+	 */
 	if (obj->active == 0)
 		i915_gem_object_get(obj);
 	obj->active |= 1 << idx;
@@ -1179,6 +1185,8 @@ void i915_vma_move_to_active(struct i915_vma *vma,
 		}
 	}
 
+	i915_vma_set_active(vma, idx);
+	i915_gem_active_set(&vma->last_read[idx], req);
 	list_move_tail(&vma->vm_link, &vma->vm->active_list);
 }
 

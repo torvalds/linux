@@ -365,7 +365,7 @@ static int per_file_stats(int id, void *ptr, void *data)
 				continue;
 		}
 
-		if (obj->active) /* XXX per-vma statistic */
+		if (i915_vma_is_active(vma))
 			stats->active += vma->node.size;
 		else
 			stats->inactive += vma->node.size;

@@ -36,6 +36,8 @@
 
 #include <linux/io-mapping.h>
 
+#include "i915_gem_request.h"
+
 struct drm_i915_file_private;
 
 typedef uint32_t gen6_pte_t;
@@ -179,6 +181,9 @@ struct i915_vma {
 	struct i915_address_space *vm;
 	void __iomem *iomap;
 
+	unsigned int active;
+	struct i915_gem_active last_read[I915_NUM_ENGINES];
+
 	/** Flags and address space this VMA is bound to */
 #define GLOBAL_BIND	(1<<0)
 #define LOCAL_BIND	(1<<1)
@@ -221,6 +226,34 @@ struct i915_vma {
 	unsigned int pin_count:4;
 #define DRM_I915_GEM_OBJECT_MAX_PIN_COUNT 0xf
 };
+
+static inline unsigned int i915_vma_get_active(const struct i915_vma *vma)
+{
+	return vma->active;
+}
+
+static inline bool i915_vma_is_active(const struct i915_vma *vma)
+{
+	return i915_vma_get_active(vma);
+}
+
+static inline void i915_vma_set_active(struct i915_vma *vma,
+				       unsigned int engine)
+{
+	vma->active |= BIT(engine);
+}
+
+static inline void i915_vma_clear_active(struct i915_vma *vma,
+					 unsigned int engine)
+{
+	vma->active &= ~BIT(engine);
+}
+
+static inline bool i915_vma_has_active_engine(const struct i915_vma *vma,
+					      unsigned int engine)
+{
+	return vma->active & BIT(engine);
+}
 
 struct i915_page_dma {
 	struct page *page;

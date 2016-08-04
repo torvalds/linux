@@ -3327,12 +3327,30 @@ void i915_gem_restore_gtt_mappings(struct drm_device *dev)
 	i915_ggtt_flush(dev_priv);
 }
 
+static void
+i915_vma_retire(struct i915_gem_active *active,
+		struct drm_i915_gem_request *rq)
+{
+	const unsigned int idx = rq->engine->id;
+	struct i915_vma *vma =
+		container_of(active, struct i915_vma, last_read[idx]);
+
+	GEM_BUG_ON(!i915_vma_has_active_engine(vma, idx));
+
+	i915_vma_clear_active(vma, idx);
+	if (i915_vma_is_active(vma))
+		return;
+
+	list_move_tail(&vma->vm_link, &vma->vm->inactive_list);
+}
+
 static struct i915_vma *
 __i915_gem_vma_create(struct drm_i915_gem_object *obj,
 		      struct i915_address_space *vm,
 		      const struct i915_ggtt_view *ggtt_view)
 {
 	struct i915_vma *vma;
+	int i;
 
 	if (WARN_ON(i915_is_ggtt(vm) != !!ggtt_view))
 		return ERR_PTR(-EINVAL);
@@ -3344,6 +3362,8 @@ __i915_gem_vma_create(struct drm_i915_gem_object *obj,
 	INIT_LIST_HEAD(&vma->vm_link);
 	INIT_LIST_HEAD(&vma->obj_link);
 	INIT_LIST_HEAD(&vma->exec_list);
+	for (i = 0; i < ARRAY_SIZE(vma->last_read); i++)
+		init_request_active(&vma->last_read[i], i915_vma_retire);
 	vma->vm = vm;
 	vma->obj = obj;
 	vma->is_ggtt = i915_is_ggtt(vm);

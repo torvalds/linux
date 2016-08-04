@@ -2347,7 +2347,6 @@ i915_gem_object_retire__read(struct i915_gem_active *active,
 	int idx = request->engine->id;
 	struct drm_i915_gem_object *obj =
 		container_of(active, struct drm_i915_gem_object, last_read[idx]);
-	struct i915_vma *vma;
 
 	GEM_BUG_ON((obj->active & (1 << idx)) == 0);
 
@@ -2359,12 +2358,9 @@ i915_gem_object_retire__read(struct i915_gem_active *active,
 	 * so that we don't steal from recently used but inactive objects
 	 * (unless we are forced to ofc!)
 	 */
-	list_move_tail(&obj->global_list, &request->i915->mm.bound_list);
-
-	list_for_each_entry(vma, &obj->vma_list, obj_link) {
-		if (!list_empty(&vma->vm_link))
-			list_move_tail(&vma->vm_link, &vma->vm->inactive_list);
-	}
+	if (obj->bind_count)
+		list_move_tail(&obj->global_list,
+			       &request->i915->mm.bound_list);
 
 	i915_gem_object_put(obj);
 }
@@ -2797,7 +2793,28 @@ static void __i915_vma_iounmap(struct i915_vma *vma)
 static int __i915_vma_unbind(struct i915_vma *vma, bool wait)
 {
 	struct drm_i915_gem_object *obj = vma->obj;
+	unsigned long active;
 	int ret;
+
+	/* First wait upon any activity as retiring the request may
+	 * have side-effects such as unpinning or even unbinding this vma.
+	 */
+	active = i915_vma_get_active(vma);
+	if (active && wait) {
+		int idx;
+
+		for_each_active(active, idx) {
+			ret = i915_gem_active_retire(&vma->last_read[idx],
+						   &vma->vm->dev->struct_mutex);
+			if (ret)
+				return ret;
+		}
+
+		GEM_BUG_ON(i915_vma_is_active(vma));
+	}
+
+	if (vma->pin_count)
+		return -EBUSY;
 
 	if (list_empty(&vma->obj_link))
 		return 0;
@@ -2807,17 +2824,8 @@ static int __i915_vma_unbind(struct i915_vma *vma, bool wait)
 		return 0;
 	}
 
-	if (vma->pin_count)
-		return -EBUSY;
-
 	GEM_BUG_ON(obj->bind_count == 0);
 	GEM_BUG_ON(!obj->pages);
-
-	if (wait) {
-		ret = i915_gem_object_wait_rendering(obj, false);
-		if (ret)
-			return ret;
-	}
 
 	if (vma->is_ggtt && vma->ggtt_view.type == I915_GGTT_VIEW_NORMAL) {
 		i915_gem_object_finish_gtt(obj);
@@ -3201,9 +3209,6 @@ i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *obj)
 int
 i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 {
-	struct drm_device *dev = obj->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	uint32_t old_write_domain, old_read_domains;
 	struct i915_vma *vma;
 	int ret;
@@ -3256,9 +3261,10 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 
 	/* And bump the LRU for this access */
 	vma = i915_gem_obj_to_ggtt(obj);
-	if (vma && drm_mm_node_allocated(&vma->node) && !obj->active)
-		list_move_tail(&vma->vm_link,
-			       &ggtt->base.inactive_list);
+	if (vma &&
+	    drm_mm_node_allocated(&vma->node) &&
+	    !i915_vma_is_active(vma))
+		list_move_tail(&vma->vm_link, &vma->vm->inactive_list);
 
 	return 0;
 }
