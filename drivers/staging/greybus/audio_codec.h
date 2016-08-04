@@ -98,18 +98,25 @@ enum gbaudio_codec_state {
 	GBAUDIO_CODEC_STOP,
 };
 
-struct gbaudio_stream {
-	const char *dai_name;
+struct gbaudio_stream_params {
 	int state;
 	uint8_t sig_bits, channels;
 	uint32_t format, rate;
+};
+
+struct gbaudio_codec_dai {
+	int id;
+	/* runtime params for playback/capture streams */
+	struct gbaudio_stream_params params[2];
+	struct list_head list;
 };
 
 struct gbaudio_codec_info {
 	struct device *dev;
 	struct snd_soc_codec *codec;
 	struct list_head module_list;
-	struct gbaudio_stream stream[2];	/* PB/CAP */
+	/* to maintain runtime stream params for each DAI */
+	struct list_head dai_list;
 	struct mutex lock;
 	u8 reg[GBCODEC_REG_COUNT];
 };
