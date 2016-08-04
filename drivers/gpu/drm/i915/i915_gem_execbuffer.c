@@ -441,6 +441,20 @@ relocate_entry_clflush(struct drm_i915_gem_object *obj,
 	return 0;
 }
 
+static bool object_is_idle(struct drm_i915_gem_object *obj)
+{
+	unsigned long active = obj->active;
+	int idx;
+
+	for_each_active(active, idx) {
+		if (!i915_gem_active_is_idle(&obj->last_read[idx],
+					     &obj->base.dev->struct_mutex))
+			return false;
+	}
+
+	return true;
+}
+
 static int
 i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 				   struct eb_vmas *eb,
@@ -524,7 +538,7 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 	}
 
 	/* We can't wait for rendering with pagefaults disabled */
-	if (obj->active && pagefault_disabled())
+	if (pagefault_disabled() && !object_is_idle(obj))
 		return -EFAULT;
 
 	if (use_cpu_reloc(obj))
