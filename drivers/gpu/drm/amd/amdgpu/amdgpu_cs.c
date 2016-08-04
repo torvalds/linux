@@ -287,18 +287,56 @@ static u64 amdgpu_cs_get_threshold_for_moves(struct amdgpu_device *adev)
 	return max(bytes_moved_threshold, 1024*1024ull);
 }
 
+static int amdgpu_cs_bo_validate(struct amdgpu_cs_parser *p,
+				 struct amdgpu_bo *bo)
+{
+	u64 initial_bytes_moved;
+	uint32_t domain;
+	int r;
+
+	if (bo->pin_count)
+		return 0;
+
+	/* Avoid moving this one if we have moved too many buffers
+	 * for this IB already.
+	 *
+	 * Note that this allows moving at least one buffer of
+	 * any size, because it doesn't take the current "bo"
+	 * into account. We don't want to disallow buffer moves
+	 * completely.
+	 */
+	if (p->bytes_moved <= p->bytes_moved_threshold)
+		domain = bo->prefered_domains;
+	else
+		domain = bo->allowed_domains;
+
+retry:
+	amdgpu_ttm_placement_from_domain(bo, domain);
+	initial_bytes_moved = atomic64_read(&bo->adev->num_bytes_moved);
+	r = ttm_bo_validate(&bo->tbo, &bo->placement, true, false);
+	p->bytes_moved += atomic64_read(&bo->adev->num_bytes_moved) -
+		initial_bytes_moved;
+
+	if (unlikely(r)) {
+		if (r != -ERESTARTSYS && domain != bo->allowed_domains) {
+			domain = bo->allowed_domains;
+			goto retry;
+		}
+	}
+
+	return r;
+}
+
 int amdgpu_cs_list_validate(struct amdgpu_cs_parser *p,
 			    struct list_head *validated)
 {
 	struct amdgpu_bo_list_entry *lobj;
-	u64 initial_bytes_moved;
 	int r;
 
 	list_for_each_entry(lobj, validated, tv.head) {
 		struct amdgpu_bo *bo = lobj->robj;
 		bool binding_userptr = false;
 		struct mm_struct *usermm;
-		uint32_t domain;
 
 		usermm = amdgpu_ttm_tt_get_usermm(bo->tbo.ttm);
 		if (usermm && usermm != current->mm)
@@ -313,35 +351,13 @@ int amdgpu_cs_list_validate(struct amdgpu_cs_parser *p,
 			binding_userptr = true;
 		}
 
-		if (bo->pin_count)
-			continue;
-
-		/* Avoid moving this one if we have moved too many buffers
-		 * for this IB already.
-		 *
-		 * Note that this allows moving at least one buffer of
-		 * any size, because it doesn't take the current "bo"
-		 * into account. We don't want to disallow buffer moves
-		 * completely.
-		 */
-		if (p->bytes_moved <= p->bytes_moved_threshold)
-			domain = bo->prefered_domains;
-		else
-			domain = bo->allowed_domains;
-
-	retry:
-		amdgpu_ttm_placement_from_domain(bo, domain);
-		initial_bytes_moved = atomic64_read(&bo->adev->num_bytes_moved);
-		r = ttm_bo_validate(&bo->tbo, &bo->placement, true, false);
-		p->bytes_moved += atomic64_read(&bo->adev->num_bytes_moved) -
-			       initial_bytes_moved;
-
-		if (unlikely(r)) {
-			if (r != -ERESTARTSYS && domain != bo->allowed_domains) {
-				domain = bo->allowed_domains;
-				goto retry;
-			}
+		r = amdgpu_cs_bo_validate(p, bo);
+		if (r)
 			return r;
+		if (bo->shadow) {
+			r = amdgpu_cs_bo_validate(p, bo);
+			if (r)
+				return r;
 		}
 
 		if (binding_userptr) {
