@@ -745,6 +745,7 @@ static void nvme_rdma_reconnect_ctrl_work(struct work_struct *work)
 	if (ctrl->queue_count > 1) {
 		nvme_start_queues(&ctrl->ctrl);
 		nvme_queue_scan(&ctrl->ctrl);
+		nvme_queue_async_events(&ctrl->ctrl);
 	}
 
 	dev_info(ctrl->ctrl.device, "Successfully reconnected\n");
@@ -1747,6 +1748,7 @@ static void nvme_rdma_reset_ctrl_work(struct work_struct *work)
 	if (ctrl->queue_count > 1) {
 		nvme_start_queues(&ctrl->ctrl);
 		nvme_queue_scan(&ctrl->ctrl);
+		nvme_queue_async_events(&ctrl->ctrl);
 	}
 
 	return;
