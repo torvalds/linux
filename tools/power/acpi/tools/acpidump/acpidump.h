@@ -56,11 +56,6 @@
 #include "accommon.h"
 #include "actables.h"
 
-#include <stdio.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <sys/stat.h>
-
 /* Globals */
 
 EXTERN u8 INIT_GLOBAL(gbl_summary_mode, FALSE);
