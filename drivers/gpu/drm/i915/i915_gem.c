@@ -302,6 +302,109 @@ i915_gem_object_unbind(struct drm_i915_gem_object *obj)
 	return ret;
 }
 
+/**
+ * Ensures that all rendering to the object has completed and the object is
+ * safe to unbind from the GTT or access from the CPU.
+ * @obj: i915 gem object
+ * @readonly: waiting for just read access or read-write access
+ */
+int
+i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj,
+			       bool readonly)
+{
+	struct reservation_object *resv;
+	struct i915_gem_active *active;
+	unsigned long active_mask;
+	int idx;
+
+	lockdep_assert_held(&obj->base.dev->struct_mutex);
+
+	if (!readonly) {
+		active = obj->last_read;
+		active_mask = i915_gem_object_get_active(obj);
+	} else {
+		active_mask = 1;
+		active = &obj->last_write;
+	}
+
+	for_each_active(active_mask, idx) {
+		int ret;
+
+		ret = i915_gem_active_wait(&active[idx],
+					   &obj->base.dev->struct_mutex);
+		if (ret)
+			return ret;
+	}
+
+	resv = i915_gem_object_get_dmabuf_resv(obj);
+	if (resv) {
+		long err;
+
+		err = reservation_object_wait_timeout_rcu(resv, !readonly, true,
+							  MAX_SCHEDULE_TIMEOUT);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
+}
+
+/* A nonblocking variant of the above wait. This is a highly dangerous routine
+ * as the object state may change during this call.
+ */
+static __must_check int
+i915_gem_object_wait_rendering__nonblocking(struct drm_i915_gem_object *obj,
+					    struct intel_rps_client *rps,
+					    bool readonly)
+{
+	struct drm_device *dev = obj->base.dev;
+	struct drm_i915_gem_request *requests[I915_NUM_ENGINES];
+	struct i915_gem_active *active;
+	unsigned long active_mask;
+	int ret, i, n = 0;
+
+	lockdep_assert_held(&dev->struct_mutex);
+	GEM_BUG_ON(!to_i915(dev)->mm.interruptible);
+
+	active_mask = i915_gem_object_get_active(obj);
+	if (!active_mask)
+		return 0;
+
+	if (!readonly) {
+		active = obj->last_read;
+	} else {
+		active_mask = 1;
+		active = &obj->last_write;
+	}
+
+	for_each_active(active_mask, i) {
+		struct drm_i915_gem_request *req;
+
+		req = i915_gem_active_get(&active[i],
+					  &obj->base.dev->struct_mutex);
+		if (req)
+			requests[n++] = req;
+	}
+
+	mutex_unlock(&dev->struct_mutex);
+	ret = 0;
+	for (i = 0; ret == 0 && i < n; i++)
+		ret = i915_wait_request(requests[i], true, NULL, rps);
+	mutex_lock(&dev->struct_mutex);
+
+	for (i = 0; i < n; i++)
+		i915_gem_request_put(requests[i]);
+
+	return ret;
+}
+
+static struct intel_rps_client *to_rps_client(struct drm_file *file)
+{
+	struct drm_i915_file_private *fpriv = file->driver_priv;
+
+	return &fpriv->rps;
+}
+
 int
 i915_gem_object_attach_phys(struct drm_i915_gem_object *obj,
 			    int align)
@@ -1337,107 +1440,6 @@ put_rpm:
 	intel_runtime_pm_put(dev_priv);
 
 	return ret;
-}
-
-/**
- * Ensures that all rendering to the object has completed and the object is
- * safe to unbind from the GTT or access from the CPU.
- * @obj: i915 gem object
- * @readonly: waiting for read access or write
- */
-int
-i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj,
-			       bool readonly)
-{
-	struct reservation_object *resv;
-	struct i915_gem_active *active;
-	unsigned long active_mask;
-	int idx, ret;
-
-	lockdep_assert_held(&obj->base.dev->struct_mutex);
-
-	if (!readonly) {
-		active = obj->last_read;
-		active_mask = i915_gem_object_get_active(obj);
-	} else {
-		active_mask = 1;
-		active = &obj->last_write;
-	}
-
-	for_each_active(active_mask, idx) {
-		ret = i915_gem_active_wait(&active[idx],
-					   &obj->base.dev->struct_mutex);
-		if (ret)
-			return ret;
-	}
-
-	resv = i915_gem_object_get_dmabuf_resv(obj);
-	if (resv) {
-		long err;
-
-		err = reservation_object_wait_timeout_rcu(resv, !readonly, true,
-							  MAX_SCHEDULE_TIMEOUT);
-		if (err < 0)
-			return err;
-	}
-
-	return 0;
-}
-
-/* A nonblocking variant of the above wait. This is a highly dangerous routine
- * as the object state may change during this call.
- */
-static __must_check int
-i915_gem_object_wait_rendering__nonblocking(struct drm_i915_gem_object *obj,
-					    struct intel_rps_client *rps,
-					    bool readonly)
-{
-	struct drm_device *dev = obj->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct drm_i915_gem_request *requests[I915_NUM_ENGINES];
-	struct i915_gem_active *active;
-	unsigned long active_mask;
-	int ret, i, n = 0;
-
-	BUG_ON(!mutex_is_locked(&dev->struct_mutex));
-	BUG_ON(!dev_priv->mm.interruptible);
-
-	active_mask = i915_gem_object_get_active(obj);
-	if (!active_mask)
-		return 0;
-
-	if (!readonly) {
-		active = obj->last_read;
-	} else {
-		active_mask = 1;
-		active = &obj->last_write;
-	}
-
-	for_each_active(active_mask, i) {
-		struct drm_i915_gem_request *req;
-
-		req = i915_gem_active_get(&active[i],
-					  &obj->base.dev->struct_mutex);
-		if (req)
-			requests[n++] = req;
-	}
-
-	mutex_unlock(&dev->struct_mutex);
-	ret = 0;
-	for (i = 0; ret == 0 && i < n; i++)
-		ret = i915_wait_request(requests[i], true, NULL, rps);
-	mutex_lock(&dev->struct_mutex);
-
-	for (i = 0; i < n; i++)
-		i915_gem_request_put(requests[i]);
-
-	return ret;
-}
-
-static struct intel_rps_client *to_rps_client(struct drm_file *file)
-{
-	struct drm_i915_file_private *fpriv = file->driver_priv;
-	return &fpriv->rps;
 }
 
 static enum fb_op_origin
