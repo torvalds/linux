@@ -218,6 +218,8 @@ static void vmd_msi_free(struct irq_domain *domain,
 	struct vmd_irq *vmdirq = irq_get_chip_data(virq);
 	unsigned long flags;
 
+	synchronize_rcu();
+
 	/* XXX: Potential optimization to rebalance */
 	raw_spin_lock_irqsave(&list_lock, flags);
 	vmdirq->irq->count--;
