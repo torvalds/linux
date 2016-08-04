@@ -137,6 +137,8 @@ static int test_net_init(int argc, char **argv)
 #endif /* CONFIG_AUTO_LKL_VIRTIO_NET_DPDK */
 	else if (iftype && ifname && (strncmp(iftype, "raw", 3) == 0))
 		nd = lkl_netdev_raw_create(ifname);
+	else if (iftype && ifname && (strncmp(iftype, "macvtap", 7) == 0))
+		nd = lkl_netdev_macvtap_create(ifname, 0);
 
 	if (!nd) {
 		fprintf(stderr, "init netdev failed\n");

@@ -311,6 +311,7 @@ int lkl_stop_syscall_thread(void);
  *
  * @ifname - interface name for the TAP device. need to be configured
  * on host in advance
+ * @offload - offload bits for the device
  */
 struct lkl_netdev *lkl_netdev_tap_create(const char *ifname, int offload);
 
@@ -337,6 +338,16 @@ struct lkl_netdev *lkl_netdev_vde_create(const char *switch_path);
  * @ifname - interface name for the snoop device.
  */
 struct lkl_netdev *lkl_netdev_raw_create(const char *ifname);
+
+/**
+ * lkl_netdev_macvtap_create - create macvtap net_device for the virtio
+ * net backend
+ *
+ * @path - a file name for the macvtap device. need to be configured
+ * on host in advance
+ * @offload - offload bits for the device
+ */
+struct lkl_netdev *lkl_netdev_macvtap_create(const char *path, int offload);
 
 /*
  * lkl_register_dbg_handler- register a signal handler that loads a debug lib.

@@ -304,11 +304,15 @@ hijack_init(void)
 	if (!nd && iftype && ifparams) {
 		if ((strcmp(iftype, "tap") == 0)) {
 			nd = lkl_netdev_tap_create(ifparams, offload);
+		} else if ((strcmp(iftype, "macvtap") == 0)) {
+			nd = lkl_netdev_macvtap_create(ifparams, offload);
 		} else {
 			if (offload) {
 				fprintf(stderr,
 					"WARN: LKL_HIJACK_OFFLOAD is only "
-					"supported on tap device (for now)!\n"
+					"supported on "
+					"tap and macvtap devices"
+					" (for now)!\n"
 					"No offload features will be "
 					"enabled.\n");
 			}
