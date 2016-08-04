@@ -731,28 +731,3 @@ complete:
 
 	return ret;
 }
-
-/**
- * Waits for a request to be signaled, and cleans up the
- * request and object lists appropriately for that event.
- */
-int i915_wait_request(struct drm_i915_gem_request *req)
-{
-	int ret;
-
-	lockdep_assert_held(&req->i915->drm.struct_mutex);
-	GEM_BUG_ON(list_empty(&req->link));
-
-	ret = __i915_wait_request(req,
-				  req->i915->mm.interruptible,
-				  NULL,
-				  NULL);
-	if (ret)
-		return ret;
-
-	/* If the GPU hung, we want to keep the requests to find the guilty. */
-	if (!i915_reset_in_progress(&req->i915->gpu_error))
-		i915_gem_request_retire_upto(req);
-
-	return 0;
-}

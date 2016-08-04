@@ -220,10 +220,6 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 			struct intel_rps_client *rps)
 	__attribute__((nonnull(1)));
 
-int __must_check
-i915_wait_request(struct drm_i915_gem_request *req)
-	__attribute__((nonnull));
-
 static inline u32 intel_engine_get_seqno(struct intel_engine_cs *engine);
 
 /**

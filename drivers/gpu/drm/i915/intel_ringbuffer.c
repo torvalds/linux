@@ -2269,6 +2269,7 @@ static int wait_for_space(struct drm_i915_gem_request *req, int bytes)
 {
 	struct intel_ring *ring = req->ring;
 	struct drm_i915_gem_request *target;
+	int ret;
 
 	intel_ring_update_space(ring);
 	if (ring->space >= bytes)
@@ -2298,7 +2299,18 @@ static int wait_for_space(struct drm_i915_gem_request *req, int bytes)
 	if (WARN_ON(&target->ring_link == &ring->request_list))
 		return -ENOSPC;
 
-	return i915_wait_request(target);
+	ret = __i915_wait_request(target, true, NULL, NULL);
+	if (ret)
+		return ret;
+
+	if (i915_reset_in_progress(&target->i915->gpu_error))
+		return -EAGAIN;
+
+	i915_gem_request_retire_upto(target);
+
+	intel_ring_update_space(ring);
+	GEM_BUG_ON(ring->space < bytes);
+	return 0;
 }
 
 int intel_ring_begin(struct drm_i915_gem_request *req, int num_dwords)
@@ -2336,10 +2348,6 @@ int intel_ring_begin(struct drm_i915_gem_request *req, int num_dwords)
 		int ret = wait_for_space(req, wait_bytes);
 		if (unlikely(ret))
 			return ret;
-
-		intel_ring_update_space(ring);
-		if (unlikely(ring->space < wait_bytes))
-			return -EAGAIN;
 	}
 
 	if (unlikely(need_wrap)) {
