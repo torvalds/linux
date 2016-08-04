@@ -30,8 +30,8 @@
 #include <linux/vmalloc.h>
 #include <linux/bitmap.h>
 #include <linux/sched/signal.h>
-
 #include <linux/string.h>
+
 #include <asm/asm-offsets.h>
 #include <asm/lowcore.h>
 #include <asm/stp.h>
@@ -387,6 +387,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_S390_SKEYS:
 	case KVM_CAP_S390_IRQ_STATE:
 	case KVM_CAP_S390_USER_INSTR0:
+	case KVM_CAP_S390_CMMA_MIGRATION:
 	case KVM_CAP_S390_AIS:
 		r = 1;
 		break;
@@ -1419,6 +1420,182 @@ out:
 	return r;
 }
 
+/*
+ * Base address and length must be sent at the start of each block, therefore
+ * it's cheaper to send some clean data, as long as it's less than the size of
+ * two longs.
+ */
+#define KVM_S390_MAX_BIT_DISTANCE (2 * sizeof(void *))
+/* for consistency */
+#define KVM_S390_CMMA_SIZE_MAX ((u32)KVM_S390_SKEYS_MAX)
+
+/*
+ * This function searches for the next page with dirty CMMA attributes, and
+ * saves the attributes in the buffer up to either the end of the buffer or
+ * until a block of at least KVM_S390_MAX_BIT_DISTANCE clean bits is found;
+ * no trailing clean bytes are saved.
+ * In case no dirty bits were found, or if CMMA was not enabled or used, the
+ * output buffer will indicate 0 as length.
+ */
+static int kvm_s390_get_cmma_bits(struct kvm *kvm,
+				  struct kvm_s390_cmma_log *args)
+{
+	struct kvm_s390_migration_state *s = kvm->arch.migration_state;
+	unsigned long bufsize, hva, pgstev, i, next, cur;
+	int srcu_idx, peek, r = 0, rr;
+	u8 *res;
+
+	cur = args->start_gfn;
+	i = next = pgstev = 0;
+
+	if (unlikely(!kvm->arch.use_cmma))
+		return -ENXIO;
+	/* Invalid/unsupported flags were specified */
+	if (args->flags & ~KVM_S390_CMMA_PEEK)
+		return -EINVAL;
+	/* Migration mode query, and we are not doing a migration */
+	peek = !!(args->flags & KVM_S390_CMMA_PEEK);
+	if (!peek && !s)
+		return -EINVAL;
+	/* CMMA is disabled or was not used, or the buffer has length zero */
+	bufsize = min(args->count, KVM_S390_CMMA_SIZE_MAX);
+	if (!bufsize || !kvm->mm->context.use_cmma) {
+		memset(args, 0, sizeof(*args));
+		return 0;
+	}
+
+	if (!peek) {
+		/* We are not peeking, and there are no dirty pages */
+		if (!atomic64_read(&s->dirty_pages)) {
+			memset(args, 0, sizeof(*args));
+			return 0;
+		}
+		cur = find_next_bit(s->pgste_bitmap, s->bitmap_size,
+				    args->start_gfn);
+		if (cur >= s->bitmap_size)	/* nothing found, loop back */
+			cur = find_next_bit(s->pgste_bitmap, s->bitmap_size, 0);
+		if (cur >= s->bitmap_size) {	/* again! (very unlikely) */
+			memset(args, 0, sizeof(*args));
+			return 0;
+		}
+		next = find_next_bit(s->pgste_bitmap, s->bitmap_size, cur + 1);
+	}
+
+	res = vmalloc(bufsize);
+	if (!res)
+		return -ENOMEM;
+
+	args->start_gfn = cur;
+
+	down_read(&kvm->mm->mmap_sem);
+	srcu_idx = srcu_read_lock(&kvm->srcu);
+	while (i < bufsize) {
+		hva = gfn_to_hva(kvm, cur);
+		if (kvm_is_error_hva(hva)) {
+			r = -EFAULT;
+			break;
+		}
+		/* decrement only if we actually flipped the bit to 0 */
+		if (!peek && test_and_clear_bit(cur, s->pgste_bitmap))
+			atomic64_dec(&s->dirty_pages);
+		r = get_pgste(kvm->mm, hva, &pgstev);
+		if (r < 0)
+			pgstev = 0;
+		/* save the value */
+		res[i++] = (pgstev >> 24) & 0x3;
+		/*
+		 * if the next bit is too far away, stop.
+		 * if we reached the previous "next", find the next one
+		 */
+		if (!peek) {
+			if (next > cur + KVM_S390_MAX_BIT_DISTANCE)
+				break;
+			if (cur == next)
+				next = find_next_bit(s->pgste_bitmap,
+						     s->bitmap_size, cur + 1);
+		/* reached the end of the bitmap or of the buffer, stop */
+			if ((next >= s->bitmap_size) ||
+			    (next >= args->start_gfn + bufsize))
+				break;
+		}
+		cur++;
+	}
+	srcu_read_unlock(&kvm->srcu, srcu_idx);
+	up_read(&kvm->mm->mmap_sem);
+	args->count = i;
+	args->remaining = s ? atomic64_read(&s->dirty_pages) : 0;
+
+	rr = copy_to_user((void __user *)args->values, res, args->count);
+	if (rr)
+		r = -EFAULT;
+
+	vfree(res);
+	return r;
+}
+
+/*
+ * This function sets the CMMA attributes for the given pages. If the input
+ * buffer has zero length, no action is taken, otherwise the attributes are
+ * set and the mm->context.use_cmma flag is set.
+ */
+static int kvm_s390_set_cmma_bits(struct kvm *kvm,
+				  const struct kvm_s390_cmma_log *args)
+{
+	unsigned long hva, mask, pgstev, i;
+	uint8_t *bits;
+	int srcu_idx, r = 0;
+
+	mask = args->mask;
+
+	if (!kvm->arch.use_cmma)
+		return -ENXIO;
+	/* invalid/unsupported flags */
+	if (args->flags != 0)
+		return -EINVAL;
+	/* Enforce sane limit on memory allocation */
+	if (args->count > KVM_S390_CMMA_SIZE_MAX)
+		return -EINVAL;
+	/* Nothing to do */
+	if (args->count == 0)
+		return 0;
+
+	bits = vmalloc(sizeof(*bits) * args->count);
+	if (!bits)
+		return -ENOMEM;
+
+	r = copy_from_user(bits, (void __user *)args->values, args->count);
+	if (r) {
+		r = -EFAULT;
+		goto out;
+	}
+
+	down_read(&kvm->mm->mmap_sem);
+	srcu_idx = srcu_read_lock(&kvm->srcu);
+	for (i = 0; i < args->count; i++) {
+		hva = gfn_to_hva(kvm, args->start_gfn + i);
+		if (kvm_is_error_hva(hva)) {
+			r = -EFAULT;
+			break;
+		}
+
+		pgstev = bits[i];
+		pgstev = pgstev << 24;
+		mask &= _PGSTE_GPS_USAGE_MASK;
+		set_pgste_bits(kvm->mm, hva, mask, pgstev);
+	}
+	srcu_read_unlock(&kvm->srcu, srcu_idx);
+	up_read(&kvm->mm->mmap_sem);
+
+	if (!kvm->mm->context.use_cmma) {
+		down_write(&kvm->mm->mmap_sem);
+		kvm->mm->context.use_cmma = 1;
+		up_write(&kvm->mm->mmap_sem);
+	}
+out:
+	vfree(bits);
+	return r;
+}
+
 long kvm_arch_vm_ioctl(struct file *filp,
 		       unsigned int ioctl, unsigned long arg)
 {
@@ -1495,6 +1672,29 @@ long kvm_arch_vm_ioctl(struct file *filp,
 				   sizeof(struct kvm_s390_skeys)))
 			break;
 		r = kvm_s390_set_skeys(kvm, &args);
+		break;
+	}
+	case KVM_S390_GET_CMMA_BITS: {
+		struct kvm_s390_cmma_log args;
+
+		r = -EFAULT;
+		if (copy_from_user(&args, argp, sizeof(args)))
+			break;
+		r = kvm_s390_get_cmma_bits(kvm, &args);
+		if (!r) {
+			r = copy_to_user(argp, &args, sizeof(args));
+			if (r)
+				r = -EFAULT;
+		}
+		break;
+	}
+	case KVM_S390_SET_CMMA_BITS: {
+		struct kvm_s390_cmma_log args;
+
+		r = -EFAULT;
+		if (copy_from_user(&args, argp, sizeof(args)))
+			break;
+		r = kvm_s390_set_cmma_bits(kvm, &args);
 		break;
 	}
 	default:
