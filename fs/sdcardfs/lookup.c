@@ -309,7 +309,7 @@ static struct dentry *__sdcardfs_lookup(struct dentry *dentry,
 	/* instatiate a new negative dentry */
 	this.name = name;
 	this.len = strlen(name);
-	this.hash = full_name_hash(this.name, this.len);
+	this.hash = full_name_hash(dentry, this.name, this.len);
 	lower_dentry = d_lookup(lower_dir_dentry, &this);
 	if (lower_dentry)
 		goto setup_lower;

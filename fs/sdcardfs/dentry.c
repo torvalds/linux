@@ -135,7 +135,7 @@ static int sdcardfs_hash_ci(const struct dentry *dentry,
 	//len = vfat_striptail_len(qstr);
 	len = qstr->len;
 
-	hash = init_name_hash();
+	hash = init_name_hash(dentry);
 	while (len--)
 		//hash = partial_name_hash(nls_tolower(t, *name++), hash);
 		hash = partial_name_hash(tolower(*name++), hash);
