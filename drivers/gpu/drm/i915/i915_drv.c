@@ -993,8 +993,6 @@ static void intel_sanitize_options(struct drm_i915_private *dev_priv)
 static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = &dev_priv->drm;
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
-	uint32_t aperture_size;
 	int ret;
 
 	if (i915_inject_load_failure())
@@ -1044,7 +1042,6 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 		}
 	}
 
-
 	/* 965GM sometimes incorrectly writes to hardware status page (HWS)
 	 * using 32bit addressing, overwriting memory if HWS is located
 	 * above 4GB.
@@ -1062,19 +1059,6 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 			goto out_ggtt;
 		}
 	}
-
-	aperture_size = ggtt->mappable_end;
-
-	ggtt->mappable =
-		io_mapping_create_wc(ggtt->mappable_base,
-				     aperture_size);
-	if (!ggtt->mappable) {
-		ret = -EIO;
-		goto out_ggtt;
-	}
-
-	ggtt->mtrr = arch_phys_wc_add(ggtt->mappable_base,
-					      aperture_size);
 
 	pm_qos_add_request(&dev_priv->pm_qos, PM_QOS_CPU_DMA_LATENCY,
 			   PM_QOS_DEFAULT_VALUE);
@@ -1116,14 +1100,11 @@ out_ggtt:
 static void i915_driver_cleanup_hw(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = &dev_priv->drm;
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 
 	if (dev->pdev->msi_enabled)
 		pci_disable_msi(dev->pdev);
 
 	pm_qos_remove_request(&dev_priv->pm_qos);
-	arch_phys_wc_del(ggtt->mtrr);
-	io_mapping_free(ggtt->mappable);
 	i915_ggtt_cleanup_hw(dev_priv);
 }
 

@@ -698,17 +698,16 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 	 */
 	vma->node.start = gtt_offset;
 	vma->node.size = size;
-	if (drm_mm_initialized(&ggtt->base.mm)) {
-		ret = drm_mm_reserve_node(&ggtt->base.mm, &vma->node);
-		if (ret) {
-			DRM_DEBUG_KMS("failed to allocate stolen GTT space\n");
-			goto err;
-		}
 
-		vma->bound |= GLOBAL_BIND;
-		__i915_vma_set_map_and_fenceable(vma);
-		list_add_tail(&vma->vm_link, &ggtt->base.inactive_list);
+	ret = drm_mm_reserve_node(&ggtt->base.mm, &vma->node);
+	if (ret) {
+		DRM_DEBUG_KMS("failed to allocate stolen GTT space\n");
+		goto err;
 	}
+
+	vma->bound |= GLOBAL_BIND;
+	__i915_vma_set_map_and_fenceable(vma);
+	list_add_tail(&vma->vm_link, &ggtt->base.inactive_list);
 
 	list_add_tail(&obj->global_list, &dev_priv->mm.bound_list);
 	i915_gem_object_pin_pages(obj);

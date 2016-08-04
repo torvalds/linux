@@ -2745,10 +2745,7 @@ static void i915_gtt_color_adjust(struct drm_mm_node *node,
 		*end -= 4096;
 }
 
-static int i915_gem_setup_global_gtt(struct drm_i915_private *dev_priv,
-				     u64 start,
-				     u64 mappable_end,
-				     u64 end)
+int i915_gem_init_ggtt(struct drm_i915_private *dev_priv)
 {
 	/* Let GEM Manage all of the aperture.
 	 *
@@ -2760,45 +2757,13 @@ static int i915_gem_setup_global_gtt(struct drm_i915_private *dev_priv,
 	 * of the aperture.
 	 */
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
-	struct drm_mm_node *entry;
-	struct drm_i915_gem_object *obj;
 	unsigned long hole_start, hole_end;
+	struct drm_mm_node *entry;
 	int ret;
-
-	BUG_ON(mappable_end > end);
-
-	ggtt->base.start = start;
-
-	/* Subtract the guard page before address space initialization to
-	 * shrink the range used by drm_mm */
-	ggtt->base.total = end - start - PAGE_SIZE;
-	i915_address_space_init(&ggtt->base, dev_priv);
-	ggtt->base.total += PAGE_SIZE;
 
 	ret = intel_vgt_balloon(dev_priv);
 	if (ret)
 		return ret;
-
-	if (!HAS_LLC(dev_priv))
-		ggtt->base.mm.color_adjust = i915_gtt_color_adjust;
-
-	/* Mark any preallocated objects as occupied */
-	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
-		struct i915_vma *vma = i915_gem_obj_to_vma(obj, &ggtt->base);
-
-		DRM_DEBUG_KMS("reserving preallocated space: %llx + %zx\n",
-			      i915_gem_obj_ggtt_offset(obj), obj->base.size);
-
-		WARN_ON(i915_gem_obj_ggtt_bound(obj));
-		ret = drm_mm_reserve_node(&ggtt->base.mm, &vma->node);
-		if (ret) {
-			DRM_DEBUG_KMS("Reservation failed: %i\n", ret);
-			return ret;
-		}
-		vma->bound |= GLOBAL_BIND;
-		__i915_vma_set_map_and_fenceable(vma);
-		list_add_tail(&vma->vm_link, &ggtt->base.inactive_list);
-	}
 
 	/* Clear any non-preallocated blocks */
 	drm_mm_for_each_hole(entry, &ggtt->base.mm, hole_start, hole_end) {
@@ -2809,7 +2774,9 @@ static int i915_gem_setup_global_gtt(struct drm_i915_private *dev_priv,
 	}
 
 	/* And finally clear the reserved guard page */
-	ggtt->base.clear_range(&ggtt->base, end - PAGE_SIZE, PAGE_SIZE, true);
+	ggtt->base.clear_range(&ggtt->base,
+			       ggtt->base.total - PAGE_SIZE, PAGE_SIZE,
+			       true);
 
 	if (USES_PPGTT(dev_priv) && !USES_FULL_PPGTT(dev_priv)) {
 		struct i915_hw_ppgtt *ppgtt;
@@ -2848,18 +2815,6 @@ static int i915_gem_setup_global_gtt(struct drm_i915_private *dev_priv,
 }
 
 /**
- * i915_gem_init_ggtt - Initialize GEM for Global GTT
- * @dev_priv: i915 device
- */
-void i915_gem_init_ggtt(struct drm_i915_private *dev_priv)
-{
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
-
-	i915_gem_setup_global_gtt(dev_priv,
-				  0, ggtt->mappable_end, ggtt->base.total);
-}
-
-/**
  * i915_ggtt_cleanup_hw - Clean up GGTT hardware initialization
  * @dev_priv: i915 device
  */
@@ -2883,6 +2838,9 @@ void i915_ggtt_cleanup_hw(struct drm_i915_private *dev_priv)
 	}
 
 	ggtt->base.cleanup(&ggtt->base);
+
+	arch_phys_wc_del(ggtt->mtrr);
+	io_mapping_free(ggtt->mappable);
 }
 
 static unsigned int gen6_get_total_gtt_size(u16 snb_gmch_ctl)
@@ -3243,10 +3201,17 @@ int i915_ggtt_probe_hw(struct drm_i915_private *dev_priv)
 
 	if ((ggtt->base.total - 1) >> 32) {
 		DRM_ERROR("We never expected a Global GTT with more than 32bits"
-			  "of address space! Found %lldM!\n",
+			  " of address space! Found %lldM!\n",
 			  ggtt->base.total >> 20);
 		ggtt->base.total = 1ULL << 32;
 		ggtt->mappable_end = min(ggtt->mappable_end, ggtt->base.total);
+	}
+
+	if (ggtt->mappable_end > ggtt->base.total) {
+		DRM_ERROR("mappable aperture extends past end of GGTT,"
+			  " aperture=%llx, total=%llx\n",
+			  ggtt->mappable_end, ggtt->base.total);
+		ggtt->mappable_end = ggtt->base.total;
 	}
 
 	/* GMADR is the PCI mmio aperture into the global GTT. */
@@ -3270,6 +3235,26 @@ int i915_ggtt_init_hw(struct drm_i915_private *dev_priv)
 {
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	int ret;
+
+	INIT_LIST_HEAD(&dev_priv->vm_list);
+
+	/* Subtract the guard page before address space initialization to
+	 * shrink the range used by drm_mm.
+	 */
+	ggtt->base.total -= PAGE_SIZE;
+	i915_address_space_init(&ggtt->base, dev_priv);
+	ggtt->base.total += PAGE_SIZE;
+	if (!HAS_LLC(dev_priv))
+		ggtt->base.mm.color_adjust = i915_gtt_color_adjust;
+
+	ggtt->mappable =
+		io_mapping_create_wc(ggtt->mappable_base, ggtt->mappable_end);
+	if (!ggtt->mappable) {
+		ret = -EIO;
+		goto out_gtt_cleanup;
+	}
+
+	ggtt->mtrr = arch_phys_wc_add(ggtt->mappable_base, ggtt->mappable_end);
 
 	/*
 	 * Initialise stolen early so that we may reserve preallocated
