@@ -907,6 +907,7 @@ struct i915_gem_context {
 	struct list_head link;
 
 	u8 remap_slice;
+	bool closed:1;
 };
 
 enum fb_op_origin {

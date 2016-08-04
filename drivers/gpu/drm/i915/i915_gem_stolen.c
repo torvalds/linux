@@ -707,7 +707,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 
 	vma->bound |= GLOBAL_BIND;
 	__i915_vma_set_map_and_fenceable(vma);
-	list_add_tail(&vma->vm_link, &ggtt->base.inactive_list);
+	list_move_tail(&vma->vm_link, &ggtt->base.inactive_list);
 	obj->bind_count++;
 
 	list_add_tail(&obj->global_list, &dev_priv->mm.bound_list);

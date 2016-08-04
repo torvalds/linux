@@ -156,6 +156,7 @@ void i915_gem_context_free(struct kref *ctx_ref)
 
 	lockdep_assert_held(&ctx->i915->drm.struct_mutex);
 	trace_i915_context_free(ctx);
+	GEM_BUG_ON(!ctx->closed);
 
 	/*
 	 * This context is going away and we need to remove all VMAs still
@@ -222,6 +223,37 @@ i915_gem_alloc_context_obj(struct drm_device *dev, size_t size)
 	}
 
 	return obj;
+}
+
+static void i915_ppgtt_close(struct i915_address_space *vm)
+{
+	struct list_head *phases[] = {
+		&vm->active_list,
+		&vm->inactive_list,
+		&vm->unbound_list,
+		NULL,
+	}, **phase;
+
+	GEM_BUG_ON(vm->closed);
+	vm->closed = true;
+
+	for (phase = phases; *phase; phase++) {
+		struct i915_vma *vma, *vn;
+
+		list_for_each_entry_safe(vma, vn, *phase, vm_link)
+			if (!vma->closed)
+				i915_vma_close(vma);
+	}
+}
+
+static void context_close(struct i915_gem_context *ctx)
+{
+	GEM_BUG_ON(ctx->closed);
+	ctx->closed = true;
+	if (ctx->ppgtt)
+		i915_ppgtt_close(&ctx->ppgtt->base);
+	ctx->file_priv = ERR_PTR(-EBADF);
+	i915_gem_context_put(ctx);
 }
 
 static int assign_hw_id(struct drm_i915_private *dev_priv, unsigned *out)
@@ -305,7 +337,7 @@ __create_hw_context(struct drm_device *dev,
 	return ctx;
 
 err_out:
-	i915_gem_context_put(ctx);
+	context_close(ctx);
 	return ERR_PTR(ret);
 }
 
@@ -334,7 +366,7 @@ i915_gem_create_context(struct drm_device *dev,
 			DRM_DEBUG_DRIVER("PPGTT setup failed (%ld)\n",
 					 PTR_ERR(ppgtt));
 			idr_remove(&file_priv->context_idr, ctx->user_handle);
-			i915_gem_context_put(ctx);
+			context_close(ctx);
 			return ERR_CAST(ppgtt);
 		}
 
@@ -505,7 +537,7 @@ void i915_gem_context_fini(struct drm_device *dev)
 
 	lockdep_assert_held(&dev->struct_mutex);
 
-	i915_gem_context_put(dctx);
+	context_close(dctx);
 	dev_priv->kernel_context = NULL;
 
 	ida_destroy(&dev_priv->context_hw_ida);
@@ -515,8 +547,7 @@ static int context_idr_cleanup(int id, void *p, void *data)
 {
 	struct i915_gem_context *ctx = p;
 
-	ctx->file_priv = ERR_PTR(-EBADF);
-	i915_gem_context_put(ctx);
+	context_close(ctx);
 	return 0;
 }
 
@@ -1014,7 +1045,7 @@ int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
 	}
 
 	idr_remove(&file_priv->context_idr, ctx->user_handle);
-	i915_gem_context_put(ctx);
+	context_close(ctx);
 	mutex_unlock(&dev->struct_mutex);
 
 	DRM_DEBUG_DRIVER("HW context %d destroyed\n", args->ctx_id);

@@ -319,6 +319,8 @@ struct i915_address_space {
 	u64 start;		/* Start offset always 0 for dri2 */
 	u64 total;		/* size addr space maps (ex. 2GB for ggtt) */
 
+	bool closed;
+
 	struct i915_page_scratch *scratch_page;
 	struct i915_page_table *scratch_pt;
 	struct i915_page_directory *scratch_pd;
@@ -346,6 +348,13 @@ struct i915_address_space {
 	 * freed, and we'll pull it off the list in the free path.
 	 */
 	struct list_head inactive_list;
+
+	/**
+	 * List of vma that have been unbound.
+	 *
+	 * A reference is not held on the buffer while on this list.
+	 */
+	struct list_head unbound_list;
 
 	/* FIXME: Need a more generic return type */
 	gen6_pte_t (*pte_encode)(dma_addr_t addr,

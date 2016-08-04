@@ -2857,12 +2857,15 @@ static int __i915_vma_unbind(struct i915_vma *vma, bool wait)
 		__i915_vma_iounmap(vma);
 	}
 
-	trace_i915_vma_unbind(vma);
-
-	vma->vm->unbind_vma(vma);
+	if (likely(!vma->vm->closed)) {
+		trace_i915_vma_unbind(vma);
+		vma->vm->unbind_vma(vma);
+	}
 	vma->bound = 0;
 
-	list_del_init(&vma->vm_link);
+	drm_mm_remove_node(&vma->node);
+	list_move_tail(&vma->vm_link, &vma->vm->unbound_list);
+
 	if (vma->is_ggtt) {
 		if (vma->ggtt_view.type == I915_GGTT_VIEW_NORMAL) {
 			obj->map_and_fenceable = false;
@@ -2872,8 +2875,6 @@ static int __i915_vma_unbind(struct i915_vma *vma, bool wait)
 		}
 		vma->ggtt_view.pages = NULL;
 	}
-
-	drm_mm_remove_node(&vma->node);
 
 	/* Since the unbound list is global, only move to that list if
 	 * no more VMAs exist. */
@@ -3116,7 +3117,7 @@ search_free:
 		goto err_remove_node;
 
 	list_move_tail(&obj->global_list, &dev_priv->mm.bound_list);
-	list_add_tail(&vma->vm_link, &vm->inactive_list);
+	list_move_tail(&vma->vm_link, &vm->inactive_list);
 	obj->bind_count++;
 
 	return vma;
