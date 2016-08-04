@@ -54,8 +54,6 @@ static struct snd_pcm_hw_constraint_list hw_constraints_rates = {
 };
 #endif
 
-static struct platform_device *s3c24xx_uda134x_snd_device;
-
 static int s3c24xx_uda134x_startup(struct snd_pcm_substream *substream)
 {
 	int ret = 0;
@@ -66,7 +64,7 @@ static int s3c24xx_uda134x_startup(struct snd_pcm_substream *substream)
 	mutex_lock(&clk_lock);
 	pr_debug("%s %d\n", __func__, clk_users);
 	if (clk_users == 0) {
-		xtal = clk_get(&s3c24xx_uda134x_snd_device->dev, "xtal");
+		xtal = clk_get(rtd->dev, "xtal");
 		if (IS_ERR(xtal)) {
 			printk(KERN_ERR "%s cannot get xtal\n", __func__);
 			ret = PTR_ERR(xtal);
@@ -228,43 +226,25 @@ static struct snd_soc_card snd_soc_s3c24xx_uda134x = {
 
 static int s3c24xx_uda134x_probe(struct platform_device *pdev)
 {
+	struct snd_soc_card *card = &snd_soc_s3c24xx_uda134x;
 	int ret;
 
-	printk(KERN_INFO "S3C24XX_UDA134X SoC Audio driver\n");
+	platform_set_drvdata(pdev, card);
+	card->dev = &pdev->dev;
 
-	s3c24xx_uda134x_snd_device = platform_device_alloc("soc-audio", -1);
-	if (!s3c24xx_uda134x_snd_device) {
-		printk(KERN_ERR "S3C24XX_UDA134X SoC Audio: "
-		       "Unable to register\n");
-		return -ENOMEM;
-	}
-
-	platform_set_drvdata(s3c24xx_uda134x_snd_device,
-			     &snd_soc_s3c24xx_uda134x);
-
-	ret = platform_device_add(s3c24xx_uda134x_snd_device);
-	if (ret) {
-		printk(KERN_ERR "S3C24XX_UDA134X SoC Audio: Unable to add\n");
-		platform_device_put(s3c24xx_uda134x_snd_device);
-	}
+	ret = devm_snd_soc_register_card(&pdev->dev, card);
+	if (ret)
+		dev_err(&pdev->dev, "failed to register card: %d\n", ret);
 
 	return ret;
 }
 
-static int s3c24xx_uda134x_remove(struct platform_device *pdev)
-{
-	platform_device_unregister(s3c24xx_uda134x_snd_device);
-	return 0;
-}
-
 static struct platform_driver s3c24xx_uda134x_driver = {
 	.probe  = s3c24xx_uda134x_probe,
-	.remove = s3c24xx_uda134x_remove,
 	.driver = {
 		.name = "s3c24xx_uda134x",
 	},
 };
-
 module_platform_driver(s3c24xx_uda134x_driver);
 
 MODULE_AUTHOR("Zoltan Devai, Christian Pellegrin <chripell@evolware.org>");
