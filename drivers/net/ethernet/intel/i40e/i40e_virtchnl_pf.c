@@ -3000,6 +3000,7 @@ int i40e_ndo_get_vf_config(struct net_device *netdev,
 	else
 		ivi->linkstate = IFLA_VF_LINK_STATE_DISABLE;
 	ivi->spoofchk = vf->spoofchk;
+	ivi->trusted = vf->trusted;
 	ret = 0;
 
 error_param:
