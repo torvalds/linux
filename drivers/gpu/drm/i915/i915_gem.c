@@ -2475,7 +2475,7 @@ i915_gem_find_active_request(struct intel_engine_cs *engine)
 	 * extra delay for a recent interrupt is pointless. Hence, we do
 	 * not need an engine->irq_seqno_barrier() before the seqno reads.
 	 */
-	list_for_each_entry(request, &engine->request_list, list) {
+	list_for_each_entry(request, &engine->request_list, link) {
 		if (i915_gem_request_completed(request))
 			continue;
 
@@ -2497,7 +2497,7 @@ static void i915_gem_reset_engine_status(struct intel_engine_cs *engine)
 	ring_hung = engine->hangcheck.score >= HANGCHECK_SCORE_RING_HUNG;
 
 	i915_set_reset_status(request->ctx, ring_hung);
-	list_for_each_entry_continue(request, &engine->request_list, list)
+	list_for_each_entry_continue(request, &engine->request_list, link)
 		i915_set_reset_status(request->ctx, false);
 }
 
@@ -2546,7 +2546,7 @@ static void i915_gem_reset_engine_cleanup(struct intel_engine_cs *engine)
 
 		request = list_last_entry(&engine->request_list,
 					  struct drm_i915_gem_request,
-					  list);
+					  link);
 
 		i915_gem_request_retire_upto(request);
 	}
@@ -2609,7 +2609,7 @@ i915_gem_retire_requests_ring(struct intel_engine_cs *engine)
 
 		request = list_first_entry(&engine->request_list,
 					   struct drm_i915_gem_request,
-					   list);
+					   link);
 
 		if (!i915_gem_request_completed(request))
 			break;
@@ -2629,7 +2629,7 @@ i915_gem_retire_requests_ring(struct intel_engine_cs *engine)
 				       engine_list[engine->id]);
 
 		if (!list_empty(&i915_gem_active_peek(&obj->last_read[engine->id],
-						      &obj->base.dev->struct_mutex)->list))
+						      &obj->base.dev->struct_mutex)->link))
 			break;
 
 		i915_gem_object_retire__read(obj, engine->id);

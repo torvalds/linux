@@ -105,8 +105,8 @@ struct drm_i915_gem_request {
 	/** Time at which this request was emitted, in jiffies. */
 	unsigned long emitted_jiffies;
 
-	/** global list entry for this request */
-	struct list_head list;
+	/** engine->request_list entry for this request */
+	struct list_head link;
 
 	struct drm_i915_file_private *file_priv;
 	/** file_priv list entry for this request */

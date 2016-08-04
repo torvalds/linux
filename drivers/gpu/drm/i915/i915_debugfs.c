@@ -746,13 +746,13 @@ static int i915_gem_request_info(struct seq_file *m, void *data)
 		int count;
 
 		count = 0;
-		list_for_each_entry(req, &engine->request_list, list)
+		list_for_each_entry(req, &engine->request_list, link)
 			count++;
 		if (count == 0)
 			continue;
 
 		seq_printf(m, "%s requests: %d\n", engine->name, count);
-		list_for_each_entry(req, &engine->request_list, list) {
+		list_for_each_entry(req, &engine->request_list, link) {
 			struct task_struct *task;
 
 			rcu_read_lock();

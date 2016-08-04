@@ -2235,7 +2235,7 @@ int intel_engine_idle(struct intel_engine_cs *engine)
 
 	req = list_entry(engine->request_list.prev,
 			 struct drm_i915_gem_request,
-			 list);
+			 link);
 
 	/* Make sure we do not trigger any retires */
 	return __i915_wait_request(req,
@@ -2284,7 +2284,7 @@ static int wait_for_space(struct drm_i915_gem_request *req, int bytes)
 	 */
 	GEM_BUG_ON(!req->reserved_space);
 
-	list_for_each_entry(target, &engine->request_list, list) {
+	list_for_each_entry(target, &engine->request_list, link) {
 		unsigned space;
 
 		/*
@@ -2302,7 +2302,7 @@ static int wait_for_space(struct drm_i915_gem_request *req, int bytes)
 			break;
 	}
 
-	if (WARN_ON(&target->list == &engine->request_list))
+	if (WARN_ON(&target->link == &engine->request_list))
 		return -ENOSPC;
 
 	return i915_wait_request(target);
