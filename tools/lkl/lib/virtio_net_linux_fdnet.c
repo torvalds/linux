@@ -208,6 +208,8 @@ struct lkl_netdev_linux_fdnet *lkl_register_netdev_linux_fdnet(int fd)
 		return NULL;
 	}
 
+	memset(nd, 0, sizeof(struct lkl_netdev_linux_fdnet));
+
 	nd->fd = fd;
 	/* Making them edge-triggered to save CPU. */
 	nd->epoll_rx_fd = create_epoll_fd(nd->fd, EPOLLIN | EPOLLPRI | EPOLLET);

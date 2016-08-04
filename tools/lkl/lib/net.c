@@ -197,8 +197,6 @@ int lkl_netdev_get_ifindex(int id)
 	return ret < 0 ? ret : ifr.lkl_ifr_ifindex;
 }
 
-#define LKL_MSG_TRUNC	0x20
-
 // Copied from iproute2/lib/libnetlink.c
 static unsigned int seq = 0;
 static int rtnl_talk(int fd, struct lkl_nlmsghdr *n)

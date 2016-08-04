@@ -143,7 +143,7 @@ static int test_net_init(int argc, char **argv)
 		return -1;
 	}
 
-	ret = lkl_netdev_add(nd, NULL, 0);
+	ret = lkl_netdev_add(nd, NULL);
 	if (ret < 0) {
 		fprintf(stderr, "failed to add netdev: %s\n",
 			lkl_strerror(ret));
