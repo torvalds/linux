@@ -405,6 +405,7 @@ static int gbcodec_hw_params(struct snd_pcm_substream *substream,
 	uint32_t format, rate;
 	struct gbaudio_module_info *module;
 	struct gbaudio_data_connection *data;
+	struct gb_bundle *bundle;
 	struct gbaudio_codec_info *codec = dev_get_drvdata(dai->dev);
 
 	mutex_lock(&codec->lock);
@@ -456,6 +457,13 @@ static int gbcodec_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
+	bundle = to_gb_bundle(module->dev);
+	ret = gb_pm_runtime_get_sync(bundle);
+	if (ret) {
+		mutex_unlock(&codec->lock);
+		return ret;
+	}
+
 	ret = gb_audio_apbridgea_set_config(data->connection, 0,
 					    AUDIO_APBRIDGEA_PCM_FMT_16,
 					    AUDIO_APBRIDGEA_PCM_RATE_48000,
@@ -466,6 +474,9 @@ static int gbcodec_hw_params(struct snd_pcm_substream *substream,
 		mutex_unlock(&codec->lock);
 		return ret;
 	}
+
+	gb_pm_runtime_put_noidle(bundle);
+
 	codec->stream[substream->stream].state = GBAUDIO_CODEC_HWPARAMS;
 	codec->stream[substream->stream].format = format;
 	codec->stream[substream->stream].rate = rate;
@@ -482,6 +493,7 @@ static int gbcodec_prepare(struct snd_pcm_substream *substream,
 	int ret;
 	struct gbaudio_module_info *module;
 	struct gbaudio_data_connection *data;
+	struct gb_bundle *bundle;
 	struct gbaudio_codec_info *codec = dev_get_drvdata(dai->dev);
 
 	mutex_lock(&codec->lock);
@@ -504,6 +516,13 @@ static int gbcodec_prepare(struct snd_pcm_substream *substream,
 		return -ENODEV;
 	}
 
+	bundle = to_gb_bundle(module->dev);
+	ret = gb_pm_runtime_get_sync(bundle);
+	if (ret) {
+		mutex_unlock(&codec->lock);
+		return ret;
+	}
+
 	switch (substream->stream) {
 	case SNDRV_PCM_STREAM_PLAYBACK:
 		ret = gb_audio_apbridgea_set_tx_data_size(data->connection, 0,
@@ -521,6 +540,8 @@ static int gbcodec_prepare(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
+	gb_pm_runtime_put_noidle(bundle);
+
 	codec->stream[substream->stream].state = GBAUDIO_CODEC_PREPARE;
 	mutex_unlock(&codec->lock);
 	return 0;
@@ -531,6 +552,7 @@ static int gbcodec_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 	int ret;
 	struct gbaudio_data_connection *data;
 	struct gbaudio_module_info *module;
+	struct gb_bundle *bundle;
 	struct gbaudio_codec_info *codec = dev_get_drvdata(dai->dev);
 
 
@@ -561,6 +583,13 @@ static int gbcodec_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 			dai->name, module->name);
 		mutex_unlock(&codec->lock);
 		return -ENODEV;
+	}
+
+	bundle = to_gb_bundle(module->dev);
+	ret = gb_pm_runtime_get_sync(bundle);
+	if (ret) {
+		mutex_unlock(&codec->lock);
+		return ret;
 	}
 
 	if (!mute && !stream) {/* start playback */
@@ -597,6 +626,7 @@ static int gbcodec_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 				    module->name, mute ? "Mute" : "Unmute",
 				    stream ? "Capture" : "Playback", ret);
 
+	gb_pm_runtime_put_noidle(bundle);
 	mutex_unlock(&codec->lock);
 	return ret;
 }
