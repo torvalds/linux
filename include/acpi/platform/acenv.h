@@ -342,51 +342,11 @@
 
 /* Use the standard headers from the standard locations */
 
-#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 
 #endif				/* ACPI_USE_STANDARD_HEADERS */
-
-/* We will be linking to the standard Clib functions */
-
-#else
-
-/******************************************************************************
- *
- * Not using native C library, use local implementations
- *
- *****************************************************************************/
-
-/*
- * Use local definitions of C library macros and functions. These function
- * implementations may not be as efficient as an inline or assembly code
- * implementation provided by a native C library, but they are functionally
- * equivalent.
- */
-#ifndef va_arg
-
-#ifndef _VALIST
-#define _VALIST
-typedef char *va_list;
-#endif				/* _VALIST */
-
-/* Storage alignment properties */
-
-#define  _AUPBND                (sizeof (acpi_native_int) - 1)
-#define  _ADNBND                (sizeof (acpi_native_int) - 1)
-
-/* Variable argument list macro definitions */
-
-#define _bnd(X, bnd)            (((sizeof (X)) + (bnd)) & (~(bnd)))
-#define va_arg(ap, T)           (*(T *)(((ap) += (_bnd (T, _AUPBND))) - (_bnd (T,_ADNBND))))
-#define va_end(ap)              (ap = (va_list) NULL)
-#define va_start(ap, A)         (void) ((ap) = (((char *) &(A)) + (_bnd (A,_AUPBND))))
-
-#endif				/* va_arg */
-
-/* Use the local (ACPICA) definitions of the clib functions */
 
 #endif				/* ACPI_USE_SYSTEM_CLIBRARY */
 

@@ -180,7 +180,6 @@
 
 #else				/* !__KERNEL__ */
 
-#include <stdarg.h>
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
