@@ -72,12 +72,6 @@ EXTERN ACPI_FILE INIT_GLOBAL(gbl_output_file, NULL);
 EXTERN char INIT_GLOBAL(*gbl_output_filename, NULL);
 EXTERN u64 INIT_GLOBAL(gbl_rsdp_base, 0);
 
-/* Globals required for use with ACPICA modules */
-
-#ifdef _DECLARE_GLOBALS
-u8 acpi_gbl_integer_byte_width = 8;
-#endif
-
 /* Action table used to defer requested options */
 
 struct ap_dump_action {

@@ -315,6 +315,7 @@ int ACPI_SYSTEM_XFACE acpi_main(int argc, char *argv[])
 	ACPI_DEBUG_INITIALIZE();	/* For debug version only */
 	acpi_os_initialize();
 	gbl_output_file = ACPI_FILE_OUT;
+	acpi_gbl_integer_byte_width = 8;
 
 	/* Process command line options */
 
