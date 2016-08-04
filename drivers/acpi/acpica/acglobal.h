@@ -383,6 +383,7 @@ ACPI_GLOBAL(const char, *acpi_gbl_pld_shape_list[]);
 
 ACPI_INIT_GLOBAL(ACPI_FILE, acpi_gbl_debug_file, NULL);
 ACPI_INIT_GLOBAL(ACPI_FILE, acpi_gbl_output_file, NULL);
+ACPI_INIT_GLOBAL(u8, acpi_gbl_debug_timeout, FALSE);
 
 /* Print buffer */
 
