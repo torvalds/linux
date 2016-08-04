@@ -528,7 +528,7 @@ static int i40iw_setup_kmode_qp(struct i40iw_device *iwdev,
 		status = i40iw_get_wqe_shift(rq_size, ukinfo->max_rq_frag_cnt, 0, &rqshift);
 
 	if (status)
-		return -ENOSYS;
+		return -ENOMEM;
 
 	sqdepth = sq_size << sqshift;
 	rqdepth = rq_size << rqshift;
@@ -670,7 +670,7 @@ static struct ib_qp *i40iw_create_qp(struct ib_pd *ibpd,
 	iwqp->ctx_info.qp_compl_ctx = (uintptr_t)qp;
 
 	if (init_attr->qp_type != IB_QPT_RC) {
-		err_code = -ENOSYS;
+		err_code = -EINVAL;
 		goto error;
 	}
 	if (iwdev->push_mode)
@@ -1838,6 +1838,7 @@ struct ib_mr *i40iw_reg_phys_mr(struct ib_pd *pd,
 	iwmr->ibmr.lkey = stag;
 	iwmr->page_cnt = 1;
 	iwmr->pgaddrmem[0]  = addr;
+	iwmr->length = size;
 	status = i40iw_hwreg_mr(iwdev, iwmr, access);
 	if (status) {
 		i40iw_free_stag(iwdev, stag);
@@ -1861,7 +1862,7 @@ static struct ib_mr *i40iw_get_dma_mr(struct ib_pd *pd, int acc)
 {
 	u64 kva = 0;
 
-	return i40iw_reg_phys_mr(pd, 0, 0xffffffffffULL, acc, &kva);
+	return i40iw_reg_phys_mr(pd, 0, 0, acc, &kva);
 }
 
 /**
@@ -2075,8 +2076,12 @@ static int i40iw_post_send(struct ib_qp *ibqp,
 				ret = ukqp->ops.iw_send(ukqp, &info, ib_wr->ex.invalidate_rkey, false);
 			}
 
-			if (ret)
-				err = -EIO;
+			if (ret) {
+				if (ret == I40IW_ERR_QP_TOOMANY_WRS_POSTED)
+					err = -ENOMEM;
+				else
+					err = -EINVAL;
+			}
 			break;
 		case IB_WR_RDMA_WRITE:
 			info.op_type = I40IW_OP_TYPE_RDMA_WRITE;
@@ -2097,8 +2102,12 @@ static int i40iw_post_send(struct ib_qp *ibqp,
 				ret = ukqp->ops.iw_rdma_write(ukqp, &info, false);
 			}
 
-			if (ret)
-				err = -EIO;
+			if (ret) {
+				if (ret == I40IW_ERR_QP_TOOMANY_WRS_POSTED)
+					err = -ENOMEM;
+				else
+					err = -EINVAL;
+			}
 			break;
 		case IB_WR_RDMA_READ_WITH_INV:
 			inv_stag = true;
@@ -2116,15 +2125,19 @@ static int i40iw_post_send(struct ib_qp *ibqp,
 			info.op.rdma_read.lo_addr.stag = ib_wr->sg_list->lkey;
 			info.op.rdma_read.lo_addr.len = ib_wr->sg_list->length;
 			ret = ukqp->ops.iw_rdma_read(ukqp, &info, inv_stag, false);
-			if (ret)
-				err = -EIO;
+			if (ret) {
+				if (ret == I40IW_ERR_QP_TOOMANY_WRS_POSTED)
+					err = -ENOMEM;
+				else
+					err = -EINVAL;
+			}
 			break;
 		case IB_WR_LOCAL_INV:
 			info.op_type = I40IW_OP_TYPE_INV_STAG;
 			info.op.inv_local_stag.target_stag = ib_wr->ex.invalidate_rkey;
 			ret = ukqp->ops.iw_stag_local_invalidate(ukqp, &info, true);
 			if (ret)
-				err = -EIO;
+				err = -ENOMEM;
 			break;
 		case IB_WR_REG_MR:
 		{
@@ -2153,7 +2166,7 @@ static int i40iw_post_send(struct ib_qp *ibqp,
 
 			ret = dev->iw_priv_qp_ops->iw_mr_fast_register(&iwqp->sc_qp, &info, true);
 			if (ret)
-				err = -EIO;
+				err = -ENOMEM;
 			break;
 		}
 		default:
@@ -2193,6 +2206,7 @@ static int i40iw_post_recv(struct ib_qp *ibqp,
 	struct i40iw_sge sg_list[I40IW_MAX_WQ_FRAGMENT_COUNT];
 	enum i40iw_status_code ret = 0;
 	unsigned long flags;
+	int err = 0;
 
 	iwqp = (struct i40iw_qp *)ibqp;
 	ukqp = &iwqp->sc_qp.qp_uk;
@@ -2207,6 +2221,10 @@ static int i40iw_post_recv(struct ib_qp *ibqp,
 		ret = ukqp->ops.iw_post_receive(ukqp, &post_recv);
 		if (ret) {
 			i40iw_pr_err(" post_recv err %d\n", ret);
+			if (ret == I40IW_ERR_QP_TOOMANY_WRS_POSTED)
+				err = -ENOMEM;
+			else
+				err = -EINVAL;
 			*bad_wr = ib_wr;
 			goto out;
 		}
@@ -2214,9 +2232,7 @@ static int i40iw_post_recv(struct ib_qp *ibqp,
 	}
  out:
 	spin_unlock_irqrestore(&iwqp->lock, flags);
-	if (ret)
-		return -ENOSYS;
-	return 0;
+	return err;
 }
 
 /**
@@ -2243,7 +2259,7 @@ static int i40iw_poll_cq(struct ib_cq *ibcq,
 
 	spin_lock_irqsave(&iwcq->lock, flags);
 	while (cqe_count < num_entries) {
-		ret = ukcq->ops.iw_cq_poll_completion(ukcq, &cq_poll_info, true);
+		ret = ukcq->ops.iw_cq_poll_completion(ukcq, &cq_poll_info);
 		if (ret == I40IW_ERR_QUEUE_EMPTY) {
 			break;
 		} else if (ret == I40IW_ERR_QUEUE_DESTROYED) {
@@ -2513,7 +2529,7 @@ static int i40iw_modify_port(struct ib_device *ibdev,
 			     int port_modify_mask,
 			     struct ib_port_modify *props)
 {
-	return 0;
+	return -ENOSYS;
 }
 
 /**
@@ -2709,7 +2725,7 @@ int i40iw_register_rdma_device(struct i40iw_device *iwdev)
 
 	iwdev->iwibdev = i40iw_init_rdma_device(iwdev);
 	if (!iwdev->iwibdev)
-		return -ENOSYS;
+		return -ENOMEM;
 	iwibdev = iwdev->iwibdev;
 
 	ret = ib_register_device(&iwibdev->ibdev, NULL);
@@ -2734,5 +2750,5 @@ error:
 	kfree(iwdev->iwibdev->ibdev.iwcm);
 	iwdev->iwibdev->ibdev.iwcm = NULL;
 	ib_dealloc_device(&iwdev->iwibdev->ibdev);
-	return -ENOSYS;
+	return ret;
 }
