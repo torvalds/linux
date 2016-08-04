@@ -225,19 +225,26 @@ static const unsigned short logtable[256] = {
  * Acquires the semaphore without jiffies. If no more tasks are allowed
  * to acquire the semaphore, calling this function will put the task to
  * sleep until the semaphore is released.
- * It returns if the semaphore was acquired.
+ * If the semaphore is not released within the specified number of jiffies,
+ * this function returns -ETIME.
+ * If the sleep is interrupted by a signal, this function will return -EINTR.
+ * It returns 0 if the semaphore was acquired successfully.
  */
-static void nau8825_sema_acquire(struct nau8825 *nau8825, long timeout)
+static int nau8825_sema_acquire(struct nau8825 *nau8825, long timeout)
 {
 	int ret;
 
-	if (timeout)
+	if (timeout) {
 		ret = down_timeout(&nau8825->xtalk_sem, timeout);
-	else
+		if (ret < 0)
+			dev_warn(nau8825->dev, "Acquire semaphone timeout\n");
+	} else {
 		ret = down_interruptible(&nau8825->xtalk_sem);
+		if (ret < 0)
+			dev_warn(nau8825->dev, "Acquire semaphone fail\n");
+	}
 
-	if (ret < 0)
-		dev_warn(nau8825->dev, "Acquire semaphone fail\n");
+	return ret;
 }
 
 /**
@@ -1596,8 +1603,11 @@ static irqreturn_t nau8825_interrupt(int irq, void *data)
 					 * cess and restore changes if process
 					 * is ongoing when ejection.
 					 */
+					int ret;
 					nau8825->xtalk_protect = true;
-					nau8825_sema_acquire(nau8825, 0);
+					ret = nau8825_sema_acquire(nau8825, 0);
+					if (ret < 0)
+						nau8825->xtalk_protect = false;
 				}
 				/* Startup cross talk detection process */
 				nau8825->xtalk_state = NAU8825_XTALK_PREPARE;
@@ -2223,11 +2233,14 @@ static int __maybe_unused nau8825_suspend(struct snd_soc_codec *codec)
 static int __maybe_unused nau8825_resume(struct snd_soc_codec *codec)
 {
 	struct nau8825 *nau8825 = snd_soc_codec_get_drvdata(codec);
+	int ret;
 
 	regcache_cache_only(nau8825->regmap, false);
 	regcache_sync(nau8825->regmap);
 	nau8825->xtalk_protect = true;
-	nau8825_sema_acquire(nau8825, 0);
+	ret = nau8825_sema_acquire(nau8825, 0);
+	if (ret < 0)
+		nau8825->xtalk_protect = false;
 	enable_irq(nau8825->irq);
 
 	return 0;
