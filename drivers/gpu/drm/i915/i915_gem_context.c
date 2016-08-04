@@ -134,21 +134,6 @@ static int get_context_size(struct drm_i915_private *dev_priv)
 	return ret;
 }
 
-static void i915_gem_context_clean(struct i915_gem_context *ctx)
-{
-	struct i915_hw_ppgtt *ppgtt = ctx->ppgtt;
-	struct i915_vma *vma, *next;
-
-	if (!ppgtt)
-		return;
-
-	list_for_each_entry_safe(vma, next, &ppgtt->base.inactive_list,
-				 vm_link) {
-		if (WARN_ON(__i915_vma_unbind_no_wait(vma)))
-			break;
-	}
-}
-
 void i915_gem_context_free(struct kref *ctx_ref)
 {
 	struct i915_gem_context *ctx = container_of(ctx_ref, typeof(*ctx), ref);
@@ -157,13 +142,6 @@ void i915_gem_context_free(struct kref *ctx_ref)
 	lockdep_assert_held(&ctx->i915->drm.struct_mutex);
 	trace_i915_context_free(ctx);
 	GEM_BUG_ON(!ctx->closed);
-
-	/*
-	 * This context is going away and we need to remove all VMAs still
-	 * around. This is to handle imported shared objects for which
-	 * destructor did not run when their handles were closed.
-	 */
-	i915_gem_context_clean(ctx);
 
 	i915_ppgtt_put(ctx->ppgtt);
 

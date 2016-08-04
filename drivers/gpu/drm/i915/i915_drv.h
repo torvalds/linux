@@ -3044,11 +3044,6 @@ int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
 		  u32 flags);
 void __i915_vma_set_map_and_fenceable(struct i915_vma *vma);
 int __must_check i915_vma_unbind(struct i915_vma *vma);
-/*
- * BEWARE: Do not use the function below unless you can _absolutely_
- * _guarantee_ VMA in question is _not in use_ anywhere.
- */
-int __must_check __i915_vma_unbind_no_wait(struct i915_vma *vma);
 void i915_vma_close(struct i915_vma *vma);
 void i915_vma_destroy(struct i915_vma *vma);
 

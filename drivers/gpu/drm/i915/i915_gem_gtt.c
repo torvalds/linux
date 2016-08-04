@@ -3368,7 +3368,7 @@ void i915_vma_close(struct i915_vma *vma)
 
 	list_del_init(&vma->obj_link);
 	if (!i915_vma_is_active(vma) && !vma->pin_count)
-		WARN_ON(__i915_vma_unbind_no_wait(vma));
+		WARN_ON(i915_vma_unbind(vma));
 }
 
 static struct i915_vma *
