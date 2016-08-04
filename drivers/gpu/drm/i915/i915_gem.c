@@ -2963,8 +2963,8 @@ static struct i915_vma *
 i915_gem_object_bind_to_vm(struct drm_i915_gem_object *obj,
 			   struct i915_address_space *vm,
 			   const struct i915_ggtt_view *ggtt_view,
-			   unsigned alignment,
-			   uint64_t flags)
+			   u64 alignment,
+			   u64 flags)
 {
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -3023,7 +3023,7 @@ i915_gem_object_bind_to_vm(struct drm_i915_gem_object *obj,
 		alignment = flags & PIN_MAPPABLE ? fence_alignment :
 						unfenced_alignment;
 	if (flags & PIN_MAPPABLE && alignment & (fence_alignment - 1)) {
-		DRM_DEBUG("Invalid object (view type=%u) alignment requested %u\n",
+		DRM_DEBUG("Invalid object (view type=%u) alignment requested %llx\n",
 			  ggtt_view ? ggtt_view->type : 0,
 			  alignment);
 		return ERR_PTR(-EINVAL);
@@ -3678,7 +3678,7 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 }
 
 static bool
-i915_vma_misplaced(struct i915_vma *vma, uint32_t alignment, uint64_t flags)
+i915_vma_misplaced(struct i915_vma *vma, u64 alignment, u64 flags)
 {
 	struct drm_i915_gem_object *obj = vma->obj;
 
@@ -3727,8 +3727,8 @@ static int
 i915_gem_object_do_pin(struct drm_i915_gem_object *obj,
 		       struct i915_address_space *vm,
 		       const struct i915_ggtt_view *ggtt_view,
-		       uint32_t alignment,
-		       uint64_t flags)
+		       u64 alignment,
+		       u64 flags)
 {
 	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
 	struct i915_vma *vma;
@@ -3757,7 +3757,7 @@ i915_gem_object_do_pin(struct drm_i915_gem_object *obj,
 		if (i915_vma_misplaced(vma, alignment, flags)) {
 			WARN(vma->pin_count,
 			     "bo is already pinned in %s with incorrect alignment:"
-			     " offset=%08x %08x, req.alignment=%x, req.map_and_fenceable=%d,"
+			     " offset=%08x %08x, req.alignment=%llx, req.map_and_fenceable=%d,"
 			     " obj->map_and_fenceable=%d\n",
 			     ggtt_view ? "ggtt" : "ppgtt",
 			     upper_32_bits(vma->node.start),
@@ -3798,8 +3798,8 @@ i915_gem_object_do_pin(struct drm_i915_gem_object *obj,
 int
 i915_gem_object_pin(struct drm_i915_gem_object *obj,
 		    struct i915_address_space *vm,
-		    uint32_t alignment,
-		    uint64_t flags)
+		    u64 alignment,
+		    u64 flags)
 {
 	return i915_gem_object_do_pin(obj, vm,
 				      i915_is_ggtt(vm) ? &i915_ggtt_view_normal : NULL,
@@ -3809,8 +3809,8 @@ i915_gem_object_pin(struct drm_i915_gem_object *obj,
 int
 i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 			 const struct i915_ggtt_view *view,
-			 uint32_t alignment,
-			 uint64_t flags)
+			 u64 alignment,
+			 u64 flags)
 {
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);

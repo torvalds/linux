@@ -3032,13 +3032,13 @@ void i915_gem_free_object(struct drm_gem_object *obj);
 int __must_check
 i915_gem_object_pin(struct drm_i915_gem_object *obj,
 		    struct i915_address_space *vm,
-		    uint32_t alignment,
-		    uint64_t flags);
+		    u64 alignment,
+		    u64 flags);
 int __must_check
 i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 			 const struct i915_ggtt_view *view,
-			 uint32_t alignment,
-			 uint64_t flags);
+			 u64 alignment,
+			 u64 flags);
 
 int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
 		  u32 flags);
@@ -3398,11 +3398,9 @@ int i915_gem_context_reset_stats_ioctl(struct drm_device *dev, void *data,
 
 /* i915_gem_evict.c */
 int __must_check i915_gem_evict_something(struct i915_address_space *vm,
-					  int min_size,
-					  unsigned alignment,
+					  u64 min_size, u64 alignment,
 					  unsigned cache_level,
-					  unsigned long start,
-					  unsigned long end,
+					  u64 start, u64 end,
 					  unsigned flags);
 int __must_check i915_gem_evict_for_vma(struct i915_vma *target);
 int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle);

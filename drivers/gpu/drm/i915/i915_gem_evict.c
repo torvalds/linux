@@ -84,8 +84,9 @@ mark_free(struct i915_vma *vma, struct list_head *unwind)
  */
 int
 i915_gem_evict_something(struct i915_address_space *vm,
-			 int min_size, unsigned alignment, unsigned cache_level,
-			 unsigned long start, unsigned long end,
+			 u64 min_size, u64 alignment,
+			 unsigned cache_level,
+			 u64 start, u64 end,
 			 unsigned flags)
 {
 	struct drm_i915_private *dev_priv = to_i915(vm->dev);
