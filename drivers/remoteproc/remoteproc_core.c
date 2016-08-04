@@ -617,7 +617,6 @@ static int rproc_handle_carveout(struct rproc *rproc,
 	if (rproc->domain) {
 		mapping = kzalloc(sizeof(*mapping), GFP_KERNEL);
 		if (!mapping) {
-			dev_err(dev, "kzalloc mapping failed\n");
 			ret = -ENOMEM;
 			goto dma_free;
 		}
