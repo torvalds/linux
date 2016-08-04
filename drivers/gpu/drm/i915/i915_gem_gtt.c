@@ -3208,10 +3208,10 @@ static void i915_gmch_remove(struct i915_address_space *vm)
 }
 
 /**
- * i915_ggtt_init_hw - Initialize GGTT hardware
+ * i915_ggtt_probe_hw - Probe GGTT hardware location
  * @dev: DRM device
  */
-int i915_ggtt_init_hw(struct drm_device *dev)
+int i915_ggtt_probe_hw(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
@@ -3254,14 +3254,6 @@ int i915_ggtt_init_hw(struct drm_device *dev)
 		ggtt->mappable_end = min(ggtt->mappable_end, ggtt->base.total);
 	}
 
-	/*
-	 * Initialise stolen early so that we may reserve preallocated
-	 * objects for the BIOS to KMS transition.
-	 */
-	ret = i915_gem_init_stolen(dev);
-	if (ret)
-		goto out_gtt_cleanup;
-
 	/* GMADR is the PCI mmio aperture into the global GTT. */
 	DRM_INFO("Memory usable by graphics device = %lluM\n",
 		 ggtt->base.total >> 20);
@@ -3273,10 +3265,30 @@ int i915_ggtt_init_hw(struct drm_device *dev)
 #endif
 
 	return 0;
+}
+
+/**
+ * i915_ggtt_init_hw - Initialize GGTT hardware
+ * @dev: DRM device
+ */
+int i915_ggtt_init_hw(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct i915_ggtt *ggtt = &dev_priv->ggtt;
+	int ret;
+
+	/*
+	 * Initialise stolen early so that we may reserve preallocated
+	 * objects for the BIOS to KMS transition.
+	 */
+	ret = i915_gem_init_stolen(dev);
+	if (ret)
+		goto out_gtt_cleanup;
+
+	return 0;
 
 out_gtt_cleanup:
 	ggtt->base.cleanup(&ggtt->base);
-
 	return ret;
 }
 

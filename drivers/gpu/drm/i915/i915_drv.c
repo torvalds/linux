@@ -1004,15 +1004,9 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 
 	intel_sanitize_options(dev_priv);
 
-	ret = i915_ggtt_init_hw(dev);
+	ret = i915_ggtt_probe_hw(dev);
 	if (ret)
 		return ret;
-
-	ret = i915_ggtt_enable_hw(dev);
-	if (ret) {
-		DRM_ERROR("failed to enable GGTT\n");
-		goto out_ggtt;
-	}
 
 	/* WARNING: Apparently we must kick fbdev drivers before vgacon,
 	 * otherwise the vga fbdev driver falls over. */
@@ -1025,6 +1019,16 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 	ret = i915_kick_out_vgacon(dev_priv);
 	if (ret) {
 		DRM_ERROR("failed to remove conflicting VGA console\n");
+		goto out_ggtt;
+	}
+
+	ret = i915_ggtt_init_hw(dev);
+	if (ret)
+		return ret;
+
+	ret = i915_ggtt_enable_hw(dev);
+	if (ret) {
+		DRM_ERROR("failed to enable GGTT\n");
 		goto out_ggtt;
 	}
 
