@@ -86,7 +86,7 @@ struct cpdma_desc_pool {
 	void __iomem		*iomap;		/* ioremap map */
 	void			*cpumap;	/* dma_alloc map */
 	int			desc_size, mem_size;
-	int			num_desc, used_desc;
+	int			num_desc;
 	struct device		*dev;
 	struct gen_pool		*gen_pool;
 };
@@ -148,7 +148,10 @@ static void cpdma_desc_pool_destroy(struct cpdma_desc_pool *pool)
 	if (!pool)
 		return;
 
-	WARN_ON(pool->used_desc);
+	WARN(gen_pool_size(pool->gen_pool) != gen_pool_avail(pool->gen_pool),
+	     "cpdma_desc_pool size %d != avail %d",
+	     gen_pool_size(pool->gen_pool),
+	     gen_pool_avail(pool->gen_pool));
 	if (pool->cpumap)
 		dma_free_coherent(pool->dev, pool->mem_size, pool->cpumap,
 				  pool->phys);
@@ -232,21 +235,14 @@ desc_from_phys(struct cpdma_desc_pool *pool, dma_addr_t dma)
 static struct cpdma_desc __iomem *
 cpdma_desc_alloc(struct cpdma_desc_pool *pool)
 {
-	struct cpdma_desc __iomem *desc = NULL;
-
-	desc = (struct cpdma_desc __iomem *)gen_pool_alloc(pool->gen_pool,
-							   pool->desc_size);
-	if (desc)
-		pool->used_desc++;
-
-	return desc;
+	return (struct cpdma_desc __iomem *)
+		gen_pool_alloc(pool->gen_pool, pool->desc_size);
 }
 
 static void cpdma_desc_free(struct cpdma_desc_pool *pool,
 			    struct cpdma_desc __iomem *desc, int num_desc)
 {
 	gen_pool_free(pool->gen_pool, (unsigned long)desc, pool->desc_size);
-	pool->used_desc--;
 }
 
 struct cpdma_ctlr *cpdma_ctlr_create(struct cpdma_params *params)
