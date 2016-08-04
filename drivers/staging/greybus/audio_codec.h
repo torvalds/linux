@@ -140,6 +140,8 @@ struct gbaudio_data_connection {
 	__le16 data_cport;
 	struct gb_connection *connection;
 	struct list_head list;
+	/* maintain runtime state for playback/capture stream */
+	int state[2];
 };
 
 /* stream direction */
@@ -177,9 +179,6 @@ struct gbaudio_module_info {
 	int button_status;
 	struct snd_soc_jack headset_jack;
 	struct snd_soc_jack button_jack;
-
-	/* used by codec_ops */
-	int ctrlstate[2];	/* PB/CAP */
 
 	/* connection info */
 	struct gb_connection *mgmt_connection;
