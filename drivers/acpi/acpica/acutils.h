@@ -114,13 +114,25 @@ extern const char *acpi_gbl_pt_decode[];
 /*
  * Common error message prefixes
  */
+#ifndef ACPI_MSG_ERROR
 #define ACPI_MSG_ERROR          "ACPI Error: "
+#endif
+#ifndef ACPI_MSG_EXCEPTION
 #define ACPI_MSG_EXCEPTION      "ACPI Exception: "
+#endif
+#ifndef ACPI_MSG_WARNING
 #define ACPI_MSG_WARNING        "ACPI Warning: "
+#endif
+#ifndef ACPI_MSG_INFO
 #define ACPI_MSG_INFO           "ACPI: "
+#endif
 
+#ifndef ACPI_MSG_BIOS_ERROR
 #define ACPI_MSG_BIOS_ERROR     "ACPI BIOS Error (bug): "
+#endif
+#ifndef ACPI_MSG_BIOS_WARNING
 #define ACPI_MSG_BIOS_WARNING   "ACPI BIOS Warning (bug): "
+#endif
 
 /*
  * Common message suffix

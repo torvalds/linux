@@ -168,6 +168,14 @@
 #define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_get_next_filename
 #define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_close_directory
 
+#define ACPI_MSG_ERROR          KERN_ERR "ACPI Error: "
+#define ACPI_MSG_EXCEPTION      KERN_ERR "ACPI Exception: "
+#define ACPI_MSG_WARNING        KERN_WARNING "ACPI Warning: "
+#define ACPI_MSG_INFO           KERN_INFO "ACPI: "
+
+#define ACPI_MSG_BIOS_ERROR     KERN_ERR "ACPI BIOS Error (bug): "
+#define ACPI_MSG_BIOS_WARNING   KERN_WARNING "ACPI BIOS Warning (bug): "
+
 #else				/* !__KERNEL__ */
 
 #include <stdarg.h>
