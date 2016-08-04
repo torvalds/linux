@@ -351,17 +351,17 @@ static int mlxsw_sp_dcbnl_ieee_setpfc(struct net_device *dev,
 				      struct ieee_pfc *pfc)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
+	bool pause_en = mlxsw_sp_port_is_pause_en(mlxsw_sp_port);
 	int err;
 
-	if ((mlxsw_sp_port->link.tx_pause || mlxsw_sp_port->link.rx_pause) &&
-	    pfc->pfc_en) {
+	if (pause_en && pfc->pfc_en) {
 		netdev_err(dev, "PAUSE frames already enabled on port\n");
 		return -EINVAL;
 	}
 
 	err = __mlxsw_sp_port_headroom_set(mlxsw_sp_port, dev->mtu,
 					   mlxsw_sp_port->dcb.ets->prio_tc,
-					   false, pfc);
+					   pause_en, pfc);
 	if (err) {
 		netdev_err(dev, "Failed to configure port's headroom for PFC\n");
 		return err;
@@ -380,7 +380,7 @@ static int mlxsw_sp_dcbnl_ieee_setpfc(struct net_device *dev,
 
 err_port_pfc_set:
 	__mlxsw_sp_port_headroom_set(mlxsw_sp_port, dev->mtu,
-				     mlxsw_sp_port->dcb.ets->prio_tc, false,
+				     mlxsw_sp_port->dcb.ets->prio_tc, pause_en,
 				     mlxsw_sp_port->dcb.pfc);
 	return err;
 }
