@@ -253,7 +253,7 @@ const char *acpi_ut_get_object_type_name(union acpi_operand_object *obj_desc)
 		return_PTR("Invalid object");
 	}
 
-	return_PTR(acpi_ut_get_type_name(obj_desc->common.type));
+	return_STR(acpi_ut_get_type_name(obj_desc->common.type));
 }
 
 /*******************************************************************************
