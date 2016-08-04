@@ -283,18 +283,38 @@ static const struct drm_i915_gem_object_ops i915_gem_phys_ops = {
 	.release = i915_gem_object_release_phys,
 };
 
+int
+i915_gem_object_unbind(struct drm_i915_gem_object *obj)
+{
+	struct i915_vma *vma;
+	LIST_HEAD(still_in_list);
+	int ret;
+
+	/* The vma will only be freed if it is marked as closed, and if we wait
+	 * upon rendering to the vma, we may unbind anything in the list.
+	 */
+	while ((vma = list_first_entry_or_null(&obj->vma_list,
+					       struct i915_vma,
+					       obj_link))) {
+		list_move_tail(&vma->obj_link, &still_in_list);
+		ret = i915_vma_unbind(vma);
+		if (ret)
+			break;
+	}
+	list_splice(&still_in_list, &obj->vma_list);
+
+	return ret;
+}
+
 static int
 drop_pages(struct drm_i915_gem_object *obj)
 {
-	struct i915_vma *vma, *next;
 	int ret;
 
 	i915_gem_object_get(obj);
-	list_for_each_entry_safe(vma, next, &obj->vma_list, obj_link)
-		if (i915_vma_unbind(vma))
-			break;
-
-	ret = i915_gem_object_put_pages(obj);
+	ret = i915_gem_object_unbind(obj);
+	if (ret == 0)
+		ret = i915_gem_object_put_pages(obj);
 	i915_gem_object_put(obj);
 
 	return ret;
@@ -3450,8 +3470,7 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 				    enum i915_cache_level cache_level)
 {
-	struct drm_device *dev = obj->base.dev;
-	struct i915_vma *vma, *next;
+	struct i915_vma *vma;
 	int ret = 0;
 
 	if (obj->cache_level == cache_level)
@@ -3462,7 +3481,8 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 	 * catch the issue of the CS prefetch crossing page boundaries and
 	 * reading an invalid PTE on older architectures.
 	 */
-	list_for_each_entry_safe(vma, next, &obj->vma_list, obj_link) {
+restart:
+	list_for_each_entry(vma, &obj->vma_list, obj_link) {
 		if (!drm_mm_node_allocated(&vma->node))
 			continue;
 
@@ -3471,11 +3491,18 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 			return -EBUSY;
 		}
 
-		if (!i915_gem_valid_gtt_space(vma, cache_level)) {
-			ret = i915_vma_unbind(vma);
-			if (ret)
-				return ret;
-		}
+		if (i915_gem_valid_gtt_space(vma, cache_level))
+			continue;
+
+		ret = i915_vma_unbind(vma);
+		if (ret)
+			return ret;
+
+		/* As unbinding may affect other elements in the
+		 * obj->vma_list (due to side-effects from retiring
+		 * an active vma), play safe and restart the iterator.
+		 */
+		goto restart;
 	}
 
 	/* We can reuse the existing drm_mm nodes but need to change the
@@ -3494,7 +3521,7 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 		if (ret)
 			return ret;
 
-		if (!HAS_LLC(dev) && cache_level != I915_CACHE_NONE) {
+		if (!HAS_LLC(obj->base.dev) && cache_level != I915_CACHE_NONE) {
 			/* Access to snoopable pages through the GTT is
 			 * incoherent and on some machines causes a hard
 			 * lockup. Relinquish the CPU mmaping to force

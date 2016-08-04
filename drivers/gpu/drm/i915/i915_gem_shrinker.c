@@ -172,8 +172,6 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 		       (obj = list_first_entry_or_null(phase->list,
 						       typeof(*obj),
 						       global_list))) {
-			struct i915_vma *vma, *v;
-
 			list_move_tail(&obj->global_list, &still_in_list);
 
 			if (flags & I915_SHRINK_PURGEABLE &&
@@ -193,11 +191,7 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 			i915_gem_object_get(obj);
 
 			/* For the unbound phase, this should be a no-op! */
-			list_for_each_entry_safe(vma, v,
-						 &obj->vma_list, obj_link)
-				if (i915_vma_unbind(vma))
-					break;
-
+			i915_gem_object_unbind(obj);
 			if (i915_gem_object_put_pages(obj) == 0)
 				count += obj->base.size >> PAGE_SHIFT;
 

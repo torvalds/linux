@@ -3052,6 +3052,8 @@ int __must_check i915_vma_unbind(struct i915_vma *vma);
  * _guarantee_ VMA in question is _not in use_ anywhere.
  */
 int __must_check __i915_vma_unbind_no_wait(struct i915_vma *vma);
+
+int i915_gem_object_unbind(struct drm_i915_gem_object *obj);
 int i915_gem_object_put_pages(struct drm_i915_gem_object *obj);
 void i915_gem_release_all_mmaps(struct drm_i915_private *dev_priv);
 void i915_gem_release_mmap(struct drm_i915_gem_object *obj);

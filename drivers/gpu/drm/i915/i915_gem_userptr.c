@@ -104,7 +104,6 @@ static void cancel_userptr(struct work_struct *work)
 
 	if (obj->pages != NULL) {
 		struct drm_i915_private *dev_priv = to_i915(dev);
-		struct i915_vma *vma, *tmp;
 		bool was_interruptible;
 
 		wait_rendering(obj);
@@ -112,8 +111,7 @@ static void cancel_userptr(struct work_struct *work)
 		was_interruptible = dev_priv->mm.interruptible;
 		dev_priv->mm.interruptible = false;
 
-		list_for_each_entry_safe(vma, tmp, &obj->vma_list, obj_link)
-			WARN_ON(i915_vma_unbind(vma));
+		WARN_ON(i915_gem_object_unbind(obj));
 		WARN_ON(i915_gem_object_put_pages(obj));
 
 		dev_priv->mm.interruptible = was_interruptible;
