@@ -359,7 +359,7 @@ static void gic_handle_shared_int(bool chained)
 		pending_reg += gic_reg_step;
 		intrmask_reg += gic_reg_step;
 
-		if (!config_enabled(CONFIG_64BIT) || mips_cm_is64)
+		if (!IS_ENABLED(CONFIG_64BIT) || mips_cm_is64)
 			continue;
 
 		pending[i] |= (u64)gic_read(pending_reg) << 32;

@@ -27,7 +27,7 @@
  * since we have enough virtual address range available.  On 32-bit, we
  * ioremap the config space for each bus individually.
  */
-static const bool per_bus_mapping = !config_enabled(CONFIG_64BIT);
+static const bool per_bus_mapping = !IS_ENABLED(CONFIG_64BIT);
 
 /*
  * Create a PCI config space window

@@ -46,8 +46,8 @@ static unsigned core_vpe_count(unsigned core)
 	if (threads_disabled)
 		return 1;
 
-	if ((!config_enabled(CONFIG_MIPS_MT_SMP) || !cpu_has_mipsmt)
-		&& (!config_enabled(CONFIG_CPU_MIPSR6) || !cpu_has_vp))
+	if ((!IS_ENABLED(CONFIG_MIPS_MT_SMP) || !cpu_has_mipsmt)
+		&& (!IS_ENABLED(CONFIG_CPU_MIPSR6) || !cpu_has_vp))
 		return 1;
 
 	mips_cm_lock_other(core, 0);

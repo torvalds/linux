@@ -669,7 +669,7 @@ static int bcm47xx_get_sprom_bcma(struct bcma_bus *bus, struct ssb_sprom *out)
 	case BCMA_HOSTTYPE_PCI:
 		memset(out, 0, sizeof(struct ssb_sprom));
 		/* On BCM47XX all PCI buses share the same domain */
-		if (config_enabled(CONFIG_BCM47XX))
+		if (IS_ENABLED(CONFIG_BCM47XX))
 			snprintf(buf, sizeof(buf), "pci/%u/%u/",
 				 bus->host_pci->bus->number + 1,
 				 PCI_SLOT(bus->host_pci->devfn));

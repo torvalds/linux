@@ -54,7 +54,7 @@ struct ar933x_uart_port {
 
 static inline bool ar933x_uart_console_enabled(void)
 {
-	return config_enabled(CONFIG_SERIAL_AR933X_CONSOLE);
+	return IS_ENABLED(CONFIG_SERIAL_AR933X_CONSOLE);
 }
 
 static inline unsigned int ar933x_uart_read(struct ar933x_uart_port *up,
@@ -636,7 +636,7 @@ static int ar933x_uart_probe(struct platform_device *pdev)
 	int ret;
 
 	np = pdev->dev.of_node;
-	if (config_enabled(CONFIG_OF) && np) {
+	if (IS_ENABLED(CONFIG_OF) && np) {
 		id = of_alias_get_id(np, "serial");
 		if (id < 0) {
 			dev_err(&pdev->dev, "unable to get alias id, err=%d\n",
