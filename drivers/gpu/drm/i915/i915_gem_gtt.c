@@ -2104,11 +2104,12 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 	return 0;
 }
 
-static int __hw_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt)
+static int __hw_ppgtt_init(struct i915_hw_ppgtt *ppgtt,
+			   struct drm_i915_private *dev_priv)
 {
-	ppgtt->base.dev = dev;
+	ppgtt->base.dev = &dev_priv->drm;
 
-	if (INTEL_INFO(dev)->gen < 8)
+	if (INTEL_INFO(dev_priv)->gen < 8)
 		return gen6_ppgtt_init(ppgtt);
 	else
 		return gen8_ppgtt_init(ppgtt);
@@ -2142,15 +2143,17 @@ static void gtt_write_workarounds(struct drm_device *dev)
 		I915_WRITE(GEN8_L3_LRA_1_GPGPU, GEN9_L3_LRA_1_GPGPU_DEFAULT_VALUE_BXT);
 }
 
-static int i915_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt)
+static int i915_ppgtt_init(struct i915_hw_ppgtt *ppgtt,
+			   struct drm_i915_private *dev_priv,
+			   struct drm_i915_file_private *file_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	int ret = 0;
+	int ret;
 
-	ret = __hw_ppgtt_init(dev, ppgtt);
+	ret = __hw_ppgtt_init(ppgtt, dev_priv);
 	if (ret == 0) {
 		kref_init(&ppgtt->ref);
 		i915_address_space_init(&ppgtt->base, dev_priv);
+		ppgtt->base.file = file_priv;
 	}
 
 	return ret;
@@ -2182,7 +2185,8 @@ int i915_ppgtt_init_hw(struct drm_device *dev)
 }
 
 struct i915_hw_ppgtt *
-i915_ppgtt_create(struct drm_device *dev, struct drm_i915_file_private *fpriv)
+i915_ppgtt_create(struct drm_i915_private *dev_priv,
+		  struct drm_i915_file_private *fpriv)
 {
 	struct i915_hw_ppgtt *ppgtt;
 	int ret;
@@ -2191,13 +2195,11 @@ i915_ppgtt_create(struct drm_device *dev, struct drm_i915_file_private *fpriv)
 	if (!ppgtt)
 		return ERR_PTR(-ENOMEM);
 
-	ret = i915_ppgtt_init(dev, ppgtt);
+	ret = i915_ppgtt_init(ppgtt, dev_priv, fpriv);
 	if (ret) {
 		kfree(ppgtt);
 		return ERR_PTR(ret);
 	}
-
-	ppgtt->file_priv = fpriv;
 
 	trace_i915_ppgtt_create(&ppgtt->base);
 
@@ -2784,9 +2786,8 @@ int i915_gem_init_ggtt(struct drm_i915_private *dev_priv)
 		if (!ppgtt)
 			return -ENOMEM;
 
-		ret = __hw_ppgtt_init(&dev_priv->drm, ppgtt);
+		ret = __hw_ppgtt_init(ppgtt, dev_priv);
 		if (ret) {
-			ppgtt->base.cleanup(&ppgtt->base);
 			kfree(ppgtt);
 			return ret;
 		}
@@ -3179,7 +3180,6 @@ int i915_ggtt_probe_hw(struct drm_i915_private *dev_priv)
 	int ret;
 
 	ggtt->base.dev = &dev_priv->drm;
-	ggtt->base.is_ggtt = true;
 
 	if (INTEL_GEN(dev_priv) <= 5)
 		ret = i915_gmch_probe(ggtt);
@@ -3314,7 +3314,7 @@ void i915_gem_restore_gtt_mappings(struct drm_device *dev)
 
 			struct i915_hw_ppgtt *ppgtt;
 
-			if (vm->is_ggtt)
+			if (i915_is_ggtt(vm))
 				ppgtt = dev_priv->mm.aliasing_ppgtt;
 			else
 				ppgtt = i915_vm_to_ppgtt(vm);

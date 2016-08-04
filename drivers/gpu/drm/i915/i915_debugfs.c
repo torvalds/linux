@@ -354,7 +354,7 @@ static int per_file_stats(int id, void *ptr, void *data)
 		} else {
 			struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(vma->vm);
 
-			if (ppgtt->file_priv != stats->file_priv)
+			if (ppgtt->base.file != stats->file_priv)
 				continue;
 		}
 

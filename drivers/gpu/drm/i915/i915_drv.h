@@ -3300,7 +3300,6 @@ i915_vm_to_ppgtt(struct i915_address_space *vm)
 	return container_of(vm, struct i915_hw_ppgtt, base);
 }
 
-
 static inline bool i915_gem_obj_ggtt_bound(struct drm_i915_gem_object *obj)
 {
 	return i915_gem_obj_ggtt_bound_view(obj, &i915_ggtt_view_normal);
