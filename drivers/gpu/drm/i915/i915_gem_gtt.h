@@ -182,15 +182,28 @@ struct i915_vma {
 	void __iomem *iomap;
 	u64 size;
 
-	unsigned int active;
-	struct i915_gem_active last_read[I915_NUM_ENGINES];
+	unsigned int flags;
+	/**
+	 * How many users have pinned this object in GTT space. The following
+	 * users can each hold at most one reference: pwrite/pread, execbuffer
+	 * (objects are not allowed multiple times for the same batchbuffer),
+	 * and the framebuffer code. When switching/pageflipping, the
+	 * framebuffer code has at most two buffers pinned per crtc.
+	 *
+	 * In the worst case this is 1 + 1 + 1 + 2*2 = 7. That would fit into 3
+	 * bits with absolutely no headroom. So use 4 bits.
+	 */
+#define I915_VMA_PIN_MASK 0xf
 
 	/** Flags and address space this VMA is bound to */
-#define GLOBAL_BIND	(1<<0)
-#define LOCAL_BIND	(1<<1)
-	unsigned int bound : 4;
-	bool is_ggtt : 1;
-	bool closed : 1;
+#define I915_VMA_GLOBAL_BIND	BIT(5)
+#define I915_VMA_LOCAL_BIND	BIT(6)
+
+#define I915_VMA_GGTT	BIT(7)
+#define I915_VMA_CLOSED BIT(8)
+
+	unsigned int active;
+	struct i915_gem_active last_read[I915_NUM_ENGINES];
 
 	/**
 	 * Support different GGTT views into the same object.
@@ -215,19 +228,17 @@ struct i915_vma {
 	struct hlist_node exec_node;
 	unsigned long exec_handle;
 	struct drm_i915_gem_exec_object2 *exec_entry;
-
-	/**
-	 * How many users have pinned this object in GTT space. The following
-	 * users can each hold at most one reference: pwrite/pread, execbuffer
-	 * (objects are not allowed multiple times for the same batchbuffer),
-	 * and the framebuffer code. When switching/pageflipping, the
-	 * framebuffer code has at most two buffers pinned per crtc.
-	 *
-	 * In the worst case this is 1 + 1 + 1 + 2*2 = 7. That would fit into 3
-	 * bits with absolutely no headroom. So use 4 bits. */
-	unsigned int pin_count:4;
-#define DRM_I915_GEM_OBJECT_MAX_PIN_COUNT 0xf
 };
+
+static inline bool i915_vma_is_ggtt(const struct i915_vma *vma)
+{
+	return vma->flags & I915_VMA_GGTT;
+}
+
+static inline bool i915_vma_is_closed(const struct i915_vma *vma)
+{
+	return vma->flags & I915_VMA_CLOSED;
+}
 
 static inline unsigned int i915_vma_get_active(const struct i915_vma *vma)
 {
@@ -625,7 +636,7 @@ i915_vma_pin(struct i915_vma *vma, u64 size, u64 alignment, u64 flags);
 
 static inline int i915_vma_pin_count(const struct i915_vma *vma)
 {
-	return vma->pin_count;
+	return vma->flags & I915_VMA_PIN_MASK;
 }
 
 static inline bool i915_vma_is_pinned(const struct i915_vma *vma)
@@ -635,14 +646,14 @@ static inline bool i915_vma_is_pinned(const struct i915_vma *vma)
 
 static inline void __i915_vma_pin(struct i915_vma *vma)
 {
-	vma->pin_count++;
+	vma->flags++;
 	GEM_BUG_ON(!i915_vma_is_pinned(vma));
 }
 
 static inline void __i915_vma_unpin(struct i915_vma *vma)
 {
 	GEM_BUG_ON(!i915_vma_is_pinned(vma));
-	vma->pin_count--;
+	vma->flags--;
 }
 
 static inline void i915_vma_unpin(struct i915_vma *vma)

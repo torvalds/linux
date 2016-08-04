@@ -2652,7 +2652,7 @@ static int ggtt_bind_vma(struct i915_vma *vma,
 	 * GLOBAL/LOCAL_BIND, it's all the same ptes. Hence unconditionally
 	 * upgrade to both bound if we bind either to avoid double-binding.
 	 */
-	vma->bound |= GLOBAL_BIND | LOCAL_BIND;
+	vma->flags |= I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND;
 
 	return 0;
 }
@@ -2674,14 +2674,14 @@ static int aliasing_gtt_bind_vma(struct i915_vma *vma,
 		pte_flags |= PTE_READ_ONLY;
 
 
-	if (flags & GLOBAL_BIND) {
+	if (flags & I915_VMA_GLOBAL_BIND) {
 		vma->vm->insert_entries(vma->vm,
 					vma->ggtt_view.pages,
 					vma->node.start,
 					cache_level, pte_flags);
 	}
 
-	if (flags & LOCAL_BIND) {
+	if (flags & I915_VMA_LOCAL_BIND) {
 		struct i915_hw_ppgtt *appgtt =
 			to_i915(vma->vm->dev)->mm.aliasing_ppgtt;
 		appgtt->base.insert_entries(&appgtt->base,
@@ -2698,12 +2698,12 @@ static void ggtt_unbind_vma(struct i915_vma *vma)
 	struct i915_hw_ppgtt *appgtt = to_i915(vma->vm->dev)->mm.aliasing_ppgtt;
 	const u64 size = min(vma->size, vma->node.size);
 
-	if (vma->bound & GLOBAL_BIND)
+	if (vma->flags & I915_VMA_GLOBAL_BIND)
 		vma->vm->clear_range(vma->vm,
 				     vma->node.start, size,
 				     true);
 
-	if (vma->bound & LOCAL_BIND && appgtt)
+	if (vma->flags & I915_VMA_LOCAL_BIND && appgtt)
 		appgtt->base.clear_range(&appgtt->base,
 					 vma->node.start, size,
 					 true);
@@ -3334,7 +3334,7 @@ i915_vma_retire(struct i915_gem_active *active,
 		return;
 
 	list_move_tail(&vma->vm_link, &vma->vm->inactive_list);
-	if (unlikely(vma->closed && !i915_vma_is_pinned(vma)))
+	if (unlikely(i915_vma_is_closed(vma) && !i915_vma_is_pinned(vma)))
 		WARN_ON(i915_vma_unbind(vma));
 }
 
@@ -3342,10 +3342,10 @@ void i915_vma_destroy(struct i915_vma *vma)
 {
 	GEM_BUG_ON(vma->node.allocated);
 	GEM_BUG_ON(i915_vma_is_active(vma));
-	GEM_BUG_ON(!vma->closed);
+	GEM_BUG_ON(!i915_vma_is_closed(vma));
 
 	list_del(&vma->vm_link);
-	if (!vma->is_ggtt)
+	if (!i915_vma_is_ggtt(vma))
 		i915_ppgtt_put(i915_vm_to_ppgtt(vma->vm));
 
 	kmem_cache_free(to_i915(vma->obj->base.dev)->vmas, vma);
@@ -3353,8 +3353,8 @@ void i915_vma_destroy(struct i915_vma *vma)
 
 void i915_vma_close(struct i915_vma *vma)
 {
-	GEM_BUG_ON(vma->closed);
-	vma->closed = true;
+	GEM_BUG_ON(i915_vma_is_closed(vma));
+	vma->flags |= I915_VMA_CLOSED;
 
 	list_del_init(&vma->obj_link);
 	if (!i915_vma_is_active(vma) && !i915_vma_is_pinned(vma))
@@ -3386,9 +3386,9 @@ __i915_gem_vma_create(struct drm_i915_gem_object *obj,
 	vma->vm = vm;
 	vma->obj = obj;
 	vma->size = obj->base.size;
-	vma->is_ggtt = i915_is_ggtt(vm);
 
 	if (i915_is_ggtt(vm)) {
+		vma->flags |= I915_VMA_GGTT;
 		vma->ggtt_view = *view;
 		if (view->type == I915_GGTT_VIEW_PARTIAL) {
 			vma->size = view->params.partial.size;
@@ -3433,7 +3433,7 @@ i915_gem_obj_lookup_or_create_ggtt_vma(struct drm_i915_gem_object *obj,
 	if (!vma)
 		vma = __i915_gem_vma_create(obj, &ggtt->base, view);
 
-	GEM_BUG_ON(vma->closed);
+	GEM_BUG_ON(i915_vma_is_closed(vma));
 	return vma;
 
 }
@@ -3644,27 +3644,28 @@ i915_get_ggtt_vma_pages(struct i915_vma *vma)
 int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
 		  u32 flags)
 {
-	int ret;
 	u32 bind_flags;
+	u32 vma_flags;
+	int ret;
 
 	if (WARN_ON(flags == 0))
 		return -EINVAL;
 
 	bind_flags = 0;
 	if (flags & PIN_GLOBAL)
-		bind_flags |= GLOBAL_BIND;
+		bind_flags |= I915_VMA_GLOBAL_BIND;
 	if (flags & PIN_USER)
-		bind_flags |= LOCAL_BIND;
+		bind_flags |= I915_VMA_LOCAL_BIND;
 
+	vma_flags = vma->flags & (I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND);
 	if (flags & PIN_UPDATE)
-		bind_flags |= vma->bound;
+		bind_flags |= vma_flags;
 	else
-		bind_flags &= ~vma->bound;
-
+		bind_flags &= ~vma_flags;
 	if (bind_flags == 0)
 		return 0;
 
-	if (vma->bound == 0 && vma->vm->allocate_va_range) {
+	if (vma_flags == 0 && vma->vm->allocate_va_range) {
 		trace_i915_va_alloc(vma);
 		ret = vma->vm->allocate_va_range(vma->vm,
 						 vma->node.start,
@@ -3677,8 +3678,7 @@ int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
 	if (ret)
 		return ret;
 
-	vma->bound |= bind_flags;
-
+	vma->flags |= bind_flags;
 	return 0;
 }
 
@@ -3690,8 +3690,8 @@ void __iomem *i915_vma_pin_iomap(struct i915_vma *vma)
 	if (WARN_ON(!vma->obj->map_and_fenceable))
 		return IO_ERR_PTR(-ENODEV);
 
-	GEM_BUG_ON(!vma->is_ggtt);
-	GEM_BUG_ON((vma->bound & GLOBAL_BIND) == 0);
+	GEM_BUG_ON(!i915_vma_is_ggtt(vma));
+	GEM_BUG_ON((vma->flags & I915_VMA_GLOBAL_BIND) == 0);
 
 	ptr = vma->iomap;
 	if (ptr == NULL) {

@@ -219,7 +219,7 @@ static void i915_ppgtt_close(struct i915_address_space *vm)
 		struct i915_vma *vma, *vn;
 
 		list_for_each_entry_safe(vma, vn, *phase, vm_link)
-			if (!vma->closed)
+			if (!i915_vma_is_closed(vma))
 				i915_vma_close(vma);
 	}
 }

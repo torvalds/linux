@@ -125,7 +125,7 @@ static u64 i915_gem_obj_total_ggtt_size(struct drm_i915_gem_object *obj)
 	struct i915_vma *vma;
 
 	list_for_each_entry(vma, &obj->vma_list, obj_link) {
-		if (vma->is_ggtt && drm_mm_node_allocated(&vma->node))
+		if (i915_vma_is_ggtt(vma) && drm_mm_node_allocated(&vma->node))
 			size += vma->node.size;
 	}
 
@@ -181,9 +181,9 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 			continue;
 
 		seq_printf(m, " (%sgtt offset: %08llx, size: %08llx",
-			   vma->is_ggtt ? "g" : "pp",
+			   i915_vma_is_ggtt(vma) ? "g" : "pp",
 			   vma->node.start, vma->node.size);
-		if (vma->is_ggtt)
+		if (i915_vma_is_ggtt(vma))
 			seq_printf(m, ", type: %u", vma->ggtt_view.type);
 		seq_puts(m, ")");
 	}
@@ -356,7 +356,7 @@ static int per_file_stats(int id, void *ptr, void *data)
 		if (!drm_mm_node_allocated(&vma->node))
 			continue;
 
-		if (vma->is_ggtt) {
+		if (i915_vma_is_ggtt(vma)) {
 			stats->global += vma->node.size;
 		} else {
 			struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(vma->vm);

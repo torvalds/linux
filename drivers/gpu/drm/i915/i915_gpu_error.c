@@ -669,14 +669,14 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 	if (i915_is_ggtt(vm))
 		vma = i915_gem_obj_to_ggtt(src);
 	use_ggtt = (src->cache_level == I915_CACHE_NONE &&
-		   vma && (vma->bound & GLOBAL_BIND) &&
+		   vma && (vma->flags & I915_VMA_GLOBAL_BIND) &&
 		   reloc_offset + num_pages * PAGE_SIZE <= ggtt->mappable_end);
 
 	/* Cannot access stolen address directly, try to use the aperture */
 	if (src->stolen) {
 		use_ggtt = true;
 
-		if (!(vma && vma->bound & GLOBAL_BIND))
+		if (!(vma && vma->flags & I915_VMA_GLOBAL_BIND))
 			goto unwind;
 
 		reloc_offset = i915_gem_obj_ggtt_offset(src);

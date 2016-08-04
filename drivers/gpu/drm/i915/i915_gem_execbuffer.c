@@ -717,7 +717,7 @@ need_reloc_mappable(struct i915_vma *vma)
 	if (entry->relocation_count == 0)
 		return false;
 
-	if (!vma->is_ggtt)
+	if (!i915_vma_is_ggtt(vma))
 		return false;
 
 	/* See also use_cpu_reloc() */
@@ -736,7 +736,8 @@ eb_vma_misplaced(struct i915_vma *vma)
 	struct drm_i915_gem_exec_object2 *entry = vma->exec_entry;
 	struct drm_i915_gem_object *obj = vma->obj;
 
-	WARN_ON(entry->flags & __EXEC_OBJECT_NEEDS_MAP && !vma->is_ggtt);
+	WARN_ON(entry->flags & __EXEC_OBJECT_NEEDS_MAP &&
+		!i915_vma_is_ggtt(vma));
 
 	if (entry->alignment &&
 	    vma->node.start & (entry->alignment - 1))

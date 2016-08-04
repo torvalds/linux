@@ -53,7 +53,7 @@ static bool any_vma_pinned(struct drm_i915_gem_object *obj)
 	struct i915_vma *vma;
 
 	list_for_each_entry(vma, &obj->vma_list, obj_link)
-		if (vma->pin_count)
+		if (i915_vma_is_pinned(vma))
 			return true;
 
 	return false;
