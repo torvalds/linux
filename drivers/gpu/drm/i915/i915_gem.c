@@ -2534,50 +2534,6 @@ void i915_gem_reset(struct drm_device *dev)
 	i915_gem_restore_fences(dev);
 }
 
-/**
- * This function clears the request list as sequence numbers are passed.
- * @engine: engine to retire requests on
- */
-void
-i915_gem_retire_requests_ring(struct intel_engine_cs *engine)
-{
-	while (!list_empty(&engine->request_list)) {
-		struct drm_i915_gem_request *request;
-
-		request = list_first_entry(&engine->request_list,
-					   struct drm_i915_gem_request,
-					   link);
-
-		if (!i915_gem_request_completed(request))
-			break;
-
-		i915_gem_request_retire_upto(request);
-	}
-}
-
-void i915_gem_retire_requests(struct drm_i915_private *dev_priv)
-{
-	struct intel_engine_cs *engine;
-
-	lockdep_assert_held(&dev_priv->drm.struct_mutex);
-
-	if (dev_priv->gt.active_engines == 0)
-		return;
-
-	GEM_BUG_ON(!dev_priv->gt.awake);
-
-	for_each_engine(engine, dev_priv) {
-		i915_gem_retire_requests_ring(engine);
-		if (list_empty(&engine->request_list))
-			dev_priv->gt.active_engines &= ~intel_engine_flag(engine);
-	}
-
-	if (dev_priv->gt.active_engines == 0)
-		queue_delayed_work(dev_priv->wq,
-				   &dev_priv->gt.idle_work,
-				   msecs_to_jiffies(100));
-}
-
 static void
 i915_gem_retire_work_handler(struct work_struct *work)
 {

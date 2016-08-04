@@ -731,3 +731,38 @@ complete:
 
 	return ret;
 }
+
+void i915_gem_retire_requests_ring(struct intel_engine_cs *engine)
+{
+	struct drm_i915_gem_request *request, *next;
+
+	list_for_each_entry_safe(request, next, &engine->request_list, link) {
+		if (!i915_gem_request_completed(request))
+			break;
+
+		i915_gem_request_retire(request);
+	}
+}
+
+void i915_gem_retire_requests(struct drm_i915_private *dev_priv)
+{
+	struct intel_engine_cs *engine;
+
+	lockdep_assert_held(&dev_priv->drm.struct_mutex);
+
+	if (dev_priv->gt.active_engines == 0)
+		return;
+
+	GEM_BUG_ON(!dev_priv->gt.awake);
+
+	for_each_engine(engine, dev_priv) {
+		i915_gem_retire_requests_ring(engine);
+		if (list_empty(&engine->request_list))
+			dev_priv->gt.active_engines &= ~intel_engine_flag(engine);
+	}
+
+	if (dev_priv->gt.active_engines == 0)
+		queue_delayed_work(dev_priv->wq,
+				   &dev_priv->gt.idle_work,
+				   msecs_to_jiffies(100));
+}
