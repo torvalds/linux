@@ -261,7 +261,7 @@ Colorspace sRGB (V4L2_COLORSPACE_SRGB)
 The :ref:`srgb` standard defines the colorspace used by most webcams
 and computer graphics. The default transfer function is
 ``V4L2_XFER_FUNC_SRGB``. The default Y'CbCr encoding is
-``V4L2_YCBCR_ENC_SYCC``. The default Y'CbCr quantization is full range.
+``V4L2_YCBCR_ENC_601``. The default Y'CbCr quantization is full range.
 The chromaticities of the primary colors and the white reference are:
 
 
@@ -339,8 +339,7 @@ Inverse Transfer function:
     L = ((L' + 0.055) / 1.055) ^{2.4}\text{, for }L' > 0.04045
 
 The luminance (Y') and color difference (Cb and Cr) are obtained with
-the following ``V4L2_YCBCR_ENC_SYCC`` encoding as defined by
-:ref:`sycc`:
+the following ``V4L2_YCBCR_ENC_601`` encoding as defined by :ref:`sycc`:
 
 .. math::
 
@@ -351,11 +350,8 @@ the following ``V4L2_YCBCR_ENC_SYCC`` encoding as defined by
     Cr = 0.5R' - 0.4187G' - 0.0813B'
 
 Y' is clamped to the range [0…1] and Cb and Cr are clamped to the range
-[-0.5…0.5]. The ``V4L2_YCBCR_ENC_SYCC`` quantization is always full
-range. Although this Y'CbCr encoding looks very similar to the
-``V4L2_YCBCR_ENC_XV601`` encoding, it is not. The
-``V4L2_YCBCR_ENC_XV601`` scales and offsets the Y'CbCr values before
-quantization, but this encoding does not do that.
+[-0.5…0.5]. This transform is identical to one defined in SMPTE
+170M/BT.601. The Y'CbCr quantization is full range.
 
 
 .. _col-adobergb:

@@ -229,23 +229,17 @@ needs to be filled in.
 
     -  .. row 7
 
-       -  ``V4L2_YCBCR_ENC_SYCC``
-
-       -  Use the extended gamut sYCC encoding.
-
-    -  .. row 8
-
        -  ``V4L2_YCBCR_ENC_BT2020``
 
        -  Use the default non-constant luminance BT.2020 Y'CbCr encoding.
 
-    -  .. row 9
+    -  .. row 8
 
        -  ``V4L2_YCBCR_ENC_BT2020_CONST_LUM``
 
        -  Use the constant luminance BT.2020 Yc'CbcCrc encoding.
 
-    -  .. row 10
+    -  .. row 9
 
        -  ``V4L2_YCBCR_ENC_SMPTE_240M``
 
