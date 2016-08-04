@@ -3072,6 +3072,15 @@ i915_gem_object_insert_into_vm(struct drm_i915_gem_object *obj,
 			alloc_flag = DRM_MM_CREATE_DEFAULT;
 		}
 
+		/* We only allocate in PAGE_SIZE/GTT_PAGE_SIZE (4096) chunks,
+		 * so we know that we always have a minimum alignment of 4096.
+		 * The drm_mm range manager is optimised to return results
+		 * with zero alignment, so where possible use the optimal
+		 * path.
+		 */
+		if (alignment <= 4096)
+			alignment = 0;
+
 search_free:
 		ret = drm_mm_insert_node_in_range_generic(&vm->mm, &vma->node,
 							  size, alignment,
