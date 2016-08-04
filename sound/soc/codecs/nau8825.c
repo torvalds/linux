@@ -212,31 +212,6 @@ static const unsigned short logtable[256] = {
 	0xfa2f, 0xfaea, 0xfba5, 0xfc60, 0xfd1a, 0xfdd4, 0xfe8e, 0xff47
 };
 
-static struct snd_soc_dai *nau8825_get_codec_dai(struct nau8825 *nau8825)
-{
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(nau8825->dapm);
-	struct snd_soc_component *component = &codec->component;
-	struct snd_soc_dai *codec_dai, *_dai;
-
-	list_for_each_entry_safe(codec_dai, _dai, &component->dai_list, list) {
-		if (!strncmp(codec_dai->name, NUVOTON_CODEC_DAI,
-			strlen(NUVOTON_CODEC_DAI)))
-			return codec_dai;
-	}
-	return NULL;
-}
-
-static bool nau8825_dai_is_active(struct nau8825 *nau8825)
-{
-	struct snd_soc_dai *codec_dai = nau8825_get_codec_dai(nau8825);
-
-	if (codec_dai) {
-		if (codec_dai->playback_active || codec_dai->capture_active)
-			return true;
-	}
-	return false;
-}
-
 /**
  * nau8825_sema_acquire - acquire the semaphore of nau88l25
  * @nau8825:  component to register the codec private data with
@@ -1205,6 +1180,8 @@ static int nau8825_hw_params(struct snd_pcm_substream *substream,
 	struct nau8825 *nau8825 = snd_soc_codec_get_drvdata(codec);
 	unsigned int val_len = 0;
 
+	nau8825_sema_acquire(nau8825, 2 * HZ);
+
 	switch (params_width(params)) {
 	case 16:
 		val_len |= NAU8825_I2S_DL_16;
@@ -1225,6 +1202,9 @@ static int nau8825_hw_params(struct snd_pcm_substream *substream,
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_I2S_PCM_CTRL1,
 		NAU8825_I2S_DL_MASK, val_len);
 
+	/* Release the semaphone. */
+	nau8825_sema_release(nau8825);
+
 	return 0;
 }
 
@@ -1233,6 +1213,8 @@ static int nau8825_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	struct snd_soc_codec *codec = codec_dai->codec;
 	struct nau8825 *nau8825 = snd_soc_codec_get_drvdata(codec);
 	unsigned int ctrl1_val = 0, ctrl2_val = 0;
+
+	nau8825_sema_acquire(nau8825, 2 * HZ);
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
@@ -1281,6 +1263,9 @@ static int nau8825_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 		ctrl1_val);
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_I2S_PCM_CTRL2,
 		NAU8825_I2S_MS_MASK, ctrl2_val);
+
+	/* Release the semaphone. */
+	nau8825_sema_release(nau8825);
 
 	return 0;
 }
@@ -2241,20 +2226,8 @@ static int __maybe_unused nau8825_resume(struct snd_soc_codec *codec)
 
 	regcache_cache_only(nau8825->regmap, false);
 	regcache_sync(nau8825->regmap);
-	if (nau8825_is_jack_inserted(nau8825->regmap)) {
-		/* If the jack is inserted, we need to check whether the play-
-		 * back is active before suspend. If active, the driver has to
-		 * raise the protection for cross talk function to avoid the
-		 * playback recovers before cross talk process finish. Other-
-		 * wise, the playback will be interfered by cross talk func-
-		 * tion. It is better to apply hardware related parameters
-		 * before starting playback or record.
-		 */
-		if (nau8825_dai_is_active(nau8825)) {
-			nau8825->xtalk_protect = true;
-			nau8825_sema_acquire(nau8825, 0);
-		}
-	}
+	nau8825->xtalk_protect = true;
+	nau8825_sema_acquire(nau8825, 0);
 	enable_irq(nau8825->irq);
 
 	return 0;
