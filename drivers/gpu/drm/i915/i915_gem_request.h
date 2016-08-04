@@ -296,6 +296,12 @@ i915_gem_active_set(struct i915_gem_active *active,
 	i915_gem_request_assign(&active->request, request);
 }
 
+static inline struct drm_i915_gem_request *
+__i915_gem_active_peek(const struct i915_gem_active *active)
+{
+	return active->request;
+}
+
 /**
  * i915_gem_active_peek - report the request being monitored
  * @active - the active tracker
@@ -305,7 +311,7 @@ i915_gem_active_set(struct i915_gem_active *active,
  * caller must hold struct_mutex.
  */
 static inline struct drm_i915_gem_request *
-i915_gem_active_peek(const struct i915_gem_active *active)
+i915_gem_active_peek(const struct i915_gem_active *active, struct mutex *mutex)
 {
 	return active->request;
 }
@@ -318,11 +324,11 @@ i915_gem_active_peek(const struct i915_gem_active *active)
  * if the active tracker is idle. The caller must hold struct_mutex.
  */
 static inline struct drm_i915_gem_request *
-i915_gem_active_get(const struct i915_gem_active *active)
+i915_gem_active_get(const struct i915_gem_active *active, struct mutex *mutex)
 {
 	struct drm_i915_gem_request *request;
 
-	request = i915_gem_active_peek(active);
+	request = i915_gem_active_peek(active, mutex);
 	if (!request || i915_gem_request_completed(request))
 		return NULL;
 
@@ -352,11 +358,12 @@ i915_gem_active_isset(const struct i915_gem_active *active)
  * the caller to hold struct_mutex (but that can be relaxed if desired).
  */
 static inline bool
-i915_gem_active_is_idle(const struct i915_gem_active *active)
+i915_gem_active_is_idle(const struct i915_gem_active *active,
+			struct mutex *mutex)
 {
 	struct drm_i915_gem_request *request;
 
-	request = i915_gem_active_peek(active);
+	request = i915_gem_active_peek(active, mutex);
 	if (!request || i915_gem_request_completed(request))
 		return true;
 
@@ -372,11 +379,11 @@ i915_gem_active_is_idle(const struct i915_gem_active *active)
  * retired first, see i915_gem_active_retire().
  */
 static inline int __must_check
-i915_gem_active_wait(const struct i915_gem_active *active)
+i915_gem_active_wait(const struct i915_gem_active *active, struct mutex *mutex)
 {
 	struct drm_i915_gem_request *request;
 
-	request = i915_gem_active_peek(active);
+	request = i915_gem_active_peek(active, mutex);
 	if (!request)
 		return 0;
 
@@ -393,9 +400,10 @@ i915_gem_active_wait(const struct i915_gem_active *active)
  * tracker is idle, the function returns immediately.
  */
 static inline int __must_check
-i915_gem_active_retire(const struct i915_gem_active *active)
+i915_gem_active_retire(const struct i915_gem_active *active,
+		       struct mutex *mutex)
 {
-	return i915_gem_active_wait(active);
+	return i915_gem_active_wait(active, mutex);
 }
 
 /* Convenience functions for peeking at state inside active's request whilst
@@ -403,15 +411,17 @@ i915_gem_active_retire(const struct i915_gem_active *active)
  */
 
 static inline uint32_t
-i915_gem_active_get_seqno(const struct i915_gem_active *active)
+i915_gem_active_get_seqno(const struct i915_gem_active *active,
+			  struct mutex *mutex)
 {
-	return i915_gem_request_get_seqno(i915_gem_active_peek(active));
+	return i915_gem_request_get_seqno(i915_gem_active_peek(active, mutex));
 }
 
 static inline struct intel_engine_cs *
-i915_gem_active_get_engine(const struct i915_gem_active *active)
+i915_gem_active_get_engine(const struct i915_gem_active *active,
+			   struct mutex *mutex)
 {
-	return i915_gem_request_get_engine(i915_gem_active_peek(active));
+	return i915_gem_request_get_engine(i915_gem_active_peek(active, mutex));
 }
 
 #define for_each_active(mask, idx) \

@@ -263,7 +263,8 @@ i915_gem_object_wait_fence(struct drm_i915_gem_object *obj)
 {
 	int ret;
 
-	ret = i915_gem_active_wait(&obj->last_fence);
+	ret = i915_gem_active_wait(&obj->last_fence,
+				   &obj->base.dev->struct_mutex);
 	if (ret)
 		return ret;
 

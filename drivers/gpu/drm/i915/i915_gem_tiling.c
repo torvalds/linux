@@ -242,7 +242,8 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 			}
 
 			obj->fence_dirty =
-				!i915_gem_active_is_idle(&obj->last_fence) ||
+				!i915_gem_active_is_idle(&obj->last_fence,
+							 &dev->struct_mutex) ||
 				obj->fence_reg != I915_FENCE_REG_NONE;
 
 			obj->tiling_mode = args->tiling_mode;

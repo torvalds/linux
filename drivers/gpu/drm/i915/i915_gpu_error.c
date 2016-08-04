@@ -742,18 +742,38 @@ unwind:
 #define i915_error_ggtt_object_create(dev_priv, src) \
 	i915_error_object_create((dev_priv), (src), &(dev_priv)->ggtt.base)
 
+/* The error capture is special as tries to run underneath the normal
+ * locking rules - so we use the raw version of the i915_gem_active lookup.
+ */
+static inline uint32_t
+__active_get_seqno(struct i915_gem_active *active)
+{
+	return i915_gem_request_get_seqno(__i915_gem_active_peek(active));
+}
+
+static inline int
+__active_get_engine_id(struct i915_gem_active *active)
+{
+	struct intel_engine_cs *engine;
+
+	engine = i915_gem_request_get_engine(__i915_gem_active_peek(active));
+	return engine ? engine->id : -1;
+}
+
 static void capture_bo(struct drm_i915_error_buffer *err,
 		       struct i915_vma *vma)
 {
 	struct drm_i915_gem_object *obj = vma->obj;
-	struct intel_engine_cs *engine;
 	int i;
 
 	err->size = obj->base.size;
 	err->name = obj->base.name;
+
 	for (i = 0; i < I915_NUM_ENGINES; i++)
-		err->rseqno[i] = i915_gem_active_get_seqno(&obj->last_read[i]);
-	err->wseqno = i915_gem_active_get_seqno(&obj->last_write);
+		err->rseqno[i] = __active_get_seqno(&obj->last_read[i]);
+	err->wseqno = __active_get_seqno(&obj->last_write);
+	err->engine = __active_get_engine_id(&obj->last_write);
+
 	err->gtt_offset = vma->node.start;
 	err->read_domains = obj->base.read_domains;
 	err->write_domain = obj->base.write_domain;
@@ -766,9 +786,6 @@ static void capture_bo(struct drm_i915_error_buffer *err,
 	err->purgeable = obj->madv != I915_MADV_WILLNEED;
 	err->userptr = obj->userptr.mm != NULL;
 	err->cache_level = obj->cache_level;
-
-	engine = i915_gem_active_get_engine(&obj->last_write);
-	err->engine = engine ? engine->id : -1;
 }
 
 static u32 capture_active_bo(struct drm_i915_error_buffer *err,

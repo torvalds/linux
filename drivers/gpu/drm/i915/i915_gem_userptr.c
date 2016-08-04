@@ -74,7 +74,8 @@ static void wait_rendering(struct drm_i915_gem_object *obj)
 	for (i = 0; i < I915_NUM_ENGINES; i++) {
 		struct drm_i915_gem_request *req;
 
-		req = i915_gem_active_get(&obj->last_read[i]);
+		req = i915_gem_active_get(&obj->last_read[i],
+					  &obj->base.dev->struct_mutex);
 		if (req)
 			requests[n++] = req;
 	}
