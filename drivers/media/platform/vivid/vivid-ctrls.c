@@ -761,7 +761,7 @@ static const char * const vivid_ctrl_ycbcr_enc_strings[] = {
 	"Rec. 709",
 	"xvYCC 601",
 	"xvYCC 709",
-	"sYCC",
+	"",
 	"BT.2020",
 	"BT.2020 Constant Luminance",
 	"SMPTE 240M",
@@ -773,6 +773,7 @@ static const struct v4l2_ctrl_config vivid_ctrl_ycbcr_enc = {
 	.id = VIVID_CID_YCBCR_ENC,
 	.name = "Y'CbCr Encoding",
 	.type = V4L2_CTRL_TYPE_MENU,
+	.menu_skip_mask = 1 << 5,
 	.max = ARRAY_SIZE(vivid_ctrl_ycbcr_enc_strings) - 2,
 	.qmenu = vivid_ctrl_ycbcr_enc_strings,
 };
