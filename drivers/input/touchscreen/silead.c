@@ -147,9 +147,6 @@ static void silead_ts_read_data(struct i2c_client *client)
 	}
 
 	touch_nr = buf[0];
-	if (touch_nr < 0)
-		return;
-
 	if (touch_nr > data->max_fingers) {
 		dev_warn(dev, "More touches reported then supported %d > %d\n",
 			 touch_nr, data->max_fingers);
