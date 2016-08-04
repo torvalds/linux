@@ -206,9 +206,9 @@ int gbaudio_tplg_parse_data(struct gbaudio_module_info *module,
 void gbaudio_tplg_release(struct gbaudio_module_info *module);
 
 int gbaudio_module_update(struct gbaudio_codec_info *codec,
-				 const char *w_name,
-				 struct gbaudio_module_info *module,
-				 int enable);
+			  struct snd_soc_dapm_widget *w,
+			  struct gbaudio_module_info *module,
+			  int enable);
 int gbaudio_register_module(struct gbaudio_module_info *module);
 void gbaudio_unregister_module(struct gbaudio_module_info *module);
 

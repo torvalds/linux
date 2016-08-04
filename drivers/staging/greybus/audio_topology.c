@@ -960,14 +960,12 @@ static int gbaudio_widget_event(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_PRE_PMU:
 		ret = gb_audio_gb_enable_widget(module->mgmt_connection, wid);
 		if (!ret)
-			ret = gbaudio_module_update(gbcodec, w->name, module,
-						    1);
+			ret = gbaudio_module_update(gbcodec, w, module, 1);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
 		ret = gb_audio_gb_disable_widget(module->mgmt_connection, wid);
 		if (!ret)
-			ret = gbaudio_module_update(gbcodec, w->name, module,
-						    0);
+			ret = gbaudio_module_update(gbcodec, w, module, 0);
 		break;
 	}
 	if (ret)

@@ -333,10 +333,11 @@ static int gbaudio_module_disable_rx(struct gbaudio_codec_info *codec,
 }
 
 int gbaudio_module_update(struct gbaudio_codec_info *codec,
-				 const char *w_name,
-				 struct gbaudio_module_info *module, int enable)
+			  struct snd_soc_dapm_widget *w,
+			  struct gbaudio_module_info *module, int enable)
 {
 	int stream, ret = 0;
+	const char *w_name = w->name;
 
 	dev_dbg(module->dev, "%s:Module update %s sequence\n", w_name,
 		enable ? "Enable":"Disable");
