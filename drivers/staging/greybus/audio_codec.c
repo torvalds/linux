@@ -30,16 +30,6 @@ find_data(struct gbaudio_module_info *module, const char *name)
 	return NULL;
 }
 
-static int find_stream(const char *name)
-{
-	int stream = 0;
-
-	if (strnstr(name, "SPK Amp", NAME_SIZE))
-		stream |= GB_PLAYBACK;
-
-	return stream;
-}
-
 static int gbaudio_module_enable_tx(struct gbaudio_codec_info *codec,
 				    struct gbaudio_module_info *module)
 {
@@ -336,33 +326,30 @@ int gbaudio_module_update(struct gbaudio_codec_info *codec,
 			  struct snd_soc_dapm_widget *w,
 			  struct gbaudio_module_info *module, int enable)
 {
-	int stream, ret = 0;
+	int ret = 0;
 	const char *w_name = w->name;
 
 	dev_dbg(module->dev, "%s:Module update %s sequence\n", w_name,
 		enable ? "Enable":"Disable");
 
-	stream = find_stream(w_name);
-	if (!stream) {
+	if ((w->id != snd_soc_dapm_aif_in) && (w->id != snd_soc_dapm_aif_out)){
 		dev_dbg(codec->dev, "No action required for %s\n", w_name);
 		return 0;
 	}
 
 	mutex_lock(&codec->lock);
-	if (stream & GB_PLAYBACK) {
+	if (w->id == snd_soc_dapm_aif_in) {
 		if (enable)
 			ret = gbaudio_module_enable_tx(codec, module);
 		else
 			ret = gbaudio_module_disable_tx(codec, module);
-	}
-
-	/* check if capture active */
-	if (stream & GB_CAPTURE) {
+	} else if (w->id == snd_soc_dapm_aif_out) {
 		if (enable)
 			ret = gbaudio_module_enable_rx(codec, module);
 		else
 			ret = gbaudio_module_disable_rx(codec, module);
 	}
+
 	mutex_unlock(&codec->lock);
 
 	return ret;
