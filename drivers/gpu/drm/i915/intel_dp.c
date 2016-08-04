@@ -2551,6 +2551,10 @@ _intel_dp_set_link_train(struct intel_dp *intel_dp,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	enum port port = intel_dig_port->port;
 
+	if (dp_train_pat & DP_TRAINING_PATTERN_MASK)
+		DRM_DEBUG_KMS("Using DP training pattern TPS%d\n",
+			      dp_train_pat & DP_TRAINING_PATTERN_MASK);
+
 	if (HAS_DDI(dev)) {
 		uint32_t temp = I915_READ(DP_TP_CTL(port));
 
@@ -2592,7 +2596,7 @@ _intel_dp_set_link_train(struct intel_dp *intel_dp,
 			*DP |= DP_LINK_TRAIN_PAT_2_CPT;
 			break;
 		case DP_TRAINING_PATTERN_3:
-			DRM_ERROR("DP training pattern 3 not supported\n");
+			DRM_DEBUG_KMS("TPS3 not supported, using TPS2 instead\n");
 			*DP |= DP_LINK_TRAIN_PAT_2_CPT;
 			break;
 		}
@@ -2617,7 +2621,7 @@ _intel_dp_set_link_train(struct intel_dp *intel_dp,
 			if (IS_CHERRYVIEW(dev)) {
 				*DP |= DP_LINK_TRAIN_PAT_3_CHV;
 			} else {
-				DRM_ERROR("DP training pattern 3 not supported\n");
+				DRM_DEBUG_KMS("TPS3 not supported, using TPS2 instead\n");
 				*DP |= DP_LINK_TRAIN_PAT_2;
 			}
 			break;
@@ -2632,11 +2636,8 @@ static void intel_dp_enable_port(struct intel_dp *intel_dp,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	/* enable with pattern 1 (as per spec) */
-	_intel_dp_set_link_train(intel_dp, &intel_dp->DP,
-				 DP_TRAINING_PATTERN_1);
 
-	I915_WRITE(intel_dp->output_reg, intel_dp->DP);
-	POSTING_READ(intel_dp->output_reg);
+	intel_dp_program_link_training_pattern(intel_dp, DP_TRAINING_PATTERN_1);
 
 	/*
 	 * Magic for VLV/CHV. We _must_ first set up the register
