@@ -86,6 +86,8 @@
 #define AES_REG_IRQ_DATA_OUT           BIT(2)
 #define DEFAULT_TIMEOUT		(5*HZ)
 
+#define DEFAULT_AUTOSUSPEND_DELAY	1000
+
 #define FLAGS_MODE_MASK		0x000f
 #define FLAGS_ENCRYPT		BIT(0)
 #define FLAGS_CBC		BIT(1)
@@ -239,9 +241,17 @@ static void omap_aes_write_n(struct omap_aes_dev *dd, u32 offset,
 
 static int omap_aes_hw_init(struct omap_aes_dev *dd)
 {
+	int err;
+
 	if (!(dd->flags & FLAGS_INIT)) {
 		dd->flags |= FLAGS_INIT;
 		dd->err = 0;
+	}
+
+	err = pm_runtime_get_sync(dd->dev);
+	if (err < 0) {
+		dev_err(dd->dev, "failed to get sync: %d\n", err);
+		return err;
 	}
 
 	return 0;
@@ -521,6 +531,9 @@ static void omap_aes_finish_req(struct omap_aes_dev *dd, int err)
 	pr_debug("err: %d\n", err);
 
 	crypto_finalize_cipher_request(dd->engine, req, err);
+
+	pm_runtime_mark_last_busy(dd->dev);
+	pm_runtime_put_autosuspend(dd->dev);
 }
 
 static int omap_aes_crypt_dma_stop(struct omap_aes_dev *dd)
@@ -762,23 +775,6 @@ static int omap_aes_ctr_decrypt(struct ablkcipher_request *req)
 
 static int omap_aes_cra_init(struct crypto_tfm *tfm)
 {
-	struct omap_aes_dev *dd = NULL;
-	int err;
-
-	/* Find AES device, currently picks the first device */
-	spin_lock_bh(&list_lock);
-	list_for_each_entry(dd, &dev_list, list) {
-		break;
-	}
-	spin_unlock_bh(&list_lock);
-
-	err = pm_runtime_get_sync(dd->dev);
-	if (err < 0) {
-		dev_err(dd->dev, "%s: failed to get_sync(%d)\n",
-			__func__, err);
-		return err;
-	}
-
 	tfm->crt_ablkcipher.reqsize = sizeof(struct omap_aes_reqctx);
 
 	return 0;
@@ -786,16 +782,6 @@ static int omap_aes_cra_init(struct crypto_tfm *tfm)
 
 static void omap_aes_cra_exit(struct crypto_tfm *tfm)
 {
-	struct omap_aes_dev *dd = NULL;
-
-	/* Find AES device, currently picks the first device */
-	spin_lock_bh(&list_lock);
-	list_for_each_entry(dd, &dev_list, list) {
-		break;
-	}
-	spin_unlock_bh(&list_lock);
-
-	pm_runtime_put_sync(dd->dev);
 }
 
 /* ********************** ALGS ************************************ */
@@ -1140,6 +1126,9 @@ static int omap_aes_probe(struct platform_device *pdev)
 		goto err_res;
 	}
 	dd->phys_base = res.start;
+
+	pm_runtime_use_autosuspend(dev);
+	pm_runtime_set_autosuspend_delay(dev, DEFAULT_AUTOSUSPEND_DELAY);
 
 	pm_runtime_enable(dev);
 	err = pm_runtime_get_sync(dev);
