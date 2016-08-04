@@ -130,6 +130,60 @@ acpi_status acpi_ev_enable_gpe(struct acpi_gpe_event_info *gpe_event_info)
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_ev_mask_gpe
+ *
+ * PARAMETERS:  gpe_event_info          - GPE to be blocked/unblocked
+ *              is_masked               - Whether the GPE is masked or not
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Unconditionally mask/unmask a GPE during runtime.
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_ev_mask_gpe(struct acpi_gpe_event_info *gpe_event_info, u8 is_masked)
+{
+	struct acpi_gpe_register_info *gpe_register_info;
+	u32 register_bit;
+
+	ACPI_FUNCTION_TRACE(ev_mask_gpe);
+
+	gpe_register_info = gpe_event_info->register_info;
+	if (!gpe_register_info) {
+		return_ACPI_STATUS(AE_NOT_EXIST);
+	}
+
+	register_bit = acpi_hw_get_gpe_register_bit(gpe_event_info);
+
+	/* Perform the action */
+
+	if (is_masked) {
+		if (register_bit & gpe_register_info->mask_for_run) {
+			return_ACPI_STATUS(AE_BAD_PARAMETER);
+		}
+
+		(void)acpi_hw_low_set_gpe(gpe_event_info, ACPI_GPE_DISABLE);
+		ACPI_SET_BIT(gpe_register_info->mask_for_run, (u8)register_bit);
+	} else {
+		if (!(register_bit & gpe_register_info->mask_for_run)) {
+			return_ACPI_STATUS(AE_BAD_PARAMETER);
+		}
+
+		ACPI_CLEAR_BIT(gpe_register_info->mask_for_run,
+			       (u8)register_bit);
+		if (gpe_event_info->runtime_count
+		    && !gpe_event_info->disable_for_dispatch) {
+			(void)acpi_hw_low_set_gpe(gpe_event_info,
+						  ACPI_GPE_ENABLE);
+		}
+	}
+
+	return_ACPI_STATUS(AE_OK);
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_ev_add_gpe_reference
  *
  * PARAMETERS:  gpe_event_info          - Add a reference to this GPE
@@ -674,6 +728,7 @@ acpi_status acpi_ev_finish_gpe(struct acpi_gpe_event_info *gpe_event_info)
 	 * in the event_info.
 	 */
 	(void)acpi_hw_low_set_gpe(gpe_event_info, ACPI_GPE_CONDITIONAL_ENABLE);
+	gpe_event_info->disable_for_dispatch = FALSE;
 	return (AE_OK);
 }
 
@@ -736,6 +791,8 @@ acpi_ev_gpe_dispatch(struct acpi_namespace_node *gpe_device,
 			return_UINT32(ACPI_INTERRUPT_NOT_HANDLED);
 		}
 	}
+
+	gpe_event_info->disable_for_dispatch = TRUE;
 
 	/*
 	 * Dispatch the GPE to either an installed handler or the control

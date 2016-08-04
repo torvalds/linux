@@ -484,6 +484,7 @@ struct acpi_gpe_event_info {
 	u8 flags;		/* Misc info about this GPE */
 	u8 gpe_number;		/* This GPE */
 	u8 runtime_count;	/* References to a run GPE */
+	u8 disable_for_dispatch;	/* Masked during dispatching */
 };
 
 /* Information about a GPE register pair, one per each status/enable pair in an array */
@@ -494,6 +495,7 @@ struct acpi_gpe_register_info {
 	u16 base_gpe_number;	/* Base GPE number for this register */
 	u8 enable_for_wake;	/* GPEs to keep enabled when sleeping */
 	u8 enable_for_run;	/* GPEs to keep enabled when running */
+	u8 mask_for_run;	/* GPEs to keep masked when running */
 	u8 enable_mask;		/* Current mask of enabled GPEs */
 };
 
