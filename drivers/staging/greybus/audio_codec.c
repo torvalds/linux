@@ -19,19 +19,19 @@
 static struct gbaudio_codec_info *gbcodec;
 
 static struct gbaudio_data_connection *
-find_data(struct gbaudio_module_info *module, const char *name)
+find_data(struct gbaudio_module_info *module, int id)
 {
 	struct gbaudio_data_connection *data;
 
 	list_for_each_entry(data, &module->data_list, list) {
-		if (name && !strncmp(data->name, name, NAME_SIZE))
+		if (id == data->id)
 			return data;
 	}
 	return NULL;
 }
 
 static int gbaudio_module_enable_tx(struct gbaudio_codec_info *codec,
-				    struct gbaudio_module_info *module)
+				    struct gbaudio_module_info *module, int id)
 {
 	int module_state, ret = 0;
 	uint16_t data_cport, i2s_port, cportid;
@@ -49,9 +49,9 @@ static int gbaudio_module_enable_tx(struct gbaudio_codec_info *codec,
 	module_state = module->ctrlstate[SNDRV_PCM_STREAM_PLAYBACK];
 
 	/* find the dai */
-	data = find_data(module, dai_name);
+	data = find_data(module, id);
 	if (!data) {
-		dev_err(module->dev, "%s:DATA connection missing\n", dai_name);
+		dev_err(module->dev, "%d:DATA connection missing\n", id);
 		return -ENODEV;
 	}
 
@@ -116,16 +116,13 @@ static int gbaudio_module_enable_tx(struct gbaudio_codec_info *codec,
 	return 0;
 }
 
-static int gbaudio_module_disable_tx(struct gbaudio_codec_info *codec,
-				     struct gbaudio_module_info *module)
+static int gbaudio_module_disable_tx(struct gbaudio_module_info *module, int id)
 {
 	int ret;
 	uint16_t data_cport, cportid, i2s_port;
 	int module_state;
 	struct gbaudio_data_connection *data;
-	const char *dai_name;
 
-	dai_name = codec->stream[SNDRV_PCM_STREAM_PLAYBACK].dai_name;
 	module_state = module->ctrlstate[SNDRV_PCM_STREAM_PLAYBACK];
 
 	if (module_state == GBAUDIO_CODEC_SHUTDOWN) {
@@ -134,9 +131,9 @@ static int gbaudio_module_disable_tx(struct gbaudio_codec_info *codec,
 	}
 
 	/* find the dai */
-	data = find_data(module, dai_name);
+	data = find_data(module, id);
 	if (!data) {
-		dev_err(module->dev, "%s:DATA connection missing\n", dai_name);
+		dev_err(module->dev, "%d:DATA connection missing\n", id);
 		return -ENODEV;
 	}
 
@@ -149,8 +146,7 @@ static int gbaudio_module_disable_tx(struct gbaudio_codec_info *codec,
 					    "deactivate_tx failed:%d\n", ret);
 			return ret;
 		}
-		dev_dbg(module->dev, "Dynamic deactivate %s:%d DAI\n", dai_name,
-			data_cport);
+		dev_dbg(module->dev, "Dynamic deactivate %d DAI\n", data_cport);
 		module->ctrlstate[SNDRV_PCM_STREAM_PLAYBACK] =
 			GBAUDIO_CODEC_HWPARAMS;
 	}
@@ -167,8 +163,7 @@ static int gbaudio_module_disable_tx(struct gbaudio_codec_info *codec,
 					    ret);
 			return ret;
 		}
-		dev_dbg(module->dev, "Dynamic Unregister %s:%d DAI\n", dai_name,
-			cportid);
+		dev_dbg(module->dev, "Dynamic Unregister %d DAI\n", cportid);
 		module->ctrlstate[SNDRV_PCM_STREAM_PLAYBACK] =
 			GBAUDIO_CODEC_SHUTDOWN;
 	}
@@ -177,7 +172,7 @@ static int gbaudio_module_disable_tx(struct gbaudio_codec_info *codec,
 }
 
 static int gbaudio_module_enable_rx(struct gbaudio_codec_info *codec,
-				    struct gbaudio_module_info *module)
+				    struct gbaudio_module_info *module, int id)
 {
 	int module_state, ret = 0;
 	uint16_t data_cport, i2s_port, cportid;
@@ -194,9 +189,9 @@ static int gbaudio_module_enable_rx(struct gbaudio_codec_info *codec,
 	module_state = module->ctrlstate[SNDRV_PCM_STREAM_CAPTURE];
 
 	/* find the dai */
-	data = find_data(module, dai_name);
+	data = find_data(module, id);
 	if (!data) {
-		dev_err(module->dev, "%s:DATA connection missing\n", dai_name);
+		dev_err(module->dev, "%d:DATA connection missing\n", id);
 		return -ENODEV;
 	}
 
@@ -261,16 +256,13 @@ static int gbaudio_module_enable_rx(struct gbaudio_codec_info *codec,
 	return 0;
 }
 
-static int gbaudio_module_disable_rx(struct gbaudio_codec_info *codec,
-				     struct gbaudio_module_info *module)
+static int gbaudio_module_disable_rx(struct gbaudio_module_info *module, int id)
 {
 	int ret;
 	uint16_t data_cport, cportid, i2s_port;
 	int module_state;
 	struct gbaudio_data_connection *data;
-	const char *dai_name;
 
-	dai_name = codec->stream[SNDRV_PCM_STREAM_CAPTURE].dai_name;
 	module_state = module->ctrlstate[SNDRV_PCM_STREAM_CAPTURE];
 
 	if (module_state == GBAUDIO_CODEC_SHUTDOWN) {
@@ -280,9 +272,9 @@ static int gbaudio_module_disable_rx(struct gbaudio_codec_info *codec,
 	}
 
 	/* find the dai */
-	data = find_data(module, dai_name);
+	data = find_data(module, id);
 	if (!data) {
-		dev_err(module->dev, "%s:DATA connection missing\n", dai_name);
+		dev_err(module->dev, "%d:DATA connection missing\n", id);
 		return -ENODEV;
 	}
 
@@ -295,8 +287,7 @@ static int gbaudio_module_disable_rx(struct gbaudio_codec_info *codec,
 					    "deactivate_rx failed:%d\n", ret);
 			return ret;
 		}
-		dev_dbg(module->dev, "Dynamic deactivate %s:%d DAI\n", dai_name,
-			data_cport);
+		dev_dbg(module->dev, "Dynamic deactivate %d DAI\n", data_cport);
 		module->ctrlstate[SNDRV_PCM_STREAM_CAPTURE] =
 			GBAUDIO_CODEC_HWPARAMS;
 	}
@@ -313,8 +304,7 @@ static int gbaudio_module_disable_rx(struct gbaudio_codec_info *codec,
 					    ret);
 			return ret;
 		}
-		dev_dbg(module->dev, "Dynamic Unregister %s:%d DAI\n", dai_name,
-			cportid);
+		dev_dbg(module->dev, "Dynamic Unregister %d DAI\n", cportid);
 		module->ctrlstate[SNDRV_PCM_STREAM_CAPTURE] =
 			GBAUDIO_CODEC_SHUTDOWN;
 	}
@@ -326,28 +316,36 @@ int gbaudio_module_update(struct gbaudio_codec_info *codec,
 			  struct snd_soc_dapm_widget *w,
 			  struct gbaudio_module_info *module, int enable)
 {
-	int ret = 0;
-	const char *w_name = w->name;
+	int dai_id, ret;
+	char intf_name[NAME_SIZE], dir[NAME_SIZE];
 
-	dev_dbg(module->dev, "%s:Module update %s sequence\n", w_name,
+	dev_dbg(module->dev, "%s:Module update %s sequence\n", w->name,
 		enable ? "Enable":"Disable");
 
 	if ((w->id != snd_soc_dapm_aif_in) && (w->id != snd_soc_dapm_aif_out)){
-		dev_dbg(codec->dev, "No action required for %s\n", w_name);
+		dev_dbg(codec->dev, "No action required for %s\n", w->name);
 		return 0;
+	}
+
+	/* parse dai_id from AIF widget's stream_name */
+	ret = sscanf(w->sname, "%s %d %s", intf_name, &dai_id, dir);
+	if (ret < 3) {
+		dev_err(codec->dev, "Error while parsing dai_id for %s\n",
+			w->name);
+		return -EINVAL;
 	}
 
 	mutex_lock(&codec->lock);
 	if (w->id == snd_soc_dapm_aif_in) {
 		if (enable)
-			ret = gbaudio_module_enable_tx(codec, module);
+			ret = gbaudio_module_enable_tx(codec, module, dai_id);
 		else
-			ret = gbaudio_module_disable_tx(codec, module);
+			ret = gbaudio_module_disable_tx(module, dai_id);
 	} else if (w->id == snd_soc_dapm_aif_out) {
 		if (enable)
-			ret = gbaudio_module_enable_rx(codec, module);
+			ret = gbaudio_module_enable_rx(codec, module, dai_id);
 		else
-			ret = gbaudio_module_disable_rx(codec, module);
+			ret = gbaudio_module_disable_rx(module, dai_id);
 	}
 
 	mutex_unlock(&codec->lock);
@@ -447,7 +445,7 @@ static int gbcodec_hw_params(struct snd_pcm_substream *substream,
 
 	/* find the data connection */
 	list_for_each_entry(module, &codec->module_list, list) {
-		data = find_data(module, dai->name);
+		data = find_data(module, dai->id);
 		if (data)
 			break;
 	}
@@ -496,7 +494,7 @@ static int gbcodec_prepare(struct snd_pcm_substream *substream,
 
 	list_for_each_entry(module, &codec->module_list, list) {
 		/* find the dai */
-		data = find_data(module, dai->name);
+		data = find_data(module, dai->id);
 		if (data)
 			break;
 	}
@@ -554,7 +552,7 @@ static int gbcodec_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 
 	list_for_each_entry(module, &codec->module_list, list) {
 		/* find the dai */
-		data = find_data(module, dai->name);
+		data = find_data(module, dai->id);
 		if (data)
 			break;
 	}
@@ -764,7 +762,7 @@ static void gbaudio_codec_cleanup(struct gbaudio_module_info *module)
 	dev_dbg(gbcodec->dev, "%s: removed, cleanup APBridge\n", module->name);
 	if (pb_state == GBAUDIO_CODEC_START) {
 		/* cleanup PB path, only APBridge specific */
-		data = find_data(module, gbcodec->stream[0].dai_name);
+		data = find_data(module, 1);
 		if (!data) {
 			dev_err(gbcodec->dev, "%s: Missing data pointer\n",
 				__func__);
@@ -790,7 +788,7 @@ static void gbaudio_codec_cleanup(struct gbaudio_module_info *module)
 
 	if (cap_state == GBAUDIO_CODEC_START) {
 		/* cleanup CAP path, only APBridge specific */
-		data = find_data(module, gbcodec->stream[1].dai_name);
+		data = find_data(module, 1);
 		if (!data) {
 			dev_err(gbcodec->dev, "%s: Missing data pointer\n",
 				__func__);
