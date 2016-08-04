@@ -174,6 +174,9 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 	if (obj->fence_reg != I915_FENCE_REG_NONE)
 		seq_printf(m, " (fence: %d)", obj->fence_reg);
 	list_for_each_entry(vma, &obj->vma_list, obj_link) {
+		if (!drm_mm_node_allocated(&vma->node))
+			continue;
+
 		seq_printf(m, " (%sgtt offset: %08llx, size: %08llx",
 			   vma->is_ggtt ? "g" : "pp",
 			   vma->node.start, vma->node.size);
@@ -335,19 +338,17 @@ static int per_file_stats(int id, void *ptr, void *data)
 	struct drm_i915_gem_object *obj = ptr;
 	struct file_stats *stats = data;
 	struct i915_vma *vma;
-	int bound = 0;
 
 	stats->count++;
 	stats->total += obj->base.size;
-
+	if (!obj->bind_count)
+		stats->unbound += obj->base.size;
 	if (obj->base.name || obj->base.dma_buf)
 		stats->shared += obj->base.size;
 
 	list_for_each_entry(vma, &obj->vma_list, obj_link) {
 		if (!drm_mm_node_allocated(&vma->node))
 			continue;
-
-		bound++;
 
 		if (vma->is_ggtt) {
 			stats->global += vma->node.size;
@@ -363,9 +364,6 @@ static int per_file_stats(int id, void *ptr, void *data)
 		else
 			stats->inactive += vma->node.size;
 	}
-
-	if (!bound)
-		stats->unbound += obj->base.size;
 
 	return 0;
 }

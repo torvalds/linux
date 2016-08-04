@@ -48,19 +48,15 @@ static bool mutex_is_locked_by(struct mutex *mutex, struct task_struct *task)
 #endif
 }
 
-static int num_vma_bound(struct drm_i915_gem_object *obj)
+static bool any_vma_pinned(struct drm_i915_gem_object *obj)
 {
 	struct i915_vma *vma;
-	int count = 0;
 
-	list_for_each_entry(vma, &obj->vma_list, obj_link) {
-		if (drm_mm_node_allocated(&vma->node))
-			count++;
+	list_for_each_entry(vma, &obj->vma_list, obj_link)
 		if (vma->pin_count)
-			count++;
-	}
+			return true;
 
-	return count;
+	return false;
 }
 
 static bool swap_available(void)
@@ -82,7 +78,10 @@ static bool can_release_pages(struct drm_i915_gem_object *obj)
 	 * to the GPU, simply unbinding from the GPU is not going to succeed
 	 * in releasing our pin count on the pages themselves.
 	 */
-	if (obj->pages_pin_count != num_vma_bound(obj))
+	if (obj->pages_pin_count > obj->bind_count)
+		return false;
+
+	if (any_vma_pinned(obj))
 		return false;
 
 	/* We can only return physical pages to the system if we can either

@@ -2221,6 +2221,8 @@ struct drm_i915_gem_object {
 	unsigned int frontbuffer_bits:INTEL_FRONTBUFFER_BITS;
 
 	unsigned int has_wc_mmap;
+	/** Count of VMA actually bound by this object */
+	unsigned int bind_count;
 	unsigned int pin_display;
 
 	struct sg_table *pages;
@@ -3266,7 +3268,6 @@ i915_gem_obj_ggtt_offset(struct drm_i915_gem_object *o)
 	return i915_gem_obj_ggtt_offset_view(o, &i915_ggtt_view_normal);
 }
 
-bool i915_gem_obj_bound_any(struct drm_i915_gem_object *o);
 bool i915_gem_obj_ggtt_bound_view(struct drm_i915_gem_object *o,
 				  const struct i915_ggtt_view *view);
 bool i915_gem_obj_bound(struct drm_i915_gem_object *o,

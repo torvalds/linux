@@ -2107,7 +2107,7 @@ i915_gem_object_put_pages(struct drm_i915_gem_object *obj)
 	if (obj->pages_pin_count)
 		return -EBUSY;
 
-	BUG_ON(i915_gem_obj_bound_any(obj));
+	GEM_BUG_ON(obj->bind_count);
 
 	/* ->put_pages might need to allocate memory for the bit17 swizzle
 	 * array, hence protect them from being reaped by removing them from gtt
@@ -2965,7 +2965,6 @@ static void __i915_vma_iounmap(struct i915_vma *vma)
 static int __i915_vma_unbind(struct i915_vma *vma, bool wait)
 {
 	struct drm_i915_gem_object *obj = vma->obj;
-	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
 	int ret;
 
 	if (list_empty(&vma->obj_link))
@@ -2979,7 +2978,8 @@ static int __i915_vma_unbind(struct i915_vma *vma, bool wait)
 	if (vma->pin_count)
 		return -EBUSY;
 
-	BUG_ON(obj->pages == NULL);
+	GEM_BUG_ON(obj->bind_count == 0);
+	GEM_BUG_ON(!obj->pages);
 
 	if (wait) {
 		ret = i915_gem_object_wait_rendering(obj, false);
@@ -3019,8 +3019,9 @@ static int __i915_vma_unbind(struct i915_vma *vma, bool wait)
 
 	/* Since the unbound list is global, only move to that list if
 	 * no more VMAs exist. */
-	if (list_empty(&obj->vma_list))
-		list_move_tail(&obj->global_list, &dev_priv->mm.unbound_list);
+	if (--obj->bind_count == 0)
+		list_move_tail(&obj->global_list,
+			       &to_i915(obj->base.dev)->mm.unbound_list);
 
 	/* And finally now the object is completely decoupled from this vma,
 	 * we can drop its hold on the backing storage and allow it to be
@@ -3255,6 +3256,7 @@ search_free:
 
 	list_move_tail(&obj->global_list, &dev_priv->mm.bound_list);
 	list_add_tail(&vma->vm_link, &vm->inactive_list);
+	obj->bind_count++;
 
 	return vma;
 
@@ -3450,7 +3452,6 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 {
 	struct drm_device *dev = obj->base.dev;
 	struct i915_vma *vma, *next;
-	bool bound = false;
 	int ret = 0;
 
 	if (obj->cache_level == cache_level)
@@ -3474,8 +3475,7 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 			ret = i915_vma_unbind(vma);
 			if (ret)
 				return ret;
-		} else
-			bound = true;
+		}
 	}
 
 	/* We can reuse the existing drm_mm nodes but need to change the
@@ -3485,7 +3485,7 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 	 * rewrite the PTE in the belief that doing so tramples upon less
 	 * state and so involves less work.
 	 */
-	if (bound) {
+	if (obj->bind_count) {
 		/* Before we change the PTE, the GPU must not be accessing it.
 		 * If we wait upon the object, we know that all the bound
 		 * VMA are no longer active.
@@ -4223,6 +4223,7 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 			dev_priv->mm.interruptible = was_interruptible;
 		}
 	}
+	GEM_BUG_ON(obj->bind_count);
 
 	/* Stolen objects don't hold a ref, but do hold pin count. Fix that up
 	 * before progressing. */
@@ -4835,17 +4836,6 @@ bool i915_gem_obj_ggtt_bound_view(struct drm_i915_gem_object *o,
 		if (vma->is_ggtt &&
 		    i915_ggtt_view_equal(&vma->ggtt_view, view) &&
 		    drm_mm_node_allocated(&vma->node))
-			return true;
-
-	return false;
-}
-
-bool i915_gem_obj_bound_any(struct drm_i915_gem_object *o)
-{
-	struct i915_vma *vma;
-
-	list_for_each_entry(vma, &o->vma_list, obj_link)
-		if (drm_mm_node_allocated(&vma->node))
 			return true;
 
 	return false;
