@@ -3,7 +3,6 @@ config INFINIBAND_HFI1
 	depends on X86_64 && INFINIBAND_RDMAVT
 	select MMU_NOTIFIER
 	select CRC32
-	default m
 	---help---
 	This is a low-level driver for Intel OPA Gen1 adapter.
 config HFI1_DEBUG_SDMA_ORDER
