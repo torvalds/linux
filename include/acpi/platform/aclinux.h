@@ -215,8 +215,4 @@
 
 #endif				/* __KERNEL__ */
 
-/* Linux uses GCC */
-
-#include <acpi/platform/acgcc.h>
-
 #endif				/* __ACLINUX_H__ */
