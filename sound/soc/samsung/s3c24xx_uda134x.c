@@ -281,7 +281,6 @@ static int s3c24xx_uda134x_probe(struct platform_device *pdev)
 		       "unable to find platform data\n");
 		return -ENODEV;
 	}
-	s3c24xx_uda134x.power = s3c24xx_uda134x_l3_pins->power;
 	s3c24xx_uda134x.model = s3c24xx_uda134x_l3_pins->model;
 
 	if (s3c24xx_uda134x_setup_pin(s3c24xx_uda134x_l3_pins->l3_data,
