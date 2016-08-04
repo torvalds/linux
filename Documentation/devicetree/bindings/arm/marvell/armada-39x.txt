@@ -8,8 +8,15 @@ Required root node property:
 
  - compatible: must contain "marvell,armada390"
 
-In addition, boards using the Marvell Armada 398 SoC shall have the
-following property before the previous one:
+In addition, boards using the Marvell Armada 395 SoC shall have the
+following property before the common "marvell,armada390" one:
+
+Required root node property:
+
+compatible: must contain "marvell,armada395"
+
+Boards using the Marvell Armada 398 SoC shall have the following
+property before the common "marvell,armada390" one:
 
 Required root node property:
 
