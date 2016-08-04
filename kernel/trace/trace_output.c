@@ -1109,12 +1109,26 @@ trace_hwlat_print(struct trace_iterator *iter, int flags,
 
 	trace_assign_type(field, entry);
 
-	trace_seq_printf(s, "#%-5u inner/outer(us): %4llu/%-5llu ts:%ld.%09ld\n",
+	trace_seq_printf(s, "#%-5u inner/outer(us): %4llu/%-5llu ts:%ld.%09ld",
 			 field->seqnum,
 			 field->duration,
 			 field->outer_duration,
 			 field->timestamp.tv_sec,
 			 field->timestamp.tv_nsec);
+
+	if (field->nmi_count) {
+		/*
+		 * The generic sched_clock() is not NMI safe, thus
+		 * we only record the count and not the time.
+		 */
+		if (!IS_ENABLED(CONFIG_GENERIC_SCHED_CLOCK))
+			trace_seq_printf(s, " nmi-total:%llu",
+					 field->nmi_total_ts);
+		trace_seq_printf(s, " nmi-count:%u",
+				 field->nmi_count);
+	}
+
+	trace_seq_putc(s, '\n');
 
 	return trace_handle_return(s);
 }

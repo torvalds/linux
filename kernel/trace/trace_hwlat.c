@@ -64,6 +64,15 @@ static struct dentry *hwlat_sample_window;	/* sample window us */
 /* Save the previous tracing_thresh value */
 static unsigned long save_tracing_thresh;
 
+/* NMI timestamp counters */
+static u64 nmi_ts_start;
+static u64 nmi_total_ts;
+static int nmi_count;
+static int nmi_cpu;
+
+/* Tells NMIs to call back to the hwlat tracer to record timestamps */
+bool trace_hwlat_callback_enabled;
+
 /* If the user changed threshold, remember it */
 static u64 last_tracing_thresh = DEFAULT_LAT_THRESHOLD * NSEC_PER_USEC;
 
@@ -72,7 +81,9 @@ struct hwlat_sample {
 	u64		seqnum;		/* unique sequence */
 	u64		duration;	/* delta */
 	u64		outer_duration;	/* delta (outer loop) */
+	u64		nmi_total_ts;	/* Total time spent in NMIs */
 	struct timespec	timestamp;	/* wall time */
+	int		nmi_count;	/* # NMIs during this sample */
 };
 
 /* keep the global state somewhere. */
@@ -112,6 +123,8 @@ static void trace_hwlat_sample(struct hwlat_sample *sample)
 	entry->duration			= sample->duration;
 	entry->outer_duration		= sample->outer_duration;
 	entry->timestamp		= sample->timestamp;
+	entry->nmi_total_ts		= sample->nmi_total_ts;
+	entry->nmi_count		= sample->nmi_count;
 
 	if (!call_filter_check_discard(call, entry, buffer, event))
 		__buffer_unlock_commit(buffer, event);
@@ -124,6 +137,26 @@ static void trace_hwlat_sample(struct hwlat_sample *sample)
 #define time_sub(a, b)	((a) - (b))
 #define init_time(a, b)	(a = b)
 #define time_u64(a)	a
+
+void trace_hwlat_callback(bool enter)
+{
+	if (smp_processor_id() != nmi_cpu)
+		return;
+
+	/*
+	 * Currently trace_clock_local() calls sched_clock() and the
+	 * generic version is not NMI safe.
+	 */
+	if (!IS_ENABLED(CONFIG_GENERIC_SCHED_CLOCK)) {
+		if (enter)
+			nmi_ts_start = time_get();
+		else
+			nmi_total_ts = time_get() - nmi_ts_start;
+	}
+
+	if (enter)
+		nmi_count++;
+}
 
 /**
  * get_sample - sample the CPU TSC and look for likely hardware latencies
@@ -143,6 +176,14 @@ static int get_sample(void)
 	int ret = -1;
 
 	do_div(thresh, NSEC_PER_USEC); /* modifies interval value */
+
+	nmi_cpu = smp_processor_id();
+	nmi_total_ts = 0;
+	nmi_count = 0;
+	/* Make sure NMIs see this first */
+	barrier();
+
+	trace_hwlat_callback_enabled = true;
 
 	init_time(last_t2, 0);
 	start = time_get(); /* start timestamp */
@@ -188,6 +229,10 @@ static int get_sample(void)
 
 	} while (total <= hwlat_data.sample_width);
 
+	barrier(); /* finish the above in the view for NMIs */
+	trace_hwlat_callback_enabled = false;
+	barrier(); /* Make sure nmi_total_ts is no longer updated */
+
 	ret = 0;
 
 	/* If we exceed the threshold value, we have found a hardware latency */
@@ -196,11 +241,17 @@ static int get_sample(void)
 
 		ret = 1;
 
+		/* We read in microseconds */
+		if (nmi_total_ts)
+			do_div(nmi_total_ts, NSEC_PER_USEC);
+
 		hwlat_data.count++;
 		s.seqnum = hwlat_data.count;
 		s.duration = sample;
 		s.outer_duration = outer_sample;
 		s.timestamp = CURRENT_TIME;
+		s.nmi_total_ts = nmi_total_ts;
+		s.nmi_count = nmi_count;
 		trace_hwlat_sample(&s);
 
 		/* Keep a running maximum ever recorded hardware latency */
