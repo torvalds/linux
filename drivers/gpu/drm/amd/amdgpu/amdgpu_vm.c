@@ -58,6 +58,8 @@
  * the number of function parameters
  */
 struct amdgpu_pte_update_params {
+	/* amdgpu device we do this update for */
+	struct amdgpu_device *adev;
 	/* address where to copy page table entries from */
 	uint64_t src;
 	/* DMA addresses to use for mapping */
@@ -469,7 +471,6 @@ struct amdgpu_bo_va *amdgpu_vm_bo_find(struct amdgpu_vm *vm,
 /**
  * amdgpu_vm_update_pages - helper to call the right asic function
  *
- * @adev: amdgpu_device pointer
  * @params: see amdgpu_pte_update_params definition
  * @pe: addr of the page entry
  * @addr: dst addr to write into pe
@@ -480,8 +481,7 @@ struct amdgpu_bo_va *amdgpu_vm_bo_find(struct amdgpu_vm *vm,
  * Traces the parameters and calls the right asic functions
  * to setup the page table using the DMA.
  */
-static void amdgpu_vm_update_pages(struct amdgpu_device *adev,
-				   struct amdgpu_pte_update_params *params,
+static void amdgpu_vm_update_pages(struct amdgpu_pte_update_params *params,
 				   uint64_t pe, uint64_t addr,
 				   unsigned count, uint32_t incr,
 				   uint32_t flags)
@@ -489,20 +489,20 @@ static void amdgpu_vm_update_pages(struct amdgpu_device *adev,
 	trace_amdgpu_vm_set_page(pe, addr, count, incr, flags);
 
 	if (params->src) {
-		amdgpu_vm_copy_pte(adev, params->ib,
+		amdgpu_vm_copy_pte(params->adev, params->ib,
 			pe, (params->src + (addr >> 12) * 8), count);
 
 	} else if (params->pages_addr) {
-		amdgpu_vm_write_pte(adev, params->ib,
+		amdgpu_vm_write_pte(params->adev, params->ib,
 			params->pages_addr,
 			pe, addr, count, incr, flags);
 
 	} else if (count < 3) {
-		amdgpu_vm_write_pte(adev, params->ib, NULL, pe, addr,
+		amdgpu_vm_write_pte(params->adev, params->ib, NULL, pe, addr,
 				    count, incr, flags);
 
 	} else {
-		amdgpu_vm_set_pte_pde(adev, params->ib, pe, addr,
+		amdgpu_vm_set_pte_pde(params->adev, params->ib, pe, addr,
 				      count, incr, flags);
 	}
 }
@@ -527,7 +527,6 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 	uint64_t addr;
 	int r;
 
-	memset(&params, 0, sizeof(params));
 	ring = container_of(vm->entity.sched, struct amdgpu_ring, sched);
 
 	r = reservation_object_reserve_shared(bo->tbo.resv);
@@ -545,9 +544,10 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 	if (r)
 		goto error;
 
+	memset(&params, 0, sizeof(params));
+	params.adev = adev;
 	params.ib = &job->ibs[0];
-	amdgpu_vm_update_pages(adev, &params, addr, 0, entries,
-			       0, 0);
+	amdgpu_vm_update_pages(&params, addr, 0, entries, 0, 0);
 	amdgpu_ring_pad_ib(ring, &job->ibs[0]);
 
 	WARN_ON(job->ibs[0].length_dw > 64);
@@ -624,7 +624,6 @@ int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 
 	int r;
 
-	memset(&params, 0, sizeof(params));
 	ring = container_of(vm->entity.sched, struct amdgpu_ring, sched);
 
 	/* padding, etc. */
@@ -637,6 +636,8 @@ int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 	if (r)
 		return r;
 
+	memset(&params, 0, sizeof(params));
+	params.adev = adev;
 	params.ib = &job->ibs[0];
 
 	/* walk over the address space and update the page directory */
@@ -657,9 +658,8 @@ int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 		    ((last_pt + incr * count) != pt)) {
 
 			if (count) {
-				amdgpu_vm_update_pages(adev, &params,
-						       last_pde, last_pt,
-						       count, incr,
+				amdgpu_vm_update_pages(&params, last_pde,
+						       last_pt, count, incr,
 						       AMDGPU_PTE_VALID);
 			}
 
@@ -672,8 +672,7 @@ int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 	}
 
 	if (count)
-		amdgpu_vm_update_pages(adev, &params,
-					last_pde, last_pt,
+		amdgpu_vm_update_pages(&params, last_pde, last_pt,
 					count, incr, AMDGPU_PTE_VALID);
 
 	if (params.ib->length_dw != 0) {
@@ -705,15 +704,13 @@ error_free:
 /**
  * amdgpu_vm_frag_ptes - add fragment information to PTEs
  *
- * @adev: amdgpu_device pointer
  * @params: see amdgpu_pte_update_params definition
  * @pe_start: first PTE to handle
  * @pe_end: last PTE to handle
  * @addr: addr those PTEs should point to
  * @flags: hw mapping flags
  */
-static void amdgpu_vm_frag_ptes(struct amdgpu_device *adev,
-				struct amdgpu_pte_update_params	*params,
+static void amdgpu_vm_frag_ptes(struct amdgpu_pte_update_params	*params,
 				uint64_t pe_start, uint64_t pe_end,
 				uint64_t addr, uint32_t flags)
 {
@@ -754,38 +751,36 @@ static void amdgpu_vm_frag_ptes(struct amdgpu_device *adev,
 		!(flags & AMDGPU_PTE_VALID) || (frag_start >= frag_end)) {
 
 		count = (pe_end - pe_start) / 8;
-		amdgpu_vm_update_pages(adev, params, pe_start,
-				       addr, count, AMDGPU_GPU_PAGE_SIZE,
-				       flags);
+		amdgpu_vm_update_pages(params, pe_start, addr, count,
+				       AMDGPU_GPU_PAGE_SIZE, flags);
 		return;
 	}
 
 	/* handle the 4K area at the beginning */
 	if (pe_start != frag_start) {
 		count = (frag_start - pe_start) / 8;
-		amdgpu_vm_update_pages(adev, params, pe_start, addr,
-				       count, AMDGPU_GPU_PAGE_SIZE, flags);
+		amdgpu_vm_update_pages(params, pe_start, addr, count,
+				       AMDGPU_GPU_PAGE_SIZE, flags);
 		addr += AMDGPU_GPU_PAGE_SIZE * count;
 	}
 
 	/* handle the area in the middle */
 	count = (frag_end - frag_start) / 8;
-	amdgpu_vm_update_pages(adev, params, frag_start, addr, count,
+	amdgpu_vm_update_pages(params, frag_start, addr, count,
 			       AMDGPU_GPU_PAGE_SIZE, flags | frag_flags);
 
 	/* handle the 4K area at the end */
 	if (frag_end != pe_end) {
 		addr += AMDGPU_GPU_PAGE_SIZE * count;
 		count = (pe_end - frag_end) / 8;
-		amdgpu_vm_update_pages(adev, params, frag_end, addr,
-				       count, AMDGPU_GPU_PAGE_SIZE, flags);
+		amdgpu_vm_update_pages(params, frag_end, addr, count,
+				       AMDGPU_GPU_PAGE_SIZE, flags);
 	}
 }
 
 /**
  * amdgpu_vm_update_ptes - make sure that page tables are valid
  *
- * @adev: amdgpu_device pointer
  * @params: see amdgpu_pte_update_params definition
  * @vm: requested vm
  * @start: start of GPU address range
@@ -795,8 +790,7 @@ static void amdgpu_vm_frag_ptes(struct amdgpu_device *adev,
  *
  * Update the page tables in the range @start - @end.
  */
-static void amdgpu_vm_update_ptes(struct amdgpu_device *adev,
-				  struct amdgpu_pte_update_params *params,
+static void amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 				  struct amdgpu_vm *vm,
 				  uint64_t start, uint64_t end,
 				  uint64_t dst, uint32_t flags)
@@ -849,8 +843,7 @@ static void amdgpu_vm_update_ptes(struct amdgpu_device *adev,
 			*/
 			cur_pe_end += 8 * nptes;
 		} else {
-			amdgpu_vm_frag_ptes(adev, params,
-					    cur_pe_start, cur_pe_end,
+			amdgpu_vm_frag_ptes(params, cur_pe_start, cur_pe_end,
 					    cur_dst, flags);
 
 			cur_pe_start = next_pe_start;
@@ -863,8 +856,7 @@ static void amdgpu_vm_update_ptes(struct amdgpu_device *adev,
 		dst += nptes * AMDGPU_GPU_PAGE_SIZE;
 	}
 
-	amdgpu_vm_frag_ptes(adev, params, cur_pe_start,
-			    cur_pe_end, cur_dst, flags);
+	amdgpu_vm_frag_ptes(params, cur_pe_start, cur_pe_end, cur_dst, flags);
 }
 
 /**
@@ -902,7 +894,9 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 	int r;
 
 	ring = container_of(vm->entity.sched, struct amdgpu_ring, sched);
+
 	memset(&params, 0, sizeof(params));
+	params.adev = adev;
 	params.src = src;
 	params.pages_addr = pages_addr;
 
@@ -959,8 +953,7 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 	if (r)
 		goto error_free;
 
-	amdgpu_vm_update_ptes(adev, &params, vm, start,
-			      last + 1, addr, flags);
+	amdgpu_vm_update_ptes(&params, vm, start, last + 1, addr, flags);
 
 	amdgpu_ring_pad_ib(ring, params.ib);
 	WARN_ON(params.ib->length_dw > ndw);
