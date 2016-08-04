@@ -63,6 +63,7 @@
 #include <drm/drmP.h>
 
 #include "intel_drv.h"
+#include "intel_frontbuffer.h"
 #include "i915_drv.h"
 
 /**

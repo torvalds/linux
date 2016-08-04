@@ -1135,21 +1135,10 @@ void intel_ddi_clock_get(struct intel_encoder *encoder,
 void intel_ddi_set_vc_payload_alloc(struct drm_crtc *crtc, bool state);
 uint32_t ddi_signal_levels(struct intel_dp *intel_dp);
 
-/* intel_frontbuffer.c */
-void intel_fb_obj_invalidate(struct drm_i915_gem_object *obj,
-			     enum fb_op_origin origin);
-void intel_frontbuffer_flip_prepare(struct drm_device *dev,
-				    unsigned frontbuffer_bits);
-void intel_frontbuffer_flip_complete(struct drm_device *dev,
-				     unsigned frontbuffer_bits);
-void intel_frontbuffer_flip(struct drm_device *dev,
-			    unsigned frontbuffer_bits);
 unsigned int intel_fb_align_height(struct drm_device *dev,
 				   unsigned int height,
 				   uint32_t pixel_format,
 				   uint64_t fb_format_modifier);
-void intel_fb_obj_flush(struct drm_i915_gem_object *obj, bool retire,
-			enum fb_op_origin origin);
 u32 intel_fb_stride_alignment(const struct drm_i915_private *dev_priv,
 			      uint64_t fb_modifier, uint32_t pixel_format);
 

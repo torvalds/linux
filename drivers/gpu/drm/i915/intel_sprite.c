@@ -36,6 +36,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_plane_helper.h>
 #include "intel_drv.h"
+#include "intel_frontbuffer.h"
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 

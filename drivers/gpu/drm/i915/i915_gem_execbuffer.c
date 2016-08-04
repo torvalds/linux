@@ -31,6 +31,7 @@
 #include "i915_drv.h"
 #include "i915_trace.h"
 #include "intel_drv.h"
+#include "intel_frontbuffer.h"
 #include <linux/dma_remapping.h>
 #include <linux/uaccess.h>
 

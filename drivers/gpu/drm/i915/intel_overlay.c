@@ -30,6 +30,7 @@
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_drv.h"
+#include "intel_frontbuffer.h"
 
 /* Limits for overlay size. According to intel doc, the real limits are:
  * Y width: 4095, UV width (planar): 2047, Y height: 2047,

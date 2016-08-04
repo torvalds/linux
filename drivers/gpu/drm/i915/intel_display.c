@@ -34,6 +34,7 @@
 #include <drm/drm_edid.h>
 #include <drm/drmP.h>
 #include "intel_drv.h"
+#include "intel_frontbuffer.h"
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 #include "i915_gem_dmabuf.h"

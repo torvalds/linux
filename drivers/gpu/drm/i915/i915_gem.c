@@ -33,6 +33,7 @@
 #include "i915_vgpu.h"
 #include "i915_trace.h"
 #include "intel_drv.h"
+#include "intel_frontbuffer.h"
 #include "intel_mocs.h"
 #include <linux/reservation.h>
 #include <linux/shmem_fs.h>
