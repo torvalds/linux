@@ -4455,7 +4455,7 @@ i915_gem_load_init(struct drm_device *dev)
 
 	dev_priv->mm.interruptible = true;
 
-	mutex_init(&dev_priv->fb_tracking.lock);
+	spin_lock_init(&dev_priv->fb_tracking.lock);
 }
 
 void i915_gem_load_cleanup(struct drm_device *dev)

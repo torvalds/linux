@@ -28,15 +28,57 @@ struct drm_device;
 struct drm_i915_private;
 struct drm_i915_gem_object;
 
-void intel_fb_obj_invalidate(struct drm_i915_gem_object *obj,
-			     enum fb_op_origin origin);
 void intel_frontbuffer_flip_prepare(struct drm_device *dev,
 				    unsigned frontbuffer_bits);
 void intel_frontbuffer_flip_complete(struct drm_device *dev,
 				     unsigned frontbuffer_bits);
 void intel_frontbuffer_flip(struct drm_device *dev,
 			    unsigned frontbuffer_bits);
-void intel_fb_obj_flush(struct drm_i915_gem_object *obj, bool retire,
-			enum fb_op_origin origin);
+
+void __intel_fb_obj_invalidate(struct drm_i915_gem_object *obj,
+			       enum fb_op_origin origin);
+void __intel_fb_obj_flush(struct drm_i915_gem_object *obj,
+			  bool retire,
+			  enum fb_op_origin origin);
+
+/**
+ * intel_fb_obj_invalidate - invalidate frontbuffer object
+ * @obj: GEM object to invalidate
+ * @origin: which operation caused the invalidation
+ *
+ * This function gets called every time rendering on the given object starts and
+ * frontbuffer caching (fbc, low refresh rate for DRRS, panel self refresh) must
+ * be invalidated. For ORIGIN_CS any subsequent invalidation will be delayed
+ * until the rendering completes or a flip on this frontbuffer plane is
+ * scheduled.
+ */
+static inline void intel_fb_obj_invalidate(struct drm_i915_gem_object *obj,
+					   enum fb_op_origin origin)
+{
+	if (!obj->frontbuffer_bits)
+		return;
+
+	__intel_fb_obj_invalidate(obj, origin);
+}
+
+/**
+ * intel_fb_obj_flush - flush frontbuffer object
+ * @obj: GEM object to flush
+ * @retire: set when retiring asynchronous rendering
+ * @origin: which operation caused the flush
+ *
+ * This function gets called every time rendering on the given object has
+ * completed and frontbuffer caching can be started again. If @retire is true
+ * then any delayed flushes will be unblocked.
+ */
+static inline void intel_fb_obj_flush(struct drm_i915_gem_object *obj,
+				      bool retire,
+				      enum fb_op_origin origin)
+{
+	if (!obj->frontbuffer_bits)
+		return;
+
+	__intel_fb_obj_flush(obj, retire, origin);
+}
 
 #endif /* __INTEL_FRONTBUFFER_H__ */
