@@ -185,7 +185,7 @@ void intel_engine_setup_common(struct intel_engine_cs *engine)
 	engine->fence_context = fence_context_alloc(1);
 
 	intel_engine_init_hangcheck(engine);
-	i915_gem_batch_pool_init(&engine->i915->drm, &engine->batch_pool);
+	i915_gem_batch_pool_init(engine, &engine->batch_pool);
 }
 
 /**
