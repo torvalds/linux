@@ -204,6 +204,9 @@ enum i40e_admin_queue_opc {
 	i40e_aqc_opc_suspend_port_tx				= 0x041B,
 	i40e_aqc_opc_resume_port_tx				= 0x041C,
 	i40e_aqc_opc_configure_partition_bw			= 0x041D,
+	/* hmc */
+	i40e_aqc_opc_query_hmc_resource_profile	= 0x0500,
+	i40e_aqc_opc_set_hmc_resource_profile	= 0x0501,
 
 	/* phy commands*/
 	i40e_aqc_opc_get_phy_abilities		= 0x0600,
@@ -1585,6 +1588,24 @@ struct i40e_aqc_configure_partition_bw_data {
 };
 
 I40E_CHECK_STRUCT_LEN(0x22, i40e_aqc_configure_partition_bw_data);
+
+/* Get and set the active HMC resource profile and status.
+ * (direct 0x0500) and (direct 0x0501)
+ */
+struct i40e_aq_get_set_hmc_resource_profile {
+	u8	pm_profile;
+	u8	pe_vf_enabled;
+	u8	reserved[14];
+};
+
+I40E_CHECK_CMD_LENGTH(i40e_aq_get_set_hmc_resource_profile);
+
+enum i40e_aq_hmc_profile {
+	/* I40E_HMC_PROFILE_NO_CHANGE	= 0, reserved */
+	I40E_HMC_PROFILE_DEFAULT	= 1,
+	I40E_HMC_PROFILE_FAVOR_VF	= 2,
+	I40E_HMC_PROFILE_EQUAL		= 3,
+};
 
 /* Get PHY Abilities (indirect 0x0600) uses the generic indirect struct */
 
