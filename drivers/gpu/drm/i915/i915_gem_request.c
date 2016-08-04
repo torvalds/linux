@@ -205,7 +205,7 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 		prefetchw(next);
 
 		INIT_LIST_HEAD(&active->link);
-		active->request = NULL;
+		RCU_INIT_POINTER(active->request, NULL);
 
 		active->retire(active, request);
 	}

@@ -4431,7 +4431,9 @@ i915_gem_load_init(struct drm_device *dev)
 	dev_priv->requests =
 		kmem_cache_create("i915_gem_request",
 				  sizeof(struct drm_i915_gem_request), 0,
-				  SLAB_HWCACHE_ALIGN,
+				  SLAB_HWCACHE_ALIGN |
+				  SLAB_RECLAIM_ACCOUNT |
+				  SLAB_DESTROY_BY_RCU,
 				  NULL);
 
 	INIT_LIST_HEAD(&dev_priv->context_list);
@@ -4467,6 +4469,9 @@ void i915_gem_load_cleanup(struct drm_device *dev)
 	kmem_cache_destroy(dev_priv->requests);
 	kmem_cache_destroy(dev_priv->vmas);
 	kmem_cache_destroy(dev_priv->objects);
+
+	/* And ensure that our DESTROY_BY_RCU slabs are truly destroyed */
+	rcu_barrier();
 }
 
 int i915_gem_freeze_late(struct drm_i915_private *dev_priv)

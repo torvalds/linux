@@ -205,6 +205,8 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 		intel_runtime_pm_put(dev_priv);
 
 	i915_gem_retire_requests(dev_priv);
+	/* expedite the RCU grace period to free some request slabs */
+	synchronize_rcu_expedited();
 
 	return count;
 }
@@ -225,10 +227,15 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
  */
 unsigned long i915_gem_shrink_all(struct drm_i915_private *dev_priv)
 {
-	return i915_gem_shrink(dev_priv, -1UL,
-			       I915_SHRINK_BOUND |
-			       I915_SHRINK_UNBOUND |
-			       I915_SHRINK_ACTIVE);
+	unsigned long freed;
+
+	freed = i915_gem_shrink(dev_priv, -1UL,
+				I915_SHRINK_BOUND |
+				I915_SHRINK_UNBOUND |
+				I915_SHRINK_ACTIVE);
+	rcu_barrier(); /* wait until our RCU delayed slab frees are completed */
+
+	return freed;
 }
 
 static bool i915_gem_shrinker_lock(struct drm_device *dev, bool *unlock)

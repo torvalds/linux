@@ -183,6 +183,12 @@ i915_gem_request_get(struct drm_i915_gem_request *req)
 	return to_request(fence_get(&req->fence));
 }
 
+static inline struct drm_i915_gem_request *
+i915_gem_request_get_rcu(struct drm_i915_gem_request *req)
+{
+	return to_request(fence_get_rcu(&req->fence));
+}
+
 static inline void
 i915_gem_request_put(struct drm_i915_gem_request *req)
 {
@@ -286,7 +292,7 @@ typedef void (*i915_gem_retire_fn)(struct i915_gem_active *,
 				   struct drm_i915_gem_request *);
 
 struct i915_gem_active {
-	struct drm_i915_gem_request *request;
+	struct drm_i915_gem_request __rcu *request;
 	struct list_head link;
 	i915_gem_retire_fn retire;
 };
@@ -327,13 +333,19 @@ i915_gem_active_set(struct i915_gem_active *active,
 		    struct drm_i915_gem_request *request)
 {
 	list_move(&active->link, &request->active_list);
-	active->request = request;
+	rcu_assign_pointer(active->request, request);
 }
 
 static inline struct drm_i915_gem_request *
 __i915_gem_active_peek(const struct i915_gem_active *active)
 {
-	return active->request;
+	/* Inside the error capture (running with the driver in an unknown
+	 * state), we want to bend the rules slightly (a lot).
+	 *
+	 * Work is in progress to make it safer, in the meantime this keeps
+	 * the known issue from spamming the logs.
+	 */
+	return rcu_dereference_protected(active->request, 1);
 }
 
 /**
@@ -349,7 +361,29 @@ i915_gem_active_peek(const struct i915_gem_active *active, struct mutex *mutex)
 {
 	struct drm_i915_gem_request *request;
 
-	request = active->request;
+	request = rcu_dereference_protected(active->request,
+					    lockdep_is_held(mutex));
+	if (!request || i915_gem_request_completed(request))
+		return NULL;
+
+	return request;
+}
+
+/**
+ * i915_gem_active_peek_rcu - report the active request being monitored
+ * @active - the active tracker
+ *
+ * i915_gem_active_peek_rcu() returns the current request being tracked if
+ * still active, or NULL. It does not obtain a reference on the request
+ * for the caller, and inspection of the request is only valid under
+ * the RCU lock.
+ */
+static inline struct drm_i915_gem_request *
+i915_gem_active_peek_rcu(const struct i915_gem_active *active)
+{
+	struct drm_i915_gem_request *request;
+
+	request = rcu_dereference(active->request);
 	if (!request || i915_gem_request_completed(request))
 		return NULL;
 
@@ -370,6 +404,119 @@ i915_gem_active_get(const struct i915_gem_active *active, struct mutex *mutex)
 }
 
 /**
+ * __i915_gem_active_get_rcu - return a reference to the active request
+ * @active - the active tracker
+ *
+ * __i915_gem_active_get() returns a reference to the active request, or NULL
+ * if the active tracker is idle. The caller must hold the RCU read lock, but
+ * the returned pointer is safe to use outside of RCU.
+ */
+static inline struct drm_i915_gem_request *
+__i915_gem_active_get_rcu(const struct i915_gem_active *active)
+{
+	/* Performing a lockless retrieval of the active request is super
+	 * tricky. SLAB_DESTROY_BY_RCU merely guarantees that the backing
+	 * slab of request objects will not be freed whilst we hold the
+	 * RCU read lock. It does not guarantee that the request itself
+	 * will not be freed and then *reused*. Viz,
+	 *
+	 * Thread A			Thread B
+	 *
+	 * req = active.request
+	 *				retire(req) -> free(req);
+	 *				(req is now first on the slab freelist)
+	 *				active.request = NULL
+	 *
+	 *				req = new submission on a new object
+	 * ref(req)
+	 *
+	 * To prevent the request from being reused whilst the caller
+	 * uses it, we take a reference like normal. Whilst acquiring
+	 * the reference we check that it is not in a destroyed state
+	 * (refcnt == 0). That prevents the request being reallocated
+	 * whilst the caller holds on to it. To check that the request
+	 * was not reallocated as we acquired the reference we have to
+	 * check that our request remains the active request across
+	 * the lookup, in the same manner as a seqlock. The visibility
+	 * of the pointer versus the reference counting is controlled
+	 * by using RCU barriers (rcu_dereference and rcu_assign_pointer).
+	 *
+	 * In the middle of all that, we inspect whether the request is
+	 * complete. Retiring is lazy so the request may be completed long
+	 * before the active tracker is updated. Querying whether the
+	 * request is complete is far cheaper (as it involves no locked
+	 * instructions setting cachelines to exclusive) than acquiring
+	 * the reference, so we do it first. The RCU read lock ensures the
+	 * pointer dereference is valid, but does not ensure that the
+	 * seqno nor HWS is the right one! However, if the request was
+	 * reallocated, that means the active tracker's request was complete.
+	 * If the new request is also complete, then both are and we can
+	 * just report the active tracker is idle. If the new request is
+	 * incomplete, then we acquire a reference on it and check that
+	 * it remained the active request.
+	 */
+	do {
+		struct drm_i915_gem_request *request;
+
+		request = rcu_dereference(active->request);
+		if (!request || i915_gem_request_completed(request))
+			return NULL;
+
+		request = i915_gem_request_get_rcu(request);
+
+		/* What stops the following rcu_access_pointer() from occurring
+		 * before the above i915_gem_request_get_rcu()? If we were
+		 * to read the value before pausing to get the reference to
+		 * the request, we may not notice a change in the active
+		 * tracker.
+		 *
+		 * The rcu_access_pointer() is a mere compiler barrier, which
+		 * means both the CPU and compiler are free to perform the
+		 * memory read without constraint. The compiler only has to
+		 * ensure that any operations after the rcu_access_pointer()
+		 * occur afterwards in program order. This means the read may
+		 * be performed earlier by an out-of-order CPU, or adventurous
+		 * compiler.
+		 *
+		 * The atomic operation at the heart of
+		 * i915_gem_request_get_rcu(), see fence_get_rcu(), is
+		 * atomic_inc_not_zero() which is only a full memory barrier
+		 * when successful. That is, if i915_gem_request_get_rcu()
+		 * returns the request (and so with the reference counted
+		 * incremented) then the following read for rcu_access_pointer()
+		 * must occur after the atomic operation and so confirm
+		 * that this request is the one currently being tracked.
+		 */
+		if (!request || request == rcu_access_pointer(active->request))
+			return rcu_pointer_handoff(request);
+
+		i915_gem_request_put(request);
+	} while (1);
+}
+
+/**
+ * i915_gem_active_get_unlocked - return a reference to the active request
+ * @active - the active tracker
+ *
+ * i915_gem_active_get_unlocked() returns a reference to the active request,
+ * or NULL if the active tracker is idle. The reference is obtained under RCU,
+ * so no locking is required by the caller.
+ *
+ * The reference should be freed with i915_gem_request_put().
+ */
+static inline struct drm_i915_gem_request *
+i915_gem_active_get_unlocked(const struct i915_gem_active *active)
+{
+	struct drm_i915_gem_request *request;
+
+	rcu_read_lock();
+	request = __i915_gem_active_get_rcu(active);
+	rcu_read_unlock();
+
+	return request;
+}
+
+/**
  * i915_gem_active_isset - report whether the active tracker is assigned
  * @active - the active tracker
  *
@@ -380,7 +527,7 @@ i915_gem_active_get(const struct i915_gem_active *active, struct mutex *mutex)
 static inline bool
 i915_gem_active_isset(const struct i915_gem_active *active)
 {
-	return active->request;
+	return rcu_access_pointer(active->request);
 }
 
 /**
@@ -437,7 +584,8 @@ i915_gem_active_retire(struct i915_gem_active *active,
 	struct drm_i915_gem_request *request;
 	int ret;
 
-	request = active->request;
+	request = rcu_dereference_protected(active->request,
+					    lockdep_is_held(mutex));
 	if (!request)
 		return 0;
 
@@ -446,7 +594,8 @@ i915_gem_active_retire(struct i915_gem_active *active,
 		return ret;
 
 	list_del_init(&active->link);
-	active->request = NULL;
+	RCU_INIT_POINTER(active->request, NULL);
+
 	active->retire(active, request);
 
 	return 0;
