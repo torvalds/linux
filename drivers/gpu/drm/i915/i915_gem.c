@@ -306,20 +306,6 @@ i915_gem_object_unbind(struct drm_i915_gem_object *obj)
 	return ret;
 }
 
-static int
-drop_pages(struct drm_i915_gem_object *obj)
-{
-	int ret;
-
-	i915_gem_object_get(obj);
-	ret = i915_gem_object_unbind(obj);
-	if (ret == 0)
-		ret = i915_gem_object_put_pages(obj);
-	i915_gem_object_put(obj);
-
-	return ret;
-}
-
 int
 i915_gem_object_attach_phys(struct drm_i915_gem_object *obj,
 			    int align)
@@ -340,7 +326,11 @@ i915_gem_object_attach_phys(struct drm_i915_gem_object *obj,
 	if (obj->base.filp == NULL)
 		return -EINVAL;
 
-	ret = drop_pages(obj);
+	ret = i915_gem_object_unbind(obj);
+	if (ret)
+		return ret;
+
+	ret = i915_gem_object_put_pages(obj);
 	if (ret)
 		return ret;
 
