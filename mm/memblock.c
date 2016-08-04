@@ -482,7 +482,7 @@ static void __init_memblock memblock_merge_regions(struct memblock_type *type)
  * @flags:	flags of the new region
  *
  * Insert new memblock region [@base,@base+@size) into @type at @idx.
- * @type must already have extra room to accomodate the new region.
+ * @type must already have extra room to accommodate the new region.
  */
 static void __init_memblock memblock_insert_region(struct memblock_type *type,
 						   int idx, phys_addr_t base,
@@ -544,7 +544,7 @@ repeat:
 	/*
 	 * The following is executed twice.  Once with %false @insert and
 	 * then with %true.  The first counts the number of regions needed
-	 * to accomodate the new area.  The second actually inserts them.
+	 * to accommodate the new area.  The second actually inserts them.
 	 */
 	base = obase;
 	nr_new = 0;
