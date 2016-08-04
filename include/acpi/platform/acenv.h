@@ -220,7 +220,7 @@
  * included after including all other host environmental definitions, in
  * order to override the definitions.
  */
-#elif defined(_AED_EFI) || defined(_GNU_EFI)
+#elif defined(_AED_EFI) || defined(_GNU_EFI) || defined(_EDK2_EFI)
 #include "acefi.h"
 
 #else
