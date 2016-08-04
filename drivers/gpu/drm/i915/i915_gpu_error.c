@@ -818,7 +818,7 @@ static u32 capture_pinned_bo(struct drm_i915_error_buffer *err,
 			break;
 
 		list_for_each_entry(vma, &obj->vma_list, obj_link)
-			if (vma->vm == vm && vma->pin_count > 0)
+			if (vma->vm == vm && i915_vma_is_pinned(vma))
 				capture_bo(err++, vma);
 	}
 
@@ -1230,7 +1230,7 @@ static void i915_gem_capture_vm(struct drm_i915_private *dev_priv,
 
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
 		list_for_each_entry(vma, &obj->vma_list, obj_link)
-			if (vma->vm == vm && vma->pin_count > 0)
+			if (vma->vm == vm && i915_vma_is_pinned(vma))
 				i++;
 	}
 	error->pinned_bo_count[ndx] = i - error->active_bo_count[ndx];

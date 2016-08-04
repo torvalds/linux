@@ -168,7 +168,7 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 	if (obj->base.name)
 		seq_printf(m, " (name: %d)", obj->base.name);
 	list_for_each_entry(vma, &obj->vma_list, obj_link) {
-		if (vma->pin_count > 0)
+		if (i915_vma_is_pinned(vma))
 			pin_count++;
 	}
 	seq_printf(m, " (pinned x %d)", pin_count);

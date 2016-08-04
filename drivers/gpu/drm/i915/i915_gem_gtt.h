@@ -609,6 +609,34 @@ i915_ggtt_view_equal(const struct i915_ggtt_view *a,
 	return true;
 }
 
+static inline int i915_vma_pin_count(const struct i915_vma *vma)
+{
+	return vma->pin_count;
+}
+
+static inline bool i915_vma_is_pinned(const struct i915_vma *vma)
+{
+	return i915_vma_pin_count(vma);
+}
+
+static inline void __i915_vma_pin(struct i915_vma *vma)
+{
+	vma->pin_count++;
+	GEM_BUG_ON(!i915_vma_is_pinned(vma));
+}
+
+static inline void __i915_vma_unpin(struct i915_vma *vma)
+{
+	GEM_BUG_ON(!i915_vma_is_pinned(vma));
+	vma->pin_count--;
+}
+
+static inline void i915_vma_unpin(struct i915_vma *vma)
+{
+	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
+	__i915_vma_unpin(vma);
+}
+
 /**
  * i915_vma_pin_iomap - calls ioremap_wc to map the GGTT VMA via the aperture
  * @vma: VMA to iomap
@@ -637,9 +665,8 @@ void __iomem *i915_vma_pin_iomap(struct i915_vma *vma);
 static inline void i915_vma_unpin_iomap(struct i915_vma *vma)
 {
 	lockdep_assert_held(&vma->vm->dev->struct_mutex);
-	GEM_BUG_ON(vma->pin_count == 0);
 	GEM_BUG_ON(vma->iomap == NULL);
-	vma->pin_count--;
+	i915_vma_unpin(vma);
 }
 
 #endif

@@ -431,7 +431,7 @@ i915_gem_object_pin_fence(struct drm_i915_gem_object *obj)
 
 		WARN_ON(!ggtt_vma ||
 			dev_priv->fence_regs[obj->fence_reg].pin_count >
-			ggtt_vma->pin_count);
+			i915_vma_pin_count(ggtt_vma));
 		dev_priv->fence_regs[obj->fence_reg].pin_count++;
 		return true;
 	} else

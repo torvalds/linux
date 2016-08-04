@@ -49,7 +49,7 @@ gpu_is_idle(struct drm_i915_private *dev_priv)
 static bool
 mark_free(struct i915_vma *vma, struct list_head *unwind)
 {
-	if (vma->pin_count)
+	if (i915_vma_is_pinned(vma))
 		return false;
 
 	if (WARN_ON(!list_empty(&vma->exec_list)))
@@ -183,7 +183,7 @@ found:
 	 */
 	list_for_each_entry_safe(vma, next, &eviction_list, exec_list) {
 		if (drm_mm_scan_remove_block(&vma->node))
-			vma->pin_count++;
+			__i915_vma_pin(vma);
 		else
 			list_del_init(&vma->exec_list);
 	}
@@ -195,7 +195,7 @@ found:
 				       exec_list);
 
 		list_del_init(&vma->exec_list);
-		vma->pin_count--;
+		__i915_vma_unpin(vma);
 		if (ret == 0)
 			ret = i915_vma_unbind(vma);
 	}
@@ -220,8 +220,8 @@ i915_gem_evict_for_vma(struct i915_vma *target)
 
 		vma = container_of(node, typeof(*vma), node);
 
-		if (vma->pin_count) {
-			if (!vma->exec_entry || (vma->pin_count > 1))
+		if (i915_vma_is_pinned(vma)) {
+			if (!vma->exec_entry || i915_vma_pin_count(vma) > 1)
 				/* Object is pinned for some other use */
 				return -EBUSY;
 
@@ -281,7 +281,7 @@ int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle)
 	}
 
 	list_for_each_entry_safe(vma, next, &vm->inactive_list, vm_link)
-		if (vma->pin_count == 0)
+		if (!i915_vma_is_pinned(vma))
 			WARN_ON(i915_vma_unbind(vma));
 
 	return 0;

@@ -3334,7 +3334,7 @@ i915_vma_retire(struct i915_gem_active *active,
 		return;
 
 	list_move_tail(&vma->vm_link, &vma->vm->inactive_list);
-	if (unlikely(vma->closed && !vma->pin_count))
+	if (unlikely(vma->closed && !i915_vma_is_pinned(vma)))
 		WARN_ON(i915_vma_unbind(vma));
 }
 
@@ -3357,7 +3357,7 @@ void i915_vma_close(struct i915_vma *vma)
 	vma->closed = true;
 
 	list_del_init(&vma->obj_link);
-	if (!i915_vma_is_active(vma) && !vma->pin_count)
+	if (!i915_vma_is_active(vma) && !i915_vma_is_pinned(vma))
 		WARN_ON(i915_vma_unbind(vma));
 }
 
@@ -3666,12 +3666,12 @@ int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
 
 	if (vma->bound == 0 && vma->vm->allocate_va_range) {
 		/* XXX: i915_vma_pin() will fix this +- hack */
-		vma->pin_count++;
+		__i915_vma_pin(vma);
 		trace_i915_va_alloc(vma);
 		ret = vma->vm->allocate_va_range(vma->vm,
 						 vma->node.start,
 						 vma->node.size);
-		vma->pin_count--;
+		__i915_vma_unpin(vma);
 		if (ret)
 			return ret;
 	}
@@ -3707,6 +3707,6 @@ void __iomem *i915_vma_pin_iomap(struct i915_vma *vma)
 		vma->iomap = ptr;
 	}
 
-	vma->pin_count++;
+	__i915_vma_pin(vma);
 	return ptr;
 }
