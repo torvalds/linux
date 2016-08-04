@@ -20,7 +20,6 @@
 
 struct mtk_drm_plane {
 	struct drm_plane		base;
-	unsigned int			idx;
 };
 
 struct mtk_plane_pending_state {
@@ -53,7 +52,6 @@ to_mtk_plane_state(struct drm_plane_state *state)
 }
 
 int mtk_plane_init(struct drm_device *dev, struct mtk_drm_plane *mtk_plane,
-		   unsigned long possible_crtcs, enum drm_plane_type type,
-		   unsigned int zpos);
+		   unsigned long possible_crtcs, enum drm_plane_type type);
 
 #endif

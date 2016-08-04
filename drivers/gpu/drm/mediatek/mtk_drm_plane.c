@@ -189,8 +189,7 @@ static const struct drm_plane_helper_funcs mtk_plane_helper_funcs = {
 };
 
 int mtk_plane_init(struct drm_device *dev, struct mtk_drm_plane *mtk_plane,
-		   unsigned long possible_crtcs, enum drm_plane_type type,
-		   unsigned int zpos)
+		   unsigned long possible_crtcs, enum drm_plane_type type)
 {
 	int err;
 
@@ -203,7 +202,6 @@ int mtk_plane_init(struct drm_device *dev, struct mtk_drm_plane *mtk_plane,
 	}
 
 	drm_plane_helper_add(&mtk_plane->base, &mtk_plane_helper_funcs);
-	mtk_plane->idx = zpos;
 
 	return 0;
 }
