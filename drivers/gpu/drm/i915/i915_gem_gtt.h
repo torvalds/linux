@@ -180,6 +180,7 @@ struct i915_vma {
 	struct drm_i915_gem_object *obj;
 	struct i915_address_space *vm;
 	void __iomem *iomap;
+	u64 size;
 
 	unsigned int active;
 	struct i915_gem_active last_read[I915_NUM_ENGINES];
@@ -607,10 +608,6 @@ i915_ggtt_view_equal(const struct i915_ggtt_view *a,
 		return !memcmp(&a->params, &b->params, sizeof(a->params));
 	return true;
 }
-
-size_t
-i915_ggtt_view_size(struct drm_i915_gem_object *obj,
-		    const struct i915_ggtt_view *view);
 
 /**
  * i915_vma_pin_iomap - calls ioremap_wc to map the GGTT VMA via the aperture

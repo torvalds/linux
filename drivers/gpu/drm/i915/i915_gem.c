@@ -2980,53 +2980,36 @@ i915_gem_object_insert_into_vm(struct drm_i915_gem_object *obj,
 			       u64 alignment,
 			       u64 flags)
 {
-	struct drm_device *dev = obj->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	u64 start, end;
-	u32 search_flag, alloc_flag;
+	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
 	struct i915_vma *vma;
+	u64 start, end;
+	u64 min_alignment;
 	int ret;
 
-	if (i915_is_ggtt(vm)) {
-		u32 fence_size, fence_alignment, unfenced_alignment;
-		u64 view_size;
+	vma = ggtt_view ?
+		i915_gem_obj_lookup_or_create_ggtt_vma(obj, ggtt_view) :
+		i915_gem_obj_lookup_or_create_vma(obj, vm);
+	if (IS_ERR(vma))
+		return vma;
 
-		if (WARN_ON(!ggtt_view))
-			return ERR_PTR(-EINVAL);
+	size = max(size, vma->size);
+	if (flags & PIN_MAPPABLE)
+		size = i915_gem_get_ggtt_size(dev_priv, size, obj->tiling_mode);
 
-		view_size = i915_ggtt_view_size(obj, ggtt_view);
-
-		fence_size = i915_gem_get_ggtt_size(dev_priv,
-						    view_size,
-						    obj->tiling_mode);
-		fence_alignment = i915_gem_get_ggtt_alignment(dev_priv,
-							      view_size,
-							      obj->tiling_mode,
-							      true);
-		unfenced_alignment = i915_gem_get_ggtt_alignment(dev_priv,
-								 view_size,
-								 obj->tiling_mode,
-								 false);
-		size = max(size, view_size);
-		if (flags & PIN_MAPPABLE)
-			size = max_t(u64, size, fence_size);
-
-		if (alignment == 0)
-			alignment = flags & PIN_MAPPABLE ? fence_alignment :
-				unfenced_alignment;
-		if (flags & PIN_MAPPABLE && alignment & (fence_alignment - 1)) {
-			DRM_DEBUG("Invalid object (view type=%u) alignment requested %llx\n",
-				  ggtt_view ? ggtt_view->type : 0,
-				  alignment);
-			return ERR_PTR(-EINVAL);
-		}
-	} else {
-		size = max_t(u64, size, obj->base.size);
-		alignment = 4096;
+	min_alignment =
+		i915_gem_get_ggtt_alignment(dev_priv, size, obj->tiling_mode,
+					    flags & PIN_MAPPABLE);
+	if (alignment == 0)
+		alignment = min_alignment;
+	if (alignment & (min_alignment - 1)) {
+		DRM_DEBUG("Invalid object alignment requested %llu, minimum %llu\n",
+			  alignment, min_alignment);
+		return ERR_PTR(-EINVAL);
 	}
 
 	start = flags & PIN_OFFSET_BIAS ? flags & PIN_OFFSET_MASK : 0;
-	end = vm->total;
+
+	end = vma->vm->total;
 	if (flags & PIN_MAPPABLE)
 		end = min_t(u64, end, dev_priv->ggtt.mappable_end);
 	if (flags & PIN_ZONE_4G)
@@ -3037,8 +3020,7 @@ i915_gem_object_insert_into_vm(struct drm_i915_gem_object *obj,
 	 * attempt to find space.
 	 */
 	if (size > end) {
-		DRM_DEBUG("Attempting to bind an object (view type=%u) larger than the aperture: request=%llu [object=%zd] > %s aperture=%llu\n",
-			  ggtt_view ? ggtt_view->type : 0,
+		DRM_DEBUG("Attempting to bind an object larger than the aperture: request=%llu [object=%zd] > %s aperture=%llu\n",
 			  size, obj->base.size,
 			  flags & PIN_MAPPABLE ? "mappable" : "total",
 			  end);
@@ -3051,31 +3033,27 @@ i915_gem_object_insert_into_vm(struct drm_i915_gem_object *obj,
 
 	i915_gem_object_pin_pages(obj);
 
-	vma = ggtt_view ? i915_gem_obj_lookup_or_create_ggtt_vma(obj, ggtt_view) :
-			  i915_gem_obj_lookup_or_create_vma(obj, vm);
-
-	if (IS_ERR(vma))
-		goto err_unpin;
-
 	if (flags & PIN_OFFSET_FIXED) {
 		uint64_t offset = flags & PIN_OFFSET_MASK;
-
-		if (offset & (alignment - 1) || offset + size > end) {
+		if (offset & (alignment - 1) || offset > end - size) {
 			ret = -EINVAL;
-			goto err_vma;
+			goto err_unpin;
 		}
+
 		vma->node.start = offset;
 		vma->node.size = size;
 		vma->node.color = obj->cache_level;
-		ret = drm_mm_reserve_node(&vm->mm, &vma->node);
+		ret = drm_mm_reserve_node(&vma->vm->mm, &vma->node);
 		if (ret) {
 			ret = i915_gem_evict_for_vma(vma);
 			if (ret == 0)
-				ret = drm_mm_reserve_node(&vm->mm, &vma->node);
+				ret = drm_mm_reserve_node(&vma->vm->mm, &vma->node);
+			if (ret)
+				goto err_unpin;
 		}
-		if (ret)
-			goto err_vma;
 	} else {
+		u32 search_flag, alloc_flag;
+
 		if (flags & PIN_HIGH) {
 			search_flag = DRM_MM_SEARCH_BELOW;
 			alloc_flag = DRM_MM_CREATE_TOP;
@@ -3094,36 +3072,35 @@ i915_gem_object_insert_into_vm(struct drm_i915_gem_object *obj,
 			alignment = 0;
 
 search_free:
-		ret = drm_mm_insert_node_in_range_generic(&vm->mm, &vma->node,
+		ret = drm_mm_insert_node_in_range_generic(&vma->vm->mm,
+							  &vma->node,
 							  size, alignment,
 							  obj->cache_level,
 							  start, end,
 							  search_flag,
 							  alloc_flag);
 		if (ret) {
-			ret = i915_gem_evict_something(vm, size, alignment,
+			ret = i915_gem_evict_something(vma->vm, size, alignment,
 						       obj->cache_level,
 						       start, end,
 						       flags);
 			if (ret == 0)
 				goto search_free;
 
-			goto err_vma;
+			goto err_unpin;
 		}
 	}
 	GEM_BUG_ON(!i915_gem_valid_gtt_space(vma, obj->cache_level));
 
 	list_move_tail(&obj->global_list, &dev_priv->mm.bound_list);
-	list_move_tail(&vma->vm_link, &vm->inactive_list);
+	list_move_tail(&vma->vm_link, &vma->vm->inactive_list);
 	obj->bind_count++;
 
 	return vma;
 
-err_vma:
-	vma = ERR_PTR(ret);
 err_unpin:
 	i915_gem_object_unpin_pages(obj);
-	return vma;
+	return ERR_PTR(ret);
 }
 
 bool

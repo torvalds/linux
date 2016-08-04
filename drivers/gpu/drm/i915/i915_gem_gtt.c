@@ -184,7 +184,7 @@ static void ppgtt_unbind_vma(struct i915_vma *vma)
 {
 	vma->vm->clear_range(vma->vm,
 			     vma->node.start,
-			     vma->obj->base.size,
+			     vma->size,
 			     true);
 }
 
@@ -2695,28 +2695,18 @@ static int aliasing_gtt_bind_vma(struct i915_vma *vma,
 
 static void ggtt_unbind_vma(struct i915_vma *vma)
 {
-	struct drm_device *dev = vma->vm->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct drm_i915_gem_object *obj = vma->obj;
-	const uint64_t size = min_t(uint64_t,
-				    obj->base.size,
-				    vma->node.size);
+	struct i915_hw_ppgtt *appgtt = to_i915(vma->vm->dev)->mm.aliasing_ppgtt;
+	const u64 size = min(vma->size, vma->node.size);
 
-	if (vma->bound & GLOBAL_BIND) {
+	if (vma->bound & GLOBAL_BIND)
 		vma->vm->clear_range(vma->vm,
-				     vma->node.start,
-				     size,
+				     vma->node.start, size,
 				     true);
-	}
 
-	if (dev_priv->mm.aliasing_ppgtt && vma->bound & LOCAL_BIND) {
-		struct i915_hw_ppgtt *appgtt = dev_priv->mm.aliasing_ppgtt;
-
+	if (vma->bound & LOCAL_BIND && appgtt)
 		appgtt->base.clear_range(&appgtt->base,
-					 vma->node.start,
-					 size,
+					 vma->node.start, size,
 					 true);
-	}
 }
 
 void i915_gem_gtt_finish_object(struct drm_i915_gem_object *obj)
@@ -3374,14 +3364,14 @@ void i915_vma_close(struct i915_vma *vma)
 static struct i915_vma *
 __i915_gem_vma_create(struct drm_i915_gem_object *obj,
 		      struct i915_address_space *vm,
-		      const struct i915_ggtt_view *ggtt_view)
+		      const struct i915_ggtt_view *view)
 {
 	struct i915_vma *vma;
 	int i;
 
 	GEM_BUG_ON(vm->closed);
 
-	if (WARN_ON(i915_is_ggtt(vm) != !!ggtt_view))
+	if (WARN_ON(i915_is_ggtt(vm) != !!view))
 		return ERR_PTR(-EINVAL);
 
 	vma = kmem_cache_zalloc(to_i915(obj->base.dev)->vmas, GFP_KERNEL);
@@ -3395,12 +3385,22 @@ __i915_gem_vma_create(struct drm_i915_gem_object *obj,
 	list_add(&vma->vm_link, &vm->unbound_list);
 	vma->vm = vm;
 	vma->obj = obj;
+	vma->size = obj->base.size;
 	vma->is_ggtt = i915_is_ggtt(vm);
 
-	if (i915_is_ggtt(vm))
-		vma->ggtt_view = *ggtt_view;
-	else
+	if (i915_is_ggtt(vm)) {
+		vma->ggtt_view = *view;
+		if (view->type == I915_GGTT_VIEW_PARTIAL) {
+			vma->size = view->params.partial.size;
+			vma->size <<= PAGE_SHIFT;
+		} else if (view->type == I915_GGTT_VIEW_ROTATED) {
+			vma->size =
+				intel_rotation_info_size(&view->params.rotated);
+			vma->size <<= PAGE_SHIFT;
+		}
+	} else {
 		i915_ppgtt_get(i915_vm_to_ppgtt(vm));
+	}
 
 	list_add_tail(&vma->obj_link, &obj->vma_list);
 
@@ -3683,29 +3683,6 @@ int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
 	vma->bound |= bind_flags;
 
 	return 0;
-}
-
-/**
- * i915_ggtt_view_size - Get the size of a GGTT view.
- * @obj: Object the view is of.
- * @view: The view in question.
- *
- * @return The size of the GGTT view in bytes.
- */
-size_t
-i915_ggtt_view_size(struct drm_i915_gem_object *obj,
-		    const struct i915_ggtt_view *view)
-{
-	if (view->type == I915_GGTT_VIEW_NORMAL) {
-		return obj->base.size;
-	} else if (view->type == I915_GGTT_VIEW_ROTATED) {
-		return intel_rotation_info_size(&view->params.rotated) << PAGE_SHIFT;
-	} else if (view->type == I915_GGTT_VIEW_PARTIAL) {
-		return view->params.partial.size << PAGE_SHIFT;
-	} else {
-		WARN_ONCE(1, "GGTT view %u not implemented!\n", view->type);
-		return obj->base.size;
-	}
 }
 
 void __iomem *i915_vma_pin_iomap(struct i915_vma *vma)
