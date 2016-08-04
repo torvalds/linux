@@ -34,6 +34,19 @@
 #include "i915_trace.h"
 
 static bool
+gpu_is_idle(struct drm_i915_private *dev_priv)
+{
+	struct intel_engine_cs *engine;
+
+	for_each_engine(engine, dev_priv) {
+		if (!list_empty(&engine->request_list))
+			return false;
+	}
+
+	return true;
+}
+
+static bool
 mark_free(struct i915_vma *vma, struct list_head *unwind)
 {
 	if (vma->pin_count)
@@ -76,37 +89,31 @@ i915_gem_evict_something(struct drm_device *dev, struct i915_address_space *vm,
 			 unsigned long start, unsigned long end,
 			 unsigned flags)
 {
-	struct list_head eviction_list, unwind_list;
-	struct i915_vma *vma;
-	int ret = 0;
-	int pass = 0;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct list_head eviction_list;
+	struct list_head *phases[] = {
+		&vm->inactive_list,
+		&vm->active_list,
+		NULL,
+	}, **phase;
+	struct i915_vma *vma, *next;
+	int ret;
 
 	trace_i915_gem_evict(dev, min_size, alignment, flags);
 
 	/*
 	 * The goal is to evict objects and amalgamate space in LRU order.
 	 * The oldest idle objects reside on the inactive list, which is in
-	 * retirement order. The next objects to retire are those on the (per
-	 * ring) active list that do not have an outstanding flush. Once the
-	 * hardware reports completion (the seqno is updated after the
-	 * batchbuffer has been finished) the clean buffer objects would
-	 * be retired to the inactive list. Any dirty objects would be added
-	 * to the tail of the flushing list. So after processing the clean
-	 * active objects we need to emit a MI_FLUSH to retire the flushing
-	 * list, hence the retirement order of the flushing list is in
-	 * advance of the dirty objects on the active lists.
+	 * retirement order. The next objects to retire are those in flight,
+	 * on the active list, again in retirement order.
 	 *
 	 * The retirement sequence is thus:
 	 *   1. Inactive objects (already retired)
-	 *   2. Clean active objects
-	 *   3. Flushing list
-	 *   4. Dirty active objects.
+	 *   2. Active objects (will stall on unbinding)
 	 *
 	 * On each list, the oldest objects lie at the HEAD with the freshest
 	 * object on the TAIL.
 	 */
-
-	INIT_LIST_HEAD(&unwind_list);
 	if (start != 0 || end != vm->total) {
 		drm_mm_init_scan_with_range(&vm->mm, min_size,
 					    alignment, cache_level,
@@ -114,79 +121,71 @@ i915_gem_evict_something(struct drm_device *dev, struct i915_address_space *vm,
 	} else
 		drm_mm_init_scan(&vm->mm, min_size, alignment, cache_level);
 
-search_again:
-	/* First see if there is a large enough contiguous idle region... */
-	list_for_each_entry(vma, &vm->inactive_list, vm_link) {
-		if (mark_free(vma, &unwind_list))
-			goto found;
-	}
-
 	if (flags & PIN_NONBLOCK)
-		goto none;
+		phases[1] = NULL;
 
-	/* Now merge in the soon-to-be-expired objects... */
-	list_for_each_entry(vma, &vm->active_list, vm_link) {
-		if (mark_free(vma, &unwind_list))
-			goto found;
-	}
+search_again:
+	INIT_LIST_HEAD(&eviction_list);
+	phase = phases;
+	do {
+		list_for_each_entry(vma, *phase, vm_link)
+			if (mark_free(vma, &eviction_list))
+				goto found;
+	} while (*++phase);
 
-none:
 	/* Nothing found, clean up and bail out! */
-	while (!list_empty(&unwind_list)) {
-		vma = list_first_entry(&unwind_list,
-				       struct i915_vma,
-				       exec_list);
+	list_for_each_entry_safe(vma, next, &eviction_list, exec_list) {
 		ret = drm_mm_scan_remove_block(&vma->node);
 		BUG_ON(ret);
 
-		list_del_init(&vma->exec_list);
+		INIT_LIST_HEAD(&vma->exec_list);
 	}
 
 	/* Can we unpin some objects such as idle hw contents,
-	 * or pending flips?
+	 * or pending flips? But since only the GGTT has global entries
+	 * such as scanouts, rinbuffers and contexts, we can skip the
+	 * purge when inspecting per-process local address spaces.
 	 */
-	if (flags & PIN_NONBLOCK)
+	if (!i915_is_ggtt(vm) || flags & PIN_NONBLOCK)
 		return -ENOSPC;
 
-	/* Only idle the GPU and repeat the search once */
-	if (pass++ == 0) {
-		struct drm_i915_private *dev_priv = to_i915(dev);
-
-		if (i915_is_ggtt(vm)) {
-			ret = i915_gem_switch_to_kernel_context(dev_priv);
-			if (ret)
-				return ret;
-		}
-
-		ret = i915_gem_wait_for_idle(dev_priv);
-		if (ret)
-			return ret;
-
-		i915_gem_retire_requests(dev_priv);
-		goto search_again;
+	if (gpu_is_idle(dev_priv)) {
+		/* If we still have pending pageflip completions, drop
+		 * back to userspace to give our workqueues time to
+		 * acquire our locks and unpin the old scanouts.
+		 */
+		return intel_has_pending_fb_unpin(dev) ? -EAGAIN : -ENOSPC;
 	}
 
-	/* If we still have pending pageflip completions, drop
-	 * back to userspace to give our workqueues time to
-	 * acquire our locks and unpin the old scanouts.
+	/* Not everything in the GGTT is tracked via vma (otherwise we
+	 * could evict as required with minimal stalling) so we are forced
+	 * to idle the GPU and explicitly retire outstanding requests in
+	 * the hopes that we can then remove contexts and the like only
+	 * bound by their active reference.
 	 */
-	return intel_has_pending_fb_unpin(dev) ? -EAGAIN : -ENOSPC;
+	ret = i915_gem_switch_to_kernel_context(dev_priv);
+	if (ret)
+		return ret;
+
+	ret = i915_gem_wait_for_idle(dev_priv);
+	if (ret)
+		return ret;
+
+	i915_gem_retire_requests(dev_priv);
+	goto search_again;
 
 found:
 	/* drm_mm doesn't allow any other other operations while
-	 * scanning, therefore store to be evicted objects on a
-	 * temporary list. */
-	INIT_LIST_HEAD(&eviction_list);
-	while (!list_empty(&unwind_list)) {
-		vma = list_first_entry(&unwind_list,
-				       struct i915_vma,
-				       exec_list);
-		if (drm_mm_scan_remove_block(&vma->node)) {
+	 * scanning, therefore store to-be-evicted objects on a
+	 * temporary list and take a reference for all before
+	 * calling unbind (which may remove the active reference
+	 * of any of our objects, thus corrupting the list).
+	 */
+	list_for_each_entry_safe(vma, next, &eviction_list, exec_list) {
+		if (drm_mm_scan_remove_block(&vma->node))
 			vma->pin_count++;
-			list_move(&vma->exec_list, &eviction_list);
-			continue;
-		}
-		list_del_init(&vma->exec_list);
+		else
+			list_del_init(&vma->exec_list);
 	}
 
 	/* Unbinding will emit any required flushes */
@@ -200,7 +199,6 @@ found:
 		if (ret == 0)
 			ret = i915_vma_unbind(vma);
 	}
-
 	return ret;
 }
 
@@ -279,7 +277,6 @@ int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle)
 			return ret;
 
 		i915_gem_retire_requests(dev_priv);
-
 		WARN_ON(!list_empty(&vm->active_list));
 	}
 
