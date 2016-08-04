@@ -1401,7 +1401,7 @@ static u64 bpf_skb_store_bytes(u64 r1, u64 r2, u64 r3, u64 r4, u64 flags)
 		return -EFAULT;
 
 	if (flags & BPF_F_RECOMPUTE_CSUM)
-		skb_postpull_rcsum(skb, ptr, len);
+		__skb_postpull_rcsum(skb, ptr, len, offset);
 
 	memcpy(ptr, from, len);
 
@@ -1410,7 +1410,7 @@ static u64 bpf_skb_store_bytes(u64 r1, u64 r2, u64 r3, u64 r4, u64 flags)
 		skb_store_bits(skb, offset, ptr, len);
 
 	if (flags & BPF_F_RECOMPUTE_CSUM)
-		skb_postpush_rcsum(skb, ptr, len);
+		__skb_postpush_rcsum(skb, ptr, len, offset);
 	if (flags & BPF_F_INVALIDATE_HASH)
 		skb_clear_hash(skb);
 
