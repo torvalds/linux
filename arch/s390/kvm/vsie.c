@@ -324,6 +324,9 @@ static int shadow_scb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	/* Run-time-Instrumentation */
 	if (test_kvm_facility(vcpu->kvm, 64))
 		scb_s->ecb3 |= scb_o->ecb3 & 0x01U;
+	/* Instruction Execution Prevention */
+	if (test_kvm_facility(vcpu->kvm, 130))
+		scb_s->ecb2 |= scb_o->ecb2 & 0x20U;
 	if (test_kvm_cpu_feat(vcpu->kvm, KVM_S390_VM_CPU_FEAT_SIIF))
 		scb_s->eca |= scb_o->eca & 0x00000001U;
 	if (test_kvm_cpu_feat(vcpu->kvm, KVM_S390_VM_CPU_FEAT_IB))
