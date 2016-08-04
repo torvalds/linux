@@ -90,6 +90,8 @@ struct intel_ring {
 	struct intel_engine_cs *engine;
 	struct list_head link;
 
+	struct list_head request_list;
+
 	u32 head;
 	u32 tail;
 	int space;

@@ -2046,6 +2046,8 @@ intel_engine_create_ring(struct intel_engine_cs *engine, int size)
 	ring->engine = engine;
 	list_add(&ring->link, &engine->buffers);
 
+	INIT_LIST_HEAD(&ring->request_list);
+
 	ring->size = size;
 	/* Workaround an erratum on the i830 which causes a hang if
 	 * the TAIL pointer points to within the last 2 cachelines
@@ -2266,7 +2268,6 @@ int intel_ring_alloc_request_extras(struct drm_i915_gem_request *request)
 static int wait_for_space(struct drm_i915_gem_request *req, int bytes)
 {
 	struct intel_ring *ring = req->ring;
-	struct intel_engine_cs *engine = req->engine;
 	struct drm_i915_gem_request *target;
 
 	intel_ring_update_space(ring);
@@ -2284,16 +2285,8 @@ static int wait_for_space(struct drm_i915_gem_request *req, int bytes)
 	 */
 	GEM_BUG_ON(!req->reserved_space);
 
-	list_for_each_entry(target, &engine->request_list, link) {
+	list_for_each_entry(target, &ring->request_list, ring_link) {
 		unsigned space;
-
-		/*
-		 * The request queue is per-engine, so can contain requests
-		 * from multiple ringbuffers. Here, we must ignore any that
-		 * aren't from the ringbuffer we're considering.
-		 */
-		if (target->ring != ring)
-			continue;
 
 		/* Would completion of this request free enough space? */
 		space = __intel_ring_space(target->postfix, ring->tail,
@@ -2302,7 +2295,7 @@ static int wait_for_space(struct drm_i915_gem_request *req, int bytes)
 			break;
 	}
 
-	if (WARN_ON(&target->link == &engine->request_list))
+	if (WARN_ON(&target->ring_link == &ring->request_list))
 		return -ENOSPC;
 
 	return i915_wait_request(target);

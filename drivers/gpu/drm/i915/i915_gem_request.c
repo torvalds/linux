@@ -180,6 +180,7 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 	 * Note this requires that we are always called in request
 	 * completion order.
 	 */
+	list_del(&request->ring_link);
 	request->ring->last_retired_head = request->postfix;
 
 	/* Walk through the active list, calling retire on each. This allows
@@ -487,6 +488,7 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 	request->previous_seqno = engine->last_submitted_seqno;
 	smp_store_mb(engine->last_submitted_seqno, request->fence.seqno);
 	list_add_tail(&request->link, &engine->request_list);
+	list_add_tail(&request->ring_link, &ring->request_list);
 
 	/* Record the position of the start of the request so that
 	 * should we detect the updated seqno part-way through the

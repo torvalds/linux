@@ -109,6 +109,9 @@ struct drm_i915_gem_request {
 	/** engine->request_list entry for this request */
 	struct list_head link;
 
+	/** ring->request_list entry for this request */
+	struct list_head ring_link;
+
 	struct drm_i915_file_private *file_priv;
 	/** file_priv list entry for this request */
 	struct list_head client_list;
