@@ -445,6 +445,70 @@ int amdgpu_bo_create(struct amdgpu_device *adev,
 	return r;
 }
 
+int amdgpu_bo_backup_to_shadow(struct amdgpu_device *adev,
+			       struct amdgpu_ring *ring,
+			       struct amdgpu_bo *bo,
+			       struct reservation_object *resv,
+			       struct fence **fence,
+			       bool direct)
+
+{
+	struct amdgpu_bo *shadow = bo->shadow;
+	uint64_t bo_addr, shadow_addr;
+	int r;
+
+	if (!shadow)
+		return -EINVAL;
+
+	bo_addr = amdgpu_bo_gpu_offset(bo);
+	shadow_addr = amdgpu_bo_gpu_offset(bo->shadow);
+
+	r = reservation_object_reserve_shared(bo->tbo.resv);
+	if (r)
+		goto err;
+
+	r = amdgpu_copy_buffer(ring, bo_addr, shadow_addr,
+			       amdgpu_bo_size(bo), resv, fence,
+			       direct);
+	if (!r)
+		amdgpu_bo_fence(bo, *fence, true);
+
+err:
+	return r;
+}
+
+int amdgpu_bo_restore_from_shadow(struct amdgpu_device *adev,
+				  struct amdgpu_ring *ring,
+				  struct amdgpu_bo *bo,
+				  struct reservation_object *resv,
+				  struct fence **fence,
+				  bool direct)
+
+{
+	struct amdgpu_bo *shadow = bo->shadow;
+	uint64_t bo_addr, shadow_addr;
+	int r;
+
+	if (!shadow)
+		return -EINVAL;
+
+	bo_addr = amdgpu_bo_gpu_offset(bo);
+	shadow_addr = amdgpu_bo_gpu_offset(bo->shadow);
+
+	r = reservation_object_reserve_shared(bo->tbo.resv);
+	if (r)
+		goto err;
+
+	r = amdgpu_copy_buffer(ring, shadow_addr, bo_addr,
+			       amdgpu_bo_size(bo), resv, fence,
+			       direct);
+	if (!r)
+		amdgpu_bo_fence(bo, *fence, true);
+
+err:
+	return r;
+}
+
 int amdgpu_bo_kmap(struct amdgpu_bo *bo, void **ptr)
 {
 	bool is_iomem;

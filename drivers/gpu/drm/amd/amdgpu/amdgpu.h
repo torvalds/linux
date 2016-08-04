@@ -438,12 +438,6 @@ struct amdgpu_bo_va {
 
 #define AMDGPU_GEM_DOMAIN_MAX		0x3
 
-enum amdgpu_bo_shadow {
-	AMDGPU_BO_SHADOW_TO_NONE = 0,
-	AMDGPU_BO_SHADOW_TO_PARENT,
-	AMDGPU_BO_SHADOW_TO_SHADOW,
-};
-
 struct amdgpu_bo {
 	/* Protected by gem.mutex */
 	struct list_head		list;
@@ -470,8 +464,6 @@ struct amdgpu_bo {
 	struct drm_gem_object		gem_base;
 	struct amdgpu_bo		*parent;
 	struct amdgpu_bo		*shadow;
-	/* indicate if need to sync between bo and shadow */
-	enum amdgpu_bo_shadow           backup_shadow;
 
 	struct ttm_bo_kmap_obj		dma_buf_vmap;
 	struct amdgpu_mn		*mn;
