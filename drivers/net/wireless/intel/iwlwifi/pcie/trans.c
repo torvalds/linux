@@ -2953,7 +2953,7 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 
 	if (cfg->use_tfh) {
 		trans_pcie->max_tbs = IWL_TFH_NUM_TBS;
-		trans_pcie->tfd_size = sizeof(struct iwl_tfh_tb);
+		trans_pcie->tfd_size = sizeof(struct iwl_tfh_tfd);
 
 	} else {
 		trans_pcie->max_tbs = IWL_NUM_OF_TBS;
