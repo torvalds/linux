@@ -573,15 +573,15 @@ Colorspace DCI-P3 (V4L2_COLORSPACE_DCI_P3)
 The :ref:`smpte431` standard defines the colorspace used by cinema
 projectors that use the DCI-P3 colorspace. The default transfer function
 is ``V4L2_XFER_FUNC_DCI_P3``. The default Y'CbCr encoding is
-``V4L2_YCBCR_ENC_709``.
+``V4L2_YCBCR_ENC_709``. The default Y'CbCr quantization is limited range.
 
 .. note::
 
-   Note that this colorspace does not specify a
+   Note that this colorspace standard does not specify a
    Y'CbCr encoding since it is not meant to be encoded to Y'CbCr. So this
-   default Y'CbCr encoding was picked because it is the HDTV encoding. The
-   default Y'CbCr quantization is limited range. The chromaticities of the
-   primary colors and the white reference are:
+   default Y'CbCr encoding was picked because it is the HDTV encoding.
+
+The chromaticities of the primary colors and the white reference are:
 
 
 
