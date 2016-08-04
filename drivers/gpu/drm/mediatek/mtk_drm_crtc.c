@@ -112,8 +112,7 @@ static void mtk_drm_crtc_reset(struct drm_crtc *crtc)
 	struct mtk_crtc_state *state;
 
 	if (crtc->state) {
-		if (crtc->state->mode_blob)
-			drm_property_unreference_blob(crtc->state->mode_blob);
+		__drm_atomic_helper_crtc_destroy_state(crtc->state);
 
 		state = to_mtk_crtc_state(crtc->state);
 		memset(state, 0, sizeof(*state));

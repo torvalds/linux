@@ -73,8 +73,7 @@ static void mtk_plane_reset(struct drm_plane *plane)
 	struct mtk_plane_state *state;
 
 	if (plane->state) {
-		if (plane->state->fb)
-			drm_framebuffer_unreference(plane->state->fb);
+		__drm_atomic_helper_plane_destroy_state(plane->state);
 
 		state = to_mtk_plane_state(plane->state);
 		memset(state, 0, sizeof(*state));
