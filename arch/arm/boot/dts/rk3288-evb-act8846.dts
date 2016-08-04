@@ -7,6 +7,22 @@
 	model = "Rockchip RK3288 EVB ACT8846";
 	compatible = "rockchip,rk3288-evb-act8846", "rockchip,rk3288";
 
+	sdio_pwrseq: sdio-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		clocks = <&hym8563>;
+		clock-names = "ext_clock";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_enable_h>;
+
+		/*
+		 * On the module itself this is one of these (depending
+		 * on the actual card populated):
+		 * - SDIO_RESET_L_WL_REG_ON
+		 * - PDN (power down when low)
+		 */
+		reset-gpios = <&gpio4 28 GPIO_ACTIVE_LOW>;
+	};
+
 	vcc_lcd: vcc-lcd {
 		compatible = "regulator-fixed";
 		enable-active-high;
@@ -54,12 +70,12 @@
 		vin-supply = <&vcc_sys>;
 	};
 
-	hym8563@51 {
+	hym8563: hym8563@51 {
 		compatible = "haoyu,hym8563";
 		reg = <0x51>;
 
 		interrupt-parent = <&gpio0>;
-		interrupts = <RK_PA4 IRQ_TYPE_EDGE_FALLING>;
+		interrupts = <4 IRQ_TYPE_EDGE_FALLING>;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int>;
