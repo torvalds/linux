@@ -4232,11 +4232,11 @@ static int __init nct6775_find(int sioaddr, struct nct6775_sio_data *sio_data)
 	if (err)
 		return err;
 
-	if (force_id)
+	val = (superio_inb(sioaddr, SIO_REG_DEVID) << 8) |
+		superio_inb(sioaddr, SIO_REG_DEVID + 1);
+	if (force_id && val != 0xffff)
 		val = force_id;
-	else
-		val = (superio_inb(sioaddr, SIO_REG_DEVID) << 8)
-		    | superio_inb(sioaddr, SIO_REG_DEVID + 1);
+
 	switch (val & SIO_ID_MASK) {
 	case SIO_NCT6106_ID:
 		sio_data->kind = nct6106;
