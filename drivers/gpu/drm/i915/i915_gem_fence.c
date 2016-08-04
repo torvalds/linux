@@ -261,14 +261,13 @@ static inline void i915_gem_object_fence_lost(struct drm_i915_gem_object *obj)
 static int
 i915_gem_object_wait_fence(struct drm_i915_gem_object *obj)
 {
-	if (obj->last_fence.request) {
-		int ret = i915_wait_request(obj->last_fence.request);
-		if (ret)
-			return ret;
+	int ret;
 
-		i915_gem_active_set(&obj->last_fence, NULL);
-	}
+	ret = i915_gem_active_wait(&obj->last_fence);
+	if (ret)
+		return ret;
 
+	i915_gem_active_set(&obj->last_fence, NULL);
 	return 0;
 }
 

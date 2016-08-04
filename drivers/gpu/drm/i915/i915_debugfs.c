@@ -155,10 +155,10 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		   obj->base.write_domain);
 	for_each_engine_id(engine, dev_priv, id)
 		seq_printf(m, "%x ",
-			   i915_gem_request_get_seqno(obj->last_read[id].request));
+			   i915_gem_active_get_seqno(&obj->last_read[id]));
 	seq_printf(m, "] %x %x%s%s%s",
-		   i915_gem_request_get_seqno(obj->last_write.request),
-		   i915_gem_request_get_seqno(obj->last_fence.request),
+		   i915_gem_active_get_seqno(&obj->last_write),
+		   i915_gem_active_get_seqno(&obj->last_fence),
 		   i915_cache_level_str(to_i915(obj->base.dev), obj->cache_level),
 		   obj->dirty ? " dirty" : "",
 		   obj->madv == I915_MADV_DONTNEED ? " purgeable" : "");
@@ -195,8 +195,11 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		*t = '\0';
 		seq_printf(m, " (%s mappable)", s);
 	}
-	if (obj->last_write.request)
-		seq_printf(m, " (%s)", obj->last_write.request->engine->name);
+
+	engine = i915_gem_active_get_engine(&obj->last_write);
+	if (engine)
+		seq_printf(m, " (%s)", engine->name);
+
 	if (obj->frontbuffer_bits)
 		seq_printf(m, " (frontbuffer: 0x%03x)", obj->frontbuffer_bits);
 }
