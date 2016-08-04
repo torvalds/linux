@@ -1339,64 +1339,6 @@ put_rpm:
 	return ret;
 }
 
-/**
- * Ensures that all rendering to the object has completed and the object is
- * safe to unbind from the GTT or access from the CPU.
- * @obj: i915 gem object
- * @readonly: waiting for read access or write
- */
-int
-i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj,
-			       bool readonly)
-{
-	struct drm_i915_gem_request *request;
-	struct reservation_object *resv;
-	int ret, i;
-
-	if (readonly) {
-		request = i915_gem_active_peek(&obj->last_write,
-					       &obj->base.dev->struct_mutex);
-		if (request) {
-			ret = i915_wait_request(request);
-			if (ret)
-				return ret;
-
-			i = request->engine->id;
-			if (i915_gem_active_peek(&obj->last_read[i],
-						 &obj->base.dev->struct_mutex) == request)
-				i915_gem_object_retire__read(obj, i);
-			else
-				i915_gem_object_retire__write(obj);
-		}
-	} else {
-		for (i = 0; i < I915_NUM_ENGINES; i++) {
-			request = i915_gem_active_peek(&obj->last_read[i],
-						       &obj->base.dev->struct_mutex);
-			if (!request)
-				continue;
-
-			ret = i915_wait_request(request);
-			if (ret)
-				return ret;
-
-			i915_gem_object_retire__read(obj, i);
-		}
-		GEM_BUG_ON(obj->active);
-	}
-
-	resv = i915_gem_object_get_dmabuf_resv(obj);
-	if (resv) {
-		long err;
-
-		err = reservation_object_wait_timeout_rcu(resv, !readonly, true,
-							  MAX_SCHEDULE_TIMEOUT);
-		if (err < 0)
-			return err;
-	}
-
-	return 0;
-}
-
 static void
 i915_gem_object_retire_request(struct drm_i915_gem_object *obj,
 			       struct drm_i915_gem_request *req)
@@ -1414,6 +1356,59 @@ i915_gem_object_retire_request(struct drm_i915_gem_object *obj,
 		i915_gem_request_retire_upto(req);
 }
 
+/**
+ * Ensures that all rendering to the object has completed and the object is
+ * safe to unbind from the GTT or access from the CPU.
+ * @obj: i915 gem object
+ * @readonly: waiting for read access or write
+ */
+int
+i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj,
+			       bool readonly)
+{
+	struct reservation_object *resv;
+	struct i915_gem_active *active;
+	unsigned long active_mask;
+	int idx, ret;
+
+	lockdep_assert_held(&obj->base.dev->struct_mutex);
+
+	if (!readonly) {
+		active = obj->last_read;
+		active_mask = obj->active;
+	} else {
+		active_mask = 1;
+		active = &obj->last_write;
+	}
+
+	for_each_active(active_mask, idx) {
+		struct drm_i915_gem_request *request;
+
+		request = i915_gem_active_peek(&active[idx],
+					       &obj->base.dev->struct_mutex);
+		if (!request)
+			continue;
+
+		ret = i915_wait_request(request);
+		if (ret)
+			return ret;
+
+		i915_gem_object_retire_request(obj, request);
+	}
+
+	resv = i915_gem_object_get_dmabuf_resv(obj);
+	if (resv) {
+		long err;
+
+		err = reservation_object_wait_timeout_rcu(resv, !readonly, true,
+							  MAX_SCHEDULE_TIMEOUT);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
+}
+
 /* A nonblocking variant of the above wait. This is a highly dangerous routine
  * as the object state may change during this call.
  */
@@ -1425,34 +1420,31 @@ i915_gem_object_wait_rendering__nonblocking(struct drm_i915_gem_object *obj,
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_gem_request *requests[I915_NUM_ENGINES];
+	struct i915_gem_active *active;
+	unsigned long active_mask;
 	int ret, i, n = 0;
 
 	BUG_ON(!mutex_is_locked(&dev->struct_mutex));
 	BUG_ON(!dev_priv->mm.interruptible);
 
-	if (!obj->active)
+	active_mask = obj->active;
+	if (!active_mask)
 		return 0;
 
-	if (readonly) {
+	if (!readonly) {
+		active = obj->last_read;
+	} else {
+		active_mask = 1;
+		active = &obj->last_write;
+	}
+
+	for_each_active(active_mask, i) {
 		struct drm_i915_gem_request *req;
 
-		req = i915_gem_active_get(&obj->last_write,
+		req = i915_gem_active_get(&active[i],
 					  &obj->base.dev->struct_mutex);
-		if (req == NULL)
-			return 0;
-
-		requests[n++] = req;
-	} else {
-		for (i = 0; i < I915_NUM_ENGINES; i++) {
-			struct drm_i915_gem_request *req;
-
-			req = i915_gem_active_get(&obj->last_read[i],
-						  &obj->base.dev->struct_mutex);
-			if (req == NULL)
-				continue;
-
+		if (req)
 			requests[n++] = req;
-		}
 	}
 
 	mutex_unlock(&dev->struct_mutex);
@@ -2934,33 +2926,33 @@ int
 i915_gem_object_sync(struct drm_i915_gem_object *obj,
 		     struct drm_i915_gem_request *to)
 {
-	const bool readonly = obj->base.pending_write_domain == 0;
-	struct drm_i915_gem_request *requests[I915_NUM_ENGINES];
-	int ret, i, n;
+	struct i915_gem_active *active;
+	unsigned long active_mask;
+	int idx;
 
-	if (!obj->active)
+	lockdep_assert_held(&obj->base.dev->struct_mutex);
+
+	active_mask = obj->active;
+	if (!active_mask)
 		return 0;
 
-	n = 0;
-	if (readonly) {
-		struct drm_i915_gem_request *req;
-
-		req = i915_gem_active_peek(&obj->last_write,
-					   &obj->base.dev->struct_mutex);
-		if (req)
-			requests[n++] = req;
+	if (obj->base.pending_write_domain) {
+		active = obj->last_read;
 	} else {
-		for (i = 0; i < I915_NUM_ENGINES; i++) {
-			struct drm_i915_gem_request *req;
-
-			req = i915_gem_active_peek(&obj->last_read[i],
-						   &obj->base.dev->struct_mutex);
-			if (req)
-				requests[n++] = req;
-		}
+		active_mask = 1;
+		active = &obj->last_write;
 	}
-	for (i = 0; i < n; i++) {
-		ret = __i915_gem_object_sync(obj, to, requests[i]);
+
+	for_each_active(active_mask, idx) {
+		struct drm_i915_gem_request *request;
+		int ret;
+
+		request = i915_gem_active_peek(&active[idx],
+					       &obj->base.dev->struct_mutex);
+		if (!request)
+			continue;
+
+		ret = __i915_gem_object_sync(obj, to, request);
 		if (ret)
 			return ret;
 	}
