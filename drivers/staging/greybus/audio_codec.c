@@ -950,10 +950,10 @@ static unsigned int gbcodec_read(struct snd_soc_codec *codec,
 
 static struct snd_soc_dai_driver gbaudio_dai[] = {
 	{
-		.name = "greybus-apb1",
+		.name = "apb-i2s0",
 		.id = 0,
 		.playback = {
-			.stream_name = "GB Audio Playback",
+			.stream_name = "I2S 0 Playback",
 			.rates = SNDRV_PCM_RATE_48000,
 			.formats = SNDRV_PCM_FORMAT_S16_LE,
 			.rate_max = 48000,
@@ -962,7 +962,7 @@ static struct snd_soc_dai_driver gbaudio_dai[] = {
 			.channels_max = 2,
 		},
 		.capture = {
-			.stream_name = "GB Audio Capture",
+			.stream_name = "I2S 0 Capture",
 			.rates = SNDRV_PCM_RATE_48000,
 			.formats = SNDRV_PCM_FORMAT_S16_LE,
 			.rate_max = 48000,
