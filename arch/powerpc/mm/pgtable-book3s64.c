@@ -14,6 +14,9 @@
 #include "mmu_decl.h"
 #include <trace/events/thp.h>
 
+int (*register_process_table)(unsigned long base, unsigned long page_size,
+			      unsigned long tbl_size);
+
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 /*
  * This is called when relaxing access to a hugepage. It's also called in the page

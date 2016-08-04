@@ -171,7 +171,7 @@ redo:
 	 * of process table here. But our linear mapping also enable us to use
 	 * physical address here.
 	 */
-	ppc_md.register_process_table(__pa(process_tb), 0, PRTB_SIZE_SHIFT - 12);
+	register_process_table(__pa(process_tb), 0, PRTB_SIZE_SHIFT - 12);
 	pr_info("Process table %p and radix root for kernel: %p\n", process_tb, init_mm.pgd);
 }
 
@@ -198,7 +198,7 @@ static void __init radix_init_partition_table(void)
 
 void __init radix_init_native(void)
 {
-	ppc_md.register_process_table = native_register_process_table;
+	register_process_table = native_register_process_table;
 }
 
 static int __init get_idx_from_shift(unsigned int shift)

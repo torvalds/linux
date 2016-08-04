@@ -134,5 +134,9 @@ static inline void setup_initial_memory_limit(phys_addr_t first_memblock_base,
 	return hash__setup_initial_memory_limit(first_memblock_base,
 					   first_memblock_size);
 }
+
+extern int (*register_process_table)(unsigned long base, unsigned long page_size,
+				     unsigned long tbl_size);
+
 #endif /* __ASSEMBLY__ */
 #endif /* _ASM_POWERPC_BOOK3S_64_MMU_H_ */

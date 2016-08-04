@@ -747,5 +747,5 @@ void __init hpte_init_native(void)
 	mmu_hash_ops.hugepage_invalidate   = native_hugepage_invalidate;
 
 	if (cpu_has_feature(CPU_FTR_ARCH_300))
-		ppc_md.register_process_table = native_register_proc_table;
+		register_process_table = native_register_proc_table;
 }

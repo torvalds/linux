@@ -219,8 +219,6 @@ struct machdep_calls {
 #ifdef CONFIG_ARCH_RANDOM
 	int (*get_random_seed)(unsigned long *v);
 #endif
-	int (*register_process_table)(unsigned long base, unsigned long page_size,
-				      unsigned long tbl_size);
 };
 
 extern void e500_idle(void);
