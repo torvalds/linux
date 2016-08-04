@@ -9,6 +9,7 @@
 /dts-v1/;
 #include "stih416.dtsi"
 #include "stih41x-b2020.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 / {
 	model = "STiH416 B2020 REV-E";
 	compatible = "st,stih416-b2020", "st,stih416";
@@ -17,13 +18,12 @@
 		leds {
 			compatible = "gpio-leds";
 			red {
-				#gpio-cells		= <1>;
 				label			= "Front Panel LED";
-				gpios			= <&pio4 1>;
+				gpios			= <&pio4 1 GPIO_ACTIVE_HIGH>;
 				linux,default-trigger	= "heartbeat";
 			};
 			green {
-				gpios			= <&pio1 3>;
+				gpios			= <&pio1 3 GPIO_ACTIVE_HIGH>;
 				default-state 		= "off";
 			};
 		};
