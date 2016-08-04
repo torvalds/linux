@@ -742,7 +742,7 @@ the following ``V4L2_YCBCR_ENC_SMPTE240M`` encoding:
 
     Cr = 0.5R' - 0.4451G' - 0.0549B'
 
-Yc' is clamped to the range [0…1] and Cbc and Crc are clamped to the
+Y' is clamped to the range [0…1] and Cb and Cr are clamped to the
 range [-0.5…0.5]. The Y'CbCr quantization is limited range.
 
 
