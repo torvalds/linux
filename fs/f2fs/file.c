@@ -2093,8 +2093,12 @@ static int f2fs_move_file_range(struct file *file_in, loff_t pos_in,
 		return -EOPNOTSUPP;
 
 	inode_lock(src);
-	if (src != dst)
-		inode_lock(dst);
+	if (src != dst) {
+		if (!inode_trylock(dst)) {
+			ret = -EBUSY;
+			goto out;
+		}
+	}
 
 	ret = -EINVAL;
 	if (pos_in + len > src->i_size || pos_in + len < pos_in)
@@ -2152,6 +2156,7 @@ static int f2fs_move_file_range(struct file *file_in, loff_t pos_in,
 out_unlock:
 	if (src != dst)
 		inode_unlock(dst);
+out:
 	inode_unlock(src);
 	return ret;
 }
