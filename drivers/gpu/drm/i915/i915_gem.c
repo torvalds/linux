@@ -887,9 +887,12 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 	ret = i915_gem_shmem_pread(dev, obj, args, file);
 
 	/* pread for non shmem backed objects */
-	if (ret == -EFAULT || ret == -ENODEV)
+	if (ret == -EFAULT || ret == -ENODEV) {
+		intel_runtime_pm_get(to_i915(dev));
 		ret = i915_gem_gtt_pread(dev, obj, args->size,
 					args->offset, args->data_ptr);
+		intel_runtime_pm_put(to_i915(dev));
+	}
 
 out:
 	i915_gem_object_put(obj);
