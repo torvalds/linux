@@ -412,7 +412,7 @@ void rockchip_drm_lastclose(struct drm_device *dev)
 {
 	struct rockchip_drm_private *priv = dev->dev_private;
 
-	drm_fb_helper_restore_fbdev_mode_unlocked(&priv->fbdev_helper);
+	drm_fb_helper_restore_fbdev_mode_unlocked(priv->fbdev_helper);
 }
 
 static const struct drm_ioctl_desc rockchip_ioctls[] = {
@@ -497,7 +497,7 @@ void rockchip_drm_fb_suspend(struct drm_device *drm)
 	struct rockchip_drm_private *priv = drm->dev_private;
 
 	console_lock();
-	drm_fb_helper_set_suspend(&priv->fbdev_helper, 1);
+	drm_fb_helper_set_suspend(priv->fbdev_helper, 1);
 	console_unlock();
 }
 
@@ -506,7 +506,7 @@ void rockchip_drm_fb_resume(struct drm_device *drm)
 	struct rockchip_drm_private *priv = drm->dev_private;
 
 	console_lock();
-	drm_fb_helper_set_suspend(&priv->fbdev_helper, 0);
+	drm_fb_helper_set_suspend(priv->fbdev_helper, 0);
 	console_unlock();
 }
 
