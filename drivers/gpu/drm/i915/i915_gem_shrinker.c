@@ -182,7 +182,8 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 			    !is_vmalloc_addr(obj->mapping))
 				continue;
 
-			if ((flags & I915_SHRINK_ACTIVE) == 0 && obj->active)
+			if ((flags & I915_SHRINK_ACTIVE) == 0 &&
+			    i915_gem_object_is_active(obj))
 				continue;
 
 			if (!can_release_pages(obj))
@@ -267,7 +268,7 @@ i915_gem_shrinker_count(struct shrinker *shrinker, struct shrink_control *sc)
 			count += obj->base.size >> PAGE_SHIFT;
 
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
-		if (!obj->active && can_release_pages(obj))
+		if (!i915_gem_object_is_active(obj) && can_release_pages(obj))
 			count += obj->base.size >> PAGE_SHIFT;
 	}
 

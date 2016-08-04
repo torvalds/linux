@@ -2155,12 +2155,16 @@ struct drm_i915_gem_object {
 
 	struct list_head batch_pool_link;
 
+	unsigned long flags;
 	/**
 	 * This is set if the object is on the active lists (has pending
 	 * rendering and so a non-zero seqno), and is not set if it i s on
 	 * inactive (ready to be unbound) list.
 	 */
-	unsigned int active:I915_NUM_ENGINES;
+#define I915_BO_ACTIVE_SHIFT 0
+#define I915_BO_ACTIVE_MASK ((1 << I915_NUM_ENGINES) - 1)
+#define __I915_BO_ACTIVE(bo) \
+	((READ_ONCE((bo)->flags) >> I915_BO_ACTIVE_SHIFT) & I915_BO_ACTIVE_MASK)
 
 	/**
 	 * This is set if the object has been written to since last bound
@@ -2323,6 +2327,37 @@ static inline bool
 i915_gem_object_has_struct_page(const struct drm_i915_gem_object *obj)
 {
 	return obj->ops->flags & I915_GEM_OBJECT_HAS_STRUCT_PAGE;
+}
+
+static inline unsigned long
+i915_gem_object_get_active(const struct drm_i915_gem_object *obj)
+{
+	return (obj->flags >> I915_BO_ACTIVE_SHIFT) & I915_BO_ACTIVE_MASK;
+}
+
+static inline bool
+i915_gem_object_is_active(const struct drm_i915_gem_object *obj)
+{
+	return i915_gem_object_get_active(obj);
+}
+
+static inline void
+i915_gem_object_set_active(struct drm_i915_gem_object *obj, int engine)
+{
+	obj->flags |= BIT(engine + I915_BO_ACTIVE_SHIFT);
+}
+
+static inline void
+i915_gem_object_clear_active(struct drm_i915_gem_object *obj, int engine)
+{
+	obj->flags &= ~BIT(engine + I915_BO_ACTIVE_SHIFT);
+}
+
+static inline bool
+i915_gem_object_has_active_engine(const struct drm_i915_gem_object *obj,
+				  int engine)
+{
+	return obj->flags & BIT(engine + I915_BO_ACTIVE_SHIFT);
 }
 
 /*

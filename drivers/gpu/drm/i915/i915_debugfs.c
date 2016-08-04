@@ -91,7 +91,7 @@ static int i915_capabilities(struct seq_file *m, void *data)
 
 static char get_active_flag(struct drm_i915_gem_object *obj)
 {
-	return obj->active ? '*' : ' ';
+	return i915_gem_object_is_active(obj) ? '*' : ' ';
 }
 
 static char get_pin_flag(struct drm_i915_gem_object *obj)

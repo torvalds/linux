@@ -1358,7 +1358,7 @@ i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj,
 
 	if (!readonly) {
 		active = obj->last_read;
-		active_mask = obj->active;
+		active_mask = i915_gem_object_get_active(obj);
 	} else {
 		active_mask = 1;
 		active = &obj->last_write;
@@ -1402,7 +1402,7 @@ i915_gem_object_wait_rendering__nonblocking(struct drm_i915_gem_object *obj,
 	BUG_ON(!mutex_is_locked(&dev->struct_mutex));
 	BUG_ON(!dev_priv->mm.interruptible);
 
-	active_mask = obj->active;
+	active_mask = i915_gem_object_get_active(obj);
 	if (!active_mask)
 		return 0;
 
@@ -2365,10 +2365,10 @@ i915_gem_object_retire__read(struct i915_gem_active *active,
 	struct drm_i915_gem_object *obj =
 		container_of(active, struct drm_i915_gem_object, last_read[idx]);
 
-	GEM_BUG_ON((obj->active & (1 << idx)) == 0);
+	GEM_BUG_ON(!i915_gem_object_has_active_engine(obj, idx));
 
-	obj->active &= ~(1 << idx);
-	if (obj->active)
+	i915_gem_object_clear_active(obj, idx);
+	if (i915_gem_object_is_active(obj))
 		return;
 
 	/* Bump our place on the bound list to keep it roughly in LRU order
@@ -2672,7 +2672,7 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 		return -ENOENT;
 	}
 
-	if (!obj->active)
+	if (!i915_gem_object_is_active(obj))
 		goto out;
 
 	for (i = 0; i < I915_NUM_ENGINES; i++) {
@@ -2760,7 +2760,7 @@ i915_gem_object_sync(struct drm_i915_gem_object *obj,
 
 	lockdep_assert_held(&obj->base.dev->struct_mutex);
 
-	active_mask = obj->active;
+	active_mask = i915_gem_object_get_active(obj);
 	if (!active_mask)
 		return 0;
 
@@ -3811,7 +3811,7 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 	 * become non-busy without any further actions.
 	 */
 	args->busy = 0;
-	if (obj->active) {
+	if (i915_gem_object_is_active(obj)) {
 		struct drm_i915_gem_request *req;
 		int i;
 

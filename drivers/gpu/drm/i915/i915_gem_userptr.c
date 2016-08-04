@@ -67,7 +67,7 @@ static void wait_rendering(struct drm_i915_gem_object *obj)
 	struct drm_i915_gem_request *requests[I915_NUM_ENGINES];
 	int i, n;
 
-	if (!obj->active)
+	if (!i915_gem_object_is_active(obj))
 		return;
 
 	n = 0;

@@ -434,7 +434,7 @@ relocate_entry_clflush(struct drm_i915_gem_object *obj,
 
 static bool object_is_idle(struct drm_i915_gem_object *obj)
 {
-	unsigned long active = obj->active;
+	unsigned long active = i915_gem_object_get_active(obj);
 	int idx;
 
 	for_each_active(active, idx) {
@@ -990,11 +990,21 @@ err:
 	return ret;
 }
 
+static unsigned int eb_other_engines(struct drm_i915_gem_request *req)
+{
+	unsigned int mask;
+
+	mask = ~intel_engine_flag(req->engine) & I915_BO_ACTIVE_MASK;
+	mask <<= I915_BO_ACTIVE_SHIFT;
+
+	return mask;
+}
+
 static int
 i915_gem_execbuffer_move_to_gpu(struct drm_i915_gem_request *req,
 				struct list_head *vmas)
 {
-	const unsigned other_rings = ~intel_engine_flag(req->engine);
+	const unsigned int other_rings = eb_other_engines(req);
 	struct i915_vma *vma;
 	uint32_t flush_domains = 0;
 	bool flush_chipset = false;
@@ -1003,7 +1013,7 @@ i915_gem_execbuffer_move_to_gpu(struct drm_i915_gem_request *req,
 	list_for_each_entry(vma, vmas, exec_list) {
 		struct drm_i915_gem_object *obj = vma->obj;
 
-		if (obj->active & other_rings) {
+		if (obj->flags & other_rings) {
 			ret = i915_gem_object_sync(obj, req);
 			if (ret)
 				return ret;
@@ -1166,9 +1176,9 @@ void i915_vma_move_to_active(struct i915_vma *vma,
 	 * add the active reference first and queue for it to be dropped
 	 * *last*.
 	 */
-	if (obj->active == 0)
+	if (!i915_gem_object_is_active(obj))
 		i915_gem_object_get(obj);
-	obj->active |= 1 << idx;
+	i915_gem_object_set_active(obj, idx);
 	i915_gem_active_set(&obj->last_read[idx], req);
 
 	if (flags & EXEC_OBJECT_WRITE) {
