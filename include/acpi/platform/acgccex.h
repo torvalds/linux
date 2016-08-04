@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Name: acgcc.h - GCC specific defines, etc.
+ * Name: acgccex.h - Extra GCC specific defines, etc.
  *
  *****************************************************************************/
 
@@ -41,37 +41,18 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#ifndef __ACGCC_H__
-#define __ACGCC_H__
+#ifndef __ACGCCEX_H__
+#define __ACGCCEX_H__
 
 /*
- * Use compiler specific <stdarg.h> is a good practice for even when
- * -nostdinc is specified (i.e., ACPI_USE_STANDARD_HEADERS undefined.
+ * Some versions of gcc implement strchr() with a buggy macro. So,
+ * undef it here. Prevents error messages of this form (usually from the
+ * file getopt.c):
+ *
+ * error: logical '&&' with non-zero constant will always evaluate as true
  */
-#include <stdarg.h>
+#ifdef strchr
+#undef strchr
+#endif
 
-#define ACPI_INLINE             __inline__
-
-/* Function name is used for debug output. Non-ANSI, compiler-dependent */
-
-#define ACPI_GET_FUNCTION_NAME          __func__
-
-/*
- * This macro is used to tag functions as "printf-like" because
- * some compilers (like GCC) can catch printf format string problems.
- */
-#define ACPI_PRINTF_LIKE(c) __attribute__ ((__format__ (__printf__, c, c+1)))
-
-/*
- * Some compilers complain about unused variables. Sometimes we don't want to
- * use all the variables (for example, _acpi_module_name). This allows us
- * to tell the compiler warning in a per-variable manner that a variable
- * is unused.
- */
-#define ACPI_UNUSED_VAR __attribute__ ((unused))
-
-/* GCC supports __VA_ARGS__ in macros */
-
-#define COMPILER_VA_MACRO               1
-
-#endif				/* __ACGCC_H__ */
+#endif				/* __ACGCCEX_H__ */

@@ -69,7 +69,10 @@
 
 #endif
 
-#if defined(_MSC_VER)
+#if defined(__GNUC__) && !defined(__INTEL_COMPILER)
+#include "acgccex.h"
+
+#elif defined(_MSC_VER)
 #include "acmsvcex.h"
 
 #endif
