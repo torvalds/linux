@@ -40,239 +40,296 @@ static int find_stream(const char *name)
 	return stream;
 }
 
-static int gbaudio_module_disable(struct gbaudio_codec_info *codec,
-				  struct gbaudio_module_info *module,
-				  int dir)
+static int gbaudio_module_enable_tx(struct gbaudio_codec_info *codec,
+				    struct gbaudio_module_info *module)
 {
-	int ret = 0;
-	uint16_t data_cport, cportid, i2s_port;
-	int codec_state, module_state;
-	struct gbaudio_data_connection *data;
-	const char *dai_name;
-
-	mutex_lock(&codec->lock);
-
-	codec_state = codec->stream[dir].state;
-	if (codec_state == GBAUDIO_CODEC_SHUTDOWN) {
-		mutex_unlock(&codec->lock);
-		return 0;
-	}
-
-	dai_name = codec->stream[dir].dai_name;
-
-	module_state = module->ctrlstate[dir];
-	if (module_state == GBAUDIO_CODEC_SHUTDOWN) {
-		dev_dbg(codec->dev, "%s: module already configured\n",
-			module->name);
-		mutex_unlock(&codec->lock);
-		return 0;
-	}
-
-	/* find the dai */
-	data = find_data(module, dai_name);
-	if (!data) {
-		dev_err(codec->dev, "%s:%s DATA connection missing\n",
-			dai_name, module->name);
-		mutex_unlock(&codec->lock);
-		return -ENODEV;
-	}
-	if (codec_state > GBAUDIO_CODEC_HWPARAMS) {
-		data_cport = data->connection->intf_cport_id;
-		switch(dir) {
-		case SNDRV_PCM_STREAM_CAPTURE:
-			ret = gb_audio_gb_deactivate_rx(
-						module->mgmt_connection,
-						data_cport);
-			break;
-		case SNDRV_PCM_STREAM_PLAYBACK:
-			ret = gb_audio_gb_deactivate_tx(
-						module->mgmt_connection,
-						data_cport);
-			break;
-		default:
-			ret = -EINVAL;
-		}
-		if (ret) {
-			dev_err_ratelimited(codec->dev, "deactivate for %s failed:%d\n",
-				module->name, ret);
-			goto func_exit;
-		}
-		dev_dbg(codec->dev, "Dynamic deactivate %s:%d DAI\n", dai_name,
-			data_cport);
-	}
-	if (codec_state > GBAUDIO_CODEC_SHUTDOWN) {
-		cportid = data->connection->hd_cport_id;
-		switch(dir) {
-		case SNDRV_PCM_STREAM_CAPTURE:
-			ret = gb_audio_apbridgea_unregister_cport(
-						data->connection,
-						i2s_port, cportid,
-						AUDIO_APBRIDGEA_DIRECTION_RX);
-			break;
-		case SNDRV_PCM_STREAM_PLAYBACK:
-			ret = gb_audio_apbridgea_unregister_cport(
-						data->connection,
-						i2s_port, cportid,
-						AUDIO_APBRIDGEA_DIRECTION_TX);
-			break;
-		default:
-			ret = -EINVAL;
-		}
-		if (ret) {
-			dev_err_ratelimited(codec->dev, "unregister_cport for %s failed:%d\n",
-				module->name, ret);
-			goto func_exit;
-		}
-		dev_dbg(codec->dev, "Dynamic Unregister %s:%d DAI\n", dai_name,
-			cportid);
-	}
-	module->ctrlstate[dir] = GBAUDIO_CODEC_SHUTDOWN;
-
-func_exit:
-	mutex_unlock(&codec->lock);
-	return ret;
-}
-
-static int gbaudio_module_enable(struct gbaudio_codec_info *codec,
-				 struct gbaudio_module_info *module, int dir)
-{
-	int ret = 0;
-	__u16 i2s_port, cportid;
-	int codec_state, module_state;
-	uint16_t data_cport;
+	int module_state, ret = 0;
+	uint16_t data_cport, i2s_port, cportid;
 	uint8_t sig_bits, channels;
 	uint32_t format, rate;
 	struct gbaudio_data_connection *data;
 	const char *dai_name;
 
-	mutex_lock(&codec->lock);
+	dai_name = codec->stream[SNDRV_PCM_STREAM_PLAYBACK].dai_name;
+	format = codec->stream[SNDRV_PCM_STREAM_PLAYBACK].format;
+	channels = codec->stream[SNDRV_PCM_STREAM_PLAYBACK].channels;
+	rate = codec->stream[SNDRV_PCM_STREAM_PLAYBACK].rate;
+	sig_bits = codec->stream[SNDRV_PCM_STREAM_PLAYBACK].sig_bits;
 
-	codec_state = codec->stream[dir].state;
-	if (codec_state == GBAUDIO_CODEC_SHUTDOWN) {
-		mutex_unlock(&codec->lock);
-		return 0;
+	module_state = module->ctrlstate[SNDRV_PCM_STREAM_PLAYBACK];
+
+	/* find the dai */
+	data = find_data(module, dai_name);
+	if (!data) {
+		dev_err(module->dev, "%s:DATA connection missing\n", dai_name);
+		return -ENODEV;
 	}
 
-	dai_name = codec->stream[dir].dai_name;
-	format = codec->stream[dir].format;
-	channels = codec->stream[dir].channels;
-	rate = codec->stream[dir].rate;
-	sig_bits = codec->stream[dir].sig_bits;
+	/* register cport */
+	if (module_state < GBAUDIO_CODEC_STARTUP) {
+		i2s_port = 0;	/* fixed for now */
+		cportid = data->connection->hd_cport_id;
+		ret = gb_audio_apbridgea_register_cport(data->connection,
+						i2s_port, cportid,
+						AUDIO_APBRIDGEA_DIRECTION_TX);
+		if (ret) {
+			dev_err_ratelimited(module->dev,
+					    "reg_cport failed:%d\n", ret);
+			return ret;
+		}
+		module->ctrlstate[SNDRV_PCM_STREAM_PLAYBACK] =
+			GBAUDIO_CODEC_STARTUP;
+		dev_dbg(module->dev, "Dynamic Register %s:%d DAI\n", dai_name,
+			cportid);
+	}
 
-	module_state = module->ctrlstate[dir];
-	if (module_state == codec_state) {
-		dev_dbg(codec->dev, "%s: module already configured\n",
-			module->name);
-		mutex_unlock(&codec->lock);
+	/* hw_params */
+	if (module_state < GBAUDIO_CODEC_HWPARAMS) {
+		data_cport = data->connection->intf_cport_id;
+		ret = gb_audio_gb_set_pcm(module->mgmt_connection, data_cport,
+					  format, rate, channels, sig_bits);
+		if (ret) {
+			dev_err_ratelimited(module->dev, "set_pcm failed:%d\n",
+					    ret);
+			return ret;
+		}
+		module->ctrlstate[SNDRV_PCM_STREAM_PLAYBACK] =
+			GBAUDIO_CODEC_HWPARAMS;
+		dev_dbg(module->dev, "Dynamic hw_params %s:%d DAI\n", dai_name,
+			data_cport);
+	}
+
+	/* prepare */
+	if (module_state < GBAUDIO_CODEC_PREPARE) {
+		data_cport = data->connection->intf_cport_id;
+		ret = gb_audio_gb_set_tx_data_size(module->mgmt_connection,
+						   data_cport, 192);
+		if (ret) {
+			dev_err_ratelimited(module->dev,
+					    "set_tx_data_size failed:%d\n",
+					    ret);
+			return ret;
+		}
+		ret = gb_audio_gb_activate_tx(module->mgmt_connection,
+					      data_cport);
+		if (ret) {
+			dev_err_ratelimited(module->dev,
+					    "activate_tx failed:%d\n", ret);
+			return ret;
+		}
+		module->ctrlstate[SNDRV_PCM_STREAM_PLAYBACK] =
+			GBAUDIO_CODEC_PREPARE;
+		dev_dbg(module->dev, "Dynamic prepare %s:%d DAI\n", dai_name,
+			data_cport);
+	}
+
+	return 0;
+}
+
+static int gbaudio_module_disable_tx(struct gbaudio_codec_info *codec,
+				     struct gbaudio_module_info *module)
+{
+	int ret;
+	uint16_t data_cport, cportid, i2s_port;
+	int module_state;
+	struct gbaudio_data_connection *data;
+	const char *dai_name;
+
+	dai_name = codec->stream[SNDRV_PCM_STREAM_PLAYBACK].dai_name;
+	module_state = module->ctrlstate[SNDRV_PCM_STREAM_PLAYBACK];
+
+	if (module_state == GBAUDIO_CODEC_SHUTDOWN) {
+		dev_dbg(module->dev, "module already configured\n");
 		return 0;
 	}
 
 	/* find the dai */
 	data = find_data(module, dai_name);
 	if (!data) {
-		dev_err(codec->dev, "%s:%s DATA connection missing\n",
-			dai_name, module->name);
-		mutex_unlock(&codec->lock);
+		dev_err(module->dev, "%s:DATA connection missing\n", dai_name);
+		return -ENODEV;
+	}
+
+	if (module_state > GBAUDIO_CODEC_HWPARAMS) {
+		data_cport = data->connection->intf_cport_id;
+		ret = gb_audio_gb_deactivate_tx(module->mgmt_connection,
+						data_cport);
+		if (ret) {
+			dev_err_ratelimited(module->dev,
+					    "deactivate_tx failed:%d\n", ret);
+			return ret;
+		}
+		dev_dbg(module->dev, "Dynamic deactivate %s:%d DAI\n", dai_name,
+			data_cport);
+		module->ctrlstate[SNDRV_PCM_STREAM_PLAYBACK] =
+			GBAUDIO_CODEC_HWPARAMS;
+	}
+
+	if (module_state > GBAUDIO_CODEC_SHUTDOWN) {
+		i2s_port = 0;	/* fixed for now */
+		cportid = data->connection->hd_cport_id;
+		ret = gb_audio_apbridgea_unregister_cport(data->connection,
+						i2s_port, cportid,
+						AUDIO_APBRIDGEA_DIRECTION_TX);
+		if (ret) {
+			dev_err_ratelimited(module->dev,
+					    "unregister_cport failed:%d\n",
+					    ret);
+			return ret;
+		}
+		dev_dbg(module->dev, "Dynamic Unregister %s:%d DAI\n", dai_name,
+			cportid);
+		module->ctrlstate[SNDRV_PCM_STREAM_PLAYBACK] =
+			GBAUDIO_CODEC_SHUTDOWN;
+	}
+
+	return 0;
+}
+
+static int gbaudio_module_enable_rx(struct gbaudio_codec_info *codec,
+				    struct gbaudio_module_info *module)
+{
+	int module_state, ret = 0;
+	uint16_t data_cport, i2s_port, cportid;
+	uint8_t sig_bits, channels;
+	uint32_t format, rate;
+	struct gbaudio_data_connection *data;
+	const char *dai_name;
+
+	dai_name = codec->stream[SNDRV_PCM_STREAM_CAPTURE].dai_name;
+	format = codec->stream[SNDRV_PCM_STREAM_CAPTURE].format;
+	channels = codec->stream[SNDRV_PCM_STREAM_CAPTURE].channels;
+	rate = codec->stream[SNDRV_PCM_STREAM_CAPTURE].rate;
+	sig_bits = codec->stream[SNDRV_PCM_STREAM_CAPTURE].sig_bits;
+	module_state = module->ctrlstate[SNDRV_PCM_STREAM_CAPTURE];
+
+	/* find the dai */
+	data = find_data(module, dai_name);
+	if (!data) {
+		dev_err(module->dev, "%s:DATA connection missing\n", dai_name);
 		return -ENODEV;
 	}
 
 	/* register cport */
-	if (module_state < codec_state) {
+	if (module_state < GBAUDIO_CODEC_STARTUP) {
 		i2s_port = 0;	/* fixed for now */
 		cportid = data->connection->hd_cport_id;
-		switch(dir) {
-		case SNDRV_PCM_STREAM_CAPTURE:
-				ret = gb_audio_apbridgea_register_cport(
-						data->connection,
-						i2s_port, cportid,
-						AUDIO_APBRIDGEA_DIRECTION_RX);
-				break;
-		case SNDRV_PCM_STREAM_PLAYBACK:
-				ret = gb_audio_apbridgea_register_cport(
-						data->connection,
+		ret = gb_audio_apbridgea_register_cport(data->connection,
 						i2s_port, cportid,
 						AUDIO_APBRIDGEA_DIRECTION_TX);
-				break;
-		default:
-				ret = -EINVAL;
-		}
 		if (ret) {
-			dev_err_ratelimited(codec->dev, "reg_cport for %s\n", module->name);
-			goto func_exit;
+			dev_err_ratelimited(module->dev,
+					    "reg_cport failed:%d\n", ret);
+			return ret;
 		}
-		module_state = GBAUDIO_CODEC_STARTUP;
-		dev_dbg(codec->dev, "Dynamic Register %s:%d DAI\n", dai_name,
+		module->ctrlstate[SNDRV_PCM_STREAM_CAPTURE] =
+			GBAUDIO_CODEC_STARTUP;
+		dev_dbg(module->dev, "Dynamic Register %s:%d DAI\n", dai_name,
 			cportid);
 	}
 
 	/* hw_params */
-	if (module_state < codec_state) {
+	if (module_state < GBAUDIO_CODEC_HWPARAMS) {
 		data_cport = data->connection->intf_cport_id;
 		ret = gb_audio_gb_set_pcm(module->mgmt_connection, data_cport,
 					  format, rate, channels, sig_bits);
 		if (ret) {
-			dev_err_ratelimited(codec->dev, "set_pcm for %s\n", module->name);
-			goto func_exit;
+			dev_err_ratelimited(module->dev, "set_pcm failed:%d\n",
+					    ret);
+			return ret;
 		}
-		module_state = GBAUDIO_CODEC_HWPARAMS;
-		dev_dbg(codec->dev, "Dynamic hw_params %s:%d DAI\n", dai_name,
+		module->ctrlstate[SNDRV_PCM_STREAM_CAPTURE] =
+			GBAUDIO_CODEC_HWPARAMS;
+		dev_dbg(module->dev, "Dynamic hw_params %s:%d DAI\n", dai_name,
 			data_cport);
 	}
 
 	/* prepare */
-	if (module_state < codec_state) {
+	if (module_state < GBAUDIO_CODEC_PREPARE) {
 		data_cport = data->connection->intf_cport_id;
-		switch(dir) {
-		case SNDRV_PCM_STREAM_CAPTURE:
-			ret = gb_audio_gb_set_rx_data_size(
-						module->mgmt_connection,
-						data_cport, 192);
-			if (ret) {
-				dev_err_ratelimited(codec->dev,
-					"set_rx_data_size for %s\n",
-					module->name);
-				goto func_exit;
-			}
-			ret = gb_audio_gb_activate_rx(module->mgmt_connection,
-						      data_cport);
-			if (ret) {
-				dev_err_ratelimited(codec->dev, "activate_rx for %s\n",
-					module->name);
-				goto func_exit;
-			}
-			break;
-		case SNDRV_PCM_STREAM_PLAYBACK:
-			ret = gb_audio_gb_set_tx_data_size(
-						module->mgmt_connection,
-						data_cport, 192);
-			if (ret) {
-				dev_err_ratelimited(codec->dev,
-					"set_tx_data_size for %s\n",
-					module->name);
-				goto func_exit;
-			}
-			ret = gb_audio_gb_activate_tx(module->mgmt_connection,
-						      data_cport);
-			if (ret) {
-				dev_err_ratelimited(codec->dev, "activate_tx for %s\n",
-					module->name);
-				goto func_exit;
-			}
-			break;
-		default:
-			dev_err(codec->dev, "Inavlid stream direction\n");
-			ret = -EINVAL;
-			goto func_exit;
+		ret = gb_audio_gb_set_rx_data_size(module->mgmt_connection,
+						   data_cport, 192);
+		if (ret) {
+			dev_err_ratelimited(module->dev,
+					    "set_rx_data_size failed:%d\n",
+					    ret);
+			return ret;
 		}
-		module_state = GBAUDIO_CODEC_PREPARE;
-		dev_dbg(codec->dev, "Dynamic prepare %s:%d DAI\n", dai_name,
+		ret = gb_audio_gb_activate_rx(module->mgmt_connection,
+					      data_cport);
+		if (ret) {
+			dev_err_ratelimited(module->dev,
+					    "activate_rx failed:%d\n", ret);
+			return ret;
+		}
+		module->ctrlstate[SNDRV_PCM_STREAM_CAPTURE] =
+			GBAUDIO_CODEC_PREPARE;
+		dev_dbg(module->dev, "Dynamic prepare %s:%d DAI\n", dai_name,
 			data_cport);
 	}
 
-func_exit:
-	module->ctrlstate[dir] = module_state;
-	mutex_unlock(&codec->lock);
-	return ret;
+	return 0;
+}
+
+static int gbaudio_module_disable_rx(struct gbaudio_codec_info *codec,
+				     struct gbaudio_module_info *module)
+{
+	int ret;
+	uint16_t data_cport, cportid, i2s_port;
+	int module_state;
+	struct gbaudio_data_connection *data;
+	const char *dai_name;
+
+	dai_name = codec->stream[SNDRV_PCM_STREAM_CAPTURE].dai_name;
+	module_state = module->ctrlstate[SNDRV_PCM_STREAM_CAPTURE];
+
+	if (module_state == GBAUDIO_CODEC_SHUTDOWN) {
+		dev_dbg(module->dev, "%s: module already configured\n",
+			module->name);
+		return 0;
+	}
+
+	/* find the dai */
+	data = find_data(module, dai_name);
+	if (!data) {
+		dev_err(module->dev, "%s:DATA connection missing\n", dai_name);
+		return -ENODEV;
+	}
+
+	if (module_state > GBAUDIO_CODEC_HWPARAMS) {
+		data_cport = data->connection->intf_cport_id;
+		ret = gb_audio_gb_deactivate_rx(module->mgmt_connection,
+						data_cport);
+		if (ret) {
+			dev_err_ratelimited(module->dev,
+					    "deactivate_rx failed:%d\n", ret);
+			return ret;
+		}
+		dev_dbg(module->dev, "Dynamic deactivate %s:%d DAI\n", dai_name,
+			data_cport);
+		module->ctrlstate[SNDRV_PCM_STREAM_CAPTURE] =
+			GBAUDIO_CODEC_HWPARAMS;
+	}
+
+	if (module_state > GBAUDIO_CODEC_SHUTDOWN) {
+		i2s_port = 0;	/* fixed for now */
+		cportid = data->connection->hd_cport_id;
+		ret = gb_audio_apbridgea_unregister_cport(data->connection,
+						i2s_port, cportid,
+						AUDIO_APBRIDGEA_DIRECTION_RX);
+		if (ret) {
+			dev_err_ratelimited(module->dev,
+					    "unregister_cport failed:%d\n",
+					    ret);
+			return ret;
+		}
+		dev_dbg(module->dev, "Dynamic Unregister %s:%d DAI\n", dai_name,
+			cportid);
+		module->ctrlstate[SNDRV_PCM_STREAM_CAPTURE] =
+			GBAUDIO_CODEC_SHUTDOWN;
+	}
+
+	return 0;
 }
 
 int gbaudio_module_update(struct gbaudio_codec_info *codec,
@@ -280,9 +337,8 @@ int gbaudio_module_update(struct gbaudio_codec_info *codec,
 				 struct gbaudio_module_info *module, int enable)
 {
 	int stream, ret = 0;
-	int pb_state, cap_state;
 
-	dev_dbg(module->dev, "Module update %s sequence\n",
+	dev_dbg(module->dev, "%s:Module update %s sequence\n", w_name,
 		enable ? "Enable":"Disable");
 
 	stream = find_stream(w_name);
@@ -291,27 +347,22 @@ int gbaudio_module_update(struct gbaudio_codec_info *codec,
 		return 0;
 	}
 
-	/* check if playback active */
-	pb_state = codec->stream[SNDRV_PCM_STREAM_PLAYBACK].state;
-	if ((stream & GB_PLAYBACK) && (pb_state > GBAUDIO_CODEC_SHUTDOWN)) {
+	mutex_lock(&codec->lock);
+	if (stream & GB_PLAYBACK) {
 		if (enable)
-			ret = gbaudio_module_enable(codec, module,
-						    SNDRV_PCM_STREAM_PLAYBACK);
+			ret = gbaudio_module_enable_tx(codec, module);
 		else
-			ret = gbaudio_module_disable(codec, module,
-						     SNDRV_PCM_STREAM_PLAYBACK);
+			ret = gbaudio_module_disable_tx(codec, module);
 	}
 
 	/* check if capture active */
-	cap_state = codec->stream[SNDRV_PCM_STREAM_CAPTURE].state;
-	if ((stream & GB_CAPTURE) && (cap_state > GBAUDIO_CODEC_SHUTDOWN)) {
+	if (stream & GB_CAPTURE) {
 		if (enable)
-			ret = gbaudio_module_enable(codec, module,
-						    SNDRV_PCM_STREAM_CAPTURE);
+			ret = gbaudio_module_enable_rx(codec, module);
 		else
-			ret = gbaudio_module_disable(codec, module,
-						     SNDRV_PCM_STREAM_CAPTURE);
+			ret = gbaudio_module_disable_rx(codec, module);
 	}
+	mutex_unlock(&codec->lock);
 
 	return ret;
 }
