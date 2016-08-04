@@ -64,7 +64,8 @@ static int gbaudio_module_disable(struct gbaudio_codec_info *codec,
 	if (module_state == GBAUDIO_CODEC_SHUTDOWN) {
 		dev_dbg(codec->dev, "%s: module already configured\n",
 			module->name);
-		goto func_exit;
+		mutex_unlock(&codec->lock);
+		return 0;
 	}
 
 	/* find the dai */
@@ -72,8 +73,8 @@ static int gbaudio_module_disable(struct gbaudio_codec_info *codec,
 	if (!data) {
 		dev_err(codec->dev, "%s:%s DATA connection missing\n",
 			dai_name, module->name);
-		ret = -ENODEV;
-		goto func_exit;
+		mutex_unlock(&codec->lock);
+		return -ENODEV;
 	}
 	if (codec_state > GBAUDIO_CODEC_HWPARAMS) {
 		data_cport = data->connection->intf_cport_id;
@@ -162,7 +163,8 @@ static int gbaudio_module_enable(struct gbaudio_codec_info *codec,
 	if (module_state == codec_state) {
 		dev_dbg(codec->dev, "%s: module already configured\n",
 			module->name);
-		goto func_exit;
+		mutex_unlock(&codec->lock);
+		return 0;
 	}
 
 	/* find the dai */
@@ -170,8 +172,8 @@ static int gbaudio_module_enable(struct gbaudio_codec_info *codec,
 	if (!data) {
 		dev_err(codec->dev, "%s:%s DATA connection missing\n",
 			dai_name, module->name);
-		ret = -ENODEV;
-		goto func_exit;
+		mutex_unlock(&codec->lock);
+		return -ENODEV;
 	}
 
 	/* register cport */
@@ -754,8 +756,8 @@ static int gbcodec_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 	if (!data) {
 		dev_err(dai->dev, "%s:%s DATA connection missing\n",
 			dai->name, module->name);
-		ret = -ENODEV;
-		goto func_exit;
+		mutex_unlock(&codec->lock);
+		return -ENODEV;
 	}
 
 	if (!mute && !stream) {/* start playback */
@@ -792,9 +794,8 @@ static int gbcodec_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 				    module->name, mute ? "Mute" : "Unmute",
 				    stream ? "Capture" : "Playback", ret);
 
-func_exit:
 	mutex_unlock(&codec->lock);
-	return 0;
+	return ret;
 }
 
 static struct snd_soc_dai_ops gbcodec_dai_ops = {
