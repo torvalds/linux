@@ -1849,25 +1849,26 @@ i915_gem_release_all_mmaps(struct drm_i915_private *dev_priv)
 
 /**
  * i915_gem_get_ggtt_size - return required global GTT size for an object
- * @dev: drm device
+ * @dev_priv: i915 device
  * @size: object size
  * @tiling_mode: tiling mode
  *
  * Return the required global GTT size for an object, taking into account
  * potential fence register mapping.
  */
-u64 i915_gem_get_ggtt_size(struct drm_device *dev, u64 size, int tiling_mode)
+u64 i915_gem_get_ggtt_size(struct drm_i915_private *dev_priv,
+			   u64 size, int tiling_mode)
 {
 	u64 ggtt_size;
 
 	GEM_BUG_ON(size == 0);
 
-	if (INTEL_GEN(dev) >= 4 ||
+	if (INTEL_GEN(dev_priv) >= 4 ||
 	    tiling_mode == I915_TILING_NONE)
 		return size;
 
 	/* Previous chips need a power-of-two fence region when tiling */
-	if (IS_GEN3(dev))
+	if (IS_GEN3(dev_priv))
 		ggtt_size = 1024*1024;
 	else
 		ggtt_size = 512*1024;
@@ -1880,7 +1881,7 @@ u64 i915_gem_get_ggtt_size(struct drm_device *dev, u64 size, int tiling_mode)
 
 /**
  * i915_gem_get_ggtt_alignment - return required global GTT alignment
- * @dev: drm device
+ * @dev_priv: i915 device
  * @size: object size
  * @tiling_mode: tiling mode
  * @fenced: is fenced alignment required or not
@@ -1888,7 +1889,7 @@ u64 i915_gem_get_ggtt_size(struct drm_device *dev, u64 size, int tiling_mode)
  * Return the required global GTT alignment for an object, taking into account
  * potential fence register mapping.
  */
-u64 i915_gem_get_ggtt_alignment(struct drm_device *dev, u64 size,
+u64 i915_gem_get_ggtt_alignment(struct drm_i915_private *dev_priv, u64 size,
 				int tiling_mode, bool fenced)
 {
 	GEM_BUG_ON(size == 0);
@@ -1897,7 +1898,7 @@ u64 i915_gem_get_ggtt_alignment(struct drm_device *dev, u64 size,
 	 * Minimum alignment is 4k (GTT page size), but might be greater
 	 * if a fence register is needed for the object.
 	 */
-	if (INTEL_GEN(dev) >= 4 || (!fenced && IS_G33(dev)) ||
+	if (INTEL_GEN(dev_priv) >= 4 || (!fenced && IS_G33(dev_priv)) ||
 	    tiling_mode == I915_TILING_NONE)
 		return 4096;
 
@@ -1905,7 +1906,7 @@ u64 i915_gem_get_ggtt_alignment(struct drm_device *dev, u64 size,
 	 * Previous chips need to be aligned to the size of the smallest
 	 * fence register that can contain the object.
 	 */
-	return i915_gem_get_ggtt_size(dev, size, tiling_mode);
+	return i915_gem_get_ggtt_size(dev_priv, size, tiling_mode);
 }
 
 static int i915_gem_object_create_mmap_offset(struct drm_i915_gem_object *obj)
@@ -2995,14 +2996,14 @@ i915_gem_object_insert_into_vm(struct drm_i915_gem_object *obj,
 
 		view_size = i915_ggtt_view_size(obj, ggtt_view);
 
-		fence_size = i915_gem_get_ggtt_size(dev,
+		fence_size = i915_gem_get_ggtt_size(dev_priv,
 						    view_size,
 						    obj->tiling_mode);
-		fence_alignment = i915_gem_get_ggtt_alignment(dev,
+		fence_alignment = i915_gem_get_ggtt_alignment(dev_priv,
 							      view_size,
 							      obj->tiling_mode,
 							      true);
-		unfenced_alignment = i915_gem_get_ggtt_alignment(dev,
+		unfenced_alignment = i915_gem_get_ggtt_alignment(dev_priv,
 								 view_size,
 								 obj->tiling_mode,
 								 false);
@@ -3706,13 +3707,14 @@ i915_vma_misplaced(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 void __i915_vma_set_map_and_fenceable(struct i915_vma *vma)
 {
 	struct drm_i915_gem_object *obj = vma->obj;
+	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
 	bool mappable, fenceable;
 	u32 fence_size, fence_alignment;
 
-	fence_size = i915_gem_get_ggtt_size(obj->base.dev,
+	fence_size = i915_gem_get_ggtt_size(dev_priv,
 					    obj->base.size,
 					    obj->tiling_mode);
-	fence_alignment = i915_gem_get_ggtt_alignment(obj->base.dev,
+	fence_alignment = i915_gem_get_ggtt_alignment(dev_priv,
 						      obj->base.size,
 						      obj->tiling_mode,
 						      true);
@@ -3721,7 +3723,7 @@ void __i915_vma_set_map_and_fenceable(struct i915_vma *vma)
 		     (vma->node.start & (fence_alignment - 1)) == 0);
 
 	mappable = (vma->node.start + fence_size <=
-		    to_i915(obj->base.dev)->ggtt.mappable_end);
+		    dev_priv->ggtt.mappable_end);
 
 	obj->map_and_fenceable = mappable && fenceable;
 }

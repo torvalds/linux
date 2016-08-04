@@ -3241,8 +3241,9 @@ int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj,
 int i915_gem_open(struct drm_device *dev, struct drm_file *file);
 void i915_gem_release(struct drm_device *dev, struct drm_file *file);
 
-u64 i915_gem_get_ggtt_size(struct drm_device *dev, u64 size, int tiling_mode);
-u64 i915_gem_get_ggtt_alignment(struct drm_device *dev, u64 size,
+u64 i915_gem_get_ggtt_size(struct drm_i915_private *dev_priv, u64 size,
+			   int tiling_mode);
+u64 i915_gem_get_ggtt_alignment(struct drm_i915_private *dev_priv, u64 size,
 				int tiling_mode, bool fenced);
 
 int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
