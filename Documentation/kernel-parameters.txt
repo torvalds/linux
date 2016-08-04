@@ -2320,6 +2320,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Note that if CONFIG_MODULE_SIG_FORCE is set, that
 			is always true, so this option does nothing.
 
+	module_blacklist=  [KNL] Do not load a comma-separated list of
+			modules.  Useful for debugging problem modules.
+
 	mousedev.tap_time=
 			[MOUSE] Maximum time between finger touching and
 			leaving touchpad surface for touch to be considered

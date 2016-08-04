@@ -337,11 +337,14 @@ static int __jump_label_mod_text_reserved(void *start, void *end)
 {
 	struct module *mod;
 
+	preempt_disable();
 	mod = __module_text_address((unsigned long)start);
+	WARN_ON_ONCE(__module_text_address((unsigned long)end) != mod);
+	preempt_enable();
+
 	if (!mod)
 		return 0;
 
-	WARN_ON_ONCE(__module_text_address((unsigned long)end) != mod);
 
 	return __jump_label_text_reserved(mod->jump_entries,
 				mod->jump_entries + mod->num_jump_entries,
