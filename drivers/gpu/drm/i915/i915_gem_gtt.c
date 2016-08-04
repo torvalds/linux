@@ -3342,6 +3342,31 @@ i915_vma_retire(struct i915_gem_active *active,
 		return;
 
 	list_move_tail(&vma->vm_link, &vma->vm->inactive_list);
+	if (unlikely(vma->closed && !vma->pin_count))
+		WARN_ON(i915_vma_unbind(vma));
+}
+
+void i915_vma_destroy(struct i915_vma *vma)
+{
+	GEM_BUG_ON(vma->node.allocated);
+	GEM_BUG_ON(i915_vma_is_active(vma));
+	GEM_BUG_ON(!vma->closed);
+
+	list_del(&vma->vm_link);
+	if (!vma->is_ggtt)
+		i915_ppgtt_put(i915_vm_to_ppgtt(vma->vm));
+
+	kmem_cache_free(to_i915(vma->obj->base.dev)->vmas, vma);
+}
+
+void i915_vma_close(struct i915_vma *vma)
+{
+	GEM_BUG_ON(vma->closed);
+	vma->closed = true;
+
+	list_del_init(&vma->obj_link);
+	if (!i915_vma_is_active(vma) && !vma->pin_count)
+		WARN_ON(__i915_vma_unbind_no_wait(vma));
 }
 
 static struct i915_vma *

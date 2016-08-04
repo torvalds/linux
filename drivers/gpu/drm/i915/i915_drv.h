@@ -3014,8 +3014,8 @@ struct drm_i915_gem_object *i915_gem_object_create(struct drm_device *dev,
 						  size_t size);
 struct drm_i915_gem_object *i915_gem_object_create_from_data(
 		struct drm_device *dev, const void *data, size_t size);
+void i915_gem_close_object(struct drm_gem_object *gem, struct drm_file *file);
 void i915_gem_free_object(struct drm_gem_object *obj);
-void i915_gem_vma_destroy(struct i915_vma *vma);
 
 /* Flags used by pin/bind&friends. */
 #define PIN_MAPPABLE	(1<<0)
@@ -3048,6 +3048,8 @@ int __must_check i915_vma_unbind(struct i915_vma *vma);
  * _guarantee_ VMA in question is _not in use_ anywhere.
  */
 int __must_check __i915_vma_unbind_no_wait(struct i915_vma *vma);
+void i915_vma_close(struct i915_vma *vma);
+void i915_vma_destroy(struct i915_vma *vma);
 
 int i915_gem_object_unbind(struct drm_i915_gem_object *obj);
 int i915_gem_object_put_pages(struct drm_i915_gem_object *obj);

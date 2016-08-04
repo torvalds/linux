@@ -2578,6 +2578,7 @@ static struct drm_driver driver = {
 	.postclose = i915_driver_postclose,
 	.set_busid = drm_pci_set_busid,
 
+	.gem_close_object = i915_gem_close_object,
 	.gem_free_object = i915_gem_free_object,
 	.gem_vm_ops = &i915_gem_vm_ops,
 

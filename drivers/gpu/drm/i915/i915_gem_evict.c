@@ -182,8 +182,8 @@ found:
 				       struct i915_vma,
 				       exec_list);
 		if (drm_mm_scan_remove_block(&vma->node)) {
+			vma->pin_count++;
 			list_move(&vma->exec_list, &eviction_list);
-			i915_gem_object_get(vma->obj);
 			continue;
 		}
 		list_del_init(&vma->exec_list);
@@ -191,18 +191,14 @@ found:
 
 	/* Unbinding will emit any required flushes */
 	while (!list_empty(&eviction_list)) {
-		struct drm_i915_gem_object *obj;
-
 		vma = list_first_entry(&eviction_list,
 				       struct i915_vma,
 				       exec_list);
 
-		obj =  vma->obj;
 		list_del_init(&vma->exec_list);
+		vma->pin_count--;
 		if (ret == 0)
 			ret = i915_vma_unbind(vma);
-
-		i915_gem_object_put(obj);
 	}
 
 	return ret;

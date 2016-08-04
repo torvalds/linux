@@ -189,6 +189,7 @@ struct i915_vma {
 #define LOCAL_BIND	(1<<1)
 	unsigned int bound : 4;
 	bool is_ggtt : 1;
+	bool closed : 1;
 
 	/**
 	 * Support different GGTT views into the same object.
