@@ -24,6 +24,15 @@
 #include "intel_drv.h"
 
 static void
+intel_dp_dump_link_status(const uint8_t link_status[DP_LINK_STATUS_SIZE])
+{
+
+	DRM_DEBUG_KMS("ln0_1:0x%x ln2_3:0x%x align:0x%x sink:0x%x adj_req0_1:0x%x adj_req2_3:0x%x",
+		      link_status[0], link_status[1], link_status[2],
+		      link_status[3], link_status[4], link_status[5]);
+}
+
+static void
 intel_get_adjust_train(struct intel_dp *intel_dp,
 		       const uint8_t link_status[DP_LINK_STATUS_SIZE])
 {
@@ -168,6 +177,7 @@ intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp)
 			++loop_tries;
 			if (loop_tries == 5) {
 				DRM_ERROR("too many full retries, give up\n");
+				intel_dp_dump_link_status(link_status);
 				break;
 			}
 			intel_dp_reset_link_train(intel_dp,
@@ -254,6 +264,7 @@ intel_dp_link_training_channel_equalization(struct intel_dp *intel_dp)
 
 		if (cr_tries > 5) {
 			DRM_ERROR("failed to train DP, aborting\n");
+			intel_dp_dump_link_status(link_status);
 			break;
 		}
 
