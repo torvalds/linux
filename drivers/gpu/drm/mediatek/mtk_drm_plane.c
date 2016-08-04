@@ -30,44 +30,6 @@ static const u32 formats[] = {
 	DRM_FORMAT_RGB565,
 };
 
-static void mtk_plane_enable(struct drm_plane *plane,
-			     dma_addr_t addr)
-{
-	struct mtk_plane_state *state = to_mtk_plane_state(plane->state);
-	unsigned int pitch, format;
-	bool enable;
-
-	if (WARN_ON(!plane->state))
-		return;
-
-	enable = state->base.visible;
-
-	if (WARN_ON(enable && !plane->state->fb))
-		return;
-
-	if (plane->state->fb) {
-		pitch = plane->state->fb->pitches[0];
-		format = plane->state->fb->pixel_format;
-	} else {
-		pitch = 0;
-		format = DRM_FORMAT_RGBA8888;
-	}
-
-	addr += (state->base.src.x1 >> 16) * 4;
-	addr += (state->base.src.y1 >> 16) * pitch;
-
-	state->pending.enable = enable;
-	state->pending.pitch = pitch;
-	state->pending.format = format;
-	state->pending.addr = addr;
-	state->pending.x = state->base.dst.x1;
-	state->pending.y = state->base.dst.y1;
-	state->pending.width = drm_rect_width(&state->base.dst);
-	state->pending.height = drm_rect_height(&state->base.dst);
-	wmb(); /* Make sure the above parameters are set before update */
-	state->pending.dirty = true;
-}
-
 static void mtk_plane_reset(struct drm_plane *plane)
 {
 	struct mtk_plane_state *state;
@@ -157,16 +119,35 @@ static void mtk_plane_atomic_update(struct drm_plane *plane,
 				    struct drm_plane_state *old_state)
 {
 	struct mtk_plane_state *state = to_mtk_plane_state(plane->state);
-	struct drm_crtc *crtc = state->base.crtc;
+	struct drm_crtc *crtc = plane->state->crtc;
+	struct drm_framebuffer *fb = plane->state->fb;
 	struct drm_gem_object *gem;
 	struct mtk_drm_gem_obj *mtk_gem;
+	unsigned int pitch, format;
+	dma_addr_t addr;
 
-	if (!crtc)
+	if (!crtc || WARN_ON(!fb))
 		return;
 
-	gem = mtk_fb_get_gem_obj(state->base.fb);
+	gem = mtk_fb_get_gem_obj(fb);
 	mtk_gem = to_mtk_gem_obj(gem);
-	mtk_plane_enable(plane, mtk_gem->dma_addr);
+	addr = mtk_gem->dma_addr;
+	pitch = fb->pitches[0];
+	format = fb->pixel_format;
+
+	addr += (plane->state->src.x1 >> 16) * 4;
+	addr += (plane->state->src.y1 >> 16) * pitch;
+
+	state->pending.enable = true;
+	state->pending.pitch = pitch;
+	state->pending.format = format;
+	state->pending.addr = addr;
+	state->pending.x = plane->state->dst.x1;
+	state->pending.y = plane->state->dst.y1;
+	state->pending.width = drm_rect_width(&plane->state->dst);
+	state->pending.height = drm_rect_height(&plane->state->dst);
+	wmb(); /* Make sure the above parameters are set before update */
+	state->pending.dirty = true;
 }
 
 static void mtk_plane_atomic_disable(struct drm_plane *plane,
