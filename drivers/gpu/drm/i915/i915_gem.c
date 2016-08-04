@@ -3089,7 +3089,7 @@ search_free:
 							  search_flag,
 							  alloc_flag);
 		if (ret) {
-			ret = i915_gem_evict_something(dev, vm, size, alignment,
+			ret = i915_gem_evict_something(vm, size, alignment,
 						       obj->cache_level,
 						       start, end,
 						       flags);

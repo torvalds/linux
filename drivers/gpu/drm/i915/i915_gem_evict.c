@@ -61,7 +61,6 @@ mark_free(struct i915_vma *vma, struct list_head *unwind)
 
 /**
  * i915_gem_evict_something - Evict vmas to make room for binding a new one
- * @dev: drm_device
  * @vm: address space to evict from
  * @min_size: size of the desired free space
  * @alignment: alignment constraint of the desired free space
@@ -84,12 +83,12 @@ mark_free(struct i915_vma *vma, struct list_head *unwind)
  * memory in e.g. the shrinker.
  */
 int
-i915_gem_evict_something(struct drm_device *dev, struct i915_address_space *vm,
+i915_gem_evict_something(struct i915_address_space *vm,
 			 int min_size, unsigned alignment, unsigned cache_level,
 			 unsigned long start, unsigned long end,
 			 unsigned flags)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(vm->dev);
 	struct list_head eviction_list;
 	struct list_head *phases[] = {
 		&vm->inactive_list,
@@ -99,7 +98,7 @@ i915_gem_evict_something(struct drm_device *dev, struct i915_address_space *vm,
 	struct i915_vma *vma, *next;
 	int ret;
 
-	trace_i915_gem_evict(dev, min_size, alignment, flags);
+	trace_i915_gem_evict(vm, min_size, alignment, flags);
 
 	/*
 	 * The goal is to evict objects and amalgamate space in LRU order.
@@ -154,7 +153,7 @@ search_again:
 		 * back to userspace to give our workqueues time to
 		 * acquire our locks and unpin the old scanouts.
 		 */
-		return intel_has_pending_fb_unpin(dev) ? -EAGAIN : -ENOSPC;
+		return intel_has_pending_fb_unpin(vm->dev) ? -EAGAIN : -ENOSPC;
 	}
 
 	/* Not everything in the GGTT is tracked via vma (otherwise we

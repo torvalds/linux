@@ -2012,7 +2012,7 @@ alloc:
 						  0, ggtt->base.total,
 						  DRM_MM_TOPDOWN);
 	if (ret == -ENOSPC && !retried) {
-		ret = i915_gem_evict_something(dev, &ggtt->base,
+		ret = i915_gem_evict_something(&ggtt->base,
 					       GEN6_PD_SIZE, GEN6_PD_ALIGN,
 					       I915_CACHE_NONE,
 					       0, ggtt->base.total,

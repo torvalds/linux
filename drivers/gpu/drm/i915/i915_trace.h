@@ -394,25 +394,27 @@ DEFINE_EVENT(i915_gem_object, i915_gem_object_destroy,
 );
 
 TRACE_EVENT(i915_gem_evict,
-	    TP_PROTO(struct drm_device *dev, u32 size, u32 align, unsigned flags),
-	    TP_ARGS(dev, size, align, flags),
+	    TP_PROTO(struct i915_address_space *vm, u32 size, u32 align, unsigned int flags),
+	    TP_ARGS(vm, size, align, flags),
 
 	    TP_STRUCT__entry(
 			     __field(u32, dev)
+			     __field(struct i915_address_space *, vm)
 			     __field(u32, size)
 			     __field(u32, align)
-			     __field(unsigned, flags)
+			     __field(unsigned int, flags)
 			    ),
 
 	    TP_fast_assign(
-			   __entry->dev = dev->primary->index;
+			   __entry->dev = vm->dev->primary->index;
+			   __entry->vm = vm;
 			   __entry->size = size;
 			   __entry->align = align;
 			   __entry->flags = flags;
 			  ),
 
-	    TP_printk("dev=%d, size=%d, align=%d %s",
-		      __entry->dev, __entry->size, __entry->align,
+	    TP_printk("dev=%d, vm=%p, size=%d, align=%d %s",
+		      __entry->dev, __entry->vm, __entry->size, __entry->align,
 		      __entry->flags & PIN_MAPPABLE ? ", mappable" : "")
 );
 

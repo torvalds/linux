@@ -3398,8 +3398,7 @@ int i915_gem_context_reset_stats_ioctl(struct drm_device *dev, void *data,
 				       struct drm_file *file);
 
 /* i915_gem_evict.c */
-int __must_check i915_gem_evict_something(struct drm_device *dev,
-					  struct i915_address_space *vm,
+int __must_check i915_gem_evict_something(struct i915_address_space *vm,
 					  int min_size,
 					  unsigned alignment,
 					  unsigned cache_level,
