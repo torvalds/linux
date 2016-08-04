@@ -141,6 +141,10 @@
 				bm,pool-short = <3>;
 			};
 
+			usb@58000 {
+				status = "okay";
+			};
+
 			/* CON4 */
 			ethernet@70000 {
 				pinctrl-names = "default";
