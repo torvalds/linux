@@ -383,7 +383,7 @@ static int vop_clk_disable(struct vop_device *vop_dev)
 		spin_unlock(&vop_dev->reg_lock);
 		mdelay(25);
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
-		pm_runtime_put(vop_dev->dev);
+		pm_runtime_put_sync(vop_dev->dev);
 #endif
 		clk_disable_unprepare(vop_dev->dclk);
 		clk_disable_unprepare(vop_dev->hclk);
