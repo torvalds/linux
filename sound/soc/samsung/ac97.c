@@ -38,16 +38,16 @@ struct s3c_ac97_info {
 };
 static struct s3c_ac97_info s3c_ac97;
 
-static struct s3c_dma_params s3c_ac97_pcm_out = {
-	.dma_size	= 4,
+static struct snd_dmaengine_dai_dma_data s3c_ac97_pcm_out = {
+	.addr_width	= 4,
 };
 
-static struct s3c_dma_params s3c_ac97_pcm_in = {
-	.dma_size	= 4,
+static struct snd_dmaengine_dai_dma_data s3c_ac97_pcm_in = {
+	.addr_width	= 4,
 };
 
-static struct s3c_dma_params s3c_ac97_mic_in = {
-	.dma_size	= 4,
+static struct snd_dmaengine_dai_dma_data s3c_ac97_mic_in = {
+	.addr_width	= 4,
 };
 
 static void s3c_ac97_activate(struct snd_ac97 *ac97)
@@ -273,14 +273,14 @@ static const struct snd_soc_dai_ops s3c_ac97_mic_dai_ops = {
 
 static int s3c_ac97_dai_probe(struct snd_soc_dai *dai)
 {
-	samsung_asoc_init_dma_data(dai, &s3c_ac97_pcm_out, &s3c_ac97_pcm_in);
+	snd_soc_dai_init_dma_data(dai, &s3c_ac97_pcm_out, &s3c_ac97_pcm_in);
 
 	return 0;
 }
 
 static int s3c_ac97_mic_dai_probe(struct snd_soc_dai *dai)
 {
-	samsung_asoc_init_dma_data(dai, NULL, &s3c_ac97_mic_in);
+	snd_soc_dai_init_dma_data(dai, NULL, &s3c_ac97_mic_in);
 
 	return 0;
 }
@@ -346,12 +346,12 @@ static int s3c_ac97_probe(struct platform_device *pdev)
 	if (IS_ERR(s3c_ac97.regs))
 		return PTR_ERR(s3c_ac97.regs);
 
-	s3c_ac97_pcm_out.slave = ac97_pdata->dma_playback;
-	s3c_ac97_pcm_out.dma_addr = mem_res->start + S3C_AC97_PCM_DATA;
-	s3c_ac97_pcm_in.slave = ac97_pdata->dma_capture;
-	s3c_ac97_pcm_in.dma_addr = mem_res->start + S3C_AC97_PCM_DATA;
-	s3c_ac97_mic_in.slave = ac97_pdata->dma_capture_mic;
-	s3c_ac97_mic_in.dma_addr = mem_res->start + S3C_AC97_MIC_DATA;
+	s3c_ac97_pcm_out.filter_data = ac97_pdata->dma_playback;
+	s3c_ac97_pcm_out.addr = mem_res->start + S3C_AC97_PCM_DATA;
+	s3c_ac97_pcm_in.filter_data = ac97_pdata->dma_capture;
+	s3c_ac97_pcm_in.addr = mem_res->start + S3C_AC97_PCM_DATA;
+	s3c_ac97_mic_in.filter_data = ac97_pdata->dma_capture_mic;
+	s3c_ac97_mic_in.addr = mem_res->start + S3C_AC97_MIC_DATA;
 
 	init_completion(&s3c_ac97.done);
 	mutex_init(&s3c_ac97.lock);
