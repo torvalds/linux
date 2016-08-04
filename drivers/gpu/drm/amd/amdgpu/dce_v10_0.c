@@ -646,8 +646,8 @@ static void dce_v10_0_resume_mc_access(struct amdgpu_device *adev,
 
 		if (save->crtc_enabled[i]) {
 			tmp = RREG32(mmMASTER_UPDATE_MODE + crtc_offsets[i]);
-			if (REG_GET_FIELD(tmp, MASTER_UPDATE_MODE, MASTER_UPDATE_MODE) != 3) {
-				tmp = REG_SET_FIELD(tmp, MASTER_UPDATE_MODE, MASTER_UPDATE_MODE, 3);
+			if (REG_GET_FIELD(tmp, MASTER_UPDATE_MODE, MASTER_UPDATE_MODE) != 0) {
+				tmp = REG_SET_FIELD(tmp, MASTER_UPDATE_MODE, MASTER_UPDATE_MODE, 0);
 				WREG32(mmMASTER_UPDATE_MODE + crtc_offsets[i], tmp);
 			}
 			tmp = RREG32(mmGRPH_UPDATE + crtc_offsets[i]);
@@ -2314,8 +2314,8 @@ static int dce_v10_0_crtc_do_set_base(struct drm_crtc *crtc,
 	WREG32(mmVIEWPORT_SIZE + amdgpu_crtc->crtc_offset,
 	       (viewport_w << 16) | viewport_h);
 
-	/* set pageflip to happen only at start of vblank interval (front porch) */
-	WREG32(mmMASTER_UPDATE_MODE + amdgpu_crtc->crtc_offset, 3);
+	/* set pageflip to happen anywhere in vblank interval */
+	WREG32(mmMASTER_UPDATE_MODE + amdgpu_crtc->crtc_offset, 0);
 
 	if (!atomic && fb && fb != crtc->primary->fb) {
 		amdgpu_fb = to_amdgpu_framebuffer(fb);
