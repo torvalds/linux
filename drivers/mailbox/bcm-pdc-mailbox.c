@@ -1191,10 +1191,11 @@ static void pdc_shutdown(struct mbox_chan *chan)
 {
 	struct pdc_state *pdcs = chan->con_priv;
 
-	if (pdcs)
-		dev_dbg(&pdcs->pdev->dev,
-			"Shutdown mailbox channel for PDC %u", pdcs->pdc_idx);
+	if (!pdcs)
+		return;
 
+	dev_dbg(&pdcs->pdev->dev,
+		"Shutdown mailbox channel for PDC %u", pdcs->pdc_idx);
 	pdc_ring_free(pdcs);
 }
 
