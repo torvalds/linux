@@ -600,27 +600,30 @@ static irqreturn_t usb_dmac_isr_channel(int irq, void *dev)
 {
 	struct usb_dmac_chan *chan = dev;
 	irqreturn_t ret = IRQ_NONE;
-	u32 mask = USB_DMACHCR_TE;
-	u32 check_bits = USB_DMACHCR_TE | USB_DMACHCR_SP;
+	u32 mask = 0;
 	u32 chcr;
+	bool xfer_end = false;
 
 	spin_lock(&chan->vc.lock);
 
 	chcr = usb_dmac_chan_read(chan, USB_DMACHCR);
-	if (chcr & check_bits)
-		mask |= USB_DMACHCR_DE | check_bits;
+	if (chcr & (USB_DMACHCR_TE | USB_DMACHCR_SP)) {
+		mask |= USB_DMACHCR_DE | USB_DMACHCR_TE | USB_DMACHCR_SP;
+		if (chcr & USB_DMACHCR_DE)
+			xfer_end = true;
+		ret |= IRQ_HANDLED;
+	}
 	if (chcr & USB_DMACHCR_NULL) {
 		/* An interruption of TE will happen after we set FTE */
 		mask |= USB_DMACHCR_NULL;
 		chcr |= USB_DMACHCR_FTE;
 		ret |= IRQ_HANDLED;
 	}
-	usb_dmac_chan_write(chan, USB_DMACHCR, chcr & ~mask);
+	if (mask)
+		usb_dmac_chan_write(chan, USB_DMACHCR, chcr & ~mask);
 
-	if (chcr & check_bits) {
+	if (xfer_end)
 		usb_dmac_isr_transfer_end(chan);
-		ret |= IRQ_HANDLED;
-	}
 
 	spin_unlock(&chan->vc.lock);
 
