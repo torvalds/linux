@@ -3352,6 +3352,8 @@ static uint32_t skl_wm_method2(uint32_t pixel_rate, uint32_t pipe_htotal,
 		plane_bytes_per_line *= 4;
 		plane_blocks_per_line = DIV_ROUND_UP(plane_bytes_per_line, 512);
 		plane_blocks_per_line /= 4;
+	} else if (tiling == DRM_FORMAT_MOD_NONE) {
+		plane_blocks_per_line = DIV_ROUND_UP(plane_bytes_per_line, 512) + 1;
 	} else {
 		plane_blocks_per_line = DIV_ROUND_UP(plane_bytes_per_line, 512);
 	}
