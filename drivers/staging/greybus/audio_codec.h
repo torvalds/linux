@@ -129,6 +129,7 @@ struct gbaudio_control {
 };
 
 struct gbaudio_data_connection {
+	int id;
 	__le16 data_cport;
 	int cport_configured;
 	char name[NAME_SIZE];

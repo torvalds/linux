@@ -199,6 +199,7 @@ static int gb_audio_add_data_connection(struct gbaudio_module_info *gbmodule,
 	greybus_set_drvdata(bundle, gbmodule);
 	/* dai->name should be same as codec->dai_name */
 	strlcpy(dai->name, "greybus-apb1", NAME_SIZE);
+	dai->id = 0;
 	dai->data_cport = connection->intf_cport_id;
 	dai->connection = connection;
 	list_add(&dai->list, &gbmodule->data_list);
