@@ -3017,6 +3017,10 @@ Image Process Control IDs
     test pattern images. These hardware specific test patterns can be
     used to test if a device is working properly.
 
+``V4L2_CID_DEINTERLACING_MODE (menu)``
+    The video deinterlacing mode (such as Bob, Weave, ...). The menu items are
+    driver specific and are documented in :ref:`v4l-drivers`.
+
 
 .. _dv-controls:
 

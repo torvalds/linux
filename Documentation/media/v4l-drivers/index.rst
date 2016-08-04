@@ -2,6 +2,8 @@
 
 .. include:: <isonum.txt>
 
+.. _v4l-drivers:
+
 ################################################
 Video4Linux (V4L)  driver-specific documentation
 ################################################
