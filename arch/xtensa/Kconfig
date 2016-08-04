@@ -212,7 +212,7 @@ config HOTPLUG_CPU
 
 config INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
 	bool "Initialize Xtensa MMU inside the Linux kernel code"
-	default y
+	default y if XTENSA_VARIANT_DC233C || XTENSA_VARIANT_CUSTOM
 	help
 	  Earlier version initialized the MMU in the exception vector
 	  before jumping to _startup in head.S and had an advantage that
@@ -254,7 +254,9 @@ config KSEG_PADDR
 
 config KERNEL_LOAD_ADDRESS
 	hex "Kernel load address"
-	default 0x00003000
+	default 0x60003000 if !MMU
+	default 0x00003000 if MMU && INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
+	default 0xd0003000 if MMU && !INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
 	help
 	  This is the address where the kernel is loaded.
 	  It is virtual address for MMUv2 configurations and physical address
