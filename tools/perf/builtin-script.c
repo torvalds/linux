@@ -371,14 +371,16 @@ static int perf_session__check_output_opt(struct perf_session *session)
 
 	if (!no_callchain) {
 		bool use_callchain = false;
+		bool not_pipe = false;
 
 		evlist__for_each_entry(session->evlist, evsel) {
+			not_pipe = true;
 			if (evsel->attr.sample_type & PERF_SAMPLE_CALLCHAIN) {
 				use_callchain = true;
 				break;
 			}
 		}
-		if (!use_callchain)
+		if (not_pipe && !use_callchain)
 			symbol_conf.use_callchain = false;
 	}
 
