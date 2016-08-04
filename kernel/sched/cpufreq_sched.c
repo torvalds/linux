@@ -58,7 +58,6 @@ struct gov_data {
 	struct task_struct *task;
 	struct irq_work irq_work;
 	unsigned int requested_freq;
-	int max;
 };
 
 static void cpufreq_sched_try_driver_target(struct cpufreq_policy *policy,
@@ -193,7 +192,7 @@ static void update_fdomain_capacity_request(int cpu)
 	}
 
 	/* Convert the new maximum capacity request into a cpu frequency */
-	freq_new = capacity * gd->max >> SCHED_CAPACITY_SHIFT;
+	freq_new = capacity * policy->max >> SCHED_CAPACITY_SHIFT;
 	if (cpufreq_frequency_table_target(policy, policy->freq_table,
 					   freq_new, CPUFREQ_RELATION_L,
 					   &index_new))
@@ -288,8 +287,6 @@ static int cpufreq_sched_policy_init(struct cpufreq_policy *policy)
 	pr_debug("%s: throttle threshold = %u [ns]\n",
 		  __func__, gd->up_throttle_nsec);
 
-	gd->max = policy->max;
-
 	rc = sysfs_create_group(get_governor_parent_kobj(policy), get_sysfs_attr());
 	if (rc) {
 		pr_err("%s: couldn't create sysfs attributes: %d\n", __func__, rc);
@@ -352,28 +349,17 @@ static int cpufreq_sched_start(struct cpufreq_policy *policy)
 
 static void cpufreq_sched_limits(struct cpufreq_policy *policy)
 {
-	struct gov_data *gd;
+	unsigned int clamp_freq;
+	struct gov_data *gd = policy->governor_data;;
 
 	pr_debug("limit event for cpu %u: %u - %u kHz, currently %u kHz\n",
 		policy->cpu, policy->min, policy->max,
 		policy->cur);
 
-	if (!down_write_trylock(&policy->rwsem))
-		return;
-	/*
-	 * Need to keep track of highest max frequency for
-	 * capacity calculations
-	 */
-	gd = policy->governor_data;
-	if (gd->max < policy->max)
-		gd->max = policy->max;
+	clamp_freq = clamp(gd->requested_freq, policy->min, policy->max);
 
-	if (policy->max < policy->cur)
-		__cpufreq_driver_target(policy, policy->max, CPUFREQ_RELATION_H);
-	else if (policy->min > policy->cur)
-		__cpufreq_driver_target(policy, policy->min, CPUFREQ_RELATION_L);
-
-	up_write(&policy->rwsem);
+	if (policy->cur != clamp_freq)
+		__cpufreq_driver_target(policy, clamp_freq, CPUFREQ_RELATION_L);
 }
 
 static int cpufreq_sched_stop(struct cpufreq_policy *policy)
