@@ -157,8 +157,7 @@ int ap_write_to_binary_file(struct acpi_table_header *table, u32 instance)
 	/* Handle multiple SSDts - create different filenames for each */
 
 	if (instance > 0) {
-		acpi_ut_snprintf(instance_str, sizeof(instance_str), "%u",
-				 instance);
+		snprintf(instance_str, sizeof(instance_str), "%u", instance);
 		strcat(filename, instance_str);
 	}
 

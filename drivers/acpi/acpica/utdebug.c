@@ -646,7 +646,7 @@ void ACPI_INTERNAL_VAR_XFACE acpi_log_error(const char *format, ...)
 	va_list args;
 
 	va_start(args, format);
-	(void)acpi_ut_file_vprintf(ACPI_FILE_ERR, format, args);
+	(void)vfprintf(ACPI_FILE_ERR, format, args);
 	va_end(args);
 }
 

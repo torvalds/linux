@@ -195,13 +195,13 @@ ap_dump_table_buffer(struct acpi_table_header *table,
 	 * Note: simplest to just always emit a 64-bit address. acpi_xtract
 	 * utility can handle this.
 	 */
-	acpi_ut_file_printf(gbl_output_file, "%4.4s @ 0x%8.8X%8.8X\n",
-			    table->signature, ACPI_FORMAT_UINT64(address));
+	fprintf(gbl_output_file, "%4.4s @ 0x%8.8X%8.8X\n",
+		table->signature, ACPI_FORMAT_UINT64(address));
 
 	acpi_ut_dump_buffer_to_file(gbl_output_file,
 				    ACPI_CAST_PTR(u8, table), table_length,
 				    DB_BYTE_DISPLAY, 0);
-	acpi_ut_file_printf(gbl_output_file, "\n");
+	fprintf(gbl_output_file, "\n");
 	return (0);
 }
 

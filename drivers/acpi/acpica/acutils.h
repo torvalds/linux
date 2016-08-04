@@ -724,25 +724,6 @@ const struct ah_device_id *acpi_ah_match_hardware_id(char *hid);
 const char *acpi_ah_match_uuid(u8 *data);
 
 /*
- * utprint - printf/vprintf output functions
- */
-const char *acpi_ut_scan_number(const char *string, u64 *number_ptr);
-
-const char *acpi_ut_print_number(char *string, u64 number);
-
-int
-acpi_ut_vsnprintf(char *string,
-		  acpi_size size, const char *format, va_list args);
-
-int acpi_ut_snprintf(char *string, acpi_size size, const char *format, ...);
-
-#ifdef ACPI_APPLICATION
-int acpi_ut_file_vprintf(ACPI_FILE file, const char *format, va_list args);
-
-int acpi_ut_file_printf(ACPI_FILE file, const char *format, ...);
-#endif
-
-/*
  * utuuid -- UUID support functions
  */
 #if (defined ACPI_ASL_COMPILER || defined ACPI_EXEC_APP || defined ACPI_HELP_APP)
