@@ -400,14 +400,13 @@ static void radeon_flip_work_func(struct work_struct *__work)
 	struct radeon_flip_work *work =
 		container_of(__work, struct radeon_flip_work, flip_work);
 	struct radeon_device *rdev = work->rdev;
+	struct drm_device *dev = rdev->ddev;
 	struct radeon_crtc *radeon_crtc = rdev->mode_info.crtcs[work->crtc_id];
 
 	struct drm_crtc *crtc = &radeon_crtc->base;
 	unsigned long flags;
 	int r;
-	int vpos, hpos, stat, min_udelay = 0;
-	unsigned repcnt = 4;
-	struct drm_vblank_crtc *vblank = &crtc->dev->vblank[work->crtc_id];
+	int vpos, hpos;
 
 	down_read(&rdev->exclusive_lock);
 	if (work->fence) {
@@ -438,58 +437,24 @@ static void radeon_flip_work_func(struct work_struct *__work)
 		work->fence = NULL;
 	}
 
+	/* Wait until we're out of the vertical blank period before the one
+	 * targeted by the flip
+	 */
+	while (radeon_crtc->enabled &&
+	       (radeon_get_crtc_scanoutpos(dev, work->crtc_id, 0,
+					   &vpos, &hpos, NULL, NULL,
+					   &crtc->hwmode)
+		& (DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_IN_VBLANK)) ==
+	       (DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_IN_VBLANK) &&
+	       (int)(work->target_vblank -
+		     dev->driver->get_vblank_counter(dev, work->crtc_id)) > 0)
+		usleep_range(1000, 2000);
+
 	/* We borrow the event spin lock for protecting flip_status */
 	spin_lock_irqsave(&crtc->dev->event_lock, flags);
 
 	/* set the proper interrupt */
 	radeon_irq_kms_pflip_irq_get(rdev, radeon_crtc->crtc_id);
-
-	/* If this happens to execute within the "virtually extended" vblank
-	 * interval before the start of the real vblank interval then it needs
-	 * to delay programming the mmio flip until the real vblank is entered.
-	 * This prevents completing a flip too early due to the way we fudge
-	 * our vblank counter and vblank timestamps in order to work around the
-	 * problem that the hw fires vblank interrupts before actual start of
-	 * vblank (when line buffer refilling is done for a frame). It
-	 * complements the fudging logic in radeon_get_crtc_scanoutpos() for
-	 * timestamping and radeon_get_vblank_counter_kms() for vblank counts.
-	 *
-	 * In practice this won't execute very often unless on very fast
-	 * machines because the time window for this to happen is very small.
-	 */
-	while (radeon_crtc->enabled && --repcnt) {
-		/* GET_DISTANCE_TO_VBLANKSTART returns distance to real vblank
-		 * start in hpos, and to the "fudged earlier" vblank start in
-		 * vpos.
-		 */
-		stat = radeon_get_crtc_scanoutpos(rdev->ddev, work->crtc_id,
-						  GET_DISTANCE_TO_VBLANKSTART,
-						  &vpos, &hpos, NULL, NULL,
-						  &crtc->hwmode);
-
-		if ((stat & (DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_ACCURATE)) !=
-		    (DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_ACCURATE) ||
-		    !(vpos >= 0 && hpos <= 0))
-			break;
-
-		/* Sleep at least until estimated real start of hw vblank */
-		min_udelay = (-hpos + 1) * max(vblank->linedur_ns / 1000, 5);
-		if (min_udelay > vblank->framedur_ns / 2000) {
-			/* Don't wait ridiculously long - something is wrong */
-			repcnt = 0;
-			break;
-		}
-		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
-		usleep_range(min_udelay, 2 * min_udelay);
-		spin_lock_irqsave(&crtc->dev->event_lock, flags);
-	};
-
-	if (!repcnt)
-		DRM_DEBUG_DRIVER("Delay problem on crtc %d: min_udelay %d, "
-				 "framedur %d, linedur %d, stat %d, vpos %d, "
-				 "hpos %d\n", work->crtc_id, min_udelay,
-				 vblank->framedur_ns / 1000,
-				 vblank->linedur_ns / 1000, stat, vpos, hpos);
 
 	/* do the flip (mmio) */
 	radeon_page_flip(rdev, radeon_crtc->crtc_id, work->base, work->async);
@@ -499,10 +464,11 @@ static void radeon_flip_work_func(struct work_struct *__work)
 	up_read(&rdev->exclusive_lock);
 }
 
-static int radeon_crtc_page_flip(struct drm_crtc *crtc,
-				 struct drm_framebuffer *fb,
-				 struct drm_pending_vblank_event *event,
-				 uint32_t page_flip_flags)
+static int radeon_crtc_page_flip_target(struct drm_crtc *crtc,
+					struct drm_framebuffer *fb,
+					struct drm_pending_vblank_event *event,
+					uint32_t page_flip_flags,
+					uint32_t target)
 {
 	struct drm_device *dev = crtc->dev;
 	struct radeon_device *rdev = dev->dev_private;
@@ -599,12 +565,8 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 		base &= ~7;
 	}
 	work->base = base;
-
-	r = drm_crtc_vblank_get(crtc);
-	if (r) {
-		DRM_ERROR("failed to get vblank before flip\n");
-		goto pflip_cleanup;
-	}
+	work->target_vblank = target - drm_crtc_vblank_count(crtc) +
+		dev->driver->get_vblank_counter(dev, work->crtc_id);
 
 	/* We borrow the event spin lock for protecting flip_work */
 	spin_lock_irqsave(&crtc->dev->event_lock, flags);
@@ -613,7 +575,7 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 		DRM_DEBUG_DRIVER("flip queue: crtc already busy\n");
 		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 		r = -EBUSY;
-		goto vblank_cleanup;
+		goto pflip_cleanup;
 	}
 	radeon_crtc->flip_status = RADEON_FLIP_PENDING;
 	radeon_crtc->flip_work = work;
@@ -625,9 +587,6 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 
 	queue_work(radeon_crtc->flip_queue, &work->flip_work);
 	return 0;
-
-vblank_cleanup:
-	drm_crtc_vblank_put(crtc);
 
 pflip_cleanup:
 	if (unlikely(radeon_bo_reserve(new_rbo, false) != 0)) {
@@ -697,7 +656,7 @@ static const struct drm_crtc_funcs radeon_crtc_funcs = {
 	.gamma_set = radeon_crtc_gamma_set,
 	.set_config = radeon_crtc_set_config,
 	.destroy = radeon_crtc_destroy,
-	.page_flip = radeon_crtc_page_flip,
+	.page_flip_target = radeon_crtc_page_flip_target,
 };
 
 static void radeon_crtc_init(struct drm_device *dev, int index)
