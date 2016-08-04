@@ -682,10 +682,14 @@ i915_gem_execbuffer_reserve_vma(struct i915_vma *vma,
 			flags |= PIN_HIGH;
 	}
 
-	ret = i915_gem_object_pin(obj, vma->vm, entry->alignment, flags);
+	ret = i915_gem_object_pin(obj, vma->vm,
+				  entry->pad_to_size,
+				  entry->alignment,
+				  flags);
 	if ((ret == -ENOSPC  || ret == -E2BIG) &&
 	    only_mappable_for_reloc(entry->flags))
 		ret = i915_gem_object_pin(obj, vma->vm,
+					  entry->pad_to_size,
 					  entry->alignment,
 					  flags & ~PIN_MAPPABLE);
 	if (ret)
@@ -746,6 +750,9 @@ eb_vma_misplaced(struct i915_vma *vma)
 
 	if (entry->alignment &&
 	    vma->node.start & (entry->alignment - 1))
+		return true;
+
+	if (vma->node.size < entry->pad_to_size)
 		return true;
 
 	if (entry->flags & EXEC_OBJECT_PINNED &&
@@ -1090,6 +1097,14 @@ validate_exec_list(struct drm_device *dev,
 
 		if (exec[i].alignment && !is_power_of_2(exec[i].alignment))
 			return -EINVAL;
+
+		/* pad_to_size was once a reserved field, so sanitize it */
+		if (exec[i].flags & EXEC_OBJECT_PAD_TO_SIZE) {
+			if (offset_in_page(exec[i].pad_to_size))
+				return -EINVAL;
+		} else {
+			exec[i].pad_to_size = 0;
+		}
 
 		/* First check for malicious input causing overflow in
 		 * the worst case where we need to allocate the entire

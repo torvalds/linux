@@ -1692,7 +1692,7 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	}
 
 	/* Now pin it into the GTT if needed */
-	ret = i915_gem_object_ggtt_pin(obj, &view, 0, PIN_MAPPABLE);
+	ret = i915_gem_object_ggtt_pin(obj, &view, 0, 0, PIN_MAPPABLE);
 	if (ret)
 		goto unlock;
 
@@ -2956,6 +2956,7 @@ static bool i915_gem_valid_gtt_space(struct i915_vma *vma,
  * @obj: object to bind
  * @vm: address space to bind into
  * @ggtt_view: global gtt view if applicable
+ * @size: requested size in bytes (can be larger than the VMA)
  * @alignment: requested alignment
  * @flags: mask of PIN_* flags to use
  */
@@ -2963,21 +2964,20 @@ static struct i915_vma *
 i915_gem_object_bind_to_vm(struct drm_i915_gem_object *obj,
 			   struct i915_address_space *vm,
 			   const struct i915_ggtt_view *ggtt_view,
+			   u64 size,
 			   u64 alignment,
 			   u64 flags)
 {
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
-	u32 fence_alignment, unfenced_alignment;
-	u32 search_flag, alloc_flag;
 	u64 start, end;
-	u64 size, fence_size;
+	u32 search_flag, alloc_flag;
 	struct i915_vma *vma;
 	int ret;
 
 	if (i915_is_ggtt(vm)) {
-		u32 view_size;
+		u32 fence_size, fence_alignment, unfenced_alignment;
+		u64 view_size;
 
 		if (WARN_ON(!ggtt_view))
 			return ERR_PTR(-EINVAL);
@@ -2995,48 +2995,39 @@ i915_gem_object_bind_to_vm(struct drm_i915_gem_object *obj,
 								view_size,
 								obj->tiling_mode,
 								false);
-		size = flags & PIN_MAPPABLE ? fence_size : view_size;
+		size = max(size, view_size);
+		if (flags & PIN_MAPPABLE)
+			size = max_t(u64, size, fence_size);
+
+		if (alignment == 0)
+			alignment = flags & PIN_MAPPABLE ? fence_alignment :
+				unfenced_alignment;
+		if (flags & PIN_MAPPABLE && alignment & (fence_alignment - 1)) {
+			DRM_DEBUG("Invalid object (view type=%u) alignment requested %llx\n",
+				  ggtt_view ? ggtt_view->type : 0,
+				  alignment);
+			return ERR_PTR(-EINVAL);
+		}
 	} else {
-		fence_size = i915_gem_get_gtt_size(dev,
-						   obj->base.size,
-						   obj->tiling_mode);
-		fence_alignment = i915_gem_get_gtt_alignment(dev,
-							     obj->base.size,
-							     obj->tiling_mode,
-							     true);
-		unfenced_alignment =
-			i915_gem_get_gtt_alignment(dev,
-						   obj->base.size,
-						   obj->tiling_mode,
-						   false);
-		size = flags & PIN_MAPPABLE ? fence_size : obj->base.size;
+		size = max_t(u64, size, obj->base.size);
+		alignment = 4096;
 	}
 
 	start = flags & PIN_OFFSET_BIAS ? flags & PIN_OFFSET_MASK : 0;
 	end = vm->total;
 	if (flags & PIN_MAPPABLE)
-		end = min_t(u64, end, ggtt->mappable_end);
+		end = min_t(u64, end, dev_priv->ggtt.mappable_end);
 	if (flags & PIN_ZONE_4G)
 		end = min_t(u64, end, (1ULL << 32) - PAGE_SIZE);
-
-	if (alignment == 0)
-		alignment = flags & PIN_MAPPABLE ? fence_alignment :
-						unfenced_alignment;
-	if (flags & PIN_MAPPABLE && alignment & (fence_alignment - 1)) {
-		DRM_DEBUG("Invalid object (view type=%u) alignment requested %llx\n",
-			  ggtt_view ? ggtt_view->type : 0,
-			  alignment);
-		return ERR_PTR(-EINVAL);
-	}
 
 	/* If binding the object/GGTT view requires more space than the entire
 	 * aperture has, reject it early before evicting everything in a vain
 	 * attempt to find space.
 	 */
 	if (size > end) {
-		DRM_DEBUG("Attempting to bind an object (view type=%u) larger than the aperture: size=%llu > %s aperture=%llu\n",
+		DRM_DEBUG("Attempting to bind an object (view type=%u) larger than the aperture: request=%llu [object=%zd] > %s aperture=%llu\n",
 			  ggtt_view ? ggtt_view->type : 0,
-			  size,
+			  size, obj->base.size,
 			  flags & PIN_MAPPABLE ? "mappable" : "total",
 			  end);
 		return ERR_PTR(-E2BIG);
@@ -3530,7 +3521,7 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 	 * (e.g. libkms for the bootup splash), we have to ensure that we
 	 * always use map_and_fenceable for all scanout buffers.
 	 */
-	ret = i915_gem_object_ggtt_pin(obj, view, alignment,
+	ret = i915_gem_object_ggtt_pin(obj, view, 0, alignment,
 				       view->type == I915_GGTT_VIEW_NORMAL ?
 				       PIN_MAPPABLE : 0);
 	if (ret)
@@ -3678,12 +3669,14 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 }
 
 static bool
-i915_vma_misplaced(struct i915_vma *vma, u64 alignment, u64 flags)
+i915_vma_misplaced(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 {
 	struct drm_i915_gem_object *obj = vma->obj;
 
-	if (alignment &&
-	    vma->node.start & (alignment - 1))
+	if (vma->node.size < size)
+		return true;
+
+	if (alignment && vma->node.start & (alignment - 1))
 		return true;
 
 	if (flags & PIN_MAPPABLE && !obj->map_and_fenceable)
@@ -3727,6 +3720,7 @@ static int
 i915_gem_object_do_pin(struct drm_i915_gem_object *obj,
 		       struct i915_address_space *vm,
 		       const struct i915_ggtt_view *ggtt_view,
+		       u64 size,
 		       u64 alignment,
 		       u64 flags)
 {
@@ -3754,7 +3748,7 @@ i915_gem_object_do_pin(struct drm_i915_gem_object *obj,
 		if (WARN_ON(vma->pin_count == DRM_I915_GEM_OBJECT_MAX_PIN_COUNT))
 			return -EBUSY;
 
-		if (i915_vma_misplaced(vma, alignment, flags)) {
+		if (i915_vma_misplaced(vma, size, alignment, flags)) {
 			WARN(vma->pin_count,
 			     "bo is already pinned in %s with incorrect alignment:"
 			     " offset=%08x %08x, req.alignment=%llx, req.map_and_fenceable=%d,"
@@ -3775,8 +3769,8 @@ i915_gem_object_do_pin(struct drm_i915_gem_object *obj,
 
 	bound = vma ? vma->bound : 0;
 	if (vma == NULL || !drm_mm_node_allocated(&vma->node)) {
-		vma = i915_gem_object_bind_to_vm(obj, vm, ggtt_view, alignment,
-						 flags);
+		vma = i915_gem_object_bind_to_vm(obj, vm, ggtt_view,
+						 size, alignment, flags);
 		if (IS_ERR(vma))
 			return PTR_ERR(vma);
 	} else {
@@ -3798,17 +3792,19 @@ i915_gem_object_do_pin(struct drm_i915_gem_object *obj,
 int
 i915_gem_object_pin(struct drm_i915_gem_object *obj,
 		    struct i915_address_space *vm,
+		    u64 size,
 		    u64 alignment,
 		    u64 flags)
 {
 	return i915_gem_object_do_pin(obj, vm,
 				      i915_is_ggtt(vm) ? &i915_ggtt_view_normal : NULL,
-				      alignment, flags);
+				      size, alignment, flags);
 }
 
 int
 i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 			 const struct i915_ggtt_view *view,
+			 u64 size,
 			 u64 alignment,
 			 u64 flags)
 {
@@ -3819,7 +3815,7 @@ i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 	BUG_ON(!view);
 
 	return i915_gem_object_do_pin(obj, &ggtt->base, view,
-				      alignment, flags | PIN_GLOBAL);
+				      size, alignment, flags | PIN_GLOBAL);
 }
 
 void
