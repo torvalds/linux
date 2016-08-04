@@ -3090,10 +3090,7 @@ search_free:
 			goto err_vma;
 		}
 	}
-	if (WARN_ON(!i915_gem_valid_gtt_space(vma, obj->cache_level))) {
-		ret = -EINVAL;
-		goto err_remove_node;
-	}
+	GEM_BUG_ON(!i915_gem_valid_gtt_space(vma, obj->cache_level));
 
 	trace_i915_vma_bind(vma, flags);
 	ret = i915_vma_bind(vma, obj->cache_level, flags);
