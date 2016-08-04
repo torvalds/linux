@@ -55,6 +55,7 @@
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "actables.h"
+#include "acapps.h"
 
 /* Globals */
 

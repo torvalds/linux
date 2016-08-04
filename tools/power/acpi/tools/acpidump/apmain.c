@@ -43,7 +43,6 @@
 
 #define _DECLARE_GLOBALS
 #include "acpidump.h"
-#include "acapps.h"
 
 /*
  * acpidump - A portable utility for obtaining system ACPI tables and dumping

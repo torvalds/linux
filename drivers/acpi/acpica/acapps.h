@@ -44,6 +44,10 @@
 #ifndef _ACAPPS
 #define _ACAPPS
 
+#ifdef ACPI_USE_STANDARD_HEADERS
+#include <sys/stat.h>
+#endif				/* ACPI_USE_STANDARD_HEADERS */
+
 /* Common info for tool signons */
 
 #define ACPICA_NAME                 "Intel ACPI Component Architecture"

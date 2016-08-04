@@ -42,7 +42,6 @@
  */
 
 #include "acpidump.h"
-#include "acapps.h"
 
 /* Local prototypes */
 

@@ -350,7 +350,8 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <sys/stat.h>
+#include <time.h>
+#include <signal.h>
 #endif
 
 #endif				/* ACPI_USE_STANDARD_HEADERS */
