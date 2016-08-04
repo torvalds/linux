@@ -1163,7 +1163,7 @@ static int omap_sham_final(struct ahash_request *req)
 	 * If buffersize is less than 240, we use fallback SW encoding,
 	 * as using DMA + HW in this case doesn't provide any benefit.
 	 */
-	if ((ctx->digcnt + ctx->bufcnt) < 240)
+	if (!ctx->digcnt && ctx->bufcnt < 240)
 		return omap_sham_final_shash(req);
 	else if (ctx->bufcnt)
 		return omap_sham_enqueue(req, OP_FINAL);
