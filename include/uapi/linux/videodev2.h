@@ -292,12 +292,10 @@ enum v4l2_ycbcr_encoding {
 	 * various colorspaces:
 	 *
 	 * V4L2_COLORSPACE_SMPTE170M, V4L2_COLORSPACE_470_SYSTEM_M,
-	 * V4L2_COLORSPACE_470_SYSTEM_BG, V4L2_COLORSPACE_ADOBERGB and
-	 * V4L2_COLORSPACE_JPEG: V4L2_YCBCR_ENC_601
+	 * V4L2_COLORSPACE_470_SYSTEM_BG, V4L2_COLORSPACE_SRGB,
+	 * V4L2_COLORSPACE_ADOBERGB and V4L2_COLORSPACE_JPEG: V4L2_YCBCR_ENC_601
 	 *
 	 * V4L2_COLORSPACE_REC709 and V4L2_COLORSPACE_DCI_P3: V4L2_YCBCR_ENC_709
-	 *
-	 * V4L2_COLORSPACE_SRGB: V4L2_YCBCR_ENC_SYCC
 	 *
 	 * V4L2_COLORSPACE_BT2020: V4L2_YCBCR_ENC_BT2020
 	 *
@@ -317,8 +315,14 @@ enum v4l2_ycbcr_encoding {
 	/* Rec. 709/EN 61966-2-4 Extended Gamut -- HDTV */
 	V4L2_YCBCR_ENC_XV709          = 4,
 
-	/* sYCC (Y'CbCr encoding of sRGB) */
+#ifndef __KERNEL__
+	/*
+	 * sYCC (Y'CbCr encoding of sRGB), identical to ENC_601. It was added
+	 * originally due to a misunderstanding of the sYCC standard. It should
+	 * not be used, instead use V4L2_YCBCR_ENC_601.
+	 */
 	V4L2_YCBCR_ENC_SYCC           = 5,
+#endif
 
 	/* BT.2020 Non-constant Luminance Y'CbCr */
 	V4L2_YCBCR_ENC_BT2020         = 6,
