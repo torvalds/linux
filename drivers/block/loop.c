@@ -1659,11 +1659,15 @@ static int loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 	if (lo->lo_state != Lo_bound)
 		return -EIO;
 
-	if (lo->use_dio && (req_op(cmd->rq) != REQ_OP_FLUSH ||
-	    req_op(cmd->rq) == REQ_OP_DISCARD))
-		cmd->use_aio = true;
-	else
+	switch (req_op(cmd->rq)) {
+	case REQ_OP_FLUSH:
+	case REQ_OP_DISCARD:
 		cmd->use_aio = false;
+		break;
+	default:
+		cmd->use_aio = lo->use_dio;
+		break;
+	}
 
 	queue_kthread_work(&lo->worker, &cmd->work);
 
