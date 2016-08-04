@@ -550,6 +550,7 @@ static void unregister_dax_dev(void *dev)
 	 */
 	dax_dev->alive = false;
 	synchronize_rcu();
+	unmap_mapping_range(dax_dev->inode->i_mapping, 0, 0, 1);
 	cdev_del(cdev);
 	device_unregister(dev);
 }
