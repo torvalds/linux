@@ -57,7 +57,7 @@
 #include "acapps.h"
 
 #define ACPI_OPTION_ERROR(msg, badchar) \
-	if (acpi_gbl_opterr) {acpi_log_error ("%s%c\n", msg, badchar);}
+	if (acpi_gbl_opterr) {fprintf (stderr, "%s%c\n", msg, badchar);}
 
 int acpi_gbl_opterr = 1;
 int acpi_gbl_optind = 1;

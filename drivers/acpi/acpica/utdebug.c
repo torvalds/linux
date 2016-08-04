@@ -628,27 +628,3 @@ acpi_trace_point(acpi_trace_event_type type, u8 begin, u8 *aml, char *pathname)
 
 ACPI_EXPORT_SYMBOL(acpi_trace_point)
 #endif
-#ifdef ACPI_APPLICATION
-/*******************************************************************************
- *
- * FUNCTION:    acpi_log_error
- *
- * PARAMETERS:  format              - Printf format field
- *              ...                 - Optional printf arguments
- *
- * RETURN:      None
- *
- * DESCRIPTION: Print error message to the console, used by applications.
- *
- ******************************************************************************/
-void ACPI_INTERNAL_VAR_XFACE acpi_log_error(const char *format, ...)
-{
-	va_list args;
-
-	va_start(args, format);
-	(void)vfprintf(ACPI_FILE_ERR, format, args);
-	va_end(args);
-}
-
-ACPI_EXPORT_SYMBOL(acpi_log_error)
-#endif

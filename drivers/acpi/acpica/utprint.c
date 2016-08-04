@@ -656,8 +656,7 @@ int vprintf(const char *format, va_list args)
 	length = vsnprintf(acpi_gbl_print_buffer,
 			   sizeof(acpi_gbl_print_buffer), format, args);
 
-	(void)acpi_os_write_file(ACPI_FILE_OUT, acpi_gbl_print_buffer, length,
-				 1);
+	(void)fwrite(acpi_gbl_print_buffer, length, 1, ACPI_FILE_OUT);
 	acpi_os_release_lock(acpi_gbl_print_lock, flags);
 
 	return (length);
@@ -710,7 +709,7 @@ int vfprintf(FILE * file, const char *format, va_list args)
 	length = vsnprintf(acpi_gbl_print_buffer,
 			   sizeof(acpi_gbl_print_buffer), format, args);
 
-	(void)acpi_os_write_file(file, acpi_gbl_print_buffer, length, 1);
+	(void)fwrite(acpi_gbl_print_buffer, length, 1, file);
 	acpi_os_release_lock(acpi_gbl_print_lock, flags);
 
 	return (length);

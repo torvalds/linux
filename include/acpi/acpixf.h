@@ -943,9 +943,6 @@ ACPI_DBG_DEPENDENT_RETURN_VOID(void
 			       acpi_trace_point(acpi_trace_event_type type,
 						u8 begin,
 						u8 *aml, char *pathname))
-ACPI_APP_DEPENDENT_RETURN_VOID(ACPI_PRINTF_LIKE(1)
-				void ACPI_INTERNAL_VAR_XFACE
-				acpi_log_error(const char *format, ...))
 
 acpi_status acpi_initialize_debugger(void);
 
