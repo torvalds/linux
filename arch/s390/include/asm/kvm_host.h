@@ -45,6 +45,8 @@
 #define KVM_REQ_ENABLE_IBS         8
 #define KVM_REQ_DISABLE_IBS        9
 #define KVM_REQ_ICPT_OPEREXC       10
+#define KVM_REQ_START_MIGRATION   11
+#define KVM_REQ_STOP_MIGRATION    12
 
 #define SIGP_CTRL_C		0x80
 #define SIGP_CTRL_SCN_MASK	0x3f
@@ -691,6 +693,12 @@ struct kvm_s390_vsie {
 	struct page *pages[KVM_MAX_VCPUS];
 };
 
+struct kvm_s390_migration_state {
+	unsigned long bitmap_size;	/* in bits (number of guest pages) */
+	atomic64_t dirty_pages;		/* number of dirty pages */
+	unsigned long *pgste_bitmap;
+};
+
 struct kvm_arch{
 	void *sca;
 	int use_esca;
@@ -718,6 +726,7 @@ struct kvm_arch{
 	struct kvm_s390_crypto crypto;
 	struct kvm_s390_vsie vsie;
 	u64 epoch;
+	struct kvm_s390_migration_state *migration_state;
 	/* subset of available cpu features enabled by user space */
 	DECLARE_BITMAP(cpu_feat, KVM_S390_VM_CPU_FEAT_NR_BITS);
 };

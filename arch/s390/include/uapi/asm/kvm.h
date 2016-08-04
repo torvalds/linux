@@ -70,6 +70,7 @@ struct kvm_s390_io_adapter_req {
 #define KVM_S390_VM_TOD			1
 #define KVM_S390_VM_CRYPTO		2
 #define KVM_S390_VM_CPU_MODEL		3
+#define KVM_S390_VM_MIGRATION		4
 
 /* kvm attributes for mem_ctrl */
 #define KVM_S390_VM_MEM_ENABLE_CMMA	0
@@ -150,6 +151,11 @@ struct kvm_s390_vm_cpu_subfunc {
 #define KVM_S390_VM_CRYPTO_ENABLE_DEA_KW	1
 #define KVM_S390_VM_CRYPTO_DISABLE_AES_KW	2
 #define KVM_S390_VM_CRYPTO_DISABLE_DEA_KW	3
+
+/* kvm attributes for migration mode */
+#define KVM_S390_VM_MIGRATION_STOP	0
+#define KVM_S390_VM_MIGRATION_START	1
+#define KVM_S390_VM_MIGRATION_STATUS	2
 
 /* for KVM_GET_REGS and KVM_SET_REGS */
 struct kvm_regs {

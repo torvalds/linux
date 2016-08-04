@@ -31,6 +31,7 @@
 #include <linux/bitmap.h>
 #include <linux/sched/signal.h>
 
+#include <linux/string.h>
 #include <asm/asm-offsets.h>
 #include <asm/lowcore.h>
 #include <asm/stp.h>
@@ -750,6 +751,129 @@ static int kvm_s390_vm_set_crypto(struct kvm *kvm, struct kvm_device_attr *attr)
 	return 0;
 }
 
+static void kvm_s390_sync_request_broadcast(struct kvm *kvm, int req)
+{
+	int cx;
+	struct kvm_vcpu *vcpu;
+
+	kvm_for_each_vcpu(cx, vcpu, kvm)
+		kvm_s390_sync_request(req, vcpu);
+}
+
+/*
+ * Must be called with kvm->srcu held to avoid races on memslots, and with
+ * kvm->lock to avoid races with ourselves and kvm_s390_vm_stop_migration.
+ */
+static int kvm_s390_vm_start_migration(struct kvm *kvm)
+{
+	struct kvm_s390_migration_state *mgs;
+	struct kvm_memory_slot *ms;
+	/* should be the only one */
+	struct kvm_memslots *slots;
+	unsigned long ram_pages;
+	int slotnr;
+
+	/* migration mode already enabled */
+	if (kvm->arch.migration_state)
+		return 0;
+
+	slots = kvm_memslots(kvm);
+	if (!slots || !slots->used_slots)
+		return -EINVAL;
+
+	mgs = kzalloc(sizeof(*mgs), GFP_KERNEL);
+	if (!mgs)
+		return -ENOMEM;
+	kvm->arch.migration_state = mgs;
+
+	if (kvm->arch.use_cmma) {
+		/*
+		 * Get the last slot. They should be sorted by base_gfn, so the
+		 * last slot is also the one at the end of the address space.
+		 * We have verified above that at least one slot is present.
+		 */
+		ms = slots->memslots + slots->used_slots - 1;
+		/* round up so we only use full longs */
+		ram_pages = roundup(ms->base_gfn + ms->npages, BITS_PER_LONG);
+		/* allocate enough bytes to store all the bits */
+		mgs->pgste_bitmap = vmalloc(ram_pages / 8);
+		if (!mgs->pgste_bitmap) {
+			kfree(mgs);
+			kvm->arch.migration_state = NULL;
+			return -ENOMEM;
+		}
+
+		mgs->bitmap_size = ram_pages;
+		atomic64_set(&mgs->dirty_pages, ram_pages);
+		/* mark all the pages in active slots as dirty */
+		for (slotnr = 0; slotnr < slots->used_slots; slotnr++) {
+			ms = slots->memslots + slotnr;
+			bitmap_set(mgs->pgste_bitmap, ms->base_gfn, ms->npages);
+		}
+
+		kvm_s390_sync_request_broadcast(kvm, KVM_REQ_START_MIGRATION);
+	}
+	return 0;
+}
+
+/*
+ * Must be called with kvm->lock to avoid races with ourselves and
+ * kvm_s390_vm_start_migration.
+ */
+static int kvm_s390_vm_stop_migration(struct kvm *kvm)
+{
+	struct kvm_s390_migration_state *mgs;
+
+	/* migration mode already disabled */
+	if (!kvm->arch.migration_state)
+		return 0;
+	mgs = kvm->arch.migration_state;
+	kvm->arch.migration_state = NULL;
+
+	if (kvm->arch.use_cmma) {
+		kvm_s390_sync_request_broadcast(kvm, KVM_REQ_STOP_MIGRATION);
+		vfree(mgs->pgste_bitmap);
+	}
+	kfree(mgs);
+	return 0;
+}
+
+static int kvm_s390_vm_set_migration(struct kvm *kvm,
+				     struct kvm_device_attr *attr)
+{
+	int idx, res = -ENXIO;
+
+	mutex_lock(&kvm->lock);
+	switch (attr->attr) {
+	case KVM_S390_VM_MIGRATION_START:
+		idx = srcu_read_lock(&kvm->srcu);
+		res = kvm_s390_vm_start_migration(kvm);
+		srcu_read_unlock(&kvm->srcu, idx);
+		break;
+	case KVM_S390_VM_MIGRATION_STOP:
+		res = kvm_s390_vm_stop_migration(kvm);
+		break;
+	default:
+		break;
+	}
+	mutex_unlock(&kvm->lock);
+
+	return res;
+}
+
+static int kvm_s390_vm_get_migration(struct kvm *kvm,
+				     struct kvm_device_attr *attr)
+{
+	u64 mig = (kvm->arch.migration_state != NULL);
+
+	if (attr->attr != KVM_S390_VM_MIGRATION_STATUS)
+		return -ENXIO;
+
+	if (copy_to_user((void __user *)attr->addr, &mig, sizeof(mig)))
+		return -EFAULT;
+	return 0;
+}
+
 static int kvm_s390_set_tod_high(struct kvm *kvm, struct kvm_device_attr *attr)
 {
 	u8 gtod_high;
@@ -1090,6 +1214,9 @@ static int kvm_s390_vm_set_attr(struct kvm *kvm, struct kvm_device_attr *attr)
 	case KVM_S390_VM_CRYPTO:
 		ret = kvm_s390_vm_set_crypto(kvm, attr);
 		break;
+	case KVM_S390_VM_MIGRATION:
+		ret = kvm_s390_vm_set_migration(kvm, attr);
+		break;
 	default:
 		ret = -ENXIO;
 		break;
@@ -1111,6 +1238,9 @@ static int kvm_s390_vm_get_attr(struct kvm *kvm, struct kvm_device_attr *attr)
 		break;
 	case KVM_S390_VM_CPU_MODEL:
 		ret = kvm_s390_get_cpu_model(kvm, attr);
+		break;
+	case KVM_S390_VM_MIGRATION:
+		ret = kvm_s390_vm_get_migration(kvm, attr);
 		break;
 	default:
 		ret = -ENXIO;
@@ -1178,6 +1308,9 @@ static int kvm_s390_vm_has_attr(struct kvm *kvm, struct kvm_device_attr *attr)
 			ret = -ENXIO;
 			break;
 		}
+		break;
+	case KVM_S390_VM_MIGRATION:
+		ret = 0;
 		break;
 	default:
 		ret = -ENXIO;
@@ -1633,6 +1766,10 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 	kvm_s390_destroy_adapters(kvm);
 	kvm_s390_clear_float_irqs(kvm);
 	kvm_s390_vsie_destroy(kvm);
+	if (kvm->arch.migration_state) {
+		vfree(kvm->arch.migration_state->pgste_bitmap);
+		kfree(kvm->arch.migration_state);
+	}
 	KVM_EVENT(3, "vm 0x%pK destroyed", kvm);
 }
 
@@ -1977,7 +2114,6 @@ int kvm_s390_vcpu_setup_cmma(struct kvm_vcpu *vcpu)
 	if (!vcpu->arch.sie_block->cbrlo)
 		return -ENOMEM;
 
-	vcpu->arch.sie_block->ecb2 |= ECB2_CMMA;
 	vcpu->arch.sie_block->ecb2 &= ~ECB2_PFMFI;
 	return 0;
 }
@@ -2486,6 +2622,27 @@ retry:
 
 	if (kvm_check_request(KVM_REQ_ICPT_OPEREXC, vcpu)) {
 		vcpu->arch.sie_block->ictl |= ICTL_OPEREXC;
+		goto retry;
+	}
+
+	if (kvm_check_request(KVM_REQ_START_MIGRATION, vcpu)) {
+		/*
+		 * Disable CMMA virtualization; we will emulate the ESSA
+		 * instruction manually, in order to provide additional
+		 * functionalities needed for live migration.
+		 */
+		vcpu->arch.sie_block->ecb2 &= ~ECB2_CMMA;
+		goto retry;
+	}
+
+	if (kvm_check_request(KVM_REQ_STOP_MIGRATION, vcpu)) {
+		/*
+		 * Re-enable CMMA virtualization if CMMA is available and
+		 * was used.
+		 */
+		if ((vcpu->kvm->arch.use_cmma) &&
+		    (vcpu->kvm->mm->context.use_cmma))
+			vcpu->arch.sie_block->ecb2 |= ECB2_CMMA;
 		goto retry;
 	}
 
