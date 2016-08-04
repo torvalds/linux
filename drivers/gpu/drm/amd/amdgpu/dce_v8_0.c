@@ -2598,7 +2598,7 @@ static const struct drm_crtc_funcs dce_v8_0_crtc_funcs = {
 	.gamma_set = dce_v8_0_crtc_gamma_set,
 	.set_config = amdgpu_crtc_set_config,
 	.destroy = dce_v8_0_crtc_destroy,
-	.page_flip = amdgpu_crtc_page_flip,
+	.page_flip_target = amdgpu_crtc_page_flip_target,
 };
 
 static void dce_v8_0_crtc_dpms(struct drm_crtc *crtc, int mode)
