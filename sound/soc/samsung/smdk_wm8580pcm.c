@@ -16,7 +16,6 @@
 #include <asm/mach-types.h>
 
 #include "../codecs/wm8580.h"
-#include "dma.h"
 #include "pcm.h"
 
 /*

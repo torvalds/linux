@@ -22,7 +22,6 @@
 
 #include "i2s.h"
 #include "idma.h"
-#include "dma.h"
 #include "i2s-regs.h"
 
 #define ST_RUNNING		(1<<0)
