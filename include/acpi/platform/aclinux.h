@@ -180,10 +180,11 @@
 
 #else				/* !__KERNEL__ */
 
-#include <string.h>
-#include <stdlib.h>
-#include <ctype.h>
+#define ACPI_USE_STANDARD_HEADERS
+
+#ifdef ACPI_USE_STANDARD_HEADERS
 #include <unistd.h>
+#endif
 
 /* Define/disable kernel-specific declarators */
 
