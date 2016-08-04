@@ -1143,43 +1143,64 @@ i915_gem_validate_context(struct drm_device *dev, struct drm_file *file,
 	return ctx;
 }
 
+void i915_vma_move_to_active(struct i915_vma *vma,
+			     struct drm_i915_gem_request *req,
+			     unsigned int flags)
+{
+	struct drm_i915_gem_object *obj = vma->obj;
+	const unsigned int idx = req->engine->id;
+
+	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
+
+	obj->dirty = 1; /* be paranoid  */
+
+	/* Add a reference if we're newly entering the active list. */
+	if (obj->active == 0)
+		i915_gem_object_get(obj);
+	obj->active |= 1 << idx;
+	i915_gem_active_set(&obj->last_read[idx], req);
+
+	if (flags & EXEC_OBJECT_WRITE) {
+		i915_gem_active_set(&obj->last_write, req);
+
+		intel_fb_obj_invalidate(obj, ORIGIN_CS);
+
+		/* update for the implicit flush after a batch */
+		obj->base.write_domain &= ~I915_GEM_GPU_DOMAINS;
+	}
+
+	if (flags & EXEC_OBJECT_NEEDS_FENCE) {
+		i915_gem_active_set(&obj->last_fence, req);
+		if (flags & __EXEC_OBJECT_HAS_FENCE) {
+			struct drm_i915_private *dev_priv = req->i915;
+
+			list_move_tail(&dev_priv->fence_regs[obj->fence_reg].lru_list,
+				       &dev_priv->mm.fence_list);
+		}
+	}
+
+	list_move_tail(&vma->vm_link, &vma->vm->active_list);
+}
+
 static void
 i915_gem_execbuffer_move_to_active(struct list_head *vmas,
 				   struct drm_i915_gem_request *req)
 {
-	struct intel_engine_cs *engine = i915_gem_request_get_engine(req);
 	struct i915_vma *vma;
 
 	list_for_each_entry(vma, vmas, exec_list) {
-		struct drm_i915_gem_exec_object2 *entry = vma->exec_entry;
 		struct drm_i915_gem_object *obj = vma->obj;
 		u32 old_read = obj->base.read_domains;
 		u32 old_write = obj->base.write_domain;
 
-		obj->dirty = 1; /* be paranoid  */
 		obj->base.write_domain = obj->base.pending_write_domain;
-		if (obj->base.write_domain == 0)
+		if (obj->base.write_domain)
+			vma->exec_entry->flags |= EXEC_OBJECT_WRITE;
+		else
 			obj->base.pending_read_domains |= obj->base.read_domains;
 		obj->base.read_domains = obj->base.pending_read_domains;
 
-		i915_vma_move_to_active(vma, req);
-		if (obj->base.write_domain) {
-			i915_gem_active_set(&obj->last_write, req);
-
-			intel_fb_obj_invalidate(obj, ORIGIN_CS);
-
-			/* update for the implicit flush after a batch */
-			obj->base.write_domain &= ~I915_GEM_GPU_DOMAINS;
-		}
-		if (entry->flags & EXEC_OBJECT_NEEDS_FENCE) {
-			i915_gem_active_set(&obj->last_fence, req);
-			if (entry->flags & __EXEC_OBJECT_HAS_FENCE) {
-				struct drm_i915_private *dev_priv = engine->i915;
-				list_move_tail(&dev_priv->fence_regs[obj->fence_reg].lru_list,
-					       &dev_priv->mm.fence_list);
-			}
-		}
-
+		i915_vma_move_to_active(vma, req, vma->exec_entry->flags);
 		trace_i915_gem_object_change_domain(obj, old_read, old_write);
 	}
 }

@@ -816,8 +816,8 @@ static int do_rcs_switch(struct drm_i915_gem_request *req)
 	 * MI_SET_CONTEXT instead of when the next seqno has completed.
 	 */
 	if (from != NULL) {
-		from->engine[RCS].state->base.read_domains = I915_GEM_DOMAIN_INSTRUCTION;
-		i915_vma_move_to_active(i915_gem_obj_to_ggtt(from->engine[RCS].state), req);
+		struct drm_i915_gem_object *obj = from->engine[RCS].state;
+
 		/* As long as MI_SET_CONTEXT is serializing, ie. it flushes the
 		 * whole damn pipeline, we don't need to explicitly mark the
 		 * object dirty. The only exception is that the context must be
@@ -825,10 +825,11 @@ static int do_rcs_switch(struct drm_i915_gem_request *req)
 		 * able to defer doing this until we know the object would be
 		 * swapped, but there is no way to do that yet.
 		 */
-		from->engine[RCS].state->dirty = 1;
+		obj->base.read_domains = I915_GEM_DOMAIN_INSTRUCTION;
+		i915_vma_move_to_active(i915_gem_obj_to_ggtt(obj), req, 0);
 
 		/* obj is kept alive until the next request by its active ref */
-		i915_gem_object_ggtt_unpin(from->engine[RCS].state);
+		i915_gem_object_ggtt_unpin(obj);
 		i915_gem_context_put(from);
 	}
 	engine->last_context = i915_gem_context_get(to);

@@ -2330,24 +2330,6 @@ void *i915_gem_object_pin_map(struct drm_i915_gem_object *obj)
 	return obj->mapping;
 }
 
-void i915_vma_move_to_active(struct i915_vma *vma,
-			     struct drm_i915_gem_request *req)
-{
-	struct drm_i915_gem_object *obj = vma->obj;
-	struct intel_engine_cs *engine;
-
-	engine = i915_gem_request_get_engine(req);
-
-	/* Add a reference if we're newly entering the active list. */
-	if (obj->active == 0)
-		i915_gem_object_get(obj);
-	obj->active |= intel_engine_flag(engine);
-
-	i915_gem_active_set(&obj->last_read[engine->id], req);
-
-	list_move_tail(&vma->vm_link, &vma->vm->active_list);
-}
-
 static void
 i915_gem_object_retire__write(struct i915_gem_active *active,
 			      struct drm_i915_gem_request *request)

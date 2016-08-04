@@ -217,7 +217,7 @@ int i915_gem_render_state_init(struct drm_i915_gem_request *req)
 			goto err_unpin;
 	}
 
-	i915_vma_move_to_active(i915_gem_obj_to_ggtt(so.obj), req);
+	i915_vma_move_to_active(i915_gem_obj_to_ggtt(so.obj), req, 0);
 err_unpin:
 	i915_gem_object_ggtt_unpin(so.obj);
 err_obj:

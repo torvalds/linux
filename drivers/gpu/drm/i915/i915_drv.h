@@ -3153,7 +3153,8 @@ int __must_check i915_mutex_lock_interruptible(struct drm_device *dev);
 int i915_gem_object_sync(struct drm_i915_gem_object *obj,
 			 struct drm_i915_gem_request *to);
 void i915_vma_move_to_active(struct i915_vma *vma,
-			     struct drm_i915_gem_request *req);
+			     struct drm_i915_gem_request *req,
+			     unsigned int flags);
 int i915_gem_dumb_create(struct drm_file *file_priv,
 			 struct drm_device *dev,
 			 struct drm_mode_create_dumb *args);
