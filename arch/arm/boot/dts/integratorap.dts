@@ -19,7 +19,7 @@
 		bootargs = "root=/dev/ram0 console=ttyAM0,38400n8 earlyprintk";
 	};
 
-	/* 24 MHz chrystal on the core module */
+	/* 24 MHz chrystal on the Integrator/AP development board */
 	xtal24mhz: xtal24mhz@24M {
 		#clock-cells = <0>;
 		compatible = "fixed-clock";
@@ -40,6 +40,33 @@
 		compatible = "fixed-clock";
 		clock-frequency = <14745600>;
 		clocks = <&xtal24mhz>;
+	};
+
+	core-module@10000000 {
+		/* 24 MHz chrystal on the core module */
+		cm24mhz: cm24mhz@24M {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <24000000>;
+		};
+
+		/* Oscillator on the core module, clocks the CPU core */
+		cmosc: cmosc@24M {
+			compatible = "arm,syscon-icst525-integratorap-cm";
+			#clock-cells = <0>;
+			lock-offset = <0x14>;
+			vco-offset = <0x08>;
+			clocks = <&cm24mhz>;
+		};
+
+		/* Auxilary oscillator on the core module, 32.369MHz at boot */
+		auxosc: auxosc@24M {
+			compatible = "arm,syscon-icst525";
+			#clock-cells = <0>;
+			lock-offset = <0x14>;
+			vco-offset = <0x1c>;
+			clocks = <&cm24mhz>;
+		};
 	};
 
 	syscon {
