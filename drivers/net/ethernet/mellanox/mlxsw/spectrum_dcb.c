@@ -341,6 +341,8 @@ static int mlxsw_sp_port_pfc_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	char pfcc_pl[MLXSW_REG_PFCC_LEN];
 
 	mlxsw_reg_pfcc_pack(pfcc_pl, mlxsw_sp_port->local_port);
+	mlxsw_reg_pfcc_pprx_set(pfcc_pl, mlxsw_sp_port->link.rx_pause);
+	mlxsw_reg_pfcc_pptx_set(pfcc_pl, mlxsw_sp_port->link.tx_pause);
 	mlxsw_reg_pfcc_prio_pack(pfcc_pl, pfc->pfc_en);
 
 	return mlxsw_reg_write(mlxsw_sp_port->mlxsw_sp->core, MLXSW_REG(pfcc),
