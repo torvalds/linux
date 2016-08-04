@@ -1328,7 +1328,8 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 		r = amdgpu_bo_create(adev, AMDGPU_VM_PTE_COUNT * 8,
 				     AMDGPU_GPU_PAGE_SIZE, true,
 				     AMDGPU_GEM_DOMAIN_VRAM,
-				     AMDGPU_GEM_CREATE_NO_CPU_ACCESS,
+				     AMDGPU_GEM_CREATE_NO_CPU_ACCESS |
+				     AMDGPU_GEM_CREATE_SHADOW,
 				     NULL, resv, &pt);
 		if (r)
 			goto error_free;
@@ -1527,7 +1528,8 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 
 	r = amdgpu_bo_create(adev, pd_size, align, true,
 			     AMDGPU_GEM_DOMAIN_VRAM,
-			     AMDGPU_GEM_CREATE_NO_CPU_ACCESS,
+			     AMDGPU_GEM_CREATE_NO_CPU_ACCESS |
+			     AMDGPU_GEM_CREATE_SHADOW,
 			     NULL, NULL, &vm->page_directory);
 	if (r)
 		goto error_free_sched_entity;
@@ -1583,10 +1585,16 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 		kfree(mapping);
 	}
 
-	for (i = 0; i < amdgpu_vm_num_pdes(adev); i++)
+	for (i = 0; i < amdgpu_vm_num_pdes(adev); i++) {
+		if (vm->page_tables[i].entry.robj &&
+		    vm->page_tables[i].entry.robj->shadow)
+			amdgpu_bo_unref(&vm->page_tables[i].entry.robj->shadow);
 		amdgpu_bo_unref(&vm->page_tables[i].entry.robj);
+	}
 	drm_free_large(vm->page_tables);
 
+	if (vm->page_directory->shadow)
+		amdgpu_bo_unref(&vm->page_directory->shadow);
 	amdgpu_bo_unref(&vm->page_directory);
 	fence_put(vm->page_directory_fence);
 }
