@@ -24,15 +24,14 @@
 #ifndef __INTEL_FRONTBUFFER_H__
 #define __INTEL_FRONTBUFFER_H__
 
-struct drm_device;
 struct drm_i915_private;
 struct drm_i915_gem_object;
 
-void intel_frontbuffer_flip_prepare(struct drm_device *dev,
+void intel_frontbuffer_flip_prepare(struct drm_i915_private *dev_priv,
 				    unsigned frontbuffer_bits);
-void intel_frontbuffer_flip_complete(struct drm_device *dev,
+void intel_frontbuffer_flip_complete(struct drm_i915_private *dev_priv,
 				     unsigned frontbuffer_bits);
-void intel_frontbuffer_flip(struct drm_device *dev,
+void intel_frontbuffer_flip(struct drm_i915_private *dev_priv,
 			    unsigned frontbuffer_bits);
 
 void __intel_fb_obj_invalidate(struct drm_i915_gem_object *obj,

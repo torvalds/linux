@@ -4566,12 +4566,11 @@ static void intel_post_plane_update(struct intel_crtc_state *old_crtc_state)
 	struct drm_atomic_state *old_state = old_crtc_state->base.state;
 	struct intel_crtc_state *pipe_config =
 		to_intel_crtc_state(crtc->base.state);
-	struct drm_device *dev = crtc->base.dev;
 	struct drm_plane *primary = crtc->base.primary;
 	struct drm_plane_state *old_pri_state =
 		drm_atomic_get_existing_plane_state(old_state, primary);
 
-	intel_frontbuffer_flip(dev, pipe_config->fb_bits);
+	intel_frontbuffer_flip(to_i915(crtc->base.dev), pipe_config->fb_bits);
 
 	crtc->wm.cxsr_allowed = true;
 
@@ -4694,7 +4693,7 @@ static void intel_crtc_disable_planes(struct drm_crtc *crtc, unsigned plane_mask
 	 * to compute the mask of flip planes precisely. For the time being
 	 * consider this a flip to a NULL plane.
 	 */
-	intel_frontbuffer_flip(dev, INTEL_FRONTBUFFER_ALL_MASK(pipe));
+	intel_frontbuffer_flip(to_i915(dev), INTEL_FRONTBUFFER_ALL_MASK(pipe));
 }
 
 static void ironlake_crtc_enable(struct drm_crtc *crtc)
@@ -10952,7 +10951,8 @@ static void intel_unpin_work_fn(struct work_struct *__work)
 
 	i915_gem_request_put(work->flip_queued_req);
 
-	intel_frontbuffer_flip_complete(dev, to_intel_plane(primary)->frontbuffer_bit);
+	intel_frontbuffer_flip_complete(to_i915(dev),
+					to_intel_plane(primary)->frontbuffer_bit);
 	intel_fbc_post_update(crtc);
 	drm_framebuffer_unreference(work->old_fb);
 
@@ -11727,7 +11727,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 			  to_intel_plane(primary)->frontbuffer_bit);
 	mutex_unlock(&dev->struct_mutex);
 
-	intel_frontbuffer_flip_prepare(dev,
+	intel_frontbuffer_flip_prepare(to_i915(dev),
 				       to_intel_plane(primary)->frontbuffer_bit);
 
 	trace_i915_flip_request(intel_crtc->plane, obj);

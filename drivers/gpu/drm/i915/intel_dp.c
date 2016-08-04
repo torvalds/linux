@@ -5228,7 +5228,7 @@ unlock:
 
 /**
  * intel_edp_drrs_invalidate - Disable Idleness DRRS
- * @dev: DRM device
+ * @dev_priv: i915 device
  * @frontbuffer_bits: frontbuffer plane tracking bits
  *
  * This function gets called everytime rendering on the given planes start.
@@ -5236,10 +5236,9 @@ unlock:
  *
  * Dirty frontbuffers relevant to DRRS are tracked in busy_frontbuffer_bits.
  */
-void intel_edp_drrs_invalidate(struct drm_device *dev,
-		unsigned frontbuffer_bits)
+void intel_edp_drrs_invalidate(struct drm_i915_private *dev_priv,
+			       unsigned int frontbuffer_bits)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_crtc *crtc;
 	enum pipe pipe;
 
@@ -5271,7 +5270,7 @@ void intel_edp_drrs_invalidate(struct drm_device *dev,
 
 /**
  * intel_edp_drrs_flush - Restart Idleness DRRS
- * @dev: DRM device
+ * @dev_priv: i915 device
  * @frontbuffer_bits: frontbuffer plane tracking bits
  *
  * This function gets called every time rendering on the given planes has
@@ -5281,10 +5280,9 @@ void intel_edp_drrs_invalidate(struct drm_device *dev,
  *
  * Dirty frontbuffers relevant to DRRS are tracked in busy_frontbuffer_bits.
  */
-void intel_edp_drrs_flush(struct drm_device *dev,
-		unsigned frontbuffer_bits)
+void intel_edp_drrs_flush(struct drm_i915_private *dev_priv,
+			  unsigned int frontbuffer_bits)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_crtc *crtc;
 	enum pipe pipe;
 

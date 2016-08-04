@@ -1374,11 +1374,12 @@ uint32_t intel_dp_pack_aux(const uint8_t *src, int src_bytes);
 void intel_plane_destroy(struct drm_plane *plane);
 void intel_edp_drrs_enable(struct intel_dp *intel_dp);
 void intel_edp_drrs_disable(struct intel_dp *intel_dp);
-void intel_edp_drrs_invalidate(struct drm_device *dev,
-		unsigned frontbuffer_bits);
-void intel_edp_drrs_flush(struct drm_device *dev, unsigned frontbuffer_bits);
+void intel_edp_drrs_invalidate(struct drm_i915_private *dev_priv,
+			       unsigned int frontbuffer_bits);
+void intel_edp_drrs_flush(struct drm_i915_private *dev_priv,
+			  unsigned int frontbuffer_bits);
 bool intel_digital_port_connected(struct drm_i915_private *dev_priv,
-					 struct intel_digital_port *port);
+				  struct intel_digital_port *port);
 
 void
 intel_dp_program_link_training_pattern(struct intel_dp *intel_dp,
@@ -1551,13 +1552,13 @@ static inline void intel_backlight_device_unregister(struct intel_connector *con
 /* intel_psr.c */
 void intel_psr_enable(struct intel_dp *intel_dp);
 void intel_psr_disable(struct intel_dp *intel_dp);
-void intel_psr_invalidate(struct drm_device *dev,
+void intel_psr_invalidate(struct drm_i915_private *dev_priv,
 			  unsigned frontbuffer_bits);
-void intel_psr_flush(struct drm_device *dev,
+void intel_psr_flush(struct drm_i915_private *dev_priv,
 		     unsigned frontbuffer_bits,
 		     enum fb_op_origin origin);
 void intel_psr_init(struct drm_device *dev);
-void intel_psr_single_frame_update(struct drm_device *dev,
+void intel_psr_single_frame_update(struct drm_i915_private *dev_priv,
 				   unsigned frontbuffer_bits);
 
 /* intel_runtime_pm.c */

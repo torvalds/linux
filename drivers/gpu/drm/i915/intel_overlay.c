@@ -840,8 +840,7 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	overlay->old_vid_bo = overlay->vid_bo;
 	overlay->vid_bo = new_bo;
 
-	intel_frontbuffer_flip(&dev_priv->drm,
-			       INTEL_FRONTBUFFER_OVERLAY(pipe));
+	intel_frontbuffer_flip(dev_priv, INTEL_FRONTBUFFER_OVERLAY(pipe));
 
 	return 0;
 

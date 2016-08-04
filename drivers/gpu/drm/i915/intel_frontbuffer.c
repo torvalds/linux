@@ -70,8 +70,7 @@ void __intel_fb_obj_invalidate(struct drm_i915_gem_object *obj,
 			       enum fb_op_origin origin,
 			       unsigned int frontbuffer_bits)
 {
-	struct drm_device *dev = obj->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
 
 	if (origin == ORIGIN_CS) {
 		spin_lock(&dev_priv->fb_tracking.lock);
@@ -80,14 +79,14 @@ void __intel_fb_obj_invalidate(struct drm_i915_gem_object *obj,
 		spin_unlock(&dev_priv->fb_tracking.lock);
 	}
 
-	intel_psr_invalidate(dev, frontbuffer_bits);
-	intel_edp_drrs_invalidate(dev, frontbuffer_bits);
+	intel_psr_invalidate(dev_priv, frontbuffer_bits);
+	intel_edp_drrs_invalidate(dev_priv, frontbuffer_bits);
 	intel_fbc_invalidate(dev_priv, frontbuffer_bits, origin);
 }
 
 /**
  * intel_frontbuffer_flush - flush frontbuffer
- * @dev: DRM device
+ * @dev_priv: i915 device
  * @frontbuffer_bits: frontbuffer plane tracking bits
  * @origin: which operation caused the flush
  *
@@ -97,12 +96,10 @@ void __intel_fb_obj_invalidate(struct drm_i915_gem_object *obj,
  *
  * Can be called without any locks held.
  */
-static void intel_frontbuffer_flush(struct drm_device *dev,
+static void intel_frontbuffer_flush(struct drm_i915_private *dev_priv,
 				    unsigned frontbuffer_bits,
 				    enum fb_op_origin origin)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
 	/* Delay flushing when rings are still busy.*/
 	spin_lock(&dev_priv->fb_tracking.lock);
 	frontbuffer_bits &= ~dev_priv->fb_tracking.busy_bits;
@@ -111,8 +108,8 @@ static void intel_frontbuffer_flush(struct drm_device *dev,
 	if (!frontbuffer_bits)
 		return;
 
-	intel_edp_drrs_flush(dev, frontbuffer_bits);
-	intel_psr_flush(dev, frontbuffer_bits, origin);
+	intel_edp_drrs_flush(dev_priv, frontbuffer_bits);
+	intel_psr_flush(dev_priv, frontbuffer_bits, origin);
 	intel_fbc_flush(dev_priv, frontbuffer_bits, origin);
 }
 
@@ -121,8 +118,7 @@ void __intel_fb_obj_flush(struct drm_i915_gem_object *obj,
 			  enum fb_op_origin origin,
 			  unsigned int frontbuffer_bits)
 {
-	struct drm_device *dev = obj->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
 
 	if (retire) {
 		spin_lock(&dev_priv->fb_tracking.lock);
@@ -133,12 +129,12 @@ void __intel_fb_obj_flush(struct drm_i915_gem_object *obj,
 	}
 
 	if (frontbuffer_bits)
-		intel_frontbuffer_flush(dev, frontbuffer_bits, origin);
+		intel_frontbuffer_flush(dev_priv, frontbuffer_bits, origin);
 }
 
 /**
  * intel_frontbuffer_flip_prepare - prepare asynchronous frontbuffer flip
- * @dev: DRM device
+ * @dev_priv: i915 device
  * @frontbuffer_bits: frontbuffer plane tracking bits
  *
  * This function gets called after scheduling a flip on @obj. The actual
@@ -148,23 +144,21 @@ void __intel_fb_obj_flush(struct drm_i915_gem_object *obj,
  *
  * Can be called without any locks held.
  */
-void intel_frontbuffer_flip_prepare(struct drm_device *dev,
+void intel_frontbuffer_flip_prepare(struct drm_i915_private *dev_priv,
 				    unsigned frontbuffer_bits)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
 	spin_lock(&dev_priv->fb_tracking.lock);
 	dev_priv->fb_tracking.flip_bits |= frontbuffer_bits;
 	/* Remove stale busy bits due to the old buffer. */
 	dev_priv->fb_tracking.busy_bits &= ~frontbuffer_bits;
 	spin_unlock(&dev_priv->fb_tracking.lock);
 
-	intel_psr_single_frame_update(dev, frontbuffer_bits);
+	intel_psr_single_frame_update(dev_priv, frontbuffer_bits);
 }
 
 /**
  * intel_frontbuffer_flip_complete - complete asynchronous frontbuffer flip
- * @dev: DRM device
+ * @dev_priv: i915 device
  * @frontbuffer_bits: frontbuffer plane tracking bits
  *
  * This function gets called after the flip has been latched and will complete
@@ -172,11 +166,9 @@ void intel_frontbuffer_flip_prepare(struct drm_device *dev,
  *
  * Can be called without any locks held.
  */
-void intel_frontbuffer_flip_complete(struct drm_device *dev,
+void intel_frontbuffer_flip_complete(struct drm_i915_private *dev_priv,
 				     unsigned frontbuffer_bits)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
 	spin_lock(&dev_priv->fb_tracking.lock);
 	/* Mask any cancelled flips. */
 	frontbuffer_bits &= dev_priv->fb_tracking.flip_bits;
@@ -184,12 +176,13 @@ void intel_frontbuffer_flip_complete(struct drm_device *dev,
 	spin_unlock(&dev_priv->fb_tracking.lock);
 
 	if (frontbuffer_bits)
-		intel_frontbuffer_flush(dev, frontbuffer_bits, ORIGIN_FLIP);
+		intel_frontbuffer_flush(dev_priv,
+					frontbuffer_bits, ORIGIN_FLIP);
 }
 
 /**
  * intel_frontbuffer_flip - synchronous frontbuffer flip
- * @dev: DRM device
+ * @dev_priv: i915 device
  * @frontbuffer_bits: frontbuffer plane tracking bits
  *
  * This function gets called after scheduling a flip on @obj. This is for
@@ -198,15 +191,13 @@ void intel_frontbuffer_flip_complete(struct drm_device *dev,
  *
  * Can be called without any locks held.
  */
-void intel_frontbuffer_flip(struct drm_device *dev,
+void intel_frontbuffer_flip(struct drm_i915_private *dev_priv,
 			    unsigned frontbuffer_bits)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
 	spin_lock(&dev_priv->fb_tracking.lock);
 	/* Remove stale busy bits due to the old buffer. */
 	dev_priv->fb_tracking.busy_bits &= ~frontbuffer_bits;
 	spin_unlock(&dev_priv->fb_tracking.lock);
 
-	intel_frontbuffer_flush(dev, frontbuffer_bits, ORIGIN_FLIP);
+	intel_frontbuffer_flush(dev_priv, frontbuffer_bits, ORIGIN_FLIP);
 }
