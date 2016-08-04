@@ -1005,9 +1005,6 @@ static void omap_sham_finish_req(struct ahash_request *req, int err)
 
 	if (req->base.complete)
 		req->base.complete(&req->base, err);
-
-	/* handle new request */
-	tasklet_schedule(&dd->done_task);
 }
 
 static int omap_sham_handle_queue(struct omap_sham_dev *dd,
@@ -1018,6 +1015,7 @@ static int omap_sham_handle_queue(struct omap_sham_dev *dd,
 	unsigned long flags;
 	int err = 0, ret = 0;
 
+retry:
 	spin_lock_irqsave(&dd->lock, flags);
 	if (req)
 		ret = ahash_enqueue_request(&dd->queue, req);
@@ -1061,11 +1059,19 @@ static int omap_sham_handle_queue(struct omap_sham_dev *dd,
 		err = omap_sham_final_req(dd);
 	}
 err1:
-	if (err != -EINPROGRESS)
+	dev_dbg(dd->dev, "exit, err: %d\n", err);
+
+	if (err != -EINPROGRESS) {
 		/* done_task will not finish it, so do it here */
 		omap_sham_finish_req(req, err);
+		req = NULL;
 
-	dev_dbg(dd->dev, "exit, err: %d\n", err);
+		/*
+		 * Execute next request immediately if there is anything
+		 * in queue.
+		 */
+		goto retry;
+	}
 
 	return ret;
 }
@@ -1653,6 +1659,10 @@ finish:
 	dev_dbg(dd->dev, "update done: err: %d\n", err);
 	/* finish curent request */
 	omap_sham_finish_req(dd->req, err);
+
+	/* If we are not busy, process next req */
+	if (!test_bit(FLAGS_BUSY, &dd->flags))
+		omap_sham_handle_queue(dd, NULL);
 }
 
 static irqreturn_t omap_sham_irq_common(struct omap_sham_dev *dd)
