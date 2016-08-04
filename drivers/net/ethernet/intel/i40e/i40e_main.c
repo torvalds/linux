@@ -11605,7 +11605,8 @@ static int __init i40e_init_module(void)
 	 * it can't be any worse than using the system workqueue which
 	 * was already single threaded
 	 */
-	i40e_wq = create_singlethread_workqueue(i40e_driver_name);
+	i40e_wq = alloc_workqueue("%s", WQ_UNBOUND | WQ_MEM_RECLAIM, 1,
+				  i40e_driver_name);
 	if (!i40e_wq) {
 		pr_err("%s: Failed to create workqueue\n", i40e_driver_name);
 		return -ENOMEM;
