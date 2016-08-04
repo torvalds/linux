@@ -1143,6 +1143,7 @@
 		clock-names = "aclk", "hclk", "sclk";
 		resets = <&cru SRST_RGA_CORE>, <&cru SRST_A_RGA>, <&cru SRST_H_RGA>;
 		reset-names = "core", "axi", "ahb";
+		power-domains = <&power RK3399_PD_RGA>;
 		status = "disabled";
 	};
 
