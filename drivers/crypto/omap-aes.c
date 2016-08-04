@@ -330,20 +330,12 @@ static void omap_aes_dma_stop(struct omap_aes_dev *dd)
 
 static struct omap_aes_dev *omap_aes_find_dev(struct omap_aes_ctx *ctx)
 {
-	struct omap_aes_dev *dd = NULL, *tmp;
+	struct omap_aes_dev *dd;
 
 	spin_lock_bh(&list_lock);
-	if (!ctx->dd) {
-		list_for_each_entry(tmp, &dev_list, list) {
-			/* FIXME: take fist available aes core */
-			dd = tmp;
-			break;
-		}
-		ctx->dd = dd;
-	} else {
-		/* already found before */
-		dd = ctx->dd;
-	}
+	dd = list_first_entry(&dev_list, struct omap_aes_dev, list);
+	list_move_tail(&dd->list, &dev_list);
+	ctx->dd = dd;
 	spin_unlock_bh(&list_lock);
 
 	return dd;
@@ -616,7 +608,7 @@ static int omap_aes_prepare_req(struct crypto_engine *engine,
 {
 	struct omap_aes_ctx *ctx = crypto_ablkcipher_ctx(
 			crypto_ablkcipher_reqtfm(req));
-	struct omap_aes_dev *dd = omap_aes_find_dev(ctx);
+	struct omap_aes_dev *dd = ctx->dd;
 	struct omap_aes_reqctx *rctx;
 
 	if (!dd)
@@ -662,7 +654,7 @@ static int omap_aes_crypt_req(struct crypto_engine *engine,
 {
 	struct omap_aes_ctx *ctx = crypto_ablkcipher_ctx(
 			crypto_ablkcipher_reqtfm(req));
-	struct omap_aes_dev *dd = omap_aes_find_dev(ctx);
+	struct omap_aes_dev *dd = ctx->dd;
 
 	if (!dd)
 		return -ENODEV;
