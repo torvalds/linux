@@ -1211,13 +1211,6 @@ i915_gem_execbuffer_move_to_active(struct list_head *vmas,
 	}
 }
 
-static void
-i915_gem_execbuffer_retire_commands(struct i915_execbuffer_params *params)
-{
-	/* Add a breadcrumb for the completion of the batch buffer */
-	__i915_add_request(params->request, params->batch_obj, true);
-}
-
 static int
 i915_reset_gen7_sol_offsets(struct drm_i915_gem_request *req)
 {
@@ -1692,7 +1685,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 
 	ret = execbuf_submit(params, args, &eb->vmas);
 err_request:
-	i915_gem_execbuffer_retire_commands(params);
+	__i915_add_request(params->request, params->batch_obj, ret == 0);
 
 err_batch_unpin:
 	/*
