@@ -1847,46 +1847,57 @@ i915_gem_release_all_mmaps(struct drm_i915_private *dev_priv)
 		i915_gem_release_mmap(obj);
 }
 
-uint32_t
-i915_gem_get_gtt_size(struct drm_device *dev, uint32_t size, int tiling_mode)
+/**
+ * i915_gem_get_ggtt_size - return required global GTT size for an object
+ * @dev: drm device
+ * @size: object size
+ * @tiling_mode: tiling mode
+ *
+ * Return the required global GTT size for an object, taking into account
+ * potential fence register mapping.
+ */
+u64 i915_gem_get_ggtt_size(struct drm_device *dev, u64 size, int tiling_mode)
 {
-	uint32_t gtt_size;
+	u64 ggtt_size;
 
-	if (INTEL_INFO(dev)->gen >= 4 ||
+	GEM_BUG_ON(size == 0);
+
+	if (INTEL_GEN(dev) >= 4 ||
 	    tiling_mode == I915_TILING_NONE)
 		return size;
 
 	/* Previous chips need a power-of-two fence region when tiling */
 	if (IS_GEN3(dev))
-		gtt_size = 1024*1024;
+		ggtt_size = 1024*1024;
 	else
-		gtt_size = 512*1024;
+		ggtt_size = 512*1024;
 
-	while (gtt_size < size)
-		gtt_size <<= 1;
+	while (ggtt_size < size)
+		ggtt_size <<= 1;
 
-	return gtt_size;
+	return ggtt_size;
 }
 
 /**
- * i915_gem_get_gtt_alignment - return required GTT alignment for an object
+ * i915_gem_get_ggtt_alignment - return required global GTT alignment
  * @dev: drm device
  * @size: object size
  * @tiling_mode: tiling mode
- * @fenced: is fenced alignemned required or not
+ * @fenced: is fenced alignment required or not
  *
- * Return the required GTT alignment for an object, taking into account
+ * Return the required global GTT alignment for an object, taking into account
  * potential fence register mapping.
  */
-uint32_t
-i915_gem_get_gtt_alignment(struct drm_device *dev, uint32_t size,
-			   int tiling_mode, bool fenced)
+u64 i915_gem_get_ggtt_alignment(struct drm_device *dev, u64 size,
+				int tiling_mode, bool fenced)
 {
+	GEM_BUG_ON(size == 0);
+
 	/*
 	 * Minimum alignment is 4k (GTT page size), but might be greater
 	 * if a fence register is needed for the object.
 	 */
-	if (INTEL_INFO(dev)->gen >= 4 || (!fenced && IS_G33(dev)) ||
+	if (INTEL_GEN(dev) >= 4 || (!fenced && IS_G33(dev)) ||
 	    tiling_mode == I915_TILING_NONE)
 		return 4096;
 
@@ -1894,7 +1905,7 @@ i915_gem_get_gtt_alignment(struct drm_device *dev, uint32_t size,
 	 * Previous chips need to be aligned to the size of the smallest
 	 * fence register that can contain the object.
 	 */
-	return i915_gem_get_gtt_size(dev, size, tiling_mode);
+	return i915_gem_get_ggtt_size(dev, size, tiling_mode);
 }
 
 static int i915_gem_object_create_mmap_offset(struct drm_i915_gem_object *obj)
@@ -2984,17 +2995,17 @@ i915_gem_object_insert_into_vm(struct drm_i915_gem_object *obj,
 
 		view_size = i915_ggtt_view_size(obj, ggtt_view);
 
-		fence_size = i915_gem_get_gtt_size(dev,
-						   view_size,
-						   obj->tiling_mode);
-		fence_alignment = i915_gem_get_gtt_alignment(dev,
-							     view_size,
-							     obj->tiling_mode,
-							     true);
-		unfenced_alignment = i915_gem_get_gtt_alignment(dev,
-								view_size,
-								obj->tiling_mode,
-								false);
+		fence_size = i915_gem_get_ggtt_size(dev,
+						    view_size,
+						    obj->tiling_mode);
+		fence_alignment = i915_gem_get_ggtt_alignment(dev,
+							      view_size,
+							      obj->tiling_mode,
+							      true);
+		unfenced_alignment = i915_gem_get_ggtt_alignment(dev,
+								 view_size,
+								 obj->tiling_mode,
+								 false);
 		size = max(size, view_size);
 		if (flags & PIN_MAPPABLE)
 			size = max_t(u64, size, fence_size);
@@ -3698,13 +3709,13 @@ void __i915_vma_set_map_and_fenceable(struct i915_vma *vma)
 	bool mappable, fenceable;
 	u32 fence_size, fence_alignment;
 
-	fence_size = i915_gem_get_gtt_size(obj->base.dev,
-					   obj->base.size,
-					   obj->tiling_mode);
-	fence_alignment = i915_gem_get_gtt_alignment(obj->base.dev,
-						     obj->base.size,
-						     obj->tiling_mode,
-						     true);
+	fence_size = i915_gem_get_ggtt_size(obj->base.dev,
+					    obj->base.size,
+					    obj->tiling_mode);
+	fence_alignment = i915_gem_get_ggtt_alignment(obj->base.dev,
+						      obj->base.size,
+						      obj->tiling_mode,
+						      true);
 
 	fenceable = (vma->node.size == fence_size &&
 		     (vma->node.start & (fence_alignment - 1)) == 0);

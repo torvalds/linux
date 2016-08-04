@@ -133,7 +133,8 @@ i915_gem_object_fence_ok(struct drm_i915_gem_object *obj, int tiling_mode)
 			return false;
 	}
 
-	size = i915_gem_get_gtt_size(obj->base.dev, obj->base.size, tiling_mode);
+	size = i915_gem_get_ggtt_size(obj->base.dev,
+				      obj->base.size, tiling_mode);
 	if (i915_gem_obj_ggtt_size(obj) != size)
 		return false;
 
