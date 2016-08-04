@@ -21,7 +21,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-
+#include <linux/dma-mapping.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -304,6 +304,8 @@ struct s3c24xx_uart_resources s3c2410_uart_resources[] __initdata = {
 	},
 };
 
+#define s3c24xx_device_dma_mask (*((u64[]) { DMA_BIT_MASK(32) }))
+
 #if defined(CONFIG_CPU_S3C2410) || defined(CONFIG_CPU_S3C2412) || \
 	defined(CONFIG_CPU_S3C2440) || defined(CONFIG_CPU_S3C2442)
 static struct resource s3c2410_dma_resource[] = {
@@ -354,7 +356,9 @@ struct platform_device s3c2410_device_dma = {
 	.num_resources	= ARRAY_SIZE(s3c2410_dma_resource),
 	.resource	= s3c2410_dma_resource,
 	.dev	= {
-		.platform_data	= &s3c2410_dma_platdata,
+		.dma_mask = &s3c24xx_device_dma_mask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+		.platform_data = &s3c2410_dma_platdata,
 	},
 };
 #endif
@@ -395,7 +399,9 @@ struct platform_device s3c2412_device_dma = {
 	.num_resources	= ARRAY_SIZE(s3c2410_dma_resource),
 	.resource	= s3c2410_dma_resource,
 	.dev	= {
-		.platform_data	= &s3c2412_dma_platdata,
+		.dma_mask = &s3c24xx_device_dma_mask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+		.platform_data = &s3c2412_dma_platdata,
 	},
 };
 #endif
@@ -451,7 +457,9 @@ struct platform_device s3c2440_device_dma = {
 	.num_resources	= ARRAY_SIZE(s3c2410_dma_resource),
 	.resource	= s3c2410_dma_resource,
 	.dev	= {
-		.platform_data	= &s3c2440_dma_platdata,
+		.dma_mask = &s3c24xx_device_dma_mask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+		.platform_data = &s3c2440_dma_platdata,
 	},
 };
 #endif
@@ -503,7 +511,9 @@ struct platform_device s3c2443_device_dma = {
 	.num_resources	= ARRAY_SIZE(s3c2443_dma_resource),
 	.resource	= s3c2443_dma_resource,
 	.dev	= {
-		.platform_data	= &s3c2443_dma_platdata,
+		.dma_mask = &s3c24xx_device_dma_mask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+		.platform_data = &s3c2443_dma_platdata,
 	},
 };
 #endif
