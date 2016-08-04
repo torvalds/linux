@@ -194,13 +194,15 @@ struct i915_vma {
 	 * bits with absolutely no headroom. So use 4 bits.
 	 */
 #define I915_VMA_PIN_MASK 0xf
+#define I915_VMA_PIN_OVERFLOW	BIT(5)
 
 	/** Flags and address space this VMA is bound to */
-#define I915_VMA_GLOBAL_BIND	BIT(5)
-#define I915_VMA_LOCAL_BIND	BIT(6)
+#define I915_VMA_GLOBAL_BIND	BIT(6)
+#define I915_VMA_LOCAL_BIND	BIT(7)
+#define I915_VMA_BIND_MASK (I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND | I915_VMA_PIN_OVERFLOW)
 
-#define I915_VMA_GGTT	BIT(7)
-#define I915_VMA_CLOSED BIT(8)
+#define I915_VMA_GGTT	BIT(8)
+#define I915_VMA_CLOSED BIT(9)
 
 	unsigned int active;
 	struct i915_gem_active last_read[I915_NUM_ENGINES];
@@ -620,19 +622,38 @@ i915_ggtt_view_equal(const struct i915_ggtt_view *a,
 	return true;
 }
 
-int __must_check
-i915_vma_pin(struct i915_vma *vma, u64 size, u64 alignment, u64 flags);
 /* Flags used by pin/bind&friends. */
-#define PIN_MAPPABLE		BIT(0)
-#define PIN_NONBLOCK		BIT(1)
-#define PIN_GLOBAL		BIT(2)
-#define PIN_OFFSET_BIAS		BIT(3)
-#define PIN_USER		BIT(4)
-#define PIN_UPDATE		BIT(5)
-#define PIN_ZONE_4G		BIT(6)
-#define PIN_HIGH		BIT(7)
-#define PIN_OFFSET_FIXED	BIT(8)
+#define PIN_NONBLOCK		BIT(0)
+#define PIN_MAPPABLE		BIT(1)
+#define PIN_ZONE_4G		BIT(2)
+
+#define PIN_MBZ			BIT(5) /* I915_VMA_PIN_OVERFLOW */
+#define PIN_GLOBAL		BIT(6) /* I915_VMA_GLOBAL_BIND */
+#define PIN_USER		BIT(7) /* I915_VMA_LOCAL_BIND */
+#define PIN_UPDATE		BIT(8)
+
+#define PIN_HIGH		BIT(9)
+#define PIN_OFFSET_BIAS		BIT(10)
+#define PIN_OFFSET_FIXED	BIT(11)
 #define PIN_OFFSET_MASK		(~4095)
+
+int __i915_vma_do_pin(struct i915_vma *vma,
+		      u64 size, u64 alignment, u64 flags);
+static inline int __must_check
+i915_vma_pin(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
+{
+	BUILD_BUG_ON(PIN_MBZ != I915_VMA_PIN_OVERFLOW);
+	BUILD_BUG_ON(PIN_GLOBAL != I915_VMA_GLOBAL_BIND);
+	BUILD_BUG_ON(PIN_USER != I915_VMA_LOCAL_BIND);
+
+	/* Pin early to prevent the shrinker/eviction logic from destroying
+	 * our vma as we insert and bind.
+	 */
+	if (likely(((++vma->flags ^ flags) & I915_VMA_BIND_MASK) == 0))
+		return 0;
+
+	return __i915_vma_do_pin(vma, size, alignment, flags);
+}
 
 static inline int i915_vma_pin_count(const struct i915_vma *vma)
 {
@@ -647,7 +668,7 @@ static inline bool i915_vma_is_pinned(const struct i915_vma *vma)
 static inline void __i915_vma_pin(struct i915_vma *vma)
 {
 	vma->flags++;
-	GEM_BUG_ON(!i915_vma_is_pinned(vma));
+	GEM_BUG_ON(vma->flags & I915_VMA_PIN_OVERFLOW);
 }
 
 static inline void __i915_vma_unpin(struct i915_vma *vma)

@@ -3705,23 +3705,19 @@ void __i915_vma_set_map_and_fenceable(struct i915_vma *vma)
 	obj->map_and_fenceable = mappable && fenceable;
 }
 
-int
-i915_vma_pin(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
+int __i915_vma_do_pin(struct i915_vma *vma,
+		      u64 size, u64 alignment, u64 flags)
 {
-	unsigned int bound;
+	unsigned int bound = vma->flags;
 	int ret;
 
 	GEM_BUG_ON((flags & (PIN_GLOBAL | PIN_USER)) == 0);
 	GEM_BUG_ON((flags & PIN_GLOBAL) && !i915_vma_is_ggtt(vma));
 
-	bound = vma->flags;
-	if (WARN_ON((bound & I915_VMA_PIN_MASK) == I915_VMA_PIN_MASK))
-		return -EBUSY;
-
-	/* Pin early to prevent the shrinker/eviction logic from destroying
-	 * our vma as we insert and bind.
-	 */
-	__i915_vma_pin(vma);
+	if (WARN_ON(bound & I915_VMA_PIN_OVERFLOW)) {
+		ret = -EBUSY;
+		goto err;
+	}
 
 	if ((bound & (I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND)) == 0) {
 		ret = i915_vma_insert(vma, size, alignment, flags);
