@@ -94,7 +94,7 @@ int acpi_getopt_argument(int argc, char **argv)
 		acpi_gbl_optarg =
 		    &argv[acpi_gbl_optind++][(int)(current_char_ptr + 1)];
 	} else if (++acpi_gbl_optind >= argc) {
-		ACPI_OPTION_ERROR("Option requires an argument: -", 'v');
+		ACPI_OPTION_ERROR("\nOption requires an argument", 0);
 
 		current_char_ptr = 1;
 		return (-1);
