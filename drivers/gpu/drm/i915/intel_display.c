@@ -2601,7 +2601,8 @@ valid_fb:
 	primary->fb = primary->state->fb = fb;
 	primary->crtc = primary->state->crtc = &intel_crtc->base;
 	intel_crtc->base.state->plane_mask |= (1 << drm_plane_index(primary));
-	obj->frontbuffer_bits |= to_intel_plane(primary)->frontbuffer_bit;
+	atomic_or(to_intel_plane(primary)->frontbuffer_bit,
+		  &obj->frontbuffer_bits);
 }
 
 static void i9xx_update_primary_plane(struct drm_plane *primary,
@@ -13810,19 +13811,12 @@ static void intel_atomic_track_fbs(struct drm_atomic_state *state)
 {
 	struct drm_plane_state *old_plane_state;
 	struct drm_plane *plane;
-	struct drm_i915_gem_object *obj, *old_obj;
-	struct intel_plane *intel_plane;
 	int i;
 
-	mutex_lock(&state->dev->struct_mutex);
-	for_each_plane_in_state(state, plane, old_plane_state, i) {
-		obj = intel_fb_obj(plane->state->fb);
-		old_obj = intel_fb_obj(old_plane_state->fb);
-		intel_plane = to_intel_plane(plane);
-
-		i915_gem_track_fb(old_obj, obj, intel_plane->frontbuffer_bit);
-	}
-	mutex_unlock(&state->dev->struct_mutex);
+	for_each_plane_in_state(state, plane, old_plane_state, i)
+		i915_gem_track_fb(intel_fb_obj(old_plane_state->fb),
+				  intel_fb_obj(plane->state->fb),
+				  to_intel_plane(plane)->frontbuffer_bit);
 }
 
 /**

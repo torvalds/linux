@@ -2127,8 +2127,6 @@ struct drm_i915_gem_object_ops {
  */
 #define INTEL_MAX_SPRITE_BITS_PER_PIPE 5
 #define INTEL_FRONTBUFFER_BITS_PER_PIPE 8
-#define INTEL_FRONTBUFFER_BITS \
-	(INTEL_FRONTBUFFER_BITS_PER_PIPE * I915_MAX_PIPES)
 #define INTEL_FRONTBUFFER_PRIMARY(pipe) \
 	(1 << (INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe)))
 #define INTEL_FRONTBUFFER_CURSOR(pipe) \
@@ -2216,7 +2214,7 @@ struct drm_i915_gem_object {
 	unsigned int cache_level:3;
 	unsigned int cache_dirty:1;
 
-	unsigned int frontbuffer_bits:INTEL_FRONTBUFFER_BITS;
+	atomic_t frontbuffer_bits;
 
 	unsigned int has_wc_mmap;
 	/** Count of VMA actually bound by this object */

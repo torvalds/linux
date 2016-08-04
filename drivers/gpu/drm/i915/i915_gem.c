@@ -4040,7 +4040,7 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 	if (obj->stolen)
 		i915_gem_object_unpin_pages(obj);
 
-	WARN_ON(obj->frontbuffer_bits);
+	WARN_ON(atomic_read(&obj->frontbuffer_bits));
 
 	if (obj->pages && obj->madv == I915_MADV_WILLNEED &&
 	    dev_priv->quirks & QUIRK_PIN_SWIZZLED_PAGES &&
@@ -4557,16 +4557,23 @@ void i915_gem_track_fb(struct drm_i915_gem_object *old,
 		       struct drm_i915_gem_object *new,
 		       unsigned frontbuffer_bits)
 {
+	/* Control of individual bits within the mask are guarded by
+	 * the owning plane->mutex, i.e. we can never see concurrent
+	 * manipulation of individual bits. But since the bitfield as a whole
+	 * is updated using RMW, we need to use atomics in order to update
+	 * the bits.
+	 */
+	BUILD_BUG_ON(INTEL_FRONTBUFFER_BITS_PER_PIPE * I915_MAX_PIPES >
+		     sizeof(atomic_t) * BITS_PER_BYTE);
+
 	if (old) {
-		WARN_ON(!mutex_is_locked(&old->base.dev->struct_mutex));
-		WARN_ON(!(old->frontbuffer_bits & frontbuffer_bits));
-		old->frontbuffer_bits &= ~frontbuffer_bits;
+		WARN_ON(!(atomic_read(&old->frontbuffer_bits) & frontbuffer_bits));
+		atomic_andnot(frontbuffer_bits, &old->frontbuffer_bits);
 	}
 
 	if (new) {
-		WARN_ON(!mutex_is_locked(&new->base.dev->struct_mutex));
-		WARN_ON(new->frontbuffer_bits & frontbuffer_bits);
-		new->frontbuffer_bits |= frontbuffer_bits;
+		WARN_ON(atomic_read(&new->frontbuffer_bits) & frontbuffer_bits);
+		atomic_or(frontbuffer_bits, &new->frontbuffer_bits);
 	}
 }
 

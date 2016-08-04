@@ -67,23 +67,22 @@
 #include "i915_drv.h"
 
 void __intel_fb_obj_invalidate(struct drm_i915_gem_object *obj,
-			       enum fb_op_origin origin)
+			       enum fb_op_origin origin,
+			       unsigned int frontbuffer_bits)
 {
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
-
 	if (origin == ORIGIN_CS) {
 		spin_lock(&dev_priv->fb_tracking.lock);
-		dev_priv->fb_tracking.busy_bits |= obj->frontbuffer_bits;
-		dev_priv->fb_tracking.flip_bits &= ~obj->frontbuffer_bits;
+		dev_priv->fb_tracking.busy_bits |= frontbuffer_bits;
+		dev_priv->fb_tracking.flip_bits &= ~frontbuffer_bits;
 		spin_unlock(&dev_priv->fb_tracking.lock);
 	}
 
-	intel_psr_invalidate(dev, obj->frontbuffer_bits);
-	intel_edp_drrs_invalidate(dev, obj->frontbuffer_bits);
-	intel_fbc_invalidate(dev_priv, obj->frontbuffer_bits, origin);
+	intel_psr_invalidate(dev, frontbuffer_bits);
+	intel_edp_drrs_invalidate(dev, frontbuffer_bits);
+	intel_fbc_invalidate(dev_priv, frontbuffer_bits, origin);
 }
 
 /**
@@ -119,15 +118,11 @@ static void intel_frontbuffer_flush(struct drm_device *dev,
 
 void __intel_fb_obj_flush(struct drm_i915_gem_object *obj,
 			  bool retire,
-			  enum fb_op_origin origin)
+			  enum fb_op_origin origin,
+			  unsigned int frontbuffer_bits)
 {
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	unsigned frontbuffer_bits;
-
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
-
-	frontbuffer_bits = obj->frontbuffer_bits;
 
 	if (retire) {
 		spin_lock(&dev_priv->fb_tracking.lock);
