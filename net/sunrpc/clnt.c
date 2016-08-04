@@ -2638,6 +2638,7 @@ int rpc_clnt_add_xprt(struct rpc_clnt *clnt,
 {
 	struct rpc_xprt_switch *xps;
 	struct rpc_xprt *xprt;
+	unsigned long reconnect_timeout;
 	unsigned char resvport;
 	int ret = 0;
 
@@ -2649,6 +2650,7 @@ int rpc_clnt_add_xprt(struct rpc_clnt *clnt,
 		return -EAGAIN;
 	}
 	resvport = xprt->resvport;
+	reconnect_timeout = xprt->max_reconnect_timeout;
 	rcu_read_unlock();
 
 	xprt = xprt_create_transport(xprtargs);
@@ -2657,6 +2659,7 @@ int rpc_clnt_add_xprt(struct rpc_clnt *clnt,
 		goto out_put_switch;
 	}
 	xprt->resvport = resvport;
+	xprt->max_reconnect_timeout = reconnect_timeout;
 
 	rpc_xprt_switch_set_roundrobin(xps);
 	if (setup) {

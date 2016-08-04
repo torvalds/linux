@@ -177,7 +177,6 @@ static struct ctl_table sunrpc_table[] = {
  * increase over time if the server is down or not responding.
  */
 #define XS_TCP_INIT_REEST_TO	(3U * HZ)
-#define XS_TCP_MAX_REEST_TO	(5U * 60 * HZ)
 
 /*
  * TCP idle timeout; client drops the transport socket if it is idle
@@ -2396,6 +2395,15 @@ static unsigned long xs_reconnect_delay(const struct rpc_xprt *xprt)
 	return 0;
 }
 
+static void xs_reconnect_backoff(struct rpc_xprt *xprt)
+{
+	xprt->reestablish_timeout <<= 1;
+	if (xprt->reestablish_timeout > xprt->max_reconnect_timeout)
+		xprt->reestablish_timeout = xprt->max_reconnect_timeout;
+	if (xprt->reestablish_timeout < XS_TCP_INIT_REEST_TO)
+		xprt->reestablish_timeout = XS_TCP_INIT_REEST_TO;
+}
+
 /**
  * xs_connect - connect a socket to a remote endpoint
  * @xprt: pointer to transport structure
@@ -2426,12 +2434,8 @@ static void xs_connect(struct rpc_xprt *xprt, struct rpc_task *task)
 		xs_reset_transport(transport);
 
 		delay = xs_reconnect_delay(xprt);
+		xs_reconnect_backoff(xprt);
 
-		xprt->reestablish_timeout <<= 1;
-		if (xprt->reestablish_timeout < XS_TCP_INIT_REEST_TO)
-			xprt->reestablish_timeout = XS_TCP_INIT_REEST_TO;
-		if (xprt->reestablish_timeout > XS_TCP_MAX_REEST_TO)
-			xprt->reestablish_timeout = XS_TCP_MAX_REEST_TO;
 	} else
 		dprintk("RPC:       xs_connect scheduled xprt %p\n", xprt);
 
@@ -2988,6 +2992,8 @@ static struct rpc_xprt *xs_setup_tcp(struct xprt_create *args)
 
 	xprt->ops = &xs_tcp_ops;
 	xprt->timeout = &xs_tcp_default_timeout;
+
+	xprt->max_reconnect_timeout = xprt->timeout->to_maxval;
 
 	INIT_WORK(&transport->recv_worker, xs_tcp_data_receive_workfn);
 	INIT_DELAYED_WORK(&transport->connect_worker, xs_tcp_setup_socket);
