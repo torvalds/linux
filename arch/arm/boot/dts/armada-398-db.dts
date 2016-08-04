@@ -84,6 +84,10 @@
 				status = "okay";
 			};
 
+			usb@58000 {
+				status = "okay";
+			};
+
 			flash@d0000 {
 				status = "okay";
 				pinctrl-0 = <&nand_pins>;
@@ -107,6 +111,10 @@
 					label = "Filesystem";
 					reg = <0x1000000 0x3f000000>;
 				};
+			};
+
+			usb3@f8000 {
+				status = "okay";
 			};
 		};
 
