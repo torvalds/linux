@@ -367,7 +367,7 @@ The :ref:`adobergb` standard defines the colorspace used by computer
 graphics that use the AdobeRGB colorspace. This is also known as the
 :ref:`oprgb` standard. The default transfer function is
 ``V4L2_XFER_FUNC_ADOBERGB``. The default Y'CbCr encoding is
-``V4L2_YCBCR_ENC_601``. The default Y'CbCr quantization is limited
+``V4L2_YCBCR_ENC_601``. The default Y'CbCr quantization is full
 range. The chromaticities of the primary colors and the white reference
 are:
 
@@ -448,7 +448,7 @@ the following ``V4L2_YCBCR_ENC_601`` encoding:
 
 Y' is clamped to the range [0…1] and Cb and Cr are clamped to the range
 [-0.5…0.5]. This transform is identical to one defined in SMPTE
-170M/BT.601. The Y'CbCr quantization is limited range.
+170M/BT.601. The Y'CbCr quantization is full range.
 
 
 .. _col-bt2020:
