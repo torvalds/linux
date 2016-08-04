@@ -455,8 +455,8 @@ static int rproc_handle_trace(struct rproc *rproc, struct fw_rsc_trace *rsc,
 
 	rproc->num_traces++;
 
-	dev_dbg(dev, "%s added: va %p, da 0x%x, len 0x%x\n", name, ptr,
-						rsc->da, rsc->len);
+	dev_dbg(dev, "%s added: va %p, da 0x%x, len 0x%x\n",
+		name, ptr, rsc->da, rsc->len);
 
 	return 0;
 }
@@ -579,8 +579,8 @@ static int rproc_handle_carveout(struct rproc *rproc,
 		return -EINVAL;
 	}
 
-	dev_dbg(dev, "carveout rsc: da %x, pa %x, len 0x%x, flags %x\n",
-			rsc->da, rsc->pa, rsc->len, rsc->flags);
+	dev_dbg(dev, "carveout rsc: name: %s, da %x, pa %x, len 0x%x, flags %x\n",
+		rsc->name, rsc->da, rsc->pa, rsc->len, rsc->flags);
 
 	carveout = kzalloc(sizeof(*carveout), GFP_KERNEL);
 	if (!carveout)
@@ -698,7 +698,7 @@ static rproc_handle_resource_t rproc_loading_handlers[RSC_LAST] = {
 	[RSC_CARVEOUT] = (rproc_handle_resource_t)rproc_handle_carveout,
 	[RSC_DEVMEM] = (rproc_handle_resource_t)rproc_handle_devmem,
 	[RSC_TRACE] = (rproc_handle_resource_t)rproc_handle_trace,
-	[RSC_VDEV] = NULL, /* VDEVs were handled upon registrarion */
+	[RSC_VDEV] = NULL, /* VDEVs were handled upon registration */
 };
 
 static rproc_handle_resource_t rproc_vdev_handler[RSC_LAST] = {
@@ -916,7 +916,7 @@ static void rproc_fw_config_virtio(const struct firmware *fw, void *context)
 	 * Create a copy of the resource table. When a virtio device starts
 	 * and calls vring_new_virtqueue() the address of the allocated vring
 	 * will be stored in the cached_table. Before the device is started,
-	 * cached_table will be copied into devic memory.
+	 * cached_table will be copied into device memory.
 	 */
 	rproc->cached_table = kmemdup(table, tablesz, GFP_KERNEL);
 	if (!rproc->cached_table)
