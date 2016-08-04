@@ -134,7 +134,7 @@ int ap_write_to_binary_file(struct acpi_table_header *table, u32 instance)
 	char filename[ACPI_NAME_SIZE + 16];
 	char instance_str[16];
 	ACPI_FILE file;
-	size_t actual;
+	acpi_size actual;
 	u32 table_length;
 
 	/* Obtain table length */
@@ -211,7 +211,7 @@ struct acpi_table_header *ap_get_table_from_file(char *pathname,
 	struct acpi_table_header *buffer = NULL;
 	ACPI_FILE file;
 	u32 file_size;
-	size_t actual;
+	acpi_size actual;
 
 	/* Must use binary mode */
 
