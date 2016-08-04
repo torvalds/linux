@@ -2574,7 +2574,7 @@ dealloc_counters:
 	return ret;
 }
 
-static const char const *names[] = {
+static const char * const names[] = {
 	"rx_write_requests",
 	"rx_read_requests",
 	"rx_atomic_requests",

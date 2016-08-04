@@ -2657,7 +2657,7 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 		struct mlx5_ib_port *mibport = &dev->port[port_num];
 
 		context->qp_counter_set_usr_page |=
-			cpu_to_be32(mibport->q_cnt_id << 16);
+			cpu_to_be32((u32)(mibport->q_cnt_id) << 24);
 	}
 
 	if (!ibqp->uobject && cur_state == IB_QPS_RESET && new_state == IB_QPS_INIT)
