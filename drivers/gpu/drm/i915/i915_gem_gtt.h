@@ -354,7 +354,6 @@ struct i915_ggtt {
 	size_t stolen_usable_size;	/* Total size minus BIOS reserved */
 	size_t stolen_reserved_base;
 	size_t stolen_reserved_size;
-	size_t size;			/* Total size of Global GTT */
 	u64 mappable_end;		/* End offset that we can CPU map */
 	struct io_mapping *mappable;	/* Mapping to our CPU mappable region */
 	phys_addr_t mappable_base;	/* PA of our GMADR */
@@ -365,8 +364,6 @@ struct i915_ggtt {
 	bool do_idle_maps;
 
 	int mtrr;
-
-	int (*probe)(struct i915_ggtt *ggtt);
 };
 
 struct i915_hw_ppgtt {

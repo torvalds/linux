@@ -2118,7 +2118,6 @@ static void i915_address_space_init(struct i915_address_space *vm,
 				    struct drm_i915_private *dev_priv)
 {
 	drm_mm_init(&vm->mm, vm->start, vm->total);
-	vm->dev = &dev_priv->drm;
 	INIT_LIST_HEAD(&vm->active_list);
 	INIT_LIST_HEAD(&vm->inactive_list);
 	list_add_tail(&vm->global_link, &dev_priv->vm_list);
@@ -2921,16 +2920,14 @@ static size_t gen9_get_stolen_size(u16 gen9_gmch_ctl)
 		return (gen9_gmch_ctl - 0xf0 + 1) << 22;
 }
 
-static int ggtt_probe_common(struct drm_i915_private *dev_priv, size_t gtt_size)
+static int ggtt_probe_common(struct i915_ggtt *ggtt, u64 size)
 {
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
-	struct pci_dev *pdev = dev_priv->drm.pdev;
+	struct pci_dev *pdev = ggtt->base.dev->pdev;
 	struct i915_page_scratch *scratch_page;
-	phys_addr_t ggtt_phys_addr;
+	phys_addr_t phys_addr;
 
 	/* For Modern GENs the PTEs and register space are split in the BAR */
-	ggtt_phys_addr = pci_resource_start(pdev, 0) +
-			 (pci_resource_len(pdev, 0) / 2);
+	phys_addr = pci_resource_start(pdev, 0) + pci_resource_len(pdev, 0) / 2;
 
 	/*
 	 * On BXT writes larger than 64 bit to the GTT pagetable range will be
@@ -2939,16 +2936,16 @@ static int ggtt_probe_common(struct drm_i915_private *dev_priv, size_t gtt_size)
 	 * resort to an uncached mapping. The WC issue is easily caught by the
 	 * readback check when writing GTT PTE entries.
 	 */
-	if (IS_BROXTON(dev_priv))
-		ggtt->gsm = ioremap_nocache(ggtt_phys_addr, gtt_size);
+	if (IS_BROXTON(ggtt->base.dev))
+		ggtt->gsm = ioremap_nocache(phys_addr, size);
 	else
-		ggtt->gsm = ioremap_wc(ggtt_phys_addr, gtt_size);
+		ggtt->gsm = ioremap_wc(phys_addr, size);
 	if (!ggtt->gsm) {
-		DRM_ERROR("Failed to map the gtt page table\n");
+		DRM_ERROR("Failed to map the ggtt page table\n");
 		return -ENOMEM;
 	}
 
-	scratch_page = alloc_scratch_page(&dev_priv->drm);
+	scratch_page = alloc_scratch_page(ggtt->base.dev);
 	if (IS_ERR(scratch_page)) {
 		DRM_ERROR("Scratch setup failed\n");
 		/* iounmap will also get called at remove, but meh */
@@ -3034,12 +3031,20 @@ static void chv_setup_private_ppat(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN8_PRIVATE_PAT_HI, pat >> 32);
 }
 
+static void gen6_gmch_remove(struct i915_address_space *vm)
+{
+	struct i915_ggtt *ggtt = i915_vm_to_ggtt(vm);
+
+	iounmap(ggtt->gsm);
+	free_scratch_page(vm->dev, vm->scratch_page);
+}
+
 static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 {
 	struct drm_i915_private *dev_priv = to_i915(ggtt->base.dev);
 	struct pci_dev *pdev = dev_priv->drm.pdev;
+	unsigned int size;
 	u16 snb_gmch_ctl;
-	int ret;
 
 	/* TODO: We're not aware of mappable constraints on gen8 yet */
 	ggtt->mappable_base = pci_resource_start(pdev, 2);
@@ -3052,24 +3057,23 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 
 	if (INTEL_GEN(dev_priv) >= 9) {
 		ggtt->stolen_size = gen9_get_stolen_size(snb_gmch_ctl);
-		ggtt->size = gen8_get_total_gtt_size(snb_gmch_ctl);
+		size = gen8_get_total_gtt_size(snb_gmch_ctl);
 	} else if (IS_CHERRYVIEW(dev_priv)) {
 		ggtt->stolen_size = chv_get_stolen_size(snb_gmch_ctl);
-		ggtt->size = chv_get_total_gtt_size(snb_gmch_ctl);
+		size = chv_get_total_gtt_size(snb_gmch_ctl);
 	} else {
 		ggtt->stolen_size = gen8_get_stolen_size(snb_gmch_ctl);
-		ggtt->size = gen8_get_total_gtt_size(snb_gmch_ctl);
+		size = gen8_get_total_gtt_size(snb_gmch_ctl);
 	}
 
-	ggtt->base.total = (ggtt->size / sizeof(gen8_pte_t)) << PAGE_SHIFT;
+	ggtt->base.total = (size / sizeof(gen8_pte_t)) << PAGE_SHIFT;
 
 	if (IS_CHERRYVIEW(dev_priv) || IS_BROXTON(dev_priv))
 		chv_setup_private_ppat(dev_priv);
 	else
 		bdw_setup_private_ppat(dev_priv);
 
-	ret = ggtt_probe_common(dev_priv, ggtt->size);
-
+	ggtt->base.cleanup = gen6_gmch_remove;
 	ggtt->base.bind_vma = ggtt_bind_vma;
 	ggtt->base.unbind_vma = ggtt_unbind_vma;
 	ggtt->base.insert_page = gen8_ggtt_insert_page;
@@ -3081,15 +3085,15 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 	if (IS_CHERRYVIEW(dev_priv))
 		ggtt->base.insert_entries = gen8_ggtt_insert_entries__BKL;
 
-	return ret;
+	return ggtt_probe_common(ggtt, size);
 }
 
 static int gen6_gmch_probe(struct i915_ggtt *ggtt)
 {
 	struct drm_i915_private *dev_priv = to_i915(ggtt->base.dev);
 	struct pci_dev *pdev = dev_priv->drm.pdev;
+	unsigned int size;
 	u16 snb_gmch_ctl;
-	int ret;
 
 	ggtt->mappable_base = pci_resource_start(pdev, 2);
 	ggtt->mappable_end = pci_resource_len(pdev, 2);
@@ -3097,7 +3101,7 @@ static int gen6_gmch_probe(struct i915_ggtt *ggtt)
 	/* 64/512MB is the current min/max we actually know of, but this is just
 	 * a coarse sanity check.
 	 */
-	if ((ggtt->mappable_end < (64<<20) || (ggtt->mappable_end > (512<<20)))) {
+	if (ggtt->mappable_end < (64<<20) || ggtt->mappable_end > (512<<20)) {
 		DRM_ERROR("Unknown GMADR size (%llx)\n", ggtt->mappable_end);
 		return -ENXIO;
 	}
@@ -3107,26 +3111,34 @@ static int gen6_gmch_probe(struct i915_ggtt *ggtt)
 	pci_read_config_word(pdev, SNB_GMCH_CTRL, &snb_gmch_ctl);
 
 	ggtt->stolen_size = gen6_get_stolen_size(snb_gmch_ctl);
-	ggtt->size = gen6_get_total_gtt_size(snb_gmch_ctl);
-	ggtt->base.total = (ggtt->size / sizeof(gen6_pte_t)) << PAGE_SHIFT;
 
-	ret = ggtt_probe_common(dev_priv, ggtt->size);
+	size = gen6_get_total_gtt_size(snb_gmch_ctl);
+	ggtt->base.total = (size / sizeof(gen6_pte_t)) << PAGE_SHIFT;
 
 	ggtt->base.clear_range = gen6_ggtt_clear_range;
 	ggtt->base.insert_page = gen6_ggtt_insert_page;
 	ggtt->base.insert_entries = gen6_ggtt_insert_entries;
 	ggtt->base.bind_vma = ggtt_bind_vma;
 	ggtt->base.unbind_vma = ggtt_unbind_vma;
+	ggtt->base.cleanup = gen6_gmch_remove;
 
-	return ret;
+	if (HAS_EDRAM(dev_priv))
+		ggtt->base.pte_encode = iris_pte_encode;
+	else if (IS_HASWELL(dev_priv))
+		ggtt->base.pte_encode = hsw_pte_encode;
+	else if (IS_VALLEYVIEW(dev_priv))
+		ggtt->base.pte_encode = byt_pte_encode;
+	else if (INTEL_GEN(dev_priv) >= 7)
+		ggtt->base.pte_encode = ivb_pte_encode;
+	else
+		ggtt->base.pte_encode = snb_pte_encode;
+
+	return ggtt_probe_common(ggtt, size);
 }
 
-static void gen6_gmch_remove(struct i915_address_space *vm)
+static void i915_gmch_remove(struct i915_address_space *vm)
 {
-	struct i915_ggtt *ggtt = container_of(vm, struct i915_ggtt, base);
-
-	iounmap(ggtt->gsm);
-	free_scratch_page(vm->dev, vm->scratch_page);
+	intel_gmch_remove();
 }
 
 static int i915_gmch_probe(struct i915_ggtt *ggtt)
@@ -3149,16 +3161,12 @@ static int i915_gmch_probe(struct i915_ggtt *ggtt)
 	ggtt->base.clear_range = i915_ggtt_clear_range;
 	ggtt->base.bind_vma = ggtt_bind_vma;
 	ggtt->base.unbind_vma = ggtt_unbind_vma;
+	ggtt->base.cleanup = i915_gmch_remove;
 
 	if (unlikely(ggtt->do_idle_maps))
 		DRM_INFO("applying Ironlake quirks for intel_iommu\n");
 
 	return 0;
-}
-
-static void i915_gmch_remove(struct i915_address_space *vm)
-{
-	intel_gmch_remove();
 }
 
 /**
@@ -3170,32 +3178,15 @@ int i915_ggtt_probe_hw(struct drm_i915_private *dev_priv)
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	int ret;
 
-	if (INTEL_GEN(dev_priv) <= 5) {
-		ggtt->probe = i915_gmch_probe;
-		ggtt->base.cleanup = i915_gmch_remove;
-	} else if (INTEL_GEN(dev_priv) < 8) {
-		ggtt->probe = gen6_gmch_probe;
-		ggtt->base.cleanup = gen6_gmch_remove;
-
-		if (HAS_EDRAM(dev_priv))
-			ggtt->base.pte_encode = iris_pte_encode;
-		else if (IS_HASWELL(dev_priv))
-			ggtt->base.pte_encode = hsw_pte_encode;
-		else if (IS_VALLEYVIEW(dev_priv))
-			ggtt->base.pte_encode = byt_pte_encode;
-		else if (INTEL_GEN(dev_priv) >= 7)
-			ggtt->base.pte_encode = ivb_pte_encode;
-		else
-			ggtt->base.pte_encode = snb_pte_encode;
-	} else {
-		ggtt->probe = gen8_gmch_probe;
-		ggtt->base.cleanup = gen6_gmch_remove;
-	}
-
 	ggtt->base.dev = &dev_priv->drm;
 	ggtt->base.is_ggtt = true;
 
-	ret = ggtt->probe(ggtt);
+	if (INTEL_GEN(dev_priv) <= 5)
+		ret = i915_gmch_probe(ggtt);
+	else if (INTEL_GEN(dev_priv) < 8)
+		ret = gen6_gmch_probe(ggtt);
+	else
+		ret = gen8_gmch_probe(ggtt);
 	if (ret)
 		return ret;
 
