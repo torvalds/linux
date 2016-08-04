@@ -255,6 +255,81 @@ int snd_hdac_bus_get_response(struct hdac_bus *bus, unsigned int addr,
 }
 EXPORT_SYMBOL_GPL(snd_hdac_bus_get_response);
 
+#define HDAC_MAX_CAPS 10
+/**
+ * snd_hdac_bus_parse_capabilities - parse capability structure
+ * @bus: the pointer to bus object
+ *
+ * Returns 0 if successful, or a negative error code.
+ */
+int snd_hdac_bus_parse_capabilities(struct hdac_bus *bus)
+{
+	unsigned int cur_cap;
+	unsigned int offset;
+	unsigned int counter = 0;
+
+	offset = snd_hdac_chip_readl(bus, LLCH);
+
+	/* Lets walk the linked capabilities list */
+	do {
+		cur_cap = _snd_hdac_chip_read(l, bus, offset);
+
+		dev_dbg(bus->dev, "Capability version: 0x%x\n",
+			(cur_cap & AZX_CAP_HDR_VER_MASK) >> AZX_CAP_HDR_VER_OFF);
+
+		dev_dbg(bus->dev, "HDA capability ID: 0x%x\n",
+			(cur_cap & AZX_CAP_HDR_ID_MASK) >> AZX_CAP_HDR_ID_OFF);
+
+		switch ((cur_cap & AZX_CAP_HDR_ID_MASK) >> AZX_CAP_HDR_ID_OFF) {
+		case AZX_ML_CAP_ID:
+			dev_dbg(bus->dev, "Found ML capability\n");
+			bus->mlcap = bus->remap_addr + offset;
+			break;
+
+		case AZX_GTS_CAP_ID:
+			dev_dbg(bus->dev, "Found GTS capability offset=%x\n", offset);
+			bus->gtscap = bus->remap_addr + offset;
+			break;
+
+		case AZX_PP_CAP_ID:
+			/* PP capability found, the Audio DSP is present */
+			dev_dbg(bus->dev, "Found PP capability offset=%x\n", offset);
+			bus->ppcap = bus->remap_addr + offset;
+			break;
+
+		case AZX_SPB_CAP_ID:
+			/* SPIB capability found, handler function */
+			dev_dbg(bus->dev, "Found SPB capability\n");
+			bus->spbcap = bus->remap_addr + offset;
+			break;
+
+		case AZX_DRSM_CAP_ID:
+			/* DMA resume  capability found, handler function */
+			dev_dbg(bus->dev, "Found DRSM capability\n");
+			bus->drsmcap = bus->remap_addr + offset;
+			break;
+
+		default:
+			dev_dbg(bus->dev, "Unknown capability %d\n", cur_cap);
+			break;
+		}
+
+		counter++;
+
+		if (counter > HDAC_MAX_CAPS) {
+			dev_err(bus->dev, "We exceeded HDAC capabilities!!!\n");
+			break;
+		}
+
+		/* read the offset of next capability */
+		offset = cur_cap & AZX_CAP_HDR_NXT_PTR_MASK;
+
+	} while (offset);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_hdac_bus_parse_capabilities);
+
 /*
  * Lowlevel interface
  */
