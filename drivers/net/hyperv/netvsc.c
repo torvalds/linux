@@ -472,8 +472,12 @@ static int negotiate_nvsp_ver(struct hv_device *device,
 	init_packet->msg.v2_msg.send_ndis_config.mtu = ndev->mtu + ETH_HLEN;
 	init_packet->msg.v2_msg.send_ndis_config.capability.ieee8021q = 1;
 
-	if (nvsp_ver >= NVSP_PROTOCOL_VERSION_5)
+	if (nvsp_ver >= NVSP_PROTOCOL_VERSION_5) {
 		init_packet->msg.v2_msg.send_ndis_config.capability.sriov = 1;
+
+		/* Teaming bit is needed to receive link speed updates */
+		init_packet->msg.v2_msg.send_ndis_config.capability.teaming = 1;
+	}
 
 	ret = vmbus_sendpacket(device->channel, init_packet,
 				sizeof(struct nvsp_message),

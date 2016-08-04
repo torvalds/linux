@@ -490,6 +490,7 @@ struct nvsp_2_vsc_capability {
 			u64 sriov:1;
 			u64 ieee8021q:1;
 			u64 correlation_id:1;
+			u64 teaming:1;
 		};
 	};
 } __packed;

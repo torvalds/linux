@@ -579,18 +579,31 @@ void netvsc_linkstatus_callback(struct hv_device *device_obj,
 	struct netvsc_reconfig *event;
 	unsigned long flags;
 
-	/* Handle link change statuses only */
+	net = hv_get_drvdata(device_obj);
+
+	if (!net)
+		return;
+
+	ndev_ctx = netdev_priv(net);
+
+	/* Update the physical link speed when changing to another vSwitch */
+	if (indicate->status == RNDIS_STATUS_LINK_SPEED_CHANGE) {
+		u32 speed;
+
+		speed = *(u32 *)((void *)indicate + indicate->
+				 status_buf_offset) / 10000;
+		ndev_ctx->speed = speed;
+		return;
+	}
+
+	/* Handle these link change statuses below */
 	if (indicate->status != RNDIS_STATUS_NETWORK_CHANGE &&
 	    indicate->status != RNDIS_STATUS_MEDIA_CONNECT &&
 	    indicate->status != RNDIS_STATUS_MEDIA_DISCONNECT)
 		return;
 
-	net = hv_get_drvdata(device_obj);
-
-	if (!net || net->reg_state != NETREG_REGISTERED)
+	if (net->reg_state != NETREG_REGISTERED)
 		return;
-
-	ndev_ctx = netdev_priv(net);
 
 	event = kzalloc(sizeof(*event), GFP_ATOMIC);
 	if (!event)
