@@ -19,6 +19,7 @@ Required properties:
            or:  "edt,edt-ft5306"
            or:  "edt,edt-ft5406"
            or:  "edt,edt-ft5506"
+           or:  "focaltech,ft6236"
 
  - reg:         I2C slave address of the chip (0x38)
  - interrupt-parent: a phandle pointing to the interrupt controller
@@ -43,6 +44,13 @@ Optional properties:
 
  - offset:      allows setting the edge compensation in the range from
                 0 to 31.
+ - touchscreen-size-x	   : See touchscreen.txt
+ - touchscreen-size-y	   : See touchscreen.txt
+ - touchscreen-fuzz-x      : See touchscreen.txt
+ - touchscreen-fuzz-y      : See touchscreen.txt
+ - touchscreen-inverted-x  : See touchscreen.txt
+ - touchscreen-inverted-y  : See touchscreen.txt
+ - touchscreen-swapped-x-y : See touchscreen.txt
 
 Example:
 	polytouch: edt-ft5x06@38 {
