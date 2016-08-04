@@ -781,8 +781,6 @@ i915_gem_execbuffer_reserve(struct intel_engine_cs *engine,
 	bool has_fenced_gpu_access = INTEL_GEN(engine->i915) < 4;
 	int retry;
 
-	i915_gem_retire_requests_ring(engine);
-
 	vm = list_first_entry(vmas, struct i915_vma, exec_list)->vm;
 
 	INIT_LIST_HEAD(&ordered_vmas);

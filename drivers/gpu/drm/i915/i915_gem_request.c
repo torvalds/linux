@@ -732,7 +732,7 @@ complete:
 	return ret;
 }
 
-void i915_gem_retire_requests_ring(struct intel_engine_cs *engine)
+static void engine_retire_requests(struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_request *request, *next;
 
@@ -756,7 +756,7 @@ void i915_gem_retire_requests(struct drm_i915_private *dev_priv)
 	GEM_BUG_ON(!dev_priv->gt.awake);
 
 	for_each_engine(engine, dev_priv) {
-		i915_gem_retire_requests_ring(engine);
+		engine_retire_requests(engine);
 		if (list_empty(&engine->request_list))
 			dev_priv->gt.active_engines &= ~intel_engine_flag(engine);
 	}
