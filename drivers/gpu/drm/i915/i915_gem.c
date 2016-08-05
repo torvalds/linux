@@ -3883,11 +3883,6 @@ i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 		goto unlock;
 	}
 
-	if (i915_gem_obj_is_pinned(obj)) {
-		ret = -EINVAL;
-		goto out;
-	}
-
 	if (obj->pages &&
 	    obj->tiling_mode != I915_TILING_NONE &&
 	    dev_priv->quirks & QUIRK_PIN_SWIZZLED_PAGES) {
@@ -3906,7 +3901,6 @@ i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 
 	args->retained = obj->madv != __I915_MADV_PURGED;
 
-out:
 	i915_gem_object_put(obj);
 unlock:
 	mutex_unlock(&dev->struct_mutex);
