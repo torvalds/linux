@@ -1641,9 +1641,6 @@ static void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
 
 		intel_ddi_init_dp_buf_reg(intel_encoder);
 
-		WARN_ON(intel_dp->active_streams != 0);
-		intel_dp->active_streams++;
-
 		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
 		intel_dp_start_link_train(intel_dp);
 		if (port != PORT_A || INTEL_INFO(dev_priv)->gen >= 9)
@@ -1769,13 +1766,6 @@ static void intel_disable_ddi(struct intel_encoder *intel_encoder)
 		intel_edp_drrs_disable(intel_dp);
 		intel_psr_disable(intel_dp);
 		intel_edp_backlight_off(intel_dp);
-	}
-
-	if (type == INTEL_OUTPUT_DP || type == INTEL_OUTPUT_EDP) {
-		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-
-		intel_dp->active_streams--;
-		WARN_ON(intel_dp->active_streams != 0);
 	}
 }
 
