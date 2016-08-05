@@ -170,8 +170,10 @@ static struct map *kernel_get_module_map(const char *module)
 		module = "kernel";
 
 	for (pos = maps__first(maps); pos; pos = map__next(pos)) {
+		/* short_name is "[module]" */
 		if (strncmp(pos->dso->short_name + 1, module,
-			    pos->dso->short_name_len - 2) == 0) {
+			    pos->dso->short_name_len - 2) == 0 &&
+		    module[pos->dso->short_name_len - 2] == '\0') {
 			return pos;
 		}
 	}
