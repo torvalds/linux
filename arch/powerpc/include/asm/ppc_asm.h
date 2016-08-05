@@ -511,7 +511,6 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
 #endif
 #define MTMSRD(r)	mtmsr	r
 #define MTMSR_EERI(reg)	mtmsr	reg
-#define CLR_TOP32(r)
 #endif
 
 #endif /* __KERNEL__ */
