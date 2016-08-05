@@ -70,6 +70,7 @@
 #define EXTCON_DISP_DVI		42	/* Digital Visual Interface */
 #define EXTCON_DISP_VGA		43	/* Video Graphics Array */
 #define EXTCON_DISP_DP		44	/* Display Port */
+#define EXTCON_DISP_HMD		45	/* Head-Mounted Display */
 
 /* Miscellaneous external connector */
 #define EXTCON_DOCK		60
