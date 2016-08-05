@@ -1016,11 +1016,38 @@ static int img_hash_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int img_hash_suspend(struct device *dev)
+{
+	struct img_hash_dev *hdev = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(hdev->hash_clk);
+	clk_disable_unprepare(hdev->sys_clk);
+
+	return 0;
+}
+
+static int img_hash_resume(struct device *dev)
+{
+	struct img_hash_dev *hdev = dev_get_drvdata(dev);
+
+	clk_prepare_enable(hdev->hash_clk);
+	clk_prepare_enable(hdev->sys_clk);
+
+	return 0;
+}
+#endif /* CONFIG_PM_SLEEP */
+
+static const struct dev_pm_ops img_hash_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(img_hash_suspend, img_hash_resume)
+};
+
 static struct platform_driver img_hash_driver = {
 	.probe		= img_hash_probe,
 	.remove		= img_hash_remove,
 	.driver		= {
 		.name	= "img-hash-accelerator",
+		.pm	= &img_hash_pm_ops,
 		.of_match_table	= of_match_ptr(img_hash_match),
 	}
 };
