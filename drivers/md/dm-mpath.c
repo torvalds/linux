@@ -661,7 +661,7 @@ static int __multipath_map_bio(struct multipath *m, struct bio *bio, struct dm_m
 
 	bio->bi_error = 0;
 	bio->bi_bdev = pgpath->path.dev->bdev;
-	bio->bi_rw |= REQ_FAILFAST_TRANSPORT;
+	bio->bi_opf |= REQ_FAILFAST_TRANSPORT;
 
 	if (pgpath->pg->ps.type->start_io)
 		pgpath->pg->ps.type->start_io(&pgpath->pg->ps,

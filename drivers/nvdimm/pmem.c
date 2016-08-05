@@ -128,7 +128,7 @@ static blk_qc_t pmem_make_request(struct request_queue *q, struct bio *bio)
 	struct pmem_device *pmem = q->queuedata;
 	struct nd_region *nd_region = to_region(pmem);
 
-	if (bio->bi_rw & REQ_FLUSH)
+	if (bio->bi_opf & REQ_FLUSH)
 		nvdimm_flush(nd_region);
 
 	do_acct = nd_iostat_start(bio, &start);
@@ -144,7 +144,7 @@ static blk_qc_t pmem_make_request(struct request_queue *q, struct bio *bio)
 	if (do_acct)
 		nd_iostat_end(bio, start);
 
-	if (bio->bi_rw & REQ_FUA)
+	if (bio->bi_opf & REQ_FUA)
 		nvdimm_flush(nd_region);
 
 	bio_endio(bio);

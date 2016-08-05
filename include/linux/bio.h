@@ -95,7 +95,7 @@ static inline bool bio_is_rw(struct bio *bio)
 
 static inline bool bio_mergeable(struct bio *bio)
 {
-	if (bio->bi_rw & REQ_NOMERGE_FLAGS)
+	if (bio->bi_opf & REQ_NOMERGE_FLAGS)
 		return false;
 
 	return true;
@@ -318,7 +318,7 @@ struct bio_integrity_payload {
 
 static inline struct bio_integrity_payload *bio_integrity(struct bio *bio)
 {
-	if (bio->bi_rw & REQ_INTEGRITY)
+	if (bio->bi_opf & REQ_INTEGRITY)
 		return bio->bi_integrity;
 
 	return NULL;
