@@ -3161,7 +3161,8 @@ void intel_prepare_reset(struct drm_i915_private *dev_priv)
 	}
 
 	/* reset doesn't touch the display, but flips might get nuked anyway, */
-	if (INTEL_GEN(dev_priv) >= 5 || IS_G4X(dev_priv))
+	if (!i915.force_reset_modeset_test &&
+	    (INTEL_GEN(dev_priv) >= 5 || IS_G4X(dev_priv)))
 		return;
 
 	/*
@@ -3212,16 +3213,22 @@ void intel_finish_reset(struct drm_i915_private *dev_priv)
 
 	/* reset doesn't touch the display */
 	if (INTEL_GEN(dev_priv) >= 5 || IS_G4X(dev_priv)) {
-		/*
-		 * Flips in the rings have been nuked by the reset,
-		 * so update the base address of all primary
-		 * planes to the the last fb to make sure we're
-		 * showing the correct fb after a reset.
-		 *
-		 * FIXME: Atomic will make this obsolete since we won't schedule
-		 * CS-based flips (which might get lost in gpu resets) any more.
-		 */
-		intel_update_primary_planes(dev);
+		if (!state) {
+			/*
+			 * Flips in the rings have been nuked by the reset,
+			 * so update the base address of all primary
+			 * planes to the the last fb to make sure we're
+			 * showing the correct fb after a reset.
+			 *
+			 * FIXME: Atomic will make this obsolete since we won't schedule
+			 * CS-based flips (which might get lost in gpu resets) any more.
+			 */
+			intel_update_primary_planes(dev);
+		} else {
+			ret = __intel_display_resume(dev, state);
+			if (ret)
+				DRM_ERROR("Restoring old state failed with %i\n", ret);
+		}
 	} else {
 		/*
 		 * The display has been reset as well,
