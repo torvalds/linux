@@ -307,6 +307,11 @@ config MDIO_XGENE
 	  This module provides a driver for the MDIO busses found in the
 	  APM X-Gene SoC's.
 
+config MICROSEMI_PHY
+    tristate "Drivers for the Microsemi PHYs"
+    ---help---
+      Currently supports the VSC8531 and VSC8541 PHYs
+
 endif # PHYLIB
 
 config MICREL_KS8995MA
