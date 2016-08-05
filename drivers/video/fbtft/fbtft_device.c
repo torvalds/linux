@@ -406,6 +406,20 @@ static struct fbtft_device_display displays[] = {
 			.release = fbtft_device_pdev_release,
 			.platform_data = &(struct fbtft_platform_data) {
 				.gpios = (const struct fbtft_gpio []) {
+#if defined(CONFIG_MACH_MESON8B_ODROIDC)
+					{ "reset", 88 },
+					{ "dc", 101 },
+					{ "wr", 117 },
+					{ "cs", 87 },
+					{ "db00", 102 },
+					{ "db01", 103 },
+					{ "db02", 104 },
+					{ "db03", 105 },
+					{ "db04", 106 },
+					{ "db05", 107 },
+					{ "db06", 115 },
+					{ "db07", 116 },
+#else
 					{ "reset", 17 },
 					{ "dc", 1 },
 					{ "wr", 0 },
@@ -419,6 +433,7 @@ static struct fbtft_device_display displays[] = {
 					{ "db06", 8 },
 					{ "db07", 7 },
 					{ "led", 4 },
+#endif
 					{},
 				},
 			},

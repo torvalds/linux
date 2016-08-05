@@ -255,18 +255,15 @@ struct fbtft_par {
 	bool bgr;
 	void *extra;
 #if defined(CONFIG_MACH_MESON8B_ODROIDC)
-	void __iomem *regrd_gpiox;
-	void __iomem *regwr_gpiox;
-	void __iomem *regrd_gpioy;
-	void __iomem *regwr_gpioy;
+	void __iomem *reg_gpiox;
 #endif
 };
 
 #if defined(CONFIG_MACH_MESON8B_ODROIDC)
-	#define	ODROIDC1_GPIOX_REGIN	0xC1108038
-	#define	ODROIDC1_GPIOX_REGOUT	0xC1108034
-	#define	ODROIDC1_GPIOY_REGIN	0xC1108044
-	#define	ODROIDC1_GPIOY_REGOUT	0xC1108040
+	#define	ODROIDC1_GPIO_START	0xC1108030
+	#define	ODROIDC1_GPIOX_START	ODROIDC1_GPIO_START
+	#define	OFFSET_GPIOX_OUT	0x04
+	#define	OFFSET_GPIOX_IN		0x08
 #endif
 
 #define NUMARGS(...)  (sizeof((int[]){__VA_ARGS__})/sizeof(int))
@@ -300,6 +297,10 @@ extern int fbtft_write_gpio8_wr(struct fbtft_par *par, void *buf, size_t len);
 extern int fbtft_write_gpio16_wr(struct fbtft_par *par, void *buf, size_t len);
 extern int fbtft_write_gpio16_wr_latched(struct fbtft_par *par,
 	void *buf, size_t len);
+
+#if defined(CONFIG_MACH_MESON8B_ODROIDC)
+extern int fbtft_write_reg_wr(struct fbtft_par *par, void *buf, size_t len);
+#endif
 
 /* fbtft-bus.c */
 extern int fbtft_write_vmem8_bus8(struct fbtft_par *par, size_t offset, size_t len);

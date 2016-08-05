@@ -132,6 +132,22 @@ static int ssd1351_init[] = { -1,0xfd,0x12,-1,0xfd,0xb1,-1,0xae,-1,0xb3,0xf1,-1,
                               -1,0xab,0x01,-1,0xb1,0x32,-1,0xb4,0xa0,0xb5,0x55,-1,0xbb,0x17,-1,0xbe,0x05, \
                               -1,0xc1,0xc8,0x80,0xc8,-1,0xc7,0x0f,-1,0xb6,0x01,-1,0xa6,-1,0xaf,-3 };
 
+#if defined(CONFIG_MACH_MESON8B_ODROIDC)
+static int ili9488_init[] = { \
+-1, 0xB0,0x00, \
+-1, 0x11, \
+-2,  120, \
+-1, 0x3A,0x55, \
+-1, 0xC2,0x33, \
+-1, 0xC5,0x00,0x1E,0x80, \
+-1, 0x36,0x28, \
+-1, 0xB1,0xB0, \
+-1, 0xE0,0x00,0x04,0x0E,0x08,0x17,0x0A,0x40,0x79,0x4D,0x07,0x0E,0x0A,0x1A,0x1D,0x0F, \
+-1, 0xE1,0x00,0x1B,0x1F,0x02,0x10,0x05,0x32,0x34,0x43,0x02,0x0A,0x09,0x33,0x37,0x0F, \
+-1, 0x11, \
+-1, 0x29, \
+-3 };
+#endif
 
 /* ili9320, ili9325 */
 static void flexfb_set_addr_win_1(struct fbtft_par *par, int xs, int ys, int xe, int ye)
@@ -337,7 +353,20 @@ static int flexfb_probe_common(struct spi_device *sdev, struct platform_device *
 				initp = ili9341_init;
 				initp_num = ARRAY_SIZE(ili9341_init);
 			}
-
+#if defined(CONFIG_MACH_MESON8B_ODROIDC)
+		} else if (!strcmp(chip, "ili9488")) {
+			if (!width)
+				width = 480;
+			if (!height)
+				height = 320;
+			setaddrwin = 0;
+			regwidth = 8;
+			buswidth = 8;
+			if (init_num == 0) {
+				initp = ili9488_init;
+				initp_num = ARRAY_SIZE(ili9488_init);
+			}
+#endif
 
 		} else if (!strcmp(chip, "ssd1289")) {
 			if (!width)
@@ -491,17 +520,11 @@ static int flexfb_probe_common(struct spi_device *sdev, struct platform_device *
 		par->fbtftops.register_backlight = fbtft_register_backlight;
 
 #if defined(CONFIG_MACH_MESON8B_ODROIDC)
-	par->regrd_gpiox = ioremap(ODROIDC1_GPIOX_REGIN, 4);
-	par->regwr_gpiox = ioremap(ODROIDC1_GPIOX_REGOUT, 4);
-
-	par->regrd_gpioy = ioremap(ODROIDC1_GPIOY_REGIN, 4);
-	par->regwr_gpioy = ioremap(ODROIDC1_GPIOY_REGOUT, 4);
-
-	if ((par->regrd_gpiox == NULL) || (par->regwr_gpiox == NULL) ||
-	    (par->regrd_gpioy == NULL) || (par->regwr_gpioy == NULL)) {
-		pr_err("%s : ioremap gpio x/y register error!\n", __func__);
-		goto out_release;
-	}
+	par->reg_gpiox = ioremap(ODROIDC1_GPIOX_START, 64);
+	if (par->reg_gpiox == NULL)
+		pr_err("%s : ioremap gpiox register error!\n", __func__);
+	else
+		par->fbtftops.write = fbtft_write_reg_wr;
 #endif
 	ret = fbtft_register_framebuffer(info);
 	if (ret < 0)
@@ -526,10 +549,7 @@ static int flexfb_remove_common(struct device *dev, struct fb_info *info)
 		fbtft_par_dbg(DEBUG_DRIVER_INIT_FUNCTIONS, par,
 			"%s()\n", __func__);
 #if defined(CONFIG_MACH_MESON8B_ODROIDC)
-	if (par->regrd_gpiox)	iounmap(par->regrd_gpiox);
-	if (par->regwr_gpiox)	iounmap(par->regwr_gpiox);
-	if (par->regrd_gpioy)	iounmap(par->regrd_gpioy);
-	if (par->regwr_gpioy)	iounmap(par->regwr_gpioy);
+	if (par->reg_gpiox)	iounmap(par->reg_gpiox);
 #endif
 	fbtft_unregister_framebuffer(info);
 	fbtft_framebuffer_release(info);
