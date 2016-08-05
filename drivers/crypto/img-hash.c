@@ -71,6 +71,7 @@
 #define DRIVER_FLAGS_MD5		BIT(21)
 
 #define IMG_HASH_QUEUE_LENGTH		20
+#define IMG_HASH_DMA_BURST		4
 #define IMG_HASH_DMA_THRESHOLD		64
 
 #ifdef __LITTLE_ENDIAN
@@ -342,7 +343,7 @@ static int img_hash_dma_init(struct img_hash_dev *hdev)
 	dma_conf.direction = DMA_MEM_TO_DEV;
 	dma_conf.dst_addr = hdev->bus_addr;
 	dma_conf.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-	dma_conf.dst_maxburst = 16;
+	dma_conf.dst_maxburst = IMG_HASH_DMA_BURST;
 	dma_conf.device_fc = false;
 
 	err = dmaengine_slave_config(hdev->dma_lch,  &dma_conf);
