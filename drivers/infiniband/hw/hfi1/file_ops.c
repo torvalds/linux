@@ -228,7 +228,7 @@ static long hfi1_file_ioctl(struct file *fp, unsigned int cmd,
 				    sizeof(struct hfi1_base_info));
 		break;
 	case HFI1_IOCTL_CREDIT_UPD:
-		if (uctxt && uctxt->sc)
+		if (uctxt)
 			sc_return_credits(uctxt->sc);
 		break;
 

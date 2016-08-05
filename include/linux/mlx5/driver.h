@@ -46,6 +46,7 @@
 
 #include <linux/mlx5/device.h>
 #include <linux/mlx5/doorbell.h>
+#include <linux/mlx5/srq.h>
 
 enum {
 	MLX5_RQ_BITMASK_VSD = 1 << 1,
@@ -798,11 +799,10 @@ struct mlx5_cmd_mailbox *mlx5_alloc_cmd_mailbox_chain(struct mlx5_core_dev *dev,
 void mlx5_free_cmd_mailbox_chain(struct mlx5_core_dev *dev,
 				 struct mlx5_cmd_mailbox *head);
 int mlx5_core_create_srq(struct mlx5_core_dev *dev, struct mlx5_core_srq *srq,
-			 struct mlx5_create_srq_mbox_in *in, int inlen,
-			 int is_xrc);
+			 struct mlx5_srq_attr *in);
 int mlx5_core_destroy_srq(struct mlx5_core_dev *dev, struct mlx5_core_srq *srq);
 int mlx5_core_query_srq(struct mlx5_core_dev *dev, struct mlx5_core_srq *srq,
-			struct mlx5_query_srq_mbox_out *out);
+			struct mlx5_srq_attr *out);
 int mlx5_core_arm_srq(struct mlx5_core_dev *dev, struct mlx5_core_srq *srq,
 		      u16 lwm, int is_srq);
 void mlx5_init_mkey_table(struct mlx5_core_dev *dev);

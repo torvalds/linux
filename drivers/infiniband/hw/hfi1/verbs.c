@@ -1291,9 +1291,12 @@ int hfi1_verbs_send(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 static void hfi1_fill_device_attr(struct hfi1_devdata *dd)
 {
 	struct rvt_dev_info *rdi = &dd->verbs_dev.rdi;
+	u16 ver = dd->dc8051_ver;
 
 	memset(&rdi->dparms.props, 0, sizeof(rdi->dparms.props));
 
+	rdi->dparms.props.fw_ver = ((u64)(dc8051_ver_maj(ver)) << 16) |
+				    (u64)dc8051_ver_min(ver);
 	rdi->dparms.props.device_cap_flags = IB_DEVICE_BAD_PKEY_CNTR |
 			IB_DEVICE_BAD_QKEY_CNTR | IB_DEVICE_SHUTDOWN_PORT |
 			IB_DEVICE_SYS_IMAGE_GUID | IB_DEVICE_RC_RNR_NAK_GEN |
@@ -1567,6 +1570,17 @@ static void init_ibport(struct hfi1_pportdata *ppd)
 	RCU_INIT_POINTER(ibp->rvp.qp[1], NULL);
 }
 
+static void hfi1_get_dev_fw_str(struct ib_device *ibdev, char *str,
+				size_t str_len)
+{
+	struct rvt_dev_info *rdi = ib_to_rvt(ibdev);
+	struct hfi1_ibdev *dev = dev_from_rdi(rdi);
+	u16 ver = dd_from_dev(dev)->dc8051_ver;
+
+	snprintf(str, str_len, "%u.%u", dc8051_ver_maj(ver),
+		 dc8051_ver_min(ver));
+}
+
 /**
  * hfi1_register_ib_device - register our device with the infiniband core
  * @dd: the device data structure
@@ -1613,6 +1627,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 
 	/* keep process mad in the driver */
 	ibdev->process_mad = hfi1_process_mad;
+	ibdev->get_dev_fw_str = hfi1_get_dev_fw_str;
 
 	strncpy(ibdev->node_desc, init_utsname()->nodename,
 		sizeof(ibdev->node_desc));
