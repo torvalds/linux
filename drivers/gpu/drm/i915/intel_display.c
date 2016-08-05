@@ -3137,7 +3137,8 @@ __intel_display_resume(struct drm_device *dev,
 
 static bool gpu_reset_clobbers_display(struct drm_i915_private *dev_priv)
 {
-	return INTEL_GEN(dev_priv) < 5 && !IS_G4X(dev_priv);
+	return intel_has_gpu_reset(dev_priv) &&
+		INTEL_GEN(dev_priv) < 5 && !IS_G4X(dev_priv);
 }
 
 void intel_prepare_reset(struct drm_i915_private *dev_priv)
@@ -3146,10 +3147,6 @@ void intel_prepare_reset(struct drm_i915_private *dev_priv)
 	struct drm_modeset_acquire_ctx *ctx = &dev_priv->reset_ctx;
 	struct drm_atomic_state *state;
 	int ret;
-
-	/* no reset support for gen2 */
-	if (IS_GEN2(dev_priv))
-		return;
 
 	/*
 	 * Need mode_config.mutex so that we don't
@@ -3209,10 +3206,6 @@ void intel_finish_reset(struct drm_i915_private *dev_priv)
 	 * will get its events and not get stuck.
 	 */
 	intel_complete_page_flips(dev_priv);
-
-	/* no reset support for gen2 */
-	if (IS_GEN2(dev_priv))
-		return;
 
 	dev_priv->modeset_restore_state = NULL;
 
