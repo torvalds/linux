@@ -333,6 +333,7 @@ void rds_ib_conn_path_shutdown(struct rds_conn_path *cp);
 void rds_ib_state_change(struct sock *sk);
 int rds_ib_listen_init(void);
 void rds_ib_listen_stop(void);
+__printf(2, 3)
 void __rds_ib_conn_error(struct rds_connection *conn, const char *, ...);
 int rds_ib_cm_handle_connect(struct rdma_cm_id *cm_id,
 			     struct rdma_cm_event *event);
