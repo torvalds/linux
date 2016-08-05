@@ -82,24 +82,25 @@ struct tid_pageset {
 	       ((unsigned long)vaddr & PAGE_MASK)) >> PAGE_SHIFT))
 
 static void unlock_exp_tids(struct hfi1_ctxtdata *, struct exp_tid_set *,
-			    struct rb_root *);
+			    struct hfi1_filedata *);
 static u32 find_phys_blocks(struct page **, unsigned, struct tid_pageset *);
 static int set_rcvarray_entry(struct file *, unsigned long, u32,
 			      struct tid_group *, struct page **, unsigned);
-static int mmu_rb_insert(struct rb_root *, struct mmu_rb_node *);
-static void mmu_rb_remove(struct rb_root *, struct mmu_rb_node *,
-			  struct mm_struct *);
-static int mmu_rb_invalidate(struct rb_root *, struct mmu_rb_node *);
+static int tid_rb_insert(void *, struct mmu_rb_node *);
+static void cacheless_tid_rb_remove(struct hfi1_filedata *fdata,
+				    struct tid_rb_node *tnode);
+static void tid_rb_remove(void *, struct mmu_rb_node *);
+static int tid_rb_invalidate(void *, struct mmu_rb_node *);
 static int program_rcvarray(struct file *, unsigned long, struct tid_group *,
 			    struct tid_pageset *, unsigned, u16, struct page **,
 			    u32 *, unsigned *, unsigned *);
 static int unprogram_rcvarray(struct file *, u32, struct tid_group **);
-static void clear_tid_node(struct hfi1_filedata *, u16, struct tid_rb_node *);
+static void clear_tid_node(struct hfi1_filedata *fd, struct tid_rb_node *node);
 
 static struct mmu_rb_ops tid_rb_ops = {
-	.insert = mmu_rb_insert,
-	.remove = mmu_rb_remove,
-	.invalidate = mmu_rb_invalidate
+	.insert = tid_rb_insert,
+	.remove = tid_rb_remove,
+	.invalidate = tid_rb_invalidate
 };
 
 static inline u32 rcventry2tidinfo(u32 rcventry)
@@ -162,7 +163,6 @@ int hfi1_user_exp_rcv_init(struct file *fp)
 
 	spin_lock_init(&fd->tid_lock);
 	spin_lock_init(&fd->invalid_lock);
-	fd->tid_rb_root = RB_ROOT;
 
 	if (!uctxt->subctxt_cnt || !fd->subctxt) {
 		exp_tid_group_init(&uctxt->tid_group_list);
@@ -197,7 +197,7 @@ int hfi1_user_exp_rcv_init(struct file *fp)
 	if (!fd->entry_to_rb)
 		return -ENOMEM;
 
-	if (!HFI1_CAP_IS_USET(TID_UNMAP)) {
+	if (!HFI1_CAP_UGET_MASK(uctxt->flags, TID_UNMAP)) {
 		fd->invalid_tid_idx = 0;
 		fd->invalid_tids = kzalloc(uctxt->expected_count *
 					   sizeof(u32), GFP_KERNEL);
@@ -208,15 +208,15 @@ int hfi1_user_exp_rcv_init(struct file *fp)
 
 		/*
 		 * Register MMU notifier callbacks. If the registration
-		 * fails, continue but turn off the TID caching for
-		 * all user contexts.
+		 * fails, continue without TID caching for this context.
 		 */
-		ret = hfi1_mmu_rb_register(&fd->tid_rb_root, &tid_rb_ops);
+		ret = hfi1_mmu_rb_register(fd, fd->mm, &tid_rb_ops,
+					   dd->pport->hfi1_wq,
+					   &fd->handler);
 		if (ret) {
 			dd_dev_info(dd,
 				    "Failed MMU notifier registration %d\n",
 				    ret);
-			HFI1_CAP_USET(TID_UNMAP);
 			ret = 0;
 		}
 	}
@@ -235,7 +235,7 @@ int hfi1_user_exp_rcv_init(struct file *fp)
 	 * init.
 	 */
 	spin_lock(&fd->tid_lock);
-	if (uctxt->subctxt_cnt && !HFI1_CAP_IS_USET(TID_UNMAP)) {
+	if (uctxt->subctxt_cnt && fd->handler) {
 		u16 remainder;
 
 		fd->tid_limit = uctxt->expected_count / uctxt->subctxt_cnt;
@@ -261,18 +261,16 @@ int hfi1_user_exp_rcv_free(struct hfi1_filedata *fd)
 	 * The notifier would have been removed when the process'es mm
 	 * was freed.
 	 */
-	if (!HFI1_CAP_IS_USET(TID_UNMAP))
-		hfi1_mmu_rb_unregister(&fd->tid_rb_root);
+	if (fd->handler)
+		hfi1_mmu_rb_unregister(fd->handler);
 
 	kfree(fd->invalid_tids);
 
 	if (!uctxt->cnt) {
 		if (!EXP_TID_SET_EMPTY(uctxt->tid_full_list))
-			unlock_exp_tids(uctxt, &uctxt->tid_full_list,
-					&fd->tid_rb_root);
+			unlock_exp_tids(uctxt, &uctxt->tid_full_list, fd);
 		if (!EXP_TID_SET_EMPTY(uctxt->tid_used_list))
-			unlock_exp_tids(uctxt, &uctxt->tid_used_list,
-					&fd->tid_rb_root);
+			unlock_exp_tids(uctxt, &uctxt->tid_used_list, fd);
 		list_for_each_entry_safe(grp, gptr, &uctxt->tid_group_list.list,
 					 list) {
 			list_del_init(&grp->list);
@@ -399,12 +397,12 @@ int hfi1_user_exp_rcv_setup(struct file *fp, struct hfi1_tid_info *tinfo)
 	 * pages, accept the amount pinned so far and program only that.
 	 * User space knows how to deal with partially programmed buffers.
 	 */
-	if (!hfi1_can_pin_pages(dd, fd->tid_n_pinned, npages)) {
+	if (!hfi1_can_pin_pages(dd, fd->mm, fd->tid_n_pinned, npages)) {
 		ret = -ENOMEM;
 		goto bail;
 	}
 
-	pinned = hfi1_acquire_user_pages(vaddr, npages, true, pages);
+	pinned = hfi1_acquire_user_pages(fd->mm, vaddr, npages, true, pages);
 	if (pinned <= 0) {
 		ret = pinned;
 		goto bail;
@@ -559,7 +557,7 @@ nomem:
 	 * for example), unpin all unmapped pages so we can pin them nex time.
 	 */
 	if (mapped_pages != pinned) {
-		hfi1_release_user_pages(current->mm, &pages[mapped_pages],
+		hfi1_release_user_pages(fd->mm, &pages[mapped_pages],
 					pinned - mapped_pages,
 					false);
 		fd->tid_n_pinned -= pinned - mapped_pages;
@@ -829,7 +827,6 @@ static int set_rcvarray_entry(struct file *fp, unsigned long vaddr,
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	struct tid_rb_node *node;
 	struct hfi1_devdata *dd = uctxt->dd;
-	struct rb_root *root = &fd->tid_rb_root;
 	dma_addr_t phys;
 
 	/*
@@ -861,10 +858,10 @@ static int set_rcvarray_entry(struct file *fp, unsigned long vaddr,
 	node->freed = false;
 	memcpy(node->pages, pages, sizeof(struct page *) * npages);
 
-	if (HFI1_CAP_IS_USET(TID_UNMAP))
-		ret = mmu_rb_insert(root, &node->mmu);
+	if (!fd->handler)
+		ret = tid_rb_insert(fd, &node->mmu);
 	else
-		ret = hfi1_mmu_rb_insert(root, &node->mmu);
+		ret = hfi1_mmu_rb_insert(fd->handler, &node->mmu);
 
 	if (ret) {
 		hfi1_cdbg(TID, "Failed to insert RB node %u 0x%lx, 0x%lx %d",
@@ -904,19 +901,19 @@ static int unprogram_rcvarray(struct file *fp, u32 tidinfo,
 	node = fd->entry_to_rb[rcventry];
 	if (!node || node->rcventry != (uctxt->expected_base + rcventry))
 		return -EBADF;
-	if (HFI1_CAP_IS_USET(TID_UNMAP))
-		mmu_rb_remove(&fd->tid_rb_root, &node->mmu, NULL);
-	else
-		hfi1_mmu_rb_remove(&fd->tid_rb_root, &node->mmu);
 
 	if (grp)
 		*grp = node->grp;
-	clear_tid_node(fd, fd->subctxt, node);
+
+	if (!fd->handler)
+		cacheless_tid_rb_remove(fd, node);
+	else
+		hfi1_mmu_rb_remove(fd->handler, &node->mmu);
+
 	return 0;
 }
 
-static void clear_tid_node(struct hfi1_filedata *fd, u16 subctxt,
-			   struct tid_rb_node *node)
+static void clear_tid_node(struct hfi1_filedata *fd, struct tid_rb_node *node)
 {
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	struct hfi1_devdata *dd = uctxt->dd;
@@ -934,7 +931,7 @@ static void clear_tid_node(struct hfi1_filedata *fd, u16 subctxt,
 
 	pci_unmap_single(dd->pcidev, node->dma_addr, node->mmu.len,
 			 PCI_DMA_FROMDEVICE);
-	hfi1_release_user_pages(current->mm, node->pages, node->npages, true);
+	hfi1_release_user_pages(fd->mm, node->pages, node->npages, true);
 	fd->tid_n_pinned -= node->npages;
 
 	node->grp->used--;
@@ -949,12 +946,15 @@ static void clear_tid_node(struct hfi1_filedata *fd, u16 subctxt,
 	kfree(node);
 }
 
+/*
+ * As a simple helper for hfi1_user_exp_rcv_free, this function deals with
+ * clearing nodes in the non-cached case.
+ */
 static void unlock_exp_tids(struct hfi1_ctxtdata *uctxt,
-			    struct exp_tid_set *set, struct rb_root *root)
+			    struct exp_tid_set *set,
+			    struct hfi1_filedata *fd)
 {
 	struct tid_group *grp, *ptr;
-	struct hfi1_filedata *fd = container_of(root, struct hfi1_filedata,
-						tid_rb_root);
 	int i;
 
 	list_for_each_entry_safe(grp, ptr, &set->list, list) {
@@ -969,22 +969,23 @@ static void unlock_exp_tids(struct hfi1_ctxtdata *uctxt,
 							  uctxt->expected_base];
 				if (!node || node->rcventry != rcventry)
 					continue;
-				if (HFI1_CAP_IS_USET(TID_UNMAP))
-					mmu_rb_remove(&fd->tid_rb_root,
-						      &node->mmu, NULL);
-				else
-					hfi1_mmu_rb_remove(&fd->tid_rb_root,
-							   &node->mmu);
-				clear_tid_node(fd, -1, node);
+
+				cacheless_tid_rb_remove(fd, node);
 			}
 		}
 	}
 }
 
-static int mmu_rb_invalidate(struct rb_root *root, struct mmu_rb_node *mnode)
+/*
+ * Always return 0 from this function.  A non-zero return indicates that the
+ * remove operation will be called and that memory should be unpinned.
+ * However, the driver cannot unpin out from under PSM.  Instead, retain the
+ * memory (by returning 0) and inform PSM that the memory is going away.  PSM
+ * will call back later when it has removed the memory from its list.
+ */
+static int tid_rb_invalidate(void *arg, struct mmu_rb_node *mnode)
 {
-	struct hfi1_filedata *fdata =
-		container_of(root, struct hfi1_filedata, tid_rb_root);
+	struct hfi1_filedata *fdata = arg;
 	struct hfi1_ctxtdata *uctxt = fdata->uctxt;
 	struct tid_rb_node *node =
 		container_of(mnode, struct tid_rb_node, mmu);
@@ -1025,10 +1026,9 @@ static int mmu_rb_invalidate(struct rb_root *root, struct mmu_rb_node *mnode)
 	return 0;
 }
 
-static int mmu_rb_insert(struct rb_root *root, struct mmu_rb_node *node)
+static int tid_rb_insert(void *arg, struct mmu_rb_node *node)
 {
-	struct hfi1_filedata *fdata =
-		container_of(root, struct hfi1_filedata, tid_rb_root);
+	struct hfi1_filedata *fdata = arg;
 	struct tid_rb_node *tnode =
 		container_of(node, struct tid_rb_node, mmu);
 	u32 base = fdata->uctxt->expected_base;
@@ -1037,14 +1037,20 @@ static int mmu_rb_insert(struct rb_root *root, struct mmu_rb_node *node)
 	return 0;
 }
 
-static void mmu_rb_remove(struct rb_root *root, struct mmu_rb_node *node,
-			  struct mm_struct *mm)
+static void cacheless_tid_rb_remove(struct hfi1_filedata *fdata,
+				    struct tid_rb_node *tnode)
 {
-	struct hfi1_filedata *fdata =
-		container_of(root, struct hfi1_filedata, tid_rb_root);
-	struct tid_rb_node *tnode =
-		container_of(node, struct tid_rb_node, mmu);
 	u32 base = fdata->uctxt->expected_base;
 
 	fdata->entry_to_rb[tnode->rcventry - base] = NULL;
+	clear_tid_node(fdata, tnode);
+}
+
+static void tid_rb_remove(void *arg, struct mmu_rb_node *node)
+{
+	struct hfi1_filedata *fdata = arg;
+	struct tid_rb_node *tnode =
+		container_of(node, struct tid_rb_node, mmu);
+
+	cacheless_tid_rb_remove(fdata, tnode);
 }

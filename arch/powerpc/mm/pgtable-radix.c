@@ -171,7 +171,7 @@ redo:
 	 * of process table here. But our linear mapping also enable us to use
 	 * physical address here.
 	 */
-	ppc_md.register_process_table(__pa(process_tb), 0, PRTB_SIZE_SHIFT - 12);
+	register_process_table(__pa(process_tb), 0, PRTB_SIZE_SHIFT - 12);
 	pr_info("Process table %p and radix root for kernel: %p\n", process_tb, init_mm.pgd);
 }
 
@@ -198,7 +198,7 @@ static void __init radix_init_partition_table(void)
 
 void __init radix_init_native(void)
 {
-	ppc_md.register_process_table = native_register_process_table;
+	register_process_table = native_register_process_table;
 }
 
 static int __init get_idx_from_shift(unsigned int shift)
@@ -264,7 +264,7 @@ static int __init radix_dt_scan_page_sizes(unsigned long node,
 	return 1;
 }
 
-static void __init radix_init_page_sizes(void)
+void __init radix__early_init_devtree(void)
 {
 	int rc;
 
@@ -343,7 +343,6 @@ void __init radix__early_init_mmu(void)
 	__pte_frag_nr = H_PTE_FRAG_NR;
 	__pte_frag_size_shift = H_PTE_FRAG_SIZE_SHIFT;
 
-	radix_init_page_sizes();
 	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
 		radix_init_native();
 		lpcr = mfspr(SPRN_LPCR);

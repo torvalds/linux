@@ -1648,7 +1648,8 @@ F:	arch/arm/mach-s5pv210/
 
 ARM/SAMSUNG S5P SERIES 2D GRAPHICS ACCELERATION (G2D) SUPPORT
 M:	Kyungmin Park <kyungmin.park@samsung.com>
-M:	Kamil Debski <k.debski@samsung.com>
+M:	Kamil Debski <kamil@wypas.org>
+M:	Andrzej Hajda <a.hajda@samsung.com>
 L:	linux-arm-kernel@lists.infradead.org
 L:	linux-media@vger.kernel.org
 S:	Maintained
@@ -1656,8 +1657,9 @@ F:	drivers/media/platform/s5p-g2d/
 
 ARM/SAMSUNG S5P SERIES Multi Format Codec (MFC) SUPPORT
 M:	Kyungmin Park <kyungmin.park@samsung.com>
-M:	Kamil Debski <k.debski@samsung.com>
+M:	Kamil Debski <kamil@wypas.org>
 M:	Jeongtae Park <jtp.park@samsung.com>
+M:	Andrzej Hajda <a.hajda@samsung.com>
 L:	linux-arm-kernel@lists.infradead.org
 L:	linux-media@vger.kernel.org
 S:	Maintained
@@ -3217,7 +3219,7 @@ M:	Johannes Weiner <hannes@cmpxchg.org>
 L:	cgroups@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tj/cgroup.git
 S:	Maintained
-F:	Documentation/cgroups/
+F:	Documentation/cgroup*
 F:	include/linux/cgroup*
 F:	kernel/cgroup*
 
@@ -3228,7 +3230,7 @@ W:	http://www.bullopensource.org/cpuset/
 W:	http://oss.sgi.com/projects/cpusets/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tj/cgroup.git
 S:	Maintained
-F:	Documentation/cgroups/cpusets.txt
+F:	Documentation/cgroup-v1/cpusets.txt
 F:	include/linux/cpuset.h
 F:	kernel/cpuset.c
 
@@ -5829,7 +5831,15 @@ M:	Tyrel Datwyler <tyreld@linux.vnet.ibm.com>
 L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	drivers/scsi/ibmvscsi/ibmvscsi*
-F:	drivers/scsi/ibmvscsi/viosrp.h
+F:	include/scsi/viosrp.h
+
+IBM Power Virtual SCSI Device Target Driver
+M:	Bryant G. Ly <bryantly@linux.vnet.ibm.com>
+M:	Michael Cyr <mikecyr@linux.vnet.ibm.com>
+L:	linux-scsi@vger.kernel.org
+L:	target-devel@vger.kernel.org
+S:	Supported
+F:	drivers/scsi/ibmvscsi_tgt/
 
 IBM Power Virtual FC Device Drivers
 M:	Tyrel Datwyler <tyreld@linux.vnet.ibm.com>
@@ -7636,6 +7646,15 @@ S:	Supported
 W:	http://www.mellanox.com
 Q:	http://patchwork.ozlabs.org/project/netdev/list/
 F:	drivers/net/ethernet/mellanox/mlxsw/
+
+SOFT-ROCE DRIVER (rxe)
+M:	Moni Shoua <monis@mellanox.com>
+L:	linux-rdma@vger.kernel.org
+S:	Supported
+W:	https://github.com/SoftRoCE/rxe-dev/wiki/rxe-dev:-Home
+Q:	http://patchwork.kernel.org/project/linux-rdma/list/
+F:	drivers/infiniband/hw/rxe/
+F:	include/uapi/rdma/rdma_user_rxe.h
 
 MEMBARRIER SUPPORT
 M:	Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
@@ -9470,7 +9489,8 @@ S:	Odd Fixes
 F:	drivers/media/usb/pwc/*
 
 PWM FAN DRIVER
-M:	Kamil Debski <k.debski@samsung.com>
+M:	Kamil Debski <kamil@wypas.org>
+M:	Lukasz Majewski <l.majewski@samsung.com>
 L:	linux-hwmon@vger.kernel.org
 S:	Supported
 F:	Documentation/devicetree/bindings/hwmon/pwm-fan.txt
@@ -9808,10 +9828,14 @@ L:	rtc-linux@googlegroups.com
 Q:	http://patchwork.ozlabs.org/project/rtc-linux/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/abelloni/linux.git
 S:	Maintained
+F:	Documentation/devicetree/bindings/rtc/
 F:	Documentation/rtc.txt
 F:	drivers/rtc/
 F:	include/linux/rtc.h
 F:	include/uapi/linux/rtc.h
+F:	include/linux/rtc/
+F:	include/linux/platform_data/rtc-*
+F:	tools/testing/selftests/timers/rtctest.c
 
 REALTEK AUDIO CODECS
 M:	Bard Liao <bardliao@realtek.com>
@@ -10218,7 +10242,8 @@ T:	git https://github.com/lmajewski/linux-samsung-thermal.git
 F:	drivers/thermal/samsung/
 
 SAMSUNG USB2 PHY DRIVER
-M:	Kamil Debski <k.debski@samsung.com>
+M:	Kamil Debski <kamil@wypas.org>
+M:	Sylwester Nawrocki <s.nawrocki@samsung.com>
 L:	linux-kernel@vger.kernel.org
 S:	Supported
 F:	Documentation/devicetree/bindings/phy/samsung-phy.txt

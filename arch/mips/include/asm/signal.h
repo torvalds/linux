@@ -19,8 +19,8 @@ extern struct mips_abi mips_abi_32;
 		((ka)->sa.sa_flags & SA_SIGINFO))
 #else
 #define sig_uses_siginfo(ka, abi)                               \
-	(config_enabled(CONFIG_64BIT) ? 1 :                     \
-		(config_enabled(CONFIG_TRAD_SIGNALS) ?          \
+	(IS_ENABLED(CONFIG_64BIT) ? 1 :                     \
+		(IS_ENABLED(CONFIG_TRAD_SIGNALS) ?          \
 			((ka)->sa.sa_flags & SA_SIGINFO) : 1) )
 #endif
 

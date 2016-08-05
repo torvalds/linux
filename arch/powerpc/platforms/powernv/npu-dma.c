@@ -73,7 +73,7 @@ EXPORT_SYMBOL(pnv_pci_get_npu_dev);
 
 static void *dma_npu_alloc(struct device *dev, size_t size,
 			   dma_addr_t *dma_handle, gfp_t flag,
-			   struct dma_attrs *attrs)
+			   unsigned long attrs)
 {
 	NPU_DMA_OP_UNSUPPORTED();
 	return NULL;
@@ -81,7 +81,7 @@ static void *dma_npu_alloc(struct device *dev, size_t size,
 
 static void dma_npu_free(struct device *dev, size_t size,
 			 void *vaddr, dma_addr_t dma_handle,
-			 struct dma_attrs *attrs)
+			 unsigned long attrs)
 {
 	NPU_DMA_OP_UNSUPPORTED();
 }
@@ -89,7 +89,7 @@ static void dma_npu_free(struct device *dev, size_t size,
 static dma_addr_t dma_npu_map_page(struct device *dev, struct page *page,
 				   unsigned long offset, size_t size,
 				   enum dma_data_direction direction,
-				   struct dma_attrs *attrs)
+				   unsigned long attrs)
 {
 	NPU_DMA_OP_UNSUPPORTED();
 	return 0;
@@ -97,7 +97,7 @@ static dma_addr_t dma_npu_map_page(struct device *dev, struct page *page,
 
 static int dma_npu_map_sg(struct device *dev, struct scatterlist *sglist,
 			  int nelems, enum dma_data_direction direction,
-			  struct dma_attrs *attrs)
+			  unsigned long attrs)
 {
 	NPU_DMA_OP_UNSUPPORTED();
 	return 0;

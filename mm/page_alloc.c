@@ -5257,11 +5257,6 @@ static void __meminit setup_zone_pageset(struct zone *zone)
 	zone->pageset = alloc_percpu(struct per_cpu_pageset);
 	for_each_possible_cpu(cpu)
 		zone_pageset_init(zone, cpu);
-
-	if (!zone->zone_pgdat->per_cpu_nodestats) {
-		zone->zone_pgdat->per_cpu_nodestats =
-			alloc_percpu(struct per_cpu_nodestat);
-	}
 }
 
 /*
@@ -5270,10 +5265,15 @@ static void __meminit setup_zone_pageset(struct zone *zone)
  */
 void __init setup_per_cpu_pageset(void)
 {
+	struct pglist_data *pgdat;
 	struct zone *zone;
 
 	for_each_populated_zone(zone)
 		setup_zone_pageset(zone);
+
+	for_each_online_pgdat(pgdat)
+		pgdat->per_cpu_nodestats =
+			alloc_percpu(struct per_cpu_nodestat);
 }
 
 static noinline __ref

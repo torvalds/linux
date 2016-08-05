@@ -1256,15 +1256,6 @@ static inline void msr_check_and_clear(unsigned long bits)
 		__msr_check_and_clear(bits);
 }
 
-static inline unsigned long mfvtb (void)
-{
-#ifdef CONFIG_PPC_BOOK3S_64
-	if (cpu_has_feature(CPU_FTR_ARCH_207S))
-		return mfspr(SPRN_VTB);
-#endif
-	return 0;
-}
-
 #ifdef __powerpc64__
 #if defined(CONFIG_PPC_CELL) || defined(CONFIG_PPC_FSL_BOOK3E)
 #define mftb()		({unsigned long rval;				\

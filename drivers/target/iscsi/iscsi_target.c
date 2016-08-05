@@ -492,7 +492,8 @@ void iscsit_aborted_task(struct iscsi_conn *conn, struct iscsi_cmd *cmd)
 	bool scsi_cmd = (cmd->iscsi_opcode == ISCSI_OP_SCSI_CMD);
 
 	spin_lock_bh(&conn->cmd_lock);
-	if (!list_empty(&cmd->i_conn_node))
+	if (!list_empty(&cmd->i_conn_node) &&
+	    !(cmd->se_cmd.transport_state & CMD_T_FABRIC_STOP))
 		list_del_init(&cmd->i_conn_node);
 	spin_unlock_bh(&conn->cmd_lock);
 
@@ -4034,6 +4035,7 @@ int iscsi_target_rx_thread(void *arg)
 
 static void iscsit_release_commands_from_conn(struct iscsi_conn *conn)
 {
+	LIST_HEAD(tmp_list);
 	struct iscsi_cmd *cmd = NULL, *cmd_tmp = NULL;
 	struct iscsi_session *sess = conn->sess;
 	/*
@@ -4042,18 +4044,26 @@ static void iscsit_release_commands_from_conn(struct iscsi_conn *conn)
 	 * has been reset -> returned sleeping pre-handler state.
 	 */
 	spin_lock_bh(&conn->cmd_lock);
-	list_for_each_entry_safe(cmd, cmd_tmp, &conn->conn_cmd_list, i_conn_node) {
+	list_splice_init(&conn->conn_cmd_list, &tmp_list);
 
-		list_del_init(&cmd->i_conn_node);
-		spin_unlock_bh(&conn->cmd_lock);
+	list_for_each_entry(cmd, &tmp_list, i_conn_node) {
+		struct se_cmd *se_cmd = &cmd->se_cmd;
 
-		iscsit_increment_maxcmdsn(cmd, sess);
-
-		iscsit_free_cmd(cmd, true);
-
-		spin_lock_bh(&conn->cmd_lock);
+		if (se_cmd->se_tfo != NULL) {
+			spin_lock(&se_cmd->t_state_lock);
+			se_cmd->transport_state |= CMD_T_FABRIC_STOP;
+			spin_unlock(&se_cmd->t_state_lock);
+		}
 	}
 	spin_unlock_bh(&conn->cmd_lock);
+
+	list_for_each_entry_safe(cmd, cmd_tmp, &tmp_list, i_conn_node) {
+		list_del_init(&cmd->i_conn_node);
+
+		iscsit_increment_maxcmdsn(cmd, sess);
+		iscsit_free_cmd(cmd, true);
+
+	}
 }
 
 static void iscsit_stop_timers_for_cmds(

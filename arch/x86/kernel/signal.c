@@ -146,7 +146,7 @@ static int restore_sigcontext(struct pt_regs *regs,
 		buf = (void __user *)buf_val;
 	} get_user_catch(err);
 
-	err |= fpu__restore_sig(buf, config_enabled(CONFIG_X86_32));
+	err |= fpu__restore_sig(buf, IS_ENABLED(CONFIG_X86_32));
 
 	force_iret();
 
@@ -245,14 +245,14 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size,
 	struct fpu *fpu = &current->thread.fpu;
 
 	/* redzone */
-	if (config_enabled(CONFIG_X86_64))
+	if (IS_ENABLED(CONFIG_X86_64))
 		sp -= 128;
 
 	/* This is the X/Open sanctioned signal stack switching.  */
 	if (ka->sa.sa_flags & SA_ONSTACK) {
 		if (sas_ss_flags(sp) == 0)
 			sp = current->sas_ss_sp + current->sas_ss_size;
-	} else if (config_enabled(CONFIG_X86_32) &&
+	} else if (IS_ENABLED(CONFIG_X86_32) &&
 		   !onsigstack &&
 		   (regs->ss & 0xffff) != __USER_DS &&
 		   !(ka->sa.sa_flags & SA_RESTORER) &&
@@ -262,7 +262,7 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size,
 	}
 
 	if (fpu->fpstate_active) {
-		sp = fpu__alloc_mathframe(sp, config_enabled(CONFIG_X86_32),
+		sp = fpu__alloc_mathframe(sp, IS_ENABLED(CONFIG_X86_32),
 					  &buf_fx, &math_size);
 		*fpstate = (void __user *)sp;
 	}
@@ -662,18 +662,18 @@ badframe:
 
 static inline int is_ia32_compat_frame(void)
 {
-	return config_enabled(CONFIG_IA32_EMULATION) &&
+	return IS_ENABLED(CONFIG_IA32_EMULATION) &&
 	       test_thread_flag(TIF_IA32);
 }
 
 static inline int is_ia32_frame(void)
 {
-	return config_enabled(CONFIG_X86_32) || is_ia32_compat_frame();
+	return IS_ENABLED(CONFIG_X86_32) || is_ia32_compat_frame();
 }
 
 static inline int is_x32_frame(void)
 {
-	return config_enabled(CONFIG_X86_X32_ABI) && test_thread_flag(TIF_X32);
+	return IS_ENABLED(CONFIG_X86_X32_ABI) && test_thread_flag(TIF_X32);
 }
 
 static int

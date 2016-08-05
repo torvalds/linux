@@ -435,8 +435,7 @@ static void rvt_clear_mr_refs(struct rvt_qp *qp, int clr_sends)
 	for (n = 0; n < rvt_max_atomic(rdi); n++) {
 		struct rvt_ack_entry *e = &qp->s_ack_queue[n];
 
-		if (e->opcode == IB_OPCODE_RC_RDMA_READ_REQUEST &&
-		    e->rdma_sge.mr) {
+		if (e->rdma_sge.mr) {
 			rvt_put_mr(e->rdma_sge.mr);
 			e->rdma_sge.mr = NULL;
 		}
@@ -584,6 +583,7 @@ static void rvt_reset_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 		qp->r_rq.wq->tail = 0;
 	}
 	qp->r_sge.num_sge = 0;
+	atomic_set(&qp->s_reserved_used, 0);
 }
 
 /**
@@ -613,6 +613,7 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 	struct rvt_dev_info *rdi = ib_to_rvt(ibpd->device);
 	void *priv = NULL;
 	gfp_t gfp;
+	size_t sqsize;
 
 	if (!rdi)
 		return ERR_PTR(-EINVAL);
@@ -643,7 +644,9 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 		    init_attr->cap.max_recv_wr == 0)
 			return ERR_PTR(-EINVAL);
 	}
-
+	sqsize =
+		init_attr->cap.max_send_wr + 1 +
+		rdi->dparms.reserved_operations;
 	switch (init_attr->qp_type) {
 	case IB_QPT_SMI:
 	case IB_QPT_GSI:
@@ -658,11 +661,11 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 			sizeof(struct rvt_swqe);
 		if (gfp == GFP_NOIO)
 			swq = __vmalloc(
-				(init_attr->cap.max_send_wr + 1) * sz,
+				sqsize * sz,
 				gfp | __GFP_ZERO, PAGE_KERNEL);
 		else
 			swq = vzalloc_node(
-				(init_attr->cap.max_send_wr + 1) * sz,
+				sqsize * sz,
 				rdi->dparms.node);
 		if (!swq)
 			return ERR_PTR(-ENOMEM);
@@ -741,13 +744,14 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 		spin_lock_init(&qp->s_lock);
 		spin_lock_init(&qp->r_rq.lock);
 		atomic_set(&qp->refcount, 0);
+		atomic_set(&qp->local_ops_pending, 0);
 		init_waitqueue_head(&qp->wait);
 		init_timer(&qp->s_timer);
 		qp->s_timer.data = (unsigned long)qp;
 		INIT_LIST_HEAD(&qp->rspwait);
 		qp->state = IB_QPS_RESET;
 		qp->s_wq = swq;
-		qp->s_size = init_attr->cap.max_send_wr + 1;
+		qp->s_size = sqsize;
 		qp->s_avail = init_attr->cap.max_send_wr;
 		qp->s_max_sge = init_attr->cap.max_send_sge;
 		if (init_attr->sq_sig_type == IB_SIGNAL_REQ_WR)
@@ -1332,7 +1336,8 @@ int rvt_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	attr->sq_psn = qp->s_next_psn & rdi->dparms.psn_mask;
 	attr->dest_qp_num = qp->remote_qpn;
 	attr->qp_access_flags = qp->qp_access_flags;
-	attr->cap.max_send_wr = qp->s_size - 1;
+	attr->cap.max_send_wr = qp->s_size - 1 -
+		rdi->dparms.reserved_operations;
 	attr->cap.max_recv_wr = qp->ibqp.srq ? 0 : qp->r_rq.size - 1;
 	attr->cap.max_send_sge = qp->s_max_sge;
 	attr->cap.max_recv_sge = qp->r_rq.max_sge;
@@ -1440,25 +1445,116 @@ int rvt_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 }
 
 /**
- * qp_get_savail - return number of avail send entries
- *
+ * rvt_qp_valid_operation - validate post send wr request
  * @qp - the qp
+ * @post-parms - the post send table for the driver
+ * @wr - the work request
+ *
+ * The routine validates the operation based on the
+ * validation table an returns the length of the operation
+ * which can extend beyond the ib_send_bw.  Operation
+ * dependent flags key atomic operation validation.
+ *
+ * There is an exception for UD qps that validates the pd and
+ * overrides the length to include the additional UD specific
+ * length.
+ *
+ * Returns a negative error or the length of the work request
+ * for building the swqe.
+ */
+static inline int rvt_qp_valid_operation(
+	struct rvt_qp *qp,
+	const struct rvt_operation_params *post_parms,
+	struct ib_send_wr *wr)
+{
+	int len;
+
+	if (wr->opcode >= RVT_OPERATION_MAX || !post_parms[wr->opcode].length)
+		return -EINVAL;
+	if (!(post_parms[wr->opcode].qpt_support & BIT(qp->ibqp.qp_type)))
+		return -EINVAL;
+	if ((post_parms[wr->opcode].flags & RVT_OPERATION_PRIV) &&
+	    ibpd_to_rvtpd(qp->ibqp.pd)->user)
+		return -EINVAL;
+	if (post_parms[wr->opcode].flags & RVT_OPERATION_ATOMIC_SGE &&
+	    (wr->num_sge == 0 ||
+	     wr->sg_list[0].length < sizeof(u64) ||
+	     wr->sg_list[0].addr & (sizeof(u64) - 1)))
+		return -EINVAL;
+	if (post_parms[wr->opcode].flags & RVT_OPERATION_ATOMIC &&
+	    !qp->s_max_rd_atomic)
+		return -EINVAL;
+	len = post_parms[wr->opcode].length;
+	/* UD specific */
+	if (qp->ibqp.qp_type != IB_QPT_UC &&
+	    qp->ibqp.qp_type != IB_QPT_RC) {
+		if (qp->ibqp.pd != ud_wr(wr)->ah->pd)
+			return -EINVAL;
+		len = sizeof(struct ib_ud_wr);
+	}
+	return len;
+}
+
+/**
+ * rvt_qp_is_avail - determine queue capacity
+ * @qp - the qp
+ * @rdi - the rdmavt device
+ * @reserved_op - is reserved operation
  *
  * This assumes the s_hlock is held but the s_last
  * qp variable is uncontrolled.
+ *
+ * For non reserved operations, the qp->s_avail
+ * may be changed.
+ *
+ * The return value is zero or a -ENOMEM.
  */
-static inline u32 qp_get_savail(struct rvt_qp *qp)
+static inline int rvt_qp_is_avail(
+	struct rvt_qp *qp,
+	struct rvt_dev_info *rdi,
+	bool reserved_op)
 {
 	u32 slast;
-	u32 ret;
+	u32 avail;
+	u32 reserved_used;
 
+	/* see rvt_qp_wqe_unreserve() */
+	smp_mb__before_atomic();
+	reserved_used = atomic_read(&qp->s_reserved_used);
+	if (unlikely(reserved_op)) {
+		/* see rvt_qp_wqe_unreserve() */
+		smp_mb__before_atomic();
+		if (reserved_used >= rdi->dparms.reserved_operations)
+			return -ENOMEM;
+		return 0;
+	}
+	/* non-reserved operations */
+	if (likely(qp->s_avail))
+		return 0;
 	smp_read_barrier_depends(); /* see rc.c */
 	slast = ACCESS_ONCE(qp->s_last);
 	if (qp->s_head >= slast)
-		ret = qp->s_size - (qp->s_head - slast);
+		avail = qp->s_size - (qp->s_head - slast);
 	else
-		ret = slast - qp->s_head;
-	return ret - 1;
+		avail = slast - qp->s_head;
+
+	/* see rvt_qp_wqe_unreserve() */
+	smp_mb__before_atomic();
+	reserved_used = atomic_read(&qp->s_reserved_used);
+	avail =  avail - 1 -
+		(rdi->dparms.reserved_operations - reserved_used);
+	/* insure we don't assign a negative s_avail */
+	if ((s32)avail <= 0)
+		return -ENOMEM;
+	qp->s_avail = avail;
+	if (WARN_ON(qp->s_avail >
+		    (qp->s_size - 1 - rdi->dparms.reserved_operations)))
+		rvt_pr_err(rdi,
+			   "More avail entries than QP RB size.\nQP: %u, size: %u, avail: %u\nhead: %u, tail: %u, cur: %u, acked: %u, last: %u",
+			   qp->ibqp.qp_num, qp->s_size, qp->s_avail,
+			   qp->s_head, qp->s_tail, qp->s_cur,
+			   qp->s_acked, qp->s_last);
+	return 0;
 }
 
 /**
@@ -1480,49 +1576,64 @@ static int rvt_post_one_wr(struct rvt_qp *qp,
 	struct rvt_dev_info *rdi = ib_to_rvt(qp->ibqp.device);
 	u8 log_pmtu;
 	int ret;
+	size_t cplen;
+	bool reserved_op;
+	int local_ops_delayed = 0;
+
+	BUILD_BUG_ON(IB_QPT_MAX >= (sizeof(u32) * BITS_PER_BYTE));
 
 	/* IB spec says that num_sge == 0 is OK. */
 	if (unlikely(wr->num_sge > qp->s_max_sge))
 		return -EINVAL;
 
+	ret = rvt_qp_valid_operation(qp, rdi->post_parms, wr);
+	if (ret < 0)
+		return ret;
+	cplen = ret;
+
 	/*
-	 * Don't allow RDMA reads or atomic operations on UC or
-	 * undefined operations.
-	 * Make sure buffer is large enough to hold the result for atomics.
+	 * Local operations include fast register and local invalidate.
+	 * Fast register needs to be processed immediately because the
+	 * registered lkey may be used by following work requests and the
+	 * lkey needs to be valid at the time those requests are posted.
+	 * Local invalidate can be processed immediately if fencing is
+	 * not required and no previous local invalidate ops are pending.
+	 * Signaled local operations that have been processed immediately
+	 * need to have requests with "completion only" flags set posted
+	 * to the send queue in order to generate completions.
 	 */
-	if (qp->ibqp.qp_type == IB_QPT_UC) {
-		if ((unsigned)wr->opcode >= IB_WR_RDMA_READ)
+	if ((rdi->post_parms[wr->opcode].flags & RVT_OPERATION_LOCAL)) {
+		switch (wr->opcode) {
+		case IB_WR_REG_MR:
+			ret = rvt_fast_reg_mr(qp,
+					      reg_wr(wr)->mr,
+					      reg_wr(wr)->key,
+					      reg_wr(wr)->access);
+			if (ret || !(wr->send_flags & IB_SEND_SIGNALED))
+				return ret;
+			break;
+		case IB_WR_LOCAL_INV:
+			if ((wr->send_flags & IB_SEND_FENCE) ||
+			    atomic_read(&qp->local_ops_pending)) {
+				local_ops_delayed = 1;
+			} else {
+				ret = rvt_invalidate_rkey(
+					qp, wr->ex.invalidate_rkey);
+				if (ret || !(wr->send_flags & IB_SEND_SIGNALED))
+					return ret;
+			}
+			break;
+		default:
 			return -EINVAL;
-	} else if (qp->ibqp.qp_type != IB_QPT_RC) {
-		/* Check IB_QPT_SMI, IB_QPT_GSI, IB_QPT_UD opcode */
-		if (wr->opcode != IB_WR_SEND &&
-		    wr->opcode != IB_WR_SEND_WITH_IMM)
-			return -EINVAL;
-		/* Check UD destination address PD */
-		if (qp->ibqp.pd != ud_wr(wr)->ah->pd)
-			return -EINVAL;
-	} else if ((unsigned)wr->opcode > IB_WR_ATOMIC_FETCH_AND_ADD) {
-		return -EINVAL;
-	} else if (wr->opcode >= IB_WR_ATOMIC_CMP_AND_SWP &&
-		   (wr->num_sge == 0 ||
-		    wr->sg_list[0].length < sizeof(u64) ||
-		    wr->sg_list[0].addr & (sizeof(u64) - 1))) {
-		return -EINVAL;
-	} else if (wr->opcode >= IB_WR_RDMA_READ && !qp->s_max_rd_atomic) {
-		return -EINVAL;
+		}
 	}
+
+	reserved_op = rdi->post_parms[wr->opcode].flags &
+			RVT_OPERATION_USE_RESERVE;
 	/* check for avail */
-	if (unlikely(!qp->s_avail)) {
-		qp->s_avail = qp_get_savail(qp);
-		if (WARN_ON(qp->s_avail > (qp->s_size - 1)))
-			rvt_pr_err(rdi,
-				   "More avail entries than QP RB size.\nQP: %u, size: %u, avail: %u\nhead: %u, tail: %u, cur: %u, acked: %u, last: %u",
-				   qp->ibqp.qp_num, qp->s_size, qp->s_avail,
-				   qp->s_head, qp->s_tail, qp->s_cur,
-				   qp->s_acked, qp->s_last);
-		if (!qp->s_avail)
-			return -ENOMEM;
-	}
+	ret = rvt_qp_is_avail(qp, rdi, reserved_op);
+	if (ret)
+		return ret;
 	next = qp->s_head + 1;
 	if (next >= qp->s_size)
 		next = 0;
@@ -1531,18 +1642,8 @@ static int rvt_post_one_wr(struct rvt_qp *qp,
 	pd = ibpd_to_rvtpd(qp->ibqp.pd);
 	wqe = rvt_get_swqe_ptr(qp, qp->s_head);
 
-	if (qp->ibqp.qp_type != IB_QPT_UC &&
-	    qp->ibqp.qp_type != IB_QPT_RC)
-		memcpy(&wqe->ud_wr, ud_wr(wr), sizeof(wqe->ud_wr));
-	else if (wr->opcode == IB_WR_RDMA_WRITE_WITH_IMM ||
-		 wr->opcode == IB_WR_RDMA_WRITE ||
-		 wr->opcode == IB_WR_RDMA_READ)
-		memcpy(&wqe->rdma_wr, rdma_wr(wr), sizeof(wqe->rdma_wr));
-	else if (wr->opcode == IB_WR_ATOMIC_CMP_AND_SWP ||
-		 wr->opcode == IB_WR_ATOMIC_FETCH_AND_ADD)
-		memcpy(&wqe->atomic_wr, atomic_wr(wr), sizeof(wqe->atomic_wr));
-	else
-		memcpy(&wqe->wr, wr, sizeof(wqe->wr));
+	/* cplen has length from above */
+	memcpy(&wqe->wr, wr, cplen);
 
 	wqe->length = 0;
 	j = 0;
@@ -1585,14 +1686,29 @@ static int rvt_post_one_wr(struct rvt_qp *qp,
 		atomic_inc(&ibah_to_rvtah(ud_wr(wr)->ah)->refcount);
 	}
 
-	wqe->ssn = qp->s_ssn++;
-	wqe->psn = qp->s_next_psn;
-	wqe->lpsn = wqe->psn +
-			(wqe->length ? ((wqe->length - 1) >> log_pmtu) : 0);
-	qp->s_next_psn = wqe->lpsn + 1;
+	if (rdi->post_parms[wr->opcode].flags & RVT_OPERATION_LOCAL) {
+		if (local_ops_delayed)
+			atomic_inc(&qp->local_ops_pending);
+		else
+			wqe->wr.send_flags |= RVT_SEND_COMPLETION_ONLY;
+		wqe->ssn = 0;
+		wqe->psn = 0;
+		wqe->lpsn = 0;
+	} else {
+		wqe->ssn = qp->s_ssn++;
+		wqe->psn = qp->s_next_psn;
+		wqe->lpsn = wqe->psn +
+				(wqe->length ?
+					((wqe->length - 1) >> log_pmtu) :
+					0);
+		qp->s_next_psn = wqe->lpsn + 1;
+	}
 	trace_rvt_post_one_wr(qp, wqe);
+	if (unlikely(reserved_op))
+		rvt_qp_wqe_reserve(qp, wqe);
+	else
+		qp->s_avail--;
 	smp_wmb(); /* see request builders */
-	qp->s_avail--;
 	qp->s_head = next;
 
 	return 0;

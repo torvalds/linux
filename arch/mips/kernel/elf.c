@@ -179,7 +179,7 @@ int arch_check_elf(void *_ehdr, bool has_interpreter, void *_interp_ehdr,
 			return -ELIBBAD;
 	}
 
-	if (!config_enabled(CONFIG_MIPS_O32_FP64_SUPPORT))
+	if (!IS_ENABLED(CONFIG_MIPS_O32_FP64_SUPPORT))
 		return 0;
 
 	fp_abi = state->fp_abi;
@@ -285,7 +285,7 @@ void mips_set_personality_fp(struct arch_elf_state *state)
 	 * not be worried about N32/N64 binaries.
 	 */
 
-	if (!config_enabled(CONFIG_MIPS_O32_FP64_SUPPORT))
+	if (!IS_ENABLED(CONFIG_MIPS_O32_FP64_SUPPORT))
 		return;
 
 	switch (state->overall_fp_mode) {
