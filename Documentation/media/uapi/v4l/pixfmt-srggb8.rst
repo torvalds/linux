@@ -1,24 +1,26 @@
 .. -*- coding: utf-8; mode: rst -*-
 
 .. _V4L2-PIX-FMT-SRGGB8:
+.. _v4l2-pix-fmt-sbggr8:
+.. _v4l2-pix-fmt-sgbrg8:
+.. _v4l2-pix-fmt-sgrbg8:
 
-****************************
-V4L2_PIX_FMT_SRGGB8 ('RGGB')
-****************************
+***************************************************************************************************************************
+V4L2_PIX_FMT_SRGGB8 ('RGGB'), V4L2_PIX_FMT_SGRBG8 ('GRBG'), V4L2_PIX_FMT_SGBRG8 ('GBRG'), V4L2_PIX_FMT_SBGGR8 ('BA81'),
+***************************************************************************************************************************
 
 
-Bayer RGB format
+8-bit Bayer formats
 
 
 Description
 ===========
 
-This is commonly the native format of digital cameras, reflecting the
-arrangement of sensors on the CCD device. Only one red, green or blue
-value is given for each pixel. Missing components must be interpolated
-from neighbouring pixels. From left to right the first row consists of a
-red and green value, the second row of a green and blue value. This
-scheme repeats to the right and down for every two columns and rows.
+These four pixel formats are raw sRGB / Bayer formats with 8 bits per
+sample. Each sample is stored in a byte. Each n-pixel row contains n/2
+green samples and n/2 blue or red samples, with alternating red and
+blue rows. They are conventionally described as GRGR... BGBG...,
+RGRG... GBGB..., etc. Below is an example of one of these formats:
 
 **Byte Order.**
 Each cell is one byte.
@@ -35,11 +37,11 @@ Each cell is one byte.
 
        -  start + 0:
 
-       -  R\ :sub:`00`
+       -  B\ :sub:`00`
 
        -  G\ :sub:`01`
 
-       -  R\ :sub:`02`
+       -  B\ :sub:`02`
 
        -  G\ :sub:`03`
 
@@ -49,21 +51,21 @@ Each cell is one byte.
 
        -  G\ :sub:`10`
 
-       -  B\ :sub:`11`
+       -  R\ :sub:`11`
 
        -  G\ :sub:`12`
 
-       -  B\ :sub:`13`
+       -  R\ :sub:`13`
 
     -  .. row 3
 
        -  start + 8:
 
-       -  R\ :sub:`20`
+       -  B\ :sub:`20`
 
        -  G\ :sub:`21`
 
-       -  R\ :sub:`22`
+       -  B\ :sub:`22`
 
        -  G\ :sub:`23`
 
@@ -73,8 +75,8 @@ Each cell is one byte.
 
        -  G\ :sub:`30`
 
-       -  B\ :sub:`31`
+       -  R\ :sub:`31`
 
        -  G\ :sub:`32`
 
-       -  B\ :sub:`33`
+       -  R\ :sub:`33`
