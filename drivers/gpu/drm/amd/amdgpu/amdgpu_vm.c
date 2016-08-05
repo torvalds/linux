@@ -702,17 +702,102 @@ error_free:
 }
 
 /**
+ * amdgpu_vm_update_ptes - make sure that page tables are valid
+ *
+ * @params: see amdgpu_pte_update_params definition
+ * @vm: requested vm
+ * @start: start of GPU address range
+ * @end: end of GPU address range
+ * @dst: destination address to map to, the next dst inside the function
+ * @flags: mapping flags
+ *
+ * Update the page tables in the range @start - @end.
+ */
+static void amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
+				  struct amdgpu_vm *vm,
+				  uint64_t start, uint64_t end,
+				  uint64_t dst, uint32_t flags)
+{
+	const uint64_t mask = AMDGPU_VM_PTE_COUNT - 1;
+
+	uint64_t cur_pe_start, cur_nptes, cur_dst;
+	uint64_t addr; /* next GPU address to be updated */
+	uint64_t pt_idx;
+	struct amdgpu_bo *pt;
+	unsigned nptes; /* next number of ptes to be updated */
+	uint64_t next_pe_start;
+
+	/* initialize the variables */
+	addr = start;
+	pt_idx = addr >> amdgpu_vm_block_size;
+	pt = vm->page_tables[pt_idx].entry.robj;
+
+	if ((addr & ~mask) == (end & ~mask))
+		nptes = end - addr;
+	else
+		nptes = AMDGPU_VM_PTE_COUNT - (addr & mask);
+
+	cur_pe_start = amdgpu_bo_gpu_offset(pt);
+	cur_pe_start += (addr & mask) * 8;
+	cur_nptes = nptes;
+	cur_dst = dst;
+
+	/* for next ptb*/
+	addr += nptes;
+	dst += nptes * AMDGPU_GPU_PAGE_SIZE;
+
+	/* walk over the address space and update the page tables */
+	while (addr < end) {
+		pt_idx = addr >> amdgpu_vm_block_size;
+		pt = vm->page_tables[pt_idx].entry.robj;
+
+		if ((addr & ~mask) == (end & ~mask))
+			nptes = end - addr;
+		else
+			nptes = AMDGPU_VM_PTE_COUNT - (addr & mask);
+
+		next_pe_start = amdgpu_bo_gpu_offset(pt);
+		next_pe_start += (addr & mask) * 8;
+
+		if ((cur_pe_start + 8 * cur_nptes) == next_pe_start) {
+			/* The next ptb is consecutive to current ptb.
+			 * Don't call amdgpu_vm_update_pages now.
+			 * Will update two ptbs together in future.
+			*/
+			cur_nptes += nptes;
+		} else {
+			amdgpu_vm_update_pages(params, cur_pe_start, cur_dst,
+					       cur_nptes, AMDGPU_GPU_PAGE_SIZE,
+					       flags);
+
+			cur_pe_start = next_pe_start;
+			cur_nptes = nptes;
+			cur_dst = dst;
+		}
+
+		/* for next ptb*/
+		addr += nptes;
+		dst += nptes * AMDGPU_GPU_PAGE_SIZE;
+	}
+
+	amdgpu_vm_update_pages(params, cur_pe_start, cur_dst, cur_nptes,
+			       AMDGPU_GPU_PAGE_SIZE, flags);
+}
+
+/*
  * amdgpu_vm_frag_ptes - add fragment information to PTEs
  *
  * @params: see amdgpu_pte_update_params definition
- * @pe_start: first PTE to handle
- * @pe_end: last PTE to handle
- * @addr: addr those PTEs should point to
+ * @vm: requested vm
+ * @start: first PTE to handle
+ * @end: last PTE to handle
+ * @dst: addr those PTEs should point to
  * @flags: hw mapping flags
  */
 static void amdgpu_vm_frag_ptes(struct amdgpu_pte_update_params	*params,
-				uint64_t pe_start, uint64_t pe_end,
-				uint64_t addr, uint32_t flags)
+				struct amdgpu_vm *vm,
+				uint64_t start, uint64_t end,
+				uint64_t dst, uint32_t flags)
 {
 	/**
 	 * The MC L1 TLB supports variable sized pages, based on a fragment
@@ -735,128 +820,35 @@ static void amdgpu_vm_frag_ptes(struct amdgpu_pte_update_params	*params,
 
 	/* SI and newer are optimized for 64KB */
 	uint64_t frag_flags = AMDGPU_PTE_FRAG(AMDGPU_LOG2_PAGES_PER_FRAG);
-	uint64_t frag_align = 0x80;
+	uint64_t frag_align = 1 << AMDGPU_LOG2_PAGES_PER_FRAG;
 
-	uint64_t frag_start = ALIGN(pe_start, frag_align);
-	uint64_t frag_end = pe_end & ~(frag_align - 1);
-
-	unsigned count;
-
-	/* Abort early if there isn't anything to do */
-	if (pe_start == pe_end)
-		return;
+	uint64_t frag_start = ALIGN(start, frag_align);
+	uint64_t frag_end = end & ~(frag_align - 1);
 
 	/* system pages are non continuously */
-	if (params->src || params->pages_addr ||
-		!(flags & AMDGPU_PTE_VALID) || (frag_start >= frag_end)) {
+	if (params->src || params->pages_addr || !(flags & AMDGPU_PTE_VALID) ||
+	    (frag_start >= frag_end)) {
 
-		count = (pe_end - pe_start) / 8;
-		amdgpu_vm_update_pages(params, pe_start, addr, count,
-				       AMDGPU_GPU_PAGE_SIZE, flags);
+		amdgpu_vm_update_ptes(params, vm, start, end, dst, flags);
 		return;
 	}
 
 	/* handle the 4K area at the beginning */
-	if (pe_start != frag_start) {
-		count = (frag_start - pe_start) / 8;
-		amdgpu_vm_update_pages(params, pe_start, addr, count,
-				       AMDGPU_GPU_PAGE_SIZE, flags);
-		addr += AMDGPU_GPU_PAGE_SIZE * count;
+	if (start != frag_start) {
+		amdgpu_vm_update_ptes(params, vm, start, frag_start,
+				      dst, flags);
+		dst += (frag_start - start) * AMDGPU_GPU_PAGE_SIZE;
 	}
 
 	/* handle the area in the middle */
-	count = (frag_end - frag_start) / 8;
-	amdgpu_vm_update_pages(params, frag_start, addr, count,
-			       AMDGPU_GPU_PAGE_SIZE, flags | frag_flags);
+	amdgpu_vm_update_ptes(params, vm, frag_start, frag_end, dst,
+			      flags | frag_flags);
 
 	/* handle the 4K area at the end */
-	if (frag_end != pe_end) {
-		addr += AMDGPU_GPU_PAGE_SIZE * count;
-		count = (pe_end - frag_end) / 8;
-		amdgpu_vm_update_pages(params, frag_end, addr, count,
-				       AMDGPU_GPU_PAGE_SIZE, flags);
+	if (frag_end != end) {
+		dst += (frag_end - frag_start) * AMDGPU_GPU_PAGE_SIZE;
+		amdgpu_vm_update_ptes(params, vm, frag_end, end, dst, flags);
 	}
-}
-
-/**
- * amdgpu_vm_update_ptes - make sure that page tables are valid
- *
- * @params: see amdgpu_pte_update_params definition
- * @vm: requested vm
- * @start: start of GPU address range
- * @end: end of GPU address range
- * @dst: destination address to map to, the next dst inside the function
- * @flags: mapping flags
- *
- * Update the page tables in the range @start - @end.
- */
-static void amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
-				  struct amdgpu_vm *vm,
-				  uint64_t start, uint64_t end,
-				  uint64_t dst, uint32_t flags)
-{
-	const uint64_t mask = AMDGPU_VM_PTE_COUNT - 1;
-
-	uint64_t cur_pe_start, cur_pe_end, cur_dst;
-	uint64_t addr; /* next GPU address to be updated */
-	uint64_t pt_idx;
-	struct amdgpu_bo *pt;
-	unsigned nptes; /* next number of ptes to be updated */
-	uint64_t next_pe_start;
-
-	/* initialize the variables */
-	addr = start;
-	pt_idx = addr >> amdgpu_vm_block_size;
-	pt = vm->page_tables[pt_idx].entry.robj;
-
-	if ((addr & ~mask) == (end & ~mask))
-		nptes = end - addr;
-	else
-		nptes = AMDGPU_VM_PTE_COUNT - (addr & mask);
-
-	cur_pe_start = amdgpu_bo_gpu_offset(pt);
-	cur_pe_start += (addr & mask) * 8;
-	cur_pe_end = cur_pe_start + 8 * nptes;
-	cur_dst = dst;
-
-	/* for next ptb*/
-	addr += nptes;
-	dst += nptes * AMDGPU_GPU_PAGE_SIZE;
-
-	/* walk over the address space and update the page tables */
-	while (addr < end) {
-		pt_idx = addr >> amdgpu_vm_block_size;
-		pt = vm->page_tables[pt_idx].entry.robj;
-
-		if ((addr & ~mask) == (end & ~mask))
-			nptes = end - addr;
-		else
-			nptes = AMDGPU_VM_PTE_COUNT - (addr & mask);
-
-		next_pe_start = amdgpu_bo_gpu_offset(pt);
-		next_pe_start += (addr & mask) * 8;
-
-		if (cur_pe_end == next_pe_start) {
-			/* The next ptb is consecutive to current ptb.
-			 * Don't call amdgpu_vm_frag_ptes now.
-			 * Will update two ptbs together in future.
-			*/
-			cur_pe_end += 8 * nptes;
-		} else {
-			amdgpu_vm_frag_ptes(params, cur_pe_start, cur_pe_end,
-					    cur_dst, flags);
-
-			cur_pe_start = next_pe_start;
-			cur_pe_end = next_pe_start + 8 * nptes;
-			cur_dst = dst;
-		}
-
-		/* for next ptb*/
-		addr += nptes;
-		dst += nptes * AMDGPU_GPU_PAGE_SIZE;
-	}
-
-	amdgpu_vm_frag_ptes(params, cur_pe_start, cur_pe_end, cur_dst, flags);
 }
 
 /**
@@ -953,7 +945,7 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 	if (r)
 		goto error_free;
 
-	amdgpu_vm_update_ptes(&params, vm, start, last + 1, addr, flags);
+	amdgpu_vm_frag_ptes(&params, vm, start, last + 1, addr, flags);
 
 	amdgpu_ring_pad_ib(ring, params.ib);
 	WARN_ON(params.ib->length_dw > ndw);
