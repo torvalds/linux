@@ -897,6 +897,10 @@ static void arm_ccn_pmu_xp_dt_config(struct perf_event *event, int enable)
 	struct arm_ccn_component *xp;
 	u32 val, dt_cfg;
 
+	/* Nothing to do for cycle counter */
+	if (hw->idx == CCN_IDX_PMU_CYCLE_COUNTER)
+		return;
+
 	if (CCN_CONFIG_TYPE(event->attr.config) == CCN_TYPE_XP)
 		xp = &ccn->xp[CCN_CONFIG_XP(event->attr.config)];
 	else
