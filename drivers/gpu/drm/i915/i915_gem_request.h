@@ -569,6 +569,46 @@ i915_gem_active_wait(const struct i915_gem_active *active, struct mutex *mutex)
 }
 
 /**
+ * i915_gem_active_wait_unlocked - waits until the request is completed
+ * @active - the active request on which to wait
+ * @interruptible - whether the wait can be woken by a userspace signal
+ * @timeout - how long to wait at most
+ * @rps - userspace client to charge for a waitboost
+ *
+ * i915_gem_active_wait_unlocked() waits until the request is completed before
+ * returning, without requiring any locks to be held. Note that it does not
+ * retire any requests before returning.
+ *
+ * This function relies on RCU in order to acquire the reference to the active
+ * request without holding any locks. See __i915_gem_active_get_rcu() for the
+ * glory details on how that is managed. Once the reference is acquired, we
+ * can then wait upon the request, and afterwards release our reference,
+ * free of any locking.
+ *
+ * This function wraps i915_wait_request(), see it for the full details on
+ * the arguments.
+ *
+ * Returns 0 if successful, or a negative error code.
+ */
+static inline int
+i915_gem_active_wait_unlocked(const struct i915_gem_active *active,
+			      bool interruptible,
+			      s64 *timeout,
+			      struct intel_rps_client *rps)
+{
+	struct drm_i915_gem_request *request;
+	int ret = 0;
+
+	request = i915_gem_active_get_unlocked(active);
+	if (request) {
+		ret = i915_wait_request(request, interruptible, timeout, rps);
+		i915_gem_request_put(request);
+	}
+
+	return ret;
+}
+
+/**
  * i915_gem_active_retire - waits until the request is retired
  * @active - the active request on which to wait
  *
