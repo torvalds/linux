@@ -15771,6 +15771,13 @@ static bool intel_encoder_has_connectors(struct intel_encoder *encoder)
 	return false;
 }
 
+static bool has_pch_trancoder(struct drm_i915_private *dev_priv,
+			      enum transcoder pch_transcoder)
+{
+	return HAS_PCH_IBX(dev_priv) || HAS_PCH_CPT(dev_priv) ||
+		(HAS_PCH_LPT_H(dev_priv) && pch_transcoder == TRANSCODER_A);
+}
+
 static void intel_sanitize_crtc(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
@@ -15849,7 +15856,17 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 		 * worst a fifo underrun happens which also sets this to false.
 		 */
 		crtc->cpu_fifo_underrun_disabled = true;
-		crtc->pch_fifo_underrun_disabled = true;
+		/*
+		 * We track the PCH trancoder underrun reporting state
+		 * within the crtc. With crtc for pipe A housing the underrun
+		 * reporting state for PCH transcoder A, crtc for pipe B housing
+		 * it for PCH transcoder B, etc. LPT-H has only PCH transcoder A,
+		 * and marking underrun reporting as disabled for the non-existing
+		 * PCH transcoders B and C would prevent enabling the south
+		 * error interrupt (see cpt_can_enable_serr_int()).
+		 */
+		if (has_pch_trancoder(dev_priv, (enum transcoder)crtc->pipe))
+			crtc->pch_fifo_underrun_disabled = true;
 	}
 }
 
