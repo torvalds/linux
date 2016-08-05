@@ -3950,6 +3950,7 @@ static void rbd_dev_release(struct device *dev)
 	bool need_put = !!rbd_dev->opts;
 
 	ceph_oid_destroy(&rbd_dev->header_oid);
+	ceph_oloc_destroy(&rbd_dev->header_oloc);
 
 	rbd_put_client(rbd_dev->rbd_client);
 	rbd_spec_put(rbd_dev->spec);
