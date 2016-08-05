@@ -4080,16 +4080,6 @@ struct i915_vma *i915_gem_obj_to_ggtt_view(struct drm_i915_gem_object *obj,
 	return NULL;
 }
 
-static void
-i915_gem_stop_engines(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_engine_cs *engine;
-
-	for_each_engine(engine, dev_priv)
-		dev_priv->gt.stop_engine(engine);
-}
-
 int
 i915_gem_suspend(struct drm_device *dev)
 {
@@ -4118,12 +4108,6 @@ i915_gem_suspend(struct drm_device *dev)
 
 	i915_gem_retire_requests(dev_priv);
 
-	/* Note that rather than stopping the engines, all we have to do
-	 * is assert that every RING_HEAD == RING_TAIL (all execution complete)
-	 * and similar for all logical context images (to ensure they are
-	 * all ready for hibernation).
-	 */
-	i915_gem_stop_engines(dev);
 	i915_gem_context_lost(dev_priv);
 	mutex_unlock(&dev->struct_mutex);
 
@@ -4308,10 +4292,8 @@ int i915_gem_init(struct drm_device *dev)
 
 	if (!i915.enable_execlists) {
 		dev_priv->gt.cleanup_engine = intel_engine_cleanup;
-		dev_priv->gt.stop_engine = intel_engine_stop;
 	} else {
 		dev_priv->gt.cleanup_engine = intel_logical_ring_cleanup;
-		dev_priv->gt.stop_engine = intel_logical_ring_stop;
 	}
 
 	/* This is just a security blanket to placate dragons.

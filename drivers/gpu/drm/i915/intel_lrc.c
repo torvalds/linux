@@ -760,31 +760,6 @@ void intel_execlists_cancel_requests(struct intel_engine_cs *engine)
 	}
 }
 
-void intel_logical_ring_stop(struct intel_engine_cs *engine)
-{
-	struct drm_i915_private *dev_priv = engine->i915;
-	int ret;
-
-	if (!intel_engine_initialized(engine))
-		return;
-
-	ret = intel_engine_idle(engine);
-	if (ret)
-		DRM_ERROR("failed to quiesce %s whilst cleaning up: %d\n",
-			  engine->name, ret);
-
-	/* TODO: Is this correct with Execlists enabled? */
-	I915_WRITE_MODE(engine, _MASKED_BIT_ENABLE(STOP_RING));
-	if (intel_wait_for_register(dev_priv,
-				    RING_MI_MODE(engine->mmio_base),
-				    MODE_IDLE, MODE_IDLE,
-				    1000)) {
-		DRM_ERROR("%s :timed out trying to stop ring\n", engine->name);
-		return;
-	}
-	I915_WRITE_MODE(engine, _MASKED_BIT_DISABLE(STOP_RING));
-}
-
 static int intel_lr_context_pin(struct i915_gem_context *ctx,
 				struct intel_engine_cs *engine)
 {
@@ -1717,7 +1692,6 @@ void intel_logical_ring_cleanup(struct intel_engine_cs *engine)
 	dev_priv = engine->i915;
 
 	if (engine->buffer) {
-		intel_logical_ring_stop(engine);
 		WARN_ON((I915_READ_MODE(engine) & MODE_IDLE) == 0);
 	}
 

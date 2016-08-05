@@ -2203,7 +2203,6 @@ void intel_engine_cleanup(struct intel_engine_cs *engine)
 	dev_priv = engine->i915;
 
 	if (engine->buffer) {
-		intel_engine_stop(engine);
 		WARN_ON(!IS_GEN2(dev_priv) && (I915_READ_MODE(engine) & MODE_IDLE) == 0);
 
 		intel_ring_unpin(engine->buffer);
@@ -2906,19 +2905,4 @@ int intel_init_vebox_ring_buffer(struct intel_engine_cs *engine)
 	}
 
 	return intel_init_ring_buffer(engine);
-}
-
-void intel_engine_stop(struct intel_engine_cs *engine)
-{
-	int ret;
-
-	if (!intel_engine_initialized(engine))
-		return;
-
-	ret = intel_engine_idle(engine);
-	if (ret)
-		DRM_ERROR("failed to quiesce %s whilst cleaning up: %d\n",
-			  engine->name, ret);
-
-	stop_ring(engine);
 }
