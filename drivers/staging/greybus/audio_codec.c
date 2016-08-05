@@ -909,6 +909,7 @@ void gbaudio_unregister_module(struct gbaudio_module_info *module)
 	struct snd_soc_codec *codec = gbcodec->codec;
 	struct snd_card *card = codec->card->snd_card;
 	struct snd_soc_jack *jack, *next_j;
+	int mask;
 
 	dev_dbg(codec->dev, "Unregister %s module\n", module->name);
 
@@ -922,8 +923,16 @@ void gbaudio_unregister_module(struct gbaudio_module_info *module)
 #ifdef CONFIG_SND_JACK
 	/* free jack devices for this module from codec->jack_list */
 	list_for_each_entry_safe(jack, next_j, &codec->jack_list, list) {
-		if ((jack == &module->headset_jack)
-		    || (jack == &module->button_jack)) {
+		if (jack == &module->headset_jack)
+			mask = GBCODEC_JACK_MASK;
+		else if (jack == &module->button_jack)
+			mask = GBCODEC_JACK_BUTTON_MASK;
+		else
+			mask = 0;
+		if (mask) {
+			dev_dbg(module->dev, "Report %s removal\n",
+				jack->jack->id);
+			snd_soc_jack_report(jack, 0, mask);
 			snd_device_free(codec->card->snd_card, jack->jack);
 			list_del(&jack->list);
 		}
