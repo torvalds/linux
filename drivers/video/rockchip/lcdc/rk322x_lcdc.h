@@ -1432,6 +1432,13 @@ struct vop_device {
 
 	/* lock vop irq reg */
 	spinlock_t irq_lock;
+	struct devfreq *devfreq;
+	struct devfreq_event_dev *devfreq_event_dev;
+	struct notifier_block dmc_nb;
+	int dmc_in_process;
+	int vop_switch_status;
+	wait_queue_head_t wait_dmc_queue;
+	wait_queue_head_t wait_vop_switch_queue;
 };
 
 static inline void vop_writel(struct vop_device *vop_dev, u32 offset, u32 v)

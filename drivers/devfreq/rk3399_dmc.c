@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/suspend.h>
 
+#include <soc/rockchip/rkfb_dmc.h>
 #include <soc/rockchip/rockchip_sip.h>
 
 struct dram_timing {
@@ -507,6 +508,9 @@ static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 
 	data->dev = dev;
 	platform_set_drvdata(pdev, data);
+
+	if (vop_register_dmc())
+		dev_err(dev, "fail to register notify to vop.\n");
 
 	return 0;
 }

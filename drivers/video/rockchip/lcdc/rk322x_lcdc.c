@@ -27,6 +27,8 @@
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/devfreq.h>
+#include <linux/devfreq-event.h>
 #include <linux/rockchip-iovmm.h>
 #include <asm/div64.h>
 #include <linux/uaccess.h>
@@ -34,6 +36,7 @@
 #include <linux/rockchip/grf.h>
 #include <linux/rockchip/common.h>
 #include <dt-bindings/clock/rk_system_status.h>
+#include <soc/rockchip/rkfb_dmc.h>
 
 #include "rk322x_lcdc.h"
 
@@ -2176,16 +2179,45 @@ static void vop_layer_enable(struct vop_device *vop_dev,
 	/* if no layer used,disable lcdc */
 	if (vop_dev->prop == EXTEND) {
 		if (!vop_dev->atv_layer_cnt && !open) {
+			if (!wait_event_timeout(vop_dev->wait_dmc_queue,
+						!vop_dev->dmc_in_process, HZ / 5))
+				dev_warn(vop_dev->dev,
+					 "Timeout waiting for dmc when vop disable\n");
+
+			vop_dev->vop_switch_status = 1;
 			vop_early_suspend(&vop_dev->driver);
 			dev_info(vop_dev->dev,
 				 "no layer is used,go to standby!\n");
 			vop_dev->standby = 1;
+
+			vop_dev->vop_switch_status = 0;
+			wake_up(&vop_dev->wait_vop_switch_queue);
+			/*
+			 * if clsoe enxtend vop need to enable dmc again.
+			 */
+			if (vop_dev->devfreq) {
+				if (vop_dev->devfreq_event_dev)
+					devfreq_event_enable_edev(vop_dev->devfreq_event_dev);
+				devfreq_resume_device(vop_dev->devfreq);
+			}
 		} else if (open) {
 			vop_early_resume(&vop_dev->driver);
+			vop_dev->vop_switch_status = 0;
+			wake_up(&vop_dev->wait_vop_switch_queue);
+			/* if enable two vop, need to disable dmc */
+			if (vop_dev->devfreq) {
+				if (vop_dev->devfreq_event_dev)
+					devfreq_event_disable_edev(vop_dev->devfreq_event_dev);
+				devfreq_suspend_device(vop_dev->devfreq);
+			}
 			dev_info(vop_dev->dev, "wake up from standby!\n");
 		}
+	} else if (vop_dev->prop == PRMRY) {
+		if ((open) && (!vop_dev->atv_layer_cnt)) {
+			vop_dev->vop_switch_status = 0;
+			wake_up(&vop_dev->wait_vop_switch_queue);
+		}
 	}
-
 }
 
 static int vop_enable_irq(struct rk_lcdc_driver *dev_drv)
@@ -2207,6 +2239,31 @@ static int vop_enable_irq(struct rk_lcdc_driver *dev_drv)
 	return 0;
 }
 
+static int dmc_notify(struct notifier_block *nb, unsigned long event,
+		      void *data)
+{
+	struct vop_device *vop = container_of(nb, struct vop_device, dmc_nb);
+
+	if (event == DEVFREQ_PRECHANGE) {
+
+		/*
+		 * check if vop in enable or disable process,
+		 * if yes, wait until it finish, use 200ms as
+		 * timeout.
+		 */
+		if (!wait_event_timeout(vop->wait_vop_switch_queue,
+					!vop->vop_switch_status, HZ / 5))
+			dev_warn(vop->dev,
+				 "Timeout waiting for vop swtich status\n");
+		vop->dmc_in_process = 1;
+	} else if (event == DEVFREQ_POSTCHANGE) {
+		vop->dmc_in_process = 0;
+		wake_up(&vop->wait_dmc_queue);
+	}
+
+	return NOTIFY_OK;
+}
+
 static int vop_open(struct rk_lcdc_driver *dev_drv, int win_id,
 		    bool open)
 {
@@ -2216,6 +2273,11 @@ static int vop_open(struct rk_lcdc_driver *dev_drv, int win_id,
 	/* enable clk,when first layer open */
 	if ((open) && (!vop_dev->atv_layer_cnt)) {
 		/* rockchip_set_system_status(sys_status); */
+		if (!wait_event_timeout(vop_dev->wait_dmc_queue,
+				!vop_dev->dmc_in_process, HZ / 5))
+			dev_warn(vop_dev->dev,
+				 "Timeout waiting for dmc when vop enable\n");
+		vop_dev->vop_switch_status = 1;
 		vop_pre_init(dev_drv);
 		vop_clk_enable(vop_dev);
 		vop_enable_irq(dev_drv);
@@ -4890,6 +4952,46 @@ static int vop_parse_dt(struct vop_device *vop_dev)
 	return 0;
 }
 
+static struct platform_device *rk322x_pdev;
+
+int vop_register_dmc(void)
+{
+	struct platform_device *pdev = rk322x_pdev;
+	struct vop_device *vop_dev;
+	struct device *dev = &pdev->dev;
+	struct devfreq *devfreq;
+	struct devfreq_event_dev *event_dev;
+
+	if (!pdev)
+		return -ENODEV;
+
+	vop_dev = platform_get_drvdata(pdev);;
+	if (!vop_dev)
+		return -ENODEV;
+
+	dev = &pdev->dev;
+	devfreq = devfreq_get_devfreq_by_phandle(dev, 0);
+	if (IS_ERR(devfreq)) {
+		dev_err(vop_dev->dev, "fail to get devfreq for dmc\n");
+		return -ENODEV;
+	}
+
+	vop_dev->devfreq = devfreq;
+	vop_dev->dmc_nb.notifier_call = dmc_notify;
+	devfreq_register_notifier(vop_dev->devfreq, &vop_dev->dmc_nb,
+				  DEVFREQ_TRANSITION_NOTIFIER);
+
+	event_dev = devfreq_event_get_edev_by_phandle(vop_dev->devfreq->dev.parent,
+						      0);
+	if (IS_ERR(event_dev)) {
+		dev_err(vop_dev->dev, "fail to get edev for dmc\n");
+		return -ENODEV;
+	}
+
+	vop_dev->devfreq_event_dev = event_dev;
+	return 0;
+}
+
 static int vop_probe(struct platform_device *pdev)
 {
 	struct vop_device *vop_dev = NULL;
@@ -4998,6 +5100,11 @@ static int vop_probe(struct platform_device *pdev)
 		vop_dev->data->win[3].property.feature &= ~SUPPORT_HW_EXIST;
 	}
 
+	init_waitqueue_head(&vop_dev->wait_vop_switch_queue);
+	vop_dev->vop_switch_status = 0;
+	init_waitqueue_head(&vop_dev->wait_dmc_queue);
+	vop_dev->dmc_in_process = 0;
+
 	ret = rk_fb_register(dev_drv, vop_dev->data->win, vop_dev->id);
 	if (ret < 0) {
 		dev_err(dev, "register fb for lcdc%d failed!\n", vop_dev->id);
@@ -5006,6 +5113,8 @@ static int vop_probe(struct platform_device *pdev)
 	vop_dev->screen = dev_drv->screen0;
 	dev_info(dev, "lcdc%d probe ok, iommu %s\n",
 		 vop_dev->id, dev_drv->iommu_enabled ? "enabled" : "disabled");
+
+	rk322x_pdev = pdev;
 
 	return 0;
 }
