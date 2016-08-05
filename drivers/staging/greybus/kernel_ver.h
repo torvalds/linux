@@ -140,6 +140,10 @@ static inline void sysfs_remove_groups(struct kobject *kobj,
 #define MMC_DDR52_DEFINED
 #endif
 
+#ifndef MMC_CAP2_CORE_RUNTIME_PM
+#define MMC_CAP2_CORE_RUNTIME_PM	0
+#endif
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
 #define MMC_POWER_UNDEFINED_SUPPORTED
 #endif

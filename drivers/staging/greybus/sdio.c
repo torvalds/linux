@@ -84,8 +84,8 @@ static void _gb_sdio_set_host_caps(struct gb_sdio_host *host, u32 r)
 #endif
 		((r & GB_SDIO_CAP_HS200_1_8V) ? MMC_CAP2_HS200_1_8V_SDR : 0);
 
-	host->mmc->caps = caps | MMC_CAP_NEEDS_POLL;
-	host->mmc->caps2 = caps2;
+	host->mmc->caps = caps;
+	host->mmc->caps2 = caps2 | MMC_CAP2_CORE_RUNTIME_PM;
 
 	if (caps & MMC_CAP_NONREMOVABLE)
 		host->card_present = true;
@@ -239,8 +239,18 @@ static int gb_sdio_request_handler(struct gb_operation *op)
 static int gb_sdio_set_ios(struct gb_sdio_host *host,
 			   struct gb_sdio_set_ios_request *request)
 {
-	return gb_operation_sync(host->connection, GB_SDIO_TYPE_SET_IOS,
-				 request, sizeof(*request), NULL, 0);
+	int ret;
+
+	ret = gbphy_runtime_get_sync(host->gbphy_dev);
+	if (ret)
+		return ret;
+
+	ret = gb_operation_sync(host->connection, GB_SDIO_TYPE_SET_IOS, request,
+				sizeof(*request), NULL, 0);
+
+	gbphy_runtime_put_autosuspend(host->gbphy_dev);
+
+	return ret;
 }
 
 static int _gb_sdio_send(struct gb_sdio_host *host, struct mmc_data *data,
@@ -489,10 +499,15 @@ static void gb_sdio_mrq_work(struct work_struct *work)
 
 	host = container_of(work, struct gb_sdio_host, mrqwork);
 
+	ret = gbphy_runtime_get_sync(host->gbphy_dev);
+	if (ret)
+		return;
+
 	mutex_lock(&host->lock);
 	mrq = host->mrq;
 	if (!mrq) {
 		mutex_unlock(&host->lock);
+		gbphy_runtime_put_autosuspend(host->gbphy_dev);
 		dev_err(mmc_dev(host->mmc), "mmc request is NULL");
 		return;
 	}
@@ -528,6 +543,7 @@ done:
 	host->mrq = NULL;
 	mutex_unlock(&host->lock);
 	mmc_request_done(host->mmc, mrq);
+	gbphy_runtime_put_autosuspend(host->gbphy_dev);
 }
 
 static void gb_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
@@ -813,6 +829,8 @@ static int gb_sdio_probe(struct gbphy_device *gbphy_dev,
 	ret = _gb_sdio_process_events(host, host->queued_events);
 	host->queued_events = 0;
 
+	gbphy_runtime_put_autosuspend(gbphy_dev);
+
 	return ret;
 
 exit_wq_destroy:
@@ -832,6 +850,11 @@ static void gb_sdio_remove(struct gbphy_device *gbphy_dev)
 	struct gb_sdio_host *host = gb_gbphy_get_data(gbphy_dev);
 	struct gb_connection *connection = host->connection;
 	struct mmc_host *mmc;
+	int ret;
+
+	ret = gbphy_runtime_get_sync(gbphy_dev);
+	if (ret)
+		gbphy_runtime_get_noresume(gbphy_dev);
 
 	mutex_lock(&host->lock);
 	host->removed = true;
