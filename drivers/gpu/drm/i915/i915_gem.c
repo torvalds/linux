@@ -1518,26 +1518,23 @@ i915_gem_sw_finish_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_i915_gem_sw_finish *args = data;
 	struct drm_i915_gem_object *obj;
-	int ret = 0;
-
-	ret = i915_mutex_lock_interruptible(dev);
-	if (ret)
-		return ret;
+	int err = 0;
 
 	obj = i915_gem_object_lookup(file, args->handle);
-	if (!obj) {
-		ret = -ENOENT;
-		goto unlock;
-	}
+	if (!obj)
+		return -ENOENT;
 
 	/* Pinned buffers may be scanout, so flush the cache */
-	if (obj->pin_display)
-		i915_gem_object_flush_cpu_write_domain(obj);
+	if (READ_ONCE(obj->pin_display)) {
+		err = i915_mutex_lock_interruptible(dev);
+		if (!err) {
+			i915_gem_object_flush_cpu_write_domain(obj);
+			mutex_unlock(&dev->struct_mutex);
+		}
+	}
 
-	i915_gem_object_put(obj);
-unlock:
-	mutex_unlock(&dev->struct_mutex);
-	return ret;
+	i915_gem_object_put_unlocked(obj);
+	return err;
 }
 
 /**
