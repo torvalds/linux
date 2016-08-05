@@ -251,6 +251,9 @@ config IRQ_MXS
 config MVEBU_ODMI
 	bool
 
+config MVEBU_PIC
+	bool
+
 config LS_SCFG_MSI
 	def_bool y if SOC_LS1021A || ARCH_LAYERSCAPE
 	depends on PCI && PCI_MSI
