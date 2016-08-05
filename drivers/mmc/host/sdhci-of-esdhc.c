@@ -583,7 +583,7 @@ static int sdhci_esdhc_probe(struct platform_device *pdev)
 
 	np = pdev->dev.of_node;
 
-	if (of_get_property(np, "little-endian", NULL))
+	if (of_property_read_bool(np, "little-endian"))
 		host = sdhci_pltfm_init(pdev, &sdhci_esdhc_le_pdata,
 					sizeof(struct sdhci_esdhc));
 	else
