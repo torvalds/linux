@@ -3736,49 +3736,120 @@ i915_gem_object_ggtt_unpin_view(struct drm_i915_gem_object *obj,
 	i915_vma_unpin(i915_gem_obj_to_ggtt_view(obj, view));
 }
 
+static __always_inline unsigned __busy_read_flag(unsigned int id)
+{
+	/* Note that we could alias engines in the execbuf API, but
+	 * that would be very unwise as it prevents userspace from
+	 * fine control over engine selection. Ahem.
+	 *
+	 * This should be something like EXEC_MAX_ENGINE instead of
+	 * I915_NUM_ENGINES.
+	 */
+	BUILD_BUG_ON(I915_NUM_ENGINES > 16);
+	return 0x10000 << id;
+}
+
+static __always_inline unsigned int __busy_write_id(unsigned int id)
+{
+	return id;
+}
+
+static __always_inline unsigned
+__busy_set_if_active(const struct i915_gem_active *active,
+		     unsigned int (*flag)(unsigned int id))
+{
+	/* For more discussion about the barriers and locking concerns,
+	 * see __i915_gem_active_get_rcu().
+	 */
+	do {
+		struct drm_i915_gem_request *request;
+		unsigned int id;
+
+		request = rcu_dereference(active->request);
+		if (!request || i915_gem_request_completed(request))
+			return 0;
+
+		id = request->engine->exec_id;
+
+		/* Check that the pointer wasn't reassigned and overwritten. */
+		if (request == rcu_access_pointer(active->request))
+			return flag(id);
+	} while (1);
+}
+
+static inline unsigned
+busy_check_reader(const struct i915_gem_active *active)
+{
+	return __busy_set_if_active(active, __busy_read_flag);
+}
+
+static inline unsigned
+busy_check_writer(const struct i915_gem_active *active)
+{
+	return __busy_set_if_active(active, __busy_write_id);
+}
+
 int
 i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 		    struct drm_file *file)
 {
 	struct drm_i915_gem_busy *args = data;
 	struct drm_i915_gem_object *obj;
-	int ret;
-
-	ret = i915_mutex_lock_interruptible(dev);
-	if (ret)
-		return ret;
+	unsigned long active;
 
 	obj = i915_gem_object_lookup(file, args->handle);
-	if (!obj) {
-		ret = -ENOENT;
-		goto unlock;
-	}
+	if (!obj)
+		return -ENOENT;
 
-	/* Count all active objects as busy, even if they are currently not used
-	 * by the gpu. Users of this interface expect objects to eventually
-	 * become non-busy without any further actions.
-	 */
 	args->busy = 0;
-	if (i915_gem_object_is_active(obj)) {
-		struct drm_i915_gem_request *req;
-		int i;
+	active = __I915_BO_ACTIVE(obj);
+	if (active) {
+		int idx;
 
-		for (i = 0; i < I915_NUM_ENGINES; i++) {
-			req = i915_gem_active_peek(&obj->last_read[i],
-						   &obj->base.dev->struct_mutex);
-			if (req)
-				args->busy |= 1 << (16 + req->engine->exec_id);
-		}
-		req = i915_gem_active_peek(&obj->last_write,
-					   &obj->base.dev->struct_mutex);
-		if (req)
-			args->busy |= req->engine->exec_id;
+		/* Yes, the lookups are intentionally racy.
+		 *
+		 * First, we cannot simply rely on __I915_BO_ACTIVE. We have
+		 * to regard the value as stale and as our ABI guarantees
+		 * forward progress, we confirm the status of each active
+		 * request with the hardware.
+		 *
+		 * Even though we guard the pointer lookup by RCU, that only
+		 * guarantees that the pointer and its contents remain
+		 * dereferencable and does *not* mean that the request we
+		 * have is the same as the one being tracked by the object.
+		 *
+		 * Consider that we lookup the request just as it is being
+		 * retired and freed. We take a local copy of the pointer,
+		 * but before we add its engine into the busy set, the other
+		 * thread reallocates it and assigns it to a task on another
+		 * engine with a fresh and incomplete seqno.
+		 *
+		 * So after we lookup the engine's id, we double check that
+		 * the active request is the same and only then do we add it
+		 * into the busy set.
+		 */
+		rcu_read_lock();
+
+		for_each_active(active, idx)
+			args->busy |= busy_check_reader(&obj->last_read[idx]);
+
+		/* For ABI sanity, we only care that the write engine is in
+		 * the set of read engines. This is ensured by the ordering
+		 * of setting last_read/last_write in i915_vma_move_to_active,
+		 * and then in reverse in retire.
+		 *
+		 * We don't care that the set of active read/write engines
+		 * may change during construction of the result, as it is
+		 * equally liable to change before userspace can inspect
+		 * the result.
+		 */
+		args->busy |= busy_check_writer(&obj->last_write);
+
+		rcu_read_unlock();
 	}
 
-	i915_gem_object_put(obj);
-unlock:
-	mutex_unlock(&dev->struct_mutex);
-	return ret;
+	i915_gem_object_put_unlocked(obj);
+	return 0;
 }
 
 int
