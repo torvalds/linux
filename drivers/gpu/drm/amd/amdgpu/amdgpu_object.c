@@ -436,7 +436,7 @@ int amdgpu_bo_create(struct amdgpu_device *adev,
 	if (r)
 		return r;
 
-	if (flags & AMDGPU_GEM_CREATE_SHADOW) {
+	if (amdgpu_need_backup(adev) && (flags & AMDGPU_GEM_CREATE_SHADOW)) {
 		r = amdgpu_bo_create_shadow(adev, size, byte_align, (*bo_ptr));
 		if (r)
 			amdgpu_bo_unref(bo_ptr);

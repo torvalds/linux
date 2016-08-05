@@ -2049,6 +2049,14 @@ static int amdgpu_post_soft_reset(struct amdgpu_device *adev)
 	return 0;
 }
 
+bool amdgpu_need_backup(struct amdgpu_device *adev)
+{
+	if (adev->flags & AMD_IS_APU)
+		return false;
+
+	return amdgpu_lockup_timeout > 0 ? true : false;
+}
+
 /**
  * amdgpu_gpu_reset - reset the asic
  *
