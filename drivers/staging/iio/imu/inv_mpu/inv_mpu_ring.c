@@ -1002,10 +1002,8 @@ irqreturn_t inv_read_fifo(int irq, void *dev_id)
 		if (result)
 			goto end_session;
 		fifo_count = be16_to_cpup((__be16 *)(&data[0]));
-		/*
 		if (fifo_count == 0)
 			goto flush_fifo;
-		*/
 		if (fifo_count < bytes_per_datum)
 			goto end_session;
 		/* fifo count can't be odd number */
