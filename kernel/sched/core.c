@@ -1265,7 +1265,7 @@ static void __migrate_swap_task(struct task_struct *p, int cpu)
 		/*
 		 * Task isn't running anymore; make it appear like we migrated
 		 * it before it went to sleep. This means on wakeup we make the
-		 * previous cpu our targer instead of where it really is.
+		 * previous cpu our target instead of where it really is.
 		 */
 		p->wake_cpu = cpu;
 	}
