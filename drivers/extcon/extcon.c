@@ -93,6 +93,11 @@ struct __extcon_info {
 		.id = EXTCON_CHG_USB_SLOW,
 		.name = "SLOW-CHARGER",
 	},
+	[EXTCON_CHG_WPT] = {
+		.type = EXTCON_TYPE_CHG,
+		.id = EXTCON_CHG_WPT,
+		.name = "WPT",
+	},
 
 	/* Jack external connector */
 	[EXTCON_JACK_MICROPHONE] = {
