@@ -72,6 +72,13 @@
 #define SDXC_REG_CHDA	(0x90)
 #define SDXC_REG_CBDA	(0x94)
 
+/* New registers introduced in A64 */
+#define SDXC_REG_A12A		0x058 /* SMC Auto Command 12 Register */
+#define SDXC_REG_SD_NTSR	0x05C /* SMC New Timing Set Register */
+#define SDXC_REG_DRV_DL		0x140 /* Drive Delay Control Register */
+#define SDXC_REG_SAMP_DL_REG	0x144 /* SMC sample delay control */
+#define SDXC_REG_DS_DL_REG	0x148 /* SMC data strobe delay control */
+
 #define mmc_readl(host, reg) \
 	readl((host)->reg_base + SDXC_##reg)
 #define mmc_writel(host, reg, value) \
@@ -217,6 +224,17 @@
 #define SDXC_CLK_50M_DDR	3
 #define SDXC_CLK_50M_DDR_8BIT	4
 
+#define SDXC_2X_TIMING_MODE	BIT(31)
+
+#define SDXC_CAL_START		BIT(15)
+#define SDXC_CAL_DONE		BIT(14)
+#define SDXC_CAL_DL_SHIFT	8
+#define SDXC_CAL_DL_SW_EN	BIT(7)
+#define SDXC_CAL_DL_SW_SHIFT	0
+#define SDXC_CAL_DL_MASK	0x3f
+
+#define SDXC_CAL_TIMEOUT	3	/* in seconds, 3s is enough*/
+
 struct sunxi_mmc_clk_delay {
 	u32 output;
 	u32 sample;
@@ -232,6 +250,9 @@ struct sunxi_idma_des {
 struct sunxi_mmc_cfg {
 	u32 idma_des_size_bits;
 	const struct sunxi_mmc_clk_delay *clk_delays;
+
+	/* does the IP block support autocalibration? */
+	bool can_calibrate;
 };
 
 struct sunxi_mmc_host {
@@ -660,6 +681,47 @@ static int sunxi_mmc_oclk_onoff(struct sunxi_mmc_host *host, u32 oclk_en)
 	return 0;
 }
 
+static int sunxi_mmc_calibrate(struct sunxi_mmc_host *host, int reg_off)
+{
+	u32 reg = readl(host->reg_base + reg_off);
+	u32 delay;
+	unsigned long timeout;
+
+	if (!host->cfg->can_calibrate)
+		return 0;
+
+	reg &= ~(SDXC_CAL_DL_MASK << SDXC_CAL_DL_SW_SHIFT);
+	reg &= ~SDXC_CAL_DL_SW_EN;
+
+	writel(reg | SDXC_CAL_START, host->reg_base + reg_off);
+
+	dev_dbg(mmc_dev(host->mmc), "calibration started\n");
+
+	timeout = jiffies + HZ * SDXC_CAL_TIMEOUT;
+
+	while (!((reg = readl(host->reg_base + reg_off)) & SDXC_CAL_DONE)) {
+		if (time_before(jiffies, timeout))
+			cpu_relax();
+		else {
+			reg &= ~SDXC_CAL_START;
+			writel(reg, host->reg_base + reg_off);
+
+			return -ETIMEDOUT;
+		}
+	}
+
+	delay = (reg >> SDXC_CAL_DL_SHIFT) & SDXC_CAL_DL_MASK;
+
+	reg &= ~SDXC_CAL_START;
+	reg |= (delay << SDXC_CAL_DL_SW_SHIFT) | SDXC_CAL_DL_SW_EN;
+
+	writel(reg, host->reg_base + reg_off);
+
+	dev_dbg(mmc_dev(host->mmc), "calibration ended, reg is 0x%x\n", reg);
+
+	return 0;
+}
+
 static int sunxi_mmc_clk_set_phase(struct sunxi_mmc_host *host,
 				   struct mmc_ios *ios, u32 rate)
 {
@@ -739,6 +801,12 @@ static int sunxi_mmc_clk_set_rate(struct sunxi_mmc_host *host,
 	ret = sunxi_mmc_clk_set_phase(host, ios, rate);
 	if (ret)
 		return ret;
+
+	ret = sunxi_mmc_calibrate(host, SDXC_REG_SAMP_DL_REG);
+	if (ret)
+		return ret;
+
+	/* TODO: enable calibrate on sdc2 SDXC_REG_DS_DL_REG of A64 */
 
 	return sunxi_mmc_oclk_onoff(host, 1);
 }
@@ -991,21 +1059,31 @@ static const struct sunxi_mmc_clk_delay sun9i_mmc_clk_delays[] = {
 static const struct sunxi_mmc_cfg sun4i_a10_cfg = {
 	.idma_des_size_bits = 13,
 	.clk_delays = NULL,
+	.can_calibrate = false,
 };
 
 static const struct sunxi_mmc_cfg sun5i_a13_cfg = {
 	.idma_des_size_bits = 16,
 	.clk_delays = NULL,
+	.can_calibrate = false,
 };
 
 static const struct sunxi_mmc_cfg sun7i_a20_cfg = {
 	.idma_des_size_bits = 16,
 	.clk_delays = sunxi_mmc_clk_delays,
+	.can_calibrate = false,
 };
 
 static const struct sunxi_mmc_cfg sun9i_a80_cfg = {
 	.idma_des_size_bits = 16,
 	.clk_delays = sun9i_mmc_clk_delays,
+	.can_calibrate = false,
+};
+
+static const struct sunxi_mmc_cfg sun50i_a64_cfg = {
+	.idma_des_size_bits = 16,
+	.clk_delays = NULL,
+	.can_calibrate = true,
 };
 
 static const struct of_device_id sunxi_mmc_of_match[] = {
@@ -1013,6 +1091,7 @@ static const struct of_device_id sunxi_mmc_of_match[] = {
 	{ .compatible = "allwinner,sun5i-a13-mmc", .data = &sun5i_a13_cfg },
 	{ .compatible = "allwinner,sun7i-a20-mmc", .data = &sun7i_a20_cfg },
 	{ .compatible = "allwinner,sun9i-a80-mmc", .data = &sun9i_a80_cfg },
+	{ .compatible = "allwinner,sun50i-a64-mmc", .data = &sun50i_a64_cfg },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, sunxi_mmc_of_match);
