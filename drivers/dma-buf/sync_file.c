@@ -116,6 +116,29 @@ err:
 	return NULL;
 }
 
+/**
+ * sync_file_get_fence - get the fence related to the sync_file fd
+ * @fd:		sync_file fd to get the fence from
+ *
+ * Ensures @fd references a valid sync_file and returns a fence that
+ * represents all fence in the sync_file. On error NULL is returned.
+ */
+struct fence *sync_file_get_fence(int fd)
+{
+	struct sync_file *sync_file;
+	struct fence *fence;
+
+	sync_file = sync_file_fdget(fd);
+	if (!sync_file)
+		return NULL;
+
+	fence = fence_get(sync_file->fence);
+	fput(sync_file->file);
+
+	return fence;
+}
+EXPORT_SYMBOL(sync_file_get_fence);
+
 static int sync_file_set_fence(struct sync_file *sync_file,
 			       struct fence **fences, int num_fences)
 {
