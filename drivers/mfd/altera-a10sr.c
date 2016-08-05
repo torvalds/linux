@@ -94,7 +94,7 @@ static bool altr_a10sr_reg_volatile(struct device *dev, unsigned int reg)
 	}
 }
 
-const struct regmap_config altr_a10sr_regmap_config = {
+static const struct regmap_config altr_a10sr_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 
