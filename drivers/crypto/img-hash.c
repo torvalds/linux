@@ -686,6 +686,7 @@ static int img_hash_cra_init(struct crypto_tfm *tfm, const char *alg_name)
 	}
 	crypto_ahash_set_reqsize(__crypto_ahash_cast(tfm),
 				 sizeof(struct img_hash_request_ctx) +
+				 crypto_ahash_reqsize(ctx->fallback) +
 				 IMG_HASH_DMA_THRESHOLD);
 
 	return 0;
