@@ -1152,16 +1152,16 @@ int gb_interface_enable(struct gb_interface *intf)
 	if (ret)
 		goto err_destroy_bundles;
 
-	/* Register the control device and any bundles */
-	ret = gb_control_add(intf->control);
-	if (ret)
-		goto err_destroy_bundles;
-
 	ret = gb_timesync_interface_add(intf);
 	if (ret) {
 		dev_err(&intf->dev, "failed to add to timesync: %d\n", ret);
-		goto err_del_control;
+		goto err_destroy_bundles;
 	}
+
+	/* Register the control device and any bundles */
+	ret = gb_control_add(intf->control);
+	if (ret)
+		goto err_remove_timesync;
 
 	pm_runtime_use_autosuspend(&intf->dev);
 	pm_runtime_get_noresume(&intf->dev);
@@ -1186,8 +1186,8 @@ int gb_interface_enable(struct gb_interface *intf)
 
 	return 0;
 
-err_del_control:
-	gb_control_del(intf->control);
+err_remove_timesync:
+	gb_timesync_interface_remove(intf);
 err_destroy_bundles:
 	list_for_each_entry_safe(bundle, tmp, &intf->bundles, links)
 		gb_bundle_destroy(bundle);
@@ -1229,8 +1229,8 @@ void gb_interface_disable(struct gb_interface *intf)
 	if (!intf->mode_switch && !intf->disconnected)
 		gb_control_interface_deactivate_prepare(intf->control);
 
-	gb_timesync_interface_remove(intf);
 	gb_control_del(intf->control);
+	gb_timesync_interface_remove(intf);
 	gb_control_disable(intf->control);
 	gb_control_put(intf->control);
 	intf->control = NULL;
