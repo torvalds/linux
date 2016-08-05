@@ -2462,18 +2462,24 @@ static int cma_resolve_iboe_route(struct rdma_id_private *id_priv)
 
 	if (addr->dev_addr.bound_dev_if) {
 		ndev = dev_get_by_index(&init_net, addr->dev_addr.bound_dev_if);
-		if (!ndev)
-			return -ENODEV;
+		if (!ndev) {
+			ret = -ENODEV;
+			goto err2;
+		}
 
 		if (ndev->flags & IFF_LOOPBACK) {
 			dev_put(ndev);
-			if (!id_priv->id.device->get_netdev)
-				return -EOPNOTSUPP;
+			if (!id_priv->id.device->get_netdev) {
+				ret = -EOPNOTSUPP;
+				goto err2;
+			}
 
 			ndev = id_priv->id.device->get_netdev(id_priv->id.device,
 							      id_priv->id.port_num);
-			if (!ndev)
-				return -ENODEV;
+			if (!ndev) {
+				ret = -ENODEV;
+				goto err2;
+			}
 		}
 
 		route->path_rec->net = &init_net;
