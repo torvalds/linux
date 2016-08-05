@@ -197,7 +197,7 @@ static struct lkl_mutex **init_queue_locks(int num_queues)
 		return NULL;
 
 	for (i = 0; i < num_queues; i++) {
-		ret[i] = lkl_host_ops.mutex_alloc(0);
+		ret[i] = lkl_host_ops.mutex_alloc(1);
 		if (!ret[i]) {
 			free_queue_locks(ret, i);
 			return NULL;
