@@ -403,6 +403,13 @@ choice
 		  Say Y here if you want kernel low-level debugging support
 		  on i.MX6SL.
 
+	config DEBUG_IMX6SLL_UART
+		bool "i.MX6SLL Debug UART"
+		depends on SOC_IMX6SLL
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on i.MX6SLL.
+
 	config DEBUG_IMX6SX_UART
 		bool "i.MX6SX Debug UART"
 		depends on SOC_IMX6SX
@@ -1245,6 +1252,7 @@ config DEBUG_IMX_UART_PORT
 						DEBUG_IMX53_UART || \
 						DEBUG_IMX6Q_UART || \
 						DEBUG_IMX6SL_UART || \
+						DEBUG_IMX6SLL_UART || \
 						DEBUG_IMX6SX_UART || \
 						DEBUG_IMX6UL_UART || \
 						DEBUG_IMX7D_UART
@@ -1297,6 +1305,7 @@ config DEBUG_LL_INCLUDE
 				 DEBUG_IMX53_UART ||\
 				 DEBUG_IMX6Q_UART || \
 				 DEBUG_IMX6SL_UART || \
+				 DEBUG_IMX6SLL_UART || \
 				 DEBUG_IMX6SX_UART || \
 				 DEBUG_IMX6UL_UART || \
 				 DEBUG_IMX7D_UART
