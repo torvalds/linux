@@ -2676,6 +2676,27 @@ out_put_switch:
 }
 EXPORT_SYMBOL_GPL(rpc_clnt_add_xprt);
 
+static int
+rpc_xprt_cap_max_reconnect_timeout(struct rpc_clnt *clnt,
+		struct rpc_xprt *xprt,
+		void *data)
+{
+	unsigned long timeout = *((unsigned long *)data);
+
+	if (timeout < xprt->max_reconnect_timeout)
+		xprt->max_reconnect_timeout = timeout;
+	return 0;
+}
+
+void
+rpc_cap_max_reconnect_timeout(struct rpc_clnt *clnt, unsigned long timeo)
+{
+	rpc_clnt_iterate_for_each_xprt(clnt,
+			rpc_xprt_cap_max_reconnect_timeout,
+			&timeo);
+}
+EXPORT_SYMBOL_GPL(rpc_cap_max_reconnect_timeout);
+
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 static void rpc_show_header(void)
 {
