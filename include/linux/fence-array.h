@@ -52,6 +52,16 @@ struct fence_array {
 extern const struct fence_ops fence_array_ops;
 
 /**
+ * fence_is_array - check if a fence is from the array subsclass
+ *
+ * Return true if it is a fence_array and false otherwise.
+ */
+static inline bool fence_is_array(struct fence *fence)
+{
+	return fence->ops == &fence_array_ops;
+}
+
+/**
  * to_fence_array - cast a fence to a fence_array
  * @fence: fence to cast to a fence_array
  *
