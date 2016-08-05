@@ -99,7 +99,7 @@ int ucc_of_parse_tdm(struct device_node *np, struct ucc_tdm *utdm,
 	utdm->tdm_port = val;
 	ut_info->uf_info.tdm_num = utdm->tdm_port;
 
-	if (of_get_property(np, "fsl,tdm-internal-loopback", NULL))
+	if (of_property_read_bool(np, "fsl,tdm-internal-loopback"))
 		utdm->tdm_mode = TDM_INTERNAL_LOOPBACK;
 	else
 		utdm->tdm_mode = TDM_NORMAL;
