@@ -2241,31 +2241,6 @@ static bool needs_idle_maps(struct drm_i915_private *dev_priv)
 	return false;
 }
 
-static bool do_idling(struct drm_i915_private *dev_priv)
-{
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
-	bool ret = dev_priv->mm.interruptible;
-
-	if (unlikely(ggtt->do_idle_maps)) {
-		dev_priv->mm.interruptible = false;
-		if (i915_gem_wait_for_idle(dev_priv, false)) {
-			DRM_ERROR("Failed to wait for idle; VT'd may hang.\n");
-			/* Wait a bit, in hopes it avoids the hang */
-			udelay(10);
-		}
-	}
-
-	return ret;
-}
-
-static void undo_idling(struct drm_i915_private *dev_priv, bool interruptible)
-{
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
-
-	if (unlikely(ggtt->do_idle_maps))
-		dev_priv->mm.interruptible = interruptible;
-}
-
 void i915_check_and_clear_faults(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
@@ -2713,14 +2688,18 @@ void i915_gem_gtt_finish_object(struct drm_i915_gem_object *obj)
 {
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	bool interruptible;
+	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 
-	interruptible = do_idling(dev_priv);
+	if (unlikely(ggtt->do_idle_maps)) {
+		if (i915_gem_wait_for_idle(dev_priv, false)) {
+			DRM_ERROR("Failed to wait for idle; VT'd may hang.\n");
+			/* Wait a bit, in hopes it avoids the hang */
+			udelay(10);
+		}
+	}
 
 	dma_unmap_sg(&dev->pdev->dev, obj->pages->sgl, obj->pages->nents,
 		     PCI_DMA_BIDIRECTIONAL);
-
-	undo_idling(dev_priv, interruptible);
 }
 
 static void i915_gtt_color_adjust(struct drm_mm_node *node,
