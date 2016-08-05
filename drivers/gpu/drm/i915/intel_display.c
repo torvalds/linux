@@ -3135,6 +3135,11 @@ __intel_display_resume(struct drm_device *dev,
 	return ret;
 }
 
+static bool gpu_reset_clobbers_display(struct drm_i915_private *dev_priv)
+{
+	return INTEL_GEN(dev_priv) < 5 && !IS_G4X(dev_priv);
+}
+
 void intel_prepare_reset(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = &dev_priv->drm;
@@ -3162,7 +3167,7 @@ void intel_prepare_reset(struct drm_i915_private *dev_priv)
 
 	/* reset doesn't touch the display, but flips might get nuked anyway, */
 	if (!i915.force_reset_modeset_test &&
-	    (INTEL_GEN(dev_priv) >= 5 || IS_G4X(dev_priv)))
+	    !gpu_reset_clobbers_display(dev_priv))
 		return;
 
 	/*
@@ -3212,7 +3217,7 @@ void intel_finish_reset(struct drm_i915_private *dev_priv)
 	dev_priv->modeset_restore_state = NULL;
 
 	/* reset doesn't touch the display */
-	if (INTEL_GEN(dev_priv) >= 5 || IS_G4X(dev_priv)) {
+	if (!gpu_reset_clobbers_display(dev_priv)) {
 		if (!state) {
 			/*
 			 * Flips in the rings have been nuked by the reset,
