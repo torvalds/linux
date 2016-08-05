@@ -68,6 +68,9 @@ i915_tiling_ok(struct drm_device *dev, int stride, int size, int tiling_mode)
 	if (tiling_mode == I915_TILING_NONE)
 		return true;
 
+	if (tiling_mode > I915_TILING_LAST)
+		return false;
+
 	if (IS_GEN2(dev) ||
 	    (tiling_mode == I915_TILING_Y && HAS_128_BYTE_Y_TILING(dev)))
 		tile_width = 128;
