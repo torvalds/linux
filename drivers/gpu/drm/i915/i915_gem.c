@@ -956,24 +956,26 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 		       args->size))
 		return -EFAULT;
 
-	ret = i915_mutex_lock_interruptible(dev);
-	if (ret)
-		return ret;
-
 	obj = i915_gem_object_lookup(file, args->handle);
-	if (!obj) {
-		ret = -ENOENT;
-		goto unlock;
-	}
+	if (!obj)
+		return -ENOENT;
 
 	/* Bounds check source.  */
 	if (args->offset > obj->base.size ||
 	    args->size > obj->base.size - args->offset) {
 		ret = -EINVAL;
-		goto out;
+		goto err;
 	}
 
 	trace_i915_gem_object_pread(obj, args->offset, args->size);
+
+	ret = __unsafe_wait_rendering(obj, to_rps_client(file), true);
+	if (ret)
+		goto err;
+
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		goto err;
 
 	ret = i915_gem_shmem_pread(dev, obj, args, file);
 
@@ -985,10 +987,13 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 		intel_runtime_pm_put(to_i915(dev));
 	}
 
-out:
 	i915_gem_object_put(obj);
-unlock:
 	mutex_unlock(&dev->struct_mutex);
+
+	return ret;
+
+err:
+	i915_gem_object_put_unlocked(obj);
 	return ret;
 }
 
@@ -1374,26 +1379,28 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 			return -EFAULT;
 	}
 
-	intel_runtime_pm_get(dev_priv);
-
-	ret = i915_mutex_lock_interruptible(dev);
-	if (ret)
-		goto put_rpm;
-
 	obj = i915_gem_object_lookup(file, args->handle);
-	if (!obj) {
-		ret = -ENOENT;
-		goto unlock;
-	}
+	if (!obj)
+		return -ENOENT;
 
 	/* Bounds check destination. */
 	if (args->offset > obj->base.size ||
 	    args->size > obj->base.size - args->offset) {
 		ret = -EINVAL;
-		goto out;
+		goto err;
 	}
 
 	trace_i915_gem_object_pwrite(obj, args->offset, args->size);
+
+	ret = __unsafe_wait_rendering(obj, to_rps_client(file), false);
+	if (ret)
+		goto err;
+
+	intel_runtime_pm_get(dev_priv);
+
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		goto err_rpm;
 
 	ret = -EFAULT;
 	/* We can only do the GTT pwrite on untiled buffers, as otherwise
@@ -1419,13 +1426,16 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 			ret = -ENODEV;
 	}
 
-out:
 	i915_gem_object_put(obj);
-unlock:
 	mutex_unlock(&dev->struct_mutex);
-put_rpm:
 	intel_runtime_pm_put(dev_priv);
 
+	return ret;
+
+err_rpm:
+	intel_runtime_pm_put(dev_priv);
+err:
+	i915_gem_object_put_unlocked(obj);
 	return ret;
 }
 
