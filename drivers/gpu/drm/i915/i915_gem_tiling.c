@@ -170,6 +170,9 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 	struct drm_i915_gem_object *obj;
 	int ret = 0;
 
+	/* Make sure we don't cross-contaminate obj->tiling_and_stride */
+	BUILD_BUG_ON(I915_TILING_LAST & STRIDE_MASK);
+
 	obj = i915_gem_object_lookup(file, args->handle);
 	if (!obj)
 		return -ENOENT;
@@ -217,8 +220,8 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 		}
 	}
 
-	if (args->tiling_mode != obj->tiling_mode ||
-	    args->stride != obj->stride) {
+	if (args->tiling_mode != i915_gem_object_get_tiling(obj) ||
+	    args->stride != i915_gem_object_get_stride(obj)) {
 		/* We need to rebind the object if its current allocation
 		 * no longer meets the alignment restrictions for its new
 		 * tiling mode. Otherwise we can just leave it alone, but
@@ -241,7 +244,7 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 			    dev_priv->quirks & QUIRK_PIN_SWIZZLED_PAGES) {
 				if (args->tiling_mode == I915_TILING_NONE)
 					i915_gem_object_unpin_pages(obj);
-				if (obj->tiling_mode == I915_TILING_NONE)
+				if (!i915_gem_object_is_tiled(obj))
 					i915_gem_object_pin_pages(obj);
 			}
 
@@ -250,16 +253,16 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 							 &dev->struct_mutex) ||
 				obj->fence_reg != I915_FENCE_REG_NONE;
 
-			obj->tiling_mode = args->tiling_mode;
-			obj->stride = args->stride;
+			obj->tiling_and_stride =
+				args->stride | args->tiling_mode;
 
 			/* Force the fence to be reacquired for GTT access */
 			i915_gem_release_mmap(obj);
 		}
 	}
 	/* we have to maintain this existing ABI... */
-	args->stride = obj->stride;
-	args->tiling_mode = obj->tiling_mode;
+	args->stride = i915_gem_object_get_stride(obj);
+	args->tiling_mode = i915_gem_object_get_tiling(obj);
 
 	/* Try to preallocate memory required to save swizzling on put-pages */
 	if (i915_gem_object_needs_bit17_swizzle(obj)) {
@@ -306,7 +309,7 @@ i915_gem_get_tiling(struct drm_device *dev, void *data,
 	if (!obj)
 		return -ENOENT;
 
-	args->tiling_mode = READ_ONCE(obj->tiling_mode);
+	args->tiling_mode = READ_ONCE(obj->tiling_and_stride) & TILING_MASK;
 	switch (args->tiling_mode) {
 	case I915_TILING_X:
 		args->swizzle_mode = dev_priv->mm.bit_6_swizzle_x;

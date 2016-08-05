@@ -1129,7 +1129,7 @@ int intel_overlay_put_image_ioctl(struct drm_device *dev, void *data,
 	drm_modeset_lock_all(dev);
 	mutex_lock(&dev->struct_mutex);
 
-	if (new_bo->tiling_mode) {
+	if (i915_gem_object_is_tiled(new_bo)) {
 		DRM_DEBUG_KMS("buffer used for overlay image can not be tiled\n");
 		ret = -EINVAL;
 		goto out_unlock;

@@ -1585,7 +1585,7 @@ static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 		obj = intel_fb_obj(enabled->primary->state->fb);
 
 		/* self-refresh seems busted with untiled */
-		if (obj->tiling_mode == I915_TILING_NONE)
+		if (!i915_gem_object_is_tiled(obj))
 			enabled = NULL;
 	}
 

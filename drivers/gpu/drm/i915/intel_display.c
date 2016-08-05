@@ -2466,9 +2466,8 @@ intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
 		return false;
 	}
 
-	obj->tiling_mode = plane_config->tiling;
-	if (obj->tiling_mode == I915_TILING_X)
-		obj->stride = fb->pitches[0];
+	if (plane_config->tiling == I915_TILING_X)
+		obj->tiling_and_stride = fb->pitches[0] | I915_TILING_X;
 
 	mode_cmd.pixel_format = fb->pixel_format;
 	mode_cmd.width = fb->width;
@@ -2594,7 +2593,7 @@ valid_fb:
 	intel_state->dst.y2 = plane_state->crtc_y + plane_state->crtc_h;
 
 	obj = intel_fb_obj(fb);
-	if (obj->tiling_mode != I915_TILING_NONE)
+	if (i915_gem_object_is_tiled(obj))
 		dev_priv->preserve_bios_swizzle = true;
 
 	drm_framebuffer_reference(fb);
@@ -2672,8 +2671,7 @@ static void i9xx_update_primary_plane(struct drm_plane *primary,
 		BUG();
 	}
 
-	if (INTEL_INFO(dev)->gen >= 4 &&
-	    obj->tiling_mode != I915_TILING_NONE)
+	if (INTEL_INFO(dev)->gen >= 4 && i915_gem_object_is_tiled(obj))
 		dspcntr |= DISPPLANE_TILED;
 
 	if (IS_G4X(dev))
@@ -2782,7 +2780,7 @@ static void ironlake_update_primary_plane(struct drm_plane *primary,
 		BUG();
 	}
 
-	if (obj->tiling_mode != I915_TILING_NONE)
+	if (i915_gem_object_is_tiled(obj))
 		dspcntr |= DISPPLANE_TILED;
 
 	if (!IS_HASWELL(dev) && !IS_BROADWELL(dev))
@@ -11200,7 +11198,7 @@ static int intel_gen4_queue_flip(struct drm_device *dev,
 			MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
 	intel_ring_emit(ring, fb->pitches[0]);
 	intel_ring_emit(ring, intel_crtc->flip_work->gtt_offset |
-			obj->tiling_mode);
+			i915_gem_object_get_tiling(obj));
 
 	/* XXX Enabling the panel-fitter across page-flip is so far
 	 * untested on non-native modes, so ignore it for now.
@@ -11232,7 +11230,7 @@ static int intel_gen6_queue_flip(struct drm_device *dev,
 
 	intel_ring_emit(ring, MI_DISPLAY_FLIP |
 			MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
-	intel_ring_emit(ring, fb->pitches[0] | obj->tiling_mode);
+	intel_ring_emit(ring, fb->pitches[0] | i915_gem_object_get_tiling(obj));
 	intel_ring_emit(ring, intel_crtc->flip_work->gtt_offset);
 
 	/* Contrary to the suggestions in the documentation,
@@ -11335,7 +11333,7 @@ static int intel_gen7_queue_flip(struct drm_device *dev,
 	}
 
 	intel_ring_emit(ring, MI_DISPLAY_FLIP_I915 | plane_bit);
-	intel_ring_emit(ring, (fb->pitches[0] | obj->tiling_mode));
+	intel_ring_emit(ring, fb->pitches[0] | i915_gem_object_get_tiling(obj));
 	intel_ring_emit(ring, intel_crtc->flip_work->gtt_offset);
 	intel_ring_emit(ring, (MI_NOOP));
 
@@ -11442,7 +11440,7 @@ static void ilk_do_mmio_flip(struct intel_crtc *intel_crtc,
 
 	dspcntr = I915_READ(reg);
 
-	if (obj->tiling_mode != I915_TILING_NONE)
+	if (i915_gem_object_is_tiled(obj))
 		dspcntr |= DISPPLANE_TILED;
 	else
 		dspcntr &= ~DISPPLANE_TILED;
@@ -11670,7 +11668,8 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 
 	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
 		engine = &dev_priv->engine[BCS];
-		if (obj->tiling_mode != intel_fb_obj(work->old_fb)->tiling_mode)
+		if (i915_gem_object_get_tiling(obj) !=
+		    i915_gem_object_get_tiling(intel_fb_obj(work->old_fb)))
 			/* vlv: DISPLAY_FLIP fails to change tiling */
 			engine = NULL;
 	} else if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev)) {
@@ -14932,15 +14931,15 @@ static int intel_framebuffer_init(struct drm_device *dev,
 	if (mode_cmd->flags & DRM_MODE_FB_MODIFIERS) {
 		/* Enforce that fb modifier and tiling mode match, but only for
 		 * X-tiled. This is needed for FBC. */
-		if (!!(obj->tiling_mode == I915_TILING_X) !=
+		if (!!(i915_gem_object_get_tiling(obj) == I915_TILING_X) !=
 		    !!(mode_cmd->modifier[0] == I915_FORMAT_MOD_X_TILED)) {
 			DRM_DEBUG("tiling_mode doesn't match fb modifier\n");
 			return -EINVAL;
 		}
 	} else {
-		if (obj->tiling_mode == I915_TILING_X)
+		if (i915_gem_object_get_tiling(obj) == I915_TILING_X)
 			mode_cmd->modifier[0] = I915_FORMAT_MOD_X_TILED;
-		else if (obj->tiling_mode == I915_TILING_Y) {
+		else if (i915_gem_object_get_tiling(obj) == I915_TILING_Y) {
 			DRM_DEBUG("No Y tiling for legacy addfb\n");
 			return -EINVAL;
 		}
@@ -14984,9 +14983,10 @@ static int intel_framebuffer_init(struct drm_device *dev,
 	}
 
 	if (mode_cmd->modifier[0] == I915_FORMAT_MOD_X_TILED &&
-	    mode_cmd->pitches[0] != obj->stride) {
+	    mode_cmd->pitches[0] != i915_gem_object_get_stride(obj)) {
 		DRM_DEBUG("pitch (%d) must match tiling stride (%d)\n",
-			  mode_cmd->pitches[0], obj->stride);
+			  mode_cmd->pitches[0],
+			  i915_gem_object_get_stride(obj));
 		return -EINVAL;
 	}
 

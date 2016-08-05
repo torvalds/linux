@@ -803,7 +803,7 @@ i915_gem_execbuffer_reserve(struct intel_engine_cs *engine,
 			entry->flags &= ~EXEC_OBJECT_NEEDS_FENCE;
 		need_fence =
 			entry->flags & EXEC_OBJECT_NEEDS_FENCE &&
-			obj->tiling_mode != I915_TILING_NONE;
+			i915_gem_object_is_tiled(obj);
 		need_mappable = need_fence || need_reloc_mappable(vma);
 
 		if (entry->flags & EXEC_OBJECT_PINNED)

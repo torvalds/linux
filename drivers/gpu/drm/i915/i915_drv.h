@@ -2214,13 +2214,11 @@ struct drm_i915_gem_object {
 
 	atomic_t frontbuffer_bits;
 
-	/**
-	 * Current tiling mode for the object.
-	 */
-	unsigned int tiling_mode;
-
 	/** Current tiling stride for the object, if it's tiled. */
-	uint32_t stride;
+	unsigned int tiling_and_stride;
+#define FENCE_MINIMUM_STRIDE 128 /* See i915_tiling_ok() */
+#define TILING_MASK (FENCE_MINIMUM_STRIDE-1)
+#define STRIDE_MASK (~TILING_MASK)
 
 	unsigned int has_wc_mmap;
 	/** Count of VMA actually bound by this object */
@@ -2357,6 +2355,24 @@ i915_gem_object_has_active_engine(const struct drm_i915_gem_object *obj,
 				  int engine)
 {
 	return obj->flags & BIT(engine + I915_BO_ACTIVE_SHIFT);
+}
+
+static inline unsigned int
+i915_gem_object_get_tiling(struct drm_i915_gem_object *obj)
+{
+	return obj->tiling_and_stride & TILING_MASK;
+}
+
+static inline bool
+i915_gem_object_is_tiled(struct drm_i915_gem_object *obj)
+{
+	return i915_gem_object_get_tiling(obj) != I915_TILING_NONE;
+}
+
+static inline unsigned int
+i915_gem_object_get_stride(struct drm_i915_gem_object *obj)
+{
+	return obj->tiling_and_stride & STRIDE_MASK;
 }
 
 /*
@@ -3457,7 +3473,7 @@ static inline bool i915_gem_object_needs_bit17_swizzle(struct drm_i915_gem_objec
 	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
 
 	return dev_priv->mm.bit_6_swizzle_x == I915_BIT_6_SWIZZLE_9_10_17 &&
-		obj->tiling_mode != I915_TILING_NONE;
+		i915_gem_object_is_tiled(obj);
 }
 
 /* i915_debugfs.c */

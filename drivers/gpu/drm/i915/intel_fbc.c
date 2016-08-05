@@ -741,7 +741,7 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 	cache->fb.pixel_format = fb->pixel_format;
 	cache->fb.stride = fb->pitches[0];
 	cache->fb.fence_reg = obj->fence_reg;
-	cache->fb.tiling_mode = obj->tiling_mode;
+	cache->fb.tiling_mode = i915_gem_object_get_tiling(obj);
 }
 
 static bool intel_fbc_can_activate(struct intel_crtc *crtc)

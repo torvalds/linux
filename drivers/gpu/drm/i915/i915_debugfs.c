@@ -101,7 +101,7 @@ static char get_pin_flag(struct drm_i915_gem_object *obj)
 
 static char get_tiling_flag(struct drm_i915_gem_object *obj)
 {
-	switch (obj->tiling_mode) {
+	switch (i915_gem_object_get_tiling(obj)) {
 	default:
 	case I915_TILING_NONE: return ' ';
 	case I915_TILING_X: return 'X';

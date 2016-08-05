@@ -781,7 +781,7 @@ static void capture_bo(struct drm_i915_error_buffer *err,
 	err->pinned = 0;
 	if (i915_gem_obj_is_pinned(obj))
 		err->pinned = 1;
-	err->tiling = obj->tiling_mode;
+	err->tiling = i915_gem_object_get_tiling(obj);
 	err->dirty = obj->dirty;
 	err->purgeable = obj->madv != I915_MADV_WILLNEED;
 	err->userptr = obj->userptr.mm != NULL;

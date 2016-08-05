@@ -431,7 +431,7 @@ vlv_update_plane(struct drm_plane *dplane,
 	 */
 	sprctl |= SP_GAMMA_ENABLE;
 
-	if (obj->tiling_mode != I915_TILING_NONE)
+	if (i915_gem_object_is_tiled(obj))
 		sprctl |= SP_TILED;
 
 	/* Sizes are 0 based */
@@ -468,7 +468,7 @@ vlv_update_plane(struct drm_plane *dplane,
 	I915_WRITE(SPSTRIDE(pipe, plane), fb->pitches[0]);
 	I915_WRITE(SPPOS(pipe, plane), (crtc_y << 16) | crtc_x);
 
-	if (obj->tiling_mode != I915_TILING_NONE)
+	if (i915_gem_object_is_tiled(obj))
 		I915_WRITE(SPTILEOFF(pipe, plane), (y << 16) | x);
 	else
 		I915_WRITE(SPLINOFF(pipe, plane), linear_offset);
@@ -553,7 +553,7 @@ ivb_update_plane(struct drm_plane *plane,
 	 */
 	sprctl |= SPRITE_GAMMA_ENABLE;
 
-	if (obj->tiling_mode != I915_TILING_NONE)
+	if (i915_gem_object_is_tiled(obj))
 		sprctl |= SPRITE_TILED;
 
 	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
@@ -607,7 +607,7 @@ ivb_update_plane(struct drm_plane *plane,
 	 * register */
 	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		I915_WRITE(SPROFFSET(pipe), (y << 16) | x);
-	else if (obj->tiling_mode != I915_TILING_NONE)
+	else if (i915_gem_object_is_tiled(obj))
 		I915_WRITE(SPRTILEOFF(pipe), (y << 16) | x);
 	else
 		I915_WRITE(SPRLINOFF(pipe), linear_offset);
@@ -694,7 +694,7 @@ ilk_update_plane(struct drm_plane *plane,
 	 */
 	dvscntr |= DVS_GAMMA_ENABLE;
 
-	if (obj->tiling_mode != I915_TILING_NONE)
+	if (i915_gem_object_is_tiled(obj))
 		dvscntr |= DVS_TILED;
 
 	if (IS_GEN6(dev))
@@ -737,7 +737,7 @@ ilk_update_plane(struct drm_plane *plane,
 	I915_WRITE(DVSSTRIDE(pipe), fb->pitches[0]);
 	I915_WRITE(DVSPOS(pipe), (crtc_y << 16) | crtc_x);
 
-	if (obj->tiling_mode != I915_TILING_NONE)
+	if (i915_gem_object_is_tiled(obj))
 		I915_WRITE(DVSTILEOFF(pipe), (y << 16) | x);
 	else
 		I915_WRITE(DVSLINOFF(pipe), linear_offset);

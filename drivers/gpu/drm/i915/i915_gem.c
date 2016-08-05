@@ -1042,7 +1042,7 @@ i915_gem_gtt_pwrite_fast(struct drm_i915_private *i915,
 	int ret;
 	bool hit_slow_path = false;
 
-	if (obj->tiling_mode != I915_TILING_NONE)
+	if (i915_gem_object_is_tiled(obj))
 		return -EFAULT;
 
 	ret = i915_gem_object_ggtt_pin(obj, NULL, 0, 0,
@@ -1671,7 +1671,7 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	/* Use a partial view if the object is bigger than the aperture. */
 	if (obj->base.size >= ggtt->mappable_end &&
-	    obj->tiling_mode == I915_TILING_NONE) {
+	    !i915_gem_object_is_tiled(obj)) {
 		static const unsigned int chunk_size = 256; // 1 MiB
 
 		memset(&view, 0, sizeof(view));
@@ -2189,7 +2189,7 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 	if (i915_gem_object_needs_bit17_swizzle(obj))
 		i915_gem_object_do_bit_17_swizzle(obj);
 
-	if (obj->tiling_mode != I915_TILING_NONE &&
+	if (i915_gem_object_is_tiled(obj) &&
 	    dev_priv->quirks & QUIRK_PIN_SWIZZLED_PAGES)
 		i915_gem_object_pin_pages(obj);
 
@@ -2938,10 +2938,12 @@ i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 
 	size = max(size, vma->size);
 	if (flags & PIN_MAPPABLE)
-		size = i915_gem_get_ggtt_size(dev_priv, size, obj->tiling_mode);
+		size = i915_gem_get_ggtt_size(dev_priv, size,
+					      i915_gem_object_get_tiling(obj));
 
 	min_alignment =
-		i915_gem_get_ggtt_alignment(dev_priv, size, obj->tiling_mode,
+		i915_gem_get_ggtt_alignment(dev_priv, size,
+					    i915_gem_object_get_tiling(obj),
 					    flags & PIN_MAPPABLE);
 	if (alignment == 0)
 		alignment = min_alignment;
@@ -3637,10 +3639,10 @@ void __i915_vma_set_map_and_fenceable(struct i915_vma *vma)
 
 	fence_size = i915_gem_get_ggtt_size(dev_priv,
 					    obj->base.size,
-					    obj->tiling_mode);
+					    i915_gem_object_get_tiling(obj));
 	fence_alignment = i915_gem_get_ggtt_alignment(dev_priv,
 						      obj->base.size,
-						      obj->tiling_mode,
+						      i915_gem_object_get_tiling(obj),
 						      true);
 
 	fenceable = (vma->node.size == fence_size &&
@@ -3884,7 +3886,7 @@ i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 	}
 
 	if (obj->pages &&
-	    obj->tiling_mode != I915_TILING_NONE &&
+	    i915_gem_object_is_tiled(obj) &&
 	    dev_priv->quirks & QUIRK_PIN_SWIZZLED_PAGES) {
 		if (obj->madv == I915_MADV_WILLNEED)
 			i915_gem_object_unpin_pages(obj);
@@ -4054,7 +4056,7 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 
 	if (obj->pages && obj->madv == I915_MADV_WILLNEED &&
 	    dev_priv->quirks & QUIRK_PIN_SWIZZLED_PAGES &&
-	    obj->tiling_mode != I915_TILING_NONE)
+	    i915_gem_object_is_tiled(obj))
 		i915_gem_object_unpin_pages(obj);
 
 	if (WARN_ON(obj->pages_pin_count))
