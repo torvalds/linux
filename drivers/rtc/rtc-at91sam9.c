@@ -375,6 +375,7 @@ static int at91_rtc_probe(struct platform_device *pdev)
 	if (!rtc)
 		return -ENOMEM;
 
+	spin_lock_init(&rtc->lock);
 	rtc->irq = irq;
 
 	/* platform setup code should have handled this; sigh */

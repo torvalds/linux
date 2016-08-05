@@ -1,40 +1,16 @@
-/* 
- * include/asm-generic/rtc.h
- *
- * Author: Tom Rini <trini@mvista.com>
- *
- * Based on:
- * drivers/char/rtc.c
- *
- * Please read the COPYING file for all license details.
- */
-
-#ifndef __ASM_RTC_H__
-#define __ASM_RTC_H__
-
-#include <linux/mc146818rtc.h>
-#include <linux/rtc.h>
 #include <linux/bcd.h>
 #include <linux/delay.h>
+#include <linux/export.h>
+#include <linux/mc146818rtc.h>
+
 #ifdef CONFIG_ACPI
 #include <linux/acpi.h>
 #endif
 
-#define RTC_PIE 0x40		/* periodic interrupt enable */
-#define RTC_AIE 0x20		/* alarm interrupt enable */
-#define RTC_UIE 0x10		/* update-finished interrupt enable */
-
-/* some dummy definitions */
-#define RTC_BATT_BAD 0x100	/* battery bad */
-#define RTC_SQWE 0x08		/* enable square-wave output */
-#define RTC_DM_BINARY 0x04	/* all time/date values are BCD if clear */
-#define RTC_24H 0x02		/* 24 hour mode - else hours bit 7 means pm */
-#define RTC_DST_EN 0x01	        /* auto switch DST - works f. USA only */
-
 /*
  * Returns true if a clock update is in progress
  */
-static inline unsigned char rtc_is_updating(void)
+static inline unsigned char mc146818_is_updating(void)
 {
 	unsigned char uip;
 	unsigned long flags;
@@ -45,7 +21,7 @@ static inline unsigned char rtc_is_updating(void)
 	return uip;
 }
 
-static inline unsigned int __get_rtc_time(struct rtc_time *time)
+unsigned int mc146818_get_time(struct rtc_time *time)
 {
 	unsigned char ctrl;
 	unsigned long flags;
@@ -60,11 +36,11 @@ static inline unsigned int __get_rtc_time(struct rtc_time *time)
 	 * can take just over 2ms. We wait 20ms. There is no need to
 	 * to poll-wait (up to 1s - eeccch) for the falling edge of RTC_UIP.
 	 * If you need to know *exactly* when a second has started, enable
-	 * periodic update complete interrupts, (via ioctl) and then 
+	 * periodic update complete interrupts, (via ioctl) and then
 	 * immediately read /dev/rtc which will block until you get the IRQ.
 	 * Once the read clears, read the RTC time (again via ioctl). Easy.
 	 */
-	if (rtc_is_updating())
+	if (mc146818_is_updating())
 		mdelay(20);
 
 	/*
@@ -120,13 +96,10 @@ static inline unsigned int __get_rtc_time(struct rtc_time *time)
 
 	return RTC_24H;
 }
-
-#ifndef get_rtc_time
-#define get_rtc_time	__get_rtc_time
-#endif
+EXPORT_SYMBOL_GPL(mc146818_get_time);
 
 /* Set the current date and time in the real time clock. */
-static inline int __set_rtc_time(struct rtc_time *time)
+int mc146818_set_time(struct rtc_time *time)
 {
 	unsigned long flags;
 	unsigned char mon, day, hrs, min, sec;
@@ -222,26 +195,4 @@ static inline int __set_rtc_time(struct rtc_time *time)
 
 	return 0;
 }
-
-#ifndef set_rtc_time
-#define set_rtc_time	__set_rtc_time
-#endif
-
-static inline unsigned int get_rtc_ss(void)
-{
-	struct rtc_time h;
-
-	get_rtc_time(&h);
-	return h.tm_sec;
-}
-
-static inline int get_rtc_pll(struct rtc_pll_info *pll)
-{
-	return -EINVAL;
-}
-static inline int set_rtc_pll(struct rtc_pll_info *pll)
-{
-	return -EINVAL;
-}
-
-#endif /* __ASM_RTC_H__ */
+EXPORT_SYMBOL_GPL(mc146818_set_time);
