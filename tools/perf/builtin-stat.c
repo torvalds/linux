@@ -65,6 +65,7 @@
 #include "util/group.h"
 #include "asm/bug.h"
 
+#include <linux/time64.h>
 #include <api/fs/fs.h>
 #include <stdlib.h>
 #include <sys/prctl.h>
@@ -354,7 +355,7 @@ static void process_interval(void)
 	diff_timespec(&rs, &ts, &ref_time);
 
 	if (STAT_RECORD) {
-		if (WRITE_STAT_ROUND_EVENT(rs.tv_sec * NSECS_PER_SEC + rs.tv_nsec, INTERVAL))
+		if (WRITE_STAT_ROUND_EVENT(rs.tv_sec * NSEC_PER_SEC + rs.tv_nsec, INTERVAL))
 			pr_err("failed to write stat round event\n");
 	}
 
@@ -2175,8 +2176,8 @@ static int process_stat_round_event(struct perf_tool *tool __maybe_unused,
 		update_stats(&walltime_nsecs_stats, stat_round->time);
 
 	if (stat_config.interval && stat_round->time) {
-		tsh.tv_sec  = stat_round->time / NSECS_PER_SEC;
-		tsh.tv_nsec = stat_round->time % NSECS_PER_SEC;
+		tsh.tv_sec  = stat_round->time / NSEC_PER_SEC;
+		tsh.tv_nsec = stat_round->time % NSEC_PER_SEC;
 		ts = &tsh;
 	}
 

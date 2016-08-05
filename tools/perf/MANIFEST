@@ -77,4 +77,5 @@ tools/include/linux/stringify.h
 tools/include/linux/types.h
 tools/include/linux/err.h
 tools/include/linux/bitmap.h
+tools/include/linux/time64.h
 tools/arch/*/include/uapi/asm/perf_regs.h

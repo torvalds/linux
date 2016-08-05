@@ -24,6 +24,7 @@
 #include "util/thread-stack.h"
 #include <linux/bitmap.h>
 #include <linux/stringify.h>
+#include <linux/time64.h>
 #include "asm/bug.h"
 #include "util/mem-events.h"
 
@@ -464,9 +465,9 @@ static void print_sample_start(struct perf_sample *sample,
 
 	if (PRINT_FIELD(TIME)) {
 		nsecs = sample->time;
-		secs = nsecs / NSECS_PER_SEC;
-		nsecs -= secs * NSECS_PER_SEC;
-		usecs = nsecs / NSECS_PER_USEC;
+		secs = nsecs / NSEC_PER_SEC;
+		nsecs -= secs * NSEC_PER_SEC;
+		usecs = nsecs / NSEC_PER_USEC;
 		if (nanosecs)
 			printf("%5lu.%09llu: ", secs, nsecs);
 		else
