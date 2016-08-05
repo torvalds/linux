@@ -244,9 +244,6 @@ static bool i915_gem_shrinker_lock(struct drm_device *dev, bool *unlock)
 		if (!mutex_is_locked_by(&dev->struct_mutex, current))
 			return false;
 
-		if (to_i915(dev)->mm.shrinker_no_lock_stealing)
-			return false;
-
 		*unlock = false;
 	} else
 		*unlock = true;
