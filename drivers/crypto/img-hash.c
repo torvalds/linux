@@ -361,7 +361,7 @@ static void img_hash_dma_task(unsigned long d)
 	size_t nbytes, bleft, wsend, len, tbc;
 	struct scatterlist tsg;
 
-	if (!ctx->sg)
+	if (!hdev->req || !ctx->sg)
 		return;
 
 	addr = sg_virt(ctx->sg);
