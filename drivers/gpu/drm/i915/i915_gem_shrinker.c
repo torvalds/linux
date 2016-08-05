@@ -323,17 +323,22 @@ i915_gem_shrinker_lock_uninterruptible(struct drm_i915_private *dev_priv,
 				       struct shrinker_lock_uninterruptible *slu,
 				       int timeout_ms)
 {
-	unsigned long timeout = msecs_to_jiffies(timeout_ms) + 1;
+	unsigned long timeout = jiffies + msecs_to_jiffies_timeout(timeout_ms);
 
-	while (!i915_gem_shrinker_lock(&dev_priv->drm, &slu->unlock)) {
+	do {
+		if (i915_gem_wait_for_idle(dev_priv, false) == 0 &&
+		    i915_gem_shrinker_lock(&dev_priv->drm, &slu->unlock))
+			break;
+
 		schedule_timeout_killable(1);
 		if (fatal_signal_pending(current))
 			return false;
-		if (--timeout == 0) {
+
+		if (time_after(jiffies, timeout)) {
 			pr_err("Unable to lock GPU to purge memory.\n");
 			return false;
 		}
-	}
+	} while (1);
 
 	slu->was_interruptible = dev_priv->mm.interruptible;
 	dev_priv->mm.interruptible = false;
