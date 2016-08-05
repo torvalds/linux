@@ -349,24 +349,20 @@ i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj,
 	return 0;
 }
 
-/* A nonblocking variant of the above wait. This is a highly dangerous routine
- * as the object state may change during this call.
+/* A nonblocking variant of the above wait. Must be called prior to
+ * acquiring the mutex for the object, as the object state may change
+ * during this call. A reference must be held by the caller for the object.
  */
 static __must_check int
-i915_gem_object_wait_rendering__nonblocking(struct drm_i915_gem_object *obj,
-					    struct intel_rps_client *rps,
-					    bool readonly)
+__unsafe_wait_rendering(struct drm_i915_gem_object *obj,
+			struct intel_rps_client *rps,
+			bool readonly)
 {
-	struct drm_device *dev = obj->base.dev;
-	struct drm_i915_gem_request *requests[I915_NUM_ENGINES];
 	struct i915_gem_active *active;
 	unsigned long active_mask;
-	int ret, i, n = 0;
+	int idx;
 
-	lockdep_assert_held(&dev->struct_mutex);
-	GEM_BUG_ON(!to_i915(dev)->mm.interruptible);
-
-	active_mask = i915_gem_object_get_active(obj);
+	active_mask = __I915_BO_ACTIVE(obj);
 	if (!active_mask)
 		return 0;
 
@@ -377,25 +373,16 @@ i915_gem_object_wait_rendering__nonblocking(struct drm_i915_gem_object *obj,
 		active = &obj->last_write;
 	}
 
-	for_each_active(active_mask, i) {
-		struct drm_i915_gem_request *req;
+	for_each_active(active_mask, idx) {
+		int ret;
 
-		req = i915_gem_active_get(&active[i],
-					  &obj->base.dev->struct_mutex);
-		if (req)
-			requests[n++] = req;
+		ret = i915_gem_active_wait_unlocked(&active[idx],
+						    true, NULL, rps);
+		if (ret)
+			return ret;
 	}
 
-	mutex_unlock(&dev->struct_mutex);
-	ret = 0;
-	for (i = 0; ret == 0 && i < n; i++)
-		ret = i915_wait_request(requests[i], true, NULL, rps);
-	mutex_lock(&dev->struct_mutex);
-
-	for (i = 0; i < n; i++)
-		i915_gem_request_put(requests[i]);
-
-	return ret;
+	return 0;
 }
 
 static struct intel_rps_client *to_rps_client(struct drm_file *file)
@@ -1467,10 +1454,7 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	int ret;
 
 	/* Only handle setting domains to types used by the CPU. */
-	if (write_domain & I915_GEM_GPU_DOMAINS)
-		return -EINVAL;
-
-	if (read_domains & I915_GEM_GPU_DOMAINS)
+	if ((write_domain | read_domains) & I915_GEM_GPU_DOMAINS)
 		return -EINVAL;
 
 	/* Having something in the write domain implies it's in the read
@@ -1479,25 +1463,21 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	if (write_domain != 0 && read_domains != write_domain)
 		return -EINVAL;
 
-	ret = i915_mutex_lock_interruptible(dev);
-	if (ret)
-		return ret;
-
 	obj = i915_gem_object_lookup(file, args->handle);
-	if (!obj) {
-		ret = -ENOENT;
-		goto unlock;
-	}
+	if (!obj)
+		return -ENOENT;
 
 	/* Try to flush the object off the GPU without holding the lock.
 	 * We will repeat the flush holding the lock in the normal manner
 	 * to catch cases where we are gazumped.
 	 */
-	ret = i915_gem_object_wait_rendering__nonblocking(obj,
-							  to_rps_client(file),
-							  !write_domain);
+	ret = __unsafe_wait_rendering(obj, to_rps_client(file), !write_domain);
 	if (ret)
-		goto unref;
+		goto err;
+
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		goto err;
 
 	if (read_domains & I915_GEM_DOMAIN_GTT)
 		ret = i915_gem_object_set_to_gtt_domain(obj, write_domain != 0);
@@ -1507,10 +1487,12 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	if (write_domain != 0)
 		intel_fb_obj_invalidate(obj, write_origin(obj, write_domain));
 
-unref:
 	i915_gem_object_put(obj);
-unlock:
 	mutex_unlock(&dev->struct_mutex);
+	return ret;
+
+err:
+	i915_gem_object_put_unlocked(obj);
 	return ret;
 }
 
@@ -1648,36 +1630,36 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	struct i915_ggtt_view view = i915_ggtt_view_normal;
+	bool write = !!(vmf->flags & FAULT_FLAG_WRITE);
 	pgoff_t page_offset;
 	unsigned long pfn;
-	int ret = 0;
-	bool write = !!(vmf->flags & FAULT_FLAG_WRITE);
-
-	intel_runtime_pm_get(dev_priv);
+	int ret;
 
 	/* We don't use vmf->pgoff since that has the fake offset */
 	page_offset = ((unsigned long)vmf->virtual_address - vma->vm_start) >>
 		PAGE_SHIFT;
 
-	ret = i915_mutex_lock_interruptible(dev);
-	if (ret)
-		goto out;
-
 	trace_i915_gem_object_fault(obj, page_offset, true, write);
 
 	/* Try to flush the object off the GPU first without holding the lock.
-	 * Upon reacquiring the lock, we will perform our sanity checks and then
+	 * Upon acquiring the lock, we will perform our sanity checks and then
 	 * repeat the flush holding the lock in the normal manner to catch cases
 	 * where we are gazumped.
 	 */
-	ret = i915_gem_object_wait_rendering__nonblocking(obj, NULL, !write);
+	ret = __unsafe_wait_rendering(obj, NULL, !write);
 	if (ret)
-		goto unlock;
+		goto err;
+
+	intel_runtime_pm_get(dev_priv);
+
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		goto err_rpm;
 
 	/* Access to snoopable pages through the GTT is incoherent. */
 	if (obj->cache_level != I915_CACHE_NONE && !HAS_LLC(dev)) {
 		ret = -EFAULT;
-		goto unlock;
+		goto err_unlock;
 	}
 
 	/* Use a partial view if the object is bigger than the aperture. */
@@ -1698,15 +1680,15 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	/* Now pin it into the GTT if needed */
 	ret = i915_gem_object_ggtt_pin(obj, &view, 0, 0, PIN_MAPPABLE);
 	if (ret)
-		goto unlock;
+		goto err_unlock;
 
 	ret = i915_gem_object_set_to_gtt_domain(obj, write);
 	if (ret)
-		goto unpin;
+		goto err_unpin;
 
 	ret = i915_gem_object_get_fence(obj);
 	if (ret)
-		goto unpin;
+		goto err_unpin;
 
 	/* Finally, remap it using the new GTT offset */
 	pfn = ggtt->mappable_base +
@@ -1751,11 +1733,13 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 					    (unsigned long)vmf->virtual_address,
 					    pfn + page_offset);
 	}
-unpin:
+err_unpin:
 	i915_gem_object_ggtt_unpin_view(obj, &view);
-unlock:
+err_unlock:
 	mutex_unlock(&dev->struct_mutex);
-out:
+err_rpm:
+	intel_runtime_pm_put(dev_priv);
+err:
 	switch (ret) {
 	case -EIO:
 		/*
@@ -1796,8 +1780,6 @@ out:
 		ret = VM_FAULT_SIGBUS;
 		break;
 	}
-
-	intel_runtime_pm_put(dev_priv);
 	return ret;
 }
 
