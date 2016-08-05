@@ -2438,13 +2438,18 @@ static void i915_gem_reset_engine_status(struct intel_engine_cs *engine)
 
 static void i915_gem_reset_engine_cleanup(struct intel_engine_cs *engine)
 {
+	struct drm_i915_gem_request *request;
 	struct intel_ring *ring;
+
+	request = i915_gem_active_peek(&engine->last_request,
+				       &engine->i915->drm.struct_mutex);
 
 	/* Mark all pending requests as complete so that any concurrent
 	 * (lockless) lookup doesn't try and wait upon the request as we
 	 * reset it.
 	 */
-	intel_engine_init_seqno(engine, engine->last_submitted_seqno);
+	if (request)
+		intel_engine_init_seqno(engine, request->fence.seqno);
 
 	/*
 	 * Clear the execlists queue up before freeing the requests, as those
@@ -2466,15 +2471,9 @@ static void i915_gem_reset_engine_cleanup(struct intel_engine_cs *engine)
 	 * implicit references on things like e.g. ppgtt address spaces through
 	 * the request.
 	 */
-	if (!list_empty(&engine->request_list)) {
-		struct drm_i915_gem_request *request;
-
-		request = list_last_entry(&engine->request_list,
-					  struct drm_i915_gem_request,
-					  link);
-
+	if (request)
 		i915_gem_request_retire_upto(request);
-	}
+	GEM_BUG_ON(intel_engine_is_active(engine));
 
 	/* Having flushed all requests from all queues, we know that all
 	 * ringbuffers must now be empty. However, since we do not reclaim
@@ -2897,18 +2896,17 @@ destroy:
 	return 0;
 }
 
-int i915_gem_wait_for_idle(struct drm_i915_private *dev_priv)
+int i915_gem_wait_for_idle(struct drm_i915_private *dev_priv,
+			   bool interruptible)
 {
 	struct intel_engine_cs *engine;
 	int ret;
-
-	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
 	for_each_engine(engine, dev_priv) {
 		if (engine->last_context == NULL)
 			continue;
 
-		ret = intel_engine_idle(engine);
+		ret = intel_engine_idle(engine, interruptible);
 		if (ret)
 			return ret;
 	}
@@ -4080,11 +4078,10 @@ struct i915_vma *i915_gem_obj_to_ggtt_view(struct drm_i915_gem_object *obj,
 	return NULL;
 }
 
-int
-i915_gem_suspend(struct drm_device *dev)
+int i915_gem_suspend(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	int ret = 0;
+	int ret;
 
 	intel_suspend_gt_powersave(dev_priv);
 
@@ -4102,7 +4099,7 @@ i915_gem_suspend(struct drm_device *dev)
 	if (ret)
 		goto err;
 
-	ret = i915_gem_wait_for_idle(dev_priv);
+	ret = i915_gem_wait_for_idle(dev_priv, true);
 	if (ret)
 		goto err;
 

@@ -3,6 +3,7 @@
 
 #include <linux/hashtable.h>
 #include "i915_gem_batch_pool.h"
+#include "i915_gem_request.h"
 
 #define I915_CMD_HASH_ORDER 9
 
@@ -307,6 +308,13 @@ struct intel_engine_cs {
 	 */
 	u32 last_submitted_seqno;
 
+	/* An RCU guarded pointer to the last request. No reference is
+	 * held to the request, users must carefully acquire a reference to
+	 * the request using i915_gem_active_get_request_rcu(), or hold the
+	 * struct_mutex.
+	 */
+	struct i915_gem_active last_request;
+
 	struct i915_gem_context *last_context;
 
 	struct intel_engine_hangcheck hangcheck;
@@ -465,7 +473,6 @@ static inline u32 intel_ring_offset(struct intel_ring *ring, u32 value)
 int __intel_ring_space(int head, int tail, int size);
 void intel_ring_update_space(struct intel_ring *ring);
 
-int __must_check intel_engine_idle(struct intel_engine_cs *engine);
 void intel_engine_init_seqno(struct intel_engine_cs *engine, u32 seqno);
 
 int intel_init_pipe_control(struct intel_engine_cs *engine, int size);
@@ -474,6 +481,14 @@ void intel_fini_pipe_control(struct intel_engine_cs *engine);
 void intel_engine_setup_common(struct intel_engine_cs *engine);
 int intel_engine_init_common(struct intel_engine_cs *engine);
 void intel_engine_cleanup_common(struct intel_engine_cs *engine);
+
+static inline int intel_engine_idle(struct intel_engine_cs *engine,
+				    bool interruptible)
+{
+	/* Wait upon the last request to be completed */
+	return i915_gem_active_wait_unlocked(&engine->last_request,
+					     interruptible, NULL, NULL);
+}
 
 int intel_init_render_ring_buffer(struct intel_engine_cs *engine);
 int intel_init_bsd_ring_buffer(struct intel_engine_cs *engine);
@@ -504,17 +519,6 @@ static inline u32 intel_hws_seqno_address(struct intel_engine_cs *engine)
 }
 
 /* intel_breadcrumbs.c -- user interrupt bottom-half for waiters */
-struct intel_wait {
-	struct rb_node node;
-	struct task_struct *tsk;
-	u32 seqno;
-};
-
-struct intel_signal_node {
-	struct rb_node node;
-	struct intel_wait wait;
-};
-
 int intel_engine_init_breadcrumbs(struct intel_engine_cs *engine);
 
 static inline void intel_wait_init(struct intel_wait *wait, u32 seqno)
@@ -560,5 +564,10 @@ void intel_engine_enable_fake_irq(struct intel_engine_cs *engine);
 void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine);
 unsigned int intel_kick_waiters(struct drm_i915_private *i915);
 unsigned int intel_kick_signalers(struct drm_i915_private *i915);
+
+static inline bool intel_engine_is_active(struct intel_engine_cs *engine)
+{
+	return i915_gem_active_isset(&engine->last_request);
+}
 
 #endif /* _INTEL_RINGBUFFER_H_ */

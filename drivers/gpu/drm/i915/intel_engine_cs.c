@@ -166,6 +166,12 @@ void intel_engine_init_hangcheck(struct intel_engine_cs *engine)
 	memset(&engine->hangcheck, 0, sizeof(engine->hangcheck));
 }
 
+static void intel_engine_init_requests(struct intel_engine_cs *engine)
+{
+	init_request_active(&engine->last_request, NULL);
+	INIT_LIST_HEAD(&engine->request_list);
+}
+
 /**
  * intel_engines_setup_common - setup engine state not requiring hw access
  * @engine: Engine to setup.
@@ -177,13 +183,13 @@ void intel_engine_init_hangcheck(struct intel_engine_cs *engine)
  */
 void intel_engine_setup_common(struct intel_engine_cs *engine)
 {
-	INIT_LIST_HEAD(&engine->request_list);
 	INIT_LIST_HEAD(&engine->buffers);
 	INIT_LIST_HEAD(&engine->execlist_queue);
 	spin_lock_init(&engine->execlist_lock);
 
 	engine->fence_context = fence_context_alloc(1);
 
+	intel_engine_init_requests(engine);
 	intel_engine_init_hangcheck(engine);
 	i915_gem_batch_pool_init(engine, &engine->batch_pool);
 }

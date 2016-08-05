@@ -2805,13 +2805,6 @@ static void gen8_disable_vblank(struct drm_device *dev, unsigned int pipe)
 }
 
 static bool
-ring_idle(struct intel_engine_cs *engine, u32 seqno)
-{
-	return i915_seqno_passed(seqno,
-				 READ_ONCE(engine->last_submitted_seqno));
-}
-
-static bool
 ipehr_is_semaphore_wait(struct intel_engine_cs *engine, u32 ipehr)
 {
 	if (INTEL_GEN(engine->i915) >= 8) {
@@ -3131,7 +3124,7 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 		user_interrupts = 0;
 
 		if (engine->hangcheck.seqno == seqno) {
-			if (ring_idle(engine, seqno)) {
+			if (!intel_engine_is_active(engine)) {
 				engine->hangcheck.action = HANGCHECK_IDLE;
 				if (busy) {
 					/* Safeguard against driver failure */

@@ -29,6 +29,17 @@
 
 #include "i915_gem.h"
 
+struct intel_wait {
+	struct rb_node node;
+	struct task_struct *tsk;
+	u32 seqno;
+};
+
+struct intel_signal_node {
+	struct rb_node node;
+	struct intel_wait wait;
+};
+
 /**
  * Request queue structure.
  *

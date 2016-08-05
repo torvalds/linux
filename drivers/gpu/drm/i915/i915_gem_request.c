@@ -265,7 +265,7 @@ static int i915_gem_init_seqno(struct drm_i915_private *dev_priv, u32 seqno)
 
 	/* Carefully retire all requests without writing to the rings */
 	for_each_engine(engine, dev_priv) {
-		ret = intel_engine_idle(engine);
+		ret = intel_engine_idle(engine, true);
 		if (ret)
 			return ret;
 	}
@@ -486,7 +486,8 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 	 */
 	request->emitted_jiffies = jiffies;
 	request->previous_seqno = engine->last_submitted_seqno;
-	smp_store_mb(engine->last_submitted_seqno, request->fence.seqno);
+	engine->last_submitted_seqno = request->fence.seqno;
+	i915_gem_active_set(&engine->last_request, request);
 	list_add_tail(&request->link, &engine->request_list);
 	list_add_tail(&request->ring_link, &ring->request_list);
 
@@ -757,7 +758,7 @@ void i915_gem_retire_requests(struct drm_i915_private *dev_priv)
 
 	for_each_engine(engine, dev_priv) {
 		engine_retire_requests(engine);
-		if (list_empty(&engine->request_list))
+		if (!intel_engine_is_active(engine))
 			dev_priv->gt.active_engines &= ~intel_engine_flag(engine);
 	}
 

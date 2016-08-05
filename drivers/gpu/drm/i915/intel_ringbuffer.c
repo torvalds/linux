@@ -2227,24 +2227,6 @@ void intel_engine_cleanup(struct intel_engine_cs *engine)
 	engine->i915 = NULL;
 }
 
-int intel_engine_idle(struct intel_engine_cs *engine)
-{
-	struct drm_i915_gem_request *req;
-
-	/* Wait upon the last request to be completed */
-	if (list_empty(&engine->request_list))
-		return 0;
-
-	req = list_entry(engine->request_list.prev,
-			 struct drm_i915_gem_request,
-			 link);
-
-	/* Make sure we do not trigger any retires */
-	return i915_wait_request(req,
-				 req->i915->mm.interruptible,
-				 NULL, NULL);
-}
-
 int intel_ring_alloc_request_extras(struct drm_i915_gem_request *request)
 {
 	int ret;

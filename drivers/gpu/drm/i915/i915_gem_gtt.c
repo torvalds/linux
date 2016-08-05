@@ -2248,7 +2248,7 @@ static bool do_idling(struct drm_i915_private *dev_priv)
 
 	if (unlikely(ggtt->do_idle_maps)) {
 		dev_priv->mm.interruptible = false;
-		if (i915_gem_wait_for_idle(dev_priv)) {
+		if (i915_gem_wait_for_idle(dev_priv, false)) {
 			DRM_ERROR("Failed to wait for idle; VT'd may hang.\n");
 			/* Wait a bit, in hopes it avoids the hang */
 			udelay(10);

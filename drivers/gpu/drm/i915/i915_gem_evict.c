@@ -39,7 +39,7 @@ gpu_is_idle(struct drm_i915_private *dev_priv)
 	struct intel_engine_cs *engine;
 
 	for_each_engine(engine, dev_priv) {
-		if (!list_empty(&engine->request_list))
+		if (intel_engine_is_active(engine))
 			return false;
 	}
 
@@ -167,7 +167,7 @@ search_again:
 	if (ret)
 		return ret;
 
-	ret = i915_gem_wait_for_idle(dev_priv);
+	ret = i915_gem_wait_for_idle(dev_priv, true);
 	if (ret)
 		return ret;
 
@@ -272,7 +272,7 @@ int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle)
 				return ret;
 		}
 
-		ret = i915_gem_wait_for_idle(dev_priv);
+		ret = i915_gem_wait_for_idle(dev_priv, true);
 		if (ret)
 			return ret;
 

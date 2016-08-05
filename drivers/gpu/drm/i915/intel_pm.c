@@ -6328,19 +6328,11 @@ EXPORT_SYMBOL_GPL(i915_gpu_lower);
  */
 bool i915_gpu_busy(void)
 {
-	struct drm_i915_private *dev_priv;
-	struct intel_engine_cs *engine;
 	bool ret = false;
 
 	spin_lock_irq(&mchdev_lock);
-	if (!i915_mch_dev)
-		goto out_unlock;
-	dev_priv = i915_mch_dev;
-
-	for_each_engine(engine, dev_priv)
-		ret |= !list_empty(&engine->request_list);
-
-out_unlock:
+	if (i915_mch_dev)
+		ret = i915_mch_dev->gt.awake;
 	spin_unlock_irq(&mchdev_lock);
 
 	return ret;
