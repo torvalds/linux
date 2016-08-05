@@ -700,7 +700,7 @@ static int fsl_i2c_probe(struct platform_device *op)
 		}
 	}
 
-	if (of_get_property(op->dev.of_node, "fsl,preserve-clocking", NULL)) {
+	if (of_property_read_bool(op->dev.of_node, "fsl,preserve-clocking")) {
 		clock = MPC_I2C_CLOCK_PRESERVE;
 	} else {
 		prop = of_get_property(op->dev.of_node, "clock-frequency",
