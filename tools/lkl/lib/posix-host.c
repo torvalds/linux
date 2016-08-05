@@ -14,7 +14,6 @@
 #include <sys/socket.h>
 #include <sys/syscall.h>
 #include <poll.h>
-#include <limits.h>
 #include <lkl_host.h>
 #include "iomem.h"
 
@@ -178,10 +177,7 @@ static void mutex_free(struct lkl_mutex *_mutex)
 static lkl_thread_t thread_create(void (*fn)(void *), void *arg)
 {
 	pthread_t thread;
-	pthread_attr_t attr;
-	pthread_attr_init(&attr);
-	pthread_attr_setstacksize(&attr, PTHREAD_STACK_MIN);
-	if (WARN_PTHREAD(pthread_create(&thread, &attr, (void* (*)(void *))fn, arg)))
+	if (WARN_PTHREAD(pthread_create(&thread, NULL, (void* (*)(void *))fn, arg)))
 		return 0;
 	else
 		return (lkl_thread_t) thread;
