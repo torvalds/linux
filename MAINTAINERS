@@ -3219,7 +3219,7 @@ M:	Johannes Weiner <hannes@cmpxchg.org>
 L:	cgroups@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tj/cgroup.git
 S:	Maintained
-F:	Documentation/cgroups/
+F:	Documentation/cgroup*
 F:	include/linux/cgroup*
 F:	kernel/cgroup*
 
@@ -3230,7 +3230,7 @@ W:	http://www.bullopensource.org/cpuset/
 W:	http://oss.sgi.com/projects/cpusets/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tj/cgroup.git
 S:	Maintained
-F:	Documentation/cgroups/cpusets.txt
+F:	Documentation/cgroup-v1/cpusets.txt
 F:	include/linux/cpuset.h
 F:	kernel/cpuset.c
 
