@@ -31,7 +31,7 @@
 		vin3 = &vin3;
 		vin4 = &vin4;
 		vin5 = &vin5;
-};
+	};
 
 	cpus {
 		#address-cells = <1>;
