@@ -170,7 +170,7 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 	struct i915_gem_active *active, *next;
 
 	trace_i915_gem_request_retire(request);
-	list_del_init(&request->link);
+	list_del(&request->link);
 
 	/* We know the GPU must have read the request to have
 	 * sent us the seqno + interrupt, so use the position
@@ -228,9 +228,7 @@ void i915_gem_request_retire_upto(struct drm_i915_gem_request *req)
 	struct drm_i915_gem_request *tmp;
 
 	lockdep_assert_held(&req->i915->drm.struct_mutex);
-
-	if (list_empty(&req->link))
-		return;
+	GEM_BUG_ON(list_empty(&req->link));
 
 	do {
 		tmp = list_first_entry(&engine->request_list,
