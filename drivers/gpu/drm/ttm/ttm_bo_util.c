@@ -45,7 +45,7 @@ void ttm_bo_free_old_node(struct ttm_buffer_object *bo)
 }
 
 int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
-		    bool evict,
+		    bool evict, bool interruptible,
 		    bool no_wait_gpu, struct ttm_mem_reg *new_mem)
 {
 	struct ttm_tt *ttm = bo->ttm;
@@ -53,6 +53,14 @@ int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
 	int ret;
 
 	if (old_mem->mem_type != TTM_PL_SYSTEM) {
+		ret = ttm_bo_wait(bo, interruptible, no_wait_gpu);
+
+		if (unlikely(ret != 0)) {
+			if (ret != -ERESTARTSYS)
+				pr_err("Failed to expire sync object before unbinding TTM\n");
+			return ret;
+		}
+
 		ttm_tt_unbind(ttm);
 		ttm_bo_free_old_node(bo);
 		ttm_flag_masked(&old_mem->placement, TTM_PL_FLAG_SYSTEM,
