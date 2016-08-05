@@ -643,7 +643,7 @@ int i915_wait_request(struct drm_i915_gem_request *req,
 	if (IS_RPS_CLIENT(rps) && INTEL_GEN(req->i915) >= 6)
 		gen6_rps_boost(req->i915, rps, req->emitted_jiffies);
 
-	/* Optimistic spin for the next ~jiffie before touching IRQs */
+	/* Optimistic short spin before touching IRQs */
 	if (i915_spin_request(req, state, 5))
 		goto complete;
 
