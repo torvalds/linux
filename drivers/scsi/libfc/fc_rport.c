@@ -547,15 +547,23 @@ static void fc_rport_timeout(struct work_struct *work)
  */
 static void fc_rport_error(struct fc_rport_priv *rdata, struct fc_frame *fp)
 {
+	struct fc_lport *lport = rdata->local_port;
+
 	FC_RPORT_DBG(rdata, "Error %ld in state %s, retries %d\n",
 		     IS_ERR(fp) ? -PTR_ERR(fp) : 0,
 		     fc_rport_state(rdata), rdata->retries);
 
 	switch (rdata->rp_state) {
 	case RPORT_ST_FLOGI:
-	case RPORT_ST_PLOGI:
 		rdata->flags &= ~FC_RP_STARTED;
 		fc_rport_enter_delete(rdata, RPORT_EV_FAILED);
+		break;
+	case RPORT_ST_PLOGI:
+		if (lport->point_to_multipoint) {
+			rdata->flags &= ~FC_RP_STARTED;
+			fc_rport_enter_delete(rdata, RPORT_EV_FAILED);
+		} else
+			fc_rport_enter_logo(rdata);
 		break;
 	case RPORT_ST_RTV:
 		fc_rport_enter_ready(rdata);
