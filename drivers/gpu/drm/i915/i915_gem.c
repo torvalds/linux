@@ -1898,36 +1898,28 @@ u64 i915_gem_get_ggtt_alignment(struct drm_i915_private *dev_priv, u64 size,
 static int i915_gem_object_create_mmap_offset(struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
-	int ret;
+	int err;
 
-	dev_priv->mm.shrinker_no_lock_stealing = true;
+	err = drm_gem_create_mmap_offset(&obj->base);
+	if (!err)
+		return 0;
 
-	ret = drm_gem_create_mmap_offset(&obj->base);
-	if (ret != -ENOSPC)
-		goto out;
-
-	/* Badly fragmented mmap space? The only way we can recover
-	 * space is by destroying unwanted objects. We can't randomly release
-	 * mmap_offsets as userspace expects them to be persistent for the
-	 * lifetime of the objects. The closest we can is to release the
-	 * offsets on purgeable objects by truncating it and marking it purged,
-	 * which prevents userspace from ever using that object again.
+	/* We can idle the GPU locklessly to flush stale objects, but in order
+	 * to claim that space for ourselves, we need to take the big
+	 * struct_mutex to free the requests+objects and allocate our slot.
 	 */
-	i915_gem_shrink(dev_priv,
-			obj->base.size >> PAGE_SHIFT,
-			I915_SHRINK_BOUND |
-			I915_SHRINK_UNBOUND |
-			I915_SHRINK_PURGEABLE);
-	ret = drm_gem_create_mmap_offset(&obj->base);
-	if (ret != -ENOSPC)
-		goto out;
+	err = i915_gem_wait_for_idle(dev_priv, true);
+	if (err)
+		return err;
 
-	i915_gem_shrink_all(dev_priv);
-	ret = drm_gem_create_mmap_offset(&obj->base);
-out:
-	dev_priv->mm.shrinker_no_lock_stealing = false;
+	err = i915_mutex_lock_interruptible(&dev_priv->drm);
+	if (!err) {
+		i915_gem_retire_requests(dev_priv);
+		err = drm_gem_create_mmap_offset(&obj->base);
+		mutex_unlock(&dev_priv->drm.struct_mutex);
+	}
 
-	return ret;
+	return err;
 }
 
 static void i915_gem_object_free_mmap_offset(struct drm_i915_gem_object *obj)
@@ -1944,32 +1936,15 @@ i915_gem_mmap_gtt(struct drm_file *file,
 	struct drm_i915_gem_object *obj;
 	int ret;
 
-	ret = i915_mutex_lock_interruptible(dev);
-	if (ret)
-		return ret;
-
 	obj = i915_gem_object_lookup(file, handle);
-	if (!obj) {
-		ret = -ENOENT;
-		goto unlock;
-	}
-
-	if (obj->madv != I915_MADV_WILLNEED) {
-		DRM_DEBUG("Attempting to mmap a purgeable buffer\n");
-		ret = -EFAULT;
-		goto out;
-	}
+	if (!obj)
+		return -ENOENT;
 
 	ret = i915_gem_object_create_mmap_offset(obj);
-	if (ret)
-		goto out;
+	if (ret == 0)
+		*offset = drm_vma_node_offset_addr(&obj->base.vma_node);
 
-	*offset = drm_vma_node_offset_addr(&obj->base.vma_node);
-
-out:
-	i915_gem_object_put(obj);
-unlock:
-	mutex_unlock(&dev->struct_mutex);
+	i915_gem_object_put_unlocked(obj);
 	return ret;
 }
 
