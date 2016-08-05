@@ -24,6 +24,7 @@
 #include <asm/book3s/64/pgtable.h>
 #include <asm/bug.h>
 #include <asm/processor.h>
+#include <asm/cpu_has_feature.h>
 
 /*
  * SLB
@@ -188,6 +189,15 @@ static inline unsigned int mmu_psize_to_shift(unsigned int mmu_psize)
 	if (mmu_psize_defs[mmu_psize].shift)
 		return mmu_psize_defs[mmu_psize].shift;
 	BUG();
+}
+
+static inline unsigned long get_sllp_encoding(int psize)
+{
+	unsigned long sllp;
+
+	sllp = ((mmu_psize_defs[psize].sllp & SLB_VSID_L) >> 6) |
+		((mmu_psize_defs[psize].sllp & SLB_VSID_LP) >> 4);
+	return sllp;
 }
 
 #endif /* __ASSEMBLY__ */

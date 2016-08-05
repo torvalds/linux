@@ -2,6 +2,7 @@
 #define __ASM_POWERPC_CPUTABLE_H
 
 
+#include <linux/types.h>
 #include <asm/asm-compat.h>
 #include <asm/feature-fixups.h>
 #include <uapi/asm/cputable.h>
@@ -121,6 +122,12 @@ extern void do_feature_fixups(unsigned long value, void *fixup_start,
 			      void *fixup_end);
 
 extern const char *powerpc_base_platform;
+
+#ifdef CONFIG_JUMP_LABEL_FEATURE_CHECKS
+extern void cpu_feature_keys_init(void);
+#else
+static inline void cpu_feature_keys_init(void) { }
+#endif
 
 /* TLB flush actions. Used as argument to cpu_spec.flush_tlb() hook */
 enum {
@@ -575,14 +582,6 @@ enum {
 	    CPU_FTRS_POSSIBLE,
 };
 #endif /* __powerpc64__ */
-
-static inline int cpu_has_feature(unsigned long feature)
-{
-	return (CPU_FTRS_ALWAYS & feature) ||
-	       (CPU_FTRS_POSSIBLE
-		& cur_cpu_spec->cpu_features
-		& feature);
-}
 
 #define HBP_NUM 1
 

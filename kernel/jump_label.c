@@ -288,6 +288,9 @@ void __init jump_label_init(void)
 	BUILD_BUG_ON((int)ATOMIC_INIT(0) != 0);
 	BUILD_BUG_ON((int)ATOMIC_INIT(1) != 1);
 
+	if (static_key_initialized)
+		return;
+
 	jump_label_lock();
 	jump_label_sort_entries(iter_start, iter_stop);
 

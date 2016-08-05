@@ -140,10 +140,11 @@ void radix__local_flush_tlb_pwc(struct mmu_gather *tlb, unsigned long addr)
 }
 EXPORT_SYMBOL(radix__local_flush_tlb_pwc);
 
-void radix___local_flush_tlb_page(struct mm_struct *mm, unsigned long vmaddr,
-			    unsigned long ap, int nid)
+void radix__local_flush_tlb_page_psize(struct mm_struct *mm, unsigned long vmaddr,
+				       int psize)
 {
 	unsigned long pid;
+	unsigned long ap = mmu_get_ap(psize);
 
 	preempt_disable();
 	pid = mm ? mm->context.id : 0;
@@ -159,18 +160,12 @@ void radix__local_flush_tlb_page(struct vm_area_struct *vma, unsigned long vmadd
 	if (vma && is_vm_hugetlb_page(vma))
 		return __local_flush_hugetlb_page(vma, vmaddr);
 #endif
-	radix___local_flush_tlb_page(vma ? vma->vm_mm : NULL, vmaddr,
-			       mmu_get_ap(mmu_virtual_psize), 0);
+	radix__local_flush_tlb_page_psize(vma ? vma->vm_mm : NULL, vmaddr,
+					  mmu_virtual_psize);
 }
 EXPORT_SYMBOL(radix__local_flush_tlb_page);
 
 #ifdef CONFIG_SMP
-static int mm_is_core_local(struct mm_struct *mm)
-{
-	return cpumask_subset(mm_cpumask(mm),
-			      topology_sibling_cpumask(smp_processor_id()));
-}
-
 void radix__flush_tlb_mm(struct mm_struct *mm)
 {
 	unsigned long pid;
@@ -221,10 +216,11 @@ no_context:
 }
 EXPORT_SYMBOL(radix__flush_tlb_pwc);
 
-void radix___flush_tlb_page(struct mm_struct *mm, unsigned long vmaddr,
-		       unsigned long ap, int nid)
+void radix__flush_tlb_page_psize(struct mm_struct *mm, unsigned long vmaddr,
+				 int psize)
 {
 	unsigned long pid;
+	unsigned long ap = mmu_get_ap(psize);
 
 	preempt_disable();
 	pid = mm ? mm->context.id : 0;
@@ -250,8 +246,8 @@ void radix__flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr)
 	if (vma && is_vm_hugetlb_page(vma))
 		return flush_hugetlb_page(vma, vmaddr);
 #endif
-	radix___flush_tlb_page(vma ? vma->vm_mm : NULL, vmaddr,
-			 mmu_get_ap(mmu_virtual_psize), 0);
+	radix__flush_tlb_page_psize(vma ? vma->vm_mm : NULL, vmaddr,
+				    mmu_virtual_psize);
 }
 EXPORT_SYMBOL(radix__flush_tlb_page);
 
@@ -299,8 +295,65 @@ static int radix_get_mmu_psize(int page_size)
 
 void radix__tlb_flush(struct mmu_gather *tlb)
 {
+	int psize = 0;
 	struct mm_struct *mm = tlb->mm;
-	radix__flush_tlb_mm(mm);
+	int page_size = tlb->page_size;
+
+	psize = radix_get_mmu_psize(page_size);
+	/*
+	 * if page size is not something we understand, do a full mm flush
+	 */
+	if (psize != -1 && !tlb->fullmm && !tlb->need_flush_all)
+		radix__flush_tlb_range_psize(mm, tlb->start, tlb->end, psize);
+	else
+		radix__flush_tlb_mm(mm);
+}
+
+#define TLB_FLUSH_ALL -1UL
+/*
+ * Number of pages above which we will do a bcast tlbie. Just a
+ * number at this point copied from x86
+ */
+static unsigned long tlb_single_page_flush_ceiling __read_mostly = 33;
+
+void radix__flush_tlb_range_psize(struct mm_struct *mm, unsigned long start,
+				  unsigned long end, int psize)
+{
+	unsigned long pid;
+	unsigned long addr;
+	int local = mm_is_core_local(mm);
+	unsigned long ap = mmu_get_ap(psize);
+	int lock_tlbie = !mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE);
+	unsigned long page_size = 1UL << mmu_psize_defs[psize].shift;
+
+
+	preempt_disable();
+	pid = mm ? mm->context.id : 0;
+	if (unlikely(pid == MMU_NO_CONTEXT))
+		goto err_out;
+
+	if (end == TLB_FLUSH_ALL ||
+	    (end - start) > tlb_single_page_flush_ceiling * page_size) {
+		if (local)
+			_tlbiel_pid(pid, RIC_FLUSH_TLB);
+		else
+			_tlbie_pid(pid, RIC_FLUSH_TLB);
+		goto err_out;
+	}
+	for (addr = start; addr < end; addr += page_size) {
+
+		if (local)
+			_tlbiel_va(addr, pid, ap, RIC_FLUSH_TLB);
+		else {
+			if (lock_tlbie)
+				raw_spin_lock(&native_tlbie_lock);
+			_tlbie_va(addr, pid, ap, RIC_FLUSH_TLB);
+			if (lock_tlbie)
+				raw_spin_unlock(&native_tlbie_lock);
+		}
+	}
+err_out:
+	preempt_enable();
 }
 
 void radix__flush_tlb_lpid_va(unsigned long lpid, unsigned long gpa,
@@ -340,3 +393,10 @@ void radix__flush_tlb_lpid(unsigned long lpid)
 	asm volatile("eieio; tlbsync; ptesync": : :"memory");
 }
 EXPORT_SYMBOL(radix__flush_tlb_lpid);
+
+void radix__flush_pmd_tlb_range(struct vm_area_struct *vma,
+				unsigned long start, unsigned long end)
+{
+	radix__flush_tlb_range_psize(vma->vm_mm, start, end, MMU_PAGE_2M);
+}
+EXPORT_SYMBOL(radix__flush_pmd_tlb_range);
