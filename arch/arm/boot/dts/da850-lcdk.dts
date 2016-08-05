@@ -1,0 +1,70 @@
+/*
+ * Copyright (c) 2016 BayLibre, Inc.
+ *
+ * Licensed under GPLv2.
+ */
+/dts-v1/;
+#include "da850.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	model = "DA850/AM1808/OMAP-L138 LCDK";
+	compatible = "ti,da850-lcdk", "ti,da850";
+
+	aliases {
+		serial2 = &serial2;
+	};
+
+	chosen {
+		stdout-path = "serial2:115200n8";
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0xc0000000 0x08000000>;
+	};
+};
+
+&pmx_core {
+	status = "okay";
+};
+
+&serial2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&serial2_rxtx_pins>;
+	status = "okay";
+};
+
+&wdt {
+	status = "okay";
+};
+
+&rtc0 {
+	status = "okay";
+};
+
+&gpio {
+	status = "okay";
+};
+
+&mdio {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mdio_pins>;
+	bus_freq = <2200000>;
+	status = "okay";
+};
+
+&eth0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mii_pins>;
+	status = "okay";
+};
+
+&mmc0 {
+	max-frequency = <50000000>;
+	bus-width = <4>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc0_pins>;
+	cd-gpios = <&gpio 64 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
