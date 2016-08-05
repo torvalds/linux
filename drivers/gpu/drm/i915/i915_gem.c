@@ -2622,47 +2622,28 @@ int
 i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 {
 	struct drm_i915_gem_wait *args = data;
+	struct intel_rps_client *rps = to_rps_client(file);
 	struct drm_i915_gem_object *obj;
-	struct drm_i915_gem_request *requests[I915_NUM_ENGINES];
-	int i, n = 0;
-	int ret;
+	unsigned long active;
+	int idx, ret = 0;
 
 	if (args->flags != 0)
 		return -EINVAL;
 
-	ret = i915_mutex_lock_interruptible(dev);
-	if (ret)
-		return ret;
-
 	obj = i915_gem_object_lookup(file, args->bo_handle);
-	if (!obj) {
-		mutex_unlock(&dev->struct_mutex);
+	if (!obj)
 		return -ENOENT;
+
+	active = __I915_BO_ACTIVE(obj);
+	for_each_active(active, idx) {
+		s64 *timeout = args->timeout_ns >= 0 ? &args->timeout_ns : NULL;
+		ret = i915_gem_active_wait_unlocked(&obj->last_read[idx], true,
+						    timeout, rps);
+		if (ret)
+			break;
 	}
 
-	if (!i915_gem_object_is_active(obj))
-		goto out;
-
-	for (i = 0; i < I915_NUM_ENGINES; i++) {
-		struct drm_i915_gem_request *req;
-
-		req = i915_gem_active_get(&obj->last_read[i],
-					  &obj->base.dev->struct_mutex);
-		if (req)
-			requests[n++] = req;
-	}
-
-out:
-	i915_gem_object_put(obj);
-	mutex_unlock(&dev->struct_mutex);
-
-	for (i = 0; i < n; i++) {
-		if (ret == 0)
-			ret = i915_wait_request(requests[i], true,
-						args->timeout_ns > 0 ? &args->timeout_ns : NULL,
-						to_rps_client(file));
-		i915_gem_request_put(requests[i]);
-	}
+	i915_gem_object_put_unlocked(obj);
 	return ret;
 }
 
