@@ -1,6 +1,8 @@
 #ifndef _VIRTIO_NET_LINUX_FDNET_H
 #define _VIRTIO_NET_LINUX_FDNET_H
 
+struct ifreq;
+
 struct lkl_netdev_linux_fdnet {
 	struct lkl_netdev dev;
 	/* file-descriptor based device */
@@ -37,5 +39,16 @@ struct lkl_netdev_linux_fdnet *lkl_register_netdev_linux_fdnet(int fd);
  * @nd - a struct lkl_netdev_linux_fdnet entry to be unregistered
  */
 void lkl_unregister_netdev_linux_fdnet(struct lkl_netdev_linux_fdnet *nd);
+
+/**
+ * lkl_netdev_tap_init - initialize tap related structure fot lkl_netdev.
+ *
+ * @path - the path to open the device.
+ * @offload - offload bits for the device
+ * @ifr - struct ifreq for ioctl.
+ */
+struct lkl_netdev_linux_fdnet *lkl_netdev_tap_init(const char *path,
+						   int offload,
+						   struct ifreq *ifr);
 
 #endif /* _VIRTIO_NET_LINUX_FDNET_H*/
