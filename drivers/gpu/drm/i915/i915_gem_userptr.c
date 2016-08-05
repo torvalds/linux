@@ -84,16 +84,9 @@ static void cancel_userptr(struct work_struct *work)
 	obj->userptr.work = NULL;
 
 	if (obj->pages != NULL) {
-		struct drm_i915_private *dev_priv = to_i915(dev);
-		bool was_interruptible;
-
-		was_interruptible = dev_priv->mm.interruptible;
-		dev_priv->mm.interruptible = false;
-
+		/* We are inside a kthread context and can't be interrupted */
 		WARN_ON(i915_gem_object_unbind(obj));
 		WARN_ON(i915_gem_object_put_pages(obj));
-
-		dev_priv->mm.interruptible = was_interruptible;
 	}
 
 	i915_gem_object_put(obj);
