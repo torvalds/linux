@@ -117,17 +117,27 @@ static int __gb_lights_flash_intensity_set(struct gb_channel *channel,
 					   u32 intensity)
 {
 	struct gb_connection *connection = get_conn_from_channel(channel);
+	struct gb_bundle *bundle = connection->bundle;
 	struct gb_lights_set_flash_intensity_request req;
+	int ret;
 
 	if (channel->releasing)
 		return -ESHUTDOWN;
+
+	ret = gb_pm_runtime_get_sync(bundle);
+	if (ret < 0)
+		return ret;
 
 	req.light_id = channel->light->id;
 	req.channel_id = channel->id;
 	req.intensity_uA = cpu_to_le32(intensity);
 
-	return gb_operation_sync(connection, GB_LIGHTS_TYPE_SET_FLASH_INTENSITY,
-				 &req, sizeof(req), NULL, 0);
+	ret = gb_operation_sync(connection, GB_LIGHTS_TYPE_SET_FLASH_INTENSITY,
+				&req, sizeof(req), NULL, 0);
+
+	gb_pm_runtime_put_autosuspend(bundle);
+
+	return ret;
 }
 
 static int __gb_lights_flash_brightness_set(struct gb_channel *channel)
@@ -321,32 +331,52 @@ static int channel_attr_groups_set(struct gb_channel *channel,
 static int gb_lights_fade_set(struct gb_channel *channel)
 {
 	struct gb_connection *connection = get_conn_from_channel(channel);
+	struct gb_bundle *bundle = connection->bundle;
 	struct gb_lights_set_fade_request req;
+	int ret;
 
 	if (channel->releasing)
 		return -ESHUTDOWN;
+
+	ret = gb_pm_runtime_get_sync(bundle);
+	if (ret < 0)
+		return ret;
 
 	req.light_id = channel->light->id;
 	req.channel_id = channel->id;
 	req.fade_in = channel->fade_in;
 	req.fade_out = channel->fade_out;
-	return gb_operation_sync(connection, GB_LIGHTS_TYPE_SET_FADE,
-				 &req, sizeof(req), NULL, 0);
+	ret = gb_operation_sync(connection, GB_LIGHTS_TYPE_SET_FADE,
+				&req, sizeof(req), NULL, 0);
+
+	gb_pm_runtime_put_autosuspend(bundle);
+
+	return ret;
 }
 
 static int gb_lights_color_set(struct gb_channel *channel, u32 color)
 {
 	struct gb_connection *connection = get_conn_from_channel(channel);
+	struct gb_bundle *bundle = connection->bundle;
 	struct gb_lights_set_color_request req;
+	int ret;
 
 	if (channel->releasing)
 		return -ESHUTDOWN;
 
+	ret = gb_pm_runtime_get_sync(bundle);
+	if (ret < 0)
+		return ret;
+
 	req.light_id = channel->light->id;
 	req.channel_id = channel->id;
 	req.color = cpu_to_le32(color);
-	return gb_operation_sync(connection, GB_LIGHTS_TYPE_SET_COLOR,
-				 &req, sizeof(req), NULL, 0);
+	ret = gb_operation_sync(connection, GB_LIGHTS_TYPE_SET_COLOR,
+				&req, sizeof(req), NULL, 0);
+
+	gb_pm_runtime_put_autosuspend(bundle);
+
+	return ret;
 }
 #else /* LED_HAVE_GROUPS */
 static int channel_attr_groups_set(struct gb_channel *channel,
@@ -360,13 +390,23 @@ static int __gb_lights_led_brightness_set(struct gb_channel *channel)
 {
 	struct gb_lights_set_brightness_request req;
 	struct gb_connection *connection = get_conn_from_channel(channel);
+	struct gb_bundle *bundle = connection->bundle;
+	int ret;
+
+	ret = gb_pm_runtime_get_sync(bundle);
+	if (ret < 0)
+		return ret;
 
 	req.light_id = channel->light->id;
 	req.channel_id = channel->id;
 	req.brightness = (u8)channel->led->brightness;
 
-	return gb_operation_sync(connection, GB_LIGHTS_TYPE_SET_BRIGHTNESS,
-				 &req, sizeof(req), NULL, 0);
+	ret = gb_operation_sync(connection, GB_LIGHTS_TYPE_SET_BRIGHTNESS,
+				&req, sizeof(req), NULL, 0);
+
+	gb_pm_runtime_put_autosuspend(bundle);
+
+	return ret;
 }
 
 static int __gb_lights_brightness_set(struct gb_channel *channel)
@@ -441,18 +481,28 @@ static int gb_blink_set(struct led_classdev *cdev, unsigned long *delay_on,
 {
 	struct gb_channel *channel = get_channel_from_cdev(cdev);
 	struct gb_connection *connection = get_conn_from_channel(channel);
+	struct gb_bundle *bundle = connection->bundle;
 	struct gb_lights_blink_request req;
+	int ret;
 
 	if (channel->releasing)
 		return -ESHUTDOWN;
+
+	ret = gb_pm_runtime_get_sync(bundle);
+	if (ret < 0)
+		return ret;
 
 	req.light_id = channel->light->id;
 	req.channel_id = channel->id;
 	req.time_on_ms = cpu_to_le16(*delay_on);
 	req.time_off_ms = cpu_to_le16(*delay_off);
 
-	return gb_operation_sync(connection, GB_LIGHTS_TYPE_SET_BLINK, &req,
-				 sizeof(req), NULL, 0);
+	ret = gb_operation_sync(connection, GB_LIGHTS_TYPE_SET_BLINK, &req,
+				sizeof(req), NULL, 0);
+
+	gb_pm_runtime_put_autosuspend(bundle);
+
+	return ret;
 }
 
 static void gb_lights_led_operations_set(struct gb_channel *channel,
@@ -592,11 +642,16 @@ static int gb_lights_flash_strobe_set(struct led_classdev_flash *fcdev,
 	struct gb_channel *channel = container_of(fcdev, struct gb_channel,
 						  fled);
 	struct gb_connection *connection = get_conn_from_channel(channel);
+	struct gb_bundle *bundle = connection->bundle;
 	struct gb_lights_set_flash_strobe_request req;
 	int ret;
 
 	if (channel->releasing)
 		return -ESHUTDOWN;
+
+	ret = gb_pm_runtime_get_sync(bundle);
+	if (ret < 0)
+		return ret;
 
 	req.light_id = channel->light->id;
 	req.channel_id = channel->id;
@@ -604,11 +659,12 @@ static int gb_lights_flash_strobe_set(struct led_classdev_flash *fcdev,
 
 	ret = gb_operation_sync(connection, GB_LIGHTS_TYPE_SET_FLASH_STROBE,
 				&req, sizeof(req), NULL, 0);
-	if (ret < 0)
-		return ret;
-	channel->strobe_state = state;
+	if (!ret)
+		channel->strobe_state = state;
 
-	return 0;
+	gb_pm_runtime_put_autosuspend(bundle);
+
+	return ret;
 }
 
 static int gb_lights_flash_strobe_get(struct led_classdev_flash *fcdev,
@@ -627,11 +683,16 @@ static int gb_lights_flash_timeout_set(struct led_classdev_flash *fcdev,
 	struct gb_channel *channel = container_of(fcdev, struct gb_channel,
 						  fled);
 	struct gb_connection *connection = get_conn_from_channel(channel);
+	struct gb_bundle *bundle = connection->bundle;
 	struct gb_lights_set_flash_timeout_request req;
 	int ret;
 
 	if (channel->releasing)
 		return -ESHUTDOWN;
+
+	ret = gb_pm_runtime_get_sync(bundle);
+	if (ret < 0)
+		return ret;
 
 	req.light_id = channel->light->id;
 	req.channel_id = channel->id;
@@ -639,11 +700,12 @@ static int gb_lights_flash_timeout_set(struct led_classdev_flash *fcdev,
 
 	ret = gb_operation_sync(connection, GB_LIGHTS_TYPE_SET_FLASH_TIMEOUT,
 				&req, sizeof(req), NULL, 0);
-	if (ret < 0)
-		return ret;
-	fcdev->timeout.val = timeout;
+	if (!ret)
+		fcdev->timeout.val = timeout;
 
-	return 0;
+	gb_pm_runtime_put_autosuspend(bundle);
+
+	return ret;
 }
 
 static int gb_lights_flash_fault_get(struct led_classdev_flash *fcdev,
@@ -652,6 +714,7 @@ static int gb_lights_flash_fault_get(struct led_classdev_flash *fcdev,
 	struct gb_channel *channel = container_of(fcdev, struct gb_channel,
 						  fled);
 	struct gb_connection *connection = get_conn_from_channel(channel);
+	struct gb_bundle *bundle = connection->bundle;
 	struct gb_lights_get_flash_fault_request req;
 	struct gb_lights_get_flash_fault_response resp;
 	int ret;
@@ -659,17 +722,21 @@ static int gb_lights_flash_fault_get(struct led_classdev_flash *fcdev,
 	if (channel->releasing)
 		return -ESHUTDOWN;
 
+	ret = gb_pm_runtime_get_sync(bundle);
+	if (ret < 0)
+		return ret;
+
 	req.light_id = channel->light->id;
 	req.channel_id = channel->id;
 
 	ret = gb_operation_sync(connection, GB_LIGHTS_TYPE_GET_FLASH_FAULT,
 				&req, sizeof(req), &resp, sizeof(resp));
-	if (ret < 0)
-		return ret;
+	if (!ret)
+		*fault = le32_to_cpu(resp.fault);
 
-	*fault = le32_to_cpu(resp.fault);
+	gb_pm_runtime_put_autosuspend(bundle);
 
-	return 0;
+	return ret;
 }
 
 static const struct led_flash_ops gb_lights_flash_ops = {
@@ -1258,6 +1325,8 @@ static int gb_lights_probe(struct gb_bundle *bundle,
 	if (ret < 0)
 		goto error_connection_disable;
 
+	gb_pm_runtime_put_autosuspend(bundle);
+
 	return 0;
 
 error_connection_disable:
@@ -1272,6 +1341,9 @@ out:
 static void gb_lights_disconnect(struct gb_bundle *bundle)
 {
 	struct gb_lights *glights = greybus_get_drvdata(bundle);
+
+	if (gb_pm_runtime_get_sync(bundle))
+		gb_pm_runtime_get_noresume(bundle);
 
 	gb_connection_disable(glights->connection);
 	gb_connection_destroy(glights->connection);
