@@ -162,6 +162,11 @@ struct __extcon_info {
 		.id = EXTCON_DISP_DP,
 		.name = "DP",
 	},
+	[EXTCON_DISP_HMD] = {
+		.type = EXTCON_TYPE_DISP | EXTCON_TYPE_USB,
+		.id = EXTCON_DISP_HMD,
+		.name = "HMD",
+	},
 
 	/* Miscellaneous external connector */
 	[EXTCON_DOCK] = {
