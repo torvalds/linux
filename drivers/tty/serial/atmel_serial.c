@@ -1635,8 +1635,8 @@ static void atmel_init_property(struct atmel_uart_port *atmel_port,
 
 	if (np) {
 		/* DMA/PDC usage specification */
-		if (of_get_property(np, "atmel,use-dma-rx", NULL)) {
-			if (of_get_property(np, "dmas", NULL)) {
+		if (of_property_read_bool(np, "atmel,use-dma-rx")) {
+			if (of_property_read_bool(np, "dmas")) {
 				atmel_port->use_dma_rx  = true;
 				atmel_port->use_pdc_rx  = false;
 			} else {
@@ -1648,8 +1648,8 @@ static void atmel_init_property(struct atmel_uart_port *atmel_port,
 			atmel_port->use_pdc_rx  = false;
 		}
 
-		if (of_get_property(np, "atmel,use-dma-tx", NULL)) {
-			if (of_get_property(np, "dmas", NULL)) {
+		if (of_property_read_bool(np, "atmel,use-dma-tx")) {
+			if (of_property_read_bool(np, "dmas")) {
 				atmel_port->use_dma_tx  = true;
 				atmel_port->use_pdc_tx  = false;
 			} else {
