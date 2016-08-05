@@ -4,6 +4,7 @@
 #undef s_addr
 #include <lkl_host.h>
 #include "iomem.h"
+#include "jmp_buf.h"
 
 #define DIFF_1601_TO_1970_IN_100NS (11644473600L * 10000000L)
 
@@ -273,6 +274,8 @@ struct lkl_host_operations lkl_host_ops = {
 	.iomem_access = lkl_iomem_access,
 	.virtio_devices = lkl_virtio_devs,
 	.gettid = gettid,
+	.jmp_buf_set = jmp_buf_set,
+	.jmp_buf_longjmp = jmp_buf_longjmp,
 };
 
 int handle_get_capacity(struct lkl_disk disk, unsigned long long *res)

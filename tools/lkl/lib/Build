@@ -5,6 +5,7 @@ CFLAGS_nt-host.o += -D_WIN32_WINNT=0x0600
 lkl-y += fs.o
 lkl-y += iomem.o
 lkl-y += net.o
+lkl-y += jmp_buf.o
 lkl-$(CONFIG_AUTO_LKL_POSIX_HOST) += posix-host.o
 lkl-$(CONFIG_AUTO_LKL_NT_HOST) += nt-host.o
 lkl-y += utils.o
