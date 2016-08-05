@@ -303,10 +303,8 @@ i915_gem_get_tiling(struct drm_device *dev, void *data,
 	if (!obj)
 		return -ENOENT;
 
-	mutex_lock(&dev->struct_mutex);
-
-	args->tiling_mode = obj->tiling_mode;
-	switch (obj->tiling_mode) {
+	args->tiling_mode = READ_ONCE(obj->tiling_mode);
+	switch (args->tiling_mode) {
 	case I915_TILING_X:
 		args->swizzle_mode = dev_priv->mm.bit_6_swizzle_x;
 		break;
@@ -330,8 +328,6 @@ i915_gem_get_tiling(struct drm_device *dev, void *data,
 	if (args->swizzle_mode == I915_BIT_6_SWIZZLE_9_10_17)
 		args->swizzle_mode = I915_BIT_6_SWIZZLE_9_10;
 
-	i915_gem_object_put(obj);
-	mutex_unlock(&dev->struct_mutex);
-
+	i915_gem_object_put_unlocked(obj);
 	return 0;
 }
