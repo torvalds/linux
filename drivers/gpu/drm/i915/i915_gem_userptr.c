@@ -63,32 +63,12 @@ struct i915_mmu_object {
 
 static void wait_rendering(struct drm_i915_gem_object *obj)
 {
-	struct drm_device *dev = obj->base.dev;
-	struct drm_i915_gem_request *requests[I915_NUM_ENGINES];
-	int i, n;
+	unsigned long active = __I915_BO_ACTIVE(obj);
+	int idx;
 
-	if (!i915_gem_object_is_active(obj))
-		return;
-
-	n = 0;
-	for (i = 0; i < I915_NUM_ENGINES; i++) {
-		struct drm_i915_gem_request *req;
-
-		req = i915_gem_active_get(&obj->last_read[i],
-					  &obj->base.dev->struct_mutex);
-		if (req)
-			requests[n++] = req;
-	}
-
-	mutex_unlock(&dev->struct_mutex);
-
-	for (i = 0; i < n; i++)
-		i915_wait_request(requests[i], false, NULL, NULL);
-
-	mutex_lock(&dev->struct_mutex);
-
-	for (i = 0; i < n; i++)
-		i915_gem_request_put(requests[i]);
+	for_each_active(active, idx)
+		i915_gem_active_wait_unlocked(&obj->last_read[idx],
+					      false, NULL, NULL);
 }
 
 static void cancel_userptr(struct work_struct *work)
@@ -97,6 +77,8 @@ static void cancel_userptr(struct work_struct *work)
 	struct drm_i915_gem_object *obj = mo->obj;
 	struct drm_device *dev = obj->base.dev;
 
+	wait_rendering(obj);
+
 	mutex_lock(&dev->struct_mutex);
 	/* Cancel any active worker and force us to re-evaluate gup */
 	obj->userptr.work = NULL;
@@ -104,8 +86,6 @@ static void cancel_userptr(struct work_struct *work)
 	if (obj->pages != NULL) {
 		struct drm_i915_private *dev_priv = to_i915(dev);
 		bool was_interruptible;
-
-		wait_rendering(obj);
 
 		was_interruptible = dev_priv->mm.interruptible;
 		dev_priv->mm.interruptible = false;
