@@ -496,8 +496,7 @@ void __init omap_init_time(void)
 	__omap_sync32k_timer_init(1, "timer_32k_ck", "ti,timer-alwon",
 			2, "timer_sys_ck", NULL, false);
 
-	if (of_have_populated_dt())
-		clocksource_probe();
+	clocksource_probe();
 }
 
 #if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_SOC_AM43XX)
@@ -505,6 +504,8 @@ void __init omap3_secure_sync32k_timer_init(void)
 {
 	__omap_sync32k_timer_init(12, "secure_32k_fck", "ti,timer-secure",
 			2, "timer_sys_ck", NULL, false);
+
+	clocksource_probe();
 }
 #endif /* CONFIG_ARCH_OMAP3 */
 
@@ -513,6 +514,8 @@ void __init omap3_gptimer_timer_init(void)
 {
 	__omap_sync32k_timer_init(2, "timer_sys_ck", NULL,
 			1, "timer_sys_ck", "ti,timer-alwon", true);
+
+	clocksource_probe();
 }
 #endif
 

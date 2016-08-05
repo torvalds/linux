@@ -92,10 +92,26 @@ static struct drm_driver sun4i_drv_driver = {
 	/* Frame Buffer Operations */
 
 	/* VBlank Operations */
-	.get_vblank_counter	= drm_vblank_count,
+	.get_vblank_counter	= drm_vblank_no_hw_counter,
 	.enable_vblank		= sun4i_drv_enable_vblank,
 	.disable_vblank		= sun4i_drv_disable_vblank,
 };
+
+static void sun4i_remove_framebuffers(void)
+{
+	struct apertures_struct *ap;
+
+	ap = alloc_apertures(1);
+	if (!ap)
+		return;
+
+	/* The framebuffer can be located anywhere in RAM */
+	ap->ranges[0].base = 0;
+	ap->ranges[0].size = ~0;
+
+	remove_conflicting_framebuffers(ap, "sun4i-drm-fb", false);
+	kfree(ap);
+}
 
 static int sun4i_drv_bind(struct device *dev)
 {
@@ -139,6 +155,9 @@ static int sun4i_drv_bind(struct device *dev)
 		goto free_drm;
 	}
 	drm->irq_enabled = true;
+
+	/* Remove early framebuffers (ie. simplefb) */
+	sun4i_remove_framebuffers();
 
 	/* Create our framebuffer */
 	drv->fbdev = sun4i_framebuffer_init(drm);
@@ -280,6 +299,7 @@ static int sun4i_drv_probe(struct platform_device *pdev)
 
 		count += sun4i_drv_add_endpoints(&pdev->dev, &match,
 						pipeline);
+		of_node_put(pipeline);
 
 		DRM_DEBUG_DRIVER("Queued %d outputs on pipeline %d\n",
 				 count, i);

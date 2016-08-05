@@ -111,7 +111,7 @@ void rds_ib_cm_connect_complete(struct rds_connection *conn, struct rdma_cm_even
 		}
 	}
 
-	if (conn->c_version < RDS_PROTOCOL(3,1)) {
+	if (conn->c_version < RDS_PROTOCOL(3, 1)) {
 		printk(KERN_NOTICE "RDS/IB: Connection to %pI4 version %u.%u failed,"
 		       " no longer supported\n",
 		       &conn->c_faddr,

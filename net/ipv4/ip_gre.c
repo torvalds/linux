@@ -49,12 +49,6 @@
 #include <net/gre.h>
 #include <net/dst_metadata.h>
 
-#if IS_ENABLED(CONFIG_IPV6)
-#include <net/ipv6.h>
-#include <net/ip6_fib.h>
-#include <net/ip6_route.h>
-#endif
-
 /*
    Problems & solutions
    --------------------
@@ -217,12 +211,14 @@ static void gre_err(struct sk_buff *skb, u32 info)
 	 * by themselves???
 	 */
 
+	const struct iphdr *iph = (struct iphdr *)skb->data;
 	const int type = icmp_hdr(skb)->type;
 	const int code = icmp_hdr(skb)->code;
 	struct tnl_ptk_info tpi;
 	bool csum_err = false;
 
-	if (gre_parse_header(skb, &tpi, &csum_err, htons(ETH_P_IP)) < 0) {
+	if (gre_parse_header(skb, &tpi, &csum_err, htons(ETH_P_IP),
+			     iph->ihl * 4) < 0) {
 		if (!csum_err)		/* ignore csum errors. */
 			return;
 	}
@@ -338,7 +334,7 @@ static int gre_rcv(struct sk_buff *skb)
 	}
 #endif
 
-	hdr_len = gre_parse_header(skb, &tpi, &csum_err, htons(ETH_P_IP));
+	hdr_len = gre_parse_header(skb, &tpi, &csum_err, htons(ETH_P_IP), 0);
 	if (hdr_len < 0)
 		goto drop;
 
@@ -1121,6 +1117,7 @@ struct net_device *gretap_fb_dev_create(struct net *net, const char *name,
 {
 	struct nlattr *tb[IFLA_MAX + 1];
 	struct net_device *dev;
+	LIST_HEAD(list_kill);
 	struct ip_tunnel *t;
 	int err;
 
@@ -1136,8 +1133,10 @@ struct net_device *gretap_fb_dev_create(struct net *net, const char *name,
 	t->collect_md = true;
 
 	err = ipgre_newlink(net, dev, tb, NULL);
-	if (err < 0)
-		goto out;
+	if (err < 0) {
+		free_netdev(dev);
+		return ERR_PTR(err);
+	}
 
 	/* openvswitch users expect packet sizes to be unrestricted,
 	 * so set the largest MTU we can.
@@ -1146,9 +1145,14 @@ struct net_device *gretap_fb_dev_create(struct net *net, const char *name,
 	if (err)
 		goto out;
 
+	err = rtnl_configure_link(dev, NULL);
+	if (err < 0)
+		goto out;
+
 	return dev;
 out:
-	free_netdev(dev);
+	ip_tunnel_dellink(dev, &list_kill);
+	unregister_netdevice_many(&list_kill);
 	return ERR_PTR(err);
 }
 EXPORT_SYMBOL_GPL(gretap_fb_dev_create);

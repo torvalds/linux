@@ -341,6 +341,8 @@ static int handle_mvpg_pei(struct kvm_vcpu *vcpu)
 
 static int handle_partial_execution(struct kvm_vcpu *vcpu)
 {
+	vcpu->stat.exit_pei++;
+
 	if (vcpu->arch.sie_block->ipa == 0xb254)	/* MVPG */
 		return handle_mvpg_pei(vcpu);
 	if (vcpu->arch.sie_block->ipa >> 8 == 0xae)	/* SIGP */

@@ -648,7 +648,7 @@ long drm_ioctl(struct file *filp,
 	int retcode = -EINVAL;
 	char stack_kdata[128];
 	char *kdata = NULL;
-	unsigned int usize, asize, drv_size;
+	unsigned int in_size, out_size, drv_size, ksize;
 	bool is_driver_ioctl;
 
 	dev = file_priv->minor->dev;
@@ -671,9 +671,12 @@ long drm_ioctl(struct file *filp,
 	}
 
 	drv_size = _IOC_SIZE(ioctl->cmd);
-	usize = _IOC_SIZE(cmd);
-	asize = max(usize, drv_size);
-	cmd = ioctl->cmd;
+	out_size = in_size = _IOC_SIZE(cmd);
+	if ((cmd & ioctl->cmd & IOC_IN) == 0)
+		in_size = 0;
+	if ((cmd & ioctl->cmd & IOC_OUT) == 0)
+		out_size = 0;
+	ksize = max(max(in_size, out_size), drv_size);
 
 	DRM_DEBUG("pid=%d, dev=0x%lx, auth=%d, %s\n",
 		  task_pid_nr(current),
@@ -693,29 +696,23 @@ long drm_ioctl(struct file *filp,
 	if (unlikely(retcode))
 		goto err_i1;
 
-	if (cmd & (IOC_IN | IOC_OUT)) {
-		if (asize <= sizeof(stack_kdata)) {
-			kdata = stack_kdata;
-		} else {
-			kdata = kmalloc(asize, GFP_KERNEL);
-			if (!kdata) {
-				retcode = -ENOMEM;
-				goto err_i1;
-			}
-		}
-		if (asize > usize)
-			memset(kdata + usize, 0, asize - usize);
-	}
-
-	if (cmd & IOC_IN) {
-		if (copy_from_user(kdata, (void __user *)arg,
-				   usize) != 0) {
-			retcode = -EFAULT;
+	if (ksize <= sizeof(stack_kdata)) {
+		kdata = stack_kdata;
+	} else {
+		kdata = kmalloc(ksize, GFP_KERNEL);
+		if (!kdata) {
+			retcode = -ENOMEM;
 			goto err_i1;
 		}
-	} else if (cmd & IOC_OUT) {
-		memset(kdata, 0, usize);
 	}
+
+	if (copy_from_user(kdata, (void __user *)arg, in_size) != 0) {
+		retcode = -EFAULT;
+		goto err_i1;
+	}
+
+	if (ksize > in_size)
+		memset(kdata + in_size, 0, ksize - in_size);
 
 	/* Enforce sane locking for kms driver ioctls. Core ioctls are
 	 * too messy still. */
@@ -728,11 +725,8 @@ long drm_ioctl(struct file *filp,
 		mutex_unlock(&drm_global_mutex);
 	}
 
-	if (cmd & IOC_OUT) {
-		if (copy_to_user((void __user *)arg, kdata,
-				 usize) != 0)
-			retcode = -EFAULT;
-	}
+	if (copy_to_user((void __user *)arg, kdata, out_size) != 0)
+		retcode = -EFAULT;
 
       err_i1:
 	if (!ioctl)
@@ -759,7 +753,7 @@ EXPORT_SYMBOL(drm_ioctl);
  * shouldn't be used by any drivers.
  *
  * Returns:
- * True if the @nr corresponds to a DRM core ioctl numer, false otherwise.
+ * True if the @nr corresponds to a DRM core ioctl number, false otherwise.
  */
 bool drm_ioctl_flags(unsigned int nr, unsigned int *flags)
 {

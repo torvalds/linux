@@ -362,9 +362,7 @@ EXPORT_SYMBOL(drm_put_dev);
 void drm_unplug_dev(struct drm_device *dev)
 {
 	/* for a USB device */
-	drm_minor_unregister(dev, DRM_MINOR_LEGACY);
-	drm_minor_unregister(dev, DRM_MINOR_RENDER);
-	drm_minor_unregister(dev, DRM_MINOR_CONTROL);
+	drm_dev_unregister(dev);
 
 	mutex_lock(&drm_global_mutex);
 

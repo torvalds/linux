@@ -78,11 +78,11 @@ void get_avenrun(unsigned long *loads, unsigned long offset, int shift)
 	loads[2] = (avenrun[2] + offset) << shift;
 }
 
-long calc_load_fold_active(struct rq *this_rq)
+long calc_load_fold_active(struct rq *this_rq, long adjust)
 {
 	long nr_active, delta = 0;
 
-	nr_active = this_rq->nr_running;
+	nr_active = this_rq->nr_running - adjust;
 	nr_active += (long)this_rq->nr_uninterruptible;
 
 	if (nr_active != this_rq->calc_load_active) {
@@ -188,7 +188,7 @@ void calc_load_enter_idle(void)
 	 * We're going into NOHZ mode, if there's any pending delta, fold it
 	 * into the pending idle delta.
 	 */
-	delta = calc_load_fold_active(this_rq);
+	delta = calc_load_fold_active(this_rq, 0);
 	if (delta) {
 		int idx = calc_load_write_idx();
 
@@ -389,7 +389,7 @@ void calc_global_load_tick(struct rq *this_rq)
 	if (time_before(jiffies, this_rq->calc_load_update))
 		return;
 
-	delta  = calc_load_fold_active(this_rq);
+	delta  = calc_load_fold_active(this_rq, 0);
 	if (delta)
 		atomic_long_add(delta, &calc_load_tasks);
 

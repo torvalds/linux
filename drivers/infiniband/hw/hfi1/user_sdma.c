@@ -183,7 +183,7 @@ struct user_sdma_iovec {
 	struct sdma_mmu_node *node;
 };
 
-#define SDMA_CACHE_NODE_EVICT BIT(0)
+#define SDMA_CACHE_NODE_EVICT 0
 
 struct sdma_mmu_node {
 	struct mmu_rb_node rb;
@@ -1355,11 +1355,11 @@ static int set_txreq_header(struct user_sdma_request *req,
 		 */
 		SDMA_DBG(req, "TID offset %ubytes %uunits om%u",
 			 req->tidoffset, req->tidoffset / req->omfactor,
-			 !!(req->omfactor - KDETH_OM_SMALL));
+			 req->omfactor != KDETH_OM_SMALL);
 		KDETH_SET(hdr->kdeth.ver_tid_offset, OFFSET,
 			  req->tidoffset / req->omfactor);
 		KDETH_SET(hdr->kdeth.ver_tid_offset, OM,
-			  !!(req->omfactor - KDETH_OM_SMALL));
+			  req->omfactor != KDETH_OM_SMALL);
 	}
 done:
 	trace_hfi1_sdma_user_header(pq->dd, pq->ctxt, pq->subctxt,

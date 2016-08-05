@@ -678,8 +678,7 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 	u32 tlen = packet->tlen;
 	struct rvt_qp *qp = packet->qp;
 	bool has_grh = rcv_flags & HFI1_HAS_GRH;
-	bool sc4_bit = has_sc4_bit(packet);
-	u8 sc;
+	u8 sc5 = hdr2sc((struct hfi1_message_header *)hdr, packet->rhf);
 	u32 bth1;
 	int is_mcast;
 	struct ib_grh *grh = NULL;
@@ -697,10 +696,8 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 		 */
 		struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
 		u32 lqpn =  be32_to_cpu(ohdr->bth[1]) & RVT_QPN_MASK;
-		u8 sl, sc5;
+		u8 sl;
 
-		sc5 = (be16_to_cpu(hdr->lrh[0]) >> 12) & 0xf;
-		sc5 |= sc4_bit;
 		sl = ibp->sc_to_sl[sc5];
 
 		process_becn(ppd, sl, 0, lqpn, 0, IB_CC_SVCTYPE_UD);
@@ -717,10 +714,6 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 
 	if (!is_mcast && (opcode != IB_OPCODE_CNP) && bth1 & HFI1_FECN_SMASK) {
 		u16 slid = be16_to_cpu(hdr->lrh[3]);
-		u8 sc5;
-
-		sc5 = (be16_to_cpu(hdr->lrh[0]) >> 12) & 0xf;
-		sc5 |= sc4_bit;
 
 		return_cnp(ibp, qp, src_qp, pkey, dlid, slid, sc5, grh);
 	}
@@ -745,10 +738,6 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 		if (qp->ibqp.qp_num > 1) {
 			struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
 			u16 slid;
-			u8 sc5;
-
-			sc5 = (be16_to_cpu(hdr->lrh[0]) >> 12) & 0xf;
-			sc5 |= sc4_bit;
 
 			slid = be16_to_cpu(hdr->lrh[3]);
 			if (unlikely(rcv_pkey_check(ppd, pkey, sc5, slid))) {
@@ -790,10 +779,6 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 		/* Received on QP0, and so by definition, this is an SMP */
 		struct opa_smp *smp = (struct opa_smp *)data;
 		u16 slid = be16_to_cpu(hdr->lrh[3]);
-		u8 sc5;
-
-		sc5 = (be16_to_cpu(hdr->lrh[0]) >> 12) & 0xf;
-		sc5 |= sc4_bit;
 
 		if (opa_smp_check(ibp, pkey, sc5, qp, slid, smp))
 			goto drop;
@@ -890,9 +875,7 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 	}
 
 	wc.slid = be16_to_cpu(hdr->lrh[3]);
-	sc = (be16_to_cpu(hdr->lrh[0]) >> 12) & 0xf;
-	sc |= sc4_bit;
-	wc.sl = ibp->sc_to_sl[sc];
+	wc.sl = ibp->sc_to_sl[sc5];
 
 	/*
 	 * Save the LMC lower bits if the destination LID is a unicast LID.

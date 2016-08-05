@@ -203,6 +203,9 @@ static long hfi1_file_ioctl(struct file *fp, unsigned int cmd,
 
 	switch (cmd) {
 	case HFI1_IOCTL_ASSIGN_CTXT:
+		if (uctxt)
+			return -EINVAL;
+
 		if (copy_from_user(&uinfo,
 				   (struct hfi1_user_info __user *)arg,
 				   sizeof(uinfo)))

@@ -304,7 +304,7 @@ static int vrf_rt6_create(struct net_device *dev)
 	dst_hold(&rt6->dst);
 
 	rt6->rt6i_table = rt6i_table;
-	rt6->dst.output	= vrf_output6;
+	rt6->dst.output = vrf_output6;
 	rcu_assign_pointer(vrf->rt6, rt6);
 
 	rc = 0;
@@ -403,7 +403,7 @@ static int vrf_rtable_create(struct net_device *dev)
 	if (!rth)
 		return -ENOMEM;
 
-	rth->dst.output	= vrf_output;
+	rth->dst.output = vrf_output;
 	rth->rt_table_id = vrf->tb_id;
 
 	rcu_assign_pointer(vrf->rth, rth);

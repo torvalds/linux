@@ -409,6 +409,7 @@ static const struct iio_info gyro_info = {
 static const struct iio_trigger_ops st_gyro_trigger_ops = {
 	.owner = THIS_MODULE,
 	.set_trigger_state = ST_GYRO_TRIGGER_SET_STATE,
+	.validate_device = st_sensors_validate_device,
 };
 #define ST_GYRO_TRIGGER_OPS (&st_gyro_trigger_ops)
 #else

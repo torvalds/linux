@@ -34,6 +34,8 @@
 #include "oss/oss_2_0_d.h"
 #include "oss/oss_2_0_sh_mask.h"
 
+#include "bif/bif_4_1_d.h"
+
 static void uvd_v4_2_mc_resume(struct amdgpu_device *adev);
 static void uvd_v4_2_init_cg(struct amdgpu_device *adev);
 static void uvd_v4_2_set_ring_funcs(struct amdgpu_device *adev);
@@ -439,6 +441,32 @@ static void uvd_v4_2_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64 seq
 }
 
 /**
+ * uvd_v4_2_ring_emit_hdp_flush - emit an hdp flush
+ *
+ * @ring: amdgpu_ring pointer
+ *
+ * Emits an hdp flush.
+ */
+static void uvd_v4_2_ring_emit_hdp_flush(struct amdgpu_ring *ring)
+{
+	amdgpu_ring_write(ring, PACKET0(mmHDP_MEM_COHERENCY_FLUSH_CNTL, 0));
+	amdgpu_ring_write(ring, 0);
+}
+
+/**
+ * uvd_v4_2_ring_hdp_invalidate - emit an hdp invalidate
+ *
+ * @ring: amdgpu_ring pointer
+ *
+ * Emits an hdp invalidate.
+ */
+static void uvd_v4_2_ring_emit_hdp_invalidate(struct amdgpu_ring *ring)
+{
+	amdgpu_ring_write(ring, PACKET0(mmHDP_DEBUG0, 0));
+	amdgpu_ring_write(ring, 1);
+}
+
+/**
  * uvd_v4_2_ring_test_ring - register write test
  *
  * @ring: amdgpu_ring pointer
@@ -496,49 +524,6 @@ static void uvd_v4_2_ring_emit_ib(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, ib->gpu_addr);
 	amdgpu_ring_write(ring, PACKET0(mmUVD_RBC_IB_SIZE, 0));
 	amdgpu_ring_write(ring, ib->length_dw);
-}
-
-/**
- * uvd_v4_2_ring_test_ib - test ib execution
- *
- * @ring: amdgpu_ring pointer
- *
- * Test if we can successfully execute an IB
- */
-static int uvd_v4_2_ring_test_ib(struct amdgpu_ring *ring)
-{
-	struct amdgpu_device *adev = ring->adev;
-	struct fence *fence = NULL;
-	int r;
-
-	r = amdgpu_asic_set_uvd_clocks(adev, 53300, 40000);
-	if (r) {
-		DRM_ERROR("amdgpu: failed to raise UVD clocks (%d).\n", r);
-		return r;
-	}
-
-	r = amdgpu_uvd_get_create_msg(ring, 1, NULL);
-	if (r) {
-		DRM_ERROR("amdgpu: failed to get create msg (%d).\n", r);
-		goto error;
-	}
-
-	r = amdgpu_uvd_get_destroy_msg(ring, 1, true, &fence);
-	if (r) {
-		DRM_ERROR("amdgpu: failed to get destroy ib (%d).\n", r);
-		goto error;
-	}
-
-	r = fence_wait(fence, false);
-	if (r) {
-		DRM_ERROR("amdgpu: fence wait failed (%d).\n", r);
-		goto error;
-	}
-	DRM_INFO("ib test on ring %d succeeded\n",  ring->idx);
-error:
-	fence_put(fence);
-	amdgpu_asic_set_uvd_clocks(adev, 0, 0);
-	return r;
 }
 
 /**
@@ -763,10 +748,14 @@ static const struct amdgpu_ring_funcs uvd_v4_2_ring_funcs = {
 	.parse_cs = amdgpu_uvd_ring_parse_cs,
 	.emit_ib = uvd_v4_2_ring_emit_ib,
 	.emit_fence = uvd_v4_2_ring_emit_fence,
+	.emit_hdp_flush = uvd_v4_2_ring_emit_hdp_flush,
+	.emit_hdp_invalidate = uvd_v4_2_ring_emit_hdp_invalidate,
 	.test_ring = uvd_v4_2_ring_test_ring,
-	.test_ib = uvd_v4_2_ring_test_ib,
+	.test_ib = amdgpu_uvd_ring_test_ib,
 	.insert_nop = amdgpu_ring_insert_nop,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
+	.begin_use = amdgpu_uvd_ring_begin_use,
+	.end_use = amdgpu_uvd_ring_end_use,
 };
 
 static void uvd_v4_2_set_ring_funcs(struct amdgpu_device *adev)

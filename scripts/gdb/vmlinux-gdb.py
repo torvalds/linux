@@ -31,4 +31,3 @@ else:
     import linux.lists
     import linux.proc
     import linux.constants
-    import linux.radixtree

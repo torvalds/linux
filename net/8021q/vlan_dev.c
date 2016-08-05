@@ -146,10 +146,12 @@ static netdev_tx_t vlan_dev_hard_start_xmit(struct sk_buff *skb,
 
 static int vlan_dev_change_mtu(struct net_device *dev, int new_mtu)
 {
-	/* TODO: gotta make sure the underlying layer can handle it,
-	 * maybe an IFF_VLAN_CAPABLE flag for devices?
-	 */
-	if (vlan_dev_priv(dev)->real_dev->mtu < new_mtu)
+	struct net_device *real_dev = vlan_dev_priv(dev)->real_dev;
+	unsigned int max_mtu = real_dev->mtu;
+
+	if (netif_reduces_vlan_mtu(real_dev))
+		max_mtu -= VLAN_HLEN;
+	if (max_mtu < new_mtu)
 		return -ERANGE;
 
 	dev->mtu = new_mtu;

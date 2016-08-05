@@ -26,8 +26,7 @@ static void vc4_output_poll_changed(struct drm_device *dev)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 
-	if (vc4->fbdev)
-		drm_fbdev_cma_hotplug_event(vc4->fbdev);
+	drm_fbdev_cma_hotplug_event(vc4->fbdev);
 }
 
 struct vc4_commit {
@@ -119,10 +118,18 @@ static int vc4_atomic_commit(struct drm_device *dev,
 		return -ENOMEM;
 
 	/* Make sure that any outstanding modesets have finished. */
-	ret = down_interruptible(&vc4->async_modeset);
-	if (ret) {
-		kfree(c);
-		return ret;
+	if (nonblock) {
+		ret = down_trylock(&vc4->async_modeset);
+		if (ret) {
+			kfree(c);
+			return -EBUSY;
+		}
+	} else {
+		ret = down_interruptible(&vc4->async_modeset);
+		if (ret) {
+			kfree(c);
+			return ret;
+		}
 	}
 
 	ret = drm_atomic_helper_prepare_planes(dev, state);

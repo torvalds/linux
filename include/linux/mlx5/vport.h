@@ -50,6 +50,8 @@ int mlx5_modify_nic_vport_mtu(struct mlx5_core_dev *mdev, u16 mtu);
 int mlx5_query_nic_vport_system_image_guid(struct mlx5_core_dev *mdev,
 					   u64 *system_image_guid);
 int mlx5_query_nic_vport_node_guid(struct mlx5_core_dev *mdev, u64 *node_guid);
+int mlx5_modify_nic_vport_node_guid(struct mlx5_core_dev *mdev,
+				    u32 vport, u64 node_guid);
 int mlx5_query_nic_vport_qkey_viol_cntr(struct mlx5_core_dev *mdev,
 					u16 *qkey_viol_cntr);
 int mlx5_query_hca_vport_gid(struct mlx5_core_dev *dev, u8 other_vport,

@@ -91,6 +91,7 @@
 #define MTK_QDMA_GLO_CFG	0x1A04
 #define MTK_RX_2B_OFFSET	BIT(31)
 #define MTK_RX_BT_32DWORDS	(3 << 11)
+#define MTK_NDP_CO_PRO		BIT(10)
 #define MTK_TX_WB_DDONE		BIT(6)
 #define MTK_DMA_SIZE_16DWORDS	(2 << 4)
 #define MTK_RX_DMA_BUSY		BIT(3)
@@ -357,6 +358,7 @@ struct mtk_rx_ring {
  * @rx_ring:		Pointer to the memore holding info about the RX ring
  * @rx_napi:		The NAPI struct
  * @scratch_ring:	Newer SoCs need memory for a second HW managed TX ring
+ * @phy_scratch_ring:	physical address of scratch_ring
  * @scratch_head:	The scratch memory that scratch_ring points to.
  * @clk_ethif:		The ethif clock
  * @clk_esw:		The switch clock
@@ -384,6 +386,7 @@ struct mtk_eth {
 	struct mtk_rx_ring		rx_ring;
 	struct napi_struct		rx_napi;
 	struct mtk_tx_dma		*scratch_ring;
+	dma_addr_t			phy_scratch_ring;
 	void				*scratch_head;
 	struct clk			*clk_ethif;
 	struct clk			*clk_esw;

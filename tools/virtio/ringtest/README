@@ -1,2 +1,6 @@
 Partial implementation of various ring layouts, useful to tune virtio design.
 Uses shared memory heavily.
+
+Typical use:
+
+# sh run-on-all.sh perf stat -r 10 --log-fd 1 -- ./ring

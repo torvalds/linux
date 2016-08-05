@@ -201,9 +201,8 @@ unsigned long htab_convert_pte_flags(unsigned long pteflags)
 	/*
 	 * We can't allow hardware to update hpte bits. Hence always
 	 * set 'R' bit and set 'C' if it is a write fault
-	 * Memory coherence is always enabled
 	 */
-	rflags |=  HPTE_R_R | HPTE_R_M;
+	rflags |=  HPTE_R_R;
 
 	if (pteflags & _PAGE_DIRTY)
 		rflags |= HPTE_R_C;
@@ -213,10 +212,15 @@ unsigned long htab_convert_pte_flags(unsigned long pteflags)
 
 	if ((pteflags & _PAGE_CACHE_CTL) == _PAGE_TOLERANT)
 		rflags |= HPTE_R_I;
-	if ((pteflags & _PAGE_CACHE_CTL ) == _PAGE_NON_IDEMPOTENT)
+	else if ((pteflags & _PAGE_CACHE_CTL) == _PAGE_NON_IDEMPOTENT)
 		rflags |= (HPTE_R_I | HPTE_R_G);
-	if ((pteflags & _PAGE_CACHE_CTL) == _PAGE_SAO)
-		rflags |= (HPTE_R_I | HPTE_R_W);
+	else if ((pteflags & _PAGE_CACHE_CTL) == _PAGE_SAO)
+		rflags |= (HPTE_R_W | HPTE_R_I | HPTE_R_M);
+	else
+		/*
+		 * Add memory coherence if cache inhibited is not set
+		 */
+		rflags |= HPTE_R_M;
 
 	return rflags;
 }
@@ -917,6 +921,10 @@ void __init hash__early_init_mmu(void)
 	__vmalloc_end = H_VMALLOC_END;
 	vmemmap = (struct page *)H_VMEMMAP_BASE;
 	ioremap_bot = IOREMAP_BASE;
+
+#ifdef CONFIG_PCI
+	pci_io_base = ISA_IO_BASE;
+#endif
 
 	/* Initialize the MMU Hash table and create the linear mapping
 	 * of memory. Has to be done before SLB initialization as this is

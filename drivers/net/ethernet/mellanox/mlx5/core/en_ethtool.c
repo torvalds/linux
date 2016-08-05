@@ -184,7 +184,9 @@ static unsigned long mlx5e_query_pfc_combined(struct mlx5e_priv *priv)
 #define MLX5E_NUM_SQ_STATS(priv) \
 	(NUM_SQ_STATS * priv->params.num_channels * priv->params.num_tc * \
 	 test_bit(MLX5E_STATE_OPENED, &priv->state))
-#define MLX5E_NUM_PFC_COUNTERS(priv) hweight8(mlx5e_query_pfc_combined(priv))
+#define MLX5E_NUM_PFC_COUNTERS(priv) \
+	(hweight8(mlx5e_query_pfc_combined(priv)) * \
+	 NUM_PPORT_PER_PRIO_PFC_COUNTERS)
 
 static int mlx5e_get_sset_count(struct net_device *dev, int sset)
 {
@@ -211,42 +213,41 @@ static void mlx5e_fill_stats_strings(struct mlx5e_priv *priv, uint8_t *data)
 
 	/* SW counters */
 	for (i = 0; i < NUM_SW_COUNTERS; i++)
-		strcpy(data + (idx++) * ETH_GSTRING_LEN, sw_stats_desc[i].name);
+		strcpy(data + (idx++) * ETH_GSTRING_LEN, sw_stats_desc[i].format);
 
 	/* Q counters */
 	for (i = 0; i < MLX5E_NUM_Q_CNTRS(priv); i++)
-		strcpy(data + (idx++) * ETH_GSTRING_LEN, q_stats_desc[i].name);
+		strcpy(data + (idx++) * ETH_GSTRING_LEN, q_stats_desc[i].format);
 
 	/* VPORT counters */
 	for (i = 0; i < NUM_VPORT_COUNTERS; i++)
 		strcpy(data + (idx++) * ETH_GSTRING_LEN,
-		       vport_stats_desc[i].name);
+		       vport_stats_desc[i].format);
 
 	/* PPORT counters */
 	for (i = 0; i < NUM_PPORT_802_3_COUNTERS; i++)
 		strcpy(data + (idx++) * ETH_GSTRING_LEN,
-		       pport_802_3_stats_desc[i].name);
+		       pport_802_3_stats_desc[i].format);
 
 	for (i = 0; i < NUM_PPORT_2863_COUNTERS; i++)
 		strcpy(data + (idx++) * ETH_GSTRING_LEN,
-		       pport_2863_stats_desc[i].name);
+		       pport_2863_stats_desc[i].format);
 
 	for (i = 0; i < NUM_PPORT_2819_COUNTERS; i++)
 		strcpy(data + (idx++) * ETH_GSTRING_LEN,
-		       pport_2819_stats_desc[i].name);
+		       pport_2819_stats_desc[i].format);
 
 	for (prio = 0; prio < NUM_PPORT_PRIO; prio++) {
 		for (i = 0; i < NUM_PPORT_PER_PRIO_TRAFFIC_COUNTERS; i++)
-			sprintf(data + (idx++) * ETH_GSTRING_LEN, "prio%d_%s",
-				prio,
-				pport_per_prio_traffic_stats_desc[i].name);
+			sprintf(data + (idx++) * ETH_GSTRING_LEN,
+				pport_per_prio_traffic_stats_desc[i].format, prio);
 	}
 
 	pfc_combined = mlx5e_query_pfc_combined(priv);
 	for_each_set_bit(prio, &pfc_combined, NUM_PPORT_PRIO) {
 		for (i = 0; i < NUM_PPORT_PER_PRIO_PFC_COUNTERS; i++) {
-			sprintf(data + (idx++) * ETH_GSTRING_LEN, "prio%d_%s",
-				prio, pport_per_prio_pfc_stats_desc[i].name);
+			sprintf(data + (idx++) * ETH_GSTRING_LEN,
+				pport_per_prio_pfc_stats_desc[i].format, prio);
 		}
 	}
 
@@ -256,16 +257,15 @@ static void mlx5e_fill_stats_strings(struct mlx5e_priv *priv, uint8_t *data)
 	/* per channel counters */
 	for (i = 0; i < priv->params.num_channels; i++)
 		for (j = 0; j < NUM_RQ_STATS; j++)
-			sprintf(data + (idx++) * ETH_GSTRING_LEN, "rx%d_%s", i,
-				rq_stats_desc[j].name);
+			sprintf(data + (idx++) * ETH_GSTRING_LEN,
+				rq_stats_desc[j].format, i);
 
 	for (tc = 0; tc < priv->params.num_tc; tc++)
 		for (i = 0; i < priv->params.num_channels; i++)
 			for (j = 0; j < NUM_SQ_STATS; j++)
 				sprintf(data + (idx++) * ETH_GSTRING_LEN,
-					"tx%d_%s",
-					priv->channeltc_to_txq_map[i][tc],
-					sq_stats_desc[j].name);
+					sq_stats_desc[j].format,
+					priv->channeltc_to_txq_map[i][tc]);
 }
 
 static void mlx5e_get_strings(struct net_device *dev,

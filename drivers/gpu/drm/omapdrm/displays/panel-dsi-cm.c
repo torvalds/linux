@@ -1284,8 +1284,7 @@ static int dsicm_probe(struct platform_device *pdev)
 	return 0;
 
 err_sysfs_create:
-	if (bldev != NULL)
-		backlight_device_unregister(bldev);
+	backlight_device_unregister(bldev);
 err_bl:
 	destroy_workqueue(ddata->workqueue);
 err_reg:

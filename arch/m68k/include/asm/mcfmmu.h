@@ -38,7 +38,7 @@
 /*
  *	MMU Operation register.
  */
-#define	MMUOR_UAA	0x00000001		/* Update allocatiom address */
+#define	MMUOR_UAA	0x00000001		/* Update allocation address */
 #define	MMUOR_ACC	0x00000002		/* TLB access */
 #define	MMUOR_RD	0x00000004		/* TLB access read */
 #define	MMUOR_WR	0x00000000		/* TLB access write */

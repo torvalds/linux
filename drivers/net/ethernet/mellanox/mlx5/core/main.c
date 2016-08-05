@@ -1422,46 +1422,31 @@ void mlx5_disable_device(struct mlx5_core_dev *dev)
 	mlx5_pci_err_detected(dev->pdev, 0);
 }
 
-/* wait for the device to show vital signs. For now we check
- * that we can read the device ID and that the health buffer
- * shows a non zero value which is different than 0xffffffff
+/* wait for the device to show vital signs by waiting
+ * for the health counter to start counting.
  */
-static void wait_vital(struct pci_dev *pdev)
+static int wait_vital(struct pci_dev *pdev)
 {
 	struct mlx5_core_dev *dev = pci_get_drvdata(pdev);
 	struct mlx5_core_health *health = &dev->priv.health;
 	const int niter = 100;
+	u32 last_count = 0;
 	u32 count;
-	u16 did;
 	int i;
-
-	/* Wait for firmware to be ready after reset */
-	msleep(1000);
-	for (i = 0; i < niter; i++) {
-		if (pci_read_config_word(pdev, 2, &did)) {
-			dev_warn(&pdev->dev, "failed reading config word\n");
-			break;
-		}
-		if (did == pdev->device) {
-			dev_info(&pdev->dev, "device ID correctly read after %d iterations\n", i);
-			break;
-		}
-		msleep(50);
-	}
-	if (i == niter)
-		dev_warn(&pdev->dev, "%s-%d: could not read device ID\n", __func__, __LINE__);
 
 	for (i = 0; i < niter; i++) {
 		count = ioread32be(health->health_counter);
 		if (count && count != 0xffffffff) {
-			dev_info(&pdev->dev, "Counter value 0x%x after %d iterations\n", count, i);
-			break;
+			if (last_count && last_count != count) {
+				dev_info(&pdev->dev, "Counter value 0x%x after %d iterations\n", count, i);
+				return 0;
+			}
+			last_count = count;
 		}
 		msleep(50);
 	}
 
-	if (i == niter)
-		dev_warn(&pdev->dev, "%s-%d: could not read device ID\n", __func__, __LINE__);
+	return -ETIMEDOUT;
 }
 
 static void mlx5_pci_resume(struct pci_dev *pdev)
@@ -1473,7 +1458,11 @@ static void mlx5_pci_resume(struct pci_dev *pdev)
 	dev_info(&pdev->dev, "%s was called\n", __func__);
 
 	pci_save_state(pdev);
-	wait_vital(pdev);
+	err = wait_vital(pdev);
+	if (err) {
+		dev_err(&pdev->dev, "%s: wait_vital timed out\n", __func__);
+		return;
+	}
 
 	err = mlx5_load_one(dev, priv);
 	if (err)
@@ -1508,8 +1497,9 @@ static const struct pci_device_id mlx5_core_pci_table[] = {
 	{ PCI_VDEVICE(MELLANOX, 0x1014), MLX5_PCI_DEV_IS_VF},	/* ConnectX-4 VF */
 	{ PCI_VDEVICE(MELLANOX, 0x1015) },			/* ConnectX-4LX */
 	{ PCI_VDEVICE(MELLANOX, 0x1016), MLX5_PCI_DEV_IS_VF},	/* ConnectX-4LX VF */
-	{ PCI_VDEVICE(MELLANOX, 0x1017) },			/* ConnectX-5 */
+	{ PCI_VDEVICE(MELLANOX, 0x1017) },			/* ConnectX-5, PCIe 3.0 */
 	{ PCI_VDEVICE(MELLANOX, 0x1018), MLX5_PCI_DEV_IS_VF},	/* ConnectX-5 VF */
+	{ PCI_VDEVICE(MELLANOX, 0x1019) },			/* ConnectX-5, PCIe 4.0 */
 	{ 0, }
 };
 

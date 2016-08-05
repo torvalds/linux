@@ -203,6 +203,7 @@ static int max77620_get_fps_period_reg_value(struct max77620_chip *chip,
 		break;
 	case MAX77620:
 		fps_min_period = MAX77620_FPS_PERIOD_MIN_US;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -236,6 +237,7 @@ static int max77620_config_fps(struct max77620_chip *chip,
 		break;
 	case MAX77620:
 		fps_max_period = MAX77620_FPS_PERIOD_MAX_US;
+		break;
 	default:
 		return -EINVAL;
 	}

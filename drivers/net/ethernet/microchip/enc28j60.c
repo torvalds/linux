@@ -1151,7 +1151,8 @@ static void enc28j60_irq_work_handler(struct work_struct *work)
 			enc28j60_phy_read(priv, PHIR);
 		}
 		/* TX complete handler */
-		if ((intflags & EIR_TXIF) != 0) {
+		if (((intflags & EIR_TXIF) != 0) &&
+		    ((intflags & EIR_TXERIF) == 0)) {
 			bool err = false;
 			loop++;
 			if (netif_msg_intr(priv))
@@ -1203,7 +1204,7 @@ static void enc28j60_irq_work_handler(struct work_struct *work)
 					enc28j60_tx_clear(ndev, true);
 			} else
 				enc28j60_tx_clear(ndev, true);
-			locked_reg_bfclr(priv, EIR, EIR_TXERIF);
+			locked_reg_bfclr(priv, EIR, EIR_TXERIF | EIR_TXIF);
 		}
 		/* RX Error handler */
 		if ((intflags & EIR_RXERIF) != 0) {
@@ -1238,6 +1239,8 @@ static void enc28j60_irq_work_handler(struct work_struct *work)
  */
 static void enc28j60_hw_tx(struct enc28j60_net *priv)
 {
+	BUG_ON(!priv->tx_skb);
+
 	if (netif_msg_tx_queued(priv))
 		printk(KERN_DEBUG DRV_NAME
 			": Tx Packet Len:%d\n", priv->tx_skb->len);

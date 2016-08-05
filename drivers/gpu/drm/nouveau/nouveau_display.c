@@ -47,7 +47,7 @@ nouveau_display_vblank_handler(struct nvif_notify *notify)
 {
 	struct nouveau_crtc *nv_crtc =
 		container_of(notify, typeof(*nv_crtc), vblank);
-	drm_handle_vblank(nv_crtc->base.dev, nv_crtc->index);
+	drm_crtc_handle_vblank(&nv_crtc->base);
 	return NVIF_NOTIFY_KEEP;
 }
 
@@ -495,6 +495,8 @@ nouveau_display_create(struct drm_device *dev)
 
 	if (nouveau_modeset != 2 && drm->vbios.dcb.entries) {
 		static const u16 oclass[] = {
+			GP104_DISP,
+			GP100_DISP,
 			GM200_DISP,
 			GM107_DISP,
 			GK110_DISP,
@@ -554,6 +556,7 @@ nouveau_display_destroy(struct drm_device *dev)
 	nouveau_display_vblank_fini(dev);
 
 	drm_kms_helper_poll_fini(dev);
+	drm_crtc_force_disable_all(dev);
 	drm_mode_config_cleanup(dev);
 
 	if (disp->dtor)

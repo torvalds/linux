@@ -730,7 +730,7 @@ static void mei_cl_wake_all(struct mei_cl *cl)
 	/* synchronized under device mutex */
 	if (waitqueue_active(&cl->wait)) {
 		cl_dbg(dev, cl, "Waking up ctrl write clients!\n");
-		wake_up_interruptible(&cl->wait);
+		wake_up(&cl->wait);
 	}
 }
 

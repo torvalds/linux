@@ -120,7 +120,6 @@ static irqreturn_t hdmi_irq_handler(int irq, void *data)
 
 static int hdmi_init_regulator(void)
 {
-	int r;
 	struct regulator *reg;
 
 	if (hdmi.vdda_reg != NULL)

@@ -32,6 +32,7 @@
 #include <subdev/bios/init.h>
 #include <subdev/bios/pll.h>
 #include <subdev/devinit.h>
+#include <subdev/timer.h>
 
 static const struct nvkm_disp_oclass *
 nv50_disp_root_(struct nvkm_disp *base)
@@ -269,8 +270,7 @@ exec_lookup(struct nv50_disp *disp, int head, int or, u32 ctrl,
 	list_for_each_entry(outp, &disp->base.outp, head) {
 		if ((outp->info.hasht & 0xff) == type &&
 		    (outp->info.hashm & mask) == mask) {
-			*data = nvbios_outp_match(bios, outp->info.hasht,
-							outp->info.hashm,
+			*data = nvbios_outp_match(bios, outp->info.hasht, mask,
 						  ver, hdr, cnt, len, info);
 			if (!*data)
 				return NULL;
@@ -387,22 +387,17 @@ exec_clkcmp(struct nv50_disp *disp, int head, int id, u32 pclk, u32 *conf)
 	if (!outp)
 		return NULL;
 
+	*conf = (ctrl & 0x00000f00) >> 8;
 	if (outp->info.location == 0) {
 		switch (outp->info.type) {
 		case DCB_OUTPUT_TMDS:
-			*conf = (ctrl & 0x00000f00) >> 8;
 			if (*conf == 5)
 				*conf |= 0x0100;
 			break;
 		case DCB_OUTPUT_LVDS:
-			*conf = disp->sor.lvdsconf;
+			*conf |= disp->sor.lvdsconf;
 			break;
-		case DCB_OUTPUT_DP:
-			*conf = (ctrl & 0x00000f00) >> 8;
-			break;
-		case DCB_OUTPUT_ANALOG:
 		default:
-			*conf = 0x00ff;
 			break;
 		}
 	} else {
@@ -410,7 +405,8 @@ exec_clkcmp(struct nv50_disp *disp, int head, int id, u32 pclk, u32 *conf)
 		pclk = pclk / 2;
 	}
 
-	data = nvbios_ocfg_match(bios, data, *conf, &ver, &hdr, &cnt, &len, &info2);
+	data = nvbios_ocfg_match(bios, data, *conf & 0xff, *conf >> 8,
+				 &ver, &hdr, &cnt, &len, &info2);
 	if (data && id < 0xff) {
 		data = nvbios_oclk_match(bios, info2.clkcmp[id], pclk);
 		if (data) {
@@ -428,6 +424,134 @@ exec_clkcmp(struct nv50_disp *disp, int head, int id, u32 pclk, u32 *conf)
 	}
 
 	return outp;
+}
+
+static bool
+nv50_disp_dptmds_war(struct nvkm_device *device)
+{
+	switch (device->chipset) {
+	case 0x94:
+	case 0x96:
+	case 0x98:
+	case 0xaa:
+	case 0xac:
+		return true;
+	default:
+		break;
+	}
+	return false;
+}
+
+static bool
+nv50_disp_dptmds_war_needed(struct nv50_disp *disp, struct dcb_output *outp)
+{
+	struct nvkm_device *device = disp->base.engine.subdev.device;
+	const u32 soff = __ffs(outp->or) * 0x800;
+	if (nv50_disp_dptmds_war(device) && outp->type == DCB_OUTPUT_TMDS) {
+		switch (nvkm_rd32(device, 0x614300 + soff) & 0x00030000) {
+		case 0x00000000:
+		case 0x00030000:
+			return true;
+		default:
+			break;
+		}
+	}
+	return false;
+
+}
+
+static void
+nv50_disp_dptmds_war_2(struct nv50_disp *disp, struct dcb_output *outp)
+{
+	struct nvkm_device *device = disp->base.engine.subdev.device;
+	const u32 soff = __ffs(outp->or) * 0x800;
+
+	if (!nv50_disp_dptmds_war_needed(disp, outp))
+		return;
+
+	nvkm_mask(device, 0x00e840, 0x80000000, 0x80000000);
+	nvkm_mask(device, 0x614300 + soff, 0x03000000, 0x03000000);
+	nvkm_mask(device, 0x61c10c + soff, 0x00000001, 0x00000001);
+
+	nvkm_mask(device, 0x61c00c + soff, 0x0f000000, 0x00000000);
+	nvkm_mask(device, 0x61c008 + soff, 0xff000000, 0x14000000);
+	nvkm_usec(device, 400, NVKM_DELAY);
+	nvkm_mask(device, 0x61c008 + soff, 0xff000000, 0x00000000);
+	nvkm_mask(device, 0x61c00c + soff, 0x0f000000, 0x01000000);
+
+	if (nvkm_rd32(device, 0x61c004 + soff) & 0x00000001) {
+		u32 seqctl = nvkm_rd32(device, 0x61c030 + soff);
+		u32  pu_pc = seqctl & 0x0000000f;
+		nvkm_wr32(device, 0x61c040 + soff + pu_pc * 4, 0x1f008000);
+	}
+}
+
+static void
+nv50_disp_dptmds_war_3(struct nv50_disp *disp, struct dcb_output *outp)
+{
+	struct nvkm_device *device = disp->base.engine.subdev.device;
+	const u32 soff = __ffs(outp->or) * 0x800;
+	u32 sorpwr;
+
+	if (!nv50_disp_dptmds_war_needed(disp, outp))
+		return;
+
+	sorpwr = nvkm_rd32(device, 0x61c004 + soff);
+	if (sorpwr & 0x00000001) {
+		u32 seqctl = nvkm_rd32(device, 0x61c030 + soff);
+		u32  pd_pc = (seqctl & 0x00000f00) >> 8;
+		u32  pu_pc =  seqctl & 0x0000000f;
+
+		nvkm_wr32(device, 0x61c040 + soff + pd_pc * 4, 0x1f008000);
+
+		nvkm_msec(device, 2000,
+			if (!(nvkm_rd32(device, 0x61c030 + soff) & 0x10000000))
+				break;
+		);
+		nvkm_mask(device, 0x61c004 + soff, 0x80000001, 0x80000000);
+		nvkm_msec(device, 2000,
+			if (!(nvkm_rd32(device, 0x61c030 + soff) & 0x10000000))
+				break;
+		);
+
+		nvkm_wr32(device, 0x61c040 + soff + pd_pc * 4, 0x00002000);
+		nvkm_wr32(device, 0x61c040 + soff + pu_pc * 4, 0x1f000000);
+	}
+
+	nvkm_mask(device, 0x61c10c + soff, 0x00000001, 0x00000000);
+	nvkm_mask(device, 0x614300 + soff, 0x03000000, 0x00000000);
+
+	if (sorpwr & 0x00000001) {
+		nvkm_mask(device, 0x61c004 + soff, 0x80000001, 0x80000001);
+	}
+}
+
+static void
+nv50_disp_update_sppll1(struct nv50_disp *disp)
+{
+	struct nvkm_device *device = disp->base.engine.subdev.device;
+	bool used = false;
+	int sor;
+
+	if (!nv50_disp_dptmds_war(device))
+		return;
+
+	for (sor = 0; sor < disp->func->sor.nr; sor++) {
+		u32 clksor = nvkm_rd32(device, 0x614300 + (sor * 0x800));
+		switch (clksor & 0x03000000) {
+		case 0x02000000:
+		case 0x03000000:
+			used = true;
+			break;
+		default:
+			break;
+		}
+	}
+
+	if (used)
+		return;
+
+	nvkm_mask(device, 0x00e840, 0x80000000, 0x00000000);
 }
 
 static void
@@ -683,6 +807,8 @@ nv50_disp_intr_unk20_2(struct nv50_disp *disp, int head)
 
 	nvkm_mask(device, hreg, 0x0000000f, hval);
 	nvkm_mask(device, oreg, mask, oval);
+
+	nv50_disp_dptmds_war_2(disp, &outp->info);
 }
 
 /* If programming a TMDS output on a SOR that can also be configured for
@@ -724,6 +850,7 @@ nv50_disp_intr_unk40_0(struct nv50_disp *disp, int head)
 
 	if (outp->info.location == 0 && outp->info.type == DCB_OUTPUT_TMDS)
 		nv50_disp_intr_unk40_0_tmds(disp, &outp->info);
+	nv50_disp_dptmds_war_3(disp, &outp->info);
 }
 
 void
@@ -771,6 +898,7 @@ nv50_disp_intr_supervisor(struct work_struct *work)
 				continue;
 			nv50_disp_intr_unk40_0(disp, head);
 		}
+		nv50_disp_update_sppll1(disp);
 	}
 
 	nvkm_wr32(device, 0x610030, 0x80000000);

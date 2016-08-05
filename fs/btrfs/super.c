@@ -235,7 +235,7 @@ void __btrfs_abort_transaction(struct btrfs_trans_handle *trans,
 	trans->aborted = errno;
 	/* Nothing used. The other threads that have joined this
 	 * transaction may be able to continue. */
-	if (!trans->blocks_used && list_empty(&trans->new_bgs)) {
+	if (!trans->dirty && list_empty(&trans->new_bgs)) {
 		const char *errstr;
 
 		errstr = btrfs_decode_error(errno);
@@ -1807,6 +1807,8 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 			}
 		}
 		sb->s_flags &= ~MS_RDONLY;
+
+		fs_info->open = 1;
 	}
 out:
 	wake_up_process(fs_info->transaction_kthread);
@@ -2303,7 +2305,7 @@ static void btrfs_interface_exit(void)
 
 static void btrfs_print_mod_info(void)
 {
-	printk(KERN_INFO "Btrfs loaded"
+	printk(KERN_INFO "Btrfs loaded, crc32c=%s"
 #ifdef CONFIG_BTRFS_DEBUG
 			", debug=on"
 #endif
@@ -2313,33 +2315,48 @@ static void btrfs_print_mod_info(void)
 #ifdef CONFIG_BTRFS_FS_CHECK_INTEGRITY
 			", integrity-checker=on"
 #endif
-			"\n");
+			"\n",
+			btrfs_crc32c_impl());
 }
 
 static int btrfs_run_sanity_tests(void)
 {
-	int ret;
-
+	int ret, i;
+	u32 sectorsize, nodesize;
+	u32 test_sectorsize[] = {
+		PAGE_SIZE,
+	};
 	ret = btrfs_init_test_fs();
 	if (ret)
 		return ret;
-
-	ret = btrfs_test_free_space_cache();
-	if (ret)
-		goto out;
-	ret = btrfs_test_extent_buffer_operations();
-	if (ret)
-		goto out;
-	ret = btrfs_test_extent_io();
-	if (ret)
-		goto out;
-	ret = btrfs_test_inodes();
-	if (ret)
-		goto out;
-	ret = btrfs_test_qgroups();
-	if (ret)
-		goto out;
-	ret = btrfs_test_free_space_tree();
+	for (i = 0; i < ARRAY_SIZE(test_sectorsize); i++) {
+		sectorsize = test_sectorsize[i];
+		for (nodesize = sectorsize;
+		     nodesize <= BTRFS_MAX_METADATA_BLOCKSIZE;
+		     nodesize <<= 1) {
+			pr_info("BTRFS: selftest: sectorsize: %u  nodesize: %u\n",
+				sectorsize, nodesize);
+			ret = btrfs_test_free_space_cache(sectorsize, nodesize);
+			if (ret)
+				goto out;
+			ret = btrfs_test_extent_buffer_operations(sectorsize,
+				nodesize);
+			if (ret)
+				goto out;
+			ret = btrfs_test_extent_io(sectorsize, nodesize);
+			if (ret)
+				goto out;
+			ret = btrfs_test_inodes(sectorsize, nodesize);
+			if (ret)
+				goto out;
+			ret = btrfs_test_qgroups(sectorsize, nodesize);
+			if (ret)
+				goto out;
+			ret = btrfs_test_free_space_tree(sectorsize, nodesize);
+			if (ret)
+				goto out;
+		}
+	}
 out:
 	btrfs_destroy_test_fs();
 	return ret;

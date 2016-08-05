@@ -1042,6 +1042,8 @@ static int mlx4_en_set_ringparam(struct net_device *dev,
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
+	struct mlx4_en_port_profile new_prof;
+	struct mlx4_en_priv *tmp;
 	u32 rx_size, tx_size;
 	int port_up = 0;
 	int err = 0;
@@ -1061,22 +1063,25 @@ static int mlx4_en_set_ringparam(struct net_device *dev,
 	    tx_size == priv->tx_ring[0]->size)
 		return 0;
 
+	tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
+	if (!tmp)
+		return -ENOMEM;
+
 	mutex_lock(&mdev->state_lock);
+	memcpy(&new_prof, priv->prof, sizeof(struct mlx4_en_port_profile));
+	new_prof.tx_ring_size = tx_size;
+	new_prof.rx_ring_size = rx_size;
+	err = mlx4_en_try_alloc_resources(priv, tmp, &new_prof);
+	if (err)
+		goto out;
+
 	if (priv->port_up) {
 		port_up = 1;
 		mlx4_en_stop_port(dev, 1);
 	}
 
-	mlx4_en_free_resources(priv);
+	mlx4_en_safe_replace_resources(priv, tmp);
 
-	priv->prof->tx_ring_size = tx_size;
-	priv->prof->rx_ring_size = rx_size;
-
-	err = mlx4_en_alloc_resources(priv);
-	if (err) {
-		en_err(priv, "Failed reallocating port resources\n");
-		goto out;
-	}
 	if (port_up) {
 		err = mlx4_en_start_port(dev);
 		if (err)
@@ -1084,8 +1089,8 @@ static int mlx4_en_set_ringparam(struct net_device *dev,
 	}
 
 	err = mlx4_en_moderation_update(priv);
-
 out:
+	kfree(tmp);
 	mutex_unlock(&mdev->state_lock);
 	return err;
 }
@@ -1714,6 +1719,8 @@ static int mlx4_en_set_channels(struct net_device *dev,
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
+	struct mlx4_en_port_profile new_prof;
+	struct mlx4_en_priv *tmp;
 	int port_up = 0;
 	int err = 0;
 
@@ -1723,23 +1730,26 @@ static int mlx4_en_set_channels(struct net_device *dev,
 	    !channel->tx_count || !channel->rx_count)
 		return -EINVAL;
 
+	tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
+	if (!tmp)
+		return -ENOMEM;
+
 	mutex_lock(&mdev->state_lock);
+	memcpy(&new_prof, priv->prof, sizeof(struct mlx4_en_port_profile));
+	new_prof.num_tx_rings_p_up = channel->tx_count;
+	new_prof.tx_ring_num = channel->tx_count * MLX4_EN_NUM_UP;
+	new_prof.rx_ring_num = channel->rx_count;
+
+	err = mlx4_en_try_alloc_resources(priv, tmp, &new_prof);
+	if (err)
+		goto out;
+
 	if (priv->port_up) {
 		port_up = 1;
 		mlx4_en_stop_port(dev, 1);
 	}
 
-	mlx4_en_free_resources(priv);
-
-	priv->num_tx_rings_p_up = channel->tx_count;
-	priv->tx_ring_num = channel->tx_count * MLX4_EN_NUM_UP;
-	priv->rx_ring_num = channel->rx_count;
-
-	err = mlx4_en_alloc_resources(priv);
-	if (err) {
-		en_err(priv, "Failed reallocating port resources\n");
-		goto out;
-	}
+	mlx4_en_safe_replace_resources(priv, tmp);
 
 	netif_set_real_num_tx_queues(dev, priv->tx_ring_num);
 	netif_set_real_num_rx_queues(dev, priv->rx_ring_num);
@@ -1757,8 +1767,8 @@ static int mlx4_en_set_channels(struct net_device *dev,
 	}
 
 	err = mlx4_en_moderation_update(priv);
-
 out:
+	kfree(tmp);
 	mutex_unlock(&mdev->state_lock);
 	return err;
 }

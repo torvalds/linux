@@ -51,3 +51,13 @@
 		<&gpio9 1 GPIO_ACTIVE_HIGH>,	/* TCA6424A P00, LS OE */
 		<&gpio7 1 GPIO_ACTIVE_HIGH>;	/* GPIO 193, HPD */
 };
+
+&twl6040 {
+	ti,audpwron-gpio = <&gpio5 13 GPIO_ACTIVE_HIGH>;  /* gpio line 141 */
+};
+
+&twl6040_pins {
+	pinctrl-single,pins = <
+		OMAP5_IOPAD(0x1be, PIN_OUTPUT | MUX_MODE6)	/* mcspi1_somi.gpio5_141 */
+	>;
+};

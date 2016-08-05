@@ -297,6 +297,8 @@ nv50_core_create(struct nvif_device *device, struct nvif_object *disp,
 		.pushbuf = 0xb0007d00,
 	};
 	static const s32 oclass[] = {
+		GP104_DISP_CORE_CHANNEL_DMA,
+		GP100_DISP_CORE_CHANNEL_DMA,
 		GM200_DISP_CORE_CHANNEL_DMA,
 		GM107_DISP_CORE_CHANNEL_DMA,
 		GK110_DISP_CORE_CHANNEL_DMA,

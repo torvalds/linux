@@ -17,8 +17,8 @@
 static void cirrus_user_framebuffer_destroy(struct drm_framebuffer *fb)
 {
 	struct cirrus_framebuffer *cirrus_fb = to_cirrus_framebuffer(fb);
-	if (cirrus_fb->obj)
-		drm_gem_object_unreference_unlocked(cirrus_fb->obj);
+
+	drm_gem_object_unreference_unlocked(cirrus_fb->obj);
 	drm_framebuffer_cleanup(fb);
 	kfree(fb);
 }

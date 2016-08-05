@@ -2718,7 +2718,7 @@ static inline void mlxsw_reg_ppcnt_pack(char *payload, u8 local_port,
  * Configures the switch priority to buffer table.
  */
 #define MLXSW_REG_PPTB_ID 0x500B
-#define MLXSW_REG_PPTB_LEN 0x0C
+#define MLXSW_REG_PPTB_LEN 0x10
 
 static const struct mlxsw_reg_info mlxsw_reg_pptb = {
 	.id = MLXSW_REG_PPTB_ID,
@@ -2784,6 +2784,13 @@ MLXSW_ITEM32(reg, pptb, pm_msb, 0x08, 24, 8);
  */
 MLXSW_ITEM32(reg, pptb, untagged_buff, 0x08, 0, 4);
 
+/* reg_pptb_prio_to_buff_msb
+ * Mapping of switch priority <i+8> to one of the allocated receive port
+ * buffers.
+ * Access: RW
+ */
+MLXSW_ITEM_BIT_ARRAY(reg, pptb, prio_to_buff_msb, 0x0C, 0x04, 4);
+
 #define MLXSW_REG_PPTB_ALL_PRIO 0xFF
 
 static inline void mlxsw_reg_pptb_pack(char *payload, u8 local_port)
@@ -2792,6 +2799,14 @@ static inline void mlxsw_reg_pptb_pack(char *payload, u8 local_port)
 	mlxsw_reg_pptb_mm_set(payload, MLXSW_REG_PPTB_MM_UM);
 	mlxsw_reg_pptb_local_port_set(payload, local_port);
 	mlxsw_reg_pptb_pm_set(payload, MLXSW_REG_PPTB_ALL_PRIO);
+	mlxsw_reg_pptb_pm_msb_set(payload, MLXSW_REG_PPTB_ALL_PRIO);
+}
+
+static inline void mlxsw_reg_pptb_prio_to_buff_pack(char *payload, u8 prio,
+						    u8 buff)
+{
+	mlxsw_reg_pptb_prio_to_buff_set(payload, prio, buff);
+	mlxsw_reg_pptb_prio_to_buff_msb_set(payload, prio, buff);
 }
 
 /* PBMC - Port Buffer Management Control Register

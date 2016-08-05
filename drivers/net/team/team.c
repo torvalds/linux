@@ -1203,8 +1203,10 @@ static int team_port_add(struct team *team, struct net_device *port_dev)
 		goto err_dev_open;
 	}
 
+	netif_addr_lock_bh(dev);
 	dev_uc_sync_multiple(port_dev, dev);
 	dev_mc_sync_multiple(port_dev, dev);
+	netif_addr_unlock_bh(dev);
 
 	err = vlan_vids_add_by_dev(port_dev, dev);
 	if (err) {

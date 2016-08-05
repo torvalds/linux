@@ -280,7 +280,7 @@ struct ieee80211_fast_tx {
 	u8 sa_offs, da_offs, pn_offs;
 	u8 band;
 	u8 hdr[30 + 2 + IEEE80211_FAST_XMIT_MAX_IV +
-	       sizeof(rfc1042_header)];
+	       sizeof(rfc1042_header)] __aligned(2);
 
 	struct rcu_head rcu_head;
 };

@@ -2225,9 +2225,11 @@ static long shmem_fallocate(struct file *file, int mode, loff_t offset,
 			error = shmem_getpage(inode, index, &page, SGP_FALLOC);
 		if (error) {
 			/* Remove the !PageUptodate pages we added */
-			shmem_undo_range(inode,
-				(loff_t)start << PAGE_SHIFT,
-				(loff_t)index << PAGE_SHIFT, true);
+			if (index > start) {
+				shmem_undo_range(inode,
+				    (loff_t)start << PAGE_SHIFT,
+				    ((loff_t)index << PAGE_SHIFT) - 1, true);
+			}
 			goto undone;
 		}
 

@@ -245,6 +245,7 @@ endif
 header-y += hw_breakpoint.h
 header-y += l2tp.h
 header-y += libc-compat.h
+header-y += lirc.h
 header-y += limits.h
 header-y += llc.h
 header-y += loop.h

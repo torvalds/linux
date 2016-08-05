@@ -131,6 +131,9 @@ int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
 
 	ppriv = netdev_priv(pdev);
 
+	if (test_bit(IPOIB_FLAG_GOING_DOWN, &ppriv->flags))
+		return -EPERM;
+
 	snprintf(intf_name, sizeof intf_name, "%s.%04x",
 		 ppriv->dev->name, pkey);
 	priv = ipoib_intf_alloc(intf_name);
@@ -182,6 +185,9 @@ int ipoib_vlan_delete(struct net_device *pdev, unsigned short pkey)
 		return -EPERM;
 
 	ppriv = netdev_priv(pdev);
+
+	if (test_bit(IPOIB_FLAG_GOING_DOWN, &ppriv->flags))
+		return -EPERM;
 
 	if (!rtnl_trylock())
 		return restart_syscall();

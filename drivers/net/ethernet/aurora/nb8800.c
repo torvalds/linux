@@ -259,6 +259,7 @@ static void nb8800_receive(struct net_device *dev, unsigned int i,
 		if (err) {
 			netdev_err(dev, "rx buffer allocation failed\n");
 			dev->stats.rx_dropped++;
+			dev_kfree_skb(skb);
 			return;
 		}
 

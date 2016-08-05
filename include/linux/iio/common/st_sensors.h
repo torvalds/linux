@@ -223,6 +223,8 @@ struct st_sensor_settings {
  * @get_irq_data_ready: Function to get the IRQ used for data ready signal.
  * @tf: Transfer function structure used by I/O operations.
  * @tb: Transfer buffers and mutex used by I/O operations.
+ * @hw_irq_trigger: if we're using the hardware interrupt on the sensor.
+ * @hw_timestamp: Latest timestamp from the interrupt handler, when in use.
  */
 struct st_sensor_data {
 	struct device *dev;
@@ -247,6 +249,9 @@ struct st_sensor_data {
 
 	const struct st_sensor_transfer_function *tf;
 	struct st_sensor_transfer_buffer tb;
+
+	bool hw_irq_trigger;
+	s64 hw_timestamp;
 };
 
 #ifdef CONFIG_IIO_BUFFER
@@ -260,7 +265,8 @@ int st_sensors_allocate_trigger(struct iio_dev *indio_dev,
 				const struct iio_trigger_ops *trigger_ops);
 
 void st_sensors_deallocate_trigger(struct iio_dev *indio_dev);
-
+int st_sensors_validate_device(struct iio_trigger *trig,
+			       struct iio_dev *indio_dev);
 #else
 static inline int st_sensors_allocate_trigger(struct iio_dev *indio_dev,
 				const struct iio_trigger_ops *trigger_ops)
@@ -271,6 +277,7 @@ static inline void st_sensors_deallocate_trigger(struct iio_dev *indio_dev)
 {
 	return;
 }
+#define st_sensors_validate_device NULL
 #endif
 
 int st_sensors_init_sensor(struct iio_dev *indio_dev,

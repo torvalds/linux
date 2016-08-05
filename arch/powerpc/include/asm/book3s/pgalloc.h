@@ -4,11 +4,6 @@
 #include <linux/mm.h>
 
 extern void tlb_remove_table(struct mmu_gather *tlb, void *table);
-static inline void tlb_flush_pgtable(struct mmu_gather *tlb,
-				     unsigned long address)
-{
-
-}
 
 #ifdef CONFIG_PPC64
 #include <asm/book3s/64/pgalloc.h>

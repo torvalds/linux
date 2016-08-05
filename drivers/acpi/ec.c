@@ -1331,14 +1331,25 @@ static int ec_install_handlers(struct acpi_ec *ec)
 
 static void ec_remove_handlers(struct acpi_ec *ec)
 {
-	acpi_ec_stop(ec, false);
-
 	if (test_bit(EC_FLAGS_EC_HANDLER_INSTALLED, &ec->flags)) {
 		if (ACPI_FAILURE(acpi_remove_address_space_handler(ec->handle,
 					ACPI_ADR_SPACE_EC, &acpi_ec_space_handler)))
 			pr_err("failed to remove space handler\n");
 		clear_bit(EC_FLAGS_EC_HANDLER_INSTALLED, &ec->flags);
 	}
+
+	/*
+	 * Stops handling the EC transactions after removing the operation
+	 * region handler. This is required because _REG(DISCONNECT)
+	 * invoked during the removal can result in new EC transactions.
+	 *
+	 * Flushes the EC requests and thus disables the GPE before
+	 * removing the GPE handler. This is required by the current ACPICA
+	 * GPE core. ACPICA GPE core will automatically disable a GPE when
+	 * it is indicated but there is no way to handle it. So the drivers
+	 * must disable the GPEs prior to removing the GPE handlers.
+	 */
+	acpi_ec_stop(ec, false);
 
 	if (test_bit(EC_FLAGS_GPE_HANDLER_INSTALLED, &ec->flags)) {
 		if (ACPI_FAILURE(acpi_remove_gpe_handler(NULL, ec->gpe,
@@ -1446,21 +1457,36 @@ ec_parse_io_ports(struct acpi_resource *resource, void *context)
 	return AE_OK;
 }
 
-int __init acpi_boot_ec_enable(void)
+static const struct acpi_device_id ec_device_ids[] = {
+	{"PNP0C09", 0},
+	{"", 0},
+};
+
+int __init acpi_ec_dsdt_probe(void)
 {
-	if (!boot_ec)
+	acpi_status status;
+
+	if (boot_ec)
 		return 0;
+
+	/*
+	 * Finding EC from DSDT if there is no ECDT EC available. When this
+	 * function is invoked, ACPI tables have been fully loaded, we can
+	 * walk namespace now.
+	 */
+	boot_ec = make_acpi_ec();
+	if (!boot_ec)
+		return -ENOMEM;
+	status = acpi_get_devices(ec_device_ids[0].id,
+				  ec_parse_device, boot_ec, NULL);
+	if (ACPI_FAILURE(status) || !boot_ec->handle)
+		return -ENODEV;
 	if (!ec_install_handlers(boot_ec)) {
 		first_ec = boot_ec;
 		return 0;
 	}
 	return -EFAULT;
 }
-
-static const struct acpi_device_id ec_device_ids[] = {
-	{"PNP0C09", 0},
-	{"", 0},
-};
 
 #if 0
 /*

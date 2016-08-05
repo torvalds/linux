@@ -93,6 +93,7 @@
 #include <net/inet_common.h>
 #endif
 #include <linux/bpf.h>
+#include <net/compat.h>
 
 #include "internal.h"
 
@@ -1340,7 +1341,7 @@ static unsigned int fanout_demux_hash(struct packet_fanout *f,
 				      struct sk_buff *skb,
 				      unsigned int num)
 {
-	return reciprocal_scale(skb_get_hash(skb), num);
+	return reciprocal_scale(__skb_get_hash_symmetric(skb), num);
 }
 
 static unsigned int fanout_demux_lb(struct packet_fanout *f,
@@ -1926,13 +1927,11 @@ retry:
 		goto out_unlock;
 	}
 
-	sockc.tsflags = 0;
+	sockc.tsflags = sk->sk_tsflags;
 	if (msg->msg_controllen) {
 		err = sock_cmsg_send(sk, msg, &sockc);
-		if (unlikely(err)) {
-			err = -EINVAL;
+		if (unlikely(err))
 			goto out_unlock;
-		}
 	}
 
 	skb->protocol = proto;
@@ -2677,7 +2676,7 @@ static int tpacket_snd(struct packet_sock *po, struct msghdr *msg)
 		dev = dev_get_by_index(sock_net(&po->sk), saddr->sll_ifindex);
 	}
 
-	sockc.tsflags = 0;
+	sockc.tsflags = po->sk.sk_tsflags;
 	if (msg->msg_controllen) {
 		err = sock_cmsg_send(&po->sk, msg, &sockc);
 		if (unlikely(err))
@@ -2880,7 +2879,7 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 	if (unlikely(!(dev->flags & IFF_UP)))
 		goto out_unlock;
 
-	sockc.tsflags = 0;
+	sockc.tsflags = sk->sk_tsflags;
 	sockc.mark = sk->sk_mark;
 	if (msg->msg_controllen) {
 		err = sock_cmsg_send(sk, msg, &sockc);
@@ -3940,6 +3939,27 @@ static int packet_getsockopt(struct socket *sock, int level, int optname,
 }
 
 
+#ifdef CONFIG_COMPAT
+static int compat_packet_setsockopt(struct socket *sock, int level, int optname,
+				    char __user *optval, unsigned int optlen)
+{
+	struct packet_sock *po = pkt_sk(sock->sk);
+
+	if (level != SOL_PACKET)
+		return -ENOPROTOOPT;
+
+	if (optname == PACKET_FANOUT_DATA &&
+	    po->fanout && po->fanout->type == PACKET_FANOUT_CBPF) {
+		optval = (char __user *)get_compat_bpf_fprog(optval);
+		if (!optval)
+			return -EFAULT;
+		optlen = sizeof(struct sock_fprog);
+	}
+
+	return packet_setsockopt(sock, level, optname, optval, optlen);
+}
+#endif
+
 static int packet_notifier(struct notifier_block *this,
 			   unsigned long msg, void *ptr)
 {
@@ -4416,6 +4436,9 @@ static const struct proto_ops packet_ops = {
 	.shutdown =	sock_no_shutdown,
 	.setsockopt =	packet_setsockopt,
 	.getsockopt =	packet_getsockopt,
+#ifdef CONFIG_COMPAT
+	.compat_setsockopt = compat_packet_setsockopt,
+#endif
 	.sendmsg =	packet_sendmsg,
 	.recvmsg =	packet_recvmsg,
 	.mmap =		packet_mmap,

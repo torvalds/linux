@@ -4600,15 +4600,11 @@ static void restore_unbound_workers_cpumask(struct worker_pool *pool, int cpu)
 	if (!cpumask_test_cpu(cpu, pool->attrs->cpumask))
 		return;
 
-	/* is @cpu the only online CPU? */
 	cpumask_and(&cpumask, pool->attrs->cpumask, cpu_online_mask);
-	if (cpumask_weight(&cpumask) != 1)
-		return;
 
 	/* as we're called from CPU_ONLINE, the following shouldn't fail */
 	for_each_pool_worker(worker, pool)
-		WARN_ON_ONCE(set_cpus_allowed_ptr(worker->task,
-						  pool->attrs->cpumask) < 0);
+		WARN_ON_ONCE(set_cpus_allowed_ptr(worker->task, &cpumask) < 0);
 }
 
 /*

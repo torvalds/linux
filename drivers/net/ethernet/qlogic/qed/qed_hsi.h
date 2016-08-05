@@ -3700,6 +3700,7 @@ struct public_port {
 #define MEDIA_DA_TWINAX         0x3
 #define MEDIA_BASE_T            0x4
 #define MEDIA_SFP_1G_FIBER      0x5
+#define MEDIA_MODULE_FIBER      0x6
 #define MEDIA_KR                0xf0
 #define MEDIA_NOT_PRESENT       0xff
 

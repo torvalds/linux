@@ -33,6 +33,7 @@
 #include <asm/pgtable.h>
 #include <asm/pgtable-hwdef.h>
 #include <asm/sections.h>
+#include <asm/smp.h>
 #include <asm/suspend.h>
 #include <asm/virt.h>
 
@@ -235,6 +236,11 @@ int swsusp_arch_suspend(void)
 	int ret = 0;
 	unsigned long flags;
 	struct sleep_stack_data state;
+
+	if (cpus_are_stuck_in_kernel()) {
+		pr_err("Can't hibernate: no mechanism to offline secondary CPUs.\n");
+		return -EBUSY;
+	}
 
 	local_dbg_save(flags);
 

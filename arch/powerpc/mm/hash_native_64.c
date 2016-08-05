@@ -316,8 +316,8 @@ static long native_hpte_updatepp(unsigned long slot, unsigned long newpp,
 			DBG_LOW(" -> hit\n");
 			/* Update the HPTE */
 			hptep->r = cpu_to_be64((be64_to_cpu(hptep->r) &
-						~(HPTE_R_PP | HPTE_R_N)) |
-					       (newpp & (HPTE_R_PP | HPTE_R_N |
+						~(HPTE_R_PPP | HPTE_R_N)) |
+					       (newpp & (HPTE_R_PPP | HPTE_R_N |
 							 HPTE_R_C)));
 		}
 		native_unlock_hpte(hptep);
@@ -385,8 +385,8 @@ static void native_hpte_updateboltedpp(unsigned long newpp, unsigned long ea,
 
 	/* Update the HPTE */
 	hptep->r = cpu_to_be64((be64_to_cpu(hptep->r) &
-			~(HPTE_R_PP | HPTE_R_N)) |
-		(newpp & (HPTE_R_PP | HPTE_R_N)));
+				~(HPTE_R_PPP | HPTE_R_N)) |
+			       (newpp & (HPTE_R_PPP | HPTE_R_N)));
 	/*
 	 * Ensure it is out of the tlb too. Bolted entries base and
 	 * actual page size will be same.
@@ -550,7 +550,11 @@ static void hpte_decode(struct hash_pte *hpte, unsigned long slot,
 		}
 	}
 	/* This works for all page sizes, and for 256M and 1T segments */
-	*ssize = hpte_v >> HPTE_V_SSIZE_SHIFT;
+	if (cpu_has_feature(CPU_FTR_ARCH_300))
+		*ssize = hpte_r >> HPTE_R_3_0_SSIZE_SHIFT;
+	else
+		*ssize = hpte_v >> HPTE_V_SSIZE_SHIFT;
+
 	shift = mmu_psize_defs[size].shift;
 
 	avpn = (HPTE_V_AVPN_VAL(hpte_v) & ~mmu_psize_defs[size].avpnm);

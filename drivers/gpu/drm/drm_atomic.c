@@ -404,8 +404,7 @@ drm_atomic_replace_property_blob(struct drm_property_blob **blob,
 	if (old_blob == new_blob)
 		return;
 
-	if (old_blob)
-		drm_property_unreference_blob(old_blob);
+	drm_property_unreference_blob(old_blob);
 	if (new_blob)
 		drm_property_reference_blob(new_blob);
 	*blob = new_blob;
@@ -1299,14 +1298,39 @@ EXPORT_SYMBOL(drm_atomic_add_affected_planes);
  */
 void drm_atomic_legacy_backoff(struct drm_atomic_state *state)
 {
+	struct drm_device *dev = state->dev;
+	unsigned crtc_mask = 0;
+	struct drm_crtc *crtc;
 	int ret;
+	bool global = false;
+
+	drm_for_each_crtc(crtc, dev) {
+		if (crtc->acquire_ctx != state->acquire_ctx)
+			continue;
+
+		crtc_mask |= drm_crtc_mask(crtc);
+		crtc->acquire_ctx = NULL;
+	}
+
+	if (WARN_ON(dev->mode_config.acquire_ctx == state->acquire_ctx)) {
+		global = true;
+
+		dev->mode_config.acquire_ctx = NULL;
+	}
 
 retry:
 	drm_modeset_backoff(state->acquire_ctx);
 
-	ret = drm_modeset_lock_all_ctx(state->dev, state->acquire_ctx);
+	ret = drm_modeset_lock_all_ctx(dev, state->acquire_ctx);
 	if (ret)
 		goto retry;
+
+	drm_for_each_crtc(crtc, dev)
+		if (drm_crtc_mask(crtc) & crtc_mask)
+			crtc->acquire_ctx = state->acquire_ctx;
+
+	if (global)
+		dev->mode_config.acquire_ctx = state->acquire_ctx;
 }
 EXPORT_SYMBOL(drm_atomic_legacy_backoff);
 

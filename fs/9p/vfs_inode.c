@@ -853,7 +853,7 @@ v9fs_vfs_atomic_open(struct inode *dir, struct dentry *dentry,
 	struct p9_fid *fid, *inode_fid;
 	struct dentry *res = NULL;
 
-	if (d_unhashed(dentry)) {
+	if (d_in_lookup(dentry)) {
 		res = v9fs_vfs_lookup(dir, dentry, 0);
 		if (IS_ERR(res))
 			return PTR_ERR(res);

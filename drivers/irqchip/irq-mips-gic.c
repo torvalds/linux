@@ -718,7 +718,7 @@ static int gic_shared_irq_domain_map(struct irq_domain *d, unsigned int virq,
 
 	spin_lock_irqsave(&gic_lock, flags);
 	gic_map_to_pin(intr, gic_cpu_pin);
-	gic_map_to_vpe(intr, vpe);
+	gic_map_to_vpe(intr, mips_cm_vp_id(vpe));
 	for (i = 0; i < min(gic_vpes, NR_CPUS); i++)
 		clear_bit(intr, pcpu_masks[i].pcpu_mask);
 	set_bit(intr, pcpu_masks[vpe].pcpu_mask);
@@ -746,6 +746,12 @@ static int gic_irq_domain_alloc(struct irq_domain *d, unsigned int virq,
 		/* verify that it doesn't conflict with an IPI irq */
 		if (test_bit(spec->hwirq, ipi_resrv))
 			return -EBUSY;
+
+		hwirq = GIC_SHARED_TO_HWIRQ(spec->hwirq);
+
+		return irq_domain_set_hwirq_and_chip(d, virq, hwirq,
+						     &gic_level_irq_controller,
+						     NULL);
 	} else {
 		base_hwirq = find_first_bit(ipi_resrv, gic_shared_intrs);
 		if (base_hwirq == gic_shared_intrs) {
@@ -867,10 +873,14 @@ static int gic_dev_domain_alloc(struct irq_domain *d, unsigned int virq,
 						    &gic_level_irq_controller,
 						    NULL);
 		if (ret)
-			return ret;
+			goto error;
 	}
 
 	return 0;
+
+error:
+	irq_domain_free_irqs_parent(d, virq, nr_irqs);
+	return ret;
 }
 
 void gic_dev_domain_free(struct irq_domain *d, unsigned int virq,
@@ -949,7 +959,7 @@ int gic_ipi_domain_match(struct irq_domain *d, struct device_node *node,
 	switch (bus_token) {
 	case DOMAIN_BUS_IPI:
 		is_ipi = d->bus_token == bus_token;
-		return to_of_node(d->fwnode) == node && is_ipi;
+		return (!node || to_of_node(d->fwnode) == node) && is_ipi;
 		break;
 	default:
 		return 0;

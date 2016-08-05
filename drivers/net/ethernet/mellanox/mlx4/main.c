@@ -3222,6 +3222,7 @@ static int mlx4_load_one(struct pci_dev *pdev, int pci_dev_data,
 
 	INIT_LIST_HEAD(&priv->pgdir_list);
 	mutex_init(&priv->pgdir_mutex);
+	spin_lock_init(&priv->cmd.context_lock);
 
 	INIT_LIST_HEAD(&priv->bf_list);
 	mutex_init(&priv->bf_mutex);
@@ -4134,8 +4135,11 @@ static void mlx4_shutdown(struct pci_dev *pdev)
 
 	mlx4_info(persist->dev, "mlx4_shutdown was called\n");
 	mutex_lock(&persist->interface_state_mutex);
-	if (persist->interface_state & MLX4_INTERFACE_STATE_UP)
+	if (persist->interface_state & MLX4_INTERFACE_STATE_UP) {
+		/* Notify mlx4 clients that the kernel is being shut down */
+		persist->interface_state |= MLX4_INTERFACE_STATE_SHUTDOWN;
 		mlx4_unload_one(pdev);
+	}
 	mutex_unlock(&persist->interface_state_mutex);
 }
 

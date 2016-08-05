@@ -238,7 +238,9 @@ module_param(nested, int, S_IRUGO);
 
 /* enable / disable AVIC */
 static int avic;
+#ifdef CONFIG_X86_LOCAL_APIC
 module_param(avic, int, S_IRUGO);
+#endif
 
 static void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0);
 static void svm_flush_tlb(struct kvm_vcpu *vcpu);
@@ -981,11 +983,14 @@ static __init int svm_hardware_setup(void)
 	} else
 		kvm_disable_tdp();
 
-	if (avic && (!npt_enabled || !boot_cpu_has(X86_FEATURE_AVIC)))
-		avic = false;
-
-	if (avic)
-		pr_info("AVIC enabled\n");
+	if (avic) {
+		if (!npt_enabled ||
+		    !boot_cpu_has(X86_FEATURE_AVIC) ||
+		    !IS_ENABLED(CONFIG_X86_LOCAL_APIC))
+			avic = false;
+		else
+			pr_info("AVIC enabled\n");
+	}
 
 	return 0;
 
@@ -1324,7 +1329,7 @@ free_avic:
 static void avic_set_running(struct kvm_vcpu *vcpu, bool is_run)
 {
 	u64 entry;
-	int h_physical_id = __default_cpu_present_to_apicid(vcpu->cpu);
+	int h_physical_id = kvm_cpu_get_apicid(vcpu->cpu);
 	struct vcpu_svm *svm = to_svm(vcpu);
 
 	if (!kvm_vcpu_apicv_active(vcpu))
@@ -1349,7 +1354,7 @@ static void avic_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	u64 entry;
 	/* ID = 0xff (broadcast), ID > 0xff (reserved) */
-	int h_physical_id = __default_cpu_present_to_apicid(cpu);
+	int h_physical_id = kvm_cpu_get_apicid(cpu);
 	struct vcpu_svm *svm = to_svm(vcpu);
 
 	if (!kvm_vcpu_apicv_active(vcpu))
@@ -4236,7 +4241,7 @@ static void svm_deliver_avic_intr(struct kvm_vcpu *vcpu, int vec)
 
 	if (avic_vcpu_is_running(vcpu))
 		wrmsrl(SVM_AVIC_DOORBELL,
-		       __default_cpu_present_to_apicid(vcpu->cpu));
+		       kvm_cpu_get_apicid(vcpu->cpu));
 	else
 		kvm_vcpu_wake_up(vcpu);
 }

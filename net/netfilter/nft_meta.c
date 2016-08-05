@@ -227,7 +227,7 @@ void nft_meta_set_eval(const struct nft_expr *expr,
 			skb->pkt_type = value;
 		break;
 	case NFT_META_NFTRACE:
-		skb->nf_trace = 1;
+		skb->nf_trace = !!value;
 		break;
 	default:
 		WARN_ON(1);

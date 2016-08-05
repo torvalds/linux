@@ -235,6 +235,9 @@ static inline int pwm_config(struct pwm_device *pwm, int duty_ns,
 	if (!pwm)
 		return -EINVAL;
 
+	if (duty_ns < 0 || period_ns < 0)
+		return -EINVAL;
+
 	pwm_get_state(pwm, &state);
 	if (state.duty_cycle == duty_ns && state.period == period_ns)
 		return 0;
@@ -461,6 +464,8 @@ static inline bool pwm_can_sleep(struct pwm_device *pwm)
 
 static inline void pwm_apply_args(struct pwm_device *pwm)
 {
+	struct pwm_state state = { };
+
 	/*
 	 * PWM users calling pwm_apply_args() expect to have a fresh config
 	 * where the polarity and period are set according to pwm_args info.
@@ -473,18 +478,20 @@ static inline void pwm_apply_args(struct pwm_device *pwm)
 	 * at startup (even if they are actually enabled), thus authorizing
 	 * polarity setting.
 	 *
-	 * Instead of setting ->enabled to false, we call pwm_disable()
-	 * before pwm_set_polarity() to ensure that everything is configured
-	 * as expected, and the PWM is really disabled when the user request
-	 * it.
+	 * To fulfill this requirement, we apply a new state which disables
+	 * the PWM device and set the reference period and polarity config.
 	 *
 	 * Note that PWM users requiring a smooth handover between the
 	 * bootloader and the kernel (like critical regulators controlled by
 	 * PWM devices) will have to switch to the atomic API and avoid calling
 	 * pwm_apply_args().
 	 */
-	pwm_disable(pwm);
-	pwm_set_polarity(pwm, pwm->args.polarity);
+
+	state.enabled = false;
+	state.polarity = pwm->args.polarity;
+	state.period = pwm->args.period;
+
+	pwm_apply_state(pwm, &state);
 }
 
 struct pwm_lookup {

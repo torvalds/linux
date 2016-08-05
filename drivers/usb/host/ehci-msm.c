@@ -179,22 +179,32 @@ static int ehci_msm_remove(struct platform_device *pdev)
 static int ehci_msm_pm_suspend(struct device *dev)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
+	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 	bool do_wakeup = device_may_wakeup(dev);
 
 	dev_dbg(dev, "ehci-msm PM suspend\n");
 
-	return ehci_suspend(hcd, do_wakeup);
+	/* Only call ehci_suspend if ehci_setup has been done */
+	if (ehci->sbrn)
+		return ehci_suspend(hcd, do_wakeup);
+
+	return 0;
 }
 
 static int ehci_msm_pm_resume(struct device *dev)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
+	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 
 	dev_dbg(dev, "ehci-msm PM resume\n");
-	ehci_resume(hcd, false);
+
+	/* Only call ehci_resume if ehci_setup has been done */
+	if (ehci->sbrn)
+		ehci_resume(hcd, false);
 
 	return 0;
 }
+
 #else
 #define ehci_msm_pm_suspend	NULL
 #define ehci_msm_pm_resume	NULL

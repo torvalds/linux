@@ -9,7 +9,6 @@ config DRM_HDLCD
 	depends on COMMON_CLK
 	select DRM_ARM
 	select DRM_KMS_HELPER
-	select DRM_KMS_FB_HELPER
 	select DRM_KMS_CMA_HELPER
 	help
 	  Choose this option if you have an ARM High Definition Colour LCD

@@ -1575,6 +1575,12 @@ xfs_ioc_swapext(
 		goto out_put_tmp_file;
 	}
 
+	if (f.file->f_op != &xfs_file_operations ||
+	    tmp.file->f_op != &xfs_file_operations) {
+		error = -EINVAL;
+		goto out_put_tmp_file;
+	}
+
 	ip = XFS_I(file_inode(f.file));
 	tip = XFS_I(file_inode(tmp.file));
 

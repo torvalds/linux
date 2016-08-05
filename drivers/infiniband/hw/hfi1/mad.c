@@ -78,6 +78,16 @@ static inline void clear_opa_smp_data(struct opa_smp *smp)
 	memset(data, 0, size);
 }
 
+void hfi1_event_pkey_change(struct hfi1_devdata *dd, u8 port)
+{
+	struct ib_event event;
+
+	event.event = IB_EVENT_PKEY_CHANGE;
+	event.device = &dd->verbs_dev.rdi.ibdev;
+	event.element.port_num = port;
+	ib_dispatch_event(&event);
+}
+
 static void send_trap(struct hfi1_ibport *ibp, void *data, unsigned len)
 {
 	struct ib_mad_send_buf *send_buf;
@@ -1418,15 +1428,10 @@ static int set_pkeys(struct hfi1_devdata *dd, u8 port, u16 *pkeys)
 	}
 
 	if (changed) {
-		struct ib_event event;
-
 		(void)hfi1_set_ib_cfg(ppd, HFI1_IB_CFG_PKEYS, 0);
-
-		event.event = IB_EVENT_PKEY_CHANGE;
-		event.device = &dd->verbs_dev.rdi.ibdev;
-		event.element.port_num = port;
-		ib_dispatch_event(&event);
+		hfi1_event_pkey_change(dd, port);
 	}
+
 	return 0;
 }
 

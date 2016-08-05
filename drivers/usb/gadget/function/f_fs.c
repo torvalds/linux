@@ -2051,7 +2051,7 @@ static int __ffs_data_do_os_desc(enum ffs_os_desc_type type,
 
 		if (len < sizeof(*d) ||
 		    d->bFirstInterfaceNumber >= ffs->interfaces_count ||
-		    d->Reserved1)
+		    !d->Reserved1)
 			return -EINVAL;
 		for (i = 0; i < ARRAY_SIZE(d->Reserved2); ++i)
 			if (d->Reserved2[i])
@@ -2729,6 +2729,7 @@ static int _ffs_func_bind(struct usb_configuration *c,
 		func->ffs->ss_descs_count;
 
 	int fs_len, hs_len, ss_len, ret, i;
+	struct ffs_ep *eps_ptr;
 
 	/* Make it a single chunk, less management later on */
 	vla_group(d);
@@ -2777,12 +2778,9 @@ static int _ffs_func_bind(struct usb_configuration *c,
 	       ffs->raw_descs_length);
 
 	memset(vla_ptr(vlabuf, d, inums), 0xff, d_inums__sz);
-	for (ret = ffs->eps_count; ret; --ret) {
-		struct ffs_ep *ptr;
-
-		ptr = vla_ptr(vlabuf, d, eps);
-		ptr[ret].num = -1;
-	}
+	eps_ptr = vla_ptr(vlabuf, d, eps);
+	for (i = 0; i < ffs->eps_count; i++)
+		eps_ptr[i].num = -1;
 
 	/* Save pointers
 	 * d_eps == vlabuf, func->eps used to kfree vlabuf later
@@ -2851,7 +2849,7 @@ static int _ffs_func_bind(struct usb_configuration *c,
 		goto error;
 
 	func->function.os_desc_table = vla_ptr(vlabuf, d, os_desc_table);
-	if (c->cdev->use_os_string)
+	if (c->cdev->use_os_string) {
 		for (i = 0; i < ffs->interfaces_count; ++i) {
 			struct usb_os_desc *desc;
 
@@ -2862,13 +2860,15 @@ static int _ffs_func_bind(struct usb_configuration *c,
 				vla_ptr(vlabuf, d, ext_compat) + i * 16;
 			INIT_LIST_HEAD(&desc->ext_prop);
 		}
-	ret = ffs_do_os_descs(ffs->ms_os_descs_count,
-			      vla_ptr(vlabuf, d, raw_descs) +
-			      fs_len + hs_len + ss_len,
-			      d_raw_descs__sz - fs_len - hs_len - ss_len,
-			      __ffs_func_bind_do_os_desc, func);
-	if (unlikely(ret < 0))
-		goto error;
+		ret = ffs_do_os_descs(ffs->ms_os_descs_count,
+				      vla_ptr(vlabuf, d, raw_descs) +
+				      fs_len + hs_len + ss_len,
+				      d_raw_descs__sz - fs_len - hs_len -
+				      ss_len,
+				      __ffs_func_bind_do_os_desc, func);
+		if (unlikely(ret < 0))
+			goto error;
+	}
 	func->function.os_desc_n =
 		c->cdev->use_os_string ? ffs->interfaces_count : 0;
 

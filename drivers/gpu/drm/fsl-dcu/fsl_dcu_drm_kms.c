@@ -43,7 +43,7 @@ int fsl_dcu_drm_modeset_init(struct fsl_dcu_drm_device *fsl_dev)
 	if (ret)
 		goto err;
 
-	ret = fsl_dcu_drm_connector_create(fsl_dev, &fsl_dev->encoder);
+	ret = fsl_dcu_create_outputs(fsl_dev);
 	if (ret)
 		goto err;
 

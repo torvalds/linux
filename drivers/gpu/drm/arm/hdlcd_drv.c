@@ -102,8 +102,7 @@ static void hdlcd_fb_output_poll_changed(struct drm_device *drm)
 {
 	struct hdlcd_drm_private *hdlcd = drm->dev_private;
 
-	if (hdlcd->fbdev)
-		drm_fbdev_cma_hotplug_event(hdlcd->fbdev);
+	drm_fbdev_cma_hotplug_event(hdlcd->fbdev);
 }
 
 static const struct drm_mode_config_funcs hdlcd_mode_config_funcs = {

@@ -2882,11 +2882,10 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 			call_close |= is_wronly;
 		else if (is_wronly)
 			calldata->arg.fmode |= FMODE_WRITE;
+		if (calldata->arg.fmode != (FMODE_READ|FMODE_WRITE))
+			call_close |= is_rdwr;
 	} else if (is_rdwr)
 		calldata->arg.fmode |= FMODE_READ|FMODE_WRITE;
-
-	if (calldata->arg.fmode == 0)
-		call_close |= is_rdwr;
 
 	if (!nfs4_valid_open_stateid(state))
 		call_close = 0;
@@ -7924,8 +7923,8 @@ nfs4_layoutget_handle_exception(struct rpc_task *task,
 			break;
 		}
 		lo = NFS_I(inode)->layout;
-		if (lo && nfs4_stateid_match(&lgp->args.stateid,
-					&lo->plh_stateid)) {
+		if (lo && !test_bit(NFS_LAYOUT_INVALID_STID, &lo->plh_flags) &&
+		    nfs4_stateid_match_other(&lgp->args.stateid, &lo->plh_stateid)) {
 			LIST_HEAD(head);
 
 			/*
@@ -7936,10 +7935,10 @@ nfs4_layoutget_handle_exception(struct rpc_task *task,
 			pnfs_mark_matching_lsegs_invalid(lo, &head, NULL, 0);
 			spin_unlock(&inode->i_lock);
 			pnfs_free_lseg_list(&head);
+			status = -EAGAIN;
+			goto out;
 		} else
 			spin_unlock(&inode->i_lock);
-		status = -EAGAIN;
-		goto out;
 	}
 
 	status = nfs4_handle_exception(server, status, exception);
@@ -8036,7 +8035,10 @@ nfs4_proc_layoutget(struct nfs4_layoutget *lgp, long *timeout, gfp_t gfp_flags)
 		.flags = RPC_TASK_ASYNC,
 	};
 	struct pnfs_layout_segment *lseg = NULL;
-	struct nfs4_exception exception = { .timeout = *timeout };
+	struct nfs4_exception exception = {
+		.inode = inode,
+		.timeout = *timeout,
+	};
 	int status = 0;
 
 	dprintk("--> %s\n", __func__);

@@ -24,6 +24,7 @@
 #include <linux/jiffies.h>
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
+#include <linux/of_net.h>
 
 #include "net-sysfs.h"
 

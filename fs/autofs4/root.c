@@ -458,7 +458,7 @@ static int autofs4_d_manage(struct dentry *dentry, bool rcu_walk)
 		 */
 		struct inode *inode;
 
-		if (ino->flags & (AUTOFS_INF_EXPIRING | AUTOFS_INF_NO_RCU))
+		if (ino->flags & AUTOFS_INF_WANT_EXPIRE)
 			return 0;
 		if (d_mountpoint(dentry))
 			return 0;

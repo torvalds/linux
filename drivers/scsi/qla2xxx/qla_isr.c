@@ -2548,7 +2548,7 @@ void qla24xx_process_response_queue(struct scsi_qla_host *vha,
 	if (!vha->flags.online)
 		return;
 
-	if (rsp->msix->cpuid != smp_processor_id()) {
+	if (rsp->msix && rsp->msix->cpuid != smp_processor_id()) {
 		/* if kernel does not notify qla of IRQ's CPU change,
 		 * then set it here.
 		 */

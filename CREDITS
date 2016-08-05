@@ -649,6 +649,7 @@ D: Configure, Menuconfig, xconfig
 
 N: Mauro Carvalho Chehab
 E: m.chehab@samsung.org
+E: mchehab@osg.samsung.com
 E: mchehab@infradead.org
 D: Media subsystem (V4L/DVB) drivers and core
 D: EDAC drivers and EDAC 3.0 core rework

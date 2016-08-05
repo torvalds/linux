@@ -16,7 +16,13 @@
 enum analogix_dp_devtype {
 	EXYNOS_DP,
 	RK3288_DP,
+	RK3399_EDP,
 };
+
+static inline bool is_rockchip(enum analogix_dp_devtype type)
+{
+	return type == RK3288_DP || type == RK3399_EDP;
+}
 
 struct analogix_dp_plat_data {
 	enum analogix_dp_devtype dev_type;
@@ -28,7 +34,8 @@ struct analogix_dp_plat_data {
 	int (*power_off)(struct analogix_dp_plat_data *);
 	int (*attach)(struct analogix_dp_plat_data *, struct drm_bridge *,
 		      struct drm_connector *);
-	int (*get_modes)(struct analogix_dp_plat_data *);
+	int (*get_modes)(struct analogix_dp_plat_data *,
+			 struct drm_connector *);
 };
 
 int analogix_dp_resume(struct device *dev);

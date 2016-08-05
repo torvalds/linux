@@ -1545,7 +1545,8 @@ error:
 /*
  *      Set up receiving multicast socket over UDP
  */
-static struct socket *make_receive_sock(struct netns_ipvs *ipvs, int id)
+static struct socket *make_receive_sock(struct netns_ipvs *ipvs, int id,
+					int ifindex)
 {
 	/* multicast addr */
 	union ipvs_sockaddr mcast_addr;
@@ -1566,6 +1567,7 @@ static struct socket *make_receive_sock(struct netns_ipvs *ipvs, int id)
 		set_sock_size(sock->sk, 0, result);
 
 	get_mcast_sockaddr(&mcast_addr, &salen, &ipvs->bcfg, id);
+	sock->sk->sk_bound_dev_if = ifindex;
 	result = sock->ops->bind(sock, (struct sockaddr *)&mcast_addr, salen);
 	if (result < 0) {
 		pr_err("Error binding to the multicast addr\n");
@@ -1868,7 +1870,7 @@ int start_sync_thread(struct netns_ipvs *ipvs, struct ipvs_sync_daemon_cfg *c,
 		if (state == IP_VS_STATE_MASTER)
 			sock = make_send_sock(ipvs, id);
 		else
-			sock = make_receive_sock(ipvs, id);
+			sock = make_receive_sock(ipvs, id, dev->ifindex);
 		if (IS_ERR(sock)) {
 			result = PTR_ERR(sock);
 			goto outtinfo;

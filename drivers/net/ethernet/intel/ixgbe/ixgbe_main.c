@@ -2887,7 +2887,7 @@ int ixgbe_poll(struct napi_struct *napi, int budget)
 	if (!test_bit(__IXGBE_DOWN, &adapter->state))
 		ixgbe_irq_enable_queues(adapter, BIT_ULL(q_vector->v_idx));
 
-	return 0;
+	return min(work_done, budget - 1);
 }
 
 /**

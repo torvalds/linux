@@ -483,9 +483,9 @@ static void inode_switch_wbs(struct inode *inode, int new_wb_id)
 		goto out_free;
 	}
 	inode->i_state |= I_WB_SWITCH;
+	__iget(inode);
 	spin_unlock(&inode->i_lock);
 
-	ihold(inode);
 	isw->inode = inode;
 
 	atomic_inc(&isw_nr_in_flight);

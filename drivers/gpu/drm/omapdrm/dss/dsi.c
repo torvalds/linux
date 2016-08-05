@@ -1167,7 +1167,6 @@ static int dsi_regulator_init(struct platform_device *dsidev)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	struct regulator *vdds_dsi;
-	int r;
 
 	if (dsi->vdds_dsi_reg != NULL)
 		return 0;

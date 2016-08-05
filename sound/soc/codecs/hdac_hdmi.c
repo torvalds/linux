@@ -1474,6 +1474,11 @@ static int hdmi_codec_probe(struct snd_soc_codec *codec)
 	 * exit, we call pm_runtime_suspend() so that will do for us
 	 */
 	hlink = snd_hdac_ext_bus_get_link(edev->ebus, dev_name(&edev->hdac.dev));
+	if (!hlink) {
+		dev_err(&edev->hdac.dev, "hdac link not found\n");
+		return -EIO;
+	}
+
 	snd_hdac_ext_bus_link_get(edev->ebus, hlink);
 
 	ret = create_fill_widget_route_map(dapm);
@@ -1634,6 +1639,11 @@ static int hdac_hdmi_dev_probe(struct hdac_ext_device *edev)
 
 	/* hold the ref while we probe */
 	hlink = snd_hdac_ext_bus_get_link(edev->ebus, dev_name(&edev->hdac.dev));
+	if (!hlink) {
+		dev_err(&edev->hdac.dev, "hdac link not found\n");
+		return -EIO;
+	}
+
 	snd_hdac_ext_bus_link_get(edev->ebus, hlink);
 
 	hdmi_priv = devm_kzalloc(&codec->dev, sizeof(*hdmi_priv), GFP_KERNEL);
@@ -1744,6 +1754,11 @@ static int hdac_hdmi_runtime_suspend(struct device *dev)
 	}
 
 	hlink = snd_hdac_ext_bus_get_link(ebus, dev_name(dev));
+	if (!hlink) {
+		dev_err(dev, "hdac link not found\n");
+		return -EIO;
+	}
+
 	snd_hdac_ext_bus_link_put(ebus, hlink);
 
 	return 0;
@@ -1765,6 +1780,11 @@ static int hdac_hdmi_runtime_resume(struct device *dev)
 		return 0;
 
 	hlink = snd_hdac_ext_bus_get_link(ebus, dev_name(dev));
+	if (!hlink) {
+		dev_err(dev, "hdac link not found\n");
+		return -EIO;
+	}
+
 	snd_hdac_ext_bus_link_get(ebus, hlink);
 
 	err = snd_hdac_display_power(bus, true);

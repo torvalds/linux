@@ -779,11 +779,31 @@ static const struct v4l2_dv_timings_cap adv76xx_timings_cap_digital = {
 			V4L2_DV_BT_CAP_CUSTOM)
 };
 
-static inline const struct v4l2_dv_timings_cap *
-adv76xx_get_dv_timings_cap(struct v4l2_subdev *sd)
+/*
+ * Return the DV timings capabilities for the requested sink pad. As a special
+ * case, pad value -1 returns the capabilities for the currently selected input.
+ */
+static const struct v4l2_dv_timings_cap *
+adv76xx_get_dv_timings_cap(struct v4l2_subdev *sd, int pad)
 {
-	return is_digital_input(sd) ? &adv76xx_timings_cap_digital :
-				      &adv7604_timings_cap_analog;
+	if (pad == -1) {
+		struct adv76xx_state *state = to_state(sd);
+
+		pad = state->selected_input;
+	}
+
+	switch (pad) {
+	case ADV76XX_PAD_HDMI_PORT_A:
+	case ADV7604_PAD_HDMI_PORT_B:
+	case ADV7604_PAD_HDMI_PORT_C:
+	case ADV7604_PAD_HDMI_PORT_D:
+		return &adv76xx_timings_cap_digital;
+
+	case ADV7604_PAD_VGA_RGB:
+	case ADV7604_PAD_VGA_COMP:
+	default:
+		return &adv7604_timings_cap_analog;
+	}
 }
 
 
@@ -1329,7 +1349,7 @@ static int stdi2dv_timings(struct v4l2_subdev *sd,
 		const struct v4l2_bt_timings *bt = &v4l2_dv_timings_presets[i].bt;
 
 		if (!v4l2_valid_dv_timings(&v4l2_dv_timings_presets[i],
-					   adv76xx_get_dv_timings_cap(sd),
+					   adv76xx_get_dv_timings_cap(sd, -1),
 					   adv76xx_check_dv_timings, NULL))
 			continue;
 		if (vtotal(bt) != stdi->lcf + 1)
@@ -1430,18 +1450,22 @@ static int adv76xx_enum_dv_timings(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	return v4l2_enum_dv_timings_cap(timings,
-		adv76xx_get_dv_timings_cap(sd), adv76xx_check_dv_timings, NULL);
+		adv76xx_get_dv_timings_cap(sd, timings->pad),
+		adv76xx_check_dv_timings, NULL);
 }
 
 static int adv76xx_dv_timings_cap(struct v4l2_subdev *sd,
 			struct v4l2_dv_timings_cap *cap)
 {
 	struct adv76xx_state *state = to_state(sd);
+	unsigned int pad = cap->pad;
 
 	if (cap->pad >= state->source_pad)
 		return -EINVAL;
 
-	*cap = *adv76xx_get_dv_timings_cap(sd);
+	*cap = *adv76xx_get_dv_timings_cap(sd, pad);
+	cap->pad = pad;
+
 	return 0;
 }
 
@@ -1450,9 +1474,9 @@ static int adv76xx_dv_timings_cap(struct v4l2_subdev *sd,
 static void adv76xx_fill_optional_dv_timings_fields(struct v4l2_subdev *sd,
 		struct v4l2_dv_timings *timings)
 {
-	v4l2_find_dv_timings_cap(timings, adv76xx_get_dv_timings_cap(sd),
-			is_digital_input(sd) ? 250000 : 1000000,
-			adv76xx_check_dv_timings, NULL);
+	v4l2_find_dv_timings_cap(timings, adv76xx_get_dv_timings_cap(sd, -1),
+				 is_digital_input(sd) ? 250000 : 1000000,
+				 adv76xx_check_dv_timings, NULL);
 }
 
 static unsigned int adv7604_read_hdmi_pixelclock(struct v4l2_subdev *sd)
@@ -1620,7 +1644,7 @@ static int adv76xx_s_dv_timings(struct v4l2_subdev *sd,
 
 	bt = &timings->bt;
 
-	if (!v4l2_valid_dv_timings(timings, adv76xx_get_dv_timings_cap(sd),
+	if (!v4l2_valid_dv_timings(timings, adv76xx_get_dv_timings_cap(sd, -1),
 				   adv76xx_check_dv_timings, NULL))
 		return -ERANGE;
 

@@ -123,6 +123,9 @@ static int max77620_regulator_set_fps_src(struct max77620_regulator *pmic,
 	unsigned int val;
 	int ret;
 
+	if (!rinfo)
+		return 0;
+
 	switch (fps_src) {
 	case MAX77620_FPS_SRC_0:
 	case MAX77620_FPS_SRC_1:
@@ -170,6 +173,9 @@ static int max77620_regulator_set_fps_slots(struct max77620_regulator *pmic,
 	int pu = rpdata->active_fps_pu_slot;
 	int pd = rpdata->active_fps_pd_slot;
 	int ret = 0;
+
+	if (!rinfo)
+		return 0;
 
 	if (is_suspend) {
 		pu = rpdata->suspend_fps_pu_slot;
@@ -680,7 +686,6 @@ static struct max77620_regulator_info max77620_regs_info[MAX77620_NUM_REGS] = {
 	RAIL_SD(SD1, sd1, "in-sd1", SD1, 600000, 1550000, 12500, 0x22, SD1),
 	RAIL_SD(SD2, sd2, "in-sd2", SDX, 600000, 3787500, 12500, 0xFF, NONE),
 	RAIL_SD(SD3, sd3, "in-sd3", SDX, 600000, 3787500, 12500, 0xFF, NONE),
-	RAIL_SD(SD4, sd4, "in-sd4", SDX, 600000, 3787500, 12500, 0xFF, NONE),
 
 	RAIL_LDO(LDO0, ldo0, "in-ldo0-1", N, 800000, 2375000, 25000),
 	RAIL_LDO(LDO1, ldo1, "in-ldo0-1", N, 800000, 2375000, 25000),

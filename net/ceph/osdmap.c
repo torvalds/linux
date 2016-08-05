@@ -1261,6 +1261,115 @@ struct ceph_osdmap *ceph_osdmap_decode(void **p, void *end)
 }
 
 /*
+ * Encoding order is (new_up_client, new_state, new_weight).  Need to
+ * apply in the (new_weight, new_state, new_up_client) order, because
+ * an incremental map may look like e.g.
+ *
+ *     new_up_client: { osd=6, addr=... } # set osd_state and addr
+ *     new_state: { osd=6, xorstate=EXISTS } # clear osd_state
+ */
+static int decode_new_up_state_weight(void **p, void *end,
+				      struct ceph_osdmap *map)
+{
+	void *new_up_client;
+	void *new_state;
+	void *new_weight_end;
+	u32 len;
+
+	new_up_client = *p;
+	ceph_decode_32_safe(p, end, len, e_inval);
+	len *= sizeof(u32) + sizeof(struct ceph_entity_addr);
+	ceph_decode_need(p, end, len, e_inval);
+	*p += len;
+
+	new_state = *p;
+	ceph_decode_32_safe(p, end, len, e_inval);
+	len *= sizeof(u32) + sizeof(u8);
+	ceph_decode_need(p, end, len, e_inval);
+	*p += len;
+
+	/* new_weight */
+	ceph_decode_32_safe(p, end, len, e_inval);
+	while (len--) {
+		s32 osd;
+		u32 w;
+
+		ceph_decode_need(p, end, 2*sizeof(u32), e_inval);
+		osd = ceph_decode_32(p);
+		w = ceph_decode_32(p);
+		BUG_ON(osd >= map->max_osd);
+		pr_info("osd%d weight 0x%x %s\n", osd, w,
+		     w == CEPH_OSD_IN ? "(in)" :
+		     (w == CEPH_OSD_OUT ? "(out)" : ""));
+		map->osd_weight[osd] = w;
+
+		/*
+		 * If we are marking in, set the EXISTS, and clear the
+		 * AUTOOUT and NEW bits.
+		 */
+		if (w) {
+			map->osd_state[osd] |= CEPH_OSD_EXISTS;
+			map->osd_state[osd] &= ~(CEPH_OSD_AUTOOUT |
+						 CEPH_OSD_NEW);
+		}
+	}
+	new_weight_end = *p;
+
+	/* new_state (up/down) */
+	*p = new_state;
+	len = ceph_decode_32(p);
+	while (len--) {
+		s32 osd;
+		u8 xorstate;
+		int ret;
+
+		osd = ceph_decode_32(p);
+		xorstate = ceph_decode_8(p);
+		if (xorstate == 0)
+			xorstate = CEPH_OSD_UP;
+		BUG_ON(osd >= map->max_osd);
+		if ((map->osd_state[osd] & CEPH_OSD_UP) &&
+		    (xorstate & CEPH_OSD_UP))
+			pr_info("osd%d down\n", osd);
+		if ((map->osd_state[osd] & CEPH_OSD_EXISTS) &&
+		    (xorstate & CEPH_OSD_EXISTS)) {
+			pr_info("osd%d does not exist\n", osd);
+			map->osd_weight[osd] = CEPH_OSD_IN;
+			ret = set_primary_affinity(map, osd,
+						   CEPH_OSD_DEFAULT_PRIMARY_AFFINITY);
+			if (ret)
+				return ret;
+			memset(map->osd_addr + osd, 0, sizeof(*map->osd_addr));
+			map->osd_state[osd] = 0;
+		} else {
+			map->osd_state[osd] ^= xorstate;
+		}
+	}
+
+	/* new_up_client */
+	*p = new_up_client;
+	len = ceph_decode_32(p);
+	while (len--) {
+		s32 osd;
+		struct ceph_entity_addr addr;
+
+		osd = ceph_decode_32(p);
+		ceph_decode_copy(p, &addr, sizeof(addr));
+		ceph_decode_addr(&addr);
+		BUG_ON(osd >= map->max_osd);
+		pr_info("osd%d up\n", osd);
+		map->osd_state[osd] |= CEPH_OSD_EXISTS | CEPH_OSD_UP;
+		map->osd_addr[osd] = addr;
+	}
+
+	*p = new_weight_end;
+	return 0;
+
+e_inval:
+	return -EINVAL;
+}
+
+/*
  * decode and apply an incremental map update.
  */
 struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
@@ -1358,49 +1467,10 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 			__remove_pg_pool(&map->pg_pools, pi);
 	}
 
-	/* new_up */
-	ceph_decode_32_safe(p, end, len, e_inval);
-	while (len--) {
-		u32 osd;
-		struct ceph_entity_addr addr;
-		ceph_decode_32_safe(p, end, osd, e_inval);
-		ceph_decode_copy_safe(p, end, &addr, sizeof(addr), e_inval);
-		ceph_decode_addr(&addr);
-		pr_info("osd%d up\n", osd);
-		BUG_ON(osd >= map->max_osd);
-		map->osd_state[osd] |= CEPH_OSD_UP | CEPH_OSD_EXISTS;
-		map->osd_addr[osd] = addr;
-	}
-
-	/* new_state */
-	ceph_decode_32_safe(p, end, len, e_inval);
-	while (len--) {
-		u32 osd;
-		u8 xorstate;
-		ceph_decode_32_safe(p, end, osd, e_inval);
-		xorstate = **(u8 **)p;
-		(*p)++;  /* clean flag */
-		if (xorstate == 0)
-			xorstate = CEPH_OSD_UP;
-		if (xorstate & CEPH_OSD_UP)
-			pr_info("osd%d down\n", osd);
-		if (osd < map->max_osd)
-			map->osd_state[osd] ^= xorstate;
-	}
-
-	/* new_weight */
-	ceph_decode_32_safe(p, end, len, e_inval);
-	while (len--) {
-		u32 osd, off;
-		ceph_decode_need(p, end, sizeof(u32)*2, e_inval);
-		osd = ceph_decode_32(p);
-		off = ceph_decode_32(p);
-		pr_info("osd%d weight 0x%x %s\n", osd, off,
-		     off == CEPH_OSD_IN ? "(in)" :
-		     (off == CEPH_OSD_OUT ? "(out)" : ""));
-		if (osd < map->max_osd)
-			map->osd_weight[osd] = off;
-	}
+	/* new_up_client, new_state, new_weight */
+	err = decode_new_up_state_weight(p, end, map);
+	if (err)
+		goto bad;
 
 	/* new_pg_temp */
 	err = decode_new_pg_temp(p, end, map);

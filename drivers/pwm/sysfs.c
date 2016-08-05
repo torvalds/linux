@@ -152,7 +152,7 @@ static ssize_t enable_store(struct device *child,
 		goto unlock;
 	}
 
-	pwm_apply_state(pwm, &state);
+	ret = pwm_apply_state(pwm, &state);
 
 unlock:
 	mutex_unlock(&export->lock);

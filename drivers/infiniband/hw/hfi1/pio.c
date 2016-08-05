@@ -995,7 +995,7 @@ static void sc_wait_for_packet_egress(struct send_context *sc, int pause)
 		/* counter is reset if occupancy count changes */
 		if (reg != reg_prev)
 			loop = 0;
-		if (loop > 500) {
+		if (loop > 50000) {
 			/* timed out - bounce the link */
 			dd_dev_err(dd,
 				   "%s: context %u(%u) timeout waiting for packets to egress, remaining count %u, bouncing link\n",
@@ -1798,6 +1798,21 @@ static void pio_map_rcu_callback(struct rcu_head *list)
 }
 
 /*
+ * Set credit return threshold for the kernel send context
+ */
+static void set_threshold(struct hfi1_devdata *dd, int scontext, int i)
+{
+	u32 thres;
+
+	thres = min(sc_percent_to_threshold(dd->kernel_send_context[scontext],
+					    50),
+		    sc_mtu_to_threshold(dd->kernel_send_context[scontext],
+					dd->vld[i].mtu,
+					dd->rcd[0]->rcvhdrqentsize));
+	sc_set_cr_threshold(dd->kernel_send_context[scontext], thres);
+}
+
+/*
  * pio_map_init - called when #vls change
  * @dd: hfi1_devdata
  * @port: port number
@@ -1872,11 +1887,16 @@ int pio_map_init(struct hfi1_devdata *dd, u8 port, u8 num_vls, u8 *vl_scontexts)
 			if (!newmap->map[i])
 				goto bail;
 			newmap->map[i]->mask = (1 << ilog2(sz)) - 1;
-			/* assign send contexts */
+			/*
+			 * assign send contexts and
+			 * adjust credit return threshold
+			 */
 			for (j = 0; j < sz; j++) {
-				if (dd->kernel_send_context[scontext])
+				if (dd->kernel_send_context[scontext]) {
 					newmap->map[i]->ksc[j] =
 					dd->kernel_send_context[scontext];
+					set_threshold(dd, scontext, i);
+				}
 				if (++scontext >= first_scontext +
 						  vl_scontexts[i])
 					/* wrap back to first send context */

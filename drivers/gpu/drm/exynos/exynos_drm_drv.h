@@ -224,8 +224,6 @@ struct exynos_drm_private {
 	struct drm_property *plane_zpos_property;
 
 	struct device *dma_dev;
-	unsigned long da_start;
-	unsigned long da_space_size;
 	void *mapping;
 
 	unsigned int pipe;

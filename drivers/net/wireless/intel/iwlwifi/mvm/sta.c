@@ -1852,12 +1852,18 @@ static struct iwl_mvm_sta *iwl_mvm_get_key_sta(struct iwl_mvm *mvm,
 	    mvmvif->ap_sta_id != IWL_MVM_STATION_COUNT) {
 		u8 sta_id = mvmvif->ap_sta_id;
 
+		sta = rcu_dereference_check(mvm->fw_id_to_mac_id[sta_id],
+					    lockdep_is_held(&mvm->mutex));
+
 		/*
 		 * It is possible that the 'sta' parameter is NULL,
 		 * for example when a GTK is removed - the sta_id will then
 		 * be the AP ID, and no station was passed by mac80211.
 		 */
-		return iwl_mvm_sta_from_staid_protected(mvm, sta_id);
+		if (IS_ERR_OR_NULL(sta))
+			return NULL;
+
+		return iwl_mvm_sta_from_mac80211(sta);
 	}
 
 	return NULL;
@@ -1954,6 +1960,14 @@ static int iwl_mvm_send_sta_igtk(struct iwl_mvm *mvm,
 	} else {
 		struct ieee80211_key_seq seq;
 		const u8 *pn;
+
+		switch (keyconf->cipher) {
+		case WLAN_CIPHER_SUITE_AES_CMAC:
+			igtk_cmd.ctrl_flags |= cpu_to_le32(STA_KEY_FLG_CCM);
+			break;
+		default:
+			return -EINVAL;
+		}
 
 		memcpy(igtk_cmd.IGTK, keyconf->key, keyconf->keylen);
 		ieee80211_get_key_rx_seq(keyconf, 0, &seq);

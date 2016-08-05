@@ -65,7 +65,7 @@ static int radix__init_new_context(struct mm_struct *mm, int index)
 	/*
 	 * set the process table entry,
 	 */
-	rts_field = 3ull << PPC_BITLSHIFT(2);
+	rts_field = radix__get_tree_size();
 	process_tb[index].prtb0 = cpu_to_be64(rts_field | __pa(mm->pgd) | RADIX_PGD_INDEX_SIZE);
 	return 0;
 }

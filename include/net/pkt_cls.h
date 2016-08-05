@@ -392,16 +392,20 @@ struct tc_cls_u32_offload {
 	};
 };
 
-static inline bool tc_should_offload(struct net_device *dev, u32 flags)
+static inline bool tc_should_offload(const struct net_device *dev,
+				     const struct tcf_proto *tp, u32 flags)
 {
+	const struct Qdisc *sch = tp->q;
+	const struct Qdisc_class_ops *cops = sch->ops->cl_ops;
+
 	if (!(dev->features & NETIF_F_HW_TC))
 		return false;
-
 	if (flags & TCA_CLS_FLAGS_SKIP_HW)
 		return false;
-
 	if (!dev->netdev_ops->ndo_setup_tc)
 		return false;
+	if (cops && cops->tcf_cl_offload)
+		return cops->tcf_cl_offload(tp->classid);
 
 	return true;
 }

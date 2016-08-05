@@ -328,9 +328,9 @@ static void scl_vop_cal_scl_fac(struct vop *vop, const struct vop_win_data *win,
 			    scl_cal_scale2(src_h, dst_h));
 		if (is_yuv) {
 			VOP_SCL_SET(vop, win, scale_cbcr_x,
-				    scl_cal_scale2(src_w, dst_w));
+				    scl_cal_scale2(cbcr_src_w, dst_w));
 			VOP_SCL_SET(vop, win, scale_cbcr_y,
-				    scl_cal_scale2(src_h, dst_h));
+				    scl_cal_scale2(cbcr_src_h, dst_h));
 		}
 		return;
 	}
@@ -798,7 +798,7 @@ static const struct drm_plane_helper_funcs plane_helper_funcs = {
 	.atomic_disable = vop_plane_atomic_disable,
 };
 
-void vop_atomic_plane_reset(struct drm_plane *plane)
+static void vop_atomic_plane_reset(struct drm_plane *plane)
 {
 	struct vop_plane_state *vop_plane_state =
 					to_vop_plane_state(plane->state);
@@ -815,7 +815,7 @@ void vop_atomic_plane_reset(struct drm_plane *plane)
 	plane->state->plane = plane;
 }
 
-struct drm_plane_state *
+static struct drm_plane_state *
 vop_atomic_plane_duplicate_state(struct drm_plane *plane)
 {
 	struct vop_plane_state *old_vop_plane_state;
@@ -1052,6 +1052,17 @@ static void vop_crtc_destroy(struct drm_crtc *crtc)
 	drm_crtc_cleanup(crtc);
 }
 
+static void vop_crtc_reset(struct drm_crtc *crtc)
+{
+	if (crtc->state)
+		__drm_atomic_helper_crtc_destroy_state(crtc->state);
+	kfree(crtc->state);
+
+	crtc->state = kzalloc(sizeof(struct rockchip_crtc_state), GFP_KERNEL);
+	if (crtc->state)
+		crtc->state->crtc = crtc;
+}
+
 static struct drm_crtc_state *vop_crtc_duplicate_state(struct drm_crtc *crtc)
 {
 	struct rockchip_crtc_state *rockchip_state;
@@ -1077,7 +1088,7 @@ static const struct drm_crtc_funcs vop_crtc_funcs = {
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,
 	.destroy = vop_crtc_destroy,
-	.reset = drm_atomic_helper_crtc_reset,
+	.reset = vop_crtc_reset,
 	.atomic_duplicate_state = vop_crtc_duplicate_state,
 	.atomic_destroy_state = vop_crtc_destroy_state,
 };

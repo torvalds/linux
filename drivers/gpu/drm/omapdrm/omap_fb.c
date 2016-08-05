@@ -115,8 +115,8 @@ static void omap_framebuffer_destroy(struct drm_framebuffer *fb)
 
 	for (i = 0; i < n; i++) {
 		struct plane *plane = &omap_fb->planes[i];
-		if (plane->bo)
-			drm_gem_object_unreference_unlocked(plane->bo);
+
+		drm_gem_object_unreference_unlocked(plane->bo);
 	}
 
 	kfree(omap_fb);

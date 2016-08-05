@@ -1638,8 +1638,7 @@ retry:
 	 */
 	qp_init->cap.max_send_wr = srp_sq_size / 2;
 	qp_init->cap.max_rdma_ctxs = srp_sq_size / 2;
-	qp_init->cap.max_send_sge = max(sdev->device->attrs.max_sge_rd,
-					sdev->device->attrs.max_sge);
+	qp_init->cap.max_send_sge = SRPT_DEF_SG_PER_WQE;
 	qp_init->port_num = ch->sport->port;
 
 	ch->qp = ib_create_qp(sdev->pd, qp_init);

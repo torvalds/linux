@@ -90,7 +90,9 @@ typedef uint8_t PPSMC_Result;
 #define PPSMC_StartFanControl               ((uint8_t)0x5B)
 #define PPSMC_StopFanControl                ((uint8_t)0x5C)
 #define PPSMC_MSG_NoDisplay                 ((uint8_t)0x5D)
+#define PPSMC_NoDisplay                     ((uint8_t)0x5D)
 #define PPSMC_MSG_HasDisplay                ((uint8_t)0x5E)
+#define PPSMC_HasDisplay                    ((uint8_t)0x5E)
 #define PPSMC_MSG_UVDPowerOFF               ((uint8_t)0x60)
 #define PPSMC_MSG_UVDPowerON                ((uint8_t)0x61)
 #define PPSMC_MSG_EnableULV                 ((uint8_t)0x62)
@@ -108,6 +110,7 @@ typedef uint8_t PPSMC_Result;
 #define PPSMC_MSG_DisableDTE                ((uint8_t)0x88)
 #define PPSMC_MSG_ThrottleOVRDSCLKDS        ((uint8_t)0x96)
 #define PPSMC_MSG_CancelThrottleOVRDSCLKDS  ((uint8_t)0x97)
+#define PPSMC_MSG_EnableACDCGPIOInterrupt   ((uint16_t) 0x149)
 
 /* CI/KV/KB */
 #define PPSMC_MSG_UVDDPM_SetEnabledMask       ((uint16_t) 0x12D)
@@ -161,6 +164,7 @@ typedef uint8_t PPSMC_Result;
 #define PPSMC_MSG_MASTER_DeepSleep_OFF        ((uint16_t) 0x190)
 #define PPSMC_MSG_Remove_DC_Clamp             ((uint16_t) 0x191)
 #define PPSMC_MSG_SetFanPwmMax                ((uint16_t) 0x19A)
+#define PPSMC_MSG_SetFanRpmMax                ((uint16_t) 0x205)
 
 #define PPSMC_MSG_ENABLE_THERMAL_DPM          ((uint16_t) 0x19C)
 #define PPSMC_MSG_DISABLE_THERMAL_DPM         ((uint16_t) 0x19D)

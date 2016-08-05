@@ -109,7 +109,7 @@ int ptep_set_access_flags(struct vm_area_struct *vma,
 	 * PTE_RDONLY is cleared by default in the asm below, so set it in
 	 * back if necessary (read-only or clean PTE).
 	 */
-	if (!pte_write(entry) || !dirty)
+	if (!pte_write(entry) || !pte_sw_dirty(entry))
 		pte_val(entry) |= PTE_RDONLY;
 
 	/*
@@ -280,7 +280,8 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
 	}
 
 	if (permission_fault(esr) && (addr < USER_DS)) {
-		if (get_fs() == KERNEL_DS)
+		/* regs->orig_addr_limit may be 0 if we entered from EL0 */
+		if (regs->orig_addr_limit == KERNEL_DS)
 			die("Accessing user space memory with fs=KERNEL_DS", regs, esr);
 
 		if (!search_exception_tables(regs->pc))
@@ -441,7 +442,7 @@ static int do_bad(unsigned long addr, unsigned int esr, struct pt_regs *regs)
 	return 1;
 }
 
-static struct fault_info {
+static const struct fault_info {
 	int	(*fn)(unsigned long addr, unsigned int esr, struct pt_regs *regs);
 	int	sig;
 	int	code;

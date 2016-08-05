@@ -58,9 +58,6 @@ static void pem_fini(struct pp_eventmgr *eventmgr)
 	pem_unregister_interrupts(eventmgr);
 
 	pem_handle_event(eventmgr, AMD_PP_EVENT_UNINITIALIZE, &event_data);
-
-	if (eventmgr != NULL)
-		kfree(eventmgr);
 }
 
 int eventmgr_init(struct pp_instance *handle)

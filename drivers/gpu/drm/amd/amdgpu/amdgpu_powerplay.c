@@ -52,6 +52,7 @@ static int amdgpu_powerplay_init(struct amdgpu_device *adev)
 		pp_init->chip_family = adev->family;
 		pp_init->chip_id = adev->asic_type;
 		pp_init->device = amdgpu_cgs_create_device(adev);
+		pp_init->powercontainment_enabled = amdgpu_powercontainment;
 
 		ret = amd_powerplay_init(pp_init, amd_pp);
 		kfree(pp_init);
@@ -183,13 +184,6 @@ static int amdgpu_pp_sw_fini(void *handle)
 	if (ret)
 		return ret;
 
-#ifdef CONFIG_DRM_AMD_POWERPLAY
-	if (adev->pp_enabled) {
-		amdgpu_pm_sysfs_fini(adev);
-		amd_powerplay_fini(adev->powerplay.pp_handle);
-	}
-#endif
-
 	return ret;
 }
 
@@ -221,6 +215,22 @@ static int amdgpu_pp_hw_fini(void *handle)
 		amdgpu_ucode_fini_bo(adev);
 
 	return ret;
+}
+
+static void amdgpu_pp_late_fini(void *handle)
+{
+#ifdef CONFIG_DRM_AMD_POWERPLAY
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (adev->pp_enabled) {
+		amdgpu_pm_sysfs_fini(adev);
+		amd_powerplay_fini(adev->powerplay.pp_handle);
+	}
+
+	if (adev->powerplay.ip_funcs->late_fini)
+		adev->powerplay.ip_funcs->late_fini(
+			  adev->powerplay.pp_handle);
+#endif
 }
 
 static int amdgpu_pp_suspend(void *handle)
@@ -311,6 +321,7 @@ const struct amd_ip_funcs amdgpu_pp_ip_funcs = {
 	.sw_fini = amdgpu_pp_sw_fini,
 	.hw_init = amdgpu_pp_hw_init,
 	.hw_fini = amdgpu_pp_hw_fini,
+	.late_fini = amdgpu_pp_late_fini,
 	.suspend = amdgpu_pp_suspend,
 	.resume = amdgpu_pp_resume,
 	.is_idle = amdgpu_pp_is_idle,

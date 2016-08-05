@@ -203,7 +203,9 @@ struct rvt_driver_provided {
 
 	/*
 	 * Allocate a private queue pair data structure for driver specific
-	 * information which is opaque to rdmavt.
+	 * information which is opaque to rdmavt.  Errors are returned via
+	 * ERR_PTR(err).  The driver is free to return NULL or a valid
+	 * pointer.
 	 */
 	void * (*qp_priv_alloc)(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 				gfp_t gfp);

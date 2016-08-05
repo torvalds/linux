@@ -24,7 +24,7 @@
 #include <linux/firmware.h>
 #include "drmP.h"
 #include "amdgpu.h"
-#include "iceland_smumgr.h"
+#include "iceland_smum.h"
 
 MODULE_FIRMWARE("amdgpu/topaz_smc.bin");
 
@@ -72,6 +72,11 @@ static int iceland_dpm_sw_init(void *handle)
 
 static int iceland_dpm_sw_fini(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	release_firmware(adev->pm.fw);
+	adev->pm.fw = NULL;
+
 	return 0;
 }
 

@@ -227,14 +227,12 @@ static struct drm_connector *vc4_dpi_connector_init(struct drm_device *dev,
 {
 	struct drm_connector *connector = NULL;
 	struct vc4_dpi_connector *dpi_connector;
-	int ret = 0;
 
 	dpi_connector = devm_kzalloc(dev->dev, sizeof(*dpi_connector),
 				     GFP_KERNEL);
-	if (!dpi_connector) {
-		ret = -ENOMEM;
-		goto fail;
-	}
+	if (!dpi_connector)
+		return ERR_PTR(-ENOMEM);
+
 	connector = &dpi_connector->base;
 
 	dpi_connector->encoder = dpi->encoder;
@@ -251,12 +249,6 @@ static struct drm_connector *vc4_dpi_connector_init(struct drm_device *dev,
 	drm_mode_connector_attach_encoder(connector, dpi->encoder);
 
 	return connector;
-
- fail:
-	if (connector)
-		vc4_dpi_connector_destroy(connector);
-
-	return ERR_PTR(ret);
 }
 
 static const struct drm_encoder_funcs vc4_dpi_encoder_funcs = {

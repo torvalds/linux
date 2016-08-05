@@ -214,19 +214,6 @@ const char *print_u32_array(
 	return ret;
 }
 
-const char *print_u64_array(
-	struct trace_seq *p,
-	u64 *arr, int len)
-{
-	int i;
-	const char *ret = trace_seq_buffer_ptr(p);
-
-	for (i = 0; i < len; i++)
-		trace_seq_printf(p, "%s0x%016llx", i == 0 ? "" : " ", arr[i]);
-	trace_seq_putc(p, 0);
-	return ret;
-}
-
 __hfi1_trace_fn(PKT);
 __hfi1_trace_fn(PROC);
 __hfi1_trace_fn(SDMA);

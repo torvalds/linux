@@ -87,7 +87,9 @@ static const struct pci_device_id qede_pci_tbl[] = {
 	{PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_57980S_100), QEDE_PRIVATE_PF},
 	{PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_57980S_50), QEDE_PRIVATE_PF},
 	{PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_57980S_25), QEDE_PRIVATE_PF},
+#ifdef CONFIG_QED_SRIOV
 	{PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_57980S_IOV), QEDE_PRIVATE_VF},
+#endif
 	{ 0 }
 };
 
@@ -3229,7 +3231,7 @@ static int qede_stop_queues(struct qede_dev *edev)
 	return rc;
 }
 
-static int qede_start_queues(struct qede_dev *edev)
+static int qede_start_queues(struct qede_dev *edev, bool clear_stats)
 {
 	int rc, tc, i;
 	int vlan_removal_en = 1;
@@ -3460,6 +3462,7 @@ out:
 
 enum qede_load_mode {
 	QEDE_LOAD_NORMAL,
+	QEDE_LOAD_RELOAD,
 };
 
 static int qede_load(struct qede_dev *edev, enum qede_load_mode mode)
@@ -3498,7 +3501,7 @@ static int qede_load(struct qede_dev *edev, enum qede_load_mode mode)
 		goto err3;
 	DP_INFO(edev, "Setup IRQs succeeded\n");
 
-	rc = qede_start_queues(edev);
+	rc = qede_start_queues(edev, mode != QEDE_LOAD_RELOAD);
 	if (rc)
 		goto err4;
 	DP_INFO(edev, "Start VPORT, RXQ and TXQ succeeded\n");
@@ -3553,7 +3556,7 @@ void qede_reload(struct qede_dev *edev,
 	if (func)
 		func(edev, args);
 
-	qede_load(edev, QEDE_LOAD_NORMAL);
+	qede_load(edev, QEDE_LOAD_RELOAD);
 
 	mutex_lock(&edev->qede_lock);
 	qede_config_rx_mode(edev->ndev);

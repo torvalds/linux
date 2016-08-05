@@ -428,7 +428,9 @@ cifs_echo_request(struct work_struct *work)
 	 * server->ops->need_neg() == true. Also, no need to ping if
 	 * we got a response recently.
 	 */
-	if (!server->ops->need_neg || server->ops->need_neg(server) ||
+
+	if (server->tcpStatus == CifsNeedReconnect ||
+	    server->tcpStatus == CifsExiting || server->tcpStatus == CifsNew ||
 	    (server->ops->can_echo && !server->ops->can_echo(server)) ||
 	    time_before(jiffies, server->lstrp + echo_interval - HZ))
 		goto requeue_echo;

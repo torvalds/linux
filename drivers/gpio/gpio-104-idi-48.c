@@ -247,6 +247,7 @@ static int idi_48_probe(struct device *dev, unsigned int id)
 	idi48gpio->irq = irq[id];
 
 	spin_lock_init(&idi48gpio->lock);
+	spin_lock_init(&idi48gpio->ack_lock);
 
 	dev_set_drvdata(dev, idi48gpio);
 

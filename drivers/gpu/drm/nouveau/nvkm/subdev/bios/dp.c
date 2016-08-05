@@ -40,6 +40,7 @@ nvbios_dp_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 				case 0x30:
 				case 0x40:
 				case 0x41:
+				case 0x42:
 					*hdr = nvbios_rd08(bios, data + 0x01);
 					*len = nvbios_rd08(bios, data + 0x02);
 					*cnt = nvbios_rd08(bios, data + 0x03);
@@ -70,6 +71,7 @@ nvbios_dpout_entry(struct nvkm_bios *bios, u8 idx,
 			break;
 		case 0x40:
 		case 0x41:
+		case 0x42:
 			*hdr = nvbios_rd08(bios, data + 0x04);
 			*cnt = 0;
 			*len = 0;
@@ -109,6 +111,7 @@ nvbios_dpout_parse(struct nvkm_bios *bios, u8 idx,
 			break;
 		case 0x40:
 		case 0x41:
+		case 0x42:
 			info->flags     = nvbios_rd08(bios, data + 0x04);
 			info->script[0] = nvbios_rd16(bios, data + 0x05);
 			info->script[1] = nvbios_rd16(bios, data + 0x07);
@@ -179,6 +182,11 @@ nvbios_dpcfg_parse(struct nvkm_bios *bios, u16 outp, u8 idx,
 			info->dc    = nvbios_rd08(bios, data + 0x01);
 			info->pe    = nvbios_rd08(bios, data + 0x02);
 			info->tx_pu = nvbios_rd08(bios, data + 0x03);
+			break;
+		case 0x42:
+			info->dc    = nvbios_rd08(bios, data + 0x00);
+			info->pe    = nvbios_rd08(bios, data + 0x01);
+			info->tx_pu = nvbios_rd08(bios, data + 0x02);
 			break;
 		default:
 			data = 0x0000;

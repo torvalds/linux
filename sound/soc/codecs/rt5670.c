@@ -619,7 +619,7 @@ static const struct snd_kcontrol_new rt5670_snd_controls[] = {
 		RT5670_L_MUTE_SFT, RT5670_R_MUTE_SFT, 1, 1),
 	SOC_DOUBLE_TLV("HP Playback Volume", RT5670_HP_VOL,
 		RT5670_L_VOL_SFT, RT5670_R_VOL_SFT,
-		39, 0, out_vol_tlv),
+		39, 1, out_vol_tlv),
 	/* OUTPUT Control */
 	SOC_DOUBLE("OUT Channel Switch", RT5670_LOUT1,
 		RT5670_VOL_L_SFT, RT5670_VOL_R_SFT, 1, 1),

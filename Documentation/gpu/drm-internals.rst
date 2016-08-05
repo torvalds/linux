@@ -188,7 +188,8 @@ Manual IRQ Registration
 Drivers that require multiple interrupt handlers can't use the managed
 IRQ registration functions. In that case IRQs must be registered and
 unregistered manually (usually with the :c:func:`request_irq()` and
-:c:func:`free_irq()` functions, or their devm_\* equivalent).
+:c:func:`free_irq()` functions, or their :c:func:`devm_request_irq()` and
+:c:func:`devm_free_irq()` equivalents).
 
 When manually registering IRQs, drivers must not set the
 DRIVER_HAVE_IRQ driver feature flag, and must not provide the
@@ -242,11 +243,13 @@ Open/Close, File Operations and IOCTLs
 Open and Close
 --------------
 
-int (\*firstopen) (struct drm_device \*); void (\*lastclose) (struct
-drm_device \*); int (\*open) (struct drm_device \*, struct drm_file
-\*); void (\*preclose) (struct drm_device \*, struct drm_file \*);
-void (\*postclose) (struct drm_device \*, struct drm_file \*);
-    Open and close handlers. None of those methods are mandatory.
+Open and close handlers. None of those methods are mandatory::
+
+    int (*firstopen) (struct drm_device *);
+    void (*lastclose) (struct drm_device *);
+    int (*open) (struct drm_device *, struct drm_file *);
+    void (*preclose) (struct drm_device *, struct drm_file *);
+    void (*postclose) (struct drm_device *, struct drm_file *);
 
 The firstopen method is called by the DRM core for legacy UMS (User Mode
 Setting) drivers only when an application opens a device that has no
@@ -280,8 +283,8 @@ private data in the open method should free it here.
 The lastclose method should restore CRTC and plane properties to default
 value, so that a subsequent open of the device will not inherit state
 from the previous user. It can also be used to execute delayed power
-switching state changes, e.g. in conjunction with the vga_switcheroo
-infrastructure (see ?). Beyond that KMS drivers should not do any
+switching state changes, e.g. in conjunction with the :ref:`vga_switcheroo`
+infrastructure. Beyond that KMS drivers should not do any
 further cleanup. Only legacy UMS drivers might need to clean up device
 state so that the vga console or an independent fbdev driver could take
 over.

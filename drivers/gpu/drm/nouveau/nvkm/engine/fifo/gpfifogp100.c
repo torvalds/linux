@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Advanced Micro Devices, Inc.
+ * Copyright 2016 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,23 +19,16 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
+ * Authors: Ben Skeggs
  */
+#include "changk104.h"
 
-#ifndef ICELAND_SMUMGR_H
-#define ICELAND_SMUMGR_H
+#include <nvif/class.h>
 
-#include "ppsmc.h"
-
-extern int iceland_smu_init(struct amdgpu_device *adev);
-extern int iceland_smu_fini(struct amdgpu_device *adev);
-extern int iceland_smu_start(struct amdgpu_device *adev);
-
-struct iceland_smu_private_data
-{
-	uint8_t *header;
-	uint8_t *mec_image;
-	uint32_t header_addr_high;
-	uint32_t header_addr_low;
+const struct nvkm_fifo_chan_oclass
+gp100_fifo_gpfifo_oclass = {
+	.base.oclass = PASCAL_CHANNEL_GPFIFO_A,
+	.base.minver = 0,
+	.base.maxver = 0,
+	.ctor = gk104_fifo_gpfifo_new,
 };
-
-#endif

@@ -530,6 +530,7 @@ static PORT_PMA_ATTR(port_xmit_data		    , 12, 32, 192);
 static PORT_PMA_ATTR(port_rcv_data		    , 13, 32, 224);
 static PORT_PMA_ATTR(port_xmit_packets		    , 14, 32, 256);
 static PORT_PMA_ATTR(port_rcv_packets		    , 15, 32, 288);
+static PORT_PMA_ATTR(port_xmit_wait		    ,  0, 32, 320);
 
 /*
  * Counters added by extended set
@@ -560,6 +561,7 @@ static struct attribute *pma_attrs[] = {
 	&port_pma_attr_port_rcv_data.attr.attr,
 	&port_pma_attr_port_xmit_packets.attr.attr,
 	&port_pma_attr_port_rcv_packets.attr.attr,
+	&port_pma_attr_port_xmit_wait.attr.attr,
 	NULL
 };
 
@@ -579,6 +581,7 @@ static struct attribute *pma_attrs_ext[] = {
 	&port_pma_attr_ext_port_xmit_data.attr.attr,
 	&port_pma_attr_ext_port_rcv_data.attr.attr,
 	&port_pma_attr_ext_port_xmit_packets.attr.attr,
+	&port_pma_attr_port_xmit_wait.attr.attr,
 	&port_pma_attr_ext_port_rcv_packets.attr.attr,
 	&port_pma_attr_ext_unicast_rcv_packets.attr.attr,
 	&port_pma_attr_ext_unicast_xmit_packets.attr.attr,
@@ -604,6 +607,7 @@ static struct attribute *pma_attrs_noietf[] = {
 	&port_pma_attr_ext_port_rcv_data.attr.attr,
 	&port_pma_attr_ext_port_xmit_packets.attr.attr,
 	&port_pma_attr_ext_port_rcv_packets.attr.attr,
+	&port_pma_attr_port_xmit_wait.attr.attr,
 	NULL
 };
 
@@ -889,9 +893,9 @@ static struct attribute *alloc_hsa_lifespan(char *name, u8 port_num)
 static void setup_hw_stats(struct ib_device *device, struct ib_port *port,
 			   u8 port_num)
 {
-	struct attribute_group *hsag = NULL;
+	struct attribute_group *hsag;
 	struct rdma_hw_stats *stats;
-	int i = 0, ret;
+	int i, ret;
 
 	stats = device->alloc_hw_stats(device, port_num);
 
@@ -899,19 +903,22 @@ static void setup_hw_stats(struct ib_device *device, struct ib_port *port,
 		return;
 
 	if (!stats->names || stats->num_counters <= 0)
-		goto err;
+		goto err_free_stats;
 
+	/*
+	 * Two extra attribue elements here, one for the lifespan entry and
+	 * one to NULL terminate the list for the sysfs core code
+	 */
 	hsag = kzalloc(sizeof(*hsag) +
-		       // 1 extra for the lifespan config entry
-		       sizeof(void *) * (stats->num_counters + 1),
+		       sizeof(void *) * (stats->num_counters + 2),
 		       GFP_KERNEL);
 	if (!hsag)
-		return;
+		goto err_free_stats;
 
 	ret = device->get_hw_stats(device, stats, port_num,
 				   stats->num_counters);
 	if (ret != stats->num_counters)
-		goto err;
+		goto err_free_hsag;
 
 	stats->timestamp = jiffies;
 
@@ -922,10 +929,13 @@ static void setup_hw_stats(struct ib_device *device, struct ib_port *port,
 		hsag->attrs[i] = alloc_hsa(i, port_num, stats->names[i]);
 		if (!hsag->attrs[i])
 			goto err;
+		sysfs_attr_init(hsag->attrs[i]);
 	}
 
 	/* treat an error here as non-fatal */
 	hsag->attrs[i] = alloc_hsa_lifespan("lifespan", port_num);
+	if (hsag->attrs[i])
+		sysfs_attr_init(hsag->attrs[i]);
 
 	if (port) {
 		struct kobject *kobj = &port->kobj;
@@ -946,10 +956,12 @@ static void setup_hw_stats(struct ib_device *device, struct ib_port *port,
 	return;
 
 err:
-	kfree(stats);
 	for (; i >= 0; i--)
 		kfree(hsag->attrs[i]);
+err_free_hsag:
 	kfree(hsag);
+err_free_stats:
+	kfree(stats);
 	return;
 }
 

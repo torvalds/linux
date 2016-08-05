@@ -353,12 +353,14 @@ struct mlx4_en_port_profile {
 	u32 rx_ring_num;
 	u32 tx_ring_size;
 	u32 rx_ring_size;
+	u8 num_tx_rings_p_up;
 	u8 rx_pause;
 	u8 rx_ppp;
 	u8 tx_pause;
 	u8 tx_ppp;
 	int rss_rings;
 	int inline_thold;
+	struct hwtstamp_config hwtstamp_config;
 };
 
 struct mlx4_en_profile {
@@ -623,8 +625,11 @@ void mlx4_en_set_stats_bitmap(struct mlx4_dev *dev,
 			      u8 rx_ppp, u8 rx_pause,
 			      u8 tx_ppp, u8 tx_pause);
 
-void mlx4_en_free_resources(struct mlx4_en_priv *priv);
-int mlx4_en_alloc_resources(struct mlx4_en_priv *priv);
+int mlx4_en_try_alloc_resources(struct mlx4_en_priv *priv,
+				struct mlx4_en_priv *tmp,
+				struct mlx4_en_port_profile *prof);
+void mlx4_en_safe_replace_resources(struct mlx4_en_priv *priv,
+				    struct mlx4_en_priv *tmp);
 
 int mlx4_en_create_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq **pcq,
 		      int entries, int ring, enum cq_type mode, int node);

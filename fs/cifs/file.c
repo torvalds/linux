@@ -1112,6 +1112,12 @@ cifs_push_mandatory_locks(struct cifsFileInfo *cfile)
 	return rc;
 }
 
+static __u32
+hash_lockowner(fl_owner_t owner)
+{
+	return cifs_lock_secret ^ hash32_ptr((const void *)owner);
+}
+
 struct lock_to_push {
 	struct list_head llist;
 	__u64 offset;
@@ -1178,7 +1184,7 @@ cifs_push_posix_locks(struct cifsFileInfo *cfile)
 		else
 			type = CIFS_WRLCK;
 		lck = list_entry(el, struct lock_to_push, llist);
-		lck->pid = flock->fl_pid;
+		lck->pid = hash_lockowner(flock->fl_owner);
 		lck->netfid = cfile->fid.netfid;
 		lck->length = length;
 		lck->type = type;
@@ -1305,7 +1311,8 @@ cifs_getlk(struct file *file, struct file_lock *flock, __u32 type,
 			posix_lock_type = CIFS_RDLCK;
 		else
 			posix_lock_type = CIFS_WRLCK;
-		rc = CIFSSMBPosixLock(xid, tcon, netfid, current->tgid,
+		rc = CIFSSMBPosixLock(xid, tcon, netfid,
+				      hash_lockowner(flock->fl_owner),
 				      flock->fl_start, length, flock,
 				      posix_lock_type, wait_flag);
 		return rc;
@@ -1505,7 +1512,8 @@ cifs_setlk(struct file *file, struct file_lock *flock, __u32 type,
 			posix_lock_type = CIFS_UNLCK;
 
 		rc = CIFSSMBPosixLock(xid, tcon, cfile->fid.netfid,
-				      current->tgid, flock->fl_start, length,
+				      hash_lockowner(flock->fl_owner),
+				      flock->fl_start, length,
 				      NULL, posix_lock_type, wait_flag);
 		goto out;
 	}

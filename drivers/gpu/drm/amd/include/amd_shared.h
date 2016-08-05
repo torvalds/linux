@@ -26,15 +26,6 @@
 #define AMD_MAX_USEC_TIMEOUT		100000  /* 100 ms */
 
 /*
-* Supported GPU families (aligned with amdgpu_drm.h)
-*/
-#define AMD_FAMILY_UNKNOWN              0
-#define AMD_FAMILY_CI                   120 /* Bonaire, Hawaii */
-#define AMD_FAMILY_KV                   125 /* Kaveri, Kabini, Mullins */
-#define AMD_FAMILY_VI                   130 /* Iceland, Tonga */
-#define AMD_FAMILY_CZ                   135 /* Carrizo */
-
-/*
  * Supported ASIC types
  */
 enum amd_asic_type {
@@ -120,6 +111,8 @@ enum amd_powergating_state {
 #define AMD_PG_SUPPORT_SDMA			(1 << 8)
 #define AMD_PG_SUPPORT_ACP			(1 << 9)
 #define AMD_PG_SUPPORT_SAMU			(1 << 10)
+#define AMD_PG_SUPPORT_GFX_QUICK_MG		(1 << 11)
+#define AMD_PG_SUPPORT_GFX_PIPELINE		(1 << 12)
 
 enum amd_pm_state_type {
 	/* not used for dpm */
@@ -157,6 +150,7 @@ struct amd_ip_funcs {
 	int (*hw_init)(void *handle);
 	/* tears down the hw state */
 	int (*hw_fini)(void *handle);
+	void (*late_fini)(void *handle);
 	/* handles IP specific hw/sw changes for suspend */
 	int (*suspend)(void *handle);
 	/* handles IP specific hw/sw changes for resume */

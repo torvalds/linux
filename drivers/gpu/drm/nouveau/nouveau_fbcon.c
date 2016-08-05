@@ -552,6 +552,8 @@ nouveau_fbcon_init(struct drm_device *dev)
 	if (ret)
 		goto fini;
 
+	if (fbcon->helper.fbdev)
+		fbcon->helper.fbdev->pixmap.buf_align = 4;
 	return 0;
 
 fini:

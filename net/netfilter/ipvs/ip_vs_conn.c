@@ -762,7 +762,7 @@ static int expire_quiescent_template(struct netns_ipvs *ipvs,
  *	If available, return 1, otherwise invalidate this connection
  *	template and return 0.
  */
-int ip_vs_check_template(struct ip_vs_conn *ct)
+int ip_vs_check_template(struct ip_vs_conn *ct, struct ip_vs_dest *cdest)
 {
 	struct ip_vs_dest *dest = ct->dest;
 	struct netns_ipvs *ipvs = ct->ipvs;
@@ -772,7 +772,8 @@ int ip_vs_check_template(struct ip_vs_conn *ct)
 	 */
 	if ((dest == NULL) ||
 	    !(dest->flags & IP_VS_DEST_F_AVAILABLE) ||
-	    expire_quiescent_template(ipvs, dest)) {
+	    expire_quiescent_template(ipvs, dest) ||
+	    (cdest && (dest != cdest))) {
 		IP_VS_DBG_BUF(9, "check_template: dest not available for "
 			      "protocol %s s:%s:%d v:%s:%d "
 			      "-> d:%s:%d\n",

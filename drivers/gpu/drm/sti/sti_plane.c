@@ -45,25 +45,15 @@ const char *sti_plane_to_str(struct sti_plane *plane)
 
 #define STI_FPS_INTERVAL_MS     3000
 
-static int sti_plane_timespec_ms_diff(struct timespec lhs, struct timespec rhs)
-{
-	struct timespec tmp_ts = timespec_sub(lhs, rhs);
-	u64 tmp_ns = (u64)timespec_to_ns(&tmp_ts);
-
-	do_div(tmp_ns, NSEC_PER_MSEC);
-
-	return (u32)tmp_ns;
-}
-
 void sti_plane_update_fps(struct sti_plane *plane,
 			  bool new_frame,
 			  bool new_field)
 {
-	struct timespec now;
+	ktime_t now;
 	struct sti_fps_info *fps;
 	int fpks, fipks, ms_since_last, num_frames, num_fields;
 
-	getrawmonotonic(&now);
+	now = ktime_get();
 
 	/* Compute number of frame updates */
 	fps = &plane->fps_info;
@@ -76,7 +66,7 @@ void sti_plane_update_fps(struct sti_plane *plane,
 		return;
 
 	fps->curr_frame_counter++;
-	ms_since_last = sti_plane_timespec_ms_diff(now, fps->last_timestamp);
+	ms_since_last = ktime_to_ms(ktime_sub(now, fps->last_timestamp));
 	num_frames = fps->curr_frame_counter - fps->last_frame_counter;
 
 	if (num_frames <= 0  || ms_since_last < STI_FPS_INTERVAL_MS)

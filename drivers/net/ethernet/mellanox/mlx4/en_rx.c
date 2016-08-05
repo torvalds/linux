@@ -514,9 +514,6 @@ void mlx4_en_destroy_rx_ring(struct mlx4_en_priv *priv,
 	ring->rx_info = NULL;
 	kfree(ring);
 	*pring = NULL;
-#ifdef CONFIG_RFS_ACCEL
-	mlx4_en_cleanup_filters(priv);
-#endif
 }
 
 void mlx4_en_deactivate_rx_ring(struct mlx4_en_priv *priv,

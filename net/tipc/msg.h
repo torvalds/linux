@@ -94,17 +94,6 @@ struct plist;
 
 #define TIPC_MEDIA_INFO_OFFSET	5
 
-/**
- * TIPC message buffer code
- *
- * TIPC message buffer headroom reserves space for the worst-case
- * link-level device header (in case the message is sent off-node).
- *
- * Note: Headroom should be a multiple of 4 to ensure the TIPC header fields
- *       are word aligned for quicker access
- */
-#define BUF_HEADROOM (LL_MAX_HEADER + 48)
-
 struct tipc_skb_cb {
 	void *handle;
 	struct sk_buff *tail;

@@ -860,6 +860,11 @@ static netdev_tx_t ethoc_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned int entry;
 	void *dest;
 
+	if (skb_put_padto(skb, ETHOC_ZLEN)) {
+		dev->stats.tx_errors++;
+		goto out_no_free;
+	}
+
 	if (unlikely(skb->len > ETHOC_BUFSIZ)) {
 		dev->stats.tx_errors++;
 		goto out;
@@ -894,6 +899,7 @@ static netdev_tx_t ethoc_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb_tx_timestamp(skb);
 out:
 	dev_kfree_skb(skb);
+out_no_free:
 	return NETDEV_TX_OK;
 }
 
@@ -1086,7 +1092,7 @@ static int ethoc_probe(struct platform_device *pdev)
 	if (!priv->iobase) {
 		dev_err(&pdev->dev, "cannot remap I/O memory space\n");
 		ret = -ENXIO;
-		goto error;
+		goto free;
 	}
 
 	if (netdev->mem_end) {
@@ -1095,7 +1101,7 @@ static int ethoc_probe(struct platform_device *pdev)
 		if (!priv->membase) {
 			dev_err(&pdev->dev, "cannot remap memory space\n");
 			ret = -ENXIO;
-			goto error;
+			goto free;
 		}
 	} else {
 		/* Allocate buffer memory */
@@ -1106,7 +1112,7 @@ static int ethoc_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "cannot allocate %dB buffer\n",
 				buffer_size);
 			ret = -ENOMEM;
-			goto error;
+			goto free;
 		}
 		netdev->mem_end = netdev->mem_start + buffer_size;
 		priv->dma_alloc = buffer_size;
@@ -1120,7 +1126,7 @@ static int ethoc_probe(struct platform_device *pdev)
 		128, (netdev->mem_end - netdev->mem_start + 1) / ETHOC_BUFSIZ);
 	if (num_bd < 4) {
 		ret = -ENODEV;
-		goto error;
+		goto free;
 	}
 	priv->num_bd = num_bd;
 	/* num_tx must be a power of two */
@@ -1133,7 +1139,7 @@ static int ethoc_probe(struct platform_device *pdev)
 	priv->vma = devm_kzalloc(&pdev->dev, num_bd*sizeof(void *), GFP_KERNEL);
 	if (!priv->vma) {
 		ret = -ENOMEM;
-		goto error;
+		goto free;
 	}
 
 	/* Allow the platform setup code to pass in a MAC address. */
@@ -1195,7 +1201,7 @@ static int ethoc_probe(struct platform_device *pdev)
 	priv->mdio = mdiobus_alloc();
 	if (!priv->mdio) {
 		ret = -ENOMEM;
-		goto free;
+		goto free2;
 	}
 
 	priv->mdio->name = "ethoc-mdio";
@@ -1208,7 +1214,7 @@ static int ethoc_probe(struct platform_device *pdev)
 	ret = mdiobus_register(priv->mdio);
 	if (ret) {
 		dev_err(&netdev->dev, "failed to register MDIO bus\n");
-		goto free;
+		goto free2;
 	}
 
 	ret = ethoc_mdio_probe(netdev);
@@ -1241,9 +1247,10 @@ error2:
 error:
 	mdiobus_unregister(priv->mdio);
 	mdiobus_free(priv->mdio);
-free:
+free2:
 	if (priv->clk)
 		clk_disable_unprepare(priv->clk);
+free:
 	free_netdev(netdev);
 out:
 	return ret;

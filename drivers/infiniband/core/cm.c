@@ -3452,14 +3452,14 @@ static int cm_establish(struct ib_cm_id *cm_id)
 	work->cm_event.event = IB_CM_USER_ESTABLISHED;
 
 	/* Check if the device started its remove_one */
-	spin_lock_irq(&cm.lock);
+	spin_lock_irqsave(&cm.lock, flags);
 	if (!cm_dev->going_down) {
 		queue_delayed_work(cm.wq, &work->work, 0);
 	} else {
 		kfree(work);
 		ret = -ENODEV;
 	}
-	spin_unlock_irq(&cm.lock);
+	spin_unlock_irqrestore(&cm.lock, flags);
 
 out:
 	return ret;

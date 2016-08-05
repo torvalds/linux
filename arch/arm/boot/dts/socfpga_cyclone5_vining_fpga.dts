@@ -136,6 +136,7 @@
 &gmac1 {
 	status = "okay";
 	phy-mode = "rgmii";
+	phy-handle = <&phy1>;
 
 	snps,reset-gpio = <&porta 0 GPIO_ACTIVE_LOW>;
 	snps,reset-active-low;

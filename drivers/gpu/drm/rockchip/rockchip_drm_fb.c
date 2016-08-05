@@ -20,6 +20,7 @@
 #include <drm/drm_crtc_helper.h>
 
 #include "rockchip_drm_drv.h"
+#include "rockchip_drm_fb.h"
 #include "rockchip_drm_gem.h"
 
 #define to_rockchip_fb(x) container_of(x, struct rockchip_drm_fb, fb)
@@ -43,14 +44,10 @@ struct drm_gem_object *rockchip_fb_get_gem_obj(struct drm_framebuffer *fb,
 static void rockchip_drm_fb_destroy(struct drm_framebuffer *fb)
 {
 	struct rockchip_drm_fb *rockchip_fb = to_rockchip_fb(fb);
-	struct drm_gem_object *obj;
 	int i;
 
-	for (i = 0; i < ROCKCHIP_MAX_FB_BUFFER; i++) {
-		obj = rockchip_fb->obj[i];
-		if (obj)
-			drm_gem_object_unreference_unlocked(obj);
-	}
+	for (i = 0; i < ROCKCHIP_MAX_FB_BUFFER; i++)
+		drm_gem_object_unreference_unlocked(rockchip_fb->obj[i]);
 
 	drm_framebuffer_cleanup(fb);
 	kfree(rockchip_fb);
@@ -245,7 +242,7 @@ rockchip_atomic_commit_tail(struct drm_atomic_state *state)
 	drm_atomic_helper_cleanup_planes(dev, state);
 }
 
-struct drm_mode_config_helper_funcs rockchip_mode_config_helpers = {
+static struct drm_mode_config_helper_funcs rockchip_mode_config_helpers = {
 	.atomic_commit_tail = rockchip_atomic_commit_tail,
 };
 

@@ -19,7 +19,6 @@
 
 #include "rcar_du_drv.h"
 #include "rcar_du_encoder.h"
-#include "rcar_du_hdmicon.h"
 #include "rcar_du_hdmienc.h"
 #include "rcar_du_kms.h"
 #include "rcar_du_lvdscon.h"
@@ -174,7 +173,7 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 		break;
 
 	case DRM_MODE_ENCODER_TMDS:
-		ret = rcar_du_hdmi_connector_init(rcdu, renc);
+		/* connector managed by the bridge driver */
 		break;
 
 	default:

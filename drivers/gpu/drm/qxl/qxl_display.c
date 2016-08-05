@@ -468,8 +468,7 @@ void qxl_user_framebuffer_destroy(struct drm_framebuffer *fb)
 {
 	struct qxl_framebuffer *qxl_fb = to_qxl_framebuffer(fb);
 
-	if (qxl_fb->obj)
-		drm_gem_object_unreference_unlocked(qxl_fb->obj);
+	drm_gem_object_unreference_unlocked(qxl_fb->obj);
 	drm_framebuffer_cleanup(fb);
 	kfree(qxl_fb);
 }

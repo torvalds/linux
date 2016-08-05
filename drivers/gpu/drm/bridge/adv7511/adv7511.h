@@ -10,6 +10,11 @@
 #define __DRM_I2C_ADV7511_H__
 
 #include <linux/hdmi.h>
+#include <linux/i2c.h>
+#include <linux/regmap.h>
+
+#include <drm/drm_crtc_helper.h>
+#include <drm/drm_mipi_dsi.h>
 
 #define ADV7511_REG_CHIP_REVISION		0x00
 #define ADV7511_REG_N0				0x01
@@ -285,5 +290,103 @@ struct adv7511_video_config {
 	bool hdmi_mode;
 	struct hdmi_avi_infoframe avi_infoframe;
 };
+
+enum adv7511_type {
+	ADV7511,
+	ADV7533,
+};
+
+struct adv7511 {
+	struct i2c_client *i2c_main;
+	struct i2c_client *i2c_edid;
+	struct i2c_client *i2c_cec;
+
+	struct regmap *regmap;
+	struct regmap *regmap_cec;
+	enum drm_connector_status status;
+	bool powered;
+
+	struct drm_display_mode curr_mode;
+
+	unsigned int f_tmds;
+
+	unsigned int current_edid_segment;
+	uint8_t edid_buf[256];
+	bool edid_read;
+
+	wait_queue_head_t wq;
+	struct drm_bridge bridge;
+	struct drm_connector connector;
+
+	bool embedded_sync;
+	enum adv7511_sync_polarity vsync_polarity;
+	enum adv7511_sync_polarity hsync_polarity;
+	bool rgb;
+
+	struct edid *edid;
+
+	struct gpio_desc *gpio_pd;
+
+	/* ADV7533 DSI RX related params */
+	struct device_node *host_node;
+	struct mipi_dsi_device *dsi;
+	u8 num_dsi_lanes;
+	bool use_timing_gen;
+
+	enum adv7511_type type;
+};
+
+#ifdef CONFIG_DRM_I2C_ADV7533
+void adv7533_dsi_power_on(struct adv7511 *adv);
+void adv7533_dsi_power_off(struct adv7511 *adv);
+void adv7533_mode_set(struct adv7511 *adv, struct drm_display_mode *mode);
+int adv7533_patch_registers(struct adv7511 *adv);
+void adv7533_uninit_cec(struct adv7511 *adv);
+int adv7533_init_cec(struct adv7511 *adv);
+int adv7533_attach_dsi(struct adv7511 *adv);
+void adv7533_detach_dsi(struct adv7511 *adv);
+int adv7533_parse_dt(struct device_node *np, struct adv7511 *adv);
+#else
+static inline void adv7533_dsi_power_on(struct adv7511 *adv)
+{
+}
+
+static inline void adv7533_dsi_power_off(struct adv7511 *adv)
+{
+}
+
+static inline void adv7533_mode_set(struct adv7511 *adv,
+				    struct drm_display_mode *mode)
+{
+}
+
+static inline int adv7533_patch_registers(struct adv7511 *adv)
+{
+	return -ENODEV;
+}
+
+static inline void adv7533_uninit_cec(struct adv7511 *adv)
+{
+}
+
+static inline int adv7533_init_cec(struct adv7511 *adv)
+{
+	return -ENODEV;
+}
+
+static inline int adv7533_attach_dsi(struct adv7511 *adv)
+{
+	return -ENODEV;
+}
+
+static inline void adv7533_detach_dsi(struct adv7511 *adv)
+{
+}
+
+static inline int adv7533_parse_dt(struct device_node *np, struct adv7511 *adv)
+{
+	return -ENODEV;
+}
+#endif
 
 #endif /* __DRM_I2C_ADV7511_H__ */

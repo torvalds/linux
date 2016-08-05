@@ -211,7 +211,6 @@ static void nft_rbtree_walk(const struct nft_ctx *ctx,
 	struct nft_rbtree_elem *rbe;
 	struct nft_set_elem elem;
 	struct rb_node *node;
-	u8 genmask = nft_genmask_cur(read_pnet(&set->pnet));
 
 	spin_lock_bh(&nft_rbtree_lock);
 	for (node = rb_first(&priv->root); node != NULL; node = rb_next(node)) {
@@ -219,7 +218,7 @@ static void nft_rbtree_walk(const struct nft_ctx *ctx,
 
 		if (iter->count < iter->skip)
 			goto cont;
-		if (!nft_set_elem_active(&rbe->ext, genmask))
+		if (!nft_set_elem_active(&rbe->ext, iter->genmask))
 			goto cont;
 
 		elem.priv = rbe;
