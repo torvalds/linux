@@ -124,31 +124,82 @@
 			port@0 {
 				reg = <0>;
 				label = "lan3";
+				phy-handle = <&lan3phy>;
 			};
 
 			port@1 {
 				reg = <1>;
 				label = "lan4";
+				phy-handle = <&lan4phy>;
 			};
 
 			port@2 {
 				reg = <2>;
 				label = "wan";
+				phy-handle = <&wanphy>;
 			};
 
 			port@3 {
 				reg = <3>;
 				label = "cpu";
+				ethernet = <&ethport>;
 			};
 
 			port@5 {
 				reg = <5>;
 				label = "lan1";
+				phy-handle = <&lan1phy>;
 			};
 
 			port@7 {
 				reg = <7>;
 				label = "lan2";
+				phy-handle = <&lan2phy>;
+			};
+		};
+
+		mdio {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			lan3phy: ethernet-phy@0 {
+				/* Marvell 88E1121R (port 1) */
+				compatible = "ethernet-phy-id0141.0cb0",
+					     "ethernet-phy-ieee802.3-c22";
+				reg = <0>;
+				marvell,reg-init = <3 16 0 0x1777 3 17 0 0x15>;
+			};
+
+			lan4phy: ethernet-phy@1 {
+				/* Marvell 88E1121R (port 2) */
+				compatible = "ethernet-phy-id0141.0cb0",
+					     "ethernet-phy-ieee802.3-c22";
+				reg = <1>;
+				marvell,reg-init = <3 16 0 0x1777 3 17 0 0x15>;
+			};
+
+			wanphy: ethernet-phy@2 {
+				/* Marvell 88E1121R (port 1) */
+				compatible = "ethernet-phy-id0141.0cb0",
+					     "ethernet-phy-ieee802.3-c22";
+				reg = <2>;
+				marvell,reg-init = <3 16 0 0x1777 3 17 0 0x15>;
+			};
+
+			lan1phy: ethernet-phy@5 {
+				/* Marvell 88E1112 */
+				compatible = "ethernet-phy-id0141.0cb0",
+					     "ethernet-phy-ieee802.3-c22";
+				reg = <5>;
+				marvell,reg-init = <3 16 0 0x1777 3 17 0 0x15>;
+			};
+
+			lan2phy: ethernet-phy@7 {
+				/* Marvell 88E1112 */
+				compatible = "ethernet-phy-id0141.0cb0",
+					     "ethernet-phy-ieee802.3-c22";
+				reg = <7>;
+				marvell,reg-init = <3 16 0 0x1777 3 17 0 0x15>;
 			};
 		};
 	};
