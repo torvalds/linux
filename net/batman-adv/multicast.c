@@ -231,18 +231,14 @@ out:
 
 /**
  * batadv_mcast_mla_list_free - free a list of multicast addresses
- * @bat_priv: the bat priv with all the soft interface information
  * @mcast_list: the list to free
  *
  * Removes and frees all items in the given mcast_list.
  */
-static void batadv_mcast_mla_list_free(struct batadv_priv *bat_priv,
-				       struct hlist_head *mcast_list)
+static void batadv_mcast_mla_list_free(struct hlist_head *mcast_list)
 {
 	struct batadv_hw_addr *mcast_entry;
 	struct hlist_node *tmp;
-
-	lockdep_assert_held(&bat_priv->tt.commit_lock);
 
 	hlist_for_each_entry_safe(mcast_entry, tmp, mcast_list, list) {
 		hlist_del(&mcast_entry->list);
@@ -560,7 +556,7 @@ update:
 	batadv_mcast_mla_tt_add(bat_priv, &mcast_list);
 
 out:
-	batadv_mcast_mla_list_free(bat_priv, &mcast_list);
+	batadv_mcast_mla_list_free(&mcast_list);
 }
 
 /**
