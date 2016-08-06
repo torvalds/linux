@@ -711,10 +711,3 @@ bool kvm_vgic_map_is_active(struct kvm_vcpu *vcpu, unsigned int virt_irq)
 	return map_is_active;
 }
 
-int kvm_send_userspace_msi(struct kvm *kvm, struct kvm_msi *msi)
-{
-	if (vgic_has_its(kvm))
-		return vgic_its_inject_msi(kvm, msi);
-	else
-		return -ENODEV;
-}

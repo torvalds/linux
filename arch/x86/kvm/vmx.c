@@ -2809,12 +2809,8 @@ static void nested_vmx_setup_ctls_msrs(struct vcpu_vmx *vmx)
 			vmx->nested.nested_vmx_ept_caps |=
 				VMX_EPT_EXECUTE_ONLY_BIT;
 		vmx->nested.nested_vmx_ept_caps &= vmx_capability.ept;
-		/*
-		 * For nested guests, we don't do anything specific
-		 * for single context invalidation. Hence, only advertise
-		 * support for global context invalidation.
-		 */
-		vmx->nested.nested_vmx_ept_caps |= VMX_EPT_EXTENT_GLOBAL_BIT;
+		vmx->nested.nested_vmx_ept_caps |= VMX_EPT_EXTENT_GLOBAL_BIT |
+			VMX_EPT_EXTENT_CONTEXT_BIT;
 	} else
 		vmx->nested.nested_vmx_ept_caps = 0;
 
@@ -2945,7 +2941,6 @@ static int vmx_get_vmx_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata)
 			vmx->nested.nested_vmx_secondary_ctls_high);
 		break;
 	case MSR_IA32_VMX_EPT_VPID_CAP:
-		/* Currently, no nested vpid support */
 		*pdata = vmx->nested.nested_vmx_ept_caps |
 			((u64)vmx->nested.nested_vmx_vpid_caps << 32);
 		break;
@@ -7609,12 +7604,16 @@ static int handle_invept(struct kvm_vcpu *vcpu)
 
 	switch (type) {
 	case VMX_EPT_EXTENT_GLOBAL:
+	/*
+	 * TODO: track mappings and invalidate
+	 * single context requests appropriately
+	 */
+	case VMX_EPT_EXTENT_CONTEXT:
 		kvm_mmu_sync_roots(vcpu);
 		kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
 		nested_vmx_succeed(vcpu);
 		break;
 	default:
-		/* Trap single context invalidation invept calls */
 		BUG_ON(1);
 		break;
 	}
