@@ -88,7 +88,6 @@ static int amdgpu_atombios_dp_process_aux_ch(struct amdgpu_i2c_chan *chan,
 
 	/* timeout */
 	if (args.v2.ucReplyStatus == 1) {
-		DRM_DEBUG_KMS("dp_aux_ch timeout\n");
 		r = -ETIMEDOUT;
 		goto done;
 	}
