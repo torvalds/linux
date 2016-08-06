@@ -574,7 +574,17 @@ static int drm_dp_i2c_do_msg(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 			if (ret == -EBUSY)
 				continue;
 
-			DRM_DEBUG_KMS("transaction failed: %d\n", ret);
+			/*
+			 * While timeouts can be errors, they're usually normal
+			 * behavior (for instance, when a driver tries to
+			 * communicate with a non-existant DisplayPort device).
+			 * Avoid spamming the kernel log with timeout errors.
+			 */
+			if (ret == -ETIMEDOUT)
+				DRM_DEBUG_KMS_RATELIMITED("transaction timed out\n");
+			else
+				DRM_DEBUG_KMS("transaction failed: %d\n", ret);
+
 			return ret;
 		}
 
