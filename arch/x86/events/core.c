@@ -263,10 +263,13 @@ static bool check_hw_exists(void)
 	return true;
 
 msr_fail:
-	pr_cont("Broken PMU hardware detected, using software events only.\n");
-	printk("%sFailed to access perfctr msr (MSR %x is %Lx)\n",
-		boot_cpu_has(X86_FEATURE_HYPERVISOR) ? KERN_INFO : KERN_ERR,
-		reg, val_new);
+	if (boot_cpu_has(X86_FEATURE_HYPERVISOR)) {
+		pr_cont("PMU not available due to virtualization, using software events only.\n");
+	} else {
+		pr_cont("Broken PMU hardware detected, using software events only.\n");
+		pr_err("Failed to access perfctr msr (MSR %x is %Lx)\n",
+		       reg, val_new);
+	}
 
 	return false;
 }

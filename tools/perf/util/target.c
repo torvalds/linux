@@ -122,11 +122,7 @@ int target__strerror(struct target *target, int errnum,
 	BUG_ON(buflen == 0);
 
 	if (errnum >= 0) {
-		const char *err = str_error_r(errnum, buf, buflen);
-
-		if (err != buf)
-			scnprintf(buf, buflen, "%s", err);
-
+		str_error_r(errnum, buf, buflen);
 		return 0;
 	}
 
