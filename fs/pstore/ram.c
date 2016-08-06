@@ -486,30 +486,21 @@ static int ramoops_parse_dt(struct platform_device *pdev,
 			    struct ramoops_platform_data *pdata)
 {
 	struct device_node *of_node = pdev->dev.of_node;
-	struct device_node *mem_region;
-	struct resource res;
+	struct resource *res;
 	u32 value;
 	int ret;
 
 	dev_dbg(&pdev->dev, "using Device Tree\n");
 
-	mem_region = of_parse_phandle(of_node, "memory-region", 0);
-	if (!mem_region) {
-		dev_err(&pdev->dev, "no memory-region phandle\n");
-		return -ENODEV;
-	}
-
-	ret = of_address_to_resource(mem_region, 0, &res);
-	of_node_put(mem_region);
-	if (ret) {
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
 		dev_err(&pdev->dev,
-			"failed to translate memory-region to resource: %d\n",
-			ret);
-		return ret;
+			"failed to locate DT /reserved-memory resource\n");
+		return -EINVAL;
 	}
 
-	pdata->mem_size = resource_size(&res);
-	pdata->mem_address = res.start;
+	pdata->mem_size = resource_size(res);
+	pdata->mem_address = res->start;
 	pdata->mem_type = of_property_read_bool(of_node, "unbuffered");
 	pdata->dump_oops = !of_property_read_bool(of_node, "no-dump-oops");
 
@@ -652,11 +643,11 @@ fail_buf:
 	kfree(cxt->pstore.buf);
 fail_clear:
 	cxt->pstore.bufsize = 0;
-	kfree(cxt->mprz);
+	persistent_ram_free(cxt->mprz);
 fail_init_mprz:
-	kfree(cxt->fprz);
+	persistent_ram_free(cxt->fprz);
 fail_init_fprz:
-	kfree(cxt->cprz);
+	persistent_ram_free(cxt->cprz);
 fail_init_cprz:
 	ramoops_free_przs(cxt);
 fail_out:
