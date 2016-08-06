@@ -21,7 +21,7 @@ static inline u32 __xchg_cmpxchg(volatile void *ptr, u32 x, int size)
 	int off = (unsigned long)ptr % sizeof(u32);
 	volatile u32 *p = ptr - off;
 #ifdef __BIG_ENDIAN
-	int bitoff = (sizeof(u32) - 1 - off) * BITS_PER_BYTE;
+	int bitoff = (sizeof(u32) - size - off) * BITS_PER_BYTE;
 #else
 	int bitoff = off * BITS_PER_BYTE;
 #endif

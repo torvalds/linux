@@ -42,6 +42,8 @@ static inline void cacheop_on_each_cpu(void (*func) (void *info), void *info,
 {
 	preempt_disable();
 
+	/* Needing IPI for cross-core flush is SHX3-specific. */
+#ifdef CONFIG_CPU_SHX3
 	/*
 	 * It's possible that this gets called early on when IRQs are
 	 * still disabled due to ioremapping by the boot CPU, so don't
@@ -49,6 +51,7 @@ static inline void cacheop_on_each_cpu(void (*func) (void *info), void *info,
 	 */
 	if (num_online_cpus() > 1)
 		smp_call_function(func, info, wait);
+#endif
 
 	func(info);
 
@@ -244,7 +247,11 @@ void flush_cache_sigtramp(unsigned long address)
 
 static void compute_alias(struct cache_info *c)
 {
+#ifdef CONFIG_MMU
 	c->alias_mask = ((c->sets - 1) << c->entry_shift) & ~(PAGE_SIZE - 1);
+#else
+	c->alias_mask = 0;
+#endif
 	c->n_aliases = c->alias_mask ? (c->alias_mask >> PAGE_SHIFT) + 1 : 0;
 }
 
@@ -305,7 +312,11 @@ void __init cpu_cache_init(void)
 	if (unlikely(cache_disabled))
 		goto skip;
 
-	if (boot_cpu_data.family == CPU_FAMILY_SH2) {
+	if (boot_cpu_data.type == CPU_J2) {
+		extern void __weak j2_cache_init(void);
+
+		j2_cache_init();
+	} else if (boot_cpu_data.family == CPU_FAMILY_SH2) {
 		extern void __weak sh2_cache_init(void);
 
 		sh2_cache_init();
