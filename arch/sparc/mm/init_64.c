@@ -1160,7 +1160,7 @@ int __node_distance(int from, int to)
 	return numa_latency[from][to];
 }
 
-static int find_best_numa_node_for_mlgroup(struct mdesc_mlgroup *grp)
+static int __init find_best_numa_node_for_mlgroup(struct mdesc_mlgroup *grp)
 {
 	int i;
 
@@ -1173,8 +1173,8 @@ static int find_best_numa_node_for_mlgroup(struct mdesc_mlgroup *grp)
 	return i;
 }
 
-static void find_numa_latencies_for_group(struct mdesc_handle *md, u64 grp,
-					  int index)
+static void __init find_numa_latencies_for_group(struct mdesc_handle *md,
+						 u64 grp, int index)
 {
 	u64 arc;
 
