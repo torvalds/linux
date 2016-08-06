@@ -364,8 +364,8 @@ int batadv_recv_icmp_packet(struct sk_buff *skb,
 
 	ethhdr = eth_hdr(skb);
 
-	/* packet with unicast indication but broadcast recipient */
-	if (is_broadcast_ether_addr(ethhdr->h_dest))
+	/* packet with unicast indication but non-unicast recipient */
+	if (!is_valid_ether_addr(ethhdr->h_dest))
 		goto free_skb;
 
 	/* packet with broadcast/multicast sender address */
@@ -462,8 +462,8 @@ static int batadv_check_unicast_packet(struct batadv_priv *bat_priv,
 
 	ethhdr = eth_hdr(skb);
 
-	/* packet with unicast indication but broadcast recipient */
-	if (is_broadcast_ether_addr(ethhdr->h_dest))
+	/* packet with unicast indication but non-unicast recipient */
+	if (!is_valid_ether_addr(ethhdr->h_dest))
 		return -EBADR;
 
 	/* packet with broadcast/multicast sender address */
