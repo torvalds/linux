@@ -109,14 +109,6 @@ config MACH_SCB9328
 	help
 	  Say Y here if you are using a Synertronixx scb9328 board
 
-config MACH_APF9328
-	bool "APF9328"
-	select IMX_HAVE_PLATFORM_IMX_I2C
-	select IMX_HAVE_PLATFORM_IMX_UART
-	select SOC_IMX1
-	help
-	  Say Yes here if you are using the Armadeus APF9328 development board
-
 config MACH_IMX1_DT
 	bool "Support i.MX1 platforms from device tree"
 	select SOC_IMX1
