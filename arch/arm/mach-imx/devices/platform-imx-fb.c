@@ -19,11 +19,6 @@
 		.irq = soc ## _INT_LCDC,				\
 	}
 
-#ifdef CONFIG_SOC_IMX1
-const struct imx_imx_fb_data imx1_imx_fb_data __initconst =
-	imx_imx_fb_data_entry_single(MX1, "imx1-fb", SZ_4K);
-#endif /* ifdef CONFIG_SOC_IMX1 */
-
 #ifdef CONFIG_SOC_IMX21
 const struct imx_imx_fb_data imx21_imx_fb_data __initconst =
 	imx_imx_fb_data_entry_single(MX21, "imx21-fb", SZ_4K);

@@ -67,7 +67,6 @@ config ARCH_MXC_IOMUX_V3
 config SOC_IMX1
 	bool
 	select CPU_ARM920T
-	select IMX_HAVE_IOMUX_V1
 	select MXC_AVIC
 	select PINCTRL_IMX1
 
