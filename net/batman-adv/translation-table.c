@@ -56,7 +56,6 @@
 #include "hard-interface.h"
 #include "hash.h"
 #include "log.h"
-#include "multicast.h"
 #include "netlink.h"
 #include "originator.h"
 #include "packet.h"
@@ -3794,9 +3793,6 @@ static void batadv_tt_local_purge_pending_clients(struct batadv_priv *bat_priv)
 static void batadv_tt_local_commit_changes_nolock(struct batadv_priv *bat_priv)
 {
 	lockdep_assert_held(&bat_priv->tt.commit_lock);
-
-	/* Update multicast addresses in local translation table */
-	batadv_mcast_mla_update(bat_priv);
 
 	if (atomic_read(&bat_priv->tt.local_changes) < 1) {
 		if (!batadv_atomic_dec_not_zero(&bat_priv->tt.ogm_append_cnt))

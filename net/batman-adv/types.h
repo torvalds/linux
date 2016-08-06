@@ -785,9 +785,10 @@ struct batadv_mcast_querier_state {
  * @num_want_all_ipv6: counter for items in want_all_ipv6_list
  * @want_lists_lock: lock for protecting modifications to mcast want lists
  *  (traversals are rcu-locked)
+ * @work: work queue callback item for multicast TT and TVLV updates
  */
 struct batadv_priv_mcast {
-	struct hlist_head mla_list;
+	struct hlist_head mla_list; /* see __batadv_mcast_mla_update() */
 	struct hlist_head want_all_unsnoopables_list;
 	struct hlist_head want_all_ipv4_list;
 	struct hlist_head want_all_ipv6_list;
@@ -802,6 +803,7 @@ struct batadv_priv_mcast {
 	atomic_t num_want_all_ipv6;
 	/* protects want_all_{unsnoopables,ipv4,ipv6}_list */
 	spinlock_t want_lists_lock;
+	struct delayed_work work;
 };
 #endif
 
