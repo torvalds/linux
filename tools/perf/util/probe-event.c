@@ -385,7 +385,7 @@ static int find_alternative_probe_point(struct debuginfo *dinfo,
 		if (uprobes)
 			address = sym->start;
 		else
-			address = map->unmap_ip(map, sym->start);
+			address = map->unmap_ip(map, sym->start) - map->reloc;
 		break;
 	}
 	if (!address) {
