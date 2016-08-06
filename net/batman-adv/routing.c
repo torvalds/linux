@@ -368,8 +368,8 @@ int batadv_recv_icmp_packet(struct sk_buff *skb,
 	if (is_broadcast_ether_addr(ethhdr->h_dest))
 		goto free_skb;
 
-	/* packet with broadcast sender address */
-	if (is_broadcast_ether_addr(ethhdr->h_source))
+	/* packet with broadcast/multicast sender address */
+	if (is_multicast_ether_addr(ethhdr->h_source))
 		goto free_skb;
 
 	/* not for me */
@@ -466,8 +466,8 @@ static int batadv_check_unicast_packet(struct batadv_priv *bat_priv,
 	if (is_broadcast_ether_addr(ethhdr->h_dest))
 		return -EBADR;
 
-	/* packet with broadcast sender address */
-	if (is_broadcast_ether_addr(ethhdr->h_source))
+	/* packet with broadcast/multicast sender address */
+	if (is_multicast_ether_addr(ethhdr->h_source))
 		return -EBADR;
 
 	/* not for me */
@@ -1159,8 +1159,8 @@ int batadv_recv_bcast_packet(struct sk_buff *skb,
 	if (!is_broadcast_ether_addr(ethhdr->h_dest))
 		goto free_skb;
 
-	/* packet with broadcast sender address */
-	if (is_broadcast_ether_addr(ethhdr->h_source))
+	/* packet with broadcast/multicast sender address */
+	if (is_multicast_ether_addr(ethhdr->h_source))
 		goto free_skb;
 
 	/* ignore broadcasts sent by myself */
