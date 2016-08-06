@@ -24,7 +24,7 @@ struct dax_pmem {
 	struct completion cmp;
 };
 
-struct dax_pmem *to_dax_pmem(struct percpu_ref *ref)
+static struct dax_pmem *to_dax_pmem(struct percpu_ref *ref)
 {
 	return container_of(ref, struct dax_pmem, ref);
 }

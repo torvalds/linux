@@ -18,6 +18,7 @@
 #include <linux/dax.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
+#include "dax.h"
 
 static int dax_major;
 static struct class *dax_class;
