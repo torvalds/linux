@@ -715,8 +715,8 @@ static int hns_roce_get_cfg(struct hns_roce_dev *hr_dev)
 
 	res = platform_get_resource(hr_dev->pdev, IORESOURCE_MEM, 0);
 	hr_dev->reg_base = devm_ioremap_resource(dev, res);
-	if (!hr_dev->reg_base)
-		return -ENOMEM;
+	if (IS_ERR(hr_dev->reg_base))
+		return PTR_ERR(hr_dev->reg_base);
 
 	for (i = 0; i < HNS_ROCE_MAX_PORTS; i++) {
 		net_node = of_parse_phandle(np, "eth-handle", i);
