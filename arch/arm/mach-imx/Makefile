@@ -34,9 +34,6 @@ obj-y += ssi-fiq.o
 obj-y += ssi-fiq-ksym.o
 endif
 
-# i.MX1 based machines
-obj-$(CONFIG_MACH_IMX1_DT) += imx1-dt.o
-
 # i.MX21 based machines
 obj-$(CONFIG_MACH_MX21ADS) += mach-mx21ads.o
 
@@ -90,6 +87,7 @@ obj-$(CONFIG_SOC_IMX53) += suspend-imx53.o
 endif
 obj-$(CONFIG_SOC_IMX6) += pm-imx6.o
 
+obj-$(CONFIG_SOC_IMX1) += mach-imx1.o
 obj-$(CONFIG_SOC_IMX50) += mach-imx50.o
 obj-$(CONFIG_SOC_IMX51) += mach-imx51.o
 obj-$(CONFIG_SOC_IMX53) += mach-imx53.o
