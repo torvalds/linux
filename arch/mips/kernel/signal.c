@@ -772,6 +772,14 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 	struct mips_abi *abi = current->thread.abi;
 	void *vdso = current->mm->context.vdso;
 
+	/*
+	 * If we were emulating a delay slot instruction, exit that frame such
+	 * that addresses in the sigframe are as expected for userland and we
+	 * don't have a problem if we reuse the thread's frame for an
+	 * instruction within the signal handler.
+	 */
+	dsemul_thread_rollback(regs);
+
 	if (regs->regs[0]) {
 		switch(regs->regs[2]) {
 		case ERESTART_RESTARTBLOCK:
