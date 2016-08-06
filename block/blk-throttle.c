@@ -145,11 +145,6 @@ struct throtl_data
 	/* Total Number of queued bios on READ and WRITE lists */
 	unsigned int nr_queued[2];
 
-	/*
-	 * number of total undestroyed groups
-	 */
-	unsigned int nr_undestroyed_grps;
-
 	/* Work for dispatching throttled bios */
 	struct work_struct dispatch_work;
 };

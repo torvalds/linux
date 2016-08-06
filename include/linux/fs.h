@@ -2480,11 +2480,12 @@ extern void init_special_inode(struct inode *, umode_t, dev_t);
 extern void make_bad_inode(struct inode *);
 extern bool is_bad_inode(struct inode *);
 
-#ifdef CONFIG_BLOCK
 static inline bool op_is_write(unsigned int op)
 {
 	return op == REQ_OP_READ ? false : true;
 }
+
+#ifdef CONFIG_BLOCK
 
 /*
  * return data direction, READ or WRITE

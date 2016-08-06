@@ -2049,7 +2049,7 @@ int repair_io_failure(struct inode *inode, u64 start, u64 length, u64 logical,
 		return -EIO;
 	}
 	bio->bi_bdev = dev->bdev;
-	bio->bi_rw = WRITE_SYNC;
+	bio_set_op_attrs(bio, REQ_OP_WRITE, WRITE_SYNC);
 	bio_add_page(bio, page, length, pg_offset);
 
 	if (btrfsic_submit_bio_wait(bio)) {
@@ -2697,12 +2697,6 @@ struct bio *btrfs_bio_clone(struct bio *bio, gfp_t gfp_mask)
 		btrfs_bio->csum = NULL;
 		btrfs_bio->csum_allocated = NULL;
 		btrfs_bio->end_io = NULL;
-
-#ifdef CONFIG_BLK_CGROUP
-		/* FIXME, put this into bio_clone_bioset */
-		if (bio->bi_css)
-			bio_associate_blkcg(new, bio->bi_css);
-#endif
 	}
 	return new;
 }

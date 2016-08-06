@@ -416,7 +416,8 @@ int bdev_read_page(struct block_device *bdev, sector_t sector,
 	result = blk_queue_enter(bdev->bd_queue, false);
 	if (result)
 		return result;
-	result = ops->rw_page(bdev, sector + get_start_sect(bdev), page, READ);
+	result = ops->rw_page(bdev, sector + get_start_sect(bdev), page,
+			      REQ_OP_READ);
 	blk_queue_exit(bdev->bd_queue);
 	return result;
 }
@@ -445,7 +446,6 @@ int bdev_write_page(struct block_device *bdev, sector_t sector,
 			struct page *page, struct writeback_control *wbc)
 {
 	int result;
-	int rw = (wbc->sync_mode == WB_SYNC_ALL) ? WRITE_SYNC : WRITE;
 	const struct block_device_operations *ops = bdev->bd_disk->fops;
 
 	if (!ops->rw_page || bdev_get_integrity(bdev))
@@ -455,7 +455,8 @@ int bdev_write_page(struct block_device *bdev, sector_t sector,
 		return result;
 
 	set_page_writeback(page);
-	result = ops->rw_page(bdev, sector + get_start_sect(bdev), page, rw);
+	result = ops->rw_page(bdev, sector + get_start_sect(bdev), page,
+			      REQ_OP_WRITE);
 	if (result)
 		end_page_writeback(page);
 	else
