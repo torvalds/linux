@@ -223,7 +223,7 @@ static int drm_dp_dpcd_access(struct drm_dp_aux *aux, u8 request,
 			err = ret;
 	}
 
-	DRM_DEBUG_KMS("too many retries, giving up\n");
+	DRM_DEBUG_KMS("Too many retries, giving up. First error: %d\n", err);
 	ret = err;
 
 unlock:
