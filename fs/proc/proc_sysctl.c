@@ -474,7 +474,7 @@ static struct dentry *proc_sys_lookup(struct inode *dir, struct dentry *dentry,
 {
 	struct ctl_table_header *head = grab_header(dir);
 	struct ctl_table_header *h = NULL;
-	struct qstr *name = &dentry->d_name;
+	const struct qstr *name = &dentry->d_name;
 	struct ctl_table *p;
 	struct inode *inode;
 	struct dentry *err = ERR_PTR(-ENOENT);

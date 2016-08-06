@@ -652,8 +652,8 @@ out_free:
 	return err;
 }
 
-static int vfat_add_entry(struct inode *dir, struct qstr *qname, int is_dir,
-			  int cluster, struct timespec *ts,
+static int vfat_add_entry(struct inode *dir, const struct qstr *qname,
+			  int is_dir, int cluster, struct timespec *ts,
 			  struct fat_slot_info *sinfo)
 {
 	struct msdos_dir_slot *slots;
@@ -688,7 +688,7 @@ cleanup:
 	return err;
 }
 
-static int vfat_find(struct inode *dir, struct qstr *qname,
+static int vfat_find(struct inode *dir, const struct qstr *qname,
 		     struct fat_slot_info *sinfo)
 {
 	unsigned int len = vfat_striptail_len(qname);
