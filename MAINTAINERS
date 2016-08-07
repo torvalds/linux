@@ -6587,7 +6587,7 @@ L:	kasan-dev@googlegroups.com
 S:	Maintained
 F:	arch/*/include/asm/kasan.h
 F:	arch/*/mm/kasan_init*
-F:	Documentation/kasan.txt
+F:	Documentation/dev-tools/kasan.rst
 F:	include/linux/kasan*.h
 F:	lib/test_kasan.c
 F:	mm/kasan/

@@ -18,3 +18,4 @@ whole; patches welcome!
    sparse
    kcov
    gcov
+   kasan
