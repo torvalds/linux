@@ -1502,7 +1502,9 @@ static int advance_hpp_check(struct perf_hpp *hpp, int inc)
 	return hpp->size <= 0;
 }
 
-static int hists_browser__scnprintf_headers(struct hist_browser *browser, char *buf, size_t size)
+static int
+hists_browser__scnprintf_headers(struct hist_browser *browser, char *buf,
+				 size_t size, int line)
 {
 	struct hists *hists = browser->hists;
 	struct perf_hpp dummy_hpp = {
@@ -1523,7 +1525,7 @@ static int hists_browser__scnprintf_headers(struct hist_browser *browser, char *
 		if (perf_hpp__should_skip(fmt, hists)  || column++ < browser->b.horiz_scroll)
 			continue;
 
-		ret = fmt->header(fmt, &dummy_hpp, hists, 0);
+		ret = fmt->header(fmt, &dummy_hpp, hists, line);
 		if (advance_hpp_check(&dummy_hpp, ret))
 			break;
 
@@ -1628,14 +1630,21 @@ static void hists_browser__hierarchy_headers(struct hist_browser *browser)
 
 static void hists_browser__headers(struct hist_browser *browser)
 {
-	char headers[1024];
+	struct hists *hists = browser->hists;
+	struct perf_hpp_list *hpp_list = hists->hpp_list;
 
-	hists_browser__scnprintf_headers(browser, headers,
-					 sizeof(headers));
+	int line;
 
-	ui_browser__gotorc(&browser->b, 0, 0);
-	ui_browser__set_color(&browser->b, HE_COLORSET_ROOT);
-	ui_browser__write_nstring(&browser->b, headers, browser->b.width + 1);
+	for (line = 0; line < hpp_list->nr_header_lines; line++) {
+		char headers[1024];
+
+		hists_browser__scnprintf_headers(browser, headers,
+						 sizeof(headers), line);
+
+		ui_browser__gotorc(&browser->b, line, 0);
+		ui_browser__set_color(&browser->b, HE_COLORSET_ROOT);
+		ui_browser__write_nstring(&browser->b, headers, browser->b.width + 1);
+	}
 }
 
 static void hist_browser__show_headers(struct hist_browser *browser)
