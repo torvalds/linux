@@ -887,9 +887,9 @@ EXPORT_SYMBOL(end_page_writeback);
  * After completing I/O on a page, call this routine to update the page
  * flags appropriately
  */
-void page_endio(struct page *page, int op, int err)
+void page_endio(struct page *page, bool is_write, int err)
 {
-	if (!op_is_write(op)) {
+	if (!is_write) {
 		if (!err) {
 			SetPageUptodate(page);
 		} else {

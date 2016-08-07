@@ -1133,11 +1133,11 @@ static int btt_write_pg(struct btt *btt, struct bio_integrity_payload *bip,
 
 static int btt_do_bvec(struct btt *btt, struct bio_integrity_payload *bip,
 			struct page *page, unsigned int len, unsigned int off,
-			int op, sector_t sector)
+			bool is_write, sector_t sector)
 {
 	int ret;
 
-	if (!op_is_write(op)) {
+	if (!is_write) {
 		ret = btt_read_pg(btt, bip, page, off, sector, len);
 		flush_dcache_page(page);
 	} else {
@@ -1180,7 +1180,7 @@ static blk_qc_t btt_make_request(struct request_queue *q, struct bio *bio)
 		BUG_ON(len % btt->sector_size);
 
 		err = btt_do_bvec(btt, bip, bvec.bv_page, len, bvec.bv_offset,
-				  bio_op(bio), iter.bi_sector);
+				  op_is_write(bio_op(bio)), iter.bi_sector);
 		if (err) {
 			dev_info(&btt->nd_btt->dev,
 					"io error in %s sector %lld, len %d,\n",
@@ -1200,12 +1200,12 @@ out:
 }
 
 static int btt_rw_page(struct block_device *bdev, sector_t sector,
-		struct page *page, int op)
+		struct page *page, bool is_write)
 {
 	struct btt *btt = bdev->bd_disk->private_data;
 
-	btt_do_bvec(btt, NULL, page, PAGE_SIZE, 0, op, sector);
-	page_endio(page, op, 0);
+	btt_do_bvec(btt, NULL, page, PAGE_SIZE, 0, is_write, sector);
+	page_endio(page, is_write, 0);
 	return 0;
 }
 

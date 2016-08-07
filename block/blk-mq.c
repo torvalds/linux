@@ -1234,7 +1234,7 @@ static struct request *blk_mq_map_request(struct request_queue *q,
 	ctx = blk_mq_get_ctx(q);
 	hctx = q->mq_ops->map_queue(q, ctx->cpu);
 
-	if (rw_is_sync(bio_op(bio), bio->bi_rw))
+	if (rw_is_sync(bio_op(bio), bio->bi_opf))
 		op_flags |= REQ_SYNC;
 
 	trace_block_getrq(q, bio, op);
@@ -1302,8 +1302,8 @@ static int blk_mq_direct_issue_request(struct request *rq, blk_qc_t *cookie)
  */
 static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 {
-	const int is_sync = rw_is_sync(bio_op(bio), bio->bi_rw);
-	const int is_flush_fua = bio->bi_rw & (REQ_PREFLUSH | REQ_FUA);
+	const int is_sync = rw_is_sync(bio_op(bio), bio->bi_opf);
+	const int is_flush_fua = bio->bi_opf & (REQ_PREFLUSH | REQ_FUA);
 	struct blk_map_ctx data;
 	struct request *rq;
 	unsigned int request_count = 0;
@@ -1396,8 +1396,8 @@ done:
  */
 static blk_qc_t blk_sq_make_request(struct request_queue *q, struct bio *bio)
 {
-	const int is_sync = rw_is_sync(bio_op(bio), bio->bi_rw);
-	const int is_flush_fua = bio->bi_rw & (REQ_PREFLUSH | REQ_FUA);
+	const int is_sync = rw_is_sync(bio_op(bio), bio->bi_opf);
+	const int is_flush_fua = bio->bi_opf & (REQ_PREFLUSH | REQ_FUA);
 	struct blk_plug *plug;
 	unsigned int request_count = 0;
 	struct blk_map_ctx data;

@@ -1663,13 +1663,13 @@ static u32 bio_flags_to_wire(struct drbd_connection *connection,
 			     struct bio *bio)
 {
 	if (connection->agreed_pro_version >= 95)
-		return  (bio->bi_rw & REQ_SYNC ? DP_RW_SYNC : 0) |
-			(bio->bi_rw & REQ_FUA ? DP_FUA : 0) |
-			(bio->bi_rw & REQ_PREFLUSH ? DP_FLUSH : 0) |
+		return  (bio->bi_opf & REQ_SYNC ? DP_RW_SYNC : 0) |
+			(bio->bi_opf & REQ_FUA ? DP_FUA : 0) |
+			(bio->bi_opf & REQ_PREFLUSH ? DP_FLUSH : 0) |
 			(bio_op(bio) == REQ_OP_WRITE_SAME ? DP_WSAME : 0) |
 			(bio_op(bio) == REQ_OP_DISCARD ? DP_DISCARD : 0);
 	else
-		return bio->bi_rw & REQ_SYNC ? DP_RW_SYNC : 0;
+		return bio->bi_opf & REQ_SYNC ? DP_RW_SYNC : 0;
 }
 
 /* Used to send write or TRIM aka REQ_DISCARD requests

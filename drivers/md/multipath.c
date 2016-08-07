@@ -91,7 +91,7 @@ static void multipath_end_request(struct bio *bio)
 
 	if (!bio->bi_error)
 		multipath_end_bh_io(mp_bh, 0);
-	else if (!(bio->bi_rw & REQ_RAHEAD)) {
+	else if (!(bio->bi_opf & REQ_RAHEAD)) {
 		/*
 		 * oops, IO error:
 		 */
@@ -112,7 +112,7 @@ static void multipath_make_request(struct mddev *mddev, struct bio * bio)
 	struct multipath_bh * mp_bh;
 	struct multipath_info *multipath;
 
-	if (unlikely(bio->bi_rw & REQ_PREFLUSH)) {
+	if (unlikely(bio->bi_opf & REQ_PREFLUSH)) {
 		md_flush_request(mddev, bio);
 		return;
 	}
@@ -135,7 +135,7 @@ static void multipath_make_request(struct mddev *mddev, struct bio * bio)
 
 	mp_bh->bio.bi_iter.bi_sector += multipath->rdev->data_offset;
 	mp_bh->bio.bi_bdev = multipath->rdev->bdev;
-	mp_bh->bio.bi_rw |= REQ_FAILFAST_TRANSPORT;
+	mp_bh->bio.bi_opf |= REQ_FAILFAST_TRANSPORT;
 	mp_bh->bio.bi_end_io = multipath_end_request;
 	mp_bh->bio.bi_private = mp_bh;
 	generic_make_request(&mp_bh->bio);
@@ -360,7 +360,7 @@ static void multipathd(struct md_thread *thread)
 			bio->bi_iter.bi_sector +=
 				conf->multipaths[mp_bh->path].rdev->data_offset;
 			bio->bi_bdev = conf->multipaths[mp_bh->path].rdev->bdev;
-			bio->bi_rw |= REQ_FAILFAST_TRANSPORT;
+			bio->bi_opf |= REQ_FAILFAST_TRANSPORT;
 			bio->bi_end_io = multipath_end_request;
 			bio->bi_private = mp_bh;
 			generic_make_request(bio);

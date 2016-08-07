@@ -18,17 +18,6 @@ struct cgroup_subsys_state;
 typedef void (bio_end_io_t) (struct bio *);
 typedef void (bio_destructor_t) (struct bio *);
 
-enum req_op {
-	REQ_OP_READ,
-	REQ_OP_WRITE,
-	REQ_OP_DISCARD,		/* request to discard sectors */
-	REQ_OP_SECURE_ERASE,	/* request to securely erase sectors */
-	REQ_OP_WRITE_SAME,	/* write same block many times */
-	REQ_OP_FLUSH,		/* request for cache flush */
-};
-
-#define REQ_OP_BITS 3
-
 #ifdef CONFIG_BLOCK
 /*
  * main unit of I/O for the block layer and lower layers (ie drivers and
@@ -38,8 +27,9 @@ struct bio {
 	struct bio		*bi_next;	/* request queue link */
 	struct block_device	*bi_bdev;
 	int			bi_error;
-	unsigned int		bi_rw;		/* bottom bits req flags,
-						 * top bits REQ_OP
+	unsigned int		bi_opf;		/* bottom bits req flags,
+						 * top bits REQ_OP. Use
+						 * accessors.
 						 */
 	unsigned short		bi_flags;	/* status, command, etc */
 	unsigned short		bi_ioprio;
@@ -100,13 +90,13 @@ struct bio {
 };
 
 #define BIO_OP_SHIFT	(8 * sizeof(unsigned int) - REQ_OP_BITS)
-#define bio_op(bio)	((bio)->bi_rw >> BIO_OP_SHIFT)
+#define bio_op(bio)	((bio)->bi_opf >> BIO_OP_SHIFT)
 
 #define bio_set_op_attrs(bio, op, op_flags) do {		\
 	WARN_ON(op >= (1 << REQ_OP_BITS));			\
-	(bio)->bi_rw &= ((1 << BIO_OP_SHIFT) - 1);		\
-	(bio)->bi_rw |= ((unsigned int) (op) << BIO_OP_SHIFT);	\
-	(bio)->bi_rw |= op_flags;				\
+	(bio)->bi_opf &= ((1 << BIO_OP_SHIFT) - 1);		\
+	(bio)->bi_opf |= ((unsigned int) (op) << BIO_OP_SHIFT);	\
+	(bio)->bi_opf |= op_flags;				\
 } while (0)
 
 #define BIO_RESET_BYTES		offsetof(struct bio, bi_max_vecs)
@@ -149,7 +139,7 @@ struct bio {
 
 /*
  * Request flags.  For use in the cmd_flags field of struct request, and in
- * bi_rw of struct bio.  Note that some flags are only valid in either one.
+ * bi_opf of struct bio.  Note that some flags are only valid in either one.
  */
 enum rq_flag_bits {
 	/* common flags */
@@ -238,6 +228,17 @@ enum rq_flag_bits {
 #define REQ_PM			(1ULL << __REQ_PM)
 #define REQ_HASHED		(1ULL << __REQ_HASHED)
 #define REQ_MQ_INFLIGHT		(1ULL << __REQ_MQ_INFLIGHT)
+
+enum req_op {
+	REQ_OP_READ,
+	REQ_OP_WRITE,
+	REQ_OP_DISCARD,		/* request to discard sectors */
+	REQ_OP_SECURE_ERASE,	/* request to securely erase sectors */
+	REQ_OP_WRITE_SAME,	/* write same block many times */
+	REQ_OP_FLUSH,		/* request for cache flush */
+};
+
+#define REQ_OP_BITS 3
 
 typedef unsigned int blk_qc_t;
 #define BLK_QC_T_NONE	-1U
