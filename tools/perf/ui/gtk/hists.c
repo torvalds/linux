@@ -549,7 +549,7 @@ static void perf_gtk__show_hierarchy(GtkWidget *window, struct hists *hists,
 				strcat(buf, "+");
 			first_col = false;
 
-			fmt->header(fmt, &hpp, hists);
+			fmt->header(fmt, &hpp, hists, 0);
 			strcat(buf, ltrim(rtrim(hpp.buf)));
 		}
 	}

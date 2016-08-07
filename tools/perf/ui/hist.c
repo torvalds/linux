@@ -230,7 +230,7 @@ static int hpp__width_fn(struct perf_hpp_fmt *fmt,
 }
 
 static int hpp__header_fn(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
-			  struct hists *hists)
+			  struct hists *hists, int line __maybe_unused)
 {
 	int len = hpp__width_fn(fmt, hpp, hists);
 	return scnprintf(hpp->buf, hpp->size, "%*s", len, fmt->name);
