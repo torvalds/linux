@@ -129,8 +129,8 @@ static ssize_t orangefs_direct_IO(struct kiocb *iocb,
 				  struct iov_iter *iter)
 {
 	gossip_debug(GOSSIP_INODE_DEBUG,
-		     "orangefs_direct_IO: %s\n",
-		     iocb->ki_filp->f_path.dentry->d_name.name);
+		     "orangefs_direct_IO: %pD\n",
+		     iocb->ki_filp);
 
 	return -EINVAL;
 }
@@ -216,8 +216,8 @@ int orangefs_setattr(struct dentry *dentry, struct iattr *iattr)
 	struct inode *inode = dentry->d_inode;
 
 	gossip_debug(GOSSIP_INODE_DEBUG,
-		     "orangefs_setattr: called on %s\n",
-		     dentry->d_name.name);
+		     "orangefs_setattr: called on %pd\n",
+		     dentry);
 
 	ret = inode_change_ok(inode, iattr);
 	if (ret)
@@ -259,8 +259,8 @@ int orangefs_getattr(struct vfsmount *mnt,
 	struct orangefs_inode_s *orangefs_inode = NULL;
 
 	gossip_debug(GOSSIP_INODE_DEBUG,
-		     "orangefs_getattr: called on %s\n",
-		     dentry->d_name.name);
+		     "orangefs_getattr: called on %pd\n",
+		     dentry);
 
 	ret = orangefs_inode_getattr(inode, 0, 0);
 	if (ret == 0) {
