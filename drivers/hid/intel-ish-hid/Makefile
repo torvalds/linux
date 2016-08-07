@@ -15,4 +15,8 @@ obj-$(CONFIG_INTEL_ISH_HID) += intel-ish-ipc.o
 intel-ish-ipc-objs := ipc/ipc.o
 intel-ish-ipc-objs += ipc/pci-ish.o
 
+obj-$(CONFIG_INTEL_ISH_HID) += intel-ishtp-hid.o
+intel-ishtp-hid-objs := ishtp-hid.o
+intel-ishtp-hid-objs += ishtp-hid-client.o
+
 ccflags-y += -Idrivers/hid/intel-ish-hid/ishtp
