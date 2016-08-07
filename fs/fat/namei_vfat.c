@@ -138,10 +138,10 @@ static int vfat_hashi(const struct dentry *dentry, struct qstr *qstr)
 /*
  * Case insensitive compare of two vfat names.
  */
-static int vfat_cmpi(const struct dentry *parent, const struct dentry *dentry,
+static int vfat_cmpi(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name)
 {
-	struct nls_table *t = MSDOS_SB(parent->d_sb)->nls_io;
+	struct nls_table *t = MSDOS_SB(dentry->d_sb)->nls_io;
 	unsigned int alen, blen;
 
 	/* A filename cannot end in '.' or we treat it like it has none */
@@ -157,7 +157,7 @@ static int vfat_cmpi(const struct dentry *parent, const struct dentry *dentry,
 /*
  * Case sensitive compare of two vfat names.
  */
-static int vfat_cmp(const struct dentry *parent, const struct dentry *dentry,
+static int vfat_cmp(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name)
 {
 	unsigned int alen, blen;

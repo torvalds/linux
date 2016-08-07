@@ -45,8 +45,7 @@ static struct super_block *efivarfs_sb;
  * So we need to perform a case-sensitive match on part 1 and a
  * case-insensitive match on part 2.
  */
-static int efivarfs_d_compare(const struct dentry *parent,
-			      const struct dentry *dentry,
+static int efivarfs_d_compare(const struct dentry *dentry,
 			      unsigned int len, const char *str,
 			      const struct qstr *name)
 {
