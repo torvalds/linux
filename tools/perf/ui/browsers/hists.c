@@ -69,8 +69,11 @@ static u32 hist_browser__nr_entries(struct hist_browser *hb)
 static void hist_browser__update_rows(struct hist_browser *hb)
 {
 	struct ui_browser *browser = &hb->b;
-	u16 header_offset = hb->show_headers ? 1 : 0, index_row;
+	struct hists *hists = hb->hists;
+	struct perf_hpp_list *hpp_list = hists->hpp_list;
+	u16 header_offset, index_row;
 
+	header_offset = hb->show_headers ? hpp_list->nr_header_lines : 0;
 	browser->rows = browser->height - header_offset;
 	/*
 	 * Verify if we were at the last line and that line isn't
@@ -99,8 +102,11 @@ static void hist_browser__refresh_dimensions(struct ui_browser *browser)
 
 static void hist_browser__gotorc(struct hist_browser *browser, int row, int column)
 {
-	u16 header_offset = browser->show_headers ? 1 : 0;
+	struct hists *hists = browser->hists;
+	struct perf_hpp_list *hpp_list = hists->hpp_list;
+	u16 header_offset;
 
+	header_offset = browser->show_headers ? hpp_list->nr_header_lines : 0;
 	ui_browser__gotorc(&browser->b, row + header_offset, column);
 }
 
@@ -1656,10 +1662,13 @@ static unsigned int hist_browser__refresh(struct ui_browser *browser)
 	u16 header_offset = 0;
 	struct rb_node *nd;
 	struct hist_browser *hb = container_of(browser, struct hist_browser, b);
+	struct hists *hists = hb->hists;
 
 	if (hb->show_headers) {
+		struct perf_hpp_list *hpp_list = hists->hpp_list;
+
 		hist_browser__show_headers(hb);
-		header_offset = 1;
+		header_offset = hpp_list->nr_header_lines;
 	}
 
 	ui_browser__hists_init_top(browser);

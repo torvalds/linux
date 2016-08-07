@@ -259,6 +259,7 @@ struct perf_hpp_list {
 	struct list_head fields;
 	struct list_head sorts;
 
+	int nr_header_lines;
 	int need_collapse;
 	int parent;
 	int sym;

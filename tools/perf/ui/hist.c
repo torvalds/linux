@@ -441,6 +441,7 @@ struct perf_hpp_fmt perf_hpp__format[] = {
 struct perf_hpp_list perf_hpp_list = {
 	.fields	= LIST_HEAD_INIT(perf_hpp_list.fields),
 	.sorts	= LIST_HEAD_INIT(perf_hpp_list.sorts),
+	.nr_header_lines = 1,
 };
 
 #undef HPP__COLOR_PRINT_FNS
