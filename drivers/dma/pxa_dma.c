@@ -638,7 +638,7 @@ static bool pxad_try_hotchain(struct virt_dma_chan *vc,
 		vd_last_issued = list_entry(vc->desc_issued.prev,
 					    struct virt_dma_desc, node);
 		pxad_desc_chain(vd_last_issued, vd);
-		if (is_chan_running(chan) || is_desc_completed(vd_last_issued))
+		if (is_chan_running(chan) || is_desc_completed(vd))
 			return true;
 	}
 
