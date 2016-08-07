@@ -15,3 +15,4 @@ whole; patches welcome!
    :maxdepth: 2
 
    coccinelle
+   sparse
