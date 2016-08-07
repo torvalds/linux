@@ -639,13 +639,10 @@ hists__fprintf_hierarchy_headers(struct hists *hists,
 	return print_hierarchy_header(hists, hpp, symbol_conf.field_sep, fp);
 }
 
-static int
-hists__fprintf_standard_headers(struct hists *hists,
-				struct perf_hpp *hpp,
-				FILE *fp)
+static void fprintf_line(struct hists *hists, struct perf_hpp *hpp,
+			 int line, FILE *fp)
 {
 	struct perf_hpp_fmt *fmt;
-	unsigned int width;
 	const char *sep = symbol_conf.field_sep;
 	bool first = true;
 
@@ -658,14 +655,33 @@ hists__fprintf_standard_headers(struct hists *hists,
 		else
 			first = false;
 
-		fmt->header(fmt, hpp, hists, 0);
+		fmt->header(fmt, hpp, hists, line);
 		fprintf(fp, "%s", hpp->buf);
 	}
+}
 
-	fprintf(fp, "\n");
+static int
+hists__fprintf_standard_headers(struct hists *hists,
+				struct perf_hpp *hpp,
+				FILE *fp)
+{
+	struct perf_hpp_list *hpp_list = hists->hpp_list;
+	struct perf_hpp_fmt *fmt;
+	unsigned int width;
+	const char *sep = symbol_conf.field_sep;
+	bool first = true;
+	int line;
+
+	for (line = 0; line < hpp_list->nr_header_lines; line++) {
+		/* first # is displayed one level up */
+		if (line)
+			fprintf(fp, "# ");
+		fprintf_line(hists, hpp, line, fp);
+		fprintf(fp, "\n");
+	}
 
 	if (sep)
-		return 1;
+		return hpp_list->nr_header_lines;
 
 	first = true;
 
@@ -689,7 +705,7 @@ hists__fprintf_standard_headers(struct hists *hists,
 
 	fprintf(fp, "\n");
 	fprintf(fp, "#\n");
-	return 3;
+	return hpp_list->nr_header_lines + 2;
 }
 
 static int hists__fprintf_headers(struct hists *hists, FILE *fp)
