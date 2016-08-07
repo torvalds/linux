@@ -702,13 +702,13 @@ struct sctp_ulpevent *sctp_ulpevent_make_rcvmsg(struct sctp_association *asoc,
 	 */
 	sctp_ulpevent_init(event, 0, skb->len + sizeof(struct sk_buff));
 
-	sctp_ulpevent_receive_data(event, asoc);
-
 	/* And hold the chunk as we need it for getting the IP headers
 	 * later in recvmsg
 	 */
 	sctp_chunk_hold(chunk);
 	event->chunk = chunk;
+
+	sctp_ulpevent_receive_data(event, asoc);
 
 	event->stream = ntohs(chunk->subh.data_hdr->stream);
 	event->ssn = ntohs(chunk->subh.data_hdr->ssn);
