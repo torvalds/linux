@@ -14,15 +14,6 @@
 #include "sti_drv.h"
 #include "sti_plane.h"
 
-/* (Background) < GDP0 < GDP1 < HQVDP0 < GDP2 < GDP3 < (ForeGround) */
-enum sti_plane_desc sti_plane_default_zorder[] = {
-	STI_GDP_0,
-	STI_GDP_1,
-	STI_HQVDP_0,
-	STI_GDP_2,
-	STI_GDP_3,
-};
-
 const char *sti_plane_to_str(struct sti_plane *plane)
 {
 	switch (plane->desc) {
@@ -96,59 +87,46 @@ void sti_plane_update_fps(struct sti_plane *plane,
 			 plane->fps_info.fips_str);
 }
 
-int sti_plane_set_property(struct drm_plane *drm_plane,
-			   struct drm_property *property,
-			   uint64_t val)
+static int sti_plane_get_default_zpos(enum drm_plane_type type)
 {
-	struct drm_device *dev = drm_plane->dev;
-	struct sti_private *private = dev->dev_private;
-	struct sti_plane *plane = to_sti_plane(drm_plane);
-
-	DRM_DEBUG_DRIVER("\n");
-
-	if (property == private->plane_zorder_property) {
-		plane->zorder = val;
+	switch (type) {
+	case DRM_PLANE_TYPE_PRIMARY:
 		return 0;
+	case DRM_PLANE_TYPE_OVERLAY:
+		return 1;
+	case DRM_PLANE_TYPE_CURSOR:
+		return 7;
 	}
-
-	return -EINVAL;
+	return 0;
 }
 
-static void sti_plane_attach_zorder_property(struct drm_plane *drm_plane)
+void sti_plane_reset(struct drm_plane *plane)
 {
-	struct drm_device *dev = drm_plane->dev;
-	struct sti_private *private = dev->dev_private;
-	struct sti_plane *plane = to_sti_plane(drm_plane);
-	struct drm_property *prop;
+	drm_atomic_helper_plane_reset(plane);
+	plane->state->zpos = sti_plane_get_default_zpos(plane->type);
+}
 
-	prop = private->plane_zorder_property;
-	if (!prop) {
-		prop = drm_property_create_range(dev, 0, "zpos", 1,
-						 GAM_MIXER_NB_DEPTH_LEVEL);
-		if (!prop)
-			return;
+static void sti_plane_attach_zorder_property(struct drm_plane *drm_plane,
+					     enum drm_plane_type type)
+{
+	int zpos = sti_plane_get_default_zpos(type);
 
-		private->plane_zorder_property = prop;
+	switch (type) {
+	case DRM_PLANE_TYPE_PRIMARY:
+	case DRM_PLANE_TYPE_OVERLAY:
+		drm_plane_create_zpos_property(drm_plane, zpos, 0, 6);
+		break;
+	case DRM_PLANE_TYPE_CURSOR:
+		drm_plane_create_zpos_immutable_property(drm_plane, zpos);
+		break;
 	}
-
-	drm_object_attach_property(&drm_plane->base, prop, plane->zorder);
 }
 
 void sti_plane_init_property(struct sti_plane *plane,
 			     enum drm_plane_type type)
 {
-	unsigned int i;
+	sti_plane_attach_zorder_property(&plane->drm_plane, type);
 
-	for (i = 0; i < ARRAY_SIZE(sti_plane_default_zorder); i++)
-		if (sti_plane_default_zorder[i] == plane->desc)
-			break;
-
-	plane->zorder = i + 1;
-
-	if (type == DRM_PLANE_TYPE_OVERLAY)
-		sti_plane_attach_zorder_property(&plane->drm_plane);
-
-	DRM_DEBUG_DRIVER("drm plane:%d mapped to %s with zorder:%d\n",
-			 plane->drm_plane.base.id,
-			 sti_plane_to_str(plane), plane->zorder);
+	DRM_DEBUG_DRIVER("drm plane:%d mapped to %s\n",
+			 plane->drm_plane.base.id, sti_plane_to_str(plane));
 }
