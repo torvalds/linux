@@ -16,3 +16,4 @@ whole; patches welcome!
 
    coccinelle
    sparse
+   kcov
