@@ -10,3 +10,9 @@ intel-ishtp-objs += ishtp/client.o
 intel-ishtp-objs += ishtp/bus.o
 intel-ishtp-objs += ishtp/dma-if.o
 intel-ishtp-objs += ishtp/client-buffers.o
+
+obj-$(CONFIG_INTEL_ISH_HID) += intel-ish-ipc.o
+intel-ish-ipc-objs := ipc/ipc.o
+intel-ish-ipc-objs += ipc/pci-ish.o
+
+ccflags-y += -Idrivers/hid/intel-ish-hid/ishtp
