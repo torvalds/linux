@@ -549,7 +549,7 @@ static int print_hierarchy_header(struct hists *hists, struct perf_hpp *hpp,
 				    struct perf_hpp_list_node, list);
 
 	perf_hpp_list__for_each_format(&fmt_node->hpp, fmt) {
-		fmt->header(fmt, hpp, hists, 0);
+		fmt->header(fmt, hpp, hists, 0, NULL);
 		fprintf(fp, "%s%s", hpp->buf, sep ?: "  ");
 	}
 
@@ -569,7 +569,7 @@ static int print_hierarchy_header(struct hists *hists, struct perf_hpp *hpp,
 				header_width += fprintf(fp, "+");
 			first_col = false;
 
-			fmt->header(fmt, hpp, hists, 0);
+			fmt->header(fmt, hpp, hists, 0, NULL);
 
 			header_width += fprintf(fp, "%s", trim(hpp->buf));
 		}
@@ -645,18 +645,21 @@ static void fprintf_line(struct hists *hists, struct perf_hpp *hpp,
 	struct perf_hpp_fmt *fmt;
 	const char *sep = symbol_conf.field_sep;
 	bool first = true;
+	int span = 0;
 
 	hists__for_each_format(hists, fmt) {
 		if (perf_hpp__should_skip(fmt, hists))
 			continue;
 
-		if (!first)
+		if (!first && !span)
 			fprintf(fp, "%s", sep ?: "  ");
 		else
 			first = false;
 
-		fmt->header(fmt, hpp, hists, line);
-		fprintf(fp, "%s", hpp->buf);
+		fmt->header(fmt, hpp, hists, line, &span);
+
+		if (!span)
+			fprintf(fp, "%s", hpp->buf);
 	}
 }
 

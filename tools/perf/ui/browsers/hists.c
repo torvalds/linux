@@ -1514,6 +1514,7 @@ hists_browser__scnprintf_headers(struct hist_browser *browser, char *buf,
 	struct perf_hpp_fmt *fmt;
 	size_t ret = 0;
 	int column = 0;
+	int span = 0;
 
 	if (symbol_conf.use_callchain) {
 		ret = scnprintf(buf, size, "  ");
@@ -1525,9 +1526,12 @@ hists_browser__scnprintf_headers(struct hist_browser *browser, char *buf,
 		if (perf_hpp__should_skip(fmt, hists)  || column++ < browser->b.horiz_scroll)
 			continue;
 
-		ret = fmt->header(fmt, &dummy_hpp, hists, line);
+		ret = fmt->header(fmt, &dummy_hpp, hists, line, &span);
 		if (advance_hpp_check(&dummy_hpp, ret))
 			break;
+
+		if (span)
+			continue;
 
 		ret = scnprintf(dummy_hpp.buf, dummy_hpp.size, "  ");
 		if (advance_hpp_check(&dummy_hpp, ret))
@@ -1562,7 +1566,7 @@ static int hists_browser__scnprintf_hierarchy_headers(struct hist_browser *brows
 		if (column++ < browser->b.horiz_scroll)
 			continue;
 
-		ret = fmt->header(fmt, &dummy_hpp, hists, 0);
+		ret = fmt->header(fmt, &dummy_hpp, hists, 0, NULL);
 		if (advance_hpp_check(&dummy_hpp, ret))
 			break;
 
@@ -1599,7 +1603,7 @@ static int hists_browser__scnprintf_hierarchy_headers(struct hist_browser *brows
 			}
 			first_col = false;
 
-			ret = fmt->header(fmt, &dummy_hpp, hists, 0);
+			ret = fmt->header(fmt, &dummy_hpp, hists, 0, NULL);
 			dummy_hpp.buf[ret] = '\0';
 
 			start = trim(dummy_hpp.buf);

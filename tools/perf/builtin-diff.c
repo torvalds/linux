@@ -1034,7 +1034,8 @@ static int hpp__entry_global(struct perf_hpp_fmt *_fmt, struct perf_hpp *hpp,
 
 static int hpp__header(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 		       struct hists *hists __maybe_unused,
-		       int line __maybe_unused)
+		       int line __maybe_unused,
+		       int *span __maybe_unused)
 {
 	struct diff_hpp_fmt *dfmt =
 		container_of(fmt, struct diff_hpp_fmt, fmt);
