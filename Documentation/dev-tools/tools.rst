@@ -19,3 +19,4 @@ whole; patches welcome!
    kcov
    gcov
    kasan
+   ubsan
