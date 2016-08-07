@@ -20,3 +20,4 @@ whole; patches welcome!
    gcov
    kasan
    ubsan
+   kmemleak
