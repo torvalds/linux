@@ -21,3 +21,4 @@ whole; patches welcome!
    kasan
    ubsan
    kmemleak
+   kmemcheck

@@ -6803,7 +6803,7 @@ KMEMCHECK
 M:	Vegard Nossum <vegardno@ifi.uio.no>
 M:	Pekka Enberg <penberg@kernel.org>
 S:	Maintained
-F:	Documentation/kmemcheck.txt
+F:	Documentation/dev-tools/kmemcheck.rst
 F:	arch/x86/include/asm/kmemcheck.h
 F:	arch/x86/mm/kmemcheck/
 F:	include/linux/kmemcheck.h
