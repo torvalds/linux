@@ -448,7 +448,7 @@ isert_alloc_login_buf(struct isert_conn *isert_conn,
 
 	isert_conn->login_rsp_buf = kzalloc(ISER_RX_PAYLOAD_SIZE, GFP_KERNEL);
 	if (!isert_conn->login_rsp_buf) {
-		isert_err("Unable to allocate isert_conn->login_rspbuf\n");
+		ret = -ENOMEM;
 		goto out_unmap_login_req_buf;
 	}
 
