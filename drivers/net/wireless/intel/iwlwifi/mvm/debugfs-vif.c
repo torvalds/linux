@@ -1547,8 +1547,8 @@ void iwl_mvm_vif_dbgfs_register(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	mvmvif->dbgfs_dir = debugfs_create_dir("iwlmvm", dbgfs_dir);
 
 	if (!mvmvif->dbgfs_dir) {
-		IWL_ERR(mvm, "Failed to create debugfs directory under %s\n",
-			dbgfs_dir->d_name.name);
+		IWL_ERR(mvm, "Failed to create debugfs directory under %pd\n",
+			dbgfs_dir);
 		return;
 	}
 
@@ -1602,17 +1602,15 @@ void iwl_mvm_vif_dbgfs_register(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	 * find
 	 * netdev:wlan0 -> ../../../ieee80211/phy0/netdev:wlan0/iwlmvm/
 	 */
-	snprintf(buf, 100, "../../../%s/%s/%s/%s",
-		 dbgfs_dir->d_parent->d_parent->d_name.name,
-		 dbgfs_dir->d_parent->d_name.name,
-		 dbgfs_dir->d_name.name,
-		 mvmvif->dbgfs_dir->d_name.name);
+	snprintf(buf, 100, "../../../%pd3/%pd",
+		 dbgfs_dir,
+		 mvmvif->dbgfs_dir);
 
 	mvmvif->dbgfs_slink = debugfs_create_symlink(dbgfs_dir->d_name.name,
 						     mvm->debugfs_dir, buf);
 	if (!mvmvif->dbgfs_slink)
-		IWL_ERR(mvm, "Can't create debugfs symbolic link under %s\n",
-			dbgfs_dir->d_name.name);
+		IWL_ERR(mvm, "Can't create debugfs symbolic link under %pd\n",
+			dbgfs_dir);
 	return;
 err:
 	IWL_ERR(mvm, "Can't create debugfs entity\n");
