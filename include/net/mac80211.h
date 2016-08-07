@@ -3620,7 +3620,8 @@ struct ieee80211_ops {
 
 	int (*join_ibss)(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
 	void (*leave_ibss)(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
-	u32 (*get_expected_throughput)(struct ieee80211_sta *sta);
+	u32 (*get_expected_throughput)(struct ieee80211_hw *hw,
+				       struct ieee80211_sta *sta);
 	int (*get_txpower)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			   int *dbm);
 
