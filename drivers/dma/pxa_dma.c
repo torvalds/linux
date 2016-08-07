@@ -671,6 +671,7 @@ static irqreturn_t pxad_chan_handler(int irq, void *dev_id)
 	struct virt_dma_desc *vd, *tmp;
 	unsigned int dcsr;
 	unsigned long flags;
+	bool vd_completed;
 	dma_cookie_t last_started = 0;
 
 	BUG_ON(!chan);
@@ -681,15 +682,17 @@ static irqreturn_t pxad_chan_handler(int irq, void *dev_id)
 
 	spin_lock_irqsave(&chan->vc.lock, flags);
 	list_for_each_entry_safe(vd, tmp, &chan->vc.desc_issued, node) {
+		vd_completed = is_desc_completed(vd);
 		dev_dbg(&chan->vc.chan.dev->device,
-			"%s(): checking txd %p[%x]: completed=%d\n",
-			__func__, vd, vd->tx.cookie, is_desc_completed(vd));
+			"%s(): checking txd %p[%x]: completed=%d dcsr=0x%x\n",
+			__func__, vd, vd->tx.cookie, vd_completed,
+			dcsr);
 		last_started = vd->tx.cookie;
 		if (to_pxad_sw_desc(vd)->cyclic) {
 			vchan_cyclic_callback(vd);
 			break;
 		}
-		if (is_desc_completed(vd)) {
+		if (vd_completed) {
 			list_del(&vd->node);
 			vchan_cookie_complete(vd);
 		} else {
