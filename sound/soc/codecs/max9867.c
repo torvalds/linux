@@ -417,12 +417,14 @@ static int max9867_probe(struct snd_soc_codec *codec)
 
 static struct snd_soc_codec_driver max9867_codec = {
 	.probe = max9867_probe,
-	.controls = max9867_snd_controls,
-	.num_controls = ARRAY_SIZE(max9867_snd_controls),
-	.dapm_routes = max9867_audio_map,
-	.num_dapm_routes = ARRAY_SIZE(max9867_audio_map),
-	.dapm_widgets = max9867_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(max9867_dapm_widgets),
+	.component_driver = {
+		.controls		= max9867_snd_controls,
+		.num_controls		= ARRAY_SIZE(max9867_snd_controls),
+		.dapm_routes		= max9867_audio_map,
+		.num_dapm_routes	= ARRAY_SIZE(max9867_audio_map),
+		.dapm_widgets		= max9867_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(max9867_dapm_widgets),
+	},
 };
 
 static bool max9867_volatile_register(struct device *dev, unsigned int reg)
