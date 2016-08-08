@@ -26,6 +26,7 @@ struct ucounts;
 
 enum ucount_type {
 	UCOUNT_USER_NAMESPACES,
+	UCOUNT_PID_NAMESPACES,
 	UCOUNT_COUNTS,
 };
 

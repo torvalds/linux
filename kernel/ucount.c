@@ -68,6 +68,7 @@ static int int_max = INT_MAX;
 	}
 static struct ctl_table user_table[] = {
 	UCOUNT_ENTRY("max_user_namespaces"),
+	UCOUNT_ENTRY("max_pid_namespaces"),
 	{ }
 };
 #endif /* CONFIG_SYSCTL */

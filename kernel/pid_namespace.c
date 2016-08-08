@@ -79,23 +79,36 @@ static void proc_cleanup_work(struct work_struct *work)
 /* MAX_PID_NS_LEVEL is needed for limiting size of 'struct pid' */
 #define MAX_PID_NS_LEVEL 32
 
+static struct ucounts *inc_pid_namespaces(struct user_namespace *ns)
+{
+	return inc_ucount(ns, current_euid(), UCOUNT_PID_NAMESPACES);
+}
+
+static void dec_pid_namespaces(struct ucounts *ucounts)
+{
+	dec_ucount(ucounts, UCOUNT_PID_NAMESPACES);
+}
+
 static struct pid_namespace *create_pid_namespace(struct user_namespace *user_ns,
 	struct pid_namespace *parent_pid_ns)
 {
 	struct pid_namespace *ns;
 	unsigned int level = parent_pid_ns->level + 1;
+	struct ucounts *ucounts;
 	int i;
 	int err;
 
-	if (level > MAX_PID_NS_LEVEL) {
-		err = -EINVAL;
+	err = -EINVAL;
+	if (level > MAX_PID_NS_LEVEL)
 		goto out;
-	}
+	ucounts = inc_pid_namespaces(user_ns);
+	if (!ucounts)
+		goto out;
 
 	err = -ENOMEM;
 	ns = kmem_cache_zalloc(pid_ns_cachep, GFP_KERNEL);
 	if (ns == NULL)
-		goto out;
+		goto out_dec;
 
 	ns->pidmap[0].page = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!ns->pidmap[0].page)
@@ -114,6 +127,7 @@ static struct pid_namespace *create_pid_namespace(struct user_namespace *user_ns
 	ns->level = level;
 	ns->parent = get_pid_ns(parent_pid_ns);
 	ns->user_ns = get_user_ns(user_ns);
+	ns->ucounts = ucounts;
 	ns->nr_hashed = PIDNS_HASH_ADDING;
 	INIT_WORK(&ns->proc_work, proc_cleanup_work);
 
@@ -129,6 +143,8 @@ out_free_map:
 	kfree(ns->pidmap[0].page);
 out_free:
 	kmem_cache_free(pid_ns_cachep, ns);
+out_dec:
+	dec_pid_namespaces(ucounts);
 out:
 	return ERR_PTR(err);
 }
@@ -146,6 +162,7 @@ static void destroy_pid_namespace(struct pid_namespace *ns)
 	ns_free_inum(&ns->ns);
 	for (i = 0; i < PIDMAP_ENTRIES; i++)
 		kfree(ns->pidmap[i].page);
+	dec_pid_namespaces(ns->ucounts);
 	put_user_ns(ns->user_ns);
 	call_rcu(&ns->rcu, delayed_free_pidns);
 }
