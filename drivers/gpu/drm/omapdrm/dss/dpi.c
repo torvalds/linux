@@ -170,14 +170,6 @@ static bool dpi_calc_hsdiv_cb(int m_dispc, unsigned long dispc,
 {
 	struct dpi_clk_calc_ctx *ctx = data;
 
-	/*
-	 * Odd dividers give us uneven duty cycle, causing problem when level
-	 * shifted. So skip all odd dividers when the pixel clock is on the
-	 * higher side.
-	 */
-	if (m_dispc > 1 && m_dispc % 2 != 0 && ctx->pck_min >= 100000000)
-		return false;
-
 	ctx->pll_cinfo.mX[ctx->clkout_idx] = m_dispc;
 	ctx->pll_cinfo.clkout[ctx->clkout_idx] = dispc;
 
