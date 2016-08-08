@@ -16,39 +16,61 @@
 
 #include "util.h"
 
+static struct ucounts *inc_ipc_namespaces(struct user_namespace *ns)
+{
+	return inc_ucount(ns, current_euid(), UCOUNT_IPC_NAMESPACES);
+}
+
+static void dec_ipc_namespaces(struct ucounts *ucounts)
+{
+	dec_ucount(ucounts, UCOUNT_IPC_NAMESPACES);
+}
+
 static struct ipc_namespace *create_ipc_ns(struct user_namespace *user_ns,
 					   struct ipc_namespace *old_ns)
 {
 	struct ipc_namespace *ns;
+	struct ucounts *ucounts;
 	int err;
 
+	err = -ENFILE;
+	ucounts = inc_ipc_namespaces(user_ns);
+	if (!ucounts)
+		goto fail;
+
+	err = -ENOMEM;
 	ns = kmalloc(sizeof(struct ipc_namespace), GFP_KERNEL);
 	if (ns == NULL)
-		return ERR_PTR(-ENOMEM);
+		goto fail_dec;
 
 	err = ns_alloc_inum(&ns->ns);
-	if (err) {
-		kfree(ns);
-		return ERR_PTR(err);
-	}
+	if (err)
+		goto fail_free;
 	ns->ns.ops = &ipcns_operations;
 
 	atomic_set(&ns->count, 1);
 	ns->user_ns = get_user_ns(user_ns);
+	ns->ucounts = ucounts;
 
 	err = mq_init_ns(ns);
-	if (err) {
-		put_user_ns(ns->user_ns);
-		ns_free_inum(&ns->ns);
-		kfree(ns);
-		return ERR_PTR(err);
-	}
+	if (err)
+		goto fail_put;
 
 	sem_init_ns(ns);
 	msg_init_ns(ns);
 	shm_init_ns(ns);
 
 	return ns;
+
+fail_put:
+	put_user_ns(ns->user_ns);
+	ns_free_inum(&ns->ns);
+fail_free:
+	kfree(ns);
+fail_dec:
+	dec_ipc_namespaces(ucounts);
+fail:
+	return ERR_PTR(err);
 }
 
 struct ipc_namespace *copy_ipcs(unsigned long flags,
@@ -96,6 +118,7 @@ static void free_ipc_ns(struct ipc_namespace *ns)
 	msg_exit_ns(ns);
 	shm_exit_ns(ns);
 
+	dec_ipc_namespaces(ns->ucounts);
 	put_user_ns(ns->user_ns);
 	ns_free_inum(&ns->ns);
 	kfree(ns);
