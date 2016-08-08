@@ -5402,6 +5402,7 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	struct drm_crtc *crtc;
 	struct drm_framebuffer *fb = NULL;
 	struct drm_pending_vblank_event *e = NULL;
+	u32 target_vblank = 0;
 	int ret = -EINVAL;
 
 	if (page_flip->flags & ~DRM_MODE_PAGE_FLIP_FLAGS ||
@@ -5415,6 +5416,19 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	if (!crtc)
 		return -ENOENT;
 
+	if (crtc->funcs->page_flip_target) {
+		int r;
+
+		r = drm_crtc_vblank_get(crtc);
+		if (r)
+			return r;
+
+		target_vblank = drm_crtc_vblank_count(crtc) +
+			!(page_flip->flags & DRM_MODE_PAGE_FLIP_ASYNC);
+	} else if (crtc->funcs->page_flip == NULL) {
+		return -EINVAL;
+	}
+
 	drm_modeset_lock_crtc(crtc, crtc->primary);
 	if (crtc->primary->fb == NULL) {
 		/* The framebuffer is currently unbound, presumably
@@ -5424,9 +5438,6 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 		ret = -EBUSY;
 		goto out;
 	}
-
-	if (crtc->funcs->page_flip == NULL)
-		goto out;
 
 	fb = drm_framebuffer_lookup(dev, page_flip->fb_id);
 	if (!fb) {
@@ -5468,7 +5479,12 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	}
 
 	crtc->primary->old_fb = crtc->primary->fb;
-	ret = crtc->funcs->page_flip(crtc, fb, e, page_flip->flags);
+	if (crtc->funcs->page_flip_target)
+		ret = crtc->funcs->page_flip_target(crtc, fb, e,
+						    page_flip->flags,
+						    target_vblank);
+	else
+		ret = crtc->funcs->page_flip(crtc, fb, e, page_flip->flags);
 	if (ret) {
 		if (page_flip->flags & DRM_MODE_PAGE_FLIP_EVENT)
 			drm_event_cancel_free(dev, &e->base);
@@ -5481,6 +5497,8 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	}
 
 out:
+	if (ret)
+		drm_crtc_vblank_put(crtc);
 	if (fb)
 		drm_framebuffer_unreference(fb);
 	if (crtc->primary->old_fb)
