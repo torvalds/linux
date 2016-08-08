@@ -298,7 +298,8 @@ enum hwmon_pwm_attributes {
  *			Channel number
  *		The function returns the file permissions.
  *		If the return value is 0, no attribute will be created.
- * @read:	Read callback. Mandatory if readable attributes are present.
+ * @read:	Read callback for data attributes. Mandatory if readable
+ *		data attributes are present.
  *		Parameters are:
  *		@dev:	Pointer to hardware monitoring device
  *		@type:	Sensor type
@@ -307,7 +308,19 @@ enum hwmon_pwm_attributes {
  *			Channel number
  *		@val:	Pointer to returned value
  *		The function returns 0 on success or a negative error number.
- * @write:	Write callback. Mandatory if writeable attributes are present.
+ * @read_string:
+ *		Read callback for string attributes. Mandatory if string
+ *		attributes are present.
+ *		Parameters are:
+ *		@dev:	Pointer to hardware monitoring device
+ *		@type:	Sensor type
+ *		@attr:	Sensor attribute
+ *		@channel:
+ *			Channel number
+ *		@str:	Pointer to returned string
+ *		The function returns 0 on success or a negative error number.
+ * @write:	Write callback for data attributes. Mandatory if writeable
+ *		data attributes are present.
  *		Parameters are:
  *		@dev:	Pointer to hardware monitoring device
  *		@type:	Sensor type
@@ -322,6 +335,8 @@ struct hwmon_ops {
 			      u32 attr, int channel);
 	int (*read)(struct device *dev, enum hwmon_sensor_types type,
 		    u32 attr, int channel, long *val);
+	int (*read_string)(struct device *dev, enum hwmon_sensor_types type,
+		    u32 attr, int channel, char **str);
 	int (*write)(struct device *dev, enum hwmon_sensor_types type,
 		     u32 attr, int channel, long val);
 };

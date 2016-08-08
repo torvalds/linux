@@ -178,6 +178,22 @@ static ssize_t hwmon_attr_show(struct device *dev,
 	return sprintf(buf, "%ld\n", val);
 }
 
+static ssize_t hwmon_attr_show_string(struct device *dev,
+				      struct device_attribute *devattr,
+				      char *buf)
+{
+	struct hwmon_device_attribute *hattr = to_hwmon_attr(devattr);
+	char *s;
+	int ret;
+
+	ret = hattr->ops->read_string(dev, hattr->type, hattr->attr,
+				      hattr->index, &s);
+	if (ret < 0)
+		return ret;
+
+	return sprintf(buf, "%s\n", s);
+}
+
 static ssize_t hwmon_attr_store(struct device *dev,
 				struct device_attribute *devattr,
 				const char *buf, size_t count)
@@ -205,6 +221,17 @@ static int hwmon_attr_base(enum hwmon_sensor_types type)
 	return 1;
 }
 
+static bool is_string_attr(enum hwmon_sensor_types type, u32 attr)
+{
+	return (type == hwmon_temp && attr == hwmon_temp_label) ||
+	       (type == hwmon_in && attr == hwmon_in_label) ||
+	       (type == hwmon_curr && attr == hwmon_curr_label) ||
+	       (type == hwmon_power && attr == hwmon_power_label) ||
+	       (type == hwmon_energy && attr == hwmon_energy_label) ||
+	       (type == hwmon_humidity && attr == hwmon_humidity_label) ||
+	       (type == hwmon_fan && attr == hwmon_fan_label);
+}
+
 static struct attribute *hwmon_genattr(struct device *dev,
 				       const void *drvdata,
 				       enum hwmon_sensor_types type,
@@ -218,6 +245,7 @@ static struct attribute *hwmon_genattr(struct device *dev,
 	struct attribute *a;
 	umode_t mode;
 	char *name;
+	bool is_string = is_string_attr(type, attr);
 
 	/* The attribute is invisible if there is no template string */
 	if (!template)
@@ -227,7 +255,8 @@ static struct attribute *hwmon_genattr(struct device *dev,
 	if (!mode)
 		return ERR_PTR(-ENOENT);
 
-	if ((mode & S_IRUGO) && !ops->read)
+	if ((mode & S_IRUGO) && ((is_string && !ops->read_string) ||
+				 (!is_string && !ops->read)))
 		return ERR_PTR(-EINVAL);
 	if ((mode & S_IWUGO) && !ops->write)
 		return ERR_PTR(-EINVAL);
@@ -252,7 +281,7 @@ static struct attribute *hwmon_genattr(struct device *dev,
 	hattr->ops = ops;
 
 	dattr = &hattr->dev_attr;
-	dattr->show = hwmon_attr_show;
+	dattr->show = is_string ? hwmon_attr_show_string : hwmon_attr_show;
 	dattr->store = hwmon_attr_store;
 
 	a = &dattr->attr;
