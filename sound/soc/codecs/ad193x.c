@@ -410,12 +410,14 @@ static int ad193x_codec_probe(struct snd_soc_codec *codec)
 
 static struct snd_soc_codec_driver soc_codec_dev_ad193x = {
 	.probe = ad193x_codec_probe,
-	.controls = ad193x_snd_controls,
-	.num_controls = ARRAY_SIZE(ad193x_snd_controls),
-	.dapm_widgets = ad193x_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(ad193x_dapm_widgets),
-	.dapm_routes = audio_paths,
-	.num_dapm_routes = ARRAY_SIZE(audio_paths),
+	.component_driver = {
+		.controls		= ad193x_snd_controls,
+		.num_controls		= ARRAY_SIZE(ad193x_snd_controls),
+		.dapm_widgets		= ad193x_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(ad193x_dapm_widgets),
+		.dapm_routes		= audio_paths,
+		.num_dapm_routes	= ARRAY_SIZE(audio_paths),
+	},
 };
 
 const struct regmap_config ad193x_regmap_config = {
