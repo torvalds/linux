@@ -1594,12 +1594,14 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8350 = {
 	.set_bias_level = wm8350_set_bias_level,
 	.suspend_bias_off = true,
 
-	.controls = wm8350_snd_controls,
-	.num_controls = ARRAY_SIZE(wm8350_snd_controls),
-	.dapm_widgets = wm8350_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm8350_dapm_widgets),
-	.dapm_routes = wm8350_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(wm8350_dapm_routes),
+	.component_driver = {
+		.controls		= wm8350_snd_controls,
+		.num_controls		= ARRAY_SIZE(wm8350_snd_controls),
+		.dapm_widgets		= wm8350_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm8350_dapm_widgets),
+		.dapm_routes		= wm8350_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(wm8350_dapm_routes),
+	},
 };
 
 static int wm8350_probe(struct platform_device *pdev)
