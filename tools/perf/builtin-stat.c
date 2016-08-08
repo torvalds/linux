@@ -173,7 +173,7 @@ static inline void diff_timespec(struct timespec *r, struct timespec *a,
 {
 	r->tv_sec = a->tv_sec - b->tv_sec;
 	if (a->tv_nsec < b->tv_nsec) {
-		r->tv_nsec = a->tv_nsec + 1000000000L - b->tv_nsec;
+		r->tv_nsec = a->tv_nsec + NSEC_PER_SEC - b->tv_nsec;
 		r->tv_sec--;
 	} else {
 		r->tv_nsec = a->tv_nsec - b->tv_nsec ;
@@ -365,7 +365,7 @@ static void process_interval(void)
 static void enable_counters(void)
 {
 	if (initial_delay)
-		usleep(initial_delay * 1000);
+		usleep(initial_delay * USEC_PER_MSEC);
 
 	/*
 	 * We need to enable counters only if:
@@ -542,8 +542,8 @@ static int __run_perf_stat(int argc, const char **argv)
 	bool is_pipe = STAT_RECORD ? perf_stat.file.is_pipe : false;
 
 	if (interval) {
-		ts.tv_sec  = interval / 1000;
-		ts.tv_nsec = (interval % 1000) * 1000000;
+		ts.tv_sec  = interval / USEC_PER_MSEC;
+		ts.tv_nsec = (interval % USEC_PER_MSEC) * NSEC_PER_MSEC;
 	} else {
 		ts.tv_sec  = 1;
 		ts.tv_nsec = 0;
@@ -972,7 +972,7 @@ static void print_metric_header(void *ctx, const char *color __maybe_unused,
 static void nsec_printout(int id, int nr, struct perf_evsel *evsel, double avg)
 {
 	FILE *output = stat_config.output;
-	double msecs = avg / 1e6;
+	double msecs = avg / NSEC_PER_MSEC;
 	const char *fmt_v, *fmt_n;
 	char name[25];
 
@@ -1461,7 +1461,7 @@ static void print_footer(void)
 	if (!null_run)
 		fprintf(output, "\n");
 	fprintf(output, " %17.9f seconds time elapsed",
-			avg_stats(&walltime_nsecs_stats)/1e9);
+			avg_stats(&walltime_nsecs_stats) / NSEC_PER_SEC);
 	if (run_count > 1) {
 		fprintf(output, "                                        ");
 		print_noise_pct(stddev_stats(&walltime_nsecs_stats),
