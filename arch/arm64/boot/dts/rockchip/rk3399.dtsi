@@ -340,6 +340,7 @@
 			      "utmi";
 		phys = <&u2phy0_host>;
 		phy-names = "usb";
+		power-domains = <&power RK3399_PD_PERIHP>;
 		status = "disabled";
 	};
 
@@ -353,6 +354,7 @@
 			      "utmi";
 		phys = <&u2phy0_host>;
 		phy-names = "usb";
+		power-domains = <&power RK3399_PD_PERIHP>;
 		status = "disabled";
 	};
 
@@ -366,6 +368,7 @@
 			      "utmi";
 		phys = <&u2phy1_host>;
 		phy-names = "usb";
+		power-domains = <&power RK3399_PD_PERIHP>;
 		status = "disabled";
 	};
 
@@ -379,6 +382,7 @@
 			      "utmi";
 		phys = <&u2phy1_host>;
 		phy-names = "usb";
+		power-domains = <&power RK3399_PD_PERIHP>;
 		status = "disabled";
 	};
 
