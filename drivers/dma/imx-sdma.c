@@ -184,7 +184,7 @@
 struct sdma_mode_count {
 	u32 count   : 16; /* size of the buffer pointed by this BD */
 	u32 status  :  8; /* E,R,I,C,W,D status bits stored here */
-	u32 command :  8; /* command mostlky used for channel 0 */
+	u32 command :  8; /* command mostly used for channel 0 */
 };
 
 /*
