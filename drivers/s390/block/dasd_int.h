@@ -378,6 +378,10 @@ struct dasd_discipline {
 	int (*check_attention)(struct dasd_device *, __u8);
 	int (*host_access_count)(struct dasd_device *);
 	int (*hosts_print)(struct dasd_device *, struct seq_file *);
+	void (*handle_hpf_error)(struct dasd_device *, struct irb *);
+	void (*disable_hpf)(struct dasd_device *);
+	int (*hpf_enabled)(struct dasd_device *);
+	void (*reset_path)(struct dasd_device *, __u8);
 };
 
 extern struct dasd_discipline *dasd_diag_discipline_pointer;
@@ -407,11 +411,19 @@ extern struct dasd_discipline *dasd_diag_discipline_pointer;
 #define DASD_PATH_MISCABLED    5
 #define DASD_PATH_NOHPF        6
 #define DASD_PATH_CUIR	       7
+#define DASD_PATH_IFCC	       8
 
+#define DASD_THRHLD_MAX		4294967295U
+#define DASD_INTERVAL_MAX	4294967295U
 
 struct dasd_path {
 	unsigned long flags;
+	u8 cssid;
+	u8 ssid;
+	u8 chpid;
 	struct dasd_conf_data *conf_data;
+	atomic_t error_count;
+	unsigned long long errorclk;
 };
 
 
@@ -491,6 +503,7 @@ struct dasd_device {
 	struct work_struct reload_device;
 	struct work_struct kick_validate;
 	struct work_struct suc_work;
+	struct work_struct requeue_requests;
 	struct timer_list timer;
 
 	debug_info_t *debug_area;
@@ -505,6 +518,9 @@ struct dasd_device {
 	unsigned long default_retries;
 
 	unsigned long blk_timeout;
+
+	unsigned long path_thrhld;
+	unsigned long path_interval;
 
 	struct dentry *debugfs_dentry;
 	struct dentry *hosts_dentry;
@@ -715,6 +731,7 @@ void dasd_set_target_state(struct dasd_device *, int);
 void dasd_kick_device(struct dasd_device *);
 void dasd_restore_device(struct dasd_device *);
 void dasd_reload_device(struct dasd_device *);
+void dasd_schedule_requeue(struct dasd_device *);
 
 void dasd_add_request_head(struct dasd_ccw_req *);
 void dasd_add_request_tail(struct dasd_ccw_req *);
@@ -941,6 +958,21 @@ static inline void dasd_path_clear_cuir(struct dasd_device *device, int chp)
 	__clear_bit(DASD_PATH_CUIR, &device->path[chp].flags);
 }
 
+static inline void dasd_path_ifcc(struct dasd_device *device, int chp)
+{
+	set_bit(DASD_PATH_IFCC, &device->path[chp].flags);
+}
+
+static inline int dasd_path_is_ifcc(struct dasd_device *device, int chp)
+{
+	return test_bit(DASD_PATH_IFCC, &device->path[chp].flags);
+}
+
+static inline void dasd_path_clear_ifcc(struct dasd_device *device, int chp)
+{
+	clear_bit(DASD_PATH_IFCC, &device->path[chp].flags);
+}
+
 static inline void dasd_path_clear_nohpf(struct dasd_device *device, int chp)
 {
 	__clear_bit(DASD_PATH_NOHPF, &device->path[chp].flags);
@@ -1032,6 +1064,17 @@ static inline __u8 dasd_path_get_cuirpm(struct dasd_device *device)
 	return cuirpm;
 }
 
+static inline __u8 dasd_path_get_ifccpm(struct dasd_device *device)
+{
+	int chp;
+	__u8 ifccpm = 0x00;
+
+	for (chp = 0; chp < 8; chp++)
+		if (dasd_path_is_ifcc(device, chp))
+			ifccpm |= 0x80 >> chp;
+	return ifccpm;
+}
+
 static inline __u8 dasd_path_get_hpfpm(struct dasd_device *device)
 {
 	int chp;
@@ -1056,6 +1099,20 @@ static inline void dasd_path_add_tbvpm(struct dasd_device *device, __u8 pm)
 			dasd_path_verify(device, chp);
 }
 
+static inline __u8 dasd_path_get_notoperpm(struct dasd_device *device)
+{
+	int chp;
+	__u8 nopm = 0x00;
+
+	for (chp = 0; chp < 8; chp++)
+		if (dasd_path_is_nohpf(device, chp) ||
+		    dasd_path_is_ifcc(device, chp) ||
+		    dasd_path_is_cuir(device, chp) ||
+		    dasd_path_is_miscabled(device, chp))
+			nopm |= 0x80 >> chp;
+	return nopm;
+}
+
 static inline void dasd_path_add_opm(struct dasd_device *device, __u8 pm)
 {
 	int chp;
@@ -1070,6 +1127,7 @@ static inline void dasd_path_add_opm(struct dasd_device *device, __u8 pm)
 			dasd_path_clear_nohpf(device, chp);
 			dasd_path_clear_cuir(device, chp);
 			dasd_path_clear_cable(device, chp);
+			dasd_path_clear_ifcc(device, chp);
 		}
 }
 
@@ -1089,6 +1147,15 @@ static inline void dasd_path_add_cuirpm(struct dasd_device *device, __u8 pm)
 	for (chp = 0; chp < 8; chp++)
 		if (pm & (0x80 >> chp))
 			dasd_path_cuir(device, chp);
+}
+
+static inline void dasd_path_add_ifccpm(struct dasd_device *device, __u8 pm)
+{
+	int chp;
+
+	for (chp = 0; chp < 8; chp++)
+		if (pm & (0x80 >> chp))
+			dasd_path_ifcc(device, chp);
 }
 
 static inline void dasd_path_add_nppm(struct dasd_device *device, __u8 pm)
@@ -1148,6 +1215,7 @@ static inline void dasd_path_set_opm(struct dasd_device *device, __u8 pm)
 			dasd_path_clear_nohpf(device, chp);
 			dasd_path_clear_cuir(device, chp);
 			dasd_path_clear_cable(device, chp);
+			dasd_path_clear_ifcc(device, chp);
 		}
 	}
 }

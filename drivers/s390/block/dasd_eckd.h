@@ -94,6 +94,8 @@
 #define FCX_MAX_DATA_FACTOR 65536
 #define DASD_ECKD_RCD_DATA_SIZE 256
 
+#define DASD_ECKD_PATH_THRHLD		 256
+#define DASD_ECKD_PATH_INTERVAL		 300
 
 /*****************************************************************************
  * SECTION: Type Definitions

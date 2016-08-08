@@ -2208,6 +2208,51 @@ dasd_3990_erp_inspect_32(struct dasd_ccw_req * erp, char *sense)
 
 }				/* end dasd_3990_erp_inspect_32 */
 
+static void dasd_3990_erp_disable_path(struct dasd_device *device, __u8 lpum)
+{
+	int pos = pathmask_to_pos(lpum);
+
+	/* no remaining path, cannot disable */
+	if (!(dasd_path_get_opm(device) & ~lpum))
+		return;
+
+	dev_err(&device->cdev->dev,
+		"Path %x.%02x (pathmask %02x) is disabled - IFCC threshold exceeded\n",
+		device->path[pos].cssid, device->path[pos].chpid, lpum);
+	dasd_path_remove_opm(device, lpum);
+	dasd_path_add_ifccpm(device, lpum);
+	device->path[pos].errorclk = 0;
+	atomic_set(&device->path[pos].error_count, 0);
+}
+
+static void dasd_3990_erp_account_error(struct dasd_ccw_req *erp)
+{
+	struct dasd_device *device = erp->startdev;
+	__u8 lpum = erp->refers->irb.esw.esw1.lpum;
+	int pos = pathmask_to_pos(lpum);
+	unsigned long long clk;
+
+	if (!device->path_thrhld)
+		return;
+
+	clk = get_tod_clock();
+	/*
+	 * check if the last error is longer ago than the timeout,
+	 * if so reset error state
+	 */
+	if ((tod_to_ns(clk - device->path[pos].errorclk) / NSEC_PER_SEC)
+	    >= device->path_interval) {
+		atomic_set(&device->path[pos].error_count, 0);
+		device->path[pos].errorclk = 0;
+	}
+	atomic_inc(&device->path[pos].error_count);
+	device->path[pos].errorclk = clk;
+	/* threshold exceeded disable path if possible */
+	if (atomic_read(&device->path[pos].error_count) >=
+	    device->path_thrhld)
+		dasd_3990_erp_disable_path(device, lpum);
+}
+
 /*
  *****************************************************************************
  * main ERP control functions (24 and 32 byte sense)
@@ -2237,6 +2282,7 @@ dasd_3990_erp_control_check(struct dasd_ccw_req *erp)
 					   | SCHN_STAT_CHN_CTRL_CHK)) {
 		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
 			    "channel or interface control check");
+		dasd_3990_erp_account_error(erp);
 		erp = dasd_3990_erp_action_4(erp, NULL);
 	}
 	return erp;
