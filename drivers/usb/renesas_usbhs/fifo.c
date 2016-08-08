@@ -871,7 +871,7 @@ static int usbhsf_dma_prepare_push(struct usbhs_pkt *pkt, int *is_done)
 
 	/* use PIO if packet is less than pio_dma_border or pipe is DCP */
 	if ((len < usbhs_get_dparam(priv, pio_dma_border)) ||
-	    usbhs_pipe_is_dcp(pipe))
+	    usbhs_pipe_type_is(pipe, USB_ENDPOINT_XFER_ISOC))
 		goto usbhsf_pio_prepare_push;
 
 	/* check data length if this driver don't use USB-DMAC */
@@ -976,7 +976,7 @@ static int usbhsf_dma_prepare_pop_with_usb_dmac(struct usbhs_pkt *pkt,
 
 	/* use PIO if packet is less than pio_dma_border or pipe is DCP */
 	if ((pkt->length < usbhs_get_dparam(priv, pio_dma_border)) ||
-	    usbhs_pipe_is_dcp(pipe))
+	    usbhs_pipe_type_is(pipe, USB_ENDPOINT_XFER_ISOC))
 		goto usbhsf_pio_prepare_pop;
 
 	fifo = usbhsf_get_dma_fifo(priv, pkt);
