@@ -2337,8 +2337,11 @@ int memcg_kmem_charge(struct page *page, gfp_t gfp, int order)
 		return 0;
 
 	memcg = get_mem_cgroup_from_mm(current->mm);
-	if (!mem_cgroup_is_root(memcg))
+	if (!mem_cgroup_is_root(memcg)) {
 		ret = memcg_kmem_charge_memcg(page, gfp, order, memcg);
+		if (!ret)
+			__SetPageKmemcg(page);
+	}
 	css_put(&memcg->css);
 	return ret;
 }
@@ -2365,6 +2368,11 @@ void memcg_kmem_uncharge(struct page *page, int order)
 		page_counter_uncharge(&memcg->memsw, nr_pages);
 
 	page->mem_cgroup = NULL;
+
+	/* slab pages do not have PageKmemcg flag set */
+	if (PageKmemcg(page))
+		__ClearPageKmemcg(page);
+
 	css_put_many(&memcg->css, nr_pages);
 }
 #endif /* !CONFIG_SLOB */
@@ -5537,8 +5545,10 @@ static void uncharge_list(struct list_head *page_list)
 			else
 				nr_file += nr_pages;
 			pgpgout++;
-		} else
+		} else {
 			nr_kmem += 1 << compound_order(page);
+			__ClearPageKmemcg(page);
+		}
 
 		page->mem_cgroup = NULL;
 	} while (next != page_list);

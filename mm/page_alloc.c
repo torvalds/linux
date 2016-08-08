@@ -1008,10 +1008,8 @@ static __always_inline bool free_pages_prepare(struct page *page,
 	}
 	if (PageMappingFlags(page))
 		page->mapping = NULL;
-	if (memcg_kmem_enabled() && PageKmemcg(page)) {
+	if (memcg_kmem_enabled() && PageKmemcg(page))
 		memcg_kmem_uncharge(page, order);
-		__ClearPageKmemcg(page);
-	}
 	if (check_free)
 		bad += free_pages_check(page);
 	if (bad)
@@ -3756,12 +3754,10 @@ no_zone:
 	}
 
 out:
-	if (memcg_kmem_enabled() && (gfp_mask & __GFP_ACCOUNT) && page) {
-		if (unlikely(memcg_kmem_charge(page, gfp_mask, order))) {
-			__free_pages(page, order);
-			page = NULL;
-		} else
-			__SetPageKmemcg(page);
+	if (memcg_kmem_enabled() && (gfp_mask & __GFP_ACCOUNT) && page &&
+	    unlikely(memcg_kmem_charge(page, gfp_mask, order) != 0)) {
+		__free_pages(page, order);
+		page = NULL;
 	}
 
 	if (kmemcheck_enabled && page)
