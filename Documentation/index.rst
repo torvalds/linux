@@ -14,6 +14,7 @@ Contents:
    :maxdepth: 2
 
    kernel-documentation
+   dev-tools/tools
    media/media_uapi
    media/media_kapi
    media/dvb-drivers/index
