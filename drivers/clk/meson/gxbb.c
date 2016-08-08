@@ -937,8 +937,4 @@ static struct platform_driver gxbb_driver = {
 	},
 };
 
-static int __init gxbb_clkc_init(void)
-{
-	return platform_driver_register(&gxbb_driver);
-}
-device_initcall(gxbb_clkc_init);
+builtin_platform_driver(gxbb_driver);
