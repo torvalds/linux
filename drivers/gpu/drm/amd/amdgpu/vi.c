@@ -823,6 +823,60 @@ static const struct amdgpu_ip_block_version topaz_ip_blocks[] =
 	},
 };
 
+static const struct amdgpu_ip_block_version topaz_ip_blocks_vd[] =
+{
+	/* ORDER MATTERS! */
+	{
+		.type = AMD_IP_BLOCK_TYPE_COMMON,
+		.major = 2,
+		.minor = 0,
+		.rev = 0,
+		.funcs = &vi_common_ip_funcs,
+	},
+	{
+		.type = AMD_IP_BLOCK_TYPE_GMC,
+		.major = 7,
+		.minor = 4,
+		.rev = 0,
+		.funcs = &gmc_v7_0_ip_funcs,
+	},
+	{
+		.type = AMD_IP_BLOCK_TYPE_IH,
+		.major = 2,
+		.minor = 4,
+		.rev = 0,
+		.funcs = &iceland_ih_ip_funcs,
+	},
+	{
+		.type = AMD_IP_BLOCK_TYPE_SMC,
+		.major = 7,
+		.minor = 1,
+		.rev = 0,
+		.funcs = &amdgpu_pp_ip_funcs,
+	},
+	{
+		.type = AMD_IP_BLOCK_TYPE_DCE,
+		.major = 1,
+		.minor = 0,
+		.rev = 0,
+		.funcs = &dce_virtual_ip_funcs,
+	},
+	{
+		.type = AMD_IP_BLOCK_TYPE_GFX,
+		.major = 8,
+		.minor = 0,
+		.rev = 0,
+		.funcs = &gfx_v8_0_ip_funcs,
+	},
+	{
+		.type = AMD_IP_BLOCK_TYPE_SDMA,
+		.major = 2,
+		.minor = 4,
+		.rev = 0,
+		.funcs = &sdma_v2_4_ip_funcs,
+	},
+};
+
 static const struct amdgpu_ip_block_version tonga_ip_blocks[] =
 {
 	/* ORDER MATTERS! */
@@ -1390,8 +1444,8 @@ int vi_set_ip_blocks(struct amdgpu_device *adev)
 	if (amdgpu_virtual_display) {
 		switch (adev->asic_type) {
 		case CHIP_TOPAZ:
-			adev->ip_blocks = topaz_ip_blocks;
-			adev->num_ip_blocks = ARRAY_SIZE(topaz_ip_blocks);
+			adev->ip_blocks = topaz_ip_blocks_vd;
+			adev->num_ip_blocks = ARRAY_SIZE(topaz_ip_blocks_vd);
 			break;
 		case CHIP_FIJI:
 			adev->ip_blocks = fiji_ip_blocks_vd;
