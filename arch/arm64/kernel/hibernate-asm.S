@@ -36,8 +36,8 @@
 .macro break_before_make_ttbr_switch zero_page, page_table
 	msr	ttbr1_el1, \zero_page
 	isb
-	tlbi	vmalle1is
-	dsb	ish
+	tlbi	vmalle1
+	dsb	nsh
 	msr	ttbr1_el1, \page_table
 	isb
 .endm
