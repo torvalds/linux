@@ -704,11 +704,24 @@
 	status = "okay";
 };
 
+&threshold {
+	temperature = <85000>;
+};
+
+&target {
+	temperature = <100000>;
+};
+
+&soc_crit {
+	temperature = <105000>;
+};
+
 &tsadc {
 	/* tshut mode 0:CRU 1:GPIO */
 	rockchip,hw-tshut-mode = <1>;
 	/* tshut polarity 0:LOW 1:HIGH */
 	rockchip,hw-tshut-polarity = <1>;
+	rockchip,hw-tshut-temp = <110000>;
 	status = "okay";
 };
 
