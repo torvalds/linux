@@ -257,7 +257,7 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 			audit_log_format(ab, " ino=%lu", inode->i_ino);
 		}
 
-		audit_log_format(ab, " ioctlcmd=%hx", a->u.op->cmd);
+		audit_log_format(ab, " ioctlcmd=0x%hx", a->u.op->cmd);
 		break;
 	}
 	case LSM_AUDIT_DATA_DENTRY: {
