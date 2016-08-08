@@ -113,7 +113,7 @@ to_intel_gmbus(struct i2c_adapter *i2c)
 void
 intel_i2c_reset(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	I915_WRITE(GMBUS0, 0);
 	I915_WRITE(GMBUS4, 0);
@@ -138,7 +138,7 @@ static void intel_i2c_quirk_set(struct drm_i915_private *dev_priv, bool enable)
 static u32 get_reserved(struct intel_gmbus *bus)
 {
 	struct drm_i915_private *dev_priv = bus->dev_priv;
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	u32 reserved = 0;
 
 	/* On most chips, these bits must be preserved in software. */
@@ -212,7 +212,7 @@ intel_gpio_pre_xfer(struct i2c_adapter *adapter)
 					       adapter);
 	struct drm_i915_private *dev_priv = bus->dev_priv;
 
-	intel_i2c_reset(dev_priv->dev);
+	intel_i2c_reset(&dev_priv->drm);
 	intel_i2c_quirk_set(dev_priv, true);
 	set_data(bus, 1);
 	set_clock(bus, 1);
@@ -298,15 +298,16 @@ gmbus_wait_idle(struct drm_i915_private *dev_priv)
 {
 	int ret;
 
-#define C ((I915_READ_NOTRACE(GMBUS2) & GMBUS_ACTIVE) == 0)
-
 	if (!HAS_GMBUS_IRQ(dev_priv))
-		return wait_for(C, 10);
+		return intel_wait_for_register(dev_priv,
+					       GMBUS2, GMBUS_ACTIVE, 0,
+					       10);
 
 	/* Important: The hw handles only the first bit, so set only one! */
 	I915_WRITE(GMBUS4, GMBUS_IDLE_EN);
 
-	ret = wait_event_timeout(dev_priv->gmbus_wait_queue, C,
+	ret = wait_event_timeout(dev_priv->gmbus_wait_queue,
+				 (I915_READ_NOTRACE(GMBUS2) & GMBUS_ACTIVE) == 0,
 				 msecs_to_jiffies_timeout(10));
 
 	I915_WRITE(GMBUS4, 0);
@@ -315,7 +316,6 @@ gmbus_wait_idle(struct drm_i915_private *dev_priv)
 		return 0;
 	else
 		return -ETIMEDOUT;
-#undef C
 }
 
 static int
@@ -632,7 +632,7 @@ static const struct i2c_algorithm gmbus_algorithm = {
  */
 int intel_setup_gmbus(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_gmbus *bus;
 	unsigned int pin;
 	int ret;
@@ -688,7 +688,7 @@ int intel_setup_gmbus(struct drm_device *dev)
 			goto err;
 	}
 
-	intel_i2c_reset(dev_priv->dev);
+	intel_i2c_reset(&dev_priv->drm);
 
 	return 0;
 
@@ -736,7 +736,7 @@ void intel_gmbus_force_bit(struct i2c_adapter *adapter, bool force_bit)
 
 void intel_teardown_gmbus(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_gmbus *bus;
 	unsigned int pin;
 

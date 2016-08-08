@@ -8,7 +8,6 @@
 #include <linux/memblock.h>
 #include <linux/mmzone.h>
 #include <linux/ctype.h>
-#include <linux/module.h>
 #include <linux/nodemask.h>
 #include <linux/sched.h>
 #include <linux/topology.h>

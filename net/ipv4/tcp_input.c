@@ -6147,6 +6147,9 @@ struct request_sock *inet_reqsk_alloc(const struct request_sock_ops *ops,
 
 		kmemcheck_annotate_bitfield(ireq, flags);
 		ireq->opt = NULL;
+#if IS_ENABLED(CONFIG_IPV6)
+		ireq->pktopts = NULL;
+#endif
 		atomic64_set(&ireq->ir_cookie, 0);
 		ireq->ireq_state = TCP_NEW_SYN_RECV;
 		write_pnet(&ireq->ireq_net, sock_net(sk_listener));

@@ -99,7 +99,7 @@ struct md_rdev {
 	atomic_t	read_errors;	/* number of consecutive read errors that
 					 * we have tried to ignore.
 					 */
-	struct timespec last_read_error;	/* monotonic time since our
+	time64_t	last_read_error;	/* monotonic time since our
 						 * last read error
 						 */
 	atomic_t	corrected_errors; /* number of corrected read errors,
@@ -163,6 +163,11 @@ enum flag_bits {
 				 * than other devices in the array
 				 */
 	ClusterRemove,
+	RemoveSynchronized,	/* synchronize_rcu() was called after
+				 * this device was known to be faulty,
+				 * so it is safe to remove without
+				 * another synchronize_rcu() call.
+				 */
 };
 
 static inline int is_badblock(struct md_rdev *rdev, sector_t s, int sectors,
@@ -204,6 +209,9 @@ struct mddev {
 #define MD_RELOAD_SB	7	/* Reload the superblock because another node
 				 * updated it.
 				 */
+#define MD_CLUSTER_RESYNC_LOCKED 8 /* cluster raid only, which means node
+				    * already took resync lock, need to
+				    * release the lock */
 
 	int				suspended;
 	atomic_t			active_io;

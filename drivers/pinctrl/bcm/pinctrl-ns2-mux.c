@@ -1044,10 +1044,8 @@ static int ns2_pinmux_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	pinctrl->base0 = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(pinctrl->base0)) {
-		dev_err(&pdev->dev, "unable to map I/O space\n");
+	if (IS_ERR(pinctrl->base0))
 		return PTR_ERR(pinctrl->base0);
-	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	pinctrl->base1 = devm_ioremap_nocache(&pdev->dev, res->start,
@@ -1059,10 +1057,8 @@ static int ns2_pinmux_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
 	pinctrl->pinconf_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(pinctrl->pinconf_base)) {
-		dev_err(&pdev->dev, "unable to map I/O space\n");
+	if (IS_ERR(pinctrl->pinconf_base))
 		return PTR_ERR(pinctrl->pinconf_base);
-	}
 
 	ret = ns2_mux_log_init(pinctrl);
 	if (ret) {
@@ -1089,9 +1085,9 @@ static int ns2_pinmux_probe(struct platform_device *pdev)
 
 	pinctrl->pctl = pinctrl_register(&ns2_pinctrl_desc, &pdev->dev,
 			pinctrl);
-	if (!pinctrl->pctl) {
+	if (IS_ERR(pinctrl->pctl)) {
 		dev_err(&pdev->dev, "unable to register IOMUX pinctrl\n");
-		return -EINVAL;
+		return PTR_ERR(pinctrl->pctl);
 	}
 
 	return 0;

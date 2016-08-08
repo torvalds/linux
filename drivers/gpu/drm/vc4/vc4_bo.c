@@ -291,8 +291,6 @@ static void vc4_bo_cache_free_old(struct drm_device *dev)
 
 /* Called on the last userspace/kernel unreference of the BO.  Returns
  * it to the BO cache if possible, otherwise frees it.
- *
- * Note that this is called with the struct_mutex held.
  */
 void vc4_free_object(struct drm_gem_object *gem_bo)
 {

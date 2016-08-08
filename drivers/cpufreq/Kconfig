@@ -32,7 +32,6 @@ config CPU_FREQ_BOOST_SW
 
 config CPU_FREQ_STAT
 	bool "CPU frequency transition statistics"
-	default y
 	help
 	  Export CPU frequency statistics information through sysfs.
 

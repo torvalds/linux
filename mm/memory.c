@@ -2642,6 +2642,7 @@ int do_swap_page(struct fault_env *fe, pte_t orig_pte)
 	if (page == swapcache) {
 		do_page_add_anon_rmap(page, vma, fe->address, exclusive);
 		mem_cgroup_commit_charge(page, memcg, true, false);
+		activate_page(page);
 	} else { /* ksm created a completely new copy */
 		page_add_new_anon_rmap(page, vma, fe->address, false);
 		mem_cgroup_commit_charge(page, memcg, false, false);
@@ -3133,6 +3134,8 @@ static int do_fault_around(struct fault_env *fe, pgoff_t start_pgoff)
 
 	if (pmd_none(*fe->pmd)) {
 		fe->prealloc_pte = pte_alloc_one(fe->vma->vm_mm, fe->address);
+		if (!fe->prealloc_pte)
+			goto out;
 		smp_wmb(); /* See comment in __pte_alloc() */
 	}
 

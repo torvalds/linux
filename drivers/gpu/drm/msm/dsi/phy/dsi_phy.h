@@ -38,6 +38,8 @@ struct msm_dsi_phy_cfg {
 	 * Fill default H/W values in illegal cells, eg. cell {0, 1}.
 	 */
 	bool src_pll_truthtable[DSI_MAX][DSI_MAX];
+	const resource_size_t io_start[DSI_MAX];
+	const int num_dsi_phy;
 };
 
 extern const struct msm_dsi_phy_cfg dsi_phy_28nm_hpm_cfgs;

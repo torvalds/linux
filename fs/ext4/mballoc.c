@@ -2350,7 +2350,6 @@ static int ext4_mb_seq_groups_open(struct inode *inode, struct file *file)
 }
 
 const struct file_operations ext4_seq_mb_groups_fops = {
-	.owner		= THIS_MODULE,
 	.open		= ext4_mb_seq_groups_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

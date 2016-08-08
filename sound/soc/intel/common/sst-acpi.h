@@ -20,7 +20,7 @@
 #if IS_ENABLED(CONFIG_ACPI)
 const char *sst_acpi_find_name_from_hid(const u8 hid[ACPI_ID_LEN]);
 #else
-inline const char *sst_acpi_find_name_from_hid(const u8 hid[ACPI_ID_LEN])
+static inline const char *sst_acpi_find_name_from_hid(const u8 hid[ACPI_ID_LEN])
 {
 	return NULL;
 }
@@ -40,6 +40,6 @@ struct sst_acpi_mach {
 
 	/* board name */
 	const char *board;
-	void (*machine_quirk)(void);
+	struct sst_acpi_mach * (*machine_quirk)(void *arg);
 	void *pdata;
 };

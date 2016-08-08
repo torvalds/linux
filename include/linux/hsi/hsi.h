@@ -246,7 +246,7 @@ struct hsi_port {
 	int				(*stop_tx)(struct hsi_client *cl);
 	int				(*release)(struct hsi_client *cl);
 	/* private */
-	struct atomic_notifier_head	n_head;
+	struct blocking_notifier_head	n_head;
 };
 
 #define to_hsi_port(dev) container_of(dev, struct hsi_port, device)

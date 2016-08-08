@@ -1627,11 +1627,11 @@ static unsigned long minimum_image_size(unsigned long saveable)
 	unsigned long size;
 
 	size = global_page_state(NR_SLAB_RECLAIMABLE)
-		+ global_page_state(NR_ACTIVE_ANON)
-		+ global_page_state(NR_INACTIVE_ANON)
-		+ global_page_state(NR_ACTIVE_FILE)
-		+ global_page_state(NR_INACTIVE_FILE)
-		- global_page_state(NR_FILE_MAPPED);
+		+ global_node_page_state(NR_ACTIVE_ANON)
+		+ global_node_page_state(NR_INACTIVE_ANON)
+		+ global_node_page_state(NR_ACTIVE_FILE)
+		+ global_node_page_state(NR_INACTIVE_FILE)
+		- global_node_page_state(NR_FILE_MAPPED);
 
 	return saveable <= size ? 0 : saveable - size;
 }

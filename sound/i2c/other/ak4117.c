@@ -110,7 +110,7 @@ int snd_ak4117_create(struct snd_card *card, ak4117_read_t *read, ak4117_write_t
 
       __fail:
 	snd_ak4117_free(chip);
-	return err < 0 ? err : -EIO;
+	return err;
 }
 
 void snd_ak4117_reg_write(struct ak4117 *chip, unsigned char reg, unsigned char mask, unsigned char val)

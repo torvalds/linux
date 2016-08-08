@@ -396,6 +396,7 @@ devpts_fill_super(struct super_block *s, void *data, int silent)
 {
 	struct inode *inode;
 
+	s->s_iflags &= ~SB_I_NODEV;
 	s->s_blocksize = 1024;
 	s->s_blocksize_bits = 10;
 	s->s_magic = DEVPTS_SUPER_MAGIC;
@@ -480,7 +481,7 @@ static struct file_system_type devpts_fs_type = {
 	.name		= "devpts",
 	.mount		= devpts_mount,
 	.kill_sb	= devpts_kill_sb,
-	.fs_flags	= FS_USERNS_MOUNT | FS_USERNS_DEV_MOUNT,
+	.fs_flags	= FS_USERNS_MOUNT,
 };
 
 /*

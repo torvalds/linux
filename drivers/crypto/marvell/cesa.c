@@ -180,10 +180,11 @@ int mv_cesa_queue_req(struct crypto_async_request *req,
 	struct mv_cesa_engine *engine = creq->engine;
 
 	spin_lock_bh(&engine->lock);
-	if (mv_cesa_req_get_type(creq) == CESA_DMA_REQ)
-		mv_cesa_tdma_chain(engine, creq);
-
 	ret = crypto_enqueue_request(&engine->queue, req);
+	if ((mv_cesa_req_get_type(creq) == CESA_DMA_REQ) &&
+	    (ret == -EINPROGRESS ||
+	    (ret == -EBUSY && req->flags & CRYPTO_TFM_REQ_MAY_BACKLOG)))
+		mv_cesa_tdma_chain(engine, creq);
 	spin_unlock_bh(&engine->lock);
 
 	if (ret != -EINPROGRESS)

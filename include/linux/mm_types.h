@@ -118,7 +118,7 @@ struct page {
 	 */
 	union {
 		struct list_head lru;	/* Pageout list, eg. active_list
-					 * protected by zone->lru_lock !
+					 * protected by zone_lru_lock !
 					 * Can be used as a generic list
 					 * by the page owner.
 					 */

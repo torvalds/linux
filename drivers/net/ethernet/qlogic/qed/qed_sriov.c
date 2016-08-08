@@ -1404,7 +1404,7 @@ static int __qed_iov_spoofchk_set(struct qed_hwfn *p_hwfn,
 	params.anti_spoofing_en = val;
 
 	rc = qed_sp_vport_update(p_hwfn, &params, QED_SPQ_MODE_EBLOCK, NULL);
-	if (rc) {
+	if (!rc) {
 		p_vf->spoof_chk = val;
 		p_vf->req_spoofchk_val = p_vf->spoof_chk;
 		DP_VERBOSE(p_hwfn, QED_MSG_IOV,

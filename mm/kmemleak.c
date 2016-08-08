@@ -1485,8 +1485,10 @@ static int kmemleak_scan_thread(void *arg)
 	 * Wait before the first scan to allow the system to fully initialize.
 	 */
 	if (first_run) {
+		signed long timeout = msecs_to_jiffies(SECS_FIRST_SCAN * 1000);
 		first_run = 0;
-		ssleep(SECS_FIRST_SCAN);
+		while (timeout && !kthread_should_stop())
+			timeout = schedule_timeout_interruptible(timeout);
 	}
 
 	while (!kthread_should_stop()) {

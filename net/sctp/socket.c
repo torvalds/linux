@@ -2079,7 +2079,7 @@ static int sctp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 	lock_sock(sk);
 
 	if (sctp_style(sk, TCP) && !sctp_sstate(sk, ESTABLISHED) &&
-	    !sctp_sstate(sk, CLOSING)) {
+	    !sctp_sstate(sk, CLOSING) && !sctp_sstate(sk, CLOSED)) {
 		err = -ENOTCONN;
 		goto out;
 	}

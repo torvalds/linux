@@ -1,38 +1,15 @@
-if ARCH_CLPS711X
-
-menu "CLPS711X/EP721X/EP731X Implementations"
-
-config ARCH_AUTCPU12
-	bool "AUTCPU12"
+menuconfig ARCH_CLPS711X
+	bool "Cirrus Logic EP721x/EP731x-based"
+	depends on ARCH_MULTI_V4T
+	select ARCH_REQUIRE_GPIOLIB
+	select AUTO_ZRELADDR
+	select CLKSRC_OF
+	select CLPS711X_TIMER
+	select COMMON_CLK
+	select CPU_ARM720T
+	select GENERIC_CLOCKEVENTS
+	select MFD_SYSCON
+	select OF_IRQ
+	select USE_OF
 	help
-	  Say Y if you intend to run the kernel on the autronix autcpu12
-	  board. This board is based on a Cirrus Logic CS89712.
-
-config ARCH_CDB89712
-	bool "CDB89712"
-	help
-	  This is an evaluation board from Cirrus for the CS89712 processor.
-	  The board includes 2 serial ports, Ethernet, IRDA, and expansion
-	  headers.  It comes with 16 MB SDRAM and 8 MB flash ROM.
-
-config ARCH_CLEP7312
-	bool "CLEP7312"
-	help
-	  Boards based on the Cirrus Logic 7212/7312 chips.
-
-config ARCH_EDB7211
-	bool "EDB7211"
-	select ARCH_HAS_HOLES_MEMORYMODEL
-	help
-	  Say Y here if you intend to run this kernel on a Cirrus Logic EDB-7211
-	  evaluation board.
-
-config ARCH_P720T
-	bool "P720T"
-	help
-	  Say Y here if you intend to run this kernel on the ARM Prospector
-	  720T.
-
-endmenu
-
-endif
+	  Select this if you use ARMv4T Cirrus Logic chips.

@@ -11,6 +11,7 @@ config SH_DEVICE_TREE
 	select OF
 	select OF_EARLY_FLATTREE
 	select CLKSRC_OF
+	select COMMON_CLK
 	select GENERIC_CALIBRATE_DELAY
 	help
 	  Select Board Described by Device Tree to build a kernel that

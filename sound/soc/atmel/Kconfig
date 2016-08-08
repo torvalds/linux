@@ -10,6 +10,7 @@ if SND_ATMEL_SOC
 
 config SND_ATMEL_SOC_PDC
 	tristate
+	depends on HAS_DMA
 	default m if SND_ATMEL_SOC_SSC_PDC=m && SND_ATMEL_SOC_SSC=m
 	default y if SND_ATMEL_SOC_SSC_PDC=y || (SND_ATMEL_SOC_SSC_PDC=m && SND_ATMEL_SOC_SSC=y)
 

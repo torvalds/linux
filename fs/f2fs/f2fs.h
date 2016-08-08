@@ -1914,10 +1914,10 @@ struct page *init_inode_metadata(struct inode *, struct inode *,
 void update_parent_metadata(struct inode *, struct inode *, unsigned int);
 int room_for_filename(const void *, int, int);
 void f2fs_drop_nlink(struct inode *, struct inode *);
-struct f2fs_dir_entry *f2fs_find_entry(struct inode *, struct qstr *,
+struct f2fs_dir_entry *f2fs_find_entry(struct inode *, const struct qstr *,
 							struct page **);
 struct f2fs_dir_entry *f2fs_parent_dir(struct inode *, struct page **);
-ino_t f2fs_inode_by_name(struct inode *, struct qstr *, struct page **);
+ino_t f2fs_inode_by_name(struct inode *, const struct qstr *, struct page **);
 void f2fs_set_link(struct inode *, struct f2fs_dir_entry *,
 				struct page *, struct inode *);
 int update_dent_inode(struct inode *, struct inode *, const struct qstr *);

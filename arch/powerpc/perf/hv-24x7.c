@@ -1298,7 +1298,7 @@ static void h_24x7_event_read(struct perf_event *event)
 			__this_cpu_write(hv_24x7_txn_err, ret);
 		} else {
 			/*
-			 * Assoicate the event with the HCALL request index,
+			 * Associate the event with the HCALL request index,
 			 * so ->commit_txn() can quickly find/update count.
 			 */
 			i = request_buffer->num_requests - 1;

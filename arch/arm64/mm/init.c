@@ -224,7 +224,7 @@ void __init arm64_memblock_init(void)
 	 * via the linear mapping.
 	 */
 	if (memory_limit != (phys_addr_t)ULLONG_MAX) {
-		memblock_enforce_memory_limit(memory_limit);
+		memblock_mem_limit_remove_map(memory_limit);
 		memblock_add(__pa(_text), (u64)(_end - _text));
 	}
 

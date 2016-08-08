@@ -131,10 +131,6 @@ static int qxlfb_create_pinned_object(struct qxl_fbdev *qfbdev,
 	int ret;
 	int aligned_size, size;
 	int height = mode_cmd->height;
-	int bpp;
-	int depth;
-
-	drm_fb_get_bpp_depth(mode_cmd->pixel_format, &bpp, &depth);
 
 	size = mode_cmd->pitches[0] * height;
 	aligned_size = ALIGN(size, PAGE_SIZE);

@@ -984,24 +984,11 @@ static int gic_irq_domain_translate(struct irq_domain *d,
 	return -EINVAL;
 }
 
-#ifdef CONFIG_SMP
-static int gic_secondary_init(struct notifier_block *nfb, unsigned long action,
-			      void *hcpu)
+static int gic_starting_cpu(unsigned int cpu)
 {
-	if (action == CPU_STARTING || action == CPU_STARTING_FROZEN)
-		gic_cpu_init(&gic_data[0]);
-	return NOTIFY_OK;
+	gic_cpu_init(&gic_data[0]);
+	return 0;
 }
-
-/*
- * Notifier for enabling the GIC CPU interface. Set an arbitrarily high
- * priority because the GIC needs to be up before the ARM generic timers.
- */
-static struct notifier_block gic_cpu_notifier = {
-	.notifier_call = gic_secondary_init,
-	.priority = 100,
-};
-#endif
 
 static int gic_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 				unsigned int nr_irqs, void *arg)
@@ -1177,8 +1164,10 @@ static int __init __gic_init_bases(struct gic_chip_data *gic,
 			gic_cpu_map[i] = 0xff;
 #ifdef CONFIG_SMP
 		set_smp_cross_call(gic_raise_softirq);
-		register_cpu_notifier(&gic_cpu_notifier);
 #endif
+		cpuhp_setup_state_nocalls(CPUHP_AP_IRQ_GIC_STARTING,
+					  "AP_IRQ_GIC_STARTING",
+					  gic_starting_cpu, NULL);
 		set_handle_irq(gic_handle_irq);
 		if (static_key_true(&supports_deactivate))
 			pr_info("GIC: Using split EOI/Deactivate mode\n");

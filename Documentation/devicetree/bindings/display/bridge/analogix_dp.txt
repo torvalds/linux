@@ -5,6 +5,7 @@ Required properties for dp-controller:
 		platform specific such as:
 		 * "samsung,exynos5-dp"
 		 * "rockchip,rk3288-dp"
+		 * "rockchip,rk3399-edp"
 	-reg:
 		physical base address of the controller and length
 		of memory mapped region.

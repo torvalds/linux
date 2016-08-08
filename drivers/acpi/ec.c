@@ -101,6 +101,7 @@ enum ec_command {
 #define ACPI_EC_UDELAY_POLL	550	/* Wait 1ms for EC transaction polling */
 #define ACPI_EC_CLEAR_MAX	100	/* Maximum number of events to query
 					 * when trying to clear the EC */
+#define ACPI_EC_MAX_QUERIES	16	/* Maximum number of parallel queries */
 
 enum {
 	EC_FLAGS_QUERY_PENDING,		/* Query is pending */
@@ -120,6 +121,10 @@ enum {
 static unsigned int ec_delay __read_mostly = ACPI_EC_DELAY;
 module_param(ec_delay, uint, 0644);
 MODULE_PARM_DESC(ec_delay, "Timeout(ms) waited until an EC command completes");
+
+static unsigned int ec_max_queries __read_mostly = ACPI_EC_MAX_QUERIES;
+module_param(ec_max_queries, uint, 0644);
+MODULE_PARM_DESC(ec_max_queries, "Maximum parallel _Qxx evaluations");
 
 static bool ec_busy_polling __read_mostly;
 module_param(ec_busy_polling, bool, 0644);
@@ -174,6 +179,7 @@ static void acpi_ec_event_processor(struct work_struct *work);
 
 struct acpi_ec *boot_ec, *first_ec;
 EXPORT_SYMBOL(first_ec);
+static struct workqueue_struct *ec_query_wq;
 
 static int EC_FLAGS_CLEAR_ON_RESUME; /* Needs acpi_ec_clear() on boot/resume */
 static int EC_FLAGS_QUERY_HANDSHAKE; /* Needs QR_EC issued when SCI_EVT set */
@@ -1098,7 +1104,7 @@ static int acpi_ec_query(struct acpi_ec *ec, u8 *data)
 	 * work queue execution.
 	 */
 	ec_dbg_evt("Query(0x%02x) scheduled", value);
-	if (!schedule_work(&q->work)) {
+	if (!queue_work(ec_query_wq, &q->work)) {
 		ec_dbg_evt("Query(0x%02x) overlapped", value);
 		result = -EBUSY;
 	}
@@ -1660,15 +1666,41 @@ static struct acpi_driver acpi_ec_driver = {
 		},
 };
 
+static inline int acpi_ec_query_init(void)
+{
+	if (!ec_query_wq) {
+		ec_query_wq = alloc_workqueue("kec_query", 0,
+					      ec_max_queries);
+		if (!ec_query_wq)
+			return -ENODEV;
+	}
+	return 0;
+}
+
+static inline void acpi_ec_query_exit(void)
+{
+	if (ec_query_wq) {
+		destroy_workqueue(ec_query_wq);
+		ec_query_wq = NULL;
+	}
+}
+
 int __init acpi_ec_init(void)
 {
-	int result = 0;
+	int result;
 
+	/* register workqueue for _Qxx evaluations */
+	result = acpi_ec_query_init();
+	if (result)
+		goto err_exit;
 	/* Now register the driver for the EC */
 	result = acpi_bus_register_driver(&acpi_ec_driver);
-	if (result < 0)
-		return -ENODEV;
+	if (result)
+		goto err_exit;
 
+err_exit:
+	if (result)
+		acpi_ec_query_exit();
 	return result;
 }
 
@@ -1678,5 +1710,6 @@ static void __exit acpi_ec_exit(void)
 {
 
 	acpi_bus_unregister_driver(&acpi_ec_driver);
+	acpi_ec_query_exit();
 }
 #endif	/* 0 */

@@ -331,15 +331,9 @@ static void vgetcpu_cpu_init(void *arg)
 	write_gdt_entry(get_cpu_gdt_table(cpu), GDT_ENTRY_PER_CPU, &d, DESCTYPE_S);
 }
 
-static int
-vgetcpu_cpu_notifier(struct notifier_block *n, unsigned long action, void *arg)
+static int vgetcpu_online(unsigned int cpu)
 {
-	long cpu = (long)arg;
-
-	if (action == CPU_ONLINE || action == CPU_ONLINE_FROZEN)
-		smp_call_function_single(cpu, vgetcpu_cpu_init, NULL, 1);
-
-	return NOTIFY_DONE;
+	return smp_call_function_single(cpu, vgetcpu_cpu_init, NULL, 1);
 }
 
 static int __init init_vdso(void)
@@ -350,15 +344,9 @@ static int __init init_vdso(void)
 	init_vdso_image(&vdso_image_x32);
 #endif
 
-	cpu_notifier_register_begin();
-
-	on_each_cpu(vgetcpu_cpu_init, NULL, 1);
 	/* notifier priority > KVM */
-	__hotcpu_notifier(vgetcpu_cpu_notifier, 30);
-
-	cpu_notifier_register_done();
-
-	return 0;
+	return cpuhp_setup_state(CPUHP_AP_X86_VDSO_VMA_ONLINE,
+				 "AP_X86_VDSO_VMA_ONLINE", vgetcpu_online, NULL);
 }
 subsys_initcall(init_vdso);
 #endif /* CONFIG_X86_64 */

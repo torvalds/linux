@@ -292,6 +292,7 @@ static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
 		goto out_cleanup;
 
 	ovl_dentry_update(dentry, newdentry);
+	ovl_inode_update(d_inode(dentry), d_inode(newdentry));
 	newdentry = NULL;
 
 	/*

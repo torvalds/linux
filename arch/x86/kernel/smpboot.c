@@ -43,7 +43,7 @@
 
 #include <linux/init.h>
 #include <linux/smp.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/percpu.h>
 #include <linux/bootmem.h>

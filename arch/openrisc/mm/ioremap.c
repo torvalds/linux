@@ -38,7 +38,7 @@ static unsigned int fixmaps_used __initdata;
  * have to convert them into an offset in a page-aligned mapping, but the
  * caller shouldn't need to know that small detail.
  */
-void __iomem *__init_refok
+void __iomem *__ref
 __ioremap(phys_addr_t addr, unsigned long size, pgprot_t prot)
 {
 	phys_addr_t p;
@@ -116,7 +116,7 @@ void iounmap(void *addr)
  * the memblock infrastructure.
  */
 
-pte_t __init_refok *pte_alloc_one_kernel(struct mm_struct *mm,
+pte_t __ref *pte_alloc_one_kernel(struct mm_struct *mm,
 					 unsigned long address)
 {
 	pte_t *pte;

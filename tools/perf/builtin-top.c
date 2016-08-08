@@ -128,10 +128,14 @@ static int perf_top__parse_source(struct perf_top *top, struct hist_entry *he)
 		return err;
 	}
 
-	err = symbol__annotate(sym, map, 0);
+	err = symbol__disassemble(sym, map, 0);
 	if (err == 0) {
 out_assign:
 		top->sym_filter_entry = he;
+	} else {
+		char msg[BUFSIZ];
+		symbol__strerror_disassemble(sym, map, err, msg, sizeof(msg));
+		pr_err("Couldn't annotate %s: %s\n", sym->name, msg);
 	}
 
 	pthread_mutex_unlock(&notes->lock);

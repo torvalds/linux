@@ -29,7 +29,7 @@ static int dsi_get_phy(struct msm_dsi *msm_dsi)
 	struct platform_device *phy_pdev;
 	struct device_node *phy_node;
 
-	phy_node = of_parse_phandle(pdev->dev.of_node, "qcom,dsi-phy", 0);
+	phy_node = of_parse_phandle(pdev->dev.of_node, "phys", 0);
 	if (!phy_node) {
 		dev_err(&pdev->dev, "cannot find phy device\n");
 		return -ENXIO;

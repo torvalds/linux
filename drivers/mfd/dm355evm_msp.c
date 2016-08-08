@@ -199,11 +199,8 @@ static struct device *add_child(struct i2c_client *client, const char *name,
 	int			status;
 
 	pdev = platform_device_alloc(name, -1);
-	if (!pdev) {
-		dev_dbg(&client->dev, "can't alloc dev\n");
-		status = -ENOMEM;
-		goto err;
-	}
+	if (!pdev)
+		return ERR_PTR(-ENOMEM);
 
 	device_init_wakeup(&pdev->dev, can_wakeup);
 	pdev->dev.parent = &client->dev;

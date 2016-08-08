@@ -709,6 +709,8 @@ config KCOV
 	bool "Code coverage for fuzzing"
 	depends on ARCH_HAS_KCOV
 	select DEBUG_FS
+	select GCC_PLUGINS if !COMPILE_TEST
+	select GCC_PLUGIN_SANCOV if !COMPILE_TEST
 	help
 	  KCOV exposes kernel code coverage information in a form suitable
 	  for coverage-guided fuzzing (randomized testing).
@@ -718,6 +720,17 @@ config KCOV
 	  disable RANDOMIZE_BASE.
 
 	  For more details, see Documentation/kcov.txt.
+
+config KCOV_INSTRUMENT_ALL
+	bool "Instrument all code by default"
+	depends on KCOV
+	default y if KCOV
+	help
+	  If you are doing generic system call fuzzing (like e.g. syzkaller),
+	  then you will want to instrument the whole kernel and you should
+	  say y here. If you are doing more targeted fuzzing (like e.g.
+	  filesystem fuzzing with AFL) then you will want to enable coverage
+	  for more specific subsets of files, and should say n here.
 
 config DEBUG_SHIRQ
 	bool "Debug shared IRQ handlers"

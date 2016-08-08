@@ -266,13 +266,12 @@ static inline int bitmap_equal(const unsigned long *src1,
 			const unsigned long *src2, unsigned int nbits)
 {
 	if (small_const_nbits(nbits))
-		return ! ((*src1 ^ *src2) & BITMAP_LAST_WORD_MASK(nbits));
+		return !((*src1 ^ *src2) & BITMAP_LAST_WORD_MASK(nbits));
 #ifdef CONFIG_S390
-	else if (__builtin_constant_p(nbits) && (nbits % BITS_PER_LONG) == 0)
+	if (__builtin_constant_p(nbits) && (nbits % BITS_PER_LONG) == 0)
 		return !memcmp(src1, src2, nbits / 8);
 #endif
-	else
-		return __bitmap_equal(src1, src2, nbits);
+	return __bitmap_equal(src1, src2, nbits);
 }
 
 static inline int bitmap_intersects(const unsigned long *src1,

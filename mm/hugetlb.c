@@ -2216,6 +2216,10 @@ static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,
 		 * and reducing the surplus.
 		 */
 		spin_unlock(&hugetlb_lock);
+
+		/* yield cpu to avoid soft lockup */
+		cond_resched();
+
 		if (hstate_is_gigantic(h))
 			ret = alloc_fresh_gigantic_page(h, nodes_allowed);
 		else
@@ -3316,7 +3320,7 @@ static void unmap_ref_private(struct mm_struct *mm, struct vm_area_struct *vma,
 	address = address & huge_page_mask(h);
 	pgoff = ((address - vma->vm_start) >> PAGE_SHIFT) +
 			vma->vm_pgoff;
-	mapping = file_inode(vma->vm_file)->i_mapping;
+	mapping = vma->vm_file->f_mapping;
 
 	/*
 	 * Take the mapping lock for the duration of the table walk. As
@@ -3938,6 +3942,14 @@ same_page:
 	return i ? i : -EFAULT;
 }
 
+#ifndef __HAVE_ARCH_FLUSH_HUGETLB_TLB_RANGE
+/*
+ * ARCHes with special requirements for evicting HUGETLB backing TLB entries can
+ * implement this.
+ */
+#define flush_hugetlb_tlb_range(vma, addr, end)	flush_tlb_range(vma, addr, end)
+#endif
+
 unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
 		unsigned long address, unsigned long end, pgprot_t newprot)
 {
@@ -3998,7 +4010,7 @@ unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
 	 * once we release i_mmap_rwsem, another task can do the final put_page
 	 * and that page table be reused and filled with junk.
 	 */
-	flush_tlb_range(vma, start, end);
+	flush_hugetlb_tlb_range(vma, start, end);
 	mmu_notifier_invalidate_range(mm, start, end);
 	i_mmap_unlock_write(vma->vm_file->f_mapping);
 	mmu_notifier_invalidate_range_end(mm, start, end);
@@ -4306,7 +4318,7 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
 				pte = (pte_t *)pmd_alloc(mm, pud, addr);
 		}
 	}
-	BUG_ON(pte && !pte_none(*pte) && !pte_huge(*pte));
+	BUG_ON(pte && pte_present(*pte) && !pte_huge(*pte));
 
 	return pte;
 }
@@ -4391,7 +4403,6 @@ follow_huge_pud(struct mm_struct *mm, unsigned long address,
 
 /*
  * This function is called from memory failure code.
- * Assume the caller holds page lock of the head page.
  */
 int dequeue_hwpoisoned_huge_page(struct page *hpage)
 {

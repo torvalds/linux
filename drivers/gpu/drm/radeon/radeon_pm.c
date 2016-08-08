@@ -246,6 +246,7 @@ static void radeon_set_power_state(struct radeon_device *rdev)
 
 static void radeon_pm_set_clocks(struct radeon_device *rdev)
 {
+	struct drm_crtc *crtc;
 	int i, r;
 
 	/* no need to take locks, etc. if nothing's going to change */
@@ -274,26 +275,30 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev)
 	radeon_unmap_vram_bos(rdev);
 
 	if (rdev->irq.installed) {
-		for (i = 0; i < rdev->num_crtc; i++) {
+		i = 0;
+		drm_for_each_crtc(crtc, rdev->ddev) {
 			if (rdev->pm.active_crtcs & (1 << i)) {
 				/* This can fail if a modeset is in progress */
-				if (drm_vblank_get(rdev->ddev, i) == 0)
+				if (drm_crtc_vblank_get(crtc) == 0)
 					rdev->pm.req_vblank |= (1 << i);
 				else
 					DRM_DEBUG_DRIVER("crtc %d no vblank, can glitch\n",
 							 i);
 			}
+			i++;
 		}
 	}
 
 	radeon_set_power_state(rdev);
 
 	if (rdev->irq.installed) {
-		for (i = 0; i < rdev->num_crtc; i++) {
+		i = 0;
+		drm_for_each_crtc(crtc, rdev->ddev) {
 			if (rdev->pm.req_vblank & (1 << i)) {
 				rdev->pm.req_vblank &= ~(1 << i);
-				drm_vblank_put(rdev->ddev, i);
+				drm_crtc_vblank_put(crtc);
 			}
+			i++;
 		}
 	}
 

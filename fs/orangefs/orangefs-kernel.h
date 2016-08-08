@@ -246,6 +246,8 @@ struct orangefs_inode_s {
 	 * with this object
 	 */
 	unsigned long pinode_flags;
+
+	unsigned long getattr_time;
 };
 
 #define P_ATIME_FLAG 0
@@ -527,7 +529,7 @@ int orangefs_inode_setxattr(struct inode *inode,
 			 size_t size,
 			 int flags);
 
-int orangefs_inode_getattr(struct inode *inode, int new, int size);
+int orangefs_inode_getattr(struct inode *inode, int new, int bypass);
 
 int orangefs_inode_check_changed(struct inode *inode);
 
@@ -546,6 +548,8 @@ extern struct mutex request_mutex;
 extern int debug;
 extern int op_timeout_secs;
 extern int slot_timeout_secs;
+extern int dcache_timeout_msecs;
+extern int getattr_timeout_msecs;
 extern struct list_head orangefs_superblocks;
 extern spinlock_t orangefs_superblocks_lock;
 extern struct list_head orangefs_request_list;
@@ -557,10 +561,10 @@ extern int hash_table_size;
 
 extern const struct address_space_operations orangefs_address_operations;
 extern struct backing_dev_info orangefs_backing_dev_info;
-extern struct inode_operations orangefs_file_inode_operations;
+extern const struct inode_operations orangefs_file_inode_operations;
 extern const struct file_operations orangefs_file_operations;
-extern struct inode_operations orangefs_symlink_inode_operations;
-extern struct inode_operations orangefs_dir_inode_operations;
+extern const struct inode_operations orangefs_symlink_inode_operations;
+extern const struct inode_operations orangefs_dir_inode_operations;
 extern const struct file_operations orangefs_dir_operations;
 extern const struct dentry_operations orangefs_dentry_operations;
 extern const struct file_operations orangefs_devreq_file_operations;

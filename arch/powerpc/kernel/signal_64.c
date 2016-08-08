@@ -104,6 +104,7 @@ static long setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
 	 */
 #ifdef CONFIG_ALTIVEC
 	elf_vrreg_t __user *v_regs = sigcontext_vmx_regs(sc);
+	unsigned long vrsave;
 #endif
 	unsigned long msr = regs->msr;
 	long err = 0;
@@ -125,9 +126,13 @@ static long setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
 	/* We always copy to/from vrsave, it's 0 if we don't have or don't
 	 * use altivec.
 	 */
-	if (cpu_has_feature(CPU_FTR_ALTIVEC))
-		current->thread.vrsave = mfspr(SPRN_VRSAVE);
-	err |= __put_user(current->thread.vrsave, (u32 __user *)&v_regs[33]);
+	vrsave = 0;
+	if (cpu_has_feature(CPU_FTR_ALTIVEC)) {
+		vrsave = mfspr(SPRN_VRSAVE);
+		current->thread.vrsave = vrsave;
+	}
+
+	err |= __put_user(vrsave, (u32 __user *)&v_regs[33]);
 #else /* CONFIG_ALTIVEC */
 	err |= __put_user(0, &sc->v_regs);
 #endif /* CONFIG_ALTIVEC */

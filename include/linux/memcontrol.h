@@ -52,7 +52,7 @@ enum mem_cgroup_stat_index {
 	MEM_CGROUP_STAT_SWAP,		/* # of pages, swapped out */
 	MEM_CGROUP_STAT_NSTATS,
 	/* default hierarchy stats */
-	MEMCG_KERNEL_STACK = MEM_CGROUP_STAT_NSTATS,
+	MEMCG_KERNEL_STACK_KB = MEM_CGROUP_STAT_NSTATS,
 	MEMCG_SLAB_RECLAIMABLE,
 	MEMCG_SLAB_UNRECLAIMABLE,
 	MEMCG_SOCK,
@@ -60,7 +60,7 @@ enum mem_cgroup_stat_index {
 };
 
 struct mem_cgroup_reclaim_cookie {
-	struct zone *zone;
+	pg_data_t *pgdat;
 	int priority;
 	unsigned int generation;
 };
@@ -118,7 +118,7 @@ struct mem_cgroup_reclaim_iter {
 /*
  * per-zone information in memory controller.
  */
-struct mem_cgroup_per_zone {
+struct mem_cgroup_per_node {
 	struct lruvec		lruvec;
 	unsigned long		lru_size[NR_LRU_LISTS];
 
@@ -130,10 +130,6 @@ struct mem_cgroup_per_zone {
 	bool			on_tree;
 	struct mem_cgroup	*memcg;		/* Back pointer, we cannot */
 						/* use container_of	   */
-};
-
-struct mem_cgroup_per_node {
-	struct mem_cgroup_per_zone zoneinfo[MAX_NR_ZONES];
 };
 
 struct mem_cgroup_threshold {
@@ -314,8 +310,46 @@ void mem_cgroup_uncharge_list(struct list_head *page_list);
 
 void mem_cgroup_migrate(struct page *oldpage, struct page *newpage);
 
-struct lruvec *mem_cgroup_zone_lruvec(struct zone *, struct mem_cgroup *);
-struct lruvec *mem_cgroup_page_lruvec(struct page *, struct zone *);
+static struct mem_cgroup_per_node *
+mem_cgroup_nodeinfo(struct mem_cgroup *memcg, int nid)
+{
+	return memcg->nodeinfo[nid];
+}
+
+/**
+ * mem_cgroup_lruvec - get the lru list vector for a node or a memcg zone
+ * @node: node of the wanted lruvec
+ * @memcg: memcg of the wanted lruvec
+ *
+ * Returns the lru list vector holding pages for a given @node or a given
+ * @memcg and @zone. This can be the node lruvec, if the memory controller
+ * is disabled.
+ */
+static inline struct lruvec *mem_cgroup_lruvec(struct pglist_data *pgdat,
+				struct mem_cgroup *memcg)
+{
+	struct mem_cgroup_per_node *mz;
+	struct lruvec *lruvec;
+
+	if (mem_cgroup_disabled()) {
+		lruvec = node_lruvec(pgdat);
+		goto out;
+	}
+
+	mz = mem_cgroup_nodeinfo(memcg, pgdat->node_id);
+	lruvec = &mz->lruvec;
+out:
+	/*
+	 * Since a node can be onlined after the mem_cgroup was created,
+	 * we have to be prepared to initialize lruvec->pgdat here;
+	 * and if offlined then reonlined, we need to reinitialize it.
+	 */
+	if (unlikely(lruvec->pgdat != pgdat))
+		lruvec->pgdat = pgdat;
+	return lruvec;
+}
+
+struct lruvec *mem_cgroup_page_lruvec(struct page *, struct pglist_data *);
 
 bool task_in_mem_cgroup(struct task_struct *task, struct mem_cgroup *memcg);
 struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
@@ -404,9 +438,9 @@ unsigned long mem_cgroup_node_nr_lru_pages(struct mem_cgroup *memcg,
 static inline
 unsigned long mem_cgroup_get_lru_size(struct lruvec *lruvec, enum lru_list lru)
 {
-	struct mem_cgroup_per_zone *mz;
+	struct mem_cgroup_per_node *mz;
 
-	mz = container_of(lruvec, struct mem_cgroup_per_zone, lruvec);
+	mz = container_of(lruvec, struct mem_cgroup_per_node, lruvec);
 	return mz->lru_size[lru];
 }
 
@@ -477,7 +511,7 @@ static inline void mem_cgroup_dec_page_stat(struct page *page,
 	mem_cgroup_update_page_stat(page, idx, -1);
 }
 
-unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
+unsigned long mem_cgroup_soft_limit_reclaim(pg_data_t *pgdat, int order,
 						gfp_t gfp_mask,
 						unsigned long *total_scanned);
 
@@ -568,16 +602,16 @@ static inline void mem_cgroup_migrate(struct page *old, struct page *new)
 {
 }
 
-static inline struct lruvec *mem_cgroup_zone_lruvec(struct zone *zone,
-						    struct mem_cgroup *memcg)
+static inline struct lruvec *mem_cgroup_lruvec(struct pglist_data *pgdat,
+				struct mem_cgroup *memcg)
 {
-	return &zone->lruvec;
+	return node_lruvec(pgdat);
 }
 
 static inline struct lruvec *mem_cgroup_page_lruvec(struct page *page,
-						    struct zone *zone)
+						    struct pglist_data *pgdat)
 {
-	return &zone->lruvec;
+	return &pgdat->lruvec;
 }
 
 static inline bool mm_match_cgroup(struct mm_struct *mm,
@@ -681,7 +715,7 @@ static inline void mem_cgroup_dec_page_stat(struct page *page,
 }
 
 static inline
-unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
+unsigned long mem_cgroup_soft_limit_reclaim(pg_data_t *pgdat, int order,
 					    gfp_t gfp_mask,
 					    unsigned long *total_scanned)
 {

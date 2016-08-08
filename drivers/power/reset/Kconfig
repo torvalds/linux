@@ -46,6 +46,16 @@ config POWER_RESET_AXXIA
 
 	  Say Y if you have an Axxia family SoC.
 
+config POWER_RESET_BRCMKONA
+	bool "Broadcom Kona reset driver"
+	depends on ARM || COMPILE_TEST
+	default ARCH_BCM_MOBILE
+	help
+	  This driver provides restart support for Broadcom Kona chips.
+
+	  Say Y here if you have a Broadcom Kona-based board and you wish
+	  to have restart support.
+
 config POWER_RESET_BRCMSTB
 	bool "Broadcom STB reset driver"
 	depends on ARM || MIPS || COMPILE_TEST

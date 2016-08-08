@@ -1,0 +1,76 @@
+#include "../../../../arm/boot/dts/bcm283x.dtsi"
+
+/ {
+	compatible = "brcm,bcm2836";
+
+	soc {
+		ranges = <0x7e000000 0x3f000000 0x1000000>,
+			 <0x40000000 0x40000000 0x00001000>;
+		dma-ranges = <0xc0000000 0x00000000 0x3f000000>;
+
+		local_intc: local_intc {
+			compatible = "brcm,bcm2836-l1-intc";
+			reg = <0x40000000 0x100>;
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			interrupt-parent = <&local_intc>;
+		};
+	};
+
+	timer {
+		compatible = "arm,armv7-timer";
+		interrupt-parent = <&local_intc>;
+		interrupts = <0>, // PHYS_SECURE_PPI
+			     <1>, // PHYS_NONSECURE_PPI
+			     <3>, // VIRT_PPI
+			     <2>; // HYP_PPI
+		always-on;
+	};
+
+	cpus: cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu0: cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53";
+			reg = <0>;
+			enable-method = "spin-table";
+			cpu-release-addr = <0x0 0x000000d8>;
+		};
+
+		cpu1: cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53";
+			reg = <1>;
+			enable-method = "spin-table";
+			cpu-release-addr = <0x0 0x000000e0>;
+		};
+
+		cpu2: cpu@2 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53";
+			reg = <2>;
+			enable-method = "spin-table";
+			cpu-release-addr = <0x0 0x000000e8>;
+		};
+
+		cpu3: cpu@3 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53";
+			reg = <3>;
+			enable-method = "spin-table";
+			cpu-release-addr = <0x0 0x000000f0>;
+		};
+	};
+};
+
+/* Make the BCM2835-style global interrupt controller be a child of the
+ * CPU-local interrupt controller.
+ */
+&intc {
+	compatible = "brcm,bcm2836-armctrl-ic";
+	reg = <0x7e00b200 0x200>;
+	interrupt-parent = <&local_intc>;
+	interrupts = <8>;
+};

@@ -507,13 +507,27 @@ static bool __must_push_back(struct multipath *m)
 
 static bool must_push_back_rq(struct multipath *m)
 {
-	return (test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags) ||
-		__must_push_back(m));
+	bool r;
+	unsigned long flags;
+
+	spin_lock_irqsave(&m->lock, flags);
+	r = (test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags) ||
+	     __must_push_back(m));
+	spin_unlock_irqrestore(&m->lock, flags);
+
+	return r;
 }
 
 static bool must_push_back_bio(struct multipath *m)
 {
-	return __must_push_back(m);
+	bool r;
+	unsigned long flags;
+
+	spin_lock_irqsave(&m->lock, flags);
+	r = __must_push_back(m);
+	spin_unlock_irqrestore(&m->lock, flags);
+
+	return r;
 }
 
 /*
@@ -647,7 +661,7 @@ static int __multipath_map_bio(struct multipath *m, struct bio *bio, struct dm_m
 
 	bio->bi_error = 0;
 	bio->bi_bdev = pgpath->path.dev->bdev;
-	bio->bi_rw |= REQ_FAILFAST_TRANSPORT;
+	bio->bi_opf |= REQ_FAILFAST_TRANSPORT;
 
 	if (pgpath->pg->ps.type->start_io)
 		pgpath->pg->ps.type->start_io(&pgpath->pg->ps,
@@ -1680,12 +1694,14 @@ static void multipath_postsuspend(struct dm_target *ti)
 static void multipath_resume(struct dm_target *ti)
 {
 	struct multipath *m = ti->private;
+	unsigned long flags;
 
+	spin_lock_irqsave(&m->lock, flags);
 	if (test_bit(MPATHF_SAVED_QUEUE_IF_NO_PATH, &m->flags))
 		set_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags);
 	else
 		clear_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags);
-	smp_mb__after_atomic();
+	spin_unlock_irqrestore(&m->lock, flags);
 }
 
 /*

@@ -41,7 +41,7 @@ nilfs_btnode_create_block(struct address_space *btnc, __u64 blocknr)
 	struct inode *inode = NILFS_BTNC_I(btnc);
 	struct buffer_head *bh;
 
-	bh = nilfs_grab_buffer(inode, btnc, blocknr, 1 << BH_NILFS_Node);
+	bh = nilfs_grab_buffer(inode, btnc, blocknr, BIT(BH_NILFS_Node));
 	if (unlikely(!bh))
 		return NULL;
 
@@ -70,7 +70,7 @@ int nilfs_btnode_submit_block(struct address_space *btnc, __u64 blocknr,
 	struct page *page;
 	int err;
 
-	bh = nilfs_grab_buffer(inode, btnc, blocknr, 1 << BH_NILFS_Node);
+	bh = nilfs_grab_buffer(inode, btnc, blocknr, BIT(BH_NILFS_Node));
 	if (unlikely(!bh))
 		return -ENOMEM;
 

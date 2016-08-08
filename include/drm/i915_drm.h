@@ -92,4 +92,7 @@ extern bool i915_gpu_turbo_disable(void);
 #define    I845_TSEG_SIZE_512K	(2 << 1)
 #define    I845_TSEG_SIZE_1M	(3 << 1)
 
+#define INTEL_BSM 0x5c
+#define   INTEL_BSM_MASK (0xFFFF << 20)
+
 #endif				/* _I915_DRM_H_ */

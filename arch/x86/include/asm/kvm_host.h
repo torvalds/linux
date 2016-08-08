@@ -35,8 +35,9 @@
 #include <asm/asm.h>
 #include <asm/kvm_page_track.h>
 
-#define KVM_MAX_VCPUS 255
-#define KVM_SOFT_MAX_VCPUS 160
+#define KVM_MAX_VCPUS 288
+#define KVM_SOFT_MAX_VCPUS 240
+#define KVM_MAX_VCPU_ID 1023
 #define KVM_USER_MEM_SLOTS 509
 /* memory slots that are not exposed to userspace */
 #define KVM_PRIVATE_MEM_SLOTS 3
@@ -599,6 +600,7 @@ struct kvm_vcpu_arch {
 	u64 mcg_cap;
 	u64 mcg_status;
 	u64 mcg_ctl;
+	u64 mcg_ext_ctl;
 	u64 *mce_banks;
 
 	/* Cache MMIO info */
@@ -682,9 +684,12 @@ struct kvm_arch_memory_slot {
 struct kvm_apic_map {
 	struct rcu_head rcu;
 	u8 mode;
-	struct kvm_lapic *phys_map[256];
-	/* first index is cluster id second is cpu id in a cluster */
-	struct kvm_lapic *logical_map[16][16];
+	u32 max_apic_id;
+	union {
+		struct kvm_lapic *xapic_flat_map[8];
+		struct kvm_lapic *xapic_cluster_map[16][4];
+	};
+	struct kvm_lapic *phys_map[];
 };
 
 /* Hyper-V emulation context */
@@ -779,6 +784,9 @@ struct kvm_arch {
 	u32 ldr_mode;
 	struct page *avic_logical_id_table_page;
 	struct page *avic_physical_id_table_page;
+
+	bool x2apic_format;
+	bool x2apic_broadcast_quirk_disabled;
 };
 
 struct kvm_vm_stat {
@@ -1006,6 +1014,11 @@ struct kvm_x86_ops {
 	int (*update_pi_irte)(struct kvm *kvm, unsigned int host_irq,
 			      uint32_t guest_irq, bool set);
 	void (*apicv_post_state_restore)(struct kvm_vcpu *vcpu);
+
+	int (*set_hv_timer)(struct kvm_vcpu *vcpu, u64 guest_deadline_tsc);
+	void (*cancel_hv_timer)(struct kvm_vcpu *vcpu);
+
+	void (*setup_mce)(struct kvm_vcpu *vcpu);
 };
 
 struct kvm_arch_async_pf {
@@ -1026,7 +1039,7 @@ void kvm_mmu_setup(struct kvm_vcpu *vcpu);
 void kvm_mmu_init_vm(struct kvm *kvm);
 void kvm_mmu_uninit_vm(struct kvm *kvm);
 void kvm_mmu_set_mask_ptes(u64 user_mask, u64 accessed_mask,
-		u64 dirty_mask, u64 nx_mask, u64 x_mask);
+		u64 dirty_mask, u64 nx_mask, u64 x_mask, u64 p_mask);
 
 void kvm_mmu_reset_context(struct kvm_vcpu *vcpu);
 void kvm_mmu_slot_remove_write_access(struct kvm *kvm,
@@ -1077,6 +1090,10 @@ extern u32  kvm_max_guest_tsc_khz;
 extern u8   kvm_tsc_scaling_ratio_frac_bits;
 /* maximum allowed value of TSC scaling ratio */
 extern u64  kvm_max_tsc_scaling_ratio;
+/* 1ull << kvm_tsc_scaling_ratio_frac_bits */
+extern u64  kvm_default_tsc_scaling_ratio;
+
+extern u64 kvm_mce_cap_supported;
 
 enum emulation_result {
 	EMULATE_DONE,         /* no further processing */
@@ -1352,7 +1369,7 @@ bool kvm_vcpu_is_bsp(struct kvm_vcpu *vcpu);
 bool kvm_intr_is_single_vcpu(struct kvm *kvm, struct kvm_lapic_irq *irq,
 			     struct kvm_vcpu **dest_vcpu);
 
-void kvm_set_msi_irq(struct kvm_kernel_irq_routing_entry *e,
+void kvm_set_msi_irq(struct kvm *kvm, struct kvm_kernel_irq_routing_entry *e,
 		     struct kvm_lapic_irq *irq);
 
 static inline void kvm_arch_vcpu_blocking(struct kvm_vcpu *vcpu)

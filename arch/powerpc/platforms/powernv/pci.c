@@ -26,6 +26,7 @@
 #include <asm/machdep.h>
 #include <asm/msi_bitmap.h>
 #include <asm/ppc-pci.h>
+#include <asm/pnv-pci.h>
 #include <asm/opal.h>
 #include <asm/iommu.h>
 #include <asm/tce.h>
@@ -36,8 +37,124 @@
 #include "powernv.h"
 #include "pci.h"
 
-/* Delay in usec */
-#define PCI_RESET_DELAY_US	3000000
+int pnv_pci_get_slot_id(struct device_node *np, uint64_t *id)
+{
+	struct device_node *parent = np;
+	u32 bdfn;
+	u64 phbid;
+	int ret;
+
+	ret = of_property_read_u32(np, "reg", &bdfn);
+	if (ret)
+		return -ENXIO;
+
+	bdfn = ((bdfn & 0x00ffff00) >> 8);
+	while ((parent = of_get_parent(parent))) {
+		if (!PCI_DN(parent)) {
+			of_node_put(parent);
+			break;
+		}
+
+		if (!of_device_is_compatible(parent, "ibm,ioda2-phb")) {
+			of_node_put(parent);
+			continue;
+		}
+
+		ret = of_property_read_u64(parent, "ibm,opal-phbid", &phbid);
+		if (ret) {
+			of_node_put(parent);
+			return -ENXIO;
+		}
+
+		*id = PCI_SLOT_ID(phbid, bdfn);
+		return 0;
+	}
+
+	return -ENODEV;
+}
+EXPORT_SYMBOL_GPL(pnv_pci_get_slot_id);
+
+int pnv_pci_get_device_tree(uint32_t phandle, void *buf, uint64_t len)
+{
+	int64_t rc;
+
+	if (!opal_check_token(OPAL_GET_DEVICE_TREE))
+		return -ENXIO;
+
+	rc = opal_get_device_tree(phandle, (uint64_t)buf, len);
+	if (rc < OPAL_SUCCESS)
+		return -EIO;
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(pnv_pci_get_device_tree);
+
+int pnv_pci_get_presence_state(uint64_t id, uint8_t *state)
+{
+	int64_t rc;
+
+	if (!opal_check_token(OPAL_PCI_GET_PRESENCE_STATE))
+		return -ENXIO;
+
+	rc = opal_pci_get_presence_state(id, (uint64_t)state);
+	if (rc != OPAL_SUCCESS)
+		return -EIO;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(pnv_pci_get_presence_state);
+
+int pnv_pci_get_power_state(uint64_t id, uint8_t *state)
+{
+	int64_t rc;
+
+	if (!opal_check_token(OPAL_PCI_GET_POWER_STATE))
+		return -ENXIO;
+
+	rc = opal_pci_get_power_state(id, (uint64_t)state);
+	if (rc != OPAL_SUCCESS)
+		return -EIO;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(pnv_pci_get_power_state);
+
+int pnv_pci_set_power_state(uint64_t id, uint8_t state, struct opal_msg *msg)
+{
+	struct opal_msg m;
+	int token, ret;
+	int64_t rc;
+
+	if (!opal_check_token(OPAL_PCI_SET_POWER_STATE))
+		return -ENXIO;
+
+	token = opal_async_get_token_interruptible();
+	if (unlikely(token < 0))
+		return token;
+
+	rc = opal_pci_set_power_state(token, id, (uint64_t)&state);
+	if (rc == OPAL_SUCCESS) {
+		ret = 0;
+		goto exit;
+	} else if (rc != OPAL_ASYNC_COMPLETION) {
+		ret = -EIO;
+		goto exit;
+	}
+
+	ret = opal_async_wait_response(token, &m);
+	if (ret < 0)
+		goto exit;
+
+	if (msg) {
+		ret = 1;
+		memcpy(msg, &m, sizeof(m));
+	}
+
+exit:
+	opal_async_release_token(token);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(pnv_pci_set_power_state);
 
 #ifdef CONFIG_PCI_MSI
 int pnv_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
@@ -587,7 +704,7 @@ static __be64 *pnv_tce(struct iommu_table *tbl, long idx)
 
 int pnv_tce_build(struct iommu_table *tbl, long index, long npages,
 		unsigned long uaddr, enum dma_data_direction direction,
-		struct dma_attrs *attrs)
+		unsigned long attrs)
 {
 	u64 proto_tce = iommu_direction_to_tce_perm(direction);
 	u64 rpn = __pa(uaddr) >> tbl->it_page_shift;
@@ -620,8 +737,8 @@ int pnv_tce_xchg(struct iommu_table *tbl, long index,
 	if (newtce & TCE_PCI_WRITE)
 		newtce |= TCE_PCI_READ;
 
-	oldtce = xchg(pnv_tce(tbl, idx), cpu_to_be64(newtce));
-	*hpa = be64_to_cpu(oldtce) & ~(TCE_PCI_READ | TCE_PCI_WRITE);
+	oldtce = be64_to_cpu(xchg(pnv_tce(tbl, idx), cpu_to_be64(newtce)));
+	*hpa = oldtce & ~(TCE_PCI_READ | TCE_PCI_WRITE);
 	*direction = iommu_tce_direction(oldtce);
 
 	return 0;
@@ -815,12 +932,13 @@ void __init pnv_pci_init(void)
 	for_each_compatible_node(np, NULL, "ibm,ioda2-phb")
 		pnv_pci_init_ioda2_phb(np);
 
+	/* Look for ioda3 built-in PHB4's, we treat them as IODA2 */
+	for_each_compatible_node(np, NULL, "ibm,ioda3-phb")
+		pnv_pci_init_ioda2_phb(np);
+
 	/* Look for NPU PHBs */
 	for_each_compatible_node(np, NULL, "ibm,ioda2-npu-phb")
 		pnv_pci_init_npu_phb(np);
-
-	/* Setup the linkage between OF nodes and PHBs */
-	pci_devs_phb_init();
 
 	/* Configure IOMMU DMA hooks */
 	set_pci_dma_ops(&dma_iommu_ops);

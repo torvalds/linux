@@ -46,6 +46,7 @@
 struct msm_kms;
 struct msm_gpu;
 struct msm_mmu;
+struct msm_mdss;
 struct msm_rd_state;
 struct msm_perf_state;
 struct msm_gem_submit;
@@ -77,10 +78,15 @@ struct msm_vblank_ctrl {
 
 struct msm_drm_private {
 
+	struct drm_device *dev;
+
 	struct msm_kms *kms;
 
 	/* subordinate devices, if present: */
 	struct platform_device *gpu_pdev;
+
+	/* top level MDSS wrapper device (for MDP5 only) */
+	struct msm_mdss *mdss;
 
 	/* possibly this should be in the kms component, but it is
 	 * shared by both mdp4 and mdp5..
@@ -147,6 +153,9 @@ struct msm_drm_private {
 		struct drm_mm mm;
 	} vram;
 
+	struct notifier_block vmap_notifier;
+	struct shrinker shrinker;
+
 	struct msm_vblank_ctrl vblank_ctrl;
 };
 
@@ -164,6 +173,9 @@ int msm_register_mmu(struct drm_device *dev, struct msm_mmu *mmu);
 void msm_gem_submit_free(struct msm_gem_submit *submit);
 int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 		struct drm_file *file);
+
+void msm_gem_shrinker_init(struct drm_device *dev);
+void msm_gem_shrinker_cleanup(struct drm_device *dev);
 
 int msm_gem_mmap_obj(struct drm_gem_object *obj,
 			struct vm_area_struct *vma);
@@ -189,8 +201,13 @@ struct drm_gem_object *msm_gem_prime_import_sg_table(struct drm_device *dev,
 		struct dma_buf_attachment *attach, struct sg_table *sg);
 int msm_gem_prime_pin(struct drm_gem_object *obj);
 void msm_gem_prime_unpin(struct drm_gem_object *obj);
-void *msm_gem_vaddr_locked(struct drm_gem_object *obj);
-void *msm_gem_vaddr(struct drm_gem_object *obj);
+void *msm_gem_get_vaddr_locked(struct drm_gem_object *obj);
+void *msm_gem_get_vaddr(struct drm_gem_object *obj);
+void msm_gem_put_vaddr_locked(struct drm_gem_object *obj);
+void msm_gem_put_vaddr(struct drm_gem_object *obj);
+int msm_gem_madvise(struct drm_gem_object *obj, unsigned madv);
+void msm_gem_purge(struct drm_gem_object *obj);
+void msm_gem_vunmap(struct drm_gem_object *obj);
 int msm_gem_sync_object(struct drm_gem_object *obj,
 		struct msm_fence_context *fctx, bool exclusive);
 void msm_gem_move_to_active(struct drm_gem_object *obj,
@@ -256,6 +273,9 @@ static inline int msm_dsi_modeset_init(struct msm_dsi *msm_dsi,
 	return -EINVAL;
 }
 #endif
+
+void __init msm_mdp_register(void);
+void __exit msm_mdp_unregister(void);
 
 #ifdef CONFIG_DEBUG_FS
 void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m);

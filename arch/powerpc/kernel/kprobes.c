@@ -278,12 +278,11 @@ no_kprobe:
  * 	- When the probed function returns, this probe
  * 		causes the handlers to fire
  */
-static void __used kretprobe_trampoline_holder(void)
-{
-	asm volatile(".global kretprobe_trampoline\n"
-			"kretprobe_trampoline:\n"
-			"nop\n");
-}
+asm(".global kretprobe_trampoline\n"
+	".type kretprobe_trampoline, @function\n"
+	"kretprobe_trampoline:\n"
+	"nop\n"
+	".size kretprobe_trampoline, .-kretprobe_trampoline\n");
 
 /*
  * Called when the probe at kretprobe trampoline is hit
@@ -506,12 +505,10 @@ int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 
 	/* setup return addr to the jprobe handler routine */
 	regs->nip = arch_deref_entry_point(jp->entry);
-#ifdef CONFIG_PPC64
-#if defined(_CALL_ELF) && _CALL_ELF == 2
+#ifdef PPC64_ELF_ABI_v2
 	regs->gpr[12] = (unsigned long)jp->entry;
-#else
+#elif defined(PPC64_ELF_ABI_v1)
 	regs->gpr[2] = (unsigned long)(((func_descr_t *)jp->entry)->toc);
-#endif
 #endif
 
 	return 1;

@@ -47,7 +47,7 @@ static void __init mpc512x_restart_init(void)
 	of_node_put(np);
 }
 
-void mpc512x_restart(char *cmd)
+void __noreturn mpc512x_restart(char *cmd)
 {
 	if (reset_module_base) {
 		/* Enable software reset "RSTE" */

@@ -16,6 +16,7 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/of_irq.h>
 
 #include "msm_drv.h"
 #include "msm_mmu.h"
@@ -28,10 +29,11 @@ static const char *iommu_ports[] = {
 static int mdp5_hw_init(struct msm_kms *kms)
 {
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
-	struct drm_device *dev = mdp5_kms->dev;
+	struct platform_device *pdev = mdp5_kms->pdev;
 	unsigned long flags;
 
-	pm_runtime_get_sync(dev->dev);
+	pm_runtime_get_sync(&pdev->dev);
+	mdp5_enable(mdp5_kms);
 
 	/* Magic unknown register writes:
 	 *
@@ -58,12 +60,13 @@ static int mdp5_hw_init(struct msm_kms *kms)
 	 */
 
 	spin_lock_irqsave(&mdp5_kms->resource_lock, flags);
-	mdp5_write(mdp5_kms, REG_MDP5_MDP_DISP_INTF_SEL(0), 0);
+	mdp5_write(mdp5_kms, REG_MDP5_DISP_INTF_SEL, 0);
 	spin_unlock_irqrestore(&mdp5_kms->resource_lock, flags);
 
 	mdp5_ctlm_hw_reset(mdp5_kms->ctlm);
 
-	pm_runtime_put_sync(dev->dev);
+	mdp5_disable(mdp5_kms);
+	pm_runtime_put_sync(&pdev->dev);
 
 	return 0;
 }
@@ -78,17 +81,11 @@ static void mdp5_complete_commit(struct msm_kms *kms, struct drm_atomic_state *s
 {
 	int i;
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
-	int nplanes = mdp5_kms->dev->mode_config.num_total_plane;
+	struct drm_plane *plane;
+	struct drm_plane_state *plane_state;
 
-	for (i = 0; i < nplanes; i++) {
-		struct drm_plane *plane = state->planes[i];
-		struct drm_plane_state *plane_state = state->plane_states[i];
-
-		if (!plane)
-			continue;
-
+	for_each_plane_in_state(state, plane, plane_state, i)
 		mdp5_plane_complete_commit(plane, plane_state);
-	}
 
 	mdp5_disable(mdp5_kms);
 }
@@ -117,26 +114,15 @@ static int mdp5_set_split_display(struct msm_kms *kms,
 		return mdp5_encoder_set_split_display(encoder, slave_encoder);
 }
 
-static void mdp5_destroy(struct msm_kms *kms)
+static void mdp5_kms_destroy(struct msm_kms *kms)
 {
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
 	struct msm_mmu *mmu = mdp5_kms->mmu;
-
-	mdp5_irq_domain_fini(mdp5_kms);
 
 	if (mmu) {
 		mmu->funcs->detach(mmu, iommu_ports, ARRAY_SIZE(iommu_ports));
 		mmu->funcs->destroy(mmu);
 	}
-
-	if (mdp5_kms->ctlm)
-		mdp5_ctlm_destroy(mdp5_kms->ctlm);
-	if (mdp5_kms->smp)
-		mdp5_smp_destroy(mdp5_kms->smp);
-	if (mdp5_kms->cfg)
-		mdp5_cfg_destroy(mdp5_kms->cfg);
-
-	kfree(mdp5_kms);
 }
 
 static const struct mdp_kms_funcs kms_funcs = {
@@ -154,7 +140,7 @@ static const struct mdp_kms_funcs kms_funcs = {
 		.get_format      = mdp_get_format,
 		.round_pixclk    = mdp5_round_pixclk,
 		.set_split_display = mdp5_set_split_display,
-		.destroy         = mdp5_destroy,
+		.destroy         = mdp5_kms_destroy,
 	},
 	.set_irqmask         = mdp5_set_irqmask,
 };
@@ -351,13 +337,6 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 
 	hw_cfg = mdp5_cfg_get_hw_config(mdp5_kms->cfg);
 
-	/* register our interrupt-controller for hdmi/eDP/dsi/etc
-	 * to use for irqs routed through mdp:
-	 */
-	ret = mdp5_irq_domain_init(mdp5_kms);
-	if (ret)
-		goto fail;
-
 	/* construct CRTCs and their private planes: */
 	for (i = 0; i < hw_cfg->pipe_rgb.count; i++) {
 		struct drm_plane *plane;
@@ -425,17 +404,17 @@ fail:
 	return ret;
 }
 
-static void read_hw_revision(struct mdp5_kms *mdp5_kms,
-		uint32_t *major, uint32_t *minor)
+static void read_mdp_hw_revision(struct mdp5_kms *mdp5_kms,
+				 u32 *major, u32 *minor)
 {
-	uint32_t version;
+	u32 version;
 
 	mdp5_enable(mdp5_kms);
-	version = mdp5_read(mdp5_kms, REG_MDSS_HW_VERSION);
+	version = mdp5_read(mdp5_kms, REG_MDP5_HW_VERSION);
 	mdp5_disable(mdp5_kms);
 
-	*major = FIELD(version, MDSS_HW_VERSION_MAJOR);
-	*minor = FIELD(version, MDSS_HW_VERSION_MINOR);
+	*major = FIELD(version, MDP5_HW_VERSION_MAJOR);
+	*minor = FIELD(version, MDP5_HW_VERSION_MINOR);
 
 	DBG("MDP5 version v%d.%d", *major, *minor);
 }
@@ -580,51 +559,146 @@ static u32 mdp5_get_vblank_counter(struct drm_device *dev, unsigned int pipe)
 
 struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 {
-	struct platform_device *pdev = dev->platformdev;
-	struct mdp5_cfg *config;
+	struct msm_drm_private *priv = dev->dev_private;
+	struct platform_device *pdev;
 	struct mdp5_kms *mdp5_kms;
-	struct msm_kms *kms = NULL;
+	struct mdp5_cfg *config;
+	struct msm_kms *kms;
 	struct msm_mmu *mmu;
-	uint32_t major, minor;
-	int i, ret;
+	int irq, i, ret;
 
-	mdp5_kms = kzalloc(sizeof(*mdp5_kms), GFP_KERNEL);
+	/* priv->kms would have been populated by the MDP5 driver */
+	kms = priv->kms;
+	if (!kms)
+		return NULL;
+
+	mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
+
+	mdp_kms_init(&mdp5_kms->base, &kms_funcs);
+
+	pdev = mdp5_kms->pdev;
+
+	irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
+	if (irq < 0) {
+		ret = irq;
+		dev_err(&pdev->dev, "failed to get irq: %d\n", ret);
+		goto fail;
+	}
+
+	kms->irq = irq;
+
+	config = mdp5_cfg_get_config(mdp5_kms->cfg);
+
+	/* make sure things are off before attaching iommu (bootloader could
+	 * have left things on, in which case we'll start getting faults if
+	 * we don't disable):
+	 */
+	mdp5_enable(mdp5_kms);
+	for (i = 0; i < MDP5_INTF_NUM_MAX; i++) {
+		if (mdp5_cfg_intf_is_virtual(config->hw->intf.connect[i]) ||
+		    !config->hw->intf.base[i])
+			continue;
+		mdp5_write(mdp5_kms, REG_MDP5_INTF_TIMING_ENGINE_EN(i), 0);
+
+		mdp5_write(mdp5_kms, REG_MDP5_INTF_FRAME_LINE_COUNT_EN(i), 0x3);
+	}
+	mdp5_disable(mdp5_kms);
+	mdelay(16);
+
+	if (config->platform.iommu) {
+		mmu = msm_iommu_new(&pdev->dev, config->platform.iommu);
+		if (IS_ERR(mmu)) {
+			ret = PTR_ERR(mmu);
+			dev_err(&pdev->dev, "failed to init iommu: %d\n", ret);
+			iommu_domain_free(config->platform.iommu);
+			goto fail;
+		}
+
+		ret = mmu->funcs->attach(mmu, iommu_ports,
+				ARRAY_SIZE(iommu_ports));
+		if (ret) {
+			dev_err(&pdev->dev, "failed to attach iommu: %d\n",
+				ret);
+			mmu->funcs->destroy(mmu);
+			goto fail;
+		}
+	} else {
+		dev_info(&pdev->dev,
+			 "no iommu, fallback to phys contig buffers for scanout\n");
+		mmu = NULL;
+	}
+	mdp5_kms->mmu = mmu;
+
+	mdp5_kms->id = msm_register_mmu(dev, mmu);
+	if (mdp5_kms->id < 0) {
+		ret = mdp5_kms->id;
+		dev_err(&pdev->dev, "failed to register mdp5 iommu: %d\n", ret);
+		goto fail;
+	}
+
+	ret = modeset_init(mdp5_kms);
+	if (ret) {
+		dev_err(&pdev->dev, "modeset_init failed: %d\n", ret);
+		goto fail;
+	}
+
+	dev->mode_config.min_width = 0;
+	dev->mode_config.min_height = 0;
+	dev->mode_config.max_width = config->hw->lm.max_width;
+	dev->mode_config.max_height = config->hw->lm.max_height;
+
+	dev->driver->get_vblank_timestamp = mdp5_get_vblank_timestamp;
+	dev->driver->get_scanout_position = mdp5_get_scanoutpos;
+	dev->driver->get_vblank_counter = mdp5_get_vblank_counter;
+	dev->max_vblank_count = 0xffffffff;
+	dev->vblank_disable_immediate = true;
+
+	return kms;
+fail:
+	if (kms)
+		mdp5_kms_destroy(kms);
+	return ERR_PTR(ret);
+}
+
+static void mdp5_destroy(struct platform_device *pdev)
+{
+	struct mdp5_kms *mdp5_kms = platform_get_drvdata(pdev);
+
+	if (mdp5_kms->ctlm)
+		mdp5_ctlm_destroy(mdp5_kms->ctlm);
+	if (mdp5_kms->smp)
+		mdp5_smp_destroy(mdp5_kms->smp);
+	if (mdp5_kms->cfg)
+		mdp5_cfg_destroy(mdp5_kms->cfg);
+
+	if (mdp5_kms->rpm_enabled)
+		pm_runtime_disable(&pdev->dev);
+}
+
+static int mdp5_init(struct platform_device *pdev, struct drm_device *dev)
+{
+	struct msm_drm_private *priv = dev->dev_private;
+	struct mdp5_kms *mdp5_kms;
+	struct mdp5_cfg *config;
+	u32 major, minor;
+	int ret;
+
+	mdp5_kms = devm_kzalloc(&pdev->dev, sizeof(*mdp5_kms), GFP_KERNEL);
 	if (!mdp5_kms) {
-		dev_err(dev->dev, "failed to allocate kms\n");
 		ret = -ENOMEM;
 		goto fail;
 	}
 
+	platform_set_drvdata(pdev, mdp5_kms);
+
 	spin_lock_init(&mdp5_kms->resource_lock);
 
-	mdp_kms_init(&mdp5_kms->base, &kms_funcs);
-
-	kms = &mdp5_kms->base.base;
-
 	mdp5_kms->dev = dev;
+	mdp5_kms->pdev = pdev;
 
-	/* mdp5_kms->mmio actually represents the MDSS base address */
 	mdp5_kms->mmio = msm_ioremap(pdev, "mdp_phys", "MDP5");
 	if (IS_ERR(mdp5_kms->mmio)) {
 		ret = PTR_ERR(mdp5_kms->mmio);
-		goto fail;
-	}
-
-	mdp5_kms->vbif = msm_ioremap(pdev, "vbif_phys", "VBIF");
-	if (IS_ERR(mdp5_kms->vbif)) {
-		ret = PTR_ERR(mdp5_kms->vbif);
-		goto fail;
-	}
-
-	mdp5_kms->vdd = devm_regulator_get(&pdev->dev, "vdd");
-	if (IS_ERR(mdp5_kms->vdd)) {
-		ret = PTR_ERR(mdp5_kms->vdd);
-		goto fail;
-	}
-
-	ret = regulator_enable(mdp5_kms->vdd);
-	if (ret) {
-		dev_err(dev->dev, "failed to enable regulator vdd: %d\n", ret);
 		goto fail;
 	}
 
@@ -633,9 +707,6 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	if (ret)
 		goto fail;
 	ret = get_clk(pdev, &mdp5_kms->ahb_clk, "iface_clk", true);
-	if (ret)
-		goto fail;
-	ret = get_clk(pdev, &mdp5_kms->src_clk, "core_clk_src", true);
 	if (ret)
 		goto fail;
 	ret = get_clk(pdev, &mdp5_kms->core_clk, "core_clk", true);
@@ -652,9 +723,12 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	 * rate first, then figure out hw revision, and then set a
 	 * more optimal rate:
 	 */
-	clk_set_rate(mdp5_kms->src_clk, 200000000);
+	clk_set_rate(mdp5_kms->core_clk, 200000000);
 
-	read_hw_revision(mdp5_kms, &major, &minor);
+	pm_runtime_enable(&pdev->dev);
+	mdp5_kms->rpm_enabled = true;
+
+	read_mdp_hw_revision(mdp5_kms, &major, &minor);
 
 	mdp5_kms->cfg = mdp5_cfg_init(mdp5_kms, major, minor);
 	if (IS_ERR(mdp5_kms->cfg)) {
@@ -667,7 +741,7 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	mdp5_kms->caps = config->hw->mdp.caps;
 
 	/* TODO: compute core clock rate at runtime */
-	clk_set_rate(mdp5_kms->src_clk, config->hw->max_clk);
+	clk_set_rate(mdp5_kms->core_clk, config->hw->max_clk);
 
 	/*
 	 * Some chipsets have a Shared Memory Pool (SMP), while others
@@ -690,73 +764,76 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 		goto fail;
 	}
 
-	/* make sure things are off before attaching iommu (bootloader could
-	 * have left things on, in which case we'll start getting faults if
-	 * we don't disable):
-	 */
-	mdp5_enable(mdp5_kms);
-	for (i = 0; i < MDP5_INTF_NUM_MAX; i++) {
-		if (mdp5_cfg_intf_is_virtual(config->hw->intf.connect[i]) ||
-				!config->hw->intf.base[i])
-			continue;
-		mdp5_write(mdp5_kms, REG_MDP5_INTF_TIMING_ENGINE_EN(i), 0);
+	/* set uninit-ed kms */
+	priv->kms = &mdp5_kms->base.base;
 
-		mdp5_write(mdp5_kms, REG_MDP5_INTF_FRAME_LINE_COUNT_EN(i), 0x3);
-	}
-	mdp5_disable(mdp5_kms);
-	mdelay(16);
-
-	if (config->platform.iommu) {
-		mmu = msm_iommu_new(&pdev->dev, config->platform.iommu);
-		if (IS_ERR(mmu)) {
-			ret = PTR_ERR(mmu);
-			dev_err(dev->dev, "failed to init iommu: %d\n", ret);
-			iommu_domain_free(config->platform.iommu);
-			goto fail;
-		}
-
-		ret = mmu->funcs->attach(mmu, iommu_ports,
-				ARRAY_SIZE(iommu_ports));
-		if (ret) {
-			dev_err(dev->dev, "failed to attach iommu: %d\n", ret);
-			mmu->funcs->destroy(mmu);
-			goto fail;
-		}
-	} else {
-		dev_info(dev->dev, "no iommu, fallback to phys "
-				"contig buffers for scanout\n");
-		mmu = NULL;
-	}
-	mdp5_kms->mmu = mmu;
-
-	mdp5_kms->id = msm_register_mmu(dev, mmu);
-	if (mdp5_kms->id < 0) {
-		ret = mdp5_kms->id;
-		dev_err(dev->dev, "failed to register mdp5 iommu: %d\n", ret);
-		goto fail;
-	}
-
-	ret = modeset_init(mdp5_kms);
-	if (ret) {
-		dev_err(dev->dev, "modeset_init failed: %d\n", ret);
-		goto fail;
-	}
-
-	dev->mode_config.min_width = 0;
-	dev->mode_config.min_height = 0;
-	dev->mode_config.max_width = config->hw->lm.max_width;
-	dev->mode_config.max_height = config->hw->lm.max_height;
-
-	dev->driver->get_vblank_timestamp = mdp5_get_vblank_timestamp;
-	dev->driver->get_scanout_position = mdp5_get_scanoutpos;
-	dev->driver->get_vblank_counter = mdp5_get_vblank_counter;
-	dev->max_vblank_count = 0xffffffff;
-	dev->vblank_disable_immediate = true;
-
-	return kms;
-
+	return 0;
 fail:
-	if (kms)
-		mdp5_destroy(kms);
-	return ERR_PTR(ret);
+	mdp5_destroy(pdev);
+	return ret;
+}
+
+static int mdp5_bind(struct device *dev, struct device *master, void *data)
+{
+	struct drm_device *ddev = dev_get_drvdata(master);
+	struct platform_device *pdev = to_platform_device(dev);
+
+	DBG("");
+
+	return mdp5_init(pdev, ddev);
+}
+
+static void mdp5_unbind(struct device *dev, struct device *master,
+			void *data)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+
+	mdp5_destroy(pdev);
+}
+
+static const struct component_ops mdp5_ops = {
+	.bind   = mdp5_bind,
+	.unbind = mdp5_unbind,
+};
+
+static int mdp5_dev_probe(struct platform_device *pdev)
+{
+	DBG("");
+	return component_add(&pdev->dev, &mdp5_ops);
+}
+
+static int mdp5_dev_remove(struct platform_device *pdev)
+{
+	DBG("");
+	component_del(&pdev->dev, &mdp5_ops);
+	return 0;
+}
+
+static const struct of_device_id mdp5_dt_match[] = {
+	{ .compatible = "qcom,mdp5", },
+	/* to support downstream DT files */
+	{ .compatible = "qcom,mdss_mdp", },
+	{}
+};
+MODULE_DEVICE_TABLE(of, mdp5_dt_match);
+
+static struct platform_driver mdp5_driver = {
+	.probe = mdp5_dev_probe,
+	.remove = mdp5_dev_remove,
+	.driver = {
+		.name = "msm_mdp",
+		.of_match_table = mdp5_dt_match,
+	},
+};
+
+void __init msm_mdp_register(void)
+{
+	DBG("");
+	platform_driver_register(&mdp5_driver);
+}
+
+void __exit msm_mdp_unregister(void)
+{
+	DBG("");
+	platform_driver_unregister(&mdp5_driver);
 }

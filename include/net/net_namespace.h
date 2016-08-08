@@ -275,7 +275,7 @@ static inline struct net *read_pnet(const possible_net_t *pnet)
 #define __net_initconst
 #else
 #define __net_init	__init
-#define __net_exit	__exit_refok
+#define __net_exit	__ref
 #define __net_initdata	__initdata
 #define __net_initconst	__initconst
 #endif

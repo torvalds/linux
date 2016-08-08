@@ -15,6 +15,7 @@
 #include <linux/threads.h>
 #include <linux/init.h>
 #include <linux/export.h>
+#include <linux/jump_label.h>
 
 #include <asm/oprofile_impl.h>
 #include <asm/cputable.h>
@@ -137,7 +138,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.cpu_name		= "POWER4 (gp)",
 		.cpu_features		= CPU_FTRS_POWER4,
 		.cpu_user_features	= COMMON_USER_POWER4,
-		.mmu_features		= MMU_FTRS_POWER4,
+		.mmu_features		= MMU_FTRS_POWER4 | MMU_FTR_TLBIE_CROP_VA,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.num_pmcs		= 8,
@@ -152,7 +153,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.cpu_name		= "POWER4+ (gq)",
 		.cpu_features		= CPU_FTRS_POWER4,
 		.cpu_user_features	= COMMON_USER_POWER4,
-		.mmu_features		= MMU_FTRS_POWER4,
+		.mmu_features		= MMU_FTRS_POWER4 | MMU_FTR_TLBIE_CROP_VA,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.num_pmcs		= 8,
@@ -2224,3 +2225,39 @@ struct cpu_spec * __init identify_cpu(unsigned long offset, unsigned int pvr)
 
 	return NULL;
 }
+
+#ifdef CONFIG_JUMP_LABEL_FEATURE_CHECKS
+struct static_key_true cpu_feature_keys[NUM_CPU_FTR_KEYS] = {
+			[0 ... NUM_CPU_FTR_KEYS - 1] = STATIC_KEY_TRUE_INIT
+};
+EXPORT_SYMBOL_GPL(cpu_feature_keys);
+
+void __init cpu_feature_keys_init(void)
+{
+	int i;
+
+	for (i = 0; i < NUM_CPU_FTR_KEYS; i++) {
+		unsigned long f = 1ul << i;
+
+		if (!(cur_cpu_spec->cpu_features & f))
+			static_branch_disable(&cpu_feature_keys[i]);
+	}
+}
+
+struct static_key_true mmu_feature_keys[NUM_MMU_FTR_KEYS] = {
+			[0 ... NUM_MMU_FTR_KEYS - 1] = STATIC_KEY_TRUE_INIT
+};
+EXPORT_SYMBOL_GPL(mmu_feature_keys);
+
+void __init mmu_feature_keys_init(void)
+{
+	int i;
+
+	for (i = 0; i < NUM_MMU_FTR_KEYS; i++) {
+		unsigned long f = 1ul << i;
+
+		if (!(cur_cpu_spec->mmu_features & f))
+			static_branch_disable(&mmu_feature_keys[i]);
+	}
+}
+#endif

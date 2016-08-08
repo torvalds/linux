@@ -170,10 +170,10 @@ static irqreturn_t armada_370_xp_timer_interrupt(int irq, void *dev_id)
 /*
  * Setup the local clock events for a CPU.
  */
-static int armada_370_xp_timer_setup(struct clock_event_device *evt)
+static int armada_370_xp_timer_starting_cpu(unsigned int cpu)
 {
+	struct clock_event_device *evt = per_cpu_ptr(armada_370_xp_evt, cpu);
 	u32 clr = 0, set = 0;
-	int cpu = smp_processor_id();
 
 	if (timer25Mhz)
 		set = TIMER0_25MHZ;
@@ -200,34 +200,14 @@ static int armada_370_xp_timer_setup(struct clock_event_device *evt)
 	return 0;
 }
 
-static void armada_370_xp_timer_stop(struct clock_event_device *evt)
+static int armada_370_xp_timer_dying_cpu(unsigned int cpu)
 {
+	struct clock_event_device *evt = per_cpu_ptr(armada_370_xp_evt, cpu);
+
 	evt->set_state_shutdown(evt);
 	disable_percpu_irq(evt->irq);
+	return 0;
 }
-
-static int armada_370_xp_timer_cpu_notify(struct notifier_block *self,
-					   unsigned long action, void *hcpu)
-{
-	/*
-	 * Grab cpu pointer in each case to avoid spurious
-	 * preemptible warnings
-	 */
-	switch (action & ~CPU_TASKS_FROZEN) {
-	case CPU_STARTING:
-		armada_370_xp_timer_setup(this_cpu_ptr(armada_370_xp_evt));
-		break;
-	case CPU_DYING:
-		armada_370_xp_timer_stop(this_cpu_ptr(armada_370_xp_evt));
-		break;
-	}
-
-	return NOTIFY_OK;
-}
-
-static struct notifier_block armada_370_xp_timer_cpu_nb = {
-	.notifier_call = armada_370_xp_timer_cpu_notify,
-};
 
 static u32 timer0_ctrl_reg, timer0_local_ctrl_reg;
 
@@ -322,8 +302,6 @@ static int __init armada_370_xp_timer_common_init(struct device_node *np)
 		return res;
 	}
 
-	register_cpu_notifier(&armada_370_xp_timer_cpu_nb);
-
 	armada_370_xp_evt = alloc_percpu(struct clock_event_device);
 	if (!armada_370_xp_evt)
 		return -ENOMEM;
@@ -341,9 +319,12 @@ static int __init armada_370_xp_timer_common_init(struct device_node *np)
 		return res;
 	}
 
-	res = armada_370_xp_timer_setup(this_cpu_ptr(armada_370_xp_evt));
+	res = cpuhp_setup_state(CPUHP_AP_ARMADA_TIMER_STARTING,
+				"AP_ARMADA_TIMER_STARTING",
+				armada_370_xp_timer_starting_cpu,
+				armada_370_xp_timer_dying_cpu);
 	if (res) {
-		pr_err("Failed to setup timer");
+		pr_err("Failed to setup hotplug state and timer");
 		return res;
 	}
 

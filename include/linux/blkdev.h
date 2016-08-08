@@ -47,7 +47,6 @@ struct pr_ops;
  */
 #define BLKCG_MAX_POLS		2
 
-struct request;
 typedef void (rq_end_io_fn)(struct request *, int);
 
 #define BLK_RL_SYNCFULL		(1U << 0)
@@ -1665,7 +1664,7 @@ static inline bool integrity_req_gap_front_merge(struct request *req,
  */
 struct blk_dax_ctl {
 	sector_t sector;
-	void __pmem *addr;
+	void *addr;
 	long size;
 	pfn_t pfn;
 };
@@ -1673,11 +1672,11 @@ struct blk_dax_ctl {
 struct block_device_operations {
 	int (*open) (struct block_device *, fmode_t);
 	void (*release) (struct gendisk *, fmode_t);
-	int (*rw_page)(struct block_device *, sector_t, struct page *, int rw);
+	int (*rw_page)(struct block_device *, sector_t, struct page *, bool);
 	int (*ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
 	int (*compat_ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
-	long (*direct_access)(struct block_device *, sector_t, void __pmem **,
-			pfn_t *, long);
+	long (*direct_access)(struct block_device *, sector_t, void **, pfn_t *,
+			long);
 	unsigned int (*check_events) (struct gendisk *disk,
 				      unsigned int clearing);
 	/* ->media_changed() is DEPRECATED, use ->check_events() instead */

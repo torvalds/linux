@@ -119,9 +119,7 @@ static void __init tqm8xx_setup_arch(void)
 
 static int __init tqm8xx_probe(void)
 {
-	unsigned long node = of_get_flat_dt_root();
-
-	return of_flat_dt_is_compatible(node, "tqc,tqm8xx");
+	return of_machine_is_compatible("tqc,tqm8xx");
 }
 
 static const struct of_device_id of_bus_ids[] __initconst = {

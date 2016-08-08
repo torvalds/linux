@@ -72,8 +72,8 @@ extern int gma_crtc_cursor_set(struct drm_crtc *crtc,
 			       uint32_t width, uint32_t height);
 extern int gma_crtc_cursor_move(struct drm_crtc *crtc, int x, int y);
 extern void gma_crtc_load_lut(struct drm_crtc *crtc);
-extern void gma_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
-			       u16 *blue, u32 start, u32 size);
+extern int gma_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
+			      u16 *blue, u32 size);
 extern void gma_crtc_dpms(struct drm_crtc *crtc, int mode);
 extern void gma_crtc_prepare(struct drm_crtc *crtc);
 extern void gma_crtc_commit(struct drm_crtc *crtc);

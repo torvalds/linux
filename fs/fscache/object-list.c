@@ -404,7 +404,6 @@ static int fscache_objlist_release(struct inode *inode, struct file *file)
 }
 
 const struct file_operations fscache_objlist_fops = {
-	.owner		= THIS_MODULE,
 	.open		= fscache_objlist_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

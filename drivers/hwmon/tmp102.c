@@ -227,7 +227,9 @@ static int tmp102_probe(struct i2c_client *client,
 
 	tmp102->config_orig = regval;
 
-	devm_add_action(dev, tmp102_restore_config, tmp102);
+	err = devm_add_action_or_reset(dev, tmp102_restore_config, tmp102);
+	if (err)
+		return err;
 
 	regval &= ~TMP102_CONFIG_CLEAR;
 	regval |= TMP102_CONFIG_SET;

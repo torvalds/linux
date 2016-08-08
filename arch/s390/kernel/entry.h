@@ -79,4 +79,6 @@ long sys_s390_pci_mmio_read(unsigned long, void __user *, size_t);
 
 DECLARE_PER_CPU(u64, mt_cycles[8]);
 
+void verify_facilities(void);
+
 #endif /* _ENTRY_H */

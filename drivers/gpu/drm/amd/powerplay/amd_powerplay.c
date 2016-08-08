@@ -176,7 +176,7 @@ static int pp_hw_fini(void *handle)
 
 static bool pp_is_idle(void *handle)
 {
-	return 0;
+	return false;
 }
 
 static int pp_wait_for_idle(void *handle)
@@ -536,6 +536,10 @@ int pp_dpm_dispatch_tasks(void *handle, enum amd_pp_event event_id, void *input,
 	case AMD_PP_EVENT_COMPLETE_INIT:
 		ret = pem_handle_event(pp_handle->eventmgr, event_id, &data);
 		break;
+	case AMD_PP_EVENT_READJUST_POWER_STATE:
+		pp_handle->hwmgr->current_ps = pp_handle->hwmgr->boot_ps;
+		ret = pem_handle_event(pp_handle->eventmgr, event_id, &data);
+		break;
 	default:
 		break;
 	}
@@ -740,12 +744,12 @@ static int pp_dpm_get_pp_table(void *handle, char **table)
 
 	PP_CHECK_HW(hwmgr);
 
-	if (hwmgr->hwmgr_func->get_pp_table == NULL) {
-		printk(KERN_INFO "%s was not implemented.\n", __func__);
-		return 0;
-	}
+	if (!hwmgr->soft_pp_table)
+		return -EINVAL;
 
-	return hwmgr->hwmgr_func->get_pp_table(hwmgr, table);
+	*table = (char *)hwmgr->soft_pp_table;
+
+	return hwmgr->soft_pp_table_size;
 }
 
 static int pp_dpm_set_pp_table(void *handle, const char *buf, size_t size)
@@ -759,12 +763,23 @@ static int pp_dpm_set_pp_table(void *handle, const char *buf, size_t size)
 
 	PP_CHECK_HW(hwmgr);
 
-	if (hwmgr->hwmgr_func->set_pp_table == NULL) {
-		printk(KERN_INFO "%s was not implemented.\n", __func__);
-		return 0;
+	if (!hwmgr->hardcode_pp_table) {
+		hwmgr->hardcode_pp_table =
+				kzalloc(hwmgr->soft_pp_table_size, GFP_KERNEL);
+
+		if (!hwmgr->hardcode_pp_table)
+			return -ENOMEM;
+
+		/* to avoid powerplay crash when hardcode pptable is empty */
+		memcpy(hwmgr->hardcode_pp_table, hwmgr->soft_pp_table,
+				hwmgr->soft_pp_table_size);
 	}
 
-	return hwmgr->hwmgr_func->set_pp_table(hwmgr, buf, size);
+	memcpy(hwmgr->hardcode_pp_table, buf, size);
+
+	hwmgr->soft_pp_table = hwmgr->hardcode_pp_table;
+
+	return amd_powerplay_reset(handle);
 }
 
 static int pp_dpm_force_clock_level(void *handle,
@@ -806,6 +821,82 @@ static int pp_dpm_print_clock_levels(void *handle,
 	return hwmgr->hwmgr_func->print_clock_levels(hwmgr, type, buf);
 }
 
+static int pp_dpm_get_sclk_od(void *handle)
+{
+	struct pp_hwmgr *hwmgr;
+
+	if (!handle)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	PP_CHECK_HW(hwmgr);
+
+	if (hwmgr->hwmgr_func->get_sclk_od == NULL) {
+		printk(KERN_INFO "%s was not implemented.\n", __func__);
+		return 0;
+	}
+
+	return hwmgr->hwmgr_func->get_sclk_od(hwmgr);
+}
+
+static int pp_dpm_set_sclk_od(void *handle, uint32_t value)
+{
+	struct pp_hwmgr *hwmgr;
+
+	if (!handle)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	PP_CHECK_HW(hwmgr);
+
+	if (hwmgr->hwmgr_func->set_sclk_od == NULL) {
+		printk(KERN_INFO "%s was not implemented.\n", __func__);
+		return 0;
+	}
+
+	return hwmgr->hwmgr_func->set_sclk_od(hwmgr, value);
+}
+
+static int pp_dpm_get_mclk_od(void *handle)
+{
+	struct pp_hwmgr *hwmgr;
+
+	if (!handle)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	PP_CHECK_HW(hwmgr);
+
+	if (hwmgr->hwmgr_func->get_mclk_od == NULL) {
+		printk(KERN_INFO "%s was not implemented.\n", __func__);
+		return 0;
+	}
+
+	return hwmgr->hwmgr_func->get_mclk_od(hwmgr);
+}
+
+static int pp_dpm_set_mclk_od(void *handle, uint32_t value)
+{
+	struct pp_hwmgr *hwmgr;
+
+	if (!handle)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	PP_CHECK_HW(hwmgr);
+
+	if (hwmgr->hwmgr_func->set_mclk_od == NULL) {
+		printk(KERN_INFO "%s was not implemented.\n", __func__);
+		return 0;
+	}
+
+	return hwmgr->hwmgr_func->set_mclk_od(hwmgr, value);
+}
+
 const struct amd_powerplay_funcs pp_dpm_funcs = {
 	.get_temperature = pp_dpm_get_temperature,
 	.load_firmware = pp_dpm_load_fw,
@@ -828,6 +919,10 @@ const struct amd_powerplay_funcs pp_dpm_funcs = {
 	.set_pp_table = pp_dpm_set_pp_table,
 	.force_clock_level = pp_dpm_force_clock_level,
 	.print_clock_levels = pp_dpm_print_clock_levels,
+	.get_sclk_od = pp_dpm_get_sclk_od,
+	.set_sclk_od = pp_dpm_set_sclk_od,
+	.get_mclk_od = pp_dpm_get_mclk_od,
+	.set_mclk_od = pp_dpm_set_mclk_od,
 };
 
 static int amd_pp_instance_init(struct amd_pp_init *pp_init,
@@ -907,6 +1002,44 @@ int amd_powerplay_fini(void *handle)
 	amd_pp_instance_fini(handle);
 
 	return 0;
+}
+
+int amd_powerplay_reset(void *handle)
+{
+	struct pp_instance *instance = (struct pp_instance *)handle;
+	struct pp_eventmgr *eventmgr;
+	struct pem_event_data event_data = { {0} };
+	int ret;
+
+	if (instance == NULL)
+		return -EINVAL;
+
+	eventmgr = instance->eventmgr;
+	if (!eventmgr || !eventmgr->pp_eventmgr_fini)
+		return -EINVAL;
+
+	eventmgr->pp_eventmgr_fini(eventmgr);
+
+	ret = pp_sw_fini(handle);
+	if (ret)
+		return ret;
+
+	kfree(instance->hwmgr->ps);
+
+	ret = pp_sw_init(handle);
+	if (ret)
+		return ret;
+
+	hw_init_power_state_table(instance->hwmgr);
+
+	if (eventmgr == NULL || eventmgr->pp_eventmgr_init == NULL)
+		return -EINVAL;
+
+	ret = eventmgr->pp_eventmgr_init(eventmgr);
+	if (ret)
+		return ret;
+
+	return pem_handle_event(eventmgr, AMD_PP_EVENT_COMPLETE_INIT, &event_data);
 }
 
 /* export this function to DAL */

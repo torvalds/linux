@@ -16,6 +16,7 @@
 #include <linux/aer.h>
 #include <linux/acpi.h>
 #include <linux/irqdomain.h>
+#include <linux/pm_runtime.h>
 #include "pci.h"
 
 #define CARDBUS_LATENCY_TIMER	176	/* secondary latency timer */
@@ -832,6 +833,12 @@ int pci_scan_bridge(struct pci_bus *bus, struct pci_dev *dev, int max, int pass)
 	u8 primary, secondary, subordinate;
 	int broken = 0;
 
+	/*
+	 * Make sure the bridge is powered on to be able to access config
+	 * space of devices below it.
+	 */
+	pm_runtime_get_sync(&dev->dev);
+
 	pci_read_config_dword(dev, PCI_PRIMARY_BUS, &buses);
 	primary = buses & 0xFF;
 	secondary = (buses >> 8) & 0xFF;
@@ -1011,6 +1018,8 @@ int pci_scan_bridge(struct pci_bus *bus, struct pci_dev *dev, int max, int pass)
 
 out:
 	pci_write_config_word(dev, PCI_BRIDGE_CONTROL, bctl);
+
+	pm_runtime_put(&dev->dev);
 
 	return max;
 }
@@ -2077,6 +2086,15 @@ unsigned int pci_scan_child_bus(struct pci_bus *bus)
 		}
 
 	/*
+	 * Make sure a hotplug bridge has at least the minimum requested
+	 * number of buses.
+	 */
+	if (bus->self && bus->self->is_hotplug_bridge && pci_hotplug_bus_size) {
+		if (max - bus->busn_res.start < pci_hotplug_bus_size - 1)
+			max = bus->busn_res.start + pci_hotplug_bus_size - 1;
+	}
+
+	/*
 	 * We've scanned the bus and so we know all about what's on
 	 * the other side of any bridges that may be on this bus plus
 	 * any devices.
@@ -2127,7 +2145,9 @@ struct pci_bus *pci_create_root_bus(struct device *parent, int bus,
 	b->sysdata = sysdata;
 	b->ops = ops;
 	b->number = b->busn_res.start = bus;
-	pci_bus_assign_domain_nr(b, parent);
+#ifdef CONFIG_PCI_DOMAINS_GENERIC
+	b->domain_nr = pci_bus_find_domain_nr(b, parent);
+#endif
 	b2 = pci_find_bus(pci_domain_nr(b), bus);
 	if (b2) {
 		/* If we already got to this bus through a different bridge, ignore it */

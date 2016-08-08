@@ -52,7 +52,7 @@ static int exynos_drm_fb_mmap(struct fb_info *info,
 
 	ret = dma_mmap_attrs(to_dma_dev(helper->dev), vma, exynos_gem->cookie,
 			     exynos_gem->dma_addr, exynos_gem->size,
-			     &exynos_gem->dma_attrs);
+			     exynos_gem->dma_attrs);
 	if (ret < 0) {
 		DRM_ERROR("failed to mmap.\n");
 		return ret;
@@ -269,8 +269,7 @@ static void exynos_drm_fbdev_destroy(struct drm_device *dev,
 	struct exynos_drm_gem *exynos_gem = exynos_fbd->exynos_gem;
 	struct drm_framebuffer *fb;
 
-	if (exynos_gem->kvaddr)
-		vunmap(exynos_gem->kvaddr);
+	vunmap(exynos_gem->kvaddr);
 
 	/* release drm framebuffer and real buffer */
 	if (fb_helper->fb && fb_helper->fb->funcs) {

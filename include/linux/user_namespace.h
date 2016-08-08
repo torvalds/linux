@@ -72,6 +72,7 @@ extern ssize_t proc_projid_map_write(struct file *, const char __user *, size_t,
 extern ssize_t proc_setgroups_write(struct file *, const char __user *, size_t, loff_t *);
 extern int proc_setgroups_show(struct seq_file *m, void *v);
 extern bool userns_may_setgroups(const struct user_namespace *ns);
+extern bool current_in_userns(const struct user_namespace *target_ns);
 #else
 
 static inline struct user_namespace *get_user_ns(struct user_namespace *ns)
@@ -97,6 +98,11 @@ static inline void put_user_ns(struct user_namespace *ns)
 }
 
 static inline bool userns_may_setgroups(const struct user_namespace *ns)
+{
+	return true;
+}
+
+static inline bool current_in_userns(const struct user_namespace *target_ns)
 {
 	return true;
 }

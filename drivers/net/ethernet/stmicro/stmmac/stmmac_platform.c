@@ -113,8 +113,10 @@ static struct stmmac_axi *stmmac_axi_setup(struct platform_device *pdev)
 		return NULL;
 
 	axi = kzalloc(sizeof(*axi), GFP_KERNEL);
-	if (!axi)
+	if (!axi) {
+		of_node_put(np);
 		return ERR_PTR(-ENOMEM);
+	}
 
 	axi->axi_lpi_en = of_property_read_bool(np, "snps,lpi_en");
 	axi->axi_xit_frm = of_property_read_bool(np, "snps,xit_frm");
@@ -127,6 +129,7 @@ static struct stmmac_axi *stmmac_axi_setup(struct platform_device *pdev)
 	of_property_read_u32(np, "snps,wr_osr_lmt", &axi->axi_wr_osr_lmt);
 	of_property_read_u32(np, "snps,rd_osr_lmt", &axi->axi_rd_osr_lmt);
 	of_property_read_u32_array(np, "snps,blen", axi->axi_blen, AXI_BLEN);
+	of_node_put(np);
 
 	return axi;
 }
@@ -302,7 +305,7 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 		dma_cfg = devm_kzalloc(&pdev->dev, sizeof(*dma_cfg),
 				       GFP_KERNEL);
 		if (!dma_cfg) {
-			of_node_put(np);
+			of_node_put(plat->phy_node);
 			return ERR_PTR(-ENOMEM);
 		}
 		plat->dma_cfg = dma_cfg;

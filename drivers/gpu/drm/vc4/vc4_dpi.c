@@ -208,14 +208,6 @@ static int vc4_dpi_connector_get_modes(struct drm_connector *connector)
 	return 0;
 }
 
-static struct drm_encoder *
-vc4_dpi_connector_best_encoder(struct drm_connector *connector)
-{
-	struct vc4_dpi_connector *dpi_connector =
-		to_vc4_dpi_connector(connector);
-	return dpi_connector->encoder;
-}
-
 static const struct drm_connector_funcs vc4_dpi_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.detect = vc4_dpi_connector_detect,
@@ -228,7 +220,6 @@ static const struct drm_connector_funcs vc4_dpi_connector_funcs = {
 
 static const struct drm_connector_helper_funcs vc4_dpi_connector_helper_funcs = {
 	.get_modes = vc4_dpi_connector_get_modes,
-	.best_encoder = vc4_dpi_connector_best_encoder,
 };
 
 static struct drm_connector *vc4_dpi_connector_init(struct drm_device *dev,
@@ -236,14 +227,12 @@ static struct drm_connector *vc4_dpi_connector_init(struct drm_device *dev,
 {
 	struct drm_connector *connector = NULL;
 	struct vc4_dpi_connector *dpi_connector;
-	int ret = 0;
 
 	dpi_connector = devm_kzalloc(dev->dev, sizeof(*dpi_connector),
 				     GFP_KERNEL);
-	if (!dpi_connector) {
-		ret = -ENOMEM;
-		goto fail;
-	}
+	if (!dpi_connector)
+		return ERR_PTR(-ENOMEM);
+
 	connector = &dpi_connector->base;
 
 	dpi_connector->encoder = dpi->encoder;
@@ -260,12 +249,6 @@ static struct drm_connector *vc4_dpi_connector_init(struct drm_device *dev,
 	drm_mode_connector_attach_encoder(connector, dpi->encoder);
 
 	return connector;
-
- fail:
-	if (connector)
-		vc4_dpi_connector_destroy(connector);
-
-	return ERR_PTR(ret);
 }
 
 static const struct drm_encoder_funcs vc4_dpi_encoder_funcs = {

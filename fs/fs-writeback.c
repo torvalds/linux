@@ -1327,6 +1327,7 @@ __writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
 	dirty = inode->i_state & I_DIRTY;
 	if (inode->i_state & I_DIRTY_TIME) {
 		if ((dirty & (I_DIRTY_SYNC | I_DIRTY_DATASYNC)) ||
+		    wbc->sync_mode == WB_SYNC_ALL ||
 		    unlikely(inode->i_state & I_DIRTY_TIME_EXPIRED) ||
 		    unlikely(time_after(jiffies,
 					(inode->dirtied_time_when +
@@ -1807,8 +1808,8 @@ static struct wb_writeback_work *get_next_work_item(struct bdi_writeback *wb)
  */
 static unsigned long get_nr_dirty_pages(void)
 {
-	return global_page_state(NR_FILE_DIRTY) +
-		global_page_state(NR_UNSTABLE_NFS) +
+	return global_node_page_state(NR_FILE_DIRTY) +
+		global_node_page_state(NR_UNSTABLE_NFS) +
 		get_nr_dirty_inodes();
 }
 

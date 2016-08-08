@@ -20,7 +20,6 @@
 #include <linux/kernel.h>
 #include <linux/libfdt.h>
 #include <linux/of_fdt.h>
-#include <linux/of_platform.h>
 
 #include <asm/bootinfo.h>
 #include <asm/prom.h>
@@ -74,16 +73,9 @@ void __init device_tree_init(void)
 	unflatten_and_copy_device_tree();
 }
 
-static int __init populate_machine(void)
-{
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
-	return 0;
-}
-arch_initcall(populate_machine);
-
 const char *get_system_type(void)
 {
-	if (config_enabled(CONFIG_MACH_JZ4780))
+	if (IS_ENABLED(CONFIG_MACH_JZ4780))
 		return "JZ4780";
 
 	return "JZ4740";

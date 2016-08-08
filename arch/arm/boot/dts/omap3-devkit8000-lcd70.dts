@@ -16,7 +16,7 @@
 	model = "TimLL OMAP3 Devkit8000 with 7.0'' LCD panel";
 	compatible = "timll,omap3-devkit8000", "ti,omap3";
 
-	lcd0: display@0 {
+	lcd0: display {
 		panel-timing {
 			clock-frequency = <40000000>;
 			hactive = <800>;

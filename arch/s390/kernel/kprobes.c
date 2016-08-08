@@ -690,6 +690,15 @@ int setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 	stack = (unsigned long) regs->gprs[15];
 
 	memcpy(kcb->jprobes_stack, (void *) stack, MIN_STACK_SIZE(stack));
+
+	/*
+	 * jprobes use jprobe_return() which skips the normal return
+	 * path of the function, and this messes up the accounting of the
+	 * function graph tracer to get messed up.
+	 *
+	 * Pause function graph tracing while performing the jprobe function.
+	 */
+	pause_graph_tracing();
 	return 1;
 }
 NOKPROBE_SYMBOL(setjmp_pre_handler);
@@ -704,6 +713,9 @@ int longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 {
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
 	unsigned long stack;
+
+	/* It's OK to start function graph tracing again */
+	unpause_graph_tracing();
 
 	stack = (unsigned long) kcb->jprobe_saved_regs.gprs[15];
 

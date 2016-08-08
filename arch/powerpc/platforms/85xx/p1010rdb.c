@@ -62,11 +62,9 @@ machine_arch_initcall(p1010_rdb, swiotlb_setup_bus_notifier);
  */
 static int __init p1010_rdb_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	if (of_flat_dt_is_compatible(root, "fsl,P1010RDB"))
+	if (of_machine_is_compatible("fsl,P1010RDB"))
 		return 1;
-	if (of_flat_dt_is_compatible(root, "fsl,P1010RDB-PB"))
+	if (of_machine_is_compatible("fsl,P1010RDB-PB"))
 		return 1;
 	return 0;
 }

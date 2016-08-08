@@ -6234,6 +6234,7 @@ err_free_stats:
 err_free_irq:
 	irq_dispose_mapping(port->irq);
 err_free_netdev:
+	of_node_put(phy_node);
 	free_netdev(dev);
 	return err;
 }
@@ -6244,6 +6245,7 @@ static void mvpp2_port_remove(struct mvpp2_port *port)
 	int i;
 
 	unregister_netdev(port->dev);
+	of_node_put(port->phy_node);
 	free_percpu(port->pcpu);
 	free_percpu(port->stats);
 	for (i = 0; i < txq_number; i++)

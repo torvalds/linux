@@ -121,6 +121,16 @@ ext_try_to_merge_right(struct rb_root *root, struct pnfs_block_extent *be)
 	return be;
 }
 
+static void __ext_put_deviceids(struct list_head *head)
+{
+	struct pnfs_block_extent *be, *tmp;
+
+	list_for_each_entry_safe(be, tmp, head, be_list) {
+		nfs4_put_deviceid_node(be->be_device);
+		kfree(be);
+	}
+}
+
 static void
 __ext_tree_insert(struct rb_root *root,
 		struct pnfs_block_extent *new, bool merge_ok)
@@ -163,7 +173,8 @@ free_new:
 }
 
 static int
-__ext_tree_remove(struct rb_root *root, sector_t start, sector_t end)
+__ext_tree_remove(struct rb_root *root,
+		sector_t start, sector_t end, struct list_head *tmp)
 {
 	struct pnfs_block_extent *be;
 	sector_t len1 = 0, len2 = 0;
@@ -223,8 +234,7 @@ __ext_tree_remove(struct rb_root *root, sector_t start, sector_t end)
 			struct pnfs_block_extent *next = ext_tree_next(be);
 
 			rb_erase(&be->be_node, root);
-			nfs4_put_deviceid_node(be->be_device);
-			kfree(be);
+			list_add_tail(&be->be_list, tmp);
 			be = next;
 		}
 
@@ -350,16 +360,18 @@ int ext_tree_remove(struct pnfs_block_layout *bl, bool rw,
 		sector_t start, sector_t end)
 {
 	int err, err2;
+	LIST_HEAD(tmp);
 
 	spin_lock(&bl->bl_ext_lock);
-	err = __ext_tree_remove(&bl->bl_ext_ro, start, end);
+	err = __ext_tree_remove(&bl->bl_ext_ro, start, end, &tmp);
 	if (rw) {
-		err2 = __ext_tree_remove(&bl->bl_ext_rw, start, end);
+		err2 = __ext_tree_remove(&bl->bl_ext_rw, start, end, &tmp);
 		if (!err)
 			err = err2;
 	}
 	spin_unlock(&bl->bl_ext_lock);
 
+	__ext_put_deviceids(&tmp);
 	return err;
 }
 
@@ -396,12 +408,13 @@ ext_tree_mark_written(struct pnfs_block_layout *bl, sector_t start,
 	sector_t end = start + len;
 	struct pnfs_block_extent *be;
 	int err = 0;
+	LIST_HEAD(tmp);
 
 	spin_lock(&bl->bl_ext_lock);
 	/*
 	 * First remove all COW extents or holes from written to range.
 	 */
-	err = __ext_tree_remove(&bl->bl_ext_ro, start, end);
+	err = __ext_tree_remove(&bl->bl_ext_ro, start, end, &tmp);
 	if (err)
 		goto out;
 
@@ -459,6 +472,8 @@ ext_tree_mark_written(struct pnfs_block_layout *bl, sector_t start,
 	}
 out:
 	spin_unlock(&bl->bl_ext_lock);
+
+	__ext_put_deviceids(&tmp);
 	return err;
 }
 

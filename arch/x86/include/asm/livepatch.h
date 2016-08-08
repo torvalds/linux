@@ -22,7 +22,6 @@
 #define _ASM_X86_LIVEPATCH_H
 
 #include <asm/setup.h>
-#include <linux/module.h>
 #include <linux/ftrace.h>
 
 static inline int klp_check_compiler_support(void)

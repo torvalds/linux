@@ -59,7 +59,7 @@ static inline void set_section_nid(unsigned long section_nr, int nid)
 #endif
 
 #ifdef CONFIG_SPARSEMEM_EXTREME
-static struct mem_section noinline __init_refok *sparse_index_alloc(int nid)
+static noinline struct mem_section __ref *sparse_index_alloc(int nid)
 {
 	struct mem_section *section = NULL;
 	unsigned long array_size = SECTIONS_PER_ROOT *
@@ -100,11 +100,7 @@ static inline int sparse_index_init(unsigned long section_nr, int nid)
 }
 #endif
 
-/*
- * Although written for the SPARSEMEM_EXTREME case, this happens
- * to also work for the flat array case because
- * NR_SECTION_ROOTS==NR_MEM_SECTIONS.
- */
+#ifdef CONFIG_SPARSEMEM_EXTREME
 int __section_nr(struct mem_section* ms)
 {
 	unsigned long root_nr;
@@ -123,6 +119,12 @@ int __section_nr(struct mem_section* ms)
 
 	return (root_nr * SECTIONS_PER_ROOT) + (ms - root);
 }
+#else
+int __section_nr(struct mem_section* ms)
+{
+	return (int)(ms - mem_section[0]);
+}
+#endif
 
 /*
  * During early boot, before section_mem_map is used for an actual

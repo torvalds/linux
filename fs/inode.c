@@ -345,7 +345,7 @@ EXPORT_SYMBOL(inc_nlink);
 void address_space_init_once(struct address_space *mapping)
 {
 	memset(mapping, 0, sizeof(*mapping));
-	INIT_RADIX_TREE(&mapping->page_tree, GFP_ATOMIC);
+	INIT_RADIX_TREE(&mapping->page_tree, GFP_ATOMIC | __GFP_ACCOUNT);
 	spin_lock_init(&mapping->tree_lock);
 	init_rwsem(&mapping->i_mmap_rwsem);
 	INIT_LIST_HEAD(&mapping->private_list);
@@ -1619,6 +1619,13 @@ bool atime_needs_update(const struct path *path, struct inode *inode)
 
 	if (inode->i_flags & S_NOATIME)
 		return false;
+
+	/* Atime updates will likely cause i_uid and i_gid to be written
+	 * back improprely if their true value is unknown to the vfs.
+	 */
+	if (HAS_UNMAPPED_ID(inode))
+		return false;
+
 	if (IS_NOATIME(inode))
 		return false;
 	if ((inode->i_sb->s_flags & MS_NODIRATIME) && S_ISDIR(inode->i_mode))
@@ -1722,7 +1729,6 @@ int dentry_needs_remove_privs(struct dentry *dentry)
 		mask |= ATTR_KILL_PRIV;
 	return mask;
 }
-EXPORT_SYMBOL(dentry_needs_remove_privs);
 
 static int __remove_privs(struct dentry *dentry, int kill)
 {
@@ -1742,8 +1748,8 @@ static int __remove_privs(struct dentry *dentry, int kill)
  */
 int file_remove_privs(struct file *file)
 {
-	struct dentry *dentry = file->f_path.dentry;
-	struct inode *inode = d_inode(dentry);
+	struct dentry *dentry = file_dentry(file);
+	struct inode *inode = file_inode(file);
 	int kill;
 	int error = 0;
 
@@ -1751,7 +1757,7 @@ int file_remove_privs(struct file *file)
 	if (IS_NOSEC(inode))
 		return 0;
 
-	kill = file_needs_remove_privs(file);
+	kill = dentry_needs_remove_privs(dentry);
 	if (kill < 0)
 		return kill;
 	if (kill)

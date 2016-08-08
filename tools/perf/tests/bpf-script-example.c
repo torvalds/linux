@@ -31,8 +31,8 @@ struct bpf_map_def SEC("maps") flip_table = {
 	.max_entries = 1,
 };
 
-SEC("func=sys_epoll_wait")
-int bpf_func__sys_epoll_wait(void *ctx)
+SEC("func=SyS_epoll_wait")
+int bpf_func__SyS_epoll_wait(void *ctx)
 {
 	int ind =0;
 	int *flag = bpf_map_lookup_elem(&flip_table, &ind);

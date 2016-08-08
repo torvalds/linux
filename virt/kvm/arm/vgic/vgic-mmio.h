@@ -21,10 +21,19 @@ struct vgic_register_region {
 	unsigned int len;
 	unsigned int bits_per_irq;
 	unsigned int access_flags;
-	unsigned long (*read)(struct kvm_vcpu *vcpu, gpa_t addr,
-			      unsigned int len);
-	void (*write)(struct kvm_vcpu *vcpu, gpa_t addr, unsigned int len,
-		      unsigned long val);
+	union {
+		unsigned long (*read)(struct kvm_vcpu *vcpu, gpa_t addr,
+				      unsigned int len);
+		unsigned long (*its_read)(struct kvm *kvm, struct vgic_its *its,
+					  gpa_t addr, unsigned int len);
+	};
+	union {
+		void (*write)(struct kvm_vcpu *vcpu, gpa_t addr,
+			      unsigned int len, unsigned long val);
+		void (*its_write)(struct kvm *kvm, struct vgic_its *its,
+				  gpa_t addr, unsigned int len,
+				  unsigned long val);
+	};
 };
 
 extern struct kvm_io_device_ops kvm_io_gic_ops;
@@ -87,6 +96,12 @@ unsigned long vgic_data_mmio_bus_to_host(const void *val, unsigned int len);
 void vgic_data_host_to_mmio_bus(void *buf, unsigned int len,
 				unsigned long data);
 
+unsigned long extract_bytes(unsigned long data, unsigned int offset,
+			    unsigned int num);
+
+u64 update_64bit_reg(u64 reg, unsigned int offset, unsigned int len,
+		     unsigned long val);
+
 unsigned long vgic_mmio_read_raz(struct kvm_vcpu *vcpu,
 				 gpa_t addr, unsigned int len);
 
@@ -146,5 +161,13 @@ void vgic_mmio_write_config(struct kvm_vcpu *vcpu,
 unsigned int vgic_v2_init_dist_iodev(struct vgic_io_device *dev);
 
 unsigned int vgic_v3_init_dist_iodev(struct vgic_io_device *dev);
+
+#ifdef CONFIG_KVM_ARM_VGIC_V3
+u64 vgic_sanitise_outer_cacheability(u64 reg);
+u64 vgic_sanitise_inner_cacheability(u64 reg);
+u64 vgic_sanitise_shareability(u64 reg);
+u64 vgic_sanitise_field(u64 reg, u64 field_mask, int field_shift,
+			u64 (*sanitise_fn)(u64));
+#endif
 
 #endif

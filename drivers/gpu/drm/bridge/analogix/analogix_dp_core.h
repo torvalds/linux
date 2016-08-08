@@ -127,10 +127,10 @@ enum analog_power_block {
 };
 
 enum dp_irq_type {
-	DP_IRQ_TYPE_HP_CABLE_IN,
-	DP_IRQ_TYPE_HP_CABLE_OUT,
-	DP_IRQ_TYPE_HP_CHANGE,
-	DP_IRQ_TYPE_UNKNOWN,
+	DP_IRQ_TYPE_HP_CABLE_IN  = BIT(0),
+	DP_IRQ_TYPE_HP_CABLE_OUT = BIT(1),
+	DP_IRQ_TYPE_HP_CHANGE    = BIT(2),
+	DP_IRQ_TYPE_UNKNOWN      = BIT(3),
 };
 
 struct video_info {

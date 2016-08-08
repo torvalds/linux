@@ -2687,6 +2687,8 @@ static int __init arm_smmu_init(void)
 	if (ret)
 		return ret;
 
+	pci_request_acs();
+
 	return bus_set_iommu(&pci_bus_type, &arm_smmu_ops);
 }
 

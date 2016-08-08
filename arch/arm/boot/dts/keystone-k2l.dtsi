@@ -54,6 +54,155 @@
 			interrupts = <GIC_SPI 435 IRQ_TYPE_EDGE_RISING>;
 		};
 
+		k2l_pmx: pinmux@02620690 {
+			compatible = "pinctrl-single";
+			reg = <0x02620690 0xc>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			pinctrl-single,bit-per-mux;
+			pinctrl-single,register-width = <32>;
+			pinctrl-single,function-mask = <0x1>;
+			status = "disabled";
+
+			uart3_emifa_pins: pinmux_uart3_emifa_pins {
+				pinctrl-single,bits = <
+					/* UART3_EMIFA_SEL */
+					0x0 0x0  0xc0
+				>;
+			};
+
+			uart2_emifa_pins: pinmux_uart2_emifa_pins {
+			pinctrl-single,bits = <
+					/* UART2_EMIFA_SEL */
+					0x0 0x0  0x30
+				>;
+			};
+
+			uart01_spi2_pins: pinmux_uart01_spi2_pins {
+				pinctrl-single,bits = <
+					/* UART01_SPI2_SEL */
+					0x0 0x0 0x4
+				>;
+			};
+
+			dfesync_rp1_pins: pinmux_dfesync_rp1_pins{
+				pinctrl-single,bits = <
+					/* DFESYNC_RP1_SEL */
+					0x0 0x0 0x2
+				>;
+			};
+
+			avsif_pins: pinmux_avsif_pins {
+				pinctrl-single,bits = <
+					/* AVSIF_SEL */
+					0x0 0x0 0x1
+				>;
+			};
+
+			gpio_emu_pins: pinmux_gpio_emu_pins {
+				pinctrl-single,bits = <
+				/*
+				 * GPIO_EMU_SEL[31]: 0-GPIO31, 1-EMU33
+				 * GPIO_EMU_SEL[30]: 0-GPIO30, 1-EMU32
+				 * GPIO_EMU_SEL[29]: 0-GPIO29, 1-EMU31
+				 * GPIO_EMU_SEL[28]: 0-GPIO28, 1-EMU30
+				 * GPIO_EMU_SEL[27]: 0-GPIO27, 1-EMU29
+				 * GPIO_EMU_SEL[26]: 0-GPIO26, 1-EMU28
+				 * GPIO_EMU_SEL[25]: 0-GPIO25, 1-EMU27
+				 * GPIO_EMU_SEL[24]: 0-GPIO24, 1-EMU26
+				 * GPIO_EMU_SEL[23]: 0-GPIO23, 1-EMU25
+				 * GPIO_EMU_SEL[22]: 0-GPIO22, 1-EMU24
+				 * GPIO_EMU_SEL[21]: 0-GPIO21, 1-EMU23
+				 * GPIO_EMU_SEL[20]: 0-GPIO20, 1-EMU22
+				 * GPIO_EMU_SEL[19]: 0-GPIO19, 1-EMU21
+				 * GPIO_EMU_SEL[18]: 0-GPIO18, 1-EMU20
+				 * GPIO_EMU_SEL[17]: 0-GPIO17, 1-EMU19
+				 */
+					0x4 0x0000 0xFFFE0000
+				>;
+			};
+
+			gpio_timio_pins: pinmux_gpio_timio_pins {
+				pinctrl-single,bits = <
+				/*
+				 * GPIO_TIMIO_SEL[15]: 0-GPIO15, 1-TIMO7
+				 * GPIO_TIMIO_SEL[14]: 0-GPIO14, 1-TIMO6
+				 * GPIO_TIMIO_SEL[13]: 0-GPIO13, 1-TIMO5
+				 * GPIO_TIMIO_SEL[12]: 0-GPIO12, 1-TIMO4
+				 * GPIO_TIMIO_SEL[11]: 0-GPIO11, 1-TIMO3
+				 * GPIO_TIMIO_SEL[10]: 0-GPIO10, 1-TIMO2
+				 * GPIO_TIMIO_SEL[9]: 0-GPIO9, 1-TIMI7
+				 * GPIO_TIMIO_SEL[8]: 0-GPIO8, 1-TIMI6
+				 * GPIO_TIMIO_SEL[7]: 0-GPIO7, 1-TIMI5
+				 * GPIO_TIMIO_SEL[6]: 0-GPIO6, 1-TIMI4
+				 * GPIO_TIMIO_SEL[5]: 0-GPIO5, 1-TIMI3
+				 * GPIO_TIMIO_SEL[4]: 0-GPIO4, 1-TIMI2
+				 */
+					0x4 0x0 0xFFF0
+				>;
+			};
+
+			gpio_spi2cs_pins: pinmux_gpio_spi2cs_pins {
+				pinctrl-single,bits = <
+				/*
+				 * GPIO_SPI2CS_SEL[3]: 0-GPIO3, 1-SPI2CS4
+				 * GPIO_SPI2CS_SEL[2]: 0-GPIO2, 1-SPI2CS3
+				 * GPIO_SPI2CS_SEL[1]: 0-GPIO1, 1-SPI2CS2
+				 * GPIO_SPI2CS_SEL[0]: 0-GPIO0, 1-SPI2CS1
+				 */
+					0x4 0x0 0xF
+				>;
+			};
+
+			gpio_dfeio_pins: pinmux_gpio_dfeio_pins {
+				pinctrl-single,bits = <
+				/*
+				 * GPIO_DFEIO_SEL[31]: 0-DFEIO17, 1-GPIO63
+				 * GPIO_DFEIO_SEL[30]: 0-DFEIO16, 1-GPIO62
+				 * GPIO_DFEIO_SEL[29]: 0-DFEIO15, 1-GPIO61
+				 * GPIO_DFEIO_SEL[28]: 0-DFEIO14, 1-GPIO60
+				 * GPIO_DFEIO_SEL[27]: 0-DFEIO13, 1-GPIO59
+				 * GPIO_DFEIO_SEL[26]: 0-DFEIO12, 1-GPIO58
+				 * GPIO_DFEIO_SEL[25]: 0-DFEIO11, 1-GPIO57
+				 * GPIO_DFEIO_SEL[24]: 0-DFEIO10, 1-GPIO56
+				 * GPIO_DFEIO_SEL[23]: 0-DFEIO9, 1-GPIO55
+				 * GPIO_DFEIO_SEL[22]: 0-DFEIO8, 1-GPIO54
+				 * GPIO_DFEIO_SEL[21]: 0-DFEIO7, 1-GPIO53
+				 * GPIO_DFEIO_SEL[20]: 0-DFEIO6, 1-GPIO52
+				 * GPIO_DFEIO_SEL[19]: 0-DFEIO5, 1-GPIO51
+				 * GPIO_DFEIO_SEL[18]: 0-DFEIO4, 1-GPIO50
+				 * GPIO_DFEIO_SEL[17]: 0-DFEIO3, 1-GPIO49
+				 * GPIO_DFEIO_SEL[16]: 0-DFEIO2, 1-GPIO48
+				 */
+					0x8 0x0 0xFFFF0000
+				>;
+			};
+
+			gpio_emifa_pins: pinmux_gpio_emifa_pins {
+				pinctrl-single,bits = <
+				/*
+				 * GPIO_EMIFA_SEL[15]: 0-EMIFA17, 1-GPIO47
+				 * GPIO_EMIFA_SEL[14]: 0-EMIFA16, 1-GPIO46
+				 * GPIO_EMIFA_SEL[13]: 0-EMIFA15, 1-GPIO45
+				 * GPIO_EMIFA_SEL[12]: 0-EMIFA14, 1-GPIO44
+				 * GPIO_EMIFA_SEL[11]: 0-EMIFA13, 1-GPIO43
+				 * GPIO_EMIFA_SEL[10]: 0-EMIFA10, 1-GPIO42
+				 * GPIO_EMIFA_SEL[9]: 0-EMIFA9, 1-GPIO41
+				 * GPIO_EMIFA_SEL[8]: 0-EMIFA8, 1-GPIO40
+				 * GPIO_EMIFA_SEL[7]: 0-EMIFA7, 1-GPIO39
+				 * GPIO_EMIFA_SEL[6]: 0-EMIFA6, 1-GPIO38
+				 * GPIO_EMIFA_SEL[5]: 0-EMIFA5, 1-GPIO37
+				 * GPIO_EMIFA_SEL[4]: 0-EMIFA4, 1-GPIO36
+				 * GPIO_EMIFA_SEL[3]: 0-EMIFA3, 1-GPIO35
+				 * GPIO_EMIFA_SEL[2]: 0-EMIFA2, 1-GPIO34
+				 * GPIO_EMIFA_SEL[1]: 0-EMIFA1, 1-GPIO33
+				 * GPIO_EMIFA_SEL[0]: 0-EMIFA0, 1-GPIO32
+				 */
+					0x8 0x0 0xFFFF
+				>;
+			};
+		};
+
 		dspgpio0: keystone_dsp_gpio@02620240 {
 			compatible = "ti,keystone-dsp-gpio";
 			gpio-controller;

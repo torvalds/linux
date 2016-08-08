@@ -118,12 +118,13 @@ static int acpi_cpu_soft_notify(struct notifier_block *nfb,
 	struct acpi_device *device;
 	action &= ~CPU_TASKS_FROZEN;
 
-	/*
-	 * CPU_STARTING and CPU_DYING must not sleep. Return here since
-	 * acpi_bus_get_device() may sleep.
-	 */
-	if (action == CPU_STARTING || action == CPU_DYING)
+	switch (action) {
+	case CPU_ONLINE:
+	case CPU_DEAD:
+		break;
+	default:
 		return NOTIFY_DONE;
+	}
 
 	if (!pr || acpi_bus_get_device(pr->handle, &device))
 		return NOTIFY_DONE;

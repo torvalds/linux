@@ -103,6 +103,7 @@ SECTIONS
 		*(.discard)
 		*(.discard.*)
 		*(.interp .dynamic)
+		*(.dynsym .dynstr .hash)
 	}
 
 	. = KIMAGE_VADDR + TEXT_OFFSET;
@@ -174,19 +175,9 @@ SECTIONS
 	.rela : ALIGN(8) {
 		*(.rela .rela*)
 	}
-	.dynsym : ALIGN(8) {
-		*(.dynsym)
-	}
-	.dynstr : {
-		*(.dynstr)
-	}
-	.hash : {
-		*(.hash)
-	}
 
-	__rela_offset	= ADDR(.rela) - KIMAGE_VADDR;
+	__rela_offset	= ABSOLUTE(ADDR(.rela) - KIMAGE_VADDR);
 	__rela_size	= SIZEOF(.rela);
-	__dynsym_offset	= ADDR(.dynsym) - KIMAGE_VADDR;
 
 	. = ALIGN(SEGMENT_ALIGN);
 	__init_end = .;

@@ -539,23 +539,26 @@ static int __do_huge_pmd_anonymous_page(struct fault_env *fe, struct page *page,
 }
 
 /*
- * If THP is set to always then directly reclaim/compact as necessary
- * If set to defer then do no reclaim and defer to khugepaged
+ * If THP defrag is set to always then directly reclaim/compact as necessary
+ * If set to defer then do only background reclaim/compact and defer to khugepaged
  * If set to madvise and the VMA is flagged then directly reclaim/compact
+ * When direct reclaim/compact is allowed, don't retry except for flagged VMA's
  */
 static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma)
 {
-	gfp_t reclaim_flags = 0;
+	bool vma_madvised = !!(vma->vm_flags & VM_HUGEPAGE);
 
-	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags) &&
-	    (vma->vm_flags & VM_HUGEPAGE))
-		reclaim_flags = __GFP_DIRECT_RECLAIM;
-	else if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags))
-		reclaim_flags = __GFP_KSWAPD_RECLAIM;
-	else if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags))
-		reclaim_flags = __GFP_DIRECT_RECLAIM;
+	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG,
+				&transparent_hugepage_flags) && vma_madvised)
+		return GFP_TRANSHUGE;
+	else if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG,
+						&transparent_hugepage_flags))
+		return GFP_TRANSHUGE_LIGHT | __GFP_KSWAPD_RECLAIM;
+	else if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG,
+						&transparent_hugepage_flags))
+		return GFP_TRANSHUGE | (vma_madvised ? 0 : __GFP_NORETRY);
 
-	return GFP_TRANSHUGE | reclaim_flags;
+	return GFP_TRANSHUGE_LIGHT;
 }
 
 /* Caller must hold page table lock. */
@@ -1249,25 +1252,26 @@ out:
 	return 0;
 }
 
-int madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+/*
+ * Return true if we do MADV_FREE successfully on entire pmd page.
+ * Otherwise, return false.
+ */
+bool madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
 		pmd_t *pmd, unsigned long addr, unsigned long next)
-
 {
 	spinlock_t *ptl;
 	pmd_t orig_pmd;
 	struct page *page;
 	struct mm_struct *mm = tlb->mm;
-	int ret = 0;
+	bool ret = false;
 
 	ptl = pmd_trans_huge_lock(pmd, vma);
 	if (!ptl)
 		goto out_unlocked;
 
 	orig_pmd = *pmd;
-	if (is_huge_zero_pmd(orig_pmd)) {
-		ret = 1;
+	if (is_huge_zero_pmd(orig_pmd))
 		goto out;
-	}
 
 	page = pmd_page(orig_pmd);
 	/*
@@ -1309,7 +1313,7 @@ int madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
 		set_pmd_at(mm, addr, pmd, orig_pmd);
 		tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
 	}
-	ret = 1;
+	ret = true;
 out:
 	spin_unlock(ptl);
 out_unlocked:
@@ -1586,7 +1590,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
 
 	if (atomic_add_negative(-1, compound_mapcount_ptr(page))) {
 		/* Last compound_mapcount is gone. */
-		__dec_zone_page_state(page, NR_ANON_THPS);
+		__dec_node_page_state(page, NR_ANON_THPS);
 		if (TestClearPageDoubleMap(page)) {
 			/* No need in mapcount reference anymore */
 			for (i = 0; i < HPAGE_PMD_NR; i++)
@@ -1818,7 +1822,7 @@ static void __split_huge_page(struct page *page, struct list_head *list,
 	pgoff_t end = -1;
 	int i;
 
-	lruvec = mem_cgroup_page_lruvec(head, zone);
+	lruvec = mem_cgroup_page_lruvec(head, zone->zone_pgdat);
 
 	/* complete memcg works before add pages to LRU */
 	mem_cgroup_split_huge_fixup(head);
@@ -1848,7 +1852,7 @@ static void __split_huge_page(struct page *page, struct list_head *list,
 		spin_unlock(&head->mapping->tree_lock);
 	}
 
-	spin_unlock_irqrestore(&page_zone(head)->lru_lock, flags);
+	spin_unlock_irqrestore(zone_lru_lock(page_zone(head)), flags);
 
 	unfreeze_page(head);
 
@@ -2034,7 +2038,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
 		lru_add_drain();
 
 	/* prevent PageLRU to go away from under us, and freeze lru stats */
-	spin_lock_irqsave(&page_zone(head)->lru_lock, flags);
+	spin_lock_irqsave(zone_lru_lock(page_zone(head)), flags);
 
 	if (mapping) {
 		void **pslot;
@@ -2061,7 +2065,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
 			list_del(page_deferred_list(head));
 		}
 		if (mapping)
-			__dec_zone_page_state(page, NR_SHMEM_THPS);
+			__dec_node_page_state(page, NR_SHMEM_THPS);
 		spin_unlock(&pgdata->split_queue_lock);
 		__split_huge_page(page, list, flags);
 		ret = 0;
@@ -2077,7 +2081,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
 		spin_unlock(&pgdata->split_queue_lock);
 fail:		if (mapping)
 			spin_unlock(&mapping->tree_lock);
-		spin_unlock_irqrestore(&page_zone(head)->lru_lock, flags);
+		spin_unlock_irqrestore(zone_lru_lock(page_zone(head)), flags);
 		unfreeze_page(head);
 		ret = -EBUSY;
 	}

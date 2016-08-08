@@ -121,8 +121,7 @@ static int iblock_configure_device(struct se_device *dev)
 	dev->dev_attrib.hw_max_sectors = queue_max_hw_sectors(q);
 	dev->dev_attrib.hw_queue_depth = q->nr_requests;
 
-	if (target_configure_unmap_from_queue(&dev->dev_attrib, q,
-					      dev->dev_attrib.hw_block_size))
+	if (target_configure_unmap_from_queue(&dev->dev_attrib, q))
 		pr_debug("IBLOCK: BLOCK Discard support available,"
 			 " disabled by default\n");
 
@@ -389,7 +388,7 @@ iblock_execute_sync_cache(struct se_cmd *cmd)
 	bio = bio_alloc(GFP_KERNEL, 0);
 	bio->bi_end_io = iblock_end_io_flush;
 	bio->bi_bdev = ib_dev->ibd_bd;
-	bio->bi_rw = WRITE_FLUSH;
+	bio_set_op_attrs(bio, REQ_OP_WRITE, WRITE_FLUSH);
 	if (!immed)
 		bio->bi_private = cmd;
 	submit_bio(bio);

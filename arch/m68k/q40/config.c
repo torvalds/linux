@@ -12,6 +12,7 @@
  * for more details.
  */
 
+#include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -27,7 +28,6 @@
 #include <linux/platform_device.h>
 
 #include <asm/io.h>
-#include <asm/rtc.h>
 #include <asm/bootinfo.h>
 #include <asm/pgtable.h>
 #include <asm/setup.h>

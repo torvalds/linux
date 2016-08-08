@@ -92,6 +92,8 @@ static struct fcoe_interface
 
 static int fcoe_fip_recv(struct sk_buff *, struct net_device *,
 			 struct packet_type *, struct net_device *);
+static int fcoe_fip_vlan_recv(struct sk_buff *, struct net_device *,
+			      struct packet_type *, struct net_device *);
 
 static void fcoe_fip_send(struct fcoe_ctlr *, struct sk_buff *);
 static void fcoe_update_src_mac(struct fc_lport *, u8 *);
@@ -363,6 +365,12 @@ static int fcoe_interface_setup(struct fcoe_interface *fcoe,
 	fcoe->fip_packet_type.dev = netdev;
 	dev_add_pack(&fcoe->fip_packet_type);
 
+	if (netdev != real_dev) {
+		fcoe->fip_vlan_packet_type.func = fcoe_fip_vlan_recv;
+		fcoe->fip_vlan_packet_type.type = htons(ETH_P_FIP);
+		fcoe->fip_vlan_packet_type.dev = real_dev;
+		dev_add_pack(&fcoe->fip_vlan_packet_type);
+	}
 	return 0;
 }
 
@@ -450,6 +458,8 @@ static void fcoe_interface_remove(struct fcoe_interface *fcoe)
 	 */
 	__dev_remove_pack(&fcoe->fcoe_packet_type);
 	__dev_remove_pack(&fcoe->fip_packet_type);
+	if (netdev != fcoe->realdev)
+		__dev_remove_pack(&fcoe->fip_vlan_packet_type);
 	synchronize_net();
 
 	/* Delete secondary MAC addresses */
@@ -520,6 +530,29 @@ static int fcoe_fip_recv(struct sk_buff *skb, struct net_device *netdev,
 }
 
 /**
+ * fcoe_fip_vlan_recv() - Handler for received FIP VLAN discovery frames
+ * @skb:      The receive skb
+ * @netdev:   The associated net device
+ * @ptype:    The packet_type structure which was used to register this handler
+ * @orig_dev: The original net_device the the skb was received on.
+ *	      (in case dev is a bond)
+ *
+ * Returns: 0 for success
+ */
+static int fcoe_fip_vlan_recv(struct sk_buff *skb, struct net_device *netdev,
+			      struct packet_type *ptype,
+			      struct net_device *orig_dev)
+{
+	struct fcoe_interface *fcoe;
+	struct fcoe_ctlr *ctlr;
+
+	fcoe = container_of(ptype, struct fcoe_interface, fip_vlan_packet_type);
+	ctlr = fcoe_to_ctlr(fcoe);
+	fcoe_ctlr_recv(ctlr, skb);
+	return 0;
+}
+
+/**
  * fcoe_port_send() - Send an Ethernet-encapsulated FIP/FCoE frame
  * @port: The FCoE port
  * @skb: The FIP/FCoE packet to be sent
@@ -539,7 +572,21 @@ static void fcoe_port_send(struct fcoe_port *port, struct sk_buff *skb)
  */
 static void fcoe_fip_send(struct fcoe_ctlr *fip, struct sk_buff *skb)
 {
-	skb->dev = fcoe_from_ctlr(fip)->netdev;
+	struct fcoe_interface *fcoe = fcoe_from_ctlr(fip);
+	struct fip_frame {
+		struct ethhdr eth;
+		struct fip_header fip;
+	} __packed *frame;
+
+	/*
+	 * Use default VLAN for FIP VLAN discovery protocol
+	 */
+	frame = (struct fip_frame *)skb->data;
+	if (frame->fip.fip_op == ntohs(FIP_OP_VLAN) &&
+	    fcoe->realdev != fcoe->netdev)
+		skb->dev = fcoe->realdev;
+	else
+		skb->dev = fcoe->netdev;
 	fcoe_port_send(lport_priv(fip->lp), skb);
 }
 
@@ -2448,7 +2495,7 @@ static int __init fcoe_init(void)
 	if (rc) {
 		printk(KERN_ERR "failed to register an fcoe transport, check "
 			"if libfcoe is loaded\n");
-		return rc;
+		goto out_destroy;
 	}
 
 	mutex_lock(&fcoe_config_mutex);
@@ -2471,6 +2518,7 @@ static int __init fcoe_init(void)
 
 out_free:
 	mutex_unlock(&fcoe_config_mutex);
+out_destroy:
 	destroy_workqueue(fcoe_wq);
 	return rc;
 }

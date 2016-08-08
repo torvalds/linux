@@ -29,6 +29,7 @@ gm107_fb = {
 	.dtor = gf100_fb_dtor,
 	.oneinit = gf100_fb_oneinit,
 	.init = gf100_fb_init,
+	.init_page = gf100_fb_init_page,
 	.intr = gf100_fb_intr,
 	.ram_new = gm107_ram_new,
 	.memtype_valid = gf100_fb_memtype_valid,

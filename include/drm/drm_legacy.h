@@ -1,6 +1,8 @@
 #ifndef __DRM_DRM_LEGACY_H__
 #define __DRM_DRM_LEGACY_H__
 
+#include <drm/drm_auth.h>
+
 /*
  * Legacy driver interfaces for the Direct Rendering Manager
  *

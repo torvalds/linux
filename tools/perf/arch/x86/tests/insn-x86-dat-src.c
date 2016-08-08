@@ -2655,10 +2655,6 @@ int main(void)
 
 #endif /* #ifndef __x86_64__ */
 
-	/* pcommit */
-
-	asm volatile("pcommit");
-
 	/* Following line is a marker for the awk script - do not change */
 	asm volatile("rdtsc"); /* Stop here */
 

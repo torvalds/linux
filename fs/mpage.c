@@ -50,7 +50,7 @@ static void mpage_end_io(struct bio *bio)
 
 	bio_for_each_segment_all(bv, bio, i) {
 		struct page *page = bv->bv_page;
-		page_endio(page, bio_data_dir(bio), bio->bi_error);
+		page_endio(page, op_is_write(bio_op(bio)), bio->bi_error);
 	}
 
 	bio_put(bio);

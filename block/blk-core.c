@@ -1029,7 +1029,7 @@ static bool blk_rq_should_init_elevator(struct bio *bio)
 	 * Flush requests do not use the elevator so skip initialization.
 	 * This allows a request to share the flush and elevator data.
 	 */
-	if (bio->bi_rw & (REQ_PREFLUSH | REQ_FUA))
+	if (bio->bi_opf & (REQ_PREFLUSH | REQ_FUA))
 		return false;
 
 	return true;
@@ -1504,7 +1504,7 @@ EXPORT_SYMBOL_GPL(blk_add_request_payload);
 bool bio_attempt_back_merge(struct request_queue *q, struct request *req,
 			    struct bio *bio)
 {
-	const int ff = bio->bi_rw & REQ_FAILFAST_MASK;
+	const int ff = bio->bi_opf & REQ_FAILFAST_MASK;
 
 	if (!ll_back_merge_fn(q, req, bio))
 		return false;
@@ -1526,7 +1526,7 @@ bool bio_attempt_back_merge(struct request_queue *q, struct request *req,
 bool bio_attempt_front_merge(struct request_queue *q, struct request *req,
 			     struct bio *bio)
 {
-	const int ff = bio->bi_rw & REQ_FAILFAST_MASK;
+	const int ff = bio->bi_opf & REQ_FAILFAST_MASK;
 
 	if (!ll_front_merge_fn(q, req, bio))
 		return false;
@@ -1648,8 +1648,8 @@ void init_request_from_bio(struct request *req, struct bio *bio)
 {
 	req->cmd_type = REQ_TYPE_FS;
 
-	req->cmd_flags |= bio->bi_rw & REQ_COMMON_MASK;
-	if (bio->bi_rw & REQ_RAHEAD)
+	req->cmd_flags |= bio->bi_opf & REQ_COMMON_MASK;
+	if (bio->bi_opf & REQ_RAHEAD)
 		req->cmd_flags |= REQ_FAILFAST_MASK;
 
 	req->errors = 0;
@@ -1660,7 +1660,7 @@ void init_request_from_bio(struct request *req, struct bio *bio)
 
 static blk_qc_t blk_queue_bio(struct request_queue *q, struct bio *bio)
 {
-	const bool sync = !!(bio->bi_rw & REQ_SYNC);
+	const bool sync = !!(bio->bi_opf & REQ_SYNC);
 	struct blk_plug *plug;
 	int el_ret, rw_flags = 0, where = ELEVATOR_INSERT_SORT;
 	struct request *req;
@@ -1681,7 +1681,7 @@ static blk_qc_t blk_queue_bio(struct request_queue *q, struct bio *bio)
 		return BLK_QC_T_NONE;
 	}
 
-	if (bio->bi_rw & (REQ_PREFLUSH | REQ_FUA)) {
+	if (bio->bi_opf & (REQ_PREFLUSH | REQ_FUA)) {
 		spin_lock_irq(q->queue_lock);
 		where = ELEVATOR_INSERT_FLUSH;
 		goto get_rq;
@@ -1728,7 +1728,7 @@ get_rq:
 	/*
 	 * Add in META/PRIO flags, if set, before we get to the IO scheduler
 	 */
-	rw_flags |= (bio->bi_rw & (REQ_META | REQ_PRIO));
+	rw_flags |= (bio->bi_opf & (REQ_META | REQ_PRIO));
 
 	/*
 	 * Grab a free request. This is might sleep but can not fail.
@@ -1805,7 +1805,7 @@ static void handle_bad_sector(struct bio *bio)
 	printk(KERN_INFO "attempt to access beyond end of device\n");
 	printk(KERN_INFO "%s: rw=%d, want=%Lu, limit=%Lu\n",
 			bdevname(bio->bi_bdev, b),
-			bio->bi_rw,
+			bio->bi_opf,
 			(unsigned long long)bio_end_sector(bio),
 			(long long)(i_size_read(bio->bi_bdev->bd_inode) >> 9));
 }
@@ -1918,9 +1918,9 @@ generic_make_request_checks(struct bio *bio)
 	 * drivers without flush support don't have to worry
 	 * about them.
 	 */
-	if ((bio->bi_rw & (REQ_PREFLUSH | REQ_FUA)) &&
+	if ((bio->bi_opf & (REQ_PREFLUSH | REQ_FUA)) &&
 	    !test_bit(QUEUE_FLAG_WC, &q->queue_flags)) {
-		bio->bi_rw &= ~(REQ_PREFLUSH | REQ_FUA);
+		bio->bi_opf &= ~(REQ_PREFLUSH | REQ_FUA);
 		if (!nr_sectors) {
 			err = 0;
 			goto end_io;
@@ -2219,7 +2219,7 @@ unsigned int blk_rq_err_bytes(const struct request *rq)
 	 * one.
 	 */
 	for (bio = rq->bio; bio; bio = bio->bi_next) {
-		if ((bio->bi_rw & ff) != ff)
+		if ((bio->bi_opf & ff) != ff)
 			break;
 		bytes += bio->bi_iter.bi_size;
 	}
@@ -2630,7 +2630,7 @@ bool blk_update_request(struct request *req, int error, unsigned int nr_bytes)
 	/* mixed attributes always follow the first bio */
 	if (req->cmd_flags & REQ_MIXED_MERGE) {
 		req->cmd_flags &= ~REQ_FAILFAST_MASK;
-		req->cmd_flags |= req->bio->bi_rw & REQ_FAILFAST_MASK;
+		req->cmd_flags |= req->bio->bi_opf & REQ_FAILFAST_MASK;
 	}
 
 	/*

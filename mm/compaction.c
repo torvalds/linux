@@ -331,7 +331,7 @@ static bool compact_trylock_irqsave(spinlock_t *lock, unsigned long *flags,
 {
 	if (cc->mode == MIGRATE_ASYNC) {
 		if (!spin_trylock_irqsave(lock, *flags)) {
-			cc->contended = COMPACT_CONTENDED_LOCK;
+			cc->contended = true;
 			return false;
 		}
 	} else {
@@ -365,13 +365,13 @@ static bool compact_unlock_should_abort(spinlock_t *lock,
 	}
 
 	if (fatal_signal_pending(current)) {
-		cc->contended = COMPACT_CONTENDED_SCHED;
+		cc->contended = true;
 		return true;
 	}
 
 	if (need_resched()) {
 		if (cc->mode == MIGRATE_ASYNC) {
-			cc->contended = COMPACT_CONTENDED_SCHED;
+			cc->contended = true;
 			return true;
 		}
 		cond_resched();
@@ -394,7 +394,7 @@ static inline bool compact_should_abort(struct compact_control *cc)
 	/* async compaction aborts if contended */
 	if (need_resched()) {
 		if (cc->mode == MIGRATE_ASYNC) {
-			cc->contended = COMPACT_CONTENDED_SCHED;
+			cc->contended = true;
 			return true;
 		}
 
@@ -646,8 +646,8 @@ static void acct_isolated(struct zone *zone, struct compact_control *cc)
 	list_for_each_entry(page, &cc->migratepages, lru)
 		count[!!page_is_file_cache(page)]++;
 
-	mod_zone_page_state(zone, NR_ISOLATED_ANON, count[0]);
-	mod_zone_page_state(zone, NR_ISOLATED_FILE, count[1]);
+	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_ANON, count[0]);
+	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_FILE, count[1]);
 }
 
 /* Similar to reclaim, but different enough that they don't share logic */
@@ -655,12 +655,12 @@ static bool too_many_isolated(struct zone *zone)
 {
 	unsigned long active, inactive, isolated;
 
-	inactive = zone_page_state(zone, NR_INACTIVE_FILE) +
-					zone_page_state(zone, NR_INACTIVE_ANON);
-	active = zone_page_state(zone, NR_ACTIVE_FILE) +
-					zone_page_state(zone, NR_ACTIVE_ANON);
-	isolated = zone_page_state(zone, NR_ISOLATED_FILE) +
-					zone_page_state(zone, NR_ISOLATED_ANON);
+	inactive = node_page_state(zone->zone_pgdat, NR_INACTIVE_FILE) +
+			node_page_state(zone->zone_pgdat, NR_INACTIVE_ANON);
+	active = node_page_state(zone->zone_pgdat, NR_ACTIVE_FILE) +
+			node_page_state(zone->zone_pgdat, NR_ACTIVE_ANON);
+	isolated = node_page_state(zone->zone_pgdat, NR_ISOLATED_FILE) +
+			node_page_state(zone->zone_pgdat, NR_ISOLATED_ANON);
 
 	return isolated > (inactive + active) / 2;
 }
@@ -752,7 +752,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 		 * if contended.
 		 */
 		if (!(low_pfn % SWAP_CLUSTER_MAX)
-		    && compact_unlock_should_abort(&zone->lru_lock, flags,
+		    && compact_unlock_should_abort(zone_lru_lock(zone), flags,
 								&locked, cc))
 			break;
 
@@ -813,7 +813,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 			if (unlikely(__PageMovable(page)) &&
 					!PageIsolated(page)) {
 				if (locked) {
-					spin_unlock_irqrestore(&zone->lru_lock,
+					spin_unlock_irqrestore(zone_lru_lock(zone),
 									flags);
 					locked = false;
 				}
@@ -836,7 +836,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 
 		/* If we already hold the lock, we can skip some rechecking */
 		if (!locked) {
-			locked = compact_trylock_irqsave(&zone->lru_lock,
+			locked = compact_trylock_irqsave(zone_lru_lock(zone),
 								&flags, cc);
 			if (!locked)
 				break;
@@ -856,7 +856,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 			}
 		}
 
-		lruvec = mem_cgroup_page_lruvec(page, zone);
+		lruvec = mem_cgroup_page_lruvec(page, zone->zone_pgdat);
 
 		/* Try isolate the page */
 		if (__isolate_lru_page(page, isolate_mode) != 0)
@@ -899,7 +899,7 @@ isolate_fail:
 		 */
 		if (nr_isolated) {
 			if (locked) {
-				spin_unlock_irqrestore(&zone->lru_lock,	flags);
+				spin_unlock_irqrestore(zone_lru_lock(zone), flags);
 				locked = false;
 			}
 			acct_isolated(zone, cc);
@@ -927,7 +927,7 @@ isolate_fail:
 		low_pfn = end_pfn;
 
 	if (locked)
-		spin_unlock_irqrestore(&zone->lru_lock, flags);
+		spin_unlock_irqrestore(zone_lru_lock(zone), flags);
 
 	/*
 	 * Update the pageblock-skip information and cached scanner pfn,
@@ -1200,7 +1200,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
 	struct page *page;
 	const isolate_mode_t isolate_mode =
 		(sysctl_compact_unevictable_allowed ? ISOLATE_UNEVICTABLE : 0) |
-		(cc->mode == MIGRATE_ASYNC ? ISOLATE_ASYNC_MIGRATE : 0);
+		(cc->mode != MIGRATE_SYNC ? ISOLATE_ASYNC_MIGRATE : 0);
 
 	/*
 	 * Start at where we last stopped, or beginning of the zone as
@@ -1619,14 +1619,11 @@ out:
 	trace_mm_compaction_end(start_pfn, cc->migrate_pfn,
 				cc->free_pfn, end_pfn, sync, ret);
 
-	if (ret == COMPACT_CONTENDED)
-		ret = COMPACT_PARTIAL;
-
 	return ret;
 }
 
 static enum compact_result compact_zone_order(struct zone *zone, int order,
-		gfp_t gfp_mask, enum migrate_mode mode, int *contended,
+		gfp_t gfp_mask, enum compact_priority prio,
 		unsigned int alloc_flags, int classzone_idx)
 {
 	enum compact_result ret;
@@ -1636,7 +1633,8 @@ static enum compact_result compact_zone_order(struct zone *zone, int order,
 		.order = order,
 		.gfp_mask = gfp_mask,
 		.zone = zone,
-		.mode = mode,
+		.mode = (prio == COMPACT_PRIO_ASYNC) ?
+					MIGRATE_ASYNC :	MIGRATE_SYNC_LIGHT,
 		.alloc_flags = alloc_flags,
 		.classzone_idx = classzone_idx,
 		.direct_compaction = true,
@@ -1649,7 +1647,6 @@ static enum compact_result compact_zone_order(struct zone *zone, int order,
 	VM_BUG_ON(!list_empty(&cc.freepages));
 	VM_BUG_ON(!list_empty(&cc.migratepages));
 
-	*contended = cc.contended;
 	return ret;
 }
 
@@ -1662,50 +1659,38 @@ int sysctl_extfrag_threshold = 500;
  * @alloc_flags: The allocation flags of the current allocation
  * @ac: The context of current allocation
  * @mode: The migration mode for async, sync light, or sync migration
- * @contended: Return value that determines if compaction was aborted due to
- *	       need_resched() or lock contention
  *
  * This is the main entry point for direct page compaction.
  */
 enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
 		unsigned int alloc_flags, const struct alloc_context *ac,
-		enum migrate_mode mode, int *contended)
+		enum compact_priority prio)
 {
 	int may_enter_fs = gfp_mask & __GFP_FS;
 	int may_perform_io = gfp_mask & __GFP_IO;
 	struct zoneref *z;
 	struct zone *zone;
 	enum compact_result rc = COMPACT_SKIPPED;
-	int all_zones_contended = COMPACT_CONTENDED_LOCK; /* init for &= op */
-
-	*contended = COMPACT_CONTENDED_NONE;
 
 	/* Check if the GFP flags allow compaction */
-	if (!order || !may_enter_fs || !may_perform_io)
+	if (!may_enter_fs || !may_perform_io)
 		return COMPACT_SKIPPED;
 
-	trace_mm_compaction_try_to_compact_pages(order, gfp_mask, mode);
+	trace_mm_compaction_try_to_compact_pages(order, gfp_mask, prio);
 
 	/* Compact each zone in the list */
 	for_each_zone_zonelist_nodemask(zone, z, ac->zonelist, ac->high_zoneidx,
 								ac->nodemask) {
 		enum compact_result status;
-		int zone_contended;
 
 		if (compaction_deferred(zone, order)) {
 			rc = max_t(enum compact_result, COMPACT_DEFERRED, rc);
 			continue;
 		}
 
-		status = compact_zone_order(zone, order, gfp_mask, mode,
-				&zone_contended, alloc_flags,
-				ac_classzone_idx(ac));
+		status = compact_zone_order(zone, order, gfp_mask, prio,
+					alloc_flags, ac_classzone_idx(ac));
 		rc = max(status, rc);
-		/*
-		 * It takes at least one zone that wasn't lock contended
-		 * to clear all_zones_contended.
-		 */
-		all_zones_contended &= zone_contended;
 
 		/* If a normal allocation would succeed, stop compacting */
 		if (zone_watermark_ok(zone, order, low_wmark_pages(zone),
@@ -1717,58 +1702,28 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
 			 * succeeds in this zone.
 			 */
 			compaction_defer_reset(zone, order, false);
-			/*
-			 * It is possible that async compaction aborted due to
-			 * need_resched() and the watermarks were ok thanks to
-			 * somebody else freeing memory. The allocation can
-			 * however still fail so we better signal the
-			 * need_resched() contention anyway (this will not
-			 * prevent the allocation attempt).
-			 */
-			if (zone_contended == COMPACT_CONTENDED_SCHED)
-				*contended = COMPACT_CONTENDED_SCHED;
 
-			goto break_loop;
+			break;
 		}
 
-		if (mode != MIGRATE_ASYNC && (status == COMPACT_COMPLETE ||
-					status == COMPACT_PARTIAL_SKIPPED)) {
+		if (prio != COMPACT_PRIO_ASYNC && (status == COMPACT_COMPLETE ||
+					status == COMPACT_PARTIAL_SKIPPED))
 			/*
 			 * We think that allocation won't succeed in this zone
 			 * so we defer compaction there. If it ends up
 			 * succeeding after all, it will be reset.
 			 */
 			defer_compaction(zone, order);
-		}
 
 		/*
 		 * We might have stopped compacting due to need_resched() in
 		 * async compaction, or due to a fatal signal detected. In that
-		 * case do not try further zones and signal need_resched()
-		 * contention.
+		 * case do not try further zones
 		 */
-		if ((zone_contended == COMPACT_CONTENDED_SCHED)
-					|| fatal_signal_pending(current)) {
-			*contended = COMPACT_CONTENDED_SCHED;
-			goto break_loop;
-		}
-
-		continue;
-break_loop:
-		/*
-		 * We might not have tried all the zones, so  be conservative
-		 * and assume they are not all lock contended.
-		 */
-		all_zones_contended = 0;
-		break;
+		if ((prio == COMPACT_PRIO_ASYNC && need_resched())
+					|| fatal_signal_pending(current))
+			break;
 	}
-
-	/*
-	 * If at least one zone wasn't deferred or skipped, we report if all
-	 * zones that were tried were lock contended.
-	 */
-	if (rc > COMPACT_INACTIVE && all_zones_contended)
-		*contended = COMPACT_CONTENDED_LOCK;
 
 	return rc;
 }

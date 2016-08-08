@@ -44,7 +44,7 @@ early_initcall(early_efi_map_fb);
  * In case earlyprintk=efi,keep we have the whole framebuffer mapped already
  * so just return the offset efi_fb + start.
  */
-static __init_refok void *early_efi_map(unsigned long start, unsigned long len)
+static __ref void *early_efi_map(unsigned long start, unsigned long len)
 {
 	unsigned long base;
 
@@ -56,7 +56,7 @@ static __init_refok void *early_efi_map(unsigned long start, unsigned long len)
 		return early_ioremap(base + start, len);
 }
 
-static __init_refok void early_efi_unmap(void *addr, unsigned long len)
+static __ref void early_efi_unmap(void *addr, unsigned long len)
 {
 	if (!efi_fb)
 		early_iounmap(addr, len);

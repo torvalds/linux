@@ -216,14 +216,17 @@ static int dccp_v6_send_response(const struct sock *sk, struct request_sock *req
 	skb = dccp_make_response(sk, dst, req);
 	if (skb != NULL) {
 		struct dccp_hdr *dh = dccp_hdr(skb);
+		struct ipv6_txoptions *opt;
 
 		dh->dccph_checksum = dccp_v6_csum_finish(skb,
 							 &ireq->ir_v6_loc_addr,
 							 &ireq->ir_v6_rmt_addr);
 		fl6.daddr = ireq->ir_v6_rmt_addr;
 		rcu_read_lock();
-		err = ip6_xmit(sk, skb, &fl6, rcu_dereference(np->opt),
-			       np->tclass);
+		opt = ireq->ipv6_opt;
+		if (!opt)
+			opt = rcu_dereference(np->opt);
+		err = ip6_xmit(sk, skb, &fl6, opt, np->tclass);
 		rcu_read_unlock();
 		err = net_xmit_eval(err);
 	}
@@ -236,6 +239,7 @@ done:
 static void dccp_v6_reqsk_destructor(struct request_sock *req)
 {
 	dccp_feat_list_purge(&dccp_rsk(req)->dreq_featneg);
+	kfree(inet_rsk(req)->ipv6_opt);
 	kfree_skb(inet_rsk(req)->pktopts);
 }
 
@@ -494,7 +498,9 @@ static struct sock *dccp_v6_request_recv_sock(const struct sock *sk,
 	 * Yes, keeping reference count would be much more clever, but we make
 	 * one more one thing there: reattach optmem to newsk.
 	 */
-	opt = rcu_dereference(np->opt);
+	opt = ireq->ipv6_opt;
+	if (!opt)
+		opt = rcu_dereference(np->opt);
 	if (opt) {
 		opt = ipv6_dup_options(newsk, opt);
 		RCU_INIT_POINTER(newnp->opt, opt);

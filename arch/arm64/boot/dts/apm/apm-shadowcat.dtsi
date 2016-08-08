@@ -106,88 +106,88 @@
 		interrupts = <1 9 0xf04>;	/* GIC Maintenence IRQ */
 		ranges = <0 0 0 0x79000000 0x0 0x800000>; /* MSI Range */
 		reg = <0x0 0x78090000 0x0 0x10000>,	/* GIC Dist */
-		      <0x0 0x780A0000 0x0 0x20000>,	/* GIC CPU */
-		      <0x0 0x780C0000 0x0 0x10000>,	/* GIC VCPU Control */
-		      <0x0 0x780E0000 0x0 0x20000>;	/* GIC VCPU */
-		v2m0: v2m@0x00000 {
+		      <0x0 0x780a0000 0x0 0x20000>,	/* GIC CPU */
+		      <0x0 0x780c0000 0x0 0x10000>,	/* GIC VCPU Control */
+		      <0x0 0x780e0000 0x0 0x20000>;	/* GIC VCPU */
+		v2m0: v2m@00000 {
 			compatible = "arm,gic-v2m-frame";
 			msi-controller;
 			reg = <0x0 0x0 0x0 0x1000>;
 		};
-		v2m1: v2m@0x10000 {
+		v2m1: v2m@10000 {
 			compatible = "arm,gic-v2m-frame";
 			msi-controller;
 			reg = <0x0 0x10000 0x0 0x1000>;
 		};
-		v2m2: v2m@0x20000 {
+		v2m2: v2m@20000 {
 			compatible = "arm,gic-v2m-frame";
 			msi-controller;
 			reg = <0x0 0x20000 0x0 0x1000>;
 		};
-		v2m3: v2m@0x30000 {
+		v2m3: v2m@30000 {
 			compatible = "arm,gic-v2m-frame";
 			msi-controller;
 			reg = <0x0 0x30000 0x0 0x1000>;
 		};
-		v2m4: v2m@0x40000 {
+		v2m4: v2m@40000 {
 			compatible = "arm,gic-v2m-frame";
 			msi-controller;
 			reg = <0x0 0x40000 0x0 0x1000>;
 		};
-		v2m5: v2m@0x50000 {
+		v2m5: v2m@50000 {
 			compatible = "arm,gic-v2m-frame";
 			msi-controller;
 			reg = <0x0 0x50000 0x0 0x1000>;
 		};
-		v2m6: v2m@0x60000 {
+		v2m6: v2m@60000 {
 			compatible = "arm,gic-v2m-frame";
 			msi-controller;
 			reg = <0x0 0x60000 0x0 0x1000>;
 		};
-		v2m7: v2m@0x70000 {
+		v2m7: v2m@70000 {
 			compatible = "arm,gic-v2m-frame";
 			msi-controller;
 			reg = <0x0 0x70000 0x0 0x1000>;
 		};
-		v2m8: v2m@0x80000 {
+		v2m8: v2m@80000 {
 			compatible = "arm,gic-v2m-frame";
 			msi-controller;
 			reg = <0x0 0x80000 0x0 0x1000>;
 		};
-		v2m9: v2m@0x90000 {
+		v2m9: v2m@90000 {
 			compatible = "arm,gic-v2m-frame";
 			msi-controller;
 			reg = <0x0 0x90000 0x0 0x1000>;
 		};
-		v2m10: v2m@0xA0000 {
+		v2m10: v2m@a0000 {
 			compatible = "arm,gic-v2m-frame";
 			msi-controller;
-			reg = <0x0 0xA0000 0x0 0x1000>;
+			reg = <0x0 0xa0000 0x0 0x1000>;
 		};
-		v2m11: v2m@0xB0000 {
+		v2m11: v2m@b0000 {
 			compatible = "arm,gic-v2m-frame";
 			msi-controller;
-			reg = <0x0 0xB0000 0x0 0x1000>;
+			reg = <0x0 0xb0000 0x0 0x1000>;
 		};
-		v2m12: v2m@0xC0000 {
+		v2m12: v2m@c0000 {
 			compatible = "arm,gic-v2m-frame";
 			msi-controller;
-			reg = <0x0 0xC0000 0x0 0x1000>;
+			reg = <0x0 0xc0000 0x0 0x1000>;
 		};
-		v2m13: v2m@0xD0000 {
+		v2m13: v2m@d0000 {
 			compatible = "arm,gic-v2m-frame";
 			msi-controller;
-			reg = <0x0 0xD0000 0x0 0x1000>;
+			reg = <0x0 0xd0000 0x0 0x1000>;
 		};
-		v2m14: v2m@0xE0000 {
+		v2m14: v2m@e0000 {
 			compatible = "arm,gic-v2m-frame";
 			msi-controller;
-			reg = <0x0 0xE0000 0x0 0x1000>;
+			reg = <0x0 0xe0000 0x0 0x1000>;
 		};
-		v2m15: v2m@0xF0000 {
+		v2m15: v2m@f0000 {
 			compatible = "arm,gic-v2m-frame";
 			msi-controller;
-			reg = <0x0 0xF0000 0x0 0x1000>;
+			reg = <0x0 0xf0000 0x0 0x1000>;
 		};
 	};
 
@@ -198,10 +198,10 @@
 
 	timer {
 		compatible = "arm,armv8-timer";
-		interrupts = <1 0 0xff04>,	/* Secure Phys IRQ */
-			     <1 13 0xff04>,	/* Non-secure Phys IRQ */
-			     <1 14 0xff04>,	/* Virt IRQ */
-			     <1 15 0xff04>;	/* Hyp IRQ */
+		interrupts = <1 0 0xff08>,	/* Secure Phys IRQ */
+			     <1 13 0xff08>,	/* Non-secure Phys IRQ */
+			     <1 14 0xff08>,	/* Virt IRQ */
+			     <1 15 0xff08>;	/* Hyp IRQ */
 		clock-frequency = <50000000>;
 	};
 
@@ -637,8 +637,8 @@
 			compatible = "apm,xgene2-sgenet";
 			status = "disabled";
 			reg = <0x0 0x1f610000 0x0 0xd100>,
-			      <0x0 0x1f600000 0x0 0Xd100>,
-			      <0x0 0x20000000 0x0 0X20000>;
+			      <0x0 0x1f600000 0x0 0xd100>,
+			      <0x0 0x20000000 0x0 0x20000>;
 			interrupts = <0 96 4>,
 				     <0 97 4>;
 			dma-coherent;
@@ -652,8 +652,8 @@
 			compatible = "apm,xgene2-xgenet";
 			status = "disabled";
 			reg = <0x0 0x1f620000 0x0 0x10000>,
-			      <0x0 0x1f600000 0x0 0Xd100>,
-			      <0x0 0x20000000 0x0 0X220000>;
+			      <0x0 0x1f600000 0x0 0xd100>,
+			      <0x0 0x20000000 0x0 0x220000>;
 			interrupts = <0 108 4>,
 				     <0 109 4>,
 				     <0 110 4>,
@@ -693,7 +693,7 @@
 			#size-cells = <0>;
 			compatible = "snps,designware-i2c";
 			reg = <0x0 0x10640000 0x0 0x1000>;
-			interrupts = <0 0x3A 0x4>;
+			interrupts = <0 0x3a 0x4>;
 			clocks = <&i2c4clk 0>;
 			bus_num = <4>;
 		};

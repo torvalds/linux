@@ -778,7 +778,7 @@ static void notify_shutdown(struct cxlflash_cfg *cfg, bool wait)
 {
 	struct afu *afu = cfg->afu;
 	struct device *dev = &cfg->dev->dev;
-	struct sisl_global_map __iomem *global = &afu->afu_map->global;
+	struct sisl_global_map __iomem *global;
 	struct dev_dependent_vals *ddv;
 	u64 reg, status;
 	int i, retry_cnt = 0;
@@ -786,6 +786,14 @@ static void notify_shutdown(struct cxlflash_cfg *cfg, bool wait)
 	ddv = (struct dev_dependent_vals *)cfg->dev_id->driver_data;
 	if (!(ddv->flags & CXLFLASH_NOTIFY_SHUTDOWN))
 		return;
+
+	if (!afu || !afu->afu_map) {
+		dev_dbg(dev, "%s: The problem state area is not mapped\n",
+			__func__);
+		return;
+	}
+
+	global = &afu->afu_map->global;
 
 	/* Notify AFU */
 	for (i = 0; i < NUM_FC_PORTS; i++) {

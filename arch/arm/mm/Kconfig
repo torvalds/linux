@@ -1025,12 +1025,6 @@ config ARM_DMA_MEM_BUFFERABLE
 
 	  You are recommended say 'Y' here and debug any affected drivers.
 
-config ARCH_HAS_BARRIERS
-	bool
-	help
-	  This option allows the use of custom mandatory barriers
-	  included via the mach/barriers.h file.
-
 config ARM_HEAVY_MB
 	bool
 
