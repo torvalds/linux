@@ -380,12 +380,14 @@ static struct snd_soc_codec_driver rk3036_codec_driver = {
 	.probe			= rk3036_codec_probe,
 	.remove			= rk3036_codec_remove,
 	.set_bias_level		= rk3036_codec_set_bias_level,
-	.controls		= rk3036_codec_dapm_controls,
-	.num_controls		= ARRAY_SIZE(rk3036_codec_dapm_controls),
-	.dapm_routes		= rk3036_codec_dapm_routes,
-	.num_dapm_routes	= ARRAY_SIZE(rk3036_codec_dapm_routes),
-	.dapm_widgets		= rk3036_codec_dapm_widgets,
-	.num_dapm_widgets	= ARRAY_SIZE(rk3036_codec_dapm_widgets),
+	.component_driver = {
+		.controls		= rk3036_codec_dapm_controls,
+		.num_controls		= ARRAY_SIZE(rk3036_codec_dapm_controls),
+		.dapm_routes		= rk3036_codec_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(rk3036_codec_dapm_routes),
+		.dapm_widgets		= rk3036_codec_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(rk3036_codec_dapm_widgets),
+	},
 };
 
 static const struct regmap_config rk3036_codec_regmap_config = {
