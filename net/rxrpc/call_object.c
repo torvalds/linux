@@ -493,6 +493,7 @@ void rxrpc_release_call(struct rxrpc_call *call)
 		       (skb = skb_dequeue(&call->rx_oos_queue))) {
 			spin_unlock_bh(&call->lock);
 
+			sp = rxrpc_skb(skb);
 			_debug("- zap %s %%%u #%u",
 			       rxrpc_pkts[sp->hdr.type],
 			       sp->hdr.serial, sp->hdr.seq);
