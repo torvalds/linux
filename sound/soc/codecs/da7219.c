@@ -1767,13 +1767,14 @@ static struct snd_soc_codec_driver soc_codec_dev_da7219 = {
 	.resume			= da7219_resume,
 	.set_bias_level		= da7219_set_bias_level,
 
-	.controls		= da7219_snd_controls,
-	.num_controls		= ARRAY_SIZE(da7219_snd_controls),
-
-	.dapm_widgets		= da7219_dapm_widgets,
-	.num_dapm_widgets	= ARRAY_SIZE(da7219_dapm_widgets),
-	.dapm_routes		= da7219_audio_map,
-	.num_dapm_routes	= ARRAY_SIZE(da7219_audio_map),
+	.component_driver = {
+		.controls		= da7219_snd_controls,
+		.num_controls		= ARRAY_SIZE(da7219_snd_controls),
+		.dapm_widgets		= da7219_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(da7219_dapm_widgets),
+		.dapm_routes		= da7219_audio_map,
+		.num_dapm_routes	= ARRAY_SIZE(da7219_audio_map),
+	},
 };
 
 
