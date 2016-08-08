@@ -375,13 +375,13 @@ static int hdmi_of_xlate_dai_name(struct snd_soc_component *component,
 }
 
 static struct snd_soc_codec_driver hdmi_codec = {
-	.controls = hdmi_controls,
-	.num_controls = ARRAY_SIZE(hdmi_controls),
-	.dapm_widgets = hdmi_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(hdmi_widgets),
-	.dapm_routes = hdmi_routes,
-	.num_dapm_routes = ARRAY_SIZE(hdmi_routes),
 	.component_driver = {
+		.controls		= hdmi_controls,
+		.num_controls		= ARRAY_SIZE(hdmi_controls),
+		.dapm_widgets		= hdmi_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(hdmi_widgets),
+		.dapm_routes		= hdmi_routes,
+		.num_dapm_routes	= ARRAY_SIZE(hdmi_routes),
 		.of_xlate_dai_name	= hdmi_of_xlate_dai_name,
 	},
 };
