@@ -888,12 +888,14 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8961 = {
 	.set_bias_level = wm8961_set_bias_level,
 	.suspend_bias_off = true,
 
-	.controls = wm8961_snd_controls,
-	.num_controls = ARRAY_SIZE(wm8961_snd_controls),
-	.dapm_widgets = wm8961_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm8961_dapm_widgets),
-	.dapm_routes = audio_paths,
-	.num_dapm_routes = ARRAY_SIZE(audio_paths),
+	.component_driver = {
+		.controls		= wm8961_snd_controls,
+		.num_controls		= ARRAY_SIZE(wm8961_snd_controls),
+		.dapm_widgets		= wm8961_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm8961_dapm_widgets),
+		.dapm_routes		= audio_paths,
+		.num_dapm_routes	= ARRAY_SIZE(audio_paths),
+	},
 };
 
 static const struct regmap_config wm8961_regmap = {
