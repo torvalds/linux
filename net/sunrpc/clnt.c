@@ -184,7 +184,6 @@ static int __rpc_clnt_handle_event(struct rpc_clnt *clnt, unsigned long event,
 				   struct super_block *sb)
 {
 	struct dentry *dentry;
-	int err = 0;
 
 	switch (event) {
 	case RPC_PIPEFS_MOUNT:
@@ -201,7 +200,7 @@ static int __rpc_clnt_handle_event(struct rpc_clnt *clnt, unsigned long event,
 		printk(KERN_ERR "%s: unknown event: %ld\n", __func__, event);
 		return -ENOTSUPP;
 	}
-	return err;
+	return 0;
 }
 
 static int __rpc_pipefs_event(struct rpc_clnt *clnt, unsigned long event,
