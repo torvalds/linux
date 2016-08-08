@@ -62,6 +62,9 @@ struct rsrc_card_priv {
 #define rsrc_priv_to_link(priv, i) ((priv)->snd_card.dai_link + (i))
 #define rsrc_priv_to_props(priv, i) ((priv)->dai_props + (i))
 
+#define DAI	"sound-dai"
+#define CELL	"#sound-dai-cells"
+
 static int rsrc_card_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
@@ -155,17 +158,8 @@ static int rsrc_card_parse_links(struct device_node *np,
 	struct device *dev = rsrc_priv_to_dev(priv);
 	struct snd_soc_dai_link *dai_link = rsrc_priv_to_link(priv, idx);
 	struct asoc_simple_dai *dai_props = rsrc_priv_to_props(priv, idx);
-	struct of_phandle_args args;
+	int is_single_links = 0;
 	int ret;
-
-	/*
-	 * Get node via "sound-dai = <&phandle port>"
-	 * it will be used as xxx_of_node on soc_bind_dai_link()
-	 */
-	ret = of_parse_phandle_with_args(np, "sound-dai",
-					 "#sound-dai-cells", 0, &args);
-	if (ret)
-		return ret;
 
 	/* Parse TDM slot */
 	ret = snd_soc_of_parse_tdm_slot(np,
@@ -185,9 +179,10 @@ static int rsrc_card_parse_links(struct device_node *np,
 		/* FE settings */
 		dai_link->dynamic		= 1;
 		dai_link->dpcm_merged_format	= 1;
-		dai_link->cpu_of_node		= args.np;
-		ret = snd_soc_of_get_dai_name(np, &dai_link->cpu_dai_name);
-		if (ret < 0)
+
+		ret = asoc_simple_card_parse_cpu(np, dai_link, DAI, CELL,
+						 &is_single_links);
+		if (ret)
 			return ret;
 
 		ret = asoc_simple_card_parse_clk_cpu(np, dai_link, dai_props);
@@ -209,7 +204,7 @@ static int rsrc_card_parse_links(struct device_node *np,
 		 *	fmt_single_name()
 		 *	fmt_multiple_name()
 		 */
-		if (!args.args_count)
+		if (is_single_links)
 			dai_link->cpu_dai_name = NULL;
 	} else {
 		const struct rsrc_card_of_data *of_data;
@@ -224,8 +219,8 @@ static int rsrc_card_parse_links(struct device_node *np,
 		/* BE settings */
 		dai_link->no_pcm		= 1;
 		dai_link->be_hw_params_fixup	= rsrc_card_be_hw_params_fixup;
-		dai_link->codec_of_node		= args.np;
-		ret = snd_soc_of_get_dai_name(np, &dai_link->codec_dai_name);
+
+		ret = asoc_simple_card_parse_codec(np, dai_link, DAI, CELL);
 		if (ret < 0)
 			return ret;
 
