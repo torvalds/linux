@@ -2583,20 +2583,22 @@ static int da7218_set_bias_level(struct snd_soc_codec *codec,
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
-	case SND_SOC_BIAS_PREPARE:
 		break;
-	case SND_SOC_BIAS_STANDBY:
-		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
-			/* MCLK */
+	case SND_SOC_BIAS_PREPARE:
+		/* Enable MCLK for transition to ON state */
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_STANDBY) {
 			if (da7218->mclk) {
 				ret = clk_prepare_enable(da7218->mclk);
 				if (ret) {
-					dev_err(codec->dev,
-						"Failed to enable mclk\n");
+					dev_err(codec->dev, "Failed to enable mclk\n");
 					return ret;
 				}
 			}
+		}
 
+		break;
+	case SND_SOC_BIAS_STANDBY:
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			/* Master bias */
 			snd_soc_update_bits(codec, DA7218_REFERENCES,
 					    DA7218_BIAS_EN_MASK,
@@ -2606,6 +2608,10 @@ static int da7218_set_bias_level(struct snd_soc_codec *codec,
 			snd_soc_update_bits(codec, DA7218_LDO_CTRL,
 					    DA7218_LDO_EN_MASK,
 					    DA7218_LDO_EN_MASK);
+		} else {
+			/* Remove MCLK */
+			if (da7218->mclk)
+				clk_disable_unprepare(da7218->mclk);
 		}
 		break;
 	case SND_SOC_BIAS_OFF:
@@ -2619,10 +2625,6 @@ static int da7218_set_bias_level(struct snd_soc_codec *codec,
 			snd_soc_update_bits(codec, DA7218_REFERENCES,
 					    DA7218_BIAS_EN_MASK, 0);
 		}
-
-		/* MCLK */
-		if (da7218->mclk)
-			clk_disable_unprepare(da7218->mclk);
 		break;
 	}
 
