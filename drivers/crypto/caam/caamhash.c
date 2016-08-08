@@ -604,7 +604,7 @@ struct ahash_edesc {
 	int src_nents;
 	int sec4_sg_bytes;
 	struct sec4_sg_entry *sec4_sg;
-	u32 hw_desc[DESC_JOB_IO_LEN / sizeof(u32)];
+	u32 hw_desc[DESC_JOB_IO_LEN / sizeof(u32)] ____cacheline_aligned;
 };
 
 static inline void ahash_unmap(struct device *dev,
