@@ -2357,12 +2357,14 @@ static struct snd_soc_codec_driver soc_codec_dev_wm5110 = {
 	.set_sysclk = arizona_set_sysclk,
 	.set_pll = wm5110_set_fll,
 
-	.controls = wm5110_snd_controls,
-	.num_controls = ARRAY_SIZE(wm5110_snd_controls),
-	.dapm_widgets = wm5110_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm5110_dapm_widgets),
-	.dapm_routes = wm5110_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(wm5110_dapm_routes),
+	.component_driver = {
+		.controls		= wm5110_snd_controls,
+		.num_controls		= ARRAY_SIZE(wm5110_snd_controls),
+		.dapm_widgets		= wm5110_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm5110_dapm_widgets),
+		.dapm_routes		= wm5110_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(wm5110_dapm_routes),
+	},
 };
 
 static struct snd_compr_ops wm5110_compr_ops = {
