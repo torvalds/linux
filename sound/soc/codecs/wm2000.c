@@ -805,12 +805,14 @@ static struct snd_soc_codec_driver soc_codec_dev_wm2000 = {
 	.suspend = wm2000_suspend,
 	.resume = wm2000_resume,
 
-	.dapm_widgets = wm2000_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm2000_dapm_widgets),
-	.dapm_routes = wm2000_audio_map,
-	.num_dapm_routes = ARRAY_SIZE(wm2000_audio_map),
-	.controls = wm2000_controls,
-	.num_controls = ARRAY_SIZE(wm2000_controls),
+	.component_driver = {
+		.controls		= wm2000_controls,
+		.num_controls		= ARRAY_SIZE(wm2000_controls),
+		.dapm_widgets		= wm2000_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm2000_dapm_widgets),
+		.dapm_routes		= wm2000_audio_map,
+		.num_dapm_routes	= ARRAY_SIZE(wm2000_audio_map),
+	},
 };
 
 static int wm2000_i2c_probe(struct i2c_client *i2c,
