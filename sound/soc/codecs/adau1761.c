@@ -719,12 +719,14 @@ static const struct snd_soc_codec_driver adau1761_codec_driver = {
 	.set_bias_level	= adau1761_set_bias_level,
 	.suspend_bias_off = true,
 
-	.controls = adau1761_controls,
-	.num_controls = ARRAY_SIZE(adau1761_controls),
-	.dapm_widgets = adau1x61_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(adau1x61_dapm_widgets),
-	.dapm_routes = adau1x61_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(adau1x61_dapm_routes),
+	.component_driver = {
+		.controls		= adau1761_controls,
+		.num_controls		= ARRAY_SIZE(adau1761_controls),
+		.dapm_widgets		= adau1x61_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(adau1x61_dapm_widgets),
+		.dapm_routes		= adau1x61_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(adau1x61_dapm_routes),
+	},
 };
 
 #define ADAU1761_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE | \
