@@ -514,7 +514,8 @@ static struct renesas_usbhs_platform_info *usbhs_parse_dt(struct device *dev)
 	if (gpio > 0)
 		dparam->enable_gpio = gpio;
 
-	if (dparam->type == USBHS_TYPE_RCAR_GEN2)
+	if (dparam->type == USBHS_TYPE_RCAR_GEN2 ||
+	    dparam->type == USBHS_TYPE_RCAR_GEN3)
 		dparam->has_usb_dmac = 1;
 
 	return info;
