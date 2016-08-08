@@ -441,39 +441,48 @@ static unsigned long vgic_mmio_read_its_idregs(struct kvm *kvm,
  * Find the target VCPU and the LPI number for a given devid/eventid pair
  * and make this IRQ pending, possibly injecting it.
  * Must be called with the its_lock mutex held.
+ * Returns 0 on success, a positive error value for any ITS mapping
+ * related errors and negative error values for generic errors.
  */
-static void vgic_its_trigger_msi(struct kvm *kvm, struct vgic_its *its,
-				 u32 devid, u32 eventid)
+static int vgic_its_trigger_msi(struct kvm *kvm, struct vgic_its *its,
+				u32 devid, u32 eventid)
 {
+	struct kvm_vcpu *vcpu;
 	struct its_itte *itte;
 
 	if (!its->enabled)
-		return;
+		return -EBUSY;
 
 	itte = find_itte(its, devid, eventid);
-	/* Triggering an unmapped IRQ gets silently dropped. */
-	if (itte && its_is_collection_mapped(itte->collection)) {
-		struct kvm_vcpu *vcpu;
+	if (!itte || !its_is_collection_mapped(itte->collection))
+		return E_ITS_INT_UNMAPPED_INTERRUPT;
 
-		vcpu = kvm_get_vcpu(kvm, itte->collection->target_addr);
-		if (vcpu && vcpu->arch.vgic_cpu.lpis_enabled) {
-			spin_lock(&itte->irq->irq_lock);
-			itte->irq->pending = true;
-			vgic_queue_irq_unlock(kvm, itte->irq);
-		}
-	}
+	vcpu = kvm_get_vcpu(kvm, itte->collection->target_addr);
+	if (!vcpu)
+		return E_ITS_INT_UNMAPPED_INTERRUPT;
+
+	if (!vcpu->arch.vgic_cpu.lpis_enabled)
+		return -EBUSY;
+
+	spin_lock(&itte->irq->irq_lock);
+	itte->irq->pending = true;
+	vgic_queue_irq_unlock(kvm, itte->irq);
+
+	return 0;
 }
 
 /*
  * Queries the KVM IO bus framework to get the ITS pointer from the given
  * doorbell address.
  * We then call vgic_its_trigger_msi() with the decoded data.
+ * According to the KVM_SIGNAL_MSI API description returns 1 on success.
  */
 int vgic_its_inject_msi(struct kvm *kvm, struct kvm_msi *msi)
 {
 	u64 address;
 	struct kvm_io_device *kvm_io_dev;
 	struct vgic_io_device *iodev;
+	int ret;
 
 	if (!vgic_has_its(kvm))
 		return -ENODEV;
@@ -490,10 +499,21 @@ int vgic_its_inject_msi(struct kvm *kvm, struct kvm_msi *msi)
 	iodev = container_of(kvm_io_dev, struct vgic_io_device, dev);
 
 	mutex_lock(&iodev->its->its_lock);
-	vgic_its_trigger_msi(kvm, iodev->its, msi->devid, msi->data);
+	ret = vgic_its_trigger_msi(kvm, iodev->its, msi->devid, msi->data);
 	mutex_unlock(&iodev->its->its_lock);
 
-	return 0;
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * KVM_SIGNAL_MSI demands a return value > 0 for success and 0
+	 * if the guest has blocked the MSI. So we map any LPI mapping
+	 * related error to that.
+	 */
+	if (ret)
+		return 0;
+	else
+		return 1;
 }
 
 /* Requires the its_lock to be held. */
@@ -981,9 +1001,7 @@ static int vgic_its_cmd_handle_int(struct kvm *kvm, struct vgic_its *its,
 	u32 msi_data = its_cmd_get_id(its_cmd);
 	u64 msi_devid = its_cmd_get_deviceid(its_cmd);
 
-	vgic_its_trigger_msi(kvm, its, msi_devid, msi_data);
-
-	return 0;
+	return vgic_its_trigger_msi(kvm, its, msi_devid, msi_data);
 }
 
 /*
