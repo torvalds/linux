@@ -704,6 +704,7 @@ out:
 	return IRQ_HANDLED;
 }
 
+static void clear_rx_errors(struct imx_port *sport);
 static int start_rx_dma(struct imx_port *sport);
 /*
  * If the RXFIFO is filled with some data, and then we
@@ -728,6 +729,11 @@ static void imx_dma_rxint(struct imx_port *sport)
 		temp = readl(sport->port.membase + UCR2);
 		temp &= ~(UCR2_ATEN);
 		writel(temp, sport->port.membase + UCR2);
+
+		/* disable the rx errors interrupts */
+		temp = readl(sport->port.membase + UCR4);
+		temp &= ~UCR4_OREN;
+		writel(temp, sport->port.membase + UCR4);
 
 		/* tell the DMA to receive the data. */
 		start_rx_dma(sport);
@@ -961,6 +967,7 @@ static void dma_rx_callback(void *data)
 
 	if (status == DMA_ERROR) {
 		dev_err(sport->port.dev, "DMA transaction error.\n");
+		clear_rx_errors(sport);
 		return;
 	}
 
@@ -1055,6 +1062,31 @@ static int start_rx_dma(struct imx_port *sport)
 	sport->rx_cookie = dmaengine_submit(desc);
 	dma_async_issue_pending(chan);
 	return 0;
+}
+
+static void clear_rx_errors(struct imx_port *sport)
+{
+	unsigned int status_usr1, status_usr2;
+
+	status_usr1 = readl(sport->port.membase + USR1);
+	status_usr2 = readl(sport->port.membase + USR2);
+
+	if (status_usr2 & USR2_BRCD) {
+		sport->port.icount.brk++;
+		writel(USR2_BRCD, sport->port.membase + USR2);
+	} else if (status_usr1 & USR1_FRAMERR) {
+		sport->port.icount.frame++;
+		writel(USR1_FRAMERR, sport->port.membase + USR1);
+	} else if (status_usr1 & USR1_PARITYERR) {
+		sport->port.icount.parity++;
+		writel(USR1_PARITYERR, sport->port.membase + USR1);
+	}
+
+	if (status_usr2 & USR2_ORE) {
+		sport->port.icount.overrun++;
+		writel(USR2_ORE, sport->port.membase + USR2);
+	}
+
 }
 
 #define TXTL_DEFAULT 2 /* reset default */
