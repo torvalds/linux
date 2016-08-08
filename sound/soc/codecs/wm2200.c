@@ -2111,12 +2111,14 @@ static struct snd_soc_codec_driver soc_codec_wm2200 = {
 	.set_sysclk = wm2200_set_sysclk,
 	.set_pll = wm2200_set_fll,
 
-	.controls = wm2200_snd_controls,
-	.num_controls = ARRAY_SIZE(wm2200_snd_controls),
-	.dapm_widgets = wm2200_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm2200_dapm_widgets),
-	.dapm_routes = wm2200_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(wm2200_dapm_routes),
+	.component_driver = {
+		.controls		= wm2200_snd_controls,
+		.num_controls		= ARRAY_SIZE(wm2200_snd_controls),
+		.dapm_widgets		= wm2200_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm2200_dapm_widgets),
+		.dapm_routes		= wm2200_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(wm2200_dapm_routes),
+	},
 };
 
 static irqreturn_t wm2200_irq(int irq, void *data)
