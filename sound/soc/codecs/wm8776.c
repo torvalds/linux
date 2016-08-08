@@ -430,12 +430,14 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8776 = {
 	.set_bias_level = wm8776_set_bias_level,
 	.suspend_bias_off = true,
 
-	.controls = wm8776_snd_controls,
-	.num_controls = ARRAY_SIZE(wm8776_snd_controls),
-	.dapm_widgets = wm8776_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm8776_dapm_widgets),
-	.dapm_routes = routes,
-	.num_dapm_routes = ARRAY_SIZE(routes),
+	.component_driver = {
+		.controls		= wm8776_snd_controls,
+		.num_controls		= ARRAY_SIZE(wm8776_snd_controls),
+		.dapm_widgets		= wm8776_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm8776_dapm_widgets),
+		.dapm_routes		= routes,
+		.num_dapm_routes	= ARRAY_SIZE(routes),
+	},
 };
 
 static const struct of_device_id wm8776_of_match[] = {
