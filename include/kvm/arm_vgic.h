@@ -34,6 +34,7 @@
 #define VGIC_MAX_SPI		1019
 #define VGIC_MAX_RESERVED	1023
 #define VGIC_MIN_LPI		8192
+#define KVM_IRQCHIP_NUM_PINS	(1020 - 32)
 
 enum vgic_type {
 	VGIC_V2,		/* Good ol' GICv2 */
@@ -313,5 +314,11 @@ static inline int kvm_vgic_get_max_vcpus(void)
 }
 
 int kvm_send_userspace_msi(struct kvm *kvm, struct kvm_msi *msi);
+
+/**
+ * kvm_vgic_setup_default_irq_routing:
+ * Setup a default flat gsi routing table mapping all SPIs
+ */
+int kvm_vgic_setup_default_irq_routing(struct kvm *kvm);
 
 #endif /* __KVM_ARM_VGIC_H */

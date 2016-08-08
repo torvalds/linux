@@ -232,8 +232,10 @@ remove_dev_dir:
 	acpi_device_dir(device) = NULL;
 remove_lid_dir:
 	remove_proc_entry(ACPI_BUTTON_SUBCLASS_LID, acpi_button_dir);
+	acpi_lid_dir = NULL;
 remove_button_dir:
 	remove_proc_entry(ACPI_BUTTON_CLASS, acpi_root_dir);
+	acpi_button_dir = NULL;
 	goto done;
 }
 
@@ -250,7 +252,9 @@ static int acpi_button_remove_fs(struct acpi_device *device)
 			  acpi_lid_dir);
 	acpi_device_dir(device) = NULL;
 	remove_proc_entry(ACPI_BUTTON_SUBCLASS_LID, acpi_button_dir);
+	acpi_lid_dir = NULL;
 	remove_proc_entry(ACPI_BUTTON_CLASS, acpi_root_dir);
+	acpi_button_dir = NULL;
 
 	return 0;
 }

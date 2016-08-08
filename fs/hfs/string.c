@@ -92,7 +92,7 @@ int hfs_strcmp(const unsigned char *s1, unsigned int len1,
  * Test for equality of two strings in the HFS filename character ordering.
  * return 1 on failure and 0 on success
  */
-int hfs_compare_dentry(const struct dentry *parent, const struct dentry *dentry,
+int hfs_compare_dentry(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name)
 {
 	const unsigned char *n1, *n2;

@@ -657,7 +657,7 @@ static void do_write(struct mirror_set *ms, struct bio *bio)
 	struct mirror *m;
 	struct dm_io_request io_req = {
 		.bi_op = REQ_OP_WRITE,
-		.bi_op_flags = bio->bi_rw & WRITE_FLUSH_FUA,
+		.bi_op_flags = bio->bi_opf & WRITE_FLUSH_FUA,
 		.mem.type = DM_IO_BIO,
 		.mem.ptr.bio = bio,
 		.notify.fn = write_callback,
@@ -704,7 +704,7 @@ static void do_writes(struct mirror_set *ms, struct bio_list *writes)
 	bio_list_init(&requeue);
 
 	while ((bio = bio_list_pop(writes))) {
-		if ((bio->bi_rw & REQ_PREFLUSH) ||
+		if ((bio->bi_opf & REQ_PREFLUSH) ||
 		    (bio_op(bio) == REQ_OP_DISCARD)) {
 			bio_list_add(&sync, bio);
 			continue;
@@ -1217,7 +1217,7 @@ static int mirror_map(struct dm_target *ti, struct bio *bio)
 	 * If region is not in-sync queue the bio.
 	 */
 	if (!r || (r == -EWOULDBLOCK)) {
-		if (bio->bi_rw & REQ_RAHEAD)
+		if (bio->bi_opf & REQ_RAHEAD)
 			return -EWOULDBLOCK;
 
 		queue_bio(ms, bio, rw);
@@ -1253,7 +1253,7 @@ static int mirror_end_io(struct dm_target *ti, struct bio *bio, int error)
 	 * We need to dec pending if this was a write.
 	 */
 	if (rw == WRITE) {
-		if (!(bio->bi_rw & REQ_PREFLUSH) &&
+		if (!(bio->bi_opf & REQ_PREFLUSH) &&
 		    bio_op(bio) != REQ_OP_DISCARD)
 			dm_rh_dec(ms->rh, bio_record->write_region);
 		return error;
@@ -1262,7 +1262,7 @@ static int mirror_end_io(struct dm_target *ti, struct bio *bio, int error)
 	if (error == -EOPNOTSUPP)
 		goto out;
 
-	if ((error == -EWOULDBLOCK) && (bio->bi_rw & REQ_RAHEAD))
+	if ((error == -EWOULDBLOCK) && (bio->bi_opf & REQ_RAHEAD))
 		goto out;
 
 	if (unlikely(error)) {

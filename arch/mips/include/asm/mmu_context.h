@@ -16,6 +16,7 @@
 #include <linux/smp.h>
 #include <linux/slab.h>
 #include <asm/cacheflush.h>
+#include <asm/dsemul.h>
 #include <asm/hazards.h>
 #include <asm/tlbflush.h>
 #include <asm-generic/mm_hooks.h>
@@ -128,6 +129,10 @@ init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 
 	atomic_set(&mm->context.fp_mode_switching, 0);
 
+	mm->context.bd_emupage_allocmap = NULL;
+	spin_lock_init(&mm->context.bd_emupage_lock);
+	init_waitqueue_head(&mm->context.bd_emupage_queue);
+
 	return 0;
 }
 
@@ -162,6 +167,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
  */
 static inline void destroy_context(struct mm_struct *mm)
 {
+	dsemul_mm_cleanup(mm);
 }
 
 #define deactivate_mm(tsk, mm)	do { } while (0)

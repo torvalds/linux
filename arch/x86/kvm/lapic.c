@@ -1349,6 +1349,9 @@ static void start_sw_tscdeadline(struct kvm_lapic *apic)
 
 bool kvm_lapic_hv_timer_in_use(struct kvm_vcpu *vcpu)
 {
+	if (!lapic_in_kernel(vcpu))
+		return false;
+
 	return vcpu->arch.apic->lapic_timer.hv_timer_in_use;
 }
 EXPORT_SYMBOL_GPL(kvm_lapic_hv_timer_in_use);

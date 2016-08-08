@@ -46,6 +46,7 @@
 #include "xfs_quota.h"
 #include "xfs_sysfs.h"
 #include "xfs_ondisk.h"
+#include "xfs_rmap_item.h"
 
 #include <linux/namei.h>
 #include <linux/init.h>
@@ -1075,7 +1076,7 @@ xfs_fs_statfs(
 	statp->f_blocks = sbp->sb_dblocks - lsize;
 	spin_unlock(&mp->m_sb_lock);
 
-	statp->f_bfree = fdblocks - XFS_ALLOC_SET_ASIDE(mp);
+	statp->f_bfree = fdblocks - mp->m_alloc_set_aside;
 	statp->f_bavail = statp->f_bfree;
 
 	fakeinos = statp->f_bfree << sbp->sb_inopblog;
@@ -1573,6 +1574,10 @@ xfs_fs_fill_super(
 		}
 	}
 
+	if (xfs_sb_version_hasrmapbt(&mp->m_sb))
+		xfs_alert(mp,
+	"EXPERIMENTAL reverse mapping btree feature enabled. Use at your own risk!");
+
 	error = xfs_mountfs(mp);
 	if (error)
 		goto out_filestream_unmount;
@@ -1697,7 +1702,7 @@ xfs_init_zones(void)
 		goto out_free_ioend_bioset;
 
 	xfs_bmap_free_item_zone = kmem_zone_init(
-			sizeof(struct xfs_bmap_free_item),
+			sizeof(struct xfs_extent_free_item),
 			"xfs_bmap_free_item");
 	if (!xfs_bmap_free_item_zone)
 		goto out_destroy_log_ticket_zone;
@@ -1765,8 +1770,24 @@ xfs_init_zones(void)
 	if (!xfs_icreate_zone)
 		goto out_destroy_ili_zone;
 
+	xfs_rud_zone = kmem_zone_init(sizeof(struct xfs_rud_log_item),
+			"xfs_rud_item");
+	if (!xfs_rud_zone)
+		goto out_destroy_icreate_zone;
+
+	xfs_rui_zone = kmem_zone_init((sizeof(struct xfs_rui_log_item) +
+			((XFS_RUI_MAX_FAST_EXTENTS - 1) *
+				sizeof(struct xfs_map_extent))),
+			"xfs_rui_item");
+	if (!xfs_rui_zone)
+		goto out_destroy_rud_zone;
+
 	return 0;
 
+ out_destroy_rud_zone:
+	kmem_zone_destroy(xfs_rud_zone);
+ out_destroy_icreate_zone:
+	kmem_zone_destroy(xfs_icreate_zone);
  out_destroy_ili_zone:
 	kmem_zone_destroy(xfs_ili_zone);
  out_destroy_inode_zone:
@@ -1805,6 +1826,8 @@ xfs_destroy_zones(void)
 	 * destroy caches.
 	 */
 	rcu_barrier();
+	kmem_zone_destroy(xfs_rui_zone);
+	kmem_zone_destroy(xfs_rud_zone);
 	kmem_zone_destroy(xfs_icreate_zone);
 	kmem_zone_destroy(xfs_ili_zone);
 	kmem_zone_destroy(xfs_inode_zone);
@@ -1853,6 +1876,9 @@ init_xfs_fs(void)
 
 	printk(KERN_INFO XFS_VERSION_STRING " with "
 			 XFS_BUILD_OPTIONS " enabled\n");
+
+	xfs_extent_free_init_defer_op();
+	xfs_rmap_update_init_defer_op();
 
 	xfs_dir_startup();
 

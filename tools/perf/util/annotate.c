@@ -1123,7 +1123,46 @@ static void delete_last_nop(struct symbol *sym)
 	}
 }
 
-int symbol__annotate(struct symbol *sym, struct map *map, size_t privsize)
+int symbol__strerror_disassemble(struct symbol *sym __maybe_unused, struct map *map,
+			      int errnum, char *buf, size_t buflen)
+{
+	struct dso *dso = map->dso;
+
+	BUG_ON(buflen == 0);
+
+	if (errnum >= 0) {
+		str_error_r(errnum, buf, buflen);
+		return 0;
+	}
+
+	switch (errnum) {
+	case SYMBOL_ANNOTATE_ERRNO__NO_VMLINUX: {
+		char bf[SBUILD_ID_SIZE + 15] = " with build id ";
+		char *build_id_msg = NULL;
+
+		if (dso->has_build_id) {
+			build_id__sprintf(dso->build_id,
+					  sizeof(dso->build_id), bf + 15);
+			build_id_msg = bf;
+		}
+		scnprintf(buf, buflen,
+			  "No vmlinux file%s\nwas found in the path.\n\n"
+			  "Note that annotation using /proc/kcore requires CAP_SYS_RAWIO capability.\n\n"
+			  "Please use:\n\n"
+			  "  perf buildid-cache -vu vmlinux\n\n"
+			  "or:\n\n"
+			  "  --vmlinux vmlinux\n", build_id_msg ?: "");
+	}
+		break;
+	default:
+		scnprintf(buf, buflen, "Internal error: Invalid %d error code\n", errnum);
+		break;
+	}
+
+	return 0;
+}
+
+int symbol__disassemble(struct symbol *sym, struct map *map, size_t privsize)
 {
 	struct dso *dso = map->dso;
 	char *filename = dso__build_id_filename(dso, NULL, 0);
@@ -1134,22 +1173,20 @@ int symbol__annotate(struct symbol *sym, struct map *map, size_t privsize)
 	char symfs_filename[PATH_MAX];
 	struct kcore_extract kce;
 	bool delete_extract = false;
+	int stdout_fd[2];
 	int lineno = 0;
 	int nline;
+	pid_t pid;
 
 	if (filename)
 		symbol__join_symfs(symfs_filename, filename);
 
 	if (filename == NULL) {
-		if (dso->has_build_id) {
-			pr_err("Can't annotate %s: not enough memory\n",
-			       sym->name);
-			return -ENOMEM;
-		}
+		if (dso->has_build_id)
+			return ENOMEM;
 		goto fallback;
-	} else if (dso__is_kcore(dso)) {
-		goto fallback;
-	} else if (readlink(symfs_filename, command, sizeof(command)) < 0 ||
+	} else if (dso__is_kcore(dso) ||
+		   readlink(symfs_filename, command, sizeof(command)) < 0 ||
 		   strstr(command, DSO__NAME_KALLSYMS) ||
 		   access(symfs_filename, R_OK)) {
 		free(filename);
@@ -1166,27 +1203,7 @@ fallback:
 
 	if (dso->symtab_type == DSO_BINARY_TYPE__KALLSYMS &&
 	    !dso__is_kcore(dso)) {
-		char bf[SBUILD_ID_SIZE + 15] = " with build id ";
-		char *build_id_msg = NULL;
-
-		if (dso->annotate_warned)
-			goto out_free_filename;
-
-		if (dso->has_build_id) {
-			build_id__sprintf(dso->build_id,
-					  sizeof(dso->build_id), bf + 15);
-			build_id_msg = bf;
-		}
-		err = -ENOENT;
-		dso->annotate_warned = 1;
-		pr_err("Can't annotate %s:\n\n"
-		       "No vmlinux file%s\nwas found in the path.\n\n"
-		       "Note that annotation using /proc/kcore requires CAP_SYS_RAWIO capability.\n\n"
-		       "Please use:\n\n"
-		       "  perf buildid-cache -vu vmlinux\n\n"
-		       "or:\n\n"
-		       "  --vmlinux vmlinux\n",
-		       sym->name, build_id_msg ?: "");
+		err = SYMBOL_ANNOTATE_ERRNO__NO_VMLINUX;
 		goto out_free_filename;
 	}
 
@@ -1258,9 +1275,32 @@ fallback:
 
 	pr_debug("Executing: %s\n", command);
 
-	file = popen(command, "r");
+	err = -1;
+	if (pipe(stdout_fd) < 0) {
+		pr_err("Failure creating the pipe to run %s\n", command);
+		goto out_remove_tmp;
+	}
+
+	pid = fork();
+	if (pid < 0) {
+		pr_err("Failure forking to run %s\n", command);
+		goto out_close_stdout;
+	}
+
+	if (pid == 0) {
+		close(stdout_fd[0]);
+		dup2(stdout_fd[1], 1);
+		close(stdout_fd[1]);
+		execl("/bin/sh", "sh", "-c", command, NULL);
+		perror(command);
+		exit(-1);
+	}
+
+	close(stdout_fd[1]);
+
+	file = fdopen(stdout_fd[0], "r");
 	if (!file) {
-		pr_err("Failure running %s\n", command);
+		pr_err("Failure creating FILE stream for %s\n", command);
 		/*
 		 * If we were using debug info should retry with
 		 * original binary.
@@ -1286,9 +1326,11 @@ fallback:
 	if (dso__is_kcore(dso))
 		delete_last_nop(sym);
 
-	pclose(file);
-
+	fclose(file);
+	err = 0;
 out_remove_tmp:
+	close(stdout_fd[0]);
+
 	if (dso__needs_decompress(dso))
 		unlink(symfs_filename);
 out_free_filename:
@@ -1297,6 +1339,10 @@ out_free_filename:
 	if (free_filename)
 		free(filename);
 	return err;
+
+out_close_stdout:
+	close(stdout_fd[1]);
+	goto out_remove_tmp;
 }
 
 static void insert_source_line(struct rb_root *root, struct source_line *src_line)
@@ -1663,7 +1709,7 @@ int symbol__tty_annotate(struct symbol *sym, struct map *map,
 	struct rb_root source_line = RB_ROOT;
 	u64 len;
 
-	if (symbol__annotate(sym, map, 0) < 0)
+	if (symbol__disassemble(sym, map, 0) < 0)
 		return -1;
 
 	len = symbol__size(sym);

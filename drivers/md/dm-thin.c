@@ -699,7 +699,7 @@ static void remap_to_origin(struct thin_c *tc, struct bio *bio)
 
 static int bio_triggers_commit(struct thin_c *tc, struct bio *bio)
 {
-	return (bio->bi_rw & (REQ_PREFLUSH | REQ_FUA)) &&
+	return (bio->bi_opf & (REQ_PREFLUSH | REQ_FUA)) &&
 		dm_thin_changed_this_transaction(tc->td);
 }
 
@@ -870,7 +870,7 @@ static void __inc_remap_and_issue_cell(void *context,
 	struct bio *bio;
 
 	while ((bio = bio_list_pop(&cell->bios))) {
-		if (bio->bi_rw & (REQ_PREFLUSH | REQ_FUA) ||
+		if (bio->bi_opf & (REQ_PREFLUSH | REQ_FUA) ||
 		    bio_op(bio) == REQ_OP_DISCARD)
 			bio_list_add(&info->defer_bios, bio);
 		else {
@@ -1717,7 +1717,7 @@ static void __remap_and_issue_shared_cell(void *context,
 
 	while ((bio = bio_list_pop(&cell->bios))) {
 		if ((bio_data_dir(bio) == WRITE) ||
-		    (bio->bi_rw & (REQ_PREFLUSH | REQ_FUA) ||
+		    (bio->bi_opf & (REQ_PREFLUSH | REQ_FUA) ||
 		     bio_op(bio) == REQ_OP_DISCARD))
 			bio_list_add(&info->defer_bios, bio);
 		else {
@@ -2635,7 +2635,7 @@ static int thin_bio_map(struct dm_target *ti, struct bio *bio)
 		return DM_MAPIO_SUBMITTED;
 	}
 
-	if (bio->bi_rw & (REQ_PREFLUSH | REQ_FUA) ||
+	if (bio->bi_opf & (REQ_PREFLUSH | REQ_FUA) ||
 	    bio_op(bio) == REQ_OP_DISCARD) {
 		thin_defer_bio_with_throttle(tc, bio);
 		return DM_MAPIO_SUBMITTED;

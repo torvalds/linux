@@ -33,8 +33,8 @@ static ulong get_fdtaddr(void)
 {
 	ulong ftaddr = 0;
 
-	if ((fw_arg0 == -2) && fw_arg1 && !fw_arg2 && !fw_arg3)
-		return (ulong)fw_arg1;
+	if (fw_passed_dtb && !fw_arg2 && !fw_arg3)
+		return (ulong)fw_passed_dtb;
 
 	if (__dtb_start < __dtb_end)
 		ftaddr = (ulong)__dtb_start;
