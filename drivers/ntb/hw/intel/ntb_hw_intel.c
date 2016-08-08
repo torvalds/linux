@@ -112,17 +112,17 @@ MODULE_PARM_DESC(xeon_b2b_usd_bar2_addr64,
 
 module_param_named(xeon_b2b_usd_bar4_addr64,
 		   xeon_b2b_usd_addr.bar4_addr64, ullong, 0644);
-MODULE_PARM_DESC(xeon_b2b_usd_bar2_addr64,
+MODULE_PARM_DESC(xeon_b2b_usd_bar4_addr64,
 		 "XEON B2B USD BAR 4 64-bit address");
 
 module_param_named(xeon_b2b_usd_bar4_addr32,
 		   xeon_b2b_usd_addr.bar4_addr32, ullong, 0644);
-MODULE_PARM_DESC(xeon_b2b_usd_bar2_addr64,
+MODULE_PARM_DESC(xeon_b2b_usd_bar4_addr32,
 		 "XEON B2B USD split-BAR 4 32-bit address");
 
 module_param_named(xeon_b2b_usd_bar5_addr32,
 		   xeon_b2b_usd_addr.bar5_addr32, ullong, 0644);
-MODULE_PARM_DESC(xeon_b2b_usd_bar2_addr64,
+MODULE_PARM_DESC(xeon_b2b_usd_bar5_addr32,
 		 "XEON B2B USD split-BAR 5 32-bit address");
 
 module_param_named(xeon_b2b_dsd_bar2_addr64,
@@ -132,17 +132,17 @@ MODULE_PARM_DESC(xeon_b2b_dsd_bar2_addr64,
 
 module_param_named(xeon_b2b_dsd_bar4_addr64,
 		   xeon_b2b_dsd_addr.bar4_addr64, ullong, 0644);
-MODULE_PARM_DESC(xeon_b2b_dsd_bar2_addr64,
+MODULE_PARM_DESC(xeon_b2b_dsd_bar4_addr64,
 		 "XEON B2B DSD BAR 4 64-bit address");
 
 module_param_named(xeon_b2b_dsd_bar4_addr32,
 		   xeon_b2b_dsd_addr.bar4_addr32, ullong, 0644);
-MODULE_PARM_DESC(xeon_b2b_dsd_bar2_addr64,
+MODULE_PARM_DESC(xeon_b2b_dsd_bar4_addr32,
 		 "XEON B2B DSD split-BAR 4 32-bit address");
 
 module_param_named(xeon_b2b_dsd_bar5_addr32,
 		   xeon_b2b_dsd_addr.bar5_addr32, ullong, 0644);
-MODULE_PARM_DESC(xeon_b2b_dsd_bar2_addr64,
+MODULE_PARM_DESC(xeon_b2b_dsd_bar5_addr32,
 		 "XEON B2B DSD split-BAR 5 32-bit address");
 
 #ifndef ioread64
