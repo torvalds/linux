@@ -5337,15 +5337,6 @@ static ssize_t do_rbd_add(struct bus_type *bus,
 	}
 	spec->pool_id = (u64)rc;
 
-	/* The ceph file layout needs to fit pool id in 32 bits */
-
-	if (spec->pool_id > (u64)U32_MAX) {
-		rbd_warn(NULL, "pool id too large (%llu > %u)",
-				(unsigned long long)spec->pool_id, U32_MAX);
-		rc = -EIO;
-		goto err_out_client;
-	}
-
 	rbd_dev = rbd_dev_create(rbdc, spec, rbd_opts);
 	if (!rbd_dev) {
 		rc = -ENOMEM;
