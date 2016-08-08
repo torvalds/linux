@@ -547,13 +547,14 @@ static struct snd_soc_dai_driver cs4265_dai[] = {
 static const struct snd_soc_codec_driver soc_codec_cs4265 = {
 	.set_bias_level = cs4265_set_bias_level,
 
-	.dapm_widgets = cs4265_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(cs4265_dapm_widgets),
-	.dapm_routes = cs4265_audio_map,
-	.num_dapm_routes = ARRAY_SIZE(cs4265_audio_map),
-
-	.controls = cs4265_snd_controls,
-	.num_controls = ARRAY_SIZE(cs4265_snd_controls),
+	.component_driver = {
+		.controls		= cs4265_snd_controls,
+		.num_controls		= ARRAY_SIZE(cs4265_snd_controls),
+		.dapm_widgets		= cs4265_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(cs4265_dapm_widgets),
+		.dapm_routes		= cs4265_audio_map,
+		.num_dapm_routes	= ARRAY_SIZE(cs4265_audio_map),
+	},
 };
 
 static const struct regmap_config cs4265_regmap = {
