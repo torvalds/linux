@@ -25,11 +25,13 @@
 #include "amdgpu_pm.h"
 #include "amdgpu_i2c.h"
 #include "atom.h"
-#include "amdgpu_atombios.h"
-#include "atombios_crtc.h"
-#include "atombios_encoders.h"
 #include "amdgpu_pll.h"
 #include "amdgpu_connectors.h"
+#ifdef CONFIG_DRM_AMDGPU_CIK
+#include "dce_v8_0.h"
+#endif
+#include "dce_v10_0.h"
+#include "dce_v11_0.h"
 
 static void dce_virtual_set_display_funcs(struct amdgpu_device *adev);
 static void dce_virtual_set_irq_funcs(struct amdgpu_device *adev);
@@ -98,6 +100,30 @@ static bool dce_virtual_is_display_hung(struct amdgpu_device *adev)
 void dce_virtual_stop_mc_access(struct amdgpu_device *adev,
 			      struct amdgpu_mode_mc_save *save)
 {
+	switch (adev->asic_type) {
+	case CHIP_BONAIRE:
+	case CHIP_HAWAII:
+	case CHIP_KAVERI:
+	case CHIP_KABINI:
+	case CHIP_MULLINS:
+#ifdef CONFIG_DRM_AMDGPU_CIK
+		dce_v8_0_disable_dce(adev);
+#endif
+		break;
+	case CHIP_FIJI:
+	case CHIP_TONGA:
+		dce_v10_0_disable_dce(adev);
+		break;
+	case CHIP_CARRIZO:
+	case CHIP_STONEY:
+	case CHIP_POLARIS11:
+	case CHIP_POLARIS10:
+		dce_v11_0_disable_dce(adev);
+		break;
+	default:
+		DRM_ERROR("Usupported ASIC type: 0x%X\n", adev->asic_type);
+	}
+
 	return;
 }
 void dce_virtual_resume_mc_access(struct amdgpu_device *adev,
