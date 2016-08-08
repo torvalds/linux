@@ -335,7 +335,7 @@ int amdgpu_crtc_set_config(struct drm_mode_set *set)
 	return ret;
 }
 
-static const char *encoder_names[38] = {
+static const char *encoder_names[41] = {
 	"NONE",
 	"INTERNAL_LVDS",
 	"INTERNAL_TMDS1",
@@ -374,6 +374,9 @@ static const char *encoder_names[38] = {
 	"TRAVIS",
 	"INTERNAL_VCE",
 	"INTERNAL_UNIPHY3",
+	"HDMI_ANX9805",
+	"INTERNAL_AMCLK",
+	"VIRTUAL",
 };
 
 static const char *hpd_names[6] = {
