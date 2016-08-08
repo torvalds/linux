@@ -600,9 +600,10 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 
 	mvm_sta = iwl_mvm_sta_from_mac80211(sta);
 
-	/* not a data packet */
-	if (!ieee80211_is_data_qos(hdr->frame_control) ||
-	    is_multicast_ether_addr(hdr->addr1))
+	/* not a data packet or a bar */
+	if (!ieee80211_is_back_req(hdr->frame_control) &&
+	    (!ieee80211_is_data_qos(hdr->frame_control) ||
+	     is_multicast_ether_addr(hdr->addr1)))
 		return false;
 
 	if (unlikely(!ieee80211_is_data_present(hdr->frame_control)))
@@ -625,6 +626,11 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 	buffer = &baid_data->reorder_buf[queue];
 
 	spin_lock_bh(&buffer->lock);
+
+	if (ieee80211_is_back_req(hdr->frame_control)) {
+		iwl_mvm_release_frames(mvm, sta, napi, buffer, nssn);
+		goto drop;
+	}
 
 	/*
 	 * If there was a significant jump in the nssn - adjust.
