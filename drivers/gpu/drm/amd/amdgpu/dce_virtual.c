@@ -36,6 +36,9 @@
 
 static void dce_virtual_set_display_funcs(struct amdgpu_device *adev);
 static void dce_virtual_set_irq_funcs(struct amdgpu_device *adev);
+static int dce_virtual_pageflip_irq(struct amdgpu_device *adev,
+				  struct amdgpu_irq_src *source,
+				  struct amdgpu_iv_entry *entry);
 
 /**
  * dce_virtual_vblank_wait - vblank wait asic callback.
@@ -650,6 +653,7 @@ static enum hrtimer_restart dce_virtual_vblank_timer_handle(struct hrtimer *vbla
 	unsigned crtc = 0;
 	adev->ddev->vblank[0].count++;
 	drm_handle_vblank(adev->ddev, crtc);
+	dce_virtual_pageflip_irq(adev, NULL, NULL);
 	hrtimer_start(vblank_timer, ktime_set(0, DCE_VIRTUAL_VBLANK_PERIOD), HRTIMER_MODE_REL);
 	return HRTIMER_NORESTART;
 }
@@ -706,8 +710,8 @@ static void dce_virtual_crtc_vblank_int_ack(struct amdgpu_device *adev,
 }
 
 static int dce_virtual_crtc_irq(struct amdgpu_device *adev,
-                             struct amdgpu_irq_src *source,
-                             struct amdgpu_iv_entry *entry)
+			      struct amdgpu_irq_src *source,
+			      struct amdgpu_iv_entry *entry)
 {
 	unsigned crtc = 0;
 	unsigned irq_type = AMDGPU_CRTC_IRQ_VBLANK1;
@@ -718,7 +722,7 @@ static int dce_virtual_crtc_irq(struct amdgpu_device *adev,
 	if (amdgpu_irq_enabled(adev, source, irq_type)) {
 		drm_handle_vblank(adev->ddev, crtc);
 	}
-
+	dce_virtual_pageflip_irq(adev, NULL, NULL);
 	DRM_DEBUG("IH: D%d vblank\n", crtc + 1);
 	return 0;
 }
