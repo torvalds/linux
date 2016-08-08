@@ -1122,7 +1122,7 @@ static struct usb_function_instance *f_midi_alloc_inst(void)
 	opts->func_inst.free_func_inst = f_midi_free_inst;
 	opts->index = SNDRV_DEFAULT_IDX1;
 	opts->id = SNDRV_DEFAULT_STR1;
-	opts->buflen = 256;
+	opts->buflen = 512;
 	opts->qlen = 32;
 	opts->in_ports = 1;
 	opts->out_ports = 1;
