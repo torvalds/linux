@@ -23,9 +23,6 @@
 #include <linux/projid.h>
 #include <linux/fs_struct.h>
 
-extern bool setup_userns_sysctls(struct user_namespace *ns);
-extern void retire_userns_sysctls(struct user_namespace *ns);
-
 static struct kmem_cache *user_ns_cachep __read_mostly;
 static DEFINE_MUTEX(userns_state_mutex);
 
@@ -33,6 +30,7 @@ static bool new_idmap_permitted(const struct file *file,
 				struct user_namespace *ns, int cap_setid,
 				struct uid_gid_map *map);
 static void free_user_ns(struct work_struct *work);
+
 
 static void set_cred_user_ns(struct cred *cred, struct user_namespace *user_ns)
 {
@@ -68,8 +66,12 @@ int create_user_ns(struct cred *new)
 	kgid_t group = new->egid;
 	int ret;
 
+	ret = -EUSERS;
 	if (parent_ns->level > 32)
-		return -EUSERS;
+		goto fail;
+
+	if (!inc_user_namespaces(parent_ns))
+		goto fail;
 
 	/*
 	 * Verify that we can not violate the policy of which files
@@ -77,26 +79,27 @@ int create_user_ns(struct cred *new)
 	 * by verifing that the root directory is at the root of the
 	 * mount namespace which allows all files to be accessed.
 	 */
+	ret = -EPERM;
 	if (current_chrooted())
-		return -EPERM;
+		goto fail_dec;
 
 	/* The creator needs a mapping in the parent user namespace
 	 * or else we won't be able to reasonably tell userspace who
 	 * created a user_namespace.
 	 */
+	ret = -EPERM;
 	if (!kuid_has_mapping(parent_ns, owner) ||
 	    !kgid_has_mapping(parent_ns, group))
-		return -EPERM;
+		goto fail_dec;
 
+	ret = -ENOMEM;
 	ns = kmem_cache_zalloc(user_ns_cachep, GFP_KERNEL);
 	if (!ns)
-		return -ENOMEM;
+		goto fail_dec;
 
 	ret = ns_alloc_inum(&ns->ns);
-	if (ret) {
-		kmem_cache_free(user_ns_cachep, ns);
-		return ret;
-	}
+	if (ret)
+		goto fail_free;
 	ns->ns.ops = &userns_operations;
 
 	atomic_set(&ns->count, 1);
@@ -106,6 +109,7 @@ int create_user_ns(struct cred *new)
 	ns->owner = owner;
 	ns->group = group;
 	INIT_WORK(&ns->work, free_user_ns);
+	ns->max_user_namespaces = INT_MAX;
 
 	/* Inherit USERNS_SETGROUPS_ALLOWED from our parent */
 	mutex_lock(&userns_state_mutex);
@@ -126,7 +130,11 @@ fail_keyring:
 	key_put(ns->persistent_keyring_register);
 #endif
 	ns_free_inum(&ns->ns);
+fail_free:
 	kmem_cache_free(user_ns_cachep, ns);
+fail_dec:
+	dec_user_namespaces(parent_ns);
+fail:
 	return ret;
 }
 
@@ -163,6 +171,7 @@ static void free_user_ns(struct work_struct *work)
 #endif
 		ns_free_inum(&ns->ns);
 		kmem_cache_free(user_ns_cachep, ns);
+		dec_user_namespaces(parent);
 		ns = parent;
 	} while (atomic_dec_and_test(&parent->count));
 }

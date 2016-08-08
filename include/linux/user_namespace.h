@@ -44,9 +44,15 @@ struct user_namespace {
 	struct ctl_table_set	set;
 	struct ctl_table_header *sysctls;
 #endif
+	int max_user_namespaces;
+	atomic_t user_namespaces;
 };
 
 extern struct user_namespace init_user_ns;
+extern bool setup_userns_sysctls(struct user_namespace *ns);
+extern void retire_userns_sysctls(struct user_namespace *ns);
+extern bool inc_user_namespaces(struct user_namespace *ns);
+extern void dec_user_namespaces(struct user_namespace *ns);
 
 #ifdef CONFIG_USER_NS
 

@@ -43,7 +43,18 @@ static struct ctl_table_root set_root = {
 	.permissions = set_permissions,
 };
 
+static int zero = 0;
+static int int_max = INT_MAX;
 static struct ctl_table userns_table[] = {
+	{
+		.procname	= "max_user_namespaces",
+		.data		= &init_user_ns.max_user_namespaces,
+		.maxlen		= sizeof(init_user_ns.max_user_namespaces),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &zero,
+		.extra2		= &int_max,
+	},
 	{ }
 };
 #endif /* CONFIG_SYSCTL */
@@ -55,6 +66,8 @@ bool setup_userns_sysctls(struct user_namespace *ns)
 	setup_sysctl_set(&ns->set, &set_root, set_is_seen);
 	tbl = kmemdup(userns_table, sizeof(userns_table), GFP_KERNEL);
 	if (tbl) {
+		tbl[0].data = &ns->max_user_namespaces;
+
 		ns->sysctls = __register_sysctl_table(&ns->set, "userns", tbl);
 	}
 	if (!ns->sysctls) {
@@ -76,6 +89,46 @@ void retire_userns_sysctls(struct user_namespace *ns)
 	retire_sysctl_set(&ns->set);
 	kfree(tbl);
 #endif
+}
+
+static inline bool atomic_inc_below(atomic_t *v, int u)
+{
+	int c, old;
+	c = atomic_read(v);
+	for (;;) {
+		if (unlikely(c >= u))
+			return false;
+		old = atomic_cmpxchg(v, c, c+1);
+		if (likely(old == c))
+			return true;
+		c = old;
+	}
+}
+
+bool inc_user_namespaces(struct user_namespace *ns)
+{
+	struct user_namespace *pos, *bad;
+	for (pos = ns; pos; pos = pos->parent) {
+		int max = READ_ONCE(pos->max_user_namespaces);
+		if (!atomic_inc_below(&pos->user_namespaces, max))
+			goto fail;
+	}
+	return true;
+fail:
+	bad = pos;
+	for (pos = ns; pos != bad; pos = pos->parent)
+		atomic_dec(&pos->user_namespaces);
+
+	return false;
+}
+
+void dec_user_namespaces(struct user_namespace *ns)
+{
+	struct user_namespace *pos;
+	for (pos = ns; pos; pos = pos->parent) {
+		int dec = atomic_dec_if_positive(&pos->user_namespaces);
+		WARN_ON_ONCE(dec < 0);
+	}
 }
 
 static __init int user_namespace_sysctl_init(void)

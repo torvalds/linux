@@ -321,6 +321,8 @@ void __init fork_init(void)
 	init_task.signal->rlim[RLIMIT_NPROC].rlim_max = max_threads/2;
 	init_task.signal->rlim[RLIMIT_SIGPENDING] =
 		init_task.signal->rlim[RLIMIT_NPROC];
+
+	init_user_ns.max_user_namespaces = max_threads;
 }
 
 int __weak arch_dup_task_struct(struct task_struct *dst,
