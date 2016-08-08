@@ -7,6 +7,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <linux/clk.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <sound/simple_card_utils.h>
@@ -96,6 +97,35 @@ int asoc_simple_card_parse_card_name(struct snd_soc_card *card,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(asoc_simple_card_parse_card_name);
+
+int asoc_simple_card_parse_clk(struct device_node *node,
+			       struct device_node *dai_of_node,
+			       struct asoc_simple_dai *simple_dai)
+{
+	struct clk *clk;
+	u32 val;
+
+	/*
+	 * Parse dai->sysclk come from "clocks = <&xxx>"
+	 * (if system has common clock)
+	 *  or "system-clock-frequency = <xxx>"
+	 *  or device's module clock.
+	 */
+	clk = of_clk_get(node, 0);
+	if (!IS_ERR(clk)) {
+		simple_dai->sysclk = clk_get_rate(clk);
+		simple_dai->clk = clk;
+	} else if (!of_property_read_u32(node, "system-clock-frequency", &val)) {
+		simple_dai->sysclk = val;
+	} else {
+		clk = of_clk_get(dai_of_node, 0);
+		if (!IS_ERR(clk))
+			simple_dai->sysclk = clk_get_rate(clk);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(asoc_simple_card_parse_clk);
 
 /* Module information */
 MODULE_AUTHOR("Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>");
