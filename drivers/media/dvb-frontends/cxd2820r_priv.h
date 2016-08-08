@@ -34,6 +34,8 @@ struct reg_val_mask {
 	u8  mask;
 };
 
+#define CXD2820R_CLK 41000000
+
 struct cxd2820r_priv {
 	struct i2c_adapter *i2c;
 	struct dvb_frontend fe;

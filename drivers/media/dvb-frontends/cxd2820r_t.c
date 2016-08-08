@@ -26,8 +26,8 @@ int cxd2820r_set_frontend_t(struct dvb_frontend *fe)
 	struct cxd2820r_priv *priv = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret, i, bw_i;
-	u32 if_freq, if_ctl;
-	u64 num;
+	unsigned int utmp;
+	u32 if_frequency;
 	u8 buf[3], bw_param;
 	u8 bw_params1[][5] = {
 		{ 0x17, 0xea, 0xaa, 0xaa, 0xaa }, /* 6 MHz */
@@ -93,21 +93,20 @@ int cxd2820r_set_frontend_t(struct dvb_frontend *fe)
 
 	/* program IF frequency */
 	if (fe->ops.tuner_ops.get_if_frequency) {
-		ret = fe->ops.tuner_ops.get_if_frequency(fe, &if_freq);
+		ret = fe->ops.tuner_ops.get_if_frequency(fe, &if_frequency);
 		if (ret)
 			goto error;
-	} else
-		if_freq = 0;
+		dev_dbg(&priv->i2c->dev, "%s: if_frequency=%u\n", __func__,
+			if_frequency);
+	} else {
+		ret = -EINVAL;
+		goto error;
+	}
 
-	dev_dbg(&priv->i2c->dev, "%s: if_freq=%d\n", __func__, if_freq);
-
-	num = if_freq / 1000; /* Hz => kHz */
-	num *= 0x1000000;
-	if_ctl = DIV_ROUND_CLOSEST_ULL(num, 41000);
-	buf[0] = ((if_ctl >> 16) & 0xff);
-	buf[1] = ((if_ctl >>  8) & 0xff);
-	buf[2] = ((if_ctl >>  0) & 0xff);
-
+	utmp = DIV_ROUND_CLOSEST_ULL((u64)if_frequency * 0x1000000, CXD2820R_CLK);
+	buf[0] = (utmp >> 16) & 0xff;
+	buf[1] = (utmp >>  8) & 0xff;
+	buf[2] = (utmp >>  0) & 0xff;
 	ret = cxd2820r_wr_regs(priv, 0x000b6, buf, 3);
 	if (ret)
 		goto error;
