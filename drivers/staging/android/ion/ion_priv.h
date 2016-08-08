@@ -86,8 +86,6 @@ void ion_buffer_destroy(struct ion_buffer *buffer);
  * struct ion_heap_ops - ops to operate on a given heap
  * @allocate:		allocate memory
  * @free:		free memory
- * @map_dma		map the memory for dma to a scatterlist
- * @unmap_dma		unmap the memory for dma
  * @map_kernel		map memory to the kernel
  * @unmap_kernel	unmap memory to the kernel
  * @map_user		map memory to userspace
@@ -104,9 +102,6 @@ struct ion_heap_ops {
 			struct ion_buffer *buffer, unsigned long len,
 			unsigned long align, unsigned long flags);
 	void (*free)(struct ion_buffer *buffer);
-	struct sg_table * (*map_dma)(struct ion_heap *heap,
-				     struct ion_buffer *buffer);
-	void (*unmap_dma)(struct ion_heap *heap, struct ion_buffer *buffer);
 	void * (*map_kernel)(struct ion_heap *heap, struct ion_buffer *buffer);
 	void (*unmap_kernel)(struct ion_heap *heap, struct ion_buffer *buffer);
 	int (*map_user)(struct ion_heap *mapper, struct ion_buffer *buffer,

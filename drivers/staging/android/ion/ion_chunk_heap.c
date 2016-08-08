@@ -75,7 +75,7 @@ static int ion_chunk_heap_allocate(struct ion_heap *heap,
 		sg = sg_next(sg);
 	}
 
-	buffer->priv_virt = table;
+	buffer->sg_table = table;
 	chunk_heap->allocated += allocated_size;
 	return 0;
 err:
@@ -95,7 +95,7 @@ static void ion_chunk_heap_free(struct ion_buffer *buffer)
 	struct ion_heap *heap = buffer->heap;
 	struct ion_chunk_heap *chunk_heap =
 		container_of(heap, struct ion_chunk_heap, heap);
-	struct sg_table *table = buffer->priv_virt;
+	struct sg_table *table = buffer->sg_table;
 	struct scatterlist *sg;
 	int i;
 	unsigned long allocated_size;
@@ -117,22 +117,9 @@ static void ion_chunk_heap_free(struct ion_buffer *buffer)
 	kfree(table);
 }
 
-static struct sg_table *ion_chunk_heap_map_dma(struct ion_heap *heap,
-					       struct ion_buffer *buffer)
-{
-	return buffer->priv_virt;
-}
-
-static void ion_chunk_heap_unmap_dma(struct ion_heap *heap,
-				     struct ion_buffer *buffer)
-{
-}
-
 static struct ion_heap_ops chunk_heap_ops = {
 	.allocate = ion_chunk_heap_allocate,
 	.free = ion_chunk_heap_free,
-	.map_dma = ion_chunk_heap_map_dma,
-	.unmap_dma = ion_chunk_heap_unmap_dma,
 	.map_user = ion_heap_map_user,
 	.map_kernel = ion_heap_map_kernel,
 	.unmap_kernel = ion_heap_unmap_kernel,

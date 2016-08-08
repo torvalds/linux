@@ -82,7 +82,7 @@ static int ion_carveout_heap_allocate(struct ion_heap *heap,
 	}
 
 	sg_set_page(table->sgl, pfn_to_page(PFN_DOWN(paddr)), size, 0);
-	buffer->priv_virt = table;
+	buffer->sg_table = table;
 
 	return 0;
 
@@ -96,7 +96,7 @@ err_free:
 static void ion_carveout_heap_free(struct ion_buffer *buffer)
 {
 	struct ion_heap *heap = buffer->heap;
-	struct sg_table *table = buffer->priv_virt;
+	struct sg_table *table = buffer->sg_table;
 	struct page *page = sg_page(table->sgl);
 	ion_phys_addr_t paddr = PFN_PHYS(page_to_pfn(page));
 
@@ -111,22 +111,9 @@ static void ion_carveout_heap_free(struct ion_buffer *buffer)
 	kfree(table);
 }
 
-static struct sg_table *ion_carveout_heap_map_dma(struct ion_heap *heap,
-						  struct ion_buffer *buffer)
-{
-	return buffer->priv_virt;
-}
-
-static void ion_carveout_heap_unmap_dma(struct ion_heap *heap,
-					struct ion_buffer *buffer)
-{
-}
-
 static struct ion_heap_ops carveout_heap_ops = {
 	.allocate = ion_carveout_heap_allocate,
 	.free = ion_carveout_heap_free,
-	.map_dma = ion_carveout_heap_map_dma,
-	.unmap_dma = ion_carveout_heap_unmap_dma,
 	.map_user = ion_heap_map_user,
 	.map_kernel = ion_heap_map_kernel,
 	.unmap_kernel = ion_heap_unmap_kernel,

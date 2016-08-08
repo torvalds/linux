@@ -205,19 +205,16 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 			goto err2;
 	}
 
-	buffer->dev = dev;
-	buffer->size = len;
-
-	table = heap->ops->map_dma(heap, buffer);
-	if (WARN_ONCE(table == NULL,
-			"heap->ops->map_dma should return ERR_PTR on error"))
-		table = ERR_PTR(-EINVAL);
-	if (IS_ERR(table)) {
+	if (buffer->sg_table == NULL) {
+		WARN_ONCE(1, "This heap needs to set the sgtable");
 		ret = -EINVAL;
 		goto err1;
 	}
 
-	buffer->sg_table = table;
+	table = buffer->sg_table;
+	buffer->dev = dev;
+	buffer->size = len;
+
 	if (ion_buffer_fault_user_mappings(buffer)) {
 		int num_pages = PAGE_ALIGN(buffer->size) / PAGE_SIZE;
 		struct scatterlist *sg;
@@ -226,7 +223,7 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 		buffer->pages = vmalloc(sizeof(struct page *) * num_pages);
 		if (!buffer->pages) {
 			ret = -ENOMEM;
-			goto err;
+			goto err1;
 		}
 
 		for_each_sg(table->sgl, sg, table->nents, i) {
@@ -260,8 +257,6 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 	mutex_unlock(&dev->buffer_lock);
 	return buffer;
 
-err:
-	heap->ops->unmap_dma(heap, buffer);
 err1:
 	heap->ops->free(buffer);
 err2:
@@ -273,7 +268,6 @@ void ion_buffer_destroy(struct ion_buffer *buffer)
 {
 	if (WARN_ON(buffer->kmap_cnt > 0))
 		buffer->heap->ops->unmap_kernel(buffer->heap, buffer);
-	buffer->heap->ops->unmap_dma(buffer->heap, buffer);
 	buffer->heap->ops->free(buffer);
 	vfree(buffer->pages);
 	kfree(buffer);
@@ -1542,8 +1536,7 @@ void ion_device_add_heap(struct ion_device *dev, struct ion_heap *heap)
 {
 	struct dentry *debug_file;
 
-	if (!heap->ops->allocate || !heap->ops->free || !heap->ops->map_dma ||
-	    !heap->ops->unmap_dma)
+	if (!heap->ops->allocate || !heap->ops->free)
 		pr_err("%s: can not add heap with invalid ops struct.\n",
 		       __func__);
 
