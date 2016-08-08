@@ -22,3 +22,4 @@ whole; patches welcome!
    ubsan
    kmemleak
    kmemcheck
+   gdb-kernel-debugging
