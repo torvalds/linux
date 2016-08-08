@@ -3671,50 +3671,37 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 
 	if (!dev_drv->uboot_logo || load_screen ||
 	    (rk_fb->disp_policy != DISPLAY_POLICY_BOX)) {
-		for (i = 0; i < dev_drv->lcdc_win_num; i++) {
-			info = rk_fb->fb[dev_drv->fb_index_base + i];
-			fb_par = (struct rk_fb_par *)info->par;
-			win_id = dev_drv->ops->fb_get_win_id(dev_drv, info->fix.id);
-			win = dev_drv->win[win_id];
-			if (win && fb_par->state) {
-				dev_drv->ops->load_screen(dev_drv, 1);
-
-				info->var.activate |= FB_ACTIVATE_FORCE;
-				if (rk_fb->disp_mode == ONE_DUAL) {
-					info->var.grayscale &= 0xff;
-					info->var.grayscale |=
-						(dev_drv->cur_screen->xsize << 8) +
-						(dev_drv->cur_screen->ysize << 20);
+		info = rk_fb->fb[dev_drv->fb_index_base];
+		fb_par = (struct rk_fb_par *)info->par;
+		win_id = 0;
+		win = dev_drv->win[win_id];
+		if (win && fb_par->state) {
+			dev_drv->ops->load_screen(dev_drv, 1);
+			info->var.activate |= FB_ACTIVATE_FORCE;
+			if (rk_fb->disp_mode == ONE_DUAL) {
+				info->var.grayscale &= 0xff;
+				info->var.grayscale |=
+					(dev_drv->cur_screen->xsize << 8) +
+					(dev_drv->cur_screen->ysize << 20);
+			}
+			if (dev_drv->uboot_logo && win->state) {
+				if (win->area[0].xpos ||
+				    win->area[0].ypos) {
+					win->area[0].xpos =
+						(screen->mode.xres -
+						 win->area[0].xsize) / 2;
+					win->area[0].ypos =
+						(screen->mode.yres -
+						 win->area[0].ysize) / 2;
+				} else {
+					win->area[0].xsize = screen->mode.xres;
+					win->area[0].ysize = screen->mode.yres;
 				}
-				if (dev_drv->uboot_logo && win->state) {
-					if (win->area[0].xpos ||
-					    win->area[0].ypos) {
-						win->area[0].xpos =
-							(screen->mode.xres -
-							 win->area[0].xsize) / 2;
-						win->area[0].ypos =
-							(screen->mode.yres -
-							 win->area[0].ysize) / 2;
-					} else {
-						win->area[0].xsize =
-							screen->mode.xres;
-						win->area[0].ysize =
-							screen->mode.yres;
-					}
-					dev_drv->ops->set_par(dev_drv, i);
-					dev_drv->ops->cfg_done(dev_drv);
-				} else if (!dev_drv->win[win_id]->state) {
-					dev_drv->ops->open(dev_drv, win_id, 1);
-					/* dev_drv->suspend_flag = 0; */
-					/* mutex_lock(&dev_drv->win_config);
-					 * info->var.xoffset = 0;
-					 * info->var.yoffset = 0;
-					 * info->fbops->fb_set_par(info);
-					 * info->fbops->fb_pan_display(&info->var,
-					 *			    info);
-					 * mutex_unlock(&dev_drv->win_config);
-					 */
-				}
+				dev_drv->ops->set_par(dev_drv, i);
+				dev_drv->ops->cfg_done(dev_drv);
+			} else if (!dev_drv->win[win_id]->state) {
+				dev_drv->ops->open(dev_drv, win_id, 1);
+				info->fbops->fb_pan_display(&info->var, info);
 			}
 		}
 	} else {
