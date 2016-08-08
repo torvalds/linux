@@ -1053,12 +1053,14 @@ static struct snd_soc_codec_driver soc_codec_dev_rt286 = {
 	.resume = rt286_resume,
 	.set_bias_level = rt286_set_bias_level,
 	.idle_bias_off = true,
-	.controls = rt286_snd_controls,
-	.num_controls = ARRAY_SIZE(rt286_snd_controls),
-	.dapm_widgets = rt286_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(rt286_dapm_widgets),
-	.dapm_routes = rt286_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(rt286_dapm_routes),
+	.component_driver = {
+		.controls		= rt286_snd_controls,
+		.num_controls		= ARRAY_SIZE(rt286_snd_controls),
+		.dapm_widgets		= rt286_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(rt286_dapm_widgets),
+		.dapm_routes		= rt286_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(rt286_dapm_routes),
+	},
 };
 
 static const struct regmap_config rt286_regmap = {
