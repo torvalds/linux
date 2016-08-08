@@ -17,6 +17,8 @@ static void sysrq_sb(struct super_block *sb)
 	char *plevel;
 	struct au_sbinfo *sbinfo;
 	struct file *file;
+	struct au_sphlhead *files;
+	struct au_finfo *finfo;
 
 	plevel = au_plevel;
 	au_plevel = KERN_WARNING;
@@ -73,15 +75,16 @@ static void sysrq_sb(struct super_block *sb)
 	}
 #endif
 	pr("files\n");
-	lg_global_lock(&files_lglock);
-	do_file_list_for_each_entry(sb, file) {
+	files = &au_sbi(sb)->si_files;
+	spin_lock(&files->spin);
+	hlist_for_each_entry(finfo, &files->head, fi_hlist) {
 		umode_t mode;
-
+		file = finfo->fi_file;
 		mode = file_inode(file)->i_mode;
 		if (!special_file(mode))
 			au_dpri_file(file);
-	} while_file_list_for_each_entry;
-	lg_global_unlock(&files_lglock);
+		}
+		spin_unlock(&files->spin);
 	pr("done\n");
 
 #undef pr

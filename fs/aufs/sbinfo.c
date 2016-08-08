@@ -105,6 +105,8 @@ int au_si_alloc(struct super_block *sb)
 	init_waitqueue_head(&sbinfo->si_plink_wq);
 	spin_lock_init(&sbinfo->si_plink_maint_lock);
 
+	au_sphl_init(&sbinfo->si_files);
+
 	/* leave other members for sysaufs and si_mnt. */
 	sbinfo->si_sb = sb;
 	sb->s_fs_info = sbinfo;
