@@ -80,6 +80,8 @@ int ovl_copy_xattr(struct dentry *old, struct dentry *new)
 	}
 
 	for (name = buf; name < (buf + list_size); name += strlen(name) + 1) {
+		if (ovl_is_private_xattr(name))
+			continue;
 retry:
 		size = vfs_getxattr(old, name, value, value_size);
 		if (size == -ERANGE)
