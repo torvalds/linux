@@ -357,8 +357,10 @@ static int atmel_pdmic_codec_probe(struct snd_soc_codec *codec)
 
 static struct snd_soc_codec_driver soc_codec_dev_pdmic = {
 	.probe		= atmel_pdmic_codec_probe,
-	.controls	= atmel_pdmic_snd_controls,
-	.num_controls	= ARRAY_SIZE(atmel_pdmic_snd_controls),
+	.component_driver = {
+		.controls		= atmel_pdmic_snd_controls,
+		.num_controls		= ARRAY_SIZE(atmel_pdmic_snd_controls),
+	},
 };
 
 /* codec dai component */
