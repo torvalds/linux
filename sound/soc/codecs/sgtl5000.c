@@ -1151,12 +1151,14 @@ static struct snd_soc_codec_driver sgtl5000_driver = {
 	.remove = sgtl5000_remove,
 	.set_bias_level = sgtl5000_set_bias_level,
 	.suspend_bias_off = true,
-	.controls = sgtl5000_snd_controls,
-	.num_controls = ARRAY_SIZE(sgtl5000_snd_controls),
-	.dapm_widgets = sgtl5000_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(sgtl5000_dapm_widgets),
-	.dapm_routes = sgtl5000_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(sgtl5000_dapm_routes),
+	.component_driver = {
+		.controls		= sgtl5000_snd_controls,
+		.num_controls		= ARRAY_SIZE(sgtl5000_snd_controls),
+		.dapm_widgets		= sgtl5000_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(sgtl5000_dapm_widgets),
+		.dapm_routes		= sgtl5000_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(sgtl5000_dapm_routes),
+	},
 };
 
 static const struct regmap_config sgtl5000_regmap = {
