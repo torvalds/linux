@@ -648,12 +648,6 @@ static void sdma_event_disable(struct sdma_channel *sdmac, unsigned int event)
 	writel_relaxed(val, sdma->regs + chnenbl);
 }
 
-static void sdma_handle_channel_loop(struct sdma_channel *sdmac)
-{
-	if (sdmac->desc.callback)
-		sdmac->desc.callback(sdmac->desc.callback_param);
-}
-
 static void sdma_update_channel_loop(struct sdma_channel *sdmac)
 {
 	struct sdma_buffer_descriptor *bd;
@@ -672,13 +666,25 @@ static void sdma_update_channel_loop(struct sdma_channel *sdmac)
 			sdmac->status = DMA_ERROR;
 
 		bd->mode.status |= BD_DONE;
+
+		/*
+		 * The callback is called from the interrupt context in order
+		 * to reduce latency and to avoid the risk of altering the
+		 * SDMA transaction status by the time the client tasklet is
+		 * executed.
+		 */
+
+		if (sdmac->desc.callback)
+			sdmac->desc.callback(sdmac->desc.callback_param);
+
 		sdmac->buf_tail++;
 		sdmac->buf_tail %= sdmac->num_bd;
 	}
 }
 
-static void mxc_sdma_handle_channel_normal(struct sdma_channel *sdmac)
+static void mxc_sdma_handle_channel_normal(unsigned long data)
 {
+	struct sdma_channel *sdmac = (struct sdma_channel *) data;
 	struct sdma_buffer_descriptor *bd;
 	int i, error = 0;
 
@@ -705,16 +711,6 @@ static void mxc_sdma_handle_channel_normal(struct sdma_channel *sdmac)
 		sdmac->desc.callback(sdmac->desc.callback_param);
 }
 
-static void sdma_tasklet(unsigned long data)
-{
-	struct sdma_channel *sdmac = (struct sdma_channel *) data;
-
-	if (sdmac->flags & IMX_DMA_SG_LOOP)
-		sdma_handle_channel_loop(sdmac);
-	else
-		mxc_sdma_handle_channel_normal(sdmac);
-}
-
 static irqreturn_t sdma_int_handler(int irq, void *dev_id)
 {
 	struct sdma_engine *sdma = dev_id;
@@ -731,8 +727,8 @@ static irqreturn_t sdma_int_handler(int irq, void *dev_id)
 
 		if (sdmac->flags & IMX_DMA_SG_LOOP)
 			sdma_update_channel_loop(sdmac);
-
-		tasklet_schedule(&sdmac->tasklet);
+		else
+			tasklet_schedule(&sdmac->tasklet);
 
 		__clear_bit(channel, &stat);
 	}
@@ -1732,7 +1728,7 @@ static int sdma_probe(struct platform_device *pdev)
 		dma_cookie_init(&sdmac->chan);
 		sdmac->channel = i;
 
-		tasklet_init(&sdmac->tasklet, sdma_tasklet,
+		tasklet_init(&sdmac->tasklet, mxc_sdma_handle_channel_normal,
 			     (unsigned long) sdmac);
 		/*
 		 * Add the channel to the DMAC list. Do not add channel 0 though
