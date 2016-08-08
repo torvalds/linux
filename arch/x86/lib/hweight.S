@@ -35,6 +35,7 @@ ENDPROC(__sw_hweight32)
 
 ENTRY(__sw_hweight64)
 #ifdef CONFIG_X86_64
+	pushq   %rdi
 	pushq   %rdx
 
 	movq    %rdi, %rdx                      # w -> t
@@ -60,6 +61,7 @@ ENTRY(__sw_hweight64)
 	shrq    $56, %rax                       # w = w_tmp >> 56
 
 	popq    %rdx
+	popq    %rdi
 	ret
 #else /* CONFIG_X86_32 */
 	/* We're getting an u64 arg in (%eax,%edx): unsigned long hweight64(__u64 w) */
