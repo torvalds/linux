@@ -898,14 +898,6 @@ struct snd_soc_codec_driver {
 	int (*resume)(struct snd_soc_codec *);
 	struct snd_soc_component_driver component_driver;
 
-	/* Default control and setup, added after probe() is run */
-	const struct snd_kcontrol_new *controls;
-	int num_controls;
-	const struct snd_soc_dapm_widget *dapm_widgets;
-	int num_dapm_widgets;
-	const struct snd_soc_dapm_route *dapm_routes;
-	int num_dapm_routes;
-
 	/* codec wide operations */
 	int (*set_sysclk)(struct snd_soc_codec *codec,
 			  int clk_id, int source, unsigned int freq, int dir);
