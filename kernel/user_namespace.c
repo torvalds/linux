@@ -31,7 +31,6 @@ static bool new_idmap_permitted(const struct file *file,
 				struct uid_gid_map *map);
 static void free_user_ns(struct work_struct *work);
 
-
 static void set_cred_user_ns(struct cred *cred, struct user_namespace *user_ns)
 {
 	/* Start with the same capabilities as init but useless for doing
@@ -64,13 +63,15 @@ int create_user_ns(struct cred *new)
 	struct user_namespace *ns, *parent_ns = new->user_ns;
 	kuid_t owner = new->euid;
 	kgid_t group = new->egid;
+	struct ucounts *ucounts;
 	int ret;
 
 	ret = -EUSERS;
 	if (parent_ns->level > 32)
 		goto fail;
 
-	if (!inc_user_namespaces(parent_ns))
+	ucounts = inc_user_namespaces(parent_ns, owner);
+	if (!ucounts)
 		goto fail;
 
 	/*
@@ -110,6 +111,7 @@ int create_user_ns(struct cred *new)
 	ns->group = group;
 	INIT_WORK(&ns->work, free_user_ns);
 	ns->max_user_namespaces = INT_MAX;
+	ns->ucounts = ucounts;
 
 	/* Inherit USERNS_SETGROUPS_ALLOWED from our parent */
 	mutex_lock(&userns_state_mutex);
@@ -133,7 +135,7 @@ fail_keyring:
 fail_free:
 	kmem_cache_free(user_ns_cachep, ns);
 fail_dec:
-	dec_user_namespaces(parent_ns);
+	dec_user_namespaces(ucounts);
 fail:
 	return ret;
 }
@@ -164,6 +166,7 @@ static void free_user_ns(struct work_struct *work)
 		container_of(work, struct user_namespace, work);
 
 	do {
+		struct ucounts *ucounts = ns->ucounts;
 		parent = ns->parent;
 		retire_userns_sysctls(ns);
 #ifdef CONFIG_PERSISTENT_KEYRINGS
@@ -171,7 +174,7 @@ static void free_user_ns(struct work_struct *work)
 #endif
 		ns_free_inum(&ns->ns);
 		kmem_cache_free(user_ns_cachep, ns);
-		dec_user_namespaces(parent);
+		dec_user_namespaces(ucounts);
 		ns = parent;
 	} while (atomic_dec_and_test(&parent->count));
 }

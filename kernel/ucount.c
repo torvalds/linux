@@ -8,7 +8,19 @@
 #include <linux/stat.h>
 #include <linux/sysctl.h>
 #include <linux/slab.h>
+#include <linux/hash.h>
 #include <linux/user_namespace.h>
+
+#define UCOUNTS_HASHTABLE_BITS 10
+static struct hlist_head ucounts_hashtable[(1 << UCOUNTS_HASHTABLE_BITS)];
+static DEFINE_SPINLOCK(ucounts_lock);
+
+#define ucounts_hashfn(ns, uid)						\
+	hash_long((unsigned long)__kuid_val(uid) + (unsigned long)(ns), \
+		  UCOUNTS_HASHTABLE_BITS)
+#define ucounts_hashentry(ns, uid)	\
+	(ucounts_hashtable + ucounts_hashfn(ns, uid))
+
 
 #ifdef CONFIG_SYSCTL
 static struct ctl_table_set *
@@ -45,7 +57,7 @@ static struct ctl_table_root set_root = {
 
 static int zero = 0;
 static int int_max = INT_MAX;
-static struct ctl_table userns_table[] = {
+static struct ctl_table user_table[] = {
 	{
 		.procname	= "max_user_namespaces",
 		.data		= &init_user_ns.max_user_namespaces,
@@ -64,11 +76,11 @@ bool setup_userns_sysctls(struct user_namespace *ns)
 #ifdef CONFIG_SYSCTL
 	struct ctl_table *tbl;
 	setup_sysctl_set(&ns->set, &set_root, set_is_seen);
-	tbl = kmemdup(userns_table, sizeof(userns_table), GFP_KERNEL);
+	tbl = kmemdup(user_table, sizeof(user_table), GFP_KERNEL);
 	if (tbl) {
 		tbl[0].data = &ns->max_user_namespaces;
 
-		ns->sysctls = __register_sysctl_table(&ns->set, "userns", tbl);
+		ns->sysctls = __register_sysctl_table(&ns->set, "user", tbl);
 	}
 	if (!ns->sysctls) {
 		kfree(tbl);
@@ -91,6 +103,61 @@ void retire_userns_sysctls(struct user_namespace *ns)
 #endif
 }
 
+static struct ucounts *find_ucounts(struct user_namespace *ns, kuid_t uid, struct hlist_head *hashent)
+{
+	struct ucounts *ucounts;
+
+	hlist_for_each_entry(ucounts, hashent, node) {
+		if (uid_eq(ucounts->uid, uid) && (ucounts->ns == ns))
+			return ucounts;
+	}
+	return NULL;
+}
+
+static struct ucounts *get_ucounts(struct user_namespace *ns, kuid_t uid)
+{
+	struct hlist_head *hashent = ucounts_hashentry(ns, uid);
+	struct ucounts *ucounts, *new;
+
+	spin_lock(&ucounts_lock);
+	ucounts = find_ucounts(ns, uid, hashent);
+	if (!ucounts) {
+		spin_unlock(&ucounts_lock);
+
+		new = kzalloc(sizeof(*new), GFP_KERNEL);
+		if (!new)
+			return NULL;
+
+		new->ns = ns;
+		new->uid = uid;
+		atomic_set(&new->count, 0);
+
+		spin_lock(&ucounts_lock);
+		ucounts = find_ucounts(ns, uid, hashent);
+		if (ucounts) {
+			kfree(new);
+		} else {
+			hlist_add_head(&new->node, hashent);
+			ucounts = new;
+		}
+	}
+	if (!atomic_add_unless(&ucounts->count, 1, INT_MAX))
+		ucounts = NULL;
+	spin_unlock(&ucounts_lock);
+	return ucounts;
+}
+
+static void put_ucounts(struct ucounts *ucounts)
+{
+	if (atomic_dec_and_test(&ucounts->count)) {
+		spin_lock(&ucounts_lock);
+		hlist_del_init(&ucounts->node);
+		spin_unlock(&ucounts_lock);
+
+		kfree(ucounts);
+	}
+}
+
 static inline bool atomic_inc_below(atomic_t *v, int u)
 {
 	int c, old;
@@ -105,44 +172,51 @@ static inline bool atomic_inc_below(atomic_t *v, int u)
 	}
 }
 
-bool inc_user_namespaces(struct user_namespace *ns)
+struct ucounts *inc_user_namespaces(struct user_namespace *ns, kuid_t uid)
 {
-	struct user_namespace *pos, *bad;
-	for (pos = ns; pos; pos = pos->parent) {
-		int max = READ_ONCE(pos->max_user_namespaces);
-		if (!atomic_inc_below(&pos->user_namespaces, max))
+	struct ucounts *ucounts, *iter, *bad;
+	struct user_namespace *tns;
+	ucounts = get_ucounts(ns, uid);
+	for (iter = ucounts; iter; iter = tns->ucounts) {
+		int max;
+		tns = iter->ns;
+		max = READ_ONCE(tns->max_user_namespaces);
+		if (!atomic_inc_below(&iter->user_namespaces, max))
 			goto fail;
 	}
-	return true;
+	return ucounts;
 fail:
-	bad = pos;
-	for (pos = ns; pos != bad; pos = pos->parent)
-		atomic_dec(&pos->user_namespaces);
+	bad = iter;
+	for (iter = ucounts; iter != bad; iter = iter->ns->ucounts)
+		atomic_dec(&iter->user_namespaces);
 
-	return false;
+	put_ucounts(ucounts);
+	return NULL;
 }
 
-void dec_user_namespaces(struct user_namespace *ns)
+void dec_user_namespaces(struct ucounts *ucounts)
 {
-	struct user_namespace *pos;
-	for (pos = ns; pos; pos = pos->parent) {
-		int dec = atomic_dec_if_positive(&pos->user_namespaces);
+	struct ucounts *iter;
+	for (iter = ucounts; iter; iter = iter->ns->ucounts) {
+		int dec = atomic_dec_if_positive(&iter->user_namespaces);
 		WARN_ON_ONCE(dec < 0);
 	}
+	put_ucounts(ucounts);
 }
+
 
 static __init int user_namespace_sysctl_init(void)
 {
 #ifdef CONFIG_SYSCTL
-	static struct ctl_table_header *userns_header;
+	static struct ctl_table_header *user_header;
 	static struct ctl_table empty[1];
 	/*
-	 * It is necessary to register the userns directory in the
+	 * It is necessary to register the user directory in the
 	 * default set so that registrations in the child sets work
 	 * properly.
 	 */
-	userns_header = register_sysctl("userns", empty);
-	BUG_ON(!userns_header);
+	user_header = register_sysctl("user", empty);
+	BUG_ON(!user_header);
 	BUG_ON(!setup_userns_sysctls(&init_user_ns));
 #endif
 	return 0;

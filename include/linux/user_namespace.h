@@ -22,6 +22,7 @@ struct uid_gid_map {	/* 64 bytes -- 1 cache line */
 
 #define USERNS_INIT_FLAGS USERNS_SETGROUPS_ALLOWED
 
+struct ucounts;
 struct user_namespace {
 	struct uid_gid_map	uid_map;
 	struct uid_gid_map	gid_map;
@@ -44,15 +45,24 @@ struct user_namespace {
 	struct ctl_table_set	set;
 	struct ctl_table_header *sysctls;
 #endif
+	struct ucounts		*ucounts;
 	int max_user_namespaces;
+};
+
+struct ucounts {
+	struct hlist_node node;
+	struct user_namespace *ns;
+	kuid_t uid;
+	atomic_t count;
 	atomic_t user_namespaces;
 };
 
 extern struct user_namespace init_user_ns;
-extern bool setup_userns_sysctls(struct user_namespace *ns);
-extern void retire_userns_sysctls(struct user_namespace *ns);
-extern bool inc_user_namespaces(struct user_namespace *ns);
-extern void dec_user_namespaces(struct user_namespace *ns);
+
+bool setup_userns_sysctls(struct user_namespace *ns);
+void retire_userns_sysctls(struct user_namespace *ns);
+struct ucounts *inc_user_namespaces(struct user_namespace *ns, kuid_t uid);
+void dec_user_namespaces(struct ucounts *ucounts);
 
 #ifdef CONFIG_USER_NS
 
