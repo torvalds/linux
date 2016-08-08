@@ -273,5 +273,19 @@
 				vqmmc-supply = <&pm8921_s4>;
 			};
 		};
+
+		imem@2a03f000 {
+			compatible = "syscon", "simple-mfd";
+			reg = <0x2a03f000 0x1000>;
+
+			reboot-mode {
+				compatible = "syscon-reboot-mode";
+				offset = <0x65c>;
+
+				mode-normal	= <0x77665501>;
+				mode-bootloader	= <0x77665500>;
+				mode-recovery	= <0x77665502>;
+			};
+		};
 	};
 };
