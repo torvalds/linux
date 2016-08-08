@@ -71,6 +71,7 @@ static struct ctl_table user_table[] = {
 	UCOUNT_ENTRY("max_pid_namespaces"),
 	UCOUNT_ENTRY("max_uts_namespaces"),
 	UCOUNT_ENTRY("max_ipc_namespaces"),
+	UCOUNT_ENTRY("max_cgroup_namespaces"),
 	{ }
 };
 #endif /* CONFIG_SYSCTL */
