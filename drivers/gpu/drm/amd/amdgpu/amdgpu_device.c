@@ -1185,6 +1185,8 @@ static int amdgpu_early_init(struct amdgpu_device *adev)
 {
 	int i, r;
 
+	DRM_INFO("virtual display enabled:%d\n", amdgpu_virtual_display);
+
 	switch (adev->asic_type) {
 	case CHIP_TOPAZ:
 	case CHIP_TONGA:

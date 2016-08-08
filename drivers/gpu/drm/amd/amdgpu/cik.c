@@ -2323,30 +2323,59 @@ static const struct amdgpu_ip_block_version kaveri_ip_blocks_vd[] =
 
 int cik_set_ip_blocks(struct amdgpu_device *adev)
 {
-	switch (adev->asic_type) {
-	case CHIP_BONAIRE:
-		adev->ip_blocks = bonaire_ip_blocks;
-		adev->num_ip_blocks = ARRAY_SIZE(bonaire_ip_blocks);
-		break;
-	case CHIP_HAWAII:
-		adev->ip_blocks = hawaii_ip_blocks;
-		adev->num_ip_blocks = ARRAY_SIZE(hawaii_ip_blocks);
-		break;
-	case CHIP_KAVERI:
-		adev->ip_blocks = kaveri_ip_blocks;
-		adev->num_ip_blocks = ARRAY_SIZE(kaveri_ip_blocks);
-		break;
-	case CHIP_KABINI:
-		adev->ip_blocks = kabini_ip_blocks;
-		adev->num_ip_blocks = ARRAY_SIZE(kabini_ip_blocks);
-		break;
-	case CHIP_MULLINS:
-		adev->ip_blocks = mullins_ip_blocks;
-		adev->num_ip_blocks = ARRAY_SIZE(mullins_ip_blocks);
-		break;
-	default:
-		/* FIXME: not supported yet */
-		return -EINVAL;
+	if (amdgpu_virtual_display) {
+		adev->mode_info.vsync_timer_enabled = AMDGPU_IRQ_STATE_DISABLE;
+		switch (adev->asic_type) {
+		case CHIP_BONAIRE:
+			adev->ip_blocks = bonaire_ip_blocks_vd;
+			adev->num_ip_blocks = ARRAY_SIZE(bonaire_ip_blocks_vd);
+			break;
+		case CHIP_HAWAII:
+			adev->ip_blocks = hawaii_ip_blocks_vd;
+			adev->num_ip_blocks = ARRAY_SIZE(hawaii_ip_blocks_vd);
+			break;
+		case CHIP_KAVERI:
+			adev->ip_blocks = kaveri_ip_blocks_vd;
+			adev->num_ip_blocks = ARRAY_SIZE(kaveri_ip_blocks_vd);
+			break;
+		case CHIP_KABINI:
+			adev->ip_blocks = kabini_ip_blocks_vd;
+			adev->num_ip_blocks = ARRAY_SIZE(kabini_ip_blocks_vd);
+			break;
+		case CHIP_MULLINS:
+			adev->ip_blocks = mullins_ip_blocks_vd;
+			adev->num_ip_blocks = ARRAY_SIZE(mullins_ip_blocks_vd);
+			break;
+		default:
+			/* FIXME: not supported yet */
+			return -EINVAL;
+		}
+	} else {
+		switch (adev->asic_type) {
+		case CHIP_BONAIRE:
+			adev->ip_blocks = bonaire_ip_blocks;
+			adev->num_ip_blocks = ARRAY_SIZE(bonaire_ip_blocks);
+			break;
+		case CHIP_HAWAII:
+			adev->ip_blocks = hawaii_ip_blocks;
+			adev->num_ip_blocks = ARRAY_SIZE(hawaii_ip_blocks);
+			break;
+		case CHIP_KAVERI:
+			adev->ip_blocks = kaveri_ip_blocks;
+			adev->num_ip_blocks = ARRAY_SIZE(kaveri_ip_blocks);
+			break;
+		case CHIP_KABINI:
+			adev->ip_blocks = kabini_ip_blocks;
+			adev->num_ip_blocks = ARRAY_SIZE(kabini_ip_blocks);
+			break;
+		case CHIP_MULLINS:
+			adev->ip_blocks = mullins_ip_blocks;
+			adev->num_ip_blocks = ARRAY_SIZE(mullins_ip_blocks);
+			break;
+		default:
+			/* FIXME: not supported yet */
+			return -EINVAL;
+		}
 	}
 
 	return 0;
