@@ -34,6 +34,97 @@
 static void dce_virtual_set_display_funcs(struct amdgpu_device *adev);
 static void dce_virtual_set_irq_funcs(struct amdgpu_device *adev);
 
+/**
+ * dce_virtual_vblank_wait - vblank wait asic callback.
+ *
+ * @adev: amdgpu_device pointer
+ * @crtc: crtc to wait for vblank on
+ *
+ * Wait for vblank on the requested crtc (evergreen+).
+ */
+static void dce_virtual_vblank_wait(struct amdgpu_device *adev, int crtc)
+{
+	return;
+}
+
+static u32 dce_virtual_vblank_get_counter(struct amdgpu_device *adev, int crtc)
+{
+	if (crtc >= adev->mode_info.num_crtc)
+		return 0;
+	else
+		return adev->ddev->vblank[crtc].count;
+}
+
+static void dce_virtual_page_flip(struct amdgpu_device *adev,
+			      int crtc_id, u64 crtc_base, bool async)
+{
+	return;
+}
+
+static int dce_virtual_crtc_get_scanoutpos(struct amdgpu_device *adev, int crtc,
+					u32 *vbl, u32 *position)
+{
+	if ((crtc < 0) || (crtc >= adev->mode_info.num_crtc))
+		return -EINVAL;
+
+	*vbl = 0;
+	*position = 0;
+
+	return 0;
+}
+
+static bool dce_virtual_hpd_sense(struct amdgpu_device *adev,
+			       enum amdgpu_hpd_id hpd)
+{
+	return true;
+}
+
+static void dce_virtual_hpd_set_polarity(struct amdgpu_device *adev,
+				      enum amdgpu_hpd_id hpd)
+{
+	return;
+}
+
+static u32 dce_virtual_hpd_get_gpio_reg(struct amdgpu_device *adev)
+{
+	return 0;
+}
+
+static bool dce_virtual_is_display_hung(struct amdgpu_device *adev)
+{
+	return false;
+}
+
+void dce_virtual_stop_mc_access(struct amdgpu_device *adev,
+			      struct amdgpu_mode_mc_save *save)
+{
+	return;
+}
+void dce_virtual_resume_mc_access(struct amdgpu_device *adev,
+				struct amdgpu_mode_mc_save *save)
+{
+	return;
+}
+
+void dce_virtual_set_vga_render_state(struct amdgpu_device *adev,
+				    bool render)
+{
+	return;
+}
+
+/**
+ * dce_virtual_bandwidth_update - program display watermarks
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Calculate and program the display watermarks and line
+ * buffer allocation (CIK).
+ */
+static void dce_virtual_bandwidth_update(struct amdgpu_device *adev)
+{
+	return;
+}
+
 static const struct drm_crtc_funcs dce_virtual_crtc_funcs = {
 	.cursor_set2 = NULL,
 	.cursor_move = NULL,
@@ -253,23 +344,127 @@ const struct amd_ip_funcs dce_virtual_ip_funcs = {
 	.set_powergating_state = dce_virtual_set_powergating_state,
 };
 
+/* these are handled by the primary encoders */
+static void dce_virtual_encoder_prepare(struct drm_encoder *encoder)
+{
+	return;
+}
+
+static void dce_virtual_encoder_commit(struct drm_encoder *encoder)
+{
+	return;
+}
+
+static void
+dce_virtual_encoder_mode_set(struct drm_encoder *encoder,
+		      struct drm_display_mode *mode,
+		      struct drm_display_mode *adjusted_mode)
+{
+	return;
+}
+
+static void dce_virtual_encoder_disable(struct drm_encoder *encoder)
+{
+	return;
+}
+
+static void
+dce_virtual_encoder_dpms(struct drm_encoder *encoder, int mode)
+{
+	return;
+}
+
+static bool dce_virtual_encoder_mode_fixup(struct drm_encoder *encoder,
+				    const struct drm_display_mode *mode,
+				    struct drm_display_mode *adjusted_mode)
+{
+
+	/* set the active encoder to connector routing */
+	amdgpu_encoder_set_active_device(encoder);
+
+	return true;
+}
+
+static const struct drm_encoder_helper_funcs dce_virtual_encoder_helper_funcs = {
+	.dpms = dce_virtual_encoder_dpms,
+	.mode_fixup = dce_virtual_encoder_mode_fixup,
+	.prepare = dce_virtual_encoder_prepare,
+	.mode_set = dce_virtual_encoder_mode_set,
+	.commit = dce_virtual_encoder_commit,
+	.disable = dce_virtual_encoder_disable,
+};
+
+static void dce_virtual_encoder_destroy(struct drm_encoder *encoder)
+{
+	struct amdgpu_encoder *amdgpu_encoder = to_amdgpu_encoder(encoder);
+
+	kfree(amdgpu_encoder->enc_priv);
+	drm_encoder_cleanup(encoder);
+	kfree(amdgpu_encoder);
+}
+
+static const struct drm_encoder_funcs dce_virtual_encoder_funcs = {
+	.destroy = dce_virtual_encoder_destroy,
+};
+
+static void dce_virtual_encoder_add(struct amdgpu_device *adev,
+				 uint32_t encoder_enum,
+				 uint32_t supported_device,
+				 u16 caps)
+{
+	struct drm_device *dev = adev->ddev;
+	struct drm_encoder *encoder;
+	struct amdgpu_encoder *amdgpu_encoder;
+
+	/* see if we already added it */
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+		amdgpu_encoder = to_amdgpu_encoder(encoder);
+		if (amdgpu_encoder->encoder_enum == encoder_enum) {
+			amdgpu_encoder->devices |= supported_device;
+			return;
+		}
+
+	}
+
+	/* add a new one */
+	amdgpu_encoder = kzalloc(sizeof(struct amdgpu_encoder), GFP_KERNEL);
+	if (!amdgpu_encoder)
+		return;
+
+	encoder = &amdgpu_encoder->base;
+	encoder->possible_crtcs = 0x1;
+	amdgpu_encoder->enc_priv = NULL;
+	amdgpu_encoder->encoder_enum = encoder_enum;
+	amdgpu_encoder->encoder_id = (encoder_enum & OBJECT_ID_MASK) >> OBJECT_ID_SHIFT;
+	amdgpu_encoder->devices = supported_device;
+	amdgpu_encoder->rmx_type = RMX_OFF;
+	amdgpu_encoder->underscan_type = UNDERSCAN_OFF;
+	amdgpu_encoder->is_ext_encoder = false;
+	amdgpu_encoder->caps = caps;
+
+	drm_encoder_init(dev, encoder, &dce_virtual_encoder_funcs,
+					 DRM_MODE_ENCODER_VIRTUAL, NULL);
+	drm_encoder_helper_add(encoder, &dce_virtual_encoder_helper_funcs);
+	DRM_INFO("[FM]encoder: %d is VIRTUAL\n", amdgpu_encoder->encoder_id);
+}
+
 static const struct amdgpu_display_funcs dce_virtual_display_funcs = {
-	.set_vga_render_state = NULL,
-	.bandwidth_update = NULL,
-	.vblank_get_counter = NULL,
-	.vblank_wait = NULL,
-	.is_display_hung = NULL,
+	.set_vga_render_state = &dce_virtual_set_vga_render_state,
+	.bandwidth_update = &dce_virtual_bandwidth_update,
+	.vblank_get_counter = &dce_virtual_vblank_get_counter,
+	.vblank_wait = &dce_virtual_vblank_wait,
+	.is_display_hung = &dce_virtual_is_display_hung,
 	.backlight_set_level = NULL,
 	.backlight_get_level = NULL,
-	.hpd_sense = NULL,
-	.hpd_set_polarity = NULL,
-	.hpd_get_gpio_reg = NULL,
-	.page_flip = NULL,
-	.page_flip_get_scanoutpos = NULL,
-	.add_encoder = NULL,
+	.hpd_sense = &dce_virtual_hpd_sense,
+	.hpd_set_polarity = &dce_virtual_hpd_set_polarity,
+	.hpd_get_gpio_reg = &dce_virtual_hpd_get_gpio_reg,
+	.page_flip = &dce_virtual_page_flip,
+	.page_flip_get_scanoutpos = &dce_virtual_crtc_get_scanoutpos,
+	.add_encoder = &dce_virtual_encoder_add,
 	.add_connector = &amdgpu_connector_add,
-	.stop_mc_access = NULL,
-	.resume_mc_access = NULL,
+	.stop_mc_access = &dce_virtual_stop_mc_access,
+	.resume_mc_access = &dce_virtual_resume_mc_access,
 };
 
 static void dce_virtual_set_display_funcs(struct amdgpu_device *adev)
@@ -304,5 +499,4 @@ static void dce_virtual_set_irq_funcs(struct amdgpu_device *adev)
 	adev->hpd_irq.num_types = AMDGPU_HPD_LAST;
 	adev->hpd_irq.funcs = &dce_virtual_hpd_irq_funcs;
 }
-
 
