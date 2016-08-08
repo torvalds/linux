@@ -1110,12 +1110,14 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8985 = {
 	.set_bias_level = wm8985_set_bias_level,
 	.suspend_bias_off = true,
 
-	.controls = wm8985_common_snd_controls,
-	.num_controls = ARRAY_SIZE(wm8985_common_snd_controls),
-	.dapm_widgets = wm8985_common_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm8985_common_dapm_widgets),
-	.dapm_routes = wm8985_common_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(wm8985_common_dapm_routes),
+	.component_driver = {
+		.controls		= wm8985_common_snd_controls,
+		.num_controls		= ARRAY_SIZE(wm8985_common_snd_controls),
+		.dapm_widgets		= wm8985_common_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm8985_common_dapm_widgets),
+		.dapm_routes		= wm8985_common_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(wm8985_common_dapm_routes),
+	},
 };
 
 static const struct regmap_config wm8985_regmap = {
