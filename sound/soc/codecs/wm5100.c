@@ -2390,12 +2390,14 @@ static struct snd_soc_codec_driver soc_codec_dev_wm5100 = {
 	.idle_bias_off = 1,
 
 	.seq_notifier = wm5100_seq_notifier,
-	.controls = wm5100_snd_controls,
-	.num_controls = ARRAY_SIZE(wm5100_snd_controls),
-	.dapm_widgets = wm5100_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm5100_dapm_widgets),
-	.dapm_routes = wm5100_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(wm5100_dapm_routes),
+	.component_driver = {
+		.controls		= wm5100_snd_controls,
+		.num_controls		= ARRAY_SIZE(wm5100_snd_controls),
+		.dapm_widgets		= wm5100_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm5100_dapm_widgets),
+		.dapm_routes		= wm5100_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(wm5100_dapm_routes),
+	},
 };
 
 static const struct regmap_config wm5100_regmap = {
