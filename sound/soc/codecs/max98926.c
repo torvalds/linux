@@ -498,12 +498,14 @@ static int max98926_probe(struct snd_soc_codec *codec)
 
 static struct snd_soc_codec_driver soc_codec_dev_max98926 = {
 	.probe	= max98926_probe,
-	.controls = max98926_snd_controls,
-	.num_controls = ARRAY_SIZE(max98926_snd_controls),
-	.dapm_routes = max98926_audio_map,
-	.num_dapm_routes = ARRAY_SIZE(max98926_audio_map),
-	.dapm_widgets = max98926_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(max98926_dapm_widgets),
+	.component_driver = {
+		.controls		= max98926_snd_controls,
+		.num_controls		= ARRAY_SIZE(max98926_snd_controls),
+		.dapm_routes		= max98926_audio_map,
+		.num_dapm_routes	= ARRAY_SIZE(max98926_audio_map),
+		.dapm_widgets		= max98926_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(max98926_dapm_widgets),
+	},
 };
 
 static const struct regmap_config max98926_regmap = {
