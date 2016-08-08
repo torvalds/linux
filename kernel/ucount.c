@@ -57,16 +57,17 @@ static struct ctl_table_root set_root = {
 
 static int zero = 0;
 static int int_max = INT_MAX;
+#define UCOUNT_ENTRY(name) 				\
+	{						\
+		.procname	= name,			\
+		.maxlen		= sizeof(int),		\
+		.mode		= 0644,			\
+		.proc_handler	= proc_dointvec_minmax,	\
+		.extra1		= &zero,		\
+		.extra2		= &int_max,		\
+	}
 static struct ctl_table user_table[] = {
-	{
-		.procname	= "max_user_namespaces",
-		.data		= &init_user_ns.max_user_namespaces,
-		.maxlen		= sizeof(init_user_ns.max_user_namespaces),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &zero,
-		.extra2		= &int_max,
-	},
+	UCOUNT_ENTRY("max_user_namespaces"),
 	{ }
 };
 #endif /* CONFIG_SYSCTL */
@@ -78,8 +79,10 @@ bool setup_userns_sysctls(struct user_namespace *ns)
 	setup_sysctl_set(&ns->set, &set_root, set_is_seen);
 	tbl = kmemdup(user_table, sizeof(user_table), GFP_KERNEL);
 	if (tbl) {
-		tbl[0].data = &ns->max_user_namespaces;
-
+		int i;
+		for (i = 0; i < UCOUNT_COUNTS; i++) {
+			tbl[i].data = &ns->ucount_max[i];
+		}
 		ns->sysctls = __register_sysctl_table(&ns->set, "user", tbl);
 	}
 	if (!ns->sysctls) {
@@ -172,7 +175,8 @@ static inline bool atomic_inc_below(atomic_t *v, int u)
 	}
 }
 
-struct ucounts *inc_user_namespaces(struct user_namespace *ns, kuid_t uid)
+struct ucounts *inc_ucount(struct user_namespace *ns, kuid_t uid,
+			   enum ucount_type type)
 {
 	struct ucounts *ucounts, *iter, *bad;
 	struct user_namespace *tns;
@@ -180,30 +184,29 @@ struct ucounts *inc_user_namespaces(struct user_namespace *ns, kuid_t uid)
 	for (iter = ucounts; iter; iter = tns->ucounts) {
 		int max;
 		tns = iter->ns;
-		max = READ_ONCE(tns->max_user_namespaces);
-		if (!atomic_inc_below(&iter->user_namespaces, max))
+		max = READ_ONCE(tns->ucount_max[type]);
+		if (!atomic_inc_below(&iter->ucount[type], max))
 			goto fail;
 	}
 	return ucounts;
 fail:
 	bad = iter;
 	for (iter = ucounts; iter != bad; iter = iter->ns->ucounts)
-		atomic_dec(&iter->user_namespaces);
+		atomic_dec(&iter->ucount[type]);
 
 	put_ucounts(ucounts);
 	return NULL;
 }
 
-void dec_user_namespaces(struct ucounts *ucounts)
+void dec_ucount(struct ucounts *ucounts, enum ucount_type type)
 {
 	struct ucounts *iter;
 	for (iter = ucounts; iter; iter = iter->ns->ucounts) {
-		int dec = atomic_dec_if_positive(&iter->user_namespaces);
+		int dec = atomic_dec_if_positive(&iter->ucount[type]);
 		WARN_ON_ONCE(dec < 0);
 	}
 	put_ucounts(ucounts);
 }
-
 
 static __init int user_namespace_sysctl_init(void)
 {

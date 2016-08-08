@@ -31,6 +31,16 @@ static bool new_idmap_permitted(const struct file *file,
 				struct uid_gid_map *map);
 static void free_user_ns(struct work_struct *work);
 
+static struct ucounts *inc_user_namespaces(struct user_namespace *ns, kuid_t uid)
+{
+	return inc_ucount(ns, uid, UCOUNT_USER_NAMESPACES);
+}
+
+static void dec_user_namespaces(struct ucounts *ucounts)
+{
+	return dec_ucount(ucounts, UCOUNT_USER_NAMESPACES);
+}
+
 static void set_cred_user_ns(struct cred *cred, struct user_namespace *user_ns)
 {
 	/* Start with the same capabilities as init but useless for doing
@@ -64,7 +74,7 @@ int create_user_ns(struct cred *new)
 	kuid_t owner = new->euid;
 	kgid_t group = new->egid;
 	struct ucounts *ucounts;
-	int ret;
+	int ret, i;
 
 	ret = -EUSERS;
 	if (parent_ns->level > 32)
@@ -110,7 +120,9 @@ int create_user_ns(struct cred *new)
 	ns->owner = owner;
 	ns->group = group;
 	INIT_WORK(&ns->work, free_user_ns);
-	ns->max_user_namespaces = INT_MAX;
+	for (i = 0; i < UCOUNT_COUNTS; i++) {
+		ns->ucount_max[i] = INT_MAX;
+	}
 	ns->ucounts = ucounts;
 
 	/* Inherit USERNS_SETGROUPS_ALLOWED from our parent */
