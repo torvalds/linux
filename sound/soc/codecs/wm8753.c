@@ -1484,12 +1484,14 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8753 = {
 	.set_bias_level = wm8753_set_bias_level,
 	.suspend_bias_off = true,
 
-	.controls = wm8753_snd_controls,
-	.num_controls = ARRAY_SIZE(wm8753_snd_controls),
-	.dapm_widgets = wm8753_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm8753_dapm_widgets),
-	.dapm_routes = wm8753_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(wm8753_dapm_routes),
+	.component_driver = {
+		.controls		= wm8753_snd_controls,
+		.num_controls		= ARRAY_SIZE(wm8753_snd_controls),
+		.dapm_widgets		= wm8753_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm8753_dapm_widgets),
+		.dapm_routes		= wm8753_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(wm8753_dapm_routes),
+	},
 };
 
 static const struct of_device_id wm8753_of_match[] = {
