@@ -502,10 +502,12 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8741 = {
 	.remove =	wm8741_remove,
 	.resume =	wm8741_resume,
 
-	.dapm_widgets = wm8741_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm8741_dapm_widgets),
-	.dapm_routes = wm8741_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(wm8741_dapm_routes),
+	.component_driver = {
+		.dapm_widgets		= wm8741_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm8741_dapm_widgets),
+		.dapm_routes		= wm8741_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(wm8741_dapm_routes),
+	},
 };
 
 static const struct of_device_id wm8741_of_match[] = {
