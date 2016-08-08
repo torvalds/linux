@@ -1944,6 +1944,11 @@ E: kraxel@bytesex.org
 E: kraxel@suse.de
 D: video4linux, bttv, vesafb, some scsi, misc fixes
 
+N: Hans J. Koch
+D: USERSPACE I/O, MAX6650
+D: Hans passed away in June 2016, and will be greatly missed.
+W: https://lwn.net/Articles/691000/
+
 N: Harald Koenig
 E: koenig@tat.physik.uni-tuebingen.de
 D: XFree86 (S3), DCF77, some kernel hacks and fixes
