@@ -281,9 +281,9 @@ befs_btree_find(struct super_block *sb, const befs_data_stream *ds,
 
 	while (!befs_leafnode(this_node)) {
 		res = befs_find_key(sb, this_node, key, &node_off);
-		if (res == BEFS_BT_NOT_FOUND)
+		/* if no key set, try the overflow node */
+		if (res == BEFS_BT_OVERFLOW)
 			node_off = this_node->head.overflow;
-		/* if no match, go to overflow node */
 		if (befs_bt_read_node(sb, ds, this_node, node_off) != BEFS_OK) {
 			befs_error(sb, "befs_btree_find() failed to read "
 				   "node at %llu", node_off);
@@ -291,8 +291,7 @@ befs_btree_find(struct super_block *sb, const befs_data_stream *ds,
 		}
 	}
 
-	/* at the correct leaf node now */
-
+	/* at a leaf node now, check if it is correct */
 	res = befs_find_key(sb, this_node, key, value);
 
 	brelse(this_node->bh);
@@ -323,16 +322,12 @@ befs_btree_find(struct super_block *sb, const befs_data_stream *ds,
  * @findkey: Keystring to search for
  * @value: If key is found, the value stored with the key is put here
  *
- * finds exact match if one exists, and returns BEFS_BT_MATCH
- * If no exact match, finds first key in node that is greater
- * (alphabetically) than the search key and returns BEFS_BT_PARMATCH
- * (for partial match, I guess). Can you think of something better to
- * call it?
+ * Finds exact match if one exists, and returns BEFS_BT_MATCH.
+ * If there is no match and node's value array is too small for key, return
+ * BEFS_BT_OVERFLOW.
+ * If no match and node should countain this key, return BEFS_BT_NOT_FOUND.
  *
- * If no key was a match or greater than the search key, return
- * BEFS_BT_NOT_FOUND.
- *
- * Use binary search instead of a linear.
+ * Uses binary search instead of a linear.
  */
 static int
 befs_find_key(struct super_block *sb, struct befs_btree_node *node,
@@ -355,9 +350,8 @@ befs_find_key(struct super_block *sb, struct befs_btree_node *node,
 
 	eq = befs_compare_strings(thiskey, keylen, findkey, findkey_len);
 	if (eq < 0) {
-		befs_error(sb, "<--- %s %s not found", __func__, findkey);
-		befs_debug(sb, "<--- %s ERROR", __func__);
-		return BEFS_BT_NOT_FOUND;
+		befs_debug(sb, "<--- node can't contain %s", findkey);
+		return BEFS_BT_OVERFLOW;
 	}
 
 	valarray = befs_bt_valarray(node);
@@ -385,12 +379,15 @@ befs_find_key(struct super_block *sb, struct befs_btree_node *node,
 		else
 			first = mid + 1;
 	}
+
+	/* return an existing value so caller can arrive to a leaf node */
 	if (eq < 0)
 		*value = fs64_to_cpu(sb, valarray[mid + 1]);
 	else
 		*value = fs64_to_cpu(sb, valarray[mid]);
-	befs_debug(sb, "<--- %s found %s at %d", __func__, thiskey, mid);
-	return BEFS_BT_PARMATCH;
+	befs_error(sb, "<--- %s %s not found", __func__, findkey);
+	befs_debug(sb, "<--- %s ERROR", __func__);
+	return BEFS_BT_NOT_FOUND;
 }
 
 /**
