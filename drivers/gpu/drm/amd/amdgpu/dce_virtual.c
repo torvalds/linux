@@ -473,19 +473,128 @@ static void dce_virtual_set_display_funcs(struct amdgpu_device *adev)
 		adev->mode_info.funcs = &dce_virtual_display_funcs;
 }
 
+static void dce_virtual_set_crtc_vblank_interrupt_state(struct amdgpu_device *adev,
+                                                    int crtc,
+                                                    enum amdgpu_interrupt_state state)
+{
+	if (crtc >= adev->mode_info.num_crtc) {
+		DRM_DEBUG("invalid crtc %d\n", crtc);
+		return;
+	}
+}
+
+static int dce_virtual_set_crtc_irq_state(struct amdgpu_device *adev,
+                                       struct amdgpu_irq_src *source,
+                                       unsigned type,
+                                       enum amdgpu_interrupt_state state)
+{
+	switch (type) {
+	case AMDGPU_CRTC_IRQ_VBLANK1:
+		dce_virtual_set_crtc_vblank_interrupt_state(adev, 0, state);
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
+static void dce_virtual_crtc_vblank_int_ack(struct amdgpu_device *adev,
+					  int crtc)
+{
+	if (crtc >= adev->mode_info.num_crtc) {
+		DRM_DEBUG("invalid crtc %d\n", crtc);
+		return;
+	}
+}
+
+static int dce_virtual_crtc_irq(struct amdgpu_device *adev,
+                             struct amdgpu_irq_src *source,
+                             struct amdgpu_iv_entry *entry)
+{
+	unsigned crtc = 0;
+	unsigned irq_type = AMDGPU_CRTC_IRQ_VBLANK1;
+
+	adev->ddev->vblank[crtc].count++;
+	dce_virtual_crtc_vblank_int_ack(adev, crtc);
+
+	if (amdgpu_irq_enabled(adev, source, irq_type)) {
+		drm_handle_vblank(adev->ddev, crtc);
+	}
+
+	DRM_DEBUG("IH: D%d vblank\n", crtc + 1);
+	return 0;
+}
+
+static int dce_virtual_set_pageflip_irq_state(struct amdgpu_device *adev,
+					    struct amdgpu_irq_src *src,
+					    unsigned type,
+					    enum amdgpu_interrupt_state state)
+{
+	if (type >= adev->mode_info.num_crtc) {
+		DRM_ERROR("invalid pageflip crtc %d\n", type);
+		return -EINVAL;
+	}
+	DRM_DEBUG("[FM]set pageflip irq type %d state %d\n", type, state);
+
+	return 0;
+}
+
+static int dce_virtual_pageflip_irq(struct amdgpu_device *adev,
+				  struct amdgpu_irq_src *source,
+				  struct amdgpu_iv_entry *entry)
+{
+	unsigned long flags;
+	unsigned crtc_id = 0;
+	struct amdgpu_crtc *amdgpu_crtc;
+	struct amdgpu_flip_work *works;
+
+	crtc_id = 0;
+	amdgpu_crtc = adev->mode_info.crtcs[crtc_id];
+
+	if (crtc_id >= adev->mode_info.num_crtc) {
+		DRM_ERROR("invalid pageflip crtc %d\n", crtc_id);
+		return -EINVAL;
+	}
+
+	/* IRQ could occur when in initial stage */
+	if (amdgpu_crtc == NULL)
+		return 0;
+
+	spin_lock_irqsave(&adev->ddev->event_lock, flags);
+	works = amdgpu_crtc->pflip_works;
+	if (amdgpu_crtc->pflip_status != AMDGPU_FLIP_SUBMITTED) {
+		DRM_DEBUG_DRIVER("amdgpu_crtc->pflip_status = %d != "
+			"AMDGPU_FLIP_SUBMITTED(%d)\n",
+			amdgpu_crtc->pflip_status,
+			AMDGPU_FLIP_SUBMITTED);
+		spin_unlock_irqrestore(&adev->ddev->event_lock, flags);
+		return 0;
+	}
+
+	/* page flip completed. clean up */
+	amdgpu_crtc->pflip_status = AMDGPU_FLIP_NONE;
+	amdgpu_crtc->pflip_works = NULL;
+
+	/* wakeup usersapce */
+	if (works->event)
+		drm_crtc_send_vblank_event(&amdgpu_crtc->base, works->event);
+
+	spin_unlock_irqrestore(&adev->ddev->event_lock, flags);
+
+	drm_crtc_vblank_put(&amdgpu_crtc->base);
+	schedule_work(&works->unpin_work);
+
+	return 0;
+}
+
 static const struct amdgpu_irq_src_funcs dce_virtual_crtc_irq_funcs = {
-	.set = NULL,
-	.process = NULL,
+	.set = dce_virtual_set_crtc_irq_state,
+	.process = dce_virtual_crtc_irq,
 };
 
 static const struct amdgpu_irq_src_funcs dce_virtual_pageflip_irq_funcs = {
-	.set = NULL,
-	.process = NULL,
-};
-
-static const struct amdgpu_irq_src_funcs dce_virtual_hpd_irq_funcs = {
-	.set = NULL,
-	.process = NULL,
+	.set = dce_virtual_set_pageflip_irq_state,
+	.process = dce_virtual_pageflip_irq,
 };
 
 static void dce_virtual_set_irq_funcs(struct amdgpu_device *adev)
@@ -495,8 +604,5 @@ static void dce_virtual_set_irq_funcs(struct amdgpu_device *adev)
 
 	adev->pageflip_irq.num_types = AMDGPU_PAGEFLIP_IRQ_LAST;
 	adev->pageflip_irq.funcs = &dce_virtual_pageflip_irq_funcs;
-
-	adev->hpd_irq.num_types = AMDGPU_HPD_LAST;
-	adev->hpd_irq.funcs = &dce_virtual_hpd_irq_funcs;
 }
 
