@@ -1114,12 +1114,14 @@ static struct snd_soc_codec_driver soc_codec_driver_aic31xx = {
 	.set_bias_level		= aic31xx_set_bias_level,
 	.suspend_bias_off	= true,
 
-	.controls		= aic31xx_snd_controls,
-	.num_controls		= ARRAY_SIZE(aic31xx_snd_controls),
-	.dapm_widgets		= aic31xx_dapm_widgets,
-	.num_dapm_widgets	= ARRAY_SIZE(aic31xx_dapm_widgets),
-	.dapm_routes		= aic31xx_audio_map,
-	.num_dapm_routes	= ARRAY_SIZE(aic31xx_audio_map),
+	.component_driver = {
+		.controls		= aic31xx_snd_controls,
+		.num_controls		= ARRAY_SIZE(aic31xx_snd_controls),
+		.dapm_widgets		= aic31xx_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(aic31xx_dapm_widgets),
+		.dapm_routes		= aic31xx_audio_map,
+		.num_dapm_routes	= ARRAY_SIZE(aic31xx_audio_map),
+	},
 };
 
 static const struct snd_soc_dai_ops aic31xx_dai_ops = {
