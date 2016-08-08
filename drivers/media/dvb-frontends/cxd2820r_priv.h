@@ -27,6 +27,7 @@
 #include "dvb_math.h"
 #include "cxd2820r.h"
 #include <linux/gpio.h>
+#include <linux/math64.h>
 
 struct reg_val_mask {
 	u32 reg;
@@ -40,6 +41,7 @@ struct cxd2820r_priv {
 	struct i2c_adapter *i2c;
 	struct dvb_frontend fe;
 	struct cxd2820r_config cfg;
+	u64 post_bit_error;
 
 	bool ber_running;
 
