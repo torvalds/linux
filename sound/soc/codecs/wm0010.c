@@ -795,10 +795,12 @@ static struct snd_soc_codec_driver soc_codec_dev_wm0010 = {
 	.set_sysclk = wm0010_set_sysclk,
 	.idle_bias_off = true,
 
-	.dapm_widgets = wm0010_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm0010_dapm_widgets),
-	.dapm_routes = wm0010_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(wm0010_dapm_routes),
+	.component_driver = {
+		.dapm_widgets		= wm0010_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm0010_dapm_widgets),
+		.dapm_routes		= wm0010_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(wm0010_dapm_routes),
+	},
 };
 
 #define WM0010_RATES (SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000)
