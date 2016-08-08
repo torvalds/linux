@@ -1374,6 +1374,8 @@ MODULE_DEVICE_TABLE(x86cpu, intel_pstate_cpu_ids);
 
 static const struct x86_cpu_id intel_pstate_cpu_oob_ids[] __initconst = {
 	ICPU(INTEL_FAM6_BROADWELL_XEON_D, core_params),
+	ICPU(INTEL_FAM6_BROADWELL_X, core_params),
+	ICPU(INTEL_FAM6_SKYLAKE_X, core_params),
 	{}
 };
 

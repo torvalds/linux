@@ -3378,20 +3378,28 @@ static int cxd2841er_tune_tc(struct dvb_frontend *fe,
 				ret = cxd2841er_get_carrier_offset_i(
 						priv, p->bandwidth_hz,
 						&carrier_offset);
+				if (ret)
+					return ret;
 				break;
 			case SYS_DVBT:
 				ret = cxd2841er_get_carrier_offset_t(
 					priv, p->bandwidth_hz,
 					&carrier_offset);
+				if (ret)
+					return ret;
 				break;
 			case SYS_DVBT2:
 				ret = cxd2841er_get_carrier_offset_t2(
 					priv, p->bandwidth_hz,
 					&carrier_offset);
+				if (ret)
+					return ret;
 				break;
 			case SYS_DVBC_ANNEX_A:
 				ret = cxd2841er_get_carrier_offset_c(
 					priv, &carrier_offset);
+				if (ret)
+					return ret;
 				break;
 			default:
 				dev_dbg(&priv->i2c->dev,
@@ -3399,8 +3407,6 @@ static int cxd2841er_tune_tc(struct dvb_frontend *fe,
 					__func__, priv->system);
 				return -EINVAL;
 			}
-			if (ret)
-				return ret;
 			dev_dbg(&priv->i2c->dev, "%s(): carrier offset %d\n",
 				__func__, carrier_offset);
 			p->frequency += carrier_offset;

@@ -148,7 +148,7 @@ int cps_pm_enter_state(enum cps_pm_state state)
 	}
 
 	/* Setup the VPE to run mips_cps_pm_restore when started again */
-	if (config_enabled(CONFIG_CPU_PM) && state == CPS_PM_POWER_GATED) {
+	if (IS_ENABLED(CONFIG_CPU_PM) && state == CPS_PM_POWER_GATED) {
 		/* Power gating relies upon CPS SMP */
 		if (!mips_cps_smp_in_use())
 			return -EINVAL;
@@ -387,7 +387,7 @@ static void * __init cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 	memset(labels, 0, sizeof(labels));
 	memset(relocs, 0, sizeof(relocs));
 
-	if (config_enabled(CONFIG_CPU_PM) && state == CPS_PM_POWER_GATED) {
+	if (IS_ENABLED(CONFIG_CPU_PM) && state == CPS_PM_POWER_GATED) {
 		/* Power gating relies upon CPS SMP */
 		if (!mips_cps_smp_in_use())
 			goto out_err;

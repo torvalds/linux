@@ -13,6 +13,7 @@
  */
 
 #include <linux/types.h>
+#include <linux/jump_label.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/init.h>
@@ -152,9 +153,18 @@ static void do_final_fixups(void)
 #endif
 }
 
-void apply_feature_fixups(void)
+static unsigned long __initdata saved_cpu_features;
+static unsigned int __initdata saved_mmu_features;
+#ifdef CONFIG_PPC64
+static unsigned long __initdata saved_firmware_features;
+#endif
+
+void __init apply_feature_fixups(void)
 {
-	struct cpu_spec *spec = *PTRRELOC(&cur_cpu_spec);
+	struct cpu_spec *spec = PTRRELOC(*PTRRELOC(&cur_cpu_spec));
+
+	*PTRRELOC(&saved_cpu_features) = spec->cpu_features;
+	*PTRRELOC(&saved_mmu_features) = spec->mmu_features;
 
 	/*
 	 * Apply the CPU-specific and firmware specific fixups to kernel text
@@ -173,11 +183,36 @@ void apply_feature_fixups(void)
 			 PTRRELOC(&__stop___lwsync_fixup));
 
 #ifdef CONFIG_PPC64
+	saved_firmware_features = powerpc_firmware_features;
 	do_feature_fixups(powerpc_firmware_features,
 			  &__start___fw_ftr_fixup, &__stop___fw_ftr_fixup);
 #endif
 	do_final_fixups();
+
+	/*
+	 * Initialise jump label. This causes all the cpu/mmu_has_feature()
+	 * checks to take on their correct polarity based on the current set of
+	 * CPU/MMU features.
+	 */
+	jump_label_init();
+	cpu_feature_keys_init();
+	mmu_feature_keys_init();
 }
+
+static int __init check_features(void)
+{
+	WARN(saved_cpu_features != cur_cpu_spec->cpu_features,
+	     "CPU features changed after feature patching!\n");
+	WARN(saved_mmu_features != cur_cpu_spec->mmu_features,
+	     "MMU features changed after feature patching!\n");
+#ifdef CONFIG_PPC64
+	WARN(saved_firmware_features != powerpc_firmware_features,
+	     "Firmware features changed after feature patching!\n");
+#endif
+
+	return 0;
+}
+late_initcall(check_features);
 
 #ifdef CONFIG_FTR_FIXUP_SELFTEST
 

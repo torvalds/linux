@@ -363,11 +363,6 @@ static int __init htab_dt_scan_seg_sizes(unsigned long node,
 	return 0;
 }
 
-static void __init htab_init_seg_sizes(void)
-{
-	of_scan_flat_dt(htab_dt_scan_seg_sizes, NULL);
-}
-
 static int __init get_idx_from_shift(unsigned int shift)
 {
 	int idx = -1;
@@ -539,7 +534,7 @@ static bool might_have_hea(void)
 
 #endif /* #ifdef CONFIG_PPC_64K_PAGES */
 
-static void __init htab_init_page_sizes(void)
+static void __init htab_scan_page_sizes(void)
 {
 	int rc;
 
@@ -554,17 +549,23 @@ static void __init htab_init_page_sizes(void)
 	 * Try to find the available page sizes in the device-tree
 	 */
 	rc = of_scan_flat_dt(htab_dt_scan_page_sizes, NULL);
-	if (rc != 0)  /* Found */
-		goto found;
-
-	/*
-	 * Not in the device-tree, let's fallback on known size
-	 * list for 16M capable GP & GR
-	 */
-	if (mmu_has_feature(MMU_FTR_16M_PAGE))
+	if (rc == 0 && early_mmu_has_feature(MMU_FTR_16M_PAGE)) {
+		/*
+		 * Nothing in the device-tree, but the CPU supports 16M pages,
+		 * so let's fallback on a known size list for 16M capable CPUs.
+		 */
 		memcpy(mmu_psize_defs, mmu_psize_defaults_gp,
 		       sizeof(mmu_psize_defaults_gp));
-found:
+	}
+
+#ifdef CONFIG_HUGETLB_PAGE
+	/* Reserve 16G huge page memory sections for huge pages */
+	of_scan_flat_dt(htab_dt_scan_hugepage_blocks, NULL);
+#endif /* CONFIG_HUGETLB_PAGE */
+}
+
+static void __init htab_init_page_sizes(void)
+{
 	if (!debug_pagealloc_enabled()) {
 		/*
 		 * Pick a size for the linear mapping. Currently, we only
@@ -630,11 +631,6 @@ found:
 	       ,mmu_psize_defs[mmu_vmemmap_psize].shift
 #endif
 	       );
-
-#ifdef CONFIG_HUGETLB_PAGE
-	/* Reserve 16G huge page memory sections for huge pages */
-	of_scan_flat_dt(htab_dt_scan_hugepage_blocks, NULL);
-#endif /* CONFIG_HUGETLB_PAGE */
 }
 
 static int __init htab_dt_scan_pftsize(unsigned long node,
@@ -759,12 +755,6 @@ static void __init htab_initialize(void)
 
 	DBG(" -> htab_initialize()\n");
 
-	/* Initialize segment sizes */
-	htab_init_seg_sizes();
-
-	/* Initialize page sizes */
-	htab_init_page_sizes();
-
 	if (mmu_has_feature(MMU_FTR_1T_SEGMENT)) {
 		mmu_kernel_ssize = MMU_SEGSIZE_1T;
 		mmu_highuser_ssize = MMU_SEGSIZE_1T;
@@ -885,8 +875,19 @@ static void __init htab_initialize(void)
 #undef KB
 #undef MB
 
+void __init hash__early_init_devtree(void)
+{
+	/* Initialize segment sizes */
+	of_scan_flat_dt(htab_dt_scan_seg_sizes, NULL);
+
+	/* Initialize page sizes */
+	htab_scan_page_sizes();
+}
+
 void __init hash__early_init_mmu(void)
 {
+	htab_init_page_sizes();
+
 	/*
 	 * initialize page table size
 	 */

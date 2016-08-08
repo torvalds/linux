@@ -286,7 +286,7 @@ static int stripe_map(struct dm_target *ti, struct bio *bio)
 	uint32_t stripe;
 	unsigned target_bio_nr;
 
-	if (bio->bi_rw & REQ_PREFLUSH) {
+	if (bio->bi_opf & REQ_PREFLUSH) {
 		target_bio_nr = dm_bio_get_target_bio_nr(bio);
 		BUG_ON(target_bio_nr >= sc->stripes);
 		bio->bi_bdev = sc->stripe[target_bio_nr].dev->bdev;
@@ -383,7 +383,7 @@ static int stripe_end_io(struct dm_target *ti, struct bio *bio, int error)
 	if (!error)
 		return 0; /* I/O complete */
 
-	if ((error == -EWOULDBLOCK) && (bio->bi_rw & REQ_RAHEAD))
+	if ((error == -EWOULDBLOCK) && (bio->bi_opf & REQ_RAHEAD))
 		return error;
 
 	if (error == -EOPNOTSUPP)

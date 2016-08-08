@@ -1,10 +1,14 @@
 Tegra SoC PWFM controller
 
 Required properties:
-- compatible: For Tegra20, must contain "nvidia,tegra20-pwm".  For Tegra30,
-  must contain "nvidia,tegra30-pwm".  Otherwise, must contain
-  "nvidia,<chip>-pwm", plus one of the above, where <chip> is tegra114,
-  tegra124, tegra132, or tegra210.
+- compatible: Must be:
+  - "nvidia,tegra20-pwm": for Tegra20
+  - "nvidia,tegra30-pwm", "nvidia,tegra20-pwm": for Tegra30
+  - "nvidia,tegra114-pwm", "nvidia,tegra20-pwm": for Tegra114
+  - "nvidia,tegra124-pwm", "nvidia,tegra20-pwm": for Tegra124
+  - "nvidia,tegra132-pwm", "nvidia,tegra20-pwm": for Tegra132
+  - "nvidia,tegra210-pwm", "nvidia,tegra20-pwm": for Tegra210
+  - "nvidia,tegra186-pwm": for Tegra186
 - reg: physical base address and length of the controller's registers
 - #pwm-cells: should be 2. See pwm.txt in this directory for a description of
   the cells format.

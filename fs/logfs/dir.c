@@ -156,7 +156,7 @@ static pgoff_t hash_index(u32 hash, int round)
 
 static struct page *logfs_get_dd_page(struct inode *dir, struct dentry *dentry)
 {
-	struct qstr *name = &dentry->d_name;
+	const struct qstr *name = &dentry->d_name;
 	struct page *page;
 	struct logfs_disk_dentry *dd;
 	u32 hash = logfs_hash_32(name->name, name->len, 0);
@@ -323,7 +323,7 @@ static int logfs_readdir(struct file *file, struct dir_context *ctx)
 	return 0;
 }
 
-static void logfs_set_name(struct logfs_disk_dentry *dd, struct qstr *name)
+static void logfs_set_name(struct logfs_disk_dentry *dd, const struct qstr *name)
 {
 	dd->namelen = cpu_to_be16(name->len);
 	memcpy(dd->name, name->name, name->len);

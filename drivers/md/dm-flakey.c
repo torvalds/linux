@@ -16,7 +16,7 @@
 #define DM_MSG_PREFIX "flakey"
 
 #define all_corrupt_bio_flags_match(bio, fc)	\
-	(((bio)->bi_rw & (fc)->corrupt_bio_flags) == (fc)->corrupt_bio_flags)
+	(((bio)->bi_opf & (fc)->corrupt_bio_flags) == (fc)->corrupt_bio_flags)
 
 /*
  * Flakey: Used for testing only, simulates intermittent,
@@ -266,9 +266,9 @@ static void corrupt_bio_data(struct bio *bio, struct flakey_c *fc)
 		data[fc->corrupt_bio_byte - 1] = fc->corrupt_bio_value;
 
 		DMDEBUG("Corrupting data bio=%p by writing %u to byte %u "
-			"(rw=%c bi_rw=%u bi_sector=%llu cur_bytes=%u)\n",
+			"(rw=%c bi_opf=%u bi_sector=%llu cur_bytes=%u)\n",
 			bio, fc->corrupt_bio_value, fc->corrupt_bio_byte,
-			(bio_data_dir(bio) == WRITE) ? 'w' : 'r', bio->bi_rw,
+			(bio_data_dir(bio) == WRITE) ? 'w' : 'r', bio->bi_opf,
 			(unsigned long long)bio->bi_iter.bi_sector, bio_bytes);
 	}
 }
@@ -289,10 +289,16 @@ static int flakey_map(struct dm_target *ti, struct bio *bio)
 		pb->bio_submitted = true;
 
 		/*
-		 * Map reads as normal.
+		 * Map reads as normal only if corrupt_bio_byte set.
 		 */
-		if (bio_data_dir(bio) == READ)
-			goto map_bio;
+		if (bio_data_dir(bio) == READ) {
+			/* If flags were specified, only corrupt those that match. */
+			if (fc->corrupt_bio_byte && (fc->corrupt_bio_rw == READ) &&
+			    all_corrupt_bio_flags_match(bio, fc))
+				goto map_bio;
+			else
+				return -EIO;
+		}
 
 		/*
 		 * Drop writes?
@@ -330,12 +336,13 @@ static int flakey_end_io(struct dm_target *ti, struct bio *bio, int error)
 
 	/*
 	 * Corrupt successful READs while in down state.
-	 * If flags were specified, only corrupt those that match.
 	 */
-	if (fc->corrupt_bio_byte && !error && pb->bio_submitted &&
-	    (bio_data_dir(bio) == READ) && (fc->corrupt_bio_rw == READ) &&
-	    all_corrupt_bio_flags_match(bio, fc))
-		corrupt_bio_data(bio, fc);
+	if (!error && pb->bio_submitted && (bio_data_dir(bio) == READ)) {
+		if (fc->corrupt_bio_byte)
+			corrupt_bio_data(bio, fc);
+		else
+			return -EIO;
+	}
 
 	return error;
 }

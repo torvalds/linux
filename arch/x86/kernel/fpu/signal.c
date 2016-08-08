@@ -159,8 +159,8 @@ int copy_fpstate_to_sigframe(void __user *buf, void __user *buf_fx, int size)
 	struct task_struct *tsk = current;
 	int ia32_fxstate = (buf != buf_fx);
 
-	ia32_fxstate &= (config_enabled(CONFIG_X86_32) ||
-			 config_enabled(CONFIG_IA32_EMULATION));
+	ia32_fxstate &= (IS_ENABLED(CONFIG_X86_32) ||
+			 IS_ENABLED(CONFIG_IA32_EMULATION));
 
 	if (!access_ok(VERIFY_WRITE, buf, size))
 		return -EACCES;
@@ -268,8 +268,8 @@ static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
 	u64 xfeatures = 0;
 	int fx_only = 0;
 
-	ia32_fxstate &= (config_enabled(CONFIG_X86_32) ||
-			 config_enabled(CONFIG_IA32_EMULATION));
+	ia32_fxstate &= (IS_ENABLED(CONFIG_X86_32) ||
+			 IS_ENABLED(CONFIG_IA32_EMULATION));
 
 	if (!buf) {
 		fpu__clear(fpu);
@@ -416,8 +416,8 @@ void fpu__init_prepare_fx_sw_frame(void)
 	fx_sw_reserved.xfeatures = xfeatures_mask;
 	fx_sw_reserved.xstate_size = fpu_user_xstate_size;
 
-	if (config_enabled(CONFIG_IA32_EMULATION) ||
-	    config_enabled(CONFIG_X86_32)) {
+	if (IS_ENABLED(CONFIG_IA32_EMULATION) ||
+	    IS_ENABLED(CONFIG_X86_32)) {
 		int fsave_header_size = sizeof(struct fregs_state);
 
 		fx_sw_reserved_ia32 = fx_sw_reserved;

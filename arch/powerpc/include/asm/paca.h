@@ -26,6 +26,7 @@
 #include <asm/kvm_book3s_asm.h>
 #endif
 #include <asm/accounting.h>
+#include <asm/hmi.h>
 
 register struct paca_struct *local_paca asm("r13");
 
@@ -182,6 +183,11 @@ struct paca_struct {
 	 */
 	u16 in_mce;
 	u8 hmi_event_available;		 /* HMI event is available */
+	/*
+	 * Bitmap for sibling subcore status. See kvm/book3s_hv_ras.c for
+	 * more details
+	 */
+	struct sibling_subcore_state *sibling_subcore_state;
 #endif
 
 	/* Stuff for accurate time accounting */

@@ -25,6 +25,7 @@
 #include <linux/bootmem.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
+#include <linux/mc146818rtc.h>
 #include <linux/efi.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>

@@ -1661,14 +1661,9 @@ static int nvme_pci_enable(struct nvme_dev *dev)
 
 static void nvme_dev_unmap(struct nvme_dev *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev->dev);
-	int bars;
-
 	if (dev->bar)
 		iounmap(dev->bar);
-
-	bars = pci_select_bars(pdev, IORESOURCE_MEM);
-	pci_release_selected_regions(pdev, bars);
+	pci_release_mem_regions(to_pci_dev(dev->dev));
 }
 
 static void nvme_pci_disable(struct nvme_dev *dev)
@@ -1897,13 +1892,9 @@ static const struct nvme_ctrl_ops nvme_pci_ctrl_ops = {
 
 static int nvme_dev_map(struct nvme_dev *dev)
 {
-	int bars;
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 
-	bars = pci_select_bars(pdev, IORESOURCE_MEM);
-	if (!bars)
-		return -ENODEV;
-	if (pci_request_selected_regions(pdev, bars, "nvme"))
+	if (pci_request_mem_regions(pdev, "nvme"))
 		return -ENODEV;
 
 	dev->bar = ioremap(pci_resource_start(pdev, 0), 8192);
@@ -1912,7 +1903,7 @@ static int nvme_dev_map(struct nvme_dev *dev)
 
        return 0;
   release:
-       pci_release_selected_regions(pdev, bars);
+       pci_release_mem_regions(pdev);
        return -ENODEV;
 }
 

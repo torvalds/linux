@@ -112,13 +112,10 @@ int nilfs_get_block(struct inode *inode, sector_t blkoff,
 				 * However, the page having this block must
 				 * be locked in this case.
 				 */
-				printk(KERN_WARNING
-				       "nilfs_get_block: a race condition "
-				       "while inserting a data block. "
-				       "(inode number=%lu, file block "
-				       "offset=%llu)\n",
-				       inode->i_ino,
-				       (unsigned long long)blkoff);
+				nilfs_msg(inode->i_sb, KERN_WARNING,
+					  "%s (ino=%lu): a race condition while inserting a data block at offset=%llu",
+					  __func__, inode->i_ino,
+					  (unsigned long long)blkoff);
 				err = 0;
 			}
 			nilfs_transaction_abort(inode->i_sb);
@@ -359,7 +356,7 @@ struct inode *nilfs_new_inode(struct inode *dir, umode_t mode)
 
 	root = NILFS_I(dir)->i_root;
 	ii = NILFS_I(inode);
-	ii->i_state = 1 << NILFS_I_NEW;
+	ii->i_state = BIT(NILFS_I_NEW);
 	ii->i_root = root;
 
 	err = nilfs_ifile_create_inode(root->ifile, &ino, &ii->i_bh);
@@ -558,7 +555,7 @@ static int nilfs_iget_set(struct inode *inode, void *opaque)
 
 	inode->i_ino = args->ino;
 	if (args->for_gc) {
-		NILFS_I(inode)->i_state = 1 << NILFS_I_GCINODE;
+		NILFS_I(inode)->i_state = BIT(NILFS_I_GCINODE);
 		NILFS_I(inode)->i_cno = args->cno;
 		NILFS_I(inode)->i_root = NULL;
 	} else {
@@ -726,9 +723,9 @@ repeat:
 		goto repeat;
 
 failed:
-	nilfs_warning(ii->vfs_inode.i_sb, __func__,
-		      "failed to truncate bmap (ino=%lu, err=%d)",
-		      ii->vfs_inode.i_ino, ret);
+	nilfs_msg(ii->vfs_inode.i_sb, KERN_WARNING,
+		  "error %d truncating bmap (ino=%lu)", ret,
+		  ii->vfs_inode.i_ino);
 }
 
 void nilfs_truncate(struct inode *inode)
@@ -939,9 +936,9 @@ int nilfs_set_file_dirty(struct inode *inode, unsigned int nr_dirty)
 			 * This will happen when somebody is freeing
 			 * this inode.
 			 */
-			nilfs_warning(inode->i_sb, __func__,
-				      "cannot get inode (ino=%lu)",
-				      inode->i_ino);
+			nilfs_msg(inode->i_sb, KERN_WARNING,
+				  "cannot set file dirty (ino=%lu): the file is being freed",
+				  inode->i_ino);
 			spin_unlock(&nilfs->ns_inode_lock);
 			return -EINVAL; /*
 					 * NILFS_I_DIRTY may remain for
@@ -962,8 +959,9 @@ int __nilfs_mark_inode_dirty(struct inode *inode, int flags)
 
 	err = nilfs_load_inode_block(inode, &ibh);
 	if (unlikely(err)) {
-		nilfs_warning(inode->i_sb, __func__,
-			      "failed to reget inode block.");
+		nilfs_msg(inode->i_sb, KERN_WARNING,
+			  "cannot mark inode dirty (ino=%lu): error %d loading inode block",
+			  inode->i_ino, err);
 		return err;
 	}
 	nilfs_update_inode(inode, ibh, flags);
@@ -989,8 +987,8 @@ void nilfs_dirty_inode(struct inode *inode, int flags)
 	struct nilfs_mdt_info *mdi = NILFS_MDT(inode);
 
 	if (is_bad_inode(inode)) {
-		nilfs_warning(inode->i_sb, __func__,
-			      "tried to mark bad_inode dirty. ignored.");
+		nilfs_msg(inode->i_sb, KERN_WARNING,
+			  "tried to mark bad_inode dirty. ignored.");
 		dump_stack();
 		return;
 	}

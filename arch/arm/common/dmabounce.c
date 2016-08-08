@@ -310,7 +310,7 @@ static inline void unmap_single(struct device *dev, struct safe_buffer *buf,
  */
 static dma_addr_t dmabounce_map_page(struct device *dev, struct page *page,
 		unsigned long offset, size_t size, enum dma_data_direction dir,
-		struct dma_attrs *attrs)
+		unsigned long attrs)
 {
 	dma_addr_t dma_addr;
 	int ret;
@@ -344,7 +344,7 @@ static dma_addr_t dmabounce_map_page(struct device *dev, struct page *page,
  * should be)
  */
 static void dmabounce_unmap_page(struct device *dev, dma_addr_t dma_addr, size_t size,
-		enum dma_data_direction dir, struct dma_attrs *attrs)
+		enum dma_data_direction dir, unsigned long attrs)
 {
 	struct safe_buffer *buf;
 

@@ -659,8 +659,13 @@ static int qed_slowpath_setup_int(struct qed_dev *cdev,
 	struct qed_sb_cnt_info sb_cnt_info;
 	int rc;
 	int i;
-	memset(&cdev->int_params, 0, sizeof(struct qed_int_params));
 
+	if ((int_mode == QED_INT_MODE_MSI) && (cdev->num_hwfns > 1)) {
+		DP_NOTICE(cdev, "MSI mode is not supported for CMT devices\n");
+		return -EINVAL;
+	}
+
+	memset(&cdev->int_params, 0, sizeof(struct qed_int_params));
 	cdev->int_params.in.int_mode = int_mode;
 	for_each_hwfn(cdev, i) {
 		memset(&sb_cnt_info, 0, sizeof(sb_cnt_info));

@@ -571,7 +571,7 @@ static int add_qgroup_item(struct btrfs_trans_handle *trans,
 	struct extent_buffer *leaf;
 	struct btrfs_key key;
 
-	if (btrfs_test_is_dummy_root(quota_root))
+	if (btrfs_is_testing(quota_root->fs_info))
 		return 0;
 
 	path = btrfs_alloc_path();
@@ -728,7 +728,7 @@ static int update_qgroup_info_item(struct btrfs_trans_handle *trans,
 	int ret;
 	int slot;
 
-	if (btrfs_test_is_dummy_root(root))
+	if (btrfs_is_testing(root->fs_info))
 		return 0;
 
 	key.objectid = 0;
@@ -1453,9 +1453,10 @@ int btrfs_qgroup_prepare_account_extents(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
-struct btrfs_qgroup_extent_record
-*btrfs_qgroup_insert_dirty_extent(struct btrfs_delayed_ref_root *delayed_refs,
-				  struct btrfs_qgroup_extent_record *record)
+struct btrfs_qgroup_extent_record *
+btrfs_qgroup_insert_dirty_extent(struct btrfs_fs_info *fs_info,
+				 struct btrfs_delayed_ref_root *delayed_refs,
+				 struct btrfs_qgroup_extent_record *record)
 {
 	struct rb_node **p = &delayed_refs->dirty_extent_root.rb_node;
 	struct rb_node *parent_node = NULL;
@@ -1463,7 +1464,7 @@ struct btrfs_qgroup_extent_record
 	u64 bytenr = record->bytenr;
 
 	assert_spin_locked(&delayed_refs->lock);
-	trace_btrfs_qgroup_insert_dirty_extent(record);
+	trace_btrfs_qgroup_insert_dirty_extent(fs_info, record);
 
 	while (*p) {
 		parent_node = *p;
@@ -1595,8 +1596,8 @@ static int qgroup_update_counters(struct btrfs_fs_info *fs_info,
 		cur_old_count = btrfs_qgroup_get_old_refcnt(qg, seq);
 		cur_new_count = btrfs_qgroup_get_new_refcnt(qg, seq);
 
-		trace_qgroup_update_counters(qg->qgroupid, cur_old_count,
-					     cur_new_count);
+		trace_qgroup_update_counters(fs_info, qg->qgroupid,
+					     cur_old_count, cur_new_count);
 
 		/* Rfer update part */
 		if (cur_old_count == 0 && cur_new_count > 0) {
@@ -1687,8 +1688,8 @@ btrfs_qgroup_account_extent(struct btrfs_trans_handle *trans,
 		goto out_free;
 	BUG_ON(!fs_info->quota_root);
 
-	trace_btrfs_qgroup_account_extent(bytenr, num_bytes, nr_old_roots,
-					  nr_new_roots);
+	trace_btrfs_qgroup_account_extent(fs_info, bytenr, num_bytes,
+					  nr_old_roots, nr_new_roots);
 
 	qgroups = ulist_alloc(GFP_NOFS);
 	if (!qgroups) {
@@ -1759,7 +1760,7 @@ int btrfs_qgroup_account_extents(struct btrfs_trans_handle *trans,
 		record = rb_entry(node, struct btrfs_qgroup_extent_record,
 				  node);
 
-		trace_btrfs_qgroup_account_extents(record);
+		trace_btrfs_qgroup_account_extents(fs_info, record);
 
 		if (!ret) {
 			/*
@@ -2195,7 +2196,7 @@ void assert_qgroups_uptodate(struct btrfs_trans_handle *trans)
 {
 	if (list_empty(&trans->qgroup_ref_list) && !trans->delayed_ref_elem.seq)
 		return;
-	btrfs_err(trans->root->fs_info,
+	btrfs_err(trans->fs_info,
 		"qgroups not uptodate in trans handle %p:  list is%s empty, "
 		"seq is %#x.%x",
 		trans, list_empty(&trans->qgroup_ref_list) ? "" : " not",

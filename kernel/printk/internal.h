@@ -16,9 +16,11 @@
  */
 #include <linux/percpu.h>
 
-typedef __printf(1, 0) int (*printk_func_t)(const char *fmt, va_list args);
+typedef __printf(2, 0) int (*printk_func_t)(int level, const char *fmt,
+					    va_list args);
 
-int __printf(1, 0) vprintk_default(const char *fmt, va_list args);
+__printf(2, 0)
+int vprintk_default(int level, const char *fmt, va_list args);
 
 #ifdef CONFIG_PRINTK_NMI
 
@@ -31,9 +33,10 @@ extern raw_spinlock_t logbuf_lock;
  * via per-CPU variable.
  */
 DECLARE_PER_CPU(printk_func_t, printk_func);
-static inline __printf(1, 0) int vprintk_func(const char *fmt, va_list args)
+__printf(2, 0)
+static inline int vprintk_func(int level, const char *fmt, va_list args)
 {
-	return this_cpu_read(printk_func)(fmt, args);
+	return this_cpu_read(printk_func)(level, fmt, args);
 }
 
 extern atomic_t nmi_message_lost;
@@ -44,9 +47,10 @@ static inline int get_nmi_message_lost(void)
 
 #else /* CONFIG_PRINTK_NMI */
 
-static inline __printf(1, 0) int vprintk_func(const char *fmt, va_list args)
+__printf(2, 0)
+static inline int vprintk_func(int level, const char *fmt, va_list args)
 {
-	return vprintk_default(fmt, args);
+	return vprintk_default(level, fmt, args);
 }
 
 static inline int get_nmi_message_lost(void)

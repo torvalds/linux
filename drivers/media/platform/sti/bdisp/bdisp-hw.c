@@ -430,14 +430,11 @@ int bdisp_hw_get_and_clear_irq(struct bdisp_dev *bdisp)
  */
 void bdisp_hw_free_nodes(struct bdisp_ctx *ctx)
 {
-	if (ctx && ctx->node[0]) {
-		DEFINE_DMA_ATTRS(attrs);
-
-		dma_set_attr(DMA_ATTR_WRITE_COMBINE, &attrs);
+	if (ctx && ctx->node[0])
 		dma_free_attrs(ctx->bdisp_dev->dev,
 			       sizeof(struct bdisp_node) * MAX_NB_NODE,
-			       ctx->node[0], ctx->node_paddr[0], &attrs);
-	}
+			       ctx->node[0], ctx->node_paddr[0],
+			       DMA_ATTR_WRITE_COMBINE);
 }
 
 /**
@@ -455,12 +452,10 @@ int bdisp_hw_alloc_nodes(struct bdisp_ctx *ctx)
 	unsigned int i, node_size = sizeof(struct bdisp_node);
 	void *base;
 	dma_addr_t paddr;
-	DEFINE_DMA_ATTRS(attrs);
 
 	/* Allocate all the nodes within a single memory page */
-	dma_set_attr(DMA_ATTR_WRITE_COMBINE, &attrs);
 	base = dma_alloc_attrs(dev, node_size * MAX_NB_NODE, &paddr,
-			       GFP_KERNEL | GFP_DMA, &attrs);
+			       GFP_KERNEL | GFP_DMA, DMA_ATTR_WRITE_COMBINE);
 	if (!base) {
 		dev_err(dev, "%s no mem\n", __func__);
 		return -ENOMEM;
@@ -493,13 +488,9 @@ void bdisp_hw_free_filters(struct device *dev)
 {
 	int size = (BDISP_HF_NB * NB_H_FILTER) + (BDISP_VF_NB * NB_V_FILTER);
 
-	if (bdisp_h_filter[0].virt) {
-		DEFINE_DMA_ATTRS(attrs);
-
-		dma_set_attr(DMA_ATTR_WRITE_COMBINE, &attrs);
+	if (bdisp_h_filter[0].virt)
 		dma_free_attrs(dev, size, bdisp_h_filter[0].virt,
-			       bdisp_h_filter[0].paddr, &attrs);
-	}
+			       bdisp_h_filter[0].paddr, DMA_ATTR_WRITE_COMBINE);
 }
 
 /**
@@ -516,12 +507,11 @@ int bdisp_hw_alloc_filters(struct device *dev)
 	unsigned int i, size;
 	void *base;
 	dma_addr_t paddr;
-	DEFINE_DMA_ATTRS(attrs);
 
 	/* Allocate all the filters within a single memory page */
 	size = (BDISP_HF_NB * NB_H_FILTER) + (BDISP_VF_NB * NB_V_FILTER);
-	dma_set_attr(DMA_ATTR_WRITE_COMBINE, &attrs);
-	base = dma_alloc_attrs(dev, size, &paddr, GFP_KERNEL | GFP_DMA, &attrs);
+	base = dma_alloc_attrs(dev, size, &paddr, GFP_KERNEL | GFP_DMA,
+			       DMA_ATTR_WRITE_COMBINE);
 	if (!base)
 		return -ENOMEM;
 

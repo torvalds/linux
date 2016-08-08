@@ -35,7 +35,7 @@
  * 00 - data pointer
  * 01 - internal entry
  * 10 - exceptional entry
- * 11 - locked exceptional entry
+ * 11 - this bit combination is currently unused/reserved
  *
  * The internal entry may be a pointer to the next level in the tree, a
  * sibling entry, or an indicator that the entry in this slot has been moved

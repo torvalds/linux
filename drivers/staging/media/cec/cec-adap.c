@@ -1252,7 +1252,7 @@ int __cec_s_log_addrs(struct cec_adapter *adap,
 			return -EINVAL;
 		}
 		/* Zero unused part of the feature array */
-		memset(features + i, 0, feature_sz - i);
+		memset(features + i + 1, 0, feature_sz - i - 1);
 	}
 
 	if (log_addrs->cec_version >= CEC_OP_CEC_VERSION_2_0) {

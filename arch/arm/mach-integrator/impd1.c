@@ -320,11 +320,11 @@ static struct impd1_device impd1_devs[] = {
 #define IMPD1_VALID_IRQS 0x00000bffU
 
 /*
- * As this module is bool, it is OK to have this as __init_refok() - no
+ * As this module is bool, it is OK to have this as __ref() - no
  * probe calls will be done after the initial system bootup, as devices
  * are discovered as part of the machine startup.
  */
-static int __init_refok impd1_probe(struct lm_device *dev)
+static int __ref impd1_probe(struct lm_device *dev)
 {
 	struct impd1_module *impd1;
 	int irq_base;

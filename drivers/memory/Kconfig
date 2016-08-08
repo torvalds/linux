@@ -115,7 +115,7 @@ config FSL_CORENET_CF
 
 config FSL_IFC
 	bool
-	depends on FSL_SOC
+	depends on FSL_SOC || ARCH_LAYERSCAPE
 
 config JZ4780_NEMC
 	bool "Ingenic JZ4780 SoC NEMC driver"

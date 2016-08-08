@@ -27,6 +27,7 @@ Required properties:
                          brcm,brcmnand-v6.2
                          brcm,brcmnand-v7.0
                          brcm,brcmnand-v7.1
+                         brcm,brcmnand-v7.2
                          brcm,brcmnand
 - reg              : the register start and length for NAND register region.
                      (optional) Flash DMA register range (if present)

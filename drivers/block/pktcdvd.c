@@ -1157,7 +1157,7 @@ static int pkt_start_recovery(struct packet_data *pkt)
 
 	bio_reset(pkt->bio);
 	pkt->bio->bi_bdev = pd->bdev;
-	pkt->bio->bi_rw = REQ_WRITE;
+	bio_set_op_attrs(pkt->bio, REQ_OP_WRITE, 0);
 	pkt->bio->bi_iter.bi_sector = new_sector;
 	pkt->bio->bi_iter.bi_size = pkt->frames * CD_FRAMESIZE;
 	pkt->bio->bi_vcnt = pkt->frames;
