@@ -142,11 +142,12 @@ static struct snd_soc_dai_driver wm1250_ev1_dai = {
 };
 
 static struct snd_soc_codec_driver soc_codec_dev_wm1250_ev1 = {
-	.dapm_widgets = wm1250_ev1_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm1250_ev1_dapm_widgets),
-	.dapm_routes = wm1250_ev1_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(wm1250_ev1_dapm_routes),
-
+	.component_driver = {
+		.dapm_widgets		= wm1250_ev1_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm1250_ev1_dapm_widgets),
+		.dapm_routes		= wm1250_ev1_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(wm1250_ev1_dapm_routes),
+	},
 	.set_bias_level = wm1250_ev1_set_bias_level,
 	.idle_bias_off = true,
 };
