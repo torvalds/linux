@@ -527,36 +527,95 @@ struct wacom_hdev_data {
 static LIST_HEAD(wacom_udev_list);
 static DEFINE_MUTEX(wacom_udev_list_lock);
 
+static bool compare_device_paths(struct hid_device *hdev_a,
+		struct hid_device *hdev_b, char separator)
+{
+	int n1 = strrchr(hdev_a->phys, separator) - hdev_a->phys;
+	int n2 = strrchr(hdev_b->phys, separator) - hdev_b->phys;
+
+	if (n1 != n2 || n1 <= 0 || n2 <= 0)
+		return false;
+
+	return !strncmp(hdev_a->phys, hdev_b->phys, n1);
+}
+
 static bool wacom_are_sibling(struct hid_device *hdev,
 		struct hid_device *sibling)
 {
 	struct wacom *wacom = hid_get_drvdata(hdev);
 	struct wacom_features *features = &wacom->wacom_wac.features;
-	int vid = features->oVid;
-	int pid = features->oPid;
-	int n1,n2;
+	struct wacom *sibling_wacom = hid_get_drvdata(sibling);
+	struct wacom_features *sibling_features = &sibling_wacom->wacom_wac.features;
+	__u32 oVid = features->oVid ? features->oVid : hdev->vendor;
+	__u32 oPid = features->oPid ? features->oPid : hdev->product;
 
-	if (vid == 0 && pid == 0) {
-		vid = hdev->vendor;
-		pid = hdev->product;
+	/* The defined oVid/oPid must match that of the sibling */
+	if (features->oVid != HID_ANY_ID && sibling->vendor != oVid)
+		return false;
+	if (features->oPid != HID_ANY_ID && sibling->product != oPid)
+		return false;
+
+	/*
+	 * Devices with the same VID/PID must share the same physical
+	 * device path, while those with different VID/PID must share
+	 * the same physical parent device path.
+	 */
+	if (hdev->vendor == sibling->vendor && hdev->product == sibling->product) {
+		if (!compare_device_paths(hdev, sibling, '/'))
+			return false;
+	} else {
+		if (!compare_device_paths(hdev, sibling, '.'))
+			return false;
 	}
 
-	if (vid != sibling->vendor || pid != sibling->product)
+	/* Skip the remaining heuristics unless you are a HID_GENERIC device */
+	if (features->type != HID_GENERIC)
+		return true;
+
+	/*
+	 * Direct-input devices may not be siblings of indirect-input
+	 * devices.
+	 */
+	if ((features->device_type & WACOM_DEVICETYPE_DIRECT) &&
+	    !(sibling_features->device_type & WACOM_DEVICETYPE_DIRECT))
 		return false;
 
-	/* Compare the physical path. */
-	n1 = strrchr(hdev->phys, '.') - hdev->phys;
-	n2 = strrchr(sibling->phys, '.') - sibling->phys;
-	if (n1 != n2 || n1 <= 0 || n2 <= 0)
+	/*
+	 * Indirect-input devices may not be siblings of direct-input
+	 * devices.
+	 */
+	if (!(features->device_type & WACOM_DEVICETYPE_DIRECT) &&
+	    (sibling_features->device_type & WACOM_DEVICETYPE_DIRECT))
 		return false;
 
-	return !strncmp(hdev->phys, sibling->phys, n1);
+	/* Pen devices may only be siblings of touch devices */
+	if ((features->device_type & WACOM_DEVICETYPE_PEN) &&
+	    !(sibling_features->device_type & WACOM_DEVICETYPE_TOUCH))
+		return false;
+
+	/* Touch devices may only be siblings of pen devices */
+	if ((features->device_type & WACOM_DEVICETYPE_TOUCH) &&
+	    !(sibling_features->device_type & WACOM_DEVICETYPE_PEN))
+		return false;
+
+	/*
+	 * No reason could be found for these two devices to NOT be
+	 * siblings, so there's a good chance they ARE siblings
+	 */
+	return true;
 }
 
 static struct wacom_hdev_data *wacom_get_hdev_data(struct hid_device *hdev)
 {
 	struct wacom_hdev_data *data;
 
+	/* Try to find an already-probed interface from the same device */
+	list_for_each_entry(data, &wacom_udev_list, list) {
+		if (compare_device_paths(hdev, data->dev, '/'))
+			return data;
+	}
+
+	/* Fallback to finding devices that appear to be "siblings" */
 	list_for_each_entry(data, &wacom_udev_list, list) {
 		if (wacom_are_sibling(hdev, data->dev)) {
 			kref_get(&data->kref);

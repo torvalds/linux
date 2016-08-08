@@ -3531,7 +3531,7 @@ static const struct wacom_features wacom_features_0x343 =
 	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET };
 
 static const struct wacom_features wacom_features_HID_ANY_ID =
-	{ "Wacom HID", .type = HID_GENERIC };
+	{ "Wacom HID", .type = HID_GENERIC, .oVid = HID_ANY_ID, .oPid = HID_ANY_ID };
 
 #define USB_DEVICE_WACOM(prod)						\
 	HID_DEVICE(BUS_USB, HID_GROUP_WACOM, USB_VENDOR_ID_WACOM, prod),\
