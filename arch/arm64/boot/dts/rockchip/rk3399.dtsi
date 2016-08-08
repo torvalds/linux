@@ -437,6 +437,7 @@
 		clock-names = "clk_usb3otg0_ref", "clk_usb3otg0_suspend",
 			      "aclk_usb3otg0", "aclk_usb3_rksoc_axi_perf",
 			      "aclk_usb3", "aclk_usb3_grf";
+		power-domains = <&power RK3399_PD_USB3>;
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
@@ -465,6 +466,7 @@
 		clock-names = "clk_usb3otg1_ref", "clk_usb3otg1_suspend",
 			      "aclk_usb3otg1", "aclk_usb3_rksoc_axi_perf",
 			      "aclk_usb3", "aclk_usb3_grf";
+		power-domains = <&power RK3399_PD_USB3>;
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
