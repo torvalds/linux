@@ -256,13 +256,14 @@ static struct snd_soc_dai_driver cs4349_dai = {
 };
 
 static struct snd_soc_codec_driver soc_codec_dev_cs4349 = {
-	.controls		= cs4349_snd_controls,
-	.num_controls		= ARRAY_SIZE(cs4349_snd_controls),
-
-	.dapm_widgets		= cs4349_dapm_widgets,
-	.num_dapm_widgets	= ARRAY_SIZE(cs4349_dapm_widgets),
-	.dapm_routes		= cs4349_routes,
-	.num_dapm_routes	= ARRAY_SIZE(cs4349_routes),
+	.component_driver = {
+		.controls		= cs4349_snd_controls,
+		.num_controls		= ARRAY_SIZE(cs4349_snd_controls),
+		.dapm_widgets		= cs4349_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(cs4349_dapm_widgets),
+		.dapm_routes		= cs4349_routes,
+		.num_dapm_routes	= ARRAY_SIZE(cs4349_routes),
+	},
 };
 
 static const struct regmap_config cs4349_regmap = {
