@@ -140,6 +140,8 @@ struct amdgpu_i2c_bus_rec amdgpu_atombios_lookup_i2c_gpio(struct amdgpu_device *
 							  uint8_t id);
 void amdgpu_atombios_i2c_init(struct amdgpu_device *adev);
 
+bool amdgpu_atombios_has_dce_engine_info(struct amdgpu_device *adev);
+
 bool amdgpu_atombios_get_connector_info_from_object_table(struct amdgpu_device *adev);
 
 int amdgpu_atombios_get_clock_info(struct amdgpu_device *adev);
