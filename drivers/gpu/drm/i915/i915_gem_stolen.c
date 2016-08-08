@@ -115,17 +115,28 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 
 		base = bsm & INTEL_BSM_MASK;
 	} else if (IS_I865G(dev)) {
+		u32 tseg_size = 0;
 		u16 toud = 0;
+		u8 tmp;
 
-		/*
-		 * FIXME is the graphics stolen memory region
-		 * always at TOUD? Ie. is it always the last
-		 * one to be allocated by the BIOS?
-		 */
+		pci_bus_read_config_byte(dev->pdev->bus, PCI_DEVFN(0, 0),
+					 I845_ESMRAMC, &tmp);
+
+		if (tmp & TSEG_ENABLE) {
+			switch (tmp & I845_TSEG_SIZE_MASK) {
+			case I845_TSEG_SIZE_512K:
+				tseg_size = KB(512);
+				break;
+			case I845_TSEG_SIZE_1M:
+				tseg_size = MB(1);
+				break;
+			}
+		}
+
 		pci_bus_read_config_word(dev->pdev->bus, PCI_DEVFN(0, 0),
 					 I865_TOUD, &toud);
 
-		base = toud << 16;
+		base = (toud << 16) + tseg_size;
 	} else if (IS_I85X(dev)) {
 		u32 tseg_size = 0;
 		u32 tom;
