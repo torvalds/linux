@@ -386,6 +386,7 @@
 		clock-names = "hclk_host0", "hclk_host0_arb", "usbphy0_480m";
 		phys = <&u2phy0_host>;
 		phy-names = "usb";
+		power-domains = <&power RK3399_PD_PERIHP>;
 		status = "disabled";
 	};
 
@@ -398,6 +399,7 @@
 		clock-names = "hclk_host0", "hclk_host0_arb", "usbphy0_480m";
 		phys = <&u2phy0_host>;
 		phy-names = "usb";
+		power-domains = <&power RK3399_PD_PERIHP>;
 		status = "disabled";
 	};
 
@@ -410,6 +412,7 @@
 		clock-names = "hclk_host1", "hclk_host1_arb", "usbphy1_480m";
 		phys = <&u2phy1_host>;
 		phy-names = "usb";
+		power-domains = <&power RK3399_PD_PERIHP>;
 		status = "disabled";
 	};
 
@@ -422,6 +425,7 @@
 		clock-names = "hclk_host1", "hclk_host1_arb", "usbphy1_480m";
 		phys = <&u2phy1_host>;
 		phy-names = "usb";
+		power-domains = <&power RK3399_PD_PERIHP>;
 		status = "disabled";
 	};
 
