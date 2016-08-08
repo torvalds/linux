@@ -344,7 +344,7 @@ befs_find_key(struct super_block *sb, struct befs_btree_node *node,
 
 	findkey_len = strlen(findkey);
 
-	/* if node can not contain key, just skeep this node */
+	/* if node can not contain key, just skip this node */
 	last = node->head.all_key_count - 1;
 	thiskey = befs_bt_get_key(sb, node, last, &keylen);
 
