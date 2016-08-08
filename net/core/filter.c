@@ -1365,6 +1365,18 @@ static inline int bpf_try_make_writable(struct sk_buff *skb,
 	return err;
 }
 
+static inline void bpf_push_mac_rcsum(struct sk_buff *skb)
+{
+	if (skb_at_tc_ingress(skb))
+		skb_postpush_rcsum(skb, skb_mac_header(skb), skb->mac_len);
+}
+
+static inline void bpf_pull_mac_rcsum(struct sk_buff *skb)
+{
+	if (skb_at_tc_ingress(skb))
+		skb_postpull_rcsum(skb, skb_mac_header(skb), skb->mac_len);
+}
+
 static u64 bpf_skb_store_bytes(u64 r1, u64 r2, u64 r3, u64 r4, u64 flags)
 {
 	struct bpf_scratchpad *sp = this_cpu_ptr(&bpf_sp);
@@ -1395,7 +1407,7 @@ static u64 bpf_skb_store_bytes(u64 r1, u64 r2, u64 r3, u64 r4, u64 flags)
 		return -EFAULT;
 
 	if (flags & BPF_F_RECOMPUTE_CSUM)
-		skb_postpull_rcsum(skb, ptr, len);
+		__skb_postpull_rcsum(skb, ptr, len, offset);
 
 	memcpy(ptr, from, len);
 
@@ -1404,7 +1416,7 @@ static u64 bpf_skb_store_bytes(u64 r1, u64 r2, u64 r3, u64 r4, u64 flags)
 		skb_store_bits(skb, offset, ptr, len);
 
 	if (flags & BPF_F_RECOMPUTE_CSUM)
-		skb_postpush_rcsum(skb, ptr, len);
+		__skb_postpush_rcsum(skb, ptr, len, offset);
 	if (flags & BPF_F_INVALIDATE_HASH)
 		skb_clear_hash(skb);
 
@@ -1607,9 +1619,6 @@ static const struct bpf_func_proto bpf_csum_diff_proto = {
 
 static inline int __bpf_rx_skb(struct net_device *dev, struct sk_buff *skb)
 {
-	if (skb_at_tc_ingress(skb))
-		skb_postpush_rcsum(skb, skb_mac_header(skb), skb->mac_len);
-
 	return dev_forward_skb(dev, skb);
 }
 
@@ -1647,6 +1656,8 @@ static u64 bpf_clone_redirect(u64 r1, u64 ifindex, u64 flags, u64 r4, u64 r5)
 	skb = skb_clone(skb, GFP_ATOMIC);
 	if (unlikely(!skb))
 		return -ENOMEM;
+
+	bpf_push_mac_rcsum(skb);
 
 	return flags & BPF_F_INGRESS ?
 	       __bpf_rx_skb(dev, skb) : __bpf_tx_skb(dev, skb);
@@ -1692,6 +1703,8 @@ int skb_do_redirect(struct sk_buff *skb)
 		kfree_skb(skb);
 		return -EINVAL;
 	}
+
+	bpf_push_mac_rcsum(skb);
 
 	return ri->flags & BPF_F_INGRESS ?
 	       __bpf_rx_skb(dev, skb) : __bpf_tx_skb(dev, skb);
@@ -1756,7 +1769,10 @@ static u64 bpf_skb_vlan_push(u64 r1, u64 r2, u64 vlan_tci, u64 r4, u64 r5)
 		     vlan_proto != htons(ETH_P_8021AD)))
 		vlan_proto = htons(ETH_P_8021Q);
 
+	bpf_push_mac_rcsum(skb);
 	ret = skb_vlan_push(skb, vlan_proto, vlan_tci);
+	bpf_pull_mac_rcsum(skb);
+
 	bpf_compute_data_end(skb);
 	return ret;
 }
@@ -1776,7 +1792,10 @@ static u64 bpf_skb_vlan_pop(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
 	struct sk_buff *skb = (struct sk_buff *) (long) r1;
 	int ret;
 
+	bpf_push_mac_rcsum(skb);
 	ret = skb_vlan_pop(skb);
+	bpf_pull_mac_rcsum(skb);
+
 	bpf_compute_data_end(skb);
 	return ret;
 }
