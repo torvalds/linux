@@ -73,17 +73,6 @@ struct ion_platform_data {
 };
 
 /**
- * ion_reserve() - reserve memory for ion heaps if applicable
- * @data:	platform data specifying starting physical address and
- *		size
- *
- * Calls memblock reserve to set aside memory for heaps that are
- * located at specific memory addresses or of specific sizes not
- * managed by the kernel
- */
-void ion_reserve(struct ion_platform_data *data);
-
-/**
  * ion_client_create() -  allocate a client and returns it
  * @dev:		the global ion device
  * @name:		used for debugging
