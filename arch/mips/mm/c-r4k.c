@@ -1206,7 +1206,7 @@ static void probe_pcache(void)
 			      c->icache.linesz;
 		c->icache.waybit = __ffs(icache_size/c->icache.ways);
 
-		if (config & 0x8)		/* VI bit */
+		if (config & MIPS_CONF_VI)
 			c->icache.flags |= MIPS_CACHE_VTAG;
 
 		/*

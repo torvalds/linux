@@ -3,6 +3,7 @@
 
 #include <linux/err.h>
 #include <linux/bug.h>
+#include <linux/slab.h>
 #include <linux/time.h>
 #include <asm/unaligned.h>
 
@@ -215,6 +216,60 @@ static inline void ceph_encode_string(void **p, void *end,
 	if (len)
 		memcpy(*p, s, len);
 	*p += len;
+}
+
+/*
+ * version and length starting block encoders/decoders
+ */
+
+/* current code version (u8) + compat code version (u8) + len of struct (u32) */
+#define CEPH_ENCODING_START_BLK_LEN 6
+
+/**
+ * ceph_start_encoding - start encoding block
+ * @struct_v: current (code) version of the encoding
+ * @struct_compat: oldest code version that can decode it
+ * @struct_len: length of struct encoding
+ */
+static inline void ceph_start_encoding(void **p, u8 struct_v, u8 struct_compat,
+				       u32 struct_len)
+{
+	ceph_encode_8(p, struct_v);
+	ceph_encode_8(p, struct_compat);
+	ceph_encode_32(p, struct_len);
+}
+
+/**
+ * ceph_start_decoding - start decoding block
+ * @v: current version of the encoding that the code supports
+ * @name: name of the struct (free-form)
+ * @struct_v: out param for the encoding version
+ * @struct_len: out param for the length of struct encoding
+ *
+ * Validates the length of struct encoding, so unsafe ceph_decode_*
+ * variants can be used for decoding.
+ */
+static inline int ceph_start_decoding(void **p, void *end, u8 v,
+				      const char *name, u8 *struct_v,
+				      u32 *struct_len)
+{
+	u8 struct_compat;
+
+	ceph_decode_need(p, end, CEPH_ENCODING_START_BLK_LEN, bad);
+	*struct_v = ceph_decode_8(p);
+	struct_compat = ceph_decode_8(p);
+	if (v < struct_compat) {
+		pr_warn("got struct_v %d struct_compat %d > %d of %s\n",
+			*struct_v, struct_compat, v, name);
+		return -EINVAL;
+	}
+
+	*struct_len = ceph_decode_32(p);
+	ceph_decode_need(p, end, *struct_len, bad);
+	return 0;
+
+bad:
+	return -ERANGE;
 }
 
 #define ceph_encode_need(p, end, n, bad)			\

@@ -83,7 +83,10 @@ struct orangefs_listxattr_response {
 };
 
 struct orangefs_param_response {
-	__s64 value;
+	union {
+		__s64 value64;
+		__s32 value32[2];
+	} u;
 };
 
 #define PERF_COUNT_BUF_SIZE 4096

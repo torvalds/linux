@@ -119,10 +119,11 @@ static void vmd_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 static void vmd_irq_enable(struct irq_data *data)
 {
 	struct vmd_irq *vmdirq = data->chip_data;
+	unsigned long flags;
 
-	raw_spin_lock(&list_lock);
+	raw_spin_lock_irqsave(&list_lock, flags);
 	list_add_tail_rcu(&vmdirq->node, &vmdirq->irq->irq_list);
-	raw_spin_unlock(&list_lock);
+	raw_spin_unlock_irqrestore(&list_lock, flags);
 
 	data->chip->irq_unmask(data);
 }
@@ -130,12 +131,14 @@ static void vmd_irq_enable(struct irq_data *data)
 static void vmd_irq_disable(struct irq_data *data)
 {
 	struct vmd_irq *vmdirq = data->chip_data;
+	unsigned long flags;
 
 	data->chip->irq_mask(data);
 
-	raw_spin_lock(&list_lock);
+	raw_spin_lock_irqsave(&list_lock, flags);
 	list_del_rcu(&vmdirq->node);
-	raw_spin_unlock(&list_lock);
+	INIT_LIST_HEAD_RCU(&vmdirq->node);
+	raw_spin_unlock_irqrestore(&list_lock, flags);
 }
 
 /*
@@ -166,16 +169,20 @@ static irq_hw_number_t vmd_get_hwirq(struct msi_domain_info *info,
  * XXX: We can be even smarter selecting the best IRQ once we solve the
  * affinity problem.
  */
-static struct vmd_irq_list *vmd_next_irq(struct vmd_dev *vmd)
+static struct vmd_irq_list *vmd_next_irq(struct vmd_dev *vmd, struct msi_desc *desc)
 {
-	int i, best = 0;
+	int i, best = 1;
+	unsigned long flags;
 
-	raw_spin_lock(&list_lock);
+	if (!desc->msi_attrib.is_msix || vmd->msix_count == 1)
+		return &vmd->irqs[0];
+
+	raw_spin_lock_irqsave(&list_lock, flags);
 	for (i = 1; i < vmd->msix_count; i++)
 		if (vmd->irqs[i].count < vmd->irqs[best].count)
 			best = i;
 	vmd->irqs[best].count++;
-	raw_spin_unlock(&list_lock);
+	raw_spin_unlock_irqrestore(&list_lock, flags);
 
 	return &vmd->irqs[best];
 }
@@ -184,14 +191,15 @@ static int vmd_msi_init(struct irq_domain *domain, struct msi_domain_info *info,
 			unsigned int virq, irq_hw_number_t hwirq,
 			msi_alloc_info_t *arg)
 {
-	struct vmd_dev *vmd = vmd_from_bus(msi_desc_to_pci_dev(arg->desc)->bus);
+	struct msi_desc *desc = arg->desc;
+	struct vmd_dev *vmd = vmd_from_bus(msi_desc_to_pci_dev(desc)->bus);
 	struct vmd_irq *vmdirq = kzalloc(sizeof(*vmdirq), GFP_KERNEL);
 
 	if (!vmdirq)
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&vmdirq->node);
-	vmdirq->irq = vmd_next_irq(vmd);
+	vmdirq->irq = vmd_next_irq(vmd, desc);
 	vmdirq->virq = virq;
 
 	irq_domain_set_info(domain, virq, vmdirq->irq->vmd_vector, info->chip,
@@ -203,11 +211,12 @@ static void vmd_msi_free(struct irq_domain *domain,
 			struct msi_domain_info *info, unsigned int virq)
 {
 	struct vmd_irq *vmdirq = irq_get_chip_data(virq);
+	unsigned long flags;
 
 	/* XXX: Potential optimization to rebalance */
-	raw_spin_lock(&list_lock);
+	raw_spin_lock_irqsave(&list_lock, flags);
 	vmdirq->irq->count--;
-	raw_spin_unlock(&list_lock);
+	raw_spin_unlock_irqrestore(&list_lock, flags);
 
 	kfree_rcu(vmdirq, rcu);
 }
@@ -261,7 +270,7 @@ static struct device *to_vmd_dev(struct device *dev)
 
 static struct dma_map_ops *vmd_dma_ops(struct device *dev)
 {
-	return to_vmd_dev(dev)->archdata.dma_ops;
+	return get_dma_ops(to_vmd_dev(dev));
 }
 
 static void *vmd_alloc(struct device *dev, size_t size, dma_addr_t *addr,
@@ -367,7 +376,7 @@ static void vmd_teardown_dma_ops(struct vmd_dev *vmd)
 {
 	struct dma_domain *domain = &vmd->dma_domain;
 
-	if (vmd->dev->dev.archdata.dma_ops)
+	if (get_dma_ops(&vmd->dev->dev))
 		del_dma_domain(domain);
 }
 
@@ -379,7 +388,7 @@ static void vmd_teardown_dma_ops(struct vmd_dev *vmd)
 
 static void vmd_setup_dma_ops(struct vmd_dev *vmd)
 {
-	const struct dma_map_ops *source = vmd->dev->dev.archdata.dma_ops;
+	const struct dma_map_ops *source = get_dma_ops(&vmd->dev->dev);
 	struct dma_map_ops *dest = &vmd->dma_ops;
 	struct dma_domain *domain = &vmd->dma_domain;
 
@@ -594,7 +603,7 @@ static int vmd_enable_domain(struct vmd_dev *vmd)
 	sd->node = pcibus_to_node(vmd->dev->bus);
 
 	vmd->irq_domain = pci_msi_create_irq_domain(NULL, &vmd_msi_domain_info,
-						    NULL);
+						    x86_vector_domain);
 	if (!vmd->irq_domain)
 		return -ENODEV;
 

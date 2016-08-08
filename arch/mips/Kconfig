@@ -1488,6 +1488,7 @@ config CPU_MIPS64_R2
 	select CPU_SUPPORTS_HIGHMEM
 	select CPU_SUPPORTS_HUGEPAGES
 	select CPU_SUPPORTS_MSA
+	select HAVE_KVM
 	help
 	  Choose this option to build a kernel for release 2 or later of the
 	  MIPS64 architecture.  Many modern embedded systems with a 64-bit
@@ -1505,6 +1506,7 @@ config CPU_MIPS64_R6
 	select CPU_SUPPORTS_MSA
 	select GENERIC_CSUM
 	select MIPS_O32_FP64_SUPPORT if MIPS32_O32
+	select HAVE_KVM
 	help
 	  Choose this option to build a kernel for release 6 or later of the
 	  MIPS64 architecture.  New MIPS processors, starting with the Warrior

@@ -671,6 +671,8 @@ BEGIN_FTR_SECTION
 	beq	h_doorbell_common
 	cmpwi	r3,0xea0
 	beq	h_virt_irq_common
+	cmpwi	r3,0xe60
+	beq	hmi_exception_common
 FTR_SECTION_ELSE
 	cmpwi	r3,0xa00
 	beq	doorbell_super_common
@@ -1172,7 +1174,7 @@ fwnmi_data_area:
 
 	.globl hmi_exception_early
 hmi_exception_early:
-	EXCEPTION_PROLOG_1(PACA_EXGEN, NOTEST, 0xe60)
+	EXCEPTION_PROLOG_1(PACA_EXGEN, KVMTEST, 0xe62)
 	mr	r10,r1			/* Save r1			*/
 	ld	r1,PACAEMERGSP(r13)	/* Use emergency stack		*/
 	subi	r1,r1,INT_FRAME_SIZE	/* alloc stack frame		*/

@@ -320,7 +320,7 @@ static int __init init_axis_flash(void)
 	 * but its size must be configured as 0 so as not to conflict
 	 * with our usage.
 	 */
-#if !defined(CONFIG_MTD_MTDRAM) || (CONFIG_MTDRAM_TOTAL_SIZE != 0) || (CONFIG_MTDRAM_ABS_POS != 0)
+#if !defined(CONFIG_MTD_MTDRAM) || (CONFIG_MTDRAM_TOTAL_SIZE != 0)
 	if (!romfs_in_flash && !nand_boot) {
 		printk(KERN_EMERG "axisflashmap: Cannot create an MTD RAM "
 		       "device; configure CONFIG_MTD_MTDRAM with size = 0!\n");

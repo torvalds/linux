@@ -210,7 +210,7 @@ bool kvm_condition_valid(struct kvm_vcpu *vcpu)
  * @vcpu:	The VCPU pointer
  *
  * When exceptions occur while instructions are executed in Thumb IF-THEN
- * blocks, the ITSTATE field of the CPSR is not advanved (updated), so we have
+ * blocks, the ITSTATE field of the CPSR is not advanced (updated), so we have
  * to do this little bit of work manually. The fields map like this:
  *
  * IT[7:0] -> CPSR[26:25],CPSR[15:10]

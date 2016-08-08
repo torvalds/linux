@@ -3021,6 +3021,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 		resource_alignment=
 				Format:
 				[<order of align>@][<domain>:]<bus>:<slot>.<func>[; ...]
+				[<order of align>@]pci:<vendor>:<device>\
+						[:<subvendor>:<subdevice>][; ...]
 				Specifies alignment and device to reassign
 				aligned memory resources.
 				If <order of align> is not specified,
@@ -3039,6 +3041,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 		hpmemsize=nn[KMG]	The fixed amount of bus space which is
 				reserved for hotplug bridge's memory window.
 				Default size is 2 megabytes.
+		hpbussize=nn	The minimum amount of additional bus numbers
+				reserved for buses below a hotplug bridge.
+				Default is 1.
 		realloc=	Enable/disable reallocating PCI bridge resources
 				if allocations done by BIOS are too small to
 				accommodate resources required by all child
@@ -3069,6 +3074,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			unconditionally.
 		compat	Treat PCIe ports as PCI-to-PCI bridges, disable the PCIe
 			ports driver.
+
+	pcie_port_pm=	[PCIE] PCIe port power management handling:
+		off	Disable power management of all PCIe ports
+		force	Forcibly enable power management of all PCIe ports
 
 	pcie_pme=	[PCIE,PM] Native PCIe PME signaling options:
 		nomsi	Do not use MSI for native PCIe PME signaling (this makes

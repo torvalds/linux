@@ -157,6 +157,9 @@ static int kvm_vgic_dist_init(struct kvm *kvm, unsigned int nr_spis)
 	struct kvm_vcpu *vcpu0 = kvm_get_vcpu(kvm, 0);
 	int i;
 
+	INIT_LIST_HEAD(&dist->lpi_list_head);
+	spin_lock_init(&dist->lpi_list_lock);
+
 	dist->spis = kcalloc(nr_spis, sizeof(struct vgic_irq), GFP_KERNEL);
 	if (!dist->spis)
 		return  -ENOMEM;
@@ -177,6 +180,7 @@ static int kvm_vgic_dist_init(struct kvm *kvm, unsigned int nr_spis)
 		spin_lock_init(&irq->irq_lock);
 		irq->vcpu = NULL;
 		irq->target_vcpu = vcpu0;
+		kref_init(&irq->refcount);
 		if (dist->vgic_model == KVM_DEV_TYPE_ARM_VGIC_V2)
 			irq->targets = 0;
 		else
@@ -211,6 +215,7 @@ static void kvm_vgic_vcpu_init(struct kvm_vcpu *vcpu)
 		irq->vcpu = NULL;
 		irq->target_vcpu = vcpu;
 		irq->targets = 1U << vcpu->vcpu_id;
+		kref_init(&irq->refcount);
 		if (vgic_irq_is_sgi(i)) {
 			/* SGIs */
 			irq->enabled = 1;
@@ -253,6 +258,9 @@ int vgic_init(struct kvm *kvm)
 	if (ret)
 		goto out;
 
+	if (vgic_has_its(kvm))
+		dist->msis_require_devid = true;
+
 	kvm_for_each_vcpu(i, vcpu, kvm)
 		kvm_vgic_vcpu_init(vcpu);
 
@@ -271,7 +279,6 @@ static void kvm_vgic_dist_destroy(struct kvm *kvm)
 	dist->initialized = false;
 
 	kfree(dist->spis);
-	kfree(dist->redist_iodevs);
 	dist->nr_spis = 0;
 
 	mutex_unlock(&kvm->lock);

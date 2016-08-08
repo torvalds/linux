@@ -221,6 +221,9 @@ config ACPI_PROCESSOR_IDLE
 	bool
 	select CPU_IDLE
 
+config ACPI_MCFG
+	bool
+
 config ACPI_CPPC_LIB
 	bool
 	depends on ACPI_PROCESSOR

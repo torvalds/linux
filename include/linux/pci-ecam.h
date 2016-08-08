@@ -27,8 +27,7 @@ struct pci_config_window;
 struct pci_ecam_ops {
 	unsigned int			bus_shift;
 	struct pci_ops			pci_ops;
-	int				(*init)(struct device *,
-						struct pci_config_window *);
+	int				(*init)(struct pci_config_window *);
 };
 
 /*
@@ -45,6 +44,7 @@ struct pci_config_window {
 		void __iomem		*win;	/* 64-bit single mapping */
 		void __iomem		**winp; /* 32-bit per-bus mapping */
 	};
+	struct device			*parent;/* ECAM res was from this dev */
 };
 
 /* create and free pci_config_window */
