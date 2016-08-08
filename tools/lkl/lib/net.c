@@ -354,6 +354,6 @@ int lkl_add_neighbor(int ifindex, int af, void* ip, void* mac)
 	err = rtnl_talk(fd, &req2.n);
 
 exit:
-	close(fd);
+	lkl_sys_close(fd);
 	return err;
 }
