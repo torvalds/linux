@@ -134,16 +134,135 @@ static const struct drm_crtc_funcs dce_virtual_crtc_funcs = {
 	.page_flip = NULL,
 };
 
+static void dce_virtual_crtc_dpms(struct drm_crtc *crtc, int mode)
+{
+	struct drm_device *dev = crtc->dev;
+	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
+	unsigned type;
+
+	switch (mode) {
+	case DRM_MODE_DPMS_ON:
+		amdgpu_crtc->enabled = true;
+		/* Make sure VBLANK and PFLIP interrupts are still enabled */
+		type = amdgpu_crtc_idx_to_irq_type(adev, amdgpu_crtc->crtc_id);
+		amdgpu_irq_update(adev, &adev->crtc_irq, type);
+		amdgpu_irq_update(adev, &adev->pageflip_irq, type);
+		drm_vblank_on(dev, amdgpu_crtc->crtc_id);
+		break;
+	case DRM_MODE_DPMS_STANDBY:
+	case DRM_MODE_DPMS_SUSPEND:
+	case DRM_MODE_DPMS_OFF:
+		drm_vblank_off(dev, amdgpu_crtc->crtc_id);
+		amdgpu_crtc->enabled = false;
+		break;
+	}
+}
+
+
+static void dce_virtual_crtc_prepare(struct drm_crtc *crtc)
+{
+	dce_virtual_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
+}
+
+static void dce_virtual_crtc_commit(struct drm_crtc *crtc)
+{
+	dce_virtual_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
+}
+
+static void dce_virtual_crtc_disable(struct drm_crtc *crtc)
+{
+	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
+
+	dce_virtual_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
+	if (crtc->primary->fb) {
+		int r;
+		struct amdgpu_framebuffer *amdgpu_fb;
+		struct amdgpu_bo *rbo;
+
+		amdgpu_fb = to_amdgpu_framebuffer(crtc->primary->fb);
+		rbo = gem_to_amdgpu_bo(amdgpu_fb->obj);
+		r = amdgpu_bo_reserve(rbo, false);
+		if (unlikely(r))
+			DRM_ERROR("failed to reserve rbo before unpin\n");
+		else {
+			amdgpu_bo_unpin(rbo);
+			amdgpu_bo_unreserve(rbo);
+		}
+	}
+
+	amdgpu_crtc->pll_id = ATOM_PPLL_INVALID;
+	amdgpu_crtc->encoder = NULL;
+	amdgpu_crtc->connector = NULL;
+}
+
+static int dce_virtual_crtc_mode_set(struct drm_crtc *crtc,
+				  struct drm_display_mode *mode,
+				  struct drm_display_mode *adjusted_mode,
+				  int x, int y, struct drm_framebuffer *old_fb)
+{
+	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
+
+	/* update the hw version fpr dpm */
+	amdgpu_crtc->hw_mode = *adjusted_mode;
+
+	return 0;
+}
+
+static bool dce_virtual_crtc_mode_fixup(struct drm_crtc *crtc,
+				     const struct drm_display_mode *mode,
+				     struct drm_display_mode *adjusted_mode)
+{
+	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
+	struct drm_device *dev = crtc->dev;
+	struct drm_encoder *encoder;
+
+	/* assign the encoder to the amdgpu crtc to avoid repeated lookups later */
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+		if (encoder->crtc == crtc) {
+			amdgpu_crtc->encoder = encoder;
+			amdgpu_crtc->connector = amdgpu_get_connector_for_encoder(encoder);
+			break;
+		}
+	}
+	if ((amdgpu_crtc->encoder == NULL) || (amdgpu_crtc->connector == NULL)) {
+		amdgpu_crtc->encoder = NULL;
+		amdgpu_crtc->connector = NULL;
+		return false;
+	}
+
+	return true;
+}
+
+
+static int dce_virtual_crtc_set_base(struct drm_crtc *crtc, int x, int y,
+				  struct drm_framebuffer *old_fb)
+{
+	return 0;
+}
+
+static void dce_virtual_crtc_load_lut(struct drm_crtc *crtc)
+{
+	return;
+}
+
+static int dce_virtual_crtc_set_base_atomic(struct drm_crtc *crtc,
+					 struct drm_framebuffer *fb,
+					 int x, int y, enum mode_set_atomic state)
+{
+	return 0;
+}
+
 static const struct drm_crtc_helper_funcs dce_virtual_crtc_helper_funcs = {
-	.dpms = NULL,
-	.mode_fixup = NULL,
-	.mode_set = NULL,
-	.mode_set_base = NULL,
-	.mode_set_base_atomic = NULL,
-	.prepare = NULL,
-	.commit = NULL,
-	.load_lut = NULL,
-	.disable = NULL,
+	.dpms = dce_virtual_crtc_dpms,
+	.mode_fixup = dce_virtual_crtc_mode_fixup,
+	.mode_set = dce_virtual_crtc_mode_set,
+	.mode_set_base = dce_virtual_crtc_set_base,
+	.mode_set_base_atomic = dce_virtual_crtc_set_base_atomic,
+	.prepare = dce_virtual_crtc_prepare,
+	.commit = dce_virtual_crtc_commit,
+	.load_lut = dce_virtual_crtc_load_lut,
+	.disable = dce_virtual_crtc_disable,
 };
 
 static int dce_virtual_crtc_init(struct amdgpu_device *adev, int index)
