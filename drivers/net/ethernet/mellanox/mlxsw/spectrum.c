@@ -2220,6 +2220,7 @@ err_port_vlan_init:
 err_core_port_init:
 	unregister_netdev(dev);
 err_register_netdev:
+	mlxsw_sp_port_dcb_fini(mlxsw_sp_port);
 err_port_dcb_init:
 err_port_ets_init:
 err_port_buffers_init:
