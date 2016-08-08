@@ -1819,7 +1819,7 @@ static int da7218_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 	if (da7218->mclk_rate == freq)
 		return 0;
 
-	if (((freq < 2000000) && (freq != 32768)) || (freq > 54000000)) {
+	if ((freq < 2000000) || (freq > 54000000)) {
 		dev_err(codec_dai->dev, "Unsupported MCLK value %d\n",
 			freq);
 		return -EINVAL;
@@ -1866,11 +1866,8 @@ static int da7218_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 	u32 freq_ref;
 	u64 frac_div;
 
-	/* Verify 32KHz, 2MHz - 54MHz MCLK provided, and set input divider */
-	if (da7218->mclk_rate == 32768) {
-		indiv_bits = DA7218_PLL_INDIV_9_TO_18_MHZ;
-		indiv = DA7218_PLL_INDIV_9_TO_18_MHZ_VAL;
-	} else if (da7218->mclk_rate < 2000000) {
+	/* Verify 2MHz - 54MHz MCLK provided, and set input divider */
+	if (da7218->mclk_rate < 2000000) {
 		dev_err(codec->dev, "PLL input clock %d below valid range\n",
 			da7218->mclk_rate);
 		return -EINVAL;
@@ -1910,9 +1907,6 @@ static int da7218_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 		break;
 	case DA7218_SYSCLK_PLL_SRM:
 		pll_ctrl |= DA7218_PLL_MODE_SRM;
-		break;
-	case DA7218_SYSCLK_PLL_32KHZ:
-		pll_ctrl |= DA7218_PLL_MODE_32KHZ;
 		break;
 	default:
 		dev_err(codec->dev, "Invalid PLL config\n");
