@@ -1438,11 +1438,11 @@ static ssize_t dasd_pm_show(struct device *dev,
 	if (IS_ERR(device))
 		return sprintf(buf, "0\n");
 
-	opm = device->path_data.opm;
-	nppm = device->path_data.npm;
-	cablepm = device->path_data.cablepm;
-	cuirpm = device->path_data.cuirpm;
-	hpfpm = device->path_data.hpfpm;
+	opm = dasd_path_get_opm(device);
+	nppm = dasd_path_get_nppm(device);
+	cablepm = dasd_path_get_cablepm(device);
+	cuirpm = dasd_path_get_cuirpm(device);
+	hpfpm = dasd_path_get_hpfpm(device);
 	dasd_put_device(device);
 
 	return sprintf(buf, "%02x %02x %02x %02x %02x\n", opm, nppm,

@@ -535,8 +535,7 @@ struct dasd_eckd_private {
 	struct dasd_eckd_characteristics rdc_data;
 	u8 *conf_data;
 	int conf_len;
-	/* per path configuration data */
-	struct dasd_conf_data *path_conf_data[8];
+
 	/* pointers to specific parts in the conf_data */
 	struct dasd_ned *ned;
 	struct dasd_sneq *sneq;

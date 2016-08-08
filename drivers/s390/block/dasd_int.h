@@ -55,6 +55,7 @@
 #include <asm/debug.h>
 #include <asm/dasd.h>
 #include <asm/idals.h>
+#include <linux/bitops.h>
 
 /* DASD discipline magic */
 #define DASD_ECKD_MAGIC 0xC5C3D2C4
@@ -397,16 +398,22 @@ extern struct dasd_discipline *dasd_diag_discipline_pointer;
 #define DASD_EER_STATECHANGE 3
 #define DASD_EER_PPRCSUSPEND 4
 
+/* DASD path handling */
+
+#define DASD_PATH_OPERATIONAL  1
+#define DASD_PATH_TBV	       2
+#define DASD_PATH_PP	       3
+#define DASD_PATH_NPP	       4
+#define DASD_PATH_MISCABLED    5
+#define DASD_PATH_NOHPF        6
+#define DASD_PATH_CUIR	       7
+
+
 struct dasd_path {
-	__u8 opm;
-	__u8 tbvpm;
-	__u8 ppm;
-	__u8 npm;
-	/* paths that are not used because of a special condition */
-	__u8 cablepm; /* miss-cabled */
-	__u8 hpfpm;   /* the HPF requirements of the other paths are not met */
-	__u8 cuirpm;  /* CUIR varied offline */
+	unsigned long flags;
+	struct dasd_conf_data *conf_data;
 };
+
 
 struct dasd_profile_info {
 	/* legacy part of profile data, as in dasd_profile_info_t */
@@ -458,7 +465,8 @@ struct dasd_device {
 	struct dasd_discipline *discipline;
 	struct dasd_discipline *base_discipline;
 	void *private;
-	struct dasd_path path_data;
+	struct dasd_path path[8];
+	__u8 opm;
 
 	/* Device state and target state. */
 	int state, target;
@@ -834,5 +842,360 @@ static inline int dasd_eer_enabled(struct dasd_device *device)
 #define dasd_eer_snss(d)	do { } while (0)
 #define dasd_eer_enabled(d)	(0)
 #endif	/* CONFIG_DASD_ERR */
+
+
+/* DASD path handling functions */
+
+/*
+ * helper functions to modify bit masks for a given channel path for a device
+ */
+static inline int dasd_path_is_operational(struct dasd_device *device, int chp)
+{
+	return test_bit(DASD_PATH_OPERATIONAL, &device->path[chp].flags);
+}
+
+static inline int dasd_path_need_verify(struct dasd_device *device, int chp)
+{
+	return test_bit(DASD_PATH_TBV, &device->path[chp].flags);
+}
+
+static inline void dasd_path_verify(struct dasd_device *device, int chp)
+{
+	__set_bit(DASD_PATH_TBV, &device->path[chp].flags);
+}
+
+static inline void dasd_path_clear_verify(struct dasd_device *device, int chp)
+{
+	__clear_bit(DASD_PATH_TBV, &device->path[chp].flags);
+}
+
+static inline void dasd_path_clear_all_verify(struct dasd_device *device)
+{
+	int chp;
+
+	for (chp = 0; chp < 8; chp++)
+		dasd_path_clear_verify(device, chp);
+}
+
+static inline void dasd_path_operational(struct dasd_device *device, int chp)
+{
+	__set_bit(DASD_PATH_OPERATIONAL, &device->path[chp].flags);
+	device->opm |= (0x80 >> chp);
+}
+
+static inline void dasd_path_nonpreferred(struct dasd_device *device, int chp)
+{
+	__set_bit(DASD_PATH_NPP, &device->path[chp].flags);
+}
+
+static inline int dasd_path_is_nonpreferred(struct dasd_device *device, int chp)
+{
+	return test_bit(DASD_PATH_NPP, &device->path[chp].flags);
+}
+
+static inline void dasd_path_clear_nonpreferred(struct dasd_device *device,
+						int chp)
+{
+	__clear_bit(DASD_PATH_NPP, &device->path[chp].flags);
+}
+
+static inline void dasd_path_preferred(struct dasd_device *device, int chp)
+{
+	__set_bit(DASD_PATH_PP, &device->path[chp].flags);
+}
+
+static inline int dasd_path_is_preferred(struct dasd_device *device, int chp)
+{
+	return test_bit(DASD_PATH_PP, &device->path[chp].flags);
+}
+
+static inline void dasd_path_clear_preferred(struct dasd_device *device,
+					     int chp)
+{
+	__clear_bit(DASD_PATH_PP, &device->path[chp].flags);
+}
+
+static inline void dasd_path_clear_oper(struct dasd_device *device, int chp)
+{
+	__clear_bit(DASD_PATH_OPERATIONAL, &device->path[chp].flags);
+	device->opm &= ~(0x80 >> chp);
+}
+
+static inline void dasd_path_clear_cable(struct dasd_device *device, int chp)
+{
+	__clear_bit(DASD_PATH_MISCABLED, &device->path[chp].flags);
+}
+
+static inline void dasd_path_cuir(struct dasd_device *device, int chp)
+{
+	__set_bit(DASD_PATH_CUIR, &device->path[chp].flags);
+}
+
+static inline int dasd_path_is_cuir(struct dasd_device *device, int chp)
+{
+	return test_bit(DASD_PATH_CUIR, &device->path[chp].flags);
+}
+
+static inline void dasd_path_clear_cuir(struct dasd_device *device, int chp)
+{
+	__clear_bit(DASD_PATH_CUIR, &device->path[chp].flags);
+}
+
+static inline void dasd_path_clear_nohpf(struct dasd_device *device, int chp)
+{
+	__clear_bit(DASD_PATH_NOHPF, &device->path[chp].flags);
+}
+
+static inline void dasd_path_miscabled(struct dasd_device *device, int chp)
+{
+	__set_bit(DASD_PATH_MISCABLED, &device->path[chp].flags);
+}
+
+static inline int dasd_path_is_miscabled(struct dasd_device *device, int chp)
+{
+	return test_bit(DASD_PATH_MISCABLED, &device->path[chp].flags);
+}
+
+static inline void dasd_path_nohpf(struct dasd_device *device, int chp)
+{
+	__set_bit(DASD_PATH_NOHPF, &device->path[chp].flags);
+}
+
+static inline int dasd_path_is_nohpf(struct dasd_device *device, int chp)
+{
+	return test_bit(DASD_PATH_NOHPF, &device->path[chp].flags);
+}
+
+/*
+ * get functions for path masks
+ * will return a path masks for the given device
+ */
+
+static inline __u8 dasd_path_get_opm(struct dasd_device *device)
+{
+	return device->opm;
+}
+
+static inline __u8 dasd_path_get_tbvpm(struct dasd_device *device)
+{
+	int chp;
+	__u8 tbvpm = 0x00;
+
+	for (chp = 0; chp < 8; chp++)
+		if (dasd_path_need_verify(device, chp))
+			tbvpm |= 0x80 >> chp;
+	return tbvpm;
+}
+
+static inline __u8 dasd_path_get_nppm(struct dasd_device *device)
+{
+	int chp;
+	__u8 npm = 0x00;
+
+	for (chp = 0; chp < 8; chp++) {
+		if (dasd_path_is_nonpreferred(device, chp))
+			npm |= 0x80 >> chp;
+	}
+	return npm;
+}
+
+static inline __u8 dasd_path_get_ppm(struct dasd_device *device)
+{
+	int chp;
+	__u8 ppm = 0x00;
+
+	for (chp = 0; chp < 8; chp++)
+		if (dasd_path_is_preferred(device, chp))
+			ppm |= 0x80 >> chp;
+	return ppm;
+}
+
+static inline __u8 dasd_path_get_cablepm(struct dasd_device *device)
+{
+	int chp;
+	__u8 cablepm = 0x00;
+
+	for (chp = 0; chp < 8; chp++)
+		if (dasd_path_is_miscabled(device, chp))
+			cablepm |= 0x80 >> chp;
+	return cablepm;
+}
+
+static inline __u8 dasd_path_get_cuirpm(struct dasd_device *device)
+{
+	int chp;
+	__u8 cuirpm = 0x00;
+
+	for (chp = 0; chp < 8; chp++)
+		if (dasd_path_is_cuir(device, chp))
+			cuirpm |= 0x80 >> chp;
+	return cuirpm;
+}
+
+static inline __u8 dasd_path_get_hpfpm(struct dasd_device *device)
+{
+	int chp;
+	__u8 hpfpm = 0x00;
+
+	for (chp = 0; chp < 8; chp++)
+		if (dasd_path_is_nohpf(device, chp))
+			hpfpm |= 0x80 >> chp;
+	return hpfpm;
+}
+
+/*
+ * add functions for path masks
+ * the existing path mask will be extended by the given path mask
+ */
+static inline void dasd_path_add_tbvpm(struct dasd_device *device, __u8 pm)
+{
+	int chp;
+
+	for (chp = 0; chp < 8; chp++)
+		if (pm & (0x80 >> chp))
+			dasd_path_verify(device, chp);
+}
+
+static inline void dasd_path_add_opm(struct dasd_device *device, __u8 pm)
+{
+	int chp;
+
+	for (chp = 0; chp < 8; chp++)
+		if (pm & (0x80 >> chp)) {
+			dasd_path_operational(device, chp);
+			/*
+			 * if the path is used
+			 * it should not be in one of the negative lists
+			 */
+			dasd_path_clear_nohpf(device, chp);
+			dasd_path_clear_cuir(device, chp);
+			dasd_path_clear_cable(device, chp);
+		}
+}
+
+static inline void dasd_path_add_cablepm(struct dasd_device *device, __u8 pm)
+{
+	int chp;
+
+	for (chp = 0; chp < 8; chp++)
+		if (pm & (0x80 >> chp))
+			dasd_path_miscabled(device, chp);
+}
+
+static inline void dasd_path_add_cuirpm(struct dasd_device *device, __u8 pm)
+{
+	int chp;
+
+	for (chp = 0; chp < 8; chp++)
+		if (pm & (0x80 >> chp))
+			dasd_path_cuir(device, chp);
+}
+
+static inline void dasd_path_add_nppm(struct dasd_device *device, __u8 pm)
+{
+	int chp;
+
+	for (chp = 0; chp < 8; chp++)
+		if (pm & (0x80 >> chp))
+			dasd_path_nonpreferred(device, chp);
+}
+
+static inline void dasd_path_add_nohpfpm(struct dasd_device *device, __u8 pm)
+{
+	int chp;
+
+	for (chp = 0; chp < 8; chp++)
+		if (pm & (0x80 >> chp))
+			dasd_path_nohpf(device, chp);
+}
+
+static inline void dasd_path_add_ppm(struct dasd_device *device, __u8 pm)
+{
+	int chp;
+
+	for (chp = 0; chp < 8; chp++)
+		if (pm & (0x80 >> chp))
+			dasd_path_preferred(device, chp);
+}
+
+/*
+ * set functions for path masks
+ * the existing path mask will be replaced by the given path mask
+ */
+static inline void dasd_path_set_tbvpm(struct dasd_device *device, __u8 pm)
+{
+	int chp;
+
+	for (chp = 0; chp < 8; chp++)
+		if (pm & (0x80 >> chp))
+			dasd_path_verify(device, chp);
+		else
+			dasd_path_clear_verify(device, chp);
+}
+
+static inline void dasd_path_set_opm(struct dasd_device *device, __u8 pm)
+{
+	int chp;
+
+	for (chp = 0; chp < 8; chp++) {
+		dasd_path_clear_oper(device, chp);
+		if (pm & (0x80 >> chp)) {
+			dasd_path_operational(device, chp);
+			/*
+			 * if the path is used
+			 * it should not be in one of the negative lists
+			 */
+			dasd_path_clear_nohpf(device, chp);
+			dasd_path_clear_cuir(device, chp);
+			dasd_path_clear_cable(device, chp);
+		}
+	}
+}
+
+/*
+ * remove functions for path masks
+ * the existing path mask will be cleared with the given path mask
+ */
+static inline void dasd_path_remove_opm(struct dasd_device *device, __u8 pm)
+{
+	int chp;
+
+	for (chp = 0; chp < 8; chp++) {
+		if (pm & (0x80 >> chp))
+			dasd_path_clear_oper(device, chp);
+	}
+}
+
+/*
+ * add the newly available path to the to be verified pm and remove it from
+ * normal operation until it is verified
+ */
+static inline void dasd_path_available(struct dasd_device *device, int chp)
+{
+	dasd_path_clear_oper(device, chp);
+	dasd_path_verify(device, chp);
+}
+
+static inline void dasd_path_notoper(struct dasd_device *device, int chp)
+{
+	dasd_path_clear_oper(device, chp);
+	dasd_path_clear_preferred(device, chp);
+	dasd_path_clear_nonpreferred(device, chp);
+}
+
+/*
+ * remove all paths from normal operation
+ */
+static inline void dasd_path_no_path(struct dasd_device *device)
+{
+	int chp;
+
+	for (chp = 0; chp < 8; chp++)
+		dasd_path_notoper(device, chp);
+
+	dasd_path_clear_all_verify(device);
+}
+
+/* end - path handling */
 
 #endif				/* DASD_H */
