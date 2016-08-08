@@ -56,19 +56,6 @@ void ion_carveout_free(struct ion_heap *heap, ion_phys_addr_t addr,
 	gen_pool_free(carveout_heap->pool, addr, size);
 }
 
-static int ion_carveout_heap_phys(struct ion_heap *heap,
-				  struct ion_buffer *buffer,
-				  ion_phys_addr_t *addr, size_t *len)
-{
-	struct sg_table *table = buffer->priv_virt;
-	struct page *page = sg_page(table->sgl);
-	ion_phys_addr_t paddr = PFN_PHYS(page_to_pfn(page));
-
-	*addr = paddr;
-	*len = buffer->size;
-	return 0;
-}
-
 static int ion_carveout_heap_allocate(struct ion_heap *heap,
 				      struct ion_buffer *buffer,
 				      unsigned long size, unsigned long align,
@@ -138,7 +125,6 @@ static void ion_carveout_heap_unmap_dma(struct ion_heap *heap,
 static struct ion_heap_ops carveout_heap_ops = {
 	.allocate = ion_carveout_heap_allocate,
 	.free = ion_carveout_heap_free,
-	.phys = ion_carveout_heap_phys,
 	.map_dma = ion_carveout_heap_map_dma,
 	.unmap_dma = ion_carveout_heap_unmap_dma,
 	.map_user = ion_heap_map_user,
