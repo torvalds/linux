@@ -47,7 +47,6 @@
 #include <linux/topology.h>
 #include <linux/cpumask.h>
 #include <linux/module.h>
-#include <linux/cpumask.h>
 
 #include "hfi.h"
 #include "affinity.h"
