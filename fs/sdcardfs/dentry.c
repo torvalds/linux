@@ -147,8 +147,7 @@ static int sdcardfs_hash_ci(const struct dentry *dentry,
 /*
  * Case insensitive compare of two vfat names.
  */
-static int sdcardfs_cmp_ci(const struct dentry *parent,
-		const struct dentry *dentry,
+static int sdcardfs_cmp_ci(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name)
 {
 	/* This function is copy of vfat_cmpi */
