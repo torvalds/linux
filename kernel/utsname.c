@@ -17,6 +17,16 @@
 #include <linux/user_namespace.h>
 #include <linux/proc_ns.h>
 
+static struct ucounts *inc_uts_namespaces(struct user_namespace *ns)
+{
+	return inc_ucount(ns, current_euid(), UCOUNT_UTS_NAMESPACES);
+}
+
+static void dec_uts_namespaces(struct ucounts *ucounts)
+{
+	dec_ucount(ucounts, UCOUNT_UTS_NAMESPACES);
+}
+
 static struct uts_namespace *create_uts_ns(void)
 {
 	struct uts_namespace *uts_ns;
@@ -36,18 +46,24 @@ static struct uts_namespace *clone_uts_ns(struct user_namespace *user_ns,
 					  struct uts_namespace *old_ns)
 {
 	struct uts_namespace *ns;
+	struct ucounts *ucounts;
 	int err;
 
+	err = -ENFILE;
+	ucounts = inc_uts_namespaces(user_ns);
+	if (!ucounts)
+		goto fail;
+
+	err = -ENOMEM;
 	ns = create_uts_ns();
 	if (!ns)
-		return ERR_PTR(-ENOMEM);
+		goto fail_dec;
 
 	err = ns_alloc_inum(&ns->ns);
-	if (err) {
-		kfree(ns);
-		return ERR_PTR(err);
-	}
+	if (err)
+		goto fail_free;
 
+	ns->ucounts = ucounts;
 	ns->ns.ops = &utsns_operations;
 
 	down_read(&uts_sem);
@@ -55,6 +71,13 @@ static struct uts_namespace *clone_uts_ns(struct user_namespace *user_ns,
 	ns->user_ns = get_user_ns(user_ns);
 	up_read(&uts_sem);
 	return ns;
+
+fail_free:
+	kfree(ns);
+fail_dec:
+	dec_uts_namespaces(ucounts);
+fail:
+	return ERR_PTR(err);
 }
 
 /*
@@ -85,6 +108,7 @@ void free_uts_ns(struct kref *kref)
 	struct uts_namespace *ns;
 
 	ns = container_of(kref, struct uts_namespace, kref);
+	dec_uts_namespaces(ns->ucounts);
 	put_user_ns(ns->user_ns);
 	ns_free_inum(&ns->ns);
 	kfree(ns);
