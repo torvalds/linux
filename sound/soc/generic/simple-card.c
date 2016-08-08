@@ -44,6 +44,8 @@ struct simple_card_data {
 #define simple_priv_to_link(priv, i) ((priv)->snd_card.dai_link + i)
 #define simple_priv_to_props(priv, i) ((priv)->dai_props + i)
 
+#define DAI	"sound-dai"
+#define CELL	"#sound-dai-cells"
 #define PREFIX	"simple-audio-card,"
 
 #define asoc_simple_card_init_hp(card, sjack, prefix)\
@@ -243,32 +245,10 @@ asoc_simple_card_sub_parse_of(struct device_node *np,
 			      const char **name,
 			      int *args_count)
 {
-	struct of_phandle_args args;
 	int ret;
 
 	if (!np)
 		return 0;
-
-	/*
-	 * Get node via "sound-dai = <&phandle port>"
-	 * it will be used as xxx_of_node on soc_bind_dai_link()
-	 */
-	ret = of_parse_phandle_with_args(np, "sound-dai",
-					 "#sound-dai-cells", 0, &args);
-	if (ret)
-		return ret;
-
-	*p_node = args.np;
-
-	if (args_count)
-		*args_count = args.args_count;
-
-	/* Get dai->name */
-	if (name) {
-		ret = snd_soc_of_get_dai_name(np, name);
-		if (ret < 0)
-			return ret;
-	}
 
 	if (!dai)
 		return 0;
@@ -298,7 +278,7 @@ static int asoc_simple_card_dai_link_of(struct device_node *node,
 	struct device_node *codec = NULL;
 	char prop[128];
 	char *prefix = "";
-	int ret, cpu_args;
+	int ret, single_cpu;
 	u32 val;
 
 	/* For single DAI link & old style of DT node */
@@ -328,10 +308,23 @@ static int asoc_simple_card_dai_link_of(struct device_node *node,
 	if (!of_property_read_u32(node, "mclk-fs", &val))
 		dai_props->mclk_fs = val;
 
+	ret = asoc_simple_card_parse_cpu(cpu, dai_link,
+					 DAI, CELL, &single_cpu);
+	if (ret < 0)
+		goto dai_link_of_err;
+
+	ret = asoc_simple_card_parse_codec(codec, dai_link, DAI, CELL);
+	if (ret < 0)
+		goto dai_link_of_err;
+
+	ret = asoc_simple_card_parse_platform(plat, dai_link, DAI, CELL);
+	if (ret < 0)
+		goto dai_link_of_err;
+
 	ret = asoc_simple_card_sub_parse_of(cpu, &dai_props->cpu_dai,
 					    &dai_link->cpu_of_node,
 					    &dai_link->cpu_dai_name,
-					    &cpu_args);
+					    &single_cpu);
 	if (ret < 0)
 		goto dai_link_of_err;
 
@@ -392,7 +385,7 @@ static int asoc_simple_card_dai_link_of(struct device_node *node,
 	 *	fmt_single_name()
 	 *	fmt_multiple_name()
 	 */
-	if (!cpu_args)
+	if (single_cpu)
 		dai_link->cpu_dai_name = NULL;
 
 dai_link_of_err:
