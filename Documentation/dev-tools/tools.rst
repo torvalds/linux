@@ -14,3 +14,4 @@ whole; patches welcome!
 .. toctree::
    :maxdepth: 2
 
+   coccinelle

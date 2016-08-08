@@ -3124,7 +3124,7 @@ L:	cocci@systeme.lip6.fr (moderated for non-subscribers)
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mmarek/kbuild.git misc
 W:	http://coccinelle.lip6.fr/
 S:	Supported
-F:	Documentation/coccinelle.txt
+F:	Documentation/dev-tools/coccinelle.rst
 F:	scripts/coccinelle/
 F:	scripts/coccicheck
 
