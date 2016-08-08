@@ -125,13 +125,37 @@ static void dce_virtual_bandwidth_update(struct amdgpu_device *adev)
 	return;
 }
 
+static int dce_virtual_crtc_gamma_set(struct drm_crtc *crtc, u16 *red,
+				      u16 *green, u16 *blue, uint32_t size)
+{
+	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
+	int i;
+
+	/* userspace palettes are always correct as is */
+	for (i = 0; i < size; i++) {
+		amdgpu_crtc->lut_r[i] = red[i] >> 6;
+		amdgpu_crtc->lut_g[i] = green[i] >> 6;
+		amdgpu_crtc->lut_b[i] = blue[i] >> 6;
+	}
+
+	return 0;
+}
+
+static void dce_virtual_crtc_destroy(struct drm_crtc *crtc)
+{
+	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
+
+	drm_crtc_cleanup(crtc);
+	kfree(amdgpu_crtc);
+}
+
 static const struct drm_crtc_funcs dce_virtual_crtc_funcs = {
 	.cursor_set2 = NULL,
 	.cursor_move = NULL,
-	.gamma_set = NULL,
-	.set_config = NULL,
-	.destroy = NULL,
-	.page_flip = NULL,
+	.gamma_set = dce_virtual_crtc_gamma_set,
+	.set_config = amdgpu_crtc_set_config,
+	.destroy = dce_virtual_crtc_destroy,
+	.page_flip = amdgpu_crtc_page_flip,
 };
 
 static void dce_virtual_crtc_dpms(struct drm_crtc *crtc, int mode)
