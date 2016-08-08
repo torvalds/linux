@@ -68,6 +68,7 @@
 #include <sys/mman.h>
 
 #include <linux/stringify.h>
+#include <linux/time64.h>
 #include <linux/types.h>
 
 static volatile int done;
@@ -624,7 +625,7 @@ static void *display_thread(void *arg)
 	display_setup_sig();
 	pthread__unblock_sigwinch();
 repeat:
-	delay_msecs = top->delay_secs * 1000;
+	delay_msecs = top->delay_secs * MSEC_PER_SEC;
 	set_term_quiet_input(&save);
 	/* trash return*/
 	getc(stdin);
