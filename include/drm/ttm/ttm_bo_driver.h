@@ -983,7 +983,6 @@ extern int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
  * ttm_bo_move_memcpy
  *
  * @bo: A pointer to a struct ttm_buffer_object.
- * @evict: 1: This is an eviction. Don't try to pipeline.
  * @interruptible: Sleep interruptible if waiting.
  * @no_wait_gpu: Return immediately if the GPU is busy.
  * @new_mem: struct ttm_mem_reg indicating where to move.
@@ -999,8 +998,7 @@ extern int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
  */
 
 extern int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
-			      bool evict, bool interruptible,
-			      bool no_wait_gpu,
+			      bool interruptible, bool no_wait_gpu,
 			      struct ttm_mem_reg *new_mem);
 
 /**

@@ -1297,7 +1297,7 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict, bool intr,
 	/* Fallback to software copy. */
 	ret = ttm_bo_wait(bo, intr, no_wait_gpu);
 	if (ret == 0)
-		ret = ttm_bo_move_memcpy(bo, evict, intr, no_wait_gpu, new_mem);
+		ret = ttm_bo_move_memcpy(bo, intr, no_wait_gpu, new_mem);
 
 out:
 	if (drm->device.info.family < NV_DEVICE_INFO_V0_TESLA) {

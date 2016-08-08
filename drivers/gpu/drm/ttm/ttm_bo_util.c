@@ -329,8 +329,7 @@ static int ttm_copy_ttm_io_page(struct ttm_tt *ttm, void *dst,
 }
 
 int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
-		       bool evict, bool interruptible,
-		       bool no_wait_gpu,
+		       bool interruptible, bool no_wait_gpu,
 		       struct ttm_mem_reg *new_mem)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
