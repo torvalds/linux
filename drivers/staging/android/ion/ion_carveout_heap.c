@@ -25,6 +25,8 @@
 #include "ion.h"
 #include "ion_priv.h"
 
+#define ION_CARVEOUT_ALLOCATE_FAIL	-1
+
 struct ion_carveout_heap {
 	struct ion_heap heap;
 	struct gen_pool *pool;
