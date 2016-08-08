@@ -42,6 +42,7 @@ static int sca_ext_call_pending(struct kvm_vcpu *vcpu, int *src_id)
 	if (!(atomic_read(&vcpu->arch.sie_block->cpuflags) & CPUSTAT_ECALL_PEND))
 		return 0;
 
+	BUG_ON(!kvm_s390_use_sca_entries());
 	read_lock(&vcpu->kvm->arch.sca_lock);
 	if (vcpu->kvm->arch.use_esca) {
 		struct esca_block *sca = vcpu->kvm->arch.sca;
@@ -70,6 +71,7 @@ static int sca_inject_ext_call(struct kvm_vcpu *vcpu, int src_id)
 {
 	int expect, rc;
 
+	BUG_ON(!kvm_s390_use_sca_entries());
 	read_lock(&vcpu->kvm->arch.sca_lock);
 	if (vcpu->kvm->arch.use_esca) {
 		struct esca_block *sca = vcpu->kvm->arch.sca;
@@ -111,6 +113,8 @@ static void sca_clear_ext_call(struct kvm_vcpu *vcpu)
 	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
 	int rc, expect;
 
+	if (!kvm_s390_use_sca_entries())
+		return;
 	atomic_andnot(CPUSTAT_ECALL_PEND, li->cpuflags);
 	read_lock(&vcpu->kvm->arch.sca_lock);
 	if (vcpu->kvm->arch.use_esca) {

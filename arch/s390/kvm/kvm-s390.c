@@ -376,7 +376,9 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_NR_VCPUS:
 	case KVM_CAP_MAX_VCPUS:
 		r = KVM_S390_BSCA_CPU_SLOTS;
-		if (sclp.has_esca && sclp.has_64bscao)
+		if (!kvm_s390_use_sca_entries())
+			r = KVM_MAX_VCPUS;
+		else if (sclp.has_esca && sclp.has_64bscao)
 			r = KVM_S390_ESCA_CPU_SLOTS;
 		break;
 	case KVM_CAP_NR_MEMSLOTS:
@@ -1553,6 +1555,8 @@ static int __kvm_ucontrol_vcpu_init(struct kvm_vcpu *vcpu)
 
 static void sca_del_vcpu(struct kvm_vcpu *vcpu)
 {
+	if (!kvm_s390_use_sca_entries())
+		return;
 	read_lock(&vcpu->kvm->arch.sca_lock);
 	if (vcpu->kvm->arch.use_esca) {
 		struct esca_block *sca = vcpu->kvm->arch.sca;
@@ -1570,6 +1574,13 @@ static void sca_del_vcpu(struct kvm_vcpu *vcpu)
 
 static void sca_add_vcpu(struct kvm_vcpu *vcpu)
 {
+	if (!kvm_s390_use_sca_entries()) {
+		struct bsca_block *sca = vcpu->kvm->arch.sca;
+
+		/* we still need the basic sca for the ipte control */
+		vcpu->arch.sie_block->scaoh = (__u32)(((__u64)sca) >> 32);
+		vcpu->arch.sie_block->scaol = (__u32)(__u64)sca;
+	}
 	read_lock(&vcpu->kvm->arch.sca_lock);
 	if (vcpu->kvm->arch.use_esca) {
 		struct esca_block *sca = vcpu->kvm->arch.sca;
@@ -1650,6 +1661,11 @@ static int sca_can_add_vcpu(struct kvm *kvm, unsigned int id)
 {
 	int rc;
 
+	if (!kvm_s390_use_sca_entries()) {
+		if (id < KVM_MAX_VCPUS)
+			return true;
+		return false;
+	}
 	if (id < KVM_S390_BSCA_CPU_SLOTS)
 		return true;
 	if (!sclp.has_esca || !sclp.has_64bscao)

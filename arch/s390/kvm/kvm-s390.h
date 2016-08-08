@@ -20,6 +20,7 @@
 #include <linux/kvm_host.h>
 #include <asm/facility.h>
 #include <asm/processor.h>
+#include <asm/sclp.h>
 
 typedef int (*intercept_handler_t)(struct kvm_vcpu *vcpu);
 
@@ -386,5 +387,14 @@ static inline union ipte_control *kvm_s390_get_ipte_control(struct kvm *kvm)
 	struct bsca_block *sca = kvm->arch.sca; /* SCA version doesn't matter */
 
 	return &sca->ipte_control;
+}
+static inline int kvm_s390_use_sca_entries(void)
+{
+	/*
+	 * Without SIGP interpretation, only SRS interpretation (if available)
+	 * might use the entries. By not setting the entries and keeping them
+	 * invalid, hardware will not access them but intercept.
+	 */
+	return sclp.has_sigpif;
 }
 #endif
