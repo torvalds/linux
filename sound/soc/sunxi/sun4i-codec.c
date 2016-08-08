@@ -628,12 +628,14 @@ static const struct snd_soc_dapm_route sun4i_codec_codec_dapm_routes[] = {
 };
 
 static struct snd_soc_codec_driver sun4i_codec_codec = {
-	.controls		= sun4i_codec_widgets,
-	.num_controls		= ARRAY_SIZE(sun4i_codec_widgets),
-	.dapm_widgets		= sun4i_codec_codec_dapm_widgets,
-	.num_dapm_widgets	= ARRAY_SIZE(sun4i_codec_codec_dapm_widgets),
-	.dapm_routes		= sun4i_codec_codec_dapm_routes,
-	.num_dapm_routes	= ARRAY_SIZE(sun4i_codec_codec_dapm_routes),
+	.component_driver = {
+		.controls		= sun4i_codec_widgets,
+		.num_controls		= ARRAY_SIZE(sun4i_codec_widgets),
+		.dapm_widgets		= sun4i_codec_codec_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(sun4i_codec_codec_dapm_widgets),
+		.dapm_routes		= sun4i_codec_codec_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(sun4i_codec_codec_dapm_routes),
+	},
 };
 
 static const struct snd_soc_component_driver sun4i_codec_component = {
