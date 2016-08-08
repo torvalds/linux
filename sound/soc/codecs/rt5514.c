@@ -1023,12 +1023,14 @@ static struct snd_soc_codec_driver soc_codec_dev_rt5514 = {
 	.probe = rt5514_probe,
 	.idle_bias_off = true,
 	.set_bias_level = rt5514_set_bias_level,
-	.controls = rt5514_snd_controls,
-	.num_controls = ARRAY_SIZE(rt5514_snd_controls),
-	.dapm_widgets = rt5514_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(rt5514_dapm_widgets),
-	.dapm_routes = rt5514_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(rt5514_dapm_routes),
+	.component_driver = {
+		.controls		= rt5514_snd_controls,
+		.num_controls		= ARRAY_SIZE(rt5514_snd_controls),
+		.dapm_widgets		= rt5514_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(rt5514_dapm_widgets),
+		.dapm_routes		= rt5514_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(rt5514_dapm_routes),
+	},
 };
 
 static const struct regmap_config rt5514_i2c_regmap = {
