@@ -124,8 +124,11 @@ void dce_virtual_stop_mc_access(struct amdgpu_device *adev,
 	case CHIP_POLARIS10:
 		dce_v11_0_disable_dce(adev);
 		break;
+	case CHIP_TOPAZ:
+		/* no DCE */
+		return;
 	default:
-		DRM_ERROR("Usupported ASIC type: 0x%X\n", adev->asic_type);
+		DRM_ERROR("Virtual display unsupported ASIC type: 0x%X\n", adev->asic_type);
 	}
 
 	return;
