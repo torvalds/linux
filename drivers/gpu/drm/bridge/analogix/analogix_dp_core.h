@@ -178,6 +178,9 @@ struct analogix_dp_device {
 	bool                    force_hpd;
 	unsigned char           edid[EDID_BLOCK_LENGTH * 2];
 
+	struct mutex		panel_lock;
+	bool			panel_is_modeset;
+
 	struct analogix_dp_plat_data *plat_data;
 };
 
