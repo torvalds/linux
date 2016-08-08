@@ -353,6 +353,7 @@ static int dce_virtual_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	adev->mode_info.vsync_timer_enabled = AMDGPU_IRQ_STATE_DISABLE;
 	dce_virtual_set_display_funcs(adev);
 	dce_virtual_set_irq_funcs(adev);
 
