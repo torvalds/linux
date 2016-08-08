@@ -269,7 +269,7 @@ static void hpet_msi_write_msg(struct irq_data *data, struct msi_msg *msg)
 	hpet_msi_write(irq_data_get_irq_handler_data(data), msg);
 }
 
-static struct irq_chip hpet_msi_controller = {
+static struct irq_chip hpet_msi_controller __ro_after_init = {
 	.name = "HPET-MSI",
 	.irq_unmask = hpet_msi_unmask,
 	.irq_mask = hpet_msi_mask,
