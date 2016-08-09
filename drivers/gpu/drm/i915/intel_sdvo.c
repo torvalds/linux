@@ -1003,24 +1003,22 @@ static bool intel_sdvo_write_infoframe(struct intel_sdvo *intel_sdvo,
 }
 
 static bool intel_sdvo_set_avi_infoframe(struct intel_sdvo *intel_sdvo,
-					 const struct drm_display_mode *adjusted_mode)
+					 struct intel_crtc_state *pipe_config)
 {
 	uint8_t sdvo_data[HDMI_INFOFRAME_SIZE(AVI)];
-	struct drm_crtc *crtc = intel_sdvo->base.base.crtc;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	union hdmi_infoframe frame;
 	int ret;
 	ssize_t len;
 
 	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame.avi,
-						       adjusted_mode);
+						       &pipe_config->base.adjusted_mode);
 	if (ret < 0) {
 		DRM_ERROR("couldn't fill AVI infoframe\n");
 		return false;
 	}
 
 	if (intel_sdvo->rgb_quant_range_selectable) {
-		if (intel_crtc->config->limited_color_range)
+		if (pipe_config->limited_color_range)
 			frame.avi.quantization_range =
 				HDMI_QUANTIZATION_RANGE_LIMITED;
 		else
@@ -1199,17 +1197,14 @@ static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder,
 {
 	struct drm_device *dev = intel_encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crtc *crtc = to_intel_crtc(intel_encoder->base.crtc);
-	const struct drm_display_mode *adjusted_mode = &crtc->config->base.adjusted_mode;
-	struct drm_display_mode *mode = &crtc->config->base.mode;
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	const struct drm_display_mode *adjusted_mode = &crtc_state->base.adjusted_mode;
+	struct drm_display_mode *mode = &crtc_state->base.mode;
 	struct intel_sdvo *intel_sdvo = to_sdvo(intel_encoder);
 	u32 sdvox;
 	struct intel_sdvo_in_out_map in_out;
 	struct intel_sdvo_dtd input_dtd, output_dtd;
 	int rate;
-
-	if (!mode)
-		return;
 
 	/* First, set the input mapping for the first input to our controlled
 	 * output. This is only correct if we're a single-input device, in
@@ -1243,11 +1238,11 @@ static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder,
 	if (!intel_sdvo_set_target_input(intel_sdvo))
 		return;
 
-	if (crtc->config->has_hdmi_sink) {
+	if (crtc_state->has_hdmi_sink) {
 		intel_sdvo_set_encode(intel_sdvo, SDVO_ENCODE_HDMI);
 		intel_sdvo_set_colorimetry(intel_sdvo,
 					   SDVO_COLORIMETRY_RGB256);
-		intel_sdvo_set_avi_infoframe(intel_sdvo, adjusted_mode);
+		intel_sdvo_set_avi_infoframe(intel_sdvo, crtc_state);
 	} else
 		intel_sdvo_set_encode(intel_sdvo, SDVO_ENCODE_DVI);
 
@@ -1263,7 +1258,7 @@ static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder,
 		DRM_INFO("Setting input timings on %s failed\n",
 			 SDVO_NAME(intel_sdvo));
 
-	switch (crtc->config->pixel_multiplier) {
+	switch (crtc_state->pixel_multiplier) {
 	default:
 		WARN(1, "unknown pixel multiplier specified\n");
 	case 1: rate = SDVO_CLOCK_RATE_MULT_1X; break;
@@ -1278,7 +1273,7 @@ static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder,
 		/* The real mode polarity is set by the SDVO commands, using
 		 * struct intel_sdvo_dtd. */
 		sdvox = SDVO_VSYNC_ACTIVE_HIGH | SDVO_HSYNC_ACTIVE_HIGH;
-		if (!HAS_PCH_SPLIT(dev) && crtc->config->limited_color_range)
+		if (!HAS_PCH_SPLIT(dev) && crtc_state->limited_color_range)
 			sdvox |= HDMI_COLOR_RANGE_16_235;
 		if (INTEL_INFO(dev)->gen < 5)
 			sdvox |= SDVO_BORDER_ENABLE;
@@ -1304,7 +1299,7 @@ static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder,
 	} else if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev)) {
 		/* done in crtc_mode_set as it lives inside the dpll register */
 	} else {
-		sdvox |= (crtc->config->pixel_multiplier - 1)
+		sdvox |= (crtc_state->pixel_multiplier - 1)
 			<< SDVO_PORT_MULTIPLY_SHIFT;
 	}
 
