@@ -374,7 +374,7 @@ static const struct mv_cesa_req_ops mv_cesa_ahash_req_ops = {
 	.complete = mv_cesa_ahash_complete,
 };
 
-static int mv_cesa_ahash_init(struct ahash_request *req,
+static void mv_cesa_ahash_init(struct ahash_request *req,
 			      struct mv_cesa_op_ctx *tmpl, bool algo_le)
 {
 	struct mv_cesa_ahash_req *creq = ahash_request_ctx(req);
@@ -390,8 +390,6 @@ static int mv_cesa_ahash_init(struct ahash_request *req,
 	creq->op_tmpl = *tmpl;
 	creq->len = 0;
 	creq->algo_le = algo_le;
-
-	return 0;
 }
 
 static inline int mv_cesa_ahash_cra_init(struct crypto_tfm *tfm)
