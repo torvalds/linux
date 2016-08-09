@@ -121,7 +121,7 @@ Block library API
     below.
 
     The block library can be found on GitHub:
-    http://www.github.com/mikehollinger/ibmcapikv
+    http://github.com/open-power/capiflash
 
 
 CXL Flash Driver IOCTLs
