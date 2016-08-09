@@ -1321,7 +1321,7 @@ static int xc2028_sleep(struct dvb_frontend *fe)
 	return rc;
 }
 
-static int xc2028_dvb_release(struct dvb_frontend *fe)
+static void xc2028_dvb_release(struct dvb_frontend *fe)
 {
 	struct xc2028_data *priv = fe->tuner_priv;
 
@@ -1342,8 +1342,6 @@ static int xc2028_dvb_release(struct dvb_frontend *fe)
 	mutex_unlock(&xc2028_list_mutex);
 
 	fe->tuner_priv = NULL;
-
-	return 0;
 }
 
 static int xc2028_get_frequency(struct dvb_frontend *fe, u32 *frequency)

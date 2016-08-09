@@ -225,7 +225,7 @@ struct dvb_tuner_ops {
 
 	struct dvb_tuner_info info;
 
-	int (*release)(struct dvb_frontend *fe);
+	void (*release)(struct dvb_frontend *fe);
 	int (*init)(struct dvb_frontend *fe);
 	int (*sleep)(struct dvb_frontend *fe);
 	int (*suspend)(struct dvb_frontend *fe);
@@ -270,7 +270,7 @@ struct dvb_tuner_ops {
  * A common default implementation for dvb_tuner_ops.release.  All it
  * does is kfree() the tuner_priv and assign NULL to it.
  */
-int
+void
 dvb_tuner_simple_release(struct dvb_frontend *fe);
 
 /**

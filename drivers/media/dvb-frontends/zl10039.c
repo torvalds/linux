@@ -244,14 +244,13 @@ error:
 	return ret;
 }
 
-static int zl10039_release(struct dvb_frontend *fe)
+static void zl10039_release(struct dvb_frontend *fe)
 {
 	struct zl10039_state *state = fe->tuner_priv;
 
 	dprintk("%s\n", __func__);
 	kfree(state);
 	fe->tuner_priv = NULL;
-	return 0;
 }
 
 static const struct dvb_tuner_ops zl10039_ops = {

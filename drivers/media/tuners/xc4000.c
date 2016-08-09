@@ -1618,7 +1618,7 @@ static int xc4000_init(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int xc4000_release(struct dvb_frontend *fe)
+static void xc4000_release(struct dvb_frontend *fe)
 {
 	struct xc4000_priv *priv = fe->tuner_priv;
 
@@ -1632,8 +1632,6 @@ static int xc4000_release(struct dvb_frontend *fe)
 	mutex_unlock(&xc4000_list_mutex);
 
 	fe->tuner_priv = NULL;
-
-	return 0;
 }
 
 static const struct dvb_tuner_ops xc4000_tuner_ops = {

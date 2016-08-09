@@ -174,12 +174,11 @@ static bool has_get_frontend(struct dvb_frontend *fe)
 	return fe->ops.get_frontend != NULL;
 }
 
-int
+void
 dvb_tuner_simple_release(struct dvb_frontend *fe)
 {
 	kfree(fe->tuner_priv);
 	fe->tuner_priv = NULL;
-	return 0;
 }
 EXPORT_SYMBOL(dvb_tuner_simple_release);
 
