@@ -426,6 +426,13 @@ config EDAC_ALTERA_QSPI
 	  Support for error detection and correction on the
 	  Altera QSPI FIFO Memory for Altera SoCs.
 
+config EDAC_ALTERA_SDMMC
+	bool "Altera SDMMC FIFO ECC"
+	depends on EDAC_ALTERA=y && MMC_DW
+	help
+	  Support for error detection and correction on the
+	  Altera SDMMC FIFO Memory for Altera SoCs.
+
 config EDAC_SYNOPSYS
 	tristate "Synopsys DDR Memory Controller"
 	depends on EDAC_MM_EDAC && ARCH_ZYNQ
