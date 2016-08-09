@@ -656,8 +656,8 @@ static const struct of_device_id mpc85xx_mc_err_of_match[] = {
 MODULE_DEVICE_TABLE(of, mpc85xx_mc_err_of_match);
 
 static struct platform_driver mpc85xx_mc_err_driver = {
-	.probe = mpc85xx_mc_err_probe,
-	.remove = mpc85xx_mc_err_remove,
+	.probe = fsl_mc_err_probe,
+	.remove = fsl_mc_err_remove,
 	.driver = {
 		.name = "mpc85xx_mc_err",
 		.of_match_table = mpc85xx_mc_err_of_match,
