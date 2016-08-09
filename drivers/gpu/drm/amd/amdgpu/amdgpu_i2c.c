@@ -186,10 +186,8 @@ struct amdgpu_i2c_chan *amdgpu_i2c_create(struct drm_device *dev,
 			 "AMDGPU i2c hw bus %s", name);
 		i2c->adapter.algo = &amdgpu_atombios_i2c_algo;
 		ret = i2c_add_adapter(&i2c->adapter);
-		if (ret) {
-			DRM_ERROR("Failed to register hw i2c %s\n", name);
+		if (ret)
 			goto out_free;
-		}
 	} else {
 		/* set the amdgpu bit adapter */
 		snprintf(i2c->adapter.name, sizeof(i2c->adapter.name),
