@@ -481,13 +481,13 @@ config NFT_CT
 	  This option adds the "meta" expression that you can use to match
 	  connection tracking information such as the flow state.
 
-config NFT_RBTREE
+config NFT_SET_RBTREE
 	tristate "Netfilter nf_tables rbtree set module"
 	help
 	  This option adds the "rbtree" set type (Red Black tree) that is used
 	  to build interval-based sets.
 
-config NFT_HASH
+config NFT_SET_HASH
 	tristate "Netfilter nf_tables hash set module"
 	help
 	  This option adds the "hash" set type that is used to build one-way
