@@ -310,7 +310,7 @@ struct intel_engine_cs {
 
 	/* An RCU guarded pointer to the last request. No reference is
 	 * held to the request, users must carefully acquire a reference to
-	 * the request using i915_gem_active_get_request_rcu(), or hold the
+	 * the request using i915_gem_active_get_rcu(), or hold the
 	 * struct_mutex.
 	 */
 	struct i915_gem_active last_request;

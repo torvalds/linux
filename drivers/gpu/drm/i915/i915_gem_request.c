@@ -360,7 +360,7 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	 * We use RCU to look up requests in flight. The lookups may
 	 * race with the request being allocated from the slab freelist.
 	 * That is the request we are writing to here, may be in the process
-	 * of being read by __i915_gem_active_get_request_rcu(). As such,
+	 * of being read by __i915_gem_active_get_rcu(). As such,
 	 * we have to be very careful when overwriting the contents. During
 	 * the RCU lookup, we change chase the request->engine pointer,
 	 * read the request->fence.seqno and increment the reference count.
