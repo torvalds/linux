@@ -139,6 +139,8 @@ static int mwifiex_unregister(struct mwifiex_adapter *adapter)
 		adapter->nd_info = NULL;
 	}
 
+	kfree(adapter->regd);
+
 	vfree(adapter->chan_stats);
 	kfree(adapter);
 	return 0;

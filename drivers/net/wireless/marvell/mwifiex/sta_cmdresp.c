@@ -1022,6 +1022,93 @@ static int mwifiex_ret_robust_coex(struct mwifiex_private *priv,
 	return 0;
 }
 
+static struct ieee80211_regdomain *
+mwifiex_create_custom_regdomain(struct mwifiex_private *priv,
+				u8 *buf, u16 buf_len)
+{
+	u16 num_chan = buf_len / 2;
+	struct ieee80211_regdomain *regd;
+	struct ieee80211_reg_rule *rule;
+	bool new_rule;
+	int regd_size, idx, freq, prev_freq = 0;
+	u32 bw, prev_bw = 0;
+	u8 chflags, prev_chflags = 0, valid_rules = 0;
+
+	if (WARN_ON_ONCE(num_chan > NL80211_MAX_SUPP_REG_RULES))
+		return ERR_PTR(-EINVAL);
+
+	regd_size = sizeof(struct ieee80211_regdomain) +
+		    num_chan * sizeof(struct ieee80211_reg_rule);
+
+	regd = kzalloc(regd_size, GFP_KERNEL);
+	if (!regd)
+		return ERR_PTR(-ENOMEM);
+
+	for (idx = 0; idx < num_chan; idx++) {
+		u8 chan;
+		enum nl80211_band band;
+
+		chan = *buf++;
+		if (!chan)
+			return NULL;
+		chflags = *buf++;
+		band = (chan <= 14) ? NL80211_BAND_2GHZ : NL80211_BAND_5GHZ;
+		freq = ieee80211_channel_to_frequency(chan, band);
+		new_rule = false;
+
+		if (chflags & MWIFIEX_CHANNEL_DISABLED)
+			continue;
+
+		if (band == NL80211_BAND_5GHZ) {
+			if (!(chflags & MWIFIEX_CHANNEL_NOHT80))
+				bw = MHZ_TO_KHZ(80);
+			else if (!(chflags & MWIFIEX_CHANNEL_NOHT40))
+				bw = MHZ_TO_KHZ(40);
+			else
+				bw = MHZ_TO_KHZ(20);
+		} else {
+			if (!(chflags & MWIFIEX_CHANNEL_NOHT40))
+				bw = MHZ_TO_KHZ(40);
+			else
+				bw = MHZ_TO_KHZ(20);
+		}
+
+		if (idx == 0 || prev_chflags != chflags || prev_bw != bw ||
+		    freq - prev_freq > 20) {
+			valid_rules++;
+			new_rule = true;
+		}
+
+		rule = &regd->reg_rules[valid_rules - 1];
+
+		rule->freq_range.end_freq_khz = MHZ_TO_KHZ(freq + 10);
+
+		prev_chflags = chflags;
+		prev_freq = freq;
+		prev_bw = bw;
+
+		if (!new_rule)
+			continue;
+
+		rule->freq_range.start_freq_khz = MHZ_TO_KHZ(freq - 10);
+		rule->power_rule.max_eirp = DBM_TO_MBM(19);
+
+		if (chflags & MWIFIEX_CHANNEL_PASSIVE)
+			rule->flags = NL80211_RRF_NO_IR;
+
+		if (chflags & MWIFIEX_CHANNEL_DFS)
+			rule->flags = NL80211_RRF_DFS;
+
+		rule->freq_range.max_bandwidth_khz = bw;
+	}
+
+	regd->n_reg_rules = valid_rules;
+	regd->alpha2[0] = '9';
+	regd->alpha2[1] = '9';
+
+	return regd;
+}
+
 static int mwifiex_ret_chan_region_cfg(struct mwifiex_private *priv,
 				       struct host_cmd_ds_command *resp)
 {
@@ -1050,6 +1137,10 @@ static int mwifiex_ret_chan_region_cfg(struct mwifiex_private *priv,
 			mwifiex_dbg_dump(priv->adapter, CMD_D, "CHAN:",
 					 (u8 *)head + sizeof(*head),
 					 tlv_buf_len);
+			priv->adapter->regd =
+				mwifiex_create_custom_regdomain(priv,
+								(u8 *)head +
+						sizeof(*head), tlv_buf_len);
 			break;
 		}
 

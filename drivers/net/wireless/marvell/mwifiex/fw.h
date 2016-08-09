@@ -416,6 +416,14 @@ enum P2P_MODES {
 	P2P_MODE_CLIENT = 3,
 };
 
+enum mwifiex_channel_flags {
+	MWIFIEX_CHANNEL_PASSIVE = BIT(0),
+	MWIFIEX_CHANNEL_DFS = BIT(1),
+	MWIFIEX_CHANNEL_NOHT40 = BIT(2),
+	MWIFIEX_CHANNEL_NOHT80 = BIT(3),
+	MWIFIEX_CHANNEL_DISABLED = BIT(7),
+};
+
 #define HostCmd_RET_BIT                       0x8000
 #define HostCmd_ACT_GEN_GET                   0x0000
 #define HostCmd_ACT_GEN_SET                   0x0001
