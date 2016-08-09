@@ -656,6 +656,10 @@
 	status = "okay";
 };
 
+&vpu {
+	status = "okay";
+};
+
 &wdt {
 	status = "okay";
 };
