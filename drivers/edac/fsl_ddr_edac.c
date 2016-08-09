@@ -563,7 +563,7 @@ int fsl_mc_err_probe(struct platform_device *op)
 		ddr_out32(pdata->mc_vbase + FSL_MC_ERR_SBE, 0x10000);
 
 		/* register interrupts */
-		pdata->irq = irq_of_parse_and_map(op->dev.of_node, 0);
+		pdata->irq = platform_get_irq(op, 0);
 		res = devm_request_irq(&op->dev, pdata->irq,
 				       fsl_mc_isr,
 				       IRQF_SHARED,
@@ -571,7 +571,6 @@ int fsl_mc_err_probe(struct platform_device *op)
 		if (res < 0) {
 			pr_err("%s: Unable to request irq %d for FSL DDR DRAM ERR\n",
 			       __func__, pdata->irq);
-			irq_dispose_mapping(pdata->irq);
 			res = -ENODEV;
 			goto err2;
 		}
@@ -602,7 +601,6 @@ int fsl_mc_err_remove(struct platform_device *op)
 	edac_dbg(0, "\n");
 
 	if (edac_op_state == EDAC_OPSTATE_INT) {
-		irq_dispose_mapping(pdata->irq);
 		ddr_out32(pdata->mc_vbase + FSL_MC_ERR_INT_EN, 0);
 	}
 
