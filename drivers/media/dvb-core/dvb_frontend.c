@@ -104,8 +104,6 @@ MODULE_PARM_DESC(dvb_mfe_wait_time, "Wait up to <mfe_wait_time> seconds on open(
 static DEFINE_MUTEX(frontend_mutex);
 
 struct dvb_frontend_private {
-	struct kref refcount;
-
 	/* thread/frontend values */
 	struct dvb_device *dvbdev;
 	struct dvb_frontend_parameters parameters_out;
@@ -143,21 +141,30 @@ struct dvb_frontend_private {
 #endif
 };
 
-static void dvb_frontend_private_free(struct kref *ref)
+static void dvb_frontend_invoke_release(struct dvb_frontend *fe,
+					void (*release)(struct dvb_frontend *fe));
+
+static void dvb_frontend_free(struct kref *ref)
 {
-	struct dvb_frontend_private *fepriv =
-		container_of(ref, struct dvb_frontend_private, refcount);
+	struct dvb_frontend *fe =
+		container_of(ref, struct dvb_frontend, refcount);
+	struct dvb_frontend_private *fepriv = fe->frontend_priv;
+
+	dvb_free_device(fepriv->dvbdev);
+
+	dvb_frontend_invoke_release(fe, fe->ops.release);
+
 	kfree(fepriv);
 }
 
-static void dvb_frontend_private_put(struct dvb_frontend_private *fepriv)
+static void dvb_frontend_put(struct dvb_frontend *fe)
 {
-	kref_put(&fepriv->refcount, dvb_frontend_private_free);
+	kref_put(&fe->refcount, dvb_frontend_free);
 }
 
-static void dvb_frontend_private_get(struct dvb_frontend_private *fepriv)
+static void dvb_frontend_get(struct dvb_frontend *fe)
 {
-	kref_get(&fepriv->refcount);
+	kref_get(&fe->refcount);
 }
 
 static void dvb_frontend_wakeup(struct dvb_frontend *fe);
@@ -2555,7 +2562,7 @@ static int dvb_frontend_open(struct inode *inode, struct file *file)
 		fepriv->events.eventr = fepriv->events.eventw = 0;
 	}
 
-	dvb_frontend_private_get(fepriv);
+	dvb_frontend_get(fe);
 
 	if (adapter->mfe_shared)
 		mutex_unlock (&adapter->mfe_lock);
@@ -2605,7 +2612,7 @@ static int dvb_frontend_release(struct inode *inode, struct file *file)
 			fe->ops.ts_bus_ctrl(fe, 0);
 	}
 
-	dvb_frontend_private_put(fepriv);
+	dvb_frontend_put(fe);
 
 	return ret;
 }
@@ -2695,7 +2702,14 @@ int dvb_register_frontend(struct dvb_adapter* dvb,
 	}
 	fepriv = fe->frontend_priv;
 
-	kref_init(&fepriv->refcount);
+	kref_init(&fe->refcount);
+
+	/*
+	 * After initialization, there need to be two references: one
+	 * for dvb_unregister_frontend(), and another one for
+	 * dvb_frontend_detach().
+	 */
+	dvb_frontend_get(fe);
 
 	sema_init(&fepriv->sem, 1);
 	init_waitqueue_head (&fepriv->wait_queue);
@@ -2730,12 +2744,12 @@ int dvb_unregister_frontend(struct dvb_frontend* fe)
 	dev_dbg(fe->dvb->device, "%s:\n", __func__);
 
 	mutex_lock(&frontend_mutex);
-	dvb_frontend_stop (fe);
-	dvb_unregister_device (fepriv->dvbdev);
+	dvb_frontend_stop(fe);
+	dvb_remove_device(fepriv->dvbdev);
 
 	/* fe is invalid now */
 	mutex_unlock(&frontend_mutex);
-	dvb_frontend_private_put(fepriv);
+	dvb_frontend_put(fe);
 	return 0;
 }
 EXPORT_SYMBOL(dvb_unregister_frontend);
@@ -2757,6 +2771,6 @@ void dvb_frontend_detach(struct dvb_frontend* fe)
 	dvb_frontend_invoke_release(fe, fe->ops.tuner_ops.release);
 	dvb_frontend_invoke_release(fe, fe->ops.analog_ops.release);
 	dvb_frontend_invoke_release(fe, fe->ops.detach);
-	dvb_frontend_invoke_release(fe, fe->ops.release);
+	dvb_frontend_put(fe);
 }
 EXPORT_SYMBOL(dvb_frontend_detach);
