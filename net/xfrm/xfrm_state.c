@@ -36,6 +36,7 @@
  */
 
 static unsigned int xfrm_state_hashmax __read_mostly = 1 * 1024 * 1024;
+static __read_mostly seqcount_t xfrm_state_hash_generation = SEQCNT_ZERO(xfrm_state_hash_generation);
 
 static inline bool xfrm_state_hold_rcu(struct xfrm_state __rcu *x)
 {
@@ -127,6 +128,7 @@ static void xfrm_hash_resize(struct work_struct *work)
 	}
 
 	spin_lock_bh(&net->xfrm.xfrm_state_lock);
+	write_seqcount_begin(&xfrm_state_hash_generation);
 
 	nhashmask = (nsize / sizeof(struct hlist_head)) - 1U;
 	for (i = net->xfrm.state_hmask; i >= 0; i--)
@@ -143,6 +145,7 @@ static void xfrm_hash_resize(struct work_struct *work)
 	net->xfrm.state_byspi = nspi;
 	net->xfrm.state_hmask = nhashmask;
 
+	write_seqcount_end(&xfrm_state_hash_generation);
 	spin_unlock_bh(&net->xfrm.xfrm_state_lock);
 
 	osize = (ohashmask + 1) * sizeof(struct hlist_head);
@@ -787,9 +790,12 @@ xfrm_state_find(const xfrm_address_t *daddr, const xfrm_address_t *saddr,
 	struct xfrm_state *best = NULL;
 	u32 mark = pol->mark.v & pol->mark.m;
 	unsigned short encap_family = tmpl->encap_family;
+	unsigned int sequence;
 	struct km_event c;
 
 	to_put = NULL;
+
+	sequence = read_seqcount_begin(&xfrm_state_hash_generation);
 
 	spin_lock_bh(&net->xfrm.xfrm_state_lock);
 	h = xfrm_dst_hash(net, daddr, saddr, tmpl->reqid, encap_family);
@@ -894,6 +900,15 @@ out:
 	spin_unlock_bh(&net->xfrm.xfrm_state_lock);
 	if (to_put)
 		xfrm_state_put(to_put);
+
+	if (read_seqcount_retry(&xfrm_state_hash_generation, sequence)) {
+		*err = -EAGAIN;
+		if (x) {
+			xfrm_state_put(x);
+			x = NULL;
+		}
+	}
+
 	return x;
 }
 
