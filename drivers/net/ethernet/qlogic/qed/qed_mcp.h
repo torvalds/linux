@@ -60,9 +60,10 @@ struct qed_mcp_link_state {
 #define QED_LINK_PARTNER_SPEED_1G_FD    BIT(1)
 #define QED_LINK_PARTNER_SPEED_10G      BIT(2)
 #define QED_LINK_PARTNER_SPEED_20G      BIT(3)
-#define QED_LINK_PARTNER_SPEED_40G      BIT(4)
-#define QED_LINK_PARTNER_SPEED_50G      BIT(5)
-#define QED_LINK_PARTNER_SPEED_100G     BIT(6)
+#define QED_LINK_PARTNER_SPEED_25G      BIT(4)
+#define QED_LINK_PARTNER_SPEED_40G      BIT(5)
+#define QED_LINK_PARTNER_SPEED_50G      BIT(6)
+#define QED_LINK_PARTNER_SPEED_100G     BIT(7)
 	u32     partner_adv_speed;
 
 	bool    partner_tx_flow_ctrl_en;

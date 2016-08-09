@@ -635,6 +635,9 @@ static void qed_mcp_handle_link_change(struct qed_hwfn *p_hwfn,
 		(status & LINK_STATUS_LINK_PARTNER_20G_CAPABLE) ?
 		QED_LINK_PARTNER_SPEED_20G : 0;
 	p_link->partner_adv_speed |=
+		(status & LINK_STATUS_LINK_PARTNER_25G_CAPABLE) ?
+		QED_LINK_PARTNER_SPEED_25G : 0;
+	p_link->partner_adv_speed |=
 		(status & LINK_STATUS_LINK_PARTNER_40G_CAPABLE) ?
 		QED_LINK_PARTNER_SPEED_40G : 0;
 	p_link->partner_adv_speed |=
