@@ -728,8 +728,8 @@ static void lgdt330x_release(struct dvb_frontend* fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops lgdt3302_ops;
-static struct dvb_frontend_ops lgdt3303_ops;
+static const struct dvb_frontend_ops lgdt3302_ops;
+static const struct dvb_frontend_ops lgdt3303_ops;
 
 struct dvb_frontend* lgdt330x_attach(const struct lgdt330x_config* config,
 				     struct i2c_adapter* i2c)
@@ -774,7 +774,7 @@ error:
 	return NULL;
 }
 
-static struct dvb_frontend_ops lgdt3302_ops = {
+static const struct dvb_frontend_ops lgdt3302_ops = {
 	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		.name= "LG Electronics LGDT3302 VSB/QAM Frontend",
@@ -797,7 +797,7 @@ static struct dvb_frontend_ops lgdt3302_ops = {
 	.release              = lgdt330x_release,
 };
 
-static struct dvb_frontend_ops lgdt3303_ops = {
+static const struct dvb_frontend_ops lgdt3303_ops = {
 	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		.name= "LG Electronics LGDT3303 VSB/QAM Frontend",

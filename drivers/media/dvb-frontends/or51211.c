@@ -507,7 +507,7 @@ static void or51211_release(struct dvb_frontend* fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops or51211_ops;
+static const struct dvb_frontend_ops or51211_ops;
 
 struct dvb_frontend* or51211_attach(const struct or51211_config* config,
 				    struct i2c_adapter* i2c)
@@ -531,7 +531,7 @@ struct dvb_frontend* or51211_attach(const struct or51211_config* config,
 	return &state->frontend;
 }
 
-static struct dvb_frontend_ops or51211_ops = {
+static const struct dvb_frontend_ops or51211_ops = {
 	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		.name               = "Oren OR51211 VSB Frontend",

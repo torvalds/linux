@@ -443,7 +443,7 @@ static void tda10021_release(struct dvb_frontend* fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops tda10021_ops;
+static const struct dvb_frontend_ops tda10021_ops;
 
 struct dvb_frontend* tda10021_attach(const struct tda1002x_config* config,
 				     struct i2c_adapter* i2c,
@@ -483,7 +483,7 @@ error:
 	return NULL;
 }
 
-static struct dvb_frontend_ops tda10021_ops = {
+static const struct dvb_frontend_ops tda10021_ops = {
 	.delsys = { SYS_DVBC_ANNEX_A, SYS_DVBC_ANNEX_C },
 	.info = {
 		.name = "Philips TDA10021 DVB-C",

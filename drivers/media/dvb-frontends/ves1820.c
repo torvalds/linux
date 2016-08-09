@@ -369,7 +369,7 @@ static void ves1820_release(struct dvb_frontend* fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops ves1820_ops;
+static const struct dvb_frontend_ops ves1820_ops;
 
 struct dvb_frontend* ves1820_attach(const struct ves1820_config* config,
 				    struct i2c_adapter* i2c,
@@ -408,7 +408,7 @@ error:
 	return NULL;
 }
 
-static struct dvb_frontend_ops ves1820_ops = {
+static const struct dvb_frontend_ops ves1820_ops = {
 	.delsys = { SYS_DVBC_ANNEX_A },
 	.info = {
 		.name = "VLSI VES1820 DVB-C",

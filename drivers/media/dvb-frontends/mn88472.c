@@ -411,7 +411,7 @@ err:
 	return ret;
 }
 
-static struct dvb_frontend_ops mn88472_ops = {
+static const struct dvb_frontend_ops mn88472_ops = {
 	.delsys = {SYS_DVBT, SYS_DVBT2, SYS_DVBC_ANNEX_A},
 	.info = {
 		.name = "Panasonic MN88472",

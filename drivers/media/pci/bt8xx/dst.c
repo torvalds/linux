@@ -1696,10 +1696,10 @@ static void bt8xx_dst_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops dst_dvbt_ops;
-static struct dvb_frontend_ops dst_dvbs_ops;
-static struct dvb_frontend_ops dst_dvbc_ops;
-static struct dvb_frontend_ops dst_atsc_ops;
+static const struct dvb_frontend_ops dst_dvbt_ops;
+static const struct dvb_frontend_ops dst_dvbs_ops;
+static const struct dvb_frontend_ops dst_dvbc_ops;
+static const struct dvb_frontend_ops dst_atsc_ops;
 
 struct dst_state *dst_attach(struct dst_state *state, struct dvb_adapter *dvb_adapter)
 {
@@ -1735,7 +1735,7 @@ struct dst_state *dst_attach(struct dst_state *state, struct dvb_adapter *dvb_ad
 
 EXPORT_SYMBOL(dst_attach);
 
-static struct dvb_frontend_ops dst_dvbt_ops = {
+static const struct dvb_frontend_ops dst_dvbt_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name = "DST DVB-T",
@@ -1764,7 +1764,7 @@ static struct dvb_frontend_ops dst_dvbt_ops = {
 	.read_snr = dst_read_snr,
 };
 
-static struct dvb_frontend_ops dst_dvbs_ops = {
+static const struct dvb_frontend_ops dst_dvbs_ops = {
 	.delsys = { SYS_DVBS },
 	.info = {
 		.name = "DST DVB-S",
@@ -1793,7 +1793,7 @@ static struct dvb_frontend_ops dst_dvbs_ops = {
 	.set_tone = dst_set_tone,
 };
 
-static struct dvb_frontend_ops dst_dvbc_ops = {
+static const struct dvb_frontend_ops dst_dvbc_ops = {
 	.delsys = { SYS_DVBC_ANNEX_A },
 	.info = {
 		.name = "DST DVB-C",
@@ -1822,7 +1822,7 @@ static struct dvb_frontend_ops dst_dvbc_ops = {
 	.read_snr = dst_read_snr,
 };
 
-static struct dvb_frontend_ops dst_atsc_ops = {
+static const struct dvb_frontend_ops dst_atsc_ops = {
 	.delsys = { SYS_ATSC },
 	.info = {
 		.name = "DST ATSC",

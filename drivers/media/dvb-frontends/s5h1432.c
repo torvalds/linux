@@ -341,7 +341,7 @@ static void s5h1432_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops s5h1432_ops;
+static const struct dvb_frontend_ops s5h1432_ops;
 
 struct dvb_frontend *s5h1432_attach(const struct s5h1432_config *config,
 				    struct i2c_adapter *i2c)
@@ -370,7 +370,7 @@ struct dvb_frontend *s5h1432_attach(const struct s5h1432_config *config,
 }
 EXPORT_SYMBOL(s5h1432_attach);
 
-static struct dvb_frontend_ops s5h1432_ops = {
+static const struct dvb_frontend_ops s5h1432_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		 .name = "Samsung s5h1432 DVB-T Frontend",

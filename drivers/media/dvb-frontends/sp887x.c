@@ -561,7 +561,7 @@ static void sp887x_release(struct dvb_frontend* fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops sp887x_ops;
+static const struct dvb_frontend_ops sp887x_ops;
 
 struct dvb_frontend* sp887x_attach(const struct sp887x_config* config,
 				   struct i2c_adapter* i2c)
@@ -590,7 +590,7 @@ error:
 	return NULL;
 }
 
-static struct dvb_frontend_ops sp887x_ops = {
+static const struct dvb_frontend_ops sp887x_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name = "Spase SP887x DVB-T",

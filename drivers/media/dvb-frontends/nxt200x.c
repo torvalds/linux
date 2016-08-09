@@ -1149,7 +1149,7 @@ static void nxt200x_release(struct dvb_frontend* fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops nxt200x_ops;
+static const struct dvb_frontend_ops nxt200x_ops;
 
 struct dvb_frontend* nxt200x_attach(const struct nxt200x_config* config,
 				   struct i2c_adapter* i2c)
@@ -1212,7 +1212,7 @@ error:
 	return NULL;
 }
 
-static struct dvb_frontend_ops nxt200x_ops = {
+static const struct dvb_frontend_ops nxt200x_ops = {
 	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		.name = "Nextwave NXT200X VSB/QAM frontend",

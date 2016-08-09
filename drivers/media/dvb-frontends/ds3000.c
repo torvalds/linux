@@ -830,7 +830,7 @@ static void ds3000_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops ds3000_ops;
+static const struct dvb_frontend_ops ds3000_ops;
 
 struct dvb_frontend *ds3000_attach(const struct ds3000_config *config,
 				    struct i2c_adapter *i2c)
@@ -1104,7 +1104,7 @@ static int ds3000_initfe(struct dvb_frontend *fe)
 	return 0;
 }
 
-static struct dvb_frontend_ops ds3000_ops = {
+static const struct dvb_frontend_ops ds3000_ops = {
 	.delsys = { SYS_DVBS, SYS_DVBS2 },
 	.info = {
 		.name = "Montage Technology DS3000",

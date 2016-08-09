@@ -1090,7 +1090,7 @@ static void tda10048_establish_defaults(struct dvb_frontend *fe)
 	}
 }
 
-static struct dvb_frontend_ops tda10048_ops;
+static const struct dvb_frontend_ops tda10048_ops;
 
 struct dvb_frontend *tda10048_attach(const struct tda10048_config *config,
 	struct i2c_adapter *i2c)
@@ -1152,7 +1152,7 @@ error:
 }
 EXPORT_SYMBOL(tda10048_attach);
 
-static struct dvb_frontend_ops tda10048_ops = {
+static const struct dvb_frontend_ops tda10048_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name			= "NXP TDA10048HN DVB-T",

@@ -742,7 +742,7 @@ static int dib3000mb_tuner_pass_ctrl(struct dvb_frontend *fe, int onoff, u8 pll_
 	return 0;
 }
 
-static struct dvb_frontend_ops dib3000mb_ops;
+static const struct dvb_frontend_ops dib3000mb_ops;
 
 struct dvb_frontend* dib3000mb_attach(const struct dib3000_config* config,
 				      struct i2c_adapter* i2c, struct dib_fe_xfer_ops *xfer_ops)
@@ -782,7 +782,7 @@ error:
 	return NULL;
 }
 
-static struct dvb_frontend_ops dib3000mb_ops = {
+static const struct dvb_frontend_ops dib3000mb_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name			= "DiBcom 3000M-B DVB-T",

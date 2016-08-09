@@ -2721,7 +2721,7 @@ static int dib7090_slave_reset(struct dvb_frontend *fe)
 	return 0;
 }
 
-static struct dvb_frontend_ops dib7000p_ops;
+static const struct dvb_frontend_ops dib7000p_ops;
 static struct dvb_frontend *dib7000p_init(struct i2c_adapter *i2c_adap, u8 i2c_addr, struct dib7000p_config *cfg)
 {
 	struct dvb_frontend *demod;
@@ -2811,7 +2811,7 @@ void *dib7000p_attach(struct dib7000p_ops *ops)
 }
 EXPORT_SYMBOL(dib7000p_attach);
 
-static struct dvb_frontend_ops dib7000p_ops = {
+static const struct dvb_frontend_ops dib7000p_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		 .name = "DiBcom 7000PC",

@@ -1049,7 +1049,7 @@ struct i2c_adapter *
 }
 EXPORT_SYMBOL(cx24123_get_tuner_i2c_adapter);
 
-static struct dvb_frontend_ops cx24123_ops;
+static const struct dvb_frontend_ops cx24123_ops;
 
 struct dvb_frontend *cx24123_attach(const struct cx24123_config *config,
 				    struct i2c_adapter *i2c)
@@ -1111,7 +1111,7 @@ error:
 }
 EXPORT_SYMBOL(cx24123_attach);
 
-static struct dvb_frontend_ops cx24123_ops = {
+static const struct dvb_frontend_ops cx24123_ops = {
 	.delsys = { SYS_DVBS },
 	.info = {
 		.name = "Conexant CX24123/CX24109",

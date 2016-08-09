@@ -1401,7 +1401,7 @@ int dib7000m_i2c_enumeration(struct i2c_adapter *i2c, int no_of_demods,
 EXPORT_SYMBOL(dib7000m_i2c_enumeration);
 #endif
 
-static struct dvb_frontend_ops dib7000m_ops;
+static const struct dvb_frontend_ops dib7000m_ops;
 struct dvb_frontend * dib7000m_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr, struct dib7000m_config *cfg)
 {
 	struct dvb_frontend *demod;
@@ -1439,7 +1439,7 @@ error:
 }
 EXPORT_SYMBOL(dib7000m_attach);
 
-static struct dvb_frontend_ops dib7000m_ops = {
+static const struct dvb_frontend_ops dib7000m_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name = "DiBcom 7000MA/MB/PA/PB/MC",

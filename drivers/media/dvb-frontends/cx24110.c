@@ -592,7 +592,7 @@ static void cx24110_release(struct dvb_frontend* fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops cx24110_ops;
+static const struct dvb_frontend_ops cx24110_ops;
 
 struct dvb_frontend* cx24110_attach(const struct cx24110_config* config,
 				    struct i2c_adapter* i2c)
@@ -625,7 +625,7 @@ error:
 	return NULL;
 }
 
-static struct dvb_frontend_ops cx24110_ops = {
+static const struct dvb_frontend_ops cx24110_ops = {
 	.delsys = { SYS_DVBS },
 	.info = {
 		.name = "Conexant CX24110 DVB-S",

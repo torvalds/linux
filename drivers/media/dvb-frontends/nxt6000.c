@@ -564,7 +564,7 @@ static int nxt6000_i2c_gate_ctrl(struct dvb_frontend* fe, int enable)
 	}
 }
 
-static struct dvb_frontend_ops nxt6000_ops;
+static const struct dvb_frontend_ops nxt6000_ops;
 
 struct dvb_frontend* nxt6000_attach(const struct nxt6000_config* config,
 				    struct i2c_adapter* i2c)
@@ -592,7 +592,7 @@ error:
 	return NULL;
 }
 
-static struct dvb_frontend_ops nxt6000_ops = {
+static const struct dvb_frontend_ops nxt6000_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name = "NxtWave NXT6000 DVB-T",

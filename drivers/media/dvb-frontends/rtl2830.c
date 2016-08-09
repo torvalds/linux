@@ -548,7 +548,7 @@ static int rtl2830_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 	return 0;
 }
 
-static struct dvb_frontend_ops rtl2830_ops = {
+static const struct dvb_frontend_ops rtl2830_ops = {
 	.delsys = {SYS_DVBT},
 	.info = {
 		.name = "Realtek RTL2830 (DVB-T)",

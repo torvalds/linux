@@ -949,7 +949,7 @@ static void s5h1409_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops s5h1409_ops;
+static const struct dvb_frontend_ops s5h1409_ops;
 
 struct dvb_frontend *s5h1409_attach(const struct s5h1409_config *config,
 				    struct i2c_adapter *i2c)
@@ -995,7 +995,7 @@ error:
 }
 EXPORT_SYMBOL(s5h1409_attach);
 
-static struct dvb_frontend_ops s5h1409_ops = {
+static const struct dvb_frontend_ops s5h1409_ops = {
 	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		.name			= "Samsung S5H1409 QAM/8VSB Frontend",

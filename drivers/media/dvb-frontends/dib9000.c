@@ -2490,7 +2490,7 @@ struct dvb_frontend *dib9000_get_slave_frontend(struct dvb_frontend *fe, int sla
 }
 EXPORT_SYMBOL(dib9000_get_slave_frontend);
 
-static struct dvb_frontend_ops dib9000_ops;
+static const struct dvb_frontend_ops dib9000_ops;
 struct dvb_frontend *dib9000_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr, const struct dib9000_config *cfg)
 {
 	struct dvb_frontend *fe;
@@ -2567,7 +2567,7 @@ error:
 }
 EXPORT_SYMBOL(dib9000_attach);
 
-static struct dvb_frontend_ops dib9000_ops = {
+static const struct dvb_frontend_ops dib9000_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		 .name = "DiBcom 9000",

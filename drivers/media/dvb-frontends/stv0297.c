@@ -658,7 +658,7 @@ static void stv0297_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops stv0297_ops;
+static const struct dvb_frontend_ops stv0297_ops;
 
 struct dvb_frontend *stv0297_attach(const struct stv0297_config *config,
 				    struct i2c_adapter *i2c)
@@ -690,7 +690,7 @@ error:
 	return NULL;
 }
 
-static struct dvb_frontend_ops stv0297_ops = {
+static const struct dvb_frontend_ops stv0297_ops = {
 	.delsys = { SYS_DVBC_ANNEX_A },
 	.info = {
 		 .name = "ST STV0297 DVB-C",

@@ -477,7 +477,7 @@ static void s921_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops s921_ops;
+static const struct dvb_frontend_ops s921_ops;
 
 struct dvb_frontend *s921_attach(const struct s921_config *config,
 				    struct i2c_adapter *i2c)
@@ -505,7 +505,7 @@ struct dvb_frontend *s921_attach(const struct s921_config *config,
 }
 EXPORT_SYMBOL(s921_attach);
 
-static struct dvb_frontend_ops s921_ops = {
+static const struct dvb_frontend_ops s921_ops = {
 	.delsys = { SYS_ISDBT },
 	/* Use dib8000 values per default */
 	.info = {
