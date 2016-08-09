@@ -93,9 +93,6 @@ struct fib_table *fib_new_table(struct net *net, u32 id)
 		return NULL;
 
 	switch (id) {
-	case RT_TABLE_LOCAL:
-		rcu_assign_pointer(net->ipv4.fib_local, tb);
-		break;
 	case RT_TABLE_MAIN:
 		rcu_assign_pointer(net->ipv4.fib_main, tb);
 		break;
@@ -137,9 +134,6 @@ static void fib_replace_table(struct net *net, struct fib_table *old,
 {
 #ifdef CONFIG_IP_MULTIPLE_TABLES
 	switch (new->tb_id) {
-	case RT_TABLE_LOCAL:
-		rcu_assign_pointer(net->ipv4.fib_local, new);
-		break;
 	case RT_TABLE_MAIN:
 		rcu_assign_pointer(net->ipv4.fib_main, new);
 		break;
@@ -1249,7 +1243,6 @@ static void ip_fib_net_exit(struct net *net)
 
 	rtnl_lock();
 #ifdef CONFIG_IP_MULTIPLE_TABLES
-	RCU_INIT_POINTER(net->ipv4.fib_local, NULL);
 	RCU_INIT_POINTER(net->ipv4.fib_main, NULL);
 	RCU_INIT_POINTER(net->ipv4.fib_default, NULL);
 #endif
