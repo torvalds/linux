@@ -2740,40 +2740,22 @@ int dvb_unregister_frontend(struct dvb_frontend* fe)
 }
 EXPORT_SYMBOL(dvb_unregister_frontend);
 
+static void dvb_frontend_invoke_release(struct dvb_frontend *fe,
+					void (*release)(struct dvb_frontend *fe))
+{
+	if (release) {
+		release(fe);
 #ifdef CONFIG_MEDIA_ATTACH
-void dvb_frontend_detach(struct dvb_frontend* fe)
-{
-	void *ptr;
-
-	if (fe->ops.release_sec) {
-		fe->ops.release_sec(fe);
-		dvb_detach(fe->ops.release_sec);
-	}
-	if (fe->ops.tuner_ops.release) {
-		fe->ops.tuner_ops.release(fe);
-		dvb_detach(fe->ops.tuner_ops.release);
-	}
-	if (fe->ops.analog_ops.release) {
-		fe->ops.analog_ops.release(fe);
-		dvb_detach(fe->ops.analog_ops.release);
-	}
-	ptr = (void*)fe->ops.release;
-	if (ptr) {
-		fe->ops.release(fe);
-		dvb_detach(ptr);
-	}
-}
-#else
-void dvb_frontend_detach(struct dvb_frontend* fe)
-{
-	if (fe->ops.release_sec)
-		fe->ops.release_sec(fe);
-	if (fe->ops.tuner_ops.release)
-		fe->ops.tuner_ops.release(fe);
-	if (fe->ops.analog_ops.release)
-		fe->ops.analog_ops.release(fe);
-	if (fe->ops.release)
-		fe->ops.release(fe);
-}
+		dvb_detach(release);
 #endif
+	}
+}
+
+void dvb_frontend_detach(struct dvb_frontend* fe)
+{
+	dvb_frontend_invoke_release(fe, fe->ops.release_sec);
+	dvb_frontend_invoke_release(fe, fe->ops.tuner_ops.release);
+	dvb_frontend_invoke_release(fe, fe->ops.analog_ops.release);
+	dvb_frontend_invoke_release(fe, fe->ops.release);
+}
 EXPORT_SYMBOL(dvb_frontend_detach);
