@@ -1159,6 +1159,7 @@ static void __spi_pump_messages(struct spi_master *master, bool in_kthread)
 		if (ret < 0) {
 			dev_err(&master->dev, "Failed to power device: %d\n",
 				ret);
+			mutex_unlock(&master->io_mutex);
 			return;
 		}
 	}
@@ -1174,6 +1175,7 @@ static void __spi_pump_messages(struct spi_master *master, bool in_kthread)
 
 			if (master->auto_runtime_pm)
 				pm_runtime_put(master->dev.parent);
+			mutex_unlock(&master->io_mutex);
 			return;
 		}
 	}
