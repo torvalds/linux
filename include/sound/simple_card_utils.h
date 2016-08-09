@@ -58,4 +58,6 @@ int asoc_simple_card_parse_dai(struct device_node *node,
 				  const char *cells_name,
 				  int *is_single_links);
 
+int asoc_simple_card_init_dai(struct snd_soc_dai *dai,
+			      struct asoc_simple_dai *simple_dai);
 #endif /* __SIMPLE_CARD_CORE_H */
