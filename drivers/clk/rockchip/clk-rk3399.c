@@ -1071,7 +1071,7 @@ static struct rockchip_clk_branch rk3399_clk_branches[] __initdata = {
 	/* vio */
 	COMPOSITE(ACLK_VIO, "aclk_vio", mux_pll_src_cpll_gpll_ppll_p, CLK_IGNORE_UNUSED,
 			RK3399_CLKSEL_CON(42), 6, 2, MFLAGS, 0, 5, DFLAGS,
-			RK3399_CLKGATE_CON(11), 10, GFLAGS),
+			RK3399_CLKGATE_CON(11), 0, GFLAGS),
 	COMPOSITE_NOMUX(PCLK_VIO, "pclk_vio", "aclk_vio", 0,
 			RK3399_CLKSEL_CON(43), 0, 5, DFLAGS,
 			RK3399_CLKGATE_CON(11), 1, GFLAGS),
