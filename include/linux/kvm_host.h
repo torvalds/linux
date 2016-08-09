@@ -1116,6 +1116,12 @@ struct kvm_device_ops {
 	int (*create)(struct kvm_device *dev, u32 type);
 
 	/*
+	 * init is called after create if create is successful and is called
+	 * outside of holding kvm->lock.
+	 */
+	void (*init)(struct kvm_device *dev);
+
+	/*
 	 * Destroy is responsible for freeing dev.
 	 *
 	 * Destroy may be called before or after destructors are called
