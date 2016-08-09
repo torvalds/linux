@@ -894,8 +894,9 @@ static inline int set_armed_to_active(struct hfi1_ctxtdata *rcd,
 	struct work_struct *lsaw = &rcd->ppd->linkstate_active_work;
 	struct hfi1_message_header *hdr = hfi1_get_msgheader(packet->rcd->dd,
 							     packet->rhf_addr);
+	u8 etype = rhf_rcv_type(packet->rhf);
 
-	if (hdr2sc(hdr, packet->rhf) != 0xf) {
+	if (etype == RHF_RCV_TYPE_IB && hdr2sc(hdr, packet->rhf) != 0xf) {
 		int hwstate = read_logical_state(dd);
 
 		if (hwstate != LSTATE_ACTIVE) {
