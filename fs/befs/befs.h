@@ -43,6 +43,9 @@ struct befs_sb_info {
 	u32 ag_shift;
 	u32 num_ags;
 
+	/* State of the superblock */
+	u32 flags;
+
 	/* jornal log entry */
 	befs_block_run log_blocks;
 	befs_off_t log_start;
