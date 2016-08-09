@@ -1,0 +1,15 @@
+The android-*.config files in this directory are meant to be used as a base
+for an Android kernel config. All devices should have the options in
+android-base.config enabled. While not mandatory, the options in
+android-recommended.config enable advanced Android features.
+
+Assuming you already have a minimalist defconfig for your device, a possible
+way to enable these options would be:
+
+     ARCH=<arch> scripts/kconfig/merge_config.sh <path_to>/<device>_defconfig kernel/configs/android-base.config kernel/configs/android-recommended.config
+
+This will generate a .config that can then be used to save a new defconfig or
+compile a new kernel with Android features enabled.
+
+Because there is no tool to consistently generate these config fragments,
+lets keep them alphabetically sorted instead of random.
