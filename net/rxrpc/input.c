@@ -567,13 +567,13 @@ done:
  * post connection-level events to the connection
  * - this includes challenges, responses and some aborts
  */
-static bool rxrpc_post_packet_to_conn(struct rxrpc_connection *conn,
+static void rxrpc_post_packet_to_conn(struct rxrpc_connection *conn,
 				      struct sk_buff *skb)
 {
 	_enter("%p,%p", conn, skb);
 
 	skb_queue_tail(&conn->rx_queue, skb);
-	return rxrpc_queue_conn(conn);
+	rxrpc_queue_conn(conn);
 }
 
 /*
@@ -694,7 +694,6 @@ void rxrpc_data_ready(struct sock *sk)
 
 	rcu_read_lock();
 
-retry_find_conn:
 	conn = rxrpc_find_connection_rcu(local, skb);
 	if (!conn)
 		goto cant_route_call;
@@ -702,8 +701,7 @@ retry_find_conn:
 	if (sp->hdr.callNumber == 0) {
 		/* Connection-level packet */
 		_debug("CONN %p {%d}", conn, conn->debug_id);
-		if (!rxrpc_post_packet_to_conn(conn, skb))
-			goto retry_find_conn;
+		rxrpc_post_packet_to_conn(conn, skb);
 	} else {
 		/* Call-bound packets are routed by connection channel. */
 		unsigned int channel = sp->hdr.cid & RXRPC_CHANNELMASK;
