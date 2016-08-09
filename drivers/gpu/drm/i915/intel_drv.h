@@ -209,7 +209,6 @@ struct intel_encoder {
 	void (*pre_pll_enable)(struct intel_encoder *);
 	void (*pre_enable)(struct intel_encoder *);
 	void (*enable)(struct intel_encoder *);
-	void (*mode_set)(struct intel_encoder *intel_encoder);
 	void (*disable)(struct intel_encoder *);
 	void (*post_disable)(struct intel_encoder *);
 	void (*post_pll_disable)(struct intel_encoder *);
