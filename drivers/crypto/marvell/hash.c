@@ -403,15 +403,16 @@ static inline int mv_cesa_ahash_cra_init(struct crypto_tfm *tfm)
 	return 0;
 }
 
-static int mv_cesa_ahash_cache_req(struct ahash_request *req, bool *cached)
+static bool mv_cesa_ahash_cache_req(struct ahash_request *req)
 {
 	struct mv_cesa_ahash_req *creq = ahash_request_ctx(req);
+	bool cached = false;
 
 	if (creq->cache_ptr + req->nbytes < 64 && !creq->last_req) {
-		*cached = true;
+		cached = true;
 
 		if (!req->nbytes)
-			return 0;
+			return cached;
 
 		sg_pcopy_to_buffer(req->src, creq->src_nents,
 				   creq->cache + creq->cache_ptr,
@@ -420,7 +421,7 @@ static int mv_cesa_ahash_cache_req(struct ahash_request *req, bool *cached)
 		creq->cache_ptr += req->nbytes;
 	}
 
-	return 0;
+	return cached;
 }
 
 static struct mv_cesa_op_ctx *
@@ -665,7 +666,6 @@ err:
 static int mv_cesa_ahash_req_init(struct ahash_request *req, bool *cached)
 {
 	struct mv_cesa_ahash_req *creq = ahash_request_ctx(req);
-	int ret;
 
 	creq->src_nents = sg_nents_for_len(req->src, req->nbytes);
 	if (creq->src_nents < 0) {
@@ -673,17 +673,15 @@ static int mv_cesa_ahash_req_init(struct ahash_request *req, bool *cached)
 		return creq->src_nents;
 	}
 
-	ret = mv_cesa_ahash_cache_req(req, cached);
-	if (ret)
-		return ret;
+	*cached = mv_cesa_ahash_cache_req(req);
 
 	if (*cached)
 		return 0;
 
 	if (cesa_dev->caps->has_tdma)
-		ret = mv_cesa_ahash_dma_req_init(req);
-
-	return ret;
+		return mv_cesa_ahash_dma_req_init(req);
+	else
+		return 0;
 }
 
 static int mv_cesa_ahash_queue_req(struct ahash_request *req)
