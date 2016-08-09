@@ -103,6 +103,13 @@ befs_check_sb(struct super_block *sb)
 		return BEFS_ERR;
 	}
 
+
+	/* ag_shift also encodes the same information as blocks_per_ag in a
+	 * different way, non-fatal consistency check
+	 */
+	if ((1 << befs_sb->ag_shift) != befs_sb->blocks_per_ag)
+		befs_error(sb, "ag_shift disagrees with blocks_per_ag.");
+
 	if (befs_sb->log_start != befs_sb->log_end || befs_sb->flags == BEFS_DIRTY) {
 		befs_error(sb, "Filesystem not clean! There are blocks in the "
 			   "journal. You must boot into BeOS and mount this volume "
