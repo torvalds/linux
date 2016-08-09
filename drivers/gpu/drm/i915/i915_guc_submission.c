@@ -696,32 +696,47 @@ guc_client_free(struct drm_i915_private *dev_priv,
 	kfree(client);
 }
 
+/* Check that a doorbell register is in the expected state */
+static bool guc_doorbell_check(struct intel_guc *guc, uint16_t db_id)
+{
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	i915_reg_t drbreg = GEN8_DRBREGL(db_id);
+	uint32_t value = I915_READ(drbreg);
+	bool enabled = (value & GUC_DOORBELL_ENABLED) != 0;
+	bool expected = test_bit(db_id, guc->doorbell_bitmap);
+
+	if (enabled == expected)
+		return true;
+
+	DRM_DEBUG_DRIVER("Doorbell %d (reg 0x%x) 0x%x, should be %s\n",
+			 db_id, drbreg.reg, value,
+			 expected ? "active" : "inactive");
+
+	return false;
+}
+
 /*
  * Borrow the first client to set up & tear down each unused doorbell
  * in turn, to ensure that all doorbell h/w is (re)initialised.
  */
 static void guc_init_doorbell_hw(struct intel_guc *guc)
 {
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	struct i915_guc_client *client = guc->execbuf_client;
-	uint16_t db_id, i;
-	int err;
+	uint16_t db_id;
+	int i, err;
 
+	/* Save client's original doorbell selection */
 	db_id = client->doorbell_id;
 
 	for (i = 0; i < GUC_MAX_DOORBELLS; ++i) {
-		i915_reg_t drbreg = GEN8_DRBREGL(i);
-		u32 value = I915_READ(drbreg);
-
-		if (test_bit(i, guc->doorbell_bitmap))
+		/* Skip if doorbell is OK */
+		if (guc_doorbell_check(guc, i))
 			continue;
 
 		err = guc_update_doorbell_id(guc, client, i);
-
-		/* Report update failure or unexpectedly active doorbell */
-		if (err || (i != db_id && (value & GUC_DOORBELL_ENABLED)))
-			DRM_DEBUG_DRIVER("Doorbell %d (reg 0x%x) was 0x%x, err %d\n",
-					  i, drbreg.reg, value, err);
+		if (err)
+			DRM_DEBUG_DRIVER("Doorbell %d update failed, err %d\n",
+					i, err);
 	}
 
 	/* Restore to original value */
@@ -730,18 +745,9 @@ static void guc_init_doorbell_hw(struct intel_guc *guc)
 		DRM_ERROR("Failed to restore doorbell to %d, err %d\n",
 			db_id, err);
 
-	for (i = 0; i < GUC_MAX_DOORBELLS; ++i) {
-		i915_reg_t drbreg = GEN8_DRBREGL(i);
-		u32 value = I915_READ(drbreg);
-
-		if (test_bit(i, guc->doorbell_bitmap))
-			continue;
-
-		if (i != db_id && (value & GUC_DOORBELL_ENABLED))
-			DRM_DEBUG_DRIVER("Doorbell %d (reg 0x%x) finally 0x%x\n",
-					  i, drbreg.reg, value);
-
-	}
+	/* Read back & verify all doorbell registers */
+	for (i = 0; i < GUC_MAX_DOORBELLS; ++i)
+		(void)guc_doorbell_check(guc, i);
 }
 
 /**
