@@ -222,8 +222,10 @@ static int rsrc_card_parse_links(struct device_node *np,
 		}
 	}
 
-	/* Simple Card assumes platform == cpu */
-	dai_link->platform_of_node	= dai_link->cpu_of_node;
+	ret = asoc_simple_card_canonicalize_dailink(dai_link);
+	if (ret < 0)
+		return ret;
+
 	dai_link->dpcm_playback		= 1;
 	dai_link->dpcm_capture		= 1;
 	dai_link->ops			= &rsrc_card_ops;
