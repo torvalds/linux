@@ -1681,7 +1681,8 @@ static int b53_switch_init(struct b53_device *dev)
 	return 0;
 }
 
-struct b53_device *b53_switch_alloc(struct device *base, struct b53_io_ops *ops,
+struct b53_device *b53_switch_alloc(struct device *base,
+				    const struct b53_io_ops *ops,
 				    void *priv)
 {
 	struct dsa_switch *ds;

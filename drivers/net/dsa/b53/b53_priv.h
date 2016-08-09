@@ -182,7 +182,8 @@ static inline int is_cpu_port(struct b53_device *dev, int port)
 	return dev->cpu_port;
 }
 
-struct b53_device *b53_switch_alloc(struct device *base, struct b53_io_ops *ops,
+struct b53_device *b53_switch_alloc(struct device *base,
+				    const struct b53_io_ops *ops,
 				    void *priv);
 
 int b53_switch_detect(struct b53_device *dev);
