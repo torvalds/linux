@@ -18,15 +18,15 @@
  * of the befs superblock
  */
 int
-befs_load_sb(struct super_block *sb, befs_super_block * disk_sb)
+befs_load_sb(struct super_block *sb, befs_super_block *disk_sb)
 {
 	struct befs_sb_info *befs_sb = BEFS_SB(sb);
 
 	/* Check the byte order of the filesystem */
 	if (disk_sb->fs_byte_order == BEFS_BYTEORDER_NATIVE_LE)
-	    befs_sb->byte_order = BEFS_BYTESEX_LE;
+		befs_sb->byte_order = BEFS_BYTESEX_LE;
 	else if (disk_sb->fs_byte_order == BEFS_BYTEORDER_NATIVE_BE)
-	    befs_sb->byte_order = BEFS_BYTESEX_BE;
+		befs_sb->byte_order = BEFS_BYTESEX_BE;
 
 	befs_sb->magic1 = fs32_to_cpu(sb, disk_sb->magic1);
 	befs_sb->magic2 = fs32_to_cpu(sb, disk_sb->magic2);
@@ -82,7 +82,7 @@ befs_check_sb(struct super_block *sb)
 	}
 
 	if (befs_sb->block_size > PAGE_SIZE) {
-		befs_error(sb, "blocksize(%u) cannot be larger"
+		befs_error(sb, "blocksize(%u) cannot be larger "
 			   "than system pagesize(%lu)", befs_sb->block_size,
 			   PAGE_SIZE);
 		return BEFS_ERR;
@@ -106,10 +106,11 @@ befs_check_sb(struct super_block *sb)
 	if ((1 << befs_sb->ag_shift) != befs_sb->blocks_per_ag)
 		befs_error(sb, "ag_shift disagrees with blocks_per_ag.");
 
-	if (befs_sb->log_start != befs_sb->log_end || befs_sb->flags == BEFS_DIRTY) {
+	if (befs_sb->log_start != befs_sb->log_end ||
+	    befs_sb->flags == BEFS_DIRTY) {
 		befs_error(sb, "Filesystem not clean! There are blocks in the "
-			   "journal. You must boot into BeOS and mount this volume "
-			   "to make it clean.");
+			   "journal. You must boot into BeOS and mount this "
+			   "volume to make it clean.");
 		return BEFS_ERR;
 	}
 
