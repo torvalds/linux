@@ -152,12 +152,15 @@ int dma_direction_to_prot(enum dma_data_direction dir, bool coherent)
 	}
 }
 
-static struct iova *__alloc_iova(struct iova_domain *iovad, size_t size,
+static struct iova *__alloc_iova(struct iommu_domain *domain, size_t size,
 		dma_addr_t dma_limit)
 {
+	struct iova_domain *iovad = domain->iova_cookie;
 	unsigned long shift = iova_shift(iovad);
 	unsigned long length = iova_align(iovad, size) >> shift;
 
+	if (domain->geometry.force_aperture)
+		dma_limit = min(dma_limit, domain->geometry.aperture_end);
 	/*
 	 * Enforce size-alignment to be safe - there could perhaps be an
 	 * attribute to control this per-device, or at least per-domain...
@@ -315,7 +318,7 @@ struct page **iommu_dma_alloc(struct device *dev, size_t size, gfp_t gfp,
 	if (!pages)
 		return NULL;
 
-	iova = __alloc_iova(iovad, size, dev->coherent_dma_mask);
+	iova = __alloc_iova(domain, size, dev->coherent_dma_mask);
 	if (!iova)
 		goto out_free_pages;
 
@@ -387,7 +390,7 @@ dma_addr_t iommu_dma_map_page(struct device *dev, struct page *page,
 	phys_addr_t phys = page_to_phys(page) + offset;
 	size_t iova_off = iova_offset(iovad, phys);
 	size_t len = iova_align(iovad, size + iova_off);
-	struct iova *iova = __alloc_iova(iovad, len, dma_get_mask(dev));
+	struct iova *iova = __alloc_iova(domain, len, dma_get_mask(dev));
 
 	if (!iova)
 		return DMA_ERROR_CODE;
@@ -539,7 +542,7 @@ int iommu_dma_map_sg(struct device *dev, struct scatterlist *sg,
 		prev = s;
 	}
 
-	iova = __alloc_iova(iovad, iova_len, dma_get_mask(dev));
+	iova = __alloc_iova(domain, iova_len, dma_get_mask(dev));
 	if (!iova)
 		goto out_restore_sg;
 
