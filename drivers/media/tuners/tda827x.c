@@ -767,13 +767,6 @@ static void tda827xa_agcf(struct dvb_frontend *fe)
 
 /* ------------------------------------------------------------------ */
 
-static int tda827x_release(struct dvb_frontend *fe)
-{
-	kfree(fe->tuner_priv);
-	fe->tuner_priv = NULL;
-	return 0;
-}
-
 static int tda827x_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 {
 	struct tda827x_priv *priv = fe->tuner_priv;
@@ -825,7 +818,7 @@ static const struct dvb_tuner_ops tda827xo_tuner_ops = {
 		.frequency_max  = 860000000,
 		.frequency_step =    250000
 	},
-	.release = tda827x_release,
+	.release = dvb_tuner_simple_release,
 	.init = tda827x_initial_init,
 	.sleep = tda827x_initial_sleep,
 	.set_params = tda827xo_set_params,
@@ -841,7 +834,7 @@ static const struct dvb_tuner_ops tda827xa_tuner_ops = {
 		.frequency_max  = 906000000,
 		.frequency_step =     62500
 	},
-	.release = tda827x_release,
+	.release = dvb_tuner_simple_release,
 	.init = tda827x_init,
 	.sleep = tda827xa_sleep,
 	.set_params = tda827xa_set_params,

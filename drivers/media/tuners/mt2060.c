@@ -332,13 +332,6 @@ static int mt2060_sleep(struct dvb_frontend *fe)
 	return ret;
 }
 
-static int mt2060_release(struct dvb_frontend *fe)
-{
-	kfree(fe->tuner_priv);
-	fe->tuner_priv = NULL;
-	return 0;
-}
-
 static const struct dvb_tuner_ops mt2060_tuner_ops = {
 	.info = {
 		.name           = "Microtune MT2060",
@@ -347,7 +340,7 @@ static const struct dvb_tuner_ops mt2060_tuner_ops = {
 		.frequency_step =     50000,
 	},
 
-	.release       = mt2060_release,
+	.release       = dvb_tuner_simple_release,
 
 	.init          = mt2060_init,
 	.sleep         = mt2060_sleep,

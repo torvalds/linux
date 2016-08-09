@@ -2526,13 +2526,6 @@ static int dib0090_tune(struct dvb_frontend *fe)
 	return ret;
 }
 
-static int dib0090_release(struct dvb_frontend *fe)
-{
-	kfree(fe->tuner_priv);
-	fe->tuner_priv = NULL;
-	return 0;
-}
-
 enum frontend_tune_state dib0090_get_tune_state(struct dvb_frontend *fe)
 {
 	struct dib0090_state *state = fe->tuner_priv;
@@ -2594,7 +2587,7 @@ static const struct dvb_tuner_ops dib0090_ops = {
 		 .frequency_max = 860000000,
 		 .frequency_step = 1000,
 		 },
-	.release = dib0090_release,
+	.release = dvb_tuner_simple_release,
 
 	.init = dib0090_wakeup,
 	.sleep = dib0090_sleep,
@@ -2609,7 +2602,7 @@ static const struct dvb_tuner_ops dib0090_fw_ops = {
 		 .frequency_max = 860000000,
 		 .frequency_step = 1000,
 		 },
-	.release = dib0090_release,
+	.release = dvb_tuner_simple_release,
 
 	.init = NULL,
 	.sleep = NULL,

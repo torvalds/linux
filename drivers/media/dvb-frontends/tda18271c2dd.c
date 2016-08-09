@@ -1126,14 +1126,6 @@ static int init(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int release(struct dvb_frontend *fe)
-{
-	kfree(fe->tuner_priv);
-	fe->tuner_priv = NULL;
-	return 0;
-}
-
-
 static int set_params(struct dvb_frontend *fe)
 {
 	struct tda_state *state = fe->tuner_priv;
@@ -1227,7 +1219,7 @@ static const struct dvb_tuner_ops tuner_ops = {
 	.init              = init,
 	.sleep             = sleep,
 	.set_params        = set_params,
-	.release           = release,
+	.release           = dvb_tuner_simple_release,
 	.get_if_frequency  = get_if_frequency,
 	.get_bandwidth     = get_bandwidth,
 };

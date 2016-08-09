@@ -134,16 +134,6 @@ static int zl10036_write(struct zl10036_state *state, u8 buf[], u8 count)
 	return 0;
 }
 
-static int zl10036_release(struct dvb_frontend *fe)
-{
-	struct zl10036_state *state = fe->tuner_priv;
-
-	fe->tuner_priv = NULL;
-	kfree(state);
-
-	return 0;
-}
-
 static int zl10036_sleep(struct dvb_frontend *fe)
 {
 	struct zl10036_state *state = fe->tuner_priv;
@@ -453,7 +443,7 @@ static const struct dvb_tuner_ops zl10036_tuner_ops = {
 		.frequency_max = 2175000
 	},
 	.init = zl10036_init,
-	.release = zl10036_release,
+	.release = dvb_tuner_simple_release,
 	.sleep = zl10036_sleep,
 	.set_params = zl10036_set_params,
 	.get_frequency = zl10036_get_frequency,

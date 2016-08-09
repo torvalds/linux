@@ -112,14 +112,6 @@ static int fc0011_readreg(struct fc0011_priv *priv, u8 reg, u8 *val)
 	return 0;
 }
 
-static int fc0011_release(struct dvb_frontend *fe)
-{
-	kfree(fe->tuner_priv);
-	fe->tuner_priv = NULL;
-
-	return 0;
-}
-
 static int fc0011_init(struct dvb_frontend *fe)
 {
 	struct fc0011_priv *priv = fe->tuner_priv;
@@ -483,7 +475,7 @@ static const struct dvb_tuner_ops fc0011_tuner_ops = {
 		.frequency_max	= 1000000000,
 	},
 
-	.release		= fc0011_release,
+	.release		= dvb_tuner_simple_release,
 	.init			= fc0011_init,
 
 	.set_params		= fc0011_set_params,

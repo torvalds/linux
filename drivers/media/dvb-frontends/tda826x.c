@@ -41,13 +41,6 @@ struct tda826x_priv {
 	u32 frequency;
 };
 
-static int tda826x_release(struct dvb_frontend *fe)
-{
-	kfree(fe->tuner_priv);
-	fe->tuner_priv = NULL;
-	return 0;
-}
-
 static int tda826x_sleep(struct dvb_frontend *fe)
 {
 	struct tda826x_priv *priv = fe->tuner_priv;
@@ -135,7 +128,7 @@ static const struct dvb_tuner_ops tda826x_tuner_ops = {
 		.frequency_min = 950000,
 		.frequency_max = 2175000
 	},
-	.release = tda826x_release,
+	.release = dvb_tuner_simple_release,
 	.sleep = tda826x_sleep,
 	.set_params = tda826x_set_params,
 	.get_frequency = tda826x_get_frequency,

@@ -267,6 +267,13 @@ struct dvb_tuner_ops {
 };
 
 /**
+ * A common default implementation for dvb_tuner_ops.release.  All it
+ * does is kfree() the tuner_priv and assign NULL to it.
+ */
+int
+dvb_tuner_simple_release(struct dvb_frontend *fe);
+
+/**
  * struct analog_demod_info - Information struct for analog TV part of the demod
  *
  * @name:	Name of the analog TV demodulator

@@ -59,13 +59,6 @@ static s32 abssub(s32 a, s32 b)
 		return b - a;
 };
 
-static int stv6110_release(struct dvb_frontend *fe)
-{
-	kfree(fe->tuner_priv);
-	fe->tuner_priv = NULL;
-	return 0;
-}
-
 static int stv6110_write_regs(struct dvb_frontend *fe, u8 buf[],
 							int start, int len)
 {
@@ -390,7 +383,7 @@ static const struct dvb_tuner_ops stv6110_tuner_ops = {
 		.frequency_step = 1000,
 	},
 	.init = stv6110_init,
-	.release = stv6110_release,
+	.release = dvb_tuner_simple_release,
 	.sleep = stv6110_sleep,
 	.set_params = stv6110_set_params,
 	.get_frequency = stv6110_get_frequency,

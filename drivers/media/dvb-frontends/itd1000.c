@@ -348,13 +348,6 @@ static int itd1000_sleep(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int itd1000_release(struct dvb_frontend *fe)
-{
-	kfree(fe->tuner_priv);
-	fe->tuner_priv = NULL;
-	return 0;
-}
-
 static const struct dvb_tuner_ops itd1000_tuner_ops = {
 	.info = {
 		.name           = "Integrant ITD1000",
@@ -363,7 +356,7 @@ static const struct dvb_tuner_ops itd1000_tuner_ops = {
 		.frequency_step = 125,     /* kHz for QPSK frontends */
 	},
 
-	.release       = itd1000_release,
+	.release       = dvb_tuner_simple_release,
 
 	.init          = itd1000_init,
 	.sleep         = itd1000_sleep,

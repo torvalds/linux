@@ -49,14 +49,6 @@ struct microtune_priv {
 	u32 frequency;
 };
 
-static int microtune_release(struct dvb_frontend *fe)
-{
-	kfree(fe->tuner_priv);
-	fe->tuner_priv = NULL;
-
-	return 0;
-}
-
 static int microtune_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 {
 	struct microtune_priv *priv = fe->tuner_priv;
@@ -365,7 +357,7 @@ static int mt2032_set_params(struct dvb_frontend *fe,
 
 static const struct dvb_tuner_ops mt2032_tuner_ops = {
 	.set_analog_params = mt2032_set_params,
-	.release           = microtune_release,
+	.release           = dvb_tuner_simple_release,
 	.get_frequency     = microtune_get_frequency,
 };
 
@@ -560,7 +552,7 @@ static int mt2050_set_params(struct dvb_frontend *fe,
 
 static const struct dvb_tuner_ops mt2050_tuner_ops = {
 	.set_analog_params = mt2050_set_params,
-	.release           = microtune_release,
+	.release           = dvb_tuner_simple_release,
 	.get_frequency     = microtune_get_frequency,
 };
 

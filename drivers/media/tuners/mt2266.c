@@ -296,13 +296,6 @@ static int mt2266_sleep(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int mt2266_release(struct dvb_frontend *fe)
-{
-	kfree(fe->tuner_priv);
-	fe->tuner_priv = NULL;
-	return 0;
-}
-
 static const struct dvb_tuner_ops mt2266_tuner_ops = {
 	.info = {
 		.name           = "Microtune MT2266",
@@ -310,7 +303,7 @@ static const struct dvb_tuner_ops mt2266_tuner_ops = {
 		.frequency_max  = 862000000,
 		.frequency_step =     50000,
 	},
-	.release       = mt2266_release,
+	.release       = dvb_tuner_simple_release,
 	.init          = mt2266_init,
 	.sleep         = mt2266_sleep,
 	.set_params    = mt2266_set_params,

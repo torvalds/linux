@@ -152,15 +152,6 @@ static int tda8261_set_params(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int tda8261_release(struct dvb_frontend *fe)
-{
-	struct tda8261_state *state = fe->tuner_priv;
-
-	fe->tuner_priv = NULL;
-	kfree(state);
-	return 0;
-}
-
 static const struct dvb_tuner_ops tda8261_ops = {
 
 	.info = {
@@ -173,7 +164,7 @@ static const struct dvb_tuner_ops tda8261_ops = {
 	.set_params	= tda8261_set_params,
 	.get_frequency	= tda8261_get_frequency,
 	.get_status	= tda8261_get_status,
-	.release	= tda8261_release
+	.release	= dvb_tuner_simple_release,
 };
 
 struct dvb_frontend *tda8261_attach(struct dvb_frontend *fe,
