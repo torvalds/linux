@@ -1153,3 +1153,14 @@ ENTRY(async_page_fault)
 	jmp	error_code
 END(async_page_fault)
 #endif
+
+ENTRY(rewind_stack_do_exit)
+	/* Prevent any naive code from trying to unwind to our caller. */
+	xorl	%ebp, %ebp
+
+	movl	PER_CPU_VAR(cpu_current_top_of_stack), %esi
+	leal	-TOP_OF_KERNEL_STACK_PADDING-PTREGS_SIZE(%esi), %esp
+
+	call	do_exit
+1:	jmp 1b
+END(rewind_stack_do_exit)

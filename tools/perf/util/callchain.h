@@ -94,6 +94,7 @@ struct callchain_param {
 	enum perf_call_graph_mode record_mode;
 	u32			dump_size;
 	enum chain_mode 	mode;
+	u16			max_stack;
 	u32			print_limit;
 	double			min_percent;
 	sort_chain_func_t	sort;
@@ -105,6 +106,7 @@ struct callchain_param {
 };
 
 extern struct callchain_param callchain_param;
+extern struct callchain_param callchain_param_default;
 
 struct callchain_list {
 	u64			ip;

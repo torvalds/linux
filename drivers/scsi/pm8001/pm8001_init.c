@@ -1249,7 +1249,7 @@ static int pm8001_pci_resume(struct pci_dev *pdev)
 
 	/* Chip documentation for the 8070 and 8072 SPCv    */
 	/* states that a 500ms minimum delay is required    */
-	/* before issuing commands.  Otherwise, the firmare */
+	/* before issuing commands. Otherwise, the firmware */
 	/* will enter an unrecoverable state.               */
 
 	if (pm8001_ha->chip_id == chip_8070 ||

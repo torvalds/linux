@@ -168,6 +168,7 @@ static inline unsigned int read_msa_##name(void)		\
 	unsigned int reg;					\
 	__asm__ __volatile__(					\
 	"	.set	push\n"					\
+	"	.set	fp=64\n"				\
 	"	.set	msa\n"					\
 	"	cfcmsa	%0, $" #cs "\n"				\
 	"	.set	pop\n"					\
@@ -179,6 +180,7 @@ static inline void write_msa_##name(unsigned int val)		\
 {								\
 	__asm__ __volatile__(					\
 	"	.set	push\n"					\
+	"	.set	fp=64\n"				\
 	"	.set	msa\n"					\
 	"	ctcmsa	$" #cs ", %0\n"				\
 	"	.set	pop\n"					\

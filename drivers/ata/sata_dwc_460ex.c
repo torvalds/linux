@@ -259,11 +259,8 @@ static int sata_dwc_dma_init_old(struct platform_device *pdev,
 	/* Get physical SATA DMA register base address */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	hsdev->dma->regs = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(hsdev->dma->regs)) {
-		dev_err(&pdev->dev,
-			"ioremap failed for AHBDMA register address\n");
+	if (IS_ERR(hsdev->dma->regs))
 		return PTR_ERR(hsdev->dma->regs);
-	}
 
 	/* Initialize AHB DMAC */
 	return dw_dma_probe(hsdev->dma);
@@ -281,7 +278,7 @@ static void sata_dwc_dma_exit_old(struct sata_dwc_device *hsdev)
 
 static const char *get_prot_descript(u8 protocol)
 {
-	switch ((enum ata_tf_protocols)protocol) {
+	switch (protocol) {
 	case ATA_PROT_NODATA:
 		return "ATA no data";
 	case ATA_PROT_PIO:
@@ -290,6 +287,8 @@ static const char *get_prot_descript(u8 protocol)
 		return "ATA DMA";
 	case ATA_PROT_NCQ:
 		return "ATA NCQ";
+	case ATA_PROT_NCQ_NODATA:
+		return "ATA NCQ no data";
 	case ATAPI_PROT_NODATA:
 		return "ATAPI no data";
 	case ATAPI_PROT_PIO:
@@ -1225,11 +1224,8 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 	/* Ioremap SATA registers */
 	res = platform_get_resource(ofdev, IORESOURCE_MEM, 0);
 	base = devm_ioremap_resource(&ofdev->dev, res);
-	if (IS_ERR(base)) {
-		dev_err(&ofdev->dev,
-			"ioremap failed for SATA register address\n");
+	if (IS_ERR(base))
 		return PTR_ERR(base);
-	}
 	dev_dbg(&ofdev->dev, "ioremap done for SATA register address\n");
 
 	/* Synopsys DWC SATA specific Registers */

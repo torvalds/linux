@@ -831,6 +831,7 @@ int hidma_ll_uninit(struct hidma_lldev *lldev)
 
 	required_bytes = sizeof(struct hidma_tre) * lldev->nr_tres;
 	tasklet_kill(&lldev->task);
+	tasklet_kill(&lldev->rst_task);
 	memset(lldev->trepool, 0, required_bytes);
 	lldev->trepool = NULL;
 	lldev->pending_tre_count = 0;

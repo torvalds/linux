@@ -35,7 +35,7 @@ static struct samsung_fixed_rate_clock exynos5440_fixed_rate_ext_clks[] __initda
 };
 
 /* fixed rate clocks */
-static struct samsung_fixed_rate_clock exynos5440_fixed_rate_clks[] __initdata = {
+static const struct samsung_fixed_rate_clock exynos5440_fixed_rate_clks[] __initconst = {
 	FRATE(0, "ppll", NULL, 0, 1000000000),
 	FRATE(0, "usb_phy0", NULL, 0, 60000000),
 	FRATE(0, "usb_phy1", NULL, 0, 60000000),
@@ -44,26 +44,26 @@ static struct samsung_fixed_rate_clock exynos5440_fixed_rate_clks[] __initdata =
 };
 
 /* fixed factor clocks */
-static struct samsung_fixed_factor_clock exynos5440_fixed_factor_clks[] __initdata = {
+static const struct samsung_fixed_factor_clock exynos5440_fixed_factor_clks[] __initconst = {
 	FFACTOR(0, "div250", "ppll", 1, 4, 0),
 	FFACTOR(0, "div200", "ppll", 1, 5, 0),
 	FFACTOR(0, "div125", "div250", 1, 2, 0),
 };
 
 /* mux clocks */
-static struct samsung_mux_clock exynos5440_mux_clks[] __initdata = {
+static const struct samsung_mux_clock exynos5440_mux_clks[] __initconst = {
 	MUX(0, "mout_spi", mout_spi_p, MISC_DOUT1, 5, 1),
 	MUX_A(CLK_ARM_CLK, "arm_clk", mout_armclk_p,
 			CPU_CLK_STATUS, 0, 1, "armclk"),
 };
 
 /* divider clocks */
-static struct samsung_div_clock exynos5440_div_clks[] __initdata = {
+static const struct samsung_div_clock exynos5440_div_clks[] __initconst = {
 	DIV(CLK_SPI_BAUD, "div_spi", "mout_spi", MISC_DOUT1, 3, 2),
 };
 
 /* gate clocks */
-static struct samsung_gate_clock exynos5440_gate_clks[] __initdata = {
+static const struct samsung_gate_clock exynos5440_gate_clks[] __initconst = {
 	GATE(CLK_PB0_250, "pb0_250", "div250", CLKEN_OV_VAL, 3, 0, 0),
 	GATE(CLK_PR0_250, "pr0_250", "div250", CLKEN_OV_VAL, 4, 0, 0),
 	GATE(CLK_PR1_250, "pr1_250", "div250", CLKEN_OV_VAL, 5, 0, 0),
@@ -125,8 +125,6 @@ static void __init exynos5440_clk_init(struct device_node *np)
 	}
 
 	ctx = samsung_clk_init(np, reg_base, CLK_NR_CLKS);
-	if (!ctx)
-		panic("%s: unable to allocate context.\n", __func__);
 
 	samsung_clk_of_register_fixed_ext(ctx, exynos5440_fixed_rate_ext_clks,
 		ARRAY_SIZE(exynos5440_fixed_rate_ext_clks), ext_clk_match);

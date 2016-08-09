@@ -8,7 +8,7 @@
 
 #define IFE_METAHDRLEN 2
 struct tcf_ife_info {
-	struct tcf_common common;
+	struct tc_action common;
 	u8 eth_dst[ETH_ALEN];
 	u8 eth_src[ETH_ALEN];
 	u16 eth_type;
@@ -16,8 +16,7 @@ struct tcf_ife_info {
 	/* list of metaids allowed */
 	struct list_head metalist;
 };
-#define to_ife(a) \
-	container_of(a->priv, struct tcf_ife_info, common)
+#define to_ife(a) ((struct tcf_ife_info *)a)
 
 struct tcf_meta_info {
 	const struct tcf_meta_ops *ops;

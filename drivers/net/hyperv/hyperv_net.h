@@ -173,6 +173,7 @@ struct rndis_device {
 
 /* Interface */
 struct rndis_message;
+struct netvsc_device;
 int netvsc_device_add(struct hv_device *device, void *additional_info);
 int netvsc_device_remove(struct hv_device *device);
 int netvsc_send(struct hv_device *device,
@@ -189,8 +190,8 @@ int netvsc_recv_callback(struct hv_device *device_obj,
 			struct vmbus_channel *channel,
 			u16 vlan_tci);
 void netvsc_channel_cb(void *context);
-int rndis_filter_open(struct hv_device *dev);
-int rndis_filter_close(struct hv_device *dev);
+int rndis_filter_open(struct netvsc_device *nvdev);
+int rndis_filter_close(struct netvsc_device *nvdev);
 int rndis_filter_device_add(struct hv_device *dev,
 			void *additional_info);
 void rndis_filter_device_remove(struct hv_device *dev);
@@ -200,7 +201,7 @@ int rndis_filter_receive(struct hv_device *dev,
 			struct vmbus_channel *channel);
 
 int rndis_filter_set_packet_filter(struct rndis_device *dev, u32 new_filter);
-int rndis_filter_set_device_mac(struct hv_device *hdev, char *mac);
+int rndis_filter_set_device_mac(struct net_device *ndev, char *mac);
 
 void netvsc_switch_datapath(struct net_device *nv_dev, bool vf);
 
@@ -742,6 +743,18 @@ struct netvsc_device {
 	struct net_device *vf_netdev;
 	atomic_t vf_use_cnt;
 };
+
+static inline struct netvsc_device *
+net_device_to_netvsc_device(struct net_device *ndev)
+{
+	return ((struct net_device_context *)netdev_priv(ndev))->nvdev;
+}
+
+static inline struct netvsc_device *
+hv_device_to_netvsc_device(struct hv_device *device)
+{
+	return net_device_to_netvsc_device(hv_get_drvdata(device));
+}
 
 /* NdisInitialize message */
 struct rndis_initialize_request {

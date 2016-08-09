@@ -1,5 +1,5 @@
 #ifndef _GTP_H_
-#define _GTP_H
+#define _GTP_H_
 
 /* General GTP protocol related definitions. */
 

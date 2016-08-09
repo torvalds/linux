@@ -1462,7 +1462,7 @@ int arizona_dev_init(struct arizona *arizona)
 	/* Set up for interrupts */
 	ret = arizona_irq_init(arizona);
 	if (ret != 0)
-		goto err_reset;
+		goto err_pm;
 
 	pm_runtime_set_autosuspend_delay(arizona->dev, 100);
 	pm_runtime_use_autosuspend(arizona->dev);
@@ -1486,6 +1486,8 @@ int arizona_dev_init(struct arizona *arizona)
 
 err_irq:
 	arizona_irq_exit(arizona);
+err_pm:
+	pm_runtime_disable(arizona->dev);
 err_reset:
 	arizona_enable_reset(arizona);
 	regulator_disable(arizona->dcvdd);

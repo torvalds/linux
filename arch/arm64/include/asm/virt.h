@@ -34,6 +34,11 @@
  */
 #define HVC_SET_VECTORS 1
 
+/*
+ * HVC_SOFT_RESTART - CPU soft reset, used by the cpu_soft_restart routine.
+ */
+#define HVC_SOFT_RESTART 2
+
 #define BOOT_CPU_MODE_EL1	(0xe11)
 #define BOOT_CPU_MODE_EL2	(0xe12)
 
@@ -81,6 +86,10 @@ extern void verify_cpu_run_el(void);
 #else
 static inline void verify_cpu_run_el(void) {}
 #endif
+
+/* The section containing the hypervisor idmap text */
+extern char __hyp_idmap_text_start[];
+extern char __hyp_idmap_text_end[];
 
 /* The section containing the hypervisor text */
 extern char __hyp_text_start[];

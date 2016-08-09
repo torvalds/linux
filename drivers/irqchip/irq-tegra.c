@@ -90,7 +90,7 @@ static struct tegra_ictlr_info *lic;
 
 static inline void tegra_ictlr_write_mask(struct irq_data *d, unsigned long reg)
 {
-	void __iomem *base = d->chip_data;
+	void __iomem *base = (void __iomem __force *)d->chip_data;
 	u32 mask;
 
 	mask = BIT(d->hwirq % 32);
@@ -266,7 +266,7 @@ static int tegra_ictlr_domain_alloc(struct irq_domain *domain,
 
 		irq_domain_set_hwirq_and_chip(domain, virq + i, hwirq + i,
 					      &tegra_ictlr_chip,
-					      info->base[ictlr]);
+					      (void __force *)info->base[ictlr]);
 	}
 
 	parent_fwspec = *fwspec;

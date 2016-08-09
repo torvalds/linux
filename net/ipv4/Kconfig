@@ -532,6 +532,22 @@ config TCP_CONG_VEGAS
 	window. TCP Vegas should provide less packet loss, but it is
 	not as aggressive as TCP Reno.
 
+config TCP_CONG_NV
+       tristate "TCP NV"
+       default n
+       ---help---
+       TCP NV is a follow up to TCP Vegas. It has been modified to deal with
+       10G networks, measurement noise introduced by LRO, GRO and interrupt
+       coalescence. In addition, it will decrease its cwnd multiplicatively
+       instead of linearly.
+
+       Note that in general congestion avoidance (cwnd decreased when # packets
+       queued grows) cannot coexist with congestion control (cwnd decreased only
+       when there is packet loss) due to fairness issues. One scenario when they
+       can coexist safely is when the CA flows have RTTs << CC flows RTTs.
+
+       For further details see http://www.brakmo.org/networking/tcp-nv/
+
 config TCP_CONG_SCALABLE
 	tristate "Scalable TCP"
 	default n

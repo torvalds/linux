@@ -60,6 +60,7 @@
 
 #define PCI_DEVICE_ID_IBM_CROC_FPGA_E2          0x033D
 #define PCI_DEVICE_ID_IBM_CROCODILE             0x034A
+#define PCI_DEVICE_ID_IBM_RATTLESNAKE		0x04DA
 
 #define IPR_SUBS_DEV_ID_2780	0x0264
 #define IPR_SUBS_DEV_ID_5702	0x0266
@@ -111,6 +112,8 @@
 #define IPR_SUBS_DEV_ID_2CCA	0x04C7
 #define IPR_SUBS_DEV_ID_2CD2	0x04C8
 #define IPR_SUBS_DEV_ID_2CCD	0x04C9
+#define IPR_SUBS_DEV_ID_580A	0x04FC
+#define IPR_SUBS_DEV_ID_580B	0x04FB
 #define IPR_NAME				"ipr"
 
 /*
@@ -1475,6 +1478,7 @@ struct ipr_ioa_cfg {
 	u8 in_ioa_bringdown:1;
 	u8 ioa_unit_checked:1;
 	u8 dump_taken:1;
+	u8 scan_enabled:1;
 	u8 scan_done:1;
 	u8 needs_hard_reset:1;
 	u8 dual_raid:1;

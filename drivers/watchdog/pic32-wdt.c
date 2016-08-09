@@ -174,8 +174,8 @@ static int pic32_wdt_drv_probe(struct platform_device *pdev)
 	struct resource *mem;
 
 	wdt = devm_kzalloc(&pdev->dev, sizeof(*wdt), GFP_KERNEL);
-	if (IS_ERR(wdt))
-		return PTR_ERR(wdt);
+	if (!wdt)
+		return -ENOMEM;
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	wdt->regs = devm_ioremap_resource(&pdev->dev, mem);
@@ -183,8 +183,8 @@ static int pic32_wdt_drv_probe(struct platform_device *pdev)
 		return PTR_ERR(wdt->regs);
 
 	wdt->rst_base = devm_ioremap(&pdev->dev, PIC32_BASE_RESET, 0x10);
-	if (IS_ERR(wdt->rst_base))
-		return PTR_ERR(wdt->rst_base);
+	if (!wdt->rst_base)
+		return -ENOMEM;
 
 	wdt->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(wdt->clk)) {
@@ -251,7 +251,6 @@ static struct platform_driver pic32_wdt_driver = {
 	.remove		= pic32_wdt_drv_remove,
 	.driver		= {
 		.name		= "pic32-wdt",
-		.owner		= THIS_MODULE,
 		.of_match_table = of_match_ptr(pic32_wdt_dt_ids),
 	}
 };

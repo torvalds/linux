@@ -53,20 +53,19 @@
 
 /**
  * i915_check_vgpu - detect virtual GPU
- * @dev: drm device *
+ * @dev_priv: i915 device private
  *
  * This function is called at the initialization stage, to detect whether
  * running on a vGPU.
  */
-void i915_check_vgpu(struct drm_device *dev)
+void i915_check_vgpu(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	uint64_t magic;
 	uint32_t version;
 
 	BUILD_BUG_ON(sizeof(struct vgt_if) != VGT_PVINFO_SIZE);
 
-	if (!IS_HASWELL(dev))
+	if (!IS_HASWELL(dev_priv))
 		return;
 
 	magic = __raw_i915_read64(dev_priv, vgtif_reg(magic));
@@ -102,9 +101,12 @@ static struct _balloon_info_ bl_info;
  * This function is called to deallocate the ballooned-out graphic memory, when
  * driver is unloaded or when ballooning fails.
  */
-void intel_vgt_deballoon(void)
+void intel_vgt_deballoon(struct drm_i915_private *dev_priv)
 {
 	int i;
+
+	if (!intel_vgpu_active(dev_priv))
+		return;
 
 	DRM_DEBUG("VGT deballoon.\n");
 
@@ -151,42 +153,44 @@ static int vgt_balloon_space(struct drm_mm *mm,
  * of its graphic space being zero. Yet there are some portions ballooned out(
  * the shadow part, which are marked as reserved by drm allocator). From the
  * host point of view, the graphic address space is partitioned by multiple
- * vGPUs in different VMs.
+ * vGPUs in different VMs. ::
  *
  *                        vGPU1 view         Host view
  *             0 ------> +-----------+     +-----------+
- *               ^       |///////////|     |   vGPU3   |
- *               |       |///////////|     +-----------+
- *               |       |///////////|     |   vGPU2   |
+ *               ^       |###########|     |   vGPU3   |
+ *               |       |###########|     +-----------+
+ *               |       |###########|     |   vGPU2   |
  *               |       +-----------+     +-----------+
  *        mappable GM    | available | ==> |   vGPU1   |
  *               |       +-----------+     +-----------+
- *               |       |///////////|     |           |
- *               v       |///////////|     |   Host    |
+ *               |       |###########|     |           |
+ *               v       |###########|     |   Host    |
  *               +=======+===========+     +===========+
- *               ^       |///////////|     |   vGPU3   |
- *               |       |///////////|     +-----------+
- *               |       |///////////|     |   vGPU2   |
+ *               ^       |###########|     |   vGPU3   |
+ *               |       |###########|     +-----------+
+ *               |       |###########|     |   vGPU2   |
  *               |       +-----------+     +-----------+
  *      unmappable GM    | available | ==> |   vGPU1   |
  *               |       +-----------+     +-----------+
- *               |       |///////////|     |           |
- *               |       |///////////|     |   Host    |
- *               v       |///////////|     |           |
+ *               |       |###########|     |           |
+ *               |       |###########|     |   Host    |
+ *               v       |###########|     |           |
  * total GM size ------> +-----------+     +-----------+
  *
  * Returns:
  * zero on success, non-zero if configuration invalid or ballooning failed
  */
-int intel_vgt_balloon(struct drm_device *dev)
+int intel_vgt_balloon(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	unsigned long ggtt_end = ggtt->base.start + ggtt->base.total;
 
 	unsigned long mappable_base, mappable_size, mappable_end;
 	unsigned long unmappable_base, unmappable_size, unmappable_end;
 	int ret;
+
+	if (!intel_vgpu_active(dev_priv))
+		return 0;
 
 	mappable_base = I915_READ(vgtif_reg(avail_rs.mappable_gmadr.base));
 	mappable_size = I915_READ(vgtif_reg(avail_rs.mappable_gmadr.size));
@@ -259,6 +263,6 @@ int intel_vgt_balloon(struct drm_device *dev)
 
 err:
 	DRM_ERROR("VGT balloon fail\n");
-	intel_vgt_deballoon();
+	intel_vgt_deballoon(dev_priv);
 	return ret;
 }

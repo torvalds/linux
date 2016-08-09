@@ -41,6 +41,9 @@ EXPORT_SYMBOL(cpu_data);
 EXPORT_SYMBOL(smp_flush_tlb_page);
 #endif
 
+extern int __ucmpdi2(unsigned long long a, unsigned long long b);
+EXPORT_SYMBOL(__ucmpdi2);
+
 /* compiler generated symbol */
 extern void __ashldi3(void);
 extern void __ashrdi3(void);

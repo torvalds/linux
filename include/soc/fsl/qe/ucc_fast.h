@@ -21,18 +21,36 @@
 
 #include <soc/fsl/qe/ucc.h>
 
-/* Receive BD's status */
+/* Receive BD's status and length*/
 #define R_E	0x80000000	/* buffer empty */
 #define R_W	0x20000000	/* wrap bit */
 #define R_I	0x10000000	/* interrupt on reception */
 #define R_L	0x08000000	/* last */
 #define R_F	0x04000000	/* first */
 
-/* transmit BD's status */
+/* transmit BD's status and length*/
 #define T_R	0x80000000	/* ready bit */
 #define T_W	0x20000000	/* wrap bit */
 #define T_I	0x10000000	/* interrupt on completion */
 #define T_L	0x08000000	/* last */
+
+/* Receive BD's status */
+#define R_E_S	0x8000	/* buffer empty */
+#define R_W_S	0x2000	/* wrap bit */
+#define R_I_S	0x1000	/* interrupt on reception */
+#define R_L_S	0x0800	/* last */
+#define R_F_S	0x0400	/* first */
+#define R_CM_S	0x0200	/* continuous mode */
+#define R_CR_S	0x0004	/* crc */
+#define R_OV_S	0x0002	/* crc */
+
+/* transmit BD's status */
+#define T_R_S	0x8000	/* ready bit */
+#define T_W_S	0x2000	/* wrap bit */
+#define T_I_S	0x1000	/* interrupt on completion */
+#define T_L_S	0x0800	/* last */
+#define T_TC_S	0x0400	/* crc */
+#define T_TM_S	0x0200	/* continuous mode */
 
 /* Rx Data buffer must be 4 bytes aligned in most cases */
 #define UCC_FAST_RX_ALIGN			4
@@ -118,9 +136,12 @@ enum ucc_fast_transparent_tcrc {
 /* Fast UCC initialization structure */
 struct ucc_fast_info {
 	int ucc_num;
+	int tdm_num;
 	enum qe_clock rx_clock;
 	enum qe_clock tx_clock;
-	u32 regs;
+	enum qe_clock rx_sync;
+	enum qe_clock tx_sync;
+	resource_size_t regs;
 	int irq;
 	u32 uccm_mask;
 	int bd_mem_part;

@@ -1065,7 +1065,7 @@ static int mxcmci_probe(struct platform_device *pdev)
 
 	if (pdata)
 		dat3_card_detect = pdata->dat3_card_detect;
-	else if (!(mmc->caps & MMC_CAP_NONREMOVABLE)
+	else if (mmc_card_is_removable(mmc)
 			&& !of_property_read_bool(pdev->dev.of_node, "cd-gpios"))
 		dat3_card_detect = true;
 

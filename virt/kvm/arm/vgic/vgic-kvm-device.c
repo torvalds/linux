@@ -21,8 +21,8 @@
 
 /* common helpers */
 
-static int vgic_check_ioaddr(struct kvm *kvm, phys_addr_t *ioaddr,
-			     phys_addr_t addr, phys_addr_t alignment)
+int vgic_check_ioaddr(struct kvm *kvm, phys_addr_t *ioaddr,
+		      phys_addr_t addr, phys_addr_t alignment)
 {
 	if (addr & ~KVM_PHYS_MASK)
 		return -E2BIG;
@@ -210,20 +210,27 @@ static void vgic_destroy(struct kvm_device *dev)
 	kfree(dev);
 }
 
-void kvm_register_vgic_device(unsigned long type)
+int kvm_register_vgic_device(unsigned long type)
 {
+	int ret = -ENODEV;
+
 	switch (type) {
 	case KVM_DEV_TYPE_ARM_VGIC_V2:
-		kvm_register_device_ops(&kvm_arm_vgic_v2_ops,
-					KVM_DEV_TYPE_ARM_VGIC_V2);
+		ret = kvm_register_device_ops(&kvm_arm_vgic_v2_ops,
+					      KVM_DEV_TYPE_ARM_VGIC_V2);
 		break;
 #ifdef CONFIG_KVM_ARM_VGIC_V3
 	case KVM_DEV_TYPE_ARM_VGIC_V3:
-		kvm_register_device_ops(&kvm_arm_vgic_v3_ops,
-					KVM_DEV_TYPE_ARM_VGIC_V3);
+		ret = kvm_register_device_ops(&kvm_arm_vgic_v3_ops,
+					      KVM_DEV_TYPE_ARM_VGIC_V3);
+		if (ret)
+			break;
+		ret = kvm_vgic_register_its_device();
 		break;
 #endif
 	}
+
+	return ret;
 }
 
 /** vgic_attr_regs_access: allows user space to read/write VGIC registers
@@ -428,4 +435,3 @@ struct kvm_device_ops kvm_arm_vgic_v3_ops = {
 };
 
 #endif /* CONFIG_KVM_ARM_VGIC_V3 */
-

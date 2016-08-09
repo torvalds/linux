@@ -27,13 +27,20 @@ static irqreturn_t hsu_pci_irq(int irq, void *dev)
 {
 	struct hsu_dma_chip *chip = dev;
 	u32 dmaisr;
+	u32 status;
 	unsigned short i;
 	irqreturn_t ret = IRQ_NONE;
+	int err;
 
 	dmaisr = readl(chip->regs + HSU_PCI_DMAISR);
 	for (i = 0; i < chip->hsu->nr_channels; i++) {
-		if (dmaisr & 0x1)
-			ret |= hsu_dma_irq(chip, i);
+		if (dmaisr & 0x1) {
+			err = hsu_dma_get_status(chip, i, &status);
+			if (err > 0)
+				ret |= IRQ_HANDLED;
+			else if (err == 0)
+				ret |= hsu_dma_do_irq(chip, i, status);
+		}
 		dmaisr >>= 1;
 	}
 

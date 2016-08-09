@@ -1234,7 +1234,6 @@ static int fsl_dma_chan_probe(struct fsldma_device *fdev,
 	/* alloc channel */
 	chan = kzalloc(sizeof(*chan), GFP_KERNEL);
 	if (!chan) {
-		dev_err(fdev->dev, "no free memory for DMA channels!\n");
 		err = -ENOMEM;
 		goto out_return;
 	}
@@ -1340,7 +1339,6 @@ static int fsldma_of_probe(struct platform_device *op)
 
 	fdev = kzalloc(sizeof(*fdev), GFP_KERNEL);
 	if (!fdev) {
-		dev_err(&op->dev, "No enough memory for 'priv'\n");
 		err = -ENOMEM;
 		goto out_return;
 	}

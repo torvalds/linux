@@ -245,7 +245,7 @@ struct jffs2_full_dirent *jffs2_write_dirent(struct jffs2_sb_info *c, struct jff
 
 	fd->version = je32_to_cpu(rd->version);
 	fd->ino = je32_to_cpu(rd->ino);
-	fd->nhash = full_name_hash(name, namelen);
+	fd->nhash = full_name_hash(NULL, name, namelen);
 	fd->type = rd->type;
 	memcpy(fd->name, name, namelen);
 	fd->name[namelen]=0;
@@ -598,7 +598,7 @@ int jffs2_do_unlink(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f,
 		jffs2_add_fd_to_list(c, fd, &dir_f->dents);
 		mutex_unlock(&dir_f->sem);
 	} else {
-		uint32_t nhash = full_name_hash(name, namelen);
+		uint32_t nhash = full_name_hash(NULL, name, namelen);
 
 		fd = dir_f->dents;
 		/* We don't actually want to reserve any space, but we do

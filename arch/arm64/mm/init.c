@@ -160,12 +160,10 @@ static void __init arm64_memory_present(void)
 static void __init arm64_memory_present(void)
 {
 	struct memblock_region *reg;
-	int nid = 0;
 
 	for_each_memblock(memory, reg) {
-#ifdef CONFIG_NUMA
-		nid = reg->nid;
-#endif
+		int nid = memblock_get_region_node(reg);
+
 		memory_present(nid, memblock_region_memory_base_pfn(reg),
 				memblock_region_memory_end_pfn(reg));
 	}
@@ -226,7 +224,7 @@ void __init arm64_memblock_init(void)
 	 * via the linear mapping.
 	 */
 	if (memory_limit != (phys_addr_t)ULLONG_MAX) {
-		memblock_enforce_memory_limit(memory_limit);
+		memblock_mem_limit_remove_map(memory_limit);
 		memblock_add(__pa(_text), (u64)(_end - _text));
 	}
 
@@ -403,7 +401,8 @@ static void __init free_unused_memmap(void)
  */
 void __init mem_init(void)
 {
-	swiotlb_init(1);
+	if (swiotlb_force || max_pfn > (arm64_dma_phys_limit >> PAGE_SHIFT))
+		swiotlb_init(1);
 
 	set_max_mapnr(pfn_to_page(max_pfn) - mem_map);
 
@@ -430,9 +429,9 @@ void __init mem_init(void)
 	pr_cont("    vmalloc : 0x%16lx - 0x%16lx   (%6ld GB)\n",
 		MLG(VMALLOC_START, VMALLOC_END));
 	pr_cont("      .text : 0x%p" " - 0x%p" "   (%6ld KB)\n",
-		MLK_ROUNDUP(_text, __start_rodata));
+		MLK_ROUNDUP(_text, _etext));
 	pr_cont("    .rodata : 0x%p" " - 0x%p" "   (%6ld KB)\n",
-		MLK_ROUNDUP(__start_rodata, _etext));
+		MLK_ROUNDUP(__start_rodata, __init_begin));
 	pr_cont("      .init : 0x%p" " - 0x%p" "   (%6ld KB)\n",
 		MLK_ROUNDUP(__init_begin, __init_end));
 	pr_cont("      .data : 0x%p" " - 0x%p" "   (%6ld KB)\n",

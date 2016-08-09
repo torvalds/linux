@@ -2052,12 +2052,12 @@ static int __init idetape_init(void)
 
 	error = driver_register(&idetape_driver.gen_driver);
 	if (error)
-		goto out_free_driver;
+		goto out_free_chrdev;
 
 	return 0;
 
-out_free_driver:
-	driver_unregister(&idetape_driver.gen_driver);
+out_free_chrdev:
+	unregister_chrdev(IDETAPE_MAJOR, "ht");
 out_free_class:
 	class_destroy(idetape_sysfs_class);
 out:

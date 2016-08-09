@@ -17,6 +17,7 @@
 #include <asm/proto.h>
 #include <asm/dma.h>		/* for MAX_DMA_PFN */
 #include <asm/microcode.h>
+#include <asm/kaslr.h>
 
 /*
  * We need to define the tracepoints somewhere, and tlb.c
@@ -207,7 +208,7 @@ static int __meminit save_mr(struct map_range *mr, int nr_range,
  * adjust the page_size_mask for small range to go with
  *	big page size instead small one if nearby are ram too.
  */
-static void __init_refok adjust_range_page_size_mask(struct map_range *mr,
+static void __ref adjust_range_page_size_mask(struct map_range *mr,
 							 int nr_range)
 {
 	int i;
@@ -395,7 +396,7 @@ bool pfn_range_is_mapped(unsigned long start_pfn, unsigned long end_pfn)
  * This runs before bootmem is initialized and gets pages directly from
  * the physical memory. To access them they are temporarily mapped.
  */
-unsigned long __init_refok init_memory_mapping(unsigned long start,
+unsigned long __ref init_memory_mapping(unsigned long start,
 					       unsigned long end)
 {
 	struct map_range mr[NR_RANGE_MR];
@@ -590,6 +591,9 @@ void __init init_mem_mapping(void)
 	/* the ISA range is always mapped regardless of memory holes */
 	init_memory_mapping(0, ISA_END_ADDRESS);
 
+	/* Init the trampoline, possibly with KASLR memory offset */
+	init_trampoline();
+
 	/*
 	 * If the allocation is in bottom-up direction, we setup direct mapping
 	 * in bottom-up, otherwise we setup direct mapping in top-down.
@@ -695,13 +699,6 @@ void free_initmem(void)
 #ifdef CONFIG_BLK_DEV_INITRD
 void __init free_initrd_mem(unsigned long start, unsigned long end)
 {
-	/*
-	 * Remember, initrd memory may contain microcode or other useful things.
-	 * Before we lose initrd mem, we need to find a place to hold them
-	 * now that normal virtual memory is enabled.
-	 */
-	save_microcode_in_initrd();
-
 	/*
 	 * end could be not aligned, and We can not align that,
 	 * decompresser could be confused by aligned initrd_end

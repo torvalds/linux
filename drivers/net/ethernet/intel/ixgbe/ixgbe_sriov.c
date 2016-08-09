@@ -954,6 +954,7 @@ static int ixgbe_set_vf_macvlan_msg(struct ixgbe_adapter *adapter,
 			struct ixgbe_hw *hw = &adapter->hw;
 
 			hw->mac.ops.set_mac_anti_spoofing(hw, false, vf);
+			hw->mac.ops.set_vlan_anti_spoofing(hw, false, vf);
 		}
 	}
 

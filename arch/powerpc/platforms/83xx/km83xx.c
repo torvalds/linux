@@ -171,11 +171,10 @@ static char *board[] __initdata = {
  */
 static int __init mpc83xx_km_probe(void)
 {
-	unsigned long node = of_get_flat_dt_root();
 	int i = 0;
 
 	while (board[i]) {
-		if (of_flat_dt_is_compatible(node, board[i]))
+		if (of_machine_is_compatible(board[i]))
 			break;
 		i++;
 	}

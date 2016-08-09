@@ -175,6 +175,8 @@ static const u8 jpeg_q[17] = {
 #error "USB buffer too small"
 #endif
 
+#define DEFAULT_FRAME_RATE 30
+
 static const u8 rates[] = {30, 20, 15, 10, 7, 5};
 static const struct framerates framerates[] = {
 	{
@@ -4020,7 +4022,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	gspca_dev->cam.mode_framerates = sd->bridge == BRIDGE_TP6800 ?
 			framerates : framerates_6810;
 
-	sd->framerate = 30;		/* default: 30 fps */
+	sd->framerate = DEFAULT_FRAME_RATE;
 	return 0;
 }
 
@@ -4803,7 +4805,7 @@ static void sd_set_streamparm(struct gspca_dev *gspca_dev,
 	int fr, i;
 
 	if (tpf->numerator == 0 || tpf->denominator == 0)
-		sd->framerate = 30;
+		sd->framerate = DEFAULT_FRAME_RATE;
 	else
 		sd->framerate = tpf->denominator / tpf->numerator;
 

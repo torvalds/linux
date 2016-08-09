@@ -53,9 +53,23 @@ do {								\
 	BUG_ON(atomic##bit##_read(&v) != r);			\
 } while (0)
 
+#define TEST_FETCH(bit, op, c_op, val)				\
+do {								\
+	atomic##bit##_set(&v, v0);				\
+	r = v0;							\
+	r c_op val;						\
+	BUG_ON(atomic##bit##_##op(val, &v) != v0);		\
+	BUG_ON(atomic##bit##_read(&v) != r);			\
+} while (0)
+
 #define RETURN_FAMILY_TEST(bit, op, c_op, val)			\
 do {								\
 	FAMILY_TEST(TEST_RETURN, bit, op, c_op, val);		\
+} while (0)
+
+#define FETCH_FAMILY_TEST(bit, op, c_op, val)			\
+do {								\
+	FAMILY_TEST(TEST_FETCH, bit, op, c_op, val);		\
 } while (0)
 
 #define TEST_ARGS(bit, op, init, ret, expect, args...)		\
@@ -114,6 +128,16 @@ static __init void test_atomic(void)
 	RETURN_FAMILY_TEST(, sub_return, -=, onestwos);
 	RETURN_FAMILY_TEST(, sub_return, -=, -one);
 
+	FETCH_FAMILY_TEST(, fetch_add, +=, onestwos);
+	FETCH_FAMILY_TEST(, fetch_add, +=, -one);
+	FETCH_FAMILY_TEST(, fetch_sub, -=, onestwos);
+	FETCH_FAMILY_TEST(, fetch_sub, -=, -one);
+
+	FETCH_FAMILY_TEST(, fetch_or,  |=, v1);
+	FETCH_FAMILY_TEST(, fetch_and, &=, v1);
+	FETCH_FAMILY_TEST(, fetch_andnot, &= ~, v1);
+	FETCH_FAMILY_TEST(, fetch_xor, ^=, v1);
+
 	INC_RETURN_FAMILY_TEST(, v0);
 	DEC_RETURN_FAMILY_TEST(, v0);
 
@@ -153,6 +177,16 @@ static __init void test_atomic64(void)
 	RETURN_FAMILY_TEST(64, add_return, +=, -one);
 	RETURN_FAMILY_TEST(64, sub_return, -=, onestwos);
 	RETURN_FAMILY_TEST(64, sub_return, -=, -one);
+
+	FETCH_FAMILY_TEST(64, fetch_add, +=, onestwos);
+	FETCH_FAMILY_TEST(64, fetch_add, +=, -one);
+	FETCH_FAMILY_TEST(64, fetch_sub, -=, onestwos);
+	FETCH_FAMILY_TEST(64, fetch_sub, -=, -one);
+
+	FETCH_FAMILY_TEST(64, fetch_or,  |=, v1);
+	FETCH_FAMILY_TEST(64, fetch_and, &=, v1);
+	FETCH_FAMILY_TEST(64, fetch_andnot, &= ~, v1);
+	FETCH_FAMILY_TEST(64, fetch_xor, ^=, v1);
 
 	INIT(v0);
 	atomic64_inc(&v);

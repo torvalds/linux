@@ -24,7 +24,8 @@
 #include <linux/spinlock.h>
 #include <linux/bootmem.h>
 #include <linux/ioport.h>
-#include <linux/module.h>
+#include <linux/init.h>
+#include <linux/mc146818rtc.h>
 #include <linux/efi.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
@@ -285,11 +286,6 @@ int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
 	return 0;
 }
 
-void __init efi_cleanup_page_tables(unsigned long pa_memmap, unsigned num_pages)
-{
-	kernel_unmap_pages_in_pgd(efi_pgd, pa_memmap, num_pages);
-}
-
 static void __init __map_region(efi_memory_desc_t *md, u64 va)
 {
 	unsigned long flags = _PAGE_RW;
@@ -466,22 +462,17 @@ extern efi_status_t efi64_thunk(u32, ...);
 #define efi_thunk(f, ...)						\
 ({									\
 	efi_status_t __s;						\
-	unsigned long flags;						\
-	u32 func;							\
+	unsigned long __flags;						\
+	u32 __func;							\
 									\
-	efi_sync_low_kernel_mappings();					\
-	local_irq_save(flags);						\
+	local_irq_save(__flags);					\
+	arch_efi_call_virt_setup();					\
 									\
-	efi_scratch.prev_cr3 = read_cr3();				\
-	write_cr3((unsigned long)efi_scratch.efi_pgt);			\
-	__flush_tlb_all();						\
+	__func = runtime_service32(f);					\
+	__s = efi64_thunk(__func, __VA_ARGS__);				\
 									\
-	func = runtime_service32(f);					\
-	__s = efi64_thunk(func, __VA_ARGS__);			\
-									\
-	write_cr3(efi_scratch.prev_cr3);				\
-	__flush_tlb_all();						\
-	local_irq_restore(flags);					\
+	arch_efi_call_virt_teardown();					\
+	local_irq_restore(__flags);					\
 									\
 	__s;								\
 })

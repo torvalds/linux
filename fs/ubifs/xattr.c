@@ -592,19 +592,19 @@ static int ubifs_xattr_set(const struct xattr_handler *handler,
 		return __ubifs_removexattr(inode, name);
 }
 
-const struct xattr_handler ubifs_user_xattr_handler = {
+static const struct xattr_handler ubifs_user_xattr_handler = {
 	.prefix = XATTR_USER_PREFIX,
 	.get = ubifs_xattr_get,
 	.set = ubifs_xattr_set,
 };
 
-const struct xattr_handler ubifs_trusted_xattr_handler = {
+static const struct xattr_handler ubifs_trusted_xattr_handler = {
 	.prefix = XATTR_TRUSTED_PREFIX,
 	.get = ubifs_xattr_get,
 	.set = ubifs_xattr_set,
 };
 
-const struct xattr_handler ubifs_security_xattr_handler = {
+static const struct xattr_handler ubifs_security_xattr_handler = {
 	.prefix = XATTR_SECURITY_PREFIX,
 	.get = ubifs_xattr_get,
 	.set = ubifs_xattr_set,

@@ -47,8 +47,7 @@
 
 int __attribute_const__ kvm_target_cpu(void);
 int kvm_reset_vcpu(struct kvm_vcpu *vcpu);
-int kvm_arch_dev_ioctl_check_extension(long ext);
-unsigned long kvm_hyp_reset_entry(void);
+int kvm_arch_dev_ioctl_check_extension(struct kvm *kvm, long ext);
 void __extended_idmap_trampoline(phys_addr_t boot_pgd, phys_addr_t idmap_start);
 
 struct kvm_arch {
@@ -348,8 +347,7 @@ int kvm_perf_teardown(void);
 
 struct kvm_vcpu *kvm_mpidr_to_vcpu(struct kvm *kvm, unsigned long mpidr);
 
-static inline void __cpu_init_hyp_mode(phys_addr_t boot_pgd_ptr,
-				       phys_addr_t pgd_ptr,
+static inline void __cpu_init_hyp_mode(phys_addr_t pgd_ptr,
 				       unsigned long hyp_stack_ptr,
 				       unsigned long vector_ptr)
 {
@@ -357,19 +355,14 @@ static inline void __cpu_init_hyp_mode(phys_addr_t boot_pgd_ptr,
 	 * Call initialization code, and switch to the full blown
 	 * HYP code.
 	 */
-	__kvm_call_hyp((void *)boot_pgd_ptr, pgd_ptr,
-		       hyp_stack_ptr, vector_ptr);
+	__kvm_call_hyp((void *)pgd_ptr, hyp_stack_ptr, vector_ptr);
 }
 
-static inline void __cpu_reset_hyp_mode(phys_addr_t boot_pgd_ptr,
+void __kvm_hyp_teardown(void);
+static inline void __cpu_reset_hyp_mode(unsigned long vector_ptr,
 					phys_addr_t phys_idmap_start)
 {
-	/*
-	 * Call reset code, and switch back to stub hyp vectors.
-	 * Uses __kvm_call_hyp() to avoid kaslr's kvm_ksym_ref() translation.
-	 */
-	__kvm_call_hyp((void *)kvm_hyp_reset_entry(),
-		       boot_pgd_ptr, phys_idmap_start);
+	kvm_call_hyp(__kvm_hyp_teardown, phys_idmap_start);
 }
 
 static inline void kvm_arch_hardware_unsetup(void) {}

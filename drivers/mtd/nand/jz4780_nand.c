@@ -412,6 +412,6 @@ static struct platform_driver jz4780_nand_driver = {
 module_platform_driver(jz4780_nand_driver);
 
 MODULE_AUTHOR("Alex Smith <alex@alex-smith.me.uk>");
-MODULE_AUTHOR("Harvey Hunt <harvey.hunt@imgtec.com>");
+MODULE_AUTHOR("Harvey Hunt <harveyhuntnexus@gmail.com>");
 MODULE_DESCRIPTION("Ingenic JZ4780 NAND driver");
 MODULE_LICENSE("GPL v2");

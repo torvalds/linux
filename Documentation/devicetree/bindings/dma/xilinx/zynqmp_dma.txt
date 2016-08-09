@@ -1,0 +1,27 @@
+Xilinx ZynqMP DMA engine, it does support memory to memory transfers,
+memory to device and device to memory transfers. It also has flow
+control and rate control support for slave/peripheral dma access.
+
+Required properties:
+- compatible		: Should be "xlnx,zynqmp-dma-1.0"
+- reg			: Memory map for gdma/adma module access.
+- interrupt-parent	: Interrupt controller the interrupt is routed through
+- interrupts		: Should contain DMA channel interrupt.
+- xlnx,bus-width	: Axi buswidth in bits. Should contain 128 or 64
+- clock-names		: List of input clocks "clk_main", "clk_apb"
+			  (see clock bindings for details)
+
+Optional properties:
+- dma-coherent		: Present if dma operations are coherent.
+
+Example:
+++++++++
+fpd_dma_chan1: dma@fd500000 {
+	compatible = "xlnx,zynqmp-dma-1.0";
+	reg = <0x0 0xFD500000 0x1000>;
+	interrupt-parent = <&gic>;
+	interrupts = <0 117 4>;
+	clock-names = "clk_main", "clk_apb";
+	xlnx,bus-width = <128>;
+	dma-coherent;
+};

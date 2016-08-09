@@ -18,6 +18,8 @@
 #include <linux/platform_device.h>
 #include <linux/of.h>
 
+#include "keystone.h"
+
 static struct dev_pm_domain keystone_pm_domain = {
 	.ops = {
 		USE_PM_CLK_RUNTIME_OPS

@@ -37,10 +37,6 @@ struct nfc_llc *nfc_llc_allocate(const char *name, struct nfc_hci_dev *hdev,
 				 int tx_tailroom, llc_failure_t llc_failure);
 void nfc_llc_free(struct nfc_llc *llc);
 
-void nfc_llc_get_rx_head_tail_room(struct nfc_llc *llc, int *rx_headroom,
-				   int *rx_tailroom);
-
-
 int nfc_llc_start(struct nfc_llc *llc);
 int nfc_llc_stop(struct nfc_llc *llc);
 void nfc_llc_rcv_from_drv(struct nfc_llc *llc, struct sk_buff *skb);

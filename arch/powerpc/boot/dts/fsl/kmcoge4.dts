@@ -106,6 +106,43 @@
 		sata@221000 {
 			status = "disabled";
 		};
+
+		fman0: fman@400000 {
+			enet0: ethernet@e0000 {
+				phy-connection-type = "sgmii";
+				fixed-link {
+					speed = <1000>;
+					full-duplex;
+				};
+			};
+			mdio0: mdio@e1120 {
+				front_phy: ethernet-phy@11 {
+					reg = <0x11>;
+				};
+			};
+
+			enet1: ethernet@e2000 {
+				phy-connection-type = "sgmii";
+				fixed-link {
+					speed = <1000>;
+					full-duplex;
+				};
+			};
+			enet2: ethernet@e4000 {
+				status = "disabled";
+			};
+
+			enet3: ethernet@e6000 {
+				status = "disabled";
+			};
+			enet4: ethernet@e8000 {
+				phy-handle = <&front_phy>;
+				phy-connection-type = "rgmii";
+			};
+			enet5: ethernet@f0000 {
+				status = "disabled";
+			};
+		};
 	};
 
 	rio: rapidio@ffe0c0000 {

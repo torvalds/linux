@@ -154,6 +154,30 @@ int phm_enable_dynamic_state_management(struct pp_hwmgr *hwmgr)
 	return ret;
 }
 
+int phm_disable_dynamic_state_management(struct pp_hwmgr *hwmgr)
+{
+	int ret = -1;
+	bool enabled;
+
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+		PHM_PlatformCaps_TablelessHardwareInterface)) {
+		if (hwmgr->hwmgr_func->dynamic_state_management_disable)
+			ret = hwmgr->hwmgr_func->dynamic_state_management_disable(hwmgr);
+	} else {
+		ret = phm_dispatch_table(hwmgr,
+				&(hwmgr->disable_dynamic_state_management),
+				NULL, NULL);
+	}
+
+	enabled = ret == 0 ? false : true;
+
+	cgs_notify_dpm_enabled(hwmgr->device, enabled);
+
+	return ret;
+}
+
 int phm_force_dpm_levels(struct pp_hwmgr *hwmgr, enum amd_dpm_forced_level level)
 {
 	PHM_FUNC_CHECK(hwmgr);
@@ -314,7 +338,7 @@ int phm_store_dal_configuration_data(struct pp_hwmgr *hwmgr,
 	if (hwmgr->hwmgr_func->store_cc6_data == NULL)
 		return -EINVAL;
 
-	/* to do pass other display configuration in furture */
+	/* TODO: pass other display configuration in the future */
 
 	if (hwmgr->hwmgr_func->store_cc6_data)
 		hwmgr->hwmgr_func->store_cc6_data(hwmgr,

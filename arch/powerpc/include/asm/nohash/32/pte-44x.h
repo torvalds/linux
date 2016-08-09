@@ -32,7 +32,7 @@
  *   -  -  -  -  -    - U0 U1 U2 U3 W  I  M  G  E   - UX UW UR SX SW SR
  *
  * Newer 440 cores (440x6 as used on AMCC 460EX/460GT) have additional
- * TLB2 storage attibute fields. Those are:
+ * TLB2 storage attribute fields. Those are:
  *
  *   TLB2:
  *   0...10    11   12   13   14   15   16...31

@@ -1000,25 +1000,28 @@ visornic_set_multi(struct net_device *netdev)
 	struct uiscmdrsp *cmdrsp;
 	struct visornic_devdata *devdata = netdev_priv(netdev);
 
-	/* any filtering changes */
-	if (devdata->old_flags != netdev->flags) {
-		if ((netdev->flags & IFF_PROMISC) !=
-		    (devdata->old_flags & IFF_PROMISC)) {
-			cmdrsp = kmalloc(SIZEOF_CMDRSP, GFP_ATOMIC);
-			if (!cmdrsp)
-				return;
-			cmdrsp->cmdtype = CMD_NET_TYPE;
-			cmdrsp->net.type = NET_RCV_PROMISC;
-			cmdrsp->net.enbdis.context = netdev;
-			cmdrsp->net.enbdis.enable =
-				netdev->flags & IFF_PROMISC;
-			visorchannel_signalinsert(devdata->dev->visorchannel,
-						  IOCHAN_TO_IOPART,
-						  cmdrsp);
-			kfree(cmdrsp);
-		}
-		devdata->old_flags = netdev->flags;
-	}
+	if (devdata->old_flags == netdev->flags)
+		return;
+
+	if ((netdev->flags & IFF_PROMISC) ==
+	    (devdata->old_flags & IFF_PROMISC))
+		goto out_save_flags;
+
+	cmdrsp = kmalloc(SIZEOF_CMDRSP, GFP_ATOMIC);
+	if (!cmdrsp)
+		return;
+	cmdrsp->cmdtype = CMD_NET_TYPE;
+	cmdrsp->net.type = NET_RCV_PROMISC;
+	cmdrsp->net.enbdis.context = netdev;
+	cmdrsp->net.enbdis.enable =
+		netdev->flags & IFF_PROMISC;
+	visorchannel_signalinsert(devdata->dev->visorchannel,
+				  IOCHAN_TO_IOPART,
+				  cmdrsp);
+	kfree(cmdrsp);
+
+out_save_flags:
+	devdata->old_flags = netdev->flags;
 }
 
 /**
@@ -1134,7 +1137,7 @@ repost_return(struct uiscmdrsp *cmdrsp, struct visornic_devdata *devdata,
  *
  *	Got a receive packet back from the IO Part, handle it and send
  *	it up the stack.
- *	Returns void
+ *	Returns 1 iff an skb was receieved, otherwise 0
  */
 static int
 visornic_rx(struct uiscmdrsp *cmdrsp)
@@ -1145,7 +1148,6 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 	int cc, currsize, off;
 	struct ethhdr *eth;
 	unsigned long flags;
-	int rx_count = 0;
 
 	/* post new rcv buf to the other end using the cmdrsp we have at hand
 	 * post it without holding lock - but we'll use the signal lock to
@@ -1177,7 +1179,7 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 		 */
 		spin_unlock_irqrestore(&devdata->priv_lock, flags);
 		repost_return(cmdrsp, devdata, skb, netdev);
-		return rx_count;
+		return 0;
 	}
 
 	spin_unlock_irqrestore(&devdata->priv_lock, flags);
@@ -1196,7 +1198,7 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 			if (repost_return(cmdrsp, devdata, skb, netdev) < 0)
 				dev_err(&devdata->netdev->dev,
 					"repost_return failed");
-			return rx_count;
+			return 0;
 		}
 		/* length rcvd is greater than firstfrag in this skb rcv buf  */
 		skb->tail += RCVPOST_BUF_SIZE;	/* amount in skb->data */
@@ -1212,7 +1214,7 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 			if (repost_return(cmdrsp, devdata, skb, netdev) < 0)
 				dev_err(&devdata->netdev->dev,
 					"repost_return failed");
-			return rx_count;
+			return 0;
 		}
 		skb->tail += skb->len;
 		skb->data_len = 0;	/* nothing rcvd in frag_list */
@@ -1231,7 +1233,7 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 	if (cmdrsp->net.rcv.rcvbuf[0] != skb) {
 		if (repost_return(cmdrsp, devdata, skb, netdev) < 0)
 			dev_err(&devdata->netdev->dev, "repost_return failed");
-		return rx_count;
+		return 0;
 	}
 
 	if (cmdrsp->net.rcv.numrcvbufs > 1) {
@@ -1313,10 +1315,9 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 		/* drop packet - don't forward it up to OS */
 		devdata->n_rcv_packets_not_accepted++;
 		repost_return(cmdrsp, devdata, skb, netdev);
-		return rx_count;
+		return 0;
 	} while (0);
 
-	rx_count++;
 	netif_receive_skb(skb);
 	/* netif_rx returns various values, but "in practice most drivers
 	 * ignore the return value
@@ -1329,7 +1330,7 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 	 * new rcv buffer.
 	 */
 	repost_return(cmdrsp, devdata, skb, netdev);
-	return rx_count;
+	return 1;
 }
 
 /**
@@ -1339,13 +1340,11 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
  *
  *	Setup initial values for the visornic based on channel and default
  *	values.
- *	Returns a pointer to the devdata if successful, else NULL
+ *	Returns a pointer to the devdata structure
  */
 static struct visornic_devdata *
 devdata_initialize(struct visornic_devdata *devdata, struct visor_device *dev)
 {
-	if (!devdata)
-		return NULL;
 	devdata->dev = dev;
 	devdata->incarnation_id = get_jiffies_64();
 	return devdata;
@@ -1793,7 +1792,7 @@ static int visornic_probe(struct visor_device *dev)
 				  sizeof(struct sk_buff *), GFP_KERNEL);
 	if (!devdata->rcvbuf) {
 		err = -ENOMEM;
-		goto cleanup_rcvbuf;
+		goto cleanup_netdev;
 	}
 
 	/* set the net_xmit outstanding threshold */
@@ -1814,12 +1813,12 @@ static int visornic_probe(struct visor_device *dev)
 	devdata->cmdrsp_rcv = kmalloc(SIZEOF_CMDRSP, GFP_ATOMIC);
 	if (!devdata->cmdrsp_rcv) {
 		err = -ENOMEM;
-		goto cleanup_cmdrsp_rcv;
+		goto cleanup_rcvbuf;
 	}
 	devdata->xmit_cmdrsp = kmalloc(SIZEOF_CMDRSP, GFP_ATOMIC);
 	if (!devdata->xmit_cmdrsp) {
 		err = -ENOMEM;
-		goto cleanup_xmit_cmdrsp;
+		goto cleanup_cmdrsp_rcv;
 	}
 	INIT_WORK(&devdata->timeout_reset, visornic_timeout_reset);
 	devdata->server_down = false;
@@ -2088,8 +2087,10 @@ static int visornic_init(void)
 		goto cleanup_debugfs;
 
 	err = visorbus_register_visor_driver(&visornic_driver);
-	if (!err)
-		return 0;
+	if (err)
+		goto cleanup_debugfs;
+
+	return 0;
 
 cleanup_debugfs:
 	debugfs_remove_recursive(visornic_debugfs_dir);

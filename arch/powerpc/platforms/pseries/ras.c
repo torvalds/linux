@@ -43,6 +43,7 @@ static int ras_check_exception_token;
 /* EPOW events counter variable */
 static int num_epow_events;
 
+static irqreturn_t ras_hotplug_interrupt(int irq, void *dev_id);
 static irqreturn_t ras_epow_interrupt(int irq, void *dev_id);
 static irqreturn_t ras_error_interrupt(int irq, void *dev_id);
 
@@ -62,6 +63,14 @@ static int __init init_ras_IRQ(void)
 	if (np != NULL) {
 		request_event_sources_irqs(np, ras_error_interrupt,
 					   "RAS_ERROR");
+		of_node_put(np);
+	}
+
+	/* Hotplug Events */
+	np = of_find_node_by_path("/event-sources/hot-plug-events");
+	if (np != NULL) {
+		request_event_sources_irqs(np, ras_hotplug_interrupt,
+					   "RAS_HOTPLUG");
 		of_node_put(np);
 	}
 
@@ -188,6 +197,36 @@ static void rtas_parse_epow_errlog(struct rtas_error_log *log)
 	/* Increment epow events counter variable */
 	if (action_code != EPOW_RESET)
 		num_epow_events++;
+}
+
+static irqreturn_t ras_hotplug_interrupt(int irq, void *dev_id)
+{
+	struct pseries_errorlog *pseries_log;
+	struct pseries_hp_errorlog *hp_elog;
+
+	spin_lock(&ras_log_buf_lock);
+
+	rtas_call(ras_check_exception_token, 6, 1, NULL,
+		  RTAS_VECTOR_EXTERNAL_INTERRUPT, virq_to_hw(irq),
+		  RTAS_HOTPLUG_EVENTS, 0, __pa(&ras_log_buf),
+		  rtas_get_error_log_max());
+
+	pseries_log = get_pseries_errorlog((struct rtas_error_log *)ras_log_buf,
+					   PSERIES_ELOG_SECT_ID_HOTPLUG);
+	hp_elog = (struct pseries_hp_errorlog *)pseries_log->data;
+
+	/*
+	 * Since PCI hotplug is not currently supported on pseries, put PCI
+	 * hotplug events on the ras_log_buf to be handled by rtas_errd.
+	 */
+	if (hp_elog->resource == PSERIES_HP_ELOG_RESOURCE_MEM ||
+	    hp_elog->resource == PSERIES_HP_ELOG_RESOURCE_CPU)
+		queue_hotplug_event(hp_elog, NULL, NULL);
+	else
+		log_error(ras_log_buf, ERR_TYPE_RTAS_LOG, 0);
+
+	spin_unlock(&ras_log_buf_lock);
+	return IRQ_HANDLED;
 }
 
 /* Handle environmental and power warning (EPOW) interrupts. */

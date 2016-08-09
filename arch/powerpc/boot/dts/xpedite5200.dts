@@ -130,7 +130,7 @@
 			};
 
 			rtc@68 {
-				compatible = "stm,m41t00",
+				compatible = "st,m41t00",
 					     "dallas,ds1338";
 				reg = <0x68>;
 			};

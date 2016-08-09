@@ -13,6 +13,22 @@ cd initrd
 cpio -id < /tmp/initrd.img.zcat
 ------------------------------------------------------------------------
 
+Another way to create an initramfs image is using "dracut"[1], which is
+available on many distros, however the initramfs dracut generates is a cpio
+archive with another cpio archive in it, so an extra step is needed to create
+the initrd directory hierarchy.
+
+Here are the commands to create a initrd directory for rcutorture using
+dracut:
+
+------------------------------------------------------------------------
+dracut --no-hostonly --no-hostonly-cmdline --module "base bash shutdown" /tmp/initramfs.img
+cd tools/testing/selftests/rcutorture
+mkdir initrd
+cd initrd
+/usr/lib/dracut/skipcpio /tmp/initramfs.img | zcat | cpio -id < /tmp/initramfs.img
+------------------------------------------------------------------------
+
 Interestingly enough, if you are running rcutorture, you don't really
 need userspace in many cases.  Running without userspace has the
 advantage of allowing you to test your kernel independently of the
@@ -89,3 +105,9 @@ while :
 do
 	sleep 10
 done
+------------------------------------------------------------------------
+
+References:
+[1]: https://dracut.wiki.kernel.org/index.php/Main_Page
+[2]: http://blog.elastocloud.org/2015/06/rapid-linux-kernel-devtest-with-qemu.html
+[3]: https://www.centos.org/forums/viewtopic.php?t=51621

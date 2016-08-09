@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -360,9 +356,8 @@ void ptlrpc_invalidate_import(struct obd_import *imp)
 						  "still on delayed list");
 				}
 
-				CERROR("%s: RPCs in \"%s\" phase found (%d). Network is sluggish? Waiting them to error out.\n",
+				CERROR("%s: Unregistering RPCs found (%d). Network is sluggish? Waiting them to error out.\n",
 				       cli_tgt,
-				       ptlrpc_phase2str(RQ_PHASE_UNREGISTERING),
 				       atomic_read(&imp->
 						   imp_unregistering));
 			}
@@ -698,7 +693,8 @@ int ptlrpc_connect_import(struct obd_import *imp)
 
 	lustre_msg_add_op_flags(request->rq_reqmsg, MSG_CONNECT_NEXT_VER);
 
-	request->rq_no_resend = request->rq_no_delay = 1;
+	request->rq_no_resend = 1;
+	request->rq_no_delay = 1;
 	request->rq_send_state = LUSTRE_IMP_CONNECTING;
 	/* Allow a slightly larger reply for future growth compatibility */
 	req_capsule_set_size(&request->rq_pill, &RMF_CONNECT_DATA, RCL_SERVER,

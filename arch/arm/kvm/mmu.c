@@ -32,8 +32,6 @@
 
 #include "trace.h"
 
-extern char  __hyp_idmap_text_start[], __hyp_idmap_text_end[];
-
 static pgd_t *boot_hyp_pgd;
 static pgd_t *hyp_pgd;
 static pgd_t *merged_hyp_pgd;
@@ -484,28 +482,6 @@ static void unmap_hyp_range(pgd_t *pgdp, phys_addr_t start, u64 size)
 }
 
 /**
- * free_boot_hyp_pgd - free HYP boot page tables
- *
- * Free the HYP boot page tables. The bounce page is also freed.
- */
-void free_boot_hyp_pgd(void)
-{
-	mutex_lock(&kvm_hyp_pgd_mutex);
-
-	if (boot_hyp_pgd) {
-		unmap_hyp_range(boot_hyp_pgd, hyp_idmap_start, PAGE_SIZE);
-		unmap_hyp_range(boot_hyp_pgd, TRAMPOLINE_VA, PAGE_SIZE);
-		free_pages((unsigned long)boot_hyp_pgd, hyp_pgd_order);
-		boot_hyp_pgd = NULL;
-	}
-
-	if (hyp_pgd)
-		unmap_hyp_range(hyp_pgd, TRAMPOLINE_VA, PAGE_SIZE);
-
-	mutex_unlock(&kvm_hyp_pgd_mutex);
-}
-
-/**
  * free_hyp_pgds - free Hyp-mode page tables
  *
  * Assumes hyp_pgd is a page table used strictly in Hyp-mode and
@@ -519,15 +495,20 @@ void free_hyp_pgds(void)
 {
 	unsigned long addr;
 
-	free_boot_hyp_pgd();
-
 	mutex_lock(&kvm_hyp_pgd_mutex);
 
+	if (boot_hyp_pgd) {
+		unmap_hyp_range(boot_hyp_pgd, hyp_idmap_start, PAGE_SIZE);
+		free_pages((unsigned long)boot_hyp_pgd, hyp_pgd_order);
+		boot_hyp_pgd = NULL;
+	}
+
 	if (hyp_pgd) {
+		unmap_hyp_range(hyp_pgd, hyp_idmap_start, PAGE_SIZE);
 		for (addr = PAGE_OFFSET; virt_addr_valid(addr); addr += PGDIR_SIZE)
-			unmap_hyp_range(hyp_pgd, KERN_TO_HYP(addr), PGDIR_SIZE);
+			unmap_hyp_range(hyp_pgd, kern_hyp_va(addr), PGDIR_SIZE);
 		for (addr = VMALLOC_START; is_vmalloc_addr((void*)addr); addr += PGDIR_SIZE)
-			unmap_hyp_range(hyp_pgd, KERN_TO_HYP(addr), PGDIR_SIZE);
+			unmap_hyp_range(hyp_pgd, kern_hyp_va(addr), PGDIR_SIZE);
 
 		free_pages((unsigned long)hyp_pgd, hyp_pgd_order);
 		hyp_pgd = NULL;
@@ -679,17 +660,18 @@ static phys_addr_t kvm_kaddr_to_phys(void *kaddr)
  * create_hyp_mappings - duplicate a kernel virtual address range in Hyp mode
  * @from:	The virtual kernel start address of the range
  * @to:		The virtual kernel end address of the range (exclusive)
+ * @prot:	The protection to be applied to this range
  *
  * The same virtual address as the kernel virtual address is also used
  * in Hyp-mode mapping (modulo HYP_PAGE_OFFSET) to the same underlying
  * physical pages.
  */
-int create_hyp_mappings(void *from, void *to)
+int create_hyp_mappings(void *from, void *to, pgprot_t prot)
 {
 	phys_addr_t phys_addr;
 	unsigned long virt_addr;
-	unsigned long start = KERN_TO_HYP((unsigned long)from);
-	unsigned long end = KERN_TO_HYP((unsigned long)to);
+	unsigned long start = kern_hyp_va((unsigned long)from);
+	unsigned long end = kern_hyp_va((unsigned long)to);
 
 	if (is_kernel_in_hyp_mode())
 		return 0;
@@ -704,7 +686,7 @@ int create_hyp_mappings(void *from, void *to)
 		err = __create_hyp_mappings(hyp_pgd, virt_addr,
 					    virt_addr + PAGE_SIZE,
 					    __phys_to_pfn(phys_addr),
-					    PAGE_HYP);
+					    prot);
 		if (err)
 			return err;
 	}
@@ -723,8 +705,8 @@ int create_hyp_mappings(void *from, void *to)
  */
 int create_hyp_io_mappings(void *from, void *to, phys_addr_t phys_addr)
 {
-	unsigned long start = KERN_TO_HYP((unsigned long)from);
-	unsigned long end = KERN_TO_HYP((unsigned long)to);
+	unsigned long start = kern_hyp_va((unsigned long)from);
+	unsigned long end = kern_hyp_va((unsigned long)to);
 
 	if (is_kernel_in_hyp_mode())
 		return 0;
@@ -1687,14 +1669,6 @@ phys_addr_t kvm_mmu_get_httbr(void)
 		return virt_to_phys(hyp_pgd);
 }
 
-phys_addr_t kvm_mmu_get_boot_httbr(void)
-{
-	if (__kvm_cpu_uses_extended_idmap())
-		return virt_to_phys(merged_hyp_pgd);
-	else
-		return virt_to_phys(boot_hyp_pgd);
-}
-
 phys_addr_t kvm_get_idmap_vector(void)
 {
 	return hyp_idmap_vector;
@@ -1703,6 +1677,22 @@ phys_addr_t kvm_get_idmap_vector(void)
 phys_addr_t kvm_get_idmap_start(void)
 {
 	return hyp_idmap_start;
+}
+
+static int kvm_map_idmap_text(pgd_t *pgd)
+{
+	int err;
+
+	/* Create the idmap in the boot page tables */
+	err = 	__create_hyp_mappings(pgd,
+				      hyp_idmap_start, hyp_idmap_end,
+				      __phys_to_pfn(hyp_idmap_start),
+				      PAGE_HYP_EXEC);
+	if (err)
+		kvm_err("Failed to idmap %lx-%lx\n",
+			hyp_idmap_start, hyp_idmap_end);
+
+	return err;
 }
 
 int kvm_mmu_init(void)
@@ -1719,28 +1709,41 @@ int kvm_mmu_init(void)
 	 */
 	BUG_ON((hyp_idmap_start ^ (hyp_idmap_end - 1)) & PAGE_MASK);
 
-	hyp_pgd = (pgd_t *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, hyp_pgd_order);
-	boot_hyp_pgd = (pgd_t *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, hyp_pgd_order);
+	kvm_info("IDMAP page: %lx\n", hyp_idmap_start);
+	kvm_info("HYP VA range: %lx:%lx\n",
+		 kern_hyp_va(PAGE_OFFSET), kern_hyp_va(~0UL));
 
-	if (!hyp_pgd || !boot_hyp_pgd) {
+	if (hyp_idmap_start >= kern_hyp_va(PAGE_OFFSET) &&
+	    hyp_idmap_start <  kern_hyp_va(~0UL)) {
+		/*
+		 * The idmap page is intersecting with the VA space,
+		 * it is not safe to continue further.
+		 */
+		kvm_err("IDMAP intersecting with HYP VA, unable to continue\n");
+		err = -EINVAL;
+		goto out;
+	}
+
+	hyp_pgd = (pgd_t *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, hyp_pgd_order);
+	if (!hyp_pgd) {
 		kvm_err("Hyp mode PGD not allocated\n");
 		err = -ENOMEM;
 		goto out;
 	}
 
-	/* Create the idmap in the boot page tables */
-	err = 	__create_hyp_mappings(boot_hyp_pgd,
-				      hyp_idmap_start, hyp_idmap_end,
-				      __phys_to_pfn(hyp_idmap_start),
-				      PAGE_HYP);
-
-	if (err) {
-		kvm_err("Failed to idmap %lx-%lx\n",
-			hyp_idmap_start, hyp_idmap_end);
-		goto out;
-	}
-
 	if (__kvm_cpu_uses_extended_idmap()) {
+		boot_hyp_pgd = (pgd_t *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
+							 hyp_pgd_order);
+		if (!boot_hyp_pgd) {
+			kvm_err("Hyp boot PGD not allocated\n");
+			err = -ENOMEM;
+			goto out;
+		}
+
+		err = kvm_map_idmap_text(boot_hyp_pgd);
+		if (err)
+			goto out;
+
 		merged_hyp_pgd = (pgd_t *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
 		if (!merged_hyp_pgd) {
 			kvm_err("Failed to allocate extra HYP pgd\n");
@@ -1748,29 +1751,10 @@ int kvm_mmu_init(void)
 		}
 		__kvm_extend_hypmap(boot_hyp_pgd, hyp_pgd, merged_hyp_pgd,
 				    hyp_idmap_start);
-		return 0;
-	}
-
-	/* Map the very same page at the trampoline VA */
-	err = 	__create_hyp_mappings(boot_hyp_pgd,
-				      TRAMPOLINE_VA, TRAMPOLINE_VA + PAGE_SIZE,
-				      __phys_to_pfn(hyp_idmap_start),
-				      PAGE_HYP);
-	if (err) {
-		kvm_err("Failed to map trampoline @%lx into boot HYP pgd\n",
-			TRAMPOLINE_VA);
-		goto out;
-	}
-
-	/* Map the same page again into the runtime page tables */
-	err = 	__create_hyp_mappings(hyp_pgd,
-				      TRAMPOLINE_VA, TRAMPOLINE_VA + PAGE_SIZE,
-				      __phys_to_pfn(hyp_idmap_start),
-				      PAGE_HYP);
-	if (err) {
-		kvm_err("Failed to map trampoline @%lx into runtime HYP pgd\n",
-			TRAMPOLINE_VA);
-		goto out;
+	} else {
+		err = kvm_map_idmap_text(hyp_pgd);
+		if (err)
+			goto out;
 	}
 
 	return 0;

@@ -492,9 +492,9 @@ struct cx18_card;
  *  (1/15.625 kHz) * 2 * 13.5 MHz = 1728 samples/line =
  *  4 bytes SAV + 280 bytes anc data + 4 bytes SAV + 1440 active samples
  */
-static const u32 vbi_active_samples = 1444; /* 4 byte SAV + 720 Y + 720 U/V */
-static const u32 vbi_hblank_samples_60Hz = 272; /* 4 byte EAV + 268 anc/fill */
-static const u32 vbi_hblank_samples_50Hz = 284; /* 4 byte EAV + 280 anc/fill */
+#define VBI_ACTIVE_SAMPLES	1444 /* 4 byte SAV + 720 Y + 720 U/V */
+#define VBI_HBLANK_SAMPLES_60HZ	272 /* 4 byte EAV + 268 anc/fill */
+#define VBI_HBLANK_SAMPLES_50HZ	284 /* 4 byte EAV + 280 anc/fill */
 
 #define CX18_VBI_FRAMES 32
 

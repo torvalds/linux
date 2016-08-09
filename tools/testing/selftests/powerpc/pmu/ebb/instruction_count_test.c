@@ -51,7 +51,7 @@ static int do_count_loop(struct event *event, uint64_t instructions,
 		printf("Looped for %lu instructions, overhead %lu\n", instructions, overhead);
 		printf("Expected %lu\n", expected);
 		printf("Actual   %llu\n", event->result.value);
-		printf("Error    %ld, %f%%\n", difference, percentage);
+		printf("Delta    %ld, %f%%\n", difference, percentage);
 		printf("Took %d EBBs\n", ebb_state.stats.ebb_count);
 	}
 

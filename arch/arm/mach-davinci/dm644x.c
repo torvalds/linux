@@ -921,10 +921,9 @@ static struct davinci_soc_info davinci_soc_info_dm644x = {
 	.sram_len		= SZ_16K,
 };
 
-void __init dm644x_init_asp(struct snd_platform_data *pdata)
+void __init dm644x_init_asp(void)
 {
 	davinci_cfg_reg(DM644X_MCBSP);
-	dm644x_asp_device.dev.platform_data = pdata;
 	platform_device_register(&dm644x_asp_device);
 }
 

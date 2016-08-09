@@ -240,7 +240,7 @@ nfssvc_decode_diropargs(struct svc_rqst *rqstp, __be32 *p,
 	 || !(p = decode_filename(p, &args->name, &args->len)))
 		return 0;
 
-	 return xdr_argsize_check(rqstp, p);
+	return xdr_argsize_check(rqstp, p);
 }
 
 int

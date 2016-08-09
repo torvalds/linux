@@ -588,11 +588,6 @@ static int bfin_crypto_crc_probe(struct platform_device *pdev)
 	crypto_init_queue(&crc->queue, CRC_CCRYPTO_QUEUE_LENGTH);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res == NULL) {
-		dev_err(&pdev->dev, "Cannot get IORESOURCE_MEM\n");
-		return -ENOENT;
-	}
-
 	crc->regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR((void *)crc->regs)) {
 		dev_err(&pdev->dev, "Cannot map CRC IO\n");

@@ -164,8 +164,7 @@ static void __init pq2fads_setup_arch(void)
  */
 static int __init pq2fads_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-	return of_flat_dt_is_compatible(root, "fsl,pq2fads");
+	return of_machine_is_compatible("fsl,pq2fads");
 }
 
 static const struct of_device_id of_bus_ids[] __initconst = {

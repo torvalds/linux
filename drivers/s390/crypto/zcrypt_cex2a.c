@@ -126,7 +126,7 @@ static int zcrypt_cex2a_probe(struct ap_device *ap_dev)
 					   MSGTYPE50_VARIANT_DEFAULT);
 	zdev->ap_dev = ap_dev;
 	zdev->online = 1;
-	ap_dev->reply = &zdev->reply;
+	ap_device_init_reply(ap_dev, &zdev->reply);
 	ap_dev->private = zdev;
 	rc = zcrypt_device_register(zdev);
 	if (rc) {

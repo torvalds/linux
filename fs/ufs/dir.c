@@ -279,12 +279,6 @@ struct ufs_dir_entry *ufs_find_entry(struct inode *dir, const struct qstr *qstr,
 			de = (struct ufs_dir_entry *) kaddr;
 			kaddr += ufs_last_byte(dir, n) - reclen;
 			while ((char *) de <= kaddr) {
-				if (de->d_reclen == 0) {
-					ufs_error(dir->i_sb, __func__,
-						  "zero-length directory entry");
-					ufs_put_page(page);
-					goto out;
-				}
 				if (ufs_match(sb, namelen, name, de))
 					goto found;
 				de = ufs_next_entry(sb, de);
@@ -414,11 +408,8 @@ ufs_validate_entry(struct super_block *sb, char *base,
 {
 	struct ufs_dir_entry *de = (struct ufs_dir_entry*)(base + offset);
 	struct ufs_dir_entry *p = (struct ufs_dir_entry*)(base + (offset&mask));
-	while ((char*)p < (char*)de) {
-		if (p->d_reclen == 0)
-			break;
+	while ((char*)p < (char*)de)
 		p = ufs_next_entry(sb, p);
-	}
 	return (char *)p - base;
 }
 
@@ -469,12 +460,6 @@ ufs_readdir(struct file *file, struct dir_context *ctx)
 		de = (struct ufs_dir_entry *)(kaddr+offset);
 		limit = kaddr + ufs_last_byte(inode, n) - UFS_DIR_REC_LEN(1);
 		for ( ;(char*)de <= limit; de = ufs_next_entry(sb, de)) {
-			if (de->d_reclen == 0) {
-				ufs_error(sb, __func__,
-					"zero-length directory entry");
-				ufs_put_page(page);
-				return -EIO;
-			}
 			if (de->d_ino) {
 				unsigned char d_type = DT_UNKNOWN;
 

@@ -528,7 +528,7 @@ static irqreturn_t stk3310_irq_handler(int irq, void *private)
 	struct iio_dev *indio_dev = private;
 	struct stk3310_data *data = iio_priv(indio_dev);
 
-	data->timestamp = iio_get_time_ns();
+	data->timestamp = iio_get_time_ns(indio_dev);
 
 	return IRQ_WAKE_THREAD;
 }

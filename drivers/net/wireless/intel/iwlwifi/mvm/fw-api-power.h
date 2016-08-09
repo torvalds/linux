@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright(c) 2015 Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -34,7 +34,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright(c) 2015 Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -310,7 +310,8 @@ enum iwl_dev_tx_power_cmd_mode {
 	IWL_TX_POWER_MODE_SET_MAC = 0,
 	IWL_TX_POWER_MODE_SET_DEVICE = 1,
 	IWL_TX_POWER_MODE_SET_CHAINS = 2,
-}; /* TX_POWER_REDUCED_FLAGS_TYPE_API_E_VER_2 */;
+	IWL_TX_POWER_MODE_SET_ACK = 3,
+}; /* TX_POWER_REDUCED_FLAGS_TYPE_API_E_VER_4 */;
 
 /**
  * struct iwl_dev_tx_power_cmd_v2 - TX power reduction command
@@ -338,13 +339,26 @@ struct iwl_dev_tx_power_cmd_v2 {
  * @v2: version 2 of the command, embedded here for easier software handling
  * @per_chain_restriction: per chain restrictions
  */
-struct iwl_dev_tx_power_cmd {
+struct iwl_dev_tx_power_cmd_v3 {
 	/* v3 is just an extension of v2 - keep this here */
 	struct iwl_dev_tx_power_cmd_v2 v2;
 	__le16 per_chain_restriction[IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS];
 } __packed; /* TX_REDUCED_POWER_API_S_VER_3 */
 
 #define IWL_DEV_MAX_TX_POWER 0x7FFF
+
+/**
+ * struct iwl_dev_tx_power_cmd - TX power reduction command
+ * @v3: version 3 of the command, embedded here for easier software handling
+ * @enable_ack_reduction: enable or disable close range ack TX power
+ *	reduction.
+ */
+struct iwl_dev_tx_power_cmd {
+	/* v4 is just an extension of v3 - keep this here */
+	struct iwl_dev_tx_power_cmd_v3 v3;
+	u8 enable_ack_reduction;
+	u8 reserved[3];
+} __packed; /* TX_REDUCED_POWER_API_S_VER_4 */
 
 /**
  * struct iwl_beacon_filter_cmd

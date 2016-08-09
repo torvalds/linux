@@ -61,7 +61,9 @@ Required Properties:
 - #address-cells: must be 1
 - #size-cells: must be 1
 - interrupts : Should be single bit error interrupt, then double bit error
-	interrupt. Note the rising edge type.
+	interrupt.
+- interrupt-controller : boolean indicator that ECC Manager is an interrupt controller
+- #interrupt-cells : must be set to 2.
 - ranges : standard definition, should translate from local addresses
 
 Subcomponents:
@@ -70,11 +72,23 @@ L2 Cache ECC
 Required Properties:
 - compatible : Should be "altr,socfpga-a10-l2-ecc"
 - reg : Address and size for ECC error interrupt clear registers.
+- interrupts : Should be single bit error interrupt, then double bit error
+	interrupt, in this order.
 
 On-Chip RAM ECC
 Required Properties:
 - compatible : Should be "altr,socfpga-a10-ocram-ecc"
 - reg        : Address and size for ECC block registers.
+- interrupts : Should be single bit error interrupt, then double bit error
+	interrupt, in this order.
+
+Ethernet FIFO ECC
+Required Properties:
+- compatible      : Should be "altr,socfpga-eth-mac-ecc"
+- reg             : Address and size for ECC block registers.
+- altr,ecc-parent : phandle to parent Ethernet node.
+- interrupts      : Should be single bit error interrupt, then double bit error
+	interrupt, in this order.
 
 Example:
 
@@ -85,15 +99,37 @@ Example:
 		#size-cells = <1>;
 		interrupts = <0 2 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 0 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
 		ranges;
 
 		l2-ecc@ffd06010 {
 			compatible = "altr,socfpga-a10-l2-ecc";
 			reg = <0xffd06010 0x4>;
+			interrupts = <0 IRQ_TYPE_LEVEL_HIGH>,
+				     <32 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		ocram-ecc@ff8c3000 {
 			compatible = "altr,socfpga-a10-ocram-ecc";
 			reg = <0xff8c3000 0x90>;
+			interrupts = <1 IRQ_TYPE_LEVEL_HIGH>,
+				     <33 IRQ_TYPE_LEVEL_HIGH> ;
+		};
+
+		emac0-rx-ecc@ff8c0800 {
+			compatible = "altr,socfpga-eth-mac-ecc";
+			reg = <0xff8c0800 0x400>;
+			altr,ecc-parent = <&gmac0>;
+			interrupts = <4 IRQ_TYPE_LEVEL_HIGH>,
+				     <36 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		emac0-tx-ecc@ff8c0c00 {
+			compatible = "altr,socfpga-eth-mac-ecc";
+			reg = <0xff8c0c00 0x400>;
+			altr,ecc-parent = <&gmac0>;
+			interrupts = <5 IRQ_TYPE_LEVEL_HIGH>,
+				     <37 IRQ_TYPE_LEVEL_HIGH>;
 		};
 	};

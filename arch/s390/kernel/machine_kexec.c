@@ -24,6 +24,7 @@
 #include <asm/diag.h>
 #include <asm/elf.h>
 #include <asm/asm-offsets.h>
+#include <asm/cacheflush.h>
 #include <asm/os_info.h>
 #include <asm/switch_to.h>
 
@@ -60,8 +61,6 @@ static int machine_kdump_pm_cb(struct notifier_block *nb, unsigned long action,
 static int __init machine_kdump_pm_init(void)
 {
 	pm_notifier(machine_kdump_pm_cb, 0);
-	/* Create initial mapping for crashkernel memory */
-	arch_kexec_unprotect_crashkres();
 	return 0;
 }
 arch_initcall(machine_kdump_pm_init);
@@ -150,42 +149,40 @@ static int kdump_csum_valid(struct kimage *image)
 
 #ifdef CONFIG_CRASH_DUMP
 
-/*
- * Map or unmap crashkernel memory
- */
-static void crash_map_pages(int enable)
+void crash_free_reserved_phys_range(unsigned long begin, unsigned long end)
 {
-	unsigned long size = resource_size(&crashk_res);
+	unsigned long addr, size;
 
-	BUG_ON(crashk_res.start % KEXEC_CRASH_MEM_ALIGN ||
-	       size % KEXEC_CRASH_MEM_ALIGN);
-	if (enable)
-		vmem_add_mapping(crashk_res.start, size);
-	else {
-		vmem_remove_mapping(crashk_res.start, size);
-		if (size)
-			os_info_crashkernel_add(crashk_res.start, size);
-		else
-			os_info_crashkernel_add(0, 0);
-	}
+	for (addr = begin; addr < end; addr += PAGE_SIZE)
+		free_reserved_page(pfn_to_page(addr >> PAGE_SHIFT));
+	size = begin - crashk_res.start;
+	if (size)
+		os_info_crashkernel_add(crashk_res.start, size);
+	else
+		os_info_crashkernel_add(0, 0);
 }
 
-/*
- * Unmap crashkernel memory
- */
+static void crash_protect_pages(int protect)
+{
+	unsigned long size;
+
+	if (!crashk_res.end)
+		return;
+	size = resource_size(&crashk_res);
+	if (protect)
+		set_memory_ro(crashk_res.start, size >> PAGE_SHIFT);
+	else
+		set_memory_rw(crashk_res.start, size >> PAGE_SHIFT);
+}
+
 void arch_kexec_protect_crashkres(void)
 {
-	if (crashk_res.end)
-		crash_map_pages(0);
+	crash_protect_pages(1);
 }
 
-/*
- * Map crashkernel memory
- */
 void arch_kexec_unprotect_crashkres(void)
 {
-	if (crashk_res.end)
-		crash_map_pages(1);
+	crash_protect_pages(0);
 }
 
 #endif

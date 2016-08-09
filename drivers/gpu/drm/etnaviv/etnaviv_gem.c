@@ -535,8 +535,7 @@ void etnaviv_gem_describe_objects(struct etnaviv_drm_private *priv,
 
 static void etnaviv_gem_shmem_release(struct etnaviv_gem_object *etnaviv_obj)
 {
-	if (etnaviv_obj->vaddr)
-		vunmap(etnaviv_obj->vaddr);
+	vunmap(etnaviv_obj->vaddr);
 	put_pages(etnaviv_obj);
 }
 
@@ -660,7 +659,7 @@ static struct drm_gem_object *__etnaviv_gem_new(struct drm_device *dev,
 		 * why this is required _and_ expected if you're
 		 * going to pin these pages.
 		 */
-		mapping = file_inode(obj->filp)->i_mapping;
+		mapping = obj->filp->f_mapping;
 		mapping_set_gfp_mask(mapping, GFP_HIGHUSER);
 	}
 
@@ -670,9 +669,7 @@ static struct drm_gem_object *__etnaviv_gem_new(struct drm_device *dev,
 	return obj;
 
 fail:
-	if (obj)
-		drm_gem_object_unreference_unlocked(obj);
-
+	drm_gem_object_unreference_unlocked(obj);
 	return ERR_PTR(ret);
 }
 
@@ -916,15 +913,12 @@ int etnaviv_gem_new_userptr(struct drm_device *dev, struct drm_file *file,
 	get_task_struct(current);
 
 	ret = etnaviv_gem_obj_add(dev, &etnaviv_obj->base);
-	if (ret) {
-		drm_gem_object_unreference_unlocked(&etnaviv_obj->base);
-		return ret;
-	}
+	if (ret)
+		goto unreference;
 
 	ret = drm_gem_handle_create(file, &etnaviv_obj->base, handle);
-
+unreference:
 	/* drop reference from allocate - handle holds it now */
 	drm_gem_object_unreference_unlocked(&etnaviv_obj->base);
-
 	return ret;
 }

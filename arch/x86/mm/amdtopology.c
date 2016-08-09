@@ -9,7 +9,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/string.h>
-#include <linux/module.h>
 #include <linux/nodemask.h>
 #include <linux/memblock.h>
 #include <linux/bootmem.h>

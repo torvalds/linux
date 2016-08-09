@@ -22,8 +22,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/sched.h>
 
-#include <video/omapdss.h>
-
+#include "omapdss.h"
 #include "dss.h"
 
 #define PLL_CONTROL			0x0000
@@ -74,6 +73,59 @@ struct dss_pll *dss_pll_find(const char *name)
 	}
 
 	return NULL;
+}
+
+struct dss_pll *dss_pll_find_by_src(enum dss_clk_source src)
+{
+	struct dss_pll *pll;
+
+	switch (src) {
+	default:
+	case DSS_CLK_SRC_FCK:
+		return NULL;
+
+	case DSS_CLK_SRC_HDMI_PLL:
+		return dss_pll_find("hdmi");
+
+	case DSS_CLK_SRC_PLL1_1:
+	case DSS_CLK_SRC_PLL1_2:
+	case DSS_CLK_SRC_PLL1_3:
+		pll = dss_pll_find("dsi0");
+		if (!pll)
+			pll = dss_pll_find("video0");
+		return pll;
+
+	case DSS_CLK_SRC_PLL2_1:
+	case DSS_CLK_SRC_PLL2_2:
+	case DSS_CLK_SRC_PLL2_3:
+		pll = dss_pll_find("dsi1");
+		if (!pll)
+			pll = dss_pll_find("video1");
+		return pll;
+	}
+}
+
+unsigned dss_pll_get_clkout_idx_for_src(enum dss_clk_source src)
+{
+	switch (src) {
+	case DSS_CLK_SRC_HDMI_PLL:
+		return 0;
+
+	case DSS_CLK_SRC_PLL1_1:
+	case DSS_CLK_SRC_PLL2_1:
+		return 0;
+
+	case DSS_CLK_SRC_PLL1_2:
+	case DSS_CLK_SRC_PLL2_2:
+		return 1;
+
+	case DSS_CLK_SRC_PLL1_3:
+	case DSS_CLK_SRC_PLL2_3:
+		return 2;
+
+	default:
+		return 0;
+	}
 }
 
 int dss_pll_enable(struct dss_pll *pll)
@@ -129,7 +181,7 @@ int dss_pll_set_config(struct dss_pll *pll, const struct dss_pll_clock_info *cin
 	return 0;
 }
 
-bool dss_pll_hsdiv_calc(const struct dss_pll *pll, unsigned long clkdco,
+bool dss_pll_hsdiv_calc_a(const struct dss_pll *pll, unsigned long clkdco,
 		unsigned long out_min, unsigned long out_max,
 		dss_hsdiv_calc_func func, void *data)
 {
@@ -154,7 +206,11 @@ bool dss_pll_hsdiv_calc(const struct dss_pll *pll, unsigned long clkdco,
 	return false;
 }
 
-bool dss_pll_calc(const struct dss_pll *pll, unsigned long clkin,
+/*
+ * clkdco = clkin / n * m * 2
+ * clkoutX = clkdco / mX
+ */
+bool dss_pll_calc_a(const struct dss_pll *pll, unsigned long clkin,
 		unsigned long pll_min, unsigned long pll_max,
 		dss_pll_calc_func func, void *data)
 {
@@ -193,6 +249,71 @@ bool dss_pll_calc(const struct dss_pll *pll, unsigned long clkin,
 	}
 
 	return false;
+}
+
+/*
+ * This calculates a PLL config that will provide the target_clkout rate
+ * for clkout. Additionally clkdco rate will be the same as clkout rate
+ * when clkout rate is >= min_clkdco.
+ *
+ * clkdco = clkin / n * m + clkin / n * mf / 262144
+ * clkout = clkdco / m2
+ */
+bool dss_pll_calc_b(const struct dss_pll *pll, unsigned long clkin,
+	unsigned long target_clkout, struct dss_pll_clock_info *cinfo)
+{
+	unsigned long fint, clkdco, clkout;
+	unsigned long target_clkdco;
+	unsigned long min_dco;
+	unsigned n, m, mf, m2, sd;
+	const struct dss_pll_hw *hw = pll->hw;
+
+	DSSDBG("clkin %lu, target clkout %lu\n", clkin, target_clkout);
+
+	/* Fint */
+	n = DIV_ROUND_UP(clkin, hw->fint_max);
+	fint = clkin / n;
+
+	/* adjust m2 so that the clkdco will be high enough */
+	min_dco = roundup(hw->clkdco_min, fint);
+	m2 = DIV_ROUND_UP(min_dco, target_clkout);
+	if (m2 == 0)
+		m2 = 1;
+
+	target_clkdco = target_clkout * m2;
+	m = target_clkdco / fint;
+
+	clkdco = fint * m;
+
+	/* adjust clkdco with fractional mf */
+	if (WARN_ON(target_clkdco - clkdco > fint))
+		mf = 0;
+	else
+		mf = (u32)div_u64(262144ull * (target_clkdco - clkdco), fint);
+
+	if (mf > 0)
+		clkdco += (u32)div_u64((u64)mf * fint, 262144);
+
+	clkout = clkdco / m2;
+
+	/* sigma-delta */
+	sd = DIV_ROUND_UP(fint * m, 250000000);
+
+	DSSDBG("N = %u, M = %u, M.f = %u, M2 = %u, SD = %u\n",
+		n, m, mf, m2, sd);
+	DSSDBG("Fint %lu, clkdco %lu, clkout %lu\n", fint, clkdco, clkout);
+
+	cinfo->n = n;
+	cinfo->m = m;
+	cinfo->mf = mf;
+	cinfo->mX[0] = m2;
+	cinfo->sd = sd;
+
+	cinfo->fint = fint;
+	cinfo->clkdco = clkdco;
+	cinfo->clkout[0] = clkout;
+
+	return true;
 }
 
 static int wait_for_bit_change(void __iomem *reg, int bitnum, int value)

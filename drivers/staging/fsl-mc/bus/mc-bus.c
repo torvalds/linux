@@ -24,8 +24,6 @@
 
 static struct kmem_cache *mc_dev_cache;
 
-static bool fsl_mc_is_root_dprc(struct device *dev);
-
 /**
  * fsl_mc_bus_match - device to driver matching callback
  * @dev: the MC object device structure to match against
@@ -36,7 +34,7 @@ static bool fsl_mc_is_root_dprc(struct device *dev);
  */
 static int fsl_mc_bus_match(struct device *dev, struct device_driver *drv)
 {
-	const struct fsl_mc_device_match_id *id;
+	const struct fsl_mc_device_id *id;
 	struct fsl_mc_device *mc_dev = to_fsl_mc_device(dev);
 	struct fsl_mc_driver *mc_drv = to_fsl_mc_driver(drv);
 	bool found = false;
@@ -78,14 +76,45 @@ out:
  */
 static int fsl_mc_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
-	pr_debug("%s invoked\n", __func__);
+	struct fsl_mc_device *mc_dev = to_fsl_mc_device(dev);
+
+	if (add_uevent_var(env, "MODALIAS=fsl-mc:v%08Xd%s",
+			   mc_dev->obj_desc.vendor,
+			   mc_dev->obj_desc.type))
+		return -ENOMEM;
+
 	return 0;
 }
+
+static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	struct fsl_mc_device *mc_dev = to_fsl_mc_device(dev);
+
+	return sprintf(buf, "fsl-mc:v%08Xd%s\n", mc_dev->obj_desc.vendor,
+		       mc_dev->obj_desc.type);
+}
+static DEVICE_ATTR_RO(modalias);
+
+static struct attribute *fsl_mc_dev_attrs[] = {
+	&dev_attr_modalias.attr,
+	NULL,
+};
+
+static const struct attribute_group fsl_mc_dev_group = {
+	.attrs = fsl_mc_dev_attrs,
+};
+
+static const struct attribute_group *fsl_mc_dev_groups[] = {
+	&fsl_mc_dev_group,
+	NULL,
+};
 
 struct bus_type fsl_mc_bus_type = {
 	.name = "fsl-mc",
 	.match = fsl_mc_bus_match,
 	.uevent = fsl_mc_bus_uevent,
+	.dev_groups = fsl_mc_dev_groups,
 };
 EXPORT_SYMBOL_GPL(fsl_mc_bus_type);
 
@@ -214,19 +243,6 @@ static void fsl_mc_get_root_dprc(struct device *dev,
 		while ((*root_dprc_dev)->parent->bus == &fsl_mc_bus_type)
 			*root_dprc_dev = (*root_dprc_dev)->parent;
 	}
-}
-
-/**
- * fsl_mc_is_root_dprc - function to check if a given device is a root dprc
- */
-static bool fsl_mc_is_root_dprc(struct device *dev)
-{
-	struct device *root_dprc_dev;
-
-	fsl_mc_get_root_dprc(dev, &root_dprc_dev);
-	if (!root_dprc_dev)
-		return false;
-	return dev == root_dprc_dev;
 }
 
 static int get_dprc_attr(struct fsl_mc_io *mc_io,
@@ -393,6 +409,19 @@ error_cleanup_regions:
 }
 
 /**
+ * fsl_mc_is_root_dprc - function to check if a given device is a root dprc
+ */
+bool fsl_mc_is_root_dprc(struct device *dev)
+{
+	struct device *root_dprc_dev;
+
+	fsl_mc_get_root_dprc(dev, &root_dprc_dev);
+	if (!root_dprc_dev)
+		return false;
+	return dev == root_dprc_dev;
+}
+
+/**
  * Add a newly discovered MC object device to be visible in Linux
  */
 int fsl_mc_device_add(struct dprc_obj_desc *obj_desc,
@@ -550,10 +579,6 @@ void fsl_mc_device_remove(struct fsl_mc_device *mc_dev)
 
 	if (strcmp(mc_dev->obj_desc.type, "dprc") == 0) {
 		mc_bus = to_fsl_mc_bus(mc_dev);
-		if (mc_dev->mc_io) {
-			fsl_destroy_mc_io(mc_dev->mc_io);
-			mc_dev->mc_io = NULL;
-		}
 
 		if (fsl_mc_is_root_dprc(&mc_dev->dev)) {
 			if (atomic_read(&root_dprc_count) > 0)
@@ -781,6 +806,10 @@ static int fsl_mc_bus_remove(struct platform_device *pdev)
 		return -EINVAL;
 
 	fsl_mc_device_remove(mc->root_mc_bus_dev);
+
+	fsl_destroy_mc_io(mc->root_mc_bus_dev->mc_io);
+	mc->root_mc_bus_dev->mc_io = NULL;
+
 	dev_info(&pdev->dev, "Root MC bus device removed");
 	return 0;
 }

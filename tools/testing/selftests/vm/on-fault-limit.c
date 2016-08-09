@@ -20,7 +20,7 @@ static int test_limit(void)
 		return ret;
 	}
 
-	if (mlockall(MCL_CURRENT | MCL_ONFAULT | MCL_FUTURE)) {
+	if (mlockall(MCL_ONFAULT | MCL_FUTURE)) {
 		perror("mlockall");
 		return ret;
 	}

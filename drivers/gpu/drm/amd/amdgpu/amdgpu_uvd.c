@@ -40,9 +40,16 @@
 #include "uvd/uvd_4_2_d.h"
 
 /* 1 second timeout */
-#define UVD_IDLE_TIMEOUT_MS	1000
+#define UVD_IDLE_TIMEOUT	msecs_to_jiffies(1000)
+
+/* Firmware versions for VI */
+#define FW_1_65_10	((1 << 24) | (65 << 16) | (10 << 8))
+#define FW_1_87_11	((1 << 24) | (87 << 16) | (11 << 8))
+#define FW_1_87_12	((1 << 24) | (87 << 16) | (12 << 8))
+#define FW_1_37_15	((1 << 24) | (37 << 16) | (15 << 8))
+
 /* Polaris10/11 firmware version */
-#define FW_1_66_16 ((1 << 24) | (66 << 16) | (16 << 8))
+#define FW_1_66_16	((1 << 24) | (66 << 16) | (16 << 8))
 
 /* Firmware Names */
 #ifdef CONFIG_DRM_AMDGPU_CIK
@@ -92,7 +99,6 @@ MODULE_FIRMWARE(FIRMWARE_STONEY);
 MODULE_FIRMWARE(FIRMWARE_POLARIS10);
 MODULE_FIRMWARE(FIRMWARE_POLARIS11);
 
-static void amdgpu_uvd_note_usage(struct amdgpu_device *adev);
 static void amdgpu_uvd_idle_work_handler(struct work_struct *work);
 
 int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
@@ -246,6 +252,23 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 	if (!amdgpu_ip_block_version_cmp(adev, AMD_IP_BLOCK_TYPE_UVD, 5, 0))
 		adev->uvd.address_64_bit = true;
 
+	switch (adev->asic_type) {
+	case CHIP_TONGA:
+		adev->uvd.use_ctx_buf = adev->uvd.fw_version >= FW_1_65_10;
+		break;
+	case CHIP_CARRIZO:
+		adev->uvd.use_ctx_buf = adev->uvd.fw_version >= FW_1_87_11;
+		break;
+	case CHIP_FIJI:
+		adev->uvd.use_ctx_buf = adev->uvd.fw_version >= FW_1_87_12;
+		break;
+	case CHIP_STONEY:
+		adev->uvd.use_ctx_buf = adev->uvd.fw_version >= FW_1_37_15;
+		break;
+	default:
+		adev->uvd.use_ctx_buf = adev->asic_type >= CHIP_POLARIS10;
+	}
+
 	return 0;
 }
 
@@ -346,8 +369,6 @@ void amdgpu_uvd_free_handles(struct amdgpu_device *adev, struct drm_file *filp)
 		if (handle != 0 && adev->uvd.filp[i] == filp) {
 			struct fence *fence;
 
-			amdgpu_uvd_note_usage(adev);
-
 			r = amdgpu_uvd_get_destroy_msg(ring, handle,
 						       false, &fence);
 			if (r) {
@@ -438,7 +459,7 @@ static int amdgpu_uvd_cs_msg_decode(struct amdgpu_device *adev, uint32_t *msg,
 	unsigned fs_in_mb = width_in_mb * height_in_mb;
 
 	unsigned image_size, tmp, min_dpb_size, num_dpb_buffer;
-	unsigned min_ctx_size = 0;
+	unsigned min_ctx_size = ~0;
 
 	image_size = width * height;
 	image_size += image_size / 2;
@@ -557,7 +578,7 @@ static int amdgpu_uvd_cs_msg_decode(struct amdgpu_device *adev, uint32_t *msg,
 		/* reference picture buffer */
 		min_dpb_size = image_size * num_dpb_buffer;
 
-		if (adev->asic_type < CHIP_POLARIS10){
+		if (!adev->uvd.use_ctx_buf){
 			/* macroblock context buffer */
 			min_dpb_size +=
 				width_in_mb * height_in_mb * num_dpb_buffer * 192;
@@ -662,7 +683,7 @@ static int amdgpu_uvd_cs_msg(struct amdgpu_uvd_cs_ctx *ctx,
 		}
 
 		DRM_ERROR("No more free UVD handles!\n");
-		return -EINVAL;
+		return -ENOSPC;
 
 	case 1:
 		/* it's a decode msg, calc buffer sizes */
@@ -913,8 +934,6 @@ int amdgpu_uvd_ring_parse_cs(struct amdgpu_cs_parser *parser, uint32_t ib_idx)
 		return -EINVAL;
 	}
 
-	amdgpu_uvd_note_usage(ctx.parser->adev);
-
 	return 0;
 }
 
@@ -968,7 +987,7 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
 
 	if (direct) {
 		r = amdgpu_ib_schedule(ring, 1, ib, NULL, NULL, &f);
-		job->fence = f;
+		job->fence = fence_get(f);
 		if (r)
 			goto err_free;
 
@@ -1106,24 +1125,18 @@ static void amdgpu_uvd_idle_work_handler(struct work_struct *work)
 	if (fences == 0 && handles == 0) {
 		if (adev->pm.dpm_enabled) {
 			amdgpu_dpm_enable_uvd(adev, false);
-			/* just work around for uvd clock remain high even
-			 * when uvd dpm disabled on Polaris10 */
-			if (adev->asic_type == CHIP_POLARIS10)
-				amdgpu_asic_set_uvd_clocks(adev, 0, 0);
 		} else {
 			amdgpu_asic_set_uvd_clocks(adev, 0, 0);
 		}
 	} else {
-		schedule_delayed_work(&adev->uvd.idle_work,
-				      msecs_to_jiffies(UVD_IDLE_TIMEOUT_MS));
+		schedule_delayed_work(&adev->uvd.idle_work, UVD_IDLE_TIMEOUT);
 	}
 }
 
-static void amdgpu_uvd_note_usage(struct amdgpu_device *adev)
+void amdgpu_uvd_ring_begin_use(struct amdgpu_ring *ring)
 {
+	struct amdgpu_device *adev = ring->adev;
 	bool set_clocks = !cancel_delayed_work_sync(&adev->uvd.idle_work);
-	set_clocks &= schedule_delayed_work(&adev->uvd.idle_work,
-					    msecs_to_jiffies(UVD_IDLE_TIMEOUT_MS));
 
 	if (set_clocks) {
 		if (adev->pm.dpm_enabled) {
@@ -1132,4 +1145,49 @@ static void amdgpu_uvd_note_usage(struct amdgpu_device *adev)
 			amdgpu_asic_set_uvd_clocks(adev, 53300, 40000);
 		}
 	}
+}
+
+void amdgpu_uvd_ring_end_use(struct amdgpu_ring *ring)
+{
+	schedule_delayed_work(&ring->adev->uvd.idle_work, UVD_IDLE_TIMEOUT);
+}
+
+/**
+ * amdgpu_uvd_ring_test_ib - test ib execution
+ *
+ * @ring: amdgpu_ring pointer
+ *
+ * Test if we can successfully execute an IB
+ */
+int amdgpu_uvd_ring_test_ib(struct amdgpu_ring *ring, long timeout)
+{
+	struct fence *fence;
+	long r;
+
+	r = amdgpu_uvd_get_create_msg(ring, 1, NULL);
+	if (r) {
+		DRM_ERROR("amdgpu: failed to get create msg (%ld).\n", r);
+		goto error;
+	}
+
+	r = amdgpu_uvd_get_destroy_msg(ring, 1, true, &fence);
+	if (r) {
+		DRM_ERROR("amdgpu: failed to get destroy ib (%ld).\n", r);
+		goto error;
+	}
+
+	r = fence_wait_timeout(fence, false, timeout);
+	if (r == 0) {
+		DRM_ERROR("amdgpu: IB test timed out.\n");
+		r = -ETIMEDOUT;
+	} else if (r < 0) {
+		DRM_ERROR("amdgpu: fence wait failed (%ld).\n", r);
+	} else {
+		DRM_INFO("ib test on ring %d succeeded\n",  ring->idx);
+		r = 0;
+	}
+
+error:
+	fence_put(fence);
+	return r;
 }

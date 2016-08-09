@@ -215,6 +215,22 @@
 #define ST_ACCEL_6_IHL_IRQ_MASK			0x80
 #define ST_ACCEL_6_MULTIREAD_BIT		true
 
+/* CUSTOM VALUES FOR SENSOR 7 */
+#define ST_ACCEL_7_ODR_ADDR			0x20
+#define ST_ACCEL_7_ODR_MASK			0x30
+#define ST_ACCEL_7_ODR_AVL_280HZ_VAL		0x00
+#define ST_ACCEL_7_ODR_AVL_560HZ_VAL		0x01
+#define ST_ACCEL_7_ODR_AVL_1120HZ_VAL		0x02
+#define ST_ACCEL_7_ODR_AVL_4480HZ_VAL		0x03
+#define ST_ACCEL_7_PW_ADDR			0x20
+#define ST_ACCEL_7_PW_MASK			0xc0
+#define ST_ACCEL_7_FS_AVL_2_GAIN		IIO_G_TO_M_S_2(488)
+#define ST_ACCEL_7_BDU_ADDR			0x21
+#define ST_ACCEL_7_BDU_MASK			0x40
+#define ST_ACCEL_7_DRDY_IRQ_ADDR		0x21
+#define ST_ACCEL_7_DRDY_IRQ_INT1_MASK		0x04
+#define ST_ACCEL_7_MULTIREAD_BIT		false
+
 static const struct iio_chan_spec st_accel_8bit_channels[] = {
 	ST_SENSORS_LSM_CHANNELS(IIO_ACCEL,
 			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
@@ -662,6 +678,54 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 		.multi_read_bit = ST_ACCEL_6_MULTIREAD_BIT,
 		.bootime = 2,
 	},
+	{
+		/* No WAI register present */
+		.sensors_supported = {
+			[0] = LIS3L02DQ_ACCEL_DEV_NAME,
+		},
+		.ch = (struct iio_chan_spec *)st_accel_12bit_channels,
+		.odr = {
+			.addr = ST_ACCEL_7_ODR_ADDR,
+			.mask = ST_ACCEL_7_ODR_MASK,
+			.odr_avl = {
+				{ 280, ST_ACCEL_7_ODR_AVL_280HZ_VAL, },
+				{ 560, ST_ACCEL_7_ODR_AVL_560HZ_VAL, },
+				{ 1120, ST_ACCEL_7_ODR_AVL_1120HZ_VAL, },
+				{ 4480, ST_ACCEL_7_ODR_AVL_4480HZ_VAL, },
+			},
+		},
+		.pw = {
+			.addr = ST_ACCEL_7_PW_ADDR,
+			.mask = ST_ACCEL_7_PW_MASK,
+			.value_on = ST_SENSORS_DEFAULT_POWER_ON_VALUE,
+			.value_off = ST_SENSORS_DEFAULT_POWER_OFF_VALUE,
+		},
+		.enable_axis = {
+			.addr = ST_SENSORS_DEFAULT_AXIS_ADDR,
+			.mask = ST_SENSORS_DEFAULT_AXIS_MASK,
+		},
+		.fs = {
+			.fs_avl = {
+				[0] = {
+					.num = ST_ACCEL_FS_AVL_2G,
+					.gain = ST_ACCEL_7_FS_AVL_2_GAIN,
+				},
+			},
+		},
+		/*
+		 * The part has a BDU bit but if set the data is never
+		 * updated so don't set it.
+		 */
+		.bdu = {
+		},
+		.drdy_irq = {
+			.addr = ST_ACCEL_7_DRDY_IRQ_ADDR,
+			.mask_int1 = ST_ACCEL_7_DRDY_IRQ_INT1_MASK,
+			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
+		},
+		.multi_read_bit = ST_ACCEL_7_MULTIREAD_BIT,
+		.bootime = 2,
+	},
 };
 
 static int st_accel_read_raw(struct iio_dev *indio_dev,
@@ -758,13 +822,15 @@ int st_accel_common_probe(struct iio_dev *indio_dev)
 	indio_dev->info = &accel_info;
 	mutex_init(&adata->tb.buf_lock);
 
-	st_sensors_power_enable(indio_dev);
+	err = st_sensors_power_enable(indio_dev);
+	if (err)
+		return err;
 
 	err = st_sensors_check_device_support(indio_dev,
 					ARRAY_SIZE(st_accel_sensors_settings),
 					st_accel_sensors_settings);
 	if (err < 0)
-		return err;
+		goto st_accel_power_off;
 
 	adata->num_data_channels = ST_ACCEL_NUMBER_DATA_CHANNELS;
 	adata->multiread_bit = adata->sensor_settings->multi_read_bit;
@@ -781,11 +847,11 @@ int st_accel_common_probe(struct iio_dev *indio_dev)
 
 	err = st_sensors_init_sensor(indio_dev, adata->dev->platform_data);
 	if (err < 0)
-		return err;
+		goto st_accel_power_off;
 
 	err = st_accel_allocate_ring(indio_dev);
 	if (err < 0)
-		return err;
+		goto st_accel_power_off;
 
 	if (irq > 0) {
 		err = st_sensors_allocate_trigger(indio_dev,
@@ -808,6 +874,8 @@ st_accel_device_register_error:
 		st_sensors_deallocate_trigger(indio_dev);
 st_accel_probe_trigger_error:
 	st_accel_deallocate_ring(indio_dev);
+st_accel_power_off:
+	st_sensors_power_disable(indio_dev);
 
 	return err;
 }

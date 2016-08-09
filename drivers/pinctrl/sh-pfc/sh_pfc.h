@@ -13,6 +13,7 @@
 
 #include <linux/bug.h>
 #include <linux/pinctrl/pinconf-generic.h>
+#include <linux/spinlock.h>
 #include <linux/stringify.h>
 
 enum {
@@ -182,16 +183,38 @@ struct pinmux_range {
 	u16 force;
 };
 
-struct sh_pfc;
+struct sh_pfc_window {
+	phys_addr_t phys;
+	void __iomem *virt;
+	unsigned long size;
+};
+
+struct sh_pfc_pin_range;
+
+struct sh_pfc {
+	struct device *dev;
+	const struct sh_pfc_soc_info *info;
+	spinlock_t lock;
+
+	unsigned int num_windows;
+	struct sh_pfc_window *windows;
+	unsigned int num_irqs;
+	unsigned int *irqs;
+
+	struct sh_pfc_pin_range *ranges;
+	unsigned int nr_ranges;
+
+	unsigned int nr_gpio_pins;
+
+	struct sh_pfc_chip *gpio;
+};
 
 struct sh_pfc_soc_operations {
 	int (*init)(struct sh_pfc *pfc);
 	unsigned int (*get_bias)(struct sh_pfc *pfc, unsigned int pin);
 	void (*set_bias)(struct sh_pfc *pfc, unsigned int pin,
 			 unsigned int bias);
-	int (*get_io_voltage)(struct sh_pfc *pfc, unsigned int pin);
-	int (*set_io_voltage)(struct sh_pfc *pfc, unsigned int pin,
-			      u16 voltage_mV);
+	int (*pin_to_pocctrl)(struct sh_pfc *pfc, unsigned int pin, u32 *pocctrl);
 };
 
 struct sh_pfc_soc_info {
@@ -226,6 +249,30 @@ struct sh_pfc_soc_info {
 
 	u32 unlock_reg;
 };
+
+extern const struct sh_pfc_soc_info emev2_pinmux_info;
+extern const struct sh_pfc_soc_info r8a73a4_pinmux_info;
+extern const struct sh_pfc_soc_info r8a7740_pinmux_info;
+extern const struct sh_pfc_soc_info r8a7778_pinmux_info;
+extern const struct sh_pfc_soc_info r8a7779_pinmux_info;
+extern const struct sh_pfc_soc_info r8a7790_pinmux_info;
+extern const struct sh_pfc_soc_info r8a7791_pinmux_info;
+extern const struct sh_pfc_soc_info r8a7793_pinmux_info;
+extern const struct sh_pfc_soc_info r8a7794_pinmux_info;
+extern const struct sh_pfc_soc_info r8a7795_pinmux_info;
+extern const struct sh_pfc_soc_info sh7203_pinmux_info;
+extern const struct sh_pfc_soc_info sh7264_pinmux_info;
+extern const struct sh_pfc_soc_info sh7269_pinmux_info;
+extern const struct sh_pfc_soc_info sh73a0_pinmux_info;
+extern const struct sh_pfc_soc_info sh7720_pinmux_info;
+extern const struct sh_pfc_soc_info sh7722_pinmux_info;
+extern const struct sh_pfc_soc_info sh7723_pinmux_info;
+extern const struct sh_pfc_soc_info sh7724_pinmux_info;
+extern const struct sh_pfc_soc_info sh7734_pinmux_info;
+extern const struct sh_pfc_soc_info sh7757_pinmux_info;
+extern const struct sh_pfc_soc_info sh7785_pinmux_info;
+extern const struct sh_pfc_soc_info sh7786_pinmux_info;
+extern const struct sh_pfc_soc_info shx3_pinmux_info;
 
 /* -----------------------------------------------------------------------------
  * Helper macros to create pin and port lists

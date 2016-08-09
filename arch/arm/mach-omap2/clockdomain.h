@@ -114,6 +114,7 @@ struct omap_hwmod;
  * @wkdep_srcs: Clockdomains that can be told to wake this powerdomain up
  * @sleepdep_srcs: Clockdomains that can be told to keep this clkdm from inact
  * @usecount: Usecount tracking
+ * @forcewake_count: Usecount for forcing the domain active
  * @node: list_head to link all clockdomains together
  *
  * @prcm_partition should be a macro from mach-omap2/prcm44xx.h (OMAP4 only)
@@ -138,6 +139,7 @@ struct clockdomain {
 	struct clkdm_dep *wkdep_srcs;
 	struct clkdm_dep *sleepdep_srcs;
 	int usecount;
+	int forcewake_count;
 	struct list_head node;
 };
 

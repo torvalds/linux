@@ -246,6 +246,7 @@ enum tps65218_irqs {
  * @name:		Voltage regulator name
  * @min_uV:		minimum micro volts
  * @max_uV:		minimum micro volts
+ * @strobe:		sequencing strobe value for the regulator
  *
  * This data is used to check the regualtor voltage limits while setting.
  */
@@ -254,6 +255,7 @@ struct tps_info {
 	const char *name;
 	int min_uV;
 	int max_uV;
+	int strobe;
 };
 
 /**

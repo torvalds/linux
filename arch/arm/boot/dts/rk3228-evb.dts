@@ -40,7 +40,7 @@
 
 /dts-v1/;
 
-#include "rk3228.dtsi"
+#include "rk322x.dtsi"
 
 / {
 	model = "Rockchip RK3228 Evaluation board";

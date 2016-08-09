@@ -280,7 +280,7 @@ struct tc35815_regs {
  * Descriptors
  */
 
-/* Frame descripter */
+/* Frame descriptor */
 struct FDesc {
 	volatile __u32 FDNext;
 	volatile __u32 FDSystem;
@@ -288,7 +288,7 @@ struct FDesc {
 	volatile __u32 FDCtl;
 };
 
-/* Buffer descripter */
+/* Buffer descriptor */
 struct BDesc {
 	volatile __u32 BuffData;
 	volatile __u32 BDCtl;
@@ -296,7 +296,7 @@ struct BDesc {
 
 #define FD_ALIGN	16
 
-/* Frame Descripter bit assign ---------------------------------------------- */
+/* Frame Descriptor bit assign ---------------------------------------------- */
 #define FD_FDLength_MASK       0x0000FFFF /* Length MASK		     */
 #define FD_BDCnt_MASK	       0x001F0000 /* BD count MASK in FD	     */
 #define FD_FrmOpt_MASK	       0x7C000000 /* Frame option MASK		     */
@@ -309,7 +309,7 @@ struct BDesc {
 #define FD_Next_EOL	       0x00000001 /* FD EOL indicator		     */
 #define FD_BDCnt_SHIFT	       16
 
-/* Buffer Descripter bit assign --------------------------------------------- */
+/* Buffer Descriptor bit assign --------------------------------------------- */
 #define BD_BuffLength_MASK     0x0000FFFF /* Receive Data Size		     */
 #define BD_RxBDID_MASK	       0x00FF0000 /* BD ID Number MASK		     */
 #define BD_RxBDSeqN_MASK       0x7F000000 /* Rx BD Sequence Number	     */
@@ -405,7 +405,6 @@ struct tc35815_local {
 	spinlock_t rx_lock;
 
 	struct mii_bus *mii_bus;
-	struct phy_device *phy_dev;
 	int duplex;
 	int speed;
 	int link;
@@ -539,7 +538,7 @@ static int tc_mdio_write(struct mii_bus *bus, int mii_id, int regnum, u16 val)
 static void tc_handle_link_change(struct net_device *dev)
 {
 	struct tc35815_local *lp = netdev_priv(dev);
-	struct phy_device *phydev = lp->phy_dev;
+	struct phy_device *phydev = dev->phydev;
 	unsigned long flags;
 	int status_change = 0;
 
@@ -645,7 +644,6 @@ static int tc_mii_probe(struct net_device *dev)
 	lp->link = 0;
 	lp->speed = 0;
 	lp->duplex = -1;
-	lp->phy_dev = phydev;
 
 	return 0;
 }
@@ -853,7 +851,7 @@ static void tc35815_remove_one(struct pci_dev *pdev)
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct tc35815_local *lp = netdev_priv(dev);
 
-	phy_disconnect(lp->phy_dev);
+	phy_disconnect(dev->phydev);
 	mdiobus_unregister(lp->mii_bus);
 	mdiobus_free(lp->mii_bus);
 	unregister_netdev(dev);
@@ -1143,8 +1141,8 @@ static void tc35815_restart(struct net_device *dev)
 	struct tc35815_local *lp = netdev_priv(dev);
 	int ret;
 
-	if (lp->phy_dev) {
-		ret = phy_init_hw(lp->phy_dev);
+	if (dev->phydev) {
+		ret = phy_init_hw(dev->phydev);
 		if (ret)
 			printk(KERN_ERR "%s: PHY init failed.\n", dev->name);
 	}
@@ -1236,7 +1234,7 @@ tc35815_open(struct net_device *dev)
 
 	netif_carrier_off(dev);
 	/* schedule a link state check */
-	phy_start(lp->phy_dev);
+	phy_start(dev->phydev);
 
 	/* We are now ready to accept transmit requeusts from
 	 * the queueing layer of the networking.
@@ -1387,7 +1385,7 @@ static int tc35815_do_interrupt(struct net_device *dev, u32 status, int limit)
 	if (status & Int_IntExBD) {
 		if (netif_msg_rx_err(lp))
 			dev_warn(&dev->dev,
-				 "Excessive Buffer Descriptiors (%#x).\n",
+				 "Excessive Buffer Descriptors (%#x).\n",
 				 status);
 		dev->stats.rx_length_errors++;
 		ret = 0;
@@ -1819,8 +1817,8 @@ tc35815_close(struct net_device *dev)
 
 	netif_stop_queue(dev);
 	napi_disable(&lp->napi);
-	if (lp->phy_dev)
-		phy_stop(lp->phy_dev);
+	if (dev->phydev)
+		phy_stop(dev->phydev);
 	cancel_work_sync(&lp->restart_work);
 
 	/* Flush the Tx and disable Rx here. */
@@ -1946,24 +1944,6 @@ static void tc35815_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *
 	strlcpy(info->bus_info, pci_name(lp->pci_dev), sizeof(info->bus_info));
 }
 
-static int tc35815_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
-{
-	struct tc35815_local *lp = netdev_priv(dev);
-
-	if (!lp->phy_dev)
-		return -ENODEV;
-	return phy_ethtool_gset(lp->phy_dev, cmd);
-}
-
-static int tc35815_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
-{
-	struct tc35815_local *lp = netdev_priv(dev);
-
-	if (!lp->phy_dev)
-		return -ENODEV;
-	return phy_ethtool_sset(lp->phy_dev, cmd);
-}
-
 static u32 tc35815_get_msglevel(struct net_device *dev)
 {
 	struct tc35815_local *lp = netdev_priv(dev);
@@ -2013,25 +1993,23 @@ static void tc35815_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 
 static const struct ethtool_ops tc35815_ethtool_ops = {
 	.get_drvinfo		= tc35815_get_drvinfo,
-	.get_settings		= tc35815_get_settings,
-	.set_settings		= tc35815_set_settings,
 	.get_link		= ethtool_op_get_link,
 	.get_msglevel		= tc35815_get_msglevel,
 	.set_msglevel		= tc35815_set_msglevel,
 	.get_strings		= tc35815_get_strings,
 	.get_sset_count		= tc35815_get_sset_count,
 	.get_ethtool_stats	= tc35815_get_ethtool_stats,
+	.get_link_ksettings = phy_ethtool_get_link_ksettings,
+	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
 
 static int tc35815_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
-	struct tc35815_local *lp = netdev_priv(dev);
-
 	if (!netif_running(dev))
 		return -EINVAL;
-	if (!lp->phy_dev)
+	if (!dev->phydev)
 		return -ENODEV;
-	return phy_mii_ioctl(lp->phy_dev, rq, cmd);
+	return phy_mii_ioctl(dev->phydev, rq, cmd);
 }
 
 static void tc35815_chip_reset(struct net_device *dev)
@@ -2116,7 +2094,7 @@ static void tc35815_chip_init(struct net_device *dev)
 	if (lp->chiptype == TC35815_TX4939)
 		txctl &= ~Tx_EnLCarr;
 	/* WORKAROUND: ignore LostCrS in full duplex operation */
-	if (!lp->phy_dev || !lp->link || lp->duplex == DUPLEX_FULL)
+	if (!dev->phydev || !lp->link || lp->duplex == DUPLEX_FULL)
 		txctl &= ~Tx_EnLCarr;
 	tc_writel(txctl, &tr->Tx_Ctl);
 }
@@ -2132,8 +2110,8 @@ static int tc35815_suspend(struct pci_dev *pdev, pm_message_t state)
 	if (!netif_running(dev))
 		return 0;
 	netif_device_detach(dev);
-	if (lp->phy_dev)
-		phy_stop(lp->phy_dev);
+	if (dev->phydev)
+		phy_stop(dev->phydev);
 	spin_lock_irqsave(&lp->lock, flags);
 	tc35815_chip_reset(dev);
 	spin_unlock_irqrestore(&lp->lock, flags);
@@ -2144,7 +2122,6 @@ static int tc35815_suspend(struct pci_dev *pdev, pm_message_t state)
 static int tc35815_resume(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
-	struct tc35815_local *lp = netdev_priv(dev);
 
 	pci_restore_state(pdev);
 	if (!netif_running(dev))
@@ -2152,8 +2129,8 @@ static int tc35815_resume(struct pci_dev *pdev)
 	pci_set_power_state(pdev, PCI_D0);
 	tc35815_restart(dev);
 	netif_carrier_off(dev);
-	if (lp->phy_dev)
-		phy_start(lp->phy_dev);
+	if (dev->phydev)
+		phy_start(dev->phydev);
 	netif_device_attach(dev);
 	return 0;
 }

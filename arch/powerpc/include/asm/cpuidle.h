@@ -13,6 +13,8 @@
 #ifndef __ASSEMBLY__
 extern u32 pnv_fastsleep_workaround_at_entry[];
 extern u32 pnv_fastsleep_workaround_at_exit[];
+
+extern u64 pnv_first_deep_stop_state;
 #endif
 
 #endif

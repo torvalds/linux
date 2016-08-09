@@ -300,8 +300,7 @@ static int radeon_move_blit(struct ttm_buffer_object *bo,
 	if (IS_ERR(fence))
 		return PTR_ERR(fence);
 
-	r = ttm_bo_move_accel_cleanup(bo, &fence->base,
-				      evict, no_wait_gpu, new_mem);
+	r = ttm_bo_move_accel_cleanup(bo, &fence->base, evict, new_mem);
 	radeon_fence_unref(&fence);
 	return r;
 }
@@ -403,6 +402,10 @@ static int radeon_bo_move(struct ttm_buffer_object *bo,
 	struct ttm_mem_reg *old_mem = &bo->mem;
 	int r;
 
+	r = ttm_bo_wait(bo, interruptible, no_wait_gpu);
+	if (r)
+		return r;
+
 	/* Can't move a pinned BO */
 	rbo = container_of(bo, struct radeon_bo, tbo);
 	if (WARN_ON_ONCE(rbo->pin_count > 0))
@@ -441,7 +444,8 @@ static int radeon_bo_move(struct ttm_buffer_object *bo,
 
 	if (r) {
 memcpy:
-		r = ttm_bo_move_memcpy(bo, evict, no_wait_gpu, new_mem);
+		r = ttm_bo_move_memcpy(bo, evict, interruptible,
+				       no_wait_gpu, new_mem);
 		if (r) {
 			return r;
 		}

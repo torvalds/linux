@@ -486,6 +486,18 @@ config SENSORS_FSCHMD
 	  This driver can also be built as a module.  If so, the module
 	  will be called fschmd.
 
+config SENSORS_FTSTEUTATES
+	tristate "Fujitsu Technology Solutions sensor chip Teutates"
+	depends on I2C && WATCHDOG
+	select WATCHDOG_CORE
+	help
+	  If you say yes here you get support for the Fujitsu Technology
+	  Solutions (FTS) sensor chip "Teutates" including support for
+	  the integrated watchdog.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called ftsteutates.
+
 config SENSORS_GL518SM
 	tristate "Genesys Logic GL518SM"
 	depends on I2C
@@ -645,8 +657,8 @@ config SENSORS_JC42
 	  temperature sensors, which are used on many DDR3 memory modules for
 	  mobile devices and servers.  Support will include, but not be limited
 	  to, ADT7408, AT30TS00, CAT34TS02, CAT6095, MAX6604, MCP9804, MCP9805,
-	  MCP98242, MCP98243, MCP98244, MCP9843, SE97, SE98, STTS424(E),
-	  STTS2002, STTS3000, TSE2002, TSE2004, TS3000, and TS3001.
+	  MCP9808, MCP98242, MCP98243, MCP98244, MCP9843, SE97, SE98,
+	  STTS424(E), STTS2002, STTS3000, TSE2002, TSE2004, TS3000, and TS3001.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called jc42.
@@ -958,6 +970,7 @@ config SENSORS_LM75
 	tristate "National Semiconductor LM75 and compatibles"
 	depends on I2C
 	depends on THERMAL || !THERMAL_OF
+	select REGMAP_I2C
 	help
 	  If you say yes here you get support for one common type of
 	  temperature sensor chip, with models including:
@@ -1265,6 +1278,17 @@ config SENSORS_SHT21
 	  This driver can also be built as a module.  If so, the module
 	  will be called sht21.
 
+config SENSORS_SHT3x
+	tristate "Sensiron humidity and temperature sensors. SHT3x and compat."
+	depends on I2C
+	select CRC8
+	help
+	  If you say yes here you get support for the Sensiron SHT30 and SHT31
+	  humidity and temperature sensors.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called sht3x.
+
 config SENSORS_SHTC1
 	tristate "Sensiron humidity and temperature sensors. SHTC1 and compat."
 	depends on I2C
@@ -1514,6 +1538,17 @@ config SENSORS_INA2XX
 	  This driver can also be built as a module.  If so, the module
 	  will be called ina2xx.
 
+config SENSORS_INA3221
+	tristate "Texas Instruments INA3221 Triple Power Monitor"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for  the TI INA3221 Triple Power
+	  Monitor.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called ina3221.
+
 config SENSORS_TC74
 	tristate "Microchip TC74"
 	depends on I2C
@@ -1538,6 +1573,7 @@ config SENSORS_TMP102
 	tristate "Texas Instruments TMP102"
 	depends on I2C
 	depends on THERMAL || !THERMAL_OF
+	select REGMAP_I2C
 	help
 	  If you say yes here you get support for Texas Instruments TMP102
 	  sensor chips.
@@ -1561,7 +1597,7 @@ config SENSORS_TMP401
 	depends on I2C
 	help
 	  If you say yes here you get support for Texas Instruments TMP401,
-	  TMP411, TMP431, TMP432 and TMP435 temperature sensor chips.
+	  TMP411, TMP431, TMP432, TMP435, and TMP461 temperature sensor chips.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called tmp401.

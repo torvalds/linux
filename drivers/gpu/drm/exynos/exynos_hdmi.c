@@ -937,17 +937,9 @@ static int hdmi_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-static struct drm_encoder *hdmi_best_encoder(struct drm_connector *connector)
-{
-	struct hdmi_context *hdata = connector_to_hdmi(connector);
-
-	return &hdata->encoder;
-}
-
 static const struct drm_connector_helper_funcs hdmi_connector_helper_funcs = {
 	.get_modes = hdmi_get_modes,
 	.mode_valid = hdmi_mode_valid,
-	.best_encoder = hdmi_best_encoder,
 };
 
 static int hdmi_create_connector(struct drm_encoder *encoder)
@@ -1828,6 +1820,7 @@ static int hdmi_probe(struct platform_device *pdev)
 		DRM_ERROR("Failed to find ddc node in device tree\n");
 		return -ENODEV;
 	}
+	of_node_put(dev->of_node);
 
 out_get_ddc_adpt:
 	hdata->ddc_adpt = of_find_i2c_adapter_by_node(ddc_node);
@@ -1846,6 +1839,7 @@ out_get_ddc_adpt:
 		ret = -ENODEV;
 		goto err_ddc;
 	}
+	of_node_put(dev->of_node);
 
 out_get_phy_port:
 	if (hdata->drv_data->is_apb_phy) {

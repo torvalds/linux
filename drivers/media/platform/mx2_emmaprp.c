@@ -211,7 +211,6 @@ struct emmaprp_dev {
 	struct clk		*clk_emma_ahb, *clk_emma_ipg;
 
 	struct v4l2_m2m_dev	*m2m_dev;
-	struct vb2_alloc_ctx	*alloc_ctx;
 };
 
 struct emmaprp_ctx {
@@ -690,7 +689,7 @@ static const struct v4l2_ioctl_ops emmaprp_ioctl_ops = {
  */
 static int emmaprp_queue_setup(struct vb2_queue *vq,
 				unsigned int *nbuffers, unsigned int *nplanes,
-				unsigned int sizes[], void *alloc_ctxs[])
+				unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct emmaprp_ctx *ctx = vb2_get_drv_priv(vq);
 	struct emmaprp_q_data *q_data;
@@ -709,8 +708,6 @@ static int emmaprp_queue_setup(struct vb2_queue *vq,
 	*nplanes = 1;
 	*nbuffers = count;
 	sizes[0] = size;
-
-	alloc_ctxs[0] = ctx->dev->alloc_ctx;
 
 	dprintk(ctx->dev, "get %d buffer(s) of size %d each.\n", count, size);
 
@@ -765,6 +762,7 @@ static int queue_init(void *priv, struct vb2_queue *src_vq,
 	src_vq->ops = &emmaprp_qops;
 	src_vq->mem_ops = &vb2_dma_contig_memops;
 	src_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
+	src_vq->dev = ctx->dev->v4l2_dev.dev;
 
 	ret = vb2_queue_init(src_vq);
 	if (ret)
@@ -777,6 +775,7 @@ static int queue_init(void *priv, struct vb2_queue *src_vq,
 	dst_vq->ops = &emmaprp_qops;
 	dst_vq->mem_ops = &vb2_dma_contig_memops;
 	dst_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
+	dst_vq->dev = ctx->dev->v4l2_dev.dev;
 
 	return vb2_queue_init(dst_vq);
 }
@@ -948,18 +947,11 @@ static int emmaprp_probe(struct platform_device *pdev)
 	if (ret)
 		goto rel_vdev;
 
-	pcdev->alloc_ctx = vb2_dma_contig_init_ctx(&pdev->dev);
-	if (IS_ERR(pcdev->alloc_ctx)) {
-		v4l2_err(&pcdev->v4l2_dev, "Failed to alloc vb2 context\n");
-		ret = PTR_ERR(pcdev->alloc_ctx);
-		goto rel_vdev;
-	}
-
 	pcdev->m2m_dev = v4l2_m2m_init(&m2m_ops);
 	if (IS_ERR(pcdev->m2m_dev)) {
 		v4l2_err(&pcdev->v4l2_dev, "Failed to init mem2mem device\n");
 		ret = PTR_ERR(pcdev->m2m_dev);
-		goto rel_ctx;
+		goto rel_vdev;
 	}
 
 	ret = video_register_device(vfd, VFL_TYPE_GRABBER, 0);
@@ -973,8 +965,6 @@ static int emmaprp_probe(struct platform_device *pdev)
 
 rel_m2m:
 	v4l2_m2m_release(pcdev->m2m_dev);
-rel_ctx:
-	vb2_dma_contig_cleanup_ctx(pcdev->alloc_ctx);
 rel_vdev:
 	video_device_release(vfd);
 unreg_dev:
@@ -993,7 +983,6 @@ static int emmaprp_remove(struct platform_device *pdev)
 
 	video_unregister_device(pcdev->vfd);
 	v4l2_m2m_release(pcdev->m2m_dev);
-	vb2_dma_contig_cleanup_ctx(pcdev->alloc_ctx);
 	v4l2_device_unregister(&pcdev->v4l2_dev);
 	mutex_destroy(&pcdev->dev_mutex);
 

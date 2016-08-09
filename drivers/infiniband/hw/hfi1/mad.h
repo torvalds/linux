@@ -48,15 +48,8 @@
 #define _HFI1_MAD_H
 
 #include <rdma/ib_pma.h>
-#define USE_PI_LED_ENABLE	1 /*
-				   * use led enabled bit in struct
-				   * opa_port_states, if available
-				   */
 #include <rdma/opa_smi.h>
 #include <rdma/opa_port_info.h>
-#ifndef PI_LED_ENABLE_SUP
-#define PI_LED_ENABLE_SUP 0
-#endif
 #include "opa_compat.h"
 
 /*

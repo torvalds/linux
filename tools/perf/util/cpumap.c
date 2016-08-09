@@ -236,13 +236,12 @@ struct cpu_map *cpu_map__new_data(struct cpu_map_data *data)
 
 size_t cpu_map__fprintf(struct cpu_map *map, FILE *fp)
 {
-	int i;
-	size_t printed = fprintf(fp, "%d cpu%s: ",
-				 map->nr, map->nr > 1 ? "s" : "");
-	for (i = 0; i < map->nr; ++i)
-		printed += fprintf(fp, "%s%d", i ? ", " : "", map->map[i]);
+#define BUFSIZE 1024
+	char buf[BUFSIZE];
 
-	return printed + fprintf(fp, "\n");
+	cpu_map__snprint(map, buf, sizeof(buf));
+	return fprintf(fp, "%s\n", buf);
+#undef BUFSIZE
 }
 
 struct cpu_map *cpu_map__dummy_new(void)
@@ -590,12 +589,65 @@ int cpu__setup_cpunode_map(void)
 
 bool cpu_map__has(struct cpu_map *cpus, int cpu)
 {
+	return cpu_map__idx(cpus, cpu) != -1;
+}
+
+int cpu_map__idx(struct cpu_map *cpus, int cpu)
+{
 	int i;
 
 	for (i = 0; i < cpus->nr; ++i) {
 		if (cpus->map[i] == cpu)
-			return true;
+			return i;
 	}
 
-	return false;
+	return -1;
+}
+
+int cpu_map__cpu(struct cpu_map *cpus, int idx)
+{
+	return cpus->map[idx];
+}
+
+size_t cpu_map__snprint(struct cpu_map *map, char *buf, size_t size)
+{
+	int i, cpu, start = -1;
+	bool first = true;
+	size_t ret = 0;
+
+#define COMMA first ? "" : ","
+
+	for (i = 0; i < map->nr + 1; i++) {
+		bool last = i == map->nr;
+
+		cpu = last ? INT_MAX : map->map[i];
+
+		if (start == -1) {
+			start = i;
+			if (last) {
+				ret += snprintf(buf + ret, size - ret,
+						"%s%d", COMMA,
+						map->map[i]);
+			}
+		} else if (((i - start) != (cpu - map->map[start])) || last) {
+			int end = i - 1;
+
+			if (start == end) {
+				ret += snprintf(buf + ret, size - ret,
+						"%s%d", COMMA,
+						map->map[start]);
+			} else {
+				ret += snprintf(buf + ret, size - ret,
+						"%s%d-%d", COMMA,
+						map->map[start], map->map[end]);
+			}
+			first = false;
+			start = i;
+		}
+	}
+
+#undef COMMA
+
+	pr_debug("cpumask list: %s\n", buf);
+	return ret;
 }

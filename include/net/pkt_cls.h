@@ -442,4 +442,15 @@ struct tc_cls_flower_offload {
 	struct tcf_exts *exts;
 };
 
+enum tc_matchall_command {
+	TC_CLSMATCHALL_REPLACE,
+	TC_CLSMATCHALL_DESTROY,
+};
+
+struct tc_cls_matchall_offload {
+	enum tc_matchall_command command;
+	struct tcf_exts *exts;
+	unsigned long cookie;
+};
+
 #endif

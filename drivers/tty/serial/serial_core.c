@@ -887,7 +887,7 @@ static int uart_set_info(struct tty_struct *tty, struct tty_port *port,
 		/*
 		 * Free and release old regions
 		 */
-		if (old_type != PORT_UNKNOWN)
+		if (old_type != PORT_UNKNOWN && uport->ops->release_port)
 			uport->ops->release_port(uport);
 
 		uport->iobase = new_port;
@@ -900,7 +900,7 @@ static int uart_set_info(struct tty_struct *tty, struct tty_port *port,
 		/*
 		 * Claim and map the new regions
 		 */
-		if (uport->type != PORT_UNKNOWN) {
+		if (uport->type != PORT_UNKNOWN && uport->ops->request_port) {
 			retval = uport->ops->request_port(uport);
 		} else {
 			/* Always success - Jean II */
@@ -1125,7 +1125,7 @@ static int uart_do_autoconfig(struct tty_struct *tty,struct uart_state *state)
 		 * If we already have a port type configured,
 		 * we must release its resources.
 		 */
-		if (uport->type != PORT_UNKNOWN)
+		if (uport->type != PORT_UNKNOWN && uport->ops->release_port)
 			uport->ops->release_port(uport);
 
 		flags = UART_CONFIG_TYPE;
@@ -2897,7 +2897,7 @@ int uart_remove_one_port(struct uart_driver *drv, struct uart_port *uport)
 	/*
 	 * Free the port IO and memory resources, if any.
 	 */
-	if (uport->type != PORT_UNKNOWN)
+	if (uport->type != PORT_UNKNOWN && uport->ops->release_port)
 		uport->ops->release_port(uport);
 	kfree(uport->tty_groups);
 

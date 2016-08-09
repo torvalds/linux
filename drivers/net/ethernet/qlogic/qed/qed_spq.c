@@ -339,6 +339,7 @@ struct qed_eq *qed_eq_alloc(struct qed_hwfn *p_hwfn,
 	if (qed_chain_alloc(p_hwfn->cdev,
 			    QED_CHAIN_USE_TO_PRODUCE,
 			    QED_CHAIN_MODE_PBL,
+			    QED_CHAIN_CNT_TYPE_U16,
 			    num_elem,
 			    sizeof(union event_ring_element),
 			    &p_eq->chain)) {
@@ -412,10 +413,10 @@ int qed_eth_cqe_completion(struct qed_hwfn *p_hwfn,
 ***************************************************************************/
 void qed_spq_setup(struct qed_hwfn *p_hwfn)
 {
-	struct qed_spq		*p_spq	= p_hwfn->p_spq;
-	struct qed_spq_entry	*p_virt = NULL;
-	dma_addr_t		p_phys	= 0;
-	unsigned int		i	= 0;
+	struct qed_spq *p_spq = p_hwfn->p_spq;
+	struct qed_spq_entry *p_virt = NULL;
+	dma_addr_t p_phys = 0;
+	u32 i, capacity;
 
 	INIT_LIST_HEAD(&p_spq->pending);
 	INIT_LIST_HEAD(&p_spq->completion_pending);
@@ -427,7 +428,8 @@ void qed_spq_setup(struct qed_hwfn *p_hwfn)
 	p_phys	= p_spq->p_phys + offsetof(struct qed_spq_entry, ramrod);
 	p_virt	= p_spq->p_virt;
 
-	for (i = 0; i < p_spq->chain.capacity; i++) {
+	capacity = qed_chain_get_capacity(&p_spq->chain);
+	for (i = 0; i < capacity; i++) {
 		DMA_REGPAIR_LE(p_virt->elem.data_ptr, p_phys);
 
 		list_add_tail(&p_virt->list, &p_spq->free_pool);
@@ -455,9 +457,10 @@ void qed_spq_setup(struct qed_hwfn *p_hwfn)
 
 int qed_spq_alloc(struct qed_hwfn *p_hwfn)
 {
-	struct qed_spq		*p_spq	= NULL;
-	dma_addr_t		p_phys	= 0;
-	struct qed_spq_entry	*p_virt = NULL;
+	struct qed_spq_entry *p_virt = NULL;
+	struct qed_spq *p_spq = NULL;
+	dma_addr_t p_phys = 0;
+	u32 capacity;
 
 	/* SPQ struct */
 	p_spq =
@@ -471,6 +474,7 @@ int qed_spq_alloc(struct qed_hwfn *p_hwfn)
 	if (qed_chain_alloc(p_hwfn->cdev,
 			    QED_CHAIN_USE_TO_PRODUCE,
 			    QED_CHAIN_MODE_SINGLE,
+			    QED_CHAIN_CNT_TYPE_U16,
 			    0,   /* N/A when the mode is SINGLE */
 			    sizeof(struct slow_path_element),
 			    &p_spq->chain)) {
@@ -479,11 +483,11 @@ int qed_spq_alloc(struct qed_hwfn *p_hwfn)
 	}
 
 	/* allocate and fill the SPQ elements (incl. ramrod data list) */
+	capacity = qed_chain_get_capacity(&p_spq->chain);
 	p_virt = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev,
-				    p_spq->chain.capacity *
+				    capacity *
 				    sizeof(struct qed_spq_entry),
-				    &p_phys,
-				    GFP_KERNEL);
+				    &p_phys, GFP_KERNEL);
 
 	if (!p_virt)
 		goto spq_allocate_fail;
@@ -503,16 +507,18 @@ spq_allocate_fail:
 void qed_spq_free(struct qed_hwfn *p_hwfn)
 {
 	struct qed_spq *p_spq = p_hwfn->p_spq;
+	u32 capacity;
 
 	if (!p_spq)
 		return;
 
-	if (p_spq->p_virt)
+	if (p_spq->p_virt) {
+		capacity = qed_chain_get_capacity(&p_spq->chain);
 		dma_free_coherent(&p_hwfn->cdev->pdev->dev,
-				  p_spq->chain.capacity *
+				  capacity *
 				  sizeof(struct qed_spq_entry),
-				  p_spq->p_virt,
-				  p_spq->p_phys);
+				  p_spq->p_virt, p_spq->p_phys);
+	}
 
 	qed_chain_free(p_hwfn->cdev, &p_spq->chain);
 	;
@@ -809,13 +815,12 @@ int qed_spq_completion(struct qed_hwfn *p_hwfn,
 			 * in a bitmap and increasing the chain consumer only
 			 * for the first successive completed entries.
 			 */
-			bitmap_set(p_spq->p_comp_bitmap, pos, SPQ_RING_SIZE);
+			__set_bit(pos, p_spq->p_comp_bitmap);
 
 			while (test_bit(p_spq->comp_bitmap_idx,
 					p_spq->p_comp_bitmap)) {
-				bitmap_clear(p_spq->p_comp_bitmap,
-					     p_spq->comp_bitmap_idx,
-					     SPQ_RING_SIZE);
+				__clear_bit(p_spq->comp_bitmap_idx,
+					    p_spq->p_comp_bitmap);
 				p_spq->comp_bitmap_idx++;
 				qed_chain_return_produced(&p_spq->chain);
 			}
@@ -882,9 +887,9 @@ struct qed_consq *qed_consq_alloc(struct qed_hwfn *p_hwfn)
 	if (qed_chain_alloc(p_hwfn->cdev,
 			    QED_CHAIN_USE_TO_PRODUCE,
 			    QED_CHAIN_MODE_PBL,
+			    QED_CHAIN_CNT_TYPE_U16,
 			    QED_CHAIN_PAGE_SIZE / 0x80,
-			    0x80,
-			    &p_consq->chain)) {
+			    0x80, &p_consq->chain)) {
 		DP_NOTICE(p_hwfn, "Failed to allocate consq chain");
 		goto consq_allocate_fail;
 	}

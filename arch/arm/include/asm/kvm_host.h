@@ -241,8 +241,7 @@ int kvm_arm_coproc_set_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *);
 int handle_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		int exception_index);
 
-static inline void __cpu_init_hyp_mode(phys_addr_t boot_pgd_ptr,
-				       phys_addr_t pgd_ptr,
+static inline void __cpu_init_hyp_mode(phys_addr_t pgd_ptr,
 				       unsigned long hyp_stack_ptr,
 				       unsigned long vector_ptr)
 {
@@ -251,18 +250,13 @@ static inline void __cpu_init_hyp_mode(phys_addr_t boot_pgd_ptr,
 	 * code. The init code doesn't need to preserve these
 	 * registers as r0-r3 are already callee saved according to
 	 * the AAPCS.
-	 * Note that we slightly misuse the prototype by casing the
+	 * Note that we slightly misuse the prototype by casting the
 	 * stack pointer to a void *.
-	 *
-	 * We don't have enough registers to perform the full init in
-	 * one go.  Install the boot PGD first, and then install the
-	 * runtime PGD, stack pointer and vectors. The PGDs are always
-	 * passed as the third argument, in order to be passed into
-	 * r2-r3 to the init code (yes, this is compliant with the
-	 * PCS!).
-	 */
 
-	kvm_call_hyp(NULL, 0, boot_pgd_ptr);
+	 * The PGDs are always passed as the third argument, in order
+	 * to be passed into r2-r3 to the init code (yes, this is
+	 * compliant with the PCS!).
+	 */
 
 	kvm_call_hyp((void*)hyp_stack_ptr, vector_ptr, pgd_ptr);
 }
@@ -272,16 +266,13 @@ static inline void __cpu_init_stage2(void)
 	kvm_call_hyp(__init_stage2_translation);
 }
 
-static inline void __cpu_reset_hyp_mode(phys_addr_t boot_pgd_ptr,
+static inline void __cpu_reset_hyp_mode(unsigned long vector_ptr,
 					phys_addr_t phys_idmap_start)
 {
-	/*
-	 * TODO
-	 * kvm_call_reset(boot_pgd_ptr, phys_idmap_start);
-	 */
+	kvm_call_hyp((void *)virt_to_idmap(__kvm_hyp_reset), vector_ptr);
 }
 
-static inline int kvm_arch_dev_ioctl_check_extension(long ext)
+static inline int kvm_arch_dev_ioctl_check_extension(struct kvm *kvm, long ext)
 {
 	return 0;
 }

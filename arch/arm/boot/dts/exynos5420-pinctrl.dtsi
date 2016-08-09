@@ -193,17 +193,17 @@
 		samsung,pin-drv = <3>;
 	};
 
-	sd1_clk: sd1-clk {
-		samsung,pins = "gpc1-0";
-		samsung,pin-function = <2>;
-		samsung,pin-pud = <0>;
-		samsung,pin-drv = <3>;
-	};
-
 	sd0_rclk: sd0-rclk {
 		samsung,pins = "gpc0-7";
 		samsung,pin-function = <2>;
 		samsung,pin-pud = <1>;
+		samsung,pin-drv = <3>;
+	};
+
+	sd1_clk: sd1-clk {
+		samsung,pins = "gpc1-0";
+		samsung,pin-function = <2>;
+		samsung,pin-pud = <0>;
 		samsung,pin-drv = <3>;
 	};
 

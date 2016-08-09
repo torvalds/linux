@@ -49,7 +49,7 @@ EXPORT_SYMBOL(ioremap);
 /*
  * ioremap with access flags
  * Cache semantics wise it is same as ioremap - "forced" uncached.
- * However unline vanilla ioremap which bypasses ARC MMU for addresses in
+ * However unlike vanilla ioremap which bypasses ARC MMU for addresses in
  * ARC hardware uncached region, this one still goes thru the MMU as caller
  * might need finer access control (R/W/X)
  */

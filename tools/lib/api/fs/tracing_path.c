@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <linux/string.h>
 #include <errno.h>
 #include <unistd.h>
 #include "fs.h"
@@ -118,7 +119,7 @@ static int strerror_open(int err, char *buf, size_t size, const char *filename)
 	}
 		break;
 	default:
-		snprintf(buf, size, "%s", strerror_r(err, sbuf, sizeof(sbuf)));
+		snprintf(buf, size, "%s", str_error_r(err, sbuf, sizeof(sbuf)));
 		break;
 	}
 

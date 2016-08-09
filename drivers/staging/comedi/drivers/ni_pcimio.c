@@ -1064,12 +1064,12 @@ static void m_series_init_eeprom_buffer(struct comedi_device *dev)
 	struct mite *mite = devpriv->mite;
 	resource_size_t daq_phys_addr;
 	static const int Start_Cal_EEPROM = 0x400;
-	static const unsigned window_size = 10;
+	static const unsigned int window_size = 10;
 	static const int serial_number_eeprom_offset = 0x4;
 	static const int serial_number_eeprom_length = 0x4;
-	unsigned old_iodwbsr_bits;
-	unsigned old_iodwbsr1_bits;
-	unsigned old_iodwcr1_bits;
+	unsigned int old_iodwbsr_bits;
+	unsigned int old_iodwbsr1_bits;
+	unsigned int old_iodwcr1_bits;
 	int i;
 
 	/* IO Window 1 needs to be temporarily mapped to read the eeprom */

@@ -118,8 +118,6 @@
 #define	PREFETCH_STATUS_FIFO_CNT(val)	((val >> 24) & 0x7F)
 #define	STATUS_BUFF_EMPTY		0x00000001
 
-#define OMAP24XX_DMA_GPMC		4
-
 #define SECTOR_BYTES		512
 /* 4 bit padding to make byte aligned, 56 = 52 + 4 */
 #define BCH4_BIT_PAD		4
@@ -1811,7 +1809,6 @@ static int omap_nand_probe(struct platform_device *pdev)
 	struct nand_chip		*nand_chip;
 	int				err;
 	dma_cap_mask_t			mask;
-	unsigned			sig;
 	struct resource			*res;
 	struct device			*dev = &pdev->dev;
 	int				min_oobbytes = BADBLOCK_MARKER_LENGTH;
@@ -1924,11 +1921,11 @@ static int omap_nand_probe(struct platform_device *pdev)
 	case NAND_OMAP_PREFETCH_DMA:
 		dma_cap_zero(mask);
 		dma_cap_set(DMA_SLAVE, mask);
-		sig = OMAP24XX_DMA_GPMC;
-		info->dma = dma_request_channel(mask, omap_dma_filter_fn, &sig);
-		if (!info->dma) {
+		info->dma = dma_request_chan(pdev->dev.parent, "rxtx");
+
+		if (IS_ERR(info->dma)) {
 			dev_err(&pdev->dev, "DMA engine request failed\n");
-			err = -ENXIO;
+			err = PTR_ERR(info->dma);
 			goto return_error;
 		} else {
 			struct dma_slave_config cfg;

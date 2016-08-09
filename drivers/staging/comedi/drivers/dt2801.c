@@ -4,30 +4,30 @@
  *
  */
 /*
-Driver: dt2801
-Description: Data Translation DT2801 series and DT01-EZ
-Author: ds
-Status: works
-Devices: [Data Translation] DT2801 (dt2801), DT2801-A, DT2801/5716A,
-  DT2805, DT2805/5716A, DT2808, DT2818, DT2809, DT01-EZ
-
-This driver can autoprobe the type of board.
-
-Configuration options:
-  [0] - I/O port base address
-  [1] - unused
-  [2] - A/D reference 0=differential, 1=single-ended
-  [3] - A/D range
-	  0 = [-10, 10]
-	  1 = [0,10]
-  [4] - D/A 0 range
-	  0 = [-10, 10]
-	  1 = [-5,5]
-	  2 = [-2.5,2.5]
-	  3 = [0,10]
-	  4 = [0,5]
-  [5] - D/A 1 range (same choices)
-*/
+ * Driver: dt2801
+ * Description: Data Translation DT2801 series and DT01-EZ
+ * Author: ds
+ * Status: works
+ * Devices: [Data Translation] DT2801 (dt2801), DT2801-A, DT2801/5716A,
+ * DT2805, DT2805/5716A, DT2808, DT2818, DT2809, DT01-EZ
+ *
+ * This driver can autoprobe the type of board.
+ *
+ * Configuration options:
+ * [0] - I/O port base address
+ * [1] - unused
+ * [2] - A/D reference 0=differential, 1=single-ended
+ * [3] - A/D range
+ *	  0 = [-10, 10]
+ *	  1 = [0,10]
+ * [4] - D/A 0 range
+ *	  0 = [-10, 10]
+ *	  1 = [-5,5]
+ *	  2 = [-2.5,2.5]
+ *	  3 = [0,10]
+ *	  4 = [0,5]
+ * [5] - D/A 1 range (same choices)
+ */
 
 #include <linux/module.h>
 #include "../comedidev.h"
@@ -65,9 +65,10 @@ Configuration options:
 #define DT_C_SET_AD      0xd
 #define DT_C_READ_AD     0xe
 
-/* Command modifiers (only used with read/write), EXTTRIG can be
-   used with some other commands.
-*/
+/*
+ * Command modifiers (only used with read/write), EXTTRIG can be
+ * used with some other commands.
+ */
 #define DT_MOD_DMA     BIT(4)
 #define DT_MOD_CONT    BIT(5)
 #define DT_MOD_EXTCLK  BIT(6)
@@ -135,9 +136,10 @@ struct dt2801_board {
 	int dabits;
 };
 
-/* Typeid's for the different boards of the DT2801-series
-   (taken from the test-software, that comes with the board)
-   */
+/*
+ * Typeid's for the different boards of the DT2801-series
+ * (taken from the test-software, that comes with the board)
+ */
 static const struct dt2801_board boardtypes[] = {
 	{
 	 .name = "dt2801",
@@ -209,15 +211,18 @@ struct dt2801_private {
 	const struct comedi_lrange *dac_range_types[2];
 };
 
-/* These are the low-level routines:
-   writecommand: write a command to the board
-   writedata: write data byte
-   readdata: read data byte
+/*
+ * These are the low-level routines:
+ * writecommand: write a command to the board
+ * writedata: write data byte
+ * readdata: read data byte
  */
 
-/* Only checks DataOutReady-flag, not the Ready-flag as it is done
-   in the examples of the manual. I don't see why this should be
-   necessary. */
+/*
+ * Only checks DataOutReady-flag, not the Ready-flag as it is done
+ *  in the examples of the manual. I don't see why this should be
+ *  necessary.
+ */
 static int dt2801_readdata(struct comedi_device *dev, int *data)
 {
 	int stat = 0;
@@ -517,14 +522,14 @@ static int dt2801_dio_insn_config(struct comedi_device *dev,
 }
 
 /*
-   options:
-	[0] - i/o base
-	[1] - unused
-	[2] - a/d 0=differential, 1=single-ended
-	[3] - a/d range 0=[-10,10], 1=[0,10]
-	[4] - dac0 range 0=[-10,10], 1=[-5,5], 2=[-2.5,2.5] 3=[0,10], 4=[0,5]
-	[5] - dac1 range 0=[-10,10], 1=[-5,5], 2=[-2.5,2.5] 3=[0,10], 4=[0,5]
-*/
+ * options:
+ *	[0] - i/o base
+ *	[1] - unused
+ *	[2] - a/d 0=differential, 1=single-ended
+ *	[3] - a/d range 0=[-10,10], 1=[0,10]
+ *	[4] - dac0 range 0=[-10,10], 1=[-5,5], 2=[-2.5,2.5] 3=[0,10], 4=[0,5]
+ *	[5] - dac1 range 0=[-10,10], 1=[-5,5], 2=[-2.5,2.5] 3=[0,10], 4=[0,5]
+ */
 static int dt2801_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct dt2801_board *board;

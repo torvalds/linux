@@ -254,14 +254,14 @@ static void r5l_submit_current_io(struct r5l_log *log)
 	__r5l_set_io_unit_state(io, IO_UNIT_IO_START);
 	spin_unlock_irqrestore(&log->io_list_lock, flags);
 
-	submit_bio(WRITE, io->current_bio);
+	submit_bio(io->current_bio);
 }
 
 static struct bio *r5l_bio_alloc(struct r5l_log *log)
 {
 	struct bio *bio = bio_alloc_bioset(GFP_NOIO, BIO_MAX_PAGES, log->bs);
 
-	bio->bi_rw = WRITE;
+	bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 	bio->bi_bdev = log->rdev->bdev;
 	bio->bi_iter.bi_sector = log->rdev->data_offset + log->log_start;
 
@@ -373,7 +373,7 @@ static void r5l_append_payload_page(struct r5l_log *log, struct page *page)
 		io->current_bio = r5l_bio_alloc(log);
 		bio_chain(io->current_bio, prev);
 
-		submit_bio(WRITE, prev);
+		submit_bio(prev);
 	}
 
 	if (!bio_add_page(io->current_bio, page, PAGE_SIZE, 0))
@@ -536,7 +536,7 @@ int r5l_handle_flush_request(struct r5l_log *log, struct bio *bio)
 		bio_endio(bio);
 		return 0;
 	}
-	bio->bi_rw &= ~REQ_FLUSH;
+	bio->bi_opf &= ~REQ_PREFLUSH;
 	return -EAGAIN;
 }
 
@@ -686,7 +686,8 @@ void r5l_flush_stripe_to_raid(struct r5l_log *log)
 	bio_reset(&log->flush_bio);
 	log->flush_bio.bi_bdev = log->rdev->bdev;
 	log->flush_bio.bi_end_io = r5l_log_flush_endio;
-	submit_bio(WRITE_FLUSH, &log->flush_bio);
+	bio_set_op_attrs(&log->flush_bio, REQ_OP_WRITE, WRITE_FLUSH);
+	submit_bio(&log->flush_bio);
 }
 
 static void r5l_write_super(struct r5l_log *log, sector_t cp);
@@ -881,7 +882,8 @@ static int r5l_read_meta_block(struct r5l_log *log,
 	struct r5l_meta_block *mb;
 	u32 crc, stored_crc;
 
-	if (!sync_page_io(log->rdev, ctx->pos, PAGE_SIZE, page, READ, false))
+	if (!sync_page_io(log->rdev, ctx->pos, PAGE_SIZE, page, REQ_OP_READ, 0,
+			  false))
 		return -EIO;
 
 	mb = page_address(page);
@@ -926,7 +928,8 @@ static int r5l_recovery_flush_one_stripe(struct r5l_log *log,
 					     &disk_index, sh);
 
 			sync_page_io(log->rdev, *log_offset, PAGE_SIZE,
-				     sh->dev[disk_index].page, READ, false);
+				     sh->dev[disk_index].page, REQ_OP_READ, 0,
+				     false);
 			sh->dev[disk_index].log_checksum =
 				le32_to_cpu(payload->checksum[0]);
 			set_bit(R5_Wantwrite, &sh->dev[disk_index].flags);
@@ -934,7 +937,8 @@ static int r5l_recovery_flush_one_stripe(struct r5l_log *log,
 		} else {
 			disk_index = sh->pd_idx;
 			sync_page_io(log->rdev, *log_offset, PAGE_SIZE,
-				     sh->dev[disk_index].page, READ, false);
+				     sh->dev[disk_index].page, REQ_OP_READ, 0,
+				     false);
 			sh->dev[disk_index].log_checksum =
 				le32_to_cpu(payload->checksum[0]);
 			set_bit(R5_Wantwrite, &sh->dev[disk_index].flags);
@@ -944,7 +948,7 @@ static int r5l_recovery_flush_one_stripe(struct r5l_log *log,
 				sync_page_io(log->rdev,
 					     r5l_ring_add(log, *log_offset, BLOCK_SECTORS),
 					     PAGE_SIZE, sh->dev[disk_index].page,
-					     READ, false);
+					     REQ_OP_READ, 0, false);
 				sh->dev[disk_index].log_checksum =
 					le32_to_cpu(payload->checksum[1]);
 				set_bit(R5_Wantwrite,
@@ -986,11 +990,13 @@ static int r5l_recovery_flush_one_stripe(struct r5l_log *log,
 		rdev = rcu_dereference(conf->disks[disk_index].rdev);
 		if (rdev)
 			sync_page_io(rdev, stripe_sect, PAGE_SIZE,
-				     sh->dev[disk_index].page, WRITE, false);
+				     sh->dev[disk_index].page, REQ_OP_WRITE, 0,
+				     false);
 		rrdev = rcu_dereference(conf->disks[disk_index].replacement);
 		if (rrdev)
 			sync_page_io(rrdev, stripe_sect, PAGE_SIZE,
-				     sh->dev[disk_index].page, WRITE, false);
+				     sh->dev[disk_index].page, REQ_OP_WRITE, 0,
+				     false);
 	}
 	raid5_release_stripe(sh);
 	return 0;
@@ -1062,7 +1068,8 @@ static int r5l_log_write_empty_meta_block(struct r5l_log *log, sector_t pos,
 	crc = crc32c_le(log->uuid_checksum, mb, PAGE_SIZE);
 	mb->checksum = cpu_to_le32(crc);
 
-	if (!sync_page_io(log->rdev, pos, PAGE_SIZE, page, WRITE_FUA, false)) {
+	if (!sync_page_io(log->rdev, pos, PAGE_SIZE, page, REQ_OP_WRITE,
+			  WRITE_FUA, false)) {
 		__free_page(page);
 		return -EIO;
 	}
@@ -1137,7 +1144,7 @@ static int r5l_load_log(struct r5l_log *log)
 	if (!page)
 		return -ENOMEM;
 
-	if (!sync_page_io(rdev, cp, PAGE_SIZE, page, READ, false)) {
+	if (!sync_page_io(rdev, cp, PAGE_SIZE, page, REQ_OP_READ, 0, false)) {
 		ret = -EIO;
 		goto ioerr;
 	}

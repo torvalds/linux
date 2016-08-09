@@ -464,10 +464,8 @@ static int pn533_usb_probe(struct usb_interface *interface,
 		return -ENOMEM;
 
 	in_buf = kzalloc(in_buf_len, GFP_KERNEL);
-	if (!in_buf) {
-		rc = -ENOMEM;
-		goto out_free_phy;
-	}
+	if (!in_buf)
+		return -ENOMEM;
 
 	phy->udev = usb_get_dev(interface_to_usbdev(interface));
 	phy->interface = interface;
@@ -554,8 +552,7 @@ error:
 	usb_free_urb(phy->out_urb);
 	usb_put_dev(phy->udev);
 	kfree(in_buf);
-out_free_phy:
-	kfree(phy);
+
 	return rc;
 }
 

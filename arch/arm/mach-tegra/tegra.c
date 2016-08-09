@@ -115,35 +115,17 @@ static void __init tegra_dt_init(void)
 	 * devices
 	 */
 out:
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, parent);
+	of_platform_default_populate(NULL, NULL, parent);
 }
-
-static void __init paz00_init(void)
-{
-	if (IS_ENABLED(CONFIG_ARCH_TEGRA_2x_SOC))
-		tegra_paz00_wifikill_init();
-}
-
-static struct {
-	char *machine;
-	void (*init)(void);
-} board_init_funcs[] = {
-	{ "compal,paz00", paz00_init },
-};
 
 static void __init tegra_dt_init_late(void)
 {
-	int i;
-
 	tegra_init_suspend();
 	tegra_cpuidle_init();
 
-	for (i = 0; i < ARRAY_SIZE(board_init_funcs); i++) {
-		if (of_machine_is_compatible(board_init_funcs[i].machine)) {
-			board_init_funcs[i].init();
-			break;
-		}
-	}
+	if (IS_ENABLED(CONFIG_ARCH_TEGRA_2x_SOC) &&
+	    of_machine_is_compatible("compal,paz00"))
+		tegra_paz00_wifikill_init();
 }
 
 static const char * const tegra_dt_board_compat[] = {

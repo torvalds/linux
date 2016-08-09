@@ -267,7 +267,7 @@ at91_clk_register_generated(struct regmap *regmap,  spinlock_t *lock, const char
 	return clk;
 }
 
-void __init of_sama5d2_clk_generated_setup(struct device_node *np)
+static void __init of_sama5d2_clk_generated_setup(struct device_node *np)
 {
 	int num;
 	u32 id;

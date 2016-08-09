@@ -425,7 +425,6 @@ struct netdata_local {
 	unsigned int		last_tx_idx;
 	unsigned int		num_used_tx_buffs;
 	struct mii_bus		*mii_bus;
-	struct phy_device	*phy_dev;
 	struct clk		*clk;
 	dma_addr_t		dma_buff_base_p;
 	void			*dma_buff_base_v;
@@ -750,7 +749,7 @@ static int lpc_mdio_reset(struct mii_bus *bus)
 static void lpc_handle_link_change(struct net_device *ndev)
 {
 	struct netdata_local *pldat = netdev_priv(ndev);
-	struct phy_device *phydev = pldat->phy_dev;
+	struct phy_device *phydev = ndev->phydev;
 	unsigned long flags;
 
 	bool status_change = false;
@@ -814,7 +813,6 @@ static int lpc_mii_probe(struct net_device *ndev)
 	pldat->link = 0;
 	pldat->speed = 0;
 	pldat->duplex = -1;
-	pldat->phy_dev = phydev;
 
 	phy_attached_info(phydev);
 
@@ -1048,8 +1046,8 @@ static int lpc_eth_close(struct net_device *ndev)
 	napi_disable(&pldat->napi);
 	netif_stop_queue(ndev);
 
-	if (pldat->phy_dev)
-		phy_stop(pldat->phy_dev);
+	if (ndev->phydev)
+		phy_stop(ndev->phydev);
 
 	spin_lock_irqsave(&pldat->lock, flags);
 	__lpc_eth_reset(pldat);
@@ -1185,8 +1183,7 @@ static void lpc_eth_set_multicast_list(struct net_device *ndev)
 
 static int lpc_eth_ioctl(struct net_device *ndev, struct ifreq *req, int cmd)
 {
-	struct netdata_local *pldat = netdev_priv(ndev);
-	struct phy_device *phydev = pldat->phy_dev;
+	struct phy_device *phydev = ndev->phydev;
 
 	if (!netif_running(ndev))
 		return -EINVAL;
@@ -1207,14 +1204,14 @@ static int lpc_eth_open(struct net_device *ndev)
 	__lpc_eth_clock_enable(pldat, true);
 
 	/* Suspended PHY makes LPC ethernet core block, so resume now */
-	phy_resume(pldat->phy_dev);
+	phy_resume(ndev->phydev);
 
 	/* Reset and initialize */
 	__lpc_eth_reset(pldat);
 	__lpc_eth_init(pldat);
 
 	/* schedule a link state check */
-	phy_start(pldat->phy_dev);
+	phy_start(ndev->phydev);
 	netif_start_queue(ndev);
 	napi_enable(&pldat->napi);
 
@@ -1247,37 +1244,13 @@ static void lpc_eth_ethtool_setmsglevel(struct net_device *ndev, u32 level)
 	pldat->msg_enable = level;
 }
 
-static int lpc_eth_ethtool_getsettings(struct net_device *ndev,
-	struct ethtool_cmd *cmd)
-{
-	struct netdata_local *pldat = netdev_priv(ndev);
-	struct phy_device *phydev = pldat->phy_dev;
-
-	if (!phydev)
-		return -EOPNOTSUPP;
-
-	return phy_ethtool_gset(phydev, cmd);
-}
-
-static int lpc_eth_ethtool_setsettings(struct net_device *ndev,
-	struct ethtool_cmd *cmd)
-{
-	struct netdata_local *pldat = netdev_priv(ndev);
-	struct phy_device *phydev = pldat->phy_dev;
-
-	if (!phydev)
-		return -EOPNOTSUPP;
-
-	return phy_ethtool_sset(phydev, cmd);
-}
-
 static const struct ethtool_ops lpc_eth_ethtool_ops = {
 	.get_drvinfo	= lpc_eth_ethtool_getdrvinfo,
-	.get_settings	= lpc_eth_ethtool_getsettings,
-	.set_settings	= lpc_eth_ethtool_setsettings,
 	.get_msglevel	= lpc_eth_ethtool_getmsglevel,
 	.set_msglevel	= lpc_eth_ethtool_setmsglevel,
 	.get_link	= ethtool_op_get_link,
+	.get_link_ksettings = phy_ethtool_get_link_ksettings,
+	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
 
 static const struct net_device_ops lpc_netdev_ops = {
@@ -1460,7 +1433,7 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 	netdev_info(ndev, "LPC mac at 0x%08x irq %d\n",
 	       res->start, ndev->irq);
 
-	phydev = pldat->phy_dev;
+	phydev = ndev->phydev;
 
 	device_init_wakeup(&pdev->dev, 1);
 	device_set_wakeup_enable(&pdev->dev, 0);

@@ -306,49 +306,14 @@ ENTRY(startup_kdump)
 	stck	__LC_LAST_UPDATE_CLOCK
 	spt	6f-.LPG0(%r13)
 	mvc	__LC_LAST_UPDATE_TIMER(8),6f-.LPG0(%r13)
-	stfl	0(%r0)			# store facilities @ __LC_STFL_FAC_LIST
-	mvc	__LC_STFLE_FAC_LIST(4),__LC_STFL_FAC_LIST
-	tm	__LC_STFLE_FAC_LIST,0x01	# stfle available ?
-	jz	0f
-	lghi	%r0,FACILITIES_ALS_DWORDS-1
-	.insn	s,0xb2b00000,__LC_STFLE_FAC_LIST # store facility list extended
-	# verify if all required facilities are supported by the machine
-0:	la	%r1,__LC_STFLE_FAC_LIST
-	la	%r2,3f+8-.LPG0(%r13)
-	lhi	%r3,FACILITIES_ALS_DWORDS
-1:	lg	%r0,0(%r1)
-	ng	%r0,0(%r2)
-	clg	%r0,0(%r2)
-	jne	2f
-	la	%r1,8(%r1)
-	la	%r2,8(%r2)
-	ahi	%r3,-1
-	jnz	1b
-	j	4f
-2:	l	%r15,.Lstack-.LPG0(%r13)
+	l	%r15,.Lstack-.LPG0(%r13)
 	ahi	%r15,-STACK_FRAME_OVERHEAD
-	la	%r2,.Lals_string-.LPG0(%r13)
-	l	%r3,.Lsclp_print-.LPG0(%r13)
-	basr	%r14,%r3
-	lpsw	3f-.LPG0(%r13)		# machine type not good enough, crash
-.Lals_string:
-	.asciz	"The Linux kernel requires more recent processor hardware"
-.Lsclp_print:
-	.long	_sclp_print_early
-.Lstack:
-	.long	0x8000 + (1<<(PAGE_SHIFT+THREAD_ORDER))
-	.align 16
-3:	.long	0x000a0000,0x8badcccc
-
-# List of facilities that are required. If not all facilities are present
-# the kernel will crash.
-
-	.quad FACILITIES_ALS
-
-4:
+	brasl	%r14,verify_facilities
 	/* Continue with startup code in head64.S */
 	jg	startup_continue
 
+.Lstack:
+	.long	0x8000 + (1<<(PAGE_SHIFT+THREAD_ORDER))
 	.align	8
 6:	.long	0x7fffffff,0xffffffff
 

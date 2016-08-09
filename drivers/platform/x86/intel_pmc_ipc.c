@@ -85,7 +85,7 @@
  * platform device and to export resources for those functions.
  */
 #define TCO_DEVICE_NAME			"iTCO_wdt"
-#define SMI_EN_OFFSET			0x30
+#define SMI_EN_OFFSET			0x40
 #define SMI_EN_SIZE			4
 #define TCO_BASE_OFFSET			0x60
 #define TCO_REGS_SIZE			16
@@ -94,6 +94,8 @@
 #define TELEM_SSRAM_SIZE		240
 #define TELEM_PMC_SSRAM_OFFSET		0x1B00
 #define TELEM_PUNIT_SSRAM_OFFSET	0x1A00
+#define TCO_PMC_OFFSET			0x8
+#define TCO_PMC_SIZE			0x4
 
 static const int iTCO_version = 3;
 
@@ -502,7 +504,7 @@ static struct resource tco_res[] = {
 
 static struct itco_wdt_platform_data tco_info = {
 	.name = "Apollo Lake SoC",
-	.version = 3,
+	.version = 5,
 };
 
 #define TELEMETRY_RESOURCE_PUNIT_SSRAM	0
@@ -572,8 +574,8 @@ static int ipc_create_tco_device(void)
 	res->end = res->start + SMI_EN_SIZE - 1;
 
 	res = tco_res + TCO_RESOURCE_GCR_MEM;
-	res->start = ipcdev.gcr_base;
-	res->end = res->start + ipcdev.gcr_size - 1;
+	res->start = ipcdev.gcr_base + TCO_PMC_OFFSET;
+	res->end = res->start + TCO_PMC_SIZE - 1;
 
 	ret = platform_device_add_resources(pdev, tco_res, ARRAY_SIZE(tco_res));
 	if (ret) {

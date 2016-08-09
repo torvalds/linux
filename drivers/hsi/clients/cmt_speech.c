@@ -444,8 +444,8 @@ static void cs_hsi_read_on_control_complete(struct hsi_msg *msg)
 	hi->control_state &= ~SSI_CHANNEL_STATE_READING;
 	if (msg->status == HSI_STATUS_ERROR) {
 		dev_err(&hi->cl->device, "Control RX error detected\n");
-		cs_hsi_control_read_error(hi, msg);
 		spin_unlock(&hi->lock);
+		cs_hsi_control_read_error(hi, msg);
 		goto out;
 	}
 	dev_dbg(&hi->cl->device, "Read on control: %08X\n", cmd);
@@ -1275,7 +1275,7 @@ static int cs_char_mmap(struct file *file, struct vm_area_struct *vma)
 	if (vma->vm_end < vma->vm_start)
 		return -EINVAL;
 
-	if (((vma->vm_end - vma->vm_start) >> PAGE_SHIFT) != 1)
+	if (vma_pages(vma) != 1)
 		return -EINVAL;
 
 	vma->vm_flags |= VM_IO | VM_DONTDUMP | VM_DONTEXPAND;

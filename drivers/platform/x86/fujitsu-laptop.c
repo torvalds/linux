@@ -88,9 +88,6 @@
 
 #define ACPI_FUJITSU_NOTIFY_CODE1     0x80
 
-#define ACPI_VIDEO_NOTIFY_INC_BRIGHTNESS     0x86
-#define ACPI_VIDEO_NOTIFY_DEC_BRIGHTNESS     0x87
-
 /* FUNC interface - command values */
 #define FUNC_RFKILL	0x1000
 #define FUNC_LEDS	0x1001
@@ -108,6 +105,8 @@
 #define LOGOLAMP_POWERON 0x2000
 #define LOGOLAMP_ALWAYS  0x4000
 #define RADIO_LED_ON	0x20
+#define ECO_LED	0x10000
+#define ECO_LED_ON	0x80000
 #endif
 
 /* Hotkey details */
@@ -121,13 +120,6 @@
 #define RINGBUFFERSIZE 40
 
 /* Debugging */
-#define FUJLAPTOP_LOG	   ACPI_FUJITSU_HID ": "
-#define FUJLAPTOP_ERR	   KERN_ERR FUJLAPTOP_LOG
-#define FUJLAPTOP_NOTICE   KERN_NOTICE FUJLAPTOP_LOG
-#define FUJLAPTOP_INFO	   KERN_INFO FUJLAPTOP_LOG
-#define FUJLAPTOP_DEBUG    KERN_DEBUG FUJLAPTOP_LOG
-
-#define FUJLAPTOP_DBG_ALL	  0xffff
 #define FUJLAPTOP_DBG_ERROR	  0x0001
 #define FUJLAPTOP_DBG_WARN	  0x0002
 #define FUJLAPTOP_DBG_INFO	  0x0004
@@ -136,7 +128,7 @@
 #ifdef CONFIG_FUJITSU_LAPTOP_DEBUG
 #define vdbg_printk(a_dbg_level, format, arg...) \
 	do { if (dbg_level & a_dbg_level) \
-		printk(FUJLAPTOP_DEBUG "%s: " format, __func__ , ## arg); \
+		printk(KERN_DEBUG pr_fmt("%s: " format), __func__, ## arg); \
 	} while (0)
 #else
 #define vdbg_printk(a_dbg_level, format, arg...) \
@@ -176,6 +168,7 @@ struct fujitsu_hotkey_t {
 	int logolamp_registered;
 	int kblamps_registered;
 	int radio_led_registered;
+	int eco_led_registered;
 };
 
 static struct fujitsu_hotkey_t *fujitsu_hotkey;
@@ -211,6 +204,16 @@ static struct led_classdev radio_led = {
  .name = "fujitsu::radio_led",
  .brightness_get = radio_led_get,
  .brightness_set = radio_led_set
+};
+
+static enum led_brightness eco_led_get(struct led_classdev *cdev);
+static void eco_led_set(struct led_classdev *cdev,
+			       enum led_brightness brightness);
+
+static struct led_classdev eco_led = {
+ .name = "fujitsu::eco_led",
+ .brightness_get = eco_led_get,
+ .brightness_set = eco_led_set
 };
 #endif
 
@@ -296,6 +299,18 @@ static void radio_led_set(struct led_classdev *cdev,
 		call_fext_func(FUNC_RFKILL, 0x5, RADIO_LED_ON, 0x0);
 }
 
+static void eco_led_set(struct led_classdev *cdev,
+				enum led_brightness brightness)
+{
+	int curr;
+
+	curr = call_fext_func(FUNC_LEDS, 0x2, ECO_LED, 0x0);
+	if (brightness >= LED_FULL)
+		call_fext_func(FUNC_LEDS, 0x1, ECO_LED, curr | ECO_LED_ON);
+	else
+		call_fext_func(FUNC_LEDS, 0x1, ECO_LED, curr & ~ECO_LED_ON);
+}
+
 static enum led_brightness logolamp_get(struct led_classdev *cdev)
 {
 	enum led_brightness brightness = LED_OFF;
@@ -326,6 +341,16 @@ static enum led_brightness radio_led_get(struct led_classdev *cdev)
 	enum led_brightness brightness = LED_OFF;
 
 	if (call_fext_func(FUNC_RFKILL, 0x4, 0x0, 0x0) & RADIO_LED_ON)
+		brightness = LED_FULL;
+
+	return brightness;
+}
+
+static enum led_brightness eco_led_get(struct led_classdev *cdev)
+{
+	enum led_brightness brightness = LED_OFF;
+
+	if (call_fext_func(FUNC_LEDS, 0x2, ECO_LED, 0x0) & ECO_LED_ON)
 		brightness = LED_FULL;
 
 	return brightness;
@@ -856,6 +881,7 @@ static int acpi_fujitsu_hotkey_add(struct acpi_device *device)
 	set_bit(fujitsu->keycode3, input->keybit);
 	set_bit(fujitsu->keycode4, input->keybit);
 	set_bit(fujitsu->keycode5, input->keybit);
+	set_bit(KEY_TOUCHPAD_TOGGLE, input->keybit);
 	set_bit(KEY_UNKNOWN, input->keybit);
 
 	error = input_register_device(input);
@@ -943,6 +969,23 @@ static int acpi_fujitsu_hotkey_add(struct acpi_device *device)
 			       result);
 		}
 	}
+
+	/* Support for eco led is not always signaled in bit corresponding
+	 * to the bit used to control the led. According to the DSDT table,
+	 * bit 14 seems to indicate presence of said led as well.
+	 * Confirm by testing the status.
+	*/
+	if ((call_fext_func(FUNC_LEDS, 0x0, 0x0, 0x0) & BIT(14)) &&
+	   (call_fext_func(FUNC_LEDS, 0x2, ECO_LED, 0x0) != UNSUPPORTED_CMD)) {
+		result = led_classdev_register(&fujitsu->pf_device->dev,
+						&eco_led);
+		if (result == 0) {
+			fujitsu_hotkey->eco_led_registered = 1;
+		} else {
+			pr_err("Could not register LED handler for eco LED, error %i\n",
+			       result);
+		}
+	}
 #endif
 
 	return result;
@@ -972,6 +1015,9 @@ static int acpi_fujitsu_hotkey_remove(struct acpi_device *device)
 
 	if (fujitsu_hotkey->radio_led_registered)
 		led_classdev_unregister(&radio_led);
+
+	if (fujitsu_hotkey->eco_led_registered)
+		led_classdev_unregister(&eco_led);
 #endif
 
 	input_unregister_device(input);
@@ -1058,6 +1104,19 @@ static void acpi_fujitsu_hotkey_notify(struct acpi_device *device, u32 event)
 					  keycode_r);
 				}
 			}
+		}
+
+		/* On some models (first seen on the Skylake-based Lifebook
+		 * E736/E746/E756), the touchpad toggle hotkey (Fn+F4) is
+		 * handled in software; its state is queried using FUNC_RFKILL
+		 */
+		if ((fujitsu_hotkey->rfkill_supported & BIT(26)) &&
+		    (call_fext_func(FUNC_RFKILL, 0x1, 0x0, 0x0) & BIT(26))) {
+			keycode = KEY_TOUCHPAD_TOGGLE;
+			input_report_key(input, keycode, 1);
+			input_sync(input);
+			input_report_key(input, keycode, 0);
+			input_sync(input);
 		}
 
 		break;

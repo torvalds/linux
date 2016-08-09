@@ -204,7 +204,7 @@ static int __init setup_rstcr(void)
 
 arch_initcall(setup_rstcr);
 
-void fsl_rstcr_restart(char *cmd)
+void __noreturn fsl_rstcr_restart(char *cmd)
 {
 	local_irq_disable();
 	if (rstcr)
@@ -228,10 +228,11 @@ EXPORT_SYMBOL(diu_ops);
  * to initiate a partition restart when we're running under the Freescale
  * hypervisor.
  */
-void fsl_hv_restart(char *cmd)
+void __noreturn fsl_hv_restart(char *cmd)
 {
 	pr_info("hv restart\n");
 	fh_partition_restart(-1);
+	while (1) ;
 }
 
 /*
@@ -241,9 +242,10 @@ void fsl_hv_restart(char *cmd)
  * function pointers, to shut down the partition when we're running under
  * the Freescale hypervisor.
  */
-void fsl_hv_halt(void)
+void __noreturn fsl_hv_halt(void)
 {
 	pr_info("hv exit\n");
 	fh_partition_stop(-1);
+	while (1) ;
 }
 #endif

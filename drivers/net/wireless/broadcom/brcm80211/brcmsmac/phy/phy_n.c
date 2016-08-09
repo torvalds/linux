@@ -27017,7 +27017,7 @@ wlc_phy_rxcal_gainctrl_nphy_rev5(struct brcms_phy *pi, u8 rx_core,
 		tx_core = 1 - rx_core;
 
 	num_samps = 1024;
-	desired_log2_pwr = (cal_type == 0) ? 13 : 13;
+	desired_log2_pwr = 13;
 
 	wlc_phy_rx_iq_coeffs_nphy(pi, 0, &save_comp);
 	zero_comp.a0 = zero_comp.b0 = zero_comp.a1 = zero_comp.b1 = 0x0;

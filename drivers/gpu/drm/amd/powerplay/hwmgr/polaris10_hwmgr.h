@@ -309,10 +309,6 @@ struct polaris10_hwmgr {
 	uint32_t                           up_hyst;
 	uint32_t disable_dpm_mask;
 	bool apply_optimized_settings;
-
-	/* soft pptable for re-uploading into smu */
-	void *soft_pp_table;
-
 	uint32_t                              avfs_vdroop_override_setting;
 	bool                                  apply_avfs_cks_off_voltage;
 	uint32_t                              frame_time_x2;
@@ -356,6 +352,6 @@ int polaris10_hwmgr_init(struct pp_hwmgr *hwmgr);
 int polaris10_update_uvd_dpm(struct pp_hwmgr *hwmgr, bool bgate);
 int polaris10_update_samu_dpm(struct pp_hwmgr *hwmgr, bool bgate);
 int polaris10_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable);
-
+int polaris10_update_vce_dpm(struct pp_hwmgr *hwmgr, bool bgate);
 #endif
 

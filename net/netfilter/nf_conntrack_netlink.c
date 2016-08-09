@@ -346,25 +346,25 @@ static inline int ctnetlink_label_size(const struct nf_conn *ct)
 
 	if (!labels)
 		return 0;
-	return nla_total_size(labels->words * sizeof(long));
+	return nla_total_size(sizeof(labels->bits));
 }
 
 static int
 ctnetlink_dump_labels(struct sk_buff *skb, const struct nf_conn *ct)
 {
 	struct nf_conn_labels *labels = nf_ct_labels_find(ct);
-	unsigned int len, i;
+	unsigned int i;
 
 	if (!labels)
 		return 0;
 
-	len = labels->words * sizeof(long);
 	i = 0;
 	do {
 		if (labels->bits[i] != 0)
-			return nla_put(skb, CTA_LABELS, len, labels->bits);
+			return nla_put(skb, CTA_LABELS, sizeof(labels->bits),
+				       labels->bits);
 		i++;
-	} while (i < labels->words);
+	} while (i < ARRAY_SIZE(labels->bits));
 
 	return 0;
 }

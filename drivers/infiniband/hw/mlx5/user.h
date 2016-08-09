@@ -46,6 +46,10 @@ enum {
 	MLX5_SRQ_FLAG_SIGNATURE		= 1 << 0,
 };
 
+enum {
+	MLX5_WQ_FLAG_SIGNATURE		= 1 << 0,
+};
+
 
 /* Increment this value if any changes that break userspace ABI
  * compatibility are made.
@@ -79,6 +83,10 @@ enum mlx5_ib_alloc_ucontext_resp_mask {
 	MLX5_IB_ALLOC_UCONTEXT_RESP_MASK_CORE_CLOCK_OFFSET = 1UL << 0,
 };
 
+enum mlx5_user_cmds_supp_uhw {
+	MLX5_USER_CMDS_SUPP_UHW_QUERY_DEVICE = 1 << 0,
+};
+
 struct mlx5_ib_alloc_ucontext_resp {
 	__u32	qp_tab_size;
 	__u32	bf_reg_size;
@@ -94,13 +102,29 @@ struct mlx5_ib_alloc_ucontext_resp {
 	__u32	comp_mask;
 	__u32	response_length;
 	__u8	cqe_version;
-	__u8	reserved2;
-	__u16	reserved3;
+	__u8	cmds_supp_uhw;
+	__u16	reserved2;
 	__u64	hca_core_clock_offset;
 };
 
 struct mlx5_ib_alloc_pd_resp {
 	__u32	pdn;
+};
+
+struct mlx5_ib_tso_caps {
+	__u32 max_tso; /* Maximum tso payload size in bytes */
+
+	/* Corresponding bit will be set if qp type from
+	 * 'enum ib_qp_type' is supported, e.g.
+	 * supported_qpts |= 1 << IB_QPT_UD
+	 */
+	__u32 supported_qpts;
+};
+
+struct mlx5_ib_query_device_resp {
+	__u32	comp_mask;
+	__u32	response_length;
+	struct	mlx5_ib_tso_caps tso_caps;
 };
 
 struct mlx5_ib_create_cq {
@@ -148,6 +172,40 @@ struct mlx5_ib_create_qp {
 	__u64	sq_buf_addr;
 };
 
+/* RX Hash function flags */
+enum mlx5_rx_hash_function_flags {
+	MLX5_RX_HASH_FUNC_TOEPLITZ	= 1 << 0,
+};
+
+/*
+ * RX Hash flags, these flags allows to set which incoming packet's field should
+ * participates in RX Hash. Each flag represent certain packet's field,
+ * when the flag is set the field that is represented by the flag will
+ * participate in RX Hash calculation.
+ * Note: *IPV4 and *IPV6 flags can't be enabled together on the same QP
+ * and *TCP and *UDP flags can't be enabled together on the same QP.
+*/
+enum mlx5_rx_hash_fields {
+	MLX5_RX_HASH_SRC_IPV4	= 1 << 0,
+	MLX5_RX_HASH_DST_IPV4	= 1 << 1,
+	MLX5_RX_HASH_SRC_IPV6	= 1 << 2,
+	MLX5_RX_HASH_DST_IPV6	= 1 << 3,
+	MLX5_RX_HASH_SRC_PORT_TCP	= 1 << 4,
+	MLX5_RX_HASH_DST_PORT_TCP	= 1 << 5,
+	MLX5_RX_HASH_SRC_PORT_UDP	= 1 << 6,
+	MLX5_RX_HASH_DST_PORT_UDP	= 1 << 7
+};
+
+struct mlx5_ib_create_qp_rss {
+	__u64 rx_hash_fields_mask; /* enum mlx5_rx_hash_fields */
+	__u8 rx_hash_function; /* enum mlx5_rx_hash_function_flags */
+	__u8 rx_key_len; /* valid only for Toeplitz */
+	__u8 reserved[6];
+	__u8 rx_hash_key[128]; /* valid only for Toeplitz */
+	__u32   comp_mask;
+	__u32   reserved1;
+};
+
 struct mlx5_ib_create_qp_resp {
 	__u32	uuar_index;
 };
@@ -157,6 +215,32 @@ struct mlx5_ib_alloc_mw {
 	__u8	num_klms;
 	__u8	reserved1;
 	__u16	reserved2;
+};
+
+struct mlx5_ib_create_wq {
+	__u64   buf_addr;
+	__u64   db_addr;
+	__u32   rq_wqe_count;
+	__u32   rq_wqe_shift;
+	__u32   user_index;
+	__u32   flags;
+	__u32   comp_mask;
+	__u32   reserved;
+};
+
+struct mlx5_ib_create_wq_resp {
+	__u32	response_length;
+	__u32	reserved;
+};
+
+struct mlx5_ib_create_rwq_ind_tbl_resp {
+	__u32	response_length;
+	__u32	reserved;
+};
+
+struct mlx5_ib_modify_wq {
+	__u32	comp_mask;
+	__u32	reserved;
 };
 
 static inline int get_qp_user_index(struct mlx5_ib_ucontext *ucontext,
