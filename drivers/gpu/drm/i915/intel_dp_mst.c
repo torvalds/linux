@@ -82,11 +82,13 @@ static void intel_mst_disable_dp(struct intel_encoder *encoder,
 	struct intel_dp_mst_encoder *intel_mst = enc_to_mst(&encoder->base);
 	struct intel_digital_port *intel_dig_port = intel_mst->primary;
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
+	struct intel_connector *connector =
+		to_intel_connector(old_conn_state->connector);
 	int ret;
 
 	DRM_DEBUG_KMS("%d\n", intel_dp->active_mst_links);
 
-	drm_dp_mst_reset_vcpi_slots(&intel_dp->mst_mgr, intel_mst->connector->port);
+	drm_dp_mst_reset_vcpi_slots(&intel_dp->mst_mgr, connector->port);
 
 	ret = drm_dp_update_payload_part1(&intel_dp->mst_mgr);
 	if (ret) {
@@ -101,6 +103,8 @@ static void intel_mst_post_disable_dp(struct intel_encoder *encoder,
 	struct intel_dp_mst_encoder *intel_mst = enc_to_mst(&encoder->base);
 	struct intel_digital_port *intel_dig_port = intel_mst->primary;
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
+	struct intel_connector *connector =
+		to_intel_connector(old_conn_state->connector);
 
 	DRM_DEBUG_KMS("%d\n", intel_dp->active_mst_links);
 
@@ -109,7 +113,7 @@ static void intel_mst_post_disable_dp(struct intel_encoder *encoder,
 	/* and this can also fail */
 	drm_dp_update_payload_part2(&intel_dp->mst_mgr);
 
-	drm_dp_mst_deallocate_vcpi(&intel_dp->mst_mgr, intel_mst->connector->port);
+	drm_dp_mst_deallocate_vcpi(&intel_dp->mst_mgr, connector->port);
 
 	intel_dp->active_mst_links--;
 
@@ -129,43 +133,28 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder,
 	struct intel_dp_mst_encoder *intel_mst = enc_to_mst(&encoder->base);
 	struct intel_digital_port *intel_dig_port = intel_mst->primary;
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
-	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum port port = intel_dig_port->port;
+	struct intel_connector *connector =
+		to_intel_connector(conn_state->connector);
 	int ret;
 	uint32_t temp;
-	struct intel_connector *found = NULL, *connector;
 	int slots;
-	struct drm_crtc *crtc = encoder->base.crtc;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-
-	for_each_intel_connector(dev, connector) {
-		if (connector->base.state->best_encoder == &encoder->base) {
-			found = connector;
-			break;
-		}
-	}
-
-	if (!found) {
-		DRM_ERROR("can't find connector\n");
-		return;
-	}
 
 	/* MST encoders are bound to a crtc, not to a connector,
 	 * force the mapping here for get_hw_state.
 	 */
-	found->encoder = encoder;
+	connector->encoder = encoder;
+	intel_mst->connector = connector;
 
 	DRM_DEBUG_KMS("%d\n", intel_dp->active_mst_links);
 
-	intel_mst->connector = found;
-
 	if (intel_dp->active_mst_links == 0) {
-		intel_ddi_clk_select(&intel_dig_port->base, intel_crtc->config);
+		intel_ddi_clk_select(&intel_dig_port->base, pipe_config);
 
 		intel_prepare_dp_ddi_buffers(&intel_dig_port->base);
 
-		intel_dp_set_link_params(intel_dp, intel_crtc->config);
+		intel_dp_set_link_params(intel_dp, pipe_config);
 
 		intel_ddi_init_dp_buf_reg(&intel_dig_port->base);
 
@@ -176,8 +165,8 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder,
 	}
 
 	ret = drm_dp_mst_allocate_vcpi(&intel_dp->mst_mgr,
-				       intel_mst->connector->port,
-				       intel_crtc->config->pbn, &slots);
+				       connector->port,
+				       pipe_config->pbn, &slots);
 	if (ret == false) {
 		DRM_ERROR("failed to allocate vcpi\n");
 		return;
@@ -198,8 +187,7 @@ static void intel_mst_enable_dp(struct intel_encoder *encoder,
 	struct intel_dp_mst_encoder *intel_mst = enc_to_mst(&encoder->base);
 	struct intel_digital_port *intel_dig_port = intel_mst->primary;
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
-	struct drm_device *dev = intel_dig_port->base.base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum port port = intel_dig_port->port;
 	int ret;
 
@@ -232,9 +220,8 @@ static void intel_dp_mst_enc_get_config(struct intel_encoder *encoder,
 {
 	struct intel_dp_mst_encoder *intel_mst = enc_to_mst(&encoder->base);
 	struct intel_digital_port *intel_dig_port = intel_mst->primary;
-	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
-	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_crtc *crtc = to_intel_crtc(pipe_config->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum transcoder cpu_transcoder = pipe_config->cpu_transcoder;
 	u32 temp, flags = 0;
 
