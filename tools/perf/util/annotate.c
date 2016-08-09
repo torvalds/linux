@@ -1162,10 +1162,44 @@ int symbol__strerror_disassemble(struct symbol *sym __maybe_unused, struct map *
 	return 0;
 }
 
+static int dso__disassemble_filename(struct dso *dso, char *filename, size_t filename_size)
+{
+	char linkname[PATH_MAX];
+	char *build_id_filename;
+
+	if (dso->symtab_type == DSO_BINARY_TYPE__KALLSYMS &&
+	    !dso__is_kcore(dso))
+		return SYMBOL_ANNOTATE_ERRNO__NO_VMLINUX;
+
+	build_id_filename = dso__build_id_filename(dso, NULL, 0);
+	if (build_id_filename) {
+		__symbol__join_symfs(filename, filename_size, build_id_filename);
+		free(build_id_filename);
+	} else {
+		if (dso->has_build_id)
+			return ENOMEM;
+		goto fallback;
+	}
+
+	if (dso__is_kcore(dso) ||
+	    readlink(filename, linkname, sizeof(linkname)) < 0 ||
+	    strstr(linkname, DSO__NAME_KALLSYMS) ||
+	    access(filename, R_OK)) {
+fallback:
+		/*
+		 * If we don't have build-ids or the build-id file isn't in the
+		 * cache, or is just a kallsyms file, well, lets hope that this
+		 * DSO is the same as when 'perf record' ran.
+		 */
+		__symbol__join_symfs(filename, filename_size, dso->long_name);
+	}
+
+	return 0;
+}
+
 int symbol__disassemble(struct symbol *sym, struct map *map, size_t privsize)
 {
 	struct dso *dso = map->dso;
-	char *filename;
 	char command[PATH_MAX * 2];
 	FILE *file;
 	char symfs_filename[PATH_MAX];
@@ -1175,34 +1209,10 @@ int symbol__disassemble(struct symbol *sym, struct map *map, size_t privsize)
 	int lineno = 0;
 	int nline;
 	pid_t pid;
-	int err = SYMBOL_ANNOTATE_ERRNO__NO_VMLINUX;
+	int err = dso__disassemble_filename(dso, symfs_filename, sizeof(symfs_filename));
 
-	if (dso->symtab_type == DSO_BINARY_TYPE__KALLSYMS &&
-	    !dso__is_kcore(dso))
-		goto out;
-
-	filename = dso__build_id_filename(dso, NULL, 0);
-	if (filename) {
-		symbol__join_symfs(symfs_filename, filename);
-		free(filename);
-	} else {
-		if (dso->has_build_id)
-			return ENOMEM;
-		goto fallback;
-	}
-
-	if (dso__is_kcore(dso) ||
-	    readlink(symfs_filename, command, sizeof(command)) < 0 ||
-	    strstr(command, DSO__NAME_KALLSYMS) ||
-	    access(symfs_filename, R_OK)) {
-fallback:
-		/*
-		 * If we don't have build-ids or the build-id file isn't in the
-		 * cache, or is just a kallsyms file, well, lets hope that this
-		 * DSO is the same as when 'perf record' ran.
-		 */
-		symbol__join_symfs(symfs_filename, dso->long_name);
-	}
+	if (err)
+		return err;
 
 	pr_debug("%s: filename=%s, sym=%s, start=%#" PRIx64 ", end=%#" PRIx64 "\n", __func__,
 		 symfs_filename, sym->name, map->unmap_ip(map, sym->start),
