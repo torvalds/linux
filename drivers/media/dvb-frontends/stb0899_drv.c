@@ -601,13 +601,19 @@ static int stb0899_postproc(struct stb0899_state *state, u8 ctl, int enable)
 	return 0;
 }
 
+static void stb0899_detach(struct dvb_frontend *fe)
+{
+	struct stb0899_state *state = fe->demodulator_priv;
+
+	/* post process event */
+	stb0899_postproc(state, STB0899_POSTPROC_GPIO_POWER, 0);
+}
+
 static void stb0899_release(struct dvb_frontend *fe)
 {
 	struct stb0899_state *state = fe->demodulator_priv;
 
 	dprintk(state->verbose, FE_DEBUG, 1, "Release Frontend");
-	/* post process event */
-	stb0899_postproc(state, STB0899_POSTPROC_GPIO_POWER, 0);
 	kfree(state);
 }
 
@@ -1590,6 +1596,7 @@ static const struct dvb_frontend_ops stb0899_ops = {
 					  FE_CAN_QPSK
 	},
 
+	.detach				= stb0899_detach,
 	.release			= stb0899_release,
 	.init				= stb0899_init,
 	.sleep				= stb0899_sleep,
