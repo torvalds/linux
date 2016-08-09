@@ -1817,8 +1817,8 @@ static int sh_eth_phy_start(struct net_device *ndev)
 	return 0;
 }
 
-static int sh_eth_get_settings(struct net_device *ndev,
-			       struct ethtool_cmd *ecmd)
+static int sh_eth_get_link_ksettings(struct net_device *ndev,
+				     struct ethtool_link_ksettings *cmd)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 	unsigned long flags;
@@ -1828,14 +1828,14 @@ static int sh_eth_get_settings(struct net_device *ndev,
 		return -ENODEV;
 
 	spin_lock_irqsave(&mdp->lock, flags);
-	ret = phy_ethtool_gset(ndev->phydev, ecmd);
+	ret = phy_ethtool_ksettings_get(ndev->phydev, cmd);
 	spin_unlock_irqrestore(&mdp->lock, flags);
 
 	return ret;
 }
 
-static int sh_eth_set_settings(struct net_device *ndev,
-			       struct ethtool_cmd *ecmd)
+static int sh_eth_set_link_ksettings(struct net_device *ndev,
+				     const struct ethtool_link_ksettings *cmd)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 	unsigned long flags;
@@ -1849,11 +1849,11 @@ static int sh_eth_set_settings(struct net_device *ndev,
 	/* disable tx and rx */
 	sh_eth_rcv_snd_disable(ndev);
 
-	ret = phy_ethtool_sset(ndev->phydev, ecmd);
+	ret = phy_ethtool_ksettings_set(ndev->phydev, cmd);
 	if (ret)
 		goto error_exit;
 
-	if (ecmd->duplex == DUPLEX_FULL)
+	if (cmd->base.duplex == DUPLEX_FULL)
 		mdp->duplex = 1;
 	else
 		mdp->duplex = 0;
@@ -2195,8 +2195,6 @@ static int sh_eth_set_ringparam(struct net_device *ndev,
 }
 
 static const struct ethtool_ops sh_eth_ethtool_ops = {
-	.get_settings	= sh_eth_get_settings,
-	.set_settings	= sh_eth_set_settings,
 	.get_regs_len	= sh_eth_get_regs_len,
 	.get_regs	= sh_eth_get_regs,
 	.nway_reset	= sh_eth_nway_reset,
@@ -2208,6 +2206,8 @@ static const struct ethtool_ops sh_eth_ethtool_ops = {
 	.get_sset_count     = sh_eth_get_sset_count,
 	.get_ringparam	= sh_eth_get_ringparam,
 	.set_ringparam	= sh_eth_set_ringparam,
+	.get_link_ksettings = sh_eth_get_link_ksettings,
+	.set_link_ksettings = sh_eth_set_link_ksettings,
 };
 
 /* network device open function */
