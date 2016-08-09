@@ -5154,15 +5154,15 @@ static void intel_crtc_disable_planes(struct drm_crtc *crtc, unsigned plane_mask
 	intel_frontbuffer_flip(to_i915(dev), INTEL_FRONTBUFFER_ALL_MASK(pipe));
 }
 
-static void ironlake_crtc_enable(struct drm_crtc *crtc)
+static void ironlake_crtc_enable(struct intel_crtc_state *pipe_config,
+				 struct drm_atomic_state *old_state)
 {
+	struct drm_crtc *crtc = pipe_config->base.crtc;
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_encoder *encoder;
 	int pipe = intel_crtc->pipe;
-	struct intel_crtc_state *pipe_config =
-		to_intel_crtc_state(crtc->state);
 
 	if (WARN_ON(intel_crtc->active))
 		return;
@@ -5251,16 +5251,16 @@ static bool hsw_crtc_supports_ips(struct intel_crtc *crtc)
 	return HAS_IPS(crtc->base.dev) && crtc->pipe == PIPE_A;
 }
 
-static void haswell_crtc_enable(struct drm_crtc *crtc)
+static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
+				struct drm_atomic_state *old_state)
 {
+	struct drm_crtc *crtc = pipe_config->base.crtc;
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_encoder *encoder;
 	int pipe = intel_crtc->pipe, hsw_workaround_pipe;
 	enum transcoder cpu_transcoder = intel_crtc->config->cpu_transcoder;
-	struct intel_crtc_state *pipe_config =
-		to_intel_crtc_state(crtc->state);
 
 	if (WARN_ON(intel_crtc->active))
 		return;
@@ -5390,8 +5390,10 @@ static void ironlake_pfit_disable(struct intel_crtc *crtc, bool force)
 	}
 }
 
-static void ironlake_crtc_disable(struct drm_crtc *crtc)
+static void ironlake_crtc_disable(struct intel_crtc_state *old_crtc_state,
+				  struct drm_atomic_state *old_state)
 {
+	struct drm_crtc *crtc = old_crtc_state->base.crtc;
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
@@ -5453,8 +5455,10 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 	intel_set_pch_fifo_underrun_reporting(dev_priv, pipe, true);
 }
 
-static void haswell_crtc_disable(struct drm_crtc *crtc)
+static void haswell_crtc_disable(struct intel_crtc_state *old_crtc_state,
+				 struct drm_atomic_state *old_state)
 {
+	struct drm_crtc *crtc = old_crtc_state->base.crtc;
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
@@ -6558,14 +6562,14 @@ static void valleyview_modeset_commit_cdclk(struct drm_atomic_state *old_state)
 	intel_display_power_put(dev_priv, POWER_DOMAIN_PIPE_A);
 }
 
-static void valleyview_crtc_enable(struct drm_crtc *crtc)
+static void valleyview_crtc_enable(struct intel_crtc_state *pipe_config,
+				   struct drm_atomic_state *old_state)
 {
+	struct drm_crtc *crtc = pipe_config->base.crtc;
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_encoder *encoder;
-	struct intel_crtc_state *pipe_config =
-		to_intel_crtc_state(crtc->state);
 	int pipe = intel_crtc->pipe;
 
 	if (WARN_ON(intel_crtc->active))
@@ -6629,14 +6633,14 @@ static void i9xx_set_pll_dividers(struct intel_crtc *crtc)
 	I915_WRITE(FP1(crtc->pipe), crtc->config->dpll_hw_state.fp1);
 }
 
-static void i9xx_crtc_enable(struct drm_crtc *crtc)
+static void i9xx_crtc_enable(struct intel_crtc_state *pipe_config,
+			     struct drm_atomic_state *old_state)
 {
+	struct drm_crtc *crtc = pipe_config->base.crtc;
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_encoder *encoder;
-	struct intel_crtc_state *pipe_config =
-		to_intel_crtc_state(crtc->state);
 	enum pipe pipe = intel_crtc->pipe;
 
 	if (WARN_ON(intel_crtc->active))
@@ -6692,8 +6696,10 @@ static void i9xx_pfit_disable(struct intel_crtc *crtc)
 	I915_WRITE(PFIT_CONTROL, 0);
 }
 
-static void i9xx_crtc_disable(struct drm_crtc *crtc)
+static void i9xx_crtc_disable(struct intel_crtc_state *old_crtc_state,
+			      struct drm_atomic_state *old_state)
 {
+	struct drm_crtc *crtc = old_crtc_state->base.crtc;
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
@@ -6745,6 +6751,9 @@ static void intel_crtc_disable_noatomic(struct drm_crtc *crtc)
 	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
 	enum intel_display_power_domain domain;
 	unsigned long domains;
+	struct drm_atomic_state *state;
+	struct intel_crtc_state *crtc_state;
+	int ret;
 
 	if (!intel_crtc->active)
 		return;
@@ -6758,7 +6767,18 @@ static void intel_crtc_disable_noatomic(struct drm_crtc *crtc)
 		to_intel_plane_state(crtc->primary->state)->base.visible = false;
 	}
 
-	dev_priv->display.crtc_disable(crtc);
+	state = drm_atomic_state_alloc(crtc->dev);
+	state->acquire_ctx = crtc->dev->mode_config.acquire_ctx;
+
+	/* Everything's already locked, -EDEADLK can't happen. */
+	crtc_state = intel_atomic_get_crtc_state(state, intel_crtc);
+	ret = drm_atomic_add_affected_connectors(state, crtc);
+
+	WARN_ON(IS_ERR(crtc_state) || ret);
+
+	dev_priv->display.crtc_disable(crtc_state, state);
+
+	drm_atomic_state_free(state);
 
 	DRM_DEBUG_KMS("[CRTC:%d:%s] hw state adjusted, was enabled, now disabled\n",
 		      crtc->base.id, crtc->name);
@@ -14122,7 +14142,7 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 
 		if (old_crtc_state->active) {
 			intel_crtc_disable_planes(crtc, old_crtc_state->plane_mask);
-			dev_priv->display.crtc_disable(crtc);
+			dev_priv->display.crtc_disable(to_intel_crtc_state(old_crtc_state), state);
 			intel_crtc->active = false;
 			intel_fbc_disable(intel_crtc);
 			intel_disable_shared_dpll(intel_crtc);
@@ -14170,7 +14190,7 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 
 		if (modeset && crtc->state->active) {
 			update_scanline_offset(to_intel_crtc(crtc));
-			dev_priv->display.crtc_enable(crtc);
+			dev_priv->display.crtc_enable(pipe_config, state);
 		}
 
 		/* Complete events for now disable pipes here. */
