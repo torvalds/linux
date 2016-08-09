@@ -2,38 +2,46 @@
 #include <string.h>
 #include <lkl_host.h>
 
-long lkl_mount_sysfs(void)
+#define MAX_FSTYPE_LEN 50
+int lkl_mount_fs(char *fstype)
 {
-	long ret;
-	static int sysfs_mounted;
+	char dir[MAX_FSTYPE_LEN+2] = "/";
+	int flags = 0, ret = 0;
 
-	if (sysfs_mounted)
-		return 0;
+	strncat(dir, fstype, MAX_FSTYPE_LEN);
 
-	ret = lkl_sys_mkdir("/sys", 0700);
-	if (ret)
+	/* Create with regular umask */
+	ret = lkl_sys_mkdir(dir, 0xff);
+	if (ret && ret != -LKL_EEXIST) {
+		lkl_perror("mount_fs mkdir", ret);
 		return ret;
+	}
 
-	ret = lkl_sys_mount("none", "sys", "sysfs", 0, NULL);
+	/* We have no use for nonzero flags right now */
+	ret = lkl_sys_mount("none", dir, fstype, flags, NULL);
+	if (ret && ret != -LKL_EBUSY) {
+		lkl_sys_rmdir(dir);
+		return ret;
+	}
 
-	if (ret == 0)
-		sysfs_mounted = 1;
-
-	return ret;
+	if (ret == -LKL_EBUSY)
+		return 1;
+	return 0;
 }
 
 static long get_virtio_blkdev(int disk_id)
 {
-	char sysfs_path[] = "/sys/block/vda/dev";
+	char sysfs_path[] = "/sysfs/block/vda/dev";
 	char buf[16] = { 0, };
 	long fd, ret;
 	int major, minor;
 
-	ret = lkl_mount_sysfs();
-	if (ret)
+
+	ret = lkl_mount_fs("sysfs");
+	if (ret < 0)
 		return ret;
 
-	sysfs_path[strlen("/sys/block/vd")] += disk_id;
+	sysfs_path[strlen("/sysfs/block/vd")] += disk_id;
 
 	fd = lkl_sys_open(sysfs_path, LKL_O_RDONLY, 0);
 	if (fd < 0)

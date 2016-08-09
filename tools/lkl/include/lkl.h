@@ -369,6 +369,13 @@ void lkl_register_dbg_handler();
  */
 int lkl_add_neighbor(int ifindex, int af, void* addr, void* mac);
 
+/**
+ * lkl_mount_fs - mount a file system type like proc, sys
+ * @fstype - file system type. e.g. proc, sys
+ * @returns - 0 on success. 1 if it's already mounted. negative on failure.
+ */
+int lkl_mount_fs(char *fstype);
+
 #ifdef __cplusplus
 }
 #endif

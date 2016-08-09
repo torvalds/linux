@@ -143,8 +143,7 @@ static void cd() {
 
 static void mount() {
 	char* fstype;
-	char dir[MAX_BUF] = "/";
-	int flags = 0, ret = 0;
+	int ret = 0;
 
 	if (argc != 1) {
 		fprintf(stderr, "%s\n", "One argument is needed.");
@@ -152,27 +151,9 @@ static void mount() {
 	}
 
 	fstype = argv[0];
-	strncat(dir, fstype, MAX_BUF - 1);
-
-	/* Create with regular umask */
-	ret = lkl_sys_mkdir(dir, 0xff);
-	if (ret) {
-		fprintf(stderr, "mount mkdir %s: %s\n", dir,
-			lkl_strerror(ret));
-		return;
-	}
-
-	ret = lkl_sys_mount(dir, dir, fstype, flags, NULL);
-	if (ret) {
-		fprintf(stderr, "mount mount %s as %s: %s\n",
-			dir, fstype, strerror(ret));
-		ret = lkl_sys_rmdir(dir);
-		if (ret) {
-			fprintf(stderr, "mount rmdir %s: %s\n",
-				dir, strerror(ret));
-		}
-		return;
-	}
+	ret = lkl_mount_fs(fstype);
+	if (ret == 1)
+		fprintf(stderr, "%s is already mounted.\n", fstype);
 }
 
 static void cat() {
