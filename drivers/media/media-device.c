@@ -801,9 +801,13 @@ void media_device_unregister(struct media_device *mdev)
 	/* Remove all interfaces from the media device */
 	list_for_each_entry_safe(intf, tmp_intf, &mdev->interfaces,
 				 graph_obj.list) {
+		/*
+		 * Unlink the interface, but don't free it here; the
+		 * module which created it is responsible for freeing
+		 * it
+		 */
 		__media_remove_intf_links(intf);
 		media_gobj_destroy(&intf->graph_obj);
-		kfree(intf);
 	}
 
 	mutex_unlock(&mdev->graph_mutex);
