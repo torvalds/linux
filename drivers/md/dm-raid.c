@@ -191,7 +191,6 @@ struct raid_dev {
 #define RT_FLAG_RS_BITMAP_LOADED	2
 #define RT_FLAG_UPDATE_SBS		3
 #define RT_FLAG_RESHAPE_RS		4
-#define RT_FLAG_KEEP_RS_FROZEN		5
 
 /* Array elements of 64 bit needed for rebuild/failed disk bits */
 #define DISKS_ARRAY_ELEMS ((MAX_RAID_DEVICES + (sizeof(uint64_t) * 8 - 1)) / sizeof(uint64_t) / 8)
@@ -2579,7 +2578,6 @@ static int rs_prepare_reshape(struct raid_set *rs)
 		} else {
 			/* Process raid1 without delta_disks */
 			mddev->raid_disks = rs->raid_disks;
-			set_bit(RT_FLAG_KEEP_RS_FROZEN, &rs->runtime_flags);
 			reshape = false;
 		}
 	} else {
@@ -2590,7 +2588,6 @@ static int rs_prepare_reshape(struct raid_set *rs)
 	if (reshape) {
 		set_bit(RT_FLAG_RESHAPE_RS, &rs->runtime_flags);
 		set_bit(RT_FLAG_UPDATE_SBS, &rs->runtime_flags);
-		set_bit(RT_FLAG_KEEP_RS_FROZEN, &rs->runtime_flags);
 	} else if (mddev->raid_disks < rs->raid_disks)
 		/* Create new superblocks and bitmaps, if any new disks */
 		set_bit(RT_FLAG_UPDATE_SBS, &rs->runtime_flags);
@@ -2902,7 +2899,6 @@ static int raid_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 			goto bad;
 
 		set_bit(RT_FLAG_UPDATE_SBS, &rs->runtime_flags);
-		set_bit(RT_FLAG_KEEP_RS_FROZEN, &rs->runtime_flags);
 		/* Takeover ain't recovery, so disable recovery */
 		rs_setup_recovery(rs, MaxSector);
 		rs_set_new(rs);
@@ -3624,8 +3620,7 @@ static void raid_resume(struct dm_target *ti)
 		 *    retrieved from the superblock by the ctr because
 		 *    the ongoing recovery/reshape will change it after read.
 		 */
-		if (!test_bit(RT_FLAG_KEEP_RS_FROZEN, &rs->runtime_flags))
-			clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
+		clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
 
 		if (mddev->suspended)
 			mddev_resume(mddev);
