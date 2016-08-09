@@ -252,13 +252,6 @@ static inline size_t sg_pcopy_from_buffer(struct scatterlist *sgl,
 	list_entry((ptr)->prev, type, member)
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
-/*
- * Before this version the led classdev did not support groups
- */
-#define LED_HAVE_GROUPS
-#endif
-
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)
 /*
  * At this time the internal API for the set brightness was changed to the async

@@ -172,7 +172,6 @@ static int __gb_lights_flash_brightness_set(struct gb_channel *channel)
 }
 #endif /* !LED_HAVE_FLASH */
 
-#ifdef LED_HAVE_GROUPS
 static int gb_lights_color_set(struct gb_channel *channel, u32 color);
 static int gb_lights_fade_set(struct gb_channel *channel);
 
@@ -378,13 +377,6 @@ static int gb_lights_color_set(struct gb_channel *channel, u32 color)
 
 	return ret;
 }
-#else /* LED_HAVE_GROUPS */
-static int channel_attr_groups_set(struct gb_channel *channel,
-				   struct led_classdev *cdev)
-{
-	return 0;
-}
-#endif /* !LED_HAVE_GROUPS */
 
 static int __gb_lights_led_brightness_set(struct gb_channel *channel)
 {
