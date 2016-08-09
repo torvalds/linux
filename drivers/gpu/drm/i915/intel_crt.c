@@ -143,13 +143,15 @@ static void hsw_crt_get_config(struct intel_encoder *encoder,
 
 /* Note: The caller is required to filter out dpms modes not supported by the
  * platform. */
-static void intel_crt_set_dpms(struct intel_encoder *encoder, int mode)
+static void intel_crt_set_dpms(struct intel_encoder *encoder,
+			       struct intel_crtc_state *crtc_state,
+			       int mode)
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crt *crt = intel_encoder_to_crt(encoder);
-	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
-	const struct drm_display_mode *adjusted_mode = &crtc->config->base.adjusted_mode;
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	const struct drm_display_mode *adjusted_mode = &crtc_state->base.adjusted_mode;
 	u32 adpa;
 
 	if (INTEL_INFO(dev)->gen >= 5)
@@ -197,7 +199,7 @@ static void intel_disable_crt(struct intel_encoder *encoder,
 			      struct intel_crtc_state *old_crtc_state,
 			      struct drm_connector_state *old_conn_state)
 {
-	intel_crt_set_dpms(encoder, DRM_MODE_DPMS_OFF);
+	intel_crt_set_dpms(encoder, old_crtc_state, DRM_MODE_DPMS_OFF);
 }
 
 static void pch_disable_crt(struct intel_encoder *encoder,
@@ -217,7 +219,7 @@ static void intel_enable_crt(struct intel_encoder *encoder,
 			     struct intel_crtc_state *pipe_config,
 			     struct drm_connector_state *conn_state)
 {
-	intel_crt_set_dpms(encoder, DRM_MODE_DPMS_ON);
+	intel_crt_set_dpms(encoder, pipe_config, DRM_MODE_DPMS_ON);
 }
 
 static enum drm_mode_status
