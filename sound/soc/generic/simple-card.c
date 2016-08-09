@@ -179,51 +179,19 @@ static struct snd_soc_ops asoc_simple_card_ops = {
 	.hw_params = asoc_simple_card_hw_params,
 };
 
-static int __asoc_simple_card_dai_init(struct snd_soc_dai *dai,
-				       struct asoc_simple_dai *set)
-{
-	int ret;
-
-	if (set->sysclk) {
-		ret = snd_soc_dai_set_sysclk(dai, 0, set->sysclk, 0);
-		if (ret && ret != -ENOTSUPP) {
-			dev_err(dai->dev, "simple-card: set_sysclk error\n");
-			goto err;
-		}
-	}
-
-	if (set->slots) {
-		ret = snd_soc_dai_set_tdm_slot(dai,
-					       set->tx_slot_mask,
-					       set->rx_slot_mask,
-						set->slots,
-						set->slot_width);
-		if (ret && ret != -ENOTSUPP) {
-			dev_err(dai->dev, "simple-card: set_tdm_slot error\n");
-			goto err;
-		}
-	}
-
-	ret = 0;
-
-err:
-	return ret;
-}
-
 static int asoc_simple_card_dai_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct simple_card_data *priv =	snd_soc_card_get_drvdata(rtd->card);
 	struct snd_soc_dai *codec = rtd->codec_dai;
 	struct snd_soc_dai *cpu = rtd->cpu_dai;
-	struct simple_dai_props *dai_props;
+	struct simple_dai_props *dai_props = &priv->dai_props[rtd->num];
 	int ret;
 
-	dai_props = &priv->dai_props[rtd->num];
-	ret = __asoc_simple_card_dai_init(codec, &dai_props->codec_dai);
+	ret = asoc_simple_card_init_dai(codec, &dai_props->codec_dai);
 	if (ret < 0)
 		return ret;
 
-	ret = __asoc_simple_card_dai_init(cpu, &dai_props->cpu_dai);
+	ret = asoc_simple_card_init_dai(cpu, &dai_props->cpu_dai);
 	if (ret < 0)
 		return ret;
 
