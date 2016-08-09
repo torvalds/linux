@@ -656,7 +656,7 @@ void verity_status(struct dm_target *ti, status_type_t type,
 	}
 }
 
-static int verity_prepare_ioctl(struct dm_target *ti,
+int verity_prepare_ioctl(struct dm_target *ti,
 		struct block_device **bdev, fmode_t *mode)
 {
 	struct dm_verity *v = ti->private;
