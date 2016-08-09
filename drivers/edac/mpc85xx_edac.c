@@ -46,9 +46,6 @@ static u32 orig_pci_err_en;
 #endif
 
 static u32 orig_l2_err_disable;
-#ifdef CONFIG_FSL_SOC_BOOKE
-static u32 orig_hid1[2];
-#endif
 
 /************************ MC SYSFS parts ***********************************/
 
@@ -1231,14 +1228,6 @@ static struct platform_driver mpc85xx_mc_err_driver = {
 	},
 };
 
-#ifdef CONFIG_FSL_SOC_BOOKE
-static void __init mpc85xx_mc_clear_rfxe(void *data)
-{
-	orig_hid1[smp_processor_id()] = mfspr(SPRN_HID1);
-	mtspr(SPRN_HID1, (orig_hid1[smp_processor_id()] & ~HID1_RFXE));
-}
-#endif
-
 static struct platform_driver * const drivers[] = {
 	&mpc85xx_mc_err_driver,
 	&mpc85xx_l2_err_driver,
@@ -1269,42 +1258,13 @@ static int __init mpc85xx_mc_init(void)
 	if (res)
 		printk(KERN_WARNING EDAC_MOD_STR "drivers fail to register\n");
 
-#ifdef CONFIG_FSL_SOC_BOOKE
-	pvr = mfspr(SPRN_PVR);
-
-	if ((PVR_VER(pvr) == PVR_VER_E500V1) ||
-	    (PVR_VER(pvr) == PVR_VER_E500V2)) {
-		/*
-		 * need to clear HID1[RFXE] to disable machine check int
-		 * so we can catch it
-		 */
-		if (edac_op_state == EDAC_OPSTATE_INT)
-			on_each_cpu(mpc85xx_mc_clear_rfxe, NULL, 0);
-	}
-#endif
-
 	return 0;
 }
 
 module_init(mpc85xx_mc_init);
 
-#ifdef CONFIG_FSL_SOC_BOOKE
-static void __exit mpc85xx_mc_restore_hid1(void *data)
-{
-	mtspr(SPRN_HID1, orig_hid1[smp_processor_id()]);
-}
-#endif
-
 static void __exit mpc85xx_mc_exit(void)
 {
-#ifdef CONFIG_FSL_SOC_BOOKE
-	u32 pvr = mfspr(SPRN_PVR);
-
-	if ((PVR_VER(pvr) == PVR_VER_E500V1) ||
-	    (PVR_VER(pvr) == PVR_VER_E500V2)) {
-		on_each_cpu(mpc85xx_mc_restore_hid1, NULL, 0);
-	}
-#endif
 	platform_unregister_drivers(drivers, ARRAY_SIZE(drivers));
 }
 
