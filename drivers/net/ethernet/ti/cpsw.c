@@ -367,6 +367,8 @@ static inline void slave_write(struct cpsw_slave *slave, u32 val, u32 offset)
 struct cpsw_common {
 	struct device			*dev;
 	struct cpsw_platform_data	data;
+	struct napi_struct		napi_rx;
+	struct napi_struct		napi_tx;
 	struct cpsw_ss_regs __iomem	*regs;
 	struct cpsw_wr_regs __iomem	*wr_regs;
 	u8 __iomem			*hw_stats;
@@ -382,8 +384,6 @@ struct cpsw_common {
 
 struct cpsw_priv {
 	struct net_device		*ndev;
-	struct napi_struct		napi_rx;
-	struct napi_struct		napi_tx;
 	struct device			*dev;
 	u32				msg_enable;
 	u32				version;
@@ -488,7 +488,7 @@ static const struct cpsw_stats cpsw_gstrings_stats[] = {
 #define CPSW_STATS_LEN	ARRAY_SIZE(cpsw_gstrings_stats)
 
 #define ndev_to_cpsw(ndev) (((struct cpsw_priv *)netdev_priv(ndev))->cpsw)
-#define napi_to_priv(napi)	container_of(napi, struct cpsw_priv, napi)
+#define napi_to_cpsw(napi)	container_of(napi, struct cpsw_common, napi)
 #define for_each_slave(priv, func, arg...)				\
 	do {								\
 		struct cpsw_slave *slave;				\
@@ -752,8 +752,7 @@ requeue:
 
 static irqreturn_t cpsw_tx_interrupt(int irq, void *dev_id)
 {
-	struct cpsw_priv *priv = dev_id;
-	struct cpsw_common *cpsw = priv->cpsw;
+	struct cpsw_common *cpsw = dev_id;
 
 	writel(0, &cpsw->wr_regs->tx_en);
 	cpdma_ctlr_eoi(cpsw->dma, CPDMA_EOI_TX);
@@ -763,14 +762,13 @@ static irqreturn_t cpsw_tx_interrupt(int irq, void *dev_id)
 		cpsw->tx_irq_disabled = true;
 	}
 
-	napi_schedule(&priv->napi_tx);
+	napi_schedule(&cpsw->napi_tx);
 	return IRQ_HANDLED;
 }
 
 static irqreturn_t cpsw_rx_interrupt(int irq, void *dev_id)
 {
-	struct cpsw_priv *priv = dev_id;
-	struct cpsw_common *cpsw = priv->cpsw;
+	struct cpsw_common *cpsw = dev_id;
 
 	cpdma_ctlr_eoi(cpsw->dma, CPDMA_EOI_RX);
 	writel(0, &cpsw->wr_regs->rx_en);
@@ -780,15 +778,14 @@ static irqreturn_t cpsw_rx_interrupt(int irq, void *dev_id)
 		cpsw->rx_irq_disabled = true;
 	}
 
-	napi_schedule(&priv->napi_rx);
+	napi_schedule(&cpsw->napi_rx);
 	return IRQ_HANDLED;
 }
 
 static int cpsw_tx_poll(struct napi_struct *napi_tx, int budget)
 {
-	struct cpsw_priv	*priv = napi_to_priv(napi_tx);
+	struct cpsw_common	*cpsw = napi_to_cpsw(napi_tx);
 	int			num_tx;
-	struct cpsw_common	*cpsw = priv->cpsw;
 
 	num_tx = cpdma_chan_process(cpsw->txch, budget);
 	if (num_tx < budget) {
@@ -805,9 +802,8 @@ static int cpsw_tx_poll(struct napi_struct *napi_tx, int budget)
 
 static int cpsw_rx_poll(struct napi_struct *napi_rx, int budget)
 {
-	struct cpsw_priv	*priv = napi_to_priv(napi_rx);
+	struct cpsw_common	*cpsw = napi_to_cpsw(napi_rx);
 	int			num_rx;
-	struct cpsw_common	*cpsw = priv->cpsw;
 
 	num_rx = cpdma_chan_process(cpsw->rxch, budget);
 	if (num_rx < budget) {
@@ -1283,7 +1279,6 @@ static int cpsw_ndo_open(struct net_device *ndev)
 				  ALE_ALL_PORTS, ALE_ALL_PORTS, 0, 0);
 
 	if (!cpsw_common_res_usage_state(cpsw)) {
-		struct cpsw_priv *priv_sl0 = cpsw_get_slave_priv(cpsw, 0);
 		int buf_num;
 
 		/* setup tx dma to fixed prio and zero offset */
@@ -1299,8 +1294,8 @@ static int cpsw_ndo_open(struct net_device *ndev)
 		/* Enable internal fifo flow control */
 		writel(0x7, &cpsw->regs->flow_control);
 
-		napi_enable(&priv_sl0->napi_rx);
-		napi_enable(&priv_sl0->napi_tx);
+		napi_enable(&cpsw->napi_rx);
+		napi_enable(&cpsw->napi_tx);
 
 		if (cpsw->tx_irq_disabled) {
 			cpsw->tx_irq_disabled = false;
@@ -1373,10 +1368,8 @@ static int cpsw_ndo_stop(struct net_device *ndev)
 	netif_carrier_off(priv->ndev);
 
 	if (cpsw_common_res_usage_state(cpsw) <= 1) {
-		struct cpsw_priv *priv_sl0 = cpsw_get_slave_priv(cpsw, 0);
-
-		napi_disable(&priv_sl0->napi_rx);
-		napi_disable(&priv_sl0->napi_tx);
+		napi_disable(&cpsw->napi_rx);
+		napi_disable(&cpsw->napi_tx);
 		cpts_unregister(priv->cpts);
 		cpsw_intr_disable(cpsw);
 		cpdma_ctlr_stop(cpsw->dma);
@@ -1656,13 +1649,12 @@ static int cpsw_ndo_set_mac_address(struct net_device *ndev, void *p)
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void cpsw_ndo_poll_controller(struct net_device *ndev)
 {
-	struct cpsw_priv *priv = netdev_priv(ndev);
-	struct cpsw_common *cpsw = priv->cpsw;
+	struct cpsw_common *cpsw = ndev_to_cpsw(ndev);
 
-	cpsw_intr_disable(priv->cpsw);
-	cpsw_rx_interrupt(cpsw->irqs_table[0], priv);
-	cpsw_tx_interrupt(cpsw->irqs_table[1], priv);
-	cpsw_intr_enable(priv->cpsw);
+	cpsw_intr_disable(cpsw);
+	cpsw_rx_interrupt(cpsw->irqs_table[0], cpsw);
+	cpsw_tx_interrupt(cpsw->irqs_table[1], cpsw);
+	cpsw_intr_enable(cpsw);
 }
 #endif
 
@@ -2512,7 +2504,7 @@ static int cpsw_probe(struct platform_device *pdev)
 
 	cpsw->irqs_table[0] = irq;
 	ret = devm_request_irq(&pdev->dev, irq, cpsw_rx_interrupt,
-			       0, dev_name(&pdev->dev), priv);
+			       0, dev_name(&pdev->dev), cpsw);
 	if (ret < 0) {
 		dev_err(priv->dev, "error attaching irq (%d)\n", ret);
 		goto clean_ale_ret;
@@ -2527,7 +2519,7 @@ static int cpsw_probe(struct platform_device *pdev)
 
 	cpsw->irqs_table[1] = irq;
 	ret = devm_request_irq(&pdev->dev, irq, cpsw_tx_interrupt,
-			       0, dev_name(&pdev->dev), priv);
+			       0, dev_name(&pdev->dev), cpsw);
 	if (ret < 0) {
 		dev_err(priv->dev, "error attaching irq (%d)\n", ret);
 		goto clean_ale_ret;
@@ -2537,8 +2529,8 @@ static int cpsw_probe(struct platform_device *pdev)
 
 	ndev->netdev_ops = &cpsw_netdev_ops;
 	ndev->ethtool_ops = &cpsw_ethtool_ops;
-	netif_napi_add(ndev, &priv->napi_rx, cpsw_rx_poll, CPSW_POLL_WEIGHT);
-	netif_tx_napi_add(ndev, &priv->napi_tx, cpsw_tx_poll, CPSW_POLL_WEIGHT);
+	netif_napi_add(ndev, &cpsw->napi_rx, cpsw_rx_poll, CPSW_POLL_WEIGHT);
+	netif_tx_napi_add(ndev, &cpsw->napi_tx, cpsw_tx_poll, CPSW_POLL_WEIGHT);
 
 	/* register the network device */
 	SET_NETDEV_DEV(ndev, &pdev->dev);
