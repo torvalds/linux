@@ -1112,6 +1112,37 @@ static void gb_svc_process_module_removed(struct gb_operation *operation)
 	gb_module_put(module);
 }
 
+static void gb_svc_process_intf_oops(struct gb_operation *operation)
+{
+	struct gb_svc_intf_oops_request *request;
+	struct gb_connection *connection = operation->connection;
+	struct gb_svc *svc = gb_connection_get_data(connection);
+	struct gb_interface *intf;
+	u8 intf_id;
+	u8 reason;
+
+	/* The request message size has already been verified. */
+	request = operation->request->payload;
+	intf_id = request->intf_id;
+	reason = request->reason;
+
+	intf = gb_svc_interface_lookup(svc, intf_id);
+	if (!intf) {
+		dev_warn(&svc->dev, "unexpected interface-oops event %u\n",
+			 intf_id);
+		return;
+	}
+
+	dev_info(&svc->dev, "Deactivating interface %u, interface oops reason = %u\n",
+		 intf_id, reason);
+
+	mutex_lock(&intf->mutex);
+	intf->disconnected = true;
+	gb_interface_disable(intf);
+	gb_interface_deactivate(intf);
+	mutex_unlock(&intf->mutex);
+}
+
 static void gb_svc_process_intf_mailbox_event(struct gb_operation *operation)
 {
 	struct gb_svc_intf_mailbox_event_request *request;
@@ -1164,6 +1195,9 @@ static void gb_svc_process_deferred_request(struct work_struct *work)
 		break;
 	case GB_SVC_TYPE_INTF_MAILBOX_EVENT:
 		gb_svc_process_intf_mailbox_event(operation);
+		break;
+	case GB_SVC_TYPE_INTF_OOPS:
+		gb_svc_process_intf_oops(operation);
 		break;
 	default:
 		dev_err(&svc->dev, "bad deferred request type: 0x%02x\n", type);
@@ -1251,6 +1285,20 @@ static int gb_svc_module_removed_recv(struct gb_operation *op)
 	return gb_svc_queue_deferred_request(op);
 }
 
+static int gb_svc_intf_oops_recv(struct gb_operation *op)
+{
+	struct gb_svc *svc = gb_connection_get_data(op->connection);
+	struct gb_svc_intf_oops_request *request;
+
+	if (op->request->payload_size < sizeof(*request)) {
+		dev_warn(&svc->dev, "short intf-oops request received (%zu < %zu)\n",
+			 op->request->payload_size, sizeof(*request));
+		return -EINVAL;
+	}
+
+	return gb_svc_queue_deferred_request(op);
+}
+
 static int gb_svc_intf_mailbox_event_recv(struct gb_operation *op)
 {
 	struct gb_svc *svc = gb_connection_get_data(op->connection);
@@ -1326,6 +1374,8 @@ static int gb_svc_request_handler(struct gb_operation *op)
 		return gb_svc_module_removed_recv(op);
 	case GB_SVC_TYPE_INTF_MAILBOX_EVENT:
 		return gb_svc_intf_mailbox_event_recv(op);
+	case GB_SVC_TYPE_INTF_OOPS:
+		return gb_svc_intf_oops_recv(op);
 	default:
 		dev_warn(&svc->dev, "unsupported request 0x%02x\n", type);
 		return -EINVAL;

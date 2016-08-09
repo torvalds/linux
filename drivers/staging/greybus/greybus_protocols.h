@@ -1018,6 +1018,7 @@ struct gb_spi_transfer_response {
 #define GB_SVC_TYPE_INTF_ACTIVATE		0x27
 #define GB_SVC_TYPE_INTF_RESUME			0x28
 #define GB_SVC_TYPE_INTF_MAILBOX_EVENT		0x29
+#define GB_SVC_TYPE_INTF_OOPS			0x2a
 
 /* Greybus SVC protocol status values */
 #define GB_SVC_OP_SUCCESS			0x00
@@ -1356,6 +1357,12 @@ struct gb_svc_intf_mailbox_event_request {
 	__le32	mailbox;
 } __packed;
 /* intf_mailbox_event response has no payload */
+
+struct gb_svc_intf_oops_request {
+	__u8	intf_id;
+	__u8	reason;
+} __packed;
+/* intf_oops response has no payload */
 
 
 /* RAW */
