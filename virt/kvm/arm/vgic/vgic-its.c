@@ -471,6 +471,21 @@ static int vgic_its_trigger_msi(struct kvm *kvm, struct vgic_its *its,
 	return 0;
 }
 
+static struct vgic_io_device *vgic_get_its_iodev(struct kvm_io_device *dev)
+{
+	struct vgic_io_device *iodev;
+
+	if (dev->ops != &kvm_io_gic_ops)
+		return NULL;
+
+	iodev = container_of(dev, struct vgic_io_device, dev);
+
+	if (iodev->iodev_type != IODEV_ITS)
+		return NULL;
+
+	return iodev;
+}
+
 /*
  * Queries the KVM IO bus framework to get the ITS pointer from the given
  * doorbell address.
@@ -494,9 +509,11 @@ int vgic_its_inject_msi(struct kvm *kvm, struct kvm_msi *msi)
 
 	kvm_io_dev = kvm_io_bus_get_dev(kvm, KVM_MMIO_BUS, address);
 	if (!kvm_io_dev)
-		return -ENODEV;
+		return -EINVAL;
 
-	iodev = container_of(kvm_io_dev, struct vgic_io_device, dev);
+	iodev = vgic_get_its_iodev(kvm_io_dev);
+	if (!iodev)
+		return -EINVAL;
 
 	mutex_lock(&iodev->its->its_lock);
 	ret = vgic_its_trigger_msi(kvm, iodev->its, msi->devid, msi->data);
