@@ -28,6 +28,9 @@
 
 #include "xfrm_hash.h"
 
+#define xfrm_state_deref_prot(table, net) \
+	rcu_dereference_protected((table), lockdep_is_held(&(net)->xfrm.xfrm_state_lock))
+
 /* Each xfrm_state may be linked to two tables:
 
    1. Hash table by (spi,daddr,ah/esp) to find SA by SPI. (input,ctl)
@@ -131,18 +134,17 @@ static void xfrm_hash_resize(struct work_struct *work)
 	write_seqcount_begin(&xfrm_state_hash_generation);
 
 	nhashmask = (nsize / sizeof(struct hlist_head)) - 1U;
+	odst = xfrm_state_deref_prot(net->xfrm.state_bydst, net);
 	for (i = net->xfrm.state_hmask; i >= 0; i--)
-		xfrm_hash_transfer(net->xfrm.state_bydst+i, ndst, nsrc, nspi,
-				   nhashmask);
+		xfrm_hash_transfer(odst + i, ndst, nsrc, nspi, nhashmask);
 
-	odst = net->xfrm.state_bydst;
-	osrc = net->xfrm.state_bysrc;
-	ospi = net->xfrm.state_byspi;
+	osrc = xfrm_state_deref_prot(net->xfrm.state_bysrc, net);
+	ospi = xfrm_state_deref_prot(net->xfrm.state_byspi, net);
 	ohashmask = net->xfrm.state_hmask;
 
-	net->xfrm.state_bydst = ndst;
-	net->xfrm.state_bysrc = nsrc;
-	net->xfrm.state_byspi = nspi;
+	rcu_assign_pointer(net->xfrm.state_bydst, ndst);
+	rcu_assign_pointer(net->xfrm.state_bysrc, nsrc);
+	rcu_assign_pointer(net->xfrm.state_byspi, nspi);
 	net->xfrm.state_hmask = nhashmask;
 
 	write_seqcount_end(&xfrm_state_hash_generation);
