@@ -193,6 +193,45 @@
 			#size-cells = <0>;
 		};
 
+		pcie: pcie@fd0e0000 {
+			compatible = "xlnx,nwl-pcie-2.11";
+			status = "disabled";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			#interrupt-cells = <1>;
+			msi-controller;
+			device_type = "pci";
+			interrupt-parent = <&gic>;
+			interrupts = <0 118 4>,
+				    <0 117 4>,
+				    <0 116 4>,
+				    <0 115 4>,	/* MSI_1 [63...32] */
+				    <0 114 4>;	/* MSI_0 [31...0] */
+			interrupt-names = "misc", "dummy", "intx",
+					  "msi1", "msi0";
+			msi-parent = <&pcie>;
+			reg = <0x0 0xfd0e0000 0x0 0x1000>,
+			      <0x0 0xfd480000 0x0 0x1000>,
+			      <0x80 0x00000000 0x0 0x1000000>;
+			reg-names = "breg", "pcireg", "cfg";
+			ranges = <0x02000000 0x00000000 0xe0000000 0x00000000
+				  0xe0000000 0x00000000 0x10000000
+				  /* non-prefetchable memory */
+				  0x43000000 0x00000006 0x00000000 0x00000006
+				  0x00000000 0x00000002 0x00000000>;
+				  /* prefetchable memory */
+			interrupt-map-mask = <0x0 0x0 0x0 0x7>;
+			interrupt-map = <0x0 0x0 0x0 0x1 &pcie_intc 0x1>,
+					<0x0 0x0 0x0 0x2 &pcie_intc 0x2>,
+					<0x0 0x0 0x0 0x3 &pcie_intc 0x3>,
+					<0x0 0x0 0x0 0x4 &pcie_intc 0x4>;
+			pcie_intc: legacy-interrupt-controller {
+				interrupt-controller;
+				#address-cells = <0>;
+				#interrupt-cells = <1>;
+			};
+		};
+
 		sata: ahci@fd0c0000 {
 			compatible = "ceva,ahci-1v84";
 			status = "disabled";
