@@ -49,7 +49,7 @@ static int cxd2820r_wr_regs_i2c(struct cxd2820r_priv *priv, u8 i2c, u8 reg,
 	buf[0] = reg;
 	memcpy(&buf[1], val, len);
 
-	ret = i2c_transfer(priv->i2c, msg, 1);
+	ret = i2c_transfer(priv->client[0]->adapter, msg, 1);
 	if (ret == 1) {
 		ret = 0;
 	} else {
@@ -87,7 +87,7 @@ static int cxd2820r_rd_regs_i2c(struct cxd2820r_priv *priv, u8 i2c, u8 reg,
 		return -EINVAL;
 	}
 
-	ret = i2c_transfer(priv->i2c, msg, 2);
+	ret = i2c_transfer(priv->client[0]->adapter, msg, 2);
 	if (ret == 2) {
 		memcpy(val, buf, len);
 		ret = 0;
@@ -112,9 +112,9 @@ int cxd2820r_wr_regs(struct cxd2820r_priv *priv, u32 reginfo, u8 *val,
 
 	/* select I2C */
 	if (i2c)
-		i2c_addr = priv->cfg.i2c_address | (1 << 1); /* DVB-C */
+		i2c_addr = priv->client[1]->addr; /* DVB-C */
 	else
-		i2c_addr = priv->cfg.i2c_address; /* DVB-T/T2 */
+		i2c_addr = priv->client[0]->addr; /* DVB-T/T2 */
 
 	/* switch bank if needed */
 	if (bank != priv->bank[i2c]) {
@@ -138,9 +138,9 @@ int cxd2820r_rd_regs(struct cxd2820r_priv *priv, u32 reginfo, u8 *val,
 
 	/* select I2C */
 	if (i2c)
-		i2c_addr = priv->cfg.i2c_address | (1 << 1); /* DVB-C */
+		i2c_addr = priv->client[1]->addr; /* DVB-C */
 	else
-		i2c_addr = priv->cfg.i2c_address; /* DVB-T/T2 */
+		i2c_addr = priv->client[0]->addr; /* DVB-T/T2 */
 
 	/* switch bank if needed */
 	if (bank != priv->bank[i2c]) {
@@ -537,16 +537,12 @@ static int cxd2820r_get_frontend_algo(struct dvb_frontend *fe)
 static void cxd2820r_release(struct dvb_frontend *fe)
 {
 	struct cxd2820r_priv *priv = fe->demodulator_priv;
+	struct i2c_client *client = priv->client[0];
 
 	dev_dbg(&priv->i2c->dev, "%s\n", __func__);
 
-#ifdef CONFIG_GPIOLIB
-	/* remove GPIOs */
-	if (priv->gpio_chip.label)
-		gpiochip_remove(&priv->gpio_chip);
+	i2c_unregister_device(client);
 
-#endif
-	kfree(priv);
 	return;
 }
 
@@ -646,49 +642,113 @@ static const struct dvb_frontend_ops cxd2820r_ops = {
 	.read_signal_strength	= cxd2820r_read_signal_strength,
 };
 
-struct dvb_frontend *cxd2820r_attach(const struct cxd2820r_config *cfg,
-		struct i2c_adapter *i2c, int *gpio_chip_base
-)
+/*
+ * XXX: That is wrapper to cxd2820r_probe() via driver core in order to provide
+ * proper I2C client for legacy media attach binding.
+ * New users must use I2C client binding directly!
+ */
+struct dvb_frontend *cxd2820r_attach(const struct cxd2820r_config *config,
+				     struct i2c_adapter *adapter,
+				     int *gpio_chip_base)
 {
-	struct cxd2820r_priv *priv;
-	int ret;
-	u8 tmp;
+	struct i2c_client *client;
+	struct i2c_board_info board_info;
+	struct cxd2820r_platform_data pdata;
 
-	priv = kzalloc(sizeof(struct cxd2820r_priv), GFP_KERNEL);
+	pdata.ts_mode = config->ts_mode;
+	pdata.ts_clk_inv = config->ts_clock_inv;
+	pdata.if_agc_polarity = config->if_agc_polarity;
+	pdata.spec_inv = config->spec_inv;
+	pdata.gpio_chip_base = &gpio_chip_base;
+	pdata.attach_in_use = true;
+
+	memset(&board_info, 0, sizeof(board_info));
+	strlcpy(board_info.type, "cxd2820r", I2C_NAME_SIZE);
+	board_info.addr = config->i2c_address;
+	board_info.platform_data = &pdata;
+	client = i2c_new_device(adapter, &board_info);
+	if (!client || !client->dev.driver)
+		return NULL;
+
+	return pdata.get_dvb_frontend(client);
+}
+EXPORT_SYMBOL(cxd2820r_attach);
+
+static struct dvb_frontend *cxd2820r_get_dvb_frontend(struct i2c_client *client)
+{
+	struct cxd2820r_priv *priv = i2c_get_clientdata(client);
+
+	dev_dbg(&client->dev, "\n");
+
+	return &priv->fe;
+}
+
+static int cxd2820r_probe(struct i2c_client *client,
+			  const struct i2c_device_id *id)
+{
+	struct cxd2820r_platform_data *pdata = client->dev.platform_data;
+	struct cxd2820r_priv *priv;
+	int ret, *gpio_chip_base;
+	u8 u8tmp;
+
+	dev_dbg(&client->dev, "\n");
+
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
 		ret = -ENOMEM;
-		dev_err(&i2c->dev, "%s: kzalloc() failed\n",
-				KBUILD_MODNAME);
-		goto error;
+		goto err;
 	}
 
-	priv->i2c = i2c;
-	memcpy(&priv->cfg, cfg, sizeof(struct cxd2820r_config));
-	memcpy(&priv->fe.ops, &cxd2820r_ops, sizeof(struct dvb_frontend_ops));
-	priv->fe.demodulator_priv = priv;
+	priv->client[0] = client;
+	priv->i2c = client->adapter;
+	priv->ts_mode = pdata->ts_mode;
+	priv->ts_clk_inv = pdata->ts_clk_inv;
+	priv->if_agc_polarity = pdata->if_agc_polarity;
+	priv->spec_inv = pdata->spec_inv;
+	priv->bank[0] = 0xff;
+	priv->bank[1] = 0xff;
+	gpio_chip_base = *pdata->gpio_chip_base;
 
-	priv->bank[0] = priv->bank[1] = 0xff;
-	ret = cxd2820r_rd_reg(priv, 0x000fd, &tmp);
-	dev_dbg(&priv->i2c->dev, "%s: chip id=%02x\n", __func__, tmp);
-	if (ret || tmp != 0xe1)
-		goto error;
+	/* Check demod answers with correct chip id */
+	ret = cxd2820r_rd_reg(priv, 0x000fd, &u8tmp);
+	if (ret)
+		goto err_kfree;
+
+	dev_dbg(&client->dev, "chip_id=%02x\n", u8tmp);
+
+	if (u8tmp != 0xe1) {
+		ret = -ENODEV;
+		goto err_kfree;
+	}
+
+	/*
+	 * Chip has two I2C addresses for different register banks. We register
+	 * one dummy I2C client in in order to get own I2C client for each
+	 * register bank.
+	 */
+	priv->client[1] = i2c_new_dummy(client->adapter, client->addr | (1 << 1));
+	if (!priv->client[1]) {
+		ret = -ENODEV;
+		dev_err(&client->dev, "I2C registration failed\n");
+		if (ret)
+			goto err_kfree;
+	}
 
 	if (gpio_chip_base) {
 #ifdef CONFIG_GPIOLIB
-		/* add GPIOs */
+		/* Add GPIOs */
 		priv->gpio_chip.label = KBUILD_MODNAME;
 		priv->gpio_chip.parent = &priv->i2c->dev;
 		priv->gpio_chip.owner = THIS_MODULE;
-		priv->gpio_chip.direction_output =
-				cxd2820r_gpio_direction_output;
+		priv->gpio_chip.direction_output = cxd2820r_gpio_direction_output;
 		priv->gpio_chip.set = cxd2820r_gpio_set;
 		priv->gpio_chip.get = cxd2820r_gpio_get;
-		priv->gpio_chip.base = -1; /* dynamic allocation */
+		priv->gpio_chip.base = -1; /* Dynamic allocation */
 		priv->gpio_chip.ngpio = GPIO_COUNT;
 		priv->gpio_chip.can_sleep = 1;
 		ret = gpiochip_add_data(&priv->gpio_chip, priv);
 		if (ret)
-			goto error;
+			goto err_client_1_i2c_unregister_device;
 
 		dev_dbg(&priv->i2c->dev, "%s: gpio_chip.base=%d\n", __func__,
 				priv->gpio_chip.base);
@@ -705,17 +765,65 @@ struct dvb_frontend *cxd2820r_attach(const struct cxd2820r_config *cfg,
 		gpio[2] = 0;
 		ret = cxd2820r_gpio(&priv->fe, gpio);
 		if (ret)
-			goto error;
+			goto err_client_1_i2c_unregister_device;
 #endif
 	}
 
-	return &priv->fe;
-error:
-	dev_dbg(&i2c->dev, "%s: failed=%d\n", __func__, ret);
+	/* Create dvb frontend */
+	memcpy(&priv->fe.ops, &cxd2820r_ops, sizeof(priv->fe.ops));
+	if (!pdata->attach_in_use)
+		priv->fe.ops.release = NULL;
+	priv->fe.demodulator_priv = priv;
+	i2c_set_clientdata(client, priv);
+
+	/* Setup callbacks */
+	pdata->get_dvb_frontend = cxd2820r_get_dvb_frontend;
+
+	dev_info(&client->dev, "Sony CXD2820R successfully identified\n");
+
+	return 0;
+err_client_1_i2c_unregister_device:
+	i2c_unregister_device(priv->client[1]);
+err_kfree:
 	kfree(priv);
-	return NULL;
+err:
+	dev_dbg(&client->dev, "failed=%d\n", ret);
+	return ret;
 }
-EXPORT_SYMBOL(cxd2820r_attach);
+
+static int cxd2820r_remove(struct i2c_client *client)
+{
+	struct cxd2820r_priv *priv = i2c_get_clientdata(client);
+
+	dev_dbg(&client->dev, "\n");
+
+#ifdef CONFIG_GPIOLIB
+	if (priv->gpio_chip.label)
+		gpiochip_remove(&priv->gpio_chip);
+#endif
+	i2c_unregister_device(priv->client[1]);
+	kfree(priv);
+
+	return 0;
+}
+
+static const struct i2c_device_id cxd2820r_id_table[] = {
+	{"cxd2820r", 0},
+	{}
+};
+MODULE_DEVICE_TABLE(i2c, cxd2820r_id_table);
+
+static struct i2c_driver cxd2820r_driver = {
+	.driver = {
+		.name                = "cxd2820r",
+		.suppress_bind_attrs = true,
+	},
+	.probe    = cxd2820r_probe,
+	.remove   = cxd2820r_remove,
+	.id_table = cxd2820r_id_table,
+};
+
+module_i2c_driver(cxd2820r_driver);
 
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
 MODULE_DESCRIPTION("Sony CXD2820R demodulator driver");

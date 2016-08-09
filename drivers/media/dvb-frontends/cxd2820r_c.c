@@ -42,9 +42,9 @@ int cxd2820r_set_frontend_c(struct dvb_frontend *fe)
 		{ 0x10059, 0x50, 0xff },
 		{ 0x10087, 0x0c, 0x3c },
 		{ 0x1008b, 0x07, 0xff },
-		{ 0x1001f, priv->cfg.if_agc_polarity << 7, 0x80 },
-		{ 0x10070, priv->cfg.ts_mode, 0xff },
-		{ 0x10071, !priv->cfg.ts_clock_inv << 4, 0x10 },
+		{ 0x1001f, priv->if_agc_polarity << 7, 0x80 },
+		{ 0x10070, priv->ts_mode, 0xff },
+		{ 0x10071, !priv->ts_clk_inv << 4, 0x10 },
 	};
 
 	dev_dbg(&priv->i2c->dev, "%s: frequency=%d symbol_rate=%d\n", __func__,

@@ -38,9 +38,14 @@ struct reg_val_mask {
 #define CXD2820R_CLK 41000000
 
 struct cxd2820r_priv {
+	struct i2c_client *client[2];
 	struct i2c_adapter *i2c;
 	struct dvb_frontend fe;
-	struct cxd2820r_config cfg;
+	u8 ts_mode;
+	bool ts_clk_inv;
+	bool if_agc_polarity;
+	bool spec_inv;
+
 	u64 post_bit_error_prev_dvbv3;
 	u64 post_bit_error;
 
