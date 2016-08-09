@@ -535,7 +535,9 @@ static void intel_dsi_enable(struct intel_encoder *encoder)
 
 static void intel_dsi_prepare(struct intel_encoder *intel_encoder);
 
-static void intel_dsi_pre_enable(struct intel_encoder *encoder)
+static void intel_dsi_pre_enable(struct intel_encoder *encoder,
+				 struct intel_crtc_state *pipe_config,
+				 struct drm_connector_state *conn_state)
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -582,7 +584,9 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder)
 	intel_dsi_enable(encoder);
 }
 
-static void intel_dsi_enable_nop(struct intel_encoder *encoder)
+static void intel_dsi_enable_nop(struct intel_encoder *encoder,
+				 struct intel_crtc_state *pipe_config,
+				 struct drm_connector_state *conn_state)
 {
 	DRM_DEBUG_KMS("\n");
 
@@ -592,7 +596,9 @@ static void intel_dsi_enable_nop(struct intel_encoder *encoder)
 	 */
 }
 
-static void intel_dsi_pre_disable(struct intel_encoder *encoder)
+static void intel_dsi_pre_disable(struct intel_encoder *encoder,
+				  struct intel_crtc_state *old_crtc_state,
+				  struct drm_connector_state *old_conn_state)
 {
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	enum port port;
@@ -694,7 +700,9 @@ static void intel_dsi_clear_device_ready(struct intel_encoder *encoder)
 	intel_disable_dsi_pll(encoder);
 }
 
-static void intel_dsi_post_disable(struct intel_encoder *encoder)
+static void intel_dsi_post_disable(struct intel_encoder *encoder,
+				   struct intel_crtc_state *pipe_config,
+				   struct drm_connector_state *conn_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);

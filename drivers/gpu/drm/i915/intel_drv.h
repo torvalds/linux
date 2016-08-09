@@ -206,12 +206,24 @@ struct intel_encoder {
 	void (*hot_plug)(struct intel_encoder *);
 	bool (*compute_config)(struct intel_encoder *,
 			       struct intel_crtc_state *);
-	void (*pre_pll_enable)(struct intel_encoder *);
-	void (*pre_enable)(struct intel_encoder *);
-	void (*enable)(struct intel_encoder *);
-	void (*disable)(struct intel_encoder *);
-	void (*post_disable)(struct intel_encoder *);
-	void (*post_pll_disable)(struct intel_encoder *);
+	void (*pre_pll_enable)(struct intel_encoder *,
+			       struct intel_crtc_state *,
+			       struct drm_connector_state *);
+	void (*pre_enable)(struct intel_encoder *,
+			   struct intel_crtc_state *,
+			   struct drm_connector_state *);
+	void (*enable)(struct intel_encoder *,
+		       struct intel_crtc_state *,
+		       struct drm_connector_state *);
+	void (*disable)(struct intel_encoder *,
+			struct intel_crtc_state *,
+			struct drm_connector_state *);
+	void (*post_disable)(struct intel_encoder *,
+			     struct intel_crtc_state *,
+			     struct drm_connector_state *);
+	void (*post_pll_disable)(struct intel_encoder *,
+				 struct intel_crtc_state *,
+				 struct drm_connector_state *);
 	/* Read out the current hw state of this connector, returning true if
 	 * the encoder is active. If the encoder is enabled it also set the pipe
 	 * it is connected to in the pipe parameter. */
@@ -1139,7 +1151,9 @@ bool intel_ddi_pll_select(struct intel_crtc *crtc,
 void intel_ddi_set_pipe_settings(struct drm_crtc *crtc);
 void intel_ddi_prepare_link_retrain(struct intel_dp *intel_dp);
 bool intel_ddi_connector_get_hw_state(struct intel_connector *intel_connector);
-void intel_ddi_fdi_disable(struct drm_crtc *crtc);
+void intel_ddi_fdi_disable(struct intel_encoder *,
+			   struct intel_crtc_state *,
+			   struct drm_connector_state *);
 void intel_ddi_get_config(struct intel_encoder *encoder,
 			  struct intel_crtc_state *pipe_config);
 struct intel_encoder *

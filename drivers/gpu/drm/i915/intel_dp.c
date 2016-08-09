@@ -2473,7 +2473,9 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 	}
 }
 
-static void intel_disable_dp(struct intel_encoder *encoder)
+static void intel_disable_dp(struct intel_encoder *encoder,
+			     struct intel_crtc_state *old_crtc_state,
+			     struct drm_connector_state *old_conn_state)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	struct drm_device *dev = encoder->base.dev;
@@ -2497,7 +2499,9 @@ static void intel_disable_dp(struct intel_encoder *encoder)
 		intel_dp_link_down(intel_dp);
 }
 
-static void ilk_post_disable_dp(struct intel_encoder *encoder)
+static void ilk_post_disable_dp(struct intel_encoder *encoder,
+				struct intel_crtc_state *old_crtc_state,
+				struct drm_connector_state *old_conn_state)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	enum port port = dp_to_dig_port(intel_dp)->port;
@@ -2509,14 +2513,18 @@ static void ilk_post_disable_dp(struct intel_encoder *encoder)
 		ironlake_edp_pll_off(intel_dp);
 }
 
-static void vlv_post_disable_dp(struct intel_encoder *encoder)
+static void vlv_post_disable_dp(struct intel_encoder *encoder,
+				struct intel_crtc_state *old_crtc_state,
+				struct drm_connector_state *old_conn_state)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 
 	intel_dp_link_down(intel_dp);
 }
 
-static void chv_post_disable_dp(struct intel_encoder *encoder)
+static void chv_post_disable_dp(struct intel_encoder *encoder,
+				struct intel_crtc_state *old_crtc_state,
+				struct drm_connector_state *old_conn_state)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	struct drm_device *dev = encoder->base.dev;
@@ -2690,7 +2698,9 @@ static void intel_enable_dp(struct intel_encoder *encoder)
 	}
 }
 
-static void g4x_enable_dp(struct intel_encoder *encoder)
+static void g4x_enable_dp(struct intel_encoder *encoder,
+			  struct intel_crtc_state *pipe_config,
+			  struct drm_connector_state *conn_state)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 
@@ -2698,7 +2708,9 @@ static void g4x_enable_dp(struct intel_encoder *encoder)
 	intel_edp_backlight_on(intel_dp);
 }
 
-static void vlv_enable_dp(struct intel_encoder *encoder)
+static void vlv_enable_dp(struct intel_encoder *encoder,
+			  struct intel_crtc_state *pipe_config,
+			  struct drm_connector_state *conn_state)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 
@@ -2706,7 +2718,9 @@ static void vlv_enable_dp(struct intel_encoder *encoder)
 	intel_psr_enable(intel_dp);
 }
 
-static void g4x_pre_enable_dp(struct intel_encoder *encoder)
+static void g4x_pre_enable_dp(struct intel_encoder *encoder,
+			      struct intel_crtc_state *pipe_config,
+			      struct drm_connector_state *conn_state)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	enum port port = dp_to_dig_port(intel_dp)->port;
@@ -2821,21 +2835,27 @@ static void vlv_init_panel_power_sequencer(struct intel_dp *intel_dp)
 	intel_dp_init_panel_power_sequencer_registers(dev, intel_dp);
 }
 
-static void vlv_pre_enable_dp(struct intel_encoder *encoder)
+static void vlv_pre_enable_dp(struct intel_encoder *encoder,
+			      struct intel_crtc_state *pipe_config,
+			      struct drm_connector_state *conn_state)
 {
 	vlv_phy_pre_encoder_enable(encoder);
 
 	intel_enable_dp(encoder);
 }
 
-static void vlv_dp_pre_pll_enable(struct intel_encoder *encoder)
+static void vlv_dp_pre_pll_enable(struct intel_encoder *encoder,
+				  struct intel_crtc_state *pipe_config,
+				  struct drm_connector_state *conn_state)
 {
 	intel_dp_prepare(encoder);
 
 	vlv_phy_pre_pll_enable(encoder);
 }
 
-static void chv_pre_enable_dp(struct intel_encoder *encoder)
+static void chv_pre_enable_dp(struct intel_encoder *encoder,
+			      struct intel_crtc_state *pipe_config,
+			      struct drm_connector_state *conn_state)
 {
 	chv_phy_pre_encoder_enable(encoder);
 
@@ -2845,14 +2865,18 @@ static void chv_pre_enable_dp(struct intel_encoder *encoder)
 	chv_phy_release_cl2_override(encoder);
 }
 
-static void chv_dp_pre_pll_enable(struct intel_encoder *encoder)
+static void chv_dp_pre_pll_enable(struct intel_encoder *encoder,
+				  struct intel_crtc_state *pipe_config,
+				  struct drm_connector_state *conn_state)
 {
 	intel_dp_prepare(encoder);
 
 	chv_phy_pre_pll_enable(encoder);
 }
 
-static void chv_dp_post_pll_disable(struct intel_encoder *encoder)
+static void chv_dp_post_pll_disable(struct intel_encoder *encoder,
+				    struct intel_crtc_state *pipe_config,
+				    struct drm_connector_state *conn_state)
 {
 	chv_phy_post_pll_disable(encoder);
 }

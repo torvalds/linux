@@ -1192,7 +1192,9 @@ static bool intel_sdvo_compute_config(struct intel_encoder *encoder,
 	return true;
 }
 
-static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder)
+static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder,
+				  struct intel_crtc_state *crtc_state,
+				  struct drm_connector_state *conn_state)
 {
 	struct drm_device *dev = intel_encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -1434,7 +1436,9 @@ static void intel_sdvo_get_config(struct intel_encoder *encoder,
 	     pipe_config->pixel_multiplier, encoder_pixel_multiplier);
 }
 
-static void intel_disable_sdvo(struct intel_encoder *encoder)
+static void intel_disable_sdvo(struct intel_encoder *encoder,
+			       struct intel_crtc_state *old_crtc_state,
+			       struct drm_connector_state *conn_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_sdvo *intel_sdvo = to_sdvo(encoder);
@@ -1477,16 +1481,22 @@ static void intel_disable_sdvo(struct intel_encoder *encoder)
 	}
 }
 
-static void pch_disable_sdvo(struct intel_encoder *encoder)
+static void pch_disable_sdvo(struct intel_encoder *encoder,
+			     struct intel_crtc_state *old_crtc_state,
+			     struct drm_connector_state *old_conn_state)
 {
 }
 
-static void pch_post_disable_sdvo(struct intel_encoder *encoder)
+static void pch_post_disable_sdvo(struct intel_encoder *encoder,
+				  struct intel_crtc_state *old_crtc_state,
+				  struct drm_connector_state *old_conn_state)
 {
-	intel_disable_sdvo(encoder);
+	intel_disable_sdvo(encoder, old_crtc_state, old_conn_state);
 }
 
-static void intel_enable_sdvo(struct intel_encoder *encoder)
+static void intel_enable_sdvo(struct intel_encoder *encoder,
+			      struct intel_crtc_state *pipe_config,
+			      struct drm_connector_state *conn_state)
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);

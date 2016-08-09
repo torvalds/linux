@@ -193,21 +193,29 @@ static void intel_crt_set_dpms(struct intel_encoder *encoder, int mode)
 	I915_WRITE(crt->adpa_reg, adpa);
 }
 
-static void intel_disable_crt(struct intel_encoder *encoder)
+static void intel_disable_crt(struct intel_encoder *encoder,
+			      struct intel_crtc_state *old_crtc_state,
+			      struct drm_connector_state *old_conn_state)
 {
 	intel_crt_set_dpms(encoder, DRM_MODE_DPMS_OFF);
 }
 
-static void pch_disable_crt(struct intel_encoder *encoder)
+static void pch_disable_crt(struct intel_encoder *encoder,
+			    struct intel_crtc_state *old_crtc_state,
+			    struct drm_connector_state *old_conn_state)
 {
 }
 
-static void pch_post_disable_crt(struct intel_encoder *encoder)
+static void pch_post_disable_crt(struct intel_encoder *encoder,
+				 struct intel_crtc_state *old_crtc_state,
+				 struct drm_connector_state *old_conn_state)
 {
-	intel_disable_crt(encoder);
+	intel_disable_crt(encoder, old_crtc_state, old_conn_state);
 }
 
-static void intel_enable_crt(struct intel_encoder *encoder)
+static void intel_enable_crt(struct intel_encoder *encoder,
+			     struct intel_crtc_state *pipe_config,
+			     struct drm_connector_state *conn_state)
 {
 	intel_crt_set_dpms(encoder, DRM_MODE_DPMS_ON);
 }
