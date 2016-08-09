@@ -528,7 +528,7 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 EXPORT_SYMBOL(dvb_register_device);
 
 
-void dvb_unregister_device(struct dvb_device *dvbdev)
+void dvb_remove_device(struct dvb_device *dvbdev)
 {
 	if (!dvbdev)
 		return;
@@ -542,8 +542,25 @@ void dvb_unregister_device(struct dvb_device *dvbdev)
 	device_destroy(dvb_class, MKDEV(DVB_MAJOR, dvbdev->minor));
 
 	list_del (&dvbdev->list_head);
+}
+EXPORT_SYMBOL(dvb_remove_device);
+
+
+void dvb_free_device(struct dvb_device *dvbdev)
+{
+	if (!dvbdev)
+		return;
+
 	kfree (dvbdev->fops);
 	kfree (dvbdev);
+}
+EXPORT_SYMBOL(dvb_free_device);
+
+
+void dvb_unregister_device(struct dvb_device *dvbdev)
+{
+	dvb_remove_device(dvbdev);
+	dvb_free_device(dvbdev);
 }
 EXPORT_SYMBOL(dvb_unregister_device);
 
