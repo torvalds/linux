@@ -1065,19 +1065,11 @@ static int cpsw_common_res_usage_state(struct cpsw_priv *priv)
 	return usage_count;
 }
 
-static inline int cpsw_tx_packet_submit(struct net_device *ndev,
-			struct cpsw_priv *priv, struct sk_buff *skb)
+static inline int cpsw_tx_packet_submit(struct cpsw_priv *priv,
+					struct sk_buff *skb)
 {
-	if (!priv->data.dual_emac)
-		return cpdma_chan_submit(priv->txch, skb, skb->data,
-				  skb->len, 0);
-
-	if (ndev == cpsw_get_slave_ndev(priv, 0))
-		return cpdma_chan_submit(priv->txch, skb, skb->data,
-				  skb->len, 1);
-	else
-		return cpdma_chan_submit(priv->txch, skb, skb->data,
-				  skb->len, 2);
+	return cpdma_chan_submit(priv->txch, skb, skb->data, skb->len,
+				 priv->emac_port + priv->data.dual_emac);
 }
 
 static inline void cpsw_add_dual_emac_def_ale_entries(
@@ -1406,7 +1398,7 @@ static netdev_tx_t cpsw_ndo_start_xmit(struct sk_buff *skb,
 
 	skb_tx_timestamp(skb);
 
-	ret = cpsw_tx_packet_submit(ndev, priv, skb);
+	ret = cpsw_tx_packet_submit(priv, skb);
 	if (unlikely(ret != 0)) {
 		cpsw_err(priv, tx_err, "desc submit failed\n");
 		goto fail;
