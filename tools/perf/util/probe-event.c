@@ -666,21 +666,13 @@ static int add_module_to_probe_trace_events(struct probe_trace_event *tevs,
 	return ret;
 }
 
-/* Post processing the probe events */
-static int post_process_probe_trace_events(struct probe_trace_event *tevs,
-					   int ntevs, const char *module,
-					   bool uprobe)
+static int
+post_process_kernel_probe_trace_events(struct probe_trace_event *tevs,
+				       int ntevs)
 {
 	struct ref_reloc_sym *reloc_sym;
 	char *tmp;
 	int i, skipped = 0;
-
-	if (uprobe)
-		return add_exec_to_probe_trace_events(tevs, ntevs, module);
-
-	/* Note that currently ref_reloc_sym based probe is not for drivers */
-	if (module)
-		return add_module_to_probe_trace_events(tevs, ntevs, module);
 
 	reloc_sym = kernel_get_ref_reloc_sym();
 	if (!reloc_sym) {
@@ -711,6 +703,21 @@ static int post_process_probe_trace_events(struct probe_trace_event *tevs,
 				       reloc_sym->unrelocated_addr;
 	}
 	return skipped;
+}
+
+/* Post processing the probe events */
+static int post_process_probe_trace_events(struct probe_trace_event *tevs,
+					   int ntevs, const char *module,
+					   bool uprobe)
+{
+	if (uprobe)
+		return add_exec_to_probe_trace_events(tevs, ntevs, module);
+
+	if (module)
+		/* Currently ref_reloc_sym based probe is not for drivers */
+		return add_module_to_probe_trace_events(tevs, ntevs, module);
+
+	return post_process_kernel_probe_trace_events(tevs, ntevs);
 }
 
 /* Try to find perf_probe_event with debuginfo */
