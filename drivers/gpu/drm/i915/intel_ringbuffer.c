@@ -2410,9 +2410,7 @@ void intel_engine_init_seqno(struct intel_engine_cs *engine, u32 seqno)
 	/* After manually advancing the seqno, fake the interrupt in case
 	 * there are any waiters for that seqno.
 	 */
-	rcu_read_lock();
 	intel_engine_wakeup(engine);
-	rcu_read_unlock();
 }
 
 static void gen6_bsd_submit_request(struct drm_i915_gem_request *request)

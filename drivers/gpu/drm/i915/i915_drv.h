@@ -3849,7 +3849,7 @@ static inline bool __i915_request_irq_complete(struct drm_i915_gem_request *req)
 	 * is woken.
 	 */
 	if (engine->irq_seqno_barrier &&
-	    READ_ONCE(engine->breadcrumbs.irq_seqno_bh) == current &&
+	    rcu_access_pointer(engine->breadcrumbs.irq_seqno_bh) == current &&
 	    cmpxchg_relaxed(&engine->breadcrumbs.irq_posted, 1, 0)) {
 		struct task_struct *tsk;
 
@@ -3874,7 +3874,7 @@ static inline bool __i915_request_irq_complete(struct drm_i915_gem_request *req)
 		 * irq_posted == false but we are still running).
 		 */
 		rcu_read_lock();
-		tsk = READ_ONCE(engine->breadcrumbs.irq_seqno_bh);
+		tsk = rcu_dereference(engine->breadcrumbs.irq_seqno_bh);
 		if (tsk && tsk != current)
 			/* Note that if the bottom-half is changed as we
 			 * are sending the wake-up, the new bottom-half will
