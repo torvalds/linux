@@ -51,6 +51,7 @@
 #include "bif/bif_4_1_d.h"
 #include <linux/pci.h>
 #include <linux/firmware.h>
+#include "amdgpu_pm.h"
 
 static int amdgpu_debugfs_regs_init(struct amdgpu_device *adev);
 static void amdgpu_debugfs_regs_cleanup(struct amdgpu_device *adev);
@@ -1556,6 +1557,9 @@ static int amdgpu_late_init(struct amdgpu_device *adev)
 			}
 		}
 	}
+
+	amdgpu_dpm_enable_uvd(adev, false);
+	amdgpu_dpm_enable_vce(adev, false);
 
 	return 0;
 }
