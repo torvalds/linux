@@ -13,7 +13,7 @@
 #define __ASM_MACH_LOONGSON32_LOONGSON1_H
 
 #if defined(CONFIG_LOONGSON1_LS1B)
-#define DEFAULT_MEMSIZE			256	/* If no memsize provided */
+#define DEFAULT_MEMSIZE			64	/* If no memsize provided */
 #elif defined(CONFIG_LOONGSON1_LS1C)
 #define DEFAULT_MEMSIZE			32
 #endif
