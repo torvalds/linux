@@ -495,10 +495,11 @@
 		};
 
 		sata: sata@3200000 {
-			compatible = "fsl,ls1043a-ahci", "fsl,ls1021a-ahci";
+			compatible = "fsl,ls1043a-ahci";
 			reg = <0x0 0x3200000 0x0 0x10000>;
 			interrupts = <0 69 0x4>;
 			clocks = <&clockgen 4 0>;
+			dma-coherent;
 		};
 
 		msi1: msi-controller1@1571000 {
