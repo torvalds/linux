@@ -483,7 +483,7 @@ qed_dcbx_get_ets_data(struct qed_hwfn *p_hwfn,
 	bw_map[1] = be32_to_cpu(p_ets->tc_bw_tbl[1]);
 	tsa_map[0] = be32_to_cpu(p_ets->tc_tsa_tbl[0]);
 	tsa_map[1] = be32_to_cpu(p_ets->tc_tsa_tbl[1]);
-	pri_map = be32_to_cpu(p_ets->pri_tc_tbl[0]);
+	pri_map = p_ets->pri_tc_tbl[0];
 	for (i = 0; i < QED_MAX_PFC_PRIORITIES; i++) {
 		p_params->ets_tc_bw_tbl[i] = ((u8 *)bw_map)[i];
 		p_params->ets_tc_tsa_tbl[i] = ((u8 *)tsa_map)[i];
@@ -944,7 +944,6 @@ qed_dcbx_set_ets_data(struct qed_hwfn *p_hwfn,
 		val = (((u32)p_params->ets_pri_tc_tbl[i]) << ((7 - i) * 4));
 		p_ets->pri_tc_tbl[0] |= val;
 	}
-	p_ets->pri_tc_tbl[0] = cpu_to_be32(p_ets->pri_tc_tbl[0]);
 	for (i = 0; i < 2; i++) {
 		p_ets->tc_bw_tbl[i] = cpu_to_be32(p_ets->tc_bw_tbl[i]);
 		p_ets->tc_tsa_tbl[i] = cpu_to_be32(p_ets->tc_tsa_tbl[i]);
