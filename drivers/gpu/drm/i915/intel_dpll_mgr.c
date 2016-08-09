@@ -1535,7 +1535,8 @@ bxt_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 
 		vco = best_clock.vco;
 	} else if (encoder->type == INTEL_OUTPUT_DP ||
-		   encoder->type == INTEL_OUTPUT_EDP) {
+		   encoder->type == INTEL_OUTPUT_EDP ||
+		   encoder->type == INTEL_OUTPUT_DP_MST) {
 		int i;
 
 		clk_div = bxt_dp_clk_val[0];
@@ -1611,7 +1612,12 @@ bxt_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 	crtc_state->dpll_hw_state.pcsdw12 =
 		LANESTAGGER_STRAP_OVRD | lanestagger;
 
-	intel_dig_port = enc_to_dig_port(&encoder->base);
+	if (encoder->type == INTEL_OUTPUT_DP_MST) {
+		struct intel_dp_mst_encoder *intel_mst = enc_to_mst(&encoder->base);
+
+		intel_dig_port = intel_mst->primary;
+	} else
+		intel_dig_port = enc_to_dig_port(&encoder->base);
 
 	/* 1:1 mapping between ports and PLLs */
 	i = (enum intel_dpll_id) intel_dig_port->port;
