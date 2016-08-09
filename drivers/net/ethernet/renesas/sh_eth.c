@@ -1723,7 +1723,7 @@ out:
 static void sh_eth_adjust_link(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
-	struct phy_device *phydev = mdp->phydev;
+	struct phy_device *phydev = ndev->phydev;
 	int new_state = 0;
 
 	if (phydev->link) {
@@ -1800,22 +1800,19 @@ static int sh_eth_phy_init(struct net_device *ndev)
 
 	phy_attached_info(phydev);
 
-	mdp->phydev = phydev;
-
 	return 0;
 }
 
 /* PHY control start function */
 static int sh_eth_phy_start(struct net_device *ndev)
 {
-	struct sh_eth_private *mdp = netdev_priv(ndev);
 	int ret;
 
 	ret = sh_eth_phy_init(ndev);
 	if (ret)
 		return ret;
 
-	phy_start(mdp->phydev);
+	phy_start(ndev->phydev);
 
 	return 0;
 }
@@ -1827,11 +1824,11 @@ static int sh_eth_get_settings(struct net_device *ndev,
 	unsigned long flags;
 	int ret;
 
-	if (!mdp->phydev)
+	if (!ndev->phydev)
 		return -ENODEV;
 
 	spin_lock_irqsave(&mdp->lock, flags);
-	ret = phy_ethtool_gset(mdp->phydev, ecmd);
+	ret = phy_ethtool_gset(ndev->phydev, ecmd);
 	spin_unlock_irqrestore(&mdp->lock, flags);
 
 	return ret;
@@ -1844,7 +1841,7 @@ static int sh_eth_set_settings(struct net_device *ndev,
 	unsigned long flags;
 	int ret;
 
-	if (!mdp->phydev)
+	if (!ndev->phydev)
 		return -ENODEV;
 
 	spin_lock_irqsave(&mdp->lock, flags);
@@ -1852,7 +1849,7 @@ static int sh_eth_set_settings(struct net_device *ndev,
 	/* disable tx and rx */
 	sh_eth_rcv_snd_disable(ndev);
 
-	ret = phy_ethtool_sset(mdp->phydev, ecmd);
+	ret = phy_ethtool_sset(ndev->phydev, ecmd);
 	if (ret)
 		goto error_exit;
 
@@ -2067,11 +2064,11 @@ static int sh_eth_nway_reset(struct net_device *ndev)
 	unsigned long flags;
 	int ret;
 
-	if (!mdp->phydev)
+	if (!ndev->phydev)
 		return -ENODEV;
 
 	spin_lock_irqsave(&mdp->lock, flags);
-	ret = phy_start_aneg(mdp->phydev);
+	ret = phy_start_aneg(ndev->phydev);
 	spin_unlock_irqrestore(&mdp->lock, flags);
 
 	return ret;
@@ -2408,10 +2405,9 @@ static int sh_eth_close(struct net_device *ndev)
 	sh_eth_dev_exit(ndev);
 
 	/* PHY Disconnect */
-	if (mdp->phydev) {
-		phy_stop(mdp->phydev);
-		phy_disconnect(mdp->phydev);
-		mdp->phydev = NULL;
+	if (ndev->phydev) {
+		phy_stop(ndev->phydev);
+		phy_disconnect(ndev->phydev);
 	}
 
 	free_irq(ndev->irq, ndev);
@@ -2429,8 +2425,7 @@ static int sh_eth_close(struct net_device *ndev)
 /* ioctl to device function */
 static int sh_eth_do_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
 {
-	struct sh_eth_private *mdp = netdev_priv(ndev);
-	struct phy_device *phydev = mdp->phydev;
+	struct phy_device *phydev = ndev->phydev;
 
 	if (!netif_running(ndev))
 		return -EINVAL;
