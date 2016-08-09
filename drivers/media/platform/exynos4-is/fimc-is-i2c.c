@@ -56,11 +56,8 @@ static int fimc_is_i2c_probe(struct platform_device *pdev)
 	i2c_adap->class = I2C_CLASS_SPD;
 
 	ret = i2c_add_adapter(i2c_adap);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to add I2C bus %s\n",
-						node->full_name);
+	if (ret < 0)
 		return ret;
-	}
 
 	platform_set_drvdata(pdev, isp_i2c);
 
