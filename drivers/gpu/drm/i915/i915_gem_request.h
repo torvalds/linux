@@ -490,6 +490,9 @@ __i915_gem_active_get_rcu(const struct i915_gem_active *active)
 		 * incremented) then the following read for rcu_access_pointer()
 		 * must occur after the atomic operation and so confirm
 		 * that this request is the one currently being tracked.
+		 *
+		 * The corresponding write barrier is part of
+		 * rcu_assign_pointer().
 		 */
 		if (!request || request == rcu_access_pointer(active->request))
 			return rcu_pointer_handoff(request);

@@ -3733,7 +3733,7 @@ i915_gem_object_ggtt_unpin_view(struct drm_i915_gem_object *obj,
 	i915_vma_unpin(i915_gem_obj_to_ggtt_view(obj, view));
 }
 
-static __always_inline unsigned __busy_read_flag(unsigned int id)
+static __always_inline unsigned int __busy_read_flag(unsigned int id)
 {
 	/* Note that we could alias engines in the execbuf API, but
 	 * that would be very unwise as it prevents userspace from
@@ -3751,7 +3751,7 @@ static __always_inline unsigned int __busy_write_id(unsigned int id)
 	return id;
 }
 
-static __always_inline unsigned
+static __always_inline unsigned int
 __busy_set_if_active(const struct i915_gem_active *active,
 		     unsigned int (*flag)(unsigned int id))
 {
@@ -3768,19 +3768,45 @@ __busy_set_if_active(const struct i915_gem_active *active,
 
 		id = request->engine->exec_id;
 
-		/* Check that the pointer wasn't reassigned and overwritten. */
+		/* Check that the pointer wasn't reassigned and overwritten.
+		 *
+		 * In __i915_gem_active_get_rcu(), we enforce ordering between
+		 * the first rcu pointer dereference (imposing a
+		 * read-dependency only on access through the pointer) and
+		 * the second lockless access through the memory barrier
+		 * following a successful atomic_inc_not_zero(). Here there
+		 * is no such barrier, and so we must manually insert an
+		 * explicit read barrier to ensure that the following
+		 * access occurs after all the loads through the first
+		 * pointer.
+		 *
+		 * It is worth comparing this sequence with
+		 * raw_write_seqcount_latch() which operates very similarly.
+		 * The challenge here is the visibility of the other CPU
+		 * writes to the reallocated request vs the local CPU ordering.
+		 * Before the other CPU can overwrite the request, it will
+		 * have updated our active->request and gone through a wmb.
+		 * During the read here, we want to make sure that the values
+		 * we see have not been overwritten as we do so - and we do
+		 * that by serialising the second pointer check with the writes
+		 * on other other CPUs.
+		 *
+		 * The corresponding write barrier is part of
+		 * rcu_assign_pointer().
+		 */
+		smp_rmb();
 		if (request == rcu_access_pointer(active->request))
 			return flag(id);
 	} while (1);
 }
 
-static inline unsigned
+static __always_inline unsigned int
 busy_check_reader(const struct i915_gem_active *active)
 {
 	return __busy_set_if_active(active, __busy_read_flag);
 }
 
-static inline unsigned
+static __always_inline unsigned int
 busy_check_writer(const struct i915_gem_active *active)
 {
 	return __busy_set_if_active(active, __busy_write_id);
