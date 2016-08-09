@@ -66,28 +66,27 @@ endif
 UTS_MACHINE := $(OLDARCH)
 
 ifeq ($(CONFIG_CPU_LITTLE_ENDIAN),y)
-override CC	+= -mlittle-endian
-ifneq ($(cc-name),clang)
-override CC	+= -mno-strict-align
-endif
-override AS	+= -mlittle-endian
 override LD	+= -EL
-override CROSS32CC += -mlittle-endian
 override CROSS32AS += -mlittle-endian
 LDEMULATION	:= lppc
 GNUTARGET	:= powerpcle
 MULTIPLEWORD	:= -mno-multiple
 KBUILD_CFLAGS_MODULE += $(call cc-option,-mno-save-toc-indirect)
 else
-ifeq ($(call cc-option-yn,-mbig-endian),y)
-override CC	+= -mbig-endian
-override AS	+= -mbig-endian
-endif
 override LD	+= -EB
 LDEMULATION	:= ppc
 GNUTARGET	:= powerpc
 MULTIPLEWORD	:= -mmultiple
 endif
+
+cflags-$(CONFIG_CPU_BIG_ENDIAN)		+= $(call cc-option,-mbig-endian)
+cflags-$(CONFIG_CPU_LITTLE_ENDIAN)	+= -mlittle-endian
+ifneq ($(cc-name),clang)
+  cflags-$(CONFIG_CPU_LITTLE_ENDIAN)	+= -mno-strict-align
+endif
+
+aflags-$(CONFIG_CPU_BIG_ENDIAN)		+= $(call cc-option,-mbig-endian)
+aflags-$(CONFIG_CPU_LITTLE_ENDIAN)	+= -mlittle-endian
 
 ifeq ($(HAS_BIARCH),y)
 override AS	+= -a$(CONFIG_WORD_SIZE)
@@ -231,6 +230,9 @@ cpu-as-$(CONFIG_E200)		+= -Wa,-me200
 
 KBUILD_AFLAGS += $(cpu-as-y)
 KBUILD_CFLAGS += $(cpu-as-y)
+
+KBUILD_AFLAGS += $(aflags-y)
+KBUILD_CFLAGS += $(cflags-y)
 
 head-y				:= arch/powerpc/kernel/head_$(CONFIG_WORD_SIZE).o
 head-$(CONFIG_8xx)		:= arch/powerpc/kernel/head_8xx.o
