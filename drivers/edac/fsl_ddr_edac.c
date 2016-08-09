@@ -371,14 +371,17 @@ static void fsl_ddr_init_csrows(struct mem_ctl_info *mci)
 	sdtype = sdram_ctl & DSC_SDTYPE_MASK;
 	if (sdram_ctl & DSC_RD_EN) {
 		switch (sdtype) {
-		case DSC_SDTYPE_DDR:
+		case 0x02000000:
 			mtype = MEM_RDDR;
 			break;
-		case DSC_SDTYPE_DDR2:
+		case 0x03000000:
 			mtype = MEM_RDDR2;
 			break;
-		case DSC_SDTYPE_DDR3:
+		case 0x07000000:
 			mtype = MEM_RDDR3;
+			break;
+		case 0x05000000:
+			mtype = MEM_RDDR4;
 			break;
 		default:
 			mtype = MEM_UNKNOWN;
@@ -386,14 +389,17 @@ static void fsl_ddr_init_csrows(struct mem_ctl_info *mci)
 		}
 	} else {
 		switch (sdtype) {
-		case DSC_SDTYPE_DDR:
+		case 0x02000000:
 			mtype = MEM_DDR;
 			break;
-		case DSC_SDTYPE_DDR2:
+		case 0x03000000:
 			mtype = MEM_DDR2;
 			break;
-		case DSC_SDTYPE_DDR3:
+		case 0x07000000:
 			mtype = MEM_DDR3;
+			break;
+		case 0x05000000:
+			mtype = MEM_DDR4;
 			break;
 		default:
 			mtype = MEM_UNKNOWN;
@@ -499,8 +505,10 @@ int fsl_mc_err_probe(struct platform_device *op)
 	}
 
 	edac_dbg(3, "init mci\n");
-	mci->mtype_cap = MEM_FLAG_RDDR | MEM_FLAG_RDDR2 |
-	    MEM_FLAG_DDR | MEM_FLAG_DDR2;
+	mci->mtype_cap = MEM_FLAG_DDR | MEM_FLAG_RDDR |
+			 MEM_FLAG_DDR2 | MEM_FLAG_RDDR2 |
+			 MEM_FLAG_DDR3 | MEM_FLAG_RDDR3 |
+			 MEM_FLAG_DDR4 | MEM_FLAG_RDDR4;
 	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED;
 	mci->edac_cap = EDAC_FLAG_SECDED;
 	mci->mod_name = EDAC_MOD_STR;
