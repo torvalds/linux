@@ -13,13 +13,9 @@
 #include "befs.h"
 #include "super.h"
 
-/**
+/*
  * befs_load_sb -- Read from disk and properly byteswap all the fields
  * of the befs superblock
- *
- *
- *
- *
  */
 int
 befs_load_sb(struct super_block *sb, befs_super_block * disk_sb)
@@ -93,8 +89,8 @@ befs_check_sb(struct super_block *sb)
 	}
 
 	/*
-	   * block_shift and block_size encode the same information
-	   * in different ways as a consistency check.
+	 * block_shift and block_size encode the same information
+	 * in different ways as a consistency check.
 	 */
 
 	if ((1 << befs_sb->block_shift) != befs_sb->block_size) {
