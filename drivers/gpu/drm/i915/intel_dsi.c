@@ -534,16 +534,15 @@ static void intel_dsi_enable(struct intel_encoder *encoder)
 	intel_panel_enable_backlight(intel_dsi->attached_connector);
 }
 
-static void intel_dsi_prepare(struct intel_encoder *intel_encoder);
+static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
+			      struct intel_crtc_state *pipe_config);
 
 static void intel_dsi_pre_enable(struct intel_encoder *encoder,
 				 struct intel_crtc_state *pipe_config,
 				 struct drm_connector_state *conn_state)
 {
-	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
-	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
 	enum port port;
 
 	DRM_DEBUG_KMS("\n");
@@ -553,9 +552,9 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder,
 	 * lock. It needs to be fully powered down to fix it.
 	 */
 	intel_disable_dsi_pll(encoder);
-	intel_enable_dsi_pll(encoder, crtc->config);
+	intel_enable_dsi_pll(encoder, pipe_config);
 
-	intel_dsi_prepare(encoder);
+	intel_dsi_prepare(encoder, pipe_config);
 
 	/* Panel Enable over CRC PMIC */
 	if (intel_dsi->gpio_panel)
@@ -828,6 +827,7 @@ static void bxt_dsi_get_pipe_config(struct intel_encoder *encoder,
 	u16 crtc_htotal_sw, crtc_hsync_start_sw, crtc_hsync_end_sw,
 				crtc_hblank_start_sw, crtc_hblank_end_sw;
 
+	/* FIXME: hw readout should not depend on SW state */
 	intel_crtc = to_intel_crtc(encoder->base.crtc);
 	adjusted_mode_sw = &intel_crtc->config->base.adjusted_mode;
 
@@ -1113,14 +1113,15 @@ static u32 pixel_format_to_reg(enum mipi_dsi_pixel_format fmt)
 	}
 }
 
-static void intel_dsi_prepare(struct intel_encoder *intel_encoder)
+static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
+			      struct intel_crtc_state *pipe_config)
 {
 	struct drm_encoder *encoder = &intel_encoder->base;
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
+	struct intel_crtc *intel_crtc = to_intel_crtc(pipe_config->base.crtc);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
-	const struct drm_display_mode *adjusted_mode = &intel_crtc->config->base.adjusted_mode;
+	const struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
 	enum port port;
 	unsigned int bpp = mipi_dsi_pixel_format_to_bpp(intel_dsi->pixel_format);
 	u32 val, tmp;
@@ -1357,7 +1358,7 @@ static int intel_dsi_set_property(struct drm_connector *connector,
 		intel_connector->panel.fitting_mode = val;
 	}
 
-	crtc = intel_attached_encoder(connector)->base.crtc;
+	crtc = connector->state->crtc;
 	if (crtc && crtc->state->enable) {
 		/*
 		 * If the CRTC is enabled, the display will be changed
