@@ -1262,6 +1262,13 @@ TEST_F(TRACE_poke, getpid_runs_normally)
 # error "Do not know how to find your architecture's registers and syscalls"
 #endif
 
+/* When the syscall return can't be changed, stub out the tests for it. */
+#ifdef SYSCALL_NUM_RET_SHARE_REG
+# define EXPECT_SYSCALL_RETURN(val, action)	EXPECT_EQ(-1, action)
+#else
+# define EXPECT_SYSCALL_RETURN(val, action)	EXPECT_EQ(val, action)
+#endif
+
 /* Use PTRACE_GETREGS and PTRACE_SETREGS when available. This is useful for
  * architectures without HAVE_ARCH_TRACEHOOK (e.g. User-mode Linux).
  */
@@ -1357,7 +1364,7 @@ void change_syscall(struct __test_metadata *_metadata,
 #ifdef SYSCALL_NUM_RET_SHARE_REG
 		TH_LOG("Can't modify syscall return on this architecture");
 #else
-		regs.SYSCALL_RET = 1;
+		regs.SYSCALL_RET = EPERM;
 #endif
 
 #ifdef HAVE_GETREGS
@@ -1426,6 +1433,8 @@ void tracer_ptrace(struct __test_metadata *_metadata, pid_t tracee,
 
 	if (nr == __NR_getpid)
 		change_syscall(_metadata, tracee, __NR_getppid);
+	if (nr == __NR_open)
+		change_syscall(_metadata, tracee, -1);
 }
 
 FIXTURE_DATA(TRACE_syscall) {
@@ -1480,6 +1489,28 @@ FIXTURE_TEARDOWN(TRACE_syscall)
 		free(self->prog.filter);
 }
 
+TEST_F(TRACE_syscall, ptrace_syscall_redirected)
+{
+	/* Swap SECCOMP_RET_TRACE tracer for PTRACE_SYSCALL tracer. */
+	teardown_trace_fixture(_metadata, self->tracer);
+	self->tracer = setup_trace_fixture(_metadata, tracer_ptrace, NULL,
+					   true);
+
+	/* Tracer will redirect getpid to getppid. */
+	EXPECT_NE(self->mypid, syscall(__NR_getpid));
+}
+
+TEST_F(TRACE_syscall, ptrace_syscall_dropped)
+{
+	/* Swap SECCOMP_RET_TRACE tracer for PTRACE_SYSCALL tracer. */
+	teardown_trace_fixture(_metadata, self->tracer);
+	self->tracer = setup_trace_fixture(_metadata, tracer_ptrace, NULL,
+					   true);
+
+	/* Tracer should skip the open syscall, resulting in EPERM. */
+	EXPECT_SYSCALL_RETURN(EPERM, syscall(__NR_open));
+}
+
 TEST_F(TRACE_syscall, syscall_allowed)
 {
 	long ret;
@@ -1520,13 +1551,8 @@ TEST_F(TRACE_syscall, syscall_dropped)
 	ret = prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &self->prog, 0, 0);
 	ASSERT_EQ(0, ret);
 
-#ifdef SYSCALL_NUM_RET_SHARE_REG
-	/* gettid has been skipped */
-	EXPECT_EQ(-1, syscall(__NR_gettid));
-#else
 	/* gettid has been skipped and an altered return value stored. */
-	EXPECT_EQ(1, syscall(__NR_gettid));
-#endif
+	EXPECT_SYSCALL_RETURN(EPERM, syscall(__NR_gettid));
 	EXPECT_NE(self->mytid, syscall(__NR_gettid));
 }
 
@@ -1557,6 +1583,7 @@ TEST_F(TRACE_syscall, skip_after_RET_TRACE)
 	ASSERT_EQ(0, ret);
 
 	/* Tracer will redirect getpid to getppid, and we should see EPERM. */
+	errno = 0;
 	EXPECT_EQ(-1, syscall(__NR_getpid));
 	EXPECT_EQ(EPERM, errno);
 }
