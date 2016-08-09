@@ -193,6 +193,19 @@ int asoc_simple_card_init_dai(struct snd_soc_dai *dai,
 }
 EXPORT_SYMBOL_GPL(asoc_simple_card_init_dai);
 
+int asoc_simple_card_canonicalize_dailink(struct snd_soc_dai_link *dai_link)
+{
+	if (!dai_link->cpu_dai_name || !dai_link->codec_dai_name)
+		return -EINVAL;
+
+	/* Assumes platform == cpu */
+	if (!dai_link->platform_of_node)
+		dai_link->platform_of_node = dai_link->cpu_of_node;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(asoc_simple_card_canonicalize_dailink);
+
 /* Module information */
 MODULE_AUTHOR("Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>");
 MODULE_DESCRIPTION("ALSA SoC Simple Card Utils");
