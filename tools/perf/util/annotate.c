@@ -1165,11 +1165,10 @@ int symbol__strerror_disassemble(struct symbol *sym __maybe_unused, struct map *
 int symbol__disassemble(struct symbol *sym, struct map *map, size_t privsize)
 {
 	struct dso *dso = map->dso;
-	char *filename = dso__build_id_filename(dso, NULL, 0);
+	char *filename;
 	bool free_filename = true;
 	char command[PATH_MAX * 2];
 	FILE *file;
-	int err = 0;
 	char symfs_filename[PATH_MAX];
 	struct kcore_extract kce;
 	bool delete_extract = false;
@@ -1177,7 +1176,13 @@ int symbol__disassemble(struct symbol *sym, struct map *map, size_t privsize)
 	int lineno = 0;
 	int nline;
 	pid_t pid;
+	int err = SYMBOL_ANNOTATE_ERRNO__NO_VMLINUX;
 
+	if (dso->symtab_type == DSO_BINARY_TYPE__KALLSYMS &&
+	    !dso__is_kcore(dso))
+		goto out;
+
+	filename = dso__build_id_filename(dso, NULL, 0);
 	if (filename)
 		symbol__join_symfs(symfs_filename, filename);
 
@@ -1199,12 +1204,6 @@ fallback:
 		filename = (char *)dso->long_name;
 		symbol__join_symfs(symfs_filename, filename);
 		free_filename = false;
-	}
-
-	if (dso->symtab_type == DSO_BINARY_TYPE__KALLSYMS &&
-	    !dso__is_kcore(dso)) {
-		err = SYMBOL_ANNOTATE_ERRNO__NO_VMLINUX;
-		goto out_free_filename;
 	}
 
 	pr_debug("%s: filename=%s, sym=%s, start=%#" PRIx64 ", end=%#" PRIx64 "\n", __func__,
@@ -1338,6 +1337,7 @@ out_free_filename:
 		kcore_extract__delete(&kce);
 	if (free_filename)
 		free(filename);
+out:
 	return err;
 
 out_close_stdout:
