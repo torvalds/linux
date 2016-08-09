@@ -1301,7 +1301,8 @@ static bool hdmi_12bpc_possible(struct intel_crtc_state *crtc_state)
 }
 
 bool intel_hdmi_compute_config(struct intel_encoder *encoder,
-			       struct intel_crtc_state *pipe_config)
+			       struct intel_crtc_state *pipe_config,
+			       struct drm_connector_state *conn_state)
 {
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
 	struct drm_device *dev = encoder->base.dev;

@@ -205,7 +205,8 @@ struct intel_encoder {
 	unsigned int cloneable;
 	void (*hot_plug)(struct intel_encoder *);
 	bool (*compute_config)(struct intel_encoder *,
-			       struct intel_crtc_state *);
+			       struct intel_crtc_state *,
+			       struct drm_connector_state *);
 	void (*pre_pll_enable)(struct intel_encoder *,
 			       struct intel_crtc_state *,
 			       struct drm_connector_state *);
@@ -1389,7 +1390,8 @@ void intel_dp_encoder_suspend(struct intel_encoder *intel_encoder);
 void intel_dp_encoder_destroy(struct drm_encoder *encoder);
 int intel_dp_sink_crc(struct intel_dp *intel_dp, u8 *crc);
 bool intel_dp_compute_config(struct intel_encoder *encoder,
-			     struct intel_crtc_state *pipe_config);
+			     struct intel_crtc_state *pipe_config,
+			     struct drm_connector_state *conn_state);
 bool intel_dp_is_edp(struct drm_device *dev, enum port port);
 enum irqreturn intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port,
 				  bool long_hpd);
@@ -1514,7 +1516,8 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 			       struct intel_connector *intel_connector);
 struct intel_hdmi *enc_to_intel_hdmi(struct drm_encoder *encoder);
 bool intel_hdmi_compute_config(struct intel_encoder *encoder,
-			       struct intel_crtc_state *pipe_config);
+			       struct intel_crtc_state *pipe_config,
+			       struct drm_connector_state *conn_state);
 void intel_dp_dual_mode_set_tmds_output(struct intel_hdmi *hdmi, bool enable);
 
 

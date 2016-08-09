@@ -239,7 +239,8 @@ intel_dvo_mode_valid(struct drm_connector *connector,
 }
 
 static bool intel_dvo_compute_config(struct intel_encoder *encoder,
-				     struct intel_crtc_state *pipe_config)
+				     struct intel_crtc_state *pipe_config,
+				     struct drm_connector_state *conn_state)
 {
 	struct intel_dvo *intel_dvo = enc_to_dvo(encoder);
 	const struct drm_display_mode *fixed_mode =

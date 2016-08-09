@@ -13042,7 +13042,7 @@ encoder_retry:
 
 		encoder = to_intel_encoder(connector_state->best_encoder);
 
-		if (!(encoder->compute_config(encoder, pipe_config))) {
+		if (!(encoder->compute_config(encoder, pipe_config, connector_state))) {
 			DRM_DEBUG_KMS("Encoder config failure\n");
 			goto fail;
 		}

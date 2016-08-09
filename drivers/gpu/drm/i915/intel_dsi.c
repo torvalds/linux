@@ -312,7 +312,8 @@ static inline bool is_cmd_mode(struct intel_dsi *intel_dsi)
 }
 
 static bool intel_dsi_compute_config(struct intel_encoder *encoder,
-				     struct intel_crtc_state *pipe_config)
+				     struct intel_crtc_state *pipe_config,
+				     struct drm_connector_state *conn_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = container_of(encoder, struct intel_dsi,

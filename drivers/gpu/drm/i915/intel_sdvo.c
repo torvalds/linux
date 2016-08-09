@@ -1125,7 +1125,8 @@ static void i9xx_adjust_sdvo_tv_clock(struct intel_crtc_state *pipe_config)
 }
 
 static bool intel_sdvo_compute_config(struct intel_encoder *encoder,
-				      struct intel_crtc_state *pipe_config)
+				      struct intel_crtc_state *pipe_config,
+				      struct drm_connector_state *conn_state)
 {
 	struct intel_sdvo *intel_sdvo = to_sdvo(encoder);
 	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;

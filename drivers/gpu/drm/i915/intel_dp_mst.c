@@ -31,7 +31,8 @@
 #include <drm/drm_edid.h>
 
 static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
-					struct intel_crtc_state *pipe_config)
+					struct intel_crtc_state *pipe_config,
+					struct drm_connector_state *conn_state)
 {
 	struct intel_dp_mst_encoder *intel_mst = enc_to_mst(&encoder->base);
 	struct intel_digital_port *intel_dig_port = intel_mst->primary;
@@ -53,7 +54,6 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	 * seem to suggest we should do otherwise.
 	 */
 	lane_count = drm_dp_max_lane_count(intel_dp->dpcd);
-
 
 	pipe_config->lane_count = lane_count;
 

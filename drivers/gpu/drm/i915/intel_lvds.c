@@ -395,7 +395,8 @@ intel_lvds_mode_valid(struct drm_connector *connector,
 }
 
 static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
-				      struct intel_crtc_state *pipe_config)
+				      struct intel_crtc_state *pipe_config,
+				      struct drm_connector_state *conn_state)
 {
 	struct drm_device *dev = intel_encoder->base.dev;
 	struct intel_lvds_encoder *lvds_encoder =

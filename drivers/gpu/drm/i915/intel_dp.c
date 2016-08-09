@@ -1463,7 +1463,8 @@ void intel_dp_compute_rate(struct intel_dp *intel_dp, int port_clock,
 
 bool
 intel_dp_compute_config(struct intel_encoder *encoder,
-			struct intel_crtc_state *pipe_config)
+			struct intel_crtc_state *pipe_config,
+			struct drm_connector_state *conn_state)
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
