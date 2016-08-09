@@ -1166,7 +1166,6 @@ int symbol__disassemble(struct symbol *sym, struct map *map, size_t privsize)
 {
 	struct dso *dso = map->dso;
 	char *filename;
-	bool free_filename = true;
 	char command[PATH_MAX * 2];
 	FILE *file;
 	char symfs_filename[PATH_MAX];
@@ -1183,31 +1182,30 @@ int symbol__disassemble(struct symbol *sym, struct map *map, size_t privsize)
 		goto out;
 
 	filename = dso__build_id_filename(dso, NULL, 0);
-	if (filename)
+	if (filename) {
 		symbol__join_symfs(symfs_filename, filename);
-
-	if (filename == NULL) {
+		free(filename);
+	} else {
 		if (dso->has_build_id)
 			return ENOMEM;
 		goto fallback;
-	} else if (dso__is_kcore(dso) ||
-		   readlink(symfs_filename, command, sizeof(command)) < 0 ||
-		   strstr(command, DSO__NAME_KALLSYMS) ||
-		   access(symfs_filename, R_OK)) {
-		free(filename);
+	}
+
+	if (dso__is_kcore(dso) ||
+	    readlink(symfs_filename, command, sizeof(command)) < 0 ||
+	    strstr(command, DSO__NAME_KALLSYMS) ||
+	    access(symfs_filename, R_OK)) {
 fallback:
 		/*
 		 * If we don't have build-ids or the build-id file isn't in the
 		 * cache, or is just a kallsyms file, well, lets hope that this
 		 * DSO is the same as when 'perf record' ran.
 		 */
-		filename = (char *)dso->long_name;
-		symbol__join_symfs(symfs_filename, filename);
-		free_filename = false;
+		symbol__join_symfs(symfs_filename, dso->long_name);
 	}
 
 	pr_debug("%s: filename=%s, sym=%s, start=%#" PRIx64 ", end=%#" PRIx64 "\n", __func__,
-		 filename, sym->name, map->unmap_ip(map, sym->start),
+		 symfs_filename, sym->name, map->unmap_ip(map, sym->start),
 		 map->unmap_ip(map, sym->end));
 
 	pr_debug("annotating [%p] %30s : [%p] %30s\n",
@@ -1222,11 +1220,6 @@ fallback:
 			delete_extract = true;
 			strlcpy(symfs_filename, kce.extract_filename,
 				sizeof(symfs_filename));
-			if (free_filename) {
-				free(filename);
-				free_filename = false;
-			}
-			filename = symfs_filename;
 		}
 	} else if (dso__needs_decompress(dso)) {
 		char tmp[PATH_MAX];
@@ -1235,14 +1228,14 @@ fallback:
 		bool ret;
 
 		if (kmod_path__parse_ext(&m, symfs_filename))
-			goto out_free_filename;
+			goto out;
 
 		snprintf(tmp, PATH_MAX, "/tmp/perf-kmod-XXXXXX");
 
 		fd = mkstemp(tmp);
 		if (fd < 0) {
 			free(m.ext);
-			goto out_free_filename;
+			goto out;
 		}
 
 		ret = decompress_to_file(m.ext, symfs_filename, fd);
@@ -1254,7 +1247,7 @@ fallback:
 		close(fd);
 
 		if (!ret)
-			goto out_free_filename;
+			goto out;
 
 		strcpy(symfs_filename, tmp);
 	}
@@ -1270,7 +1263,7 @@ fallback:
 		 map__rip_2objdump(map, sym->end),
 		 symbol_conf.annotate_asm_raw ? "" : "--no-show-raw",
 		 symbol_conf.annotate_src ? "-S" : "",
-		 symfs_filename, filename);
+		 symfs_filename, symfs_filename);
 
 	pr_debug("Executing: %s\n", command);
 
@@ -1332,11 +1325,9 @@ out_remove_tmp:
 
 	if (dso__needs_decompress(dso))
 		unlink(symfs_filename);
-out_free_filename:
+
 	if (delete_extract)
 		kcore_extract__delete(&kce);
-	if (free_filename)
-		free(filename);
 out:
 	return err;
 
