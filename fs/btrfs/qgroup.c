@@ -995,7 +995,7 @@ int btrfs_quota_disable(struct btrfs_trans_handle *trans,
 		goto out;
 	fs_info->quota_enabled = 0;
 	fs_info->pending_quota_state = 0;
-	btrfs_qgroup_wait_for_completion(fs_info);
+	btrfs_qgroup_wait_for_completion(fs_info, false);
 	spin_lock(&fs_info->qgroup_lock);
 	quota_root = fs_info->quota_root;
 	fs_info->quota_root = NULL;
@@ -2494,7 +2494,8 @@ btrfs_qgroup_rescan(struct btrfs_fs_info *fs_info)
 	return 0;
 }
 
-int btrfs_qgroup_wait_for_completion(struct btrfs_fs_info *fs_info)
+int btrfs_qgroup_wait_for_completion(struct btrfs_fs_info *fs_info,
+				     bool interruptible)
 {
 	int running;
 	int ret = 0;
@@ -2505,9 +2506,14 @@ int btrfs_qgroup_wait_for_completion(struct btrfs_fs_info *fs_info)
 	spin_unlock(&fs_info->qgroup_lock);
 	mutex_unlock(&fs_info->qgroup_rescan_lock);
 
-	if (running)
+	if (!running)
+		return 0;
+
+	if (interruptible)
 		ret = wait_for_completion_interruptible(
 					&fs_info->qgroup_rescan_completion);
+	else
+		wait_for_completion(&fs_info->qgroup_rescan_completion);
 
 	return ret;
 }
