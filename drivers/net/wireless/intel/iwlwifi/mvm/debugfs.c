@@ -917,6 +917,59 @@ static ssize_t iwl_dbgfs_indirection_tbl_write(struct iwl_mvm *mvm,
 	return ret ?: count;
 }
 
+static ssize_t iwl_dbgfs_inject_packet_write(struct iwl_mvm *mvm,
+					     char *buf, size_t count,
+					     loff_t *ppos)
+{
+	struct iwl_rx_cmd_buffer rxb = {
+		._rx_page_order = 0,
+		.truesize = 0, /* not used */
+		._offset = 0,
+	};
+	struct iwl_rx_packet *pkt;
+	struct iwl_rx_mpdu_desc *desc;
+	int bin_len = count / 2;
+	int ret = -EINVAL;
+
+	/* supporting only 9000 descriptor */
+	if (!mvm->trans->cfg->mq_rx_supported)
+		return -ENOTSUPP;
+
+	rxb._page = alloc_pages(GFP_ATOMIC, 0);
+	if (!rxb._page)
+		return -ENOMEM;
+	pkt = rxb_addr(&rxb);
+
+	ret = hex2bin(page_address(rxb._page), buf, bin_len);
+	if (ret)
+		goto out;
+
+	/* avoid invalid memory access */
+	if (bin_len < sizeof(*pkt) + sizeof(*desc))
+		goto out;
+
+	/* check this is RX packet */
+	if (WIDE_ID(pkt->hdr.group_id, pkt->hdr.cmd) !=
+	    WIDE_ID(LEGACY_GROUP, REPLY_RX_MPDU_CMD))
+		goto out;
+
+	/* check the length in metadata matches actual received length */
+	desc = (void *)pkt->data;
+	if (le16_to_cpu(desc->mpdu_len) !=
+	    (bin_len - sizeof(*desc) - sizeof(*pkt)))
+		goto out;
+
+	local_bh_disable();
+	iwl_mvm_rx_mpdu_mq(mvm, NULL, &rxb, 0);
+	local_bh_enable();
+	ret = 0;
+
+out:
+	iwl_free_rxb(&rxb);
+
+	return ret ?: count;
+}
+
 static ssize_t iwl_dbgfs_fw_dbg_conf_read(struct file *file,
 					  char __user *user_buf,
 					  size_t count, loff_t *ppos)
@@ -1454,6 +1507,7 @@ MVM_DEBUGFS_WRITE_FILE_OPS(cont_recording, 8);
 MVM_DEBUGFS_WRITE_FILE_OPS(max_amsdu_len, 8);
 MVM_DEBUGFS_WRITE_FILE_OPS(indirection_tbl,
 			   (IWL_RSS_INDIRECTION_TABLE_SIZE * 2));
+MVM_DEBUGFS_WRITE_FILE_OPS(inject_packet, 512);
 
 #ifdef CONFIG_IWLWIFI_BCAST_FILTERING
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(bcast_filters, 256);
@@ -1502,6 +1556,7 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 	MVM_DEBUGFS_ADD_FILE(send_echo_cmd, mvm->debugfs_dir, S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(cont_recording, mvm->debugfs_dir, S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(indirection_tbl, mvm->debugfs_dir, S_IWUSR);
+	MVM_DEBUGFS_ADD_FILE(inject_packet, mvm->debugfs_dir, S_IWUSR);
 	if (!debugfs_create_bool("enable_scan_iteration_notif",
 				 S_IRUSR | S_IWUSR,
 				 mvm->debugfs_dir,
