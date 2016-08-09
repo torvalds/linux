@@ -369,6 +369,8 @@ struct cpsw_common {
 	struct cpsw_wr_regs __iomem	*wr_regs;
 	u8 __iomem			*hw_stats;
 	struct cpsw_host_regs __iomem	*host_port_regs;
+	struct cpdma_ctlr		*dma;
+	struct cpdma_chan		*txch, *rxch;
 };
 
 struct cpsw_priv {
@@ -384,8 +386,6 @@ struct cpsw_priv {
 	int				rx_packet_max;
 	u8				mac_addr[ETH_ALEN];
 	struct cpsw_slave		*slaves;
-	struct cpdma_ctlr		*dma;
-	struct cpdma_chan		*txch, *rxch;
 	struct cpsw_ale			*ale;
 	bool				rx_pause;
 	bool				tx_pause;
@@ -654,25 +654,21 @@ static void cpsw_ndo_set_rx_mode(struct net_device *ndev)
 	}
 }
 
-static void cpsw_intr_enable(struct cpsw_priv *priv)
+static void cpsw_intr_enable(struct cpsw_common *cpsw)
 {
-	struct cpsw_common *cpsw = priv->cpsw;
-
 	__raw_writel(0xFF, &cpsw->wr_regs->tx_en);
 	__raw_writel(0xFF, &cpsw->wr_regs->rx_en);
 
-	cpdma_ctlr_int_ctrl(priv->dma, true);
+	cpdma_ctlr_int_ctrl(cpsw->dma, true);
 	return;
 }
 
-static void cpsw_intr_disable(struct cpsw_priv *priv)
+static void cpsw_intr_disable(struct cpsw_common *cpsw)
 {
-	struct cpsw_common *cpsw = priv->cpsw;
-
 	__raw_writel(0, &cpsw->wr_regs->tx_en);
 	__raw_writel(0, &cpsw->wr_regs->rx_en);
 
-	cpdma_ctlr_int_ctrl(priv->dma, false);
+	cpdma_ctlr_int_ctrl(cpsw->dma, false);
 	return;
 }
 
@@ -700,6 +696,7 @@ static void cpsw_rx_handler(void *token, int len, int status)
 	struct net_device	*ndev = skb->dev;
 	struct cpsw_priv	*priv = netdev_priv(ndev);
 	int			ret = 0;
+	struct cpsw_common	*cpsw = priv->cpsw;
 
 	cpsw_dual_emac_src_port_detect(status, priv, ndev, skb);
 
@@ -745,8 +742,8 @@ static void cpsw_rx_handler(void *token, int len, int status)
 	}
 
 requeue:
-	ret = cpdma_chan_submit(priv->rxch, new_skb, new_skb->data,
-			skb_tailroom(new_skb), 0);
+	ret = cpdma_chan_submit(cpsw->rxch, new_skb, new_skb->data,
+				skb_tailroom(new_skb), 0);
 	if (WARN_ON(ret < 0))
 		dev_kfree_skb_any(new_skb);
 }
@@ -757,7 +754,7 @@ static irqreturn_t cpsw_tx_interrupt(int irq, void *dev_id)
 	struct cpsw_common *cpsw = priv->cpsw;
 
 	writel(0, &cpsw->wr_regs->tx_en);
-	cpdma_ctlr_eoi(priv->dma, CPDMA_EOI_TX);
+	cpdma_ctlr_eoi(cpsw->dma, CPDMA_EOI_TX);
 
 	if (priv->quirk_irq) {
 		disable_irq_nosync(priv->irqs_table[1]);
@@ -773,7 +770,7 @@ static irqreturn_t cpsw_rx_interrupt(int irq, void *dev_id)
 	struct cpsw_priv *priv = dev_id;
 	struct cpsw_common *cpsw = priv->cpsw;
 
-	cpdma_ctlr_eoi(priv->dma, CPDMA_EOI_RX);
+	cpdma_ctlr_eoi(cpsw->dma, CPDMA_EOI_RX);
 	writel(0, &cpsw->wr_regs->rx_en);
 
 	if (priv->quirk_irq) {
@@ -791,7 +788,7 @@ static int cpsw_tx_poll(struct napi_struct *napi_tx, int budget)
 	int			num_tx;
 	struct cpsw_common	*cpsw = priv->cpsw;
 
-	num_tx = cpdma_chan_process(priv->txch, budget);
+	num_tx = cpdma_chan_process(cpsw->txch, budget);
 	if (num_tx < budget) {
 		napi_complete(napi_tx);
 		writel(0xff, &cpsw->wr_regs->tx_en);
@@ -810,7 +807,7 @@ static int cpsw_rx_poll(struct napi_struct *napi_rx, int budget)
 	int			num_rx;
 	struct cpsw_common	*cpsw = priv->cpsw;
 
-	num_rx = cpdma_chan_process(priv->rxch, budget);
+	num_rx = cpdma_chan_process(cpsw->rxch, budget);
 	if (num_rx < budget) {
 		napi_complete(napi_rx);
 		writel(0xff, &cpsw->wr_regs->rx_en);
@@ -1020,17 +1017,16 @@ static void cpsw_get_strings(struct net_device *ndev, u32 stringset, u8 *data)
 static void cpsw_get_ethtool_stats(struct net_device *ndev,
 				    struct ethtool_stats *stats, u64 *data)
 {
-	struct cpsw_priv *priv = netdev_priv(ndev);
 	struct cpdma_chan_stats rx_stats;
 	struct cpdma_chan_stats tx_stats;
 	u32 val;
 	u8 *p;
 	int i;
-	struct cpsw_common *cpsw = priv->cpsw;
+	struct cpsw_common *cpsw = ndev_to_cpsw(ndev);
 
 	/* Collect Davinci CPDMA stats for Rx and Tx Channel */
-	cpdma_chan_get_stats(priv->rxch, &rx_stats);
-	cpdma_chan_get_stats(priv->txch, &tx_stats);
+	cpdma_chan_get_stats(cpsw->rxch, &rx_stats);
+	cpdma_chan_get_stats(cpsw->txch, &tx_stats);
 
 	for (i = 0; i < CPSW_STATS_LEN; i++) {
 		switch (cpsw_gstrings_stats[i].type) {
@@ -1073,7 +1069,9 @@ static int cpsw_common_res_usage_state(struct cpsw_priv *priv)
 static inline int cpsw_tx_packet_submit(struct cpsw_priv *priv,
 					struct sk_buff *skb)
 {
-	return cpdma_chan_submit(priv->txch, skb, skb->data, skb->len,
+	struct cpsw_common *cpsw = priv->cpsw;
+
+	return cpdma_chan_submit(cpsw->txch, skb, skb->data, skb->len,
 				 priv->emac_port + priv->data.dual_emac);
 }
 
@@ -1260,7 +1258,7 @@ static int cpsw_ndo_open(struct net_device *ndev)
 	}
 
 	if (!cpsw_common_res_usage_state(priv))
-		cpsw_intr_disable(priv);
+		cpsw_intr_disable(cpsw);
 	netif_carrier_off(ndev);
 
 	reg = priv->version;
@@ -1286,8 +1284,8 @@ static int cpsw_ndo_open(struct net_device *ndev)
 		int buf_num;
 
 		/* setup tx dma to fixed prio and zero offset */
-		cpdma_control_set(priv->dma, CPDMA_TX_PRIO_FIXED, 1);
-		cpdma_control_set(priv->dma, CPDMA_RX_BUFFER_OFFSET, 0);
+		cpdma_control_set(cpsw->dma, CPDMA_TX_PRIO_FIXED, 1);
+		cpdma_control_set(cpsw->dma, CPDMA_RX_BUFFER_OFFSET, 0);
 
 		/* disable priority elevation */
 		__raw_writel(0, &cpsw->regs->ptype);
@@ -1311,7 +1309,7 @@ static int cpsw_ndo_open(struct net_device *ndev)
 			enable_irq(priv->irqs_table[0]);
 		}
 
-		buf_num = cpdma_chan_get_rx_buf_num(priv->dma);
+		buf_num = cpdma_chan_get_rx_buf_num(cpsw->dma);
 		for (i = 0; i < buf_num; i++) {
 			struct sk_buff *skb;
 
@@ -1320,8 +1318,8 @@ static int cpsw_ndo_open(struct net_device *ndev)
 					priv->rx_packet_max, GFP_KERNEL);
 			if (!skb)
 				goto err_cleanup;
-			ret = cpdma_chan_submit(priv->rxch, skb, skb->data,
-					skb_tailroom(skb), 0);
+			ret = cpdma_chan_submit(cpsw->rxch, skb, skb->data,
+						skb_tailroom(skb), 0);
 			if (ret < 0) {
 				kfree_skb(skb);
 				goto err_cleanup;
@@ -1347,15 +1345,15 @@ static int cpsw_ndo_open(struct net_device *ndev)
 		cpsw_set_coalesce(ndev, &coal);
 	}
 
-	cpdma_ctlr_start(priv->dma);
-	cpsw_intr_enable(priv);
+	cpdma_ctlr_start(cpsw->dma);
+	cpsw_intr_enable(cpsw);
 
 	if (priv->data.dual_emac)
 		priv->slaves[priv->emac_port].open_stat = true;
 	return 0;
 
 err_cleanup:
-	cpdma_ctlr_stop(priv->dma);
+	cpdma_ctlr_stop(cpsw->dma);
 	for_each_slave(priv, cpsw_slave_stop, priv);
 	pm_runtime_put_sync(cpsw->dev);
 	netif_carrier_off(priv->ndev);
@@ -1377,8 +1375,8 @@ static int cpsw_ndo_stop(struct net_device *ndev)
 		napi_disable(&priv_sl0->napi_rx);
 		napi_disable(&priv_sl0->napi_tx);
 		cpts_unregister(priv->cpts);
-		cpsw_intr_disable(priv);
-		cpdma_ctlr_stop(priv->dma);
+		cpsw_intr_disable(cpsw);
+		cpdma_ctlr_stop(cpsw->dma);
 		cpsw_ale_stop(priv->ale);
 	}
 	for_each_slave(priv, cpsw_slave_stop, priv);
@@ -1393,6 +1391,7 @@ static netdev_tx_t cpsw_ndo_start_xmit(struct sk_buff *skb,
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
 	int ret;
+	struct cpsw_common *cpsw = priv->cpsw;
 
 	netif_trans_update(ndev);
 
@@ -1417,7 +1416,7 @@ static netdev_tx_t cpsw_ndo_start_xmit(struct sk_buff *skb,
 	/* If there is no more tx desc left free then we need to
 	 * tell the kernel to stop sending us tx frames.
 	 */
-	if (unlikely(!cpdma_check_free_tx_desc(priv->txch)))
+	if (unlikely(!cpdma_check_free_tx_desc(cpsw->txch)))
 		netif_stop_queue(ndev);
 
 	return NETDEV_TX_OK;
@@ -1602,13 +1601,14 @@ static int cpsw_ndo_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 static void cpsw_ndo_tx_timeout(struct net_device *ndev)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
+	struct cpsw_common *cpsw = priv->cpsw;
 
 	cpsw_err(priv, tx_err, "transmit timeout, restarting dma\n");
 	ndev->stats.tx_errors++;
-	cpsw_intr_disable(priv);
-	cpdma_chan_stop(priv->txch);
-	cpdma_chan_start(priv->txch);
-	cpsw_intr_enable(priv);
+	cpsw_intr_disable(cpsw);
+	cpdma_chan_stop(cpsw->txch);
+	cpdma_chan_start(cpsw->txch);
+	cpsw_intr_enable(cpsw);
 }
 
 static int cpsw_ndo_set_mac_address(struct net_device *ndev, void *p)
@@ -1652,11 +1652,12 @@ static int cpsw_ndo_set_mac_address(struct net_device *ndev, void *p)
 static void cpsw_ndo_poll_controller(struct net_device *ndev)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
+	struct cpsw_common *cpsw = priv->cpsw;
 
-	cpsw_intr_disable(priv);
+	cpsw_intr_disable(priv->cpsw);
 	cpsw_rx_interrupt(priv->irqs_table[0], priv);
 	cpsw_tx_interrupt(priv->irqs_table[1], priv);
-	cpsw_intr_enable(priv);
+	cpsw_intr_enable(priv->cpsw);
 }
 #endif
 
@@ -2204,9 +2205,6 @@ static int cpsw_probe_dual_emac(struct cpsw_priv *priv)
 	priv_sl2->slaves = priv->slaves;
 	priv_sl2->coal_intvl = 0;
 	priv_sl2->bus_freq_mhz = priv->bus_freq_mhz;
-	priv_sl2->dma = priv->dma;
-	priv_sl2->txch = priv->txch;
-	priv_sl2->rxch = priv->rxch;
 	priv_sl2->ale = priv->ale;
 	priv_sl2->emac_port = 1;
 	priv->slaves[1].ndev = ndev;
@@ -2450,19 +2448,19 @@ static int cpsw_probe(struct platform_device *pdev)
 	dma_params.has_ext_regs		= true;
 	dma_params.desc_hw_addr         = dma_params.desc_mem_phys;
 
-	priv->dma = cpdma_ctlr_create(&dma_params);
-	if (!priv->dma) {
+	cpsw->dma = cpdma_ctlr_create(&dma_params);
+	if (!cpsw->dma) {
 		dev_err(priv->dev, "error initializing dma\n");
 		ret = -ENOMEM;
 		goto clean_runtime_disable_ret;
 	}
 
-	priv->txch = cpdma_chan_create(priv->dma, tx_chan_num(0),
+	cpsw->txch = cpdma_chan_create(cpsw->dma, tx_chan_num(0),
 				       cpsw_tx_handler);
-	priv->rxch = cpdma_chan_create(priv->dma, rx_chan_num(0),
+	cpsw->rxch = cpdma_chan_create(cpsw->dma, rx_chan_num(0),
 				       cpsw_rx_handler);
 
-	if (WARN_ON(!priv->txch || !priv->rxch)) {
+	if (WARN_ON(!cpsw->txch || !cpsw->rxch)) {
 		dev_err(priv->dev, "error initializing dma channels\n");
 		ret = -ENOMEM;
 		goto clean_dma_ret;
@@ -2565,7 +2563,7 @@ static int cpsw_probe(struct platform_device *pdev)
 clean_ale_ret:
 	cpsw_ale_destroy(priv->ale);
 clean_dma_ret:
-	cpdma_ctlr_destroy(priv->dma);
+	cpdma_ctlr_destroy(cpsw->dma);
 clean_runtime_disable_ret:
 	pm_runtime_disable(&pdev->dev);
 clean_ndev_ret:
@@ -2577,6 +2575,7 @@ static int cpsw_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct cpsw_priv *priv = netdev_priv(ndev);
+	struct cpsw_common *cpsw = priv->cpsw;
 	int ret;
 
 	ret = pm_runtime_get_sync(&pdev->dev);
@@ -2590,7 +2589,7 @@ static int cpsw_remove(struct platform_device *pdev)
 	unregister_netdev(ndev);
 
 	cpsw_ale_destroy(priv->ale);
-	cpdma_ctlr_destroy(priv->dma);
+	cpdma_ctlr_destroy(cpsw->dma);
 	of_platform_depopulate(&pdev->dev);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
