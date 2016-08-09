@@ -2,11 +2,12 @@
 #define __DRM_I2C_TDA998X_H__
 
 #include <linux/hdmi.h>
+#include <dt-bindings/display/tda998x.h>
 
 enum {
 	AFMT_UNUSED =	0,
-	AFMT_SPDIF =	1,
-	AFMT_I2S =	2,
+	AFMT_SPDIF =	TDA998x_SPDIF,
+	AFMT_I2S =	TDA998x_I2S,
 };
 
 struct tda998x_audio_params {
