@@ -1409,8 +1409,10 @@ void intel_dp_hot_plug(struct intel_encoder *intel_encoder);
 void intel_power_sequencer_reset(struct drm_i915_private *dev_priv);
 uint32_t intel_dp_pack_aux(const uint8_t *src, int src_bytes);
 void intel_plane_destroy(struct drm_plane *plane);
-void intel_edp_drrs_enable(struct intel_dp *intel_dp);
-void intel_edp_drrs_disable(struct intel_dp *intel_dp);
+void intel_edp_drrs_enable(struct intel_dp *intel_dp,
+			   struct intel_crtc_state *crtc_state);
+void intel_edp_drrs_disable(struct intel_dp *intel_dp,
+			   struct intel_crtc_state *crtc_state);
 void intel_edp_drrs_invalidate(struct drm_i915_private *dev_priv,
 			       unsigned int frontbuffer_bits);
 void intel_edp_drrs_flush(struct drm_i915_private *dev_priv,

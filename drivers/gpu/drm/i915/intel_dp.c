@@ -1648,16 +1648,17 @@ void intel_dp_set_link_params(struct intel_dp *intel_dp,
 	intel_dp->link_mst = intel_crtc_has_type(pipe_config, INTEL_OUTPUT_DP_MST);
 }
 
-static void intel_dp_prepare(struct intel_encoder *encoder)
+static void intel_dp_prepare(struct intel_encoder *encoder,
+			     struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	enum port port = dp_to_dig_port(intel_dp)->port;
 	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
-	const struct drm_display_mode *adjusted_mode = &crtc->config->base.adjusted_mode;
+	const struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
 
-	intel_dp_set_link_params(intel_dp, crtc->config);
+	intel_dp_set_link_params(intel_dp, pipe_config);
 
 	/*
 	 * There are four kinds of DP registers:
@@ -1683,7 +1684,7 @@ static void intel_dp_prepare(struct intel_encoder *encoder)
 
 	/* Handle DP bits in common between all three register formats */
 	intel_dp->DP |= DP_VOLTAGE_0_4 | DP_PRE_EMPHASIS_0;
-	intel_dp->DP |= DP_PORT_WIDTH(crtc->config->lane_count);
+	intel_dp->DP |= DP_PORT_WIDTH(pipe_config->lane_count);
 
 	/* Split out the IBX/CPU vs CPT settings */
 
@@ -1711,7 +1712,7 @@ static void intel_dp_prepare(struct intel_encoder *encoder)
 		I915_WRITE(TRANS_DP_CTL(crtc->pipe), trans_dp);
 	} else {
 		if (!HAS_PCH_SPLIT(dev) && !IS_VALLEYVIEW(dev) &&
-		    !IS_CHERRYVIEW(dev) && crtc->config->limited_color_range)
+		    !IS_CHERRYVIEW(dev) && pipe_config->limited_color_range)
 			intel_dp->DP |= DP_COLOR_RANGE_16_235;
 
 		if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
@@ -2250,10 +2251,10 @@ static void assert_edp_pll(struct drm_i915_private *dev_priv, bool state)
 #define assert_edp_pll_enabled(d) assert_edp_pll((d), true)
 #define assert_edp_pll_disabled(d) assert_edp_pll((d), false)
 
-static void ironlake_edp_pll_on(struct intel_dp *intel_dp)
+static void ironlake_edp_pll_on(struct intel_dp *intel_dp,
+				struct intel_crtc_state *pipe_config)
 {
-	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-	struct intel_crtc *crtc = to_intel_crtc(intel_dig_port->base.base.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(pipe_config->base.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 
 	assert_pipe_disabled(dev_priv, crtc->pipe);
@@ -2261,11 +2262,11 @@ static void ironlake_edp_pll_on(struct intel_dp *intel_dp)
 	assert_edp_pll_disabled(dev_priv);
 
 	DRM_DEBUG_KMS("enabling eDP PLL for clock %d\n",
-		      crtc->config->port_clock);
+		      pipe_config->port_clock);
 
 	intel_dp->DP &= ~DP_PLL_FREQ_MASK;
 
-	if (crtc->config->port_clock == 162000)
+	if (pipe_config->port_clock == 162000)
 		intel_dp->DP |= DP_PLL_FREQ_162MHZ;
 	else
 		intel_dp->DP |= DP_PLL_FREQ_270MHZ;
@@ -2479,13 +2480,12 @@ static void intel_disable_dp(struct intel_encoder *encoder,
 			     struct drm_connector_state *old_conn_state)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
-	struct drm_device *dev = encoder->base.dev;
-	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
-	if (crtc->config->has_audio)
+	if (old_crtc_state->has_audio)
 		intel_audio_codec_disable(encoder);
 
-	if (HAS_PSR(dev) && !HAS_DDI(dev))
+	if (HAS_PSR(dev_priv) && !HAS_DDI(dev_priv))
 		intel_psr_disable(intel_dp);
 
 	/* Make sure the panel is off before trying to change the mode. But also
@@ -2496,7 +2496,7 @@ static void intel_disable_dp(struct intel_encoder *encoder,
 	intel_edp_panel_off(intel_dp);
 
 	/* disable the port before the pipe on g4x */
-	if (INTEL_INFO(dev)->gen < 5)
+	if (INTEL_GEN(dev_priv) < 5)
 		intel_dp_link_down(intel_dp);
 }
 
@@ -2625,12 +2625,11 @@ _intel_dp_set_link_train(struct intel_dp *intel_dp,
 	}
 }
 
-static void intel_dp_enable_port(struct intel_dp *intel_dp)
+static void intel_dp_enable_port(struct intel_dp *intel_dp,
+				 struct intel_crtc_state *old_crtc_state)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crtc *crtc =
-		to_intel_crtc(dp_to_dig_port(intel_dp)->base.base.crtc);
 
 	/* enable with pattern 1 (as per spec) */
 	_intel_dp_set_link_train(intel_dp, &intel_dp->DP,
@@ -2646,14 +2645,15 @@ static void intel_dp_enable_port(struct intel_dp *intel_dp)
 	 * fail when the power sequencer is freshly used for this port.
 	 */
 	intel_dp->DP |= DP_PORT_EN;
-	if (crtc->config->has_audio)
+	if (old_crtc_state->has_audio)
 		intel_dp->DP |= DP_AUDIO_OUTPUT_ENABLE;
 
 	I915_WRITE(intel_dp->output_reg, intel_dp->DP);
 	POSTING_READ(intel_dp->output_reg);
 }
 
-static void intel_enable_dp(struct intel_encoder *encoder)
+static void intel_enable_dp(struct intel_encoder *encoder,
+			    struct intel_crtc_state *pipe_config)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	struct drm_device *dev = encoder->base.dev;
@@ -2670,7 +2670,7 @@ static void intel_enable_dp(struct intel_encoder *encoder)
 	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
 		vlv_init_panel_power_sequencer(intel_dp);
 
-	intel_dp_enable_port(intel_dp);
+	intel_dp_enable_port(intel_dp, pipe_config);
 
 	edp_panel_vdd_on(intel_dp);
 	edp_panel_on(intel_dp);
@@ -2682,7 +2682,7 @@ static void intel_enable_dp(struct intel_encoder *encoder)
 		unsigned int lane_mask = 0x0;
 
 		if (IS_CHERRYVIEW(dev))
-			lane_mask = intel_dp_unused_lane_mask(crtc->config->lane_count);
+			lane_mask = intel_dp_unused_lane_mask(pipe_config->lane_count);
 
 		vlv_wait_port_ready(dev_priv, dp_to_dig_port(intel_dp),
 				    lane_mask);
@@ -2692,7 +2692,7 @@ static void intel_enable_dp(struct intel_encoder *encoder)
 	intel_dp_start_link_train(intel_dp);
 	intel_dp_stop_link_train(intel_dp);
 
-	if (crtc->config->has_audio) {
+	if (pipe_config->has_audio) {
 		DRM_DEBUG_DRIVER("Enabling DP audio on pipe %c\n",
 				 pipe_name(pipe));
 		intel_audio_codec_enable(encoder);
@@ -2705,7 +2705,7 @@ static void g4x_enable_dp(struct intel_encoder *encoder,
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 
-	intel_enable_dp(encoder);
+	intel_enable_dp(encoder, pipe_config);
 	intel_edp_backlight_on(intel_dp);
 }
 
@@ -2726,11 +2726,11 @@ static void g4x_pre_enable_dp(struct intel_encoder *encoder,
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	enum port port = dp_to_dig_port(intel_dp)->port;
 
-	intel_dp_prepare(encoder);
+	intel_dp_prepare(encoder, pipe_config);
 
 	/* Only ilk+ has port A */
 	if (port == PORT_A)
-		ironlake_edp_pll_on(intel_dp);
+		ironlake_edp_pll_on(intel_dp, pipe_config);
 }
 
 static void vlv_detach_power_sequencer(struct intel_dp *intel_dp)
@@ -2842,14 +2842,14 @@ static void vlv_pre_enable_dp(struct intel_encoder *encoder,
 {
 	vlv_phy_pre_encoder_enable(encoder);
 
-	intel_enable_dp(encoder);
+	intel_enable_dp(encoder, pipe_config);
 }
 
 static void vlv_dp_pre_pll_enable(struct intel_encoder *encoder,
 				  struct intel_crtc_state *pipe_config,
 				  struct drm_connector_state *conn_state)
 {
-	intel_dp_prepare(encoder);
+	intel_dp_prepare(encoder, pipe_config);
 
 	vlv_phy_pre_pll_enable(encoder);
 }
@@ -2860,7 +2860,7 @@ static void chv_pre_enable_dp(struct intel_encoder *encoder,
 {
 	chv_phy_pre_encoder_enable(encoder);
 
-	intel_enable_dp(encoder);
+	intel_enable_dp(encoder, pipe_config);
 
 	/* Second common lane will stay alive on its own now */
 	chv_phy_release_cl2_override(encoder);
@@ -2870,7 +2870,7 @@ static void chv_dp_pre_pll_enable(struct intel_encoder *encoder,
 				  struct intel_crtc_state *pipe_config,
 				  struct drm_connector_state *conn_state)
 {
-	intel_dp_prepare(encoder);
+	intel_dp_prepare(encoder, pipe_config);
 
 	chv_phy_pre_pll_enable(encoder);
 }
@@ -5057,14 +5057,14 @@ static void intel_dp_pps_init(struct drm_device *dev,
  *
  * The caller of this function needs to take a lock on dev_priv->drrs.
  */
-static void intel_dp_set_drrs_state(struct drm_device *dev, int refresh_rate)
+static void intel_dp_set_drrs_state(struct drm_i915_private *dev_priv,
+				    struct intel_crtc_state *crtc_state,
+				    int refresh_rate)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_encoder *encoder;
 	struct intel_digital_port *dig_port = NULL;
 	struct intel_dp *intel_dp = dev_priv->drrs.dp;
-	struct intel_crtc_state *config = NULL;
-	struct intel_crtc *intel_crtc = NULL;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc_state->base.crtc);
 	enum drrs_refresh_rate_type index = DRRS_HIGH_RR;
 
 	if (refresh_rate <= 0) {
@@ -5091,8 +5091,6 @@ static void intel_dp_set_drrs_state(struct drm_device *dev, int refresh_rate)
 		return;
 	}
 
-	config = intel_crtc->config;
-
 	if (dev_priv->drrs.type < SEAMLESS_DRRS_SUPPORT) {
 		DRM_DEBUG_KMS("Only Seamless DRRS supported.\n");
 		return;
@@ -5108,12 +5106,12 @@ static void intel_dp_set_drrs_state(struct drm_device *dev, int refresh_rate)
 		return;
 	}
 
-	if (!intel_crtc->active) {
+	if (!crtc_state->base.active) {
 		DRM_DEBUG_KMS("eDP encoder disabled. CRTC not Active\n");
 		return;
 	}
 
-	if (INTEL_INFO(dev)->gen >= 8 && !IS_CHERRYVIEW(dev)) {
+	if (INTEL_GEN(dev_priv) >= 8 && !IS_CHERRYVIEW(dev_priv)) {
 		switch (index) {
 		case DRRS_HIGH_RR:
 			intel_dp_set_m_n(intel_crtc, M1_N1);
@@ -5125,18 +5123,18 @@ static void intel_dp_set_drrs_state(struct drm_device *dev, int refresh_rate)
 		default:
 			DRM_ERROR("Unsupported refreshrate type\n");
 		}
-	} else if (INTEL_INFO(dev)->gen > 6) {
-		i915_reg_t reg = PIPECONF(intel_crtc->config->cpu_transcoder);
+	} else if (INTEL_GEN(dev_priv) > 6) {
+		i915_reg_t reg = PIPECONF(crtc_state->cpu_transcoder);
 		u32 val;
 
 		val = I915_READ(reg);
 		if (index > DRRS_HIGH_RR) {
-			if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
+			if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 				val |= PIPECONF_EDP_RR_MODE_SWITCH_VLV;
 			else
 				val |= PIPECONF_EDP_RR_MODE_SWITCH;
 		} else {
-			if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
+			if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 				val &= ~PIPECONF_EDP_RR_MODE_SWITCH_VLV;
 			else
 				val &= ~PIPECONF_EDP_RR_MODE_SWITCH;
@@ -5155,15 +5153,13 @@ static void intel_dp_set_drrs_state(struct drm_device *dev, int refresh_rate)
  *
  * Initializes frontbuffer_bits and drrs.dp
  */
-void intel_edp_drrs_enable(struct intel_dp *intel_dp)
+void intel_edp_drrs_enable(struct intel_dp *intel_dp,
+			   struct intel_crtc_state *crtc_state)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
-	struct drm_crtc *crtc = dig_port->base.base.crtc;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 
-	if (!intel_crtc->config->has_drrs) {
+	if (!crtc_state->has_drrs) {
 		DRM_DEBUG_KMS("Panel doesn't support DRRS\n");
 		return;
 	}
@@ -5187,15 +5183,13 @@ unlock:
  * @intel_dp: DP struct
  *
  */
-void intel_edp_drrs_disable(struct intel_dp *intel_dp)
+void intel_edp_drrs_disable(struct intel_dp *intel_dp,
+			    struct intel_crtc_state *old_crtc_state)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
-	struct drm_crtc *crtc = dig_port->base.base.crtc;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 
-	if (!intel_crtc->config->has_drrs)
+	if (!old_crtc_state->has_drrs)
 		return;
 
 	mutex_lock(&dev_priv->drrs.mutex);
@@ -5205,9 +5199,8 @@ void intel_edp_drrs_disable(struct intel_dp *intel_dp)
 	}
 
 	if (dev_priv->drrs.refresh_rate_type == DRRS_LOW_RR)
-		intel_dp_set_drrs_state(&dev_priv->drm,
-					intel_dp->attached_connector->panel.
-					fixed_mode->vrefresh);
+		intel_dp_set_drrs_state(dev_priv, old_crtc_state,
+			intel_dp->attached_connector->panel.fixed_mode->vrefresh);
 
 	dev_priv->drrs.dp = NULL;
 	mutex_unlock(&dev_priv->drrs.mutex);
@@ -5236,10 +5229,12 @@ static void intel_edp_drrs_downclock_work(struct work_struct *work)
 	if (dev_priv->drrs.busy_frontbuffer_bits)
 		goto unlock;
 
-	if (dev_priv->drrs.refresh_rate_type != DRRS_LOW_RR)
-		intel_dp_set_drrs_state(&dev_priv->drm,
-					intel_dp->attached_connector->panel.
-					downclock_mode->vrefresh);
+	if (dev_priv->drrs.refresh_rate_type != DRRS_LOW_RR) {
+		struct drm_crtc *crtc = dp_to_dig_port(intel_dp)->base.base.crtc;
+
+		intel_dp_set_drrs_state(dev_priv, to_intel_crtc(crtc)->config,
+			intel_dp->attached_connector->panel.downclock_mode->vrefresh);
+	}
 
 unlock:
 	mutex_unlock(&dev_priv->drrs.mutex);
@@ -5280,9 +5275,8 @@ void intel_edp_drrs_invalidate(struct drm_i915_private *dev_priv,
 
 	/* invalidate means busy screen hence upclock */
 	if (frontbuffer_bits && dev_priv->drrs.refresh_rate_type == DRRS_LOW_RR)
-		intel_dp_set_drrs_state(&dev_priv->drm,
-					dev_priv->drrs.dp->attached_connector->panel.
-					fixed_mode->vrefresh);
+		intel_dp_set_drrs_state(dev_priv, to_intel_crtc(crtc)->config,
+			dev_priv->drrs.dp->attached_connector->panel.fixed_mode->vrefresh);
 
 	mutex_unlock(&dev_priv->drrs.mutex);
 }
@@ -5324,9 +5318,8 @@ void intel_edp_drrs_flush(struct drm_i915_private *dev_priv,
 
 	/* flush means busy screen hence upclock */
 	if (frontbuffer_bits && dev_priv->drrs.refresh_rate_type == DRRS_LOW_RR)
-		intel_dp_set_drrs_state(&dev_priv->drm,
-					dev_priv->drrs.dp->attached_connector->panel.
-					fixed_mode->vrefresh);
+		intel_dp_set_drrs_state(dev_priv, to_intel_crtc(crtc)->config,
+				dev_priv->drrs.dp->attached_connector->panel.fixed_mode->vrefresh);
 
 	/*
 	 * flush also means no more activity hence schedule downclock, if all
