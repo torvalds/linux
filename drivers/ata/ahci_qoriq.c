@@ -44,10 +44,6 @@
 
 #define SATA_ECC_DISABLE	0x00020000
 
-/* for ls1043a */
-#define LS1043A_PORT_PHY2	0x28184d1f
-#define LS1043A_PORT_PHY3	0x0e081509
-
 enum ahci_qoriq_type {
 	AHCI_LS1021A,
 	AHCI_LS1043A,
@@ -166,8 +162,6 @@ static int ahci_qoriq_phy_init(struct ahci_host_priv *hpriv)
 
 	case AHCI_LS1043A:
 		writel(AHCI_PORT_PHY_1_CFG, reg_base + PORT_PHY1);
-		writel(LS1043A_PORT_PHY2, reg_base + PORT_PHY2);
-		writel(LS1043A_PORT_PHY3, reg_base + PORT_PHY3);
 		writel(AHCI_PORT_TRANS_CFG, reg_base + PORT_TRANS);
 		break;
 
