@@ -286,14 +286,9 @@ static int asoc_simple_card_dai_link_of(struct device_node *node,
 	if (ret < 0)
 		goto dai_link_of_err;
 
-	if (!dai_link->cpu_dai_name || !dai_link->codec_dai_name) {
-		ret = -EINVAL;
+	ret = asoc_simple_card_canonicalize_dailink(dai_link);
+	if (ret < 0)
 		goto dai_link_of_err;
-	}
-
-	/* Assumes platform == cpu */
-	if (!dai_link->platform_of_node)
-		dai_link->platform_of_node = dai_link->cpu_of_node;
 
 	ret = asoc_simple_card_set_dailink_name(dev, dai_link,
 						"%s-%s",
