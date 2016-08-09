@@ -68,7 +68,8 @@ void iommu_put_dma_cookie(struct iommu_domain *domain)
 	if (!iovad)
 		return;
 
-	put_iova_domain(iovad);
+	if (iovad->granule)
+		put_iova_domain(iovad);
 	kfree(iovad);
 	domain->iova_cookie = NULL;
 }
