@@ -936,8 +936,6 @@ void __init setup_arch(char **cmdline_p)
 
 	x86_init.oem.arch_setup();
 
-	kernel_randomize_memory();
-
 	iomem_resource.end = (1ULL << boot_cpu_data.x86_phys_bits) - 1;
 	setup_memory_map();
 	parse_setup_data();
@@ -1054,6 +1052,12 @@ void __init setup_arch(char **cmdline_p)
 		max_pfn = e820_end_of_ram_pfn();
 
 	max_possible_pfn = max_pfn;
+
+	/*
+	 * Define random base addresses for memory sections after max_pfn is
+	 * defined and before each memory section base is used.
+	 */
+	kernel_randomize_memory();
 
 #ifdef CONFIG_X86_32
 	/* max_low_pfn get updated here */
