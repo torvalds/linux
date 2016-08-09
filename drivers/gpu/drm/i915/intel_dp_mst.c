@@ -38,12 +38,9 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	struct intel_digital_port *intel_dig_port = intel_mst->primary;
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
 	struct drm_atomic_state *state;
-	int bpp, i;
+	int bpp;
 	int lane_count, slots;
 	const struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
-	struct drm_connector *drm_connector;
-	struct intel_connector *connector, *found = NULL;
-	struct drm_connector_state *connector_state;
 	int mst_pbn;
 
 	pipe_config->dp_encoder_is_mst = true;
@@ -61,20 +58,6 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	pipe_config->port_clock = intel_dp_max_link_rate(intel_dp);
 
 	state = pipe_config->base.state;
-
-	for_each_connector_in_state(state, drm_connector, connector_state, i) {
-		connector = to_intel_connector(drm_connector);
-
-		if (connector_state->best_encoder == &encoder->base) {
-			found = connector;
-			break;
-		}
-	}
-
-	if (!found) {
-		DRM_ERROR("can't find connector\n");
-		return false;
-	}
 
 	mst_pbn = drm_dp_calc_pbn_mode(adjusted_mode->crtc_clock, bpp);
 
