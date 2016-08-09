@@ -2524,7 +2524,6 @@ i915_gem_idle_work_handler(struct work_struct *work)
 		container_of(work, typeof(*dev_priv), gt.idle_work.work);
 	struct drm_device *dev = &dev_priv->drm;
 	struct intel_engine_cs *engine;
-	unsigned int stuck_engines;
 	bool rearm_hangcheck;
 
 	if (!READ_ONCE(dev_priv->gt.awake))
@@ -2553,15 +2552,6 @@ i915_gem_idle_work_handler(struct work_struct *work)
 	GEM_BUG_ON(!dev_priv->gt.awake);
 	dev_priv->gt.awake = false;
 	rearm_hangcheck = false;
-
-	/* As we have disabled hangcheck, we need to unstick any waiters still
-	 * hanging around. However, as we may be racing against the interrupt
-	 * handler or the waiters themselves, we skip enabling the fake-irq.
-	 */
-	stuck_engines = intel_kick_waiters(dev_priv);
-	if (unlikely(stuck_engines))
-		DRM_DEBUG_DRIVER("kicked stuck waiters (%x)...missed irq?\n",
-				 stuck_engines);
 
 	if (INTEL_GEN(dev_priv) >= 6)
 		gen6_rps_idle(dev_priv);

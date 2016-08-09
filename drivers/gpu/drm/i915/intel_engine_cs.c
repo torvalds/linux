@@ -164,6 +164,7 @@ cleanup:
 void intel_engine_init_hangcheck(struct intel_engine_cs *engine)
 {
 	memset(&engine->hangcheck, 0, sizeof(engine->hangcheck));
+	clear_bit(engine->id, &engine->i915->gpu_error.missed_irq_rings);
 }
 
 static void intel_engine_init_requests(struct intel_engine_cs *engine)

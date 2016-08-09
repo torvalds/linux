@@ -972,10 +972,8 @@ static void ironlake_rps_change_irq_handler(struct drm_i915_private *dev_priv)
 static void notify_ring(struct intel_engine_cs *engine)
 {
 	smp_store_mb(engine->breadcrumbs.irq_posted, true);
-	if (intel_engine_wakeup(engine)) {
+	if (intel_engine_wakeup(engine))
 		trace_i915_gem_request_notify(engine);
-		engine->breadcrumbs.irq_wakeups++;
-	}
 }
 
 static void vlv_c0_read(struct drm_i915_private *dev_priv,
@@ -3044,22 +3042,6 @@ engine_stuck(struct intel_engine_cs *engine, u64 acthd)
 	return HANGCHECK_HUNG;
 }
 
-static unsigned long kick_waiters(struct intel_engine_cs *engine)
-{
-	struct drm_i915_private *i915 = engine->i915;
-	unsigned long irq_count = READ_ONCE(engine->breadcrumbs.irq_wakeups);
-
-	if (engine->hangcheck.user_interrupts == irq_count &&
-	    !test_and_set_bit(engine->id, &i915->gpu_error.missed_irq_rings)) {
-		if (!test_bit(engine->id, &i915->gpu_error.test_irq_rings))
-			DRM_ERROR("Hangcheck timer elapsed... %s idle\n",
-				  engine->name);
-
-		intel_engine_enable_fake_irq(engine);
-	}
-
-	return irq_count;
-}
 /*
  * This is called when the chip hasn't reported back with completed
  * batchbuffers in a long time. We keep track per ring seqno progress and
@@ -3097,7 +3079,6 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 		bool busy = intel_engine_has_waiter(engine);
 		u64 acthd;
 		u32 seqno;
-		unsigned user_interrupts;
 
 		semaphore_clear_deadlocks(dev_priv);
 
@@ -3114,15 +3095,11 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 		acthd = intel_engine_get_active_head(engine);
 		seqno = intel_engine_get_seqno(engine);
 
-		/* Reset stuck interrupts between batch advances */
-		user_interrupts = 0;
-
 		if (engine->hangcheck.seqno == seqno) {
 			if (!intel_engine_is_active(engine)) {
 				engine->hangcheck.action = HANGCHECK_IDLE;
 				if (busy) {
 					/* Safeguard against driver failure */
-					user_interrupts = kick_waiters(engine);
 					engine->hangcheck.score += BUSY;
 				}
 			} else {
@@ -3185,7 +3162,6 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 
 		engine->hangcheck.seqno = seqno;
 		engine->hangcheck.acthd = acthd;
-		engine->hangcheck.user_interrupts = user_interrupts;
 		busy_count += busy;
 	}
 

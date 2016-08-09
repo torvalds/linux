@@ -75,7 +75,6 @@ enum intel_engine_hangcheck_action {
 
 struct intel_engine_hangcheck {
 	u64 acthd;
-	unsigned long user_interrupts;
 	u32 seqno;
 	int score;
 	enum intel_engine_hangcheck_action action;
@@ -173,7 +172,6 @@ struct intel_engine_cs {
 	 */
 	struct intel_breadcrumbs {
 		struct task_struct *irq_seqno_bh; /* bh for user interrupts */
-		unsigned long irq_wakeups;
 		bool irq_posted;
 
 		spinlock_t lock; /* protects the lists of requests */
@@ -183,6 +181,9 @@ struct intel_engine_cs {
 		struct task_struct *signaler; /* used for fence signalling */
 		struct drm_i915_gem_request *first_signal;
 		struct timer_list fake_irq; /* used after a missed interrupt */
+		struct timer_list hangcheck; /* detect missed interrupts */
+
+		unsigned long timeout;
 
 		bool irq_enabled : 1;
 		bool rpm_wakelock : 1;
@@ -560,7 +561,6 @@ static inline bool intel_engine_wakeup(struct intel_engine_cs *engine)
 	return wakeup;
 }
 
-void intel_engine_enable_fake_irq(struct intel_engine_cs *engine);
 void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine);
 unsigned int intel_kick_waiters(struct drm_i915_private *i915);
 unsigned int intel_kick_signalers(struct drm_i915_private *i915);
