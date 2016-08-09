@@ -2544,6 +2544,7 @@ static void i915_guc_client_info(struct seq_file *m,
 				 struct i915_guc_client *client)
 {
 	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
 	uint64_t tot = 0;
 
 	seq_printf(m, "\tPriority %d, GuC ctx index: %u, PD offset 0x%x\n",
@@ -2558,11 +2559,11 @@ static void i915_guc_client_info(struct seq_file *m,
 	seq_printf(m, "\tFailed doorbell: %u\n", client->b_fail);
 	seq_printf(m, "\tLast submission result: %d\n", client->retcode);
 
-	for_each_engine(engine, dev_priv) {
+	for_each_engine_id(engine, dev_priv, id) {
+		u64 submissions = client->submissions[id];
+		tot += submissions;
 		seq_printf(m, "\tSubmissions: %llu %s\n",
-				client->submissions[engine->id],
-				engine->name);
-		tot += client->submissions[engine->id];
+				submissions, engine->name);
 	}
 	seq_printf(m, "\tTotal: %llu\n", tot);
 }
@@ -2575,6 +2576,7 @@ static int i915_guc_info(struct seq_file *m, void *data)
 	struct intel_guc guc;
 	struct i915_guc_client client = {};
 	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
 	u64 total = 0;
 
 	if (!HAS_GUC_SCHED(dev_priv))
@@ -2601,11 +2603,11 @@ static int i915_guc_info(struct seq_file *m, void *data)
 	seq_printf(m, "GuC last action error code: %d\n", guc.action_err);
 
 	seq_printf(m, "\nGuC submissions:\n");
-	for_each_engine(engine, dev_priv) {
+	for_each_engine_id(engine, dev_priv, id) {
+		u64 submissions = guc.submissions[id];
+		total += submissions;
 		seq_printf(m, "\t%-24s: %10llu, last seqno 0x%08x\n",
-			engine->name, guc.submissions[engine->id],
-			guc.last_seqno[engine->id]);
-		total += guc.submissions[engine->id];
+			engine->name, submissions, guc.last_seqno[id]);
 	}
 	seq_printf(m, "\t%s: %llu\n", "Total", total);
 

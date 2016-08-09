@@ -342,7 +342,8 @@ static void guc_init_ctx_desc(struct intel_guc *guc,
 
 	for_each_engine_masked(engine, dev_priv, client->engines) {
 		struct intel_context *ce = &ctx->engine[engine->id];
-		struct guc_execlist_context *lrc = &desc.lrc[engine->guc_id];
+		uint32_t guc_engine_id = engine->guc_id;
+		struct guc_execlist_context *lrc = &desc.lrc[guc_engine_id];
 		struct drm_i915_gem_object *obj;
 
 		/* TODO: We have a design issue to be solved here. Only when we
@@ -361,7 +362,7 @@ static void guc_init_ctx_desc(struct intel_guc *guc,
 		gfx_addr = i915_gem_obj_ggtt_offset(ce->state);
 		lrc->ring_lcra = gfx_addr + LRC_STATE_PN * PAGE_SIZE;
 		lrc->context_id = (client->ctx_index << GUC_ELC_CTXID_OFFSET) |
-				(engine->guc_id << GUC_ELC_ENGINE_OFFSET);
+				(guc_engine_id << GUC_ELC_ENGINE_OFFSET);
 
 		obj = ce->ring->obj;
 		gfx_addr = i915_gem_obj_ggtt_offset(obj);
@@ -371,7 +372,7 @@ static void guc_init_ctx_desc(struct intel_guc *guc,
 		lrc->ring_next_free_location = gfx_addr;
 		lrc->ring_current_tail_pointer_value = 0;
 
-		desc.engines_used |= (1 << engine->guc_id);
+		desc.engines_used |= (1 << guc_engine_id);
 	}
 
 	DRM_DEBUG_DRIVER("Host engines 0x%x => GuC engines used 0x%x\n",
@@ -459,6 +460,7 @@ static void guc_add_workqueue_item(struct i915_guc_client *gc,
 	/* wqi_len is in DWords, and does not include the one-word header */
 	const size_t wqi_size = sizeof(struct guc_wq_item);
 	const u32 wqi_len = wqi_size/sizeof(u32) - 1;
+	struct intel_engine_cs *engine = rq->engine;
 	struct guc_process_desc *desc;
 	struct guc_wq_item *wqi;
 	void *base;
@@ -500,12 +502,11 @@ static void guc_add_workqueue_item(struct i915_guc_client *gc,
 	/* Now fill in the 4-word work queue item */
 	wqi->header = WQ_TYPE_INORDER |
 			(wqi_len << WQ_LEN_SHIFT) |
-			(rq->engine->guc_id << WQ_TARGET_SHIFT) |
+			(engine->guc_id << WQ_TARGET_SHIFT) |
 			WQ_NO_WCFLUSH_WAIT;
 
 	/* The GuC wants only the low-order word of the context descriptor */
-	wqi->context_desc = (u32)intel_lr_context_descriptor(rq->ctx,
-							     rq->engine);
+	wqi->context_desc = (u32)intel_lr_context_descriptor(rq->ctx, engine);
 
 	wqi->ring_tail = tail << WQ_RING_TAIL_SHIFT;
 	wqi->fence_id = rq->fence.seqno;
