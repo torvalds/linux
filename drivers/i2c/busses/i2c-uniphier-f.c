@@ -550,11 +550,6 @@ static int uniphier_fi2c_probe(struct platform_device *pdev)
 	}
 
 	ret = i2c_add_adapter(&priv->adap);
-	if (ret) {
-		dev_err(dev, "failed to add I2C adapter\n");
-		goto err;
-	}
-
 err:
 	if (ret)
 		clk_disable_unprepare(priv->clk);
