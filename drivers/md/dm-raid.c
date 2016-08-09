@@ -3391,10 +3391,18 @@ static void raid_postsuspend(struct dm_target *ti)
 static void attempt_restore_of_faulty_devices(struct raid_set *rs)
 {
 	int i;
-	uint64_t failed_devices, cleared_failed_devices = 0;
+	uint64_t cleared_failed_devices[DISKS_ARRAY_ELEMS];
 	unsigned long flags;
+	bool cleared = false;
 	struct dm_raid_superblock *sb;
+	struct mddev *mddev = &rs->md;
 	struct md_rdev *r;
+
+	/* RAID personalities have to provide hot add/remove methods or we need to bail out. */
+	if (!mddev->pers || !mddev->pers->hot_add_disk || !mddev->pers->hot_remove_disk)
+		return;
+
+	memset(cleared_failed_devices, 0, sizeof(cleared_failed_devices));
 
 	for (i = 0; i < rs->md.raid_disks; i++) {
 		r = &rs->dev[i].rdev;
@@ -3415,7 +3423,7 @@ static void attempt_restore_of_faulty_devices(struct raid_set *rs)
 			 * ourselves.
 			 */
 			if ((r->raid_disk >= 0) &&
-			    (r->mddev->pers->hot_remove_disk(r->mddev, r) != 0))
+			    (mddev->pers->hot_remove_disk(mddev, r) != 0))
 				/* Failed to revive this device, try next */
 				continue;
 
@@ -3425,22 +3433,30 @@ static void attempt_restore_of_faulty_devices(struct raid_set *rs)
 			clear_bit(Faulty, &r->flags);
 			clear_bit(WriteErrorSeen, &r->flags);
 			clear_bit(In_sync, &r->flags);
-			if (r->mddev->pers->hot_add_disk(r->mddev, r)) {
+			if (mddev->pers->hot_add_disk(mddev, r)) {
 				r->raid_disk = -1;
 				r->saved_raid_disk = -1;
 				r->flags = flags;
 			} else {
 				r->recovery_offset = 0;
-				cleared_failed_devices |= 1 << i;
+				set_bit(i, (void *) cleared_failed_devices);
+				cleared = true;
 			}
 		}
 	}
-	if (cleared_failed_devices) {
+
+	/* If any failed devices could be cleared, update all sbs failed_devices bits */
+	if (cleared) {
+		uint64_t failed_devices[DISKS_ARRAY_ELEMS];
+
 		rdev_for_each(r, &rs->md) {
 			sb = page_address(r->sb_page);
-			failed_devices = le64_to_cpu(sb->failed_devices);
-			failed_devices &= ~cleared_failed_devices;
-			sb->failed_devices = cpu_to_le64(failed_devices);
+			sb_retrieve_failed_devices(sb, failed_devices);
+
+			for (i = 0; i < DISKS_ARRAY_ELEMS; i++)
+				failed_devices[i] &= ~cleared_failed_devices[i];
+
+			sb_update_failed_devices(sb, failed_devices);
 		}
 	}
 }
