@@ -171,7 +171,7 @@ static void dvb_ca_private_free(struct dvb_ca_private *ca)
 {
 	unsigned int i;
 
-	dvb_unregister_device(ca->dvbdev);
+	dvb_free_device(ca->dvbdev);
 	for (i = 0; i < ca->slot_count; i++)
 		vfree(ca->slot_info[i].rx_buffer.data);
 
@@ -1807,6 +1807,7 @@ void dvb_ca_en50221_release(struct dvb_ca_en50221 *pubca)
 	for (i = 0; i < ca->slot_count; i++) {
 		dvb_ca_en50221_slot_shutdown(ca, i);
 	}
+	dvb_remove_device(ca->dvbdev);
 	dvb_ca_private_put(ca);
 	pubca->private = NULL;
 }
