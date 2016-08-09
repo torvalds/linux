@@ -106,7 +106,7 @@ static void skl_set_pcm_constrains(struct hdac_ext_bus *ebus,
 
 static enum hdac_ext_stream_type skl_get_host_stream_type(struct hdac_ext_bus *ebus)
 {
-	if (ebus->ppcap)
+	if ((ebus_to_hbus(ebus))->ppcap)
 		return HDAC_EXT_STREAM_TYPE_HOST;
 	else
 		return HDAC_EXT_STREAM_TYPE_COUPLED;
@@ -188,7 +188,7 @@ static int skl_get_format(struct snd_pcm_substream *substream,
 	struct hdac_ext_bus *ebus = dev_get_drvdata(dai->dev);
 	int format_val = 0;
 
-	if (ebus->ppcap) {
+	if ((ebus_to_hbus(ebus))->ppcap) {
 		struct snd_pcm_runtime *runtime = substream->runtime;
 
 		format_val = snd_hdac_calc_stream_format(runtime->rate,
@@ -1020,7 +1020,7 @@ static int skl_platform_pcm_trigger(struct snd_pcm_substream *substream,
 {
 	struct hdac_ext_bus *ebus = get_bus_ctx(substream);
 
-	if (!ebus->ppcap)
+	if ((ebus_to_hbus(ebus))->ppcap)
 		return skl_coupled_trigger(substream, cmd);
 
 	return 0;
@@ -1146,7 +1146,7 @@ static int skl_platform_soc_probe(struct snd_soc_platform *platform)
 	int ret;
 
 	pm_runtime_get_sync(platform->dev);
-	if (ebus->ppcap) {
+	if ((ebus_to_hbus(ebus))->ppcap) {
 		ret = skl_tplg_init(platform, ebus);
 		if (ret < 0) {
 			dev_err(platform->dev, "Failed to init topology!\n");
