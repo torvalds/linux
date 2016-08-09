@@ -1917,6 +1917,8 @@ static inline int __init drbg_healthcheck_sanity(void)
 		return -ENOMEM;
 
 	mutex_init(&drbg->drbg_mutex);
+	drbg->core = &drbg_cores[coreref];
+	drbg->reseed_threshold = drbg_max_requests(drbg);
 
 	/*
 	 * if the following tests fail, it is likely that there is a buffer
@@ -1926,12 +1928,6 @@ static inline int __init drbg_healthcheck_sanity(void)
 	 * grave bug.
 	 */
 
-	/* get a valid instance of DRBG for following tests */
-	ret = drbg_instantiate(drbg, NULL, coreref, pr);
-	if (ret) {
-		rc = ret;
-		goto outbuf;
-	}
 	max_addtllen = drbg_max_addtl(drbg);
 	max_request_bytes = drbg_max_request_bytes(drbg);
 	drbg_string_fill(&addtl, buf, max_addtllen + 1);
@@ -1941,10 +1937,9 @@ static inline int __init drbg_healthcheck_sanity(void)
 	/* overflow max_bits */
 	len = drbg_generate(drbg, buf, (max_request_bytes + 1), NULL);
 	BUG_ON(0 < len);
-	drbg_uninstantiate(drbg);
 
 	/* overflow max addtllen with personalization string */
-	ret = drbg_instantiate(drbg, &addtl, coreref, pr);
+	ret = drbg_seed(drbg, &addtl, false);
 	BUG_ON(0 == ret);
 	/* all tests passed */
 	rc = 0;
@@ -1952,9 +1947,7 @@ static inline int __init drbg_healthcheck_sanity(void)
 	pr_devel("DRBG: Sanity tests for failure code paths successfully "
 		 "completed\n");
 
-	drbg_uninstantiate(drbg);
-outbuf:
-	kzfree(drbg);
+	kfree(drbg);
 	return rc;
 }
 
