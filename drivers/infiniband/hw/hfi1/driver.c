@@ -888,14 +888,14 @@ void set_all_slowpath(struct hfi1_devdata *dd)
 }
 
 static inline int set_armed_to_active(struct hfi1_ctxtdata *rcd,
-				      struct hfi1_packet packet,
+				      struct hfi1_packet *packet,
 				      struct hfi1_devdata *dd)
 {
 	struct work_struct *lsaw = &rcd->ppd->linkstate_active_work;
-	struct hfi1_message_header *hdr = hfi1_get_msgheader(packet.rcd->dd,
-							     packet.rhf_addr);
+	struct hfi1_message_header *hdr = hfi1_get_msgheader(packet->rcd->dd,
+							     packet->rhf_addr);
 
-	if (hdr2sc(hdr, packet.rhf) != 0xf) {
+	if (hdr2sc(hdr, packet->rhf) != 0xf) {
 		int hwstate = read_logical_state(dd);
 
 		if (hwstate != LSTATE_ACTIVE) {
@@ -979,7 +979,7 @@ int handle_receive_interrupt(struct hfi1_ctxtdata *rcd, int thread)
 			/* Auto activate link on non-SC15 packet receive */
 			if (unlikely(rcd->ppd->host_link_state ==
 				     HLS_UP_ARMED) &&
-			    set_armed_to_active(rcd, packet, dd))
+			    set_armed_to_active(rcd, &packet, dd))
 				goto bail;
 			last = process_rcv_packet(&packet, thread);
 		}
