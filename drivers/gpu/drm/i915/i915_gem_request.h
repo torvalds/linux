@@ -51,6 +51,13 @@ struct intel_signal_node {
  * emission time to be associated with the request for tracking how far ahead
  * of the GPU the submission is.
  *
+ * When modifying this structure be very aware that we perform a lockless
+ * RCU lookup of it that may race against reallocation of the struct
+ * from the slab freelist. We intentionally do not zero the structure on
+ * allocation so that the lookup can use the dangling pointers (and is
+ * cogniscent that those pointers may be wrong). Instead, everything that
+ * needs to be initialised must be done so explicitly.
+ *
  * The requests are reference counted.
  */
 struct drm_i915_gem_request {
@@ -458,6 +465,10 @@ __i915_gem_active_get_rcu(const struct i915_gem_active *active)
 	 * just report the active tracker is idle. If the new request is
 	 * incomplete, then we acquire a reference on it and check that
 	 * it remained the active request.
+	 *
+	 * It is then imperative that we do not zero the request on
+	 * reallocation, so that we can chase the dangling pointers!
+	 * See i915_gem_request_alloc().
 	 */
 	do {
 		struct drm_i915_gem_request *request;

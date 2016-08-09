@@ -355,7 +355,35 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	if (req && i915_gem_request_completed(req))
 		i915_gem_request_retire(req);
 
-	req = kmem_cache_zalloc(dev_priv->requests, GFP_KERNEL);
+	/* Beware: Dragons be flying overhead.
+	 *
+	 * We use RCU to look up requests in flight. The lookups may
+	 * race with the request being allocated from the slab freelist.
+	 * That is the request we are writing to here, may be in the process
+	 * of being read by __i915_gem_active_get_request_rcu(). As such,
+	 * we have to be very careful when overwriting the contents. During
+	 * the RCU lookup, we change chase the request->engine pointer,
+	 * read the request->fence.seqno and increment the reference count.
+	 *
+	 * The reference count is incremented atomically. If it is zero,
+	 * the lookup knows the request is unallocated and complete. Otherwise,
+	 * it is either still in use, or has been reallocated and reset
+	 * with fence_init(). This increment is safe for release as we check
+	 * that the request we have a reference to and matches the active
+	 * request.
+	 *
+	 * Before we increment the refcount, we chase the request->engine
+	 * pointer. We must not call kmem_cache_zalloc() or else we set
+	 * that pointer to NULL and cause a crash during the lookup. If
+	 * we see the request is completed (based on the value of the
+	 * old engine and seqno), the lookup is complete and reports NULL.
+	 * If we decide the request is not completed (new engine or seqno),
+	 * then we grab a reference and double check that it is still the
+	 * active request - which it won't be and restart the lookup.
+	 *
+	 * Do not use kmem_cache_zalloc() here!
+	 */
+	req = kmem_cache_alloc(dev_priv->requests, GFP_KERNEL);
 	if (!req)
 		return ERR_PTR(-ENOMEM);
 
@@ -374,6 +402,13 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	req->i915 = dev_priv;
 	req->engine = engine;
 	req->ctx = i915_gem_context_get(ctx);
+
+	/* No zalloc, must clear what we need by hand */
+	req->previous_context = NULL;
+	req->file_priv = NULL;
+	req->batch_obj = NULL;
+	req->pid = NULL;
+	req->elsp_submitted = 0;
 
 	/*
 	 * Reserve space in the ring buffer for all the commands required to
