@@ -497,9 +497,6 @@ static const struct cpsw_stats cpsw_gstrings_stats[] = {
 					n; n--)				\
 				(func)(slave++, ##arg);			\
 	} while (0)
-#define cpsw_get_slave_ndev(priv, __slave_no__)				\
-	((__slave_no__ < priv->data.slaves) ?				\
-		priv->slaves[__slave_no__].ndev : NULL)
 #define cpsw_get_slave_priv(priv, __slave_no__)				\
 	(((__slave_no__ < priv->data.slaves) &&				\
 		(priv->slaves[__slave_no__].ndev)) ?			\
@@ -510,11 +507,11 @@ static const struct cpsw_stats cpsw_gstrings_stats[] = {
 		if (!priv->data.dual_emac)				\
 			break;						\
 		if (CPDMA_RX_SOURCE_PORT(status) == 1) {		\
-			ndev = cpsw_get_slave_ndev(priv, 0);		\
+			ndev = priv->slaves[0].ndev;			\
 			priv = netdev_priv(ndev);			\
 			skb->dev = ndev;				\
 		} else if (CPDMA_RX_SOURCE_PORT(status) == 2) {		\
-			ndev = cpsw_get_slave_ndev(priv, 1);		\
+			ndev = priv->slaves[1].ndev;			\
 			priv = netdev_priv(ndev);			\
 			skb->dev = ndev;				\
 		}							\
@@ -2561,7 +2558,7 @@ static int cpsw_remove(struct platform_device *pdev)
 	}
 
 	if (priv->data.dual_emac)
-		unregister_netdev(cpsw_get_slave_ndev(priv, 1));
+		unregister_netdev(priv->slaves[1].ndev);
 	unregister_netdev(ndev);
 
 	cpsw_ale_destroy(priv->ale);
@@ -2570,7 +2567,7 @@ static int cpsw_remove(struct platform_device *pdev)
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	if (priv->data.dual_emac)
-		free_netdev(cpsw_get_slave_ndev(priv, 1));
+		free_netdev(priv->slaves[1].ndev);
 	free_netdev(ndev);
 	return 0;
 }
