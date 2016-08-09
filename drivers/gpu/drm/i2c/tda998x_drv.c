@@ -41,7 +41,7 @@ struct tda998x_priv {
 	u8 vip_cntrl_0;
 	u8 vip_cntrl_1;
 	u8 vip_cntrl_2;
-	struct tda998x_encoder_params params;
+	struct tda998x_audio_params audio_params;
 
 	wait_queue_head_t wq_edid;
 	volatile int wq_edid_wait;
@@ -666,26 +666,16 @@ tda998x_write_if(struct tda998x_priv *priv, u8 bit, u16 addr,
 	reg_set(priv, REG_DIP_IF_FLAGS, bit);
 }
 
-static void
-tda998x_write_aif(struct tda998x_priv *priv, struct tda998x_encoder_params *p)
+static int tda998x_write_aif(struct tda998x_priv *priv,
+			     struct hdmi_audio_infoframe *cea)
 {
 	union hdmi_infoframe frame;
 
-	hdmi_audio_infoframe_init(&frame.audio);
-
-	frame.audio.channels = p->audio_frame[1] & 0x07;
-	frame.audio.channel_allocation = p->audio_frame[4];
-	frame.audio.level_shift_value = (p->audio_frame[5] & 0x78) >> 3;
-	frame.audio.downmix_inhibit = (p->audio_frame[5] & 0x80) >> 7;
-
-	/*
-	 * L-PCM and IEC61937 compressed audio shall always set sample
-	 * frequency to "refer to stream".  For others, see the HDMI
-	 * specification.
-	 */
-	frame.audio.sample_frequency = (p->audio_frame[2] & 0x1c) >> 2;
+	frame.audio = *cea;
 
 	tda998x_write_if(priv, DIP_IF_FLAGS_IF4, REG_IF4_HB0, &frame);
+
+	return 0;
 }
 
 static void
@@ -710,20 +700,21 @@ static void tda998x_audio_mute(struct tda998x_priv *priv, bool on)
 	}
 }
 
-static void
+static int
 tda998x_configure_audio(struct tda998x_priv *priv,
-		struct drm_display_mode *mode, struct tda998x_encoder_params *p)
+			struct tda998x_audio_params *params,
+			unsigned mode_clock)
 {
 	u8 buf[6], clksel_aip, clksel_fs, cts_n, adiv;
 	u32 n;
 
 	/* Enable audio ports */
-	reg_write(priv, REG_ENA_AP, p->audio_cfg);
-	reg_write(priv, REG_ENA_ACLK, p->audio_clk_cfg);
+	reg_write(priv, REG_ENA_AP, params->config);
 
 	/* Set audio input source */
-	switch (p->audio_format) {
+	switch (params->format) {
 	case AFMT_SPDIF:
+		reg_write(priv, REG_ENA_ACLK, 0);
 		reg_write(priv, REG_MUX_AP, MUX_AP_SELECT_SPDIF);
 		clksel_aip = AIP_CLKSEL_AIP_SPDIF;
 		clksel_fs = AIP_CLKSEL_FS_FS64SPDIF;
@@ -731,15 +722,29 @@ tda998x_configure_audio(struct tda998x_priv *priv,
 		break;
 
 	case AFMT_I2S:
+		reg_write(priv, REG_ENA_ACLK, 1);
 		reg_write(priv, REG_MUX_AP, MUX_AP_SELECT_I2S);
 		clksel_aip = AIP_CLKSEL_AIP_I2S;
 		clksel_fs = AIP_CLKSEL_FS_ACLK;
-		cts_n = CTS_N_M(3) | CTS_N_K(3);
+		switch (params->sample_width) {
+		case 16:
+			cts_n = CTS_N_M(3) | CTS_N_K(1);
+			break;
+		case 18:
+		case 20:
+		case 24:
+			cts_n = CTS_N_M(3) | CTS_N_K(2);
+			break;
+		default:
+		case 32:
+			cts_n = CTS_N_M(3) | CTS_N_K(3);
+			break;
+		}
 		break;
 
 	default:
 		BUG();
-		return;
+		return -EINVAL;
 	}
 
 	reg_write(priv, REG_AIP_CLKSEL, clksel_aip);
@@ -755,11 +760,11 @@ tda998x_configure_audio(struct tda998x_priv *priv,
 	 * assume 100MHz requires larger divider.
 	 */
 	adiv = AUDIO_DIV_SERCLK_8;
-	if (mode->clock > 100000)
+	if (mode_clock > 100000)
 		adiv++;			/* AUDIO_DIV_SERCLK_16 */
 
 	/* S/PDIF asks for a larger divider */
-	if (p->audio_format == AFMT_SPDIF)
+	if (params->format == AFMT_SPDIF)
 		adiv++;			/* AUDIO_DIV_SERCLK_16 or _32 */
 
 	reg_write(priv, REG_AUDIO_DIV, adiv);
@@ -768,7 +773,7 @@ tda998x_configure_audio(struct tda998x_priv *priv,
 	 * This is the approximate value of N, which happens to be
 	 * the recommended values for non-coherent clocks.
 	 */
-	n = 128 * p->audio_sample_rate / 1000;
+	n = 128 * params->sample_rate / 1000;
 
 	/* Write the CTS and N values */
 	buf[0] = 0x44;
@@ -786,20 +791,21 @@ tda998x_configure_audio(struct tda998x_priv *priv,
 	reg_set(priv, REG_AIP_CNTRL_0, AIP_CNTRL_0_RST_CTS);
 	reg_clear(priv, REG_AIP_CNTRL_0, AIP_CNTRL_0_RST_CTS);
 
-	/* Write the channel status */
-	buf[0] = IEC958_AES0_CON_NOT_COPYRIGHT;
-	buf[1] = 0x00;
-	buf[2] = IEC958_AES3_CON_FS_NOTID;
-	buf[3] = IEC958_AES4_CON_ORIGFS_NOTID |
-			IEC958_AES4_CON_MAX_WORDLEN_24;
+	/* Write the channel status
+	 * The REG_CH_STAT_B-registers skip IEC958 AES2 byte, because
+	 * there is a separate register for each I2S wire.
+	 */
+	buf[0] = params->status[0];
+	buf[1] = params->status[1];
+	buf[2] = params->status[3];
+	buf[3] = params->status[4];
 	reg_write_range(priv, REG_CH_STAT_B(0), buf, 4);
 
 	tda998x_audio_mute(priv, true);
 	msleep(20);
 	tda998x_audio_mute(priv, false);
 
-	/* Write the audio information packet */
-	tda998x_write_aif(priv, p);
+	return tda998x_write_aif(priv, &params->cea);
 }
 
 /* DRM encoder functions */
@@ -820,7 +826,7 @@ static void tda998x_encoder_set_config(struct tda998x_priv *priv,
 			    VIP_CNTRL_2_SWAP_F(p->swap_f) |
 			    (p->mirr_f ? VIP_CNTRL_2_MIRR_F : 0);
 
-	priv->params = *p;
+	priv->audio_params = p->audio_params;
 }
 
 static void tda998x_encoder_dpms(struct drm_encoder *encoder, int mode)
@@ -1057,9 +1063,11 @@ tda998x_encoder_mode_set(struct drm_encoder *encoder,
 
 		tda998x_write_avi(priv, adjusted_mode);
 
-		if (priv->params.audio_cfg)
-			tda998x_configure_audio(priv, adjusted_mode,
-						&priv->params);
+		if (priv->audio_params.format != AFMT_UNUSED) {
+			tda998x_configure_audio(priv,
+						&priv->audio_params,
+						adjusted_mode->clock);
+		}
 	}
 }
 
