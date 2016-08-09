@@ -97,7 +97,6 @@ static int rsrc_card_dai_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_dai_link *dai_link;
 	struct asoc_simple_dai *dai_props;
 	int num = rtd->num;
-	int ret;
 
 	dai_link	= rsrc_priv_to_link(priv, num);
 	dai_props	= rsrc_priv_to_props(priv, num);
@@ -105,30 +104,7 @@ static int rsrc_card_dai_init(struct snd_soc_pcm_runtime *rtd)
 				rtd->cpu_dai :
 				rtd->codec_dai;
 
-	if (dai_props->sysclk) {
-		ret = snd_soc_dai_set_sysclk(dai, 0, dai_props->sysclk, 0);
-		if (ret && ret != -ENOTSUPP) {
-			dev_err(dai->dev, "set_sysclk error\n");
-			goto err;
-		}
-	}
-
-	if (dai_props->slots) {
-		ret = snd_soc_dai_set_tdm_slot(dai,
-					       dai_props->tx_slot_mask,
-					       dai_props->rx_slot_mask,
-					       dai_props->slots,
-					       dai_props->slot_width);
-		if (ret && ret != -ENOTSUPP) {
-			dev_err(dai->dev, "set_tdm_slot error\n");
-			goto err;
-		}
-	}
-
-	ret = 0;
-
-err:
-	return ret;
+	return asoc_simple_card_init_dai(dai, dai_props);
 }
 
 static int rsrc_card_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
