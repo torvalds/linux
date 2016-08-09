@@ -744,6 +744,8 @@ cant_route_call:
 	if (sp->hdr.type != RXRPC_PACKET_TYPE_ABORT) {
 		_debug("reject type %d",sp->hdr.type);
 		rxrpc_reject_packet(local, skb);
+	} else {
+		rxrpc_free_skb(skb);
 	}
 	_leave(" [no call]");
 	return;
