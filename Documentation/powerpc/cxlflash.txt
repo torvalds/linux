@@ -171,11 +171,30 @@ DK_CXLFLASH_ATTACH
           destroyed, the tokens are to be considered stale and subsequent
           usage will result in errors.
 
-        - When a context is no longer needed, the user shall detach from
-          the context via the DK_CXLFLASH_DETACH ioctl.
+	- A valid adapter file descriptor (fd2 >= 0) is only returned on
+	  the initial attach for a context. Subsequent attaches to an
+	  existing context (DK_CXLFLASH_ATTACH_REUSE_CONTEXT flag present)
+	  do not provide the adapter file descriptor as it was previously
+	  made known to the application.
 
-        - A close on fd2 will invalidate the tokens. This operation is not
-          required by the user.
+        - When a context is no longer needed, the user shall detach from
+          the context via the DK_CXLFLASH_DETACH ioctl. When this ioctl
+	  returns with a valid adapter file descriptor and the return flag
+	  DK_CXLFLASH_APP_CLOSE_ADAP_FD is present, the application _must_
+	  close the adapter file descriptor following a successful detach.
+
+	- When this ioctl returns with a valid fd2 and the return flag
+	  DK_CXLFLASH_APP_CLOSE_ADAP_FD is present, the application _must_
+	  close fd2 in the following circumstances:
+
+		+ Following a successful detach of the last user of the context
+		+ Following a successful recovery on the context's original fd2
+		+ In the child process of a fork(), following a clone ioctl,
+		  on the fd2 associated with the source context
+
+        - At any time, a close on fd2 will invalidate the tokens. Applications
+	  should exercise caution to only close fd2 when appropriate (outlined
+	  in the previous bullet) to avoid premature loss of I/O.
 
 DK_CXLFLASH_USER_DIRECT
 -----------------------
@@ -254,6 +273,10 @@ DK_CXLFLASH_DETACH
     success, all "tokens" which had been provided to the user from the
     DK_CXLFLASH_ATTACH onward are no longer valid.
 
+    When the DK_CXLFLASH_APP_CLOSE_ADAP_FD flag was returned on a successful
+    attach, the application _must_ close the fd2 associated with the context
+    following the detach of the final user of the context.
+
 DK_CXLFLASH_VLUN_CLONE
 ----------------------
     This ioctl is responsible for cloning a previously created
@@ -261,7 +284,7 @@ DK_CXLFLASH_VLUN_CLONE
     support maintaining user space access to storage after a process
     forks. Upon success, the child process (which invoked the ioctl)
     will have access to the same LUNs via the same resource handle(s)
-    and fd2 as the parent, but under a different context.
+    as the parent, but under a different context.
 
     Context sharing across processes is not supported with CXL and
     therefore each fork must be met with establishing a new context
@@ -274,6 +297,12 @@ DK_CXLFLASH_VLUN_CLONE
     The clone itself is fairly simple. The resource handle and lun
     translation tables are copied from the parent context to the child's
     and then synced with the AFU.
+
+    When the DK_CXLFLASH_APP_CLOSE_ADAP_FD flag was returned on a successful
+    attach, the application _must_ close the fd2 associated with the source
+    context (still resident/accessible in the parent process) following the
+    clone. This is to avoid a stale entry in the file descriptor table of the
+    child process.
 
 DK_CXLFLASH_VERIFY
 ------------------
@@ -308,6 +337,11 @@ DK_CXLFLASH_RECOVER_AFU
     hold is not relinquished. The user may also optionally exit the process
     at which time the context/resources they held will be freed as part of
     the release fop.
+
+    When the DK_CXLFLASH_APP_CLOSE_ADAP_FD flag was returned on a successful
+    attach, the application _must_ unmap and close the fd2 associated with the
+    original context following this ioctl returning success and indicating that
+    the context was recovered (DK_CXLFLASH_RECOVER_AFU_CONTEXT_RESET).
 
 DK_CXLFLASH_MANAGE_LUN
 ----------------------

@@ -825,7 +825,6 @@ static void remove_context(struct kref *kref)
 {
 	struct ctx_info *ctxi = container_of(kref, struct ctx_info, kref);
 	struct cxlflash_cfg *cfg = ctxi->cfg;
-	int lfd;
 	u64 ctxid = DECODE_CTXID(ctxi->ctxid);
 
 	/* Remove context from table/error list */
@@ -842,19 +841,7 @@ static void remove_context(struct kref *kref)
 	mutex_unlock(&ctxi->mutex);
 
 	/* Context now completely uncoupled/unreachable */
-	lfd = ctxi->lfd;
 	destroy_context(cfg, ctxi);
-
-	/*
-	 * As a last step, clean up external resources when not
-	 * already on an external cleanup thread, i.e.: close(adap_fd).
-	 *
-	 * NOTE: this will free up the context from the CXL services,
-	 * allowing it to dole out the same context_id on a future
-	 * (or even currently in-flight) disk_attach operation.
-	 */
-	if (lfd != -1)
-		sys_close(lfd);
 }
 
 /**
@@ -949,34 +936,18 @@ static int cxlflash_disk_detach(struct scsi_device *sdev,
  *
  * This routine is the release handler for the fops registered with
  * the CXL services on an initial attach for a context. It is called
- * when a close is performed on the adapter file descriptor returned
- * to the user. Programmatically, the user is not required to perform
- * the close, as it is handled internally via the detach ioctl when
- * a context is being removed. Note that nothing prevents the user
- * from performing a close, but the user should be aware that doing
- * so is considered catastrophic and subsequent usage of the superpipe
- * API with previously saved off tokens will fail.
+ * when a close (explicity by the user or as part of a process tear
+ * down) is performed on the adapter file descriptor returned to the
+ * user. The user should be aware that explicitly performing a close
+ * considered catastrophic and subsequent usage of the superpipe API
+ * with previously saved off tokens will fail.
  *
- * When initiated from an external close (either by the user or via
- * a process tear down), the routine derives the context reference
- * and calls detach for each LUN associated with the context. The
- * final detach operation will cause the context itself to be freed.
- * Note that the saved off lfd is reset prior to calling detach to
- * signify that the final detach should not perform a close.
- *
- * When initiated from a detach operation as part of the tear down
- * of a context, the context is first completely freed and then the
- * close is performed. This routine will fail to derive the context
- * reference (due to the context having already been freed) and then
- * call into the CXL release entry point.
- *
- * Thus, with exception to when the CXL process element (context id)
- * lookup fails (a case that should theoretically never occur), every
- * call into this routine results in a complete freeing of a context.
- *
- * As part of the detach, all per-context resources associated with the LUN
- * are cleaned up. When detaching the last LUN for a context, the context
- * itself is cleaned up and released.
+ * This routine derives the context reference and calls detach for
+ * each LUN associated with the context.The final detach operation
+ * causes the context itself to be freed. With exception to when the
+ * CXL process element (context id) lookup fails (a case that should
+ * theoretically never occur), every call into this routine results
+ * in a complete freeing of a context.
  *
  * Return: 0 on success
  */
@@ -1014,11 +985,8 @@ static int cxlflash_cxl_release(struct inode *inode, struct file *file)
 		goto out;
 	}
 
-	dev_dbg(dev, "%s: close(%d) for context %d\n",
-		__func__, ctxi->lfd, ctxid);
+	dev_dbg(dev, "%s: close for context %d\n", __func__, ctxid);
 
-	/* Reset the file descriptor to indicate we're on a close() thread */
-	ctxi->lfd = -1;
 	detach.context_id = ctxi->ctxid;
 	list_for_each_entry_safe(lun_access, t, &ctxi->luns, list)
 		_cxlflash_disk_detach(lun_access->sdev, ctxi, &detach);
@@ -1391,7 +1359,6 @@ static int cxlflash_disk_attach(struct scsi_device *sdev,
 			__func__, rctxid);
 		kref_get(&ctxi->kref);
 		list_add(&lun_access->list, &ctxi->luns);
-		fd = ctxi->lfd;
 		goto out_attach;
 	}
 
@@ -1461,7 +1428,11 @@ static int cxlflash_disk_attach(struct scsi_device *sdev,
 	fd_install(fd, file);
 
 out_attach:
-	attach->hdr.return_flags = 0;
+	if (fd != -1)
+		attach->hdr.return_flags = DK_CXLFLASH_APP_CLOSE_ADAP_FD;
+	else
+		attach->hdr.return_flags = 0;
+
 	attach->context_id = ctxi->ctxid;
 	attach->block_size = gli->blk_len;
 	attach->mmio_size = sizeof(afu->afu_map->hosts[0].harea);
@@ -1526,7 +1497,7 @@ static int recover_context(struct cxlflash_cfg *cfg, struct ctx_info *ctxi)
 {
 	struct device *dev = &cfg->dev->dev;
 	int rc = 0;
-	int old_fd, fd = -1;
+	int fd = -1;
 	int ctxid = -1;
 	struct file *file;
 	struct cxl_context *ctx;
@@ -1574,7 +1545,6 @@ static int recover_context(struct cxlflash_cfg *cfg, struct ctx_info *ctxi)
 	 * No error paths after this point. Once the fd is installed it's
 	 * visible to user space and can't be undone safely on this thread.
 	 */
-	old_fd = ctxi->lfd;
 	ctxi->ctxid = ENCODE_CTXID(ctxi, ctxid);
 	ctxi->lfd = fd;
 	ctxi->ctx = ctx;
@@ -1593,9 +1563,6 @@ static int recover_context(struct cxlflash_cfg *cfg, struct ctx_info *ctxi)
 	cfg->ctx_tbl[ctxid] = ctxi;
 	mutex_unlock(&cfg->ctx_tbl_list_mutex);
 	fd_install(fd, file);
-
-	/* Release the original adapter fd and associated CXL resources */
-	sys_close(old_fd);
 out:
 	dev_dbg(dev, "%s: returning ctxid=%d fd=%d rc=%d\n",
 		__func__, ctxid, fd, rc);
@@ -1707,7 +1674,7 @@ retry_recover:
 		recover->context_id = ctxi->ctxid;
 		recover->adap_fd = ctxi->lfd;
 		recover->mmio_size = sizeof(afu->afu_map->hosts[0].harea);
-		recover->hdr.return_flags |=
+		recover->hdr.return_flags = DK_CXLFLASH_APP_CLOSE_ADAP_FD |
 			DK_CXLFLASH_RECOVER_AFU_CONTEXT_RESET;
 		goto out;
 	}
