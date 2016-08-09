@@ -793,9 +793,6 @@ static int cpsw_tx_poll(struct napi_struct *napi_tx, int budget)
 		}
 	}
 
-	if (num_tx)
-		cpsw_dbg(priv, intr, "poll %d tx pkts\n", num_tx);
-
 	return num_tx;
 }
 
@@ -813,9 +810,6 @@ static int cpsw_rx_poll(struct napi_struct *napi_rx, int budget)
 			enable_irq(priv->irqs_table[0]);
 		}
 	}
-
-	if (num_rx)
-		cpsw_dbg(priv, intr, "poll %d rx pkts\n", num_rx);
 
 	return num_rx;
 }
