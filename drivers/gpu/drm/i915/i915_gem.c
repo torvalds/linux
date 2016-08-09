@@ -3748,7 +3748,15 @@ static __always_inline unsigned int __busy_read_flag(unsigned int id)
 
 static __always_inline unsigned int __busy_write_id(unsigned int id)
 {
-	return id;
+	/* The uABI guarantees an active writer is also amongst the read
+	 * engines. This would be true if we accessed the activity tracking
+	 * under the lock, but as we perform the lookup of the object and
+	 * its activity locklessly we can not guarantee that the last_write
+	 * being active implies that we have set the same engine flag from
+	 * last_read - hence we always set both read and write busy for
+	 * last_write.
+	 */
+	return id | __busy_read_flag(id);
 }
 
 static __always_inline unsigned int
@@ -3857,9 +3865,11 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 			args->busy |= busy_check_reader(&obj->last_read[idx]);
 
 		/* For ABI sanity, we only care that the write engine is in
-		 * the set of read engines. This is ensured by the ordering
-		 * of setting last_read/last_write in i915_vma_move_to_active,
-		 * and then in reverse in retire.
+		 * the set of read engines. This should be ensured by the
+		 * ordering of setting last_read/last_write in
+		 * i915_vma_move_to_active(), and then in reverse in retire.
+		 * However, for good measure, we always report the last_write
+		 * request as a busy read as well as being a busy write.
 		 *
 		 * We don't care that the set of active read/write engines
 		 * may change during construction of the result, as it is
