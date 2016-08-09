@@ -3455,19 +3455,16 @@ static void gfx_v8_0_select_se_sh(struct amdgpu_device *adev,
 	else
 		data = REG_SET_FIELD(0, GRBM_GFX_INDEX, INSTANCE_INDEX, instance);
 
-	if ((se_num == 0xffffffff) && (sh_num == 0xffffffff)) {
-		data = REG_SET_FIELD(data, GRBM_GFX_INDEX, SH_BROADCAST_WRITES, 1);
+	if (se_num == 0xffffffff)
 		data = REG_SET_FIELD(data, GRBM_GFX_INDEX, SE_BROADCAST_WRITES, 1);
-	} else if (se_num == 0xffffffff) {
-		data = REG_SET_FIELD(data, GRBM_GFX_INDEX, SH_INDEX, sh_num);
-		data = REG_SET_FIELD(data, GRBM_GFX_INDEX, SE_BROADCAST_WRITES, 1);
-	} else if (sh_num == 0xffffffff) {
+	else
+		data = REG_SET_FIELD(data, GRBM_GFX_INDEX, SE_INDEX, se_num);
+
+	if (sh_num == 0xffffffff)
 		data = REG_SET_FIELD(data, GRBM_GFX_INDEX, SH_BROADCAST_WRITES, 1);
-		data = REG_SET_FIELD(data, GRBM_GFX_INDEX, SE_INDEX, se_num);
-	} else {
+	else
 		data = REG_SET_FIELD(data, GRBM_GFX_INDEX, SH_INDEX, sh_num);
-		data = REG_SET_FIELD(data, GRBM_GFX_INDEX, SE_INDEX, se_num);
-	}
+
 	WREG32(mmGRBM_GFX_INDEX, data);
 }
 
@@ -3480,11 +3477,10 @@ static u32 gfx_v8_0_get_rb_active_bitmap(struct amdgpu_device *adev)
 {
 	u32 data, mask;
 
-	data = RREG32(mmCC_RB_BACKEND_DISABLE);
-	data |= RREG32(mmGC_USER_RB_BACKEND_DISABLE);
+	data =  RREG32(mmCC_RB_BACKEND_DISABLE) |
+		RREG32(mmGC_USER_RB_BACKEND_DISABLE);
 
-	data &= CC_RB_BACKEND_DISABLE__BACKEND_DISABLE_MASK;
-	data >>= GC_USER_RB_BACKEND_DISABLE__BACKEND_DISABLE__SHIFT;
+	data = REG_GET_FIELD(data, GC_USER_RB_BACKEND_DISABLE, BACKEND_DISABLE);
 
 	mask = gfx_v8_0_create_bitmask(adev->gfx.config.max_backends_per_se /
 				       adev->gfx.config.max_sh_per_se);
@@ -4288,12 +4284,10 @@ static int gfx_v8_0_cp_gfx_resume(struct amdgpu_device *adev)
 	gfx_v8_0_cp_gfx_start(adev);
 	ring->ready = true;
 	r = amdgpu_ring_test_ring(ring);
-	if (r) {
+	if (r)
 		ring->ready = false;
-		return r;
-	}
 
-	return 0;
+	return r;
 }
 
 static void gfx_v8_0_cp_compute_enable(struct amdgpu_device *adev, bool enable)
@@ -4975,8 +4969,6 @@ static int gfx_v8_0_hw_init(void *handle)
 		return r;
 
 	r = gfx_v8_0_cp_resume(adev);
-	if (r)
-		return r;
 
 	return r;
 }
@@ -5024,15 +5016,12 @@ static bool gfx_v8_0_is_idle(void *handle)
 static int gfx_v8_0_wait_for_idle(void *handle)
 {
 	unsigned i;
-	u32 tmp;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	for (i = 0; i < adev->usec_timeout; i++) {
-		/* read MC_STATUS */
-		tmp = RREG32(mmGRBM_STATUS) & GRBM_STATUS__GUI_ACTIVE_MASK;
-
-		if (!REG_GET_FIELD(tmp, GRBM_STATUS, GUI_ACTIVE))
+		if (gfx_v8_0_is_idle(handle))
 			return 0;
+
 		udelay(1);
 	}
 	return -ETIMEDOUT;
@@ -5963,25 +5952,18 @@ static int gfx_v8_0_set_clockgating_state(void *handle,
 
 static u32 gfx_v8_0_ring_get_rptr_gfx(struct amdgpu_ring *ring)
 {
-	u32 rptr;
-
-	rptr = ring->adev->wb.wb[ring->rptr_offs];
-
-	return rptr;
+	return ring->adev->wb.wb[ring->rptr_offs];
 }
 
 static u32 gfx_v8_0_ring_get_wptr_gfx(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
-	u32 wptr;
 
 	if (ring->use_doorbell)
 		/* XXX check if swapping is necessary on BE */
-		wptr = ring->adev->wb.wb[ring->wptr_offs];
+		return ring->adev->wb.wb[ring->wptr_offs];
 	else
-		wptr = RREG32(mmCP_RB0_WPTR);
-
-	return wptr;
+		return RREG32(mmCP_RB0_WPTR);
 }
 
 static void gfx_v8_0_ring_set_wptr_gfx(struct amdgpu_ring *ring)
@@ -6591,15 +6573,12 @@ static u32 gfx_v8_0_get_cu_active_bitmap(struct amdgpu_device *adev)
 {
 	u32 data, mask;
 
-	data = RREG32(mmCC_GC_SHADER_ARRAY_CONFIG);
-	data |= RREG32(mmGC_USER_SHADER_ARRAY_CONFIG);
-
-	data &= CC_GC_SHADER_ARRAY_CONFIG__INACTIVE_CUS_MASK;
-	data >>= CC_GC_SHADER_ARRAY_CONFIG__INACTIVE_CUS__SHIFT;
+	data =  RREG32(mmCC_GC_SHADER_ARRAY_CONFIG) |
+		RREG32(mmGC_USER_SHADER_ARRAY_CONFIG);
 
 	mask = gfx_v8_0_create_bitmask(adev->gfx.config.max_cu_per_sh);
 
-	return (~data) & mask;
+	return ~REG_GET_FIELD(data, CC_GC_SHADER_ARRAY_CONFIG, INACTIVE_CUS) & mask;
 }
 
 static void gfx_v8_0_get_cu_info(struct amdgpu_device *adev)
