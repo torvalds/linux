@@ -124,11 +124,15 @@ static int rxrpc_fast_process_data(struct rxrpc_call *call,
 	struct rxrpc_skb_priv *sp;
 	bool terminal;
 	int ret, ackbit, ack;
+	u32 serial;
+	u8 flags;
 
 	_enter("{%u,%u},,{%u}", call->rx_data_post, call->rx_first_oos, seq);
 
 	sp = rxrpc_skb(skb);
 	ASSERTCMP(sp->call, ==, NULL);
+	flags = sp->hdr.flags;
+	serial = sp->hdr.serial;
 
 	spin_lock(&call->lock);
 
@@ -192,8 +196,8 @@ static int rxrpc_fast_process_data(struct rxrpc_call *call,
 	sp->call = call;
 	rxrpc_get_call(call);
 	atomic_inc(&call->skb_count);
-	terminal = ((sp->hdr.flags & RXRPC_LAST_PACKET) &&
-		    !(sp->hdr.flags & RXRPC_CLIENT_INITIATED));
+	terminal = ((flags & RXRPC_LAST_PACKET) &&
+		    !(flags & RXRPC_CLIENT_INITIATED));
 	ret = rxrpc_queue_rcv_skb(call, skb, false, terminal);
 	if (ret < 0) {
 		if (ret == -ENOMEM || ret == -ENOBUFS) {
@@ -205,12 +209,13 @@ static int rxrpc_fast_process_data(struct rxrpc_call *call,
 	}
 
 	skb = NULL;
+	sp = NULL;
 
 	_debug("post #%u", seq);
 	ASSERTCMP(call->rx_data_post, ==, seq);
 	call->rx_data_post++;
 
-	if (sp->hdr.flags & RXRPC_LAST_PACKET)
+	if (flags & RXRPC_LAST_PACKET)
 		set_bit(RXRPC_CALL_RCVD_LAST, &call->flags);
 
 	/* if we've reached an out of sequence packet then we need to drain
@@ -226,7 +231,7 @@ static int rxrpc_fast_process_data(struct rxrpc_call *call,
 
 	spin_unlock(&call->lock);
 	atomic_inc(&call->ackr_not_idle);
-	rxrpc_propose_ACK(call, RXRPC_ACK_DELAY, sp->hdr.serial, false);
+	rxrpc_propose_ACK(call, RXRPC_ACK_DELAY, serial, false);
 	_leave(" = 0 [posted]");
 	return 0;
 
@@ -239,7 +244,7 @@ out:
 
 discard_and_ack:
 	_debug("discard and ACK packet %p", skb);
-	__rxrpc_propose_ACK(call, ack, sp->hdr.serial, true);
+	__rxrpc_propose_ACK(call, ack, serial, true);
 discard:
 	spin_unlock(&call->lock);
 	rxrpc_free_skb(skb);
@@ -247,7 +252,7 @@ discard:
 	return 0;
 
 enqueue_and_ack:
-	__rxrpc_propose_ACK(call, ack, sp->hdr.serial, true);
+	__rxrpc_propose_ACK(call, ack, serial, true);
 enqueue_packet:
 	_net("defer skb %p", skb);
 	spin_unlock(&call->lock);
