@@ -360,6 +360,21 @@ __i915_gem_active_peek(const struct i915_gem_active *active)
 }
 
 /**
+ * i915_gem_active_raw - return the active request
+ * @active - the active tracker
+ *
+ * i915_gem_active_raw() returns the current request being tracked, or NULL.
+ * It does not obtain a reference on the request for the caller, so the caller
+ * must hold struct_mutex.
+ */
+static inline struct drm_i915_gem_request *
+i915_gem_active_raw(const struct i915_gem_active *active, struct mutex *mutex)
+{
+	return rcu_dereference_protected(active->request,
+					 lockdep_is_held(mutex));
+}
+
+/**
  * i915_gem_active_peek - report the active request being monitored
  * @active - the active tracker
  *
@@ -372,8 +387,7 @@ i915_gem_active_peek(const struct i915_gem_active *active, struct mutex *mutex)
 {
 	struct drm_i915_gem_request *request;
 
-	request = rcu_dereference_protected(active->request,
-					    lockdep_is_held(mutex));
+	request = i915_gem_active_raw(active, mutex);
 	if (!request || i915_gem_request_completed(request))
 		return NULL;
 
@@ -614,8 +628,7 @@ i915_gem_active_retire(struct i915_gem_active *active,
 	struct drm_i915_gem_request *request;
 	int ret;
 
-	request = rcu_dereference_protected(active->request,
-					    lockdep_is_held(mutex));
+	request = i915_gem_active_raw(active, mutex);
 	if (!request)
 		return 0;
 
