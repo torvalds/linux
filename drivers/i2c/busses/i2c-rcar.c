@@ -875,10 +875,8 @@ static int rcar_i2c_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, priv);
 
 	ret = i2c_add_numbered_adapter(adap);
-	if (ret < 0) {
-		dev_err(dev, "reg adap failed: %d\n", ret);
+	if (ret < 0)
 		goto out_pm_disable;
-	}
 
 	dev_info(dev, "probed\n");
 

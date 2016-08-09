@@ -1129,10 +1129,8 @@ static int i2c_imx_probe(struct platform_device *pdev)
 
 	/* Add I2C adapter */
 	ret = i2c_add_numbered_adapter(&i2c_imx->adapter);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "registration failed\n");
+	if (ret < 0)
 		goto rpm_disable;
-	}
 
 	pm_runtime_mark_last_busy(&pdev->dev);
 	pm_runtime_put_autosuspend(&pdev->dev);

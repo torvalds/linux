@@ -558,13 +558,7 @@ static int axxia_i2c_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, idev);
 
-	ret = i2c_add_adapter(&idev->adapter);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to add adapter\n");
-		return ret;
-	}
-
-	return 0;
+	return i2c_add_adapter(&idev->adapter);
 }
 
 static int axxia_i2c_remove(struct platform_device *pdev)

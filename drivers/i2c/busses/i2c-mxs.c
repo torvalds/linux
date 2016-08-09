@@ -868,7 +868,6 @@ static int mxs_i2c_probe(struct platform_device *pdev)
 	i2c_set_adapdata(adap, i2c);
 	err = i2c_add_numbered_adapter(adap);
 	if (err) {
-		dev_err(dev, "Failed to add adapter (%d)\n", err);
 		writel(MXS_I2C_CTRL0_SFTRST,
 				i2c->regs + MXS_I2C_CTRL0_SET);
 		return err;

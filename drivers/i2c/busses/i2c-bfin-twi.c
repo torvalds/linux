@@ -685,10 +685,8 @@ static int i2c_bfin_twi_probe(struct platform_device *pdev)
 	write_CONTROL(iface, read_CONTROL(iface) | TWI_ENA);
 
 	rc = i2c_add_numbered_adapter(p_adap);
-	if (rc < 0) {
-		dev_err(&pdev->dev, "Can't add i2c adapter!\n");
+	if (rc < 0)
 		goto out_error;
-	}
 
 	platform_set_drvdata(pdev, iface);
 
