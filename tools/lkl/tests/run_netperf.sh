@@ -77,6 +77,8 @@ then
     export LKL_HIJACK_NET_IFPARAMS=lkl_ptt0
     export LKL_HIJACK_NET_IP=192.168.13.2
     export LKL_HIJACK_NET_NETMASK_LEN=24
+    export LKL_HIJACK_NET_IPV6=fc03::2
+    export LKL_HIJACK_NET_NETMASK6_LEN=64
 
     sudo ip tuntap del dev $LKL_HIJACK_NET_IFPARAMS mode tap || true
     sudo ip tuntap add dev $LKL_HIJACK_NET_IFPARAMS mode tap user $USER
@@ -86,10 +88,10 @@ then
     trap clean_with_tap EXIT
 fi
 
-sudo netserver -L $host_ip
+sudo netserver
 
 echo NUM=$num_runs, TEST=$test_name, TASKSET=$use_taskset
 for i in `seq $num_runs`; do
     echo Test: $i
-    $taskset_cmd ${hijack_script} netperf -L $LKL_HIJACK_NET_IP -H $host_ip -t $test_name -l $test_len
+    $taskset_cmd ${hijack_script} netperf -H $host_ip -t $test_name -l $test_len
 done

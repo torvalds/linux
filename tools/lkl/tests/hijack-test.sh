@@ -68,24 +68,24 @@ export LKL_HIJACK_NET_IFPARAMS=lkl_ptt0
 export LKL_HIJACK_NET_IP=192.168.13.2
 export LKL_HIJACK_NET_NETMASK_LEN=24
 export LKL_HIJACK_NET_GATEWAY=192.168.13.1
-export LKL_HIJACK_NET_IPV6=2001:db8:0:f102::2
+export LKL_HIJACK_NET_IPV6=fc03::2
 export LKL_HIJACK_NET_NETMASK6_LEN=64
-export LKL_HIJACK_NET_GATEWAY6=2001:db8:0:f102::1
+export LKL_HIJACK_NET_GATEWAY6=fc03::1
 
 # Set up the TAP device we'd like to use
 sudo ip tuntap del dev lkl_ptt0 mode tap || true
 sudo ip tuntap add dev lkl_ptt0 mode tap user $USER
 sudo ip link set dev lkl_ptt0 up
 sudo ip addr add dev lkl_ptt0 192.168.13.1/24
-sudo ip -6 addr add dev lkl_ptt0 2001:db8:0:f102::1/64
+sudo ip -6 addr add dev lkl_ptt0 fc03::1/64
 
 # Make sure our device has the addresses we expect
 addr=$(LKL_HIJACK_DEBUG=1\
-  LKL_HIJACK_NET_MAC="aa:bb:cc:dd:ee:ff" ${hijack_script} ip addr) 
+  LKL_HIJACK_NET_MAC="aa:bb:cc:dd:ee:ff" ${hijack_script} ip addr)
 echo "$addr" | grep eth0
 echo "$addr" | grep 192.168.13.2
 echo "$addr" | grep "aa:bb:cc:dd:ee:ff"
-echo "$addr" | grep "2001:db8:0:f102::2"
+echo "$addr" | grep "fc03::2"
 ! echo "$addr" | grep "WARN: failed to free"
 
 # Copy ping so we're allowed to run it under LKL
@@ -94,18 +94,18 @@ cp `which ping6` .
 
 # Make sure we can ping the host from inside LKL
 ${hijack_script} ./ping 192.168.13.1 -c 1
-${hijack_script} ./ping6 2001:db8:0:f102::1 -c 10
+${hijack_script} ./ping6 fc03::1 -c 1
 rm ./ping ./ping6
 
 # Now let's check that the host can see LKL.
-sudo ip -6 neigh del 2001:db8:0:f102::2 dev lkl_ptt0
+sudo ip -6 neigh del fc03::2 dev lkl_ptt0
 sudo ip neigh del 192.168.13.2 dev lkl_ptt0
 sudo ping -i 0.01 -c 65 192.168.13.2 &
-sudo ping6 -i 0.01 -c 65 2001:db8:0:f102::2 &
+sudo ping6 -i 0.01 -c 65 fc03::2 &
 ${hijack_script} sleep 3
 
 # add neighbor entries
-ans=$(LKL_HIJACK_NET_NEIGHBOR="192.168.13.100|12:34:56:78:9a:bc;2001:db8:0:f102::100|12:34:56:78:9a:be"\
+ans=$(LKL_HIJACK_NET_NEIGHBOR="192.168.13.100|12:34:56:78:9a:bc;fc03::100|12:34:56:78:9a:be"\
   ${hijack_script} ip neighbor show) || true
 echo "$ans" | tail -n 15 | grep "12:34:56:78:9a:bc"
 echo "$ans" | tail -n 15 | grep "12:34:56:78:9a:be"
@@ -116,7 +116,7 @@ echo "$ans" | tail -n 15 | grep "192.168.13.1"
 
 # gateway v6
 ans=$(${hijack_script} ip -6 route show) || true
-echo "$ans" | tail -n 15 | grep "2001:db8:0:f102::1"
+echo "$ans" | tail -n 15 | grep "fc03::1"
 
 # LKL_VIRTIO_NET_F_HOST_TSO4 && LKL_VIRTIO_NET_F_GUEST_TSO4
 # LKL_VIRTIO_NET_F_CSUM && LKL_VIRTIO_NET_F_GUEST_CSUM
@@ -127,6 +127,7 @@ LKL_HIJACK_OFFLOAD=0x883 sh ${script_dir}/run_netperf.sh 192.168.13.1 1 0 TCP_MA
 # LKL_VIRTIO_NET_F_CSUM && LKL_VIRTIO_NET_F_GUEST_CSUM
 LKL_HIJACK_OFFLOAD=0x8803 sh ${script_dir}/run_netperf.sh 192.168.13.1 1 0 TCP_MAERTS
 sh ${script_dir}/run_netperf.sh 192.168.13.1 1 0 TCP_RR
+sh ${script_dir}/run_netperf.sh fc03::1 1 0 TCP_STREAM
 
 echo "== VDE tests =="
 if [ ! -x "$(which vde_switch)" ]; then

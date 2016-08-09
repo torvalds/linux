@@ -388,13 +388,13 @@ hijack_init(void)
 	}
 
 	if (nd_ifindex >= 0 && ipv6 && netmask6_len) {
-		char addr[16];
+		struct in6_addr addr;
 		unsigned int pflen = atoi(netmask6_len);
 
-		if (inet_pton(AF_INET6, ipv6, addr) != 1) {
+		if (inet_pton(AF_INET6, ipv6, &addr) != 1) {
 			fprintf(stderr, "Invalid ipv6 addr: %s\n", ipv6);
 		}  else {
-			ret = lkl_if_set_ipv6(nd_ifindex, addr, pflen);
+			ret = lkl_if_set_ipv6(nd_ifindex, &addr, pflen);
 			if (ret < 0)
 				fprintf(stderr, "failed to set IPv6address: %s\n",
 					lkl_strerror(ret));

@@ -224,6 +224,7 @@ int lkl_set_ipv4_gateway(unsigned int addr);
 
 /**
  * lkl_if_set_ipv6 - set IPv6 address on interface
+ * must be called after interface is up.
  *
  * @ifindex - the ifindex of the interface
  * @addr - 16-byte IPv6 address (i.e., struct in6_addr)
