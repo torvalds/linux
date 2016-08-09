@@ -802,11 +802,11 @@ static int gb_sdio_probe(struct gbphy_device *gbphy_dev,
 
 	mmc->ops = &gb_sdio_ops;
 
-	/* for now we just make a map 1:1 between max blocks and segments */
 	mmc->max_segs = host->mmc->max_blk_count;
-	mmc->max_seg_size = host->mmc->max_blk_size;
 
+	/* for now we make a map 1:1 between max request and segment size */
 	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
+	mmc->max_seg_size = mmc->max_req_size;
 
 	mutex_init(&host->lock);
 	spin_lock_init(&host->xfer);
