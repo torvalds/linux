@@ -365,6 +365,10 @@ static inline void slave_write(struct cpsw_slave *slave, u32 val, u32 offset)
 
 struct cpsw_common {
 	struct device			*dev;
+	struct cpsw_ss_regs __iomem	*regs;
+	struct cpsw_wr_regs __iomem	*wr_regs;
+	u8 __iomem			*hw_stats;
+	struct cpsw_host_regs __iomem	*host_port_regs;
 };
 
 struct cpsw_priv {
@@ -373,10 +377,6 @@ struct cpsw_priv {
 	struct napi_struct		napi_tx;
 	struct device			*dev;
 	struct cpsw_platform_data	data;
-	struct cpsw_ss_regs __iomem	*regs;
-	struct cpsw_wr_regs __iomem	*wr_regs;
-	u8 __iomem			*hw_stats;
-	struct cpsw_host_regs __iomem	*host_port_regs;
 	u32				msg_enable;
 	u32				version;
 	u32				coal_intvl;
@@ -656,8 +656,10 @@ static void cpsw_ndo_set_rx_mode(struct net_device *ndev)
 
 static void cpsw_intr_enable(struct cpsw_priv *priv)
 {
-	__raw_writel(0xFF, &priv->wr_regs->tx_en);
-	__raw_writel(0xFF, &priv->wr_regs->rx_en);
+	struct cpsw_common *cpsw = priv->cpsw;
+
+	__raw_writel(0xFF, &cpsw->wr_regs->tx_en);
+	__raw_writel(0xFF, &cpsw->wr_regs->rx_en);
 
 	cpdma_ctlr_int_ctrl(priv->dma, true);
 	return;
@@ -665,8 +667,10 @@ static void cpsw_intr_enable(struct cpsw_priv *priv)
 
 static void cpsw_intr_disable(struct cpsw_priv *priv)
 {
-	__raw_writel(0, &priv->wr_regs->tx_en);
-	__raw_writel(0, &priv->wr_regs->rx_en);
+	struct cpsw_common *cpsw = priv->cpsw;
+
+	__raw_writel(0, &cpsw->wr_regs->tx_en);
+	__raw_writel(0, &cpsw->wr_regs->rx_en);
 
 	cpdma_ctlr_int_ctrl(priv->dma, false);
 	return;
@@ -750,8 +754,9 @@ requeue:
 static irqreturn_t cpsw_tx_interrupt(int irq, void *dev_id)
 {
 	struct cpsw_priv *priv = dev_id;
+	struct cpsw_common *cpsw = priv->cpsw;
 
-	writel(0, &priv->wr_regs->tx_en);
+	writel(0, &cpsw->wr_regs->tx_en);
 	cpdma_ctlr_eoi(priv->dma, CPDMA_EOI_TX);
 
 	if (priv->quirk_irq) {
@@ -766,9 +771,10 @@ static irqreturn_t cpsw_tx_interrupt(int irq, void *dev_id)
 static irqreturn_t cpsw_rx_interrupt(int irq, void *dev_id)
 {
 	struct cpsw_priv *priv = dev_id;
+	struct cpsw_common *cpsw = priv->cpsw;
 
 	cpdma_ctlr_eoi(priv->dma, CPDMA_EOI_RX);
-	writel(0, &priv->wr_regs->rx_en);
+	writel(0, &cpsw->wr_regs->rx_en);
 
 	if (priv->quirk_irq) {
 		disable_irq_nosync(priv->irqs_table[0]);
@@ -783,11 +789,12 @@ static int cpsw_tx_poll(struct napi_struct *napi_tx, int budget)
 {
 	struct cpsw_priv	*priv = napi_to_priv(napi_tx);
 	int			num_tx;
+	struct cpsw_common	*cpsw = priv->cpsw;
 
 	num_tx = cpdma_chan_process(priv->txch, budget);
 	if (num_tx < budget) {
 		napi_complete(napi_tx);
-		writel(0xff, &priv->wr_regs->tx_en);
+		writel(0xff, &cpsw->wr_regs->tx_en);
 		if (priv->quirk_irq && priv->tx_irq_disabled) {
 			priv->tx_irq_disabled = false;
 			enable_irq(priv->irqs_table[1]);
@@ -801,11 +808,12 @@ static int cpsw_rx_poll(struct napi_struct *napi_rx, int budget)
 {
 	struct cpsw_priv	*priv = napi_to_priv(napi_rx);
 	int			num_rx;
+	struct cpsw_common	*cpsw = priv->cpsw;
 
 	num_rx = cpdma_chan_process(priv->rxch, budget);
 	if (num_rx < budget) {
 		napi_complete(napi_rx);
-		writel(0xff, &priv->wr_regs->rx_en);
+		writel(0xff, &cpsw->wr_regs->rx_en);
 		if (priv->quirk_irq && priv->rx_irq_disabled) {
 			priv->rx_irq_disabled = false;
 			enable_irq(priv->irqs_table[0]);
@@ -925,10 +933,11 @@ static int cpsw_set_coalesce(struct net_device *ndev,
 	u32 prescale = 0;
 	u32 addnl_dvdr = 1;
 	u32 coal_intvl = 0;
+	struct cpsw_common *cpsw = priv->cpsw;
 
 	coal_intvl = coal->rx_coalesce_usecs;
 
-	int_ctrl =  readl(&priv->wr_regs->int_control);
+	int_ctrl =  readl(&cpsw->wr_regs->int_control);
 	prescale = priv->bus_freq_mhz * 4;
 
 	if (!coal->rx_coalesce_usecs) {
@@ -957,15 +966,15 @@ static int cpsw_set_coalesce(struct net_device *ndev,
 	}
 
 	num_interrupts = (1000 * addnl_dvdr) / coal_intvl;
-	writel(num_interrupts, &priv->wr_regs->rx_imax);
-	writel(num_interrupts, &priv->wr_regs->tx_imax);
+	writel(num_interrupts, &cpsw->wr_regs->rx_imax);
+	writel(num_interrupts, &cpsw->wr_regs->tx_imax);
 
 	int_ctrl |= CPSW_INTPACEEN;
 	int_ctrl &= (~CPSW_INTPRESCALE_MASK);
 	int_ctrl |= (prescale & CPSW_INTPRESCALE_MASK);
 
 update_return:
-	writel(int_ctrl, &priv->wr_regs->int_control);
+	writel(int_ctrl, &cpsw->wr_regs->int_control);
 
 	cpsw_notice(priv, timer, "Set coalesce to %d usecs.\n", coal_intvl);
 	if (priv->data.dual_emac) {
@@ -1017,6 +1026,7 @@ static void cpsw_get_ethtool_stats(struct net_device *ndev,
 	u32 val;
 	u8 *p;
 	int i;
+	struct cpsw_common *cpsw = priv->cpsw;
 
 	/* Collect Davinci CPDMA stats for Rx and Tx Channel */
 	cpdma_chan_get_stats(priv->rxch, &rx_stats);
@@ -1025,7 +1035,7 @@ static void cpsw_get_ethtool_stats(struct net_device *ndev,
 	for (i = 0; i < CPSW_STATS_LEN; i++) {
 		switch (cpsw_gstrings_stats[i].type) {
 		case CPSW_STATS:
-			val = readl(priv->hw_stats +
+			val = readl(cpsw->hw_stats +
 				    cpsw_gstrings_stats[i].stat_offset);
 			data[i] = val;
 			break;
@@ -1164,11 +1174,12 @@ static inline void cpsw_add_default_vlan(struct cpsw_priv *priv)
 	u32 reg;
 	int i;
 	int unreg_mcast_mask;
+	struct cpsw_common *cpsw = priv->cpsw;
 
 	reg = (priv->version == CPSW_VERSION_1) ? CPSW1_PORT_VLAN :
 	       CPSW2_PORT_VLAN;
 
-	writel(vlan, &priv->host_port_regs->port_vlan);
+	writel(vlan, &cpsw->host_port_regs->port_vlan);
 
 	for (i = 0; i < priv->data.slaves; i++)
 		slave_write(priv->slaves + i, vlan, reg);
@@ -1185,27 +1196,28 @@ static inline void cpsw_add_default_vlan(struct cpsw_priv *priv)
 
 static void cpsw_init_host_port(struct cpsw_priv *priv)
 {
-	u32 control_reg;
 	u32 fifo_mode;
+	u32 control_reg;
+	struct cpsw_common *cpsw = priv->cpsw;
 
 	/* soft reset the controller and initialize ale */
-	soft_reset("cpsw", &priv->regs->soft_reset);
+	soft_reset("cpsw", &cpsw->regs->soft_reset);
 	cpsw_ale_start(priv->ale);
 
 	/* switch to vlan unaware mode */
 	cpsw_ale_control_set(priv->ale, HOST_PORT_NUM, ALE_VLAN_AWARE,
 			     CPSW_ALE_VLAN_AWARE);
-	control_reg = readl(&priv->regs->control);
+	control_reg = readl(&cpsw->regs->control);
 	control_reg |= CPSW_VLAN_AWARE;
-	writel(control_reg, &priv->regs->control);
+	writel(control_reg, &cpsw->regs->control);
 	fifo_mode = (priv->data.dual_emac) ? CPSW_FIFO_DUAL_MAC_MODE :
 		     CPSW_FIFO_NORMAL_MODE;
-	writel(fifo_mode, &priv->host_port_regs->tx_in_ctl);
+	writel(fifo_mode, &cpsw->host_port_regs->tx_in_ctl);
 
 	/* setup host port priority mapping */
 	__raw_writel(CPDMA_TX_PRIORITY_MAP,
-		     &priv->host_port_regs->cpdma_tx_pri_map);
-	__raw_writel(0, &priv->host_port_regs->cpdma_rx_chan_map);
+		     &cpsw->host_port_regs->cpdma_tx_pri_map);
+	__raw_writel(0, &cpsw->host_port_regs->cpdma_rx_chan_map);
 
 	cpsw_ale_control_set(priv->ale, HOST_PORT_NUM,
 			     ALE_PORT_STATE, ALE_PORT_STATE_FORWARD);
@@ -1278,13 +1290,13 @@ static int cpsw_ndo_open(struct net_device *ndev)
 		cpdma_control_set(priv->dma, CPDMA_RX_BUFFER_OFFSET, 0);
 
 		/* disable priority elevation */
-		__raw_writel(0, &priv->regs->ptype);
+		__raw_writel(0, &cpsw->regs->ptype);
 
 		/* enable statistics collection only on all ports */
-		__raw_writel(0x7, &priv->regs->stat_port_en);
+		__raw_writel(0x7, &cpsw->regs->stat_port_en);
 
 		/* Enable internal fifo flow control */
-		writel(0x7, &priv->regs->flow_control);
+		writel(0x7, &cpsw->regs->flow_control);
 
 		napi_enable(&priv_sl0->napi_rx);
 		napi_enable(&priv_sl0->napi_tx);
@@ -1443,6 +1455,7 @@ static void cpsw_hwtstamp_v1(struct cpsw_priv *priv)
 static void cpsw_hwtstamp_v2(struct cpsw_priv *priv)
 {
 	struct cpsw_slave *slave;
+	struct cpsw_common *cpsw = priv->cpsw;
 	u32 ctrl, mtype;
 
 	if (priv->data.dual_emac)
@@ -1477,7 +1490,7 @@ static void cpsw_hwtstamp_v2(struct cpsw_priv *priv)
 
 	slave_write(slave, mtype, CPSW2_TS_SEQ_MTYPE);
 	slave_write(slave, ctrl, CPSW2_CONTROL);
-	__raw_writel(ETH_P_1588, &priv->regs->ts_ltype);
+	__raw_writel(ETH_P_1588, &cpsw->regs->ts_ltype);
 }
 
 static int cpsw_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
@@ -1980,7 +1993,8 @@ static const struct ethtool_ops cpsw_ethtool_ops = {
 static void cpsw_slave_init(struct cpsw_slave *slave, struct cpsw_priv *priv,
 			    u32 slave_reg_ofs, u32 sliver_reg_ofs)
 {
-	void __iomem		*regs = priv->regs;
+	struct cpsw_common	*cpsw = priv->cpsw;
+	void __iomem		*regs = cpsw->regs;
 	int			slave_num = slave->slave_num;
 	struct cpsw_slave_data	*data = priv->data.slave_data + slave_num;
 
@@ -2190,11 +2204,6 @@ static int cpsw_probe_dual_emac(struct cpsw_priv *priv)
 	priv_sl2->slaves = priv->slaves;
 	priv_sl2->coal_intvl = 0;
 	priv_sl2->bus_freq_mhz = priv->bus_freq_mhz;
-
-	priv_sl2->regs = priv->regs;
-	priv_sl2->host_port_regs = priv->host_port_regs;
-	priv_sl2->wr_regs = priv->wr_regs;
-	priv_sl2->hw_stats = priv->hw_stats;
 	priv_sl2->dma = priv->dma;
 	priv_sl2->txch = priv->txch;
 	priv_sl2->rxch = priv->rxch;
@@ -2363,7 +2372,7 @@ static int cpsw_probe(struct platform_device *pdev)
 		ret = PTR_ERR(ss_regs);
 		goto clean_runtime_disable_ret;
 	}
-	priv->regs = ss_regs;
+	cpsw->regs = ss_regs;
 
 	/* Need to enable clocks with runtime PM api to access module
 	 * registers
@@ -2373,13 +2382,13 @@ static int cpsw_probe(struct platform_device *pdev)
 		pm_runtime_put_noidle(&pdev->dev);
 		goto clean_runtime_disable_ret;
 	}
-	priv->version = readl(&priv->regs->id_ver);
+	priv->version = readl(&cpsw->regs->id_ver);
 	pm_runtime_put_sync(&pdev->dev);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	priv->wr_regs = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(priv->wr_regs)) {
-		ret = PTR_ERR(priv->wr_regs);
+	cpsw->wr_regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(cpsw->wr_regs)) {
+		ret = PTR_ERR(cpsw->wr_regs);
 		goto clean_runtime_disable_ret;
 	}
 
@@ -2388,9 +2397,9 @@ static int cpsw_probe(struct platform_device *pdev)
 
 	switch (priv->version) {
 	case CPSW_VERSION_1:
-		priv->host_port_regs = ss_regs + CPSW1_HOST_PORT_OFFSET;
+		cpsw->host_port_regs = ss_regs + CPSW1_HOST_PORT_OFFSET;
 		priv->cpts->reg      = ss_regs + CPSW1_CPTS_OFFSET;
-		priv->hw_stats	     = ss_regs + CPSW1_HW_STATS;
+		cpsw->hw_stats	     = ss_regs + CPSW1_HW_STATS;
 		dma_params.dmaregs   = ss_regs + CPSW1_CPDMA_OFFSET;
 		dma_params.txhdp     = ss_regs + CPSW1_STATERAM_OFFSET;
 		ale_params.ale_regs  = ss_regs + CPSW1_ALE_OFFSET;
@@ -2402,9 +2411,9 @@ static int cpsw_probe(struct platform_device *pdev)
 	case CPSW_VERSION_2:
 	case CPSW_VERSION_3:
 	case CPSW_VERSION_4:
-		priv->host_port_regs = ss_regs + CPSW2_HOST_PORT_OFFSET;
+		cpsw->host_port_regs = ss_regs + CPSW2_HOST_PORT_OFFSET;
 		priv->cpts->reg      = ss_regs + CPSW2_CPTS_OFFSET;
-		priv->hw_stats	     = ss_regs + CPSW2_HW_STATS;
+		cpsw->hw_stats	     = ss_regs + CPSW2_HW_STATS;
 		dma_params.dmaregs   = ss_regs + CPSW2_CPDMA_OFFSET;
 		dma_params.txhdp     = ss_regs + CPSW2_STATERAM_OFFSET;
 		ale_params.ale_regs  = ss_regs + CPSW2_ALE_OFFSET;
