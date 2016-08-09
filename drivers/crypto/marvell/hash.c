@@ -408,7 +408,7 @@ static bool mv_cesa_ahash_cache_req(struct ahash_request *req)
 	struct mv_cesa_ahash_req *creq = ahash_request_ctx(req);
 	bool cached = false;
 
-	if (creq->cache_ptr + req->nbytes < 64 && !creq->last_req) {
+	if (creq->cache_ptr + req->nbytes < CESA_MAX_HASH_BLOCK_SIZE && !creq->last_req) {
 		cached = true;
 
 		if (!req->nbytes)
