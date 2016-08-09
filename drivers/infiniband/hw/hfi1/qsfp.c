@@ -706,8 +706,8 @@ int get_cable_info(struct hfi1_devdata *dd, u32 port_num, u32 addr, u32 len,
 		   u8 *data)
 {
 	struct hfi1_pportdata *ppd;
-	u32 excess_len = 0;
-	int ret = 0;
+	u32 excess_len = len;
+	int ret = 0, offset = 0;
 
 	if (port_num > dd->num_pports || port_num < 1) {
 		dd_dev_info(dd, "%s: Invalid port number %d\n",
@@ -740,6 +740,34 @@ int get_cable_info(struct hfi1_devdata *dd, u32 port_num, u32 addr, u32 len,
 	}
 
 	memcpy(data, &ppd->qsfp_info.cache[addr], len);
+
+	if (addr <= QSFP_MONITOR_VAL_END &&
+	    (addr + len) >= QSFP_MONITOR_VAL_START) {
+		/* Overlap with the dynamic channel monitor range */
+		if (addr < QSFP_MONITOR_VAL_START) {
+			if (addr + len <= QSFP_MONITOR_VAL_END)
+				len = addr + len - QSFP_MONITOR_VAL_START;
+			else
+				len = QSFP_MONITOR_RANGE;
+			offset = QSFP_MONITOR_VAL_START - addr;
+			addr = QSFP_MONITOR_VAL_START;
+		} else if (addr == QSFP_MONITOR_VAL_START) {
+			offset = 0;
+			if (addr + len > QSFP_MONITOR_VAL_END)
+				len = QSFP_MONITOR_RANGE;
+		} else {
+			offset = 0;
+			if (addr + len > QSFP_MONITOR_VAL_END)
+				len = QSFP_MONITOR_VAL_END - addr + 1;
+		}
+		/* Refresh the values of the dynamic monitors from the cable */
+		ret = one_qsfp_read(ppd, dd->hfi1_id, addr, data + offset, len);
+		if (ret != len) {
+			ret = -EAGAIN;
+			goto set_zeroes;
+		}
+	}
+
 	return 0;
 
 set_zeroes:
