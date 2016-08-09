@@ -826,6 +826,8 @@ static int caam_probe(struct platform_device *pdev)
 
 caam_remove:
 	caam_remove(pdev);
+	return ret;
+
 iounmap_ctrl:
 	iounmap(ctrl);
 disable_caam_emi_slow:
