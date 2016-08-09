@@ -41,6 +41,7 @@ struct cxd2820r_priv {
 	struct i2c_adapter *i2c;
 	struct dvb_frontend fe;
 	struct cxd2820r_config cfg;
+	u64 post_bit_error_prev_dvbv3;
 	u64 post_bit_error;
 
 	bool ber_running;
@@ -87,14 +88,6 @@ int cxd2820r_set_frontend_c(struct dvb_frontend *fe);
 
 int cxd2820r_read_status_c(struct dvb_frontend *fe, enum fe_status *status);
 
-int cxd2820r_read_ber_c(struct dvb_frontend *fe, u32 *ber);
-
-int cxd2820r_read_signal_strength_c(struct dvb_frontend *fe, u16 *strength);
-
-int cxd2820r_read_snr_c(struct dvb_frontend *fe, u16 *snr);
-
-int cxd2820r_read_ucblocks_c(struct dvb_frontend *fe, u32 *ucblocks);
-
 int cxd2820r_init_c(struct dvb_frontend *fe);
 
 int cxd2820r_sleep_c(struct dvb_frontend *fe);
@@ -111,14 +104,6 @@ int cxd2820r_set_frontend_t(struct dvb_frontend *fe);
 
 int cxd2820r_read_status_t(struct dvb_frontend *fe, enum fe_status *status);
 
-int cxd2820r_read_ber_t(struct dvb_frontend *fe, u32 *ber);
-
-int cxd2820r_read_signal_strength_t(struct dvb_frontend *fe, u16 *strength);
-
-int cxd2820r_read_snr_t(struct dvb_frontend *fe, u16 *snr);
-
-int cxd2820r_read_ucblocks_t(struct dvb_frontend *fe, u32 *ucblocks);
-
 int cxd2820r_init_t(struct dvb_frontend *fe);
 
 int cxd2820r_sleep_t(struct dvb_frontend *fe);
@@ -134,14 +119,6 @@ int cxd2820r_get_frontend_t2(struct dvb_frontend *fe,
 int cxd2820r_set_frontend_t2(struct dvb_frontend *fe);
 
 int cxd2820r_read_status_t2(struct dvb_frontend *fe, enum fe_status *status);
-
-int cxd2820r_read_ber_t2(struct dvb_frontend *fe, u32 *ber);
-
-int cxd2820r_read_signal_strength_t2(struct dvb_frontend *fe, u16 *strength);
-
-int cxd2820r_read_snr_t2(struct dvb_frontend *fe, u16 *snr);
-
-int cxd2820r_read_ucblocks_t2(struct dvb_frontend *fe, u32 *ucblocks);
 
 int cxd2820r_init_t2(struct dvb_frontend *fe);
 

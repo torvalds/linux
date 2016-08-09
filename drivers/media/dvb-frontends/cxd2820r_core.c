@@ -345,101 +345,58 @@ static int cxd2820r_get_frontend(struct dvb_frontend *fe,
 static int cxd2820r_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
 	struct cxd2820r_priv *priv = fe->demodulator_priv;
-	int ret;
 
 	dev_dbg(&priv->i2c->dev, "%s: delsys=%d\n", __func__,
 			fe->dtv_property_cache.delivery_system);
 
-	switch (fe->dtv_property_cache.delivery_system) {
-	case SYS_DVBT:
-		ret = cxd2820r_read_ber_t(fe, ber);
-		break;
-	case SYS_DVBT2:
-		ret = cxd2820r_read_ber_t2(fe, ber);
-		break;
-	case SYS_DVBC_ANNEX_A:
-		ret = cxd2820r_read_ber_c(fe, ber);
-		break;
-	default:
-		ret = -EINVAL;
-		break;
-	}
-	return ret;
+	*ber = (priv->post_bit_error - priv->post_bit_error_prev_dvbv3);
+	priv->post_bit_error_prev_dvbv3 = priv->post_bit_error;
+
+	return 0;
 }
 
 static int cxd2820r_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 {
 	struct cxd2820r_priv *priv = fe->demodulator_priv;
-	int ret;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 
 	dev_dbg(&priv->i2c->dev, "%s: delsys=%d\n", __func__,
 			fe->dtv_property_cache.delivery_system);
 
-	switch (fe->dtv_property_cache.delivery_system) {
-	case SYS_DVBT:
-		ret = cxd2820r_read_signal_strength_t(fe, strength);
-		break;
-	case SYS_DVBT2:
-		ret = cxd2820r_read_signal_strength_t2(fe, strength);
-		break;
-	case SYS_DVBC_ANNEX_A:
-		ret = cxd2820r_read_signal_strength_c(fe, strength);
-		break;
-	default:
-		ret = -EINVAL;
-		break;
-	}
-	return ret;
+	if (c->strength.stat[0].scale == FE_SCALE_RELATIVE)
+		*strength = c->strength.stat[0].uvalue;
+	else
+		*strength = 0;
+
+	return 0;
 }
 
 static int cxd2820r_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
 	struct cxd2820r_priv *priv = fe->demodulator_priv;
-	int ret;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 
 	dev_dbg(&priv->i2c->dev, "%s: delsys=%d\n", __func__,
 			fe->dtv_property_cache.delivery_system);
 
-	switch (fe->dtv_property_cache.delivery_system) {
-	case SYS_DVBT:
-		ret = cxd2820r_read_snr_t(fe, snr);
-		break;
-	case SYS_DVBT2:
-		ret = cxd2820r_read_snr_t2(fe, snr);
-		break;
-	case SYS_DVBC_ANNEX_A:
-		ret = cxd2820r_read_snr_c(fe, snr);
-		break;
-	default:
-		ret = -EINVAL;
-		break;
-	}
-	return ret;
+	if (c->cnr.stat[0].scale == FE_SCALE_DECIBEL)
+		*snr = div_s64(c->cnr.stat[0].svalue, 100);
+	else
+		*snr = 0;
+
+	return 0;
 }
 
 static int cxd2820r_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 {
 	struct cxd2820r_priv *priv = fe->demodulator_priv;
-	int ret;
 
 	dev_dbg(&priv->i2c->dev, "%s: delsys=%d\n", __func__,
 			fe->dtv_property_cache.delivery_system);
 
-	switch (fe->dtv_property_cache.delivery_system) {
-	case SYS_DVBT:
-		ret = cxd2820r_read_ucblocks_t(fe, ucblocks);
-		break;
-	case SYS_DVBT2:
-		ret = cxd2820r_read_ucblocks_t2(fe, ucblocks);
-		break;
-	case SYS_DVBC_ANNEX_A:
-		ret = cxd2820r_read_ucblocks_c(fe, ucblocks);
-		break;
-	default:
-		ret = -EINVAL;
-		break;
-	}
-	return ret;
+	*ucblocks = 0;
+
+	return 0;
 }
 
 static int cxd2820r_init(struct dvb_frontend *fe)
