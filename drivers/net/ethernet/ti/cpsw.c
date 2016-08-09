@@ -379,7 +379,6 @@ struct cpsw_priv {
 	u32				coal_intvl;
 	u32				bus_freq_mhz;
 	int				rx_packet_max;
-	struct clk			*clk;
 	u8				mac_addr[ETH_ALEN];
 	struct cpsw_slave		*slaves;
 	struct cpdma_ctlr		*dma;
@@ -2177,8 +2176,6 @@ static int cpsw_probe_dual_emac(struct platform_device *pdev,
 	memcpy(ndev->dev_addr, priv_sl2->mac_addr, ETH_ALEN);
 
 	priv_sl2->slaves = priv->slaves;
-	priv_sl2->clk = priv->clk;
-
 	priv_sl2->coal_intvl = 0;
 	priv_sl2->bus_freq_mhz = priv->bus_freq_mhz;
 
@@ -2256,6 +2253,7 @@ MODULE_DEVICE_TABLE(of, cpsw_of_mtable);
 
 static int cpsw_probe(struct platform_device *pdev)
 {
+	struct clk			*clk;
 	struct cpsw_platform_data	*data;
 	struct net_device		*ndev;
 	struct cpsw_priv		*priv;
@@ -2334,14 +2332,14 @@ static int cpsw_probe(struct platform_device *pdev)
 	priv->slaves[0].ndev = ndev;
 	priv->emac_port = 0;
 
-	priv->clk = devm_clk_get(&pdev->dev, "fck");
-	if (IS_ERR(priv->clk)) {
+	clk = devm_clk_get(&pdev->dev, "fck");
+	if (IS_ERR(clk)) {
 		dev_err(priv->dev, "fck is not found\n");
 		ret = -ENODEV;
 		goto clean_runtime_disable_ret;
 	}
 	priv->coal_intvl = 0;
-	priv->bus_freq_mhz = clk_get_rate(priv->clk) / 1000000;
+	priv->bus_freq_mhz = clk_get_rate(clk) / 1000000;
 
 	ss_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	ss_regs = devm_ioremap_resource(&pdev->dev, ss_res);
