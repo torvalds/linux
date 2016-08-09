@@ -1594,6 +1594,21 @@ static int mwifiex_cmd_gtk_rekey_offload(struct mwifiex_private *priv,
 	return 0;
 }
 
+static int mwifiex_cmd_chan_region_cfg(struct mwifiex_private *priv,
+				       struct host_cmd_ds_command *cmd,
+				       u16 cmd_action)
+{
+	struct host_cmd_ds_chan_region_cfg *reg = &cmd->params.reg_cfg;
+
+	cmd->command = cpu_to_le16(HostCmd_CMD_CHAN_REGION_CFG);
+	cmd->size = cpu_to_le16(sizeof(*reg) + S_DS_GEN);
+
+	if (cmd_action == HostCmd_ACT_GEN_GET)
+		reg->action = cpu_to_le16(cmd_action);
+
+	return 0;
+}
+
 static int
 mwifiex_cmd_coalesce_cfg(struct mwifiex_private *priv,
 			 struct host_cmd_ds_command *cmd,
@@ -2134,6 +2149,9 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 		ret = mwifiex_cmd_gtk_rekey_offload(priv, cmd_ptr, cmd_action,
 						    data_buf);
 		break;
+	case HostCmd_CMD_CHAN_REGION_CFG:
+		ret = mwifiex_cmd_chan_region_cfg(priv, cmd_ptr, cmd_action);
+		break;
 	default:
 		mwifiex_dbg(priv->adapter, ERROR,
 			    "PREP_CMD: unknown cmd- %#x\n", cmd_no);
@@ -2271,6 +2289,9 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta, bool init)
 			if (ret)
 				return -1;
 		}
+
+		mwifiex_send_cmd(priv, HostCmd_CMD_CHAN_REGION_CFG,
+				 HostCmd_ACT_GEN_GET, 0, NULL, true);
 	}
 
 	/* get tx rate */

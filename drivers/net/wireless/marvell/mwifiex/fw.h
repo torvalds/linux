@@ -190,6 +190,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define TLV_BTCOEX_WL_SCANTIME      (PROPRIETARY_TLV_BASE_ID + 203)
 #define TLV_TYPE_BSS_MODE           (PROPRIETARY_TLV_BASE_ID + 206)
 #define TLV_TYPE_RANDOM_MAC         (PROPRIETARY_TLV_BASE_ID + 236)
+#define TLV_TYPE_CHAN_ATTR_CFG      (PROPRIETARY_TLV_BASE_ID + 237)
 
 #define MWIFIEX_TX_DATA_BUF_SIZE_2K        2048
 
@@ -382,6 +383,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define HostCmd_CMD_MC_POLICY                         0x0121
 #define HostCmd_CMD_TDLS_OPER                         0x0122
 #define HostCmd_CMD_SDIO_SP_RX_AGGR_CFG               0x0223
+#define HostCmd_CMD_CHAN_REGION_CFG		      0x0242
 
 #define PROTOCOL_NO_SECURITY        0x01
 #define PROTOCOL_STATIC_WEP         0x02
@@ -2224,6 +2226,10 @@ struct host_cmd_ds_gtk_rekey_params {
 	__le32 replay_ctr_high;
 } __packed;
 
+struct host_cmd_ds_chan_region_cfg {
+	__le16 action;
+} __packed;
+
 struct host_cmd_ds_command {
 	__le16 command;
 	__le16 size;
@@ -2298,6 +2304,7 @@ struct host_cmd_ds_command {
 		struct host_cmd_ds_robust_coex coex;
 		struct host_cmd_ds_wakeup_reason hs_wakeup_reason;
 		struct host_cmd_ds_gtk_rekey_params rekey;
+		struct host_cmd_ds_chan_region_cfg reg_cfg;
 	} params;
 } __packed;
 

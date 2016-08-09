@@ -1022,6 +1022,44 @@ static int mwifiex_ret_robust_coex(struct mwifiex_private *priv,
 	return 0;
 }
 
+static int mwifiex_ret_chan_region_cfg(struct mwifiex_private *priv,
+				       struct host_cmd_ds_command *resp)
+{
+	struct host_cmd_ds_chan_region_cfg *reg = &resp->params.reg_cfg;
+	u16 action = le16_to_cpu(reg->action);
+	u16 tlv, tlv_buf_len, tlv_buf_left;
+	struct mwifiex_ie_types_header *head;
+	u8 *tlv_buf;
+
+	if (action != HostCmd_ACT_GEN_GET)
+		return 0;
+
+	tlv_buf = (u8 *)reg + sizeof(*reg);
+	tlv_buf_left = le16_to_cpu(resp->size) - S_DS_GEN - sizeof(*reg);
+
+	while (tlv_buf_left >= sizeof(*head)) {
+		head = (struct mwifiex_ie_types_header *)tlv_buf;
+		tlv = le16_to_cpu(head->type);
+		tlv_buf_len = le16_to_cpu(head->len);
+
+		if (tlv_buf_left < (sizeof(*head) + tlv_buf_len))
+			break;
+
+		switch (tlv) {
+		case TLV_TYPE_CHAN_ATTR_CFG:
+			mwifiex_dbg_dump(priv->adapter, CMD_D, "CHAN:",
+					 (u8 *)head + sizeof(*head),
+					 tlv_buf_len);
+			break;
+		}
+
+		tlv_buf += (sizeof(*head) + tlv_buf_len);
+		tlv_buf_left -= (sizeof(*head) + tlv_buf_len);
+	}
+
+	return 0;
+}
+
 /*
  * This function handles the command responses.
  *
@@ -1238,6 +1276,9 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		ret = mwifiex_ret_robust_coex(priv, resp, data_buf);
 		break;
 	case HostCmd_CMD_GTK_REKEY_OFFLOAD_CFG:
+		break;
+	case HostCmd_CMD_CHAN_REGION_CFG:
+		ret = mwifiex_ret_chan_region_cfg(priv, resp);
 		break;
 	default:
 		mwifiex_dbg(adapter, ERROR,
