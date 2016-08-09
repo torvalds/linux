@@ -881,6 +881,15 @@ S:	Supported
 F:	drivers/gpu/drm/arc/
 F:	Documentation/devicetree/bindings/display/snps,arcpgu.txt
 
+ARM ARCHITECTED TIMER DRIVER
+M:	Mark Rutland <mark.rutland@arm.com>
+M:	Marc Zyngier <marc.zyngier@arm.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	arch/arm/include/asm/arch_timer.h
+F:	arch/arm64/include/asm/arch_timer.h
+F:	drivers/clocksource/arm_arch_timer.c
+
 ARM HDLCD DRM DRIVER
 M:	Liviu Dudau <liviu.dudau@arm.com>
 S:	Supported
