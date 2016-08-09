@@ -2423,15 +2423,11 @@ static void i915_gem_reset_engine_cleanup(struct intel_engine_cs *engine)
 	struct drm_i915_gem_request *request;
 	struct intel_ring *ring;
 
-	request = i915_gem_active_peek(&engine->last_request,
-				       &engine->i915->drm.struct_mutex);
-
 	/* Mark all pending requests as complete so that any concurrent
 	 * (lockless) lookup doesn't try and wait upon the request as we
 	 * reset it.
 	 */
-	if (request)
-		intel_engine_init_seqno(engine, request->fence.seqno);
+	intel_engine_init_seqno(engine, engine->last_submitted_seqno);
 
 	/*
 	 * Clear the execlists queue up before freeing the requests, as those
@@ -2453,6 +2449,8 @@ static void i915_gem_reset_engine_cleanup(struct intel_engine_cs *engine)
 	 * implicit references on things like e.g. ppgtt address spaces through
 	 * the request.
 	 */
+	request = i915_gem_active_raw(&engine->last_request,
+				      &engine->i915->drm.struct_mutex);
 	if (request)
 		i915_gem_request_retire_upto(request);
 	GEM_BUG_ON(intel_engine_is_active(engine));
