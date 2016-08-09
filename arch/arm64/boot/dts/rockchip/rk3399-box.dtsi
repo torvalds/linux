@@ -727,6 +727,7 @@
 
 &u2phy0 {
 	status = "okay";
+	extcon = <&fusb0>;
 
 	u2phy0_otg: otg-port {
 		status = "okay";
@@ -783,6 +784,7 @@
 
 &usbdrd_dwc3_0 {
 	dr_mode = "peripheral";
+	extcon = <&fusb0>;
 	status = "okay";
 };
 
@@ -793,6 +795,10 @@
 &usbdrd_dwc3_1 {
 	dr_mode = "host";
 	status = "okay";
+};
+
+&tcphy0{
+	extcon = <&fusb0>;
 };
 
 &pwm2 {
