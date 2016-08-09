@@ -938,10 +938,8 @@ struct radeon_i2c_chan *radeon_i2c_create(struct drm_device *dev,
 			 "Radeon i2c hw bus %s", name);
 		i2c->adapter.algo = &radeon_i2c_algo;
 		ret = i2c_add_adapter(&i2c->adapter);
-		if (ret) {
-			DRM_ERROR("Failed to register hw i2c %s\n", name);
+		if (ret)
 			goto out_free;
-		}
 	} else if (rec->hw_capable &&
 		   radeon_hw_i2c &&
 		   ASIC_IS_DCE3(rdev)) {
@@ -950,10 +948,8 @@ struct radeon_i2c_chan *radeon_i2c_create(struct drm_device *dev,
 			 "Radeon i2c hw bus %s", name);
 		i2c->adapter.algo = &radeon_atom_i2c_algo;
 		ret = i2c_add_adapter(&i2c->adapter);
-		if (ret) {
-			DRM_ERROR("Failed to register hw i2c %s\n", name);
+		if (ret)
 			goto out_free;
-		}
 	} else {
 		/* set the radeon bit adapter */
 		snprintf(i2c->adapter.name, sizeof(i2c->adapter.name),
