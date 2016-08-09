@@ -1707,8 +1707,10 @@ static int qed_dcbnl_setapp(struct qed_dev *cdev,
 		if ((entry->ethtype == ethtype) && (entry->proto_id == idval))
 			break;
 		/* First empty slot */
-		if (!entry->proto_id)
+		if (!entry->proto_id) {
+			dcbx_set.config.params.num_app_entries++;
 			break;
+		}
 	}
 
 	if (i == QED_DCBX_MAX_APP_PROTOCOL) {
@@ -2228,8 +2230,10 @@ int qed_dcbnl_ieee_setapp(struct qed_dev *cdev, struct dcb_app *app)
 		    (entry->proto_id == app->protocol))
 			break;
 		/* First empty slot */
-		if (!entry->proto_id)
+		if (!entry->proto_id) {
+			dcbx_set.config.params.num_app_entries++;
 			break;
+		}
 	}
 
 	if (i == QED_DCBX_MAX_APP_PROTOCOL) {
