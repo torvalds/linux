@@ -46,7 +46,7 @@ struct befs_sb_info {
 	/* State of the superblock */
 	u32 flags;
 
-	/* jornal log entry */
+	/* Journal log entry */
 	befs_block_run log_blocks;
 	befs_off_t log_start;
 	befs_off_t log_end;
