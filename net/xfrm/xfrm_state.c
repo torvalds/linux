@@ -799,7 +799,7 @@ xfrm_state_find(const xfrm_address_t *daddr, const xfrm_address_t *saddr,
 
 	sequence = read_seqcount_begin(&xfrm_state_hash_generation);
 
-	spin_lock_bh(&net->xfrm.xfrm_state_lock);
+	rcu_read_lock();
 	h = xfrm_dst_hash(net, daddr, saddr, tmpl->reqid, encap_family);
 	hlist_for_each_entry_rcu(x, net->xfrm.state_bydst + h, bydst) {
 		if (x->props.family == encap_family &&
@@ -870,6 +870,7 @@ found:
 		}
 
 		if (km_query(x, tmpl, pol) == 0) {
+			spin_lock_bh(&net->xfrm.xfrm_state_lock);
 			x->km.state = XFRM_STATE_ACQ;
 			list_add(&x->km.all, &net->xfrm.state_all);
 			hlist_add_head_rcu(&x->bydst, net->xfrm.state_bydst + h);
@@ -883,6 +884,7 @@ found:
 			tasklet_hrtimer_start(&x->mtimer, ktime_set(net->xfrm.sysctl_acq_expires, 0), HRTIMER_MODE_REL);
 			net->xfrm.state_num++;
 			xfrm_hash_grow_check(net, x->bydst.next != NULL);
+			spin_unlock_bh(&net->xfrm.xfrm_state_lock);
 		} else {
 			x->km.state = XFRM_STATE_DEAD;
 			to_put = x;
@@ -899,7 +901,7 @@ out:
 	} else {
 		*err = acquire_in_progress ? -EAGAIN : error;
 	}
-	spin_unlock_bh(&net->xfrm.xfrm_state_lock);
+	rcu_read_unlock();
 	if (to_put)
 		xfrm_state_put(to_put);
 

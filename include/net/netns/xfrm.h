@@ -38,9 +38,9 @@ struct netns_xfrm {
 	 * mode. Also, it can be used by ah/esp icmp error handler to find
 	 * offending SA.
 	 */
-	struct hlist_head	*state_bydst;
-	struct hlist_head	*state_bysrc;
-	struct hlist_head	*state_byspi;
+	struct hlist_head	__rcu *state_bydst;
+	struct hlist_head	__rcu *state_bysrc;
+	struct hlist_head	__rcu *state_byspi;
 	unsigned int		state_hmask;
 	unsigned int		state_num;
 	struct work_struct	state_hash_work;
