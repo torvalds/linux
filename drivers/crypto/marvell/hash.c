@@ -800,12 +800,13 @@ static int mv_cesa_md5_init(struct ahash_request *req)
 	struct mv_cesa_op_ctx tmpl = { };
 
 	mv_cesa_set_op_cfg(&tmpl, CESA_SA_DESC_CFG_MACM_MD5);
+
+	mv_cesa_ahash_init(req, &tmpl, true);
+
 	creq->state[0] = MD5_H0;
 	creq->state[1] = MD5_H1;
 	creq->state[2] = MD5_H2;
 	creq->state[3] = MD5_H3;
-
-	mv_cesa_ahash_init(req, &tmpl, true);
 
 	return 0;
 }
@@ -868,13 +869,14 @@ static int mv_cesa_sha1_init(struct ahash_request *req)
 	struct mv_cesa_op_ctx tmpl = { };
 
 	mv_cesa_set_op_cfg(&tmpl, CESA_SA_DESC_CFG_MACM_SHA1);
+
+	mv_cesa_ahash_init(req, &tmpl, false);
+
 	creq->state[0] = SHA1_H0;
 	creq->state[1] = SHA1_H1;
 	creq->state[2] = SHA1_H2;
 	creq->state[3] = SHA1_H3;
 	creq->state[4] = SHA1_H4;
-
-	mv_cesa_ahash_init(req, &tmpl, false);
 
 	return 0;
 }
@@ -937,6 +939,9 @@ static int mv_cesa_sha256_init(struct ahash_request *req)
 	struct mv_cesa_op_ctx tmpl = { };
 
 	mv_cesa_set_op_cfg(&tmpl, CESA_SA_DESC_CFG_MACM_SHA256);
+
+	mv_cesa_ahash_init(req, &tmpl, false);
+
 	creq->state[0] = SHA256_H0;
 	creq->state[1] = SHA256_H1;
 	creq->state[2] = SHA256_H2;
@@ -945,8 +950,6 @@ static int mv_cesa_sha256_init(struct ahash_request *req)
 	creq->state[5] = SHA256_H5;
 	creq->state[6] = SHA256_H6;
 	creq->state[7] = SHA256_H7;
-
-	mv_cesa_ahash_init(req, &tmpl, false);
 
 	return 0;
 }
