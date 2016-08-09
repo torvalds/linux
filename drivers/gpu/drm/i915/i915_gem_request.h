@@ -381,27 +381,6 @@ i915_gem_active_peek(const struct i915_gem_active *active, struct mutex *mutex)
 }
 
 /**
- * i915_gem_active_peek_rcu - report the active request being monitored
- * @active - the active tracker
- *
- * i915_gem_active_peek_rcu() returns the current request being tracked if
- * still active, or NULL. It does not obtain a reference on the request
- * for the caller, and inspection of the request is only valid under
- * the RCU lock.
- */
-static inline struct drm_i915_gem_request *
-i915_gem_active_peek_rcu(const struct i915_gem_active *active)
-{
-	struct drm_i915_gem_request *request;
-
-	request = rcu_dereference(active->request);
-	if (!request || i915_gem_request_completed(request))
-		return NULL;
-
-	return request;
-}
-
-/**
  * i915_gem_active_get - return a reference to the active request
  * @active - the active tracker
  *
