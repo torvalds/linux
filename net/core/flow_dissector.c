@@ -6,6 +6,8 @@
 #include <linux/if_vlan.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
+#include <net/gre.h>
+#include <net/pptp.h>
 #include <linux/igmp.h>
 #include <linux/icmp.h>
 #include <linux/sctp.h>
@@ -338,32 +340,42 @@ mpls:
 ip_proto_again:
 	switch (ip_proto) {
 	case IPPROTO_GRE: {
-		struct gre_hdr {
-			__be16 flags;
-			__be16 proto;
-		} *hdr, _hdr;
+		struct gre_base_hdr *hdr, _hdr;
+		u16 gre_ver;
+		int offset = 0;
 
 		hdr = __skb_header_pointer(skb, nhoff, sizeof(_hdr), data, hlen, &_hdr);
 		if (!hdr)
 			goto out_bad;
-		/*
-		 * Only look inside GRE if version zero and no
-		 * routing
-		 */
-		if (hdr->flags & (GRE_VERSION | GRE_ROUTING))
+
+		/* Only look inside GRE without routing */
+		if (hdr->flags & GRE_ROUTING)
 			break;
 
-		proto = hdr->proto;
-		nhoff += 4;
+		/* Only look inside GRE for version 0 and 1 */
+		gre_ver = ntohs(hdr->flags & GRE_VERSION);
+		if (gre_ver > 1)
+			break;
+
+		proto = hdr->protocol;
+		if (gre_ver) {
+			/* Version1 must be PPTP, and check the flags */
+			if (!(proto == GRE_PROTO_PPP && (hdr->flags & GRE_KEY)))
+				break;
+		}
+
+		offset += sizeof(struct gre_base_hdr);
+
 		if (hdr->flags & GRE_CSUM)
-			nhoff += 4;
+			offset += sizeof(((struct gre_full_hdr *)0)->csum) +
+				  sizeof(((struct gre_full_hdr *)0)->reserved1);
+
 		if (hdr->flags & GRE_KEY) {
 			const __be32 *keyid;
 			__be32 _keyid;
 
-			keyid = __skb_header_pointer(skb, nhoff, sizeof(_keyid),
+			keyid = __skb_header_pointer(skb, nhoff + offset, sizeof(_keyid),
 						     data, hlen, &_keyid);
-
 			if (!keyid)
 				goto out_bad;
 
@@ -372,32 +384,65 @@ ip_proto_again:
 				key_keyid = skb_flow_dissector_target(flow_dissector,
 								      FLOW_DISSECTOR_KEY_GRE_KEYID,
 								      target_container);
-				key_keyid->keyid = *keyid;
+				if (gre_ver == 0)
+					key_keyid->keyid = *keyid;
+				else
+					key_keyid->keyid = *keyid & GRE_PPTP_KEY_MASK;
 			}
-			nhoff += 4;
+			offset += sizeof(((struct gre_full_hdr *)0)->key);
 		}
+
 		if (hdr->flags & GRE_SEQ)
-			nhoff += 4;
-		if (proto == htons(ETH_P_TEB)) {
-			const struct ethhdr *eth;
-			struct ethhdr _eth;
+			offset += sizeof(((struct pptp_gre_header *)0)->seq);
 
-			eth = __skb_header_pointer(skb, nhoff,
-						   sizeof(_eth),
-						   data, hlen, &_eth);
-			if (!eth)
+		if (gre_ver == 0) {
+			if (proto == htons(ETH_P_TEB)) {
+				const struct ethhdr *eth;
+				struct ethhdr _eth;
+
+				eth = __skb_header_pointer(skb, nhoff + offset,
+							   sizeof(_eth),
+							   data, hlen, &_eth);
+				if (!eth)
+					goto out_bad;
+				proto = eth->h_proto;
+				offset += sizeof(*eth);
+
+				/* Cap headers that we access via pointers at the
+				 * end of the Ethernet header as our maximum alignment
+				 * at that point is only 2 bytes.
+				 */
+				if (NET_IP_ALIGN)
+					hlen = (nhoff + offset);
+			}
+		} else { /* version 1, must be PPTP */
+			u8 _ppp_hdr[PPP_HDRLEN];
+			u8 *ppp_hdr;
+
+			if (hdr->flags & GRE_ACK)
+				offset += sizeof(((struct pptp_gre_header *)0)->ack);
+
+			ppp_hdr = skb_header_pointer(skb, nhoff + offset,
+						     sizeof(_ppp_hdr), _ppp_hdr);
+			if (!ppp_hdr)
 				goto out_bad;
-			proto = eth->h_proto;
-			nhoff += sizeof(*eth);
 
-			/* Cap headers that we access via pointers at the
-			 * end of the Ethernet header as our maximum alignment
-			 * at that point is only 2 bytes.
-			 */
-			if (NET_IP_ALIGN)
-				hlen = nhoff;
+			switch (PPP_PROTOCOL(ppp_hdr)) {
+			case PPP_IP:
+				proto = htons(ETH_P_IP);
+				break;
+			case PPP_IPV6:
+				proto = htons(ETH_P_IPV6);
+				break;
+			default:
+				/* Could probably catch some more like MPLS */
+				break;
+			}
+
+			offset += PPP_HDRLEN;
 		}
 
+		nhoff += offset;
 		key_control->flags |= FLOW_DIS_ENCAPSULATION;
 		if (flags & FLOW_DISSECTOR_F_STOP_AT_ENCAP)
 			goto out_good;

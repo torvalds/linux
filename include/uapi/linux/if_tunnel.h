@@ -24,8 +24,13 @@
 #define GRE_SEQ		__cpu_to_be16(0x1000)
 #define GRE_STRICT	__cpu_to_be16(0x0800)
 #define GRE_REC		__cpu_to_be16(0x0700)
-#define GRE_FLAGS	__cpu_to_be16(0x00F8)
+#define GRE_ACK		__cpu_to_be16(0x0080)
+#define GRE_FLAGS	__cpu_to_be16(0x0078)
 #define GRE_VERSION	__cpu_to_be16(0x0007)
+
+#define GRE_VERSION_1	__cpu_to_be16(0x0001)
+#define GRE_PROTO_PPP	__cpu_to_be16(0x880b)
+#define GRE_PPTP_KEY_MASK	__cpu_to_be32(0xffff)
 
 struct ip_tunnel_parm {
 	char			name[IFNAMSIZ];
