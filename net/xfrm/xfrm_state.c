@@ -37,6 +37,11 @@
 
 static unsigned int xfrm_state_hashmax __read_mostly = 1 * 1024 * 1024;
 
+static inline bool xfrm_state_hold_rcu(struct xfrm_state __rcu *x)
+{
+	return atomic_inc_not_zero(&x->refcnt);
+}
+
 static inline unsigned int xfrm_dst_hash(struct net *net,
 					 const xfrm_address_t *daddr,
 					 const xfrm_address_t *saddr,
@@ -668,7 +673,8 @@ static struct xfrm_state *__xfrm_state_lookup(struct net *net, u32 mark,
 
 		if ((mark & x->mark.m) != x->mark.v)
 			continue;
-		xfrm_state_hold(x);
+		if (!xfrm_state_hold_rcu(x))
+			continue;
 		return x;
 	}
 
@@ -692,7 +698,8 @@ static struct xfrm_state *__xfrm_state_lookup_byaddr(struct net *net, u32 mark,
 
 		if ((mark & x->mark.m) != x->mark.v)
 			continue;
-		xfrm_state_hold(x);
+		if (!xfrm_state_hold_rcu(x))
+			continue;
 		return x;
 	}
 
@@ -871,10 +878,14 @@ found:
 		}
 	}
 out:
-	if (x)
-		xfrm_state_hold(x);
-	else
+	if (x) {
+		if (!xfrm_state_hold_rcu(x)) {
+			*err = -EAGAIN;
+			x = NULL;
+		}
+	} else {
 		*err = acquire_in_progress ? -EAGAIN : error;
+	}
 	spin_unlock_bh(&net->xfrm.xfrm_state_lock);
 	if (to_put)
 		xfrm_state_put(to_put);
