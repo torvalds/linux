@@ -161,6 +161,7 @@ static void ir_free_table(struct rc_map *rc_map)
 {
 	rc_map->size = 0;
 	kfree(rc_map->name);
+	rc_map->name = NULL;
 	kfree(rc_map->scan);
 	rc_map->scan = NULL;
 }
