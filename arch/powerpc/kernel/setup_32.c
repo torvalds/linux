@@ -93,10 +93,8 @@ notrace unsigned long __init early_init(unsigned long dt_ptr)
  * and we are running with enough of the MMU enabled to have our
  * proper kernel virtual addresses
  *
- * Find out what kind of machine we're on and save any data we need
- * from the early boot process (devtree is copied on pmac by prom_init()).
- * This is called very early on the boot process, after a minimal
- * MMU environment has been set up but before MMU_init is called.
+ * We do the initial parsing of the flat device-tree and prepares
+ * for the MMU to be fully initialized.
  */
 extern unsigned int memset_nocache_branch; /* Insn to be replaced by NOP */
 
