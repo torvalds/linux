@@ -967,6 +967,8 @@ static int dwc3_probe(struct platform_device *pdev)
 				"snps,dis-u2-freeclk-exists-quirk");
 	dwc->dis_del_phy_power_chg_quirk = device_property_read_bool(dev,
 				"snps,dis-del-phy-power-chg-quirk");
+	dwc->xhci_slow_suspend_quirk = device_property_read_bool(dev,
+				"snps,xhci-slow-suspend-quirk");
 
 	dwc->tx_de_emphasis_quirk = device_property_read_bool(dev,
 				"snps,tx_de_emphasis_quirk");
