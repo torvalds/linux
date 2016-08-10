@@ -1053,6 +1053,7 @@ int dwc3_gadget_resize_tx_fifos(struct dwc3 *dwc);
 int dwc3_soft_reset(struct dwc3 *dwc);
 int dwc3_event_buffers_setup(struct dwc3 *dwc);
 void dwc3_event_buffers_cleanup(struct dwc3 *dwc);
+int dwc3_gadget_restart(struct dwc3 *dwc, bool start);
 bool dwc3_force_mode(struct dwc3 *dwc, u32 mode);
 
 #if IS_ENABLED(CONFIG_USB_DWC3_HOST) || IS_ENABLED(CONFIG_USB_DWC3_DUAL_ROLE)
@@ -1074,7 +1075,6 @@ int dwc3_gadget_set_link_state(struct dwc3 *dwc, enum dwc3_link_state state);
 int dwc3_send_gadget_ep_cmd(struct dwc3 *dwc, unsigned ep,
 		unsigned cmd, struct dwc3_gadget_ep_cmd_params *params);
 int dwc3_send_gadget_generic_command(struct dwc3 *dwc, unsigned cmd, u32 param);
-int dwc3_gadget_restart(struct dwc3 *dwc, bool start);
 #else
 static inline int dwc3_gadget_init(struct dwc3 *dwc)
 { return 0; }
@@ -1093,8 +1093,6 @@ static inline int dwc3_send_gadget_ep_cmd(struct dwc3 *dwc, unsigned ep,
 { return 0; }
 static inline int dwc3_send_gadget_generic_command(struct dwc3 *dwc,
 		int cmd, u32 param)
-{ return 0; }
-static inline int dwc3_gadget_restart(struct dwc3 *dwc, bool start)
 { return 0; }
 #endif
 
