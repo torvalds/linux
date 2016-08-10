@@ -32,7 +32,6 @@
 #include <linux/kernel.h>
 #include <linux/sysrq.h>
 #include <linux/slab.h>
-#include <linux/fb.h>
 #include <linux/module.h>
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>

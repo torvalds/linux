@@ -22,7 +22,6 @@
  */
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/fb.h>
 #include "linux/delay.h"
 #include "pp_acpi.h"
 #include "hwmgr.h"

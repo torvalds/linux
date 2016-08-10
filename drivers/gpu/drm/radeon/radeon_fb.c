@@ -25,7 +25,6 @@
  */
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/fb.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
