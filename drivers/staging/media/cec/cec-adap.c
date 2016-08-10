@@ -1047,6 +1047,10 @@ static int cec_config_thread_func(void *arg)
 			dprintk(1, "could not claim LA %d\n", i);
 	}
 
+	if (adap->log_addrs.log_addr_mask == 0 &&
+	    !(las->flags & CEC_LOG_ADDRS_FL_ALLOW_UNREG_FALLBACK))
+		goto unconfigure;
+
 configured:
 	if (adap->log_addrs.log_addr_mask == 0) {
 		/* Fall back to unregistered */
