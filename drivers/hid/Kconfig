@@ -862,6 +862,7 @@ config HID_WACOM
 	select POWER_SUPPLY
 	select NEW_LEDS
 	select LEDS_CLASS
+	select LEDS_TRIGGERS
 	help
 	  Say Y here if you want to use the USB or BT version of the Wacom Intuos
 	  or Graphire tablet.
