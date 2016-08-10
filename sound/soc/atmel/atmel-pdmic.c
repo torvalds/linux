@@ -115,8 +115,10 @@ static int atmel_pdmic_cpu_dai_startup(struct snd_pcm_substream *substream,
 		return ret;
 
 	ret =  clk_prepare_enable(dd->pclk);
-	if (ret)
+	if (ret) {
+		clk_disable_unprepare(dd->gclk);
 		return ret;
+	}
 
 	/* Clear all bits in the Control Register(PDMIC_CR) */
 	regmap_write(dd->regmap, PDMIC_CR, 0);
