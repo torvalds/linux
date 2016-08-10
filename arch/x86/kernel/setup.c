@@ -1101,6 +1101,8 @@ void __init setup_arch(char **cmdline_p)
 		efi_find_mirror();
 	}
 
+	reserve_bios_regions();
+
 	/*
 	 * The EFI specification says that boot service code won't be called
 	 * after ExitBootServices(). This is, in fact, a lie.
