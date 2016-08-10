@@ -490,7 +490,8 @@ static int dwc3_gadget_set_ep_config(struct dwc3 *dwc, struct dwc3_ep *dep,
 		params.param0 |= DWC3_DEPCFG_ACTION_INIT;
 	}
 
-	params.param1 = DWC3_DEPCFG_XFER_COMPLETE_EN;
+	if (usb_endpoint_xfer_control(desc))
+		params.param1 = DWC3_DEPCFG_XFER_COMPLETE_EN;
 
 	if (dep->number <= 1 || usb_endpoint_xfer_isoc(desc))
 		params.param1 |= DWC3_DEPCFG_XFER_NOT_READY_EN;
@@ -771,15 +772,13 @@ static void dwc3_gadget_ep_free_request(struct usb_ep *ep,
  */
 static void dwc3_prepare_one_trb(struct dwc3_ep *dep,
 		struct dwc3_request *req, dma_addr_t dma,
-		unsigned length, unsigned last, unsigned chain, unsigned node)
+		unsigned length, unsigned chain, unsigned node)
 {
 	struct dwc3_trb		*trb;
 
-	dwc3_trace(trace_dwc3_gadget, "%s: req %p dma %08llx length %d%s%s",
+	dwc3_trace(trace_dwc3_gadget, "%s: req %p dma %08llx length %d%s",
 			dep->name, req, (unsigned long long) dma,
-			length, last ? " last" : "",
-			chain ? " chain" : "");
-
+			length, chain ? " chain" : "");
 
 	trb = &dep->trb_pool[dep->trb_enqueue];
 
@@ -828,9 +827,6 @@ static void dwc3_prepare_one_trb(struct dwc3_ep *dep,
 
 	if (!req->request.no_interrupt && !chain)
 		trb->ctrl |= DWC3_TRB_CTRL_IOC | DWC3_TRB_CTRL_ISP_IMI;
-
-	if (last && !usb_endpoint_xfer_isoc(dep->endpoint.desc))
-		trb->ctrl |= DWC3_TRB_CTRL_LST;
 
 	if (chain)
 		trb->ctrl |= DWC3_TRB_CTRL_CHN;
@@ -894,13 +890,11 @@ static u32 dwc3_calc_trbs_left(struct dwc3_ep *dep)
 }
 
 static void dwc3_prepare_one_trb_sg(struct dwc3_ep *dep,
-		struct dwc3_request *req, unsigned int trbs_left,
-		unsigned int more_coming)
+		struct dwc3_request *req, unsigned int trbs_left)
 {
 	struct usb_request *request = &req->request;
 	struct scatterlist *sg = request->sg;
 	struct scatterlist *s;
-	unsigned int	last = false;
 	unsigned int	length;
 	dma_addr_t	dma;
 	int		i;
@@ -911,48 +905,28 @@ static void dwc3_prepare_one_trb_sg(struct dwc3_ep *dep,
 		length = sg_dma_len(s);
 		dma = sg_dma_address(s);
 
-		if (sg_is_last(s)) {
-			if (usb_endpoint_xfer_int(dep->endpoint.desc) ||
-				!more_coming)
-				last = true;
-
-			chain = false;
-		}
-
-		if (!trbs_left--)
-			last = true;
-
-		if (last)
+		if (sg_is_last(s))
 			chain = false;
 
 		dwc3_prepare_one_trb(dep, req, dma, length,
-				last, chain, i);
+				chain, i);
 
-		if (last)
+		if (!trbs_left--)
 			break;
 	}
 }
 
 static void dwc3_prepare_one_trb_linear(struct dwc3_ep *dep,
-		struct dwc3_request *req, unsigned int trbs_left,
-		unsigned int more_coming)
+		struct dwc3_request *req, unsigned int trbs_left)
 {
-	unsigned int	last = false;
 	unsigned int	length;
 	dma_addr_t	dma;
 
 	dma = req->request.dma;
 	length = req->request.length;
 
-	if (!trbs_left)
-		last = true;
-
-	/* Is this the last request? */
-	if (usb_endpoint_xfer_int(dep->endpoint.desc) || !more_coming)
-		last = true;
-
 	dwc3_prepare_one_trb(dep, req, dma, length,
-			last, false, 0);
+			false, 0);
 }
 
 /*
@@ -966,7 +940,6 @@ static void dwc3_prepare_one_trb_linear(struct dwc3_ep *dep,
 static void dwc3_prepare_trbs(struct dwc3_ep *dep)
 {
 	struct dwc3_request	*req, *n;
-	unsigned int		more_coming;
 	u32			trbs_left;
 
 	BUILD_BUG_ON_NOT_POWER_OF_2(DWC3_TRB_NUM);
@@ -975,15 +948,11 @@ static void dwc3_prepare_trbs(struct dwc3_ep *dep)
 	if (!trbs_left)
 		return;
 
-	more_coming = dep->allocated_requests - dep->queued_requests;
-
 	list_for_each_entry_safe(req, n, &dep->pending_list, list) {
 		if (req->request.num_mapped_sgs > 0)
-			dwc3_prepare_one_trb_sg(dep, req, trbs_left--,
-					more_coming);
+			dwc3_prepare_one_trb_sg(dep, req, trbs_left--);
 		else
-			dwc3_prepare_one_trb_linear(dep, req, trbs_left--,
-					more_coming);
+			dwc3_prepare_one_trb_linear(dep, req, trbs_left--);
 
 		if (!trbs_left)
 			return;
@@ -1127,8 +1096,7 @@ static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 	 * This will save one IRQ (XFER_NOT_READY) and possibly make it a
 	 * little bit faster.
 	 */
-	if (!usb_endpoint_xfer_isoc(dep->endpoint.desc) &&
-			!usb_endpoint_xfer_int(dep->endpoint.desc)) {
+	if (!usb_endpoint_xfer_isoc(dep->endpoint.desc)) {
 		ret = __dwc3_gadget_kick_transfer(dep, 0);
 		goto out;
 	}
@@ -2045,7 +2013,7 @@ static int dwc3_cleanup_done_reqs(struct dwc3 *dwc, struct dwc3_ep *dep,
 		int chain;
 
 		req = next_request(&dep->started_list);
-		if (WARN_ON_ONCE(!req))
+		if (!req)
 			return 1;
 
 		chain = req->request.num_mapped_sgs > 0;
