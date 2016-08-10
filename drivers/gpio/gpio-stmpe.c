@@ -371,12 +371,16 @@ static irqreturn_t stmpe_gpio_irq(int irq, void *dev)
 			stat &= ~(1 << bit);
 		}
 
-		stmpe_reg_write(stmpe, statmsbreg + i, status[i]);
-
-		/* Edge detect register is not present on 801 and 1801 */
-		if (stmpe->partnum != STMPE801 || stmpe->partnum != STMPE1801)
+		/*
+		 * interrupt status register write has no effect on
+		 * 801 and 1801, bits are cleared when read.
+		 * Edge detect register is not present on 801 and 1801
+		 */
+		if (stmpe->partnum != STMPE801 || stmpe->partnum != STMPE1801) {
+			stmpe_reg_write(stmpe, statmsbreg + i, status[i]);
 			stmpe_reg_write(stmpe, stmpe->regs[STMPE_IDX_GPEDR_MSB]
 					+ i, status[i]);
+		}
 	}
 
 	return IRQ_HANDLED;
