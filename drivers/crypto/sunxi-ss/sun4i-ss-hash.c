@@ -32,12 +32,10 @@ int sun4i_hash_init(struct ahash_request *areq)
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(areq);
 	struct ahash_alg *alg = __crypto_ahash_alg(tfm->base.__crt_alg);
 	struct sun4i_ss_alg_template *algt;
-	struct sun4i_ss_ctx *ss;
 
 	memset(op, 0, sizeof(struct sun4i_req_ctx));
 
 	algt = container_of(alg, struct sun4i_ss_alg_template, alg.hash);
-	ss = algt->ss;
 	op->ss = algt->ss;
 	op->mode = algt->mode;
 
