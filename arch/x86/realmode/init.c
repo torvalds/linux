@@ -4,6 +4,7 @@
 #include <asm/cacheflush.h>
 #include <asm/pgtable.h>
 #include <asm/realmode.h>
+#include <asm/tlbflush.h>
 
 struct real_mode_header *real_mode_header;
 u32 *trampoline_cr4_features;
@@ -84,7 +85,7 @@ void __init setup_real_mode(void)
 
 	trampoline_header->start = (u64) secondary_startup_64;
 	trampoline_cr4_features = &trampoline_header->cr4;
-	*trampoline_cr4_features = __read_cr4();
+	*trampoline_cr4_features = mmu_cr4_features;
 
 	trampoline_pgd = (u64 *) __va(real_mode_header->trampoline_pgd);
 	trampoline_pgd[0] = trampoline_pgd_entry.pgd;
