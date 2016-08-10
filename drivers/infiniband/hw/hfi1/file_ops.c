@@ -222,7 +222,7 @@ static long hfi1_file_ioctl(struct file *fp, unsigned int cmd,
 		ret = assign_ctxt(fp, &uinfo);
 		if (ret < 0)
 			return ret;
-		setup_ctxt(fp);
+		ret = setup_ctxt(fp);
 		if (ret)
 			return ret;
 		ret = user_init(fp);
