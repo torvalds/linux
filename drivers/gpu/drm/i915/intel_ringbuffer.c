@@ -1317,7 +1317,7 @@ static int gen8_rcs_signal(struct drm_i915_gem_request *req)
 	enum intel_engine_id id;
 	int ret, num_rings;
 
-	num_rings = hweight32(INTEL_INFO(dev_priv)->ring_mask);
+	num_rings = INTEL_INFO(dev_priv)->num_rings;
 	ret = intel_ring_begin(req, (num_rings-1) * 8);
 	if (ret)
 		return ret;
@@ -1354,7 +1354,7 @@ static int gen8_xcs_signal(struct drm_i915_gem_request *req)
 	enum intel_engine_id id;
 	int ret, num_rings;
 
-	num_rings = hweight32(INTEL_INFO(dev_priv)->ring_mask);
+	num_rings = INTEL_INFO(dev_priv)->num_rings;
 	ret = intel_ring_begin(req, (num_rings-1) * 6);
 	if (ret)
 		return ret;
@@ -1389,7 +1389,7 @@ static int gen6_signal(struct drm_i915_gem_request *req)
 	enum intel_engine_id id;
 	int ret, num_rings;
 
-	num_rings = hweight32(INTEL_INFO(dev_priv)->ring_mask);
+	num_rings = INTEL_INFO(dev_priv)->num_rings;
 	ret = intel_ring_begin(req, round_up((num_rings-1) * 3, 2));
 	if (ret)
 		return ret;

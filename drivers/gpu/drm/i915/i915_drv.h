@@ -793,6 +793,7 @@ struct intel_device_info {
 	u8 gen;
 	u16 gen_mask;
 	u8 ring_mask; /* Rings supported by the HW */
+	u8 num_rings;
 	DEV_INFO_FOR_EACH_FLAG(DEFINE_FLAG, SEP_SEMICOLON);
 	/* Register offsets for the various display pipes and transcoders */
 	int pipe_offsets[I915_MAX_TRANSCODERS];

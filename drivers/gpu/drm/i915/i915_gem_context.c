@@ -568,7 +568,7 @@ mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 	const int num_rings =
 		/* Use an extended w/a on ivb+ if signalling from other rings */
 		i915.semaphores ?
-		hweight32(INTEL_INFO(dev_priv)->ring_mask) - 1 :
+		INTEL_INFO(dev_priv)->num_rings - 1 :
 		0;
 	int len, ret;
 

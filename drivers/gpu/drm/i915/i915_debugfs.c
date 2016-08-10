@@ -3226,7 +3226,7 @@ static int i915_semaphore_status(struct seq_file *m, void *unused)
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_engine_cs *engine;
-	int num_rings = hweight32(INTEL_INFO(dev)->ring_mask);
+	int num_rings = INTEL_INFO(dev)->num_rings;
 	enum intel_engine_id id;
 	int j, ret;
 
