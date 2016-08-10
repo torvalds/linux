@@ -2093,7 +2093,7 @@ static int intel_ring_context_pin(struct i915_gem_context *ctx,
 
 	if (ce->state) {
 		ret = i915_gem_object_ggtt_pin(ce->state, NULL, 0,
-					       ctx->ggtt_alignment, 0);
+					       ctx->ggtt_alignment, PIN_HIGH);
 		if (ret)
 			goto error;
 	}
@@ -2629,7 +2629,8 @@ static void intel_ring_init_semaphores(struct drm_i915_private *dev_priv,
 			i915.semaphores = 0;
 		} else {
 			i915_gem_object_set_cache_level(obj, I915_CACHE_LLC);
-			ret = i915_gem_object_ggtt_pin(obj, NULL, 0, 0, 0);
+			ret = i915_gem_object_ggtt_pin(obj, NULL,
+						       0, 0, PIN_HIGH);
 			if (ret != 0) {
 				i915_gem_object_put(obj);
 				DRM_ERROR("Failed to pin semaphore bo. Disabling semaphores\n");

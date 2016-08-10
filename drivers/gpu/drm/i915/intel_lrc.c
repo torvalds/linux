@@ -1182,7 +1182,7 @@ static int lrc_setup_wa_ctx_obj(struct intel_engine_cs *engine, u32 size)
 	}
 
 	ret = i915_gem_object_ggtt_pin(engine->wa_ctx.obj, NULL,
-				       0, PAGE_SIZE, 0);
+				       0, PAGE_SIZE, PIN_HIGH);
 	if (ret) {
 		DRM_DEBUG_DRIVER("pin LRC WA ctx backing obj failed: %d\n",
 				 ret);
