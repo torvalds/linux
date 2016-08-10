@@ -799,21 +799,6 @@ static int st_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 	return (direction == ST_GPIO_DIRECTION_IN);
 }
 
-static int st_gpio_xlate(struct gpio_chip *gc,
-			const struct of_phandle_args *gpiospec, u32 *flags)
-{
-	if (WARN_ON(gc->of_gpio_n_cells < 1))
-		return -EINVAL;
-
-	if (WARN_ON(gpiospec->args_count < gc->of_gpio_n_cells))
-		return -EINVAL;
-
-	if (gpiospec->args[0] > gc->ngpio)
-		return -EINVAL;
-
-	return gpiospec->args[0];
-}
-
 /* Pinctrl Groups */
 static int st_pctl_get_groups_count(struct pinctrl_dev *pctldev)
 {
@@ -1486,8 +1471,6 @@ static struct gpio_chip st_gpio_template = {
 	.direction_output	= st_gpio_direction_output,
 	.get_direction		= st_gpio_get_direction,
 	.ngpio			= ST_GPIO_PINS_PER_BANK,
-	.of_gpio_n_cells	= 1,
-	.of_xlate		= st_gpio_xlate,
 };
 
 static struct irq_chip st_gpio_irqchip = {

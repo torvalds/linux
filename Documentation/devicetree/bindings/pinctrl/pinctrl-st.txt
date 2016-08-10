@@ -50,7 +50,11 @@ Optional properties:
 GPIO controller/bank node.
 Required properties:
 - gpio-controller : Indicates this device is a GPIO controller
-- #gpio-cells	  : Should be one. The first cell is the pin number.
+- #gpio-cells	  : Must be two.
+     - First cell: specifies the pin number inside the controller
+     - Second cell: specifies whether the pin is logically inverted.
+       - 0 = active high
+       - 1 = active low
 - st,bank-name	  : Should be a name string for this bank as specified in
   datasheet.
 
@@ -88,7 +92,7 @@ Example:
 
 		PIO0: gpio@fe610000 {
 			gpio-controller;
-			#gpio-cells	= <1>;
+			#gpio-cells	= <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			reg		= <0 0x100>;
