@@ -291,8 +291,10 @@ static char *arc_extn_mumbojumbo(int cpu_id, char *buf, int len)
 			       cpu->dccm.base_addr, TO_KB(cpu->dccm.sz),
 			       cpu->iccm.base_addr, TO_KB(cpu->iccm.sz));
 
-	n += scnprintf(buf + n, len - n,
-		       "OS ABI [v3]\t: no-legacy-syscalls\n");
+	n += scnprintf(buf + n, len - n, "OS ABI [v%d]\t: %s\n",
+			EF_ARC_OSABI_CURRENT >> 8,
+			EF_ARC_OSABI_CURRENT == EF_ARC_OSABI_V3 ?
+			"no-legacy-syscalls" : "64-bit data any register aligned");
 
 	return buf;
 }
