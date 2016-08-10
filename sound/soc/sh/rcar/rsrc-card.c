@@ -333,21 +333,6 @@ static int rsrc_card_parse_of(struct device_node *node,
 	return 0;
 }
 
-/* Decrease the reference count of the device nodes */
-static int rsrc_card_unref(struct snd_soc_card *card)
-{
-	struct snd_soc_dai_link *dai_link;
-	int num_links;
-
-	for (num_links = 0, dai_link = card->dai_link;
-	     num_links < card->num_links;
-	     num_links++, dai_link++) {
-		of_node_put(dai_link->cpu_of_node);
-		of_node_put(dai_link->codec_of_node);
-	}
-	return 0;
-}
-
 static int rsrc_card_probe(struct platform_device *pdev)
 {
 	struct rsrc_card_priv *priv;
@@ -373,7 +358,7 @@ static int rsrc_card_probe(struct platform_device *pdev)
 	if (ret >= 0)
 		return ret;
 err:
-	rsrc_card_unref(&priv->snd_card);
+	asoc_simple_card_clean_reference(&priv->snd_card);
 
 	return ret;
 }
@@ -382,7 +367,7 @@ static int rsrc_card_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
-	return rsrc_card_unref(card);
+	return asoc_simple_card_clean_reference(card);
 }
 
 static struct platform_driver rsrc_card = {
