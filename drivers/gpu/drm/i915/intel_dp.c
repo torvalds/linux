@@ -463,13 +463,13 @@ typedef bool (*vlv_pipe_check)(struct drm_i915_private *dev_priv,
 static bool vlv_pipe_has_pp_on(struct drm_i915_private *dev_priv,
 			       enum pipe pipe)
 {
-	return I915_READ(VLV_PIPE_PP_STATUS(pipe)) & PP_ON;
+	return I915_READ(PP_STATUS(pipe)) & PP_ON;
 }
 
 static bool vlv_pipe_has_vdd_on(struct drm_i915_private *dev_priv,
 				enum pipe pipe)
 {
-	return I915_READ(VLV_PIPE_PP_CONTROL(pipe)) & EDP_FORCE_VDD;
+	return I915_READ(PP_CONTROL(pipe)) & EDP_FORCE_VDD;
 }
 
 static bool vlv_pipe_any(struct drm_i915_private *dev_priv,
@@ -486,7 +486,7 @@ vlv_initial_pps_pipe(struct drm_i915_private *dev_priv,
 	enum pipe pipe;
 
 	for (pipe = PIPE_A; pipe <= PIPE_B; pipe++) {
-		u32 port_sel = I915_READ(VLV_PIPE_PP_ON_DELAYS(pipe)) &
+		u32 port_sel = I915_READ(PP_ON_DELAYS(pipe)) &
 			PANEL_PORT_SELECT_MASK;
 
 		if (port_sel != PANEL_PORT_SELECT_VLV(port))
@@ -583,30 +583,21 @@ static void intel_pps_get_registers(struct drm_i915_private *dev_priv,
 				    struct intel_dp *intel_dp,
 				    struct pps_registers *regs)
 {
+	int pps_idx = 0;
+
 	memset(regs, 0, sizeof(*regs));
 
-	if (IS_BROXTON(dev_priv)) {
-		int idx = bxt_power_sequencer_idx(intel_dp);
+	if (IS_BROXTON(dev_priv))
+		pps_idx = bxt_power_sequencer_idx(intel_dp);
+	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
+		pps_idx = vlv_power_sequencer_pipe(intel_dp);
 
-		regs->pp_ctrl = BXT_PP_CONTROL(idx);
-		regs->pp_stat = BXT_PP_STATUS(idx);
-		regs->pp_on = BXT_PP_ON_DELAYS(idx);
-		regs->pp_off = BXT_PP_OFF_DELAYS(idx);
-	} else if (HAS_PCH_SPLIT(dev_priv)) {
-		regs->pp_ctrl = PCH_PP_CONTROL;
-		regs->pp_stat = PCH_PP_STATUS;
-		regs->pp_on = PCH_PP_ON_DELAYS;
-		regs->pp_off = PCH_PP_OFF_DELAYS;
-		regs->pp_div = PCH_PP_DIVISOR;
-	} else {
-		enum pipe pipe = vlv_power_sequencer_pipe(intel_dp);
-
-		regs->pp_ctrl = VLV_PIPE_PP_CONTROL(pipe);
-		regs->pp_stat = VLV_PIPE_PP_STATUS(pipe);
-		regs->pp_on = VLV_PIPE_PP_ON_DELAYS(pipe);
-		regs->pp_off = VLV_PIPE_PP_OFF_DELAYS(pipe);
-		regs->pp_div = VLV_PIPE_PP_DIVISOR(pipe);
-	}
+	regs->pp_ctrl = PP_CONTROL(pps_idx);
+	regs->pp_stat = PP_STATUS(pps_idx);
+	regs->pp_on = PP_ON_DELAYS(pps_idx);
+	regs->pp_off = PP_OFF_DELAYS(pps_idx);
+	if (!IS_BROXTON(dev_priv))
+		regs->pp_div = PP_DIVISOR(pps_idx);
 }
 
 static i915_reg_t
@@ -651,8 +642,8 @@ static int edp_notify_handler(struct notifier_block *this, unsigned long code,
 		i915_reg_t pp_ctrl_reg, pp_div_reg;
 		u32 pp_div;
 
-		pp_ctrl_reg = VLV_PIPE_PP_CONTROL(pipe);
-		pp_div_reg  = VLV_PIPE_PP_DIVISOR(pipe);
+		pp_ctrl_reg = PP_CONTROL(pipe);
+		pp_div_reg  = PP_DIVISOR(pipe);
 		pp_div = I915_READ(pp_div_reg);
 		pp_div &= PP_REFERENCE_DIVIDER_MASK;
 
@@ -2729,7 +2720,7 @@ static void vlv_detach_power_sequencer(struct intel_dp *intel_dp)
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct drm_i915_private *dev_priv = to_i915(intel_dig_port->base.base.dev);
 	enum pipe pipe = intel_dp->pps_pipe;
-	i915_reg_t pp_on_reg = VLV_PIPE_PP_ON_DELAYS(pipe);
+	i915_reg_t pp_on_reg = PP_ON_DELAYS(pipe);
 
 	edp_panel_vdd_off_sync(intel_dp);
 

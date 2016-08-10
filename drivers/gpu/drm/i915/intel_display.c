@@ -1202,8 +1202,8 @@ void assert_panel_unlocked(struct drm_i915_private *dev_priv,
 	if (HAS_PCH_SPLIT(dev)) {
 		u32 port_sel;
 
-		pp_reg = PCH_PP_CONTROL;
-		port_sel = I915_READ(PCH_PP_ON_DELAYS) & PANEL_PORT_SELECT_MASK;
+		pp_reg = PP_CONTROL(0);
+		port_sel = I915_READ(PP_ON_DELAYS(0)) & PANEL_PORT_SELECT_MASK;
 
 		if (port_sel == PANEL_PORT_SELECT_LVDS &&
 		    I915_READ(PCH_LVDS) & LVDS_PIPEB_SELECT)
@@ -1211,10 +1211,10 @@ void assert_panel_unlocked(struct drm_i915_private *dev_priv,
 		/* XXX: else fix for eDP */
 	} else if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
 		/* presumably write lock depends on pipe, not port select */
-		pp_reg = VLV_PIPE_PP_CONTROL(pipe);
+		pp_reg = PP_CONTROL(pipe);
 		panel_pipe = pipe;
 	} else {
-		pp_reg = PP_CONTROL;
+		pp_reg = PP_CONTROL(0);
 		if (I915_READ(LVDS) & LVDS_PIPEB_SELECT)
 			panel_pipe = PIPE_B;
 	}
@@ -9491,7 +9491,7 @@ static void assert_can_disable_lcpll(struct drm_i915_private *dev_priv)
 	I915_STATE_WARN(I915_READ(SPLL_CTL) & SPLL_PLL_ENABLE, "SPLL enabled\n");
 	I915_STATE_WARN(I915_READ(WRPLL_CTL(0)) & WRPLL_PLL_ENABLE, "WRPLL1 enabled\n");
 	I915_STATE_WARN(I915_READ(WRPLL_CTL(1)) & WRPLL_PLL_ENABLE, "WRPLL2 enabled\n");
-	I915_STATE_WARN(I915_READ(PCH_PP_STATUS) & PP_ON, "Panel power on\n");
+	I915_STATE_WARN(I915_READ(PP_STATUS(0)) & PP_ON, "Panel power on\n");
 	I915_STATE_WARN(I915_READ(BLC_PWM_CPU_CTL2) & BLM_PWM_ENABLE,
 	     "CPU PWM1 enabled\n");
 	if (IS_HASWELL(dev))
@@ -14729,11 +14729,23 @@ static bool intel_crt_present(struct drm_device *dev)
 	return true;
 }
 
+static void intel_pps_init(struct drm_i915_private *dev_priv)
+{
+	if (HAS_PCH_SPLIT(dev_priv) || IS_BROXTON(dev_priv))
+		dev_priv->pps_mmio_base = PCH_PPS_BASE;
+	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
+		dev_priv->pps_mmio_base = VLV_PPS_BASE;
+	else
+		dev_priv->pps_mmio_base = PPS_BASE;
+}
+
 static void intel_setup_outputs(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_encoder *encoder;
 	bool dpd_is_edp = false;
+
+	intel_pps_init(dev_priv);
 
 	/*
 	 * intel_edp_init_connector() depends on this completing first, to
