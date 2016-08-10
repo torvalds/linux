@@ -25,6 +25,8 @@ struct gb_hd_driver {
 	int (*cport_connected)(struct gb_host_device *hd, u16 cport_id);
 	int (*cport_flush)(struct gb_host_device *hd, u16 cport_id);
 	int (*cport_ping)(struct gb_host_device *hd, u16 cport_id);
+	int (*cport_shutdown)(struct gb_host_device *hd, u16 cport_id,
+				u8 phase, unsigned int timeout);
 	int (*cport_quiesce)(struct gb_host_device *hd, u16 cport_id,
 				size_t peer_space, unsigned int timeout);
 	int (*cport_clear)(struct gb_host_device *hd, u16 cport_id);
