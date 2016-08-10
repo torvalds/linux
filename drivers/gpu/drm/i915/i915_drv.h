@@ -1061,13 +1061,6 @@ struct intel_gmbus {
 
 struct i915_suspend_saved_registers {
 	u32 saveDSPARB;
-	u32 saveLVDS;
-	u32 savePP_ON_DELAYS;
-	u32 savePP_OFF_DELAYS;
-	u32 savePP_ON;
-	u32 savePP_OFF;
-	u32 savePP_CONTROL;
-	u32 savePP_DIVISOR;
 	u32 saveFBC_CONTROL;
 	u32 saveCACHE_MODE_0;
 	u32 saveMI_ARB_STATE;
