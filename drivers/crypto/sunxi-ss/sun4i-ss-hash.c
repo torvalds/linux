@@ -372,7 +372,7 @@ int sun4i_hash(struct ahash_request *areq)
  * I do not check RX FIFO size in this function since the size is 32
  * after each enabling and this function neither write more than 32 words.
  * If we come from the update part, we cannot have more than
- * 3 remainings bytes to write and SS is fast enought to not care about it.
+ * 3 remaining bytes to write and SS is fast enough to not care about it.
  */
 
 hash_final:
@@ -436,7 +436,7 @@ hash_final:
 
 	/*
 	 * Wait for SS to finish the hash.
-	 * The timeout could happen only in case of bad overcloking
+	 * The timeout could happen only in case of bad overclocking
 	 * or driver bug.
 	 */
 	i = 0;
