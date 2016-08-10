@@ -163,7 +163,6 @@ struct sun4i_req_ctx {
 	u32 hash[5]; /* for storing SS_IVx register */
 	char buf[64];
 	unsigned int len;
-	struct sun4i_ss_ctx *ss;
 	int flags;
 };
 

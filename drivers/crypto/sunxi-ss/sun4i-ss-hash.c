@@ -20,6 +20,15 @@
 
 int sun4i_hash_crainit(struct crypto_tfm *tfm)
 {
+	struct sun4i_tfm_ctx *op = crypto_tfm_ctx(tfm);
+	struct ahash_alg *alg = __crypto_ahash_alg(tfm->__crt_alg);
+	struct sun4i_ss_alg_template *algt;
+
+	memset(op, 0, sizeof(struct sun4i_tfm_ctx));
+
+	algt = container_of(alg, struct sun4i_ss_alg_template, alg.hash);
+	op->ss = algt->ss;
+
 	crypto_ahash_set_reqsize(__crypto_ahash_cast(tfm),
 				 sizeof(struct sun4i_req_ctx));
 	return 0;
@@ -36,7 +45,6 @@ int sun4i_hash_init(struct ahash_request *areq)
 	memset(op, 0, sizeof(struct sun4i_req_ctx));
 
 	algt = container_of(alg, struct sun4i_ss_alg_template, alg.hash);
-	op->ss = algt->ss;
 	op->mode = algt->mode;
 
 	return 0;
@@ -168,8 +176,9 @@ int sun4i_hash(struct ahash_request *areq)
 	 */
 
 	struct sun4i_req_ctx *op = ahash_request_ctx(areq);
-	struct sun4i_ss_ctx *ss = op->ss;
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(areq);
+	struct sun4i_tfm_ctx *tfmctx = crypto_ahash_ctx(tfm);
+	struct sun4i_ss_ctx *ss = tfmctx->ss;
 	unsigned int in_i = 0; /* advancement in the current SG */
 	unsigned int end;
 	/*
