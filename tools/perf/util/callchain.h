@@ -11,11 +11,7 @@
 
 #define CALLCHAIN_HELP "setup and enables call-graph (stack chain/backtrace):\n\n"
 
-#ifdef HAVE_DWARF_UNWIND_SUPPORT
 # define RECORD_MODE_HELP  HELP_PAD "record_mode:\tcall graph recording mode (fp|dwarf|lbr)\n"
-#else
-# define RECORD_MODE_HELP  HELP_PAD "record_mode:\tcall graph recording mode (fp|lbr)\n"
-#endif
 
 #define RECORD_SIZE_HELP						\
 	HELP_PAD "record_size:\tif record_mode is 'dwarf', max size of stack recording (<bytes>)\n" \
