@@ -83,14 +83,14 @@ qcom_smd_open_channel(struct qcom_smd_channel *channel,
 	return NULL;
 }
 
-void *qcom_smd_get_drvdata(struct qcom_smd_channel *channel)
+static inline void *qcom_smd_get_drvdata(struct qcom_smd_channel *channel)
 {
 	/* This shouldn't be possible */
 	WARN_ON(1);
 	return NULL;
 }
 
-void qcom_smd_set_drvdata(struct qcom_smd_channel *channel, void *data)
+static inline void qcom_smd_set_drvdata(struct qcom_smd_channel *channel, void *data)
 {
 	/* This shouldn't be possible */
 	WARN_ON(1);
