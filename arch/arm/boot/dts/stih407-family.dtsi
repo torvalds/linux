@@ -608,6 +608,8 @@
 			clock-names = "ahci_clk";
 			clocks = <&clk_s_c0_flexgen CLK_ICN_REG>;
 
+			ports-implemented = <0x1>;
+
 			status = "disabled";
 		};
 
@@ -630,6 +632,8 @@
 
 			clock-names = "ahci_clk";
 			clocks = <&clk_s_c0_flexgen CLK_ICN_REG>;
+
+			ports-implemented = <0x1>;
 
 			status = "disabled";
 		};
