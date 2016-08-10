@@ -1,4 +1,5 @@
 #include <linux/io.h>
+#include <linux/slab.h>
 #include <linux/memblock.h>
 
 #include <asm/cacheflush.h>
@@ -12,22 +13,34 @@ u32 *trampoline_cr4_features;
 /* Hold the pgd entry used on booting additional CPUs */
 pgd_t trampoline_pgd_entry;
 
-void __init reserve_real_mode(void)
+void __init set_real_mode_mem(phys_addr_t mem, size_t size)
 {
-	phys_addr_t mem;
-	unsigned char *base;
-	size_t size = PAGE_ALIGN(real_mode_blob_end - real_mode_blob);
+	void *base = __va(mem);
 
-	/* Has to be under 1M so we can execute real-mode AP code. */
-	mem = memblock_find_in_range(0, 1<<20, size, PAGE_SIZE);
-	if (!mem)
-		panic("Cannot allocate trampoline\n");
-
-	base = __va(mem);
-	memblock_reserve(mem, size);
 	real_mode_header = (struct real_mode_header *) base;
 	printk(KERN_DEBUG "Base memory trampoline at [%p] %llx size %zu\n",
 	       base, (unsigned long long)mem, size);
+}
+
+void __init reserve_real_mode(void)
+{
+	phys_addr_t mem;
+	size_t size = real_mode_size_needed();
+
+	if (!size)
+		return;
+
+	WARN_ON(slab_is_available());
+
+	/* Has to be under 1M so we can execute real-mode AP code. */
+	mem = memblock_find_in_range(0, 1<<20, size, PAGE_SIZE);
+	if (!mem) {
+		pr_info("No sub-1M memory is available for the trampoline\n");
+		return;
+	}
+
+	memblock_reserve(mem, size);
+	set_real_mode_mem(mem, size);
 }
 
 static void __init setup_real_mode(void)
