@@ -3382,11 +3382,10 @@ static void raid_postsuspend(struct dm_target *ti)
 {
 	struct raid_set *rs = ti->private;
 
-	if (test_and_clear_bit(RT_FLAG_RS_RESUMED, &rs->runtime_flags)) {
-		if (!rs->md.suspended)
-			mddev_suspend(&rs->md);
-		rs->md.ro = 1;
-	}
+	if (!rs->md.suspended)
+		mddev_suspend(&rs->md);
+
+	rs->md.ro = 1;
 }
 
 static void attempt_restore_of_faulty_devices(struct raid_set *rs)
@@ -3606,25 +3605,15 @@ static void raid_resume(struct dm_target *ti)
 		 * devices are reachable again.
 		 */
 		attempt_restore_of_faulty_devices(rs);
-	} else {
-		mddev->ro = 0;
-		mddev->in_sync = 0;
-
-		/*
-		 * When passing in flags to the ctr, we expect userspace
-		 * to reset them because they made it to the superblocks
-		 * and reload the mapping anyway.
-		 *
-		 * -> only unfreeze recovery in case of a table reload or
-		 *    we'll have a bogus recovery/reshape position
-		 *    retrieved from the superblock by the ctr because
-		 *    the ongoing recovery/reshape will change it after read.
-		 */
-		clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
-
-		if (mddev->suspended)
-			mddev_resume(mddev);
 	}
+
+	mddev->ro = 0;
+	mddev->in_sync = 0;
+
+	clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
+
+	if (mddev->suspended)
+		mddev_resume(mddev);
 }
 
 static struct target_type raid_target = {
