@@ -243,7 +243,7 @@ struct gb_control_intf_pm_response {
 /* request to control the CSI transmitter */
 #define GB_APB_REQUEST_CSI_TX_CONTROL		0x08
 
-/* request to control the CSI transmitter */
+/* request to control audio streaming */
 #define GB_APB_REQUEST_AUDIO_CONTROL		0x09
 
 /* vendor requests to enable/disable CPort features */
