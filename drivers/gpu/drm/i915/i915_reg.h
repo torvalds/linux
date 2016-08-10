@@ -3707,7 +3707,6 @@ enum {
 #define  PANEL_POWER_RESET		(1 << 1)
 #define  PANEL_POWER_OFF		(0 << 0)
 #define  PANEL_POWER_ON			(1 << 0)
-#define  POWER_TARGET_ON		(1 << 0)
 
 #define _PP_ON_DELAYS			0x61208
 #define PP_ON_DELAYS(pps_idx)		_MMIO_PPS(pps_idx, _PP_ON_DELAYS)

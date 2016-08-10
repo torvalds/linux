@@ -1948,7 +1948,7 @@ static void edp_panel_vdd_off_sync(struct intel_dp *intel_dp)
 	DRM_DEBUG_KMS("PP_STATUS: 0x%08x PP_CONTROL: 0x%08x\n",
 	I915_READ(pp_stat_reg), I915_READ(pp_ctrl_reg));
 
-	if ((pp & POWER_TARGET_ON) == 0)
+	if ((pp & PANEL_POWER_ON) == 0)
 		intel_dp->panel_power_off_time = ktime_get_boottime();
 
 	power_domain = intel_display_port_aux_power_domain(intel_encoder);
@@ -2035,7 +2035,7 @@ static void edp_panel_on(struct intel_dp *intel_dp)
 		POSTING_READ(pp_ctrl_reg);
 	}
 
-	pp |= POWER_TARGET_ON;
+	pp |= PANEL_POWER_ON;
 	if (!IS_GEN5(dev))
 		pp |= PANEL_POWER_RESET;
 
@@ -2087,7 +2087,7 @@ static void edp_panel_off(struct intel_dp *intel_dp)
 	pp = ironlake_get_pp_control(intel_dp);
 	/* We need to switch off panel power _and_ force vdd, for otherwise some
 	 * panels get very unhappy and cease to work. */
-	pp &= ~(POWER_TARGET_ON | PANEL_POWER_RESET | EDP_FORCE_VDD |
+	pp &= ~(PANEL_POWER_ON | PANEL_POWER_RESET | EDP_FORCE_VDD |
 		EDP_BLC_ENABLE);
 
 	pp_ctrl_reg = _pp_ctrl_reg(intel_dp);

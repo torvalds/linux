@@ -220,7 +220,7 @@ static void intel_enable_lvds(struct intel_encoder *encoder)
 
 	I915_WRITE(lvds_encoder->reg, I915_READ(lvds_encoder->reg) | LVDS_PORT_EN);
 
-	I915_WRITE(PP_CONTROL(0), I915_READ(PP_CONTROL(0)) | POWER_TARGET_ON);
+	I915_WRITE(PP_CONTROL(0), I915_READ(PP_CONTROL(0)) | PANEL_POWER_ON);
 	POSTING_READ(lvds_encoder->reg);
 	if (intel_wait_for_register(dev_priv, PP_STATUS(0), PP_ON, PP_ON, 1000))
 		DRM_ERROR("timed out waiting for panel to power on\n");
@@ -234,7 +234,7 @@ static void intel_disable_lvds(struct intel_encoder *encoder)
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
-	I915_WRITE(PP_CONTROL(0), I915_READ(PP_CONTROL(0)) & ~POWER_TARGET_ON);
+	I915_WRITE(PP_CONTROL(0), I915_READ(PP_CONTROL(0)) & ~PANEL_POWER_ON);
 	if (intel_wait_for_register(dev_priv, PP_STATUS(0), PP_ON, 0, 1000))
 		DRM_ERROR("timed out waiting for panel to power off\n");
 
