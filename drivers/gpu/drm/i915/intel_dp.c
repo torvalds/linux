@@ -256,6 +256,8 @@ intel_dp_init_panel_power_sequencer(struct drm_device *dev,
 static void
 intel_dp_init_panel_power_sequencer_registers(struct drm_device *dev,
 					      struct intel_dp *intel_dp);
+static void
+intel_dp_pps_init(struct drm_device *dev, struct intel_dp *intel_dp);
 
 static void pps_lock(struct intel_dp *intel_dp)
 {
@@ -4657,13 +4659,8 @@ void intel_dp_encoder_reset(struct drm_encoder *encoder)
 
 	pps_lock(intel_dp);
 
-	/*
-	 * Read out the current power sequencer assignment,
-	 * in case the BIOS did something with it.
-	 */
-	if (IS_VALLEYVIEW(encoder->dev) || IS_CHERRYVIEW(encoder->dev))
-		vlv_initial_power_sequencer_setup(intel_dp);
-
+	/* Reinit the power sequencer, in case BIOS did something with it. */
+	intel_dp_pps_init(encoder->dev, intel_dp);
 	intel_edp_panel_vdd_sanitize(intel_dp);
 
 	pps_unlock(intel_dp);
@@ -5009,6 +5006,17 @@ intel_dp_init_panel_power_sequencer_registers(struct drm_device *dev,
 		      IS_BROXTON(dev) ?
 		      (I915_READ(regs.pp_ctrl) & BXT_POWER_CYCLE_DELAY_MASK) :
 		      I915_READ(regs.pp_div));
+}
+
+static void intel_dp_pps_init(struct drm_device *dev,
+			      struct intel_dp *intel_dp)
+{
+	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
+		vlv_initial_power_sequencer_setup(intel_dp);
+	} else {
+		intel_dp_init_panel_power_sequencer(dev, intel_dp);
+		intel_dp_init_panel_power_sequencer_registers(dev, intel_dp);
+	}
 }
 
 /**
@@ -5425,14 +5433,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	pps_lock(intel_dp);
 
 	intel_dp_init_panel_power_timestamps(intel_dp);
-
-	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
-		vlv_initial_power_sequencer_setup(intel_dp);
-	} else {
-		intel_dp_init_panel_power_sequencer(dev, intel_dp);
-		intel_dp_init_panel_power_sequencer_registers(dev, intel_dp);
-	}
-
+	intel_dp_pps_init(dev, intel_dp);
 	intel_edp_panel_vdd_sanitize(intel_dp);
 
 	pps_unlock(intel_dp);
