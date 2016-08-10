@@ -487,6 +487,13 @@ struct ixgbe_thermal_sensor_data {
 #define IXGBE_FHFT_EXT(_n)	(0x09800 + ((_n) * 0x100)) /* Ext Flexible Host
 							    * Filter Table */
 
+/* masks for accessing VXLAN and GENEVE UDP ports */
+#define IXGBE_VXLANCTRL_VXLAN_UDPPORT_MASK     0x0000ffff /* VXLAN port */
+#define IXGBE_VXLANCTRL_GENEVE_UDPPORT_MASK    0xffff0000 /* GENEVE port */
+#define IXGBE_VXLANCTRL_ALL_UDPPORT_MASK       0xffffffff /* GENEVE/VXLAN */
+
+#define IXGBE_VXLANCTRL_GENEVE_UDPPORT_SHIFT   16
+
 #define IXGBE_FLEXIBLE_FILTER_COUNT_MAX         4
 #define IXGBE_EXT_FLEXIBLE_FILTER_COUNT_MAX     2
 
