@@ -59,13 +59,25 @@
  *
  */
 
-#define I915_SKL_GUC_UCODE "i915/skl_guc_ver6_1.bin"
+#define SKL_FW_MAJOR 6
+#define SKL_FW_MINOR 1
+
+#define BXT_FW_MAJOR 8
+#define BXT_FW_MINOR 7
+
+#define KBL_FW_MAJOR 9
+#define KBL_FW_MINOR 14
+
+#define GUC_FW_PATH(platform, major, minor) \
+       "i915/" __stringify(platform) "_guc_ver" __stringify(major) "_" __stringify(minor) ".bin"
+
+#define I915_SKL_GUC_UCODE GUC_FW_PATH(skl, SKL_FW_MAJOR, SKL_FW_MINOR)
 MODULE_FIRMWARE(I915_SKL_GUC_UCODE);
 
-#define I915_BXT_GUC_UCODE "i915/bxt_guc_ver8_7.bin"
+#define I915_BXT_GUC_UCODE GUC_FW_PATH(bxt, BXT_FW_MAJOR, BXT_FW_MINOR)
 MODULE_FIRMWARE(I915_BXT_GUC_UCODE);
 
-#define I915_KBL_GUC_UCODE "i915/kbl_guc_ver9_14.bin"
+#define I915_KBL_GUC_UCODE GUC_FW_PATH(kbl, KBL_FW_MAJOR, KBL_FW_MINOR)
 MODULE_FIRMWARE(I915_KBL_GUC_UCODE);
 
 /* User-friendly representation of an enum */
@@ -697,16 +709,16 @@ void intel_guc_init(struct drm_device *dev)
 		fw_path = NULL;
 	} else if (IS_SKYLAKE(dev)) {
 		fw_path = I915_SKL_GUC_UCODE;
-		guc_fw->guc_fw_major_wanted = 6;
-		guc_fw->guc_fw_minor_wanted = 1;
+		guc_fw->guc_fw_major_wanted = SKL_FW_MAJOR;
+		guc_fw->guc_fw_minor_wanted = SKL_FW_MINOR;
 	} else if (IS_BROXTON(dev)) {
 		fw_path = I915_BXT_GUC_UCODE;
-		guc_fw->guc_fw_major_wanted = 8;
-		guc_fw->guc_fw_minor_wanted = 7;
+		guc_fw->guc_fw_major_wanted = BXT_FW_MAJOR;
+		guc_fw->guc_fw_minor_wanted = BXT_FW_MINOR;
 	} else if (IS_KABYLAKE(dev)) {
 		fw_path = I915_KBL_GUC_UCODE;
-		guc_fw->guc_fw_major_wanted = 9;
-		guc_fw->guc_fw_minor_wanted = 14;
+		guc_fw->guc_fw_major_wanted = KBL_FW_MAJOR;
+		guc_fw->guc_fw_minor_wanted = KBL_FW_MINOR;
 	} else {
 		fw_path = "";	/* unknown device */
 	}
