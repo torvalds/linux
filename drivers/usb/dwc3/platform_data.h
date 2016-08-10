@@ -23,6 +23,7 @@
 struct dwc3_platform_data {
 	enum usb_device_speed maximum_speed;
 	enum usb_dr_mode dr_mode;
+	bool tx_fifo_resize;
 	bool usb3_lpm_capable;
 	bool phyif_utmi_16_bits;
 
