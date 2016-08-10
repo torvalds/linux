@@ -834,7 +834,7 @@ struct drm_event_vblank {
 	__u32 tv_sec;
 	__u32 tv_usec;
 	__u32 sequence;
-	__u32 reserved;
+	__u32 crtc_id; /* 0 on older kernels that do not support this */
 };
 
 /* typedef area */
