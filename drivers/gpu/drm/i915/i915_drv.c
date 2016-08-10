@@ -1560,6 +1560,7 @@ static int i915_drm_resume(struct drm_device *dev)
 	i915_gem_resume(dev);
 
 	i915_restore_state(dev);
+	intel_pps_unlock_regs_wa(dev_priv);
 	intel_opregion_setup(dev_priv);
 
 	intel_init_pch_refclk(dev);

@@ -978,14 +978,6 @@ void intel_lvds_init(struct drm_device *dev)
 	int pipe;
 	u8 pin;
 
-	/*
-	 * Unlock registers and just leave them unlocked. Do this before
-	 * checking quirk lists to avoid bogus WARNINGs.
-	 */
-	if (HAS_PCH_SPLIT(dev_priv) || INTEL_GEN(dev_priv) <= 4)
-		I915_WRITE(PP_CONTROL(0),
-			   I915_READ(PP_CONTROL(0)) | PANEL_UNLOCK_REGS);
-
 	if (!intel_lvds_supported(dev))
 		return;
 

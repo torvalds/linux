@@ -1829,7 +1829,8 @@ static  u32 ironlake_get_pp_control(struct intel_dp *intel_dp)
 	lockdep_assert_held(&dev_priv->pps_mutex);
 
 	control = I915_READ(_pp_ctrl_reg(intel_dp));
-	if (!IS_BROXTON(dev)) {
+	if (WARN_ON(!HAS_DDI(dev_priv) &&
+		    (control & PANEL_UNLOCK_MASK) != PANEL_UNLOCK_REGS)) {
 		control &= ~PANEL_UNLOCK_MASK;
 		control |= PANEL_UNLOCK_REGS;
 	}

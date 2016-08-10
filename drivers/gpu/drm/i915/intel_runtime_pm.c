@@ -592,6 +592,8 @@ void bxt_disable_dc9(struct drm_i915_private *dev_priv)
 	DRM_DEBUG_KMS("Disabling DC9\n");
 
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
+
+	intel_pps_unlock_regs_wa(dev_priv);
 }
 
 static void assert_csr_loaded(struct drm_i915_private *dev_priv)
@@ -1121,6 +1123,8 @@ static void vlv_display_power_well_init(struct drm_i915_private *dev_priv)
 	}
 
 	i915_redisable_vga_power_on(&dev_priv->drm);
+
+	intel_pps_unlock_regs_wa(dev_priv);
 }
 
 static void vlv_display_power_well_deinit(struct drm_i915_private *dev_priv)
