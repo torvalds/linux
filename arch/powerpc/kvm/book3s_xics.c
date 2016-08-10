@@ -1252,6 +1252,8 @@ int kvm_set_irq(struct kvm *kvm, int irq_source_id, u32 irq, int level,
 {
 	struct kvmppc_xics *xics = kvm->arch.xics;
 
+	if (!xics)
+		return -ENODEV;
 	return ics_deliver_irq(xics, irq, level);
 }
 
