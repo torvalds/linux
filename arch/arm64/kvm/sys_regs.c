@@ -1352,7 +1352,7 @@ static const struct sys_reg_desc cp15_regs[] = {
 	{ Op1( 0), CRn(10), CRm( 3), Op2( 1), access_vm_reg, NULL, c10_AMAIR1 },
 
 	/* ICC_SRE */
-	{ Op1( 0), CRn(12), CRm(12), Op2( 5), trap_raz_wi },
+	{ Op1( 0), CRn(12), CRm(12), Op2( 5), access_gic_sre },
 
 	{ Op1( 0), CRn(13), CRm( 0), Op2( 1), access_vm_reg, NULL, c13_CID },
 
