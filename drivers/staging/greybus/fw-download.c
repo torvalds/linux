@@ -245,7 +245,7 @@ static int fw_download_find_firmware(struct gb_operation *op)
 		return -EINVAL;
 	}
 
-	fw_req = find_firmware(fw_download, request->firmware_tag);
+	fw_req = find_firmware(fw_download, tag);
 	if (IS_ERR(fw_req))
 		return PTR_ERR(fw_req);
 
