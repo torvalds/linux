@@ -118,6 +118,10 @@
 	};
 };
 
+&cpu0 {
+	fsl,arm-soc-shared = <1>;
+};
+
 &busfreq {
 	fsl,max_ddr_freq = <400000000>;
 };
