@@ -1325,15 +1325,16 @@ ff_layout_need_layoutcommit(struct pnfs_layout_segment *lseg)
  * we always send layoutcommit after DS writes.
  */
 static void
-ff_layout_set_layoutcommit(struct nfs_pgio_header *hdr)
+ff_layout_set_layoutcommit(struct inode *inode,
+		struct pnfs_layout_segment *lseg,
+		loff_t end_offset)
 {
-	if (!ff_layout_need_layoutcommit(hdr->lseg))
+	if (!ff_layout_need_layoutcommit(lseg))
 		return;
 
-	pnfs_set_layoutcommit(hdr->inode, hdr->lseg,
-			hdr->mds_offset + hdr->res.count);
-	dprintk("%s inode %lu pls_end_pos %lu\n", __func__, hdr->inode->i_ino,
-		(unsigned long) NFS_I(hdr->inode)->layout->plh_lwb);
+	pnfs_set_layoutcommit(inode, lseg, end_offset);
+	dprintk("%s inode %lu pls_end_pos %llu\n", __func__, inode->i_ino,
+		(unsigned long long) NFS_I(inode)->layout->plh_lwb);
 }
 
 static bool
@@ -1469,6 +1470,7 @@ static void ff_layout_read_release(void *data)
 static int ff_layout_write_done_cb(struct rpc_task *task,
 				struct nfs_pgio_header *hdr)
 {
+	loff_t end_offs = 0;
 	int err;
 
 	trace_nfs4_pnfs_write(hdr, task->tk_status);
@@ -1494,7 +1496,10 @@ static int ff_layout_write_done_cb(struct rpc_task *task,
 
 	if (hdr->res.verf->committed == NFS_FILE_SYNC ||
 	    hdr->res.verf->committed == NFS_DATA_SYNC)
-		ff_layout_set_layoutcommit(hdr);
+		end_offs = hdr->mds_offset + (loff_t)hdr->res.count;
+
+	/* Note: if the write is unstable, don't set end_offs until commit */
+	ff_layout_set_layoutcommit(hdr->inode, hdr->lseg, end_offs);
 
 	/* zero out fattr since we don't care DS attr at all */
 	hdr->fattr.valid = 0;
@@ -1530,9 +1535,7 @@ static int ff_layout_commit_done_cb(struct rpc_task *task,
 		return -EAGAIN;
 	}
 
-	if (data->verf.committed == NFS_UNSTABLE
-	    && ff_layout_need_layoutcommit(data->lseg))
-		pnfs_set_layoutcommit(data->inode, data->lseg, data->lwb);
+	ff_layout_set_layoutcommit(data->inode, data->lseg, data->lwb);
 
 	return 0;
 }

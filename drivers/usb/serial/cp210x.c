@@ -496,11 +496,9 @@ static int cp210x_write_reg_block(struct usb_serial_port *port, u8 req,
 	void *dmabuf;
 	int result;
 
-	dmabuf = kmalloc(bufsize, GFP_KERNEL);
+	dmabuf = kmemdup(buf, bufsize, GFP_KERNEL);
 	if (!dmabuf)
 		return -ENOMEM;
-
-	memcpy(dmabuf, buf, bufsize);
 
 	result = usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
 			req, REQTYPE_HOST_TO_INTERFACE, 0,

@@ -169,7 +169,6 @@ static int vivid_received(struct cec_adapter *adap, struct cec_msg *msg)
 	struct vivid_dev *dev = adap->priv;
 	struct cec_msg reply;
 	u8 dest = cec_msg_destination(msg);
-	u16 pa;
 	u8 disp_ctl;
 	char osd[14];
 
@@ -178,15 +177,6 @@ static int vivid_received(struct cec_adapter *adap, struct cec_msg *msg)
 	cec_msg_init(&reply, dest, cec_msg_initiator(msg));
 
 	switch (cec_msg_opcode(msg)) {
-	case CEC_MSG_SET_STREAM_PATH:
-		if (cec_is_sink(adap))
-			return -ENOMSG;
-		cec_ops_set_stream_path(msg, &pa);
-		if (pa != adap->phys_addr)
-			return -ENOMSG;
-		cec_msg_active_source(&reply, adap->phys_addr);
-		cec_transmit_msg(adap, &reply, false);
-		break;
 	case CEC_MSG_SET_OSD_STRING:
 		if (!cec_is_sink(adap))
 			return -ENOMSG;

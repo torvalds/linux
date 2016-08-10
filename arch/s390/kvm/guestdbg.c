@@ -439,6 +439,23 @@ exit_required:
 #define guest_per_enabled(vcpu) \
 			     (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PER)
 
+int kvm_s390_handle_per_ifetch_icpt(struct kvm_vcpu *vcpu)
+{
+	const u8 ilen = kvm_s390_get_ilen(vcpu);
+	struct kvm_s390_pgm_info pgm_info = {
+		.code = PGM_PER,
+		.per_code = PER_EVENT_IFETCH >> 24,
+		.per_address = __rewind_psw(vcpu->arch.sie_block->gpsw, ilen),
+	};
+
+	/*
+	 * The PSW points to the next instruction, therefore the intercepted
+	 * instruction generated a PER i-fetch event. PER address therefore
+	 * points at the previous PSW address (could be an EXECUTE function).
+	 */
+	return kvm_s390_inject_prog_irq(vcpu, &pgm_info);
+}
+
 static void filter_guest_per_event(struct kvm_vcpu *vcpu)
 {
 	u32 perc = vcpu->arch.sie_block->perc << 24;
@@ -465,7 +482,7 @@ static void filter_guest_per_event(struct kvm_vcpu *vcpu)
 		guest_perc &= ~PER_EVENT_IFETCH;
 
 	/* All other PER events will be given to the guest */
-	/* TODO: Check alterated address/address space */
+	/* TODO: Check altered address/address space */
 
 	vcpu->arch.sie_block->perc = guest_perc >> 24;
 

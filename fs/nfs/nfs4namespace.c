@@ -208,7 +208,7 @@ static struct rpc_clnt *nfs_find_best_sec(struct rpc_clnt *clnt,
  */
 struct rpc_clnt *
 nfs4_negotiate_security(struct rpc_clnt *clnt, struct inode *inode,
-					struct qstr *name)
+					const struct qstr *name)
 {
 	struct page *page;
 	struct nfs4_secinfo_flavors *flavors;
@@ -397,7 +397,7 @@ struct vfsmount *nfs4_submount(struct nfs_server *server, struct dentry *dentry,
 	rpc_authflavor_t flavor = server->client->cl_auth->au_flavor;
 	struct dentry *parent = dget_parent(dentry);
 	struct inode *dir = d_inode(parent);
-	struct qstr *name = &dentry->d_name;
+	const struct qstr *name = &dentry->d_name;
 	struct rpc_clnt *client;
 	struct vfsmount *mnt;
 

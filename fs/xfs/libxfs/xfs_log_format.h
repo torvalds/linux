@@ -110,7 +110,9 @@ static inline uint xlog_get_cycle(char *ptr)
 #define XLOG_REG_TYPE_COMMIT		18
 #define XLOG_REG_TYPE_TRANSHDR		19
 #define XLOG_REG_TYPE_ICREATE		20
-#define XLOG_REG_TYPE_MAX		20
+#define XLOG_REG_TYPE_RUI_FORMAT	21
+#define XLOG_REG_TYPE_RUD_FORMAT	22
+#define XLOG_REG_TYPE_MAX		22
 
 /*
  * Flags to log operation header
@@ -227,6 +229,8 @@ typedef struct xfs_trans_header {
 #define	XFS_LI_DQUOT		0x123d
 #define	XFS_LI_QUOTAOFF		0x123e
 #define	XFS_LI_ICREATE		0x123f
+#define	XFS_LI_RUI		0x1240	/* rmap update intent */
+#define	XFS_LI_RUD		0x1241
 
 #define XFS_LI_TYPE_DESC \
 	{ XFS_LI_EFI,		"XFS_LI_EFI" }, \
@@ -236,7 +240,9 @@ typedef struct xfs_trans_header {
 	{ XFS_LI_BUF,		"XFS_LI_BUF" }, \
 	{ XFS_LI_DQUOT,		"XFS_LI_DQUOT" }, \
 	{ XFS_LI_QUOTAOFF,	"XFS_LI_QUOTAOFF" }, \
-	{ XFS_LI_ICREATE,	"XFS_LI_ICREATE" }
+	{ XFS_LI_ICREATE,	"XFS_LI_ICREATE" }, \
+	{ XFS_LI_RUI,		"XFS_LI_RUI" }, \
+	{ XFS_LI_RUD,		"XFS_LI_RUD" }
 
 /*
  * Inode Log Item Format definitions.
@@ -602,6 +608,59 @@ typedef struct xfs_efd_log_format_64 {
 	__uint64_t		efd_efi_id;	/* id of corresponding efi */
 	xfs_extent_64_t		efd_extents[1];	/* array of extents freed */
 } xfs_efd_log_format_64_t;
+
+/*
+ * RUI/RUD (reverse mapping) log format definitions
+ */
+struct xfs_map_extent {
+	__uint64_t		me_owner;
+	__uint64_t		me_startblock;
+	__uint64_t		me_startoff;
+	__uint32_t		me_len;
+	__uint32_t		me_flags;
+};
+
+/* rmap me_flags: upper bits are flags, lower byte is type code */
+#define XFS_RMAP_EXTENT_MAP		1
+#define XFS_RMAP_EXTENT_UNMAP		3
+#define XFS_RMAP_EXTENT_CONVERT		5
+#define XFS_RMAP_EXTENT_ALLOC		7
+#define XFS_RMAP_EXTENT_FREE		8
+#define XFS_RMAP_EXTENT_TYPE_MASK	0xFF
+
+#define XFS_RMAP_EXTENT_ATTR_FORK	(1U << 31)
+#define XFS_RMAP_EXTENT_BMBT_BLOCK	(1U << 30)
+#define XFS_RMAP_EXTENT_UNWRITTEN	(1U << 29)
+
+#define XFS_RMAP_EXTENT_FLAGS		(XFS_RMAP_EXTENT_TYPE_MASK | \
+					 XFS_RMAP_EXTENT_ATTR_FORK | \
+					 XFS_RMAP_EXTENT_BMBT_BLOCK | \
+					 XFS_RMAP_EXTENT_UNWRITTEN)
+
+/*
+ * This is the structure used to lay out an rui log item in the
+ * log.  The rui_extents field is a variable size array whose
+ * size is given by rui_nextents.
+ */
+struct xfs_rui_log_format {
+	__uint16_t		rui_type;	/* rui log item type */
+	__uint16_t		rui_size;	/* size of this item */
+	__uint32_t		rui_nextents;	/* # extents to free */
+	__uint64_t		rui_id;		/* rui identifier */
+	struct xfs_map_extent	rui_extents[1];	/* array of extents to rmap */
+};
+
+/*
+ * This is the structure used to lay out an rud log item in the
+ * log.  The rud_extents array is a variable size array whose
+ * size is given by rud_nextents;
+ */
+struct xfs_rud_log_format {
+	__uint16_t		rud_type;	/* rud log item type */
+	__uint16_t		rud_size;	/* size of this item */
+	__uint32_t		__pad;
+	__uint64_t		rud_rui_id;	/* id of corresponding rui */
+};
 
 /*
  * Dquot Log format definitions.

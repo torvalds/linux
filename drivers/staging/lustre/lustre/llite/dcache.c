@@ -78,7 +78,7 @@ static void ll_release(struct dentry *de)
  * INVALID) so d_lookup() matches it, but we have no lock on it (so
  * lock_match() fails) and we spin around real_lookup().
  */
-static int ll_dcompare(const struct dentry *parent, const struct dentry *dentry,
+static int ll_dcompare(const struct dentry *dentry,
 		       unsigned int len, const char *str,
 		       const struct qstr *name)
 {

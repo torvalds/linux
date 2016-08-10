@@ -51,7 +51,6 @@
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 #include <asm/x86_init.h>
-#include <asm/rtc.h>
 #include <asm/uv/uv.h>
 
 static struct efi efi_phys __initdata;

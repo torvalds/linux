@@ -497,4 +497,6 @@ extern unsigned int ib_qib_max_srq_wrs;
 
 extern const u32 ib_qib_rnr_table[];
 
+extern const struct rvt_operation_params qib_post_parms[];
+
 #endif                          /* QIB_VERBS_H */

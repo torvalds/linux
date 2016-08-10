@@ -1043,8 +1043,8 @@ static void raid1_make_request(struct mddev *mddev, struct bio * bio)
 	unsigned long flags;
 	const int op = bio_op(bio);
 	const int rw = bio_data_dir(bio);
-	const unsigned long do_sync = (bio->bi_rw & REQ_SYNC);
-	const unsigned long do_flush_fua = (bio->bi_rw &
+	const unsigned long do_sync = (bio->bi_opf & REQ_SYNC);
+	const unsigned long do_flush_fua = (bio->bi_opf &
 						(REQ_PREFLUSH | REQ_FUA));
 	struct md_rdev *blocked_rdev;
 	struct blk_plug_cb *cb;
@@ -2318,7 +2318,7 @@ read_more:
 		raid_end_bio_io(r1_bio);
 	} else {
 		const unsigned long do_sync
-			= r1_bio->master_bio->bi_rw & REQ_SYNC;
+			= r1_bio->master_bio->bi_opf & REQ_SYNC;
 		if (bio) {
 			r1_bio->bios[r1_bio->read_disk] =
 				mddev->ro ? IO_BLOCKED : NULL;

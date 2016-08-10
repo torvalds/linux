@@ -474,18 +474,8 @@ static int ps8622_get_modes(struct drm_connector *connector)
 	return drm_panel_get_modes(ps8622->panel);
 }
 
-static struct drm_encoder *ps8622_best_encoder(struct drm_connector *connector)
-{
-	struct ps8622_bridge *ps8622;
-
-	ps8622 = connector_to_ps8622(connector);
-
-	return ps8622->bridge.encoder;
-}
-
 static const struct drm_connector_helper_funcs ps8622_connector_helper_funcs = {
 	.get_modes = ps8622_get_modes,
-	.best_encoder = ps8622_best_encoder,
 };
 
 static enum drm_connector_status ps8622_detect(struct drm_connector *connector,
@@ -646,9 +636,7 @@ static int ps8622_remove(struct i2c_client *client)
 {
 	struct ps8622_bridge *ps8622 = i2c_get_clientdata(client);
 
-	if (ps8622->bl)
-		backlight_device_unregister(ps8622->bl);
-
+	backlight_device_unregister(ps8622->bl);
 	drm_bridge_remove(&ps8622->bridge);
 
 	return 0;

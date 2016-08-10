@@ -62,6 +62,21 @@ ENTRY(__vhe_hyp_call)
 	isb
 	ret
 ENDPROC(__vhe_hyp_call)
+
+/*
+ * Compute the idmap address of __kvm_hyp_reset based on the idmap
+ * start passed as a parameter, and jump there.
+ *
+ * x0: HYP phys_idmap_start
+ */
+ENTRY(__kvm_hyp_teardown)
+	mov	x4, x0
+	adr_l	x3, __kvm_hyp_reset
+
+	/* insert __kvm_hyp_reset()s offset into phys_idmap_start */
+	bfi	x4, x3, #0, #PAGE_SHIFT
+	br	x4
+ENDPROC(__kvm_hyp_teardown)
 	
 el1_sync:				// Guest trapped into EL2
 	save_x0_to_x3

@@ -5,7 +5,10 @@
 // Copyright: (C) 2015 Julia Lawall, Inria. GPLv2.
 // URL: http://coccinelle.lip6.fr/
 // Options: --no-includes --include-headers
+// Requires: 1.0.4
 // Keywords: for_each_child_of_node, etc.
+
+// This uses a conjunction, which requires at least coccinelle >= 1.0.4
 
 virtual patch
 virtual context

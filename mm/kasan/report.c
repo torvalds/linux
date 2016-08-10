@@ -116,6 +116,26 @@ static inline bool init_task_stack_addr(const void *addr)
 			sizeof(init_thread_union.stack));
 }
 
+static DEFINE_SPINLOCK(report_lock);
+
+static void kasan_start_report(unsigned long *flags)
+{
+	/*
+	 * Make sure we don't end up in loop.
+	 */
+	kasan_disable_current();
+	spin_lock_irqsave(&report_lock, *flags);
+	pr_err("==================================================================\n");
+}
+
+static void kasan_end_report(unsigned long *flags)
+{
+	pr_err("==================================================================\n");
+	add_taint(TAINT_BAD_PAGE, LOCKDEP_NOW_UNRELIABLE);
+	spin_unlock_irqrestore(&report_lock, *flags);
+	kasan_enable_current();
+}
+
 static void print_track(struct kasan_track *track)
 {
 	pr_err("PID = %u\n", track->pid);
@@ -129,37 +149,33 @@ static void print_track(struct kasan_track *track)
 	}
 }
 
-static void kasan_object_err(struct kmem_cache *cache, struct page *page,
-				void *object, char *unused_reason)
+static void kasan_object_err(struct kmem_cache *cache, void *object)
 {
 	struct kasan_alloc_meta *alloc_info = get_alloc_info(cache, object);
-	struct kasan_free_meta *free_info;
 
 	dump_stack();
-	pr_err("Object at %p, in cache %s\n", object, cache->name);
+	pr_err("Object at %p, in cache %s size: %d\n", object, cache->name,
+		cache->object_size);
+
 	if (!(cache->flags & SLAB_KASAN))
 		return;
-	switch (alloc_info->state) {
-	case KASAN_STATE_INIT:
-		pr_err("Object not allocated yet\n");
-		break;
-	case KASAN_STATE_ALLOC:
-		pr_err("Object allocated with size %u bytes.\n",
-		       alloc_info->alloc_size);
-		pr_err("Allocation:\n");
-		print_track(&alloc_info->track);
-		break;
-	case KASAN_STATE_FREE:
-	case KASAN_STATE_QUARANTINE:
-		pr_err("Object freed, allocated with size %u bytes\n",
-		       alloc_info->alloc_size);
-		free_info = get_free_info(cache, object);
-		pr_err("Allocation:\n");
-		print_track(&alloc_info->track);
-		pr_err("Deallocation:\n");
-		print_track(&free_info->track);
-		break;
-	}
+
+	pr_err("Allocated:\n");
+	print_track(&alloc_info->alloc_track);
+	pr_err("Freed:\n");
+	print_track(&alloc_info->free_track);
+}
+
+void kasan_report_double_free(struct kmem_cache *cache, void *object,
+			s8 shadow)
+{
+	unsigned long flags;
+
+	kasan_start_report(&flags);
+	pr_err("BUG: Double free or freeing an invalid pointer\n");
+	pr_err("Unexpected shadow byte: 0x%hhX\n", shadow);
+	kasan_object_err(cache, object);
+	kasan_end_report(&flags);
 }
 
 static void print_address_description(struct kasan_access_info *info)
@@ -175,8 +191,7 @@ static void print_address_description(struct kasan_access_info *info)
 			struct kmem_cache *cache = page->slab_cache;
 			object = nearest_obj(cache, page,
 						(void *)info->access_addr);
-			kasan_object_err(cache, page, object,
-					"kasan: bad access detected");
+			kasan_object_err(cache, object);
 			return;
 		}
 		dump_page(page, "kasan: bad access detected");
@@ -241,19 +256,13 @@ static void print_shadow_for_address(const void *addr)
 	}
 }
 
-static DEFINE_SPINLOCK(report_lock);
-
 static void kasan_report_error(struct kasan_access_info *info)
 {
 	unsigned long flags;
 	const char *bug_type;
 
-	/*
-	 * Make sure we don't end up in loop.
-	 */
-	kasan_disable_current();
-	spin_lock_irqsave(&report_lock, flags);
-	pr_err("==================================================================\n");
+	kasan_start_report(&flags);
+
 	if (info->access_addr <
 			kasan_shadow_to_mem((void *)KASAN_SHADOW_START)) {
 		if ((unsigned long)info->access_addr < PAGE_SIZE)
@@ -274,10 +283,8 @@ static void kasan_report_error(struct kasan_access_info *info)
 		print_address_description(info);
 		print_shadow_for_address(info->first_bad_addr);
 	}
-	pr_err("==================================================================\n");
-	add_taint(TAINT_BAD_PAGE, LOCKDEP_NOW_UNRELIABLE);
-	spin_unlock_irqrestore(&report_lock, flags);
-	kasan_enable_current();
+
+	kasan_end_report(&flags);
 }
 
 void kasan_report(unsigned long addr, size_t size,

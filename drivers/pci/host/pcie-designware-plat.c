@@ -14,7 +14,7 @@
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of_gpio.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
@@ -121,7 +121,6 @@ static const struct of_device_id dw_plat_pcie_of_match[] = {
 	{ .compatible = "snps,dw-pcie", },
 	{},
 };
-MODULE_DEVICE_TABLE(of, dw_plat_pcie_of_match);
 
 static struct platform_driver dw_plat_pcie_driver = {
 	.driver = {
@@ -130,9 +129,4 @@ static struct platform_driver dw_plat_pcie_driver = {
 	},
 	.probe = dw_plat_pcie_probe,
 };
-
-module_platform_driver(dw_plat_pcie_driver);
-
-MODULE_AUTHOR("Joao Pinto <Joao.Pinto@synopsys.com>");
-MODULE_DESCRIPTION("Synopsys PCIe host controller glue platform driver");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver(dw_plat_pcie_driver);

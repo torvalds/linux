@@ -10,6 +10,7 @@
  * Miscellaneous linux stuff
  */
 
+#include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/mm.h>
@@ -25,6 +26,7 @@
 #include <linux/platform_device.h>
 #include <linux/adb.h>
 #include <linux/cuda.h>
+#include <linux/rtc.h>
 
 #include <asm/setup.h>
 #include <asm/bootinfo.h>
@@ -34,7 +36,6 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/pgtable.h>
-#include <asm/rtc.h>
 #include <asm/machdep.h>
 
 #include <asm/macintosh.h>

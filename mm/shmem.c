@@ -1362,13 +1362,14 @@ static struct page *shmem_alloc_hugepage(gfp_t gfp,
 	struct vm_area_struct pvma;
 	struct inode *inode = &info->vfs_inode;
 	struct address_space *mapping = inode->i_mapping;
-	pgoff_t idx, hindex = round_down(index, HPAGE_PMD_NR);
+	pgoff_t idx, hindex;
 	void __rcu **results;
 	struct page *page;
 
 	if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE))
 		return NULL;
 
+	hindex = round_down(index, HPAGE_PMD_NR);
 	rcu_read_lock();
 	if (radix_tree_gang_lookup_slot(&mapping->page_tree, &results, &idx,
 				hindex, 1) && idx < hindex + HPAGE_PMD_NR) {

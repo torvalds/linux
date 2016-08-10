@@ -234,7 +234,7 @@ unsigned long iopa(unsigned long addr)
 	return pa;
 }
 
-__init_refok pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
+__ref pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
 		unsigned long address)
 {
 	pte_t *pte;

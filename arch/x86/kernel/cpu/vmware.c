@@ -22,7 +22,8 @@
  */
 
 #include <linux/dmi.h>
-#include <linux/module.h>
+#include <linux/init.h>
+#include <linux/export.h>
 #include <asm/div64.h>
 #include <asm/x86_init.h>
 #include <asm/hypervisor.h>

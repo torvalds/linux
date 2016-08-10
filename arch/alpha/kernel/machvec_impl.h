@@ -137,7 +137,7 @@
 #define __initmv __initdata
 #define ALIAS_MV(x)
 #else
-#define __initmv __initdata_refok
+#define __initmv __refdata
 
 /* GCC actually has a syntax for defining aliases, but is under some
    delusion that you shouldn't be able to declare it extern somewhere

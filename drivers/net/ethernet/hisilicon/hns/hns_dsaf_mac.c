@@ -795,6 +795,7 @@ static int  hns_mac_get_info(struct hns_mac_cb *mac_cb)
 			dev_dbg(mac_cb->dev, "mac%d phy_node: %s\n",
 				mac_cb->mac_id, np->name);
 		}
+		of_node_put(np);
 
 		return 0;
 	}
@@ -812,10 +813,12 @@ static int  hns_mac_get_info(struct hns_mac_cb *mac_cb)
 			dev_dbg(mac_cb->dev, "mac%d phy_node: %s\n",
 				mac_cb->mac_id, np->name);
 		}
+		of_node_put(np);
 
-		syscon = syscon_node_to_regmap(
-				of_parse_phandle(to_of_node(mac_cb->fw_port),
-						 "serdes-syscon", 0));
+		np = of_parse_phandle(to_of_node(mac_cb->fw_port),
+					"serdes-syscon", 0);
+		syscon = syscon_node_to_regmap(np);
+		of_node_put(np);
 		if (IS_ERR_OR_NULL(syscon)) {
 			dev_err(mac_cb->dev, "serdes-syscon is needed!\n");
 			return -EINVAL;

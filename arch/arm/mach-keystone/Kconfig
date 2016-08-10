@@ -1,7 +1,6 @@
 config ARCH_KEYSTONE
 	bool "Texas Instruments Keystone Devices"
 	depends on ARCH_MULTI_V7
-	depends on ARM_PATCH_PHYS_VIRT
 	select ARM_GIC
 	select HAVE_ARM_ARCH_TIMER
 	select KEYSTONE_TIMER
@@ -11,6 +10,7 @@ config ARCH_KEYSTONE
 	select ZONE_DMA if ARM_LPAE
 	select MIGHT_HAVE_PCI
 	select PCI_DOMAINS if PCI
+	select PINCTRL
 	help
 	  Support for boards based on the Texas Instruments Keystone family of
 	  SoCs.

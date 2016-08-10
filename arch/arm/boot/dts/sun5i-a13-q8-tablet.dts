@@ -42,19 +42,45 @@
 
 /dts-v1/;
 #include "sun5i-a13.dtsi"
-#include "sun5i-q8-common.dtsi"
+#include "sun5i-reference-design-tablet.dtsi"
 
 / {
 	model = "Q8 A13 Tablet";
 	compatible = "allwinner,q8-a13", "allwinner,sun5i-a13";
+
+	panel: panel {
+		compatible = "urt,umsh-8596md-t", "simple-panel";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			/* TODO: lcd panel uses axp gpio0 as enable pin */
+			backlight = <&backlight>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			panel_input: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&tcon0_out_lcd>;
+			};
+		};
+	};
 };
 
-&reg_ldo3 {
-	regulator-min-microvolt = <3300000>;
-	regulator-max-microvolt = <3300000>;
-	regulator-name = "vcc-wifi";
+&be0 {
+	status = "okay";
 };
 
-&usbphy {
-	usb1_vbus-supply = <&reg_ldo3>;
+&tcon0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&lcd_rgb666_pins>;
+	status = "okay";
+};
+
+&tcon0_out {
+	tcon0_out_lcd: endpoint@0 {
+		reg = <0>;
+		remote-endpoint = <&panel_input>;
+	};
 };

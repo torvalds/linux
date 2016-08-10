@@ -75,7 +75,7 @@ static struct drm_driver sun4i_drv_driver = {
 	.dumb_create		= drm_gem_cma_dumb_create,
 	.dumb_destroy		= drm_gem_dumb_destroy,
 	.dumb_map_offset	= drm_gem_cma_dumb_map_offset,
-	.gem_free_object	= drm_gem_cma_free_object,
+	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,
 
 	/* PRIME Operations */
@@ -122,10 +122,6 @@ static int sun4i_drv_bind(struct device *dev)
 	drm = drm_dev_alloc(&sun4i_drv_driver, dev);
 	if (!drm)
 		return -ENOMEM;
-
-	ret = drm_dev_set_unique(drm, dev_name(drm->dev));
-	if (ret)
-		goto free_drm;
 
 	drv = devm_kzalloc(dev, sizeof(*drv), GFP_KERNEL);
 	if (!drv) {
@@ -178,14 +174,8 @@ static int sun4i_drv_bind(struct device *dev)
 	if (ret)
 		goto free_drm;
 
-	ret = drm_connector_register_all(drm);
-	if (ret)
-		goto unregister_drm;
-
 	return 0;
 
-unregister_drm:
-	drm_dev_unregister(drm);
 free_drm:
 	drm_dev_unref(drm);
 	return ret;
@@ -195,7 +185,6 @@ static void sun4i_drv_unbind(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
 
-	drm_connector_unregister_all(drm);
 	drm_dev_unregister(drm);
 	drm_kms_helper_poll_fini(drm);
 	sun4i_framebuffer_free(drm);

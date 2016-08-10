@@ -11,6 +11,12 @@
 #include <linux/mm.h>
 #include <linux/hugetlb.h>
 
+/*
+ * If the bit selected by single-bit bitmask "a" is set within "x", move
+ * it to the position indicated by single-bit bitmask "b".
+ */
+#define move_set_bit(x, a, b)	(((x) & (a)) >> ilog2(a) << ilog2(b))
+
 static inline unsigned long __pte_to_rste(pte_t pte)
 {
 	unsigned long rste;
@@ -37,13 +43,22 @@ static inline unsigned long __pte_to_rste(pte_t pte)
 	 */
 	if (pte_present(pte)) {
 		rste = pte_val(pte) & PAGE_MASK;
-		rste |= (pte_val(pte) & _PAGE_READ) >> 4;
-		rste |= (pte_val(pte) & _PAGE_WRITE) >> 4;
-		rste |= (pte_val(pte) & _PAGE_INVALID) >> 5;
-		rste |= (pte_val(pte) & _PAGE_PROTECT);
-		rste |= (pte_val(pte) & _PAGE_DIRTY) << 10;
-		rste |= (pte_val(pte) & _PAGE_YOUNG) << 10;
-		rste |= (pte_val(pte) & _PAGE_SOFT_DIRTY) << 13;
+		rste |= move_set_bit(pte_val(pte), _PAGE_READ,
+				     _SEGMENT_ENTRY_READ);
+		rste |= move_set_bit(pte_val(pte), _PAGE_WRITE,
+				     _SEGMENT_ENTRY_WRITE);
+		rste |= move_set_bit(pte_val(pte), _PAGE_INVALID,
+				     _SEGMENT_ENTRY_INVALID);
+		rste |= move_set_bit(pte_val(pte), _PAGE_PROTECT,
+				     _SEGMENT_ENTRY_PROTECT);
+		rste |= move_set_bit(pte_val(pte), _PAGE_DIRTY,
+				     _SEGMENT_ENTRY_DIRTY);
+		rste |= move_set_bit(pte_val(pte), _PAGE_YOUNG,
+				     _SEGMENT_ENTRY_YOUNG);
+#ifdef CONFIG_MEM_SOFT_DIRTY
+		rste |= move_set_bit(pte_val(pte), _PAGE_SOFT_DIRTY,
+				     _SEGMENT_ENTRY_SOFT_DIRTY);
+#endif
 	} else
 		rste = _SEGMENT_ENTRY_INVALID;
 	return rste;
@@ -82,13 +97,22 @@ static inline pte_t __rste_to_pte(unsigned long rste)
 	if (present) {
 		pte_val(pte) = rste & _SEGMENT_ENTRY_ORIGIN_LARGE;
 		pte_val(pte) |= _PAGE_LARGE | _PAGE_PRESENT;
-		pte_val(pte) |= (rste & _SEGMENT_ENTRY_READ) << 4;
-		pte_val(pte) |= (rste & _SEGMENT_ENTRY_WRITE) << 4;
-		pte_val(pte) |= (rste & _SEGMENT_ENTRY_INVALID) << 5;
-		pte_val(pte) |= (rste & _SEGMENT_ENTRY_PROTECT);
-		pte_val(pte) |= (rste & _SEGMENT_ENTRY_DIRTY) >> 10;
-		pte_val(pte) |= (rste & _SEGMENT_ENTRY_YOUNG) >> 10;
-		pte_val(pte) |= (rste & _SEGMENT_ENTRY_SOFT_DIRTY) >> 13;
+		pte_val(pte) |= move_set_bit(rste, _SEGMENT_ENTRY_READ,
+					     _PAGE_READ);
+		pte_val(pte) |= move_set_bit(rste, _SEGMENT_ENTRY_WRITE,
+					     _PAGE_WRITE);
+		pte_val(pte) |= move_set_bit(rste, _SEGMENT_ENTRY_INVALID,
+					     _PAGE_INVALID);
+		pte_val(pte) |= move_set_bit(rste, _SEGMENT_ENTRY_PROTECT,
+					     _PAGE_PROTECT);
+		pte_val(pte) |= move_set_bit(rste, _SEGMENT_ENTRY_DIRTY,
+					     _PAGE_DIRTY);
+		pte_val(pte) |= move_set_bit(rste, _SEGMENT_ENTRY_YOUNG,
+					     _PAGE_YOUNG);
+#ifdef CONFIG_MEM_SOFT_DIRTY
+		pte_val(pte) |= move_set_bit(rste, _SEGMENT_ENTRY_SOFT_DIRTY,
+					     _PAGE_DIRTY);
+#endif
 	} else
 		pte_val(pte) = _PAGE_INVALID;
 	return pte;

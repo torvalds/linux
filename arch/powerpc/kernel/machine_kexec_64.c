@@ -29,6 +29,7 @@
 #include <asm/prom.h>
 #include <asm/smp.h>
 #include <asm/hw_breakpoint.h>
+#include <asm/asm-prototypes.h>
 
 #ifdef CONFIG_PPC_BOOK3E
 int default_machine_kexec_prepare(struct kimage *image)
@@ -54,7 +55,7 @@ int default_machine_kexec_prepare(struct kimage *image)
 	const unsigned long *basep;
 	const unsigned int *sizep;
 
-	if (!ppc_md.hpte_clear_all)
+	if (!mmu_hash_ops.hpte_clear_all)
 		return -ENOENT;
 
 	/*
@@ -379,7 +380,12 @@ void default_machine_kexec(struct kimage *image)
 	 */
 	kexec_sequence(&kexec_stack, image->start, image,
 			page_address(image->control_code_page),
-			ppc_md.hpte_clear_all);
+#ifdef CONFIG_PPC_STD_MMU
+			mmu_hash_ops.hpte_clear_all
+#else
+			NULL
+#endif
+	);
 	/* NOTREACHED */
 }
 

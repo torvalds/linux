@@ -787,7 +787,7 @@ EXPORT_SYMBOL(drm_gem_object_release);
  * @kref: kref of the object to free
  *
  * Called after the last reference to the object has been lost.
- * Must be called holding struct_ mutex
+ * Must be called holding &drm_device->struct_mutex.
  *
  * Frees the object
  */

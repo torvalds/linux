@@ -111,12 +111,14 @@ extern long do_handle_open(int mountdirfd,
 			   struct file_handle __user *ufh, int open_flag);
 extern int open_check_o_direct(struct file *f);
 extern int vfs_open(const struct path *, struct file *, const struct cred *);
+extern struct file *filp_clone_open(struct file *);
 
 /*
  * inode.c
  */
 extern long prune_icache_sb(struct super_block *sb, struct shrink_control *sc);
 extern void inode_add_lru(struct inode *inode);
+extern int dentry_needs_remove_privs(struct dentry *dentry);
 
 /*
  * fs-writeback.c

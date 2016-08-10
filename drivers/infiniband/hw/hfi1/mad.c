@@ -588,7 +588,6 @@ static int __subn_get_opa_portinfo(struct opa_smp *smp, u32 am, u8 *data,
 
 	pi->port_phys_conf = (ppd->port_type & 0xf);
 
-#if PI_LED_ENABLE_SUP
 	pi->port_states.ledenable_offlinereason = ppd->neighbor_normal << 4;
 	pi->port_states.ledenable_offlinereason |=
 		ppd->is_sm_config_started << 5;
@@ -602,11 +601,6 @@ static int __subn_get_opa_portinfo(struct opa_smp *smp, u32 am, u8 *data,
 	pi->port_states.ledenable_offlinereason |= is_beaconing_active << 6;
 	pi->port_states.ledenable_offlinereason |=
 		ppd->offline_disabled_reason;
-#else
-	pi->port_states.offline_reason = ppd->neighbor_normal << 4;
-	pi->port_states.offline_reason |= ppd->is_sm_config_started << 5;
-	pi->port_states.offline_reason |= ppd->offline_disabled_reason;
-#endif /* PI_LED_ENABLE_SUP */
 
 	pi->port_states.portphysstate_portstate =
 		(hfi1_ibphys_portstate(ppd) << 4) | state;
@@ -1752,17 +1746,11 @@ static int __subn_get_opa_psi(struct opa_smp *smp, u32 am, u8 *data,
 	if (start_of_sm_config && (lstate == IB_PORT_INIT))
 		ppd->is_sm_config_started = 1;
 
-#if PI_LED_ENABLE_SUP
 	psi->port_states.ledenable_offlinereason = ppd->neighbor_normal << 4;
 	psi->port_states.ledenable_offlinereason |=
 		ppd->is_sm_config_started << 5;
 	psi->port_states.ledenable_offlinereason |=
 		ppd->offline_disabled_reason;
-#else
-	psi->port_states.offline_reason = ppd->neighbor_normal << 4;
-	psi->port_states.offline_reason |= ppd->is_sm_config_started << 5;
-	psi->port_states.offline_reason |= ppd->offline_disabled_reason;
-#endif /* PI_LED_ENABLE_SUP */
 
 	psi->port_states.portphysstate_portstate =
 		(hfi1_ibphys_portstate(ppd) << 4) | (lstate & 0xf);
@@ -2430,14 +2418,9 @@ static int pma_get_opa_portstatus(struct opa_pma_mad *pmp,
 	rsp->port_rcv_remote_physical_errors =
 		cpu_to_be64(read_dev_cntr(dd, C_DC_RMT_PHY_ERR,
 					  CNTR_INVALID_VL));
-	tmp = read_dev_cntr(dd, C_DC_RX_REPLAY, CNTR_INVALID_VL);
-	tmp2 = tmp + read_dev_cntr(dd, C_DC_TX_REPLAY, CNTR_INVALID_VL);
-	if (tmp2 < tmp) {
-		/* overflow/wrapped */
-		rsp->local_link_integrity_errors = cpu_to_be64(~0);
-	} else {
-		rsp->local_link_integrity_errors = cpu_to_be64(tmp2);
-	}
+	rsp->local_link_integrity_errors =
+		cpu_to_be64(read_dev_cntr(dd, C_DC_RX_REPLAY,
+					  CNTR_INVALID_VL));
 	tmp = read_dev_cntr(dd, C_DC_SEQ_CRC_CNT, CNTR_INVALID_VL);
 	tmp2 = tmp + read_dev_cntr(dd, C_DC_REINIT_FROM_PEER_CNT,
 				   CNTR_INVALID_VL);
@@ -2499,6 +2482,9 @@ static int pma_get_opa_portstatus(struct opa_pma_mad *pmp,
 			cpu_to_be64(read_dev_cntr(dd, C_DC_RCV_BCN_VL,
 						  idx_from_vl(vl)));
 
+		rsp->vls[vfi].port_vl_xmit_discards =
+			cpu_to_be64(read_port_cntr(ppd, C_SW_XMIT_DSCD_VL,
+						   idx_from_vl(vl)));
 		vlinfo++;
 		vfi++;
 	}
@@ -2529,9 +2515,8 @@ static u64 get_error_counter_summary(struct ib_device *ibdev, u8 port,
 	error_counter_summary += read_dev_cntr(dd, C_DC_RMT_PHY_ERR,
 					       CNTR_INVALID_VL);
 	/* local link integrity must be right-shifted by the lli resolution */
-	tmp = read_dev_cntr(dd, C_DC_RX_REPLAY, CNTR_INVALID_VL);
-	tmp += read_dev_cntr(dd, C_DC_TX_REPLAY, CNTR_INVALID_VL);
-	error_counter_summary += (tmp >> res_lli);
+	error_counter_summary += (read_dev_cntr(dd, C_DC_RX_REPLAY,
+						CNTR_INVALID_VL) >> res_lli);
 	/* link error recovery must b right-shifted by the ler resolution */
 	tmp = read_dev_cntr(dd, C_DC_SEQ_CRC_CNT, CNTR_INVALID_VL);
 	tmp += read_dev_cntr(dd, C_DC_REINIT_FROM_PEER_CNT, CNTR_INVALID_VL);
@@ -2800,14 +2785,9 @@ static void pma_get_opa_port_ectrs(struct ib_device *ibdev,
 	rsp->port_rcv_constraint_errors =
 		cpu_to_be64(read_port_cntr(ppd, C_SW_RCV_CSTR_ERR,
 					   CNTR_INVALID_VL));
-	tmp = read_dev_cntr(dd, C_DC_RX_REPLAY, CNTR_INVALID_VL);
-	tmp2 = tmp + read_dev_cntr(dd, C_DC_TX_REPLAY, CNTR_INVALID_VL);
-	if (tmp2 < tmp) {
-		/* overflow/wrapped */
-		rsp->local_link_integrity_errors = cpu_to_be64(~0);
-	} else {
-		rsp->local_link_integrity_errors = cpu_to_be64(tmp2);
-	}
+	rsp->local_link_integrity_errors =
+		cpu_to_be64(read_dev_cntr(dd, C_DC_RX_REPLAY,
+					  CNTR_INVALID_VL));
 	rsp->excessive_buffer_overruns =
 		cpu_to_be64(read_dev_cntr(dd, C_RCV_OVF, CNTR_INVALID_VL));
 }
@@ -2883,14 +2863,17 @@ static int pma_get_opa_porterrors(struct opa_pma_mad *pmp,
 	tmp = read_dev_cntr(dd, C_DC_UNC_ERR, CNTR_INVALID_VL);
 
 	rsp->uncorrectable_errors = tmp < 0x100 ? (tmp & 0xff) : 0xff;
-
+	rsp->port_rcv_errors =
+		cpu_to_be64(read_dev_cntr(dd, C_DC_RCV_ERR, CNTR_INVALID_VL));
 	vlinfo = &rsp->vls[0];
 	vfi = 0;
 	vl_select_mask = be32_to_cpu(req->vl_select_mask);
 	for_each_set_bit(vl, (unsigned long *)&(vl_select_mask),
 			 8 * sizeof(req->vl_select_mask)) {
 		memset(vlinfo, 0, sizeof(*vlinfo));
-		/* vlinfo->vls[vfi].port_vl_xmit_discards ??? */
+		rsp->vls[vfi].port_vl_xmit_discards =
+			cpu_to_be64(read_port_cntr(ppd, C_SW_XMIT_DSCD_VL,
+						   idx_from_vl(vl)));
 		vlinfo += 1;
 		vfi++;
 	}
@@ -3162,10 +3145,8 @@ static int pma_set_opa_portstatus(struct opa_pma_mad *pmp,
 	if (counter_select & CS_PORT_RCV_REMOTE_PHYSICAL_ERRORS)
 		write_dev_cntr(dd, C_DC_RMT_PHY_ERR, CNTR_INVALID_VL, 0);
 
-	if (counter_select & CS_LOCAL_LINK_INTEGRITY_ERRORS) {
-		write_dev_cntr(dd, C_DC_TX_REPLAY, CNTR_INVALID_VL, 0);
+	if (counter_select & CS_LOCAL_LINK_INTEGRITY_ERRORS)
 		write_dev_cntr(dd, C_DC_RX_REPLAY, CNTR_INVALID_VL, 0);
-	}
 
 	if (counter_select & CS_LINK_ERROR_RECOVERY) {
 		write_dev_cntr(dd, C_DC_SEQ_CRC_CNT, CNTR_INVALID_VL, 0);
@@ -3223,7 +3204,9 @@ static int pma_set_opa_portstatus(struct opa_pma_mad *pmp,
 		/* if (counter_select & CS_PORT_MARK_FECN)
 		 *     write_csr(dd, DCC_PRF_PORT_VL_MARK_FECN_CNT + offset, 0);
 		 */
-		/* port_vl_xmit_discards ??? */
+		if (counter_select & C_SW_XMIT_DSCD_VL)
+			write_port_cntr(ppd, C_SW_XMIT_DSCD_VL,
+					idx_from_vl(vl), 0);
 	}
 
 	if (resp_len)
@@ -3392,7 +3375,7 @@ static void apply_cc_state(struct hfi1_pportdata *ppd)
 	 */
 	spin_lock(&ppd->cc_state_lock);
 
-	old_cc_state = get_cc_state(ppd);
+	old_cc_state = get_cc_state_protected(ppd);
 	if (!old_cc_state) {
 		/* never active, or shutting down */
 		spin_unlock(&ppd->cc_state_lock);
@@ -3960,7 +3943,6 @@ void clear_linkup_counters(struct hfi1_devdata *dd)
 	write_dev_cntr(dd, C_DC_SEQ_CRC_CNT, CNTR_INVALID_VL, 0);
 	write_dev_cntr(dd, C_DC_REINIT_FROM_PEER_CNT, CNTR_INVALID_VL, 0);
 	/* LocalLinkIntegrityErrors */
-	write_dev_cntr(dd, C_DC_TX_REPLAY, CNTR_INVALID_VL, 0);
 	write_dev_cntr(dd, C_DC_RX_REPLAY, CNTR_INVALID_VL, 0);
 	/* ExcessiveBufferOverruns */
 	write_dev_cntr(dd, C_RCV_OVF, CNTR_INVALID_VL, 0);

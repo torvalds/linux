@@ -53,8 +53,8 @@ format_is_yuv(uint32_t format)
 	}
 }
 
-static int usecs_to_scanlines(const struct drm_display_mode *adjusted_mode,
-			      int usecs)
+int intel_usecs_to_scanlines(const struct drm_display_mode *adjusted_mode,
+			     int usecs)
 {
 	/* paranoia */
 	if (!adjusted_mode->crtc_htotal)
@@ -80,9 +80,7 @@ static int usecs_to_scanlines(const struct drm_display_mode *adjusted_mode,
  */
 void intel_pipe_update_start(struct intel_crtc *crtc)
 {
-	struct drm_device *dev = crtc->base.dev;
 	const struct drm_display_mode *adjusted_mode = &crtc->config->base.adjusted_mode;
-	enum pipe pipe = crtc->pipe;
 	long timeout = msecs_to_jiffies_timeout(1);
 	int scanline, min, max, vblank_start;
 	wait_queue_head_t *wq = drm_crtc_vblank_waitqueue(&crtc->base);
@@ -93,7 +91,7 @@ void intel_pipe_update_start(struct intel_crtc *crtc)
 		vblank_start = DIV_ROUND_UP(vblank_start, 2);
 
 	/* FIXME needs to be calibrated sensibly */
-	min = vblank_start - usecs_to_scanlines(adjusted_mode, 100);
+	min = vblank_start - intel_usecs_to_scanlines(adjusted_mode, 100);
 	max = vblank_start - 1;
 
 	local_irq_disable();
@@ -139,8 +137,7 @@ void intel_pipe_update_start(struct intel_crtc *crtc)
 
 	crtc->debug.scanline_start = scanline;
 	crtc->debug.start_vbl_time = ktime_get();
-	crtc->debug.start_vbl_count =
-		dev->driver->get_vblank_counter(dev, pipe);
+	crtc->debug.start_vbl_count = intel_crtc_get_vblank_counter(crtc);
 
 	trace_i915_pipe_update_vblank_evaded(crtc);
 }
@@ -154,15 +151,34 @@ void intel_pipe_update_start(struct intel_crtc *crtc)
  * re-enables interrupts and verifies the update was actually completed
  * before a vblank using the value of @start_vbl_count.
  */
-void intel_pipe_update_end(struct intel_crtc *crtc)
+void intel_pipe_update_end(struct intel_crtc *crtc, struct intel_flip_work *work)
 {
-	struct drm_device *dev = crtc->base.dev;
 	enum pipe pipe = crtc->pipe;
 	int scanline_end = intel_get_crtc_scanline(crtc);
-	u32 end_vbl_count = dev->driver->get_vblank_counter(dev, pipe);
+	u32 end_vbl_count = intel_crtc_get_vblank_counter(crtc);
 	ktime_t end_vbl_time = ktime_get();
 
+	if (work) {
+		work->flip_queued_vblank = end_vbl_count;
+		smp_mb__before_atomic();
+		atomic_set(&work->pending, 1);
+	}
+
 	trace_i915_pipe_update_end(crtc, end_vbl_count, scanline_end);
+
+	/* We're still in the vblank-evade critical section, this can't race.
+	 * Would be slightly nice to just grab the vblank count and arm the
+	 * event outside of the critical section - the spinlock might spin for a
+	 * while ... */
+	if (crtc->base.state->event) {
+		WARN_ON(drm_crtc_vblank_get(&crtc->base) != 0);
+
+		spin_lock(&crtc->base.dev->event_lock);
+		drm_crtc_arm_vblank_event(&crtc->base, crtc->base.state->event);
+		spin_unlock(&crtc->base.dev->event_lock);
+
+		crtc->base.state->event = NULL;
+	}
 
 	local_irq_enable();
 
@@ -183,7 +199,7 @@ skl_update_plane(struct drm_plane *drm_plane,
 		 const struct intel_plane_state *plane_state)
 {
 	struct drm_device *dev = drm_plane->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_plane *intel_plane = to_intel_plane(drm_plane);
 	struct drm_framebuffer *fb = plane_state->base.fb;
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
@@ -203,8 +219,6 @@ skl_update_plane(struct drm_plane *drm_plane,
 	uint32_t y = plane_state->src.y1 >> 16;
 	uint32_t src_w = drm_rect_width(&plane_state->src) >> 16;
 	uint32_t src_h = drm_rect_height(&plane_state->src) >> 16;
-	const struct intel_scaler *scaler =
-		&crtc_state->scaler_state.scalers[plane_state->scaler_id];
 
 	plane_ctl = PLANE_CTL_ENABLE |
 		PLANE_CTL_PIPE_GAMMA_ENABLE |
@@ -260,13 +274,16 @@ skl_update_plane(struct drm_plane *drm_plane,
 
 	/* program plane scaler */
 	if (plane_state->scaler_id >= 0) {
-		uint32_t ps_ctrl = 0;
 		int scaler_id = plane_state->scaler_id;
+		const struct intel_scaler *scaler;
 
 		DRM_DEBUG_KMS("plane = %d PS_PLANE_SEL(plane) = 0x%x\n", plane,
 			PS_PLANE_SEL(plane));
-		ps_ctrl = PS_SCALER_EN | PS_PLANE_SEL(plane) | scaler->mode;
-		I915_WRITE(SKL_PS_CTRL(pipe, scaler_id), ps_ctrl);
+
+		scaler = &crtc_state->scaler_state.scalers[scaler_id];
+
+		I915_WRITE(SKL_PS_CTRL(pipe, scaler_id),
+			   PS_SCALER_EN | PS_PLANE_SEL(plane) | scaler->mode);
 		I915_WRITE(SKL_PS_PWR_GATE(pipe, scaler_id), 0);
 		I915_WRITE(SKL_PS_WIN_POS(pipe, scaler_id), (crtc_x << 16) | crtc_y);
 		I915_WRITE(SKL_PS_WIN_SZ(pipe, scaler_id),
@@ -286,7 +303,7 @@ static void
 skl_disable_plane(struct drm_plane *dplane, struct drm_crtc *crtc)
 {
 	struct drm_device *dev = dplane->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_plane *intel_plane = to_intel_plane(dplane);
 	const int pipe = intel_plane->pipe;
 	const int plane = intel_plane->plane + 1;
@@ -300,7 +317,7 @@ skl_disable_plane(struct drm_plane *dplane, struct drm_crtc *crtc)
 static void
 chv_update_csc(struct intel_plane *intel_plane, uint32_t format)
 {
-	struct drm_i915_private *dev_priv = intel_plane->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(intel_plane->base.dev);
 	int plane = intel_plane->plane;
 
 	/* Seems RGB data bypasses the CSC always */
@@ -342,7 +359,7 @@ vlv_update_plane(struct drm_plane *dplane,
 		 const struct intel_plane_state *plane_state)
 {
 	struct drm_device *dev = dplane->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_plane *intel_plane = to_intel_plane(dplane);
 	struct drm_framebuffer *fb = plane_state->base.fb;
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
@@ -468,7 +485,7 @@ static void
 vlv_disable_plane(struct drm_plane *dplane, struct drm_crtc *crtc)
 {
 	struct drm_device *dev = dplane->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_plane *intel_plane = to_intel_plane(dplane);
 	int pipe = intel_plane->pipe;
 	int plane = intel_plane->plane;
@@ -485,7 +502,7 @@ ivb_update_plane(struct drm_plane *plane,
 		 const struct intel_plane_state *plane_state)
 {
 	struct drm_device *dev = plane->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct drm_framebuffer *fb = plane_state->base.fb;
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
@@ -607,7 +624,7 @@ static void
 ivb_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc)
 {
 	struct drm_device *dev = plane->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	int pipe = intel_plane->pipe;
 
@@ -626,7 +643,7 @@ ilk_update_plane(struct drm_plane *plane,
 		 const struct intel_plane_state *plane_state)
 {
 	struct drm_device *dev = plane->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct drm_framebuffer *fb = plane_state->base.fb;
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
@@ -736,7 +753,7 @@ static void
 ilk_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc)
 {
 	struct drm_device *dev = plane->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	int pipe = intel_plane->pipe;
 
@@ -1111,10 +1128,18 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane)
 
 	possible_crtcs = (1 << pipe);
 
-	ret = drm_universal_plane_init(dev, &intel_plane->base, possible_crtcs,
-				       &intel_plane_funcs,
-				       plane_formats, num_plane_formats,
-				       DRM_PLANE_TYPE_OVERLAY, NULL);
+	if (INTEL_INFO(dev)->gen >= 9)
+		ret = drm_universal_plane_init(dev, &intel_plane->base, possible_crtcs,
+					       &intel_plane_funcs,
+					       plane_formats, num_plane_formats,
+					       DRM_PLANE_TYPE_OVERLAY,
+					       "plane %d%c", plane + 2, pipe_name(pipe));
+	else
+		ret = drm_universal_plane_init(dev, &intel_plane->base, possible_crtcs,
+					       &intel_plane_funcs,
+					       plane_formats, num_plane_formats,
+					       DRM_PLANE_TYPE_OVERLAY,
+					       "sprite %c", sprite_name(pipe, plane));
 	if (ret)
 		goto fail;
 

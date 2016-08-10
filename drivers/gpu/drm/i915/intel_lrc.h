@@ -57,6 +57,11 @@
 #define GEN8_CSB_READ_PTR(csb_status) \
 	(((csb_status) & GEN8_CSB_READ_PTR_MASK) >> 8)
 
+enum {
+	INTEL_CONTEXT_SCHEDULE_IN = 0,
+	INTEL_CONTEXT_SCHEDULE_OUT,
+};
+
 /* Logical Rings */
 int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request);
 int intel_logical_ring_reserve_space(struct drm_i915_gem_request *request);
@@ -99,30 +104,27 @@ static inline void intel_logical_ring_emit_reg(struct intel_ringbuffer *ringbuf,
 #define LRC_PPHWSP_PN	(LRC_GUCSHR_PN + 1)
 #define LRC_STATE_PN	(LRC_PPHWSP_PN + 1)
 
-void intel_lr_context_free(struct intel_context *ctx);
+struct i915_gem_context;
+
 uint32_t intel_lr_context_size(struct intel_engine_cs *engine);
-int intel_lr_context_deferred_alloc(struct intel_context *ctx,
-				    struct intel_engine_cs *engine);
-void intel_lr_context_unpin(struct intel_context *ctx,
+void intel_lr_context_unpin(struct i915_gem_context *ctx,
 			    struct intel_engine_cs *engine);
 
 struct drm_i915_private;
 
 void intel_lr_context_reset(struct drm_i915_private *dev_priv,
-			    struct intel_context *ctx);
-uint64_t intel_lr_context_descriptor(struct intel_context *ctx,
+			    struct i915_gem_context *ctx);
+uint64_t intel_lr_context_descriptor(struct i915_gem_context *ctx,
 				     struct intel_engine_cs *engine);
 
-u32 intel_execlists_ctx_id(struct intel_context *ctx,
-			   struct intel_engine_cs *engine);
-
 /* Execlists */
-int intel_sanitize_enable_execlists(struct drm_device *dev, int enable_execlists);
+int intel_sanitize_enable_execlists(struct drm_i915_private *dev_priv,
+				    int enable_execlists);
 struct i915_execbuffer_params;
 int intel_execlists_submission(struct i915_execbuffer_params *params,
 			       struct drm_i915_gem_execbuffer2 *args,
 			       struct list_head *vmas);
 
-void intel_execlists_retire_requests(struct intel_engine_cs *engine);
+void intel_execlists_cancel_requests(struct intel_engine_cs *engine);
 
 #endif /* _INTEL_LRC_H_ */

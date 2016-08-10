@@ -788,7 +788,7 @@ static void check_if_tick_bio_needed(struct cache *cache, struct bio *bio)
 
 	spin_lock_irqsave(&cache->lock, flags);
 	if (cache->need_tick_bio &&
-	    !(bio->bi_rw & (REQ_FUA | REQ_PREFLUSH)) &&
+	    !(bio->bi_opf & (REQ_FUA | REQ_PREFLUSH)) &&
 	    bio_op(bio) != REQ_OP_DISCARD) {
 		pb->tick = true;
 		cache->need_tick_bio = false;
@@ -830,7 +830,7 @@ static dm_oblock_t get_bio_block(struct cache *cache, struct bio *bio)
 
 static int bio_triggers_commit(struct cache *cache, struct bio *bio)
 {
-	return bio->bi_rw & (REQ_PREFLUSH | REQ_FUA);
+	return bio->bi_opf & (REQ_PREFLUSH | REQ_FUA);
 }
 
 /*
@@ -1069,7 +1069,7 @@ static void dec_io_migrations(struct cache *cache)
 static bool discard_or_flush(struct bio *bio)
 {
 	return bio_op(bio) == REQ_OP_DISCARD ||
-	       bio->bi_rw & (REQ_PREFLUSH | REQ_FUA);
+	       bio->bi_opf & (REQ_PREFLUSH | REQ_FUA);
 }
 
 static void __cell_defer(struct cache *cache, struct dm_bio_prison_cell *cell)
@@ -1980,7 +1980,7 @@ static void process_deferred_bios(struct cache *cache)
 
 		bio = bio_list_pop(&bios);
 
-		if (bio->bi_rw & REQ_PREFLUSH)
+		if (bio->bi_opf & REQ_PREFLUSH)
 			process_flush_bio(cache, bio);
 		else if (bio_op(bio) == REQ_OP_DISCARD)
 			process_discard_bio(cache, &structs, bio);

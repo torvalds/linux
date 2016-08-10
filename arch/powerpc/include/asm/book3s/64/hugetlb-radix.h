@@ -11,4 +11,19 @@ extern unsigned long
 radix__hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 				unsigned long len, unsigned long pgoff,
 				unsigned long flags);
+
+static inline int hstate_get_psize(struct hstate *hstate)
+{
+	unsigned long shift;
+
+	shift = huge_page_shift(hstate);
+	if (shift == mmu_psize_defs[MMU_PAGE_2M].shift)
+		return MMU_PAGE_2M;
+	else if (shift == mmu_psize_defs[MMU_PAGE_1G].shift)
+		return MMU_PAGE_1G;
+	else {
+		WARN(1, "Wrong huge page shift\n");
+		return mmu_virtual_psize;
+	}
+}
 #endif

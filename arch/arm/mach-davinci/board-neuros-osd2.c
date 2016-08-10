@@ -127,8 +127,6 @@ static struct platform_device davinci_fb_device = {
 	.num_resources = 0,
 };
 
-static struct snd_platform_data dm644x_ntosd2_snd_data;
-
 static struct gpio_led ntosd2_leds[] = {
 	{ .name = "led1_green", .gpio = GPIO(10), },
 	{ .name = "led1_red",   .gpio = GPIO(11), },
@@ -200,7 +198,7 @@ static __init void davinci_ntosd2_init(void)
 				ARRAY_SIZE(davinci_ntosd2_devices));
 
 	davinci_serial_init(dm644x_serial_device);
-	dm644x_init_asp(&dm644x_ntosd2_snd_data);
+	dm644x_init_asp();
 
 	soc_info->emac_pdata->phy_id = NEUROS_OSD2_PHY_ID;
 

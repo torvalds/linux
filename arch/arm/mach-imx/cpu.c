@@ -10,8 +10,6 @@
 #include "common.h"
 
 unsigned int __mxc_cpu_type;
-EXPORT_SYMBOL(__mxc_cpu_type);
-
 static unsigned int imx_soc_revision;
 
 void mxc_set_cpu_type(unsigned int type)

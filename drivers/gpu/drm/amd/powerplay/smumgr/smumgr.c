@@ -23,6 +23,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <drm/amdgpu_drm.h>
 #include "pp_instance.h"
 #include "smumgr.h"
 #include "cgs_common.h"
@@ -52,10 +53,10 @@ int smum_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 	handle->smu_mgr = smumgr;
 
 	switch (smumgr->chip_family) {
-	case AMD_FAMILY_CZ:
+	case AMDGPU_FAMILY_CZ:
 		cz_smum_init(smumgr);
 		break;
-	case AMD_FAMILY_VI:
+	case AMDGPU_FAMILY_VI:
 		switch (smumgr->chip_id) {
 		case CHIP_TONGA:
 			tonga_smum_init(smumgr);

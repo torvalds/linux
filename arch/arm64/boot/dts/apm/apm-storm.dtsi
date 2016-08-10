@@ -199,16 +199,6 @@
 				clock-output-names = "sdioclk";
 			};
 
-			qmlclk: qmlclk {
-				compatible = "apm,xgene-device-clock";
-				#clock-cells = <1>;
-				clocks = <&socplldiv2 0>;
-				clock-names = "qmlclk";
-				reg = <0x0 0x1703C000 0x0 0x1000>;
-				reg-names = "csr-reg";
-				clock-output-names = "qmlclk";
-			};
-
 			ethclk: ethclk {
 				compatible = "apm,xgene-device-clock";
 				#clock-cells = <1>;
@@ -226,7 +216,7 @@
 				compatible = "apm,xgene-device-clock";
 				#clock-cells = <1>;
 				clocks = <&ethclk 0>;
-				reg = <0x0 0x1702C000 0x0 0x1000>;
+				reg = <0x0 0x1702c000 0x0 0x1000>;
 				reg-names = "csr-reg";
 				clock-output-names = "menetclk";
 			};
@@ -924,8 +914,8 @@
 			compatible = "apm,xgene-enet";
 			status = "disabled";
 			reg = <0x0 0x17020000 0x0 0xd100>,
-			      <0x0 0X17030000 0x0 0Xc300>,
-			      <0x0 0X10000000 0x0 0X200>;
+			      <0x0 0x17030000 0x0 0xc300>,
+			      <0x0 0x10000000 0x0 0x200>;
 			reg-names = "enet_csr", "ring_csr", "ring_cmd";
 			interrupts = <0x0 0x3c 0x4>;
 			dma-coherent;
@@ -950,11 +940,11 @@
 			compatible = "apm,xgene1-sgenet";
 			status = "disabled";
 			reg = <0x0 0x1f210000 0x0 0xd100>,
-			      <0x0 0x1f200000 0x0 0Xc300>,
-			      <0x0 0x1B000000 0x0 0X200>;
+			      <0x0 0x1f200000 0x0 0xc300>,
+			      <0x0 0x1b000000 0x0 0x200>;
 			reg-names = "enet_csr", "ring_csr", "ring_cmd";
-			interrupts = <0x0 0xA0 0x4>,
-				     <0x0 0xA1 0x4>;
+			interrupts = <0x0 0xa0 0x4>,
+				     <0x0 0xa1 0x4>;
 			dma-coherent;
 			clocks = <&sge0clk 0>;
 			local-mac-address = [00 00 00 00 00 00];
@@ -966,11 +956,11 @@
 			compatible = "apm,xgene1-sgenet";
 			status = "disabled";
 			reg = <0x0 0x1f210030 0x0 0xd100>,
-			      <0x0 0x1f200000 0x0 0Xc300>,
-			      <0x0 0x1B000000 0x0 0X8000>;
+			      <0x0 0x1f200000 0x0 0xc300>,
+			      <0x0 0x1b000000 0x0 0x8000>;
 			reg-names = "enet_csr", "ring_csr", "ring_cmd";
-			interrupts = <0x0 0xAC 0x4>,
-				     <0x0 0xAD 0x4>;
+			interrupts = <0x0 0xac 0x4>,
+				     <0x0 0xad 0x4>;
 			port-id = <1>;
 			dma-coherent;
 			local-mac-address = [00 00 00 00 00 00];
@@ -982,8 +972,8 @@
 			compatible = "apm,xgene1-xgenet";
 			status = "disabled";
 			reg = <0x0 0x1f610000 0x0 0xd100>,
-			      <0x0 0x1f600000 0x0 0Xc300>,
-			      <0x0 0x18000000 0x0 0X200>;
+			      <0x0 0x1f600000 0x0 0xc300>,
+			      <0x0 0x18000000 0x0 0x200>;
 			reg-names = "enet_csr", "ring_csr", "ring_cmd";
 			interrupts = <0x0 0x60 0x4>,
 				     <0x0 0x61 0x4>,
@@ -1005,11 +995,11 @@
 			compatible = "apm,xgene1-xgenet";
 			status = "disabled";
 			reg = <0x0 0x1f620000 0x0 0xd100>,
-			      <0x0 0x1f600000 0x0 0Xc300>,
-			      <0x0 0x18000000 0x0 0X8000>;
+			      <0x0 0x1f600000 0x0 0xc300>,
+			      <0x0 0x18000000 0x0 0x8000>;
 			reg-names = "enet_csr", "ring_csr", "ring_cmd";
-			interrupts = <0x0 0x6C 0x4>,
-				     <0x0 0x6D 0x4>;
+			interrupts = <0x0 0x6c 0x4>,
+				     <0x0 0x6d 0x4>;
 			port-id = <1>;
 			dma-coherent;
 			clocks = <&xge1clk 0>;

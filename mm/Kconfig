@@ -187,6 +187,7 @@ config MEMORY_HOTPLUG
 	bool "Allow for memory hot-add"
 	depends on SPARSEMEM || X86_64_ACPI_NUMA
 	depends on ARCH_ENABLE_MEMORY_HOTPLUG
+	depends on !KASAN
 
 config MEMORY_HOTPLUG_SPARSE
 	def_bool y

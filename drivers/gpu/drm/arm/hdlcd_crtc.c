@@ -196,30 +196,11 @@ static void hdlcd_crtc_atomic_begin(struct drm_crtc *crtc,
 	}
 }
 
-static void hdlcd_crtc_atomic_flush(struct drm_crtc *crtc,
-				    struct drm_crtc_state *state)
-{
-}
-
-static bool hdlcd_crtc_mode_fixup(struct drm_crtc *crtc,
-			const struct drm_display_mode *mode,
-			struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
 static const struct drm_crtc_helper_funcs hdlcd_crtc_helper_funcs = {
-	.mode_fixup	= hdlcd_crtc_mode_fixup,
-	.mode_set	= drm_helper_crtc_mode_set,
-	.mode_set_base	= drm_helper_crtc_mode_set_base,
-	.mode_set_nofb	= hdlcd_crtc_mode_set_nofb,
 	.enable		= hdlcd_crtc_enable,
 	.disable	= hdlcd_crtc_disable,
-	.prepare	= hdlcd_crtc_disable,
-	.commit		= hdlcd_crtc_enable,
 	.atomic_check	= hdlcd_crtc_atomic_check,
 	.atomic_begin	= hdlcd_crtc_atomic_begin,
-	.atomic_flush	= hdlcd_crtc_atomic_flush,
 };
 
 static int hdlcd_plane_atomic_check(struct drm_plane *plane,

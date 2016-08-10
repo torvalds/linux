@@ -97,8 +97,6 @@ int v9fs_xattr_set(struct dentry *dentry, const char *name,
 		   const void *value, size_t value_len, int flags)
 {
 	struct p9_fid *fid = v9fs_fid_lookup(dentry);
-	if (IS_ERR(fid))
-		return PTR_ERR(fid);
 	return v9fs_fid_xattr_set(fid, name, value, value_len, flags);
 }
 
@@ -115,7 +113,7 @@ int v9fs_fid_xattr_set(struct p9_fid *fid, const char *name,
 		 name, value_len, flags);
 
 	/* Clone it */
-	fid = p9_client_walk(fid, 0, NULL, 1);
+	fid = clone_fid(fid);
 	if (IS_ERR(fid))
 		return PTR_ERR(fid);
 

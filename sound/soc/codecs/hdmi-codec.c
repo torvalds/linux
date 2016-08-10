@@ -112,7 +112,7 @@ static int hdmi_codec_startup(struct snd_pcm_substream *substream,
 		return ret;
 
 	if (hcp->hcd.ops->audio_startup) {
-		ret = hcp->hcd.ops->audio_startup(dai->dev->parent);
+		ret = hcp->hcd.ops->audio_startup(dai->dev->parent, hcp->hcd.data);
 		if (ret) {
 			mutex_lock(&hcp->current_stream_lock);
 			hcp->current_stream = NULL;
@@ -122,8 +122,8 @@ static int hdmi_codec_startup(struct snd_pcm_substream *substream,
 	}
 
 	if (hcp->hcd.ops->get_eld) {
-		ret = hcp->hcd.ops->get_eld(dai->dev->parent, hcp->eld,
-					    sizeof(hcp->eld));
+		ret = hcp->hcd.ops->get_eld(dai->dev->parent, hcp->hcd.data,
+					    hcp->eld, sizeof(hcp->eld));
 
 		if (!ret) {
 			ret = snd_pcm_hw_constraint_eld(substream->runtime,
@@ -144,7 +144,7 @@ static void hdmi_codec_shutdown(struct snd_pcm_substream *substream,
 
 	WARN_ON(hcp->current_stream != substream);
 
-	hcp->hcd.ops->audio_shutdown(dai->dev->parent);
+	hcp->hcd.ops->audio_shutdown(dai->dev->parent, hcp->hcd.data);
 
 	mutex_lock(&hcp->current_stream_lock);
 	hcp->current_stream = NULL;
@@ -195,8 +195,8 @@ static int hdmi_codec_hw_params(struct snd_pcm_substream *substream,
 	hp.sample_rate = params_rate(params);
 	hp.channels = params_channels(params);
 
-	return hcp->hcd.ops->hw_params(dai->dev->parent, &hcp->daifmt[dai->id],
-				       &hp);
+	return hcp->hcd.ops->hw_params(dai->dev->parent, hcp->hcd.data,
+				       &hcp->daifmt[dai->id], &hp);
 }
 
 static int hdmi_codec_set_fmt(struct snd_soc_dai *dai,
@@ -280,7 +280,8 @@ static int hdmi_codec_digital_mute(struct snd_soc_dai *dai, int mute)
 	dev_dbg(dai->dev, "%s()\n", __func__);
 
 	if (hcp->hcd.ops->digital_mute)
-		return hcp->hcd.ops->digital_mute(dai->dev->parent, mute);
+		return hcp->hcd.ops->digital_mute(dai->dev->parent,
+						  hcp->hcd.data, mute);
 
 	return 0;
 }

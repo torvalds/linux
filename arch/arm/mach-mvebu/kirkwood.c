@@ -150,7 +150,7 @@ eth_fixup_skip:
  * causes mbus errors (which can occur for example for PCI aborts) to
  * throw CPU aborts, which we're not set up to deal with.
  */
-void kirkwood_disable_mbus_error_propagation(void)
+static void kirkwood_disable_mbus_error_propagation(void)
 {
 	void __iomem *cpu_config;
 

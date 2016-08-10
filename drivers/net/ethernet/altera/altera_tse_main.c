@@ -815,6 +815,7 @@ static int init_phy(struct net_device *dev)
 		phydev = of_phy_connect(dev, phynode,
 			&altera_tse_adjust_link, 0, priv->phy_iface);
 	}
+	of_node_put(phynode);
 
 	if (!phydev) {
 		netdev_err(dev, "Could not find the PHY\n");

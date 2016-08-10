@@ -109,13 +109,6 @@ static inline void *sdhci_pltfm_priv(struct sdhci_pltfm_host *host)
 	return (void *)host->private;
 }
 
-#ifdef CONFIG_PM
-extern int sdhci_pltfm_suspend(struct device *dev);
-extern int sdhci_pltfm_resume(struct device *dev);
 extern const struct dev_pm_ops sdhci_pltfm_pmops;
-#define SDHCI_PLTFM_PMOPS (&sdhci_pltfm_pmops)
-#else
-#define SDHCI_PLTFM_PMOPS NULL
-#endif
 
 #endif /* _DRIVERS_MMC_SDHCI_PLTFM_H */

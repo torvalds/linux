@@ -487,6 +487,7 @@ static void ade_crtc_enable(struct drm_crtc *crtc)
 	ade_set_medianoc_qos(acrtc);
 	ade_display_enable(acrtc);
 	ade_dump_regs(ctx->base);
+	drm_crtc_vblank_on(crtc);
 	acrtc->enable = true;
 }
 
@@ -498,15 +499,9 @@ static void ade_crtc_disable(struct drm_crtc *crtc)
 	if (!acrtc->enable)
 		return;
 
+	drm_crtc_vblank_off(crtc);
 	ade_power_down(ctx);
 	acrtc->enable = false;
-}
-
-static int ade_crtc_atomic_check(struct drm_crtc *crtc,
-				 struct drm_crtc_state *state)
-{
-	/* do nothing */
-	return 0;
 }
 
 static void ade_crtc_mode_set_nofb(struct drm_crtc *crtc)
@@ -537,6 +532,7 @@ static void ade_crtc_atomic_flush(struct drm_crtc *crtc,
 {
 	struct ade_crtc *acrtc = to_ade_crtc(crtc);
 	struct ade_hw_ctx *ctx = acrtc->ctx;
+	struct drm_pending_vblank_event *event = crtc->state->event;
 	void __iomem *base = ctx->base;
 
 	/* only crtc is enabled regs take effect */
@@ -545,12 +541,22 @@ static void ade_crtc_atomic_flush(struct drm_crtc *crtc,
 		/* flush ade registers */
 		writel(ADE_ENABLE, base + ADE_EN);
 	}
+
+	if (event) {
+		crtc->state->event = NULL;
+
+		spin_lock_irq(&crtc->dev->event_lock);
+		if (drm_crtc_vblank_get(crtc) == 0)
+			drm_crtc_arm_vblank_event(crtc, event);
+		else
+			drm_crtc_send_vblank_event(crtc, event);
+		spin_unlock_irq(&crtc->dev->event_lock);
+	}
 }
 
 static const struct drm_crtc_helper_funcs ade_crtc_helper_funcs = {
 	.enable		= ade_crtc_enable,
 	.disable	= ade_crtc_disable,
-	.atomic_check	= ade_crtc_atomic_check,
 	.mode_set_nofb	= ade_crtc_mode_set_nofb,
 	.atomic_begin	= ade_crtc_atomic_begin,
 	.atomic_flush	= ade_crtc_atomic_flush,
@@ -961,21 +967,21 @@ static int ade_dts_parse(struct platform_device *pdev, struct ade_hw_ctx *ctx)
 	}
 
 	ctx->ade_core_clk = devm_clk_get(dev, "clk_ade_core");
-	if (!ctx->ade_core_clk) {
+	if (IS_ERR(ctx->ade_core_clk)) {
 		DRM_ERROR("failed to parse clk ADE_CORE\n");
-		return -ENODEV;
+		return PTR_ERR(ctx->ade_core_clk);
 	}
 
 	ctx->media_noc_clk = devm_clk_get(dev, "clk_codec_jpeg");
-	if (!ctx->media_noc_clk) {
+	if (IS_ERR(ctx->media_noc_clk)) {
 		DRM_ERROR("failed to parse clk CODEC_JPEG\n");
-	    return -ENODEV;
+		return PTR_ERR(ctx->media_noc_clk);
 	}
 
 	ctx->ade_pix_clk = devm_clk_get(dev, "clk_ade_pix");
-	if (!ctx->ade_pix_clk) {
+	if (IS_ERR(ctx->ade_pix_clk)) {
 		DRM_ERROR("failed to parse clk ADE_PIX\n");
-	    return -ENODEV;
+		return PTR_ERR(ctx->ade_pix_clk);
 	}
 
 	return 0;

@@ -231,7 +231,7 @@ static int proc_bus_pci_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct pci_dev *dev = PDE_DATA(file_inode(file));
 	struct pci_filp_private *fpriv = file->private_data;
-	int i, ret;
+	int i, ret, write_combine;
 
 	if (!capable(CAP_SYS_RAWIO))
 		return -EPERM;
@@ -245,9 +245,12 @@ static int proc_bus_pci_mmap(struct file *file, struct vm_area_struct *vma)
 	if (i >= PCI_ROM_RESOURCE)
 		return -ENODEV;
 
+	if (fpriv->mmap_state == pci_mmap_mem)
+		write_combine = fpriv->write_combine;
+	else
+		write_combine = 0;
 	ret = pci_mmap_page_range(dev, vma,
-				  fpriv->mmap_state,
-				  fpriv->write_combine);
+				  fpriv->mmap_state, write_combine);
 	if (ret < 0)
 		return ret;
 

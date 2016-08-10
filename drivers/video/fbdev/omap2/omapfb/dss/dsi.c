@@ -42,7 +42,7 @@
 #include <linux/of_platform.h>
 #include <linux/component.h>
 
-#include <video/omapdss.h>
+#include <video/omapfb_dss.h>
 #include <video/mipi_display.h>
 
 #include "dss.h"

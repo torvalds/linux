@@ -183,7 +183,7 @@ static void st_mmcss_cconfig(struct device_node *np, struct sdhci_host *host)
 
 	writel_relaxed(cconf2, host->ioaddr + ST_MMC_CCONFIG_REG_2);
 
-	if (mhost->caps & MMC_CAP_NONREMOVABLE)
+	if (!mmc_card_is_removable(mhost))
 		cconf3 |= ST_MMC_CCONFIG_EMMC_SLOT_TYPE;
 	else
 		/* CARD _D ET_CTRL */

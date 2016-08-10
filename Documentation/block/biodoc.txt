@@ -269,7 +269,7 @@ Arjan's proposed request priority scheme allows higher levels some broad
   requests which haven't aged too much on the queue. Potentially this priority
   could even be exposed to applications in some manner, providing higher level
   tunability. Time based aging avoids starvation of lower priority
-  requests. Some bits in the bi_rw flags field in the bio structure are
+  requests. Some bits in the bi_opf flags field in the bio structure are
   intended to be used for this priority information.
 
 
@@ -432,7 +432,7 @@ struct bio {
        struct bio          *bi_next;    /* request queue link */
        struct block_device *bi_bdev;	/* target device */
        unsigned long       bi_flags;    /* status, command, etc */
-       unsigned long       bi_rw;       /* low bits: r/w, high: priority */
+       unsigned long       bi_opf;       /* low bits: r/w, high: priority */
 
        unsigned int	bi_vcnt;     /* how may bio_vec's */
        struct bvec_iter	bi_iter;	/* current index into bio_vec array */

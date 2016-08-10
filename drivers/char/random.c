@@ -249,6 +249,7 @@
 #include <linux/genhd.h>
 #include <linux/interrupt.h>
 #include <linux/mm.h>
+#include <linux/nodemask.h>
 #include <linux/spinlock.h>
 #include <linux/kthread.h>
 #include <linux/percpu.h>
@@ -1656,7 +1657,6 @@ static int rand_initialize(void)
 {
 #ifdef CONFIG_NUMA
 	int i;
-	int num_nodes = num_possible_nodes();
 	struct crng_state *crng;
 	struct crng_state **pool;
 #endif
@@ -1666,8 +1666,7 @@ static int rand_initialize(void)
 	crng_initialize(&primary_crng);
 
 #ifdef CONFIG_NUMA
-	pool = kmalloc(num_nodes * sizeof(void *),
-		       GFP_KERNEL|__GFP_NOFAIL|__GFP_ZERO);
+	pool = kcalloc(nr_node_ids, sizeof(*pool), GFP_KERNEL|__GFP_NOFAIL);
 	for_each_online_node(i) {
 		crng = kmalloc_node(sizeof(struct crng_state),
 				    GFP_KERNEL | __GFP_NOFAIL, i);
