@@ -1110,7 +1110,7 @@ static int stmpe_chip_init(struct stmpe *stmpe)
 
 	if (stmpe->irq >= 0) {
 		if (id == STMPE801_ID)
-			icr = STMPE801_REG_SYS_CTRL_INT_EN;
+			icr = STMPE_SYS_CTRL_INT_EN;
 		else
 			icr = STMPE_ICR_LSB_GIM;
 
@@ -1124,7 +1124,7 @@ static int stmpe_chip_init(struct stmpe *stmpe)
 		if (irq_trigger == IRQF_TRIGGER_RISING ||
 				irq_trigger == IRQF_TRIGGER_HIGH) {
 			if (id == STMPE801_ID)
-				icr |= STMPE801_REG_SYS_CTRL_INT_HI;
+				icr |= STMPE_SYS_CTRL_INT_HI;
 			else
 				icr |= STMPE_ICR_LSB_HIGH;
 		}

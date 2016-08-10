@@ -105,6 +105,8 @@ int stmpe_remove(struct stmpe *stmpe);
 #define STMPE_ICR_LSB_GIM	(1 << 0)
 
 #define STMPE_SYS_CTRL_RESET	(1 << 7)
+#define STMPE_SYS_CTRL_INT_EN	(1 << 2)
+#define STMPE_SYS_CTRL_INT_HI	(1 << 0)
 
 /*
  * STMPE801
@@ -120,10 +122,6 @@ int stmpe_remove(struct stmpe *stmpe);
 #define STMPE801_REG_GPIO_MP_STA	0x10
 #define STMPE801_REG_GPIO_SET_PIN	0x11
 #define STMPE801_REG_GPIO_DIR		0x12
-
-#define STMPE801_REG_SYS_CTRL_RESET	(1 << 7)
-#define STMPE801_REG_SYS_CTRL_INT_EN	(1 << 2)
-#define STMPE801_REG_SYS_CTRL_INT_HI	(1 << 0)
 
 /*
  * STMPE811
