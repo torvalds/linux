@@ -1284,8 +1284,9 @@ void page_add_file_rmap(struct page *page, bool compound)
 		VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
 		__inc_node_page_state(page, NR_SHMEM_PMDMAPPED);
 	} else {
-		if (PageTransCompound(page)) {
-			VM_BUG_ON_PAGE(!PageLocked(page), page);
+		if (PageTransCompound(page) && page_mapping(page)) {
+			VM_WARN_ON_ONCE(!PageLocked(page));
+
 			SetPageDoubleMap(compound_head(page));
 			if (PageMlocked(page))
 				clear_page_mlock(compound_head(page));
