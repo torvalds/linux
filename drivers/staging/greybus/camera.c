@@ -848,7 +848,7 @@ static int gb_camera_request_handler(struct gb_operation *op)
 }
 
 /* -----------------------------------------------------------------------------
- * Interface with HOST ara camera.
+ * Interface with HOST gmp camera.
  */
 static unsigned int gb_camera_mbus_to_gb(enum v4l2_mbus_pixelcode mbus_code)
 {
