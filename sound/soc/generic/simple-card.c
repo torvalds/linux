@@ -309,17 +309,7 @@ static int asoc_simple_card_dai_link_of(struct device_node *node,
 		dai_link->codec_dai_name,
 		dai_props->codec_dai.sysclk);
 
-	/*
-	 * In soc_bind_dai_link() will check cpu name after
-	 * of_node matching if dai_link has cpu_dai_name.
-	 * but, it will never match if name was created by
-	 * fmt_single_name() remove cpu_dai_name if cpu_args
-	 * was 0. See:
-	 *	fmt_single_name()
-	 *	fmt_multiple_name()
-	 */
-	if (single_cpu)
-		dai_link->cpu_dai_name = NULL;
+	asoc_simple_card_canonicalize_cpu(dai_link, single_cpu);
 
 dai_link_of_err:
 	of_node_put(cpu);
