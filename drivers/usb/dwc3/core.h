@@ -182,12 +182,7 @@
 #define DWC3_GUSB2PHYCFG_U2_FREECLK_EXISTS	(1 << 30)
 #define DWC3_GUSB2PHYCFG_SUSPHY		(1 << 6)
 #define DWC3_GUSB2PHYCFG_ULPI_UTMI	(1 << 4)
-#define DWC3_GUSB2PHYCFG_PHYIF		(1 << 3)
 #define DWC3_GUSB2PHYCFG_ENBLSLPM	(1 << 8)
-#define DWC3_GUSB2PHYCFG_USBTRDTIM_MASK	(0xf << 10)
-#define DWC3_GUSB2PHYCFG_USBTRDTIM_SHIFT	10
-#define USBTRDTIM_UTMI_8_BIT		9
-#define USBTRDTIM_UTMI_16_BIT		5
 
 /* Global USB2 PHY Vendor Control Register */
 #define DWC3_GUSB2PHYACC_NEWREGREQ	(1 << 25)
@@ -720,8 +715,6 @@ struct dwc3_scratchpad_array {
  * @start_config_issued: true when StartConfig command has been issued
  * @three_stage_setup: set if we perform a three phase setup
  * @usb3_lpm_capable: set if hadrware supports Link Power Management
- * @phyif_utmi_16_bits: set if configure the core to support UTMI+ PHY
- *			with an 16-bit interface
  * @disable_scramble_quirk: set if we enable the disable scramble quirk
  * @u2exit_lfps_quirk: set if we enable u2exit lfps quirk
  * @u2ss_inp3_quirk: set if we enable P3 OK for U2/SS Inactive quirk
@@ -870,7 +863,6 @@ struct dwc3 {
 	unsigned		setup_packet_pending:1;
 	unsigned		three_stage_setup:1;
 	unsigned		usb3_lpm_capable:1;
-	unsigned		phyif_utmi_16_bits:1;
 
 	unsigned		disable_scramble_quirk:1;
 	unsigned		u2exit_lfps_quirk:1;
