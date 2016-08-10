@@ -1167,6 +1167,19 @@ static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
 	return r;
 }
 
+bool kvm_arch_intc_initialized(struct kvm *kvm)
+{
+#ifdef CONFIG_KVM_MPIC
+	if (kvm->arch.mpic)
+		return true;
+#endif
+#ifdef CONFIG_KVM_XICS
+	if (kvm->arch.xics)
+		return true;
+#endif
+	return false;
+}
+
 int kvm_arch_vcpu_ioctl_get_mpstate(struct kvm_vcpu *vcpu,
                                     struct kvm_mp_state *mp_state)
 {

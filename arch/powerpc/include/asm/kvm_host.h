@@ -43,6 +43,8 @@
 #include <asm/cputhreads.h>
 #define KVM_MAX_VCPU_ID                (threads_per_subcore * KVM_MAX_VCORES)
 
+#define __KVM_HAVE_ARCH_INTC_INITIALIZED
+
 #ifdef CONFIG_KVM_MMIO
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 1
 #endif
