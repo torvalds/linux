@@ -180,29 +180,6 @@ int kernfs_name(struct kernfs_node *kn, char *buf, size_t buflen)
 }
 
 /**
- * kernfs_path_len - determine the length of the full path of a given node
- * @kn: kernfs_node of interest
- *
- * The returned length doesn't include the space for the terminating '\0'.
- */
-size_t kernfs_path_len(struct kernfs_node *kn)
-{
-	size_t len = 0;
-	unsigned long flags;
-
-	spin_lock_irqsave(&kernfs_rename_lock, flags);
-
-	do {
-		len += strlen(kn->name) + 1;
-		kn = kn->parent;
-	} while (kn && kn->parent);
-
-	spin_unlock_irqrestore(&kernfs_rename_lock, flags);
-
-	return len;
-}
-
-/**
  * kernfs_path_from_node - build path of node @to relative to @from.
  * @from: parent kernfs_node relative to which we need to build the path
  * @to: kernfs_node of interest
